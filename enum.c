@@ -11,66 +11,26 @@
  *
  */
 
-#include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/nameser.h>
 #include <resolv.h>
-#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
 #include <regex.h>
-
+#include <unistd.h>
+#include <errno.h>
 
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
 #include <asterisk/enum.h>
+#include <asterisk/dns.h>
 #include <asterisk/channel.h>
 #include <asterisk/config.h>
 
-#define MAX_SIZE 4096
-
 #define TOPLEV "e164.arpa."
-
-typedef struct {
-	unsigned	id :16;		/* query identification number */
-#if BYTE_ORDER == BIG_ENDIAN
-			/* fields in third byte */
-	unsigned	qr: 1;		/* response flag */
-	unsigned	opcode: 4;	/* purpose of message */
-	unsigned	aa: 1;		/* authoritive answer */
-	unsigned	tc: 1;		/* truncated message */
-	unsigned	rd: 1;		/* recursion desired */
-			/* fields in fourth byte */
-	unsigned	ra: 1;		/* recursion available */
-	unsigned	unused :1;	/* unused bits (MBZ as of 4.9.3a3) */
-	unsigned	ad: 1;		/* authentic data from named */
-	unsigned	cd: 1;		/* checking disabled by resolver */
-	unsigned	rcode :4;	/* response code */
-#endif
-#if BYTE_ORDER == LITTLE_ENDIAN || BYTE_ORDER == PDP_ENDIAN
-			/* fields in third byte */
-	unsigned	rd :1;		/* recursion desired */
-	unsigned	tc :1;		/* truncated message */
-	unsigned	aa :1;		/* authoritive answer */
-	unsigned	opcode :4;	/* purpose of message */
-	unsigned	qr :1;		/* response flag */
-			/* fields in fourth byte */
-	unsigned	rcode :4;	/* response code */
-	unsigned	cd: 1;		/* checking disabled by resolver */
-	unsigned	ad: 1;		/* authentic data from named */
-	unsigned	unused :1;	/* unused bits (MBZ as of 4.9.3a3) */
-	unsigned	ra :1;		/* recursion available */
-#endif
-			/* remaining bytes */
-	unsigned	qdcount :16;	/* number of question entries */
-	unsigned	ancount :16;	/* number of answer entries */
-	unsigned	nscount :16;	/* number of authority entries */
-	unsigned	arcount :16;	/* number of resource entries */
-} dns_HEADER;
 
 static struct enum_search {
 	char toplev[80];
@@ -80,36 +40,6 @@ static struct enum_search {
 static int enumver = 0;
 
 static ast_mutex_t enumlock = AST_MUTEX_INITIALIZER;
-
-static int skip_name(unsigned char *s, int len)
-{
-	/* Shamelessly take from SER */
-	int x = 0;
-	while(x < len) {
-		if (!*s) {
-			s++;
-			x++;
-			break;
-		}
-		if (((*s) & 0xc0) == 0xc0) {
-			s += 2;
-			x += 2;
-			break;
-		}
-		x += *s + 1;
-		s += *s + 1;
-	}
-	if (x >= len)
-		return -1;
-	return x;
-}
-
-struct dn_answer {
-	unsigned short rtype;
-	unsigned short class;
-	unsigned int ttl;
-	unsigned short size;
-} __attribute__ ((__packed__));
 
 struct naptr {
 	unsigned short order;
@@ -171,13 +101,8 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 		return -1;
 	} 
 
-#if 0
-	printf("Input: %s\n", naptrinput);
-	printf("Flags: %s\n", flags);
-	printf("Services: %s\n", services);
-	printf("Regexp: %s\n", regexp);
-	printf("Repl: %s\n", repl);
-#endif
+	ast_log(LOG_DEBUG, "input='%s', flags='%s', services='%s', regexp='%s', repl='%s'\n",
+		    naptrinput, flags, services, regexp, repl);
 
 	if (tolower(flags[0]) != 'u') {
 		ast_log(LOG_WARNING, "Flag must be 'U' or 'u'.\n");
@@ -283,108 +208,45 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 	return 0;
 }
 
-static int parse_answer(unsigned char *dst, int dstlen, unsigned char *tech, int techlen, unsigned char *answer, int len, char *naptrinput)
+struct enum_context {
+	char *dst;
+	int dstlen;
+	char *tech;
+	int techlen;
+	char *naptrinput;
+};
+
+static int enum_callback(void *context, u_char *answer, int len, u_char *fullanswer)
 {
-	/*
-	 * This function is influenced by "ser" the SIP router.
-	 */
-	int x;
-	int res;
-	dns_HEADER *h;
-	struct dn_answer *ans;
-	dst[0] = '\0';
-	tech[0] = '\0';
-#if 0
-	for (x=0;x<len;x++) {
-		if ((answer[x] < 32) || (answer[x] > 127)) {
-			if (lastlit)
-				printf("\"");
-			printf(" 0x%02x", answer[x]);
-			lastlit = 0;
-		} else {
-			if (!lastlit) 
-				printf(" \"");
-			printf("%c", answer[x]);
-			lastlit = 1;
-		}
-	}
-	printf("\n");
-#endif	
-	h = (dns_HEADER *)answer;
-	/* Skip over DNS header */
-	answer += sizeof(dns_HEADER);
-	len -= sizeof(dns_HEADER);
-#if 0
-	printf("Query count: %d\n", ntohs(h->qdcount));
-#endif
-	for (x=0;x<ntohs(h->qdcount);x++) {
-		if ((res = skip_name(answer, len)) < 0) {
-			ast_log(LOG_WARNING, "Couldn't skip over name\n");
-			return -1;
-		}
-		answer += res;
-		len -= res;
-		answer += 4; 	/* Skip QCODE / QCLASS */
-		len -= 4;
-		if (len < 0) {
-			ast_log(LOG_WARNING, "Strange query size\n");
-			return -1;
-		}
-	}
-#if 0
-	printf("Length remaining: %d\n", len);
-	printf("Answer count: %d\n", ntohs(h->ancount));
-	printf("Looking for %d/%d\n", C_IN, T_NAPTR);
-#endif
-	for (x=0;x<ntohs(h->ancount);x++) {
-		if ((res = skip_name(answer, len)) < 0) {
-			ast_log(LOG_WARNING, "Failed to skip name :(\n");
-			return -1;
-		}
-		answer += res;
-		len -= res;
-		ans = (struct dn_answer *)answer;
-		answer += sizeof(struct dn_answer);
-		len -= sizeof(struct dn_answer);
-		if (len < 0)
-			return -1;
-#if 0
-		printf("Type: %d, class: %d, ttl: %d, length: %d\n", ntohs(ans->rtype), ntohs(ans->class),
-			ntohl(ans->ttl), ntohs(ans->size));
-#endif			
-		len -= ntohs(ans->size);
-		if (len < 0) {
-			ast_log(LOG_WARNING, "Length exceeds frame\n");
-			return -1;
-		}
-		if ((ntohs(ans->class) == C_IN) && (ntohs(ans->rtype) == T_NAPTR)) {
-			if (parse_naptr(dst, dstlen, tech, techlen, answer, ntohs(ans->size), naptrinput))
-				ast_log(LOG_WARNING, "Failed to parse naptr :(\n");
-			if (strlen(dst))
-				return 0;
-		}
-		answer += ntohs(ans->size);
-	}
+	struct enum_context *c = (struct enum_context *)context;
+
+	if (parse_naptr(c->dst, c->dstlen, c->tech, c->techlen, answer, len, c->naptrinput))
+		ast_log(LOG_WARNING, "Failed to parse naptr :(\n");
+
+	if (strlen(c->dst))
+		return 1;
+
 	return 0;
 }
 
 int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen)
 {
-	unsigned char answer[MAX_SIZE];
+	struct enum_context context;
 	char tmp[259 + 80];
 	char naptrinput[80] = "+";
 	int pos = strlen(number) - 1;
-	int newpos=0;
-	int res = -1;
+	int newpos = 0;
 	int ret = -1;
 	struct enum_search *s = NULL;
 	int version = -1;
-	struct __res_state enumstate;
-	res_ninit(&enumstate);	
-	if (chan && ast_autoservice_start(chan) < 0)
-		return -1;
 
 	strncat(naptrinput, number, sizeof(naptrinput) - 2);
+
+	context.naptrinput = naptrinput;
+	context.dst = dst;
+	context.dstlen = dstlen;
+	context.tech = tech;
+	context.techlen = techlen;
 
 	if (pos > 128)
 		pos = 128;
@@ -392,10 +254,10 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		tmp[newpos++] = number[pos--];
 		tmp[newpos++] = '.';
 	}
-#if 0
-	printf("Looking for '%s'\n", tmp);
-#endif	
 	
+	if (chan && ast_autoservice_start(chan) < 0)
+		return -1;
+
 	for(;;) {
 		ast_mutex_lock(&enumlock);
 		if (version != enumver) {
@@ -411,25 +273,16 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		ast_mutex_unlock(&enumlock);
 		if (!s)
 			break;
-		res = res_nsearch(&enumstate, tmp, C_IN, T_NAPTR, answer, sizeof(answer));
-		if (res > 0)
+		ret = ast_search_dns(&context, tmp, C_IN, T_NAPTR, enum_callback);
+		if (ret > 0)
 			break;
 	}
-	if (res > 0) {
-		if ((res = parse_answer(dst, dstlen, tech, techlen, answer, res, naptrinput))) {
-			ast_log(LOG_WARNING, "Parse error returned %d\n", res);
-			ret = 0;
-		} else {
-			ast_log(LOG_DEBUG, "Found technology '%s', destination '%s'\n", tech, dst);
-			ret = 1;
-		}
-	} else {
+	if (ret < 0) {
 		ast_log(LOG_DEBUG, "No such number found: %s (%s)\n", tmp, strerror(errno));
 		ret = 0;
 	}
 	if (chan)
 		ret |= ast_autoservice_stop(chan);
-	res_nclose(&enumstate);
 	return ret;
 }
 
