@@ -1793,6 +1793,7 @@ static int zt_answer(struct ast_channel *ast)
 		break;
 #endif			
 	case 0:
+		ast_pthread_mutex_unlock(&p->lock);
 		return 0;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to answer signalling %d (channel %d)\n", p->sig, p->channel);
