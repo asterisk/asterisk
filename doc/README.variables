@@ -38,13 +38,13 @@ They are stored in the respective channel structure.
 
 To set a variable to a particular value, do : 
 
-;exten => 1,2,SetVar,varname=value
+    exten => 1,2,SetVar,varname=value
 
 You can substitute the value of a variable everywhere using ${variablename}.
 For example, to stringwise append $lala to $blabla and store result in $koko, 
 do: 
 
-;exten => 1,2,SetVar,koko=${blabla}${lala}
+   exten => 1,2,SetVar,koko=${blabla}${lala}
 
 There are also the following special variables: 
 
@@ -84,6 +84,17 @@ ${DIALEDTIME}   Time for the call (seconds)
 ${ANSWEREDTIME} Time from dial to answer (seconds)
 ${DIALSTATUS}   Status of the call, one of:
                 CHANUNAVAIL | CONGESTION | BUSY | NOANSWER | ANSWER | CANCEL
+
+The agent channel uses the following variables:
+${AGENTMAXLOGINTRIES}	Set the maximum number of failed logins
+${AGENTUPDATECDR}	Whether to update the CDR record with Agent channel data
+${AGENTGOODBYE}		Sound file to use for "Good Bye" when agent logs out
+${AGENTACKCALL} 	Whether the agent should acknowledge the incoming call
+${AGENTAUTOLOGOFF}	Auto logging off for an agent
+${AGENTWRAPUPTIME}	Setting the time for wrapup between incoming calls
+${AGENTNUMBER}		Agent number (username) set at login
+${AGENTSTATUS}		Status of login	( fail | on | off )
+${AGENTEXTEN}		Extension for logged in agent
 
 There are two reference modes - reference by value and reference by name. 
 To refer to a variable with its name (as an argument to a function that 
