@@ -5,6 +5,9 @@
 ; Default formats for writing Voicemail
 ;format=g723sf|wav49|wav
 format=gsm|wav49|wav
+; Who the e-mail notification should appear to come from
+serveremail=asterisk
+;serveremail=asterisk@linux-support.net
 
 ;
 ; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>
