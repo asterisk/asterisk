@@ -958,7 +958,7 @@ int setup_incoming_call(call_details_t cd)
 			if (user->host) {
 				if (strcasecmp(cd.sourceIp, inet_ntoa(user->addr.sin_addr))){
 					ast_log(LOG_ERROR, "Call from user '%s' rejected due to non-matching IP address of '%s'\n", user->name, cd.sourceIp);
-                	                return 0;
+                	return 0;
 				}
 			}
 			if (user->incominglimit > 0) {
@@ -983,9 +983,9 @@ int setup_incoming_call(call_details_t cd)
 
 			if (strlen(user->accountcode)) {
 				strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)-1);
-				printf("ACCOUNT CODE: %s", p->accountcode);
+				printf("ACCOUNT CODE: %s\n", p->accountcode);
 			} else {
-				printf("NO ACCOUNT CODE IN USERS");
+				printf("NO ACCOUNT CODE IN USERS\n");
 			}
 
 			/* Increment the usage counter */
