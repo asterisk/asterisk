@@ -90,6 +90,9 @@ static char *descrip2 = "Park(exten):"
 "into the dialplan, although you should include the 'parkedcalls'\n"
 "context.\n";
 
+static struct ast_app *monitor_app=NULL;
+static int monitor_ok=1;
+
 struct parkeduser {
 	struct ast_channel *chan;
 	struct timeval start;
@@ -297,7 +300,18 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	struct timeval start, end;
 	char *transferer_real_context;
 	int allowdisconnect_in,allowdisconnect_out,allowredirect_in,allowredirect_out;
+	char *monitor_exec;
 
+	if(monitor_ok) {
+		if(!monitor_app) 
+			if(!(monitor_app = pbx_findapp("Monitor")))
+				monitor_ok=0;
+		if((monitor_exec = pbx_builtin_getvar_helper(chan,"AUTO_MONITOR"))) 
+			pbx_exec(chan, monitor_app, monitor_exec, 1);
+		else if((monitor_exec = pbx_builtin_getvar_helper(peer,"AUTO_MONITOR")))
+			pbx_exec(peer, monitor_app, monitor_exec, 1);
+	}
+	
 	allowdisconnect_in = config->allowdisconnect_in;
 	allowdisconnect_out = config->allowdisconnect_out;
 	allowredirect_in = config->allowredirect_in;

@@ -42,9 +42,14 @@ static char *monitor_descrip = "Monitor([file_format|[fname_base]|[options]]):\n
 "                    soxmix and the raw leg files will NOT be deleted automatically.\n"
 "                    soxmix or MONITOR_EXEC is handed 3 arguments, the two leg files\n"
 "                    and a target mixed file name which is the same as the leg file names\n"
-"                    only without the in/out designator.\n\n"
+"                    only without the in/out designator.\n"
+"                    If MONITOR_EXEC_ARGS is set, the contents will be passed on as\n"
+"                    additional arguements to MONITOR_EXEC\n"
 "                    Both MONITOR_EXEC and the Mix flag can be set from the\n"
-"                    administrator interface\n";
+"                    administrator interface\n\n"
+"\n"
+"              'b' - Don't begin recording unless a call is bridged to another channel\n"
+;
 
 static char *stopmonitor_synopsis = "Stop monitoring a channel";
 
@@ -172,8 +177,8 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 /* Stop monitoring a channel */
 int ast_monitor_stop( struct ast_channel *chan, int need_lock )
 {
-	char *execute;
-	int soxmix =0;
+	char *execute,*execute_args;
+	int delfiles =0;
 
 	if (need_lock) {
 		if (ast_mutex_lock(&chan->lock)) {
@@ -226,10 +231,15 @@ int ast_monitor_stop( struct ast_channel *chan, int need_lock )
 			execute=pbx_builtin_getvar_helper(chan,"MONITOR_EXEC");
 			if (!execute || ast_strlen_zero(execute)) { 
 				execute = "nice -n 19 soxmix"; 
-				soxmix = 1;
-			}			
-			snprintf(tmp, sizeof(tmp), "%s %s/%s-in.%s %s/%s-out.%s %s/%s.%s &", execute, dir, name, format, dir, name, format, dir, name, format);
-			if (soxmix) {
+				delfiles = 1;
+			} 
+			execute_args = pbx_builtin_getvar_helper(chan,"MONITOR_EXEC_ARGS");
+			if (!execute_args || ast_strlen_zero(execute_args)) {
+				execute_args = "";
+			}
+			
+			snprintf(tmp, sizeof(tmp), "%s %s/%s-in.%s %s/%s-out.%s %s/%s.%s %s &", execute, dir, name, format, dir, name, format, dir, name, format,execute_args);
+			if (delfiles) {
 				snprintf(tmp2,sizeof(tmp2), "( %s& rm -f %s/%s-* ) &",tmp, dir ,name); /* remove legs when done mixing */
 				strncpy(tmp, tmp2, sizeof(tmp) - 1);
 			}
@@ -291,12 +301,14 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 	char *format = NULL;
 	char *fname_base = NULL;
 	char *options = NULL;
+	char *delay = NULL;
 	int joinfiles = 0;
-	int res;
+	int waitforbridge = 0;
+	int res = 0;
 	
 	/* Parse arguments. */
 	if (data && strlen((char*)data)) {
-		arg = strdup((char*)data);
+		arg = ast_strdupa((char*)data);
 		format = arg;
 		fname_base = strchr(arg, '|');
 		if (fname_base) {
@@ -307,18 +319,35 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 				options++;
 				if (strchr(options, 'm'))
 					joinfiles = 1;
+				if (strchr(options, 'b'))
+                    waitforbridge = 1;
 			}
 		}
-		
+	}
+
+	if(waitforbridge) {
+		/* We must remove the "b" option if listed.  In principle none of
+		   the following could give NULL results, but we check just to
+		   be pedantic. Reconstructing with checks for 'm' option does not
+		   work if we end up adding more options than 'm' in the future. */
+		delay = ast_strdupa((char*)data);
+		if (delay) {
+			options = strrchr(delay, '|');
+			if (options) {
+				arg = strchr(options, 'b');
+				if (arg) {
+					*arg = 'X';
+					pbx_builtin_setvar_helper(chan,"AUTO_MONITOR",delay);
+				}
+			}
+		}
+		return 0;
 	}
 
 	res = ast_monitor_start(chan, format, fname_base, 1);
 	if (res < 0)
 		res = ast_monitor_change_fname( chan, fname_base, 1 );
 	ast_monitor_setjoinfiles(chan, joinfiles);
-
-	if (arg)
-		free( arg );
 
 	return res;
 }
