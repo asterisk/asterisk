@@ -9,3 +9,7 @@ mpg123-0.59r.tar.gz
 update.out
 .lastclean
 .cleancount
+.tags-depend
+.tags-sources
+tags
+TAGS
