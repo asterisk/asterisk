@@ -8379,6 +8379,15 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				if (p->expiry>max_expiry)
 					p->expiry = max_expiry;
 		    }
+			/* Go ahead and free RTP port */
+			if (p->rtp) {
+				ast_rtp_destroy(p->rtp);
+				p->rtp = NULL;
+			}
+			if (p->vrtp) {
+				ast_rtp_destroy(p->rtp);
+				p->vrtp = NULL;
+			}
 		    transmit_response(p, "200 OK", req);
 		    sip_scheddestroy(p, (p->expiry+10)*1000);
 		    transmit_state_notify(p, ast_extension_state(NULL, p->context, p->exten),1);
@@ -8406,6 +8415,15 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		if ((res = register_verify(p, sin, req, e, ignore)) < 0) 
 			ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s'\n", get_header(req, "To"), ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 		if (res < 1) {
+			/* Go ahead and free RTP port */
+			if (p->rtp) {
+				ast_rtp_destroy(p->rtp);
+				p->rtp = NULL;
+			}
+			if (p->vrtp) {
+				ast_rtp_destroy(p->rtp);
+				p->vrtp = NULL;
+			}
 			/* Destroy the session, but keep us around for just a bit in case they don't
 			   get our 200 OK */
 		    sip_scheddestroy(p, 15*1000);
