@@ -5123,11 +5123,13 @@ static void *do_monitor(void *data)
 		if (!pfds || (lastalloc != ifcount)) {
 			if (pfds)
 				free(pfds);
-			pfds = malloc(ifcount * sizeof(struct pollfd));
-			if (!pfds) {
-				ast_log(LOG_WARNING, "Critical memory error.  Zap dies.\n");
-				ast_mutex_unlock(&iflock);
-				return NULL;
+			if (ifcount) {
+				pfds = malloc(ifcount * sizeof(struct pollfd));
+				if (!pfds) {
+					ast_log(LOG_WARNING, "Critical memory error.  Zap dies.\n");
+					ast_mutex_unlock(&iflock);
+					return NULL;
+				}
 			}
 			lastalloc = ifcount;
 		}

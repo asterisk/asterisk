@@ -2801,14 +2801,14 @@ static int transmit_response_with_date(struct sip_pvt *p, char *msg, struct sip_
 	return send_response(p, &resp, 0, 0);
 }
 
-static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip_request *req)
+static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip_request *req, int reliable)
 {
 	struct sip_request resp;
 	respprep(&resp, p, msg, req);
 	add_header(&resp, "Accept", "application/sdp");
 	add_header(&resp, "Content-Length", "0");
 	add_blank_header(&resp);
-	return send_response(p, &resp, 0, 0);
+	return send_response(p, &resp, reliable, 0);
 }
 
 static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *randdata, int reliable)
@@ -6065,11 +6065,11 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		if (ast_strlen_zero(p->context))
 			strncpy(p->context, context, sizeof(p->context) - 1);
 		if (res < 0)
-			transmit_response_with_allow(p, "404 Not Found", req);
+			transmit_response_with_allow(p, "404 Not Found", req, 0);
 		else if (res > 0)
-			transmit_response_with_allow(p, "484 Address Incomplete", req);
+			transmit_response_with_allow(p, "484 Address Incomplete", req, 0);
 		else 
-			transmit_response_with_allow(p, "200 OK", req);
+			transmit_response_with_allow(p, "200 OK", req, 0);
 		/* Destroy if this OPTIONS was the opening request, but not if
 		   it's in the middle of a normal call flow. */
 		if (!p->lastinvite)
@@ -6225,9 +6225,9 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			strncpy(p->context, context, sizeof(p->context) - 1);
 		res = get_refer_info(p, req);
 		if (res < 0)
-			transmit_response_with_allow(p, "404 Not Found", req);
+			transmit_response_with_allow(p, "404 Not Found", req, 1);
 		else if (res > 0)
-			transmit_response_with_allow(p, "484 Address Incomplete", req);
+			transmit_response_with_allow(p, "484 Address Incomplete", req, 1);
 		else {
 			transmit_response(p, "202 Accepted", req);
 			if (!ignore) {
@@ -6427,7 +6427,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			handle_response(p, respid, e + len, req,ignore);
 		}
 	} else {
-		transmit_response_with_allow(p, "405 Method Not Allowed", req);
+		transmit_response_with_allow(p, "405 Method Not Allowed", req, 0);
 		ast_log(LOG_NOTICE, "Unknown SIP command '%s' from '%s'\n", 
 			cmd, inet_ntoa(p->sa.sin_addr));
 		/* If this is some new method, and we don't have a call, destroy it now */
@@ -6858,7 +6858,7 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 		user->outUse = 0;
 		user->capability = capability;
 
-		user->canreinvite = REINVITE_INVITE;
+		user->canreinvite = globalcanreinvite;
 		/* set default context */
 		strncpy(user->context, context, sizeof(user->context)-1);
 		strncpy(user->language, language, sizeof(user->language)-1);
@@ -7028,7 +7028,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 		peer->ha = NULL;
 		peer->capability = capability;
 		/* Assume can reinvite */
-		peer->canreinvite = REINVITE_INVITE;
+		peer->canreinvite = globalcanreinvite;
 		peer->dtmfmode = 0;
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) 
@@ -7371,8 +7371,10 @@ static int reload_config(void)
 		hp = ast_gethostbyname(ourhost, &ahp);
 		if (!hp) {
 			ast_log(LOG_WARNING, "Unable to get IP address for %s, SIP disabled\n", ourhost);
-			if (!__ourip.s_addr)
+			if (!__ourip.s_addr) {
+				ast_destroy(cfg);
 				return 0;
+			}
 		} else
 			memcpy(&__ourip, hp->h_addr, sizeof(__ourip));
 	}
