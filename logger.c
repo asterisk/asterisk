@@ -58,6 +58,8 @@ static struct msglist {
 	struct msglist *next;
 } *list = NULL, *last = NULL;
 
+static char hostname[256];
+
 struct logchannel {
 	int logmask;
 	int facility; /* syslog */
@@ -167,10 +169,19 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 		    chan->syslog = 1;
 		    openlog("asterisk", LOG_PID, chan->facility);
 		} else {
-			if (channel[0] == '/') 
-				strncpy(chan->filename, channel, sizeof(chan->filename) - 1);
-			else
+			if (channel[0] == '/') {
+				if(!ast_strlen_zero(hostname)) { 
+					snprintf(chan->filename, sizeof(chan->filename) - 1,"%s.%s", channel, hostname);
+				} else {
+					strncpy(chan->filename, channel, sizeof(chan->filename) - 1);
+				}
+			}		  
+			
+			if(!ast_strlen_zero(hostname)) {
+				snprintf(chan->filename, sizeof(chan->filename), "%s/%s.%s",(char *)ast_config_AST_LOG_DIR, channel, hostname);
+			} else {
 				snprintf(chan->filename, sizeof(chan->filename), "%s/%s", (char *)ast_config_AST_LOG_DIR, channel);
+			}
 			chan->fileptr = fopen(chan->filename, "a");
 			if (!chan->fileptr) {
 				/* Can't log here, since we're called with a lock */
@@ -199,20 +210,31 @@ static void init_logger_chain(void)
 	}
 	logchannels = NULL;
 	ast_mutex_unlock(&loglock);
-
+	
 	/* close syslog */
 	closelog();
-
+	
 	cfg = ast_load("logger.conf");
 	
 	/* If no config file, we're fine */
 	if (!cfg)
 	    return;
-
+	
 	ast_mutex_lock(&loglock);
+	if ((s = ast_variable_retrieve(cfg, "general", "appendhostname"))) {
+		if(ast_true(s)) {
+			if(gethostname(hostname, sizeof(hostname))) {
+				strncpy(hostname, "unknown", sizeof(hostname)-1);
+				ast_log(LOG_WARNING, "What box has no hostname???\n");
+			}
+		} else
+			hostname[0] = '\0';
+	} else
+		hostname[0] = '\0';
 	if ((s = ast_variable_retrieve(cfg, "general", "dateformat"))) {
 		strncpy(dateformat, s, sizeof(dateformat) - 1);
-	}
+	} else
+		strncpy(dateformat, "%b %e %T", sizeof(dateformat) - 1);
 	var = ast_variable_browse(cfg, "logfiles");
 	while(var) {
 		chan = make_logchannel(var->name, var->value, var->lineno);

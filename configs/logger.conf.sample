@@ -9,7 +9,10 @@
 ; this example is the ISO 8601 date format (yyyy-mm-dd HH:MM:SS)
 ; see strftime(3) Linux manual for format specifiers
 ;dateformat=%F %T
-
+;
+; This appends the hostname to the name of the log files.
+;appendhostname = yes
+;
 ;
 ; For each file, specify what to log.
 ;
