@@ -2166,7 +2166,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 	char fn[256];
 	char callerid[512];
 	int res = 0, cmd = 0;
-	struct ast_vm_user *receiver, *extensions = NULL, *vmtmp = NULL;
+	struct ast_vm_user *receiver, *extensions = NULL, *vmtmp = NULL, *vmfree;
 	char tmp[256];
 	char *stringp, *s;
 	int saved_messages = 0, found = 0;
@@ -2270,9 +2270,10 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 		/* Leave voicemail for someone */
 		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", vmtmp->mailbox, ast_app_has_voicemail(vmtmp->mailbox));
 
-		free_user(vmtmp);
 		saved_messages++;
+		vmfree = vmtmp;
 		vmtmp = vmtmp->next;
+		free_user(vmfree);
 	}
 	if (saved_messages > 0) {
 		/* give confirmatopm that the message was saved */
