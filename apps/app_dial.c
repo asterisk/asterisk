@@ -1037,7 +1037,7 @@ out:
 	
 	LOCAL_USER_REMOVE(u);
 	
-	if((go_on>0) && (!chan->_softhangup))
+	if((go_on>0) && (!chan->_softhangup) && (res != AST_PBX_KEEPALIVE))
 	    res=0;
 	    
 	return res;

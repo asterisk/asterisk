@@ -35,6 +35,7 @@ Asterisk 1.0.6
     -- DIALEDPEERNUMBER is now being set, so if you attempted to use it in the past and failed
        it should work now.
     -- A callerid change caused many headaches, this has been reversed to the original 1.0 behavior.
+    -- A crash caused with the combination of the 'g' option and # transfer was fixed.
  -- app_voicemail:
     -- If two people hit the voicemail system at the same time, and were leaving a message
        the second message was overwriting the first. This has been fixed so that each one
