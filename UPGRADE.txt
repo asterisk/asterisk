@@ -13,7 +13,9 @@ Dialing:
 * The Caller*ID of the outbound leg is now the extension that was 
   called, rather than the Caller*ID of the inbound leg of the call.  The 
   "o" flag for Dial can be used to restore the original behavior if 
-  desired.
+  desired.  Note that if you are looking for the originating callerid
+  from the manager event there is a new manager even "Dial" which 
+  provides the source and destination channels and callerid.
 
 IAX: 
 
