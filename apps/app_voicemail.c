@@ -3474,7 +3474,7 @@ static int vm_box_exists(struct ast_channel *chan, void *data) {
 		context++;
 	}
 
-	if ((!find_user(&svm, context, box))) {
+	if (find_user(&svm, context, box)) {
 		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid)) {
 			chan->priority += 100;
 		} else
