@@ -82,6 +82,9 @@ int ast_app_group_get_count(char *group, char *category);
 //! Get the current channel count of all groups that match the specified pattern and category.
 int ast_app_group_match_get_count(char *groupmatch, char *category);
 
+//! Create an argc argv type structure for app args
+int ast_seperate_app_args(char *buf, char delim, char **array, int arraylen)
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
