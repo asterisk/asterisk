@@ -3682,7 +3682,7 @@ int ast_add_extension2(struct ast_context *con,
 	}
 	e = con->root;
 	while(e) {
-		res= strcasecmp(e->exten, extension);
+		res= strcmp(e->exten, extension);
 		if (!res) {
 			if (!e->matchcid && !tmp->matchcid)
 				res = 0;
