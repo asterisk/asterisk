@@ -165,7 +165,7 @@ static int handle_answer(struct ast_channel *chan, int fd, int argc, char *argv[
 {
 	int res;
 	res = 0;
-	if (chan->state != AST_STATE_UP) {
+	if (chan->_state != AST_STATE_UP) {
 		/* Answer the chan */
 		res = ast_answer(chan);
 	}
@@ -293,7 +293,7 @@ static int handle_saynumber(struct ast_channel *chan, int fd, int argc, char *ar
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[2], "%i", &num) != 1)
 		return RESULT_SHOWUSAGE;
-	res = ast_say_number(chan, num, AST_DIGIT_ANY, chan->language);
+	res = ast_say_number(chan, num, argv[3], chan->language);
 	fdprintf(fd, "200 result=%d\n", res);
 	if (res >= 0)
 		return RESULT_SUCCESS;
@@ -309,7 +309,7 @@ static int handle_saydigits(struct ast_channel *chan, int fd, int argc, char *ar
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[2], "%i", &num) != 1)
 		return RESULT_SHOWUSAGE;
-	res = ast_say_digit_str(chan, argv[2], AST_DIGIT_ANY, chan->language);
+	res = ast_say_digit_str(chan, argv[2], argv[3], chan->language);
 	fdprintf(fd, "200 result=%d\n", res);
 	if (res >= 0)
 		return RESULT_SUCCESS;
@@ -384,130 +384,156 @@ int	ms;
 static int handle_recordfile(struct ast_channel *chan, int fd, int argc, char *argv[])
 {
 	struct ast_filestream *fs;
-	struct ast_frame *f,wf;
-	struct timeval tv, start, lastout, now, notime = { 0,0 } ;
-	fd_set readfds;
-	unsigned char tone_block[TONE_BLOCK_SIZE];
-	int res = -1;
-	int ms,i,j;
+	struct ast_frame *f;
+	struct timeval tv, start;
+	int res = 0;
+	int ms;
 
 	if (argc < 6)
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[5], "%i", &ms) != 1)
 		return RESULT_SHOWUSAGE;
 
-	if (argc > 6) { /* if to beep */
-		i = 0;
-		lastout.tv_sec = lastout.tv_usec = 0;
-		for(j = 0; j < 13; j++)
-		   {
-			do gettimeofday(&now,NULL);
-			while (lastout.tv_sec && 
-				(ms_diff(&now,&lastout) < 25));
-			lastout.tv_sec = now.tv_sec;
-			lastout.tv_usec = now.tv_usec;
-			wf.frametype = AST_FRAME_VOICE;
-			wf.subclass = AST_FORMAT_ULAW;
-			wf.offset = AST_FRIENDLY_OFFSET;
-			wf.mallocd = 0;
-			wf.data = tone_block;
-			wf.datalen = TONE_BLOCK_SIZE;				
-			/* make this tone block */
-			make_tone_block(tone_block,1000.0,&i);
-			wf.timelen = wf.datalen / 8;
-		        if (ast_write(chan, &wf)) {
-				fdprintf(fd, "200 result=%d (hangup)\n", 0);
-				return RESULT_FAILURE;
-			}
-			FD_ZERO(&readfds);
-			FD_SET(chan->fds[0],&readfds);
-			  /* if no read avail, do send again */
-			if (select(chan->fds[0] + 1,&readfds,NULL,
-				NULL,&notime) < 1) continue;
-			f = ast_read(chan);
-			if (!f) {
-				fdprintf(fd, "200 result=%d (hangup)\n", 0);
-				return RESULT_FAILURE;
-			}
-			switch(f->frametype) {
-			case AST_FRAME_DTMF:
-				if (strchr(argv[4], f->subclass)) {
-					/* This is an interrupting chracter */
-					fdprintf(fd, "200 result=%d (dtmf)\n", f->subclass);
-					ast_frfree(f);
-					return RESULT_SUCCESS;
-				}
-				break;
-			case AST_FRAME_VOICE:
-				break;  /* throw it away */
-			}
-			ast_frfree(f);
-		   }
-		  /* suck in 5 voice frames to make up for echo of beep, etc */
-		for(i = 0; i < 5; i++) {
-			f = ast_read(chan);
-			if (!f) {
-				fdprintf(fd, "200 result=%d (hangup)\n", 0);
-				return RESULT_FAILURE;
-			}
-			switch(f->frametype) {
-			case AST_FRAME_DTMF:
-				if (strchr(argv[4], f->subclass)) {
-					/* This is an interrupting chracter */
-					fdprintf(fd, "200 result=%d (dtmf)\n", f->subclass);
-					ast_frfree(f);
-					return RESULT_SUCCESS;
-				}
-				break;
-			case AST_FRAME_VOICE:
-				break;  /* throw it away */
-			}
-			ast_frfree(f);
-		}
-
-	}
-
-	fs = ast_writefile(argv[2], argv[3], NULL, O_CREAT | O_TRUNC | O_WRONLY, 0, 0644);
-	if (!fs) {
-		fdprintf(fd, "200 result=%d (writefile)\n", res);
-		return RESULT_FAILURE;
-	}
-	gettimeofday(&start, NULL);
-	gettimeofday(&tv, NULL);
-	while ((ms < 0) || (((tv.tv_sec - start.tv_sec) * 1000 + (tv.tv_usec - start.tv_usec)/1000) < ms)) {
-		res = ast_waitfor(chan, -1);
-		if (res < 0) {
-			ast_closestream(fs);
-			fdprintf(fd, "200 result=%d (waitfor)\n", res);
+	if (argc > 6)
+		res = ast_streamfile(chan, "beep", chan->language);
+	if (!res)
+		res = ast_waitstream(chan, argv[4]);
+	if (!res) {
+		fs = ast_writefile(argv[2], argv[3], NULL, O_CREAT | O_TRUNC | O_WRONLY, 0, 0644);
+		if (!fs) {
+			res = -1;
+			fdprintf(fd, "200 result=%d (writefile)\n", res);
 			return RESULT_FAILURE;
 		}
-		f = ast_read(chan);
-		if (!f) {
-			fdprintf(fd, "200 result=%d (hangup)\n", 0);
-			ast_closestream(fs);
-			return RESULT_FAILURE;
-		}
-		switch(f->frametype) {
-		case AST_FRAME_DTMF:
-			if (strchr(argv[4], f->subclass)) {
-				/* This is an interrupting chracter */
-				fdprintf(fd, "200 result=%d (dtmf)\n", f->subclass);
-				ast_closestream(fs);
-				ast_frfree(f);
-				return RESULT_SUCCESS;
-			}
-			break;
-		case AST_FRAME_VOICE:
-			ast_writestream(fs, f);
-			break;
-		};
-		ast_frfree(f);
+		gettimeofday(&start, NULL);
 		gettimeofday(&tv, NULL);
-	}
-	fdprintf(fd, "200 result=%d (timeout)\n", 0);
-	ast_closestream(fs);
+		while ((ms < 0) || (((tv.tv_sec - start.tv_sec) * 1000 + (tv.tv_usec - start.tv_usec)/1000) < ms)) {
+			res = ast_waitfor(chan, -1);
+			if (res < 0) {
+				ast_closestream(fs);
+				fdprintf(fd, "200 result=%d (waitfor)\n", res);
+				return RESULT_FAILURE;
+			}
+			f = ast_read(chan);
+			if (!f) {
+				fdprintf(fd, "200 result=%d (hangup)\n", 0);
+				ast_closestream(fs);
+				return RESULT_FAILURE;
+			}
+			switch(f->frametype) {
+			case AST_FRAME_DTMF:
+				if (strchr(argv[4], f->subclass)) {
+					/* This is an interrupting chracter */
+					fdprintf(fd, "200 result=%d (dtmf)\n", f->subclass);
+					ast_closestream(fs);
+					ast_frfree(f);
+					return RESULT_SUCCESS;
+				}
+				break;
+			case AST_FRAME_VOICE:
+				ast_writestream(fs, f);
+				break;
+			}
+			ast_frfree(f);
+		}
+		gettimeofday(&tv, NULL);
+		fdprintf(fd, "200 result=%d (timeout)\n", res);
+		ast_closestream(fs);
+	} else
+		fdprintf(fd, "200 result=%d (randomerror)\n", res);
 	return RESULT_SUCCESS;
 }
+
+static int handle_autohangup(struct ast_channel *chan, int fd, int argc, char *argv[])
+{
+	int timeout;
+
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	if (sscanf(argv[2], "%d", &timeout) != 1)
+		return RESULT_SHOWUSAGE;
+	if (timeout < 0)
+		timeout = 0;
+	if (timeout)
+		chan->whentohangup = time(NULL) + timeout;
+	else
+		chan->whentohangup = 0;
+	fdprintf(fd, "200 result=0\n");
+	return RESULT_SUCCESS;
+}
+
+static int handle_hangup(struct ast_channel *chan, int fd, int argc, char **argv)
+{
+	ast_softhangup(chan,AST_SOFTHANGUP_EXPLICIT);
+	fdprintf(fd, "200 result=1\n");
+	return RESULT_SUCCESS;
+}
+
+static int handle_exec(struct ast_channel *chan, int fd, int argc, char **argv)
+{
+	int res;
+	struct ast_app *app;
+
+	if (argc < 2)
+		return RESULT_SHOWUSAGE;
+
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_3 "AGI Script Executing Application: (%s) Options: (%s)\n", argv[1], argv[2]);
+
+	app = pbx_findapp(argv[1]);
+
+	if (app) {
+		res = pbx_exec(chan, app, argv[2], 1);
+	} else {
+		ast_log(LOG_WARNING, "Could not find application (%s)\n", argv[1]);
+		res = -2;
+	}
+	fdprintf(fd, "200 result=%d\n", res);
+
+	return res;
+}
+
+static int handle_setcallerid(struct ast_channel *chan, int fd, int argc, char **argv)
+{
+	if (argv[2])
+		ast_set_callerid(chan, argv[2]);
+
+/*	strncpy(chan->callerid, argv[2], sizeof(chan->callerid)-1);
+*/	fdprintf(fd, "200 result=1\n");
+	return RESULT_SUCCESS;
+}
+
+static int handle_channelstatus(struct ast_channel *chan, int fd, int argc, char **argv)
+{
+	fdprintf(fd, "200 result=%d\n", chan->_state);
+	return RESULT_SUCCESS;
+}
+
+static char usage_channelstatus[] =
+" Usage: CHANNEL STATUS\n"
+"	Returns the status of the connected channel. Return values:\n"
+" 0 Channel is down and available\n"
+" 1 Channel is down, but reserved\n"
+" 2 Channel is off hook\n"
+" 3 Digits (or equivalent) have been dialed\n"
+" 4 Line is ringing\n"
+" 5 Remote end is ringing\n"
+" 6 Line is up\n"
+" 7 Line is busy\n";
+
+static char usage_setcallerid[] =
+" Usage: SET CALLERID <number>\n"
+"	Changes the callerid of the current channel.\n";
+
+static char usage_exec[] =
+" Usage: EXEC <application> <options>\n"
+"	Executes <application> with given <options>.\n"
+"	Returns whatever the application returns, or -2 on failure to find application\n";
+
+static char usage_hangup[] =
+" Usage: HANGUP\n"
+"	Hangs up the current channel.\n";
+
 
 static char usage_answer[] = 
 " Usage: ANSWER\n"
@@ -516,7 +542,7 @@ static char usage_answer[] =
 
 static char usage_waitfordigit[] = 
 " Usage: WAIT FOR DIGIT <timeout>\n"
-"        Waits up to 'timeout' seconds for channel to receive a DTMF digit.\n"
+"        Waits up to 'timeout' milliseconds for channel to receive a DTMF digit.\n"
 " Returns -1 on channel failure, 0 if no digit is received in the timeout, or\n"
 " the numerical value of the ascii of the digit if one is received.  Use -1\n"
 " for the timeout value if you desire the call to block indefinitely.\n";
@@ -596,6 +622,12 @@ static char usage_recordfile[] =
 " will be recorded.  The timeout is the maximum record time in milliseconds, or\n"
 " -1 for no timeout\n";
 
+static char usage_autohangup[] =
+" Usage: SET AUTOHANGUP <time>\n"
+"    Cause the channel to automatically hangup at <time> seconds in the\n"
+"future.  Of course it can be hungup before then as well.   Setting to\n"
+"0 will cause the autohangup feature to be disabled on this channel.\n";
+
 agi_command commands[] = {
 	{ { "answer", NULL }, handle_answer, "Asserts answer", usage_answer },
 	{ { "answer\n", NULL }, handle_answer, "Asserts answer", usage_answer },
@@ -611,7 +643,12 @@ agi_command commands[] = {
 	{ { "set", "context", NULL }, handle_setcontext, "Sets channel context", usage_setcontext },
 	{ { "set", "extension", NULL }, handle_setextension, "Changes channel extension", usage_setextension },
 	{ { "set", "priority", NULL }, handle_setpriority, "Prioritizes the channel", usage_setpriority },
-	{ { "record", "file", NULL }, handle_recordfile, "Records to a given file", usage_recordfile }
+	{ { "record", "file", NULL }, handle_recordfile, "Records to a given file", usage_recordfile },
+	{ { "set", "autohangup", NULL }, handle_autohangup, "Autohangup channel in some time", usage_autohangup },
+	{ { "hangup", NULL }, handle_hangup, "Hangup the current channel", usage_hangup },
+	{ { "exec", NULL }, handle_exec, "Executes a given Application", usage_exec },
+	{ { "set", "callerid", NULL }, handle_setcallerid, "Sets callerid for the current channel", usage_setcallerid },
+	{ { "channel", "status", NULL }, handle_channelstatus, "Returns status of the connected channel", usage_channelstatus }
 };
 
 static agi_command *find_command(char *cmds[])
@@ -826,7 +863,7 @@ static int agi_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 #if 0
 	 /* Answer if need be */
-        if (chan->state != AST_STATE_UP) {
+        if (chan->_state != AST_STATE_UP) {
 		if (ringy) { /* if for ringing first */
 			/* a little ringy-dingy first */
 		        ast_indicate(chan, AST_CONTROL_RINGING);  
