@@ -2842,21 +2842,21 @@ struct ast_context *ast_context_create(struct ast_context **extcontexts, char *n
 	return tmp;
 }
 
-void __ast_context_destroy(struct ast_context *con, char *registrar, int lock);
+void __ast_context_destroy(struct ast_context *con, char *registrar);
 
 void ast_merge_contexts_and_delete(struct ast_context **extcontexts, char *registrar) {
 	struct ast_context *tmp, *lasttmp = NULL;
 	tmp = *extcontexts;
 	ast_mutex_lock(&conlock);
 	if (registrar) {
-		__ast_context_destroy(NULL,registrar,0);
+		__ast_context_destroy(NULL,registrar);
 		while (tmp) {
 			lasttmp = tmp;
 			tmp = tmp->next;
 		}
 	} else {
 		while (tmp) {
-			__ast_context_destroy(tmp,tmp->registrar,0);
+			__ast_context_destroy(tmp,tmp->registrar);
 			lasttmp = tmp;
 			tmp = tmp->next;
 		}
@@ -3517,11 +3517,10 @@ int ast_add_extension(char *context, int replace, char *extension, int priority,
 	return -1;
 }
 
-int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int priority, int needlock)
+int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int priority)
 {
 	int res = 0;
-	if (needlock)
-		ast_mutex_lock(&chan->lock);
+	ast_mutex_lock(&chan->lock);
 	if (chan->pbx) {
 		/* This channel is currently in the PBX */
 		if (context && strlen(context))
@@ -3531,8 +3530,7 @@ int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int pri
 		if (priority)
 			chan->priority = priority - 1;
 		ast_softhangup_nolock(chan, AST_SOFTHANGUP_ASYNCGOTO);
-		if (needlock)
-			ast_mutex_unlock(&chan->lock);
+		ast_mutex_unlock(&chan->lock);
 	} else {
 		/* In order to do it when the channel doesn't really exist within
 		   the PBX, we have to make a new channel, masquerade, and start the PBX
@@ -3562,12 +3560,11 @@ int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int pri
 			/* Masquerade into temp channel */
 			ast_channel_masquerade(tmpchan, chan);
 		
-			if (needlock)
-				ast_mutex_unlock(&chan->lock);
+			ast_mutex_unlock(&chan->lock);
 
 			/* Grab the locks and get going */
 			ast_mutex_lock(&tmpchan->lock);
-			ast_do_masquerade(tmpchan, 0);
+			ast_do_masquerade(tmpchan);
 			ast_mutex_unlock(&tmpchan->lock);
 			/* Start the PBX going on our stolen channel */
 			if (ast_pbx_start(tmpchan)) {
@@ -3577,8 +3574,7 @@ int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int pri
 			}
 		} else {
 			res = -1;
-			if (needlock)
-				ast_mutex_unlock(&chan->lock);
+			ast_mutex_unlock(&chan->lock);
 		}
 	}
 	return res;
@@ -3594,7 +3590,7 @@ int ast_async_goto_by_name(char *channame, char *context, char *exten, int prior
 		chan = ast_channel_walk(chan);
 	}
 	if (chan)
-		return ast_async_goto(chan, context, exten, priority, 1);
+		return ast_async_goto(chan, context, exten, priority);
 	return -1;
 }
 
@@ -4087,15 +4083,14 @@ static void destroy_exten(struct ast_exten *e)
 	free(e);
 }
 
-void __ast_context_destroy(struct ast_context *con, char *registrar, int lock)
+void __ast_context_destroy(struct ast_context *con, char *registrar)
 {
 	struct ast_context *tmp, *tmpl=NULL;
 	struct ast_include *tmpi, *tmpil= NULL;
 	struct ast_sw *sw, *swl= NULL;
 	struct ast_exten *e, *el, *en;
 	struct ast_ignorepat *ipi, *ipl = NULL;
-	if (lock)
-		ast_mutex_lock(&conlock);
+	ast_mutex_lock(&conlock);
 	tmp = contexts;
 	while(tmp) {
 		if (((tmp->name && con && con->name && !strcasecmp(tmp->name, con->name)) || !con) &&
@@ -4150,20 +4145,18 @@ void __ast_context_destroy(struct ast_context *con, char *registrar, int lock)
 				tmpil = NULL;
 				continue;
 			}
-			if (lock)
-				ast_mutex_unlock(&conlock);
+			ast_mutex_unlock(&conlock);
 			return;
 		}
 		tmpl = tmp;
 		tmp = tmp->next;
 	}
-	if (lock)
-		ast_mutex_unlock(&conlock);
+	ast_mutex_unlock(&conlock);
 }
 
 void ast_context_destroy(struct ast_context *con, char *registrar)
 {
-	__ast_context_destroy(con,registrar,1);
+	__ast_context_destroy(con,registrar);
 }
 
 static void wait_for_hangup(struct ast_channel *chan)

@@ -185,7 +185,7 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 
 	ioctl(p->fd, PHONE_RING_START,&cid);
 	ast_setstate(ast, AST_STATE_RINGING);
-	ast_queue_control(ast, AST_CONTROL_RINGING, 0);
+	ast_queue_control(ast, AST_CONTROL_RINGING);
 	return 0;
 }
 

@@ -1416,7 +1416,7 @@ int ast_dsp_silence(struct ast_dsp *dsp, struct ast_frame *f, int *totalsilence)
 	return __ast_dsp_silence(dsp, s, len, totalsilence);
 }
 
-struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp, struct ast_frame *af, int needlock)
+struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp, struct ast_frame *af)
 {
 	int silence;
 	int res;
@@ -1508,7 +1508,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 					dsp->thinkdigit = 'x';
 					FIX_INF(af);
 					if (chan)
-						ast_queue_frame(chan, af, needlock);
+						ast_queue_frame(chan, af);
 					ast_frfree(af);
 					return &dsp->f;
 				}
@@ -1525,7 +1525,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 							dsp->f.subclass = dsp->thinkdigit;
 							FIX_INF(af);
 							if (chan)
-								ast_queue_frame(chan, af, needlock);
+								ast_queue_frame(chan, af);
 							ast_frfree(af);
 						}
 						dsp->thinkdigit = digit;
@@ -1547,7 +1547,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 						}
 						FIX_INF(af);
 						if (chan)
-							ast_queue_frame(chan, af, needlock);
+							ast_queue_frame(chan, af);
 						ast_frfree(af);
 						return &dsp->f;
 					}
@@ -1564,7 +1564,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 					dsp->td.mf.current_digits--;
 					FIX_INF(af);
 					if (chan)
-						ast_queue_frame(chan, af, needlock);
+						ast_queue_frame(chan, af);
 					ast_frfree(af);
 					return &dsp->f;
 				}
@@ -1577,7 +1577,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 					dsp->td.dtmf.current_digits--;
 					FIX_INF(af);
 					if (chan)
-						ast_queue_frame(chan, af, needlock);
+						ast_queue_frame(chan, af);
 					ast_frfree(af);
 					return &dsp->f;
 				}
@@ -1596,7 +1596,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 			case AST_CONTROL_CONGESTION:
 				dsp->f.subclass = res;
 				if (chan) 
-					ast_queue_frame(chan, &dsp->f, needlock);
+					ast_queue_frame(chan, &dsp->f);
 				break;
 			default:
 				ast_log(LOG_WARNING, "Don't know how to represent call progress message %d\n", res);

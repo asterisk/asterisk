@@ -1470,7 +1470,7 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
     }
 
 	if (l->dnd) {
-		ast_queue_control(ast, AST_CONTROL_BUSY, 0);
+		ast_queue_control(ast, AST_CONTROL_BUSY);
 		return -1;
 	}
    
@@ -1495,7 +1495,7 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 // Select the active softkeys
 
 	ast_setstate(ast, AST_STATE_RINGING);
-	ast_queue_control(ast, AST_CONTROL_RINGING, 0);
+	ast_queue_control(ast, AST_CONTROL_RINGING);
 
 	sub->outgoing = 1;
 //    sub->cxmode = SKINNY_CX_RECVONLY;
@@ -1602,8 +1602,8 @@ static struct ast_frame *skinny_rtp_read(struct skinny_subchannel *sub)
 			if (f->subclass != sub->owner->nativeformats) {
 				ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
 				sub->owner->nativeformats = f->subclass;
-				ast_set_read_format(sub->owner, sub->owner->readformat, 0);
-				ast_set_write_format(sub->owner, sub->owner->writeformat, 0);
+				ast_set_read_format(sub->owner, sub->owner->readformat);
+				ast_set_write_format(sub->owner, sub->owner->writeformat);
 			}
 		}
 	}
@@ -1649,7 +1649,7 @@ static int skinny_write(struct ast_channel *ast, struct ast_frame *frame)
 	return res;
 }
 
-static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, int needlock)
+static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct skinny_subchannel *sub = newchan->pvt->pvt;
     ast_log(LOG_NOTICE, "skinny_fixup(%s, %s)\n", oldchan->name, newchan->name);
@@ -2141,7 +2141,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
            /* If there is another active call, skinny_hangup will ring the phone with the other call */
            if (sub->owner) {
                sub->alreadygone = 1;
-               ast_queue_hangup(sub->owner, 1);
+               ast_queue_hangup(sub->owner);
            } else {
                ast_log(LOG_WARNING, "Skinny(%s@%s-%d) channel already destroyed\n", 
                            sub->parent->name, sub->parent->parent->name, sub->callid);
@@ -2175,9 +2175,9 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 
 		if (sub->owner) {
 			/* XXX MUST queue this frame to all subs in threeway call if threeway call is active */
-			ast_queue_frame(sub->owner, &f, 1);
+			ast_queue_frame(sub->owner, &f);
             if (sub->next->owner) {
-				ast_queue_frame(sub->next->owner, &f, 1);
+				ast_queue_frame(sub->next->owner, &f);
             }
         } else {
 			ast_verbose("No owner: %s\n", s->device->lines->name);

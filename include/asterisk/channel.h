@@ -572,7 +572,7 @@ int ast_prod(struct ast_channel *chan);
  * Set read format for channel to whichever component of "format" is best. 
  * Returns 0 on success, -1 on failure
  */
-int ast_set_read_format(struct ast_channel *chan, int format, int needlock);
+int ast_set_read_format(struct ast_channel *chan, int format);
 
 //! Sets write format on channel chan
 /*! 
@@ -581,7 +581,7 @@ int ast_set_read_format(struct ast_channel *chan, int format, int needlock);
  * Set write format for channel to whichever compoent of "format" is best. 
  * Returns 0 on success, -1 on failure
  */
-int ast_set_write_format(struct ast_channel *chan, int format, int needlock);
+int ast_set_write_format(struct ast_channel *chan, int format);
 
 //! Sends text to a channel
 /*! 
@@ -777,7 +777,7 @@ int ast_settimeout(struct ast_channel *c, int samples, int (*func)(void *data), 
    and 1 if supported and requested */
 int ast_transfer(struct ast_channel *chan, char *dest);
 
-int ast_do_masquerade(struct ast_channel *chan, int grablock);
+int ast_do_masquerade(struct ast_channel *chan);
 
 /* Misc. functions below */
 

@@ -45,7 +45,7 @@ int ast_dsp_set_call_progress_zone(struct ast_dsp *dsp, char *zone);
 
 /* Return AST_FRAME_NULL frames when there is silence, AST_FRAME_BUSY on 
    busies, and call progress, all dependent upon which features are enabled */
-struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp, struct ast_frame *inf, int needlock);
+struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp, struct ast_frame *inf);
 
 /* Return non-zero if this is silence.  Updates "totalsilence" with the total
    number of seconds of silence  */

@@ -397,7 +397,7 @@ static void moh_release(struct ast_channel *chan, void *data)
 	oldwfmt = moh->origwfmt;
 	free(moh);
 	if (chan) {
-		if (oldwfmt && ast_set_write_format(chan, oldwfmt, 0)) 
+		if (oldwfmt && ast_set_write_format(chan, oldwfmt)) 
 			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format %s\n", chan->name, ast_getformatname(oldwfmt));
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Stopped music on hold on %s\n", chan->name);
@@ -420,7 +420,7 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 	ast_mutex_unlock(&moh_lock);
 	if (res) {
 		res->origwfmt = chan->writeformat;
-		if (ast_set_write_format(chan, AST_FORMAT_SLINEAR, 1)) {
+		if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
 			ast_log(LOG_WARNING, "Unable to set '%s' to signed linear format\n", chan->name);
 			moh_release(NULL, res);
 			res = NULL;

@@ -378,7 +378,7 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allo
 						if (option_verbose > 2) 
 							ast_verbose(VERBOSE_PREFIX_3 "Transferring %s to '%s' (context %s) priority 1\n"
 								,transferee->name, newext, transferer_real_context);
-						if (ast_async_goto(transferee, transferer_real_context, newext, 1, 1))
+						if (ast_async_goto(transferee, transferer_real_context, newext, 1))
 							ast_log(LOG_WARNING, "Async goto fialed :(\n");
 						res = -1;
 					} else {
@@ -736,7 +736,7 @@ int ast_pickup_call(struct ast_channel *chan)
 		res = ast_answer(chan);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
-		res = ast_queue_control(chan, AST_CONTROL_ANSWER, 0);
+		res = ast_queue_control(chan, AST_CONTROL_ANSWER);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n", chan->name);
 		res = ast_channel_masquerade(cur, chan);

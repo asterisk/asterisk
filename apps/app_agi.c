@@ -521,7 +521,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 
         if (silence > 0) {
         	rfmt = chan->readformat;
-                res = ast_set_read_format(chan, AST_FORMAT_SLINEAR, 1);
+                res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
                 if (res < 0) {
                 	ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
                         return -1;
@@ -633,7 +633,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 		fdprintf(agi->fd, "200 result=%d (randomerror) endpos=%ld\n", res, sample_offset);
 
         if (silence > 0) {
-                res = ast_set_read_format(chan, rfmt, 1);
+                res = ast_set_read_format(chan, rfmt);
                 if (res)
                         ast_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
                 ast_dsp_free(sildet);
@@ -1484,13 +1484,13 @@ static int eagi_exec(struct ast_channel *chan, void *data)
 	int readformat;
 	int res;
 	readformat = chan->readformat;
-	if (ast_set_read_format(chan, AST_FORMAT_SLINEAR, 1)) {
+	if (ast_set_read_format(chan, AST_FORMAT_SLINEAR)) {
 		ast_log(LOG_WARNING, "Unable to set channel '%s' to linear mode\n", chan->name);
 		return -1;
 	}
 	res = agi_exec_full(chan, data, 1, 0);
 	if (!res) {
-		if (ast_set_read_format(chan, readformat, 1)) {
+		if (ast_set_read_format(chan, readformat)) {
 			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format %s\n", chan->name, ast_getformatname(readformat));
 		}
 	}

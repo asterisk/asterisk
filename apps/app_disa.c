@@ -129,12 +129,12 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	FILE *fp;
 	char *stringp=NULL;
 
-	if (ast_set_write_format(chan,AST_FORMAT_ULAW, 1))
+	if (ast_set_write_format(chan,AST_FORMAT_ULAW))
 	{
 		ast_log(LOG_WARNING, "Unable to set write format to Mu-law on %s\n",chan->name);
 		return -1;
 	}
-	if (ast_set_read_format(chan,AST_FORMAT_ULAW, 1))
+	if (ast_set_read_format(chan,AST_FORMAT_ULAW))
 	{
 		ast_log(LOG_WARNING, "Unable to set read format to Mu-law on %s\n",chan->name);
 		return -1;

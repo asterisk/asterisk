@@ -58,7 +58,7 @@ static void playtones_release(struct ast_channel *chan, void *params)
 {
 	struct playtones_state *ps = params;
 	if (chan) {
-		ast_set_write_format(chan, ps->origwfmt, 0);
+		ast_set_write_format(chan, ps->origwfmt);
 	}
 	if (ps->items) free(ps->items);
 	free(ps);
@@ -72,7 +72,7 @@ static void * playtones_alloc(struct ast_channel *chan, void *params)
 		return NULL;
 	memset(ps, 0, sizeof(struct playtones_state));
 	ps->origwfmt = chan->writeformat;
-	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR, 1)) {
+	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to signed linear format (write)\n", chan->name);
 		playtones_release(NULL, ps);
 		ps = NULL;

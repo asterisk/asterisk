@@ -360,7 +360,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	return tmp;
 }
 
-int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int lock)
+int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 {
 	struct ast_frame *f;
 	struct ast_frame *prev, *cur;
@@ -372,8 +372,7 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int lock)
 		ast_log(LOG_WARNING, "Unable to duplicate frame\n");
 		return -1;
 	}
-	if (lock)
-		ast_mutex_lock(&chan->lock);
+	ast_mutex_lock(&chan->lock);
 	prev = NULL;
 	cur = chan->pvt->readq;
 	while(cur) {
@@ -389,8 +388,7 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int lock)
 		} else {
 			ast_log(LOG_DEBUG, "Dropping voice to exceptionally long queue on %s\n", chan->name);
 			ast_frfree(f);
-			if (lock)
-				ast_mutex_unlock(&chan->lock);
+			ast_mutex_unlock(&chan->lock);
 			return 0;
 		}
 	}
@@ -409,23 +407,22 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int lock)
 	} else if (chan->blocking) {
 		pthread_kill(chan->blocker, SIGURG);
 	}
-	if (lock)
-		ast_mutex_unlock(&chan->lock);
+	ast_mutex_unlock(&chan->lock);
 	return 0;
 }
 
-int ast_queue_hangup(struct ast_channel *chan, int lock)
+int ast_queue_hangup(struct ast_channel *chan)
 {
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
 	chan->_softhangup |= AST_SOFTHANGUP_DEV;
-	return ast_queue_frame(chan, &f, lock);
+	return ast_queue_frame(chan, &f);
 }
 
-int ast_queue_control(struct ast_channel *chan, int control, int lock)
+int ast_queue_control(struct ast_channel *chan, int control)
 {
 	struct ast_frame f = { AST_FRAME_CONTROL, };
 	f.subclass = control;
-	return ast_queue_frame(chan, &f, lock);
+	return ast_queue_frame(chan, &f);
 }
 
 int ast_channel_defer_dtmf(struct ast_channel *chan)
@@ -595,7 +592,7 @@ int ast_softhangup_nolock(struct ast_channel *chan, int cause)
 		ast_log(LOG_DEBUG, "Soft-Hanging up channel '%s'\n", chan->name);
 	/* Inform channel driver that we need to be hung up, if it cares */
 	chan->_softhangup |= cause;
-	ast_queue_frame(chan, &f, 0);
+	ast_queue_frame(chan, &f);
 	/* Interrupt any select call or such */
 	if (chan->blocking)
 		pthread_kill(chan->blocker, SIGURG);
@@ -630,7 +627,7 @@ int ast_hangup(struct ast_channel *chan)
 	   if someone is going to masquerade as us */
 	ast_mutex_lock(&chan->lock);
 	if (chan->masq) {
-		if (ast_do_masquerade(chan, 1)) 
+		if (ast_do_masquerade(chan)) 
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
 	}
 
@@ -855,7 +852,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 			}
 		}
 		if (c[x]->masq) {
-			if (ast_do_masquerade(c[x], 1)) {
+			if (ast_do_masquerade(c[x])) {
 				ast_log(LOG_WARNING, "Masquerade failed\n");
 				*ms = -1;
 				ast_mutex_unlock(&c[x]->lock);
@@ -1057,7 +1054,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 	
 	ast_mutex_lock(&chan->lock);
 	if (chan->masq) {
-		if (ast_do_masquerade(chan, 1)) {
+		if (ast_do_masquerade(chan)) {
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
 			f = NULL;
 		} else
@@ -1418,7 +1415,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	}
 	/* Handle any pending masquerades */
 	if (chan->masq) {
-		if (ast_do_masquerade(chan, 1)) {
+		if (ast_do_masquerade(chan)) {
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
 			ast_mutex_unlock(&chan->lock);
 			return -1;
@@ -1514,14 +1511,13 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	return res;
 }
 
-int ast_set_write_format(struct ast_channel *chan, int fmts, int needlock)
+int ast_set_write_format(struct ast_channel *chan, int fmts)
 {
 	int fmt;
 	int native;
 	int res;
 	
-	if (needlock)
-		ast_mutex_lock(&chan->lock);
+	ast_mutex_lock(&chan->lock);
 	native = chan->nativeformats;
 	fmt = fmts;
 	
@@ -1529,8 +1525,7 @@ int ast_set_write_format(struct ast_channel *chan, int fmts, int needlock)
 	if (res < 0) {
 		ast_log(LOG_NOTICE, "Unable to find a path from %s to %s\n",
 			ast_getformatname(fmts), ast_getformatname(chan->nativeformats));
-		if (needlock)
-			ast_mutex_unlock(&chan->lock);
+		ast_mutex_unlock(&chan->lock);
 		return -1;
 	}
 	
@@ -1545,19 +1540,17 @@ int ast_set_write_format(struct ast_channel *chan, int fmts, int needlock)
 	chan->pvt->writetrans = ast_translator_build_path(chan->pvt->rawwriteformat, chan->writeformat);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Set channel %s to write format %s\n", chan->name, ast_getformatname(chan->writeformat));
-	if (needlock)
-		ast_mutex_unlock(&chan->lock);
+	ast_mutex_unlock(&chan->lock);
 	return 0;
 }
 
-int ast_set_read_format(struct ast_channel *chan, int fmts, int needlock)
+int ast_set_read_format(struct ast_channel *chan, int fmts)
 {
 	int fmt;
 	int native;
 	int res;
 	
-	if (needlock)
-		ast_mutex_lock(&chan->lock);
+	ast_mutex_lock(&chan->lock);
 	native = chan->nativeformats;
 	fmt = fmts;
 	/* Find a translation path from the native read format to one of the user's read formats */
@@ -1565,8 +1558,7 @@ int ast_set_read_format(struct ast_channel *chan, int fmts, int needlock)
 	if (res < 0) {
 		ast_log(LOG_NOTICE, "Unable to find a path from %s to %s\n",
 			ast_getformatname(chan->nativeformats), ast_getformatname(fmts));
-		if (needlock)
-			ast_mutex_unlock(&chan->lock);
+		ast_mutex_unlock(&chan->lock);
 		return -1;
 	}
 	
@@ -1582,8 +1574,7 @@ int ast_set_read_format(struct ast_channel *chan, int fmts, int needlock)
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Set channel %s to read format %s\n", 
 			chan->name, ast_getformatname(chan->readformat));
-	if (needlock)
-		ast_mutex_unlock(&chan->lock);
+	ast_mutex_unlock(&chan->lock);
 	return 0;
 }
 
@@ -1952,13 +1943,13 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 		return -1;
 	}
 	/* Set read format on channel */
-	res = ast_set_read_format(chan, peerf, 1);
+	res = ast_set_read_format(chan, peerf);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", chan->name, chanf);
 		return -1;
 	}
 	/* Set write format on peer channel */
-	res = ast_set_write_format(peer, peerf, 1);
+	res = ast_set_write_format(peer, peerf);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", peer->name, peerf);
 		return -1;
@@ -1972,13 +1963,13 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 		return -1;
 	}
 	/* Set writeformat on channel */
-	res = ast_set_write_format(chan, chanf, 1);
+	res = ast_set_write_format(chan, chanf);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", chan->name, chanf);
 		return -1;
 	}
 	/* Set read format on peer channel */
-	res = ast_set_read_format(peer, chanf, 1);
+	res = ast_set_read_format(peer, chanf);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", peer->name, peerf);
 		return -1;
@@ -2005,8 +1996,8 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
 	clone->masqr = original;
 	/* XXX can't really hold the lock here, but at the same time, it' s
 	   not really safe not to XXX */
-	ast_queue_frame(original, &null, 0);
-	ast_queue_frame(clone, &null, 0);
+	ast_queue_frame(original, &null);
+	ast_queue_frame(clone, &null);
 	ast_log(LOG_DEBUG, "Done planning to masquerade %s into the structure of %s\n", original->name, clone->name);
 	return 0;
 }
@@ -2019,7 +2010,7 @@ void ast_change_name(struct ast_channel *chan, char *newname)
 	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", tmp, chan->name, chan->uniqueid);
 }
 
-int ast_do_masquerade(struct ast_channel *original, int needlock)
+int ast_do_masquerade(struct ast_channel *original)
 {
 	int x,i;
 	int res=0;
@@ -2044,9 +2035,8 @@ int ast_do_masquerade(struct ast_channel *original, int needlock)
 	   channel's backend.   I'm not sure we're going to keep this function, because 
 	   while the features are nice, the cost is very high in terms of pure nastiness. XXX */
 
-	if (needlock)
-		/* We need the clone's lock, too */
-		ast_mutex_lock(&clone->lock);
+	/* We need the clone's lock, too */
+	ast_mutex_lock(&clone->lock);
 
 	ast_log(LOG_DEBUG, "Got clone lock on '%s' at %p\n", clone->name, &clone->lock);
 
@@ -2107,7 +2097,7 @@ int ast_do_masquerade(struct ast_channel *original, int needlock)
 
 
 	if (clone->pvt->fixup){
-		res = clone->pvt->fixup(original, clone, needlock);
+		res = clone->pvt->fixup(original, clone);
 		if (res) 
 			ast_log(LOG_WARNING, "Fixup failed on channel %s, strange things may happen.\n", clone->name);
 	}
@@ -2117,8 +2107,7 @@ int ast_do_masquerade(struct ast_channel *original, int needlock)
 		res = clone->pvt->hangup(clone);
 	if (res) {
 		ast_log(LOG_WARNING, "Hangup failed!  Strange things may happen!\n");
-		if (needlock)
-			ast_mutex_unlock(&clone->lock);
+		ast_mutex_unlock(&clone->lock);
 		return -1;
 	}
 	
@@ -2185,20 +2174,21 @@ int ast_do_masquerade(struct ast_channel *original, int needlock)
 	/* pvt switches.  pbx stays the same, as does next */
 	
 	/* Set the write format */
-	ast_set_write_format(original, wformat, 0);
+	ast_set_write_format(original, wformat);
 
 	/* Set the read format */
-	ast_set_read_format(original, rformat, 0);
+	ast_set_read_format(original, rformat);
 
 	ast_log(LOG_DEBUG, "Putting channel %s in %d/%d formats\n", original->name, wformat, rformat);
 
 	/* Okay.  Last thing is to let the channel driver know about all this mess, so he
 	   can fix up everything as best as possible */
 	if (original->pvt->fixup) {
-		res = original->pvt->fixup(clone, original, needlock);
+		res = original->pvt->fixup(clone, original);
 		if (res) {
 			ast_log(LOG_WARNING, "Driver for '%s' could not fixup channel %s\n",
 				original->type, original->name);
+			ast_mutex_unlock(&clone->lock);
 			return -1;
 		}
 	} else
@@ -2210,15 +2200,13 @@ int ast_do_masquerade(struct ast_channel *original, int needlock)
 	   zombie, then free it now (since it already is considered invalid). */
 	if (clone->zombie) {
 		ast_log(LOG_DEBUG, "Destroying clone '%s'\n", clone->name);
-		if (needlock)
-			ast_mutex_unlock(&clone->lock);
+		ast_mutex_unlock(&clone->lock);
 		ast_channel_free(clone);
 		manager_event(EVENT_FLAG_CALL, "Hangup", "Channel: %s\r\n", zombn);
 	} else {
 		ast_log(LOG_DEBUG, "Released clone lock on '%s'\n", clone->name);
 		clone->zombie=1;
-		if (needlock)
-			ast_mutex_unlock(&clone->lock);
+		ast_mutex_unlock(&clone->lock);
 	}
 	
 	/* Signal any blocker */
@@ -2484,7 +2472,7 @@ static void tonepair_release(struct ast_channel *chan, void *params)
 {
 	struct tonepair_state *ts = params;
 	if (chan) {
-		ast_set_write_format(chan, ts->origwfmt, 0);
+		ast_set_write_format(chan, ts->origwfmt);
 	}
 	free(ts);
 }
@@ -2498,7 +2486,7 @@ static void * tonepair_alloc(struct ast_channel *chan, void *params)
 		return NULL;
 	memset(ts, 0, sizeof(struct tonepair_state));
 	ts->origwfmt = chan->writeformat;
-	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR, 1)) {
+	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to signed linear format (write)\n", chan->name);
 		tonepair_release(NULL, ts);
 		ts = NULL;

@@ -60,7 +60,7 @@ struct ast_channel_pvt {
 	/*! Indicate a particular condition (e.g. AST_CONTROL_BUSY or AST_CONTROL_RINGING or AST_CONTROL_CONGESTION */
 	int (*indicate)(struct ast_channel *c, int condition);
 	/*! Fix up a channel:  If a channel is consumed, this is called.  Basically update any ->owner links */
-	int (*fixup)(struct ast_channel *oldchan, struct ast_channel *newchan, int lock);
+	int (*fixup)(struct ast_channel *oldchan, struct ast_channel *newchan);
 	/*! Set a given option */
 	int (*setoption)(struct ast_channel *chan, int option, void *data, int datalen);
 	/*! Query a given option */
@@ -75,12 +75,12 @@ struct ast_channel_pvt {
 /*! Returns NULL on failure to allocate */
 struct ast_channel *ast_channel_alloc(int needalertpipe);
 
-/*! Queue an outgoing frame, locking if necessary */
-int ast_queue_frame(struct ast_channel *chan, struct ast_frame *f, int lock);
+/*! Queue an outgoing frame */
+int ast_queue_frame(struct ast_channel *chan, struct ast_frame *f);
 
-int ast_queue_hangup(struct ast_channel *chan, int lock);
+int ast_queue_hangup(struct ast_channel *chan);
 
-int ast_queue_control(struct ast_channel *chan, int control, int lock);
+int ast_queue_control(struct ast_channel *chan, int control);
 
 /*! Change the state of a channel */
 int ast_setstate(struct ast_channel *chan, int state);

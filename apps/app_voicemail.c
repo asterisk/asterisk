@@ -1029,7 +1029,7 @@ static int play_and_prepend(struct ast_channel *chan, char *playfile, char *reco
 	
 	if (maxsilence > 0) {
 		rfmt = chan->readformat;
-		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR, 1);
+		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
 			return -1;
@@ -1162,7 +1162,7 @@ static int play_and_prepend(struct ast_channel *chan, char *playfile, char *reco
 		}
 	}
 	if (rfmt) {
-		if (ast_set_read_format(chan, rfmt, 1)) {
+		if (ast_set_read_format(chan, rfmt)) {
 			ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_getformatname(rfmt), chan->name);
 		}
 	}
@@ -1240,7 +1240,7 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 	
 	if (maxsilence > 0) {
 		rfmt = chan->readformat;
-		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR, 1);
+		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
 			return -1;
@@ -1345,7 +1345,7 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 		ast_closestream(others[x]);
 	}
 	if (rfmt) {
-		if (ast_set_read_format(chan, rfmt, 1)) {
+		if (ast_set_read_format(chan, rfmt)) {
 			ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_getformatname(rfmt), chan->name);
 		}
 	}

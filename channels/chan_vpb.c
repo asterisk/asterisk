@@ -635,7 +635,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 	// Problem is that hangup holds p->owner->lock
 	if (f.frametype >= 0 && f.frametype != AST_FRAME_NULL) {
 		if (ast_mutex_trylock(&p->owner->lock)==0)  {
-			ast_queue_frame(p->owner, &f, 0);
+			ast_queue_frame(p->owner, &f);
 			ast_mutex_unlock(&p->owner->lock);
 		} else {
 			ast_verbose("Missed event %d/%d on %s\n",
@@ -1151,7 +1151,7 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_verbose(VERBOSE_PREFIX_3 " VPB Calling %s [t=%d] on %s returned %d\n", s, timeout, ast->name, res); 
 	if (res == 0) {
 		ast_setstate(ast, AST_STATE_RINGING);
-		ast_queue_control(ast,AST_CONTROL_RINGING, 0);		
+		ast_queue_control(ast,AST_CONTROL_RINGING);		
 	}
 
 	pthread_create(&p->readthread, NULL, do_chanreads, (void *)p);
@@ -1456,7 +1456,7 @@ static void *do_chanreads(void *pvt)
 			// Using trylock here to prevent deadlock when channel is hungup
 			// (ast_hangup() immediately gets lock)
 			if (p->owner && (ast_mutex_trylock(&p->owner->lock)==0) ) {
-				ast_queue_frame(p->owner, fr, 0);
+				ast_queue_frame(p->owner, fr);
 				ast_mutex_unlock(&p->owner->lock);
 				if (option_verbose > 4) {
 					short * data = (short*)readbuf;

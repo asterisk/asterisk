@@ -640,11 +640,11 @@ static void swap_subs(struct zt_pvt *p, int a, int b)
 
 	if (p->subs[a].owner) {
 		p->subs[a].owner->fds[0] = p->subs[a].zfd;
-		ast_queue_frame(p->subs[a].owner, &null, 0);
+		ast_queue_frame(p->subs[a].owner, &null);
 	}
 	if (p->subs[b].owner) {
 		p->subs[b].owner->fds[0] = p->subs[b].zfd;
-		ast_queue_frame(p->subs[b].owner, &null, 0);
+		ast_queue_frame(p->subs[b].owner, &null);
 	}
 	
 }
@@ -2554,12 +2554,11 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 
 static int zt_indicate(struct ast_channel *chan, int condition);
 
-static int zt_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, int needlock)
+static int zt_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct zt_pvt *p = newchan->pvt->pvt;
 	int x;
-	if (needlock)
-		ast_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	ast_log(LOG_DEBUG, "New owner for channel %d is %s\n", p->channel, newchan->name);
 	if (p->owner == oldchan)
 		p->owner = newchan;
@@ -2572,8 +2571,7 @@ static int zt_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, in
 	if (newchan->_state == AST_STATE_RINGING) 
 		zt_indicate(newchan, AST_CONTROL_RINGING);
 	update_conf(p);
-	if (needlock)
-		ast_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return 0;
 }
 
@@ -2930,7 +2928,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 							/* It hasn't been long enough since the last flashook.  This is probably a bounce on 
 							   hanging up.  Hangup both channels now */
 							if (p->subs[SUB_THREEWAY].owner)
-								ast_queue_hangup(p->subs[SUB_THREEWAY].owner, 0);
+								ast_queue_hangup(p->subs[SUB_THREEWAY].owner);
 							p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							ast_log(LOG_DEBUG, "Looks like a bounced flash, hanging up both calls on %d\n", p->channel);
 						} else if ((ast->pbx) ||
@@ -3666,7 +3664,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	}
 	if (p->dsp && (!p->ignoredtmf || p->callwaitcas || p->busydetect  || p->callprogress) && !index) {
 		/* Perform busy detection. etc on the zap line */
-		f = ast_dsp_process(ast, p->dsp, &p->subs[index].f, 0);
+		f = ast_dsp_process(ast, p->dsp, &p->subs[index].f);
 		if (f) {
 			if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_BUSY)) {
 				if ((ast->_state == AST_STATE_UP) && !p->outgoing) {
@@ -3713,7 +3711,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 							ast_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", ast->name);
 						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
 						pbx_builtin_setvar_helper(ast,"FAXEXTEN",ast->exten);
-						if (ast_async_goto(ast, ast->context, "fax", 1, 0))
+						if (ast_async_goto(ast, ast->context, "fax", 1))
 							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, ast->context);
 					} else
 						ast_log(LOG_NOTICE, "Fax detected, but no fax extension\n");
@@ -6365,7 +6363,7 @@ static void *pri_dchannel(void *vpri)
 							digit = e->ring.callednum[i];
 							{
 								struct ast_frame f = { AST_FRAME_DTMF, digit, };
-								ast_queue_frame(pri->pvt[chan]->owner, &f, 0);
+								ast_queue_frame(pri->pvt[chan]->owner, &f);
 							}
 						}
 					}
@@ -6473,7 +6471,7 @@ static void *pri_dchannel(void *vpri)
 	                                        if (pri->pvt[chan] && pri->overlapdial && !pri->pvt[chan]->proceeding) {
 							struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
 							ast_log(LOG_DEBUG, "Queuing frame from PRI_EVENT_PROCEEDING on channel %d span %d\n",chan,pri->pvt[chan]->span);
-							ast_queue_frame(pri->pvt[chan]->owner, &f, 0);
+							ast_queue_frame(pri->pvt[chan]->owner, &f);
 
 							pri->pvt[chan]->proceeding=1;
 						}
@@ -7304,7 +7302,7 @@ static int action_zapdialoffhook(struct mansession *s, struct message *m)
 	}
 	for (i=0; i<strlen(number); i++) {
 		struct ast_frame f = { AST_FRAME_DTMF, number[i] };
-		ast_queue_frame(p->owner, &f, 0); 
+		ast_queue_frame(p->owner, &f); 
 	}
 	astman_send_ack(s, m, "ZapDialOffhook");
 	return 0;

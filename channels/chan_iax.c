@@ -839,10 +839,6 @@ static int iax_queue_frame(int callno, struct ast_frame *f)
 	/* Assumes lock for callno is already held... */
 	for (;;) {
 		pass++;
-		if (!ast_mutex_trylock(&iaxsl[callno])) {
-			ast_log(LOG_WARNING, "Lock is not held on pass %d of iax_queue_frame\n", pass);
-			CRASH;
-		}
 		if (iaxs[callno] && iaxs[callno]->owner) {
 			if (ast_mutex_trylock(&iaxs[callno]->owner->lock)) {
 				/* Avoid deadlock by pausing and trying again */
@@ -850,7 +846,7 @@ static int iax_queue_frame(int callno, struct ast_frame *f)
 				usleep(1);
 				ast_mutex_lock(&iaxsl[callno]);
 			} else {
-				ast_queue_frame(iaxs[callno]->owner, f, 0);
+				ast_queue_frame(iaxs[callno]->owner, f);
 				ast_mutex_unlock(&iaxs[callno]->owner->lock);
 				break;
 			}
@@ -1077,7 +1073,7 @@ retry:
 			/* If there's an owner, prod it to give up */
 			owner->pvt->pvt = NULL;
 			owner->_softhangup |= AST_SOFTHANGUP_DEV;
-			ast_queue_hangup(owner, 0);
+			ast_queue_hangup(owner);
 		}
 
 		for (cur = iaxq.head; cur ; cur = cur->next) {
@@ -1516,7 +1512,7 @@ static int iax_sendhtml(struct ast_channel *c, int subclass, char *data, int dat
 	return send_command(c->pvt->pvt, AST_FRAME_HTML, subclass, 0, data, datalen, -1);
 }
 
-static int iax_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan, int needlock)
+static int iax_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan)
 {
 	struct chan_iax_pvt *pvt = newchan->pvt->pvt;
 	pvt->owner = newchan;
@@ -3798,7 +3794,7 @@ retryowner:
 						orignative = iaxs[fr.callno]->owner->nativeformats;
 						iaxs[fr.callno]->owner->nativeformats = f.subclass;
 						if (iaxs[fr.callno]->owner->readformat)
-							ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat, 0);
+							ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat);
 						iaxs[fr.callno]->owner->nativeformats = orignative;
 						ast_mutex_unlock(&iaxs[fr.callno]->owner->lock);
 					}
@@ -3981,9 +3977,9 @@ retryowner:
 							ast_verbose(VERBOSE_PREFIX_3 "Format for call is %s\n", ast_getformatname(iaxs[fr.callno]->owner->nativeformats));
 						/* Setup read/write formats properly. */
 						if (iaxs[fr.callno]->owner->writeformat)
-							ast_set_write_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->writeformat, 0);	
+							ast_set_write_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->writeformat);	
 						if (iaxs[fr.callno]->owner->readformat)
-							ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat, 0);	
+							ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat);	
 					}
 				}
 				ast_mutex_lock(&dpcache_lock);

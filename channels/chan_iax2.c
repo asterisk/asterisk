@@ -851,10 +851,6 @@ static int iax2_queue_frame(int callno, struct ast_frame *f)
 	/* Assumes lock for callno is already held... */
 	for (;;) {
 		pass++;
-		if (!ast_mutex_trylock(&iaxsl[callno])) {
-			ast_log(LOG_WARNING, "Lock is not held on pass %d of iax2_queue_frame\n", pass);
-			CRASH;
-		}
 		if (iaxs[callno] && iaxs[callno]->owner) {
 			if (ast_mutex_trylock(&iaxs[callno]->owner->lock)) {
 				/* Avoid deadlock by pausing and trying again */
@@ -862,7 +858,7 @@ static int iax2_queue_frame(int callno, struct ast_frame *f)
 				usleep(1);
 				ast_mutex_lock(&iaxsl[callno]);
 			} else {
-				ast_queue_frame(iaxs[callno]->owner, f, 0);
+				ast_queue_frame(iaxs[callno]->owner, f);
 				ast_mutex_unlock(&iaxs[callno]->owner->lock);
 				break;
 			}
@@ -1229,7 +1225,7 @@ static int iax2_predestroy(int callno)
 	if (c) {
 		c->_softhangup |= AST_SOFTHANGUP_DEV;
 		c->pvt->pvt = NULL;
-		ast_queue_hangup(c, 0);
+		ast_queue_hangup(c);
 		pvt->owner = NULL;
 		ast_mutex_lock(&usecnt_lock);
 		usecnt--;
@@ -1302,7 +1298,7 @@ retry:
 		if (owner) {
 			/* If there's an owner, prod it to give up */
 			owner->_softhangup |= AST_SOFTHANGUP_DEV;
-			ast_queue_hangup(owner, 0);
+			ast_queue_hangup(owner);
 		}
 
 		for (cur = iaxq.head; cur ; cur = cur->next) {
@@ -1767,17 +1763,15 @@ static int iax2_sendhtml(struct ast_channel *c, int subclass, char *data, int da
 	return send_command_locked(PTR_TO_CALLNO(c->pvt->pvt), AST_FRAME_HTML, subclass, 0, data, datalen, -1);
 }
 
-static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan, int lock)
+static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan)
 {
 	unsigned short callno = PTR_TO_CALLNO(newchan->pvt->pvt);
-	if (lock)
-		ast_mutex_lock(&iaxsl[callno]);
+	ast_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno])
 		iaxs[callno]->owner = newchan;
 	else
 		ast_log(LOG_WARNING, "Uh, this isn't a good sign...\n");
-	if (lock)
-		ast_mutex_unlock(&iaxsl[callno]);
+	ast_mutex_unlock(&iaxsl[callno]);
 	return 0;
 }
 
@@ -4366,7 +4360,7 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2)
 		strncpy(chan2m->context, chan2->context, sizeof(chan2m->context) - 1);
 		strncpy(chan2m->exten, chan2->exten, sizeof(chan2m->exten) - 1);
 		chan2m->priority = chan2->priority;
-		if (ast_do_masquerade(chan2m, 0)) {
+		if (ast_do_masquerade(chan2m)) {
 			ast_log(LOG_WARNING, "Masquerade failed :(\n");
 			ast_hangup(chan2m);
 			return -1;
@@ -4725,7 +4719,7 @@ retryowner:
 								orignative = iaxs[fr.callno]->owner->nativeformats;
 								iaxs[fr.callno]->owner->nativeformats = f.subclass;
 								if (iaxs[fr.callno]->owner->readformat)
-									ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat, 0);
+									ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat);
 								iaxs[fr.callno]->owner->nativeformats = orignative;
 								ast_mutex_unlock(&iaxs[fr.callno]->owner->lock);
 							}
@@ -4914,7 +4908,7 @@ retryowner:
 						} else
 							ast_log(LOG_DEBUG, "Parked call on '%s'\n", iaxs[fr.callno]->owner->bridge->name);
 					} else {
-						if (ast_async_goto(iaxs[fr.callno]->owner->bridge, iaxs[fr.callno]->context, ies.called_number, 1, 1))
+						if (ast_async_goto(iaxs[fr.callno]->owner->bridge, iaxs[fr.callno]->context, ies.called_number, 1))
 							ast_log(LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", iaxs[fr.callno]->owner->bridge->name, 
 								ies.called_number, iaxs[fr.callno]->context);
 						else
@@ -4962,9 +4956,9 @@ retryowner2:
 						if (iaxs[fr.callno] && iaxs[fr.callno]->owner) {
 							/* Setup read/write formats properly. */
 							if (iaxs[fr.callno]->owner->writeformat)
-								ast_set_write_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->writeformat, 0);	
+								ast_set_write_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->writeformat);	
 							if (iaxs[fr.callno]->owner->readformat)
-								ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat, 0);	
+								ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat);	
 							ast_mutex_unlock(&iaxs[fr.callno]->owner->lock);
 						}
 					}

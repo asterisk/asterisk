@@ -776,7 +776,7 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 
 		transmit_notify_request_with_callerid(sub, tone, ast->callerid);
 		ast_setstate(ast, AST_STATE_RINGING);
-		ast_queue_control(ast, AST_CONTROL_RINGING, 0);
+		ast_queue_control(ast, AST_CONTROL_RINGING);
 
         if (sub->next->owner && strlen(sub->next->cxident) && strlen(sub->next->callid)) {
             /* Put the connection back in sendrecv */
@@ -1016,15 +1016,15 @@ static struct ast_frame *mgcp_rtp_read(struct mgcp_subchannel *sub)
 			if (f->subclass != sub->owner->nativeformats) {
 				ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
 				sub->owner->nativeformats = f->subclass;
-				ast_set_read_format(sub->owner, sub->owner->readformat, 0);
-				ast_set_write_format(sub->owner, sub->owner->writeformat, 0);
+				ast_set_read_format(sub->owner, sub->owner->readformat);
+				ast_set_write_format(sub->owner, sub->owner->writeformat);
 			}
             /* Courtesy fearnor aka alex@pilosoft.com */
             if (sub->parent->dtmfinband) {
 #if 0
                 ast_log(LOG_NOTICE, "MGCP ast_dsp_process\n");
 #endif
-                f = ast_dsp_process(sub->owner, sub->parent->dsp, f, 0);
+                f = ast_dsp_process(sub->owner, sub->parent->dsp, f);
             }
 		}
 	}
@@ -1070,7 +1070,7 @@ static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame)
 	return res;
 }
 
-static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, int needlock)
+static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct mgcp_subchannel *sub = newchan->pvt->pvt;
     ast_log(LOG_NOTICE, "mgcp_fixup(%s, %s)\n", oldchan->name, newchan->name);
@@ -1337,7 +1337,7 @@ static int rtpready(struct ast_rtp *rtp, struct ast_frame *f, void *data)
 				    f = ast_dsp_process(p->owner,p->dsp,f,0);
 				}
 			}
-			ast_queue_frame(p->owner, f, 0);
+			ast_queue_frame(p->owner, f);
 			ast_mutex_unlock(&p->owner->lock);
 		}
 	}
@@ -2664,7 +2664,7 @@ static int attempt_transfer(struct mgcp_endpoint *p)
 		p->sub->next->owner->_softhangup |= AST_SOFTHANGUP_DEV;
         if (p->sub->next->owner) {
             p->sub->next->alreadygone = 1;
-            ast_queue_hangup(p->sub->next->owner, 1);
+            ast_queue_hangup(p->sub->next->owner);
         }
 	}
 	return 0;
@@ -2694,7 +2694,7 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
             }
             /*transmit_notify_request(sub, "aw");*/
             transmit_notify_request(sub, "");
-            ast_queue_control(sub->owner, AST_CONTROL_ANSWER, 1);
+            ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
         }
     } else {
         /* Start switch */
@@ -2748,7 +2748,7 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
             }
             /*transmit_notify_request(sub, "aw");*/
             transmit_notify_request(sub, "");
-            /*ast_queue_control(sub->owner, AST_CONTROL_ANSWER, 1);*/
+            /*ast_queue_control(sub->owner, AST_CONTROL_ANSWER);*/
         }
     }
 }
@@ -2914,7 +2914,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
                 if ((res = attempt_transfer(p)) < 0) {
                     if (p->sub->next->owner) {
                         sub->next->alreadygone = 1;
-                        ast_queue_hangup(sub->next->owner,1);
+                        ast_queue_hangup(sub->next->owner);
                     }
                 } else if (res) {
                     ast_log(LOG_WARNING, "Transfer attempt failed\n");
@@ -2925,7 +2925,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
                 /* If there is another active call, mgcp_hangup will ring the phone with the other call */
                 if (sub->owner) {
                     sub->alreadygone = 1;
-                    ast_queue_hangup(sub->owner, 1);
+                    ast_queue_hangup(sub->owner);
                 } else {
                     /* SC: verbose level check */
                     if (option_verbose > 2) {
@@ -2956,9 +2956,9 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 			f.src = "mgcp";
 			if (sub->owner) {
                 /* XXX MUST queue this frame to all subs in threeway call if threeway call is active */
-				ast_queue_frame(sub->owner, &f, 1);
+				ast_queue_frame(sub->owner, &f);
                 if (sub->next->owner) {
-                    ast_queue_frame(sub->next->owner, &f, 1);
+                    ast_queue_frame(sub->next->owner, &f);
                 }
             }
             if (strstr(p->curtone, "wt") && (ev[0] == 'A')) {

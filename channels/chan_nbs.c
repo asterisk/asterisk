@@ -73,10 +73,10 @@ static int nbs_call(struct ast_channel *ast, char *dest, int timeout)
 	/* If we can't connect, return congestion */
 	if (nbs_connect(p->nbs)) {
 		ast_log(LOG_WARNING, "NBS Connection failed on %s\n", ast->name);
-		ast_queue_control(ast, AST_CONTROL_CONGESTION, 0);
+		ast_queue_control(ast, AST_CONTROL_CONGESTION);
 	} else {
 		ast_setstate(ast, AST_STATE_RINGING);
-		ast_queue_control(ast, AST_CONTROL_ANSWER, 0);
+		ast_queue_control(ast, AST_CONTROL_ANSWER);
 	}
 
 	return 0;

@@ -481,7 +481,7 @@ int ast_lock_context(struct ast_context *con);
 int ast_unlock_context(struct ast_context *con);
 
 
-int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int priority, int needlock);
+int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int priority);
 
 int ast_async_goto_by_name(char *chan, char *context, char *exten, int priority);
 

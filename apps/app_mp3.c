@@ -126,7 +126,7 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 	ast_stopstream(chan);
 
 	owriteformat = chan->writeformat;
-	res = ast_set_write_format(chan, AST_FORMAT_SLINEAR, 1);
+	res = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set write format to signed linear\n");
 		return -1;
@@ -192,7 +192,7 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 	if (pid > -1)
 		kill(pid, SIGKILL);
 	if (!res && owriteformat)
-		ast_set_write_format(chan, owriteformat, 1);
+		ast_set_write_format(chan, owriteformat);
 	return res;
 }
 

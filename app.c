@@ -86,7 +86,7 @@ int ast_app_getvoice(struct ast_channel *c, char *dest, char *dstfmt, char *prom
 			return res;
 	}
 	rfmt = c->readformat;
-	res = ast_set_read_format(c, AST_FORMAT_SLINEAR, 1);
+	res = ast_set_read_format(c, AST_FORMAT_SLINEAR);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
 		return -1;
@@ -135,7 +135,7 @@ int ast_app_getvoice(struct ast_channel *c, char *dest, char *dstfmt, char *prom
 			ast_frfree(f);
 		}
 	}
-	res = ast_set_read_format(c, rfmt, 1);
+	res = ast_set_read_format(c, rfmt);
 	if (res)
 		ast_log(LOG_WARNING, "Unable to restore read format on '%s'\n", c->name);
 	ast_dsp_free(sildet);

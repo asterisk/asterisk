@@ -137,13 +137,13 @@ static struct agent_pvt {
 			/* Native formats changed, reset things */ \
 			ast->nativeformats = p->chan->nativeformats; \
 			ast_log(LOG_DEBUG, "Resetting read to %d and write to %d\n", ast->readformat, ast->writeformat);\
-			ast_set_read_format(ast, ast->readformat, 0); \
-			ast_set_write_format(ast, ast->writeformat, 0); \
+			ast_set_read_format(ast, ast->readformat); \
+			ast_set_write_format(ast, ast->writeformat); \
 		} \
 		if (p->chan->readformat != ast->pvt->rawreadformat)  \
-			ast_set_read_format(p->chan, ast->pvt->rawreadformat, 0); \
+			ast_set_read_format(p->chan, ast->pvt->rawreadformat); \
 		if (p->chan->writeformat != ast->pvt->rawwriteformat) \
-			ast_set_write_format(p->chan, ast->pvt->rawwriteformat, 0); \
+			ast_set_write_format(p->chan, ast->pvt->rawwriteformat); \
 	} \
 } while(0)
 
@@ -464,7 +464,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_log( LOG_DEBUG, "Waited for stream, result '%d'\n", res);
 	}
 	if (!res) {
-		res = ast_set_read_format(p->chan, ast_best_codec(p->chan->nativeformats), 0);
+		res = ast_set_read_format(p->chan, ast_best_codec(p->chan->nativeformats));
 		ast_log( LOG_DEBUG, "Set read format, result '%d'\n", res);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to set read format to %s\n", ast_getformatname(ast_best_codec(p->chan->nativeformats)));
@@ -474,7 +474,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 
 	if (!res) {
-		ast_set_write_format(p->chan, ast_best_codec(p->chan->nativeformats), 0);
+		ast_set_write_format(p->chan, ast_best_codec(p->chan->nativeformats));
 		ast_log( LOG_DEBUG, "Set write format, result '%d'\n", res);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to set write format to %s\n", ast_getformatname(ast_best_codec(p->chan->nativeformats)));
@@ -708,7 +708,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 		if( ast_mutex_trylock(&p->app_lock) )
 		{
 			if (p->chan) {
-				ast_queue_frame(p->chan, &null_frame, 1);
+				ast_queue_frame(p->chan, &null_frame);
 				ast_mutex_unlock(&p->lock);	/* For other thread to read the condition. */
 				ast_mutex_lock(&p->app_lock);
 				ast_mutex_lock(&p->lock);
@@ -1266,12 +1266,12 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 						ast_mutex_lock(&agentlock);
 						ast_mutex_lock(&p->lock);
 						if (!res) {
-							res = ast_set_read_format(chan, ast_best_codec(chan->nativeformats), 0);
+							res = ast_set_read_format(chan, ast_best_codec(chan->nativeformats));
 							if (res)
 								ast_log(LOG_WARNING, "Unable to set read format to %d\n", ast_best_codec(chan->nativeformats));
 						}
 						if (!res) {
-							ast_set_write_format(chan, ast_best_codec(chan->nativeformats), 0);
+							ast_set_write_format(chan, ast_best_codec(chan->nativeformats));
 							if (res)
 								ast_log(LOG_WARNING, "Unable to set write format to %d\n", ast_best_codec(chan->nativeformats));
 						}

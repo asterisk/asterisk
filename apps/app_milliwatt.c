@@ -104,8 +104,8 @@ static int milliwatt_exec(struct ast_channel *chan, void *data)
 
 	struct localuser *u;
 	LOCAL_USER_ADD(u);
-	ast_set_write_format(chan, AST_FORMAT_ULAW, 1);
-	ast_set_read_format(chan, AST_FORMAT_ULAW, 1);
+	ast_set_write_format(chan, AST_FORMAT_ULAW);
+	ast_set_read_format(chan, AST_FORMAT_ULAW);
 	if (chan->_state != AST_STATE_UP)
 	{
 		ast_answer(chan);

@@ -274,25 +274,25 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 
 	if (confflags & CONFFLAG_VIDEO) {	
 		/* Set it into linear mode (write) */
-		if (ast_set_write_format(chan, AST_FORMAT_SLINEAR, 1) < 0) {
+		if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
 			ast_log(LOG_WARNING, "Unable to set '%s' to write linear mode\n", chan->name);
 			goto outrun;
 		}
 
 		/* Set it into linear mode (read) */
-		if (ast_set_read_format(chan, AST_FORMAT_SLINEAR, 1) < 0) {
+		if (ast_set_read_format(chan, AST_FORMAT_SLINEAR) < 0) {
 			ast_log(LOG_WARNING, "Unable to set '%s' to read linear mode\n", chan->name);
 			goto outrun;
 		}
 	} else {
 		/* Set it into U-law mode (write) */
-		if (ast_set_write_format(chan, AST_FORMAT_ULAW, 1) < 0) {
+		if (ast_set_write_format(chan, AST_FORMAT_ULAW) < 0) {
 			ast_log(LOG_WARNING, "Unable to set '%s' to write ulaw mode\n", chan->name);
 			goto outrun;
 		}
 
 		/* Set it into U-law mode (read) */
-		if (ast_set_read_format(chan, AST_FORMAT_ULAW, 1) < 0) {
+		if (ast_set_read_format(chan, AST_FORMAT_ULAW) < 0) {
 			ast_log(LOG_WARNING, "Unable to set '%s' to read ulaw mode\n", chan->name);
 			goto outrun;
 		}

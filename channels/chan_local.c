@@ -112,7 +112,7 @@ retrylock:
 		ast_mutex_lock(&p->lock);
 		goto retrylock;
 	}
-	ast_queue_frame(other, f, 0);
+	ast_queue_frame(other, f);
 	ast_mutex_unlock(&other->lock);
 	p->glaredetect = 0;
 	return 0;
@@ -185,23 +185,20 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f)
 	return res;
 }
 
-static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, int needlock)
+static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct local_pvt *p = newchan->pvt->pvt;
-	if (needlock)
-		ast_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	if ((p->owner != oldchan) && (p->chan != oldchan)) {
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p/%p\n", oldchan, p->owner, p->chan);
-		if (needlock)
-			ast_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		return -1;
 	}
 	if (p->owner == oldchan)
 		p->owner = newchan;
 	else
 		p->chan = newchan;	
-	if (needlock)
-		ast_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return 0;
 }
 

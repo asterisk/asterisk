@@ -510,7 +510,7 @@ static int retrans_pkt(void *data)
 			}
 			if (pkt->owner->owner) {
 				/* XXX Potential deadlocK?? XXX */
-				ast_queue_hangup(pkt->owner->owner, 0);
+				ast_queue_hangup(pkt->owner->owner);
 				ast_mutex_unlock(&pkt->owner->owner->lock);
 			} else {
 				/* If no owner, destroy now */
@@ -560,7 +560,7 @@ static int __sip_autodestruct(void *data)
 	ast_log(LOG_DEBUG, "Auto destroying call '%s'\n", p->callid);
 	if (p->owner) {
 		ast_log(LOG_WARNING, "Autodestruct on call '%s' with owner in place\n", p->callid);
-		ast_queue_hangup(p->owner, 0);
+		ast_queue_hangup(p->owner);
 	} else {
 		sip_destroy(p);
 	}
@@ -933,7 +933,7 @@ static int auto_congest(void *nothing)
 	if (p->owner) {
 		if (!ast_mutex_trylock(&p->owner->lock)) {
 			ast_log(LOG_NOTICE, "Auto-congesting %s\n", p->owner->name);
-			ast_queue_control(p->owner, AST_CONTROL_CONGESTION, 0);
+			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 			ast_mutex_unlock(&p->owner->lock);
 		}
 	}
@@ -1381,20 +1381,17 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 	return res;
 }
 
-static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, int needlock)
+static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct sip_pvt *p = newchan->pvt->pvt;
-	if (needlock)
-		ast_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	if (p->owner != oldchan) {
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
-		if (needlock)
-			ast_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		return -1;
 	}
 	p->owner = newchan;
-	if (needlock)
-		ast_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return 0;
 }
 
@@ -1680,11 +1677,11 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 			if (f->subclass != p->owner->nativeformats) {
 				ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
 				p->owner->nativeformats = f->subclass;
-				ast_set_read_format(p->owner, p->owner->readformat, 0);
-				ast_set_write_format(p->owner, p->owner->writeformat, 0);
+				ast_set_read_format(p->owner, p->owner->readformat);
+				ast_set_write_format(p->owner, p->owner->writeformat);
 			}
             if ((p->dtmfmode & SIP_DTMF_INBAND) && p->vad) {
-                   f = ast_dsp_process(p->owner,p->vad,f,0);
+                   f = ast_dsp_process(p->owner,p->vad,f);
             }
 		}
 	}
@@ -2139,8 +2136,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		if (!(p->owner->nativeformats & p->jointcapability)) {
 			ast_log(LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %d and not %d\n", p->jointcapability, p->owner->nativeformats);
 			p->owner->nativeformats = sip_codec_choose(p->jointcapability);
-			ast_set_read_format(p->owner, p->owner->readformat, 0);
-			ast_set_write_format(p->owner, p->owner->writeformat, 0);
+			ast_set_read_format(p->owner, p->owner->readformat);
+			ast_set_write_format(p->owner, p->owner->writeformat);
 		}
 		if (p->owner->bridge) {
 			/* Turn on/off music on hold if we are holding/unholding */
@@ -4407,7 +4404,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 		  f.offset = 0;
 		  f.data = buf;
 		  f.datalen = strlen(buf);
-		  ast_queue_frame(p->owner, &f, 0);
+		  ast_queue_frame(p->owner, &f);
 	}
 }
 
@@ -4677,7 +4674,7 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
                         f.offset = 0;
                         f.data = NULL;
                         f.datalen = 0;
-                        ast_queue_frame(p->owner, &f, 0);
+                        ast_queue_frame(p->owner, &f);
 		}
 	}
 }
@@ -5030,13 +5027,13 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					process_sdp(p, req);
 				if (p->owner) {
 					/* Queue a progress frame */
-					ast_queue_control(p->owner, AST_CONTROL_PROGRESS, 0);
+					ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
 				}
 			}
 			break;
 		case 180:
 			if (p->owner) {
-				ast_queue_control(p->owner, AST_CONTROL_RINGING, 0);
+				ast_queue_control(p->owner, AST_CONTROL_RINGING);
 				if (p->owner->_state != AST_STATE_UP)
 					ast_setstate(p->owner, AST_STATE_RINGING);
 			}
@@ -5046,7 +5043,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* They got the notify, this is the end */
 				if (p->owner) {
 					ast_log(LOG_WARNING, "Notify answer on an owned channel?\n");
-					ast_queue_hangup(p->owner, 0);
+					ast_queue_hangup(p->owner);
 				} else {
 					if (!p->subscribed) {
 					    p->needdestroy = 1;
@@ -5060,10 +5057,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				if (p->owner) {
 					if (p->owner->_state != AST_STATE_UP) {
 						ast_setstate(p->owner, AST_STATE_UP);
-						ast_queue_control(p->owner, AST_CONTROL_ANSWER, 0);
+						ast_queue_control(p->owner, AST_CONTROL_ANSWER);
 					} else {
 						struct ast_frame af = { AST_FRAME_NULL, };
-						ast_queue_frame(p->owner, &af, 0);
+						ast_queue_frame(p->owner, &af);
 					}
 				}
 				p->authtries = 0;
@@ -5152,7 +5149,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		case 501: /* Not Implemented */
 			if (!strcasecmp(msg, "INVITE"))
-				ast_queue_control(p->owner, AST_CONTROL_CONGESTION, 0);
+				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 			else
 				ast_log(LOG_WARNING, "Host '%s' does not implement '%s'\n", inet_ntoa(p->sa.sin_addr), msg);
 			break;
@@ -5177,7 +5174,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				case 305: /* Use Proxy */
 					parse_moved_contact(p, req);
 					if (p->owner)
-						ast_queue_control(p->owner, AST_CONTROL_BUSY, 0);
+						ast_queue_control(p->owner, AST_CONTROL_BUSY);
 					break;
 				case 487:
 					/* channel now destroyed - dec the inUse counter */
@@ -5192,19 +5189,19 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				case 600: /* Busy everywhere */
 				case 603: /* Decline */
 					if (p->owner)
-						ast_queue_control(p->owner, AST_CONTROL_BUSY, 0);
+						ast_queue_control(p->owner, AST_CONTROL_BUSY);
 					break;
 				case 480: /* Temporarily Unavailable */
 				case 404: /* Not Found */
 				case 410: /* Gone */
 				case 500: /* Server error */
 					if (owner)
-						ast_queue_control(p->owner, AST_CONTROL_CONGESTION, 0);
+						ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 					break;
 				default:
 					/* Send hangup */	
 					if (owner)
-						ast_queue_hangup(p->owner, 0);
+						ast_queue_hangup(p->owner);
 					break;
 				}
 				/* ACK on invite */
@@ -5401,7 +5398,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			}
 			/* Queue NULL frame to prod ast_rtp_bridge if appropriate */
 			if (p->owner)
-				ast_queue_frame(p->owner, &af, 0);
+				ast_queue_frame(p->owner, &af);
 		} else if (sipdebug)
 			ast_verbose("Ignoring this request\n");
 		if (!p->lastinvite) {
@@ -5543,9 +5540,9 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 					transfer_to = c->bridge;
 					if (transfer_to) {
 						ast_moh_stop(transfer_to);
-						ast_async_goto(transfer_to,p->context, p->refer_to,1, 1);
+						ast_async_goto(transfer_to,p->context, p->refer_to,1);
 					} else {
-						ast_queue_hangup(p->owner, 0);
+						ast_queue_hangup(p->owner);
 					}
 				}
 				p->gotrefer = 1;
@@ -5566,7 +5563,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ast_rtp_stop(p->vrtp);
 		}
 		if (p->owner)
-			ast_queue_hangup(p->owner, 0);
+			ast_queue_hangup(p->owner);
 		else
 			p->needdestroy = 1;
 		if (p->initreq.len > 0) {
@@ -5600,16 +5597,16 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 					if (transfer_to) {
 						/* Don't actually hangup here... */
 						ast_moh_stop(transfer_to);
-						ast_async_goto(transfer_to,p->context, p->refer_to,1, 1);
+						ast_async_goto(transfer_to,p->context, p->refer_to,1);
 					} else
-						ast_queue_hangup(p->owner, 0);
+						ast_queue_hangup(p->owner);
 				}
 			} else {
 				ast_log(LOG_WARNING, "Invalid transfer information from '%s'\n", inet_ntoa(p->recv.sin_addr));
-				ast_queue_hangup(p->owner, 0);
+				ast_queue_hangup(p->owner);
 			}
 		} else if (p->owner)
-			ast_queue_hangup(p->owner, 0);
+			ast_queue_hangup(p->owner);
 		else
 			p->needdestroy = 1;
 		transmit_response(p, "200 OK", req);

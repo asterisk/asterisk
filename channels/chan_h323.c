@@ -923,7 +923,7 @@ int send_digit(unsigned call_reference, char digit)
     f.mallocd = 0;
     f.src = "SEND_DIGIT";
    	
-	return ast_queue_frame(p->owner, &f, 1);	
+	return ast_queue_frame(p->owner, &f);	
 }
 
 /**
@@ -1215,7 +1215,7 @@ void cleanup_connection(call_details_t cd)
 
 	/* Send hangup */	
 	if (p->owner)
-		ast_queue_hangup(p->owner, 1);
+		ast_queue_hangup(p->owner);
 
 	p = NULL;
 	return;	
