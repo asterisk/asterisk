@@ -1,28 +1,57 @@
 ;
 ; SIP Configuration for Asterisk
 ;
+; Syntax for specifying a SIP device in extensions.conf is
+; SIP/devicename where devicename is defined in a section below.
+;
+; You may also use 
+; SIP/username@domain to call any SIP user on the Internet
+; (Don't forget to enable DNS SRV records if you want to use this)
+; 
+; If you define a SIP proxy as a peer below, you may call
+; SIP/proxyhostname/user or SIP/user@proxyhostname 
+; where the proxyhostname is defined in a section below 
+; 
+; Useful CLI commands to check peers/users:
+;   sip show peers		Show all SIP peers (including friends)
+;   sip show users		Show all SIP users (including friends)
+;   sip show registry		Show status of hosts we register with
+;
+;   sip debug			Show all SIP messages
+;
+
 [general]
 port = 5060			; Port to bind to
-bindaddr = 0.0.0.0		; Address to bind to
-;externip = 200.201.202.203	; Address that we're going to put in SIP messages if we're behind a NAT
-;localnet = 192.168.1.0         ; Internal NETWORK address
-;localmask = 255.255.255.0      ; Internal netmask
-context = default		; Default for incoming calls
-;srvlookup = yes		; Enable SRV lookups on outbound calls
+bindaddr = 0.0.0.0		; Address to bind SIP channel to
+context = default		; Default context for incoming calls
+;srvlookup = yes		; Enable DNS SRV lookups on outbound calls
+				; Asterisk only uses the first host in SRV records
 ;pedantic = yes			; Enable slow, pedantic checking for Pingtel
-;tos=lowdelay
-;tos=184
+;tos=lowdelay			; IP QoS parameter, either keyword or value
+				; like tos=184
 ;maxexpirey=3600		; Max length of incoming registration we allow
 ;defaultexpirey=120		; Default length of incoming/outoing registration
 ;notifymimetype=text/plain	; Allow overriding of mime type in NOTIFY
 ;videosupport=yes		; Turn on support for SIP video
+
 ;disallow=all			; Disallow all codecs
 ;allow=ulaw			; Allow codecs in order of preference
 ;allow=ilbc
-;
-;register => 1234@mysipprovider.com	; Register with a SIP provider
-;register => 2345@mysipprovider.com/1234 ; Register 2345 at sip provider as 1234 here.
-;
+
+;register => 1234:password@mysipprovider.com	
+;Register with a SIP provider
+
+;register => 2345@mysipprovider.com/1234 	
+;Register 2345 at sip provider. Calls from this provider connect to local extension 1234 in extensions.conf.
+
+;externip = 200.201.202.203	; Address that we're going to put in outbound SIP messages
+				; if we're behind a NAT
+;localnet = 192.168.1.0		; Internal NETWORK address
+;localmask = 255.255.255.0     	; Internal netmask
+				; The externip, localnet and localmask is used
+				; when registering and communication with other proxies
+				; that we're registred with
+
 ;[snomsip]
 ;type=friend
 ;secret=blah
@@ -38,6 +67,9 @@ context = default		; Default for incoming calls
 ;secret=blah
 ;host=dynamic
 ;qualify=1000			; Consider it down if it's 1 second to reply
+				; Helps with NAT session
+				; qualify=yes uses default value
+
 ;callgroup=1,3-4
 ;pickupgroup=1,3-4
 ;defaultip=192.168.0.60
@@ -47,8 +79,14 @@ context = default		; Default for incoming calls
 ;username=cisco
 ;secret=blah
 ;nat=yes			; This phone may be natted
+				; Use IP address that packet is received from
+				; instead of trusting SIP headers
 ;host=dynamic
-;canreinvite=no			; Cisco poops on reinvite sometimes
+;canreinvite=no			; Asterisk by default tries to redirect the
+				; RTP media stream (audio) to go directly from
+				; the caller to the callee.  Some devices do not
+				; support this (especially if one of them is 
+				; behinda a NAT).
 ;qualify=200			; Qualify peer is no more than 200ms away
 ;defaultip=192.168.0.4
 
@@ -56,8 +94,12 @@ context = default		; Default for incoming calls
 ;type=friend
 ;username=cisco1
 ;fromuser=markster		; Specify user to put in "from" instead of callerid
+;fromdomain=yourdomain.com	; Specify domain to put in "from" instead of callerid
+				; fromuser and fromdomain are used when Asterisk
+				; places calls to this account.  It is not used for
+				; calls from this account.
 ;secret=blah
 ;host=dynamic
 ;defaultip=192.168.0.4
 ;amaflags=default		; Choices are default, omit, billing, documentation
-;accountcode=markster		; Users may be associated with an accountcode tp ease billing
+;accountcode=markster		; Users may be associated with an accountcode to ease billing
