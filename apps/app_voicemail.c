@@ -1372,6 +1372,18 @@ static void free_zone(struct vm_zone *z)
 	free(z);
 }
 
+static void run_externnotify(char *context, char *extension, int numvoicemails)
+{
+	char arguments[255];
+
+	if(externnotify[0]) {
+		strncpy(arguments, externnotify, sizeof(arguments));
+		snprintf(arguments, sizeof(arguments)-1, "%s %s %s %d&", externnotify, context, extension, numvoicemails);
+		ast_log(LOG_DEBUG,"Executing %s\n", arguments);
+		ast_safe_system(arguments);
+	}
+}
+
 static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int busy, int unavail)
 {
 	char comment[256];
@@ -1567,16 +1579,7 @@ leave_vm_out:
 	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext, ast_app_has_voicemail(ext));
 
 	/* If an external program is specified to be run after leaving a voicemail */
-	if (externnotify[0]) {
-		char arguments[255];
-		ast_log(LOG_DEBUG, "App voicemail ran the external notify program\n");
-		strncpy(tmp, externnotify, sizeof(tmp));
-		snprintf(arguments, sizeof(arguments)-1, " %s %s %d&", chan->context, ext, ast_app_has_voicemail(ext));
-		strncat(tmp, arguments, sizeof(tmp) - strlen(arguments));
-		tmp[sizeof(tmp) - 1] = '\0';
-//		ast_verbose(VERBOSE_PREFIX_3,"Executing %s\n", tmp);
-		ast_safe_system(tmp);
-	}
+	run_externnotify(chan->context, ext, ast_app_has_voicemail(ext));
 
 	return res;
 }
@@ -2375,15 +2378,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 		}
 		/* Leave voicemail for someone */
 		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", vmtmp->mailbox, ast_app_has_voicemail(vmtmp->mailbox));
-		if (externnotify[0]) {
-			char arguments[255];
-			strncpy(tmp, externnotify, sizeof(tmp));
-			snprintf(arguments, sizeof(arguments)-1, " %s %s %d&", chan->context, vmtmp->mailbox, ast_app_has_voicemail(vmtmp->mailbox));
-			strncat(tmp, arguments, sizeof(tmp) - strlen(arguments));
-			tmp[sizeof(tmp) - 1] = '\0';
-		//	ast_verbose(VERBOSE_PREFIX_3, "executing %s\n", tmp);
-			ast_safe_system(tmp);
-		}
+		run_externnotify(chan->context, vmtmp->mailbox, ast_app_has_voicemail(vmtmp->mailbox));
 
 		saved_messages++;
 		vmfree = vmtmp;
@@ -3035,15 +3030,8 @@ out:
 		free_user(vmu);
 	if (valid) {
 		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", vms.username, ast_app_has_voicemail(vms.username));
-		if (externnotify[0]) {
-			char arguments[255];
-			strncpy(tmp, externnotify, sizeof(tmp));
-			snprintf(arguments, sizeof(arguments)-1, " %s %s %d&", chan->context, vms.username, ast_app_has_voicemail(vms.username));
-			strncat(tmp, arguments, sizeof(tmp) - strlen(arguments));
-			tmp[sizeof(tmp) - 1] = '\0';
-		//	ast_verbose(VERBOSE_PREFIX_3, "executing: %s\n");
-			ast_safe_system(tmp);
-		}
+		run_externnotify(chan->context, vms.username, ast_app_has_voicemail(vms.username));
+
 	}
 	LOCAL_USER_REMOVE(u);
 
@@ -3351,7 +3339,7 @@ static int load_config(void)
 		
 		if ((notifystr = ast_variable_retrieve(cfg, "general", "externnotify"))) {
 			strncpy(externnotify, notifystr, sizeof(externnotify) - 1);
-			//ast_verbose(VERBOSE_PREFIX_3, "found externnotify: %s\n", externnotify);
+			ast_log(LOG_DEBUG, "found externnotify: %s\n", externnotify);
 		} else {
 			externnotify[0] = '\0';
 		}
