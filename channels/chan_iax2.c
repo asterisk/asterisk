@@ -349,6 +349,8 @@ struct ast_iax2_frame {
 	struct ast_frame *f;
 	/* /Our/ call number */
 	unsigned short callno;
+	/* /Their/ call number */
+	unsigned short dcallno;
 	/* Start of raw frame (outgoing only) */
 	void *data;
 	/* Length of frame (outgoing only) */
@@ -566,8 +568,11 @@ void showframe(struct ast_iax2_frame *f, struct ast_iax2_full_hdr *fhi, int rx, 
 		fh = f->data;
 		snprintf(retries, sizeof(retries), "%03d", f->retries);
 	} else {
-		strcpy(retries, "N/A");
 		fh = fhi;
+		if (ntohs(fh->dcallno) & AST_FLAG_RETRANS)
+			strcpy(retries, "Yes");
+		else
+			strcpy(retries, "No");
 	}
 	if (!(ntohs(fh->scallno) & AST_FLAG_FULL)) {
 		/* Don't mess with mini-frames */
@@ -1147,7 +1152,17 @@ static void iax2_destroy_nolock(int callno)
 	ast_pthread_mutex_lock(&iaxsl[callno]);
 }
 
-
+static int update_packet(struct ast_iax2_frame *f)
+{
+	/* Called with iaxsl lock held, and iaxs[callno] non-NULL */
+	struct ast_iax2_full_hdr *fh = f->data;
+	/* Mark this as a retransmission */
+	fh->dcallno = ntohs(AST_FLAG_RETRANS | f->dcallno);
+	/* Update iseqno */
+	f->iseqno = iaxs[f->callno]->iseqno;
+	fh->iseqno = ntohs(f->iseqno);
+	return 0;
+}
 
 static int attempt_transmit(void *data)
 {
@@ -1193,6 +1208,8 @@ static int attempt_transmit(void *data)
 				}
 				freeme++;
 		} else {
+			/* Update it if it needs it */
+			update_packet(f);
 			/* Attempt transmission */
 			send_packet(f);
 			f->retries++;
@@ -2221,9 +2238,10 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		fh->type = fr->f->frametype & 0xFF;
 		fh->csub = compress_subclass(fr->f->subclass);
 		if (transfer) {
-			fh->dcallno = htons(pvt->transfercallno);
+			fr->dcallno = pvt->transfercallno;
 		} else
-			fh->dcallno = htons(pvt->peercallno);
+			fr->dcallno = pvt->peercallno;
+		fh->dcallno = htons(fr->dcallno);
 		fr->datalen = fr->f->datalen + sizeof(struct ast_iax2_full_hdr);
 		fr->data = fh;
 		fr->retries = 0;
@@ -3610,6 +3628,14 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			    (f.frametype != AST_FRAME_IAX))
 				iaxs[fr.callno]->iseqno++;
 		}
+		/* A full frame */
+		if (res < sizeof(struct ast_iax2_full_hdr)) {
+			ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, sizeof(struct ast_iax2_full_hdr));
+			ast_pthread_mutex_unlock(&iaxsl[fr.callno]);
+			return 1;
+		}
+		f.datalen = res - sizeof(struct ast_iax2_full_hdr);
+
 		/* Handle implicit ACKing unless this is an INVAL */
 		if (((f.subclass != AST_IAX2_COMMAND_INVAL)) ||
 			(f.frametype != AST_FRAME_IAX)) {
@@ -3643,17 +3669,17 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					ast_pthread_mutex_unlock(&iaxq.lock);
 				}
 				/* Note how much we've received acknowledgement for */
-				iaxs[fr.callno]->rseqno = fr.iseqno;
+				if (iaxs[fr.callno])
+					iaxs[fr.callno]->rseqno = fr.iseqno;
+				else {
+					/* Stop processing now */
+					ast_pthread_mutex_unlock(&iaxsl[fr.callno]);
+					return 1;
+				}
 			} else
 				ast_log(LOG_DEBUG, "Received iseqno %d not within window %d->%d\n", fr.iseqno, iaxs[fr.callno]->rseqno, iaxs[fr.callno]->oseqno);
 		}
-		/* A full frame */
-		if (res < sizeof(struct ast_iax2_full_hdr)) {
-			ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, sizeof(struct ast_iax2_full_hdr));
-			ast_pthread_mutex_unlock(&iaxsl[fr.callno]);
-			return 1;
-		}
-		f.datalen = res - sizeof(struct ast_iax2_full_hdr);
+
 		if (f.datalen) {
 			if (f.frametype == AST_FRAME_IAX) {
 				if (parse_ies(&ies, buf + sizeof(struct ast_iax2_full_hdr), f.datalen)) {
@@ -3826,6 +3852,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			case AST_IAX2_COMMAND_HANGUP:
 				iaxs[fr.callno]->alreadygone = 1;
 				ast_log(LOG_DEBUG, "Immediately destroying %d, having received hangup\n", fr.callno);
+				/* Send ack immediately, before we destroy */
+				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, AST_IAX2_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 				iax2_destroy_nolock(fr.callno);
 				break;
 			case AST_IAX2_COMMAND_REJECT:
@@ -3833,6 +3861,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					ast_log(LOG_WARNING, "Call rejected by %s: %s\n", inet_ntoa(iaxs[fr.callno]->addr.sin_addr), ies.cause ? ies.cause : "<Unknown>");
 				iaxs[fr.callno]->error = EPERM;
 				ast_log(LOG_DEBUG, "Immediately destroying %d, having received reject\n", fr.callno);
+				/* Send ack immediately, before we destroy */
+				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, AST_IAX2_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 				iax2_destroy_nolock(fr.callno);
 				break;
 			case AST_IAX2_COMMAND_ACCEPT:
@@ -4074,6 +4104,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			case AST_IAX2_COMMAND_REGACK:
 				if (iax2_ack_registry(&ies, &sin, fr.callno)) 
 					ast_log(LOG_WARNING, "Registration failure\n");
+				/* Send ack immediately, before we destroy */
+				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, AST_IAX2_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 				iax2_destroy_nolock(fr.callno);
 				break;
 			case AST_IAX2_COMMAND_REGREJ:
@@ -4081,6 +4113,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					ast_log(LOG_NOTICE, "Registration of '%s' rejected: %s\n", iaxs[fr.callno]->reg->username, ies.cause ? ies.cause : "<unknown>");
 					iaxs[fr.callno]->reg->regstate = REG_STATE_REJECTED;
 				}
+				/* Send ack immediately, before we destroy */
+				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, AST_IAX2_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 				iax2_destroy_nolock(fr.callno);
 				break;
 			case AST_IAX2_COMMAND_REGAUTH:
