@@ -3456,27 +3456,38 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 	struct iax2_peer *peer;
 	int processed = 0;
 	int totalcalls = 0;
+	int x = -1;
 	if (iaxtrunkdebug)
 		ast_verbose("Beginning trunk processing\n");
-	/* Read and ignore from the pseudo channel for timing */
-	res = read(fd, buf, sizeof(buf));
-	if (res > 0) {
-		/* For each peer that supports trunking... */
-		ast_pthread_mutex_lock(&peerl.lock);
-		peer = peerl.peers;
-		while(peer) {
-			if (peer->trunk) {
-				processed++;
-				res = send_trunk(peer);
-				if (iaxtrunkdebug)
-					ast_verbose("Processed trunk peer '%s' with %d call(s)\n", peer->name, res);
-				totalcalls += res;	
-				res = 0;
-			}
-			peer = peer->next;
+	if (events & AST_IO_PRI) {
+		/* Great, this is a timing interface, just call the ioctl */
+		if (ioctl(fd, ZT_TIMERACK, x)) 
+			ast_log(LOG_WARNING, "Unable to acknowledge zap timer\n");
+		res = 0;
+	} else {
+		/* Read and ignore from the pseudo channel for timing */
+		res = read(fd, buf, sizeof(buf));
+		if (res < 1) {
+			ast_log(LOG_WARNING, "Unable to read from timing fd\n");
+			ast_pthread_mutex_unlock(&peerl.lock);
+			return 1;
 		}
-		ast_pthread_mutex_unlock(&peerl.lock);
 	}
+	/* For each peer that supports trunking... */
+	ast_pthread_mutex_lock(&peerl.lock);
+	peer = peerl.peers;
+	while(peer) {
+		if (peer->trunk) {
+			processed++;
+			res = send_trunk(peer);
+			if (iaxtrunkdebug)
+				ast_verbose("Processed trunk peer '%s' with %d call(s)\n", peer->name, res);
+			totalcalls += res;	
+			res = 0;
+		}
+		peer = peer->next;
+	}
+	ast_pthread_mutex_unlock(&peerl.lock);
 	if (iaxtrunkdebug)
 		ast_verbose("Ending trunk processing with %d peers and %d calls processed\n", processed, totalcalls);
 	iaxtrunkdebug =0;
@@ -4522,7 +4533,7 @@ static void *network_thread(void *ignore)
 	/* Establish I/O callback for socket read */
 	ast_io_add(io, netsocket, socket_read, AST_IO_IN, NULL);
 	if (timingfd > -1)
-		ast_io_add(io, timingfd, timing_read, AST_IO_IN, NULL);
+		ast_io_add(io, timingfd, timing_read, AST_IO_IN | AST_IO_PRI, NULL);
 	for(;;) {
 		/* Go through the queue, sending messages which have not yet been
 		   sent, and scheduling retransmissions if appropriate */
@@ -4880,7 +4891,8 @@ static void set_timing(void)
 #ifdef IAX_TRUNKING
 	int bs = trunkfreq * 8;
 	if (timingfd > -1) {
-		if (ioctl(timingfd, ZT_SET_BLOCKSIZE, &bs))
+		if (ioctl(timingfd, ZT_TIMERCONFIG, &bs) &&
+			ioctl(timingfd, ZT_SET_BLOCKSIZE, &bs))
 			ast_log(LOG_WARNING, "Unable to set blocksize on timing source\n");
 	}
 #endif
@@ -5416,7 +5428,9 @@ int load_module(void)
 	sin.sin_addr.s_addr = INADDR_ANY;
 
 #ifdef IAX_TRUNKING
-	timingfd = open("/dev/zap/pseudo", O_RDWR);
+	timingfd = open("/dev/zap/timer", O_RDWR);
+	if (timingfd < 0)
+		timingfd = open("/dev/zap/pseudo", O_RDWR);
 	if (timingfd < 0) 
 		ast_log(LOG_WARNING, "Unable to open IAX timing interface: %s\n", strerror(errno));
 #endif		
