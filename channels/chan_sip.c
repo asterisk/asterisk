@@ -5731,7 +5731,7 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 		snprintf(srch, sizeof(srch), FORMAT, name,
 			peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
 			peer->dynamic ? " D " : "   ", 	/* Dynamic or not? */
-			(peer->nat & SIP_NAT_ROUTE) ? " Y " : "   ",	/* NAT=yes? */
+			(peer->nat & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
 			peer->ha ? " A " : "   ", 	/* permit/deny */
 			nm, ntohs(peer->addr.sin_port), status);
 
