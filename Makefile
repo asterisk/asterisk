@@ -407,6 +407,7 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTSBINDIR)
 	mkdir -p $(DESTDIR)$(ASTVARRUNDIR)
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail
+	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/system
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/tmp
 	install -m 755 asterisk $(DESTDIR)$(ASTSBINDIR)/
 	install -m 755 contrib/scripts/astgenkey $(DESTDIR)$(ASTSBINDIR)/

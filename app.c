@@ -1393,3 +1393,37 @@ int ast_ivr_menu_run(struct ast_channel *chan, struct ast_ivr_menu *menu, void *
 		res = 0;
 	return res;
 }
+	
+char *ast_read_textfile(const char *filename)
+{
+	int fd;
+	char *output=NULL;
+	struct stat filesize;
+	int count=0;
+	int res;
+	if(stat(filename,&filesize)== -1){
+		ast_log(LOG_WARNING,"Error can't stat %s\n", filename);
+		return NULL;
+	}
+	count=filesize.st_size + 1;
+	fd = open(filename, O_RDONLY);
+	if (fd < 0) {
+		ast_log(LOG_WARNING, "Cannot open file '%s' for reading: %s\n", filename, strerror(errno));
+		return NULL;
+	}
+	output=(char *)malloc(count);
+	if (output) {
+		res = read(fd, output, count - 1);
+		if (res == count - 1) {
+			output[res] = '\0';
+		} else {
+			ast_log(LOG_WARNING, "Short read of %s (%d of %d): %s\n", filename, res, count -  1, strerror(errno));
+			free(output);
+			output = NULL;
+		}
+	} else 
+		ast_log(LOG_WARNING, "Out of memory!\n");
+	close(fd);
+	return output;
+}
+
