@@ -4769,7 +4769,7 @@ static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 	branch = pbx_checkcondition(condition) ? branch1 : branch2;
 	
 	if ((branch==NULL) || ast_strlen_zero(branch)) {
-		ast_log(LOG_NOTICE, "Not taking any branch\n");
+		ast_log(LOG_DEBUG, "Not taking any branch\n");
 		return(0);
 	}
 	
