@@ -3523,7 +3523,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	}
 
 	if (p->subs[index].needbusy) {
-		/* Send ringing frame if requested */
+		/* Send busy frame if requested */
 		p->subs[index].needbusy = 0;
 		p->subs[index].f.frametype = AST_FRAME_CONTROL;
 		p->subs[index].f.subclass = AST_CONTROL_BUSY;
@@ -3532,7 +3532,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	}
 
 	if (p->subs[index].needcongestion) {
-		/* Send ringing frame if requested */
+		/* Send congestion frame if requested */
 		p->subs[index].needcongestion = 0;
 		p->subs[index].f.frametype = AST_FRAME_CONTROL;
 		p->subs[index].f.subclass = AST_CONTROL_CONGESTION;
@@ -3546,7 +3546,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	}
 	
 	if (p->subs[index].needanswer) {
-		/* Send ringing frame if requested */
+		/* Send answer frame if requested */
 		p->subs[index].needanswer = 0;
 		p->subs[index].f.frametype = AST_FRAME_CONTROL;
 		p->subs[index].f.subclass = AST_CONTROL_ANSWER;
