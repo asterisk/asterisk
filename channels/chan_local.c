@@ -61,6 +61,8 @@ static struct local_pvt {
 	char context[AST_MAX_EXTENSION];	/* Context to call */
 	char exten[AST_MAX_EXTENSION];		/* Extension to call */
 	int reqformat;						/* Requested format */
+	int glaredetect;					/* Detect glare on hangup */
+	int cancelqueue;					/* Cancel queue */
 	int alreadymasqed;					/* Already masqueraded */
 	struct ast_channel *owner;			/* Master Channel */
 	struct ast_channel *chan;			/* Outbound channel */
@@ -76,7 +78,15 @@ static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_fra
 		other = p->chan;
 	if (!other)
 		return 0;
+	p->glaredetect = 1;
 retrylock:		
+	if (p->cancelqueue) {
+		/* We had a glare on the hangup.  Forget all this business,
+		return and destroy p.  */
+		ast_pthread_mutex_unlock(&p->lock);
+		free(p);
+		return -1;
+	}
 	if (pthread_mutex_trylock(&other->lock)) {
 		/* Failed to lock.  Release main lock and try again */
 		ast_pthread_mutex_unlock(&p->lock);
@@ -87,6 +97,7 @@ retrylock:
 	}
 	ast_queue_frame(other, f, 0);
 	ast_pthread_mutex_unlock(&other->lock);
+	p->glaredetect = 0;
 	return 0;
 }
 
@@ -231,6 +242,7 @@ static int local_hangup(struct ast_channel *ast)
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
 	struct local_pvt *cur, *prev=NULL;
 	struct ast_channel *ochan = NULL;
+	int glaredetect;
 	ast_pthread_mutex_lock(&p->lock);
 	if (isoutbound)
 		p->chan = NULL;
@@ -240,6 +252,11 @@ static int local_hangup(struct ast_channel *ast)
 	
 	if (!p->owner && !p->chan) {
 		/* Okay, done with the private part now, too. */
+		glaredetect = p->glaredetect;
+		/* If we have a queue holding, don't actually destroy p yet, but
+		   let local_queue do it. */
+		if (p->glaredetect)
+			p->cancelqueue = 1;
 		ast_pthread_mutex_unlock(&p->lock);
 		/* Remove from list */
 		ast_pthread_mutex_lock(&locallock);
@@ -257,7 +274,8 @@ static int local_hangup(struct ast_channel *ast)
 		}
 		ast_pthread_mutex_unlock(&locallock);
 		/* And destroy */
-		free(p);
+		if (!glaredetect)
+			free(p);
 		return 0;
 	}
 	if (p->chan && !p->chan->pbx)
@@ -307,6 +325,7 @@ static struct local_pvt *local_alloc(char *data, int format)
 static struct ast_channel *local_new(struct local_pvt *p, int state)
 {
 	struct ast_channel *tmp, *tmp2;
+	int randnum = rand() & 0xffff;
 	tmp = ast_channel_alloc(1);
 	tmp2 = ast_channel_alloc(1);
 	if (!tmp || !tmp2) {
@@ -319,8 +338,8 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 	if (tmp) {
 		tmp->nativeformats = p->reqformat;
 		tmp2->nativeformats = p->reqformat;
-		snprintf(tmp->name, sizeof(tmp->name), "Local/%s@%s-1", p->exten, p->context);
-		snprintf(tmp2->name, sizeof(tmp2->name), "Local/%s@%s-2", p->exten, p->context);
+		snprintf(tmp->name, sizeof(tmp->name), "Local/%s@%s-%04x.1", p->exten, p->context, randnum);
+		snprintf(tmp2->name, sizeof(tmp2->name), "Local/%s@%s-%04x,2", p->exten, p->context, randnum);
 		tmp->type = type;
 		tmp2->type = type;
 		ast_setstate(tmp, state);

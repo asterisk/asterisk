@@ -1156,6 +1156,46 @@ static int manager_queues_show( struct mansession *s, struct message *m )
 	return queues_show( s->fd, 2, a );
 } /* /JDG */
 
+
+/* Dump queue status */
+static int manager_queues_status( struct mansession *s, struct message *m )
+{
+	time_t now;
+	int pos;
+	struct ast_call_queue *q;
+	struct queue_ent *qe;
+	astman_send_ack(s, "Queue status will follow");
+	time(&now);
+	q = queues;
+	while(q) {
+		ast_pthread_mutex_lock(&q->lock);
+		ast_cli(s->fd, "Event: QueueParams\r\n"
+					"Queue: %s\r\n"
+					"Max: %d\r\n"
+					"Calls: %d\r\n"
+					"\r\n",
+						q->name, q->maxlen, q->count);
+#if 0
+		/* Do we care about queue members? */					
+		for (mem = q->members; mem; mem = mem->next) 
+			ast_cli(fd, "      %s/%s\n", mem->tech, mem->loc);
+#endif			
+		pos = 1;
+		for (qe = q->head; qe; qe = qe->next) 
+			ast_cli(s->fd, "Event: QueueMember\r\n"
+				"Queue: %s\r\n"
+				"Position: %d\r\n"
+				"Channel: %s\r\n"
+				"CallerID: %s\r\n"
+				"Wait: %ld\r\n"
+				"\r\n", 
+					q->name, pos++, qe->chan->name, qe->chan->callerid ? qe->chan->callerid : "", now - qe->start);
+		ast_pthread_mutex_unlock(&q->lock);
+		q = q->next;
+	}
+	return RESULT_SUCCESS;
+}
+
 static char show_queues_usage[] = 
 "Usage: show queues\n"
 "       Provides summary information on call queues.\n";
@@ -1169,6 +1209,7 @@ int unload_module(void)
 	STANDARD_HANGUP_LOCALUSERS;
 	ast_cli_unregister(&cli_show_queues);
 	ast_manager_unregister( "Queues" );
+	ast_manager_unregister( "QueueStatus" );
 	return ast_unregister_application(app);
 }
 
@@ -1179,6 +1220,7 @@ int load_module(void)
 	if (!res) {
 		ast_cli_register(&cli_show_queues);
 		ast_manager_register( "Queues", 0, manager_queues_show, "Queues" );
+		ast_manager_register( "QueueStatus", 0, manager_queues_status, "Queue Status" );
 
 		// [PHM 06/26/03]
 		ast_register_application(app_aqm, aqm_exec, app_aqm_synopsis, app_aqm_descrip) ;
