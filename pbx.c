@@ -150,6 +150,7 @@ struct ast_hint {
 
 
 static int pbx_builtin_prefix(struct ast_channel *, void *);
+static int pbx_builtin_suffix(struct ast_channel *, void *);
 static int pbx_builtin_stripmsd(struct ast_channel *, void *);
 static int pbx_builtin_answer(struct ast_channel *, void *);
 static int pbx_builtin_goto(struct ast_channel *, void *);
@@ -168,6 +169,7 @@ static int pbx_builtin_setvar(struct ast_channel *, void *);
 static int pbx_builtin_setglobalvar(struct ast_channel *, void *);
 static int pbx_builtin_noop(struct ast_channel *, void *);
 static int pbx_builtin_gotoif(struct ast_channel *, void *);
+static int pbx_builtin_gotoiftime(struct ast_channel *, void *);
 static int pbx_builtin_saynumber(struct ast_channel *, void *);
 static int pbx_builtin_saydigits(struct ast_channel *, void *);
 void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value);
@@ -240,6 +242,13 @@ static struct pbx_builtin {
 "omitted (in that case, we just don't take the particular branch) but not\n"
 "both.  Look for the condition syntax in examples or documentation." },
 
+	{ "GotoIfTime", pbx_builtin_gotoiftime,
+"Conditional goto on current time",
+"  GotoIfTime(<times>|<weekdays>|<mdays>|<months>?[[context|]extension|]pri):\n"
+"If the current time matches the specified time, then branch to the specified\n"
+"extension.  Each of the elements may be specified either as '*' (for always)\n"
+"or as a range.  See the include syntax." },
+
 	{ "Hangup", pbx_builtin_hangup,
 "Unconditional hangup",
 "  Hangup(): Unconditionally hangs up a given channel by returning -1 always.\n" },
@@ -311,6 +320,17 @@ static struct pbx_builtin {
 "  So, for  example, if  priority 3 of 5551212  is  StripMSD 3, the next step\n"
 "executed will be priority 4 of 1212.  If you switch into an  extension which\n"
 "has no first step, the PBX will treat it as though the user dialed an\n"
+"invalid extension.\n" },
+
+	{ "Suffix", pbx_builtin_suffix, 
+"Append trailing digits",
+"  Suffix(digits): Appends the  digit  string  specified  by  digits to the\n"
+"channel's associated extension. For example, the number 555 when  suffixed\n"
+"with '1212' will become 5551212. This app always returns 0, and the PBX will\n"
+"continue processing at the next priority for the *new* extension.\n"
+"  So, for example, if priority  3  of  555 is Suffix 1212, the  next  step\n"
+"executed will be priority 4 of 5551212. If  you  switch  into an  extension\n"
+"which has no first step, the PBX will treat it as though the user dialed an\n"
 "invalid extension.\n" },
 
 	{ "Wait", pbx_builtin_wait, 
@@ -433,10 +453,6 @@ static inline int include_valid(struct ast_include *i)
 		return 1;
 	time(&t);
 	localtime_r(&t,&tm);
-	if (!&tm) {
-		ast_log(LOG_WARNING, "Failed to get local time\n");
-		return 0;
-	}
 
 	/* If it's not the right month, return */
 	if (!(i->monthmask & (1 << tm.tm_mon))) {
@@ -2399,7 +2415,7 @@ static char *complete_show_dialplan_context(char *line, char *word, int pos,
 	struct ast_context *c;
 	int which = 0;
 
-	/* we are do completion of [exten@]context on second postion only */
+	/* we are do completion of [exten@]context on second position only */
 	if (pos != 2) return NULL;
 
 	/* try to lock contexts list ... */
@@ -4008,6 +4024,44 @@ static int pbx_builtin_prefix(struct ast_channel *chan, void *data)
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "Prepended prefix, new extension is %s\n", chan->exten);
 	return 0;
+}
+
+static int pbx_builtin_suffix(struct ast_channel *chan, void *data)
+{
+	char newexten[AST_MAX_EXTENSION] = "";
+	if (!data || !strlen(data)) {
+		ast_log(LOG_DEBUG, "Ignoring, since there is no suffix to add\n");
+		return 0;
+	}
+	snprintf(newexten, sizeof(newexten), "%s%s", chan->exten, (char *)data);
+	strncpy(chan->exten, newexten, sizeof(chan->exten)-1);
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_3 "Appended suffix, new extension is %s\n", chan->exten);
+	return 0;
+}
+
+static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
+{
+	int res=0;
+	char *s, *ts;
+	struct ast_include include;
+
+	if (!data) {
+		ast_log(LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>|<days of week>|<days of month>|<months>?[[context|]extension|]priority\n");
+		return -1;
+	}
+
+	s = strdup((char *) data);
+	ts = s;
+
+	/* Separate the Goto path */
+	strsep(&ts,"?");
+
+	build_timing(&include, s);
+	if (include_valid(&include))
+		res = pbx_builtin_goto(chan, (void *)ts);
+	free(s);
+	return res;
 }
 
 static int pbx_builtin_wait(struct ast_channel *chan, void *data)
