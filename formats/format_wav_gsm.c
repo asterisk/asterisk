@@ -504,6 +504,7 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 {
 	int res;
 	char msdata[66];
+	int len =0;
 	if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
@@ -512,20 +513,23 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-GSM frame (%d)!\n", f->subclass);
 		return -1;
 	}
-	if (fs->secondhalf) {
-		memcpy(fs->gsm + 33, f->data, 33);
-		conv66(fs->gsm, msdata);
-		if ((res = write(fs->fd, msdata, 65)) != 65) {
-			ast_log(LOG_WARNING, "Bad write (%d/65): %s\n", res, strerror(errno));
-			return -1;
+	while(len < f->datalen) {
+		if (fs->secondhalf) {
+			memcpy(fs->gsm + 33, f->data + len, 33);
+			conv66(fs->gsm, msdata);
+			if ((res = write(fs->fd, msdata, 65)) != 65) {
+				ast_log(LOG_WARNING, "Bad write (%d/65): %s\n", res, strerror(errno));
+				return -1;
+			}
+			fs->bytes += 65;
+			update_header(fs->fd, fs->bytes);
+		} else {
+			/* Copy the data and do nothing */
+			memcpy(fs->gsm, f->data + len, 33);
 		}
-		fs->bytes += 65;
-		update_header(fs->fd, fs->bytes);
-	} else {
-		/* Copy the data and do nothing */
-		memcpy(fs->gsm, f->data, 33);
+		fs->secondhalf = !fs->secondhalf;
+		len += 33;
 	}
-	fs->secondhalf = !fs->secondhalf;
 	return 0;
 }
 

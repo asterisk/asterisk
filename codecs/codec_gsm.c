@@ -177,10 +177,10 @@ static struct ast_frame *lintogsm_frameout(struct ast_translator_pvt *tmp)
 	while(tmp->tail >= 160) {
 		if ((x+1) * 33 >= sizeof(tmp->outbuf)) {
 			ast_log(LOG_WARNING, "Out of buffer space\n");
-			return NULL;
+			break;
 		}
 		/* Encode a frame of data */
-		gsm_encode(tmp->gsm, tmp->buf, (gsm_byte *) tmp->outbuf + (x * 33));
+		gsm_encode(tmp->gsm, tmp->buf, ((gsm_byte *) tmp->outbuf) + (x * 33));
 		/* Assume 8000 Hz -- 20 ms */
 		tmp->tail -= 160;
 		/* Move the data at the end of the buffer to the front */
