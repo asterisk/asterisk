@@ -136,7 +136,7 @@ static char language[MAX_LANGUAGE] = "";
 static char musicclass[MAX_LANGUAGE] = "";
 
 static int use_callerid = 1;
-static int useincomingcalleridonzaptransfer = 0;
+static int zaptrcallerid = 0;
 static int cur_signalling = -1;
 
 static unsigned int cur_group = 0;
@@ -456,7 +456,7 @@ static struct zt_pvt {
 	int resetting;
 	int prioffset;
 	int alreadyhungup;
-	int useincomingcalleridonzaptransfer;
+	int zaptrcallerid;	/* should we use the callerid from incoming call on zap transfer or not */
 #ifdef PRI_EVENT_PROCEEDING
 	int proceeding;
 #endif
@@ -3024,7 +3024,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					} else if (!p->subs[SUB_THREEWAY].owner) {
 						char callerid[256];
 						if (p->threewaycalling && !check_for_conference(p)) {
-							if (p->useincomingcalleridonzaptransfer && p->owner)
+							if (p->zaptrcallerid && p->owner)
 								strncpy(callerid, p->owner->callerid, sizeof(callerid) - 1);
 							/* XXX This section needs much more error checking!!! XXX */
 							/* Start a 3-way call if feasible */
@@ -3034,7 +3034,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 								if (!alloc_sub(p, SUB_THREEWAY)) {
 									/* Make new channel */
 									chan = zt_new(p, AST_STATE_RESERVED, 0, SUB_THREEWAY, 0, 0);
-									if (p->useincomingcalleridonzaptransfer) {
+									if (p->zaptrcallerid) {
 										if (!p->origcallerid) {
 											p->origcallerid = malloc(strlen(p->callerid) + 1);
 											strncpy(p->origcallerid, p->callerid, strlen(p->callerid) + 1);
@@ -5319,7 +5319,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		tmp->channel = channel;
 		tmp->stripmsd = stripmsd;
 		tmp->use_callerid = use_callerid;
-		tmp->useincomingcalleridonzaptransfer = useincomingcalleridonzaptransfer;
+		tmp->zaptrcallerid = zaptrcallerid;
 		tmp->restrictcid = restrictcid;
 		tmp->use_callingpres = use_callingpres;
 		strncpy(tmp->accountcode, accountcode, sizeof(tmp->accountcode)-1);
@@ -7161,7 +7161,7 @@ static int setup_zap(void)
 			else
 				strncpy(callerid, v->value, sizeof(callerid)-1);
 		} else if (!strcasecmp(v->name, "useincomingcalleridonzaptransfer")) {
-			useincomingcalleridonzaptransfer = ast_true(v->value);
+			zaptrcallerid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "restrictcid")) {
 			restrictcid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "usecallingpres")) {
