@@ -28,8 +28,6 @@
 #include <sys/time.h>
 #ifdef __linux__
 #include <linux/soundcard.h>
-#elif defined(__FreeBSD__)
-#include <machine/soundcard.h>
 #else
 #include <soundcard.h>
 #endif

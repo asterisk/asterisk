@@ -37,13 +37,6 @@ ____________________________________________________________________________*/
 /* #define GLOBAL_GAIN_SCALE 0 */
 
 
-#ifdef __FreeBSD__
-#ifdef __i386__
-#undef LITTLE_ENDIAN
-#define LITTLE_ENDIAN 1
-#endif
-#endif
-
 #ifdef _M_IX86
 #define LITTLE_ENDIAN 1
 #endif
