@@ -79,10 +79,6 @@ maxlogins=3
 ; R             24 hour time, including minute 
 ; 
 ; 
-[zonemessages] 
-eastern=America/New_York|'vm-received' Q 'digits/at' IMp 
-central=America/Chicago|'vm-received' Q 'digits/at' IMp 
-central24=America/Chicago|'vm-received' q 'digits/at' H 'digits/hundred' M 'hours'
 
 ;
 ; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>,<pager_email>,<options>
@@ -107,6 +103,10 @@ central24=America/Chicago|'vm-received' q 'digits/at' H 'digits/hundred' M 'hour
 ; envelope=no 		; Turn on/off envelope playback before message playback. [ON by default] 
 			;     This does NOT affect option 3,3 from the advanced options menu
 			
+[zonemessages]
+eastern=America/New_York|'vm-received' Q 'digits/at' IMp
+central=America/Chicago|'vm-received' Q 'digits/at' IMp
+central24=America/Chicago|'vm-received' q 'digits/at' H 'digits/hundred' M 'hours'
 
 [default]
 1234 => 4242,Example Mailbox,root@localhost
