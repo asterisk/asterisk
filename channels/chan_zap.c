@@ -1449,10 +1449,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 	strncpy(dest, rdest, sizeof(dest) - 1);
 	strncpy(p->dialdest, rdest, sizeof(dest) - 1);
 	if ((ast->_state == AST_STATE_BUSY)) {
-		struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_BUSY };
-		/* If this is a placeholder frame for a busy channel,
-		   return busy state immediately */
-		zap_queue_frame(p, &f);
+		p->subs[SUB_REAL].needbusy = 1;
 		ast_mutex_unlock(&p->lock);
 		return 0;
 	}
