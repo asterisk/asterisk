@@ -3949,7 +3949,11 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 			if (!p->proceeding && p->sig==SIG_PRI && p->pri && p->pri->overlapdial) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
+#ifdef PRI_PROGRESS
+						pri_progress(p->pri->pri,p->call);
+#else						
 						pri_acknowledge(p->pri->pri,p->call, p->prioffset, 1);
+#endif						
 						pri_rel(p->pri);
 					}
 					else
@@ -6513,7 +6517,9 @@ static void *pri_dchannel(void *vpri)
 						if (res < 0)
 							ast_log(LOG_WARNING, "Unable to set gains on channel %d\n", pri->pvt[chan]->channel);
 						if (e->ring.complete || !pri->overlapdial) {
-							pri_acknowledge(pri->pri, e->ring.call, chan, 1);
+							/* We don't send acknowledge here because that means ringing, and that
+							   isn't necessarily the case */
+							/* pri_acknowledge(pri->pri, e->ring.call, chan, 1); */
 						} else  {
 							pri_need_more_info(pri->pri, e->ring.call, chan, 1);
 						}
