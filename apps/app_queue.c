@@ -823,8 +823,13 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 		tmp->chan->cid.cid_name = strdup(qe->chan->cid.cid_name);
 	if (qe->chan->cid.cid_ani)
 		tmp->chan->cid.cid_ani = strdup(qe->chan->cid.cid_ani);
+
+	/* Inherit specially named variables from parent channel */
+	ast_channel_inherit_variables(qe->chan, tmp->chan);
+
 	/* Presense of ADSI CPE on outgoing channel follows ours */
 	tmp->chan->adsicpe = qe->chan->adsicpe;
+
 	/* Place the call, but don't wait on the answer */
 	res = ast_call(tmp->chan, location, 0);
 	if (res) {

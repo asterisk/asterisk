@@ -488,9 +488,6 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	char *newnum;
 	char *l;
 	char *url=NULL; /* JDG */
-	struct ast_var_t *current;
-	struct varshead *headp, *newheadp;
-	struct ast_var_t *newvar;
 	unsigned int calldurationlimit=0;
 	char *cdl;
 	time_t now;
@@ -511,9 +508,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	char toast[80];
 	int play_to_caller=0,play_to_callee=0;
 	int playargs=0, sentringing=0, moh=0;
-	char *varname;
 	char *mohclass = NULL;
-	int vartype;
 	char *outbound_group = NULL;
 	char *macro_result = NULL, *macro_transfer_dest = NULL;
 	int digit = 0;
@@ -853,40 +848,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			}
 		}
 
-		/* Contitionally copy channel variables to the newly created channel */
-		headp = &chan->varshead;
-		AST_LIST_TRAVERSE(headp, current, entries) {
-			varname = ast_var_full_name(current);
-			vartype = 0;
-			if (varname) {
-				if (varname[0] == '_') {
-					vartype = 1;
-					if (varname[1] == '_')
-						vartype = 2;
-				}
-			}
-			if (vartype == 1) {
-				newvar = ast_var_assign((char*)&(varname[1]), 
-												ast_var_value(current));
-				newheadp = &tmp->chan->varshead;
-				AST_LIST_INSERT_HEAD(newheadp, newvar, entries);
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Copying soft-transferable variable %s.\n", 
-												ast_var_name(newvar));
-			} else if (vartype == 2) {
-				newvar = ast_var_assign(ast_var_full_name(current), 
-												ast_var_value(current));
-				newheadp = &tmp->chan->varshead;
-				AST_LIST_INSERT_HEAD(newheadp, newvar, entries);
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Copying hard-transferable variable %s.\n", 
-												ast_var_name(newvar));
-			} else {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Not copying variable %s.\n", 
-												ast_var_name(current));
-			}
-		}
+		/* Inherit specially named variables from parent channel */
+		ast_channel_inherit_variables(chan, tmp->chan);
 
 		tmp->chan->appl = "AppDial";
 		tmp->chan->data = "(Outgoing Line)";

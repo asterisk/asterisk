@@ -782,6 +782,20 @@ int ast_do_masquerade(struct ast_channel *chan);
 /* Find bridged channel */
 struct ast_channel *ast_bridged_channel(struct ast_channel *chan);
 
+/*!
+  \brief Inherits channel variable from parent to child channel
+  \param parent Parent channel
+  \param child Child channel
+
+  Scans all channel variables in the parent channel, looking for those
+  that should be copied into the child channel.
+  Variables whose names begin with a single '_' are copied into the
+  child channel with the prefix removed.
+  Variables whose names begin with '__' are copied into the child
+  channel with their names unchanged.
+*/
+void ast_channel_inherit_variables(const struct ast_channel *parent, struct ast_channel *child);
+
 /* Misc. functions below */
 
 /* Helper function for migrating select to poll */

@@ -2243,6 +2243,49 @@ void ast_change_name(struct ast_channel *chan, char *newname)
 	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", tmp, chan->name, chan->uniqueid);
 }
 
+void ast_channel_inherit_variables(const struct ast_channel *parent, struct ast_channel *child)
+{
+	struct ast_var_t *current, *newvar;
+	char *varname;
+
+	AST_LIST_TRAVERSE(&parent->varshead, current, entries) {
+		int vartype = 0;
+
+		varname = ast_var_full_name(current);
+		if (!varname)
+			continue;
+
+		if (varname[0] == '_') {
+			vartype = 1;
+			if (varname[1] == '_')
+				vartype = 2;
+		}
+
+		switch (vartype) {
+		case 1:
+			newvar = ast_var_assign(&varname[1], ast_var_value(current));
+			if (newvar) {
+				AST_LIST_INSERT_HEAD(&child->varshead, newvar, entries);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Copying soft-transferable variable %s.\n", ast_var_name(newvar));
+			}
+			break;
+		case 2:
+			newvar = ast_var_assign(ast_var_full_name(current), ast_var_value(current));
+			if (newvar) {
+				AST_LIST_INSERT_HEAD(&child->varshead, newvar, entries);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Copying hard-transferable variable %s.\n", ast_var_name(newvar));
+			}
+			break;
+		default:
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Not copying variable %s.\n", ast_var_name(current));
+			break;
+		}
+	}
+}
+
 /* Clone channel variables from 'clone' channel into 'original' channel
    All variables except those related to app_groupcount are cloned
    Variables are actually _removed_ from 'clone' channel, presumably
