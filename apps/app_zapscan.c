@@ -269,7 +269,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
                 tempchan = ast_channel_walk(tempchan);
                 if ( !tempchan && !lastchan )
                         break;
-                if ( tempchan && (!strcmp(tempchan->type, "Zap")) && (tempchan != chan) ) {
+                if ( tempchan && tempchan->type && (!strcmp(tempchan->type, "Zap")) && (tempchan != chan) ) {
                         ast_verbose(VERBOSE_PREFIX_3 "Zap channel %s is in-use, monitoring...\n", tempchan->name);
                         strcpy(confstr, tempchan->name);
                         if ((tmp = strchr(confstr,'-'))) {
