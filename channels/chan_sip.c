@@ -5400,6 +5400,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 					if (transfer_to) {
 						ast_moh_stop(transfer_to);
 						ast_async_goto(transfer_to,p->context, p->refer_to,1, 1);
+					} else {
+						ast_queue_hangup(p->owner, 0);
 					}
 				}
 				p->gotrefer = 1;
