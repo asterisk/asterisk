@@ -146,6 +146,7 @@ static int use_ast_ind=0;
 
 #define TIMER_PERIOD_RINGBACK 2000
 #define TIMER_PERIOD_BUSY 700
+#define TIMER_PERIOD_RING 4000
 	  
 #define VPB_EVENTS_ALL (VPB_MRING|VPB_MDIGIT|VPB_MDTMF|VPB_MTONEDETECT|VPB_MTIMEREXP|VPB_MPLAY_UNDERFLOW \
 			|VPB_MRECORD_OVERFLOW|VPB_MSTATION_OFFHOOK|VPB_MSTATION_ONHOOK \
@@ -251,6 +252,9 @@ static struct vpb_pvt {
 
 	void *ringback_timer; 			/* Void pointer for ringback vpb_timer */
 	int ringback_timer_id;			/* unique timer ID for ringback timer */
+
+	void *ring_timer;			/* Void pointer for ring vpb_timer */
+	int ring_timer_id;			/* unique timer ID for ring timer */
 
 	double lastgrunt;			/* time stamp (secs since epoc) of last grunt event */
 
@@ -693,6 +697,8 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 		case VPB_RING:
 			if (p->mode == MODE_FXO) {
 				f.subclass = AST_CONTROL_RING;
+				vpb_timer_stop(p->ring_timer);
+				vpb_timer_start(p->ring_timer);
 			} else
 				f.frametype = -1; /* ignore ring on station port. */
 			break;
@@ -713,6 +719,17 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 				vpb_timer_stop(p->ringback_timer);
 				vpb_timer_start(p->ringback_timer);
 				f.frametype = -1;
+			} else if (e->data == p->ring_timer_id) {
+				/* We didnt get another ring in time! */
+				if (p->owner->_state != AST_STATE_UP)  {
+					 /* Assume caller has hung up */
+					vpb_timer_stop(p->ring_timer);
+					f.subclass = AST_CONTROL_HANGUP;
+				} else {
+					vpb_timer_stop(p->ring_timer);
+					f.frametype = -1;
+				}
+				
 			} else {
 				f.frametype = -1; /* Ignore. */
 			}
@@ -1333,6 +1350,9 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, float txgain, floa
 
 	tmp->ringback_timer_id = vpb_timer_get_unique_timer_id();
 	vpb_timer_open(&tmp->ringback_timer, tmp->handle, tmp->ringback_timer_id, TIMER_PERIOD_RINGBACK);
+
+	tmp->ring_timer_id = vpb_timer_get_unique_timer_id();
+	vpb_timer_open(&tmp->ring_timer, tmp->handle, tmp->ring_timer_id, TIMER_PERIOD_RING);
 	      
 	if (mode == MODE_FXO){
 		vpb_set_event_mask(tmp->handle, VPB_EVENTS_ALL );
