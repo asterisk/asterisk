@@ -129,7 +129,9 @@ static char *tdesc = "Session Initiation Protocol (SIP)";
 static char *config = "sip.conf";
 
 #define DEFAULT_SIP_PORT	5060	/* From RFC 2543 */
-#define SIP_MAX_PACKET	1500		/* Also from RFC 2543, should sub headers tho */
+/* From RFC2543, this should be 1500, so it's up to the ability of
+   remote devices as to whether it will be accepted when more than that*/
+#define SIP_MAX_PACKET		4096
 
 #define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER"
 
