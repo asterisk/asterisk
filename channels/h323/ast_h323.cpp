@@ -850,6 +850,7 @@ void h323_callback_register(setup_incoming_cb  	ifunc,
  */
 int h323_set_capability(int cap, int dtmfMode)
 {
+	H323Capabilities oldcaps;
 	int g711Frames = 30;
 	int gsmFrames  = 4;
 
@@ -859,7 +860,8 @@ int h323_set_capability(int cap, int dtmfMode)
 	}
 
 	/* clean up old capabilities list before changing */
-	endPoint->RemoveCapabilities(PStringArray("All"));
+	oldcaps = endPoint->GetCapabilities();
+	oldcaps.RemoveAll();
 
 	mode = dtmfMode;
 	if (dtmfMode == H323_DTMF_INBAND) {
