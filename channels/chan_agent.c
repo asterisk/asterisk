@@ -552,6 +552,8 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 			if (recordagentcalls)
 				agent_start_monitoring(ast,0);
 			p->acknowledged = 1;
+			if (p->chan)
+				p->chan->_bridge = ast;
 		}
 		res = 0;
 	}
@@ -759,13 +761,16 @@ static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct
 {
 	struct agent_pvt *p;
 	struct ast_channel *ret=NULL;
+	
 
 	p = bridge->pvt->pvt;
 	if (chan == p->chan)
 		ret = bridge->_bridge;
 	else if (chan == bridge->_bridge)
 		ret = p->chan;
-	return NULL;
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Asked for bridged channel on '%s'/'%s', returning '%s'\n", chan->name, bridge->name, ret ? ret->name : "<none>");
+	return ret;
 }
 
 /*--- agent_new: Create new agent channel ---*/
