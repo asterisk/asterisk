@@ -463,7 +463,6 @@ static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
  */
 static int oh323_digit(struct ast_channel *c, char digit)
 {
-	ast_log(LOG_DEBUG, "Sending %c...\n", digit);
 	struct oh323_pvt *p = (struct oh323_pvt *) c->pvt->pvt;
 	if (p && p->rtp && (p->dtmfmode & H323_DTMF_RFC2833)) {
 		ast_rtp_senddigit(p->rtp, digit);
@@ -542,9 +541,8 @@ static int oh323_hangup(struct ast_channel *c)
 {
 	struct oh323_pvt *pvt = (struct oh323_pvt *) c->pvt->pvt;
 	int needcancel = 0;
-	if (h323debug) {
-		ast_log(LOG_DEBUG, "oh323_hangup(%s)\n", c->name);
-	}
+	int q931cause = AST_CAUSE_NORMAL_CLEARING;
+
 	if (!c->pvt->pvt) {
 		ast_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
 		return 0;
@@ -568,9 +566,28 @@ static int oh323_hangup(struct ast_channel *c)
 	pvt->owner = NULL;
 	c->pvt->pvt = NULL;
 
+	if (c->hangupcause) {
+		q931cause = c->hangupcause;
+	} else {
+		char *cause = pbx_builtin_getvar_helper(c, "DIALSTATUS");
+		if (cause) {
+			if (!strcmp(cause, "CONGESTION")) {
+				q931cause = AST_CAUSE_NORMAL_CIRCUIT_CONGESTION;
+			} else if (!strcmp(cause, "BUSY")) {
+				q931cause = AST_CAUSE_USER_BUSY;
+			} else if (!strcmp(cause, "CHANISUNVAIL")) {
+				q931cause = AST_CAUSE_REQUESTED_CHAN_UNAVAIL;
+			} else if (!strcmp(cause, "NOANSWER")) {
+				q931cause = AST_CAUSE_NO_ANSWER;
+			} else if (!strcmp(cause, "CANCEL")) {
+				q931cause = AST_CAUSE_CALL_REJECTED;
+			}
+		}
+	}
+
 	/* Start the process if it's not already started */
 	if (!pvt->alreadygone) {
-		if (h323_clear_call((pvt->cd).call_token, c->hangupcause)) { 
+		if (h323_clear_call((pvt->cd).call_token, q931cause)) { 
 			ast_log(LOG_DEBUG, "ClearCall failed.\n");
 		}
 		pvt->needdestroy = 1;

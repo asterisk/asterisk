@@ -301,7 +301,7 @@ BOOL MyH323EndPoint::ClearCall(const PString & token)
 	if (h323debug) {
 		cout << "\t-- ClearCall: Request to clear call with token " << token << endl;
 	}
-	return ClearCall(token, H323Connection::EndedByLocalUser);
+	return H323EndPoint::ClearCall(token, H323Connection::EndedByLocalUser);
 }
 
 void MyH323EndPoint::SendUserTone(const PString &token, char tone)
@@ -1287,13 +1287,15 @@ int h323_make_call(char *dest, call_details_t *cd, call_options_t *call_options)
 int h323_clear_call(const char *call_token, int cause)
 {
 	H225_ReleaseCompleteReason dummy;
-	H323Connection::CallEndReason r = H323Connection::NumCallEndReasons;
+	H323Connection::CallEndReason r = H323Connection::EndedByLocalUser;
 
 	if (!h323_end_point_exist()) {
 		return 1;
 	}
 
-	r = H323TranslateToCallEndReason((Q931::CauseValues)(cause), dummy);
+	if (cause) {
+		r = H323TranslateToCallEndReason((Q931::CauseValues)(cause), dummy);
+	}
 
         endPoint->ClearCall(PString(call_token), r);
 	return 0;
