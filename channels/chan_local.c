@@ -129,11 +129,16 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 		return;
 	if (isoutbound && p->chan && p->chan->bridge && p->owner) {
 		/* Masquerade bridged channel into owner */
+		/* Lock other side first */
+		ast_pthread_mutex_lock(&p->chan->bridge->lock);
 		ast_channel_masquerade(p->owner, p->chan->bridge);
+		ast_pthread_mutex_unlock(&p->chan->bridge->lock);
 		p->alreadymasqed = 1;
 	} else if (!isoutbound && p->owner && p->owner->bridge && p->chan) {
 		/* Masquerade bridged channel into chan */
+		ast_pthread_mutex_lock(&p->owner->bridge->lock);
 		ast_channel_masquerade(p->chan, p->owner->bridge);
+		ast_pthread_mutex_unlock(&p->owner->bridge->lock);
 		p->alreadymasqed = 1;
 	}
 }
