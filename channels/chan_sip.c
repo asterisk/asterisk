@@ -5611,27 +5611,34 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 				}
 				strncpy(status, "UNKNOWN", sizeof(status) - 1);
 			}
-		} else 
+		} else { 
 			strncpy(status, "Unmonitored", sizeof(status) - 1);
-			snprintf(srch, sizeof(srch), FORMAT, name,
-				peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
-				peer->dynamic ? " D " : "   ", 	/* Dynamic or not? */
-				(peer->nat & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
-				peer->ha ? " A " : "   ", 	/* permit/deny */
-				nm,
-				ntohs(peer->addr.sin_port), status);
-
-			if (argc == 5) {
-				if (!strcasecmp(argv[3],"include") && strstr(srch,argv[4])) {
-					print_line = -1;
-				} else if (!strcasecmp(argv[3],"exclude") && !strstr(srch,argv[4])) {
-					print_line = 1;
-				} else if (!strcasecmp(argv[3],"begin") && !strncasecmp(srch,argv[4],strlen(argv[4]))) {
-					print_line = -1;
-				} else {
-					print_line = 0;
-				}
+			/* Checking if port is 0 */
+		        if ( ntohs(peer->addr.sin_port) == 0 ) {
+				peers_offline++;
+			} else {
+				peers_online++;
 			}
+		}			
+		
+		snprintf(srch, sizeof(srch), FORMAT, name,
+			peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
+			peer->dynamic ? " D " : "   ", 	/* Dynamic or not? */
+			(peer->nat & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
+			peer->ha ? " A " : "   ", 	/* permit/deny */
+			nm, ntohs(peer->addr.sin_port), status);
+
+		if (argc == 5) {
+			if (!strcasecmp(argv[3],"include") && strstr(srch,argv[4])) {
+				print_line = -1;
+			} else if (!strcasecmp(argv[3],"exclude") && !strstr(srch,argv[4])) {
+				print_line = 1;
+			} else if (!strcasecmp(argv[3],"begin") && !strncasecmp(srch,argv[4],strlen(argv[4]))) {
+				print_line = -1;
+			} else {
+				print_line = 0;
+			}
+		}
 
 		if (print_line) {
 		    ast_cli(fd, FORMAT, name, 
@@ -5644,7 +5651,7 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 		}
 		total_peers++;
 	}
-	ast_cli(fd,"%d sip peers loaded [%d onlines , %d offlines]\n",total_peers,peers_online,peers_offline);
+	ast_cli(fd,"%d sip peers loaded [%d online , %d offline]\n",total_peers,peers_online,peers_offline);
 	ast_mutex_unlock(&peerl.lock);
 	return RESULT_SUCCESS;
 #undef FORMAT
