@@ -5123,7 +5123,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 					zt_set_hook(tmp->subs[SUB_REAL].zfd, ZT_ONHOOK);
 			}
 			/* the dchannel is down so put the channel in alarm */
-			if (tmp->pri && tmp->pri->up == 0) {
+			if (tmp->pri && tmp->pri->up == 0)
 				tmp->inalarm = 1;
 			else
 				tmp->inalarm = 0;
@@ -5699,6 +5699,7 @@ static void *pri_dchannel(void *vpri)
 				for (i=0; i<=pri->channels; i++) {
 					struct zt_pvt *p = pri->pvt[i];
 					if (p) {
+						p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 						if (p->call) {
 							if (p->pri && p->pri->pri)
 								pri_destroycall(p->pri->pri, p->call);
