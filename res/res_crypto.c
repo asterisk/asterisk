@@ -299,7 +299,7 @@ static char *binary(int y, int len)
 int ast_sign_bin(struct ast_key *key, char *msg, int msglen, unsigned char *dsig)
 {
 	unsigned char digest[20];
-	int siglen = sizeof(dsig);
+	int siglen = 128;
 	int res;
 
 	if (key->ktype != AST_KEY_PRIVATE) {
@@ -318,8 +318,8 @@ int ast_sign_bin(struct ast_key *key, char *msg, int msglen, unsigned char *dsig
 		return -1;
 	}
 
-	if (siglen != sizeof(dsig)) {
-		ast_log(LOG_WARNING, "Unexpected signature length %d, expecting %d\n", (int)siglen, (int)sizeof(dsig));
+	if (siglen != 128) {
+		ast_log(LOG_WARNING, "Unexpected signature length %d, expecting %d\n", (int)siglen, (int)128);
 		return -1;
 	}
 
@@ -356,7 +356,7 @@ int ast_check_signature_bin(struct ast_key *key, char *msg, int msglen, unsigned
 	SHA1((unsigned char *)msg, msglen, digest);
 
 	/* Verify signature */
-	res = RSA_verify(NID_sha1, digest, sizeof(digest), dsig, sizeof(dsig), key->rsa);
+	res = RSA_verify(NID_sha1, digest, sizeof(digest), dsig, 128, key->rsa);
 	
 	if (!res) {
 		ast_log(LOG_DEBUG, "Key failed verification\n");
