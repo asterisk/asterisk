@@ -128,7 +128,6 @@ static const char notify_config[] = "sip_notify.conf";
 #define SIP_INFO	12
 #define SIP_CANCEL	13
 #define SIP_PUBLISH	14
-#define SIP_MAX_METHODS	14
 #define SIP_RESPONSE	100
 
 const struct  cfsip_methods { 
@@ -713,7 +712,7 @@ int find_sip_method(char *msg)
 {
 	int i, res = 0;
 	/* Strictly speaking, SIP methods are case SENSITIVE, but we don't check */
-	for (i=1; i< SIP_MAX_METHODS && !res; i++) {
+	for (i=1;(i < (sizeof(sip_methods) / sizeof(sip_methods[0]))) && !res; i++) {
 		if (!strcasecmp(sip_methods[i].text, msg)) 
 			res = sip_methods[i].id;
 	}
