@@ -327,7 +327,7 @@ static struct sip_pvt {
 	char nonce[256];			/* Authorization nonce */
 	char opaque[256];			/* Opaque nonsense */
 	char qop[80];				/* Quality of Protection, since SIP wasn't complicated enough yet. */
-	char domain[256];			/* Authorization nonce */
+	char domain[256];			/* Authorization domain */
 	char lastmsg[256];			/* Last Message sent/received */
 	int amaflags;				/* AMA Flags */
 	int pendinginvite;			/* Any pending invite */
@@ -522,6 +522,15 @@ struct sip_registry {
 	char callid[80];		/* Global CallID for this registry */
 	unsigned int ocseq;		/* Sequence number we got to for REGISTERs for this registry */
 	struct sockaddr_in us;		/* Who the server thinks we are */
+ 	
+ 					/* Saved headers */
+ 	char realm[256];		/* Authorization realm */
+ 	char nonce[256];		/* Authorization nonce */
+ 	char domain[256];		/* Authorization domain */
+ 	char opaque[256];		/* Opaque nonsense */
+ 	char qop[80];			/* Quality of Protection. */
+ 
+ 	char lastmsg[256];		/* Last Message sent/received */
 	struct sip_registry *next;
 };
 
@@ -4039,6 +4048,10 @@ static int sip_reregister(void *data)
 {
 	/* if we are here, we know that we need to reregister. */
 	struct sip_registry *r=(struct sip_registry *)data;
+
+	if (sipdebug)
+		ast_log(LOG_NOTICE, "   -- Re-registration for  %s@%s\n", r->username, r->hostname);
+
 	ast_mutex_lock(&regl.lock);
 	r->expire = -1;
 	__sip_do_register(r);
@@ -4057,12 +4070,15 @@ static int __sip_do_register(struct sip_registry *r)
 /*--- sip_reg_timeout: Registration timeout, register again */
 static int sip_reg_timeout(void *data)
 {
+
 	/* if we are here, our registration timed out, so we'll just do it over */
 	struct sip_registry *r=data;
 	struct sip_pvt *p;
 	int res;
+
 	ast_mutex_lock(&regl.lock);
-	ast_log(LOG_NOTICE, "Registration for '%s@%s' timed out, trying again\n", r->username, r->hostname); 
+
+	ast_log(LOG_NOTICE, "   -- Registration for '%s@%s' timed out, trying again\n", r->username, r->hostname); 
 	if (r->call) {
 		/* Unlink us, destroy old call.  Locking is not relevent here because all this happens
 		   in the single SIP manager thread. */
@@ -4074,14 +4090,14 @@ static int sip_reg_timeout(void *data)
 		__sip_pretend_ack(p);
 	}
 	r->regstate=REG_STATE_UNREGISTERED;
-	manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
+	manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nUser: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
 	r->timeout = -1;
 	res=transmit_register(r, "REGISTER", NULL, NULL);
 	ast_mutex_unlock(&regl.lock);
 	return 0;
 }
 
-/*--- transmit_register: Transmit register to SIP proxy ---*/
+/*--- transmit_register: Transmit register to SIP proxy or UA ---*/
 static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char *authheader)
 {
 	struct sip_request req;
@@ -4109,31 +4125,37 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 			p->theirtag[0]='\0';	/* forget their old tag, so we don't match tags when getting response */
 		}
 	} else {
+		/* Build callid for registration if we haven't registred before */
 		if (!r->callid_valid) {
 			build_callid(r->callid, sizeof(r->callid), __ourip, default_fromdomain);
 			r->callid_valid = 1;
 		}
+		/* Allocate SIP packet for registration */
 		p=sip_alloc( r->callid, NULL, 0);
 		if (!p) {
 			ast_log(LOG_WARNING, "Unable to allocate registration call\n");
 			return 0;
 		}
+		/* Find address to hostname */
 		if (create_addr(p,r->hostname)) {
 			sip_destroy(p);
 			return 0;
 		}
+
 		/* Copy back Call-ID in case create_addr changed it */
 		strncpy(r->callid, p->callid, sizeof(r->callid) - 1);
 		if (r->portno)
 			p->sa.sin_port = htons(r->portno);
-		p->outgoing = 1;
-		r->call=p;
-		p->registry=r;
-		if (!ast_strlen_zero(r->secret))
+		p->outgoing = 1;		/* Registration is outgoing call */
+		r->call=p;			/* Save pointer to SIP packet */
+		p->registry=r;			/* Add pointer to registry in packet */
+		if (!ast_strlen_zero(r->secret))	/* Secret (password) */
 			strncpy(p->peersecret, r->secret, sizeof(p->peersecret)-1);
 		if (!ast_strlen_zero(r->md5secret))
 			strncpy(p->peermd5secret, r->md5secret, sizeof(p->peermd5secret)-1);
-		if (!ast_strlen_zero(r->authuser)) {
+		/* User name in this realm  
+		- if authuser is set, use that, otherwise use username */
+		if (!ast_strlen_zero(r->authuser)) {	
 			strncpy(p->peername, r->authuser, sizeof(p->peername)-1);
 			strncpy(p->authname, r->authuser, sizeof(p->authname)-1);
 		} else {
@@ -4145,6 +4167,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 		}
 		if (!ast_strlen_zero(r->username))
 			strncpy(p->username, r->username, sizeof(p->username)-1);
+		/* Save extension in packet */
 		strncpy(p->exten, r->contact, sizeof(p->exten) - 1);
 
 		/*
@@ -4160,11 +4183,11 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	/* set up a timeout */
 	if (auth==NULL)  {
 		if (r->timeout > -1) {
-			ast_log(LOG_WARNING, "Still have a timeout, %d\n", r->timeout);
+			ast_log(LOG_WARNING, "Still have a registration timeout, %d\n", r->timeout);
 			ast_sched_del(sched, r->timeout);
 		}
 		r->timeout = ast_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
-		ast_log(LOG_DEBUG, "Scheduled a timeout # %d\n", r->timeout);
+		ast_log(LOG_DEBUG, "Scheduled a registration timeout # %d\n", r->timeout);
 	}
 
 	if (strchr(r->username, '@')) {
@@ -4189,6 +4212,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	memset(&req, 0, sizeof(req));
 	init_req(&req, cmd, addr);
 
+	/* Add to CSEQ */
 	snprintf(tmp, sizeof(tmp), "%u %s", ++r->ocseq, cmd);
 	p->ocseq = r->ocseq;
 
@@ -4203,8 +4227,27 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	add_header(&req, "Call-ID", p->callid);
 	add_header(&req, "CSeq", tmp);
 	add_header(&req, "User-Agent", default_useragent);
-	if (auth) 
+
+	
+	if (auth) 	/* Add auth header */
 		add_header(&req, authheader, auth);
+	else if ( !ast_strlen_zero(r->nonce) ) {
+		char digest[1024];
+
+		/* We have auth data to reuse, build a digest header! */
+		if (sipdebug)
+			ast_log(LOG_DEBUG, "   >>> Re-using Auth data for %s@%s\n", r->username, r->hostname);
+		strncpy(p->realm, r->realm, sizeof(p->realm)-1);
+		strncpy(p->nonce, r->nonce, sizeof(p->nonce)-1);
+		strncpy(p->domain, r->domain, sizeof(p->domain)-1);
+		strncpy(p->opaque, r->opaque, sizeof(p->opaque)-1);
+		strncpy(p->qop, r->qop, sizeof(p->qop)-1);
+
+		memset(digest,0,sizeof(digest));
+		build_reply_digest(p, "REGISTER", digest, sizeof(digest));
+		add_header(&req, "Authorization", digest);
+	
+	}
 
 	snprintf(tmp, sizeof(tmp), "%d", default_expiry);
 	add_header(&req, "Expires", tmp);
@@ -4299,6 +4342,7 @@ static int transmit_request_with_auth(struct sip_pvt *p, char *msg, int seqno, i
 	if (*p->realm)
 	{
 		char digest[1024];
+
 		memset(digest,0,sizeof(digest));
 		build_reply_digest(p, msg, digest, sizeof(digest));
 		add_header(&resp, "Proxy-Authorization", digest);
@@ -6293,27 +6337,34 @@ static int sip_no_debug(int fd, int argc, char *argv[])
 
 static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, char *digest, int digest_len);
 
-/*--- do_register_auth: Challenge for registration ---*/
+/*--- do_register_auth: Authenticate for outbound registration ---*/
 static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader) {
 	char digest[1024];
 	p->authtries++;
 	memset(digest,0,sizeof(digest));
-	if (reply_digest(p,req, header, "REGISTER", digest, sizeof(digest))) {
+	if (reply_digest(p, req, header, "REGISTER", digest, sizeof(digest))) {
 		/* There's nothing to use for authentication */
+ 		/* No digest challenge in request */
+ 		if (sip_debug_test_pvt(p))
+ 			ast_verbose("No authentication challenge, sending blank registration to domain/host name %s\n", p->registry->hostname);
+ 			/* No old challenge */
 		return -1;
 	}
+ 	if (sip_debug_test_pvt(p))
+ 		ast_verbose("Responding to challenge, registration to domain/host name %s\n", p->registry->hostname);
 	return transmit_register(p->registry,"REGISTER",digest, respheader); 
 }
 
-/*--- do_proxy_auth: Challenge user ---*/
+/*--- do_proxy_auth: Add authentication on outbound SIP packet ---*/
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, char *msg, int init) {
 	char digest[1024];
 	p->authtries++;
 	memset(digest,0,sizeof(digest));
-	if (reply_digest(p,req, header, msg, digest, sizeof(digest) )) {
+	if (reply_digest(p, req, header, msg, digest, sizeof(digest) )) {
 		/* No way to authenticate */
 		return -1;
 	}
+	/* Now we have a reply digest */
 	return transmit_invite(p,msg,!strcasecmp(msg, "INVITE"),digest, respheader, NULL,NULL,NULL, 0, init); 
 }
 
@@ -6409,6 +6460,15 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 	strncpy(p->domain, domain, sizeof(p->domain)-1);
 	strncpy(p->opaque, opaque, sizeof(p->opaque)-1);
 	strncpy(p->qop, qop, sizeof(p->qop)-1);
+
+	/* Save auth data for following registrations */
+	if (p->registry) {
+		strncpy(p->registry->realm, realm, sizeof(p->realm)-1);
+		strncpy(p->registry->nonce, nonce, sizeof(p->nonce)-1);
+		strncpy(p->registry->domain, domain, sizeof(p->domain)-1);
+		strncpy(p->registry->opaque, opaque, sizeof(p->opaque)-1);
+		strncpy(p->registry->qop, qop, sizeof(p->qop)-1);
+	}
 	build_reply_digest(p, orig_header, digest, digest_len); 
 	return 0;
 }
@@ -6815,20 +6875,25 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					if (!expires) expires=atoi(get_header(req, "expires"));
 					if (!expires) expires=default_expiry;
 
+
 					expires_ms = expires * 1000;
 					if (expires <= EXPIRY_GUARD_LIMIT)
 						expires_ms -= MAX((expires_ms * EXPIRY_GUARD_PCT),EXPIRY_GUARD_MIN);
 					else
 						expires_ms -= EXPIRY_GUARD_SECS * 1000;
+					if (sipdebug)
+						ast_log(LOG_NOTICE, "Outbound Registration: Expiry for %s is %d sec (Scheduling reregistration in %d ms)\n", r->hostname, expires, expires_ms); 
 
 					r->refresh= (int) expires_ms / 1000;
+
+					/* Schedule re-registration before we expire */
 					r->expire=ast_sched_add(sched, expires_ms, sip_reregister, r); 
 				} else
 					ast_log(LOG_WARNING, "Got 200 OK on REGISTER that isn't a register\n");
 
 			}
 			break;
-		case 401: /* Not authorized on REGISTER */
+		case 401: /* Not www-authorized on REGISTER */
 			if (!strcasecmp(msg, "INVITE")) {
 				/* First we ACK */
 				transmit_request(p, "ACK", seqno, 0, 0);
@@ -6845,7 +6910,22 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			} else
 				p->needdestroy = 1;
 			break;
-		case 407:	/* 407 Proxy Authentication Required */
+		case 403: /* Forbidden - we failed authentication */
+			if (!strcasecmp(msg, "INVITE")) {
+				/* First we ACK */
+				transmit_request(p, "ACK", seqno, 0, 0);
+				ast_log(LOG_WARNING, "Forbidden - wrong password on authentication for INVITE to '%s'\n", get_header(&p->initreq, "From"));
+				if (owner)
+					ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+				p->needdestroy = 1;
+			} else if (p->registry && !strcasecmp(msg, "REGISTER")) {
+				ast_log(LOG_WARNING, "Forbidden - wrong password on authentication for REGISTER for '%s' to '%s'\n", p->registry->username, p->registry->hostname);
+				p->needdestroy = 1;
+			} else {
+				ast_log(LOG_WARNING, "Forbidden - wrong password on authentication for %s\n", msg);
+			}
+			break;
+		case 407: /* Proxy auth required */
 			if (!strcasecmp(msg, "INVITE")) {
 				/* First we ACK */
 				transmit_request(p, "ACK", seqno, 0, 0);
