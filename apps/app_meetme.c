@@ -917,8 +917,8 @@ zapretry:
 											ast_waitstream(chan, "");
 									}
 									break;
-                                                                case '6': /* Eject last user */
-				                                        menu_active = 0;
+								case '3': /* Eject last user */
+									menu_active = 0;
 									usr = conf->lastuser;
 									if ((usr->chan->name == chan->name)||(usr->userflags & CONFFLAG_ADMIN)) {
 										if(!ast_streamfile(chan, "conf-errormenu", chan->language))
@@ -1550,15 +1550,14 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 						}
 					}
 					break;
-                                case 101: /* e: Eject last user*/
-                                        user = cnf->lastuser;
-                                                if (!(user->userflags & CONFFLAG_ADMIN)) {
-                                                        user->adminflags |= ADMINFLAG_KICKME;
-                                                        break;
-                                                } else
-							ast_log(LOG_NOTICE, "Not kicking last user, is an Admin!\n");
-                                        break;
-
+				case 101: /* e: Eject last user*/
+					user = cnf->lastuser;
+					if (!(user->userflags & CONFFLAG_ADMIN)) {
+						user->adminflags |= ADMINFLAG_KICKME;
+						break;
+					} else
+						ast_log(LOG_NOTICE, "Not kicking last user, is an Admin!\n");
+					break;
 				case 77: /* M: Mute */ 
 					if (user) {
 						user->adminflags |= ADMINFLAG_MUTED;
