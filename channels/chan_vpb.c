@@ -2115,7 +2115,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, int state, char *context)
 	return tmp;
 }
 
-static struct ast_channel *vpb_request(const char *type, int format, void *data) 
+static struct ast_channel *vpb_request(const char *type, int format, void *data, int *cause) 
 {
 	int oldformat;
 	struct vpb_pvt *p;

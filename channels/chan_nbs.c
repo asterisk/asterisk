@@ -232,7 +232,7 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state)
 }
 
 
-static struct ast_channel *nbs_request(const char *type, int format, void *data)
+static struct ast_channel *nbs_request(const char *type, int format, void *data, int *cause)
 {
 	int oldformat;
 	struct nbs_pvt *p;

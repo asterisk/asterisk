@@ -45,6 +45,7 @@
 #include <asterisk/config.h>
 #include <asterisk/monitor.h>
 #include <asterisk/utils.h>
+#include <asterisk/causes.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -145,6 +146,7 @@ struct localuser {
 	char tech[40];
 	int stillgoing;
 	int metric;
+	int oldstatus;
 	int allowredirect_in;
 	int allowredirect_out;
 	int ringbackonly;
@@ -182,6 +184,7 @@ struct member {
 	int penalty;				/* Are we a last resort? */
 	int calls;					/* Number of calls serviced by this member */
 	int dynamic;				/* Are we dynamically added? */
+	int status;					/* Status of queue member */
 	time_t lastcall;			/* When last successful call was hungup */
 	struct member *next;		/* Next member */
 };
@@ -280,6 +283,26 @@ static inline void insert_entry(struct ast_call_queue *q,
 	new->opos = *pos;
 }
 
+static int has_no_members(struct ast_call_queue *q)
+{
+	struct member *member;
+	int empty = 1;
+	member = q->members;
+	while(empty && member) {
+		switch(member->status) {
+		case AST_CAUSE_NOSUCHDRIVER:
+		case AST_CAUSE_UNREGISTERED:
+			/* Not logged on, etc */
+			break;
+		default:
+			/* Not empty */
+			empty = 0;
+		}
+		member = member->next;
+	}
+	return empty;
+}
+
 static int join_queue(char *queuename, struct queue_ent *qe)
 {
 	struct ast_call_queue *q;
@@ -293,7 +316,7 @@ static int join_queue(char *queuename, struct queue_ent *qe)
 		if (!strcasecmp(q->name, queuename)) {
 			/* This is our one */
 			ast_mutex_lock(&q->lock);
-			if ((q->members || q->joinempty) && (!q->maxlen || (q->count < q->maxlen))) {
+			if ((!has_no_members(q) || q->joinempty || !q->head) && (!q->maxlen || (q->count < q->maxlen))) {
 				/* There's space for us, put us at the right position inside
 				 * the queue. 
 				 * Take into account the priority of the calling user */
@@ -551,9 +574,29 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 	}
 }
 
+static int update_status(struct ast_call_queue *q, struct member *member, int status)
+{
+	struct member *cur;
+	/* Since a reload could have taken place, we have to traverse the list to
+		be sure it's still valid */
+	ast_mutex_lock(&q->lock);
+	cur = q->members;
+	while(cur) {
+		if (member == cur) {
+			cur->status = status;
+			break;
+		}
+		cur = cur->next;
+	}
+	q->callscompleted++;
+	ast_mutex_unlock(&q->lock);
+	return 0;
+}
+
 static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 {
 	int res;
+	int status;
 	if (qe->parent->wrapuptime && (time(NULL) - tmp->lastcall < qe->parent->wrapuptime)) {
 		ast_log(LOG_DEBUG, "Wrapuptime not yet expired for %s/%s\n", tmp->tech, tmp->numsubst);
 		if (qe->chan->cdr)
@@ -562,7 +605,7 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 		return 0;
 	}
 	/* Request the peer */
-	tmp->chan = ast_request(tmp->tech, qe->chan->nativeformats, tmp->numsubst);
+	tmp->chan = ast_request(tmp->tech, qe->chan->nativeformats, tmp->numsubst, &status);
 	if (!tmp->chan) {			/* If we can't, just go on to the next call */
 #if 0
 		ast_log(LOG_NOTICE, "Unable to create channel of type '%s'\n", cur->tech);
@@ -570,8 +613,11 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 		if (qe->chan->cdr)
 			ast_cdr_busy(qe->chan->cdr);
 		tmp->stillgoing = 0;
+		update_status(qe->parent, tmp->member, status);
 		return 0;
-	}
+	} else if (status != tmp->oldstatus) 
+		update_status(qe->parent, tmp->member, status);
+	
 	tmp->chan->appl = "AppQueue";
 	tmp->chan->data = "(Outgoing Line)";
 	tmp->chan->whentohangup = 0;
@@ -728,6 +774,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 	struct localuser *o;
 	int found;
 	int numlines;
+	int status;
 	int sentringing = 0;
 	int numbusies = 0;
 	int numnochan = 0;
@@ -795,7 +842,9 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, o->chan->name);
 					/* Setup parameters */
-					o->chan = ast_request(tech, in->nativeformats, stuff);
+					o->chan = ast_request(tech, in->nativeformats, stuff, &status);
+					if (status != o->oldstatus) 
+						update_status(qe->parent, o->member, status);						
 					if (!o->chan) {
 						ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s'\n", tech, stuff);
 						o->stillgoing = 0;
@@ -997,7 +1046,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing)
 		}
 
 		/* leave the queue if no agents, if enabled */
-		if (!(qe->parent->members) && qe->parent->leavewhenempty) {
+		if (has_no_members(qe->parent) && qe->parent->leavewhenempty) {
 			leave_queue(qe);
 			break;
 		}
@@ -1163,6 +1212,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		tmp->member = cur;		/* Never directly dereference!  Could change on reload */
 		strncpy(tmp->tech, cur->tech, sizeof(tmp->tech)-1);
 		strncpy(tmp->numsubst, cur->loc, sizeof(tmp->numsubst)-1);
+		tmp->oldstatus = cur->status;
 		tmp->lastcall = cur->lastcall;
 		/* If we're dialing by extension, look at the extension to know what to dial */
 		if ((newnum = strstr(tmp->numsubst, "BYEXTENSION"))) {
@@ -1728,6 +1778,7 @@ check_turns:
 			}
 		}
 		if (!res) {
+			int makeannouncement = 0;
 			for (;;) {
 				/* This is the wait loop for the head caller*/
 				/* To exit, they may get their call answered; */
@@ -1740,15 +1791,12 @@ check_turns:
 					break;
 				}
 
-				/* leave the queue if no agents, if enabled */
-				if (!((qe.parent)->members) && (qe.parent)->leavewhenempty) {
-					leave_queue(&qe);
-					break;
+				if (makeannouncement) {
+					/* Make a position announcement, if enabled */
+					if (qe.parent->announcefrequency && !ringing)
+						say_position(&qe);
 				}
-
-				/* Make a position announcement, if enabled */
-				if (qe.parent->announcefrequency && !ringing)
-					say_position(&qe);
+				makeannouncement = 1;
 
 				/* Try calling all queue members for 'timeout' seconds */
 				res = try_calling(&qe, options, announceoverride, url, &go_on);
@@ -1758,6 +1806,12 @@ check_turns:
 							ast_queue_log(queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
 					} else if (res > 0)
 						ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%c|%d", res, qe.pos);
+					break;
+				}
+
+				/* leave the queue if no agents, if enabled */
+				if (has_no_members(qe.parent) && (qe.parent->leavewhenempty)) {
+					res = 0;
 					break;
 				}
 
@@ -2037,6 +2091,30 @@ static void reload_queues(void)
 	ast_mutex_unlock(&qlock);
 }
 
+static char *status2str(int status, char *buf, int buflen)
+{
+	switch(status) {
+	case AST_CAUSE_BUSY:
+		strncpy(buf, "busy", buflen - 1);
+		break;
+	case AST_CAUSE_CONGESTION:
+		strncpy(buf, "congestion", buflen - 1);
+		break;
+	case AST_CAUSE_FAILURE:
+		strncpy(buf, "failure", buflen - 1);
+		break;
+	case AST_CAUSE_UNREGISTERED:
+		strncpy(buf, "unregistered", buflen - 1);
+		break;
+	case AST_CAUSE_NOSUCHDRIVER:
+		strncpy(buf, "nosuchdriver", buflen - 1);
+		break;
+	default:
+		snprintf(buf, buflen, "unknown status %d", status);
+	}
+	return buf;
+}
+
 static int __queues_show(int fd, int argc, char **argv, int queue_show)
 {
 	struct ast_call_queue *q;
@@ -2046,6 +2124,7 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 	time_t now;
 	char max[80] = "";
 	char calls[80] = "";
+	char tmpbuf[80] = "";
 	float sl = 0;
 
 	time(&now);
@@ -2092,6 +2171,8 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 					max[0] = '\0';
 				if (mem->dynamic)
 					strncat(max, " (dynamic)", sizeof(max) - strlen(max) - 1);
+				if (mem->status)
+					snprintf(max + strlen(max), sizeof(max) - strlen(max), " (%s)", status2str(mem->status, tmpbuf, sizeof(tmpbuf)));
 				if (mem->calls) {
 					snprintf(calls, sizeof(calls), " has taken %d calls (last was %ld secs ago)",
 							mem->calls, (long)(time(NULL) - mem->lastcall));

@@ -26,6 +26,7 @@
 #include <asterisk/callerid.h>
 #include <asterisk/utils.h>
 #include <asterisk/app.h>
+#include <asterisk/causes.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -134,14 +135,32 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 
 #define AST_MAX_WATCHERS 256
 
-static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect_in, int *allowdisconnect_out, int *sentringing, char *status, size_t statussize)
+#define HANDLE_CAUSE(blah, bleh) do { \
+	switch(cause) { \
+	case AST_CAUSE_BUSY: \
+		if (bleh->cdr) \
+			ast_cdr_busy(bleh->cdr); \
+		numbusy++; \
+	case AST_CAUSE_CONGESTION: \
+	case AST_CAUSE_UNREGISTERED: \
+		if (bleh->cdr) \
+			ast_cdr_busy(bleh->cdr); \
+		numcongestion++; \
+	default: \
+		numnochan++; \
+	} \
+} while(0)
+
+
+static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect_in, int *allowdisconnect_out, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart)
 {
 	struct localuser *o;
 	int found;
 	int numlines;
-	int numbusy = 0;
-	int numcongestion = 0;
-	int numnochan = 0;
+	int numbusy = busystart;
+	int numcongestion = congestionstart;
+	int numnochan = nochanstart;
+	int cause;
 	int orig = *to;
 	struct ast_frame *f;
 	struct ast_channel *peer = NULL;
@@ -227,11 +246,11 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, o->chan->name);
 					/* Setup parameters */
-					o->chan = ast_request(tech, in->nativeformats, stuff);
+					o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
 					if (!o->chan) {
 						ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s'\n", tech, stuff);
 						o->stillgoing = 0;
-						numnochan++;
+						HANDLE_CAUSE(cause, in);
 					} else {
 						if (o->chan->cid.cid_num)
 							free(o->chan->cid.cid_num);
@@ -317,9 +336,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							ast_hangup(o->chan);
 							o->chan = NULL;
 							o->stillgoing = 0;
-							if (in->cdr)
-								ast_cdr_busy(in->cdr);
-							numbusy++;
+							HANDLE_CAUSE(AST_CAUSE_BUSY, in);
 							break;
 						case AST_CONTROL_CONGESTION:
 							if (option_verbose > 2)
@@ -328,9 +345,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							ast_hangup(o->chan);
 							o->chan = NULL;
 							o->stillgoing = 0;
-							if (in->cdr)
-								ast_cdr_busy(in->cdr);
-							numcongestion++;
+							HANDLE_CAUSE(AST_CAUSE_CONGESTION, in);
 							break;
 						case AST_CONTROL_RINGING:
 							if (option_verbose > 2)
@@ -433,6 +448,10 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	int privacy=0;
 	int announce=0;
 	int resetcdr=0;
+	int numbusy = 0;
+	int numcongestion = 0;
+	int numnochan = 0;
+	int cause;
 	char numsubst[AST_MAX_EXTENSION];
 	char restofit[AST_MAX_EXTENSION];
 	char *transfer = NULL;
@@ -738,14 +757,11 @@ static int dial_exec(struct ast_channel *chan, void *data)
 				ast_log(LOG_DEBUG, "Dialing by extension %s\n", numsubst);
 		}
 		/* Request the peer */
-		tmp->chan = ast_request(tech, chan->nativeformats, numsubst);
+		tmp->chan = ast_request(tech, chan->nativeformats, numsubst, &cause);
 		if (!tmp->chan) {
 			/* If we can't, just go on to the next call */
 			ast_log(LOG_NOTICE, "Unable to create channel of type '%s'\n", tech);
-			if (chan->cdr)
-				ast_cdr_busy(chan->cdr);
-			free(tmp);
-			cur = rest;
+			HANDLE_CAUSE(cause, chan);
 			continue;
 		}
 		if (!ast_strlen_zero(tmp->chan->call_forward)) {
@@ -767,11 +783,10 @@ static int dial_exec(struct ast_channel *chan, void *data)
 				ast_verbose(VERBOSE_PREFIX_3 "Forwarding %s to '%s/%s' (thanks to %s)\n", chan->name, tech, stuff, tmp->chan->name);
 			/* Setup parameters */
 			ast_hangup(tmp->chan);
-			tmp->chan = ast_request(tech, chan->nativeformats, stuff);
+			tmp->chan = ast_request(tech, chan->nativeformats, stuff, &cause);
 			if (!tmp->chan) {
 				ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s'\n", tech, stuff);
-				free(tmp);
-				cur = rest;
+				HANDLE_CAUSE(cause, chan);
 				continue;
 			}
 		}
@@ -847,8 +862,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			else if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", numsubst);
 			ast_hangup(tmp->chan);
-			free(tmp);
-			cur = rest;
+			tmp->chan = NULL;
 			continue;
 		} else
 			if (option_verbose > 2)
@@ -888,7 +902,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		strncpy(status, "CHANUNAVAIL", sizeof(status) - 1);
 
 	time(&start_time);
-	peer = wait_for_answer(chan, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect_in, &allowdisconnect_out, &sentringing, status, sizeof(status));
+	peer = wait_for_answer(chan, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect_in, &allowdisconnect_out, &sentringing, status, sizeof(status), numbusy, numnochan, numcongestion);
 
 	if (!peer) {
 		if (to) 

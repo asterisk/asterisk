@@ -23,6 +23,7 @@
 #include <asterisk/options.h>
 #include <asterisk/utils.h>
 #include <asterisk/callerid.h>
+#include <asterisk/causes.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <errno.h>
@@ -1023,7 +1024,7 @@ static struct phone_pvt *mkif(char *iface, int mode, int txgain, int rxgain)
 	return tmp;
 }
 
-static struct ast_channel *phone_request(const char *type, int format, void *data)
+static struct ast_channel *phone_request(const char *type, int format, void *data, int *cause)
 {
 	int oldformat;
 	struct phone_pvt *p;
@@ -1047,7 +1048,8 @@ static struct ast_channel *phone_request(const char *type, int format, void *dat
 			if (!p->owner) {
 				tmp = phone_new(p, AST_STATE_DOWN, p->context);
 				break;
-			}
+			} else
+				*cause = AST_CAUSE_BUSY;
 		}
 		p = p->next;
 	}

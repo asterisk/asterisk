@@ -35,6 +35,7 @@
 #include <asterisk/musiconhold.h>
 #include <asterisk/features.h>
 #include <asterisk/utils.h>
+#include <asterisk/causes.h>
 #include <sys/mman.h>
 #include <arpa/inet.h>
 #include <dirent.h>
@@ -6208,7 +6209,7 @@ static void free_context(struct iax2_context *con)
 	}
 }
 
-static struct ast_channel *iax2_request(const char *type, int format, void *data)
+static struct ast_channel *iax2_request(const char *type, int format, void *data, int *cause)
 {
 	int callno;
 	int res;
@@ -6248,6 +6249,7 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 
 	/* Populate our address from the given */
 	if (create_addr(&sin, &capability, &sendani, &maxtime, hostname, NULL, &trunk, &notransfer, &usejitterbuf, NULL, 0, NULL, 0, &found, NULL)) {
+		*cause = AST_CAUSE_UNREGISTERED;
 		return NULL;
 	}
 	if (portno) {
@@ -6256,6 +6258,7 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	callno = find_callno(0, 0, &sin, NEW_FORCE, 1);
 	if (callno < 1) {
 		ast_log(LOG_WARNING, "Unable to create call\n");
+		*cause = AST_CAUSE_CONGESTION;
 		return NULL;
 	}
 	ast_mutex_lock(&iaxsl[callno]);

@@ -26,6 +26,7 @@
 #include <asterisk/config.h>
 #include <asterisk/cli.h>
 #include <asterisk/utils.h>
+#include <asterisk/causes.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -745,7 +746,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *p, int state)
 	return tmp;
 }
 
-static struct ast_channel *oss_request(const char *type, int format, void *data)
+static struct ast_channel *oss_request(const char *type, int format, void *data, int *cause)
 {
 	int oldformat = format;
 	struct ast_channel *tmp;
@@ -756,6 +757,7 @@ static struct ast_channel *oss_request(const char *type, int format, void *data)
 	}
 	if (oss.owner) {
 		ast_log(LOG_NOTICE, "Already have a call on the OSS channel\n");
+		*cause = AST_CAUSE_BUSY;
 		return NULL;
 	}
 	tmp= oss_new(&oss, AST_STATE_DOWN);

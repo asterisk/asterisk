@@ -377,7 +377,7 @@ struct outgoing_helper {
  * by the low level module
  * Returns an ast_channel on success, NULL on failure.
  */
-struct ast_channel *ast_request(const char *type, int format, void *data);
+struct ast_channel *ast_request(const char *type, int format, void *data, int *status);
 
 //! Search the Channels by Name
 /*!
@@ -427,11 +427,11 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
  * Returns 0 on success, -1 on failure.
  */
 int ast_channel_register(const char *type, const char *description, int capabilities, 
-			struct ast_channel* (*requester)(const char *type, int format, void *data));
+			struct ast_channel* (*requester)(const char *type, int format, void *data, int *cause));
 
 /* Same like the upper function but with support for devicestate */
 int ast_channel_register_ex(const char *type, const char *description, int capabilities,
-		struct ast_channel *(*requester)(const char *type, int format, void *data),
+		struct ast_channel *(*requester)(const char *type, int format, void *data, int *cause),
 		int (*devicestate)(void *data));
 
 //! Unregister a channel class

@@ -222,7 +222,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, int make, int 
 			strncpy(cnf->confno, confno, sizeof(cnf->confno) - 1);
 			strncpy(cnf->pin, pin, sizeof(cnf->pin) - 1);
 			cnf->markedusers = 0;
-			cnf->chan = ast_request("zap", AST_FORMAT_ULAW, "pseudo");
+			cnf->chan = ast_request("zap", AST_FORMAT_ULAW, "pseudo", NULL);
 			if (cnf->chan) {
 				cnf->fd = cnf->chan->fds[0];	/* for use by conf_play() */
 			} else {

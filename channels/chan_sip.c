@@ -7946,7 +7946,7 @@ static int sip_devicestate(void *data)
 
 /*--- sip_request: PBX interface function -build SIP pvt structure ---*/
 /* SIP calls initiated by the PBX arrive here */
-static struct ast_channel *sip_request(const char *type, int format, void *data)
+static struct ast_channel *sip_request(const char *type, int format, void *data, int *cause)
 {
 	int oldformat;
 	struct sip_pvt *p;
@@ -7990,6 +7990,7 @@ static struct ast_channel *sip_request(const char *type, int format, void *data)
 	p->capability = global_capability;
 
 	if (create_addr(p, host)) {
+		*cause = AST_CAUSE_UNREGISTERED;
 		sip_destroy(p);
 		return NULL;
 	}

@@ -65,7 +65,7 @@ struct chanlist {
 	char type[80];
 	char description[80];
 	int capabilities;
-	struct ast_channel * (*requester)(const char *type, int format, void *data);
+	struct ast_channel * (*requester)(const char *type, int format, void *data, int *cause);
 	int (*devicestate)(void *data);
 	struct chanlist *next;
 } *backends = NULL;
@@ -154,13 +154,13 @@ void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset)
 }
 
 int ast_channel_register(const char *type, const char *description, int capabilities,
-		struct ast_channel *(*requester)(const char *type, int format, void *data))
+		struct ast_channel *(*requester)(const char *type, int format, void *data, int *cause))
 {
 	return ast_channel_register_ex(type, description, capabilities, requester, NULL);
 }
 
 int ast_channel_register_ex(const char *type, const char *description, int capabilities,
-		struct ast_channel *(*requester)(const char *type, int format, void *data),
+		struct ast_channel *(*requester)(const char *type, int format, void *data, int *cause),
 		int (*devicestate)(void *data))
 {
 	struct chanlist *chan, *last=NULL;
@@ -1751,11 +1751,12 @@ int ast_set_read_format(struct ast_channel *chan, int fmts)
 struct ast_channel *__ast_request_and_dial(const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name, struct outgoing_helper *oh)
 {
 	int state = 0;
+	int cause = 0;
 	struct ast_channel *chan;
 	struct ast_frame *f;
 	int res = 0;
 	char *variable;
-	chan = ast_request(type, format, data);
+	chan = ast_request(type, format, data, &cause);
 	if (chan) {
 		if (oh) {
 			char *tmp, *var;
@@ -1815,9 +1816,18 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 				ast_frfree(f);
 			}
 		} else
-			ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
-	} else
+			ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
+	} else {
 		ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
+		switch(cause) {
+		case AST_CAUSE_BUSY:
+			state = AST_CONTROL_BUSY;
+			break;
+		case AST_CAUSE_CONGESTION:
+			state = AST_CONTROL_CONGESTION;
+			break;
+		}
+	}
 	if (chan) {
 		/* Final fixups */
 		if (oh) {
@@ -1861,13 +1871,17 @@ struct ast_channel *ast_request_and_dial(const char *type, int format, void *dat
 	return __ast_request_and_dial(type, format, data, timeout, outstate, cidnum, cidname, NULL);
 }
 
-struct ast_channel *ast_request(const char *type, int format, void *data)
+struct ast_channel *ast_request(const char *type, int format, void *data, int *cause)
 {
 	struct chanlist *chan;
 	struct ast_channel *c = NULL;
 	int capabilities;
 	int fmt;
 	int res;
+	int foo;
+	if (!cause)
+		cause = &foo;
+	*cause = AST_CAUSE_NOTDEFINED;
 	if (ast_mutex_lock(&chlock)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return NULL;
@@ -1885,7 +1899,7 @@ struct ast_channel *ast_request(const char *type, int format, void *data)
 			}
 			ast_mutex_unlock(&chlock);
 			if (chan->requester)
-				c = chan->requester(type, capabilities, data);
+				c = chan->requester(type, capabilities, data, cause);
 			if (c) {
 				if (c->_state == AST_STATE_DOWN) {
 					manager_event(EVENT_FLAG_CALL, "Newchannel",
@@ -1901,8 +1915,10 @@ struct ast_channel *ast_request(const char *type, int format, void *data)
 		}
 		chan = chan->next;
 	}
-	if (!chan)
+	if (!chan) {
 		ast_log(LOG_WARNING, "No channel type registered for '%s'\n", type);
+		*cause = AST_CAUSE_NOSUCHDRIVER;
+	}
 	ast_mutex_unlock(&chlock);
 	return c;
 }

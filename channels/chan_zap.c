@@ -6732,7 +6732,7 @@ static int pri_find_empty_chan(struct zt_pri *pri, int backwards)
 }
 #endif
 
-static struct ast_channel *zt_request(const char *type, int format, void *data)
+static struct ast_channel *zt_request(const char *type, int format, void *data, int *cause)
 {
 	int oldformat;
 	int groupmatch = 0;
@@ -6945,21 +6945,8 @@ next:
 	}
 	ast_mutex_unlock(lock);
 	restart_monitor();
-	if (!tmp) {
-		if (busy && (channelmatch != CHAN_PSEUDO)) {
-			tmp = zt_request("Zap", format, "pseudo");
-			if (tmp) {
-				char newname[80];
-				ast_mutex_lock(&tmp->lock);
-				snprintf(newname, sizeof(newname), "Zap/%s-busy-%d", (char *)data, rand());
-				ast_change_name(tmp, newname);
-				ast_setstate(tmp, AST_STATE_BUSY);
-				ast_mutex_unlock(&tmp->lock);
-			}
-		} else if (busy) {
-			ast_log(LOG_WARNING, "Whoa, the pseudo was busy somehow!\n");
-		}
-	}
+	if (callwait || (!tmp && busy))
+		*cause = AST_CAUSE_BUSY;
 	return tmp;
 }
 
@@ -7200,6 +7187,7 @@ static void *pri_dchannel(void *vpri)
 	time_t t;
 	int i, which=-1;
 	int numdchans;
+	int cause=0;
 	struct zt_pvt *crv;
 	pthread_t threadid;
 	pthread_attr_t attr;
@@ -7277,7 +7265,7 @@ static void *pri_dchannel(void *vpri)
 				    (tv.tv_usec - lastidle.tv_usec) / 1000) > 1000) {
 					/* Don't create a new idle call more than once per second */
 					snprintf(idlen, sizeof(idlen), "%d/%s", pri->pvts[nextidle]->channel, pri->idledial);
-					idle = zt_request("Zap", AST_FORMAT_ULAW, idlen);
+					idle = zt_request("Zap", AST_FORMAT_ULAW, idlen, &cause);
 					if (idle) {
 						pri->pvts[nextidle]->isidlecall = 1;
 						if (ast_pthread_create(&p, NULL, do_idle_thread, idle)) {

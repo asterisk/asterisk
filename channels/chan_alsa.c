@@ -19,6 +19,7 @@
 #include <asterisk/config.h>
 #include <asterisk/cli.h>
 #include <asterisk/utils.h>
+#include <asterisk/causes.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -753,7 +754,7 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 	return tmp;
 }
 
-static struct ast_channel *alsa_request(const char *type, int format, void *data)
+static struct ast_channel *alsa_request(const char *type, int format, void *data, int *cause)
 {
 	int oldformat = format;
 	struct ast_channel *tmp=NULL;
@@ -765,6 +766,7 @@ static struct ast_channel *alsa_request(const char *type, int format, void *data
 	ast_mutex_lock(&alsalock);
 	if (alsa.owner) {
 		ast_log(LOG_NOTICE, "Already have a call on the ALSA channel\n");
+		*cause = AST_CAUSE_BUSY;
 	} else {
 		tmp= alsa_new(&alsa, AST_STATE_DOWN);
 		if (!tmp) {

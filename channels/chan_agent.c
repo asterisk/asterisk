@@ -34,6 +34,7 @@
 #include <asterisk/manager.h>
 #include <asterisk/features.h>
 #include <asterisk/utils.h>
+#include <asterisk/causes.h>
 #include <sys/socket.h>
 #include <errno.h>
 #include <unistd.h>
@@ -1051,7 +1052,7 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 	return res;
 }
 
-static struct ast_channel *agent_request(const char *type, int format, void *data)
+static struct ast_channel *agent_request(const char *type, int format, void *data, int *cause)
 {
 	struct agent_pvt *p;
 	struct ast_channel *chan = NULL;
@@ -1113,7 +1114,7 @@ static struct ast_channel *agent_request(const char *type, int format, void *dat
 						chan = agent_new(p, AST_STATE_DOWN);
 					} else if (!p->owner && !ast_strlen_zero(p->loginchan)) {
 						/* Adjustable agent */
-						p->chan = ast_request("Local", format, p->loginchan);
+						p->chan = ast_request("Local", format, p->loginchan, cause);
 						if (p->chan)
 							chan = agent_new(p, AST_STATE_DOWN);
 					}
@@ -1142,6 +1143,10 @@ static struct ast_channel *agent_request(const char *type, int format, void *dat
 		} else
 			ast_log(LOG_DEBUG, "Not creating place holder for '%s' since nobody logged in\n", s);
 	}
+	if (hasagent)
+		*cause = AST_CAUSE_BUSY;
+	else
+		*cause = AST_CAUSE_UNREGISTERED;
 	ast_mutex_unlock(&agentlock);
 	return chan;
 }

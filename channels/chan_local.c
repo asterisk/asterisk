@@ -462,7 +462,7 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 }
 
 
-static struct ast_channel *local_request(const char *type, int format, void *data)
+static struct ast_channel *local_request(const char *type, int format, void *data, int *cause)
 {
 	struct local_pvt *p;
 	struct ast_channel *chan = NULL;

@@ -72,6 +72,7 @@
 #include <asterisk/app.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/utils.h>
+#include <asterisk/causes.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -3342,7 +3343,7 @@ static int restart_monitor(void)
 	return 0;
 }
 
-static struct ast_channel *mgcp_request(const char *type, int format, void *data)
+static struct ast_channel *mgcp_request(const char *type, int format, void *data, int *cause)
 {
 	int oldformat;
 	struct mgcp_subchannel *sub;
@@ -3364,6 +3365,7 @@ static struct ast_channel *mgcp_request(const char *type, int format, void *data
 	sub = find_subchannel(tmp, 0, NULL);
 	if (!sub) {
 		ast_log(LOG_WARNING, "Unable to find MGCP endpoint '%s'\n", tmp);
+		*cause = AST_CAUSE_UNREGISTERED;
 		return NULL;
 	}
 	
@@ -3383,6 +3385,7 @@ static struct ast_channel *mgcp_request(const char *type, int format, void *data
                  transmit_notify_request(sub,"L/vmwi(-)");
              }
          }
+		*cause = AST_CAUSE_BUSY;
 		return NULL;
     }
 	tmpc = mgcp_new(sub->owner ? sub->next : sub, AST_STATE_DOWN);
