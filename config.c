@@ -51,6 +51,9 @@ void ast_destroy(struct ast_config *ast)
 	struct ast_category *cat, *catn;
 	struct ast_variable *v, *vn;
 
+	if (!ast)
+		return;
+
 	cat = ast->root;
 	while(cat) {
 		v = cat->root;
