@@ -1,0 +1,27 @@
+The Asterisk Open Source PBX
+by Mark Spencer <markster@linux-support.net>
+Copyright (C) 1999, Linux Support Services, LLC and Adtran, Inc.
+================================================================
+* WHAT IS ASTERISK
+  Asterisk is an Open Source PBX and telephony toolkit.  It is, in a
+sense, middleware between Internet and telephony channels on the bottom,
+and Internet and telephony applications at the top.  For more information
+on the project itself, please visit the Asterisk home page at:
+
+           http://www.asteriskpbx.com
+
+
+* REQUIRED COMPONENTS
+
+== Linux ==
+  Currently, the Asterisk Open Source PBX is only known to run on the
+Linux OS, although it may be portable to other UNIX-like operating systems
+as well.
+
+== libaudiofile ==
+
+  If you want to use format_wav module, then you need a very recent
+version of libaudiofile (at least version 0.2.0, or you can apply the
+following patch to version 0.1.9):
+
+
