@@ -93,7 +93,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 			PQescapeString(lastdata, cdr->lastdata, strlen(cdr->lastdata));
 		if ((uniqueid = alloca(strlen(cdr->uniqueid) * 2 + 1)) != NULL)
 			PQescapeString(uniqueid, cdr->uniqueid, strlen(cdr->uniqueid));
-		if ((userfield = alloca(strlen(cdr->userfield) * 2 + 1)) !+ NULL)
+		if ((userfield = alloca(strlen(cdr->userfield) * 2 + 1)) != NULL)
 			PQescapeString(userfield, cdr->userfield, strlen(cdr->userfield));
 
 		/* Check for all alloca failures above at once */
