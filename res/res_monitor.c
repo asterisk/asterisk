@@ -15,8 +15,10 @@
 #include <asterisk/manager.h>
 #include <asterisk/cli.h>
 #include <asterisk/monitor.h>
+#include "../asterisk.h"
+#include "../astconf.h"
 
-#define AST_MONITOR_DIR	INSTALL_PREFIX "/var/spool/asterisk/monitor"
+#define AST_MONITOR_DIR	AST_SPOOL_DIR "/monitor"
 
 static ast_mutex_t monitorlock = AST_MUTEX_INITIALIZER;
 
