@@ -2664,7 +2664,6 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 		char *keyn;
 		char tmpkey[256];
 		char *stringp=NULL;
-		printf("Checking RSA methods\n");
 		strncpy(tmpkey, p->inkeys, sizeof(tmpkey));
 		stringp=tmpkey;
 		keyn = strsep(&stringp, ":");
