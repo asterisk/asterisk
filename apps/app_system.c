@@ -17,6 +17,7 @@
 #include <asterisk/channel.h>
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
+#include <asterisk/app.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -53,7 +54,7 @@ static int system_exec(struct ast_channel *chan, void *data)
 	}
 	LOCAL_USER_ADD(u);
 	/* Do our thing here */
-	res = system((char *)data);
+	res = ast_safe_system((char *)data);
 	if ((res < 0) && (errno != ECHILD)) {
 		ast_log(LOG_WARNING, "Unable to execute '%s'\n", (char *)data);
 		res = -1;
