@@ -301,7 +301,8 @@ static struct sip_pvt {
 	char useragent[256];			/* User agent in SIP request */
 	char context[AST_MAX_EXTENSION];	/* Context for this call */
 	char fromdomain[AST_MAX_EXTENSION];	/* Domain to show in the from field */
-	char fromuser[AST_MAX_EXTENSION];	/* Domain to show in the user field */
+	char fromuser[AST_MAX_EXTENSION];	/* User to show in the user field */
+	char fromname[AST_MAX_EXTENSION];	/* Name to show in the user field */
 	char tohost[AST_MAX_EXTENSION];		/* Host we should put in the "to" field */
 	char language[MAX_LANGUAGE];		/* Default language for this call */
 	char musicclass[MAX_LANGUAGE];          /* Music on Hold class */
@@ -3682,6 +3683,14 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	/* Allow user to be overridden */
 	if (!ast_strlen_zero(p->fromuser))
 		l = p->fromuser;
+	else /* Save for any further attempts */
+		strncpy(p->fromuser, l, sizeof(p->fromuser) - 1);
+
+	/* Allow user to be overridden */
+	if (!ast_strlen_zero(p->fromname))
+		n = p->fromname;
+	else /* Save for any further attempts */
+		strncpy(p->fromname, n, sizeof(p->fromname) - 1);
 
 	if ((ourport != 5060) && ast_strlen_zero(p->fromdomain))
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=as%08x", n, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, ourport, p->tag);
