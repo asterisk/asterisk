@@ -18,7 +18,7 @@ CFLAGS+=-fPIC
 #
 # unixODBC stuff...
 #
-MODS+=$(shell if [ -f "/usr/include/odbcinst.h" ]; then echo "cdr_unixodbc.so"; fi)
+MODS+=$(shell if [ -f "/usr/include/odbcinst.h" ]; then echo "cdr_odbc.so"; fi)
 
 
 #
@@ -52,7 +52,7 @@ ifneq ($(wildcard .depend),)
 include .depend
 endif
 
-cdr_unixodbc.so: cdr_unixodbc.o
+cdr_odbc.so: cdr_odbc.o
 	$(CC) $(SOLINK) -o $@ $< -lodbc -I/usr/include $(MLFLAGS)
 
 cdr_pgsql.so: cdr_pgsql.o
