@@ -52,13 +52,15 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 	char *options;
 	int option_wait=0;
 	struct ast_frame *f;
+	char *stringp=NULL;
 	if (!data || !strlen((char *)data)) {
 		ast_log(LOG_WARNING, "SendURL requires an argument (URL)\n");
 		return -1;
 	}
 	strncpy(tmp, (char *)data, sizeof(tmp)-1);
-	strtok(tmp, "|");
-	options = strtok(NULL, "|");
+	stringp=tmp;
+	strsep(&stringp, "|");
+	options = strsep(&stringp, "|");
 	if (options && !strcasecmp(options, "wait"))
 		option_wait = 1;
 	LOCAL_USER_ADD(u);

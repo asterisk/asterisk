@@ -58,8 +58,10 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 		path = path->next;
 	}
 	if (ha) {
-		strtok(stuff, "/");
-		nm = strtok(NULL, "/");
+		char *stringp=NULL;
+		stringp=stuff;
+		strsep(&stringp, "/");
+		nm = strsep(&stringp, "/");
 		if (!nm)
 			nm = "255.255.255.255";
 		if (!inet_aton(stuff, &ha->netaddr)) {

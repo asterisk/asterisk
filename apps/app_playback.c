@@ -51,13 +51,15 @@ static int playback_exec(struct ast_channel *chan, void *data)
 	char *options;
 	int option_skip=0;
 	int option_noanswer = 0;
+	char *stringp;
 	if (!data || !strlen((char *)data)) {
 		ast_log(LOG_WARNING, "Playback requires an argument (filename)\n");
 		return -1;
 	}
 	strncpy(tmp, (char *)data, sizeof(tmp)-1);
-	strtok(tmp, "|");
-	options = strtok(NULL, "|");
+	stringp=tmp;
+	strsep(&stringp, "|");
+	options = strsep(&stringp, "|");
 	if (options && !strcasecmp(options, "skip"))
 		option_skip = 1;
 	if (options && !strcasecmp(options, "noanswer"))

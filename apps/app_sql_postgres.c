@@ -201,7 +201,6 @@ static int del_identifier(int identifier,int identifier_type) {
 
 static int aPGSQL_connect(struct ast_channel *chan, void *data) {
 	
-	char *ptrptr;
 	char *s1,*s4;
 	char s[100];
 	char *optionstring;
@@ -210,15 +209,17 @@ static int aPGSQL_connect(struct ast_channel *chan, void *data) {
 	int res;
 	PGconn *karoto;
 	int id;
+	char *stringp=NULL;
 	 
 	
 	res=0;
 	l=strlen(data)+2;
 	s1=malloc(l);
 	strncpy(s1,data,l);
-	strtok_r(s1," ",&ptrptr); // eat the first token, we already know it :P 
-	var=strtok_r(NULL," ",&ptrptr);
-	optionstring=strtok_r(NULL,"\n",&ptrptr);
+	stringp=s1;
+	strsep(&stringp," "); // eat the first token, we already know it :P 
+	var=strsep(&stringp," ");
+	optionstring=strsep(&stringp,"\n");
 		
       	karoto = PQconnectdb(optionstring);
         if (PQstatus(karoto) == CONNECTION_BAD) {
@@ -239,7 +240,6 @@ static int aPGSQL_connect(struct ast_channel *chan, void *data) {
 
 static int aPGSQL_query(struct ast_channel *chan, void *data) {
 	
-	char *ptrptr;
 	char *s1,*s2,*s3,*s4,*s5;
 	char s[100];
 	char *querystring;
@@ -249,6 +249,7 @@ static int aPGSQL_query(struct ast_channel *chan, void *data) {
 	PGconn *karoto;
 	PGresult *PGSQLres;
 	int id,id1;
+	char *stringp=NULL;
 	 
 	
 	res=0;
@@ -256,13 +257,14 @@ static int aPGSQL_query(struct ast_channel *chan, void *data) {
 	s1=malloc(l);
 	s2=malloc(l);
 	strcpy(s1,data);
-	strtok_r(s1," ",&ptrptr); // eat the first token, we already know it :P 
-	s3=strtok_r(NULL," ",&ptrptr);
+	stringp=s1;
+	strsep(&stringp," "); // eat the first token, we already know it :P 
+	s3=strsep(&stringp," ");
 	while (1) {	// ugly trick to make branches with break;
 		var=s3;
-		s4=strtok_r(NULL," ",&ptrptr);
+		s4=strsep(&stringp," ");
 		id=atoi(s4);
-		querystring=strtok_r(NULL,"\n",&ptrptr);
+		querystring=strsep(&stringp,"\n");
 		if ((karoto=find_identifier(id,AST_PGSQL_ID_CONNID))==NULL) {
 			ast_log(LOG_WARNING,"Invalid connection identifier %d passed in aPGSQL_query\n",id);
 			res=-1;
@@ -297,7 +299,6 @@ static int aPGSQL_query(struct ast_channel *chan, void *data) {
 
 static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
 	
-	char *ptrptr;
 	char *s1,*s2,*s3,*s4,*s5,*s6,*s7;
 	char s[100];
 	char *var;
@@ -309,6 +310,7 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
 	int nres;
         struct ast_var_t *variables;
         struct varshead *headp;
+	char *stringp=NULL;
         
         headp=&chan->varshead;
 	
@@ -318,8 +320,9 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
 	s1=malloc(l);
 	s2=malloc(l);
 	strcpy(s1,data);
-	strtok_r(s1," ",&ptrptr); // eat the first token, we already know it :P 
-	s3=strtok_r(NULL," ",&ptrptr);
+	stringp=s1;
+	strsep(&stringp," "); // eat the first token, we already know it :P 
+	s3=strsep(&stringp," ");
 	while (1) {	// ugly trick to make branches with break;
 		var=s3; // fetchid
 		fnd=0;
@@ -337,7 +340,7 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
 			pbx_builtin_setvar_helper(chan,s3,s7);
 		}
 
-		s4=strtok_r(NULL," ",&ptrptr);
+		s4=strsep(&stringp," ");
 		id=atoi(s4); // resultid
 		if ((PGSQLres=find_identifier(id,AST_PGSQL_ID_RESID))==NULL) {
 			ast_log(LOG_WARNING,"Invalid result identifier %d passed in aPGSQL_fetch\n",id);
@@ -355,7 +358,7 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
 		nres=PQnfields(PGSQLres); 
 		ast_log(LOG_WARNING,"ast_PGSQL_fetch : nres = %d i = %d ;\n",nres,i);
 		for (j=0;j<nres;j++) {
-			s5=strtok_r(NULL," ",&ptrptr);
+			s5=strsep(&stringp," ");
 			if (s5==NULL) {
 				ast_log(LOG_WARNING,"ast_PGSQL_fetch : More tuples (%d) than variables (%d)\n",nres,j);
 				break;
@@ -391,18 +394,19 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
 
 static int aPGSQL_reset(struct ast_channel *chan, void *data) {
 	
-	char *ptrptr;
 	char *s1,*s3;
 	int l;
 	PGconn *karoto;
 	int id;
+	char *stringp=NULL;
 	 
 	
 	l=strlen(data)+2;
 	s1=malloc(l);
 	strcpy(s1,data);
-	strtok_r(s1," ",&ptrptr); // eat the first token, we already know it :P 
-	s3=strtok_r(NULL," ",&ptrptr);
+	stringp=s1;
+	strsep(&stringp," "); // eat the first token, we already know it :P 
+	s3=strsep(&stringp," ");
 	id=atoi(s3);
 	if ((karoto=find_identifier(id,AST_PGSQL_ID_CONNID))==NULL) {
 		ast_log(LOG_WARNING,"Invalid connection identifier %d passed in aPGSQL_reset\n",id);
@@ -416,18 +420,19 @@ static int aPGSQL_reset(struct ast_channel *chan, void *data) {
 
 static int aPGSQL_clear(struct ast_channel *chan, void *data) {
 	
-	char *ptrptr;
 	char *s1,*s3;
 	int l;
 	PGresult *karoto;
 	int id;
+	char *stringp=NULL;
 	 
 	
 	l=strlen(data)+2;
 	s1=malloc(l);
 	strcpy(s1,data);
-	strtok_r(s1," ",&ptrptr); // eat the first token, we already know it :P 
-	s3=strtok_r(NULL," ",&ptrptr);
+	stringp=s1;
+	strsep(&stringp," "); // eat the first token, we already know it :P 
+	s3=strsep(&stringp," ");
 	id=atoi(s3);
 	if ((karoto=find_identifier(id,AST_PGSQL_ID_RESID))==NULL) {
 		ast_log(LOG_WARNING,"Invalid result identifier %d passed in aPGSQL_clear\n",id);
@@ -445,18 +450,19 @@ static int aPGSQL_clear(struct ast_channel *chan, void *data) {
 	
 static int aPGSQL_disconnect(struct ast_channel *chan, void *data) {
 	
-	char *ptrptr;
 	char *s1,*s3;
 	int l;
 	PGconn *karoto;
 	int id;
+	char *stringp=NULL;
 	 
 	
 	l=strlen(data)+2;
 	s1=malloc(l);
 	strcpy(s1,data);
-	strtok_r(s1," ",&ptrptr); // eat the first token, we already know it :P 
-	s3=strtok_r(NULL," ",&ptrptr);
+	stringp=s1;
+	strsep(&stringp," "); // eat the first token, we already know it :P 
+	s3=strsep(&stringp," ");
 	id=atoi(s3);
 	if ((karoto=find_identifier(id,AST_PGSQL_ID_CONNID))==NULL) {
 		ast_log(LOG_WARNING,"Invalid connection identifier %d passed in aPGSQL_disconnect\n",id);
