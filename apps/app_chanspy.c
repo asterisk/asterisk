@@ -461,11 +461,10 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 		bronly = ast_test_flag(&flags, OPTION_BRIDGED);
 		if (ast_test_flag(&flags, OPTION_VOLUME) && opts[1]) {
 			if (sscanf(opts[1], "%d", &volfactor) != 1)
-				ast_log(LOG_NOTICE, "volfactor must be a number between -16 and 16\n");
-			else if (volfactor > 16)
-				volfactor = 16;
-			else if (volfactor < -16)
-				volfactor = -16;
+				ast_log(LOG_NOTICE, "volfactor must be a number between -4 and 4\n");
+			else {
+				volfactor = minmax(volfactor, 4);
+			}
 		}
 	}
 
