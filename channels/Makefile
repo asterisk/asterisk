@@ -22,6 +22,11 @@ CFLAGS+=$(shell [ ! -f /usr/include/linux/if_wanpipe.h ] && echo " -DOLD_SANGOMA
 
 CFLAGS+=#-DVOFRDUMPER
 
+ZAPDIR=/usr/lib
+CHANNEL_LIBS+=$(shell [ -f $(ZAPDIR)/libzap.a ] && echo "chan_tor.so")
+
+CFLAGS+=$(shell [ -f $(ZAPDIR)/libzap.a ] && echo "-I$(ZAPDIR)")
+
 all: $(CHANNEL_LIBS)
 
 clean:
@@ -34,8 +39,8 @@ clean:
 #	rm -f libiax.a
 #	$(AR) cr libiax.a libiax.o
 
-#chan_iax.so: chan_iax.o libiax.a
-#	$(CC) -shared -Xlinker -x -o $@ $< -L. -liax
+chan_tor.so: chan_tor.o
+	$(CC) -shared -Xlinker -x -o $@ $< -lzap -ltonezone
 
 #chan_modem.so : chan_modem.o
 #	$(CC) -rdynamic -shared -Xlinker -x -o $@ $<
