@@ -1,17 +1,14 @@
 === HARDWARE DONORS === 
-
-* Special thanks to Adtran, Inc, for their donation of an Adtran Atlas,
-and TSU 120e to the project. (http://www.adtran.com)
-
 * Thanks to QuickNet Technologies for their donation of an Internet
-PhoneJack card to the project.  (http://www.quicknet.net)
+PhoneJack and Linejack card to the project.  (http://www.quicknet.net)
+
 
 === DEVELOPMENT SUPPORT ===
 I'd like to thank the following companies for helping fund development of
 Asterisk:
 
-* Celera Networks - US Digital
-* Adtran, Inc.
+Pilosoft, Inc. - for supporting ADSI development in Asterisk
+
 
 === OTHER SOURCE CODE IN ASTERISK ===
 
