@@ -184,13 +184,7 @@ static char ext_pass_cmd[128];
 
 static char *tdesc = "Comedian Mail (Voicemail System)";
 
-static char *adapp = "\x00\x00\x00\x0F";
-
-static char *adsec = "\x9B\xDB\xF7\xAC";
-
 static char *addesc = "Comedian Mail";
-
-static int adver = 1;
 
 static char *synopsis_vm =
 "Leave a voicemail message";
@@ -282,6 +276,10 @@ static char fromstring[100];
 static char pagerfromstring[100];
 static char emailtitle[100];
 static char charset[32] = "ISO-8859-1";
+
+static char adsifdn[4] = "\x00\x00\x00\x0F";
+static char adsisec[4] = "\x9B\xDB\xF7\xAC";
+static int adsiver = 1;
 
 
 STANDARD_LOCAL_USER;
@@ -2044,7 +2042,7 @@ static int adsi_load_vmail(struct ast_channel *chan, int *useadsi)
 	bytes += adsi_data_mode(buf + bytes);
  	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 
-	if (adsi_begin_download(chan, addesc, adapp, adsec, adver)) {
+	if (adsi_begin_download(chan, addesc, adsifdn, adsisec, adsiver)) {
 		bytes = 0;
 		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_CENT, 0, "Load Cancelled.", "");
 		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_CENT, 0, "ADSI Unavailable", "");
@@ -2142,7 +2140,7 @@ static int adsi_load_vmail(struct ast_channel *chan, int *useadsi)
 
 	bytes = 0;
 	/* Load the session now */
-	if (adsi_load_session(chan, adapp, adver, 1) == 1) {
+	if (adsi_load_session(chan, adsifdn, adsiver, 1) == 1) {
 		*useadsi = 1;
 		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_CENT, 0, "Scripts Loaded!", "");
 	} else
@@ -2157,7 +2155,7 @@ static void adsi_begin(struct ast_channel *chan, int *useadsi)
 	int x;
 	if (!adsi_available(chan))
           return;
-	x = adsi_load_session(chan, adapp, adver, 1);
+	x = adsi_load_session(chan, adsifdn, adsiver, 1);
 	if (x < 0)
 		return;
 	if (!x) {
@@ -4347,6 +4345,7 @@ static int load_config(void)
 	char *exitcxt = NULL;	
 	char *extpc;
 	int x;
+	int tmpadsi[4];
 
 	cfg = ast_load(VOICEMAIL_CONFIG);
 	ast_mutex_lock(&vmlock);
@@ -4642,6 +4641,22 @@ static int load_config(void)
 			strncpy(pagerfromstring,s,sizeof(pagerfromstring)-1);	
 		if ((s=ast_variable_retrieve(cfg, "general", "charset")))
 			strncpy(charset,s,sizeof(charset)-1);
+		if ((s=ast_variable_retrieve(cfg, "general", "adsifdn"))) {
+			sscanf(s, "%2x%2x%2x%2x", &tmpadsi[0], &tmpadsi[1], &tmpadsi[2], &tmpadsi[3]);
+			for (x=0; x<4; x++) {
+				memcpy(&adsifdn[x], &tmpadsi[x], 1);
+			}
+		}
+		if ((s=ast_variable_retrieve(cfg, "general", "adsisec"))) {
+			sscanf(s, "%2x%2x%2x%2x", &tmpadsi[0], &tmpadsi[1], &tmpadsi[2], &tmpadsi[3]);
+			for (x=0; x<4; x++) {
+				memcpy(&adsisec[x], &tmpadsi[x], 1);
+			}
+		}
+		if ((s=ast_variable_retrieve(cfg, "general", "adsiver")))
+			if (atoi(s)) {
+				adsiver = atoi(s);
+			}
 		if ((s=ast_variable_retrieve(cfg, "general", "emailtitle"))) {
 			ast_log(LOG_NOTICE, "Keyword 'emailtitle' is DEPRECATED, please use 'emailsubject' instead.\n");
 			strncpy(emailtitle,s,sizeof(emailtitle)-1);

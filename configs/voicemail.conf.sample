@@ -36,6 +36,12 @@ maxlogins=3
 ;directoryintro=dir-intro
 ; The character set for voicemail messages can be specified here
 ;charset=ISO-8859-1
+; The ADSI feature descriptor number to download to 
+;adsifdn=0000000F
+; The ADSI security lock code
+;adsisec=9BDBF7AC
+; The ADSI voicemail application version number.
+;adsiver=1
 ; Skip the "[PBX]:" string from the message title
 ;pbxskip=yes
 ; Change the From: string
