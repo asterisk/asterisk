@@ -689,16 +689,14 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,char *cp3,char *
         /* Now we have the variable name on cp3 */
 	if ((first=strchr(cp3,':'))) {
 		*first='\0';
+		pbx_substitute_variables_temp(c,cp3,cp4);
+		if (!(*cp4)) return;
 		offset=atoi(first+1);
 	 	if ((second=strchr(first+1,':'))) {
 			*second='\0';
 			offset2=atoi(second+1);
-		} else {
-			offset2=offset;
-			offset=0;
-		}
-		pbx_substitute_variables_temp(c,cp3,cp4);
-		if (!(*cp4)) return;
+		} else
+			offset2=strlen(*cp4)-offset;
 		if (abs(offset)>strlen(*cp4)) {
 			if (offset>=0) offset=strlen(*cp4);
 			else offset=-strlen(*cp4);
