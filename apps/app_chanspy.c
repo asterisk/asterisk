@@ -36,7 +36,7 @@ AST_MUTEX_DEFINE_STATIC(modlock);
 #define ALL_DONE(u, ret) LOCAL_USER_REMOVE(u); return ret;
 #define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
 #define minmax(x,y) x ? (x > y) ? y : ((x < (y * -1)) ? (y * -1) : x) : 0
-
+#define CS_BUFLEN 640
 
 
 static char *synopsis = "Tap into any type of asterisk channel and listen to audio";
@@ -175,7 +175,7 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 {
 	struct ast_frame *f0, *f1, write_frame, *f;
 	int x=0, framelen_a = 0, framelen_b = 0, size = 0;
-	short buf[320], buf0[320], buf1[320];
+	short buf[CS_BUFLEN], buf0[CS_BUFLEN], buf1[CS_BUFLEN];
 	struct chanspy_translation_helper *csth = data;
 	int nc = 0, vf;
 	
