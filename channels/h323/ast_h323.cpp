@@ -723,14 +723,15 @@ BOOL MyH323Connection::OnStartLogicalChannel(H323Channel & channel)
 	if (h323debug) {
 		cout <<  "		-- channelsOpen = " << channelsOpen << endl;
 	}
+
 	H323_ExternalRTPChannel & external = (H323_ExternalRTPChannel &)channel;
  	external.GetRemoteAddress(remoteIpAddress, remotePort); 
 
 	if (h323debug) {
-		cout << "		-- remoteIpAddress: " << remoteIpAddress << endl;
-		cout << "		-- remotePort: " << remotePort << endl;
-		cout << "		-- ExternalIpAddress: " << externalIpAddress << endl;
-		cout << "		-- ExternalPort: " << externalPort << endl;
+		if (channel.GetDirection()==H323Channel::IsReceiver) {
+			cout << "		-- remoteIpAddress: " << remoteIpAddress << endl;
+			cout << "		-- remotePort: " << remotePort << endl;
+		}
 	}
 	/* Notify Asterisk of remote RTP information */
 	on_start_logical_channel(GetCallReference(), (const char *)remoteIpAddress.AsString(), remotePort);
@@ -784,23 +785,14 @@ BOOL MyH323_ExternalRTPChannel::OnReceivedAckPDU(const H245_H2250LogicalChannelA
 	PIPSocket::Address remoteIpAddress;
 	WORD remotePort;
 
-	if (h323debug) {
-		cout << "	MyH323_ExternalRTPChannel::OnReceivedAckPDU " << endl;
-	}
-
 	if (H323_ExternalRTPChannel::OnReceivedAckPDU(param)) {
 		H323_ExternalRTPChannel::GetRemoteAddress(remoteIpAddress, remotePort);
-		if (h323debug) {
-			cout << "		-- remoteIpAddress: " << remoteIpAddress << endl;
-			cout << "		-- remotePort: " << remotePort << endl;
-		}
 		/* Notify Asterisk of remote RTP information */
 		on_start_logical_channel(connection.GetCallReference(), (const char *)remoteIpAddress.AsString(), remotePort);
 		return TRUE;
 	}
 	return FALSE;
 }
-
 
 /** IMPLEMENTATION OF C FUNCTIONS */
 

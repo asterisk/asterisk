@@ -285,7 +285,6 @@ class MyH323_ExternalRTPChannel : public H323_ExternalRTPChannel {
 
 	/* Destructor */
 	~MyH323_ExternalRTPChannel();
-
 	
      	BOOL OnReceivedAckPDU(const H245_H2250LogicalChannelAckParameters & param);
 
