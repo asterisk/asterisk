@@ -13,7 +13,7 @@
 
 OSARCH=$(shell uname -s)
 
-USE_MYSQL_FRIENDS=0
+USE_MYSQL_FRIENDS=1
 
 CHANNEL_LIBS=chan_modem.so chan_iax.so chan_sip.so \
 	     chan_modem_aopen.so \
@@ -113,7 +113,7 @@ endif
 
 chan_iax.so: chan_iax.o
 ifeq ($(USE_MYSQL_FRIENDS),1)
-	$(CC) $(SOLINK) -o $@ chan_iax.o -lmysqlclient -lz
+	$(CC) $(SOLINK) -o $@ chan_iax.o -L/usr/lib/mysql -lmysqlclient -lz
 else
 	$(CC) $(SOLINK) -o $@ chan_iax.o
 endif
@@ -123,6 +123,13 @@ chan_zap.o: chan_zap.c
 
 chan_zap.so: chan_zap.o
 	$(CC) $(SOLINK) -o $@ $<  $(ZAPPRI) $(ZAPR2) -ltonezone
+
+chan_sip.so: chan_sip.o
+ifeq ($(USE_MYSQL_FRIENDS),1)
+	$(CC) $(SOLINK) -o $@ chan_sip.o -L/usr/lib/mysql -lmysqlclient -lz
+else
+	$(CC) $(SOLINK) -o $@ chan_sip.o
+endif
 
 chan_alsa.o: $(ALSA_SRC)
 
