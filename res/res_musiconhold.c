@@ -75,6 +75,7 @@ struct mohclass {
 	int destroyme;
 	int pid;		/* PID of mpg123 */
 	int quiet;
+	int single;
 	pthread_t thread;
 	struct mohdata *members;
 	/* Source of audio */
@@ -107,7 +108,7 @@ static int spawn_mp3(struct mohclass *class)
 	char *argv[MAX_MP3S + 50];
 	char xargs[256];
 	char *argptr;
-	int argc;
+	int argc = 0;
 	DIR *dir;
 	struct dirent *de;
 	dir = opendir(class->dir);
@@ -115,16 +116,20 @@ static int spawn_mp3(struct mohclass *class)
 		ast_log(LOG_WARNING, "%s is not a valid directory\n", class->dir);
 		return -1;
  	}
-	argv[0] = "mpg123";
-	argv[1] = "-q";
-	argv[2] = "-s";
-	argv[3] = "--mono";
-	argv[4] = "-r";
-	argv[5] = "8000";
-	argv[6] = "-b";
-	argv[7] = "2048";
-	argv[8] = "-f";
-	argc = 9;
+	argv[argc++] = "mpg123";
+	argv[argc++] = "-q";
+	argv[argc++] = "-s";
+	argv[argc++] = "--mono";
+	argv[argc++] = "-r";
+	argv[argc++] = "8000";
+
+	if (!class->single) {
+		argv[argc++] = "-b";
+		argv[argc++] = "2048";
+	}
+
+	argv[argc++] = "-f";
+	
 	if (class->quiet) {
 		argv[argc++] = "4096";
 	} else
@@ -498,8 +503,10 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 	strncpy(moh->class, classname, sizeof(moh->class) - 1);
 	if (miscargs)
 		strncpy(moh->miscargs, miscargs, sizeof(moh->miscargs) - 1);
-	if (!strcasecmp(mode, "mp3") || !strcasecmp(mode, "quietmp3") || !strcasecmp(mode, "httpmp3")) {
-		if (!strcasecmp(mode, "quietmp3"))
+	if (!strcasecmp(mode, "mp3") || !strcasecmp(mode, "mp3nb") || !strcasecmp(mode, "quietmp3") || !strcasecmp(mode, "quietmp3nb") || !strcasecmp(mode, "httpmp3")) {
+		if (!strcasecmp(mode, "mp3nb") || !strcasecmp(mode, "quietmp3nb"))
+			moh->single = 1;
+		if (!strcasecmp(mode, "quietmp3") || !strcasecmp(mode, "quietmp3nb"))
 			moh->quiet = 1;
 		strncpy(moh->dir, param, sizeof(moh->dir) - 1);
 		moh->srcfd = -1;
@@ -596,7 +603,7 @@ static void ast_moh_destroy(void)
 			ast_log(LOG_DEBUG, "mpg123 pid %d and child died after %d bytes read\n", moh->pid, tbytes);
 			close(moh->srcfd);
 			moh->pid = 0;
-			}
+		}
 		moh = moh->next;
 	}
 	ast_mutex_unlock(&moh_lock);

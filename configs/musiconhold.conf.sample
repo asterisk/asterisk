@@ -5,3 +5,5 @@
 ;default => quietmp3:/var/lib/asterisk/mohmp3
 ;loud => mp3:/var/lib/asterisk/mohmp3
 ;random => quietmp3:/var/lib/asterisk/mohmp3,-z
+;unbuffered => mp3nb:/var/lib/asterisk/mohmp3
+;quietunbuf => quietmp3nb:/var/lib/asterisk/mohmp3
