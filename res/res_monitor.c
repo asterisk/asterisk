@@ -323,13 +323,6 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 	if (data && !ast_strlen_zero((char*)data)) {
 		arg = ast_strdupa((char*)data);
 		format = arg;
-		arg = strchr(format,':');
-		if (arg)
-		{
-			*arg++ = 0;
-			urlprefix = arg;
-		}
-		else arg = format;
 		fname_base = strchr(arg, '|');
 		if (fname_base) {
 			*fname_base = 0;
@@ -343,9 +336,13 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 					waitforbridge = 1;
 			}
 		}
+		arg = strchr(format,':');
+		if (arg) {
+			*arg++ = 0;
+			urlprefix = arg;
+		}
 	}
-	if (urlprefix)
-	{
+	if (urlprefix) {
 		snprintf(tmp,sizeof(tmp) - 1,"%s/%s.%s",urlprefix,fname_base,
 			((strcmp(format,"gsm")) ? "wav" : "gsm"));
 		if (!chan->cdr)
