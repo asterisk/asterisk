@@ -315,9 +315,10 @@ include => demo
 
 ;exten => 6245,hint,SIP/Grandstream1&SIP/Xlite1 ; Channel hints for presence
 ;exten => 6245,1,Dial(SIP/Grandstream1,20,rt)	; permit transfer
-;exten => 6245,n,Dial(${HINT},20,rtT)		; Use hint as listed
+;exten => 6245,n(dial),Dial(${HINT},20,rtT)		; Use hint as listed
 ;exten => 6245,n,Voicemail(u6245)		; Voicemail (unavailable)
-;exten => 6245,s+100,Voicemail(b6245)		; Voicemail (busy)
+;exten => 6245,s+1,Hangup			; s+1, same as n
+;exten => 6245,dial+101,Voicemail(b6245)	; Voicemail (busy)
 ;exten => 6361,1,Dial(IAX2/JaneDoe,,rm)		; ring without time limit
 ;exten => 6389,1,Dial(MGCP/aaln/1@192.168.0.14)
 ;exten => 6394,1,Dial(Local/6275/n)		; this will dial ${MARK}

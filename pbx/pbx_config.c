@@ -17,6 +17,7 @@
 #include <asterisk/module.h>
 #include <asterisk/logger.h>
 #include <asterisk/cli.h>
+#include <asterisk/callerid.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -1656,6 +1657,12 @@ static int pbx_load_module(void)
 							ext = strsep(&stringp, ",");
 							if (!ext)
 								ext="";
+							cidmatch = strchr(ext, '/');
+							if (cidmatch) {
+								*cidmatch = '\0';
+								cidmatch++;
+								ast_shrink_phone_number(cidmatch);
+							}
 							pri = strsep(&stringp, ",");
 							if (!pri)
 								pri="";
@@ -1688,8 +1695,10 @@ static int pbx_load_module(void)
 									ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
 							} else  {
 								if (sscanf(pri, "%i", &ipri) != 1) {
-									ast_log(LOG_WARNING, "Invalid priority '%s' at line %d\n", pri, v->lineno);
-									ipri = 0;
+									if ((ipri = ast_findlabel_extension2(NULL, con, ext, pri, cidmatch)) < 1) {
+										ast_log(LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
+										ipri = 0;
+									}
 								}
 							}
 							appl = stringp;
@@ -1715,13 +1724,6 @@ static int pbx_load_module(void)
 								else
 									data = "";
 							}
-							cidmatch = strchr(ext, '/');
-							if (cidmatch) {
-								*cidmatch = '\0';
-								cidmatch++;
-							}
-							stringp=ext;
-							strsep(&stringp, "/");
 
 							if (!data)
 								data="";

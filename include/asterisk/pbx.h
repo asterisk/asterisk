@@ -297,6 +297,8 @@ int ast_exists_extension(struct ast_channel *c, const char *context, const char 
 \ */
 int ast_findlabel_extension(struct ast_channel *c, const char *context, const char *exten, const char *label, const char *callerid);
 
+int ast_findlabel_extension2(struct ast_channel *c, struct ast_context *con, const char *exten, const char *label, const char *callerid);
+
 //! Looks for a valid matching extension
 /*!
   \param c not really important

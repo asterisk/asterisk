@@ -719,7 +719,7 @@ static int matchcid(const char *cidpattern, const char *callerid)
 	return ast_extension_match(cidpattern, callerid);
 }
 
-static struct ast_exten *pbx_find_extension(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *label, const char *callerid, int action, char *incstack[], int *stacklen, int *status, struct ast_switch **swo, char **data)
+static struct ast_exten *pbx_find_extension(struct ast_channel *chan, struct ast_context *bypass, const char *context, const char *exten, int priority, const char *label, const char *callerid, int action, char *incstack[], int *stacklen, int *status, struct ast_switch **swo, char **data)
 {
 	int x, res;
 	struct ast_context *tmp;
@@ -744,10 +744,13 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, const char
 		if (!strcasecmp(incstack[x], context))
 			return NULL;
 	}
-	tmp = contexts;
+	if (bypass)
+		tmp = bypass;
+	else
+		tmp = contexts;
 	while(tmp) {
 		/* Match context */
-		if (!strcmp(tmp->name, context)) {
+		if (bypass || !strcmp(tmp->name, context)) {
 			if (*status < STATUS_NO_EXTENSION)
 				*status = STATUS_NO_EXTENSION;
 			eroot = tmp->root;
@@ -806,13 +809,14 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, const char
 			i = tmp->includes;
 			while(i) {
 				if (include_valid(i)) {
-					if ((e = pbx_find_extension(chan, i->rname, exten, priority, label, callerid, action, incstack, stacklen, status, swo, data))) 
+					if ((e = pbx_find_extension(chan, bypass, i->rname, exten, priority, label, callerid, action, incstack, stacklen, status, swo, data))) 
 						return e;
 					if (*swo) 
 						return NULL;
 				}
 				i = i->next;
 			}
+			break;
 		}
 		tmp = tmp->next;
 	}
@@ -1227,7 +1231,7 @@ static void pbx_substitute_variables(char *passdata, int datalen, struct ast_cha
 	pbx_substitute_variables_helper(c, e->data, passdata, datalen - 1);
 }		                                                
 
-static int pbx_extension_helper(struct ast_channel *c, const char *context, const char *exten, int priority, const char *label, const char *callerid, int action) 
+static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, const char *context, const char *exten, int priority, const char *label, const char *callerid, int action) 
 {
 	struct ast_exten *e;
 	struct ast_app *app;
@@ -1250,7 +1254,7 @@ static int pbx_extension_helper(struct ast_channel *c, const char *context, cons
 		else
 			return -1;
 	}
-	e = pbx_find_extension(c, context, exten, priority, label, callerid, action, incstack, &stacklen, &status, &sw, &data);
+	e = pbx_find_extension(c, con, context, exten, priority, label, callerid, action, incstack, &stacklen, &status, &sw, &data);
 	if (e) {
 		switch(action) {
 		case HELPER_CANMATCH:
@@ -1351,7 +1355,8 @@ static int pbx_extension_helper(struct ast_channel *c, const char *context, cons
 				ast_log(LOG_NOTICE, "No such priority %d in extension '%s' in context '%s'\n", priority, exten, context);
 			break;
 		case STATUS_NO_LABEL:
-			ast_log(LOG_NOTICE, "No such label '%s' in extension '%s' in context '%s'\n", label, exten, context);
+			if (context)
+				ast_log(LOG_NOTICE, "No such label '%s' in extension '%s' in context '%s'\n", label, exten, context);
 			break;
 		default:
 			ast_log(LOG_DEBUG, "Shouldn't happen!\n");
@@ -1378,7 +1383,7 @@ static struct ast_exten *ast_hint_extension(struct ast_channel *c, const char *c
 		ast_log(LOG_WARNING, "Unable to obtain lock\n");
 		return NULL;
 	}
-	e = pbx_find_extension(c, context, exten, PRIORITY_HINT, NULL, "", HELPER_EXISTS, incstack, &stacklen, &status, &sw, &data);
+	e = pbx_find_extension(c, NULL, context, exten, PRIORITY_HINT, NULL, "", HELPER_EXISTS, incstack, &stacklen, &status, &sw, &data);
 	ast_mutex_unlock(&conlock);	
 	return e;
 }
@@ -1768,27 +1773,32 @@ int ast_get_hint(char *hint, int hintsize, struct ast_channel *c, const char *co
 
 int ast_exists_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid) 
 {
-	return pbx_extension_helper(c, context, exten, priority, NULL, callerid, HELPER_EXISTS);
+	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, HELPER_EXISTS);
 }
 
 int ast_findlabel_extension(struct ast_channel *c, const char *context, const char *exten, const char *label, const char *callerid) 
 {
-	return pbx_extension_helper(c, context, exten, 0, label, callerid, HELPER_FINDLABEL);
+	return pbx_extension_helper(c, NULL, context, exten, 0, label, callerid, HELPER_FINDLABEL);
+}
+
+int ast_findlabel_extension2(struct ast_channel *c, struct ast_context *con, const char *exten, const char *label, const char *callerid) 
+{
+	return pbx_extension_helper(c, con, NULL, exten, 0, label, callerid, HELPER_FINDLABEL);
 }
 
 int ast_canmatch_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid)
 {
-	return pbx_extension_helper(c, context, exten, priority, NULL, callerid, HELPER_CANMATCH);
+	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, HELPER_CANMATCH);
 }
 
 int ast_matchmore_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid)
 {
-	return pbx_extension_helper(c, context, exten, priority, NULL, callerid, HELPER_MATCHMORE);
+	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, HELPER_MATCHMORE);
 }
 
 int ast_spawn_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid) 
 {
-	return pbx_extension_helper(c, context, exten, priority, NULL, callerid, HELPER_SPAWN);
+	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, HELPER_SPAWN);
 }
 
 int ast_pbx_run(struct ast_channel *c)
