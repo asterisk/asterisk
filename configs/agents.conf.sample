@@ -26,6 +26,11 @@
 ;
 ;musiconhold => default
 ;
+; Define updatecdr. This is whether or not to change the source 
+; channel in the CDR record for this call to agent/agent_id so 
+; that we know which agent generates the call
+;
+;updatecdr=no
 ;
 ; Group memberships for agents (may change in mid-file just)
 ; 

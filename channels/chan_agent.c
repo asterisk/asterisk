@@ -75,7 +75,6 @@ static char *descrip3 =
 "  AgentMonitorOutgoing([options]):\n"
 "Tries to figure out the id of the agent who is placing outgoing call based on comparision of the callerid of the current interface and the global variable placed by the AgentCallbackLogin application. That's why it should be used only with the AgentCallbackLogin app. Uses the monitoring functions in chan_agent instead of Monitor application. That have to be configured in the agents.conf file. Normally the app returns 0 unless the options are passed. Also if the callerid or the agentid are not specified it'll look for n+101 priority. The options are:\n"
 "	'd' - make the app return -1 if there is an error condition and there is no extension n+101\n"
-"	'c' - change the source channel in the CDR record for this call to agent/agent_id so that we know which agent generates the call\n"
 "	'n' - don't generate the warnings when there is no callerid or the agentid is not known. It's handy if you want to have one context for agent and non-agent calls.\n";
 
 static char moh[80] = "default";
@@ -102,6 +101,7 @@ static char recordformatext[AST_MAX_BUF];
 static int createlink = 0;
 static char urlprefix[AST_MAX_BUF];
 static char savecallsin[AST_MAX_BUF];
+static int updatecdr = 0;
 
 #define GETAGENTBYCALLERID	"AGENTBYCALLERID"
 
@@ -793,6 +793,8 @@ static int read_agent_config(void)
 				wrapuptime = 0;
 		} else if (!strcasecmp(v->name, "musiconhold")) {
 			strncpy(moh, v->value, sizeof(moh) - 1);
+		} else if (!strcasecmp(v->name, "updatecdr")) {
+			updatecdr = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "recordagentcalls")) {
 			recordagentcalls = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "createlink")) {
@@ -1243,6 +1245,9 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 									else
 										pbx_builtin_setvar_helper(NULL, agentvar, p->agent);
 								}
+								if(updatecdr && chan->cdr)
+									snprintf(chan->cdr->channel, sizeof(chan->cdr->channel), "Agent/%s", p->agent);
+
 							}
 						} else {
 							strcpy(p->loginchan, "");
@@ -1297,6 +1302,8 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								p->agent, chan->name);
 							time(&start);
 							snprintf(agent, sizeof(agent), "Agent/%s", p->agent);
+							if (updatecdr && chan->cdr)
+								snprintf(chan->cdr->channel, sizeof(chan->cdr->channel), "Agent/%s", p->agent);
 							ast_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGIN", "%s", chan->name);
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Agent '%s' logged in (format %s/%s)\n", p->agent,
@@ -1416,7 +1423,6 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 {
 	int exitifnoagentid = 0;
 	int nowarnings = 0;
-	int updatecdr = 0;
 	int res = 0;
 	char agent[AST_MAX_AGENT], *tmp;
 	if (data) {
@@ -1424,8 +1430,6 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 			exitifnoagentid = 1;
 		if (strchr(data, 'n'))
 			nowarnings = 1;
-		if (strchr(data, 'c'))
-			updatecdr = 1;
 	}
 	if (chan->callerid) {
 		char agentvar[AST_MAX_BUF];
@@ -1437,9 +1441,6 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 			while (p) {
 				if (!strcasecmp(p->agent, tmp)) {
 					__agent_start_monitoring(chan, p, 1);
-					if (updatecdr && chan->cdr) {
-						snprintf(chan->cdr->channel, sizeof(chan->cdr->channel), "Agent/%s", p->agent);
-					}
 					break;
 				}
 				p = p->next;
