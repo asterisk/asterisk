@@ -1769,6 +1769,8 @@ static int zt_hangup(struct ast_channel *ast)
 				swap_subs(p, SUB_CALLWAIT, SUB_REAL);
 				unalloc_sub(p, SUB_CALLWAIT);
 				p->owner = p->subs[SUB_REAL].owner;
+				if (p->owner->_state != AST_STATE_UP)
+					p->subs[SUB_REAL].needanswer = 1;
 				if (p->subs[SUB_REAL].owner->bridge)
 					ast_moh_stop(p->subs[SUB_REAL].owner->bridge);
 			} else if (p->subs[SUB_THREEWAY].zfd > -1) {
