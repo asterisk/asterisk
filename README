@@ -2,7 +2,6 @@ The Asterisk Open Source PBX
 by Mark Spencer <markster@digium.com>
 Copyright (C) 2001-2004 Digium
 ================================================================
-================================================================
 * SECURITY
   It is imperative that you read and fully understand the contents of
   the SECURITY file before you attempt to configure an Asterisk server.
