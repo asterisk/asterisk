@@ -54,6 +54,11 @@ CREATE TABLE [dbo].[cdr] (
 #include <tdsconvert.h>
 #include <ctype.h>
 
+#if !defined(TDS_INT_EXIT) 
+#define TDS_PRE_0_62
+#warning "You have older TDS, you should upgrade!"
+#endif
+
 #define DATE_FORMAT "%Y/%m/%d %T"
 
 static char *desc = "MSSQL CDR Backend";
@@ -75,6 +80,9 @@ static int tds_log(struct ast_cdr *cdr)
 	char sqlcmd[2048], start[80], answer[80], end[80];
 	char *accountcode, *src, *dst, *dcontext, *clid, *channel, *dstchannel, *lastapp, *lastdata, *uniqueid;
 	int res = 0;
+#ifdef TDS_PRE_0_62
+	TDS_INT result_type;
+#endif
 
 	ast_mutex_lock(&tds_lock);
 
@@ -156,7 +164,11 @@ static int tds_log(struct ast_cdr *cdr)
 		uniqueid
 	);
 
+#ifdef TDS_PRE_0_62
+	if ((tds_submit_query(tds, sqlcmd) != TDS_SUCCEED) || (tds_process_simple_query(tds, &result_type) != TDS_SUCCEED || result_type != TDS_CMD_SUCCEED))
+#else
 	if ((tds_submit_query(tds, sqlcmd) != TDS_SUCCEED) || (tds_process_simple_query(tds) != TDS_SUCCEED))
+#endif
 	{
 		ast_log(LOG_ERROR, "Failed to insert record into database.\n");
 
@@ -375,6 +387,9 @@ int load_module(void)
 	struct ast_variable *var;
 	char query[1024], *ptr = NULL;
 	char *hostname = NULL, *dbname = NULL, *dbuser = NULL, *password = NULL, *charset = NULL, *language = NULL;
+#ifdef TDS_PRE_0_62
+	TDS_INT result_type;
+#endif
 
 	cfg = ast_load(config);
 	if (!cfg)
@@ -462,7 +477,9 @@ int load_module(void)
 		tds_set_passwd(login, password);
 		tds_set_app(login, "TSQL");
 		tds_set_library(login, "TDS-Library");
+#ifndef TDS_PRE_0_62
 		tds_set_client_charset(login, charset);
+#endif
 		tds_set_language(login, language);
 		tds_set_packet(login, 512);
 		tds_set_version(login, 7, 0);
@@ -483,7 +500,11 @@ int load_module(void)
 		{
 			memset(query, 0, sizeof(query));
 			sprintf(query, "USE %s", dbname);
+#ifdef TDS_PRE_0_62
+			if ((tds_submit_query(tds, query) != TDS_SUCCEED) || (tds_process_simple_query(tds, &result_type) != TDS_SUCCEED || result_type != TDS_CMD_SUCCEED))
+#else
 			if ((tds_submit_query(tds, query) != TDS_SUCCEED) || (tds_process_simple_query(tds) != TDS_SUCCEED))
+#endif
 			{
 				ast_log(LOG_ERROR, "Could not change database (%s)\n", dbname);
 				res = -1;
