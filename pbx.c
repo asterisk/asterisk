@@ -1,4 +1,4 @@
- /*
+/*
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Core PBX routines.
@@ -120,7 +120,7 @@ struct ast_context {
 	struct ast_ignorepat *ignorepats;	/* Patterns for which to continue playing dialtone */
 	const char *registrar;			/* Registrar */
 	struct ast_sw *alts;			/* Alternative switches */
-	char name[0];		/* Name of the context */
+	char name[0];				/* Name of the context */
 };
 
 
@@ -130,32 +130,32 @@ struct ast_app {
 	const char *synopsis;			/* Synopsis text for 'show applications' */
 	const char *description;		/* Description (help text) for 'show application <name>' */
 	struct ast_app *next;			/* Next app in list */
-	char name[0];			/* Name of the application */
+	char name[0];				/* Name of the application */
 };
 
 /* ast_state_cb: An extension state notify */
 struct ast_state_cb {
-    int id;
-    void *data;
-    ast_state_cb_type callback;
-    struct ast_state_cb *next;
+	int id;
+	void *data;
+	ast_state_cb_type callback;
+	struct ast_state_cb *next;
 };
 	    
 /* ast_devstate_cb: An extension state notify */
 struct ast_devstate_cb {
-    void *data;
-    ast_devstate_cb_type callback;
-    struct ast_devstate_cb *next;
+	void *data;
+	ast_devstate_cb_type callback;
+	struct ast_devstate_cb *next;
 };
 
 static struct ast_devstate_cb *devcbs;
 
 /* Hints are pointers from an extension in the dialplan to one or more devices (tech/name) */
 struct ast_hint {
-    struct ast_exten *exten;		/* Extension */
-    int laststate; 			/* Last known state */
-    struct ast_state_cb *callbacks;	/* Callback list for this extension */
-    struct ast_hint *next;		/* Pointer to next hint in list */
+	struct ast_exten *exten;	/* Extension */
+	int laststate; 			/* Last known state */
+	struct ast_state_cb *callbacks;	/* Callback list for this extension */
+	struct ast_hint *next;		/* Pointer to next hint in list */
 };
 
 int ast_pbx_outgoing_cdr_failed(void);
