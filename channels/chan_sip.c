@@ -1738,7 +1738,6 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	copy_via_headers(p, resp, req, "Via");
 	copy_header(resp, req, "From");
 	ot = get_header(req, "To");
-	append_contact(resp, p);
 	if (strlen(get_header(req, "Record-Route")))
 		copy_header(resp, req, "Record-Route");
 	if (!strstr(ot, "tag=")) {
