@@ -1053,7 +1053,7 @@ int ast_app_group_match_get_count(char *groupmatch, char *category)
 	return count;
 }
 
-int ast_seperate_app_args(char *buf, char delim, char **array, int arraylen)
+int ast_separate_app_args(char *buf, char delim, char **array, int arraylen)
 {
 	int x = 0;
 	memset(array, 0, arraylen * sizeof(char *));

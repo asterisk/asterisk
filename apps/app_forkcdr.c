@@ -20,7 +20,7 @@
 #include <string.h>
 #include <pthread.h>
 
-static char *tdesc = "Fork The CDR into 2 seperate entities.";
+static char *tdesc = "Fork The CDR into 2 separate entities.";
 static char *app = "ForkCDR";
 static char *synopsis = 
 "Forks the Call Data Record";

@@ -76,7 +76,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 	if (data)
 		argcopy = ast_strdupa((char *)data);
 
-	if (ast_seperate_app_args(argcopy, '|', args, sizeof(args) / sizeof(args[0])) < 1) {
+	if (ast_separate_app_args(argcopy, '|', args, sizeof(args) / sizeof(args[0])) < 1) {
 		ast_log(LOG_WARNING, "Cannot Parse Arguements.\n");
 		return -1;
 	}

@@ -111,9 +111,9 @@ struct ast_modem_pvt {
 	char context[AST_MAX_EXTENSION];
 	/*! Multiple Subscriber Number */
 	char msn[AST_MAX_EXTENSION];	
-	/*! Multiple Subscriber Number we listen to (; seperated list) */
+	/*! Multiple Subscriber Number we listen to (; separated list) */
 	char incomingmsn[AST_MAX_EXTENSION];	
-	/*! Multiple Subscriber Number we accept for outgoing calls (; seperated list) */
+	/*! Multiple Subscriber Number we accept for outgoing calls (; separated list) */
 	char outgoingmsn[AST_MAX_EXTENSION];	
 	/*! Group(s) we belong to if available */
 	ast_group_t group;

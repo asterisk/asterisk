@@ -177,7 +177,7 @@ tos=lowdelay
 ;
 ; codecpriority controls the codec negotiation of an inbound IAX call.
 ; This option is inherited to all user entities.  It can also be defined 
-; in each user entity seperately which will override the setting in general.
+; in each user entity separately which will override the setting in general.
 ;
 ; The valid values are:
 ;

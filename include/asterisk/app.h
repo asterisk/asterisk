@@ -95,7 +95,7 @@ int ast_app_group_get_count(char *group, char *category);
 int ast_app_group_match_get_count(char *groupmatch, char *category);
 
 /*! Create an argc argv type structure for app args */
-int ast_seperate_app_args(char *buf, char delim, char **array, int arraylen);
+int ast_separate_app_args(char *buf, char delim, char **array, int arraylen);
 
 /*! Present a dialtone and collect a certain length extension.  Returns 1 on valid extension entered, -1 on hangup, or 0 on invalid extension. */
 int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout);

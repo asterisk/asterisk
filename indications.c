@@ -13,7 +13,7 @@
  * This set of function allow us to play a list of tones on a channel.
  * Each element has two frequencies, which are mixed together and a
  * duration. For silence both frequencies can be set to 0.
- * The playtones can be given as a comma seperated string.
+ * The playtones can be given as a comma separated string.
  */
 
 #include <stdio.h>

@@ -41,7 +41,7 @@ static char *synopsis = "Park and Announce";
 static char *descrip =
 "  ParkAndAnnounce(announce:template|timeout|dial|[return_context]):\n"
 "Park a call into the parkinglot and announce the call over the console.\n"
-"announce template: colon seperated list of files to announce, the word PARKED\n"
+"announce template: colon separated list of files to announce, the word PARKED\n"
 "                   will be replaced by a say_digits of the ext the call is parked in\n"
 "timeout: time in seconds before the call returns into the return context.\n"
 "dial: The app_dial style resource to call to make the announcement. Console/dsp calls the console.\n"
