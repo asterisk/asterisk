@@ -1566,11 +1566,6 @@ static int ast_say_number_full_pt(struct ast_channel *chan, int num, char *ints,
 				playh = 1;
 			num = num % 1000000;
 		}
-		if (!res && playh) {
-			res = wait_file(chan, ints, "digits/pt-e", language);
-			ast_stopstream(chan);
-			playh = 0;
-		}
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
 				if (audiofd && ctrlfd)
@@ -1578,6 +1573,11 @@ static int ast_say_number_full_pt(struct ast_channel *chan, int num, char *ints,
 					res = ast_waitstream(chan, ints);
 			}
 			ast_stopstream(chan);
+		}
+		if (!res && playh) {
+			res = wait_file(chan, ints, "digits/pt-e", language);
+			ast_stopstream(chan);
+			playh = 0;
 		}
 	}
 	return res;
