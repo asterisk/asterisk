@@ -80,7 +80,7 @@ int option_cache_record_files = 0;
 int option_overrideconfig = 0;
 int option_reconnect = 0;
 int fully_booted = 0;
-char record_cache_dir[AST_CACHE_DIR_LEN] = "/var/spool/asterisk/tmp";
+char record_cache_dir[AST_CACHE_DIR_LEN] = AST_TMP_DIR;
 
 static int ast_socket = -1;		/* UNIX Socket for allowing remote control */
 static int ast_consock = -1;		/* UNIX Socket for controlling another asterisk */
