@@ -4815,6 +4815,9 @@ static void *do_monitor(void *data)
 									ast_log(LOG_WARNING, "Unable to flush input on channel %d\n", last->channel);
 								last->cidspill = malloc(8192);
 								if (last->cidspill) {
+									/* Turn on on hook transfer for 4 seconds */
+									x = 4000;
+									ioctl(last->subs[SUB_REAL].zfd, ZT_ONHOOKTRANSFER, &x);
 									last->cidlen = vmwi_generate(last->cidspill, res, 1, AST_LAW(last));
 									last->cidpos = 0;
 #if 0
