@@ -388,9 +388,8 @@ static int spawn_mp3(struct mohclass *class)
 			}
 		}
         /* Child */
-
-        if(class->custom) {
-			chdir(class->dir);
+		chdir(class->dir);
+		if(class->custom) {
 			execv(argv[0], argv);
         } else {
             /* Default install is /usr/local/bin */
