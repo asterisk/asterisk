@@ -573,6 +573,47 @@ static void dump_queue(struct mgcp_gateway *gw, struct mgcp_endpoint *p)
     }
 }
 
+static void mgcp_queue_frame(struct mgcp_subchannel *sub, struct ast_frame *f)
+{
+	for(;;) {
+		if (sub->owner) {
+			if (!ast_mutex_trylock(&sub->owner->lock)) {
+				ast_queue_frame(sub->owner, f);
+				ast_mutex_unlock(&sub->owner->lock);
+			} else {
+				ast_mutex_unlock(&sub->lock);
+				usleep(1);
+				ast_mutex_lock(&sub->lock);
+			}
+		} else
+			break;
+	}
+}
+
+static void mgcp_queue_hangup(struct mgcp_subchannel *sub)
+{
+	for(;;) {
+		if (sub->owner) {
+			if (!ast_mutex_trylock(&sub->owner->lock)) {
+				ast_queue_hangup(sub->owner);
+				ast_mutex_unlock(&sub->owner->lock);
+			} else {
+				ast_mutex_unlock(&sub->lock);
+				usleep(1);
+				ast_mutex_lock(&sub->lock);
+			}
+		} else
+			break;
+	}
+}
+
+static void mgcp_queue_control(struct mgcp_subchannel *sub, int control)
+{
+	struct ast_frame f = { AST_FRAME_CONTROL, };
+	f.subclass = control;
+	return mgcp_queue_frame(sub, &f);
+}
+
 static int retrans_pkt(void *data)
 {
     struct mgcp_gateway *gw = (struct mgcp_gateway *)data;
@@ -811,7 +852,7 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
     }
 	sub = ast->pvt->pvt;
     p = sub->parent;
-
+	ast_mutex_lock(&sub->lock);
     switch (p->hookstate) {
         case MGCP_OFFHOOK:
             tone = "L/wt";
@@ -824,6 +865,7 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "mgcp_call called on %s, neither down nor reserved\n", ast->name);
+		ast_mutex_unlock(&sub->lock);
 		return -1;
 	}
 
@@ -845,7 +887,7 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 
 		transmit_notify_request_with_callerid(sub, tone, ast->cid.cid_num, ast->cid.cid_name);
 		ast_setstate(ast, AST_STATE_RINGING);
-		ast_queue_control(ast, AST_CONTROL_RINGING);
+		mgcp_queue_control(sub, AST_CONTROL_RINGING);
 
         if (sub->next->owner && strlen(sub->next->cxident) && strlen(sub->next->callid)) {
             /* Put the connection back in sendrecv */
@@ -857,6 +899,7 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_log(LOG_NOTICE, "Don't know how to dial on trunks yet\n");
 		res = -1;
 	}
+	ast_mutex_unlock(&sub->lock);
 	return res;
 }
 
@@ -1057,6 +1100,7 @@ static int mgcp_answer(struct ast_channel *ast)
 	int res = 0;
 	struct mgcp_subchannel *sub = ast->pvt->pvt;
 	struct mgcp_endpoint *p = sub->parent;
+	ast_mutex_lock(&sub->lock);
     sub->cxmode = MGCP_CX_SENDRECV;
     if (!sub->rtp) {
         start_rtp(sub);
@@ -1074,6 +1118,7 @@ static int mgcp_answer(struct ast_channel *ast)
 		transmit_notify_request(sub, "");
 		transmit_modify_request(sub);
 	}
+	ast_mutex_unlock(&sub->lock);
 	return res;
 }
 
@@ -1151,12 +1196,15 @@ static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame)
 static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct mgcp_subchannel *sub = newchan->pvt->pvt;
+	ast_mutex_lock(&sub->lock);
     ast_log(LOG_NOTICE, "mgcp_fixup(%s, %s)\n", oldchan->name, newchan->name);
 	if (sub->owner != oldchan) {
+		ast_mutex_unlock(&sub->lock);
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, sub->owner);
 		return -1;
 	}
 	sub->owner = newchan;
+	ast_mutex_unlock(&sub->lock);
 	return 0;
 }
 
@@ -1168,7 +1216,9 @@ static int mgcp_senddigit(struct ast_channel *ast, char digit)
 	tmp[1] = '/';
 	tmp[2] = digit;
 	tmp[3] = '\0';
+	ast_mutex_lock(&sub->lock);
 	transmit_notify_request(sub, tmp);
+	ast_mutex_unlock(&sub->lock);
 	return -1;
 }
 
@@ -1208,9 +1258,11 @@ static char *control2str(int ind) {
 static int mgcp_indicate(struct ast_channel *ast, int ind)
 {
 	struct mgcp_subchannel *sub = ast->pvt->pvt;
+	int res = 0;
     if (mgcpdebug) {
         ast_verbose(VERBOSE_PREFIX_3 "MGCP asked to indicate %d '%s' condition on channel %s\n", ind, control2str(ind), ast->name);
     }
+	ast_mutex_lock(&sub->lock);
 	switch(ind) {
 	case AST_CONTROL_RINGING:
 #ifdef DLINK_BUGGY_FIRMWARE	
@@ -1230,9 +1282,10 @@ static int mgcp_indicate(struct ast_channel *ast, int ind)
 		break;		
 	default:
 		ast_log(LOG_WARNING, "Don't know how to indicate condition %d\n", ind);
-		return -1;
+		res = -1;
 	}
-	return 0;
+	ast_mutex_unlock(&sub->lock);
+	return res;
 }
 
 static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
@@ -1400,7 +1453,7 @@ static char *get_csv(char *c, int *len, char **next)
     return s;
 } 
 
-static struct mgcp_subchannel *find_subchannel(char *name, int msgid, struct sockaddr_in *sin)
+static struct mgcp_subchannel *find_subchannel_and_lock(char *name, int msgid, struct sockaddr_in *sin)
 {
 	struct mgcp_endpoint *p = NULL;
 	struct mgcp_subchannel *sub = NULL;
@@ -1498,6 +1551,7 @@ static struct mgcp_subchannel *find_subchannel(char *name, int msgid, struct soc
                 p = p->next;
 			}
 			if (sub && found) {
+				ast_mutex_lock(&sub->lock);
 				break;
             }
 		}
@@ -2745,7 +2799,7 @@ static int attempt_transfer(struct mgcp_endpoint *p)
 		p->sub->next->owner->_softhangup |= AST_SOFTHANGUP_DEV;
         if (p->sub->next->owner) {
             p->sub->next->alreadygone = 1;
-            ast_queue_hangup(p->sub->next->owner);
+            mgcp_queue_hangup(p->sub->next);
         }
 	}
 	return 0;
@@ -2775,7 +2829,7 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
             }
             /*transmit_notify_request(sub, "aw");*/
             transmit_notify_request(sub, "");
-            ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
+            mgcp_queue_control(sub, AST_CONTROL_ANSWER);
         }
     } else {
         /* Start switch */
@@ -3030,21 +3084,25 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
             if (p->transfer && (sub->owner && sub->next->owner) && ((!sub->outgoing) || (!sub->next->outgoing))) {
                 /* We're allowed to transfer, we have two avtive calls and */
                 /* we made at least one of the calls.  Let's try and transfer */
-                if ((res = attempt_transfer(p)) < 0) {
+				ast_mutex_lock(&p->sub->next->lock);
+				res = attempt_transfer(p);
+                if (res < 0) {
                     if (p->sub->next->owner) {
                         sub->next->alreadygone = 1;
-                        ast_queue_hangup(sub->next->owner);
+                        mgcp_queue_hangup(sub->next);
                     }
                 } else if (res) {
                     ast_log(LOG_WARNING, "Transfer attempt failed\n");
+					ast_mutex_unlock(&p->sub->next->lock);
                     return -1;
                 }
+				ast_mutex_unlock(&p->sub->next->lock);
             } else {
                 /* Hangup the current call */
                 /* If there is another active call, mgcp_hangup will ring the phone with the other call */
                 if (sub->owner) {
                     sub->alreadygone = 1;
-                    ast_queue_hangup(sub->owner);
+                    mgcp_queue_hangup(sub);
                 } else {
                     /* SC: verbose level check */
                     if (option_verbose > 2) {
@@ -3075,10 +3133,12 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 			f.src = "mgcp";
 			if (sub->owner) {
                 /* XXX MUST queue this frame to all subs in threeway call if threeway call is active */
-				ast_queue_frame(sub->owner, &f);
+				mgcp_queue_frame(sub, &f);
+				ast_mutex_lock(&sub->next->lock);
                 if (sub->next->owner) {
-                    ast_queue_frame(sub->next->owner, &f);
+                    mgcp_queue_frame(sub->next, &f);
                 }
+				ast_mutex_unlock(&sub->next->lock);
             }
             if (strstr(p->curtone, "wt") && (ev[0] == 'A')) {
                 memset(p->curtone, 0, sizeof(p->curtone));
@@ -3167,11 +3227,12 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 	if (sscanf(req.verb, "%d", &result) &&
 		sscanf(req.identifier, "%d", &ident)) {
 		/* Try to find who this message is for, if it's important */
-		sub = find_subchannel(NULL, ident, &sin);
+		sub = find_subchannel_and_lock(NULL, ident, &sin);
 		if (sub) {
             struct mgcp_gateway *gw = sub->parent->parent;
             struct mgcp_message *cur, *prev;
 
+			ast_mutex_unlock(&sub->lock);
             ast_mutex_lock(&gw->msgs_lock);
             for (prev = NULL, cur = gw->msgs; cur; prev = cur, cur = cur->next) {
                 if (cur->seqno == ident) {
@@ -3191,7 +3252,6 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
             }
 
             ast_mutex_unlock(&gw->msgs_lock);
-
             if (cur) {
                 handle_response(cur->owner_ep, cur->owner_sub, result, ident, &req);
                 free(cur);
@@ -3209,12 +3269,13 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 			return 1;
 		}
 		/* Process request, with iflock held */
-		sub = find_subchannel(req.endpoint, 0, &sin);
+		sub = find_subchannel_and_lock(req.endpoint, 0, &sin);
 		if (sub) {
 			/* look first to find a matching response in the queue */
 			if (!find_and_retrans(sub, &req))
 	            /* pass the request off to the currently mastering subchannel */
 				handle_request(sub, &req, &sin);
+			ast_mutex_unlock(&sub->lock);
 		}
 	}
 	return 1;
@@ -3362,7 +3423,7 @@ static struct ast_channel *mgcp_request(const char *type, int format, void *data
 		ast_log(LOG_NOTICE, "MGCP Channels require an endpoint\n");
 		return NULL;
 	}
-	sub = find_subchannel(tmp, 0, NULL);
+	sub = find_subchannel_and_lock(tmp, 0, NULL);
 	if (!sub) {
 		ast_log(LOG_WARNING, "Unable to find MGCP endpoint '%s'\n", tmp);
 		*cause = AST_CAUSE_UNREGISTERED;
@@ -3386,9 +3447,11 @@ static struct ast_channel *mgcp_request(const char *type, int format, void *data
              }
          }
 		*cause = AST_CAUSE_BUSY;
+		ast_mutex_unlock(&sub->lock);
 		return NULL;
     }
 	tmpc = mgcp_new(sub->owner ? sub->next : sub, AST_STATE_DOWN);
+	ast_mutex_unlock(&sub->lock);
 	if (!tmpc)
 		ast_log(LOG_WARNING, "Unable to make channel for '%s'\n", tmp);
 	restart_monitor();
