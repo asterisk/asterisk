@@ -317,7 +317,7 @@ samples: all datafiles adsi
 	done
 	:> $(ASTVARLIBDIR)/sounds/voicemail/default/1234/busy.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isonphone; do \
-		cat $(ASTVARLIBDIR)/sounds/$$x.gsm >> $(ASTVARLIBDIR)/sounds/vmoicemail/default/1234/busy.gsm ; \
+		cat $(ASTVARLIBDIR)/sounds/$$x.gsm >> $(ASTVARLIBDIR)/sounds/voicemail/default/1234/busy.gsm ; \
 	done
 
 webvmail:
