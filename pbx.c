@@ -2480,7 +2480,7 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 	/* ... go through all applications ... */
 	while (a) {
 		/* ... show informations about applications ... */
-		ast_cli(fd,"  %15s: %s\n",
+		ast_cli(fd,"  %20s: %s\n",
 			a->name,
 			a->synopsis ? a->synopsis : "<Synopsis not available>");
 		a = a->next; 
