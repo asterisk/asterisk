@@ -36,6 +36,7 @@
 #include <asterisk/app.h>
 #include <asterisk/pbx.h>
 #include <asterisk/md5.h>
+#include <asterisk/acl.h>
 
 static int enabled = 0;
 static int portno = DEFAULT_MANAGER_PORT;
@@ -207,7 +208,26 @@ static int authenticate(struct mansession *s, struct message *m)
 		if (strcasecmp(cat, "general")) {
 			/* This is a user */
 			if (!strcasecmp(cat, user)) {
-				char *password = ast_variable_retrieve(cfg, cat, "secret");
+				struct ast_variable *v;
+				struct ast_ha *ha = NULL;
+				char *password = NULL;
+				v = ast_variable_browse(cfg, cat);
+				while (v) {
+					if (!strcasecmp(v->name, "secret")) {
+						password = v->value;
+					} else if (!strcasecmp(v->name, "permit") ||
+						   !strcasecmp(v->name, "deny")) {
+							ha = ast_append_ha(v->name, v->value, ha);
+					}						
+					v = v->next;
+				}
+				if (ha && !ast_apply_ha(ha, &(s->sin))) {
+					ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", inet_ntoa(s->sin.sin_addr), user);
+					ast_free_ha(ha);
+					ast_destroy(cfg);
+					return -1;
+				} else if (ha)
+					ast_free_ha(ha);
 				if (!strcasecmp(authtype, "MD5")) {
 					if (key && strlen(key) && s->challenge) {
 						int x;

@@ -98,7 +98,7 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 		else
 			ret = ha;
 	}
-	return NULL;
+	return ret;
 }
 
 int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin)
