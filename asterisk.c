@@ -257,7 +257,8 @@ static void *listener(void *unused)
 		FD_SET(ast_socket, &fds);
 		s = ast_select(ast_socket + 1, &fds, NULL, NULL, NULL);
 		if (s < 0) {
-			ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
+			if (errno != EINTR)
+				ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
 			continue;
 		}
 		len = sizeof(sun);
