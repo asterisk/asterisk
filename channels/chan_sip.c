@@ -4270,6 +4270,14 @@ static int expire_register(void *data)
 
 static int sip_poke_peer(struct sip_peer *peer);
 
+static int sip_poke_peer_s(void *data)
+{
+	struct sip_peer *peer = data;
+	peer->pokeexpire = -1;
+	sip_poke_peer(peer);
+	return 0;
+}
+
 /*--- reg_source_db: Save registration in Asterisk DB ---*/
 static void reg_source_db(struct sip_peer *p)
 {
@@ -4308,7 +4316,13 @@ static void reg_source_db(struct sip_peer *p)
 					p->addr.sin_family = AF_INET;
 					p->addr.sin_addr = in;
 					p->addr.sin_port = htons(atoi(c));
-					sip_poke_peer(p);
+					if (sipsock < 0) {
+						/* SIP isn't up yet, so schedule a poke only, pretty soon */
+						if (p->pokeexpire > -1)
+							ast_sched_del(sched, p->pokeexpire);
+						p->pokeexpire = ast_sched_add(sched, rand() % 5000 + 1, sip_poke_peer_s, p);
+					} else
+						sip_poke_peer(p);
 					if (p->expire > -1)
 						ast_sched_del(sched, p->expire);
 					p->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, (void *)p);
@@ -6445,14 +6459,6 @@ static struct ast_cli_entry  cli_no_history =
 static struct ast_cli_entry  cli_no_debug =
 	{ { "sip", "no", "debug", NULL }, sip_no_debug, "Disable SIP debugging", no_debug_usage };
 
-static int sip_poke_peer_s(void *data)
-{
-	struct sip_peer *peer = data;
-	peer->pokeexpire = -1;
-	sip_poke_peer(peer);
-	return 0;
-}
-
 /*--- parse_moved_contact: Parse 302 Moved temporalily response */
 static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 {
@@ -7818,6 +7824,8 @@ static int sip_poke_peer(struct sip_peer *peer)
 	if (!peer->maxms || !peer->addr.sin_addr.s_addr) {
 		/* IF we have no IP, or this isn't to be monitored, return
 		  imeediately after clearing things out */
+		if (peer->pokeexpire > -1)
+			ast_sched_del(sched, peer->pokeexpire);
 		peer->lastms = 0;
 		peer->pokeexpire = -1;
 		peer->call = NULL;
@@ -8368,7 +8376,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 			 */
 			v=v->next;
 		}
-		if (!found && peer->dynamic && (sipsock > -1))
+		if (!found && peer->dynamic)
 			reg_source_db(peer);
 		peer->delme = 0;
 	}
