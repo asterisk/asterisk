@@ -59,7 +59,7 @@ static int mysql_log(struct ast_cdr *cdr)
   
 
   ast_log(LOG_DEBUG,"cdr_mysql: inserting a CDR record.\n");
-  sprintf(sqlcmd,"insert into cdr values ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,%i,%i,'%s')",timestr,cdr->clid,cdr->src, cdr->dst, cdr->dcontext,cdr->channel, cdr->dstchannel, cdr->lastapp, cdr->lastdata,cdr->duration,cdr->billsec,cdr->disposition,cdr->amaflags, cdr->accountcode);
+  sprintf(sqlcmd,"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,%i,%i,'%s')",timestr,cdr->clid,cdr->src, cdr->dst, cdr->dcontext,cdr->channel, cdr->dstchannel, cdr->lastapp, cdr->lastdata,cdr->duration,cdr->billsec,cdr->disposition,cdr->amaflags, cdr->accountcode);
   
   ast_log(LOG_DEBUG,"cdr_mysql: SQL command as follows:  %s\n",sqlcmd);
   
