@@ -2049,7 +2049,6 @@ static int ast_do_masquerade(struct ast_channel *original)
 		original->varshead.first = clone->varshead.first;
 	}
 	clone->varshead.first = NULL;
-	original->varshead.first = clone->varshead.first;
 	/* Presense of ADSI capable CPE follows clone */
 	original->adsicpe = clone->adsicpe;
 	/* Bridge remains the same */
