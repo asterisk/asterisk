@@ -3849,6 +3849,24 @@ static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 		return -1;
 	}
 	
+#ifdef PRI_EVENT_PROCEEDING
+	if (!p->proceeding && p->sig==SIG_PRI && p->pri && p->pri->overlapdial) {
+		if (p->pri->pri) {		
+			if (!pri_grab(p, p->pri)) {
+#ifdef PRI_PROGRESS
+					pri_progress(p->pri->pri,p->call);
+#else						
+					pri_acknowledge(p->pri->pri,p->call, p->prioffset, 1);
+#endif						
+					pri_rel(p->pri);
+			} else
+					ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+		}
+		p->proceeding=1;
+	}
+#else
+#warning "You need later PRI library"
+#endif
 	/* Write a frame of (presumably voice) data */
 	if (frame->frametype != AST_FRAME_VOICE) {
 		if (frame->frametype != AST_FRAME_IMAGE)
