@@ -23,6 +23,13 @@ silencethreshold=128
 ; Max number of failed login attempts
 maxlogins=3
 
+; Skip the "[PBX]:" string from the message title
+;pbxskip=yes
+; Change the From: string
+;fromstring=The Asterisk PBX
+; Change the email body, variables: VM_NAME, VM_DUR, VM_MSGNUM, VM_MAILBOX, VM_CALLERID, VM_DATE
+;emailbody=Dear ${VM_NAME}:\n\n\tjust wanted to let you know you were just left a ${VM_DUR} long message (number ${VM_MSGNUM})\nin mailbox ${VM_MAILBOX} from ${VM_CALLERID}, on ${VM_DATE} so you might\nwant to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n
+
 ;
 ; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>,<pager_email>,<options>
 ; if the e-mail is specified, a message will be sent when a message is

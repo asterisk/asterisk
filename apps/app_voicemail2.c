@@ -15,6 +15,7 @@
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
+#include <asterisk/channel_pvt.h>
 #include <asterisk/pbx.h>
 #include <asterisk/options.h>
 #include <asterisk/config.h>
@@ -142,6 +143,10 @@ static int vmmaxmessage;
 static int maxgreet;
 static int skipms;
 static int maxlogins;
+
+static char *emailbody = NULL;
+static int pbxskip = 0;
+static char fromstring[15];
 
 STANDARD_LOCAL_USER;
 
@@ -585,9 +590,16 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 		localtime_r(&t,&tm);
 		strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", &tm);
 		fprintf(p, "Date: %s\n", date);
-		fprintf(p, "From: Asterisk PBX <%s>\n", who);
+		
+		if (*fromstring)
+			fprintf(p, "From: %s <%s>\n", fromstring, who);
+		else
+			fprintf(p, "From: Asterisk PBX <%s>\n", who);
 		fprintf(p, "To: %s <%s>\n", name, email);
-		fprintf(p, "Subject: [PBX]: New message %d in mailbox %s\n", msgnum, mailbox);
+		if (pbxskip)
+			fprintf(p, "Subject: New message %d in mailbox %s\n", msgnum, mailbox);
+		else
+			fprintf(p, "Subject: [PBX]: New message %d in mailbox %s\n", msgnum, mailbox);
 		fprintf(p, "Message-ID: <Asterisk-%d-%s-%d@%s>\n", msgnum, mailbox, getpid(), host);
 		fprintf(p, "MIME-Version: 1.0\n");
 		if (attach_user_voicemail) {
@@ -600,11 +612,32 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 		}
 		fprintf(p, "Content-Type: TEXT/PLAIN; charset=US-ASCII\n\n");
 		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
-		fprintf(p, "Dear %s:\n\n\tJust wanted to let you know you were just left a %s long message (number %d)\n"
+		if (emailbody) {
+			struct ast_channel *ast = ast_channel_alloc(0);
+			if (ast) {
+				char *passdata;
+				int vmlen = strlen(emailbody)*2;
+				if (vmlen < 20)
+					vmlen = 100;
+				passdata = alloca(vmlen);
+				pbx_builtin_setvar_helper(ast, "VM_NAME", name);
+				pbx_builtin_setvar_helper(ast, "VM_DUR", dur);
+				sprintf(passdata,"%d",msgnum);
+				pbx_builtin_setvar_helper(ast, "VM_MSGNUM", passdata);
+				pbx_builtin_setvar_helper(ast, "VM_MAILBOX", mailbox);
+				pbx_builtin_setvar_helper(ast, "VM_CALLERID", (callerid ? callerid : "an unknown caller"));
+				pbx_builtin_setvar_helper(ast, "VM_DATE", date);
+				pbx_substitute_variables_helper(ast,emailbody,passdata,vmlen);
+				fprintf(p, "%s\n",passdata);
+				ast_channel_free(ast);
+			} else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+		} else {
+			fprintf(p, "Dear %s:\n\n\tJust wanted to let you know you were just left a %s long message (number %d)\n"
 
 			"in mailbox %s from %s, on %s so you might\n"
 			"want to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n\n", name, 
 			dur, msgnum, mailbox, (callerid ? callerid : "an unknown caller"), date);
+		}
 		if (attach_user_voicemail) {
 			fprintf(p, "--%s\n", bound);
 			fprintf(p, "Content-Type: audio/x-wav; name=\"msg%04d.%s\"\n", msgnum, format);
@@ -2533,6 +2566,38 @@ static int load_config(void)
 			cat = ast_category_browse(cfg, cat);
 		}
 #endif
+		memset(fromstring,0,sizeof(fromstring));
+		if (emailbody) {
+			free(emailbody);
+			emailbody = NULL;
+		}
+		if ((s=ast_variable_retrieve(cfg, "general", "pbxskip")))
+			pbxskip = ast_true(s);
+		if ((s=ast_variable_retrieve(cfg, "general", "fromstring")))
+			strncpy(fromstring,s,sizeof(fromstring)-1);
+		if ((s=ast_variable_retrieve(cfg, "general", "emailbody"))) {
+			char *tmpread, *tmpwrite;
+			emailbody = strdup(s);
+
+			/* substitute strings \t and \n into the apropriate characters */
+			tmpread = tmpwrite = emailbody;
+			while ((tmpwrite = strchr(tmpread,'\\'))) {
+				int len = strlen("\n");
+				switch (tmpwrite[1]) {
+					case 'n':
+						strncpy(tmpwrite+len,tmpwrite+2,strlen(tmpwrite+2)+1);
+						strncpy(tmpwrite,"\n",len);
+						break;
+					case 't':
+						strncpy(tmpwrite+len,tmpwrite+2,strlen(tmpwrite+2)+1);
+						strncpy(tmpwrite,"\t",len);
+						break;
+					default:
+						ast_log(LOG_NOTICE, "Substitution routine does not support this character: %c\n",tmpwrite[1]);
+				}
+				tmpread = tmpwrite+len;
+			}
+		}
 		ast_destroy(cfg);
 		ast_pthread_mutex_unlock(&vmlock);
 		return 0;
