@@ -2856,6 +2856,7 @@ int ast_unregister_application(char *app) {
 				apps = tmp->next;
 			if (option_verbose > 1)
 				ast_verbose( VERBOSE_PREFIX_2 "Unregistered application '%s'\n", tmp->name);
+			free(tmp);
 			ast_mutex_unlock(&applock);
 			return 0;
 		}
