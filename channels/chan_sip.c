@@ -3088,7 +3088,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	/* Start by sending our preferred codecs */
 	cur = prefs;
 	while(cur) {
-		if (p->jointcapability & cur->codec) {
+		if ((p->jointcapability & cur->codec) && !(alreadysent & cur->codec)) {
 			if (sip_debug_test_pvt(p))
 				ast_verbose("Answering with preferred capability 0x%x(%s)\n", cur->codec, ast_getformatname(cur->codec));
 			codec = ast_rtp_lookup_code(p->rtp, 1, cur->codec);
