@@ -42,12 +42,15 @@ static char *descrip =
 "of the following letters:\n"
 "     a - Set account code to the password that is entered\n"
 "     d - Interpret path as database key, not literal file\n"
+"     j - Support jumping to n+101\n"
 "     r - Remove database key upon successful entry (valid with 'd' only)\n"
 "\n"
 "When using a database key, the value associated with the key can be\n"
 "anything.\n"
 "Returns 0 if the user enters a valid password within three\n"
-"tries, or -1 (or on hangup) or n+101 if exists.\n";
+"tries, or -1 on hangup.  If the priority n+101 exists and invalid\n"
+"authentication was entered, and the 'j' flag was specified, processing\n"
+"will jump to n+101 and 0 will be returned.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -56,6 +59,7 @@ LOCAL_USER_DECL;
 static int auth_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
+	int jump = 0;
 	int retries;
 	struct localuser *u;
 	char password[256]="";
@@ -81,6 +85,8 @@ static int auth_exec(struct ast_channel *chan, void *data)
 		opts++;
 	} else
 		opts = "";
+	if (strchr(opts, 'j'))
+		jump = 1;
 	/* Start asking for password */
 	prompt = "agent-pass";
 	for (retries = 0; retries < 3; retries++) {
@@ -133,7 +139,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 		if (!res)
 			res = ast_waitstream(chan, "");
 	} else {
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
+		if (jump && ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
 			chan->priority+=100;
 			res = 0;
 		} else {
