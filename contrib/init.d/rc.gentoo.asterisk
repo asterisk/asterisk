@@ -1,0 +1,17 @@
+#!/sbin/runscript
+
+depend() {
+	need net logger
+}
+
+start() {
+	ebegin "Starting Asterisk"
+	/usr/sbin/asterisk
+	eend $? "Failed to start Asterisk"
+}
+
+stop() {
+	ebegin "Stopping Asterisk"
+	kill $(cat /var/run/asterisk.pid)
+	eend $? "Failed to stop Asterisk"
+}
