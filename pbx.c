@@ -896,7 +896,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 	}
 }
 
-static void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char *cp2,int count)
+void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char *cp2,int count)
 {
 	char *cp4;
 	const char *tmp, *whereweare;
@@ -909,7 +909,6 @@ static void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp
 
 	/* Substitutes variables into cp2, based on string cp1, and assuming cp2 to be
 	   zero-filled */
-
 	whereweare=tmp=cp1;
 	while(strlen(whereweare) && count) {
 		/* Assume we're copying the whole remaining string */
