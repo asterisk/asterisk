@@ -5338,7 +5338,7 @@ retryowner:
 					/* They're not allowed on */
 					auth_fail(fr.callno, IAX_COMMAND_REJECT);
 					if (authdebug)
-						ast_log(LOG_NOTICE, "Rejected connect attempt from %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
+						ast_log(LOG_NOTICE, "Rejected connect attempt from %s, who was trying to reach '%s@%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->exten, iaxs[fr.callno]->context);
 					break;
 				}
 				/* If we're in trunk mode, do it now, and update the trunk number in our frame before continuing */
