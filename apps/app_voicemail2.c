@@ -1810,6 +1810,9 @@ forward_message(struct ast_channel *chan, char *context, char *dir, int curmsg, 
 				ast_log(LOG_DEBUG, sys);
 				system(sys);
 			}
+			snprintf(sys, sizeof(sys), "cp %s/msg%04d.txt %s/msg%04d.txt\n", dir, curmsg, todir, todircount);
+			ast_log(LOG_DEBUG, sys);
+			system(sys);
 			snprintf(fn, sizeof(fn), "%s/msg%04d", todir,todircount);
 
 			/* load the information on the source message so we can send an e-mail like a new message */
