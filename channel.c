@@ -3053,8 +3053,8 @@ unsigned int ast_get_group(char *s)
 			/* Just one */
 			finish = start;
 		} else {
-			ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'.  Using '0'\n", s,piece);
-			return 0;
+			ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'.\n", s, piece);
+			continue;
 		}
 		for (x=start;x<=finish;x++) {
 			if ((x > 31) || (x < 0)) {
