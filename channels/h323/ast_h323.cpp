@@ -213,7 +213,7 @@ H323Codec * AST_G729ACapability::CreateCodec(H323Codec::Direction direction) con
   *					transport = ip.
   *					port = 1720.
   */
-int MyH323EndPoint::MakeCall(const PString & dest, PString & token, unsigned int *callReference, unsigned int port, char *cid_name, char *cid_num)
+int MyH323EndPoint::MakeCall(const PString & dest, PString & token, unsigned int *callReference, char *cid_name, char *cid_num)
 {
 	PString fullAddress;
 	MyH323Connection * connection;
@@ -227,7 +227,7 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token, unsigned int
 	} else {
 		fullAddress = dest; 
 		if (h323debug) {
-			cout << " -- Making call to " << fullAddress << "." << endl;
+			cout << " -- Making call to " << fullAddress << " without gatekeeper." << endl;
 		}
 	}
 	if (!(connection = (MyH323Connection *)H323EndPoint::MakeCallLocked(fullAddress, token))) {
@@ -1086,16 +1086,17 @@ void h323_send_tone(const char *call_token, char tone)
 
 /** Make a call to the remote endpoint.
   */
-int h323_make_call(char *host, call_details_t *cd, call_options_t call_options)
+int h323_make_call(char *dest, call_details_t *cd, call_options_t call_options)
 {
 	int res;
 	PString	token;
-	PString dest(host);
+	PString	host(dest);
 
 	if (!h323_end_point_exist()) {
 		return 1;
 	}
-	res = endPoint->MakeCall(dest, token, &cd->call_reference, call_options.port, call_options.cid_num, call_options.cid_name);
+
+	res = endPoint->MakeCall(host, token, &cd->call_reference, call_options.cid_name, call_options.cid_num);
 	memcpy((char *)(cd->call_token), (const unsigned char *)token, token.GetLength());
 	return res;
 };

@@ -196,7 +196,7 @@ extern "C" {
 	void h323_send_tone(const char *call_token, char tone);
 
 	/* H323 create and destroy sessions */
-	int h323_make_call(char *host, call_details_t *cd, call_options_t);
+	int h323_make_call(char* dest, call_details_t *cd, call_options_t);
 	int h323_clear_call(const char *);
 	
 	/* H.323 alerting and progress */

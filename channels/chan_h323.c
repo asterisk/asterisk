@@ -128,7 +128,6 @@ struct oh323_pvt {
 	int bridge;						/* Determine of we should native bridge or not*/
 	char exten[AST_MAX_EXTENSION];				/* Requested extension */
 	char context[AST_MAX_EXTENSION];			/* Context where to start */
-	char username[81];					/* H.323 alias using this channel */
 	char accountcode[256];					/* Account code */
 	char cid_num[256];					/* Caller*id number, if available */
 	char cid_name[256];					/* Caller*id name, if available */
@@ -448,7 +447,7 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
         /* Clear and then set the address to call */
         memset(addr, 0, sizeof(addr));
         if (usingGk) {
-                memcpy(called_addr, dest, strlen(called_addr));
+                memcpy(addr, dest, strlen(addr));
                 pvt->options.noFastStart = noFastStart;
                 pvt->options.noH245Tunneling = noH245Tunneling;
                 pvt->options.noSilenceSuppression = noSilenceSuppression;
@@ -456,14 +455,17 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
         } else {
                 ast_inet_ntoa(addr, sizeof(addr), pvt->sa.sin_addr);
                 pvt->options.port = htons(pvt->sa.sin_port);
-		if (pvt->username) {
-		        sprintf(called_addr, "%s@%s", pvt->username, addr);
-
-        	}
 	}       
+	/* indicate that this is an outgoing call */
 	pvt->outgoing = 1;
-	ast_log(LOG_DEBUG, "Placing outgoing call to %s:%d\n", dest, pvt->options.port);
-	res = h323_make_call(dest, &(pvt->cd), pvt->options);
+
+	if (pvt->exten) {
+		sprintf(called_addr, "%s@%s:%d", pvt->exten, addr, pvt->options.port);
+	} else {
+		sprintf(called_addr, "%s:%d",addr, pvt->options.port);
+	}
+	ast_log(LOG_DEBUG, "Placing outgoing call to %s\n", called_addr);
+	res = h323_make_call(called_addr, &(pvt->cd), pvt->options);
 	if (res) {
 		ast_log(LOG_NOTICE, "h323_make_call failed(%s)\n", c->name);
 		return -1;
@@ -989,9 +991,9 @@ static struct ast_channel *oh323_request(const char *type, int format, void *dat
 		h323_set_id(h323id);
 	}
 	if (ext) {
-		strncpy(pvt->username, ext, sizeof(pvt->username) - 1);
+		strncpy(pvt->exten, ext, sizeof(pvt->exten) - 1);
 	}
-	ast_log(LOG_DEBUG, "Host: %s\tUsername: %s\n", host, pvt->username);
+	ast_log(LOG_DEBUG, "Extension: %s Host: %s\n",  pvt->exten, host);
 	if (!usingGk) {
 		if (create_addr(pvt, host)) {
 			oh323_destroy(pvt);

@@ -128,7 +128,7 @@ class MyH323EndPoint : public H323EndPoint {
 	PCLASSINFO(MyH323EndPoint, H323EndPoint);
 
 	public:
-	int MakeCall(const PString &, PString &, unsigned int *, unsigned int, char *, char *);
+	int MakeCall(const PString &, PString &, unsigned int *, char *, char *);
 	BOOL ClearCall(const PString &);
 
 	void OnClosedLogicalChannel(H323Connection &, const H323Channel &);
