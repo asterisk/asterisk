@@ -428,6 +428,12 @@ static int action_listcommands(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static char mandescr_events[] = 
+"Description: Enable/Disable sending of events to this manager\n"
+"  client.\n"
+"Variables:\n"
+"	EventMask: 'on' if events should be sent, 'off' if not\n";
+
 static int action_events(struct mansession *s, struct message *m)
 {
 	char *mask = astman_get_header(m, "EventMask");
@@ -443,11 +449,20 @@ static int action_events(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static char mandescr_logoff[] = 
+"Description: Logoff this manager session\n"
+"Variables: NONE\n";
+
 static int action_logoff(struct mansession *s, struct message *m)
 {
 	astman_send_response(s, m, "Goodbye", "Thanks for all the fish.");
 	return -1;
 }
+
+static char mandescr_hangup[] = 
+"Description: Hangup a channel\n"
+"Variables: \n"
+"	Channel: The channel name to be hungup\n";
 
 static int action_hangup(struct mansession *s, struct message *m)
 {
@@ -1249,9 +1264,9 @@ int init_manager(void)
 	if (!registered) {
 		/* Register default actions */
 		ast_manager_register2("Ping", 0, action_ping, "Ping", mandescr_ping);
-		ast_manager_register( "Events", 0, action_events, "Contol Event Flow" );
-		ast_manager_register( "Logoff", 0, action_logoff, "Logoff Manager" );
-		ast_manager_register( "Hangup", EVENT_FLAG_CALL, action_hangup, "Hangup Channel" );
+		ast_manager_register2("Events", 0, action_events, "Contol Event Flow", mandescr_events);
+		ast_manager_register2("Logoff", 0, action_logoff, "Logoff Manager", mandescr_logoff);
+		ast_manager_register2("Hangup", EVENT_FLAG_CALL, action_hangup, "Hangup Channel", mandescr_hangup);
 		ast_manager_register( "Status", EVENT_FLAG_CALL, action_status, "Status" );
 		ast_manager_register( "Setvar", EVENT_FLAG_CALL, action_setvar, "Set Channel Variable" );
 		ast_manager_register( "Getvar", EVENT_FLAG_CALL, action_getvar, "Gets a Channel Variable" );
