@@ -10,8 +10,8 @@ compatible hardware may have different features.
 Zaptel compatible hardware
 ==========================
 
--- Linux Support Services, Inc. (Primary author of Asterisk)
-        http://www.linux-support.net, http://store.yahoo.com/asteriskpbx
+-- Digium (Primary author of Asterisk)
+        http://www.digium.com, http://store.yahoo.com/asteriskpbx
 
    * Wildcard X100P - Single FXO interface connects to Loopstart phone 
      line
@@ -21,6 +21,15 @@ Zaptel compatible hardware
 
    * Wildcard E400P - Quad E1 interface connects to four E1/PRI (or PRA)
      interfaces.  Supports PRA/PRI, EuroISDN voice and PPP, FR, HDLC data.
+
+   * Wildcard T100P - Single T1 interface connects to a single T1/PRI
+     interface.  Supports RBS and PRI voice and PPP, FR, and HDLC data.
+
+   * Wildcard E100P - Single E1 interface connects to a single E1/PRI (or PRA)
+     interface.  Supports PRA/PRI, EuroISDN voice and PPP, FR, HDLC data.
+
+   * Wildcard S100U - Single FXS interface connects to a standard analog
+     telephone.
 
 Non-zaptel compatible hardware
 ==============================
