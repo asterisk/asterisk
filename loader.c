@@ -22,6 +22,7 @@
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
 #include <asterisk/term.h>
+#include <asterisk/manager.h>
 #include <dlfcn.h>
 #include <asterisk/md5.h>
 #define __USE_GNU
@@ -137,8 +138,8 @@ void ast_module_reload(void)
 {
 	struct module *m;
 
-	/* We'll do the logger the favor of calling its reload here first */
-	
+	/* We'll do the logger and manager the favor of calling its reload here first */
+	reload_manager();
 
 	ast_pthread_mutex_lock(&modlock);
 	m = module_list;

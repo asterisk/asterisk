@@ -100,8 +100,9 @@ static pthread_mutex_t moh_lock = AST_MUTEX_INITIALIZER;
 static void child_handler(int sig)
 {
 	int status;
-	if (wait4(-1,&status, WNOHANG, NULL)<1)		
-		ast_log(LOG_NOTICE, "Huh?  Child handler, but nobody there?\n");
+	if (wait4(-1,&status, WNOHANG, NULL)<1)	
+		if (option_debug)	
+			ast_log(LOG_DEBUG, "Huh?  Child handler, but nobody there?\n");
 }
 
 static int spawn_mp3(struct mohclass *class)
@@ -126,7 +127,9 @@ static int spawn_mp3(struct mohclass *class)
 	argv[3] = "--mono";
 	argv[4] = "-r";
 	argv[5] = "8000";
-	argc = 6;
+	argv[6] = "-b";
+	argv[7] = "2048";
+	argc = 8;
 	if (class->quiet) {
 		argv[argc++] = "-f";
 		argv[argc++] = "8192";

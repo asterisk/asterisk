@@ -269,7 +269,7 @@ int unload_module()
 	tmp = glist;
 	while(tmp) {
 		if (tmp->owner)
-			ast_softhangup(tmp->owner);
+			ast_softhangup(tmp->owner, AST_SOFTHANGUP_APPUNLOAD);
 		tmpl = tmp;
 		tmp = tmp->next;
 		free(tmpl);

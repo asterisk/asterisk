@@ -194,7 +194,7 @@ void ast_module_reload(void);
 	pthread_mutex_lock(&localuser_lock); \
 	u = localusers; \
 	while(u) { \
-		ast_softhangup(u->chan); \
+		ast_softhangup(u->chan, AST_SOFTHANGUP_APPUNLOAD); \
 		ul = u; \
 		u = u->next; \
 		free(ul); \
