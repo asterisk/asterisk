@@ -26,7 +26,11 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <sys/time.h>
+#ifdef __linux__
 #include <linux/soundcard.h>
+#else
+#include <soundcard.h>
+#endif
 #include <netinet/in.h>
 
 #define DEV_DSP "/dev/dsp"

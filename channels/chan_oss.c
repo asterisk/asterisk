@@ -33,7 +33,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#ifdef __linux
 #include <linux/soundcard.h>
+#else
+#include <soundcard.h>
+#endif
 #include "busy.h"
 #include "ringtone.h"
 #include "ring10.h"

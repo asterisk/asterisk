@@ -25,7 +25,11 @@
 #include <errno.h>
 #include <string.h>
 #include <pthread.h>
+#ifdef __linux__
 #include <endian.h>
+#else
+#include <machine/endian.h>
+#endif
 
 /* Some Ideas for this code came from makeg729e.c by Jeffery Chilton */
 

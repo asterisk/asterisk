@@ -20,7 +20,11 @@
 extern "C" {
 #endif
 
+#ifdef __linux__
 #include <endian.h>
+#else
+#include <machine/endian.h>
+#endif
 #include <sys/types.h>
 
 //! Data structure associated with a single frame of data

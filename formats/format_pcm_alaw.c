@@ -27,7 +27,11 @@
 #include <errno.h>
 #include <string.h>
 #include <pthread.h>
+#ifdef __linux__
 #include <endian.h>
+#else
+#include <machine/endian.h>
+#endif
 
 #define BUF_SIZE 160		/* 160 samples */
 
