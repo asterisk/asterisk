@@ -155,7 +155,7 @@ static char *descrip_vm =
 "  (/var/lib/asterisk/sounds/vm/<exten>/unavail) if it exists.\n"
 "* 'b' then the the busy message will be played (that is, busy instead of unavail).\n"
 "If the caller presses '0' (zero) during the prompt, the call jumps to\n"
-"priority 'o' in the current cnotext.\n"
+"priority 'o' in the current context.\n"
 "If the requested mailbox does not exist, and there exists a priority\n"
 "n + 101, then that priority will be taken next.\n"
 "Returns -1 on error or mailbox not found, or if the user hangs up.\n"
