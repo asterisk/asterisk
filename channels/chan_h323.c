@@ -1251,9 +1251,10 @@ void connection_made(unsigned call_reference)
 	
 	p = find_call(call_reference);
 	
-	if (!p)
+	if (!p) {
 		ast_log(LOG_ERROR, "Something is wrong: connection\n");
-
+		return;
+	}
 
 	if (!p->owner) {
 		ast_log(LOG_ERROR, "Channel has no owner\n");
@@ -1295,25 +1296,25 @@ void chan_ringing(unsigned call_reference)
 void cleanup_call_details(call_details_t cd) 
 {
         if (cd.call_token) {
-                free((const char*)cd.call_token);
+                free(cd.call_token);
         }
         if (cd.call_source_aliases) {
-                free((const char*)cd.call_source_aliases);
+                free(cd.call_source_aliases);
         }
         if (cd.call_dest_alias) {
-                free((const char*)cd.call_dest_alias);
+                free(cd.call_dest_alias);
 	}
         if (cd.call_source_name) { 
-                free((const char*)cd.call_source_name);
+                free(cd.call_source_name);
         }
         if (cd.call_source_e164) {
-                free((const char*)cd.call_source_e164);
+                free(cd.call_source_e164);
         }
         if (cd.call_dest_e164) {
-                free((const char*)cd.call_dest_e164);
+                free(cd.call_dest_e164);
         }
         if (cd.sourceIp) {
-                free((const char*)cd.sourceIp);
+                free(cd.sourceIp);
         }
 }
 

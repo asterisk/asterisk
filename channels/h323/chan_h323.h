@@ -108,7 +108,7 @@ typedef struct call_details {
 } call_details_t;
 
 typedef struct rtp_info {
-	char *addr;
+	const char *addr;
 	unsigned int port;
 } rtp_info_t;
 
@@ -194,7 +194,7 @@ extern "C" {
 	/* H323 listener related funcions */
 	int h323_start_listener(int, struct sockaddr_in);
 
-	void h323_native_bridge(const char *, char *, char *);
+	void h323_native_bridge(const char *, const char *, char *);
 
 	/* Send a DTMF tone to remote endpoint */
 	void h323_send_tone(const char *call_token, char tone);

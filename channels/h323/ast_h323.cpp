@@ -1211,7 +1211,7 @@ int h323_soft_hangup(const char *data)
 }
 
 /* alas, this doesn't work :(   */
-void h323_native_bridge(const char *token, char *them, char *capability)
+void h323_native_bridge(const char *token, const char *them, char *capability)
 {
 	H323Channel *channel;
 	MyH323Connection *connection = (MyH323Connection *)endPoint->FindConnectionWithLock(token);
