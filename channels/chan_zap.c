@@ -6761,7 +6761,7 @@ static char *complete_span(char *line, char *word, int pos, int state)
 	int span=1;
 	char tmp[50];
 	while(span <= NUM_SPANS) {
-		if (span > state)
+		if (span > state && pris[span-1].pri)
 			break;
 		span++;
 	}
