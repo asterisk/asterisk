@@ -1258,12 +1258,12 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 							/* If we found a digit, send it now */
 							dsp->f.frametype = AST_FRAME_DTMF;
 							dsp->f.subclass = dsp->thinkdigit;
-							if (chan)
-								ast_queue_frame(chan, &dsp->f, needlock);
+							dsp->thinkdigit = 0;
+						} else {
+							dsp->f.frametype = AST_FRAME_DTMF;
+							dsp->f.subclass = 'u';
+							dsp->thinkdigit = 0;
 						}
-						dsp->f.frametype = AST_FRAME_DTMF;
-						dsp->f.subclass = 'u';
-						dsp->thinkdigit = 0;
 						FIX_INF(af);
 						if (chan)
 							ast_queue_frame(chan, af, needlock);
