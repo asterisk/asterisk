@@ -74,6 +74,7 @@ static int load_config(int reload)
 			var = var->next;
 		}
 		ast_config_destroy(cfg);
+		res = 0;
 	} else {
 		if (reload)
 			ast_log(LOG_WARNING, "Failed to reload configuration file.\n");
