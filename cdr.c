@@ -198,9 +198,9 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 		if (strlen(cdr->channel)) 
 			ast_log(LOG_WARNING, "CDR already initialized on '%s'\n", chan); 
 		strncpy(cdr->channel, c->name, sizeof(cdr->channel) - 1);
-		/* Grab source from hidden or normal Caller*ID */
-		if (c->hidden_callerid)
-			strncpy(tmp, c->hidden_callerid, sizeof(tmp) - 1);
+		/* Grab source from ANI or normal Caller*ID */
+		if (c->ani)
+			strncpy(tmp, c->ani, sizeof(tmp) - 1);
 		else if (c->callerid)
 			strncpy(tmp, c->callerid, sizeof(tmp) - 1);
 		if (c->callerid)

@@ -217,10 +217,10 @@ time_t	t;
 		ast_set_read_format(channel,AST_FORMAT_SLINEAR);
 		ast_set_write_format(channel,AST_FORMAT_SLINEAR);
 		channel->callerid = NULL;
-		channel->hidden_callerid = NULL;
+		channel->ani = NULL;
 #ifdef	OURCLID
 		channel->callerid = strdup(OURCLID);
-		channel->hidden_callerid = strdup(OURCLID);
+		channel->ani = strdup(OURCLID);
 #endif		
 		channel->whentohangup = 0;
 		channel->appl = "AppQcall";
@@ -237,8 +237,8 @@ time_t	t;
 	   }
 	if (channel->callerid) free(channel->callerid);
 	channel->callerid = NULL;
-	if (channel->hidden_callerid) free(channel->hidden_callerid);
-	channel->hidden_callerid = NULL;
+	if (channel->ani) free(channel->ani);
+	channel->ani = NULL;
 	if (channel->state == AST_STATE_UP)
 	if (debug) printf("@@@@ Autodial:Line is Up\n");
 	if (option_verbose > 2)
@@ -305,7 +305,7 @@ time_t	t;
 						ast_stopstream(channel);
 					   }
 					channel->callerid = strdup(clid);
-					channel->hidden_callerid = strdup(clid);
+					channel->ani = strdup(clid);
 					channel->language[0] = 0;
 					channel->dnid = strdup(extstr);
 #ifdef	AMAFLAGS
