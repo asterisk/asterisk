@@ -891,9 +891,9 @@ static int play_and_wait(struct ast_channel *chan, char *fn)
 	return d;
 }
 
-static int play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt)
+static int play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int beep)
 {
-	char d, *fmts;
+	char d = 0, *fmts;
 	char comment[256];
 	int x, fmtcnt=1, res=-1,outmsg=0;
 	struct ast_frame *f;
@@ -912,8 +912,9 @@ static int play_and_prepend(struct ast_channel *chan, char *playfile, char *reco
 	ast_log(LOG_DEBUG,"play_and_preped: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
 	snprintf(comment,sizeof(comment),"Playing %s, Recording to: %s on %s\n", playfile ? playfile : "<None>", recordfile, chan->name);
 
-	if (playfile) {	
-		d = play_and_wait(chan, playfile);
+	if (playfile || beep) {	
+		if (!beep)
+			d = play_and_wait(chan, playfile);
 		if (d > -1)
 			d = ast_streamfile(chan, "beep",chan->language);
 		if (!d)
@@ -2136,7 +2137,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 		{
 			char file[200];
 			snprintf(file, sizeof(file), "%s/msg%04d", curdir, curmsg);
-			cmd = play_and_prepend(chan, NULL, file, 0, vmfmts);
+			cmd = play_and_prepend(chan, NULL, file, 0, vmfmts, 1);
 			break;
 		}
 		case '2': 
