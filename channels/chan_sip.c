@@ -181,6 +181,7 @@ static struct sip_pvt {
 	struct sip_route *route;			/* Head of linked list of routing steps (fm Record-Route) */
 	char remote_party_id[256];
 	char context[AST_MAX_EXTENSION];
+	char fromdomain[AST_MAX_EXTENSION];	/* Domain to show in the from field */
 	char language[MAX_LANGUAGE];
 	char theirtag[256];				/* Their tag */
 	char username[81];
@@ -241,6 +242,7 @@ struct sip_peer {
 	char context[80];		/* JK02: peers need context too to allow parking etc */
 	char methods[80];
 	char username[80];
+	char fromdomain[80];
 	char mailbox[AST_MAX_EXTENSION];
 	int lastmsgssent;
 	time_t	lastmsgcheck;
@@ -555,6 +557,8 @@ static int create_addr(struct sip_pvt *r, char *peer)
 			strncpy(r->peername, p->username, sizeof(r->peername)-1);
 			strncpy(r->peersecret, p->secret, sizeof(r->peersecret)-1);
 			strncpy(r->username, p->username, sizeof(r->username)-1);
+			if (strlen(p->fromdomain))
+				strncpy(r->fromdomain, p->fromdomain, sizeof(r->fromdomain)-1);
 			r->insecure = p->insecure;
 			r->canreinvite = p->canreinvite;
 			r->maxtime = p->maxms;
@@ -1271,7 +1275,8 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	p->dtmfmode = globaldtmfmode;
 	if (p->dtmfmode & SIP_DTMF_RFC2833)
 		p->noncodeccapability |= AST_RTP_DTMF;
-	strncpy(p->context, context, sizeof(p->context));
+	strncpy(p->context, context, sizeof(p->context) - 1);
+	strncpy(p->fromdomain, fromdomain, sizeof(p->fromdomain) - 1);
 	/* Add to list */
 	ast_pthread_mutex_lock(&iflock);
 	p->next = iflist;
@@ -2175,9 +2180,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	if (!n)
 		n = l;
 	if (ourport != 5060)
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%08x", n, l, strlen(fromdomain) ? fromdomain : inet_ntoa(p->ourip), ourport, p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%08x", n, l, strlen(p->fromdomain) ? p->fromdomain : inet_ntoa(p->ourip), ourport, p->tag);
 	else
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%08x", n, l, strlen(fromdomain) ? fromdomain : inet_ntoa(p->ourip), p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%08x", n, l, strlen(p->fromdomain) ? p->fromdomain : inet_ntoa(p->ourip), p->tag);
 
 	if (strlen(p->username)) {
 		if (ntohs(p->sa.sin_port) != DEFAULT_SIP_PORT) {
@@ -4459,7 +4464,9 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 				peer->nat = ast_true(v->value);
 			else if (!strcasecmp(v->name, "context"))
 				strncpy(peer->context, v->value, sizeof(peer->context)-1);
-                        else if (!strcasecmp(v->name, "dtmfmode")) {
+			else if (!strcasecmp(v->name, "fromdomain"))
+				strncpy(peer->fromdomain, v->value, sizeof(peer->fromdomain)-1);
+            else if (!strcasecmp(v->name, "dtmfmode")) {
 				if (!strcasecmp(v->value, "inband"))
 					peer->dtmfmode=SIP_DTMF_INBAND;
 				else if (!strcasecmp(v->value, "rfc2833"))
