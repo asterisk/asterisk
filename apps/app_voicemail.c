@@ -3426,9 +3426,8 @@ static int vm_box_exists(struct ast_channel *chan, void *data) {
 	struct ast_vm_user *vmu;
 	struct ast_vm_user svm;
 	char *context, *box;
-	int branch=0;
 
-	if (!data) {
+	if (!data || !strlen(data)) {
 		ast_log(LOG_ERROR, "MailboxExists requires an argument: (vmbox[@context])\n");
 		return -1;
 	}
