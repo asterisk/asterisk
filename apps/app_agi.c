@@ -167,6 +167,10 @@ static int launch_script(char *script, char *args, int *fds, int *efd, int *opid
 	/* close what we're not using in the parent */
 	close(toast[1]);
 	close(fromast[0]);
+
+	// [PHM 12/18/03]
+	close(audio[0])
+
 	*opid = pid;
 	return 0;
 		
