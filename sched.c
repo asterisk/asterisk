@@ -21,12 +21,12 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include <pthread.h>
 #include <string.h>
 
 #include <asterisk/sched.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
+#include <asterisk/lock.h>
 
 /* Determine if a is sooner than b */
 #define SOONER(a,b) (((b).tv_sec > (a).tv_sec) || \

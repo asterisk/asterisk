@@ -13,7 +13,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
 #include <signal.h>
@@ -38,6 +37,7 @@
 #include <asterisk/monitor.h>
 #include <asterisk/causes.h>
 #include <asterisk/utils.h>
+#include <asterisk/lock.h>
 #ifdef ZAPTEL_OPTIMIZATIONS
 #include <sys/ioctl.h>
 #ifdef __linux__

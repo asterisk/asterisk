@@ -25,7 +25,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
 
 int ast_default_amaflags = AST_CDR_DOCUMENTATION;
 char ast_default_accountcode[20] = "";

@@ -13,7 +13,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
 #include <signal.h>
@@ -23,6 +22,7 @@
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
 #include <asterisk/utils.h>
+#include <asterisk/lock.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netdb.h>

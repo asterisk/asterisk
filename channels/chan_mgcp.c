@@ -49,7 +49,6 @@
  */
 
 #include <stdio.h>
-#include <pthread.h>
 #include <string.h>
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>
@@ -84,7 +83,6 @@
 #include <arpa/inet.h>
 #include <sys/signal.h>
 #include <signal.h>
-#include <pthread.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 

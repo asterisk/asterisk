@@ -12,7 +12,6 @@
 #include <ctype.h>
 #include <string.h>
 #include <unistd.h>
-#include <pthread.h> 
 #include <asterisk/lock.h>
 #include <asterisk/utils.h>
 

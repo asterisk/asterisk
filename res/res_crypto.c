@@ -22,10 +22,10 @@
 #include <asterisk/md5.h>
 #include <asterisk/cli.h>
 #include <asterisk/io.h>
+#include <asterisk/lock.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <stdio.h>
-#include <pthread.h>
 #include <dirent.h>
 #include <string.h>
 #include <errno.h>

@@ -1,7 +1,6 @@
 #ifndef ASTERISK_LINKEDLISTS_H
 #define ASTERISK_LINKEDLISTS_H
 
-#include <pthread.h>
 #include <asterisk/lock.h>
 
 #define AST_LIST_LOCK(head)						\

@@ -19,10 +19,10 @@
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
 #include <asterisk/cli.h>
+#include <asterisk/lock.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <pthread.h>
 #include <asterisk/res_odbc.h>
 #define MAX_ODBC_HANDLES 25
 

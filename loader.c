@@ -26,13 +26,13 @@
 #include <asterisk/manager.h>
 #include <asterisk/enum.h>
 #include <asterisk/rtp.h>
+#include <asterisk/lock.h>
 #ifdef __APPLE__
 #include <asterisk/dlfcn-compat.h>
 #else
 #include <dlfcn.h>
 #endif
 #include <asterisk/md5.h>
-#include <pthread.h>
 #include "asterisk.h"
 #include "astconf.h"
 

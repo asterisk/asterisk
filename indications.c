@@ -18,7 +18,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <string.h>
 #include <math.h>			/* For PI */
 #include <asterisk/indications.h>
@@ -26,6 +25,7 @@
 #include <asterisk/options.h>
 #include <asterisk/channel.h>
 #include <asterisk/logger.h>
+#include <asterisk/lock.h>
 
 struct playtones_item {
 	int freq1;

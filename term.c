@@ -13,7 +13,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
 #include <signal.h>
@@ -21,6 +20,7 @@
 #include <unistd.h>
 #include <asterisk/term.h>
 #include <asterisk/options.h>
+#include <asterisk/lock.h>
 #include "asterisk.h"
 
 static int vt100compat = 0;

@@ -18,6 +18,7 @@
 #include <asterisk/sched.h>
 #include <asterisk/module.h>
 #include <asterisk/image.h>
+#include <asterisk/lock.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
@@ -26,7 +27,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <pthread.h>
 #ifdef __linux__
 #include <endian.h>
 #else

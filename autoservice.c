@@ -13,7 +13,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
 #include <signal.h>
@@ -33,6 +32,7 @@
 #include <asterisk/chanvars.h>
 #include <asterisk/linkedlists.h>
 #include <asterisk/indications.h>
+#include <asterisk/lock.h>
 
 #define MAX_AUTOMONS 256
 

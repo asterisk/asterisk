@@ -20,11 +20,11 @@
 #include <asterisk/channel.h>
 #include <asterisk/channel_pvt.h>
 #include <asterisk/utils.h>
+#include <asterisk/lock.h>
 #include <sys/signal.h>
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>
-#include <pthread.h>
 /* For rl_filename_completion */
 #include "editline/readline/readline.h"
 /* For module directory */

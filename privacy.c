@@ -13,7 +13,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
 #include <signal.h>
@@ -30,6 +29,7 @@
 #include <asterisk/callerid.h>
 #include <asterisk/privacy.h>
 #include <asterisk/utils.h>
+#include <asterisk/lock.h>
 #include "asterisk.h"
 
 int ast_privacy_check(char *dest, char *cid)

@@ -43,7 +43,6 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <fcntl.h>
-#include <pthread.h>
 #include <signal.h>
 #include <sys/signal.h>
 

@@ -12,7 +12,6 @@
  */
 
 #include <stdio.h>
-#include <pthread.h>
 #include <string.h>
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>

@@ -46,8 +46,6 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 
-#include <pthread.h>
-
 static char *app0 = "MusicOnHold";
 static char *app1 = "WaitMusicOnHold";
 static char *app2 = "SetMusicOnHold";

@@ -19,7 +19,6 @@
 #include <asterisk/chanvars.h>
 #include <unistd.h>
 #include <setjmp.h>
-#include <pthread.h>
 #include <sys/poll.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)

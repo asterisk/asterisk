@@ -13,7 +13,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
 #include <signal.h>
@@ -34,6 +33,7 @@
 #include <asterisk/channel.h>
 #include <asterisk/channel_pvt.h>
 #include <asterisk/config.h>
+#include <asterisk/lock.h>
 
 #define RTP_MTU		1200
 

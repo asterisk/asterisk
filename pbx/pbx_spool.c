@@ -19,7 +19,6 @@
 #include <asterisk/module.h>
 #include <asterisk/options.h>
 #include <asterisk/utils.h>
-#include <pthread.h>
 #include <sys/stat.h>
 #include <errno.h>
 #include <time.h>

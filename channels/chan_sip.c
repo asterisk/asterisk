@@ -13,7 +13,6 @@
 
 #include <stdio.h>
 #include <ctype.h>
-#include <pthread.h>
 #include <string.h>
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>
@@ -49,7 +48,6 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <arpa/inet.h>
-#include <pthread.h>
 #include <signal.h>
 #include <sys/signal.h>
 #include <netinet/in_systm.h>

@@ -17,10 +17,10 @@
 #include <asterisk/config.h>
 #include <asterisk/config_pvt.h>
 #include <asterisk/module.h>
+#include <asterisk/lock.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <pthread.h>
 #include <asterisk/res_odbc.h>
 
 

@@ -23,7 +23,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <pthread.h>
 #include <sys/time.h>
 #include "../channels/adtranvofr.h"
 

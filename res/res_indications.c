@@ -18,7 +18,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>

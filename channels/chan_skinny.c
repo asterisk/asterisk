@@ -15,7 +15,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <string.h>
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>
@@ -51,7 +50,6 @@
 #include <arpa/inet.h>
 #include <sys/signal.h>
 #include <signal.h>
-#include <pthread.h>
 #include <asterisk/dsp.h>
 #include <ctype.h>
 

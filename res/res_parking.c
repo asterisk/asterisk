@@ -36,8 +36,6 @@
 #include <sys/signal.h>
 #include <netinet/in.h>
 
-#include <pthread.h>
-
 #define DEFAULT_PARK_TIME 45000
 
 static char *parkedcall = "ParkedCall";

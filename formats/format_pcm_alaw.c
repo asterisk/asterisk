@@ -27,7 +27,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <pthread.h>
 #ifdef __linux__
 #include <endian.h>
 #else

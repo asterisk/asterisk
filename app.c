@@ -13,7 +13,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
 #include <signal.h>
@@ -28,6 +27,7 @@
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
 #include <asterisk/utils.h>
+#include <asterisk/lock.h>
 #include "asterisk.h"
 #include "astconf.h"
 
