@@ -4452,7 +4452,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 		ast_play_and_wait(chan, "vm-goodbye");
 		return -1;
 	}
-	if (!skipuser) {
+	if (vmu && !skipuser) {
 		memcpy(res_vmu, vmu, sizeof(struct ast_vm_user));
 	}
 	return 0;
