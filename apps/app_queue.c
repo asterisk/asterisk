@@ -226,6 +226,7 @@ struct ast_call_queue {
 	int wrapped;			/* Round Robin - wrapped around? */
 	int joinempty;			/* Do we care if the queue has no members? */
 	int eventwhencalled;			/* Generate an event when the agent is called (before pickup) */
+	int leavewhenempty;		/* If all agents leave the queue, remove callers from the queue */
 
 	struct member *members;		/* Member channels to be tried */
 	struct queue_ent *head;		/* Start of the actual queue */
@@ -909,6 +910,12 @@ static int wait_our_turn(struct queue_ent *qe, int ringing)
 		if ( qe->queuetimeout ) {
 			time(&now);
 			if ( (now - qe->start) >= qe->queuetimeout )
+			break;
+		}
+
+		/* leave the queue if no agents, if enabled */
+		if (!(qe->parent->members) && qe->parent->leavewhenempty) {
+			leave_queue(qe);
 			break;
 		}
 
@@ -1626,11 +1633,17 @@ check_turns:
 				/* This is the wait loop for the head caller*/
 				/* To exit, they may get their call answered; */
 				/* they may dial a digit from the queue context; */
-				/* or, they may may timeout. */
+				/* or, they may timeout. */
 
 				/* Leave if we have exceeded our queuetimeout */
 				if (qe.queuetimeout && ( (time(NULL) - qe.start) >= qe.queuetimeout) ) {
 					res = 0;
+					break;
+				}
+
+				/* leave the queue if no agents, if enabled */
+				if (!((qe.parent)->members) && (qe.parent)->leavewhenempty) {
+					leave_queue(&qe);
 					break;
 				}
 
@@ -1872,6 +1885,8 @@ static void reload_queues(void)
 						}
 					} else if (!strcasecmp(var->name, "joinempty")) {
 						q->joinempty = ast_true(var->value);
+					} else if (!strcasecmp(var->name, "leavewhenempty")) {
+						q->leavewhenempty = ast_true(var->value);
 					} else if (!strcasecmp(var->name, "eventwhencalled")) {
 						q->eventwhencalled = ast_true(var->value);
 					} else {

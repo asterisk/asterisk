@@ -1,3 +1,4 @@
+ -- Add ability to purge callers from queue if no agents are logged in
  -- Fix inband PRI indication detection
  -- Fix for MGCP - always request digits if no RTP stream
  -- Fixed seg fault for ast_control_streamfile

@@ -113,6 +113,10 @@
 ;
 ; joinempty = yes
 ;
+; If you wish to remove callers from the queue if there are no agents present, set this to yes
+;
+; leavewhenempty = yes
+;
 ; Asterisk can generate AgentCalled events when an agent is rung, if this is turned on
 ; (may generate a LOT of extra manager events)
 ;
