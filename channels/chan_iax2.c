@@ -2823,15 +2823,22 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 
 static int iax2_show_users(int fd, int argc, char *argv[])
 {
-#define FORMAT "%-15.15s  %-15.15s  %-15.15s  %-15.15s  %-5.5s\n"
-#define FORMAT2 "%-15.15s  %-15.15s  %-15.15d  %-15.15s  %-5.5s\n"
+#define FORMAT "%-15.15s  %-20.20s  %-15.15s  %-15.15s  %-5.5s\n"
+#define FORMAT2 "%-15.15s  %-20.20s  %-15.15d  %-15.15s  %-5.5s\n"
 	struct iax2_user *user;
+	char auth[90];
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&userl.lock);
 	ast_cli(fd, FORMAT, "Username", "Secret", "Authen", "Def.Context", "A/C");
 	for(user=userl.users;user;user=user->next) {
-		ast_cli(fd, FORMAT2, user->name, user->secret, user->authmethods, 
+		if (strlen(user->secret)) {
+  			strncpy(auth,user->secret,strlen(auth)-1);
+		} else if (strlen(user->inkeys)) {
+  			sprintf(auth,"Key: %-15.15s ",user->inkeys);
+ 		} else
+			strcpy(auth,"-no secret-");
+		ast_cli(fd, FORMAT2, user->name, auth, user->authmethods, 
 				user->contexts ? user->contexts->context : context,
 				user->ha ? "Yes" : "No");
 	}
