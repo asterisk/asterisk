@@ -123,6 +123,18 @@ int ast_filecopy(char *oldname, char *newname, char *fmt);
  */
 char ast_waitstream(struct ast_channel *c, char *breakon);
 
+//! Same as waitstream but allows stream to be forwarded or rewound
+/*!
+ * \param c channel to waitstram on
+ * \param breakon string of DTMF digits to break upon
+ * \param forward DTMF digit to fast forward upon
+ * \param rewind DTMF digit to rewind upon
+ * Begins playback of a stream...
+ * Wait for a stream to stop or for any one of a given digit to arrive,  Returns 0 
+ * if the stream finishes, the character if it was interrupted, and -1 on error 
+ */
+char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char *rewind);
+
 /* Same as waitstream, but with audio output to fd and monitored fd checking.  Returns
    1 if monfd is ready for reading */
 char ast_waitstream_full(struct ast_channel *c, char *breakon, int audiofd, int monfd);

@@ -659,6 +659,65 @@ char ast_waitstream(struct ast_channel *c, char *breakon)
 	return (c->_softhangup ? -1 : 0);
 }
 
+char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char *rewind)
+{
+	int res;
+	struct ast_frame *fr;
+	while(c->stream) {
+		res = ast_sched_wait(c->sched);
+		if (res < 0) {
+			ast_closestream(c->stream);
+			break;
+		}
+		res = ast_waitfor(c, res);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "Select failed (%s)\n", strerror(errno));
+			return res;
+		} else
+		if (res > 0) {
+			fr = ast_read(c);
+			if (!fr) {
+#if 0
+				ast_log(LOG_DEBUG, "Got hung up\n");
+#endif
+				return -1;
+			}
+			
+			switch(fr->frametype) {
+			case AST_FRAME_DTMF:
+				res = fr->subclass;
+				if (strchr(forward,res)) {
+					ast_stream_fastforward(c->stream, 3000);
+				} else if (strchr(rewind,res)) {
+					ast_stream_rewind(c->stream, 3000);
+				} else if (strchr(breakon, res)) {
+					ast_frfree(fr);
+					return res;
+				}					
+				break;
+			case AST_FRAME_CONTROL:
+				switch(fr->subclass) {
+				case AST_CONTROL_HANGUP:
+					ast_frfree(fr);
+					return -1;
+				case AST_CONTROL_RINGING:
+				case AST_CONTROL_ANSWER:
+					/* Unimportant */
+					break;
+				default:
+					ast_log(LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
+				}
+			}
+			/* Ignore */
+			ast_frfree(fr);
+		} else
+			ast_sched_runq(c->sched);
+	
+		
+	}
+	return (c->_softhangup ? -1 : 0);
+}
+
 char ast_waitstream_full(struct ast_channel *c, char *breakon, int audiofd, int cmdfd)
 {
 	int res;

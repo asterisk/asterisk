@@ -1471,7 +1471,7 @@ forward_message(struct ast_channel *chan, struct ast_config *cfg, char *dir, int
 #define WAITFILE(file) do { \
 	if (ast_streamfile(chan, file, chan->language)) \
 		ast_log(LOG_WARNING, "Unable to play message %s\n", file); \
-	d = ast_waitstream(chan, AST_DIGIT_ANY); \
+	d = ast_waitstream_fr(chan, AST_DIGIT_ANY, "#", "*"); \
 	if (!d) { \
 		repeats = 0; \
 		goto instructions; \
