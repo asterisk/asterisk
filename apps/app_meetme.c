@@ -55,9 +55,10 @@ static char *descrip =
 "      'q' -- quiet mode (don't play enter/leave sounds)\n";
 
 static char *descrip2 =
-"  MeetMeCount(confno): Plays back the number of users in the specified MeetMe\n"
-"conference.  Returns 0 on success or -1 on a hangup.  A ZAPTEL INTERFACE\n"
-"MUST BE INSTALLED FOR CONFERENCING FUNCTIONALITY.\n";
+"  MeetMeCount(confno[|var]): Plays back the number of users in the specifiedi\n"
+"MeetMe conference. If var is specified, playback will be skipped and the value\n"
+"will be returned in the variable. Returns 0 on success or -1 on a hangup.\n"
+"A ZAPTEL INTERFACE MUST BE INSTALLED FOR CONFERENCING FUNCTIONALITY.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -490,19 +491,33 @@ static int count_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct conf *conf;
 	int cnt;
+	char *confnum,*localdata,*mhandle;
+	char val[80] = "0"; 
+       
 	if (!data || !strlen(data)) {
 		ast_log(LOG_WARNING, "MeetMeCount requires an argument (conference number)\n");
 		return -1;
 	}
+	mhandle = alloca(strlen(data) + 1); 
+	localdata = mhandle; /* this is to make sure I have the original pointer for the free below */
 	LOCAL_USER_ADD(u);
-	conf = find_conf(data, 0);
+	strcpy(localdata,data);
+	confnum = strsep(&localdata,"|");       
+	conf = find_conf(confnum, 0);
 	if (conf)
 		cnt = conf->users;
 	else
 		cnt = 0;
-	if (chan->_state != AST_STATE_UP)
-		ast_answer(chan);
-	res = ast_say_number(chan, cnt, "", chan->language);
+
+	if(localdata && strlen(localdata)){
+	        /* have var so load it and exit */
+	        snprintf(val,sizeof(val), "%i",cnt);
+	        pbx_builtin_setvar_helper(chan, localdata,val);
+	}else{
+	        if (chan->_state != AST_STATE_UP)
+	                ast_answer(chan);
+	        res = ast_say_number(chan, cnt, "", chan->language);
+	}
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
