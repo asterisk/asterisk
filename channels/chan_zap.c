@@ -35,6 +35,7 @@
 #include <asterisk/app.h>
 #include <asterisk/dsp.h>
 #include <asterisk/astdb.h>
+#include <asterisk/manager.h>
 #include <sys/signal.h>
 #include <sys/select.h>
 #include <errno.h>
@@ -2584,6 +2585,10 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			p->inalarm = 1;
 			res = get_alarms(p);
 			ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", p->channel, alarm2str(res));
+			manager_event(EVENT_FLAG_AGENT, "Alarm",
+								"Alarm: %s\r\n"
+								"Channel: %d\r\n",
+								alarm2str(res), p->channel);
 			/* fall through intentionally */
 		case ZT_EVENT_ONHOOK:
 			if (p->radio)
@@ -2784,6 +2789,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 		case ZT_EVENT_NOALARM:
 			p->inalarm = 0;
 			ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
+			manager_event(EVENT_FLAG_AGENT, "AlarmClear",
+								"Channel: %d\r\n", p->channel);
 			break;
 		case ZT_EVENT_WINKFLASH:
 			if (p->inalarm) break;
