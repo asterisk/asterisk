@@ -1,3 +1,18 @@
+Asterisk 0.2.0
+ -- Outbound origination API
+ -- Call management improvements
+ -- Add Do Not Disturb (*78, *79)
+ -- Add agents
+ -- Document variables
+ -- Add transfer capability on the console
+ -- Add SpeeX codec translator
+ -- Add call queues
+ -- Add setcallerid functionality (AGI, application)
+ -- Add special variables ${CALLERID}, ${EXTEN}, ${CONTEXT}, ${PRIORITY}
+ -- Don't echo cancel on pure TDM connections by default
+ -- Implement Async GOTO
+ -- Differentiate softhangups
+ -- Add date/time
 Asterisk 0.1.12
  -- Fix for Big Endian machines
  -- MySQL CDR Engine
