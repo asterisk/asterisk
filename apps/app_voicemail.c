@@ -54,6 +54,22 @@
 
 static char *tdesc = "Comedian Mail (Voicemail System)";
 
+static char *synopsis_vm =
+"Leave a voicemail message";
+
+static char *descrip_vm =
+"  VoiceMail([s]extension): Leaves voicemail for a given extension (must be configured in\n"
+"  voicemail.conf).  If the extension is preceeded by an 's' then instructions for leaving\n"
+"  the message will be skipped.  Returns -1 on error or mailbox not found, or if the user\n"
+"  hangs up.  Otherwise, it returns 0. \n";
+
+static char *synopsis_vmain =
+"Enter voicemail system";
+
+static char *descrip_vmain =
+"  VoiceMailMain(): Enters the main voicemail system for the checking of voicemail.  Returns\n"
+"  -1 if the user hangs up or 0 otherwise.\n";
+
 /* Leave a message */
 static char *app = "VoiceMail";
 
@@ -136,6 +152,15 @@ static int sendmail(char *email, char *name, int msgnum, char *mailbox)
 	return 0;
 }
 
+static int get_date(char *s, int len)
+{
+	struct tm *tm;
+	time_t t;
+	t = time(0);
+	tm = localtime(&t);
+	return strftime(s, len, "%a %b %e %r %Z %Y", tm);
+}
+
 static int leave_voicemail(struct ast_channel *chan, char *ext, int silent)
 {
 	struct ast_config *cfg;
@@ -143,10 +168,13 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent)
 	char comment[256];
 	struct ast_filestream *writer=NULL, *others[MAX_OTHER_FORMATS];
 	char *sfmt[MAX_OTHER_FORMATS];
+	char txtfile[256];
+	FILE *txt;
 	int res = -1, fmtcnt=0, x;
 	int msgnum;
 	int outmsg=0;
 	struct ast_frame *f;
+	char date[256];
 	
 	cfg = ast_load(VOICEMAIL_CONFIG);
 	if (!cfg) {
@@ -192,6 +220,33 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent)
 						msgnum++;
 					} while(!writer && (msgnum < MAXMSG));
 					if (writer) {
+						/* Store information */
+						snprintf(txtfile, sizeof(txtfile), "%s.txt", fn);
+						txt = fopen(txtfile, "w+");
+						if (txt) {
+							get_date(date, sizeof(date));
+							fprintf(txt, 
+"#\n"
+"# Message Information file\n"
+"#\n"
+"origmailbox=%s\n"
+"context=%s\n"
+"exten=%s\n"
+"priority=%d\n"
+"callerchan=%s\n"
+"callerid=%s\n"
+"origdate=%s\n",
+	ext,
+	chan->context,
+	chan->exten,
+	chan->priority,
+	chan->name,
+	chan->callerid ? chan->callerid : "Unknown",
+	date);
+							fclose(txt);
+						} else
+							ast_log(LOG_WARNING, "Error opening text file for output\n");
+	
 						/* We need to reset these values */
 						free(fmts);
 						fmt = ast_variable_retrieve(cfg, "general", "format");
@@ -313,6 +368,8 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	char username[80];
 	char password[80], *copy;
 	int deleted[MAXMSG];
+	char ntxt[256];
+	char txt[256];
 	struct ast_config *cfg;
 	int state;
 	char *dir=NULL;
@@ -323,6 +380,8 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "No voicemail configuration\n");
 		goto out;
 	}
+	if (chan->state != AST_STATE_UP)
+		ast_answer(chan);
 	if (ast_streamfile(chan, "vm-login", chan->language)) {
 		ast_log(LOG_WARNING, "Couldn't stream login file\n");
 		goto out;
@@ -545,8 +604,12 @@ out:
 				curmsg++;
 				fn = get_fn(dir, x);
 				nfn = get_fn(dir, curmsg);
-				if (strcmp(fn, nfn))
+				if (strcmp(fn, nfn)) {
+					snprintf(txt, sizeof(txt), "%s.txt", fn);
+					snprintf(ntxt, sizeof(ntxt), "%s.txt", nfn);
 					ast_filerename(fn, nfn, NULL);
+					rename(txt, ntxt);
+				}
 				free(fn);
 				free(nfn);
 			}
@@ -554,7 +617,9 @@ out:
 		for (x = curmsg + 1; x<maxmsg; x++) {
 			fn = get_fn(dir, x);
 			if (fn) {
+				snprintf(txt, sizeof(txt), "%s.txt", fn);
 				ast_filedelete(fn, NULL);
+				unlink(txt);
 				free(fn);
 			}
 		}
@@ -599,9 +664,9 @@ int unload_module(void)
 int load_module(void)
 {
 	int res;
-	res = ast_register_application(app, vm_exec);
+	res = ast_register_application(app, vm_exec, synopsis_vm, descrip_vm);
 	if (!res)
-		res = ast_register_application(app2, vm_execmain);
+		res = ast_register_application(app2, vm_execmain, synopsis_vmain, descrip_vmain);
 	return res;
 }
 
