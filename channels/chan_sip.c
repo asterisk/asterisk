@@ -4462,7 +4462,7 @@ static void list_route(struct sip_route *route)
 	}
 }
 
-/*--- build_route: Build route headers ---*/
+/*--- build_route: Build route list from Record-Route header ---*/
 static void build_route(struct sip_pvt *p, struct sip_request *req, int backwards)
 {
 	struct sip_route *thishop, *head, *tail;
@@ -7891,6 +7891,8 @@ static int sip_poke_noanswer(void *data)
 }
 
 /*--- sip_poke_peer: Check availability of peer, also keep NAT open ---*/
+/*	This is done with the interval in qualify= option in sip.conf */
+/*	Default is 2 seconds */
 static int sip_poke_peer(struct sip_peer *peer)
 {
 	struct sip_pvt *p;
@@ -7916,6 +7918,12 @@ static int sip_poke_peer(struct sip_peer *peer)
 	}
 	memcpy(&p->sa, &peer->addr, sizeof(p->sa));
 	memcpy(&p->recv, &peer->addr, sizeof(p->sa));
+
+	/* Send options to peer's fullcontact */
+	if (!ast_strlen_zero(peer->fullcontact)) {
+		strncpy (p->fullcontact, peer->fullcontact, sizeof(p->fullcontact));
+	}
+
 	if (!ast_strlen_zero(p->tohost))
 		strncpy(p->tohost, peer->tohost, sizeof(p->tohost) - 1);
 	else
