@@ -626,7 +626,6 @@ static char *ditch_braces(char *tmp)
 {
 	char *c = tmp;
 	char *n;
-	c = tmp;
 	if ((n = strchr(tmp, '<')) ) {
 		c = n + 1;
 		while(*c && *c != '>') c++;
@@ -2528,13 +2527,13 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
 				if (cur->codec < AST_FORMAT_MAX_AUDIO) {
-					strcat(m, costr);
+					strncat(m, costr, sizeof(m) - strlen(m));
 					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, cur->codec));
-					strcat(a, costr);
+					strncat(a, costr, sizeof(a));
 				} else {
-					strcat(m2, costr);
+					strncat(m2, costr, sizeof(m2) - strlen(m2));
 					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/90000\r\n", codec, ast_rtp_lookup_mime_subtype(1, cur->codec));
-					strcat(a2, costr);
+					strncat(a2, costr, sizeof(a2));
 				}
 			}
 		}
@@ -2550,13 +2549,13 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
 				if (x < AST_FORMAT_MAX_AUDIO) {
-					strcat(m, costr);
+					strncat(m, costr, sizeof(m) - strlen(m));
 					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, x));
-					strcat(a, costr);
+					strncat(a, costr, sizeof(m) - strlen(a));
 				} else {
-					strcat(m2, costr);
+					strncat(m2, costr, sizeof(m2) - strlen(m2));
 					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/90000\r\n", codec, ast_rtp_lookup_mime_subtype(1, x));
-					strcat(a2, costr);
+					strncat(a2, costr, sizeof(a2) - strlen(a2));
 				}
 			}
 		}
@@ -2568,20 +2567,24 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 			codec = ast_rtp_lookup_code(p->rtp, 0, x);
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
-				strcat(m, costr);
+				strncat(m, costr, sizeof(m) - strlen(m));
 				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(0, x));
-				strcat(a, costr);
+				strncat(a, costr, sizeof(a) - strlen(a));
 				if (x == AST_RTP_DTMF) {
 				  /* Indicate we support DTMF...  Not sure about 16, but MSN supports it so dang it, we will too... */
 				  snprintf(costr, sizeof costr, "a=fmtp:%d 0-16\r\n",
 					   codec);
-				  strcat(a, costr);
+				  strncat(a, costr, sizeof(a) - strlen(a));
 				}
 			}
 		}
 	}
-	strcat(m, "\r\n");
-	strcat(m2, "\r\n");
+	if (strlen(m) < sizeof(m) - 2)
+		strcat(m, "\r\n");
+	if (strlen(m2) < sizeof(m2) - 2)
+		strcat(m2, "\r\n");
+	if ((sizeof(m) <= strlen(m) - 2) || (sizeof(m2) <= strlen(m2) - 2) || (sizeof(a) == strlen(a)) || (sizeof(a2) == strlen(a2)))
+		ast_log(LOG_WARNING, "SIP SDP may be truncated due to undersized buffer!!\n");
 	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m) + strlen(a);
 	if (p->vrtp)
 		len += strlen(m2) + strlen(a2);
@@ -2925,6 +2928,8 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 	    t = tmp + strlen(tmp);
 	    sprintf(t, "</dialog>\n</dialog-info>\n");	
 	}
+	if (t > tmp + sizeof(tmp))
+		ast_log(LOG_WARNING, "Buffer overflow detected!!  (Please file a bug report)\n");
 
 	snprintf(clen, sizeof(clen), "%d", strlen(tmp));
 	add_header(&req, "Content-Length", clen);
@@ -4513,6 +4518,8 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 		if (c)
 			c++;
 	}
+	if (strlen(tmp) >= sizeof(tmp))
+		ast_log(LOG_WARNING, "Buffer overflow detected!  Please file a bug.\n");
 
 	/* copy realm and nonce for later authorization of CANCELs and BYEs */
 	strncpy(p->realm, realm, sizeof(p->realm)-1);
