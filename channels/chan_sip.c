@@ -2035,7 +2035,7 @@ static int transmit_notify(struct sip_pvt *p, int newmsgs, int oldmsgs)
 	add_header(&req, "Event", "message-summary");
 	add_header(&req, "Content-Type", "application/simple-message-summary");
 
-	snprintf(tmp, sizeof(tmp), "Message-Waiting: %s\n", (newmsgs + oldmsgs) ? "yes" : "no");
+	snprintf(tmp, sizeof(tmp), "Message-Waiting: %s\n", newmsgs ? "yes" : "no");
 	snprintf(tmp2, sizeof(tmp2), "Voicemail: %d/%d\n", newmsgs, oldmsgs);
 	snprintf(clen, sizeof(clen), "%d", strlen(tmp) + strlen(tmp2));
 	add_header(&req, "Content-Length", clen);

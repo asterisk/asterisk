@@ -83,7 +83,7 @@ privacy_exec (struct ast_channel *chan, void *data)
 		
 		
 		/*Play unidentified call*/
-		res = ast_safe_sleep(1);
+		res = ast_safe_sleep(chan, 1000);
 		if (!res)
 			res = ast_streamfile(chan, "privacy-unident", chan->language);
 		if (!res)
