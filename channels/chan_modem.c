@@ -510,6 +510,18 @@ static int modem_write(struct ast_channel *ast, struct ast_frame *frame)
 	return res;
 }
 
+static int modem_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
+{
+        struct ast_modem_pvt *p = newchan->pvt->pvt;
+ast_log(LOG_WARNING, "fixup called\n");
+	if (p->owner!=oldchan) {
+	    ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n",oldchan,p->owner);
+	    return -1;
+	}
+	p->owner = newchan;
+        return 0; 
+}
+
 struct ast_channel *ast_modem_new(struct ast_modem_pvt *i, int state)
 {
 	struct ast_channel *tmp;
@@ -529,6 +541,7 @@ struct ast_channel *ast_modem_new(struct ast_modem_pvt *i, int state)
 		tmp->pvt->answer = modem_answer;
 		tmp->pvt->read = modem_read;
 		tmp->pvt->write = modem_write;
+		tmp->pvt->fixup = modem_fixup;
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 
 		if (!ast_strlen_zero(i->cid_num))
