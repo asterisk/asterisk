@@ -1,3 +1,4 @@
+ -- Merge and edit Nick's FXO dial support
  -- Reengineer SIP registration (outbound)
  -- Support call pickup on SIP and compatibly with ZAP
  -- Support 302 Redirect on SIP

@@ -1174,6 +1174,23 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 					ast_log(LOG_WARNING, "Unable to reset default ring on '%s'\n", ast->name);
 				p->cidrings = 1;
 			}
+
+
+			/* nick@dccinc.com 4/3/03 mods to allow for deferred dialing */
+			c = strchr(dest, '/');
+			if (c)
+			  c++;
+			if (c && (strlen(c) < p->stripmsd)) {
+			  ast_log(LOG_WARNING, "Number '%s' is shorter than stripmsd (%d)\n", c, p->stripmsd);
+			  c = NULL;
+			}
+			if (c) {
+				p->dop.op = ZT_DIAL_OP_REPLACE;
+				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%s", c);
+				ast_log(LOG_DEBUG, "FXO: setup deferred dialstring: %s\n", c);
+			} else {
+				strcpy(p->dop.dialstr, "");
+			}
 			x = ZT_RING;
 			if (ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x) && (errno != EINPROGRESS)) {
 				ast_log(LOG_WARNING, "Unable to ring phone: %s\n", strerror(errno));
@@ -2565,7 +2582,18 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						p->subs[index].f.frametype = AST_FRAME_NULL;
 						p->subs[index].f.subclass = 0;
 					} else 
-						ast_setstate(ast, AST_STATE_UP);
+					  ast_setstate(ast, AST_STATE_UP);
+					if (strlen(p->dop.dialstr)) {
+						/* nick@dccinc.com 4/3/03 - fxo should be able to do deferred dialing */
+						res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop);
+						if (res < 0) {
+						  ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
+						  p->dop.dialstr[0] = '\0';
+						  return NULL;
+						} else 	
+						  ast_log(LOG_DEBUG, "Sent deferred digit string: %s\n", p->dop.dialstr);
+						p->dop.dialstr[0] = '\0';
+					}
 					return &p->subs[index].f;
 				case AST_STATE_DOWN:
 					ast_setstate(ast, AST_STATE_RING);
