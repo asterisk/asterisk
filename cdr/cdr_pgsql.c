@@ -142,7 +142,9 @@ char *description(void)
 
 static int my_unload_module(void)
 { 
-	PQfinish(conn);
+	if (conn)
+		PQfinish(conn);
+	conn = NULL;
 	connected = 0;
 	if (pghostname && hostname_alloc) {
 		free(pghostname);
