@@ -7798,6 +7798,9 @@ static void *pri_dchannel(void *vpri)
 									case 0xF:
 										snprintf(redirstr, 20, "UNCONDITIONAL"); /* Other reason */
 										break;
+									default:
+										snprintf(redirstr, 20, "NOREDIRECT");
+										break;
 								}
 
 								pbx_builtin_setvar_helper(c, "PRIREDIRECTCAUSE", redirstr);
