@@ -143,6 +143,7 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 	char *s, *data = ast_strdupa(playlst); /* cute */
 	struct playtones_def d = { vol, -1, 0, 1, NULL};
 	char *stringp=NULL;
+	char *separator;
 	if (!data)
 		return -1;
 	if (vol < 1)
@@ -151,7 +152,13 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 	d.interruptible = interruptible;
 	
 	stringp=data;
-	s = strsep(&stringp,",");
+	/* the stringp/data is not null here */
+	/* check if the data is separated with '|' or with ',' by default */
+	if (strchr(stringp,'|'))
+		separator = "|";
+	else
+		separator = ",";
+	s = strsep(&stringp,separator);
         while(s && *s) {
 		int freq1, freq2, time;
 
@@ -184,7 +191,7 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 		d.items[d.nitems].duration = time;
 		d.nitems++;
 
-		s = strsep(&stringp,",");
+		s = strsep(&stringp,separator);
 	}
 
 	if (ast_activate_generator(chan, &playtones, &d)) {
