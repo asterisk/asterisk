@@ -51,15 +51,11 @@
    and will not run without them. */
 #ifdef PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 #define AST_MUTEX_INIT_VAULE      { PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP, NULL, 0, NULL, 0 }
-#else
-#define AST_MUTEX_INIT_VAULE      { PTHREAD_MUTEX_INITIALIZER, NULL, 0, NULL, 0 }
-#endif
-
-#ifdef PTHREAD_MUTEX_RECURSIVE_NP
 #define AST_MUTEX_KIND             PTHREAD_MUTEX_RECURSIVE_NP
 #else
+#define AST_MUTEX_INIT_VAULE      { PTHREAD_MUTEX_INITIALIZER, NULL, 0, NULL, 0 }
 #define AST_MUTEX_KIND             PTHREAD_MUTEX_RECURSIVE
-#endif
+#endif /* PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP */
 
 struct ast_mutex_info {
 	pthread_mutex_t mutex;
@@ -203,15 +199,11 @@ static inline int __ast_pthread_mutex_destroy(char *filename, int lineno, char *
    and will not run without them. */
 #ifdef PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 #define AST_MUTEX_INIT_VAULE      PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
-#else
-#define AST_MUTEX_INIT_VAULE      PTHREAD_MUTEX_INITIALIZER
-#endif
-
-#ifdef PTHREAD_MUTEX_RECURSIVE_NP
 #define AST_MUTEX_KIND             PTHREAD_MUTEX_RECURSIVE_NP
 #else
+#define AST_MUTEX_INIT_VAULE      PTHREAD_MUTEX_INITIALIZER
 #define AST_MUTEX_KIND             PTHREAD_MUTEX_RECURSIVE
-#endif
+#endif /* PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP */
 
 typedef pthread_mutex_t ast_mutex_t;
 
