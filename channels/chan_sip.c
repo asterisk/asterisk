@@ -3853,7 +3853,7 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 #endif
 	if (distinctive_ring && !ast_strlen_zero(distinctive_ring))
 	{
-		add_header(&req, "Alert-info",distinctive_ring);
+		add_header(&req, "Alert-Info",distinctive_ring);
 	}
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	if (addsipheaders && init) {
