@@ -324,9 +324,27 @@ static int ast_filehelper(char *filename, char *filename2, char *fmt, int action
 	return res;
 }
 
-int ast_fileexists(char *filename, char *fmt)
+int ast_fileexists(char *filename, char *fmt, char *preflang)
 {
-	return ast_filehelper(filename, NULL, fmt, ACTION_EXISTS);
+	char filename2[256];
+	char lang2[MAX_LANGUAGE];
+	int res = -1;
+	if (preflang && strlen(preflang)) {
+		snprintf(filename2, sizeof(filename2), "%s-%s", filename, preflang);
+		res = ast_filehelper(filename2, NULL, fmt, ACTION_EXISTS);
+		if (res < 1) {
+			strncpy(lang2, preflang, sizeof(lang2));
+			strtok(lang2, "_");
+			if (strcmp(lang2, preflang)) {
+				snprintf(filename2, sizeof(filename2), "%s-%s", filename, lang2);
+				res = ast_filehelper(filename2, NULL, fmt, ACTION_EXISTS);
+			}
+		}
+	}
+	if (res < 1) {
+		res = ast_filehelper(filename, NULL, fmt, ACTION_EXISTS);
+	}
+	return res;
 }
 
 int ast_filedelete(char *filename, char *fmt)
@@ -339,7 +357,7 @@ int ast_filerename(char *filename, char *filename2, char *fmt)
 	return ast_filehelper(filename, filename2, fmt, ACTION_RENAME);
 }
 
-int ast_streamfile(struct ast_channel *chan, char *filename)
+int ast_streamfile(struct ast_channel *chan, char *filename, char *preflang)
 {
 	/* This is a fairly complex routine.  Essentially we should do 
 	   the following:
@@ -355,9 +373,23 @@ int ast_streamfile(struct ast_channel *chan, char *filename)
 	*/
 	int fd = -1;
 	struct ast_channel *trans;
-	int fmts;
+	int fmts = -1;
+	char filename2[256];
+	char lang2[MAX_LANGUAGE];
 	ast_stopstream(chan);
-	fmts = ast_fileexists(filename, NULL);
+	if (preflang && strlen(preflang)) {
+		snprintf(filename2, sizeof(filename2), "%s-%s", filename, preflang);
+		fmts = ast_fileexists(filename2, NULL, NULL);
+		if (fmts < 1) {
+			strncpy(lang2, preflang, sizeof(lang2));
+			snprintf(filename2, sizeof(filename2), "%s-%s", filename, lang2);
+			fmts = ast_fileexists(filename2, NULL, NULL);
+		}
+	}
+	if (fmts < 1) {
+		strncpy(filename2, filename, sizeof(filename2));
+		fmts = ast_fileexists(filename2, NULL, NULL);
+	}
 	if (fmts < 1) {
 		ast_log(LOG_WARNING, "File %s does not exist in any format\n", filename);
 		return -1;
@@ -379,10 +411,11 @@ int ast_streamfile(struct ast_channel *chan, char *filename)
 			return -1;
 		}
 	}
- 	fd = ast_filehelper(filename, (char *)trans, NULL, ACTION_OPEN);
+ 	fd = ast_filehelper(filename2, (char *)trans, NULL, ACTION_OPEN);
 	if (fd >= 0) {
-#if 0
-		ast_verbose(VERBOSE_PREFIX_3 "Playing '%s'\n", filename);
+#if 1
+		if (option_verbose > 2)
+			ast_verbose(VERBOSE_PREFIX_3 "Playing '%s'\n", filename2);
 #endif
 		return 0;
 	}
