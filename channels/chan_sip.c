@@ -6070,9 +6070,9 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
 		/* Client code (from SNOM phone) */
 		if (p->useclientcode) {
 			if (p->owner && p->owner->cdr)
-				ast_cdr_setaccount(p->owner, c);
+				ast_cdr_setuserfield(p->owner, c);
 			if (p->owner && ast_bridged_channel(p->owner) && ast_bridged_channel(p->owner)->cdr)
-				ast_cdr_setaccount(ast_bridged_channel(p->owner), c);
+				ast_cdr_setuserfield(ast_bridged_channel(p->owner), c);
 			transmit_response(p, "200 OK", req);
 		} else {
 			transmit_response(p, "403 Unauthorized", req);
