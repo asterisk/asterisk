@@ -4760,7 +4760,12 @@ static void *ss_thread(void *data)
 		if (p->subs[SUB_THREEWAY].owner) 
 			timeout = 999999;
 		while(len < AST_MAX_EXTENSION-1) {
-			res = ast_waitfordigit(chan, timeout);
+			/* Read digit unless it's supposed to be immediate, in which case the
+			   only answer is 's' */
+			if (p->immediate) 
+				res = 's';
+			else
+				res = ast_waitfordigit(chan, timeout);
 			timeout = 0;
 			if (res < 0) {
 				ast_log(LOG_DEBUG, "waitfordigit returned < 0...\n");
