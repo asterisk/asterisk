@@ -444,6 +444,7 @@ samples: all datafiles adsi
 	for x in sounds/*.mp3; do \
 		install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/mohmp3 ; \
 	done
+	rm -f $(DESTDIR)$(ASTVARLIBDIR)/mohmp3/sample-hold.mp3
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/INBOX
 	:> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/unavail.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isunavail; do \

@@ -34,7 +34,7 @@ struct ast_translator {
 	/*! Destination format */
 	int dstfmt;
 	/*! Private data associated with the translator */
-	struct ast_translator_pvt *(*new)(void);
+	struct ast_translator_pvt *(*newpvt)(void);
 	/*! Input frame callback */
 	int (*framein)(struct ast_translator_pvt *pvt, struct ast_frame *in);
 	/*! Output frame callback */

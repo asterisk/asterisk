@@ -107,7 +107,7 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 				tmp->nextout.tv_sec = 0;
 				tmp->nextout.tv_usec = 0;
 				tmp->step = tr_matrix[source][dest].step;
-				tmp->state = tmp->step->new();
+				tmp->state = tmp->step->newpvt();
 				if (!tmp->state) {
 					ast_log(LOG_WARNING, "Failed to build translator step from %d to %d\n", source, dest);
 					free(tmp);
@@ -237,7 +237,7 @@ static void calc_cost(struct ast_translator *t,int samples)
 		t->cost = 99999;
 		return;
 	}
-	pvt = t->new();
+	pvt = t->newpvt();
 	if (!pvt) {
 		ast_log(LOG_WARNING, "Translator '%s' appears to be broken and will probably fail.\n", t->name);
 		t->cost = 99999;
