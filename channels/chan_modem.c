@@ -63,6 +63,9 @@ static char msn[AST_MAX_EXTENSION]="";
 /* Default Listen */
 static char incomingmsn[AST_MAX_EXTENSION]="";
 
+/* Default valid outgoing MSN */
+static char outgoingmsn[AST_MAX_EXTENSION]="";
+
 /* Default group */
 static unsigned int cur_group = 0;
 
@@ -708,6 +711,7 @@ static struct ast_modem_pvt *mkif(char *iface)
 		strncpy(tmp->language, language, sizeof(tmp->language)-1);
 		strncpy(tmp->msn, msn, sizeof(tmp->msn)-1);
 		strncpy(tmp->incomingmsn, incomingmsn, sizeof(tmp->incomingmsn)-1);
+		snprintf(tmp->outgoingmsn, sizeof(tmp->outgoingmsn), ",%s,", outgoingmsn);
 		strncpy(tmp->dev, iface, sizeof(tmp->dev)-1);
 		/* Maybe in the future we want to allow variable
 		   serial settings */
@@ -968,6 +972,8 @@ int load_module()
 			strncpy(msn, v->value, sizeof(msn)-1);
 		} else if (!strcasecmp(v->name, "incomingmsn")) {
 			strncpy(incomingmsn, v->value, sizeof(incomingmsn)-1);
+		} else if (!strcasecmp(v->name, "outgoingmsn")) {
+			strncpy(outgoingmsn, v->value, sizeof(outgoingmsn)-1);
 		} else if (!strcasecmp(v->name, "language")) {
 			strncpy(language, v->value, sizeof(language)-1);
 		} else if (!strcasecmp(v->name, "group")) {

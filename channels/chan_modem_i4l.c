@@ -528,6 +528,32 @@ static int i4l_dialdigit(struct ast_modem_pvt *p, char digit)
 static int i4l_dial(struct ast_modem_pvt *p, char *stuff)
 {
 	char cmd[80];
+	char tmp[255];
+	char tmpmsn[255];
+	char *name, *num;
+	struct ast_channel *c = p->owner;
+
+	// Find callerid number first, to set the correct A number
+	if (c && c->callerid && ! c->restrictcid) {
+	  ast_log(LOG_DEBUG, "Finding callerid from %s...\n",c->callerid);
+	  strncpy(tmp, c->callerid, sizeof(tmp) - 1);
+	  ast_callerid_parse(tmp, &name, &num);
+	  if (num) {
+	    ast_shrink_phone_number(num);
+	    snprintf(tmpmsn, sizeof(tmpmsn), ",%s,", num);
+	    if(strlen(p->outgoingmsn) && strstr(p->outgoingmsn,tmpmsn) != NULL) {
+	      // Tell ISDN4Linux to use this as A number
+	      snprintf(cmd, sizeof(cmd), "AT&E%s\n", num);
+	      if (ast_modem_send(p, cmd, strlen(cmd))) {
+		ast_log(LOG_WARNING, "Unable to set A number to %s\n",num);
+	      }
+
+	    } else {
+	      ast_log(LOG_WARNING, "Outgoing MSN %s not allowed (see outgoingmsn=%s in modem.conf)\n",num,p->outgoingmsn);
+	    }
+	  }
+	}
+
 	snprintf(cmd, sizeof(cmd), "ATD%c %s\n", p->dialtype,stuff);
 	if (ast_modem_send(p, cmd, strlen(cmd))) {
 		ast_log(LOG_WARNING, "Unable to dial\n");

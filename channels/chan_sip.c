@@ -154,6 +154,8 @@ static int globalrtptimeout = 0;
 
 static int globalrtpholdtimeout = 0;
 
+static int globaltrustrpid = 0;
+
 static int usecnt =0;
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
@@ -326,6 +328,8 @@ static struct sip_pvt {
     	int stateid;
 	int dialogver;
 	
+        int trustrpid;
+	
         int dtmfmode;
         struct ast_dsp *vad;
 	
@@ -379,6 +383,7 @@ struct sip_user {
 	int outUse;
 	int outgoinglimit;
 	int restrictcid;
+        int trustrpid;
 	struct ast_ha *ha;
 	struct sip_user *next;
 };
@@ -411,6 +416,7 @@ struct sip_peer {
 	unsigned int callgroup;
 	unsigned int pickupgroup;
         int dtmfmode;
+        int trustrpid;
 	struct sockaddr_in addr;
 	struct in_addr mask;
 
@@ -2083,6 +2089,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	/* Assign default music on hold class */
         strncpy(p->musicclass, globalmusicclass, sizeof(p->musicclass));
 	p->dtmfmode = globaldtmfmode;
+	p->trustrpid = globaltrustrpid;
 	p->rtptimeout = globalrtptimeout;
 	p->rtpholdtimeout = globalrtpholdtimeout;
 	p->capability = capability;
@@ -4762,12 +4769,44 @@ static char *get_calleridname(char *input,char *output)
 	return output;
 }
 
+/*--- get_rpid_num: Get caller id number from Remote-Party-ID header field 
+ *									Returns true if number should be restricted (privacy setting found)
+ *									output is set to NULL if no number found
+ */
+static int get_rpid_num(char *input,char *output, int maxlen)
+{
+	char *start;
+	char *end;
+
+	start = strchr(input,':');
+	if (!start) {
+		strcpy(output, "");
+		return 0;
+	}
+	start++;
+
+	/* we found "number" */
+	strncpy(output,start,maxlen-1);
+	output[maxlen-1] = '\0';
+
+	end = strchr(output,'@');
+	if (end)
+		*end = '\0';
+
+	if(strstr(input,"privacy=full") || strstr(input,"privacy=uri"))
+		return 1;
+
+	return 0;
+}
+
+
 /*--- check_user: Check if matching user or peer is defined ---*/
 static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, char *uri, int reliable, struct sockaddr_in *sin, int ignore)
 {
 	struct sip_user *user;
 	struct sip_peer *peer;
 	char *of, from[256] = "", *c;
+	char *rpid,rpid_num[50];
 	int res = 0;
 	char *t;
 	char calleridname[50];
@@ -4782,6 +4821,12 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 	strncpy(from, of, sizeof(from) - 1);
 	memset(calleridname,0,sizeof(calleridname));
 	get_calleridname(from,calleridname);
+
+	rpid = get_header(req, "Remote-Party-ID");
+	memset(rpid_num,0,sizeof(rpid_num));
+	if(!ast_strlen_zero(rpid)) 
+	  p->restrictcid = get_rpid_num(p->remote_party_id,rpid_num, sizeof(rpid_num));
+
 	of = ditch_braces(from);
 	if (ast_strlen_zero(p->exten)) {
 		t = uri;
@@ -4833,6 +4878,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 			strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)  -1);
 			strncpy(p->language, user->language, sizeof(p->language)  -1);
 			strncpy(p->musicclass, user->musicclass, sizeof(p->musicclass)  -1);
+			p->trustrpid = user->trustrpid;
 			p->canreinvite = user->canreinvite;
 			p->amaflags = user->amaflags;
 			p->callgroup = user->callgroup;
@@ -4907,6 +4953,8 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 					else
 						p->noncodeccapability &= ~AST_RTP_DTMF;
 				}
+				p->trustrpid = peer->trustrpid;
+
 			}
 			if (peer->temponly) {
 				if (peer->ha) {
@@ -4920,6 +4968,15 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 		ast_mutex_unlock(&peerl.lock);
 
 	}
+
+	/* replace callerid if rpid found, and not restricted */
+	if(!ast_strlen_zero(rpid_num) && p->trustrpid) {
+	  if (*calleridname)
+	    sprintf(p->callerid,"\"%s\" <%s>",calleridname,rpid_num);
+	  else
+	    strncpy(p->callerid, rpid_num, sizeof(p->callerid) - 1);
+	}
+
 	return res;
 }
 
@@ -7257,6 +7314,7 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 		user->capability = capability;
 
 		user->canreinvite = globalcanreinvite;
+		user->trustrpid = globaltrustrpid;
 		/* set default context */
 		strncpy(user->context, context, sizeof(user->context)-1);
 		strncpy(user->language, language, sizeof(user->language)-1);
@@ -7333,6 +7391,8 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 				user->insecure = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "restrictcid")) {
 				user->restrictcid = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "trustrpid")) {
+                                user->trustrpid = ast_true(v->value);
 			}
 			/*else if (strcasecmp(v->name,"type"))
 			 *	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
@@ -7369,6 +7429,7 @@ static struct sip_peer *temp_peer(char *name)
 	peer->rtpholdtimeout = globalrtpholdtimeout;
 	peer->selfdestruct = 1;
 	peer->dynamic = 1;
+	peer->trustrpid = globaltrustrpid;
 	reg_source_db(peer);
 	return peer;
 }
@@ -7428,6 +7489,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 		peer->rtptimeout = globalrtptimeout;
 		peer->rtpholdtimeout = globalrtpholdtimeout;
 		peer->dtmfmode = 0;
+		peer->trustrpid = globaltrustrpid;
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) 
 				strncpy(peer->secret, v->value, sizeof(peer->secret)-1);
@@ -7551,6 +7613,8 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 					ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", peer->name, v->lineno);
 					peer->maxms = 0;
 				}
+			} else if (!strcasecmp(v->name, "trustrpid")) {
+                                peer->trustrpid = ast_true(v->value);
 			}
 			/* else if (strcasecmp(v->name,"type"))
 			 *	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
@@ -7664,6 +7728,8 @@ static int reload_config(void)
 			autocreatepeer = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "srvlookup")) {
 			srvlookup = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "trustrpid")) {
+		        globaltrustrpid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "pedantic")) {
 			pedanticsipchecking = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "canreinvite")) {

@@ -64,6 +64,12 @@ mode=immediate
 ;incomingmsn=50780020,50780021,50780022
 ;device => /dev/ttyI2
 ;
+; If set, only these numbers are allowed to be set as A number
+; when making an outbound call. callerid is used to set A
+; number.
+;outgoingmsn=50780023,50780024
+;
+;
 ; two other devices, which are in group '1' and are used when an
 ; outgoing dial used: exten => s,1,Dial,Modem/g1:1234|60|r
 ; (we do not need more outgoing devices, since ISDN2 has only 2 channels.)
