@@ -128,6 +128,42 @@ char *ast_state2str(int state)
 	}
 }
 
+
+int ast_best_codec(int fmts)
+{
+	/* This just our opinion, expressed in code.  We are asked to choose
+	   the best codec to use, given no information */
+	int x;
+	static int prefs[] = 
+	{
+		/* Okay, ulaw is used by all telephony equipment, so start with it */
+		AST_FORMAT_ULAW,
+		/* Unless of course, you're a silly European, so then prefer ALAW */
+		AST_FORMAT_ALAW,
+		/* Okay, well, signed linear is easy to translate into other stuff */
+		AST_FORMAT_SLINEAR,
+		/* ADPCM has great sound quality and is still pretty easy to translate */
+		AST_FORMAT_ADPCM,
+		/* Okay, we're down to vocoders now, so pick GSM because it's small and easier to
+		   translate and sounds pretty good */
+		AST_FORMAT_GSM,
+		/* Ick, LPC10 sounds terrible, but at least we have code for it, if you're tacky enough
+		   to use it */
+		AST_FORMAT_LPC10,
+		/* Down to G.723.1 which is proprietary but at least designed for voice */
+		AST_FORMAT_G723_1,
+		/* Last and least, MP3 which was of course never designed for real-time voice */
+		AST_FORMAT_MP3,
+	};
+	
+	
+	for (x=0;x<sizeof(prefs) / sizeof(prefs[0]); x++)
+		if (fmts & prefs[x])
+			return prefs[x];
+	ast_log(LOG_WARNING, "Don't know any of 0x%x formats\n", fmts);
+	return 0;
+}
+
 struct ast_channel *ast_channel_alloc(void)
 {
 	struct ast_channel *tmp;
@@ -172,6 +208,22 @@ struct ast_channel *ast_channel_alloc(void)
 		ast_log(LOG_WARNING, "Out of memory\n");
 	PTHREAD_MUTEX_UNLOCK(&chlock);
 	return tmp;
+}
+
+int ast_channel_defer_dtmf(struct ast_channel *chan)
+{
+	int pre = 0;
+	if (chan) {
+		pre = chan->deferdtmf;
+		chan->deferdtmf = 1;
+	}
+	return pre;
+}
+
+void ast_channel_undefer_dtmf(struct ast_channel *chan)
+{
+	if (chan)
+		chan->deferdtmf = 0;
 }
 
 struct ast_channel *ast_channel_walk(struct ast_channel *prev)
@@ -243,19 +295,37 @@ int ast_softhangup(struct ast_channel *chan)
 	return res;
 }
 
+static void free_translation(struct ast_channel *clone)
+{
+	if (clone->pvt->writetrans)
+		ast_translator_free_path(clone->pvt->writetrans);
+	if (clone->pvt->readtrans)
+		ast_translator_free_path(clone->pvt->readtrans);
+	clone->pvt->writetrans = NULL;
+	clone->pvt->readtrans = NULL;
+	clone->pvt->rawwriteformat = clone->nativeformats;
+	clone->pvt->rawreadformat = clone->nativeformats;
+}
+
 int ast_hangup(struct ast_channel *chan)
 {
 	int res = 0;
 	/* Don't actually hang up a channel that will masquerade as someone else, or
 	   if someone is going to masquerade as us */
-	if (chan->masq)
+	ast_pthread_mutex_lock(&chan->lock);
+	if (chan->masq) {
+		ast_log(LOG_WARNING, "We're getting hung up, but someone is trying to masq into us?!?\n");
+		ast_pthread_mutex_unlock(&chan->lock);
 		return 0;
+	}
 	/* If this channel is one which will be masqueraded into something, 
 	   mark it as a zombie already, so we know to free it later */
 	if (chan->masqr) {
+		ast_pthread_mutex_unlock(&chan->lock);
 		chan->zombie=1;
 		return 0;
 	}
+	free_translation(chan);
 	if (chan->stream)
 		ast_stopstream(chan);
 	if (chan->sched)
@@ -275,6 +345,7 @@ int ast_hangup(struct ast_channel *chan)
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Hanging up zombie '%s'\n", chan->name);
 			
+	ast_pthread_mutex_unlock(&chan->lock);
 	ast_channel_free(chan);
 	return res;
 }
@@ -307,15 +378,17 @@ void ast_channel_unregister(char *type)
 
 int ast_answer(struct ast_channel *chan)
 {
+	int res = 0;
 	/* Stop if we're a zombie or need a soft hangup */
 	if (chan->zombie || chan->softhangup) 
 		return -1;
 	switch(chan->state) {
-	case AST_STATE_RING:
 	case AST_STATE_RINGING:
+	case AST_STATE_RING:
 		if (chan->pvt->answer)
-			return chan->pvt->answer(chan);
+			res = chan->pvt->answer(chan);
 		chan->state = AST_STATE_UP;
+		return res;
 		break;
 	case AST_STATE_UP:
 		break;
@@ -371,7 +444,8 @@ int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 
 static int ast_do_masquerade(struct ast_channel *original);
 
-struct ast_channel *ast_waitfor_n(struct ast_channel **c, int n, int *ms)
+struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds, int nfds, 
+	int *exception, int *outfd, int *ms)
 {
 	/* Wait for x amount of time on a file descriptor to have input.  */
 	struct timeval tv;
@@ -379,6 +453,10 @@ struct ast_channel *ast_waitfor_n(struct ast_channel **c, int n, int *ms)
 	int res;
 	int x, y, max=-1;
 	struct ast_channel *winner = NULL;
+	if (outfd)
+		*outfd = -1;
+	if (exception)
+		*exception = 0;
 	
 	/* Perform any pending masquerades */
 	for (x=0;x<n;x++) {
@@ -405,6 +483,12 @@ struct ast_channel *ast_waitfor_n(struct ast_channel **c, int n, int *ms)
 			}
 		}
 		CHECK_BLOCKING(c[x]);
+	}
+	for (x=0;x<nfds; x++) {
+		FD_SET(fds[x], &rfds);
+		FD_SET(fds[x], &efds);
+		if (fds[x] > max)
+			max = fds[x];
 	}
 	if (*ms >= 0) 
 		res = select(max + 1, &rfds, NULL, &efds, &tv);
@@ -436,16 +520,35 @@ struct ast_channel *ast_waitfor_n(struct ast_channel **c, int n, int *ms)
 			}
 		}
 	}
+	for (x=0;x<nfds;x++) {
+		if ((FD_ISSET(fds[x], &rfds) || FD_ISSET(fds[x], &efds)) && !winner) {
+			if (outfd)
+				*outfd = fds[x];
+			if (FD_ISSET(fds[x], &efds) && exception)
+				*exception = 1;
+			winner = NULL;
+		}
+	}
 	*ms = tv.tv_sec * 1000 + tv.tv_usec / 1000;
 	return winner;
+}
+
+struct ast_channel *ast_waitfor_n(struct ast_channel **c, int n, int *ms)
+{
+	return ast_waitfor_nandfds(c, n, NULL, 0, NULL, NULL, ms);
 }
 
 int ast_waitfor(struct ast_channel *c, int ms)
 {
 	struct ast_channel *chan;
+	int oldms = ms;
 	chan = ast_waitfor_n(&c, 1, &ms);
-	if (ms < 0)
-		return -1;
+	if (ms < 0) {
+		if (oldms < 0)
+			return 0;
+		else
+			return -1;
+	}
 	return ms;
 }
 
@@ -499,7 +602,17 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		pthread_mutex_unlock(&chan->lock);
 		return NULL;
 	}
-		
+	
+	if (!chan->deferdtmf && strlen(chan->dtmfq)) {
+		/* We have DTMF that has been deferred.  Return it now */
+		chan->dtmff.frametype = AST_FRAME_DTMF;
+		chan->dtmff.subclass = chan->dtmfq[0];
+		/* Drop first digit */
+		memmove(chan->dtmfq, chan->dtmfq + 1, sizeof(chan->dtmfq) - 1);
+		pthread_mutex_unlock(&chan->lock);
+		return &chan->dtmff;
+	}
+	
 	chan->blocker = pthread_self();
 	if (chan->exception) {
 		if (chan->pvt->exception) 
@@ -523,6 +636,13 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 	/* Make sure we always return NULL in the future */
 	if (!f)
 		chan->softhangup = 1;
+	else if (chan->deferdtmf && f->frametype == AST_FRAME_DTMF) {
+		if (strlen(chan->dtmfq) < sizeof(chan->dtmfq) - 2)
+			chan->dtmfq[strlen(chan->dtmfq)] = f->subclass;
+		else
+			ast_log(LOG_WARNING, "Dropping deferred DTMF digits on %s\n", chan->name);
+		f = &null_frame;
+	}
 	pthread_mutex_unlock(&chan->lock);
 
 	return f;
@@ -727,9 +847,13 @@ int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int fti
 		}
 		if (d < 0)
 			return -1;
+		if (d == 0) {
+			s[pos]='\0';
+			return 1;
+		}
 		if (!strchr(enders, d))
 			s[pos++] = d;
-		if ((d == 0) || strchr(enders, d) || (pos >= len - 1)) {
+		if (strchr(enders, d) || (pos >= len - 1)) {
 			s[pos]='\0';
 			return 0;
 		}
@@ -737,6 +861,27 @@ int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int fti
 	} while(1);
 	/* Never reached */
 	return 0;
+}
+
+int ast_channel_supports_html(struct ast_channel *chan)
+{
+	if (chan->pvt->send_html)
+		return 1;
+	return 0;
+}
+
+int ast_channel_sendhtml(struct ast_channel *chan, int subclass, char *data, int datalen)
+{
+	if (chan->pvt->send_html)
+		return chan->pvt->send_html(chan, subclass, data, datalen);
+	return -1;
+}
+
+int ast_channel_sendurl(struct ast_channel *chan, char *url)
+{
+	if (chan->pvt->send_html)
+		return chan->pvt->send_html(chan, AST_HTML_URL, url, strlen(url) + 1);
+	return -1;
 }
 
 int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *peer)
@@ -812,12 +957,22 @@ static int ast_do_masquerade(struct ast_channel *original)
 	char *tmp;
 	struct ast_channel_pvt *p;
 	struct ast_channel *clone = original->masq;
+	int rformat = original->readformat;
+	int wformat = original->writeformat;
+	
+#if 0
 	ast_log(LOG_DEBUG, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
 		clone->name, clone->state, original->name, original->state);
+#endif
 	/* XXX This is a seriously wacked out operation.  We're essentially putting the guts of
 	   the clone channel into the original channel.  Start by killing off the original
 	   channel's backend.   I'm not sure we're going to keep this function, because 
 	   while the features are nice, the cost is very high in terms of pure nastiness. XXX */
+
+	/* Having remembered the original read/write formats, we turn off any translation on either
+	   one */
+	free_translation(clone);
+	free_translation(original);
 
 	/* We need the clone's lock, too */
 	pthread_mutex_lock(&clone->lock);
@@ -836,6 +991,15 @@ static int ast_do_masquerade(struct ast_channel *original)
 	p = original->pvt;
 	original->pvt = clone->pvt;
 	clone->pvt = p;
+	
+	clone->softhangup = 1;
+
+
+	if (clone->pvt->fixup){
+		res = clone->pvt->fixup(original, clone);
+		if (res) 
+			ast_log(LOG_WARNING, "Fixup failed on channel %s, strange things may happen.\n", clone->name);
+	}
 
 	/* Start by disconnecting the original's physical side */
 	if (clone->pvt->hangup)
@@ -877,6 +1041,9 @@ static int ast_do_masquerade(struct ast_channel *original)
 	original->callerid = clone->callerid;
 	clone->callerid = tmp;
 	
+	/* Our native formats are different now */
+	original->nativeformats = clone->nativeformats;
+	
 	/* Context, extension, priority, app data, jump table,  remain the same */
 	/* pvt switches.  pbx stays the same, as does next */
 	
@@ -891,10 +1058,12 @@ static int ast_do_masquerade(struct ast_channel *original)
 		pthread_mutex_unlock(&clone->lock);
 	}
 	/* Set the write format */
-	ast_set_write_format(original, original->writeformat);
+	ast_set_write_format(original, wformat);
 
 	/* Set the read format */
-	ast_set_read_format(original, original->readformat);
+	ast_set_read_format(original, rformat);
+
+	ast_log(LOG_DEBUG, "Putting channel %s in %d/%d formats\n", original->name, wformat, rformat);
 
 	/* Okay.  Last thing is to let the channel driver know about all this mess, so he
 	   can fix up everything as best as possible */
@@ -908,10 +1077,11 @@ static int ast_do_masquerade(struct ast_channel *original)
 	} else
 		ast_log(LOG_WARNING, "Driver '%s' does not have a fixup routine (for %s)!  Bad things may happen.\n",
 			original->type, original->name);
-	
 	/* Signal any blocker */
 	if (original->blocking)
 		pthread_kill(original->blocker, SIGURG);
+	ast_log(LOG_DEBUG, "Done Masquerading %s(%d) into the structure of %s(%d)\n",
+		clone->name, clone->state, original->name, original->state);
 	return 0;
 }
 
@@ -922,8 +1092,9 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 	struct ast_channel *cs[3];
 	int to = -1;
 	struct ast_frame *f;
-	struct ast_channel *who;
+	struct ast_channel *who = NULL;
 	int res;
+	int nativefailed=0;
 	/* Stop if we're a zombie or need a soft hangup */
 	if (c0->zombie || c0->softhangup || c1->zombie || c1->softhangup) 
 		return -1;
@@ -941,24 +1112,38 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 	/* Keep track of bridge */
 	c0->bridge = c1;
 	c1->bridge = c0;
-	
-	if (c0->pvt->bridge && 
-		(c0->pvt->bridge == c1->pvt->bridge)) {
-			/* Looks like they share a bridge code */
-		if (!c0->pvt->bridge(c0, c1, flags, fo, rc)) {
-			c0->bridge = NULL;
-			c1->bridge = NULL;
-			return 0;
-		}
-		ast_log(LOG_WARNING, "Private bridge between %s and %s failed\n", c0->name, c1->name);
-		/* If they return non-zero then continue on normally */
-	}
-	
-	
-	
 	cs[0] = c0;
 	cs[1] = c1;
 	for (/* ever */;;) {
+		/* Stop if we're a zombie or need a soft hangup */
+		if (c0->zombie || c0->softhangup || c1->zombie || c1->softhangup) {
+			*fo = NULL;
+			if (who) *rc = who;
+			res = 0;
+			break;
+		}
+		if (c0->pvt->bridge && 
+			(c0->pvt->bridge == c1->pvt->bridge) && !nativefailed) {
+				/* Looks like they share a bridge code */
+			if (!(res = c0->pvt->bridge(c0, c1, flags, fo, rc))) {
+				c0->bridge = NULL;
+				c1->bridge = NULL;
+				return 0;
+			}
+			/* If they return non-zero then continue on normally.  Let "-2" mean don't worry about
+			   my not wanting to bridge */
+			if ((res != -2) && (res != -3))
+				ast_log(LOG_WARNING, "Private bridge between %s and %s failed\n", c0->name, c1->name);
+			if (res != -3) nativefailed++;
+		}
+	
+			
+		if ((c0->writeformat != c1->readformat) || (c0->readformat != c1->writeformat)) {
+			if (ast_channel_make_compatible(c0, c1)) {
+				ast_log(LOG_WARNING, "Can't make %s and %s compatible\n", c0->name, c1->name);
+				return -1;
+			}
+		}
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
 			ast_log(LOG_WARNING, "Nobody there??\n"); 

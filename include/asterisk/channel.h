@@ -27,7 +27,7 @@ extern "C" {
 
 #ifdef DEBUG_THREADS
 
-#define TRIES 500
+#define TRIES 50
 
 #include <errno.h>
 #include <string.h>
@@ -136,6 +136,9 @@ struct ast_channel {
 	char exten[AST_MAX_EXTENSION];		/* Current extension number */
 	int priority;						/* Current extension priority */
 	void *app[AST_CHANNEL_MAX_STACK];	/* Application information -- see assigned numbers */
+	char dtmfq[AST_MAX_EXTENSION];		/* Any/all queued DTMF characters */
+	int deferdtmf;						/* Are DTMF digits being deferred */
+	struct ast_frame dtmff;				/* DTMF frame */
 	struct ast_channel_pvt *pvt;
 						/* Private channel implementation details */
 	jmp_buf jmp[AST_CHANNEL_MAX_STACK];		/* Jump buffer used for returning from applications */
@@ -202,6 +205,12 @@ int ast_indicate(struct ast_channel *chan, int condition);
   Returns < 0 on  failure, 0 if nothing ever arrived, and the # of ms remaining otherwise */
 int ast_waitfor(struct ast_channel *chan, int ms);
 
+/* Big momma function here.  Wait for activity on any of the n channels, or any of the nfds
+   file descriptors.  Returns the channel with activity, or NULL on error or if an FD
+   came first.  If the FD came first, it will be returned in outfd, otherwise, outfd
+   will be -1 */
+struct ast_channel *ast_waitfor_nandfds(struct ast_channel **chan, int n, int *fds, int nfds, int *exception, int *outfd, int *ms);
+
 /* Wait for input on an array of channels for a given # of milliseconds. Return channel
    with activity, or NULL if none has activity.  time "ms" is modified in-place, if applicable */
 
@@ -235,7 +244,8 @@ char ast_waitfordigit(struct ast_channel *c, int ms);
 
 /* Read in a digit string "s", max length "len", maximum timeout between 
    digits "timeout" (-1 for none), terminated by anything in "enders".  Give them rtimeout
-   for the first digit */
+   for the first digit.  Returns 0 on normal return, or 1 on a timeout.  In the case of
+   a timeout, any digits that were read before the timeout will still be available in s.  */
 int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int rtimeout, char *enders);
 
 #define AST_BRIDGE_DTMF_CHANNEL_0		(1 << 0)		/* Report DTMF on channel 0 */
@@ -274,6 +284,23 @@ int ast_channel_setoption(struct ast_channel *channel, int option, void *data, i
 
 /* Query the value of an option, optionally blocking until a reply is received */
 struct ast_frame *ast_channel_queryoption(struct ast_channel *channel, int option, void *data, int *datalen, int block);
+
+/* Returns 0 if channel does not support HTML or non-zero if it does */
+int ast_channel_supports_html(struct ast_channel *channel);
+
+/* Send HTML or URL on link.  Returns 0 on success or -1 on failure */
+int ast_channel_sendhtml(struct ast_channel *channel, int subclass, char *data, int datalen);
+
+/* Send URL on link.  Returns 0 on success or -1 on failure */
+int ast_channel_sendurl(struct ast_channel *channel, char *url);
+
+/* Defer DTMF so that you only read things like hangups and audio.  Returns
+   non-zero if channel was already DTMF-deferred or 0 if channel is just now
+   being DTMF-deferred */
+int ast_channel_defer_dtmf(struct ast_channel *chan);
+
+/* Undo defer.  ast_read will return any dtmf characters that were queued */
+void ast_channel_undefer_dtmf(struct ast_channel *chan);
 
 #ifdef DO_CRASH
 #define CRASH do { *((int *)0) = 0; } while(0)
