@@ -28,6 +28,7 @@
 #define DATE_FORMAT "%Y-%m-%d %T"
 
 /* #define CSV_LOGUNIQUEID 1 */
+/* #define CSV_LOGUSERFIELD 1 */
 
 #include <stdio.h>
 #include <string.h>
@@ -60,6 +61,7 @@
   "disposition",    	// ANSWERED, NO ANSWER, BUSY
   "amaflags",       	// DOCUMENTATION, BILL, IGNORE etc, specified on a per channel basis like accountcode.
   "uniqueid",           // unique call identifier
+  "userfield"		// user field set via SetCDRUserField
 */
 
 static char *desc = "Comma Separated Values CDR Backend";
@@ -126,6 +128,7 @@ static int append_date(char *buf, struct timeval tv, int len)
 
 static int build_csv_record(char *buf, int len, struct ast_cdr *cdr)
 {
+
 	buf[0] = '\0';
 	/* Account code */
 	append_string(buf, cdr->accountcode, len);
@@ -163,6 +166,10 @@ static int build_csv_record(char *buf, int len, struct ast_cdr *cdr)
 #ifdef CSV_LOGUNIQUEID
 	/* Unique ID */
 	append_string(buf, cdr->uniqueid, len);
+#endif
+#ifdef CSV_LOGUSERFIELD
+	/* append the user field */
+	append_string(buf, cdr->userfield,len);	
 #endif
 	/* If we hit the end of our buffer, log an error */
 	if (strlen(buf) < len - 5) {
