@@ -161,6 +161,7 @@ struct iax_user {
 	char inkeys[80];				/* Key(s) this user can use to authenticate to us */
 	int amaflags;
 	int hascallerid;
+	int delme;
 	char callerid[AST_MAX_EXTENSION];
 	struct ast_ha *ha;
 	struct iax_context *contexts;
@@ -1591,6 +1592,70 @@ static struct iax_peer *mysql_peer(char *peer)
 		p = NULL;
 	} else {
 		strncpy(p->name, peer, sizeof(p->name) - 1);
+		p->dynamic = 1;
+		p->delme = 1;
+		p->capability = iax_capability;
+		strcpy(p->methods, "md5,plaintext");
+	}
+	return p;
+}
+
+static struct iax_user *mysql_user(char *user)
+{
+	struct iax_user *p;
+	int success = 0;
+	
+	p = malloc(sizeof(struct iax_user));
+	memset(p, 0, sizeof(struct iax_user));
+	if (mysql && (strlen(user) < 128)) {
+		char query[512];
+		char *name;
+		int numfields, x;
+		int port;
+		time_t regseconds, nowtime;
+		MYSQL_RES *result;
+		MYSQL_FIELD *fields;
+		MYSQL_ROW rowval;
+		name = alloca(strlen(user) * 2 + 1);
+		mysql_real_escape_string(mysql, name, user, strlen(user));
+		snprintf(query, sizeof(query), "SELECT * FROM iax1friends WHERE name=\"%s\"", name);
+		ast_mutex_lock(&mysqllock);
+		mysql_query(mysql, query);
+		if ((result = mysql_store_result(mysql))) {
+			if ((rowval = mysql_fetch_row(result))) {
+				numfields = mysql_num_fields(result);
+				fields = mysql_fetch_fields(result);
+				success = 1;
+				for (x=0;x<numfields;x++) {
+					if (rowval[x]) {
+						if (!strcasecmp(fields[x].name, "secret")) {
+							strncpy(p->secret, rowval[x], sizeof(p->secret));
+						} else if (!strcasecmp(fields[x].name, "context")) {
+							strncpy(p->context, rowval[x], sizeof(p->context) - 1);
+						} else if (!strcasecmp(fields[x].name, "ipaddr")) {
+							inet_aton(rowval[x], &p->addr.sin_addr);
+						} else if (!strcasecmp(fields[x].name, "port")) {
+							if (sscanf(rowval[x], "%i", &port) != 1)
+								port = 0;
+							p->addr.sin_port = htons(port);
+						} else if (!strcasecmp(fields[x].name, "regseconds")) {
+							if (sscanf(rowval[x], "%li", &regseconds) != 1)
+								regseconds = 0;
+						}
+					}
+				}
+				time(&nowtime);
+				if ((nowtime - regseconds) > AST_DEFAULT_REG_EXPIRE) 
+					memset(&p->addr, 0, sizeof(p->addr));
+			}
+		}
+		ast_mutex_unlock(&mysqllock);
+	}
+	if (!success) {
+		free(p);
+		p = NULL;
+	} else {
+		strncpy(p->name, user, sizeof(p->name) - 1);
 		p->dynamic = 1;
 		p->delme = 1;
 		p->capability = iax_capability;

@@ -179,6 +179,7 @@ struct iax2_user {
 	char inkeys[80];				/* Key(s) this user can use to authenticate to us */
 	int amaflags;
 	int hascallerid;
+	int delme;
 	int capability;
 	int trunk;
 	char callerid[AST_MAX_EXTENSION];
