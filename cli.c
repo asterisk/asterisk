@@ -1107,7 +1107,7 @@ char **ast_cli_completion_matches(char *text, char *word)
 	prevstr = match_list[1];
 	max_equal = strlen(prevstr);
 	for (; which <= matches; which++) {
-		for (i = 0; i < max_equal && prevstr[i] == match_list[which][i]; i++)
+		for (i = 0; i < max_equal && toupper(prevstr[i]) == toupper(match_list[which][i]); i++)
 			continue;
 		max_equal = i;
 	}
