@@ -328,10 +328,11 @@ static int action_status(struct mansession *s, struct message *m)
 			"Extension: %s\r\n"
 			"Priority: %d\r\n"
 			"%s"
-			"\r\n",
+			"\r\n"
+			"Uniqueid: %s\r\n",
 			c->name, c->callerid ? c->callerid : "<unknown>", 
 			ast_state2str(c->_state), c->context,
-			c->exten, c->priority, bridge);
+			c->exten, c->priority, bridge, c->uniqueid);
 		} else {
 			ast_cli(s->fd,
 			"Event: Status\r\n"
@@ -339,9 +340,10 @@ static int action_status(struct mansession *s, struct message *m)
 			"CallerID: %s\r\n"
 			"State: %s\r\n"
 			"%s"
-			"\r\n",
+			"\r\n"
+			"Uniqueid: %s\r\n",
 			c->name, c->callerid ? c->callerid : "<unknown>", 
-			ast_state2str(c->_state), bridge);
+			ast_state2str(c->_state), bridge, c->uniqueid);
 		}
 		c = ast_channel_walk(c);
 	}

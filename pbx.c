@@ -1670,8 +1670,9 @@ int ast_pbx_run(struct ast_channel *c)
 				"Channel: %s\r\n"
 				"Context: %s\r\n"
 				"Extension: %s\r\n"
-				"Priority: %d\r\n",
-				c->name, c->context, c->exten, c->priority);			
+				"Priority: %d\r\n"
+				"Uniqueid: %s\r\n",
+				c->name, c->context, c->exten, c->priority, c->uniqueid);
 			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->callerid))) {
 				/* Something bad happened, or a hangup has been requested. */
 				if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F')) ||

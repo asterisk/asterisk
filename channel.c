@@ -670,8 +670,9 @@ int ast_hangup(struct ast_channel *chan)
 			
 	ast_pthread_mutex_unlock(&chan->lock);
 	manager_event(EVENT_FLAG_CALL, "Hangup", 
-			"Channel: %s\r\n",
-			chan->name);
+			"Channel: %s\r\n"
+			"Uniqueid: %s\r\n",
+			chan->name, chan->uniqueid);
 	ast_channel_free(chan);
 	return res;
 }
@@ -1491,8 +1492,9 @@ struct ast_channel *ast_request(char *type, int format, void *data)
 				manager_event(EVENT_FLAG_CALL, "Newchannel",
 				"Channel: %s\r\n"
 				"State: %s\r\n"
-				"Callerid: %s\r\n",
-				c->name, ast_state2str(c->_state), c->callerid ? c->callerid : "<unknown>");
+				"Callerid: %s\r\n"
+				"Uniqueid: %s\r\n",
+				c->name, ast_state2str(c->_state), c->callerid ? c->callerid : "<unknown>", c->uniqueid);
 			}
 			return c;
 		}
@@ -1775,7 +1777,7 @@ void ast_change_name(struct ast_channel *chan, char *newname)
 	char tmp[256];
 	strncpy(tmp, chan->name, 256);
 	strncpy(chan->name, newname, sizeof(chan->name) - 1);
-	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\n", tmp, chan->name);
+	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", tmp, chan->name, chan->uniqueid);
 }
 
 static int ast_do_masquerade(struct ast_channel *original)
@@ -1960,9 +1962,11 @@ void ast_set_callerid(struct ast_channel *chan, char *callerid, int anitoo)
 		ast_cdr_setcid(chan->cdr, chan);
 	manager_event(EVENT_FLAG_CALL, "Newcallerid", 
 				"Channel: %s\r\n"
-				"Callerid: %s\r\n",
+				"Callerid: %s\r\n"
+				"Uniqueid: %s\r\n",
 				chan->name, chan->callerid ? 
-				chan->callerid : "<Unknown>");
+				chan->callerid : "<Unknown>",
+				chan->uniqueid);
 }
 
 int ast_setstate(struct ast_channel *chan, int state)
@@ -1975,14 +1979,16 @@ int ast_setstate(struct ast_channel *chan, int state)
 			manager_event(EVENT_FLAG_CALL, "Newchannel",
 			"Channel: %s\r\n"
 			"State: %s\r\n"
-			"Callerid: %s\r\n",
-			chan->name, ast_state2str(chan->_state), chan->callerid ? chan->callerid : "<unknown>");
+			"Callerid: %s\r\n"
+			"Uniqueid: %s\r\n",
+			chan->name, ast_state2str(chan->_state), chan->callerid ? chan->callerid : "<unknown>", chan->uniqueid);
 		} else {
 			manager_event(EVENT_FLAG_CALL, "Newstate", 
 				"Channel: %s\r\n"
 				"State: %s\r\n"
-				"Callerid: %s\r\n",
-				chan->name, ast_state2str(chan->_state), chan->callerid ? chan->callerid : "<unknown>");
+				"Callerid: %s\r\n"
+				"Uniqueid: %s\r\n",
+				chan->name, ast_state2str(chan->_state), chan->callerid ? chan->callerid : "<unknown>", chan->uniqueid);
 		}
 	}
 	return 0;
