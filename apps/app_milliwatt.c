@@ -76,6 +76,8 @@ static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int
 	wf.datalen = len;
 	wf.samples = wf.datalen;
 	wf.src = "app_milliwatt";
+	wf.delivery.tv_sec = 0;
+	wf.delivery.tv_usec = 0;
 	/* create a buffer containing the digital milliwatt pattern */
 	for(i = 0; i < len; i++)
 	{
