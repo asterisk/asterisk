@@ -2653,10 +2653,12 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 		case ZT_EVENT_ALARM:
 #ifdef ZAPATA_PRI
 #ifdef PRI_DESTROYCALL
-			if (p->call && p->pri && p->pri->pri)
-				pri_destroycall(p->pri->pri, p->call);
-			else
-				ast_log(LOG_WARNING, "The PRI Call have not been destroyed\n");
+			if (p->call) {
+				if (p->pri && p->pri->pri)
+					pri_destroycall(p->pri->pri, p->call);
+				else
+					ast_log(LOG_WARNING, "The PRI Call have not been destroyed\n");
+			}
 			p->call = NULL;
 #else
 #error Please "cvs update" and recompile libpri
@@ -5120,7 +5122,11 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 					/* Hang it up to be sure it's good */
 					zt_set_hook(tmp->subs[SUB_REAL].zfd, ZT_ONHOOK);
 			}
-			tmp->inalarm = 0;
+			/* the dchannel is down so put the channel in alarm */
+			if (tmp->pri && tmp->pri->up == 0) {
+				tmp->inalarm = 1;
+			else
+				tmp->inalarm = 0;
 			memset(&si, 0, sizeof(si));
 			if (ioctl(tmp->subs[SUB_REAL].zfd,ZT_SPANSTAT,&si) == -1) {
 				ast_log(LOG_ERROR, "Unable to get span status: %s\n", strerror(errno));
@@ -5522,6 +5528,7 @@ static void *pri_dchannel(void *vpri)
 	struct ast_channel *idle;
 	pthread_t p;
 	time_t t;
+	int i;
 	gettimeofday(&lastidle, NULL);
 	if (strlen(pri->idledial) && strlen(pri->idleext)) {
 		/* Need to do idle dialing, check to be sure though */
@@ -5677,12 +5684,31 @@ static void *pri_dchannel(void *vpri)
 				pri->lastreset -= RESET_INTERVAL;
 				pri->lastreset += 5;
 				pri->resetting = 0;
+				/* Take the channels from inalarm condition */
+				for (i=0; i<=pri->channels; i++)
+					if (pri->pvt[i]) {
+						pri->pvt[i]->inalarm = 0;
+					}
 				break;
 			case PRI_EVENT_DCHAN_DOWN:
 				if (option_verbose > 1) 
 					ast_verbose(VERBOSE_PREFIX_2 "D-Channel on span %d down\n", pri->span);
 				pri->up = 0;
 				pri->resetting = 0;
+				/* Hangup active channels and put them in alarm mode */
+				for (i=0; i<=pri->channels; i++) {
+					struct zt_pvt *p = pri->pvt[i];
+					if (p) {
+						if (p->call) {
+							if (p->pri && p->pri->pri)
+								pri_destroycall(p->pri->pri, p->call);
+							else
+								ast_log(LOG_WARNING, "The PRI Call have not been destroyed on channel %s\n",p->owner->name);
+						}
+						p->call = NULL;
+						p->inalarm = 1;
+					}
+				}
 				break;
 			case PRI_EVENT_RESTART:
 				chan = e->restart.channel;
@@ -6149,7 +6175,7 @@ static int start_pri(struct zt_pri *pri)
 	if (p.sigtype != ZT_SIG_HDLCFCS) {
 		close(pri->fd);
 		pri->fd = -1;
-		ast_log(LOG_ERROR, "D-channel %x is not in HDLC/FCS mode.  See /etc/tormenta.conf\n", x);
+		ast_log(LOG_ERROR, "D-channel %d is not in HDLC/FCS mode.  See /etc/tormenta.conf\n", x);
 		return -1;
 	}
 	bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
