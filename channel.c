@@ -630,8 +630,8 @@ int ast_hangup(struct ast_channel *chan)
 	/* If this channel is one which will be masqueraded into something, 
 	   mark it as a zombie already, so we know to free it later */
 	if (chan->masqr) {
-		ast_mutex_unlock(&chan->lock);
 		chan->zombie=1;
+		ast_mutex_unlock(&chan->lock);
 		return 0;
 	}
 	free_translation(chan);
