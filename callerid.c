@@ -26,6 +26,7 @@
 #include <asterisk/callerid.h>
 #include <asterisk/logger.h>
 #include <asterisk/fskmodem.h>
+#include <asterisk/utils.h>
 
 struct callerid_state {
 	fsk_data fskd;
@@ -291,14 +292,14 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 				if (!strcmp(cid->number, "P")) {
 					strcpy(cid->number, "");
 					cid->flags |= CID_PRIVATE_NUMBER;
-				} else if (!strcmp(cid->number, "O") || !strlen(cid->number)) {
+				} else if (!strcmp(cid->number, "O") || ast_strlen_zero(cid->number)) {
 					strcpy(cid->number, "");
 					cid->flags |= CID_UNKNOWN_NUMBER;
 				}
 				if (!strcmp(cid->name, "P")) {
 					strcpy(cid->name, "");
 					cid->flags |= CID_PRIVATE_NAME;
-				} else if (!strcmp(cid->name, "O") || !strlen(cid->name)) {
+				} else if (!strcmp(cid->name, "O") || ast_strlen_zero(cid->name)) {
 					strcpy(cid->name, "");
 					cid->flags |= CID_UNKNOWN_NAME;
 				}
@@ -341,7 +342,7 @@ static int callerid_genmsg(char *msg, int size, char *number, char *name, int fl
 				tm.tm_mday, tm.tm_hour, tm.tm_min);
 	size -= res;
 	ptr += res;
-	if (!number || !strlen(number) || (flags & CID_UNKNOWN_NUMBER)) {
+	if (!number || ast_strlen_zero(number) || (flags & CID_UNKNOWN_NUMBER)) {
 		/* Indicate number not known */
 		res = snprintf(ptr, size, "\004\001O");
 		size -= res;
@@ -365,7 +366,7 @@ static int callerid_genmsg(char *msg, int size, char *number, char *name, int fl
 		size -= i;
 	}
 
-	if (!name || !strlen(name) || (flags & CID_UNKNOWN_NAME)) {
+	if (!name || ast_strlen_zero(name) || (flags & CID_UNKNOWN_NAME)) {
 		/* Indicate name not known */
 		res = snprintf(ptr, size, "\010\001O");
 		size -= res;
@@ -508,7 +509,7 @@ void ast_shrink_phone_number(char *n)
 int ast_isphonenumber(char *n)
 {
 	int x;
-	if (!n || !strlen(n))
+	if (!n || ast_strlen_zero(n))
 		return 0;
 	for (x=0;n[x];x++)
 		if (!strchr("0123456789*#+", n[x]))
@@ -537,7 +538,7 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 		} else {
 			/* Just trim off any trailing spaces */
 			*name = instr;
-			while(strlen(instr) && (instr[strlen(instr) - 1] < 33))
+			while(!ast_strlen_zero(instr) && (instr[strlen(instr) - 1] < 33))
 				instr[strlen(instr) - 1] = '\0';
 			/* And leading spaces */
 			while(**name && (**name < 33))
