@@ -2210,7 +2210,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		pvt->aseqno = fr->iseqno;
 		fh->type = fr->af.frametype & 0xFF;
 		if (fr->af.frametype == AST_FRAME_VIDEO)
-			fh->csub = compress_subclass(fr->af.subclass & ~0x1) | (fr->af.subclass & 0x1);
+			fh->csub = compress_subclass(fr->af.subclass & ~0x1) | ((fr->af.subclass & 0x1) << 6);
 		else
 			fh->csub = compress_subclass(fr->af.subclass);
 		if (transfer) {
@@ -3696,7 +3696,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		/* Retrieve the type and subclass */
 		f.frametype = fh->type;
 		if (f.frametype == AST_FRAME_VOICE) {
-			f.subclass = uncompress_subclass(fh->csub & ~0x1) | (fh->csub & 0x1);
+			f.subclass = uncompress_subclass(fh->csub & ~0x40) | ((fh->csub & 0x40) >> 6);
 		} else {
 			f.subclass = uncompress_subclass(fh->csub);
 		}

@@ -51,6 +51,7 @@ static char *descrip =
 "      'p' -- allow user to exit the conference by pressing '#'\n"
 "      's' -- send user to admin/user menu if '*' is received\n"
 "      't' -- set talk only mode\n"
+"      'v' -- video mode\n"
 "      'q' -- quiet mode (don't play enter/leave sounds)\n";
 
 static char *descrip2 =
@@ -87,6 +88,7 @@ static pthread_mutex_t conflock = AST_MUTEX_INITIALIZER;
 #define CONFFLAG_STARMENU (1 << 4)	/* If set asterisk will provide a menu to the user what '*' is pressed */
 #define CONFFLAG_TALKER (1 << 5)	/* If set the use can only send audio to the conference */
 #define CONFFLAG_QUIET (1 << 6)		/* If set there will be no enter or leave sounds */
+#define CONFFLAG_VIDEO (1 << 7)		/* Set to enable video mode */
 
 static int careful_write(int fd, unsigned char *data, int len)
 {
@@ -234,6 +236,7 @@ static int conf_run(struct ast_channel *chan, struct conf *conf, int confflags)
 	int origfd;
 	int firstpass = 0;
 	int ret = -1;
+	int x;
 
 	ZT_BUFFERINFO bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
@@ -243,17 +246,31 @@ static int conf_run(struct ast_channel *chan, struct conf *conf, int confflags)
 		if (!ast_streamfile(chan, "conf-onlyperson", chan->language))
 			ast_waitstream(chan, "");
 	}
-	
-	/* Set it into U-law mode (write) */
-	if (ast_set_write_format(chan, AST_FORMAT_ULAW) < 0) {
-		ast_log(LOG_WARNING, "Unable to set '%s' to write ulaw mode\n", chan->name);
-		goto outrun;
-	}
 
-	/* Set it into U-law mode (read) */
-	if (ast_set_read_format(chan, AST_FORMAT_ULAW) < 0) {
-		ast_log(LOG_WARNING, "Unable to set '%s' to read ulaw mode\n", chan->name);
-		goto outrun;
+	if (confflags & CONFFLAG_VIDEO) {	
+		/* Set it into linear mode (write) */
+		if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
+			ast_log(LOG_WARNING, "Unable to set '%s' to write linear mode\n", chan->name);
+			goto outrun;
+		}
+
+		/* Set it into linear mode (read) */
+		if (ast_set_read_format(chan, AST_FORMAT_SLINEAR) < 0) {
+			ast_log(LOG_WARNING, "Unable to set '%s' to read linear mode\n", chan->name);
+			goto outrun;
+		}
+	} else {
+		/* Set it into U-law mode (write) */
+		if (ast_set_write_format(chan, AST_FORMAT_ULAW) < 0) {
+			ast_log(LOG_WARNING, "Unable to set '%s' to write ulaw mode\n", chan->name);
+			goto outrun;
+		}
+
+		/* Set it into U-law mode (read) */
+		if (ast_set_read_format(chan, AST_FORMAT_ULAW) < 0) {
+			ast_log(LOG_WARNING, "Unable to set '%s' to read ulaw mode\n", chan->name);
+			goto outrun;
+		}
 	}
 	ast_indicate(chan, -1);
 	retryzap = strcasecmp(chan->type, "Zap");
@@ -287,6 +304,14 @@ zapretry:
 			ast_log(LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
 			close(fd);
 			goto outrun;
+		}
+		if (confflags & CONFFLAG_VIDEO) {	
+			x = 1;
+			if (ioctl(fd, ZT_SETLINEAR, &x)) {
+				ast_log(LOG_WARNING, "Unable to set linear mode: %s\n", strerror(errno));
+				close(fd);
+				goto outrun;
+			}
 		}
 		nfds = 1;
 	} else {
