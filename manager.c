@@ -361,6 +361,10 @@ static int action_status(struct mansession *s, struct message *m)
 		}
 		c = ast_channel_walk(c);
 	}
+	ast_cli(s->fd,
+	"Event: StatusComplete\r\n"
+	"%s"
+	"\r\n",idText);
 	return 0;
 }
 
