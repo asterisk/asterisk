@@ -599,7 +599,7 @@ static ast_mutex_t devicelock = AST_MUTEX_INITIALIZER;
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
-static pthread_t monitor_thread = 0;
+static pthread_t monitor_thread = AST_PTHREADT_NULL;
 
 /* Wait up to 16 seconds for first digit */
 static int firstdigittimeout = 16000;
@@ -2415,7 +2415,7 @@ static int restart_monitor(void)
 {
 
 	/* If we're supposed to be stopped -- stay stopped */
-	if (monitor_thread == (pthread_t)-2)
+	if (monitor_thread == AST_PTHREADT_STOP)
 		return 0;
 	if (ast_mutex_lock(&monlock)) {
 		ast_log(LOG_WARNING, "Unable to lock monitor\n");
@@ -2718,12 +2718,12 @@ int unload_module()
 		return -1;
 	}
 	if (!ast_mutex_lock(&monlock)) {
-		if (monitor_thread && (monitor_thread != -2)) {
+		if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP)) {
 			pthread_cancel(monitor_thread);
 			pthread_kill(monitor_thread, SIGURG);
 			pthread_join(monitor_thread, NULL);
 		}
-		monitor_thread = -2;
+		monitor_thread = AST_PTHREADT_STOP;
 		ast_mutex_unlock(&monlock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");

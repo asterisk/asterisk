@@ -34,7 +34,7 @@
 #include <signal.h>
 #include <sched.h>
 #include <asterisk/io.h>
-#include <pthread.h>
+#include <asterisk/lock.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/select.h>
@@ -109,7 +109,7 @@ char ast_config_AST_RUN_DIR[AST_CONFIG_MAX_PATH];
 static char *_argv[256];
 static int shuttingdown = 0;
 static int restartnow = 0;
-static pthread_t consolethread = (pthread_t) -1;
+static pthread_t consolethread = AST_PTHREADT_NULL;
 
 int ast_register_atexit(void (*func)(void))
 {
@@ -544,7 +544,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		restartnow = 1;
 		/* If there is a consolethread running send it a SIGHUP 
 		   so it can execvp, otherwise we can do it ourselves */
-		if (consolethread != (pthread_t) -1) {
+		if (consolethread != AST_PTHREADT_NULL) {
 			pthread_kill(consolethread, SIGHUP);
 			/* Give the signal handler some time to complete */
 			sleep(2);
@@ -591,7 +591,7 @@ static void console_verboser(const char *s, int pos, int replace, int complete)
 	fflush(stdout);
 	if (complete)
 	/* Wake up a select()ing console */
-		if (option_console && consolethread != (pthread_t) -1)
+		if (option_console && consolethread != AST_PTHREADT_NULL)
 			pthread_kill(consolethread, SIGURG);
 }
 
