@@ -53,6 +53,7 @@ static struct permalias {
 	{ EVENT_FLAG_VERBOSE, "verbose" },
 	{ EVENT_FLAG_COMMAND, "command" },
 	{ EVENT_FLAG_AGENT, "agent" },
+	{ EVENT_FLAG_USER, "user" },
 	{ -1, "all" },
 };
 
