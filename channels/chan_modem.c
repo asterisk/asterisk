@@ -59,6 +59,12 @@ static char initstr[AST_MAX_INIT_STR] = "ATE0Q0";
 /* Default MSN */
 static char msn[AST_MAX_EXTENSION]="";
 
+/* Default Listen */
+static char incomingmsn[AST_MAX_EXTENSION]="";
+
+/* Default group */
+static unsigned int cur_group = 0;
+
 static int usecnt =0;
 
 static int baudrate = 115200;
@@ -91,8 +97,8 @@ static int modem_digit(struct ast_channel *ast, char digit)
 	p = ast->pvt->pvt;
 	if (p->mc->dialdigit)
 		return p->mc->dialdigit(p, digit);
-	else ast_log(LOG_DEBUG, "Channel %s lacks digit dialing\n", ast->name);
-	return 0;
+	ast_log(LOG_DEBUG, "Channel %s lacks digit dialing\n", ast->name);
+	return -1;
 }
 
 static struct ast_modem_driver *drivers = NULL;
@@ -162,13 +168,14 @@ int ast_unregister_modem_driver(struct ast_modem_driver *mc)
 
 static int modem_call(struct ast_channel *ast, char *idest, int timeout)
 {
-	static int modem_hangup(struct ast_channel *ast);
 	struct ast_modem_pvt *p;
 	int ms = timeout;
 	char rdest[80], *where, dstr[100];
+	char *stringp=NULL;
 	strncpy(rdest, idest, sizeof(rdest)-1);
-	strtok(rdest, ":");
-	where = strtok(NULL, ":");
+	stringp=rdest;
+	strsep(&stringp, ":");
+	where = strsep(&stringp, ":");
 	if (!where) {
 		ast_log(LOG_WARNING, "Destination %s requres a real destination (device:destination)\n", idest);
 		return -1;
@@ -473,6 +480,12 @@ static int modem_write(struct ast_channel *ast, struct ast_frame *frame)
 	long flags;
 	struct ast_modem_pvt *p = ast->pvt->pvt;
 
+	/* Modems tend to get upset when they receive data whilst in
+	 * command mode. This makes esp. dial commands short lived.
+	 *     Pauline Middelink - 2002-09-24 */
+	if (ast->_state != AST_STATE_UP)
+		return 0;
+
 	/* Temporarily make non-blocking */
 	flags = fcntl(ast->fds[0], F_GETFL);
 	fcntl(ast->fds[0], F_SETFL, flags | O_NONBLOCK);
@@ -692,6 +705,7 @@ static struct ast_modem_pvt *mkif(char *iface)
 		}
 		strncpy(tmp->language, language, sizeof(tmp->language)-1);
 		strncpy(tmp->msn, msn, sizeof(tmp->msn)-1);
+		strncpy(tmp->incomingmsn, incomingmsn, sizeof(tmp->incomingmsn)-1);
 		strncpy(tmp->dev, iface, sizeof(tmp->dev)-1);
 		/* Maybe in the future we want to allow variable
 		   serial settings */
@@ -709,6 +723,7 @@ static struct ast_modem_pvt *mkif(char *iface)
 		tmp->stripmsd = stripmsd;
 		tmp->dialtype = dialtype;
 		tmp->mode = gmode;
+		tmp->group = cur_group;
 		memset(tmp->cid, 0, sizeof(tmp->cid));
 		strncpy(tmp->context, context, sizeof(tmp->context)-1);
 		strncpy(tmp->initstr, initstr, sizeof(tmp->initstr)-1);
@@ -730,9 +745,22 @@ static struct ast_channel *modem_request(char *type, int format, void *data)
 	struct ast_modem_pvt *p;
 	struct ast_channel *tmp = NULL;
 	char dev[80];
+	unsigned int group = 0;
+	char *stringp=NULL;
 	strncpy(dev, (char *)data, sizeof(dev)-1);
-	strtok(dev, ":");
+	stringp=dev;
+	strsep(&stringp, ":");
 	oldformat = format;
+
+	if (dev[0]=='g' && isdigit(dev[1])) {
+		/* Retrieve the group number */
+		if (sscanf(dev+1, "%u", &group) < 1) {
+			ast_log(LOG_WARNING, "Unable to determine group from [%s]\n", (char *)data);
+			return NULL;
+		}
+		group = 1 << group;
+	}
+
 	/* Search for an unowned channel */
 	if (ast_pthread_mutex_lock(&iflock)) {
 		ast_log(LOG_ERROR, "Unable to lock interface list???\n");
@@ -740,17 +768,31 @@ static struct ast_channel *modem_request(char *type, int format, void *data)
 	}
 	p = iflist;
 	while(p) {
-		if (!strcmp(dev, p->dev + 5)) {
-			if (p->mc->formats & format) {
-				if (!p->owner) {
-					tmp = ast_modem_new(p, AST_STATE_DOWN);
-					restart_monitor();
-					break;
-				} else
-					ast_log(LOG_WARNING, "Device '%s' is busy\n", p->dev);
-			} else 
-				ast_log(LOG_WARNING, "Asked for a format %d line on %s\n", format, p->dev);
-			break;
+		if (group) {
+			/* if it belongs to the proper group, and the format matches
+			 * and it is not in use, we found a candidate! */
+			if (p->group & group &&
+			    p->mc->formats & format &&
+			    !p->owner) {
+				/* XXX Not quite sure that not having an owner is
+				 * sufficient evidence of beeing a free device XXX */
+				tmp = ast_modem_new(p, AST_STATE_DOWN);
+				restart_monitor();
+				break;
+			}
+		} else {
+			if (!strcmp(dev, p->dev + 5)) {
+				if (p->mc->formats & format) {
+					if (!p->owner) {
+						tmp = ast_modem_new(p, AST_STATE_DOWN);
+						restart_monitor();
+						break;
+					} else
+						ast_log(LOG_WARNING, "Device '%s' is busy\n", p->dev);
+				} else 
+					ast_log(LOG_WARNING, "Asked for a format %d line on %s\n", format, p->dev);
+				break;
+			}
 		}
 		p = p->next;
 	}
@@ -759,6 +801,42 @@ static struct ast_channel *modem_request(char *type, int format, void *data)
 	
 	ast_pthread_mutex_unlock(&iflock);
 	return tmp;
+}
+
+static unsigned int get_group(char *s)
+{
+	char *piece;
+	int start, finish,x;
+	unsigned int group = 0;
+	char *copy = strdupa(s);
+	char *stringp=NULL;
+	if (!copy) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		return 0;
+	}
+	stringp=copy;
+	piece = strsep(&stringp, ",");
+	while(piece) {
+		if (sscanf(piece, "%d-%d", &start, &finish) == 2) {
+			/* Range */
+		} else if (sscanf(piece, "%d", &start)) {
+			/* Just one */
+			finish = start;
+		} else {
+			ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'.  Using '0'\n", s,piece);
+			return 0;
+		}
+		piece = strsep(&stringp, ",");
+
+		for (x=start;x<=finish;x++) {
+			if ((x > 31) || (x < 0)) {
+				ast_log(LOG_WARNING, "Ignoring invalid group %d\n", x);
+				break;
+			}
+			group |= (1 << x);
+		}
+	}
+	return group;
 }
 
 int load_module()
@@ -793,7 +871,6 @@ int load_module()
 					ast_destroy(cfg);
 					ast_pthread_mutex_unlock(&iflock);
 					unload_module();
-					ast_pthread_mutex_unlock(&iflock);
 					return -1;
 				}
 		} else if (!strcasecmp(v->name, "driver")) {
@@ -829,8 +906,12 @@ int load_module()
 			strncpy(context, v->value, sizeof(context)-1);
 		} else if (!strcasecmp(v->name, "msn")) {
 			strncpy(msn, v->value, sizeof(msn)-1);
+		} else if (!strcasecmp(v->name, "incomingmsn")) {
+			strncpy(incomingmsn, v->value, sizeof(incomingmsn)-1);
 		} else if (!strcasecmp(v->name, "language")) {
 			strncpy(language, v->value, sizeof(language)-1);
+		} else if (!strcasecmp(v->name, "group")) {
+			cur_group = get_group(v->value);
 		}
 		v = v->next;
 	}
