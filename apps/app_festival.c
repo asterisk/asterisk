@@ -106,6 +106,10 @@ static int send_waveform_to_fd(char *waveform, int length, int fd) {
 
         int res;
         int x;
+#ifdef __PPC__ 
+	char c;
+#endif
+
         res = fork();
         if (res < 0)
                 ast_log(LOG_WARNING, "Fork failed\n");
@@ -115,6 +119,16 @@ static int send_waveform_to_fd(char *waveform, int length, int fd) {
                 if (x != fd)
                         close(x);
         }
+//IAS
+#ifdef __PPC__  
+	for( x=0; x<length; x+=2)
+	{
+		c = *(waveform+x+1);
+		*(waveform+x+1)=*(waveform+x);
+		*(waveform+x)=c;
+	}
+#endif
+	
 	write(fd,waveform,length);
 	write(fd,"a",1);
 	close(fd);
