@@ -5758,6 +5758,10 @@ static void *pri_dchannel(void *vpri)
 							ast_verbose(VERBOSE_PREFIX_3 "B-channel %d restarted on span %d\n", 
 								chan, pri->span);
 						ast_mutex_lock(&pri->pvt[chan]->lock);
+						if (pri->pvt[chan]->call) {
+							pri_destroycall(pri->pri, pri->pvt[chan]->call);
+							pri->pvt[chan]->call = NULL;
+						}
 						/* Force soft hangup if appropriate */
 						if (pri->pvt[chan]->owner)
 							pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
@@ -5769,6 +5773,10 @@ static void *pri_dchannel(void *vpri)
 					for (x=1;x <= pri->channels;x++)
 						if ((x != pri->dchannel) && pri->pvt[x]) {
 							ast_mutex_lock(&pri->pvt[x]->lock);
+							if (pri->pvt[x]->call) {
+								pri_destroycall(pri->pri, pri->pvt[x]->call);
+								pri->pvt[x]->call = NULL;
+							}
  							if (pri->pvt[x]->owner)
 								pri->pvt[x]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							ast_mutex_unlock(&pri->pvt[x]->lock);
@@ -5800,6 +5808,7 @@ static void *pri_dchannel(void *vpri)
 				}
 				if (chan) {
 					if (e->e==PRI_EVENT_RING) {
+						pri->pvt[chan]->call = e->ring.call;
 						/* Get caller ID */
 						if (pri->pvt[chan]->use_callerid) {
 							if (strlen(e->ring.callingname)) {
@@ -5877,19 +5886,17 @@ static void *pri_dchannel(void *vpri)
 						if (res < 0)
 							ast_log(LOG_WARNING, "Unable to set gains on channel %d\n", pri->pvt[chan]->channel);
 						/* Start PBX */
-						pri->pvt[chan]->call = e->ring.call;
+						if (e->ring.complete || !pri->overlapdial) {
+							pri_acknowledge(pri->pri, e->ring.call, chan, 1);
+						} else if (e->e==PRI_EVENT_RING) {
+						/* If we got here directly and didn't send the SETUP_ACKNOWLEDGE we need to send it otherwise we don't sent anything */
+							pri_need_more_info(pri->pri, e->ring.call, chan, 1);
+						}
 						c = zt_new(pri->pvt[chan], AST_STATE_RING, 1, SUB_REAL, law);
 						if (c) {
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Accepting call from '%s' to '%s' on channel %d, span %d\n",
 									e->ring.callingnum, pri->pvt[chan]->exten, chan, pri->span);
-							if (!pri->overlapdial) {
-								pri_acknowledge(pri->pri, e->ring.call, chan, 1);
-							}
-							/* If we got here directly and didn't send the SETUP_ACKNOWLEDGE we need to send it otherwise we don't sent anything */
-							else if (e->e==PRI_EVENT_RING) {
-								pri_need_more_info(pri->pri, e->ring.call, chan, 1);
-							}
 							zt_enable_ec(pri->pvt[chan]);
 						} else {
 							ast_log(LOG_WARNING, "Unable to start PBX on channel %d, span %d\n", chan, pri->span);
@@ -5901,7 +5908,7 @@ static void *pri_dchannel(void *vpri)
 							pri->pvt[chan]->call = 0;
 						}
 					} else {
-						if (!strlen(pri->pvt[chan]->exten) || ast_matchmore_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid))
+						if ((!strlen(pri->pvt[chan]->exten) || ast_matchmore_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid)) && !e->ring.complete)
 						{
 							/* Send SETUP_ACKNOWLEDGE only when we receive SETUP, don't send if we got INFORMATION */
 							if (e->e==PRI_EVENT_RING) pri_need_more_info(pri->pri, e->ring.call, chan, 1);
@@ -6079,6 +6086,9 @@ static void *pri_dchannel(void *vpri)
 							pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							if (option_verbose > 2) 
 								ast_verbose(VERBOSE_PREFIX_3 "Channel %d, span %d got hangup\n", chan, pri->span);
+						} else {
+							pri_hangup(pri->pri, pri->pvt[chan]->call, e->hangup.cause);
+							pri->pvt[chan]->call = NULL;
 						}
 						if (e->hangup.cause == PRI_CAUSE_REQUESTED_CHAN_UNAVAIL) {
 							if (option_verbose > 2)
