@@ -19,6 +19,7 @@
 #include <asterisk/module.h>
 #include <asterisk/config.h>
 #include <asterisk/app.h>
+#include <asterisk/musiconhold.h>
 #include <asterisk/options.h>
 #include <asterisk/cli.h>
 #include <asterisk/say.h>
@@ -54,6 +55,7 @@ static char *descrip =
 "      'd' -- dynamically add conference\n"
 "      'v' -- video mode\n"
 "      'q' -- quiet mode (don't play enter/leave sounds)\n"
+"      'M' -- enable music on hold when the conference has a single caller\n"
 "      'b' -- run AGI script specified in ${MEETME_AGI_BACKGROUND} (Zap channels only)\n"
 "             (does not work with non-Zap channels in the same conference)\n";
 
@@ -94,6 +96,7 @@ static ast_mutex_t conflock = AST_MUTEX_INITIALIZER;
 #define CONFFLAG_QUIET (1 << 6)		/* If set there will be no enter or leave sounds */
 #define CONFFLAG_VIDEO (1 << 7)		/* Set to enable video mode */
 #define CONFFLAG_AGI (1 << 8)		/* Set to run AGI Script in Background */
+#define CONFFLAG_MOH (1 << 9)		/* Set to have music on hold when */
 
 
 static int careful_write(int fd, unsigned char *data, int len)
@@ -240,6 +243,7 @@ static int conf_run(struct ast_channel *chan, struct conf *conf, int confflags)
 	int flags;
 	int retryzap;
 	int origfd;
+	int musiconhold = 0;
 	int firstpass = 0;
 	int ret = -1;
 	int x;
@@ -251,7 +255,7 @@ static int conf_run(struct ast_channel *chan, struct conf *conf, int confflags)
 	ZT_BUFFERINFO bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
-
+	
 	if (!(confflags & CONFFLAG_QUIET) && conf->users == 1) {
 		if (!ast_streamfile(chan, "conf-onlyperson", chan->language))
 			ast_waitstream(chan, "");
@@ -399,6 +403,22 @@ zapretry:
 		outfd = -1;
 		ms = -1;
 		c = ast_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
+		/* trying to add moh for single person conf */
+		if (confflags & CONFFLAG_MOH) {
+			if (conf->users == 1) {
+				if (musiconhold == 0) {
+					ast_moh_start(chan, NULL);
+					musiconhold = 1;
+				} 
+			} else {
+				if (musiconhold) {
+					ast_moh_stop(chan);
+					musiconhold = 0;
+				}
+			}
+		}
+		/* end modifications */
+
 		if (c) {
 			if (c->fds[0] != origfd) {
 				if (retryzap) {
@@ -604,6 +624,8 @@ static int conf_exec(struct ast_channel *chan, void *data)
 				confflags |= CONFFLAG_TALKER;
 			if (strchr(inflags, 'q'))
 				confflags |= CONFFLAG_QUIET;
+			if (strchr(inflags, 'M'))
+				confflags |= CONFFLAG_MOH;
 			if (strchr(inflags, 'b'))
 				confflags |= CONFFLAG_AGI;
 			if (strchr(inflags, 'd'))
