@@ -274,9 +274,9 @@ include => demo
 ; names, too and use global variables
 
 
-;exten => 6275,Macro(stdexten,6275,${MARK})			; assuming ${MARK} is something like Zap/2
+;exten => 6275,1,Macro(stdexten,6275,${MARK})			; assuming ${MARK} is something like Zap/2
 ;exten => mark,1,Goto(6275|1)						; alias mark to 6275
-;exten => 6236,Macro(stdexten,6236,${WIL})			; Ditto for wil
+;exten => 6236,1,Macro(stdexten,6236,${WIL})			; Ditto for wil
 ;exten => wil,1,Goto(6236|1)
 ;
 ; Some other handy things are an extension for checking voicemail via
