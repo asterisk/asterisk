@@ -1064,8 +1064,10 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		f = chan->pvt->readq;
 		chan->pvt->readq = f->next;
 		/* Interpret hangup and return NULL */
-		if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP))
+		if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP)) {
+			ast_frfree(f);
 			f = NULL;
+		}
 	} else {
 		chan->blocker = pthread_self();
 		if (chan->exception) {
