@@ -1069,11 +1069,11 @@ sms_exec(struct ast_channel *chan, void *data)
 			return -1;
 		}
 		for (p = d; *p && *p != '|'; p++);
-		if (p - d >= sizeof (h.queue)) {
+		if (p - d + 1 >= sizeof (h.queue)) {
 			ast_log (LOG_ERROR, "Queue name too long\n");
 			return -1;
 		}
-		strncpy(h.queue, d, p - d - 1);
+		strncpy(h.queue, d, p - d);
 		if (*p == '|')
 			p++;
 		d = p;
