@@ -60,16 +60,48 @@ info = !950/330,!1400/330,!1800/330,0
 
 [au]
 description = Australia
+;
+; Benjamin Wakefield - April 9, 2004
+; Tone definition source for AU was:
+; Australian Communications Industry Forum/Standards Australia
+; http://www.acif.org.au/__data/page/3303/S002_2001.pdf
+;
+; Normal Ring
 ringcadance = 400,200,400,2000
-dial = 425*25
-busy = 400/375,0/375
-ring = 425*25/400,0/200,425*25/400,0/2000
+; Distinctive Ring 1 - Forwarded Calls
+; 400,400,200,200,400,1400
+; Distinctive Ring 2 - Selective Ring 2 + Operator + Recall
+; 400,400,200,2000
+; Distinctive Ring 3 - Multiple Subscriber Number 1
+; 200,200,400,2200
+; Distinctive Ring 4 - Selective Ring 1 + Centrex
+; 400,2600
+; Distinctive Ring 5 - Selective Ring 3
+; 400,400,200,400,200,1400
+; Distinctive Ring 6 - Multiple Subscriber Number 2
+; 200,400,200,200,400,1600
+; Distinctive Ring 7 - Multiple Subscriber Number 3 + Data Privacy
+; 200,400,200,400,200,1600
+; Tones
+dial = 413+438
+busy = 425/375,0/375
+ring = 413+438/400,0/200,413+438/400,0/2000
 ; XXX Congestion: Should reduce by 10 db every other cadence XXX
-congestion = 400/375,0/375
-callwaiting = 425/100,0/100,525/100,0/4700
-dialrecall = !425*25/100!0/100,!425*25/100,!0/100,!425*25/100,!0/100,425*25
-record = 1400/425,0/14525
-info = 400/2500,0/500
+congestion = 425/375,0/375,420/375,0/375
+callwaiting = 425/200,0/200,425/200,0/4400
+dialrecall = 413+438
+; Record tone used for Call Intrusion/Recording or Conference
+record = !425/1000,!0/15000,425/360,0/15000
+info = 425/2500,0/500
+; Other Australian Tones
+; The STD "pips" indicate the call is not an untimed local call
+std = !525/100,!0/100,!525/100,!0/100,!525/100,!0/100,!525/100,!0/100,!525/100
+; Facility confirmation tone (eg. Call Forward Activated)
+facility = 425
+; Message Waiting "stutter" dialtone
+stutter = 413+438/100,0/40
+; Ringtone for calls to Telstra mobiles
+ringmobile = 400+450/400,0/200,400+450/400,0/2000
 
 [fr]
 description = France
