@@ -817,12 +817,14 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	} else
 		to = -1;
 
-	if (outgoing->musiconhold) {
-		moh=1;
-		ast_moh_start(chan, NULL);
-	} else if (outgoing->ringbackonly) {
-		ast_indicate(chan, AST_CONTROL_RINGING);
-		sentringing++;
+	if (outgoing) {
+		if (outgoing->musiconhold) {
+			moh=1;
+			ast_moh_start(chan, NULL);
+		} else if (outgoing->ringbackonly) {
+			ast_indicate(chan, AST_CONTROL_RINGING);
+			sentringing++;
+		}
 	}
 
 	peer = wait_for_answer(chan, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect, &sentringing);
