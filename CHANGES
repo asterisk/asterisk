@@ -11,6 +11,8 @@
  -- chan_sip
     -- We no longer send a "to" tag on "100 Trying" messages, as it is inappropriate
        to do so.
+ -- asterisk.spec
+    -- A line was missing for the autosupport script that caused "make rpm" to fail
  -- general
     -- A problem has been fixed with saying the date in Spanish.
 
