@@ -13,16 +13,16 @@
  *
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
 #include <asterisk/channel.h>
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 
 /* Maximum length of any variable */
 #define MAXRESULT	1024
@@ -58,7 +58,7 @@ static int cut_exec(struct ast_channel *chan, void *data)
 
 	/* Check and parse arguments */
 	if (data) {
-		s = strdupa((char *)data);
+		s = ast_strdupa((char *)data);
 		if (s) {
 			newvar = strsep(&s, "=");
 			if (newvar && (newvar[0] != '\0')) {
@@ -131,7 +131,7 @@ static int cut_exec(struct ast_channel *chan, void *data)
 
 				/* Get to start, if any */
 				if (num1 > 0) {
-					while ((tmp2 != NULL + 1) && (curfieldnum < num1)) {
+					while ((tmp2 != (char *)NULL + 1) && (curfieldnum < num1)) {
 						tmp2 = index(tmp2, d) + 1;
 						curfieldnum++;
 					}
@@ -143,7 +143,7 @@ static int cut_exec(struct ast_channel *chan, void *data)
 				}
 
 				/* Re-null tmp2 if we added 1 to NULL */
-				if (tmp2 == NULL + 1)
+				if (tmp2 == (char *)NULL + 1)
 					tmp2 = NULL;
 
 				/* Output fields until we either run out of fields or num2 is reached */
