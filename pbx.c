@@ -197,9 +197,17 @@ static struct pbx_builtin {
 
 	{ "BackGround", pbx_builtin_background,
 	"Play a file while awaiting extension",
-	"  Background(filename): Plays a given file, while simultaneously waiting for\n"
-	"the user to begin typing an extension. The  timeouts do not count until the\n"
-	"last BackGround application has ended. Always returns 0.\n" 
+	"  Background(filename[|options]): Plays a given file, while simultaneously\n"
+	"waiting for the user to begin typing an extension. The  timeouts do not\n"
+	"count until the last BackGround application has ended.\n" 
+	"Options may also be  included following a pipe symbol. The 'skip'\n"
+	"option causes the playback of the message to  be  skipped  if  the  channel\n"
+	"is not in the 'up' state (i.e. it hasn't been  answered  yet. If 'skip' is \n"
+	"specified, the application will return immediately should the channel not be\n"
+	"off hook.  Otherwise, unless 'noanswer' is specified, the channel channel will\n"
+	"be answered before the sound is played. Not all channels support playing\n"
+	"messages while still hook. Returns -1 if the channel was hung up, or if the\n"
+	"file does not exist. Returns 0 otherwise.\n"
 	},
 
 	{ "Busy", pbx_builtin_busy,
@@ -4431,20 +4439,51 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_background(struct ast_channel *chan, void *data)
 {
-	int res;
+        int res = 0;
+        int option_skip = 0;
+        int option_noanswer = 0;
+        char filename[256] = "";
+        char* stringp;
+        char* options;
 
-	/* Answer if need be */
-	if (chan->_state != AST_STATE_UP)
-		if (ast_answer(chan))
-			return -1;
-	/* Stop anything playing */
-	ast_stopstream(chan);
-	/* Stream a file */
-	res = ast_streamfile(chan, (char *)data, chan->language);
-	if (!res) {
-		res = ast_waitstream(chan, AST_DIGIT_ANY);
-		ast_stopstream(chan);
-	}
+        if (!data || ast_strlen_zero(data)) {
+                ast_log(LOG_WARNING, "Background requires an argument(filename)\n");
+                return -1;
+        }
+
+        strncpy(filename, (char*)data, sizeof(filename) - 1);
+        stringp = filename;
+        strsep(&stringp, "|");
+        options = strsep(&stringp, "|");
+
+        if (options && !strcasecmp(options, "skip"))
+                option_skip = 1;
+        if (options && !strcasecmp(options, "noanswer"))
+                option_noanswer = 1;
+
+        /* Answer if need be */
+        if (chan->_state != AST_STATE_UP) {
+                if (option_skip) {
+                        return 0;
+                } else if (!option_noanswer) {
+                        res = ast_answer(chan);
+                }
+        }
+
+        if (!res) {
+                /* Stop anything playing */
+                ast_stopstream(chan);
+                /* Stream a file */
+                res = ast_streamfile(chan, filename, chan->language);
+                if (!res) {
+                        res = ast_waitstream(chan, AST_DIGIT_ANY);
+                        ast_stopstream(chan);
+                } else {
+                        ast_log(LOG_WARNING, "ast_streamfile failed on %s fro %s\n", chan->name, (char*)data);
+                        res = 0;
+                }
+        }
+
 	return res;
 }
 
