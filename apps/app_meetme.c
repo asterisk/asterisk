@@ -69,13 +69,14 @@ static char *descrip =
 "      'v' -- video mode\n"
 "      'q' -- quiet mode (don't play enter/leave sounds)\n"
 "      'M' -- enable music on hold when the conference has a single caller\n"
-"      'x' -- close the conference when last user marked with 'x' exits\n"
-"      'w' -- wait until a user marked with the 'x' option enters the conference\n"
+"      'x' -- close the conference when last marked user exits\n"
+"      'w' -- wait until the marked user enters the conference\n"
 "      'b' -- run AGI script specified in ${MEETME_AGI_BACKGROUND}\n"
 "         Default: conf-background.agi\n"
 "        (Note: This does not work with non-Zap channels in the same conference)\n"
 "      's' -- Present menu (user or admin) when '*' is received ('send' to menu)\n"
-"      'a' -- set admin mode\n";
+"      'a' -- set admin mode\n"
+"      'A' -- set marked mode\n";
 
 static char *descrip2 =
 "  MeetMeCount(confno[|var]): Plays back the number of users in the specifiedi\n"
@@ -149,9 +150,10 @@ static int admin_exec(struct ast_channel *chan, void *data);
 #define CONFFLAG_VIDEO (1 << 7)		/* Set to enable video mode */
 #define CONFFLAG_AGI (1 << 8)		/* Set to run AGI Script in Background */
 #define CONFFLAG_MOH (1 << 9)		/* Set to have music on hold when user is alone in conference */
-#define CONFFLAG_ADMINEXIT (1 << 10)    /* If set the MeetMe will return if all marked with this flag left */
-#define CONFFLAG_WAITMARKED (1 << 11)		/* If set, the MeetMe will wait until a marked user enters */
-#define CONFFLAG_EXIT_CONTEXT (1 << 12)		/* If set, the MeetMe will wait until a marked user enters */
+#define CONFFLAG_MARKEDEXIT (1 << 10)    /* If set the MeetMe will return if all marked with this flag left */
+#define CONFFLAG_WAITMARKED (1 << 11)	/* If set, the MeetMe will wait until a marked user enters */
+#define CONFFLAG_EXIT_CONTEXT (1 << 12)	/* If set, the MeetMe will exit to the specified context */
+#define CONFFLAG_MARKEDUSER (1 << 13)	/* If set, the user will be marked */
 
 
 static int careful_write(int fd, unsigned char *data, int len)
@@ -217,7 +219,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, int make, int 
 			memset(cnf, 0, sizeof(struct ast_conference));
 			strncpy(cnf->confno, confno, sizeof(cnf->confno) - 1);
 			strncpy(cnf->pin, pin, sizeof(cnf->pin) - 1);
-			cnf->markedusers = -1;
+			cnf->markedusers = 0;
 			cnf->chan = ast_request("zap", AST_FORMAT_ULAW, "pseudo");
 			if (cnf->chan) {
 				cnf->fd = cnf->chan->fds[0];	/* for use by conf_play() */
@@ -306,7 +308,7 @@ static int conf_cmd(int fd, int argc, char **argv) {
 	}
 	ast_cli(fd, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation");
 		while(cnf) {
-			if (cnf->markedusers < 0)
+			if (cnf->markedusers == 0)
 				strncpy(cmdline, "N/A ", sizeof(cmdline) - 1);
 			else 
 				snprintf(cmdline, sizeof(cmdline), "%4.4d", cnf->markedusers);
@@ -475,7 +477,7 @@ static int confnonzero(void *ptr)
 	struct ast_conference *conf = ptr;
 	int res;
 	ast_mutex_lock(&conflock);
-	res = (conf->markedusers < 0);
+	res = (conf->markedusers == 0);
 	ast_mutex_unlock(&conflock);
 	return res;
 }
@@ -529,13 +531,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		goto outrun;
 	}
 	conf->users++;
-	if (confflags & CONFFLAG_ADMINEXIT) {
-		if (conf->markedusers == -1) {
-			conf->markedusers = 1;
-		} else {
-			conf->markedusers++;
-		}
-	}
+	if (confflags & CONFFLAG_MARKEDUSER)
+		conf->markedusers++;
       
    	ast_mutex_lock(&conflock);
 	if (conf->firstuser == NULL) {
@@ -573,7 +570,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		else
 			strncpy(exitcontext, chan->context, sizeof(exitcontext) - 1);
 	}
-	while((confflags & CONFFLAG_WAITMARKED) && (conf->markedusers < 0)) {
+	while((confflags & CONFFLAG_WAITMARKED) && (conf->markedusers == 0)) {
 		confflags &= ~CONFFLAG_QUIET;
 		confflags |= origquiet;
 		/* XXX Announce that we're waiting on the conference lead to join */
@@ -765,7 +762,7 @@ zapretry:
 			}
 			
 			/* Leave if the last marked user left */
-			if (conf->markedusers == 0) {
+			if (conf->markedusers == 0 && confflags & CONFFLAG_MARKEDEXIT) {
 				ret = -1;
 				break;
 			}
@@ -986,7 +983,7 @@ outrun:
 			chan->name, chan->uniqueid, conf->confno, user->user_no);
 		prev = NULL;
 		conf->users--;
-		if (confflags & CONFFLAG_ADMINEXIT) 
+		if (confflags & CONFFLAG_MARKEDUSER) 
 			conf->markedusers--;
 		cur = confs;
 		if (!conf->users) {
@@ -1210,9 +1207,11 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		if (strchr(inflags, 'M'))
 			confflags |= CONFFLAG_MOH;
 		if (strchr(inflags, 'x'))
-			confflags |= CONFFLAG_ADMINEXIT;
+			confflags |= CONFFLAG_MARKEDEXIT;
 		if (strchr(inflags, 'X'))
 			confflags |= CONFFLAG_EXIT_CONTEXT;
+		if (strchr(inflags, 'A'))
+			confflags |= CONFFLAG_MARKEDUSER;
 		if (strchr(inflags, 'b'))
 			confflags |= CONFFLAG_AGI;
 		if (strchr(inflags, 'w'))
