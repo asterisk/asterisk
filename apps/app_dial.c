@@ -514,6 +514,11 @@ static int park_exec(struct ast_channel *chan, void *data)
 			nchan = chan;
 		else
 			nchan = ast_translator_create(chan, peer->format, AST_DIRECTION_BOTH);
+		if (!nchan) {
+			ast_log(LOG_WARNING, "Had to drop call because there was no translator for %s to %s.\n", chan->name, peer->name);
+			ast_hangup(peer);
+			return -1;
+		}
 		/* This runs sorta backwards, since we give the incoming channel control, as if it
 		   were the person called. */
 		if (option_verbose > 2) 
@@ -649,10 +654,16 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			npeer = peer;
 		else
 			npeer = ast_translator_create(peer, chan->format, AST_DIRECTION_BOTH);
-		res = bridge_call(chan, npeer, allowredir);
-		if (npeer != peer)
-			ast_translator_destroy(npeer);
-		ast_hangup(peer);
+		if (!npeer) {
+			ast_log(LOG_WARNING, "Had to drop call because there was no translator for %s to %s.\n", chan->name, peer->name);
+			ast_hangup(peer);
+			res = -1;
+		} else {
+			res = bridge_call(chan, npeer, allowredir);
+			if (npeer != peer)
+				ast_translator_destroy(npeer);
+			ast_hangup(peer);
+		}
 	}	
 out:
 	hanguptree(outgoing, NULL);
