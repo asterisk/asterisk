@@ -118,6 +118,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;               (instead of type=friend) if you have calls in both directions
   
 ;registertimeout=20		; retry registration calls every 20 seconds (default)
+;callevents=no			; generate manager events when sip ua performs events (e.g. hold)
 
 ;---------------------------------------------- NAT SUPPORT ------------------------
 ; The externip, externhost and localnet settings are used if you use Asterisk behind

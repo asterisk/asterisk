@@ -388,7 +388,7 @@ static struct sip_pvt {
 	int rtpkeepalive;			/* Send RTP packets for keepalive */
 
 	int subscribed;				/* Is this call a subscription?  */
-    	int stateid;
+	int stateid;
 	int dialogver;
 	
 	struct ast_dsp *vad;
@@ -401,6 +401,7 @@ static struct sip_pvt {
 	struct sip_history *history;		/* History of this SIP dialog */
 	struct ast_variable *vars;
 	struct sip_pvt *next;			/* Next call in chain */
+	int onhold;				/* call on hold */
 } *iflist = NULL;
 
 #define FLAG_RESPONSE (1 << 0)
@@ -586,6 +587,7 @@ static int update_user_counter(struct sip_pvt *fup, int event);
 static void prune_peers(void);
 static int sip_do_reload(void);
 
+static int callevents = 0;
 
 /*--- sip_debug_test_addr: See if we pass debug IP filter */
 static inline int sip_debug_test_addr(struct sockaddr_in *addr) 
@@ -2803,7 +2805,23 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			/* Turn on/off music on hold if we are holding/unholding */
 			if (sin.sin_addr.s_addr && !sendonly) {
 				ast_moh_stop(ast_bridged_channel(p->owner));
+				if (callevents && p->onhold) {
+					manager_event(EVENT_FLAG_CALL, "Unhold",
+						"Channel: %s\r\n"
+						"Uniqueid: %s\r\n",
+						p->owner->name, 
+						p->owner->uniqueid);
+					p->onhold = 0;
+				}
 			} else {
+				if (callevents && !p->onhold) {
+					manager_event(EVENT_FLAG_CALL, "Hold",
+						"Channel: %s\r\n"
+						"Uniqueid: %s\r\n",
+						p->owner->name, 
+						p->owner->uniqueid);
+						p->onhold = 1;
+				}
 				ast_moh_start(ast_bridged_channel(p->owner), NULL);
 				if (sendonly)
 					ast_rtp_stop(p->rtp);
@@ -9065,6 +9083,7 @@ static int reload_config(void)
 	videosupport = 0;
 	compactheaders = 0;
 	relaxdtmf = 0;
+	callevents = 0;
 	ourport = DEFAULT_SIP_PORT;
 	global_rtptimeout = 0;
 	global_rtpholdtimeout = 0;
@@ -9229,6 +9248,8 @@ static int reload_config(void)
 			} else {
 				ast_log(LOG_WARNING, "Invalid port number '%s' at line %d of %s\n", v->value, v->lineno, config);
 			}
+		} else if (!strcasecmp(v->name, "callevents")) {
+			callevents = ast_true(v->value);
 		}
 		/* else if (strcasecmp(v->name,"type"))
 		 *	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
