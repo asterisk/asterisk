@@ -8777,7 +8777,7 @@ static int reload_config(void)
 	int format;
 	int oldport = ntohs(bindaddr.sin_port);
 	char iabuf[INET_ADDRSTRLEN];
-
+	struct ast_flags dummy;
 	
 	if (gethostname(ourhost, sizeof(ourhost))) {
 		ast_log(LOG_WARNING, "Unable to get hostname, SIP disabled\n");
@@ -8830,7 +8830,6 @@ static int reload_config(void)
 	regcontext[0] = '\0';
 	tos = 0;
 	expiry = DEFAULT_EXPIRY;
-	struct ast_flags dummy;
 
 	/* Read the [general] config section of sip.conf (or from realtime config) */
 	v = ast_variable_browse(cfg, "general");
