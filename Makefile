@@ -429,7 +429,6 @@ webvmail:
 
 mailbox:
 	./contrib/scripts/addmailbox 
-	
 
 rpm: __rpm
 
@@ -442,7 +441,7 @@ __rpm: _version
 	cp -f redhat/asterisk /tmp/asterisk/etc/rc.d/init.d/ ; \
 	sed "s/^Version:.*/Version: $(RPMVERSION)/g" redhat/asterisk.spec > asterisk.spec ; \
 	rpmbuild --rcfile /usr/lib/rpm/rpmrc:redhat/rpmrc -bb asterisk.spec
-	
+
 progdocs:
 	doxygen contrib/asterisk-ng-doxygen
 
@@ -454,7 +453,6 @@ config:
 		install -m 755 init.asterisk /etc/init.d/asterisk; \
 	fi 
 
-	
 dont-optimize:
 	$(MAKE) OPTIMIZE= K6OPT= install
 
@@ -467,3 +465,9 @@ depend: .depend
 	./mkdep ${CFLAGS} `ls *.c`
 
 FORCE:
+
+%_env:
+	make -C $(shell echo $@ | /bin/sed "s/_env//g") env
+
+env:
+	/bin/env
