@@ -577,11 +577,11 @@ static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
 		char tmpout[AST_CONFIG_MAX_PATH];
 		char *user, *pass, *rest, *trim, *tempcontext;
 		tempcontext = NULL;
-		snprintf((char *)tmpin, sizeof(tmpin)-1, "%s/voicemail.conf",(char *)ast_config_AST_CONFIG_DIR);
-		snprintf((char *)tmpout, sizeof(tmpout)-1, "%s/voicemail.conf.new",(char *)ast_config_AST_CONFIG_DIR);
-        configin = fopen((char *)tmpin,"r");
+		snprintf(tmpin, sizeof(tmpin), "%s/voicemail.conf", ast_config_AST_CONFIG_DIR);
+		snprintf(tmpout, sizeof(tmpout), "%s/voicemail.conf.new", ast_config_AST_CONFIG_DIR);
+        configin = fopen(tmpin,"r");
 		if (configin)
-	        configout = fopen((char *)tmpout,"w+");
+	        configout = fopen(tmpout,"w+");
 		else
 			configout = NULL;
 		if(!configin || !configout) {
@@ -1664,9 +1664,8 @@ static void run_externnotify(char *context, char *extension, int numvoicemails)
 {
 	char arguments[255];
 
-	if(externnotify[0]) {
-		strncpy(arguments, externnotify, sizeof(arguments));
-		snprintf(arguments, sizeof(arguments)-1, "%s %s %s %d&", externnotify, context, extension, numvoicemails);
+	if(!ast_strlen_zero(externnotify)) {
+		snprintf(arguments, sizeof(arguments), "%s %s %s %d&", externnotify, context, extension, numvoicemails);
 		ast_log(LOG_DEBUG,"Executing %s\n", arguments);
 		ast_safe_system(arguments);
 	}
@@ -2189,7 +2188,7 @@ static void adsi_folders(struct ast_channel *chan, int start, char *label)
 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 }
 
-static void adsi_message(struct ast_channel *chan, char *folder, int msg, int last, int deleted, char *fn)
+static void adsi_message(struct ast_channel *chan, struct vm_state *vms)
 {
 	int bytes=0;
 	char buf[256], buf1[256], buf2[256];
@@ -2209,7 +2208,7 @@ static void adsi_message(struct ast_channel *chan, char *folder, int msg, int la
 		return;
 
 	/* Retrieve important info */
-	snprintf(fn2, sizeof(fn2), "%s.txt", fn);
+	snprintf(fn2, sizeof(fn2), "%s.txt", vms->fn);
 	f = fopen(fn2, "r");
 	if (f) {
 		while(!feof(f)) {	
@@ -2235,13 +2234,13 @@ static void adsi_message(struct ast_channel *chan, char *folder, int msg, int la
 	keys[6] = 0x0;
 	keys[7] = 0x0;
 
-	if (!msg) {
+	if (!vms->curmsg) {
 		/* No prev key, provide "Folder" instead */
 		keys[0] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 1);
 	}
-	if (msg >= last) {
+	if (vms->curmsg >= vms->lastmsg) {
 		/* If last message ... */
-		if (msg) {
+		if (vms->curmsg) {
 			/* but not only message, provide "Folder" instead */
 			keys[3] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 1);
       bytes += adsi_voice_mode(buf + bytes, 0);
@@ -2261,14 +2260,14 @@ static void adsi_message(struct ast_channel *chan, char *folder, int msg, int la
 
 	/* If deleted, show "undeleted" */
 
-	if (deleted)
+	if (vms->deleted[vms->curmsg])
 		keys[1] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 11);
 
 	/* Except "Exit" */
 	keys[5] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 5);
-	snprintf(buf1, sizeof(buf1), "%s%s", folder,
-		 strcasecmp(folder, "INBOX") ? " Messages" : "");
- 	snprintf(buf2, sizeof(buf2), "Message %d of %d", msg + 1, last + 1);
+	snprintf(buf1, sizeof(buf1), "%s%s", vms->curbox,
+		strcasecmp(vms->curbox, "INBOX") ? " Messages" : "");
+ 	snprintf(buf2, sizeof(buf2), "Message %d of %d", vms->curmsg + 1, vms->lastmsg + 1);
 
  	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 1, ADSI_JUST_LEFT, 0, buf1, "");
 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 2, ADSI_JUST_LEFT, 0, buf2, "");
@@ -2281,7 +2280,7 @@ static void adsi_message(struct ast_channel *chan, char *folder, int msg, int la
 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 }
 
-static void adsi_delete(struct ast_channel *chan, int msg, int last, int deleted)
+static void adsi_delete(struct ast_channel *chan, struct vm_state *vms)
 {
 	int bytes=0;
 	char buf[256];
@@ -2299,13 +2298,13 @@ static void adsi_delete(struct ast_channel *chan, int msg, int last, int deleted
 	keys[6] = 0x0;
 	keys[7] = 0x0;
 
-	if (!msg) {
+	if (!vms->curmsg) {
 		/* No prev key, provide "Folder" instead */
 		keys[0] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 1);
 	}
-	if (msg >= last) {
+	if (vms->curmsg >= vms->lastmsg) {
 		/* If last message ... */
-		if (msg) {
+		if (vms->curmsg) {
 			/* but not only message, provide "Folder" instead */
 			keys[3] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 1);
 		} else {
@@ -2315,7 +2314,7 @@ static void adsi_delete(struct ast_channel *chan, int msg, int last, int deleted
 	}
 
 	/* If deleted, show "undeleted" */
-	if (deleted) 
+	if (vms->deleted[vms->curmsg]) 
 		keys[1] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 11);
 
 	/* Except "Exit" */
@@ -2326,27 +2325,27 @@ static void adsi_delete(struct ast_channel *chan, int msg, int last, int deleted
 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 }
 
-static void adsi_status(struct ast_channel *chan, int new, int old, int lastmsg)
+static void adsi_status(struct ast_channel *chan, struct vm_state *vms)
 {
 	char buf[256], buf1[256], buf2[256];
 	int bytes=0;
 	unsigned char keys[8];
 	int x;
 
-	char *newm = (new == 1) ? "message" : "messages";
-	char *oldm = (old == 1) ? "message" : "messages";
+	char *newm = (vms->newmessages == 1) ? "message" : "messages";
+	char *oldm = (vms->oldmessages == 1) ? "message" : "messages";
 	if (!adsi_available(chan))
 		return;
-	if (new) {
-		snprintf(buf1, sizeof(buf1), "You have %d new", new);
-		if (old) {
+	if (vms->newmessages) {
+		snprintf(buf1, sizeof(buf1), "You have %d new", vms->newmessages);
+		if (vms->oldmessages) {
 			strcat(buf1, " and");
-			snprintf(buf2, sizeof(buf2), "%d old %s.", old, oldm);
+			snprintf(buf2, sizeof(buf2), "%d old %s.", vms->oldmessages, oldm);
 		} else {
 			snprintf(buf2, sizeof(buf2), "%s.", newm);
 		}
-	} else if (old) {
-		snprintf(buf1, sizeof(buf1), "You have %d old", old);
+	} else if (vms->oldmessages) {
+		snprintf(buf1, sizeof(buf1), "You have %d old", vms->oldmessages);
 		snprintf(buf2, sizeof(buf2), "%s.", oldm);
 	} else {
 		strcpy(buf1, "You have no messages.");
@@ -2362,7 +2361,7 @@ static void adsi_status(struct ast_channel *chan, int new, int old, int lastmsg)
 	keys[7] = 0;
 
 	/* Don't let them listen if there are none */
-	if (lastmsg < 0)
+	if (vms->lastmsg < 0)
 		keys[0] = 1;
 	bytes += adsi_set_keys(buf + bytes, keys);
 
@@ -2371,14 +2370,14 @@ static void adsi_status(struct ast_channel *chan, int new, int old, int lastmsg)
 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 }
 
-static void adsi_status2(struct ast_channel *chan, char *folder, int messages)
+static void adsi_status2(struct ast_channel *chan, struct vm_state *vms)
 {
 	char buf[256], buf1[256], buf2[256];
 	int bytes=0;
 	unsigned char keys[8];
 	int x;
 
-	char *mess = (messages == 1) ? "message" : "messages";
+	char *mess = (vms->lastmsg == 0) ? "message" : "messages";
 
 	if (!adsi_available(chan))
 		return;
@@ -2390,14 +2389,14 @@ static void adsi_status2(struct ast_channel *chan, char *folder, int messages)
 	keys[6] = 0;
 	keys[7] = 0;
 
-	if (messages < 1)
+	if ((vms->lastmsg + 1) < 1)
 		keys[0] = 0;
 
-	snprintf(buf1, sizeof(buf1), "%s%s has", folder,
-			strcasecmp(folder, "INBOX") ? " folder" : "");
+	snprintf(buf1, sizeof(buf1), "%s%s has", vms->curbox,
+		strcasecmp(vms->curbox, "INBOX") ? " folder" : "");
 
-	if (messages)
-		snprintf(buf2, sizeof(buf2), "%d %s.", messages, mess);
+	if (vms->lastmsg + 1)
+		snprintf(buf2, sizeof(buf2), "%d %s.", vms->lastmsg + 1, mess);
 	else
 		strcpy(buf2, "no messages.");
  	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 1, ADSI_JUST_LEFT, 0, buf1, "");
@@ -2864,42 +2863,42 @@ static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms,
 	return res;                                                               
 }
 
-static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int msg)
+static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms)
 {
 	int res = 0;
 	char filename[256],*origtime, *cid, *context;
 	struct ast_config *msg_cfg;
 
 	vms->starting = 0; 
-	make_file(vms->fn, sizeof(vms->fn), vms->curdir, msg);
-	adsi_message(chan, vms->curbox, msg, vms->lastmsg, vms->deleted[msg], vms->fn);
-	if (!msg)
+	make_file(vms->fn, sizeof(vms->fn), vms->curdir, vms->curmsg);
+	adsi_message(chan, vms);
+	if (!vms->curmsg)
 		res = wait_file2(chan, vms, "vm-first");	/* "First" */
-	else if (msg == vms->lastmsg)
+	else if (vms->curmsg == vms->lastmsg)
 		res = wait_file2(chan, vms, "vm-last");		/* "last" */
 	if (!res) {
 		res = wait_file2(chan, vms, "vm-message");	/* "message" */
-		if (msg && (msg != vms->lastmsg)) {
+		if (vms->curmsg && (vms->curmsg != vms->lastmsg)) {
 			if (!res)
-				res = ast_say_number(chan, msg + 1, AST_DIGIT_ANY, chan->language, (char *) NULL);
+				res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, chan->language, (char *) NULL);
 		}
 	}
 
 	/* Retrieve info from VM attribute file */
-        make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg);
-        snprintf(filename,sizeof(filename), "%s.txt", vms->fn2);
-        msg_cfg = ast_load(filename);
-        if (!msg_cfg) {
-                ast_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
-                return 0;
-        }
-                                                                                                                                 
-        if (!(origtime = ast_variable_retrieve(msg_cfg, "message", "origtime")))
-                return 0;
-                                                                                                                                 
-        cid = ast_variable_retrieve(msg_cfg, "message", "callerid");
+	make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg);
+	snprintf(filename,sizeof(filename), "%s.txt", vms->fn2);
+	msg_cfg = ast_load(filename);
+	if (!msg_cfg) {
+		ast_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
+		return 0;
+	}
+																									
+	if (!(origtime = ast_variable_retrieve(msg_cfg, "message", "origtime")))
+		return 0;
 
-        context = ast_variable_retrieve(msg_cfg, "message", "context");
+	cid = ast_variable_retrieve(msg_cfg, "message", "callerid");
+
+	context = ast_variable_retrieve(msg_cfg, "message", "context");
 	if(!strncasecmp("macro",context,5)) /* Macro names in contexts are useless for our needs */
 		context = ast_variable_retrieve(msg_cfg, "message","macrocontext");
 
@@ -2913,8 +2912,8 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	ast_destroy(msg_cfg);
 
 	if (!res) {
-		make_file(vms->fn, sizeof(vms->fn), vms->curdir, msg);
-		vms->heard[msg] = 1;
+		make_file(vms->fn, sizeof(vms->fn), vms->curdir, vms->curmsg);
+		vms->heard[vms->curmsg] = 1;
 		res = wait_file(chan, vms, vms->fn);
 	}
 	return res;
@@ -3389,19 +3388,19 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 }
 
 /* Default English syntax */
-static int vm_browse_messages(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu, int lastmsg, int curmsg, char *fn, char *curbox)
+static int vm_browse_messages(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int cmd=0;
 
-	if (lastmsg > -1) {
-		cmd = play_message(chan, vmu, vms, curmsg);
+	if (vms->lastmsg > -1) {
+		cmd = play_message(chan, vmu, vms);
 	} else {
 		cmd = play_and_wait(chan, "vm-youhave");
 		if (!cmd) 
 			cmd = play_and_wait(chan, "vm-no");
 		if (!cmd) {
-			snprintf(fn, sizeof(fn) + sizeof(curbox) + 2, "vm-%s", curbox);
-			cmd = play_and_wait(chan, fn);
+			snprintf(vms->fn, sizeof(vms->fn), "vm-%s", vms->curbox);
+			cmd = play_and_wait(chan, vms->fn);
 		}
 		if (!cmd)
 			cmd = play_and_wait(chan, "vm-messages");
@@ -3410,36 +3409,36 @@ static int vm_browse_messages(struct ast_channel *chan, struct vm_state *vms, st
 }
 
 /* SPANISH syntax */
-static int vm_browse_messages_es(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu, int lastmsg, int curmsg, char *fn, char *curbox)
+static int vm_browse_messages_es(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int cmd=0;
 
-	if (lastmsg > -1) {
-		cmd = play_message(chan, vmu, vms, curmsg);
+	if (vms->lastmsg > -1) {
+		cmd = play_message(chan, vmu, vms);
 	} else {
 		cmd = play_and_wait(chan, "vm-youhaveno");
 		if (!cmd)
 			cmd = play_and_wait(chan, "vm-messages");
 		if (!cmd) {
-			snprintf(fn, sizeof(fn) + sizeof(curbox) + 2, "vm-%s", curbox);
-			cmd = play_and_wait(chan, fn);
+			snprintf(vms->fn, sizeof(vms->fn), "vm-%s", vms->curbox);
+			cmd = play_and_wait(chan, vms->fn);
 		}
 	}
 	return cmd;
 }
 
 /* PORTUGUESE syntax */
-static int vm_browse_messages_pt(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu, int lastmsg, int curmsg, char *fn, char *curbox)
+static int vm_browse_messages_pt(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int cmd=0;
 
-	if (lastmsg > -1) {
-		cmd = play_message(chan, vmu, vms, curmsg);
+	if (vms->lastmsg > -1) {
+		cmd = play_message(chan, vmu, vms);
 	} else {
 		cmd = play_and_wait(chan, "vm-no");
 		if (!cmd) {
-			snprintf(fn, sizeof(fn) + sizeof(curbox) + 2, "vm-%s", curbox);
-			cmd = play_and_wait(chan, fn);
+			snprintf(vms->fn, sizeof(vms->fn), "vm-%s", vms->curbox);
+			cmd = play_and_wait(chan, vms->fn);
 		}
 		if (!cmd)
 			cmd = play_and_wait(chan, "vm-messages");
@@ -3599,7 +3598,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		}
 
 		if (useadsi)
-			adsi_status(chan, vms.newmessages, vms.oldmessages, vms.lastmsg);
+			adsi_status(chan, &vms);
 		res = 0;
 		/* Play voicemail intro - syntax is different for different languages */
 		if (!strcasecmp(chan->language, "de")) {	/* GERMAN syntax */
@@ -3625,11 +3624,11 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				/* Fall through */
 			case '5':
 				if (!strcasecmp(chan->language, "es")) {	/* SPANISH */
-					cmd = vm_browse_messages_es(chan, &vms, vmu, vms.lastmsg, vms.curmsg, vms.fn, vms.curbox);
+					cmd = vm_browse_messages_es(chan, &vms, vmu);
 				} else if (!strcasecmp(chan->language, "pt")) {	/* PORTUGUESE */
-					cmd = vm_browse_messages_pt(chan, &vms, vmu, vms.lastmsg, vms.curmsg, vms.fn, vms.curbox);
+					cmd = vm_browse_messages_pt(chan, &vms, vmu);
 				} else {	/* Default to English syntax */
-					cmd = vm_browse_messages(chan, &vms, vmu, vms.lastmsg, vms.curmsg, vms.fn, vms.curbox);
+					cmd = vm_browse_messages(chan, &vms, vmu);
 				}
 				break;
 			case '2': /* Change folders */
@@ -3645,7 +3644,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 					cmd = 0;
 				}
 				if (useadsi)
-					adsi_status2(chan, vms.curbox, vms.lastmsg + 1);
+					adsi_status2(chan, &vms);
 				if (!strcasecmp(chan->language, "es") || !strcasecmp(chan->language, "pt")) {	/* SPANISH or PORTUGUESE */
 					if (!cmd)
 						cmd = play_and_wait(chan, "vm-messages");
@@ -3746,7 +3745,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			case '4':
 				if (vms.curmsg) {
 					vms.curmsg--;
-					cmd = play_message(chan, vmu, &vms, vms.curmsg);
+					cmd = play_message(chan, vmu, &vms);
 				} else {
 					cmd = play_and_wait(chan, "vm-nomore");
 				}
@@ -3754,7 +3753,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			case '6':
 				if (vms.curmsg < vms.lastmsg) {
 					vms.curmsg++;
-					cmd = play_message(chan, vmu, &vms, vms.curmsg);
+					cmd = play_message(chan, vmu, &vms);
 				} else {
 					cmd = play_and_wait(chan, "vm-nomore");
 				}
@@ -3762,7 +3761,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			case '7':
 				vms.deleted[vms.curmsg] = !vms.deleted[vms.curmsg];
 				if (useadsi)
-					adsi_delete(chan, vms.curmsg, vms.lastmsg, vms.deleted[vms.curmsg]);
+					adsi_delete(chan, &vms);
 				if (vms.deleted[vms.curmsg]) 
 					cmd = play_and_wait(chan, "vm-deleted");
 				else
@@ -3789,7 +3788,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				}
 				make_file(vms.fn, sizeof(vms.fn), vms.curdir, vms.curmsg);
 				if (useadsi)
-					adsi_message(chan, vms.curbox, vms.curmsg, vms.lastmsg, vms.deleted[vms.curmsg], vms.fn);
+					adsi_message(chan, &vms);
 				if (!cmd)
 					cmd = play_and_wait(chan, "vm-message");
 				if (!cmd)
@@ -3836,7 +3835,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			case '0':
 				cmd = vm_options(chan, vmu, &vms, vmfmts);
 				if (useadsi)
-					adsi_status(chan, vms.newmessages, vms.oldmessages, vms.lastmsg);
+					adsi_status(chan, &vms);
 				break;
 			default:	/* Nothing */
 				cmd = vm_instructions(chan, &vms, 0);
@@ -4042,7 +4041,7 @@ static int handle_show_voicemail_users(int fd, int argc, char *argv[])
 							vmcount++;
 					closedir(vmdir);
 				}
-				snprintf(count,11,"%d",vmcount);
+				snprintf(count,sizeof(count),"%d",vmcount);
 				ast_cli(fd, output_format, vmu->context, vmu->mailbox, vmu->fullname, vmu->zonetag, count);
 			}
 			vmu = vmu->next;
