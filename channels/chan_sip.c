@@ -2790,7 +2790,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			ast_getformatname_multiple(s3, slen, p->noncodeccapability));
 	}
 	if (!p->jointcapability) {
-		ast_log(LOG_WARNING, "No compatible codecs!\n");
+		ast_log(LOG_NOTICE, "No compatible codecs!\n");
 		return -1;
 	}
 	if (p->owner) {
@@ -7778,12 +7778,20 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			}
 		} else {
 			if (p && !ast_test_flag(p, SIP_NEEDDESTROY)) {
-				ast_log(LOG_NOTICE, "Unable to create/find channel\n");
-				if (ignore)
-					transmit_response(p, "503 Unavailable", req);
-				else
-					transmit_response_reliable(p, "503 Unavailable", req, 1);
-				ast_set_flag(p, SIP_NEEDDESTROY);	
+				if (!p->jointcapability) {
+					if (ignore)
+						transmit_response(p, "488 Not Acceptable Here", req);
+					else
+						transmit_response_reliable(p, "488 Not Acceptable Here", req, 1);
+					ast_set_flag(p, SIP_NEEDDESTROY);	
+				} else {
+					ast_log(LOG_NOTICE, "Unable to create/find channel\n");
+					if (ignore)
+						transmit_response(p, "503 Unavailable", req);
+					else
+						transmit_response_reliable(p, "503 Unavailable", req, 1);
+					ast_set_flag(p, SIP_NEEDDESTROY);	
+				}
 			}
 		}
 	} else if (!strcasecmp(cmd, "REFER")) {
