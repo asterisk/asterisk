@@ -2,7 +2,7 @@ Asterisk external configuration
 ===============================
 
 The Asterisk external configuration engine is the result of work by
-Anthony Minessale II, Mark Spencer and Constantine (last name???). 
+Anthony Minessale II, Mark Spencer and Constantine Filin
 It is designed to provide a flexible, seamless integration between
 Asterisk's internal configuration structure and external SQL other other
 databases (maybe even LDAP one day).
