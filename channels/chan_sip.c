@@ -8050,6 +8050,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 		}
 		oldha = peer->ha;
 		peer->ha = NULL;
+		peer->addr.sin_family = AF_INET;
 		peer->capability = global_capability;
 		/* Assume can reinvite */
 		peer->canreinvite = global_canreinvite;
