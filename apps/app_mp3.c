@@ -61,21 +61,21 @@ static int mp3play(char *filename, int fd)
 			close(x);
 	}
 	/* Execute mpg123, but buffer if it's a net connection */
-	if (strncmp(filename, "http://", 7)) {
+	if (!strncmp(filename, "http://", 7)) {
 		/* Most commonly installed in /usr/local/bin */
-	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-b", "1024", "--mono", "-r", "8000", filename, (char *)NULL);
+	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-b", "1024", "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
 		/* But many places has it in /usr/bin */
-	    execl(MPG_123, "mpg123", "-q", "-s", "-b", "1024", "--mono", "-r", "8000", filename, (char *)NULL);
+	    execl(MPG_123, "mpg123", "-q", "-s", "-b", "1024","-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
 		/* As a last-ditch effort, try to use PATH */
-	    execlp("mpg123", "mpg123", "-q", "-s", "-b", "1024", "--mono", "-r", "8000", filename, (char *)NULL);
+	    execlp("mpg123", "mpg123", "-q", "-s", "-b", "1024",  "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
 	}
 	else {
 		/* Most commonly installed in /usr/local/bin */
-	    execl(MPG_123, "mpg123", "-q", "-s", "--mono", "-r", "8000", filename, (char *)NULL);
+	    execl(MPG_123, "mpg123", "-q", "-s", "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
 		/* But many places has it in /usr/bin */
-	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "--mono", "-r", "8000", filename, (char *)NULL);
+	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
 		/* As a last-ditch effort, try to use PATH */
-	    execlp("mpg123", "mpg123", "-q", "-s", "--mono", "-r", "8000", filename, (char *)NULL);
+	    execlp("mpg123", "mpg123", "-q", "-s", "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
 	}
 	ast_log(LOG_WARNING, "Execute of mpg123 failed\n");
 	return -1;
