@@ -1173,6 +1173,8 @@ char ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd
 	while(ms) {
 		rchan = ast_waitfor_nandfds(&c, 1, &cmdfd, (cmdfd > -1) ? 1 : 0, NULL, &outfd, &ms);
 		if ((!rchan) && (outfd < 0) && (ms)) { 
+			if (errno == EINTR)
+				continue;
 			ast_log(LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
 			return -1;
 		} else if (outfd > -1) {
