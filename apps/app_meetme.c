@@ -128,6 +128,7 @@ static struct ast_conference {
 	char *recordingfilename;	/* Filename to record the Conference into */
 	char *recordingformat;		/* Format to record the Conference in */
 	char pin[AST_MAX_EXTENSION];			/* If protected by a PIN */
+	char pinadmin[AST_MAX_EXTENSION];	/* If protected by a admin PIN */
 	struct ast_conference *next;
 } *confs;
 
@@ -244,7 +245,7 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, int
 		ast_autoservice_stop(chan);
 }
 
-static struct ast_conference *build_conf(char *confno, char *pin, int make, int dynamic)
+static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic)
 {
 	struct ast_conference *cnf;
 	struct zt_confinfo ztc;
@@ -262,6 +263,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, int make, int 
 			memset(cnf, 0, sizeof(struct ast_conference));
 			strncpy(cnf->confno, confno, sizeof(cnf->confno) - 1);
 			strncpy(cnf->pin, pin, sizeof(cnf->pin) - 1);
+			strncpy(cnf->pinadmin, pinadmin, sizeof(cnf->pinadmin) - 1);
 			cnf->markedusers = 0;
 			cnf->chan = ast_request("zap", AST_FORMAT_ULAW, "pseudo", NULL);
 			if (cnf->chan) {
@@ -1236,9 +1238,9 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 					/* Query the user to enter a PIN */
 					ast_app_getdata(chan, "conf-getpin", dynamic_pin, AST_MAX_EXTENSION - 1, 0);
 				}
-				cnf = build_conf(confno, dynamic_pin, make, dynamic);
+				cnf = build_conf(confno, dynamic_pin, "", make, dynamic);
 			} else {
-				cnf = build_conf(confno, "", make, dynamic);
+				cnf = build_conf(confno, "", "", make, dynamic);
 			}
 		} else {
 			/* Check the config */
@@ -1251,16 +1253,23 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 			while(var) {
 				if (!strcasecmp(var->name, "conf")) {
 					/* Separate the PIN */
-					char *pin, *conf;
+					char *pin, *pinadmin, *conf;
 
-					if ((pin = ast_strdupa(var->value))) {
-						conf = strsep(&pin, "|,");
+					if ((pinadmin = ast_strdupa(var->value))) {
+						conf = strsep(&pinadmin, "|");
+						pin = strsep(&pinadmin, "|");
 						if (!strcasecmp(conf, confno)) {
 							/* Bingo it's a valid conference */
 							if (pin)
-								cnf = build_conf(confno, pin, make, dynamic);
+								if (pinadmin)
+									cnf = build_conf(confno, pin, pinadmin, make, dynamic);
+								else
+									cnf = build_conf(confno, pin, "", make, dynamic);
 							else
-								cnf = build_conf(confno, "", make, dynamic);
+								if (pinadmin)
+									cnf = build_conf(confno, "", pinadmin, make, dynamic);
+								else
+									cnf = build_conf(confno, "", "", make, dynamic);
 							break;
 						}
 					}
@@ -1532,7 +1541,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 				if (allowretry)
 					confno[0] = '\0';
 			} else {
-				if (!ast_strlen_zero(cnf->pin)) {
+				if ((!ast_strlen_zero(cnf->pin) && ! (confflags & CONFFLAG_ADMIN)) || (!ast_strlen_zero(cnf->pinadmin) && (confflags & CONFFLAG_ADMIN))) {
 					char pin[AST_MAX_EXTENSION]="";
 					int j;
 
@@ -1546,9 +1555,12 @@ static int conf_exec(struct ast_channel *chan, void *data)
 							res = ast_app_getdata(chan, "conf-getpin", pin + strlen(pin), sizeof(pin) - 1 - strlen(pin), 0);
 						}
 						if (res >= 0) {
-							if (!strcasecmp(pin, cnf->pin)) {
+							if (!strcasecmp(pin, cnf->pin)  || (!ast_strlen_zero(cnf->pinadmin) && !strcasecmp(pin, cnf->pinadmin))) {
+
 								/* Pin correct */
 								allowretry = 0;
+								if (!ast_strlen_zero(cnf->pinadmin) && !strcasecmp(pin, cnf->pinadmin)) 
+									confflags |= CONFFLAG_ADMIN;
 								/* Run the conference */
 								res = conf_run(chan, cnf, confflags);
 								break;
