@@ -9,7 +9,7 @@ libtime.a: $(OBJS)
 install:
 
 clean:
-	rm -f libtime.a *.o test
+	rm -f libtime.a *.o test .depend
 
 depend: .depend
 
