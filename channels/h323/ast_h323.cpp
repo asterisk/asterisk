@@ -70,6 +70,77 @@ MyH323EndPoint *endPoint = NULL;
 /** PWLib entry point */
 MyProcess *localProcess = NULL;
 
+class PAsteriskLog : public PObject, public iostream {
+	PCLASSINFO(PAsteriskLog, PObject);
+
+	public:
+	PAsteriskLog() : iostream(cout.rdbuf()) { init(&buffer); }
+	~PAsteriskLog() { flush(); }
+
+	private:
+	PAsteriskLog(const PAsteriskLog &) : iostream(cout.rdbuf()) { }
+	PAsteriskLog & operator=(const PAsteriskLog &) { return *this; }
+
+	class Buffer : public streambuf {
+		public:
+		virtual int overflow(int=EOF);
+		virtual int underflow();
+		virtual int sync();
+		PString string;
+	} buffer;
+	friend class Buffer;
+};
+
+static PAsteriskLog *logstream = NULL;
+
+int PAsteriskLog::Buffer::overflow(int c)
+{
+	if (pptr() >= epptr()) {
+		int ppos = pptr() - pbase();
+		char *newptr = string.GetPointer(string.GetSize() + 10);
+		setp(newptr, newptr + string.GetSize() - 1);
+		pbump(ppos);
+	}
+	if (c != EOF) {
+		*pptr() = (char)c;
+		pbump(1);
+	}
+	return 0;
+}
+
+int PAsteriskLog::Buffer::underflow()
+{
+	return EOF;
+}
+
+int PAsteriskLog::Buffer::sync()
+{
+	char *str = strdup(string);
+	char *s, *s1;
+	char c;
+
+	/* Pass each line with different ast_verbose() call */
+	for (s = str; s && *s; s = s1) {
+		s1 = strchr(s, '\n');
+		if (!s1)
+			s1 = s + strlen(s);
+		else
+			s1++;
+		c = *s1;
+		*s1 = '\0';
+		ast_verbose(s);
+		*s1 = c;
+	}
+	free(str);
+
+	string = PString();
+	char *base = string.GetPointer(10);
+	setp(base, base + string.GetSize() - 1);
+	return 0;
+}
+
+#define cout (*logstream)
+
 MyProcess::MyProcess(): PProcess("The NuFone Network's", "H.323 Channel Driver for Asterisk",
              MAJOR_VERSION, MINOR_VERSION, BUILD_TYPE, BUILD_NUMBER)
 {
@@ -81,6 +152,7 @@ void MyProcess::Main()
 	cout << "  == Creating H.323 Endpoint" << endl;
 	endPoint = new MyH323EndPoint();
 	PTrace::Initialise(0, NULL, PTrace::Timestamp | PTrace::Thread | PTrace::FileAndLine);
+	PTrace::SetStream(logstream);
 }
 
 H323_REGISTER_CAPABILITY(H323_G7231Capability, OPAL_G7231);
@@ -504,6 +576,7 @@ MyH323Connection::MyH323Connection(MyH323EndPoint & ep, unsigned callReference,
 							unsigned options)
 	: H323Connection(ep, callReference, options)
 {
+	cause = -1;
 	if (h323debug) {
 		cout << "	== New H.323 Connection created." << endl;
 	}
@@ -543,7 +616,7 @@ BOOL MyH323Connection::OnReceivedProgress(const H323SignalPDU &pdu)
 	}
 	on_progress(GetCallReference(), (const char *)GetCallToken(), isInband);
 
-	return TRUE;
+	return connectionState != ShuttingDownConnection;
 }
 
 H323Connection::AnswerCallResponse MyH323Connection::OnAnswerCall(const PString & caller,
@@ -555,6 +628,9 @@ H323Connection::AnswerCallResponse MyH323Connection::OnAnswerCall(const PString 
 	if (h323debug) {
                cout << "\t=-= In OnAnswerCall for call " << GetCallReference() << endl;
 	}
+
+	if (connectionState == ShuttingDownConnection)
+		return H323Connection::AnswerCallDenied;
 
 	if (!setupPDU.GetQ931().GetProgressIndicator(pi)) {
 		pi = 0;
@@ -612,7 +688,7 @@ BOOL MyH323Connection::OnAlerting(const H323SignalPDU & alertingPDU, const PStri
 		on_progress(GetCallReference(), (const char *)GetCallToken(), isInband);
 	}
         on_chan_ringing(GetCallReference(), (const char *)GetCallToken() );
-        return TRUE;
+        return connectionState != ShuttingDownConnection;
 }
 
 BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
@@ -630,6 +706,9 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 	if (h323debug) {
 		cout << ("\t--Received SETUP message\n");
 	}
+
+	if (connectionState == ShuttingDownConnection)
+		return FALSE;
 
 	sourceAliases = setupPDU.GetSourceAliases();
 	destAliases = setupPDU.GetDestinationAlias();
@@ -696,6 +775,9 @@ BOOL MyH323Connection::OnSendSignalSetup(H323SignalPDU & setupPDU)
 		cout << "	-- Sending SETUP message" << endl;
 	}
 
+	if (connectionState == ShuttingDownConnection)
+		return FALSE;
+
 	if (!ast_cid_num.IsEmpty()) {
 		setupPDU.GetQ931().SetCallingPartyNumber(ast_cid_num);
 	}
@@ -755,6 +837,8 @@ BOOL MyH323Connection::OnSendReleaseComplete(H323SignalPDU & releaseCompletePDU)
 	if (h323debug) {
 		cout << "\t-- Sending RELEASE COMPLETE" << endl;
 	}
+	if (cause > 0)
+		releaseCompletePDU.GetQ931().SetCause((Q931::CauseValues)cause);
 	return H323Connection::OnSendReleaseComplete(releaseCompletePDU);
 }
 
@@ -771,6 +855,8 @@ void MyH323Connection::OnReceivedReleaseComplete(const H323SignalPDU & pdu)
 	if (h323debug) {
 		cout <<  "\t-- Received RELEASE COMPLETE message..." << endl;
 	}
+	if (on_hangup)
+		on_hangup(GetCallReference(), (const char *)GetCallToken(), pdu.GetQ931().GetCause());
 	return H323Connection::OnReceivedReleaseComplete(pdu);
 }
 
@@ -882,7 +968,7 @@ BOOL MyH323Connection::OnStartLogicalChannel(H323Channel & channel)
 	if (h323debug) {
 		cout <<  "\t\t-- channelsOpen = " << channelsOpen << endl;
 	}
-	return TRUE;	
+	return connectionState != ShuttingDownConnection;
 }
 
 /* MyH323_ExternalRTPChannel */
@@ -987,6 +1073,7 @@ int h323_end_point_exist(void)
 void h323_end_point_create(void)
 {
 	channelsOpen = 0;
+	logstream = new PAsteriskLog();
 	localProcess = new MyProcess();	
 	localProcess->Main();
 }
@@ -1005,7 +1092,9 @@ void h323_end_process(void)
 	endPoint->ClearAllCalls();
 	endPoint->RemoveListener(NULL);
 	delete endPoint;
+	PTrace::SetLevel(0);
 	delete localProcess;
+	delete logstream;
 }
 
 void h323_debug(int flag, unsigned level)
@@ -1028,7 +1117,8 @@ void h323_callback_register(setup_incoming_cb  	ifunc,
  			    send_digit_cb	dfunc,
  			    answer_call_cb	acfunc,
 			    progress_cb		pgfunc,
-			    rfc2833_cb		dtmffunc)
+			    rfc2833_cb		dtmffunc,
+			    hangup_cb		hangupfunc)
 {
 	on_incoming_call = ifunc;
 	on_outgoing_call = sfunc;
@@ -1041,6 +1131,7 @@ void h323_callback_register(setup_incoming_cb  	ifunc,
 	on_answer_call = acfunc;
 	on_progress = pgfunc;
 	on_set_rfc2833_payload = dtmffunc;
+	on_hangup = hangupfunc;
 }
 
 /**
@@ -1284,6 +1375,8 @@ int h323_clear_call(const char *call_token, int cause)
 {
 	H225_ReleaseCompleteReason dummy;
 	H323Connection::CallEndReason r = H323Connection::EndedByLocalUser;
+	MyH323Connection *connection;
+	const PString currentToken(call_token);
 
 	if (!h323_end_point_exist()) {
 		return 1;
@@ -1293,7 +1386,12 @@ int h323_clear_call(const char *call_token, int cause)
 		r = H323TranslateToCallEndReason((Q931::CauseValues)(cause), dummy);
 	}
 
-        endPoint->ClearCall(PString(call_token), r);
+	connection = (MyH323Connection *)endPoint->FindConnectionWithLock(currentToken);
+	if (connection) {
+		connection->SetCause(cause);
+		connection->Unlock();
+	}
+	endPoint->ClearCall(currentToken, r);
 	return 0;
 };
 

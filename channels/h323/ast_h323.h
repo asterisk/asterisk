@@ -175,6 +175,7 @@ class MyH323Connection : public H323Connection {
 	void OnSendCapabilitySet(H245_TerminalCapabilitySet &);
 	BOOL OnReceivedCapabilitySet(const H323Capabilities &, const H245_MultiplexCapability *,
 				     H245_TerminalCapabilitySetReject &);
+	void SetCause(int _cause) { cause = _cause; };
 
 	PString sourceAliases;
 	PString destAliases;
@@ -186,6 +187,7 @@ class MyH323Connection : public H323Connection {
 
 	unsigned progressSetup;
 	unsigned progressAlert;
+	int cause;
 
 	RTP_DataFrame::PayloadTypes dtmfCodec;
 
