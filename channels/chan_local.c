@@ -230,12 +230,14 @@ static int local_hangup(struct ast_channel *ast)
 	int isoutbound = IS_OUTBOUND(ast, p);
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
 	struct local_pvt *cur, *prev=NULL;
+	struct ast_channel *ochan = NULL;
 	ast_pthread_mutex_lock(&p->lock);
 	if (isoutbound)
 		p->chan = NULL;
 	else
 		p->owner = NULL;
 	ast->pvt->pvt = NULL;
+	
 	if (!p->owner && !p->chan) {
 		/* Okay, done with the private part now, too. */
 		ast_pthread_mutex_unlock(&p->lock);
@@ -258,8 +260,14 @@ static int local_hangup(struct ast_channel *ast)
 		free(p);
 		return 0;
 	}
-	local_queue_frame(p, isoutbound, &f);
+	if (p->chan && !p->chan->pbx)
+		/* Need to actually hangup since there is no PBX */
+		ochan = p->chan;
+	else
+		local_queue_frame(p, isoutbound, &f);
 	ast_pthread_mutex_unlock(&p->lock);
+	if (ochan)
+		ast_hangup(ochan);
 	return 0;
 }
 
