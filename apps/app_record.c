@@ -42,6 +42,7 @@ static char *descrip =
 "     'n' : do not answer, but record anyway if line not yet answered\n"
 "     'a' : append to existing recording rather than replacing\n"
 "     't' : use alternate '*' terminator key instead of default '#'\n"
+"     'q' : quiet (do not play a beep tone)\n"
 "\n"
 "If filename contains '%d', these characters will be replaced with a number\n"
 "incremented by one each time the file is recorded. \n\n"
@@ -79,6 +80,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	int option_noanswer = 0;
 	int option_append = 0;
 	int terminator = '#';
+	int option_quiet = 0;
 	int rfmt = 0;
 	int flags;
 	
@@ -143,6 +145,8 @@ static int record_exec(struct ast_channel *chan, void *data)
 				option_append = 1;
 			if (strchr(options, 't'))
 				terminator = '*';
+			if (strchr(options, 'q'))
+				option_quiet = 1;
 		}
 	}
 	
@@ -174,14 +178,17 @@ static int record_exec(struct ast_channel *chan, void *data)
 	}
 	
 	if (!res) {
-		/* Some code to play a nice little beep to signify the start of the record operation */
-		res = ast_streamfile(chan, "beep", chan->language);
-		if (!res) {
-			res = ast_waitstream(chan, "");
-		} else {
-			ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", chan->name);
+	
+		if (!option_quiet) {
+			/* Some code to play a nice little beep to signify the start of the record operation */
+			res = ast_streamfile(chan, "beep", chan->language);
+			if (!res) {
+				res = ast_waitstream(chan, "");
+			} else {
+				ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", chan->name);
+			}
+			ast_stopstream(chan);
 		}
-		ast_stopstream(chan);
 		
 		/* The end of beep code.  Now the recording starts */
 		
