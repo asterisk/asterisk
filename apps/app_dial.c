@@ -867,7 +867,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			ast_set2_flag(peerflags, strchr(transfer, 'w'), DIAL_MONITOR_IN);	
 			ast_set2_flag(peerflags, strchr(transfer, 'W'), DIAL_MONITOR_OUT);	
 			ast_set2_flag(peerflags, strchr(transfer, 'd'), DIAL_HALT_ON_DTMF);	
-			ast_set2_flag(tmp, strchr(transfer, 'g'), DIAL_GO_ON);	
+			ast_set2_flag(peerflags, strchr(transfer, 'g'), DIAL_GO_ON);	
 		}
 		strncpy(numsubst, number, sizeof(numsubst)-1);
 		/* If we're dialing by extension, look at the extension to know what to dial */
