@@ -1,0 +1,120 @@
+;
+; Static indications configuration files, used by
+; the pbx_indications module.
+;
+; The "general" category is for certain variables.  All other categories
+; are interpreted as indication countries
+;
+; Please note that there are NOT spaces allowed in lists!
+;
+[general]
+country=us
+
+; [example]
+; description = string
+;      The full name of your country, in English
+; alias = iso[,iso]*
+;      List of other countries 2-letter iso codes, which have the same
+;      tone indications.
+; ringcadance = num[,num]*
+;      List of durations the physical bell rings.
+; dial = tonelist
+;      Set of tones to be played when one picks up the hook.
+; busy = tonelist
+;      Set of tones played when the receiving end is busy.
+; congestion = tonelist
+;      Set of tones played when the is some congestion (on the network?)
+; callwaiting = tonelist
+;      Set of tones played when there is a callwaiting in the background.
+; dialrecall = tonelist
+;      Set of tones played when there is somebody ???
+; record = tonelist
+;      Set of tones played whenver we feel like it ???
+; info = tonelist
+;      Set of tones played when information is to be tranfered?
+; every other variable will be available as a shortcut for the "PlayList" command
+; but will not automaticly be used by Asterisk.
+;
+; The tonelist itself is defined by a sequence of elements, seperated by ,'s.
+; Each element consist of a frequency (f) with a possible frequency attached
+; (f1+f2) to it. Behind the frequency there is an optional duration, in
+; milliseconds. If the element starts with a !, that element is NOT repeat,
+; so only if all elements start with !, the tonelist is time-limited, all
+; others will repeat indefinitly.
+;
+; In tech-talk:
+;   tonelist = element[,element]*
+;   element = [!]freq[+freq2][/duration]
+
+[us]
+description = United States / North America
+ringcadance = 2000,4000
+dial = 350+440
+busy = 480+620/500,0/500
+ring = 440+480/2000,0/4000
+congestion = 480+620/250,0/250
+callwaiting = 440/300,0/10000
+dialrecall = !350+440/100,!0/100,!350+440/100,!0/100,!350+440/100,!0/100,350+440
+record = 1400/500,0/15000
+info = !950/330,!1400/330,!1800/330,0
+
+[au]
+description = Australia
+ringcadance = 400,200,400,2000
+; XXX Dialtone: Should be modulated, not added XXX
+dial = 425+25
+busy = 400/375,0/375
+ring = 400+17/400,0/200,400+17/400,0/2000
+; XXX Congestion: Should reduce by 10 db every other cadence XXX
+congestion = 400/375,0/375
+callwaiting = 425/100,0/100,525/100,0/4700
+dialrecall = !425+25/100!0/100,!425+25/100,!0/100,!425+25/100,!0/100,425+25
+record = 1400/425,0/14525
+info = 400/2500,0/500
+
+[fr]
+description = France
+ringcadance = 1500,3500
+; Dialtone can also be 440+330
+dial = 440
+busy = 440/500,0/500
+ring = 440/1500,0/3500
+; XXX I'm making up the congestion tone XXX
+congestion = 440/250,0/250
+; XXX I'm making up the call wait tone too XXX
+callwait = 440/300,0/10000
+; XXX I'm making up dial recall XXX
+dialrecall = !350+440/100,!0/100,!350+440/100,!0/100,!350+440/100,!0/100,350+440
+; XXX I'm making up the record tone XXX
+record = 1400/500,0/15000
+info = !950/330,!1400/330,!1800/330
+
+[nl]
+alias = de
+description = Netherlands
+ringcadance = 1000,4000
+; Most of these 425's can also be 450's
+dial = 425
+busy = 425/500,0/500
+ring = 425/1000,0/4000
+congestion = 425/250,0/250
+; XXX I'm making up the call wait tone XXX
+callwaiting = 440/300,0/10000
+; XXX Assuming this is "Special Dial Tone" XXX
+dialrecall = 425/500,0/50
+; XXX I'm making up the record tone XXX
+record = 1400/500,0/15000
+info = 950/330,1400/330,1800/330,0/1000
+
+[uk]
+description = United Kingdom
+ringcadance = 400,200,400,2000
+dial = 350+440
+busy = 400/375,0/375
+ring = 400+450/400,0/200,400+450/400,0/2000
+congestion = 400/400,0/350,400/225,0/525
+callwaiting = 440/100,0/4000
+dialrecall = 350+440
+; XXX Not sure about the RECORDTONE
+record = 1400/500,0/10000
+info = 950/330,1400/330,1800/330

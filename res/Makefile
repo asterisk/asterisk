@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-MODS=res_adsi.so res_parking.so res_crypto.so res_musiconhold.so
+MODS=res_adsi.so res_parking.so res_crypto.so res_musiconhold.so res_indications.so
 
 CRYPTO_LIBS=-lssl -lcrypto
 

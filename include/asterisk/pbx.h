@@ -49,6 +49,8 @@ struct ast_switch {
 	int (*canmatch)(struct ast_channel *chan, char *context, char *exten, int priority, char *callerid, char *data);
 	
 	int (*exec)(struct ast_channel *chan, char *context, char *exten, int priority, char *callerid, int newstack, char *data);
+
+	int (*matchmore)(struct ast_channel *chan, char *context, char *exten, int priority, char *callerid, char *data);
 };
 
 //! Register an alternative switch
@@ -212,6 +214,20 @@ int ast_exists_extension(struct ast_channel *c, char *context, char *exten, int 
    what you add to exten, it's not going to be a valid extension anymore
 */
 int ast_canmatch_extension(struct ast_channel *c, char *context, char *exten, int priority, char *callerid);
+
+//! Looks to see if adding anything to this extension might match something. (exists ^ canmatch)
+/*!
+  \param c not really important
+  \param context context to serach within
+  \param exten extension to check
+  \param priority priority of extension path
+  \param callerid callerid of extension being searched for
+   If "exten" *could match* a valid extension in this context with
+   some more digits, return non-zero.  Does NOT return non-zero if this is
+   an exact-match only.  Basically, when this returns 0, no matter
+   what you add to exten, it's not going to be a valid extension anymore
+*/
+int ast_matchmore_extension(struct ast_channel *c, char *context, char *exten, int priority, char *callerid);
 
 //! Determine if a given extension matches a given pattern (in NXX format)
 /*!
@@ -381,11 +397,11 @@ int ast_async_goto_by_name(char *chan, char *context, char *exten, int priority)
 
 /* Synchronously or asynchronously make an outbound call and send it to a
    particular extension */
-int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char *context, char *exten, int priority, int *reason, int sync);
+int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char *context, char *exten, int priority, int *reason, int sync, char *callerid, char *variable );
 
 /* Synchronously or asynchronously make an outbound call and send it to a
    particular application with given extension */
-int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *app, void *appdata, int *reason, int sync);
+int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *app, char *appdata, int *reason, int sync, char *callerid);
 
 /* Functions for returning values from structures */
 char *ast_get_context_name(struct ast_context *con);
@@ -418,6 +434,7 @@ struct ast_include *ast_walk_context_includes(struct ast_context *con,
 struct ast_ignorepat *ast_walk_context_ignorepats(struct ast_context *con,
 	struct ast_ignorepat *ip);
 struct ast_sw *ast_walk_context_switches(struct ast_context *con, struct ast_sw *sw);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
