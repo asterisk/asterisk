@@ -606,16 +606,15 @@ void close_logger(void)
 
 static void strip_coloring(char *str)
 {
-	char *src = str, *dest, *end;
+	char *src, *dest, *end;
 	
 	if (!src)
 		return;
 
 	/* find the first potential escape sequence in the string */
 
-	while (*src && (*src != '\033'))
-		src++;
-	if (!*src)
+	src = strchr(str, '\033');
+	if (!src)
 		return;
 
 	dest = src;
