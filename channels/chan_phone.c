@@ -544,10 +544,13 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 			  : AST_FRAME_VIDEO;
 	p->fr.subclass = p->lastinput;
 	p->fr.offset = AST_FRIENDLY_OFFSET;
+	/* Byteswap from little-endian to native-endian */
+	if (p->fr.subclass == AST_FORMAT_SLINEAR)
+		ast_frame_byteswap_le(&p->fr);
 	return &p->fr;
 }
 
-static int phone_write_buf(struct phone_pvt *p, const char *buf, int len, int frlen)
+static int phone_write_buf(struct phone_pvt *p, const char *buf, int len, int frlen, int swap)
 {
 	int res;
 	/* Store as much of the buffer as we can, then write fixed frames */
@@ -555,7 +558,10 @@ static int phone_write_buf(struct phone_pvt *p, const char *buf, int len, int fr
 	/* Make sure we have enough buffer space to store the frame */
 	if (space < len)
 		len = space;
-	memcpy(p->obuf + p->obuflen, buf, len);
+	if (swap)
+		ast_memcpy_byteswap(p->obuf+p->obuflen, buf, len/2);
+	else
+		memcpy(p->obuf + p->obuflen, buf, len);
 	p->obuflen += len;
 	while(p->obuflen > frlen) {
 		res = write(p->fd, p->obuf, frlen);
@@ -581,7 +587,7 @@ static int phone_write_buf(struct phone_pvt *p, const char *buf, int len, int fr
 static int phone_send_text(struct ast_channel *ast, const char *text)
 {
     int length = strlen(text);
-    return phone_write_buf(ast->tech_pvt, text, length, length) == 
+    return phone_write_buf(ast->tech_pvt, text, length, length, 0) == 
            length ? 0 : -1;
 }
 
@@ -729,12 +735,17 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 				memset(tmpbuf + 4, 0, sizeof(tmpbuf) - 4);
 				memcpy(tmpbuf, frame->data, 4);
 				expected = 24;
-				res = phone_write_buf(p, tmpbuf, expected, maxfr);
+				res = phone_write_buf(p, tmpbuf, expected, maxfr, 0);
 			}
 			res = 4;
 			expected=4;
 		} else {
-			res = phone_write_buf(p, pos, expected, maxfr);
+			int swap = 0;
+#if __BYTE_ORDER == __BIG_ENDIAN
+			if (frame->subclass == AST_FORMAT_SLINEAR)
+				swap = 1; /* Swap big-endian samples to little-endian as we copy */
+#endif
+			res = phone_write_buf(p, pos, expected, maxfr, swap);
 		}
 		if (res != expected) {
 			if ((errno != EAGAIN) && (errno != EINTR)) {

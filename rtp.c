@@ -596,6 +596,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			break;
 		case AST_FORMAT_SLINEAR:
 			rtp->f.samples = rtp->f.datalen / 2;
+			ast_frame_byteswap_be(&rtp->f);
 			break;
 		case AST_FORMAT_GSM:
 			rtp->f.samples = 160 * (rtp->f.datalen / 33);
@@ -1320,6 +1321,19 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 
 
 	switch(subclass) {
+	case AST_FORMAT_SLINEAR:
+		if (!rtp->smoother) {
+			rtp->smoother = ast_smoother_new(320);
+		}
+		if (!rtp->smoother) {
+			ast_log(LOG_WARNING, "Unable to create smoother :(\n");
+			return -1;
+		}
+		ast_smoother_feed_be(rtp->smoother, _f);
+		
+		while((f = ast_smoother_read(rtp->smoother)))
+			ast_rtp_raw_write(rtp, f, codec);
+		break;
 	case AST_FORMAT_ULAW:
 	case AST_FORMAT_ALAW:
 		if (!rtp->smoother) {

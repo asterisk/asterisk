@@ -83,7 +83,7 @@ void ast_smoother_set_flags(struct ast_smoother *s, int flags)
 	s->flags = flags;
 }
 
-int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f)
+int __ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f, int swap)
 {
 	if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Huh?  Can't smooth a non-voice frame!\n");
@@ -129,7 +129,10 @@ int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f)
 			return 0;
 		}
 	}
-	memcpy(s->data + s->len, f->data, f->datalen);
+	if (swap)
+		ast_swapcopy_samples(s->data+s->len, f->data, f->samples);
+	else
+		memcpy(s->data + s->len, f->data, f->datalen);
 	/* If either side is empty, reset the delivery time */
 	if (!s->len || (!f->delivery.tv_sec && !f->delivery.tv_usec) ||
 			(!s->delivery.tv_sec && !s->delivery.tv_usec))
@@ -397,6 +400,16 @@ int ast_fr_fdhangup(int fd)
 		AST_CONTROL_HANGUP
 	};
 	return ast_fr_fdwrite(fd, &hangup);
+}
+
+void ast_swapcopy_samples(void *dst, void *src, int samples)
+{
+	int i;
+	unsigned short *dst_s = dst;
+	unsigned short *src_s = src;
+
+	for (i=0; i<samples; i++)
+		dst_s[i] = (src_s[i]<<8) | (src_s[i]>>8);
 }
 
 static struct ast_format_list AST_FORMAT_LIST[] = {

@@ -301,6 +301,19 @@ int ast_fr_fdwrite(int fd, struct ast_frame *frame);
  */
 int ast_fr_fdhangup(int fd);
 
+void ast_swapcopy_samples(void *dst, void *src, int samples);
+
+/* Helpers for byteswapping native samples to/from 
+   little-endian and big-endian. */
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+#define ast_frame_byteswap_le(fr) do { ; } while(0)
+#define ast_frame_byteswap_be(fr) do { struct ast_frame *__f = (fr); ast_swapcopy_samples(__f->data, __f->data, __f->samples); } while(0)
+#else
+#define ast_frame_byteswap_le(fr) do { struct ast_frame *__f = (fr); ast_swapcopy_samples(__f->data, __f->data, __f->samples); } while(0)
+#define ast_frame_byteswap_be(fr) do { ; } while(0)
+#endif
+
+
 /*! Get the name of a format */
 /*!
  * \param format id of format
@@ -347,8 +360,16 @@ extern void ast_smoother_set_flags(struct ast_smoother *smoother, int flags);
 extern int ast_smoother_get_flags(struct ast_smoother *smoother);
 extern void ast_smoother_free(struct ast_smoother *s);
 extern void ast_smoother_reset(struct ast_smoother *s, int bytes);
-extern int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f);
+extern int __ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f, int swap);
 extern struct ast_frame *ast_smoother_read(struct ast_smoother *s);
+#define ast_smoother_feed(s,f) do { __ast_smoother_feed(s, f, 0); } while(0)
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+#define ast_smoother_feed_be(s,f) do { __ast_smoother_feed(s, f, 1); } while(0)
+#define ast_smoother_feed_le(s,f) do { __ast_smoother_feed(s, f, 0); } while(0)
+#else
+#define ast_smoother_feed_be(s,f) do { __ast_smoother_feed(s, f, 0); } while(0)
+#define ast_smoother_feed_le(s,f) do { __ast_smoother_feed(s, f, 1); } while(0)
+#endif
 
 extern void ast_frame_dump(char *name, struct ast_frame *f, char *prefix);
 

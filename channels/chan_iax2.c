@@ -7337,9 +7337,12 @@ retryowner2:
 	f.src = "IAX2";
 	f.mallocd = 0;
 	f.offset = 0;
-	if (f.datalen && (f.frametype == AST_FRAME_VOICE)) 
+	if (f.datalen && (f.frametype == AST_FRAME_VOICE)) {
 		f.samples = get_samples(&f);
-	else
+		/* We need to byteswap incoming slinear samples from network byte order */
+		if (f.subclass == AST_FORMAT_SLINEAR)
+			ast_frame_byteswap_be(&f);
+	} else
 		f.samples = 0;
 	iax_frame_wrap(&fr, &f);
 
