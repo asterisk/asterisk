@@ -212,14 +212,14 @@ struct iax2_context {
 #define IAX_ALREADYGONE		(1 << 9)	/* Already disconnected */
 #define IAX_PROVISION		(1 << 10)	/* This is a provisioning request */
 #define IAX_QUELCH		(1 << 11)	/* Whether or not we quelch audio */
-#define IAX_ENCRYPTED	(1 << 12)	/* Whether we should assume encrypted tx/rx */
-#define IAX_KEYPOPULATED (1 << 13)	/* Whether we have a key populated */
-#define IAX_CODEC_USER_FIRST (1 << 14)  /* are we willing to let the other guy choose the codec? */
-#define IAX_CODEC_NOPREFS (1 << 15) /* Force old behaviour by turning off prefs */
-#define IAX_CODEC_NOCAP (1 << 16) /* only consider requested format and ignore capabilities*/
-#define IAX_RTCACHEFRIENDS (1 << 17) /* let realtime stay till your reload */
-#define IAX_RTNOUPDATE (1 << 18) /* Don't send a realtime update */
-#define IAX_RTAUTOCLEAR (1 << 19) /* erase me on expire */ 
+#define IAX_ENCRYPTED		(1 << 12)	/* Whether we should assume encrypted tx/rx */
+#define IAX_KEYPOPULATED 	(1 << 13)	/* Whether we have a key populated */
+#define IAX_CODEC_USER_FIRST 	(1 << 14) 	/* are we willing to let the other guy choose the codec? */
+#define IAX_CODEC_NOPREFS 	(1 << 15) 	/* Force old behaviour by turning off prefs */
+#define IAX_CODEC_NOCAP 	(1 << 16) 	/* only consider requested format and ignore capabilities*/
+#define IAX_RTCACHEFRIENDS 	(1 << 17) 	/* let realtime stay till your reload */
+#define IAX_RTNOUPDATE 		(1 << 18) 	/* Don't send a realtime update */
+#define IAX_RTAUTOCLEAR 	(1 << 19) 	/* erase me on expire */ 
 #define IAX_FORCEJITTERBUF	(1 << 20)	/* Force jitterbuffer, even when bridged to a channel that can take jitter */ 
 
 static int global_rtautoclear = 120;
@@ -261,7 +261,7 @@ struct iax2_peer {
 	struct ast_codec_pref prefs;
 	struct sockaddr_in addr;
 	int formats;
-	int sockfd;						/* Socket to use for transmission */
+	int sockfd;					/* Socket to use for transmission */
 	struct in_addr mask;
 	unsigned int flags;
 

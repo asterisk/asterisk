@@ -44,7 +44,7 @@ static char *descrip =
 "                or 'noanswer' to read digits even if the line is not up.\n"
 "  attempts   -- if greater than 1, that many attempts will be made in the \n"
 "                event no data is entered.\n"
-"  timeout    -- if greater than 0, that value will override the default timeoft.\n\n"
+"  timeout    -- if greater than 0, that value will override the default timeout.\n\n"
 "Returns -1 on hangup or error and 0 otherwise.\n";
 
 STANDARD_LOCAL_USER;

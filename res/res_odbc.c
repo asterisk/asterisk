@@ -92,7 +92,7 @@ int odbc_smart_execute(odbc_obj *obj, SQLHSTMT stmt)
 		obj->up = 0;
 		ast_mutex_unlock(&obj->lock);
 		odbc_obj_disconnect(obj);
-        odbc_obj_connect(obj);
+		odbc_obj_connect(obj);
 		res = SQLExecute(stmt);
 	}
 	
@@ -111,7 +111,7 @@ int odbc_smart_direct_execute(odbc_obj *obj, SQLHSTMT stmt, char *sql)
 		obj->up = 0;
 		ast_mutex_unlock(&obj->lock);
 		odbc_obj_disconnect(obj);
-        odbc_obj_connect(obj);
+		odbc_obj_connect(obj);
 		res = SQLExecDirect (stmt, sql, SQL_NTS);
 	}
 	

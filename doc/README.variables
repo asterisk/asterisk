@@ -297,109 +297,103 @@ Variables marked with a * are builtin functions and can't be set,
 only read in the dialplan.  Writes to such variables are silently 
 ignored.
 
-${ACCOUNTCODE} 	 * Account code (if specified)
-${BLINDTRANSFER} The name of the channel on the other side a blind transfer
-${BRIDGEPEER}	 Bridged peer
-${CALLERANI}	 * Caller ANI (PRI channels)
-${CALLERID}	 * Caller ID
-${CALLERIDNAME}	 * Caller ID Name only
-${CALLERIDNUM}	 * Caller ID Number only
-${CALLINGANI2}	 * Caller ANI2 (PRI channels)
-${CALLINGPRES}	 * Caller ID presentation for incoming calls (PRI channels)
-${CALLINGTNS} 	 * Transit Network Selector (PRI channels)
-${CALLINGTON}    * Caller Type of Number (PRI channels)
-${CHANNEL}	 * Current channel name
-${CONTEXT}       * Current context
-${DATETIME}	 * Current date time in the format: YYYY-MM-DD_HH:MM:SS
-${DNID}          * Dialed Number Identifier
-${EPOCH}	 * Current unix style epoch
-${EXTEN}	 * Current extension
-${ENV(VAR)}	 * Environmental variable VAR
-${HANGUPCAUSE}	 * Asterisk cause of hangup (inbound/outbound)
-${HINT}          * Channel hints for this extension
-${HINTNAME}      * Suggested Caller*ID name for this extension
-${INVALID_EXTEN} The invalid called extension (used in the "i" extension)
-${LANGUAGE}	 * Current language
-${LEN(VAR)}	 * String length of VAR (integer)
-${PRIORITY}	 * Current priority in the dialplan
-${PRIREDIRECTREASON} Reason for redirect on PRI, if a call was directed
-${RDNIS}         * Redirected Dial Number ID Service
-${TIMESTAMP}	 * Current date time in the format: YYYYMMDD-HHMMSS
-${TRANSFER_CONTEXT} Context for transferred calls
-${UNIQUEID}	 * Current call unique identifier
+${ACCOUNTCODE} 	 	* Account code (if specified)
+${BLINDTRANSFER} 	The name of the channel on the other side a blind transfer
+${BRIDGEPEER}	 	Bridged peer
+${CALLERANI}	 	* Caller ANI (PRI channels)
+${CALLERID}	 	* Caller ID
+${CALLERIDNAME}	 	* Caller ID Name only
+${CALLERIDNUM}	 	* Caller ID Number only
+${CALLINGANI2}	 	* Caller ANI2 (PRI channels)
+${CALLINGPRES}	 	* Caller ID presentation for incoming calls (PRI channels)
+${CALLINGTNS} 	 	* Transit Network Selector (PRI channels)
+${CALLINGTON}    	* Caller Type of Number (PRI channels)
+${CHANNEL}	 	* Current channel name
+${CONTEXT}       	* Current context
+${DATETIME}	 	* Current date time in the format: YYYY-MM-DD_HH:MM:SS
+${DNID}          	* Dialed Number Identifier
+${EPOCH}	 	* Current unix style epoch
+${EXTEN}	 	* Current extension
+${ENV(VAR)}	 	* Environmental variable VAR
+${HANGUPCAUSE}	 	* Asterisk cause of hangup (inbound/outbound)
+${HINT}          	* Channel hints for this extension
+${HINTNAME}      	* Suggested Caller*ID name for this extension
+${INVALID_EXTEN} 	The invalid called extension (used in the "i" extension)
+${LANGUAGE}	 	* Current language
+${LEN(VAR)}	 	* String length of VAR (integer)
+${PRIORITY}	 	* Current priority in the dialplan
+${PRIREDIRECTREASON} 	Reason for redirect on PRI, if a call was directed
+${RDNIS}         	* Redirected Dial Number ID Service
+${TIMESTAMP}	 	* Current date time in the format: YYYYMMDD-HHMMSS
+${TRANSFER_CONTEXT} 	Context for transferred calls
+${UNIQUEID}	 	* Current call unique identifier
 
 Various application variables
 -----------------------------
-${CURL}		Resulting page content for curl()
-${ENUM}		Result of application EnumLookup
-${EXITCONTEXT}	Context to exit to in IVR menu (app background())
-		or in the RetryDial() application
-${GROUPCOUNT}	Result from groupcount()
-${MONITOR}	Set to "TRUE" if the channel is/has been monitored (app monitor())
-${MONITOR_EXEC}	Application to execute after monitoring a call
+${CURL}			* Resulting page content for curl()
+${ENUM}			* Result of application EnumLookup
+${EXITCONTEXT}		Context to exit to in IVR menu (app background())
+			or in the RetryDial() application
+${GROUPCOUNT}		* Result from groupcount()
+${MONITOR}		* Set to "TRUE" if the channel is/has been monitored (app monitor())
+${MONITOR_EXEC}		Application to execute after monitoring a call
 ${MONITOR_EXEC_ARGS}	Arguments to application
-${MONITOR_FILENAME} File for monitoring (recording) calls in queue
-${QUEUE_PRIO}	Queue priority
-${RECORDED_FILE} Recorded file in record()
-${TALK_DETECED} Result from talkdetect()
-${TOUCH_MONITOR} The filename base to use with Touch Monitor (auto record)
-${TXTCIDNAME}	Result of application TXTCIDName
-${VPB_GETDTMF}	chan_vpb
+${MONITOR_FILENAME} 	File for monitoring (recording) calls in queue
+${QUEUE_PRIO}		Queue priority
+${RECORDED_FILE} 	* Recorded file in record()
+${TALK_DETECED} 	* Result from talkdetect()
+${TOUCH_MONITOR} 	The filename base to use with Touch Monitor (auto record)
+${TXTCIDNAME}		* Result of application TXTCIDName
+${VPB_GETDTMF}		chan_vpb
 
 The MeetMe Conference Bridge uses the following variables:
 ----------------------------------------------------------
-${MEETME_RECORDINGFILE} Name of file for recording a conference with 
-		the "r" option
-${MEETME_RECORDINGFORMAT} Format of file to be recorded
-${MEETME_EXIT_CONTEXT} 	Context for exit out of meetme meeting
-${MEETME_AGI_BACKGROUND} AGI script for Meetme (zap only)
-
-Meetme() sets the following variable:
-${MEETMESECS} 	Number of seconds a user participated in a MeetMe conference
+${MEETME_RECORDINGFILE} 	Name of file for recording a conference with 
+				the "r" option
+${MEETME_RECORDINGFORMAT} 	Format of file to be recorded
+${MEETME_EXIT_CONTEXT} 		Context for exit out of meetme meeting
+${MEETME_AGI_BACKGROUND} 	AGI script for Meetme (zap only)
+${MEETMESECS} 			* Number of seconds a user participated in a MeetMe conference
 
 The voicemail() application uses the following variables:
 ---------------------------------------------------------
 ${VM_CATEGORY}	Sets voicemail category
+${VM_NAME}	* Full name in voicemail
+${VM_DUR}	* Voicemail duration
+${VM_MSGNUM}	* Number of voicemail message in mailbox
+${VM_CALLERID}	* Voicemail Caller ID (Person leaving vm)
+${VM_CIDNAME}	* Voicemail Caller ID Name
+${VM_CIDNUM}	* Voicemail Caller ID Number
+${VM_DATE}	* Voicemail Date
 
-The following variables are set by voicemail()
-${VM_NAME}	Full name in voicemail
-${VM_DUR}	Voicemail duration
-${VM_MSGNUM}	Number of voicemail message in mailbox
-${VM_CALLERID}	Voicemail Caller ID (Person leaving vm)
-${VM_CIDNAME}	Voicemail Caller ID Name
-${VM_CIDNUM}	Voicemail Caller ID Number
-${VM_DATE}	Voicemail Date
-
-The following variables are set by vmauthenticate()
-${AUTH_MAILBOX}	Authenticated mailbox
-${AUTH_CONTEXT}	Authenticated mailbox context
-${DIFF_DAY}	Day difference (internal use)
-
-Dundi() uses the following variables
+The vmauthenticate() application uses the following variables:
 ---------------------------------------------------------
-${DUNDTECH}	Technology
-${DUNDDEST}	Destination
+${AUTH_MAILBOX}	* Authenticated mailbox
+${AUTH_CONTEXT}	* Authenticated mailbox context
+
+DUNDiLookup() uses the following variables
+---------------------------------------------------------
+${DUNDTECH}	* The Technology of the result from a call to DUNDiLookup()
+${DUNDDEST}	* The Destination of the result from a call to DUNDiLookup()
 
 The Zaptel channel sets the following variables:
 ---------------------------------------------------------
-${ANI2}			The ANI2 Code provided by the network on the incoming call. 
+${ANI2}			* The ANI2 Code provided by the network on the incoming call. 
 			(ie, Code 29 identifies call as a Prison/Inmate Call)
-${CALLTYPE}		Type of call (Speech, Digital, etc)
-${CALLEDTON}		Type of number for incoming PRI extension
+${CALLTYPE}		* Type of call (Speech, Digital, etc)
+${CALLEDTON}		* Type of number for incoming PRI extension
 			i.e. 0=unknown, 1=international, 2=domestic, 3=net_specific, 
 			4=subscriber, 6=abbreviated, 7=reserved 
-${CALLINGSUBADDR}	Called PRI Subaddress
-${FAXEXTEN}	 	The extension called before being redirected to "fax"	
-${PRIREDIRECTREASON}	Reason for redirect, if a call was directed
+${CALLINGSUBADDR}	* Called PRI Subaddress
+${FAXEXTEN}	 	* The extension called before being redirected to "fax"	
+${PRIREDIRECTREASON}	* Reason for redirect, if a call was directed
 
 The SIP channel sets the following variables:
 ---------------------------------------------------------
-${SIPCALLID} 		SIP Call-ID: header verbatim (for logging or CDR matching)
-${SIPDOMAIN}    	SIP destination domain of an inbound call (if appropriate)
-${SIPUSERAGENT} 	SIP user agent 
-${SIPURI}		SIP uri
-
-The SIP channel reads the following variable:
+${SIPCALLID} 		* SIP Call-ID: header verbatim (for logging or CDR matching)
+${SIPDOMAIN}    	* SIP destination domain of an inbound call (if appropriate)
+${SIPUSERAGENT} 	* SIP user agent 
+${SIPURI}		* SIP uri
 ${SIP_CODEC} 		Set the SIP codec for a call	
 
 The Agent channel uses the following variables:
@@ -410,41 +404,37 @@ ${AGENTGOODBYE}		Sound file to use for "Good Bye" when agent logs out
 ${AGENTACKCALL} 	Whether the agent should acknowledge the incoming call
 ${AGENTAUTOLOGOFF}	Auto logging off for an agent
 ${AGENTWRAPUPTIME}	Setting the time for wrapup between incoming calls
-${AGENTNUMBER}		Agent number (username) set at login
-${AGENTSTATUS}		Status of login	( fail | on | off )
-${AGENTEXTEN}		Extension for logged in agent
+${AGENTNUMBER}		* Agent number (username) set at login
+${AGENTSTATUS}		* Status of login	( fail | on | off )
+${AGENTEXTEN}		* Extension for logged in agent
 
-The Dial() application sets the following variables:
+The Dial() application uses the following variables:
 ---------------------------------------------------------
-${DIALEDPEERNAME} Dialed peer name
-${DIALEDPEERNUMBER} Dialed peer number
-${DIALEDTIME}   Time for the call (seconds)
-${ANSWEREDTIME} Time from dial to answer (seconds)
-${DIALSTATUS}   Status of the call, one of:
-                CHANUNAVAIL | CONGESTION | BUSY | NOANSWER | ANSWER | CANCEL
-
-The dial() application reads the following variables
+${DIALEDPEERNAME} 		* Dialed peer name
+${DIALEDPEERNUMBER} 		* Dialed peer number
+${DIALEDTIME}   		* Time for the call (seconds)
+${ANSWEREDTIME} 		* Time from dial to answer (seconds)
+${DIALSTATUS}   		* Status of the call, one of:
+                		(CHANUNAVAIL | CONGESTION | BUSY | NOANSWER | ANSWER | CANCEL)
 ${LIMIT_PLAYAUDIO_CALLER}	Soundfile for call limits
 ${LIMIT_PLAYAUDIO_CALLEE}	Soundfile for call limits
 ${LIMIT_WARNING_FILE}		Soundfile for call limits
 ${LIMIT_TIMEOUT_FILE}		Soundfile for call limits
 ${LIMIT_CONNECT_FILE}		Soundfile for call limits
-${OUTBOUND_GROUP}	Default groups for peer channels (as in SetGroup)
+${OUTBOUND_GROUP}		Default groups for peer channels (as in SetGroup)
 * See "show application dial" for more information
-
-
 
 The chanisavail() application sets the following variables:
 -----------------------------------------------------------
-${AVAILCHAN}		return value
-${AVAILORIGCHAN} 	return value
-${AVAILSTATUS}		Status of requested channel
+${AVAILCHAN}		* the name of the available channel if one was found	
+${AVAILORIGCHAN} 	* the canonical channel name that was used to create the channel
+${AVAILSTATUS}		* Status of requested channel
 
 When using macros in the dialplan, these variables are available
 ---------------------------------------------------------
-${MACRO_EXTEN}		The calling extensions
-${MACRO_CONTEXT}	The calling context
-${MACRO_PRIORITY}	The calling priority
+${MACRO_EXTEN}		* The calling extensions
+${MACRO_CONTEXT}	* The calling context
+${MACRO_PRIORITY}	* The calling priority
 ${MACRO_OFFSET}		Offset to add to priority at return from macro
 
 If you compile with OSP support in the SIP channel, these

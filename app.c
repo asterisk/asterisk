@@ -58,9 +58,9 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 		timeout = 5;
 	
 	ts = ast_get_indication_tone(chan->zone,"dial");
-    if (ts && ts->data[0]) {
-        res = ast_playtones_start(chan, 0, ts->data, 0);
-	} else 
+	if (ts && ts->data[0])
+		res = ast_playtones_start(chan, 0, ts->data, 0);
+	else 
 		ast_log(LOG_NOTICE,"Huh....? no dial for indications?\n");
 	
 	for (x = strlen(collect); strlen(collect) < maxlen; ) {
@@ -105,8 +105,10 @@ int ast_app_getdata(struct ast_channel *c, char *prompt, char *s, int maxlen, in
 	fto = c->pbx ? c->pbx->rtimeout * 1000 : 6000;
 	to = c->pbx ? c->pbx->dtimeout * 1000 : 2000;
 
-	if (timeout > 0) fto = to = timeout;
-	if (timeout < 0) fto = to = 1000000000;
+	if (timeout > 0) 
+		fto = to = timeout;
+	if (timeout < 0) 
+		fto = to = 1000000000;
 	res = ast_readstring(c, s, maxlen, to, fto, "#");
 	return res;
 }
@@ -122,8 +124,10 @@ int ast_app_getdata_full(struct ast_channel *c, char *prompt, char *s, int maxle
 	}
 	fto = 6000;
 	to = 2000;
-	if (timeout > 0) fto = to = timeout;
-	if (timeout < 0) fto = to = 1000000000;
+	if (timeout > 0) 
+		fto = to = timeout;
+	if (timeout < 0) 
+		fto = to = 1000000000;
 	res = ast_readstring_full(c, s, maxlen, to, fto, "#", audiofd, ctrlfd);
 	return res;
 }

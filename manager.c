@@ -1343,7 +1343,7 @@ static void *accept_thread(void *ignore)
 			continue;
 		}
 		p = getprotobyname("tcp");
-		if( p ) {
+		if (p) {
 			if( setsockopt(as, p->p_proto, TCP_NODELAY, (char *)&arg, sizeof(arg) ) < 0 ) {
 				ast_log(LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\n", strerror(errno));
 			}
