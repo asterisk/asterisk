@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Voicemail System (did you ever think it could be so easy?)
+ * Voicemail System
  * 
  * Copyright (C) 2003-2004, Digium Inc.
  *

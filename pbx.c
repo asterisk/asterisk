@@ -216,19 +216,19 @@ static struct pbx_builtin {
 
 	{ "BackGround", pbx_builtin_background,
 	"Play a file while awaiting extension",
-	"  Background(filename[|options[|langoverride]]): Plays a given file, while simultaneously\n"
-	"waiting for the user to begin typing an extension. The  timeouts do not\n"
-	"count until the last BackGround application has ended.\n" 
-	"Options may also be  included following a pipe symbol. The 'skip'\n"
-	"option causes the playback of the message to  be  skipped  if  the  channel\n"
-	"is not in the 'up' state (i.e. it hasn't been  answered  yet. If 'skip' is \n"
-	"specified, the application will return immediately should the channel not be\n"
-	"off hook.  Otherwise, unless 'noanswer' is specified, the channel channel will\n"
-	"be answered before the sound is played. Not all channels support playing\n"
-	"messages while still hook. The 'langoverride' may be a language to use for\n"
-	"playing the prompt which differs from the current language of the channel\n"
-	"Returns -1 if the channel was hung up, or if the file does not exist. \n"
-	"Returns 0 otherwise.\n"
+	"  Background(filename1[&filename2...][|options[|langoverride]]): Plays\n"
+	"given files, while simultaneously waiting for the user to begin typing\n"
+	"an extension. The  timeouts do not count until the last BackGround\n"
+	"application has ended. Options may also be  included following a pipe \n"
+	"symbol. The 'skip' option causes the playback of the message to  be \n"
+	"skipped  if  the  channel is not in the 'up' state (i.e. it hasn't been\n"
+	"answered  yet. If 'skip' is specified, the application will return\n"
+	"immediately should the channel not be off hook.  Otherwise, unless \n"
+	"'noanswer' is specified, the channel channel will be answered before the\n"
+	"sound is played. Not all channels support playing messages while still\n"
+	"hook. The 'langoverride' may be a language to use for playing the prompt\n"
+	"which differs from the current language of the channel.  Returns -1 if \n"
+	"the channel was hung up, or if the file does not exist. Returns 0 otherwise.\n"
 	},
 
 	{ "Busy", pbx_builtin_busy,
@@ -4857,17 +4857,17 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 	int res = 0;
 	int option_skip = 0;
 	int option_noanswer = 0;
-	char filename[256] = "";
+	char *filename = NULL;
 	char* stringp;
 	char* options;
 	char *lang = NULL;
+	char *front = NULL, *back = NULL;
 
-	if (!data || ast_strlen_zero(data)) {
+	if (!data || ast_strlen_zero(data) || !(filename = ast_strdupa(data))) {
 		ast_log(LOG_WARNING, "Background requires an argument(filename)\n");
 		return -1;
 	}
 
-	strncpy(filename, (char*)data, sizeof(filename) - 1);
 	stringp = filename;
 	strsep(&stringp, "|");
 	options = strsep(&stringp, "|");
@@ -4894,16 +4894,24 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 		/* Stop anything playing */
 		ast_stopstream(chan);
 		/* Stream a file */
-		res = ast_streamfile(chan, filename, lang);
-		if (!res) {
-			res = ast_waitstream(chan, AST_DIGIT_ANY);
-			ast_stopstream(chan);
-		} else {
-			ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char*)data);
-			res = 0;
+		front = filename;
+		while(!res && front) {
+			if((back = strchr(front, '&'))) {
+				*back = '\0';
+				back++;
+			}
+			res = ast_streamfile(chan, front, lang);
+			if (!res) {
+				res = ast_waitstream(chan, AST_DIGIT_ANY);
+				ast_stopstream(chan);
+			} else {
+				ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char*)data);
+				res = 0;
+				break;
+			}
+			front = back;
 		}
 	}
-
 	return res;
 }
 
