@@ -3463,8 +3463,10 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		ZT_PARAMS ps;
 
 		ps.channo = p->channel;
-		if (ioctl(p->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &ps) < 0)
+		if (ioctl(p->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &ps) < 0) {
+			ast_mutex_unlock(&p->lock);
 			return NULL;
+		}
 		p->firstradio = 1;
 		p->subs[index].f.frametype = AST_FRAME_CONTROL;
 		if (ps.rxisoffhook)
@@ -3580,6 +3582,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		c = tdd_feed(p->tdd,readbuf,READ_SIZE);
 		if (c < 0) {
 			ast_log(LOG_DEBUG,"tdd_feed failed\n");
+			ast_mutex_unlock(&p->lock);
 			return NULL;
 		}
 		if (c) { /* if a char to return */
