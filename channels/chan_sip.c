@@ -7489,7 +7489,7 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 		peerd = bridgea;
 	}
 	
-	if (peera && peerb && peerc) {
+	if (peera && peerb && peerc && (peerb != peerc)) {
 		ast_quiet_chan(peera);
 		ast_quiet_chan(peerb);
 		ast_quiet_chan(peerc);
@@ -7515,7 +7515,7 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 		}
 		return res;
 	} else {
-		ast_log(LOG_NOTICE, "Transfer attempted with no bridged calls to transfer\n");
+		ast_log(LOG_NOTICE, "Transfer attempted with no appropriate bridged calls to transfer\n");
 		if (chana)
 			ast_softhangup_nolock(chana, AST_SOFTHANGUP_DEV);
 		if (chanb)
