@@ -1654,7 +1654,8 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	copy_via_headers(p, resp, req, "Via");
 	copy_header(resp, req, "From");
 	ot = get_header(req, "To");
-	copy_header(resp, req, "Record-Route");
+	if (strlen(get_header(req, "Record-Route")))
+		copy_header(resp, req, "Record-Route");
 	if (!strstr(ot, "tag=")) {
 		/* Add the proper tag if we don't have it already.  If they have specified
 		   their tag, use it.  Otherwise, use our own tag */

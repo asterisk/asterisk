@@ -40,6 +40,7 @@ struct playtones_def {
 	int vol;
 	int reppos;
 	int nitems;
+	int interruptible;
 	struct playtones_item *items;
 };
 
@@ -84,7 +85,7 @@ static void * playtones_alloc(struct ast_channel *chan, void *params)
 		ps->items = pd->items;
 	}
 	/* Let interrupts interrupt :) */
-	chan->writeinterrupt = 1;
+	chan->writeinterrupt = pd->interruptible;
 	return ps;
 }
 
@@ -137,16 +138,18 @@ static struct ast_generator playtones = {
 	generate: playtones_generator,
 };
 
-int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst)
+int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, int interruptible)
 {
 	char *s, *data = strdupa(playlst); /* cute */
-	struct playtones_def d = { vol, -1, 0, NULL};
+	struct playtones_def d = { vol, -1, 0, 1, NULL};
 	char *stringp=NULL;
 	if (!data)
 		return -1;
 	if (vol < 1)
 		d.vol = 8192;
 
+	d.interruptible = interruptible;
+	
 	stringp=data;
 	s = strsep(&stringp,",");
         while(s && *s) {
@@ -156,7 +159,6 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst)
 			s++;
 		else if (d.reppos == -1)
 			d.reppos = d.nitems;
-
 		if (sscanf(s, "%d+%d/%d", &freq1, &freq2, &time) == 3) {
 			/* f1+f2/time format */
 		} else if (sscanf(s, "%d+%d", &freq1, &freq2) == 2) {

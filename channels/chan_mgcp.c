@@ -1896,8 +1896,8 @@ int load_module()
 
 int unload_module()
 {
-	struct mgcp_endpoint *p, *pl;
 #if 0
+	struct mgcp_endpoint *p, *pl;
 	/* First, take us out of the channel loop */
 	ast_channel_unregister(type);
 	if (!ast_pthread_mutex_lock(&gatelock)) {

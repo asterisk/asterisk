@@ -96,11 +96,13 @@ deltree_exec (struct ast_channel *chan, void *data)
     }
 
   if (option_verbose > 2)
+    {
     if (keytree)
       ast_verbose (VERBOSE_PREFIX_3 "DBdeltree: family=%s, keytree=%s\n",
 		   family, keytree);
     else
       ast_verbose (VERBOSE_PREFIX_3 "DBdeltree: family=%s\n", family);
+    }
 
   if (ast_db_deltree (family, keytree))
     {

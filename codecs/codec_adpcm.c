@@ -185,7 +185,7 @@ struct adpcm_decoder_pvt
  */
 
 static struct ast_translator_pvt *
-adpcmtolin_new ()
+adpcmtolin_new (void)
 {
   struct adpcm_decoder_pvt *tmp;
   tmp = malloc (sizeof (struct adpcm_decoder_pvt));
@@ -211,7 +211,7 @@ adpcmtolin_new ()
  */
 
 static struct ast_translator_pvt *
-lintoadpcm_new ()
+lintoadpcm_new (void)
 {
   struct adpcm_encoder_pvt *tmp;
   tmp = malloc (sizeof (struct adpcm_encoder_pvt));
@@ -411,7 +411,7 @@ lintoadpcm_frameout (struct ast_translator_pvt *pvt)
  */
 
 static struct ast_frame *
-adpcmtolin_sample ()
+adpcmtolin_sample (void)
 {
   static struct ast_frame f;
   f.frametype = AST_FRAME_VOICE;
@@ -430,7 +430,7 @@ adpcmtolin_sample ()
  */
 
 static struct ast_frame *
-lintoadpcm_sample ()
+lintoadpcm_sample (void)
 {
   static struct ast_frame f;
   f.frametype = AST_FRAME_VOICE;

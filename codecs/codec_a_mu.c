@@ -64,7 +64,7 @@ struct ulaw_encoder_pvt
 };
 
 static struct ast_translator_pvt *
-alawtoulaw_new ()
+alawtoulaw_new (void)
 {
   struct ulaw_encoder_pvt *tmp;
   tmp = malloc (sizeof (struct ulaw_encoder_pvt));
@@ -79,7 +79,7 @@ alawtoulaw_new ()
 }
 
 static struct ast_translator_pvt *
-ulawtoalaw_new ()
+ulawtoalaw_new (void)
 {
   struct alaw_encoder_pvt *tmp;
   tmp = malloc (sizeof (struct alaw_encoder_pvt));
@@ -189,7 +189,7 @@ ulawtoalaw_frameout (struct ast_translator_pvt *pvt)
  */
 
 static struct ast_frame *
-alawtoulaw_sample ()
+alawtoulaw_sample (void)
 {
   static struct ast_frame f;
   f.frametype = AST_FRAME_VOICE;
@@ -204,7 +204,7 @@ alawtoulaw_sample ()
 }
 
 static struct ast_frame *
-ulawtoalaw_sample ()
+ulawtoalaw_sample (void)
 {
   static struct ast_frame f;
   f.frametype = AST_FRAME_VOICE;

@@ -72,7 +72,7 @@ struct ulaw_decoder_pvt
  */
 
 static struct ast_translator_pvt *
-ulawtolin_new ()
+ulawtolin_new (void)
 {
   struct ulaw_decoder_pvt *tmp;
   tmp = malloc (sizeof (struct ulaw_decoder_pvt));
@@ -98,7 +98,7 @@ ulawtolin_new ()
  */
 
 static struct ast_translator_pvt *
-lintoulaw_new ()
+lintoulaw_new (void)
 {
   struct ulaw_encoder_pvt *tmp;
   tmp = malloc (sizeof (struct ulaw_encoder_pvt));
@@ -243,7 +243,7 @@ lintoulaw_frameout (struct ast_translator_pvt *pvt)
  */
 
 static struct ast_frame *
-ulawtolin_sample ()
+ulawtolin_sample (void)
 {
   static struct ast_frame f;
   f.frametype = AST_FRAME_VOICE;
@@ -262,7 +262,7 @@ ulawtolin_sample ()
  */
 
 static struct ast_frame *
-lintoulaw_sample ()
+lintoulaw_sample (void)
 {
   static struct ast_frame f;
   f.frametype = AST_FRAME_VOICE;

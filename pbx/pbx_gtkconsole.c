@@ -170,7 +170,7 @@ static void cliinput(void *data, int source, GdkInputCondition ic)
 }
 
 
-static void remove_module()
+static void remove_module(void)
 {
 	int res;
 	char *module;
@@ -189,7 +189,7 @@ static void remove_module()
 		}
 	}
 }
-static void reload_module()
+static void reload_module(void)
 {
 	int res, x;
 	char *module;
@@ -247,7 +247,7 @@ static void file_ok_sel(GtkWidget *w, GtkFileSelection *fs)
 	gtk_widget_destroy(GTK_WIDGET(fs));
 }
 
-static void add_module()
+static void add_module(void)
 {
 	char tmp[AST_CONFIG_MAX_PATH];
 	GtkWidget *filew;
@@ -330,7 +330,7 @@ static void *consolethread(void *data)
 	return NULL;
 }
 
-static int cli_activate()
+static int cli_activate(void)
 {
 	char buf[256];
 	strncpy(buf, gtk_entry_get_text(GTK_ENTRY(cli)), sizeof(buf));
@@ -341,7 +341,7 @@ static int cli_activate()
 	return TRUE;
 }
 
-static int show_console()
+static int show_console(void)
 {
 	GtkWidget *hbox;
 	GtkWidget *wbox;

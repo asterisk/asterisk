@@ -361,7 +361,7 @@ static char *aopen_identify(struct ast_modem_pvt *p)
 	return strdup(identity);
 }
 
-static void aopen_incusecnt()
+static void aopen_incusecnt(void)
 {
 	ast_pthread_mutex_lock(&usecnt_lock);
 	usecnt++;
@@ -369,7 +369,7 @@ static void aopen_incusecnt()
 	ast_update_use_count();
 }
 
-static void aopen_decusecnt()
+static void aopen_decusecnt(void)
 {
 	ast_pthread_mutex_lock(&usecnt_lock);
 	usecnt++;

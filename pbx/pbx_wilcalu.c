@@ -41,7 +41,6 @@ static  pthread_t autodialer_thread;
 static  char buf[257];
 static  char lastbuf[257];//contains last partial buffer
 static  char sendbuf[257];
-extern  int errno;
 STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
 

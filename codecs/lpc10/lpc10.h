@@ -1,11 +1,14 @@
 /*
 
 $Log$
-Revision 1.14  2003/02/12 13:59:15  matteo
-mer feb 12 14:56:57 CET 2003
+Revision 1.15  2003/03/16 22:37:30  matteo
+dom mar 16 23:37:23 CET 2003
 
-Revision 1.1.1.1  2003/02/12 13:59:15  matteo
-mer feb 12 14:56:57 CET 2003
+Revision 1.1.1.2  2003/03/16 22:37:30  matteo
+dom mar 16 23:37:23 CET 2003
+
+Revision 1.2  2003/03/16 16:09:48  markster
+Mere James's cleanups for fewer build warnings
 
 Revision 1.1  2000/01/05 00:20:06  markster
 Add broken lpc10 code...  It's not too far from working I don't think...
@@ -221,11 +224,11 @@ struct lpc10_decoder_state {
   
   */
 
-struct lpc10_encoder_state * create_lpc10_encoder_state ();
+struct lpc10_encoder_state * create_lpc10_encoder_state (void);
 void init_lpc10_encoder_state (struct lpc10_encoder_state *st);
 int lpc10_encode (real *speech, INT32 *bits, struct lpc10_encoder_state *st);
 
-struct lpc10_decoder_state * create_lpc10_decoder_state ();
+struct lpc10_decoder_state * create_lpc10_decoder_state (void);
 void init_lpc10_decoder_state (struct lpc10_decoder_state *st);
 int lpc10_decode (INT32 *bits, real *speech, struct lpc10_decoder_state *st);
 

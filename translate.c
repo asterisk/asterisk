@@ -158,7 +158,7 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 	return NULL;
 }
 
-static void rebuild_matrix()
+static void rebuild_matrix(void)
 {
 	struct ast_translator *t;
 	int changed;

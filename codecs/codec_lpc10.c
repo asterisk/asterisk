@@ -66,7 +66,7 @@ struct ast_translator_pvt {
 
 #define lpc10_coder_pvt ast_translator_pvt
 
-static struct ast_translator_pvt *lpc10_enc_new()
+static struct ast_translator_pvt *lpc10_enc_new(void)
 {
 	struct lpc10_coder_pvt *tmp;
 	tmp = malloc(sizeof(struct lpc10_coder_pvt));
@@ -82,7 +82,7 @@ static struct ast_translator_pvt *lpc10_enc_new()
 	return tmp;
 }
 
-static struct ast_translator_pvt *lpc10_dec_new()
+static struct ast_translator_pvt *lpc10_dec_new(void)
 {
 	struct lpc10_coder_pvt *tmp;
 	tmp = malloc(sizeof(struct lpc10_coder_pvt));
@@ -97,7 +97,7 @@ static struct ast_translator_pvt *lpc10_dec_new()
 	}
 	return tmp;
 }
-static struct ast_frame *lintolpc10_sample()
+static struct ast_frame *lintolpc10_sample(void)
 {
 	static struct ast_frame f;
 	f.frametype = AST_FRAME_VOICE;
@@ -112,7 +112,7 @@ static struct ast_frame *lintolpc10_sample()
 	return &f;
 }
 
-static struct ast_frame *lpc10tolin_sample()
+static struct ast_frame *lpc10tolin_sample(void)
 {
 	static struct ast_frame f;
 	f.frametype = AST_FRAME_VOICE;

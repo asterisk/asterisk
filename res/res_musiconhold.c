@@ -386,8 +386,10 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 			moh_release(NULL, res);
 			res = NULL;
 		}
+#if 0
 		/* Allow writes to interrupt */
 		chan->writeinterrupt = 1;
+#endif		
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Started music on hold, class '%s', on %s\n", (char *)params, chan->name);
 	}
@@ -531,7 +533,7 @@ static void load_moh_classes(void)
 	}
 }
 
-void ast_moh_destroy(void)
+static void ast_moh_destroy(void)
 {
 	struct mohclass *moh;
 	ast_pthread_mutex_lock(&moh_lock);

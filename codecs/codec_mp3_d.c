@@ -70,7 +70,7 @@ struct ast_translator_pvt {
 
 #define mp3_coder_pvt ast_translator_pvt
 
-static struct ast_translator_pvt *mp3_new()
+static struct ast_translator_pvt *mp3_new(void)
 {
 	struct mp3_coder_pvt *tmp;
 	tmp = malloc(sizeof(struct mp3_coder_pvt));
@@ -83,7 +83,7 @@ static struct ast_translator_pvt *mp3_new()
 	return tmp;
 }
 
-static struct ast_frame *mp3tolin_sample()
+static struct ast_frame *mp3tolin_sample(void)
 {
 	static struct ast_frame f;
 	int size;

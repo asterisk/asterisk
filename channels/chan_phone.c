@@ -299,6 +299,7 @@ static int phone_answer(struct ast_channel *ast)
 	return 0;
 }
 
+#if 0
 static char phone_2digit(char c)
 {
 	if (c == 12)
@@ -310,6 +311,7 @@ static char phone_2digit(char c)
 	else
 		return '?';
 }
+#endif
 
 static struct ast_frame  *phone_exception(struct ast_channel *ast)
 {

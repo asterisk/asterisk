@@ -73,6 +73,9 @@ ringtone.h: gentone
 
 chan_oss.o: chan_oss.c  busy.h ringtone.h
 
+chan_iax2.so: chan_iax2.o iax2-parser.o
+	$(CC) -shared -Xlinker -x -o $@ chan_iax2.o iax2-parser.o
+
 chan_zap.o: $(CHANZAP)
 	$(CC) -c $(CFLAGS) -o chan_zap.o $(CHANZAP)
 

@@ -71,7 +71,7 @@ static int write_audio(short *data, int len)
 	return res;
 }
 
-static int create_audio()
+static int create_audio(void)
 {
 	int fmt, desired, res, fd;
 	fd = open(DEV_DSP, O_WRONLY);

@@ -122,7 +122,7 @@ static struct chan_alsa_pvt {
 	
 } alsa;
 
-static int time_has_passed()
+static int time_has_passed(void)
 {
 	struct timeval tv;
 	int ms;
@@ -453,7 +453,7 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	return handle;
 }
 
-static int soundcard_init()
+static int soundcard_init(void)
 {
 	alsa.icard = alsa_card_init(indevname, SND_PCM_STREAM_CAPTURE);
 	alsa.ocard = alsa_card_init(outdevname, SND_PCM_STREAM_PLAYBACK);

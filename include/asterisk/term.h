@@ -44,9 +44,9 @@ extern "C" {
 #define COLOR_WHITE     37
 #define COLOR_BRWHITE   37 | 128
 
-extern char *term_color(char *outbuf, char *inbuf, int fgcolor, int bgcolor, int maxout);
+extern char *term_color(char *outbuf, const char *inbuf, int fgcolor, int bgcolor, int maxout);
 
-extern char *term_prompt(char *outbuf, char *inbuf, int maxout);
+extern char *term_prompt(char *outbuf, const char *inbuf, int maxout);
 
 extern char *term_prep(void);
 

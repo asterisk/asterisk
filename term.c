@@ -51,7 +51,7 @@ int term_init(void)
 	return 0;
 }
 
-char *term_color(char *outbuf, char *inbuf, int fgcolor, int bgcolor, int maxout)
+char *term_color(char *outbuf, const char *inbuf, int fgcolor, int bgcolor, int maxout)
 {
 	int attr=0;
 	char tmp[40];
@@ -94,7 +94,7 @@ char *term_color(char *outbuf, char *inbuf, int fgcolor, int bgcolor, int maxout
 	return outbuf;
 }
 
-char *term_prompt(char *outbuf, char *inbuf, int maxout)
+char *term_prompt(char *outbuf, const char *inbuf, int maxout)
 {
 	if (!vt100compat) {
 		strncpy(outbuf, inbuf, maxout -1);

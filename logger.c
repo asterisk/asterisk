@@ -174,7 +174,7 @@ static void init_logger_chain(void)
 }
 
 static struct verb {
-	void (*verboser)(char *string, int opos, int replacelast, int complete);
+	void (*verboser)(const char *string, int opos, int replacelast, int complete);
 	struct verb *next;
 } *verboser = NULL;
 
@@ -219,7 +219,7 @@ int reload_logger(void)
 	return -1;
 }
 
-extern void ast_log(int level, char *file, int line, char *function, char *fmt, ...)
+extern void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {
 	char date[256];
 	char tmp[80];
@@ -288,7 +288,7 @@ extern void ast_log(int level, char *file, int line, char *function, char *fmt, 
 	ast_pthread_mutex_unlock(&loglock);
 }
 
-extern void ast_verbose(char *fmt, ...)
+extern void ast_verbose(const char *fmt, ...)
 {
 	static char stuff[4096];
 	static int pos = 0, opos;
@@ -349,7 +349,7 @@ extern void ast_verbose(char *fmt, ...)
 	ast_pthread_mutex_unlock(&msglist_lock);
 }
 
-int ast_verbose_dmesg(void (*v)(char *string, int opos, int replacelast, int complete))
+int ast_verbose_dmesg(void (*v)(const char *string, int opos, int replacelast, int complete))
 {
 	struct msglist *m;
 	m = list;
@@ -363,7 +363,7 @@ int ast_verbose_dmesg(void (*v)(char *string, int opos, int replacelast, int com
 	return 0;
 }
 
-int ast_register_verbose(void (*v)(char *string, int opos, int replacelast, int complete)) 
+int ast_register_verbose(void (*v)(const char *string, int opos, int replacelast, int complete)) 
 {
 	struct msglist *m;
 	struct verb *tmp;
@@ -385,7 +385,7 @@ int ast_register_verbose(void (*v)(char *string, int opos, int replacelast, int 
 	return -1;
 }
 
-int ast_unregister_verbose(void (*v)(char *string, int opos, int replacelast, int complete))
+int ast_unregister_verbose(void (*v)(const char *string, int opos, int replacelast, int complete))
 {
 	int res = -1;
 	struct verb *tmp, *tmpl=NULL;

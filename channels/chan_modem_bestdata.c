@@ -436,7 +436,7 @@ static char *bestdata_identify(struct ast_modem_pvt *p)
 	return strdup(identity);
 }
 
-static void bestdata_incusecnt()
+static void bestdata_incusecnt(void)
 {
 	ast_pthread_mutex_lock(&usecnt_lock);
 	usecnt++;
@@ -444,7 +444,7 @@ static void bestdata_incusecnt()
 	ast_update_use_count();
 }
 
-static void bestdata_decusecnt()
+static void bestdata_decusecnt(void)
 {
 	ast_pthread_mutex_lock(&usecnt_lock);
 	usecnt++;

@@ -1080,7 +1080,7 @@ int ast_indicate(struct ast_channel *chan, int condition)
 			}
 			if (ts && ts->data[0]) {
 				ast_log(LOG_DEBUG, "Driver for channel '%s' does not support indication %d, emulating it\n", chan->name, condition);
-				ast_playtones_start(chan,0,ts->data);
+				ast_playtones_start(chan,0,ts->data, 1);
 			}
 			else  {
 				/* not handled */
@@ -1164,13 +1164,13 @@ static int do_senddigit(struct ast_channel *chan, char digit)
 			"!941+1209/50,!0/50",	/* * */
 			"!941+1477/50,!0/50" };	/* # */
 		if (digit >= '0' && digit <='9')
-			ast_playtones_start(chan,0,dtmf_tones[digit-'0']);
+			ast_playtones_start(chan,0,dtmf_tones[digit-'0'], 0);
 		else if (digit >= 'A' && digit <= 'D')
-			ast_playtones_start(chan,0,dtmf_tones[digit-'A'+10]);
+			ast_playtones_start(chan,0,dtmf_tones[digit-'A'+10], 0);
 		else if (digit == '*')
-			ast_playtones_start(chan,0,dtmf_tones[14]);
+			ast_playtones_start(chan,0,dtmf_tones[14], 0);
 		else if (digit == '#')
-			ast_playtones_start(chan,0,dtmf_tones[15]);
+			ast_playtones_start(chan,0,dtmf_tones[15], 0);
 		else {
 			/* not handled */
 			ast_log(LOG_WARNING, "Unable to handle DTMF tone '%c' for '%s'\n", digit, chan->name);
@@ -1942,12 +1942,10 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 tackygoto:
 				/* Don't copy packets if there is a generator on either one, since they're
 				   not supposed to be listening anyway */
-				if (!c0->generator && !c1->generator) {
-					if (who == c0) 
-						ast_write(c1, f);
-					else 
-						ast_write(c0, f);
-				}
+				if (who == c0) 
+					ast_write(c1, f);
+				else 
+					ast_write(c0, f);
 			}
 			ast_frfree(f);
 		} else

@@ -192,9 +192,9 @@ static int handle_playtones(struct ast_channel *chan, void *data)
 	}
 	ts = ast_get_indication_tone(chan->zone, (const char*)data);
 	if (ts && ts->data[0])
-		res = ast_playtones_start(chan, 0, ts->data);
+		res = ast_playtones_start(chan, 0, ts->data, 0);
 	else
-		res = ast_playtones_start(chan, 0, (const char*)data);
+		res = ast_playtones_start(chan, 0, (const char*)data, 0);
 	if (res)
 		ast_log(LOG_NOTICE,"Unable to start playtones\n");
 	return res;
@@ -212,7 +212,7 @@ static int handle_stopplaytones(struct ast_channel *chan, void *data)
 /*
  * Load module stuff
  */
-static int ind_load_module()
+static int ind_load_module(void)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;

@@ -21,6 +21,7 @@
 #include <asterisk/translate.h>
 #include <asterisk/image.h>
 #include <asterisk/callerid.h>
+#include <asterisk/astdb.h>
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>

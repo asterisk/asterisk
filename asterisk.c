@@ -94,12 +94,12 @@ char ast_config_AST_PID[AST_CONFIG_MAX_PATH];
 char ast_config_AST_SOCKET[AST_CONFIG_MAX_PATH];
 char ast_config_AST_RUN_DIR[AST_CONFIG_MAX_PATH];
 
-static int fdprint(int fd, char *s)
+static int fdprint(int fd, const char *s)
 {
 	return write(fd, s, strlen(s) + 1);
 }
 
-static void network_verboser(char *s, int pos, int replace, int complete)
+static void network_verboser(const char *s, int pos, int replace, int complete)
 {
 	int x;
 	for (x=0;x<AST_MAX_CONNECTS; x++) {
@@ -437,7 +437,7 @@ static int fix_header(char *outbuf, int maxout, char **s, char *cmp)
 	return 0;
 }
 
-static void console_verboser(char *s, int pos, int replace, int complete)
+static void console_verboser(const char *s, int pos, int replace, int complete)
 {
 	char tmp[80];
 	/* Return to the beginning of the line */
@@ -544,6 +544,7 @@ static char restart_when_convenient_help[] =
 "Usage: restart when convenient\n"
 "       Causes Asterisk to perform a cold restart when all active calls have ended.\n";
 
+#if 0
 static int handle_quit(int fd, int argc, char *argv[])
 {
 	if (argc != 1)
@@ -551,6 +552,7 @@ static int handle_quit(int fd, int argc, char *argv[])
 	quit_handler(0, 0, 1, 0);
 	return RESULT_SUCCESS;
 }
+#endif
 
 static int no_more_quit(int fd, int argc, char *argv[])
 {
@@ -1028,7 +1030,7 @@ static int show_cli_help(void) {
 	return 0;
 }
 
-static void ast_readconfig() {
+static void ast_readconfig(void) {
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	char *config = ASTCONFPATH;

@@ -65,7 +65,7 @@ extern int ast_register_indication(struct tone_zone *zone, const char *indicatio
 extern int ast_unregister_indication(struct tone_zone *zone, const char *indication);
 
 /* Start a tone-list going */
-int ast_playtones_start(struct ast_channel *chan, int vol, const char* tonelist);
+int ast_playtones_start(struct ast_channel *chan, int vol, const char* tonelist, int interruptible);
 /*! Stop the tones from playing */
 void ast_playtones_stop(struct ast_channel *chan);
 

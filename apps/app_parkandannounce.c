@@ -23,6 +23,7 @@
 #include <asterisk/parking.h>
 #include <asterisk/options.h>
 #include <asterisk/logger.h>
+#include <asterisk/say.h>
 
 #include <stdlib.h>
 #include <unistd.h>
