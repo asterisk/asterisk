@@ -213,6 +213,72 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dia
 	return(res);
 }
 
+static struct ast_config *realtime_directory(char *context)
+{
+	struct ast_config *cfg = NULL;
+	struct ast_variable *rtvar = NULL;
+	struct ast_category *cat = NULL;
+	char fullname[50] = "";
+	char mailbox[50] = "";
+	char tmp[100] = "";
+	int havename = 0;
+	int havemailbox = 0;
+
+	/* Load flat file config. */
+	cfg = ast_config_load(DIRECTORY_CONFIG);
+
+	if (!cfg) {
+		/* Loading config failed. Even if config file doesn't exist, we should still have an ast_config. */
+		ast_log(LOG_WARNING, "Loading/Creating config failed.\n");
+		return NULL;
+	}
+
+	/* Load RealTime voicemail users for this context. */
+	rtvar = ast_load_realtime("voicemail", "context", context, NULL);
+
+	/* If we got nothing from RealTime, we can just return the Flatfile. */
+	if (!rtvar)
+		return cfg;
+
+	/* Does the context exist within the Flatfile? */
+	if (ast_category_exist(cfg, context)) {
+		/* If so, get a pointer to it so we can append RealTime variables to it. */
+		cat = ast_category_get(cfg, context);
+	} else {
+		/* If not, make a fresh one and append it to the master config. */
+		cat = ast_category_new(context);
+		if (!cat) {
+			ast_log(LOG_WARNING, "Ran out of memory while creating new ast_category!\n");
+			ast_config_destroy(cfg);
+			return NULL;
+		}
+		ast_category_append(cfg, cat);
+	}
+
+	/* We now have a category: from the Flatfile or freshly created. */
+	while (rtvar) {
+		if (!strcasecmp(rtvar->name, "fullname")) {
+			strncpy(fullname, rtvar->value, sizeof(fullname)-1);
+			havename = 1;
+		} else if (!strcasecmp(rtvar->name, "mailbox")) {
+			strncpy(mailbox, rtvar->value, sizeof(mailbox)-1);
+			havemailbox = 1;
+		}
+
+		/* app_directory needs only mailbox and fullname. Fill password and email with dummy values. */
+		if (havemailbox && havename) {
+			sprintf(tmp, "9999,%s,email@email.com", fullname);
+			ast_variable_append(cat, ast_variable_new(mailbox, tmp));
+			havemailbox = 0;
+			havename = 0;
+		}
+
+		rtvar = rtvar->next;
+	}
+
+	return cfg;
+}
+
 static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *context, char *dialcontext, char digit, int last)
 {
 	/* Read in the first three digits..  "digit" is the first digit, already read */
@@ -351,12 +417,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "directory requires an argument (context[,dialcontext])\n");
 		return -1;
 	}
-	cfg = ast_config_load(DIRECTORY_CONFIG);
-	if (!cfg) {
-		ast_log(LOG_WARNING, "Unable to open directory configuration %s\n", DIRECTORY_CONFIG);
-		return -1;
-	}
-	LOCAL_USER_ADD(u);
+
 top:
 	context = ast_strdupa(data);
 	dialcontext = strchr(context, '|');
@@ -372,6 +433,15 @@ top:
 		}
 	} else	
 		dialcontext = context;
+
+	cfg = realtime_directory(context);
+	if (!cfg) {
+		ast_log(LOG_WARNING, "Unable to open/create directory configuration %s\n", DIRECTORY_CONFIG);
+		return -1;
+	}
+
+	LOCAL_USER_ADD(u);
+
 	dirintro = ast_variable_retrieve(cfg, context, "directoryintro");
 	if (!dirintro || ast_strlen_zero(dirintro))
 		dirintro = ast_variable_retrieve(cfg, "general", "directoryintro");
