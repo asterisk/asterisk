@@ -114,7 +114,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	int digittimeout = 10000;
 	struct localuser *u;
 	char tmp[256],arg2[256]="",exten[AST_MAX_EXTENSION],acctcode[20]="";
-	char *ourcontext,*ourcallerid,*mailbox;
+	char *ourcontext,*ourcallerid,*ourcidname,*ourcidnum,*mailbox;
 	struct ast_frame *f;
 	struct timeval lastout, now, lastdigittime;
 	int res;
@@ -323,8 +323,8 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		/* We're authenticated and have a valid extension */
 		if (ourcallerid && *ourcallerid)
 		{
-			if (chan->cid.cid_num) free(chan->cid.cid_num);
-			chan->cid.cid_num = strdup(ourcallerid);
+			ast_callerid_split(ourcallerid, ourcidname, sizeof(ourcidname), ourcidnum, sizeof(ourcidnum));
+			ast_set_callerid(chan, ourcidnum, ourcidname, ourcidnum);
 		}
 		strncpy(chan->exten, exten, sizeof(chan->exten) - 1);
 		strncpy(chan->context, ourcontext, sizeof(chan->context) - 1);
