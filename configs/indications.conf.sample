@@ -157,3 +157,29 @@ record = 425/250,0/250
 ; Info not used in Brazil standard (using UK standard)
 info = 950/330,1400/330,1800/330
 
+; Steve Davies
+; Tone definition source for za was
+; http://www.cisco.com/univercd/cc/td/doc/product/tel_pswt/vco_prod/safr_sup/saf02.htm
+; (definitions for other countries can also be found there)
+; Note, though, that South Africa uses two switch types in their network - Alcatel
+; switches - mainly in the Western Cape, and Siemens elsewhere.
+; The former use 383+417 in dial, ringback etc.  The latter use 400*33
+; I've provided both, uncomment the ones you prefer
+[za]
+description = South Africa
+ringcadance = 400,200,400,2000
+; dial/ring/callwaiting for the Siemens switches:
+dial = 400*33
+ring = 400*33/400,0/200,400*33/400,0/2000
+callwaiting = 400*33/250,0/250,400*33/250,0/250,400*33/250,0/250,400*33/250,0/250
+; dial/ring/callwaiting for the Alcatel switches:
+; dial = 383+417
+; ring = 383+417/400,0/200,383+417/400,0/2000
+; callwaiting = 383+417/250,0/250,383+417/250,0/250,383+417/250,0/250,383+417/250,0/250
+congestion = 400/250,0/250
+busy = 400/500,0/500
+dialrecall = 350+440
+; XXX Not sure about the RECORDTONE
+record = 1400/500,0/10000
+info = 950/330,1400/330,1800/330,0/330
+
