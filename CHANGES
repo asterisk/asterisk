@@ -1,3 +1,4 @@
+ -- Major revamp of PBX core including 'n' and 's' priorities and labels
  -- Deprecate pbx_wilcalu and app_qcall in favor of pbx_spool
  -- Remove old chan_iax and chan_vofr
  -- Major Caller*ID Restructuring
