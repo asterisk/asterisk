@@ -717,7 +717,7 @@ static struct ast_channel *oh323_new(struct oh323_pvt *i, int state, const char 
 		ch->pvt->write = oh323_write;
 		ch->pvt->indicate = oh323_indicate;
 		ch->pvt->fixup = oh323_fixup;
-//		ch->pvt->bridge = ast_rtp_bridge;
+	     /*	ch->pvt->bridge = ast_rtp_bridge; */
 
 		/*  Set the owner of this channel */
 		i->owner = ch;
@@ -990,10 +990,8 @@ struct rtp_info *create_connection(unsigned call_reference)
 	ast_rtp_get_us(p->rtp, &us);
 	ast_rtp_get_peer(p->rtp, &them);
 
-
 	info->addr = inet_ntoa(us.sin_addr);
 	info->port = ntohs(us.sin_port);
-
 
 	return info;
 }
@@ -1067,23 +1065,25 @@ int setup_incoming_call(call_details_t cd)
 				strncpy(p->exten, cd.call_dest_alias, sizeof(p->exten)-1);		
 			}
 			if (ast_strlen_zero(default_context)) {
-				ast_log(LOG_ERROR, "Call from user '%s' rejected due to no default context\n", p->cd.call_source_aliases);
+				ast_log(LOG_ERROR, "Call from '%s' rejected due to no default context\n", p->cd.call_source_aliases);
 				return 0;
 			}
 			strncpy(p->context, default_context, sizeof(p->context)-1);
 			ast_log(LOG_DEBUG, "Sending %s to context [%s]\n", cd.call_source_aliases, p->context);
 		} else {					
 			if (user->host) {
-				if (strcasecmp(cd.sourceIp, inet_ntoa(user->addr.sin_addr))){
-					
-					if(ast_strlen_zero(default_context)) {
-						ast_log(LOG_ERROR, "Call from user '%s' rejected due to non-matching IP address of '%s'\n", user->name, cd.sourceIp);
-                				return 0;
+				if (strcasecmp(cd.sourceIp, inet_ntoa(user->addr.sin_addr))){					
+					if (ast_strlen_zero(user->context)) {
+						if (ast_strlen_zero(default_context)) {					
+							ast_log(LOG_ERROR, "Call from '%s' rejected due to non-matching IP address (%s) and no default context\n", user->name, cd.sourceIp);
+                					return 0;
+						}
+						strncpy(p->context, default_context, sizeof(p->context)-1);
+					} else {
+						strncpy(p->context, user->context, sizeof(p->context)-1);
 					}
-					
-					strncpy(p->context, default_context, sizeof(p->context)-1);
-					sprintf(p->exten,"i");
-
+					sprintf(p->exten, "i");
+					ast_log(LOG_ERROR, "Call from '%s' rejected due to non-matching IP address (%s)s\n", user->name, cd.sourceIp);
 					goto exit;					
 				}
 			}
@@ -1095,7 +1095,7 @@ int setup_incoming_call(call_details_t cd)
 			}
 			strncpy(p->context, user->context, sizeof(p->context)-1);
 			p->bridge = user->bridge;
-                      p->nat = user->nat;
+                      	p->nat = user->nat;
 
 			if (!ast_strlen_zero(user->callerid)) {
 				strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
@@ -1798,7 +1798,6 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, str
 
 	ast_rtp_get_peer(rtp, &them);	
 	ast_rtp_get_us(rtp, &us);
-
 
 	h323_native_bridge(p->cd.call_token, inet_ntoa(them.sin_addr), mode);
 	

@@ -520,6 +520,7 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 	PString sourceName;
 	PString sourceAliases;	
 	PString destAliases;
+	PString sourceIp;
 	PIPSocket::Address Ip;
 	WORD sourcePort;
 	char *s, *s1; 
@@ -555,8 +556,11 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 	cd.call_source_name = (const char *)sourceName;
 
 	GetSignallingChannel()->GetRemoteAddress().GetIpAndPort(Ip, sourcePort);
-	cd.sourceIp = (const char *)Ip.AsString();
-	
+  	sourceIp = Ip.AsString();
+ 	cd.sourceIp = (const char *)sourceIp;
+ 	
+
+
 	/* Notify Asterisk of the request */
 	int res = on_incoming_call(cd); 
 
@@ -695,7 +699,7 @@ H323Channel * MyH323Connection::CreateRealTimeLogicalChannel(const H323Capabilit
 		return NULL;
 	}
 
-        GetControlChannel().GetLocalAddress().GetIpAndPort(externalIpAddress, port);
+	GetControlChannel().GetLocalAddress().GetIpAndPort(externalIpAddress, port);
 	externalPort = info->port;
 	
 	if (h323debug) {
