@@ -4392,12 +4392,11 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 				chan->_softhangup |= AST_SOFTHANGUP_DEV;
 				res = 0;
 			} else if (!p->proceeding && p->sig==SIG_PRI && p->pri && !p->outgoing) {
-				if (p->pri->pri) {		
+				if (p->pri) {		
 					if (!pri_grab(p, p->pri)) {
 						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
 						pri_rel(p->pri);
-					}
-					else
+					} else
 						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
 				}
 				p->proceeding=1;
@@ -4408,10 +4407,22 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 			break;
 #ifdef ZAPATA_PRI
 		case AST_CONTROL_HOLD:
-			res = pri_notify(p->pri->pri, p->call, p->prioffset, PRI_NOTIFY_REMOTE_HOLD);
+			if (p->pri) {
+				if (!pri_grab(p, p->pri)) {
+					res = pri_notify(p->pri->pri, p->call, p->prioffset, PRI_NOTIFY_REMOTE_HOLD);
+					pri_rel(p->pri);
+				} else
+						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);			
+			}
 			break;
 		case AST_CONTROL_UNHOLD:
-			res = pri_notify(p->pri->pri, p->call, p->prioffset, PRI_NOTIFY_REMOTE_RETRIEVAL);
+			if (p->pri) {
+				if (!pri_grab(p, p->pri)) {
+					res = pri_notify(p->pri->pri, p->call, p->prioffset, PRI_NOTIFY_REMOTE_RETRIEVAL);
+					pri_rel(p->pri);
+				} else
+						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);			
+			}
 			break;
 #endif
 		case AST_CONTROL_RADIO_KEY:
