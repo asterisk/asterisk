@@ -608,6 +608,7 @@ static int action_getvar(struct mansession *s, struct message *m)
         struct ast_channel *c = NULL;
         char *name = astman_get_header(m, "Channel");
         char *varname = astman_get_header(m, "Variable");
+	char *id = astman_get_header(m,"ActionID");
 	char *varval;
 
 	if (!strlen(name)) {
@@ -637,6 +638,8 @@ static int action_getvar(struct mansession *s, struct message *m)
 	ast_mutex_unlock(&c->lock);
 	ast_cli(s->fd, "Response: Success\r\n"
 		"%s: %s\r\n" ,varname,varval);
+	if (id && !ast_strlen_zero(id))
+		ast_cli(s->fd, "ActionID: %s\r\n",id);
 	ast_cli(s->fd, "\r\n");
 
 	return 0;
