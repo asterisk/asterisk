@@ -398,7 +398,7 @@ int ast_pthread_create(pthread_t *thread, pthread_attr_t *attr, void *(*start_ro
 		pthread_attr_init(&lattr);
 		attr = &lattr;
 	}
-	errno = pthread_attr_setstacksize(attr, PTHREAD_ATTR_STACKSIZE);
+	errno = pthread_attr_setstacksize(attr, AST_STACKSIZE);
 	if (errno)
 		ast_log(LOG_WARNING, "pthread_attr_setstacksize returned non-zero: %s\n", strerror(errno));
 	return pthread_create(thread, attr, start_routine, data); /* We're in ast_pthread_create, so it's okay */
