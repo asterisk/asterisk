@@ -30,6 +30,7 @@
 #include <netinet/ip.h>
 #include <sys/ioctl.h>
 #ifdef __OpenBSD__
+#include <fcntl.h>
 #include <net/route.h>
 
 static ast_mutex_t routeseq_lock = AST_MUTEX_INITIALIZER;
@@ -172,7 +173,7 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 		char	m_space[512];
 	} m_rtmsg;
 	char *cp, *p = ast_strdupa(inet_ntoa(*them));
-	int i, l, s, seq;
+	int i, l, s, seq, flags;
 	pid_t pid = getpid();
 	static int routeseq;	/* Protected by "routeseq_lock" mutex */
 
@@ -197,6 +198,8 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 		ast_log(LOG_ERROR, "Error opening routing socket\n");
 		return -1;
 	}
+	flags = fcntl(s, F_GETFL);
+	fcntl(s, F_SETFL, flags | O_NONBLOCK);
 	if (write(s, (char *)&m_rtmsg, m_rtmsg.m_rtm.rtm_msglen) < 0) {
 		ast_log(LOG_ERROR, "Error writing to routing socket: %s\n", strerror(errno));
 		close(s);
@@ -205,11 +208,13 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	do {
 		l = read(s, (char *)&m_rtmsg, sizeof(m_rtmsg));
 	} while (l > 0 && (m_rtmsg.m_rtm.rtm_seq != 1 || m_rtmsg.m_rtm.rtm_pid != pid));
-	close(s);
 	if (l < 0) {
-		ast_log(LOG_ERROR, "Error reading from routing socket\n");
+		if (errno != EAGAIN)
+			ast_log(LOG_ERROR, "Error reading from routing socket\n");
+		close(s);
 		return -1;
 	}
+	close(s);
 
 	if (m_rtmsg.m_rtm.rtm_version != RTM_VERSION) {
 		ast_log(LOG_ERROR, "Unsupported route socket protocol version\n");
