@@ -160,7 +160,6 @@ static void g723_close(struct ast_filestream *s)
 
 static int g723_write(struct ast_filestream *fs, struct ast_frame *f)
 {
-	struct timeval now;
 	u_int32_t delay;
 	u_int16_t size;
 	int res;

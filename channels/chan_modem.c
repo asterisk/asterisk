@@ -791,6 +791,7 @@ static struct ast_channel *modem_request(const char *type, int format, void *dat
 	struct ast_channel *tmp = NULL;
 	char dev[80];
 	ast_group_t group = 0;
+	int groupint;
 	char *stringp=NULL;
 	strncpy(dev, (char *)data, sizeof(dev)-1);
 	stringp=dev;
@@ -799,11 +800,11 @@ static struct ast_channel *modem_request(const char *type, int format, void *dat
 
 	if (dev[0]=='g' && isdigit(dev[1])) {
 		/* Retrieve the group number */
-		if (sscanf(dev+1, "%u", &group) < 1) {
+		if (sscanf(dev+1, "%u", &groupint) < 1) {
 			ast_log(LOG_WARNING, "Unable to determine group from [%s]\n", (char *)data);
 			return NULL;
 		}
-		group = 1 << group;
+		group = 1 << groupint;
 	}
 
 	/* Search for an unowned channel */
