@@ -69,7 +69,7 @@ app_todd.so: app_todd.o
 
 app_voicemail.so : app_voicemail.o
 ifeq ($(USE_MYSQL_VM_INTERFACE),1)
-	$(CC) $(SOLINK) -o $@ $(MLFLAGS) $< -lmysqlclient -lz
+	$(CC) $(SOLINK) -o $@ $(MLFLAGS) $< -L/usr/lib/mysql -lmysqlclient -lz
 else
 ifeq ($(USE_POSTGRES_VM_INTERFACE),1)
 	$(CC) $(SOLINK) -o $@ $(MLFLAGS) $< -lpq
