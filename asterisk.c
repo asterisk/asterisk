@@ -1191,11 +1191,13 @@ int main(int argc, char *argv[])
 		ast_verbose("[ Reading Master Configuration ]");
 	ast_readconfig();
 
-	if (el_hist == NULL || el == NULL)
-		ast_el_initialize();
+	if (option_console) {
+                if (el_hist == NULL || el == NULL)
+                        ast_el_initialize();
 
-	if (strlen(filename))
-		ast_el_read_history(filename);
+                if (strlen(filename))
+                        ast_el_read_history(filename);
+	}
 
 	if (ast_tryconnect()) {
 		/* One is already running */

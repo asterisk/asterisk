@@ -25,6 +25,7 @@
 #include <asterisk/ast_expr.h>
 #include <asterisk/channel_pvt.h>
 #include <asterisk/linkedlists.h>
+#include <asterisk/say.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -166,6 +167,8 @@ static int pbx_builtin_setvar(struct ast_channel *, void *);
 static int pbx_builtin_setglobalvar(struct ast_channel *, void *);
 static int pbx_builtin_noop(struct ast_channel *, void *);
 static int pbx_builtin_gotoif(struct ast_channel *, void *);
+static int pbx_builtin_saynumber(struct ast_channel *, void *);
+static int pbx_builtin_saydigits(struct ast_channel *, void *);
 void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value);
 char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name);
 
@@ -296,6 +299,14 @@ static struct pbx_builtin {
 "true, to label2 if condition is false. Either label1 or label2 may be\n"
 "omitted (in that case, we just don't take the particular branch) but not\n"
 "both.  Look for the condition syntax in examples or documentation." },
+
+	{ "SayNumber", pbx_builtin_saynumber,
+"Say Number",
+"  SayNumber(digits): Says the passed number\n" },
+
+	{ "SayDigits", pbx_builtin_saydigits,
+"Say Digits",
+"  SayDigits(digits): Says the passed digits\n" },
 
 };
 
@@ -4184,6 +4195,22 @@ static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 	free(s);
 	return(rc);
 }           
+
+static int pbx_builtin_saynumber(struct ast_channel *chan, void *data)
+{
+	int res = 0;
+	if (data && atoi((char *)data) )
+		res = ast_say_number(chan, atoi((char *)data), "", chan->language);
+	return res;
+}
+
+static int pbx_builtin_saydigits(struct ast_channel *chan, void *data)
+{
+	int res = 0;
+	if (data && atoi((char *)data))
+		res = ast_say_digits(chan, atoi((char *)data), "", chan->language);
+	return res;
+}
 	
 int load_pbx(void)
 {
