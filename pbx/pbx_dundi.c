@@ -1962,7 +1962,7 @@ static int dundi_do_store_history(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	dundidebug = 1;
+	global_storehistory = 1;
 	ast_cli(fd, "DUNDi History Storage Enabled\n");
 	return RESULT_SUCCESS;
 }
@@ -1987,9 +1987,9 @@ static int dundi_no_debug(int fd, int argc, char *argv[])
 
 static int dundi_no_store_history(int fd, int argc, char *argv[])
 {
-	if (argc != 3)
+	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	dundidebug = 0;
+	global_storehistory = 0;
 	ast_cli(fd, "DUNDi History Storage Disabled\n");
 	return RESULT_SUCCESS;
 }
