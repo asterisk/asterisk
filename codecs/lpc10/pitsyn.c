@@ -1,8 +1,8 @@
 /*
 
 $Log$
-Revision 1.5  2000/01/05 08:20:39  markster
-Version 0.1.6 from FTP
+Revision 1.6  2000/01/05 08:20:39  markster
+Version 0.1.7 from FTP
 
 Revision 1.2  2000/01/05 08:20:39  markster
 Some OSS fixes and a few lpc changes to make it actually work
@@ -37,8 +37,8 @@ extern int pitsyn_(integer *order, integer *voice, integer *pitch, real *rms, re
 /* 	PITSYN Version 53 */
 
 /* $Log$
- * Revision 1.5  2000/01/05 08:20:39  markster
- * Version 0.1.6 from FTP
+ * Revision 1.6  2000/01/05 08:20:39  markster
+ * Version 0.1.7 from FTP
  *
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
@@ -143,8 +143,8 @@ extern int pitsyn_(integer *order, integer *voice, integer *pitch, real *rms, re
 
 /*       Arguments */
 /* $Log$
- * Revision 1.5  2000/01/05 08:20:39  markster
- * Version 0.1.6 from FTP
+ * Revision 1.6  2000/01/05 08:20:39  markster
+ * Version 0.1.7 from FTP
  *
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work

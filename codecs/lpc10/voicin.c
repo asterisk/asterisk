@@ -1,8 +1,8 @@
 /*
 
 $Log$
-Revision 1.5  2000/01/05 08:20:40  markster
-Version 0.1.6 from FTP
+Revision 1.6  2000/01/05 08:20:40  markster
+Version 0.1.7 from FTP
 
 Revision 1.2  2000/01/05 08:20:40  markster
 Some OSS fixes and a few lpc changes to make it actually work
@@ -48,8 +48,8 @@ extern struct {
 /* 	VOICIN Version 52 */
 
 /* $Log$
- * Revision 1.5  2000/01/05 08:20:40  markster
- * Version 0.1.6 from FTP
+ * Revision 1.6  2000/01/05 08:20:40  markster
+ * Version 0.1.7 from FTP
  *
 /* Revision 1.2  2000/01/05 08:20:40  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
@@ -290,8 +290,8 @@ s*/
 /* 	Global Variables: */
 /*       Arguments */
 /* $Log$
- * Revision 1.5  2000/01/05 08:20:40  markster
- * Version 0.1.6 from FTP
+ * Revision 1.6  2000/01/05 08:20:40  markster
+ * Version 0.1.7 from FTP
  *
 /* Revision 1.2  2000/01/05 08:20:40  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
