@@ -49,12 +49,12 @@ static char *tdesc = "Local Proxy Channel Driver";
 static int capability = -1;
 
 static int usecnt =0;
-static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 #define IS_OUTBOUND(a,b) (a == b->chan ? 1 : 0)
 
 /* Protect the interface list (of sip_pvt's) */
-static ast_mutex_t locallock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(locallock);
 
 static struct local_pvt {
 	ast_mutex_t lock;				/* Channel private lock */

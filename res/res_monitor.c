@@ -23,7 +23,7 @@
 
 #define AST_MONITOR_DIR	AST_SPOOL_DIR "/monitor"
 
-static ast_mutex_t monitorlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(monitorlock);
 
 static unsigned long seq = 0;
 

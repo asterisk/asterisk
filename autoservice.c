@@ -36,7 +36,7 @@
 
 #define MAX_AUTOMONS 256
 
-static ast_mutex_t autolock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(autolock);
 
 struct asent {
 	struct ast_channel *chan;

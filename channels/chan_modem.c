@@ -72,14 +72,14 @@ static int baudrate = 115200;
 
 static int stripmsd = 0;
 
-static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 /* Protect the interface list (of ast_modem_pvt's) */
-static ast_mutex_t iflock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(iflock);
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
-static ast_mutex_t monlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(monlock);
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */

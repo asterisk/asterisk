@@ -176,7 +176,7 @@ int pbx_builtin_setvar(struct ast_channel *, void *);
 void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value);
 char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name);
 
-static struct varshead globals = AST_LIST_HEAD_INITIALIZER(varshead);
+static struct varshead globals;
 
 static struct pbx_builtin {
 	char name[AST_MAX_APP];
@@ -362,18 +362,18 @@ static struct pbx_builtin {
 };
 
 /* Lock for the application list */
-static ast_mutex_t applock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(applock);
 static struct ast_context *contexts = NULL;
 /* Lock for the ast_context list */
-static ast_mutex_t conlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(conlock);
 static struct ast_app *apps = NULL;
 
 /* Lock for switches */
-static ast_mutex_t switchlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(switchlock);
 struct ast_switch *switches = NULL;
 
 /* Lock for extension state notifys */
-static ast_mutex_t hintlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(hintlock);
 static int stateid = 1;
 struct ast_hint *hints = NULL;
 struct ast_state_cb *statecbs = NULL;
@@ -4654,6 +4654,7 @@ int load_pbx(void)
 		ast_verbose( "Asterisk PBX Core Initializing\n");
 		ast_verbose( "Registering builtin applications:\n");
 	}
+        AST_LIST_HEAD_INIT(&globals);
 	ast_cli_register(&show_applications_cli);
 	ast_cli_register(&show_application_cli);
 	ast_cli_register(&show_dialplan_cli);

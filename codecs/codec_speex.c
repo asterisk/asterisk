@@ -37,7 +37,7 @@
 #include "slin_speex_ex.h"
 #include "speex_slin_ex.h"
 
-static ast_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt=0;
 
 static char *tdesc = "Speex/PCM16 (signed linear) Codec Translator";

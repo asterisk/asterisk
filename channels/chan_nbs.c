@@ -41,7 +41,7 @@ static int usecnt =0;
 /* Only linear is allowed */
 static int prefformat = AST_FORMAT_SLINEAR;
 
-static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 static char context[AST_MAX_EXTENSION] = "default";
 

@@ -70,7 +70,7 @@ static int silencesuppression = 0;
 static int silencethreshold = 1000;
 
 
-static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 static char *type = "Console";
 static char *desc = "OSS Console Channel Driver";

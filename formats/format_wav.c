@@ -53,7 +53,7 @@ struct ast_filestream {
 };
 
 
-static ast_mutex_t wav_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(wav_lock);
 static int glistcnt = 0;
 
 static char *name = "wav";

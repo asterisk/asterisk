@@ -229,7 +229,7 @@ static struct tone_zone *current_tonezone;
 
 /* Protect the tone_zones list (highly unlikely that two things would change
  * it at the same time, but still! */
-ast_mutex_t tzlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_EXPORTED(tzlock);
 
 /* Set global indication country */
 int ast_set_indication_country(const char *country)

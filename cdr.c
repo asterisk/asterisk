@@ -30,7 +30,7 @@
 int ast_default_amaflags = AST_CDR_DOCUMENTATION;
 char ast_default_accountcode[20] = "";
 
-static ast_mutex_t cdrlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(cdrlock);
 
 static struct ast_cdr_beitem {
 	char name[20];

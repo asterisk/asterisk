@@ -108,7 +108,7 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 /* MYSQL_FRIENDS: Check if peer exists in database and read some configuration
    from databse (not all options supported though) */
 #ifdef MYSQL_FRIENDS
-static ast_mutex_t mysqllock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(mysqllock);
 static MYSQL *mysql;
 static char mydbuser[80];
 static char mydbpass[80];
@@ -155,16 +155,16 @@ static int globalrtptimeout = 0;
 static int globalrtpholdtimeout = 0;
 
 static int usecnt =0;
-static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 /* Protect the interface list (of sip_pvt's) */
-static ast_mutex_t iflock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(iflock);
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
-static ast_mutex_t netlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(netlock);
 
-static ast_mutex_t monlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(monlock);
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
@@ -430,7 +430,7 @@ struct sip_peer {
 	struct sip_peer *next;
 };
 
-static ast_mutex_t sip_reload_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(sip_reload_lock);
 static int sip_reloading = 0;
 
 #define REG_STATE_UNREGISTERED 0
@@ -467,20 +467,20 @@ struct sip_registry {
 static struct ast_user_list {
 	struct sip_user *users;
 	ast_mutex_t lock;
-} userl = { NULL, AST_MUTEX_INITIALIZER };
+} userl;
 
 /*--- The peer list: Peers and Friends ---*/
 static struct ast_peer_list {
 	struct sip_peer *peers;
 	ast_mutex_t lock;
-} peerl = { NULL, AST_MUTEX_INITIALIZER };
+} peerl;
 
 /*--- The register list: Other SIP proxys we register with and call ---*/
 static struct ast_register_list {
 	struct sip_registry *registrations;
 	ast_mutex_t lock;
 	int recheck;
-} regl = { NULL, AST_MUTEX_INITIALIZER };
+} regl;
 
 
 #define REINVITE_INVITE		1
@@ -1368,6 +1368,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 				ast_sched_del(sched, cp->retransid);
 			free(cp);
 		}
+                ast_mutex_destroy(&p->lock);
 		free(p);
 	}
 }
@@ -2018,6 +2019,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	struct sip_pvt *p;
 
 	p = malloc(sizeof(struct sip_pvt));
+        ast_mutex_init(&p->lock);
 	if (!p)
 		return NULL;
 	/* Keep track of stuff */
@@ -2035,6 +2037,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	p->ocseq = 101;
 	if (!p->rtp) {
 		ast_log(LOG_WARNING, "Unable to create RTP session: %s\n", strerror(errno));
+                ast_mutex_destroy(&p->lock);
 		free(p);
 		return NULL;
 	}
@@ -2049,7 +2052,6 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 		if (p->vrtp)
 			ast_rtp_setnat(p->vrtp, p->nat);
 	}
-	ast_mutex_init(&p->lock);
 
 	if (sin) {
 		memcpy(&p->sa, sin, sizeof(p->sa));
@@ -8039,6 +8041,10 @@ int load_module()
 	int res;
 	struct sip_peer *peer;
 	struct sip_registry *reg;
+
+        ast_mutex_init(&userl.lock);
+        ast_mutex_init(&peerl.lock);
+        ast_mutex_init(&regl.lock);
 	sched = sched_context_create();
 	if (!sched) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");

@@ -184,10 +184,10 @@ static struct state *	gmtptr      = NULL;
 
 static int		gmt_is_set;
 #ifdef	_THREAD_SAFE
-static ast_mutex_t		lcl_mutex   = AST_MUTEX_INITIALIZER;
-static ast_mutex_t		tzset_mutex	= AST_MUTEX_INITIALIZER;
-static ast_mutex_t		tzsetwall_mutex	= AST_MUTEX_INITIALIZER;
-static ast_mutex_t		gmt_mutex   = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(lcl_mutex);
+AST_MUTEX_DEFINE_STATIC(tzset_mutex);
+AST_MUTEX_DEFINE_STATIC(tzsetwall_mutex);
+AST_MUTEX_DEFINE_STATIC(gmt_mutex);
 #endif
 
 /*

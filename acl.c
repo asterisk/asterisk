@@ -34,7 +34,7 @@
 #include <fcntl.h>
 #include <net/route.h>
 
-static ast_mutex_t routeseq_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(routeseq_lock);
 #endif
 
 

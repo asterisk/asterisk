@@ -83,7 +83,7 @@ static struct ast_atexit {
 	void (*func)(void);
 	struct ast_atexit *next;
 } *atexits = NULL;
-static ast_mutex_t atexitslock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(atexitslock);
 
 time_t ast_startuptime;
 time_t ast_lastreloadtime;

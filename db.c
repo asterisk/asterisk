@@ -38,7 +38,7 @@
 #include "astconf.h"
 
 static DB *astdb;
-static ast_mutex_t dblock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(dblock);
 
 static int dbinit(void) 
 {

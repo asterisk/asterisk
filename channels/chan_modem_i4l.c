@@ -34,7 +34,7 @@ static char *breakcmd = "\0x10\0x14\0x10\0x3";
 static char *desc = "ISDN4Linux Emulated Modem Driver";
 
 static int usecnt;
-static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 static char *i4l_idents[] = {
 	/* Identify ISDN4Linux Driver */

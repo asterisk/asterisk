@@ -98,8 +98,8 @@ static struct loadupdate {
 	struct loadupdate *next;
 } *updaters = NULL;
 
-static ast_mutex_t modlock = AST_MUTEX_INITIALIZER;
-static ast_mutex_t reloadlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(modlock);
+AST_MUTEX_DEFINE_STATIC(reloadlock);
 
 static struct module *module_list=NULL;
 

@@ -100,7 +100,7 @@
 #define GAMMA (0.01)
 
 #ifdef MYSQL_FRIENDS
-static ast_mutex_t mysqllock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(mysqllock);
 static MYSQL *mysql;
 static char mydbuser[80];
 static char mydbpass[80];
@@ -138,7 +138,7 @@ static int expirey = IAX_DEFAULT_REG_EXPIRE;
 static int timingfd = -1;				/* Timing file descriptor */
 
 static int usecnt;
-static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 int (*iax2_regfunk)(char *username, int onoff) = NULL;
 
@@ -269,7 +269,7 @@ static struct iax2_trunk_peer {
 	int calls;
 } *tpeers = NULL;
 
-static ast_mutex_t tpeerlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(tpeerlock);
 
 struct iax_firmware {
 	struct iax_firmware *next;

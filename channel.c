@@ -74,7 +74,7 @@ struct ast_channel *channels = NULL;
 /* Protect the channel list (highly unlikely that two things would change
    it at the same time, but still! */
    
-static ast_mutex_t chlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(chlock);
 
 int ast_check_hangup(struct ast_channel *chan)
 {

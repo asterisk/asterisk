@@ -20,13 +20,14 @@
 #define ERANGE 34
 #undef gethostbyname
 
+AST_MUTEX_DEFINE_STATIC(__mutex);
+
 int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 			size_t buflen, struct hostent **result, 
 			int *h_errnop) 
 {
 	int hsave;
 	struct hostent *ph;
-	static ast_mutex_t __mutex = AST_MUTEX_INITIALIZER;
 	ast_mutex_lock(&__mutex); /* begin critical area */
 	hsave = h_errno;
 

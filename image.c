@@ -33,7 +33,7 @@
 #include "astconf.h"
 
 static struct ast_imager *list;
-static ast_mutex_t listlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(listlock);
 
 int ast_image_register(struct ast_imager *img)
 {

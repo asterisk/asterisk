@@ -585,17 +585,17 @@ static struct io_context *io;
 
 /* usage count and locking */
 static int usecnt = 0;
-static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
-static ast_mutex_t monlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(monlock);
 /* Protect the network socket */
-static ast_mutex_t netlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(netlock);
 /* Protect the session list */
-static ast_mutex_t sessionlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(sessionlock);
 /* Protect the device list */
-static ast_mutex_t devicelock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(devicelock);
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */

@@ -41,7 +41,7 @@
 #include "../asterisk.h"
 #include "../astconf.h"
 
-static ast_mutex_t verb_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(verb_lock);
 
 static pthread_t console_thread;
 

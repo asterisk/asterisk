@@ -218,7 +218,7 @@ struct ast_call_queue {
 };
 
 static struct ast_call_queue *queues = NULL;
-static ast_mutex_t qlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(qlock);
 
 static char *int2strat(int strategy)
 {

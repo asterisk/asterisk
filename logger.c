@@ -49,8 +49,8 @@ static int syslog_level_map[] = {
 #define MAX_MSG_QUEUE 200
 
 static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
-static ast_mutex_t msglist_lock = AST_MUTEX_INITIALIZER;
-static ast_mutex_t loglock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(msglist_lock);
+AST_MUTEX_DEFINE_STATIC(loglock);
 static int pending_logger_reload = 0;
 
 static struct msglist {
@@ -228,7 +228,7 @@ static void init_logger_chain(void)
 }
 
 static FILE *qlog = NULL;
-static ast_mutex_t qloglock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(qloglock);
 
 void ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
 {

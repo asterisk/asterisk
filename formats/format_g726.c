@@ -59,7 +59,7 @@ struct ast_filestream {
 	unsigned char g726[FRAME_TIME * 5];	/* G.726 encoded voice */
 };
 
-static ast_mutex_t g726_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(g726_lock);
 static int glistcnt = 0;
 
 static char *desc = "Raw G.726 (16/24/32/40kbps) data";

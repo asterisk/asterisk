@@ -51,7 +51,7 @@ struct ast_filestream {
 };
 
 
-static ast_mutex_t ilbc_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(ilbc_lock);
 static int glistcnt = 0;
 
 static char *name = "iLBC";

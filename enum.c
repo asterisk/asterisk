@@ -53,7 +53,7 @@ static struct enum_search {
 
 static int enumver = 0;
 
-static ast_mutex_t enumlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(enumlock);
 
 struct naptr {
 	unsigned short order;

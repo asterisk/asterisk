@@ -59,7 +59,7 @@ static int enabled = 0;
 static int portno = DEFAULT_MANAGER_PORT;
 static int asock = -1;
 static pthread_t t;
-static ast_mutex_t sessionlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(sessionlock);
 static int block_sockets = 0;
 
 static struct permalias {
@@ -78,7 +78,7 @@ static struct permalias {
 
 static struct mansession *sessions = NULL;
 static struct manager_action *first_action = NULL;
-static ast_mutex_t actionlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(actionlock);
 
 int ast_carefulwrite(int fd, char *s, int len, int timeoutms) 
 {

@@ -84,7 +84,7 @@ struct parkeduser {
 
 static struct parkeduser *parkinglot;
 
-static ast_mutex_t parking_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(parking_lock);
 
 static pthread_t parking_thread;
 

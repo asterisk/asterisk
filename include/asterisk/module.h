@@ -152,7 +152,7 @@ void ast_unregister_atexit(void (*func)(void));
 								struct localuser *next; \
 							}
 
-#define LOCAL_USER_DECL static ast_mutex_t localuser_lock = AST_MUTEX_INITIALIZER; \
+#define LOCAL_USER_DECL AST_MUTEX_DEFINE_STATIC(localuser_lock); \
 						static struct localuser *localusers = NULL; \
 						static int localusecnt = 0;
 

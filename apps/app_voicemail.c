@@ -207,7 +207,7 @@ static char *app2 = "VoiceMailMain";
 
 static char *app3 = "MailboxExists";
 
-static ast_mutex_t vmlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(vmlock);
 struct ast_vm_user *users;
 struct ast_vm_user *usersl;
 struct vm_zone *zones = NULL;

@@ -49,7 +49,7 @@ struct ast_filestream {
 };
 
 
-static ast_mutex_t g729_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(g729_lock);
 static int glistcnt = 0;
 
 static char *name = "g729";

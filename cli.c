@@ -46,8 +46,7 @@ void ast_cli(int fd, char *fmt, ...)
 	free(stuff);
 }
 
-ast_mutex_t clilock = AST_MUTEX_INITIALIZER;
-
+AST_MUTEX_DEFINE_STATIC(clilock);
 
 struct ast_cli_entry *helpers = NULL;
 
@@ -157,7 +156,7 @@ static int handle_unload(int fd, int argc, char *argv[])
 #define MODLIST_FORMAT  "%-25s %-40.40s %-10d\n"
 #define MODLIST_FORMAT2 "%-25s %-40.40s %-10s\n"
 
-static ast_mutex_t climodentrylock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(climodentrylock);
 static int climodentryfd = -1;
 
 static int modlist_modentry(char *module, char *description, int usecnt)

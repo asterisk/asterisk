@@ -56,7 +56,7 @@
 #include "slin_g723_ex.h"
 #include "g723_slin_ex.h"
 
-static ast_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt=0;
 
 #ifdef ANNEX_B

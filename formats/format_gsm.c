@@ -58,7 +58,7 @@ struct ast_filestream {
 };
 
 
-static ast_mutex_t gsm_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(gsm_lock);
 static int glistcnt = 0;
 
 static char *name = "gsm";

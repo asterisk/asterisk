@@ -41,7 +41,7 @@ static char *dsn = NULL, *username = NULL, *password = NULL, *loguniqueid = NULL
 static int dsn_alloc = 0, username_alloc = 0, password_alloc = 0, loguniqueid_alloc = 0;
 static int connected = 0;
 
-static ast_mutex_t odbc_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(odbc_lock);
 
 static int odbc_do_query(void);
 static int odbc_init(void);

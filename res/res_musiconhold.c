@@ -99,7 +99,7 @@ struct mohdata {
 
 static struct mohclass *mohclasses;
 
-static ast_mutex_t moh_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(moh_lock);
 
 #define LOCAL_MPG_123 "/usr/local/bin/mpg123"
 #define MPG_123 "/usr/bin/mpg123"

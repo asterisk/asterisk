@@ -199,7 +199,7 @@ static int adsi = 0;
 
 
 static int usecnt =0;
-static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 /* SC: transaction id should always be positive */
 static unsigned int oseq;
 
@@ -214,9 +214,9 @@ static int matchdigittimeout = 3000;
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
-static ast_mutex_t netlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(netlock);
 
-static ast_mutex_t monlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(monlock);
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
@@ -419,10 +419,10 @@ static struct mgcp_gateway {
 	struct mgcp_gateway *next;
 } *gateways;
 
-static ast_mutex_t mgcp_reload_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(mgcp_reload_lock);
 static int mgcp_reloading = 0;
 
-static ast_mutex_t gatelock  = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(gatelock);
 
 static int mgcpsock  = -1;
 

@@ -34,7 +34,7 @@ static char *breakcmd = "\0x10\0x03";
 static char *desc = "A/Open (Rockwell Chipset) ITU-2 VoiceModem Driver";
 
 static int usecnt;
-static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 static char *aopen_idents[] = {
 	/* Identify A/Open Modem */

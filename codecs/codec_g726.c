@@ -29,7 +29,7 @@
 #define BUFFER_SIZE   8096	/* size for the translation buffers */
 #define BUF_SHIFT	5
 
-static ast_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt = 0;
 
 static char *tdesc = "ITU G.726-32kbps G726 Transcoder";

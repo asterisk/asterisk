@@ -59,7 +59,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static ast_mutex_t sound_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(sound_lock);
 static int sound = -1;
 
 static int write_audio(short *data, int len)

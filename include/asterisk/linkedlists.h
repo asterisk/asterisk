@@ -16,9 +16,6 @@ struct name {								\
 	ast_mutex_t lock;						\
 }
 
-#define AST_LIST_HEAD_INITIALIZER(head)					\
-	{ NULL, AST_MUTEX_INITIALIZER }
-	
 #define AST_LIST_HEAD_SET(head,entry) do {				\
 	(head)->first=(entry);						\
 	ast_pthread_mutex_init(&(head)->lock,NULL);				\

@@ -34,7 +34,7 @@
 /* This could all be done more efficiently *IF* we chained packets together
    by default, but it would also complicate virtually every application. */
    
-static ast_mutex_t list_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(list_lock);
 static struct ast_translator *list = NULL;
 
 struct ast_translator_dir {

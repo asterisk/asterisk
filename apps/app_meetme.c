@@ -125,7 +125,7 @@ struct ast_conf_user {
 #define ADMINFLAG_KICKME (1 << 2)	/* User is kicked */
 
 
-static ast_mutex_t conflock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(conflock);
 
 static int admin_exec(struct ast_channel *chan, void *data);
 

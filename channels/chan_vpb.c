@@ -69,14 +69,14 @@ static int gruntdetect_timeout = 3600000; /* Grunt detect timeout is 1hr. */
 
 static const int prefformat = AST_FORMAT_SLINEAR;
 
-static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 /* Protect the interface list (of vpb_pvt's) */
-static ast_mutex_t iflock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(iflock);
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
-static ast_mutex_t monlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(monlock);
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
@@ -171,7 +171,7 @@ typedef struct  {
 static vpb_bridge_t * bridges;
 static int max_bridges = MAX_BRIDGES_V4PCI;
 
-static ast_mutex_t bridge_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(bridge_lock);
 
 typedef enum {
 	vpb_model_unknown = 0, 

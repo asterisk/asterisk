@@ -41,7 +41,7 @@ static char *pghostname = NULL, *pgdbname = NULL, *pgdbuser = NULL, *pgpassword 
 static int hostname_alloc = 0, dbname_alloc = 0, dbuser_alloc = 0, password_alloc = 0, dbsock_alloc = 0, dbport_alloc = 0;
 static int connected = 0;
 
-static ast_mutex_t pgsql_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(pgsql_lock);
 
 PGconn		*conn;
 PGresult	*result;

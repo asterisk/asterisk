@@ -91,10 +91,10 @@ static int wrapuptime;
 static int ackcall;
 
 static int usecnt =0;
-static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 /* Protect the interface list (of sip_pvt's) */
-static ast_mutex_t agentlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(agentlock);
 
 static int recordagentcalls = 0;
 static char recordformat[AST_MAX_BUF];

@@ -59,7 +59,7 @@
 static char base64[64];
 static char b2a[256];
 
-static ast_mutex_t keylock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(keylock);
 
 #define KEY_NEEDS_PASSCODE (1 << 16)
 

@@ -42,7 +42,7 @@ static char *registrar = "pbx_config";
 static int static_config = 0;
 static int write_protect_config = 1;
 
-static ast_mutex_t save_dialplan_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(save_dialplan_lock);
 
 static struct ast_context *local_contexts = NULL;
 

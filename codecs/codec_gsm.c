@@ -39,7 +39,7 @@
 #include "slin_gsm_ex.h"
 #include "gsm_slin_ex.h"
 
-static ast_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt=0;
 
 static char *tdesc = "GSM/PCM16 (signed linear) Codec Translator";

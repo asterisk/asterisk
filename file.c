@@ -79,7 +79,7 @@ struct ast_filestream {
 	struct ast_channel *owner;
 };
 
-static ast_mutex_t formatlock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(formatlock);
 
 static struct ast_format *formats = NULL;
 

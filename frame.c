@@ -29,7 +29,7 @@
 #ifdef TRACE_FRAMES
 static int headers = 0;
 static struct ast_frame *headerlist = NULL;
-static ast_mutex_t framelock = AST_MUTEX_INITIALIZER;
+AST_MUTEX_DEFINE_STATIC(framelock);
 #endif
 
 #define SMOOTHER_SIZE 8000
