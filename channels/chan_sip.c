@@ -4492,6 +4492,12 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 					p->noncodeccapability &= ~AST_RTP_DTMF;
 			}
 		}
+		if (user && sip_debug_test_addr(sin))
+			ast_verbose("Found user '%s'\n", user->name);
+	} else {
+		if (user && sip_debug_test_addr(sin))
+			ast_verbose("Found user '%s', but fails host access\n", user->name);
+		user = NULL;
 	}
 	ast_mutex_unlock(&userl.lock);
 	if (!user) {
@@ -4504,6 +4510,8 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 		/* peer = find_peer(NULL, sin); */
 		ast_mutex_unlock(&peerl.lock);
 		if (peer) {
+				if (sip_debug_test_addr(sin))
+					ast_verbose("Found peer '%s'\n", peer->name);
 				/* Take the peer */
 				p->nat = peer->nat;
 				if (p->rtp) {
@@ -4547,7 +4555,10 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				}
 				free(peer);
 			}
-		}
+		} else
+			if (sip_debug_test_addr(sin))
+				ast_verbose("Found no matching peer or user for '%s:%d'\n", inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
+
 	}
 	return res;
 }
