@@ -183,9 +183,9 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 	fdprintf(fd, "agi_uniqueid: %s\n", chan->uniqueid);
 
 	/* ANI/DNIS */
-	fdprintf(fd, "agi_callerid: %s\n", chan->callerid ? chan->callerid : "");
-	fdprintf(fd, "agi_dnid: %s\n", chan->dnid ? chan->dnid : "");
-	fdprintf(fd, "agi_rdnis: %s\n", chan->rdnis ? chan->rdnis : "");
+	fdprintf(fd, "agi_callerid: %s\n", chan->callerid ? chan->callerid : "unknown");
+	fdprintf(fd, "agi_dnid: %s\n", chan->dnid ? chan->dnid : "unknown");
+	fdprintf(fd, "agi_rdnis: %s\n", chan->rdnis ? chan->rdnis : "unknown");
 
 	/* Context information */
 	fdprintf(fd, "agi_context: %s\n", chan->context);
