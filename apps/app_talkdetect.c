@@ -170,6 +170,7 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 					}
 					ast_frfree(fr);
 				}
+				ast_sched_runq(chan->sched);
 			}
 			ast_stopstream(chan);
 		} else {
