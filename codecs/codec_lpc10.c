@@ -55,7 +55,7 @@ struct ast_translator_pvt {
 	/* Space to build offset */
 	char offset[AST_FRIENDLY_OFFSET];
 	/* Buffer for our outgoing frame */
-	short outbuf[LPC10_SAMPLES_PER_FRAME];
+	short outbuf[8000];
 	/* Enough to store a full second */
 	short buf[8000];
 	int tail;
@@ -197,26 +197,32 @@ static int lpc10tolin_framein(struct ast_translator_pvt *tmp, struct ast_frame *
 	/* Assuming there's space left, decode into the current buffer at
 	   the tail location */
 	int x;
+	int len=0;
 	float tmpbuf[LPC10_SAMPLES_PER_FRAME];
 	short *sd;
 	INT32 bits[LPC10_BITS_IN_COMPRESSED_FRAME];
-	if (tmp->tail + LPC10_SAMPLES_PER_FRAME < sizeof(tmp->buf)/2) {
-		sd = tmp->buf + tmp->tail;
-		extract_bits(bits, f->data);
-		if (lpc10_decode(bits, tmpbuf, tmp->lpc10.dec)) {
-			ast_log(LOG_WARNING, "Invalid lpc10 data\n");
+	while(len + LPC10_BYTES_IN_COMPRESSED_FRAME <= f->datalen) {
+		if (tmp->tail + LPC10_SAMPLES_PER_FRAME < sizeof(tmp->buf)/2) {
+			sd = tmp->buf + tmp->tail;
+			extract_bits(bits, f->data + len);
+			if (lpc10_decode(bits, tmpbuf, tmp->lpc10.dec)) {
+				ast_log(LOG_WARNING, "Invalid lpc10 data\n");
+				return -1;
+			}
+			for (x=0;x<LPC10_SAMPLES_PER_FRAME;x++) {
+				/* Convert to a real between -1.0 and 1.0 */
+				sd[x] = 32768.0 * tmpbuf[x];
+			}
+			
+			tmp->tail+=LPC10_SAMPLES_PER_FRAME;
+		} else {
+			ast_log(LOG_WARNING, "Out of buffer space\n");
 			return -1;
 		}
-		for (x=0;x<LPC10_SAMPLES_PER_FRAME;x++) {
-			/* Convert to a real between -1.0 and 1.0 */
-			sd[x] = 32768.0 * tmpbuf[x];
-		}
-		
-		tmp->tail+=LPC10_SAMPLES_PER_FRAME;
-	} else {
-		ast_log(LOG_WARNING, "Out of buffer space\n");
-		return -1;
+		len += LPC10_BYTES_IN_COMPRESSED_FRAME;
 	}
+	if (len != f->datalen) 
+		printf("Decoded %d, expected %d\n", len, f->datalen);
 	return 0;
 }
 
@@ -239,35 +245,48 @@ static int lintolpc10_framein(struct ast_translator_pvt *tmp, struct ast_frame *
 static struct ast_frame *lintolpc10_frameout(struct ast_translator_pvt *tmp)
 {
 	int x;
+	int consumed = 0;
 	float tmpbuf[LPC10_SAMPLES_PER_FRAME];
 	INT32 bits[LPC10_BITS_IN_COMPRESSED_FRAME];
 	/* We can't work on anything less than a frame in size */
 	if (tmp->tail < LPC10_SAMPLES_PER_FRAME)
 		return NULL;
-	/* Encode a frame of data */
-	for (x=0;x<LPC10_SAMPLES_PER_FRAME;x++) {
-		tmpbuf[x] = (float)tmp->buf[x] / 32768.0;
-	}
-	lpc10_encode(tmpbuf, bits, tmp->lpc10.enc);
-	build_bits((unsigned char *)tmp->outbuf, bits);
+	/* Start with an empty frame */
+	tmp->f.timelen = 0;
+	tmp->f.datalen = 0;
 	tmp->f.frametype = AST_FRAME_VOICE;
 	tmp->f.subclass = AST_FORMAT_LPC10;
-	tmp->f.datalen = LPC10_BYTES_IN_COMPRESSED_FRAME;
-	tmp->f.timelen = 22;
-	/* We alternate between 22 and 23 ms to simulate 22.5 ms */
-	tmp->f.timelen += tmp->longer;
-	/* Use one of the two left over bits to record if this is a 22 or 23 ms frame...
-	   important for IAX use */
-	tmp->longer = 1 - tmp->longer;
+	while(tmp->tail >=  LPC10_SAMPLES_PER_FRAME) {
+		if (tmp->f.datalen + LPC10_BYTES_IN_COMPRESSED_FRAME > sizeof(tmp->outbuf)) {
+			ast_log(LOG_WARNING, "Out of buffer space\n");
+			return NULL;
+		}
+		/* Encode a frame of data */
+		for (x=0;x<LPC10_SAMPLES_PER_FRAME;x++) {
+			tmpbuf[x] = (float)tmp->buf[x+consumed] / 32768.0;
+		}
+		lpc10_encode(tmpbuf, bits, tmp->lpc10.enc);
+		build_bits(((unsigned char *)tmp->outbuf) + tmp->f.datalen, bits);
+		tmp->f.datalen += LPC10_BYTES_IN_COMPRESSED_FRAME;
+		tmp->f.timelen += 22;
+		/* We alternate between 22 and 23 ms to simulate 22.5 ms */
+		tmp->f.timelen += tmp->longer;
+		/* Use one of the two left over bits to record if this is a 22 or 23 ms frame...
+		   important for IAX use */
+		tmp->longer = 1 - tmp->longer;
+#if 0	/* what the heck was this for? */
+		((char *)(tmp->f.data))[consumed - 1] |= tmp->longer;
+#endif		
+		tmp->tail -= LPC10_SAMPLES_PER_FRAME;
+		consumed += LPC10_SAMPLES_PER_FRAME;
+	}
 	tmp->f.mallocd = 0;
 	tmp->f.offset = AST_FRIENDLY_OFFSET;
 	tmp->f.src = __PRETTY_FUNCTION__;
 	tmp->f.data = tmp->outbuf;
-	((char *)(tmp->f.data))[LPC10_BYTES_IN_COMPRESSED_FRAME - 1] |= tmp->longer;
-	tmp->tail -= LPC10_SAMPLES_PER_FRAME;
 	/* Move the data at the end of the buffer to the front */
 	if (tmp->tail)
-		memmove(tmp->buf, tmp->buf + LPC10_SAMPLES_PER_FRAME, tmp->tail * 2);
+		memmove(tmp->buf, tmp->buf + consumed, tmp->tail * 2);
 #if 0
 	/* Save a sample frame */
 	{ static int samplefr = 0;
@@ -345,4 +364,9 @@ int usecount(void)
 	int res;
 	STANDARD_USECOUNT(res);
 	return res;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
 }
