@@ -376,7 +376,8 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
     			if (strlen((char *)data)==strln) {
     				ast_log(LOG_DEBUG,"Size OK\n");
     				read(fdesc,&bigstring,strln);
-	    			if (strcmp(bigstring,data)==0) { 
+	    			bigstring[strln] = 0;
+				if (strcmp(bigstring,data)==0) { 
 	    				readcache=1;
 	    			} else {
 	    				ast_log(LOG_WARNING,"Strings do not match\n");
