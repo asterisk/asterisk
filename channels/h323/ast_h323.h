@@ -253,6 +253,26 @@ class MyH323Connection : public H323Connection {
 	BOOL			   bridging;			// Used to help determine which IP to use
 };
 
+class MyH323_ExternalRTPChannel : public H323_ExternalRTPChannel {
+
+	PCLASSINFO(MyH323_ExternalRTPChannel, H323_ExternalRTPChannel);
+
+	public:
+
+    MyH323_ExternalRTPChannel(MyH323Connection &, const H323Capability &, Directions,
+    						unsigned, const PIPSocket::Address &, WORD);
+
+	~MyH323_ExternalRTPChannel();
+
+    BOOL OnReceivedPDU(
+      const H245_H2250LogicalChannelParameters & param, /// Acknowledgement PDU
+      unsigned & errorCode                              /// Error on failure
+    );
+
+    BOOL OnReceivedAckPDU(const H245_H2250LogicalChannelAckParameters & param);
+
+};
+
 /**
  * The MyProcess is a necessary descendant PProcess class so that the H323EndPoint 
  * objected to be created from within that class. (Who owns main() problem). 
@@ -268,5 +288,4 @@ class MyProcess : public PProcess {
 	
 	
 };
-
 

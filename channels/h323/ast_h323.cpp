@@ -687,7 +687,7 @@ H323Channel * MyH323Connection::CreateRealTimeLogicalChannel(const H323Capabilit
 		cout << "		-- SessionID: " << sessionID << endl;
 		cout << "		-- Direction: " << dir << endl;
 	}
-	return new H323_ExternalRTPChannel(*this, capability, dir, sessionID, externalIpAddress, externalPort);
+	return new MyH323_ExternalRTPChannel(*this, capability, dir, sessionID, externalIpAddress, externalPort);
 }
 
 /** This callback function is invoked once upon creation of each
@@ -718,6 +718,63 @@ BOOL MyH323Connection::OnStartLogicalChannel(H323Channel & channel)
 	on_start_logical_channel(GetCallReference(), (const char *)remoteIpAddress.AsString(), remotePort);
 
 	return TRUE;	
+}
+
+/* MyH323_ExternalRTPChannel */
+MyH323_ExternalRTPChannel::MyH323_ExternalRTPChannel(MyH323Connection & connection,
+													const H323Capability & capability,
+													Directions direction,
+													unsigned sessionID,
+													const PIPSocket::Address & ip,
+													WORD dataPort)
+	: H323_ExternalRTPChannel(connection, capability, direction, sessionID, ip, dataPort)
+{
+	if (h323debug) {
+		cout << "	== New H.323 ExternalRTPChannel created." << endl;
+	}
+	return;
+}
+
+MyH323_ExternalRTPChannel::~MyH323_ExternalRTPChannel()
+{
+	if (h323debug) {
+		cout << "	== H.323 ExternalRTPChannel deleted." << endl;
+	}
+	return;
+}
+
+BOOL MyH323_ExternalRTPChannel::OnReceivedPDU(
+				const H245_H2250LogicalChannelParameters & param,
+				unsigned & errorCode)
+{
+	if (h323debug) {
+		cout << "	MyH323_ExternalRTPChannel::OnReceivedPDU " << endl;
+	}
+	return H323_ExternalRTPChannel::OnReceivedPDU( param, errorCode );
+}
+
+BOOL MyH323_ExternalRTPChannel::OnReceivedAckPDU(
+				const H245_H2250LogicalChannelAckParameters & param)
+{
+
+	PIPSocket::Address remoteIpAddress;		// IP Address of remote endpoint
+	WORD			   remotePort;			// remote endpoint Data port (control is dataPort+1)
+
+	if (h323debug) {
+		cout << "	MyH323_ExternalRTPChannel::OnReceivedAckPDU " << endl;
+	}
+
+	if (H323_ExternalRTPChannel::OnReceivedAckPDU( param )) {
+		GetRemoteAddress(remoteIpAddress, remotePort);
+		if (h323debug) {
+			cout << "		-- remoteIpAddress: " << remoteIpAddress << endl;
+			cout << "		-- remotePort: " << remotePort << endl;
+		}
+		/* Notify Asterisk of remote RTP information */
+		on_start_logical_channel(connection.GetCallReference(), (const char *)remoteIpAddress.AsString(), remotePort);
+		return TRUE;
+	}
+	return FALSE;
 }
 
 
@@ -1096,6 +1153,4 @@ void h323_native_bridge(const char *token, char *them, char *capability)
 }
 
 } /* extern "C" */
-
-
 
