@@ -272,7 +272,7 @@ rxgain=0.0
 txgain=0.0
 ;
 ; Logical groups can be assigned to allow outgoing rollover.  Groups
-; range from 0 to 31, and multiple groups can be specified.
+; range from 0 to 63, and multiple groups can be specified.
 ;
 group=1
 ;
