@@ -43,7 +43,8 @@ struct ast_context *ast_context_find(char *name);
 /* Create a new thread and start the PBX (or whatever) */
 int ast_pbx_start(struct ast_channel *c);
 
-
+/* Execute the PBX in the current thread */
+int ast_pbx_run(struct ast_channel *c);
 
 /* Add an extension to an extension context, this time with an ast_context * */
 int ast_add_extension2(struct ast_context *con,
@@ -73,6 +74,14 @@ int ast_spawn_extension(struct ast_channel *c, char *context, char *exten, int p
 int ast_exec_extension(struct ast_channel *c, char *context, char *exten, int priority);
 /* Longest extension */
 int ast_pbx_longest_extension(char *context);
+
+/* Add an include */
+int ast_context_add_include(char *context, char *include);
+int ast_context_add_include2(struct ast_context *con, char *include);
+
+/* Remove an include */
+int ast_context_remove_include(char *context, char *include);
+int ast_context_remove_include2(struct ast_context *con, char *include);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -37,7 +37,6 @@ int load_module(void)
 	struct ast_variable *v;
 	char *cxt, *ext, *pri, *appl, *data, *tc;
 	struct ast_context *con;
-	
 
 	cfg = ast_load(config);
 	if (cfg) {
@@ -53,24 +52,29 @@ int load_module(void)
 			if ((con=ast_context_create(cxt))) {
 				v = ast_variable_browse(cfg, cxt);
 				while(v) {
-					tc = strdup(v->value);
-					ext = strtok(tc, ",");
-					if (!ext)
-						ext="";
-					pri = strtok(NULL, ",");
-					if (!pri)
-						pri="";
-					appl = strtok(NULL, ",");
-					if (!appl)
-						appl="";
-					data = strtok(NULL, ",");
-					if (!data)
-						data="";
-					if (ast_add_extension2(con, 0, ext, atoi(pri), appl, strdup(data), free)) {
-						ast_log(LOG_WARNING, "Unable to register extension\n");
+					if (!strcasecmp(v->name, "exten")) {
+						tc = strdup(v->value);
+						ext = strtok(tc, ",");
+						if (!ext)
+							ext="";
+						pri = strtok(NULL, ",");
+						if (!pri)
+							pri="";
+						appl = strtok(NULL, ",");
+						if (!appl)
+							appl="";
+						data = strtok(NULL, ",");
+						if (!data)
+							data="";
+						if (ast_add_extension2(con, 0, ext, atoi(pri), appl, strdup(data), free)) {
+							ast_log(LOG_WARNING, "Unable to register extension\n");
+						}
+						free(tc);
+					} else if(!strcasecmp(v->name, "include")) {
+						if (ast_context_add_include2(con, v->value))
+							ast_log(LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
 					}
 					v = v->next;
-					free(tc);
 				}
 			}
 			cxt = ast_category_browse(cfg, cxt);
@@ -88,4 +92,9 @@ int usecount(void)
 char *description(void)
 {
 	return dtext;
+}
+
+char *key(void)
+{
+	return ASTERISK_GPL_KEY;
 }
