@@ -17,6 +17,7 @@ CHANNEL_LIBS=chan_vofr.so chan_modem.so \
 CHANNEL_LIBS+=$(shell [ -f /usr/include/linux/ixjuser.h ] && echo chan_phone.so)
 
 CFLAGS+=-Wno-missing-prototypes -Wno-missing-declarations
+CFLAGS+=$(shell [ ! -f /usr/include/linux/if_wanpipe.h ] && echo " -DOLD_SANGOMA_API")
 
 CFLAGS+=#-DVOFRDUMPER
 
@@ -27,6 +28,13 @@ clean:
 
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<
+
+#libiax.a: libiax.o
+#	rm -f libiax.a
+#	$(AR) cr libiax.a libiax.o
+
+#chan_iax.so: chan_iax.o libiax.a
+#	$(CC) -shared -Xlinker -x -o $@ $< -L. -liax
 
 #chan_modem.so : chan_modem.o
 #	$(CC) -rdynamic -shared -Xlinker -x -o $@ $<

@@ -471,8 +471,11 @@ static void *pbx_thread(void *data)
 				digit = ast_waitstream(c, AST_DIGIT_ANY);
 				ast_stopstream(c);
 				/* Hang up if something goes wrong */
-				if (digit < 0)
+				if (digit < 0) {
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "Lost connection on %s\n", c->name);
 					goto out;
+				}
 				else if (digit) {
 					exten[pos++] = digit;
 					break;
@@ -487,7 +490,7 @@ static void *pbx_thread(void *data)
 		else
 			waittime = c->pbx->rtimeout;
 		while(!ast_exists_extension(c, c->context, exten, 1) && 
-		      ast_canmatch_extension(c, c->context, exten, 1)) {
+		       ast_canmatch_extension(c, c->context, exten, 1)) {
 			/* As long as we're willing to wait, and as long as it's not defined, 
 			   keep reading digits until we can't possibly get a right answer anymore.  */
 			digit = ast_waitfordigit(c, waittime * 1000);

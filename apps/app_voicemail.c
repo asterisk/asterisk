@@ -329,7 +329,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	}
 	do {
 		/* Prompt for, and read in the username */
-		if (ast_readstring(chan, username, sizeof(username), 2000, 5000, "#")) {
+		if (ast_readstring(chan, username, sizeof(username), 2000, 10000, "#")) {
 			ast_log(LOG_WARNING, "Couldn't read username\n");
 			goto out;
 		}			
@@ -343,7 +343,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "Unable to stream password file\n");
 			goto out;
 		}
-		if (ast_readstring(chan, password, sizeof(password), 2000, 5000, "#")) {
+		if (ast_readstring(chan, password, sizeof(password), 2000, 10000, "#")) {
 			ast_log(LOG_WARNING, "Unable to read password\n");
 			goto out;
 		}
