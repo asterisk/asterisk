@@ -1743,6 +1743,14 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 				f = fr;
 			if (f) {
 				res = chan->tech->write(chan, f);
+
+				if (f->frametype == AST_FRAME_VOICE && chan->spiers) {
+					struct ast_channel_spy *spying;
+					for (spying = chan->spiers; spying; spying=spying->next) {
+						ast_queue_spy_frame(spying, f, 1);
+					}
+				}
+
 				if( chan->monitor &&
 						chan->monitor->write_stream &&
 						f && ( f->frametype == AST_FRAME_VOICE ) ) {
