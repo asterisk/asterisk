@@ -30,7 +30,7 @@ static int frames = 0;
 static int iframes = 0;
 static int oframes = 0;
 
-#ifdef SOLARIS
+#if defined(SOLARIS) && defined(__sparc__)
 static unsigned int get_uint32(unsigned char *p)
 {
   return (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];

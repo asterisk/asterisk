@@ -1170,11 +1170,9 @@ int ast_rtp_sendcng(struct ast_rtp *rtp, int level)
 	return 0;
 }
 
-#ifdef SOLARIS
+#if defined(SOLARIS) && defined(__sparc__)
 static void put_uint32(unsigned char *buf, int i)
 {
-	unsigned char *c = (unsigned char *)&i;
-
 	buf[0] = (i>>24) & 0xff;
 	buf[1] = (i>>16) & 0xff;
 	buf[2] = (i>>8)  & 0xff;

@@ -164,6 +164,7 @@ struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
 	   integers, we break with tradition and refuse to look up a
 	   pure integer */
 	s = host;
+	res = 0;
 	while(s && *s) {
 		if (!isdigit(*s))
 			break;

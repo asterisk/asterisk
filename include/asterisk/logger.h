@@ -13,7 +13,9 @@
 
 #ifndef _LOGGER_H
 #define _LOGGER_H
-
+#ifdef SOLARIS
+#include <solaris-compat/compat.h>
+#endif
 #include <stdarg.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)

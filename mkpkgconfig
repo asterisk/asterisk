@@ -15,12 +15,12 @@ fi
 
 ## Clean out CFLAGS for the spec file.
 
-LOCAL_CFLAGS=$(echo $CFLAGS | sed -e 's/\s*-pipe\s*//g' | sed -e 's/-[Wmp]\S*\s*//g' | \
-  sed -r -e 's/-I(include|\.\.\/include) //g' |
-  sed -e 's/-DINSTALL_PREFIX=\S* //g' |
-  sed -r -e 's/-DASTERISK_VERSION=\S* //g' |
-  sed -r -e 's/-DAST(ETCDIR|LIBDIR|VARLIBDIR|VARRUNDIR|SPOOLDIR|LOGDIR|CONFPATH|MODDIR|AGIDIR)=\S* //g'
-)
+LOCAL_CFLAGS=`echo $CFLAGS | sed -e 's/\s*-pipe\s*//g' | sed -e 's/-[Wmp]\S*\s*//g' | \
+  sed -r -e 's/-I(include|\.\.\/include) //g' | \
+  sed -e 's/-DINSTALL_PREFIX=\S* //g' | \
+  sed -r -e 's/-DASTERISK_VERSION=\S* //g' | \
+  sed -r -e 's/-DAST(ETCDIR|LIBDIR|VARLIBDIR|VARRUNDIR|SPOOLDIR|LOGDIR|CONFPATH|MODDIR|AGIDIR)=\S* //g'`
+
 
 cat <<EOF > $PPATH/asterisk.pc
 install_prefix=$INSTALL_PREFIX

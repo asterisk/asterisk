@@ -2,6 +2,9 @@
 
 #include <sys/types.h>
 #include <stdio.h>
+#ifdef SOLARIS
+#include <solaris-compat/compat.h>
+#endif
 
 char* strsep(char** str, const char* delims)
 {
@@ -142,3 +145,9 @@ int setenv(const char *name, const char *value, int overwrite)
 
 	return ret;
 }
+
+int unsetenv(const char *name)
+{
+  setenv(name,"",0);
+}
+

@@ -48,6 +48,9 @@
 #include <asterisk/agi.h>
 #include "../asterisk.h"
 #include "../astconf.h"
+#ifdef SOLARIS
+#include <asterisk/astmm.h>
+#endif
 
 #define MAX_ARGS 128
 #define MAX_COMMANDS 128

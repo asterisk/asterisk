@@ -1055,7 +1055,7 @@ static int str2r2prot(char *swtype)
 }
 #endif
 
-static char *sig2str(int sig)
+static char *zap_sig2str(int sig)
 {
 	static char buf[256];
 	switch(sig) {
@@ -1110,6 +1110,8 @@ static char *sig2str(int sig)
 		return buf;
 	}
 }
+
+#define sig2str zap_sig2str
 
 static int conf_add(struct zt_pvt *p, struct zt_subchannel *c, int index, int slavechannel)
 {

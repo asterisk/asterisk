@@ -12,6 +12,9 @@
 #ifndef _ASTERISK_UTIL_H
 #define _ASTERISK_UTIL_H
 
+#ifdef SOLARIS
+#include <solaris-compat/compat.h>
+#endif
 #include <netinet/in.h>
 #include <netdb.h>
 #include <pthread.h>
