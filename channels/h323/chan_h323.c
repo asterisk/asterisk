@@ -256,6 +256,8 @@ static struct oh323_user *build_user(char *name, struct ast_variable *v)
 					free(user);
 					return NULL;
 				} 
+				/* Let us know we need to use ip authentication */
+				user->host = 1;
 			} else if (!strcasecmp(v->name, "amaflags")) {
 				format = ast_cdr_amaflags2int(v->value);
 				if (format < 0) {
@@ -957,9 +959,11 @@ int setup_incoming_call(call_details_t cd)
 			strncpy(p->context, default_context, sizeof(p->context)-1);
 			ast_log(LOG_DEBUG, "Sending %s to context [%s]\n", cd.call_source_aliases, p->context);
 		} else {
-			if (strcasecmp(cd.sourceIp, inet_ntoa(user->addr.sin_addr))){
-				ast_log(LOG_ERROR, "Call from user '%s' rejected due to non-matching IP address: '%s'\n", user->name, cd.sourceIp);
-                                return 0;
+			if (user->host) {
+				if (strcasecmp(cd.sourceIp, inet_ntoa(user->addr.sin_addr))){
+					ast_log(LOG_ERROR, "Call from user '%s' rejected due to non-matching IP address of '%s'\n", user->name, cd.sourceIp);
+                	                return 0;
+				}
 			}
 			if (user->incominglimit > 0) {
 				if (user->inUse >= user->incominglimit) {

@@ -37,14 +37,15 @@ struct oh323_user {
 	char callerid[80];
 	char accountcode[20];
 	int amaflags;
-	int	noFastStart;
-	int	noH245Tunneling;
-	int	noSilenceSuppression;
+	int noFastStart;
+	int noH245Tunneling;
+	int noSilenceSuppression;
 	int inUse;
 	int incominglimit;
 	int bridge;
 	int nat;
 	int dtmfmode;
+	int host;
 	struct ast_ha *ha;
 	struct sockaddr_in addr;
 	struct oh323_user *next;
