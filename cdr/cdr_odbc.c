@@ -43,8 +43,9 @@ static int connected = 0;
 
 static ast_mutex_t odbc_lock = AST_MUTEX_INITIALIZER;
 
-extern int odbc_do_query(char *sqlcmd);
-extern int odbc_init(void);
+static int odbc_do_query(char *sqlcmd);
+static int odbc_init(void);
+static size_t escape_string(char *to, const char *from, size_t length);
 
 static SQLHENV	ODBC_env = SQL_NULL_HANDLE;	/* global ODBC Environment */
 static int 	ODBC_res;			/* global ODBC Result of Functions */
@@ -54,15 +55,11 @@ static SQLHSTMT	ODBC_stmt;			/* global ODBC Statement Handle */
 static int odbc_log(struct ast_cdr *cdr)
 {
 	int res;
-	/*
-        long int ODBC_err, ODBC_id;
-        short int ODBC_mlen;
-        char ODBC_msg[200], ODBC_buffer[200], ODBC_stat[10];
-	*/
 	struct tm tm;
 	struct timeval tv;
 	time_t t;
 	char sqlcmd[2048], timestr[128];
+	char *clid=NULL, *dcontext=NULL, *channel=NULL, *dstchannel=NULL, *lastapp=NULL, *lastdata=NULL, *uniqueid=NULL;
 	
 	ast_mutex_lock(&odbc_lock);
 
@@ -73,13 +70,35 @@ static int odbc_log(struct ast_cdr *cdr)
 
 	memset(sqlcmd,0,2048);
 
+	if((clid = alloca(strlen(cdr->clid) * 2 + 1)) != NULL)
+		escape_string(clid, cdr->clid, strlen(cdr->clid));
+	if((dcontext = alloca(strlen(cdr->dcontext) * 2 + 1)) != NULL)
+		escape_string(dcontext, cdr->dcontext, strlen(cdr->dcontext));
+	if((channel = alloca(strlen(cdr->channel) * 2 + 1)) != NULL)
+		escape_string(channel, cdr->channel, strlen(cdr->channel));
+	if((dstchannel = alloca(strlen(cdr->dstchannel) * 2 + 1)) != NULL)
+		escape_string(dstchannel, cdr->dstchannel, strlen(cdr->dstchannel));
+	if((lastapp = alloca(strlen(cdr->lastapp) * 2 + 1)) != NULL)
+		escape_string(lastapp, cdr->lastapp, strlen(cdr->lastapp));
+	if((lastdata = alloca(strlen(cdr->lastdata) * 2 + 1)) != NULL)
+        	escape_string(lastdata, cdr->lastdata, strlen(cdr->lastdata));
+	if((uniqueid = alloca(strlen(cdr->uniqueid) * 2 + 1)) != NULL)
+		escape_string(uniqueid, cdr->uniqueid, strlen(cdr->uniqueid));
+
+	if ((!clid) || (!dcontext) || (!channel) || (!dstchannel) || (!lastapp) || (!lastdata) || (!uniqueid))
+	{
+		ast_log(LOG_ERROR, "cdr_odbc:  Out of memory error (insert fails)\n");
+		ast_mutex_unlock(&odbc_locl);
+		return -1;
+	}
+
 	if((strcmp(loguniqueid, "1") == 0) || (strcmp(loguniqueid, "yes") == 0))
 	{
-		sprintf(sqlcmd,"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,%i,%i,'%s','%s')", timestr, cdr->clid, cdr->src, cdr->dst, cdr->dcontext, cdr->channel, cdr->dstchannel, cdr->lastapp, cdr->lastdata, cdr->duration, cdr->billsec, cdr->disposition, cdr->amaflags, cdr->accountcode, cdr->uniqueid);
+		sprintf(sqlcmd,"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid) VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s',%i,%i,%i,%i,'%s','%s')", timestr, clid, cdr->src, cdr->dst, dcontext, channel, dstchannel, lastapp, lastdata, cdr->duration, cdr->billsec, cdr->disposition, cdr->amaflags, cdr->accountcode, uniqueid);
 	}
 	else
 	{
-		sprintf(sqlcmd,"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,%i,%i,'%s')", timestr, cdr->clid, cdr->src, cdr->dst, cdr->dcontext, cdr->channel, cdr->dstchannel, cdr->lastapp, cdr->lastdata, cdr->duration, cdr->billsec, cdr->disposition, cdr->amaflags, cdr->accountcode);
+		sprintf(sqlcmd,"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode) VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s',%i,%i,%i,%i,'%s')", timestr, clid, cdr->src, cdr->dst, dcontext, channel, dstchannel, lastapp, lastdata, cdr->duration, cdr->billsec, cdr->disposition, cdr->amaflags, cdr->accountcode);
 	}
 
 	if(connected)
@@ -312,7 +331,7 @@ static int odbc_load_module(void)
 	return res;
 }
 
-int odbc_do_query(char *sqlcmd)
+static int odbc_do_query(char *sqlcmd)
 {
         long int ODBC_err;
         short int ODBC_mlen;
@@ -361,7 +380,7 @@ int odbc_do_query(char *sqlcmd)
 	return 0;
 }
 
-int odbc_init()
+static int odbc_init(void)
 {
 	long int ODBC_err;
 	short int ODBC_mlen;
@@ -423,6 +442,41 @@ int odbc_init()
 	}
 
 	return 0;
+}
+
+static size_t escape_string(char *to, const char *from, size_t length)
+{
+	const char *source = from;
+	char *target = to;
+	unsigned int remaining = length;
+	while (remaining > 0) {
+		switch (*source) {
+			case '\\':
+				*target = '\\';
+				target++;
+				*target = '\\';
+				break;
+			case '\'':
+				*target = '\\';
+				target++;
+				*target = '\'';
+				break;
+			 case '"':
+				*target = '\\';
+				target++;
+				*target = '"';
+				break;
+			default:
+				*target = *source;
+			}
+		source++;
+		target++;
+		remaining--;
+	}
+
+	*target = '\0';
+ 
+	return target - to;
 }
 
 int load_module(void)
