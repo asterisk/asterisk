@@ -230,6 +230,22 @@ struct ast_channel {
 
 struct chanmon;
 
+#define LOAD_OH(oh) {	\
+	oh.context = context; \
+	oh.exten = exten; \
+	oh.priority = priority; \
+	oh.callerid = callerid; \
+	oh.variable = variable; \
+} 
+
+struct outgoing_helper {
+	char *context;
+	char *exten;
+	int priority;
+	char *callerid;
+	char *variable;
+};
+
 #define AST_CDR_TRANSFER	(1 << 0)
 #define AST_CDR_FORWARD		(1 << 1)
 #define AST_CDR_CALLWAIT	(1 << 2)
@@ -326,6 +342,8 @@ int ast_device_state(char *device);
  * to know if the call was answered or not.
  */
 struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int timeout, int *reason, char *callerid);
+
+struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, int timeout, int *reason, char *callerid, struct outgoing_helper *oh);
 
 //! Registers a channel
 /*! 

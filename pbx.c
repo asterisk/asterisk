@@ -162,13 +162,13 @@ static int pbx_builtin_setaccount(struct ast_channel *, void *);
 static int pbx_builtin_ringing(struct ast_channel *, void *);
 static int pbx_builtin_congestion(struct ast_channel *, void *);
 static int pbx_builtin_busy(struct ast_channel *, void *);
-static int pbx_builtin_setvar(struct ast_channel *, void *);
 static int pbx_builtin_setglobalvar(struct ast_channel *, void *);
 static int pbx_builtin_noop(struct ast_channel *, void *);
 static int pbx_builtin_gotoif(struct ast_channel *, void *);
 static int pbx_builtin_gotoiftime(struct ast_channel *, void *);
 static int pbx_builtin_saynumber(struct ast_channel *, void *);
 static int pbx_builtin_saydigits(struct ast_channel *, void *);
+int pbx_builtin_setvar(struct ast_channel *, void *);
 void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value);
 char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name);
 
@@ -3786,31 +3786,16 @@ int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char
 	struct async_stat *as;
 	int res = -1;
 	char *var, *tmp;
+	struct outgoing_helper oh;
 	if (sync) {
-		chan = ast_request_and_dial(type, format, data, timeout, reason, callerid);
+		LOAD_OH(oh);
+		chan = __ast_request_and_dial(type, format, data, timeout, reason, callerid, &oh);
 		if (chan) {
-			/* JDG chanvar */
-			tmp = variable;
-			/* FIXME replace this call with strsep  NOT*/
-			while( (var = strtok_r(NULL, "|", &tmp)) ) {
-				pbx_builtin_setvar( chan, var );
-			} /* /JDG */
 			if (chan->_state == AST_STATE_UP) {
-				res = 0;
+					res = 0;
 				if (option_verbose > 3)
 					ast_verbose(VERBOSE_PREFIX_4 "Channel %s was answered.\n", chan->name);
-				if (context && *context)
-					strncpy(chan->context, context, sizeof(chan->context) - 1);
-				if (exten && *exten)
-					strncpy(chan->exten, exten, sizeof(chan->exten) - 1);
-				if (callerid && *callerid) {
-					/* XXX call ast_set_callerid? */
-					if (chan->callerid)
-						free(chan->callerid);
-					chan->callerid = strdup(callerid);
-				}
-				if (priority > 0)
-					chan->priority = priority;
+
 				if (sync > 1) {
 					if (ast_pbx_run(chan)) {
 						ast_log(LOG_WARNING, "Unable to run PBX on %s\n", chan->name);
@@ -4345,7 +4330,7 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value
 	}
 }
 
-static int pbx_builtin_setvar(struct ast_channel *chan, void *data)
+int pbx_builtin_setvar(struct ast_channel *chan, void *data)
 {
 	char *name;
 	char *value;

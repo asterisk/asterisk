@@ -521,6 +521,7 @@ struct ast_sw *ast_walk_context_switches(struct ast_context *con, struct ast_sw 
 extern char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name);
 extern void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value);
 extern void pbx_builtin_clear_globals(void);
+extern int pbx_builtin_setvar(struct ast_channel *chan, void *data);
 extern void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char *cp2,int count);
 
 int ast_extension_patmatch(const char *pattern, const char *data);

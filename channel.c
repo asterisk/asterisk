@@ -1489,7 +1489,7 @@ int ast_set_read_format(struct ast_channel *chan, int fmts)
 	return 0;
 }
 
-struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int timeout, int *outstate, char *callerid)
+struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, int timeout, int *outstate, char *callerid, struct outgoing_helper *oh)
 {
 	int state = 0;
 	struct ast_channel *chan;
@@ -1497,8 +1497,23 @@ struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int
 	int res = 0;
 	chan = ast_request(type, format, data);
 	if (chan) {
-		if (callerid)
-			ast_set_callerid(chan, callerid, 1);
+		if (oh) {
+			char *tmp, *var;
+			/* JDG chanvar */
+			tmp = oh->variable;
+			/* FIXME replace this call with strsep  NOT*/
+			while( (var = strtok_r(NULL, "|", &tmp)) ) {
+				pbx_builtin_setvar( chan, var );
+			} /* /JDG */
+			if (*oh->context)
+				strncpy(chan->context, oh->context, sizeof(chan->context) - 1);
+			if (*oh->exten)
+				strncpy(chan->exten, oh->exten, sizeof(chan->exten) - 1);
+			if (*oh->callerid)
+				ast_set_callerid(chan, oh->callerid, 1);
+			chan->priority = oh->priority;
+		}
+
 		if (!ast_call(chan, data, 0)) {
 			while(timeout && (chan->_state != AST_STATE_UP)) {
 				res = ast_waitfor(chan, timeout);
@@ -1564,6 +1579,11 @@ struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int
 		chan = NULL;
 	}
 	return chan;
+}
+
+struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int timeout, int *outstate, char *callerid)
+{
+	return __ast_request_and_dial(type, format, data, timeout, outstate, callerid, NULL);
 }
 
 struct ast_channel *ast_request(char *type, int format, void *data)
