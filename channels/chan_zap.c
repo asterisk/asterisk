@@ -7790,10 +7790,12 @@ static int start_pri(struct zt_pri *pri)
 	return 0;
 }
 
-static char *complete_span(char *line, char *word, int pos, int state)
+static char *complete_span_helper(char *line, char *word, int pos, int state, int rpos)
 {
 	int span=1;
 	char tmp[50];
+	if (pos != rpos)
+		return 0;
 	while(span <= NUM_SPANS) {
 		if (span > state && pris[span-1].pri)
 			break;
@@ -7804,6 +7806,16 @@ static char *complete_span(char *line, char *word, int pos, int state)
 		return strdup(tmp);
 	} else
 		return NULL;
+}
+
+static char *complete_span_4(char *line, char *word, int pos, int state)
+{
+	return complete_span_helper(line,word,pos,state,3);
+}
+
+static char *complete_span_5(char *line, char *word, int pos, int state)
+{
+	return complete_span_helper(line,word,pos,state,4);
 }
 
 static int handle_pri_debug(int fd, int argc, char *argv[])
@@ -7944,16 +7956,16 @@ static char pri_show_span_help[] =
 	"       Displays PRI Information\n";
 
 static struct ast_cli_entry pri_debug = {
-	{ "pri", "debug", "span", NULL }, handle_pri_debug, "Enables PRI debugging on a span", pri_debug_help, complete_span };
+	{ "pri", "debug", "span", NULL }, handle_pri_debug, "Enables PRI debugging on a span", pri_debug_help, complete_span_4 };
 
 static struct ast_cli_entry pri_no_debug = {
-	{ "pri", "no", "debug", "span", NULL }, handle_pri_no_debug, "Disables PRI debugging on a span", pri_no_debug_help, complete_span };
+	{ "pri", "no", "debug", "span", NULL }, handle_pri_no_debug, "Disables PRI debugging on a span", pri_no_debug_help, complete_span_5 };
 
 static struct ast_cli_entry pri_really_debug = {
-	{ "pri", "intense", "debug", "span", NULL }, handle_pri_really_debug, "Enables REALLY INTENSE PRI debugging", pri_really_debug_help, complete_span };
+	{ "pri", "intense", "debug", "span", NULL }, handle_pri_really_debug, "Enables REALLY INTENSE PRI debugging", pri_really_debug_help, complete_span_5 };
 
 static struct ast_cli_entry pri_show_span = {
-	{ "pri", "show", "span", NULL }, handle_pri_show_span, "Displays PRI Information", pri_show_span_help, complete_span };
+	{ "pri", "show", "span", NULL }, handle_pri_show_span, "Displays PRI Information", pri_show_span_help, complete_span_4 };
 
 #endif /* ZAPATA_PRI */
 

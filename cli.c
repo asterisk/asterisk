@@ -581,11 +581,13 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char *complete_ch(char *line, char *word, int pos, int state)
+static char *complete_ch_helper(char *line, char *word, int pos, int state, int rpos)
 {
 	struct ast_channel *c;
 	int which=0;
 	char *ret;
+	if (pos != rpos)
+		return NULL;
 	c = ast_channel_walk_locked(NULL);
 	while(c) {
 		if (!strncasecmp(word, c->name, strlen(word))) {
@@ -601,6 +603,16 @@ static char *complete_ch(char *line, char *word, int pos, int state)
 	} else
 		ret = NULL;
 	return ret;
+}
+
+static char *complete_ch_3(char *line, char *word, int pos, int state)
+{
+	return complete_ch_helper(line, word, pos, state, 2);
+}
+
+static char *complete_ch_4(char *line, char *word, int pos, int state)
+{
+	return complete_ch_helper(line, word, pos, state, 3);
 }
 
 static char *complete_fn(char *line, char *word, int pos, int state)
@@ -626,18 +638,18 @@ static struct ast_cli_entry builtins[] = {
 	{ { "_command", "complete", NULL }, handle_commandcomplete, "Command complete", commandcomplete_help },
 	{ { "_command", "nummatches", NULL }, handle_commandnummatches, "Returns number of command matches", commandnummatches_help },
 	{ { "_command", "matchesarray", NULL }, handle_commandmatchesarray, "Returns command matches array", commandmatchesarray_help },
-	{ { "debug", "channel", NULL }, handle_debugchan, "Enable debugging on a channel", debugchan_help, complete_ch },
+	{ { "debug", "channel", NULL }, handle_debugchan, "Enable debugging on a channel", debugchan_help, complete_ch_3 },
 	{ { "help", NULL }, handle_help, "Display help list, or specific help on a command", help_help },
 	{ { "load", NULL }, handle_load, "Load a dynamic module by name", load_help, complete_fn },
-	{ { "no", "debug", "channel", NULL }, handle_nodebugchan, "Disable debugging on a channel", nodebugchan_help, complete_ch },
+	{ { "no", "debug", "channel", NULL }, handle_nodebugchan, "Disable debugging on a channel", nodebugchan_help, complete_ch_4 },
 	{ { "reload", NULL }, handle_reload, "Reload configuration", reload_help },
 	{ { "set", "verbose", NULL }, handle_set_verbose, "Set level of verboseness", set_verbose_help },
 	{ { "show", "channels", NULL }, handle_chanlist, "Display information on channels", chanlist_help },
-	{ { "show", "channel", NULL }, handle_showchan, "Display information on a specific channel", showchan_help, complete_ch },
+	{ { "show", "channel", NULL }, handle_showchan, "Display information on a specific channel", showchan_help, complete_ch_3 },
 	{ { "show", "modules", NULL }, handle_modlist, "List modules and info", modlist_help },
 	{ { "show", "uptime", NULL }, handle_showuptime, "Show uptime information", modlist_help },
 	{ { "show", "version", NULL }, handle_version, "Display version info", version_help },
-	{ { "soft", "hangup", NULL }, handle_softhangup, "Request a hangup on a given channel", softhangup_help, complete_ch },
+	{ { "soft", "hangup", NULL }, handle_softhangup, "Request a hangup on a given channel", softhangup_help, complete_ch_3 },
 	{ { "unload", NULL }, handle_unload, "Unload a dynamic module by name", unload_help, complete_fn },
 	{ { NULL }, NULL, NULL, NULL }
 };
@@ -1025,7 +1037,7 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 				fullcmd = fullcmd1;
 				e1++;
 			}
-			if ((fullcmd[0] != '_') && !strncasecmp(text, fullcmd, strlen(text))) {
+			if ((fullcmd[0] != '_') && !strncasecmp(matchstr, fullcmd, strlen(matchstr))) {
 				/* We contain the first part of one or more commands */
 				matchnum++;
 				if (matchnum > state) {
@@ -1046,7 +1058,7 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 			if (e->generator && !strncasecmp(matchstr, fullcmd, strlen(fullcmd))) {
 				/* We have a command in its entirity within us -- theoretically only one
 				   command can have this occur */
-				fullcmd = e->generator(text, word, (!ast_strlen_zero(word) ? (x - 1) : (x)), state);
+				fullcmd = e->generator(matchstr, word, (!ast_strlen_zero(word) ? (x - 1) : (x)), state);
 				if (lock)
 					ast_mutex_unlock(&clilock);
 				free(dup);
