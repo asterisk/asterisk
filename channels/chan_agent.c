@@ -488,17 +488,15 @@ static int agent_hangup(struct ast_channel *ast)
 	} else if (p->chan) {
 		/* Not dead -- check availability now */
 		ast_mutex_lock(&p->lock);
-		if (strlen(p->loginchan)) {
-			if (!p->wrapuptime)
-				check_availability(p, 1);
-			else {
-				/* XXX Need to add support for wrapuptime on callback agents */
-			}
-		} else {
-			/* Store last disconnect time */
-			gettimeofday(&p->lastdisc, NULL);
-		}
+		/* Store last disconnect time */
+		gettimeofday(&p->lastdisc, NULL);
 		ast_mutex_unlock(&p->lock);
+	} else if (strlen(p->loginchan)) {
+		if (!p->wrapuptime)
+			check_availability(p, 1);
+		else {
+			/* XXX Need to add support for wrapuptime on callback agents */
+		}
 	}
 	return 0;
 }
