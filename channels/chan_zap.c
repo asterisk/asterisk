@@ -842,6 +842,7 @@ static int zt_digit(struct ast_channel *ast, char digit)
 	int res = 0;
 	int index;
 	p = ast->pvt->pvt;
+	ast_mutex_lock(&p->lock);
 	index = zt_get_index(ast, p, 0);
 	if (index == SUB_REAL) {
 #ifdef ZAPATA_PRI
@@ -872,7 +873,7 @@ static int zt_digit(struct ast_channel *ast, char digit)
 				p->dialing = 1;
 		}
 	}
-	
+	ast_mutex_unlock(&p->lock);
 	return res;
 }
 
