@@ -693,7 +693,7 @@ static struct ast_config *__ast_load(char *configfile, struct ast_config *tmp, s
 )
 {
 	char fn[256];
-	char buf[256];
+	char buf[512];
 	FILE *f;
 	int lineno=0;
 	int master=0;
