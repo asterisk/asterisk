@@ -452,8 +452,9 @@ static int do_deliver(void *data)
 				ts = calc_timestamp(iaxs[fr->callno], 0);
 				iaxs[fr->callno]->lag = ts - fr->ts;
 			}
-		} else
+		} else {
 			ast_fr_fdwrite(iaxs[fr->callno]->pipe[1], fr->f);
+		}
 	}
 	/* Free the packet */
 	ast_frfree(fr->f);
@@ -899,14 +900,15 @@ static int iax_call(struct ast_channel *c, char *dest, int timeout)
 	char *hname;
 	char requeststr[256] = "";
 	char myrdest [5] = "s";
+	char *portno = NULL;
 	if ((c->state != AST_STATE_DOWN) && (c->state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "Line is already in use (%s)?\n", c->name);
 		return -1;
 	}
 	strncpy(host, dest, sizeof(host));
-	strtok(host, ":");
+	strtok(host, "/");
 	/* If no destination extension specified, use 's' */
-	rdest = strtok(NULL, ":");
+	rdest = strtok(NULL, "/");
 	if (!rdest) 
 		rdest = myrdest;
 	strtok(rdest, "@");
@@ -920,9 +922,16 @@ static int iax_call(struct ast_channel *c, char *dest, int timeout)
 	} else {
 		hname = host;
 	}
+	if (strtok(hname, ":")) {
+		strtok(hname, ":");
+		portno = strtok(hname, ":");
+	}
 	if (create_addr(&sin, hname)) {
 		ast_log(LOG_WARNING, "No address associated with '%s'\n", hname);
 		return -1;
+	}
+	if (portno) {
+		sin.sin_port = htons(atoi(portno));
 	}
 	/* Now we build our request string */
 #define MYSNPRINTF snprintf(requeststr + strlen(requeststr), sizeof(requeststr) - strlen(requeststr), 
@@ -942,7 +951,7 @@ static int iax_call(struct ast_channel *c, char *dest, int timeout)
 		requeststr[strlen(requeststr) - 1] = '\0';
 	/* Transmit the string in a "NEW" request */
 	if (option_verbose > 2)
-	ast_verbose(VERBOSE_PREFIX_3 "Calling using options '%s'\n", requeststr);
+		ast_verbose(VERBOSE_PREFIX_3 "Calling using options '%s'\n", requeststr);
 	send_command((struct chan_iax_pvt *)c->pvt->pvt, AST_FRAME_IAX,
 		AST_IAX_COMMAND_NEW, 0, requeststr, strlen(requeststr) + 1, -1);
 	c->state = AST_STATE_RINGING;
@@ -1321,6 +1330,27 @@ static int apply_ha(struct iax_ha *ha, struct sockaddr_in *sin)
 	return res;
 }
 
+static int iax_getformats(int callno, char *orequest)
+{
+	char *var, *value;
+	char request[256];
+	strncpy(request, orequest, sizeof(request));
+	var = strtok(request, ";");
+	while(var) {
+		value = strchr(var, '=');
+		if (value) {
+			*value='\0';
+			value++;
+			if (!strcmp(var, "formats")) {
+				iaxs[callno]->peerformats = atoi(value);
+			} else 
+				ast_log(LOG_WARNING, "Unknown variable '%s' with value '%s'\n", var, value);
+		}
+		var = strtok(NULL, ";");
+	}
+	return 0;
+}
+
 static int check_access(int callno, struct sockaddr_in *sin, char *orequest, int requestl)
 {
 	/* Start pessimistic */
@@ -1688,15 +1718,38 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				iax_destroy(fr.callno);
 				break;
 			case AST_IAX_COMMAND_REJECT:
-				((char *)f.data)[f.datalen] = '\0';
+				if (f.data)
+					((char *)f.data)[f.datalen] = '\0';
 				ast_log(LOG_WARNING, "Call rejected by %s: %s\n", inet_ntoa(iaxs[fr.callno]->addr.sin_addr), f.data);
 				iaxs[fr.callno]->error = EPERM;
 				iax_destroy(fr.callno);
 				break;
 			case AST_IAX_COMMAND_ACCEPT:
+				if (f.data) {
+					((char *)f.data)[f.datalen]='\0';
+					iax_getformats(fr.callno, (char *)f.data);
+				} else {
+					iaxs[fr.callno]->peerformats = iax_capability;
+				}
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Call accepted by %s\n", inet_ntoa(iaxs[fr.callno]->addr.sin_addr));
 				iaxs[fr.callno]->state |= IAX_STATE_STARTED;
+				if (iaxs[fr.callno]->owner) {
+					/* Switch us to use a compatible format */
+					iaxs[fr.callno]->owner->format &= iaxs[fr.callno]->peerformats;
+
+					if (!iaxs[fr.callno]->owner->format) 
+						iaxs[fr.callno]->owner->format = iaxs[fr.callno]->peerformats & iax_capability;
+					if (!iaxs[fr.callno]->owner->format) {
+						ast_log(LOG_WARNING, "Unable to negotiate a common format with the peer.");
+						iaxs[fr.callno]->error = EBADE;
+						iax_destroy(fr.callno);
+					} else {
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "Format for call is %d\n", iaxs[fr.callno]->owner->format);
+					}
+						
+				}
 				break;
 			case AST_IAX_COMMAND_PING:
 				/* Send back a pong packet with the original timestamp */

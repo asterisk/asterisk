@@ -156,7 +156,7 @@ static int lintogsm_framein(struct ast_translator_pvt *tmp, struct ast_frame *f)
 	/* XXX We should look at how old the rest of our stream is, and if it
 	   is too old, then we should overwrite it entirely, otherwise we can
 	   get artifacts of earlier talk that do not belong */
-	if (tmp->tail + f->datalen < sizeof(tmp->buf) / 2) {
+	if (tmp->tail + f->datalen/2 < sizeof(tmp->buf) / 2) {
 		memcpy((tmp->buf + tmp->tail), f->data, f->datalen);
 		tmp->tail += f->datalen/2;
 	} else {
@@ -187,16 +187,14 @@ static struct ast_frame *lintogsm_frameout(struct ast_translator_pvt *tmp)
 	if (tmp->tail)
 		memmove(tmp->buf, tmp->buf + 160, tmp->tail * 2);
 #if 0
-	/* Save a sample frame */
-	{ static int samplefr = 0;
-	if (samplefr == 0) {
-		int fd;
-		fd = open("gsm.example", O_WRONLY | O_CREAT, 0644);
-		write(fd, tmp->f.data, tmp->f.datalen);
-		close(fd);
+	/* Save the frames */
+	{ 
+		static int fd2 = -1;
+		if (fd2 == -1) {
+			fd2 = open("gsm.example", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		}
+		write(fd2, tmp->f.data, tmp->f.datalen);
 	} 		
-	samplefr++;
-	}
 #endif
 	return &tmp->f;	
 }

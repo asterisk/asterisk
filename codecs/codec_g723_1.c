@@ -173,16 +173,14 @@ static struct ast_frame *g723tolin_frameout(struct ast_translator_pvt *pvt)
 	tmp->tail = 0;
 
 #if 0
-	/* Save a sample frame */
-	{ static int samplefr = 0;
-	if (samplefr == 80) {
-		int fd;
-		fd = open("g723.example", O_WRONLY | O_CREAT | O_TRUNC, 0644);
-		write(fd, tmp->f.data, tmp->f.datalen);
-		close(fd);
+	/* Save the frames */
+	{ 
+		static int fd2 = -1;
+		if (fd2 == -1) {
+			fd2 = open("g723.example", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		}
+		write(fd2, tmp->f.data, tmp->f.datalen);
 	} 		
-	samplefr++;
-	}
 #endif
 	return &tmp->f;	
 }
@@ -200,7 +198,7 @@ static int g723tolin_framein(struct ast_translator_pvt *pvt, struct ast_frame *f
 #ifdef ANNEX_B
 		Decod(&tmp->dec, tmpdata, f->data, 0);
 		for (x=0;x<Frame;x++)
-			(tmp->buf + tmp->tail)[x] = (short)tmpdata[x]; 
+			(tmp->buf + tmp->tail)[x] = (short)(tmpdata[x]); 
 #else
 		Decod(&tmp->dec, tmp->buf + tmp->tail, f->data, 0);
 #endif
