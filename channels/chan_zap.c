@@ -4359,6 +4359,8 @@ static void *ss_thread(void *data)
 			} else
 				ast_log(LOG_WARNING, "Unable to get caller ID space\n");
 		}
+		else
+			cs = NULL;
 		if (name && number) {
 			snprintf(cid, sizeof(cid), "\"%s\" <%s>", name, number);
 		} else if (name) {
@@ -4368,6 +4370,8 @@ static void *ss_thread(void *data)
 		} else {
 			strcpy(cid, "");
 		}
+		if (cs)
+			callerid_free(cs);
 		if (strlen(cid)) {
 			chan->callerid = strdup(cid);
 			chan->ani = strdup(cid);

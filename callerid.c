@@ -110,8 +110,8 @@ struct callerid_state *callerid_new(void)
 {
 	struct callerid_state *cid;
 	cid = malloc(sizeof(struct callerid_state));
-	memset(cid, 0, sizeof(struct callerid_state));
 	if (cid) {
+		memset(cid, 0, sizeof(struct callerid_state));
 		cid->fskd.spb = 7;		/* 1200 baud */
 		cid->fskd.hdlc = 0;		/* Async */
 		cid->fskd.nbit = 8;		/* 8 bits */
