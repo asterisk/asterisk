@@ -891,9 +891,17 @@ static void iax_destroy(int callno)
 		pvt->alreadygone = 1;
 
 		if (pvt->owner) {
-			/* If there's an owner, prod it to give up */
-			ast_queue_hangup(pvt->owner, 1);
-			return;
+			if (ast_pthread_mutex_lock(&pvt->owner->lock)) {
+				ast_log(LOG_WARNING, "Unable to lock channel %s\n", pvt->owner->name);
+			} else if (!pvt->owner || (pvt->owner->pvt->pvt != pvt)) {
+				ast_log(LOG_WARNING, "Something very strange happened...\n");
+			} else {
+				/* If there's an owner, prod it to give up */
+				pvt->owner->pvt->pvt = NULL;
+				pvt->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+				ast_queue_hangup(pvt->owner, 0);
+				ast_pthread_mutex_unlock(&pvt->owner->lock);
+			}
 		}
 
 		iaxs[callno] = NULL;
@@ -930,12 +938,13 @@ static int attempt_transmit(void *data)
 							iax_destroy(f->callno);
 					} else {
 						if (iaxs[f->callno]->owner)
-							ast_log(LOG_WARNING, "Max retries exceeded to host %s (type = %d, subclass = %d, ts=%d, seqno=%d)\n", inet_ntoa(iaxs[f->callno]->addr.sin_addr), f->f->frametype, f->f->subclass, f->ts, f->seqno);
+							ast_log(LOG_WARNING, "Max retries exceeded to host %s on %s (type = %d, subclass = %d, ts=%d, seqno=%d)\n", inet_ntoa(iaxs[f->callno]->addr.sin_addr),iaxs[f->callno]->owner->name , f->f->frametype, f->f->subclass, f->ts, f->seqno);
 						iaxs[f->callno]->error = ETIMEDOUT;
-						if (iaxs[f->callno]->owner)
+						if (iaxs[f->callno]->owner) {
 							/* Hangup the fd */
+							ast_softhangup(iaxs[f->callno]->owner, AST_SOFTHANGUP_DEV);
 							ast_queue_hangup(iaxs[f->callno]->owner, 1);
-						else {
+						} else {
 							if (iaxs[f->callno]->reg) {
 								memset(&iaxs[f->callno]->reg->us, 0, sizeof(iaxs[f->callno]->reg->us));
 								iaxs[f->callno]->reg->regstate = REG_STATE_TIMEOUT;
@@ -1120,6 +1129,10 @@ static int forward_delivery(struct ast_iax_frame *fr)
 	struct chan_iax_pvt *p1, *p2;
 	p1 = iaxs[fr->callno];
 	p2 = iaxs[p1->bridgecallno];
+	if (!p1)
+		return -1;
+	if (!p2)
+		return -1;
 	/* Fix relative timestamp */
 	fr->ts = calc_fakestamp(p1, p2, fr->ts);
 	/* Now just send it send on the 2nd one 
@@ -1377,7 +1390,7 @@ static int iax_call(struct ast_channel *c, char *dest, int timeout)
 	char context[AST_MAX_EXTENSION] ="";
 	char *portno = NULL;
 	struct chan_iax_pvt *p = c->pvt->pvt;
-	if ((c->state != AST_STATE_DOWN) && (c->state != AST_STATE_RESERVED)) {
+	if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "Line is already in use (%s)?\n", c->name);
 		return -1;
 	}
@@ -1453,7 +1466,7 @@ static int iax_call(struct ast_channel *c, char *dest, int timeout)
 		ast_verbose(VERBOSE_PREFIX_3 "Calling using options '%s'\n", requeststr);
 	send_command((struct chan_iax_pvt *)c->pvt->pvt, AST_FRAME_IAX,
 		AST_IAX_COMMAND_NEW, 0, requeststr, strlen(requeststr) + 1, -1);
-	c->state = AST_STATE_RINGING;
+	ast_setstate(c, AST_STATE_RINGING);
 	return 0;
 }
 
@@ -1475,7 +1488,7 @@ static int iax_predestroy(struct chan_iax_pvt *pvt)
 	}
 	c = pvt->owner;
 	if (c) {
-		c->softhangup = 1;
+		c->_softhangup |= AST_SOFTHANGUP_DEV;
 		c->pvt->pvt = NULL;
 		pvt->owner = NULL;
 		ast_pthread_mutex_lock(&usecnt_lock);
@@ -1488,10 +1501,12 @@ static int iax_predestroy(struct chan_iax_pvt *pvt)
 	return 0;
 }
 
-static int iax_hangup(struct ast_channel *c) {
+static int iax_hangup(struct ast_channel *c) 
+{
 	struct chan_iax_pvt *pvt = c->pvt->pvt;
 	int alreadygone;
 	if (pvt) {
+		ast_log(LOG_DEBUG, "We're hanging up %s now...\n", c->name);
 		alreadygone = pvt->alreadygone;
 		/* Send the hangup unless we have had a transmission error or are already gone */
 		if (!pvt->error && !alreadygone) 
@@ -1527,8 +1542,9 @@ static int iax_setoption(struct ast_channel *c, int option, void *data, int data
 }
 static struct ast_frame *iax_read(struct ast_channel *c) 
 {
+	static struct ast_frame f = { AST_FRAME_NULL, };
 	ast_log(LOG_NOTICE, "I should never be called!\n");
-	return NULL;
+	return &f;
 }
 
 static int iax_start_transfer(struct ast_channel *c0, struct ast_channel *c1)
@@ -1586,8 +1602,8 @@ static int iax_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 		if ((p0->transferring == TRANSFER_RELEASED) && (p1->transferring == TRANSFER_RELEASED)) {
 			/* Call has been transferred.  We're no longer involved */
 			sleep(1);
-			c0->softhangup++;
-			c1->softhangup++;
+			c0->_softhangup |= AST_SOFTHANGUP_DEV;
+			c1->_softhangup |= AST_SOFTHANGUP_DEV;
 			*fo = NULL;
 			*rc = c0;
 			res = 0;
@@ -1749,7 +1765,7 @@ static struct ast_channel *ast_iax_new(struct chan_iax_pvt *i, int state, int ca
 		tmp->pvt->fixup = iax_fixup;
 		i->owner = tmp;
 		i->capability = capability;
-		tmp->state = state;
+		ast_setstate(tmp, state);
 		ast_pthread_mutex_lock(&usecnt_lock);
 		usecnt++;
 		ast_pthread_mutex_unlock(&usecnt_lock);
@@ -2115,6 +2131,8 @@ static struct ast_cli_entry  cli_no_debug =
 static int iax_write(struct ast_channel *c, struct ast_frame *f)
 {
 	struct chan_iax_pvt *i = c->pvt->pvt;
+	if (!i)
+		return -1;
 	/* If there's an outstanding error, return failure now */
 	if (i->error) {
 		ast_log(LOG_DEBUG, "Write error: %s\n", strerror(errno));
@@ -3172,6 +3190,10 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 #endif
 		if ((f.frametype == AST_FRAME_IAX) && ((f.subclass == AST_IAX_COMMAND_NEW) || (f.subclass == AST_IAX_COMMAND_REGREQ)))
 			new = NEW_ALLOW;
+	} else {
+		/* Don't knwo anything about it yet */
+		f.frametype = AST_FRAME_NULL;
+		f.subclass = 0;
 	}
 	ast_pthread_mutex_lock(&iaxs_lock);
 	fr.callno = find_callno(ntohs(mh->callno) & ~AST_FLAG_FULL, dcallno, &sin, new);
@@ -3207,7 +3229,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			 ((f.subclass != AST_IAX_COMMAND_ACK) &&
 			  (f.subclass != AST_IAX_COMMAND_INVAL) &&
 			  (f.subclass != AST_IAX_COMMAND_TXCNT) &&
-			  (f.subclass != AST_IAX_COMMAND_TXACC)) ||
+			  (f.subclass != AST_IAX_COMMAND_TXACC) &&
+			  (f.subclass != AST_IAX_COMMAND_VNAK)) ||
 			  (f.frametype != AST_FRAME_IAX)) {
 			 	/* If it's not an ACK packet, it's out of order. */
 				if (option_debug)
@@ -3229,11 +3252,12 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				return 1;
 			}
 		} else {
-			/* Increment unless it's an ACK */
+			/* Increment unless it's an ACK or VNAK */
 			if (((f.subclass != AST_IAX_COMMAND_ACK) &&
 			    (f.subclass != AST_IAX_COMMAND_INVAL) &&
 			    (f.subclass != AST_IAX_COMMAND_TXCNT) &&
-			    (f.subclass != AST_IAX_COMMAND_TXACC)) ||
+			    (f.subclass != AST_IAX_COMMAND_TXACC) &&
+				(f.subclass != AST_IAX_COMMAND_VNAK)) ||
 			    (f.frametype != AST_FRAME_IAX))
 				iaxs[fr.callno]->iseqno++;
 		}
@@ -3254,10 +3278,25 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			 ((f.subclass != AST_IAX_COMMAND_ACK) && 
 			  (f.subclass != AST_IAX_COMMAND_TXCNT) && 
 			  (f.subclass != AST_IAX_COMMAND_TXACC) && 
-			  (f.subclass != AST_IAX_COMMAND_INVAL))) 
+			  (f.subclass != AST_IAX_COMMAND_INVAL) &&
+			  (f.subclass != AST_IAX_COMMAND_VNAK))) 
 			send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, AST_IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.seqno);
-		if (f.frametype == AST_FRAME_VOICE)
-			iaxs[fr.callno]->voiceformat = f.subclass;
+		if (f.frametype == AST_FRAME_VOICE) {
+			if (f.subclass != iaxs[fr.callno]->voiceformat) {
+					iaxs[fr.callno]->voiceformat = f.subclass;
+					ast_log(LOG_DEBUG, "Ooh, voice format changed to %d\n", f.subclass);
+					if (iaxs[fr.callno]->owner) {
+						int orignative;
+						ast_pthread_mutex_lock(&iaxs[fr.callno]->owner->lock);
+						orignative = iaxs[fr.callno]->owner->nativeformats;
+						iaxs[fr.callno]->owner->nativeformats = f.subclass;
+						if (iaxs[fr.callno]->owner->readformat)
+							ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat);
+						iaxs[fr.callno]->owner->nativeformats = orignative;
+						ast_pthread_mutex_unlock(&iaxs[fr.callno]->owner->lock);
+					}
+			}
+		}
 		if (f.frametype == AST_FRAME_IAX) {
 			/* Handle the IAX pseudo frame itself */
 			if (option_debug)
