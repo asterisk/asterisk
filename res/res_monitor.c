@@ -33,22 +33,24 @@ static char *monitor_descrip = "Monitor([file_format[:urlbase]|[fname_base]|[opt
 "Used to start monitoring a channel. The channel's input and output\n"
 "voice packets are logged to files until the channel hangs up or\n"
 "monitoring is stopped by the StopMonitor application.\n"
-"      file_format -- optional, if not set, defaults to \"wav\"\n"
-"      fname_base -- if set, changes the filename used to the one specified.\n"
-"      options:\n"
-"              'm' - when the recording ends mix the two leg files into one and\n"
-"                    delete the two leg files.  If MONITOR_EXEC is set, the\n"
-"                    application refernced in it will be executed instead of\n"
-"                    soxmix and the raw leg files will NOT be deleted automatically.\n"
-"                    soxmix or MONITOR_EXEC is handed 3 arguments, the two leg files\n"
-"                    and a target mixed file name which is the same as the leg file names\n"
-"                    only without the in/out designator.\n"
-"                    If MONITOR_EXEC_ARGS is set, the contents will be passed on as\n"
-"                    additional arguements to MONITOR_EXEC\n"
-"                    Both MONITOR_EXEC and the Mix flag can be set from the\n"
-"                    administrator interface\n\n"
+"  file_format		optional, if not set, defaults to \"wav\"\n"
+"  fname_base		if set, changes the filename used to the one specified.\n"
+"  options:\n"
+"    m   - when the recording ends mix the two leg files into one and\n"
+"          delete the two leg files.  If the variable MONITOR_EXEC is set, the\n"
+"          application referenced in it will be executed instead of\n"
+"          soxmix and the raw leg files will NOT be deleted automatically.\n"
+"          soxmix or MONITOR_EXEC is handed 3 arguments, the two leg files\n"
+"          and a target mixed file name which is the same as the leg file names\n"
+"          only without the in/out designator.\n"
+"          If MONITOR_EXEC_ARGS is set, the contents will be passed on as\n"
+"          additional arguements to MONITOR_EXEC\n"
+"          Both MONITOR_EXEC and the Mix flag can be set from the\n"
+"          administrator interface\n"
 "\n"
-"              'b' - Don't begin recording unless a call is bridged to another channel\n"
+"    b   - Don't begin recording unless a call is bridged to another channel\n"
+"\nReturns -1 if monitor files can't be opened or if the channel is already\n"
+"monitored, otherwise 0.\n"
 ;
 
 static char *stopmonitor_synopsis = "Stop monitoring a channel";
@@ -58,10 +60,9 @@ static char *stopmonitor_descrip = "StopMonitor\n"
 
 static char *changemonitor_synopsis = "Change monitoring filename of a channel";
 
-static char *changemonitor_descrip = "ChangeMonitor\n"
+static char *changemonitor_descrip = "ChangeMonitor(filename_base)\n"
 	"Changes monitoring filename of a channel. Has no effect if the channel is not monitored\n"
-	"The option string may contain the following:\n"
-	"	filename_base -- if set, changes the filename used to the one specified.\n";
+	"The argument is the new filename base to use for monitoring this channel.\n";
 
 /* Start monitoring a channel */
 int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
@@ -105,7 +106,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 				char *name = strdup(fname_base);
 				snprintf(tmp, sizeof(tmp), "mkdir -p \"%s\"",dirname(name));
 				free(name);
-				system(tmp);
+				ast_safe_system(tmp);
 			}
 			snprintf(monitor->read_filename, FILENAME_MAX, "%s/%s-in",
 						directory ? "" : AST_MONITOR_DIR, fname_base);
@@ -286,7 +287,7 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 			char *name = strdup(fname_base);
 			snprintf(tmp, sizeof(tmp), "mkdir -p %s",dirname(name));
 			free(name);
-			system(tmp);
+			ast_safe_system(tmp);
 		}
 
 		snprintf(chan->monitor->filename_base, FILENAME_MAX, "%s/%s", directory ? "" : AST_MONITOR_DIR, fname_base);
@@ -528,6 +529,10 @@ int unload_module(void)
 {
 	ast_unregister_application("Monitor");
 	ast_unregister_application("StopMonitor");
+	ast_unregister_application("ChangeMonitor");
+	ast_manager_unregister("Monitor");
+	ast_manager_unregister("StopMonitor");
+	ast_manager_unregister("ChangeMonitor");
 	return 0;
 }
 

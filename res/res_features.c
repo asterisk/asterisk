@@ -77,11 +77,10 @@ static char *registrar = "res_features";
 static char *synopsis = "Answer a parked call";
 
 static char *descrip = "ParkedCall(exten):"
-"Used to connect to a parked call.  This Application is always\n"
+"Used to connect to a parked call.  This application is always\n"
 "registered internally and does not need to be explicitly added\n"
 "into the dialplan, although you should include the 'parkedcalls'\n"
 "context.\n";
-
 
 static char *parkcall = "Park";
 
@@ -89,7 +88,7 @@ static char *synopsis2 = "Park yourself";
 
 static char *descrip2 = "Park(exten):"
 "Used to park yourself (typically in combination with a supervised\n"
-"transfer to know the parking space.  This Application is always\n"
+"transfer to know the parking space). This application is always\n"
 "registered internally and does not need to be explicitly added\n"
 "into the dialplan, although you should include the 'parkedcalls'\n"
 "context.\n";
@@ -511,12 +510,12 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 					ast_moh_stop(transferee);
 					res=ast_autoservice_stop(transferee);
 					if (!transferee->pbx) {
-						/* Doh!  Use our handy async_goto funcitons */
+						/* Doh!  Use our handy async_goto functions */
 						if (option_verbose > 2) 
 							ast_verbose(VERBOSE_PREFIX_3 "Transferring %s to '%s' (context %s) priority 1\n"
 								,transferee->name, newext, transferer_real_context);
 						if (ast_async_goto(transferee, transferer_real_context, newext, 1))
-							ast_log(LOG_WARNING, "Async goto fialed :(\n");
+							ast_log(LOG_WARNING, "Async goto failed :-(\n");
 						res = -1;
 					} else {
 						/* Set the channel's new extension, since it exists, using transferer context */
@@ -545,12 +544,12 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 						ast_verbose(VERBOSE_PREFIX_2 "Hungup during autoservice stop on '%s'\n", transferee->name);
 				}
 			} else {
-            if (f && (f->frametype == AST_FRAME_DTMF)) {
-                  if (who == peer)
-                        ast_write(chan, f);
-                  else
-                        ast_write(peer, f);
-            }            
+            			if (f && (f->frametype == AST_FRAME_DTMF)) {
+                  			if (who == peer)
+                        			ast_write(chan, f);
+                  			else
+                        			ast_write(peer, f);
+            			}            
 #if 1
 				ast_log(LOG_DEBUG, "Read from %s (%d,%d)\n", who->name, f->frametype, f->subclass);
 #endif
@@ -602,14 +601,14 @@ static void *do_parking_thread(void *ignore)
 				/* Stop music on hold */
 				ast_moh_stop(pu->chan);
 				/* Get chan, exten from derived kludge */
-				if (pu->peername[0])
-				{
-					peername = strdupa(pu->peername);
-					cp = strrchr(peername,'-');
-					if (cp) *cp = 0;
+				if (pu->peername[0]) {
+					peername = ast_strdupa(pu->peername);
+					cp = strrchr(peername, '-');
+					if (cp) 
+						*cp = 0;
 					con = ast_context_find(parking_con_dial);
 					if (!con) {
-						con = ast_context_create(NULL,parking_con_dial, registrar);
+						con = ast_context_create(NULL, parking_con_dial, registrar);
 						if (!con) {
 							ast_log(LOG_ERROR, "Parking dial context '%s' does not exist and unable to create\n", parking_con_dial);
 						}
@@ -617,8 +616,8 @@ static void *do_parking_thread(void *ignore)
 					if (con) {
 						ast_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", strdup(peername), free, registrar);
 					}
-					strncpy(pu->chan->exten, peername, sizeof(pu->chan->exten)-1);
-					strncpy(pu->chan->context, parking_con_dial, sizeof(pu->chan->context)-1);
+					strncpy(pu->chan->exten, peername, sizeof(pu->chan->exten) - 1);
+					strncpy(pu->chan->context, parking_con_dial, sizeof(pu->chan->context) - 1);
 					pu->chan->priority = 1;
 
 				} else {
@@ -651,7 +650,7 @@ static void *do_parking_thread(void *ignore)
 					ast_log(LOG_WARNING, "Whoa, no parking context?\n");
 				free(pt);
 			} else {
-				for (x=0;x<AST_MAX_FDS;x++) {
+				for (x=0; x<AST_MAX_FDS; x++) {
 					if ((pu->chan->fds[x] > -1) && (FD_ISSET(pu->chan->fds[x], &rfds) || FD_ISSET(pu->chan->fds[x], &efds))) {
 						if (FD_ISSET(pu->chan->fds[x], &efds))
 							ast_set_flag(pu->chan, AST_FLAG_EXCEPTION);
@@ -689,7 +688,7 @@ static void *do_parking_thread(void *ignore)
 					}
 				}
 				if (x >= AST_MAX_FDS) {
-std:					for (x=0;x<AST_MAX_FDS;x++) {
+std:					for (x=0; x<AST_MAX_FDS; x++) {
 						/* Keep this one for next one */
 						if (pu->chan->fds[x] > -1) {
 							FD_SET(pu->chan->fds[x], &nrfds);
@@ -830,13 +829,13 @@ static int park_exec(struct ast_channel *chan, void *data)
 		return res;
 	} else {
 		/* XXX Play a message XXX */
-	  dres = ast_streamfile(chan, "pbx-invalidpark", chan->language);
-	  if (!dres)
-	    dres = ast_waitstream(chan, "");
-	  else {
-	    ast_log(LOG_WARNING, "ast_streamfile of %s failed on %s\n", "pbx-invalidpark", chan->name);
-	    dres = 0;
-	  }
+		dres = ast_streamfile(chan, "pbx-invalidpark", chan->language);
+		if (!dres)
+	    		dres = ast_waitstream(chan, "");
+		 else {
+			ast_log(LOG_WARNING, "ast_streamfile of %s failed on %s\n", "pbx-invalidpark", chan->name);
+			dres = 0;
+		}
 		if (option_verbose > 2) 
 			ast_verbose(VERBOSE_PREFIX_3 "Channel %s tried to talk to non-existant parked call %d\n", chan->name, park);
 		res = -1;
@@ -854,7 +853,7 @@ static int handle_parkedcalls(int fd, int argc, char *argv[])
 
 	ast_mutex_lock(&parking_lock);
 
-	cur=parkinglot;
+	cur = parkinglot;
 	while(cur) {
 		ast_cli(fd, "%4d %25s (%-15s %-12s %-4d) %6lds\n"
 			,cur->parkingnum, cur->chan->name, cur->context, cur->exten
@@ -1010,7 +1009,8 @@ int ast_pickup_call(struct ast_channel *chan)
 		cur = ast_channel_walk_locked(cur);
 	}
 	if (cur) {
-		ast_log(LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n",cur->name, chan->name);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n",cur->name, chan->name);
 		res = ast_answer(chan);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
@@ -1022,7 +1022,8 @@ int ast_pickup_call(struct ast_channel *chan)
 			ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, cur->name);		/* Done */
 		ast_mutex_unlock(&cur->lock);
 	} else	{
-		ast_log(LOG_DEBUG, "No call pickup possible...\n");
+		if (option_debug)
+			ast_log(LOG_DEBUG, "No call pickup possible...\n");
 	}
 	return res;
 }
