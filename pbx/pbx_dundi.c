@@ -1255,14 +1255,15 @@ static void apply_peer(struct dundi_transaction *trans, struct dundi_peer *p)
 		trans->flags |= FLAG_ENCRYPT;
 	if (p->maxms) {
 		trans->autokilltimeout = p->maxms;
+		trans->retranstimer = DUNDI_DEFAULT_RETRANS_TIMER;
 		if (p->lastms > 1) {
 			trans->retranstimer = p->lastms * 2;
-			if (trans->retranstimer > DUNDI_DEFAULT_RETRANS_TIMER)
-				trans->retranstimer = DUNDI_DEFAULT_RETRANS_TIMER;
 			/* Keep it from being silly */
-			if (trans->retranstimer < 10)
-				trans->retranstimer = 10;
+			if (trans->retranstimer < 150)
+				trans->retranstimer = 150;
 		}
+		if (trans->retranstimer > DUNDI_DEFAULT_RETRANS_TIMER)
+			trans->retranstimer = DUNDI_DEFAULT_RETRANS_TIMER;
 	} else
 		trans->autokilltimeout = global_autokilltimeout;
 }
