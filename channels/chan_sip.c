@@ -783,14 +783,18 @@ static int sip_cancel_destroy(struct sip_pvt *p)
 }
 
 /*--- __sip_ack: Acknowledges receipt of a packet and stops retransmission ---*/
-static int __sip_ack(struct sip_pvt *p, int seqno, int resp)
+static int __sip_ack(struct sip_pvt *p, int seqno, int resp, const char *msg)
 {
 	struct sip_pkt *cur, *prev = NULL;
 	int res = -1;
 	int resetinvite = 0;
+	/* Just in case... */
+	if (!msg) msg = "___NEVER___";
 	cur = p->packets;
 	while(cur) {
-		if ((cur->seqno == seqno) && ((cur->flags & FLAG_RESPONSE) == resp)) {
+		if ((cur->seqno == seqno) && ((cur->flags & FLAG_RESPONSE) == resp) &&
+			((cur->flags & FLAG_RESPONSE) || 
+			 (!strncasecmp(msg, cur->data, strlen(msg)) && (cur->data[strlen(msg)] < 33)))) {
 			if (!resp && (seqno == p->pendinginvite)) {
 				ast_log(LOG_DEBUG, "Acked pending invite %d\n", p->pendinginvite);
 				p->pendinginvite = 0;
@@ -815,13 +819,15 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp)
 }
 
 /*--- __sip_semi_ack: Acks receipt of packet, keep it around (used for provisional responses) ---*/
-static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp)
+static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, const char *msg)
 {
 	struct sip_pkt *cur;
 	int res = -1;
 	cur = p->packets;
 	while(cur) {
-		if ((cur->seqno == seqno) && ((cur->flags & FLAG_RESPONSE) == resp)) {
+		if ((cur->seqno == seqno) && ((cur->flags & FLAG_RESPONSE) == resp) &&
+			((cur->flags & FLAG_RESPONSE) || 
+			 (!strncasecmp(msg, cur->data, strlen(msg)) && (cur->data[strlen(msg)] < 33)))) {
 			/* this is our baby */
 			if (cur->retransid > -1)
 				ast_sched_del(sched, cur->retransid);
@@ -6356,9 +6362,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		owner->hangupcause = hangup_sip2cause(resp);
 	/* Acknowledge whatever it is destined for */
 	if ((resp >= 100) && (resp <= 199))
-		__sip_semi_ack(p, seqno, 0);
+		__sip_semi_ack(p, seqno, 0, msg);
 	else
-		__sip_ack(p, seqno, 0);
+		__sip_ack(p, seqno, 0, msg);
 	/* Get their tag if we haven't already */
 	to = get_header(req, "To");
 	to = strstr(to, "tag=");
@@ -7318,7 +7324,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		/* Make sure we don't ignore this */
 		if (seqno == p->pendinginvite) {
 			p->pendinginvite = 0;
-			__sip_ack(p, seqno, FLAG_RESPONSE);
+			__sip_ack(p, seqno, FLAG_RESPONSE, NULL);
 			if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
 				if (process_sdp(p, req))
 					return -1;
