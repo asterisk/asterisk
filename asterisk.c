@@ -568,6 +568,7 @@ static void consolehandler(char *s)
 		ast_el_add_history(s);
 	/* Give the console access to the shell */
 	if (s) {
+		/* The real handler for bang */
 		if (s[0] == '!') {
 			if (s[1])
 				system(s+1);
@@ -575,8 +576,6 @@ static void consolehandler(char *s)
 				system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
 		} else 
 		ast_cli_command(STDOUT_FILENO, s);
-		if (!strcasecmp(s, "help"))
-			fprintf(stdout, "          !<command>   Executes a given shell command\n");
 	} else
 		fprintf(stdout, "\nUse \"quit\" to exit\n");
 }
@@ -589,16 +588,13 @@ static int remoteconsolehandler(char *s)
 		ast_el_add_history(s);
 	/* Give the console access to the shell */
 	if (s) {
+		/* The real handler for bang */
 		if (s[0] == '!') {
 			if (s[1])
 				system(s+1);
 			else
 				system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
 			ret = 1;
-		}
-		if (strncasecmp(s, "help", 4) == 0 && (s[4] == '\0' || isspace(s[4]))) {
-			fprintf(stdout, "          !<command>   Executes a given shell command\n");
-			ret = 0;
 		}
 		if ((strncasecmp(s, "quit", 4) == 0 || strncasecmp(s, "exit", 4) == 0) &&
 		    (s[4] == '\0' || isspace(s[4]))) {
@@ -646,6 +642,10 @@ static char restart_gracefully_help[] =
 static char restart_when_convenient_help[] = 
 "Usage: restart when convenient\n"
 "       Causes Asterisk to perform a cold restart when all active calls have ended.\n";
+
+static char bang_help[] =
+"Usage: !<command>\n"
+"       Executes a given shell command\n";
 
 #if 0
 static int handle_quit(int fd, int argc, char *argv[])
@@ -723,6 +723,11 @@ static int handle_abort_halt(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int handle_bang(int fd, int argc, char *argv[])
+{
+	return RESULT_SUCCESS;
+}
+
 #define ASTERISK_PROMPT "*CLI> "
 
 #define ASTERISK_PROMPT2 "%s*CLI> "
@@ -738,6 +743,7 @@ static struct ast_cli_entry astshutdownwhenconvenient = 	{ { "stop", "when","con
 static struct ast_cli_entry astrestartnow = 	{ { "restart", "now", NULL }, handle_restart_now, "Restart Asterisk immediately", restart_now_help };
 static struct ast_cli_entry astrestartgracefully = 	{ { "restart", "gracefully", NULL }, handle_restart_gracefully, "Restart Asterisk gracefully", restart_gracefully_help };
 static struct ast_cli_entry astrestartwhenconvenient= 	{ { "restart", "when", "convenient", NULL }, handle_restart_when_convenient, "Restart Asterisk at empty call volume", restart_when_convenient_help };
+static struct ast_cli_entry astbang = { { "!", NULL }, handle_bang, "Execute a shell command", bang_help };
 
 static int ast_el_read_char(EditLine *el, char *cp)
 {
@@ -1444,6 +1450,7 @@ int main(int argc, char *argv[])
 	ast_cli_register(&astrestartwhenconvenient);
 	ast_cli_register(&astshutdownwhenconvenient);
 	ast_cli_register(&aborthalt);
+	ast_cli_register(&astbang);
 	if (option_console) {
 		/* Console stuff now... */
 		/* Register our quit function */
