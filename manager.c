@@ -821,7 +821,7 @@ static void *fast_originate(void *data)
 			"Channel: %s/%s\r\n"
 			"Context: %s\r\n"
 			"Exten: %s\r\n",
-			in->tech, in->data, in->idtext, in->context, in->exten);
+			in->idtext, in->tech, in->data, in->context, in->exten);
 	else
 		manager_event(EVENT_FLAG_CALL,
 			"OriginateFailure",
@@ -829,7 +829,7 @@ static void *fast_originate(void *data)
 			"Channel: %s/%s\r\n"
 			"Context: %s\r\n"
 			"Exten: %s\r\n",
-			in->tech, in->data, in->idtext, in->context, in->exten);
+			in->idtext, in->tech, in->data, in->context, in->exten);
 
 	free(in);
 	return NULL;
