@@ -1,6 +1,8 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
+ * The Asterisk Management Interface - AMI
+ *
  * Channel Management and more
  * 
  * Copyright (C) 1999 - 2005, Digium, Inc.
@@ -121,6 +123,9 @@ static char *authority_to_str(int authority, char *res, int reslen)
 			running_total += strlen(perms[i].label);
 		}
 	}
+	if (ast_strlen_zero(res)) {
+		strncpy(res, "<none>", reslen);
+	}
 	return res;
 }
 
@@ -202,28 +207,28 @@ static int handle_showmanconn(int fd, int argc, char *argv[])
 
 static char showmancmd_help[] = 
 "Usage: show manager command <actionname>\n"
-"	Shows the detailed description for a specific manager command.\n";
+"	Shows the detailed description for a specific Asterisk manager interface command.\n";
 
 static char showmancmds_help[] = 
 "Usage: show manager commands\n"
-"	Prints a listing of all the available manager commands.\n";
+"	Prints a listing of all the available Asterisk manager interface commands.\n";
 
 static char showmanconn_help[] = 
 "Usage: show manager connected\n"
-"	Prints a listing of the users that are connected to the\n"
-"manager interface.\n";
+"	Prints a listing of the users that are currently connected to the\n"
+"Asterisk manager interface.\n";
 
 static struct ast_cli_entry show_mancmd_cli =
 	{ { "show", "manager", "command", NULL },
-	handle_showmancmd, "Show manager command", showmancmd_help, complete_show_mancmd };
+	handle_showmancmd, "Show a manager interface command", showmancmd_help, complete_show_mancmd };
 
 static struct ast_cli_entry show_mancmds_cli =
 	{ { "show", "manager", "commands", NULL },
-	handle_showmancmds, "Show manager commands", showmancmds_help };
+	handle_showmancmds, "List manager interface commands", showmancmds_help };
 
 static struct ast_cli_entry show_manconn_cli =
 	{ { "show", "manager", "connected", NULL },
-	handle_showmanconn, "Show connected manager users", showmanconn_help };
+	handle_showmanconn, "Show connected manager interface users", showmanconn_help };
 
 static void destroy_session(struct mansession *s)
 {
@@ -574,6 +579,13 @@ static int action_hangup(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static char mandescr_setvar[] = 
+"Description: Set a local channel variable.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Channel: Channel to set variable for\n"
+"	*Variable: Variable name\n"
+"	*Value: Value\n";
+
 static int action_setvar(struct mansession *s, struct message *m)
 {
         struct ast_channel *c = NULL;
@@ -609,6 +621,13 @@ static int action_setvar(struct mansession *s, struct message *m)
 	astman_send_ack(s, m, "Variable Set");
 	return 0;
 }
+
+static char mandescr_getvar[] = 
+"Description: Get the value of a local channel variable.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Channel: Channel to read variable from\n"
+"	*Variable: Variable name\n"
+"	ActionID: Optional Action id for message matching.\n";
 
 static int action_getvar(struct mansession *s, struct message *m)
 {
@@ -799,6 +818,11 @@ static int action_redirect(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static char mandescr_command[] = 
+"Description: Run a CLI command.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Command: Asterisk CLI command to run\n"
+"	ActionID: Optional Action id for message matching.\n";
 static int action_command(struct mansession *s, struct message *m)
 {
 	char *cmd = astman_get_header(m, "Command");
@@ -984,6 +1008,16 @@ static int action_originate(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static char mandescr_mailboxstatus[] = 
+"Description: Checks a voicemail account for status.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Mailbox: Full mailbox ID <mailbox>@<vm-context>\n"
+"	ActionID: Optional ActionID for message matching.\n"
+"Returns number of messages.\n"
+"	Message: Mailbox Status\n"
+"	Mailbox: <mailboxid>\n"
+"	Waiting: <count>\n"
+"\n";
 static int action_mailboxstatus(struct mansession *s, struct message *m)
 {
 	char *mailbox = astman_get_header(m, "Mailbox");
@@ -1007,6 +1041,17 @@ static int action_mailboxstatus(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static char mandescr_mailboxcount[] = 
+"Description: Checks a voicemail account for new messages.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Mailbox: Full mailbox ID <mailbox>@<vm-context>\n"
+"	ActionID: Optional ActionID for message matching.\n"
+"Returns number of new and old messages.\n"
+"	Message: Mailbox Message Count\n"
+"	Mailbox: <mailboxid>\n"
+"	NewMessages: <count>\n"
+"	OldMessages: <count>\n"
+"\n";
 static int action_mailboxcount(struct mansession *s, struct message *m)
 {
 	char *mailbox = astman_get_header(m, "Mailbox");
@@ -1033,6 +1078,17 @@ static int action_mailboxcount(struct mansession *s, struct message *m)
 	ast_mutex_unlock(&s->lock);
 	return 0;
 }
+
+static char mandescr_extensionstate[] = 
+"Description: Report the extension state for given extension.\n"
+"  If the extension has a hint, will use devicestate to check\n"
+"  the status of the device connected to the extension.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Exten: Extension to check state on\n"
+"	*Context: Context for extension\n"
+"	ActionId: Optional ID for this transaction\n"
+"Will return an \"Extension Status\" message.\n"
+"The response will include the hint for the extension and the status.\n";
 
 static int action_extensionstate(struct mansession *s, struct message *m)
 {
@@ -1065,6 +1121,13 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 	ast_mutex_unlock(&s->lock);
 	return 0;
 }
+
+static char mandescr_timeout[] = 
+"Description: Hangup a channel after a certain time.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Channel: Channel name to hangup\n"
+"	*Timeout: Maximum duration of the call (sec)\n"
+"Acknowledges set time with 'Timeout Set' message\n";
 
 static int action_timeout(struct mansession *s, struct message *m)
 {
@@ -1445,15 +1508,15 @@ int init_manager(void)
 		ast_manager_register2("Logoff", 0, action_logoff, "Logoff Manager", mandescr_logoff);
 		ast_manager_register2("Hangup", EVENT_FLAG_CALL, action_hangup, "Hangup Channel", mandescr_hangup);
 		ast_manager_register( "Status", EVENT_FLAG_CALL, action_status, "Status" );
-		ast_manager_register( "Setvar", EVENT_FLAG_CALL, action_setvar, "Set Channel Variable" );
-		ast_manager_register( "Getvar", EVENT_FLAG_CALL, action_getvar, "Gets a Channel Variable" );
+		ast_manager_register2( "Setvar", EVENT_FLAG_CALL, action_setvar, "Set Channel Variable", mandescr_setvar );
+		ast_manager_register2( "Getvar", EVENT_FLAG_CALL, action_getvar, "Gets a Channel Variable", mandescr_getvar );
 		ast_manager_register( "Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect" );
 		ast_manager_register2("Originate", EVENT_FLAG_CALL, action_originate, "Originate Call", mandescr_originate);
-		ast_manager_register( "MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox" );
-		ast_manager_register( "Command", EVENT_FLAG_COMMAND, action_command, "Execute Command" );
-		ast_manager_register( "ExtensionState", EVENT_FLAG_CALL, action_extensionstate, "Check Extension Status" );
-		ast_manager_register( "AbsoluteTimeout", EVENT_FLAG_CALL, action_timeout, "Set Absolute Timeout" );
-		ast_manager_register( "MailboxCount", EVENT_FLAG_CALL, action_mailboxcount, "Check Mailbox Message Count" );
+		ast_manager_register2( "Command", EVENT_FLAG_COMMAND, action_command, "Execute Command", mandescr_command );
+		ast_manager_register2( "ExtensionState", EVENT_FLAG_CALL, action_extensionstate, "Check Extension Status", mandescr_extensionstate );
+		ast_manager_register2( "AbsoluteTimeout", EVENT_FLAG_CALL, action_timeout, "Set Absolute Timeout", mandescr_timeout );
+		ast_manager_register2( "MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox", mandescr_mailboxstatus );
+		ast_manager_register2( "MailboxCount", EVENT_FLAG_CALL, action_mailboxcount, "Check Mailbox Message Count", mandescr_mailboxcount );
 		ast_manager_register2("ListCommands", 0, action_listcommands, "List available manager commands", mandescr_listcommands);
 
 		ast_cli_register(&show_mancmd_cli);
