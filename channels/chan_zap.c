@@ -6158,6 +6158,12 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		tmp->restrictcid = restrictcid;
 		tmp->use_callingpres = use_callingpres;
 		tmp->priindication_oob = priindication_oob;
+		if (tmp->usedistinctiveringdetection) {
+			if (!tmp->use_callerid) {
+				ast_log(LOG_NOTICE, "Distinctive Ring detect requires 'usecallerid' be on\n");
+				tmp->use_callerid = 1;
+			}
+		}
 
 		strncpy(tmp->accountcode, accountcode, sizeof(tmp->accountcode)-1);
 		tmp->amaflags = amaflags;
