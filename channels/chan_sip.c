@@ -3720,9 +3720,13 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 static int get_msg_text(char *buf, int len, struct sip_request *req)
 {
 	int x;
+	int y;
 	strcpy(buf, "");
+	y = len - strlen(buf) - 5;
+	if (y < 0)
+		y = 0;
 	for (x=0;x<req->lines;x++) {
-		strncat(buf, req->line[x], len - strlen(buf) - 5);
+		strncat(buf, req->line[x], y);
 		strcat(buf, "\n");
 	}
 	return 0;
