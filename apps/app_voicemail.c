@@ -741,7 +741,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 		}
 		if (attach_user_voicemail) {
 			fprintf(p, "--%s\n", bound);
-			fprintf(p, "Content-Type: audio/x-wav; name=\"msg%04d.%s\"\n", msgnum + 1, format);
+			fprintf(p, "Content-Type: audio/x-%s; name=\"msg%04d.%s\"\n", format, msgnum + 1, format);
 			fprintf(p, "Content-Transfer-Encoding: BASE64\n");
 			fprintf(p, "Content-Description: Voicemail sound attachment.\n");
 			fprintf(p, "Content-Disposition: attachment; filename=\"msg%04d.%s\"\n\n", msgnum, format);
