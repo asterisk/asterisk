@@ -1036,8 +1036,12 @@ static int config_command(int fd, int argc, char **argv)
 	return 0;
 }
 
+static char show_config_help[] =
+	"Usage: show config mappings\n"
+	"	Shows the filenames to config engines.\n";
+
 static struct ast_cli_entry config_command_struct = {
-	{ "show", "config", "mappings" }, config_command, "Show Config mappings (file names to config engines)"
+	{ "show", "config", "mappings", NULL }, config_command, "Show Config mappings (file names to config engines)", show_config_help, NULL
 };
 
 int register_config_cli() 
