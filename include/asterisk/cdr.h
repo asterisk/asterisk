@@ -78,6 +78,7 @@ struct ast_cdr {
 	char uniqueid[32];
 	/* User field */
 	char userfield[AST_MAX_USER_FIELD];
+	struct ast_channel *chan;
 	struct ast_cdr *next;
 };
 

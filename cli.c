@@ -17,6 +17,7 @@
 #include <asterisk/options.h>
 #include <asterisk/cli.h>
 #include <asterisk/module.h>
+#include <asterisk/pbx.h>
 #include <asterisk/channel.h>
 #include <asterisk/channel_pvt.h>
 #include <asterisk/manager.h>
@@ -597,6 +598,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 {
 	struct ast_channel *c=NULL;
 	struct timeval now;
+	char buf[1024];
 	long elapsed_seconds=0;
 	int hour=0, min=0, sec=0;
 	if (argc != 3)
@@ -649,6 +651,9 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	c->context, c->exten, c->priority, c->callgroup, c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
 	( c-> data ? (!ast_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
 	c->stack, (c->blocking ? c->blockproc : "(Not Blocking)"));
+			if(pbx_builtin_serialize_variables(c,buf,sizeof(buf)))
+				ast_cli(fd,"Variables:\n%s\n",buf);
+
 		ast_mutex_unlock(&c->lock);
 		break;
 		}

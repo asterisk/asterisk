@@ -4903,6 +4903,28 @@ static int pbx_builtin_goto(struct ast_channel *chan, void *data)
 	return 0;
 }
 
+int pbx_builtin_serialize_variables(struct ast_channel *chan, char *buf, size_t size) 
+{
+	struct ast_var_t *variables;
+	struct varshead *headp;
+	int total = 0;
+
+	memset(buf,0,size);
+	if (chan) {
+		headp=&chan->varshead;
+		AST_LIST_TRAVERSE(headp,variables,entries) {
+			snprintf(buf + strlen(buf), size - strlen(buf), "%s=%s\n", ast_var_name(variables), ast_var_value(variables));
+			if(strlen(buf) >= size) {
+				ast_log(LOG_ERROR,"Data Buffer Size Exceeded!\n");
+				break;
+			}
+			total++;
+		}
+	}
+	
+	return total;
+}
+
 char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name) 
 {
 	struct ast_var_t *variables;
