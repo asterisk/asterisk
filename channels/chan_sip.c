@@ -3857,6 +3857,8 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 static void receive_info(struct sip_pvt *p, struct sip_request *req)
 {
 	char buf[1024] = "";
+	unsigned int event;
+	char resp = 0;
 	struct ast_frame f;
 	char *c;
 	/* Try getting the "signal=" part */
@@ -3872,13 +3874,23 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
 		if (strlen(buf)) {
 			if (sipdebug)
 				ast_verbose("DTMF received: '%c'\n", buf[0]);
-			memset(&f, 0, sizeof(f));
-			f.frametype = AST_FRAME_DTMF;
-			f.subclass = buf[0];
-			f.offset = 0;
-			f.data = NULL;
-			f.datalen = 0;
-			ast_queue_frame(p->owner, &f, 0);
+			event = atoi(buf);
+                        if (event < 10) {
+                                resp = '0' + event;
+                        } else if (event < 11) {
+                                resp = '*';
+                        } else if (event < 12) {
+                                resp = '#';
+                        } else if (event < 16) {
+                                resp = 'A' + (event - 12);
+                        }
+                        memset(&f, 0, sizeof(f));
+                        f.frametype = AST_FRAME_DTMF;
+                        f.subclass = resp;
+                        f.offset = 0;
+                        f.data = NULL;
+                        f.datalen = 0;
+                        ast_queue_frame(p->owner, &f, 0);
 		}
 	}
 }
