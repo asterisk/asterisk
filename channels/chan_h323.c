@@ -1389,7 +1389,7 @@ int reload_config(void)
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to load config %s, H.323 disabled\n", config);
-		return 0;
+		return 1;
 	}
 	
 	h323debug=0;
@@ -1747,7 +1747,7 @@ int load_module()
 			if (h323_set_gk(gatekeeper_discover, gatekeeper, secret)) {
 				ast_log(LOG_ERROR, "Gatekeeper registration failed.\n");
 //				h323_end_process();
-				return -1;
+				return 0;
 			}
 		}
 		/* And start the monitor for the first time */
