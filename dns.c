@@ -89,9 +89,10 @@ static int skip_name(u_char *s, int len)
 	return x;
 }
 
+/*--- dns_parse_answer: Parse DNS lookup result, call callback */
 static int dns_parse_answer(void *context,
-							int class, int type, u_char *answer, int len,
-							int (*callback)(void *context, u_char *answer, int len, u_char *fullanswer))
+	int class, int type, u_char *answer, int len,
+	int (*callback)(void *context, u_char *answer, int len, u_char *fullanswer))
 {
 	u_char *fullanswer = answer;
 	struct dn_answer *ans;
@@ -160,9 +161,10 @@ AST_MUTEX_DEFINE_STATIC(res_lock);
 #endif
 #endif
 
+/*--- ast_search_dns: Lookup record in DNS */
 int ast_search_dns(void *context,
-				   const char *dname, int class, int type,
-				   int (*callback)(void *context, u_char *answer, int len, u_char *fullanswer))
+	   const char *dname, int class, int type,
+	   int (*callback)(void *context, u_char *answer, int len, u_char *fullanswer))
 {
 #ifdef HAS_RES_NINIT
 	struct __res_state dnsstate;
@@ -180,11 +182,11 @@ int ast_search_dns(void *context,
 #endif
 	if (res > 0) {
 		if ((res = dns_parse_answer(context, class, type, answer, res, callback)) < 0) {
-			ast_log(LOG_WARNING, "Parse error\n");
+			ast_log(LOG_WARNING, "DNS Parse error for %s\n", dname);
 			ret = -1;
 		}
 		else if (ret == 0) {
-			ast_log(LOG_DEBUG, "No matches found\n");
+			ast_log(LOG_DEBUG, "No matches found in DNS for %s\n", dname);
 			ret = 0;
 		}
 		else

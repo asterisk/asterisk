@@ -1,7 +1,7 @@
 /*
  * ENUM Support for Asterisk
  *
- * Copyright (C) 2003 Digium
+ * Copyright (C) 2003-2005, Digium, inc
  *
  * Written by Mark Spencer <markster@digium.com>
  *
@@ -44,8 +44,10 @@
 #define T_TXT 16
 #endif
 
+/* The IETF Enum standard root, managed by the ITU */
 #define TOPLEV "e164.arpa."
 
+/* Linked list from config file */
 static struct enum_search {
 	char toplev[80];
 	struct enum_search *next;
@@ -60,9 +62,11 @@ struct naptr {
 	unsigned short pref;
 } __attribute__ ((__packed__));
 
+/*--- parse_ie: Parse NAPTR record information elements */
 static int parse_ie(unsigned char *data, int maxdatalen, unsigned char *src, int srclen)
 {
 	int len, olen;
+
 	len = olen = (int)src[0];
 	src++;
 	srclen--;
@@ -76,6 +80,7 @@ static int parse_ie(unsigned char *data, int maxdatalen, unsigned char *src, int
 	return olen + 1;
 }
 
+/*--- parse_naptr: Parse DNS NAPTR record used in ENUM ---*/
 static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize, unsigned char *answer, int len, char *naptrinput)
 {
 	unsigned char *oanswer = answer;
@@ -97,31 +102,43 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 	dst[0] = '\0';
 	
 	if (len < sizeof(struct naptr)) {
-		ast_log(LOG_WARNING, "Length too short\n");
+		ast_log(LOG_WARNING, "NAPTR record length too short\n");
 		return -1;
 	}
 	answer += sizeof(struct naptr);
 	len -= sizeof(struct naptr);
 	if ((res = parse_ie(flags, sizeof(flags) - 1, answer, len)) < 0) {
-		ast_log(LOG_WARNING, "Failed to get flags\n");
+		ast_log(LOG_WARNING, "Failed to get flags from NAPTR record\n");
 		return -1; 
-	} else { answer += res; len -= res; }
+	} else { 
+		answer += res; 
+		len -= res; 
+	}
 	if ((res = parse_ie(services, sizeof(services) - 1, answer, len)) < 0) {
-		ast_log(LOG_WARNING, "Failed to get services\n");
+		ast_log(LOG_WARNING, "Failed to get services from NAPTR record\n");
 		return -1; 
-	} else { answer += res; len -= res; }
-	if ((res = parse_ie(regexp, sizeof(regexp) - 1, answer, len)) < 0)
-		return -1; else { answer += res; len -= res; }
+	} else { 
+		answer += res; 
+		len -= res; 
+	}
+	if ((res = parse_ie(regexp, sizeof(regexp) - 1, answer, len)) < 0) {
+		ast_log(LOG_WARNING, "Failed to get regexp from NAPTR record\n");
+		return -1; 
+	} else { 
+		answer += res; 
+		len -= res; 
+	}
 	if ((res = dn_expand(oanswer,answer + len,answer, repl, sizeof(repl) - 1)) < 0) {
 		ast_log(LOG_WARNING, "Failed to expand hostname\n");
 		return -1;
 	} 
 
-	ast_log(LOG_DEBUG, "input='%s', flags='%s', services='%s', regexp='%s', repl='%s'\n",
-		    naptrinput, flags, services, regexp, repl);
+	if (option_debug > 2)	/* Advanced NAPTR debugging */
+		ast_log(LOG_DEBUG, "NAPTR input='%s', flags='%s', services='%s', regexp='%s', repl='%s'\n",
+			naptrinput, flags, services, regexp, repl);
 
 	if (tolower(flags[0]) != 'u') {
-		ast_log(LOG_WARNING, "Flag must be 'U' or 'u'.\n");
+		ast_log(LOG_WARNING, "NAPTR Flag must be 'U' or 'u'.\n");
 		return -1;
 	}
 
@@ -183,30 +200,31 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
  */
 
 	if (regcomp(&preg, pattern, REG_EXTENDED | REG_NEWLINE)) {
-		ast_log(LOG_WARNING, "Regex compilation error (regex = \"%s\").\n",regexp);
+		ast_log(LOG_WARNING, "NAPTR Regex compilation error (regex = \"%s\").\n",regexp);
 		return -1;
 	}
 
 	if (preg.re_nsub > 9) {
-		ast_log(LOG_WARNING, "Regex compilation error: too many subs.\n");
+		ast_log(LOG_WARNING, "NAPTR Regex compilation error: too many subs.\n");
 		regfree(&preg);
 		return -1;
 	}
 
 	if (regexec(&preg, naptrinput, 9, pmatch, 0)) {
-		ast_log(LOG_WARNING, "Regex match failed.\n");
+		ast_log(LOG_WARNING, "NAPTR Regex match failed.\n");
 		regfree(&preg);
 		return -1;
 	}
 	regfree(&preg);
 
-	d = temp; d_len--; 
+	d = temp; 
+	d_len--; 
 	while( *subst && (d_len > 0) ) {
 		if ((subst[0] == '\\') && isdigit(subst[1]) && (pmatch[subst[1]-'0'].rm_so != -1)) {
 			backref = subst[1]-'0';
 			size = pmatch[backref].rm_eo - pmatch[backref].rm_so;
 			if (size > d_len) {
-				ast_log(LOG_WARNING, "Not enough space during regex substitution.\n");
+				ast_log(LOG_WARNING, "Not enough space during NAPTR regex substitution.\n");
 				return -1;
 				}
 			memcpy(d, naptrinput + pmatch[backref].rm_so, size);
@@ -228,15 +246,16 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 }
 
 struct enum_context {
-	char *dst;
-	int dstlen;
-	char *tech;
-	int techlen;
-	char *txt;
-	int txtlen;
-	char *naptrinput;
+	char *dst;	/* Destination part of URL from ENUM */
+	int dstlen;	/* Length */
+	char *tech;	/* Technology (from URL scheme) */
+	int techlen;	/* Length */
+	char *txt;	/* TXT record in TXT lookup */
+	int txtlen;	/* Length */
+	char *naptrinput;	/* The number to lookup */
 };
 
+/*--- txt_callback: Callback for TXT record lookup */
 static int txt_callback(void *context, u_char *answer, int len, u_char *fullanswer)
 {
 	struct enum_context *c = (struct enum_context *)context;
@@ -244,18 +263,18 @@ static int txt_callback(void *context, u_char *answer, int len, u_char *fullansw
 	printf("ENUMTXT Called\n");
 #endif
 
-	if (answer != NULL) {
-		c->txtlen = strlen(answer);
-		strncpy(c->txt, answer, sizeof(c->txt) - 1);
-		c->txt[sizeof(c->txt) - 1] = 0;
-		return 1;
-	} else {
+	if (answer == NULL) {
 		c->txt = NULL;
 		c->txtlen = 0;
 		return 0;
 	}
+	strncpy(c->txt, answer, sizeof(c->txt) - 1);
+	c->txt[sizeof(c->txt) - 1] = 0;	/* Make sure the string is terminated */
+	c->txtlen = strlen(c->txt);
+	return 1;
 }
 
+/*--- enum_callback: Callback from ENUM lookup function */
 static int enum_callback(void *context, u_char *answer, int len, u_char *fullanswer)
 {
 	struct enum_context *c = (struct enum_context *)context;
@@ -271,6 +290,7 @@ static int enum_callback(void *context, u_char *answer, int len, u_char *fullans
 	return 0;
 }
 
+/*--- ast_get_enum: ENUM lookup */
 int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen)
 {
 	struct enum_context context;
@@ -284,10 +304,10 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 
 	strncat(naptrinput, number, sizeof(naptrinput) - 2);
 
-	context.naptrinput = naptrinput;
-	context.dst = dst;
+	context.naptrinput = naptrinput;	/* The number */
+	context.dst = dst;			/* Return string */
 	context.dstlen = dstlen;
-	context.tech = tech;
+	context.tech = tech;			/* Return string */
 	context.techlen = techlen;
 
 	if (pos > 128)
@@ -328,6 +348,9 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	return ret;
 }
 
+/*--- ast_get_txt: Get TXT record from DNS. 
+	Really has nothing to do with enum, but anyway...
+ */
 int ast_get_txt(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen, char *txt, int txtlen)
 {
 	struct enum_context context;
@@ -374,6 +397,7 @@ int ast_get_txt(struct ast_channel *chan, const char *number, char *dst, int dst
 		ast_mutex_unlock(&enumlock);
 		if (!s)
 			break;
+
 		ret = ast_search_dns(&context, tmp, C_IN, T_TXT, txt_callback);
 		if (ret > 0)
 			break;
@@ -387,9 +411,11 @@ int ast_get_txt(struct ast_channel *chan, const char *number, char *dst, int dst
 	return ret;
 }
 
+/*--- enum_newtoplev: Add enum tree to linked list ---*/
 static struct enum_search *enum_newtoplev(char *s)
 {
 	struct enum_search *tmp;
+
 	tmp = malloc(sizeof(struct enum_search));
 	if (tmp) {
 		memset(tmp, 0, sizeof(struct enum_search));
@@ -398,6 +424,7 @@ static struct enum_search *enum_newtoplev(char *s)
 	return tmp;
 }
 
+/*--- ast_enum_init: Initialize the ENUM support subsystem */
 int ast_enum_init(void)
 {
 	struct ast_config *cfg;
