@@ -4341,6 +4341,7 @@ retryowner:
 						if (option_verbose > 2) 
 							ast_verbose(VERBOSE_PREFIX_3 "Accepting DIAL from %s, formats = 0x%x\n", inet_ntoa(sin.sin_addr), iaxs[fr.callno]->peerformat);
 						iaxs[fr.callno]->state |= IAX_STATE_STARTED;
+						send_command(iaxs[fr.callno], AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, 0, NULL, 0, -1);
 						if(!(c = ast_iax2_new(iaxs[fr.callno], AST_STATE_RING, iaxs[fr.callno]->peerformat)))
 							iax2_destroy_nolock(fr.callno);
 					}
