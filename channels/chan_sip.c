@@ -91,6 +91,8 @@ static char callerid[AST_MAX_EXTENSION] = "asterisk";
 
 static char fromdomain[AST_MAX_EXTENSION] = "";
 
+static char notifymime[AST_MAX_EXTENSION] = "application/simple-message-summary";
+
 static int usecnt =0;
 static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
@@ -2472,7 +2474,7 @@ static int transmit_notify(struct sip_pvt *p, int newmsgs, int oldmsgs)
 	char clen[20];
 	initreqprep(&req, p, "NOTIFY", NULL);
 	add_header(&req, "Event", "message-summary");
-	add_header(&req, "Content-Type", "application/simple-message-summary");
+	add_header(&req, "Content-Type", notifymime);
 
 	snprintf(tmp, sizeof(tmp), "Message-Waiting: %s\n", newmsgs ? "yes" : "no");
 	snprintf(tmp2, sizeof(tmp2), "Voicemail: %d/%d\n", newmsgs, oldmsgs);
@@ -5129,6 +5131,8 @@ static int reload_config(void)
 				ast_log(LOG_WARNING, "Unknown dtmf mode '%s', using rfc2833\n", v->value);
 				globaldtmfmode = SIP_DTMF_RFC2833;
 			}
+		} else if (!strcasecmp(v->name, "notifymimetype")) {
+			strncpy(notifymime, v->value, sizeof(notifymime) - 1);
 		} else if (!strcasecmp(v->name, "language")) {
 			strncpy(language, v->value, sizeof(language)-1);
 		} else if (!strcasecmp(v->name, "callerid")) {

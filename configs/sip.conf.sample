@@ -9,6 +9,7 @@ context = default		; Default for incoming calls
 ;tos=184
 ;maxexpirey=3600		; Max length of incoming registration we allow
 ;defaultexpirey=120		; Default length of incoming/outoing registration
+;notifymimetype=text/plain	; Allow overriding of mime type in NOTIFY
 ;
 ;register => 1234@mysipprovider.com	; Register with a SIP provider
 ;register => 2345@mysipprovider.com/1234 ; Register 2345 at sip provider as 1234 here.
