@@ -4546,6 +4546,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 	char *respheader = "Proxy-Authenticate";
 	char *authtoken;
 #ifdef OSP_SUPPORT
+	char tmp[80];
 	char *osptoken;
 	unsigned int osptimelimit;
 #endif
@@ -4574,6 +4575,10 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 		/* Validate token */
 		if (ast_osp_validate(NULL, osptoken, &p->osphandle, &osptimelimit, p->callerid, p->sa.sin_addr, p->exten) < 1)
 			return -1;
+		
+		snprintf(tmp, sizeof(tmp), "%d", p->osphandle);
+		pbx_builtin_setvar_helper(p->owner, "OSPHANDLE", tmp);
+
 		/* If ospauth is 'exclusive' don't require further authentication */
 		if ((p->ospauth > 1) || (ast_strlen_zero(secret) && ast_strlen_zero(md5secret)))
 			return 0;
