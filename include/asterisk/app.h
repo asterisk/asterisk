@@ -48,8 +48,8 @@ extern int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 //! Safely spawn an external program while closingn file descriptors
 extern int ast_safe_system(const char *s);
 
-// send DTMF to chan (optionally entertain peer)  
-int ast_dtmf_stream(struct ast_channel *chan,struct ast_channel *peer,char *digits,int between);
+//! Send DTMF to chan (optionally entertain peer)  
+int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, char *digits, int between);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
