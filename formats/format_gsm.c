@@ -64,7 +64,7 @@ static struct ast_filestream *gsm_open(int fd)
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
 		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (pthread_mutex_lock(&gsm_lock)) {
+		if (ast_pthread_mutex_lock(&gsm_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock gsm list\n");
 			free(tmp);
 			return NULL;
@@ -81,7 +81,7 @@ static struct ast_filestream *gsm_open(int fd)
 		tmp->fr.mallocd = 0;
 		tmp->lasttimeout = -1;
 		glistcnt++;
-		pthread_mutex_unlock(&gsm_lock);
+		ast_pthread_mutex_unlock(&gsm_lock);
 		ast_update_use_count();
 	}
 	return tmp;
@@ -95,7 +95,7 @@ static struct ast_filestream *gsm_rewrite(int fd, char *comment)
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
 		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (pthread_mutex_lock(&gsm_lock)) {
+		if (ast_pthread_mutex_lock(&gsm_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock gsm list\n");
 			free(tmp);
 			return NULL;
@@ -106,7 +106,7 @@ static struct ast_filestream *gsm_rewrite(int fd, char *comment)
 		tmp->owner = NULL;
 		tmp->lasttimeout = -1;
 		glistcnt++;
-		pthread_mutex_unlock(&gsm_lock);
+		ast_pthread_mutex_unlock(&gsm_lock);
 		ast_update_use_count();
 	} else
 		ast_log(LOG_WARNING, "Out of memory\n");
@@ -121,7 +121,7 @@ static struct ast_frame *gsm_read(struct ast_filestream *s)
 static void gsm_close(struct ast_filestream *s)
 {
 	struct ast_filestream *tmp, *tmpl = NULL;
-	if (pthread_mutex_lock(&gsm_lock)) {
+	if (ast_pthread_mutex_lock(&gsm_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock gsm list\n");
 		return;
 	}
@@ -144,7 +144,7 @@ static void gsm_close(struct ast_filestream *s)
 			ast_sched_del(s->owner->sched, s->owner->streamid);
 		s->owner->streamid = -1;
 	}
-	pthread_mutex_unlock(&gsm_lock);
+	ast_pthread_mutex_unlock(&gsm_lock);
 	ast_update_use_count();
 	if (!tmp) 
 		ast_log(LOG_WARNING, "Freeing a filestream we don't seem to own\n");
@@ -263,7 +263,7 @@ int load_module()
 int unload_module()
 {
 	struct ast_filestream *tmp, *tmpl;
-	if (pthread_mutex_lock(&gsm_lock)) {
+	if (ast_pthread_mutex_lock(&gsm_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock gsm list\n");
 		return -1;
 	}
@@ -275,19 +275,19 @@ int unload_module()
 		tmp = tmp->next;
 		free(tmpl);
 	}
-	pthread_mutex_unlock(&gsm_lock);
+	ast_pthread_mutex_unlock(&gsm_lock);
 	return ast_format_unregister(name);
 }	
 
 int usecount()
 {
 	int res;
-	if (pthread_mutex_lock(&gsm_lock)) {
+	if (ast_pthread_mutex_lock(&gsm_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock gsm list\n");
 		return -1;
 	}
 	res = glistcnt;
-	pthread_mutex_unlock(&gsm_lock);
+	ast_pthread_mutex_unlock(&gsm_lock);
 	return res;
 }
 

@@ -363,17 +363,17 @@ static char *aopen_identify(struct ast_modem_pvt *p)
 
 static void aopen_incusecnt()
 {
-	pthread_mutex_lock(&usecnt_lock);
+	ast_pthread_mutex_lock(&usecnt_lock);
 	usecnt++;
-	pthread_mutex_unlock(&usecnt_lock);
+	ast_pthread_mutex_unlock(&usecnt_lock);
 	ast_update_use_count();
 }
 
 static void aopen_decusecnt()
 {
-	pthread_mutex_lock(&usecnt_lock);
+	ast_pthread_mutex_lock(&usecnt_lock);
 	usecnt++;
-	pthread_mutex_unlock(&usecnt_lock);
+	ast_pthread_mutex_unlock(&usecnt_lock);
 	ast_update_use_count();
 }
 
@@ -457,9 +457,9 @@ static struct ast_modem_driver aopen_driver =
 int usecount(void)
 {
 	int res;
-	pthread_mutex_lock(&usecnt_lock);
+	ast_pthread_mutex_lock(&usecnt_lock);
 	res = usecnt;
-	pthread_mutex_unlock(&usecnt_lock);
+	ast_pthread_mutex_unlock(&usecnt_lock);
 	return res;
 }
 

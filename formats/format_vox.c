@@ -172,7 +172,7 @@ static struct ast_filestream *vox_open(int fd)
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
 		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (pthread_mutex_lock(&vox_lock)) {
+		if (ast_pthread_mutex_lock(&vox_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock vox list\n");
 			free(tmp);
 			return NULL;
@@ -189,7 +189,7 @@ static struct ast_filestream *vox_open(int fd)
 		tmp->fr.mallocd = 0;
 		tmp->lasttimeout = -1;
 		glistcnt++;
-		pthread_mutex_unlock(&vox_lock);
+		ast_pthread_mutex_unlock(&vox_lock);
 		ast_update_use_count();
 	}
 	return tmp;
@@ -203,7 +203,7 @@ static struct ast_filestream *vox_rewrite(int fd, char *comment)
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
 		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (pthread_mutex_lock(&vox_lock)) {
+		if (ast_pthread_mutex_lock(&vox_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock vox list\n");
 			free(tmp);
 			return NULL;
@@ -214,7 +214,7 @@ static struct ast_filestream *vox_rewrite(int fd, char *comment)
 		tmp->owner = NULL;
 		tmp->lasttimeout = -1;
 		glistcnt++;
-		pthread_mutex_unlock(&vox_lock);
+		ast_pthread_mutex_unlock(&vox_lock);
 		ast_update_use_count();
 	} else
 		ast_log(LOG_WARNING, "Out of memory\n");
@@ -229,7 +229,7 @@ static struct ast_frame *vox_read(struct ast_filestream *s)
 static void vox_close(struct ast_filestream *s)
 {
 	struct ast_filestream *tmp, *tmpl = NULL;
-	if (pthread_mutex_lock(&vox_lock)) {
+	if (ast_pthread_mutex_lock(&vox_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock vox list\n");
 		return;
 	}
@@ -252,7 +252,7 @@ static void vox_close(struct ast_filestream *s)
 			ast_sched_del(s->owner->sched, s->owner->streamid);
 		s->owner->streamid = -1;
 	}
-	pthread_mutex_unlock(&vox_lock);
+	ast_pthread_mutex_unlock(&vox_lock);
 	ast_update_use_count();
 	if (!tmp) 
 		ast_log(LOG_WARNING, "Freeing a filestream we don't seem to own\n");
@@ -382,7 +382,7 @@ int load_module()
 int unload_module()
 {
 	struct ast_filestream *tmp, *tmpl;
-	if (pthread_mutex_lock(&vox_lock)) {
+	if (ast_pthread_mutex_lock(&vox_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock vox list\n");
 		return -1;
 	}
@@ -394,19 +394,19 @@ int unload_module()
 		tmp = tmp->next;
 		free(tmpl);
 	}
-	pthread_mutex_unlock(&vox_lock);
+	ast_pthread_mutex_unlock(&vox_lock);
 	return ast_format_unregister(name);
 }	
 
 int usecount()
 {
 	int res;
-	if (pthread_mutex_lock(&vox_lock)) {
+	if (ast_pthread_mutex_lock(&vox_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock vox list\n");
 		return -1;
 	}
 	res = glistcnt;
-	pthread_mutex_unlock(&vox_lock);
+	ast_pthread_mutex_unlock(&vox_lock);
 	return res;
 }
 

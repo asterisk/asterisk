@@ -16,6 +16,7 @@
 #include <asterisk/logger.h>
 #include <asterisk/module.h>
 #include <asterisk/translate.h>
+#include <asterisk/channel.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <pthread.h>
@@ -498,13 +499,13 @@ int
 unload_module (void)
 {
   int res;
-  pthread_mutex_lock (&localuser_lock);
+  ast_pthread_mutex_lock (&localuser_lock);
   res = ast_unregister_translator (&lintoadpcm);
   if (!res)
     res = ast_unregister_translator (&adpcmtolin);
   if (localusecnt)
     res = -1;
-  pthread_mutex_unlock (&localuser_lock);
+  ast_pthread_mutex_unlock (&localuser_lock);
   return res;
 }
 

@@ -22,6 +22,7 @@
 #include <asterisk/translate.h>
 #include <asterisk/module.h>
 #include <asterisk/logger.h>
+#include <asterisk/channel.h>
 #include <pthread.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -221,13 +222,13 @@ static struct ast_translator lintogsm =
 int unload_module(void)
 {
 	int res;
-	pthread_mutex_lock(&localuser_lock);
+	ast_pthread_mutex_lock(&localuser_lock);
 	res = ast_unregister_translator(&lintogsm);
 	if (!res)
 		res = ast_unregister_translator(&gsmtolin);
 	if (localusecnt)
 		res = -1;
-	pthread_mutex_unlock(&localuser_lock);
+	ast_pthread_mutex_unlock(&localuser_lock);
 	return res;
 }
 

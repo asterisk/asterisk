@@ -423,17 +423,17 @@ static char *i4l_identify(struct ast_modem_pvt *p)
 
 static void i4l_incusecnt()
 {
-	pthread_mutex_lock(&usecnt_lock);
+	ast_pthread_mutex_lock(&usecnt_lock);
 	usecnt++;
-	pthread_mutex_unlock(&usecnt_lock);
+	ast_pthread_mutex_unlock(&usecnt_lock);
 	ast_update_use_count();
 }
 
 static void i4l_decusecnt()
 {
-	pthread_mutex_lock(&usecnt_lock);
+	ast_pthread_mutex_lock(&usecnt_lock);
 	usecnt++;
-	pthread_mutex_unlock(&usecnt_lock);
+	ast_pthread_mutex_unlock(&usecnt_lock);
 	ast_update_use_count();
 }
 
@@ -551,9 +551,9 @@ static struct ast_modem_driver i4l_driver =
 int usecount(void)
 {
 	int res;
-	pthread_mutex_lock(&usecnt_lock);
+	ast_pthread_mutex_lock(&usecnt_lock);
 	res = usecnt;
-	pthread_mutex_unlock(&usecnt_lock);
+	ast_pthread_mutex_unlock(&usecnt_lock);
 	return res;
 }
 
