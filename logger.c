@@ -48,6 +48,13 @@ static int syslog_level_map[] = {
 
 #define MAX_MSG_QUEUE 200
 
+#ifdef __linux__
+#include <asm/unistd.h>
+#define GETTID() syscall(__NR_gettid)
+#else
+#define GETTID() getpid()
+#endif
+
 static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
 AST_MUTEX_DEFINE_STATIC(msglist_lock);
 AST_MUTEX_DEFINE_STATIC(loglock);
@@ -484,11 +491,11 @@ static void ast_log_vsyslog(int level, const char *file, int line, const char *f
 		return;
 	}
 	if (level == __LOG_VERBOSE) {
-		snprintf(buf, sizeof(buf), "VERBOSE[%ld]: ", (long)pthread_self());
+		snprintf(buf, sizeof(buf), "VERBOSE[%ld]: ", (long)GETTID());
 		level = __LOG_DEBUG;
 	} else {
 		snprintf(buf, sizeof(buf), "%s[%ld]: %s:%d in %s: ",
-			levels[level], (long)pthread_self(), file, line, function);
+			levels[level], (long)GETTID(), file, line, function);
 	}
 	vsnprintf(buf+strlen(buf), sizeof(buf)-strlen(buf), fmt, args);
 	syslog(syslog_level_map[level], "%s", buf);
@@ -549,7 +556,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 					snprintf(buf, sizeof(buf), "%s %s[%ld]: %s:%s %s: ",
 						date,
 						term_color(tmp1, levels[level], colors[level], 0, sizeof(tmp1)),
-						(long)pthread_self(),
+						(long)GETTID(),
 						term_color(tmp2, file, COLOR_BRWHITE, 0, sizeof(tmp2)),
 						term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
 						term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
@@ -562,7 +569,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 				}
 			} else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
 				snprintf(buf, sizeof(buf), "%s %s[%ld]: ", date,
-					levels[level], (long)pthread_self());
+					levels[level], (long)GETTID());
 				fprintf(chan->fileptr, buf);
 				va_start(ap, fmt);
 				vsnprintf(buf, sizeof(buf), fmt, ap);
