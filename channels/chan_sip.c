@@ -360,16 +360,6 @@ struct sip_peer {
 	struct sip_peer *next;
 };
 
-static struct ast_user_list {
-	struct sip_user *users;
-	ast_mutex_t lock;
-} userl = { NULL, AST_MUTEX_INITIALIZER };
-
-static struct ast_peer_list {
-	struct sip_peer *peers;
-	ast_mutex_t lock;
-} peerl = { NULL, AST_MUTEX_INITIALIZER };
-
 ast_mutex_t sip_reload_lock = AST_MUTEX_INITIALIZER;
 
 #define REG_STATE_UNREGISTERED 0
@@ -402,11 +392,26 @@ struct sip_registry {
 	struct sip_registry *next;
 };
 
+static struct ast_user_list {
+	struct sip_user *users;
+	ast_mutex_t lock;
+} userl = { NULL, AST_MUTEX_INITIALIZER };
+
+static struct ast_peer_list {
+	struct sip_peer *peers;
+	ast_mutex_t lock;
+} peerl = { NULL, AST_MUTEX_INITIALIZER };
+
+static struct ast_register_list {
+	struct sip_registry *registrations;
+	ast_mutex_t lock;
+} regl = { NULL, AST_MUTEX_INITIALIZER };
+
+
 #define REINVITE_INVITE		1
 #define REINVITE_UPDATE		2
 
 static int sip_do_register(struct sip_registry *r);
-static struct sip_registry *registrations;
 
 static int sipsock  = -1;
 static int globalnat = 0;
@@ -1043,12 +1048,14 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	if (p->registry) {
 		/* Carefully unlink from registry */
 		struct sip_registry *reg;
-		reg = registrations;
+		ast_mutex_lock(&regl.lock);
+		reg = regl.registrations;
 		while(reg) {
 			if ((reg == p->registry) && (p->registry->call == p))
 				p->registry->call=NULL;
 			reg = reg->next;
 		}
+		ast_mutex_unlock(&regl.lock);
 	}
 	/* Unlink us from the owner if we have one */
 	if (p->owner) {
@@ -1878,10 +1885,12 @@ static int sip_register(char *value, int lineno)
 		reg->addr.sin_family = AF_INET;
 		memcpy(&reg->addr.sin_addr, hp->h_addr, sizeof(&reg->addr.sin_addr));
 		reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(DEFAULT_SIP_PORT);
-		reg->next = registrations;
 		reg->callid_valid = 0;
 		reg->ocseq = 101;
-		registrations = reg;
+		ast_mutex_lock(&regl.lock);
+		reg->next = regl.registrations;
+		regl.registrations = reg;
+		ast_mutex_unlock(&regl.lock);
 	} else {
 		ast_log(LOG_ERROR, "Out of memory\n");
 		return -1;
@@ -4438,14 +4447,14 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 	char host[80];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_mutex_lock(&peerl.lock);
+	ast_mutex_lock(&regl.lock);
 	ast_cli(fd, FORMAT2, "Host", "Username", "Refresh", "State");
-	for (reg = registrations;reg;reg = reg->next) {
+	for (reg = regl.registrations;reg;reg = reg->next) {
 		snprintf(host, sizeof(host), "%s:%d", inet_ntoa(reg->addr.sin_addr), ntohs(reg->addr.sin_port));
 		ast_cli(fd, FORMAT, host,
 					reg->username, reg->refresh, regstate2str(reg->regstate));
 	}
-	ast_mutex_unlock(&peerl.lock);
+	ast_mutex_unlock(&regl.lock);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -6622,7 +6631,7 @@ static void delete_users(void)
 {
 	struct sip_user *user, *userlast;
 	struct sip_peer *peer;
-	struct sip_registry *reg, *regl;
+	struct sip_registry *reg, *reglast;
 
 	/* Delete all users */
 	ast_mutex_lock(&userl.lock);
@@ -6635,16 +6644,22 @@ static void delete_users(void)
 	userl.users=NULL;
 	ast_mutex_unlock(&userl.lock);
 
-	for (reg = registrations;reg;) {
-		regl = reg;
+	ast_mutex_lock(&regl.lock);
+	for (reg = regl.registrations;reg;) {
+		reglast = reg;
 		reg = reg->next;
-		if (regl->call) 
-			sip_destroy(regl->call);
-		if (regl->expire > -1)
-			ast_sched_del(sched, regl->expire);
-		free(regl);
+		if (reglast->call) {
+			/* Clear registry before destroying to ensure
+			   we don't get reentered trying to grab the registry lock */
+			reglast->call->registry = NULL;
+			sip_destroy(reglast->call);
+		}
+		if (reglast->expire > -1)
+			ast_sched_del(sched, reglast->expire);
+		free(reglast);
 	}
-	registrations = NULL;
+	regl.registrations = NULL;
+	ast_mutex_unlock(&regl.lock);
 	ast_mutex_lock(&peerl.lock);
 	for (peer=peerl.peers;peer;) {
 		/* Assume all will be deleted, and we'll find out for sure later */
@@ -6698,8 +6713,10 @@ static int sip_reload(int fd, int argc, char *argv[])
 	prune_peers();
 	/* And start the monitor for the first time */
 	restart_monitor();
-	for (reg = registrations; reg; reg = reg->next) 
+	ast_mutex_lock(&regl.lock);
+	for (reg = regl.registrations; reg; reg = reg->next) 
 		sip_do_register(reg);
+	ast_mutex_unlock(&regl.lock);
 	ast_mutex_lock(&peerl.lock);
 	for (peer = peerl.peers; peer; peer = peer->next)
 		sip_poke_peer(peer);
@@ -6753,10 +6770,12 @@ int load_module()
 		ast_mutex_lock(&peerl.lock);
 		for (peer = peerl.peers; peer; peer = peer->next)
 			sip_poke_peer(peer);
-
-		for (reg = registrations; reg; reg = reg->next) 
-			sip_do_register(reg);
 		ast_mutex_unlock(&peerl.lock);
+
+		ast_mutex_lock(&regl.lock);
+		for (reg = regl.registrations; reg; reg = reg->next) 
+			sip_do_register(reg);
+		ast_mutex_unlock(&regl.lock);
 		
 		/* And start the monitor for the first time */
 		restart_monitor();
