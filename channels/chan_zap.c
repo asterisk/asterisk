@@ -935,33 +935,41 @@ int set_actual_gain(int fd, int chan, float rxgain, float txgain, int law)
 	float lrxgain;
 	int j,k;
 	g.chan = chan;
-	  /* caluculate linear value of tx gain */
-	ltxgain = pow(10.0,txgain / 20.0);
-	  /* caluculate linear value of rx gain */
-	lrxgain = pow(10.0,rxgain / 20.0);
-	if (law == ZT_LAW_ALAW) {
-		for (j=0;j<256;j++) {
-			k = (int)(((float)AST_ALAW(j)) * lrxgain);
-			if (k > 32767) k = 32767;
-			if (k < -32767) k = -32767;
-			g.rxgain[j] = AST_LIN2A(k);
-			k = (int)(((float)AST_ALAW(j)) * ltxgain);
-			if (k > 32767) k = 32767;
-			if (k < -32767) k = -32767;
-			g.txgain[j] = AST_LIN2A(k);
+	if ((rxgain != 0.0)  || (txgain != 0.0)) {
+		/* caluculate linear value of tx gain */
+		ltxgain = pow(10.0,txgain / 20.0);
+		/* caluculate linear value of rx gain */
+		lrxgain = pow(10.0,rxgain / 20.0);
+		if (law == ZT_LAW_ALAW) {
+			for (j=0;j<256;j++) {
+				k = (int)(((float)AST_ALAW(j)) * lrxgain);
+				if (k > 32767) k = 32767;
+				if (k < -32767) k = -32767;
+				g.rxgain[j] = AST_LIN2A(k);
+				k = (int)(((float)AST_ALAW(j)) * ltxgain);
+				if (k > 32767) k = 32767;
+				if (k < -32767) k = -32767;
+				g.txgain[j] = AST_LIN2A(k);
+			}
+		} else {
+			for (j=0;j<256;j++) {
+				k = (int)(((float)AST_MULAW(j)) * lrxgain);
+				if (k > 32767) k = 32767;
+				if (k < -32767) k = -32767;
+				g.rxgain[j] = AST_LIN2MU(k);
+				k = (int)(((float)AST_MULAW(j)) * ltxgain);
+				if (k > 32767) k = 32767;
+				if (k < -32767) k = -32767;
+				g.txgain[j] = AST_LIN2MU(k);
+			}
 		}
 	} else {
 		for (j=0;j<256;j++) {
-			k = (int)(((float)AST_MULAW(j)) * lrxgain);
-			if (k > 32767) k = 32767;
-			if (k < -32767) k = -32767;
-			g.rxgain[j] = AST_LIN2MU(k);
-			k = (int)(((float)AST_MULAW(j)) * ltxgain);
-			if (k > 32767) k = 32767;
-			if (k < -32767) k = -32767;
-			g.txgain[j] = AST_LIN2MU(k);
+			g.rxgain[j] = j;
+			g.txgain[j] = j;
 		}
 	}
+		
 	  /* set 'em */
 	return(ioctl(fd,ZT_SETGAINS,&g));
 }
