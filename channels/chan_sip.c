@@ -3961,8 +3961,11 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 		*a = '\0';
 	}
 	if (fr) {
-		if ((a = strchr(fr, '@')) || (a = strchr(fr, ';'))) {
+		if ((a = strchr(fr, ';')))
 			*a = '\0';
+		if ((a = strchr(fr, '@'))) {
+			*a = '\0';
+			strncpy(p->fromdomain, a + 1, sizeof(p->fromdomain) - 1);
 		}
 	}
 	if (sipdebug)
