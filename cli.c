@@ -150,6 +150,7 @@ static int handle_set_verbose(int fd, int argc, char *argv[])
 {
 	int val = 0;
 	int oldval = 0;
+
 	/* Has a hidden 'at least' argument */
 	if ((argc != 3) && (argc != 4))
 		return RESULT_SHOWUSAGE;
@@ -166,7 +167,7 @@ static int handle_set_verbose(int fd, int argc, char *argv[])
 	if (oldval != option_verbose && option_verbose > 0)
 		ast_cli(fd, "Verbosity was %d and is now %d\n", oldval, option_verbose);
 	else if (oldval > 0 && option_verbose > 0)
-		ast_cli(fd, "Verbosity is atleast %d\n", option_verbose);
+		ast_cli(fd, "Verbosity is at least %d\n", option_verbose);
 	else if (oldval > 0 && option_verbose == 0)
 		ast_cli(fd, "Verbosity is now OFF\n");
 	return RESULT_SUCCESS;
@@ -192,7 +193,7 @@ static int handle_set_debug(int fd, int argc, char *argv[])
 	if (oldval != option_debug && option_debug > 0)
 		ast_cli(fd, "Core debug was %d and is now %d\n", oldval, option_debug);
 	else if (oldval > 0 && option_debug > 0)
-		ast_cli(fd, "Core debug is atleast %d\n", option_debug);
+		ast_cli(fd, "Core debug is at least %d\n", option_debug);
 	else if (oldval > 0 && option_debug == 0)
 		ast_cli(fd, "Core debug is now OFF\n");
 	return RESULT_SUCCESS;

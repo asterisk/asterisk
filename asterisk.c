@@ -1410,9 +1410,9 @@ static void ast_remotecontrol(char * data)
 		pid = atoi(cpid);
 	else
 		pid = -1;
-	snprintf(tmp, sizeof(tmp), "set verbose at least %d", option_verbose);
+	snprintf(tmp, sizeof(tmp), "set verbose atleast %d", option_verbose);
 	fdprint(ast_consock, tmp);
-	snprintf(tmp, sizeof(tmp), "set debug at least %d", option_debug);
+	snprintf(tmp, sizeof(tmp), "set debug atleast %d", option_debug);
 	fdprint(ast_consock, tmp);
 	ast_verbose("Connected to Asterisk %s currently running on %s (pid = %d)\n", version, hostname, pid);
 	remotehostname = hostname;
