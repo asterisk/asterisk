@@ -79,6 +79,7 @@ static struct agent_pvt {
 	pthread_mutex_t lock;				/* Channel private lock */
 	int dead;							/* Poised for destruction? */
 	int pending;						/* Not a real agent -- just pending a match */
+	int abouttograb;					/* About to grab */
 	unsigned int group;					/* Group memberships */
 	char moh[80];						/* Which music on hold */
 	char agent[AST_MAX_AGENT];			/* Agent ID */
@@ -173,6 +174,21 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 	else
 		p->dead = 0;
 	return p;
+}
+
+static int agent_cleanup(struct agent_pvt *p)
+{
+	struct ast_channel *chan = p->owner;
+	p->owner = NULL;
+	chan->pvt->pvt = NULL;
+	p->app_sleep_cond = 1;
+	/* Release ownership of the agent to other threads (presumably running the login app). */
+	ast_pthread_mutex_unlock(&p->app_lock);
+	if (chan)
+		ast_channel_free(chan);
+	if (p->dead)
+		free(p);
+	return 0;
 }
 
 static int check_availability(struct agent_pvt *newlyavailable, int needlock);
@@ -352,9 +368,13 @@ static int agent_hangup(struct ast_channel *ast)
 		agent_unlink(p);
 		ast_pthread_mutex_unlock(&agentlock);
 	}
-	if (p->dead)
+	if (p->abouttograb) {
+		/* Let the "about to grab" thread know this isn't valid anymore, and let it
+		   kill it later */
+		p->abouttograb = 0;
+	} else if (p->dead) {
 		free(p);
-	else {
+	} else {
 		/* Not dead -- check availability now */
 		ast_pthread_mutex_lock(&p->lock);
 		check_availability(p, 1);
@@ -549,6 +569,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 			/* We found a pending call, time to merge */
 			chan = agent_new(newlyavailable, AST_STATE_DOWN);
 			parent = p->owner;
+			p->abouttograb = 1;
 			ast_pthread_mutex_unlock(&p->lock);
 			break;
 		}
@@ -566,13 +587,20 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 			ast_log( LOG_DEBUG, "Waited for stream, result '%d'\n", res);
 		}
 		if (!res) {
-			ast_setstate(parent, AST_STATE_UP);
-			ast_setstate(chan, AST_STATE_UP);
-			ast_channel_masquerade(parent, chan);
-			ast_hangup(chan);
+			/* Note -- parent may have disappeared */
+			if (p->abouttograb) {
+				ast_setstate(parent, AST_STATE_UP);
+				ast_setstate(chan, AST_STATE_UP);
+				ast_channel_masquerade(parent, chan);
+				p->abouttograb = 0;
+				ast_hangup(chan);
+			} else {
+				ast_log(LOG_DEBUG, "Sneaky, parent disappeared in the mean time...\n");
+				agent_cleanup(newlyavailable);
+			}
 		} else {
-			ast_log(LOG_NOTICE, "Not sure this will always work..\n");
-			ast_hangup(chan);
+			ast_log(LOG_DEBUG, "Ugh...  Agent hung up at exactly the wrong time\n");
+			agent_cleanup(newlyavailable);
 		}
 	}
 	return 0;
