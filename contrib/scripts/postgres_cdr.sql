@@ -27,6 +27,7 @@ CREATE TABLE cdr (
 	disposition	VARCHAR(45) NOT NULL default '',
 	amaflags	INTEGER NOT NULL default '0',
 	accountcode	VARCHAR(20) NOT NULL default '',
-	uniqueid	VARCHAR(32) NOT NULL default ''
+	uniqueid	VARCHAR(32) NOT NULL default '',
+	userfield	VARCHAR(255) NOT NULL default ''
 );
 
