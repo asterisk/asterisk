@@ -1457,7 +1457,7 @@ and combinations of eg.: 20_1, 30m_3m, etc...
 	if (odmiana_zenska == NULL) {
 		odmiana_zenska = (odmiana *) malloc(sizeof(odmiana));
 
-		odmiana_zenska->separator_dziesiatek = "_";
+		odmiana_zenska->separator_dziesiatek = " ";
 
 		memcpy(odmiana_zenska->cyfry, zenski_cyfry, sizeof(odmiana_zenska->cyfry));
 		memcpy(odmiana_zenska->cyfry2, zenski_cyfry2, sizeof(odmiana_zenska->cyfry));
@@ -1470,7 +1470,7 @@ and combinations of eg.: 20_1, 30m_3m, etc...
 	if (odmiana_meska == NULL) {
 		odmiana_meska = (odmiana *) malloc(sizeof(odmiana));
 
-		odmiana_meska->separator_dziesiatek = "_";
+		odmiana_meska->separator_dziesiatek = " ";
 
 		memcpy(odmiana_meska->cyfry, meski_cyfry, sizeof(odmiana_meska->cyfry));
 		memcpy(odmiana_meska->cyfry2, meski_cyfry2, sizeof(odmiana_meska->cyfry));
