@@ -20,31 +20,41 @@
  * Autodetect system endianess
  */
 
-#if defined( __OpenBSD__ )
-#  include <machine/types.h>
-#  include <sys/endian.h>
-#elif defined( __FreeBSD__ ) || defined( __NetBSD__ )
-#  include <sys/types.h>
-#  include <sys/endian.h>
-#elif defined( BSD ) && ( BSD >= 199103 ) || defined(__APPLE__)
-#  include <machine/endian.h>
-#elif defined ( SOLARIS )
-#  include <solaris-compat/compat.h>
-#elif defined( __GNUC__ ) || defined( __GNU_LIBRARY__ )
-#  include <endian.h>
-#if !defined(__APPLE__)
-#  include <byteswap.h>
-#endif
-#elif defined( linux )
-#  include <endian.h>
-#endif
-
-#ifndef BYTE_ORDER
-#define BYTE_ORDER __BYTE_ORDER
+#ifdef SOLARIS
+#include "solaris-compat/compat.h"
 #endif
 
 #ifndef __BYTE_ORDER
-#error Endianess needs to be defined
-#endif
+#ifdef __linux__
+#include <endian.h>
+#elif defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
+#if defined(__OpenBSD__)
+#include <machine/types.h>
+#endif /* __OpenBSD__ */
+#include <machine/endian.h>
+#define __BYTE_ORDER BYTE_ORDER
+#define __LITTLE_ENDIAN LITTLE_ENDIAN
+#define __BIG_ENDIAN BIG_ENDIAN
+#else
+#ifdef __LITTLE_ENDIAN__
+#define __BYTE_ORDER __LITTLE_ENDIAN
+#endif /* __LITTLE_ENDIAN */
+
+#if defined(i386) || defined(__i386__)
+#define __BYTE_ORDER __LITTLE_ENDIAN
+#endif /* defined i386 */
+
+#if defined(sun) && defined(unix) && defined(sparc)
+#define __BYTE_ORDER __BIG_ENDIAN
+#endif /* sun unix sparc */
+
+#endif /* linux */
+
+#endif /* __BYTE_ORDER */
+
+#ifndef __BYTE_ORDER
+#error Need to know endianess
+#endif /* __BYTE_ORDER */
+
 #endif /* _ASTERISK_ENDIAN_H */
 
