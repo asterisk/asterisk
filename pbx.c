@@ -992,8 +992,8 @@ void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char 
 	char *cp4;
 	const char *tmp, *whereweare;
 	int length;
-	char workspace[256];
-	char ltmp[256], var[256];
+	char workspace[4096];
+	char ltmp[4096], var[4096];
 	char *nextvar, *nextexp;
 	char *vars, *vare;
 	int pos, brackets, needsub, len;

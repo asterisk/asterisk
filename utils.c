@@ -15,6 +15,9 @@
 #include <asterisk/lock.h>
 #include <asterisk/utils.h>
 
+static char base64[64];
+static char b2a[256];
+
 #if defined(__FreeBSD__) || defined(__OpenBSD__)
 
 /* duh? ERANGE value copied from web... */
@@ -208,4 +211,126 @@ int test_for_thread_safety(void)
 		test_errors++;
 	pthread_join(test_thread, NULL);
 	return(test_errors);          /* return 0 on success. */
+}
+
+int ast_base64decode(unsigned char *dst, char *src, int max)
+{
+	int cnt = 0;
+	unsigned int byte = 0;
+	unsigned int bits = 0;
+	int incnt = 0;
+#if 0
+	unsigned char *odst = dst;
+#endif
+	while(*src && (cnt < max)) {
+		/* Shift in 6 bits of input */
+		byte <<= 6;
+		byte |= (b2a[(int)(*src)]) & 0x3f;
+		bits += 6;
+#if 0
+		printf("Add: %c %s\n", *src, binary(b2a[(int)(*src)] & 0x3f, 6));
+#endif
+		src++;
+		incnt++;
+		/* If we have at least 8 bits left over, take that character 
+		   off the top */
+		if (bits >= 8)  {
+			bits -= 8;
+			*dst = (byte >> bits) & 0xff;
+#if 0
+			printf("Remove: %02x %s\n", *dst, binary(*dst, 8));
+#endif
+			dst++;
+			cnt++;
+		}
+	}
+#if 0
+	dump(odst, cnt);
+#endif
+	/* Dont worry about left over bits, they're extra anyway */
+	return cnt;
+}
+
+int ast_base64encode(char *dst, unsigned char *src, int srclen, int max)
+{
+	int cnt = 0;
+	unsigned int byte = 0;
+	int bits = 0;
+	int index;
+	int cntin = 0;
+#if 0
+	char *odst = dst;
+	dump(src, srclen);
+#endif
+	/* Reserve one bit for end */
+	max--;
+	while((cntin < srclen) && (cnt < max)) {
+		byte <<= 8;
+#if 0
+		printf("Add: %02x %s\n", *src, binary(*src, 8));
+#endif
+		byte |= *(src++);
+		bits += 8;
+		cntin++;
+		while((bits >= 6) && (cnt < max)) {
+			bits -= 6;
+			/* We want only the top */
+			index = (byte >> bits) & 0x3f;
+			*dst = base64[index];
+#if 0
+			printf("Remove: %c %s\n", *dst, binary(index, 6));
+#endif
+			dst++;
+			cnt++;
+		}
+	}
+	if (bits && (cnt < max)) {
+		/* Add one last character for the remaining bits, 
+		   padding the rest with 0 */
+		byte <<= (6 - bits);
+		index = (byte) & 0x3f;
+		*(dst++) = base64[index];
+		cnt++;
+	}
+	*dst = '\0';
+	return cnt;
+}
+
+static void base64_init(void)
+{
+	int x;
+	memset(b2a, -1, sizeof(b2a));
+	/* Initialize base-64 Conversion table */
+	for (x=0;x<26;x++) {
+		/* A-Z */
+		base64[x] = 'A' + x;
+		b2a['A' + x] = x;
+		/* a-z */
+		base64[x + 26] = 'a' + x;
+		b2a['a' + x] = x + 26;
+		/* 0-9 */
+		if (x < 10) {
+			base64[x + 52] = '0' + x;
+			b2a['0' + x] = x + 52;
+		}
+	}
+	base64[62] = '+';
+	base64[63] = '/';
+	b2a[(int)'+'] = 62;
+	b2a[(int)'/'] = 63;
+#if 0
+	for (x=0;x<64;x++) {
+		if (b2a[(int)base64[x]] != x) {
+			fprintf(stderr, "!!! %d failed\n", x);
+		} else
+			fprintf(stderr, "--- %d passed\n", x);
+	}
+#endif
+}
+
+
+int ast_utils_init(void)
+{
+	base64_init();
+	return 0;
 }
