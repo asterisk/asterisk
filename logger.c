@@ -52,7 +52,7 @@ static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
 AST_MUTEX_DEFINE_STATIC(msglist_lock);
 AST_MUTEX_DEFINE_STATIC(loglock);
 static int pending_logger_reload = 0;
-static int global_logmask = 0;
+static int global_logmask = -1;
 
 static struct msglist {
 	char *msg;
