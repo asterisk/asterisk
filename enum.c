@@ -187,11 +187,20 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 	if ((!strncasecmp(services, "e2u+sip", 7)) || 
 	    (!strncasecmp(services, "sip+e2u", 7))) {
 		strncpy(tech, "sip", techsize -1); 
+	} else if ((!strncasecmp(services, "e2u+h323", 7)) || 
+	    (!strncasecmp(services, "h323+e2u", 7))) {
+		strncpy(tech, "h323", techsize -1); 
+	} else if ((!strncasecmp(services, "e2u+iax", 7)) || 
+	    (!strncasecmp(services, "iax+e2u", 7))) {
+		strncpy(tech, "iax", techsize -1); 
+	} else if ((!strncasecmp(services, "e2u+iax2", 7)) || 
+	    (!strncasecmp(services, "iax2+e2u", 7))) {
+		strncpy(tech, "iax2", techsize -1); 
 	} else if ((!strncasecmp(services, "e2u+tel", 7)) || 
 	    (!strncasecmp(services, "tel+e2u", 7))) {
 		strncpy(tech, "tel", techsize -1); 
 	} else if (strncasecmp(services, "e2u+voice:", 10)) {
-		ast_log(LOG_WARNING, "Services must be e2u+sip, sip+e2u, e2u+tel, tel+e2u or e2u+voice:\n");
+		ast_log(LOG_WARNING, "Services must be e2u+sip, sip+e2u, e2u+h323, h323+e2u, e2u+iax, iax+e2u, e2u+iax2, iax2+e2u, e2u+tel, tel+e2u or e2u+voice:\n");
 		return -1;
 	}
 

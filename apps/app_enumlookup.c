@@ -73,6 +73,24 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 				c += 4;
 			snprintf(tmp, sizeof(tmp), "SIP/%s", c);
 			pbx_builtin_setvar_helper(chan, "ENUM", tmp);
+		} else if (!strcasecmp(tech, "H323")) {
+			c = dest;
+			if (!strncmp(c, "h323:", 5))
+				c += 5;
+			snprintf(tmp, sizeof(tmp), "H323/%s", c);
+			pbx_builtin_setvar_helper(chan, "ENUM", tmp);
+		} else if (!strcasecmp(tech, "IAX")) {
+			c = dest;
+			if (!strncmp(c, "iax:", 4))
+				c += 4;
+			snprintf(tmp, sizeof(tmp), "IAX/%s", c);
+			pbx_builtin_setvar_helper(chan, "ENUM", tmp);
+		} else if (!strcasecmp(tech, "IAX2")) {
+			c = dest;
+			if (!strncmp(c, "iax2:", 5))
+				c += 5;
+			snprintf(tmp, sizeof(tmp), "IAX2/%s", c);
+			pbx_builtin_setvar_helper(chan, "ENUM", tmp);
 		} else if (!strcasecmp(tech, "tel")) {
 			c = dest;
 			if (!strncmp(c, "tel:", 4))
