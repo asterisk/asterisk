@@ -203,6 +203,12 @@ typedef struct start_media_transmission_message {
 	media_qualifier qualifier;
 } start_media_transmission_message;
 
+#define STOP_MEDIA_TRANSMISSION_MESSAGE 0x008B
+typedef struct stop_media_transmission_message {
+	int conferenceId;
+        int passThruPartyId;
+} stop_media_transmission_message;
+
 #define CALL_INFO_MESSAGE 0x008F
 typedef struct call_info_message {
 	char callingPartyName[40];
@@ -457,6 +463,7 @@ typedef struct {
 		set_speaker_message setspeaker;
 		call_info_message callinfo;
 		start_media_transmission_message startmedia;
+		stop_media_transmission_message stopmedia;
 		open_recieve_channel_message openrecievechannel;
 		open_recieve_channel_ack_message openrecievechannelack;
 		close_recieve_channel_message closerecievechannel;
@@ -816,6 +823,12 @@ static void transmit_callstate(struct skinnysession *s, int instance, int state,
 		req->data.closerecievechannel.conferenceId = 0;
 		req->data.closerecievechannel.partyId = 0;
 		transmit_response(s, req);
+		memset(req, 0, memsize);
+                req->len = sizeof(stop_media_transmission_message)+4;
+                req->e = STOP_MEDIA_TRANSMISSION_MESSAGE;
+                req->data.stopmedia.conferenceId = 0;   
+                req->data.stopmedia.passThruPartyId = 0;
+                transmit_response(s, req);	
 	}
 }	
 
