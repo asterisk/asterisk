@@ -113,6 +113,13 @@ else
 	$(CC) $(SOLINK) -o $@ chan_iax2.o iax2-parser.o
 endif
 
+chan_iax.so: chan_iax.o
+ifeq ($(USE_MYSQL_FRIENDS),1)
+	$(CC) $(SOLINK) -o $@ chan_iax.o -lmysqlclient -lz
+else
+	$(CC) $(SOLINK) -o $@ chan_iax.o
+endif
+
 chan_zap.o: $(CHANZAP)
 	$(CC) -c $(CFLAGS) -o chan_zap.o $(CHANZAP)
 

@@ -44,6 +44,10 @@
 #include <netdb.h>
 #include <fcntl.h>
 
+#ifdef MYSQL_FRIENDS
+#include <mysql/mysql.h>
+#endif
+
 #include "iax.h"
 
 #ifndef IPTOS_MINCOST
@@ -67,6 +71,15 @@
 
 /* Sample over last 100 units to determine historic jitter */
 #define GAMMA (0.01)
+
+#ifdef MYSQL_FRIENDS
+static ast_mutex_t mysqllock = AST_MUTEX_INITIALIZER;
+static MYSQL *mysql;
+static char mydbuser[80];
+static char mydbpass[80];
+static char mydbhost[80];
+static char mydbname[80];
+#endif
 
 static char *desc = "Inter Asterisk eXchange";
 static char *tdesc = "Inter Asterisk eXchange Drver";
@@ -167,7 +180,6 @@ struct iax_peer {
 	/* Dynamic Registration fields */
 	int dynamic;					/* If this is a dynamic peer */
 	struct sockaddr_in defaddr;		/* Default address if there is one */
-	char challenge[80];				/* Challenge used to authenticate the secret */
 	char methods[80];
 	char inkeys[80];				/* Key(s) this peer can use to authenticate to us */
 
@@ -1502,6 +1514,92 @@ static int iax_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan
 	return 0;
 }
 
+#ifdef MYSQL_FRIENDS
+
+static void mysql_update_peer(char *peer, struct sockaddr_in *sin)
+{
+	if (mysql && (strlen(peer) < 128)) {
+		char query[512];
+		char *name;
+		time_t nowtime;
+		name = alloca(strlen(peer) * 2 + 1);
+		time(&nowtime);
+		mysql_real_escape_string(mysql, name, peer, strlen(peer));
+		snprintf(query, sizeof(query), "UPDATE iax1friends SET ipaddr=\"%s\", port=\"%d\", regseconds=\"%ld\" WHERE name=\"%s\"", 
+			inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), nowtime, name);
+		ast_mutex_lock(&mysqllock);
+		if (mysql_real_query(mysql, query, strlen(query))) 
+			ast_log(LOG_WARNING, "Unable to update database\n");
+			
+		ast_mutex_unlock(&mysqllock);
+	}
+}
+
+static struct iax_peer *mysql_peer(char *peer)
+{
+	struct iax_peer *p;
+	int success = 0;
+	
+	p = malloc(sizeof(struct iax_peer));
+	memset(p, 0, sizeof(struct iax_peer));
+	if (mysql && (strlen(peer) < 128)) {
+		char query[512];
+		char *name;
+		int numfields, x;
+		int port;
+		time_t regseconds, nowtime;
+		MYSQL_RES *result;
+		MYSQL_FIELD *fields;
+		MYSQL_ROW rowval;
+		name = alloca(strlen(peer) * 2 + 1);
+		mysql_real_escape_string(mysql, name, peer, strlen(peer));
+		snprintf(query, sizeof(query), "SELECT * FROM iax1friends WHERE name=\"%s\"", name);
+		ast_mutex_lock(&mysqllock);
+		mysql_query(mysql, query);
+		if ((result = mysql_store_result(mysql))) {
+			if ((rowval = mysql_fetch_row(result))) {
+				numfields = mysql_num_fields(result);
+				fields = mysql_fetch_fields(result);
+				success = 1;
+				for (x=0;x<numfields;x++) {
+					if (rowval[x]) {
+						if (!strcasecmp(fields[x].name, "secret")) {
+							strncpy(p->secret, rowval[x], sizeof(p->secret));
+						} else if (!strcasecmp(fields[x].name, "context")) {
+							strncpy(p->context, rowval[x], sizeof(p->context) - 1);
+						} else if (!strcasecmp(fields[x].name, "ipaddr")) {
+							inet_aton(rowval[x], &p->addr.sin_addr);
+						} else if (!strcasecmp(fields[x].name, "port")) {
+							if (sscanf(rowval[x], "%i", &port) != 1)
+								port = 0;
+							p->addr.sin_port = htons(port);
+						} else if (!strcasecmp(fields[x].name, "regseconds")) {
+							if (sscanf(rowval[x], "%li", &regseconds) != 1)
+								regseconds = 0;
+						}
+					}
+				}
+				time(&nowtime);
+				if ((nowtime - regseconds) > AST_DEFAULT_REG_EXPIRE) 
+					memset(&p->addr, 0, sizeof(p->addr));
+			}
+		}
+		ast_mutex_unlock(&mysqllock);
+	}
+	if (!success) {
+		free(p);
+		p = NULL;
+	} else {
+		strncpy(p->name, peer, sizeof(p->name) - 1);
+		p->dynamic = 1;
+		p->delme = 1;
+		p->capability = iax_capability;
+		strcpy(p->methods, "md5,plaintext");
+	}
+	return p;
+}
+#endif /* MYSQL_FRIENDS */
+
 static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context)
 {
 	struct hostent *hp;
@@ -1516,28 +1614,38 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 	p = peerl.peers;
 	while(p) {
 		if (!strcasecmp(p->name, peer)) {
-			found++;
-			if (capability)
-				*capability = p->capability;
-			if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
-				(!p->maxms || ((p->lastms > 0)  && (p->lastms <= p->maxms)))) {
-				if (sendani)
-					*sendani = p->sendani;		/* Whether we transmit ANI */
-				if (maxtime)
-					*maxtime = p->maxms;		/* Max time they should take */
-				if (context)
-					strncpy(context, p->context, AST_MAX_EXTENSION - 1);
-				if (p->addr.sin_addr.s_addr) {
-					sin->sin_addr = p->addr.sin_addr;
-					sin->sin_port = p->addr.sin_port;
-				} else {
-					sin->sin_addr = p->defaddr.sin_addr;
-					sin->sin_port = p->defaddr.sin_port;
-				}
-				break;
-			}
+			break;
 		}
 		p = p->next;
+	}
+#ifdef MYSQL_FRIENDS
+	if (!p)
+		p = mysql_peer(peer);
+#endif		
+	if (p) {
+		found++;
+		if (capability)
+			*capability = p->capability;
+		if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
+			(!p->maxms || ((p->lastms > 0)  && (p->lastms <= p->maxms)))) {
+			if (sendani)
+				*sendani = p->sendani;		/* Whether we transmit ANI */
+			if (maxtime)
+				*maxtime = p->maxms;		/* Max time they should take */
+			if (context)
+				strncpy(context, p->context, AST_MAX_EXTENSION - 1);
+			if (p->addr.sin_addr.s_addr) {
+				sin->sin_addr = p->addr.sin_addr;
+				sin->sin_port = p->addr.sin_port;
+			} else {
+				sin->sin_addr = p->defaddr.sin_addr;
+				sin->sin_port = p->defaddr.sin_port;
+			}
+		} else {
+			if (p->delme) 
+				free(p);
+			p = NULL;
+		}
 	}
 	ast_mutex_unlock(&peerl.lock);
 	if (!p && !found) {
@@ -1552,8 +1660,9 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 		}
 	} else if (!p)
 		return -1;
-	else
-		return 0;
+	if (p->delme)
+		free(p);
+	return 0;
 }
 
 static int auto_congest(void *nothing)
@@ -2699,6 +2808,10 @@ static int register_verify(int callno, struct sockaddr_in *sin, char *orequest)
 		if (!strcasecmp(p->name, peer))
 			break;
 
+#ifdef MYSQL_FRIENDS
+	if (!p) 
+		p = mysql_peer(peer);
+#endif
 	if (!p) {
 		ast_log(LOG_NOTICE, "No registration for peer '%s' (from %s)\n", peer, inet_ntoa(sin->sin_addr));
 		return -1;
@@ -2706,17 +2819,21 @@ static int register_verify(int callno, struct sockaddr_in *sin, char *orequest)
 
 	if (!p->dynamic) {
 		ast_log(LOG_NOTICE, "Peer '%s' is not dynamic (from %s)\n", peer, inet_ntoa(sin->sin_addr));
+		if (p->delme)
+			free(p);
 		return -1;
 	}
 
 	if (!ast_apply_ha(p->ha, sin)) {
 		ast_log(LOG_NOTICE, "Host %s denied access to register peer '%s'\n", inet_ntoa(sin->sin_addr), p->name);
+		if (p->delme)
+			free(p);
 		return -1;
 	}
 	strncpy(iaxs[callno]->secret, p->secret, sizeof(iaxs[callno]->secret)-1);
 	strncpy(iaxs[callno]->inkeys, p->inkeys, sizeof(iaxs[callno]->inkeys)-1);
 	/* Check secret against what we have on file */
-	if (strlen(rsasecret) && strstr(p->methods, "rsa") && strlen(p->challenge)) {
+	if (strlen(rsasecret) && strstr(p->methods, "rsa") && strlen(iaxs[callno]->challenge)) {
 		if (strlen(p->inkeys)) {
 			char tmpkeys[256];
 			char *stringp=NULL;
@@ -2725,7 +2842,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, char *orequest)
 			keyn = strsep(&stringp, ":");
 			while(keyn) {
 				key = ast_key_get(keyn, AST_KEY_PUBLIC);
-				if (key && !ast_check_signature(key, p->challenge, rsasecret)) {
+				if (key && !ast_check_signature(key, iaxs[callno]->challenge, rsasecret)) {
 					iaxs[callno]->state |= IAX_STATE_AUTHENTICATED;
 					break;
 				} else if (!key) 
@@ -2734,41 +2851,53 @@ static int register_verify(int callno, struct sockaddr_in *sin, char *orequest)
 			}
 			if (!keyn) {
 				ast_log(LOG_NOTICE, "Host %s failed RSA authentication with inkeys '%s'\n", peer, p->inkeys);
+				if (p->delme)
+					free(p);
 				return -1;
 			}
 		} else {
 			ast_log(LOG_NOTICE, "Host '%s' trying to do RSA authentication, but we have no inkeys\n", peer);
+			if (p->delme)
+				free(p);
 			return -1;
 		}
 	} else if (strlen(secret) && strstr(p->methods, "plaintext")) {
 		/* They've provided a plain text password and we support that */
 		if (strcmp(secret, p->secret)) {
 			ast_log(LOG_NOTICE, "Host %s did not provide proper plaintext password for '%s'\n", inet_ntoa(sin->sin_addr), p->name);
+			if (p->delme)
+				free(p);
 			return -1;
 		} else
 			iaxs[callno]->state |= IAX_STATE_AUTHENTICATED;
-	} else if (strlen(md5secret) && strstr(p->methods, "md5") && strlen(p->challenge)) {
+	} else if (strlen(md5secret) && strstr(p->methods, "md5") && strlen(iaxs[callno]->challenge)) {
 		struct MD5Context md5;
 		unsigned char digest[16];
 		MD5Init(&md5);
-		MD5Update(&md5, p->challenge, strlen(p->challenge));
+		MD5Update(&md5, iaxs[callno]->challenge, strlen(iaxs[callno]->challenge));
 		MD5Update(&md5, p->secret, strlen(p->secret));
 		MD5Final(digest, &md5);
 		for (x=0;x<16;x++)
 			MYSNPRINTF "%2.2x", digest[x]);
 		if (strcasecmp(requeststr, md5secret)) {
 			ast_log(LOG_NOTICE, "Host %s failed MD5 authentication for '%s' (%s != %s)\n", inet_ntoa(sin->sin_addr), p->name, requeststr, md5secret);
+			if (p->delme)
+				free(p);
 			return -1;
 		} else
 			iaxs[callno]->state |= IAX_STATE_AUTHENTICATED;
 	} else if (strlen(md5secret) || strlen(secret)) {
 		ast_log(LOG_NOTICE, "Inappropriate authentication received\n");
+		if (p->delme)
+			free(p);
 		return -1;
 	}
 	strncpy(iaxs[callno]->peer, peer, sizeof(iaxs[callno]->peer)-1);
 	/* Choose lowest expirey number */
 	if (expire && (expire < iaxs[callno]->expirey)) 
 		iaxs[callno]->expirey = expire;
+	if (p->delme)
+		free(p);
 	return 0;
 	
 }
@@ -3223,27 +3352,40 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 	struct iax_peer *p;
 	for (p = peerl.peers;p;p = p->next) {
 		if (!strcasecmp(name, p->name)) {
-			if (memcmp(&p->addr, sin, sizeof(p->addr))) {
-				if (iax_regfunk)
-					iax_regfunk(p->name, 1);
-				if  (option_verbose > 2)
+			break;
+		}
+	}
+#ifdef MYSQL_FRIENDS
+	if (!p)
+		p = mysql_peer(name);
+#endif	
+	if (p) {
+#ifdef MYSQL_FRIENDS
+		if (p->delme)
+			mysql_update_peer(name, sin);
+#endif
+		if (memcmp(&p->addr, sin, sizeof(p->addr))) {
+			if (iax_regfunk)
+				iax_regfunk(p->name, 1);
+			if  (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Registered '%s' (%s) at %s:%d\n", p->name, 
 					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", inet_ntoa(sin->sin_addr), htons(sin->sin_port));
-				iax_poke_peer(p);
-			}		
-			/* Update the host */
-			memcpy(&p->addr, sin, sizeof(p->addr));
-			/* Setup the expirey */
-			if (p->expire > -1)
-				ast_sched_del(sched, p->expire);
-			p->expire = ast_sched_add(sched, p->expirey * 1000, expire_registry, (void *)p);
-			MYSNPRINTF "peer=%s;yourip=%s;yourport=%d;refresh=%d;",
-				p->name, inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), p->expirey);
-			if (p->hascallerid)
-				MYSNPRINTF "callerid=%s;", p->callerid);
-			requeststr[strlen(requeststr)-1] = '\0';
-			return send_command_final(iaxs[callno], AST_FRAME_IAX, AST_IAX_COMMAND_REGACK, 0, requeststr, strlen(requeststr) + 1, -1);;
-		}
+			iax_poke_peer(p);
+		}		
+		/* Update the host */
+		memcpy(&p->addr, sin, sizeof(p->addr));
+		/* Setup the expirey */
+		if (p->expire > -1)
+			ast_sched_del(sched, p->expire);
+		p->expire = ast_sched_add(sched, p->expirey * 1000, expire_registry, (void *)p);
+		MYSNPRINTF "peer=%s;yourip=%s;yourport=%d;refresh=%d;",
+			p->name, inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), p->expirey);
+		if (p->hascallerid)
+			MYSNPRINTF "callerid=%s;", p->callerid);
+		requeststr[strlen(requeststr)-1] = '\0';
+		if (p->delme)
+			free(p);
+		return send_command_final(iaxs[callno], AST_FRAME_IAX, AST_IAX_COMMAND_REGACK, 0, requeststr, strlen(requeststr) + 1, -1);;
 	}
 	ast_log(LOG_WARNING, "No such peer '%s'\n", name);
 	return -1;
@@ -3255,16 +3397,25 @@ static int registry_authrequest(char *name, int callno)
 	struct iax_peer *p;
 	for (p = peerl.peers;p;p = p->next) {
 		if (!strcasecmp(name, p->name)) {
-			MYSNPRINTF "methods=%s;", p->methods);
-			if (strstr(p->methods, "md5") || strstr(p->methods, "rsa")) {
-				/* Build the challenge */
-				snprintf(p->challenge, sizeof(p->challenge), "%d", rand());
-				MYSNPRINTF "challenge=%s;", p->challenge);
-			}
-			MYSNPRINTF "peer=%s;", name);
-			requeststr[strlen(requeststr)-1] = '\0';
-			return send_command(iaxs[callno], AST_FRAME_IAX, AST_IAX_COMMAND_REGAUTH, 0, requeststr, strlen(requeststr) + 1, -1);;
+			break;
 		}
+	}
+#ifdef MYSQL_FRIENDS
+	if (!p)
+		p = mysql_peer(name);
+#endif	
+	if (p) {
+		MYSNPRINTF "methods=%s;", p->methods);
+		if (strstr(p->methods, "md5") || strstr(p->methods, "rsa")) {
+			/* Build the challenge */
+			snprintf(iaxs[callno]->challenge, sizeof(iaxs[callno]->challenge), "%d", rand());
+			MYSNPRINTF "challenge=%s;", iaxs[callno]->challenge);
+		}
+		MYSNPRINTF "peer=%s;", name);
+		requeststr[strlen(requeststr)-1] = '\0';
+		if (p->delme)
+			free(p);
+		return send_command(iaxs[callno], AST_FRAME_IAX, AST_IAX_COMMAND_REGAUTH, 0, requeststr, strlen(requeststr) + 1, -1);
 	}
 	ast_log(LOG_WARNING, "No such peer '%s'\n", name);
 	return 0;
@@ -4662,6 +4813,17 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 			} else {
 				amaflags = format;
 			}
+		
+#ifdef MYSQL_FRIENDS
+		} else if (!strcasecmp(v->name, "dbuser")) {
+			strncpy(mydbuser, v->value, sizeof(mydbuser) - 1);
+		} else if (!strcasecmp(v->name, "dbpass")) {
+			strncpy(mydbpass, v->value, sizeof(mydbpass) - 1);
+		} else if (!strcasecmp(v->name, "dbhost")) {
+			strncpy(mydbhost, v->value, sizeof(mydbhost) - 1);
+		} else if (!strcasecmp(v->name, "dbname")) {
+			strncpy(mydbname, v->value, sizeof(mydbname) - 1);
+#endif
 		} //else if (strcasecmp(v->name,"type"))
 		//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 		v = v->next;
@@ -4698,6 +4860,21 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 		cat = ast_category_browse(cfg, cat);
 	}
 	ast_destroy(cfg);
+#ifdef MYSQL_FRIENDS
+	/* Connect to db if appropriate */
+	if (strlen(mydbname)) {
+		mysql = mysql_init(NULL);
+		if (!mysql_real_connect(mysql, mydbhost[0] ? mydbhost : NULL, mydbuser, mydbpass, mydbname, 0, NULL, 0)) {
+			memset(mydbpass, '*', strlen(mydbpass));
+			ast_log(LOG_WARNING, "Database connection failed (db=%s, host=%s, user=%s, pass=%s)!\n",
+				mydbname, mydbhost, mydbuser, mydbpass);
+			free(mysql);
+			mysql = NULL;
+		} else
+			ast_verbose(VERBOSE_PREFIX_1 "Connected to database '%s' on '%s' as '%s'\n",
+				mydbname, mydbhost, mydbuser);
+	}
+#endif
 	return capability;
 }
 
