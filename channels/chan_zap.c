@@ -4794,6 +4794,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_FXOLS:
 		case SIG_FXOGS:
 		case SIG_FXOKS:
+		        zt_set_hook(i->subs[SUB_REAL].zfd, ZT_OFFHOOK);
 			if (i->cidspill) {
 				/* Cancel VMWI spill */
 				free(i->cidspill);
