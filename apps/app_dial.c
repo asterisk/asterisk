@@ -290,6 +290,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	int to;
 	int allowredir=0;
 	char numsubst[AST_MAX_EXTENSION];
+	char restofit[AST_MAX_EXTENSION];
 	char *newnum;
 	
 	if (!data) {
@@ -329,7 +330,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		strncpy(numsubst, number, sizeof(numsubst));
 		/* If we're dialing by extension, look at the extension to know what to dial */
 		if ((newnum = strstr(numsubst, "BYEXTENSION"))) {
-			snprintf(newnum, sizeof(numsubst) - (newnum - numsubst), "%s", chan->exten);
+			strncpy(restofit, newnum + strlen("BYEXTENSION"), sizeof(restofit));
+			snprintf(newnum, sizeof(numsubst) - (newnum - numsubst), "%s%s", chan->exten,restofit);
 			/* By default, if we're dialing by extension, don't permit redirecting */
 			tmp->allowredirect = 0;
 			if (option_debug)
