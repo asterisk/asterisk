@@ -75,7 +75,19 @@ threewaycalling=yes
 ;
 transfer=yes
 ;
+; Support call forward variable
+;
+cancallforward=yes
+;
+; Stutter dialtone support: If a mailbox is specified, then when voicemail
+; is received in that mailbox, taking the phone off hook will cause
+; a stutter dialtone instead of a normal one
+;
+;mailbox=1234
+;
 ; Enable echo cancellation 
+; Use either "yes", "no", or a power of two from 32 to 256 if you wish
+; to actually set the number of taps of cancellation.
 ;
 echocancel=yes
 ;
