@@ -54,8 +54,8 @@ int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, char *di
 //! Stream a filename (or file descriptor) as a generator.
 int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, int allowoverride);
 
-//! Stream a file with fast forward and reverse.
-int ast_control_streamfile(struct ast_channel *chan, char *file, char *f, char *r, int skipms);
+//! Stream a file with fast forward, pause, reverse.
+int ast_control_streamfile(struct ast_channel *chan, char *file,char *fwd,char *rev,char *stop,char *pause,int skipms);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
