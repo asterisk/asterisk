@@ -4,35 +4,31 @@
 
 	     First public release on November 10th, 2002
 
+		Dependancies:	openssl-0.9.6b+
+				openssl-devel-0.9.6b+
+	       			expat-1.95+
+	       			expat-dev-1.95+
 
-		Dependancies:	openssl-0.9.6b
-				openssl-devel-0.9.6b
-	       			expat-1.95
-	       			expat-dev-1.95
+This code was recently updated to deal with Open H.323 v1.14.4 and PWLib
+v1.7.5. Not much testing has been done, please test and report your findings.
 
-This code runs on Open H.323 v1.12.2 and PWLib v1.5.2. If you use different 
-versions, you are on your own. See the Makefile for more details.
-
-chan_h323 has been implemented using Asterisk's RTP stack insted of trying
-to implement a pseudo sound card driver. I feel this is more effiecent,
-due to the Asterisk.
+You can find the Open H.323 source here: http://www.sf.net/projects/openh323/
 
 NOTICE: Whatever you do, DO NOT USE distrubution specific installs
 of Open H.323 and PWLib. In fact you should check to make sure 
-your distro didn't install them for you without your knowledge.
-Check everything out of CVS. If you dont know how to deal with cvs, learn. 
-Also, if you are not using the listed versions of Open H.323 or PWlib 
-you are on your own, sorry. 
+your distro did not install them for you without your knowledge.
 
 
-To compile this code:
-Once PWLib and Open H.323 have been compiled per their specific build instructions, issue 
-a make in the asterisk/channels/h323 directory, then go back to the Asterisk source 
-top level directory and issue a make install.
+To compile this code
+--------------------
+Once PWLib and Open H.323 have been compiled per their specific build 
+instructions, issue  a make in the asterisk/channels/h323 directory, 
+then go back to the Asterisk source top level directory and issue a make
+install.
 
 
-Most common compile error  
-
+The most common compile error  
+----------------------------
 If you receive ANYTHING that says 'undefined symbol' you are experiencing
 typical version skew.  For example:
 
@@ -55,11 +51,9 @@ make
 cd /path/to/asterisk
 make install 
 
-(Note: Open H.323 or PWLib never get a 'make install' so don't do it)
- 
 
 Most common run-time error
-
+-------------------------
 libpt_linux_x86_r.so.1: cannot open shared object file: No such 
 file or directory
 
@@ -81,7 +75,7 @@ envrionment can pick up the new variables.
 
 
 Upgrading Asterisk
-
+-----------------
 After you cvs update (or make update) Asterisk you have to go into
 asterisk/channels/h323 and issue a make clean all, before compiling the
 rest of asterisk. Doing this process every time you upgrade Asterisk
@@ -89,31 +83,32 @@ will ensure a sane build.
 
 
 Dialing an H.323 channel
-
-Note: At the present time chan_h323 does not support dialing with a type=peer.
-
+------------------------
 Without a gatekeeper:
 
-exten => _1NXXNXXXXXX,1,Dial,H323/${EXTEN}@ip.address.or.hostname/callerid
+exten => _1NXXNXXXXXX,1,Dial,H323/${EXTEN}@peer
+or
+exten => _1NXXNXXXXXX,1,Dial,H323/${EXTEN}@ip.or.hostname
 
 Using a gatekeeper:
 
 exten => _1NXXNXXXXXX,1,Dial,H323/${EXTEN}
 
-The 'callerid' is optional. If omitted the callerid will be determined by
-any type=h323 stanzas in h323.conf
+Notice: When using a gatekeeper you cannot utilize the type=peer features,
+since the H.323 spec states that when a Gatekeeper is part of an H.323 network, 
+the Gatekeeper shall be used for all communication. 
 
 
 Developer Contact
+----------------
+If you have trouble contact 'JerJer' in #Asterisk on 
+irc.freenode.net and/or send reasonable debug information to support@nufone.net.
 
-If you are still having trouble contact 'JerJer' in #Asterisk on 
-irc.freenode.net or send reasonable debug information to support@nufone.net.
+If are lucky enough to segfault this code please run a 
+backtrace and send the gory details. Segmentation faults are not
+tolerated, no matter what Distro you run (even debian)!
 
-If you happen to be lucky enough to segfault this code please run a 
-backtrace and send me the gory details. Segmentation faults are not
-tolerated, no matter what Distro you run!
-
-bt example:
+a simple bt example:
 
 # /usr/sbin/asterisk -vvvgc
 ...
@@ -124,19 +119,20 @@ Segmentation Fault (core dumped)
 core.1976
 
 # gdb /usr/sbin/asterisk core.1976
-...lots of useless garbage here..
+...lots of useless garbage here...
 (gdb) bt
 
 Send whatever shows up right after the 'bt'
 
 Also, a full debug screen output is almost needed. Make sure you are 
 in the full console mode (-c) and turn on 'h.323 debug' or worst case
-senerio 'h.323 trace 4'. 
+senerio 'h.323 trace 4'. A nice way to capture debug info is with 
+script (man script). 
 
-If you are motivated to make debug show up on a remote (-r) console, 
-please submit a patch to the Asterisk bug tracker: http://bugs.digium.com/
+If you are motivated to update/fix this code please submit a 
+disclaimer along with the patch to the Asterisk bug 
+tracker: http://bugs.digium.com/
 
-A nice way to capture debug is with script (man script) 
 
 Jeremy McNamara
 The NuFone Network 
