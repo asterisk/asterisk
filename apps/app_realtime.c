@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * App to transmit a URL
+ * RealTime App
  * 
  * Copyright (C) 1999-2004, Digium, Inc.
  *
@@ -11,7 +11,7 @@
  * This program is free software, distributed under the terms of
  * the GNU General Public License
  */
- 
+
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -23,25 +23,62 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+
 #define next_one(var) var = var->next
 #define crop_data(str) { *(str) = '\0' ; (str)++; }
 
-
-static char *tdesc = "Realtime Data Lookup";
+static char *tdesc = "Realtime Data Lookup/Rewrite";
 static char *app = "RealTime";
+static char *uapp = "RealTimeUpdate";
 static char *synopsis = "Realtime Data Lookup";
+static char *usynopsis = "Realtime Data Rewrite";
 static char *USAGE = "RealTime(<family>|<colmatch>|<value>[|<prefix>])";
+static char *UUSAGE = "RealTimeUpdate(<family>|<colmatch>|<value>|<newcol>|<newval>)";
 static char *desc = "Use the RealTime config handler system to read data into channel variables.\n"
 "RealTime(<family>|<colmatch>|<value>[|<prefix>])\n\n"
 "All unique column names will be set as channel variables with optional prefix to the name.\n"
 "e.g. prefix of 'var_' would make the column 'name' become the variable ${var_name}\n\n";
-
-
-
+static char *udesc = "Use the RealTime config handler system to update a value\n"
+"RealTimeUpdate(<family>|<colmatch>|<value>|<newcol>|<newval>)\n\n"
+"The column <newcol> in 'family' matching column <colmatch>=<value> will be updated to <newval>\n";
 
 STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
+
+static int realtime_update_exec(struct ast_channel *chan, void *data) {
+	char *family=NULL, *colmatch=NULL, *value=NULL, *newcol=NULL, *newval=NULL;
+	struct localuser *u;
+	int res = 0;
+	if (!data) {
+        ast_log(LOG_ERROR,"Invalid input %s\n",UUSAGE);
+        return -1;
+    }
+	LOCAL_USER_ADD(u);
+	if ((family = ast_strdupa(data))) {
+		if ((colmatch = strchr(family,'|'))) {
+			crop_data(colmatch);
+			if ((value = strchr(colmatch,'|'))) {
+				crop_data(value);
+				if ((newcol = strchr(value,'|'))) {
+					crop_data(newcol);
+					if ((newval = strchr(newcol,'|'))) 
+						crop_data(newval);
+				}
+			}
+		}
+	}
+	if (! (family && value && colmatch && newcol && newval) ) {
+		ast_log(LOG_ERROR,"Invalid input: usage %s\n",UUSAGE);
+		res = -1;
+	} else {
+		ast_update_realtime(family,colmatch,value,newcol,newval,NULL);
+	}
+
+	LOCAL_USER_REMOVE(u);
+	return res;
+
+}
+
 
 static int realtime_exec(struct ast_channel *chan, void *data)
 {
@@ -96,11 +133,13 @@ static int realtime_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
+	ast_unregister_application(uapp);
 	return ast_unregister_application(app);
 }
 
 int load_module(void)
 {
+	ast_register_application(uapp, realtime_update_exec, usynopsis, udesc);
 	return ast_register_application(app, realtime_exec, synopsis, desc);
 }
 
