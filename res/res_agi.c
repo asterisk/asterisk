@@ -1160,6 +1160,35 @@ static int help_workhorse(int fd, char *match[])
 	return 0;
 }
 
+static int agi_register(agi_command *agi)
+{
+	int x;
+	for (x=0;x<MAX_COMMANDS - 1;x++) {
+		if (commands[x].cmda[0] == agi->cmda[0]) {
+			ast_log(LOG_WARNING, "Command already registered!\n");
+			return -1;
+		}
+	}
+	for (x=0;x<MAX_COMMANDS - 1;x++) {
+		if (!commands[x].cmda[0]) {
+			commands[x] = *agi;
+			return 0;
+		}
+	}
+	ast_log(LOG_WARNING, "No more room for new commands!\n");
+	return -1;
+}
+
+static void agi_unregister(agi_command *agi)
+{
+	int x;
+	for (x=0;x<MAX_COMMANDS - 1;x++) {
+		if (commands[x].cmda[0] == agi->cmda[0]) {
+			memset(&commands[x], 0, sizeof(agi_command));
+		}
+	}
+}
+
 static agi_command *find_command(char *cmds[], int exact)
 {
 	int x;
