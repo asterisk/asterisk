@@ -305,9 +305,22 @@ int ast_load_resource(char *resource_name)
 		if (option_verbose)
 			ast_verbose(VERBOSE_PREFIX_1 "Loaded %s => (%s)\n", fn, m->description());
 	}
-	m->next = module_list;
+
+	// add module 'm' to end of module_list chain
+	// so reload commands will be issued in same order modules were loaded
+	m->next = NULL;
+	if (module_list == NULL) {
+		// empty list so far, add at front
+		module_list = m;
+	}
+	else {
+		struct module *i;
+		// find end of chain, and add there
+		for (i = module_list; i->next; i = i->next)
+			;
+		i->next = m;
+	}
 	
-	module_list = m;
 	ast_mutex_unlock(&modlock);
 	if ((res = m->load_module())) {
 		ast_log(LOG_WARNING, "%s: load_module failed, returning %d\n", m->resource, res);
