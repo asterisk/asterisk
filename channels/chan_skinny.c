@@ -2623,6 +2623,7 @@ static int get_input(struct skinnysession *s)
 		dlen = *(int *)s->inbuf;
 		if (dlen+8 > sizeof(s->inbuf))
 			dlen = sizeof(s->inbuf) - 8;
+		*(int *)s->inbuf = dlen;
 		res = read(s->fd, s->inbuf+4, dlen+4);
 		ast_mutex_unlock(&s->lock);
 		if (res != (dlen+4)) {
