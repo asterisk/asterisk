@@ -450,11 +450,14 @@ static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
 	
         FILE *configin;
         FILE *configout;
+		int linenum=0;
 		char inbuf[256];
 		char orig[256];
+		char currcontext[256] ="";
 		char tmpin[AST_CONFIG_MAX_PATH];
 		char tmpout[AST_CONFIG_MAX_PATH];
-		char *user, *pass, *rest, *trim;
+		char *user, *pass, *rest, *trim, *tempcontext;
+		tempcontext = NULL;
 		snprintf((char *)tmpin, sizeof(tmpin)-1, "%s/voicemail.conf",(char *)ast_config_AST_CONFIG_DIR);
 		snprintf((char *)tmpout, sizeof(tmpout)-1, "%s/voicemail.conf.new",(char *)ast_config_AST_CONFIG_DIR);
         configin = fopen((char *)tmpin,"r");
@@ -477,6 +480,7 @@ static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
         while (!feof(configin)) {
 			/* Read in the line */
 			fgets(inbuf, sizeof(inbuf), configin);
+			linenum++;
 			if (!feof(configin)) {
 				/* Make a backup of it */
 				memcpy(orig, inbuf, sizeof(orig));
@@ -488,6 +492,18 @@ static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
 				user=inbuf;
 				while(*user < 33)
 					user++;
+				/* check for '[' (opening of context name ) */
+				tempcontext = strchr(user, '[');
+				if (tempcontext) {
+					strncpy(currcontext, tempcontext +1,
+						 sizeof(currcontext) - 1);
+					/* now check for ']' */
+					tempcontext = strchr(currcontext, ']');
+					if (tempcontext) 
+						*tempcontext = '\0';
+					else
+						currcontext[0] = '\0';
+				}
 				pass = strchr(user, '=');
 				if (pass > user) {
 					trim = pass - 1;
@@ -512,7 +528,11 @@ static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
 					}
 				} else
 					rest = NULL;
-				if (user && pass && *user && *pass && !strcmp(user, vmu->mailbox) && !strcmp(pass, vmu->password)) {
+				
+				/* Compare user, pass AND context */
+				if (user && *user && !strcmp(user, vmu->mailbox) &&
+					 pass && *pass && !strcmp(pass, vmu->password) &&
+					 currcontext && *currcontext && !strcmp(currcontext, vmu->context)) {
 					/* This is the line */
 					if (rest) {
 						fprintf(configout, "%s => %s,%s\n", vmu->mailbox,newpassword,rest);
