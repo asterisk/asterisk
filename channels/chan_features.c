@@ -427,7 +427,7 @@ static struct ast_channel *features_request(const char *type, int format, void *
 	struct feature_pvt *p;
 	struct ast_channel *chan = NULL;
 	p = features_alloc(data, format);
-	if (!p->subs[SUB_REAL].owner)
+	if (p && !p->subs[SUB_REAL].owner)
 		chan = features_new(p, AST_STATE_DOWN, SUB_REAL);
 	return chan;
 }
