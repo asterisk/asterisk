@@ -530,6 +530,10 @@ static void *accept_thread(void *ignore)
 	struct sockaddr_in sin;
 	int sinlen;
 	struct mansession *s;
+	pthread_attr_t attr;
+
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	for (;;) {
 		sinlen = sizeof(sin);
 		as = accept(asock, &sin, &sinlen);
@@ -550,9 +554,10 @@ static void *accept_thread(void *ignore)
 		s->next = sessions;
 		sessions = s;
 		ast_pthread_mutex_unlock(&sessionlock);
-		if (pthread_create(&t, NULL, session_do, s))
+		if (pthread_create(&t, &attr, session_do, s))
 			destroy_session(s);
 	}
+	pthread_attr_destroy(&attr);
 	return NULL;
 }
 

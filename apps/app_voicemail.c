@@ -993,11 +993,8 @@ static int adsi_load_vmail(struct ast_channel *chan, int *useadsi)
 static void adsi_begin(struct ast_channel *chan, int *useadsi)
 {
 	int x;
-	if(!strcasecmp(chan->type, "sip")){
-	  *useadsi = 0;
+	if (!adsi_available(chan))
           return;
-        }
-
 	x = adsi_load_session(chan, adapp, adver, 1);
 	if (x < 0)
 		return;
@@ -1309,9 +1306,7 @@ static void adsi_goodbye(struct ast_channel *chan)
 {
 	char buf[256];
 	int bytes=0;
-	if(!strcasecmp(chan->type, "sip")){
-          return;
-        }
+
 	if (!adsi_available(chan))
 		return;
 	bytes += adsi_logo(buf + bytes);

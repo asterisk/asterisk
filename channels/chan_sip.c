@@ -937,6 +937,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		ast_setstate(tmp, state);
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
+		tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 		tmp->writeformat = fmt;
 		tmp->pvt->rawwriteformat = fmt;
 		tmp->readformat = fmt;

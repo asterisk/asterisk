@@ -670,7 +670,8 @@ static int ast_el_read_char(EditLine *el, char *cp)
 				write(STDOUT_FILENO, "\r", 1);
 			write(STDOUT_FILENO, buf, res);
 			if ((buf[res-1] == '\n') || (buf[res-2] == '\n')) {
-				break;
+				*cp = CC_REFRESH;
+				return(1);
 			} else {
 				lastpos = 1;
 			}

@@ -161,6 +161,8 @@ static int echocanbridged = 0;
 
 static int busydetect = 0;
 
+static int busycount = 3;
+
 static int callprogress = 0;
 
 static char accountcode[20] = "";
@@ -398,6 +400,7 @@ static struct zt_pvt {
 	int outgoing;
 	int dnd;
 	int busydetect;
+	int busycount;
 	int callprogress;
 	struct ast_dsp *dsp;
 	int cref;					/* Call reference number */
@@ -3326,6 +3329,9 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 				if (i->dsp) {
 					ast_dsp_set_features(i->dsp, features);
 					ast_dsp_digitmode(i->dsp, DSP_DIGITMODE_DTMF | i->dtmfrelax);
+					if (i->busydetect && CANBUSYDETECT(i)) {
+						ast_dsp_set_busy_count(i->dsp, i->busycount);
+						}
 				}
 			}
 		}
@@ -3806,6 +3812,15 @@ static void *ss_thread(void *data)
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Parking call to '%s'\n", chan->name);
 				break;
+			} else if (strlen(p->lastcallerid) && !strcmp(exten, "*80")) {
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Blacklisting number %s\n", p->lastcallerid);
+				res = ast_db_put("blacklist", p->lastcallerid, "1");
+				if (!res) {
+					res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
+					memset(exten, 0, sizeof(exten));
+					len = 0;
+				}
 			} else if (p->hidecallerid && !strcmp(exten, "*82")) {
 				if (option_verbose > 2) 
 					ast_verbose(VERBOSE_PREFIX_3 "Enabling Caller*ID on %s\n", chan->name);
@@ -4685,6 +4700,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		tmp->echocancel = echocancel;
 		tmp->echocanbridged = echocanbridged;
 		tmp->busydetect = busydetect;
+		tmp->busycount = busycount;
 		tmp->callprogress = callprogress;
 		tmp->cancallforward = cancallforward;
 		tmp->dtmfrelax = relaxdtmf;
@@ -6086,6 +6102,8 @@ int load_module()
 			echocanbridged = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "busydetect")) {
 			busydetect = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "busycount")) {
+			busycount = atoi(v->value);
 		} else if (!strcasecmp(v->name, "callprogress")) {
 			callprogress = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "echocancel")) {
@@ -6404,6 +6422,7 @@ static int reload_zt(void)
 	stripmsd = 0;
 	callwaiting = 0;
 	busydetect = 0;
+	busycount = 3;
 	callprogress = 0;
 	callwaitingcallerid = 0;
 	hidecallerid = 0;
@@ -6516,6 +6535,8 @@ static int reload_zt(void)
 			transfer = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "busydetect")) {
 			busydetect = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "busycount")) {
+			busycount = atoi(v->value);
 		} else if (!strcasecmp(v->name, "callprogress")) {
 			callprogress = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "hidecallerid")) {
