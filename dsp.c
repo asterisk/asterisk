@@ -596,7 +596,7 @@ static int dtmf_detect (dtmf_detect_state_t *s,
 				} /* Don't reset fax hits counter */
 		}
 #else /* OLD_DSP_ROUTINES */
-		if (!hit && (fax_energy >= DTMF_TO_TOTAL_ENERGY*s->energy)) {
+		if (!hit && (fax_energy >= FAX_THRESHOLD) && (fax_energy >= DTMF_TO_TOTAL_ENERGY*s->energy)) {
 #if 0
 				printf("Fax energy/Second Harmonic: %f\n", fax_energy);
 #endif					
