@@ -1041,11 +1041,15 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		data = chan->timingdata;
 		pthread_mutex_unlock(&chan->lock);
 		if (func) {
+#if 0
+			ast_log(LOG_DEBUG, "Calling private function\n");
+#endif			
 			func(data);
 		} else {
 			blah = 0;
 			pthread_mutex_lock(&chan->lock);
 			ioctl(chan->timingfd, ZT_TIMERCONFIG, &blah);
+			chan->timingdata = NULL;
 			pthread_mutex_unlock(&chan->lock);
 		}
 		f =  &null_frame;
@@ -1901,8 +1905,9 @@ static int ast_do_masquerade(struct ast_channel *original)
 	/* Update the type. */
 	original->type = clone->type;
 	/* Copy the FD's */
-	for (x=0;x<AST_MAX_FDS;x++)
+	for (x=0;x<AST_MAX_FDS;x++) {
 		original->fds[x] = clone->fds[x];
+	}
 	/* Move the variables */
 	tmpv = original->varshead.first;
 	original->varshead.first = clone->varshead.first;
@@ -1930,6 +1935,9 @@ static int ast_do_masquerade(struct ast_channel *original)
 	tmp = original->callerid;
 	original->callerid = clone->callerid;
 	clone->callerid = tmp;
+	
+	/* Restore original timing file descriptor */
+	original->fds[AST_MAX_FDS - 2] = original->timingfd;
 	
 	/* Our native formats are different now */
 	original->nativeformats = clone->nativeformats;
