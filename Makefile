@@ -189,6 +189,8 @@ ast_expr.o: ast_expr.c
 
 cli.o: cli.c build.h
 
+asterisk.o: asterisk.c build.h
+
 ifneq ($(strip $(ASTERISKVERSION)),)
 build.h: .version
 	./make_build_h
