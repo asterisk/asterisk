@@ -4928,14 +4928,15 @@ int pbx_builtin_serialize_variables(struct ast_channel *chan, char *buf, size_t 
 	if (chan) {
 		headp=&chan->varshead;
 		AST_LIST_TRAVERSE(headp,variables,entries) {
-			if(chan && variables && (var=ast_var_name(variables)) && (val=ast_var_value(variables))) {
+			if(chan && variables && (var=ast_var_name(variables)) && (val=ast_var_value(variables)) && !ast_strlen_zero(var) && !ast_strlen_zero(val)) {
 				snprintf(buf + strlen(buf), size - strlen(buf), "%s=%s\n", var, val);
 				if(strlen(buf) >= size) {
 					ast_log(LOG_ERROR,"Data Buffer Size Exceeded!\n");
 					break;
 				}
 				total++;
-			}
+			} else 
+				break;
 		}
 	}
 	
