@@ -476,7 +476,7 @@ struct ast_channel *ast_get_channel_by_name_locked(char *channame)
 		if (!strcasecmp(chan->name, channame))
 			return chan;
 		ast_mutex_unlock(&chan->lock);
-		chan = ast_channel_walk_locked(NULL);
+		chan = ast_channel_walk_locked(chan);
 	}
 	return NULL;
 }
