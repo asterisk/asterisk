@@ -4055,6 +4055,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 			if (!ast_strlen_zero(r->username)) {
 				strncpy(p->peername, r->username, sizeof(p->peername)-1);
 				strncpy(p->authname, r->username, sizeof(p->authname)-1);
+				strncpy(p->fromuser, r->username, sizeof(p->fromuser)-1);
 			}
 		}
 		if (!ast_strlen_zero(r->username))
