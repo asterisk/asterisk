@@ -6172,7 +6172,7 @@ static int sip_show_objects(int fd, int argc, char *argv[])
 static void  print_group(int fd, unsigned int group) 
 {
 	char buf[256];
-	ast_cli(fd, ast_print_group(buf, sizeof(buf), group) );
+	ast_cli(fd, "%s\n", ast_print_group(buf, sizeof(buf), group) );
 }
 
 /*--- dtmfmode2str: Convert DTMF mode to printable string ---*/
@@ -9176,6 +9176,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			peer->addr.sin_family = AF_INET;
 			peer->defaddr.sin_family = AF_INET;
 			peer->expiry = expiry;
+		}
+		/* If we have channel variables, remove them (reload) */
+		if(peer->chanvars) {
+			ast_variables_destroy(peer->chanvars);
+			peer->chanvars = NULL;
 		}
 		strncpy(peer->context, default_context, sizeof(peer->context)-1);
 		strncpy(peer->language, default_language, sizeof(peer->language)-1);
