@@ -47,7 +47,7 @@
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <net/if.h>
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 #include <net/if_dl.h>
 #include <ifaddrs.h>
 #endif
