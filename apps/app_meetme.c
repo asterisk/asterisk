@@ -938,14 +938,30 @@ outrun:
 		} else {
 			/* Remove the user struct */ 
 			if (user == conf->firstuser) {
-				user->nextuser->prevuser = NULL;
+				if (user->nextuser) {
+					/* There is another entry */
+					user->nextuser->prevuser = NULL;
+				} else {
+					/* We are the only entry */
+					conf->lastuser = NULL;
+				}
+				/* In either case */
 				conf->firstuser = user->nextuser;
 			} else if (user == conf->lastuser){
-				user->prevuser->nextuser = NULL;
+				if (user->prevuser)
+					user->prevuser->nextuser = NULL;
+				else
+					ast_log(LOG_ERROR, "Bad bad bad!  We're the last, not the first, but nobody before us??\n");
 				conf->lastuser = user->prevuser;
 			} else {
-				user->nextuser->prevuser = user->prevuser;
-				user->prevuser->nextuser = user->nextuser;
+				if (user->nextuser)
+					user->nextuser->prevuser = user->prevuser;
+				else
+					ast_log(LOG_ERROR, "Bad! Bad! Bad! user->nextuser is NULL but we're not the end!\n");
+				if (user->prevuser)
+					user->prevuser->nextuser = user->nextuser;
+				else
+					ast_log(LOG_ERROR, "Bad! Bad! Bad! user->prevuser is NULL but we're not the beginning!\n");
 			}
 			/* Return the number of seconds the user was in the conf */
 			sprintf(meetmesecs, "%i", (int) (user->jointime - time(NULL)));
