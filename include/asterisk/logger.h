@@ -31,7 +31,7 @@ extern void ast_verbose(char *fmt, ...);
 
 extern int ast_register_verbose(void (*verboser)(char *string, int opos, int replacelast, int complete));
 extern int ast_unregister_verbose(void (*verboser)(char *string, int opos, int replacelast, int complete));
-
+extern int ast_verbose_dmesg(void (*verboser)(char *string, int opos, int replacelast, int complete));
 #define _A_ __FILE__, __LINE__, __PRETTY_FUNCTION__
 
 #define LOG_DEBUG	0, _A_
