@@ -366,7 +366,8 @@ static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
  	} else {
 		ast_mutex_unlock(&peerl.lock);
 		peer = (struct oh323_peer*)malloc(sizeof(struct oh323_peer));
-		memset(peer, 0, sizeof(struct oh323_peer));
+		if (peer)
+			memset(peer, 0, sizeof(struct oh323_peer));
 	}
 	if (peer) {
 		if (!found) {
@@ -468,7 +469,7 @@ static int oh323_digit(struct ast_channel *c, char digit)
 		ast_rtp_senddigit(p->rtp, digit);
 	}
 	/* If in-band DTMF is desired, send that */
-	if (p->dtmfmode & H323_DTMF_INBAND) {
+	if (p && (p->dtmfmode & H323_DTMF_INBAND)) {
 		h323_send_tone(p->cd.call_token, digit);
 	}
 	return 0;
@@ -632,9 +633,9 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *pvt)
 				ast_set_write_format(pvt->owner, pvt->owner->writeformat);
 			}	
 			/* Do in-band DTMF detection */
-			if (pvt->dtmfmode & H323_DTMF_INBAND) {
+			if ((pvt->dtmfmode & H323_DTMF_INBAND) && pvt->vad) {
                    		f = ast_dsp_process(pvt->owner,pvt->vad,f);
-				if (f->frametype == AST_FRAME_DTMF) {
+				if (f &&(f->frametype == AST_FRAME_DTMF)) {
 					ast_log(LOG_DEBUG, "Received in-band digit %c.\n", f->subclass);
             			}
 			}
@@ -857,11 +858,11 @@ static struct oh323_pvt *oh323_alloc(int callid)
 	if ((pvt->cd).call_token == NULL) {
 		(pvt->cd).call_token = (char *)malloc(128);
 	}
-	memset((char *)(pvt->cd).call_token, 0, 128);
 	if (!pvt->cd.call_token) {
 		ast_log(LOG_ERROR, "Not enough memory to alocate call token\n");
 		return NULL;
 	}
+	memset((char *)(pvt->cd).call_token, 0, 128);
 	pvt->cd.call_reference = callid;
 	pvt->bridge = bridging;	
 	pvt->dtmfmode = dtmfmode;
