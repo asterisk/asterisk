@@ -816,13 +816,16 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	
 	/* Perform any pending masquerades */
 	for (x=0;x<n;x++) {
+		ast_pthread_mutex_lock(&c[x]->lock);
 		if (c[x]->masq) {
 			if (ast_do_masquerade(c[x])) {
 				ast_log(LOG_WARNING, "Masquerade failed\n");
 				*ms = -1;
+				ast_pthread_mutex_unlock(&c[x]->lock);
 				return NULL;
 			}
 		}
+		ast_pthread_mutex_unlock(&c[x]->lock);
 	}
 	
 	tv.tv_sec = *ms / 1000;
@@ -1309,22 +1312,30 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	int res = -1;
 	struct ast_frame *f = NULL;
 	/* Stop if we're a zombie or need a soft hangup */
-	if (chan->zombie || ast_check_hangup(chan)) 
+	ast_pthread_mutex_lock(&chan->lock);
+	if (chan->zombie || ast_check_hangup(chan))  {
+		ast_pthread_mutex_unlock(&chan->lock);
 		return -1;
+	}
 	/* Handle any pending masquerades */
 	if (chan->masq) {
 		if (ast_do_masquerade(chan)) {
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
+			ast_pthread_mutex_unlock(&chan->lock);
 			return -1;
 		}
 	}
-	if (chan->masqr)
+	if (chan->masqr) {
+		ast_pthread_mutex_unlock(&chan->lock);
 		return 0;
+	}
 	if (chan->generatordata) {
 		if (chan->writeinterrupt)
 			ast_deactivate_generator(chan);
-		else
+		else {
+			ast_pthread_mutex_unlock(&chan->lock);
 			return 0;
+		}
 	}
 	if (chan->fout & 0x80000000)
 		ast_frame_dump(chan->name, fr, ">>");
@@ -1382,6 +1393,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			chan->fout++;
 		chan->fout++;
 	}
+	ast_pthread_mutex_unlock(&chan->lock);
 	return res;
 }
 
