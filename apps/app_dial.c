@@ -431,6 +431,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				/* Got hung up */
 				*to=-1;
 				strncpy(status, "CANCEL", statussize - 1);
+				if (f)
+					ast_frfree(f);
 				return NULL;
 			}
 			if (f && (f->frametype == AST_FRAME_DTMF) && *allowdisconnect_out &&
@@ -439,6 +441,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 				*to=0;
 				strcpy(status, "CANCEL");
+				ast_frfree(f);
 				return NULL;
 			}
 			if (single && ((f->frametype == AST_FRAME_VOICE) || (f->frametype == AST_FRAME_DTMF)))  {
