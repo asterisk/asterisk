@@ -37,8 +37,6 @@
 /* This could all be done more efficiently *IF* we chained packets together
    by default, but it would also complicate virtually every application. */
    
-static char *type = "Trans";
-
 static pthread_mutex_t list_lock = PTHREAD_MUTEX_INITIALIZER;
 static struct ast_translator *list = NULL;
 
@@ -75,106 +73,6 @@ static int powerof(int d)
 	return -1;
 }
 
-struct translator_pvt {
-	/* Sockets for communication */
-	int comm[2];
-	struct ast_trans_pvt *system;
-	struct ast_trans_pvt *rsystem;
-	struct timeval lastpass;
-#ifdef EXPERIMENTAL_TRANSLATION
-	struct ast_frame_delivery *head;
-	struct ast_frame_delivery *tail;
-	struct sched_context *sched;
-#endif
-	pthread_t	threadid;
-};
-
-
-#ifdef EXPERIMENTAL_TRANSLATION
-static int deliver(void *data)
-{
-	struct ast_frame_delivery *del = data;
-	ast_log(LOG_DEBUG, "Delivering a packet\n");
-	if (del->f) {
-		if (del->chan)
-			ast_write(del->chan, del->f);
-		else
-			ast_fr_fdwrite(del->fd, del->f);
-		ast_frfree(del->f);
-	}
-	/* Take us out of the list */
-	if (del->prev) 
-		del->prev->next = del->next;
-	else
-		del->owner->head = del->next;
-	if (del->next)
-		del->next->prev = del->prev;
-	else
-		del->owner->tail = del->prev;
-	/* Free used memory */
-	free(del);
-	/* Never run again */
-	return 0;
-}
-
-/* Schedule the delivery of a packet in the near future, using the given context */
-static int schedule_delivery(struct sched_context *sched, struct translator_pvt *p, struct ast_channel *c, 
-							int fd, struct ast_frame *f, int ms)
-{
-	struct ast_frame_delivery *del;
-	ast_log(LOG_DEBUG, "Scheduling a packet delivery\n");
-	del = malloc(sizeof(struct ast_frame_delivery));
-	if (del) {
-		del->f = ast_frdup(f);
-		del->chan = c;
-		del->fd = fd;
-		del->owner = p;
-		if (p->tail) {
-			del->prev = p->tail;
-			p->tail = del;
-			del->next = NULL;
-		} else {
-			p->head = p->tail = del;
-			del->next = NULL;
-			del->prev = NULL;
-		}
-		ast_sched_add(sched, ms, deliver, del);
-		return 0;	
-	} else
-		return -1;
-}
-#endif
-static int translator_hangup(struct ast_channel *chan)
-{
-	ast_log(LOG_WARNING, "Explicit hangup on '%s' not recommended!  Call translator_destroy() instead.\n", chan->name);
-	chan->master->trans = NULL;
-	ast_hangup(chan->master);
-	chan->master = NULL;
-	return 0;
-}
-
-static int translator_send_digit(struct ast_channel *chan, char digit)
-{
-	/* Pass digits right along */
-	if (chan->master->pvt->send_digit)
-		return chan->master->pvt->send_digit(chan->master, digit);
-	return -1;
-}
-
-static int translator_call(struct ast_channel *chan, char *addr, int timeout)
-{
-	if (chan->master->pvt->call)
-		return chan->master->pvt->call(chan->master, addr, timeout);
-	return -1;
-}
-
-static int translator_answer(struct ast_channel *chan)
-{
-	if (chan->master->pvt->answer)
-		return chan->master->pvt->answer(chan->master);
-	return -1;
-}
-
 void ast_translator_free_path(struct ast_trans_pvt *p)
 {
 	struct ast_trans_pvt *pl;
@@ -187,30 +85,7 @@ void ast_translator_free_path(struct ast_trans_pvt *p)
 	}
 }
 
-static void ast_translator_free(struct translator_pvt *pvt)
-{
-#ifdef EXPERIMENTAL_TRANSLATION
-	struct ast_frame_delivery *d, *dl;
-	if (pvt->sched)
-		sched_context_destroy(pvt->sched);
-	d = pvt->head;
-	while(d) {
-		dl = d;
-		d = d->next;
-		ast_frfree(dl->f);
-		free(dl);
-	}
-#endif
-	ast_translator_free_path(pvt->system);
-	ast_translator_free_path(pvt->rsystem);
-	if (pvt->comm[0] > -1)
-		close(pvt->comm[0]);
-	if (pvt->comm[1] > -1)
-		close(pvt->comm[1]);
-	free(pvt);
-}
-
-struct ast_trans_pvt *ast_translator_build_path(int source, int dest)
+struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 {
 	struct ast_trans_pvt *tmpr = NULL, *tmp = NULL;
 	/* One of the hardest parts:  Build a set of translators based upon
@@ -253,277 +128,31 @@ struct ast_trans_pvt *ast_translator_build_path(int source, int dest)
 	return tmpr;
 }
 
-static struct ast_frame *translator_read(struct ast_channel *chan)
-{
-	return ast_fr_fdread(chan->fd);
-}
-
-static int translator_write(struct ast_channel *chan, struct ast_frame *frame)
-{
-	return ast_fr_fdwrite(chan->fd, frame);
-}
-
-struct ast_frame_chain *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f)
+struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f, int consume)
 {
 	struct ast_trans_pvt *p;
 	struct ast_frame *out;
-	struct ast_frame_chain *outc = NULL, *prev = NULL, *cur;
 	p = path;
 	/* Feed the first frame into the first translator */
 	p->step->framein(p->state, f);
+	if (consume)
+		ast_frfree(f);
 	while(p) {
-		/* Read all the frames from the current translator */
-		while((out = p->step->frameout(p->state)))  {
-			if (p->next) {
-				/* Feed to next layer */
-				p->next->step->framein(p->next->state, out);
-			} else {
-				/* Last layer -- actually do something */
-				cur = malloc(sizeof(struct ast_frame_chain));
-				if (!cur) {
-					/* XXX Leak majorly on a problem XXX */
-					ast_log(LOG_WARNING, "Out of memory\n");
-					return NULL;
-				}
-				if (prev) 
-					prev->next = cur;
-				else
-					outc = cur;
-				cur->fr = ast_frisolate(out);
-				cur->next = NULL;
-				if (prev)
-					prev = prev->next;
-				else
-					prev = outc;
-			}
-		}
+		out = p->step->frameout(p->state);
+		/* If we get nothing out, return NULL */
+		if (!out)
+			return NULL;
+		/* If there is a next state, feed it in there.  If not,
+		   return this frame  */
+		if (p->next) 
+			p->next->step->framein(p->next->state, out);
+		else
+			return out;
 		p = p->next;
 	}
-	return outc;
-}
-
-#define FUDGE 0
-
-static void translator_apply(struct translator_pvt *pvt, struct ast_trans_pvt *path, struct ast_frame *f, int fd, struct ast_channel *c, 
-								struct timeval *last)
-{
-	struct ast_trans_pvt *p;
-	struct ast_frame *out;
-	struct timeval tv;
-	int ms;
-	p = path;
-	/* Feed the first frame into the first translator */
-	p->step->framein(p->state, f);
-	while(p) {
-		/* Read all the frames from the current translator */
-		while((out = p->step->frameout(p->state)))  {
-			if (p->next) {
-				/* Feed to next layer */
-				p->next->step->framein(p->next->state, out);
-			} else {
-				/* Delay if needed */
-				if (last->tv_sec || last->tv_usec) {
-					gettimeofday(&tv, NULL);
-					ms = 1000 * (tv.tv_sec - last->tv_sec) +
-						(tv.tv_usec - last->tv_usec) / 1000;
-#ifdef EXPERIMENTAL_TRANSLATION
-					if (ms + FUDGE < out->timelen) 
-						schedule_delivery(pvt->sched, pvt, 
-											c, fd, out, out->timelen - ms);
-					else {
-						if (c)
-							ast_write(c, out);
-						else
-							ast_fr_fdwrite(fd, out);
-					}
-					last->tv_sec = tv.tv_sec;
-					last->tv_usec = tv.tv_usec;
-					/* Schedule this packet to be delivered at the
-					   right time */
-				} else
-					gettimeofday(last, NULL);
-#else
-#if 0
-					/* XXX Not correct in the full duplex case XXX */
-					if (ms + FUDGE < out->timelen) 
-						usleep((out->timelen - ms - FUDGE) * 1000);
-#endif
-					last->tv_sec = tv.tv_sec;
-					last->tv_usec = tv.tv_usec;
-				} else
-					gettimeofday(last, NULL);
-#endif
-				if (c)
-					ast_write(c, out);
-				else
-					ast_fr_fdwrite(fd, out);
-			}
-			ast_frfree(out);
-		}
-		p = p->next;
-	}
-}
-
-static void *translator_thread(void *data)
-{
-	struct ast_channel *real = data;
-	struct ast_frame *f;
-	int ms = -1;
-	struct translator_pvt *pvt = NULL;
-	int fd = -1;
-	int fds[2];
-	int res;
-	/* Read from the real, translate, write as necessary to the fake */
-	for(;;) {
-		/* Break here if need be */
-		pthread_testcancel();
-		if (!real->trans) {
-			ast_log(LOG_WARNING, "No translator anymore\n");
-			break;
-		}
-		pvt = real->trans->pvt->pvt;
-		fd = pvt->comm[1];
-		fds[0] = fd;
-		fds[1] = real->fd;
-		CHECK_BLOCKING(real);
-		res = ast_waitfor_n_fd(fds, 2, &ms);
-		real->blocking = 0;
-		/* Or we can die here, that's fine too */
-		pthread_testcancel();
-		if (res >= 0) {
-			if (res == real->fd) {
-				f = ast_read(real);
-				if (!f) {
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Empty frame\n");
-					break;
-				}
-				if (f->frametype ==  AST_FRAME_VOICE) {
-					if (pvt->system)
-						translator_apply(pvt, pvt->system, f, fd, NULL, &pvt->lastpass);
-				} else {
-					/* If it's not voice, just pass it along */
-					ast_fr_fdwrite(fd, f);
-				}
-				ast_frfree(f);
-			} else {
-				f = ast_fr_fdread(res);
-				if (!f) {
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Empty (hangup) frame\n");
-					break;
-				}
-				
-				if (f->frametype == AST_FRAME_VOICE) {
-					if (pvt->rsystem)
-						translator_apply(pvt, pvt->rsystem, f, -1, real, &pvt->lastpass);
-				} else {
-					ast_write(real, f);
-				}
-				ast_frfree(f);
-			}
-		} else {
-			ast_log(LOG_DEBUG, "Waitfor returned non-zero\n");
-			break;
-		}
-	}
-	if (pvt)
-		pvt->comm[1] = -1;
-	if (fd > -1) {
-		/* Write a bogus frame */
-		write(fd, data, 1);
-		close(fd);
-	}
+	ast_log(LOG_WARNING, "I should never get here...\n");
 	return NULL;
 }
-
-struct ast_channel *ast_translator_create(struct ast_channel *real, int format, int direction)
-{
-	struct ast_channel *tmp;
-	struct translator_pvt *pvt;
-	if (real->trans) {
-		ast_log(LOG_WARNING, "Translator already exists on '%s'\n", real->name);
-		return NULL;
-	}
-	if (!(pvt = malloc(sizeof(struct translator_pvt)))) {
-		ast_log(LOG_WARNING, "Unable to allocate private translator on '%s'\n", real->name);
-		return NULL;
-	}
-	pvt->comm[0] = -1;
-	pvt->comm[1] = -1;
-	pvt->lastpass.tv_usec = 0;
-	pvt->lastpass.tv_sec = 0;
-
-#ifdef EXPERIMENTAL_TRANSLATION	
-	pvt->head = NULL;
-	pvt->tail = NULL;
-	pvt->sched = sched_context_create();
-	if (!pvt->sched) {
-		ast_log(LOG_WARNING, "Out of memory\n");
-		ast_translator_free(pvt);
-		return NULL;
-	}
-#endif
-	if (socketpair(AF_UNIX, SOCK_DGRAM, 0, pvt->comm)) {
-		ast_log(LOG_WARNING, "Unable to create UNIX domain socket on '%s'\n", real->name);
-		ast_translator_free(pvt);
-		return NULL;
-	}
-	/* In to the system */
-	if (direction & AST_DIRECTION_IN)
-		pvt->system = ast_translator_build_path(real->format, format);
-	else
-		pvt->system = NULL;
-	/* Out from the system */
-	if (direction & AST_DIRECTION_OUT)
-		pvt->rsystem = ast_translator_build_path(format, real->format);
-	else
-		pvt->rsystem = NULL;
-	if (!pvt->system && !pvt->rsystem) {
-		ast_log(LOG_WARNING, "Unable to build a translation path for %s (%d to %d)\n", real->name, real->format, format);
-		ast_translator_free(pvt);
-		return NULL;
-	}
-	if (!pvt->system && (direction & AST_DIRECTION_IN)) {
-		ast_log(LOG_WARNING, "Translation path for '%s' is one-way (reverse)\n", real->name);
-		ast_translator_free(pvt);
-		return NULL;
-	}
-	if (!pvt->rsystem && (direction & AST_DIRECTION_OUT)) {
-		ast_log(LOG_WARNING, "Translation path for '%s' is one-way (forward)\n", real->name);
-		ast_translator_free(pvt);
-		return NULL;
-	}
-	if ((tmp = ast_channel_alloc())) {
-		snprintf(tmp->name, sizeof(tmp->name), "%s/Translate:%d", real->name, format);
-		tmp->type = type;
-		tmp->fd = pvt->comm[0];
-		tmp->format = format;
-		tmp->state = real->state;
-		tmp->rings = 0;
-		tmp->pvt->pvt = pvt;
-		tmp->master = real;
-		tmp->pvt->send_digit = translator_send_digit;
-		tmp->pvt->call = translator_call;
-		tmp->pvt->hangup = translator_hangup;
-		tmp->pvt->answer = translator_answer;
-		tmp->pvt->read = translator_read;
-		tmp->pvt->write = translator_write;
-		tmp->pvt->pvt = pvt;
-		real->trans = tmp;
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Created translator %s\n", tmp->name);
-		if (pthread_create(&pvt->threadid, NULL, translator_thread, real) < 0) {
-			ast_translator_destroy(tmp);
-			tmp = NULL;
-			ast_log(LOG_WARNING, "Failed to start thread\n");
-		}
-	} else {
-		ast_translator_free(pvt);
-		ast_log(LOG_WARNING, "Unable to allocate channel\n");
-	}
-	return tmp;
-} 
 
 static void rebuild_matrix()
 {
@@ -699,49 +328,40 @@ int ast_unregister_translator(struct ast_translator *t)
 	return (u ? 0 : -1);
 }
 
-void ast_translator_destroy(struct ast_channel *trans)
-{
-	struct translator_pvt *pvt;
-	if (!trans->master) {
-		ast_log(LOG_WARNING, "Translator is not part of a real channel?\n");
-		return;
-	}
-	if (trans->master->trans != trans) {
-		ast_log(LOG_WARNING, "Translator is not the right one!?!?\n");
-		return;
-	}
-	trans->master->trans = NULL;
-	pvt = trans->pvt->pvt;
-	/* Cancel the running translator thread */
-	pthread_cancel(pvt->threadid);
-	pthread_join(pvt->threadid, NULL);
-	ast_translator_free(pvt);
-	trans->pvt->pvt = NULL;
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Destroyed translator %s\n", trans->name);
-	ast_channel_free(trans);
-}
-
-int ast_translator_best_choice(int dst, int srcs)
+int ast_translator_best_choice(int *dst, int *srcs)
 {
 	/* Calculate our best source format, given costs, and a desired destination */
 	int x,y;
 	int best=-1;
+	int bestdst=0;
 	int cur = 1;
 	int besttime=999999999;
 	pthread_mutex_lock(&list_lock);
 	for (y=0;y<MAX_FORMAT;y++) {
-		if (cur & dst)
+		if ((cur & *dst) && (cur & *srcs)) {
+			/* This is a common format to both.  Pick it if we don't have one already */
+			besttime=0;
+			bestdst = cur;
+			best = cur;
+			break;
+		}
+		if (cur & *dst)
 			for (x=0;x<MAX_FORMAT;x++) {
 				if (tr_matrix[x][y].step &&	/* There's a step */
 			   	 (tr_matrix[x][y].cost < besttime) && /* We're better than what exists now */
-					(srcs & (1 << x)))			/* x is a valid source format */
+					(*srcs & (1 << x)))			/* x is a valid source format */
 					{
 						best = 1 << x;
-						besttime = tr_matrix[x][dst].cost;
+						bestdst = cur;
+						besttime = tr_matrix[x][y].cost;
 					}
 			}
 		cur = cur << 1;
+	}
+	if (best > -1) {
+		*srcs = best;
+		*dst = bestdst;
+		best = 0;
 	}
 	pthread_mutex_unlock(&list_lock);
 	return best;

@@ -47,7 +47,7 @@ struct ast_translator_pvt {
 	/* Space to build offset */
 	char offset[AST_FRIENDLY_OFFSET];
 	/* Buffer for our outgoing frame */
-	gsm_frame outbuf;
+	short outbuf[8000];
 	/* Enough to store a full second */
 	short buf[8000];
 	int tail;
@@ -118,34 +118,29 @@ static struct ast_frame *gsmtolin_frameout(struct ast_translator_pvt *tmp)
 	/* Reset tail pointer */
 	tmp->tail = 0;
 
-#if 0
-	/* Save a sample frame */
-	{ static int samplefr = 0;
-	if (samplefr == 80) {
-		int fd;
-		fd = open("gsm.example", O_WRONLY | O_CREAT, 0644);
-		write(fd, tmp->f.data, tmp->f.datalen);
-		close(fd);
-	} 		
-	samplefr++;
-	}
-#endif
 	return &tmp->f;	
 }
 
 static int gsmtolin_framein(struct ast_translator_pvt *tmp, struct ast_frame *f)
 {
 	/* Assuming there's space left, decode into the current buffer at
-	   the tail location */
-	if (tmp->tail + 160 < sizeof(tmp->buf)/2) {	
-		if (gsm_decode(tmp->gsm, f->data, tmp->buf + tmp->tail)) {
-			ast_log(LOG_WARNING, "Invalid GSM data\n");
+	   the tail location.  Read in as many frames as there are */
+	int x;
+	if (f->datalen % 33) {
+		ast_log(LOG_WARNING, "Huh?  A GSM frame that isn't a multiple of 33 bytes long from %s (%d)?\n", f->src, f->datalen);
+		return -1;
+	}
+	for (x=0;x<f->datalen;x+=33) {
+		if (tmp->tail + 160 < sizeof(tmp->buf)/2) {	
+			if (gsm_decode(tmp->gsm, f->data + x, tmp->buf + tmp->tail)) {
+				ast_log(LOG_WARNING, "Invalid GSM data\n");
+				return -1;
+			}
+			tmp->tail+=160;
+		} else {
+			ast_log(LOG_WARNING, "Out of buffer space\n");
 			return -1;
 		}
-		tmp->tail+=160;
-	} else {
-		ast_log(LOG_WARNING, "Out of buffer space\n");
-		return -1;
 	}
 	return 0;
 }
@@ -168,34 +163,32 @@ static int lintogsm_framein(struct ast_translator_pvt *tmp, struct ast_frame *f)
 
 static struct ast_frame *lintogsm_frameout(struct ast_translator_pvt *tmp)
 {
+	int x=0;
 	/* We can't work on anything less than a frame in size */
 	if (tmp->tail < 160)
 		return NULL;
-	/* Encode a frame of data */
-	gsm_encode(tmp->gsm, tmp->buf, tmp->outbuf);
 	tmp->f.frametype = AST_FRAME_VOICE;
 	tmp->f.subclass = AST_FORMAT_GSM;
-	tmp->f.datalen = 33;
-	/* Assume 8000 Hz -- 20 ms */
-	tmp->f.timelen = 20;
 	tmp->f.mallocd = 0;
 	tmp->f.offset = AST_FRIENDLY_OFFSET;
 	tmp->f.src = __PRETTY_FUNCTION__;
 	tmp->f.data = tmp->outbuf;
-	tmp->tail -= 160;
-	/* Move the data at the end of the buffer to the front */
-	if (tmp->tail)
-		memmove(tmp->buf, tmp->buf + 160, tmp->tail * 2);
-#if 0
-	/* Save the frames */
-	{ 
-		static int fd2 = -1;
-		if (fd2 == -1) {
-			fd2 = open("gsm.example", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	while(tmp->tail >= 160) {
+		if ((x+1) * 33 >= sizeof(tmp->outbuf)) {
+			ast_log(LOG_WARNING, "Out of buffer space\n");
+			return NULL;
 		}
-		write(fd2, tmp->f.data, tmp->f.datalen);
-	} 		
-#endif
+		/* Encode a frame of data */
+		gsm_encode(tmp->gsm, tmp->buf, (gsm_byte *) tmp->outbuf + (x * 33));
+		/* Assume 8000 Hz -- 20 ms */
+		tmp->tail -= 160;
+		/* Move the data at the end of the buffer to the front */
+		if (tmp->tail)
+			memmove(tmp->buf, tmp->buf + 160, tmp->tail * 2);
+		x++;
+	}
+	tmp->f.datalen = x * 33;
+	tmp->f.timelen = x * 20;
 	return &tmp->f;	
 }
 
@@ -259,4 +252,9 @@ int usecount(void)
 	int res;
 	STANDARD_USECOUNT(res);
 	return res;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
 }
