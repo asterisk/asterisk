@@ -3559,6 +3559,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
                     strncpy(gw->wcardep, v->value, sizeof(gw->wcardep)-1);
 					/*strncpy(e->name, "aaln/" "*", sizeof(e->name) - 1);*/
 					/* XXX Should we really check for uniqueness?? XXX */
+					strncpy(e->accountcode, accountcode, sizeof(e->accountcode) - 1);	
 					strncpy(e->context, context, sizeof(e->context) - 1);
 					strncpy(e->callerid, callerid, sizeof(e->callerid) - 1);
 					strncpy(e->language, language, sizeof(e->language) - 1);
@@ -3651,6 +3652,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
                         e->needaudit = 1;
                     }
 					/* XXX Should we really check for uniqueness?? XXX */
+					strncpy(e->accountcode, accountcode, sizeof(e->accountcode) - 1);	
 					strncpy(e->context, context, sizeof(e->context) - 1);
 					strncpy(e->callerid, callerid, sizeof(e->callerid) - 1);
 					strncpy(e->language, language, sizeof(e->language) - 1);
