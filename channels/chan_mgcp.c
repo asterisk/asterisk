@@ -872,7 +872,17 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 	ast_mutex_lock(&sub->lock);
 	switch (p->hookstate) {
 	case MGCP_OFFHOOK:
-		snprintf(tone, sizeof(tone), "L/wt");
+		if (distinctive_ring && !ast_strlen_zero(distinctive_ring)) {
+			snprintf(tone, sizeof(tone), "L/wt%s", distinctive_ring);
+			if (mgcpdebug) {
+				ast_verbose(VERBOSE_PREFIX_3 "MGCP distinctive callwait %s\n", tone);
+			}
+		} else {
+			snprintf(tone, sizeof(tone), "L/wt");
+			if (mgcpdebug) {
+				ast_verbose(VERBOSE_PREFIX_3 "MGCP normal callwait %s\n", tone);
+			}
+		}
 		break;
 	case MGCP_ONHOOK:
 	default:
