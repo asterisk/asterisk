@@ -349,6 +349,8 @@ struct chan_iax2_pvt {
 	char outkey[80];
 	/* Preferred language */
 	char language[80];
+	/* Hostname/peername for naming purposes */
+	char host[80];
 	/* Associated registry */
 	struct iax2_registry *reg;
 	/* Associated peer for poking */
@@ -520,7 +522,28 @@ static int uncompress_subclass(unsigned char csub)
 		return csub;
 }
 
-static struct chan_iax2_pvt *new_iax(void)
+static int iax2_getpeername(struct sockaddr_in sin, char *host, int len, int lockpeer)
+{
+	struct iax2_peer *peer;
+	int res = 0;
+	if (lockpeer)
+		ast_pthread_mutex_lock(&peerl.lock);
+	peer = peerl.peers;
+	while(peer) {
+		if ((peer->addr.sin_addr.s_addr == sin.sin_addr.s_addr) &&
+				(peer->addr.sin_port == sin.sin_port)) {
+					strncpy(host, peer->name, len-1);
+					res = 1;
+					break;
+		}
+		peer = peer->next;
+	}
+	if (lockpeer)
+		ast_pthread_mutex_unlock(&peerl.lock);
+	return res;
+}
+
+static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer)
 {
 	struct chan_iax2_pvt *tmp;
 	tmp = malloc(sizeof(struct chan_iax2_pvt));
@@ -536,6 +559,8 @@ static struct chan_iax2_pvt *new_iax(void)
 		tmp->initid = -1;
 		/* strncpy(tmp->context, context, sizeof(tmp->context)-1); */
 		strncpy(tmp->exten, "s", sizeof(tmp->exten)-1);
+		if (!iax2_getpeername(*sin, tmp->host, sizeof(tmp->host), lockpeer))
+			snprintf(tmp->host, sizeof(tmp->host), "%s:%d", inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 	}
 	return tmp;
 }
@@ -692,7 +717,7 @@ static int make_trunk(unsigned short callno, int locked)
 	return res;
 }
 
-static int find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new)
+static int find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int lockpeer)
 {
 	int res = 0;
 	int x;
@@ -733,7 +758,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			ast_log(LOG_WARNING, "No more space\n");
 			return -1;
 		}
-		iaxs[x] = new_iax();
+		iaxs[x] = new_iax(sin, lockpeer);
 		ast_pthread_mutex_unlock(&iaxsl[x]);
 		update_max_nontrunk();
 		if (iaxs[x]) {
@@ -1896,25 +1921,6 @@ static int iax2_indicate(struct ast_channel *c, int condition)
 
 static int iax2_write(struct ast_channel *c, struct ast_frame *f);
 
-static int iax2_getpeername(struct sockaddr_in sin, char *host, int len)
-{
-	struct iax2_peer *peer;
-	int res = 0;
-	ast_pthread_mutex_lock(&peerl.lock);
-	peer = peerl.peers;
-	while(peer) {
-		if ((peer->addr.sin_addr.s_addr == sin.sin_addr.s_addr) &&
-				(peer->addr.sin_port == sin.sin_port)) {
-					strncpy(host, peer->name, len-1);
-					res = 1;
-					break;
-		}
-		peer = peer->next;
-	}
-	ast_pthread_mutex_unlock(&peerl.lock);
-	return res;
-}
-
 static int iax2_getpeertrunk(struct sockaddr_in sin)
 {
 	struct iax2_peer *peer;
@@ -1935,16 +1941,13 @@ static int iax2_getpeertrunk(struct sockaddr_in sin)
 
 static struct ast_channel *ast_iax2_new(struct chan_iax2_pvt *i, int state, int capability)
 {
-	char host[256];
 	struct ast_channel *tmp;
 	tmp = ast_channel_alloc(1);
 	if (tmp) {
-		if (!iax2_getpeername(i->addr, host, sizeof(host)))
-			snprintf(host, sizeof(host), "%s:%d", inet_ntoa(i->addr.sin_addr), ntohs(i->addr.sin_port));
 		if (strlen(i->username))
-			snprintf(tmp->name, sizeof(tmp->name), "IAX2[%s@%s]/%d", i->username, host, i->callno);
+			snprintf(tmp->name, sizeof(tmp->name), "IAX2[%s@%s]/%d", i->username, i->host, i->callno);
 		else
-			snprintf(tmp->name, sizeof(tmp->name), "IAX2[%s]/%d", host, i->callno);
+			snprintf(tmp->name, sizeof(tmp->name), "IAX2[%s]/%d", i->host, i->callno);
 		tmp->type = type;
 		/* We can support any format by default, until we get restricted */
 		tmp->nativeformats = capability;
@@ -3568,7 +3571,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				/* Stop if we don't have enough data */
 				if (len > res)
 					break;
-				fr.callno = find_callno(ntohs(mte->callno) & ~IAX_FLAG_FULL, 0, &sin, NEW_PREVENT);
+				fr.callno = find_callno(ntohs(mte->callno) & ~IAX_FLAG_FULL, 0, &sin, NEW_PREVENT, 1);
 				if (fr.callno) {
 					ast_pthread_mutex_lock(&iaxsl[fr.callno]);
 					/* If it's a valid call, deliver the contents.  If not, we
@@ -3645,7 +3648,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		f.subclass = 0;
 	}
 
-	fr.callno = find_callno(ntohs(mh->callno) & ~IAX_FLAG_FULL, dcallno, &sin, new);
+	fr.callno = find_callno(ntohs(mh->callno) & ~IAX_FLAG_FULL, dcallno, &sin, new, 1);
 
 	if (fr.callno > 0) 
 		ast_pthread_mutex_lock(&iaxsl[fr.callno]);
@@ -4383,7 +4386,7 @@ static int iax2_do_register(struct iax2_registry *reg)
 	if (!reg->callno) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Allocate call number\n");
-		reg->callno = find_callno(0, 0, &reg->addr, NEW_FORCE);
+		reg->callno = find_callno(0, 0, &reg->addr, NEW_FORCE, 1);
 		if (reg->callno < 1) {
 			ast_log(LOG_WARNING, "Unable to create call for registration\n");
 			return -1;
@@ -4435,7 +4438,7 @@ static int iax2_poke_peer(struct iax2_peer *peer)
 		ast_log(LOG_NOTICE, "Still have a callno...\n");
 		iax2_destroy(peer->callno);
 	}
-	peer->callno = find_callno(0, 0, &peer->addr, NEW_FORCE);
+	peer->callno = find_callno(0, 0, &peer->addr, NEW_FORCE, 0);
 	if (peer->callno < 1) {
 		ast_log(LOG_WARNING, "Unable to allocate call for poking peer '%s'\n", peer->name);
 		return -1;
@@ -4489,7 +4492,7 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 	if (create_addr(&sin, &capability, &sendani, &maxtime, st, NULL, &trunk, &notransfer)) {
 		return NULL;
 	}
-	callno = find_callno(0, 0, &sin, NEW_FORCE);
+	callno = find_callno(0, 0, &sin, NEW_FORCE, 1);
 	if (callno < 1) {
 		ast_log(LOG_WARNING, "Unable to create call\n");
 		return NULL;
@@ -5121,7 +5124,7 @@ static int cache_get_callno(char *data)
 		return -1;
 	}
 	ast_log(LOG_DEBUG, "host: %s, user: %s, password: %s, context: %s\n", host, username, password, context);
-	callno = find_callno(0, 0, &sin, NEW_FORCE);
+	callno = find_callno(0, 0, &sin, NEW_FORCE, 1);
 	if (callno < 1) {
 		ast_log(LOG_WARNING, "Unable to create call\n");
 		return -1;
