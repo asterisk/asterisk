@@ -134,7 +134,7 @@ static struct ast_frame *g729_read(struct ast_filestream *s, int *whennext)
 	s->fr.mallocd = 0;
 	s->fr.data = s->g729;
 	if ((res = read(s->fd, s->g729, 20)) != 20) {
-		if (res)
+		if (res && (res != 10))
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
 	}
