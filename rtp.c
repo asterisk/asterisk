@@ -53,7 +53,7 @@ static int dtmftimeout = 3000;	/* 3000 samples */
 static int rtpstart = 0;
 static int rtpend = 0;
 #ifdef SO_NO_CHECK
-static int checksums = 1;
+static int nochecksums = 0;
 #endif
 
 /* The value of each payload format mapping: */
@@ -803,9 +803,8 @@ static int rtp_socket(void)
 		flags = fcntl(s, F_GETFL);
 		fcntl(s, F_SETFL, flags | O_NONBLOCK);
 #ifdef SO_NO_CHECK
-		if (checksums) {
-			setsockopt(s, SOL_SOCKET, SO_NO_CHECK, &checksums, sizeof(checksums));
-		}
+		if (nochecksums)
+			setsockopt(s, SOL_SOCKET, SO_NO_CHECK, &nochecksums, sizeof(nochecksums));
 #endif
 	}
 	return s;
@@ -1540,9 +1539,6 @@ void ast_rtp_reload(void)
 	char *s;
 	rtpstart = 5000;
 	rtpend = 31000;
-#ifdef SO_NO_CHECK
-	checksums = 1;
-#endif
 	cfg = ast_load("rtp.conf");
 	if (cfg) {
 		if ((s = ast_variable_retrieve(cfg, "general", "rtpstart"))) {
@@ -1561,12 +1557,12 @@ void ast_rtp_reload(void)
 		}
 		if ((s = ast_variable_retrieve(cfg, "general", "rtpchecksums"))) {
 #ifdef SO_NO_CHECK
-			if (ast_true(s))
-				checksums = 1;
+			if (ast_false(s))
+				nochecksums = 1;
 			else
-				checksums = 0;
+				nochecksums = 0;
 #else
-			if (ast_true(s))
+			if (ast_false(s))
 				ast_log(LOG_WARNING, "Disabling RTP checksums is not supported on this operating system!\n");
 #endif
 		}

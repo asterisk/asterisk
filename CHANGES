@@ -25,7 +25,7 @@
     -- Fixed if the last line of text in a file for the call spool did not contain
        a new line, it would not be processed
     -- Fixed the logger so that color escape sequences wouldn't be sent to the logs
-
+    -- Fixed a logic error when setting the "rtpchecksums" option
 Asterisk 1.0.7
 
  -- chan_sip
