@@ -155,6 +155,8 @@ struct ast_channel {
 	char *rdnis;
 	/*! Hide callerid from user */
 	int restrictcid;
+	/*! Callerid presentation/screening */
+	int callingpres;
 
 	
 	/*! Current extension context */

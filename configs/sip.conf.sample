@@ -27,6 +27,7 @@ context = default		; Default for incoming calls
 ;dtmfmode=inband		; Choices are inband, rfc2833, or info
 ;defaultip=192.168.0.59
 ;mailbox=1234,2345		; Mailbox for message waiting indicator
+;restrictcid=yes		; To have the callerid restriced -> sent as ANI
 
 ;[pingtel]
 ;type=friend

@@ -156,6 +156,8 @@ static int hidecallerid = 0;
 
 static int restrictcid = 0;
 
+static int use_callingpres = 0;
+
 static int callreturn = 0;
 
 static int threewaycalling = 0;
@@ -385,7 +387,9 @@ static struct zt_pvt {
 	int hidecallerid;
 	int callreturn;
 	int permhidecallerid;		/* Whether to hide our outgoing caller ID or not */
-	int restrictcid;
+	int restrictcid;		/* Whether restrict the callerid -> only send ANI */
+	int use_callingpres;		/* Whether to use the callingpres the calling switch sends */
+	int callingpres;		/* The value of callling presentation that we're going to use when placing a PRI call */
 	int callwaitingrepeat;		/* How many samples to wait before repeating call waiting */
 	int cidcwexpire;			/* When to expire our muting for CID/CW */
 	unsigned char *cidspill;
@@ -1497,7 +1501,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		}
 		if (pri_call(p->pri->pri, p->call, p->digital ? PRI_TRANS_CAP_DIGITAL : PRI_TRANS_CAP_SPEECH, 
 			p->prioffset, p->pri->nodetype == PRI_NETWORK ? 0 : 1, 1, l, p->pri->dialplan - 1, n,
-			l ? (ast->restrictcid ? PRES_PROHIB_USER_NUMBER_PASSED_SCREEN : PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN) : PRES_NUMBER_NOT_AVAILABLE,
+			l ? (ast->restrictcid ? PRES_PROHIB_USER_NUMBER_PASSED_SCREEN : (p->use_callingpres ? ast->callingpres : PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN)) : PRES_NUMBER_NOT_AVAILABLE,
 			c + p->stripmsd, p->pri->dialplan - 1, 
 			((p->law == ZT_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW))) {
 			ast_log(LOG_WARNING, "Unable to setup call to %s\n", c + p->stripmsd);
@@ -3760,6 +3764,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 			tmp->ani = strdup(i->callerid);
 		}
 		tmp->restrictcid = i->restrictcid;
+		tmp->callingpres = i->callingpres;
 #ifdef ZAPATA_PRI
 		/* Assume calls are not idle calls unless we're told differently */
 		i->isidlecall = 0;
@@ -5123,6 +5128,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		tmp->stripmsd = stripmsd;
 		tmp->use_callerid = use_callerid;
 		tmp->restrictcid = restrictcid;
+		tmp->use_callingpres = use_callingpres;
 		strncpy(tmp->accountcode, accountcode, sizeof(tmp->accountcode)-1);
 		tmp->amaflags = amaflags;
 		if (!here) {
@@ -5885,13 +5891,15 @@ static void *pri_dchannel(void *vpri)
 						res = set_actual_gain(pri->pvt[chan]->subs[SUB_REAL].zfd, 0, pri->pvt[chan]->rxgain, pri->pvt[chan]->txgain, law);
 						if (res < 0)
 							ast_log(LOG_WARNING, "Unable to set gains on channel %d\n", pri->pvt[chan]->channel);
-						/* Start PBX */
 						if (e->ring.complete || !pri->overlapdial) {
 							pri_acknowledge(pri->pri, e->ring.call, chan, 1);
 						} else if (e->e==PRI_EVENT_RING) {
 						/* If we got here directly and didn't send the SETUP_ACKNOWLEDGE we need to send it otherwise we don't sent anything */
 							pri_need_more_info(pri->pri, e->ring.call, chan, 1);
 						}
+						/* Get the use_callingpres state */
+						pri->pvt[chan]->callingpres = e->ring.callingpres;
+						/* Start PBX */
 						c = zt_new(pri->pvt[chan], AST_STATE_RING, 1, SUB_REAL, law);
 						if (c) {
 							if (option_verbose > 2)
@@ -6595,6 +6603,20 @@ static struct ast_cli_entry cli_show_channel = {
 static struct ast_cli_entry cli_destroy_channel = { 
 	{"zap", "destroy", "channel", NULL}, zap_destroy_channel, "Destroy a channel", destroy_channel_usage, NULL };
 
+static char *synopsis_callingpres = "Change the presentation for the callerid";
+static char *descrip_callingpres = "Callingpres(number): Changes the presentation for the callerid. Should be called before placing an outgoing call\n";
+static char *app_callingpres = "CallingPres";
+static int change_callingpres(struct ast_channel *chan, void *data)
+{
+	int mode = 0;
+	if (data) {
+		mode = atoi((char *)data);
+		chan->callingpres = mode;
+	} else
+		ast_log(LOG_NOTICE, "Application %s requres an argument: %s(number)\n", app_callingpres,app_callingpres);
+	return 0;
+}
+
 int load_module()
 {
 	struct ast_config *cfg;
@@ -6757,6 +6779,8 @@ int load_module()
 				strncpy(callerid, v->value, sizeof(callerid)-1);
 		} else if (!strcasecmp(v->name, "restrictcid")) {
 			restrictcid = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "usecallingpres")) {
+			use_callingpres = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			strncpy(accountcode, v->value, sizeof(accountcode)-1);
 		} else if (!strcasecmp(v->name, "amaflags")) {
@@ -6972,6 +6996,7 @@ int load_module()
 	ast_cli_register(&cli_show_channels);
 	ast_cli_register(&cli_show_channel);
 	ast_cli_register(&cli_destroy_channel);
+	ast_register_application(app_callingpres, change_callingpres, synopsis_callingpres, descrip_callingpres);
 	/* And start the monitor for the first time */
 	restart_monitor();
 	return 0;

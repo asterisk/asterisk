@@ -98,6 +98,15 @@ hidecallerid=no
 ;
 callwaiting=yes
 ;
+; Whether or not restrict outgoing caller ID (will be sent as ANI only, not available for the user)
+; Mostly use with FXS ports
+;
+;restrictcid=no
+;
+; Whether or not use the caller ID presentation for the outgoing call that the calling switch is sending
+;
+usecallingpres=yes
+;
 ; Support Caller*ID on Call Waiting
 ;
 callwaitingcallerid=yes
