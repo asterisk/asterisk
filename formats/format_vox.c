@@ -274,7 +274,7 @@ static int vox_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Invalid frame of data (< 3 bytes long) from %s\n", f->src);
 		return -1;
 	}
-	if ((res = write(fs->fd, f->data + 3, f->datalen)) != f->datalen) {
+	if ((res = write(fs->fd, f->data + 3, f->datalen - 3)) != f->datalen - 3) {
 			ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
 			return -1;
 	}
