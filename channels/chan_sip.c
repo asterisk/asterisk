@@ -5276,7 +5276,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 					return -1;
 			} else {
 				p->jointcapability = p->capability;
-				ast_log(LOG_DEBUG, "Hm....  No sdp for the moemnt\n");
+				ast_log(LOG_DEBUG, "Hm....  No sdp for the moment\n");
 			}
 			/* Queue NULL frame to prod ast_rtp_bridge if appropriate */
 			if (p->owner)
