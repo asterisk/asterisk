@@ -27,6 +27,7 @@
 #include <asterisk/utils.h>
 #include <asterisk/app.h>
 #include <asterisk/causes.h>
+#include <asterisk/manager.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -240,6 +241,20 @@ static char *get_cid_name(char *name, int namelen, struct ast_channel *chan)
 		return "";
 }
 
+static void senddialevent(struct ast_channel *src, struct ast_channel *dst)
+{
+	manager_event(EVENT_FLAG_CALL, "Dial", 
+								   "Source: %s\r\n"
+								   "Destination: %s\r\n"
+								   "CallerID: %s\r\n"
+								   "CallerIDName: %s\r\n"
+								   "SrcUniqueID: %s\r\n"
+								   "DestUniqueID: %s\r\n",
+								   src->name, dst->name, src->cid.cid_num ? src->cid.cid_num : "<unknown>",
+								   src->cid.cid_name ? src->cid.cid_name : "<unknown>", src->uniqueid,
+								   dst->uniqueid);
+}
+
 static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, struct ast_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int *result)
 {
 	struct localuser *o;
@@ -405,6 +420,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							o->chan = NULL;
 							numnochan++;
 						} else {
+							senddialevent(in, o->chan);
 							/* After calling, set callerid to extension */
 							if (!ast_test_flag(peerflags, DIAL_PRESERVE_CALLERID))
 								ast_set_callerid(o->chan, ast_strlen_zero(in->macroexten) ? in->exten : in->macroexten, get_cid_name(cidname, sizeof(cidname), in), NULL);
@@ -1016,6 +1032,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			cur = rest;
 			continue;
 		} else {
+			senddialevent(chan, tmp->chan);
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Called %s\n", numsubst);
 			if (!ast_test_flag(peerflags, DIAL_PRESERVE_CALLERID))
