@@ -731,7 +731,7 @@ static void ast_queue_spy_frame(struct ast_channel_spy *spy, struct ast_frame *f
 	for (tmpf=spy->queue[pos]; tmpf && tmpf->next; tmpf=tmpf->next) {
 		count++;
 	}
-	if (count > 100) {
+	if (count > 1000) {
 		struct ast_frame *freef, *headf;
 
 		ast_log(LOG_ERROR, "Too Many frames queued at once, flushing cache.\n");
