@@ -19,6 +19,7 @@
 #include <asterisk/module.h>
 #include <asterisk/config.h>
 #include <asterisk/app.h>
+#include <asterisk/dsp.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/manager.h>
 #include <asterisk/options.h>
@@ -60,6 +61,7 @@ static char *descrip =
 "The option string may contain zero or more of the following characters:\n"
 "      'm' -- set monitor only mode (Listen only, no talking)\n"
 "      't' -- set talk only mode. (Talk only, no listening)\n"
+"      'T' -- set talker detection (sent to manager interface and meetme list)\n"
 "      'i' -- announce user join/leave\n"
 "      'p' -- allow user to exit the conference by pressing '#'\n"
 "      'X' -- allow user to exit the conference by entering a valid single\n"
@@ -135,6 +137,7 @@ struct ast_conf_user {
 	int userflags;			 /* Flags as set in the conference */
 	int adminflags;			 /* Flags set by the Admin */
 	struct ast_channel *chan; 	 /* Connected channel */
+	int talking;			 /* Is user talking */
 	char usrvalue[50];		 /* Custom User Value */
 	char namerecloc[AST_MAX_EXTENSION]; /* Name Recorded file Location */
 	time_t jointime;		 /* Time the user joined the conference */
@@ -142,7 +145,8 @@ struct ast_conf_user {
 
 #define ADMINFLAG_MUTED (1 << 1)	/* User is muted */
 #define ADMINFLAG_KICKME (1 << 2)	/* User is kicked */
-
+#define MEETME_DELAYDETECTTALK 		300
+#define MEETME_DELAYDETECTENDTALK 	1000
 
 AST_MUTEX_DEFINE_STATIC(conflock);
 
@@ -177,6 +181,17 @@ static void *recordthread(void *args);
 #define CONFFLAG_MARKEDUSER (1 << 13)	/* If set, the user will be marked */
 #define CONFFLAG_INTROUSER (1 << 14)	/* If set, user will be ask record name on entry of conference */
 #define CONFFLAG_RECORDCONF (1<< 15)	/* If set, the MeetMe will be recorded */
+#define CONFFLAG_MONITORTALKER (1 << 16) /* If set, the user will be monitored if the user is talking or not */
+
+static char *istalking(int x)
+{
+	if (x > 0)
+		return "(talking)";
+	else if (x < 0)
+		return "(unmonitored)";
+	else 
+		return "(not talking)";
+}
 
 static int careful_write(int fd, unsigned char *data, int len)
 {
@@ -409,7 +424,7 @@ static int conf_cmd(int fd, int argc, char **argv) {
 		/* Show all the users */
 		user = cnf->firstuser;
 		while(user) {
-			ast_cli(fd, "User #: %i  Channel: %s %s %s %s\n", user->user_no, user->chan->name, (user->userflags & CONFFLAG_ADMIN) ? "(Admin)" : "", (user->userflags & CONFFLAG_MONITOR) ? "(Listen only)" : "", (user->adminflags & ADMINFLAG_MUTED) ? "(Admn Muted)" : "" );
+			ast_cli(fd, "User #: %i  Channel: %s %s %s %s %s\n", user->user_no, user->chan->name, (user->userflags & CONFFLAG_ADMIN) ? "(Admin)" : "", (user->userflags & CONFFLAG_MONITOR) ? "(Listen only)" : "", (user->adminflags & ADMINFLAG_MUTED) ? "(Admn Muted)" : "", istalking(user->talking));
 			user = user->nextuser;
 		}
 		return RESULT_SUCCESS;
@@ -537,6 +552,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	int menu_active = 0;
 	int using_pseudo = 0;
 	int duration=20;
+	struct ast_dsp *dsp=NULL;
 
 	struct ast_app *app;
 	char *agifile;
@@ -613,6 +629,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	user->chan = chan;
 	user->userflags = confflags;
 	user->adminflags = 0;
+	user->talking = -1;
 	ast_mutex_unlock(&conflock);
 	origquiet = confflags & CONFFLAG_QUIET;
 	if (confflags & CONFFLAG_EXIT_CONTEXT) {
@@ -807,6 +824,10 @@ zapretry:
 			x = 1;
 			ast_channel_setoption(chan,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
 		}	
+		if (confflags &  CONFFLAG_MONITORTALKER && !(dsp = ast_dsp_new())) {
+			ast_log(LOG_WARNING, "Unable to allocate DSP!\n");
+			res = -1;
+		}
 		for(;;) {
 			outfd = -1;
 			ms = -1;
@@ -885,7 +906,33 @@ zapretry:
 				f = ast_read(c);
 				if (!f) 
 					break;
-				if ((f->frametype == AST_FRAME_DTMF) && (confflags & CONFFLAG_EXIT_CONTEXT)) {
+				if ((f->frametype == AST_FRAME_VOICE) && (f->subclass == AST_FORMAT_SLINEAR)) {
+					if (confflags &  CONFFLAG_MONITORTALKER) {
+						int totalsilence;
+						if (user->talking == -1)
+							user->talking = 0;
+
+						res = ast_dsp_silence(dsp, f, &totalsilence);
+						if (!user->talking && totalsilence < MEETME_DELAYDETECTTALK) {
+							user->talking = 1;
+							manager_event(EVENT_FLAG_CALL, "MeetmeTalking",
+								"Channel: %s\r\n"
+								"Uniqueid: %s\r\n"
+								"Meetme: %s\r\n"
+								"Usernum: %i\r\n",
+								chan->name, chan->uniqueid, conf->confno, user->user_no);
+						}
+						if (user->talking && totalsilence > MEETME_DELAYDETECTENDTALK) {
+							user->talking = 0;
+							manager_event(EVENT_FLAG_CALL, "MeetmeStopTalking",
+								"Channel: %s\r\n"
+								"Uniqueid: %s\r\n"
+								"Meetme: %s\r\n"
+								"Usernum: %i\r\n",
+								chan->name, chan->uniqueid, conf->confno, user->user_no);
+						}
+					}
+				} else if ((f->frametype == AST_FRAME_DTMF) && (confflags & CONFFLAG_EXIT_CONTEXT)) {
 					char tmp[2];
 					tmp[0] = f->subclass;
 					tmp[1] = '\0';
@@ -1076,6 +1123,9 @@ zapretry:
 
 outrun:
 	ast_mutex_lock(&conflock);
+	if (confflags &  CONFFLAG_MONITORTALKER && dsp)
+		ast_dsp_free(dsp);
+	
 	if (user->user_no) { /* Only cleanup users who really joined! */
 		manager_event(EVENT_FLAG_CALL, "MeetmeLeave", 
 			"Channel: %s\r\n"
@@ -1306,6 +1356,8 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	if (inflags) {
 		if (strchr(inflags, 'a'))
 			confflags |= CONFFLAG_ADMIN;
+		if (strchr(inflags, 'T'))
+			confflags |= CONFFLAG_MONITORTALKER;
 		if (strchr(inflags, 'i'))
 			confflags |= CONFFLAG_INTROUSER;
 		if (strchr(inflags, 'm'))
