@@ -13,6 +13,15 @@
 ;
 context=default
 ;
+; Switchtype:  Only used for PRI.
+;
+; national:	  National ISDN
+; dms100:	  Nortel DMS100
+; 4ess:           AT&T 4ESS
+; 5ess:	          Lucent 5ESS
+;
+switchtype=national
+;
 ; Signalling method (default is fxs).  Valid values:
 ; em:     E & M
 ; em_w:   E & M Wink
@@ -23,6 +32,8 @@ context=default
 ; fxo_ls: FXO (Loop Start)
 ; fxo_gs: FXO (Ground Start)
 ; fxo_ks: FXO (Kewl Start)
+; pri_cpe: PRI signalling, CPE side
+; pri_net: PRI signalling, Network side
 ;
 signalling=fxo_ls
 ;
@@ -38,6 +49,39 @@ signalling=fxo_ls
 ;    debounce:    Debounce timing
 ;
 rxwink=300		; Atlas seems to use long (250ms) winks
+;
+; Whether or not to use caller ID
+;
+usecallerid=yes
+;
+; Whether or not to hide outgoing caller ID (Override with *67 or *82)
+;
+hidecallerid=no
+;
+; Whether or not to enable call waiting on FXO lines
+;
+callwaiting=yes
+;
+; Support Caller*ID on Call Waiting
+;
+callwaitingcallerid=yes
+;
+; Support three-way calling
+;
+threewaycalling=yes
+;
+; Support flash-hook call transfer (requires three way calling)
+;
+transfer=yes
+;
+; Enable echo cancellation 
+;
+echocancel=yes
+;
+; You may also set the default receive and transmit gains (in dB)
+;
+rxgain=0.0
+txgain=0.0
 ;
 ; Logical groups can be assigned to allow outgoing rollover.  Groups
 ; range from 0 to 31, and multiple groups can be specified.
@@ -59,21 +103,21 @@ immediate=no
 ; inherits the parameters that were specified above its declaration
 ;
 ;callerid="Green Phone"<(256) 428-6121>
-;channel=1
+;channel => 1
 ;callerid="Black Phone"<(256) 428-6122>
-;channel=2
+;channel => 2
 ;callerid="CallerID Phone" <(256) 428-6123>
 ;callerid="CallerID Phone" <(630) 372-1564>
 ;callerid="CallerID Phone" <(256) 704-4666>
-;channel=3
+;channel => 3
 ;callerid="Pac Tel Phone" <(256) 428-6124>
-;channel=4
+;channel => 4
 ;callerid="Uniden Dead" <(256) 428-6125>
-;channel=5
+;channel => 5
 ;callerid="Cortelco 2500" <(256) 428-6126>
-;channel=6
+;channel => 6
 ;callerid="Main TA 750" <(256) 428-6127>
-;channel=44
+;channel => 44
 ;
 ; For example, maybe we have some other channels
 ; which start out in a different context and use
@@ -81,8 +125,8 @@ immediate=no
 ;
 ;context=remote
 ;sigalling=em
-;channel=15
-;channel=16
+;channel => 15
+;channel => 16
 
 ;
 ; Also, you can setup patterns to ignore by the "small switch" with
@@ -101,15 +145,24 @@ stripmsd=1
 ;callerid=asreceived
 ;group=0
 ;signalling=fxs_ls
-;channel=45
+;channel => 45
 
 ;signalling=fxo_ls
 ;group=1
 ;callerid="Joe Schmoe" <(256) 428-6131>
-;channel=25
+;channel => 25
 ;callerid="Megan May" <(256) 428-6132>
-;channel=26
+;channel => 26
 ;callerid="Suzy Queue" <(256) 428-6233>
-;channel=27
+;channel => 27
 ;callerid="Larry Moe" <(256) 428-6234>
-;channel=28
+;channel => 28
+;
+; Sample PRI (CPE) config:  Specify the switchtype, the signalling as
+; either pri_cpe or pri_net for CPE or Network termination, and generally
+; you will want to create a single "group" for all channels of the PRI.
+;
+; switchtype = national
+; sig = pri_cpe
+; group = 2
+; channel => 1-23
