@@ -2804,6 +2804,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				ast_moh_stop(ast_bridged_channel(p->owner));
 			} else {
 				ast_moh_start(ast_bridged_channel(p->owner), NULL);
+				if (sendonly)
+					ast_rtp_stop(p->rtp);
 			}
 		}
 	}
