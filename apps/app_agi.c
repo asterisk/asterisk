@@ -35,6 +35,7 @@
 #include <asterisk/say.h>
 #include <asterisk/app.h>
 #include <asterisk/dsp.h>
+#include <asterisk/musiconhold.h>
 #include "../asterisk.h"
 #include "../astconf.h"
 
@@ -821,6 +822,27 @@ static int handle_noop(struct ast_channel *chan, AGI *agi, int arg, char *argv[]
 	return RESULT_SUCCESS;
 }
 
+static int handle_setmusic(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
+{
+	if (!strncasecmp(argv[2],"on",2)) {
+		if (argc > 3)
+			ast_moh_start(chan, argv[3]);
+		else
+			ast_moh_start(chan, NULL);
+	}
+	if (!strncasecmp(argv[2],"off",3)) {
+		ast_moh_stop(chan);
+	}
+	fdprintf(agi->fd, "200 result=0\n");
+	return RESULT_SUCCESS;
+}
+
+static char usage_setmusic[] =
+" Usage: SET MUSIC ON <on|off> <class>\n"
+"	Enables/Disables the music on hold generator.  If <class> is\n"
+" not specified then the default music on hold class will be used.\n"
+" Always returns 0\n";
+
 static char usage_dbput[] =
 " Usage: DATABASE PUT <family> <key> <value>\n"
 "	Adds or updates an entry in the Asterisk database for a\n"
@@ -1021,7 +1043,8 @@ static agi_command commands[] = {
 	{ { "database", "put", NULL }, handle_dbput, "Adds/updates database value", usage_dbput },
 	{ { "database", "del", NULL }, handle_dbdel, "Removes database key/value", usage_dbdel },
 	{ { "database", "deltree", NULL }, handle_dbdeltree, "Removes database keytree/value", usage_dbdeltree },
-	{ { "noop", NULL }, handle_noop, "Does nothing", usage_noop }
+	{ { "noop", NULL }, handle_noop, "Does nothing", usage_noop },
+	{ { "set", "music", NULL }, handle_setmusic, "Enable/Disable Music on hold generator", usage_setmusic }
 };
 
 static void join(char *s, int len, char *w[])
