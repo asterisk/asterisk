@@ -221,10 +221,10 @@ static struct sip_pvt {
 	char language[MAX_LANGUAGE];
 	char rdnis[256];				/* Referring DNIS */
 	char theirtag[256];				/* Their tag */
-	char username[81];
-	char peername[81];
-	char uri[81];					/* Original requested URI */
-	char peersecret[81];
+	char username[256];
+	char peername[256];
+	char uri[256];					/* Original requested URI */
+	char peersecret[256];
 	char callerid[256];					/* Caller*ID */
 	int restrictcid;			/* hide presentation from remote user */
 	char via[256];
