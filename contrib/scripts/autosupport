@@ -32,7 +32,7 @@ if [ "$ans" = "y" ]; then
   echo "------------------" >> $OUTPUT;
   echo "PCI LIST " >> $OUTPUT;
   echo "------------------" >> $OUTPUT;
-  lspci -v >> $OUTPUT;
+  lspci -vb >> $OUTPUT;
   echo >> $OUTPUT;
   echo >> $OUTPUT;
 

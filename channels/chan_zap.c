@@ -2876,7 +2876,7 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 #ifdef PRI_2BCT
 		q931c0 = p0->call;
 		q931c1 = p1->call;
-		if (p0->tranfer && p1->transfer 
+		if (p0->transfer && p1->transfer 
 				&& q931c0 && q931c1 
 				&& !triedtopribridge) {
 
