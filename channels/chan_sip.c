@@ -5582,6 +5582,7 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 		ast_cli(fd, "  ToHost       : %s\n", peer->tohost);
 		ast_cli(fd, "  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port));
 		ast_cli(fd, "  Defaddr->IP  : %s Port %d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
+		ast_cli(fd, "  Username     : %s\n", peer->username);
 		ast_cli(fd, "  Codecs       : ");
 		/* This should really be a function in frame.c */
 		if (peer->capability & AST_FORMAT_G723_1)

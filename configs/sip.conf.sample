@@ -22,7 +22,8 @@
 
 [general]
 context=default			; Default context for incoming calls
-;recordhistory=yes		; Record SIP history by default (see sip history / sip no history)
+;recordhistory=yes		; Record SIP history by default 
+				; (see sip history / sip no history)
 ;realm=mydomain.tld		; Realm for digest authentication
 				; defaults to "asterisk"
 				; Realms MUST be globally unique according to RFC 3261
@@ -38,12 +39,12 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				
 ;pedantic=yes			; Enable slow, pedantic checking for Pingtel
 				; and multiline formatted headers for strict
-				; SIP compatibility
+				; SIP compatibility (defaults to "no")
 ;tos=184                        ; Set IP QoS to either a keyword or numeric val
 ;tos=lowdelay                   ; lowdelay,throughput,reliability,mincost,none
 ;maxexpirey=3600		; Max length of incoming registration we allow
 ;defaultexpirey=120		; Default length of incoming/outoing registration
-;notifymimetype=text/plain	; Allow overriding of mime type in NOTIFY
+;notifymimetype=text/plain	; Allow overriding of mime type in MWI NOTIFY
 ;videosupport=yes		; Turn on support for SIP video
 
 ;disallow=all			; First disallow all codecs
@@ -135,7 +136,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; accountcode
 ; amaflags
 ; incominglimit
-; outgoinglimit
 ; restrictcid
 ;                             mailbox
 ;                             username
@@ -156,31 +156,30 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;context=from-fwd
 
 ;[sip_proxy-out]
-;type=peer                  ; we only want to call out, not be called
+;type=peer          		; we only want to call out, not be called
 ;secret=guessit
-;username=yourusername
-;fromuser=yourusername         ; Many SIP providers require this!
+;username=yourusername		; Authentication user for outbound proxies
+;fromuser=yourusername		; Many SIP providers require this!
 ;host=box.provider.com
 
 ;[grandstream1]
-;type=friend                   ; either "friend" (peer+user), "peer" or "user"
+;type=friend 			; either "friend" (peer+user), "peer" or "user"
 ;context=from-sip
-;username=grandstream1         ; usually matches the [section] title
-;fromuser=grandstream1         ; overrides the callerid, e.g. required by FWD
+;fromuser=grandstream1		; overrides the callerid, e.g. required by FWD
 ;callerid=John Doe <1234>
-;host=192.168.0.23             ; we have a static but private IP address
-;nat=no                        ; there is not NAT between phone and Asterisk
-;canreinvite=yes               ; allow RTP voice traffic to bypass Asterisk
-;dtmfmode=info                 ; either RFC2833 or INFO for the BudgeTone
-;outgoinglimit=1               ; disable callwaiting signal (2nd call to phone)
-;incominglimit=1               ; permit only 1 outgoing call at a time
+;host=192.168.0.23		; we have a static but private IP address
+;nat=no				; there is not NAT between phone and Asterisk
+;canreinvite=yes		; allow RTP voice traffic to bypass Asterisk
+;dtmfmode=info			; either RFC2833 or INFO for the BudgeTone
+;incominglimit=1		; permit only 1 outgoing call at a time
+				; from the phone to asterisk
 ;mailbox=1234@default  ; mailbox 1234 in voicemail context "default"
-;disallow=all                  ; need to disallow=all before we can use allow=
-;allow=ulaw                    ; Note: In user sections the order of codecs
-                               ; listed with allow= does NOT matter!
+;disallow=all			; need to disallow=all before we can use allow=
+;allow=ulaw			; Note: In user sections the order of codecs
+				; listed with allow= does NOT matter!
 ;allow=alaw
-;allow=g723.1                  ; Asterisk only supports g723.1 pass-thru!
-;allow=g729                    ; Pass-thru only unless g729 license obtained
+;allow=g723.1			; Asterisk only supports g723.1 pass-thru!
+;allow=g729			; Pass-thru only unless g729 license obtained
 
 
 ;[xlite1]
@@ -202,9 +201,11 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;type=friend			; Friends place calls and receive calls
 ;context=from-sip		; Context for incoming calls from this user
 ;secret=blah
+;language=de			; Use German prompts for this user 
 ;host=dynamic			; This peer register with us
 ;dtmfmode=inband		; Choices are inband, rfc2833, or info
 ;defaultip=192.168.0.59		; IP used until peer registers
+;username=snom			; Username to use in INVITE until peer registers
 ;mailbox=1234,2345		; Mailboxes for message waiting indicator
 ;restrictcid=yes		; To have the callerid restriced -> sent as ANI
 ;disallow=all
