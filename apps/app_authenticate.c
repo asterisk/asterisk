@@ -47,7 +47,7 @@ static char *descrip =
 "When using a database key, the value associated with the key can be\n"
 "anything.\n"
 "Returns 0 if the user enters a valid password within three\n"
-"tries, or -1 otherwise (or on hangup).\n";
+"tries, or -1 (or on hangup) or n+101 if exists.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -133,11 +133,14 @@ static int auth_exec(struct ast_channel *chan, void *data)
 		if (!res)
 			res = ast_waitstream(chan, "");
 	} else {
-		if (!res)
-			res = ast_streamfile(chan, "vm-goodbye", chan->language);
-		if (!res)
-			res = ast_waitstream(chan, "");
-		res = -1;
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
+			chan->priority+=100;
+			res = 0;
+		} else {
+			if (!ast_streamfile(chan, "vm-goodbye", chan->language))
+				res = ast_waitstream(chan, "");
+			res = -1;
+		}
 	}
 	LOCAL_USER_REMOVE(u);
 	return res;
