@@ -7912,14 +7912,17 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ast_set_flag(p, SIP_NEEDDESTROY);	
 		transmit_response(p, "200 OK", req);
 	} else if (!strcasecmp(cmd, "MESSAGE")) {
-		if (!ignore) {
-			if (debug)
-				ast_verbose("Receiving message!\n");
-			receive_message(p, req);
-		}
-		transmit_response(p, "200 OK", req);
-		if (!p->lastinvite)
+		if (p->lastinvite) {
+			if (!ignore) {
+				if (debug)
+					ast_verbose("Receiving message!\n");
+				receive_message(p, req);
+			}
+			transmit_response(p, "200 OK", req);
+		} else {
+			transmit_response(p, "405 Method Not Allowed", req);
 			ast_set_flag(p, SIP_NEEDDESTROY);
+		}
 	} else if (!strcasecmp(cmd, "SUBSCRIBE")) {
 		if (!ignore) {
 			/* Use this as the basis */
