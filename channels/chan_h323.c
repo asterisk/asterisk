@@ -124,17 +124,17 @@ struct oh323_pvt {
 static struct ast_user_list {
 	struct oh323_user *users;
 	ast_mutex_t lock;
-} userl = { NULL, AST_MUTEX_INITIALIZER };
+} userl;
 
 static struct ast_peer_list {
 	struct oh323_peer *peers;
 	ast_mutex_t lock;
-} peerl = { NULL, AST_MUTEX_INITIALIZER };
+} peerl;
 
 static struct ast_alias_list {
 	struct oh323_alias *aliases;
 	ast_mutex_t lock;
-} aliasl = { NULL, AST_MUTEX_INITIALIZER };
+} aliasl;
 
 /** Asterisk RTP stuff*/
 static struct sched_context *sched;
