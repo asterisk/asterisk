@@ -79,7 +79,7 @@ static struct ast_frame *lintogsm_sample()
 	f.subclass = AST_FORMAT_SLINEAR;
 	f.datalen = sizeof(slin_gsm_ex);
 	/* Assume 8000 Hz */
-	f.timelen = sizeof(slin_gsm_ex)/16;
+	f.samples = sizeof(slin_gsm_ex)/2;
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
@@ -94,7 +94,7 @@ static struct ast_frame *gsmtolin_sample()
 	f.subclass = AST_FORMAT_GSM;
 	f.datalen = sizeof(gsm_slin_ex);
 	/* All frames are 20 ms long */
-	f.timelen = 20;
+	f.samples = 160;
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
@@ -112,7 +112,7 @@ static struct ast_frame *gsmtolin_frameout(struct ast_translator_pvt *tmp)
 	tmp->f.subclass = AST_FORMAT_SLINEAR;
 	tmp->f.datalen = tmp->tail * 2;
 	/* Assume 8000 Hz */
-	tmp->f.timelen = tmp->tail / 8;
+	tmp->f.samples = tmp->tail;
 	tmp->f.mallocd = 0;
 	tmp->f.offset = AST_FRIENDLY_OFFSET;
 	tmp->f.src = __PRETTY_FUNCTION__;
@@ -190,7 +190,7 @@ static struct ast_frame *lintogsm_frameout(struct ast_translator_pvt *tmp)
 		x++;
 	}
 	tmp->f.datalen = x * 33;
-	tmp->f.timelen = x * 20;
+	tmp->f.samples = x * 160;
 	return &tmp->f;	
 }
 

@@ -290,7 +290,7 @@ adpcmtolin_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
  *
  * Results:
  *  Converted signals are placed in tmp->f.data, tmp->f.datalen
- *  and tmp->f.timelen are calculated.
+ *  and tmp->f.samples are calculated.
  *
  * Side effects:
  *  None.
@@ -307,7 +307,7 @@ adpcmtolin_frameout (struct ast_translator_pvt *pvt)
   tmp->f.frametype = AST_FRAME_VOICE;
   tmp->f.subclass = AST_FORMAT_SLINEAR;
   tmp->f.datalen = tmp->tail *2;
-  tmp->f.timelen = tmp->tail / 8;
+  tmp->f.samples = tmp->tail;
   tmp->f.mallocd = 0;
   tmp->f.offset = AST_FRIENDLY_OFFSET;
   tmp->f.src = __PRETTY_FUNCTION__;
@@ -383,7 +383,7 @@ lintoadpcm_frameout (struct ast_translator_pvt *pvt)
 
   tmp->f.frametype = AST_FRAME_VOICE;
   tmp->f.subclass = AST_FORMAT_ADPCM;
-  tmp->f.timelen = i_max / 8;
+  tmp->f.samples = i_max;
   tmp->f.mallocd = 0;
   tmp->f.offset = AST_FRIENDLY_OFFSET;
   tmp->f.src = __PRETTY_FUNCTION__;
@@ -417,7 +417,7 @@ adpcmtolin_sample ()
   f.frametype = AST_FRAME_VOICE;
   f.subclass = AST_FORMAT_ADPCM;
   f.datalen = sizeof (adpcm_slin_ex);
-  f.timelen = sizeof(adpcm_slin_ex) / 4;
+  f.samples = sizeof(adpcm_slin_ex) * 2;
   f.mallocd = 0;
   f.offset = 0;
   f.src = __PRETTY_FUNCTION__;
@@ -437,7 +437,7 @@ lintoadpcm_sample ()
   f.subclass = AST_FORMAT_SLINEAR;
   f.datalen = sizeof (slin_adpcm_ex);
   /* Assume 8000 Hz */
-  f.timelen = sizeof (slin_adpcm_ex) / 16;
+  f.samples = sizeof (slin_adpcm_ex) / 2;
   f.mallocd = 0;
   f.offset = 0;
   f.src = __PRETTY_FUNCTION__;

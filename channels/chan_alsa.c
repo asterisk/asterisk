@@ -646,7 +646,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 	
 	f.frametype = AST_FRAME_NULL;
 	f.subclass = 0;
-	f.timelen = 0;
+	f.samples = 0;
 	f.datalen = 0;
 	f.data = NULL;
 	f.offset = 0;
@@ -728,7 +728,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 		}
 		f.frametype = AST_FRAME_VOICE;
 		f.subclass = AST_FORMAT_SLINEAR;
-		f.timelen = FRAME_SIZE / 8;
+		f.samples = FRAME_SIZE;
 		f.datalen = FRAME_SIZE * 2;
 		f.data = buf;
 		f.offset = AST_FRIENDLY_OFFSET;
@@ -905,8 +905,8 @@ static char sendtext_usage[] =
 
 static int console_sendtext(int fd, int argc, char *argv[])
 {
-	int tmparg = 1;
-	if (argc < 1)
+	int tmparg = 2;
+	if (argc < 2)
 		return RESULT_SHOWUSAGE;
 	if (!alsa.owner) {
 		ast_cli(fd, "No one is calling us\n");
@@ -968,9 +968,11 @@ static int console_dial(int fd, int argc, char *argv[])
 	mye = exten;
 	myc = context;
 	if (argc == 2) {
+		char *stringp=NULL;
 		strncpy(tmp, argv[1], sizeof(tmp)-1);
-		strtok(tmp, "@");
-		tmp2 = strtok(NULL, "@");
+		stringp=tmp;
+		strsep(&stringp, "@");
+		tmp2 = strsep(&stringp, "@");
 		if (strlen(tmp))
 			mye = tmp;
 		if (tmp2 && strlen(tmp2))
@@ -995,7 +997,7 @@ static struct ast_cli_entry myclis[] = {
 	{ { "answer", NULL }, console_answer, "Answer an incoming console call", answer_usage },
 	{ { "hangup", NULL }, console_hangup, "Hangup a call on the console", hangup_usage },
 	{ { "dial", NULL }, console_dial, "Dial an extension on the console", dial_usage },
-	{ { "send text", NULL }, console_sendtext, "Send text to the remote device", sendtext_usage },
+	{ { "send", "text", NULL }, console_sendtext, "Send text to the remote device", sendtext_usage },
 	{ { "autoanswer", NULL }, console_autoanswer, "Sets/displays autoanswer", autoanswer_usage, autoanswer_complete }
 };
 

@@ -211,7 +211,7 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 					myf.f.frametype = AST_FRAME_VOICE;
 					myf.f.subclass = AST_FORMAT_SLINEAR;
 					myf.f.datalen = res;
-					myf.f.timelen = res / 16;
+					myf.f.samples = res / 2;
 					myf.f.mallocd = 0;
 					myf.f.offset = AST_FRIENDLY_OFFSET;
 					myf.f.src = __PRETTY_FUNCTION__;

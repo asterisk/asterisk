@@ -101,7 +101,7 @@ static struct ast_frame *mp3tolin_sample()
 	f.data = mp3_slin_ex;
 	f.datalen = sizeof(mp3_slin_ex);
 	/* Dunno how long an mp3 frame is -- kinda irrelevant anyway */
-	f.timelen = 30;
+	f.samples = 240;
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
@@ -118,7 +118,7 @@ static struct ast_frame *mp3tolin_frameout(struct ast_translator_pvt *tmp)
 	tmp->f.subclass = AST_FORMAT_SLINEAR;
 	tmp->f.datalen = tmp->tail * 2;
 	/* Assume 8000 Hz */
-	tmp->f.timelen = tmp->tail / 8;
+	tmp->f.samples = tmp->tail;
 	tmp->f.mallocd = 0;
 	tmp->f.offset = AST_FRIENDLY_OFFSET;
 	tmp->f.src = __PRETTY_FUNCTION__;

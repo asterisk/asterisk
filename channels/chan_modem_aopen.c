@@ -187,7 +187,7 @@ static struct ast_frame *aopen_handle_escape(struct ast_modem_pvt *p, char esc)
 	p->fr.subclass = 0;
 	p->fr.data = NULL;
 	p->fr.datalen = 0;
-	p->fr.timelen = 0;
+	p->fr.samples = 0;
 	p->fr.offset = 0;
 	p->fr.mallocd = 0;
 	if (esc)
@@ -315,7 +315,7 @@ static struct ast_frame *aopen_read(struct ast_modem_pvt *p)
 		/* If we get here, we have a complete voice frame */
 		p->fr.frametype = AST_FRAME_VOICE;
 		p->fr.subclass = AST_FORMAT_SLINEAR;
-		p->fr.timelen = 30;
+		p->fr.samples = 240;
 		p->fr.data = p->obuf;
 		p->fr.datalen = p->obuflen;
 		p->fr.mallocd = 0;

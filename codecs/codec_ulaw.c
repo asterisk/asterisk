@@ -151,7 +151,7 @@ ulawtolin_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
  *
  * Results:
  *  Converted signals are placed in tmp->f.data, tmp->f.datalen
- *  and tmp->f.timelen are calculated.
+ *  and tmp->f.samples are calculated.
  *
  * Side effects:
  *  None.
@@ -168,7 +168,7 @@ ulawtolin_frameout (struct ast_translator_pvt *pvt)
   tmp->f.frametype = AST_FRAME_VOICE;
   tmp->f.subclass = AST_FORMAT_SLINEAR;
   tmp->f.datalen = tmp->tail *2;
-  tmp->f.timelen = tmp->tail / 8;
+  tmp->f.samples = tmp->tail;
   tmp->f.mallocd = 0;
   tmp->f.offset = AST_FRIENDLY_OFFSET;
   tmp->f.src = __PRETTY_FUNCTION__;
@@ -226,7 +226,7 @@ lintoulaw_frameout (struct ast_translator_pvt *pvt)
   if (tmp->tail) {
 	  tmp->f.frametype = AST_FRAME_VOICE;
 	  tmp->f.subclass = AST_FORMAT_ULAW;
-	  tmp->f.timelen = tmp->tail / 8;
+	  tmp->f.samples = tmp->tail;
 	  tmp->f.mallocd = 0;
 	  tmp->f.offset = AST_FRIENDLY_OFFSET;
 	  tmp->f.src = __PRETTY_FUNCTION__;
@@ -249,7 +249,7 @@ ulawtolin_sample ()
   f.frametype = AST_FRAME_VOICE;
   f.subclass = AST_FORMAT_ULAW;
   f.datalen = sizeof (ulaw_slin_ex);
-  f.timelen = sizeof(ulaw_slin_ex) / 8;
+  f.samples = sizeof(ulaw_slin_ex);
   f.mallocd = 0;
   f.offset = 0;
   f.src = __PRETTY_FUNCTION__;
@@ -269,7 +269,7 @@ lintoulaw_sample ()
   f.subclass = AST_FORMAT_SLINEAR;
   f.datalen = sizeof (slin_ulaw_ex);
   /* Assume 8000 Hz */
-  f.timelen = sizeof (slin_ulaw_ex) / 16;
+  f.samples = sizeof (slin_ulaw_ex) / 2;
   f.mallocd = 0;
   f.offset = 0;
   f.src = __PRETTY_FUNCTION__;

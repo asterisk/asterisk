@@ -125,7 +125,7 @@ alawtoulaw_frameout (struct ast_translator_pvt *pvt)
   tmp->f.frametype = AST_FRAME_VOICE;
   tmp->f.subclass = AST_FORMAT_ULAW;
   tmp->f.datalen = tmp->tail;
-  tmp->f.timelen = tmp->tail / 8;
+  tmp->f.samples = tmp->tail;
   tmp->f.mallocd = 0;
   tmp->f.offset = AST_FRIENDLY_OFFSET;
   tmp->f.src = __PRETTY_FUNCTION__;
@@ -172,7 +172,7 @@ ulawtoalaw_frameout (struct ast_translator_pvt *pvt)
   if (tmp->tail) {
 	  tmp->f.frametype = AST_FRAME_VOICE;
 	  tmp->f.subclass = AST_FORMAT_ALAW;
-	  tmp->f.timelen = tmp->tail / 8;
+	  tmp->f.samples = tmp->tail;
 	  tmp->f.mallocd = 0;
 	  tmp->f.offset = AST_FRIENDLY_OFFSET;
 	  tmp->f.src = __PRETTY_FUNCTION__;
@@ -195,7 +195,7 @@ alawtoulaw_sample ()
   f.frametype = AST_FRAME_VOICE;
   f.subclass = AST_FORMAT_ALAW;
   f.datalen = sizeof (ulaw_slin_ex);
-  f.timelen = sizeof(ulaw_slin_ex) / 8;
+  f.samples = sizeof(ulaw_slin_ex);
   f.mallocd = 0;
   f.offset = 0;
   f.src = __PRETTY_FUNCTION__;
@@ -210,7 +210,7 @@ ulawtoalaw_sample ()
   f.frametype = AST_FRAME_VOICE;
   f.subclass = AST_FORMAT_ULAW;
   f.datalen = sizeof (ulaw_slin_ex);
-  f.timelen = sizeof(ulaw_slin_ex) / 8;
+  f.samples = sizeof(ulaw_slin_ex);
   f.mallocd = 0;
   f.offset = 0;
   f.src = __PRETTY_FUNCTION__;

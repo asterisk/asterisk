@@ -320,7 +320,7 @@ static struct ast_frame  *phone_exception(struct ast_channel *ast)
 
 	/* Some nice norms */
 	p->fr.datalen = 0;
-	p->fr.timelen = 0;
+	p->fr.samples = 0;
 	p->fr.data =  NULL;
 	p->fr.src = type;
 	p->fr.offset = 0;
@@ -381,7 +381,7 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 
 	/* Some nice norms */
 	p->fr.datalen = 0;
-	p->fr.timelen = 0;
+	p->fr.samples = 0;
 	p->fr.data =  NULL;
 	p->fr.src = type;
 	p->fr.offset = 0;
@@ -415,6 +415,7 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 		res = 4;
 		break;
 	}
+	p->fr.samples = 240;
 	p->fr.datalen = res;
 	p->fr.frametype = AST_FRAME_VOICE;
 	p->fr.subclass = p->lastinput;
@@ -630,6 +631,8 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 		strncpy(tmp->context, context, sizeof(tmp->context)-1);
 		if (strlen(i->ext))
 			strncpy(tmp->exten, i->ext, sizeof(tmp->exten)-1);
+		else
+			strncpy(tmp->exten, "s",  sizeof(tmp->exten) - 1);
 		if (strlen(i->language))
 			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
 		if (strlen(i->callerid))

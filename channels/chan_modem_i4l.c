@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
 #include <asterisk/lock.h>
 #include <asterisk/vmodem.h>
 #include <asterisk/module.h>
@@ -151,9 +152,35 @@ static int i4l_init(struct ast_modem_pvt *p)
 			return -1;
 		}
 	}
+	if (strlen(p->incomingmsn)) {
+		char *q;
+		snprintf(cmd, sizeof(cmd), "AT&L%s", p->incomingmsn);
+		// translate , into ; since that is the seperator I4L uses, but can't be directly
+		// put in the config file because it will interpret the rest of the line as comment.
+		q = cmd+4;
+		while (*q) {
+			if (*q == ',') *q = ';';
+			++q;
+		}
+		if (ast_modem_send(p, cmd, 0) ||
+		    ast_modem_expect(p, "OK", 5)) {
+			ast_log(LOG_WARNING, "Unable to set Listen to %s\n", p->msn);
+			return -1;
+		}
+	}
+	if (ast_modem_send(p, "AT&D2", 0) ||
+	     ast_modem_expect(p, "OK", 5)) {
+		ast_log(LOG_WARNING, "Unable to set to DTR disconnect mode\n");
+		return -1;
+	}
 	if (ast_modem_send(p, "ATS18=1", 0) ||
 	     ast_modem_expect(p, "OK", 5)) {
 		ast_log(LOG_WARNING, "Unable to set to audio only mode\n");
+		return -1;
+	}
+	if (ast_modem_send(p, "ATS13.6=1", 0) ||
+	     ast_modem_expect(p, "OK", 5)) {
+		ast_log(LOG_WARNING, "Unable to set to RUNG indication\n");
 		return -1;
 	}
 	if (ast_modem_send(p, "ATS14=4", 0) ||
@@ -189,7 +216,7 @@ static struct ast_frame *i4l_handle_escape(struct ast_modem_pvt *p, char esc)
 	p->fr.subclass = 0;
 	p->fr.data = NULL;
 	p->fr.datalen = 0;
-	p->fr.timelen = 0;
+	p->fr.samples = 0;
 	p->fr.offset = 0;
 	p->fr.mallocd = 0;
 	if (esc && option_debug)
@@ -271,7 +298,15 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 	int x;
 	if (p->ministate == STATE_COMMAND) {
 		/* Read the first two bytes, first, in case it's a control message */
-		read(p->fd, result, 2);
+		res = read(p->fd, result, 2);
+		if (res < 2) {
+			// short read, means there was a hangup?
+			// (or is this also possible without hangup?)
+			// Anyway, reading from unitialized buffers is a bad idea anytime.
+			if (errno == EAGAIN)
+				return i4l_handle_escape(p, 0);
+			return NULL;
+		}
 		if (result[0] == CHAR_DLE) {
 			return i4l_handle_escape(p, result[1]);
 			
@@ -283,7 +318,7 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 			ast_modem_trim(result);
 			if (!strcasecmp(result, "VCON")) {
 				/* If we're in immediate mode, reply now */
-				if (p->mode == MODEM_MODE_IMMEDIATE)
+//				if (p->mode == MODEM_MODE_IMMEDIATE)
 					return i4l_handle_escape(p, 'X');
 			} else
 			if (!strcasecmp(result, "BUSY")) {
@@ -292,16 +327,22 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 			} else
 			if (!strncasecmp(result, "CALLER NUMBER: ", 15 )) {
 				strncpy(p->cid, result + 15, sizeof(p->cid)-1);
-				return i4l_handle_escape(p, 'R');
+				return i4l_handle_escape(p, 0);
 			} else
 			if (!strcasecmp(result, "RINGING")) {
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "%s is ringing...\n", p->dev);
 				return i4l_handle_escape(p, 'I');
 			} else
+			if (!strncasecmp(result, "RUNG", 4)) {
+				/* PM2002: the line was hung up before we picked it up, bye bye */
+				if (option_verbose > 2) 
+					ast_verbose(VERBOSE_PREFIX_3 "%s was hung up on before we answered\n", p->dev);
+				return NULL;
+			} else
 			if (!strncasecmp(result, "RING", 4)) {
 				if (result[4]=='/') 
-					strncpy(p->dnid, result + 4, sizeof(p->dnid)-1);
+					strncpy(p->dnid, result + 5, sizeof(p->dnid)-1);
 				return i4l_handle_escape(p, 'R');
 			} else
 			if (!strcasecmp(result, "NO CARRIER")) {
@@ -329,6 +370,7 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 				if (errno == EAGAIN)
 					return i4l_handle_escape(p, 0);
 				ast_log(LOG_WARNING, "Read failed: %s\n", strerror(errno));
+				return NULL;
 			}
 			
 			for (x=0;x<res;x++) {
@@ -372,7 +414,7 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 		/* If we get here, we have a complete voice frame */
 		p->fr.frametype = AST_FRAME_VOICE;
 		p->fr.subclass = AST_FORMAT_SLINEAR;
-		p->fr.timelen = 30;
+		p->fr.samples = 240;
 		p->fr.data = p->obuf;
 		p->fr.datalen = p->obuflen;
 		p->fr.mallocd = 0;
@@ -497,32 +539,24 @@ static int i4l_dial(struct ast_modem_pvt *p, char *stuff)
 static int i4l_hangup(struct ast_modem_pvt *p)
 {
 	char dummy[50];
-	sprintf(dummy, "%c%c", 0x10, 0x3);
-	if (write(p->fd, dummy, 2) < 0) {
-		ast_log(LOG_WARNING, "Failed to break\n");
-		return -1;
-	}
+	int dtr = TIOCM_DTR;
+
+	/* down DTR to hangup modem */
+	ioctl(p->fd, TIOCMBIC, &dtr);
 
 	/* Read anything outstanding */
 	while(read(p->fd, dummy, sizeof(dummy)) > 0);
 
-	sprintf(dummy, "%c%c", 0x10, 0x14);
-	if (write(p->fd, dummy, 2) < 0) {
-		ast_log(LOG_WARNING, "Failed to break\n");
-		return -1;
-	}
-	ast_modem_expect(p, "VCON", 1);
-#if 0
-	if (ast_modem_expect(p, "VCON", 8)) {
-		ast_log(LOG_WARNING, "Didn't get expected VCON\n");
-		return -1;
-	}
-#endif
+	/* rise DTR to re-enable line */
+	ioctl(p->fd, TIOCMBIS, &dtr);
+	
+	/* Read anything outstanding */
+	while(read(p->fd, dummy, sizeof(dummy)) > 0);
+
+	/* basically we're done, just to be sure */
 	write(p->fd, "\n\n", 2);
 	read(p->fd, dummy, sizeof(dummy));
-	/* Hangup by switching to data, then back to voice */
-	if (ast_modem_send(p, "ATH", 0) ||
-	     ast_modem_expect(p, "NO CARRIER", 8)) {
+	if (ast_modem_send(p, "ATH", 0)) {
 		ast_log(LOG_WARNING, "Unable to hang up\n");
 		return -1;
 	}
@@ -530,6 +564,7 @@ static int i4l_hangup(struct ast_modem_pvt *p)
 		ast_log(LOG_WARNING, "Final 'OK' not received\n");
 		return -1;
 	}
+
 	return 0;
 }
 

@@ -116,12 +116,13 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	int i,j,k,x;
 	struct localuser *u;
 	char tmp[256],arg2[256],exten[AST_MAX_EXTENSION],acctcode[20];
-	unsigned char tone_block[640],sil_block[640];
+	unsigned char tone_block[640];
 	char *ourcontext,*ourcallerid;
 	struct ast_frame *f,wf;
 	struct timeval lastout, now, lastdigittime;
 	int res;
 	FILE *fp;
+	char *stringp=NULL;
 
 	if (ast_set_write_format(chan,AST_FORMAT_ULAW))
 	{
@@ -134,19 +135,18 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	lastout.tv_sec = lastout.tv_usec = 0;
-	  /* make block of silence */
-	memset(sil_block,0x7f,sizeof(sil_block));
 	if (!data || !strlen((char *)data)) {
 		ast_log(LOG_WARNING, "disa requires an argument (passcode/passcode file)\n");
 		return -1;
 	}
 	strncpy(tmp, (char *)data, sizeof(tmp)-1);
-	strtok(tmp, "|");
-	ourcontext = strtok(NULL, "|");
+	stringp=tmp;
+	strsep(&stringp, "|");
+	ourcontext = strsep(&stringp, "|");
 	/* if context specified, save 2nd arg and parse third */
 	if (ourcontext) {
 		strcpy(arg2,ourcontext);
-		ourcallerid = strtok(NULL,"|");
+		ourcallerid = strsep(&stringp,"|");
 	}
 	  /* if context not specified, use "disa" */
 	else {
@@ -162,6 +162,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	}
 	i = k = x = 0; /* k is 0 for pswd entry, 1 for ext entry */
 	exten[0] = 0;
+	acctcode[0] = 0;
 	/* can we access DISA without password? */ 
 	if (!strcasecmp(tmp, "no-password"))
 	{
@@ -207,7 +208,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 				wf.data = tone_block;
 				wf.datalen = f->datalen;
 				make_tone_block(tone_block, 350, 440, f->datalen, &x);
-				wf.timelen = wf.datalen / 8;
+				wf.samples = wf.datalen;
 				ast_frfree(f);
 			    if (ast_write(chan, &wf)) 
 				{
@@ -250,6 +251,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 						tmp[0] = 0;
 						while(fgets(tmp,sizeof(tmp) - 1,fp))
 						   {
+							char *stringp=NULL;
 							if (!tmp[0]) continue;
 							if (tmp[strlen(tmp) - 1] == '\n') 
 								tmp[strlen(tmp) - 1] = 0;
@@ -257,10 +259,11 @@ static int disa_exec(struct ast_channel *chan, void *data)
 							  /* skip comments */
 							if (tmp[0] == '#') continue;
 							if (tmp[0] == ';') continue;
-							strtok(tmp, "|");
+							stringp=tmp;
+							strsep(&stringp, "|");
 							/* save 2nd arg as clid */
 							ourcallerid = arg2;
-							ourcontext = strtok(NULL, "|");
+							ourcontext = strsep(&stringp, "|");
 							  /* password must be in valid format (numeric) */
 							if (sscanf(tmp,"%d",&j) < 1) continue;
 							  /* if we got it */
@@ -328,7 +331,7 @@ reorder:
 				wf.mallocd = 0;
 				wf.data = tone_block;
 				wf.datalen = f->datalen;
-				wf.timelen = wf.datalen / 8;
+				wf.samples = wf.datalen;
 				if (k) 
 					memset(tone_block, 0x7f, wf.datalen);
 				else
