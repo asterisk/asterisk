@@ -63,7 +63,7 @@ struct ast_filestream {
 	struct ast_tranlator_pvt *tr;
 };
 
-static pthread_mutex_t formatlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t formatlock = AST_MUTEX_INITIALIZER;
 
 static struct ast_format *formats = NULL;
 
@@ -503,7 +503,7 @@ char ast_waitstream(struct ast_channel *c, char *breakon)
 		res = ast_sched_wait(c->sched);
 		if (res < 0) {
 			ast_closestream(c->stream);
-			return 0;
+			break;
 		}
 		res = ast_waitfor(c, res);
 		if (res < 0) {
@@ -522,9 +522,10 @@ char ast_waitstream(struct ast_channel *c, char *breakon)
 			switch(fr->frametype) {
 			case AST_FRAME_DTMF:
 				res = fr->subclass;
-				ast_frfree(fr);
-				if (strchr(breakon, res))
+				if (strchr(breakon, res)) {
+					ast_frfree(fr);
 					return res;
+				}
 				break;
 			case AST_FRAME_CONTROL:
 				switch(fr->subclass) {
@@ -538,15 +539,14 @@ char ast_waitstream(struct ast_channel *c, char *breakon)
 				default:
 					ast_log(LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
 				}
-			default:
-				/* Ignore */
-				ast_frfree(fr);
 			}
+			/* Ignore */
+			ast_frfree(fr);
 		} else
 			ast_sched_runq(c->sched);
 	
 		
 	}
-	return 0;
+	return (c->softhangup ? -1 : 0);
 }
 
