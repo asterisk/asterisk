@@ -34,6 +34,10 @@
 #include <sys/ioctl.h>
 #include <linux/telephony.h>
 /* Still use some IXJ specific stuff */
+#include <linux/version.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+# include <linux/compiler.h>
+#endif
 #include <linux/ixjuser.h>
 #include "DialTone.h"
 
