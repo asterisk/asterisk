@@ -1610,14 +1610,16 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			ast_mutex_unlock(&p->lock);
 			return -1;
 		}
-		x = ZT_START;
-		/* Start the trunk */
-		res = ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x);
-		if (res < 0) {
-			if (errno != EINPROGRESS) {
-				ast_log(LOG_WARNING, "Unable to start channel: %s\n", strerror(errno));
-				ast_mutex_unlock(&p->lock);
-				return -1;
+		/* Start the trunk, if not GR-303 */
+		if (!p->pri) {
+			x = ZT_START;
+			res = ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x);
+			if (res < 0) {
+				if (errno != EINPROGRESS) {
+					ast_log(LOG_WARNING, "Unable to start channel: %s\n", strerror(errno));
+					ast_mutex_unlock(&p->lock);
+					return -1;
+				}
 			}
 		}
 		ast_log(LOG_DEBUG, "Dialing '%s'\n", c);
@@ -1719,16 +1721,18 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			ast_mutex_unlock(&p->lock);
 			return -1;
 		}
-		p->dop.op = ZT_DIAL_OP_REPLACE;
-		s = strchr(c + p->stripmsd, 'w');
-		if (s) {
-			if (strlen(s))
-				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%s", s);
-			else
+		if (p->sig != SIG_FXSKS) {
+			p->dop.op = ZT_DIAL_OP_REPLACE;
+			s = strchr(c + p->stripmsd, 'w');
+			if (s) {
+				if (strlen(s))
+					snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%s", s);
+				else
+					p->dop.dialstr[0] = '\0';
+				*s = '\0';
+			} else {
 				p->dop.dialstr[0] = '\0';
-			*s = '\0';
-		} else {
-			p->dop.dialstr[0] = '\0';
+			}
 		}
 		if (pri_grab(p, p->pri)) {
 			ast_log(LOG_WARNING, "Failed to grab PRI!\n");
@@ -1746,10 +1750,13 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			pri_rel(p->pri);
 			ast_mutex_unlock(&p->lock);
 		}
-		if (p->bearer) {
-			ast_log(LOG_DEBUG, "Oooh, I have a bearer on %d (%d:%d)\n", PVT_TO_CHANNEL(p->bearer), p->bearer->logicalspan, p->bearer->channel);
+		if (p->bearer || (p->sig == SIG_FXSKS)) {
+			if (p->bearer) {
+				ast_log(LOG_DEBUG, "Oooh, I have a bearer on %d (%d:%d)\n", PVT_TO_CHANNEL(p->bearer), p->bearer->logicalspan, p->bearer->channel);
+				p->bearer->call = p->call;
+			} else
+				ast_log(LOG_DEBUG, "I'm being setup with no bearer right now...\n");
 			pri_set_crv(p->pri->pri, p->call, p->channel, 0);
-			p->bearer->call = p->call;
 		}
 		p->digital = ast_test_flag(ast,AST_FLAG_DIGITAL);
 		pri_sr_set_channel(sr, p->bearer ? PVT_TO_CHANNEL(p->bearer) : PVT_TO_CHANNEL(p), 
@@ -1858,6 +1865,8 @@ int pri_assign_bearer(struct zt_pvt *crv, struct zt_pri *pri, struct zt_pvt *bea
 	bearer->owner = &inuse;
 	bearer->master = crv;
 	crv->subs[SUB_REAL].zfd = bearer->subs[SUB_REAL].zfd;
+	if (crv->subs[SUB_REAL].owner)
+		crv->subs[SUB_REAL].owner->fds[0] = crv->subs[SUB_REAL].zfd;
 	crv->bearer = bearer;
 	crv->call = bearer->call;
 	crv->pri = pri;
@@ -4262,7 +4271,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		y = 1;
 		do {
 #ifdef ZAPATA_PRI
-			if (i->bearer)
+			if (i->bearer || (i->pri && (i->sig == SIG_FXSKS)))
 				snprintf(tmp->name, sizeof(tmp->name), "Zap/%d:%d-%d", i->pri->trunkgroup, i->channel, y);
 			else
 #endif
@@ -6475,14 +6484,25 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 			callwait = (p->owner != NULL);
 #ifdef ZAPATA_PRI
 			if (pri && (p->subs[SUB_REAL].zfd < 0)) {
-				/* Gotta find an actual channel to use for this
-				   CRV if this isn't a callwait */
-				bearer = pri_find_empty_chan(pri, 0);
-				if (bearer < 0) {
-					ast_log(LOG_NOTICE, "Out of bearer channels on span %d for call to CRV %d:%d\n", pri->span, trunkgroup, crv);
-					break;
+				if (p->sig != SIG_FXSKS) {
+					/* Gotta find an actual channel to use for this
+					   CRV if this isn't a callwait */
+					bearer = pri_find_empty_chan(pri, 0);
+					if (bearer < 0) {
+						ast_log(LOG_NOTICE, "Out of bearer channels on span %d for call to CRV %d:%d\n", pri->span, trunkgroup, crv);
+						p = NULL;
+						break;
+					}
+					pri_assign_bearer(p, pri, pri->pvts[bearer]);
+				} else {
+					if (alloc_sub(p, 0)) {
+						ast_log(LOG_NOTICE, "Failed to allocate place holder pseudo channel!\n");
+						p = NULL;
+						break;
+					} else
+						ast_log(LOG_DEBUG, "Allocated placeholder pseudo channel\n");
+					p->pri = pri;
 				}
-				pri_assign_bearer(p, pri, pri->pvts[bearer]);
 			}
 #endif			
 			if (p->channel == CHAN_PSEUDO) {
@@ -6596,6 +6616,7 @@ static int pri_find_principle(struct zt_pri *pri, int channel)
 static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 {
 	int x;
+	struct zt_pvt *crv;
 	if (!c) {
 		if (principle < 0)
 			return -1;
@@ -6606,6 +6627,7 @@ static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 		(pri->pvts[principle]) && 
 		(pri->pvts[principle]->call == c))
 		return principle;
+	/* First, check for other bearers */
 	for (x=0;x<pri->numchans;x++) {
 		if (!pri->pvts[x]) continue;
 		if (pri->pvts[x]->call == c) {
@@ -6634,6 +6656,30 @@ static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 			}
 			return principle;
 		}
+	}
+	/* Now check for a CRV with no bearer */
+	crv = pri->crvs;
+	while(crv) {
+		if (crv->call == c) {
+			/* This is our match...  Perform some basic checks */
+			if (crv->bearer)
+				ast_log(LOG_WARNING, "Trying to fix up call which already has a bearer which isn't the one we think it is\n");
+			else if (pri->pvts[principle]->owner) 
+				ast_log(LOG_WARNING, "Tring to fix up a call to a bearer which already has an owner!\n");
+			else {
+				/* Looks good.  Drop the pseudo channel now, clear up the assignment, and
+				   wakeup the potential sleeper */
+				close(crv->subs[SUB_REAL].zfd);
+				pri->pvts[principle]->call = crv->call;
+				pri_assign_bearer(crv, pri, pri->pvts[principle]);
+				ast_log(LOG_DEBUG, "Assigning bearer %d/%d to CRV %d:%d\n",
+									pri->pvts[principle]->logicalspan, pri->pvts[principle]->prioffset,
+									pri->trunkgroup, crv->channel);
+				wakeup_sub(crv, SUB_REAL);
+			}
+			return principle;
+		}
+		crv = crv->next;
 	}
 	ast_log(LOG_WARNING, "Call specified, but not found?\n");
 	return -1;
@@ -7361,7 +7407,16 @@ static void *pri_dchannel(void *vpri)
 						chanpos = -1;
 					} else {
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
-						if (!ast_strlen_zero(pri->pvts[chanpos]->dop.dialstr)) {
+						if (pri->pvts[chanpos]->master && (pri->pvts[chanpos]->master->sig == SIG_FXSKS)) {
+							ast_log(LOG_DEBUG, "Starting up GR-303 trunk now that we got CONNECT...\n");
+							x = ZT_START;
+							res = ioctl(pri->pvts[chanpos]->subs[SUB_REAL].zfd, ZT_HOOK, &x);
+							if (res < 0) {
+								if (errno != EINPROGRESS) {
+									ast_log(LOG_WARNING, "Unable to start channel: %s\n", strerror(errno));
+								}
+							}
+						} else if (!ast_strlen_zero(pri->pvts[chanpos]->dop.dialstr)) {
 							pri->pvts[chanpos]->dialing = 1;
 							/* Send any "w" waited stuff */
 							res = ioctl(pri->pvts[chanpos]->subs[SUB_REAL].zfd, ZT_DIAL, &pri->pvts[chanpos]->dop);
@@ -8097,6 +8152,8 @@ static int zap_show_channel(int fd, int argc, char **argv)
 					ast_cli(fd, "Resetting ");
 				if (tmp->call)
 					ast_cli(fd, "Call ");
+				if (tmp->bearer)
+					ast_cli(fd, "Bearer ");
 				ast_cli(fd, "\n");
 				if (tmp->logicalspan) 
 					ast_cli(fd, "PRI Logical Span: %d\n", tmp->logicalspan);

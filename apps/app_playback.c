@@ -30,14 +30,14 @@ static char *synopsis = "Play a file";
 
 static char *descrip = 
 "  Playback(filename[|option]):  Plays  back  a  given  filename (do not put\n"
-"extension). Options may also be  included following a pipe symbol. The only\n"
-"defined option at this time is 'skip',  which  causes  the  playback of the\n"
-"message to  be  skipped  if  the  channel is not in the 'up' state (i.e. it\n"
-"hasn't been  answered  yet. If 'skip' is specified, the application will\n"
-"return immediately should the channel not be off hook.  Otherwise, unless\n"
-"'noanswer' is specified, the channel channel will be answered before the sound\n"
-"is played. Not all channels support playing messages while on hook. Returns -1\n"
-"if the channel was hung up, or if the file does not exist. Returns 0 otherwise.\n";
+"extension). Options may also be  included following a pipe symbol. The 'skip'\n"
+"option causes the playback of the message to  be  skipped  if  the  channel\n"
+"is not in the 'up' state (i.e. it hasn't been  answered  yet. If 'skip' is \n"
+"specified, the application will return immediately should the channel not be\n"
+"off hook.  Otherwise, unless 'noanswer' is specified, the channel channel will\n"
+"be answered before the sound is played. Not all channels support playing\n"
+"messages while still hook. Returns -1 if the channel was hung up, or if the\n"
+"file does not exist. Returns 0 otherwise.\n";
 
 STANDARD_LOCAL_USER;
 
