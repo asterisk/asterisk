@@ -86,7 +86,9 @@ codec_lpc10.so: codec_lpc10.o $(LIBLPC10)
 %.so : %.o
 	$(CC) $(SOLINK) -o $@ $<
 
+ifneq ($(wildcard .depend),)
 include .depend
+endif
 
 install: all
 	for x in $(CODECS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done

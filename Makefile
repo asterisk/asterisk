@@ -372,6 +372,7 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/keys
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/firmware
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/firmware/iax
+	mkdir -p $(DESTDIR)$(ASTMANDIR)/man8
 	install -m 644 keys/iaxtel.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
 	install -m 644 keys/freeworlddialup.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
 	install -m 644 asterisk.8.gz $(DESTDIR)$(ASTMANDIR)/man8
