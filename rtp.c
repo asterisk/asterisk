@@ -60,7 +60,6 @@ struct ast_rtp {
 	char resp;
 	struct ast_frame f;
 	unsigned char rawdata[8192 + AST_FRIENDLY_OFFSET];
-	int readsofar;
 	unsigned int ssrc;
 	unsigned int lastts;
 	unsigned int lastrxts;
@@ -335,19 +334,17 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	int mark;
 	unsigned int timestamp;
 	unsigned int *rtpheader;
-	unsigned char cache[12];
 	static struct ast_frame *f, null_frame = { AST_FRAME_NULL, };
 	struct rtpPayloadType rtpPT;
 	
 	len = sizeof(sin);
 	
 	/* Cache where the header will go */
-	memcpy(cache, rtp->rawdata + AST_FRIENDLY_OFFSET + rtp->readsofar, 12);
-	res = recvfrom(rtp->s, rtp->rawdata + AST_FRIENDLY_OFFSET + rtp->readsofar, sizeof(rtp->rawdata) - AST_FRIENDLY_OFFSET - rtp->readsofar,
+	res = recvfrom(rtp->s, rtp->rawdata + AST_FRIENDLY_OFFSET, sizeof(rtp->rawdata) - AST_FRIENDLY_OFFSET,
 					0, (struct sockaddr *)&sin, &len);
 
 
-	rtpheader = (unsigned int *)(rtp->rawdata + rtp->readsofar + AST_FRIENDLY_OFFSET);
+	rtpheader = (unsigned int *)(rtp->rawdata + AST_FRIENDLY_OFFSET);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "RTP Read error: %s\n", strerror(errno));
 		if (errno == EBADF)
@@ -373,18 +370,11 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	seqno &= 0xffff;
 	timestamp = ntohl(rtpheader[1]);
 
-	/* Restore original data if important */
-	if (rtp->readsofar)
-		memcpy(rtp->rawdata + AST_FRIENDLY_OFFSET + rtp->readsofar, cache, 12);
-	rtpheader = NULL;
-	
-	rtp->readsofar += (res - hdrlen);
 #if 0
 	printf("Got RTP packet from %s:%d (type %d, seq %d, ts %d, len = %d)\n", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
 #endif	
 	rtpPT = ast_rtp_lookup_pt(rtp, payloadtype);
 	if (!rtpPT.isAstFormat) {
-	  rtp->readsofar = 0;
 	  // This is special in-band data that's not one of our codecs
 	  if (rtpPT.code == AST_RTP_DTMF) {
 	    /* It's special -- rfc2833 process it */
@@ -429,16 +419,14 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 
 	/* Send any pending DTMF */
 	if (rtp->resp && !rtp->dtmfcount) {
-		rtp->readsofar = 0;
 		ast_log(LOG_DEBUG, "Sending pending DTMF\n");
 		return send_dtmf(rtp);
 	}
 	rtp->f.mallocd = 0;
-	rtp->f.datalen = rtp->readsofar;
+	rtp->f.datalen = res - hdrlen;
 	rtp->f.data = rtp->rawdata + hdrlen + AST_FRIENDLY_OFFSET;
 	rtp->f.offset = hdrlen + AST_FRIENDLY_OFFSET;
 	if (rtp->f.subclass < AST_FORMAT_MAX_AUDIO) {
-		rtp->readsofar = 0;
 		switch(rtp->f.subclass) {
 		case AST_FORMAT_ULAW:
 		case AST_FORMAT_ALAW:
@@ -474,11 +462,9 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		/* Video -- samples is # of samples vs. 90000 */
 		rtp->f.samples = timestamp - rtp->lastividtimestamp;
 		rtp->lastividtimestamp = timestamp;
-		/* Return now if it's not the whole frame */
-		if (!mark) {
-			return &null_frame;
-		}
-		rtp->readsofar = 0;
+		if (mark)
+			rtp->f.subclass |= 0x1;
+		
 	}
 	rtp->f.src = "RTP";
 	return &rtp->f;
@@ -887,7 +873,6 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	int ms;
 	int pred;
 	int mark = 0;
-	int pos, len;
 
 	ms = calc_txstamp(rtp);
 	/* Default prediction */
@@ -928,20 +913,8 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 			rtp->lastts = pred;
 		else
 			ast_log(LOG_DEBUG, "Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);
-		/* Get a pointer to the header */
-		rtpheader = (unsigned int *)(f->data - hdrlen);
-		rtpheader[0] = htonl((2 << 30) | (codec << 16) | (rtp->seqno++) | (mark << 23));
-		rtpheader[1] = htonl(rtp->lastts);
-		rtpheader[2] = htonl(rtp->ssrc); 
-		if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
-			res = sendto(rtp->s, (void *)rtpheader, f->datalen + hdrlen, 0, &rtp->them, sizeof(rtp->them));
-			if (res <0) 
-				ast_log(LOG_NOTICE, "RTP Transmission error to %s:%d: %s\n", inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
-#if 0
-			printf("Sent %d bytes of RTP data to %s:%d\n", res, inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
-#endif		
-		}
 	} else {
+		mark = f->subclass & 0x1;
 		pred = rtp->lastovidtimestamp + f->samples;
 		/* Re-calculate last TS */
 		rtp->lastts = rtp->lastts + ms * 90;
@@ -953,30 +926,19 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 			ast_log(LOG_DEBUG, "Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);
 			rtp->lastovidtimestamp = rtp->lastts;
 		}
-		pos = 0;
-		while(pos < f->datalen) {
-			/* Split packets up if necessary */
-			mark = 0;
-			len = f->datalen;
-			if (len > RTP_MTU)
-				len = RTP_MTU;
-			if ((pos + len) >= f->datalen)
-				mark = 1;
-			/* Get a pointer to the header */
-			rtpheader = (unsigned int *)(f->data + pos - hdrlen);
-			rtpheader[0] = htonl((2 << 30) | (codec << 16) | (rtp->seqno++) | (mark << 23));
-			rtpheader[1] = htonl(rtp->lastts);
-			rtpheader[2] = htonl(rtp->ssrc); 
-			if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
-				res = sendto(rtp->s, (void *)rtpheader, len + hdrlen, 0, &rtp->them, sizeof(rtp->them));
-				if (res <0) 
-					ast_log(LOG_NOTICE, "RTP Transmission error to %s:%d: %s\n", inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
+	}
+	/* Get a pointer to the header */
+	rtpheader = (unsigned int *)(f->data - hdrlen);
+	rtpheader[0] = htonl((2 << 30) | (codec << 16) | (rtp->seqno++) | (mark << 23));
+	rtpheader[1] = htonl(rtp->lastts);
+	rtpheader[2] = htonl(rtp->ssrc); 
+	if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
+		res = sendto(rtp->s, (void *)rtpheader, f->datalen + hdrlen, 0, &rtp->them, sizeof(rtp->them));
+		if (res <0) 
+			ast_log(LOG_NOTICE, "RTP Transmission error to %s:%d: %s\n", inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
 #if 0
-				printf("Sent %d bytes of RTP data to %s:%d\n", res, inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
+		printf("Sent %d bytes of RTP data to %s:%d\n", res, inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
 #endif		
-			}
-			pos += len;
-		}
 	}
 	return 0;
 }
@@ -986,6 +948,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 	struct ast_frame *f;
 	int codec;
 	int hdrlen = 12;
+	int subclass;
 	
 
 	/* If we have no peer, return immediately */	
@@ -1002,24 +965,27 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		return -1;
 	}
 
+	subclass = _f->subclass;
+	if (_f->frametype == AST_FRAME_VIDEO)
+		subclass &= ~0x1;
 
-	codec = ast_rtp_lookup_code(rtp, 1, _f->subclass);
+	codec = ast_rtp_lookup_code(rtp, 1, subclass);
 	if (codec < 0) {
 		ast_log(LOG_WARNING, "Don't know how to send format %d packets with RTP\n", _f->subclass);
 		return -1;
 	}
 
-	if (rtp->lasttxformat !=  _f->subclass) {
+	if (rtp->lasttxformat != subclass) {
 		/* New format, reset the smoother */
-		ast_log(LOG_DEBUG, "Ooh, format changed from %d to %d\n", rtp->lasttxformat, _f->subclass);
-		rtp->lasttxformat = _f->subclass;
+		ast_log(LOG_DEBUG, "Ooh, format changed from %d to %d\n", rtp->lasttxformat, subclass);
+		rtp->lasttxformat = subclass;
 		if (rtp->smoother)
 			ast_smoother_free(rtp->smoother);
 		rtp->smoother = NULL;
 	}
 
 
-	switch(_f->subclass) {
+	switch(subclass) {
 	case AST_FORMAT_ULAW:
 	case AST_FORMAT_ALAW:
 		if (!rtp->smoother) {
@@ -1072,7 +1038,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 			ast_rtp_raw_write(rtp, f, codec);
 		break;
 	default:	
-		ast_log(LOG_WARNING, "Not sure about sending format %d packets\n", _f->subclass);
+		ast_log(LOG_WARNING, "Not sure about sending format %d packets\n", subclass);
 		// fall through to...
 	case AST_FORMAT_H261:
 	case AST_FORMAT_H263:

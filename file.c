@@ -1,4 +1,4 @@
-/*m
+/*
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Generic File Format Support.

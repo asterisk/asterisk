@@ -1604,7 +1604,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int portno=0;
 	int vportno=0;
 	int peercapability, peernoncodeccapability;
-	int vpeercapability, vpeernoncodeccapability;
+	int vpeercapability=0, vpeernoncodeccapability=0;
 	struct sockaddr_in sin;
 	char *codecs;
 	struct hostent *hp;
@@ -1690,8 +1690,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	sdpLineNum_iterator_init(&iterator);
 	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
       char* mimeSubtype = ast_strdupa(a); // ensures we have enough space
-	  if (sipdebug)
-		ast_verbose("Pre-Found description format %s\n", mimeSubtype);
 	  if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2) continue;
 	  if (sipdebug)
 		ast_verbose("Found description format %s\n", mimeSubtype);
@@ -1704,7 +1702,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	// Now gather all of the codecs that were asked for:
 	ast_rtp_get_current_formats(p->rtp,
 				&peercapability, &peernoncodeccapability);
-	ast_rtp_get_current_formats(p->vrtp,
+	if (p->vrtp)
+		ast_rtp_get_current_formats(p->vrtp,
 				&vpeercapability, &vpeernoncodeccapability);
 	p->capability = capability & (peercapability | vpeercapability);
 	p->noncodeccapability = noncodeccapability & (peernoncodeccapability | vpeernoncodeccapability);
