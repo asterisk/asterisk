@@ -4868,8 +4868,10 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 		/* Create peer if we have autocreate mode enabled */
 		peer = temp_peer(name);
 		if (peer) {
+			ast_mutex_lock(&peerl.lock);
 			peer->next = peerl.peers;
 			peerl.peers = peer;
+			ast_mutex_unlock(&peerl.lock);
 			peer->lastmsgssent = -1;
 			sip_cancel_destroy(p);
 			if (parse_contact(p, peer, req)) {
