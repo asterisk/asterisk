@@ -4373,7 +4373,7 @@ static int pbx_builtin_goto(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Goto requires an argument (optional context|optional extension|priority)\n");
 		return -1;
 	}
-	s = strdup((void *) data);
+	s = ast_strdupa((void *) data);
 	stringp=s;
 	context = strsep(&stringp, "|");
 	exten = strsep(&stringp, "|");
@@ -4393,7 +4393,6 @@ static int pbx_builtin_goto(struct ast_channel *chan, void *data)
 	}
 	if (atoi(pri) < 0) {
 		ast_log(LOG_WARNING, "Priority '%s' must be a number > 0\n", pri);
-		free(s);
 		return -1;
 	}
 	/* At this point we have a priority and maybe an extension and a context */
