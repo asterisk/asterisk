@@ -1,0 +1,24 @@
+diff -uNr audiofile-0.1.9.old/libaudiofile/audiofile.c audiofile-0.1.9/libaudiofile/audiofile.c
+--- audiofile-0.1.9.old/libaudiofile/audiofile.c	Fri Jul 23 12:57:56 1999
++++ audiofile-0.1.9/libaudiofile/audiofile.c	Fri Dec 10 18:43:30 1999
+@@ -488,6 +488,20 @@
+ 	return afOpenVirtualFile(af_virtual_file_new_for_file(fp), mode, setup);
+ }
+ 
++AFfilehandle afOpenFD(int fd, const char *mode, AFfilesetup setup)
++{
++	FILE			*fp;
++
++	fp = fdopen(fd, mode);
++	if (fp == NULL)
++	{
++		_af_error(AF_BAD_OPEN);
++		return AF_NULL_FILEHANDLE;
++	}
++
++	return afOpenVirtualFile(af_virtual_file_new_for_file(fp), mode, setup);
++}
++
+ int afGetFileFormat (AFfilehandle file, int *version)
+ {
+ 	assert(file);
