@@ -170,6 +170,12 @@ static int fdprint(int fd, const char *s)
 	return write(fd, s, strlen(s) + 1);
 }
 
+/* NULL handler so we can collect the child exit status */
+static void null_sig_handler(int signal)
+{
+
+}
+
 int ast_safe_system(const char *s)
 {
 	/* XXX This function needs some optimization work XXX */
@@ -178,6 +184,7 @@ int ast_safe_system(const char *s)
 	int res;
 	struct rusage rusage;
 	int status;
+	void (*prev_handler) = signal(SIGCHLD, null_sig_handler);
 	pid = fork();
 	if (pid == 0) {
 		/* Close file descriptors and launch system command */
@@ -204,6 +211,7 @@ int ast_safe_system(const char *s)
 		ast_log(LOG_WARNING, "Fork failed: %s\n", strerror(errno));
 		res = -1;
 	}
+	signal(SIGCHLD, prev_handler);
 	return res;
 }
 
