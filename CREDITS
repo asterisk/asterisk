@@ -43,13 +43,15 @@ Mahmut Fettahlioglu - Audio recording, music-on-hold changes, alaw file
        format, and various fixes. Can be contacted at mahmut@oa.com.au
 James Dennis - Cisco SIP compatibility patches to work with SIP service
        providers. Can be contacted at asterisk@jdennis.net
-Tilghman Lesher - Route lookup code, gotoiftime application, and various
-       other patches.  http://asterisk.drunkcoder.com/
+Tilghman Lesher - - Route lookup code; ast_localtime(), ast_say_date_with_format(); 
+                    GotoIfTime, Random, SayUnixTime, HasNewVoicemail, and Cut applications, 
+		    along with various other patches. http://asterisk.drunkcoder.com/
 Jayson Vantuyl - Manager protocol changes, various other bugs.
 	jvantuyl@computingedge.net
 Thorsten Lockert - OpenBSD, FreeBSD ports, making MacOS X port run on 10.3,
 	dialplan include verification, route lookup on OpenBSD, various other
 	bugs. tholo@sigmasoft.com
+Brian West - ODBC support and Bug Marshaling  
 
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt
