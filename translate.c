@@ -11,6 +11,7 @@
  * the GNU General Public License
  */
 
+#include <asterisk/lock.h>
 #include <asterisk/channel.h>
 #include <asterisk/channel_pvt.h>
 #include <asterisk/logger.h>
@@ -19,6 +20,7 @@
 #include <asterisk/frame.h>
 #include <asterisk/sched.h>
 #include <asterisk/cli.h>
+#include <asterisk/term.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <unistd.h>
@@ -37,7 +39,7 @@
 /* This could all be done more efficiently *IF* we chained packets together
    by default, but it would also complicate virtually every application. */
    
-static pthread_mutex_t list_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t list_lock = AST_MUTEX_INITIALIZER;
 static struct ast_translator *list = NULL;
 
 struct ast_translator_dir {
@@ -106,6 +108,7 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 				tmp->step = tr_matrix[source][dest].step;
 				tmp->state = tmp->step->new();
 				if (!tmp->state) {
+					ast_log(LOG_WARNING, "Failed to build translator step from %d to %d\n", source, dest);
 					free(tmp);
 					tmp = NULL;
 					return NULL;
@@ -287,6 +290,7 @@ static struct ast_cli_entry show_trans =
 
 int ast_register_translator(struct ast_translator *t)
 {
+	char tmp[80];
 	t->srcfmt = powerof(t->srcfmt);
 	t->dstfmt = powerof(t->dstfmt);
 	if ((t->srcfmt >= MAX_FORMAT) || (t->dstfmt >= MAX_FORMAT)) {
@@ -295,7 +299,7 @@ int ast_register_translator(struct ast_translator *t)
 	}
 	calc_cost(t);
 	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %d to %d, cost %d\n", t->name, t->srcfmt, t->dstfmt, t->cost);
+		ast_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %d to %d, cost %d\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), t->srcfmt, t->dstfmt, t->cost);
 	ast_pthread_mutex_lock(&list_lock);
 	if (!added_cli) {
 		ast_cli_register(&show_trans);
