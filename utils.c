@@ -111,7 +111,7 @@ int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 	h_errno = hsave;  /* restore h_errno */
 	ast_mutex_unlock(&__mutex); /* end critical area */
 
-	return (*result != NULL);
+	return (*result == NULL); /* return 0 on success, non-zero on error */
 }
 
 
