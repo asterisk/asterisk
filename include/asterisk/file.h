@@ -129,11 +129,12 @@ char ast_waitstream(struct ast_channel *c, char *breakon);
  * \param breakon string of DTMF digits to break upon
  * \param forward DTMF digit to fast forward upon
  * \param rewind DTMF digit to rewind upon
+ * \param ms How many miliseconds to skip forward/back
  * Begins playback of a stream...
  * Wait for a stream to stop or for any one of a given digit to arrive,  Returns 0 
  * if the stream finishes, the character if it was interrupted, and -1 on error 
  */
-char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char *rewind);
+char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char *rewind, int ms);
 
 /* Same as waitstream, but with audio output to fd and monitored fd checking.  Returns
    1 if monfd is ready for reading */

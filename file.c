@@ -659,7 +659,7 @@ char ast_waitstream(struct ast_channel *c, char *breakon)
 	return (c->_softhangup ? -1 : 0);
 }
 
-char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char *rewind)
+char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char *rewind, int ms)
 {
 	int res;
 	struct ast_frame *fr;
@@ -687,9 +687,9 @@ char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char
 			case AST_FRAME_DTMF:
 				res = fr->subclass;
 				if (strchr(forward,res)) {
-					ast_stream_fastforward(c->stream, 3000);
+					ast_stream_fastforward(c->stream, ms);
 				} else if (strchr(rewind,res)) {
-					ast_stream_rewind(c->stream, 3000);
+					ast_stream_rewind(c->stream, ms);
 				} else if (strchr(breakon, res)) {
 					ast_frfree(fr);
 					return res;

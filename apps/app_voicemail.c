@@ -1471,7 +1471,11 @@ forward_message(struct ast_channel *chan, struct ast_config *cfg, char *dir, int
 #define WAITFILE(file) do { \
 	if (ast_streamfile(chan, file, chan->language)) \
 		ast_log(LOG_WARNING, "Unable to play message %s\n", file); \
-	d = ast_waitstream_fr(chan, AST_DIGIT_ANY, "#", "*"); \
+	if ((s = ast_variable_retrieve(cfg, "general", "skipms"))) { \
+		if (sscanf(s, "%d", &x) == 1) \
+			ms = x; \
+	} \
+	d = ast_waitstream_fr(chan, AST_DIGIT_ANY, "#", "*",ms); \
 	if (!d) { \
 		repeats = 0; \
 		goto instructions; \
@@ -1721,6 +1725,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	int useadsi = 0;
 	int skipuser = 0;
 	char *s;
+	int ms = 3000;
 	int maxgreet = 0;
 	char tmp[256], *ext;
 	struct ast_config *cfg;

@@ -14,6 +14,8 @@ attach=yes
 ;maxmessage=180
 ; Maximum length of greetings
 ;maxgreet=60
+; How many miliseconds to skip forward/back when rew/ff in message playback
+skipms=3000
 
 ;
 ; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>
