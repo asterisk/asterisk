@@ -540,6 +540,15 @@ depend: .depend
 	for x in $(SUBDIRS); do $(MAKE) -C $$x depend || exit 1 ; done
 
 .depend:
+	@if ! which mpg123 &>/dev/null ; then \
+		echo "*** You don't have mpg123 installed. You're going to need ***";\
+		echo "***       it if you want MusicOnHold                      ***";\
+	elif ! mpg123 --longhelp 2>&1 | grep .59r &>/dev/null ; then \
+			echo "*************************************************************";\
+			echo "*** You have the WRONG version of mpg123... you need .59r ***";\
+			echo "*** Use 'make mpg123' to get the right verison            ***";\
+			echo "*************************************************************";\
+	fi
 	./mkdep ${CFLAGS} `ls *.c`
 
 FORCE:
