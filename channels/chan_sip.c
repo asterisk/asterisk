@@ -5070,7 +5070,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				}
 				/* XXX Locking issues?? XXX */
 				switch(resp) {
+				case 300: /* Multiple Choices */
+				case 301: /* Moved permenantly */
 				case 302: /* Moved temporarily */
+				case 305: /* Use Proxy */
 					parse_moved_contact(p, req);
 					if (p->owner)
 						ast_queue_control(p->owner, AST_CONTROL_BUSY, 0);
