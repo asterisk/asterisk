@@ -252,6 +252,9 @@ stdtime/libtime.a: FORCE
 asterisk: editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS)
 	$(CC) $(DEBUG) -o asterisk $(ASTLINK) $(OBJS) $(LIBS) $(LIBEDIT) db1-ast/libdb1.a stdtime/libtime.a
 
+muted: muted.o
+	$(CC) -o muted muted.o
+
 subdirs: 
 	for x in $(SUBDIRS); do $(MAKE) -C $$x || exit 1 ; done
 

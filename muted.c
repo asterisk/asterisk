@@ -1,0 +1,483 @@
+/*
+ * Mute Daemon
+ *
+ * Specially written for Malcolm Davenport, but I think I'll use it too
+ *
+ * Copyright (C) 2004, Digium Inc.
+ *
+ * Mark Spencer <markster@digium.com>
+ *
+ * Distributed under the terms of the GNU General Public License version 2.0 
+ *
+ */
+#include <linux/soundcard.h>
+#include <stdio.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <string.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+static char *config = "/etc/muted.conf";
+
+static char host[256];
+static char user[256];
+static char pass[256];
+static int smoothfade = 0;
+static int mutelevel = 20;
+static int muted = 0;
+static int needfork = 1;
+static int debug = 0;
+static int stepsize = 3;
+static int mixchan = SOUND_MIXER_VOLUME;
+
+static struct channel {
+	char *tech;
+	char *location;
+	struct channel *next;
+	int offhook;
+} *channels;
+
+static void add_channel(char *tech, char *location)
+{
+	struct channel *chan;
+	chan = malloc(sizeof(struct channel));
+	if (chan) {
+		memset(chan, 0, sizeof(struct channel));
+		chan->tech = strdup(tech);
+		chan->location = strdup(location);
+		chan->next = channels;
+		channels = chan;
+	}
+	
+}
+
+static int load_config(void)
+{
+	FILE *f;
+	char buf[1024];
+	char *val;
+	char *val2;
+	int lineno=0;
+	int x;
+	f = fopen(config, "r");
+	if (!f) {
+		fprintf(stderr, "Unable to open config file '%s': %s\n", config, strerror(errno));
+		return -1;
+	}
+	while(!feof(f)) {
+		fgets(buf, sizeof(buf), f);
+		if (!feof(f)) {
+			lineno++;
+			val = strchr(buf, '#');
+			if (val) *val = '\0';
+			while(strlen(buf) && (buf[strlen(buf) - 1] < 33))
+				buf[strlen(buf) - 1] = '\0';
+			if (!strlen(buf))
+				continue;
+			val = buf;
+			while(*val) {
+				if (*val < 33)
+					break;
+				val++;
+			}
+			if (*val) {
+				*val = '\0';
+				val++;
+				while(*val && (*val < 33)) val++;
+			}
+			if (!strcasecmp(buf, "host")) {
+				if (val && strlen(val))
+					strncpy(host, val, sizeof(host));
+				else
+					fprintf(stderr, "host needs an argument (the host) at line %d\n", lineno);
+			} else if (!strcasecmp(buf, "user")) {
+				if (val && strlen(val))
+					strncpy(user, val, sizeof(user));
+				else
+					fprintf(stderr, "user needs an argument (the user) at line %d\n", lineno);
+			} else if (!strcasecmp(buf, "pass")) {
+				if (val && strlen(val))
+					strncpy(pass, val, sizeof(pass));
+				else
+					fprintf(stderr, "pass needs an argument (the password) at line %d\n", lineno);
+			} else if (!strcasecmp(buf, "smoothfade")) {
+				smoothfade = 1;
+			} else if (!strcasecmp(buf, "mutelevel")) {
+				if (val && (sscanf(val, "%d", &x) == 1) && (x > -1) && (x < 101)) {
+					mutelevel = x;
+				} else 
+					fprintf(stderr, "mutelevel must be a number from 0 (most muted) to 100 (no mute) at line %d\n", lineno);
+			} else if (!strcasecmp(buf, "channel")) {
+				if (val && strlen(val)) {
+					val2 = strchr(val, '/');
+					if (val2) {
+						*val2 = '\0';
+						val2++;
+						add_channel(val, val2);
+					} else
+						fprintf(stderr, "channel needs to be of the format Tech/Location at line %d\n", lineno);
+				} else
+					fprintf(stderr, "channel needs an argument (the channel) at line %d\n", lineno);
+			} else {
+				fprintf(stderr, "ignoring unknown keyword '%s'\n", buf);
+			}
+		}
+	}
+	fclose(f);
+	if (!strlen(host))
+		fprintf(stderr, "no 'host' specification in config file\n");
+	else if (!strlen(user))
+		fprintf(stderr, "no 'user' specification in config file\n");
+	else if (!channels) 
+		fprintf(stderr, "no 'channel' specifications in config file\n");
+	else
+		return 0;
+	return -1;
+}
+
+static FILE *astf;
+
+static int mixfd;
+
+static int open_mixer(void)
+{
+	mixfd = open("/dev/mixer", O_RDWR);
+	if (mixfd < 0) {
+		fprintf(stderr, "Unable to open /dev/mixer: %s\n", strerror(errno));
+		return -1;
+	}
+	return 0;
+}
+
+static int connect_asterisk(void)
+{
+	int sock;
+	struct hostent *hp;
+	char *ports;
+	int port = 5038;
+	struct sockaddr_in sin;
+	ports = strchr(host, ':');
+	if (ports) {
+		*ports = '\0';
+		ports++;
+		if ((sscanf(ports, "%d", &port) != 1) || (port < 1) || (port > 65535)) {
+			fprintf(stderr, "'%s' is not a valid port number in the hostname\n", ports);
+			return -1;
+		}
+	}
+	hp = gethostbyname(host);
+	if (!hp) {
+		fprintf(stderr, "Can't find host '%s'\n", host);
+		return -1;
+	}
+	sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0) {
+		fprintf(stderr, "Failed to create socket: %s\n", strerror(errno));
+		return -1;
+	}
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(port);
+	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
+	if (connect(sock, &sin, sizeof(sin))) {
+		fprintf(stderr, "Failed to connect to '%s' port '%d': %s\n", host, port, strerror(errno));
+		close(sock);
+		return -1;
+	}
+	astf = fdopen(sock, "r+");
+	if (!astf) {
+		fprintf(stderr, "fdopen failed: %s\n", strerror(errno));
+		close(sock);
+		return -1;
+	}
+	return 0;
+}
+
+static char *get_line(void)
+{
+	static char buf[1024];
+	if (fgets(buf, sizeof(buf), astf)) {
+		while(strlen(buf) && (buf[strlen(buf) - 1] < 33))
+			buf[strlen(buf) - 1] = '\0';
+		return buf;
+	} else
+		return NULL;
+}
+
+static int login_asterisk(void)
+{
+	char *welcome;
+	char *resp;
+	if (!(welcome = get_line())) {
+		fprintf(stderr, "disconnected (1)\n");
+		return -1;
+	}
+	fprintf(astf, 
+		"Action: Login\r\n"
+		"Username: %s\r\n"
+		"Secret: %s\r\n\r\n", user, pass);
+	if (!(welcome = get_line())) {
+		fprintf(stderr, "disconnected (2)\n");
+		return -1;
+	}
+	if (strcasecmp(welcome, "Response: Success")) {
+		fprintf(stderr, "login failed ('%s')\n", welcome);
+		return -1;
+	}
+	/* Eat the rest of the event */
+	while((resp = get_line()) && strlen(resp));
+	if (!resp) {
+		fprintf(stderr, "disconnected (3)\n");
+		return -1;
+	}
+	fprintf(astf, 
+		"Action: Status\r\n\r\n");
+	if (!(welcome = get_line())) {
+		fprintf(stderr, "disconnected (4)\n");
+		return -1;
+	}
+	if (strcasecmp(welcome, "Response: Success")) {
+		fprintf(stderr, "status failed ('%s')\n", welcome);
+		return -1;
+	}
+	/* Eat the rest of the event */
+	while((resp = get_line()) && strlen(resp));
+	if (!resp) {
+		fprintf(stderr, "disconnected (5)\n");
+		return -1;
+	}
+	return 0;
+}
+
+static struct channel *find_channel(char *channel)
+{
+	char tmp[256] = "";
+	char *s, *t;
+	struct channel *chan;
+	strncpy(tmp, channel, sizeof(tmp));
+	s = strchr(tmp, '/');
+	if (s) {
+		*s = '\0';
+		s++;
+		t = strrchr(s, '-');
+		if (t) {
+			*t = '\0';
+		}
+		if (debug)
+			printf("Searching for '%s' tech, '%s' location\n", tmp, s);
+		chan = channels;
+		while(chan) {
+			if (!strcasecmp(chan->tech, tmp) && !strcasecmp(chan->location, s)) {
+				if (debug)
+					printf("Found '%s'/'%s'\n", chan->tech, chan->location);
+				break;
+			}
+			chan = chan->next;
+		}
+	} else
+		chan = NULL;
+	return chan;
+}
+
+static int getvol(void)
+{
+	int vol;
+	if (ioctl(mixfd, MIXER_READ(mixchan), &vol)) {
+		fprintf(stderr, "Unable to read mixer volume: %s\n", strerror(errno));
+		return -1;
+	}
+	return vol;
+}
+
+static int setvol(int vol)
+{
+	if (ioctl(mixfd, MIXER_WRITE(mixchan), &vol)) {
+		fprintf(stderr, "Unable to write mixer volume: %s\n", strerror(errno));
+		return -1;
+	}
+	return 0;
+}
+
+static int oldvol = 0;
+static int mutevol = 0;
+
+static int mutedlevel(int orig, int mutelevel)
+{
+	int l = orig >> 8;
+	int r = orig & 0xff;
+	l = (float)(mutelevel) * (float)(l) / 100.0;
+	r = (float)(mutelevel) * (float)(r) / 100.0;
+	return (l << 8) | r;
+}
+
+static void mute(void)
+{
+	int vol;
+	int start;
+	int x;
+	vol = getvol();
+	oldvol = vol;
+	if (smoothfade) 
+		start = 100;
+	else
+		start = mutelevel;
+	for (x=start;x>=mutelevel;x-=stepsize) {
+		mutevol = mutedlevel(vol, x);
+		setvol(mutevol);
+		/* Wait 0.01 sec */
+		usleep(10000);
+	}
+	mutevol = mutedlevel(vol, mutelevel);
+	setvol(mutevol);
+	if (debug)
+		printf("Mute from '%04x' to '%04x'!\n", oldvol, mutevol);
+	muted = 1;
+}
+
+static void unmute(void)
+{
+	int vol;
+	int start;
+	int x;
+	vol = getvol();
+	if (debug)
+		printf("Unmute from '%04x' (should be '%04x') to '%04x'!\n", vol, mutevol, oldvol);
+	if (vol == mutevol) {
+		if (smoothfade)
+			start = mutelevel;
+		else
+			start = 100;
+		for (x=start;x<100;x+=stepsize) {
+			mutevol = mutedlevel(oldvol, x);
+			setvol(mutevol);
+			/* Wait 0.01 sec */
+			usleep(10000);
+		}
+		setvol(oldvol);
+	} else
+		printf("Whoops, it's already been changed!\n");
+	muted = 0;
+}
+
+static void check_mute(void)
+{
+	int offhook = 0;
+	struct channel *chan;
+	chan = channels;
+	while(chan) {
+		if (chan->offhook) {
+			offhook++;
+			break;
+		}
+		chan = chan->next;
+	}
+	if (offhook && !muted)
+		mute();
+	else if (!offhook && muted)
+		unmute();
+}
+
+static void hangup_chan(char *channel)
+{
+	struct channel *chan;
+	chan = find_channel(channel);
+	if (chan)
+		chan->offhook = 0;
+	check_mute();
+}
+
+static void offhook_chan(char *channel)
+{
+	struct channel *chan;
+	chan = find_channel(channel);
+	if (chan)
+		chan->offhook = 1;
+	check_mute();
+}
+
+static int wait_event(void)
+{
+	char *resp;
+	char event[80]="";
+	char channel[80]="";
+	resp = get_line();
+	if (!resp) {
+		fprintf(stderr, "disconnected (6)\n");
+		return -1;
+	}
+	if (!strncasecmp(resp, "Event: ", strlen("Event: "))) {
+		strncpy(event, resp + strlen("Event: "), sizeof(event));
+		/* Consume the rest of the non-event */
+		while((resp = get_line()) && strlen(resp)) {
+			if (!strncasecmp(resp, "Channel: ", strlen("Channel: ")))
+				strncpy(channel, resp + strlen("Channel: "), sizeof(channel));
+		}
+		if (strlen(channel)) {
+			if (!strcasecmp(event, "Hangup")) 
+				hangup_chan(channel);
+			else
+				offhook_chan(channel);
+		}
+	} else {
+		/* Consume the rest of the non-event */
+		while((resp = get_line()) && strlen(resp));
+	}
+	if (!resp) {
+		fprintf(stderr, "disconnected (7)\n");
+		return -1;
+	}
+	return 0;
+}
+
+static void usage(void)
+{
+	printf("Usage: muted [-f] [-d]\n"
+	       "        -f : Do not fork\n"
+		   "        -d : Debug (implies -f)\n");
+}
+
+int main(int argc, char *argv[])
+{
+	int x;
+	while((x = getopt(argc, argv, "fhd")) > 0) {
+		switch(x) {
+		case 'd':
+			debug = 1;
+			needfork = 0;
+			break;
+		case 'f':
+			needfork = 0;
+			break;
+		case 'h':
+			/* Fall through */
+		default:
+			usage();
+			exit(1);
+		}
+	}
+	if (load_config())
+		exit(1);
+	if (open_mixer())
+		exit(1);
+	if (connect_asterisk()) {
+		close(mixfd);
+		exit(1);
+	}
+	if (login_asterisk()) {
+		close(mixfd);
+		fclose(astf);
+		exit(1);
+	}
+	if (needfork)
+		daemon(0,0);
+	for(;;) {
+		if (wait_event())
+			exit(1);
+	}
+	exit(0);
+}
