@@ -634,7 +634,6 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 		snd_pcm_prepare(alsa.icard);
 	} else if (r < 0) {
 		ast_log(LOG_ERROR, "Read error: %s\n", snd_strerror(r));
-		return NULL;
 	} else if (r >= 0) {
 		off -= r;
 	}

@@ -177,6 +177,7 @@ static int iaxtrunkdebug = 0;
 static char accountcode[20];
 static int amaflags = 0;
 static int globalnotransfer = 0;
+static int delayreject = 0;
 
 static pthread_t netthreadid = AST_PTHREADT_NULL;
 
@@ -447,6 +448,8 @@ struct chan_iax2_pvt {
 	int pingid;			/* Transmit PING request */
 	int lagid;			/* Retransmit lag request */
 	int autoid;			/* Auto hangup for Dialplan requestor */
+	int authid;			/* Authentication rejection ID */
+	int authfail;		/* Reason to report failure */
 	int initid;			/* Initial peer auto-congest ID (based on qualified peers) */
 	char dproot[AST_MAX_EXTENSION];
 	char accountcode[20];
@@ -631,6 +634,7 @@ static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer)
 		tmp->pingid = -1;
 		tmp->lagid = -1;
 		tmp->autoid = -1;
+		tmp->authid = -1;
 		tmp->initid = -1;
 		/* strncpy(tmp->context, context, sizeof(tmp->context)-1); */
 		strncpy(tmp->exten, "s", sizeof(tmp->exten)-1);
@@ -1236,12 +1240,15 @@ static int iax2_predestroy(int callno)
 			ast_sched_del(sched, pvt->lagid);
 		if (pvt->autoid > -1)
 			ast_sched_del(sched, pvt->autoid);
+		if (pvt->authid > -1)
+			ast_sched_del(sched, pvt->authid);
 		if (pvt->initid > -1)
 			ast_sched_del(sched, pvt->initid);
 		pvt->pingid = -1;
 		pvt->lagid = -1;
 		pvt->autoid = -1;
 		pvt->initid = -1;
+		pvt->authid = -1;
 		pvt->alreadygone = 1;
 	}
 	c = pvt->owner;
@@ -1305,11 +1312,14 @@ retry:
 			ast_sched_del(sched, pvt->lagid);
 		if (pvt->autoid > -1)
 			ast_sched_del(sched, pvt->autoid);
+		if (pvt->authid > -1)
+			ast_sched_del(sched, pvt->authid);
 		if (pvt->initid > -1)
 			ast_sched_del(sched, pvt->initid);
 		pvt->pingid = -1;
 		pvt->lagid = -1;
 		pvt->autoid = -1;
+		pvt->authid = -1;
 		pvt->initid = -1;
 		if (pvt->bridgetrans)
 			ast_translator_free_path(pvt->bridgetrans);
@@ -4268,7 +4278,48 @@ static int stop_stuff(int callno)
 		if (iaxs[callno]->initid > -1)
 			ast_sched_del(sched, iaxs[callno]->initid);
 		iaxs[callno]->initid = -1;
+		if (iaxs[callno]->authid > -1)
+			ast_sched_del(sched, iaxs[callno]->authid);
+		iaxs[callno]->authid = -1;
 		return 0;
+}
+
+static int auth_reject(void *nothing)
+{
+	/* Called from IAX thread only, without iaxs lock */
+	int callno = (int)(long)(nothing);
+	struct iax_ie_data ied;
+	ast_mutex_lock(&iaxsl[callno]);
+	if (iaxs[callno]) {
+		iaxs[callno]->authid = -1;
+		memset(&ied, 0, sizeof(ied));
+		if (iaxs[callno]->authfail == IAX_COMMAND_REGREJ) {
+			iax_ie_append_str(&ied, IAX_IE_CAUSE, "Registration Refused");
+		} else if (iaxs[callno]->authfail == IAX_COMMAND_REJECT) {
+			iax_ie_append_str(&ied, IAX_IE_CAUSE, "No authority found");
+		}
+		send_command_final(iaxs[callno], AST_FRAME_IAX, iaxs[callno]->authfail, 0, ied.buf, ied.pos, -1);
+	}
+	ast_mutex_unlock(&iaxsl[callno]);
+	return 0;
+}
+
+static int auth_fail(int callno, int failcode)
+{
+	/* Schedule sending the authentication failure in one second, to prevent
+	   guessing */
+	ast_mutex_lock(&iaxsl[callno]);
+	iaxs[callno]->authfail = failcode;
+	if (delayreject) {
+		ast_mutex_lock(&iaxsl[callno]);
+		if (iaxs[callno]->authid > -1)
+			ast_sched_del(sched, iaxs[callno]->authid);
+		iaxs[callno]->authid = ast_sched_add(sched, 1000, auth_reject, (void *)(long)callno);
+		ast_mutex_unlock(&iaxsl[callno]);
+	} else
+		auth_reject((void *)(long)callno);
+	ast_mutex_unlock(&iaxsl[callno]);
+	return 0;
 }
 
 static int auto_hangup(void *nothing)
@@ -5008,12 +5059,14 @@ retryowner:
 				/* Ignore if it's already up */
 				if (iaxs[fr.callno]->state & (IAX_STATE_STARTED | IAX_STATE_TBD))
 					break;
+				/* For security, always ack immediately */
+				if (delayreject)
+					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 				if (check_access(fr.callno, &sin, &ies)) {
 					/* They're not allowed on */
-					memset(&ied0, 0, sizeof(ied0));
-					iax_ie_append_str(&ied0, IAX_IE_CAUSE, "No authority found");
-					send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
-					ast_log(LOG_NOTICE, "Rejected connect attempt from %s\n", inet_ntoa(sin.sin_addr));
+					auth_fail(fr.callno, IAX_COMMAND_REJECT);
+					if (authdebug)
+						ast_log(LOG_NOTICE, "Rejected connect attempt from %s\n", inet_ntoa(sin.sin_addr));
 					break;
 				}
 				/* If we're in trunk mode, do it now, and update the trunk number in our frame before continuing */
@@ -5110,10 +5163,10 @@ retryowner:
 					if (authdebug)
 						ast_log(LOG_WARNING, "Call rejected by %s: %s\n", inet_ntoa(iaxs[fr.callno]->addr.sin_addr), ies.cause ? ies.cause : "<Unknown>");
 				}
-				iaxs[fr.callno]->error = EPERM;
 				ast_log(LOG_DEBUG, "Immediately destroying %d, having received reject\n", fr.callno);
 				/* Send ack immediately, before we destroy */
 				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
+				iaxs[fr.callno]->error = EPERM;
 				iax2_destroy_nolock(fr.callno);
 				break;
 			case IAX_COMMAND_TRANSFER:
@@ -5284,6 +5337,9 @@ retryowner2:
 				}
 				break;
 			case IAX_COMMAND_AUTHREP:
+				/* For security, always ack immediately */
+				if (delayreject)
+					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 				/* Ignore once we've started */
 				if (iaxs[fr.callno]->state & (IAX_STATE_STARTED | IAX_STATE_TBD)) {
 					ast_log(LOG_WARNING, "Call on %s is already up, can't start on it\n", iaxs[fr.callno]->owner ? iaxs[fr.callno]->owner->name : "<Unknown>");
@@ -5293,8 +5349,7 @@ retryowner2:
 					if (authdebug)
 						ast_log(LOG_NOTICE, "Host %s failed to authenticate as %s\n", inet_ntoa(iaxs[fr.callno]->addr.sin_addr), iaxs[fr.callno]->username);
 					memset(&ied0, 0, sizeof(ied0));
-					iax_ie_append_str(&ied0, IAX_IE_CAUSE, "No authority found");
-					send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+					auth_fail(fr.callno, IAX_COMMAND_REJECT);
 					break;
 				}
 				if (strcasecmp(iaxs[fr.callno]->exten, "TBD")) {
@@ -5390,10 +5445,12 @@ retryowner2:
 				break;
 			case IAX_COMMAND_REGREQ:
 			case IAX_COMMAND_REGREL:
+				/* For security, always ack immediately */
+				if (delayreject)
+					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 				if (register_verify(fr.callno, &sin, &ies)) {
-					memset(&ied0, 0, sizeof(ied0));
-					iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Registration Refused");
-					send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REGREJ, 0, ied0.buf, ied0.pos, -1);
+					/* Send delayed failure */
+					auth_fail(fr.callno, IAX_COMMAND_REGREJ);
 					break;
 				}
 				if ((ast_strlen_zero(iaxs[fr.callno]->secret) && ast_strlen_zero(iaxs[fr.callno]->inkeys)) || (iaxs[fr.callno]->state & IAX_STATE_AUTHENTICATED)) {
@@ -6294,6 +6351,8 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 			authdebug = ast_true(v->value);
 		else if (!strcasecmp(v->name, "notransfer"))
 			globalnotransfer = ast_true(v->value);
+		else if (!strcasecmp(v->name, "delayreject"))
+			delayreject = ast_true(v->value);
 		else if (!strcasecmp(v->name, "trunkfreq")) {
 			trunkfreq = atoi(v->value);
 			if (trunkfreq < 10)
@@ -6423,6 +6482,7 @@ static int reload_config(void)
 	strncpy(accountcode, "", sizeof(accountcode)-1);
 	strncpy(language, "", sizeof(language)-1);
 	amaflags = 0;
+	delayreject = 0;
 	globalnotransfer = 0;
 	srand(time(NULL));
 	delete_users();

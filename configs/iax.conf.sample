@@ -15,6 +15,12 @@
 ;
 ;iaxcompat=yes
 ;
+; For increased security against brute force password attacks
+; enable "delayreject" which will delay the sending of authentication
+; reject for REGREQ or AUTHREP if there is a password.  
+;
+;delayreject=yes
+;
 ; You may specify a global default AMA flag for iaxtel calls.  It must be
 ; one of 'default', 'omit', 'billing', or 'documentation'.  These flags
 ; are used in the generation of call detail records.
