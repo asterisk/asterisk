@@ -963,7 +963,11 @@ int setup_incoming_call(call_details_t cd)
 			strncpy(p->context, alias->context, sizeof(p->context)-1);
 		}
 
-		sprintf(p->callerid, "%s <%s>", p->cd.call_source_aliases, p->cd.call_source_e164);
+		if (!strlen(p->cd.call_source_aliases)) 
+			sprintf(p->callerid, "Unknown Name <%s>", p->cd.call_source_e164); 
+		else
+			sprintf(p->callerid, "%s <%s>", p->cd.call_source_aliases, p->cd.call_source_e164); 
+
 
 	} else { 
 		/* Either this call is not from the Gatekeeper 
@@ -972,7 +976,10 @@ int setup_incoming_call(call_details_t cd)
 		user  = find_user(cd.call_source_aliases);
 		
 		if (!user) {
-			sprintf(p->callerid, "%s <%s>", p->cd.call_source_aliases, p->cd.call_source_e164); 
+			if (!strlen(p->cd.call_source_aliases)) 
+				sprintf(p->callerid, "Unknown Name <%s>", p->cd.call_source_e164); 
+			else
+				sprintf(p->callerid, "%s <%s>", p->cd.call_source_aliases, p->cd.call_source_e164); 
 			if (strlen(p->cd.call_dest_e164)) {
 				strncpy(p->exten, cd.call_dest_e164, sizeof(p->exten)-1);
 			} else {
