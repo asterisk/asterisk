@@ -91,6 +91,7 @@ static char *descrip3 =
 "  MeetMeAdmin(confno,command[,user]): Run admin command for conference\n"
 "      'K' -- Kick all users out of conference\n"
 "      'k' -- Kick one user out of conference\n"
+"      'e' -- Eject last user that joined\n"
 "      'L' -- Lock conference\n"
 "      'l' -- Unlock conference\n"
 "      'M' -- Mute conference\n"
@@ -500,6 +501,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 {
 	struct ast_conference *prev=NULL, *cur;
 	struct ast_conf_user *user = malloc(sizeof(struct ast_conf_user));
+	struct ast_conf_user *usr = NULL;
 	int fd;
 	struct zt_confinfo ztc;
 	struct ast_frame *f;
@@ -873,9 +875,9 @@ zapretry:
 						if (!menu_active) {
 							menu_active = 1;
 							/* Record this sound! */
-							if (!ast_streamfile(chan, "conf-adminmenu", chan->language))
+							 if (!ast_streamfile(chan, "conf-adminmenu", chan->language))
 								dtmf = ast_waitstream(chan, AST_DIGIT_ANY);
-							else
+							else 
 								dtmf = 0;
 						} else 
 							dtmf = f->subclass;
@@ -915,6 +917,16 @@ zapretry:
 											ast_waitstream(chan, "");
 									}
 									break;
+                                                                case '6': /* Eject last user */
+				                                        menu_active = 0;
+									usr = conf->lastuser;
+									if ((usr->chan->name == chan->name)||(usr->userflags & CONFFLAG_ADMIN)) {
+										if(!ast_streamfile(chan, "conf-errormenu", chan->language))
+											ast_waitstream(chan, "");
+									} else 
+										usr->adminflags |= ADMINFLAG_KICKME;
+									ast_stopstream(chan);
+									break;	
 								default:
 									menu_active = 0;
 									/* Play an error message! */
@@ -1538,11 +1550,21 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 						}
 					}
 					break;
+                                case 101: /* e: Eject last user*/
+                                        user = cnf->lastuser;
+                                                if (!(user->userflags & CONFFLAG_ADMIN)) {
+                                                        user->adminflags |= ADMINFLAG_KICKME;
+                                                        break;
+                                                } else
+							ast_log(LOG_NOTICE, "Not kicking last user, is an Admin!\n");
+                                        }
+                                        break;
+
 				case 77: /* M: Mute */ 
 					if (user) {
 						user->adminflags |= ADMINFLAG_MUTED;
 					} else {
-						ast_log(LOG_NOTICE, "Specified User not found!");
+						ast_log(LOG_NOTICE, "Specified User not found!\n");
 					}
 					break;
 				case 78: /* N: Mute all users */
