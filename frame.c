@@ -427,11 +427,13 @@ static struct ast_format_list AST_FORMAT_LIST[] = {
 	{ 0, AST_FORMAT_MAX_VIDEO, "maxvideo", "Maximum video format" },
 };
 
-struct ast_format_list *ast_get_format_list_index(int index) {
+struct ast_format_list *ast_get_format_list_index(int index) 
+{
 	return &AST_FORMAT_LIST[index];
 }
 
-struct ast_format_list *ast_get_format_list(size_t *size) {
+struct ast_format_list *ast_get_format_list(size_t *size) 
+{
 	*size = (sizeof(AST_FORMAT_LIST) / sizeof(struct ast_format_list));
 	return AST_FORMAT_LIST;
 }
@@ -595,7 +597,7 @@ static int show_codec_n(int fd, int argc, char *argv[])
 	for (i=0;i<32;i++)
 		if (codec & (1 << i)) {
 			found = 1;
-			ast_cli(fd, "%11u (1 << %2d)  %s\n",1 << i,i,ast_codec2str(i));
+			ast_cli(fd, "%11u (1 << %2d)  %s\n",1 << i,i,ast_codec2str(1<<i));
 		}
 
 	if (! found)
