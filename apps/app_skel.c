@@ -20,13 +20,13 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
-
 #include <pthread.h>
 
-
 static char *tdesc = "Trivial skeleton Application";
-
 static char *app = "skel";
+static char *synopsis = 
+"  This is a skeleton application that shows you the basic structure to create your\n"
+"own asterisk applications.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -54,7 +54,7 @@ int unload_module(void)
 
 int load_module(void)
 {
-	return ast_register_application(app, skel_exec);
+	return ast_register_application(app, skel_exec, synopsis, tdesc);
 }
 
 char *description(void)
