@@ -191,11 +191,15 @@ static int ast_read_callback(void *data)
 			delay = ntohl(delay);
 		else
 			delay = -1;
+#if 0
 		/* Average out frames <= 50 ms */
 		if (delay < 50)
 			s->fr->timelen = 30;
 		else
 			s->fr->timelen = delay;
+#else
+		s->fr->timelen = 30;
+#endif
 		/* Unless there is no delay, we're going to exit out as soon as we
 		   have processed the current frame. */
 		if (delay > VOFR_FUDGE) {
@@ -270,6 +274,10 @@ static int g723_write(struct ast_filestream *fs, struct ast_frame *f)
 		delay = htonl(delay);
 		fs->orig.tv_sec = now.tv_sec;
 		fs->orig.tv_usec = now.tv_usec;
+	}
+	if (f->datalen <= 0) {
+		ast_log(LOG_WARNING, "Short frame ignored (%d bytes long?)\n", f->datalen);
+		return 0;
 	}
 	if ((res = write(fs->fd, &delay, 4)) != 4) {
 		ast_log(LOG_WARNING, "Unable to write delay: res=%d (%s)\n", res, strerror(errno));
