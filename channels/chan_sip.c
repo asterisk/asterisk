@@ -343,26 +343,31 @@ static int retrans_pkt(void *data)
 	struct sip_pkt *pkt=data;
 	int res = 0;
 	ast_pthread_mutex_lock(&pkt->owner->lock);
-	if (pkt->retrans < MAX_RETRANS) {
-		pkt->retrans++;
-		if (sipdebug) {
-			if (pkt->owner->nat)
-				ast_verbose("Retransmitting #%d (NAT):\n%s\n to %s:%d\n", pkt->retrans, pkt->data, inet_ntoa(pkt->owner->recv.sin_addr), ntohs(pkt->owner->recv.sin_port));
-			else
-				ast_verbose("Retransmitting #%d (no NAT):\n%s\n to %s:%d\n", pkt->retrans, pkt->data, inet_ntoa(pkt->owner->sa.sin_addr), ntohs(pkt->owner->sa.sin_port));
-		}
-		__sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
-		res = 1;
-	} else {
-		ast_log(LOG_WARNING, "Maximum retries exceeded on call %s for seqno %d (%s)\n", pkt->owner->callid, pkt->seqno, pkt->resp ? "Response" : "Request");
-		pkt->retransid = -1;
-		if (pkt->owner->owner) {
-			/* XXX Potential deadlocK?? XXX */
-			ast_queue_hangup(pkt->owner->owner, 1);
+	if (!pkt->owner->needdestroy) {
+		if (pkt->retrans < MAX_RETRANS) {
+			pkt->retrans++;
+			if (sipdebug) {
+				if (pkt->owner->nat)
+					ast_verbose("Retransmitting #%d (NAT):\n%s\n to %s:%d\n", pkt->retrans, pkt->data, inet_ntoa(pkt->owner->recv.sin_addr), ntohs(pkt->owner->recv.sin_port));
+				else
+					ast_verbose("Retransmitting #%d (no NAT):\n%s\n to %s:%d\n", pkt->retrans, pkt->data, inet_ntoa(pkt->owner->sa.sin_addr), ntohs(pkt->owner->sa.sin_port));
+			}
+			__sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
+			res = 1;
 		} else {
-			/* If no owner, destroy now */
-			sip_destroy(pkt->owner);
+			ast_log(LOG_WARNING, "Maximum retries exceeded on call %s for seqno %d (%s)\n", pkt->owner->callid, pkt->seqno, pkt->resp ? "Response" : "Request");
+			pkt->retransid = -1;
+			if (pkt->owner->owner) {
+				/* XXX Potential deadlocK?? XXX */
+				ast_queue_hangup(pkt->owner->owner, 1);
+			} else {
+				/* If no owner, destroy now */
+				sip_destroy(pkt->owner);
+			}
 		}
+	} else {
+		/* Don't bother retransmitting.  It's about to be killed anyway */
+		pkt->retransid = -1;
 	}
 	ast_pthread_mutex_unlock(&pkt->owner->lock);
 	return res;
@@ -3204,7 +3209,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 	char tmp[256] = "";
 	char *s, *e;
 	strncpy(tmp, get_header(req, "Contact"), sizeof(tmp) - 1);
-	s = tmp;
+	s = ditch_braces(tmp);
 	e = strchr(tmp, '@');
 	if (e)
 		*e = '\0';
@@ -3377,7 +3382,7 @@ retrylock:
 			*/
 			break;
 		default:
-			if ((resp >= 400) && (resp < 700)) {
+			if ((resp >= 300) && (resp < 700)) {
 				if (option_verbose > 2) 
 					ast_verbose(VERBOSE_PREFIX_3 "Got SIP response %d \"%s\" back from %s\n", resp, rest, inet_ntoa(p->sa.sin_addr));
 				p->alreadygone = 1;
