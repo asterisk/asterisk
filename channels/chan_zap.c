@@ -1856,9 +1856,9 @@ int pri_find_dchan(struct zt_pri *pri)
 		}
 	}
 	if (newslot < 0) {
+		newslot = 0;
 		ast_log(LOG_WARNING, "No D-channels available!  Using Primary on channel anyway %d!\n",
 			pri->dchannels[newslot]);
-		newslot = 0;
 	}
 	if (old && (oldslot != newslot))
 		ast_log(LOG_NOTICE, "Switching from from d-channel %d to channel %d!\n",
