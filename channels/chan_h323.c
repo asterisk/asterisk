@@ -5,8 +5,8 @@
  *			By Jeremy McNamara
  *                      For The NuFone Network 
  *
- * This code has been derived from code created by
- *              Michael Manousos and Mark Spencer
+ * chan_h323 has been derived from code created by
+ *               Michael Manousos and Mark Spencer
  *
  * This file is part of the chan_h323 driver for Asterisk
  *
@@ -25,7 +25,6 @@
  *
  * Version Info: $Id$
  */
-
 
 #include <sys/socket.h>
 #include <sys/signal.h>
@@ -72,50 +71,44 @@ extern "C" {
 #endif
 #include "h323/chan_h323.h"
 
-send_digit_cb		on_send_digit; 
-on_connection_cb	on_create_connection; 
-setup_incoming_cb	on_incoming_call;
-setup_outbound_cb	on_outgoing_call; 
-start_logchan_cb	on_start_logical_channel; 
-chan_ringing_cb		on_chan_ringing;
-con_established_cb	on_connection_established;
-clear_con_cb		on_connection_cleared;
-answer_call_cb		on_answer_call;
+send_digit_cb on_send_digit; 
+on_connection_cb on_create_connection; 
+setup_incoming_cb on_incoming_call;
+setup_outbound_cb on_outgoing_call; 
+start_logchan_cb on_start_logical_channel; 
+chan_ringing_cb	on_chan_ringing;
+con_established_cb on_connection_established;
+clear_con_cb on_connection_cleared;
+answer_call_cb on_answer_call;
 
+/* global debug flag */
 int h323debug;
 
-/** String variables required by ASTERISK */
-static char *type	= "H323";
-static char *desc	= "The NuFone Network's Open H.323 Channel Driver";
-static char *tdesc	= "The NuFone Network's Open H.323 Channel Driver";
+/** Variables required by Asterisk */
+static char *type = "H323";
+static char *desc = "The NuFone Network's Open H.323 Channel Driver";
+static char *tdesc = "The NuFone Network's Open H.323 Channel Driver";
 static char *config = "h323.conf";
-
-static char default_context[AST_MAX_EXTENSION];
+static char default_context[AST_MAX_EXTENSION] = "default";
 
 /** H.323 configuration values */
+static int DEFAULT_H323_PORT = 1720;
 static char gatekeeper[100];
-static int  gatekeeper_disable = 1;
-static int  gatekeeper_discover = 0;
-static int  usingGk;
-static int  port = 1720;
-static int  gkroute = 0;
-
-static int noFastStart = 1;
+static int gatekeeper_disable = 1;
+static int gatekeeper_discover = 0;
+static int usingGk;
+static int gkroute = 0;
+static int noFastStart = 0;
 static int noH245Tunneling = 0;
-
-/* to find user by alias is default, alternative is the incomming call's source IP address*/
+/* Assume we can native bridge by default */
+static int bridging = 1;
+/* Find user by alias (h.323 id) is default, alternative is the incomming call's source IP address*/
 static int  userbyalias = 1;
-
-static int  bridge_default = 1;
-
 /* Just about everybody seems to support ulaw, so make it a nice default */
 static int capability = AST_FORMAT_ULAW;
-
 /* TOS flag */
 static int tos = 0;
-
 static int dtmfmode = H323_DTMF_RFC2833;
-
 static char secret[50];
 
 /** Private structure of a OpenH323 channel */
@@ -139,6 +132,9 @@ struct oh323_pvt {
 	char callerid[80];					/* Caller*ID if available */
 	struct ast_rtp *rtp;					/* RTP Session */
 	int dtmfmode;						/* What DTMF Mode is being used */
+	int noFastStart;					/* Determines if this call will utilize FastStart or not */
+	int noH245Tunneling;					/* Determines if H.245 Tunneling is used or not */
+	int noSilenceSuppression;				/* Determines if Silence Suppression will be used or not */
 	struct ast_dsp *vad;					/* Used for in-band DTMF detection */
 	struct oh323_pvt *next;					/* Next channel in list */
 } *iflist = NULL;
@@ -158,11 +154,11 @@ static struct ast_alias_list {
 	ast_mutex_t lock;
 } aliasl;
 
-/** Asterisk RTP stuff*/
+/** Asterisk RTP stuff */
 static struct sched_context *sched;
 static struct io_context *io;
 
-/** Protect the interface list (of oh323_pvt's) */
+/** Protect the interface list (oh323_pvt) */
 AST_MUTEX_DEFINE_STATIC(iflock);
 
 /** Usage counter and associated lock */
@@ -173,7 +169,7 @@ AST_MUTEX_DEFINE_STATIC(usecnt_lock);
    when it's doing something critical. */
 AST_MUTEX_DEFINE_STATIC(monlock);
 
-/* Avoid two chan to pass capabilities simultaneaously to the h323 stack. */
+/* Protect the H.323 capabilities list, to avoid more than one channel to set the capabilities simultaneaously in the h323 stack. */
 AST_MUTEX_DEFINE_STATIC(caplock);
 
 /* This is the thread for the monitor which checks for input on the channels
@@ -266,8 +262,9 @@ static struct oh323_user *build_user(char *name, struct ast_variable *v)
 		
 		/* set the usage flag to a sane starting value*/
 		user->inUse = 0;
-		/* Assume we can native bridge */
-		user->bridge = bridge_default; 
+		/* set the native brigding default */
+		user->bridge = bridging;
+		user->context = default_context;
 
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
@@ -294,7 +291,7 @@ static struct oh323_user *build_user(char *name, struct ast_variable *v)
 					user->incominglimit = 0;
 			} else if (!strcasecmp(v->name, "host")) {
 				if (!strcasecmp(v->value, "dynamic")) {
-					ast_log(LOG_ERROR, "Dynamic host configuration not implemented, yet!\n");
+					ast_log(LOG_ERROR, "A dynamic host on a type=user does not make any sense\n");
 					free(user);
 					return NULL;
 				} else if (ast_get_ip(&user->addr, v->value)) {
@@ -317,11 +314,12 @@ static struct oh323_user *build_user(char *name, struct ast_variable *v)
 	return user;
 }
 
-
 static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
 {
 	struct oh323_peer *peer;
 	struct oh323_peer *prev;
+	struct ast_ha *oldha = NULL:
+	int format;
 	int found=0;
 	
 	prev = NULL;
@@ -353,29 +351,41 @@ static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
 	if (peer) {
 		if (!found) {
 			strncpy(peer->name, name, sizeof(peer->name)-1);
+			peer->addr.sin_port = htons(DEFAULT_H323_PORT);
+			peer->addr.sin_family = AF_INET;
 		}
-		
-		/* set the usage flag to a sane starting value*/
-		peer->inUse = 0;
+		oldha = peer->ha;
+		peer->ha = NULL:
+		peer->addr.sin_family = AF_INET;
+		peer->capability = capability;
 
 		while(v) {
-			if (!strcasecmp(v->name, "context")) {
-				strncpy(peer->context, v->value, sizeof(peer->context)-1);
-			}  else if (!strcasecmp(v->name, "bridge")) {
+			if (!strcasecmp(v->name, "bridge")) {
 				peer->bridge = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "noFastStart")) {
 				peer->noFastStart = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "nat")) {
+				peer->nat = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "noH245Tunneling")) {
 				peer->noH245Tunneling = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "noSilenceSuppression")) {
 				peer->noSilenceSuppression = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "dtmfmode")) {
+				if (!strcasecmp(v->value, "inband") {
+					peer->dtmfmode = H323_DTMF_INBAND;
+				} elsif (!strcasecmp(v->value, "rfc2833") {
+					peer->dtmfmode = H323_DTMF_RFC2833;
+				} else {
+					ast_log(LOG_WARNING, "Unknown DTMF Mode %s, using RFC2833\n", v->value);
+					peer->dtmfmode = H323_DTMF_RFC2833;
+				}	
 			} else if (!strcasecmp(v->name, "outgoinglimit")) {
 				peer->outgoinglimit = atoi(v->value);
 				if (peer->outgoinglimit > 0)
 					peer->outgoinglimit = 0;
 			} else if (!strcasecmp(v->name, "host")) {
 				if (!strcasecmp(v->value, "dynamic")) {
-					ast_log(LOG_ERROR, "Dynamic host configuration not implemented, yet!\n");
+					ast_log(LOG_ERROR, "Dynamic host configuration not implemented.\n");
 					free(peer);
 					return NULL;
 				}
@@ -389,8 +399,6 @@ static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
 	}
 	return peer;
 }
-
-
 
 /**
  * Send (play) the specified digit to the channel.
@@ -408,7 +416,6 @@ static int oh323_digit(struct ast_channel *c, char digit)
 	return 0;
 }
 
-
 /**
  * Make a call over the specified channel to the specified 
  * destination. This function will parse the destination string
@@ -423,7 +430,6 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	char *tmp, *cid, *cidname, oldcid[256];
 
 	strtok_r(dest, "/", &(tmp));
-
 	ast_log(LOG_DEBUG, "dest=%s, timeout=%d.\n", dest, timeout);
 
 	if (strlen(dest) > sizeof(called_addr) - 1) {
@@ -436,67 +442,66 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 		return -1;
 	}
 	
-	/* outgoing call */
+	/* this is an outgoing call */
 	p->outgoing = 1;
 
-	/* Clear the call token */
-	if ((p->cd).call_token == NULL)
+	/* Ensure the call token is allocated */
+	if ((p->cd).call_token == NULL) {
 		(p->cd).call_token = (char *)malloc(128);
-
+	}
 	memset((char *)(p->cd).call_token, 0, 128);
 	
-	if (p->cd.call_token == NULL) {
-		ast_log(LOG_ERROR, "Not enough memory.\n");
+	if (!p->cd.call_token) {
+		ast_log(LOG_ERROR, "Not enough memory to alocate call token\n");
 		return -1;
 	}
 
-	/* Build the address to call */
+	/* Clear and then set the address to call */
 	memset(called_addr, 0, sizeof(called_addr));
 	memcpy(called_addr, dest, strlen(dest));
 
 	/* Copy callerid, if there is any */
-	if (c->callerid) {
+	if (!ast_strlen_zero(c->callerid)) {
                 memset(oldcid, 0, sizeof(oldcid));
                 memcpy(oldcid, c->callerid, strlen(c->callerid));
                 oldcid[sizeof(oldcid)-1] = '\0';
                 ast_callerid_parse(oldcid, &cidname, &cid);
-                if (p->calloptions.callerid) {
+                if (!ast_strlen_zero(p->calloptions.callerid)) {
                         free(p->calloptions.callerid);
                         p->calloptions.callerid = NULL;
                 }
-                if (p->calloptions.callername) {
+                if (!ast_strlen_zero(p->calloptions.callername)) {
                         free(p->calloptions.callername);
                         p->calloptions.callername = NULL;
                 }
                 p->calloptions.callerid = (char*)malloc(256);
-                if (p->calloptions.callerid == NULL) {
-                        ast_log(LOG_ERROR, "Not enough memory.\n");
+                if (!p->calloptions.callerid) {
+                        ast_log(LOG_ERROR, "Not enough memory to allocate callerid\n");
                         return(-1);
                 }
                 memset(p->calloptions.callerid, 0, 256);
-                if ((cid != NULL)&&(strlen(cid) > 0))
-                        strncpy(p->calloptions.callerid, cid, 255);
-
+                if ((!ast_strlen_zero(cid))&&(!ast_strlen_zero(cid)) {
+                        strncpy(p->calloptions.callerid, cid, sizeof(p->calloptions.callerid)-1);
+		}
                 p->calloptions.callername = (char*)malloc(256);
-                if (p->calloptions.callername == NULL) {
+                if (!p->calloptions.callername) {
                         ast_log(LOG_ERROR, "Not enough memory.\n");
                         return(-1);
                 }
                 memset(p->calloptions.callername, 0, 256);
-                if ((cidname != NULL)&&(strlen(cidname) > 0))
-                        strncpy(p->calloptions.callername, cidname, 255);
-
+                if (!ast_strlen_zero(cidname) && (!ast_strlen_zero(cidname)) {
+                        strncpy(p->calloptions.callername, cidname, sizeof(p->calloptions.callername)-1);
+		}	
         } else {
-                if (p->calloptions.callerid) {
+                if (!ast_strlen_zero(p->calloptions.callerid)) {
                         free(p->calloptions.callerid);
                         p->calloptions.callerid = NULL;
                 }
-                if (p->calloptions.callername) {
+                if (!ast_strlen_zero(p->calloptions.callername)) {
                         free(p->calloptions.callername);
                         p->calloptions.callername = NULL;
                 }
         }
-
 	p->calloptions.noFastStart = noFastStart;
 	p->calloptions.noH245Tunneling = noH245Tunneling;
 
@@ -512,7 +517,6 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 static int oh323_answer(struct ast_channel *c)
 {
 	int res;
-
 	struct oh323_pvt *p = (struct oh323_pvt *) c->pvt->pvt;
 
 	res = h323_answering_call(p->cd.call_token, 0);
@@ -807,7 +811,7 @@ static struct oh323_pvt *oh323_alloc(int callid)
 	ast_mutex_init(&p->lock);
 	
 	p->cd.call_reference = callid;
-	p->bridge = bridge_default;
+	p->bridge = bridgeing;
 	
 	p->dtmfmode = dtmfmode;
 	if (p->dtmfmode & H323_DTMF_RFC2833)
@@ -850,29 +854,82 @@ static struct oh323_pvt *find_call(int call_reference, const char *token)
         
 }
 
+static int create_addr(struct oh323_pvt *r, char *opeer)
+{
+	struct hostent *hp;
+	struct ast_hostent ahp;
+	struct oh323_peer *p;
+	int found = 0;
+	char *port;
+	char *callhost;
+	int portno;
+	char host[256], *hostn;
+	char peer[256] = "";
+
+	strncpy(peer, opeer, sizeof(peer) - 1);
+	port = strchr(peer, ':');
+	if (port) {
+		*port = '\0';
+		port++;
+	}
+	r->sa.sin_family = AF_INET;
+	ast_mutex_lock(&peerl.lock);
+	p = find_peer(peer, NULL);
+	if (p) {
+		found++;
+		r->capability = p->capability;
+		r->nat = p->nat;
+		if (r->rtp) {
+			ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n," r->nat);
+			ast_rtp_setnat(r->rtp, r->nat);
+		}
+		r->noFastStart = p->noFastStart;
+		r->noH245Tunneling = p->noH245Tunneling;
+		r->noSilenceSuppression = p->noSilenceSuppression;
+		
+		if (p->dtmfmode) {
+			r->dtmfmode = p->dtmfmode;
+			if (r->dtmfmode & H323_DTMF_RFC2833) {
+				p->nonCodecCapability |= AST_RTP_DTMF;
+			} else {
+				p->nonCodecCapability &= ~AST_RTP_DTMF;
+			}
+		}
+
+}
 static struct ast_channel *oh323_request(char *type, int format, void *data)
 {
-
 	int oldformat;
 	struct oh323_pvt *p;
 	struct ast_channel *tmpc = NULL;
-	char *dest = (char *) data;
+	char *dest = (char *)data;
 	char *ext, *host;
 	char *h323id = NULL;
 	char tmp[256];
-
 	
 	ast_log(LOG_DEBUG, "type=%s, format=%d, data=%s.\n", type, format, (char *)data);
 
+	p = oh323_alloc(0);
+	if (!p) {
+		ast_log(LOG_WARNING, "Unable to build pvt data for '%s'\n", (char *)data);
+		return NULL;
+	}	
 	oldformat = format;
 	format &= capability;
 	if (!format) {
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);
 		return NULL;
 	}
+
+	/* Assign a default capability */
+	p->capability = capability;
+
+	/* pass on our preferred codec to the H.323 stack */
+	ast_mutex_lock(&caplock);
+	h323_set_capability(format, dtmfmode);
+	ast_mutex_unlock(&caplock);
 	
-	strncpy(tmp, dest, sizeof(tmp) - 1);
-		
+	strncpy(tmp, dest, sizeof(tmp) - 1);	
 	host = strchr(tmp, '@');
 	if (host) {
 		*host = '\0';
@@ -882,46 +939,27 @@ static struct ast_channel *oh323_request(char *type, int format, void *data)
 		host = tmp;
 		ext = NULL;
 	}
-
-	strtok_r(host, "/", &(h323id));
-		
+	strtok_r(host, "/", &(h323id));		
 	if (h323id && !ast_strlen_zero(h323id)) {
 		h323_set_id(h323id);
 	}
-		
-	p = oh323_alloc(0);
-
-	if (!p) {
-		ast_log(LOG_WARNING, "Unable to build pvt data for '%s'\n", (char *)data);
-		return NULL;
-	}
-
-	/* Assign a default capability */
-	p->capability = capability;
-	
-	if (p->dtmfmode) {
-		if (p->dtmfmode & H323_DTMF_RFC2833) {
-			p->nonCodecCapability |= AST_RTP_DTMF;
-		} else {
-			p->nonCodecCapability &= ~AST_RTP_DTMF;
-		}
-	}
-	/* pass on our preferred codec to the H.323 stack */
-	ast_mutex_lock(&caplock);
-	h323_set_capability(format, dtmfmode);
-	ast_mutex_unlock(&caplock);
-
 	if (ext) {
 		strncpy(p->username, ext, sizeof(p->username) - 1);
 	}
 	ast_log(LOG_DEBUG, "Host: %s\tUsername: %s\n", host, p->username);
 
-	tmpc = oh323_new(p, AST_STATE_DOWN, host);
-	if (!tmpc)
+	if (create_addr(p, host) {
 		oh323_destroy(p);
-	
+		return NULL;
+	}
+	ast_mutex_lock(&p->lock);
+	tmpc = oh323_new(p, AST_STATE_DOWN, host);
+	ast_mutex_unlock(&p->lock);
+	if (!tmpc) {
+		oh323_destroy(p);
+	}
+	ast_update_use_count();
 	restart_monitor();
-	
 	return tmpc;
 }
 
@@ -1700,7 +1738,7 @@ int reload_config(void)
 		} else if (!strcasecmp(v->name, "UserByAlias")) {
                         userbyalias = ast_true(v->value);
                 } else if (!strcasecmp(v->name, "bridge")) {
-                        bridge_default = ast_true(v->value);
+                        bridging = ast_true(v->value);
                 } else if (!strcasecmp(v->name, "noFastStart")) {
                                 noFastStart = ast_true(v->value);
                 } else if (!strcasecmp(v->name, "noH245Tunneling")) {
