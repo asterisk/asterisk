@@ -21,6 +21,7 @@
 #include <asterisk/channel.h>
 #include <asterisk/config.h>
 #include <asterisk/term.h>
+#include <asterisk/cli.h>
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -173,29 +174,6 @@ static void init_logger_chain(void)
 
 }
 
-static struct verb {
-	void (*verboser)(const char *string, int opos, int replacelast, int complete);
-	struct verb *next;
-} *verboser = NULL;
-
-int init_logger(void)
-{
-	char tmp[AST_CONFIG_MAX_PATH];
-	mkdir((char *)ast_config_AST_LOG_DIR, 0755);
-	snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_LOG_DIR, EVENTLOG);
-	eventlog = fopen((char *)tmp, "a");
-	if (eventlog) {
-		init_logger_chain();
-		ast_log(LOG_EVENT, "Started Asterisk Event Logger\n");
-		if (option_verbose)
-			ast_verbose("Asterisk Event Logger Started %s\n",(char *)tmp);
-		return 0;
-	} else 
-		ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
-	init_logger_chain();
-	return -1;
-}
-
 int reload_logger(void)
 {
 	char tmp[AST_CONFIG_MAX_PATH];
@@ -218,6 +196,56 @@ int reload_logger(void)
 	init_logger_chain();
 	return -1;
 }
+
+static int handle_logger_reload(int fd, int argc, char *argv[])
+{
+	if(reload_logger())
+	{
+		ast_cli(fd, "Failed to reloadthe logger\n");
+		return RESULT_FAILURE;
+	}
+	else
+		return RESULT_SUCCESS;
+}
+
+static struct verb {
+	void (*verboser)(const char *string, int opos, int replacelast, int complete);
+	struct verb *next;
+} *verboser = NULL;
+
+
+static char logger_reload_help[] =
+"Usage: logger reload\n"
+"       Reopens the log files.  Use after a rotating the log files\n";
+
+static struct ast_cli_entry reload_logger_cli = 
+	{ { "logger", "reload", NULL }, 
+	handle_logger_reload, "Reopens the log files",
+	logger_reload_help };
+
+
+int init_logger(void)
+{
+	char tmp[AST_CONFIG_MAX_PATH];
+
+	/* register the relaod logger cli command */
+	ast_cli_register(&reload_logger_cli);
+	
+	mkdir((char *)ast_config_AST_LOG_DIR, 0755);
+	snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_LOG_DIR, EVENTLOG);
+	eventlog = fopen((char *)tmp, "a");
+	if (eventlog) {
+		init_logger_chain();
+		ast_log(LOG_EVENT, "Started Asterisk Event Logger\n");
+		if (option_verbose)
+			ast_verbose("Asterisk Event Logger Started %s\n",(char *)tmp);
+		return 0;
+	} else 
+		ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
+	init_logger_chain();
+	return -1;
+}
+
 
 extern void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {
