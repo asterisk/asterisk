@@ -1033,8 +1033,10 @@ static int play_and_prepend(struct ast_channel *chan, char *playfile, char *reco
 	char prependfile[80];
 	
 	/* barf if no pointer passed to store duration in */
-	if (duration == NULL)
+	if (duration == NULL) {
 		ast_log(LOG_WARNING, "Error play_and_prepend called without duration pointer\n");
+		return -1;
+	}
 
 	ast_log(LOG_DEBUG,"play_and_prepend: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
 	snprintf(comment,sizeof(comment),"Playing %s, Recording to: %s on %s\n", playfile ? playfile : "<None>", recordfile, chan->name);
@@ -1252,8 +1254,10 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 	int rfmt=0;
 
 	/* barf if no pointer passed to store duration in */
-	if (duration == NULL)
+	if (duration == NULL) {
 		ast_log(LOG_WARNING, "Error play_and_record called without duration pointer\n");
+		return -1;
+	}
 
 	ast_log(LOG_DEBUG,"play_and_record: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
 	snprintf(comment,sizeof(comment),"Playing %s, Recording to: %s on %s\n", playfile ? playfile : "<None>", recordfile, chan->name);
@@ -2445,7 +2449,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 				snprintf(callerid, sizeof(callerid), "FWD from: %s from %s", sender->fullname, ast_variable_retrieve(mif, NULL, "callerid"));
 				s = ast_variable_retrieve(mif, NULL, "duration");
 				if (s)
-					duration = atol(s);
+					duration = atoi(s);
 				else
 					duration = 0;
 				if (strlen(vmtmp->email)) {
@@ -4130,8 +4134,10 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  	/* Note that urgent and private are for flagging messages as such in the future */
  
 	/* barf if no pointer passed to store duration in */
-	if (duration == NULL)
+	if (duration == NULL) {
 		ast_log(LOG_WARNING, "Error play_record_review called without duration pointer\n");
+		return -1;
+	}
 
  	cmd = '3';	 /* Want to start by recording */
  
