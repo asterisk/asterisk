@@ -8377,8 +8377,9 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v)
 
 	user = (struct sip_user *)malloc(sizeof(struct sip_user));
 	if (user) {
-		suserobjs++;
 		memset(user, 0, sizeof(struct sip_user));
+		suserobjs++;
+		ASTOBJ_INIT(user);
 		strncpy(user->name, name, sizeof(user->name)-1);
 		oldha = user->ha;
 		user->ha = NULL;
@@ -8521,8 +8522,10 @@ static struct sip_peer *temp_peer(char *name)
 	if (!peer)
 		return NULL;
 
-	apeerobjs++;
 	memset(peer, 0, sizeof(struct sip_peer));
+	apeerobjs++;
+	ASTOBJ_INIT(peer);
+
 	peer->expire = -1;
 	peer->pokeexpire = -1;
 	strncpy(peer->name, name, sizeof(peer->name)-1);
