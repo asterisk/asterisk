@@ -33,8 +33,6 @@
 
 struct ast_filestream {
 	void *reserved[AST_RESERVED_POINTERS];
-	/* Believe it or not, we must decode/recode to account for the
-	   weird MS format */
 	/* This is what a filestream means to us */
 	int fd; /* Descriptor */
 	int bytes;
@@ -43,7 +41,7 @@ struct ast_filestream {
 	struct ast_frame fr;				/* Frame information */
 	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
 	char empty;							/* Empty character */
-	short buf[160];				/* Two Real GSM Frames */
+	short buf[160];	
 	int foffset;
 	int lasttimeout;
 	struct timeval last;
@@ -191,14 +189,20 @@ static int check_header(int fd)
 	return 0;
 }
 
-static int update_header(int fd, int bytes)
+static int update_header(int fd)
 {
-	int cur;
-	int datalen = htoll(bytes);
-	/* int filelen = htoll(52 + ((bytes + 1) & ~0x1)); */
-	int filelen = htoll(36 + bytes);
+	off_t cur,end;
+	int datalen,filelen,bytes;
+	
 	
 	cur = lseek(fd, 0, SEEK_CUR);
+	end = lseek(fd, 0, SEEK_END);
+	/* data starts 44 bytes in */
+	bytes = end - 44;
+	datalen = htoll(bytes);
+	/* chunk size is bytes of data plus 36 bytes of header */
+	filelen = htoll(36 + bytes);
+	
 	if (cur < 0) {
 		ast_log(LOG_WARNING, "Unable to find our position\n");
 		return -1;
@@ -237,6 +241,7 @@ static int write_header(int fd)
 	unsigned short bisam = htols(16);
 	unsigned int size = htoll(0);
 	/* Write a wav header, ignoring sizes which will be filled in later */
+	lseek(fd,0,SEEK_SET);
 	if (write(fd, "RIFF", 4) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
@@ -396,6 +401,7 @@ static void wav_close(struct ast_filestream *s)
 		write(s->fd, &zero, 1);
 	close(s->fd);
 	free(s);
+	s = NULL;
 #if 0
 	printf("bytes = %d\n", s->bytes);
 #endif
@@ -418,6 +424,11 @@ static int ast_read_callback(void *data)
 		s->owner->streamid = -1;
 		return 0;
 	}
+
+#if __BYTE_ORDER == __BIG_ENDIAN
+	for( x = 0; x < sizeof(tmp)/2; x++) tmp[x] = (tmp[x] << 8) | ((tmp[x] & 0xff00) >> 8);
+#endif
+
 	if (s->needsgain) {
 		for (x=0;x<sizeof(tmp)/2;x++)
 			if (tmp[x] & ((1 << GAIN) - 1)) {
@@ -434,15 +445,15 @@ static int ast_read_callback(void *data)
 		memcpy(s->buf, tmp, sizeof(s->buf));
 	}
 			
-	delay = res / 16;
+	delay = res / 2;
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_SLINEAR;
 	s->fr.offset = AST_FRIENDLY_OFFSET;
 	s->fr.datalen = res;
 	s->fr.data = s->buf;
 	s->fr.mallocd = 0;
-	s->fr.timelen = delay;
-
+	s->fr.samples = delay;
+	delay /= 8;
 	/* Lastly, process the frame */	
 	if (delay != s->lasttimeout) {
 		s->owner->streamid = ast_sched_add(s->owner->sched, delay, ast_read_callback, s);
@@ -465,6 +476,11 @@ static int wav_apply(struct ast_channel *c, struct ast_filestream *s)
 {
 	/* Select our owner for this stream, and get the ball rolling. */
 	s->owner = c;
+	return 0;
+}
+
+static int wav_play(struct ast_filestream *s)
+{
 	ast_read_callback(s);
 	return 0;
 }
@@ -480,7 +496,7 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 		return -1;
 	}
 	if (f->subclass != AST_FORMAT_SLINEAR) {
-		ast_log(LOG_WARNING, "Asked to write non-GSM frame (%d)!\n", f->subclass);
+		ast_log(LOG_WARNING, "Asked to write non-SLINEAR frame (%d)!\n", f->subclass);
 		return -1;
 	}
 	if (f->datalen > sizeof(tmp)) {
@@ -505,6 +521,11 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 				tmpf = -32768.0;
 			tmp[x] = tmpf;
 			tmp[x] &= ~((1 << GAIN) - 1);
+
+#if __BYTE_ORDER == __BIG_ENDIAN
+			tmp[x] = (tmp[x] << 8) | ((tmp[x] & 0xff00) >> 8);
+#endif
+
 		}
 		if ((write (fs->fd, tmp, f->datalen) != f->datalen) ) {
 			ast_log(LOG_WARNING, "Bad write (%d): %s\n", res, strerror(errno));
@@ -516,10 +537,45 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 	}
 	
 	fs->bytes += f->datalen;
-	update_header(fs->fd, fs->bytes);
+	update_header(fs->fd);
 		
 	return 0;
 
+}
+
+static int wav_seek(struct ast_filestream *fs, long sample_offset, int whence)
+{
+	off_t min,max,cur;
+	long offset,samples;
+	
+	samples = sample_offset * 2; /* SLINEAR is 16 bits mono, so sample_offset * 2 = bytes */
+	min = 44; /* wav header is 44 bytes */
+	cur = lseek(fs->fd, 0, SEEK_CUR);
+	max = lseek(fs->fd, 0, SEEK_END);
+	if(whence == SEEK_SET)
+		offset = samples + min;
+	if(whence == SEEK_CUR)
+		offset = samples + cur;
+	if(whence == SEEK_END)
+		offset = max - samples; 
+	offset = (offset > max)?max:offset;
+	offset = (offset < min)?min:offset;
+	return lseek(fs->fd,offset,SEEK_SET);
+}
+
+static int wav_trunc(struct ast_filestream *fs)
+{
+	if(ftruncate(fs->fd, lseek(fs->fd,0,SEEK_CUR)))
+		return -1;
+	return update_header(fs->fd);
+}
+
+static long wav_tell(struct ast_filestream *fs)
+{
+	off_t offset;
+	offset = lseek(fs->fd, 0, SEEK_CUR);
+	/* subtract header size to get samples, then divide by 2 for 16 bit samples */
+	return (offset - 44)/2;
 }
 
 static char *wav_getcomment(struct ast_filestream *s)
@@ -533,7 +589,11 @@ int load_module()
 								wav_open,
 								wav_rewrite,
 								wav_apply,
+								wav_play,
 								wav_write,
+								wav_seek,
+								wav_trunc,
+								wav_tell,
 								wav_read,
 								wav_close,
 								wav_getcomment);

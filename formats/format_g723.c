@@ -150,6 +150,7 @@ static void g723_close(struct ast_filestream *s)
 		ast_log(LOG_WARNING, "Freeing a filestream we don't seem to own\n");
 	close(s->fd);
 	free(s);
+	s = NULL;
 }
 
 static int ast_read_callback(void *data)
@@ -199,7 +200,7 @@ static int ast_read_callback(void *data)
 		else
 			s->fr->timelen = delay;
 #else
-		s->fr->timelen = 30;
+		s->fr->samples = 240;
 #endif
 		/* Unless there is no delay, we're going to exit out as soon as we
 		   have processed the current frame. */
@@ -229,9 +230,14 @@ static int ast_read_callback(void *data)
 
 static int g723_apply(struct ast_channel *c, struct ast_filestream *s)
 {
-	u_int32_t delay;
 	/* Select our owner for this stream, and get the ball rolling. */
 	s->owner = c;
+	return 0;
+}
+
+static int g723_play(struct ast_filestream *s)
+{
+	u_int32_t delay;
 	/* Read and ignore the first delay */
 	if (read(s->fd, &delay, 4) != 4) {
 		/* Empty file */
@@ -296,6 +302,21 @@ static int g723_write(struct ast_filestream *fs, struct ast_frame *f)
 	return 0;
 }
 
+static int g723_seek(struct ast_filestream *fs, long sample_offset, int whence)
+{
+	return -1;
+}
+
+static int g723_trunc(struct ast_filestream *fs)
+{
+	return -1;
+}
+
+static long g723_tell(struct ast_filestream *fs)
+{
+	return -1;
+}
+
 static char *g723_getcomment(struct ast_filestream *s)
 {
 	return NULL;
@@ -307,7 +328,11 @@ int load_module()
 								g723_open,
 								g723_rewrite,
 								g723_apply,
+								g723_play,
 								g723_write,
+								g723_seek,
+								g723_trunc,
+								g723_tell,
 								g723_read,
 								g723_close,
 								g723_getcomment);

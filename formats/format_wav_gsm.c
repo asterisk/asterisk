@@ -202,12 +202,16 @@ static int check_header(int fd)
 	return 0;
 }
 
-static int update_header(int fd, int bytes)
+static int update_header(int fd)
 {
-	int cur;
-	int datalen = htoll(bytes);
-	int filelen = htoll(52 + ((bytes + 1) & ~0x1));
+	off_t cur,end,bytes;
+	int datalen,filelen;
+	
 	cur = lseek(fd, 0, SEEK_CUR);
+	end = lseek(fd, 0, SEEK_END);
+	bytes = end - 52;
+	datalen = htoll(bytes);
+	filelen = htoll(52 + ((bytes + 1) & ~0x1));
 	if (cur < 0) {
 		ast_log(LOG_WARNING, "Unable to find our position\n");
 		return -1;
@@ -423,6 +427,7 @@ static void wav_close(struct ast_filestream *s)
 		write(s->fd, &zero, 1);
 	close(s->fd);
 	free(s);
+	s = NULL;
 }
 
 static int ast_read_callback(void *data)
@@ -438,7 +443,7 @@ static int ast_read_callback(void *data)
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_GSM;
 	s->fr.offset = AST_FRIENDLY_OFFSET;
-	s->fr.timelen = 20;
+	s->fr.samples = 160;
 	s->fr.datalen = 33;
 	s->fr.mallocd = 0;
 	if (s->secondhalf) {
@@ -497,6 +502,11 @@ static int wav_apply(struct ast_channel *c, struct ast_filestream *s)
 {
 	/* Select our owner for this stream, and get the ball rolling. */
 	s->owner = c;
+	return 0;
+}
+
+static int wav_play(struct ast_filestream *s)
+{
 	ast_read_callback(s);
 	return 0;
 }
@@ -523,7 +533,7 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 				return -1;
 			}
 			fs->bytes += 65;
-			update_header(fs->fd, fs->bytes);
+			update_header(fs->fd);
 		} else {
 			/* Copy the data and do nothing */
 			memcpy(fs->gsm, f->data + len, 33);
@@ -532,6 +542,43 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 		len += 33;
 	}
 	return 0;
+}
+
+static int wav_seek(struct ast_filestream *fs, long sample_offset, int whence)
+{
+	off_t offset,distance,cur,min,max;
+	min = 52;
+	cur = lseek(fs->fd, 0, SEEK_CUR);
+	max = lseek(fs->fd, 0, SEEK_END);
+	/* I'm getting sloppy here, I'm only going to go to even splits of the 2
+	 * frames, if you want tighter cuts use format_gsm, format_pcm, or format_wav */
+	distance = (sample_offset/320) * 65;
+	if(whence == SEEK_SET)
+		offset = distance + min;
+	if(whence == SEEK_CUR)
+		offset = distance + cur;
+	if(whence == SEEK_END)
+		offset = max - distance;
+	offset = (offset < min)?min:offset;
+	offset = (offset > max)?max:offset;
+	fs->secondhalf = 0;
+	return lseek(fs->fd, offset, SEEK_SET);
+}
+
+static int wav_trunc(struct ast_filestream *fs)
+{
+	if(ftruncate(fs->fd, lseek(fs->fd, 0, SEEK_CUR)))
+		return -1;
+	return update_header(fs->fd);
+}
+
+static long wav_tell(struct ast_filestream *fs)
+{
+	off_t offset;
+	offset = lseek(fs->fd, 0, SEEK_CUR);
+	/* since this will most likely be used later in play or record, lets stick
+	 * to that level of resolution, just even frames boundaries */
+	return (offset - 52)/65/320;
 }
 
 static char *wav_getcomment(struct ast_filestream *s)
@@ -545,7 +592,11 @@ int load_module()
 								wav_open,
 								wav_rewrite,
 								wav_apply,
+								wav_play,
 								wav_write,
+								wav_seek,
+								wav_trunc,
+								wav_tell,
 								wav_read,
 								wav_close,
 								wav_getcomment);

@@ -259,6 +259,7 @@ static void vox_close(struct ast_filestream *s)
 		ast_log(LOG_WARNING, "Freeing a filestream we don't seem to own\n");
 	close(s->fd);
 	free(s);
+	s = NULL;
 }
 
 static int ast_read_callback(void *data)
@@ -291,9 +292,9 @@ static int ast_read_callback(void *data)
 		s->signal += decode(s->buf[x] >> 4, &s->ssindex);
 		s->signal += decode(s->buf[x] & 0xf, &s->ssindex);
 	}
-	s->fr.timelen = res / 4;
+	s->fr.samples = res * 2;
 	s->fr.datalen = res + 3;
-	delay = s->fr.timelen;
+	delay = s->fr.samples / 8;
 	/* Lastly, process the frame */
 	if (ast_write(s->owner, &s->fr)) {
 		ast_log(LOG_WARNING, "Failed to write frame\n");
@@ -335,6 +336,11 @@ static int vox_apply(struct ast_channel *c, struct ast_filestream *s)
 {
 	/* Select our owner for this stream, and get the ball rolling. */
 	s->owner = c;
+	return 0;
+}
+
+static int vox_play(struct ast_filestream *s)
+{
 	ast_read_callback(s);
 	return 0;
 }
@@ -366,13 +372,32 @@ static char *vox_getcomment(struct ast_filestream *s)
 	return NULL;
 }
 
+static int vox_seek(struct ast_filestream *fs, long sample_offset, int whence)
+{
+	return -1;
+}
+
+static int vox_trunc(struct ast_filestream *fs)
+{
+	return -1;
+}
+
+static long vox_tell(struct ast_filestream *fs)
+{
+	return -1;
+}
+
 int load_module()
 {
 	return ast_format_register(name, exts, AST_FORMAT_ADPCM,
 								vox_open,
 								vox_rewrite,
 								vox_apply,
+								vox_play,
 								vox_write,
+								vox_seek,
+								vox_trunc,
+								vox_tell,
 								vox_read,
 								vox_close,
 								vox_getcomment);

@@ -151,6 +151,7 @@ static void gsm_close(struct ast_filestream *s)
 		ast_log(LOG_WARNING, "Freeing a filestream we don't seem to own\n");
 	close(s->fd);
 	free(s);
+	s = NULL;
 }
 
 static int ast_read_callback(void *data)
@@ -165,7 +166,7 @@ static int ast_read_callback(void *data)
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_GSM;
 	s->fr.offset = AST_FRIENDLY_OFFSET;
-	s->fr.timelen = 20;
+	s->fr.samples = 160;
 	s->fr.datalen = 33;
 	s->fr.mallocd = 0;
 	s->fr.data = s->gsm;
@@ -216,6 +217,11 @@ static int gsm_apply(struct ast_channel *c, struct ast_filestream *s)
 {
 	/* Select our owner for this stream, and get the ball rolling. */
 	s->owner = c;
+	return 0;
+}
+
+static int gsm_play(struct ast_filestream *s)
+{
 	ast_read_callback(s);
 	return 0;
 }
@@ -242,6 +248,38 @@ static int gsm_write(struct ast_filestream *fs, struct ast_frame *f)
 	return 0;
 }
 
+static int gsm_seek(struct ast_filestream *fs, long sample_offset, int whence)
+{
+	off_t offset,min,cur,max,distance;
+	
+	min = 0;
+	cur = lseek(fs->fd, 0, SEEK_CUR);
+	max = lseek(fs->fd, 0, SEEK_END);
+	/* have to fudge to frame here, so not fully to sample */
+	distance = (sample_offset/160) * 33;
+	if(whence == SEEK_SET)
+		offset = distance;
+	if(whence == SEEK_CUR)
+		offset = distance + cur;
+	if(whence == SEEK_END)
+		offset = max - distance;
+	offset = (offset > max)?max:offset;
+	offset = (offset < min)?min:offset;
+	return lseek(fs->fd, offset, SEEK_SET);
+}
+
+static int gsm_trunc(struct ast_filestream *fs)
+{
+	return ftruncate(fs->fd, lseek(fs->fd,0,SEEK_CUR));
+}
+
+static long gsm_tell(struct ast_filestream *fs)
+{
+	off_t offset;
+	offset = lseek(fs->fd, 0, SEEK_CUR);
+	return (offset/33)*160;
+}
+
 static char *gsm_getcomment(struct ast_filestream *s)
 {
 	return NULL;
@@ -253,7 +291,11 @@ int load_module()
 								gsm_open,
 								gsm_rewrite,
 								gsm_apply,
+								gsm_play,
 								gsm_write,
+								gsm_seek,
+								gsm_trunc,
+								gsm_tell,
 								gsm_read,
 								gsm_close,
 								gsm_getcomment);

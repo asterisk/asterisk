@@ -1,4 +1,4 @@
-/*
+/*m
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Generic File Format Support.
@@ -28,6 +28,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include "asterisk.h"
+#include "astconf.h"
 
 struct ast_format {
 	/* Name of format */
@@ -43,8 +44,16 @@ struct ast_format {
 	struct ast_filestream * (*rewrite)(int fd, char *comment);
 	/* Apply a reading filestream to a channel */
 	int (*apply)(struct ast_channel *, struct ast_filestream *);
+	/* play filestream on a channel */
+	int (*play)(struct ast_filestream *);
 	/* Write a frame to a channel */
 	int (*write)(struct ast_filestream *, struct ast_frame *);
+	/* seek num samples into file, whence(think normal seek) */
+	int (*seek)(struct ast_filestream *, long offset, int whence);
+	/* trunc file to current position */
+	int (*trunc)(struct ast_filestream *fs);
+	/* tell current position */
+	long (*tell)(struct ast_filestream *fs);
 	/* Read the next frame from the filestream (if available) */
 	struct ast_frame * (*read)(struct ast_filestream *);
 	/* Close file, and destroy filestream structure */
@@ -71,7 +80,11 @@ int ast_format_register(char *name, char *exts, int format,
 						struct ast_filestream * (*open)(int fd),
 						struct ast_filestream * (*rewrite)(int fd, char *comment),
 						int (*apply)(struct ast_channel *, struct ast_filestream *),
+						int (*play)(struct ast_filestream *),
 						int (*write)(struct ast_filestream *, struct ast_frame *),
+						int (*seek)(struct ast_filestream *, long sample_offset, int whence),
+						int (*trunc)(struct ast_filestream *),
+						long (*tell)(struct ast_filestream *),
 						struct ast_frame * (*read)(struct ast_filestream *),
 						void (*close)(struct ast_filestream *),
 						char * (*getcomment)(struct ast_filestream *))
@@ -101,8 +114,12 @@ int ast_format_register(char *name, char *exts, int format,
 	tmp->open = open;
 	tmp->rewrite = rewrite;
 	tmp->apply = apply;
+	tmp->play = play;
 	tmp->read = read;
 	tmp->write = write;
+	tmp->seek = seek;
+	tmp->trunc = trunc;
+	tmp->tell = tell;
 	tmp->close = close;
 	tmp->format = format;
 	tmp->getcomment = getcomment;
@@ -148,13 +165,6 @@ int ast_stopstream(struct ast_channel *tmp)
 	tmp->stream->fmt->close(tmp->stream);
 	if (tmp->oldwriteformat && ast_set_write_format(tmp, tmp->oldwriteformat))
 		ast_log(LOG_WARNING, "Unable to restore format back to %d\n", tmp->oldwriteformat);
-	return 0;
-}
-
-int ast_closestream(struct ast_filestream *f)
-{
-	/* Stop a running stream if there is one */
-	f->fmt->close(f);
 	return 0;
 }
 
@@ -237,12 +247,14 @@ static int copy(char *infile, char *outfile)
 static char *build_filename(char *filename, char *ext)
 {
 	char *fn;
-	fn = malloc(strlen(AST_SOUNDS) + strlen(filename) + strlen(ext) + 10);
+	char tmp[AST_CONFIG_MAX_PATH];
+	snprintf((char *)tmp,sizeof(tmp)-1,"%s/%s",(char *)ast_config_AST_VAR_DIR,"sounds");
+	fn = malloc(strlen(tmp) + strlen(filename) + strlen(ext) + 10);
 	if (fn) {
 		if (filename[0] == '/') 
 			sprintf(fn, "%s.%s", filename, ext);
 		else
-			sprintf(fn, "%s/%s.%s", AST_SOUNDS, filename, ext);
+			sprintf(fn, "%s/%s.%s", (char *)tmp, filename, ext);
 	}
 	return fn;
 	
@@ -281,9 +293,11 @@ static int ast_filehelper(char *filename, char *filename2, char *fmt, int action
 	f = formats;
 	while(f) {
 		if (!fmt || !strcasecmp(f->name, fmt)) {
+			char *stringp=NULL;
 			exts = strdup(f->exts);
 			/* Try each kind of extension */
-			ext = strtok(exts, "|");
+			stringp=exts;
+			ext = strsep(&stringp, "|");
 			do {
 				fn = build_filename(filename, ext);
 				if (fn) {
@@ -327,13 +341,6 @@ static int ast_filehelper(char *filename, char *filename2, char *fmt, int action
 										s->fmt = f;
 										s->trans = NULL;
 										chan->stream = s;
-										if (f->apply(chan, s)) {
-											f->close(s);
-											chan->stream = NULL;
-											ast_log(LOG_WARNING, "Unable to apply stream to channel %s\n", chan->name);
-											close(ret);
-											ret = 0;
-										}
 									} else {
 										close(ret);
 										ast_log(LOG_WARNING, "Unable to open fd on %s\n", filename);
@@ -351,7 +358,7 @@ static int ast_filehelper(char *filename, char *filename2, char *fmt, int action
 					}
 					free(fn);
 				}
-				ext = strtok(NULL, "|");
+				ext = strsep(&stringp, "|");
 			} while(ext);
 			free(exts);
 		}
@@ -363,19 +370,145 @@ static int ast_filehelper(char *filename, char *filename2, char *fmt, int action
 	return res;
 }
 
+struct ast_filestream *ast_openstream(struct ast_channel *chan, char *filename, char *preflang)
+{
+	/* This is a fairly complex routine.  Essentially we should do 
+	   the following:
+	   
+	   1) Find which file handlers produce our type of format.
+	   2) Look for a filename which it can handle.
+	   3) If we find one, then great.  
+	   4) If not, see what files are there
+	   5) See what we can actually support
+	   6) Choose the one with the least costly translator path and
+	       set it up.
+		   
+	*/
+	int fd = -1;
+	int fmts = -1;
+	char filename2[256];
+	char lang2[MAX_LANGUAGE];
+	int res;
+	ast_stopstream(chan);
+	/* do this first, otherwise we detect the wrong writeformat */
+	if (chan->generator)
+		ast_deactivate_generator(chan);
+	if (preflang && strlen(preflang)) {
+		snprintf(filename2, sizeof(filename2), "%s-%s", filename, preflang);
+		fmts = ast_fileexists(filename2, NULL, NULL);
+		if (fmts < 1) {
+			strncpy(lang2, preflang, sizeof(lang2)-1);
+			snprintf(filename2, sizeof(filename2), "%s-%s", filename, lang2);
+			fmts = ast_fileexists(filename2, NULL, NULL);
+		}
+	}
+	if (fmts < 1) {
+		strncpy(filename2, filename, sizeof(filename2)-1);
+		fmts = ast_fileexists(filename2, NULL, NULL);
+	}
+	if (fmts < 1) {
+		ast_log(LOG_WARNING, "File %s does not exist in any format\n", filename);
+		return NULL;
+	}
+	chan->oldwriteformat = chan->writeformat;
+	/* Set the channel to a format we can work with */
+	res = ast_set_write_format(chan, fmts);
+	
+ 	fd = ast_filehelper(filename2, (char *)chan, NULL, ACTION_OPEN);
+	if(fd >= 0)
+		return chan->stream;
+	return NULL;
+}
+
+int ast_applystream(struct ast_channel *chan, struct ast_filestream *s)
+{
+	if(chan->stream->fmt->apply(chan,s)){
+		chan->stream->fmt->close(s);
+		chan->stream = NULL;
+		ast_log(LOG_WARNING, "Unable to apply stream to channel %s\n", chan->name);
+		return -1;
+	}
+	return 0;
+}
+
+int ast_playstream(struct ast_filestream *s)
+{
+	if(s->fmt->play(s)){
+		ast_closestream(s);
+		ast_log(LOG_WARNING, "Unable to start playing stream\n");
+		return -1;
+	}
+	return 0;
+}
+
+int ast_seekstream(struct ast_filestream *fs, long sample_offset, int whence)
+{
+	return fs->fmt->seek(fs, sample_offset, whence);
+}
+
+int ast_truncstream(struct ast_filestream *fs)
+{
+	return fs->fmt->trunc(fs);
+}
+
+long ast_tellstream(struct ast_filestream *fs)
+{
+	return fs->fmt->tell(fs);
+}
+
+int ast_stream_fastforward(struct ast_filestream *fs, long ms)
+{
+	/* I think this is right, 8000 samples per second, 1000 ms a second so 8
+	 * samples per ms  */
+	long samples = ms * 8;
+	return ast_seekstream(fs, samples, SEEK_CUR);
+}
+
+int ast_stream_rewind(struct ast_filestream *fs, long ms)
+{
+	long samples = ms * 8;
+	samples = samples * -1;
+	return ast_seekstream(fs, samples, SEEK_CUR);
+}
+
+int ast_closestream(struct ast_filestream *f)
+{
+	/* Stop a running stream if there is one */
+	f->fmt->close(f);
+	return 0;
+}
+
+
 int ast_fileexists(char *filename, char *fmt, char *preflang)
 {
 	char filename2[256];
+	char tmp[256];
+	char *postfix;
+	char *prefix;
+	char *c;
 	char lang2[MAX_LANGUAGE];
 	int res = -1;
 	if (preflang && strlen(preflang)) {
-		snprintf(filename2, sizeof(filename2), "%s-%s", filename, preflang);
+		/* Insert the language between the last two parts of the path */
+		strncpy(tmp, filename, sizeof(tmp) - 1);
+		c = strrchr(tmp, '/');
+		if (c) {
+			*c = '\0';
+			postfix = c+1;
+			prefix = tmp;
+		} else {
+			postfix = tmp;
+			prefix="";
+		}
+		snprintf(filename2, sizeof(filename2), "%s/%s/%s", prefix, preflang, postfix);
 		res = ast_filehelper(filename2, NULL, fmt, ACTION_EXISTS);
 		if (res < 1) {
+			char *stringp=NULL;
 			strncpy(lang2, preflang, sizeof(lang2)-1);
-			strtok(lang2, "_");
+			stringp=lang2;
+			strsep(&stringp, "_");
 			if (strcmp(lang2, preflang)) {
-				snprintf(filename2, sizeof(filename2), "%s-%s", filename, lang2);
+				snprintf(filename2, sizeof(filename2), "%s/%s/%s", prefix, lang2, postfix);
 				res = ast_filehelper(filename2, NULL, fmt, ACTION_EXISTS);
 			}
 		}
@@ -403,50 +536,17 @@ int ast_filecopy(char *filename, char *filename2, char *fmt)
 
 int ast_streamfile(struct ast_channel *chan, char *filename, char *preflang)
 {
-	/* This is a fairly complex routine.  Essentially we should do 
-	   the following:
-	   
-	   1) Find which file handlers produce our type of format.
-	   2) Look for a filename which it can handle.
-	   3) If we find one, then great.  
-	   4) If not, see what files are there
-	   5) See what we can actually support
-	   6) Choose the one with the least costly translator path and
-	       set it up.
-		   
-	*/
-	int fd = -1;
-	int fmts = -1;
-	char filename2[256];
-	char lang2[MAX_LANGUAGE];
-	int res;
-	ast_stopstream(chan);
-	if (preflang && strlen(preflang)) {
-		snprintf(filename2, sizeof(filename2), "%s-%s", filename, preflang);
-		fmts = ast_fileexists(filename2, NULL, NULL);
-		if (fmts < 1) {
-			strncpy(lang2, preflang, sizeof(lang2)-1);
-			snprintf(filename2, sizeof(filename2), "%s-%s", filename, lang2);
-			fmts = ast_fileexists(filename2, NULL, NULL);
-		}
-	}
-	if (fmts < 1) {
-		strncpy(filename2, filename, sizeof(filename2)-1);
-		fmts = ast_fileexists(filename2, NULL, NULL);
-	}
-	if (fmts < 1) {
-		ast_log(LOG_WARNING, "File %s does not exist in any format\n", filename);
-		return -1;
-	}
-	chan->oldwriteformat = chan->writeformat;
-	/* Set the channel to a format we can work with */
-	res = ast_set_write_format(chan, fmts);
-	
- 	fd = ast_filehelper(filename2, (char *)chan, NULL, ACTION_OPEN);
-	if (fd >= 0) {
+	struct ast_filestream *fs;
+
+	fs = ast_openstream(chan, filename, preflang);
+	if(fs){
+		if(ast_applystream(chan, fs))
+			return -1;
+		if(ast_playstream(fs))
+			return -1;
 #if 1
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Playing '%s'\n", filename2);
+			ast_verbose(VERBOSE_PREFIX_3 "Playing '%s'\n", filename);
 #endif
 		return 0;
 	}
@@ -457,7 +557,7 @@ int ast_streamfile(struct ast_channel *chan, char *filename, char *preflang)
 
 struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, int flags, int check, mode_t mode)
 {
-	int fd;
+	int fd,myflags;
 	struct ast_format *f;
 	struct ast_filestream *fs=NULL;
 	char *fn;
@@ -466,14 +566,19 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
 		return NULL;
 	}
+	myflags = 0;
+	/* set the O_TRUNC flag if and only if there is no O_APPEND specified */
+	//if (!(flags & O_APPEND)) myflags = O_TRUNC;
 	f = formats;
 	while(f) {
 		if (!strcasecmp(f->name, type)) {
+			char *stringp=NULL;
 			/* XXX Implement check XXX */
 			ext = strdup(f->exts);
-			ext = strtok(ext, "|");
+			stringp=ext;
+			ext = strsep(&stringp, "|");
 			fn = build_filename(filename, ext);
-			fd = open(fn, flags | O_WRONLY | O_CREAT, mode);
+			fd = open(fn, flags | myflags | O_WRONLY | O_CREAT, mode);
 			if (fd >= 0) {
 				errno = 0;
 				if ((fs = f->rewrite(fd, comment))) {

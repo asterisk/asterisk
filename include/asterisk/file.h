@@ -40,7 +40,11 @@ int ast_format_register(char *name, char *exts, int format,
 						struct ast_filestream * (*open)(int fd),
 						struct ast_filestream * (*rewrite)(int fd, char *comment),
 						int (*apply)(struct ast_channel *, struct ast_filestream *),
+						int (*play)(struct ast_filestream *),
 						int (*write)(struct ast_filestream *, struct ast_frame *),
+						int (*seek)(struct ast_filestream *, long offset, int whence),
+						int (*trunc)(struct ast_filestream *),
+						long (*tell)(struct ast_filestream *),
 						struct ast_frame * (*read)(struct ast_filestream *),
 						void (*close)(struct ast_filestream *),
 						char * (*getcomment)(struct ast_filestream *));
@@ -151,6 +155,85 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f);
  * Returns 0 on success, -1 on failure
  */
 int ast_closestream(struct ast_filestream *f);
+
+//! Opens stream for use in seeking, playing, and writing
+/*!
+ * \param chan channel to work with
+ * \param filename to use
+ * \param preflang prefered language to use
+ * Returns a ast_filestream pointer if it opens the file, NULL on error
+ */
+struct ast_filestream *ast_openstream(struct ast_channel *chan, char *filename, char *preflang);
+
+//! Applys a open stream to a channel.
+/*!
+ * \param chan channel to work
+ * \param ast_filestream s to apply
+ * Returns 0 for success, -1 on failure
+ */
+int ast_applystream(struct ast_channel *chan, struct ast_filestream *s);
+
+//! play a open stream on a channel.
+/*!
+ * \param ast_filestream s to play
+ * Returns 0 for success, -1 on failure
+ */
+int ast_playstream(struct ast_filestream *s);
+
+//! Seeks into stream
+/*!
+ * \param ast_filestream to perform seek on
+ * \param sample_offset numbers of samples to seek
+ * \param whence SEEK_SET, SEEK_CUR, SEEK_END 
+ * Returns 0 for success, or -1 for error
+ */
+int ast_seekstream(struct ast_filestream *fs, long sample_offset, int whence);
+
+//! Trunc stream at current location
+/*!
+ * \param ast_filestream fs 
+ * Returns 0 for success, or -1 for error
+ */
+int ast_truncstream(struct ast_filestream *fs);
+
+//! Fast forward stream ms
+/*!
+ * \param ast_filestream fs filestream to act on
+ * \param ms milliseconds to move
+ * Returns 0 for success, or -1 for error
+ */
+int ast_stream_fastforward(struct ast_filestream *fs, long ms);
+
+//! Rewind stream ms
+/*!
+ * \param ast_filestream fs filestream to act on
+ * \param ms milliseconds to move
+ * Returns 0 for success, or -1 for error
+ */
+int ast_stream_rewind(struct ast_filestream *fs, long ms);
+
+//! Fast forward stream ms
+/*!
+ * \param ast_filestream fs filestream to act on
+ * \param ms milliseconds to move
+ * Returns 0 for success, or -1 for error
+ */
+int ast_stream_fastforward(struct ast_filestream *fs, long ms);
+
+//! Rewind stream ms
+/*!
+ * \param ast_filestream fs filestream to act on
+ * \param ms milliseconds to move
+ * Returns 0 for success, or -1 for error
+ */
+int ast_stream_rewind(struct ast_filestream *fs, long ms);
+
+//! Tell where we are in a stream
+/*!
+ * \param ast_filestream fs to act on
+ * Returns a long as a sample offset into stream
+ */
+long ast_tellstream(struct ast_filestream *fs);
 
 #define AST_RESERVED_POINTERS 4
 

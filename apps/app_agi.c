@@ -16,6 +16,7 @@
 #include <asterisk/channel.h>
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
+#include <asterisk/astdb.h>
 #include <math.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -23,12 +24,16 @@
 #include <stdlib.h>
 #include <sys/signal.h>
 #include <sys/time.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <asterisk/cli.h>
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
 #include <asterisk/image.h>
 #include <asterisk/say.h>
 #include "../asterisk.h"
+#include "../astconf.h"
 
 #include <pthread.h>
 
@@ -67,6 +72,9 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
+extern char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name);
+extern void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value);
+
 #define TONE_BLOCK_SIZE 200
 
 static float loudness = 8192.0;
@@ -97,7 +105,7 @@ static int launch_script(char *script, char *args, int *fds, int *opid)
 	int fromast[2];
 	int x;
 	if (script[0] != '/') {
-		snprintf(tmp, sizeof(tmp), "%s/%s", AST_AGI_DIR, script);
+		snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_AGI_DIR, script);
 		script = tmp;
 	}
 	if (pipe(toast)) {
@@ -124,7 +132,8 @@ static int launch_script(char *script, char *args, int *fds, int *opid)
 			close(x);
 		/* Execute script */
 		execl(script, script, args, NULL);
-		ast_log(LOG_WARNING, "Failed to execute '%s': %s\n", script, strerror(errno));
+		/* Can't use ast_log since FD's are closed */
+		fprintf(stderr, "Failed to execute '%s': %s\n", script, strerror(errno));
 		exit(1);
 	}
 	if (option_verbose > 2) 
@@ -151,6 +160,7 @@ static void setup_env(struct ast_channel *chan, char *request, int fd)
 	/* ANI/DNIS */
 	fdprintf(fd, "agi_callerid: %s\n", chan->callerid ? chan->callerid : "");
 	fdprintf(fd, "agi_dnid: %s\n", chan->dnid ? chan->dnid : "");
+	fdprintf(fd, "agi_rdnis: %s\n", chan->rdnis ? chan->rdnis : "");
 
 	/* Context information */
 	fdprintf(fd, "agi_context: %s\n", chan->context);
@@ -266,19 +276,41 @@ static int handle_sendimage(struct ast_channel *chan, int fd, int argc, char *ar
 static int handle_streamfile(struct ast_channel *chan, int fd, int argc, char *argv[])
 {
 	int res;
-	if (argc != 4)
+	struct ast_filestream *fs;
+	long sample_offset = 0;
+	long max_length;
+
+	if (argc < 4)
 		return RESULT_SHOWUSAGE;
-	res = ast_streamfile(chan, argv[2],chan->language);
+	if (argc > 5)
+		return RESULT_SHOWUSAGE;
+	if ((argc > 4) && (sscanf(argv[4], "%ld", &sample_offset) != 1))
+		return RESULT_SHOWUSAGE;
+	
+	fs = ast_openstream(chan, argv[2], chan->language);
+	if(!fs){
+		fdprintf(fd, "200 result=%d endpos=%ld\n", 0, sample_offset);
+		ast_log(LOG_WARNING, "Unable to open %s\n", argv[2]);
+		return RESULT_FAILURE;
+	}
+	ast_seekstream(fs, 0, SEEK_END);
+	max_length = ast_tellstream(fs);
+	ast_seekstream(fs, sample_offset, SEEK_SET);
+	res = ast_applystream(chan, fs);
+	res = ast_playstream(fs);
 	if (res) {
-		fdprintf(fd, "200 result=%d\n", res);
+		fdprintf(fd, "200 result=%d endpos=%ld\n", res, sample_offset);
 		if (res >= 0)
 			return RESULT_SHOWUSAGE;
 		else
 			return RESULT_FAILURE;
 	}
 	res = ast_waitstream(chan, argv[3]);
+	/* this is to check for if ast_waitstream closed the stream, we probably are at
+	 * the end of the stream, return that amount, else check for the amount */
+	sample_offset = (chan->stream)?ast_tellstream(fs):max_length;
 	ast_stopstream(chan);
-	fdprintf(fd, "200 result=%d\n", res);
+	fdprintf(fd, "200 result=%d endpos=%ld\n", res, sample_offset);
 	if (res >= 0)
 		return RESULT_SUCCESS;
 	else
@@ -386,6 +418,7 @@ static int handle_recordfile(struct ast_channel *chan, int fd, int argc, char *a
 	struct ast_filestream *fs;
 	struct ast_frame *f;
 	struct timeval tv, start;
+	long sample_offset = 0;
 	int res = 0;
 	int ms;
 
@@ -393,30 +426,42 @@ static int handle_recordfile(struct ast_channel *chan, int fd, int argc, char *a
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[5], "%i", &ms) != 1)
 		return RESULT_SHOWUSAGE;
+	/* backward compatibility, if no offset given, arg[6] would have been
+	 * caught below and taken to be a beep, else if it is a digit then it is a
+	 * offset */
+	if ((argc >6) && (sscanf(argv[6], "%ld", &sample_offset) != 1))
+		res = ast_streamfile(chan, "beep", chan->language);
 
-	if (argc > 6)
+	if (argc > 7)
 		res = ast_streamfile(chan, "beep", chan->language);
 	if (!res)
 		res = ast_waitstream(chan, argv[4]);
 	if (!res) {
-		fs = ast_writefile(argv[2], argv[3], NULL, O_CREAT | O_TRUNC | O_WRONLY, 0, 0644);
+		fs = ast_writefile(argv[2], argv[3], NULL, O_CREAT | O_WRONLY, 0, 0644);
 		if (!fs) {
 			res = -1;
 			fdprintf(fd, "200 result=%d (writefile)\n", res);
 			return RESULT_FAILURE;
 		}
+		
+		chan->stream = fs;
+		ast_applystream(chan,fs);
+		/* really should have checks */
+		ast_seekstream(fs, sample_offset, SEEK_SET);
+		ast_truncstream(fs);
+		
 		gettimeofday(&start, NULL);
 		gettimeofday(&tv, NULL);
 		while ((ms < 0) || (((tv.tv_sec - start.tv_sec) * 1000 + (tv.tv_usec - start.tv_usec)/1000) < ms)) {
 			res = ast_waitfor(chan, -1);
 			if (res < 0) {
 				ast_closestream(fs);
-				fdprintf(fd, "200 result=%d (waitfor)\n", res);
+				fdprintf(fd, "200 result=%d (waitfor) endpos=%ld\n", res,sample_offset);
 				return RESULT_FAILURE;
 			}
 			f = ast_read(chan);
 			if (!f) {
-				fdprintf(fd, "200 result=%d (hangup)\n", 0);
+				fdprintf(fd, "200 result=%d (hangup) endpos=%ld\n", 0, sample_offset);
 				ast_closestream(fs);
 				return RESULT_FAILURE;
 			}
@@ -424,7 +469,8 @@ static int handle_recordfile(struct ast_channel *chan, int fd, int argc, char *a
 			case AST_FRAME_DTMF:
 				if (strchr(argv[4], f->subclass)) {
 					/* This is an interrupting chracter */
-					fdprintf(fd, "200 result=%d (dtmf)\n", f->subclass);
+					sample_offset = ast_tellstream(fs);
+					fdprintf(fd, "200 result=%d (dtmf) endpos=%ld\n", f->subclass, sample_offset);
 					ast_closestream(fs);
 					ast_frfree(f);
 					return RESULT_SUCCESS;
@@ -432,15 +478,19 @@ static int handle_recordfile(struct ast_channel *chan, int fd, int argc, char *a
 				break;
 			case AST_FRAME_VOICE:
 				ast_writestream(fs, f);
+				/* this is a safe place to check progress since we know that fs
+				 * is valid after a write, and it will then have our current
+				 * location */
+				sample_offset = ast_tellstream(fs);
 				break;
 			}
 			ast_frfree(f);
-		}
-		gettimeofday(&tv, NULL);
-		fdprintf(fd, "200 result=%d (timeout)\n", res);
+		    gettimeofday(&tv, NULL);
+        }
+		fdprintf(fd, "200 result=%d (timeout) endpos=%ld\n", res, sample_offset);
 		ast_closestream(fs);
 	} else
-		fdprintf(fd, "200 result=%d (randomerror)\n", res);
+		fdprintf(fd, "200 result=%d (randomerror) endpos=%ld\n", res, sample_offset);
 	return RESULT_SUCCESS;
 }
 
@@ -464,9 +514,30 @@ static int handle_autohangup(struct ast_channel *chan, int fd, int argc, char *a
 
 static int handle_hangup(struct ast_channel *chan, int fd, int argc, char **argv)
 {
-	ast_softhangup(chan,AST_SOFTHANGUP_EXPLICIT);
-	fdprintf(fd, "200 result=1\n");
-	return RESULT_SUCCESS;
+        struct ast_channel *c;
+        if (argc==1) {
+            /* no argument: hangup the current channel */
+	    ast_softhangup(chan,AST_SOFTHANGUP_EXPLICIT);
+	    fdprintf(fd, "200 result=1\n");
+	    return RESULT_SUCCESS;
+        } else if (argc==2) {
+            /* one argument: look for info on the specified channel */
+            c = ast_channel_walk(NULL);
+            while (c) {
+                if (strcasecmp(argv[1],c->name)==0) {
+                    /* we have a matching channel */
+	            ast_softhangup(c,AST_SOFTHANGUP_EXPLICIT);
+	            fdprintf(fd, "200 result=1\n");
+                    return RESULT_SUCCESS;
+                }
+                c = ast_channel_walk(c);
+            }
+            /* if we get this far no channel name matched the argument given */
+            fdprintf(fd, "200 result=-1\n");
+            return RESULT_SUCCESS;
+        } else {
+            return RESULT_SHOWUSAGE;
+        }
 }
 
 static int handle_exec(struct ast_channel *chan, int fd, int argc, char **argv)
@@ -496,7 +567,7 @@ static int handle_exec(struct ast_channel *chan, int fd, int argc, char **argv)
 static int handle_setcallerid(struct ast_channel *chan, int fd, int argc, char **argv)
 {
 	if (argv[2])
-		ast_set_callerid(chan, argv[2]);
+		ast_set_callerid(chan, argv[2], 0);
 
 /*	strncpy(chan->callerid, argv[2], sizeof(chan->callerid)-1);
 */	fdprintf(fd, "200 result=1\n");
@@ -505,13 +576,192 @@ static int handle_setcallerid(struct ast_channel *chan, int fd, int argc, char *
 
 static int handle_channelstatus(struct ast_channel *chan, int fd, int argc, char **argv)
 {
-	fdprintf(fd, "200 result=%d\n", chan->_state);
+        struct ast_channel *c;
+        if (argc==2) {
+            /* no argument: supply info on the current channel */
+            fdprintf(fd, "200 result=%d\n", chan->_state);
+	    return RESULT_SUCCESS;
+        } else if (argc==3) {
+            /* one argument: look for info on the specified channel */
+            c = ast_channel_walk(NULL);
+            while (c) {
+                if (strcasecmp(argv[2],c->name)==0) {
+                    fdprintf(fd, "200 result=%d\n", c->_state);
+                    return RESULT_SUCCESS;
+                }
+                c = ast_channel_walk(c);
+            }
+            /* if we get this far no channel name matched the argument given */
+            fdprintf(fd, "200 result=-1\n");
+            return RESULT_SUCCESS;
+        } else {
+            return RESULT_SHOWUSAGE;
+        }
+}
+
+static int handle_setvariable(struct ast_channel *chan, int fd, int argc, char **argv)
+{
+	if (argv[3])
+		pbx_builtin_setvar_helper(chan, argv[2], argv[3]);
+
+	fdprintf(fd, "200 result=1\n");
 	return RESULT_SUCCESS;
 }
 
+static int handle_getvariable(struct ast_channel *chan, int fd, int argc, char **argv)
+{
+	char *tempstr;
+
+	if ((tempstr = pbx_builtin_getvar_helper(chan, argv[2])) ) 
+			fdprintf(fd, "200 result=1 (%s)\n", tempstr);
+	else
+			fdprintf(fd, "200 result=0\n");
+
+	return RESULT_SUCCESS;
+}
+
+static int handle_verbose(struct ast_channel *chan, int fd, int argc, char **argv)
+{
+	int level = 0;
+	char *prefix;
+
+	if (argc < 2)
+		return RESULT_SHOWUSAGE;
+
+	if (argv[2])
+		sscanf(argv[2], "%d", &level);
+
+	switch (level) {
+		case 4:
+			prefix = VERBOSE_PREFIX_4;
+			break;
+		case 3:
+			prefix = VERBOSE_PREFIX_3;
+			break;
+		case 2:
+			prefix = VERBOSE_PREFIX_2;
+			break;
+		case 1:
+		default:
+			prefix = VERBOSE_PREFIX_1;
+			break;
+	}
+
+	if (level <= option_verbose)
+		ast_verbose("%s %s: %s\n", prefix, chan->data, argv[1]);
+	
+	fdprintf(fd, "200 result=1\n");
+	
+	return RESULT_SUCCESS;
+}
+
+static int handle_dbget(struct ast_channel *chan, int fd, int argc, char **argv)
+{
+	int res;
+	char tmp[256];
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	res = ast_db_get(argv[2], argv[3], tmp, sizeof(tmp));
+	if (res) 
+			fdprintf(fd, "200 result=0\n");
+	else
+			fdprintf(fd, "200 result=1 (%s)\n", tmp);
+
+	return RESULT_SUCCESS;
+}
+
+static int handle_dbput(struct ast_channel *chan, int fd, int argc, char **argv)
+{
+	int res;
+	if (argc != 5)
+		return RESULT_SHOWUSAGE;
+	res = ast_db_put(argv[2], argv[3], argv[4]);
+	if (res) 
+			fdprintf(fd, "200 result=0\n");
+	else
+			fdprintf(fd, "200 result=1\n");
+
+	return RESULT_SUCCESS;
+}
+
+static int handle_dbdel(struct ast_channel *chan, int fd, int argc, char **argv)
+{
+	int res;
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	res = ast_db_del(argv[2], argv[3]);
+	if (res) 
+		fdprintf(fd, "200 result=0\n");
+	else
+		fdprintf(fd, "200 result=1\n");
+
+	return RESULT_SUCCESS;
+}
+
+static int handle_dbdeltree(struct ast_channel *chan, int fd, int argc, char **argv)
+{
+	int res;
+	if ((argc < 3) || (argc > 4))
+		return RESULT_SHOWUSAGE;
+	if (argc == 4)
+		res = ast_db_deltree(argv[2], argv[3]);
+	else
+		res = ast_db_deltree(argv[2], NULL);
+
+	if (res) 
+		fdprintf(fd, "200 result=0\n");
+	else
+		fdprintf(fd, "200 result=1\n");
+	return RESULT_SUCCESS;
+}
+
+static char usage_dbput[] =
+" Usage: DATABASE PUT <family> <key> <value>\n"
+"	Adds or updates an entry in the Asterisk database for a\n"
+" given family, key, and value.\n"
+" Returns 1 if succesful, 0 otherwise\n";
+
+static char usage_dbget[] =
+" Usage: DATABASE GET <family> <key>\n"
+"	Retrieves an entry in the Asterisk database for a\n"
+" given family and key.\n"
+"	Returns 0 if <key> is not set.  Returns 1 if <key>\n"
+" is set and returns the variable in parenthesis\n"
+" example return code: 200 result=1 (testvariable)\n";
+
+static char usage_dbdel[] =
+" Usage: DATABASE DEL <family> <key>\n"
+"	Deletes an entry in the Asterisk database for a\n"
+" given family and key.\n"
+" Returns 1 if succesful, 0 otherwise\n";
+
+static char usage_dbdeltree[] =
+" Usage: DATABASE DELTREE <family> [keytree]\n"
+"	Deletes a family or specific keytree withing a family\n"
+" in the Asterisk database.\n"
+" Returns 1 if succesful, 0 otherwise\n";
+
+static char usage_verbose[] =
+" Usage: VERBOSE <message> <level>\n"
+"	Sends <message> to the console via verbose message system.\n"
+"	<level> is the the verbose level (1-4)\n"
+"	Always returns 1\n";
+
+static char usage_getvariable[] =
+" Usage: GET VARIABLE <variablename>\n"
+"	Returns 0 if <variablename> is not set.  Returns 1 if <variablename>\n"
+" is set and returns the variable in parenthesis\n"
+" example return code: 200 result=1 (testvariable)\n";
+
+static char usage_setvariable[] =
+" Usage: SET VARIABLE <variablename> <value>\n";
+
 static char usage_channelstatus[] =
-" Usage: CHANNEL STATUS\n"
-"	Returns the status of the connected channel. Return values:\n"
+" Usage: CHANNEL STATUS [<channelname>]\n"
+"	Returns the status of the specified channel.\n" 
+"       If no channel name is given the returns the status of the\n"
+"       current channel.\n"
+"       Return values:\n"
 " 0 Channel is down and available\n"
 " 1 Channel is down, but reserved\n"
 " 2 Channel is off hook\n"
@@ -531,9 +781,9 @@ static char usage_exec[] =
 "	Returns whatever the application returns, or -2 on failure to find application\n";
 
 static char usage_hangup[] =
-" Usage: HANGUP\n"
-"	Hangs up the current channel.\n";
-
+" Usage: HANGUP [<channelname>]\n"
+"	Hangs up the specified channel.\n"
+"       If no channel name is given, hangs up the current channel\n";
 
 static char usage_answer[] = 
 " Usage: ANSWER\n"
@@ -576,13 +826,14 @@ static char usage_sendimage[] =
 " should not include extensions.\n";
 
 static char usage_streamfile[] =
-" Usage: STREAM FILE <filename> <escape digits>\n"
+" Usage: STREAM FILE <filename> <escape digits> [sample offset]\n"
 "        Send the given file, allowing playback to be interrupted by the given\n"
 " digits, if any.  Use double quotes for the digits if you wish none to be\n"
-" permitted.  Returns 0 if playback completes without a digit being pressed, or\n"
-" the ASCII numerical value of the digit if one was pressed, or -1 on error or\n"
-" if the channel was disconnected.  Remember, the file extension must not be\n"
-" included in the filename.\n";
+" permitted.  If sample offset is provided then the audio will seek to sample\n"
+" offset before play starts.  Returns 0 if playback completes without a digit\n"
+" being pressed, or the ASCII numerical value of the digit if one was pressed,\n"
+" or -1 on error or if the channel was disconnected.  Remember, the file\n"
+" extension must not be included in the filename.\n";
 
 static char usage_saynumber[] =
 " Usage: SAY NUMBER <number> <escape digits>\n"
@@ -616,11 +867,12 @@ static char usage_setpriority[] =
 "	 Changes the priority for continuation upon exiting the application.\n";
 
 static char usage_recordfile[] =
-" Usage: RECORD FILE <filename> <format> <escape digits> <timeout> [BEEP]\n"
+" Usage: RECORD FILE <filename> <format> <escape digits> <timeout> [offset samples] [BEEP]\n"
 "        Record to a file until a given dtmf digit in the sequence is received\n"
 " Returns -1 on hangup or error.  The format will specify what kind of file\n"
 " will be recorded.  The timeout is the maximum record time in milliseconds, or\n"
-" -1 for no timeout\n";
+" -1 for no timeout. Offset samples is optional, and if provided will seek to\n"
+" the offset without exceeding the end of the file\n";
 
 static char usage_autohangup[] =
 " Usage: SET AUTOHANGUP <time>\n"
@@ -630,7 +882,6 @@ static char usage_autohangup[] =
 
 agi_command commands[] = {
 	{ { "answer", NULL }, handle_answer, "Asserts answer", usage_answer },
-	{ { "answer\n", NULL }, handle_answer, "Asserts answer", usage_answer },
 	{ { "wait", "for", "digit", NULL }, handle_waitfordigit, "Waits for a digit to be pressed", usage_waitfordigit },
 	{ { "send", "text", NULL }, handle_sendtext, "Sends text to channels supporting it", usage_sendtext },
 	{ { "receive", "char", NULL }, handle_recvchar, "Receives text from channels supporting it", usage_recvchar },
@@ -648,10 +899,54 @@ agi_command commands[] = {
 	{ { "hangup", NULL }, handle_hangup, "Hangup the current channel", usage_hangup },
 	{ { "exec", NULL }, handle_exec, "Executes a given Application", usage_exec },
 	{ { "set", "callerid", NULL }, handle_setcallerid, "Sets callerid for the current channel", usage_setcallerid },
-	{ { "channel", "status", NULL }, handle_channelstatus, "Returns status of the connected channel", usage_channelstatus }
+	{ { "channel", "status", NULL }, handle_channelstatus, "Returns status of the connected channel", usage_channelstatus },
+	{ { "set", "variable", NULL }, handle_setvariable, "Sets a channel variable", usage_setvariable },
+	{ { "get", "variable", NULL }, handle_getvariable, "Gets a channel variable", usage_getvariable },
+	{ { "verbose", NULL }, handle_verbose, "Logs a message to the asterisk verbose log", usage_verbose },
+	{ { "database", "get", NULL }, handle_dbget, "Gets database value", usage_dbget },
+	{ { "database", "put", NULL }, handle_dbput, "Adds/updates database value", usage_dbput },
+	{ { "database", "del", NULL }, handle_dbdel, "Removes database key/value", usage_dbdel },
+	{ { "database", "deltree", NULL }, handle_dbdeltree, "Removes database keytree/value", usage_dbdeltree }
 };
 
-static agi_command *find_command(char *cmds[])
+static void join(char *s, int len, char *w[])
+{
+	int x;
+	/* Join words into a string */
+	strcpy(s, "");
+	for (x=0;w[x];x++) {
+		if (x)
+			strncat(s, " ", len - strlen(s));
+		strncat(s, w[x], len - strlen(s));
+	}
+}
+
+static int help_workhorse(int fd, char *match[])
+{
+	char fullcmd[80];
+	char matchstr[80];
+	int x;
+	struct agi_command *e;
+	if (match)
+		join(matchstr, sizeof(matchstr), match);
+	for (x=0;x<sizeof(commands)/sizeof(commands[0]);x++) {
+		e = &commands[x]; 
+		if (e)
+			join(fullcmd, sizeof(fullcmd), e->cmda);
+		/* Hide commands that start with '_' */
+		if (fullcmd[0] == '_')
+			continue;
+		if (match) {
+			if (strncasecmp(matchstr, fullcmd, strlen(matchstr))) {
+				continue;
+			}
+		}
+		ast_cli(fd, "%20.20s   %s\n", fullcmd, e->summary);
+	}
+	return 0;
+}
+
+static agi_command *find_command(char *cmds[], int exact)
 {
 	int x;
 	int y;
@@ -663,14 +958,14 @@ static agi_command *find_command(char *cmds[])
 			/* If there are no more words in the command (and we're looking for
 			   an exact match) or there is a difference between the two words,
 			   then this is not a match */
-			if (!commands[x].cmda[y])
+			if (!commands[x].cmda[y] && !exact)
 				break;
 			if (strcasecmp(commands[x].cmda[y], cmds[y]))
 				match = 0;
 		}
 		/* If more words are needed to complete the command then this is not
 		   a candidate (unless we're looking for a really inexact answer  */
-		if (commands[x].cmda[y])
+		if ((exact > -1) && commands[x].cmda[y])
 			match = 0;
 		if (match)
 			return &commands[x];
@@ -758,7 +1053,7 @@ static int agi_handle_command(struct ast_channel *chan, int fd, char *buf)
 	for (x=0;x<argc;x++) 
 		fprintf(stderr, "Got Arg%d: %s\n", x, argv[x]); }
 #endif
-	c = find_command(argv);
+	c = find_command(argv, 0);
 	if (c) {
 		res = c->handler(chan, fd, argc, argv);
 		switch(res) {
@@ -840,6 +1135,84 @@ static int run_agi(struct ast_channel *chan, char *request, int *fds, int pid)
 	return returnstatus;
 }
 
+static int handle_showagi(int fd, int argc, char *argv[]) {
+	struct agi_command *e;
+	char fullcmd[80];
+	if ((argc < 2))
+		return RESULT_SHOWUSAGE;
+	if (argc > 2) {
+		e = find_command(argv + 2, 1);
+		if (e) 
+			ast_cli(fd, e->usage);
+		else {
+			if (find_command(argv + 2, -1)) {
+				return help_workhorse(fd, argv + 1);
+			} else {
+				join(fullcmd, sizeof(fullcmd), argv+1);
+				ast_cli(fd, "No such command '%s'.\n", fullcmd);
+			}
+		}
+	} else {
+		return help_workhorse(fd, NULL);
+	}
+	return RESULT_SUCCESS;
+}
+
+static int handle_dumpagihtml(int fd, int argc, char *argv[]) {
+	struct agi_command *e;
+	char fullcmd[80];
+	char *tempstr;
+	int x;
+	FILE *htmlfile;
+
+	if ((argc < 3))
+		return RESULT_SHOWUSAGE;
+
+	if (!(htmlfile = fopen(argv[2], "wt"))) {
+		ast_cli(fd, "Could not create file '%s'\n", argv[2]);
+		return RESULT_SHOWUSAGE;
+	}
+
+	fprintf(htmlfile, "<HTML>\n<HEAD>\n<TITLE>AGI Commands</TITLE>\n</HEAD>\n");
+	fprintf(htmlfile, "<BODY>\n<CENTER><B><H1>AGI Commands</H1></B></CENTER>\n\n");
+
+
+	fprintf(htmlfile, "<TABLE BORDER=\"0\" CELLSPACING=\"10\">\n");
+
+	for (x=0;x<sizeof(commands)/sizeof(commands[0]);x++) {
+		char *stringp=NULL;
+		e = &commands[x]; 
+		if (e)
+			join(fullcmd, sizeof(fullcmd), e->cmda);
+		/* Hide commands that start with '_' */
+		if (fullcmd[0] == '_')
+			continue;
+
+		fprintf(htmlfile, "<TR><TD><TABLE BORDER=\"1\" CELLPADDING=\"5\" WIDTH=\"100%%\">\n");
+		fprintf(htmlfile, "<TR><TH ALIGN=\"CENTER\"><B>%s - %s</B></TD></TR>\n", fullcmd,e->summary);
+
+
+		stringp=e->usage;
+		tempstr = strsep(&stringp, "\n");
+
+		fprintf(htmlfile, "<TR><TD ALIGN=\"CENTER\">%s</TD></TR>\n", tempstr);
+		
+		fprintf(htmlfile, "<TR><TD ALIGN=\"CENTER\">\n");
+		while ((tempstr = strsep(&stringp, "\n")) != NULL) {
+		fprintf(htmlfile, "%s<BR>\n",tempstr);
+
+		}
+		fprintf(htmlfile, "</TD></TR>\n");
+		fprintf(htmlfile, "</TABLE></TD></TR>\n\n");
+
+	}
+
+	fprintf(htmlfile, "</TABLE>\n</BODY>\n</HTML>\n");
+	fclose(htmlfile);
+	ast_cli(fd, "AGI HTML Commands Dumped to: %s\n", argv[2]);
+	return RESULT_SUCCESS;
+}
+
 static int agi_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
@@ -848,6 +1221,7 @@ static int agi_exec(struct ast_channel *chan, void *data)
 	char tmp[256];
 	int fds[2];
 	int pid;
+	char *stringp=tmp;
 	if (!data || !strlen(data)) {
 		ast_log(LOG_WARNING, "AGI requires an argument (script)\n");
 		return -1;
@@ -855,9 +1229,9 @@ static int agi_exec(struct ast_channel *chan, void *data)
 
 
 	strncpy(tmp, data, sizeof(tmp)-1);
-	strtok(tmp, "|");
-	args = strtok(NULL, "|");
-	ringy = strtok(NULL,"|");
+	strsep(&stringp, "|");
+	args = strsep(&stringp, "|");
+	ringy = strsep(&stringp,"|");
 	if (!args)
 		args = "";
 	LOCAL_USER_ADD(u);
@@ -885,14 +1259,35 @@ static int agi_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+static char showagi_help[] =
+"Usage: show agi [topic]\n"
+"       When called with a topic as an argument, displays usage\n"
+"       information on the given command.  If called without a\n"
+"       topic, it provides a list of AGI commands.\n";
+
+
+static char dumpagihtml_help[] =
+"Usage: dump agihtml <filename>\n"
+"	Dumps the agi command list in html format to given filename\n";
+
+struct ast_cli_entry showagi = 
+{ { "show", "agi", NULL }, handle_showagi, "Show AGI commands or specific help", showagi_help };
+
+struct ast_cli_entry dumpagihtml = 
+{ { "dump", "agihtml", NULL }, handle_dumpagihtml, "Dumps a list of agi command in html format", dumpagihtml_help };
+
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
+	ast_cli_unregister(&showagi);
+	ast_cli_unregister(&dumpagihtml);
 	return ast_unregister_application(app);
 }
 
 int load_module(void)
 {
+	ast_cli_register(&showagi);
+	ast_cli_register(&dumpagihtml);
 	return ast_register_application(app, agi_exec, synopsis, descrip);
 }
 
