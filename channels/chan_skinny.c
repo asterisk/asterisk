@@ -1989,7 +1989,6 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 	case SPEED_DIAL_STAT_REQ_MESSAGE:
 		/* Not really sure how Speed Dial's are different than the 
 		   Softkey templates */
-#if 0
 		speedDialNum = req->data.speeddialreq.speedDialNumber;
 //		if (skinnydebug)
 //			printf ("Recieved SpeedDialStatReq: %d\n", speedDialNum);
@@ -2003,7 +2002,6 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		sprintf(req->data.speeddial.speedDialDisplayName, "Asterisk Rules!");
 		
 		transmit_response(s, req);
-#endif
 		break;
 	case LINE_STATE_REQ_MESSAGE:
 		lineNumber = req->data.line.lineNumber;
