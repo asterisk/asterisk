@@ -35,4 +35,4 @@ echocancel=medium
 ; List all devices we can use.  Contexts may also be specified
 ;
 ;context=local
-;device=/dev/phone0
+;device => /dev/phone0
