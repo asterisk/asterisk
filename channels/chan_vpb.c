@@ -138,6 +138,9 @@ static int UseLoopDrop=1;
 /* To use or not to use Native bridging */
 static int UseNativeBridge=1;
 
+/* Use Asterisk Indication or VPB */
+static int use_ast_ind=0;
+
 #define TIMER_PERIOD_RINGBACK 2000
 #define TIMER_PERIOD_BUSY 700
 	  
@@ -1397,8 +1400,12 @@ static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 		p->owner = newchan;
 	}
 
-	if (newchan->_state == AST_STATE_RINGING) 
-		vpb_indicate(newchan, AST_CONTROL_RINGING);
+	if (newchan->_state == AST_STATE_RINGING){
+		if (use_ast_ind == 1)
+			ast_indicate(newchan, AST_CONTROL_RINGING);
+		else
+			vpb_indicate(newchan, AST_CONTROL_RINGING);
+	}
 
 	res= ast_mutex_unlock(&p->lock);
 /*
@@ -2174,7 +2181,8 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, int state, char *context)
 		tmp->pvt->read = vpb_read;
 		tmp->pvt->write = vpb_write;
 		tmp->pvt->bridge = vpb_bridge;
-		tmp->pvt->indicate = vpb_indicate;
+		if (use_ast_ind == 0)
+			tmp->pvt->indicate = vpb_indicate;
 		tmp->pvt->fixup = vpb_fixup;
 		
 		strncpy(tmp->context, context, sizeof(tmp->context)-1);
@@ -2316,6 +2324,18 @@ int load_module()
 	vpb_seterrormode(VPB_ERROR_CODE);
 
 	ast_mutex_lock(&iflock); {
+		v = ast_variable_browse(cfg, "general");
+		while (v){
+			if (strcasecmp(v->name, "cards") == 0) {
+				ast_log(LOG_NOTICE,"VPB Driver configured to use [%d] cards\n",atoi(v->value));
+			}
+			else if (strcasecmp(v->name, "indication") == 0) {
+				use_ast_ind = 1;
+				ast_log(LOG_NOTICE,"VPB driver using Asterisk Indication functions!\n");
+			}
+			v = v->next;
+		}
+	
 		v = ast_variable_browse(cfg, "interfaces");
 		while(v) {
 			/* Create the interface list */
