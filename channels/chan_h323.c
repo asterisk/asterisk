@@ -212,7 +212,7 @@ static struct oh323_alias *build_alias(char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "secret")) {
 				strncpy(alias->secret,  v->value, sizeof(alias->secret)-1);
 			} else {
-				if (strcasecmp(v->name, "h323")) { 	
+				if (strcasecmp(v->value, "h323")) { 	
 					ast_log(LOG_WARNING, "Keyword %s does not make sense in type=h323\n", v->value);
 				}
 			}
@@ -1402,9 +1402,10 @@ int reload_config(void)
 		return 1;
 	}
 	
-       /* fire up the H.323 Endpoint */
-        h323_end_point_create();        
-
+       /* fire up the H.323 Endpoint */       
+	if (!h323_end_point_exist()) {
+	       h323_end_point_create();        
+	}
 	h323debug=0;
 	dtmfmode = H323_DTMF_RFC2833;
 
