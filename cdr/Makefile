@@ -29,6 +29,12 @@ MODS+=$(shell if [ -f "/usr/include/odbcinst.h" ]; then echo "cdr_odbc.so"; fi)
 MODS+=$(shell if [ -f "/usr/local/include/odbcinst.h" ]; then echo "cdr_odbc.so"; fi) 
 
 #
+# FreeTDS stuff...
+#
+MODS+=$(shell if [ -f "/usr/include/tds.h" ]; then echo "cdr_tds.so"; fi)
+MODS+=$(shell if [ -f "/usr/local/include/tds.h" ]; then echo "cdr_tds.so"; fi)
+
+#
 # PGSQL stuff...  Autoconf anyone??
 #
 MODS+=$(shell if [ -d /usr/local/pgsql/include ] || [ -d /usr/include/pgsql ] || [ -d /usr/local/include/pgsql ] || [ -d /opt/pgsql/include ] || [ -f /usr/include/libpq-fe.h ] ; then echo "cdr_pgsql.so"; fi)
@@ -67,6 +73,9 @@ endif
 
 cdr_odbc.so: cdr_odbc.o
 	$(CC) $(SOLINK) -o $@ $< -lodbc $(MLFLAGS)
+
+cdr_tds.so: cdr_tds.o
+	$(CC) $(SOLINK) -o $@ $< -ltds $(MLFLAGS)
 
 cdr_pgsql.so: cdr_pgsql.o
 	$(CC) $(SOLINK) -o $@ $< -lpq -lz $(MLFLAGS)

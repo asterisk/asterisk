@@ -1,0 +1,9 @@
+; Sample Asterisk config file for CDR logging to FreeTDS
+
+;[global]
+;hostname=fs.malico.loc
+;port=1433
+;dbname=MalicoHN
+;user=mangUsr
+;password=
+;charset=BIG5
