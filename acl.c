@@ -93,7 +93,7 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 				y = 0;
 				for (z=0;z<x;z++) {
 					y >>= 1;
-					y |= 0x8000000;
+					y |= 0x80000000;
 				}
 				ha->netmask.s_addr = htonl(y);
 			}
