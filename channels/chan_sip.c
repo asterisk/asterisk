@@ -1512,7 +1512,7 @@ static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_
 {
 	struct sip_request resp;
 	char tmp[256];
-	snprintf(tmp, sizeof(tmp), "DIGEST realm=\"asterisk\", nonce=\"%s\"", randdata);
+	snprintf(tmp, sizeof(tmp), "Digest realm=\"asterisk\", nonce=\"%s\"", randdata);
 	respprep(&resp, p, msg, req);
 	add_header(&resp, "Proxy-Authenticate", tmp);
 	add_header(&resp, "Content-Length", "0");
@@ -2517,7 +2517,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 
 	strncpy(tmp, get_header(req, header),sizeof(tmp) - 1);
 	c = tmp;
-	c+=strlen("DIGEST ");
+	c+=strlen("Digest ");
 	while (c) {
 		while (*c && (*c < 33)) c++;
 		if (!*c)
@@ -2561,7 +2561,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 	snprintf(resp,sizeof(resp),"%s:%s:%s",a1_hash,nonce,a2_hash);
 	md5_hash(resp_hash,resp);
 
-	snprintf(digest,digest_len,"DIGEST username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\"",p->peername,realm,uri,nonce,resp_hash);
+	snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\"",p->peername,realm,uri,nonce,resp_hash);
 
 	return 0;
 }
