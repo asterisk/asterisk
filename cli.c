@@ -18,6 +18,7 @@
 #include <asterisk/cli.h>
 #include <asterisk/module.h>
 #include <asterisk/channel.h>
+#include <asterisk/channel_pvt.h>
 #include <sys/signal.h>
 #include <stdio.h>
 #include <signal.h>
@@ -202,7 +203,7 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 	c = ast_channel_walk(NULL);
 	ast_cli(fd, FORMAT_STRING2, "Channel", "Context", "Extension", "Pri", "State", "Appl.", "Data");
 	while(c) {
-		ast_cli(fd, FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->state),
+		ast_cli(fd, FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
 		c->appl ? c->appl : "(None)", c->data ? ( strlen(c->data) ? c->data : "(Empty)" ): "(None)");
 		c = ast_channel_walk(c);
 	}
@@ -227,7 +228,7 @@ static int handle_softhangup(int fd, int argc, char *argv[])
 	while(c) {
 		if (!strcasecmp(c->name, argv[2])) {
 			ast_cli(fd, "Requested Hangup on channel '%s'\n", c->name);
-			c->softhangup = 1;
+			ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
 			break;
 		}
 		c = ast_channel_walk(c);
@@ -289,7 +290,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	"    Blocking in: %s\n",
 	c->name, c->type, 
 	(c->callerid ? c->callerid : "(N/A)"),
-	(c->dnid ? c->dnid : "(N/A)" ), ast_state2str(c->state), c->state, c->rings, c->nativeformats, c->writeformat, c->readformat,
+	(c->dnid ? c->dnid : "(N/A)" ), ast_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
 	c->fds[0], c->context, c->exten, c->priority, ( c->appl ? c->appl : "(N/A)" ),
 	( c-> data ? (strlen(c->data) ? c->data : "(Empty)") : "(None)"),
 	c->stack, (c->blocking ? c->blockproc : "(Not Blocking)"));
@@ -463,7 +464,7 @@ int ast_cli_unregister(struct ast_cli_entry *e)
 int ast_cli_register(struct ast_cli_entry *e)
 {
 	struct ast_cli_entry *cur, *l=NULL;
-	char fulle[80], fulltst[80];
+	char fulle[80] ="", fulltst[80] ="";
 	static int len;
 	ast_pthread_mutex_lock(&clilock);
 	join2(fulle, sizeof(fulle), e->cmda);

@@ -30,8 +30,8 @@ WAV49	= -DWAV49
 ######### define this, and read about the GSM_OPT_WAV49 option in the
 ######### manual page on gsm_option(3).
 
-K6OPT	= -DK6OPT
-#K6OPT	=
+#K6OPT	= -DK6OPT
+K6OPT	=
 ######### Define to enable MMXTM optimizations for x86 architecture CPU's
 ######### which support MMX instructions.  This should be newer pentiums,
 ######### ppro's, etc, as well as the AMD K6 and K7.  The compile will
