@@ -129,6 +129,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 	int found=0;
 	char *start, *pos, *conv,*stringp=NULL;
 	char fn[256];
+	char fn2[256];
 	if (!context || !strlen(context)) {
 		ast_log(LOG_WARNING, "Directory must be called with an argument (context in which to interpret extensions)\n");
 		return -1;
@@ -171,9 +172,17 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 			}
 			if (v) {
 				/* We have a match -- play a greeting if they have it */
-				snprintf(fn, sizeof(fn), "%s/vm/%s/greet", (char *)ast_config_AST_SPOOL_DIR, v->name);
+				/* Check for the VoiceMail2 greeting first */
+				snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/greet", (char *)ast_config_AST_SPOOL_DIR, context, v->name);
+				/* Otherwise, check for an old-style Voicemail greeting */
+				snprintf(fn2, sizeof(fn2), "%s/vm/%s/greet", (char *)ast_config_AST_SPOOL_DIR, v->name);
 				if (ast_fileexists(fn, NULL, chan->language) > 0) {
 					res = ast_streamfile(chan, fn, chan->language);
+					if (!res)
+						res = ast_waitstream(chan, AST_DIGIT_ANY);
+					ast_stopstream(chan);
+				} else if (ast_fileexists(fn2, NULL, chan->language) > 0) {
+					res = ast_streamfile(chan, fn2, chan->language);
 					if (!res)
 						res = ast_waitstream(chan, AST_DIGIT_ANY);
 					ast_stopstream(chan);
