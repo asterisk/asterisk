@@ -398,13 +398,23 @@ static int ring_one(struct queue_ent *qe, struct localuser *outgoing)
 			cur = cur->next;
 		}
 		if (best) {
-			/* Ring the best channel, and remember the best
-			   metric for the next pass */
-			ast_log(LOG_DEBUG, "Trying '%s/%s' with metric %d\n", best->tech, best->numsubst, best->metric);
-			ring_entry(qe, best);
+			if (!qe->parent->strategy) {
+				/* Ring everyone who shares this best metric (for ringall) */
+				cur = outgoing;
+				while(cur) {
+					if (cur->stillgoing && !cur->chan && (cur->metric == bestmetric)) {
+						ast_log(LOG_DEBUG, "(Parallel) Trying '%s/%s' with metric %d\n", cur->tech, cur->numsubst, cur->metric);
+						ring_entry(qe, cur);
+					}
+					cur = cur->next;
+				}
+			} else {
+				/* Ring just the best channel */
+				ast_log(LOG_DEBUG, "Trying '%s/%s' with metric %d\n", best->tech, best->numsubst, best->metric);
+				ring_entry(qe, best);
+			}
 		}
 	} while (best && !best->chan);
-	
 	if (!best) {
 		ast_log(LOG_DEBUG, "Nobody left to try ringing in queue\n");
 		return 0;
@@ -628,7 +638,8 @@ static int calc_metric(struct ast_call_queue *q, struct member *mem, int pos, st
 {
 	switch (q->strategy) {
 	case QUEUE_STRATEGY_RINGALL:
-		ast_log(LOG_WARNING, "Can't calculate metric for ringall strategy\n");
+		/* Everyone equal, except for penalty */
+		tmp->metric = mem->penalty * 1000000;
 		break;
 	case QUEUE_STRATEGY_ROUNDROBIN:
 		if (!pos) {
@@ -738,10 +749,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		}
 		/* Special case: If we ring everyone, go ahead and ring them, otherwise
 		   just calculate their metric for the appropriate strategy */
-		if (!qe->parent->strategy)
-			ring_entry(qe, tmp);
-		else
-			calc_metric(qe->parent, cur, x++, qe, tmp);
+		calc_metric(qe->parent, cur, x++, qe, tmp);
 		/* Put them in the list of outgoing thingies...  We're ready now. 
 		   XXX If we're forcibly removed, these outgoing calls won't get
 		   hung up XXX */
@@ -757,8 +765,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		to = qe->parent->timeout * 1000;
 	else
 		to = -1;
-	if (qe->parent->strategy)
-		ring_one(qe, outgoing);
+	ring_one(qe, outgoing);
 	ast_mutex_unlock(&qe->parent->lock);
 	lpeer = wait_for_answer(qe, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect, &digit);
 	if (lpeer)
