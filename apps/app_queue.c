@@ -338,8 +338,10 @@ static void *changethread(void *data)
 	struct statechange *sc = data;
 	struct member *cur;
 	char *loc;
+	char *technology;
 
-	loc = strchr(sc->dev, '/');
+	technology = ast_strdupa(sc->dev);
+	loc = strchr(technology, '/');
 	if (loc) {
 		*loc = '\0';
 		loc++;
@@ -349,7 +351,7 @@ static void *changethread(void *data)
 		return NULL;
 	}
 	if (option_debug)
-		ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d'\n", sc->dev, loc, sc->state);
+		ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d'\n", technology, loc, sc->state);
 	ast_mutex_lock(&qlock);
 	for (q = queues; q; q = q->next) {
 		ast_mutex_lock(&q->lock);
@@ -376,7 +378,7 @@ static void *changethread(void *data)
 	}
 	ast_mutex_unlock(&qlock);
 	if (option_debug)
-		ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d'\n", sc->dev, loc, sc->state);
+		ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d'\n", technology, loc, sc->state);
 	free(sc);
 	return NULL;
 }
