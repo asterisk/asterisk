@@ -3,6 +3,9 @@
 ; the pbx_config module. This is where you configure all your 
 ; inbound and outbound calls in Asterisk. 
 ; 
+; This configuration file is reloaded 
+; - With the "extensions reload" command in the CLI
+; - With the "reload" command (that reloads everything) in the CLI
 
 ;
 ; The "General" category is for certain variables.  

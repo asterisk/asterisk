@@ -3,6 +3,9 @@
 ;
 ; In this file, you configure logging to files or to
 ; the syslog system.
+;
+; "logger reload" at the CLI will reload configuration
+; of the logging system.
 
 [general]
 ; Customize the display of debug message time stamps
