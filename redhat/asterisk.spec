@@ -21,6 +21,14 @@ POTS, and IP telephony clients using the Inter-Asterisk eXchange
 protocol (e.g. gnophone or miniphone).  For more information and a
 current list of supported hardware, see www.asteriskpbx.com.
 
+%package        devel
+Summary:        Header files for building Asterisk modules
+Group:          Development/Libraries
+
+%description devel
+This package contains the development  header files that are needed
+to compile 3rd party modules.
+
 %post
 ln -sf /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 
@@ -36,12 +44,6 @@ ln -sf /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 # RedHat specific init script file
 #
 %attr(0755,root,root)       /etc/rc.d/init.d/asterisk
-
-#
-# Include files
-#
-%attr(0755,root,root) %dir /usr/include/asterisk
-%attr(0644,root,root)      /usr/include/asterisk/*.h
 
 #
 # Modules
@@ -95,3 +97,10 @@ ln -sf /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 %attr(0755,root,root) %dir /var/spool/asterisk/voicemail/default/1234
 %attr(0755,root,root) %dir /var/spool/asterisk/voicemail/default/1234/INBOX
 %attr(0644,root,root)      /var/spool/asterisk/voicemail/default/1234/*.gsm
+
+%files devel
+#
+# Include files
+#
+%attr(0755,root,root) %dir %{_includedir}/asterisk
+%attr(0644,root,root) %{_includedir}/asterisk/*.h
