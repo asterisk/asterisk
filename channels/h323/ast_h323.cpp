@@ -83,13 +83,9 @@ void MyProcess::Main()
 	PTrace::Initialise(0, NULL, PTrace::Timestamp | PTrace::Thread | PTrace::FileAndLine);
 }
 
-#define H323_G7231 OPAL_G7231_6k3 "{sw}"
-#define H323_G729 OPAL_G729 "{sw}"
-#define H323_G729A OPAL_G729A "{sw}"
-
-H323_REGISTER_CAPABILITY(H323_G7231Capability, H323_G7231);
-H323_REGISTER_CAPABILITY(AST_G729Capability,  H323_G729);
-H323_REGISTER_CAPABILITY(AST_G729ACapability, H323_G729A);
+H323_REGISTER_CAPABILITY(H323_G7231Capability, OPAL_G7231);
+H323_REGISTER_CAPABILITY(AST_G729Capability,  OPAL_G729);
+H323_REGISTER_CAPABILITY(AST_G729ACapability, OPAL_G729A);
 
 H323_G7231Capability::H323_G7231Capability(BOOL annexA_)
   : H323AudioCapability(7, 4)
@@ -120,7 +116,7 @@ PObject * H323_G7231Capability::Clone() const
 
 PString H323_G7231Capability::GetFormatName() const
 {
-  	return H323_G7231;
+  	return OPAL_G7231;
 }
 
 unsigned H323_G7231Capability::GetSubType() const
@@ -172,7 +168,7 @@ unsigned AST_G729Capability::GetSubType() const
 
 PString AST_G729Capability::GetFormatName() const
 {
-  	return H323_G729;
+  	return OPAL_G729;
 }
 
 H323Codec * AST_G729Capability::CreateCodec(H323Codec::Direction direction) const
@@ -197,7 +193,7 @@ unsigned AST_G729ACapability::GetSubType() const
 
 PString AST_G729ACapability::GetFormatName() const
 {
-  	return H323_G729A;
+  	return OPAL_G729A;
 }
 
 H323Codec * AST_G729ACapability::CreateCodec(H323Codec::Direction direction) const
@@ -945,7 +941,7 @@ BOOL MyH323_ExternalRTPChannel::Start(void)
 
 	/* Notify Asterisk of remote RTP information */
 	on_start_rtp_channel(connection.GetCallReference(), (const char *)remoteIpAddr.AsString(), remotePort, 
-		(const char *)connection.GetCallToken());
+		(const char *)connection.GetCallToken(), (int)payloadCode);
 	return TRUE;
 }
 
@@ -965,7 +961,7 @@ BOOL MyH323_ExternalRTPChannel::OnReceivedAckPDU(const H245_H2250LogicalChannelA
 			cout << "		-- remotePort: " << remotePort << endl;
 		}
 		on_start_rtp_channel(connection.GetCallReference(), (const char *)remoteIpAddress.AsString(),
-				remotePort, (const char *)connection.GetCallToken());
+				remotePort, (const char *)connection.GetCallToken(), (int)payloadCode);
 		return TRUE;
 	}
 	return FALSE;

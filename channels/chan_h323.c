@@ -1167,14 +1167,24 @@ struct rtp_info *external_rtp_create(unsigned call_reference, const char * token
 int progress(unsigned call_reference, const char *token, int inband);
 
 /**
+ * Definition taken from rtp.c for rtpPayloadType because we need it here.
+ */
+struct rtpPayloadType {
+	int isAstFormat;        /* whether the following code is an AST_FORMAT */
+	int code;
+};
+
+/**
   * Call-back function passing remote ip/port information from H.323 to asterisk 
   *
   * Returns nothing 
   */
-void setup_rtp_connection(unsigned call_reference, const char *remoteIp, int remotePort, const char *token)
+void setup_rtp_connection(unsigned call_reference, const char *remoteIp, int remotePort, const char *token, int pt)
 {
 	struct oh323_pvt *pvt = NULL;
 	struct sockaddr_in them;
+	struct rtpPayloadType rtptype;
+	int fmt;
 
 	/* Find the call or allocate a private structure if call not found */
 	pvt = find_call(call_reference, token); 
@@ -1182,6 +1192,19 @@ void setup_rtp_connection(unsigned call_reference, const char *remoteIp, int rem
 		ast_log(LOG_ERROR, "Something is wrong: rtp\n");
 		return;
 	}
+
+	rtptype = ast_rtp_lookup_pt(pvt->rtp, pt);
+
+	fmt = ast_best_codec(pvt->owner->nativeformats);
+
+	ast_mutex_lock(&pvt->lock);
+	pvt->owner->nativeformats = rtptype.code;
+	pvt->owner->readformat = fmt;
+	pvt->owner->writeformat = fmt;
+	ast_set_read_format(pvt->owner, pvt->owner->readformat);
+	ast_set_write_format(pvt->owner, pvt->owner->writeformat);
+	ast_mutex_unlock(&pvt->lock);
+
 	them.sin_family = AF_INET;
 	/* only works for IPv4 */
 	them.sin_addr.s_addr = inet_addr(remoteIp); 
@@ -1191,6 +1214,7 @@ void setup_rtp_connection(unsigned call_reference, const char *remoteIp, int rem
 	if (pvt->options.progress_audio) {
 		progress(call_reference, token, 1);
 	}
+
 	return;
 }
 

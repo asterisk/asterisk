@@ -99,6 +99,8 @@ typedef struct call_details {
 	char *call_source_name;
 	char *call_source_e164;
 	char *call_dest_e164;
+	int presentation;
+	int screening;
 	char *sourceIp;
 } call_details_t;
 
@@ -119,7 +121,7 @@ extern on_rtp_cb on_external_rtp_create;
 
 /* This is a callback prototype function, called to send
    the remote IP and RTP port from H.323 to Asterisk */ 
-typedef void (*start_rtp_cb)(unsigned int, const char *, int, const char *);
+typedef void (*start_rtp_cb)(unsigned int, const char *, int, const char *, int);
 extern start_rtp_cb on_start_rtp_channel; 
 
 /* This is a callback that happens when call progress is
