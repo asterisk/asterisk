@@ -600,6 +600,12 @@ sub message_rename()
 	my ($context, $mbox, $oldfolder, $old, $newfolder, $new) = @_;
 	my $oldfile, $newfile;
 	return if ($old eq $new) && ($oldfolder eq $newfolder);
+
+        if ($context =~ /^(\w+)$/) {
+                $context = $1;
+        } else {
+                die("Invalid Context<BR>\n");
+        }
 	
 	if ($mbox =~ /^(\w+)$/) {
 		$mbox = $1;
