@@ -764,7 +764,7 @@ static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu
 	snprintf(passdata, passdatasize, "%d", msgnum);
 	pbx_builtin_setvar_helper(ast, "VM_MSGNUM", passdata);
 	pbx_builtin_setvar_helper(ast, "VM_MAILBOX", mailbox);
-	pbx_builtin_setvar_helper(ast, "VM_CALLERID", ast_callerid_merge(callerid, sizeof(callerid), cidname, cidnum));
+	pbx_builtin_setvar_helper(ast, "VM_CALLERID", ast_callerid_merge(callerid, sizeof(callerid), cidname, cidnum, "Unknown Caller"));
 	pbx_builtin_setvar_helper(ast, "VM_CIDNAME", (cidname ? cidname : "an unknown caller"));
 	pbx_builtin_setvar_helper(ast, "VM_CIDNUM", (cidnum ? cidnum : "an unknown caller"));
 	pbx_builtin_setvar_helper(ast, "VM_DATE", date);
@@ -1395,7 +1395,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	chan->exten,
 	chan->priority,
 	chan->name,
-	ast_callerid_merge(callerid, sizeof(callerid), chan->cid.cid_name, chan->cid.cid_num),
+	ast_callerid_merge(callerid, sizeof(callerid), chan->cid.cid_name, chan->cid.cid_num, "Unknown"),
 	date, (long)time(NULL));
 					fclose(txt);
 				} else

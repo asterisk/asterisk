@@ -679,8 +679,10 @@ int ast_callerid_callwaiting_generate(unsigned char *buf, char *name, char *numb
 	return __ast_callerid_generate(buf, name, number, 1, codec);
 }
 
-char *ast_callerid_merge(char *buf, int bufsiz, const char *name, const char *num)
+char *ast_callerid_merge(char *buf, int bufsiz, const char *name, const char *num, const char *unknown)
 {
+	if (!unknown)
+		unknown = "<unknown>";
 	if (name && num)
 		snprintf(buf, bufsiz, "\"%s\" <%s>", name, num);
 	else if (name) 
@@ -688,7 +690,7 @@ char *ast_callerid_merge(char *buf, int bufsiz, const char *name, const char *nu
 	else if (num)
 		strncpy(buf, num, bufsiz - 1);
 	else
-		strncpy(buf, "<unknown>", bufsiz - 1);
+		strncpy(buf, unknown, bufsiz - 1);
 	return buf;
 }
 int ast_callerid_split(const char *buf, char *name, int namelen, char *num, int numlen)

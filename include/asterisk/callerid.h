@@ -165,7 +165,7 @@ extern int ast_isphonenumber(char *n);
 
 extern int ast_callerid_split(const char *src, char *name, int namelen, char *num, int numlen);
 
-extern char *ast_callerid_merge(char *buf, int bufsiz, const char *name, const char *num);
+extern char *ast_callerid_merge(char *buf, int bufsiz, const char *name, const char *num, const char *unknown);
 
 /*
  * Caller*ID and other GR-30 compatible generation
