@@ -3403,7 +3403,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		cur = cur->next;
 	}
 	/* Now send any other common codecs, and non-codec formats: */
-	for (x = 1; x <= (videosupport ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO); x <<= 1) {
+	for (x = 1; x <= ((videosupport && p->vrtp) ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO); x <<= 1) {
 		if ((capability & x) && !(alreadysent & x)) {
 			if (debug)
 				ast_verbose("Answering with capability 0x%x(%s)\n", x, ast_getformatname(x));
