@@ -36,9 +36,9 @@
 
 %conf-onlyperson.gsm%You are currently the only person in this conference.
 
-%conf-noempty%No empty conferences currently exist.
+%conf-noempty.gsm%No empty conferences currently exist.
 
-%conf-enteringno%You are entering conference number
+%conf-enteringno.gsm%You are entering conference number
 
 %demo-abouttotry.gsm%I am about to attempt an Inter-Asterisk Exchange connection to a demonstration server located at Digium.  In order for this to work you must already be connected to the Internet.  Please wait a moment while I attempt to make the connection.
 
