@@ -1119,7 +1119,7 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
     	if (!strcmp(prior, "hint")) {
 			iprior = PRIORITY_HINT;
 		} else {
-			if (scanf(prior, "%i", &iprior) != 1) {
+			if (sscanf(prior, "%i", &iprior) != 1) {
 				ast_cli(fd, "'%s' is not a valid priority\n", prior);
 				prior = NULL;
 			}
