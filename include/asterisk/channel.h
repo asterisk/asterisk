@@ -112,6 +112,9 @@ struct ast_channel {
 	struct ast_filestream *stream;		
 	/*! Original writer format */
 	int oldwriteformat;			
+	
+	/*! Timing fd */
+	int timingfd;
 
 
 	/*! State of line -- Don't write directly, use ast_setstate */
@@ -668,6 +671,10 @@ int ast_autoservice_start(struct ast_channel *chan);
 
 /*! Stop servicing a channel for us...  Returns -1 on error or if channel has been hungup */
 int ast_autoservice_stop(struct ast_channel *chan);
+
+/* If built with zaptel optimizations, force a scheduled expiration on the
+   timer fd */
+int ast_settimeout(struct ast_channel *c, int ms);
 
 /* Misc. functions below */
 

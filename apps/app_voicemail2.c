@@ -678,6 +678,8 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 	for (x=0;x<fmtcnt;x++) {
 		if (!others[x])
 			break;
+		ast_stream_rewind(others[x], 1000);
+		ast_truncstream(others[x]);
 		ast_closestream(others[x]);
 	}
 	if (outmsg) {
@@ -705,7 +707,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	FILE *txt;
 	int res = 0;
 	int msgnum;
-	int maxmessage=0;
 	char date[256];
 	char dir[256];
 	char fn[256];
@@ -846,7 +847,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 					fclose(txt);
 				} else
 					ast_log(LOG_WARNING, "Error opening text file for output\n");
-				res = play_and_record(chan, NULL, fn, maxmessage, fmt);
+				res = play_and_record(chan, NULL, fn, vmmaxmessage, fmt);
 				if (res > 0)
 					res = 0;
 				txt = fopen(txtfile, "a");

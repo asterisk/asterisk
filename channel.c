@@ -34,6 +34,10 @@
 #include <asterisk/linkedlists.h>
 #include <asterisk/indications.h>
 #include <asterisk/monitor.h>
+#ifdef ZAPTEL_OPTIMIZATIONS
+#include <sys/ioctl.h>
+#include <linux/zaptel.h>
+#endif
 
 
 static int shutting_down = 0;
@@ -296,8 +300,15 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 						fcntl(pvt->alertpipe[1], F_SETFL, flags | O_NONBLOCK);
 					} else
 						pvt->alertpipe[0] = pvt->alertpipe[1] = -1;
+#ifdef ZAPTEL_OPTIMIZATIONS
+					tmp->timingfd = open("/dev/zap/timer", O_RDWR);
+#else
+					tmp->timingfd = -1;					
+#endif
 					/* Always watch the alertpipe */
 					tmp->fds[AST_MAX_FDS-1] = pvt->alertpipe[0];
+					/* And timing pipe */
+					tmp->fds[AST_MAX_FDS-2] = tmp->timingfd;
 					strncpy(tmp->name, "**Unknown**", sizeof(tmp->name)-1);
 					tmp->pvt = pvt;
 					/* Initial state */
@@ -921,6 +932,17 @@ char ast_waitfordigit(struct ast_channel *c, int ms)
 	return result;
 }
 
+int ast_settimeout(struct ast_channel *c, int ms)
+{
+	int res = -1;
+#ifdef ZAPTEL_OPTIMIZATIONS
+	if (c->timingfd > -1) {
+		ms *= 8;
+		res = ioctl(c->timingfd, ZT_TIMERCONFIG, &ms);
+	}
+#endif	
+	return res;
+}
 char ast_waitfordigit_full(struct ast_channel *c, int ms, int audio, int ctrl)
 {
 	struct ast_frame *f;
@@ -994,7 +1016,18 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 	if (chan->pvt->alertpipe[0] > -1) {
 		read(chan->pvt->alertpipe[0], &blah, sizeof(blah));
 	}
-
+#ifdef ZAPTEL_OPTIMIZATIONS
+	if ((chan->timingfd > -1) && (chan->fdno == AST_MAX_FDS - 2) && chan->exception) {
+		chan->exception = 0;
+		blah = -1;
+		ioctl(chan->timingfd, ZT_TIMERACK, &blah);
+		blah = 0;
+		ioctl(chan->timingfd, ZT_TIMERCONFIG, &blah);
+		f =  &null_frame;
+		pthread_mutex_unlock(&chan->lock);
+		return f;
+	}
+#endif
 	/* Check for pending read queue */
 	if (chan->pvt->readq) {
 		f = chan->pvt->readq;

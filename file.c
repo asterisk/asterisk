@@ -615,12 +615,13 @@ char ast_waitstream(struct ast_channel *c, char *breakon)
 			ast_closestream(c->stream);
 			break;
 		}
+		/* Setup timeout if supported */
+		ast_settimeout(c, res);
 		res = ast_waitfor(c, res);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Select failed (%s)\n", strerror(errno));
 			return res;
-		} else
-		if (res > 0) {
+		} else if (res > 0) {
 			fr = ast_read(c);
 			if (!fr) {
 #if 0
@@ -652,8 +653,8 @@ char ast_waitstream(struct ast_channel *c, char *breakon)
 			}
 			/* Ignore */
 			ast_frfree(fr);
-		} else
-			ast_sched_runq(c->sched);
+		}
+		ast_sched_runq(c->sched);
 	
 		
 	}
@@ -670,6 +671,7 @@ char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char
 			ast_closestream(c->stream);
 			break;
 		}
+		ast_settimeout(c, res);
 		res = ast_waitfor(c, res);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Select failed (%s)\n", strerror(errno));
@@ -733,6 +735,7 @@ char ast_waitstream_full(struct ast_channel *c, char *breakon, int audiofd, int 
 			ast_closestream(c->stream);
 			break;
 		}
+		ast_settimeout(c, ms);
 		rchan = ast_waitfor_nandfds(&c, 1, &cmdfd, (cmdfd > -1) ? 1 : 0, NULL, &outfd, &ms);
 		if (!rchan && (outfd < 0) && (ms)) {
 			ast_log(LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
@@ -776,8 +779,8 @@ char ast_waitstream_full(struct ast_channel *c, char *breakon, int audiofd, int 
 			}
 			/* Ignore */
 			ast_frfree(fr);
-		} else
-			ast_sched_runq(c->sched);
+		}
+		ast_sched_runq(c->sched);
 	
 		
 	}

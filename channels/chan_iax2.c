@@ -3452,13 +3452,13 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 	struct iax2_peer *peer;
 	int processed = 0;
 	int totalcalls = 0;
-	int x = -1;
+	int x = 1;
 	if (iaxtrunkdebug)
 		ast_verbose("Beginning trunk processing\n");
 	if (events & AST_IO_PRI) {
 #ifdef ZT_TIMERACK
 		/* Great, this is a timing interface, just call the ioctl */
-		if (ioctl(fd, ZT_TIMERACK, x)) 
+		if (ioctl(fd, ZT_TIMERACK, &x)) 
 			ast_log(LOG_WARNING, "Unable to acknowledge zap timer\n");
 		res = 0;
 #endif		
