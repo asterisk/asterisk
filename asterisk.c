@@ -1448,8 +1448,12 @@ int main(int argc, char *argv[])
 					buf[strlen(buf)-1] = '\0';
 
 				consolehandler((char *)buf);
-			} else
-				ast_cli(STDOUT_FILENO, "\nUse EXIT or QUIT to exist, or STOP NOW to shutdown Asterisk\n");
+			} else {
+				if (option_remote)
+ 					ast_cli(STDOUT_FILENO, "\nUse EXIT or QUIT to exit the asterisk console\n");
+				else
+	 				ast_cli(STDOUT_FILENO, "\nUse STOP NOW to shutdown Asterisk\n");
+			}
 		}
 
 	} else {
