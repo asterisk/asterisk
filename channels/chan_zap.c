@@ -2114,7 +2114,7 @@ static int zt_hangup(struct ast_channel *ast)
 				ast_log(LOG_DEBUG, "Hanging up channel %d, offhook = %d\n", p->channel, par.rxisoffhook);
 #endif
 				/* If they're off hook, try playing congestion */
-				if (par.rxisoffhook)
+				if ((par.rxisoffhook) && (!p->radio))
 					tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 				else
 					tone_zone_play_tone(p->subs[SUB_REAL].zfd, -1);
@@ -3728,6 +3728,8 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		return NULL;
 	}
 	
+	if (p->radio && p->inalarm) return NULL;
+
 	p->subs[index].f.frametype = AST_FRAME_NULL;
 	p->subs[index].f.datalen = 0;
 	p->subs[index].f.samples = 0;
@@ -5217,11 +5219,11 @@ static int handle_init_event(struct zt_pvt *i, int event)
 	struct ast_channel *chan;
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (i->radio) return 0;
 	/* Handle an event on a given channel for the monitor thread. */
 	switch(event) {
 	case ZT_EVENT_NONE:
 	case ZT_EVENT_BITSCHANGED:
+		if (i->radio) break;
 #ifdef ZAPATA_R2
 		if (i->r2) {
 			mfcr2_event_t *e;
@@ -5235,6 +5237,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 	case ZT_EVENT_WINKFLASH:
 	case ZT_EVENT_RINGOFFHOOK:
 		if (i->inalarm) break;
+		if (i->radio) break;
 		/* Got a ring/answer.  What kind of channel are we? */
 		switch(i->sig) {
 		case SIG_FXOLS:
@@ -5331,6 +5334,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", i->channel, alarm2str(res));
 		/* fall thru intentionally */
 	case ZT_EVENT_ONHOOK:
+		if (i->radio) break;
 		/* Back on hook.  Hang up. */
 		switch(i->sig) {
 		case SIG_FXOLS:
@@ -5506,7 +5510,22 @@ static void *do_monitor(void *data)
 					}
 				}
 			}
-			if ((i->subs[SUB_REAL].zfd > -1) && i->sig && (!i->radio)) {
+			if ((i->subs[SUB_REAL].zfd > -1) && i->sig) {
+				if (i->radio && !i->owner)
+				{
+					res = zt_get_event(i->subs[SUB_REAL].zfd);
+					if (res)
+					{
+						if (option_debug)
+							ast_log(LOG_DEBUG, "Monitor doohicky got event %s on radio channel %d\n", event2str(res), i->channel);
+						/* Don't hold iflock while handling init events */
+						ast_mutex_unlock(&iflock);
+						handle_init_event(i, res);
+						ast_mutex_lock(&iflock);	
+					}
+					i = i->next;
+					continue;
+				}					
 				pollres = ast_fdisset(pfds, i->subs[SUB_REAL].zfd, count, &spoint);
 				if (pollres & POLLIN) {
 					if (i->owner || i->subs[SUB_REAL].owner) {
@@ -6489,7 +6508,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 		if (p && available(p, channelmatch, groupmatch, &busy)) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Using channel %d\n", p->channel);
-				if (p->inalarm)
+				if (p->inalarm) 
 					goto next;
 
 			callwait = (p->owner != NULL);
@@ -8147,6 +8166,7 @@ static int zap_show_channel(int fd, int argc, char **argv)
 			ast_cli(fd, "Context: %s\n", tmp->context);
 			ast_cli(fd, "Caller ID string: %s\n", tmp->callerid);
 			ast_cli(fd, "Destroy: %d\n", tmp->destroy);
+			ast_cli(fd, "InAlarm: %d\n", tmp->inalarm);
 			ast_cli(fd, "Signalling Type: %s\n", sig2str(tmp->sig));
 			ast_cli(fd, "Owner: %s\n", tmp->owner ? tmp->owner->name : "<None>");
 			ast_cli(fd, "Real: %s%s%s\n", tmp->subs[SUB_REAL].owner ? tmp->subs[SUB_REAL].owner->name : "<None>", tmp->subs[SUB_REAL].inthreeway ? " (Confed)" : "", tmp->subs[SUB_REAL].linear ? " (Linear)" : "");

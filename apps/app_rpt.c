@@ -3,7 +3,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Radio Repeater / Remote Base program 
- *  version 0.14 8/15/04
+ *  version 0.15 8/21/04
  * 
  * See http://www.zapatatelephony.org/app_rpt.html
  *
@@ -103,6 +103,8 @@ enum {REM_LOWPWR,REM_MEDPWR,REM_HIPWR};
 enum {DC_INDETERMINATE, DC_REQ_FLUSH, DC_ERROR, DC_COMPLETE};
 enum {SOURCE_RPT, SOURCE_LNK, SOURCE_RMT};
 
+enum {DLY_TELEM, DLY_ID, DLY_UNKEY, DLY_CALLTERM};
+
 #include <asterisk/utils.h>
 #include <asterisk/lock.h>
 #include <asterisk/file.h>
@@ -114,7 +116,6 @@ enum {SOURCE_RPT, SOURCE_LNK, SOURCE_RMT};
 #include <asterisk/translate.h>
 #include <asterisk/options.h>
 #include <asterisk/config.h>
-#include <asterisk/utils.h>
 #include <asterisk/say.h>
 #include <asterisk/localtime.h>
 #include <stdio.h>
@@ -136,7 +137,7 @@ enum {SOURCE_RPT, SOURCE_LNK, SOURCE_RMT};
 #include <tonezone.h>
 #include <linux/zaptel.h>
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.14  08/15/2004";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.15  08/21/2004";
 static char *app = "Rpt";
 
 static char *synopsis = "Radio Repeater/Remote Base Control System";
@@ -160,6 +161,7 @@ LOCAL_USER_DECL;
 #define	IDTIME 300000
 #define	MAXRPTS 20
 #define POLITEID 30000
+#define FUNCTDELAY 1500
 
 static  pthread_t rpt_master_thread;
 
@@ -621,20 +623,34 @@ static int telem_any(struct ast_channel *chan, char *entry)
 * 4 types of telemtry are handled: Morse ID, Morse Message, Tone Sequence, and a File containing a recording.
 */
 
-static int telem_lookup(struct ast_channel *chan, char *name)
+static int telem_lookup(struct ast_channel *chan, char *node, char *name)
 {
 	
 	int res;
 	int i;
 	char *entry;
+	char *telemetry;
+	char *telemetry_save;
 
 	res = 0;
+	telemetry_save = NULL;
 	entry = NULL;
 	
 	
+	/* Retrieve the section name for telemetry from the node section */
+	
+	telemetry = ast_variable_retrieve(cfg, node, TELEMETRY);
+	if(telemetry){
+		telemetry_save = ast_strdupa(telemetry);
+		if(!telemetry_save){
+			ast_log(LOG_WARNING,"ast_strdupa() failed in telem_lookup()\n");
+			return res;
+		}
+		entry = ast_variable_retrieve(cfg, telemetry_save, name);
+	}
+	
 	/* Try to look up the telemetry name */
 	
-	entry = ast_variable_retrieve(cfg, TELEMETRY, name);
 	if(!entry){
 		/* Telemetry name wasn't found in the config file, use the default */
 		for(i = 0; i < sizeof(tele_defs)/sizeof(struct telem_defaults) ; i++){
@@ -650,6 +666,67 @@ static int telem_lookup(struct ast_channel *chan, char *name)
 	}
 	return res;
 }
+
+/*
+* Wait a configurable interval of time 
+*/
+
+
+static void wait_interval(struct rpt *myrpt, int type)
+{
+	int interval;
+	char *wait_times;
+	char *wait_times_save;
+	
+	wait_times_save = NULL;
+	wait_times = ast_variable_retrieve(cfg, myrpt->name, "wait_times");
+	
+	if(wait_times){
+		wait_times_save = ast_strdupa(wait_times);
+		if(!wait_times_save){
+			ast_log(LOG_WARNING, "Out of memory in wait_interval()\n");
+			wait_times = NULL;
+		}
+	}
+	
+	switch(type){
+		case DLY_TELEM:
+			if(wait_times)
+				interval = retrieve_astcfgint(wait_times_save, "telemwait", 500, 5000, 1000);
+			else
+				interval = 1000;
+			break;
+		
+		case DLY_ID:
+			if(wait_times)
+				interval = retrieve_astcfgint(wait_times_save, "idwait",250,5000,500);
+			else
+				interval = 500;
+			break;
+			
+		case DLY_UNKEY:
+			if(wait_times)
+				interval = retrieve_astcfgint(wait_times_save, "unkeywait",500,5000,1000);
+			else
+				interval = 1000;
+			break;
+			
+		case DLY_CALLTERM:
+			if(wait_times)
+				interval = retrieve_astcfgint(wait_times_save, "calltermwait",500,5000,1500);
+			else
+				interval = 1500;
+			break;
+			
+		default:
+			return;
+	}
+	
+	usleep(1000 * interval);
+	return;
+}
+
+	
 
 static void *rpt_tele_thread(void *this)
 {
@@ -713,8 +790,7 @@ struct tm localtm;
 	    case ID:
 	    case ID1:
 		/* wait a bit */
-		usleep(500000);
-	
+		wait_interval(myrpt, (mytele->mode == ID) ? DLY_ID : DLY_TELEM);
 		res = telem_any(mychannel, ident); 
 		imdone=1;
 	
@@ -730,22 +806,22 @@ struct tm localtm;
 	    		
 	    case PROC:
 		/* wait a little bit longer */
-		usleep(1500000);
+		wait_interval(myrpt, DLY_TELEM);
 		res = ast_streamfile(mychannel, "rpt/callproceeding", mychannel->language);
 		break;
 	    case TERM:
 		/* wait a little bit longer */
-		usleep(1500000);
+		wait_interval(myrpt, DLY_CALLTERM);
 		res = ast_streamfile(mychannel, "rpt/callterminated", mychannel->language);
 		break;
 	    case COMPLETE:
 		/* wait a little bit */
-		usleep(1000000);
-		res = telem_lookup(mychannel, "functcomplete");
+		wait_interval(myrpt, DLY_TELEM);
+		res = telem_lookup(mychannel, myrpt->name, "functcomplete");
 		break;
 	    case UNKEY:
 		/* wait a little bit */
-		usleep(1000000);
+		wait_interval(myrpt, DLY_UNKEY);
 		hastx = 0;
 		
 		
@@ -760,7 +836,7 @@ struct tm localtm;
 			}
 			ast_mutex_unlock(&myrpt->lock);
 
-			res = telem_lookup(mychannel,(!hastx) ? "remotemon" : "remotetx");
+			res = telem_lookup(mychannel, myrpt->name, (!hastx) ? "remotemon" : "remotetx");
 			if(res)
 				ast_log(LOG_WARNING, "telem_lookup:remotexx failed on %s\n", mychannel->name);
 			
@@ -769,7 +845,7 @@ struct tm localtm;
 			if (myrpt->cmdnode[0])
 			{
 				ast_safe_sleep(mychannel,200);
-				res = telem_lookup(mychannel, "cmdmode");
+				res = telem_lookup(mychannel, myrpt->name, "cmdmode");
 				if(res)
 				 	ast_log(LOG_WARNING, "telem_lookup:cmdmode failed on %s\n", mychannel->name);
 				ast_stopstream(mychannel);
@@ -777,7 +853,7 @@ struct tm localtm;
 		}
 		else if((ct = ast_variable_retrieve(cfg, nodename, "unlinkedct"))){ /* Unlinked Courtesy Tone */
 			ct_copy = ast_strdupa(ct);
-			res = telem_lookup(mychannel, ct_copy);
+			res = telem_lookup(mychannel, myrpt->name, ct_copy);
 			if(res)
 			 	ast_log(LOG_WARNING, "telem_lookup:ctx failed on %s\n", mychannel->name);		
 		}	
@@ -786,7 +862,7 @@ struct tm localtm;
 		break;
 	    case REMDISC:
 		/* wait a little bit */
-		usleep(1000000);
+		wait_interval(myrpt, DLY_TELEM);
 		res = ast_streamfile(mychannel, "rpt/node", mychannel->language);
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
@@ -799,22 +875,22 @@ struct tm localtm;
 		break;
 	    case REMALREADY:
 		/* wait a little bit */
-		usleep(1000000);
+		wait_interval(myrpt, DLY_TELEM);
 		res = ast_streamfile(mychannel, "rpt/remote_already", mychannel->language);
 		break;
 	    case REMNOTFOUND:
 		/* wait a little bit */
-		usleep(1000000);
+		wait_interval(myrpt, DLY_TELEM);
 		res = ast_streamfile(mychannel, "rpt/remote_notfound", mychannel->language);
 		break;
 	    case REMGO:
 		/* wait a little bit */
-		usleep(1000000);
+		wait_interval(myrpt, DLY_TELEM);
 		res = ast_streamfile(mychannel, "rpt/remote_go", mychannel->language);
 		break;
 	    case CONNECTED:
 		/* wait a little bit */
-		usleep(1000000);
+		wait_interval(myrpt, DLY_TELEM);
 		res = ast_streamfile(mychannel, "rpt/node", mychannel->language);
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
@@ -836,7 +912,7 @@ struct tm localtm;
 		break;
 	    case STATUS:
 		/* wait a little bit */
-		usleep(1000000);
+		wait_interval(myrpt, DLY_TELEM);
 		hastx = 0;
 		linkbase.next = &linkbase;
 		linkbase.prev = &linkbase;
@@ -936,7 +1012,7 @@ struct tm localtm;
 		break;
 		
 	    case STATS_TIME:
-	    	usleep(1000000); /* Wait a little bit */
+	    	wait_interval(myrpt, DLY_TELEM); /* Wait a little bit */
 		t = time(NULL);
 		ast_localtime(&t, &localtm, NULL);
 		/* Say the phase of the day is before the time */
@@ -970,7 +1046,7 @@ struct tm localtm;
 			break;	
 		if(sscanf(p, "version %d.%d", &vmajor, &vminor) != 2)
 			break;
-    		usleep(1000000); /* Wait a little bit */
+    		wait_interval(myrpt, DLY_TELEM); /* Wait a little bit */
 		/* Say "version" */
 		if (sayfile(mychannel,"rpt/version") == -1)
 		{
@@ -998,7 +1074,7 @@ struct tm localtm;
 		imdone = 1;
 	    	break;
 	    case ARB_ALPHA:
-	    	usleep(1000000); /* Wait a little bit */
+	    	wait_interval(myrpt, DLY_TELEM); /* Wait a little bit */
 	    	if(mytele->param)
 	    		saycharstr(mychannel, mytele->param);
 	    	imdone = 1;
@@ -2666,7 +2742,7 @@ int	seq,res;
 		ast_indicate(myrpt->remchannel,AST_CONTROL_RADIO_KEY);
 	}
 	if (ast_safe_sleep(myrpt->remchannel,1000) == -1) return -1;
-	res = telem_lookup(myrpt->remchannel,"functcomplete");
+	res = telem_lookup(myrpt->remchannel, myrpt->name, "functcomplete");
 	if (!myrpt->remoterx)
 	{
 		ast_indicate(myrpt->remchannel,AST_CONTROL_RADIO_UNKEY);
@@ -2686,11 +2762,13 @@ time_t	dtmf_time,t;
 struct rpt_link *l,*m;
 struct rpt_tele *telem;
 pthread_attr_t attr;
+char tmpstr[300];
 char cmd[MAXDTMF+1] = "";
 
 
 	ast_mutex_lock(&myrpt->lock);
-	tele = strchr(myrpt->rxchanname,'/');
+	strncpy(tmpstr,myrpt->rxchanname,sizeof(tmpstr) - 1);
+	tele = strchr(tmpstr,'/');
 	if (!tele)
 	{
 		fprintf(stderr,"rpt:Dial number (%s) must be in format tech/number\n",myrpt->rxchanname);
@@ -2698,9 +2776,16 @@ char cmd[MAXDTMF+1] = "";
 		pthread_exit(NULL);
 	}
 	*tele++ = 0;
-	myrpt->rxchannel = ast_request(myrpt->rxchanname,AST_FORMAT_SLINEAR,tele);
+	myrpt->rxchannel = ast_request(tmpstr,AST_FORMAT_SLINEAR,tele);
 	if (myrpt->rxchannel)
 	{
+		if (myrpt->rxchannel->_state == AST_STATE_BUSY)
+		{
+			fprintf(stderr,"rpt:Sorry unable to obtain Rx channel\n");
+			ast_mutex_unlock(&myrpt->lock);
+			ast_hangup(myrpt->rxchannel);
+			pthread_exit(NULL);
+		}
 		ast_set_read_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
 		ast_set_write_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
 		myrpt->rxchannel->whentohangup = 0;
@@ -2708,8 +2793,14 @@ char cmd[MAXDTMF+1] = "";
 		myrpt->rxchannel->data = "(Repeater Rx)";
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "rpt (Rx) initiating call to %s/%s on %s\n",
-				myrpt->rxchanname,tele,myrpt->rxchannel->name);
+				tmpstr,tele,myrpt->rxchannel->name);
 		ast_call(myrpt->rxchannel,tele,999);
+		if (myrpt->rxchannel->_state != AST_STATE_UP)
+		{
+			ast_mutex_unlock(&myrpt->lock);
+			ast_hangup(myrpt->rxchannel);
+			pthread_exit(NULL);
+		}
 	}
 	else
 	{
@@ -2719,7 +2810,8 @@ char cmd[MAXDTMF+1] = "";
 	}
 	if (myrpt->txchanname)
 	{
-		tele = strchr(myrpt->txchanname,'/');
+		strncpy(tmpstr,myrpt->txchanname,sizeof(tmpstr) - 1);
+		tele = strchr(tmpstr,'/');
 		if (!tele)
 		{
 			fprintf(stderr,"rpt:Dial number (%s) must be in format tech/number\n",myrpt->txchanname);
@@ -2727,9 +2819,17 @@ char cmd[MAXDTMF+1] = "";
 			pthread_exit(NULL);
 		}
 		*tele++ = 0;
-		myrpt->txchannel = ast_request(myrpt->txchanname,AST_FORMAT_SLINEAR,tele);
+		myrpt->txchannel = ast_request(tmpstr,AST_FORMAT_SLINEAR,tele);
 		if (myrpt->txchannel)
 		{
+			if (myrpt->txchannel->_state == AST_STATE_BUSY)
+			{
+				fprintf(stderr,"rpt:Sorry unable to obtain Tx channel\n");
+				ast_mutex_unlock(&myrpt->lock);
+				ast_hangup(myrpt->txchannel);
+				ast_hangup(myrpt->rxchannel);
+				pthread_exit(NULL);
+			}			
 			ast_set_read_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
 			ast_set_write_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
 			myrpt->txchannel->whentohangup = 0;
@@ -2737,13 +2837,21 @@ char cmd[MAXDTMF+1] = "";
 			myrpt->txchannel->data = "(Repeater Rx)";
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "rpt (Tx) initiating call to %s/%s on %s\n",
-					myrpt->txchanname,tele,myrpt->txchannel->name);
+					tmpstr,tele,myrpt->txchannel->name);
 			ast_call(myrpt->txchannel,tele,999);
+			if (myrpt->rxchannel->_state != AST_STATE_UP)
+			{
+				ast_mutex_unlock(&myrpt->lock);
+				ast_hangup(myrpt->rxchannel);
+				ast_hangup(myrpt->txchannel);
+				pthread_exit(NULL);
+			}
 		}
 		else
 		{
 			fprintf(stderr,"rpt:Sorry unable to obtain Tx channel\n");
 			ast_mutex_unlock(&myrpt->lock);
+			ast_hangup(myrpt->rxchannel);
 			pthread_exit(NULL);
 		}
 	}
@@ -2757,6 +2865,9 @@ char cmd[MAXDTMF+1] = "";
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
 		ast_mutex_unlock(&myrpt->lock);
+		if (myrpt->txchannel != myrpt->rxchannel) 
+			ast_hangup(myrpt->txchannel);
+		ast_hangup(myrpt->rxchannel);
 		pthread_exit(NULL);
 	}
 	/* make a conference for the tx */
@@ -2768,6 +2879,10 @@ char cmd[MAXDTMF+1] = "";
 	{
 		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 		ast_mutex_unlock(&myrpt->lock);
+		ast_hangup(myrpt->pchannel);
+		if (myrpt->txchannel != myrpt->rxchannel) 
+			ast_hangup(myrpt->txchannel);
+		ast_hangup(myrpt->rxchannel);
 		pthread_exit(NULL);
 	}
 	/* save tx conference number */
@@ -2781,6 +2896,10 @@ char cmd[MAXDTMF+1] = "";
 	{
 		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 		ast_mutex_unlock(&myrpt->lock);
+		ast_hangup(myrpt->pchannel);
+		if (myrpt->txchannel != myrpt->rxchannel) 
+			ast_hangup(myrpt->txchannel);
+		ast_hangup(myrpt->rxchannel);
 		pthread_exit(NULL);
 	}
 	/* save pseudo channel conference number */
@@ -2791,6 +2910,10 @@ char cmd[MAXDTMF+1] = "";
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
 		ast_mutex_unlock(&myrpt->lock);
+		ast_hangup(myrpt->pchannel);
+		if (myrpt->txchannel != myrpt->rxchannel) 
+			ast_hangup(myrpt->txchannel);
+		ast_hangup(myrpt->rxchannel);
 		pthread_exit(NULL);
 	}
 	/* make a conference for the tx */
@@ -2802,6 +2925,11 @@ char cmd[MAXDTMF+1] = "";
 	{
 		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 		ast_mutex_unlock(&myrpt->lock);
+		ast_hangup(myrpt->txpchannel);
+		ast_hangup(myrpt->pchannel);
+		if (myrpt->txchannel != myrpt->rxchannel) 
+			ast_hangup(myrpt->txchannel);
+		ast_hangup(myrpt->rxchannel);
 		pthread_exit(NULL);
 	}
 	/* Now, the idea here is to copy from the physical rx channel buffer
@@ -2843,6 +2971,9 @@ char cmd[MAXDTMF+1] = "";
 		if (ast_check_hangup(myrpt->txpchannel)) break;
 		ast_mutex_lock(&myrpt->lock);
 		myrpt->localtx = keyed && (myrpt->dtmfidx == -1) && (!myrpt->cmdnode[0]);
+		
+		/* If someone's connected, and they're transmitting from their end to us, set remrx true */
+		
 		l = myrpt->links.next;
 		remrx = 0;
 		while(l != &myrpt->links)
@@ -2924,8 +3055,8 @@ char cmd[MAXDTMF+1] = "";
 		if (!myrpt->totimer) myrpt->tailtimer = 0;
 		/* if not timed-out, add in tail */
 		if (myrpt->totimer) totx = totx || myrpt->tailtimer;
-		/* If user keys up or is keyed up over standard ID, switch to talkover ID, if one is defined */
-		if (identqueued && keyed && idtalkover) {
+		/* If user or links key up or are keyed up over standard ID, switch to talkover ID, if one is defined */
+		if (identqueued && (keyed || remrx) && idtalkover) {
 			int hasid = 0,hastalkover = 0;
 
 			telem = myrpt->tele.next;
@@ -3384,8 +3515,8 @@ char cmd[MAXDTMF+1] = "";
 	ast_mutex_lock(&myrpt->lock);
 	ast_hangup(myrpt->pchannel);
 	ast_hangup(myrpt->txpchannel);
-	ast_hangup(myrpt->rxchannel);
 	if (myrpt->txchannel != myrpt->rxchannel) ast_hangup(myrpt->txchannel);
+	ast_hangup(myrpt->rxchannel);
 	l = myrpt->links.next;
 	while(l != &myrpt->links)
 	{
@@ -3411,6 +3542,7 @@ static void *rpt_master(void *ignore)
 char *this,*val;
 struct ast_variable *vp;
 int	i,j,n,longestnode;
+pthread_attr_t attr;
 
 	/* start with blank config */
 	memset(&rpt_vars,0,sizeof(rpt_vars));
@@ -3452,6 +3584,7 @@ int	i,j,n,longestnode;
 		ast_mutex_init(&rpt_vars[n].lock);
 		rpt_vars[n].tele.next = &rpt_vars[n].tele;
 		rpt_vars[n].tele.prev = &rpt_vars[n].tele;
+		rpt_vars[n].rpt_thread = AST_PTHREADT_NULL;
 		rpt_vars[n].name = this;
 		rpt_vars[n].rxchanname = ast_variable_retrieve(cfg,this,"rxchannel");
 		rpt_vars[n].txchanname = ast_variable_retrieve(cfg,this,"txchannel");
@@ -3469,7 +3602,6 @@ int	i,j,n,longestnode;
 		
 		rpt_vars[n].idtime = retrieve_astcfgint( this, "idtime", 60000, 2400000, IDTIME);	/* Enforce a min max */
 		rpt_vars[n].politeid = retrieve_astcfgint( this, "politeid", 30000, 300000, POLITEID); /* Enforce a min max */
-		
 		rpt_vars[n].remote = ast_variable_retrieve(cfg,this,"remote");
 		rpt_vars[n].tonezone = ast_variable_retrieve(cfg,this,"tonezone");
 		val = ast_variable_retrieve(cfg,this,"iobase");
@@ -3543,8 +3675,24 @@ int	i,j,n,longestnode;
 		}
 		ast_pthread_create(&rpt_vars[i].rpt_thread,NULL,rpt,(void *) &rpt_vars[i]);
 	}
-	/* wait for first one to die (should be never) */
-	pthread_join(rpt_vars[0].rpt_thread,NULL);
+	usleep(500000);
+	for(;;)
+	{
+		/* Now monitor each thread, and restart it if necessary */
+		for(i = 0; i < n; i++)
+		{ 
+			if (rpt_vars[i].remote) continue;
+			if (pthread_kill(rpt_vars[i].rpt_thread,0))
+			{
+			        pthread_attr_init(&attr);
+	 		        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+				ast_pthread_create(&rpt_vars[i].rpt_thread,&attr,rpt,(void *) &rpt_vars[i]);
+				ast_log(LOG_WARNING, "rpt_thread restarted on node %s\n", rpt_vars[i].name);
+			}
+
+		}
+		usleep(2000000);
+	}
 	pthread_exit(NULL);
 }
 
