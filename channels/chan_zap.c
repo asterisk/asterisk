@@ -9474,6 +9474,8 @@ static int setup_zap(int reload)
 					switchtype = PRI_SWITCH_LUCENT5E;
 				else if (!strcasecmp(v->value, "euroisdn"))
 					switchtype = PRI_SWITCH_EUROISDN_E1;
+				else if (!strcasecmp(v->value, "qsig"))
+					switchtype = PRI_SWITCH_QSIG;
 				else {
 					ast_log(LOG_ERROR, "Unknown switchtype '%s'\n", v->value);
 					ast_destroy(cfg);
