@@ -645,10 +645,9 @@ static int iax2_getpeername(struct sockaddr_in sin, char *host, int len, int loc
 	return res;
 }
 
-static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer)
+static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer, const char *host)
 {
 	struct chan_iax2_pvt *tmp;
-	char iabuf[INET_ADDRSTRLEN];
 	tmp = malloc(sizeof(struct chan_iax2_pvt));
 	if (tmp) {
 		memset(tmp, 0, sizeof(struct chan_iax2_pvt));
@@ -663,8 +662,7 @@ static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer)
 		tmp->initid = -1;
 		/* strncpy(tmp->context, context, sizeof(tmp->context)-1); */
 		strncpy(tmp->exten, "s", sizeof(tmp->exten)-1);
-		if (!iax2_getpeername(*sin, tmp->host, sizeof(tmp->host), lockpeer))
-			snprintf(tmp->host, sizeof(tmp->host), "%s:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
+		strncpy(tmp->host, host, sizeof(tmp->host)-1);
 	}
 	return tmp;
 }
@@ -830,6 +828,8 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 	int res = 0;
 	int x;
 	struct timeval now;
+	char iabuf[INET_ADDRSTRLEN];
+	char host[80];
 	if (new <= NEW_ALLOW) {
 		/* Look for an existing connection first */
 		for (x=1;(res < 1) && (x<maxnontrunkcall);x++) {
@@ -854,6 +854,8 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 		}
 	}
 	if ((res < 1) && (new >= NEW_ALLOW)) {
+		if (!iax2_getpeername(*sin, host, sizeof(host), lockpeer))
+			snprintf(host, sizeof(host), "%s:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
 		gettimeofday(&now, NULL);
 		for (x=1;x<TRUNK_CALL_START;x++) {
 			/* Find first unused call number that hasn't been used in a while */
@@ -866,7 +868,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			ast_log(LOG_WARNING, "No more space\n");
 			return -1;
 		}
-		iaxs[x] = new_iax(sin, lockpeer);
+		iaxs[x] = new_iax(sin, lockpeer, host);
 		update_max_nontrunk();
 		if (iaxs[x]) {
 			if (option_debug)
