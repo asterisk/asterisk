@@ -384,6 +384,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 			    if (option_verbose > 3)
 				ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 				*to=0;
+				strcpy(status, "CANCEL");
 				return NULL;
 			}
 			if (single && ((f->frametype == AST_FRAME_VOICE) || (f->frametype == AST_FRAME_DTMF)))  {
@@ -959,6 +960,7 @@ out:
 	}
 	hanguptree(outgoing, NULL);
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", status);
+	ast_log(LOG_DEBUG, "Exiting with DIALSTATUS=%s.\n", status);
 	
 	LOCAL_USER_REMOVE(u);
 	
