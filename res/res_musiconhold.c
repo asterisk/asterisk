@@ -574,6 +574,8 @@ static void load_moh_classes(void)
 static void ast_moh_destroy(void)
 {
 	struct mohclass *moh;
+	if (option_verbose > 1)
+		ast_verbose(VERBOSE_PREFIX_2 "Destroying any remaining musiconhold processes\n");
 	ast_pthread_mutex_lock(&moh_lock);
 	moh = mohclasses;
 	while(moh) {
@@ -591,7 +593,7 @@ int load_module(void)
 	int res;
 	load_moh_classes();
 	res = ast_register_application(app0, moh0_exec, synopsis0, descrip0);
-	atexit(ast_moh_destroy);
+	ast_register_atexit(ast_moh_destroy);
 	if (!res)
 		res = ast_register_application(app1, moh1_exec, synopsis1, descrip1);
 	if (!res)

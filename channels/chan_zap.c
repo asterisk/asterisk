@@ -355,6 +355,7 @@ static struct zt_pvt {
 	float rxgain;
 	float txgain;
 	struct zt_pvt *next;			/* Next channel in list */
+	struct zt_pvt *prev;			/* Prev channel in list */
 	char context[AST_MAX_EXTENSION];
 	char exten[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
@@ -448,7 +449,7 @@ static struct zt_pvt {
 	int r2blocked;
 	int sigchecked;
 #endif	
-} *iflist = NULL;
+} *iflist = NULL, *ifend = NULL;
 
 #ifdef ZAPATA_PRI
 static inline int pri_grab(struct zt_pvt *pvt, struct zt_pri *pri)
@@ -1433,8 +1434,16 @@ static int destroy_channel(struct zt_pvt *prev, struct zt_pvt *cur, int now)
 		if (!owned) {
 			if (prev) {
 				prev->next = cur->next;
+				if (prev->next)
+					prev->next->prev = prev;
+				else
+					ifend = prev;
 			} else {
 				iflist = cur->next;
+				if (iflist)
+					iflist->prev = NULL;
+				else
+					ifend = NULL;
 			}
 			if (cur->subs[SUB_REAL].zfd > -1) {
 				zt_close(cur->subs[SUB_REAL].zfd);
@@ -1444,8 +1453,16 @@ static int destroy_channel(struct zt_pvt *prev, struct zt_pvt *cur, int now)
 	} else {
 		if (prev) {
 			prev->next = cur->next;
+			if (prev->next)
+				prev->next->prev = prev;
+			else
+				ifend = prev;
 		} else {
 			iflist = cur->next;
+			if (iflist)
+				iflist->prev = NULL;
+			else
+				ifend = NULL;
 		}
 		if (cur->subs[SUB_REAL].zfd > -1) {
 			zt_close(cur->subs[SUB_REAL].zfd);
@@ -4743,11 +4760,14 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		for (x=0;x<3;x++)
 			tmp->subs[x].zfd = -1;
 		tmp->next = tmp2;
-		if (!prev) {
+		if (!ifend) {
 			iflist = tmp;
+			tmp->prev = NULL;
 		} else {
-			prev->next = tmp;
+			ifend->next = tmp;
+			tmp->prev = ifend;
 		}
+		ifend = tmp;
 	}
 
 	if (tmp) {
@@ -5141,6 +5161,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 	char *s;
 	char opt=0;
 	int res=0, y=0;
+	int backwards = 0;
 	
 	/* We do signed linear */
 	oldformat = format;
@@ -5155,7 +5176,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 		ast_log(LOG_WARNING, "Channel requested with no data\n");
 		return NULL;
 	}
-	if (dest[0] == 'g') {
+	if (toupper(dest[0]) == 'G') {
 		/* Retrieve the group number */
 		char *stringp=NULL;
 		stringp=dest + 1;
@@ -5166,6 +5187,8 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 			return NULL;
 		}
 		groupmatch = 1 << x;
+		if (dest[0] == 'G')
+			backwards = 1;
 	} else {
 		char *stringp=NULL;
 		stringp=dest;
@@ -5185,7 +5208,10 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 		ast_log(LOG_ERROR, "Unable to lock interface list???\n");
 		return NULL;
 	}
-	p = iflist;
+	if (backwards)
+		p = ifend;
+	else
+		p = iflist;
 	while(p && !tmp) {
 		if (available(p, channelmatch, groupmatch)) {
 			if (option_debug)
@@ -5232,7 +5258,10 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 				tmp->cdrflags |= AST_CDR_CALLWAIT;
 			break;
 		}
-		p = p->next;
+		if (backwards)
+			p = p->prev;
+		else
+			p = p->next;
 	}
 	ast_pthread_mutex_unlock(&iflock);
 	restart_monitor();

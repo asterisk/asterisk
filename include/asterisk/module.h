@@ -140,6 +140,9 @@ int ast_loader_unregister(int (*updater)(void));
  */
 void ast_module_reload(void);
 
+int ast_register_atexit(void (*func)(void));
+void ast_unregister_atexit(void (*func)(void));
+
 /* Local user routines keep track of which channels are using a given module resource.
    They can help make removing modules safer, particularly if they're in use at the time
    they have been requested to be removed */

@@ -71,6 +71,12 @@ struct console {
 	pthread_t t;			/* Thread of handler */
 };
 
+static struct ast_atexit {
+	void (*func)(void);
+	struct ast_atexit *next;
+} *atexits = NULL;
+static pthread_mutex_t atexitslock = AST_MUTEX_INITIALIZER;
+
 time_t ast_startuptime;
 time_t ast_lastreloadtime;
 
@@ -98,6 +104,43 @@ char ast_config_AST_KEY_DIR[AST_CONFIG_MAX_PATH];
 char ast_config_AST_PID[AST_CONFIG_MAX_PATH];
 char ast_config_AST_SOCKET[AST_CONFIG_MAX_PATH];
 char ast_config_AST_RUN_DIR[AST_CONFIG_MAX_PATH];
+
+int ast_register_atexit(void (*func)(void))
+{
+	int res = -1;
+	struct ast_atexit *ae;
+	ast_unregister_atexit(func);
+	ae = malloc(sizeof(struct ast_atexit));
+	ast_pthread_mutex_lock(&atexitslock);
+	if (ae) {
+		memset(ae, 0, sizeof(struct ast_atexit));
+		ae->next = atexits;
+		ae->func = func;
+		atexits = ae;
+		res = 0;
+	}
+	ast_pthread_mutex_unlock(&atexitslock);
+	return res;
+}
+
+void ast_unregister_atexit(void (*func)(void))
+{
+	struct ast_atexit *ae, *prev = NULL;
+	ast_pthread_mutex_lock(&atexitslock);
+	ae = atexits;
+	while(ae) {
+		if (ae->func == func) {
+			if (prev)
+				prev->next = ae->next;
+			else
+				atexits = ae->next;
+			break;
+		}
+		prev = ae;
+		ae = ae->next;
+	}
+	ast_pthread_mutex_unlock(&atexitslock);
+}
 
 static int fdprint(int fd, const char *s)
 {
@@ -356,6 +399,19 @@ static char *_argv[256];
 
 static int shuttingdown = 0;
 
+static void ast_run_atexits(void)
+{
+	struct ast_atexit *ae;
+	ast_pthread_mutex_lock(&atexitslock);
+	ae = atexits;
+	while(ae) {
+		if (ae->func) 
+			ae->func();
+		ae = ae->next;
+	}
+	ast_pthread_mutex_unlock(&atexitslock);
+}
+
 static void quit_handler(int num, int nice, int safeshutdown, int restart)
 {
 	char filename[80] = "";
@@ -411,6 +467,9 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		if (el_hist != NULL)
 			history_end(el_hist);
 	}
+	if (option_verbose)
+		ast_verbose("Executing last minute cleanups\n");
+	ast_run_atexits();
 	/* Called on exit */
 	if (option_verbose && option_console)
 		ast_verbose("Asterisk %s ending (%d).\n", ast_active_channels() ? "uncleanly" : "cleanly", num);
@@ -437,8 +496,8 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		if (option_verbose || option_console)
 			ast_verbose("Restarting Asterisk NOW...\n");
 		execvp(_argv[0], _argv);
-	} else
-		exit(0);
+	}
+	exit(0);
 }
 
 static void __quit_handler(int num)
