@@ -3266,7 +3266,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	add_header(&req, "Expires", tmp);
 	add_header(&req, "Contact", p->our_contact);
 	add_header(&req, "Event", "registration");
-	add_header(&req, "Content-length", "0");
+	add_header(&req, "Content-Length", "0");
 	add_blank_header(&req);
 	copy_request(&p->initreq, &req);
 	parse(&p->initreq);
