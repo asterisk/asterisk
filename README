@@ -48,9 +48,10 @@ as well.
 First, be sure you've got supported hardware.  To use Asterisk right now,
 you will need one of the following:
 
-	* Adtran Atlas 800 Plus
-	* QuickNet Internet PhoneJack
+	* All Wildcard (tm) products from LSS (www.linux-support.net)
+	* QuickNet Internet PhoneJack and LineJack (http://www.quicknet.net)
 	* Full Duplex Sound Card supported by Linux
+	* Adtran Atlas 800 Plus
 	* ISDN4Linux compatible ISDN card
 	* Tormenta Dual T1 card (www.bsdtelephony.com.mx)
 
