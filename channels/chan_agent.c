@@ -264,6 +264,8 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 	if (!f) {
 		/* If there's a channel, hang it up  (if it's on a callback) make it NULL */
 		if (p->chan) {
+			/* Note that we don't hangup if it's not a callback because Asterisk will do it
+			   for us when the PBX instance that called login finishes */
 			if (strlen(p->loginchan))
 				ast_hangup(p->chan);
 			p->chan = NULL;
@@ -500,12 +502,14 @@ static int agent_hangup(struct ast_channel *ast)
 		p->abouttograb = 0;
 	} else if (p->dead) {
 		free(p);
-	} else if (p->chan) {
-		/* Not dead -- check availability now */
-		ast_mutex_lock(&p->lock);
-		/* Store last disconnect time */
-		gettimeofday(&p->lastdisc, NULL);
-		ast_mutex_unlock(&p->lock);
+	} else {
+		if (p->chan) {
+			/* Not dead -- check availability now */
+			ast_mutex_lock(&p->lock);
+			/* Store last disconnect time */
+			gettimeofday(&p->lastdisc, NULL);
+			ast_mutex_unlock(&p->lock);
+		}
 		/* Release ownership of the agent to other threads (presumably running the login app). */
 		ast_mutex_unlock(&p->app_lock);
 	}
