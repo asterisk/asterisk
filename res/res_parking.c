@@ -162,11 +162,11 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
                                 "Exten: %d\r\n"
                                 "Channel: %s\r\n"
                                 "From: %s\r\n"
-                                "Timeout: %d\r\n"
+                                "Timeout: %ld\r\n"
                                 "CallerID: %s\r\n"
                                 "\r\n"
                                 ,pu->parkingnum, pu->chan->name, peer->name
-                                ,pu->start.tv_sec + (pu->parkingtime/1000) - time(NULL)
+                                ,(long)pu->start.tv_sec + (long)(pu->parkingtime/1000) - (long)time(NULL)
                                 ,(pu->chan->callerid ? pu->chan->callerid : "")
                                 );
 
@@ -620,7 +620,7 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 {
 	struct parkeduser *cur;
 
-	astman_send_ack(s, "Parked calls will follow");
+	astman_send_ack(s, m, "Parked calls will follow");
 
         ast_mutex_lock(&parking_lock);
 
@@ -629,11 +629,11 @@ static int manager_parking_status( struct mansession *s, struct message *m )
                 ast_cli(s->fd, "Event: ParkedCall\r\n"
 			"Exten: %d\r\n"
 			"Channel: %s\r\n"
-			"Timeout: %d\r\n"
+			"Timeout: %ld\r\n"
 			"CallerID: %s\r\n"
 			"\r\n"
                         ,cur->parkingnum, cur->chan->name
-                        ,cur->start.tv_sec + (cur->parkingtime/1000) - time(NULL)
+                        ,(long)cur->start.tv_sec + (long)(cur->parkingtime/1000) - (long)time(NULL)
 			,(cur->chan->callerid ? cur->chan->callerid : "")
 			);
 
@@ -698,10 +698,10 @@ int load_module(void)
 		ast_add_extension2(con, 1, exten, 1, NULL, parkedcall, strdup(exten), free, registrar);
 	}
 	pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
+	res = ast_register_application(parkedcall, park_exec, synopsis, descrip);
 	if (!res) {
 		ast_manager_register( "ParkedCalls", 0, manager_parking_status, "List parked calls" );
 	}
-	res = ast_register_application(parkedcall, park_exec, synopsis, descrip);
 	return res;
 }
 
