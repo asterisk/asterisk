@@ -458,13 +458,13 @@ static int oss_call(struct ast_channel *c, char *dest, int timeout)
 		ast_verbose( " << Auto-answered >> \n" );
 		f.frametype = AST_FRAME_CONTROL;
 		f.subclass = AST_CONTROL_ANSWER;
-		ast_queue_frame(c, &f, 0);
+		ast_queue_frame(c, &f);
 	} else {
 		nosound = 1;
 		ast_verbose( " << Type 'answer' to answer, or use 'autoanswer' for future calls >> \n");
 		f.frametype = AST_FRAME_CONTROL;
 		f.subclass = AST_CONTROL_RINGING;
-		ast_queue_frame(c, &f, 0);
+		ast_queue_frame(c, &f);
 		write(sndcmd[1], &res, sizeof(res));
 	}
 	return 0;
@@ -806,7 +806,7 @@ static int console_answer(int fd, int argc, char *argv[])
 	}
 	hookstate = 1;
 	cursound = -1;
-	ast_queue_frame(oss.owner, &f, 1);
+	ast_queue_frame(oss.owner, &f);
 	answer_sound();
 	return RESULT_SUCCESS;
 }
@@ -838,7 +838,7 @@ static int console_sendtext(int fd, int argc, char *argv[])
 		f.subclass = 0;
 		f.data = text2send;
 		f.datalen = strlen(text2send);
-		ast_queue_frame(oss.owner, &f, 1);
+		ast_queue_frame(oss.owner, &f);
 	}
 	return RESULT_SUCCESS;
 }
@@ -858,7 +858,7 @@ static int console_hangup(int fd, int argc, char *argv[])
 	}
 	hookstate = 0;
 	if (oss.owner) {
-		ast_queue_hangup(oss.owner, 1);
+		ast_queue_hangup(oss.owner);
 	}
 	return RESULT_SUCCESS;
 }
@@ -880,7 +880,7 @@ static int console_dial(int fd, int argc, char *argv[])
 		if (argc == 2) {
 			for (x=0;x<strlen(argv[1]);x++) {
 				f.subclass = argv[1][x];
-				ast_queue_frame(oss.owner, &f, 1);
+				ast_queue_frame(oss.owner, &f);
 			}
 		} else {
 			ast_cli(fd, "You're already in a call.  You can use this only to dial digits until you hangup\n");
@@ -932,7 +932,7 @@ static int console_transfer(int fd, int argc, char *argv[])
 		if (ast_exists_extension(oss.owner->bridge, context, tmp, 1, oss.owner->bridge->callerid)) {
 			ast_cli(fd, "Whee, transferring %s to %s@%s.\n", 
 					oss.owner->bridge->name, tmp, context);
-			if (ast_async_goto(oss.owner->bridge, context, tmp, 1, 1))
+			if (ast_async_goto(oss.owner->bridge, context, tmp, 1))
 				ast_cli(fd, "Failed to transfer :(\n");
 		} else {
 			ast_cli(fd, "No such extension exists\n");
