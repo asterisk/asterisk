@@ -8001,6 +8001,16 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			p->pendinginvite = seqno;
 			copy_request(&p->initreq, req);
 			check_via(p, req);
+			if (p->owner) {
+				/* Handle SDP here if we already have an owner */
+				if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
+					if (process_sdp(p, req))
+						return -1;
+				} else {
+					p->jointcapability = p->capability;
+					ast_log(LOG_DEBUG, "Hm....  No sdp for the moment\n");
+				}
+			}
 		} else if (debug)
 			ast_verbose("Ignoring this request\n");
 		if (!p->lastinvite && !ignore && !p->owner) {
