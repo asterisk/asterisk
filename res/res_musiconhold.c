@@ -574,13 +574,22 @@ static void load_moh_classes(void)
 static void ast_moh_destroy(void)
 {
 	struct mohclass *moh;
+	char buff[8192];
+	int bytes, tbytes, stime = 0;
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Destroying any remaining musiconhold processes\n");
 	ast_pthread_mutex_lock(&moh_lock);
 	moh = mohclasses;
 	while(moh) {
 		if (moh->pid) {
-			kill(moh->pid, SIGKILL);
+			ast_log(LOG_DEBUG, "killing %d!\n", moh->pid);
+			stime = time(NULL);
+			kill(moh->pid, SIGABRT);
+			while (bytes = read(moh->srcfd, buff, 8192) && time(NULL) < stime + 5) {
+				tbytes = tbytes + bytes;
+			}
+			ast_log(LOG_DEBUG, "mpg123 pid %d and child died after %d bytes read\n", moh->pid, tbytes);
+			close(moh->srcfd);
 			moh->pid = 0;
 			}
 		moh = moh->next;
