@@ -676,18 +676,18 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 							free(sfmt[x]);
 						}
 						
+						sildet = ast_dsp_new(); //Create the silence detector
 						if (silence > 0) {
-								rfmt = chan->readformat;
-								res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
-								if (res < 0) {
-										ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
-										return -1;
-								}
-							sildet = ast_dsp_new();
-								if (!sildet) {
-										ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
-										return -1;
-								}
+							rfmt = chan->readformat;
+							res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
+							if (res < 0) {
+								ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+								return -1;
+							}
+							if (!sildet) {
+								ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
+								return -1;
+							}
 							ast_dsp_set_threshold(sildet, 50);
 						}
 						
