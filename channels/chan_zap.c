@@ -199,6 +199,15 @@ static int adsi = 0;
 
 static int numbufs = 4;
 
+static int cur_prewink = -1;
+static int cur_preflash = -1;
+static int cur_wink = -1;
+static int cur_flash = -1;
+static int cur_start = -1;
+static int cur_rxwink = -1;
+static int cur_rxflash = -1;
+static int cur_debounce = -1;
+
 #ifdef ZAPATA_PRI
 static int minunused = 2;
 static int minidle = 0;
@@ -5484,26 +5493,40 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 			(signalling == SIG_SF_FEATD) || (signalling == SIG_SF_FEATDMF) ||
 			  (signalling == SIG_SF_FEATB)) {
 			p.starttime = 250;
-			res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_SET_PARAMS, &p);
-			if (res < 0) {
-				ast_log(LOG_ERROR, "Unable to set parameters\n");
-				free(tmp);
-				return NULL;
-			}
-		}
-		if (radio)
-		{
+		} else if (radio) {
+			/* XXX Waiting to hear back from Jim if these should be adjustable XXX */
 			p.channo = channel;
 			p.rxwinktime = 1;
 			p.rxflashtime = 1;
 			p.starttime = 1;
 			p.debouncetime = 5;
-			res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_SET_PARAMS, &p);
-			if (res < 0) {
-				ast_log(LOG_ERROR, "Unable to set parameters\n");
-				free(tmp);
-				return NULL;
-			}
+		}
+		if (!radio) {
+			p.channo = channel;
+			/* Override timing settings based on config file */
+			if (cur_prewink >= 0)
+				p.prewinktime = cur_prewink;
+			if (cur_preflash >= 0)
+				p.preflashtime = cur_preflash;
+			if (cur_wink >= 0)
+				p.winktime = cur_wink;
+			if (cur_flash >= 0)
+				p.flashtime = cur_flash;
+			if (cur_start >= 0)
+				p.starttime = cur_start;
+			if (cur_rxwink >= 0)
+				p.rxwinktime = cur_rxwink;
+			if (cur_rxflash >= 0)
+				p.rxflashtime = cur_rxflash;
+			if (cur_debounce >= 0)
+				p.debouncetime = cur_debounce;
+		}
+
+		res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_SET_PARAMS, &p);
+		if (res < 0) {
+			ast_log(LOG_ERROR, "Unable to set parameters\n");
+			free(tmp);
+			return NULL;
 		}
 #if 1
 		if (!here && (tmp->subs[SUB_REAL].zfd > -1)) {
@@ -7794,6 +7817,22 @@ static int setup_zap(void)
 					}
 				}
 			}
+		} else if (!strcasecmp(v->name, "prewink")) {
+			cur_prewink = atoi(v->value);
+		} else if (!strcasecmp(v->name, "preflash")) {
+			cur_preflash = atoi(v->value);
+		} else if (!strcasecmp(v->name, "wink")) {
+			cur_wink = atoi(v->value);
+		} else if (!strcasecmp(v->name, "flash")) {
+			cur_flash = atoi(v->value);
+		} else if (!strcasecmp(v->name, "start")) {
+			cur_start = atoi(v->value);
+		} else if (!strcasecmp(v->name, "rxwink")) {
+			cur_rxwink = atoi(v->value);
+		} else if (!strcasecmp(v->name, "rxflash")) {
+			cur_rxflash = atoi(v->value);
+		} else if (!strcasecmp(v->name, "debounce")) {
+			cur_debounce = atoi(v->value);
 		} else
 			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 		v = v->next;
