@@ -1105,7 +1105,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	rtpheader[1] = htonl(rtp->lastts);
 	rtpheader[2] = htonl(rtp->ssrc); 
 	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
-	for (x=0;x<4;x++) {
+	for (x=0;x<6;x++) {
 		if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
 			res = sendto(rtp->s, (void *)rtpheader, hdrlen + 4, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
 			if (res <0) 
@@ -1115,14 +1115,14 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 						, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastts,res - hdrlen);		   
 		   
 		}
-		if (x ==0) {
+		if (x == 2) {
 			/* Clear marker bit and increment seqno */
 			rtpheader[0] = htonl((2 << 30)  | (payload << 16) | (rtp->seqno++));
 			/* Make duration 800 (100ms) */
 			rtpheader[3] |= htonl((800));
 			/* Set the End bit for the last 3 */
 			rtpheader[3] |= htonl((1 << 23));
-		} else if ( x < 3) {
+		} else if ( x < 5) {
 			rtpheader[0] = htonl((2 << 30) | (payload << 16) | (rtp->seqno++));
 		}
 	}
