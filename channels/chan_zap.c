@@ -2226,13 +2226,19 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	/* if need DTMF, cant native bridge */
 	if (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))
 		return -2;
-	p0 = c0->pvt->pvt;
-	p1 = c1->pvt->pvt;
-	/* cant do pseudo-channels here */
-	if ((!p0->sig) || (!p1->sig)) return -2;
 		
 	ast_mutex_lock(&c0->lock);
 	ast_mutex_lock(&c1->lock);
+
+	p0 = c0->pvt->pvt;
+	p1 = c1->pvt->pvt;
+	/* cant do pseudo-channels here */
+	if (!p0 || (!p0->sig) || !p1 || (!p1->sig)) {
+		ast_mutex_unlock(&c0->lock);
+		ast_mutex_unlock(&c1->lock);
+		return -2;
+	}
+
 	op0 = p0 = c0->pvt->pvt;
 	op1 = p1 = c1->pvt->pvt;
 	ofd1 = c0->fds[0];
