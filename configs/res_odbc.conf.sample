@@ -1,0 +1,20 @@
+;;; odbc setup file 
+
+[mysql1]
+dsn => MySQL-asterisk
+username => myuser
+password => mypass
+pre-connect => yes
+
+
+[mysql2]
+dsn => MySQL-asterisk
+username => myuser
+password => mypass
+pre-connect => yes
+
+
+
+
+
+

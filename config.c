@@ -18,41 +18,26 @@
 #include <errno.h>
 #include <time.h>
 #include <asterisk/config.h>
+#include <asterisk/config_pvt.h>
+#include <asterisk/cli.h>
+#include <asterisk/lock.h>
 #include <asterisk/options.h>
 #include <asterisk/logger.h>
 #include <asterisk/utils.h>
 #include "asterisk.h"
 #include "astconf.h"
 
-#define MAX_INCLUDE_LEVEL 10
 
-struct ast_category {
-	char name[80];
-	struct ast_variable *root;
-	struct ast_category *next;
-#ifdef PRESERVE_COMMENTS
-	struct ast_comment *precomments;
-	struct ast_comment *sameline;
-#endif	
-};
-
-struct ast_config {
-	/* Maybe this structure isn't necessary but we'll keep it
-	   for now */
-	struct ast_category *root;
-	struct ast_category *prev;
-#ifdef PRESERVE_COMMENTS
-	struct ast_comment *trailingcomments;
-#endif	
-};
-
-#ifdef PRESERVE_COMMENTS
-struct ast_comment_struct
-{
-	struct ast_comment *root;
-	struct ast_comment *prev;
-};
+static int ast_cust_config=0;
+struct ast_config *(*global_load_func)(char *, struct ast_config *,struct ast_category **,struct ast_variable **,int
+#ifdef PRESERVE_COMMENTS                                                                                                                                     
+,struct ast_comment_struct *
 #endif
+);
+
+AST_MUTEX_DEFINE_STATIC(ast_cust_config_lock);
+static struct ast_config_reg *ast_cust_config_list;
+static char *config_conf_file = "extconfig.conf";
 
 static char *strip(char *buf)
 {
@@ -454,6 +439,14 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 {
 	char *c;
 	char *cur;
+	char *arg=NULL;
+	struct ast_config_reg *reg=NULL;
+    struct ast_config *(*load_func)(char *, struct ast_config *,struct ast_category **,struct ast_variable **,int
+#ifdef PRESERVE_COMMENTS
+,struct ast_comment_struct *
+#endif
+);
+	
 	struct ast_variable *v;
 #ifdef PRESERVE_COMMENTS
 	struct ast_comment *com = NULL;
@@ -533,18 +526,45 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 						else
 							break;
 					}
+					
+					if((c = strchr(cur,':'))) {
+						*c = '\0';
+						*c++;
+						arg = c;
+					}
+					
 					if (includelevel < MAX_INCLUDE_LEVEL) {
-						__ast_load(cur, tmp, _tmpc, _last, includelevel + 1
+						if(arg && cur) {
+							load_func = NULL;
+							if(ast_cust_config_list)
+								reg = get_ast_cust_config(cur);
+							if(reg && reg->func)
+								load_func = reg->func;
+							if(load_func) { 
+								ast_log(LOG_NOTICE,"External Include '%s' via '%s' config engine\n",arg,cur);
+								load_func(configfile,tmp, _tmpc, _last, includelevel
 #ifdef PRESERVE_COMMENTS
-						,acs
+										  ,&acs
 #endif
-						);
-					} else 
+										  );
+							}
+							else 
+								ast_log(LOG_WARNING,"Cant Find Registered Config Engine [%s] for [%s]\n",cur,arg);
+						}
+						else {
+							__ast_load(cur, tmp, _tmpc, _last, includelevel + 1
+#ifdef PRESERVE_COMMENTS
+									   ,acs
+#endif
+									   );
+						}
+					} else
 						ast_log(LOG_WARNING, "Maximum Include level (%d) exceeded\n", includelevel);
 				} else
 					ast_log(LOG_WARNING, "Directive '#include' needs an argument (filename) at line %d of %s\n", lineno, configfile);
 				/* Strip off leading and trailing "'s and <>'s */
-			} else 
+			}
+			else 
 				ast_log(LOG_WARNING, "Unknown directive '%s' at line %d of %s\n", cur, lineno, configfile);
 		} else {
 			/* Just a line (variable = value) */
@@ -712,6 +732,44 @@ static struct ast_config *__ast_load(char *configfile, struct ast_config *tmp, s
 	FILE *f;
 	int lineno=0;
 	int master=0;
+	struct ast_config_reg *reg=NULL;
+	struct ast_config *(*load_func)(char *, struct ast_config *,struct ast_category **,struct ast_variable **,int
+#ifdef PRESERVE_COMMENTS
+,struct ast_comment_struct *
+#endif
+);
+
+
+	load_func=NULL;
+	if(strcmp(configfile,config_conf_file) && strcmp(configfile,"asterisk.conf") && ast_cust_config_list) {
+	  if(global_load_func)
+	    load_func = global_load_func;
+	  else {
+	    reg = get_ast_cust_config_keyword(configfile);
+	    if(reg && reg->func)
+	      load_func = reg->func;
+	    else {
+	      reg = get_ast_cust_config_keyword("global");
+	      if(reg && reg->func)
+		global_load_func = load_func = reg->func;
+	    }
+	  }
+	  
+	  if(load_func) {
+	    ast_log(LOG_NOTICE,"Loading Config %s via %s engine\n",configfile,reg && reg->name ? reg->name : "global");
+	    tmp = load_func(configfile,tmp, _tmpc, _last, includelevel
+#ifdef PRESERVE_COMMENTS
+,&acs
+#endif
+);
+	    
+	    if(tmp)
+	      return tmp;
+	  }
+	}
+
+
+
 
 	if (configfile[0] == '/') {
 		strncpy(fn, configfile, sizeof(fn)-1);
@@ -770,13 +828,97 @@ static struct ast_config *__ast_load(char *configfile, struct ast_config *tmp, s
 	return tmp;
 }
 
+struct ast_config_reg *get_ast_cust_config_keyword(char *name) {
+	struct ast_config_reg *reg,*ret=NULL;
+	int x=0;
+	ast_mutex_lock(&ast_cust_config_lock);
+	for(reg=ast_cust_config_list;reg && !ret;reg=reg->next)
+		for(x=0;x<reg->keycount && !ret ;x++) 
+			if(!strcmp(reg->keywords[x],name))
+				ret=reg;
+	ast_mutex_unlock(&ast_cust_config_lock);
+	return ret;
+}
+
+struct ast_config_reg *get_ast_cust_config(char *name) {
+	struct ast_config_reg *ptr=NULL;
+	ast_mutex_lock(&ast_cust_config_lock);
+	for(ptr=ast_cust_config_list;ptr;ptr=ptr->next) {
+		if(!strcmp(name,ptr->name))
+			break;
+	}
+	ast_mutex_unlock(&ast_cust_config_lock);
+	return ptr;
+}
+
+void ast_config_destroy_all(void) {
+	struct ast_config_reg *key;
+	ast_mutex_lock(&ast_cust_config_lock);
+	for(key=ast_cust_config_list;key;key=key->next) {
+		ast_config_deregister(key);
+	}
+	ast_cust_config_list = NULL;
+	ast_mutex_unlock(&ast_cust_config_lock);
+}
+
+struct ast_config_reg *get_config_registrations(void) {
+	return ast_cust_config_list;
+}
+
+int ast_config_register(struct ast_config_reg *new) {
+	struct ast_config_reg *ptr;
+	ast_mutex_lock(&ast_cust_config_lock);
+	new->keycount = 0;
+	if(!ast_cust_config_list)
+		ast_cust_config_list = new;
+	else {
+		for(ptr=ast_cust_config_list;ptr->next;ptr=ptr->next);
+		ptr->next = new;
+	}
+	ast_mutex_unlock(&ast_cust_config_lock);
+	ast_log(LOG_NOTICE,"Registered Config Engine %s\n",new->name);
+	return 1;
+}
+
+int ast_config_deregister(struct ast_config_reg *del) {
+  struct ast_config_reg *ptr=NULL,*last=NULL;
+  ast_mutex_lock(&ast_cust_config_lock);
+  for(ptr=ast_cust_config_list;ptr;ptr=ptr->next) {
+	  if(ptr == del) {
+		  if(last && ptr->next) {
+			  last->next = ptr->next;
+		  }
+		  else if(last && ! ptr->next) {
+			  last->next = NULL;
+		  }
+		  else if(! last && ptr->next) {
+			  ast_cust_config_list = ptr->next;
+		  }
+		  else if(! last && ! ptr->next) {
+			  ast_cust_config_list = NULL;
+		  }
+	  }
+	  last = ptr;
+  }
+  ast_mutex_unlock(&ast_cust_config_lock);
+  return 0;
+}
+
+int ast_cust_config_active(void) {
+	return (ast_cust_config >0) ? 1 : 0;
+}
+
 struct ast_config *ast_load(char *configfile)
 {
 	struct ast_category *tmpc=NULL;
 	struct ast_variable *last = NULL;
+
+
 #ifdef PRESERVE_COMMENTS
 	struct ast_comment_struct acs = { NULL, NULL };
 #endif	
+
+
 	return __ast_load(configfile, NULL, &tmpc, &last, 0 
 #ifdef PRESERVE_COMMENTS
 	,&acs
@@ -814,4 +956,140 @@ char *ast_category_browse(struct ast_config *config, char *prev)
 		cat = cat->next;
 	}
 	return NULL;
+}
+
+
+struct ast_config *ast_new_config(void) {
+	struct ast_config *config;
+	config = malloc(sizeof(struct ast_config));
+	memset(config,0,sizeof(struct ast_config));
+	return config;
+}
+
+
+
+struct ast_category *ast_new_category(char *name) {
+	struct ast_category *category;
+	category = malloc(sizeof(struct ast_category));
+	if(category) {
+		memset(category,0,sizeof(struct ast_category));
+		strncpy(category->name,name,sizeof(category->name));
+	}
+	return category;
+}
+
+
+struct ast_variable *ast_new_variable(char *name,char *value) {
+	struct ast_variable *variable;
+	variable = malloc(sizeof(struct ast_variable));
+	if(variable) {
+		memset(variable,0,sizeof(struct ast_variable));
+		variable->object=0;
+		variable->name = malloc(strlen(name)+1);
+		if(variable->name) {
+			strcpy(variable->name,name);
+			variable->value = malloc(strlen(value)+1);
+			if(variable->value) {
+				strcpy(variable->value,value);
+			}
+			else {
+				free(variable->name);
+				variable->name = NULL;
+			}
+		}
+	}
+	if(!variable->value) {
+		free(variable);
+		variable = NULL;
+	}
+		
+	return variable;
+}
+
+int ast_cust_config_register(struct ast_config_reg *new) {
+	ast_config_register(new);
+	read_ast_cust_config();
+	return 1;
+}
+int ast_cust_config_deregister(struct ast_config_reg *new) {
+	ast_config_deregister(new);
+	read_ast_cust_config();
+	return 1;
+}
+
+static void clear_cust_keywords(void) {
+	struct ast_config_reg *key;
+	int x;
+	ast_mutex_lock(&ast_cust_config_lock);
+	for(key=get_config_registrations();key;key=key->next) {
+		for(x=0;x<key->keycount;x++) {
+			key->keywords[x][0] = '\0';
+		}
+		key->keycount=0;
+	}
+	ast_mutex_unlock(&ast_cust_config_lock);
+}
+
+static int config_command(int fd, int argc, char **argv) {
+	struct ast_config_reg *key;
+	int x;
+	
+	ast_cli(fd,"\n\n");
+	ast_mutex_lock(&ast_cust_config_lock);
+	for(key=get_config_registrations();key;key=key->next) {
+		ast_cli(fd,"\nConfig Engine: %s\n",key->name);
+		for(x=0;x<key->keycount;x++)
+			ast_cli(fd,"===>%s\n",key->keywords[x]);
+	}
+	ast_mutex_unlock(&ast_cust_config_lock);
+	ast_cli(fd,"\n\n");
+	
+  return 0;
+}
+
+static struct ast_cli_entry config_command_struct = {
+  { "show","config","handles", NULL }, config_command,
+  "Show Config Handles", NULL };
+
+int register_config_cli() {
+	return ast_cli_register(&config_command_struct);
+}
+
+int read_ast_cust_config(void) {
+	char *cfg = config_conf_file;
+	struct ast_config *config;
+	struct ast_variable *v;
+	struct ast_config_reg *ptr;
+	struct ast_config_reg *test = NULL;
+	clear_cust_keywords();
+	config = ast_load(cfg);
+	if(config) {
+		for(v = ast_variable_browse(config,"settings");v;v=v->next) {
+			
+			ptr = get_ast_cust_config(v->value);
+			if(ptr) {
+				if(ptr->keycount >= CONFIG_KEYWORD_ARRAYLEN) {
+					ast_log(LOG_WARNING,"Max Number of Bindings exceeded for %s->%s %d/%d\n",v->name,v->value,ptr->keycount,CONFIG_KEYWORD_ARRAYLEN);
+				}
+				else {
+					if(strcmp(v->name,config_conf_file) && strcmp(v->name,"asterisk.conf")) {
+						if(!(test = get_ast_cust_config_keyword(v->name))) {
+							ast_log(LOG_NOTICE,"Binding: %s to %s\n",v->name,v->value);
+							strncpy(ptr->keywords[ptr->keycount],v->name,sizeof(ptr->keywords[ptr->keycount]));
+							ptr->keycount++;
+						}
+					}
+					else {
+						ast_log(LOG_WARNING,"Cannot bind %s, Permission Denied\n",v->name);
+					}
+				}
+			}
+		}
+		
+		ast_destroy(config);
+	}
+	else 
+		ast_log(LOG_WARNING,"config loader has no config file so nevermind.\n");
+	
+	return 0;
 }

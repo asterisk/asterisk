@@ -1,0 +1,6 @@
+[settings]
+
+;uncomment to load queues.conf via the db engine.
+;queues.conf => config_odbc
+
+

@@ -12,6 +12,8 @@
 #
 
 MODS=res_adsi.so res_parking.so res_crypto.so res_musiconhold.so res_indications.so res_monitor.so
+MODS+=$(shell if [ -f "/usr/include/odbcinst.h" ]; then echo "res_odbc.so res_config_odbc.so"; fi)
+MODS+=$(shell if [ -f "/usr/local/include/odbcinst.h" ]; then echo "res_odbc.so res_config_odbc.so"; fi)
 
 CRYPTO_LIBS=-lssl -lcrypto
 
@@ -33,6 +35,9 @@ res_crypto.so: res_crypto.o
 
 clean:
 	rm -f *.so *.o .depend
+
+res_odbc.so: res_odbc.o
+	$(CC) $(SOLINK) -o $@ $< -lodbc
 
 %.so : %.o
 	$(CC) $(SOLINK) -o $@ $<

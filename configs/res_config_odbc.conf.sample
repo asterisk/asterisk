@@ -1,0 +1,3 @@
+[settings]
+table => ast_config
+connection => mysql1

@@ -19,6 +19,7 @@
 #include <asterisk/module.h>
 #include <asterisk/options.h>
 #include <asterisk/config.h>
+#include <asterisk/config_pvt.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
 #include <asterisk/term.h>
@@ -156,6 +157,7 @@ void ast_module_reload(void)
 		ast_verbose("The previous reload command didn't finish yet\n");
 		return;
 	}
+	read_ast_cust_config();
 	reload_manager();
 	ast_enum_reload();
 	ast_rtp_reload();

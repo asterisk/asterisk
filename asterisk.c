@@ -48,6 +48,7 @@
 #include "editline/histedit.h"
 #include "asterisk.h"
 #include <asterisk/config.h>
+#include <asterisk/config_pvt.h>
 
 #if  defined(__FreeBSD__)
 #include <netdb.h>
@@ -1555,6 +1556,13 @@ int main(int argc, char *argv[])
 	if (option_console && !option_verbose) 
 		ast_verbose("[ Reading Master Configuration ]");
 	ast_readconfig();
+
+	if (option_console && !option_verbose) 
+		ast_verbose("[ Initializing Custom Configuration Options]");
+	/* custom config setup */
+	register_config_cli();
+	read_ast_cust_config();
+	
 
 	if (option_console) {
                 if (el_hist == NULL || el == NULL)
