@@ -1571,7 +1571,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		if ((c0->pvt->pvt != pvt0)  ||
 			(c1->pvt->pvt != pvt1) ||
 			(c0->masq || c0->masqr || c1->masq || c1->masqr)) {
-				ast_log(LOG_WARNING, "Oooh, something is weird, backing out\n");
+				ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
 				if (c0->pvt->pvt == pvt0) {
 					if (pr0->set_rtp_peer(c0, NULL, NULL, 0)) 
 						ast_log(LOG_WARNING, "Channel '%s' failed to revert\n", c0->name);
