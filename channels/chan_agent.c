@@ -354,7 +354,7 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 			p->acknowledged = 0;
 		}
 	}
-	if (f && (f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_ANSWER)) {
+	if ((p->chan && (p->chan->_state != AST_STATE_UP)) && f && (f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_ANSWER)) {
 /* TC */
 		if (p->ackcall) {
 			if (option_verbose > 2)
