@@ -4204,7 +4204,14 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 		}
 		/* Find address to hostname */
 		if (create_addr(p,r->hostname)) {
+			/* we have what we hope is a temporary network error,
+			 * probably DNS.  We need to reschedule a registration try */
 			sip_destroy(p);
+			if (r->timeout > -1) {
+				ast_log(LOG_WARNING, "Still have a registration timeout (create_addr() error), %d\n", r->timeout);
+				ast_sched_del(sched, r->timeout);
+			}
+			r->timeout = ast_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
 			return 0;
 		}
 
