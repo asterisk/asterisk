@@ -1741,7 +1741,7 @@ static void add_route(struct sip_request *req, struct sip_route *route)
 
 static void set_destination(struct sip_pvt *p, char *uri)
 {
-	char *h, *maddr, hostname[256] = "";
+	char *h, *maddr, hostname[256];
 	int port, hn;
 	struct hostent *hp;
 
@@ -1751,16 +1751,22 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	if (sipdebug)
 		ast_verbose("set_destination: Parsing <%s> for address/port to send to\n", uri);
 
+	/* Find and parse hostname */
 	h = strchr(uri, '@');
-	if (!h) {
-		ast_log(LOG_WARNING, "set_destination: Can't parse sip URI '%s'\n", uri);
-		return;
+	if (h)
+		++h;
+	else {
+		h = uri;
+		if (strncmp(h, "sip:", 4) == 0)
+			h += 4;
+		else if (strncmp(h, "sips:", 5) == 0)
+			h += 5;
 	}
-	++h;
 	hn = strcspn(h, ":;>");
-	strncpy(hostname, h, (hn>255)?255:hn);
-	hostname[(hn > 255) ? 255 : hn] = '\0';
+	if (hn>255) hn=255;
+	strncpy(hostname, h, hn);  hostname[hn] = '\0';
 	h+=hn;
+
 	/* Is "port" present? if not default to 5060 */
 	if (*h == ':') {
 		/* Parse port */
@@ -1770,13 +1776,13 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	else
 		port = 5060;
 
-	/* Got the hostname:port - but maybe there's a ";maddr=" to override address? */
-	maddr = strstr(h, ";maddr=");
+	/* Got the hostname:port - but maybe there's a "maddr=" to override address? */
+	maddr = strstr(h, "maddr=");
 	if (maddr) {
-		maddr += 7;
+		maddr += 6;
 		hn = strspn(maddr, "0123456789.");
-		strncpy(hostname, maddr, (hn>255)?255:hn);
-		hostname[(hn > 255) ? 255 : hn] = '\0';
+		if (hn>255) hn=255;
+		strncpy(hostname, maddr, hn);  hostname[hn] = '\0';
 	}
 	
 	hp = gethostbyname(hostname);
@@ -1787,7 +1793,8 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	p->sa.sin_family = AF_INET;
 	memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
 	p->sa.sin_port = htons(port);
-	ast_verbose("set_destination: set destination to %s, port %d\n", inet_ntoa(p->sa.sin_addr), port);
+	if (sipdebug)
+		ast_verbose("set_destination: set destination to %s, port %d\n", inet_ntoa(p->sa.sin_addr), port);
 }
 
 static int init_resp(struct sip_request *req, char *resp, struct sip_request *orig)
@@ -2677,11 +2684,10 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 	}
 	/* We build up head, then assign it to p->route when we're done */
 	head = NULL;  tail = head;
-	/* 1st pass through all the hops in any Record-Route headers */
+	/* 1st we pass through all the hops in any Record-Route headers */
 	for (;;) {
 		/* Each Record-Route header */
 		rr = __get_header(req, "Record-Route", &start);
-		/*ast_verbose("Record-Route: %s\n", rr);*/
 		if (*rr == '\0') break;
 		for (;;) {
 			/* Each route entry */
@@ -2695,7 +2701,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 			if (thishop) {
 				strncpy(thishop->hop, rr, len);
 				thishop->hop[len] = '\0';
-				ast_verbose("build_route: Record-Route hop: <%s>\n", thishop->hop);
+				ast_log(LOG_DEBUG, "build_route: Record-Route hop: <%s>\n", thishop->hop);
 				/* Link in */
 				if (backwards) {
 					/* Link in at head so they end up in reverse order */
@@ -2732,14 +2738,16 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 			c = contact; len = strlen(contact);
 		}
 		thishop = (struct sip_route *)malloc(sizeof(struct sip_route)+len+1);
-		strncpy(thishop->hop, c, len);
-		thishop->hop[len] = '\0';
-		thishop->next = NULL;
-		/* Goes at the end */
-		if (tail)
-			tail->next = thishop;
-		else
-			head = thishop;
+		if (thishop) {
+			strncpy(thishop->hop, c, len);
+			thishop->hop[len] = '\0';
+			thishop->next = NULL;
+			/* Goes at the end */
+			if (tail)
+				tail->next = thishop;
+			else
+				head = thishop;
+		}
 	}
 	/* Store as new route */
 	p->route = head;

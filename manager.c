@@ -677,6 +677,13 @@ int ast_manager_unregister( char *action ) {
 	return 0;
 }
 
+static int manager_state_cb(char *context, char *exten, int state, void *data)
+{
+	/* Notify managers of change */
+	manager_event(EVENT_FLAG_CALL, "ExtensionStatus", "Exten: %s\r\nContext: %s\r\nStatus: %d\r\n", exten, context, state);
+	return 0;
+}
+
 int ast_manager_register( char *action, int auth, 
 	int (*func)(struct mansession *s, struct message *m), char *synopsis)
 {
@@ -731,6 +738,7 @@ int init_manager(void)
 
 		ast_cli_register(&show_mancmds_cli);
 		ast_cli_register(&show_manconn_cli);
+		ast_extension_state_add(NULL, NULL, manager_state_cb, NULL);
 		registered = 1;
 	}
 	portno = DEFAULT_MANAGER_PORT;
