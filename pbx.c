@@ -934,6 +934,9 @@ static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var
 	} else if (c && !strcmp(var, "PRIORITY")) {
 		snprintf(workspace, workspacelen, "%d", c->priority);
 		*ret = workspace;
+	} else if (c && !strcmp(var, "CALLINGPRES")) {
+		snprintf(workspace, workspacelen, "%d", c->callingpres);
+		*ret = workspace;
 	} else if (c && !strcmp(var, "CHANNEL")) {
 		strncpy(workspace, c->name, workspacelen - 1);
 		*ret = workspace;
