@@ -1116,7 +1116,7 @@ static void build_callid(char *callid, int len, struct in_addr ourip)
 	snprintf(callid, len, "@%s", inet_ntoa(ourip));
 }
 
-static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin)
+static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useglobalnat)
 {
 	struct sip_pvt *p;
 
@@ -1129,7 +1129,6 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin)
 	p->rtp = ast_rtp_new(NULL, NULL);
 	p->branch = rand();	
 	p->tag = rand();
-	p->nat = globalnat;
 	/* Start with 101 instead of 1 */
 	p->ocseq = 101;
 	if (!p->rtp) {
@@ -1138,6 +1137,12 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin)
 		return NULL;
 	}
 	ast_rtp_settos(p->rtp, tos);
+	if (useglobalnat && sin) {
+		/* Setup NAT structure according to global settings if we have an address */
+		p->nat = globalnat;
+		memcpy(&p->recv, sin, sizeof(p->recv));
+		ast_rtp_setnat(p->rtp, p->nat);
+	}
 	ast_pthread_mutex_init(&p->lock);
 #if 0
 	ast_rtp_set_data(p->rtp, p);
@@ -1199,7 +1204,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		p = p->next;
 	}
 	ast_pthread_mutex_unlock(&iflock);
-	return sip_alloc(callid, sin);
+	return sip_alloc(callid, sin, 1);
 }
 
 static int sip_register(char *value, int lineno)
@@ -2018,7 +2023,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 		  build_callid(r->callid, sizeof(r->callid), __ourip);
 		  r->callid_valid=1;
 		}
-		p=sip_alloc( r->callid, &r->addr );
+		p=sip_alloc( r->callid, &r->addr, 0);
 		p->outgoing = 1;
 		r->call=p;
 		p->registry=r;
@@ -2744,6 +2749,49 @@ static int sip_show_channels(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
+static char *complete_sipch(char *line, char *word, int pos, int state)
+{
+	int which=0;
+	struct sip_pvt *cur;
+	char *c = NULL;
+	ast_pthread_mutex_lock(&iflock);
+	cur = iflist;
+	while(cur) {
+		if (!strncasecmp(word, cur->callid, strlen(word))) {
+			if (++which > state) {
+				c = strdup(cur->callid);
+				break;
+			}
+		}
+		cur = cur->next;
+	}
+	ast_pthread_mutex_unlock(&iflock);
+	return c;
+}
+
+static int sip_show_channel(int fd, int argc, char *argv[])
+{
+	struct sip_pvt *cur;
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	ast_pthread_mutex_lock(&iflock);
+	cur = iflist;
+	while(cur) {
+		if (!strcasecmp(cur->callid, argv[3])) {
+			ast_cli(fd, "Call-ID: %s\n", cur->callid);
+			ast_cli(fd, "Theoretical Address: %s:%d\n", inet_ntoa(cur->sa.sin_addr), ntohs(cur->sa.sin_port));
+			ast_cli(fd, "Received Address:    %s:%d\n", inet_ntoa(cur->recv.sin_addr), ntohs(cur->recv.sin_port));
+			ast_cli(fd, "NAT Support:         %s\n", cur->nat ? "Yes" : "No");
+			break;
+		}
+		cur = cur->next;
+	}
+	ast_pthread_mutex_unlock(&iflock);
+	if (!cur) 
+		ast_cli(fd, "No such SIP Call ID '%s'\n", cur->callid);
+	return RESULT_SUCCESS;
+}
+
 static void receive_info(struct sip_pvt *p, struct sip_request *req)
 {
 	char buf[1024] = "";
@@ -2886,6 +2934,10 @@ static char show_channels_usage[] =
 "Usage: sip show channels\n"
 "       Lists all currently active SIP channels.\n";
 
+static char show_channel_usage[] = 
+"Usage: sip show channel <channel>\n"
+"       Provides detailed status on a given SIP channel.\n";
+
 static char show_peers_usage[] = 
 "Usage: sip show peers\n"
 "       Lists all known SIP peers.\n";
@@ -2905,7 +2957,9 @@ static char no_debug_usage[] =
 static struct ast_cli_entry  cli_show_users = 
 	{ { "sip", "show", "users", NULL }, sip_show_users, "Show defined SIP users", show_users_usage };
 static struct ast_cli_entry  cli_show_channels =
-	{ { "sip", "show", "channels", NULL }, sip_show_channels, "Show active SIP channels", show_channels_usage };
+	{ { "sip", "show", "channels", NULL }, sip_show_channels, "Show active SIP channels", show_channels_usage};
+static struct ast_cli_entry  cli_show_channel =
+	{ { "sip", "show", "channel", NULL }, sip_show_channel, "Show detailed SIP channel info", show_channel_usage, complete_sipch  };
 static struct ast_cli_entry  cli_show_peers =
 	{ { "sip", "show", "peers", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage };
 static struct ast_cli_entry  cli_show_registry =
@@ -3525,7 +3579,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 		return 0;
 	}
 	
-	p = sip_alloc(NULL, NULL);
+	p = sip_alloc(NULL, NULL, 0);
 	if (!p) {
 		ast_log(LOG_WARNING, "Unable to build sip pvt data for MWI\n");
 		ast_pthread_mutex_unlock(&peerl.lock);
@@ -3679,7 +3733,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 		ast_log(LOG_NOTICE, "Still have a call...\n");
 		sip_destroy(peer->call);
 	}
-	p = peer->call = sip_alloc(NULL, NULL);
+	p = peer->call = sip_alloc(NULL, NULL, 0);
 	if (!peer->call) {
 		ast_log(LOG_WARNING, "Unable to allocate call for poking peer '%s'\n", peer->name);
 		return -1;
@@ -3724,7 +3778,7 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format %d while capability is %d\n", oldformat, capability);
 		return NULL;
 	}
-	p = sip_alloc(NULL, NULL);
+	p = sip_alloc(NULL, NULL, 0);
 	if (!p) {
 		ast_log(LOG_WARNING, "Unable to build sip pvt data for '%s'\n", (char *)data);
 		return NULL;
@@ -4190,6 +4244,7 @@ int load_module()
 		}
 		ast_cli_register(&cli_show_users);
 		ast_cli_register(&cli_show_channels);
+		ast_cli_register(&cli_show_channel);
 		ast_cli_register(&cli_show_peers);
 		ast_cli_register(&cli_show_registry);
 		ast_cli_register(&cli_debug);
