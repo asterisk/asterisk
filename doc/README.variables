@@ -1,18 +1,37 @@
-GENERAL ENHANCEMENTS TO EXTENSION LOGIC : 
+EXTENSION LOGIC : 
 
-QUOTING: 
+There are two levels of parameter evaluation done in asterisk in 
+extensions.conf.
+The first, and most frequently used, is the substitution of variable
+references with their values. 
+
+Then there are the evaluations done in $[ .. ]. This will be
+discussed below.
+
+___________________________
+PARAMETER QUOTING: 
+---------------------------
 
 exten => s,5,BackGround,blabla
 
 The parameter (blabla) can be quoted ("blabla"). In this case, a 
-comma does not terminate the field. 
+comma does not terminate the field. However, the double quotes
+will be passed down to the Background command, in this example.
 
 Also, characters special to variable substitution, expression evaluation, etc
 (see below), can be quoted. For example, to literally use a $ on the 
 string "$1231", quote it with a preceding \. Special characters that must
 be quoted to be used, are [ ] $ " \. (to write \ itself, use \\). 
 
+These Double quotes and escapes are evaluated at the level of the
+asterisk config file parser. 
+
+Double quotes can also be used inside expressions, as discussed below.
+
+
+___________________________
 VARIABLES: 
+---------------------------
 
 Parameter strings can include variables. Variable names are arbitrary strings. 
 They are stored in the respective channel structure. 
@@ -64,15 +83,17 @@ value "blabla".
 In fact, everything contained ${here} is just replaced with the value of 
 the variable "here". 
 
+___________________________
 EXPRESSIONS: 
+---------------------------
 
 Everything contained inside a bracket pair prefixed by a $ (like $[this]) is 
 considered as an expression and it is evaluated. Evaluation works similar to 
 (but is done on a later stage than) variable substitution: the expression 
 (including the square brackets) is replaced by the result of the expression 
 evaluation. The arguments and operands of the expression MUST BE separated 
-with spaces (take care NOT to leave ANY spaces between opening and closing 
-square brackets and the first and last arguments). 
+by at least one space. 
+
 
 For example, after the sequence: 
 
@@ -81,6 +102,52 @@ exten => 1,2,SetVar,"koko=$[2 * ${lala}]";
 
 the value of variable koko is "6".
 
+And, further:
+
+exten => 1,1,SetVar,"lala=$[1+2]";
+
+will not work as you might have expected. Since all the chars in the single 
+token "1+2" are not numbers, it will be evaluated as the string "1+2". Again,
+please do not forget, that this is a very simple parsing engine, and it
+uses a space (at least one), to separate "tokens".
+
+and, further:
+
+exten => 1,1,SetVar,"lala=$[  1 +    2   ]";
+
+will parse as intended. Extra spaces are ignored.
+
+___________________________
+SPACES INSIDE VARIABLE
+---------------------------
+If the variable being evaluated contains spaces, there can be problems.
+
+For these cases, double quotes around text that may contain spaces
+will force the surrounded text to be evaluated as a single token.
+The double quotes will be counted as part of that lexical token.
+
+As an example:
+
+exten => s,6,GotoIf($[ "${CALLERIDNAME}" : "Privacy Manager" ]?callerid-liar|s|1:s|7)
+
+The variable CALLERIDNAME could evaluate to "DELOREAN MOTORS" (with a space)
+but the above will evaluate to:
+
+"DELOREAN MOTORS" : "Privacy Manager"
+
+and will evaluate to 0.
+
+The above without double quotes would have evaluated to:
+
+DELOREAN MOTORS : Privacy Manager
+
+and will result in syntax errors, because token DELOREAN is immediately
+followed by token MOTORS and the expression parser will not know how to 
+evaluate this expression.
+
+_____________________
+OPERATORS
+---------------------
 Operators are listed below in order of increasing precedence.  Operators
 with equal precedence are grouped within { } symbols.
 
@@ -124,7 +191,9 @@ Parentheses are used for grouping in the usual manner.
 The parser must be parsed with bison (bison is REQUIRED - yacc cannot 
 produce pure parsers, which are reentrant) 
 
+___________________________
 CONDITIONALS
+---------------------------
 
 There is one conditional operator - the conditional goto : 
 
@@ -147,4 +216,63 @@ exten => s,2,SetVar,"vara=1"
 exten => s,3,SetVar,"varb=$[${vara} + 2]"
 exten => s,4,SetVar,"varc=$[${varb} * 2]"
 exten => s,5,GotoIf,"$[${varc} = 6]?99|1:s|6";
+
+___________________________
+PARSE ERRORS
+---------------------------
+
+Syntax errors are now output with 3 lines.
+
+If the extensions.conf file contains a line like:
+
+exten => s,6,GotoIf($[ "${CALLERIDNUM}"  = "3071234567" & "${CALLERIDNAME}" : "Privacy Manager" ]?callerid-liar|s|1:s|7)
+
+You may see an error in /var/log/asterisk/messages like this:
+
+May  3 15:58:53 WARNING[1234455344]: ast_yyerror(): syntax error: parse error; Input:
+ "3072312154"  : "3071234567" & & "Steves Extension" : "Privacy Manager"
+ ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                  ^
+
+The first line shows the string passed to the expression parser. This
+string is the result of the variable replacements, etc. This way, you
+can see the actual string that went into the parser.
+
+The second line usually shows a string of '^' chars, that show what's
+been legally parsed so far.
+
+And the third line shows where the parser was (lookahead token lexing,
+etc), when the parse hit the rocks. A single '^' here. The error is
+going to be somewhere between the last '^' on the second line, and the
+'^' on the third line. That's right, in the example above, there are two
+'&' chars, separated by a space, and this is a definite no-no!
+
+
+___________________________
+NULL STRINGS
+---------------------------
+
+Testing to see if a string is null can be done in one of two different ways:
+
+exten => _XX.,1,GotoIf($["${calledid}" != ""]?3) 
+
+exten => _XX.,1,GotoIf($[foo${calledid} != foo]?3) 
+
+
+The second example above is the way suggested by the WIKI. It will 
+work as long as there are no spaces in the evaluated value.
+
+The first way should work in all cases, and indeed, might now
+be the safest way to handle this situation.
+
+___________________________
+WARNING
+---------------------------
+
+If you need to do complicated things with strings, asterisk expressions
+is most likely NOT the best way to go about it. AGI scripts are an
+excellent option to this need, and make available the full power of
+whatever language you desire, be it Perl, C, C++, Cobol, RPG, Java,
+Snobol, PL/I, Scheme, Common Lisp, Shell scripts, Tcl, Forth, Modula,
+Pascal, APL, assembler, etc.
 
