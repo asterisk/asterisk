@@ -92,6 +92,16 @@ int	ms;
 	return(ms);
 }
 
+static void play_dialtone(struct ast_channel *chan)
+{
+	const struct tone_zone_sound *ts = NULL;
+	ts = ast_get_indication_tone(chan->zone, "dial");
+	if (ts)
+		ast_playtones_start(chan, 0, ts->data, 0);
+	else
+		ast_tonepair_start(chan, 350, 440, 0, 0);
+}
+
 static int disa_exec(struct ast_channel *chan, void *data)
 {
 	int i,j,k,x;
@@ -155,7 +165,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	}
 	gettimeofday(&lastdigittime,NULL);
 
-	ast_tonepair_start(chan, 350, 440, 0, 0);
+	play_dialtone(chan);
 
 	for(;;)
 	{
@@ -255,7 +265,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 					}
 					 /* password good, set to dial state */
 					ast_log(LOG_DEBUG,"DISA on chan %s password is good\n",chan->name);
-					ast_tonepair_start(chan, 350, 440, 0, 0);
+					play_dialtone(chan);
 
 					k = 1;
 					i = 0;  /* re-set buffer pointer */
