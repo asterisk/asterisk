@@ -592,6 +592,9 @@ static int login_exec(struct ast_channel *chan, void *data)
 						if (p->chan)
 							res = -1;
 						if (!res) {
+							/* check if the moh class was changed with setmusiconhold */
+							if (*(chan->musicclass))
+								strncpy(p->moh, chan->musicclass, sizeof(p->moh) - 1);
 							ast_moh_start(chan, p->moh);
 							manager_event(EVENT_FLAG_AGENT, "Agentlogin",
 								"Agent: %s\r\n"
