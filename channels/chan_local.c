@@ -333,6 +333,13 @@ static struct local_pvt *local_alloc(char *data, int format)
 		memset(tmp, 0, sizeof(struct local_pvt));
 		ast_mutex_init(&tmp->lock);
 		strncpy(tmp->exten, data, sizeof(tmp->exten) - 1);
+		opts = strchr(tmp->exten, '/');
+		if (opts) {
+			*opts='\0';
+			opts++;
+			if (strchr(opts, 'n'))
+				tmp->nooptimization = 1;
+		}
 		c = strchr(tmp->exten, '@');
 		if (c) {
 			*c = '\0';
@@ -340,13 +347,6 @@ static struct local_pvt *local_alloc(char *data, int format)
 			strncpy(tmp->context, c, sizeof(tmp->context) - 1);
 		} else
 			strncpy(tmp->context, "default", sizeof(tmp->context) - 1);
-		opts = strchr(tmp->context, '/');
-		if (opts) {
-			*opts='\0';
-			opts++;
-			if (strchr(opts, 'n'))
-				tmp->nooptimization = 1;
-		}
 		tmp->reqformat = format;
 		if (!ast_exists_extension(NULL, tmp->context, tmp->exten, 1, NULL)) {
 			ast_log(LOG_NOTICE, "No such extension/context %s@%s creating local channel\n", tmp->context, tmp->exten);
