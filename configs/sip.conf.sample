@@ -50,7 +50,7 @@ context = default		; Default context for incoming calls
 ;localmask = 255.255.255.0     	; Internal netmask
 				; The externip, localnet and localmask is used
 				; when registering and communication with other proxies
-				; that we're registred with
+				; that we're registered with
 
 ;[snomsip]
 ;type=friend
@@ -86,7 +86,7 @@ context = default		; Default context for incoming calls
 				; RTP media stream (audio) to go directly from
 				; the caller to the callee.  Some devices do not
 				; support this (especially if one of them is 
-				; behinda a NAT).
+				; behind a NAT).
 ;qualify=200			; Qualify peer is no more than 200ms away
 ;defaultip=192.168.0.4
 
