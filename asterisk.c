@@ -385,6 +385,16 @@ static int ast_makesocket(void)
 	struct sockaddr_un sunaddr;
 	int res;
 	int x;
+
+	struct ast_config *cfg;
+	char *config = ASTCONFPATH;
+	char *owner;
+	char *group;
+	char *perms;
+	uid_t uid;
+	gid_t gid;
+
+
 	for (x=0;x<AST_MAX_CONNECTS;x++)	
 		consoles[x].fd = -1;
 	unlink((char *)ast_config_AST_SOCKET);
@@ -412,6 +422,48 @@ static int ast_makesocket(void)
 	}
 	ast_register_verbose(network_verboser);
 	ast_pthread_create(&lthread, NULL, listener, NULL);
+
+	/* Load the options for owner, group and permissions from
+	   asterisk.conf. if the file doesn't exist (????) just skip
+	   this part.
+	*/
+	if (option_overrideconfig == 1) {
+		cfg = ast_config_load((char *)ast_config_AST_CONFIG_FILE);
+	} else {
+		cfg = ast_config_load(config);
+	}
+	if (!cfg) return 0;
+
+	gid=-1;
+	uid=-1;
+	group = ast_variable_retrieve(cfg, "files", "astctlgroup");
+	owner = ast_variable_retrieve(cfg, "files", "astctlowner");
+	perms = ast_variable_retrieve(cfg, "files", "astctlpermissions");
+
+	if (owner!=NULL) {
+		struct passwd *pw;
+		if ((pw=getpwnam(owner))==NULL)
+			ast_log(LOG_WARNING, "Unable to find uid of user %s\n", owner);
+		else
+			uid=pw->pw_uid;
+	}
+	if (group!=NULL) {
+		struct group *grp;
+		if ((grp=getgrnam(group))==NULL)
+			ast_log(LOG_WARNING, "Unable to find gid of group %s\n", group);
+		else
+			gid=grp->gr_gid;
+	}
+	if (chown(ast_config_AST_SOCKET,uid,gid)<0)
+		ast_log(LOG_WARNING, "Unable to change ownership of %s: %s\n", ast_config_AST_SOCKET,strerror(errno));
+
+	if (perms!=NULL) {
+		mode_t p;
+		sscanf(perms,"%o",&p);
+		if ((chmod(ast_config_AST_SOCKET,p))<0)
+			ast_log(LOG_WARNING, "Unable to change file permissions of %s: %s\n", ast_config_AST_SOCKET,strerror(errno));
+	}
+
 	return 0;
 }
 
@@ -1495,6 +1547,7 @@ static int show_cli_help(void) {
 static void ast_readconfig(void) {
 	struct ast_config *cfg;
 	struct ast_variable *v;
+	struct ast_variable *v_ctlfile;
 	char *config = ASTCONFPATH;
 
 	if (option_overrideconfig == 1) {
@@ -1522,6 +1575,14 @@ static void ast_readconfig(void) {
 	if (!cfg) {
 		return;
 	}
+
+	v_ctlfile = ast_variable_browse(cfg, "files");
+	while (v_ctlfile!=NULL) {
+		if (strcmp(v_ctlfile->name,"astctl")==0)
+			break;
+		v_ctlfile=v_ctlfile->next;
+	}
+
 	v = ast_variable_browse(cfg, "directories");
 	while(v) {
 		if (!strcasecmp(v->name, "astetcdir")) {
@@ -1536,8 +1597,8 @@ static void ast_readconfig(void) {
 		} else if (!strcasecmp(v->name, "astagidir")) {
 			strncpy((char *)ast_config_AST_AGI_DIR,v->value,sizeof(ast_config_AST_AGI_DIR)-1);
 		} else if (!strcasecmp(v->name, "astrundir")) {
-			snprintf((char *)ast_config_AST_PID,sizeof(ast_config_AST_PID),"%s/%s",v->value,"asterisk.pid");    
-			snprintf((char *)ast_config_AST_SOCKET,sizeof(ast_config_AST_SOCKET),"%s/%s",v->value,"asterisk.ctl");    
+			snprintf((char *)ast_config_AST_PID,sizeof(ast_config_AST_PID),"%s/%s",v->value,"asterisk.pid");
+			snprintf((char *)ast_config_AST_SOCKET,sizeof(ast_config_AST_SOCKET),"%s/%s",v->value,v_ctlfile==NULL?"asterisk.ctl":v_ctlfile->value);
 			strncpy((char *)ast_config_AST_RUN_DIR,v->value,sizeof(ast_config_AST_RUN_DIR)-1);
 		} else if (!strcasecmp(v->name, "astmoddir")) {
 			strncpy((char *)ast_config_AST_MODULE_DIR,v->value,sizeof(ast_config_AST_MODULE_DIR)-1);
@@ -1793,7 +1854,7 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 	} else if (option_remote || option_exec) {
-		ast_log(LOG_ERROR, "Unable to connect to remote asterisk\n");
+		ast_log(LOG_ERROR, "Unable to connect to remote asterisk (does %s exist?)\n",ast_config_AST_SOCKET);
 		printf(term_quit());
 		exit(1);
 	}

@@ -494,6 +494,13 @@ samples: all datafiles adsi
 		echo "astspooldir => $(ASTSPOOLDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
 		echo "astrundir => $(ASTVARRUNDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
 		echo "astlogdir => $(ASTLOGDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
+		echo "" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
+		echo "; Changing the following lines may compromise your security." >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
+		echo ";[files]" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
+		echo ";astctlpermissions = 0660" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
+		echo ";astctlowner = root" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
+		echo ";astctlgroup = apache" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
+		echo ";astctl = asterisk.ctl" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
 	else \
 		echo "Skipping asterisk.conf creation"; \
 	fi

@@ -302,6 +302,8 @@ struct sip_history {
 #define SIP_OSPAUTH_NO		(0 << 26)
 #define SIP_OSPAUTH_YES		(1 << 26)
 #define SIP_OSPAUTH_EXCLUSIVE	(2 << 26)
+/* Call states */
+#define SIP_CALL_ONHOLD		(1 << 28)
 
 /* a new page of flags */
 #define SIP_PAGE2_RTCACHEFRIENDS 	(1 << 0)
@@ -409,7 +411,6 @@ static struct sip_pvt {
 	struct sip_history *history;		/* History of this SIP dialog */
 	struct ast_variable *vars;
 	struct sip_pvt *next;			/* Next call in chain */
-	int onhold;				/* call on hold */
 } *iflist = NULL;
 
 #define FLAG_RESPONSE (1 << 0)
@@ -2834,22 +2835,22 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			/* Turn on/off music on hold if we are holding/unholding */
 			if (sin.sin_addr.s_addr && !sendonly) {
 				ast_moh_stop(ast_bridged_channel(p->owner));
-				if (callevents && p->onhold) {
+				if (callevents && ast_test_flag(p, SIP_CALL_ONHOLD)) {
 					manager_event(EVENT_FLAG_CALL, "Unhold",
 						"Channel: %s\r\n"
 						"Uniqueid: %s\r\n",
 						p->owner->name, 
 						p->owner->uniqueid);
-					p->onhold = 0;
+					ast_clear_flag(p, SIP_CALL_ONHOLD);
 				}
 			} else {
-				if (callevents && !p->onhold) {
+				if (callevents && !ast_test_flag(p, SIP_CALL_ONHOLD)) {
 					manager_event(EVENT_FLAG_CALL, "Hold",
 						"Channel: %s\r\n"
 						"Uniqueid: %s\r\n",
 						p->owner->name, 
 						p->owner->uniqueid);
-						p->onhold = 1;
+						ast_set_flag(p, SIP_CALL_ONHOLD);
 				}
 				ast_moh_start(ast_bridged_channel(p->owner), NULL);
 				if (sendonly)
