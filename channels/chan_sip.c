@@ -4262,12 +4262,12 @@ static void reg_source_db(struct sip_peer *p)
 					}
 					ast_verbose(VERBOSE_PREFIX_3 "SIP Seeding '%s' at %s@%s:%d for %d\n", p->name, 
 						p->username, ast_inet_ntoa(iabuf, sizeof(iabuf), in), atoi(c), atoi(d));
-					sip_poke_peer(p);
 					expiry = atoi(d);
 					memset(&p->addr, 0, sizeof(p->addr));
 					p->addr.sin_family = AF_INET;
 					p->addr.sin_addr = in;
 					p->addr.sin_port = htons(atoi(c));
+					sip_poke_peer(p);
 					if (p->expire > -1)
 						ast_sched_del(sched, p->expire);
 					p->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, (void *)p);
