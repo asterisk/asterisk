@@ -253,7 +253,7 @@ int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, vo
 			res = tmp->id;
 		}
 	}
-	ast_mutex_lock(&con->lock);
+	ast_mutex_unlock(&con->lock);
 	return res;
 }
 
