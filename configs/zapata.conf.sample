@@ -23,6 +23,16 @@ context=default
 ;
 switchtype=national
 ;
+; PRI Dialplan:  Only RARELY used for PRI.
+;
+; unknown:        Unknown
+; private:        Private ISDN
+; local:          Local ISDN
+; national:	  National ISDN
+; international:  International ISDN
+;
+;pridialplan=national
+;
 ; Signalling method (default is fxs).  Valid values:
 ; em:      E & M
 ; em_w:    E & M Wink
@@ -37,6 +47,15 @@ switchtype=national
 ; fxo_ks:  FXO (Kewl Start)
 ; pri_cpe: PRI signalling, CPE side
 ; pri_net: PRI signalling, Network side
+; The following are used for Radio interfaces:
+; fxs_rx:  Receive audio/COR on an FXS kewlstart interface (FXO at the channel bank)
+; fxs_tx:  Transmit audio/PTT on an FXS loopstart interface (FXO at the channel bank)
+; fxo_rx:  Receive audio/COR on an FXO loopstart interface (FXS at the channel bank)
+; fxo_tx:  Transmit audio/PTT on an FXO groundstart interface (FXS at the channel bank)
+; em_rx:   Receive audio/COR on an E&M interface (1-way)
+; em_tx:   Transmit audio/PTT on an E&M interface (1-way)
+; em_txrx: Receive audio/COR AND Transmit audio/PTT on an E&M interface (2-way)
+; em_rxtx: same as em_txrx (for our dyslexic friends)
 ;
 signalling=fxo_ls
 ;
@@ -81,6 +100,10 @@ transfer=yes
 ;
 cancallforward=yes
 ;
+; Whether or not to support Call Return (*69)
+;
+callreturn=yes
+;
 ; Stutter dialtone support: If a mailbox is specified, then when voicemail
 ; is received in that mailbox, taking the phone off hook will cause
 ; a stutter dialtone instead of a normal one
@@ -97,7 +120,14 @@ echocancel=yes
 ; when the circuit path is entirely TDM.  You may, however, reverse this
 ; behavior by enabling the echo cancel during pure TDM bridging below.
 ;
-echocancelwhenbridged=no
+echocancelwhenbridged=yes
+;
+; If you are having trouble with DTMF detection, you can relax the
+; DTMF detection parameters.  Relaxing them may make the DTMF detector
+; more likely to have "talkoff" where DTMF is detected when it
+; shouldn't be.
+;
+;relaxdtmf=yes
 ;
 ; You may also set the default receive and transmit gains (in dB)
 ;
@@ -134,6 +164,21 @@ immediate=no
 ; basis if you have (or may have) ADSI compatible CPE equipment
 ;
 ;adsi=yes
+;
+; On trunk interfaces (FXS) and E&M interfaces (E&M, Wink, Feature Group D
+; etc, it can be useful to perform busy detection either in an effort to 
+; detect hangup or for detecting busies
+;
+;busydetect=yes
+;
+; On trunk interfaces (FXS) it can be useful to attempt to follow the progress
+; of a call through RINGING, BUSY, and ANSWERING.   If turned on, call
+; progress attempts to determine answer, busy, and ringing on phone lines.
+; This feature is HIGHLY EXPERIMENTAL and can easily detect false answers,
+; so don't count on it being very accurate.  Also, it is ONLY configured for
+; standard U.S. tones 
+;
+;callprogress=yes
 ;
 ; Select which class of music to use for music on hold.  If not specified
 ; then the default will be used.
@@ -190,7 +235,7 @@ immediate=no
 ;
 ; Strip most significant digit (9) before sending
 ;
-stripmsd=1
+;stripmsd=1
 ;callerid=asreceived
 ;group=0
 ;signalling=fxs_ls
@@ -215,3 +260,4 @@ stripmsd=1
 ; signalling = pri_cpe
 ; group = 2
 ; channel => 1-23
+
