@@ -38,6 +38,7 @@
 #include <asterisk/module.h>
 #include <asterisk/pbx.h>
 #include <asterisk/options.h>
+#include <asterisk/utils.h>
 #include <asterisk/lock.h>
 #include <asterisk/sched.h>
 #include <asterisk/io.h>
@@ -693,9 +694,9 @@ static struct ast_channel *oh323_new(struct oh323_pvt *i, int state, const char 
 		strncpy(ch->context, i->context, sizeof(ch->context)-1);
 		strncpy(ch->exten, i->exten, sizeof(ch->exten)-1);		
 		ch->priority = 1;
-		if (strlen(i->callerid))
+		if (!ast_strlen_zero(i->callerid))
 			ch->callerid = strdup(i->callerid);
-		if (strlen(i->accountcode))
+		if (!ast_strlen_zero(i->accountcode))
 			strncpy(ch->accountcode, i->accountcode, sizeof(ch->accountcode)-1);
 		if (i->amaflags)
 			ch->amaflags = i->amaflags;
@@ -1003,7 +1004,7 @@ int setup_incoming_call(call_details_t cd)
 	/* Decide if we are allowing Gatekeeper routed calls*/
 	if ((!strcasecmp(cd.sourceIp, gatekeeper)) && (gkroute == -1) && (usingGk == 1)) {
 		
-		if (strlen(cd.call_dest_e164)) {
+		if (!ast_strlen_zero(cd.call_dest_e164)) {
 			strncpy(p->exten, cd.call_dest_e164, sizeof(p->exten)-1);
 			strncpy(p->context, default_context, sizeof(p->context)-1); 
 		} else {
@@ -1030,12 +1031,12 @@ int setup_incoming_call(call_details_t cd)
 
 		if (!user) {
 			sprintf(p->callerid, "%s <%s>", p->cd.call_source_aliases, p->cd.call_source_e164); 
-			if (strlen(p->cd.call_dest_e164)) {
+			if (!ast_strlen_zero(p->cd.call_dest_e164)) {
 				strncpy(p->exten, cd.call_dest_e164, sizeof(p->exten)-1);
 			} else {
 				strncpy(p->exten, cd.call_dest_alias, sizeof(p->exten)-1);		
 			}
-			if (!strlen(default_context)) {
+			if (ast_strlen_zero(default_context)) {
 				ast_log(LOG_ERROR, "Call from user '%s' rejected due to no default context\n", p->cd.call_source_aliases);
 				return 0;
 			}
@@ -1045,7 +1046,7 @@ int setup_incoming_call(call_details_t cd)
 			if (user->host) {
 				if (strcasecmp(cd.sourceIp, inet_ntoa(user->addr.sin_addr))){
 					
-					if(!strlen(default_context)) {
+					if(ast_strlen_zero(default_context)) {
 						ast_log(LOG_ERROR, "Call from user '%s' rejected due to non-matching IP address of '%s'\n", user->name, cd.sourceIp);
                 				return 0;
 					}
@@ -1066,17 +1067,17 @@ int setup_incoming_call(call_details_t cd)
 			p->bridge = user->bridge;
                       p->nat = user->nat;
 
-			if (strlen(user->callerid)) 
+			if (!ast_strlen_zero(user->callerid)) 
 				strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
 			else
 				sprintf(p->callerid, "%s <%s>", p->cd.call_source_aliases, p->cd.call_source_e164); 
 
-			if (strlen(p->cd.call_dest_e164)) {
+			if (!ast_strlen_zero(p->cd.call_dest_e164)) {
 				strncpy(p->exten, cd.call_dest_e164, sizeof(p->exten)-1);
 			} else {
 				strncpy(p->exten, cd.call_dest_alias, sizeof(p->exten)-1);		
 			}
-			if (strlen(user->accountcode)) {
+			if (!ast_strlen_zero(user->accountcode)) {
 				strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)-1);
 			} 
 
@@ -1656,7 +1657,7 @@ int reload(void)
 	prune_peers();
 
 #if 0
-	if (strlen(gatekeeper)) {
+	if (!ast_strlen_zero(gatekeeper)) {
 		h323_gk_urq();
 	}
 #endif
