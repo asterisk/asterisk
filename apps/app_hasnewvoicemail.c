@@ -1,0 +1,144 @@
+/*
+ * Asterisk -- A telephony toolkit for Linux.
+ *
+ * HasNewVoicemail application
+ *
+ * Copyright (c) 2003 Tilghman Lesher.  All rights reserved.
+ * 
+ * Tilghman Lesher <asterisk-hasnewvoicemail-app@the-tilghman.com>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+ * EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include <asterisk/file.h>
+#include <asterisk/logger.h>
+#include <asterisk/channel.h>
+#include <asterisk/pbx.h>
+#include <asterisk/module.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <dirent.h>
+
+#include <pthread.h>
+
+
+static char *tdesc = "Indicator for whether a voice mailbox has new messages.";
+static char *app_hasnewvoicemail = "HasNewVoicemail";
+static char *hasnewvoicemail_synopsis = "Conditionally branches to priority + 101";
+static char *hasnewvoicemail_descrip =
+"HasNewVoicemail(vmbox[@context][|varname])\n"
+"  Branches to priority + 101, if there is new voicemail"
+"  Optionally sets <varname> to the number of new messages.\n";
+
+STANDARD_LOCAL_USER;
+
+LOCAL_USER_DECL;
+
+static int hasnewvoicemail_exec(struct ast_channel *chan, void *data)
+{
+	int res=0;
+	struct localuser *u;
+	char vmpath[256], *input, *varname = NULL, *vmbox, *context = "default";
+	DIR *vmdir;
+	struct dirent *vment;
+	int vmcount = 0;
+
+	if (!data) {
+		ast_log(LOG_WARNING, "HasNewVoicemail requires an argument (vm-box[@context]|varname)\n");
+		return -1;
+	}
+	LOCAL_USER_ADD(u);
+
+	input = strdupa((char *)data);
+	if (input) {
+		if ((vmbox = strsep(&input,"|")))
+			varname = input;
+		else
+			vmbox = input;
+
+		if (index(vmbox,'@')) {
+			context = vmbox;
+			vmbox = strsep(&context,"@");
+		}
+
+		snprintf(vmpath,255,ASTSPOOLDIR "/voicemail/%s/%s/INBOX", context, vmbox);
+		if (!(vmdir = opendir(vmpath))) {
+			ast_log(LOG_NOTICE, "Voice mailbox %s at %s does not exist\n", vmbox, vmpath);
+		} else {
+
+			/* No matter what the format of VM, there will always be a .txt file for each message. */
+			while ((vment = readdir(vmdir)))
+				if (!strncmp(vment->d_name + 7,".txt",4))
+					vmcount++;
+			closedir(vmdir);
+		}
+		/* Set the count in the channel variable */
+		if (varname) {
+			char tmp[12];
+			snprintf(tmp, sizeof(tmp) - 1, "%d", vmcount);
+			pbx_builtin_setvar_helper(chan, varname, tmp);
+		}
+
+		if (vmcount > 0) {
+			/* Branch to the next extension */
+			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid)) {
+				chan->priority += 100;
+			} else
+				ast_log(LOG_WARNING, "VM box %s@%s has new voicemail, but extension %s, priority %d doesn't exist\n", vmbox, context, chan->exten, chan->priority + 101);
+		}
+	} else {
+		ast_log(LOG_ERROR, "Out of memory error\n");
+	}
+
+	LOCAL_USER_REMOVE(u);
+	return res;
+}
+
+int unload_module(void)
+{
+	STANDARD_HANGUP_LOCALUSERS;
+	return ast_unregister_application(app_hasnewvoicemail);
+}
+
+int load_module(void)
+{
+	return ast_register_application(app_hasnewvoicemail, hasnewvoicemail_exec, hasnewvoicemail_synopsis, hasnewvoicemail_descrip);
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	int res;
+	STANDARD_USECOUNT(res);
+	return res;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
+}
