@@ -295,18 +295,6 @@ static int pritype = PRI_CPE;
 #define DEFAULT_PRI_DEBUG 0
 #endif
 
-static inline int pri_grab(struct zt_pri *pri)
-{
-	int res;
-	/* Grab the lock first */
-    res = ast_pthread_mutex_lock(&pri->lock);
-	if (res)
-		return res;
-	/* Then break the select */
-	pthread_kill(pri->master, SIGURG);
-	return 0;
-}
-
 static inline void pri_rel(struct zt_pri *pri)
 {
 	ast_pthread_mutex_unlock(&pri->lock);
@@ -458,6 +446,26 @@ static struct zt_pvt {
 	int sigchecked;
 #endif	
 } *iflist = NULL;
+
+#ifdef ZAPATA_PRI
+static inline int pri_grab(struct zt_pvt *pvt, struct zt_pri *pri)
+{
+	int res;
+	/* Grab the lock first */
+	do {
+	    res = pthread_mutex_trylock(&pri->lock);
+		if (res) {
+			ast_pthread_mutex_unlock(&pvt->lock);
+			/* Release the lock and try again */
+			usleep(1);
+			ast_pthread_mutex_lock(&pvt->lock);
+		}
+	} while(res);
+	/* Then break the select */
+	pthread_kill(pri->master, SIGURG);
+	return 0;
+}
+#endif
 
 static struct zt_ring_cadence cadences[] = {
 	{ { 125, 125, 2000, 4000 } },			/* Quick chirp followed by normal ring */
@@ -1578,7 +1586,7 @@ static int zt_hangup(struct ast_channel *ast)
 #ifdef ZAPATA_PRI
 		if (p->sig == SIG_PRI) {
 			if (p->call) {
-				if (!pri_grab(p->pri)) {
+				if (!pri_grab(p, p->pri)) {
 					res = pri_disconnect(p->pri->pri, p->call, PRI_CAUSE_NORMAL_CLEARING);
 					if (p->alreadyhungup) {
 						p->call = NULL;
@@ -1688,12 +1696,15 @@ static int zt_answer(struct ast_channel *ast)
 	int index;
 	int oldstate = ast->_state;
 	ast_setstate(ast, AST_STATE_UP);
+	ast_pthread_mutex_lock(&p->lock);
 	index = zt_get_index(ast, p, 0);
 	if (index < 0)
 		index = SUB_REAL;
 	/* nothing to do if a radio channel */
-	if (p->radio)
+	if (p->radio) {
+		ast_pthread_mutex_unlock(&p->lock);
 		return 0;
+	}
 	switch(p->sig) {
 	case SIG_FXSLS:
 	case SIG_FXSGS:
@@ -1730,7 +1741,7 @@ static int zt_answer(struct ast_channel *ast)
 #ifdef ZAPATA_PRI
 	case SIG_PRI:
 		/* Send a pri acknowledge */
-		if (!pri_grab(p->pri)) {
+		if (!pri_grab(p, p->pri)) {
 			res = pri_answer(p->pri->pri, p->call, 0, 1);
 			pri_rel(p->pri);
 		} else {
@@ -1750,8 +1761,9 @@ static int zt_answer(struct ast_channel *ast)
 		return 0;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to answer signalling %d (channel %d)\n", p->sig, p->channel);
-		return -1;
+		res = -1;
 	}
+	ast_pthread_mutex_unlock(&p->lock);
 	return res;
 }
 
