@@ -1425,8 +1425,7 @@ static int do_senddigit(struct ast_channel *chan, char digit)
 			ast_playtones_start(chan,0,dtmf_tones[15], 0);
 		else {
 			/* not handled */
-			ast_log(LOG_WARNING, "Unable to handle DTMF tone '%c' for '%s'\n", digit, chan->name);
-			return -1;
+			ast_log(LOG_DEBUG, "Unable to handle DTMF tone '%c' for '%s'\n", digit, chan->name);
 		}
 	}
 	return 0;
