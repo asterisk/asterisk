@@ -201,7 +201,6 @@ static void ast_flush_spy_queue(struct ast_channel_spy *spy)
 	ast_mutex_unlock(&spy->lock);
 }
 
-
 static int spy_generate(struct ast_channel *chan, void *data, int len, int samples) 
 {
 	struct ast_frame *f, *f0, *f1;
@@ -311,7 +310,7 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 
 	csth->frame.data = csth->buf;
 	ast_write(chan, &csth->frame);
-	
+
 	if (f0) {
 		ast_frfree(f0);
 	}
@@ -395,6 +394,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 	int running = 1, res = 0, x = 0;
 	char inp[24];
 	char *name=NULL;
+	struct ast_frame *f;
 
 	if (chan && !ast_check_hangup(chan) && spyee && !ast_check_hangup(spyee)) {
 		memset(inp, 0, sizeof(inp));
@@ -413,9 +413,22 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 		start_spying(spyee, chan, &csth.spy);
 		ast_activate_generator(chan, &spygen, &csth);
 
-		while(csth.spy.status == CHANSPY_RUNNING && chan && !ast_check_hangup(chan) && spyee && !ast_check_hangup(spyee) && running == 1) {
-			res = ast_waitfordigit(chan, 100);
-
+		while(csth.spy.status == CHANSPY_RUNNING && 
+			  chan && !ast_check_hangup(chan) && 
+			  spyee && 
+			  !ast_check_hangup(spyee) 
+			  && running == 1 && 
+			  (res = ast_waitfor(chan, -1) > -1)) {
+			if ((f = ast_read(chan))) {
+				res = 0;
+				if(f->frametype == AST_FRAME_DTMF) {
+					res = f->subclass;
+				}
+				ast_frfree(f);
+				if(!res) {
+					continue;
+				}
+			}
 			if (x == sizeof(inp)) {
 				x = 0;
 			}
