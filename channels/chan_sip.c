@@ -2264,11 +2264,12 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 		if (!l || !ast_isphonenumber(l))
 				l = callerid;
 	}
-	if (!n)
+	if (!n || !strlen(n))
 		n = l;
 	/* Allow user to be overridden */
 	if (strlen(p->fromuser))
 		l = p->fromuser;
+
 	if ((ourport != 5060) && !strlen(p->fromdomain))
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=as%08x", n, l, strlen(p->fromdomain) ? p->fromdomain : inet_ntoa(p->ourip), ourport, p->tag);
 	else
