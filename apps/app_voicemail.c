@@ -894,6 +894,7 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 			d = ast_waitstream(chan,"");
 		if (d < 0)
 			return -1;
+		ast_stopstream(chan);
 	}
 	
 	fmts = ast_strdupa(fmt);
