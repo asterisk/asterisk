@@ -415,7 +415,7 @@ int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char
 {
 	struct timeval started, ended;
 	long elapsed = 0,last_elapsed =0;
-	char *breaks;
+	char *breaks=NULL;
 	int blen=2;
 	int res=0;
 
@@ -424,11 +424,12 @@ int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char
 	if (pause)
 		blen += strlen(pause);
 
-	breaks = alloca(blen + 1);
-	breaks[0] = '\0';
-	strcat(breaks, stop);
-	strcat(breaks, pause);
-
+	if(blen > 2) {
+		breaks = alloca(blen + 1);
+		breaks[0] = '\0';
+		strcat(breaks, stop);
+		strcat(breaks, pause);
+	}
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
 
