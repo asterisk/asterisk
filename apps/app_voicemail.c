@@ -1678,6 +1678,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	int msgnum;
 	int fd;
 	int duration = 0;
+	int ausemacro = 0;
+	int ousemacro = 0;
 	char date[256];
 	char dir[256];
 	char fn[256];
@@ -1727,10 +1729,22 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		make_dir(dir, sizeof(dir), vmu->context, ext, "INBOX");
 		if (mkdir(dir, 0700) && (errno != EEXIST))
 			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
-		if (ast_exists_extension(chan, strlen(chan->macrocontext) ? chan->macrocontext : chan->context, "o", 1, chan->callerid))
+
+		/* Check current or macro-calling context for special extensions */
+		if (ast_exists_extension(chan, chan->context, "o", 1, chan->callerid))
 			strcat(ecodes, "0");
-		if (ast_exists_extension(chan, strlen(chan->macrocontext) ? chan->macrocontext : chan->context, "a", 1, chan->callerid))
+		else if (!ast_strlen_zero(chan->macrocontext) && ast_exists_extension(chan, chan->macrocontext, "o", 1, chan->callerid)) {
+			strcat(ecodes, "0");
+			ousemacro = 1;
+		}
+
+		if (ast_exists_extension(chan, chan->context, "a", 1, chan->callerid))
 			strcat(ecodes, "*");
+		else if (!ast_strlen_zero(chan->macrocontext) && ast_exists_extension(chan, chan->macrocontext, "a", 1, chan->callerid)) {
+			strcat(ecodes, "*");
+			ausemacro = 1;
+		}
+
 		/* Play the beginning intro if desired */
 		if (!ast_strlen_zero(prefile)) {
 			if (ast_fileexists(prefile, NULL, NULL) > 0) {
@@ -1768,7 +1782,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 			strncpy(chan->exten, "a", sizeof(chan->exten) - 1);
 			if (!ast_strlen_zero(vmu->exit)) {
 				strncpy(chan->context, vmu->exit, sizeof(chan->context) - 1);
-			} else if (!ast_strlen_zero(chan->macrocontext)) {
+			} else if (ausemacro && !ast_strlen_zero(chan->macrocontext)) {
 				strncpy(chan->context, chan->macrocontext, sizeof(chan->context) - 1);
 			}
 			chan->priority = 0;
@@ -1781,7 +1795,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 			strncpy(chan->exten, "o", sizeof(chan->exten) - 1);
 			if (!ast_strlen_zero(vmu->exit)) {
 				strncpy(chan->context, vmu->exit, sizeof(chan->context) - 1);
-			} else if (!ast_strlen_zero(chan->macrocontext)) {
+			} else if (ousemacro && !ast_strlen_zero(chan->macrocontext)) {
 				strncpy(chan->context, chan->macrocontext, sizeof(chan->context) - 1);
 			}
 			chan->priority = 0;
