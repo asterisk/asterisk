@@ -18,6 +18,8 @@
  */
 
 
+extern "C" {
+
 #include <stdio.h>
 #include <string.h>
 #include <asterisk/lock.h>
@@ -29,6 +31,10 @@
 #include <asterisk/module.h>
 #include <asterisk/pbx.h>
 #include <asterisk/options.h>
+#include <asterisk/callerid.h>
+
+}
+
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <errno.h>
@@ -58,11 +64,11 @@
 
 #define MAX_VPB_GAIN 12.0
 
-/*
+/**/
 #if defined(__cplusplus) || defined(c_plusplus)
  extern "C" {
 #endif
-*/
+/**/
 
 static char *desc = "VoiceTronix V6PCI/V12PCI/V4PCI  API Support";
 static char *type = "vpb";
@@ -476,12 +482,9 @@ static void get_callerid(struct vpb_pvt *p)
 	double cid_record_time;
 	int rc;
 	struct ast_channel *owner = p->owner;
+	void * ws;
+	char * file="cidsams.wav";
 
-	if(!strcasecmp(p->callerid, "on")) {
-		if (option_verbose>3) 
-			ast_verbose(VERBOSE_PREFIX_4 "Caller ID disabled\n");
-		return;
-	}
 
 	if( ast_mutex_trylock(&p->record_lock) == 0 ) {
 
@@ -503,6 +506,11 @@ static void get_callerid(struct vpb_pvt *p)
 		vpb_record_buf_start(p->handle, VPB_LINEAR);
 		rc = vpb_record_buf_sync(p->handle, (char*)buf, sizeof(buf));
 		vpb_record_buf_finish(p->handle);
+/*
+		vpb_wave_open_write(&ws, file, VPB_LINEAR);
+		vpb_wave_write(ws,(char*)buf,sizeof(buf));
+		vpb_wave_close_write(ws);
+*/
 
 		if (option_verbose>3) 
 			ast_verbose(VERBOSE_PREFIX_4 "CID record - recorded %fms between rings\n", 
@@ -545,6 +553,91 @@ static void get_callerid(struct vpb_pvt *p)
 
 	} else 
 		ast_log(LOG_ERROR, "CID record - Failed to set record mode for caller id on %s\n", p->dev );
+}
+static void get_callerid_ast(struct vpb_pvt *p)
+{
+	struct callerid_state *cs;
+	char buf[1024];
+	char *name=NULL, *number=NULL;
+	int flags;
+	int rc=0,vrc;
+	int sam_count=0;
+	struct ast_channel *owner = p->owner;
+	float old_gain;
+	int which_cid;
+	void * ws;
+	char * file="cidsams.wav";
+
+	if(!strcasecmp(p->callerid, "on")) {
+	if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collected caller ID already\n");
+		return;
+	}
+	else if(!strcasecmp(p->callerid, "v23")) {
+		which_cid=CID_SIG_V23;
+	if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collecting Caller ID v23[%s/%d]...\n",p->callerid,which_cid);
+	}
+	else if(!strcasecmp(p->callerid, "bell")) {
+		which_cid=CID_SIG_BELL;
+	if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collecting Caller ID bell[%s/%d]...\n",p->callerid,which_cid);
+	}
+	else {
+		if (option_verbose>3) 
+			ast_verbose(VERBOSE_PREFIX_4 "Caller ID disabled\n");
+		return;
+	}
+	if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collecting Caller ID type[%s/%d]...\n",p->callerid,which_cid);
+//	vpb_sleep(RING_SKIP);
+//	vpb_record_get_gain(p->handle, &old_gain);
+	cs = callerid_new(which_cid);
+	if (cs){
+//		vpb_wave_open_write(&ws, file, VPB_MULAW);
+//		vpb_record_set_gain(p->handle, 3.0);
+//		vpb_record_set_hw_gain(p->handle,12.0);
+		vpb_record_buf_start(p->handle, VPB_MULAW);
+		while((rc == 0)&&(sam_count<8000*3)){
+			vrc = vpb_record_buf_sync(p->handle, (char*)buf, sizeof(buf));
+			if (vrc != VPB_OK)
+				ast_log(LOG_ERROR, "%s: Caller ID couldnt read audio buffer!\n",p->dev);
+			rc = callerid_feed(cs,(unsigned char *)buf,sizeof(buf),AST_FORMAT_ULAW);
+			vpb_wave_write(ws,(char*)buf,sizeof(buf));
+			sam_count+=sizeof(buf);
+			if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collecting Caller ID samples [%d][%d]...\n",sam_count,rc);
+		}
+		vpb_record_buf_finish(p->handle);
+//		vpb_wave_close_write(ws);
+		if (rc == 1){
+			callerid_get(cs, &name, &number, &flags);
+			if (option_verbose>0) 
+				ast_verbose(VERBOSE_PREFIX_1 "%s: Caller ID name [%s] number [%s] flags [%d]\n",p->dev,name, number,flags);
+		}
+		else {
+			ast_log(LOG_ERROR, "%s: Failed to decode Caller ID \n", p->dev );
+		}
+//		vpb_record_set_gain(p->handle, old_gain);
+//		vpb_record_set_hw_gain(p->handle,6.0);
+	}
+	else {
+		ast_log(LOG_ERROR, "%s: Failed to create Caller ID struct\n", p->dev );
+	}
+	if (owner->cid.cid_num) {
+		free(owner->cid.cid_num);
+		owner->cid.cid_num = NULL;
+	}
+	if (owner->cid.cid_name) {
+		free(owner->cid.cid_name);
+		owner->cid.cid_name = NULL;
+	}
+	if (number)
+		ast_shrink_phone_number(number);
+	if (number && !ast_strlen_zero(number)) {
+		owner->cid.cid_num = strdup(number);
+		owner->cid.cid_ani = strdup(number);
+	}
+	if (name && !ast_strlen_zero(name))
+		owner->cid.cid_name = strdup(name);
+														     
+	if (cs)
+		callerid_free(cs);
 }
 
 // Terminate any tones we are presently playing
@@ -807,7 +900,12 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 		case VPB_RING:
 			if (p->mode == MODE_FXO) /* FXO port ring, start * */ {
 				vpb_new(p, AST_STATE_RING, p->context);
-				get_callerid(p);	/* Australian Caller ID only between 1st and 2nd ring */
+				if(!strcasecmp(p->callerid, "on")) {
+					if (option_verbose>3) 
+						ast_verbose(VERBOSE_PREFIX_4 "Using VPB Caller ID\n");
+					get_callerid(p);	// Australian Caller ID only between 1st and 2nd ring 
+				}
+				get_callerid_ast(p);	// Caller ID using the ast functions
 			}
 			break;
 
@@ -949,27 +1047,27 @@ static void *do_monitor(void *unused)
 		p = NULL;
 
 		ast_mutex_lock(&monlock); {
-			vpb_translate_event(&e, str);
 
 			if (e.type == VPB_NULL_EVENT) {
 				if (option_verbose > 3)
 					ast_verbose(VERBOSE_PREFIX_4 "Monitor got null event\n");
-				goto done; /* Nothing to do, just a wakeup call.*/
 			}
-			if (strlen(str)>1){
-				str[(strlen(str)-1)]='\0';
+			else {
+				vpb_translate_event(&e, str);
+				if (strlen(str)>1){
+					str[(strlen(str)-1)]='\0';
+				}
+
+				ast_mutex_lock(&iflock); {
+					p = iflist;
+					while (p && p->handle != e.handle)
+						p = p->next;
+				} ast_mutex_unlock(&iflock);
+
+				if (p && (option_verbose > 3))
+					ast_verbose(VERBOSE_PREFIX_4 "%s: Event [%d=>%s] \n", 
+						p ? p->dev : "null", e.type, str );
 			}
-
-			ast_mutex_lock(&iflock); {
-				p = iflist;
-				while (p && p->handle != e.handle)
-					p = p->next;
-			} ast_mutex_unlock(&iflock);
-
-			if (p && (option_verbose > 3))
-				ast_verbose(VERBOSE_PREFIX_4 "%s: Event [%d=>%s] \n", 
-					p ? p->dev : "null", e.type, str );
-			done: (void)0;
 
 		} ast_mutex_unlock(&monlock); 
 
@@ -1042,32 +1140,31 @@ static int restart_monitor(void)
 			error = -1;
 			if (option_verbose > 3)
 				ast_verbose(VERBOSE_PREFIX_4 "Monitor trying to kill monitor\n");
-			goto done;
 		}
-		if (mthreadactive != -1) {
-			/* Why do other drivers kill the thread? No need says I, simply awake thread with event. */
-			VPB_EVENT e;
-			e.handle = 0;
-			e.type = VPB_NULL_EVENT;
-			e.data = 0;
+		else {
+			if (mthreadactive != -1) {
+				/* Why do other drivers kill the thread? No need says I, simply awake thread with event. */
+				VPB_EVENT e;
+				e.handle = 0;
+				e.type = VPB_NULL_EVENT;
+				e.data = 0;
 
-			if (option_verbose > 3)
-				ast_verbose(VERBOSE_PREFIX_4 "Trying to reawake monitor\n");
+				if (option_verbose > 3)
+					ast_verbose(VERBOSE_PREFIX_4 "Trying to reawake monitor\n");
 
-			vpb_put_event(&e);
-		} else {
-			/* Start a new monitor */
-			int pid = ast_pthread_create(&monitor_thread, NULL, do_monitor, NULL); 
-			if (option_verbose > 3)
-				ast_verbose(VERBOSE_PREFIX_4 "Created new monitor thread %d\n",pid);
-			if (pid < 0) {
-				ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
-				error = -1;
-				goto done;
-			} else
-				mthreadactive = 0; /* Started the thread!*/
+				vpb_put_event(&e);
+			} else {
+				/* Start a new monitor */
+				int pid = ast_pthread_create(&monitor_thread, NULL, do_monitor, NULL); 
+				if (option_verbose > 3)
+					ast_verbose(VERBOSE_PREFIX_4 "Created new monitor thread %d\n",pid);
+				if (pid < 0) {
+					ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
+					error = -1;
+				} else
+					mthreadactive = 0; /* Started the thread!*/
+			}
 		}
-		done: (void)0;
 	} ast_mutex_unlock(&monlock);
 
 	if (option_verbose > 3)
@@ -2241,8 +2338,7 @@ int load_module()
 					tmp->next = iflist;
 					iflist = tmp;
 				} else {
-					ast_log(LOG_ERROR, 
-					"Unable to register channel '%s'\n", v->value);
+					ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
 					error = -1;
 					goto done;
 				}
@@ -2399,8 +2495,8 @@ char *key()
 	return ASTERISK_GPL_KEY;
 }
 
-/*
+/**/
 #if defined(__cplusplus) || defined(c_plusplus)
  }
 #endif
-*/
+/**/
