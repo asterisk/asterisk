@@ -28,7 +28,9 @@ CFLAGS = $(OPTIMIZE) -I$(LIB_TARGET_DIR) $(WARNINGS) -fPIC
 #fix for PPC processors
 ifneq ($(OSARCH),Darwin)
 ifneq ($(PROC),ppc)
+ifneq ($(PROC),x86_64)
 	CFLAGS+= -march=$(PROC)
+endif
 endif
 endif
 

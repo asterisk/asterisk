@@ -388,13 +388,13 @@ samples: all datafiles adsi
 		install $$x $(DESTDIR)$(ASTVARLIBDIR)/mohmp3 ; \
 	done
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/INBOX
-	:> $(DESTDIR)$(ASTVARLIBDIR)/sounds/voicemail/default/1234/unavail.gsm
+	:> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/unavail.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isunavail; do \
-		cat $(DESTDIR)$(ASTVARLIBDIR)/sounds/$$x.gsm >> $(DESTDIR)$(ASTVARLIBDIR)/sounds/voicemail/default/1234/unavail.gsm ; \
+		cat $(DESTDIR)$(ASTVARLIBDIR)/sounds/$$x.gsm >> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/unavail.gsm ; \
 	done
 	:> $(DESTDIR)$(ASTVARLIBDIR)/sounds/voicemail/default/1234/busy.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isonphone; do \
-		cat $(DESTDIR)$(ASTVARLIBDIR)/sounds/$$x.gsm >> $(DESTDIR)$(ASTVARLIBDIR)/sounds/voicemail/default/1234/busy.gsm ; \
+		cat $(DESTDIR)$(ASTVARLIBDIR)/sounds/$$x.gsm >> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/busy.gsm ; \
 	done
 
 webvmail:
@@ -428,13 +428,9 @@ __rpm: _version
 	$(MAKE) DESTDIR=/tmp/asterisk samples ; \
 	mkdir -p /tmp/asterisk/etc/rc.d/init.d ; \
 	cp -f redhat/asterisk /tmp/asterisk/etc/rc.d/init.d/ ; \
-	cp -f redhat/rpmrc /tmp/asterisk/ ; \
-	cp -f redhat/rpmmacros /tmp/asterisk/ ; \
-	sed "s/Version:/Version: $(RPMVERSION)/g" redhat/asterisk.spec > /tmp/asterisk/asterisk.spec ; \
-	rpm --rcfile /usr/lib/rpm/rpmrc:/tmp/asterisk/rpmrc -bb /tmp/asterisk/asterisk.spec ; \
-	mv /tmp/asterisk/redhat/RPMS/i386/asterisk* ./ ; \
-	rm -rf /tmp/asterisk
-
+	sed "s/^Version:.*/Version: $(RPMVERSION)/g" redhat/asterisk.spec > asterisk.spec ; \
+	rpmbuild --rcfile /usr/lib/rpm/rpmrc:redhat/rpmrc -bb asterisk.spec
+	
 progdocs:
 	doxygen asterisk-ng-doxygen
 

@@ -65,6 +65,8 @@ ln -sf /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 %attr(0644,root,root)      /var/lib/asterisk/sounds/*.gsm
 %attr(0755,root,root) %dir /var/lib/asterisk/sounds/digits
 %attr(0644,root,root)      /var/lib/asterisk/sounds/digits/*.gsm
+%attr(0755,root,root) %dir /var/lib/asterisk/mohmp3
+%attr(0644,root,root)      /var/lib/asterisk/mohmp3/*
 %attr(0755,root,root) %dir /var/lib/asterisk/images
 %attr(0644,root,root)      /var/lib/asterisk/images/*
 %attr(0755,root,root) %dir /var/lib/asterisk/keys
@@ -76,7 +78,8 @@ ln -sf /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 # Example voicemail files
 #
 %attr(0755,root,root) %dir /var/spool/asterisk
-%attr(0755,root,root) %dir /var/spool/asterisk/vm
-%attr(0755,root,root) %dir /var/spool/asterisk/vm/1234
-%attr(0755,root,root) %dir /var/spool/asterisk/vm/1234/INBOX
-%attr(0644,root,root)      /var/spool/asterisk/vm/1234/*.gsm
+%attr(0755,root,root) %dir /var/spool/asterisk/voicemail
+%attr(0755,root,root) %dir /var/spool/asterisk/voicemail/default
+%attr(0755,root,root) %dir /var/spool/asterisk/voicemail/default/1234
+%attr(0755,root,root) %dir /var/spool/asterisk/voicemail/default/1234/INBOX
+%attr(0644,root,root)      /var/spool/asterisk/voicemail/default/1234/*.gsm

@@ -38,7 +38,9 @@ WAV49	= -DWAV49
 ######### probably require gcc. 
 
 ifneq (${OSARCH},Darwin)
+ifneq (${PROC},x86_64)
 OPTIMIZE+=-march=$(PROC)
+endif
 endif
 
 PG =
@@ -194,7 +196,9 @@ GSM_SOURCES =	$(SRC)/add.c		\
 		$(SRC)/short_term.c	\
 		$(SRC)/table.c
 ifeq (${OSARCH},Linux)
+ifneq (${PROC},x86_64)
 GSM_SOURCES+=	$(SRC)/k6opt.s
+endif
 endif
 
 TOAST_SOURCES = $(SRC)/toast.c 		\
@@ -241,7 +245,9 @@ GSM_OBJECTS =	$(SRC)/add.o		\
 		$(SRC)/short_term.o	\
 		$(SRC)/table.o
 ifeq (${OSARCH},Linux)
+ifneq (${PROC},x86_64)
 GSM_OBJECTS+=	$(SRC)/k6opt.o
+endif
 endif
 
 TOAST_OBJECTS =	$(SRC)/toast.o 		\
