@@ -2737,10 +2737,11 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 
 	if ((!res)&&(vmu->envelope))
 		res = play_message_datetime(chan, vmu, origtime, filename);
-
 	if ((!res)&&(vmu->saycid))
 		res = play_message_callerid(chan, vms, cid, context, 0);
-
+	/* Allow pressing '1' to skip envelope / callerid */
+	if (res == '1')
+		res = 0;
 	ast_destroy(msg_cfg);
 
 	if (!res) {

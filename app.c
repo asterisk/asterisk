@@ -411,19 +411,22 @@ int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char
 {
 	struct timeval started, ended;
 	long elapsed = 0,last_elapsed =0;
-	char breaks[5];
-	int x=0,res=0;
+	char *breaks;
+	int blen=2;
+	int res=0;
+
+	if (stop)
+		blen += strlen(stop);
+	if (pause)
+		blen += strlen(pause);
+
+	breaks = alloca(blen + 1);
+	breaks[0] = '\0';
+	strcat(breaks, stop);
+	strcat(breaks, pause);
 
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
-
-	if (stop != NULL && stop[0]) {
-		breaks[x++] = stop[0];
-	}
-	if (pause != NULL && pause[0]) {
-		breaks[x++] = pause[0];
-	}
-	breaks[x] = '\0';
 
 	if (chan)
 		ast_stopstream(chan);
@@ -449,14 +452,14 @@ int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char
 		if (res < 1)
 			break;
 
-		if (pause != NULL && res == *pause) {
+		if (pause != NULL && strchr(pause, res)) {
 			gettimeofday(&ended, NULL);
 			elapsed = (((ended.tv_sec * 1000) + ended.tv_usec / 1000) - ((started.tv_sec * 1000) + started.tv_usec / 1000) + last_elapsed);
 			for(;;) {
 				if (chan)
 					ast_stopstream(chan);
 				res = ast_waitfordigit(chan, 1000);
-				if (res == -1 || res == *pause || (stop && res == *stop))
+				if (res == -1 || strchr(pause, res) || (stop && strchr(stop, res)))
 					break;
 			}
 			if (res == *pause) {
