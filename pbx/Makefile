@@ -16,7 +16,7 @@
 PBX_LIBS=pbx_config.so pbx_spool.so     # pbx_gtkconsole.so pbx_kdeconsole.so
 
 # Add GTK console if appropriate
-PBX_LIBS+=$(shell gtk-config --cflags >/dev/null 2>/dev/null && echo "pbx_gtkconsole.so")
+#PBX_LIBS+=$(shell gtk-config --cflags >/dev/null 2>/dev/null && echo "pbx_gtkconsole.so")
 # Add KDE Console if appropriate
 #PBX_LIBS+=$(shell [ "$$QTDIR" != "" ] && echo "pbx_kdeconsole.so")
 
