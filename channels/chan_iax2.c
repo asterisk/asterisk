@@ -3168,8 +3168,8 @@ static int expire_registry(void *data)
 	p->expire = -1;
 	/* Reset expirey value */
 	p->expirey = expirey;
-	if (regfunk)
-		regfunk(p->name, 0);
+	if (iax2_regfunk)
+		iax2_regfunk(p->name, 0);
 	return 0;
 }
 
@@ -3187,8 +3187,8 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 	for (p = peerl.peers;p;p = p->next) {
 		if (!strcasecmp(name, p->name)) {
 			if (inaddrcmp(&p->addr, sin)) {
-				if (regfunk)
-					regfunk(p->name, 1);
+				if (iax2_regfunk)
+					iax2_regfunk(p->name, 1);
 				if  (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Registered '%s' (%s) at %s:%d\n", p->name, 
 					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", inet_ntoa(sin->sin_addr), htons(sin->sin_port));
