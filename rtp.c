@@ -493,14 +493,14 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	    if (rtp->lasteventseqn <= seqno) {
 	      f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
 	      rtp->lasteventseqn = seqno;
-	    }
+	    } else f = NULL;
 	    if (f) return f; else return &null_frame;
 	  } else if (rtpPT.code == AST_RTP_CISCO_DTMF) {
 	    /* It's really special -- process it the Cisco way */
 	    if (rtp->lasteventseqn <= seqno) {
 	      f = process_cisco_dtmf(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
 	      rtp->lasteventseqn = seqno;
-	    }
+	    } else f = NULL;
 	    if (f) return f; else return &null_frame;
 	  } else if (rtpPT.code == AST_RTP_CN) {
 	    /* Comfort Noise */
