@@ -823,6 +823,10 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			strncpy(tmp->chan->musicclass, chan->musicclass, sizeof(tmp->chan->musicclass) - 1);
 		/* Pass callingpres setting */
 		tmp->chan->cid.cid_pres = chan->cid.cid_pres;
+		/* Pass type of number */
+		tmp->chan->cid.cid_ton = chan->cid.cid_ton;
+		/* Pass type of tns */
+		tmp->chan->cid.cid_tns = chan->cid.cid_tns;
 		/* Presense of ADSI CPE on outgoing channel follows ours */
 		tmp->chan->adsicpe = chan->adsicpe;
 		/* pass the digital flag */
