@@ -2735,8 +2735,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			}
 			if (!x) { /* if not still dialing in driver */
 				zt_enable_ec(p);
-				zt_train_ec(p);
 				if (p->echobreak) {
+					zt_train_ec(p);
 					strcpy(p->dop.dialstr, p->echorest);
 					p->dop.op = ZT_DIAL_OP_REPLACE;
 					res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop);
