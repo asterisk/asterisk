@@ -387,7 +387,7 @@ static struct sip_registry *registrations;
 static int sipsock  = -1;
 static int globalnat = 0;
 static int globalcanreinvite = REINVITE_INVITE;
-
+static int use_external_ip = 0;
 
 static struct sockaddr_in bindaddr;
 
@@ -425,10 +425,14 @@ static void sip_destroy(struct sip_pvt *p);
 
 static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 {
-	if (bindaddr.sin_addr.s_addr)
-		memcpy(us, &bindaddr.sin_addr, sizeof(struct in_addr));
-	else
-		return ast_ouraddrfor(them, us);
+	if (use_external_ip) {
+		return -1;
+	} else {
+		if (bindaddr.sin_addr.s_addr)
+			memcpy(us, &bindaddr.sin_addr, sizeof(struct in_addr));
+		else
+			return ast_ouraddrfor(them, us);
+		}
 	return 0;
 }
 
@@ -2985,7 +2989,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 		strncpy(p->username, r->username, sizeof(p->username)-1);
 		strncpy(p->exten, r->contact, sizeof(p->exten) - 1);
 		/* Always bind to our IP if specified */
-		if (bindaddr.sin_addr.s_addr)
+		if (!use_external_ip && bindaddr.sin_addr.s_addr)
 			memcpy(&p->ourip, &bindaddr.sin_addr, sizeof(p->ourip));
 		build_contact(p);
 	}
@@ -5979,6 +5983,13 @@ static int reload_config(void)
 			} else {
 				memcpy(&bindaddr.sin_addr, hp->h_addr, sizeof(bindaddr.sin_addr));
 			}
+		} else if (!strcasecmp(v->name, "externip")) {
+			if (!(hp = gethostbyname(v->value))) {
+				ast_log(LOG_WARNING, "Invalid address for externip keyword: %s\n", v->value);
+			} else {
+				memcpy(&__ourip, hp->h_addr, sizeof(__ourip));
+				use_external_ip = 1;
+			}
 		} else if (!strcasecmp(v->name, "allow")) {
 			format = ast_getformatbyname(v->value);
 			if (format < 1) 
@@ -6053,16 +6064,17 @@ static int reload_config(void)
 		}
 		cat = ast_category_browse(cfg, cat);
 	}
-	
-	if (ntohl(bindaddr.sin_addr.s_addr)) {
-		memcpy(&__ourip, &bindaddr.sin_addr, sizeof(__ourip));
-	} else {
-		hp = gethostbyname(ourhost);
-		if (!hp) {
-			ast_log(LOG_WARNING, "Unable to get IP address for %s, SIP disabled\n", ourhost);
-			return 0;
+	if (!use_external_ip) {	
+		if (ntohl(bindaddr.sin_addr.s_addr)) {
+			memcpy(&__ourip, &bindaddr.sin_addr, sizeof(__ourip));
+		} else {
+			hp = gethostbyname(ourhost);
+			if (!hp) {
+				ast_log(LOG_WARNING, "Unable to get IP address for %s, SIP disabled\n", ourhost);
+				return 0;
+			}
+			memcpy(&__ourip, hp->h_addr, sizeof(__ourip));
 		}
-		memcpy(&__ourip, hp->h_addr, sizeof(__ourip));
 	}
 	if (!ntohs(bindaddr.sin_port))
 		bindaddr.sin_port = ntohs(DEFAULT_SIP_PORT);
