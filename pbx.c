@@ -3882,7 +3882,7 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 			ast_explicit_goto(tmpchan,
 							  (context && !ast_strlen_zero(context)) ? context : chan->context,
 							  (exten && !ast_strlen_zero(exten)) ? exten : chan->exten,
-							  priority - 1);
+							  priority);
 
 			/* Masquerade into temp channel */
 			ast_channel_masquerade(tmpchan, chan);
