@@ -74,7 +74,7 @@ static int  keep_alive = 120;
 static char date_format[6] = "D-M-Y";
 static char version_id[16] = "P002F202";
 
-// these should be in an include file, but dunno what to include
+/* these should be in an include file, but dunno what to include */
 typedef unsigned char  UINT8;
 typedef unsigned short UINT16;
 typedef unsigned int   UINT32;
@@ -502,12 +502,11 @@ static int threewaycalling = 0;
 /* This is for flashhook transfers */
 static int transfer = 0;
 static int cancallforward = 0;
-/*static int busycount = 3;*/
+/* static int busycount = 3;*/
 static char accountcode[20] = "";
 static char mailbox[AST_MAX_EXTENSION];
 static int amaflags = 0;
 static int callnums = 1;
-
 
 #define SUB_REAL 0
 #define SUB_ALT  1
@@ -548,8 +547,8 @@ static int callnums = 1;
 #define SKINNY_RING_OUTSIDE 3
 #define SKINNY_RING_FEATURE 4
 
-#define TYPE_TRUNK		1
-#define TYPE_LINE		2
+#define TYPE_TRUNK 1
+#define TYPE_LINE 2
 
 #define STIMULUS_REDIAL 1
 #define STIMULUS_SPEEDDIAL 2
@@ -561,7 +560,7 @@ static int callnums = 1;
 #define STIMULUS_DISPLAY 8
 #define STIMULUS_LINE 9
 
-/* Skinny rtp stream modes */
+/* Skinny rtp stream modes. Do we really need this? */
 #define SKINNY_CX_SENDONLY 0
 #define SKINNY_CX_RECVONLY 1
 #define SKINNY_CX_SENDRECV 2
@@ -590,9 +589,9 @@ static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
-static ast_mutex_t monlock	   = AST_MUTEX_INITIALIZER;
+static ast_mutex_t monlock = AST_MUTEX_INITIALIZER;
 /* Protect the network socket */
-static ast_mutex_t netlock	   = AST_MUTEX_INITIALIZER;
+static ast_mutex_t netlock = AST_MUTEX_INITIALIZER;
 /* Protect the session list */
 static ast_mutex_t sessionlock = AST_MUTEX_INITIALIZER;
 /* Protect the device list */
@@ -623,7 +622,7 @@ struct skinny_subchannel {
 	int nat;
 	int outgoing;
 	int alreadygone;
-	struct skinny_subchannel *next; /* for our circular linked list */
+	struct skinny_subchannel *next; 
 };
 
 struct skinny_line {
@@ -640,7 +639,7 @@ struct skinny_line {
 	char call_forward[AST_MAX_EXTENSION];	
 	char mailbox[AST_MAX_EXTENSION];
 	char musicclass[MAX_LANGUAGE];
-	int curtone;					/* Current tone */
+	int curtone;					/* Current tone being played */
 	unsigned int callgroup;
 	unsigned int pickupgroup;
 	int callwaiting;
@@ -767,10 +766,10 @@ static int transmit_response(struct skinnysession *s, skinny_req *req)
 	return 1;
 }
 
-/* XXX Do this right*/
+/* XXX Do this right */
 static int convert_cap(int capability)
 {
-	return 4; // ulaw (this is not the same as asterisk's '4'  :) 
+	return 4; /* ulaw (this is not the same as asterisk's '4'  */
 
 }
 
@@ -871,7 +870,7 @@ static void transmit_tone(struct skinnysession *s, int tone)
 	if (tone > 0) {
 		req->len = sizeof(start_tone_message)+4;
 		req->e = START_TONE_MESSAGE;
-		req->data.starttone.tone = tone; // da tone
+		req->data.starttone.tone = tone; 
 	} else {
 		req->len = 4;
 		req->e = STOP_TONE_MESSAGE;
@@ -880,6 +879,7 @@ static void transmit_tone(struct skinnysession *s, int tone)
 }
 
 #if 0
+/* XXX need to properly deal with softkeys */
 static void transmit_selectsoftkeys(struct skinnysession *s, int instance, int callid, int softkey)
 {
 	skinny_req *req;
@@ -911,7 +911,7 @@ static void transmit_lamp_indication(struct skinnysession *s, int instance, int 
 	}	
 	req->len = sizeof(set_lamp_message)+4;
 	req->e = SET_LAMP_MESSAGE;
-	req->data.setlamp.stimulus = 0x9;  // magic number
+	req->data.setlamp.stimulus = 0x9;  /* magic number */
 	req->data.setlamp.stimulusInstance = instance;
 	req->data.setlamp.deviceStimulus = indication;
 	transmit_response(s, req);
@@ -1231,7 +1231,7 @@ static void start_rtp(struct skinny_subchannel *sub)
 		if (sub->rtp)
 			ast_rtp_setnat(sub->rtp, sub->nat);
 		
-		/* Create the RTP connections  */
+		/* Create the RTP connection */
 		transmit_connect(sub->parent->parent->session);
  		ast_mutex_unlock(&sub->lock);
 }
@@ -1249,18 +1249,19 @@ static void *skinny_ss(void *data)
 	int res;
 	int getforward=0;
     
-	if (option_verbose > 2) 
+	if (option_verbose > 2) {
 		ast_verbose( VERBOSE_PREFIX_3 "Starting simple switch on '%s@%s'\n", l->name, l->parent->name);
-
+	}
 	while(len < AST_MAX_EXTENSION-1) {
         res = ast_waitfordigit(chan, timeout);
         timeout = 0;
         if (res < 0) {
-			if (skinnydebug)
-				ast_verbose("Skinny(%s@%s): waitfordigit returned < 0\n", l->name, l->parent->name);
-        	ast_indicate(chan, -1);
-			ast_hangup(chan);
-            return NULL;
+		if (skinnydebug) {
+			ast_verbose("Skinny(%s@%s): waitfordigit returned < 0\n", l->name, l->parent->name);
+        	}
+		ast_indicate(chan, -1);
+		ast_hangup(chan);
+            	return NULL;
         } else if (res)  {
             exten[len++]=res;
             exten[len] = '\0';
@@ -1449,11 +1450,11 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 	int res = 0;
 	int tone = 0;
 	struct skinny_line *l;
-    struct skinny_subchannel *sub;
+        struct skinny_subchannel *sub;
 	struct skinnysession *session;
 	
 	sub = ast->pvt->pvt;
-    l = sub->parent;
+        l = sub->parent;
 	session = l->parent->session;
 
 	if (!l->parent->registered) {
@@ -1466,9 +1467,9 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 		return -1;
 	}
 
-    if (skinnydebug) {
-        ast_verbose(VERBOSE_PREFIX_3 "skinny_call(%s)\n", ast->name);
-    }
+        if (skinnydebug) {
+        	ast_verbose(VERBOSE_PREFIX_3 "skinny_call(%s)\n", ast->name);
+    	}
 
 	if (l->dnd) {
 		ast_queue_control(ast, AST_CONTROL_BUSY);
@@ -1485,46 +1486,29 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
         default:
             ast_log(LOG_ERROR, "Don't know how to deal with hookstate %d\n", l->hookstate);
             break;
-    }
+    	}
 
 	transmit_lamp_indication(session, l->instance, SKINNY_LAMP_BLINK);
 	transmit_ringer_mode(session, SKINNY_RING_INSIDE);
 	transmit_tone(session, tone);
 	transmit_callstate(session, l->instance, SKINNY_RINGIN, sub->callid);
 
-// Set the prompt
-// Select the active softkeys
+	/* XXX need to set the prompt */
+	/* XXX need to deal with softkeys */
 
 	ast_setstate(ast, AST_STATE_RINGING);
 	ast_queue_control(ast, AST_CONTROL_RINGING);
 
 	sub->outgoing = 1;
-//    sub->cxmode = SKINNY_CX_RECVONLY;
 	if (l->type == TYPE_LINE) {
         if (!sub->rtp) {
             start_rtp(sub);
         } else {
-			/* do we need to anything if there already is an RTP allocated? */
-//           transmit_modify_request(sub);
+		/* do/should we need to anything if there already is an RTP allocated? */
         }
-
-#if 0
-        if (sub->next->owner && sub->next->callid) {
-            /* try to prevent a callwait from disturbing the other connection */
-            sub->next->cxmode = SKINNY_CX_RECVONLY;
-      //      transmit_modify_request(sub->next);
-        }
-		
-		/* not sure what this doing */
-		if (sub->next->owner && sub->next->callid) {
-            /* Put the connection back in sendrecv */
-            sub->next->cxmode = SKINNY_CX_SENDRECV;
-//           transmit_modify_request(sub->next);
-        }
-#endif
 
 	} else {
-		ast_log(LOG_NOTICE, "Don't know how to dial on trunks yet\n");
+		ast_log(LOG_ERROR, "I don't know how to dial on trunks, yet\n");
 		res = -1;
 	}
 	return res;
@@ -1535,7 +1519,7 @@ static int skinny_hangup(struct ast_channel *ast)
 {
     struct skinny_subchannel *sub = ast->pvt->pvt;
     struct skinny_line *l = sub->parent;
-	struct skinnysession *s = l->parent->session;
+    struct skinnysession *s = l->parent->session;
 
     if (skinnydebug) {
         ast_verbose("skinny_hangup(%s) on %s@%s\n", ast->name, l->name, l->parent->name);
@@ -1545,8 +1529,8 @@ static int skinny_hangup(struct ast_channel *ast)
         return 0;
     }
 
-	if (l->parent->registered) {
-		    if ((sub->parent->type = TYPE_LINE) && (sub->parent->hookstate == SKINNY_OFFHOOK)) {
+    if (l->parent->registered) {
+	if ((sub->parent->type = TYPE_LINE) && (sub->parent->hookstate == SKINNY_OFFHOOK)) {
 			sub->parent->hookstate = SKINNY_ONHOOK;
 			transmit_callstate(s, l->instance, SKINNY_ONHOOK, sub->callid);
 			transmit_speaker_mode(s, SKINNY_SPEAKEROFF); 
@@ -1556,13 +1540,12 @@ static int skinny_hangup(struct ast_channel *ast)
 			transmit_ringer_mode(s, SKINNY_RING_OFF);
 			transmit_tone(s, SKINNY_SILENCE);
 		} 
-	}
+    }
     ast_mutex_lock(&sub->lock);
     sub->owner = NULL;
     ast->pvt->pvt = NULL;
     sub->alreadygone = 0;
     sub->outgoing = 0;
-    sub->cxmode = SKINNY_CX_INACTIVE;
     if (sub->rtp) {
         ast_rtp_destroy(sub->rtp);
         sub->rtp = NULL;
@@ -1573,23 +1556,18 @@ static int skinny_hangup(struct ast_channel *ast)
 
 static int skinny_answer(struct ast_channel *ast)
 {
-	int res = 0;
-	struct skinny_subchannel *sub = ast->pvt->pvt;
-	struct skinny_line *l = sub->parent;
+    int res = 0;
+    struct skinny_subchannel *sub = ast->pvt->pvt;
+    struct skinny_line *l = sub->parent;
     sub->cxmode = SKINNY_CX_SENDRECV;
     if (!sub->rtp) {
 		start_rtp(sub);
-    } else {
-//        transmit_modify_request(sub);
-    }
+    } 
     ast_verbose("skinny_answer(%s) on %s@%s-%d\n", ast->name, l->name, l->parent->name, sub->callid);
-	if (ast->_state != AST_STATE_UP) {
-		ast_setstate(ast, AST_STATE_UP);
-
-//		transmit_notify_request(sub, "");
-//		transmit_modify_request(sub);
-	}
-	return res;
+    if (ast->_state != AST_STATE_UP) {
+	ast_setstate(ast, AST_STATE_UP);
+    }
+    return res;
 }
 
 static struct ast_frame *skinny_rtp_read(struct skinny_subchannel *sub)
@@ -1611,7 +1589,6 @@ static struct ast_frame *skinny_rtp_read(struct skinny_subchannel *sub)
 	return f;
 }
 
-
 static struct ast_frame  *skinny_read(struct ast_channel *ast)
 {
 	struct ast_frame *fr;
@@ -1630,7 +1607,7 @@ static int skinny_write(struct ast_channel *ast, struct ast_frame *frame)
 		if (frame->frametype == AST_FRAME_IMAGE)
 			return 0;
 		else {
-			ast_log(LOG_WARNING, "Can't send %d type frames with SKINNY write\n", frame->frametype);
+			ast_log(LOG_WARNING, "Can't send %d type frames with skinny_write\n", frame->frametype);
 			return 0;
 		}
 	} else {
@@ -1653,7 +1630,7 @@ static int skinny_write(struct ast_channel *ast, struct ast_frame *frame)
 static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct skinny_subchannel *sub = newchan->pvt->pvt;
-    ast_log(LOG_NOTICE, "skinny_fixup(%s, %s)\n", oldchan->name, newchan->name);
+    	ast_log(LOG_NOTICE, "skinny_fixup(%s, %s)\n", oldchan->name, newchan->name);
 	if (sub->owner != oldchan) {
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, sub->owner);
 		return -1;
@@ -1664,10 +1641,13 @@ static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan
 
 static int skinny_senddigit(struct ast_channel *ast, char digit)
 {
-//	struct skinny_subchannel *sub = ast->pvt->pvt;
-//	int tmp;
-//	sprintf(tmp, "%d", digit);  // not right
-//	transmit_tone(sub->parent->parent->session, digit);
+#if 0
+	struct skinny_subchannel *sub = ast->pvt->pvt;
+	int tmp;
+	/* not right */
+	sprintf(tmp, "%d", digit);  
+	transmit_tone(sub->parent->parent->session, digit);
+#endif
 	return -1;
 }
 
@@ -1712,9 +1692,9 @@ static int skinny_indicate(struct ast_channel *ast, int ind)
 	struct skinny_line *l = sub->parent;
 	struct skinnysession *s = l->parent->session;
 
-    if (skinnydebug) {
-        ast_verbose(VERBOSE_PREFIX_3 "Asked to indicate '%s' condition on channel %s\n", control2str(ind), ast->name);
-    }
+    	if (skinnydebug) {
+        	ast_verbose(VERBOSE_PREFIX_3 "Asked to indicate '%s' condition on channel %s\n", control2str(ind), ast->name);
+    	}
 	switch(ind) {
 	case AST_CONTROL_RINGING:
 		transmit_tone(s, SKINNY_ALERT);
@@ -1770,7 +1750,7 @@ static struct ast_channel *skinny_new(struct skinny_subchannel *sub, int state)
 		tmp->pvt->indicate = skinny_indicate;
 		tmp->pvt->fixup = skinny_fixup;
 		tmp->pvt->send_digit = skinny_senddigit;
-//		tmp->pvt->bridge = ast_rtp_bridge;
+/*		tmp->pvt->bridge = ast_rtp_bridge; */
 		if (!ast_strlen_zero(l->language))
 			strncpy(tmp->language, l->language, sizeof(tmp->language)-1);
 		if (!ast_strlen_zero(l->accountcode))
@@ -1787,8 +1767,9 @@ static struct ast_channel *skinny_new(struct skinny_subchannel *sub, int state)
 		strncpy(tmp->call_forward, l->call_forward, sizeof(tmp->call_forward));
 		strncpy(tmp->context, l->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten,l->exten, sizeof(tmp->exten)-1);
-		if (!ast_strlen_zero(l->callerid))
+		if (!ast_strlen_zero(l->callerid)) {
 			tmp->callerid = strdup(l->callerid);
+		}
 		tmp->priority = 1;
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
@@ -1833,16 +1814,15 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		free(req);
 		return 0;
 	}
-
 		
 	switch(req->e)	{
 	case ALARM_MESSAGE:
-		if (skinnydebug)
-			ast_verbose("Recieved AlarmMessage\n");
+		/* no response necessary */
 		break;
 	case REGISTER_MESSAGE:
-		if (skinnydebug)
+		if (skinnydebug) {
 			ast_verbose("Device %s is attempting to register\n", req->data.reg.name);
+		}
 		res = skinny_register(req, s);	
 		if (!res) {
 			ast_log(LOG_ERROR, "Rejecting Device %s: Device not found\n", req->data.reg.name);
@@ -1854,8 +1834,9 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 			transmit_response(s, req);
 			break;
 		}
-		if (option_verbose > 2) 
+		if (option_verbose > 2) {
 			ast_verbose(VERBOSE_PREFIX_3 "Device '%s' successfuly registered\n", s->device->name); 
+		}
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = sizeof(register_ack_message)+4;
 		req->e = REGISTER_ACK_MESSAGE;
@@ -1865,8 +1846,9 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		strcpy(req->data.regack.res2, "0");
 		req->data.regack.secondaryKeepAlive = keep_alive;
 		transmit_response(s, req);
-		if (skinnydebug)
+		if (skinnydebug) {
 			ast_verbose("Requesting capabilities\n");
+		}
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = 4;
 		req->e = CAPABILITIES_REQ_MESSAGE;
@@ -1876,6 +1858,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		/* XXX Acutally unregister the device */
 		break;
 	case IP_PORT_MESSAGE:
+		/* no response necessary */
 		break;
 	case STIMULUS_MESSAGE:
 		stimulus = req->data.stimulus.stimulus;
@@ -1883,7 +1866,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		
 		switch(stimulus) {
 		case STIMULUS_REDIAL:
-			// XXX how we gonna deal with redial ?!?!
+			/* XXX how we gonna deal with redial ?!?! */
 			if (skinnydebug) {
 				ast_verbose("Recieved Stimulus: Redial(%d)\n", stimulusInstance);
 			}
@@ -1894,7 +1877,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 			}
 			break;
 		case STIMULUS_HOLD:
-			// Easy enough
+			/* start moh? set RTP to 0.0.0.0? */
 			if (skinnydebug) {
 				ast_verbose("Recieved Stimulus: Hold(%d)\n", stimulusInstance);
 			}
@@ -1905,19 +1888,19 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 			}
 			transmit_tone(s, SKINNY_DIALTONE);
 				
-			// figure out how to transfer
+			/* figure out how to transfer */
 
 			break;
 		case STIMULUS_FORWARDALL:
 		case STIMULUS_FORWARDBUSY:
 		case STIMULUS_FORWARDNOANSWER:
-			// Gonna be fun
+			/* Gonna be fun, not */
 			if (skinnydebug) {
 				ast_verbose("Recieved Stimulus: Forward (%d)\n", stimulusInstance);
 			}
 			break;
 		case STIMULUS_DISPLAY:
-			// XXX Not sure
+			/* Not sure what this is */
 			if (skinnydebug) {
 				ast_verbose("Recieved Stimulus: Display(%d)\n", stimulusInstance);
 			}
@@ -1927,18 +1910,18 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 				ast_verbose("Recieved Stimulus: Line(%d)\n", stimulusInstance);
 			}		
 			sub = find_subchannel_by_line(s->device->lines);
-			transmit_speaker_mode(s, 1);  // Turn on
+			/* turn the speaker on */
+			transmit_speaker_mode(s, 1);  
 		break;
 		default:
 			ast_verbose("RECEIVED UNKNOWN STIMULUS:  %d(%d)\n", stimulus, stimulusInstance);			
 			break;
 		}
-			
-			
 		break;
 	case VERSION_REQ_MESSAGE:
-		if (skinnydebug)
+		if (skinnydebug) {
 			ast_verbose("Version Request\n");
+		}
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = sizeof(version_res_message)+4;
 		req->e = VERSION_RES_MESSAGE;
@@ -1946,8 +1929,9 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		transmit_response(s, req);
 		break;
 	case SERVER_REQUEST_MESSAGE:
-		if (skinnydebug)
+		if (skinnydebug) {
 			ast_verbose("Recieved Server Request\n");
+		}
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = sizeof(server_res_message)+4;
 		req->e = SERVER_RES_MESSAGE;
@@ -1958,14 +1942,15 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		transmit_response(s, req);	
 		break;
 	case BUTTON_TEMPLATE_REQ_MESSAGE:
-		if (skinnydebug)
+		if (skinnydebug) {
 			ast_verbose("Buttontemplate requested\n");
+		}
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = sizeof(button_template_res_message)+4;
 		req->e = BUTTON_TEMPLATE_RES_MESSAGE;	
-		req->data.buttontemplate.buttonOffset		= 0;
-		req->data.buttontemplate.buttonCount		= 10;
-		req->data.buttontemplate.totalButtonCount	= 10;
+		req->data.buttontemplate.buttonOffset = 0;
+		req->data.buttontemplate.buttonCount  = 10;
+		req->data.buttontemplate.totalButtonCount = 10;
 		/* XXX Figure out how to do this correctly */
 		memcpy(req->data.buttontemplate.definition,
 			   button_definition_hack, 
@@ -1973,8 +1958,9 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		transmit_response(s, req);
 		break;
 	case SOFT_KEY_SET_REQ_MESSAGE:
-		if (skinnydebug)
+		if (skinnydebug)  {
 			ast_verbose("Received SoftKeySetReq\n");
+		}
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = sizeof(soft_key_sets)+4;
 		req->e = SOFT_KEY_SET_RES_MESSAGE;
@@ -1988,8 +1974,9 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		transmit_response(s,req);
 		break;
 	case SOFT_KEY_TEMPLATE_REQ_MESSAGE:
-		if (skinnydebug)
+		if (skinnydebug) {
 			ast_verbose("Recieved SoftKey Template Request\n");
+		}
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = sizeof(soft_key_template)+4;
 		req->e = SOFT_KEY_TEMPLATE_RES_MESSAGE;
@@ -2003,8 +1990,9 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		transmit_response(s,req);
 		break;
 	case TIME_DATE_REQ_MESSAGE:
-		if (skinnydebug)
+		if (skinnydebug) {
 			ast_verbose("Received Time/Date Request\n");
+		}
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = sizeof(definetimedate_message)+4;
 		req->e = DEFINETIMEDATE_MESSAGE;
@@ -2023,8 +2011,6 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		/* Not really sure how Speed Dial's are different than the 
 		   Softkey templates */
 		speedDialNum = req->data.speeddialreq.speedDialNumber;
-//		if (skinnydebug)
-//			ast_verbose("Recieved SpeedDialStatReq: %d\n", speedDialNum);
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = sizeof(speed_dial_stat_res_message)+4;
 		req->e = SPEED_DIAL_STAT_RES_MESSAGE;
@@ -2038,8 +2024,9 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		break;
 	case LINE_STATE_REQ_MESSAGE:
 		lineNumber = req->data.line.lineNumber;
-		if (skinnydebug)
+		if (skinnydebug) {
 			ast_verbose("Received LineStateReq\n");
+		}
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = sizeof(line_stat_res_message)+4;
 		req->e = LINE_STAT_RES_MESSAGE;	
@@ -2062,9 +2049,10 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		transmit_response(s,req);
 		break;
 	case CAPABILITIES_RES_MESSAGE:
-		if (skinnydebug)
+		if (skinnydebug) {
 			ast_verbose("Received CapabilitiesRes\n");	
-		// zien wat ie kan en verwerken (handshake)
+		}
+		/* XXX process the capabilites  */
 		break;
 	case KEEP_ALIVE_MESSAGE:
 		memset(req, 0, SKINNY_MAX_PACKET);
@@ -2083,14 +2071,13 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		}
 		sub->parent->hookstate = SKINNY_OFFHOOK;
 		
-			if (sub->outgoing) {
-				transmit_callstate(s, s->device->lines->instance, SKINNY_OFFHOOK, sub->callid);
-				transmit_tone(s, SKINNY_SILENCE);
-				ast_setstate(sub->owner, AST_STATE_UP);
-				// select soft keys
+		if (sub->outgoing) {
+			transmit_callstate(s, s->device->lines->instance, SKINNY_OFFHOOK, sub->callid);
+			transmit_tone(s, SKINNY_SILENCE);
+			ast_setstate(sub->owner, AST_STATE_UP);
+			/* XXX select the appropriate soft key here */
 			} else { 	
 				if (!sub->owner) {	
-
 					transmit_callstate(s, s->device->lines->instance, SKINNY_OFFHOOK, sub->callid);
 					transmit_tone(s, SKINNY_DIALTONE);
 					c = skinny_new(sub, AST_STATE_DOWN);			
@@ -2107,7 +2094,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 				} else {
 					ast_log(LOG_DEBUG, "Current sub [%s] already has owner\n", sub->owner->name);
 				}
-			}
+		}
 		break;
 	case ONHOOK_MESSAGE:
 		sub = find_subchannel_by_line(s->device->lines);
@@ -2118,12 +2105,10 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		sub->cxmode = SKINNY_CX_RECVONLY;
 		sub->parent->hookstate = SKINNY_ONHOOK;
 		transmit_callstate(s, s->device->lines->instance, sub->parent->hookstate,sub->callid);
-	    if (skinnydebug)
+	    if (skinnydebug) {
 			ast_verbose("Skinny %s@%s went on hook\n",sub->parent->name, sub->parent->parent->name);
-	    if (sub->rtp) {
- //         transmit_modify_request(sub);
-        }
-        if (sub->parent->transfer && (sub->owner && sub->next->owner) && ((!sub->outgoing) || (!sub->next->outgoing))) {
+	    }
+            if (sub->parent->transfer && (sub->owner && sub->next->owner) && ((!sub->outgoing) || (!sub->next->outgoing))) {
 			/* We're allowed to transfer, we have two active calls and */
 			/* we made at least one of the calls.  Let's try and transfer */
 #if 0
@@ -2137,7 +2122,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 					return -1;
              }
 #endif
-       } else {
+       	} else {
            /* Hangup the current call */
            /* If there is another active call, skinny_hangup will ring the phone with the other call */
            if (sub->owner) {
@@ -2147,15 +2132,16 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
                ast_log(LOG_WARNING, "Skinny(%s@%s-%d) channel already destroyed\n", 
                            sub->parent->name, sub->parent->parent->name, sub->callid);
            }
-       }
-       if ((sub->parent->hookstate == SKINNY_ONHOOK) && (!sub->rtp) && (!sub->next->rtp)) {
-			if (has_voicemail(sub->parent)) {
-				transmit_lamp_indication(s, s->device->lines->instance, SKINNY_LAMP_FLASH); 
+       	}
+
+       	if ((sub->parent->hookstate == SKINNY_ONHOOK) && (!sub->next->rtp)) {
+	    if (has_voicemail(sub->parent)) {
+	    	transmit_lamp_indication(s, s->device->lines->instance, SKINNY_LAMP_FLASH); 
             } else {
-				transmit_lamp_indication(s, s->device->lines->instance, SKINNY_LAMP_OFF);
+		transmit_lamp_indication(s, s->device->lines->instance, SKINNY_LAMP_OFF);
             }
-       }
-	   break;
+       	}
+	break;
 	case KEYPAD_BUTTON_MESSAGE:
 		digit = req->data.keypad.button;
 		if (skinnydebug) {
@@ -2177,10 +2163,10 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		if (sub->owner) {
 			/* XXX MUST queue this frame to all subs in threeway call if threeway call is active */
 			ast_queue_frame(sub->owner, &f);
-            if (sub->next->owner) {
+            		if (sub->next->owner) {
 				ast_queue_frame(sub->next->owner, &f);
-            }
-        } else {
+            		}
+        	} else {
 			ast_verbose("No owner: %s\n", s->device->lines->name);
 		}
 		break;
@@ -2195,7 +2181,8 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		port = req->data.openrecievechannelack.port;
 				
 		sin.sin_family = AF_INET;
-		memcpy(&sin.sin_addr, addr, sizeof(sin.sin_addr));  // Endian?
+		/* I smell endian problems */
+		memcpy(&sin.sin_addr, addr, sizeof(sin.sin_addr));  
 		sin.sin_port = htons(port);
 	
 		sub = find_subchannel_by_line(s->device->lines);
@@ -2211,7 +2198,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
         	req->e = START_MEDIA_TRANSMISSION_MESSAGE;
         	req->data.startmedia.conferenceId = 0;
         	req->data.startmedia.passThruPartyId = 0;
-        	memcpy(req->data.startmedia.remoteIp, &s->device->ourip, 4); // Endian?
+        	memcpy(req->data.startmedia.remoteIp, &s->device->ourip, 4); /* Endian? */
 	    	req->data.startmedia.remotePort = ntohs(us.sin_port);
         	req->data.startmedia.packetSize = 20;
         	req->data.startmedia.payloadType = convert_cap(s->device->lines->capability);
@@ -2225,7 +2212,6 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		ast_verbose("RECEIVED UNKNOWN MESSAGE TYPE:  %x\n", req->e);
 		break;
 	}
-
 	free(req);
 	return 1;
 
@@ -2257,7 +2243,6 @@ static void destroy_session(struct skinnysession *s)
 
 static int get_input(struct skinnysession *s)  
 {  
- 
 	int res;  
 	int dlen = 0;
 	struct pollfd fds[1];  
@@ -2282,11 +2267,9 @@ static int get_input(struct skinnysession *s)
 			ast_log(LOG_WARNING, "Skinny Client sent less data than expected.\n");
 			return -1;
 		} 
- 
 	}  
 	return res;  
 }   
-
 
 static skinny_req *skinny_req_parse(struct skinnysession *s)
 {
@@ -2298,7 +2281,8 @@ static skinny_req *skinny_req_parse(struct skinnysession *s)
 		return NULL;
 	}
 	memset(req, 0, sizeof(skinny_req));
-	memcpy(req, s->inbuf, *(int*)(s->inbuf)+8); // +8
+	/* +8 to account for reserved and length fields */
+	memcpy(req, s->inbuf, *(int*)(s->inbuf)+8); 
 	if (req->e < 0) {
 		ast_log(LOG_ERROR, "Event Message is NULL from socket %d, This is bad\n", s->fd);
 		free(req);
@@ -2375,14 +2359,15 @@ static void *accept_thread(void *ignore)
 		sessions = s;
 		ast_mutex_unlock(&sessionlock);
 		
-		if (pthread_create(&tcp_thread, NULL, skinny_session, s))
+		if (pthread_create(&tcp_thread, NULL, skinny_session, s)) {
 			destroy_session(s);
+		}
 	}
 	
 	
-	if (skinnydebug)
+	if (skinnydebug) {
 		ast_verbose("killing accept thread\n");
-	
+	}
 	close(as);
 	return 0;
 }
@@ -2398,12 +2383,14 @@ static void *do_monitor(void *data)
 		pthread_testcancel();
 		/* Wait for sched or io */
 		res = ast_sched_wait(sched);
-		if ((res < 0) || (res > 1000))
+		if ((res < 0) || (res > 1000)) {
 			res = 1000;
+		}
 		res = ast_io_wait(io, res);
 		ast_mutex_lock(&monlock);
-		if (res >= 0) 
+		if (res >= 0) {
 			ast_sched_runq(sched);
+		}
 		ast_mutex_unlock(&monlock);
 	}
 	/* Never reached */
@@ -2413,7 +2400,6 @@ static void *do_monitor(void *data)
 
 static int restart_monitor(void)
 {
-
 	/* If we're supposed to be stopped -- stay stopped */
 	if (monitor_thread == AST_PTHREADT_STOP)
 		return 0;
@@ -2468,15 +2454,15 @@ static struct ast_channel *skinny_request(char *type, int format, void *data)
 		return NULL;
 	}
 	
-    if (option_verbose > 2) {
-        ast_verbose(VERBOSE_PREFIX_3 "skinny_request(%s)\n", tmp);
-        ast_verbose(VERBOSE_PREFIX_3 "Skinny cw: %d, dnd: %d, so: %d, sno: %d\n", 
-                    sub->parent->callwaiting, sub->parent->dnd, sub->owner ? 1 : 0, sub->next->owner ? 1: 0);
-    }
-	
+   	if (option_verbose > 2) {
+        	ast_verbose(VERBOSE_PREFIX_3 "skinny_request(%s)\n", tmp);
+        	ast_verbose(VERBOSE_PREFIX_3 "Skinny cw: %d, dnd: %d, so: %d, sno: %d\n", 
+                   	sub->parent->callwaiting, sub->parent->dnd, sub->owner ? 1 : 0, sub->next->owner ? 1: 0);
+    	}
 	tmpc = skinny_new(sub->owner ? sub->next : sub, AST_STATE_DOWN);
-	if (!tmpc)
+	if (!tmpc) {
 		ast_log(LOG_WARNING, "Unable to make channel for '%s'\n", tmp);
+	}
 	restart_monitor();
 
 	/* and finish */	
@@ -2492,11 +2478,14 @@ static int reload_config(void)
 	char *cat;
 	struct skinny_device *d;
 	int oldport = ntohs(bindaddr.sin_port);
-	
-	if (gethostname(ourhost, sizeof(ourhost))) {
+
+#if 0		
+	hp = ast_gethostbyname(ourhost, &ahp);
+	if (!hp) {
 		ast_log(LOG_WARNING, "Unable to get hostname, Skinny disabled\n");
 		return 0;
 	}
+#endif
 	cfg = ast_load(config);
 
 	/* We *must* have a config file otherwise stop immediately */
@@ -2552,8 +2541,9 @@ static int reload_config(void)
 		}
 		memcpy(&__ourip, hp->h_addr, sizeof(__ourip));
 	}
-	if (!ntohs(bindaddr.sin_port))
+	if (!ntohs(bindaddr.sin_port)) {
 		bindaddr.sin_port = ntohs(DEFAULT_SKINNY_PORT);
+	}
 	bindaddr.sin_family = AF_INET;
 	
 	/* load the device sections */
@@ -2611,7 +2601,6 @@ static int reload_config(void)
 					inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
 
 			pthread_create(&accept_t,NULL, accept_thread, NULL);
-
 		}
 	}
 	ast_mutex_unlock(&netlock);
