@@ -3687,7 +3687,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				|| (f.subclass == AST_IAX_COMMAND_POKE)))
 			new = NEW_ALLOW;
 	} else {
-		/* Don't knwo anything about it yet */
+		/* Don't know anything about it yet */
 		f.frametype = AST_FRAME_NULL;
 		f.subclass = 0;
 	}
