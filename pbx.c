@@ -338,8 +338,8 @@ static struct pbx_builtin {
 
 	{ "Wait", pbx_builtin_wait, 
 "Waits for some time", 
-"  Wait(seconds): Waits for a specified number of seconds, then returns 0.\n" },
-
+"  Wait(seconds): Waits for a specified number of seconds, then returns 0.\n"
+"seconds can be passed with fractions of a second. (eg: 1.5 = 1.5 seconds)\n" },
 };
 
 /* Lock for the application list */
@@ -4287,8 +4287,8 @@ static int pbx_builtin_wait(struct ast_channel *chan, void *data)
 {
 	int ms;
 	/* Wait for "n" seconds */
-	if (data && atoi((char *)data)) {
-		ms = atoi((char *)data) * 1000;
+	if (data && atof((char *)data)) {
+		ms = atof((char *)data) * 1000;
 		return ast_safe_sleep(chan, ms);
 	}
 	return 0;
