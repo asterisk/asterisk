@@ -233,13 +233,16 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 		key->rsa = PEM_read_RSAPrivateKey(f, NULL, pw_cb, key);
 	fclose(f);
 	if (key->rsa) {
-		/* Key loaded okay */
-		key->ktype &= ~KEY_NEEDS_PASSCODE;
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Loaded %s key '%s'\n", key->ktype == AST_KEY_PUBLIC ? "PUBLIC" : "PRIVATE", key->name);
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Key '%s' loaded OK\n", key->name);
-		key->delme = 0;
+		if (RSA_size(key->rsa) == 128) {
+			/* Key loaded okay */
+			key->ktype &= ~KEY_NEEDS_PASSCODE;
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Loaded %s key '%s'\n", key->ktype == AST_KEY_PUBLIC ? "PUBLIC" : "PRIVATE", key->name);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Key '%s' loaded OK\n", key->name);
+			key->delme = 0;
+		} else
+			ast_log(LOG_NOTICE, "Key '%s' is not expected size.\n", key->name);
 	} else if (key->infd != -2) {
 		ast_log(LOG_WARNING, "Key load %s '%s' failed\n",key->ktype == AST_KEY_PUBLIC ? "PUBLIC" : "PRIVATE", key->name);
 		if (ofd > -1) {
@@ -303,7 +306,7 @@ int ast_sign_bin(struct ast_key *key, char *msg, int msglen, unsigned char *dsig
 	int res;
 
 	if (key->ktype != AST_KEY_PRIVATE) {
-		ast_log(LOG_WARNING, "Cannot sign with a private key\n");
+		ast_log(LOG_WARNING, "Cannot sign with a public key\n");
 		return -1;
 	}
 
@@ -325,6 +328,58 @@ int ast_sign_bin(struct ast_key *key, char *msg, int msglen, unsigned char *dsig
 
 	return 0;
 	
+}
+
+extern int ast_decrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key)
+{
+	int res;
+	int pos = 0;
+	if (key->ktype != AST_KEY_PRIVATE) {
+		ast_log(LOG_WARNING, "Cannot decrypt with a public key\n");
+		return -1;
+	}
+
+	if (srclen % 128) {
+		ast_log(LOG_NOTICE, "Tried to decrypt something not a multiple of 128 bytes\n");
+		return -1;
+	}
+	while(srclen) {
+		/* Process chunks 128 bytes at a time */
+		res = RSA_private_decrypt(128, src, dst, key->rsa, RSA_PKCS1_OAEP_PADDING);
+		if (res < 0)
+			return -1;
+		pos += res;
+		src += 128;
+		srclen -= 128;
+		dst += res;
+	}
+	return pos;
+}
+
+extern int ast_encrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key)
+{
+	int res;
+	int bytes;
+	int pos = 0;
+	if (key->ktype != AST_KEY_PUBLIC) {
+		ast_log(LOG_WARNING, "Cannot encrypt with a private key\n");
+		return -1;
+	}
+	
+	while(srclen) {
+		bytes = srclen;
+		if (bytes > 128 - 41)
+			bytes = 128 - 41;
+		/* Process chunks 128 bytes at a time */
+		res = RSA_private_encrypt(bytes, src, dst, key->rsa, RSA_PKCS1_OAEP_PADDING);
+		if (res != 128)
+			return -1;
+		src += 128 - 41;
+		srclen -= 128 - 41;
+		pos += res;
+		dst += res;
+	}
+	return pos;
 }
 
 int ast_sign(struct ast_key *key, char *msg, char *sig)

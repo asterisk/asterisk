@@ -85,6 +85,29 @@ extern int ast_sign(struct ast_key *key, char *msg, char *sig);
  */
 extern int ast_sign_bin(struct ast_key *key, char *msg, int msglen, unsigned char *sig);
 
+/*!
+ * \param key a private key to use to encrypt
+ * \param src the message to encrypt
+ * \param srclen the length of the message to encrypt
+ * \param dst a pointer to a buffer of at least srclen * 1.5 bytes in which the encrypted
+ * answer will be stored
+ *
+ * Returns length of encrypted data on success or -1 on failure.
+ *
+ */
+extern int ast_encrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key);
+
+/*!
+ * \param key a private key to use to decrypt
+ * \param src the message to decrypt
+ * \param srclen the length of the message to decrypt
+ * \param dst a pointer to a buffer of at least srclen bytes in which the decrypted
+ * answer will be stored
+ *
+ * Returns length of decrypted data on success or -1 on failure.
+ *
+ */
+extern int ast_decrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key);
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
