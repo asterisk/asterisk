@@ -1894,11 +1894,13 @@ static void close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 	if (vms->lastmsg > -1) { 
 		/* Get the deleted messages fixed */ 
 		vms->curmsg = -1; 
-		for (x=0;x<=vms->lastmsg;x++) { 
+		for (x=0;x < MAXMSG;x++) { 
 			if (!vms->deleted[x] && (strcasecmp(vms->curbox, "INBOX") || !vms->heard[x])) { 
 				/* Save this message.  It's not in INBOX or hasn't been heard */ 
-				vms->curmsg++; 
 				make_file(vms->fn, sizeof(vms->fn), vms->curdir, x); 
+				if (ast_fileexists(vms->fn, NULL, NULL) < 1) 
+					break;
+				vms->curmsg++; 
 				make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg); 
 				if (strcmp(vms->fn, vms->fn2)) { 
 					snprintf(txt, sizeof(txt), "%s.txt", vms->fn); 
@@ -1911,8 +1913,10 @@ static void close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 				save_to_folder(vms->curdir, x, vmu->context, vms->username, 1); 
 			} 
 		} 
-		for (x = vms->curmsg + 1; x<=vms->lastmsg; x++) { 
+		for (x = vms->curmsg + 1; x <= MAXMSG; x++) { 
 			make_file(vms->fn, sizeof(vms->fn), vms->curdir, x); 
+			if (ast_fileexists(vms->fn, NULL, NULL) < 1) 
+				break;
 			snprintf(txt, sizeof(txt), "%s.txt", vms->fn); 
 			ast_filedelete(vms->fn, NULL); 
 			unlink(txt); 

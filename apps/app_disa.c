@@ -7,6 +7,8 @@
  *
  * Jim Dixon <jim@lambdatel.com>
  *
+ * Made only slightly more sane by Mark Spencer <markster@digium.com>
+ *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
  */
@@ -179,7 +181,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		{
 			ast_log(LOG_DEBUG,"DISA %s entry timeout on chan %s\n",
 				((k) ? "extension" : "password"),chan->name);
-			goto reorder;
+			break;
 		}
 		if ((res = ast_waitfor(chan, -1) < 0)) {
 			ast_log(LOG_DEBUG, "Waitfor returned %d\n", res);
@@ -296,66 +298,71 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			exten[i] = 0;
 			if (!k) continue; /* if getting password, continue doing it */
 			  /* if this exists */
-			if (ast_exists_extension(chan,ourcontext,exten,1, chan->callerid))
-			{
-				if (ourcallerid && *ourcallerid)
-				{
-					if (chan->callerid) free(chan->callerid);
-					chan->callerid = strdup(ourcallerid);
-				}
-				strcpy(chan->exten,exten);
-				strcpy(chan->context,ourcontext);
-				strcpy(chan->accountcode,acctcode);
-				chan->priority = 0;
-				ast_cdr_init(chan->cdr,chan);
-				LOCAL_USER_REMOVE(u);
-				return 0;
-			}
+
 			  /* if can do some more, do it */
-			if (ast_canmatch_extension(chan,ourcontext,exten,1, chan->callerid)) continue;
+			if (!ast_matchmore_extension(chan,ourcontext,exten,1, chan->callerid)) 
+				break;
 		}
+	}
+
+	if (k && ast_exists_extension(chan,ourcontext,exten,1, chan->callerid))
+	{
+		/* We're authenticated and have a valid extension */
+		if (ourcallerid && *ourcallerid)
+		{
+			if (chan->callerid) free(chan->callerid);
+			chan->callerid = strdup(ourcallerid);
+		}
+		strcpy(chan->exten,exten);
+		strcpy(chan->context,ourcontext);
+		strcpy(chan->accountcode,acctcode);
+		chan->priority = 0;
+		ast_cdr_init(chan->cdr,chan);
+		LOCAL_USER_REMOVE(u);
+		return 0;
+	}
+
 reorder:
 		
-		/* something is invalid, give em reorder forever */
-		x = 0;
-		k = 0;	/* k = 0 means busy tone, k = 1 means silence) */
-		i = 0;	/* Number of samples we've done */
-		for(;;)
-		{
-			if (ast_waitfor(chan, -1) < 0)
-				break;
-			f = ast_read(chan);
-			if (!f)
-				break;
-			if (f->frametype == AST_FRAME_VOICE) {
-				wf.frametype = AST_FRAME_VOICE;
-				wf.subclass = AST_FORMAT_ULAW;
-				wf.offset = AST_FRIENDLY_OFFSET;
-				wf.mallocd = 0;
-				wf.data = tone_block;
-				wf.datalen = f->datalen;
-				wf.samples = wf.datalen;
-				if (k) 
-					memset(tone_block, 0x7f, wf.datalen);
-				else
-					make_tone_block(tone_block,480.0, 620.0,wf.datalen, &x);
-				i += wf.datalen / 8;
-				if (i > 250) {
-					i = 0;
-					k = !k;
-				}
-			    if (ast_write(chan, &wf)) 
-				{
-			        ast_log(LOG_WARNING, "DISA Failed to write frame on %s\n",chan->name);
-					LOCAL_USER_REMOVE(u);
-					return -1;
-				}
+	/* something is invalid, give em reorder forever */
+	x = 0;
+	k = 0;	/* k = 0 means busy tone, k = 1 means silence) */
+	i = 0;	/* Number of samples we've done */
+	for(;;)
+	{
+		if (ast_waitfor(chan, -1) < 0)
+			break;
+		f = ast_read(chan);
+		if (!f)
+			break;
+		if (f->frametype == AST_FRAME_VOICE) {
+			wf.frametype = AST_FRAME_VOICE;
+			wf.subclass = AST_FORMAT_ULAW;
+			wf.offset = AST_FRIENDLY_OFFSET;
+			wf.mallocd = 0;
+			wf.data = tone_block;
+			wf.datalen = f->datalen;
+			wf.samples = wf.datalen;
+			if (k) 
+				memset(tone_block, 0x7f, wf.datalen);
+			else
+				make_tone_block(tone_block,480.0, 620.0,wf.datalen, &x);
+			i += wf.datalen / 8;
+			if (i > 250) {
+				i = 0;
+				k = !k;
 			}
-			ast_frfree(f);
+		    if (ast_write(chan, &wf)) 
+			{
+		        ast_log(LOG_WARNING, "DISA Failed to write frame on %s\n",chan->name);
+				LOCAL_USER_REMOVE(u);
+				return -1;
+			}
 		}
-		LOCAL_USER_REMOVE(u);
-		return -1;
+		ast_frfree(f);
 	}
+	LOCAL_USER_REMOVE(u);
+	return -1;
 }
 
 int unload_module(void)
@@ -381,7 +388,7 @@ int usecount(void)
 	return res;
 }
 
-char *key()
+char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }
