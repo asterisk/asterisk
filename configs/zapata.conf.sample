@@ -216,6 +216,14 @@ immediate=no
 ;
 ;busydetect=yes
 ;
+; If busydetect is enabled, is also possible to specify how many
+; busy tones to wait before hanging up. The default is 4, but
+; better results can be achieved if set to 6 or even 8. Mind that
+; higher the number, more time is needed to hangup a channel, but
+; lower is probability to get random hangups
+;
+;busycount=4
+;
 ; On trunk interfaces (FXS) it can be useful to attempt to follow the progress
 ; of a call through RINGING, BUSY, and ANSWERING.   If turned on, call
 ; progress attempts to determine answer, busy, and ringing on phone lines.
