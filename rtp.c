@@ -1069,6 +1069,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		// fall through to...
 	case AST_FORMAT_H261:
 	case AST_FORMAT_H263:
+	case AST_FORMAT_G723_1:
 	case AST_FORMAT_SPEEX:
 	        // Don't buffer outgoing frames; send them one-per-packet:
 		if (_f->offset < hdrlen) {
