@@ -23,7 +23,7 @@
 
 // table to convert unsigned a-law bytes to signed linear integers
 
-const int alaw2int[256] = {
+static const int alaw2int[256] = {
   -5504,5504,-344,344,-22016,22016,-1376,1376,-2752,2752,-88,88,-11008,11008,
   -688,688,-7552,7552,-472,472,-30208,30208,-1888,1888,-3776,3776,-216,216,
   -15104,15104,-944,944,-4480,4480,-280,280,-17920,17920,-1120,1120,-2240,2240,
@@ -50,7 +50,7 @@ const int alaw2int[256] = {
 // shift the integer to be 12+1 bit first, then add 4096 to get 
 // the right index 
 
-const unsigned char int2alaw[8192] = {
+static const unsigned char int2alaw[8192] = {
   84,84,84,84,84,84,84,84,84,84,84,84,84,84,84,84,
   84,84,84,84,84,84,84,84,84,84,84,84,84,84,84,84,
   84,84,84,84,84,84,84,84,84,84,84,84,84,84,84,84,

@@ -73,7 +73,7 @@
 #include <sys/file.h>
 #include "../astconf.h"
 
-char qdir[255];
+static char qdir[255];
 static  char *tdesc = "Call from Queue";
 static  pthread_t qcall_thread;
 static int debug = 0;

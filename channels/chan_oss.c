@@ -75,7 +75,7 @@ static char context[AST_MAX_EXTENSION] = "default";
 static char language[MAX_LANGUAGE] = "";
 static char exten[AST_MAX_EXTENSION] = "s";
 
-int hookstate=0;
+static int hookstate=0;
 
 static short silence[FRAME_SIZE] = {0, };
 
@@ -123,7 +123,7 @@ static int time_has_passed(void)
    with 160 sample frames, and a buffer size of 3, we have a 60ms buffer, 
    usually plenty. */
 
-pthread_t sthread;
+static pthread_t sthread;
 
 #define MAX_BUFFER_SIZE 100
 static int buffersize = 3;

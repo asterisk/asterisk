@@ -29,10 +29,17 @@
 // #define AST_MUTEX_KIND             PTHREAD_MUTEX_RECURSIVE_NP
 #ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
 #define AST_MUTEX_INITIALIZER         PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
+#else
+#ifdef PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+#define AST_MUTEX_INITIALIZER         PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+#else
+#define AST_MUTEX_INITIALIZER         PTHREAD_MUTEX_INITIALIZER
+#endif
+#endif
+#ifdef PTHREAD_MUTEX_ERRORCHECK_NP
 #define AST_MUTEX_KIND                PTHREAD_MUTEX_ERRORCHECK_NP
 #else
-#define AST_MUTEX_INITIALIZER      PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
-#define AST_MUTEX_KIND             PTHREAD_MUTEX_RECURSIVE_NP
+#define AST_MUTEX_KIND                PTHREAD_MUTEX_ERRORCHECK
 #endif
 
 struct mutex_info {
@@ -96,7 +103,11 @@ static inline int __ast_pthread_mutex_unlock(char *filename, int lineno, char *f
 #else
 
 #define AST_MUTEX_INITIALIZER      PTHREAD_MUTEX_INITIALIZER
+#ifdef PTHREAD_MUTEX_FAST_NP
 #define AST_MUTEX_KIND             PTHREAD_MUTEX_FAST_NP
+#else
+#define AST_MUTEX_KIND             PTHREAD_NORMAL
+#endif
 
 #define ast_pthread_mutex_init(mutex) pthread_mutex_init(mutex, NULL)
 #define ast_pthread_mutex_lock pthread_mutex_lock

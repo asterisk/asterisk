@@ -93,7 +93,7 @@ static int expirey = AST_DEFAULT_REG_EXPIRE;
 static int usecnt;
 static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
-int (*regfunk)(char *username, int onoff) = NULL;
+int (*iax_regfunk)(char *username, int onoff) = NULL;
 
 /* Ethernet, etc */
 #define IAX_CAPABILITY_FULLBANDWIDTH 	0xFFFF
@@ -218,7 +218,7 @@ struct iax_registry {
 	struct iax_registry *next;
 };
 
-struct iax_registry *registrations;
+static struct iax_registry *registrations;
 
 /* Don't retry more frequently than every 10 ms, or less frequently than every 5 seconds */
 #define MIN_RETRY_TIME	10
@@ -426,10 +426,10 @@ static struct iax_dpcache {
 	struct iax_dpcache *peer;	/* For linking in peers */
 } *dpcache;
 
-pthread_mutex_t dpcache_lock;
+static pthread_mutex_t dpcache_lock;
 
 #ifdef DEBUG_SUPPORT
-void showframe(struct ast_iax_frame *f, struct ast_iax_full_hdr *fhi, int rx, struct sockaddr_in *sin)
+static void showframe(struct ast_iax_frame *f, struct ast_iax_full_hdr *fhi, int rx, struct sockaddr_in *sin)
 {
 	char *frames[] = {
 		"(0?)",
@@ -4501,7 +4501,7 @@ static struct iax_user *build_user(char *name, struct ast_variable *v)
 }
 
 
-void delete_users(void){
+static void delete_users(void){
 	struct iax_user *user, *userlast;
 	struct iax_peer *peer;
 	struct iax_registry *reg, *regl;
@@ -4535,7 +4535,7 @@ void delete_users(void){
 	ast_pthread_mutex_unlock(&peerl.lock);
 }
 
-void prune_peers(void){
+static void prune_peers(void){
 	/* Prune peers who still are supposed to be deleted */
 	struct iax_peer *peer, *peerlast, *peernext;
 	int x;

@@ -38,8 +38,8 @@ static char *breakcmd = "\020!";
 
 static char *desc = "BestData (Conexant V.90 Chipset) VoiceModem Driver";
 
-int usecnt;
-pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+static int usecnt;
+static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 static char *bestdata_idents[] = {
 	/* Identify BestData Modem */

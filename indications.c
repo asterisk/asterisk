@@ -140,7 +140,7 @@ static struct ast_generator playtones = {
 
 int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, int interruptible)
 {
-	char *s, *data = strdupa(playlst); /* cute */
+	char *s, *data = ast_strdupa(playlst); /* cute */
 	struct playtones_def d = { vol, -1, 0, 1, NULL};
 	char *stringp=NULL;
 	if (!data)

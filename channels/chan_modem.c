@@ -808,7 +808,7 @@ static unsigned int get_group(char *s)
 	char *piece;
 	int start, finish,x;
 	unsigned int group = 0;
-	char *copy = strdupa(s);
+	char *copy = ast_strdupa(s);
 	char *stringp=NULL;
 	if (!copy) {
 		ast_log(LOG_ERROR, "Out of memory\n");

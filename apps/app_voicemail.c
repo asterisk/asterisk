@@ -64,11 +64,11 @@
 #define BASELINELEN 72
 #define eol "\r\n"
 
-int iocp;
-int iolen;
-int linelength;
-int ateof;
-unsigned char iobuf[BASEMAXINLINE];
+static int iocp;
+static int iolen;
+static int linelength;
+static int ateof;
+static unsigned char iobuf[BASEMAXINLINE];
 
 static char *tdesc = "Comedian Mail (Voicemail System)";
 

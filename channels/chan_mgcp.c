@@ -155,7 +155,7 @@ struct mgcp_endpoint {
 	struct mgcp_gateway *parent;
 };
 
-struct mgcp_gateway {
+static struct mgcp_gateway {
 	/* A gateway containing one or more endpoints */
 	char name[80];
 	struct sockaddr_in addr;
@@ -293,7 +293,7 @@ struct my_ifreq {
       } ifr_ifru;
 };
 
-struct in_addr *lookup_iface(char *iface) {
+static struct in_addr *lookup_iface(char *iface) {
 	int mysock;
 	int res;
 	static struct  my_ifreq ifreq;
@@ -1694,7 +1694,7 @@ static struct ast_channel *mgcp_request(char *type, int format, void *data)
 	return tmpc;
 }
 
-struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
+static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 {
 	struct mgcp_gateway *gw;
 	struct mgcp_endpoint *e;

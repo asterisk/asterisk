@@ -914,7 +914,7 @@ static char usage_noop[] =
 " Usage: NOOP\n"
 "    Does nothing.\n";
 
-agi_command commands[] = {
+static agi_command commands[] = {
 	{ { "answer", NULL }, handle_answer, "Asserts answer", usage_answer },
 	{ { "wait", "for", "digit", NULL }, handle_waitfordigit, "Waits for a digit to be pressed", usage_waitfordigit },
 	{ { "send", "text", NULL }, handle_sendtext, "Sends text to channels supporting it", usage_sendtext },
@@ -1343,10 +1343,10 @@ static char dumpagihtml_help[] =
 "Usage: dump agihtml <filename>\n"
 "	Dumps the agi command list in html format to given filename\n";
 
-struct ast_cli_entry showagi = 
+static struct ast_cli_entry showagi = 
 { { "show", "agi", NULL }, handle_showagi, "Show AGI commands or specific help", showagi_help };
 
-struct ast_cli_entry dumpagihtml = 
+static struct ast_cli_entry dumpagihtml = 
 { { "dump", "agihtml", NULL }, handle_dumpagihtml, "Dumps a list of agi command in html format", dumpagihtml_help };
 
 int unload_module(void)

@@ -611,7 +611,7 @@ unsigned int ast_get_group(char *s)
 	char *c=NULL;
 	int start=0, finish=0,x;
 	unsigned int group = 0;
-	copy = strdupa(s);
+	copy = ast_strdupa(s);
 	if (!copy) {
 		ast_log(LOG_ERROR, "Out of memory\n");
 		return 0;

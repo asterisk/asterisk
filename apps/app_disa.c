@@ -83,8 +83,8 @@ LOCAL_USER_DECL;
 
 static float loudness=4096.0;
 
-int firstdigittimeout = 20000; /* 20 seconds first digit timeout */
-int digittimeout = 10000; /* 10 seconds subsequent digit timeout */
+static int firstdigittimeout = 20000; /* 20 seconds first digit timeout */
+static int digittimeout = 10000; /* 10 seconds subsequent digit timeout */
 
 static void make_tone_block(unsigned char *data, float f1, float f2, int len, int *x)
 {

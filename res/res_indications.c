@@ -248,7 +248,7 @@ static int ind_load_module(void)
 			if (!strcasecmp(v->name, "description")) {
 				strncpy(tones->description, v->value, sizeof(tones->description)-1);
 			} else if (!strcasecmp(v->name,"ringcadance")) {
-				char *ring,*rings = strdupa(v->value);
+				char *ring,*rings = ast_strdupa(v->value);
 				c = rings;
 				ring = strsep(&c,",");
 				while (ring) {
@@ -270,7 +270,7 @@ static int ind_load_module(void)
 					ring = strsep(&c,",");
 				}
 			} else if (!strcasecmp(v->name,"alias")) {
-				char *countries = strdupa(v->value);
+				char *countries = ast_strdupa(v->value);
 				c = countries;
 				country = strsep(&c,",");
 				while (country) {

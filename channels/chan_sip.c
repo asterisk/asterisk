@@ -343,7 +343,7 @@ struct sip_registry {
 #define REINVITE_UPDATE		2
 
 static int sip_do_register(struct sip_registry *r);
-struct sip_registry *registrations;
+static struct sip_registry *registrations;
 
 static int sipsock  = -1;
 static int globalnat = 0;
@@ -361,7 +361,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
 static int transmit_message_with_text(struct sip_pvt *p, char *text);
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req);
-char *getsipuri(char *header);
+static char *getsipuri(char *header);
 static void free_old_route(struct sip_route *route);
 static int build_reply_digest(struct sip_pvt *p, char *orig_header, char *digest, int digest_len);
 
@@ -848,7 +848,7 @@ struct my_ifreq {
 	struct sockaddr_in ifru_addr;
 };
 
-struct in_addr *lookup_iface(char *iface) {
+static struct in_addr *lookup_iface(char *iface) {
 	int mysock;
 	int res;
 	static struct  my_ifreq ifreq;
@@ -5350,7 +5350,7 @@ int load_module()
 	return res;
 }
 
-void delete_users(void)
+static void delete_users(void)
 {
 	struct sip_user *user, *userlast;
 	struct sip_peer *peer;
@@ -5384,7 +5384,7 @@ void delete_users(void)
 	ast_pthread_mutex_unlock(&peerl.lock);
 }
 
-void prune_peers(void)
+static void prune_peers(void)
 {
 	/* Prune peers who still are supposed to be deleted */
 	struct sip_peer *peer, *peerlast, *peernext;
@@ -5502,7 +5502,7 @@ char *description()
 	return desc;
 }
 
-char *getsipuri(char *header)
+static char *getsipuri(char *header)
 {
 	char *c, *d, *retval;
 	int n;
