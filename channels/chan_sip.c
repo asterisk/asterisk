@@ -202,6 +202,8 @@ static struct sip_pvt {
 	int progress;						/* Have sent 183 message progress */
 	int tag;							/* Another random number */
 	int nat;							/* Whether to try to support NAT */
+	int sessionid;						/* SDP Session ID */
+	int sessionversion;					/* SDP Session Version */
 	struct sockaddr_in sa;				/* Our peer */
 	struct sockaddr_in redirip;			/* Where our RTP should be going if not to us */
 	struct sockaddr_in vredirip;		/* Where our Video RTP should be going if not to us */
@@ -2446,6 +2448,11 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 		ast_log(LOG_WARNING, "No way to add SDP without an RTP structure\n");
 		return -1;
 	}
+	if (!p->sessionid) {
+		p->sessionid = getpid();
+		p->sessionversion = p->sessionid;
+	} else
+		p->sessionversion++;
 	ast_rtp_get_us(p->rtp, &sin);
 	if (p->vrtp)
 		ast_rtp_get_us(p->vrtp, &vsin);
@@ -2477,7 +2484,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	if (sipdebug && p->vrtp)
 		ast_verbose("Video is at %s port %d\n", inet_ntoa(p->ourip), ntohs(vsin.sin_port));	
 	snprintf(v, sizeof(v), "v=0\r\n");
-	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s\r\n", getpid(), getpid(), inet_ntoa(dest.sin_addr));
+	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s\r\n", p->sessionid, p->sessionversion, inet_ntoa(dest.sin_addr));
 	snprintf(s, sizeof(s), "s=session\r\n");
 	snprintf(c, sizeof(c), "c=IN IP4 %s\r\n", inet_ntoa(dest.sin_addr));
 	snprintf(t, sizeof(t), "t=0 0\r\n");
