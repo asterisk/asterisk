@@ -28,9 +28,9 @@ ln -sf /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 #
 # Configuration files
 #
-%attr(0755,root,root) %dir    /etc/asterisk
-%attr(0640,root,root) %config /etc/asterisk/*.conf
-%attr(0640,root,root) %config /etc/asterisk/*.adsi
+%attr(0755,root,root) %dir    %{_sysconfdir}/asterisk
+%config(noreplace) %attr(0640,root,root) %{_sysconfdir}/asterisk/*.conf
+%config(noreplace) %attr(0640,root,root) %{_sysconfdir}/asterisk/*.adsi
 
 #
 # RedHat specific init script file
