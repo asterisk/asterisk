@@ -6287,10 +6287,17 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 	return 0;
 }
 
+static int sip_get_codec(struct ast_channel *chan)
+{
+	struct sip_pvt *p = chan->pvt->pvt;
+	return p->capability;	
+}
+
 static struct ast_rtp_protocol sip_rtp = {
 	get_rtp_info: sip_get_rtp_peer,
 	get_vrtp_info: sip_get_vrtp_peer,
 	set_rtp_peer: sip_set_rtp_peer,
+	get_codec: sip_get_codec,
 };
 
 int load_module()
