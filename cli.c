@@ -776,8 +776,8 @@ static struct ast_cli_entry builtins[] = {
 	{ { "reload", NULL }, handle_reload, "Reload configuration", reload_help, complete_mod_2 },
 	{ { "set", "debug", NULL }, handle_set_debug, "Set level of debug chattiness", set_debug_help },
 	{ { "set", "verbose", NULL }, handle_set_verbose, "Set level of verboseness", set_verbose_help },
-	{ { "show", "channels", NULL }, handle_chanlist, "Display information on channels", chanlist_help },
 	{ { "show", "channel", NULL }, handle_showchan, "Display information on a specific channel", showchan_help, complete_ch_3 },
+	{ { "show", "channels", NULL }, handle_chanlist, "Display information on channels", chanlist_help },
 	{ { "show", "modules", NULL }, handle_modlist, "List modules and info", modlist_help },
 	{ { "show", "modules", "like", NULL }, handle_modlist, "List modules and info", modlist_help, complete_mod_4 },
 	{ { "show", "uptime", NULL }, handle_showuptime, "Show uptime information", modlist_help },
@@ -1171,19 +1171,19 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 			}
 			if ((fullcmd[0] != '_') && !strncasecmp(matchstr, fullcmd, strlen(matchstr))) {
 				/* We contain the first part of one or more commands */
-				matchnum++;
-				if (matchnum > state) {
-					/* Now, what we're supposed to return is the next word... */
-					if (!ast_strlen_zero(word) && x>0) {
-						res = e->cmda[x-1];
-					} else {
-						res = e->cmda[x];
-					}
-					if (res) {
+				/* Now, what we're supposed to return is the next word... */
+				if (!ast_strlen_zero(word) && x>0) {
+					res = e->cmda[x-1];
+				} else {
+					res = e->cmda[x];
+				}
+				if (res) {
+					matchnum++;
+					if (matchnum > state) {
 						if (lock)
 							ast_mutex_unlock(&clilock);
 						free(dup);
-						return res ? strdup(res) : NULL;
+						return strdup(res);
 					}
 				}
 			}
@@ -1191,10 +1191,12 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 				/* We have a command in its entirity within us -- theoretically only one
 				   command can have this occur */
 				fullcmd = e->generator(matchstr, word, (!ast_strlen_zero(word) ? (x - 1) : (x)), state);
-				if (lock)
-					ast_mutex_unlock(&clilock);
-				free(dup);
-				return fullcmd;
+				if (fullcmd) {
+					if (lock)
+						ast_mutex_unlock(&clilock);
+					free(dup);
+					return fullcmd;
+				}
 			}
 			
 		}
