@@ -53,6 +53,15 @@ typedef int (*ast_state_cb_type)(char *context, char* id, int state, void *data)
 
 typedef int (*ast_devstate_cb_type)(const char *dev, int state, void *data);
 
+/*! Data structure associated with an asterisk custom function */
+struct ast_custom_function_obj {
+	char *name;
+	char *desc;
+	char *syntax;
+	char *(*function)(struct ast_channel *, char *, char *, char *, size_t);
+	struct ast_custom_function_obj *next;
+};
+
 /*! Data structure associated with an asterisk switch */
 struct ast_switch {
 	/*! NULL */
@@ -587,6 +596,10 @@ int ast_goto_if_exists(struct ast_channel *chan, char* context, char *exten, int
 int ast_parseable_goto(struct ast_channel *chan, const char *goto_string);
 int ast_explicit_goto(struct ast_channel *chan, const char *context, const char *exten, int priority);
 int ast_async_goto_if_exists(struct ast_channel *chan, char* context, char *exten, int priority);
+struct ast_custom_function_obj* ast_custom_function_find_obj(char *name);
+int ast_custom_function_unregister(struct ast_custom_function_obj *acf);
+int ast_custom_function_register(struct ast_custom_function_obj *acf);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

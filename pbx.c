@@ -11,6 +11,8 @@
  * the GNU General Public License
  */
 
+#include <sys/types.h>
+#include <regex.h>
 #include <asterisk/lock.h>
 #include <asterisk/cli.h>
 #include <asterisk/pbx.h>
@@ -195,6 +197,8 @@ char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name);
 static struct varshead globals;
 
 static int autofallthrough = 0;
+
+static struct ast_custom_function_obj *acf_root = NULL;
 
 static struct pbx_builtin {
 	char name[AST_MAX_APP];
@@ -1085,6 +1089,135 @@ icky:
 	}
 }
 
+static int handle_show_functions(int fd, int argc, char *argv[])
+{
+	struct ast_custom_function_obj *acfptr;
+
+	ast_cli(fd, "Installed Custom Functions:\n--------------------------------------------------------------------------------\n");
+	for (acfptr = acf_root ; acfptr ; acfptr = acfptr->next) {
+		ast_cli(fd, "%s\t(%s)\t[%s]\n", acfptr->name, acfptr->desc, acfptr->syntax);
+	}
+	ast_cli(fd, "\n");
+	return 0;
+}
+
+struct ast_custom_function_obj* ast_custom_function_find_obj(char *name) 
+{
+	struct ast_custom_function_obj *acfptr;
+
+	for (acfptr = acf_root ; acfptr ; acfptr = acfptr->next) {
+		if (!strcmp(name, acfptr->name)) {
+			break;
+		}
+	}	
+	
+	return acfptr;
+}
+
+int ast_custom_function_unregister(struct ast_custom_function_obj *acf) 
+{
+	struct ast_custom_function_obj *acfptr, *lastacf = NULL;
+
+	if (acf) {
+		for (acfptr = acf_root ; acfptr ; acfptr = acfptr->next) {
+			if (acfptr == acf) {
+				if (lastacf) {
+					lastacf->next = acf->next;
+				} else {
+					acf_root = acf->next;
+				}
+				if (option_verbose)
+					ast_verbose(VERBOSE_PREFIX_1 "Unregistered custom function %s\n", acf->name);
+				return 0;
+			}
+			lastacf = acfptr;
+		}
+	}
+	return -1;
+}
+
+int ast_custom_function_register(struct ast_custom_function_obj *acf) 
+{
+	struct ast_custom_function_obj *acfptr;
+
+	if (acf) {
+		if((acfptr = ast_custom_function_find_obj(acf->name))) {
+			ast_log(LOG_ERROR, "Function %s already in use.\n", acf->name);
+			return -1;
+		}
+		acf->next = acf_root;
+		acf_root = acf;
+		if (option_verbose)
+			ast_verbose(VERBOSE_PREFIX_1 "Registered custom function %s\n", acf->name);
+		return 0;
+	}
+
+	return -1;
+}
+
+static char *ast_func(struct ast_channel *chan, char *in, char *workspace, size_t len) {
+	char *out = NULL;
+	static char *ret = "0";
+	struct ast_custom_function_obj *acfptr;
+
+	if ((out = strchr(in, ' '))) {
+		*out = '\0';
+		out++;
+
+		if((acfptr = ast_custom_function_find_obj(in))) {
+			/* run the custom function */
+			return acfptr->function(chan, in, out, workspace, len);
+		}
+	}
+	return strdup(ret);
+}
+
+static char *builtin_function_isnull(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+{
+	  char *ret_true = "1", *ret_false = "0";
+	  return cmd ? ret_false : ret_true;
+}
+
+static char *builtin_function_exists(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+{
+  	char *ret_true = "1", *ret_false = "0";
+	return cmd ? ret_true : ret_false;
+}
+
+static char *builtin_function_regex(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+{
+	char *ret_true = "1", *ret_false = "0", *ret;
+	char *arg, *tmp;
+	regex_t regexbuf;
+
+	ret = ret_false; /* convince me otherwise */
+	if ((tmp = ast_strdupa(data)) && (arg = strchr(tmp, '"')) && (data = strchr(arg+1, '"'))) {
+		arg++;
+		*data = '\0';
+		data++;
+		
+		if(data[0] == ' ') {
+			data++;
+		} else {
+			ast_log(LOG_WARNING, "Malformed input missing space in %s\n", cmd);
+			ret = ret_false;
+		}
+		
+		if (regcomp(&regexbuf, arg, REG_EXTENDED | REG_NOSUB)) {
+			ast_log(LOG_WARNING, "Malformed regex input %s\n", cmd);
+			ret = NULL;
+		}
+		ret = regexec(&regexbuf, data, 0, NULL, 0) ? ret_false : ret_true;
+		regfree(&regexbuf);
+		
+				
+	} else {
+		ast_log(LOG_WARNING, "Malformed input %s\n", cmd);
+	}
+
+	return ret;
+}
+
 static void pbx_substitute_variables_helper_full(struct ast_channel *c, const char *cp1, char *cp2, int count, struct varshead *headp)
 {
 	char *cp4;
@@ -1092,9 +1225,9 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 	int length;
 	char workspace[4096];
 	char ltmp[4096], var[4096];
-	char *nextvar, *nextexp;
+	char *nextvar, *nextexp, *nextfunc;
 	char *vars, *vare;
-	int pos, brackets, needsub, len;
+	int pos, brackets, needsub, len, needfunc;
 	
 	/* Substitutes variables into cp2, based on string cp1, and assuming cp2 to be
 	   zero-filled */
@@ -1108,13 +1241,27 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 		
 		/* Look for an expression */
 		nextexp = strstr(whereweare, "$[");
+
+		/* Look for a function */
+		nextfunc = strstr(whereweare, "$(");
 		
 		/* Pick the first one only */
-		if (nextvar && nextexp) {
-			if (nextvar < nextexp)
-				nextexp = NULL;
-			else
-				nextvar = NULL;
+		len = 0;
+		if (nextvar)
+			len++;
+		if(nextexp)
+			len++;
+		if(nextfunc)
+			len++;
+
+		if (len > 1) {
+			if(nextfunc) {
+				nextvar = nextexp = NULL;
+			} else if (nextvar) {
+                nextexp = nextfunc = NULL;
+			} else if (nextexp) {
+                nextvar = nextfunc = NULL;
+            }
 		}
 		
 		/* If there is one, we only go that far */
@@ -1122,7 +1269,9 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 			pos = nextvar - whereweare;
 		else if (nextexp)
 			pos = nextexp - whereweare;
-		
+		else if (nextfunc) {
+			pos = nextfunc - whereweare;
+		}
 		/* Can't copy more than 'count' bytes */
 		if (pos > count)
 			pos = count;
@@ -1193,7 +1342,8 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 			vars = vare = nextexp + 2;
 			brackets = 1;
 			needsub = 0;
-			
+			needfunc = 0;
+
 			/* Find the end of it */
 			while(brackets && *vare) {
 				if ((vare[0] == '$') && (vare[1] == '[')) {
@@ -1207,11 +1357,71 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 				} else if ((vare[0] == '$') && (vare[1] == '{')) {
 					needsub++;
 					vare++;
+				} else if ((vare[0] == '$') && (vare[1] == '(')) {
+					needfunc++;
+					vare++;
 				}
 				vare++;
 			}
 			if (brackets)
 				ast_log(LOG_NOTICE, "Error in extension logic (missing ']')\n");
+			len = vare - vars - 1;
+			
+			/* Skip totally over variable name */
+			whereweare += ( len + 3);
+			
+			/* Store variable name (and truncate) */
+			memset(var, 0, sizeof(var));
+			strncpy(var, vars, sizeof(var) - 1);
+			var[len] = '\0';
+			
+			/* Substitute if necessary */
+			if (needsub || needfunc) {
+				memset(ltmp, 0, sizeof(ltmp));
+				pbx_substitute_variables_helper(c, var, ltmp, sizeof(ltmp) - 1);
+				vars = ltmp;
+			} else {
+				vars = var;
+			}
+
+			/* Evaluate expression */			
+			cp4 = ast_expr(vars);
+			
+			ast_log(LOG_DEBUG, "Expression is '%s'\n", cp4);
+			
+			if (cp4) {
+				length = strlen(cp4);
+				if (length > count)
+					length = count;
+				memcpy(cp2, cp4, length);
+				count -= length;
+				cp2 += length;
+				free(cp4);
+			}
+		} else if (nextfunc) {
+			/* We have a function.  Find the start and end */
+			vars = vare = nextfunc + 2;
+			brackets = 1;
+			needsub = 0;
+			
+			/* Find the end of it */
+			while(brackets && *vare) {
+				if ((vare[0] == '$') && (vare[1] == '(')) {
+					needsub++;
+					brackets++;
+					vare++;
+				} else if (vare[0] == '(') {
+					brackets++;
+				} else if (vare[0] == ')') {
+					brackets--;
+				} else if ((vare[0] == '$') && (vare[1] == '{')) {
+					needsub++;
+					vare++;
+				}
+				vare++;
+			}
+			if (brackets)
+				ast_log(LOG_NOTICE, "Error in extension logic (missing ')')\n");
 			len = vare - vars - 1;
 			
 			/* Skip totally over variable name */
@@ -1230,9 +1440,9 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 			} else {
 				vars = var;
 			}
-
+			
 			/* Evaluate expression */			
-			cp4 = ast_expr(vars);
+			cp4 = ast_func(c, vars, workspace, sizeof(workspace));
 			
 			ast_log(LOG_DEBUG, "Expression is '%s'\n", cp4);
 			
@@ -1266,7 +1476,7 @@ static void pbx_substitute_variables(char *passdata, int datalen, struct ast_cha
 	memset(passdata, 0, datalen);
 		
 	/* No variables or expressions in e->data, so why scan it? */
-	if (!strstr(e->data,"${") && !strstr(e->data,"$[")) {
+	if (!strstr(e->data,"${") && !strstr(e->data,"$[") && !strstr(e->data,"$(")) {
 		strncpy(passdata, e->data, datalen - 1);
 		passdata[datalen-1] = '\0';
 		return;
@@ -2593,6 +2803,10 @@ static char show_application_help[] =
 "Usage: show application <application> [<application> [<application> [...]]]\n"
 "       Describes a particular application.\n";
 
+static char show_functions_help[] =
+"Usage: show functions\n"
+"       List builtin functions accessable as $(function args)";
+
 static char show_applications_help[] =
 "Usage: show applications [{like|describing} <text>]\n"
 "       List applications which are currently available.\n"
@@ -3169,6 +3383,30 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+
+/* custom commands */
+
+static struct ast_custom_function_obj regex_function = {
+    .name = "regex",
+    .desc = "Regular Expression: Returns 1 if data matches regular expression.",
+    .syntax = "$(regex \"<regular expression>\" <data>)",
+    .function = builtin_function_regex,
+};
+
+static struct ast_custom_function_obj isnull_function = {
+    .name = "isnull",
+    .desc = "NULL Test: Returns 1 if NULL or 0 otherwise",
+    .syntax = "$(isnull <data>)",
+    .function = builtin_function_isnull,
+};
+
+static struct ast_custom_function_obj exists_function = {
+    .name = "exists",
+    .desc = "Existance Test: Returns 1 if exists, 0 otherwise",
+    .syntax = "$(exists <data>)",
+    .function = builtin_function_exists,
+};
+
 /*
  * CLI entries for upper commands ...
  */
@@ -3176,6 +3414,11 @@ static struct ast_cli_entry show_applications_cli =
 	{ { "show", "applications", NULL }, 
 	handle_show_applications, "Shows registered applications",
 	show_applications_help, complete_show_applications };
+
+static struct ast_cli_entry show_functions_cli = 
+	{ { "show", "functions", NULL }, 
+	handle_show_functions, "Shows registered functions",
+	show_functions_help};
 
 static struct ast_cli_entry show_application_cli =
 	{ { "show", "application", NULL }, 
@@ -5530,10 +5773,14 @@ int load_pbx(void)
 	}
         AST_LIST_HEAD_INIT(&globals);
 	ast_cli_register(&show_applications_cli);
+	ast_cli_register(&show_functions_cli);
 	ast_cli_register(&show_application_cli);
 	ast_cli_register(&show_dialplan_cli);
 	ast_cli_register(&show_switches_cli);
 	ast_cli_register(&show_hints_cli);
+	ast_custom_function_register(&regex_function);
+	ast_custom_function_register(&isnull_function);
+	ast_custom_function_register(&exists_function);
 
 	/* Register builtin applications */
 	for (x=0; x<sizeof(builtins) / sizeof(struct pbx_builtin); x++) {

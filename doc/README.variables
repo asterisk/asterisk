@@ -486,3 +486,7 @@ ${CDR(userfield)}		The channels uses specified field.
 
 In addition, you can set your own extra variables with a traditional
 SetVAR(CDR(var)=val) to anything you want.
+
+Certain functional variables may be accessed with $(foo <args>).  A list
+of these functional variables may be found by typing "show functions"
+at the Asterisk CLI.
