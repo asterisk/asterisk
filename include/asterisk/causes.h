@@ -11,6 +11,8 @@
  * the GNU General Public License
  */
 
+#ifndef _ASTERISK_CAUSES_H
+#define _ASTERISK_CAUSES_H
 
 #define AST_CAUSE_NOTDEFINED	0
 #define AST_CAUSE_NORMAL	1
@@ -19,3 +21,4 @@
 #define AST_CAUSE_CONGESTION	4
 #define AST_CAUSE_UNALLOCATED	5
 
+#endif
