@@ -3954,18 +3954,13 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				ast_log(LOG_NOTICE, "Dunno anything about a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : inet_ntoa(p->sa.sin_addr));
 		}
 	} else {
-		if (p->subscribed) {
-		    /* Acknowledge sequence number */
-		    __sip_ack(p, seqno, 0);
-		} else {
-			if (sipdebug)
-				ast_verbose("Message is %s\n", msg);
-			switch(resp) {
-			case 200:
-				if (!strcasecmp(msg, "INVITE") || !strcasecmp(msg, "REGISTER") )
-					transmit_request(p, "ACK", seqno, 0);
-				break;
-			}
+		if (sipdebug)
+			ast_verbose("Message is %s\n", msg);
+		switch(resp) {
+		case 200:
+			if (!strcasecmp(msg, "INVITE") || !strcasecmp(msg, "REGISTER") )
+				transmit_request(p, "ACK", seqno, 0);
+			break;
 		}
 	}
 	if (owner)
