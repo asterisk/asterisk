@@ -6867,8 +6867,8 @@ static void *pri_dchannel(void *vpri)
 							PRI_SPAN(e->restart.channel), PRI_CHANNEL(e->restart.channel), pri->span);
 					else {
 						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "B-channel %d restarted on span %d\n", 
-								e->restart.channel, pri->span);
+							ast_verbose(VERBOSE_PREFIX_3 "B-channel %d/%d restarted on span %d\n", 
+								PRI_SPAN(e->restart.channel), PRI_CHANNEL(e->restart.channel), pri->span);
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						if (pri->pvts[chanpos]->call) {
 							pri_destroycall(pri->pri, pri->pvts[chanpos]->call);
