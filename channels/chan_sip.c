@@ -3072,6 +3072,7 @@ static int init_req(struct sip_request *req, char *resp, char *recip)
 }
 
 
+/*--- respprep: Prepare SIP response packet ---*/
 static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, struct sip_request *req)
 {
 	char newto[256] = "", *ot;
@@ -3079,7 +3080,8 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	memset(resp, 0, sizeof(*resp));
 	init_resp(resp, msg, req);
 	copy_via_headers(p, resp, req, "Via");
-	if (msg[0] == '2') copy_all_header(resp, req, "Record-Route");
+	if (msg[0] == '2')
+		copy_all_header(resp, req, "Record-Route");
 	copy_header(resp, req, "From");
 	ot = get_header(req, "To");
 	if (!strstr(ot, "tag=")) {
@@ -3527,7 +3529,7 @@ static void copy_request(struct sip_request *dst,struct sip_request *src)
 		dst->line[x] += offset;
 }
 
-/*--- transmit_response_with_sdp: Used for 200 OK ---*/
+/*--- transmit_response_with_sdp: Used for 200 OK and 183 early media ---*/
 static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans)
 {
 	struct sip_request resp;
@@ -4483,9 +4485,8 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 
 	/* Save full contact to call pvt for later bye or re-invite */
 	strncpy(pvt->fullcontact, c, sizeof(pvt->fullcontact) - 1);	
-	snprintf(pvt->our_contact, sizeof(pvt->our_contact) - 1, "<%s>", c);
 
-
+	/* Save URI for later ACKs, BYE or RE-invites */
 	strncpy(pvt->okcontacturi, c, sizeof(pvt->okcontacturi) - 1);
 	
 	/* Make sure it's a SIP URL */
