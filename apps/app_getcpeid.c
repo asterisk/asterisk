@@ -3,9 +3,9 @@
  *
  * Execute arbitrary system commands
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2005, Digium, inc
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -31,9 +31,9 @@ static char *app = "GetCPEID";
 static char *synopsis = "Get ADSI CPE ID";
 
 static char *descrip =
-"  GetCPEID: Obtains and displays CPE ID and other information in order to\n"
-"properly setup zapata.conf for on-hook operations.  Returns -1 on hanup\n"
-"only.";
+"  GetCPEID: Obtains and displays ADSI CPE ID and other information in order\n"
+"to properly setup zapata.conf for on-hook operations.\n"
+"Returns -1 on hangup only.\n";
 
 STANDARD_LOCAL_USER;
 
