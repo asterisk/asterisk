@@ -11,10 +11,13 @@ context => parkedcalls		; Which context parked calls are in
 ;transferdigittimeout => 3	; Number of seconds to wait between digits when transfering a call
 ;courtesytone = beep		; Sound file to play to the parked caller 
 				; when someone dials a parked call
+;xfersound = beep		; to indicate an attended transfer is complete
+;xferfailsound			; to indicate a failed transfer
 ;adsipark = yes			; if you want ADSI parking announcements
 ;pickupexten = *8		; Configure the pickup extension.  Default is *8
 ;featuredigittimeout = 500	; Max time (ms) between digits for 
 				; feature activation.  Default is 500
+
 
 [featuremap]
 ;blindxfer => #1		; Blind transfer

@@ -74,6 +74,11 @@ static int featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
 /* Default courtesy tone played when party joins conference */
 static char courtesytone[256] = "";
 
+/* Default sounds */
+static char xfersound[256] = "beep";
+static char xferfailsound[256] = "beeperr";
+
+
 /* Registrar for operations */
 static char *registrar = "res_features";
 
@@ -491,7 +496,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		if (option_verbose > 2)	
 			ast_verbose(VERBOSE_PREFIX_3 "Unable to find extension '%s' in context '%s'\n", newext, transferer_real_context);
 	}
-	res = ast_streamfile(transferer, "pbx-invalid", transferee->language);
+	res = ast_streamfile(transferer, xferfailsound, transferee->language);
 	if (res) {
 		ast_moh_stop(transferee);
 		ast_autoservice_stop(transferee);
@@ -578,9 +583,9 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 						ast_frfree(f);
 						f = NULL;
 					}
-					if (!ast_streamfile(transferer, "beep", transferer->language)) {
+					if (!ast_strlen_zero(xfersound) && !ast_streamfile(transferer, xfersound, transferer->language)) {
 						if (ast_waitstream(transferer, "") < 0) {
-							ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+							ast_log(LOG_WARNING, "Failed to play %s\n", xfersound);
 						}
 					}
 					ast_moh_stop(transferee);
@@ -641,9 +646,9 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 					tobj->peer = newchan;
 					tobj->bconfig = *config;
 	
-					if (!ast_streamfile(newchan, "beep", newchan->language)) {
+					if (!ast_strlen_zero(xfersound) && !ast_streamfile(newchan, xfersound, newchan->language)) {
 						if (ast_waitstream(newchan, "") < 0) {
-							ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+							ast_log(LOG_WARNING, "Failed to play %s!\n", xfersound);
 						}
 					}
 					ast_bridge_call_thread_launch(tobj);
@@ -658,9 +663,11 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				ast_log(LOG_WARNING, "Unable to create channel Local/%s do you have chan_local?\n",dialstr);
 				ast_moh_stop(transferee);
 				ast_autoservice_stop(transferee);
-				res = ast_streamfile(transferer, "beeperr", transferer->language);
-				if (!res && (ast_waitstream(transferer, "") < 0)) {
-					return -1;
+				if(!ast_strlen_zero(xferfailsound)) {
+					res = ast_streamfile(transferer, xferfailsound, transferer->language);
+					if (!res && (ast_waitstream(transferer, "") < 0)) {
+						return -1;
+					}
 				}
 				return -1;
 			}
@@ -668,16 +675,20 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 			ast_log(LOG_WARNING, "Extension %s does not exist in context %s\n",xferto,transferer_real_context);
 			ast_moh_stop(transferee);
 			ast_autoservice_stop(transferee);
-			res = ast_streamfile(transferer, "beeperr", transferer->language);
-			if (!res && (ast_waitstream(transferer, "") < 0)) {
-				return -1;
+			if(!ast_strlen_zero(xferfailsound)) {
+				res = ast_streamfile(transferer, xferfailsound, transferer->language);
+				if (!res && (ast_waitstream(transferer, "") < 0)) {
+					return -1;
+				}
 			}
 		}
 	}  else {
 		ast_log(LOG_WARNING, "Did not read data.\n");
-		res = ast_streamfile(transferer, "beeperr", transferer->language);
-		if (ast_waitstream(transferer, "") < 0) {
-			return -1;
+		if(!ast_strlen_zero(xferfailsound)) {
+			res = ast_streamfile(transferer, xferfailsound, transferer->language);
+			if (ast_waitstream(transferer, "") < 0) {
+				return -1;
+			}
 		}
 	}
 	ast_moh_stop(transferee);
@@ -1402,9 +1413,13 @@ int load_module(void)
 					featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
 				}
 			} else if (!strcasecmp(var->name, "courtesytone")) {
-				strncpy(courtesytone, var->value, sizeof(courtesytone) - 1);
+				strncpy(courtesytone, strcmp(var->value, "undef") ? var->value : "", sizeof(courtesytone) - 1);
+			} else if (!strcasecmp(var->name, "xfersound")) {
+				strncpy(xfersound, strcmp(var->value, "undef") ? var->value : "", sizeof(xfersound) - 1);
+			} else if (!strcasecmp(var->name, "xferfailsound")) {
+				strncpy(xferfailsound, strcmp(var->value, "undef") ? var->value : "", sizeof(xferfailsound) - 1);
 			} else if (!strcasecmp(var->name, "pickupexten")) {
-				strncpy(pickup_ext, var->value, sizeof(pickup_ext) - 1);
+				strncpy(pickup_ext, strcmp(var->value, "undef") ? var->value : "", sizeof(pickup_ext) - 1);
 			}
 			var = var->next;
 		}
