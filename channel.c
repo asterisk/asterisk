@@ -1814,71 +1814,59 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	return res;
 }
 
-int ast_set_write_format(struct ast_channel *chan, int fmts)
+static int set_format(struct ast_channel *chan, int fmt, int *rawformat, int *format,
+		      struct ast_trans_pvt **trans, const int direction)
 {
-	int fmt;
 	int native;
 	int res;
 	
-	ast_mutex_lock(&chan->lock);
 	native = chan->nativeformats;
-	fmt = fmts;
-	
-	res = ast_translator_best_choice(&native, &fmt);
+	/* Find a translation path from the native format to one of the desired formats */
+	if (!direction)
+		/* reading */
+		res = ast_translator_best_choice(&fmt, &native);
+	else
+		/* writing */
+		res = ast_translator_best_choice(&native, &fmt);
+
 	if (res < 0) {
 		ast_log(LOG_NOTICE, "Unable to find a path from %s to %s\n",
-			ast_getformatname(fmts), ast_getformatname(chan->nativeformats));
-		ast_mutex_unlock(&chan->lock);
+			ast_getformatname(native), ast_getformatname(fmt));
 		return -1;
 	}
 	
-	/* Now we have a good choice for both.  We'll write using our native format. */
-	chan->rawwriteformat = native;
+	/* Now we have a good choice for both. */
+	ast_mutex_lock(&chan->lock);
+	*rawformat = native;
 	/* User perspective is fmt */
-	chan->writeformat = fmt;
-	/* Free any write translation we have right now */
-	if (chan->writetrans)
-		ast_translator_free_path(chan->writetrans);
-	/* Build a translation path from the user write format to the raw writing format */
-	chan->writetrans = ast_translator_build_path(chan->rawwriteformat, chan->writeformat);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Set channel %s to write format %s\n", chan->name, ast_getformatname(chan->writeformat));
+	*format = fmt;
+	/* Free any read translation we have right now */
+	if (*trans)
+		ast_translator_free_path(*trans);
+	/* Build a translation path from the raw format to the desired format */
+	if (!direction)
+		/* reading */
+		*trans = ast_translator_build_path(*format, *rawformat);
+	else
+		/* writing */
+		*trans = ast_translator_build_path(*rawformat, *format);
 	ast_mutex_unlock(&chan->lock);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Set channel %s to %s format %s\n", chan->name,
+			direction ? "write" : "read", ast_getformatname(fmt));
 	return 0;
 }
 
-int ast_set_read_format(struct ast_channel *chan, int fmts)
+int ast_set_read_format(struct ast_channel *chan, int fmt)
 {
-	int fmt;
-	int native;
-	int res;
-	
-	ast_mutex_lock(&chan->lock);
-	native = chan->nativeformats;
-	fmt = fmts;
-	/* Find a translation path from the native read format to one of the user's read formats */
-	res = ast_translator_best_choice(&fmt, &native);
-	if (res < 0) {
-		ast_log(LOG_NOTICE, "Unable to find a path from %s to %s\n",
-			ast_getformatname(chan->nativeformats), ast_getformatname(fmts));
-		ast_mutex_unlock(&chan->lock);
-		return -1;
-	}
-	
-	/* Now we have a good choice for both.  We'll write using our native format. */
-	chan->rawreadformat = native;
-	/* User perspective is fmt */
-	chan->readformat = fmt;
-	/* Free any read translation we have right now */
-	if (chan->readtrans)
-		ast_translator_free_path(chan->readtrans);
-	/* Build a translation path from the raw read format to the user reading format */
-	chan->readtrans = ast_translator_build_path(chan->readformat, chan->rawreadformat);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Set channel %s to read format %s\n", 
-			chan->name, ast_getformatname(chan->readformat));
-	ast_mutex_unlock(&chan->lock);
-	return 0;
+	return set_format(chan, fmt, &chan->rawreadformat, &chan->readformat,
+			  &chan->readtrans, 0);
+}
+
+int ast_set_write_format(struct ast_channel *chan, int fmt)
+{
+	return set_format(chan, fmt, &chan->rawwriteformat, &chan->writeformat,
+			  &chan->writetrans, 1);
 }
 
 struct ast_channel *__ast_request_and_dial(const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name, struct outgoing_helper *oh)
@@ -2257,47 +2245,51 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 	int peerf;
 	int chanf;
 	int res;
-	ast_mutex_lock(&peer->lock);
+
+	/* Set up translation from the chan to the peer */
 	peerf = peer->nativeformats;
-	ast_mutex_unlock(&peer->lock);
-	ast_mutex_lock(&chan->lock);
 	chanf = chan->nativeformats;
-	ast_mutex_unlock(&chan->lock);
 	res = ast_translator_best_choice(&peerf, &chanf);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", chan->name, chan->nativeformats, peer->name, peer->nativeformats);
+		ast_log(LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", chan->name, chanf, peer->name, peerf);
 		return -1;
 	}
-	/* Set read format on channel */
+	/* if desired, force all transcode paths to use SLINEAR between channels */
+	if (option_transcode_slin)
+		peerf = AST_FORMAT_SLINEAR;
+	/* Set read format on chan */
 	res = ast_set_read_format(chan, peerf);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", chan->name, chanf);
 		return -1;
 	}
-	/* Set write format on peer channel */
+	/* Set write format on peer */
 	res = ast_set_write_format(peer, peerf);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", peer->name, peerf);
 		return -1;
 	}
-	/* Now we go the other way */
+	/* Now we go the other way (peer to chan) */
 	peerf = peer->nativeformats;
 	chanf = chan->nativeformats;
 	res = ast_translator_best_choice(&chanf, &peerf);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", peer->name, peer->nativeformats, chan->name, chan->nativeformats);
+		ast_log(LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", peer->name, peerf, chan->name, chanf);
 		return -1;
 	}
-	/* Set writeformat on channel */
-	res = ast_set_write_format(chan, chanf);
-	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", chan->name, chanf);
-		return -1;
-	}
-	/* Set read format on peer channel */
+	/* if desired, force all transcode paths to use SLINEAR between channels */
+	if (option_transcode_slin)
+		chanf = AST_FORMAT_SLINEAR;
+	/* Set read format on peer */
 	res = ast_set_read_format(peer, chanf);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", peer->name, peerf);
+		return -1;
+	}
+	/* Set write format on chan */
+	res = ast_set_write_format(chan, chanf);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", chan->name, chanf);
 		return -1;
 	}
 	return 0;

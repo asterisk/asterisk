@@ -437,16 +437,18 @@ int ast_translator_best_choice(int *dst, int *srcs)
 {
 	/* Calculate our best source format, given costs, and a desired destination */
 	int x,y;
-	int best=-1;
-	int bestdst=0;
+	int best = -1;
+	int bestdst = 0;
 	int cur = 1;
-	int besttime=999999999;
-	if ((*dst) & (*srcs)) {
+	int besttime = INT_MAX;
+	int common;
+
+	if ((common = (*dst) & (*srcs))) {
 		/* We have a format in common */
-		for (y=0;y<MAX_FORMAT;y++) {
-			if ((cur & *dst) && (cur & *srcs)) {
+		for (y=0; y < MAX_FORMAT; y++) {
+			if (cur & common) {
 				/* This is a common format to both.  Pick it if we don't have one already */
-				besttime=0;
+				besttime = 0;
 				bestdst = cur;
 				best = cur;
 			}
@@ -455,17 +457,16 @@ int ast_translator_best_choice(int *dst, int *srcs)
 	} else {
 		/* We will need to translate */
 		ast_mutex_lock(&list_lock);
-		for (y=0;y<MAX_FORMAT;y++) {
+		for (y=0; y < MAX_FORMAT; y++) {
 			if (cur & *dst)
-				for (x=0;x<MAX_FORMAT;x++) {
-					if (tr_matrix[x][y].step &&	/* There's a step */
-				   	 (tr_matrix[x][y].cost < besttime) && /* We're better than what exists now */
-						(*srcs & (1 << x)))			/* x is a valid source format */
-						{
-							best = 1 << x;
-							bestdst = cur;
-							besttime = tr_matrix[x][y].cost;
-						}
+				for (x=0; x < MAX_FORMAT; x++) {
+					if ((*srcs & (1 << x)) &&			/* x is a valid source format */
+					    tr_matrix[x][y].step &&			/* There's a step */
+					    (tr_matrix[x][y].cost < besttime)) {	/* It's better than what we have so far */
+						best = 1 << x;
+						bestdst = cur;
+						besttime = tr_matrix[x][y].cost;
+					}
 				}
 			cur = cur << 1;
 		}

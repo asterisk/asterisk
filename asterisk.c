@@ -85,6 +85,7 @@ int option_cache_record_files = 0;
 int option_timestamp = 0;
 int option_overrideconfig = 0;
 int option_reconnect = 0;
+int option_transcode_slin = 1;
 int fully_booted = 0;
 char record_cache_dir[AST_CACHE_DIR_LEN] = AST_TMP_DIR;
 char debug_filename[AST_FILENAME_MAX] = "";
@@ -1653,6 +1654,9 @@ static void ast_readconfig(void) {
 		/* Specify cache directory */
 		}  else if (!strcasecmp(v->name, "record_cache_dir")) {
 			strncpy(record_cache_dir,v->value,AST_CACHE_DIR_LEN);
+		/* Build transcode paths via SLINEAR, instead of directly */
+		} else if (!strcasecmp(v->name, "transcode_via_sln")) {
+			option_transcode_slin = ast_true(v->value);
 		}
 		v = v->next;
 	}
