@@ -295,7 +295,7 @@ static int r2prot = -1;
 
 #ifdef ZAPATA_PRI
 
-#define PVT_TO_CHANNEL(p) (((p)->prioffset) | ((p)->pri->logicalspan << 8))
+#define PVT_TO_CHANNEL(p) (((p)->prioffset) | ((p)->logicalspan << 8))
 #define PRI_CHANNEL(p) ((p) & 0xff)
 #define PRI_SPAN(p) (((p) >> 8) & 0xff)
 
@@ -313,7 +313,7 @@ struct zt_pri {
 	int dchannel;			/* What channel the dchannel is on */
 	int trunkgroup;			/* What our trunkgroup is */
 	int mastertrunkgroup;	/* What trunk group is our master */
-	int logicalspan;		/* Logical span number within trunk group */
+	int prilogicalspan;		/* Logical span number within trunk group */
 	int numchans;			/* Num of channels we represent */
 	int overlapdial;		/* In overlap dialing mode */
 	struct pri *pri;
@@ -519,6 +519,7 @@ static struct zt_pvt {
 	int isidlecall;
 	int resetting;
 	int prioffset;
+	int logicalspan;
 	int alreadyhungup;
 	int proceeding;
 	int setup_ack;		/* wheter we received SETUP_ACKNOWLEDGE or not */
@@ -1680,7 +1681,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			return -1;
 		}
 		if (p->bearer) {
-			ast_log(LOG_DEBUG, "Oooh, I have a bearer on %d\n", PVT_TO_CHANNEL(p->bearer));
+			ast_log(LOG_DEBUG, "Oooh, I have a bearer on %d (%d:%d)\n", PVT_TO_CHANNEL(p->bearer), p->bearer->logicalspan, p->bearer->channel);
 			pri_set_crv(p->pri->pri, p->call, p->channel, 0);
 			p->bearer->call = p->call;
 		}
@@ -5534,7 +5535,7 @@ static int pri_create_spanmap(int span, int trunkgroup, int logicalspan)
 		return -1;
 	}
 	pris[span].mastertrunkgroup = trunkgroup;
-	pris[span].logicalspan = logicalspan;
+	pris[span].prilogicalspan = logicalspan;
 	return 0;
 }
 
@@ -5702,7 +5703,9 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 					ast_log(LOG_ERROR, "Unable to get span status: %s\n", strerror(errno));
 					free(tmp);
 					return NULL;
-				} 
+				}
+				/* Store the logical span first based upon the real span */
+				tmp->logicalspan = pris[span].prilogicalspan;
 				pri_resolve_span(&span, channel, (channel - p.chanpos), &si);
 				if (span < 0) {
 					ast_log(LOG_WARNING, "Channel %d: Unable to find locate channel/trunk group!\n", channel);
@@ -6308,7 +6311,7 @@ static int pri_find_principle(struct zt_pri *pri, int channel)
 	channel = PRI_CHANNEL(channel);
 	
 	for (x=0;x<pri->numchans;x++) {
-		if (pri->pvts[x] && (pri->pvts[x]->prioffset == channel) && (pri->logicalspan == span)) {
+		if (pri->pvts[x] && (pri->pvts[x]->prioffset == channel) && (pri->pvts[x]->logicalspan == span)) {
 			principle = x;
 			break;
 		}
@@ -6871,10 +6874,10 @@ static void *pri_dchannel(void *vpri)
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Accepting overlap call from '%s' to '%s' on channel %d/%d, span %d\n",
 										e->ring.callingnum, !ast_strlen_zero(pri->pvts[chanpos]->exten) ? pri->pvts[chanpos]->exten : "<unspecified>", 
-										pri->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
+										pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
 							} else {
 								ast_log(LOG_WARNING, "Unable to start PBX on channel %d/%d, span %d\n", 
-									pri->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
+									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
 								if (c)
 									ast_hangup(c);
 								else {
@@ -6891,11 +6894,11 @@ static void *pri_dchannel(void *vpri)
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Accepting call from '%s' to '%s' on channel %d/%d, span %d\n",
 										e->ring.callingnum, pri->pvts[chanpos]->exten, 
-											pri->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
+											pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
 								zt_enable_ec(pri->pvts[chanpos]);
 							} else {
 								ast_log(LOG_WARNING, "Unable to start PBX on channel %d/%d, span %d\n", 
-									pri->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
+									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
 								pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_SWITCH_CONGESTION);
 								pri->pvts[chanpos]->call = NULL;
 							}
@@ -6903,7 +6906,7 @@ static void *pri_dchannel(void *vpri)
 					} else {
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "Extension '%s' in context '%s' from '%s' does not exist.  Rejecting call on channel %d/%d, span %d\n",
-								pri->pvts[chanpos]->exten, pri->pvts[chanpos]->context, pri->pvts[chanpos]->callerid, pri->logicalspan, 
+								pri->pvts[chanpos]->exten, pri->pvts[chanpos]->context, pri->pvts[chanpos]->callerid, pri->pvts[chanpos]->logicalspan, 
 									pri->pvts[chanpos]->prioffset, pri->span);
 						pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_UNALLOCATED);
 						pri->pvts[chanpos]->call = NULL;
@@ -6941,7 +6944,7 @@ static void *pri_dchannel(void *vpri)
 					if (pri->overlapdial && !pri->pvts[chanpos]->proceeding) {
 						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
 							ast_log(LOG_DEBUG, "Queuing frame from PRI_EVENT_PROCEEDING on channel %d/%d span %d\n",
-								pri->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
+								pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
 							if (pri->pvts[chanpos]->owner)
 								ast_queue_frame(pri->pvts[chanpos]->owner, &f);
 
@@ -7038,7 +7041,7 @@ static void *pri_dchannel(void *vpri)
 							}
 							if (option_verbose > 2) 
 								ast_verbose(VERBOSE_PREFIX_3 "Channel %d/%d, span %d got hangup\n", 
-									pri->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
+									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
 						} else {
 							pri_hangup(pri->pri, pri->pvts[chanpos]->call, e->hangup.cause);
 							pri->pvts[chanpos]->call = NULL;
@@ -7143,18 +7146,18 @@ static void *pri_dchannel(void *vpri)
 						if (pri->pvts[x] && pri->pvts[x]->resetting) {
 							chanpos = x;
 							ast_mutex_lock(&pri->pvts[chanpos]->lock);
-							ast_log(LOG_DEBUG, "Assuming restart ack is really for channel %d/%d span %d\n", pri->logicalspan, 
+							ast_log(LOG_DEBUG, "Assuming restart ack is really for channel %d/%d span %d\n", pri->pvts[chanpos]->logicalspan, 
 									pri->pvts[chanpos]->prioffset, pri->span);
 							if (pri->pvts[chanpos]->master) 
 								pri_hangup_all(pri->pvts[chanpos]->master);
 							else if (pri->pvts[chanpos]->owner) {
-								ast_log(LOG_WARNING, "Got restart ack on channel %d/%d with owner on span %d\n", pri->logicalspan, 
+								ast_log(LOG_WARNING, "Got restart ack on channel %d/%d with owner on span %d\n", pri->pvts[chanpos]->logicalspan, 
 									pri->pvts[chanpos]->prioffset, pri->span);
 								pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							}
 							pri->pvts[chanpos]->resetting = 0;
 							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "B-channel %d/%d successfully restarted on span %d\n", pri->logicalspan, 
+								ast_verbose(VERBOSE_PREFIX_3 "B-channel %d/%d successfully restarted on span %d\n", pri->pvts[chanpos]->logicalspan, 
 									pri->pvts[chanpos]->prioffset, pri->span);
 							ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 							if (pri->resetting)
@@ -7180,7 +7183,7 @@ static void *pri_dchannel(void *vpri)
 						}
 						pri->pvts[chanpos]->resetting = 0;
 						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "B-channel %d/%d successfully restarted on span %d\n", pri->logicalspan, 
+							ast_verbose(VERBOSE_PREFIX_3 "B-channel %d/%d successfully restarted on span %d\n", pri->pvts[chanpos]->logicalspan, 
 									pri->pvts[chanpos]->prioffset, pri->span);
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 						if (pri->resetting)
@@ -7647,10 +7650,10 @@ static int zap_show_channel(int fd, int argc, char **argv)
 				if (tmp->call)
 					ast_cli(fd, "Call ");
 				ast_cli(fd, "\n");
-				if (tmp->pri->logicalspan) 
-					ast_cli(fd, "PRI Span: %d\n", tmp->pri->logicalspan);
+				if (tmp->logicalspan) 
+					ast_cli(fd, "PRI Logical Span: %d\n", tmp->logicalspan);
 				else
-					ast_cli(fd, "PRI Span: Implicit\n");
+					ast_cli(fd, "PRI Logical Span: Implicit\n");
 			}
 				
 #endif
