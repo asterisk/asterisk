@@ -435,6 +435,7 @@ static int conf_cmd(int fd, int argc, char **argv) {
 			ast_cli(fd, "User #: %i  Channel: %s %s %s %s %s\n", user->user_no, user->chan->name, (user->userflags & CONFFLAG_ADMIN) ? "(Admin)" : "", (user->userflags & CONFFLAG_MONITOR) ? "(Listen only)" : "", (user->adminflags & ADMINFLAG_MUTED) ? "(Admn Muted)" : "", istalking(user->talking));
 			user = user->nextuser;
 		}
+		ast_cli(fd,"%d users in that conference.\n",cnf->users);
 		return RESULT_SUCCESS;
 	} else 
 		return RESULT_SHOWUSAGE;
