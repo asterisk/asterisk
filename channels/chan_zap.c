@@ -3196,7 +3196,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				if (strlen(p->dop.dialstr) > 4) {
 					memset(p->echorest, 'w', sizeof(p->echorest) - 1);
 					p->echorest[sizeof(p->echorest) - 1] = '\0';
-					strcpy(p->echorest + (p->echotraining / 400) + 1, p->dop.dialstr + strlen(p->dop.dialstr) - 2);
+					strcpy(p->echorest + (p->echotraining / 401) + 1, p->dop.dialstr + strlen(p->dop.dialstr) - 2);
 					p->echobreak = 1;
 					p->dop.dialstr[strlen(p->dop.dialstr)-2] = '\0';
 				} else
