@@ -1,3 +1,6 @@
+ -- Fix unloading of Zaptel
+ -- Pass Caller*ID/ANI properly on call forwarding
+ -- Add indication for Italy
 Asterisk 0.7.1
  -- Fixed timed include context's and GotoIfTime
  -- Fixed chan_h323 it now gets remote ip properly instead of 127.0.0.1
