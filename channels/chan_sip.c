@@ -225,6 +225,7 @@ static struct sip_pvt {
 	char peername[256];
 	char uri[256];					/* Original requested URI */
 	char peersecret[256];
+	char peermd5secret[256];
 	char callerid[256];					/* Caller*ID */
 	int restrictcid;			/* hide presentation from remote user */
 	char via[256];
@@ -272,6 +273,7 @@ struct sip_user {
 	/* Users who can access various contexts */
 	char name[80];
 	char secret[80];
+        char md5secret[80];
 	char context[80];
 	char callerid[80];
 	char methods[80];
@@ -296,6 +298,7 @@ struct sip_user {
 struct sip_peer {
 	char name[80];
 	char secret[80];
+	char md5secret[80];
 	char context[80];		/* JK02: peers need context too to allow parking etc */
 	char methods[80];
 	char username[80];
@@ -357,7 +360,8 @@ struct sip_registry {
 	char username[80];				/* Who we are registering as */
 	char authuser[80];				/* Who we *authenticate* as */
 	char hostname[80];
-	char secret[80];			/* Password or key name in []'s */
+	char secret[80];			/* Password or key name in []'s */	
+	char md5secret[80];
 	char contact[80];			/* Contact extension */
 	char random[80];
 	int expire;					/* Sched ID of expiration */
@@ -663,6 +667,7 @@ static int create_addr(struct sip_pvt *r, char *peer)
 			}
 			strncpy(r->peername, p->username, sizeof(r->peername)-1);
 			strncpy(r->peersecret, p->secret, sizeof(r->peersecret)-1);
+			strncpy(r->peermd5secret, p->md5secret, sizeof(r->peermd5secret)-1);
 			strncpy(r->username, p->username, sizeof(r->username)-1);
 			strncpy(r->tohost, p->tohost, sizeof(r->tohost)-1);
 			if (!strlen(r->tohost)) {
@@ -2940,6 +2945,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 		r->call=p;
 		p->registry=r;
 		strncpy(p->peersecret, r->secret, sizeof(p->peersecret)-1);
+		strncpy(p->peermd5secret, r->md5secret, sizeof(p->peermd5secret)-1);
 		if (strlen(r->authuser))
 			strncpy(p->peername, r->authuser, sizeof(p->peername)-1);
 		else
@@ -3349,11 +3355,11 @@ static void md5_hash(char *output, char *input)
 			ptr += sprintf(ptr, "%2.2x", digest[x]);
 }
 
-static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata, int randlen, char *username, char *secret, char *method, char *uri, int reliable)
+static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata, int randlen, char *username, char *secret, char *md5secret, char *method, char *uri, int reliable)
 {
 	int res = -1;
 	/* Always OK if no secret */
-	if (!strlen(secret))
+	if (!strlen(secret) && !strlen(md5secret))
 		return 0;
 	if (!strlen(randdata) || !strlen(get_header(req, "Proxy-Authorization"))) {
 		snprintf(randdata, randlen, "%08x", rand());
@@ -3419,7 +3425,10 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 			snprintf(a2, sizeof(a2), "%s:%s", method, resp_uri);
 		else
 			snprintf(a2, sizeof(a2), "%s:%s", method, uri);
-		md5_hash(a1_hash, a1);
+		if (strlen(md5secret))
+		        snprintf(a1_hash, sizeof(a1_hash), "%s", md5secret);
+		else
+		        md5_hash(a1_hash, a1);
 		md5_hash(a2_hash, a2);
 		snprintf(resp, sizeof(resp), "%s:%s:%s", a1_hash, randdata, a2_hash);
 		md5_hash(resp_hash, resp);
@@ -3490,7 +3499,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 		if (!strcasecmp(peer->name, name) && peer->dynamic) {
 			p->nat = peer->nat;
 			transmit_response(p, "100 Trying", req);
-			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, "REGISTER", uri, 0))) {
+			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, peer->md5secret, "REGISTER", uri, 0))) {
 				sip_cancel_destroy(p);
 				if (parse_contact(p, peer, req)) {
 					ast_log(LOG_WARNING, "Failed to parse contact info\n");
@@ -3861,7 +3870,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", p->nat);
 				ast_rtp_setnat(p->vrtp, p->nat);
 			}
-			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, cmd, uri, reliable))) {
+			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, cmd, uri, reliable))) {
 				sip_cancel_destroy(p);
 				if (strlen(user->context))
 					strncpy(p->context, user->context, sizeof(p->context) - 1);
@@ -3869,6 +3878,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 					strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
 				strncpy(p->username, user->name, sizeof(p->username) - 1);
 				strncpy(p->peersecret, user->secret, sizeof(p->peersecret) - 1);
+				strncpy(p->peermd5secret, user->md5secret, sizeof(p->peermd5secret) - 1);
 				strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)  -1);
 				p->canreinvite = user->canreinvite;
 				p->amaflags = user->amaflags;
@@ -3912,6 +3922,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				if (strlen(peer->context))
 					strncpy(p->context, peer->context, sizeof(p->context) - 1);
 				strncpy(p->peersecret, peer->secret, sizeof(p->peersecret) - 1);
+				strncpy(p->peermd5secret, peer->md5secret, sizeof(p->peermd5secret) - 1);
 				p->callgroup = peer->callgroup;
 				p->pickupgroup = peer->pickupgroup;
 				if (peer->dtmfmode) {
@@ -4357,7 +4368,10 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 
 	snprintf(a1,sizeof(a1),"%s:%s:%s",p->peername,p->realm,p->peersecret);
 	snprintf(a2,sizeof(a2),"%s:%s",orig_header,uri);
-	md5_hash(a1_hash,a1);
+	if (strlen(p->peermd5secret))
+	        strncpy(a1_hash, p->peermd5secret, sizeof(a1_hash) - 1);
+	else
+	        md5_hash(a1_hash,a1);
 	md5_hash(a2_hash,a2);
 	snprintf(resp,sizeof(resp),"%s:%s:%s",a1_hash,p->nonce,a2_hash);
 	md5_hash(resp_hash,resp);
@@ -5604,6 +5618,8 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 				strncpy(user->methods, v->value, sizeof(user->methods)-1);
 			} else if (!strcasecmp(v->name, "secret")) {
 				strncpy(user->secret, v->value, sizeof(user->secret)-1); 
+			} else if (!strcasecmp(v->name, "md5secret")) {
+				strncpy(user->md5secret, v->value, sizeof(user->secret)-1); 
 			} else if (!strcasecmp(v->name, "dtmfmode")) {
 				if (!strcasecmp(v->value, "inband"))
 					user->dtmfmode=SIP_DTMF_INBAND;
@@ -5658,6 +5674,8 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 	if (!strlen(user->methods)) {
 		if (strlen(user->secret)) 
 			strncpy(user->methods, "md5,plaintext", sizeof(user->methods) - 1);
+		else if (strlen(user->md5secret))
+		        strncpy(user->methods, "md5", sizeof(user->methods) - 1);
 	}
 	return user;
 }
@@ -5710,6 +5728,8 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) 
 				strncpy(peer->secret, v->value, sizeof(peer->secret)-1);
+			else if (!strcasecmp(v->name, "md5secret")) 
+				strncpy(peer->md5secret, v->value, sizeof(peer->md5secret)-1);
 			else if (!strcasecmp(v->name, "auth")) 
 				strncpy(peer->methods, v->value, sizeof(peer->methods)-1);
 			else if (!strcasecmp(v->name, "canreinvite")) {
