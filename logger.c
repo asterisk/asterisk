@@ -482,10 +482,12 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	     * we don't have the logger chain configured yet,
 	     * so just log to stdout 
 	     */
-	    va_start(ap, fmt);
-	    vsnprintf(buf, sizeof(buf), fmt, ap);
-	    va_end(ap);
-	    fprintf(stdout, buf);
+		if (level != __LOG_VERBOSE) {
+		    va_start(ap, fmt);
+		    vsnprintf(buf, sizeof(buf), fmt, ap);
+		    va_end(ap);
+		    fprintf(stdout, buf);
+		}
     }
 
     ast_mutex_unlock(&loglock);
