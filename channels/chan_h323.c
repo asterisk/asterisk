@@ -232,6 +232,8 @@ static struct oh323_user *build_user(char *name, struct ast_variable *v)
 				strncpy(user->context, v->value, sizeof(user->context)-1);
 			} else if (!strcasecmp(v->name, "bridge")) {
 				user->bridge = ast_true(v->value);
+                      } else if (!strcasecmp(v->name, "nat")) {
+                              user->nat = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "noFastStart")) {
 				user->noFastStart = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "noH245Tunneling")) {
@@ -497,6 +499,14 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *p)
 	/* Retrieve audio/etc from channel.  Assumes p->lock is already held. */
 	struct ast_frame *f;
 	static struct ast_frame null_frame = { AST_FRAME_NULL, };
+
+      /* Only apply it for the first packet, we just need the correct ip/port */
+      if(p->nat)
+      {
+              ast_rtp_setnat(p->rtp,p->nat);
+              p->nat = 0;
+      }
+
 	f = ast_rtp_read(p->rtp);
 	/* Don't send RFC2833 if we're not supposed to */
 	if (f && (f->frametype == AST_FRAME_DTMF) && !(p->dtmfmode & H323_DTMF_RFC2833))
@@ -1031,6 +1041,7 @@ int setup_incoming_call(call_details_t cd)
 			}
 			strncpy(p->context, user->context, sizeof(p->context)-1);
 			p->bridge = user->bridge;
+                      p->nat = user->nat;
 
 			if (strlen(user->callerid)) 
 				strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
@@ -1056,9 +1067,7 @@ int setup_incoming_call(call_details_t cd)
 /* I know this is horrid, don't kill me saddam */
 exit:
 	/* allocate a channel and tell asterisk about it */
-	printf("exten b4: %s\n", p->exten);
 	c = oh323_new(p, AST_STATE_RINGING, cd.call_token);
-
 	if (!c) {
 		ast_log(LOG_ERROR, "Couldn't create channel. This is bad\n");
 		return 0;
@@ -1088,61 +1097,6 @@ if (!p) {
 	return 0;
 }
 #endif
-
-
-/* Call-back function that gets called on transfer
- *
- * Returns 1 on success
- */
-int setup_transfer_call(unsigned call_reference, const char *extension)
-{
- 	struct oh323_pvt *p;
- 	struct ast_channel *c = NULL;
- 	char exten[AST_MAX_EXTENSION];
- 	char *context;
- 
- 	p = find_call(call_reference);
- 
- 	if (!p) {
- 		ast_log(LOG_WARNING, "No such call %d.\n", call_reference);
- 		return -1;
- 	}
- 
- 	if (!p->owner) {
- 		ast_log(LOG_WARNING, "Call %d has no owner.\n", call_reference);
- 		return -1;
- 	}
- 	
- 	memcpy(exten, extension, sizeof(exten));
- 
- 	c = p->owner;
- 	if (c && c->bridge) {
- 		strncpy(exten, extension, sizeof(exten) - 1);
- 		context = strchr(exten, '@');
- 		if (context) {
- 			*context = '\0';
- 			context++;
- 		} else
- 			context = c->context;
- 		if (!strlen(context))
- 			context = c->bridge->context;
- 		if (ast_exists_extension(c->bridge, context, exten, 1, c->bridge->callerid)) {
- 			
- 			ast_log(LOG_NOTICE, "Transfering call %s to %s@%s.\n", c->bridge->name, exten, context);
- 			
- 			if (!ast_async_goto(c->bridge, context, exten, 1, 1))
- 				return 1;
- 
- 			ast_log(LOG_WARNING, "Failed to transfer.\n");
- 		} else {
- 			ast_log(LOG_WARNING, "No such extension '%s' exists.\n", exten);
- 		}
- 	} else {
- 		ast_log(LOG_WARNING, "There is no call to transfer\n");
- 	}
- 	return 0;
-}
-
 
 /**
   * Call-back function that gets called for each rtp channel opened 
@@ -1768,8 +1722,7 @@ int load_module()
 		
 		/* Register our callback functions */
 		h323_callback_register(setup_incoming_call, 
-							   setup_outgoing_call, 
-							   setup_transfer_call,
+							   setup_outgoing_call,							 
 							   create_connection, 
 							   setup_rtp_connection, 
 							   cleanup_connection, 
