@@ -159,7 +159,7 @@ extern "C" {
 	void h323_gk_urq(void);
 	void h323_end_point_create(void);
 	void h323_end_process(void);
-	int end_point_exist(void);
+	int  h323_end_point_exist(void);
     
 	void h323_debug(int, unsigned);
 

@@ -778,7 +778,7 @@ BOOL MyGatekeeperServer::Initialise()
  */
 extern "C" {
 
-int end_point_exist(void)
+int h323_end_point_exist(void)
 {
 	if (!endPoint) {
 		return 0;
@@ -795,7 +795,7 @@ void h323_end_point_create(void)
 
 void h323_gk_urq(void)
 {
-	if (!end_point_exist()) {
+	if (!h323_end_point_exist()) {
 		cout << " ERROR: [h323_gk_urq] No Endpoint, this is bad" << endl;
 		return;
 	}
@@ -843,7 +843,7 @@ int h323_set_capability(int cap, int dtmfMode)
     int gsmFrames  = 4;
 
 	
-	if (!end_point_exist()) {
+	if (!h323_end_point_exist()) {
 		cout << " ERROR: [h323_set_capablity] No Endpoint, this is bad" << endl;
 		return 1;
 	}
@@ -910,7 +910,7 @@ int h323_set_capability(int cap, int dtmfMode)
 int h323_start_listener(int listenPort, struct sockaddr_in bindaddr)
 {
 	
-	if (!end_point_exist()) {
+	if (!h323_end_point_exist()) {
 		cout << "ERROR: [h323_start_listener] No Endpoint, this is bad!" << endl;
 		return 1;
 	}
@@ -943,7 +943,7 @@ int h323_set_alias(struct oh323_alias *alias)
 	PString h323id(alias->name);
 	PString e164(alias->e164);
 	
-	if (!end_point_exist()) {
+	if (!h323_end_point_exist()) {
 		cout << "ERROR: [h323_set_alias] No Endpoint, this is bad!" << endl;
 		return 1;
 	}
@@ -992,7 +992,7 @@ int h323_set_gk(int gatekeeper_discover, char *gatekeeper, char *secret)
 	PString gkName = PString(gatekeeper);
 	PString pass   = PString(secret);
 
-	if (!end_point_exist()) {
+	if (!h323_end_point_exist()) {
 		cout << "ERROR: [h323_set_gk] No Endpoint, this is bad!" << endl;
 		return 1;
 	}
@@ -1043,7 +1043,7 @@ int h323_set_gk(int gatekeeper_discover, char *gatekeeper, char *secret)
   */
 void h323_send_tone(const char *call_token, char tone)
 {
-	if (!end_point_exist()) {
+	if (!h323_end_point_exist()) {
 		cout << "ERROR: [h323_send_tone] No Endpoint, this is bad!" << endl;
 		return;
 	}
@@ -1059,7 +1059,7 @@ int h323_make_call(char *host, call_details_t *cd, call_options_t call_options)
 	int res;
 	PString	token;
 
-	if (!end_point_exist()) {
+	if (!h323_end_point_exist()) {
 		return 1;
 	}
 	
@@ -1073,7 +1073,7 @@ int h323_make_call(char *host, call_details_t *cd, call_options_t call_options)
 
 int h323_clear_call(const char *call_token)
 {
-	if (!end_point_exist()) {
+	if (!h323_end_point_exist()) {
 		return 1;
 	}
 
@@ -1124,12 +1124,7 @@ void h323_native_bridge(const char *token, char *them, char *capability)
 {
 	H323Channel *channel;
 	MyH323Connection *connection = (MyH323Connection *)endPoint->FindConnectionWithLock(token);
-	PString mode(capability);
 	
-	if (!mode) {
-		return;
-	}
-
 	if (!connection){
 		cout << "ERROR: No connection found, this is bad\n";
 		return;
@@ -1140,7 +1135,7 @@ void h323_native_bridge(const char *token, char *them, char *capability)
 	channel = connection->FindChannel(connection->sessionId, TRUE);
 	connection->bridging = TRUE;
 	connection->CloseLogicalChannelNumber(channel->GetNumber());
-	connection->RequestModeChange(mode);	
+	
 	connection->Unlock();
 	return;
 
