@@ -1595,6 +1595,8 @@ static struct iax2_peer *mysql_peer(char *peer)
 				if ((nowtime - regseconds) > IAX_DEFAULT_REG_EXPIRE) 
 					memset(&p->addr, 0, sizeof(p->addr));
 			}
+			mysql_free_result(result);
+			result = NULL;
 		}
 		ast_mutex_unlock(&mysqllock);
 	}
@@ -1650,6 +1652,8 @@ static struct iax2_user *mysql_user(char *user)
 					}
 				}
 			}
+			mysql_free_result(result);
+			result = NULL;
 		}
 		ast_mutex_unlock(&mysqllock);
 	}
