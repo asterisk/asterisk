@@ -164,9 +164,7 @@ ifeq (${OSARCH},Linux)
 LIBS+=-lresolv  #-lnjamd
 endif
 ifeq (${OSARCH},Darwin)
-ifeq ($(shell uname -r),7.0.0)
 LIBS+=-lresolv
-endif
 endif
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o say.o pbx.o cli.o md5.o term.o \
