@@ -141,7 +141,7 @@ char *description(void)
 	return desc;
 }
 
-int unload_module(void)
+int my_unload_module(void)
 { 
 	if (connected) {
 		mysql_close(&mysql);
@@ -177,7 +177,7 @@ int unload_module(void)
 	return 0;
 }
 
-int load_module(void)
+int my_load_module(void)
 {
 	int res;
 	struct ast_config *cfg;
@@ -306,10 +306,20 @@ int load_module(void)
 	return res;
 }
 
+int load_module(void)
+{
+	return my_load_module();
+}
+
+int unload_module(void)
+{
+	return my_unload_module();
+}
+
 int reload(void)
 {
-	unload_module();
-	return load_module();
+	my_unload_module();
+	return my_load_module();
 }
 
 int usecount(void)
