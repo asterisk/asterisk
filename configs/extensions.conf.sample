@@ -93,8 +93,8 @@ exten => _91700NXXXXXX,1,Dial(IAX2/${IAXINFO}@iaxtel.com/${EXTEN:1}@iaxtel)
 ;
 ; International long distance through trunk
 ;
-exten => 9011.,1,Dial(${TRUNK}/${EXTEN:1})
-exten => 9011.,2,Congestion
+exten => _9011.,1,Dial(${TRUNK}/${EXTEN:1})
+exten => _9011.,2,Congestion
 
 [trunkld]
 ;
