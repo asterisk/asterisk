@@ -38,6 +38,8 @@
 #include <asterisk/lock.h>
 #include <asterisk/utils.h>
 
+#define MAX_TIMESTAMP_SKEW	640
+
 #define RTP_MTU		1200
 
 #define TYPE_HIGH	 0x0
@@ -380,6 +382,7 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 		gettimeofday(&rtp->rxcore, NULL);
 		rtp->rxcore.tv_sec -= timestamp / 8000;
 		rtp->rxcore.tv_usec -= (timestamp % 8000) * 125;
+		/* Round to 20ms for nice, pretty timestamps */
 		rtp->rxcore.tv_usec -= rtp->rxcore.tv_usec % 20000;
 		if (rtp->rxcore.tv_usec < 0) {
 			/* Adjust appropriately if necessary */
@@ -919,18 +922,19 @@ static unsigned int calc_txstamp(struct ast_rtp *rtp, struct timeval *delivery)
 	unsigned int ms;
 	if (!rtp->txcore.tv_sec && !rtp->txcore.tv_usec) {
 		gettimeofday(&rtp->txcore, NULL);
+		/* Round to 20ms for nice, pretty timestamps */
 		rtp->txcore.tv_usec -= rtp->txcore.tv_usec % 20000;
 	}
 	if (delivery && (delivery->tv_sec || delivery->tv_usec)) {
 		/* Use previous txcore */
 		ms = (delivery->tv_sec - rtp->txcore.tv_sec) * 1000;
-		ms += (delivery->tv_usec - rtp->txcore.tv_usec) / 1000;
+		ms += (1000000 + delivery->tv_usec - rtp->txcore.tv_usec) / 1000 - 1000;
 		rtp->txcore.tv_sec = delivery->tv_sec;
 		rtp->txcore.tv_usec = delivery->tv_usec;
 	} else {
 		gettimeofday(&now, NULL);
 		ms = (now.tv_sec - rtp->txcore.tv_sec) * 1000;
-		ms += (now.tv_usec - rtp->txcore.tv_usec) / 1000;
+		ms += (1000000 + now.tv_usec - rtp->txcore.tv_usec) / 1000 - 1000;
 		/* Use what we just got for next time */
 		rtp->txcore.tv_sec = now.tv_sec;
 		rtp->txcore.tv_usec = now.tv_usec;
@@ -1058,7 +1062,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		if (!f->delivery.tv_sec && !f->delivery.tv_usec) {
 			/* If this isn't an absolute delivery time, Check if it is close to our prediction, 
 			   and if so, go with our prediction */
-			if (abs(rtp->lastts - pred) < 640)
+			if (abs(rtp->lastts - pred) < MAX_TIMESTAMP_SKEW)
 				rtp->lastts = pred;
 			else {
 				ast_log(LOG_DEBUG, "Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);

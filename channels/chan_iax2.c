@@ -119,7 +119,9 @@ static int ping_time = 20;
 static int lagrq_time = 10;
 static int maxtrunkcall = TRUNK_CALL_START;
 static int maxnontrunkcall = 1;
-static int maxjitterbuffer=3000;
+static int maxjitterbuffer=1000;
+static int minjitterbuffer=10;
+static int jittershrinkrate=2;
 static int trunkfreq = 20;
 static int authdebug = 1;
 static int iaxcompat = 0;
@@ -1595,12 +1597,21 @@ static unsigned int calc_fakestamp(struct chan_iax2_pvt *from, struct chan_iax2_
 static int forward_delivery(struct iax_frame *fr)
 {
 	struct chan_iax2_pvt *p1, *p2;
+	char tmp[80];
 	p1 = iaxs[fr->callno];
 	p2 = iaxs[p1->bridgecallno];
 	if (!p1)
 		return -1;
 	if (!p2)
 		return -1;
+
+	if (option_debug)
+		ast_log(LOG_DEBUG, "forward_delivery: Forwarding ts=%d on %d/%d to %d/%d on %s:%d\n",
+				fr->ts,
+				p1->callno, p1->peercallno,
+				p2->callno, p2->peercallno,
+				ast_inet_ntoa(tmp, sizeof(tmp), p2->addr.sin_addr), ntohs(p2->addr.sin_port));
+
 	/* Fix relative timestamp */
 	fr->ts = calc_fakestamp(p1, p2, fr->ts);
 	/* Now just send it send on the 2nd one 
@@ -1701,7 +1712,7 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 	/* If our jitter buffer is too big (by a significant margin), then we slowly
 	   shrink it by about 1 ms each time to avoid letting the change be perceived */
 	if (max < iaxs[fr->callno]->jitterbuffer - max_jitter_buffer)
-		iaxs[fr->callno]->jitterbuffer -= 2;
+		iaxs[fr->callno]->jitterbuffer -= jittershrinkrate;
 
 
 #if 1
@@ -2590,7 +2601,8 @@ static unsigned int calc_txpeerstamp(struct iax2_trunk_peer *tpeer, int sampms, 
 	long int ms, pred;
 
 	tpeer->trunkact = *tv;
-	mssincetx = (tv->tv_sec - tpeer->lasttxtime.tv_sec) * 1000 + (tv->tv_usec - tpeer->lasttxtime.tv_usec) / 1000;
+	mssincetx = (tv->tv_sec - tpeer->lasttxtime.tv_sec) * 1000 +
+			(1000000 + tv->tv_usec - tpeer->lasttxtime.tv_usec) / 1000 - 1000;
 	if (mssincetx > 5000 || (!tpeer->txtrunktime.tv_sec && !tpeer->txtrunktime.tv_usec)) {
 		/* If it's been at least 5 seconds since the last time we transmitted on this trunk, reset our timers */
 		tpeer->txtrunktime.tv_sec = tv->tv_sec;
@@ -2602,7 +2614,8 @@ static unsigned int calc_txpeerstamp(struct iax2_trunk_peer *tpeer, int sampms, 
 	tpeer->lasttxtime.tv_usec = tv->tv_usec;
 	
 	/* Calculate ms offset */
-	ms = (tv->tv_sec - tpeer->txtrunktime.tv_sec) * 1000 + (tv->tv_usec - tpeer->txtrunktime.tv_usec) / 1000;
+	ms = (tv->tv_sec - tpeer->txtrunktime.tv_sec) * 1000 +
+		(1000000 + tv->tv_usec - tpeer->txtrunktime.tv_usec) / 1000 - 1000;
 	/* Predict from last value */
 	pred = tpeer->lastsent + sampms;
 	if (abs(ms - pred) < MAX_TIMESTAMP_SKEW)
@@ -2621,12 +2634,12 @@ static unsigned int fix_peerts(struct timeval *tv, int callno, unsigned int ts)
 	if (!iaxs[callno]->rxcore.tv_sec && !iaxs[callno]->rxcore.tv_usec) {
 		/* Initialize rxcore time if appropriate */
 		gettimeofday(&iaxs[callno]->rxcore, NULL);
-		/* Round to nearest 20ms */
+		/* Round to nearest 20ms so traces look pretty */
 		iaxs[callno]->rxcore.tv_usec -= iaxs[callno]->rxcore.tv_usec % 20000;
 	}
 	/* Calculate difference between trunk and channel */
 	ms = (tv->tv_sec - iaxs[callno]->rxcore.tv_sec) * 1000 + 
-		(tv->tv_usec - iaxs[callno]->rxcore.tv_usec) / 1000;
+		(1000000 + tv->tv_usec - iaxs[callno]->rxcore.tv_usec) / 1000 - 1000;
 	/* Return as the sum of trunk time and the difference between trunk and real time */
 	return ms + ts;
 }
@@ -2655,7 +2668,7 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 	}
 	if (!p->offset.tv_sec && !p->offset.tv_usec) {
 		gettimeofday(&p->offset, NULL);
-		/* Round to nearest 20ms */
+		/* Round to nearest 20ms for nice looking traces */
 		p->offset.tv_usec -= p->offset.tv_usec % 20000;
 	}
 	/* If the timestamp is specified, just send it as is */
@@ -2663,10 +2676,12 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 		return ts;
 	/* If we have a time that the frame arrived, always use it to make our timestamp */
 	if (delivery && (delivery->tv_sec || delivery->tv_usec)) {
-		ms = (delivery->tv_sec - p->offset.tv_sec) * 1000 + (delivery->tv_usec - p->offset.tv_usec) / 1000;
+		ms = (delivery->tv_sec - p->offset.tv_sec) * 1000 +
+			(1000000 + delivery->tv_usec - p->offset.tv_usec) / 1000 - 1000;
 	} else {
 		gettimeofday(&tv, NULL);
-		ms = (tv.tv_sec - p->offset.tv_sec) * 1000 + (tv.tv_usec - p->offset.tv_usec) / 1000;
+		ms = (tv.tv_sec - p->offset.tv_sec) * 1000 +
+			(1000000 + tv.tv_usec - p->offset.tv_usec) / 1000 - 1000;
 		if (ms < 0)
 			ms = 0;
 		if (voice) {
@@ -2720,7 +2735,8 @@ static unsigned int calc_fakestamp(struct chan_iax2_pvt *p1, struct chan_iax2_pv
 	   Adding rxcore to it gives us when we would want the packet to be delivered normally.
 	   Subtracting txcore of the outgoing channel gives us what we'd expect */
 	
-	ms = (p1->rxcore.tv_sec - p2->offset.tv_sec) * 1000 + (p1->rxcore.tv_usec - p2->offset.tv_usec) / 1000;
+	ms = (p1->rxcore.tv_sec - p2->offset.tv_sec) * 1000 +
+		(1000000 + p1->rxcore.tv_usec - p2->offset.tv_usec) / 1000 - 1000;
 	fakets += ms;
 	if (fakets <= p2->lastsent)
 		fakets = p2->lastsent + 1;
@@ -2739,7 +2755,8 @@ static unsigned int calc_rxstamp(struct chan_iax2_pvt *p)
 		gettimeofday(&p->rxcore, NULL);
 
 	gettimeofday(&tv, NULL);
-	ms = (tv.tv_sec - p->rxcore.tv_sec) * 1000 + (tv.tv_usec - p->rxcore.tv_usec) / 1000;
+	ms = (tv.tv_sec - p->rxcore.tv_sec) * 1000 +
+		(1000000 + tv.tv_usec - p->rxcore.tv_usec) / 1000 - 1000;
 	return ms;
 }
 
@@ -3147,16 +3164,26 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
+static int jitterbufsize(struct chan_iax2_pvt *pvt) {
+	int min, i;
+	min = 99999999;
+	for (i=0; i<MEMORY_SIZE; i++) {
+		if (pvt->history[i] < min)
+			min = pvt->history[i];
+	}
+	return pvt->jitterbuffer - min;
+}
+
 static int iax2_show_channels(int fd, int argc, char *argv[])
 {
-#define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-7.7s  %-6.6s  %s\n"
-#define FORMAT  "%-15.15s  %-10.10s  %5.5d/%5.5d  %5.5d/%5.5d  %-5.5dms  %-4.4dms  %-6.6s\n"
+#define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-7.7s  %-6.6s  %-6.6s  %s\n"
+#define FORMAT  "%-15.15s  %-10.10s  %5.5d/%5.5d  %5.5d/%5.5d  %-5.5dms  %-4.4dms  %-4.4dms  %-6.6s\n"
 	int x;
 	int numchans = 0;
 	char iabuf[80];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_cli(fd, FORMAT2, "Peer", "Username", "ID (Lo/Rem)", "Seq (Tx/Rx)", "Lag", "Jitter", "Format");
+	ast_cli(fd, FORMAT2, "Peer", "Username", "ID (Lo/Rem)", "Seq (Tx/Rx)", "Lag", "Jitter", "JitBuf", "Format");
 	for (x=0;x<IAX_MAX_CALLS;x++) {
 		ast_mutex_lock(&iaxsl[x]);
 		if (iaxs[x]) {
@@ -3166,6 +3193,7 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 						iaxs[x]->oseqno, iaxs[x]->iseqno, 
 						iaxs[x]->lag,
 						iaxs[x]->jitter,
+						jitterbufsize(iaxs[x]),
 						ast_getformatname(iaxs[x]->voiceformat) );
 			numchans++;
 		}
@@ -6380,6 +6408,10 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 			ping_time = atoi(v->value);
 		else if (!strcasecmp(v->name, "maxjitterbuffer")) 
 			maxjitterbuffer = atoi(v->value);
+		else if (!strcasecmp(v->name, "minjitterbuffer")) 
+			minjitterbuffer = atoi(v->value);
+		else if (!strcasecmp(v->name, "jittershrinkrate")) 
+			jittershrinkrate = atoi(v->value);
 		else if (!strcasecmp(v->name, "maxexcessbuffer")) 
 			max_jitter_buffer = atoi(v->value);
 		else if (!strcasecmp(v->name, "lagrqtime")) 
