@@ -5020,6 +5020,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 						c = NULL;
 					} else {
 						ast_mutex_unlock(&p->lock);
+						ast_setstate(c, AST_STATE_DOWN);
 						ast_hangup(c);
 						ast_mutex_lock(&p->lock);
 						c = NULL;
