@@ -886,7 +886,7 @@ static int action_originate(struct mansession *s, struct message *m)
 			fast->priority = pi;
 			pthread_attr_init(&attr);
 			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-			if (pthread_create(&th, &attr, fast_originate, fast))
+			if (ast_pthread_create(&th, &attr, fast_originate, fast))
 			{
 				res = -1;
 			}
@@ -1216,7 +1216,7 @@ static void *accept_thread(void *ignore)
 		s->next = sessions;
 		sessions = s;
 		ast_mutex_unlock(&sessionlock);
-		if (pthread_create(&t, &attr, session_do, s))
+		if (ast_pthread_create(&t, &attr, session_do, s))
 			destroy_session(s);
 	}
 	pthread_attr_destroy(&attr);
@@ -1448,7 +1448,7 @@ int init_manager(void)
 		}
 		if (option_verbose)
 			ast_verbose("Asterisk Management interface listening on port %d\n", portno);
-		pthread_create(&t, NULL, accept_thread, NULL);
+		ast_pthread_create(&t, NULL, accept_thread, NULL);
 	}
 	return 0;
 }

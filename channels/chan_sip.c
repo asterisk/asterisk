@@ -6780,7 +6780,7 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 		copy_request(&d->req, req);
 		d->chan1 = chan1m;
 		d->chan2 = chan2m;
-		if (!pthread_create(&th, NULL, sip_park_thread, d))
+		if (!ast_pthread_create(&th, NULL, sip_park_thread, d))
 			return 0;
 		free(d);
 	}
@@ -7633,7 +7633,7 @@ static int restart_monitor(void)
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		/* Start a new monitor */
-		if (pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {
+		if (ast_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {
 			ast_mutex_unlock(&monlock);
 			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
 			return -1;

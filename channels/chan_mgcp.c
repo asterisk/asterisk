@@ -2798,7 +2798,7 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
                 }
                 c = mgcp_new(sub, AST_STATE_DOWN);
                 if (c) {
-                    if (pthread_create(&t, &attr, mgcp_ss, c)) {
+                    if (ast_pthread_create(&t, &attr, mgcp_ss, c)) {
                         ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
                         ast_hangup(c);
                     }
@@ -3325,7 +3325,7 @@ static int restart_monitor(void)
 		pthread_kill(monitor_thread, SIGURG);
 	} else {
 		/* Start a new monitor */
-		if (pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {
+		if (ast_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {
 			ast_mutex_unlock(&monlock);
 			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
 			return -1;

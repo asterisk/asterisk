@@ -357,5 +357,6 @@ static inline int ast_mutex_trylock(ast_mutex_t *pmutex)
 #define AST_MUTEX_INITIALIZER __use_AST_MUTEX_DEFINE_STATIC_rather_than_AST_MUTEX_INITIALIZER__
 
 #define gethostbyname __gethostbyname__is__not__reentrant__use__ast_gethostbyname__instead__
+#define pthread_create __use_ast_pthread_create_instead__
 
 #endif

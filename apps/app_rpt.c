@@ -103,6 +103,7 @@ enum {REM_LOWPWR,REM_MEDPWR,REM_HIPWR};
 enum {DC_INDETERMINATE, DC_REQ_FLUSH, DC_ERROR, DC_COMPLETE};
 enum {SOURCE_RPT, SOURCE_LNK, SOURCE_RMT};
 
+#include <asterisk/utils.h>
 #include <asterisk/lock.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
@@ -1055,7 +1056,7 @@ pthread_attr_t attr;
 	ast_mutex_unlock(&myrpt->lock);
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	pthread_create(&tele->threadid,&attr,rpt_tele_thread,(void *) tele);
+	ast_pthread_create(&tele->threadid,&attr,rpt_tele_thread,(void *) tele);
 	return;
 }
 
@@ -1615,7 +1616,7 @@ static int function_autopatchup(struct rpt *myrpt, char *param, char *digitbuf, 
 	ast_mutex_unlock(&myrpt->lock);
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	pthread_create(&myrpt->rpt_call_thread,&attr,rpt_call,(void *) myrpt);
+	ast_pthread_create(&myrpt->rpt_call_thread,&attr,rpt_call,(void *) myrpt);
 	return DC_COMPLETE;
 }
 
@@ -3135,7 +3136,7 @@ char cmd[MAXDTMF+1] = "";
 						myrpt->exten[myrpt->cidx] = 0;
 					        pthread_attr_init(&attr);
 			 		        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-						pthread_create(&myrpt->rpt_call_thread,&attr,rpt_call,(void *)myrpt);
+						ast_pthread_create(&myrpt->rpt_call_thread,&attr,rpt_call,(void *)myrpt);
 						continue;
 					}
 				}
@@ -3539,7 +3540,7 @@ int	i,j,n,longestnode;
 			ast_log(LOG_WARNING,"Did not specify ident for node %s\n",rpt_vars[i].name);
 			pthread_exit(NULL);
 		}
-		pthread_create(&rpt_vars[i].rpt_thread,NULL,rpt,(void *) &rpt_vars[i]);
+		ast_pthread_create(&rpt_vars[i].rpt_thread,NULL,rpt,(void *) &rpt_vars[i]);
 	}
 	/* wait for first one to die (should be never) */
 	pthread_join(rpt_vars[0].rpt_thread,NULL);
@@ -3920,7 +3921,7 @@ int unload_module(void)
 
 int load_module(void)
 {
-	pthread_create(&rpt_master_thread,NULL,rpt_master,NULL);
+	ast_pthread_create(&rpt_master_thread,NULL,rpt_master,NULL);
 	return ast_register_application(app, rpt_exec, synopsis, descrip);
 }
 

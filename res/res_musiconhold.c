@@ -548,7 +548,7 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 #else
 		moh->pseudofd = -1;
 #endif
-		if (pthread_create(&moh->thread, NULL, monmp3thread, moh)) {
+		if (ast_pthread_create(&moh->thread, NULL, monmp3thread, moh)) {
 			ast_log(LOG_WARNING, "Unable to create moh...\n");
 			if (moh->pseudofd > -1)
 				close(moh->pseudofd);

@@ -18,6 +18,7 @@
 #include <asterisk/pbx.h>
 #include <asterisk/config.h>
 #include <asterisk/cli.h>
+#include <asterisk/utils.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -1032,7 +1033,7 @@ int load_module()
 	}
 	for (x=0;x<sizeof(myclis)/sizeof(struct ast_cli_entry); x++)
 		ast_cli_register(myclis + x);
-	pthread_create(&sthread, NULL, sound_thread, NULL);
+	ast_pthread_create(&sthread, NULL, sound_thread, NULL);
 #ifdef ALSA_MONITOR
 	if (alsa_monitor_start()) {
 		ast_log(LOG_ERROR, "Problem starting Monitoring\n");

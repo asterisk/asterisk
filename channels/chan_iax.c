@@ -4548,7 +4548,7 @@ static void *network_thread(void *ignore)
 
 static int start_network_thread(void)
 {
-	return pthread_create(&netthreadid, NULL, network_thread, NULL);
+	return ast_pthread_create(&netthreadid, NULL, network_thread, NULL);
 }
 
 static struct iax_context *build_context(char *context)

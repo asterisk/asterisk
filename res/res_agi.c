@@ -1160,7 +1160,7 @@ static int help_workhorse(int fd, char *match[])
 	return 0;
 }
 
-static int agi_register(agi_command *agi)
+int agi_register(agi_command *agi)
 {
 	int x;
 	for (x=0;x<MAX_COMMANDS - 1;x++) {
@@ -1179,7 +1179,7 @@ static int agi_register(agi_command *agi)
 	return -1;
 }
 
-static void agi_unregister(agi_command *agi)
+void agi_unregister(agi_command *agi)
 {
 	int x;
 	for (x=0;x<MAX_COMMANDS - 1;x++) {

@@ -33,6 +33,7 @@
 #include <asterisk/linkedlists.h>
 #include <asterisk/indications.h>
 #include <asterisk/lock.h>
+#include <asterisk/utils.h>
 
 #define MAX_AUTOMONS 256
 
@@ -106,7 +107,7 @@ int ast_autoservice_start(struct ast_channel *chan)
 			aslist = as;
 			res = 0;
 			if (needstart) {
-				if (pthread_create(&asthread, NULL, autoservice_run, NULL)) {
+				if (ast_pthread_create(&asthread, NULL, autoservice_run, NULL)) {
 					ast_log(LOG_WARNING, "Unable to create autoservice thread :(\n");
 					free(aslist);
 					aslist = NULL;

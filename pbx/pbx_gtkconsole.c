@@ -26,6 +26,7 @@
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
 #include <asterisk/cli.h>
+#include <asterisk/utils.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -450,7 +451,7 @@ static int show_console(void)
 	gtk_container_add(GTK_CONTAINER(window), hbox);
 	gtk_window_set_title(GTK_WINDOW(window), "Asterisk Console");
 	gtk_widget_grab_focus(cli);
-	pthread_create(&console_thread, NULL, consolethread, NULL);
+	ast_pthread_create(&console_thread, NULL, consolethread, NULL);
 	/* XXX Okay, seriously fix me! XXX */
 	usleep(100000);
 	ast_register_verbose(verboser);

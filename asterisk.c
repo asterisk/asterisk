@@ -342,7 +342,7 @@ static void *listener(void *unused)
 					flags = fcntl(consoles[x].p[1], F_GETFL);
 					fcntl(consoles[x].p[1], F_SETFL, flags | O_NONBLOCK);
 					consoles[x].fd = s;
-					if (pthread_create(&consoles[x].t, &attr, netconsole, &consoles[x])) {
+					if (ast_pthread_create(&consoles[x].t, &attr, netconsole, &consoles[x])) {
 						ast_log(LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
 						consoles[x].fd = -1;
 						fdprint(s, "Server failed to spawn thread\n");
@@ -395,7 +395,7 @@ static int ast_makesocket(void)
 		return -1;
 	}
 	ast_register_verbose(network_verboser);
-	pthread_create(&lthread, NULL, listener, NULL);
+	ast_pthread_create(&lthread, NULL, listener, NULL);
 	return 0;
 }
 

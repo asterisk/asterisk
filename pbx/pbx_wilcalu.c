@@ -25,6 +25,7 @@
 #include <asterisk/module.h>
 #include <asterisk/translate.h>
 #include <asterisk/options.h>
+#include <asterisk/utils.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -98,7 +99,7 @@ static void *autodial(void *ignore)
 				/* if & then string is complete */
 				if(buf[x]=='&'){
 					if(NULL!=(pass=(void *)strdup(sendbuf))){
-						pthread_create(&dialstring_thread, NULL, dialstring, pass);
+						ast_pthread_create(&dialstring_thread, NULL, dialstring, pass);
 						sendbufptr=sendbuf;
 						memset(sendbuf, 0, 257);
 					}
@@ -130,7 +131,7 @@ static void *snooze_alarm(void *pass)
 	struct alarm_data *data = (struct alarm_data *) pass;
 
 	sleep(data->snooze_len);
-	pthread_create(&dialstring_thread, NULL, dialstring, data->dialstr);
+	ast_pthread_create(&dialstring_thread, NULL, dialstring, data->dialstr);
 	/* dialstring will free data->dialstr */
 	free(pass);
 	pthread_exit(NULL);
@@ -153,7 +154,7 @@ static void  set_snooze_alarm(char *dialstr, int snooze_len)
 		pthread_exit(NULL);
 	}
 	pass->snooze_len=snooze_len;
-	pthread_create(&snooze_alarm_thread,NULL,snooze_alarm,pass);
+	ast_pthread_create(&snooze_alarm_thread,NULL,snooze_alarm,pass);
 }
 			
 static void *dialstring(void *string)
@@ -266,7 +267,7 @@ int load_module(void)
 			return 0;
 		}
 	}
-	pthread_create(&autodialer_thread, NULL, autodial, NULL);
+	ast_pthread_create(&autodialer_thread, NULL, autodial, NULL);
 	return 0;
 }
 

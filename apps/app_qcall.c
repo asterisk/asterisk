@@ -51,6 +51,7 @@
  */
  
 #include <asterisk/lock.h>
+#include <asterisk/utils.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -156,7 +157,7 @@ pthread_attr_t attr;
 			arg = (void *) strdup(fname);
 		        pthread_attr_init(&attr);
  		        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-			if (pthread_create(&dialer_thread,&attr,qcall_do,arg) == -1)
+			if (ast_pthread_create(&dialer_thread,&attr,qcall_do,arg) == -1)
 			   {
 				perror("qcall: Cannot create thread");
 				continue;
@@ -371,7 +372,7 @@ int load_module(void)
 {
 	snprintf(qdir, sizeof(qdir), "%s/%s", ast_config_AST_SPOOL_DIR, "qcall");
 	mkdir(qdir,0760);
-	pthread_create(&qcall_thread,NULL,qcall,NULL);
+	ast_pthread_create(&qcall_thread,NULL,qcall,NULL);
 	return 0;
 }
 

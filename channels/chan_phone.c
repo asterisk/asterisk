@@ -962,7 +962,7 @@ static int restart_monitor()
 #endif
 	}
 	/* Start a new monitor */
-	if (pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {
+	if (ast_pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {
 		ast_mutex_unlock(&monlock);
 		ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
 		return -1;

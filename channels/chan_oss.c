@@ -25,6 +25,7 @@
 #include <asterisk/pbx.h>
 #include <asterisk/config.h>
 #include <asterisk/cli.h>
+#include <asterisk/utils.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -1011,7 +1012,7 @@ int load_module()
 		}
 		ast_destroy(cfg);
 	}
-	pthread_create(&sthread, NULL, sound_thread, NULL);
+	ast_pthread_create(&sthread, NULL, sound_thread, NULL);
 	return 0;
 }
 

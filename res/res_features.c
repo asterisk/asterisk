@@ -864,7 +864,7 @@ int load_module(void)
 		}
 	}
 	ast_add_extension2(con, 1, ast_parking_ext(), 1, NULL, parkcall, strdup(""),free, registrar);
-	pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
+	ast_pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
 	res = ast_register_application(parkedcall, park_exec, synopsis, descrip);
 	if (!res)
 		res = ast_register_application(parkcall, park_call_exec, synopsis2, descrip2);

@@ -4729,7 +4729,7 @@ static void spawn_dp_lookup(int callno, char *context, char *callednum, char *ca
 		strncpy(dpr->callednum, callednum, sizeof(dpr->callednum) - 1);
 		if (callerid)
 			dpr->callerid = strdup(callerid);
-		if (pthread_create(&newthread, NULL, dp_lookup_thread, dpr)) {
+		if (ast_pthread_create(&newthread, NULL, dp_lookup_thread, dpr)) {
 			ast_log(LOG_WARNING, "Unable to start lookup thread!\n");
 		}
 	} else
@@ -4807,7 +4807,7 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2)
 		memset(d, 0, sizeof(*d));
 		d->chan1 = chan1m;
 		d->chan2 = chan2m;
-		if (!pthread_create(&th, NULL, iax_park_thread, d))
+		if (!ast_pthread_create(&th, NULL, iax_park_thread, d))
 			return 0;
 		free(d);
 	}
@@ -6164,7 +6164,7 @@ static void *network_thread(void *ignore)
 
 static int start_network_thread(void)
 {
-	return pthread_create(&netthreadid, NULL, network_thread, NULL);
+	return ast_pthread_create(&netthreadid, NULL, network_thread, NULL);
 }
 
 static struct iax2_context *build_context(char *context)

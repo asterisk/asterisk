@@ -12,7 +12,9 @@
 #ifndef _ASTERISK_UTIL_H
 #define _ASTERISK_UTIL_H
 
+#include <netinet/in.h>
 #include <netdb.h>
+#include <pthread.h>
 
 static inline int ast_strlen_zero(const char *s)
 {
@@ -36,5 +38,15 @@ extern int ast_utils_init(void);
 #undef inet_ntoa
 #endif
 #define inet_ntoa __dont__use__inet_ntoa__use__ast_inet_ntoa__instead__
+
+#ifdef LINUX
+#define ast_pthread_create pthread_create
+#else
+/* Linux threads have a default 2MB stack size. */
+#ifndef PTHREAD_ATTR_STACKSIZE
+#define	PTHREAD_ATTR_STACKSIZE		2097152
+#endif /* PTHREAD_ATTR_STACKSIZE */
+extern int ast_pthread_create(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data);
+#endif /* LINUX */
 
 #endif

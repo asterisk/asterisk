@@ -23,6 +23,7 @@
 #include <asterisk/module.h>
 #include <asterisk/pbx.h>
 #include <asterisk/options.h>
+#include <asterisk/utils.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <errno.h>
@@ -942,7 +943,7 @@ static int restart_monitor(void)
 			vpb_put_event(&e);
 		} else {
 			/* Start a new monitor */
-			int pid = pthread_create(&monitor_thread, NULL, do_monitor, NULL); 
+			int pid = ast_pthread_create(&monitor_thread, NULL, do_monitor, NULL); 
 			if (option_verbose > 3)
 				ast_verbose(VERBOSE_PREFIX_4 "Created new monitor thread %d\n",pid);
 			if (pid < 0) {
@@ -1287,7 +1288,7 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 
 	if (!p->readthread){
-		pthread_create(&p->readthread, NULL, do_chanreads, (void *)p);
+		ast_pthread_create(&p->readthread, NULL, do_chanreads, (void *)p);
 	}
 
 	tmp = ast_mutex_unlock(&p->lock);
@@ -1423,7 +1424,7 @@ static int vpb_answer(struct ast_channel *ast)
 		if( !p->readthread ){
 	//		res = ast_mutex_unlock(&p->lock);
 	//		ast_verbose("%s: unLOCKING in answer [%d]\n", p->dev,res);
-			pthread_create(&p->readthread, NULL, do_chanreads, (void *)p);
+			ast_pthread_create(&p->readthread, NULL, do_chanreads, (void *)p);
 		} else {
 			if(option_verbose>3) 
 				ast_verbose(VERBOSE_PREFIX_4 "%s: Record thread already running!!\n",p->dev);

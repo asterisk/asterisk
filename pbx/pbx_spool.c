@@ -253,7 +253,7 @@ static void launch_service(struct outgoing *o)
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
  	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (pthread_create(&t,&attr,attempt_thread, o) == -1) {
+	if (ast_pthread_create(&t,&attr,attempt_thread, o) == -1) {
 		ast_log(LOG_WARNING, "Unable to create thread :(\n");
 		free(o);
 	}
@@ -382,7 +382,7 @@ int load_module(void)
 	}
 	pthread_attr_init(&attr);
  	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (pthread_create(&thread,&attr,scan_thread, NULL) == -1) {
+	if (ast_pthread_create(&thread,&attr,scan_thread, NULL) == -1) {
 		ast_log(LOG_WARNING, "Unable to create thread :(\n");
 		return -1;
 	}

@@ -12,12 +12,14 @@
 #include <ctype.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <asterisk/lock.h>
 #include <asterisk/utils.h>
+#include <asterisk/logger.h>
 
 static char base64[64];
 static char b2a[256];
@@ -197,7 +199,7 @@ int test_for_thread_safety(void)
 	lock_count += 1;
 	ast_mutex_lock(&test_lock);
 	lock_count += 1;
-	pthread_create(&test_thread, NULL, test_thread_body, NULL); 
+	ast_pthread_create(&test_thread, NULL, test_thread_body, NULL); 
 	usleep(100);
 	if (lock_count != 2) 
 		test_errors++;
@@ -344,3 +346,20 @@ int ast_utils_init(void)
 	base64_init();
 	return 0;
 }
+
+
+#ifndef LINUX
+#undef pthread_create /* For ast_pthread_create function only */
+int ast_pthread_create(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data)
+{
+	pthread_attr_t lattr;
+	if (!attr) {
+		pthread_attr_init(&lattr);
+		attr = &lattr;
+	}
+	errno = pthread_attr_setstacksize(attr, PTHREAD_ATTR_STACKSIZE);
+	if (errno)
+		ast_log(LOG_WARNING, "pthread_attr_setstacksize returned non-zero: %s\n", strerror(errno));
+	return pthread_create(thread, attr, start_routine, data); /* We're in ast_pthread_create, so it's okay */
+}
+#endif /* ! LINUX */

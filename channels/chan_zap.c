@@ -3482,7 +3482,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 									if (res)
 										ast_log(LOG_WARNING, "Unable to start dial recall tone on channel %d\n", p->channel);
 									p->owner = chan;
-									if (chan && pthread_create(&threadid, &attr, ss_thread, chan)) {
+									if (chan && ast_pthread_create(&threadid, &attr, ss_thread, chan)) {
 										ast_log(LOG_WARNING, "Unable to start simple switch on channel %d\n", p->channel);
 										res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 										zt_enable_ec(p);
@@ -5311,7 +5311,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_DIALTONE);
 					if (res < 0) 
 						ast_log(LOG_WARNING, "Unable to play dialtone on channel %d\n", i->channel);
-					if (pthread_create(&threadid, &attr, ss_thread, chan)) {
+					if (ast_pthread_create(&threadid, &attr, ss_thread, chan)) {
 						ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 						if (res < 0)
@@ -5344,7 +5344,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_SF:
 				/* Check for callerid, digits, etc */
 				chan = zt_new(i, AST_STATE_RING, 0, SUB_REAL, 0, 0);
-				if (chan && pthread_create(&threadid, &attr, ss_thread, chan)) {
+				if (chan && ast_pthread_create(&threadid, &attr, ss_thread, chan)) {
 					ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 					res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 					if (res < 0)
@@ -5670,7 +5670,7 @@ static int restart_monitor(void)
 #endif
 	} else {
 		/* Start a new monitor */
-		if (pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {
+		if (ast_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {
 			ast_mutex_unlock(&monlock);
 			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
 			return -1;
@@ -6951,7 +6951,7 @@ static void *pri_dchannel(void *vpri)
 					idle = zt_request("Zap", AST_FORMAT_ULAW, idlen);
 					if (idle) {
 						pri->pvts[nextidle]->isidlecall = 1;
-						if (pthread_create(&p, NULL, do_idle_thread, idle)) {
+						if (ast_pthread_create(&p, NULL, do_idle_thread, idle)) {
 							ast_log(LOG_WARNING, "Unable to start new thread for idle channel '%s'\n", idle->name);
 							zt_hangup(idle);
 						}
@@ -7320,7 +7320,7 @@ static void *pri_dchannel(void *vpri)
 								pbx_builtin_setvar_helper(c, "CALLINGSUBADDR", e->ring.callingsubaddr);
 							}
 							ast_mutex_lock(&pri->lock);
-							if (c && !pthread_create(&threadid, &attr, ss_thread, c)) {
+							if (c && !ast_pthread_create(&threadid, &attr, ss_thread, c)) {
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Accepting overlap call from '%s' to '%s' on channel %d/%d, span %d\n",
 										e->ring.callingnum, !ast_strlen_zero(pri->pvts[chanpos]->exten) ? pri->pvts[chanpos]->exten : "<unspecified>", 
@@ -7777,7 +7777,7 @@ static int start_pri(struct zt_pri *pri)
 	/* Assume primary is the one we use */
 	pri->pri = pri->dchans[0];
 	pri->resetpos = -1;
-	if (pthread_create(&pri->master, NULL, pri_dchannel, pri)) {
+	if (ast_pthread_create(&pri->master, NULL, pri_dchannel, pri)) {
 		for (i=0;i<NUM_DCHANS;i++) {
 			if (!pri->dchannels[i])
 				break;
