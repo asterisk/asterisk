@@ -244,9 +244,11 @@ static struct ast_channel *nbs_request(char *type, int format, void *data)
 		return NULL;
 	}
 	p = nbs_alloc(data);
-	tmp = nbs_new(p, AST_STATE_DOWN);
-	if (!tmp)
-		nbs_destroy(p);
+	if (p) {
+		tmp = nbs_new(p, AST_STATE_DOWN);
+		if (!tmp)
+			nbs_destroy(p);
+	}
 	return tmp;
 }
 
