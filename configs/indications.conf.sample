@@ -143,3 +143,18 @@ dialrecall = 470/400,425/400
 record = 1400/400,0/15000
 info = !950/330,!1400/330,!1800/330,!0/1000,!950/330,!1400/330,!1800/330,!0/1000,!950/330,!1400/330,!1800/330,!0/1000,0
 
+[br]
+description = Brazil
+ringcadance = 1000,4000
+dial = 425
+busy = 425/250,0/250
+ring = 425/1000,0/4000
+congestion = 425/250,0/250,425/750,0/250
+callwaiting = 425/50,0/1000
+; Dialrecall not used in Brazil standard (using UK standard)
+dialrecall = 350+440
+; Record tone is not used in Brazil, use busy tone
+record = 425/250,0/250
+; Info not used in Brazil standard (using UK standard)
+info = 950/330,1400/330,1800/330
+
