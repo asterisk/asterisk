@@ -9594,7 +9594,7 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char
                 realm++;
         }
         if (!username || ast_strlen_zero(username) || !realm || ast_strlen_zero(realm)) {
-                ast_log(LOG_WARNING, "Format for authentication entry is user[:secret]@realm at line %d", lineno);
+                ast_log(LOG_WARNING, "Format for authentication entry is user[:secret]@realm at line %d\n", lineno);
                 return (authlist);
         }
         stringp = username;
