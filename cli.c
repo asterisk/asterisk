@@ -148,7 +148,7 @@ static int handle_set_verbose(int fd, int argc, char *argv[])
 		ast_cli(fd, "Verbosity was %d and is now %d\n", oldval, option_verbose);
 	else if (oldval > 0 && option_verbose > 0)
 		ast_cli(fd, "Verbosity is atleast %d\n", option_verbose);
-	else if (oldval > 0 && option_debug == 0)
+	else if (oldval > 0 && option_verbose == 0)
 		ast_cli(fd, "Verbosity is now OFF\n");
 	return RESULT_SUCCESS;
 }

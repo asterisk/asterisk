@@ -1285,7 +1285,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, 
 				pbx_substitute_variables(passdata, sizeof(passdata), c, e);
 				if (option_debug)
 						ast_log(LOG_DEBUG, "Launching '%s'\n", app->name);
-				else if (option_verbose > 2)
+				if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\") %s\n", 
 								term_color(tmp, app->name, COLOR_BRCYAN, 0, sizeof(tmp)),
 								term_color(tmp2, c->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
