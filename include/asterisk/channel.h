@@ -43,7 +43,7 @@ extern "C" {
 struct ast_generator {
 	void *(*alloc)(struct ast_channel *chan, void *params);
 	void (*release)(struct ast_channel *chan, void *data);
-	int (*generate)(struct ast_channel *chan, void *data, int len);
+	int (*generate)(struct ast_channel *chan, void *data, int len, int samples);
 };
 
 //! Main Channel structure associated with a channel.
@@ -135,6 +135,8 @@ struct ast_channel {
 	char *callerid;				
 	/*! Malloc'd ANI */
 	char *ani;			
+	/*! Malloc'd RDNIS */
+	char *rdnis;
 
 	
 	/*! Current extension context */
@@ -170,6 +172,13 @@ struct ast_channel {
 	/*! Where to forward to if asked to dial on this interface */
 	char call_forward[AST_MAX_EXTENSION];
 
+	/*! Tone zone */
+	struct tone_zone *zone;
+
+	/* Frames in/out counters */
+	unsigned int fin;
+	unsigned int fout;
+
 	/* A linked list for variables */
 	struct ast_var_t *vars;	
 	AST_LIST_HEAD(varshead,ast_var_t) varshead;
@@ -178,6 +187,8 @@ struct ast_channel {
 	struct ast_channel *next;		
 
 };
+
+struct chanmon;
 
 #define AST_CDR_TRANSFER	(1 << 0)
 #define AST_CDR_FORWARD		(1 << 1)
@@ -240,7 +251,7 @@ struct ast_channel *ast_request(char *type, int format, void *data);
  * Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
  * to know if the call was answered or not.
  */
-struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int timeout, int *reason);
+struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int timeout, int *reason, char *callerid);
 
 //! Registers a channel
 /*! 
@@ -348,6 +359,18 @@ int ast_waitfor(struct ast_channel *chan, int ms);
  * returns -1 on hangup, otherwise 0.
  */
 int ast_safe_sleep(struct ast_channel *chan, int ms);
+
+//! Wait for a specied amount of time, looking for hangups and a condition argument
+/*!
+ * \param chan channel to wait for
+ * \param ms length of time in milliseconds to sleep
+ * \param cond a function pointer for testing continue condition
+ * \param data argument to be passed to the condition test function
+ * Waits for a specified amount of time, servicing the channel as required. If cond
+ * returns 0, this function returns.
+ * returns -1 on hangup, otherwise 0.
+ */
+int ast_safe_sleep_conditional(struct ast_channel *chan, int ms, int (*cond)(void*), void *data );
 
 //! Waits for activity on a group of channels
 /*! 
@@ -574,7 +597,7 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 /*! Deactive an active generator */
 void ast_deactivate_generator(struct ast_channel *chan);
 
-void ast_set_callerid(struct ast_channel *chan, char *callerid);
+void ast_set_callerid(struct ast_channel *chan, char *callerid, int  anitoo);
 
 /*! Start a tone going */
 int ast_tonepair_start(struct ast_channel *chan, int freq1, int freq2, int duration, int vol);
@@ -583,8 +606,14 @@ void ast_tonepair_stop(struct ast_channel *chan);
 /*! Play a tone pair for a given amount of time */
 int ast_tonepair(struct ast_channel *chan, int freq1, int freq2, int duration, int vol);
 
+/*! Automatically service a channel for us... */
+int ast_autoservice_start(struct ast_channel *chan);
+
+/*! Stop servicing a channel for us...  Returns -1 on error or if channel has been hungup */
+int ast_autoservice_stop(struct ast_channel *chan);
+
 #ifdef DO_CRASH
-#define CRASH do { *((int *)0) = 0; } while(0)
+#define CRASH do { fprintf(stderr, "!! Forcing immediate crash a-la abort !!\n"); *((int *)0) = 0; } while(0)
 #else
 #define CRASH do { } while(0)
 #endif

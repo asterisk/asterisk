@@ -33,6 +33,12 @@ extern "C" {
  */
 extern int ast_app_getdata(struct ast_channel *c, char *prompt, char *s, int maxlen, int timeout);
 
+//! Record voice (after playing prompt if specified), waiting for silence (in ms) up to a given timeout (in s) or '#'
+int ast_app_getvoice(struct ast_channel *c, char *dest, char *dstfmt, char *prompt, int silence, int maxsec);
+
+//! Determine if a given mailbox has any voicemail
+extern int ast_app_has_voicemail(char *mailbox);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
