@@ -50,6 +50,8 @@ typedef int (*ast_rtp_callback)(struct ast_rtp *rtp, struct ast_frame *f, void *
 
 struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode);
 
+struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode, struct in_addr in);
+
 void ast_rtp_set_peer(struct ast_rtp *rtp, struct sockaddr_in *them);
 
 void ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them);

@@ -2222,9 +2222,16 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 #ifdef OSP_SUPPORT
 	p->osphandle = -1;
 #endif	
-	p->rtp = ast_rtp_new(sched, io, 1, 0);
+	if (sin) {
+		memcpy(&p->sa, sin, sizeof(p->sa));
+		if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+			memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+	} else {
+		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+	}
+	p->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, p->ourip);
 	if (videosupport)
-		p->vrtp = ast_rtp_new(sched, io, 1, 0);
+		p->vrtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, p->ourip);
 	p->branch = rand();	
 	p->tag = rand();
 	
@@ -2248,13 +2255,6 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 			ast_rtp_setnat(p->vrtp, (p->nat == SIP_NAT_ALWAYS));
 	}
 
-	if (sin) {
-		memcpy(&p->sa, sin, sizeof(p->sa));
-		if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
-			memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
-	} else {
-		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
-	}
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	if (p->nat != SIP_NAT_NEVER)
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);

@@ -786,7 +786,7 @@ static struct ast_rtcp *ast_rtcp_new(void)
 	return rtcp;
 }
 
-struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode)
+struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode, struct in_addr addr)
 {
 	struct ast_rtp *rtp;
 	int x;
@@ -817,6 +817,7 @@ struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, 
 	for (;;) {
 		/* Must be an even port number by RTP spec */
 		rtp->us.sin_port = htons(x);
+		rtp->us.sin_addr = addr;
 		if (rtp->rtcp)
 			rtp->rtcp->us.sin_port = htons(x + 1);
 		if (!(first = bind(rtp->s, (struct sockaddr *)&rtp->us, sizeof(rtp->us))) &&
@@ -859,6 +860,13 @@ struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, 
 	}
 	ast_rtp_pt_default(rtp);
 	return rtp;
+}
+
+struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode)
+{
+	struct in_addr ia;
+	memset(&ia, 0, sizeof(ia));
+	return ast_rtp_new_with_bindaddr(sched, io, rtcpenable, callbackmode, ia);
 }
 
 int ast_rtp_settos(struct ast_rtp *rtp, int tos)
