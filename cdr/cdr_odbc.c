@@ -39,6 +39,7 @@ static char *config = "cdr_odbc.conf";
 static char *dsn = NULL, *username = NULL, *password = NULL, *table = NULL;
 static int dsn_alloc = 0, username_alloc = 0, password_alloc = 0, table_alloc = 0;
 static int loguniqueid = 0;
+static int usegmtime = 0;
 static int dispositionstring = 0;
 static int connected = 0;
 
@@ -53,7 +54,7 @@ static SQLHSTMT	ODBC_stmt;			/* global ODBC Statement Handle */
 
 static int odbc_log(struct ast_cdr *cdr)
 {
-	long int ODBC_err;
+	SQLINTEGER ODBC_err;
 	short int ODBC_mlen;
 	int ODBC_res;
 	char ODBC_msg[200], ODBC_stat[10];
@@ -61,7 +62,10 @@ static int odbc_log(struct ast_cdr *cdr)
 	int res = 0;
 	struct tm tm;
 
-	localtime_r(&cdr->start.tv_sec,&tm);
+	if (usegmtime) 
+		gmtime_r(&cdr->start.tv_sec,&tm);
+	else
+		localtime_r(&cdr->start.tv_sec,&tm);
 
 	ast_mutex_lock(&odbc_lock);
 	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
@@ -215,6 +219,7 @@ static int odbc_unload_module(void)
 		table_alloc = 0;
 	}
 	loguniqueid = 0;
+	usegmtime = 0;
 	dispositionstring = 0;
 
 	ast_cdr_unregister(name);
@@ -305,13 +310,26 @@ static int odbc_load_module(void)
 	if (tmp) {
 		loguniqueid = ast_true(tmp);
 		if (loguniqueid) {
-			ast_log(LOG_NOTICE,"cdr_odbc: Logging uniqueid\n");
+			ast_log(LOG_DEBUG,"cdr_odbc: Logging uniqueid\n");
 		} else {
-			ast_log(LOG_ERROR,"cdr_odbc: Not logging uniqueid\n");
+			ast_log(LOG_DEBUG,"cdr_odbc: Not logging uniqueid\n");
 		}
 	} else {
-		ast_log(LOG_WARNING,"cdr_odbc: Not logging uniqueid\n");
+		ast_log(LOG_DEBUG,"cdr_odbc: Not logging uniqueid\n");
 		loguniqueid = 0;
+	}
+
+	tmp = ast_variable_retrieve(cfg,"global","usegmtime");
+	if (tmp) {
+		usegmtime = ast_true(tmp);
+		if (usegmtime) {
+			ast_log(LOG_DEBUG,"cdr_odbc: Logging in GMT\n");
+		} else {
+			ast_log(LOG_DEBUG,"cdr_odbc: Not logging in GMT\n");
+		}
+	} else {
+		ast_log(LOG_DEBUG,"cdr_odbc: Not logging in GMT\n");
+		usegmtime = 0;
 	}
 
 	tmp = ast_variable_retrieve(cfg,"global","table");
@@ -357,7 +375,7 @@ out:
 
 static int odbc_do_query(void)
 {
-	long int ODBC_err;
+	SQLINTEGER ODBC_err;
 	int ODBC_res;
 	short int ODBC_mlen;
 	char ODBC_msg[200], ODBC_stat[10];
@@ -381,7 +399,7 @@ static int odbc_do_query(void)
 
 static int odbc_init(void)
 {
-	long int ODBC_err;
+	SQLINTEGER ODBC_err;
 	short int ODBC_mlen;
 	int ODBC_res;
 	char ODBC_msg[200], ODBC_stat[10];

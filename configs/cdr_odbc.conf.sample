@@ -9,3 +9,4 @@
 ;loguniqueid=yes
 ;dispositionstring=yes
 ;table=cdr		;"cdr" is default table name
+;usegmtime=no             ; set to "yes" to log in GMT
