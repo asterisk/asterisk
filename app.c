@@ -497,7 +497,7 @@ int ast_play_and_wait(struct ast_channel *chan, char *fn)
 static int global_silence_threshold = 128;
 static int global_maxsilence = 0;
 
-int ast_play_and_record(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int *duration, int silencethreshold, int maxsilence)
+int ast_play_and_record(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int silencethreshold, int maxsilence)
 {
 	char d, *fmts;
 	char comment[256];

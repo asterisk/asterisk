@@ -121,7 +121,7 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 	struct pollfd pfds[1];
 	char *host;
 	char *c; int port = AGI_PORT;
-	char *script;
+	char *script="";
 	struct sockaddr_in sin;
 	struct hostent *hp;
 	struct ast_hostent ahp;
