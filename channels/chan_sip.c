@@ -3937,7 +3937,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 						ast_queue_hangup(p->owner, 0);
 					break;
 				}
-				transmit_request(p, "ACK", seqno, 0);
+				/* ACK on invite */
+				if (!strcasecmp(msg, "INVITE"))
+					transmit_request(p, "ACK", seqno, 0);
 				p->alreadygone = 1;
 				if (!p->owner)
 					p->needdestroy = 1;
