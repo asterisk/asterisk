@@ -4462,7 +4462,14 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					ast_log(LOG_NOTICE, "Failed to authenticate on BYE to '%s'\n", get_header(&p->initreq, "From"));
 					p->needdestroy = 1;
 				}
-			}
+			} else if (p->registry && !strcasecmp(msg, "REGISTER")) {
+				if ((p->authtries > 1) || do_register_auth(p, req)) {
+					ast_log(LOG_NOTICE, "Failed to authenticate on REGISTER to '%s'\n", get_header(&p->initreq, "From"));
+					p->needdestroy = 1;
+				}
+			} else
+				p->needdestroy = 1;
+
 			break;
 		case 501: /* Not Implemented */
 			if (!strcasecmp(msg, "INVITE"))
