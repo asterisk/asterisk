@@ -5,13 +5,16 @@
 ;
 [interfaces]
 ;
-; Select a mode, either the line jack provides dialtone, reads digits,
+; Select a mode, either the phone jack provides dialtone, reads digits,
 ; then starts PBX with the given extension (dialtone mode), or 
 ; immediately provides the PBX without reading any digits or providing 
-; any dialtone (this is the immediate mode, the default)
+; any dialtone (this is the immediate mode, the default).  Also, you
+; can set the mode to "fxo" if you have a linejack to make it operate
+; properly.
 ;
 mode=immediate
 ;mode=dialtone
+;mode=fxo
 ;
 ; You can decide which format to use by default, "g723.1" or "slinear".
 ; XXX Be careful, sometimes the card causes kernel panics when running
