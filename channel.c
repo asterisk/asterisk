@@ -41,7 +41,7 @@
 #include <sys/ioctl.h>
 #include <linux/zaptel.h>
 #ifndef ZT_TIMERPING
-#error "You need newer zaptel!	Please cvs update zaptel"
+#error "You need newer zaptel!  Please cvs update zaptel"
 #endif
 #endif
 
@@ -141,19 +141,17 @@ void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset)
 time_t	myt;
 
 	time(&myt);
-		if (offset)
+        if (offset)
 	  chan->whentohangup = myt + offset;
-		else
-		  chan->whentohangup = 0;
+        else
+          chan->whentohangup = 0;
 	return;
 }
-
-
 
 int ast_channel_register(char *type, char *description, int capabilities,
 		struct ast_channel *(*requester)(char *type, int format, void *data))
 {
-	return ast_channel_register_ex(type, description, capabilities, requester, NULL);
+    return ast_channel_register_ex(type, description, capabilities, requester, NULL);
 }
 
 int ast_channel_register_ex(char *type, char *description, int capabilities,
@@ -274,8 +272,8 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	struct ast_channel_pvt *pvt;
 	int x;
 	int flags;
-	struct varshead *headp;		   
-			
+	struct varshead *headp;        
+	        
 	
 	/* If shutting down, don't allocate any new channels */
 	if (shutting_down)
@@ -336,7 +334,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 					snprintf(tmp->uniqueid, sizeof(tmp->uniqueid), "%li.%d", (long)time(NULL), uniqueint++);
 					headp=&tmp->varshead;
 					ast_mutex_init(&tmp->lock);
-						AST_LIST_HEAD_INIT(headp);
+				        AST_LIST_HEAD_INIT(headp);
 					tmp->vars=ast_var_assign("tempvar","tempval");
 					AST_LIST_INSERT_HEAD(headp,tmp->vars,entries);
 					strncpy(tmp->context, "default", sizeof(tmp->context)-1);
@@ -464,7 +462,7 @@ struct ast_channel *ast_channel_walk(struct ast_channel *prev)
 	
 }
 
-int ast_safe_sleep_conditional( struct ast_channel *chan, int ms,
+int ast_safe_sleep_conditional(	struct ast_channel *chan, int ms,
 								int (*cond)(void*), void *data )
 {
 	struct ast_frame *f;
@@ -572,13 +570,13 @@ void ast_channel_free(struct ast_channel *chan)
 	/* loop over the variables list, freeing all data and deleting list items */
 	/* no need to lock the list, as the channel is already locked */
 	
-	while (!AST_LIST_EMPTY(headp)) {		   /* List Deletion. */
-				vardata = AST_LIST_FIRST(headp);
-				AST_LIST_REMOVE_HEAD(headp, entries);
-//				printf("deleting var %s=%s\n",ast_var_name(vardata),ast_var_value(vardata));
-				ast_var_delete(vardata);
+	while (!AST_LIST_EMPTY(headp)) {           /* List Deletion. */
+	            vardata = AST_LIST_FIRST(headp);
+	            AST_LIST_REMOVE_HEAD(headp, entries);
+//	            printf("deleting var %s=%s\n",ast_var_name(vardata),ast_var_value(vardata));
+	            ast_var_delete(vardata);
 	}
-													 
+	                                                 
 
 	free(chan->pvt);
 	chan->pvt = NULL;
@@ -668,7 +666,7 @@ int ast_hangup(struct ast_channel *chan)
 	}
 	if (chan->blocking) {
 		ast_log(LOG_WARNING, "Hard hangup called by thread %ld on %s, while fd "
-					"is blocked by thread %ld in procedure %s!	Expect a failure\n",
+					"is blocked by thread %ld in procedure %s!  Expect a failure\n",
 					(long)pthread_self(), chan->name, (long)chan->blocker, chan->blockproc);
 		CRASH;
 	}
@@ -684,9 +682,9 @@ int ast_hangup(struct ast_channel *chan)
 	ast_mutex_unlock(&chan->lock);
 	manager_event(EVENT_FLAG_CALL, "Hangup", 
 			"Channel: %s\r\n"
-						"Uniqueid: %s\r\n"
-						"Cause: %i\r\n",
-						chan->name, chan->uniqueid, chan->hangupcause);
+                        "Uniqueid: %s\r\n"
+                        "Cause: %i\r\n",
+                        chan->name, chan->uniqueid, chan->hangupcause);
 	ast_channel_free(chan);
 	return res;
 }
@@ -1117,7 +1115,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
 			f = NULL;
 		} else
-			f =	 &null_frame;
+			f =  &null_frame;
 		ast_mutex_unlock(&chan->lock);
 		return f;
 	}
@@ -1131,7 +1129,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 	}
 
 	if (!chan->deferdtmf && strlen(chan->dtmfq)) {
-		/* We have DTMF that has been deferred.	 Return it now */
+		/* We have DTMF that has been deferred.  Return it now */
 		chan->dtmff.frametype = AST_FRAME_DTMF;
 		chan->dtmff.subclass = chan->dtmfq[0];
 		/* Drop first digit */
@@ -1184,7 +1182,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 				chan->timingdata = NULL;
 				ast_mutex_unlock(&chan->lock);
 			}
-			f =	 &null_frame;
+			f =  &null_frame;
 			return f;
 		} else
 			ast_log(LOG_NOTICE, "No/unknown event '%d' on timer for '%s'?\n", blah, chan->name);
@@ -1364,10 +1362,10 @@ int ast_recvchar(struct ast_channel *chan, int timeout)
 		f = ast_read(chan);
 		if (f == NULL) return -1; /* if hangup */
 		if ((f->frametype == AST_FRAME_CONTROL) &&
-			(f->subclass == AST_CONTROL_HANGUP)) return -1; /* if hangup */
-		if (f->frametype == AST_FRAME_TEXT)	 /* if a text frame */
+		    (f->subclass == AST_CONTROL_HANGUP)) return -1; /* if hangup */
+		if (f->frametype == AST_FRAME_TEXT)  /* if a text frame */
 		   {
-			c = *((char *)f->data);	 /* get the data */
+			c = *((char *)f->data);  /* get the data */
 			ast_frfree(f);
 			return(c);
 		   }
@@ -1400,21 +1398,21 @@ static int do_senddigit(struct ast_channel *chan, char digit)
 		 * it by doing our own generation. (PM2002)
 		 */
 		static const char* dtmf_tones[] = {
-			"!941+1336/100,!0/100", /* 0 */
-			"!697+1209/100,!0/100", /* 1 */
-			"!697+1336/100,!0/100", /* 2 */
-			"!697+1477/100,!0/100", /* 3 */
-			"!770+1209/100,!0/100", /* 4 */
-			"!770+1336/100,!0/100", /* 5 */
-			"!770+1477/100,!0/100", /* 6 */
-			"!852+1209/100,!0/100", /* 7 */
-			"!852+1336/100,!0/100", /* 8 */
-			"!852+1477/100,!0/100", /* 9 */
-			"!697+1633/100,!0/100", /* A */
-			"!770+1633/100,!0/100", /* B */
-			"!852+1633/100,!0/100", /* C */
-			"!941+1633/100,!0/100", /* D */
-			"!941+1209/100,!0/100", /* * */
+			"!941+1336/100,!0/100",	/* 0 */
+			"!697+1209/100,!0/100",	/* 1 */
+			"!697+1336/100,!0/100",	/* 2 */
+			"!697+1477/100,!0/100",	/* 3 */
+			"!770+1209/100,!0/100",	/* 4 */
+			"!770+1336/100,!0/100",	/* 5 */
+			"!770+1477/100,!0/100",	/* 6 */
+			"!852+1209/100,!0/100",	/* 7 */
+			"!852+1336/100,!0/100",	/* 8 */
+			"!852+1477/100,!0/100",	/* 9 */
+			"!697+1633/100,!0/100",	/* A */
+			"!770+1633/100,!0/100",	/* B */
+			"!852+1633/100,!0/100",	/* C */
+			"!941+1633/100,!0/100",	/* D */
+			"!941+1209/100,!0/100",	/* * */
 			"!941+1477/100,!0/100" };	/* # */
 		if (digit >= '0' && digit <='9')
 			ast_playtones_start(chan,0,dtmf_tones[digit-'0'], 0);
@@ -1465,7 +1463,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	struct ast_frame *f = NULL;
 	/* Stop if we're a zombie or need a soft hangup */
 	ast_mutex_lock(&chan->lock);
-	if (chan->zombie || ast_check_hangup(chan))	 {
+	if (chan->zombie || ast_check_hangup(chan))  {
 		ast_mutex_unlock(&chan->lock);
 		return -1;
 	}
@@ -1585,7 +1583,7 @@ int ast_set_write_format(struct ast_channel *chan, int fmts)
 		return -1;
 	}
 	
-	/* Now we have a good choice for both.	We'll write using our native format. */
+	/* Now we have a good choice for both.  We'll write using our native format. */
 	chan->pvt->rawwriteformat = native;
 	/* User perspective is fmt */
 	chan->writeformat = fmt;
@@ -1618,7 +1616,7 @@ int ast_set_read_format(struct ast_channel *chan, int fmts)
 		return -1;
 	}
 	
-	/* Now we have a good choice for both.	We'll write using our native format. */
+	/* Now we have a good choice for both.  We'll write using our native format. */
 	chan->pvt->rawreadformat = native;
 	/* User perspective is fmt */
 	chan->readformat = fmt;
@@ -1646,7 +1644,7 @@ struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, i
 			char *tmp, *var;
 			/* JDG chanvar */
 			tmp = oh->variable;
-			/* FIXME replace this call with strsep	NOT*/
+			/* FIXME replace this call with strsep  NOT*/
 			while( (var = strtok_r(NULL, "|", &tmp)) ) {
 				pbx_builtin_setvar( chan, var );
 			} /* /JDG */
@@ -1798,9 +1796,9 @@ int ast_parse_device_state(char *device)
 		strncpy(name, chan->name, sizeof(name)-1);
 		cut = strchr(name,'-');
 		if (cut)
-				*cut = 0;
+		        *cut = 0;
 		if (!strcmp(name, device))
-				return AST_DEVICE_INUSE;
+		        return AST_DEVICE_INUSE;
 		chan = ast_channel_walk(chan);
 	}
 	return AST_DEVICE_UNKNOWN;
@@ -1816,7 +1814,7 @@ int ast_device_state(char *device)
 	strncpy(tech, device, sizeof(tech)-1);
 	number = strchr(tech, '/');
 	if (!number) {
-		return AST_DEVICE_INVALID;
+	    return AST_DEVICE_INVALID;
 	}
 	*number = 0;
 	number++;
@@ -2093,8 +2091,8 @@ int ast_do_masquerade(struct ast_channel *original)
 		clone->name, clone->_state, original->name, original->_state);
 #endif
 	/* XXX This is a seriously wacked out operation.  We're essentially putting the guts of
-	   the clone channel into the original channel.	 Start by killing off the original
-	   channel's backend.	I'm not sure we're going to keep this function, because 
+	   the clone channel into the original channel.  Start by killing off the original
+	   channel's backend.   I'm not sure we're going to keep this function, because 
 	   while the features are nice, the cost is very high in terms of pure nastiness. XXX */
 
 	/* We need the clone's lock, too */
@@ -2129,7 +2127,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\n", newn, masqn);
 	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\n", orig, newn);
 
-	/* Swap the guts */ 
+	/* Swap the guts */	
 	p = original->pvt;
 	original->pvt = clone->pvt;
 	clone->pvt = p;
@@ -2178,7 +2176,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	strncpy(clone->name, zombn, sizeof(clone->name) - 1);
 	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\n", masqn, zombn);
 
-	/* Keep the same language.	*/
+	/* Keep the same language.  */
 	/* Update the type. */
 	original->type = clone->type;
 	/* Copy the FD's */
@@ -2186,7 +2184,7 @@ int ast_do_masquerade(struct ast_channel *original)
 		original->fds[x] = clone->fds[x];
 	}
 	/* Append variables from clone channel into original channel */
-	/* XXX Is this always correct?	We have to in order to keep MACROS working XXX */
+	/* XXX Is this always correct?  We have to in order to keep MACROS working XXX */
 	varptr = original->varshead.first;
 	if (varptr) {
 		while(varptr->entries.next) {
@@ -2203,12 +2201,12 @@ int ast_do_masquerade(struct ast_channel *original)
 	/* CDR fields remain the same */
 	/* XXX What about blocking, softhangup, blocker, and lock and blockproc? XXX */
 	/* Application and data remain the same */
-	/* Clone exception	becomes real one, as with fdno */
+	/* Clone exception  becomes real one, as with fdno */
 	original->exception = clone->exception;
 	original->fdno = clone->fdno;
 	/* Schedule context remains the same */
 	/* Stream stuff stays the same */
-	/* Keep the original state.	 The fixup code will need to work with it most likely */
+	/* Keep the original state.  The fixup code will need to work with it most likely */
 
 	/* dnid and callerid change to become the new, HOWEVER, we also link the original's
 	   fields back into the defunct 'clone' so that they will be freed when
@@ -2232,7 +2230,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	   these separate */
 	original->_state = clone->_state;
 	
-	/* Context, extension, priority, app data, jump table,	remain the same */
+	/* Context, extension, priority, app data, jump table,  remain the same */
 	/* pvt switches.  pbx stays the same, as does next */
 	
 	/* Set the write format */
