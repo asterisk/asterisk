@@ -130,7 +130,7 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 							ast_frfree(fr);
 							break;
 						}
-					} else if (fr->frametype == AST_FRAME_VOICE) {
+					} else if ((fr->frametype == AST_FRAME_VOICE) && (fr->subclass == AST_FORMAT_SLINEAR)) {
 						int totalsilence;
 						int ms;
 						res = ast_dsp_silence(dsp, fr, &totalsilence);
