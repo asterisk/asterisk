@@ -888,19 +888,17 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 static int find_user(struct sip_pvt *fup, int event)
 {
 	char name[256] = "";
-	int isfound = 1;
 	struct sip_user *u;
 	strncpy(name, fup->username, sizeof(name) - 1);
 	ast_pthread_mutex_lock(&userl.lock);
 	u = userl.users;
 	while(u) {
 		if (!strcasecmp(u->name, name)) {
-			isfound = 0;
 			break;
 		}
 		u = u->next;
 	}
-	if ( isfound ) {
+	if (!u) {
 		ast_log(LOG_DEBUG, "%s is not a local user\n", name);
 		ast_pthread_mutex_unlock(&userl.lock);
 		return 0;
