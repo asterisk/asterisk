@@ -24,6 +24,7 @@
 #include <asterisk/image.h>
 #include <asterisk/tdd.h>
 #include <asterisk/term.h>
+#include <asterisk/manager.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <signal.h>
@@ -148,6 +149,8 @@ static void *listener(void *unused)
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	for(;;) {
+		if (ast_socket < 0)
+			return NULL;
 		len = sizeof(sun);
 		s = accept(ast_socket, (struct sockaddr *)&sun, &len);
 		if (s < 0) {
@@ -363,12 +366,15 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		ast_verbose("Asterisk %s ending (%d).\n", ast_active_channels() ? "uncleanly" : "cleanly", num);
 	else if (option_debug)
 		ast_log(LOG_DEBUG, "Asterisk ending (%d).\n", num);
-	if (ast_socket > -1)
+	if (ast_socket > -1) {
 		close(ast_socket);
+		ast_socket = -1;
+	}
 	if (ast_consock > -1)
 		close(ast_consock);
 	if (ast_socket > -1)
 		unlink(AST_SOCKET);
+	unlink(AST_PID);
 	printf(term_quit());
 	if (restart) {
 		if (option_verbose || option_console)
@@ -417,7 +423,8 @@ static void console_verboser(char *s, int pos, int replace, int complete)
 	fflush(stdout);
 	if (complete)
 	/* Wake up a select()ing console */
-		pthread_kill(consolethread, SIGURG);
+		if (consolethread > -1)
+			pthread_kill(consolethread, SIGURG);
 }
 
 static void consolehandler(char *s)
@@ -638,7 +645,7 @@ static void ast_remotecontrol(char * data)
 	ast_cli_register(&astshutdown);
 #endif	
 	rl_callback_handler_install(tmp, remoteconsolehandler);
-	rl_completion_entry_function = (Function *)console_cli_generator;
+	rl_completion_entry_function = (void *)(Function *)console_cli_generator;
 	for(;;) {
 		FD_ZERO(&rfds);
 		FD_SET(ast_consock, &rfds);
@@ -695,17 +702,36 @@ static void ast_remotecontrol(char * data)
 	printf("\nDisconnected from Asterisk server\n");
 }
 
+int show_cli_help(void) {
+	printf("Asterisk " ASTERISK_VERSION ", Copyright (C) 2000-2002, Digium.\n");
+	printf("Usage: asterisk [OPTIONS]\n");
+	printf("Valid Options:\n");
+	printf("   -h           This help screen\n");
+	printf("   -r           Connect to Asterisk on this machine\n");
+	printf("   -f           Do not fork\n");
+	printf("   -n           Disable console colorization\n");
+	printf("   -p           Run as pseudo-realtime thread\n");
+	printf("   -v           Increase verbosity (multiple v's = more verbose)\n");
+	printf("   -q           Quiet mode (supress output)\n");
+	printf("   -x <cmd>     Execute command <cmd> (only valid with -r)\n");
+	printf("   -i           Initializie crypto keys at startup\n");
+	printf("   -c           Provide console CLI\n");
+	printf("   -d           Enable extra debugging\n");
+	printf("\n");
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
 	char c;
 	fd_set rfds;
 	int res;
-	int pid;
 	char filename[80] = "";
 	char hostname[256];
 	char tmp[80];
 	char * xarg = NULL;
 	int x;
+	FILE *f;
 	sigset_t sigs;
 
 	/* Remember original args for restart */
@@ -732,7 +758,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	/* Check for options */
-	while((c=getopt(argc, argv, "fdvqprcinx:")) != EOF) {
+	while((c=getopt(argc, argv, "hfdvqprcinx:")) != EOF) {
 		switch(c) {
 		case 'd':
 			option_debug++;
@@ -769,6 +795,9 @@ int main(int argc, char *argv[])
 		case 'i':
 			option_initcrypto++;
 			break;
+		case 'h':
+			show_cli_help();
+			exit(0);
 		case '?':
 			exit(1);
 		}
@@ -804,8 +833,19 @@ int main(int argc, char *argv[])
 		printf(term_quit());
 		exit(1);
 	}
+	/* Blindly write pid file since we couldn't connect */
+	unlink(AST_PID);
+	f = fopen(AST_PID, "w");
+	if (f) {
+		fprintf(f, "%d\n", getpid());
+		fclose(f);
+	} else
+		ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", AST_PID, strerror(errno));
 
 	if (!option_verbose && !option_debug && !option_nofork && !option_console) {
+#if 1
+		daemon(0,0);
+#else	
 		pid = fork();
 		if (pid < 0) {
 			ast_log(LOG_ERROR, "Unable to fork(): %s\n", strerror(errno));
@@ -814,6 +854,7 @@ int main(int argc, char *argv[])
 		}
 		if (pid) 
 			exit(0);
+#endif			
 	}
 
 	ast_makesocket();
@@ -844,6 +885,10 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	if (init_logger()) {
+		printf(term_quit());
+		exit(1);
+	}
+	if (init_manager()) {
 		printf(term_quit());
 		exit(1);
 	}
@@ -890,7 +935,7 @@ int main(int argc, char *argv[])
 			read_history(filename);
 		term_prompt(tmp, ASTERISK_PROMPT, sizeof(tmp));
 		rl_callback_handler_install(tmp, consolehandler);
-		rl_completion_entry_function = (Function *)cli_generator;
+		rl_completion_entry_function = (void *)(Function *)cli_generator;
 		for(;;) {
 			FD_ZERO(&rfds);
 			FD_SET(STDIN_FILENO, &rfds);
