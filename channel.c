@@ -452,6 +452,8 @@ struct ast_channel *ast_channel_walk_locked(struct ast_channel *prev)
 {
 	/* Returns next channel (locked) */
 	struct ast_channel *l, *ret=NULL;
+	int retries = 0;	
+retry:
 	ast_mutex_lock(&chlock);
 	l = channels;
 	if (!prev) {
@@ -465,8 +467,21 @@ struct ast_channel *ast_channel_walk_locked(struct ast_channel *prev)
 			ret = l->next;
 		l = l->next;
 	}
-	if (ret)
-		ast_mutex_lock(&ret->lock);
+	if (ret) {
+		if (ast_mutex_trylock(&ret->lock)) {
+			if (retries < 10)
+				ast_log(LOG_DEBUG, "Avoiding deadlock for '%s'\n", ret->name);
+			else
+				ast_log(LOG_WARNING, "Avoided deadlock for '%s', %d retries!\n", ret->name, retries);
+			ast_mutex_unlock(&chlock);
+			if (retries < 10) {
+				usleep(1);
+				retries++;
+				goto retry;
+			} else
+				return NULL;
+		}
+	}
 	ast_mutex_unlock(&chlock);
 	return ret;
 	
