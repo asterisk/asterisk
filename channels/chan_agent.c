@@ -718,6 +718,7 @@ static int agents_show(int fd, int argc, char **argv)
 	char username[256];
 	char location[256];
 	char talkingto[256];
+	char moh[256];
 
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
@@ -751,8 +752,10 @@ static int agents_show(int fd, int argc, char **argv)
 				strcpy(location, "not logged in");
 				strcpy(talkingto, "");
 			}
-			ast_cli(fd, "%-12.12s %s%s%s\n", p->agent, 
-					username, location, talkingto);
+			if (strlen(p->moh))
+				snprintf(moh, sizeof(moh), "(musiconhold is '%s')", p->moh);
+			ast_cli(fd, "%-12.12s %s%s%s%s\n", p->agent, 
+					username, location, talkingto, moh);
 		}
 		ast_pthread_mutex_unlock(&p->lock);
 		p = p->next;
