@@ -58,7 +58,8 @@ static int parse_srv(unsigned char *host, int hostlen, int *portno, unsigned cha
 		return -1;
 	}
 	if (res && strcmp(repl, ".")) {
-		ast_verbose( VERBOSE_PREFIX_3 "parse_srv: SRV mapped to host %s, port %d\n", repl, ntohs(srv->portnum));
+		if (option_verbose > 3)
+			ast_verbose( VERBOSE_PREFIX_3 "parse_srv: SRV mapped to host %s, port %d\n", repl, ntohs(srv->portnum));
 		if (host) {
 			strncpy(host, repl, hostlen - 1);
 			host[hostlen-1] = '\0';
