@@ -185,6 +185,9 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 		return -1;
 	}
 	ast_log(LOG_DEBUG, "Wow, connected!\n");
+	/* Send the script parameter */
+	if (!ast_strlen_zero(script))
+		fdprintf(s, "agi_network_script: %s\n", script);
 	fds[0] = s;
 	fds[1] = s;
 	*opid = -1;
