@@ -318,7 +318,8 @@ static inline void free_zone(struct tone_zone* zone)
 		struct tone_zone_sound *tmp = zone->tones->next;
 		free((void*)zone->tones->name);
 		free((void*)zone->tones->data);
-		free((void*)zone->ringcadance);
+		if (zone->ringcadance)
+			free((void*)zone->ringcadance);
 		free(zone->tones);
 		zone->tones = tmp;
 	}
