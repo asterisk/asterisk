@@ -1115,8 +1115,10 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 			app = pbx_findapp(e->app);
 			pthread_mutex_unlock(&conlock);
 			if (app) {
-				strncpy(c->context, context, sizeof(c->context-1));
-				strncpy(c->exten, exten, sizeof(c->exten)-1);
+				if (c->context != context)
+					strncpy(c->context, context, sizeof(c->context-1));
+				if (c->exten != exten)
+					strncpy(c->exten, exten, sizeof(c->exten)-1);
 				c->priority = priority;
 				pbx_substitute_variables(passdata, sizeof(passdata), c, e);
 				if (option_debug)

@@ -496,7 +496,7 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 	if (!strcasecmp(mode, "mp3") || !strcasecmp(mode, "quietmp3") || !strcasecmp(mode, "httpmp3")) {
 		if (!strcasecmp(mode, "quietmp3"))
 			moh->quiet = 1;
-		strncpy(moh->dir, param, sizeof(moh->dir));
+		strncpy(moh->dir, param, sizeof(moh->dir) - 1);
 		moh->srcfd = -1;
 #ifdef ZAPATA_MOH
 		/* It's an MP3 Moh -- Open /dev/zap/pseudo for timing...  Is
