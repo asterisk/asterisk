@@ -351,7 +351,7 @@ static int ast_filehelper(const char *filename, const char *filename2, const cha
 	while(f) {
 		if (!fmt || exts_compare(f->exts, fmt)) {
 			char *stringp=NULL;
-			exts = strdup(f->exts);
+			exts = ast_strdupa(f->exts);
 			/* Try each kind of extension */
 			stringp=exts;
 			ext = strsep(&stringp, "|");
@@ -426,7 +426,7 @@ static int ast_filehelper(const char *filename, const char *filename2, const cha
 				}
 				ext = strsep(&stringp, "|");
 			} while(ext);
-			free(exts);
+			
 		}
 		f = f->next;
 	}
@@ -797,7 +797,6 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 	struct ast_format *f;
 	struct ast_filestream *fs=NULL;
 	char *fn;
-	char *ext;
 	if (ast_mutex_lock(&formatlock)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
 		return NULL;
@@ -805,12 +804,7 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 	f = formats;
 	while(f) {
 		if (exts_compare(f->exts, type)) {
-			char *stringp=NULL;
-			/* XXX Implement check XXX */
-			ext = strdup(f->exts);
-			stringp=ext;
-			ext = strsep(&stringp, "|");
-			fn = build_filename(filename, ext);
+			fn = build_filename(filename, type);
 			fd = open(fn, flags | myflags);
 			if (fd >= 0) {
 				errno = 0;
@@ -829,7 +823,6 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 			} else if (errno != EEXIST)
 				ast_log(LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
 			free(fn);
-			free(ext);
 			break;
 		}
 		f = f->next;
@@ -846,7 +839,6 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 	struct ast_format *f;
 	struct ast_filestream *fs=NULL;
 	char *fn,*orig_fn=NULL;
-	char *ext;
 	char *buf=NULL;
 	size_t size = 0;
 
@@ -867,14 +859,9 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 	f = formats;
 	while(f) {
 		if (exts_compare(f->exts, type)) {
-			char *stringp=NULL;
-			/* XXX Implement check XXX */
-			ext = ast_strdupa(f->exts);
-			stringp=ext;
-			ext = strsep(&stringp, "|");
-			fn = build_filename(filename, ext);
+			fn = build_filename(filename, type);
 			fd = open(fn, flags | myflags, mode);
-
+			
 			if (option_cache_record_files && fd >= 0) {
 				close(fd);
 				/*
@@ -903,7 +890,7 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 					fs->flags = flags;
 					fs->mode = mode;
 					if (option_cache_record_files) {
-						fs->realfilename = build_filename(filename, ext);
+						fs->realfilename = build_filename(filename, type);
 						fs->filename = strdup(fn);
 					} else {
 						fs->realfilename = NULL;
