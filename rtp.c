@@ -75,6 +75,7 @@ struct ast_rtp {
 	struct sockaddr_in them;
 	struct timeval rxcore;
 	struct timeval txcore;
+	struct timeval dtmfmute;
 	struct ast_smoother *smoother;
 	int *ioid;
 	unsigned short seqno;
@@ -163,7 +164,17 @@ void ast_rtp_setnat(struct ast_rtp *rtp, int nat)
 
 static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
 {
-	ast_log(LOG_DEBUG, "Sending dtmf: %d (%c)\n", rtp->resp, rtp->resp);
+	struct timeval tv;
+	static struct ast_frame null_frame = { AST_FRAME_NULL, };
+	gettimeofday(&tv, NULL);
+	if ((tv.tv_sec < rtp->dtmfmute.tv_sec) ||
+	    ((tv.tv_sec == rtp->dtmfmute.tv_sec) && (tv.tv_usec < rtp->dtmfmute.tv_usec))) {
+		ast_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", inet_ntoa(rtp->them.sin_addr));
+		rtp->resp = 0;
+		rtp->dtmfduration = 0;
+		return &null_frame;
+	}
+	ast_log(LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, inet_ntoa(rtp->them.sin_addr));
 	rtp->f.frametype = AST_FRAME_DTMF;
 	rtp->f.subclass = rtp->resp;
 	rtp->f.datalen = 0;
@@ -896,6 +907,13 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	/* If we have no peer, return immediately */	
 	if (!rtp->them.sin_addr.s_addr)
 		return 0;
+
+	gettimeofday(&rtp->dtmfmute, NULL);
+	rtp->dtmfmute.tv_usec += (500 * 1000);
+	if (rtp->dtmfmute.tv_usec > 1000000) {
+		rtp->dtmfmute.tv_usec -= 1000000;
+		rtp->dtmfmute.tv_sec += 1;
+	}
 
 	ms = calc_txstamp(rtp, NULL);
 	/* Default prediction */
