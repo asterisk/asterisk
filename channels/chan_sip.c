@@ -4758,8 +4758,24 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
-static int sip_show_channels(int fd, int argc, char *argv[])
+/* Forward declaration */
+static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions);
+
+/*--- sip_show_channels: Show active SIP channels ---*/
+static int sip_show_channels(int fd, int argc, char *argv[])  
 {
+        return __sip_show_channels(fd, argc, argv, 0);
+}
+ 
+/*--- sip_show_subscriptions: Show active SIP subscriptions ---*/
+static int sip_show_subscriptions(int fd, int argc, char *argv[])
+{
+        return __sip_show_channels(fd, argc, argv, 1);
+}
+
+static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions)
+{
+#define FORMAT3 "%-15.15s  %-10.10s  %-21.21s  %-15.15s\n"
 #define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-7.7s  %-6.6s  %s\n"
 #define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-5.5dms  %-4.4dms  %-6.6s%s\n"
 	struct sip_pvt *cur;
@@ -4768,25 +4784,38 @@ static int sip_show_channels(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&iflock);
 	cur = iflist;
-	ast_cli(fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)", "Lag", "Jitter", "Format");
+	if (!subscriptions)
+	   ast_cli(fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)", "Lag", "Jitter", "Format");
+	else
+           ast_cli(fd, FORMAT3, "Peer", "User", "Call ID", "URI");
 	while (cur) {
-		if (!cur->subscribed) {
-			ast_cli(fd, FORMAT, inet_ntoa(cur->sa.sin_addr), 
-						strlen(cur->username) ? cur->username : ( strlen(cur->callerid) ? cur->callerid: "(None)" ), 
-						cur->callid, 
-						cur->ocseq, cur->icseq, 
-						0,
-						0,
-						ast_getformatname(cur->owner ? cur->owner->nativeformats : 0), cur->needdestroy ? "(d)" : "" );
+		if (!cur->subscribed && !subscriptions) {
+		   ast_cli(fd, FORMAT, inet_ntoa(cur->sa.sin_addr), 
+			ast_strlen_zero(cur->username) ? ( ast_strlen_zero(cur->callerid) ? "(None)" : cur->callerid ) : cur->username, 
+			cur->callid, 
+			cur->ocseq, cur->icseq, 
+			0,
+			0,
+			ast_getformatname(cur->owner ? cur->owner->nativeformats : 0), cur->needdestroy ? "(d)" : "" );
 		numchans++;
 		}
+		if (cur->subscribed && subscriptions) {
+                   ast_cli(fd, FORMAT3, inet_ntoa(cur->sa.sin_addr),
+			ast_strlen_zero(cur->username) ? ( ast_strlen_zero(cur->callerid) ? "(None)" : cur->callerid ) : cur->username, 
+                        cur->callid, cur->uri);
+
+                }
 		cur = cur->next;
 	}
 	ast_mutex_unlock(&iflock);
-	ast_cli(fd, "%d active SIP channel(s)\n", numchans);
+	if (!subscriptions)
+	   ast_cli(fd, "%d active SIP channel(s)\n", numchans);
+	else
+	   ast_cli(fd, "%d active SIP subscriptions(s)\n", numchans);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
+#undef FORMAT3
 }
 
 static char *complete_sipch(char *line, char *word, int pos, int state)
@@ -5204,8 +5233,15 @@ static char sip_reload_usage[] =
 "Usage: sip reload\n"
 "       Reloads SIP configuration from sip.conf\n";
 
+static char show_subscriptions_usage[] =
+"Usage: sip show subscriptions\n" 
+"       Shows active SIP subscriptions for extension states\n";
+
+
 static struct ast_cli_entry  cli_show_users = 
 	{ { "sip", "show", "users", NULL }, sip_show_users, "Show defined SIP users", show_users_usage };
+static struct ast_cli_entry  cli_show_subscriptions =
+        { { "sip", "show", "subscriptions", NULL }, sip_show_subscriptions, "Show active SIP subscriptions", show_subscriptions_usage};
 static struct ast_cli_entry  cli_show_channels =
 	{ { "sip", "show", "channels", NULL }, sip_show_channels, "Show active SIP channels", show_channels_usage};
 static struct ast_cli_entry  cli_show_channel =
@@ -7316,6 +7352,7 @@ int load_module()
 			return -1;
 		}
 		ast_cli_register(&cli_show_users);
+		ast_cli_register(&cli_show_subscriptions);
 		ast_cli_register(&cli_show_channels);
 		ast_cli_register(&cli_show_channel);
 		ast_cli_register(&cli_show_peers);
@@ -7362,6 +7399,7 @@ int unload_module()
 	ast_cli_unregister(&cli_show_peers_exclude);
 	ast_cli_unregister(&cli_show_peers_begin);
 	ast_cli_unregister(&cli_show_registry);
+	ast_cli_unregister(&cli_show_subscriptions);
 	ast_cli_unregister(&cli_debug);
 	ast_cli_unregister(&cli_debug_ip);
 	ast_cli_unregister(&cli_debug_peer);
