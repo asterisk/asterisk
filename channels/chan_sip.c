@@ -3833,12 +3833,14 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				r=p->registry;
 				if (r) {
 					r->regstate=REG_STATE_REGISTERED;
-					ast_log(LOG_NOTICE, "Registration successful\n");
+					ast_log(LOG_DEBUG, "Registration successful\n");
 					if (r->timeout > -1) {
 						ast_log(LOG_DEBUG, "Cancelling timeout %d\n", r->timeout);
 						ast_sched_del(sched, r->timeout);
 					}
 					r->timeout=-1;
+					r->call = NULL;
+					p->needdestroy = 1;
 					/* set us up for re-registering */
 					/* figure out how long we got registered for */
 					if (r->expire > -1)
