@@ -1,10 +1,24 @@
 #!/bin/sh
 #
-# Usage: astgenkey [ -q ] [keyname]
+# Usage: astgenkey [ -q ] [ -n ] [keyname]
 #
+DES3=-des3
 if [ "$1" = "-q" ]; then
 	QUIET='y'
-	KEY=$2
+	if [ "$2" = "-n" ]; then
+		DES3=
+		KEY=$3
+	else
+		KEY=$2
+	fi
+elif [ "$1" = "-n" ]; then
+	DES3=
+	if [ "$2" = "-q" ]; then
+		QUIET='y'
+		KEY=$3
+	else
+		KEY=$2
+	fi
 else
 	KEY=$1
 fi
@@ -33,7 +47,7 @@ done
 rm -f ${KEY}.key ${KEY}.pub
 
 echo "Generating SSL key '$KEY': "
-openssl genrsa -out ${KEY}.key -des3 1024
+openssl genrsa -out ${KEY}.key ${DES3} 1024
 openssl rsa -in ${KEY}.key -pubout -out ${KEY}.pub
 
 if [ -f "${KEY}.key" ] && [ -f "${KEY}.pub" ]; then
