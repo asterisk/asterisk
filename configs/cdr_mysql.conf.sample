@@ -1,3 +1,8 @@
+;
+; Note - if the database server is hosted on the same machine as the
+; asterisk server, you can achieve a local Unix socket connection by
+; setting hostname=localhost
+;
 ;[global]
 ;hostname=database.host.name
 ;dbname=asteriskcdrdb
