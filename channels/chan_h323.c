@@ -72,10 +72,10 @@ extern "C" {
 #include "h323/chan_h323.h"
 
 send_digit_cb on_send_digit; 
-on_connection_cb on_create_connection; 
+on_rtp_cb on_external_rtp_create; 
+start_rtp_cb on_start_rtp_channel; 
 setup_incoming_cb on_incoming_call;
 setup_outbound_cb on_outgoing_call; 
-start_logchan_cb on_start_logical_channel; 
 chan_ringing_cb	on_chan_ringing;
 con_established_cb on_connection_established;
 clear_con_cb on_connection_cleared;
@@ -426,7 +426,6 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	int res = 0;
 	struct oh323_pvt *pvt = (struct oh323_pvt *)c->pvt->pvt;
 	char called_addr[256];
-	char *cid, *cidname, oldcid[256];
 	char iabuf[INET_ADDRSTRLEN];
 
 	if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
@@ -448,49 +447,6 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	/* indicate that this is an outgoing call */
 	pvt->outgoing = 1;
 	ast_log(LOG_DEBUG, "Outgoing call to %s:%d\n", called_addr, pvt->options.port);
-
-	/* Copy callerid, if there is any */
-	if (!ast_strlen_zero(c->callerid)) {
-                memset(oldcid, 0, sizeof(oldcid));
-                memcpy(oldcid, c->callerid, strlen(c->callerid));
-                oldcid[sizeof(oldcid)-1] = '\0';
-                ast_callerid_parse(oldcid, &cidname, &cid);
-                if (!ast_strlen_zero(pvt->options.callerid)) {
-                        free(pvt->options.callerid);
-                        pvt->options.callerid = NULL;
-                }
-                if (!ast_strlen_zero(pvt->options.callername)) {
-                        free(pvt->options.callername);
-                        pvt->options.callername = NULL;
-                }
-                pvt->options.callerid = (char*)malloc(256);
-                if (!pvt->options.callerid) {
-                        ast_log(LOG_ERROR, "Not enough memory to allocate callerid\n");
-                        return(-1);
-                }
-                memset(pvt->options.callerid, 0, 256);
-                if ((!ast_strlen_zero(cid)) && (!ast_strlen_zero(cid))) {
-                        strncpy(pvt->options.callerid, cid, sizeof(pvt->options.callerid) - 1);
-		}
-                pvt->options.callername = (char*)malloc(256);
-                if (!pvt->options.callername) {
-                        ast_log(LOG_ERROR, "Not enough memory.\n");
-                        return(-1);
-                }
-                memset(pvt->options.callername, 0, 256);
-                if ((!ast_strlen_zero(cidname)) && (!ast_strlen_zero(cidname))) {
-                        strncpy(pvt->options.callername, cidname, sizeof(pvt->options.callername) - 1);
-		}	
-        } else {
-                if (!ast_strlen_zero(pvt->options.callerid)) {
-                        free(pvt->options.callerid);
-                        pvt->options.callerid = NULL;
-                }
-                if (!ast_strlen_zero(pvt->options.callername)) {
-                        free(pvt->options.callername);
-                        pvt->options.callername = NULL;
-                }
-        }
 	res = h323_make_call(called_addr, &(pvt->cd), pvt->options);
 	if (res) {
 		ast_log(LOG_NOTICE, "h323_make_call failed(%s)\n", c->name);
@@ -752,8 +708,6 @@ static struct ast_channel *oh323_new(struct oh323_pvt *pvt, int state, const cha
 		strncpy(ch->context, pvt->context, sizeof(ch->context) - 1);
 		strncpy(ch->exten, pvt->exten, sizeof(ch->exten) - 1);		
 		ch->priority = 1;
-		if (!ast_strlen_zero(pvt->callerid))
-			ch->callerid = strdup(pvt->callerid);
 		if (!ast_strlen_zero(pvt->accountcode))
 			strncpy(ch->accountcode, pvt->accountcode, sizeof(ch->accountcode) - 1);
 		if (pvt->amaflags)
@@ -1071,40 +1025,82 @@ int send_digit(unsigned call_reference, char digit, const char *token)
 }
 
 /**
-  * Call-back function that gets called when any H.323 connection is made
+  * Callback function used to inform the H.323 stack of the local rtp ip/port details
   *
   * Returns the local RTP information
   */
-struct rtp_info *create_connection(unsigned call_reference, const char * token)
+struct rtp_info *external_rtp_create(unsigned call_reference, const char * token)
 {	
 	struct oh323_pvt *pvt;
 	struct sockaddr_in us;
-	struct sockaddr_in them;
 	struct rtp_info *info;
-        
-	/* XXX This is sooooo bugus.  inet_ntoa is not reentrant
-	   but this function wants to return a static variable so
-	   the only way to do this will be to declare iabuf within
-	   the oh323_pvt structure XXX */
-	static char iabuf[INET_ADDRSTRLEN];
+       	static char iabuf[INET_ADDRSTRLEN];
 
-	info = (struct rtp_info *) malloc(sizeof(struct rtp_info));
-
-	pvt = find_call(call_reference, token); 
-
-	if (!pvt) {
-		ast_log(LOG_ERROR, "Unable to allocate private structure, this is very bad.\n");
+	info = (struct rtp_info *)malloc(sizeof(struct rtp_info));
+	if (!info) {
+		ast_log(LOG_ERROR, "Unable to allocated info structure, this is very bad\n");
 		return NULL;
 	}
-
+	pvt = find_call(call_reference, token); 
+	if (!pvt) {
+		ast_log(LOG_ERROR, "Unable to find call %s(%d)\n", token, call_reference);
+		return NULL;
+	}
 	/* figure out our local RTP port and tell the H.323 stack about it*/
 	ast_rtp_get_us(pvt->rtp, &us);
-	ast_rtp_get_peer(pvt->rtp, &them);
-
 	info->addr = ast_inet_ntoa(iabuf, sizeof(iabuf), us.sin_addr);
 	info->port = ntohs(us.sin_port);
-
 	return info;
+}
+
+/**
+  * Call-back function passing remote ip/port information from H.323 to asterisk 
+  *
+  * Returns nothing 
+  */
+void setup_rtp_connection(unsigned call_reference, const char *remoteIp, int remotePort, const char *token)
+{
+	struct oh323_pvt *pvt = NULL;
+	struct sockaddr_in them;
+
+	/* Find the call or allocate a private structure if call not found */
+	pvt = find_call(call_reference, token); 
+	if (!pvt) {
+		ast_log(LOG_ERROR, "Something is wrong: rtp\n");
+		return;
+	}
+	them.sin_family = AF_INET;
+	them.sin_addr.s_addr = inet_addr(remoteIp); // only works for IPv4
+	them.sin_port = htons(remotePort);
+	ast_rtp_set_peer(pvt->rtp, &them);
+	return;
+}
+
+/**  
+  *	Call-back function to signal asterisk that the channel has been answered 
+  * Returns nothing
+  */
+void connection_made(unsigned call_reference, const char *token)
+{
+	struct ast_channel *c = NULL;
+	struct oh323_pvt *pvt = NULL;
+	
+	pvt = find_call(call_reference, token); 
+	
+	if (!pvt) {
+		ast_log(LOG_ERROR, "Something is wrong: connection\n");
+		return;
+	}
+
+	if (!pvt->owner) {
+		ast_log(LOG_ERROR, "Channel has no owner\n");
+		return;
+	}
+	c = pvt->owner;	
+
+	ast_setstate(c, AST_STATE_UP);
+	ast_queue_control(c, AST_CONTROL_ANSWER);
+	return;
 }
 
 /**
@@ -1112,10 +1108,8 @@ struct rtp_info *create_connection(unsigned call_reference, const char * token)
  *
  *  Returns 1 on success
  */
-
 int setup_incoming_call(call_details_t cd)
 {
-	
 	struct oh323_pvt *pvt = NULL;
 	struct oh323_user *user = NULL;
 	struct oh323_alias *alias = NULL;
@@ -1266,56 +1260,6 @@ static int answer_call(unsigned call_reference, const char *token)
 int setup_outgoing_call(call_details_t cd)
 {	
 	return 1;
-}
-
-/**
-  * Call-back function that gets called for each rtp channel opened 
-  *
-  * Returns nothing 
-  */
-void setup_rtp_connection(unsigned call_reference, const char *remoteIp, int remotePort, const char *token)
-{
-	struct oh323_pvt *pvt = NULL;
-	struct sockaddr_in them;
-
-	/* Find the call or allocate a private structure if call not found */
-	pvt = find_call(call_reference, token); 
-	if (!pvt) {
-		ast_log(LOG_ERROR, "Something is wrong: rtp\n");
-		return;
-	}
-	them.sin_family = AF_INET;
-	them.sin_addr.s_addr = inet_addr(remoteIp); // only works for IPv4
-	them.sin_port = htons(remotePort);
-	ast_rtp_set_peer(pvt->rtp, &them);
-	return;
-}
-
-/**  
-  *	Call-back function to signal asterisk that the channel has been answered 
-  * Returns nothing
-  */
-void connection_made(unsigned call_reference, const char *token)
-{
-	struct ast_channel *c = NULL;
-	struct oh323_pvt *pvt = NULL;
-	
-	pvt = find_call(call_reference, token); 
-	
-	if (!pvt) {
-		ast_log(LOG_ERROR, "Something is wrong: connection\n");
-		return;
-	}
-
-	if (!pvt->owner) {
-		ast_log(LOG_ERROR, "Channel has no owner\n");
-		return;
-	}
-	c = pvt->owner;	
-
-	ast_setstate(c, AST_STATE_UP);
-	ast_queue_control(c, AST_CONTROL_ANSWER);
-	return;
 }
 
 /**
@@ -1979,7 +1923,7 @@ int load_module()
 		/* Register our callback functions */
 		h323_callback_register(setup_incoming_call, 
 			               setup_outgoing_call,							 
-	 			       create_connection, 
+	 			       external_rtp_create, 
 				       setup_rtp_connection, 
 				       cleanup_connection, 
 				       chan_ringing,

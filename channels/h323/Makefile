@@ -35,8 +35,6 @@ endif
 #
 # Only change below if you know WTF your doing
 #
-#
-# Janus release directives, comment below if your brave enough for Janus
 OSARCH=$(shell uname -s)
 CFLAGS += -DNDEBUG -DDO_CRASH -DDEBUG_THREADS
 CFLAGS += -pipe -Wall -fPIC -Wmissing-prototypes -Wmissing-declarations 
@@ -44,25 +42,6 @@ CFLAGS += -D_REENTRANT -D_GNU_SOURCE
 CFLAGS += -I../../include
 CFLAGS += -I$(PWLIBDIR)/include 
 CFLAGS += -I$(OPENH323DIR)/include -Wno-missing-prototypes -Wno-missing-declarations
-
-# Pre Janus release directives
-#CFLAGS += -DNDEBUG -DDO_CRASH -DDEBUG_THREADS
-#CFLAGS += -pipe -Wall -fPIC
-#ifeq (${OSARCH},Linux)
-#CFLAGS += -DP_LINUX
-#LIBS+=-lpthread
-#endif
-#ifeq ($(findstring BSD,${OSARCH}),BSD)
-#CFLAGS += -pthread
-#endif
-#CFLAGS += -D_REENTRANT -D_GNU_SOURCE
-#CFLAGS += -DP_HAS_SEMAPHORES -DP_SSL -DP_PTHREADS
-#CFLAGS += -DPHAS_TEMPLATES -DPTRACING -DP_USE_PRAGMA
-#CFLAGS += -I../../include
-#CFLAGS += -I$(PWLIBDIR)/include/ptlib/unix -I$(PWLIBDIR)/include
-#CFLAGS += -I$(OPENH323DIR)/include
-#CFLAGS += -Wno-missing-prototypes -Wno-missing-declarations
-#LIBS+= -lcrypto -lssl -lexpat
 
 all:   	libchanh323.a
 
@@ -75,10 +54,6 @@ samples:
 
 ast_h323.o:	ast_h323.cpp
 	$(CXX) -g -c -o $@ $(CFLAGS) $<
-
-#ast_h323.o:	ast_h323.cpp
-#	$(CXX) -g -c -fno-rtti -o $@ $(CFLAGS) $<
-
 
 libchanh323.a:	ast_h323.o
 	ar cr libchanh323.a ast_h323.o

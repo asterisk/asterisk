@@ -70,7 +70,6 @@ MyH323EndPoint *endPoint = NULL;
 /** PWLib entry point */
 MyProcess *localProcess = NULL;
 
-
 MyProcess::MyProcess(): PProcess("The NuFone Network's", "H.323 Channel Driver for Asterisk",
              MAJOR_VERSION, MINOR_VERSION, BUILD_TYPE, BUILD_NUMBER)
 {
@@ -84,11 +83,11 @@ void MyProcess::Main()
 	PTrace::Initialise(0, NULL, PTrace::Timestamp | PTrace::Thread | PTrace::FileAndLine);
 }
 
-#define H323_NAME OPAL_G7231_6k3"{sw}"
+#define H323_G7231 OPAL_G7231_6k3"{sw}"
 #define H323_G729  OPAL_G729 "{sw}"
 #define H323_G729A OPAL_G729A"{sw}"
 
-H323_REGISTER_CAPABILITY(H323_G7231Capability, H323_NAME);
+H323_REGISTER_CAPABILITY(H323_G7231Capability, H323_G7231);
 H323_REGISTER_CAPABILITY(AST_G729Capability,  H323_G729);
 H323_REGISTER_CAPABILITY(AST_G729ACapability, H323_G729A);
 
@@ -117,18 +116,15 @@ PObject * H323_G7231Capability::Clone() const
   return new H323_G7231Capability(*this);
 }
 
-
 PString H323_G7231Capability::GetFormatName() const
 {
-  return H323_NAME;
+  return H323_G7231;
 }
-
 
 unsigned H323_G7231Capability::GetSubType() const
 {
   return H245_AudioCapability::e_g7231;
 }
-
 
 BOOL H323_G7231Capability::OnSendingPDU(H245_AudioCapability & cap,
                                           unsigned packetSize) const
@@ -141,7 +137,6 @@ BOOL H323_G7231Capability::OnSendingPDU(H245_AudioCapability & cap,
 
   return TRUE;
 }
-
 
 BOOL H323_G7231Capability::OnReceivedPDU(const H245_AudioCapability & cap,
                                            unsigned & packetSize)
@@ -156,12 +151,10 @@ BOOL H323_G7231Capability::OnReceivedPDU(const H245_AudioCapability & cap,
   return TRUE;
 }
 
-
 H323Codec * H323_G7231Capability::CreateCodec(H323Codec::Direction direction) const
 {
   return NULL;
 }
-
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -170,29 +163,26 @@ AST_G729Capability::AST_G729Capability()
 {
 }
 
-
 PObject * AST_G729Capability::Clone() const
 {
   return new AST_G729Capability(*this);
 }
-
 
 unsigned AST_G729Capability::GetSubType() const
 {
   return H245_AudioCapability::e_g729;
 }
 
-
 PString AST_G729Capability::GetFormatName() const
 {
   return H323_G729;
 }
 
-
 H323Codec * AST_G729Capability::CreateCodec(H323Codec::Direction direction) const
 {
   return NULL;
 }
+
 /////////////////////////////////////////////////////////////////////////////
 
 AST_G729ACapability::AST_G729ACapability()
@@ -200,24 +190,20 @@ AST_G729ACapability::AST_G729ACapability()
 {
 }
 
-
 PObject * AST_G729ACapability::Clone() const
 {
   return new AST_G729ACapability(*this);
 }
-
 
 unsigned AST_G729ACapability::GetSubType() const
 {
   return H245_AudioCapability::e_g729AnnexA;
 }
 
-
 PString AST_G729ACapability::GetFormatName() const
 {
   return H323_G729A;
 }
-
 
 H323Codec * AST_G729ACapability::CreateCodec(H323Codec::Direction direction) const
 {
@@ -269,8 +255,6 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token, unsigned int
                 localAliasNames.RemoveAll();
                 connection->SetLocalPartyName(PString(callerid));
         }
-        connection->AST_Outgoing = TRUE;
-
 	if (h323debug) {
 		cout << "	-- " << GetLocalUserName() << " is calling host " << fullAddress << endl;
 		cout << "	-- " << "Call token is " << (const char *)token << endl;
@@ -475,12 +459,12 @@ H323Connection * MyH323EndPoint::CreateConnection(unsigned callReference, void *
 	unsigned options = 0;
 	call_options_t *opts = (call_options_t *)o;
 
-	if (opts->noFastStart) {
+	if (opts && opts->noFastStart) {
 		options |= H323Connection::FastStartOptionDisable;
 	} else {
 		options |= H323Connection::FastStartOptionEnable;
 	}
-	if (opts->noH245Tunneling) {
+	if (opts && opts->noH245Tunneling) {
 		options |= H323Connection::H245TunnelingOptionDisable;
 	} else {
 		options |= H323Connection::H245TunnelingOptionEnable;
@@ -503,8 +487,6 @@ MyH323Connection::MyH323Connection(MyH323EndPoint & ep, unsigned callReference,
 	if (h323debug) {
 		cout << "	== New H.323 Connection created." << endl;
 	}
-	AST_RTP_Connected = FALSE;
-	AST_Outgoing = FALSE;
 	return;
 }
 
@@ -534,43 +516,13 @@ H323Connection::AnswerCallResponse MyH323Connection::OnAnswerCall(const PString 
 
 BOOL  MyH323Connection::OnAlerting(const H323SignalPDU & /*alertingPDU*/, const PString & username)
 {
-	PIPSocket::Address remoteIpAddress;
-	WORD remotePort;
-	H323_ExternalRTPChannel * channel;
-	
-	if (h323debug)
+	if (h323debug) {
 	        cout << "\t =-= In OnAlerting for call " << GetCallReference()
 	              << ": sessionId=" << sessionId << endl;
-	     
-        /* Connect RTP if logical channel has already been opened */
-        if (Lock()) {
-                if ( (channel = (H323_ExternalRTPChannel*) FindChannel(sessionId,TRUE)) ) {
-                        channel->GetRemoteAddress(remoteIpAddress, remotePort);
-                        if (h323debug) {
-	                        cout << "\t\t--- found logical channel. Connecting RTP" << endl;
-                                cout << "\t\tRTP channel id " << sessionId << " parameters:" << endl;
-                                cout << "\t\t-- remoteIpAddress: " << remoteIpAddress << endl;
-                                cout << "\t\t-- remotePort: " << remotePort << endl;
-                                cout << "\t\t-- ExternalIpAddress: " <<  externalIpAddress << endl;
-                                cout << "\t\t-- ExternalPort: " << externalPort << endl;
-                        }
-                        on_start_logical_channel(GetCallReference(),(const char *)remoteIpAddress.AsString(), remotePort,
-								     (const char *)GetCallToken() );
-                        AST_RTP_Connected=TRUE;
-                } else
-                	if (h323debug)
-	                        cout << "\t\t--- no logical channels" << endl;
-
-                if (h323debug) {
-                        cout << "       -- Ringing phone for \"" << username << "\"" << endl;
-                }
-
-                on_chan_ringing(GetCallReference(), (const char *)GetCallToken() );
-                Unlock();
-                return TRUE;
-	}
-	ast_log(LOG_ERROR,"chan_h323: OnAlerting: Could not obtain connection lock");
-	return FALSE;
+                 cout << "       -- Ringing phone for \"" << username << "\"" << endl;
+	}     
+        on_chan_ringing(GetCallReference(), (const char *)GetCallToken() );
+        return TRUE;
 }
 
 BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
@@ -753,31 +705,10 @@ void MyH323Connection::OnUserInputString(const PString &value)
 H323Channel * MyH323Connection::CreateRealTimeLogicalChannel(const H323Capability & capability,	
 								   H323Channel::Directions dir,
 								   unsigned sessionID,
-		 					           const H245_H2250LogicalChannelParameters * /*param*/)
+		 					           const H245_H2250LogicalChannelParameters * /*param*/,
+								   RTP_QOS * /*param*/ )
 {
-	struct rtp_info *info;
-	WORD port;
-
-	/* Determine the Local (A side) IP Address and port */
-	info = on_create_connection(GetCallReference(), (const char *)GetCallToken()); 
-
-	if (!info) {
-		return NULL;
-	}
-
-	GetControlChannel().GetLocalAddress().GetIpAndPort(externalIpAddress, port);
-	externalPort = info->port;
-	sessionId = sessionID;
-
-	if (h323debug) {
-		cout << "	=*= In CreateRealTimeLogicalChannel for call " << GetCallReference() << endl;
-		cout << "		-- externalIpAddress: " << externalIpAddress << endl;
-		cout << "		-- externalPort: " << externalPort << endl;
-		cout << "		-- SessionID: " << sessionID << endl;
-		cout << "		-- Direction: " << dir << endl;
-	}
-
-	return new MyH323_ExternalRTPChannel(*this, capability, dir, sessionID, externalIpAddress, externalPort);
+	return new MyH323_ExternalRTPChannel(*this, capability, dir, sessionID);
 }
 
 /** This callback function is invoked once upon creation of each
@@ -785,11 +716,8 @@ H323Channel * MyH323Connection::CreateRealTimeLogicalChannel(const H323Capabilit
   */
 BOOL MyH323Connection::OnStartLogicalChannel(H323Channel & channel)
 {    
-	PIPSocket::Address remoteIpAddress;
-	WORD remotePort;
-	
 	if (h323debug) {
-		cout << "	 -- Started logical channel: ";	
+		cout << "\t-- Started logical channel: ";	
 		cout << ((channel.GetDirection()==H323Channel::IsTransmitter)?"sending ":((channel.GetDirection()==H323Channel::IsReceiver)?"receiving ":" ")); 
 		cout << (const char *)(channel.GetCapability()).GetFormatName() << endl;
 	}
@@ -798,101 +726,72 @@ BOOL MyH323Connection::OnStartLogicalChannel(H323Channel & channel)
 	channelsOpen++;
 
 	if (h323debug) {
-		cout <<  "		-- channelsOpen = " << channelsOpen << endl;
+		cout <<  "\t\t-- channelsOpen = " << channelsOpen << endl;
 	}
 
-	if (!Lock()) {
-                ast_log(LOG_ERROR,"chan_h323: OnStartLogicalChannel: Could not obtain connection lock");
-                return FALSE;
-        }
-        /* Connect RTP for incoming calls */
-        if (!AST_Outgoing) {
-                H323_ExternalRTPChannel & external = (H323_ExternalRTPChannel &)channel;
-                external.GetRemoteAddress(remoteIpAddress, remotePort);
-                if (h323debug) {
-                       cout << "\t\tRTP channel id " << sessionId << " parameters:" << endl;
-                       cout << "\t\t-- remoteIpAddress: " << remoteIpAddress << endl;
-                       cout << "\t\t-- remotePort: " << remotePort << endl;
-                       cout << "\t\t-- ExternalIpAddress: " <<  externalIpAddress << endl;
-                       cout << "\t\t-- ExternalPort: " << externalPort << endl;
-                }
-                /* Notify Asterisk of remote RTP information */
-                on_start_logical_channel(GetCallReference(), (const char *)remoteIpAddress.AsString(), remotePort,
-                      			 (const char *)GetCallToken());
-                AST_RTP_Connected = TRUE;
-	}
-	Unlock();
 	return TRUE;	
 }
 
 /* MyH323_ExternalRTPChannel */
 MyH323_ExternalRTPChannel::MyH323_ExternalRTPChannel(MyH323Connection & connection,
 						     const H323Capability & capability,
-						     Directions direction,
- 						     unsigned sessionID,
-						     const PIPSocket::Address & ip,
-		  				     WORD dataPort)
-	: H323_ExternalRTPChannel(connection, capability, direction, sessionID, ip, dataPort)
-{
-}
-
-MyH323_ExternalRTPChannel::MyH323_ExternalRTPChannel(MyH323Connection & connection,
-	                                             const H323Capability & capability,
                                                      Directions direction,
                                                      unsigned id)
  : H323_ExternalRTPChannel::H323_ExternalRTPChannel(connection, capability, direction, id)
 {   
+	struct rtp_info *info;
+
+	/* Determine the Local (A side) IP Address and port */
+	info = on_external_rtp_create(connection.GetCallReference(), (const char *)connection.GetCallToken()); 
+	if (!info) {
+		cout << "\tERROR: on_external_rtp_create failure" << endl;
+		return;
+	} else {
+		localIpAddr = (PIPSocket::Address)info->addr;
+		localPort = (WORD)info->port;
+		/* tell the H.323 stack  */ 
+		SetExternalAddress(H323TransportAddress(localIpAddr, localPort), H323TransportAddress(localIpAddr, localPort + 1));
+		/* clean up allocated memory */
+		free(info);
+	}
+
+	// Get the payload code	
+	OpalMediaFormat format(capability.GetFormatName(), FALSE);
+	payloadCode = format.GetPayloadType();
 } 
 
-MyH323_ExternalRTPChannel::MyH323_ExternalRTPChannel(MyH323Connection & connection, 
-						     const H323Capability & capability,
-                                                     Directions direction,
-                                                     unsigned id,
-                                                     const H323TransportAddress & data,
-                                                     const H323TransportAddress & control) 
- : H323_ExternalRTPChannel::H323_ExternalRTPChannel(connection, capability, direction, id, data, control)
+MyH323_ExternalRTPChannel::~MyH323_ExternalRTPChannel() 
 {
-} 
-
-MyH323_ExternalRTPChannel::~MyH323_ExternalRTPChannel()
-{
+	if (h323debug) {
+		cout << "\tExternalRTPChannel Destroyed" << endl;
+	}
 }
 
-BOOL MyH323_ExternalRTPChannel::OnReceivedAckPDU(const H245_H2250LogicalChannelAckParameters & param)
+BOOL MyH323_ExternalRTPChannel::Start(void)
 {
-       PIPSocket::Address remoteIpAddress;
-       WORD remotePort;
-       MyH323Connection* conn = (MyH323Connection*) &connection;
-	       
-       if (h323debug)
-       		cout << "\t=-= In OnReceivedAckPDU for call " << connection.GetCallReference() << endl;
+	/* Call ancestor first */
+	if (!H323_ExternalRTPChannel::Start()) {
+		return FALSE;
+	}
 
-       if (H323_ExternalRTPChannel::OnReceivedAckPDU(param)) {
-               if (!connection.Lock()) {
-		       ast_log(LOG_ERROR,"chan_h323: OnReceivedAckPDU: Could not obtain connection lock");
-		       return FALSE;
-               }
-               /* if RTP hasn't been connected yet */
-               if (!conn->AST_RTP_Connected) {
-                       H323_ExternalRTPChannel::GetRemoteAddress(remoteIpAddress, remotePort);
-                       if (h323debug) {
-                                 cout << "\t\tRTP channel id " << sessionID << " parameters:" << endl;
-                                 cout << "\t\t-- remoteIpAddress: " << remoteIpAddress << endl;
-                                 cout << "\t\t-- remotePort: " << remotePort << endl;
-                                 cout << "\t\t-- ExternalIpAddress: " <<  conn->externalIpAddress << endl;
-                                 cout << "\t\t-- ExternalPort: " << conn->externalPort << endl;
-		       }
+	/* Collect the remote information */
+	GetRemoteAddress(remoteIpAddr, remotePort);
 
-		       /* Notify Asterisk of remote RTP information */
-		       on_start_logical_channel(connection.GetCallReference(), (const char *)remoteIpAddress.AsString(), remotePort,
-                                                  (const char *)conn->GetCallToken());
-		       conn->AST_RTP_Connected = TRUE;
-               }
-               connection.Unlock();
-               return TRUE;
-       }
-       return FALSE;
+        if (h323debug) {
+        	cout << "\t\tExternal RTP Session Starting" << endl;
+        	cout << "\t\tRTP channel id " << sessionID << " parameters:" << endl;
+                cout << "\t\t-- remoteIpAddress: " << remoteIpAddr << endl;
+                cout << "\t\t-- remotePort: " << remotePort << endl;
+                cout << "\t\t-- ExternalIpAddress: " <<  localIpAddr << endl;
+                cout << "\t\t-- ExternalPort: " << localPort << endl;
+	}
+
+	/* Notify Asterisk of remote RTP information */
+	on_start_rtp_channel(connection.GetCallReference(), (const char *)remoteIpAddr.AsString(), remotePort, 
+		(const char *)connection.GetCallToken());
+	return TRUE;
 }
+
 /** IMPLEMENTATION OF C FUNCTIONS */
 
 /**
@@ -946,8 +845,8 @@ void h323_debug(int flag, unsigned level)
 /** Installs the callback functions on behalf of the PBX application  */
 void h323_callback_register(setup_incoming_cb  	ifunc,
 			    setup_outbound_cb  	sfunc,
- 			    on_connection_cb   	confunc,
-			    start_logchan_cb   	lfunc,
+ 			    on_rtp_cb   	rtpfunc,
+			    start_rtp_cb   	lfunc,
  			    clear_con_cb	clfunc,
  			    chan_ringing_cb     rfunc,
 			    con_established_cb 	efunc,
@@ -956,8 +855,8 @@ void h323_callback_register(setup_incoming_cb  	ifunc,
 {
 	on_incoming_call = ifunc;
 	on_outgoing_call = sfunc;
-	on_create_connection = confunc;
-	on_start_logical_channel = lfunc;
+	on_external_rtp_create = rtpfunc;
+	on_start_rtp_channel = lfunc;
 	on_connection_cleared = clfunc;
 	on_chan_ringing = rfunc;
 	on_connection_established = efunc;

@@ -116,45 +116,45 @@ typedef struct rtp_info {
 /* This is a callback prototype function, called pass
    DTMF down the RTP. */
 typedef int (*send_digit_cb)(unsigned, char, const char *);
-extern send_digit_cb	on_send_digit; 
+extern send_digit_cb on_send_digit; 
 
 /* This is a callback prototype function, called to collect
    the external RTP port from Asterisk. */
-typedef rtp_info_t *(*on_connection_cb)(unsigned, const char *);
-extern on_connection_cb	on_create_connection; 
+typedef rtp_info_t *(*on_rtp_cb)(unsigned, const char *);
+extern on_rtp_cb on_external_rtp_create; 
+
+/* This is a callback prototype function, called to send
+   the remote IP and RTP port from H.323 to Asterisk */ 
+typedef void (*start_rtp_cb)(unsigned int, const char *, int, const char *);
+extern start_rtp_cb on_start_rtp_channel; 
 
 /* This is a callback prototype function, called upon
    an incoming call happens. */
 typedef int (*setup_incoming_cb)(call_details_t);
-extern setup_incoming_cb		on_incoming_call;
+extern setup_incoming_cb on_incoming_call;
 
 /* This is a callback prototype function, called upon
    an outbound call. */
 typedef int (*setup_outbound_cb)(call_details_t);
-extern setup_outbound_cb	on_outgoing_call; 
-
-/* This is a callback prototype function, called when the openh323 
-   OnStartLogicalChannel is invoked. */
-typedef void (*start_logchan_cb)(unsigned int, const char *, int, const char *);
-extern start_logchan_cb	on_start_logical_channel; 
+extern setup_outbound_cb on_outgoing_call; 
 
 /* This is a callback prototype function, called when openh323
    OnAlerting is invoked */
 typedef void (*chan_ringing_cb)(unsigned, const char *);
-extern chan_ringing_cb		on_chan_ringing;
+extern chan_ringing_cb on_chan_ringing;
 
 /* This is a callback protoype function, called when the openh323
    OnConnectionEstablished is inovked */
 typedef void (*con_established_cb)(unsigned, const char *);
-extern con_established_cb		on_connection_established;
+extern con_established_cb on_connection_established;
 
 /* This is a callback prototype function, called when the openH323
    OnConnectionCleared callback is invoked */
 typedef void (*clear_con_cb)(call_details_t);
-extern clear_con_cb		on_connection_cleared;
+extern clear_con_cb on_connection_cleared;
 
 typedef int (*answer_call_cb)(unsigned, const char *);
-extern answer_call_cb		on_answer_call;
+extern answer_call_cb on_answer_call;
 
 /* debug flag */
 extern int h323debug;
@@ -176,8 +176,8 @@ extern "C" {
 	/* callback function handler*/
 	void h323_callback_register(setup_incoming_cb,  
 				    setup_outbound_cb,
- 				    on_connection_cb,
- 				    start_logchan_cb,
+ 				    on_rtp_cb,
+				    start_rtp_cb,
  				    clear_con_cb,
  				    chan_ringing_cb,
 				    con_established_cb,

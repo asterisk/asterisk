@@ -218,7 +218,8 @@ class MyH323Connection : public H323Connection {
 	H323Channel * CreateRealTimeLogicalChannel(const H323Capability &, 
 						   H323Channel::Directions, 
 					 	   unsigned, 
-						   const H245_H2250LogicalChannelParameters *);
+						   const H245_H2250LogicalChannelParameters *,
+						   RTP_QOS *);
 	H323Connection::AnswerCallResponse OnAnswerCall(const PString &, const H323SignalPDU &, H323SignalPDU &);
 	void OnReceivedReleaseComplete(const H323SignalPDU &);
 	BOOL OnAlerting(const H323SignalPDU &, const PString &);
@@ -237,12 +238,8 @@ class MyH323Connection : public H323Connection {
 	PString sourceE164;
 	PString destE164;
 
-	PIPSocket::Address externalIpAddress;	
-	WORD externalPort;
 	WORD sessionId;
 	BOOL bridging;			
-        BOOL AST_RTP_Connected;
-        BOOL AST_Outgoing;
 };
 
 class MyH323_ExternalRTPChannel : public H323_ExternalRTPChannel {
@@ -251,35 +248,24 @@ class MyH323_ExternalRTPChannel : public H323_ExternalRTPChannel {
 
         public:
 	MyH323_ExternalRTPChannel(
-      		MyH323Connection & connection,     
+		MyH323Connection & connection,
       		const H323Capability & capability, 
       		Directions direction,              
       		unsigned sessionID);
 
-    	MyH323_ExternalRTPChannel(
-      		MyH323Connection & connection,      
-      		const H323Capability & capability,  
-      		Directions direction,               
-      		unsigned sessionID,                 
-      		const H323TransportAddress & data,  
-      		const H323TransportAddress & control);
-    
-	/* Create a new channel. */
-    	MyH323_ExternalRTPChannel(
-      		MyH323Connection & connection,        
-      		const H323Capability & capability,  
-      		Directions direction,               
-      		unsigned sessionID,                 
-      		const PIPSocket::Address & ip,      
-      		WORD dataPort); 
-
 	/* Destructor */
 	~MyH323_ExternalRTPChannel();
 	
-     	BOOL OnReceivedAckPDU(const H245_H2250LogicalChannelAckParameters & param);
+	/* Overrides */
+	BOOL Start(void);
 
-     	PIPSocket::Address externalIpAddress;   
-     	WORD externalPort;               
+	protected:
+	BYTE payloadCode;
+
+	PIPSocket::Address localIpAddr;
+	PIPSocket::Address remoteIpAddr;
+        WORD localPort;
+        WORD remotePort;
 }; 
 
 /**
@@ -292,10 +278,7 @@ class MyProcess : public PProcess {
     
 	public:
 	MyProcess();
-
 	void Main(); 
-	
-	
 };
 
 #endif /* !defined AST_H323_H */
