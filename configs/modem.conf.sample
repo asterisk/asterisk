@@ -1,0 +1,42 @@
+;
+; Internet Phone Jack
+;
+; Configuration file
+;
+[interfaces]
+;
+; By default, incoming calls should come in on the "remote" context
+;
+context=remote
+;
+; Modem Drivers to load
+;
+driver=aopen
+;
+; We can optionally override the auto detection.  This is necessary
+; particularly if asterisk does not know about our kind of modem.
+;
+;type=autodetect
+;type=aopen
+;
+; We can strip a given number of digits on outgoing dialing, so, for example
+; you can have it dial "8871042" when given "98871042".
+;
+stripmsd=1
+;
+; Type of dialing
+;
+;dialtype=tone
+dialtype=pulse
+;
+; Mode selection.  "Immediate" means that as soon as you dial, you're connected
+; and the line is considered up.  "Ring" means we wait until the ring cadence
+; occurs at least once.  "Answer" means we wait until the other end picks up. 
+;
+;mode=answer
+;mode=ring
+mode=immediate
+;
+; List all devices we can use.
+;
+device=/dev/ttyS3

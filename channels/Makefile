@@ -3,7 +3,7 @@
 # 
 # Makefile for Channel backends (dynamically loaded)
 #
-# Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+# Copyright (C) 1999, Mark Spencer
 #
 # Mark Spencer <markster@linux-support.net>
 #
@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-CHANNEL_LIBS=chan_vofr.so chan_ixj.so
+CHANNEL_LIBS=chan_vofr.so chan_ixj.so chan_modem.so chan_modem_aopen.so
 
 CFLAGS+=#-DVOFRDUMPER
 
