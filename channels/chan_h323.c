@@ -1766,6 +1766,9 @@ int reload_config(void)
 	}
 	ast_mutex_unlock(&caplock);
 
+	/* set default options */
+	h323_set_options(noFastStart,noH245Tunneling);
+
 	return 0;
 }
 
@@ -1985,7 +1988,6 @@ int load_module()
 				       send_digit,
 				       answer_call);
 	
-
 		/* start the h.323 listener */
 		if (h323_start_listener(port, bindaddr)) {
 			ast_log(LOG_ERROR, "Unable to create H323 listener.\n");

@@ -202,7 +202,8 @@ extern "C" {
 	/* H323 create and destroy sessions */
 	int h323_make_call(char *host, call_details_t *cd, call_options_t);
 	int h323_clear_call(const char *);
-
+	void h323_set_options(int nofs, int noh245tun);	
+	
 	/* H.323 alerting and progress */
 	int h323_send_alerting(const char *token);
 	int h323_send_progress(const char *token);
@@ -210,7 +211,7 @@ extern "C" {
 	int h323_answering_call(const char *token, int);
 	int h323_soft_hangup(const char *data);	
 	int h323_show_codec(int fd, int argc, char *argv[]);
-	
+
 
 #ifdef __cplusplus
 }
