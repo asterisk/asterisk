@@ -176,6 +176,7 @@ static int videosupport = 0;
 
 static int globaldtmfmode = SIP_DTMF_RFC2833;
 static char globalmusicclass[MAX_LANGUAGE] = "";	/* Global music on hold class */
+static char global_realm[AST_MAX_EXTENSION] = "asterisk"; 	/* Default realm */
 
 /* Expire slowly */
 static int expiry = 900;
@@ -2743,7 +2744,7 @@ static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_
 		ast_log(LOG_WARNING, "Unable to determine sequence number from '%s'\n", get_header(req, "CSeq"));
 		return -1;
 	}
-	snprintf(tmp, sizeof(tmp), "Digest realm=\"asterisk\", nonce=\"%s\"", randdata);
+	snprintf(tmp, sizeof(tmp), "Digest realm=\"%s\", nonce=\"%s\"", global_realm, randdata);
 	respprep(&resp, p, msg, req);
 	add_header(&resp, "Proxy-Authenticate", tmp);
 	add_header(&resp, "Content-Length", "0");
@@ -3938,7 +3939,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 			if (c)
 				c++;
 		}
-		snprintf(a1, sizeof(a1), "%s:%s:%s", username, "asterisk", secret);
+		snprintf(a1, sizeof(a1), "%s:%s:%s", username, global_realm, secret);
 		if(!ast_strlen_zero(resp_uri))
 			snprintf(a2, sizeof(a2), "%s:%s", method, resp_uri);
 		else
@@ -6843,6 +6844,7 @@ static int reload_config(void)
 	strncpy(context, "default", sizeof(context) - 1);
 	strcpy(language, "");
 	strcpy(fromdomain, "");
+	strncpy(global_realm, "asterisk", sizeof(global_realm) - 1);
 	globalcanreinvite = REINVITE_INVITE;
 	videosupport = 0;
 	relaxdtmf = 0;
@@ -6852,6 +6854,8 @@ static int reload_config(void)
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "context")) {
 			strncpy(context, v->value, sizeof(context)-1);
+		} else if (!strcasecmp(v->name, "realm")) {
+			strncpy(global_realm, v->value, sizeof(global_realm)-1);
 		} else if (!strcasecmp(v->name, "relaxdtmf")) {
 			relaxdtmf = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "dtmfmode")) {

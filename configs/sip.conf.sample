@@ -32,6 +32,7 @@ context = default		; Default context for incoming calls
 ;tos=lowdelay			; IP QoS parameter, either keyword or value
 				; like tos=184
 ;maxexpirey=3600		; Max length of incoming registration we allow
+;realm=asterisk			; Our global authentication realm
 ;defaultexpirey=120		; Default length of incoming/outoing registration
 ;notifymimetype=text/plain	; Allow overriding of mime type in NOTIFY
 ;videosupport=yes		; Turn on support for SIP video
