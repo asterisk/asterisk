@@ -220,6 +220,43 @@ static void init_logger_chain(void)
 	ast_mutex_unlock(&loglock);
 }
 
+static FILE *qlog = NULL;
+static ast_mutex_t qloglock = AST_MUTEX_INITIALIZER;
+
+void ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
+{
+	va_list ap;
+	ast_mutex_lock(&qloglock);
+	if (qlog) {
+		va_start(ap, fmt);
+		fprintf(qlog, "%ld|%s|%s|%s|%s|", (long)time(NULL), callid, queuename, agent, event);
+		vfprintf(qlog, fmt, ap);
+		fprintf(qlog, "\n");
+		va_end(ap);
+		fflush(qlog);
+	}
+	ast_mutex_unlock(&qloglock);
+}
+
+static void queue_log_init(void)
+{
+	char filename[256];
+	int reloaded = 0;
+	ast_mutex_lock(&qloglock);
+	if (qlog) {
+		reloaded = 1;
+		fclose(qlog);
+		qlog = NULL;
+	}
+	snprintf(filename, sizeof(filename), "%s/%s", (char *)ast_config_AST_LOG_DIR, "queue_log");
+	qlog = fopen(filename, "a");
+	ast_mutex_unlock(&qloglock);
+	if (reloaded) 
+		ast_queue_log("NONE", "NONE", "NONE", "CONFIGRELOAD", "");
+	else
+		ast_queue_log("NONE", "NONE", "NONE", "QUEUESTART", "");
+}
+
 int reload_logger(int rotate)
 {
 	char old[AST_CONFIG_MAX_PATH];
@@ -294,6 +331,7 @@ int reload_logger(int rotate)
 		return 0;
 	} else 
 		ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
+	queue_log_init();
 	init_logger_chain();
 	return -1;
 }

@@ -35,6 +35,8 @@
 #include <sys/signal.h>
 #include <netinet/in.h>
 
+#include "../astconf.h"
+
 #include <pthread.h>
 
 #define QUEUE_STRATEGY_RINGALL		0
@@ -128,6 +130,8 @@ struct queue_ent {
 	char announce[80];		/* Announcement to play */
 	char context[80];		/* Context when user exits queue */
 	int pos;					/* Where we are in the queue */
+	int opos;					/* Where we started in the queue */
+	int handled;				/* Whether our call was handled */
 	time_t start;				/* When we started holding */
 	struct ast_channel *chan;	/* Our channel */
 	struct queue_ent *next;		/* The next queue entry */
@@ -221,6 +225,7 @@ static int join_queue(char *queuename, struct queue_ent *qe)
 				qe->next = NULL;
 				qe->parent = q;
 				qe->pos = ++pos;
+				qe->opos = pos;
 				strncpy(qe->moh, q->moh, sizeof(qe->moh));
 				strncpy(qe->announce, q->announce, sizeof(qe->announce));
 				strncpy(qe->context, q->context, sizeof(qe->context));
@@ -699,6 +704,9 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	int allowredir_out=0;
 	int allowdisconnect=0;
 	char restofit[AST_MAX_EXTENSION];
+	char oldexten[AST_MAX_EXTENSION]="";
+	char oldcontext[AST_MAX_EXTENSION]="";
+	char queuename[256]="";
 	char *newnum;
 	struct ast_channel *peer;
 	struct localuser *lpeer;
@@ -707,8 +715,10 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	int x=0;
 	char *announce = NULL;
 	char digit = 0;
+	time_t callstart;
 	/* Hold the lock while we setup the outgoing calls */
 	ast_mutex_lock(&qe->parent->lock);
+	strncpy(queuename, qe->parent->name, sizeof(queuename) - 1);
 	cur = qe->parent->members;
 	if (strlen(qe->announce))
 		announce = qe->announce;
@@ -797,6 +807,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the 
 		   conversation.  */
+		qe->handled++;
 		if (!strcmp(qe->chan->type,"Zap")) {
 			if (tmp->dataquality) zapx = 0;
 			ast_channel_setoption(qe->chan,AST_OPTION_TONE_VERIFY,&zapx,sizeof(char),0);
@@ -822,6 +833,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 			if (res2) {
 				/* Agent must have hung up */
 				ast_log(LOG_WARNING, "Agent on %s hungup on the customer.  They're going to be pissed.\n", peer->name);
+				ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "AGENTDUMP", "");
 				ast_hangup(peer);
 				return -1;
 			}
@@ -832,6 +844,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		/* Make sure channels are compatible */
 		res = ast_channel_make_compatible(qe->chan, peer);
 		if (res < 0) {
+			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "SYSCOMPAT", "");
 			ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", qe->chan->name, peer->name);
 			ast_hangup(peer);
 			return -1;
@@ -843,7 +856,18 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
  			ast_log(LOG_DEBUG, "app_queue: sendurl=%s.\n", url);
  			ast_channel_sendurl( peer, url );
  		} /* /JDG */
+		ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "CONNECT", "%ld", (long)time(NULL) - qe->start);
+		strncpy(oldcontext, qe->chan->context, sizeof(oldcontext) - 1);
+		strncpy(oldexten, qe->chan->exten, sizeof(oldexten) - 1);
+		time(&callstart);
 		bridge = ast_bridge_call(qe->chan, peer, allowredir_in, allowredir_out, allowdisconnect);
+		if (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten)) {
+			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "TRANSFER", "%s|%s", qe->chan->exten, qe->chan->context);
+		} else if (qe->chan->_softhangup) {
+			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "COMPLETECALLER", "%ld|%ld", (long)(callstart - qe->start), (long)(time(NULL) - callstart));
+		} else {
+			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "COMPLETEAGENT", "%ld|%ld", (long)(callstart - qe->start), (long)(time(NULL) - callstart));
+		}
 
 		if(bridge != AST_PBX_NO_HANGUP_PEER)
 			ast_hangup(peer);
@@ -1139,41 +1163,54 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	qe.chan = chan;
 	qe.start = time(NULL);
 	if (!join_queue(queuename, &qe)) {
+		ast_queue_log(queuename, chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", url ? url : "", chan->callerid ? chan->callerid : "");
 		/* Start music on hold */
 		ast_moh_start(chan, qe.moh);
 		for (;;) {
 			res = wait_our_turn(&qe);
 			/* If they hungup, return immediately */
 			if (res < 0) {
+				ast_queue_log(queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
 				if (option_verbose > 2) {
 					ast_verbose(VERBOSE_PREFIX_3 "User disconnected while waiting their turn\n");
 					res = -1;
 				}
 				break;
 			}
-			if (!res)
+			if (!res) 
 				break;
-			if (valid_exit(&qe, res))
+			if (valid_exit(&qe, res)) {
+				ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%c|%d", res, qe.pos);
 				break;
+			}
 		}
 		if (!res) {
 			for (;;) {
 				res = try_calling(&qe, options, announceoverride, url, &go_on);
-				if (res)
+				if (res) {
+					if (res < 0) {
+						if (!qe.handled)
+							ast_queue_log(queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
+					} else if (res > 0)
+						ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%c|%d", res, qe.pos);
 					break;
+				}
 				res = wait_a_bit(&qe);
 				if (res < 0) {
+					ast_queue_log(queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
 					if (option_verbose > 2) {
 						ast_verbose(VERBOSE_PREFIX_3 "User disconnected when they almost made it\n");
 						res = -1;
 					}
 					break;
 				}
-				if (res && valid_exit(&qe, res))
+				if (res && valid_exit(&qe, res)) {
+					ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%c|%d", res, qe.pos);
 					break;
-
+				}
 				/* exit after a timeout if 'n' option enabled */
 				if (go_on) {
+					ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
 					res = 0;
 					break;
 				}
