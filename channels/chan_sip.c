@@ -5020,11 +5020,11 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
 
 		/* Try getting the "signal=" part */
 		if (ast_strlen_zero(c = get_sdp(req, "Signal")) && ast_strlen_zero(c = get_sdp(req, "d"))) {
-		   strncpy(buf, c, sizeof(buf) - 1);
-		} else {
 		   ast_log(LOG_WARNING, "Unable to retrieve DTMF signal from INFO message from %s\n", p->callid);
 		   transmit_response(p, "200 OK", req); /* Should return error */
 		   return;
+		} else {
+		   strncpy(buf, c, sizeof(buf) - 1);
 		}
 	
 		if (p->owner) {	/* PBX call */
