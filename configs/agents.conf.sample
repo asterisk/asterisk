@@ -8,4 +8,5 @@
 ;
 ; agent => agentid,agentpassword,name
 ;
-;agent => 1234,4321,Mark Spencer
+;agent => 1001,4321,Mark Spencer
+;agent => 1002,4321,Will Meadows

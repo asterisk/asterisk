@@ -48,3 +48,5 @@
 ;
 ;member => Zap/1
 ;member => Zap/2
+;member => Agent/1001
+;member => Agent/1002
