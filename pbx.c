@@ -4315,7 +4315,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 static int pbx_builtin_atimeout(struct ast_channel *chan, void *data)
 {
 	int x = atoi((char *) data);
-	/* Set the timeout for how long to wait between digits */
+	/* Set the absolute maximum time how long a call can be connected */
 	ast_channel_setwhentohangup(chan,x);
 	if (option_verbose > 2)
 		ast_verbose( VERBOSE_PREFIX_3 "Set Absolute Timeout to %d\n", x);
