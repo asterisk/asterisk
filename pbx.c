@@ -4173,6 +4173,7 @@ void __ast_context_destroy(struct ast_context *con, char *registrar)
 				e = e->next;
 				destroy_exten(el);
 			}
+                        ast_mutex_destroy(&tmp->lock);
 			free(tmp);
 			if (!con) {
 				/* Might need to get another one -- restart */

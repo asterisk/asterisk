@@ -55,7 +55,8 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <sys/signal.h>
-#ifdef __OpenBSD__
+#include <sys/param.h>
+#if defined(BSD)
 #include <netinet/in_systm.h>
 #ifndef IPTOS_MINCOST
 #define IPTOS_MINCOST 0x02
@@ -186,8 +187,10 @@ static void __oh323_destroy(struct oh323_pvt *p)
 	}
 	if (!cur) {
 		ast_log(LOG_WARNING, "%p is not in list?!?! \n", cur);
-	} else
+	} else {
+                ast_mutex_destroy(&p->lock);
 		free(p);
+        }
 }
 
 static void oh323_destroy(struct oh323_pvt *p)
@@ -1840,10 +1843,13 @@ static struct ast_rtp_protocol oh323_rtp = {
 	set_rtp_peer: oh323_set_rtp_peer,
 };
 
-
 int load_module()
 {
 	int res;
+
+        ast_mutex_init(&userl.lock);
+        ast_mutex_init(&peerl.lock);
+        ast_mutex_init(&aliasl.lock);
 
 	res = reload_config();
 
@@ -1948,6 +1954,7 @@ int unload_module()
 			pl = p;
 			p = p->next;
 			/* free associated memory */
+			ast_mutex_destroy(&pl->lock);
 			free(pl);
 		}
 		iflist = NULL;

@@ -330,6 +330,7 @@ static void destroy_queue(struct ast_call_queue *q)
 	}
 	ast_mutex_unlock(&qlock);
 	free_members(q, 1);
+        ast_mutex_destroy(&q->lock);
 	free(q);
 }
 
@@ -628,7 +629,7 @@ static int valid_exit(struct queue_ent *qe, char digit)
 	return 0;
 }
 
-#define MAX 256
+#define AST_MAX_WATCHERS 256
 
 static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect, char *digit)
 {
@@ -641,7 +642,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 	int orig = *to;
 	struct ast_frame *f;
 	struct localuser *peer = NULL;
-	struct ast_channel *watchers[MAX];
+	struct ast_channel *watchers[AST_MAX_WATCHERS];
 	int pos;
 	struct ast_channel *winner;
 	struct ast_channel *in = qe->chan;

@@ -1756,6 +1756,14 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 	return 0;
 }
 
+static void destroy_zt_pvt(struct zt_pvt **pvt)
+{
+	struct zt_pvt *p = *pvt;
+	ast_mutex_destroy(&p->lock);
+	free(p);
+	*pvt = NULL;
+}
+
 static int destroy_channel(struct zt_pvt *prev, struct zt_pvt *cur, int now)
 {
 	int owned = 0;
@@ -1788,7 +1796,7 @@ static int destroy_channel(struct zt_pvt *prev, struct zt_pvt *cur, int now)
 			if (cur->subs[SUB_REAL].zfd > -1) {
 				zt_close(cur->subs[SUB_REAL].zfd);
 			}
-			free(cur);
+			destroy_zt_pvt(&cur);
 		}
 	} else {
 		if (prev) {
@@ -1807,7 +1815,7 @@ static int destroy_channel(struct zt_pvt *prev, struct zt_pvt *cur, int now)
 		if (cur->subs[SUB_REAL].zfd > -1) {
 			zt_close(cur->subs[SUB_REAL].zfd);
 		}
-		free(cur);
+		destroy_zt_pvt(&cur);
 	}
 	return 0;
 }
@@ -5751,10 +5759,11 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		tmp = (struct zt_pvt*)malloc(sizeof(struct zt_pvt));
 		if (!tmp) {
 			ast_log(LOG_ERROR, "MALLOC FAILED\n");
-			free(tmp);
+			destroy_zt_pvt(&tmp);
 			return NULL;
 		}
 		memset(tmp, 0, sizeof(struct zt_pvt));
+		ast_mutex_init(&tmp->lock);
 		ifcount++;
 		for (x=0;x<3;x++)
 			tmp->subs[x].zfd = -1;
@@ -5811,20 +5820,19 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			/* Allocate a zapata structure */
 			if (tmp->subs[SUB_REAL].zfd < 0) {
 				ast_log(LOG_ERROR, "Unable to open channel %d: %s\nhere = %d, tmp->channel = %d, channel = %d\n", channel, strerror(errno), here, tmp->channel, channel);
-				free(tmp);
+				destroy_zt_pvt(&tmp);
 				return NULL;
 			}
 			memset(&p, 0, sizeof(p));
 			res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &p);
 			if (res < 0) {
 				ast_log(LOG_ERROR, "Unable to get parameters\n");
-				free(tmp);
+				destroy_zt_pvt(&tmp);
 				return NULL;
 			}
 			if (p.sigtype != (signalling & 0x3ffff)) {
 				ast_log(LOG_ERROR, "Signalling requested is %s but line is in %s signalling\n", sig2str(signalling), sig2str(p.sigtype));
-				free(tmp);
-				tmp = NULL;
+				destroy_zt_pvt(&tmp);
 				return tmp;
 			}
 			if (here) {
@@ -5855,18 +5863,18 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			offset = 0;
 			if ((signalling == SIG_PRI) && ioctl(tmp->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &offset)) {
 				ast_log(LOG_ERROR, "Unable to set clear mode on clear channel %d of span %d: %s\n", channel, p.spanno, strerror(errno));
-				free(tmp);
+				destroy_zt_pvt(&tmp);
 				return NULL;
 			}
 			if (span >= NUM_SPANS) {
 				ast_log(LOG_ERROR, "Channel %d does not lie on a span I know of (%d)\n", channel, span);
-				free(tmp);
+				destroy_zt_pvt(&tmp);
 				return NULL;
 			} else {
 				si.spanno = 0;
 				if (ioctl(tmp->subs[SUB_REAL].zfd,ZT_SPANSTAT,&si) == -1) {
 					ast_log(LOG_ERROR, "Unable to get span status: %s\n", strerror(errno));
-					free(tmp);
+					destroy_zt_pvt(&tmp);
 					return NULL;
 				}
 				/* Store the logical span first based upon the real span */
@@ -5874,7 +5882,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 				pri_resolve_span(&span, channel, (channel - p.chanpos), &si);
 				if (span < 0) {
 					ast_log(LOG_WARNING, "Channel %d: Unable to find locate channel/trunk group!\n", channel);
-					free(tmp);
+					destroy_zt_pvt(&tmp);
 					return NULL;
 				}
 				if (signalling == SIG_PRI)
@@ -5895,43 +5903,43 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 				if (!matchesdchan) {
 					if (pris[span].nodetype && (pris[span].nodetype != pritype)) {
 						ast_log(LOG_ERROR, "Span %d is already a %s node\n", span + 1, pri_node2str(pris[span].nodetype));
-						free(tmp);
+						destroy_zt_pvt(&tmp);
 						return NULL;
 					}
 					if (pris[span].switchtype && (pris[span].switchtype != myswitchtype)) {
 						ast_log(LOG_ERROR, "Span %d is already a %s switch\n", span + 1, pri_switch2str(pris[span].switchtype));
-						free(tmp);
+						destroy_zt_pvt(&tmp);
 						return NULL;
 					}
 					if ((pris[span].dialplan) && (pris[span].dialplan != dialplan)) {
 						ast_log(LOG_ERROR, "Span %d is already a %s dialing plan\n", span + 1, pri_plan2str(pris[span].dialplan));
-						free(tmp);
+						destroy_zt_pvt(&tmp);
 						return NULL;
 					}
 					if (!ast_strlen_zero(pris[span].idledial) && strcmp(pris[span].idledial, idledial)) {
 						ast_log(LOG_ERROR, "Span %d already has idledial '%s'.\n", span + 1, idledial);
-						free(tmp);
+						destroy_zt_pvt(&tmp);
 						return NULL;
 					}
 					if (!ast_strlen_zero(pris[span].idleext) && strcmp(pris[span].idleext, idleext)) {
 						ast_log(LOG_ERROR, "Span %d already has idleext '%s'.\n", span + 1, idleext);
-						free(tmp);
+						destroy_zt_pvt(&tmp);
 						return NULL;
 					}
 					if (pris[span].minunused && (pris[span].minunused != minunused)) {
 						ast_log(LOG_ERROR, "Span %d already has minunused of %d.\n", span + 1, minunused);
-						free(tmp);
+						destroy_zt_pvt(&tmp);
 						return NULL;
 					}
 					if (pris[span].minidle && (pris[span].minidle != minidle)) {
 						ast_log(LOG_ERROR, "Span %d already has minidle of %d.\n", span + 1, minidle);
-						free(tmp);
+						destroy_zt_pvt(&tmp);
 						return NULL;
 					}
 					if (pris[span].numchans >= MAX_CHANNELS) {
 						ast_log(LOG_ERROR, "Unable to add channel %d: Too many channels in trunk group %d!\n", channel,
 							pris[span].trunkgroup);
-						free(tmp);
+						destroy_zt_pvt(&tmp);
 						return NULL;
 					}
 					pris[span].nodetype = pritype;
@@ -5949,7 +5957,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 					tmp->call = NULL;
 				} else {
 					ast_log(LOG_ERROR, "Channel %d is reserved for D-channel.\n", offset);
-					free(tmp);
+					destroy_zt_pvt(&tmp);
 					return NULL;
 				}
 			}
@@ -5968,7 +5976,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			if (!tmp->r2) {
 				ast_log(LOG_WARNING, "Unable to create r2 call :(\n");
 				zt_close(tmp->subs[SUB_REAL].zfd);
-				free(tmp);
+				destroy_zt_pvt(&tmp);
 				return NULL;
 			}
 		} else {
@@ -6021,7 +6029,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_SET_PARAMS, &p);
 			if (res < 0) {
 				ast_log(LOG_ERROR, "Unable to set parameters\n");
-				free(tmp);
+				destroy_zt_pvt(&tmp);
 				return NULL;
 			}
 		}
@@ -6081,7 +6089,6 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			tmp->propconfno = -1;
 		}
 		tmp->transfer = transfer;
-		ast_mutex_init(&tmp->lock);
 		strncpy(tmp->defcontext,context,sizeof(tmp->defcontext)-1);
 		strncpy(tmp->language, language, sizeof(tmp->language)-1);
 		strncpy(tmp->musicclass, musicclass, sizeof(tmp->musicclass)-1);
@@ -6117,7 +6124,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			memset(&si, 0, sizeof(si));
 			if (ioctl(tmp->subs[SUB_REAL].zfd,ZT_SPANSTAT,&si) == -1) {
 				ast_log(LOG_ERROR, "Unable to get span status: %s\n", strerror(errno));
-				free(tmp);
+				destroy_zt_pvt(&tmp);
 				return NULL;
 			}
 			if (si.alarms) tmp->inalarm = 1;
@@ -6222,11 +6229,12 @@ static struct zt_pvt *chandup(struct zt_pvt *src)
 	p = malloc(sizeof(struct zt_pvt));
 	if (p) {
 		memcpy(p, src, sizeof(struct zt_pvt));
+		ast_mutex_init(&p->lock);
 		p->subs[SUB_REAL].zfd = zt_open("/dev/zap/pseudo");
 		/* Allocate a zapata structure */
 		if (p->subs[SUB_REAL].zfd < 0) {
 			ast_log(LOG_ERROR, "Unable to dup channel: %s\n",  strerror(errno));
-			free(p);
+			destroy_zt_pvt(&p);
 			return NULL;
 		}
 		res = ioctl(p->subs[SUB_REAL].zfd, ZT_GET_BUFINFO, &bi);
@@ -8280,8 +8288,8 @@ static int __unload_module(void)
 			p = p->next;
 			x++;
 			/* Free associated memory */
-			if(p)
-			  free(pl);
+			if(pl)
+				destroy_zt_pvt(&pl);
 			ast_verbose(VERBOSE_PREFIX_3 "Unregistered channel %d\n", x);
 		}
 		iflist = NULL;
@@ -8302,6 +8310,11 @@ static int __unload_module(void)
 
 int unload_module()
 {
+#ifdef ZAPATA_PRI		
+	int y;
+	for (y=0;y<NUM_SPANS;y++)
+		ast_mutex_destroy(&pris[y].lock);
+#endif
 	return __unload_module();
 }
 		
@@ -8922,6 +8935,7 @@ int load_module(void)
 	int y,i;
 	memset(pris, 0, sizeof(pris));
 	for (y=0;y<NUM_SPANS;y++) {
+		ast_mutex_init(&pris[y].lock);
 		pris[y].offset = -1;
 		pris[y].master = AST_PTHREADT_NULL;
 		for (i=0;i<NUM_DCHANS;i++)
@@ -9028,9 +9042,13 @@ static int reload_zt(void)
 	
 #if 0
 #ifdef ZAPATA_PRI
-	memset(pris, 0, sizeof(pris));
 	for (y=0;y<NUM_SPANS;y++)
+		ast_mutex_destroy(&pris[y]->lock);
+	memset(pris, 0, sizeof(pris));
+	for (y=0;y<NUM_SPANS;y++) {
+		ast_mutex_init(&pris[y]->lock);
 		pris[y].fd = -1;
+	}
 #endif
 #endif /* 0 */
 	

@@ -507,7 +507,7 @@ static struct iax2_dpcache {
 	struct iax2_dpcache *peer;	/* For linking in peers */
 } *dpcache;
 
-static ast_mutex_t dpcache_lock;
+AST_MUTEX_DEFINE_STATIC(dpcache_lock);
 
 static void iax_debug_output(const char *data)
 {
@@ -4434,6 +4434,7 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 		ast_log(LOG_DEBUG, "Dropping unused iax2 trunk peer '%s:%d'\n", inet_ntoa(drop->addr.sin_addr), ntohs(drop->addr.sin_port));
 		free(drop->trunkdata);
 		ast_mutex_unlock(&drop->lock);
+		ast_mutex_destroy(&drop->lock);
 		free(drop);
 		
 	}
@@ -6820,6 +6821,10 @@ static int __unload_module(void)
 
 int unload_module()
 {
+	ast_mutex_destroy(&iaxq.lock);
+	ast_mutex_destroy(&userl.lock);
+	ast_mutex_destroy(&peerl.lock);
+	ast_mutex_destroy(&waresl.lock);
 	return __unload_module();
 }
 
@@ -6867,6 +6872,7 @@ int load_module(void)
 	ast_mutex_init(&iaxq.lock);
 	ast_mutex_init(&userl.lock);
 	ast_mutex_init(&peerl.lock);
+	ast_mutex_init(&waresl.lock);
 
 	ast_cli_register(&cli_show_users);
 	ast_cli_register(&cli_show_channels);

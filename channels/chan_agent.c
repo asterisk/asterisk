@@ -213,8 +213,8 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 		if (p) {
 			memset(p, 0, sizeof(struct agent_pvt));
 			strncpy(p->agent, tmp, sizeof(p->agent) -1);
-			ast_mutex_init( &p->lock );
-			ast_mutex_init( &p->app_lock );
+			ast_mutex_init(&p->lock);
+			ast_mutex_init(&p->app_lock);
 			p->owning_app = (pthread_t) -1;
 			p->app_sleep_cond = 1;
 			p->group = group;
@@ -252,8 +252,11 @@ static int agent_cleanup(struct agent_pvt *p)
 	ast_mutex_unlock(&p->app_lock);
 	if (chan)
 		ast_channel_free(chan);
-	if (p->dead)
+	if (p->dead) {
+		ast_mutex_destroy(&p->lock);
+		ast_mutex_destroy(&p->app_lock);
 		free(p);
+        }
 	return 0;
 }
 
@@ -571,6 +574,8 @@ static int agent_hangup(struct ast_channel *ast)
 		   kill it later */
 		p->abouttograb = 0;
 	} else if (p->dead) {
+		ast_mutex_destroy(&p->lock);
+		ast_mutex_destroy(&p->app_lock);
 		free(p);
 	} else {
 		if (p->chan) {
@@ -844,6 +849,8 @@ static int read_agent_config(void)
 			/* Destroy if  appropriate */
 			if (!p->owner) {
 				if (!p->chan) {
+					ast_mutex_destroy(&p->lock);
+					ast_mutex_destroy(&p->app_lock);
 					free(p);
 				} else {
 					/* Cause them to hang up */
@@ -1425,8 +1432,11 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Agent '%s' logged out\n", p->agent);
 							/* If there is no owner, go ahead and kill it now */
-							if (p->dead && !p->owner)
+							if (p->dead && !p->owner) {
+								ast_mutex_destroy(&p->lock);
+								ast_mutex_destroy(&p->app_lock);
 								free(p);
+							}
 						}
 						else {
 							ast_mutex_unlock(&p->lock);

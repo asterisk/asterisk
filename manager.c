@@ -220,6 +220,7 @@ static void destroy_session(struct mansession *s)
 			sessions = cur->next;
 		if (s->fd > -1)
 			close(s->fd);
+		ast_mutex_destroy(&s->lock);
 		free(s);
 	} else
 		ast_log(LOG_WARNING, "Trying to delete non-existant session %p?\n", s);

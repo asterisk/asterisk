@@ -22,6 +22,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <string.h>
 
 #include <asterisk/sched.h>
 #include <asterisk/logger.h>
@@ -63,6 +64,7 @@ struct sched_context *sched_context_create(void)
 	struct sched_context *tmp;
 	tmp = malloc(sizeof(struct sched_context));
 	if (tmp) {
+          	memset(tmp, 0, sizeof(struct sched_context));
 		ast_mutex_init(&tmp->lock);
 		tmp->eventcnt = 1;
 		tmp->schedcnt = 0;
@@ -97,6 +99,7 @@ void sched_context_destroy(struct sched_context *con)
 	}
 	/* And the context */
 	ast_mutex_unlock(&con->lock);
+	ast_mutex_destroy(&con->lock);
 	free(con);
 }
 

@@ -11,6 +11,8 @@
 
 #include <ctype.h>
 #include <string.h>
+#include <unistd.h>
+#include <pthread.h> 
 #include <asterisk/lock.h>
 #include <asterisk/utils.h>
 
@@ -22,9 +24,9 @@
 
 AST_MUTEX_DEFINE_STATIC(__mutex);
 
-int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
-			size_t buflen, struct hostent **result, 
-			int *h_errnop) 
+static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
+                            size_t buflen, struct hostent **result, 
+                            int *h_errnop) 
 {
 	int hsave;
 	struct hostent *ph;
@@ -142,4 +144,61 @@ struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
 	if (res || !result || !hp->hp.h_addr_list || !hp->hp.h_addr_list[0])
 		return NULL;
 	return &hp->hp;
+}
+
+
+/* This is a regression test for recursive mutexes.
+   test_for_thread_safety() will return 0 if recursive mutex locks are
+   working properly, and non-zero if they are not working properly. */
+
+AST_MUTEX_DEFINE_STATIC(test_lock);
+AST_MUTEX_DEFINE_STATIC(test_lock2);
+static pthread_t test_thread; 
+static int lock_count = 0;
+static int test_errors = 0;
+
+static void *test_thread_body(void *data) 
+{ 
+  ast_mutex_lock(&test_lock);
+  lock_count += 10;
+  if(lock_count != 10) test_errors++;
+  ast_mutex_lock(&test_lock);
+  lock_count += 10;
+  if(lock_count != 20) test_errors++;
+  ast_mutex_lock(&test_lock2);
+  ast_mutex_unlock(&test_lock);
+  lock_count -= 10;
+  if(lock_count != 10) test_errors++;
+  ast_mutex_unlock(&test_lock);
+  lock_count -= 10;
+  ast_mutex_unlock(&test_lock2);
+  if(lock_count != 0) test_errors++;
+  return NULL;
+} 
+
+int test_for_thread_safety(void)
+{ 
+  ast_mutex_lock(&test_lock2);
+  ast_mutex_lock(&test_lock);
+  lock_count += 1;
+  ast_mutex_lock(&test_lock);
+  lock_count += 1;
+  pthread_create(&test_thread, NULL, test_thread_body, NULL); 
+  pthread_yield();
+  usleep(100);
+  if(lock_count != 2) test_errors++;
+  ast_mutex_unlock(&test_lock);
+  lock_count -= 1;
+  pthread_yield(); 
+  usleep(100); 
+  if(lock_count != 1) test_errors++;
+  ast_mutex_unlock(&test_lock);
+  lock_count -= 1;
+  if(lock_count != 0) test_errors++;
+  ast_mutex_unlock(&test_lock2);
+  pthread_yield();
+  usleep(100);
+  if(lock_count != 0) test_errors++;
+  pthread_join(test_thread, NULL);
+  return(test_errors);          /* return 0 on success. */
 }

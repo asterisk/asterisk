@@ -22,10 +22,10 @@ install: all
 	for x in $(AGIS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(AGI_DIR) ; done
 
 eagi-test: eagi-test.o
-	$(CC) -o eagi-test eagi-test.o
-	
+	$(CC) $(CFLAGS) -o eagi-test eagi-test.o
+
 eagi-sphinx-test: eagi-sphinx-test.o
-	$(CC) -o eagi-sphinx-test eagi-sphinx-test.o
+	$(CC) $(CFLAGS) -o eagi-sphinx-test eagi-sphinx-test.o
 
 clean:
 	rm -f *.so *.o look .depend eagi-test eagi-sphinx-test

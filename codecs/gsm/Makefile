@@ -64,8 +64,8 @@ PG =
 # CC		= /usr/lang/acc
 # CCFLAGS 	= -c -O
 
-CC		= gcc $(OPTIMIZE) -fomit-frame-pointer 
-CCFLAGS 	+= -c -DNeedFunctionPrototypes=1 -funroll-loops -fPIC
+CC		?= gcc
+CCFLAGS 	+= -c -DNeedFunctionPrototypes=1 -funroll-loops -fPIC $(OPTIMIZE) -fomit-frame-pointer
 
 LD 		= $(CC)
 
@@ -150,7 +150,7 @@ INC	= $(ROOT)/inc
 DEBUG	= -DNDEBUG
 ######### Remove -DNDEBUG to enable assertions.
 
-CFLAGS	= $(PG) $(CCFLAGS) $(SASR) $(DEBUG) $(MULHACK) $(FAST) \
+CFLAGS += $(PG) $(CCFLAGS) $(SASR) $(DEBUG) $(MULHACK) $(FAST) \
 	$(LTP_CUT) $(WAV49) $(K6OPT) $(CCINC) -I$(INC)
 ######### It's $(CC) $(CFLAGS)
 

@@ -19,8 +19,15 @@ endif
 #
 # This needs to be updated to deal with more than just little endian machines
 #
-CFLAGS += -march=$(shell uname -m) -DPBYTE_ORDER=PLITTLE_ENDIAN
+OSARCH=$(shell uname -s)
+ifneq (${OSARCH},FreeBSD)
+CFLAGS += -march=$(shell uname -m)
+endif
+CFLAGS += -DPBYTE_ORDER=PLITTLE_ENDIAN
 
+ifeq (${OSARCH},Linux)
+LDLIBS+=-ldl
+endif
 
 #############################################
 #
@@ -38,16 +45,22 @@ CFLAGS += -march=$(shell uname -m) -DPBYTE_ORDER=PLITTLE_ENDIAN
 
 # Pre Janus release directives
 CFLAGS += -DNDEBUG -DDO_CRASH -DDEBUG_THREADS
-CFLAGS += -pipe -Wall -fPIC -Wmissing-prototypes -Wmissing-declarations
+CFLAGS += -pipe -Wall -fPIC
 ifeq (${OSARCH},Linux)
 CFLAGS += -DP_LINUX
+LIBS+=-lpthread
+endif
+ifeq ($(findstring BSD,${OSARCH}),BSD)
+CFLAGS += -pthread
 endif
 CFLAGS += -D_REENTRANT -D_GNU_SOURCE
 CFLAGS += -DP_HAS_SEMAPHORES -DP_SSL -DP_PTHREADS
 CFLAGS += -DPHAS_TEMPLATES -DPTRACING -DP_USE_PRAGMA
 CFLAGS += -I../../include
 CFLAGS += -I$(PWLIBDIR)/include/ptlib/unix -I$(PWLIBDIR)/include
-CFLAGS += -I$(OPENH323DIR)/include -Wno-missing-prototypes -Wno-missing-declarations
+CFLAGS += -I$(OPENH323DIR)/include
+CFLAGS += -Wno-missing-prototypes -Wno-missing-declarations
+LIBS+= -lcrypto -lssl -lexpat
 
 all:   	libchanh323.a
 
@@ -59,19 +72,19 @@ samples:
  
 
 ast_h323.o:	ast_h323.cpp
-	g++ -g -c -fno-rtti -o $@ $(CFLAGS) $<
+	$(CXX) -g -c -fno-rtti -o $@ $(CFLAGS) $<
 
 libchanh323.a:	ast_h323.o
 	ar cr libchanh323.a ast_h323.o
 
 chan_h323.so:	
-	g++  -g -shared -Xlinker -x -o chan_h323.so chan_h323.o ast_h323.o -L$(PWLIBDIR)/lib  -lpt_linux_x86_r -L$(OPENH323DIR)/lib -lh323_linux_x86_r -L/usr/lib -lpthread -ldl -lcrypto -lssl -lexpat
+	$(CXX)  -g -shared -Xlinker -x -o chan_h323.so chan_h323.o ast_h323.o -L$(PWLIBDIR)/lib  -lpt_linux_x86_r -L$(OPENH323DIR)/lib -lh323_linux_x86_r -L/usr/lib $(CHANH323LIB)
 
 chan_h323_d.so:	chan_h323.o ast_h323.o
-	g++  -shared -Xlinker -x -o chan_h323.so chan_h323.o ast_h323.o -L$(PWLIBDIR)/lib  -lpt_linux_x86_d -L$(OPENH323DIR)/lib -lh323_linux_x86_d -L/usr/lib -lpthread -ldl -lcrypto -lssl -lexpat
+	$(CXX)     -shared -Xlinker -x -o chan_h323.so chan_h323.o ast_h323.o -L$(PWLIBDIR)/lib  -lpt_linux_x86_d -L$(OPENH323DIR)/lib -lh323_linux_x86_d -L/usr/lib $(CHANH323LIB)
 
 chan_h323_s.so:	chan_h323.o ast_h323.o
-	g++  -shared -Xlinker -x -o chan_h323.so chan_h323.o ast_h323.o -L$(PWLIBDIR)/lib  -lpt_linux_x86_r_s -L$(OPENH323DIR)/lib -lh323_linux_x86_r_s -L/usr/lib -lpthread -ldl -lcrypto -lssl -lexpat
+	$(CXX)  -shared -Xlinker -x -o chan_h323.so chan_h323.o ast_h323.o -L$(PWLIBDIR)/lib  -lpt_linux_x86_r_s -L$(OPENH323DIR)/lib -lh323_linux_x86_r_s -L/usr/lib $(CHANH323LIB)
 clean:
 	rm -f *.o *.so core.* libchanh323.a
 

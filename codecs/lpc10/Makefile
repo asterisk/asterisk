@@ -3,7 +3,7 @@
 # 
 
 # default C compiler
-CC= gcc
+CC?= gcc
 
 # 
 # These definitions for CFLAGS and LIB_TARGET_DIR are used when one
@@ -22,15 +22,17 @@ LIB_TARGET_DIR = .
 # 
 
 WARNINGS = -Wall -Wno-comment -Wno-error
-CFLAGS = $(OPTIMIZE) -I$(LIB_TARGET_DIR) $(WARNINGS) -fPIC
+CFLAGS += $(OPTIMIZE) -I$(LIB_TARGET_DIR) $(WARNINGS) -fPIC
 #CFLAGS+= $(shell if uname -m | grep -q 86; then echo "-mpentium" ; fi)
 
 #fix for PPC processors and ALPHA too
 ifneq ($(OSARCH),Darwin)
+ifneq ($(findstring BSD,${OSARCH}),BSD)
 ifneq ($(PROC),ppc)
 ifneq ($(PROC),x86_64)
 ifneq ($(PROC),alpha)
 	CFLAGS+= -march=$(PROC)
+endif
 endif
 endif
 endif

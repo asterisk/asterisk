@@ -2042,11 +2042,11 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	struct sip_pvt *p;
 
 	p = malloc(sizeof(struct sip_pvt));
-        ast_mutex_init(&p->lock);
 	if (!p)
 		return NULL;
 	/* Keep track of stuff */
 	memset(p, 0, sizeof(struct sip_pvt));
+        ast_mutex_init(&p->lock);
 	p->initid = -1;
 	p->autokillid = -1;
 	p->stateid = -1;
@@ -8326,6 +8326,7 @@ int unload_module()
 			pl = p;
 			p = p->next;
 			/* Free associated memory */
+			ast_mutex_destroy(&pl->lock);
 			free(pl);
 		}
 		iflist = NULL;
@@ -8338,6 +8339,9 @@ int unload_module()
 	if (localaddr) {
 		ast_free_ha(localaddr);
 	}
+        ast_mutex_destroy(&userl.lock);
+        ast_mutex_destroy(&peerl.lock);
+        ast_mutex_destroy(&regl.lock);
 		
 	return 0;
 }

@@ -279,8 +279,6 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 			bridges[i].fo = fo;
 			bridges[i].c0 = c0;
 			bridges[i].c1 = c1;
-			ast_mutex_init(&bridges[i].lock);
-			pthread_cond_init(&bridges[i].cond, NULL);
 		} 	       
 	} ast_mutex_unlock(&bridge_lock); 
 
@@ -356,8 +354,6 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 
 	ast_mutex_lock(&bridge_lock); {
 		bridges[i].inuse = 0;
-		ast_mutex_destroy(&bridges[i].lock);
-		pthread_cond_destroy(&bridges[i].cond);	
 	} ast_mutex_unlock(&bridge_lock); 
 
 	p0->bridge = NULL;
@@ -975,8 +971,13 @@ static void mkbrd(vpb_model_t model, int echo_cancel)
 		bridges = (vpb_bridge_t *)malloc(max_bridges * sizeof(vpb_bridge_t) );
 		if(!bridges) 
 			ast_log(LOG_ERROR, "Failed to initialize bridges\n");
-		else 
+		else {
 			memset(bridges,0,max_bridges * sizeof(vpb_bridge_t));
+			for(int i = 0; i < max_bridges; i++ ) {
+				ast_mutex_init(&bridges[i].lock);
+				pthread_cond_init(&bridges[i].cond, NULL);
+			}
+		}
 	}
 	if(!echo_cancel) {
 		if (model==vpb_model_v4pci) {
@@ -1062,6 +1063,7 @@ struct vpb_pvt *mkif(int board, int channel, int mode, float txgain, float rxgai
 			tmp->vpb_model = vpb_model_v4pci;
 	}
 
+	ast_mutex_init(&tmp->owner_lock);
 	ast_mutex_init(&tmp->lock);
 	ast_mutex_init(&tmp->record_lock);
 	ast_mutex_init(&tmp->play_lock);
@@ -2080,6 +2082,7 @@ int unload_module()
 			p = iflist;		    
 			ast_mutex_destroy(&p->lock);
 			pthread_cancel(p->readthread);
+			ast_mutex_destroy(&p->owner_lock);
 			ast_mutex_destroy(&p->record_lock);
 			ast_mutex_destroy(&p->play_lock);
 			ast_mutex_destroy(&p->play_dtmf_lock);
@@ -2098,6 +2101,10 @@ int unload_module()
 		memset(bridges, 0, sizeof bridges);	     
 	} ast_mutex_unlock(&bridge_lock);
 	ast_mutex_destroy(&bridge_lock);
+	for(int i = 0; i < max_bridges; i++ ) {
+		ast_mutex_destroy(&bridges[i].lock);
+		pthread_cond_destroy(&bridges[i].cond, NULL);
+	}
 	free(bridges);
 
 	return 0;

@@ -49,6 +49,7 @@
 #include "asterisk.h"
 #include <asterisk/config.h>
 #include <asterisk/config_pvt.h>
+#include <sys/resource.h>
 
 #if  defined(__FreeBSD__)
 #include <netdb.h>
@@ -1561,6 +1562,11 @@ int main(int argc, char *argv[])
 	term_init();
 	printf(term_end());
 	fflush(stdout);
+
+	/* Test recursive mutex locking. */
+        if(test_for_thread_safety())
+        	ast_verbose("Warning! Asterisk is not thread safe.\n");
+
 	if (option_console && !option_verbose) 
 		ast_verbose("[ Reading Master Configuration ]");
 	ast_readconfig();

@@ -1104,6 +1104,7 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
 				l = malloc(sizeof(struct skinny_line));;
 				if (l) {
 					memset(l, 0, sizeof(struct skinny_line));
+                                        ast_mutex_init(&l->lock);
 					strncpy(l->name, v->value, sizeof(l->name) - 1);
 					
 					/* XXX Should we check for uniqueness?? XXX */
@@ -1145,6 +1146,7 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
                        				if (sub) {
                            				ast_verbose(VERBOSE_PREFIX_3 "Allocating Skinny subchannel '%d' on %s@%s\n", i, l->name, d->name);
                            				memset(sub, 0, sizeof(struct skinny_subchannel));
+                                                        ast_mutex_init(&sub->lock);
                        					sub->parent = l;
                        					/* Make a call*ID */
 							sub->callid = callnums;
@@ -2262,6 +2264,7 @@ static void destroy_session(struct skinnysession *s)
 			sessions = cur->next;
 		if (s->fd > -1)
 			close(s->fd);
+		ast_mutex_destroy(&s->lock);
 		free(s);
 	} else
 		ast_log(LOG_WARNING, "Trying to delete non-existant session %p?\n", s);
@@ -2662,10 +2665,12 @@ void delete_devices(void)
 			for (sub=l->sub;sub;) {
 				slast = sub;
 				sub = sub->next;
+				ast_mutex_destroy(&slast->lock);
 				free(slast);
 			}
 			llast = l;
 			l = l->next;
+			ast_mutex_destroy(&llast->lock);
 			free(llast);
 		}
 		dlast = d;
@@ -2758,6 +2763,7 @@ int unload_module()
 			pl = p;
 			p = p->next;
 			/* Free associated memory */
+			ast_mutex_destroy(&pl->lock);
 			free(pl);
 		}
 		iflist = NULL;

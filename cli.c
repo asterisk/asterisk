@@ -181,8 +181,8 @@ static char *format_uptimestr(time_t timeval)
 	char timestr[256];
 	int pos = 0;
 #define SECOND (1)
-#define MIN (SECOND*60)
-#define HOUR (MIN*60)
+#define MINUTE (SECOND*60)
+#define HOUR (MINUTE*60)
 #define DAY (HOUR*24)
 #define WEEK (DAY*7)
 #define YEAR (DAY*365)
@@ -222,9 +222,9 @@ static char *format_uptimestr(time_t timeval)
 		else
 			pos += sprintf(timestr + pos, "1 hour, ");
 	}
-	if (timeval > MIN) {
-		mins = (timeval / MIN);
-		timeval -= (mins * MIN);
+	if (timeval > MINUTE) {
+		mins = (timeval / MINUTE);
+		timeval -= (mins * MINUTE);
 		if (mins > 1)
 			pos += sprintf(timestr + pos, "%d minutes, ", mins);
 		else if (mins > 0)

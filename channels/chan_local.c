@@ -87,6 +87,7 @@ retrylock:
 		/* We had a glare on the hangup.  Forget all this business,
 		return and destroy p.  */
 		ast_mutex_unlock(&p->lock);
+		ast_mutex_destroy(&p->lock);
 		free(p);
 		return -1;
 	}
@@ -271,6 +272,7 @@ static void local_destroy(struct local_pvt *p)
 				prev->next = cur->next;
 			else
 				locals = cur->next;
+			ast_mutex_destroy(cur);
 			free(cur);
 			break;
 		}
@@ -324,8 +326,10 @@ static int local_hangup(struct ast_channel *ast)
 		}
 		ast_mutex_unlock(&locallock);
 		/* And destroy */
-		if (!glaredetect)
+		if (!glaredetect) {
+			ast_mutex_destroy(&p->lock);
 			free(p);
+		}
 		return 0;
 	}
 	if (p->chan && !p->launchedpbx)
@@ -366,6 +370,7 @@ static struct local_pvt *local_alloc(char *data, int format)
 		tmp->reqformat = format;
 		if (!ast_exists_extension(NULL, tmp->context, tmp->exten, 1, NULL)) {
 			ast_log(LOG_NOTICE, "No such extension/context %s@%s creating local channel\n", tmp->context, tmp->exten);
+			ast_mutex_destroy(&tmp->lock);
 			free(tmp);
 			tmp = NULL;
 		} else {

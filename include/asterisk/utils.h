@@ -26,4 +26,6 @@ struct ast_hostent {
 
 extern struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp);
 
+extern int test_for_thread_safety(void);
+
 #endif

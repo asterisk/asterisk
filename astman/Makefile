@@ -4,7 +4,7 @@
 CFLAGS+=-DNO_AST_MM
 
 OSARCH=$(shell uname -s)
-ifeq (${OSARCH},FreeBSD)
+ifeq ($(findstring BSD,${OSARCH}),BSD)
 CFLAGS+=-I/usr/local/include -L/usr/local/lib
 endif
 

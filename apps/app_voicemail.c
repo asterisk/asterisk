@@ -330,7 +330,7 @@ static void apply_options(struct ast_vm_user *vmu, char *options)
 
 PGconn *dbhandler;
 char	dboption[256];
-ast_mutex_t postgreslock;
+AST_MUTEX_DEFINE_STATIC(postgreslock);
 
 static int sql_init(void)
 {
@@ -342,8 +342,6 @@ static int sql_init(void)
 		ast_log(LOG_WARNING, "Error Logging into database %s: %s\n",dboption,PQerrorMessage(dbhandler));
 		return(-1);
 	}
-	ast_mutex_init(&postgreslock);
-
 /*	fprintf(stderr,"postgres login OK\n"); */
 	return(0);
 }

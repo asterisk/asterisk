@@ -3423,15 +3423,19 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					gw->expire = -1;
 					gw->dynamic = 0;
 					if (ast_get_ip(&gw->addr, v->value)) {
-                        if (!gw_reload)
+                        if (!gw_reload) {
+                            ast_mutex_destroy(&gw->msgs_lock);
                             free(gw);
+						}
 						return NULL;
 					}
 				}
 			} else if (!strcasecmp(v->name, "defaultip")) {
 				if (ast_get_ip(&gw->defaddr, v->value)) {
-                    if (!gw_reload)
+                    if (!gw_reload) {
+                        ast_mutex_destroy(&gw->msgs_lock);
                         free(gw);
+                    }
 					return NULL;
 				}
 			} else if (!strcasecmp(v->name, "permit") ||
@@ -3501,15 +3505,17 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
                 }
 
                 if (!e) {
+                    /* Allocate wildcard endpoint */
                     e = malloc(sizeof(struct mgcp_endpoint));
                     ep_reload = 0;
                 }
 
-				/* Allocate wildcard endpoint */
-				e = malloc(sizeof(struct mgcp_endpoint));
 				if (e) {
 					if (!ep_reload) {
                         memset(e, 0, sizeof(struct mgcp_endpoint));
+                        ast_mutex_init(&e->lock);
+                        ast_mutex_init(&e->rqnt_queue_lock);
+                        ast_mutex_init(&e->cmd_queue_lock);
                         strncpy(e->name, v->value, sizeof(e->name) - 1);
                         e->needaudit = 1;
                     }
@@ -3545,6 +3551,8 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 						if (sub) {
 							ast_verbose(VERBOSE_PREFIX_3 "Allocating subchannel '%d' on %s@%s\n", i, e->name, gw->name);
 							memset(sub, 0, sizeof(struct mgcp_subchannel));
+							ast_mutex_init(&sub->lock);
+							ast_mutex_init(&sub->cx_queue_lock);
 							sub->parent = e;
 							sub->id = i;
 							snprintf(sub->txident, sizeof(sub->txident), "%08x", rand());
@@ -3594,6 +3602,9 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 				if (e) {
                     if (!ep_reload) {
                         memset(e, 0, sizeof(struct mgcp_endpoint));
+                        ast_mutex_init(&e->lock);
+                        ast_mutex_init(&e->rqnt_queue_lock);
+                        ast_mutex_init(&e->cmd_queue_lock);
                         strncpy(e->name, v->value, sizeof(e->name) - 1);
                         e->needaudit = 1;
                     }
@@ -3633,8 +3644,6 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
                         /* ASSUME we're onhook */
                         e->hookstate = MGCP_ONHOOK;
                         snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08x", rand());
-                        ast_mutex_init(&e->rqnt_queue_lock);
-                        ast_mutex_init(&e->cmd_queue_lock);
                     }
 
                     for (i = 0, sub = NULL; i < MAX_SUBS; i++) {
@@ -3652,13 +3661,14 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
                             if (!ep_reload) {
                                 ast_verbose(VERBOSE_PREFIX_3 "Allocating subchannel '%d' on %s@%s\n", i, e->name, gw->name);
                                 memset(sub, 0, sizeof(struct mgcp_subchannel));
+                                ast_mutex_init(&sub->lock);
+                                ast_mutex_init(&sub->cx_queue_lock);
                                 strncpy(sub->magic, MGCP_SUBCHANNEL_MAGIC, sizeof(sub->magic) - 1);
                                 sub->parent = e;
                                 sub->id = i;
                                 snprintf(sub->txident, sizeof(sub->txident), "%08x", rand());
                                 sub->cxmode = MGCP_CX_INACTIVE;
                                 sub->next = e->sub;
-                                ast_mutex_init(&sub->cx_queue_lock);
                                 e->sub = sub;
                             }
                             sub->nat = nat;
@@ -3690,8 +3700,10 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 	}
 	if (!ntohl(gw->addr.sin_addr.s_addr) && !gw->dynamic) {
 		ast_log(LOG_WARNING, "Gateway '%s' lacks IP address and isn't dynamic\n", gw->name);
-        if (!gw_reload)
+        if (!gw_reload) {
+            ast_mutex_destroy(&gw->msgs_lock);
             free(gw);
+		}
 		return NULL;
 	}
 	if (gw->defaddr.sin_addr.s_addr && !ntohs(gw->defaddr.sin_port)) 
@@ -3803,8 +3815,13 @@ static void destroy_endpoint(struct mgcp_endpoint *e)
     for (i = 0; (i < MAX_SUBS) && sub; i++) {
         s = sub;
         sub = sub->next;
+        ast_mutex_destroy(&s->lock);
+        ast_mutex_destroy(&s->cx_queue_lock);
         free(s);
     }
+    ast_mutex_destroy(&e->lock);
+    ast_mutex_destroy(&e->rqnt_queue_lock);
+    ast_mutex_destroy(&e->cmd_queue_lock);
     free(e);
 }
 
@@ -4132,6 +4149,9 @@ int unload_module()
 			pl = p;
 			p = p->next;
 			/* Free associated memory */
+			ast_mutex_destroy(&pl->lock);
+			ast_mutex_destroy(&pl->rqnt_queue_lock);
+			ast_mutex_destroy(&pl->cmd_queue_lock);
 			free(pl);
 		}
 		iflist = NULL;

@@ -2113,7 +2113,10 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int i;
 	STANDARD_HANGUP_LOCALUSERS;
+	for(i = 0; i < nrpts; i++) {
+                ast_mutex_destroy(&rpt_vars[i].lock);
 	return ast_unregister_application(app);
 	return 0;
 }

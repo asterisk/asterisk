@@ -122,7 +122,7 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 	}
 }
 
-#define MAX 256
+#define AST_MAX_WATCHERS 256
 
 static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect, int *sentringing)
 {
@@ -133,7 +133,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 	int orig = *to;
 	struct ast_frame *f;
 	struct ast_channel *peer = NULL;
-	struct ast_channel *watchers[MAX];
+	struct ast_channel *watchers[AST_MAX_WATCHERS];
 	int pos;
 	int single;
 	struct ast_channel *winner;

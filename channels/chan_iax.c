@@ -447,7 +447,7 @@ static struct iax_dpcache {
 	struct iax_dpcache *peer;	/* For linking in peers */
 } *dpcache;
 
-static ast_mutex_t dpcache_lock;
+AST_MUTEX_DEFINE_STATIC(dpcache_lock);
 
 #ifdef DEBUG_SUPPORT
 static void showframe(struct ast_iax_frame *f, struct ast_iax_full_hdr *fhi, int rx, struct sockaddr_in *sin)
@@ -5369,6 +5369,12 @@ static int __unload_module(void)
 
 int unload_module()
 {
+	int x;
+	for (x=0;x<AST_IAX_MAX_CALLS;x++)
+		ast_mutex_destroy(&iaxsl[x]);
+	ast_mutex_destroy(&iaxq.lock);
+	ast_mutex_destroy(&userl.lock);
+	ast_mutex_destroy(&peerl.lock);
 	return __unload_module();
 }
 
@@ -5403,7 +5409,6 @@ int load_module(void)
 	ast_mutex_init(&iaxq.lock);
 	ast_mutex_init(&userl.lock);
 	ast_mutex_init(&peerl.lock);
-	ast_mutex_init(&dpcache_lock);
 
 	ast_cli_register(&cli_show_users);
 	ast_cli_register(&cli_show_channels);

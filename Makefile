@@ -26,15 +26,12 @@ PROC=k8
 #PROC=athlon
 OPTIONS+=-m64
 endif
-else
-ifeq (${OSARCH},FreeBSD)
-PROC=$(shell uname -m)
-else
-ifeq (${OSARCH},OpenBSD)
+endif
+
+ifeq ($(findstring BSD,${OSARCH}),BSD)
 PROC=$(shell uname -m)
 endif
-endif
-endif
+
 # Pentium Pro Optimize
 #PROC=i686
 
@@ -120,10 +117,15 @@ CFLAGS=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarati
 CFLAGS+=$(OPTIMIZE)
 CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
 CFLAGS+=$(shell if uname -m | grep -q ppc; then echo "-fsigned-char"; fi)
+
 ifeq (${OSARCH},FreeBSD)
-CFLAGS+=-pthread
+OSVERSION=$(shell make -V OSVERSION -f /usr/share/mk/bsd.port.subdir.mk)
+CFLAGS+=$(if ${OSVERSION}<500016,-D_THREAD_SAFE)
+LIBS+=$(if ${OSVERSION}<502102,-lc_r,-pthread)
 INCLUDE+=-I/usr/local/include
-endif
+CFLAGS+=$(shell if [ -d /usr/local/include/spandsp ]; then echo "-I/usr/local/include/spandsp"; fi)
+endif # FreeBSD
+
 ifeq (${OSARCH},OpenBSD)
 CFLAGS+=-pthread
 endif
@@ -160,14 +162,6 @@ CFLAGS+=# -fomit-frame-pointer
 SUBDIRS=res channels pbx apps codecs formats agi cdr astman stdtime
 ifeq (${OSARCH},Linux)
 LIBS=-ldl -lpthread
-endif
-ifeq (${OSARCH},OpenBSD)
-LIBS=-pthread
-else
-ifeq (${OSARCH},FreeBSD)
-LIBS=-pthread
-else
-endif
 endif
 LIBS+=-lncurses -lm
 ifeq (${OSARCH},Linux)
