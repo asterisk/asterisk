@@ -61,6 +61,7 @@
 ;cancallforward=no
 ;canreinvite=no
 ;dtmfmode=inband
+;singlepath=yes		; This device only supports a single RTP path
 ;line => aaln/1
 ;callerid = "Duane Cox" <456>
 ;callwaiting=no

@@ -192,6 +192,8 @@ static int transfer = 0;
 
 static int cancallforward = 0;
 
+static int singlepath = 0;
+
 static int canreinvite = CANREINVITE;
 
 /*static int busycount = 3;*/
@@ -365,6 +367,7 @@ struct mgcp_endpoint {
 	int callwaiting;
     int transfer;
     int threewaycalling;
+	int singlepath;
 	int cancallforward;
 	int canreinvite;
 	int callreturn;
@@ -3497,6 +3500,8 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
                 immediate = ast_true(v->value);
             } else if (!strcasecmp(v->name, "cancallforward")) {
                 cancallforward = ast_true(v->value);
+            } else if (!strcasecmp(v->name, "singlepath")) {
+                singlepath = ast_true(v->value);
             } else if (!strcasecmp(v->name, "canreinvite")) {
                 canreinvite = ast_true(v->value);
             } else if (!strcasecmp(v->name, "mailbox")) {
@@ -3562,6 +3567,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
             		e->pickupgroup=cur_pickupgroup;
             		e->callreturn = callreturn;
             		e->cancallforward = cancallforward;
+            		e->singlepath = singlepath;
             		e->canreinvite = canreinvite;
             		e->callwaiting = callwaiting;
             		e->slowsequence = slowsequence;
