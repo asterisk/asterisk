@@ -43,6 +43,7 @@ ZAPPRI=$(shell [ -f /usr/lib/libpri.so.1 ] && echo "-lpri")
 ZAPR2=$(shell [ -f /usr/lib/libmfcr2.so.1 ] && echo "-lmfcr2")
 CFLAGS+=$(shell [ -f /usr/include/linux/zaptel.h ] && echo "-DIAX_TRUNKING")
 CHANNEL_LIBS+=$(shell [ -f /usr/include/vpbapi.h ] && echo "chan_vpb.so" )
+CFLAGS+=$(shell [ -f /usr/include/vpbapi.h] && echo " -DLINUX")
 
 ALSA_SRC=chan_alsa.c
 ALSA_SRC+=$(shell [ -f alsa-monitor.h ] && echo "alsa-monitor.h")
