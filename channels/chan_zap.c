@@ -2573,6 +2573,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 #ifdef PRI_DESTROYCALL
 			pri_destroycall(p->pri->pri, p->call);
 			p->call = NULL;
+			p->owner = NULL;
 #else
 #error Please "cvs update" and recompile libpri
 #endif
