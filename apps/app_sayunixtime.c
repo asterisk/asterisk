@@ -82,7 +82,11 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	res = ast_say_date_with_format(chan, unixtime, AST_DIGIT_ANY, chan->language, format, zone);
+	if (chan->_state != AST_STATE_UP) {
+		res = ast_answer(chan);
+	}
+	if (!res)
+		res = ast_say_date_with_format(chan, unixtime, AST_DIGIT_ANY, chan->language, format, zone);
 
 	LOCAL_USER_REMOVE(u);
 	return res;
