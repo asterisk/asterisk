@@ -252,6 +252,18 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;mailbox=1234@context,2345      ; Mailbox(-es) for message waiting indicator
 
 
+;[polycom]
+;type=friend			; Friends place calls and receive calls
+;context=from-sip		; Context for incoming calls from this user
+;secret=blahpoly
+;host=dynamic			; This peer register with us
+;dtmfmode=rfc2833		; Choices are inband, rfc2833, or info
+;username=polly			; Username to use in INVITE until peer registers
+;disallow=all
+;allow=ulaw                     ; dtmfmode=inband only works with ulaw or alaw!
+;progressinband=no		; Polycom phones don't work properly with "never"
+
+
 ;[pingtel]
 ;type=friend
 ;username=pingtel
