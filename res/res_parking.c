@@ -11,6 +11,7 @@
  * the GNU General Public License
  */
 
+#include <asterisk/lock.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -21,6 +22,8 @@
 #include <asterisk/say.h>
 #include <asterisk/channel_pvt.h>
 #include <asterisk/parking.h>
+#include <asterisk/musiconhold.h>
+#include <asterisk/config.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -74,7 +77,7 @@ struct parkeduser {
 
 static struct parkeduser *parkinglot;
 
-static pthread_mutex_t parking_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t parking_lock = AST_MUTEX_INITIALIZER;
 
 static pthread_t parking_thread;
 
@@ -108,6 +111,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer)
 		}
 		if (x <= parking_stop) {
 			pu->chan = chan;
+			ast_moh_start(pu->chan, NULL);
 			gettimeofday(&pu->start, NULL);
 			pu->parkingnum = x;
 			/* Remember what had been dialed, so that if the parking
@@ -123,6 +127,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer)
 			if (option_verbose > 1) 
 				ast_verbose(VERBOSE_PREFIX_2 "Parked %s on %d\n", pu->chan->name, pu->parkingnum);
 			ast_say_digits(peer, pu->parkingnum, "", peer->language);
+			/* Start music on hold */
 			return 0;
 		} else {
 			ast_log(LOG_WARNING, "No more parking spaces\n");
@@ -142,7 +147,7 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer)
 	struct ast_channel *chan;
 	struct ast_frame *f;
 	/* Make a new, fake channel that we'll use to masquerade in the real one */
-	chan = ast_channel_alloc();
+	chan = ast_channel_alloc(0);
 	if (chan) {
 		/* Let us keep track of the channel name */
 		snprintf(chan->name, sizeof (chan->name), "Parked/%s",rchan->name);
@@ -317,6 +322,8 @@ static void *do_parking_thread(void *ignore)
 				strncpy(pu->chan->exten, pu->exten, sizeof(pu->chan->exten)-1);
 				strncpy(pu->chan->context, pu->context, sizeof(pu->chan->context)-1);
 				pu->chan->priority = pu->priority;
+				/* Stop music on hold */
+				ast_moh_stop(pu->chan);
 				/* Start up the PBX, or hang them up */
 				if (ast_pbx_start(pu->chan))  {
 					ast_log(LOG_WARNING, "Unable to restart the PBX for user on '%s', hanging them up...\n", pu->chan->name);
@@ -420,6 +427,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 		free(pu);
 	}
 	if (peer) {
+		ast_moh_stop(peer);
 		res = ast_channel_make_compatible(chan, peer);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Could not make channels %s and %s compatible for bridge\n", chan->name, peer->name);
@@ -449,8 +457,31 @@ int load_module(void)
 {
 	int res;
 	int x;
+	int start, end;
 	struct ast_context *con;
 	char exten[AST_MAX_EXTENSION];
+	struct ast_config *cfg;
+	struct ast_variable *var;
+	cfg = ast_load("parking.conf");
+	if (cfg) {
+		var = ast_variable_browse(cfg, "general");
+		while(var) {
+			if (!strcasecmp(var->name, "parkext")) {
+				strncpy(parking_ext, var->value, sizeof(parking_ext) - 1);
+			} else if (!strcasecmp(var->name, "context")) {
+				strncpy(parking_con, var->value, sizeof(parking_con) - 1);
+			} else if (!strcasecmp(var->name, "parkpos")) {
+				if (sscanf(var->value, "%i-%i", &start, &end) != 2) {
+					ast_log(LOG_WARNING, "Format for parking positions is a-b, where a and b are numbers at line %d of parking.conf\n", var->lineno);
+				} else {
+					parking_start = start;
+					parking_stop = end;
+				}
+			}
+			var = var->next;
+		}
+		ast_destroy(cfg);
+	}
 	con = ast_context_find(parking_con);
 	if (!con) {
 		con = ast_context_create(parking_con, registrar);

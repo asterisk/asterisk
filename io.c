@@ -196,7 +196,7 @@ static int io_shrink(struct io_context *ioc, int which)
 int ast_io_remove(struct io_context *ioc, int *id)
 {
 	if (ioc->current_ioc == *id) {
-		ast_log(LOG_NOTICE, "Callback for %d tried to remove itself\n", *id);
+		ast_log(LOG_NOTICE, "Callback for %d tried to remove itself (%p)\n", *id, id);
 	} else
 	
 	if (*id < ioc->fdcnt) {
@@ -225,6 +225,7 @@ int ast_io_wait(struct io_context *ioc, int howlong)
 		for(x=0;x<ioc->fdcnt;x++) {
 			if (ioc->fds[x].revents) {
 				/* There's an event waiting */
+				
 				ioc->current_ioc = *ioc->ior[x].id;
 				if (!ioc->ior[x].callback(ioc->ior[x].id, ioc->fds[x].fd, ioc->fds[x].revents, ioc->ior[x].data)) {
 					/* Time to delete them since they returned a 0 */
