@@ -2984,6 +2984,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 		char resp_hash[256];
 		char tmp[256] = "";
 		char *c;
+		char *z;
 		char *response ="";
 		char *resp_uri ="";
 
@@ -3021,7 +3022,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 				}
 
 			} else
-		                c = strchr(c, ',');
+				if ((z = strchr(c,' ')) || (z = strchr(c,','))) c=z;
 			if (c)
 				c++;
 		}
