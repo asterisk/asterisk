@@ -32,17 +32,19 @@ static char *synopsis = "Read a variable";
 
 static char *descrip = 
 "  Read(variable[|filename][|maxdigits][|option][|attempts][|timeout])\n\n"
-"Reads a #-terminated string of digits a certian number of times from the\n"
-"user in to the given variable, optionally playing a given filename first.\n"
+"Reads a #-terminated string of digits a certain number of times from the\n"
+"user in to the given variable.\n"
+"  filename   -- file to play before reading digits.\n"
 "  maxdigits  -- maximum acceptable number of digits. Stops reading after\n"
 "                maxdigits have been entered (without requiring the user to\n"
 "                press the '#' key).\n"
 "                Defaults to 0 - no limit - wait for the user press the '#' key.\n"
 "                Any value below 0 means the same. Max accepted value is 255.\n"
 "  option     -- may be 'skip' to return immediately if the line is not up,\n"
-"                or 'noanswer' to read digits even if the line is not up.\n\n"
-"If attempts is greater than 1, that many attempts will be made in the event no data is entered.\n"
-"If timeout is greater than 0, that value will override the default timeout.\n\n"
+"                or 'noanswer' to read digits even if the line is not up.\n"
+"  attempts   -- if greater than 1, that many attempts will be made in the \n"
+"                event no data is entered.\n"
+"  timeout    -- if greater than 0, that value will override the default timeoft.\n\n"
 "Returns -1 on hangup or error and 0 otherwise.\n";
 
 STANDARD_LOCAL_USER;
@@ -113,10 +115,10 @@ static int read_exec(struct ast_channel *chan, void *data)
 	if (!(filename) || ast_strlen_zero(filename)) 
 		filename = NULL;
 	if (maxdigitstr) {
-	    maxdigits = atoi(maxdigitstr);
-	    if ((maxdigits<1) || (maxdigits>255)) {
-    		maxdigits = 255;
-	    } else
+		maxdigits = atoi(maxdigitstr);
+		if ((maxdigits<1) || (maxdigits>255)) {
+    			maxdigits = 255;
+		} else if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Accepting a maximum of %i digits.\n", maxdigits);
 	}
 	if (!(varname) || ast_strlen_zero(varname)) {
@@ -142,18 +144,22 @@ static int read_exec(struct ast_channel *chan, void *data)
 			if (res > -1) {
 				pbx_builtin_setvar_helper(chan, varname, tmp);
 				if (!ast_strlen_zero(tmp)) {
-					ast_verbose(VERBOSE_PREFIX_3 "User entered '%s'\n", tmp);
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "User entered '%s'\n", tmp);
 					tries = 0;
 				} else {
 					tries--;
-					if (tries)
-						ast_verbose(VERBOSE_PREFIX_3 "User entered nothing, %d chance(s) left\n", tries);
-					else
-						ast_verbose(VERBOSE_PREFIX_3 "User entered nothing.\n");
+					if (option_verbose > 2) {
+						if (tries)
+							ast_verbose(VERBOSE_PREFIX_3 "User entered nothing, %d chance(s) left\n", tries);
+						else
+							ast_verbose(VERBOSE_PREFIX_3 "User entered nothing.\n");
+					}
 				}
 				res = 0;
 			} else {
-				ast_verbose(VERBOSE_PREFIX_3 "User disconnected\n");
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "User disconnected\n");
 			}
 		}
 	}
