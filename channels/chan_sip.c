@@ -3556,14 +3556,19 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	strncpy(tmpf, get_header(req, "From"), sizeof(tmpf) - 1);
 	fr = ditch_braces(tmpf);
 	
-	if (fr && !strlen(fr))
-		fr = NULL;
-	
 	if (strncmp(c, "sip:", 4)) {
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
 		return -1;
 	}
 	c += 4;
+	if (strlen(fr)) {
+		if (strncmp(fr, "sip:", 4)) {
+			ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", fr);
+			return -1;
+		}
+		fr += 4;
+	} else
+		fr = NULL;
 	if ((a = strchr(c, '@')) || (a = strchr(c, ';'))) {
 		*a = '\0';
 	}
