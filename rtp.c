@@ -409,6 +409,11 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			ast_log(LOG_DEBUG, "RTP NAT: Using address %s:%d\n", inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
 		}
 	}
+	/* Ignore if the other side hasn't been given an address
+	   yet.  */
+	if (!rtp->them.sin_addr.s_addr || !rtp->them.sin_port)
+		return &null_frame;
+
 	/* Get fields */
 	seqno = ntohl(rtpheader[0]);
 	payloadtype = (seqno & 0x7f0000) >> 16;
