@@ -49,6 +49,11 @@
  *
  */
 
+#ifdef LOW_MEMORY
+#define EXT_DATA_SIZE 256
+#else
+#define EXT_DATA_SIZE 8192
+#endif
 
 struct ast_context;
 
@@ -1159,11 +1164,11 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 	int res;
 	int status = 0;
 	char *incstack[AST_PBX_MAX_STACK];
-	char passdata[256];
+	char passdata[EXT_DATA_SIZE];
 	int stacklen = 0;
 	char tmp[80];
 	char tmp2[80];
-	char tmp3[256];
+	char tmp3[EXT_DATA_SIZE];
 	if (ast_mutex_lock(&conlock)) {
 		ast_log(LOG_WARNING, "Unable to obtain lock\n");
 		if ((action == HELPER_EXISTS) || (action == HELPER_CANMATCH) || (action == HELPER_MATCHMORE))

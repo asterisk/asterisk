@@ -529,7 +529,7 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 					
 					if((c = strchr(cur,':'))) {
 						*c = '\0';
-						*c++;
+						c++;
 						arg = c;
 					}
 					
@@ -728,7 +728,7 @@ static struct ast_config *__ast_load(char *configfile, struct ast_config *tmp, s
 )
 {
 	char fn[256];
-	char buf[512];
+	char buf[8192];
 	FILE *f;
 	int lineno=0;
 	int master=0;

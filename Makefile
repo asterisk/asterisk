@@ -56,6 +56,10 @@ DEBUG=-g #-pg
 # will be received more reliably
 #OPTIONS += -DRADIO_RELAX
 
+# If you don't have a lot of memory (e.g. embedded Asterisk), uncomment the
+# following to reduce the size of certain static buffers
+#OPTIONS += -DLOW_MEMORY
+
 # Optional debugging parameters
 DEBUG_THREADS = #-DDEBUG_THREADS #-DDO_CRASH 
 
