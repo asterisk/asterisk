@@ -7208,9 +7208,10 @@ static int zap_destroy_channel(int fd, int argc, char **argv)
 
 static int zap_show_channels(int fd, int argc, char **argv)
 {
-#define FORMAT "%4d %-10.10s %-15.15s %-10.10s %-20.20s\n"
-#define FORMAT2 "%4s %-10.10s %-15.15s %-10.10s %-20.20s\n"
+#define FORMAT "%7s %-10.10s %-15.15s %-10.10s %-20.20s\n"
+#define FORMAT2 "%7s %-10.10s %-15.15s %-10.10s %-20.20s\n"
 	struct zt_pvt *tmp = NULL;
+	char tmps[20];
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -7220,7 +7221,11 @@ static int zap_show_channels(int fd, int argc, char **argv)
 	
 	tmp = iflist;
 	while (tmp) {
-		ast_cli(fd, FORMAT, tmp->channel, tmp->exten, tmp->context, tmp->language, tmp->musicclass);
+		if (tmp->channel > 0) {
+			sprintf(tmps, "%d", tmp->channel);
+		} else
+			strcpy(tmps, "pseudo");
+		ast_cli(fd, FORMAT, tmps, tmp->exten, tmp->context, tmp->language, tmp->musicclass);
 		tmp = tmp->next;
 	}
 	ast_mutex_unlock(&iflock);
@@ -7593,6 +7598,7 @@ static int setup_zap(void)
 	char *ringc;
 	int start, finish,x;
 	int y;
+	int found_pseudo = 0;
 	int cur_radio = 0;
 #ifdef ZAPATA_PRI
 	int offset;
@@ -7633,6 +7639,7 @@ static int setup_zap(void)
 					finish = start;
 				} else if (!strcasecmp(chan, "pseudo")) {
 					finish = start = CHAN_PSEUDO;
+					found_pseudo = 1;
 				} else {
 					ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'\n", v->value, chan);
 					ast_destroy(cfg);
@@ -8033,6 +8040,16 @@ static int setup_zap(void)
 		} else
 			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 		v = v->next;
+	}
+	if (!found_pseudo) {
+		tmp = mkintf(CHAN_PSEUDO, cur_signalling, cur_radio);
+
+		if (tmp) {
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Automatically generated pseudo channel\n");
+		} else {
+			ast_log(LOG_WARNING, "Unable to register pseudo channel!\n");
+		}
 	}
 	ast_mutex_unlock(&iflock);
 	ast_destroy(cfg);
