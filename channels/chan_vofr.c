@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
+#include <asterisk/lock.h>
 #include <asterisk/channel.h>
 #include <asterisk/channel_pvt.h>
 #include <asterisk/config.h>
@@ -52,14 +53,14 @@ static char context[AST_MAX_EXTENSION] = "default";
 static char language[MAX_LANGUAGE] = "";
 
 static int usecnt =0;
-static pthread_mutex_t usecnt_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 /* Protect the interface list (of vofr_pvt's) */
-static pthread_mutex_t iflock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t iflock = AST_MUTEX_INITIALIZER;
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
-static pthread_mutex_t monlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t monlock = AST_MUTEX_INITIALIZER;
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
@@ -798,7 +799,7 @@ static int vofr_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 static struct ast_channel *vofr_new(struct vofr_pvt *i, int state)
 {
 	struct ast_channel *tmp;
-	tmp = ast_channel_alloc();
+	tmp = ast_channel_alloc(0);
 	if (tmp) {
 #ifdef OLD_SANGOMA_API
 		snprintf(tmp->name, sizeof(tmp->name), "AdtranVoFR/%s", i->sa.spkt_device);

@@ -71,7 +71,7 @@ static int silencethreshold = 1000;
 static char digits[80] = "";
 static char text2send[80] = "";
 
-static pthread_mutex_t usecnt_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 static char *type = "Console";
 static char *desc = "ALSA Console Channel Driver";
@@ -782,7 +782,7 @@ static int alsa_indicate(struct ast_channel *chan, int cond)
 static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 {
 	struct ast_channel *tmp;
-	tmp = ast_channel_alloc();
+	tmp = ast_channel_alloc(0);
 	if (tmp) {
 		snprintf(tmp->name, sizeof(tmp->name), "ALSA/%s", indevname);
 		tmp->type = type;
