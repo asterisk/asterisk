@@ -557,6 +557,7 @@ static void pbx_destroy(struct ast_pbx *p)
 	match=1;\
 	pattern++;\
 	while(match && *data && *pattern && (*pattern != '/')) {\
+		while (*data == '-' && (*(data+1) != '\0')) data++;\
 		switch(toupper(*pattern)) {\
 		case '[': \
 		{\
