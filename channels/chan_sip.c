@@ -367,6 +367,7 @@ static int transmit_invite(struct sip_pvt *p, char *msg, int sendsdp, char *auth
 static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
 static int transmit_message_with_text(struct sip_pvt *p, char *text);
+static int transmit_refer(struct sip_pvt *p, char *dest);
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req);
 static char *getsipuri(char *header);
 static void free_old_route(struct sip_route *route);
@@ -996,6 +997,14 @@ static int sip_senddigit(struct ast_channel *ast, char digit)
 	return 0;
 }
 
+static int sip_transfer(struct ast_channel *ast, char *dest)
+{
+	struct sip_pvt *p = ast->pvt->pvt;
+	int res;
+	res = transmit_refer(p, dest);
+	return res;
+}
+
 static int sip_indicate(struct ast_channel *ast, int condition)
 {
 	struct sip_pvt *p = ast->pvt->pvt;
@@ -1076,6 +1085,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		tmp->pvt->read = sip_read;
 		tmp->pvt->write = sip_write;
 		tmp->pvt->indicate = sip_indicate;
+		tmp->pvt->transfer = sip_transfer;
 		tmp->pvt->fixup = sip_fixup;
 		tmp->pvt->send_digit = sip_senddigit;
 		tmp->pvt->bridge = ast_rtp_bridge;
@@ -2617,6 +2627,15 @@ static int transmit_message_with_text(struct sip_pvt *p, char *text)
 	struct sip_request req;
 	reqprep(&req, p, "MESSAGE", 0);
 	add_text(&req, text);
+	return send_request(p, &req, 1, p->ocseq);
+}
+
+static int transmit_refer(struct sip_pvt *p, char *dest)
+{
+	struct sip_request req;
+	reqprep(&req, p, "REFER", 0);
+	add_header(&req, "Refer-To", dest);
+	add_header(&req, "Referred-By", callerid);
 	return send_request(p, &req, 1, p->ocseq);
 }
 
