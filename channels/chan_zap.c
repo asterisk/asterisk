@@ -58,6 +58,9 @@
 #ifndef PRI_NSF_NONE
 #error "You need newer libpri"
 #endif
+#ifndef PRI_SWITCH_QSIG
+#error "You need newer libpri"
+#endif
 #endif
 #ifdef ZAPATA_R2
 #include <libmfcr2.h>
