@@ -2916,8 +2916,10 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 				l = callerid;
 	}
 	/* if user want's his callerid restricted */
-	if (p->restrictcid)
+	if (p->restrictcid) {
 		l = CALLERID_UNKNOWN;
+		n = l;
+	}
 	if (!n || !strlen(n))
 		n = l;
 	/* Allow user to be overridden */
