@@ -43,7 +43,7 @@ CFLAGS += -I../../include
 CFLAGS += -I$(PWLIBDIR)/include 
 CFLAGS += -I$(OPENH323DIR)/include -Wno-missing-prototypes -Wno-missing-declarations
 
-all:   	libchanh323.a
+all:	depend libchanh323.a
 
 samples: 
 	if [ -f $(ASTETCDIR)/h323.conf ]; then \
@@ -52,11 +52,15 @@ samples:
 	install h323.conf.sample $(ASTETCDIR)/h323.conf
  
 
+libchanh323.a:	ast_h323.o
+	ar cr libchanh323.a ast_h323.o
+
 ast_h323.o:	ast_h323.cpp
 	$(CXX) -g -c -o $@ $(CFLAGS) $<
 
-libchanh323.a:	ast_h323.o
-	ar cr libchanh323.a ast_h323.o
+ifneq ($(wildcard .depend),)
+include .depend
+endif
 
 chan_h323.so:	
 	$(CXX)  -g -shared -Xlinker -x -o chan_h323.so chan_h323.o ast_h323.o -L$(PWLIBDIR)/lib  -lpt_linux_x86_r -L$(OPENH323DIR)/lib -lh323_linux_x86_r -L/usr/lib $(CHANH323LIB)
@@ -67,6 +71,11 @@ chan_h323_d.so:	chan_h323.o ast_h323.o
 chan_h323_s.so:	chan_h323.o ast_h323.o
 	$(CXX)  -shared -Xlinker -x -o chan_h323.so chan_h323.o ast_h323.o -L$(PWLIBDIR)/lib  -lpt_linux_x86_r_s -L$(OPENH323DIR)/lib -lh323_linux_x86_r_s -L/usr/lib $(CHANH323LIB)
 clean:
-	rm -f *.o *.so core.* libchanh323.a
+	rm -f *.o *.so core.* libchanh323.a .depend
+
+depend: .depend
+
+.depend:
+	../../mkdep $(CFLAGS) `ls *.cpp`
 
 
