@@ -35,7 +35,7 @@ static char *descrip =
 "  Directory(context): Presents the user with a directory of extensions from\n"
 "which they  may  select  by name. The  list  of  names  and  extensions  is\n"
 "discovered from  voicemail.conf. The  context  argument  is  required,  and\n"
-"specifies  the  context  in  which to interpret the extensions\n. Returns 0\n"
+"specifies  the  context  in  which to interpret the extensions. Returns 0\n"
 "unless the user hangs up. It  also sets up the channel on exit to enter the\n"
 "extension the user selected.\n";
 
