@@ -269,7 +269,7 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, cha
 	if (retval) {
 		*retval->mailbox='\0';
 		*retval->context='\0';
-		*retval->password='\0';
+		strcpy(retval->password, "NULL");
 		*retval->fullname='\0';
 		*retval->email='\0';
 		*retval->pager='\0';
@@ -319,7 +319,7 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, cha
 			}
 			for (i=0; i<numFields; i++) {
 				fname = PQfname(PGSQLres,i);
-				if (!strcmp(fname, "password")) {
+				if (!strcmp(fname, "password") && !PQgetisnull (PGSQLres,0,i)) {
 					strncpy(retval->password, PQgetvalue(PGSQLres,0,i),sizeof(retval->password) - 1);
 				} else if (!strcmp(fname, "fullname")) {
 					strncpy(retval->fullname, PQgetvalue(PGSQLres,0,i),sizeof(retval->fullname) - 1);
