@@ -1,3 +1,4 @@
+Asterisk 0.7.0
  -- Removed MP3 format and codec
  -- Can now load and unload SIP,IAX,IAX2,H323 channels without core
  -- Fixed various compiler warnings and clean up source tree
