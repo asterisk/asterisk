@@ -29,6 +29,7 @@
 #include <asterisk/crypto.h>
 #include <asterisk/acl.h>
 #include <asterisk/manager.h>
+#include <asterisk/utils.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>

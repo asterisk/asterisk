@@ -179,11 +179,5 @@ static inline int ast_mutex_init(ast_mutex_t *t)
 #endif /* DEBUG_THREADS */
 
 #define gethostbyname __gethostbyname__is__not__reentrant__use__ast_gethostbyname__instead__
-struct ast_hostent {
-	struct hostent hp;
-	char buf[1024];
-};
-
-extern struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp);
 
 #endif

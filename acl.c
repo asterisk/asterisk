@@ -22,6 +22,7 @@
 #include <asterisk/acl.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
+#include <asterisk/utils.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netdb.h>
