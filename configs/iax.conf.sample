@@ -139,11 +139,12 @@ permit=216.207.245.47/255.255.255.255
 type=peer
 username=asterisk
 secret=supersecret
-host=216.207.245.57
+host=216.207.245.47
 ;sendani=no
 ;host=asterisk.linux-support.net
 ;port=5036
 ;mask=255.255.255.255
+;qualify=yes	; Make sure this peer is alive
 
 ;
 ; Peers can remotely register as well, so that they can be
