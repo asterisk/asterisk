@@ -1,7 +1,6 @@
-
 		Open H.323 Channel Driver for Asterisk
-	  		   By Jeremy McNamara  
-			      The NuFone Network
+	  	        By Jeremy McNamara  
+		        For The NuFone Network
 
 	     First public release on November 10th, 2002
 
@@ -14,21 +13,70 @@
 	Dependancies:  		openssl-0.9.6b
 				openssl-devel-0.9.6b
 		       		expat-1.95
-
-Notice: Whatever you do, DO NOT USE distrubution specific installs
-of Open H.323 and PWLib. Check everything out of CVS. If you dont know
-how to deal with cvs, learn. Also, if you are not using the listed
-versions of Open H.323 or PWlib you are on your own, sorry. Older versions
-will NOT work, but newer versions ~should~ work.
+		       		expat-dev-1.95
 
 We have implemented this driver using Asterisk's RTP stack insted of trying
 to implement a pseudo sound card driver. 
- 
-If you have trouble please contact 'JerJer' in #Asterisk on irc.freenode.net or
-send and email to jj@indie.org
 
-If you happen to be lucky enough to segfault this code please run a backtrace 
-and send me the gory details. Segmentation faults are not tolerated!
+NOTICE: Whatever you do, DO NOT USE distrubution specific installs
+of Open H.323 and PWLib. In fact you should check to make sure 
+your distro didn't install them for you without your knowledge.
+Check everything out of CVS. If you dont know how to deal with cvs, learn. 
+Also, if you are not using the listed versions of Open H.323 or PWlib 
+you are on your own, sorry. Older versions will NOT work, but newer 
+versions ~should~ work.
+
+
+Most common compile error:  
+
+If you receive anything that says 'undefined symbol' you are experiencing
+typical version skew.  For example:
+
+libh323_linux_x86_r.so.1: undefined symbol: GetNumberValueAt__C14PAbstractArrayi
+
+You need to search and destroy every version of libh323 and libpt then 
+completely recompile everything
+
+Example commands to make sure everything gets cleaned and then
+rebult in proper order:
+
+cd /path/to/pwlib
+make clean opt
+cd /path/to/openh323
+make clean opt 
+cd asterisk/channels/h323
+make clean install   
+
+(Note: Open H.323 or PWLib never get a 'make install')
+ 
+
+Most common run-time error:
+
+libpt_linux_x86_r.so.1: cannot open shared object file: No such 
+file or directory
+
+You have not set the LD_LIBRARY_PATH environment variable.
+
+Example environment for sh/bash:
+
+PWLIBDIR=$HOME/pwlib
+export PWLIBDIR
+OPENH323DIR=$HOME/openh323
+export OPENH323DIR
+LD_LIBRARY_PATH=$PWLIBDIR/lib:$OPENH323DIR/lib
+export LD_LIBRARY_PATH
+
+We recomend puting the above directives into your /etc/profile so 
+you do not have to remember to export those values every time you 
+want to recompile.
+
+
+If you still have trouble please contact 'JerJer' in #Asterisk on 
+irc.freenode.net or send and email to jj@indie.org
+
+If you happen to be lucky enough to segfault this code please run a 
+backtrace  and send me the gory details. Segmentation faults are not
+ tolerated!
 
 bt example:
 
@@ -47,8 +95,9 @@ core.1976
 Send whatever shows up right after the 'bt'
 
 
-Also, a full debug screen output is almost needed. Make sure you are in the full console mode (-c) and turn on 'h.323 
-debug'. A nice way to capture everything is to use the utility called 'script' (man script) 
+Also, a full debug screen output is almost needed. Make sure you are 
+in the full console mode (-c) and turn on 'h.323  debug'. A nice way 
+to capture everything is to use the utility called 'script' (man script) 
 
 
 Jeremy McNamara, President
