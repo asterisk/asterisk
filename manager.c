@@ -402,6 +402,32 @@ static int action_ping(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static char mandescr_listcommands[] = 
+"Description: Returns the action name and synopsis for every\n"
+"  action that is available to the user\n"
+"Variables: NONE\n";
+
+static int action_listcommands(struct mansession *s, struct message *m)
+{
+	struct manager_action *cur = first_action;
+	char idText[256] = "";
+	char *id = astman_get_header(m,"ActionID");
+
+	if (id && !ast_strlen_zero(id))
+		snprintf(idText,256,"ActionID: %s\r\n",id);
+	ast_cli(s->fd, "Response: Success\r\n%s", idText);
+	ast_mutex_lock(&actionlock);
+	while (cur) { /* Walk the list of actions */
+		if ((s->writeperm & cur->authority) == cur->authority)
+			ast_cli(s->fd, "%s: %s\r\n", cur->action, cur->synopsis);
+		cur = cur->next;
+	}
+	ast_mutex_unlock(&actionlock);
+	ast_cli(s->fd, "\r\n");
+
+	return 0;
+}
+
 static int action_events(struct mansession *s, struct message *m)
 {
 	char *mask = astman_get_header(m, "EventMask");
@@ -1138,6 +1164,7 @@ int init_manager(void)
 		ast_manager_register( "ExtensionState", EVENT_FLAG_CALL, action_extensionstate, "Check Extension Status" );
 		ast_manager_register( "AbsoluteTimeout", EVENT_FLAG_CALL, action_timeout, "Set Absolute Timeout" );
 		ast_manager_register( "MailboxCount", EVENT_FLAG_CALL, action_mailboxcount, "Check Mailbox Message Count" );
+		ast_manager_register2("ListCommands", 0, action_listcommands, "List available manager commands", mandescr_listcommands);
 
 		ast_cli_register(&show_mancmd_cli);
 		ast_cli_register(&show_mancmds_cli);
