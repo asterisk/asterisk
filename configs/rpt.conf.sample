@@ -16,6 +16,9 @@
 ;hangtime=1000				; squelch tail hang time (in ms) (optional)
 ;totime=100000				; transmit time-out time (in ms) (optional)
 ;idtime=30000				; id interval time (in ms) (optional)
+politeid=30000				; time in milliseconds before ID timer
+					; expires to try and ID in the tail.
+					; (optional, default is 30000).
 
 ; The default values for hangtime, time-out time, and id interval time are
 ; 5 seconds (5000 ms),  3 minutes (180000 ms), and 5 minutes (300000 ms)
@@ -51,11 +54,18 @@
 000 = context_A@1.2.3.4/1234
 001 = context_B@5.6.7.8/4321
 
+;of course, you can also specify these with domain names, but why rely
+;on DNS working unnecessarily?
+
 [memory]
 
 ; this example gives you 146.460, simplex, 100.0 HZ PL, hi-power, transmit PL
 00 = 146.460,100.0,sht
 ; this example gives you 146.940, minus offset, 100.0 HZ PL, low-power, no PL
 01 = 146.940,100.0,-l
+
+; The format for these entries is:  Receive-Freq,Receive-PL,Attrbutes
+;     Attributes: l=low power, m=medium power, h=high power, -=minus offset,
+;	s=simplex, +=plus offset, t=tx PL enable, r=rx PL enable
 
 

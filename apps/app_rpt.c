@@ -3,7 +3,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Radio Repeater / Remote Base program 
- *  version 0.10 6/26/04
+ *  version 0.11 6/27/04
  * 
  * Copyright (C) 2002-2004, Jim Dixon, WB6NIL
  *
@@ -73,7 +73,7 @@
 enum {REM_OFF,REM_MONITOR,REM_TX};
 
 enum{ID,PROC,TERM,COMPLETE,UNKEY,REMDISC,REMALREADY,REMNOTFOUND,REMGO,
-	CONNECTED,CONNFAIL,STATUS,TIMEOUT};
+	CONNECTED,CONNFAIL,STATUS,TIMEOUT,ID1};
 
 enum {REM_SIMPLEX,REM_MINUS,REM_PLUS};
 
@@ -131,6 +131,7 @@ LOCAL_USER_DECL;
 #define	TOTIME 180000
 #define	IDTIME 300000
 #define	MAXRPTS 20
+#define POLITEID 30000
 
 static  pthread_t rpt_master_thread;
 
@@ -196,6 +197,8 @@ static struct rpt
 	pthread_t rpt_call_thread,rpt_thread;
 	time_t rem_dtmf_time,dtmf_time_rem;
 	int tailtimer,totimer,idtimer,txconf,conf,callmode,cidx;
+	int mustid;
+	int politeid;
 	int dtmfidx,rem_dtmfidx;
 	char mydtmf;
 	int iobase;
@@ -231,7 +234,10 @@ struct	ast_channel *mychannel;
 	}
 	/* make a conference for the tx */
 	ci.chan = 0;
-	ci.confno = myrpt->conf; /* use the tx conference */
+	/* If there's an ID queued, only connect the ID audio to the local tx conference so 
+		linked systems can't hear it */
+	ci.confno = (((mytele->mode == ID) || (mytele->mode == UNKEY)) ?
+		 myrpt->txconf : myrpt->conf);
 	ci.confmode = ZT_CONF_CONFANN;
 	/* first put the channel on the conference in announce mode */
 	if (ioctl(mychannel->fds[0],ZT_SETCONF,&ci) == -1)
@@ -248,6 +254,9 @@ struct	ast_channel *mychannel;
 	switch(mytele->mode)
 	{
 	    case ID:
+	    case ID1:
+		/* wait a bit */
+		usleep(500000);
 		res = ast_streamfile(mychannel, myrpt->ident, mychannel->language);
 		break;
 	    case PROC:
@@ -1087,7 +1096,7 @@ ZT_CONFINFO ci;  /* conference info */
 		return;
 	case 8: /* force ID */
 		if (!myrpt->enable) return;
-		myrpt->idtimer = 0;
+		rpt_telemetry(myrpt,ID1,NULL);
 		return;
 	default:
 		return;
@@ -1852,11 +1861,12 @@ static void *rpt(void *this)
 {
 struct	rpt *myrpt = (struct rpt *)this;
 char *tele;
-int ms = MSWAIT,lasttx,keyed,val,remrx;
+int ms = MSWAIT,lasttx,keyed,val,remrx,identqueued,nonidentqueued;
 struct ast_channel *who;
 ZT_CONFINFO ci;  /* conference info */
 time_t	dtmf_time,t;
 struct rpt_link *l,*m;
+struct rpt_tele *telem;
 pthread_attr_t attr;
 
 	ast_mutex_lock(&myrpt->lock);
@@ -1981,7 +1991,8 @@ pthread_attr_t attr;
 	myrpt->links.prev = &myrpt->links;
 	myrpt->tailtimer = 0;
 	myrpt->totimer = 0;
-	myrpt->idtimer = 0;
+	myrpt->idtimer = myrpt->politeid;
+	myrpt->mustid = 0;
 	myrpt->callmode = 0;
 	myrpt->tounkeyed = 0;
 	myrpt->tonotify = 0;
@@ -2018,10 +2029,43 @@ pthread_attr_t attr;
 			if (l->lastrx) remrx = 1;
 			l = l->next;
 		}
-		totx = (keyed || myrpt->callmode || 
-			(myrpt->tele.next != &myrpt->tele));
+	
+		
+		/* Create a "must_id" flag for the cleanup ID */	
+			
+		myrpt->mustid |= (myrpt->idtimer) && (keyed || remrx) ;
+
+		/* Build a fresh totx from keyed and autopatch activated */
+		
+		totx = (keyed || myrpt->callmode);
+		 
+		/* Traverse the telemetry list to see if there's an ID queued and if there is not an ID queued */
+		
+		identqueued = 0;
+		nonidentqueued = 0;
+		
+		telem = myrpt->tele.next;
+		while(telem != &myrpt->tele)
+		{
+			if(telem->mode == ID)
+				identqueued = 1;
+			else
+				nonidentqueued = 1;
+			telem = telem->next;
+		}
+		
+		/* Add in any non-id telemetry */
+		
+		totx = totx || nonidentqueued;
+		
+		/* Update external transmitter PTT state with everything but ID telemetry */
+		
 		myrpt->exttx = totx;
-		totx = totx || remrx;
+		
+		/* Add in ID telemetry to local transmitter */
+		
+		totx = totx || remrx || identqueued;
+		
 		if (!totx) 
 		{
 			myrpt->totimer = myrpt->totime;
@@ -2059,10 +2103,16 @@ pthread_attr_t attr;
 		if (!myrpt->totimer) myrpt->tailtimer = 0;
 		/* if not timed-out, add in tail */
 		if (myrpt->totimer) totx = totx || myrpt->tailtimer;
-		/* if time to ID */
-		if (totx && (!myrpt->idtimer))
+		/* Try to be polite */
+		/* If the repeater has been inactive for longer than the ID time, do an initial ID in the tail*/
+		/* If within 30 seconds of the time to ID, try do it in the tail */
+		/* else if at ID time limit, do it right over the top of them */
+		/* Lastly, if the repeater has been keyed, and the ID timer is expired, do a clean up ID */
+		if (((totx && (!myrpt->exttx) && (myrpt->idtimer <= myrpt->politeid) && myrpt->tailtimer)) ||
+		   (myrpt->mustid && (!myrpt->idtimer)))
 		{
-			myrpt->idtimer = myrpt->idtime;
+			myrpt->mustid = 0;
+			myrpt->idtimer = myrpt->idtime; /* Reset our ID timer */
 			ast_mutex_unlock(&myrpt->lock);
 			rpt_telemetry(myrpt,ID,NULL);
 			ast_mutex_lock(&myrpt->lock);
@@ -2543,6 +2593,9 @@ int	i,n;
 		val = ast_variable_retrieve(cfg,this,"idtime");
 		if (val) rpt_vars[n].idtime = atoi(val);
 			else rpt_vars[n].idtime = IDTIME;
+		val = ast_variable_retrieve(cfg,this,"politeid");
+		if (val) rpt_vars[n].politeid = atoi(val);
+			else rpt_vars[n].politeid = POLITEID;
 		val = ast_variable_retrieve(cfg,this,"simple");
 		if (val) rpt_vars[n].simple = ast_true(val); 
 			else rpt_vars[n].simple = 0;
