@@ -16,11 +16,11 @@ TARGET+=$(shell if [ -f /usr/include/newt.h ]; then echo "astman"; else if [ -f 
 all: depend $(TARGET)
 
 install:
-	if [ "$(TARGET)" != "none" ]; then \
-		for x in $(TARGET); do \
+	for x in $(TARGET); do \
+		if [ "$$x" != "none" ]; then \
 			install -m 755 $$x $(DESTDIR)$(ASTSBINDIR)/astman; \
-		done ; \
-	fi
+		fi; \
+	done 
 
 none:
 

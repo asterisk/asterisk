@@ -23,6 +23,7 @@
 #include <asterisk/module.h>
 #include <asterisk/translate.h>
 #include <asterisk/ulaw.h>
+#include <asterisk/callerid.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -114,7 +115,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	int digittimeout = 10000;
 	struct localuser *u;
 	char tmp[256],arg2[256]="",exten[AST_MAX_EXTENSION],acctcode[20]="";
-	char *ourcontext,*ourcallerid,*ourcidname,*ourcidnum,*mailbox;
+	char *ourcontext,*ourcallerid,ourcidname[256],ourcidnum[256],*mailbox;
 	struct ast_frame *f;
 	struct timeval lastout, now, lastdigittime;
 	int res;
