@@ -775,11 +775,8 @@ int ast_cli_generatornummatches(char *text, char *word)
 
 	while ( (buf = ast_cli_generator(text, word, i)) ) {
 		if (++i > 1 && strcmp(buf,oldbuf) == 0)  {
-				free(buf);
 				continue;
 		}
-		if (oldbuf)
-			free(oldbuf);
 		oldbuf = buf;
 		matches++;
 	}
@@ -876,7 +873,7 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 						if (lock)
 							ast_pthread_mutex_unlock(&clilock);
 						free(dup);
-						return res ? strdup(res) : NULL;
+						return res ? res : NULL;
 					}
 				}
 			}
