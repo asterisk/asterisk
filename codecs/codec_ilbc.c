@@ -60,6 +60,8 @@ static struct ast_translator_pvt *lintoilbc_new(void)
 	struct ilbc_coder_pvt *tmp;
 	tmp = malloc(sizeof(struct ilbc_coder_pvt));
 	if (tmp) {
+		/* Shut valgrind up */
+		memset(&tmp->enc, 0, sizeof(tmp->enc));
 		initEncode(&tmp->enc);
 		tmp->tail = 0;
 		localusecnt++;
@@ -72,6 +74,8 @@ static struct ast_translator_pvt *ilbctolin_new(void)
 	struct ilbc_coder_pvt *tmp;
 	tmp = malloc(sizeof(struct ilbc_coder_pvt));
 	if (tmp) {
+		/* Shut valgrind up */
+		memset(&tmp->dec, 0, sizeof(tmp->dec));
 		initDecode(&tmp->dec, USE_ILBC_ENHANCER);
 		tmp->tail = 0;
 		localusecnt++;
