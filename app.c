@@ -19,6 +19,8 @@
 #include <errno.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <sys/types.h>
+#include <regex.h>
 #include <asterisk/channel.h>
 #include <asterisk/pbx.h>
 #include <asterisk/file.h>
@@ -961,3 +963,109 @@ int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordf
 	return res;
 }
 
+/* Channel group core functions */
+
+int ast_app_group_split_group(char *data, char *group, int group_max, char *category, int category_max)
+{
+	int res=0;
+	char tmp[256] = "";
+	char *grp=NULL, *cat=NULL;
+
+	if (data && !ast_strlen_zero(data)) {
+		strncpy(tmp, data, sizeof(tmp) - 1);
+		grp = tmp;
+		cat = strchr(tmp, '@');
+		if (cat) {
+			*cat = '\0';
+			cat++;
+		}
+	}
+
+	if (grp && !ast_strlen_zero(grp))
+		strncpy(group, grp, group_max -1);
+	else
+		res = -1;
+
+	if (cat)
+		snprintf(category, category_max, "%s_%s", GROUP_CATEGORY_PREFIX, cat);
+	else
+		strncpy(category, GROUP_CATEGORY_PREFIX, category_max - 1);
+
+	return res;
+}
+
+int ast_app_group_set_channel(struct ast_channel *chan, char *data)
+{
+	int res=0;
+	char group[80] = "";
+	char category[80] = "";
+
+	if (!ast_app_group_split_group(data, group, sizeof(group), category, sizeof(category))) {
+		pbx_builtin_setvar_helper(chan, category, group);
+	} else
+		res = -1;
+
+	return res;
+}
+
+int ast_app_group_get_count(char *group, char *category)
+{
+	struct ast_channel *chan;
+	int count = 0;
+	char *test;
+	char cat[80] = "";
+
+	if (category && !ast_strlen_zero(category)) {
+		strncpy(cat, category, sizeof(cat) - 1);
+	} else {
+		strncpy(cat, GROUP_CATEGORY_PREFIX, sizeof(cat) - 1);
+	}
+
+	if (group && !ast_strlen_zero(group)) {
+		chan = ast_channel_walk_locked(NULL);
+		while(chan) {
+			test = pbx_builtin_getvar_helper(chan, cat);
+			if (test && !strcasecmp(test, group))
+				count++;
+			ast_mutex_unlock(&chan->lock);
+			chan = ast_channel_walk_locked(chan);
+		}
+	}
+
+	return count;
+}
+
+int ast_app_group_match_get_count(char *groupmatch, char *category)
+{
+	regex_t regexbuf;
+	struct ast_channel *chan;
+	int count = 0;
+	char *test;
+	char cat[80] = "";
+
+	if (!groupmatch || ast_strlen_zero(groupmatch))
+		return 0;
+
+	/* if regex compilation fails, return zero matches */
+	if (regcomp(&regexbuf, groupmatch, REG_EXTENDED | REG_NOSUB))
+		return 0;
+
+	if (category && !ast_strlen_zero(category)) {
+		strncpy(cat, category, sizeof(cat) - 1);
+	} else {
+		strncpy(cat, GROUP_CATEGORY_PREFIX, sizeof(cat) - 1);
+	}
+
+	chan = ast_channel_walk_locked(NULL);
+	while(chan) {
+		test = pbx_builtin_getvar_helper(chan, cat);
+		if (test && !regexec(&regexbuf, test, 0, NULL, 0))
+			count++;
+		ast_mutex_unlock(&chan->lock);
+		chan = ast_channel_walk_locked(chan);
+	}
+
+	regfree(&regexbuf);
+
+	return count;
+}

@@ -15,6 +15,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/types.h>
+#include <regex.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
@@ -22,16 +24,172 @@
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
 #include <asterisk/utils.h>
+#include <asterisk/cli.h>
+#include <asterisk/app.h>
+
+STANDARD_LOCAL_USER;
+
+LOCAL_USER_DECL;
+
+static int group_count_exec(struct ast_channel *chan, void *data)
+{
+	int res = 0;
+	int count;
+	struct localuser *u;
+	char group[80] = "";
+	char category[80] = "";
+	char ret[80] = "";
+	char *grp;
+
+	LOCAL_USER_ADD(u);
+
+	ast_app_group_split_group(data, group, sizeof(group), category, sizeof(category));
+
+	if (ast_strlen_zero(group)) {
+		grp = pbx_builtin_getvar_helper(chan, category);
+		strncpy(group, grp, sizeof(group) - 1);
+	}
+
+	count = ast_app_group_get_count(group, category);
+	snprintf(ret, sizeof(ret), "%d", count);
+	pbx_builtin_setvar_helper(chan, "GROUPCOUNT", ret);
+
+	LOCAL_USER_REMOVE(u);
+
+	return res;
+}
+
+static int group_match_count_exec(struct ast_channel *chan, void *data)
+{
+	int res = 0;
+	int count;
+	struct localuser *u;
+	char group[80] = "";
+	char category[80] = "";
+	char ret[80] = "";
+
+	LOCAL_USER_ADD(u);
+
+	ast_app_group_split_group(data, group, sizeof(group), category, sizeof(category));
+
+	if (!ast_strlen_zero(group)) {
+		count = ast_app_group_match_get_count(group, category);
+		snprintf(ret, sizeof(ret), "%d", count);
+		pbx_builtin_setvar_helper(chan, "GROUPCOUNT", ret);
+	}
+
+	LOCAL_USER_REMOVE(u);
+
+	return res;
+}
+
+static int group_set_exec(struct ast_channel *chan, void *data)
+{
+	int res = 0;
+	struct localuser *u;
+
+	LOCAL_USER_ADD(u);
+
+	if (ast_app_group_set_channel(chan, data))
+		ast_log(LOG_WARNING, "SetGroup requires an argument (group name)\n");
+
+	LOCAL_USER_REMOVE(u);
+	return res;
+}
+
+static int group_check_exec(struct ast_channel *chan, void *data)
+{
+	int res = 0;
+	int max, count;
+	struct localuser *u;
+	char limit[80]="";
+	char category[80]="";
+
+	LOCAL_USER_ADD(u);
+
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "CheckGroup requires an argument(max[@category])\n");
+		return res;
+	}
+
+  	ast_app_group_split_group(data, limit, sizeof(limit), category, sizeof(category));
+
+ 	if ((sscanf(limit, "%i", &max) == 1) && (max > -1)) {
+		count = ast_app_group_get_count(pbx_builtin_getvar_helper(chan, category), category);
+		if (count > max) {
+			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
+				chan->priority += 100;
+			else
+				res = -1;
+		}
+	} else
+		ast_log(LOG_WARNING, "CheckGroup requires a positive integer argument (max)\n");
+
+	LOCAL_USER_REMOVE(u);
+	return res;
+}
+
+static int group_show_channels(int fd, int argc, char *argv[])
+{
+#define FORMAT_STRING  "%-25s  %-20s  %-20s\n"
+
+	struct ast_channel *c = NULL;
+	int numchans = 0;
+	struct ast_var_t *current;
+	struct varshead *headp;
+	regex_t regexbuf;
+	int havepattern = 0;
+
+	if (argc < 3 || argc > 4)
+		return RESULT_SHOWUSAGE;
+	
+	if (argc == 4) {
+		if (regcomp(&regexbuf, argv[3], REG_EXTENDED | REG_NOSUB))
+			return RESULT_SHOWUSAGE;
+		havepattern = 1;
+	}
+
+	c = ast_channel_walk_locked(NULL);
+	ast_cli(fd, FORMAT_STRING, "Channel", "Group", "Category");
+	while(c) {
+		headp=&c->varshead;
+		AST_LIST_TRAVERSE(headp,current,entries) {
+			if (!strncmp(ast_var_name(current), GROUP_CATEGORY_PREFIX "_", strlen(GROUP_CATEGORY_PREFIX) + 1)) {
+				if (!havepattern || !regexec(&regexbuf, ast_var_value(current), 0, NULL, 0)) {
+					ast_cli(fd, FORMAT_STRING, c->name, ast_var_value(current),
+						(ast_var_name(current) + strlen(GROUP_CATEGORY_PREFIX) + 1));
+					numchans++;
+				}
+			} else if (!strcmp(ast_var_name(current), GROUP_CATEGORY_PREFIX)) {
+				if (!havepattern || !regexec(&regexbuf, ast_var_value(current), 0, NULL, 0)) {
+					ast_cli(fd, FORMAT_STRING, c->name, ast_var_value(current), "(default)");
+					numchans++;
+				}
+			}
+		}
+		numchans++;
+		ast_mutex_unlock(&c->lock);
+		c = ast_channel_walk_locked(c);
+	}
+
+	if (havepattern)
+		regfree(&regexbuf);
+
+	ast_cli(fd, "%d active channel(s)\n", numchans);
+	return RESULT_SUCCESS;
+}
 
 static char *tdesc = "Group Management Routines";
 
 static char *app_group_count = "GetGroupCount";
 static char *app_group_set = "SetGroup";
 static char *app_group_check = "CheckGroup";
+static char *app_group_match_count = "GetGroupMatchCount";
 
 static char *group_count_synopsis = "GetGroupCount([groupname][@category])";
 static char *group_set_synopsis = "SetGroup(groupname[@category])";
 static char *group_check_synopsis = "CheckGroup(max[@category])";
+static char *group_match_count_synopsis = "GetGroupMatchCount(groupmatch[@category])";
 
 static char *group_count_descrip =
 "GetGroupCount([group][@category])\n"
@@ -45,155 +203,35 @@ static char *group_set_descrip =
 "SetVar(GROUP=group).  Always returns 0.\n";
 
 static char *group_check_descrip =
-"CheckGroup(max)\n"
+"CheckGroup(max[@category])\n"
 "  Checks that the current number of total channels in the\n"
 "current channel's group does not exceed 'max'.  If the number\n"
 "does not exceed 'max', we continue to the next step. If the\n"
 "number does in fact exceed max, if priority n+101 exists, then\n"
 "execution continues at that step, otherwise -1 is returned.\n";
 
-STANDARD_LOCAL_USER;
+static char *group_match_count_descrip =
+"GetGroupMatchCount(groupmatch[@category])\n"
+"  Calculates the group count for all groups that match the specified\n"
+"pattern. Uses standard regular expression matching (see regex(7)).\n"
+"Stores result in GROUPCOUNT.  Always returns 0.\n";
 
-LOCAL_USER_DECL;
+static char show_channels_usage[] = 
+"Usage: group show channels [pattern]\n"
+"       Lists all currently active channels with channel group(s) specified.\n       Optional regular expression pattern is matched to group names for each channel.\n";
 
-#define DEFAULT_CATEGORY "GROUP"
-
-static int group_get_count(char *group, char *category)
-{
-	struct ast_channel *chan;
-	int count = 0;
-	char *test;
-	if (group && !ast_strlen_zero(group)) {
-		chan = ast_channel_walk_locked(NULL);
-		while(chan) {
-			test = pbx_builtin_getvar_helper(chan, category);
-			if (test && !strcasecmp(test, group))
-				count++;
-			ast_mutex_unlock(&chan->lock);
-			chan = ast_channel_walk_locked(chan);
-		}
-	}
-	return count;
-}
-
-static int group_count_exec(struct ast_channel *chan, void *data)
-{
-	int res=0;
-	int count;
-	struct localuser *u;
-	char *group=NULL;
-	char *cat = NULL;
-	char ret[80]="";
-	char tmp[256]="";
-
-	LOCAL_USER_ADD(u);
-
-	/* Check and parse arguments */
-	if (data && !ast_strlen_zero(data)) {
-		strncpy(tmp, data, sizeof(tmp) - 1);
-		group = tmp;
-		cat = strchr(tmp, '@');
-		if (cat) {
-			*cat = '\0';
-			cat++;
-		}
-	}
-	if (cat)
-		snprintf(ret, sizeof(ret), "GROUP_%s", cat);
-	else
-		strncpy(ret, DEFAULT_CATEGORY, sizeof(ret) - 1);
-
-	if (!group || ast_strlen_zero(group)) {
-		group = pbx_builtin_getvar_helper(chan, ret);
-	}
-	count = group_get_count(group, ret);
-	snprintf(ret, sizeof(ret), "%d", count);
-	pbx_builtin_setvar_helper(chan, "GROUPCOUNT", ret);
-	LOCAL_USER_REMOVE(u);
-	return res;
-}
-
-static int group_set_exec(struct ast_channel *chan, void *data)
-{
-	int res=0;
-	struct localuser *u;
-	char ret[80] = "";
-	char tmp[256] = "";
-	char *cat=NULL, *group=NULL;
-
-	LOCAL_USER_ADD(u);
-
-	/* Check and parse arguments */
-	if (data && !ast_strlen_zero(data)) {
-		strncpy(tmp, data, sizeof(tmp) - 1);
-		group = tmp;
-		cat = strchr(tmp, '@');
-		if (cat) {
-			*cat = '\0';
-			cat++;
-		}
-	}
-	if (cat)
-		snprintf(ret, sizeof(ret), "GROUP_%s", cat);
-	else
-		strncpy(ret, DEFAULT_CATEGORY, sizeof(ret) - 1);
-
-	if (group && !ast_strlen_zero(group)) {
-		pbx_builtin_setvar_helper(chan, ret, group);
-	} else
-		ast_log(LOG_WARNING, "SetGroup requires an argument (group name)\n");
-
-	LOCAL_USER_REMOVE(u);
-	return res;
-}
-
-static int group_check_exec(struct ast_channel *chan, void *data)
-{
-	int res=0;
-	int max, count;
-	struct localuser *u;
-	char ret[80] = "";
-	char tmp[256] = "";
-	char *cat, *group;
-
-	LOCAL_USER_ADD(u);
-
-	if (data && !ast_strlen_zero(data)) {
-		strncpy(tmp, data, sizeof(tmp) - 1);
-		group = tmp;
-		cat = strchr(tmp, '@');
-		if (cat) {
-			*cat = '\0';
-			cat++;
-		}
-	 	if ((sscanf((char *)tmp, "%i", &max) == 1) && (max > -1)) {
-			if (cat)
-				snprintf(ret, sizeof(ret), "GROUP_%s", cat);
-			else
-				strncpy(ret, DEFAULT_CATEGORY, sizeof(ret) - 1);
-			
-			count = group_get_count(pbx_builtin_getvar_helper(chan, ret), ret);
-			if (count > max) {
-				if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
-					chan->priority += 100;
-				else
-					res = -1;
-			}
-		} else
-			ast_log(LOG_WARNING, "CheckGroup requires a positive integer argument (max)\n");
-	} else
-		ast_log(LOG_WARNING, "CheckGroup requires an argument(max)\n");
-	LOCAL_USER_REMOVE(u);
-	return res;
-}
+static struct ast_cli_entry  cli_show_channels =
+	{ { "group", "show", "channels", NULL }, group_show_channels, "Show active channels with group(s)", show_channels_usage};
 
 int unload_module(void)
 {
 	int res;
 	STANDARD_HANGUP_LOCALUSERS;
+	ast_cli_unregister(&cli_show_channels);
 	res = ast_unregister_application(app_group_count);
 	res |= ast_unregister_application(app_group_set);
 	res |= ast_unregister_application(app_group_check);
+	res |= ast_unregister_application(app_group_match_count);
 	return res;
 }
 
@@ -203,6 +241,8 @@ int load_module(void)
 	res = ast_register_application(app_group_count, group_count_exec, group_count_synopsis, group_count_descrip);
 	res |= ast_register_application(app_group_set, group_set_exec, group_set_synopsis, group_set_descrip);
 	res |= ast_register_application(app_group_check, group_check_exec, group_check_synopsis, group_check_descrip);
+	res |= ast_register_application(app_group_match_count, group_match_count_exec, group_match_count_synopsis, group_match_count_descrip);
+	ast_cli_register(&cli_show_channels);
 	return res;
 }
 

@@ -68,6 +68,20 @@ int ast_play_and_record(struct ast_channel *chan, char *playfile, char *recordfi
 //  permitted silence time in milliseconds of 'maxsilence' under 'silencethreshold' or use '-1' for either or both parameters for defaults.
 int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime_sec, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence_ms);
 
+#define GROUP_CATEGORY_PREFIX "GROUP"
+
+//! Split a group string into group and category, returning a default category if none is provided.
+int ast_app_group_split_group(char *data, char *group, int group_max, char *category, int category_max);
+
+//! Set the group for a channel, splitting the provided data into group and category, if specified.
+int ast_app_group_set_channel(struct ast_channel *chan, char *data);
+
+//! Get the current channel count of the specified group and category.
+int ast_app_group_get_count(char *group, char *category);
+
+//! Get the current channel count of all groups that match the specified pattern and category.
+int ast_app_group_match_get_count(char *groupmatch, char *category);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
