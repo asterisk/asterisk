@@ -314,16 +314,16 @@ int ast_load_resource(char *resource_name)
 			ast_verbose(VERBOSE_PREFIX_1 "Loaded %s => (%s)\n", fn, m->description());
 	}
 
-	// add module 'm' to end of module_list chain
-	// so reload commands will be issued in same order modules were loaded
+	/* add module 'm' to end of module_list chain
+  	   so reload commands will be issued in same order modules were loaded */
 	m->next = NULL;
 	if (module_list == NULL) {
-		// empty list so far, add at front
+		/* empty list so far, add at front */
 		module_list = m;
 	}
 	else {
 		struct module *i;
-		// find end of chain, and add there
+		/* find end of chain, and add there */
 		for (i = module_list; i->next; i = i->next)
 			;
 		i->next = m;
@@ -460,7 +460,7 @@ void ast_update_use_count(void)
 	
 }
 
-int ast_update_module_list(int (*modentry)(char *module, char *description, int usecnt))
+int ast_update_module_list(int (*modentry)(char *module, char *description, int usecnt, char *like), char *like)
 {
 	struct module *m;
 	int unlock = -1;
@@ -469,9 +469,8 @@ int ast_update_module_list(int (*modentry)(char *module, char *description, int 
 		unlock = 0;
 	m = module_list;
 	while(m) {
-		modentry(m->resource, m->description(), m->usecount());
+		total_mod_loaded += modentry(m->resource, m->description(), m->usecount(), like);
 		m = m->next;
-		total_mod_loaded++;
 	}
 	if (unlock)
 		ast_mutex_unlock(&modlock);

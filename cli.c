@@ -213,16 +213,20 @@ static int handle_unload(int fd, int argc, char *argv[])
 AST_MUTEX_DEFINE_STATIC(climodentrylock);
 static int climodentryfd = -1;
 
-static int modlist_modentry(char *module, char *description, int usecnt)
+static int modlist_modentry(char *module, char *description, int usecnt, char *like)
 {
-	ast_cli(climodentryfd, MODLIST_FORMAT, module, description, usecnt);
+	/* Comparing the like with the module */
+	if ( strstr(module,like) != NULL) {
+		ast_cli(climodentryfd, MODLIST_FORMAT, module, description, usecnt);
+		return 1;
+		
+	} 
 	return 0;
 }
 
 static char modlist_help[] =
-"Usage: show modules\n"
-"       Shows Asterisk modules currently in use, and usage "
-"statistics.\n";
+"Usage: show modules [like keyword]\n"
+"       Shows Asterisk modules currently in use, and usage statistics.\n";
 
 static char version_help[] =
 "Usage: show version\n"
@@ -332,12 +336,19 @@ static int handle_showuptime(int fd, int argc, char *argv[])
 
 static int handle_modlist(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
+	char *like = "";
+	if (argc == 3)
 		return RESULT_SHOWUSAGE;
+	else if (argc >= 4) {
+		if ( strcmp(argv[2],"like") ) 
+			return RESULT_SHOWUSAGE;
+		like = argv[3];
+	}
+		
 	ast_mutex_lock(&climodentrylock);
 	climodentryfd = fd;
 	ast_cli(fd, MODLIST_FORMAT2, "Module", "Description", "Use Count");
-	ast_cli(fd,"%d modules loaded\n",ast_update_module_list(modlist_modentry));
+	ast_cli(fd,"%d modules loaded\n",ast_update_module_list(modlist_modentry,like));
 	climodentryfd = -1;
 	ast_mutex_unlock(&climodentrylock);
 	return RESULT_SUCCESS;

@@ -114,7 +114,7 @@ void ast_update_use_count(void);
  * For each of the modules loaded, modentry will be executed with the resource, description,
  * and usecount values of each particular module.
  */
-int ast_update_module_list(int (*modentry)(char *module, char *description, int usecnt));
+int ast_update_module_list(int (*modentry)(char *module, char *description, int usecnt, char *like), char *like);
 
 //! Ask this procedure to be run with modules have been updated
 /*!
