@@ -1581,6 +1581,7 @@ static struct ast_rtp *oh323_get_rtp_peer(struct ast_channel *chan)
 	p = chan->pvt->pvt;
 	if (p && p->rtp && p->bridge)
 		return p->rtp;
+	ast_log(LOG_ERROR, "No associated RTP structure in pvt???\n");
 	return NULL;
 }
 
@@ -1597,9 +1598,10 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, str
 	struct sockaddr_in them;
 	struct sockaddr_in us;
 
-	if (!rtp) 
+	if (!rtp) {
+		ast_log(LOG_NOTICE, "RTP is Null\n");
 		return 0;
-
+	}
 	p = chan->pvt->pvt;
 	if (!p) {
 		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");

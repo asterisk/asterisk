@@ -117,6 +117,7 @@ class MyH323EndPoint : public H323EndPoint {
 	
     void SetEndpointTypeInfo( H225_EndpointType & info ) const;
     void SetGateway(void);
+
 };
 
   
@@ -152,6 +153,8 @@ class MyH323Connection : public H323Connection {
     PIPSocket::Address remoteIpAddress;		// IP Address of remote endpoint
 	WORD			   externalPort;		// local media server Data port (control is dataPort+1)
 	WORD			   remotePort;			// remote endpoint Data port (control is dataPort+1)
+
+	PSyncPoint bridgeFlag;
 };
 
 
