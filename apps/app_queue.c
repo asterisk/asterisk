@@ -371,7 +371,8 @@ static int say_position(struct queue_ent *qe)
 
 	/* Round hold time to nearest minute */
 	avgholdmins = ( (qe->parent->holdtime + 30) - (now - qe->start) ) / 60;
-	ast_verbose(VERBOSE_PREFIX_3 "Hold time for %s is %d minutes\n", qe->parent->name, avgholdmins);
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_3 "Hold time for %s is %d minutes\n", qe->parent->name, avgholdmins);
 
 	/* If the hold time is >1 min, if it's enabled, and if it's not
 	   supposed to be only once and we have already said it, say it */
@@ -386,7 +387,8 @@ static int say_position(struct queue_ent *qe)
  	qe->last_pos = now;
 	qe->last_pos_said = qe->pos;
 
-	ast_verbose(VERBOSE_PREFIX_3 "Told %s in %s their queue position (which was %d)\n", qe->chan->name, qe->parent->name, qe->pos);
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_3 "Told %s in %s their queue position (which was %d)\n", qe->chan->name, qe->parent->name, qe->pos);
 	res += play_file(qe->chan, qe->parent->sound_thanks);
 	ast_moh_start(qe->chan, qe->moh);
 
@@ -719,7 +721,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 			}
 			if (f && (f->frametype == AST_FRAME_DTMF) && allowdisconnect && (f->subclass == '*')) {
 			    if (option_verbose > 3)
-				ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
+					ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 				*to=0;
 				return NULL;
 			}
@@ -1408,6 +1410,10 @@ static int queue_exec(struct ast_channel *chan, void *data)
 				}
 				/* exit after 'timeout' cycle if 'n' option enabled */
 				if (go_on) {
+					if (option_verbose > 2) {
+						ast_verbose(VERBOSE_PREFIX_3 "Exiting on time-out cycle\n");
+						res = -1;
+					}
 					ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
 					res = 0;
 					break;
