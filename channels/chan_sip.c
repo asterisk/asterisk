@@ -1936,6 +1936,7 @@ static void parse(struct sip_request *req)
 	/* Divide fields by NULL's */
 	char *c;
 	int f = 0;
+	int lastr = 0;
 	c = req->data;
 
 	/* First header starts immediately */
@@ -1959,15 +1960,21 @@ static void parse(struct sip_request *req)
 				if ((c[1] == ' ') || (c[1] == '\t')) {
 					/* Continuation of previous header */
 					*c = ' ';
+					if (lastr) {
+						*(c-1) = ' ';
+					}
 				} else {
 					f++;
 					req->header[f] = c + 1;
 				}
 			}
+			lastr = 0;
 		} else if (*c == '\r') {
 			/* Ignore but eliminate \r's */
 			*c = 0;
-		}
+			lastr = 1;
+		} else
+			lastr = 0;
 		c++;
 	}
 	/* Check for last header */
