@@ -164,28 +164,39 @@ static int iax2_capability = IAX_CAPABILITY_FULLBANDWIDTH;
 
 static int iax2_dropcount = DEFAULT_DROP;
 
-static int globalusejitterbuf = 0;
-
 static int iaxdebug = 0;
 
 static int iaxtrunkdebug = 0;
 
 static char accountcode[20];
 static int amaflags = 0;
-static int globalnotransfer = 0;
 static int delayreject = 0;
-static int globalmessagedetail = 0;
+
+static struct ast_flags globalflags = {0};
 
 static pthread_t netthreadid = AST_PTHREADT_NULL;
 
 #define IAX_STATE_STARTED		(1 << 0)
-#define IAX_STATE_AUTHENTICATED (1 << 1)
+#define IAX_STATE_AUTHENTICATED 	(1 << 1)
 #define IAX_STATE_TBD			(1 << 2)
 
 struct iax2_context {
 	char context[AST_MAX_EXTENSION];
 	struct iax2_context *next;
 };
+
+#define IAX_HASCALLERID		(1 << 0)	/* CallerID has been specified */
+#define IAX_DELME		(1 << 1)	/* Needs to be deleted */
+#define IAX_TEMPONLY		(1 << 2)	/* Temporary (realtime) */
+#define IAX_TRUNK		(1 << 3)	/* Treat as a trunk */
+#define IAX_NOTRANSFER		(1 << 4)	/* Don't native bridge */
+#define IAX_USEJITTERBUF	(1 << 5)	/* Use jitter buffer */
+#define IAX_DYNAMIC		(1 << 6)	/* dynamic peer */
+#define IAX_SENDANI		(1 << 7)	/* Send ANI along with CallerID */
+#define IAX_MESSAGEDETAIL	(1 << 8)	/* Show exact numbers */
+#define IAX_ALREADYGONE		(1 << 9)	/* Already disconnected */
+#define IAX_PROVISION		(1 << 10)	/* This is a provisioning request */
+#define IAX_QUELCH		(1 << 11)	/* Whether or not we quelch audio */
 
 struct iax2_user {
 	char name[80];
@@ -196,18 +207,13 @@ struct iax2_user {
 	char inkeys[80];				/* Key(s) this user can use to authenticate to us */
 	char language[MAX_LANGUAGE];
 	int amaflags;
-	int hascallerid;
-	int delme;
-	int temponly;
+	int flags;
 	int capability;
-	int trunk;
 	char cid_num[AST_MAX_EXTENSION];
 	char cid_name[AST_MAX_EXTENSION];
 	struct ast_ha *ha;
 	struct iax2_context *contexts;
 	struct iax2_user *next;
-	int notransfer;
-	int usejitterbuf;
 	struct ast_variable *vars;
 };
 
@@ -224,26 +230,20 @@ struct iax2_peer {
 	struct sockaddr_in addr;
 	int formats;
 	struct in_addr mask;
+	int flags;
 
 	/* Dynamic Registration fields */
-	int dynamic;					/* If this is a dynamic peer */
 	struct sockaddr_in defaddr;			/* Default address if there is one */
 	int authmethods;				/* Authentication methods (IAX_AUTH_*) */
 	char inkeys[80];				/* Key(s) this peer can use to authenticate to us */
 
-	int hascallerid;
 	/* Suggested caller id if registering */
 	char cid_num[AST_MAX_EXTENSION];		/* Default context (for transfer really) */
 	char cid_name[AST_MAX_EXTENSION];		/* Default context (for transfer really) */
-	/* Whether or not to send ANI */
-	int sendani;
+	
 	int expire;					/* Schedule entry for expirey */
 	int expirey;					/* How soon to expire */
 	int capability;					/* Capability */
-	int delme;					/* I need to be deleted */
-	int temponly;					/* I'm only a temp */
-	int trunk;					/* Treat as an IAX trunking */
-	int messagedetail;				/* Show exact numbers? */
 	char zonetag[80];				/* Time Zone */
 
 	/* Qualification */
@@ -254,8 +254,6 @@ struct iax2_peer {
 	
 	struct ast_ha *ha;
 	struct iax2_peer *next;
-	int notransfer;
-	int usejitterbuf;
 };
 
 #define IAX2_TRUNK_PREFACE (sizeof(struct iax_frame) + sizeof(struct ast_iax2_meta_hdr) + sizeof(struct ast_iax2_meta_trunk_hdr))
@@ -342,8 +340,6 @@ struct chan_iax2_pvt {
 	/* Pipes for communication.  pipe[1] belongs to the
 	   network thread (write), and pipe[0] belongs to the individual 
 	   channel (read) */
-	/* Whether or not we Quelch audio */
-	int quelch;
 	/* Last received voice format */
 	int voiceformat;
 	/* Last received voice format */
@@ -415,10 +411,6 @@ struct chan_iax2_pvt {
 	char cid_name[80];
 	/* Hidden Caller ID (i.e. ANI) if appropriate */
 	char ani[80];
-	/* Whether or not ani should be transmitted in addition to Caller*ID */
-	int sendani;
-	/* Whether to request autoanswer */
-	int autoanswer;
 	/* DNID */
 	char dnid[80];
 	/* Requested Extension */
@@ -443,13 +435,12 @@ struct chan_iax2_pvt {
 	struct iax2_registry *reg;
 	/* Associated peer for poking */
 	struct iax2_peer *peerpoke;
-
+	/* IAX_ flags */
+	int flags;
 	/* Transferring status */
 	int transferring;
 	/* Transfer identifier */
 	int transferid;
-	/* Already disconnected */
-	int alreadygone;
 	/* Who we are IAX transfering to */
 	struct sockaddr_in transfer;
 	/* What's the new call number for the transfer */
@@ -463,9 +454,6 @@ struct chan_iax2_pvt {
 	unsigned int bridgesfmt;
 	struct ast_trans_pvt *bridgetrans;
 	
-	/* If this is a provisioning request */
-	int provision;
-	
 	int pingid;			/* Transmit PING request */
 	int lagid;			/* Retransmit lag request */
 	int autoid;			/* Auto hangup for Dialplan requestor */
@@ -478,11 +466,7 @@ struct chan_iax2_pvt {
 	char dproot[AST_MAX_EXTENSION];
 	char accountcode[20];
 	int amaflags;
-	/* This is part of a trunk interface */
-	int trunk;
 	struct iax2_dpcache *dpentries;
-	int notransfer;		/* do we want native bridging */
-	int usejitterbuf;	/* use jitter buffer on this channel? */
 	struct ast_variable *vars;
 };
 
@@ -885,8 +869,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			iaxs[x]->pingid = ast_sched_add(sched, ping_time * 1000, send_ping, (void *)(long)x);
 			iaxs[x]->lagid = ast_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)(long)x);
 			iaxs[x]->amaflags = amaflags;
-			iaxs[x]->notransfer = globalnotransfer;
-			iaxs[x]->usejitterbuf = globalusejitterbuf;
+			ast_copy_flags(iaxs[x], (&globalflags), IAX_NOTRANSFER | IAX_USEJITTERBUF);	
 			strncpy(iaxs[x]->accountcode, accountcode, sizeof(iaxs[x]->accountcode)-1);
 		} else {
 			ast_log(LOG_WARNING, "Out of resources\n");
@@ -1199,7 +1182,7 @@ static int __do_deliver(void *data)
 	  the IAX thread with the iaxsl lock held. */
 	struct iax_frame *fr = data;
 	fr->retrans = -1;
-	if (iaxs[fr->callno] && !iaxs[fr->callno]->alreadygone)
+	if (iaxs[fr->callno] && !ast_test_flag(iaxs[fr->callno], IAX_ALREADYGONE))
 		iax2_queue_frame(fr->callno, &fr->af);
 	/* Free our iax frame */
 	iax2_frame_free(fr);
@@ -1314,7 +1297,7 @@ static int iax2_predestroy(int callno)
 		ast_mutex_unlock(&iaxsl[callno]);
 		return -1;
 	}
-	if (!pvt->alreadygone) {
+	if (!ast_test_flag(pvt, IAX_ALREADYGONE)) {
 		/* No more pings or lagrq's */
 		if (pvt->pingid > -1)
 			ast_sched_del(sched, pvt->pingid);
@@ -1331,7 +1314,7 @@ static int iax2_predestroy(int callno)
 		pvt->autoid = -1;
 		pvt->initid = -1;
 		pvt->authid = -1;
-		pvt->alreadygone = 1;
+		ast_set_flag(pvt, IAX_ALREADYGONE);	
 	}
 	c = pvt->owner;
 	if (c) {
@@ -1408,7 +1391,7 @@ retry:
 		pvt->bridgetrans = NULL;
 
 		/* Already gone */
-		pvt->alreadygone = 1;
+		ast_set_flag(pvt, IAX_ALREADYGONE);	
 
 		if (owner) {
 			/* If there's an owner, prod it to give up */
@@ -1902,7 +1885,7 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 	
 	/* If jitter buffer is disabled then just pretend the frame is "right on time" */
 	/* If frame came from trunk, also don't do any delay */
-	if ( (!iaxs[fr->callno]->usejitterbuf) || fromtrunk )
+	if ( (!ast_test_flag(iaxs[fr->callno], IAX_USEJITTERBUF)) || fromtrunk )
 		delay = 0;
 
 	if (option_debug) {
@@ -2017,7 +2000,7 @@ static struct iax2_peer *realtime_peer(const char *peername)
 		peer = build_peer(peername, var, 1);
 		if (peer) {
 			/* Add some finishing touches, addresses, etc */
-			peer->temponly = 1;
+			ast_set_flag(peer, IAX_TEMPONLY);	
 			tmp = var;
 			while(tmp) {
 				if (!strcasecmp(tmp->name, "type")) {
@@ -2066,7 +2049,7 @@ static struct iax2_user *realtime_user(const char *username)
 		user = build_user(username, var, 1);
 		if (user) {
 			/* Add some finishing touches, addresses, etc */
-			user->temponly = 1;
+			ast_set_flag(user, IAX_TEMPONLY);	
 			tmp = var;
 			while(tmp) {
 				if (!strcasecmp(tmp->name, "type")) {
@@ -2129,7 +2112,7 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 		if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
 			(!p->maxms || ((p->lastms > 0)  && (p->lastms <= p->maxms)))) {
 			if (sendani)
-				*sendani = p->sendani;		/* Whether we transmit ANI */
+				*sendani = ast_test_flag(p, IAX_SENDANI);		/* Whether we transmit ANI */
 			if (maxtime)
 				*maxtime = p->maxms;		/* Max time they should take */
 			if (context)
@@ -2137,7 +2120,7 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 			if (peercontext)
 				strncpy(peercontext, p->peercontext, AST_MAX_EXTENSION - 1);
 			if (trunk)
-				*trunk = p->trunk;
+				*trunk = ast_test_flag(p, IAX_TRUNK);
 			if (capability)
 				*capability = p->capability;
 			if (username)
@@ -2150,9 +2133,9 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 				sin->sin_port = p->defaddr.sin_port;
 			}
 			if (notransfer)
-				*notransfer=p->notransfer;
+				*notransfer = ast_test_flag(p, IAX_NOTRANSFER);
 			if (usejitterbuf)
-				*usejitterbuf=p->usejitterbuf;
+				*usejitterbuf = ast_test_flag(p, IAX_USEJITTERBUF);
 			if (secret) {
 				if (!ast_strlen_zero(p->dbsecret)) {
 					char *family, *key=NULL;
@@ -2166,7 +2149,7 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 					}
 					if (!family || !key || ast_db_get(family, key, secret, seclen)) {
 						ast_log(LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", p->dbsecret);
-						if (p->temponly)
+						if (ast_test_flag(p, IAX_TEMPONLY))
 							destroy_peer(p);
 						p = NULL;
 					}
@@ -2176,7 +2159,7 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 			if (timezone)
 				snprintf(timezone, tzlen-1, "%s", p->zonetag);
 		} else {
-			if (p->temponly)
+			if (ast_test_flag(p, IAX_TEMPONLY))
 				destroy_peer(p);
 			p = NULL;
 		}
@@ -2195,7 +2178,7 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 		}
 	} else if (!p)
 		return -1;
-	if (p->temponly)
+	if (ast_test_flag(p, IAX_TEMPONLY))
 		destroy_peer(p);
 	return 0;
 }
@@ -2322,7 +2305,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	iax_ie_append_short(&ied, IAX_IE_CALLINGTNS, c->cid.cid_tns);
 	if (n)
 		iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, n);
-	if (iaxs[callno]->sendani && c->cid.cid_ani) {
+	if (ast_test_flag(iaxs[callno], IAX_SENDANI) && c->cid.cid_ani) {
 		iax_ie_append_str(&ied, IAX_IE_CALLING_ANI, c->cid.cid_ani);
 	}
 	if (c->language && !ast_strlen_zero(c->language))
@@ -2386,7 +2369,7 @@ static int iax2_hangup(struct ast_channel *c)
 	ast_mutex_lock(&iaxsl[callno]);
 	if (callno && iaxs[callno]) {
 		ast_log(LOG_DEBUG, "We're hanging up %s now...\n", c->name);
-		alreadygone = iaxs[callno]->alreadygone;
+		alreadygone = ast_test_flag(iaxs[callno], IAX_ALREADYGONE);
 		/* Send the hangup unless we have had a transmission error or are already gone */
 		if (!iaxs[callno]->error && !alreadygone) 
 			send_command_final(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_HANGUP, 0, NULL, 0, -1);
@@ -2522,7 +2505,7 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 			return -2;
 		}
 		/* check if transfered and if we really want native bridging */
-		if (!transferstarted && !iaxs[callno0]->notransfer && !iaxs[callno1]->notransfer) {
+		if (!transferstarted && !ast_test_flag(iaxs[callno0], IAX_NOTRANSFER) && !ast_test_flag(iaxs[callno1], IAX_NOTRANSFER)) {
 			/* Try the transfer */
 			if (iax2_start_transfer(callno0, callno1))
 				ast_log(LOG_WARNING, "Unable to start the transfer\n");
@@ -2671,7 +2654,7 @@ static int iax2_getpeertrunk(struct sockaddr_in sin)
 	while(peer) {
 		if ((peer->addr.sin_addr.s_addr == sin.sin_addr.s_addr) &&
 				(peer->addr.sin_port == sin.sin_port)) {
-					res = peer->trunk;
+					res = ast_test_flag(peer, IAX_TRUNK);
 					break;
 		}
 		peer = peer->next;
@@ -3082,7 +3065,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 	/* Calculate actual timestamp */
 	fts = calc_timestamp(pvt, ts, f);
 
-	if ((pvt->trunk || ((fts & 0xFFFF0000L) == (lastsent & 0xFFFF0000L)))
+	if ((ast_test_flag(pvt, IAX_TRUNK) || ((fts & 0xFFFF0000L) == (lastsent & 0xFFFF0000L)))
 		/* High two bytes are the same on timestamp, or sending on a trunk */ &&
 	    (f->frametype == AST_FRAME_VOICE) 
 		/* is a voice frame */ &&
@@ -3164,7 +3147,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		} else
 			res = iax2_transmit(fr);
 	} else {
-		if (pvt->trunk) {
+		if (ast_test_flag(pvt, IAX_TRUNK)) {
 			iax2_trunk_queue(pvt, &fr->af);
 			res = 0;
 		} else if (fr->af.frametype == AST_FRAME_VIDEO) {
@@ -3269,9 +3252,9 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 
 		snprintf(srch, sizeof(srch), FORMAT, name, 
 					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
-					peer->dynamic ? "(D)" : "(S)",
+					ast_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
 					nm,
-					ntohs(peer->addr.sin_port), peer->trunk ? "(T)" : "   ", status);
+					ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ", status);
 
                 if (argc == 5) {
                   if (!strcasecmp(argv[3],"include") && strstr(srch,argv[4])) {
@@ -3288,9 +3271,9 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
                 if (print_line) {
 		ast_cli(fd, FORMAT, name, 
 					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
-					peer->dynamic ? "(D)" : "(S)",
+					ast_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
 					nm,
-					ntohs(peer->addr.sin_port), peer->trunk ? "(T)" : "   ", status);
+					ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ", status);
 		}
 	}
 	ast_mutex_unlock(&peerl.lock);
@@ -3425,7 +3408,7 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 						iaxs[x]->oseqno, iaxs[x]->iseqno, 
 						iaxs[x]->lag,
 						iaxs[x]->jitter,
-						iaxs[x]->usejitterbuf ? jitterbufsize(iaxs[x]) : 0,
+						ast_test_flag(iaxs[x], IAX_USEJITTERBUF) ? jitterbufsize(iaxs[x]) : 0,
 						ast_getformatname(iaxs[x]->voiceformat) );
 			numchans++;
 		}
@@ -3529,12 +3512,12 @@ static int iax2_write(struct ast_channel *c, struct ast_frame *f)
 	if (iaxs[callno]) {
 	/* If there's an outstanding error, return failure now */
 		if (!iaxs[callno]->error) {
-			if (iaxs[callno]->alreadygone)
+			if (ast_test_flag(iaxs[callno], IAX_ALREADYGONE))
 				res = 0;
 				/* Don't waste bandwidth sending null frames */
 			else if (f->frametype == AST_FRAME_NULL)
 				res = 0;
-			else if ((f->frametype == AST_FRAME_VOICE) && iaxs[callno]->quelch)
+			else if ((f->frametype == AST_FRAME_VOICE) && ast_test_flag(iaxs[callno], IAX_QUELCH))
 				res = 0;
 			else if (!(iaxs[callno]->state & IAX_STATE_STARTED))
 				res = 0;
@@ -3738,7 +3721,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		if (ast_strlen_zero(iaxs[callno]->username))
 			strncpy(iaxs[callno]->username, user->name, sizeof(iaxs[callno]->username)-1);
 		/* Store whether this is a trunked call, too, of course, and move if appropriate */
-		iaxs[callno]->trunk = user->trunk;
+		ast_copy_flags(iaxs[callno], user, IAX_TRUNK);
 		iaxs[callno]->capability = user->capability;
 		/* And use the default context */
 		if (ast_strlen_zero(iaxs[callno]->context)) {
@@ -3753,7 +3736,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		iaxs[callno]->authmethods = user->authmethods;
 		/* If they have callerid, override the given caller id.  Always store the ANI */
 		if (!ast_strlen_zero(iaxs[callno]->cid_num) || !ast_strlen_zero(iaxs[callno]->cid_name)) {
-			if (user->hascallerid) {
+			if (ast_test_flag(user, IAX_HASCALLERID)) {
 				iaxs[callno]->calling_tns = 0;
 				iaxs[callno]->calling_ton = 0;
 				strncpy(iaxs[callno]->cid_num, user->cid_num, sizeof(iaxs[callno]->cid_num)-1);
@@ -3770,8 +3753,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			iaxs[callno]->amaflags = user->amaflags;
 		if (!ast_strlen_zero(user->language))
 			strncpy(iaxs[callno]->language, user->language, sizeof(iaxs[callno]->language)-1);
-		iaxs[callno]->notransfer = user->notransfer;
-		iaxs[callno]->usejitterbuf = user->usejitterbuf;
+		ast_copy_flags(iaxs[callno], user, IAX_NOTRANSFER | IAX_USEJITTERBUF);	
 		/* Keep this check last */
 		if (!ast_strlen_zero(user->dbsecret)) {
 			char *family, *key=NULL;
@@ -3785,7 +3767,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			}
 			if (!family || !key || ast_db_get(family, key, iaxs[callno]->secret, sizeof(iaxs[callno]->secret))) {
 				ast_log(LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", user->dbsecret);
-				if (user->temponly) {
+				if (ast_test_flag(user, IAX_TEMPONLY)) {
 					destroy_user(user);
 					user = NULL;
 				}
@@ -3794,7 +3776,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			strncpy(iaxs[callno]->secret, user->secret, sizeof(iaxs[callno]->secret) - 1); 
 		res = 0;
 	}
-	iaxs[callno]->trunk = iax2_getpeertrunk(*sin);
+	ast_set2_flag(iaxs[callno], iax2_getpeertrunk(*sin), IAX_TRUNK);	
 	return res;
 }
 
@@ -3940,10 +3922,10 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		return -1;
 	}
 
-	if (!p->dynamic) {
+	if (!ast_test_flag(p, IAX_DYNAMIC)) {
 		if (authdebug)
 			ast_log(LOG_NOTICE, "Peer '%s' is not dynamic (from %s)\n", peer, ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
-		if (p->temponly)
+		if (ast_test_flag(p, IAX_TEMPONLY))
 			destroy_peer(p);
 		return -1;
 	}
@@ -3951,7 +3933,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	if (!ast_apply_ha(p->ha, sin)) {
 		if (authdebug)
 			ast_log(LOG_NOTICE, "Host %s denied access to register peer '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), p->name);
-		if (p->temponly)
+		if (ast_test_flag(p, IAX_TEMPONLY))
 			destroy_peer(p);
 		return -1;
 	}
@@ -3977,14 +3959,14 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 			if (!keyn) {
 				if (authdebug)
 					ast_log(LOG_NOTICE, "Host %s failed RSA authentication with inkeys '%s'\n", peer, p->inkeys);
-				if (p->temponly)
+				if (ast_test_flag(p, IAX_TEMPONLY))
 					destroy_peer(p);
 				return -1;
 			}
 		} else {
 			if (authdebug)
 				ast_log(LOG_NOTICE, "Host '%s' trying to do RSA authentication, but we have no inkeys\n", peer);
-			if (p->temponly)
+			if (ast_test_flag(p, IAX_TEMPONLY))
 				destroy_peer(p);
 			return -1;
 		}
@@ -3993,7 +3975,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		if (strcmp(secret, p->secret)) {
 			if (authdebug)
 				ast_log(LOG_NOTICE, "Host %s did not provide proper plaintext password for '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), p->name);
-			if (p->temponly)
+			if (ast_test_flag(p, IAX_TEMPONLY))
 				destroy_peer(p);
 			return -1;
 		} else
@@ -4020,14 +4002,14 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		} else {
 			if (authdebug)
 				ast_log(LOG_NOTICE, "Host %s failed MD5 authentication for '%s' (%s != %s)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), p->name, requeststr, md5secret);
-			if (p->temponly)
+			if (ast_test_flag(p, IAX_TEMPONLY))
 				destroy_peer(p);
 			return -1;
 		}
 	} else if (!ast_strlen_zero(md5secret) || !ast_strlen_zero(secret)) {
 		if (authdebug)
 			ast_log(LOG_NOTICE, "Inappropriate authentication received\n");
-		if (p->temponly)
+		if (ast_test_flag(p, IAX_TEMPONLY))
 			destroy_peer(p);
 		return -1;
 	}
@@ -4035,7 +4017,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	/* Choose lowest expirey number */
 	if (expire && (expire < iaxs[callno]->expirey)) 
 		iaxs[callno]->expirey = expire;
-	if (p->temponly)
+	if (ast_test_flag(p, IAX_TEMPONLY))
 		destroy_peer(p);
 	return 0;
 	
@@ -4424,7 +4406,7 @@ static int expire_registry(void *data)
 	p->expire = -1;
 	/* Reset expirey value */
 	p->expirey = expirey;
-	if (!p->temponly)
+	if (!ast_test_flag(p, IAX_TEMPONLY))
 		ast_db_del("IAX/Registry", p->name);
 	register_peer_exten(p, 0);
 	if (iax2_regfunk)
@@ -4441,7 +4423,7 @@ static void reg_source_db(struct iax2_peer *p)
 	struct in_addr in;
 	char iabuf[INET_ADDRSTRLEN];
 	char *c, *d;
-	if (!p->temponly && (!ast_db_get("IAX/Registry", p->name, data, sizeof(data)))) {
+	if (!ast_test_flag(p, IAX_TEMPONLY) && (!ast_db_get("IAX/Registry", p->name, data, sizeof(data)))) {
 		c = strchr(data, ':');
 		if (c) {
 			*c = '\0';
@@ -4491,20 +4473,20 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 	if (!p)
 		p = realtime_peer(name);
 	if (p) {
-		if (p->temponly)
+		if (ast_test_flag(p, IAX_TEMPONLY))
 			realtime_update(name, sin);
 		if (inaddrcmp(&p->addr, sin)) {
 			if (iax2_regfunk)
 				iax2_regfunk(p->name, 1);
 			snprintf(data, sizeof(data), "%s:%d:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port), p->expirey);
-			if (!p->temponly && sin->sin_addr.s_addr) {
+			if (!ast_test_flag(p, IAX_TEMPONLY) && sin->sin_addr.s_addr) {
 				ast_db_put("IAX/Registry", p->name, data);
 				if  (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Registered '%s' (%s) at %s:%d\n", p->name, 
 					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
 				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Registered\r\n", p->name);+                               manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Registered\r\n", p->name);
 				register_peer_exten(p, 1);
-			} else if (!p->temponly) {
+			} else if (!ast_test_flag(p, IAX_TEMPONLY)) {
 				if  (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Unregistered '%s' (%s)\n", p->name, 
 					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED");
@@ -4528,7 +4510,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 			iax_ie_append_short(&ied, IAX_IE_REFRESH, p->expirey);
 			iax_ie_append_addr(&ied, IAX_IE_APPARENT_ADDR, &p->addr);
 			if (!ast_strlen_zero(p->mailbox)) {
-				if (p->messagedetail) {
+				if (ast_test_flag(p, IAX_MESSAGEDETAIL)) {
 					int new, old;
 					ast_app_messagecount(p->mailbox, &new, &old);
 					if (new > 255)
@@ -4543,7 +4525,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 				}
 				iax_ie_append_short(&ied, IAX_IE_MSGCOUNT, msgcount);
 			}
-			if (p->hascallerid) {
+			if (ast_test_flag(p, IAX_HASCALLERID)) {
 				iax_ie_append_str(&ied, IAX_IE_CALLING_NUMBER, p->cid_num);
 				iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, p->cid_name);
 			}
@@ -4551,7 +4533,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 		version = iax_check_version(devtype);
 		if (version) 
 			iax_ie_append_short(&ied, IAX_IE_FIRMWAREVER, version);
-		if (p->temponly)
+		if (ast_test_flag(p, IAX_TEMPONLY))
 			destroy_peer(p);
 		return send_command_final(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGACK, 0, ied.buf, ied.pos, -1);
 	}
@@ -4581,7 +4563,7 @@ static int registry_authrequest(char *name, int callno)
 			iax_ie_append_str(&ied, IAX_IE_CHALLENGE, iaxs[callno]->challenge);
 		}
 		iax_ie_append_str(&ied, IAX_IE_USERNAME, name);
-		if (p->temponly)
+		if (ast_test_flag(p, IAX_TEMPONLY))
 			destroy_peer(p);
 		return send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGAUTH, 0, ied.buf, ied.pos, -1);;
 	} 
@@ -5431,7 +5413,7 @@ retryowner:
 				break;
 			case IAX_COMMAND_QUELCH:
 				if (iaxs[fr.callno]->state & IAX_STATE_STARTED) {
-					iaxs[fr.callno]->quelch = 1;
+					ast_set_flag(iaxs[fr.callno], IAX_QUELCH);
 					if (ies.musiconhold) {
 						if (iaxs[fr.callno]->owner &&
 							ast_bridged_channel(iaxs[fr.callno]->owner))
@@ -5441,7 +5423,7 @@ retryowner:
 				break;
 			case IAX_COMMAND_UNQUELCH:
 				if (iaxs[fr.callno]->state & IAX_STATE_STARTED) {
-					iaxs[fr.callno]->quelch = 0;
+					ast_clear_flag(iaxs[fr.callno], IAX_QUELCH);
 					if (iaxs[fr.callno]->owner &&
 						ast_bridged_channel(iaxs[fr.callno]->owner))
 							ast_moh_stop(ast_bridged_channel(iaxs[fr.callno]->owner));
@@ -5480,7 +5462,7 @@ retryowner:
 					break;
 				}
 				/* If we're in trunk mode, do it now, and update the trunk number in our frame before continuing */
-				if (iaxs[fr.callno]->trunk) {
+				if (ast_test_flag(iaxs[fr.callno], IAX_TRUNK)) {
 					fr.callno = make_trunk(fr.callno, 1);
 				}
 				/* This might re-enter the IAX code and need the lock */
@@ -5518,7 +5500,7 @@ retryowner:
 									send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 									if (authdebug)
 										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible  with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
-									iaxs[fr.callno]->alreadygone = 1;
+									ast_set_flag(iaxs[fr.callno], IAX_ALREADYGONE);	
 									break;
 								}
 							}
@@ -5562,7 +5544,7 @@ retryowner:
 				}
 				break;
 			case IAX_COMMAND_HANGUP:
-				iaxs[fr.callno]->alreadygone = 1;
+				ast_set_flag(iaxs[fr.callno], IAX_ALREADYGONE);
 				ast_log(LOG_DEBUG, "Immediately destroying %d, having received hangup\n", fr.callno);
 				/* Send ack immediately, before we destroy */
 				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
@@ -5573,7 +5555,7 @@ retryowner:
 				f.frametype = AST_FRAME_CONTROL;
 				f.subclass = AST_CONTROL_CONGESTION;
 				iax2_queue_frame(fr.callno, &f);
-				if (iaxs[fr.callno]->provision) {
+				if (ast_test_flag(iaxs[fr.callno], IAX_PROVISION)) {
 					/* Send ack immediately, before we destroy */
 					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 					iax2_destroy_nolock(fr.callno);
@@ -5611,7 +5593,7 @@ retryowner:
 				/* Ignore if call is already up or needs authentication or is a TBD */
 				if (iaxs[fr.callno]->state & (IAX_STATE_STARTED | IAX_STATE_TBD | IAX_STATE_AUTHENTICATED))
 					break;
-				if (iaxs[fr.callno]->provision) {
+				if (ast_test_flag(iaxs[fr.callno], IAX_PROVISION)) {
 					/* Send ack immediately, before we destroy */
 					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 					iax2_destroy_nolock(fr.callno);
@@ -5947,8 +5929,8 @@ retryowner2:
 							/* They're both ready, now release them. */
 							iaxs[iaxs[fr.callno]->bridgecallno]->transferring = TRANSFER_RELEASED;
 							iaxs[fr.callno]->transferring = TRANSFER_RELEASED;
-							iaxs[iaxs[fr.callno]->bridgecallno]->alreadygone = 1;
-							iaxs[fr.callno]->alreadygone = 1;
+							ast_set_flag(iaxs[iaxs[fr.callno]->bridgecallno], IAX_ALREADYGONE);
+							ast_set_flag(iaxs[fr.callno], IAX_ALREADYGONE);
 
 							/* Stop doing lag & ping requests */
 							stop_stuff(fr.callno);
@@ -6178,7 +6160,7 @@ static int iax2_provision(struct sockaddr_in *end, char *dest, const char *templ
 		if (iaxs[callno]->autoid > -1)
 			ast_sched_del(sched, iaxs[callno]->autoid);
 		iaxs[callno]->autoid = ast_sched_add(sched, 15000, auto_hangup, (void *)(long)callno);
-		iaxs[callno]->provision = 1;
+		ast_set_flag(iaxs[callno], IAX_PROVISION);
 		/* Got a call number now, so go ahead and send the provisioning information */
 		send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_PROVISION, 0, ied.buf, ied.pos, -1);
 	}
@@ -6333,8 +6315,8 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	char *portno=NULL;
 	int capability = iax2_capability;
 	int trunk;
-	int notransfer = globalnotransfer;
-	int usejitterbuf = globalusejitterbuf;
+	int notransfer = ast_test_flag((&globalflags), IAX_NOTRANSFER);
+	int usejitterbuf = ast_test_flag((&globalflags), IAX_USEJITTERBUF);
 	strncpy(s, (char *)data, sizeof(s)-1);
 	/* FIXME The next two lines seem useless */
 	stringp=s;
@@ -6371,14 +6353,14 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	}
 	ast_mutex_lock(&iaxsl[callno]);
 	/* If this is a trunk, update it now */
-	iaxs[callno]->trunk = trunk;
+	ast_set2_flag(iaxs[callno], trunk, IAX_TRUNK);	
 	if (trunk) 
 		callno = make_trunk(callno, 1);
 	/* Keep track of sendani flag */
-	iaxs[callno]->sendani = sendani;
+	ast_set2_flag(iaxs[callno], sendani, IAX_SENDANI);	
 	iaxs[callno]->maxtime = maxtime;
-	iaxs[callno]->notransfer = notransfer;
-	iaxs[callno]->usejitterbuf = usejitterbuf;
+	ast_set2_flag(iaxs[callno], notransfer, IAX_NOTRANSFER);	
+	ast_set2_flag(iaxs[callno], usejitterbuf, IAX_USEJITTERBUF);	
 	if (found)
 		strncpy(iaxs[callno]->host, hostname, sizeof(iaxs[callno]->host) - 1);
 	c = ast_iax2_new(callno, AST_STATE_DOWN, capability);
@@ -6531,8 +6513,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 		}
 	}
 	if (peer) {
-		peer->messagedetail = globalmessagedetail;
-		peer->usejitterbuf = globalusejitterbuf;
+		ast_copy_flags(peer, (&globalflags), IAX_MESSAGEDETAIL | IAX_USEJITTERBUF);	
 		peer->secret[0] = '\0';
 		if (!found) {
 			strncpy(peer->name, name, sizeof(peer->name)-1);
@@ -6552,23 +6533,23 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 			} else if (!strcasecmp(v->name, "dbsecret")) 
 				strncpy(peer->dbsecret, v->value, sizeof(peer->dbsecret)-1);
 			else if (!strcasecmp(v->name, "mailboxdetail"))
-				peer->messagedetail = ast_true(v->value);
+				ast_set2_flag(peer, ast_true(v->value), IAX_MESSAGEDETAIL);	
 			else if (!strcasecmp(v->name, "trunk")) {
-				peer->trunk = ast_true(v->value);
-				if (peer->trunk && (timingfd < 0)) {
+				ast_set2_flag(peer, ast_true(v->value), IAX_TRUNK);	
+				if (ast_test_flag(peer, IAX_TRUNK) && (timingfd < 0)) {
 					ast_log(LOG_WARNING, "Unable to support trunking on peer '%s' without zaptel timing\n", peer->name);
-					peer->trunk = 0;
+					ast_clear_flag(peer, IAX_TRUNK);
 				}
 			} else if (!strcasecmp(v->name, "auth")) {
 				peer->authmethods = get_auth_methods(v->value);
 			} else if (!strcasecmp(v->name, "notransfer")) {
-				peer->notransfer = ast_true(v->value);
+				ast_set2_flag(peer, ast_true(v->value), IAX_NOTRANSFER);	
 			} else if (!strcasecmp(v->name, "jitterbuffer")) {
-				peer->usejitterbuf = ast_true(v->value);
+				ast_set2_flag(peer, ast_true(v->value), IAX_USEJITTERBUF);	
 			} else if (!strcasecmp(v->name, "host")) {
 				if (!strcasecmp(v->value, "dynamic")) {
 					/* They'll register with us */
-					peer->dynamic = 1;
+					ast_set_flag(peer, IAX_DYNAMIC);	
 					if (!found) {
 						/* Initialize stuff iff we're not found, otherwise
 						   we keep going with what we had */
@@ -6584,7 +6565,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 					if (peer->expire > -1)
 						ast_sched_del(sched, peer->expire);
 					peer->expire = -1;
-					peer->dynamic = 0;
+					ast_clear_flag(peer, IAX_DYNAMIC);	
 					if (ast_get_ip(&peer->addr, v->value)) {
 						free(peer);
 						return NULL;
@@ -6612,7 +6593,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 				if (ast_strlen_zero(peer->peercontext))
 					strncpy(peer->peercontext, v->value, sizeof(peer->peercontext) - 1);
 			} else if (!strcasecmp(v->name, "port")) {
-				if (peer->dynamic)
+				if (ast_test_flag(peer, IAX_DYNAMIC))
 					peer->defaddr.sin_port = htons(atoi(v->value));
 				else
 					peer->addr.sin_port = htons(atoi(v->value));
@@ -6633,9 +6614,9 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 			} else if (!strcasecmp(v->name, "callerid")) {
 				ast_callerid_split(v->value, peer->cid_name, sizeof(peer->cid_name),
 									peer->cid_num, sizeof(peer->cid_num));
-				peer->hascallerid=1;
+				ast_set_flag(peer, IAX_HASCALLERID);	
 			} else if (!strcasecmp(v->name, "sendani")) {
-				peer->sendani = ast_true(v->value);
+				ast_set2_flag(peer, ast_true(v->value), IAX_SENDANI);	
 			} else if (!strcasecmp(v->name, "inkeys")) {
 				strncpy(peer->inkeys, v->value, sizeof(peer->inkeys) - 1);
 			} else if (!strcasecmp(v->name, "outkey")) {
@@ -6657,10 +6638,10 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 		}
 		if (!peer->authmethods)
 			peer->authmethods = IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT;
-		peer->delme = 0;
+		ast_clear_flag(peer, IAX_DELME);	
 		/* Make sure these are IPv4 addresses */
 		peer->addr.sin_family = AF_INET;
-		if (!found && peer->dynamic && !temponly)
+		if (!found && ast_test_flag(peer, IAX_DYNAMIC) && !temponly)
 			reg_source_db(peer);
 	}
 	if (oldha)
@@ -6717,7 +6698,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 		user->capability = iax2_capability;
 		strncpy(user->name, name, sizeof(user->name)-1);
 		strncpy(user->language, language, sizeof(user->language) - 1);
-		user->usejitterbuf = globalusejitterbuf;
+		ast_copy_flags(user, (&globalflags), IAX_USEJITTERBUF);	
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
 				con = build_context(v->value);
@@ -6754,17 +6735,17 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 				else
 					user->capability &= ~format;
 			} else if (!strcasecmp(v->name, "trunk")) {
-				user->trunk = ast_true(v->value);
-				if (user->trunk && (timingfd < 0)) {
+				ast_set2_flag(user, ast_true(v->value), IAX_TRUNK);	
+				if (ast_test_flag(user, IAX_TRUNK) && (timingfd < 0)) {
 					ast_log(LOG_WARNING, "Unable to support trunking on user '%s' without zaptel timing\n", user->name);
-					user->trunk = 0;
+					ast_clear_flag(user, IAX_TRUNK);
 				}
 			} else if (!strcasecmp(v->name, "auth")) {
 				user->authmethods = get_auth_methods(v->value);
 			} else if (!strcasecmp(v->name, "notransfer")) {
-				user->notransfer = ast_true(v->value);
+				ast_set2_flag(user, ast_true(v->value), IAX_NOTRANSFER);	
 			} else if (!strcasecmp(v->name, "jitterbuffer")) {
-				user->usejitterbuf = ast_true(v->value);
+				ast_set2_flag(user, ast_true(v->value), IAX_USEJITTERBUF);	
 			} else if (!strcasecmp(v->name, "dbsecret")) {
 				strncpy(user->dbsecret, v->value, sizeof(user->dbsecret)-1);
 			} else if (!strcasecmp(v->name, "secret")) {
@@ -6775,7 +6756,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 					strncpy(user->secret, v->value, sizeof(user->secret)-1);
 			} else if (!strcasecmp(v->name, "callerid")) {
 				ast_callerid_split(v->value, user->cid_name, sizeof(user->cid_name), user->cid_num, sizeof(user->cid_num));
-				user->hascallerid=1;
+				ast_set_flag(user, IAX_HASCALLERID);	
 			} else if (!strcasecmp(v->name, "accountcode")) {
 				strncpy(user->accountcode, v->value, sizeof(user->accountcode)-1);
 			} else if (!strcasecmp(v->name, "language")) {
@@ -6804,7 +6785,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 				user->authmethods = IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT;
 			}
 		}
-		user->delme = 0;
+		ast_clear_flag(user, IAX_DELME);
 	}
 	if (oldha)
 		ast_free_ha(oldha);
@@ -6821,7 +6802,7 @@ static void delete_users(void)
 
 	ast_mutex_lock(&userl.lock);
 	for (user=userl.users;user;) {
-		user->delme = 1;
+		ast_set_flag(user, IAX_DELME);
 		user = user->next;
 	}
 	ast_mutex_unlock(&userl.lock);
@@ -6846,7 +6827,7 @@ static void delete_users(void)
 	ast_mutex_lock(&peerl.lock);
 	for (peer=peerl.peers;peer;) {
 		/* Assume all will be deleted, and we'll find out for sure later */
-		peer->delme = 1;
+		ast_set_flag(peer, IAX_DELME);
 		peer = peer->next;
 	}
 	ast_mutex_unlock(&peerl.lock);
@@ -6869,7 +6850,7 @@ static void prune_users(void)
 	ast_mutex_lock(&userl.lock);
 	for (user=userl.users;user;) {
 		usernext = user->next;
-		if (user->delme) {
+		if (ast_test_flag(user, IAX_DELME)) {
 			destroy_user(user);
 			if (userlast)
 				userlast->next = usernext;
@@ -6911,7 +6892,7 @@ static void prune_peers(void){
 	peerlast = NULL;
 	for (peer=peerl.peers;peer;) {
 		peernext = peer->next;
-		if (peer->delme) {
+		if (ast_test_flag(peer, IAX_DELME)) {
 			destroy_peer(peer);
 			if (peerlast)
 				peerlast->next = peernext;
@@ -6994,13 +6975,13 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 		else if (!strcasecmp(v->name, "authdebug"))
 			authdebug = ast_true(v->value);
 		else if (!strcasecmp(v->name, "notransfer"))
-			globalnotransfer = ast_true(v->value);
+			ast_set2_flag((&globalflags), ast_true(v->value), IAX_NOTRANSFER);	
 		else if (!strcasecmp(v->name, "jitterbuffer"))
-			globalusejitterbuf = ast_true(v->value);
+			ast_set2_flag((&globalflags), ast_true(v->value), IAX_USEJITTERBUF);	
 		else if (!strcasecmp(v->name, "delayreject"))
 			delayreject = ast_true(v->value);
 		else if (!strcasecmp(v->name, "mailboxdetail"))
-			globalmessagedetail = ast_true(v->value);
+			ast_set2_flag((&globalflags), ast_true(v->value), IAX_MESSAGEDETAIL);	
 		else if (!strcasecmp(v->name, "trunkfreq")) {
 			trunkfreq = atoi(v->value);
 			if (trunkfreq < 10)
@@ -7122,8 +7103,8 @@ static int reload_config(void)
 	strncpy(language, "", sizeof(language)-1);
 	amaflags = 0;
 	delayreject = 0;
-	globalnotransfer = 0;
-	globalusejitterbuf = 0;
+	ast_clear_flag((&globalflags), IAX_NOTRANSFER);	
+	ast_clear_flag((&globalflags), IAX_USEJITTERBUF);	
 	srand(time(NULL));
 	delete_users();
 	set_config(config,&dead_sin);
