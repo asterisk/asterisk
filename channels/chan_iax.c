@@ -5134,7 +5134,7 @@ int load_module(void)
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
 
-	if (setsockopt(netsocket, SOL_IP, IP_TOS, &tos, sizeof(tos))) 
+	if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
 		ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
 	
 	if (!res) {

@@ -575,7 +575,7 @@ struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io)
 int ast_rtp_settos(struct ast_rtp *rtp, int tos)
 {
 	int res;
-	if ((res = setsockopt(rtp->s, SOL_IP, IP_TOS, &tos, sizeof(tos)))) 
+	if ((res = setsockopt(rtp->s, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)))) 
 		ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
 	return res;
 }

@@ -313,6 +313,7 @@ static int set_priority(int pri)
 	memset(&sched, 0, sizeof(sched));
 	/* We set ourselves to a high priority, that we might pre-empt everything
 	   else.  If your PBX has heavy activity on it, this is a good thing.  */
+#ifdef __linux__
 	if (pri) {  
 		sched.sched_priority = 10;
 		if (sched_setscheduler(0, SCHED_RR, &sched)) {
@@ -328,6 +329,21 @@ static int set_priority(int pri)
 			return -1;
 		}
 	}
+#else
+	if (pri) {
+		if (setpriority(PRIO_PROCESS, 0, -10) == -1) {
+			ast_log(LOG_WARNING, "Unable to set high priority\n");
+			return -1;
+		} else
+			if (option_verbose)
+				ast_verbose("Set to high priority\n");
+	} else {
+		if (setpriority(PRIO_PROCESS, 0, 0) == -1) {
+			ast_log(LOG_WARNING, "Unable to set normal priority\n");
+			return -1;
+		}
+	}
+#endif
 	return 0;
 }
 
