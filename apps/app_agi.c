@@ -36,6 +36,7 @@
 #include <asterisk/app.h>
 #include <asterisk/dsp.h>
 #include <asterisk/musiconhold.h>
+#include <asterisk/utils.h>
 #include "../asterisk.h"
 #include "../astconf.h"
 
@@ -1465,7 +1466,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 	int pid;
         char *stringp;
 	AGI agi;
-	if (!data || !strlen(data)) {
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "AGI requires an argument (script)\n");
 		return -1;
 	}

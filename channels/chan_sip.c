@@ -651,6 +651,8 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp)
 			if (cur->retransid > -1)
 				ast_sched_del(sched, cur->retransid);
 			cur->retransid = -1;
+			/* Schedule destruction in 15000ms just in case */
+			sip_scheddestroy(p, 15000);
 			res = 0;
 			break;
 		}
@@ -6173,7 +6175,7 @@ restartsearch:
 		sip = iflist;
 		while(sip) {
 			ast_mutex_lock(&sip->lock);
-			if (sip->needdestroy && (!sip->packets || (sip->packets->retransid == -1))) {
+			if (sip->needdestroy && !sip->packets) {
 				ast_mutex_unlock(&sip->lock);
 				__sip_destroy(sip, 1);
 				goto restartsearch;

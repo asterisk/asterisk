@@ -19,6 +19,7 @@
 #include <asterisk/module.h>
 #include <asterisk/app.h>
 #include <asterisk/astdb.h>
+#include <asterisk/utils.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -63,7 +64,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 	char passwd[256];
 	char *opts;
 	char *prompt;
-	if (!data || !strlen(data)) {
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Authenticate requires an argument(password)\n");
 		return -1;
 	}
@@ -108,14 +109,14 @@ static int auth_exec(struct ast_channel *chan, void *data)
 					char buf[256] = "";
 					while(!feof(f)) {
 						fgets(buf, sizeof(buf), f);
-						if (!feof(f) && strlen(buf)) {
+						if (!feof(f) && !ast_strlen_zero(buf)) {
 							buf[strlen(buf) - 1] = '\0';
-							if (strlen(buf) && !strcmp(passwd, buf))
+							if (!ast_strlen_zero(buf) && !strcmp(passwd, buf))
 								break;
 						}
 					}
 					fclose(f);
-					if (strlen(buf) && !strcmp(passwd, buf))
+					if (!ast_strlen_zero(buf) && !strcmp(passwd, buf))
 						break;
 				} else 
 					ast_log(LOG_WARNING, "Unable to open file '%s' for authentication: %s\n", password, strerror(errno));

@@ -24,6 +24,7 @@
 #include <asterisk/parking.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/callerid.h>
+#include <asterisk/utils.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -201,7 +202,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					*allowdisconnect = o->allowdisconnect;
 				}
 			} else if (o->chan && (o->chan == winner)) {
-				if (strlen(o->chan->call_forward)) {
+				if (!ast_strlen_zero(o->chan->call_forward)) {
 					char tmpchan[256];
 					/* Before processing channel, go ahead and check for forwarding */
 					if (option_verbose > 2)
@@ -235,7 +236,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						}
 						if (o->chan->rdnis) 
 							free(o->chan->rdnis);
-						if (strlen(in->macroexten))
+						if (!ast_strlen_zero(in->macroexten))
 							o->chan->rdnis = strdup(in->macroexten);
 						else
 							o->chan->rdnis = strdup(in->exten);
@@ -445,7 +446,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		}
 	} else
 		timeout = NULL;
-	if (!peers || !strlen(peers)) {
+	if (!peers || ast_strlen_zero(peers)) {
 		ast_log(LOG_WARNING, "Dial argument takes format (technology1/number1&technology2/number2...|optional timeout)\n");
 		goto out;
 	}
@@ -581,7 +582,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	}
 	if (resetcdr && chan->cdr)
 		ast_cdr_reset(chan->cdr, 0);
-	if (!strlen(privdb) && privacy) {
+	if (ast_strlen_zero(privdb) && privacy) {
 		/* If privdb is not specified and we are using privacy, copy from extension */
 		strncpy(privdb, chan->exten, sizeof(privdb) - 1);
 	}
@@ -658,7 +659,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			cur = rest;
 			continue;
 		}
-		if (strlen(tmp->chan->call_forward)) {
+		if (!ast_strlen_zero(tmp->chan->call_forward)) {
 			char tmpchan[256];
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Forwarding call to '%s@%s'\n", tmp->chan->call_forward, tmp->chan->context);
@@ -721,7 +722,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			tmp->chan->callerid = NULL;
 		/* Copy language from incoming to outgoing */
 		strcpy(tmp->chan->language, chan->language);
-		if (!strlen(tmp->chan->musicclass))
+		if (ast_strlen_zero(tmp->chan->musicclass))
 			strncpy(tmp->chan->musicclass, chan->musicclass, sizeof(tmp->chan->musicclass) - 1);
 		if (chan->ani)
 			tmp->chan->ani = strdup(chan->ani);
@@ -768,7 +769,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		cur = rest;
 	} while(cur);
 	
-	if (timeout && strlen(timeout)) {
+	if (timeout && !ast_strlen_zero(timeout)) {
 		to = atoi(timeout);
 		if (to > 0)
 			to *= 1000;
@@ -808,7 +809,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			return -1;
 		}
  		/* JDG: sendurl */
- 		if( url && strlen(url) && ast_channel_supports_html(peer) ) {
+ 		if( url && !ast_strlen_zero(url) && ast_channel_supports_html(peer) ) {
  			ast_log(LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
  			ast_channel_sendurl( peer, url );
  		} /* /JDG */

@@ -19,6 +19,7 @@
 #include <asterisk/module.h>
 #include <asterisk/adsi.h>
 #include <asterisk/options.h>
+#include <asterisk/utils.h>
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -178,7 +179,7 @@ static int process_token(void *out, char *src, int maxlen, int argtype)
 			maxlen = strlen(src) - 1;
 		memcpy(out, src, maxlen);
 		((char *)out)[maxlen] = '\0';
-	} else if (strlen(src) && (src[0] == '\\')) {
+	} else if (!ast_strlen_zero(src) && (src[0] == '\\')) {
 		if (!(argtype & ARG_NUMBER))
 			return -1;
 		/* Octal value */
@@ -198,7 +199,7 @@ static int process_token(void *out, char *src, int maxlen, int argtype)
 			/* Convert */
 			*((unsigned int *)out) = htonl(*((unsigned int *)out));
 		}
-	} else if ((strlen(src) && isdigit(src[0]))) {
+	} else if ((!ast_strlen_zero(src) && isdigit(src[0]))) {
 		if (!(argtype & ARG_NUMBER))
 			return -1;
 		/* Hex value */
@@ -1363,7 +1364,7 @@ static struct adsi_script *compile_script(char *script)
 			/* Strip comments */
 			if (c)
 				*c = '\0';
-			if (strlen(buf))
+			if (!ast_strlen_zero(buf))
 				adsi_process(scr, buf, script, lineno);
 		}
 	}
@@ -1540,7 +1541,7 @@ static int adsi_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
-	if (!data || !strlen(data))
+	if (!data || ast_strlen_zero(data))
 		data = "asterisk.adsi";
 	LOCAL_USER_ADD(u);
 	if (!adsi_available(chan)) {
