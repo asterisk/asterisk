@@ -996,9 +996,9 @@ static int iax2_predestroy(int callno)
 		if (usecnt < 0) 
 			ast_log(LOG_WARNING, "Usecnt < 0???\n");
 		ast_mutex_unlock(&usecnt_lock);
-		ast_update_use_count();
 	}
 	ast_mutex_unlock(&iaxsl[callno]);
+	ast_update_use_count();
 	return 0;
 }
 
