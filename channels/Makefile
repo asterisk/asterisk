@@ -133,13 +133,6 @@ gentone: gentone.c
 
 gentone-ulaw: gentone-ulaw.c
 	$(HOSTCC) -o gentone-ulaw gentone-ulaw.c -lm
-
-gentone.cross: gentone.c
-	$(CC) -o gentone.cross gentone.c -lm
-
-gentone-ulaw.cross: gentone-ulaw.c
-	$(CC) -o gentone-ulaw.cross gentone-ulaw.c -lm
-
 endif
 
 busy.h: gentone
