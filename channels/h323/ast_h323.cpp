@@ -1033,6 +1033,9 @@ void h323_native_bridge(const char *token, char *them, char *us)
 	H323Channel *channel;
 	H323Connection *connection = endPoint->FindConnectionWithLock(token);
     
+	
+	cout << "Native Bridge:  them [" << them << "] us [" << us << "]" << endl; 
+	
 	if (!connection){
 		cout << "ERROR: No connection active.\n";
 		return;

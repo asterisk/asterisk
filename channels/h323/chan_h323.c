@@ -656,7 +656,7 @@ static struct ast_channel *oh323_new(struct oh323_pvt *i, int state, const char 
 		tmp->pvt->write = oh323_write;
 		tmp->pvt->indicate = oh323_indicate;
 		tmp->pvt->fixup = oh323_fixup;
-//		tmp->pvt->bridge = ast_rtp_bridge;
+		tmp->pvt->bridge = ast_rtp_bridge;
 
 		/*  Set the owner of this channel */
 		i->owner = tmp;
