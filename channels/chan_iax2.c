@@ -2244,7 +2244,8 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		} else
 			fh->iseqno = fr->iseqno;
 		/* Keep track of the last thing we've acknowledged */
-		pvt->aseqno = fr->iseqno;
+		if (!transfer)
+			pvt->aseqno = fr->iseqno;
 		fh->type = fr->af.frametype & 0xFF;
 		if (fr->af.frametype == AST_FRAME_VIDEO)
 			fh->csub = compress_subclass(fr->af.subclass & ~0x1) | ((fr->af.subclass & 0x1) << 6);
