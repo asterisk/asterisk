@@ -68,6 +68,22 @@ static int mp3play(char *filename, int fd)
 	return -1;
 }
 
+static int timed_read(int fd, void *data, int datalen)
+{
+	int res;
+	fd_set fds;
+	struct timeval tv = { 2, 0 };		/* Wait no more than 2 seconds */
+	FD_ZERO(&fds);
+	FD_SET(fd, &fds);
+	res = select(fd + 1, &fds, NULL, NULL, &tv);
+	if (res < 1) {
+		ast_log(LOG_NOTICE, "Selected timed out/errored out with %d\n", res);
+		return -1;
+	}
+	return read(fd, data, datalen);
+	
+}
+
 static int mp3_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
@@ -132,7 +148,7 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 				}
 				ast_frfree(f);
 			} else  {
-				res = read(fds[0], myf.frdata, sizeof(myf.frdata));
+				res = timed_read(fds[0], myf.frdata, sizeof(myf.frdata));
 				if (res > 0) {
 					myf.f.frametype = AST_FRAME_VOICE;
 					myf.f.subclass = AST_FORMAT_SLINEAR;
