@@ -376,12 +376,12 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *rand, int reliable);
 static int transmit_request(struct sip_pvt *p, char *msg, int inc, int reliable);
 static int transmit_request_with_auth(struct sip_pvt *p, char *msg, int inc, int reliable);
-static int transmit_invite(struct sip_pvt *p, char *msg, int sendsdp, char *auth, char *vxml_url,char *distinctive_ring);
+static int transmit_invite(struct sip_pvt *p, char *msg, int sendsdp, char *auth, char *vxml_url,char *distinctive_ring, int init);
 static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp, struct ast_rtp *vrtp);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
 static int transmit_message_with_text(struct sip_pvt *p, char *text);
 static int transmit_refer(struct sip_pvt *p, char *dest);
-static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *msg);
+static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *msg, int init);
 static char *getsipuri(char *header);
 static void free_old_route(struct sip_route *route);
 static int build_reply_digest(struct sip_pvt *p, char *orig_header, char *digest, int digest_len);
@@ -844,7 +844,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	
 	res = 0;
 	p->outgoing = 1;
-	transmit_invite(p, "INVITE", 1, NULL, vxml_url,distinctive_ring);
+	transmit_invite(p, "INVITE", 1, NULL, vxml_url,distinctive_ring, 1);
 	if (p->maxtime) {
 		/* Initialize auto-congest time */
 		p->initid = ast_sched_add(sched, p->maxtime * 2, auto_congest, p);
@@ -2631,10 +2631,15 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	add_header(req, "User-Agent", "Asterisk PBX");
 }
 
-static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, char *vxml_url, char *distinctive_ring)
+static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, char *vxml_url, char *distinctive_ring, int init)
 {
 	struct sip_request req;
-	initreqprep(&req, p, cmd, vxml_url);
+	
+	if (init)
+		initreqprep(&req, p, cmd, vxml_url);
+	else
+		reqprep(&req, p, cmd, 0);
+		
 	if (auth)
 		add_header(&req, "Proxy-Authorization", auth);
 	
@@ -4064,7 +4069,7 @@ static int do_register_auth(struct sip_pvt *p, struct sip_request *req) {
 	return transmit_register(p->registry,"REGISTER",digest); 
 }
 
-static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *msg) {
+static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *msg, int init) {
 	char digest[256];
 	p->authtries++;
 	memset(digest,0,sizeof(digest));
@@ -4072,7 +4077,7 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *msg) 
 		/* No way to authenticate */
 		return -1;
 	}
-	return transmit_invite(p,msg,!strcasecmp(msg, "INVITE"),digest, NULL,NULL); 
+	return transmit_invite(p,msg,!strcasecmp(msg, "INVITE"),digest, NULL,NULL, init); 
 }
 
 static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, char *orig_header, char *digest, int digest_len) {
@@ -4403,12 +4408,12 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* First we ACK */
 				transmit_request(p, "ACK", seqno, 0);
 				/* Then we AUTH */
-				if ((p->authtries > 1) || do_proxy_auth(p, req, "INVITE")) {
+				if ((p->authtries > 1) || do_proxy_auth(p, req, "INVITE", 1)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
 					p->needdestroy = 1;
 				}
 			} else if (!strcasecmp(msg, "BYE")) {
-				if ((p->authtries > 1) || do_proxy_auth(p, req, "BYE")) {
+				if ((p->authtries > 1) || do_proxy_auth(p, req, "BYE", 0)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on BYE to '%s'\n", get_header(&p->initreq, "From"));
 					p->needdestroy = 1;
 				}
@@ -4477,7 +4482,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		case 407:
 			if (!strcasecmp(msg, "BYE")) {
-				if ((p->authtries > 1) || do_proxy_auth(p, req, "BYE")) {
+				if ((p->authtries > 1) || do_proxy_auth(p, req, "BYE", 0)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on BYE to '%s'\n", get_header(&p->initreq, "From"));
 					p->needdestroy = 1;
 				}
@@ -5198,9 +5203,9 @@ static int sip_poke_peer(struct sip_peer *peer)
 	p->outgoing = 1;
 #ifdef VOCAL_DATA_HACK
 	strncpy(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username));
-	transmit_invite(p, "INVITE", 0, NULL, NULL,NULL);
+	transmit_invite(p, "INVITE", 0, NULL, NULL,NULL, 1);
 #else
-	transmit_invite(p, "OPTIONS", 0, NULL, NULL,NULL);
+	transmit_invite(p, "OPTIONS", 0, NULL, NULL,NULL, 1);
 #endif
 	gettimeofday(&peer->ps, NULL);
 	peer->pokeexpire = ast_sched_add(sched, DEFAULT_MAXMS * 2, sip_poke_noanswer, peer);
