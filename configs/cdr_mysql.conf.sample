@@ -1,0 +1,5 @@
+;[global]
+;hostname=database.host.name
+;dbname=asteriskcdrdb
+;password=password 
+;user=asteriskcdruser

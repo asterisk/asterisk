@@ -1,0 +1,28 @@
+Call Detail Recording for MySQL
+===============================
+
+Usage:
+======
+
+Include the module in your modules.conf.  Change the database hostname, database name, username, and password in cdr_mysql.conf.
+
+Create a table called cdr under the database name you will be using the following schema.
+
+CREATE TABLE cdr (
+  calldate datetime NOT NULL default '0000-00-00 00:00:00',
+  clid varchar(45) NOT NULL default '',
+  src varchar(45) NOT NULL default '',
+  dst varchar(45) NOT NULL default '',
+  dcontext varchar(45) NOT NULL default '',
+  channel varchar(45) NOT NULL default '',
+  dstchannel varchar(45) NOT NULL default '',
+  lastapp varchar(45) NOT NULL default '',
+  lastdata varchar(45) NOT NULL default '',
+  duration int(11) NOT NULL default '0',
+  billsec int(11) NOT NULL default '0',
+  disposition int(11) NOT NULL default '0',
+  amaflags int(11) NOT NULL default '0',
+  accountcode varchar(45) NOT NULL default ''
+);
+
+The calls will automatically be logged as long as the module is loaded.

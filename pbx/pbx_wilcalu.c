@@ -17,6 +17,7 @@
  *  "tech/tele,filename&" ie. "tor1/23,file&"
  */
  
+#include <asterisk/lock.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -244,7 +245,7 @@ int unload_module(void)
 int load_module(void)
 {
 	int val;
-	if((val=mkfifo(dialfile,O_RDWR))){
+	if((val=mkfifo(dialfile, 0700))){
 		if(errno!=EEXIST){
 			printf("Error:%d Creating Autodial FIFO\n",errno);
 			return 0;
