@@ -963,8 +963,17 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 			}
 			/* That's all we needed */
 			return 0;
-		} else 
+		} else {
+			if ((f->frametype == AST_FRAME_DTMF) || (f->frametype == AST_FRAME_VOICE)) {
+				/* Forward voice or DTMF frames if they happen upon us */
+				if (who == c0) {
+					ast_write(c1, f);
+				} else if (who == c1) {
+					ast_write(c0, f);
+				}
+			}
 			ast_frfree(f);
+		}
 		/* Swap priority not that it's a big deal at this point */
 		cs[2] = cs[0];
 		cs[0] = cs[1];

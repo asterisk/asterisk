@@ -109,6 +109,14 @@ static struct mgcp_pkt {
 	struct mgcp_pkt *next;
 } *packets = NULL;	
 
+/* MGCP message for queuing up */
+struct mgcp_message {
+	unsigned int seqno;
+	int len;
+	struct mgcp_message *next;
+	unsigned char buf[0];
+};
+
 #define TYPE_TRUNK		1
 #define TYPE_LINE		2
 
@@ -141,6 +149,8 @@ struct mgcp_endpoint {
 	struct ast_channel *owner;
 	struct ast_rtp *rtp;
 	struct sockaddr_in tmpdest;
+	struct mgcp_message *msgs;			/* Message queue */
+	int messagepending;
 	struct mgcp_endpoint *next;
 	struct mgcp_gateway *parent;
 };
@@ -194,12 +204,52 @@ static int send_response(struct mgcp_endpoint *p, struct mgcp_request *req)
 	return res;
 }
 
-static int send_request(struct mgcp_endpoint *p, struct mgcp_request *req)
+static void dump_queue(struct mgcp_endpoint *p)
+{
+	struct mgcp_message *cur;
+	while(p->msgs) {
+		cur = p->msgs;
+		p->msgs = p->msgs->next;
+		free(cur);
+	}
+	p->messagepending = 0;
+	p->msgs = NULL;
+}
+
+static int mgcp_postrequest(struct mgcp_endpoint *p, unsigned char *data, int len, unsigned int seqno)
+{
+	struct mgcp_message *msg = malloc(sizeof(struct mgcp_message) + len);
+	struct mgcp_message *cur;
+	if (!msg)
+		return -1;
+	msg->seqno = seqno;
+	msg->next = NULL;
+	msg ->len = len;
+	memcpy(msg->buf, data, msg->len);
+	cur = p->msgs;
+	if (cur) {
+		while(cur->next)
+			cur = cur->next;
+		cur->next = msg;
+	} else
+		p->msgs = msg;
+	if (!p->messagepending) {
+		p->messagepending = 1;
+		p->lastout = seqno;
+		__mgcp_xmit(p, msg->buf, msg->len);
+		/* XXX Should schedule retransmission XXX */
+	} else
+		ast_log(LOG_DEBUG, "Deferring transmission of transaction %d\n", seqno);
+	return 0;
+}
+
+static int send_request(struct mgcp_endpoint *p, struct mgcp_request *req, unsigned int seqno)
 {
 	int res;
 	if (mgcpdebug)
-		ast_verbose("XXX Need to handle Retransmitting XXX:\n%s to %s:%d\n", req->data, inet_ntoa(p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
-	res = __mgcp_xmit(p, req->data, req->len);
+		ast_verbose("Posting Request:\n%s to %s:%d\n", req->data, inet_ntoa(p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
+		
+	res = mgcp_postrequest(p, req->data, req->len, seqno);
 	return res;
 }
 
@@ -861,8 +911,7 @@ static int process_sdp(struct mgcp_endpoint *p, struct mgcp_request *req)
 	sin.sin_family = AF_INET;
 	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
 	sin.sin_port = htons(portno);
-	if (p->rtp)
-		ast_rtp_set_peer(p->rtp, &sin);
+	ast_rtp_set_peer(p->rtp, &sin);
 #if 0
 	printf("Peer RTP is at port %s:%d\n", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 #endif	
@@ -1127,8 +1176,7 @@ static int transmit_modify_with_sdp(struct mgcp_endpoint *p, struct ast_rtp *rtp
 	add_header(&resp, "I", p->cxident);
 	add_header(&resp, "S", "");
 	add_sdp(&resp, p, rtp);
-	p->lastout = oseq;
-	return send_request(p, &resp);
+	return send_request(p, &resp, oseq);
 }
 
 static int transmit_connect_with_sdp(struct mgcp_endpoint *p, struct ast_rtp *rtp)
@@ -1151,8 +1199,7 @@ static int transmit_connect_with_sdp(struct mgcp_endpoint *p, struct ast_rtp *rt
 	add_header(&resp, "X", p->txident);
 	add_header(&resp, "S", "");
 	add_sdp(&resp, p, rtp);
-	p->lastout = oseq;
-	return send_request(p, &resp);
+	return send_request(p, &resp, oseq);
 }
 
 static int transmit_notify_request(struct mgcp_endpoint *p, char *tone, int offhook)
@@ -1166,7 +1213,7 @@ static int transmit_notify_request(struct mgcp_endpoint *p, char *tone, int offh
 	else
 		add_header(&resp, "R", "hd(N)");
 	add_header(&resp, "S", tone);
-	return send_request(p, &resp);
+	return send_request(p, &resp, oseq);
 }
 
 static int transmit_notify_request_with_callerid(struct mgcp_endpoint *p, char *tone, int offhook, char *callerid)
@@ -1206,7 +1253,7 @@ static int transmit_notify_request_with_callerid(struct mgcp_endpoint *p, char *
 	else
 		add_header(&resp, "R", "hd(N)");
 	add_header(&resp, "S", tone2);
-	return send_request(p, &resp);
+	return send_request(p, &resp, oseq);
 }
 static int transmit_connection_del(struct mgcp_endpoint *p)
 {
@@ -1214,11 +1261,28 @@ static int transmit_connection_del(struct mgcp_endpoint *p)
 	reqprep(&resp, p, "DLCX");
 	add_header(&resp, "C", p->callid);
 	add_header(&resp, "I", p->cxident);
-	return send_request(p, &resp);
+	return send_request(p, &resp, oseq);
 }
 
 static void handle_response(struct mgcp_endpoint *p, int result, int ident)
 {
+	struct mgcp_message *cur;
+	if (p->msgs && (p->msgs->seqno == ident)) {
+		ast_log(LOG_DEBUG, "Got response back on tansaction %d\n", ident);
+		cur = p->msgs;
+		p->msgs = p->msgs->next;
+		free(cur);
+		if (p->msgs) {
+			/* Send next pending message if appropriate */
+			p->messagepending = 1;
+			p->lastout = p->msgs->seqno;
+			__mgcp_xmit(p, p->msgs->buf, p->msgs->len);
+			/* XXX Should schedule retransmission XXX */
+		} else
+			p->messagepending = 0;
+	} else {
+		ast_log(LOG_NOTICE, "Got response back on transaction %d we aren't sending? (current = %d)\n", ident, p->msgs ? p->msgs->seqno : -1);
+	}
 	if ((result >= 400) && (result <= 499)) {
 		ast_log(LOG_NOTICE, "Terminating on result %d from %s@%s\n", result, p->name, p->parent->name);
 		if (p->owner)
@@ -1299,6 +1363,7 @@ static int handle_request(struct mgcp_endpoint *p, struct mgcp_request *req, str
 		ast_verbose("Handling request '%s' on %s@%s\n", req->verb, p->name, p->parent->name);
 	/* Clear out potential response */
 	if (!strcasecmp(req->verb, "RSIP")) {
+		dump_queue(p);
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Resetting interface %s@%s\n", p->name, p->parent->name);
 		if (p->owner)
@@ -1413,8 +1478,12 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 					}
 				}
 			}
-			if (req.lines)
-				process_sdp(p, &req);
+			if (req.lines) {
+				if (!p->rtp) 
+					start_rtp(p);
+				if (p->rtp)
+					process_sdp(p, &req);
+			}
 		}
 	} else {
 		if (!req.endpoint || !strlen(req.endpoint) || 
