@@ -4,6 +4,16 @@
        is available through the Asterisk-CVS mailing list hosted
        at http://lists.digium.com.
 
+Asterisk 1.0.7
+
+ -- chan_sip
+    -- The fix for some codec availibility issues in 1.0.6 caused music on hold problems,
+       but has now been fixed.
+ -- chan_skinny
+    -- A check has been added to avoid a crash.
+ -- app_voicemail
+    -- Some checks have been added to avoid a crash.
+
 Asterisk 1.0.6
 
  -- chan_iax2:
