@@ -357,18 +357,19 @@ ${MEETME_EXIT_CONTEXT} 		Context for exit out of meetme meeting
 ${MEETME_AGI_BACKGROUND} 	AGI script for Meetme (zap only)
 ${MEETMESECS} 			* Number of seconds a user participated in a MeetMe conference
 
-The voicemail() application uses the following variables:
+The VoiceMail() application uses the following variables:
 ---------------------------------------------------------
-${VM_CATEGORY}	Sets voicemail category
-${VM_NAME}	* Full name in voicemail
-${VM_DUR}	* Voicemail duration
-${VM_MSGNUM}	* Number of voicemail message in mailbox
-${VM_CALLERID}	* Voicemail Caller ID (Person leaving vm)
-${VM_CIDNAME}	* Voicemail Caller ID Name
-${VM_CIDNUM}	* Voicemail Caller ID Number
-${VM_DATE}	* Voicemail Date
+${VM_CATEGORY}		Sets voicemail category
+${VM_NAME}		* Full name in voicemail
+${VM_DUR}		* Voicemail duration
+${VM_MSGNUM}		* Number of voicemail message in mailbox
+${VM_CALLERID}		* Voicemail Caller ID (Person leaving vm)
+${VM_CIDNAME}		* Voicemail Caller ID Name
+${VM_CIDNUM}		* Voicemail Caller ID Number
+${VM_DATE}		* Voicemail Date
+${VM_MESSAGEFILE}	* Path to message left by caller
 
-The vmauthenticate() application uses the following variables:
+The VMAuthenticate() application uses the following variables:
 ---------------------------------------------------------
 ${AUTH_MAILBOX}	* Authenticated mailbox
 ${AUTH_CONTEXT}	* Authenticated mailbox context

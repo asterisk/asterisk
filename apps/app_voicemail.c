@@ -2139,6 +2139,10 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 				msgnum++;
 			} while (msgnum < MAXMSG);
 			if (msgnum < MAXMSG) {
+
+				/* assign a variable with the name of the voicemail file */	  
+				pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", fn);
+
 				/* Store information */
 				snprintf(txtfile, sizeof(txtfile), "%s.txt", fn);
  				txt = fopen(txtfile, "w+");
