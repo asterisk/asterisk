@@ -107,6 +107,10 @@
 ;
 ; monitor-join = yes
 ;
+; If you wish to allow queues that have no members currently to be joined, set this to yes
+;
+; joinempty = yes
+;
 ; Each member of this call queue is listed on a separate line in
 ; the form technology/dialstring.  "member" means a normal member of a
 ; queue.  An optional penalty may be specified after a comma, such that

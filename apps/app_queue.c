@@ -216,6 +216,7 @@ struct ast_call_queue {
 	
 	int rrpos;			/* Round Robin - position */
 	int wrapped;			/* Round Robin - wrapped around? */
+	int joinempty;			/* Do we care if the queue has no members? */
 
 	struct member *members;		/* Member channels to be tried */
 	struct queue_ent *head;		/* Start of the actual queue */
@@ -280,7 +281,7 @@ static int join_queue(char *queuename, struct queue_ent *qe)
 		if (!strcasecmp(q->name, queuename)) {
 			/* This is our one */
 			ast_mutex_lock(&q->lock);
-			if (q->members && (!q->maxlen || (q->count < q->maxlen))) {
+			if ((q->members || q->joinempty) && (!q->maxlen || (q->count < q->maxlen))) {
 				/* There's space for us, put us at the right position inside
 				 * the queue. 
 				 * Take into account the priority of the calling user */
@@ -1830,6 +1831,8 @@ static void reload_queues(void)
 							ast_log(LOG_WARNING, "'%s' isn't a valid strategy, using ringall instead\n", var->value);
 							q->strategy = 0;
 						}
+					} else if (!strcasecmp(var->name, "joinempty")) {
+						q->joinempty = ast_true(var->value);
 					} else {
 						ast_log(LOG_WARNING, "Unknown keyword in queue '%s': %s at line %d of queue.conf\n", cat, var->name, var->lineno);
 					}
