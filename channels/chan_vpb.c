@@ -115,7 +115,7 @@ static VPB_DETECT toned_ungrunt = { 2, VPB_GRUNT, 1, 2000, 1, 0, 0, -40, 0, 0, 3
 /* Use loop drop detection */
 static int UseLoopDrop=1;
 
-#define TIMER_PERIOD_RINGBACK 5200
+#define TIMER_PERIOD_RINGBACK 2000
 #define TIMER_PERIOD_BUSY 700
 	  
 #define VPB_EVENTS_ALL (VPB_MRING|VPB_MDIGIT|VPB_MDTMF|VPB_MTONEDETECT|VPB_MTIMEREXP|VPB_MPLAY_UNDERFLOW \
@@ -503,11 +503,13 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 			if (e->data == p->busy_timer_id) {
 				playtone(p->handle,&Busytone);
 				p->state = VPB_STATE_PLAYBUSY;
-				vpb_timer_restart(p->busy_timer);
+				vpb_timer_stop(p->busy_timer);
+				vpb_timer_start(p->busy_timer);
 				f.frametype = -1;
 			} else if (e->data == p->ringback_timer_id) {
 				playtone(p->handle, &Ringbacktone);
-				vpb_timer_restart(p->ringback_timer);
+				vpb_timer_stop(p->ringback_timer);
+				vpb_timer_start(p->ringback_timer);
 				f.frametype = -1;
 			} else {
 				f.frametype = -1; /* Ignore. */
@@ -588,9 +590,13 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 		// Called when dialing has finished and ringing starts
 		// No indication that call has really been answered when using blind dialing
 		case VPB_DIALEND:
-			f.subclass = AST_CONTROL_ANSWER;
-			if (option_verbose > 1) 
-				ast_verbose(VERBOSE_PREFIX_2 "%s: Dialend\n", p->dev);
+			if (p->state < 5){
+				f.subclass = AST_CONTROL_ANSWER;
+				if (option_verbose > 1) 
+					ast_verbose(VERBOSE_PREFIX_2 "%s: Dialend\n", p->dev);
+			} else {
+				f.frametype = -1;
+			}
 			break;
 
 		case VPB_PLAY_UNDERFLOW:
@@ -758,7 +764,8 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 							 p->dev, p->context);
 					}
 					playtone(p->handle, &Busytone);
-					vpb_timer_restart(p->busy_timer);
+					vpb_timer_stop(p->busy_timer);
+					vpb_timer_start(p->busy_timer);
 					p->state = VPB_STATE_PLAYBUSY;
 				}
 			}
@@ -793,10 +800,10 @@ static void *do_monitor(void *unused)
 		char str[VPB_MAX_STR];
 		struct vpb_pvt *p;
 
-		/*
+		/**/
 		if (option_verbose > 3)
 		     ast_verbose(VERBOSE_PREFIX_4 "Monitor waiting for event\n");
-		*/
+		/**/
 
 		int res = vpb_get_event_sync(&e, VPB_WAIT_TIMEOUT);
 		if( (res==VPB_NO_EVENTS) || (res==VPB_TIME_OUT) ){
@@ -1097,11 +1104,17 @@ static int vpb_indicate(struct ast_channel *ast, int condition)
 		case AST_CONTROL_CONGESTION:
 			playtone(p->handle, &Busytone);
 			p->state = VPB_STATE_PLAYBUSY;
-			vpb_timer_restart(p->busy_timer); 
+			vpb_timer_stop(p->busy_timer); 
+			vpb_timer_start(p->busy_timer); 
 			break;
 		case AST_CONTROL_RINGING:
 			playtone(p->handle, &Ringbacktone);
-			vpb_timer_restart(p->ringback_timer);
+			p->state = VPB_STATE_PLAYRING;
+			if (option_verbose > 3)
+				ast_verbose(VERBOSE_PREFIX_4 "%s: vpb indicate: setting ringback timer [%d]\n", p->dev,p->ringback_timer_id);
+			
+			vpb_timer_stop(p->ringback_timer);
+			vpb_timer_start(p->ringback_timer);
 			break;	    
 		case AST_CONTROL_ANSWER:
 		case -1: /* -1 means stop playing? */
@@ -1112,7 +1125,8 @@ static int vpb_indicate(struct ast_channel *ast, int condition)
 		case AST_CONTROL_HANGUP:
 			playtone(p->handle, &Busytone);
 			p->state = VPB_STATE_PLAYBUSY;
-			vpb_timer_restart(p->busy_timer);
+			vpb_timer_stop(p->busy_timer);
+			vpb_timer_start(p->busy_timer);
 			break;
 
 		default:
@@ -1453,7 +1467,7 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->pvt->pvt; 
 	int res = 0, fmt = 0;
 	ast_mutex_lock(&p->lock);
-	if(option_verbose>4) 
+	if(option_verbose>5) 
 		ast_verbose( VERBOSE_PREFIX_4 "%s: Writing to channel\n", p->dev);
 
 	if (frame->frametype != AST_FRAME_VOICE) {
@@ -1495,7 +1509,7 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 		gain_vector(p->txswgain - MAX_VPB_GAIN , (short*)frame->data, frame->datalen/sizeof(short));
 
 	res = vpb_play_buf_sync(p->handle, (char*)frame->data, frame->datalen);
-	if( (res == VPB_OK) && (option_verbose > 4) ) {
+	if( (res == VPB_OK) && (option_verbose > 5) ) {
 		short * data = (short*)frame->data;
 		ast_verbose("%s: Write chan (codec=%d) %d %d\n", p->dev, fmt, data[0],data[1]);
 	}
@@ -1649,7 +1663,7 @@ static void *do_chanreads(void *pvt)
 					if (option_verbose > 3) 
 						ast_verbose("%s: Couldnt get lock on owner channel to send frame!\n", p->dev);
 				}
-				if (option_verbose > 4) {
+				if (option_verbose > 5) {
 					short * data = (short*)readbuf;
 					ast_verbose("%s: Read channel (codec=%d) %d %d\n", p->dev, fmt, data[0], data[1] );
 				}  
