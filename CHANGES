@@ -1,3 +1,5 @@
+ -- say.c
+    -- fix numbers for portuguese
  -- chan_sip
     -- fix to prevent seg fault when attempting a transfer
 Asterisk 1.0.2
