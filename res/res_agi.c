@@ -464,6 +464,78 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 		return RESULT_FAILURE;
 }
 
+/* get option - really similar to the handle_streamfile, but with a timeout */
+static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
+{
+        int res;
+        struct ast_filestream *fs;
+        long sample_offset = 0;
+        long max_length;
+	int timeout = 0;
+	char *edigits = NULL;
+
+	if ( argc < 4 || argc > 5 )
+		return RESULT_SHOWUSAGE;
+
+	if ( argv[3] ) 
+		edigits = argv[3];
+
+	if ( argc == 5 )
+		timeout = atoi(argv[4]);
+	else if (chan->pbx->dtimeout) {
+		/* by default dtimeout is set to 5sec */
+		timeout = chan->pbx->dtimeout * 1000; //in msec
+	}
+
+        fs = ast_openstream(chan, argv[2], chan->language);
+        if(!fs){
+                fdprintf(agi->fd, "200 result=%d endpos=%ld\n", 0, sample_offset);
+                ast_log(LOG_WARNING, "Unable to open %s\n", argv[2]);
+                return RESULT_FAILURE;
+        }
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_3 "Playing '%s' (escape_digits=%s) (timeout %d)\n", argv[2], edigits, timeout);
+
+        ast_seekstream(fs, 0, SEEK_END);
+        max_length = ast_tellstream(fs);
+        ast_seekstream(fs, sample_offset, SEEK_SET);
+        res = ast_applystream(chan, fs);
+        res = ast_playstream(fs);
+        if (res) {
+                fdprintf(agi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
+                if (res >= 0)
+                        return RESULT_SHOWUSAGE;
+                else
+                        return RESULT_FAILURE;
+        }
+        res = ast_waitstream_full(chan, argv[3], agi->audio, agi->ctrl);
+        /* this is to check for if ast_waitstream closed the stream, we probably are at
+         * the end of the stream, return that amount, else check for the amount */
+        sample_offset = (chan->stream)?ast_tellstream(fs):max_length;
+        ast_stopstream(chan);
+        if (res == 1) {
+                /* Stop this command, don't print a result line, as there is a new command */
+                return RESULT_SUCCESS;
+        }
+
+	/* If the user didnt press a key, wait for digitTimeout*/
+	if (res == 0 ) {
+		res = ast_waitfordigit_full(chan, timeout, agi->audio, agi->ctrl);
+		/* Make sure the new result is in the escape digits of the GET OPTION */
+		if ( !strchr(edigits,res) )
+                	res=0;
+	}
+
+        fdprintf(agi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
+        if (res >= 0)
+                return RESULT_SUCCESS;
+        else
+                return RESULT_FAILURE;
+}
+
+
+
+
 /*--- handle_saynumber: Say number in various language syntaxes ---*/
 /* Need to add option for gender here as well. Coders wanted */
 /* While waiting, we're sending a (char *) NULL.  */
@@ -1178,6 +1250,10 @@ static char usage_streamfile[] =
 " or -1 on error or if the channel was disconnected.  Remember, the file\n"
 " extension must not be included in the filename.\n";
 
+static char usage_getoption[] = 
+" Usage: GET OPTION <filename> <escape_digits> [timeout]\n"
+" Exactly like the STREAM FILE but used with a timeout option\n";
+
 static char usage_saynumber[] =
 " Usage: SAY NUMBER <number> <escape digits>\n"
 "        Say a given number, returning early if any of the given DTMF digits\n"
@@ -1253,6 +1329,7 @@ static agi_command commands[MAX_COMMANDS] = {
 	{ { "receive", "char", NULL }, handle_recvchar, "Receives text from channels supporting it", usage_recvchar },
 	{ { "tdd", "mode", NULL }, handle_tddmode, "Sends text to channels supporting it", usage_tddmode },
 	{ { "stream", "file", NULL }, handle_streamfile, "Sends audio file on channel", usage_streamfile },
+	{ { "get", "option", NULL }, handle_getoption, "Stream File", usage_getoption },
 	{ { "send", "image", NULL }, handle_sendimage, "Sends images to channels supporting it", usage_sendimage },
 	{ { "say", "digits", NULL }, handle_saydigits, "Says a given digit string", usage_saydigits },
 	{ { "say", "number", NULL }, handle_saynumber, "Says a given number", usage_saynumber },
