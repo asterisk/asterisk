@@ -4251,7 +4251,12 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
 		if (strlen(buf)) {
 			if (sipdebug)
 				ast_verbose("DTMF received: '%c'\n", buf[0]);
-			event = atoi(buf);
+			if (buf[0] == '*')
+				event = 10;
+			else if (buf[0] == '#')
+				event = 11;
+			else
+				event = atoi(buf);
                         if (event < 10) {
                                 resp = '0' + event;
                         } else if (event < 11) {
