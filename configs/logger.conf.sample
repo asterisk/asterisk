@@ -3,6 +3,13 @@
 ;
 ; In this file, you configure logging to files or to
 ; the syslog system.
+
+[general]
+; Customize the display of debug message time stamps
+; this example is the ISO 8601 date format (yyyy-mm-dd HH:MM:SS)
+; see strftime(3) Linux manual for format specifiers
+;dateformat=%F %T
+
 ;
 ; For each file, specify what to log.
 ;

@@ -48,6 +48,7 @@ static int syslog_level_map[] = {
 
 #define MAX_MSG_QUEUE 200
 
+static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
 static ast_mutex_t msglist_lock = AST_MUTEX_INITIALIZER;
 static ast_mutex_t loglock = AST_MUTEX_INITIALIZER;
 static int pending_logger_reload = 0;
@@ -186,6 +187,7 @@ static void init_logger_chain(void)
 	struct logchannel *chan, *cur;
 	struct ast_config *cfg;
 	struct ast_variable *var;
+	char *s;
 
 	/* delete our list of log channels */
 	ast_mutex_lock(&loglock);
@@ -208,6 +210,9 @@ static void init_logger_chain(void)
 	    return;
 
 	ast_mutex_lock(&loglock);
+	if ((s = ast_variable_retrieve(cfg, "general", "dateformat"))) {
+		(void)strncpy(dateformat,s,sizeof(dateformat));
+	}
 	var = ast_variable_browse(cfg, "logfiles");
 	while(var) {
 		chan = make_logchannel(var->name, var->value, var->lineno);
@@ -466,7 +471,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 
     time(&t);
     localtime_r(&t, &tm);
-    strftime(date, sizeof(date), "%b %e %T", &tm);
+    strftime(date, sizeof(date), dateformat, &tm);
 
 
     if (level == __LOG_EVENT) {
