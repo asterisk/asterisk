@@ -108,6 +108,8 @@ static char *type = "IAX2";
 
 static char context[80] = "default";
 
+static char language[MAX_LANGUAGE] = "";
+
 static int max_retries = 4;
 static int ping_time = 20;
 static int lagrq_time = 10;
@@ -189,6 +191,7 @@ struct iax2_user {
 	int authmethods;
 	char accountcode[20];
 	char inkeys[80];				/* Key(s) this user can use to authenticate to us */
+	char language[MAX_LANGUAGE];
 	int amaflags;
 	int hascallerid;
 	int delme;
@@ -409,7 +412,7 @@ struct chan_iax2_pvt {
 	/* Private key for outgoing authentication */
 	char outkey[80];
 	/* Preferred language */
-	char language[80];
+	char language[MAX_LANGUAGE];
 	/* Hostname/peername for naming purposes */
 	char host[80];
 	/* Associated registry */
@@ -3445,6 +3448,8 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			strncpy(iaxs[callno]->accountcode, user->accountcode, sizeof(iaxs[callno]->accountcode)-1);
 		if (user->amaflags)
 			iaxs[callno]->amaflags = user->amaflags;
+		if (strlen(user->language))
+			strncpy(iaxs[callno]->language, user->language, sizeof(iaxs[callno]->language)-1);
 		iaxs[callno]->notransfer = user->notransfer;
 		res = 0;
 	}
@@ -6017,6 +6022,7 @@ static struct iax2_user *build_user(char *name, struct ast_variable *v)
 		memset(user, 0, sizeof(struct iax2_user));
 		user->capability = iax2_capability;
 		strncpy(user->name, name, sizeof(user->name)-1);
+		strcpy(user->language, language);
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
 				con = build_context(v->value);
@@ -6059,6 +6065,8 @@ static struct iax2_user *build_user(char *name, struct ast_variable *v)
 				user->hascallerid=1;
 			} else if (!strcasecmp(v->name, "accountcode")) {
 				strncpy(user->accountcode, v->value, sizeof(user->accountcode)-1);
+			} else if (!strcasecmp(v->name, "language")) {
+                                strncpy(user->language, v->value, sizeof(user->language)-1);
 			} else if (!strcasecmp(v->name, "amaflags")) {
 				format = ast_cdr_amaflags2int(v->value);
 				if (format < 0) {
@@ -6318,6 +6326,8 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 		} else if (!strcasecmp(v->name, "dbname")) {
 			strncpy(mydbname, v->value, sizeof(mydbname) - 1);
 #endif
+		} else if (!strcasecmp(v->name, "language")) {
+                        strncpy(language, v->value, sizeof(language) - 1);
 		} //else if (strcasecmp(v->name,"type"))
 		//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 		v = v->next;
@@ -6380,6 +6390,7 @@ static int reload_config(void)
 	struct sockaddr_in dead_sin;
 	struct iax2_peer *peer;
 	strncpy(accountcode, "", sizeof(accountcode)-1);
+	strncpy(language, "", sizeof(language)-1);
 	amaflags = 0;
 	notransfer = 0;
 	srand(time(NULL));

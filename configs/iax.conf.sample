@@ -26,6 +26,12 @@
 ;
 ;accountcode=lss0101
 ;
+; You may specify a global default language for users. 
+; Can be specified also on a per-user basis
+; If omitted, will fallback to english
+;
+;language=en
+;
 ; Specify bandwidth of low, medium, or high to control which codecs are used
 ; in general.
 ;
@@ -148,6 +154,7 @@ permit=216.207.245.47/255.255.255.255
 ;deny=0.0.0.0/0.0.0.0
 ;accountcode=markster0101
 ;permit=209.16.236.73/255.255.255.0
+;language=en		; Use english as default language
 ;
 ; Peers may also be specified, with a secret and
 ; a remote hostname.
