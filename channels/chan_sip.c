@@ -313,7 +313,8 @@ static struct ast_peer_list {
 struct sip_registry {
 	pthread_mutex_t lock;				/* Channel private lock */
 	struct sockaddr_in addr;		/* Who we connect to for registration purposes */
-	char username[80];
+	char username[80];				/* Who we are registering as */
+	char authuser[80];				/* Who we *authenticate* as */
 	char hostname[80];
 	char secret[80];			/* Password or key name in []'s */
 	char contact[80];			/* Contact extension */
@@ -1394,9 +1395,9 @@ static int sip_register(char *value, int lineno)
 {
 	struct sip_registry *reg;
 	char copy[256] = "";
-	char *username, *hostname, *secret;
-	char *porta;
-	char *contact;
+	char *username=NULL, *hostname=NULL, *secret=NULL, *authuser=NULL;
+	char *porta=NULL;
+	char *contact=NULL;
 	char *stringp=NULL;
 	
 	struct hostent *hp;
@@ -1410,16 +1411,21 @@ static int sip_register(char *value, int lineno)
 		*hostname = '\0';
 		hostname++;
 	}
-	if (!hostname) {
-		ast_log(LOG_WARNING, "Format for registration is user[:secret]@host[:port] at line %d", lineno);
+	if (!username || !strlen(username) || !hostname || !strlen(hostname)) {
+		ast_log(LOG_WARNING, "Format for registration is user[:secret[:authuser]]@host[:port] at line %d", lineno);
 		return -1;
 	}
 	stringp=username;
 	username = strsep(&stringp, ":");
-	secret = strsep(&stringp, ":");
+	if (username) {
+		secret = strsep(&stringp, ":");
+		if (secret) 
+			authuser = strsep(&stringp, ":");
+	}
 	stringp = hostname;
 	hostname = strsep(&stringp, "/");
-	contact = strsep(&stringp, "/");
+	if (hostname) 
+		contact = strsep(&stringp, "/");
 	if (!contact || !strlen(contact))
 		contact = "s";
 	stringp=hostname;
@@ -1439,8 +1445,12 @@ static int sip_register(char *value, int lineno)
 	if (reg) {
 		memset(reg, 0, sizeof(struct sip_registry));
 		strncpy(reg->contact, contact, sizeof(reg->contact) - 1);
-		strncpy(reg->username, username, sizeof(reg->username)-1);
-		strncpy(reg->hostname, hostname, sizeof(reg->hostname)-1);
+		if (username)
+			strncpy(reg->username, username, sizeof(reg->username)-1);
+		if (hostname)
+			strncpy(reg->hostname, hostname, sizeof(reg->hostname)-1);
+		if (authuser)
+			strncpy(reg->authuser, authuser, sizeof(reg->authuser)-1);
 		if (secret)
 			strncpy(reg->secret, secret, sizeof(reg->secret)-1);
 		reg->expire = -1;
@@ -2524,7 +2534,10 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 		r->call=p;
 		p->registry=r;
 		strncpy(p->peersecret, r->secret, sizeof(p->peersecret)-1);
-		strncpy(p->peername, r->username, sizeof(p->peername)-1);
+		if (strlen(r->authuser))
+			strncpy(p->peername, r->authuser, sizeof(p->peername)-1);
+		else
+			strncpy(p->peername, r->username, sizeof(p->peername)-1);
 		strncpy(p->username, r->username, sizeof(p->username)-1);
 		strncpy(p->exten, r->contact, sizeof(p->exten) - 1);
 		build_contact(p);
@@ -2536,7 +2549,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 			ast_log(LOG_WARNING, "Still have a timeout, %d\n", r->timeout);
 			ast_sched_del(sched, r->timeout);
 		}
-		r->timeout = ast_sched_add(sched, 10*1000, sip_reg_timeout, r);
+		r->timeout = ast_sched_add(sched, 20*1000, sip_reg_timeout, r);
 		ast_log(LOG_DEBUG, "Scheduled a timeout # %d\n", r->timeout);
 	}
 
@@ -4783,6 +4796,8 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 		sip_destroy(p);
 		return NULL;
 	}
+	if (!strlen(p->peername) && ext)
+		strncpy(p->peername, ext, sizeof(p->peername) - 1);
 	/* Recalculate our side, and recalculate Call ID */
 	memcpy(&p->ourip, myaddrfor(&p->sa.sin_addr), sizeof(p->ourip));
 	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
