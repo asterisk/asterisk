@@ -5366,8 +5366,8 @@ retryowner:
 					iaxs[fr.callno]->quelch = 1;
 					if (ies.musiconhold) {
 						if (iaxs[fr.callno]->owner &&
-							iaxs[fr.callno]->owner->bridge)
-								ast_moh_start(iaxs[fr.callno]->owner->bridge, NULL);
+							ast_bridged_channel(iaxs[fr.callno]->owner))
+								ast_moh_start(ast_bridged_channel(iaxs[fr.callno]->owner), NULL);
 					}
 				}
 				break;
@@ -5375,8 +5375,8 @@ retryowner:
 				if (iaxs[fr.callno]->state & IAX_STATE_STARTED) {
 					iaxs[fr.callno]->quelch = 0;
 					if (iaxs[fr.callno]->owner &&
-						iaxs[fr.callno]->owner->bridge)
-							ast_moh_stop(iaxs[fr.callno]->owner->bridge);
+						ast_bridged_channel(iaxs[fr.callno]->owner))
+							ast_moh_stop(ast_bridged_channel(iaxs[fr.callno]->owner));
 				}
 				break;
 			case IAX_COMMAND_TXACC:
@@ -5522,18 +5522,18 @@ retryowner:
 				iax2_destroy_nolock(fr.callno);
 				break;
 			case IAX_COMMAND_TRANSFER:
-				if (iaxs[fr.callno]->owner && iaxs[fr.callno]->owner->bridge && ies.called_number) {
+				if (iaxs[fr.callno]->owner && ast_bridged_channel(iaxs[fr.callno]->owner) && ies.called_number) {
 					if (!strcmp(ies.called_number, ast_parking_ext())) {
-						if (iax_park(iaxs[fr.callno]->owner->bridge, iaxs[fr.callno]->owner)) {
-							ast_log(LOG_WARNING, "Failed to park call on '%s'\n", iaxs[fr.callno]->owner->bridge->name);
+						if (iax_park(ast_bridged_channel(iaxs[fr.callno]->owner), iaxs[fr.callno]->owner)) {
+							ast_log(LOG_WARNING, "Failed to park call on '%s'\n", ast_bridged_channel(iaxs[fr.callno]->owner)->name);
 						} else
-							ast_log(LOG_DEBUG, "Parked call on '%s'\n", iaxs[fr.callno]->owner->bridge->name);
+							ast_log(LOG_DEBUG, "Parked call on '%s'\n", ast_bridged_channel(iaxs[fr.callno]->owner)->name);
 					} else {
-						if (ast_async_goto(iaxs[fr.callno]->owner->bridge, iaxs[fr.callno]->context, ies.called_number, 1))
-							ast_log(LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", iaxs[fr.callno]->owner->bridge->name, 
+						if (ast_async_goto(ast_bridged_channel(iaxs[fr.callno]->owner), iaxs[fr.callno]->context, ies.called_number, 1))
+							ast_log(LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", ast_bridged_channel(iaxs[fr.callno]->owner)->name, 
 								ies.called_number, iaxs[fr.callno]->context);
 						else
-							ast_log(LOG_DEBUG, "Async goto of '%s' to '%s@%s' started\n", iaxs[fr.callno]->owner->bridge->name, 
+							ast_log(LOG_DEBUG, "Async goto of '%s' to '%s@%s' started\n", ast_bridged_channel(iaxs[fr.callno]->owner)->name, 
 								ies.called_number, iaxs[fr.callno]->context);
 					}
 				} else

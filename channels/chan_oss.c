@@ -933,7 +933,7 @@ static int console_transfer(int fd, int argc, char *argv[])
 	char *context;
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	if (oss.owner && oss.owner->bridge) {
+	if (oss.owner && ast_bridged_channel(oss.owner)) {
 		strncpy(tmp, argv[1], sizeof(tmp) - 1);
 		context = strchr(tmp, '@');
 		if (context) {
@@ -941,10 +941,10 @@ static int console_transfer(int fd, int argc, char *argv[])
 			context++;
 		} else
 			context = oss.owner->context;
-		if (ast_exists_extension(oss.owner->bridge, context, tmp, 1, oss.owner->bridge->cid.cid_num)) {
+		if (ast_exists_extension(ast_bridged_channel(oss.owner), context, tmp, 1, ast_bridged_channel(oss.owner)->cid.cid_num)) {
 			ast_cli(fd, "Whee, transferring %s to %s@%s.\n", 
-					oss.owner->bridge->name, tmp, context);
-			if (ast_async_goto(oss.owner->bridge, context, tmp, 1))
+					ast_bridged_channel(oss.owner)->name, tmp, context);
+			if (ast_async_goto(ast_bridged_channel(oss.owner), context, tmp, 1))
 				ast_cli(fd, "Failed to transfer :(\n");
 		} else {
 			ast_cli(fd, "No such extension exists\n");

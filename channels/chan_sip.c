@@ -2763,12 +2763,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			ast_set_read_format(p->owner, p->owner->readformat);
 			ast_set_write_format(p->owner, p->owner->writeformat);
 		}
-		if (p->owner->bridge) {
+		if (ast_bridged_channel(p->owner)) {
 			/* Turn on/off music on hold if we are holding/unholding */
 			if (sin.sin_addr.s_addr && !sendonly) {
-				ast_moh_stop(p->owner->bridge);
+				ast_moh_stop(ast_bridged_channel(p->owner));
 			} else {
-				ast_moh_start(p->owner->bridge, NULL);
+				ast_moh_start(ast_bridged_channel(p->owner), NULL);
 			}
 		}
 	}
@@ -6954,38 +6954,38 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 		ast_log(LOG_WARNING, "Transfer attempted without dual ownership?\n");
 		return -1;
 	}
-	if (p1->owner->bridge) {
-		if (p2->owner->bridge)
-			ast_moh_stop(p2->owner->bridge);
-		ast_moh_stop(p1->owner->bridge);
-		ast_moh_stop(p1->owner);
-		ast_moh_stop(p2->owner);
+	if (ast_bridged_channel(p1->owner)) {
+		if (ast_bridged_channel(p2->owner))
+			ast_moh_stop(ast_bridged_channel(p2->owner));
+		ast_moh_stop(ast_bridged_channel(p1->owner));
+		ast_moh_stop(ast_bridged_channel(p1->owner));
+		ast_moh_stop(ast_bridged_channel(p2->owner));
 		if (p1->owner->cdr) {
 			p2->owner->cdr = ast_cdr_append(p2->owner->cdr, p1->owner->cdr);
 			p1->owner->cdr = NULL;
 		}
-		if (p1->owner->bridge->cdr) {
-			p2->owner->cdr = ast_cdr_append(p2->owner->cdr, p1->owner->bridge->cdr);
-			p1->owner->bridge->cdr = NULL;
+		if (ast_bridged_channel(p1->owner)->cdr) {
+			p2->owner->cdr = ast_cdr_append(p2->owner->cdr, ast_bridged_channel(p1->owner)->cdr);
+			ast_bridged_channel(p1->owner)->cdr = NULL;
 		}
-		if (ast_channel_masquerade(p2->owner, p1->owner->bridge)) {
-			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", p2->owner->name, p1->owner->bridge->name);
+		if (ast_channel_masquerade(p2->owner, ast_bridged_channel(p1->owner))) {
+			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", p2->owner->name, ast_bridged_channel(p1->owner)->name);
 			return -1;
 		}
-	} else if (p2->owner->bridge) {
-		ast_moh_stop(p2->owner->bridge);
+	} else if (ast_bridged_channel(p2->owner)) {
+		ast_moh_stop(ast_bridged_channel(p2->owner));
 		ast_moh_stop(p2->owner);
 		ast_moh_stop(p1->owner);
 		if (p2->owner->cdr) {
 			p1->owner->cdr = ast_cdr_append(p1->owner->cdr, p2->owner->cdr);
 			p2->owner->cdr = NULL;
 		}
-		if (p2->owner->bridge->cdr) {
-			p1->owner->cdr = ast_cdr_append(p1->owner->cdr, p2->owner->bridge->cdr);
-			p2->owner->bridge->cdr = NULL;
+		if (ast_bridged_channel(p2->owner)->cdr) {
+			p1->owner->cdr = ast_cdr_append(p1->owner->cdr, ast_bridged_channel(p2->owner)->cdr);
+			ast_bridged_channel(p2->owner)->cdr = NULL;
 		}
-		if (ast_channel_masquerade(p1->owner, p2->owner->bridge)) {
-			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", p1->owner->name, p2->owner->bridge->name);
+		if (ast_channel_masquerade(p1->owner, ast_bridged_channel(p2->owner))) {
+			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", p1->owner->name, ast_bridged_channel(p2->owner)->name);
 			return -1;
 		}
 	} else {
@@ -7303,7 +7303,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 					ast_log(LOG_DEBUG,"202 Accepted (blind)\n");
 					c = p->owner;
 					if (c) {
-						transfer_to = c->bridge;
+						transfer_to = ast_bridged_channel(c);
 						if (transfer_to) {
 							ast_moh_stop(transfer_to);
 							if (!strcmp(p->refer_to, ast_parking_ext())) {
@@ -7378,7 +7378,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			if (!res) {
 				c = p->owner;
 				if (c) {
-					transfer_to = c->bridge;
+					transfer_to = ast_bridged_channel(c);
 					if (transfer_to) {
 						/* Don't actually hangup here... */
 						ast_moh_stop(transfer_to);

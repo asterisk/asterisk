@@ -682,8 +682,8 @@ static int action_status(struct mansession *s, struct message *m)
 		}
 	}
 	while(c) {
-		if (c->bridge)
-			snprintf(bridge, sizeof(bridge), "Link: %s\r\n", c->bridge->name);
+		if (c->_bridge)
+			snprintf(bridge, sizeof(bridge), "Link: %s\r\n", c->_bridge->name);
 		else
 			bridge[0] = '\0';
 		ast_mutex_lock(&s->lock);

@@ -69,6 +69,8 @@ struct ast_channel_pvt {
 	int (*transfer)(struct ast_channel *chan, char *newdest);
 	/*! Write a frame, in standard format */
 	int (*write_video)(struct ast_channel *chan, struct ast_frame *frame);
+	/*! Find bridged channel */
+	struct ast_channel * (*bridged_channel)(struct ast_channel *chan, struct ast_channel *bridge);
 };
 
 //! Create a channel structure

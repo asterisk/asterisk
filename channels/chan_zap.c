@@ -2012,8 +2012,8 @@ static int zt_hangup(struct ast_channel *ast)
 				p->owner = p->subs[SUB_REAL].owner;
 				if (p->owner->_state != AST_STATE_UP)
 					p->subs[SUB_REAL].needanswer = 1;
-				if (p->subs[SUB_REAL].owner->bridge)
-					ast_moh_stop(p->subs[SUB_REAL].owner->bridge);
+				if (ast_bridged_channel(p->subs[SUB_REAL].owner))
+					ast_moh_stop(ast_bridged_channel(p->subs[SUB_REAL].owner));
 			} else if (p->subs[SUB_THREEWAY].zfd > -1) {
 				swap_subs(p, SUB_THREEWAY, SUB_REAL);
 				unalloc_sub(p, SUB_THREEWAY);
@@ -2034,8 +2034,8 @@ static int zt_hangup(struct ast_channel *ast)
 			if (p->subs[SUB_CALLWAIT].inthreeway) {
 				/* This is actually part of a three way, placed on hold.  Place the third part
 				   on music on hold now */
-				if (p->subs[SUB_THREEWAY].owner && p->subs[SUB_THREEWAY].owner->bridge)
-					ast_moh_start(p->subs[SUB_THREEWAY].owner->bridge, NULL);
+				if (p->subs[SUB_THREEWAY].owner && ast_bridged_channel(p->subs[SUB_THREEWAY].owner))
+					ast_moh_start(ast_bridged_channel(p->subs[SUB_THREEWAY].owner), NULL);
 				p->subs[SUB_THREEWAY].inthreeway = 0;
 				/* Make it the call wait now */
 				swap_subs(p, SUB_CALLWAIT, SUB_THREEWAY);
@@ -2046,8 +2046,8 @@ static int zt_hangup(struct ast_channel *ast)
 			if (p->subs[SUB_CALLWAIT].inthreeway) {
 				/* The other party of the three way call is currently in a call-wait state.
 				   Start music on hold for them, and take the main guy out of the third call */
-				if (p->subs[SUB_CALLWAIT].owner && p->subs[SUB_CALLWAIT].owner->bridge)
-					ast_moh_start(p->subs[SUB_CALLWAIT].owner->bridge, NULL);
+				if (p->subs[SUB_CALLWAIT].owner && ast_bridged_channel(p->subs[SUB_CALLWAIT].owner))
+					ast_moh_start(ast_bridged_channel(p->subs[SUB_CALLWAIT].owner), NULL);
 				p->subs[SUB_CALLWAIT].inthreeway = 0;
 			}
 			p->subs[SUB_REAL].inthreeway = 0;
@@ -2867,13 +2867,13 @@ static int attempt_transfer(struct zt_pvt *p)
 	/* In order to transfer, we need at least one of the channels to
 	   actually be in a call bridge.  We can't conference two applications
 	   together (but then, why would we want to?) */
-	if (p->subs[SUB_REAL].owner->bridge) {
+	if (ast_bridged_channel(p->subs[SUB_REAL].owner)) {
 		/* The three-way person we're about to transfer to could still be in MOH, so
 		   stop if now if appropriate */
-		if (p->subs[SUB_THREEWAY].owner->bridge)
-			ast_moh_stop(p->subs[SUB_THREEWAY].owner->bridge);
+		if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner))
+			ast_moh_stop(ast_bridged_channel(p->subs[SUB_THREEWAY].owner));
 		if (p->subs[SUB_THREEWAY].owner->_state == AST_STATE_RINGING) {
-			ast_indicate(p->subs[SUB_REAL].owner->bridge, AST_CONTROL_RINGING);
+			ast_indicate(ast_bridged_channel(p->subs[SUB_REAL].owner), AST_CONTROL_RINGING);
 		}
 		if (p->subs[SUB_REAL].owner->cdr) {
 			/* Move CDR from second channel to current one */
@@ -2881,40 +2881,40 @@ static int attempt_transfer(struct zt_pvt *p)
 				ast_cdr_append(p->subs[SUB_THREEWAY].owner->cdr, p->subs[SUB_REAL].owner->cdr);
 			p->subs[SUB_REAL].owner->cdr = NULL;
 		}
-		if (p->subs[SUB_REAL].owner->bridge->cdr) {
+		if (ast_bridged_channel(p->subs[SUB_REAL].owner)->cdr) {
 			/* Move CDR from second channel's bridge to current one */
 			p->subs[SUB_THREEWAY].owner->cdr =
-				ast_cdr_append(p->subs[SUB_THREEWAY].owner->cdr, p->subs[SUB_REAL].owner->bridge->cdr);
-			p->subs[SUB_REAL].owner->bridge->cdr = NULL;
+				ast_cdr_append(p->subs[SUB_THREEWAY].owner->cdr, ast_bridged_channel(p->subs[SUB_REAL].owner)->cdr);
+			ast_bridged_channel(p->subs[SUB_REAL].owner)->cdr = NULL;
 		}
-		if (ast_channel_masquerade(p->subs[SUB_THREEWAY].owner, p->subs[SUB_REAL].owner->bridge)) {
+		 if (ast_channel_masquerade(p->subs[SUB_THREEWAY].owner, ast_bridged_channel(p->subs[SUB_REAL].owner))) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
-					p->subs[SUB_REAL].owner->bridge->name, p->subs[SUB_THREEWAY].owner->name);
+					ast_bridged_channel(p->subs[SUB_REAL].owner)->name, p->subs[SUB_THREEWAY].owner->name);
 			return -1;
 		}
 		/* Orphan the channel after releasing the lock */
 		ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
 		unalloc_sub(p, SUB_THREEWAY);
-	} else if (p->subs[SUB_THREEWAY].owner->bridge) {
+	} else if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner)) {
 		if (p->subs[SUB_REAL].owner->_state == AST_STATE_RINGING) {
-			ast_indicate(p->subs[SUB_THREEWAY].owner->bridge, AST_CONTROL_RINGING);
+			ast_indicate(ast_bridged_channel(p->subs[SUB_THREEWAY].owner), AST_CONTROL_RINGING);
 		}
-		ast_moh_stop(p->subs[SUB_THREEWAY].owner->bridge);
+		ast_moh_stop(ast_bridged_channel(p->subs[SUB_THREEWAY].owner));
 		if (p->subs[SUB_THREEWAY].owner->cdr) {
 			/* Move CDR from second channel to current one */
 			p->subs[SUB_REAL].owner->cdr = 
 				ast_cdr_append(p->subs[SUB_REAL].owner->cdr, p->subs[SUB_THREEWAY].owner->cdr);
 			p->subs[SUB_THREEWAY].owner->cdr = NULL;
 		}
-		if (p->subs[SUB_THREEWAY].owner->bridge->cdr) {
+		if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner)->cdr) {
 			/* Move CDR from second channel's bridge to current one */
 			p->subs[SUB_REAL].owner->cdr = 
-				ast_cdr_append(p->subs[SUB_REAL].owner->cdr, p->subs[SUB_THREEWAY].owner->bridge->cdr);
-			p->subs[SUB_THREEWAY].owner->bridge->cdr = NULL;
+				ast_cdr_append(p->subs[SUB_REAL].owner->cdr, ast_bridged_channel(p->subs[SUB_THREEWAY].owner)->cdr);
+			ast_bridged_channel(p->subs[SUB_THREEWAY].owner)->cdr = NULL;
 		}
-		if (ast_channel_masquerade(p->subs[SUB_REAL].owner, p->subs[SUB_THREEWAY].owner->bridge)) {
+		if (ast_channel_masquerade(p->subs[SUB_REAL].owner, ast_bridged_channel(p->subs[SUB_THREEWAY].owner))) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
-					p->subs[SUB_THREEWAY].owner->bridge->name, p->subs[SUB_REAL].owner->name);
+					ast_bridged_channel(p->subs[SUB_THREEWAY].owner)->name, p->subs[SUB_REAL].owner->name);
 			return -1;
 		}
 		/* Three-way is now the REAL */
@@ -3360,8 +3360,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					/* Make sure it stops ringing */
 					zt_set_hook(p->subs[index].zfd, ZT_OFFHOOK);
 					/* Okay -- probably call waiting*/
-					if (p->owner->bridge)
-							ast_moh_stop(p->owner->bridge);
+					if (ast_bridged_channel(p->owner))
+							ast_moh_stop(ast_bridged_channel(p->owner));
 					break;
 				case AST_STATE_RESERVED:
 					/* Start up dialtone */
@@ -3470,10 +3470,10 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						p->callwaitingrepeat = 0;
 						p->cidcwexpire = 0;
 						/* Start music on hold if appropriate */
-						if (!p->subs[SUB_CALLWAIT].inthreeway && p->subs[SUB_CALLWAIT].owner->bridge)
-								ast_moh_start(p->subs[SUB_CALLWAIT].owner->bridge, NULL);
-						if (p->subs[SUB_REAL].owner->bridge)
-								ast_moh_stop(p->subs[SUB_REAL].owner->bridge);
+						if (!p->subs[SUB_CALLWAIT].inthreeway && ast_bridged_channel(p->subs[SUB_CALLWAIT].owner))
+								ast_moh_start(ast_bridged_channel(p->subs[SUB_CALLWAIT].owner), NULL);
+						if (ast_bridged_channel(p->subs[SUB_REAL].owner))
+								ast_moh_stop(ast_bridged_channel(p->subs[SUB_REAL].owner));
 					} else if (!p->subs[SUB_THREEWAY].owner) {
 						char cid_num[256]="";
 						char cid_name[256]="";
@@ -3527,8 +3527,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 										if (option_verbose > 2)	
 											ast_verbose(VERBOSE_PREFIX_3 "Started three way call on channel %d\n", p->channel);
 										/* Start music on hold if appropriate */
-										if (p->subs[SUB_THREEWAY].owner->bridge)
-											ast_moh_start(p->subs[SUB_THREEWAY].owner->bridge, NULL);
+										if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner))
+											ast_moh_start(ast_bridged_channel(p->subs[SUB_THREEWAY].owner), NULL);
 									}		
 								} else
 									ast_log(LOG_WARNING, "Unable to allocate three-way subchannel\n");
@@ -3567,8 +3567,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 									swap_subs(p, SUB_THREEWAY, SUB_REAL);
 									otherindex = SUB_REAL;
 								}
-								if (p->subs[otherindex].owner && p->subs[otherindex].owner->bridge)
-									ast_moh_stop(p->subs[otherindex].owner->bridge);
+								if (p->subs[otherindex].owner && ast_bridged_channel(p->subs[otherindex].owner))
+									ast_moh_stop(ast_bridged_channel(p->subs[otherindex].owner));
 								p->owner = p->subs[SUB_REAL].owner;
 								if (ast->_state == AST_STATE_RINGING) {
 									ast_log(LOG_DEBUG, "Enabling ringtone on real and threeway\n");
@@ -3581,8 +3581,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 								swap_subs(p, SUB_THREEWAY, SUB_REAL);
 								p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
 								p->owner = p->subs[SUB_REAL].owner;
-								if (p->subs[SUB_REAL].owner && p->subs[SUB_REAL].owner->bridge)
-									ast_moh_stop(p->subs[SUB_REAL].owner->bridge);
+								if (p->subs[SUB_REAL].owner && ast_bridged_channel(p->subs[SUB_REAL].owner))
+									ast_moh_stop(ast_bridged_channel(p->subs[SUB_REAL].owner));
 								zt_enable_ec(p);
 							}
 							
@@ -3710,8 +3710,8 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 			(res != ZT_EVENT_HOOKCOMPLETE)) {
 			ast_log(LOG_DEBUG, "Restoring owner of channel %d on event %d\n", p->channel, res);
 			p->owner = p->subs[SUB_REAL].owner;
-			if (p->owner && p->owner->bridge)
-				ast_moh_stop(p->owner->bridge);
+			if (p->owner && ast_bridged_channel(p->owner))
+				ast_moh_stop(ast_bridged_channel(p->owner));
 		}
 		switch(res) {
 		case ZT_EVENT_ONHOOK:
@@ -3753,8 +3753,8 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 				}
 				p->callwaitingrepeat = 0;
 				p->cidcwexpire = 0;
-				if (p->owner->bridge)
-					ast_moh_stop(p->owner->bridge);
+				if (ast_bridged_channel(p->owner))
+					ast_moh_stop(ast_bridged_channel(p->owner));
 			} else
 				ast_log(LOG_WARNING, "Absorbed on hook, but nobody is left!?!?\n");
 			update_conf(p);
@@ -5014,10 +5014,10 @@ static void *ss_thread(void *data)
 				len = 0;
 			} else if (p->transfer && !strcmp(exten, ast_parking_ext()) && 
 						p->subs[SUB_THREEWAY].owner &&
-						p->subs[SUB_THREEWAY].owner->bridge) {
+						ast_bridged_channel(p->subs[SUB_THREEWAY].owner)) {
 				/* This is a three way call, the main call being a real channel, 
 					and we're parking the first call. */
-				ast_masq_park_call(p->subs[SUB_THREEWAY].owner->bridge, chan, 0, NULL);
+				ast_masq_park_call(ast_bridged_channel(p->subs[SUB_THREEWAY].owner), chan, 0, NULL);
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Parking call to '%s'\n", chan->name);
 				break;
@@ -5058,7 +5058,7 @@ static void *ss_thread(void *data)
 					p->subs[SUB_THREEWAY].owner;
 				struct zt_pvt *pbridge = NULL;
 				  /* set up the private struct of the bridged one, if any */
-				if (nbridge && nbridge->bridge) pbridge = nbridge->bridge->pvt->pvt;
+				if (nbridge && ast_bridged_channel(nbridge)) pbridge = ast_bridged_channel(nbridge)->pvt->pvt;
 				if (nbridge && 
 				    (!strcmp(nbridge->type,"Zap")) &&
 				    ISTRUNK(pbridge)) {
@@ -5073,8 +5073,8 @@ static void *ss_thread(void *data)
 					swap_subs(p, SUB_REAL, SUB_THREEWAY);
 					unalloc_sub(p, SUB_THREEWAY);
 					p->owner = p->subs[SUB_REAL].owner;
-					if (p->subs[SUB_REAL].owner->bridge)
-						ast_moh_stop(p->subs[SUB_REAL].owner->bridge);
+					if (ast_bridged_channel(p->subs[SUB_REAL].owner))
+						ast_moh_stop(ast_bridged_channel(p->subs[SUB_REAL].owner));
 					ast_hangup(chan);
 					return NULL;
 				} else {

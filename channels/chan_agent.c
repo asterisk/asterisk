@@ -324,6 +324,7 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 			/* Note that we don't hangup if it's not a callback because Asterisk will do it
 			   for us when the PBX instance that called login finishes */
 			if (!ast_strlen_zero(p->loginchan)) {
+				p->chan->_bridge = NULL;
 				ast_hangup(p->chan);
 				if (p->wrapuptime) {
 					gettimeofday(&p->lastdisc, NULL);
@@ -351,6 +352,9 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
         else {
 			p->acknowledged = 1;
 			f = &answer_frame;
+			if (p->chan)
+				p->chan->_bridge = ast;
+
         }
 	}
 	if (f && (f->frametype == AST_FRAME_DTMF) && (f->subclass == '#')) {
@@ -360,6 +364,8 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 			p->acknowledged = 1;
 			ast_frfree(f);
 			f = &answer_frame;
+			if (p->chan)
+				p->chan->_bridge = ast;
 		}
 	}
 	if (f && (f->frametype == AST_FRAME_DTMF) && (f->subclass == '*')) {
@@ -704,6 +710,19 @@ static int agent_ack_sleep( void *data )
 	return res;
 }
 
+static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct ast_channel *bridge)
+{
+	struct agent_pvt *p;
+	struct ast_channel *ret=NULL;
+
+	p = bridge->pvt->pvt;
+	if (chan == p->chan)
+		ret = bridge->_bridge;
+	else if (chan == bridge->_bridge)
+		ret = p->chan;
+	return NULL;
+}
+
 static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 {
 	struct ast_channel *tmp;
@@ -748,6 +767,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 		tmp->pvt->exception = agent_read;
 		tmp->pvt->indicate = agent_indicate;
 		tmp->pvt->fixup = agent_fixup;
+		tmp->pvt->bridged_channel = agent_bridgedchannel;
 		p->owner = tmp;
 		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
@@ -1144,8 +1164,8 @@ static int agents_show(int fd, int argc, char **argv)
 				username[0] = '\0';
 			if (p->chan) {
 				snprintf(location, sizeof(location), "logged in on %s", p->chan->name);
-				if (p->owner && p->owner->bridge) {
-					snprintf(talkingto, sizeof(talkingto), " talking to %s", p->owner->bridge->name);
+				if (p->owner && ast_bridged_channel(p->owner)) {
+					snprintf(talkingto, sizeof(talkingto), " talking to %s", ast_bridged_channel(p->owner)->name);
 				} else {
 					strncpy(talkingto, " is idle", sizeof(talkingto) - 1);
 				}

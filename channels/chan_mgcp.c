@@ -898,16 +898,16 @@ static int mgcp_hangup(struct ast_channel *ast)
 	 sub->cxident[0] = '\0';
     if ((sub == p->sub) && sub->next->owner) {
         if (p->hookstate == MGCP_OFFHOOK) {
-            if (sub->next->owner && sub->next->owner->bridge) {
-                transmit_notify_request_with_callerid(p->sub, "L/wt", sub->next->owner->bridge->cid.cid_num, sub->next->owner->bridge->cid.cid_name);
+            if (sub->next->owner && ast_bridged_channel(sub->next->owner)) {
+                transmit_notify_request_with_callerid(p->sub, "L/wt", ast_bridged_channel(sub->next->owner)->cid.cid_num, ast_bridged_channel(sub->next->owner)->cid.cid_name);
             }
         } else {
             /* set our other connection as the primary and swith over to it */
             p->sub = sub->next;
             p->sub->cxmode = MGCP_CX_RECVONLY;
             transmit_modify_request(p->sub);
-            if (sub->next->owner && sub->next->owner->bridge) {
-                transmit_notify_request_with_callerid(p->sub, "L/rg", sub->next->owner->bridge->cid.cid_num, sub->next->owner->bridge->cid.cid_name);
+            if (sub->next->owner && ast_bridged_channel(sub->next->owner)) {
+                transmit_notify_request_with_callerid(p->sub, "L/rg", ast_bridged_channel(sub->next->owner)->cid.cid_num, ast_bridged_channel(sub->next->owner)->cid.cid_name);
             }
         }
 
@@ -2606,10 +2606,10 @@ static void *mgcp_ss(void *data)
             len = 0;
         } else if (!strcmp(exten, ast_parking_ext()) && 
                     sub->next->owner &&
-                    sub->next->owner->bridge) {
+                    ast_bridged_channel(sub->next->owner)) {
             /* This is a three way call, the main call being a real channel, 
                 and we're parking the first call. */
-            ast_masq_park_call(sub->next->owner->bridge, chan, 0, NULL);
+            ast_masq_park_call(ast_bridged_channel(sub->next->owner), chan, 0, NULL);
             if (option_verbose > 2) {
                 ast_verbose(VERBOSE_PREFIX_3 "Parking call to '%s'\n", chan->name);
             }
@@ -2707,29 +2707,29 @@ static int attempt_transfer(struct mgcp_endpoint *p)
 	/* In order to transfer, we need at least one of the channels to
 	   actually be in a call bridge.  We can't conference two applications
 	   together (but then, why would we want to?) */
-	if (p->sub->owner->bridge) {
+	if (ast_bridged_channel(p->sub->owner)) {
 		/* The three-way person we're about to transfer to could still be in MOH, so
 		   stop if now if appropriate */
-		if (p->sub->next->owner->bridge)
-			ast_moh_stop(p->sub->next->owner->bridge);
+		if (ast_bridged_channel(p->sub->next->owner))
+			ast_moh_stop(ast_bridged_channel(p->sub->next->owner));
 		if (p->sub->owner->_state == AST_STATE_RINGING) {
-			ast_indicate(p->sub->next->owner->bridge, AST_CONTROL_RINGING);
+			ast_indicate(ast_bridged_channel(p->sub->next->owner), AST_CONTROL_RINGING);
 		}
-		if (ast_channel_masquerade(p->sub->next->owner, p->sub->owner->bridge)) {
+		if (ast_channel_masquerade(p->sub->next->owner, ast_bridged_channel(p->sub->owner))) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
-					p->sub->owner->bridge->name, p->sub->next->owner->name);
+					ast_bridged_channel(p->sub->owner)->name, p->sub->next->owner->name);
 			return -1;
 		}
 		/* Orphan the channel */
 		unalloc_sub(p->sub->next);
-	} else if (p->sub->next->owner->bridge) {
+	} else if (ast_bridged_channel(p->sub->next->owner)) {
 		if (p->sub->owner->_state == AST_STATE_RINGING) {
-			ast_indicate(p->sub->next->owner->bridge, AST_CONTROL_RINGING);
+			ast_indicate(ast_bridged_channel(p->sub->next->owner), AST_CONTROL_RINGING);
 		}
-		ast_moh_stop(p->sub->next->owner->bridge);
-		if (ast_channel_masquerade(p->sub->owner, p->sub->next->owner->bridge)) {
+		ast_moh_stop(ast_bridged_channel(p->sub->next->owner));
+		if (ast_channel_masquerade(p->sub->owner, ast_bridged_channel(p->sub->next->owner))) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
-					p->sub->next->owner->bridge->name, p->sub->owner->name);
+					ast_bridged_channel(p->sub->next->owner)->name, p->sub->owner->name);
 			return -1;
 		}
 		/*swap_subs(p, SUB_THREEWAY, SUB_REAL);*/
@@ -2765,8 +2765,8 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
     if (sub->outgoing) {
         /* Answered */
         if (sub->owner) {
-            if (sub->owner->bridge) {
-                ast_moh_stop(sub->owner->bridge);
+            if (ast_bridged_channel(sub->owner)) {
+                ast_moh_stop(ast_bridged_channel(sub->owner));
             }
             sub->cxmode = MGCP_CX_SENDRECV;
             if (!sub->rtp) {
@@ -2823,8 +2823,8 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
                 ast_log(LOG_WARNING, "On hook, but already have owner on %s@%s\n", p->name, p->parent->name);
                 ast_log(LOG_WARNING, "If we're onhook why are we here trying to handle a hd or hf?");
             }
-            if (sub->owner->bridge) {
-                ast_moh_stop(sub->owner->bridge);
+            if (ast_bridged_channel(sub->owner)) {
+                ast_moh_stop(ast_bridged_channel(sub->owner));
             }
             sub->cxmode = MGCP_CX_SENDRECV;
             if (!sub->rtp) {
@@ -2948,8 +2948,8 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
                         ast_verbose(VERBOSE_PREFIX_3 "MGCP Muting %d on %s@%s\n", sub->id, p->name, p->parent->name);
                     }
                     transmit_modify_request(sub);
-                    if (sub->owner && sub->owner->bridge) {
-                        ast_moh_start(sub->owner->bridge, NULL);
+                    if (sub->owner && ast_bridged_channel(sub->owner)) {
+                        ast_moh_start(ast_bridged_channel(sub->owner), NULL);
                     }
                     sub->next->cxmode = MGCP_CX_RECVONLY;
                     handle_hd_hf(sub->next, ev);
@@ -2963,9 +2963,8 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
                         }
                         sub->cxmode = MGCP_CX_CONF;
                         sub->next->cxmode = MGCP_CX_CONF;
-                        if (sub->next->owner->bridge) {
-                            ast_moh_stop(sub->next->owner->bridge);
-                        }
+                        if (ast_bridged_channel(sub->next->owner)) 
+                            ast_moh_stop(ast_bridged_channel(sub->next->owner));
                         transmit_modify_request(sub);
                         transmit_modify_request(sub->next);
                     } else {
@@ -2981,12 +2980,12 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
                             ast_verbose(VERBOSE_PREFIX_3 "MGCP Muting %d on %s@%s\n", sub->id, p->name, p->parent->name);
                         }
                         transmit_modify_request(sub);
-                        if (sub->owner->bridge) {
-                            ast_moh_start(sub->owner->bridge, NULL);
-                        }
-                        if (sub->next->owner->bridge) {
-                            ast_moh_stop(sub->next->owner->bridge);
-                        }
+                        if (ast_bridged_channel(sub->owner)) 
+                            ast_moh_start(ast_bridged_channel(sub->owner), NULL);
+                        
+                        if (ast_bridged_channel(sub->next->owner)) 
+                            ast_moh_stop(ast_bridged_channel(sub->next->owner));
+                        
                         handle_hd_hf(sub->next, ev);
 #if 0
                         if (sub->next->owner && (sub->next->owner->_state != AST_STATE_UP)) {
@@ -3009,8 +3008,8 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
                         /* XXX - What do we do now? */
                         return -1;
                     }
-                    if (p->sub->owner->bridge) {
-                        ast_moh_stop(p->sub->owner->bridge);
+                    if (ast_bridged_channel(p->sub->owner)) {
+                        ast_moh_stop(ast_bridged_channel(p->sub->owner));
                     }
                     p->sub->cxmode = MGCP_CX_SENDRECV;
                     transmit_modify_request(p->sub);

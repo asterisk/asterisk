@@ -93,8 +93,9 @@ struct ast_channel {
 	/*! Whether or not the generator should be interrupted by write */
 	int writeinterrupt;
 
-	/*! Who are we bridged to, if we're bridged */
-	struct ast_channel *bridge;
+	/*! Who are we bridged to, if we're bridged  Do not access directly,
+	    use ast_bridged_channel(chan) */
+	struct ast_channel *_bridge;
 	/*! Who did we call? */
 	struct ast_channel *dialed;
 	/*! Who called us? */
@@ -814,6 +815,9 @@ int ast_settimeout(struct ast_channel *c, int samples, int (*func)(void *data), 
 int ast_transfer(struct ast_channel *chan, char *dest);
 
 int ast_do_masquerade(struct ast_channel *chan);
+
+/* Find bridged channel */
+struct ast_channel *ast_bridged_channel(struct ast_channel *chan);
 
 /* Misc. functions below */
 

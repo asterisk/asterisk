@@ -2479,6 +2479,15 @@ static long tvdiff(struct timeval *now, struct timeval *then)
 	return (((now->tv_sec * 1000) + now->tv_usec / 1000) - ((then->tv_sec * 1000) + then->tv_usec / 1000));
 }
 
+struct ast_channel *ast_bridged_channel(struct ast_channel *chan)
+{
+	struct ast_channel *bridged;
+	bridged = chan->_bridge;
+	if (bridged && bridged->pvt->bridged_channel) 
+		bridged = bridged->pvt->bridged_channel(chan, bridged);
+	return bridged;
+}
+
 static void bridge_playfile(struct ast_channel *chan, struct ast_channel *peer, char *sound, int remain) 
 {
 	int res=0, min=0, sec=0,check=0;
@@ -2552,20 +2561,20 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 	/* Stop if we're a zombie or need a soft hangup */
 	if (c0->zombie || ast_check_hangup_locked(c0) || c1->zombie || ast_check_hangup_locked(c1)) 
 		return -1;
-	if (c0->bridge) {
+	if (c0->_bridge) {
 		ast_log(LOG_WARNING, "%s is already in a bridge with %s\n", 
-			c0->name, c0->bridge->name);
+			c0->name, c0->_bridge->name);
 		return -1;
 	}
-	if (c1->bridge) {
+	if (c1->_bridge) {
 		ast_log(LOG_WARNING, "%s is already in a bridge with %s\n", 
-			c1->name, c1->bridge->name);
+			c1->name, c1->_bridge->name);
 		return -1;
 	}
 	
 	/* Keep track of bridge */
-	c0->bridge = c1;
-	c1->bridge = c0;
+	c0->_bridge = c1;
+	c1->_bridge = c0;
 	cs[0] = c0;
 	cs[1] = c1;
 	
@@ -2632,8 +2641,8 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 			if (option_verbose > 2) 
 				ast_verbose(VERBOSE_PREFIX_3 "Attempting native bridge of %s and %s\n", c0->name, c1->name);
 			if (!(res = c0->pvt->bridge(c0, c1, flags, fo, rc))) {
-				c0->bridge = NULL;
-				c1->bridge = NULL;
+				c0->_bridge = NULL;
+				c1->_bridge = NULL;
 				manager_event(EVENT_FLAG_CALL, "Unlink", 
 					"Channel1: %s\r\n"
 					"Channel2: %s\r\n"
@@ -2737,8 +2746,8 @@ tackygoto:
 		cs[0] = cs[1];
 		cs[1] = cs[2];
 	}
-	c0->bridge = NULL;
-	c1->bridge = NULL;
+	c0->_bridge = NULL;
+	c1->_bridge = NULL;
 	manager_event(EVENT_FLAG_CALL, "Unlink", 
 					"Channel1: %s\r\n"
 					"Channel2: %s\r\n"

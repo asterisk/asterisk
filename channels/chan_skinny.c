@@ -1407,10 +1407,10 @@ static void *skinny_ss(void *data)
             len = 0;
         } else if (!strcmp(exten, ast_parking_ext()) && 
                     sub->next->owner &&
-                    sub->next->owner->bridge) {
+                    ast_bridged_channel(sub->next->owner)) {
             /* This is a three way call, the main call being a real channel, 
                 and we're parking the first call. */
-            ast_masq_park_call(sub->next->owner->bridge, chan, 0, NULL);
+            ast_masq_park_call(ast_bridged_channel(sub->next->owner), chan, 0, NULL);
             if (option_verbose > 2) {
                 ast_verbose(VERBOSE_PREFIX_3 "Parking call to '%s'\n", chan->name);
             }
