@@ -84,7 +84,7 @@ int ast_db_deltree(const char *family, const char *keytree)
 	} else if (keytree)
 		return -1;
 	else
-		strcpy(prefix, "");
+		prefix[0] = '\0';
 	
 	ast_mutex_lock(&dblock);
 	if (dbinit()) 
@@ -169,6 +169,7 @@ int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
 			((char *)data.data)[data.size - 1] = '\0';
 			/* Make sure that we don't write too much to the dst pointer or we don't read too much from the source pointer */
 			strncpy(value, data.data, (valuelen > data.size) ? data.size : valuelen);
+			value[valuelen - 1] = '\0';
 		} else {
 			ast_log(LOG_NOTICE, "Strange, empty value for /%s/%s\n", family, keys);
 		}
@@ -275,7 +276,7 @@ static int database_show(int fd, int argc, char *argv[])
 		snprintf(prefix, sizeof(prefix), "/%s", argv[2]);
 	} else if (argc == 2) {
 		/* Neither */
-		strcpy(prefix, "");
+		prefix[0] = '\0';
 	} else
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&dblock);
@@ -324,7 +325,7 @@ struct ast_db_entry *ast_db_gettree(const char *family, const char *keytree)
 			/* Family only */
 			snprintf(prefix, sizeof(prefix), "/%s", family);
 	} else
-		strcpy(prefix, "");
+		prefix[0] = '\0';
 	ast_mutex_lock(&dblock);
 	if (dbinit()) {
 		ast_mutex_unlock(&dblock);

@@ -157,7 +157,7 @@ int ast_app_has_voicemail(const char *mailbox)
 	if (ast_strlen_zero(mailbox))
 		return 0;
 	if (strchr(mailbox, ',')) {
-		strncpy(tmp, mailbox, sizeof(tmp));
+		strncpy(tmp, mailbox, sizeof(tmp) - 1);
 		mb = tmp;
 		ret = 0;
 		while((cur = strsep(&mb, ","))) {
@@ -207,7 +207,7 @@ int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		return 0;
 	if (strchr(mailbox, ',')) {
 		int tmpnew, tmpold;
-		strncpy(tmp, mailbox, sizeof(tmp));
+		strncpy(tmp, mailbox, sizeof(tmp) - 1);
 		mb = tmp;
 		ret = 0;
 		while((cur = strsep(&mb, ", "))) {

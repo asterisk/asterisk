@@ -2143,7 +2143,7 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
 void ast_change_name(struct ast_channel *chan, char *newname)
 {
 	char tmp[256];
-	strncpy(tmp, chan->name, 256);
+	strncpy(tmp, chan->name, sizeof(tmp) - 1);
 	strncpy(chan->name, newname, sizeof(chan->name) - 1);
 	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", tmp, chan->name, chan->uniqueid);
 }

@@ -319,7 +319,7 @@ struct ast_variable *ast_variable_append_modify(struct ast_config *config, char 
 		if (!cat)
 			return NULL;
 		memset(cat, 0, sizeof(struct ast_category));
-		strncpy(cat->name, category, sizeof(cat->name));
+		strncpy(cat->name, category, sizeof(cat->name) - 1);
 		if (config->root) {
 			/* Put us at the end */
 			pcat = config->root;
@@ -646,7 +646,7 @@ int ast_save(char *configfile, struct ast_config *cfg, char *generator)
 {
 	FILE *f;
 	char fn[256];
-	char date[256];
+	char date[256]="";
 	time_t t;
 	struct ast_variable *var;
 	struct ast_category *cat;
@@ -657,7 +657,7 @@ int ast_save(char *configfile, struct ast_config *cfg, char *generator)
 		snprintf(fn, sizeof(fn), "%s/%s", AST_CONFIG_DIR, configfile);
 	}
 	time(&t);
-	strncpy(date, ctime(&t), sizeof(date));
+	strncpy(date, ctime(&t), sizeof(date) - 1);
 	if ((f = fopen(fn, "w"))) {
 		if ((option_verbose > 1) && !option_debug)
 			ast_verbose(  VERBOSE_PREFIX_2 "Saving '%s': ", fn);
@@ -974,7 +974,7 @@ struct ast_category *ast_new_category(char *name)
 	category = malloc(sizeof(struct ast_category));
 	if (category) {
 		memset(category,0,sizeof(struct ast_category));
-		strncpy(category->name,name,sizeof(category->name));
+		strncpy(category->name,name,sizeof(category->name) - 1);
 	}
 	return category;
 }
@@ -1082,7 +1082,8 @@ int read_ast_cust_config(void)
 					if (strcmp(v->name,config_conf_file) && strcmp(v->name,"asterisk.conf")) {
 						if (!(test = get_ast_cust_config_keyword(v->name))) {
 							ast_log(LOG_NOTICE,"Binding: %s to %s\n",v->name,v->value);
-							strncpy(ptr->keywords[ptr->keycount],v->name,sizeof(ptr->keywords[ptr->keycount]));
+							strncpy(ptr->keywords[ptr->keycount],v->name,sizeof(ptr->keywords[ptr->keycount]) - 1);
+							ptr->keywords[ptr->keycount][sizeof(ptr->keywords[ptr->keycount])-1] = '\0';
 							ptr->keycount++;
 						}
 					} else {

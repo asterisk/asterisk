@@ -943,10 +943,10 @@ static char *cli_prompt(EditLine *el)
 					case 'C': /* color */
 						t++;
 						if (sscanf(t, "%d;%d%n", &fgcolor, &bgcolor, &i) == 2) {
-							strncat(p, term_color_code(term_code, fgcolor, bgcolor, sizeof(term_code)),sizeof(prompt) - strlen(prompt));
+							strncat(p, term_color_code(term_code, fgcolor, bgcolor, sizeof(term_code)),sizeof(prompt) - strlen(prompt) - 1);
 							t += i - 1;
 						} else if (sscanf(t, "%d%n", &fgcolor, &i) == 1) {
-							strncat(p, term_color_code(term_code, fgcolor, 0, sizeof(term_code)),sizeof(prompt) - strlen(prompt));
+							strncat(p, term_color_code(term_code, fgcolor, 0, sizeof(term_code)),sizeof(prompt) - strlen(prompt) - 1);
 							t += i - 1;
 						}
 
@@ -966,9 +966,9 @@ static char *cli_prompt(EditLine *el)
 						break;
 					case 'h': /* hostname */
 						if (!gethostname(hostname, sizeof(hostname) - 1)) {
-							strncat(p, hostname, sizeof(prompt) - strlen(prompt));
+							strncat(p, hostname, sizeof(prompt) - strlen(prompt) - 1);
 						} else {
-							strncat(p, "localhost", sizeof(prompt) - strlen(prompt));
+							strncat(p, "localhost", sizeof(prompt) - strlen(prompt) - 1);
 						}
 						break;
 					case 'H': /* short hostname */
@@ -979,9 +979,9 @@ static char *cli_prompt(EditLine *el)
 									break;
 								}
 							}
-							strncat(p, hostname, sizeof(prompt) - strlen(prompt));
+							strncat(p, hostname, sizeof(prompt) - strlen(prompt) - 1);
 						} else {
-							strncat(p, "localhost", sizeof(prompt) - strlen(prompt));
+							strncat(p, "localhost", sizeof(prompt) - strlen(prompt) - 1);
 						}
 						break;
 #ifdef linux
@@ -1023,13 +1023,13 @@ static char *cli_prompt(EditLine *el)
 						break;
 					case '#': /* process console or remote? */
 						if (! option_remote) {
-							strncat(p, "#", sizeof(prompt) - strlen(prompt));
+							strncat(p, "#", sizeof(prompt) - strlen(prompt) - 1);
 						} else {
-							strncat(p, ">", sizeof(prompt) - strlen(prompt));
+							strncat(p, ">", sizeof(prompt) - strlen(prompt) - 1);
 						}
 						break;
 					case '%': /* literal % */
-						strncat(p, "%", sizeof(prompt) - strlen(prompt));
+						strncat(p, "%", sizeof(prompt) - strlen(prompt) - 1);
 						break;
 					case '\0': /* % is last character - prevent bug */
 						t--;
@@ -1462,14 +1462,14 @@ static void ast_readconfig(void) {
 		    strncpy((char *)ast_config_AST_SPOOL_DIR,v->value,sizeof(ast_config_AST_SPOOL_DIR)-1);
 		} else if (!strcasecmp(v->name, "astvarlibdir")) {
 		    strncpy((char *)ast_config_AST_VAR_DIR,v->value,sizeof(ast_config_AST_VAR_DIR)-1);
-		    snprintf((char *)ast_config_AST_DB,sizeof(ast_config_AST_DB)-1,"%s/%s",v->value,"astdb");    
+		    snprintf((char *)ast_config_AST_DB,sizeof(ast_config_AST_DB),"%s/%s",v->value,"astdb");    
 		} else if (!strcasecmp(v->name, "astlogdir")) {
 		    strncpy((char *)ast_config_AST_LOG_DIR,v->value,sizeof(ast_config_AST_LOG_DIR)-1);
 		} else if (!strcasecmp(v->name, "astagidir")) {
 		    strncpy((char *)ast_config_AST_AGI_DIR,v->value,sizeof(ast_config_AST_AGI_DIR)-1);
 		} else if (!strcasecmp(v->name, "astrundir")) {
-		    snprintf((char *)ast_config_AST_PID,sizeof(ast_config_AST_PID)-1,"%s/%s",v->value,"asterisk.pid");    
-		    snprintf((char *)ast_config_AST_SOCKET,sizeof(ast_config_AST_SOCKET)-1,"%s/%s",v->value,"asterisk.ctl");    
+		    snprintf((char *)ast_config_AST_PID,sizeof(ast_config_AST_PID),"%s/%s",v->value,"asterisk.pid");    
+		    snprintf((char *)ast_config_AST_SOCKET,sizeof(ast_config_AST_SOCKET),"%s/%s",v->value,"asterisk.ctl");    
 		    strncpy((char *)ast_config_AST_RUN_DIR,v->value,sizeof(ast_config_AST_RUN_DIR)-1);
 		} else if (!strcasecmp(v->name, "astmoddir")) {
 		    strncpy((char *)ast_config_AST_MODULE_DIR,v->value,sizeof(ast_config_AST_MODULE_DIR)-1);
@@ -1564,7 +1564,7 @@ int main(int argc, char *argv[])
 			xarg = optarg;
 			break;
 		case 'C':
-			strncpy((char *)ast_config_AST_CONFIG_FILE,optarg,sizeof(ast_config_AST_CONFIG_FILE));
+			strncpy((char *)ast_config_AST_CONFIG_FILE,optarg,sizeof(ast_config_AST_CONFIG_FILE) - 1);
 			option_overrideconfig++;
 			break;
 		case 'i':

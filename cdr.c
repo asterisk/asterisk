@@ -431,7 +431,7 @@ int ast_cdr_update(struct ast_channel *c)
 			if (c->callerid && !ast_strlen_zero(c->callerid))
 				strncpy(cdr->clid, c->callerid, sizeof(cdr->clid) - 1);
 			else
-				strcpy(cdr->clid, "");
+				cdr->clid[0] = '\0';
 			name = NULL;
 			num = NULL;
 			ast_callerid_parse(tmp, &name, &num);

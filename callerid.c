@@ -242,8 +242,8 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 					break;
 				}
 		
-				strcpy(cid->number, "");
-				strcpy(cid->name, "");
+				cid->number[0] = '\0';
+				cid->name[0] = '\0';
 				/* If we get this far we're fine.  */
 				if (cid->type == 0x80) {
 					/* MDMF */
