@@ -1532,6 +1532,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 			tmp->callerid = strdup(i->callerid);
 		if (strlen(i->rdnis))
 			tmp->rdnis = strdup(i->rdnis);
+		if (strlen(i->exten) && strcmp(i->exten, "s"))
+			tmp->dnid = strdup(i->exten);
 		tmp->priority = 1;
 		if (strlen(i->domain)) {
 			pbx_builtin_setvar_helper(tmp, "SIPDOMAIN", i->domain);
