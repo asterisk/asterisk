@@ -218,7 +218,7 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, cha
 	*retval->email='\0';
 	*retval->pager='\0';
 	*retval->serveremail='\0';
-	*retval->attach=-1;
+	retval->attach=-1;
 	retval->alloced=1;
 	retval->next=NULL;
 	if (mailbox) {
