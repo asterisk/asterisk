@@ -55,6 +55,11 @@
 ;
 ;retry = 5
 ;
+; After a successful call, how long to wait before sending a potentially
+; free member another call (default is 0, or no delay)
+;
+;wrapuptime=15
+;
 ; Maximum number of people waiting in the queue (0 for unlimited)
 ;
 ;maxlen = 0

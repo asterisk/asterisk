@@ -145,6 +145,7 @@ struct localuser {
 	int musiconhold;
 	int dataquality;
 	int allowdisconnect;
+	time_t lastcall;
 	struct member *member;
 	struct localuser *next;
 };
@@ -203,6 +204,7 @@ struct ast_call_queue {
 
 	int count;			/* How many entries are in the queue */
 	int maxlen;			/* Max number of entries in queue */
+	int wrapuptime;		/* Wrapup Time */
 
 	int dead;			/* Whether this queue is dead or not */
 	int retry;			/* Retry calling everyone after this amount of time */
@@ -518,6 +520,13 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 {
 	int res;
+	if (qe->parent->wrapuptime && (time(NULL) - tmp->lastcall < qe->parent->wrapuptime)) {
+		ast_log(LOG_DEBUG, "Wrapuptime not yet expired for %s/%s\n", tmp->tech, tmp->numsubst);
+		if (qe->chan->cdr)
+			ast_cdr_busy(qe->chan->cdr);
+		tmp->stillgoing = 0;
+		return 0;
+	}
 	/* Request the peer */
 	tmp->chan = ast_request(tmp->tech, qe->chan->nativeformats, tmp->numsubst);
 	if (!tmp->chan) {			/* If we can't, just go on to the next call */
@@ -1019,6 +1028,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		tmp->member = cur;		/* Never directly dereference!  Could change on reload */
 		strncpy(tmp->tech, cur->tech, sizeof(tmp->tech)-1);
 		strncpy(tmp->numsubst, cur->loc, sizeof(tmp->numsubst)-1);
+		tmp->lastcall = cur->lastcall;
 		/* If we're dialing by extension, look at the extension to know what to dial */
 		if ((newnum = strstr(tmp->numsubst, "BYEXTENSION"))) {
 			strncpy(restofit, newnum + strlen("BYEXTENSION"), sizeof(restofit)-1);
@@ -1703,6 +1713,7 @@ static void reload_queues(void)
 				q->callsabandoned = 0;
 				q->callscompletedinsl = 0;
 				q->servicelevel = 0;
+				q->wrapuptime = 0;
 				free_members(q, 0);
 				strcpy(q->moh, "");
 				strcpy(q->announce, "");
@@ -1780,6 +1791,8 @@ static void reload_queues(void)
 						q->announceholdtime = (!strcasecmp(var->value,"once")) ? 1 : ast_true(var->value);
 					} else if (!strcasecmp(var->name, "retry")) {
 						q->retry = atoi(var->value);
+					} else if (!strcasecmp(var->name, "wrapuptime")) {
+						q->wrapuptime = atoi(var->value);
 					} else if (!strcasecmp(var->name, "maxlen")) {
 						q->maxlen = atoi(var->value);
 					} else if (!strcasecmp(var->name, "servicelevel")) {
