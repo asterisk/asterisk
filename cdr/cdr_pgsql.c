@@ -37,8 +37,8 @@
 static char *desc = "PostgreSQL CDR Backend";
 static char *name = "pgsql";
 static char *config = "cdr_pgsql.conf";
-static char *pghostname = NULL, *pgdbname = NULL, *pgdbuser = NULL, *pgpassword = NULL, *pgdbsock = NULL, *pgdbport = NULL;
-static int hostname_alloc = 0, dbname_alloc = 0, dbuser_alloc = 0, password_alloc = 0, dbsock_alloc = 0, dbport_alloc = 0;
+static char *pghostname = NULL, *pgdbname = NULL, *pgdbuser = NULL, *pgpassword = NULL, *pgdbsock = NULL, *pgdbport = NULL, *table = NULL;
+static int hostname_alloc = 0, dbname_alloc = 0, dbuser_alloc = 0, password_alloc = 0, dbsock_alloc = 0, dbport_alloc = 0, table_alloc = 0;
 static int connected = 0;
 
 AST_MUTEX_DEFINE_STATIC(pgsql_lock);
@@ -99,7 +99,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 
 		ast_log(LOG_DEBUG,"cdr_pgsql: inserting a CDR record.\n");
 
-		snprintf(sqlcmd,sizeof(sqlcmd),"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,'%s',%i,'%s','%s','%s')",timestr,clid,cdr->src, cdr->dst, dcontext,channel, dstchannel, lastapp, lastdata,cdr->duration,cdr->billsec,ast_cdr_disp2str(cdr->disposition),cdr->amaflags, cdr->accountcode, uniqueid, userfield);
+		snprintf(sqlcmd,sizeof(sqlcmd),"INSERT INTO %s (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,'%s',%i,'%s','%s','%s')",table,timestr,clid,cdr->src, cdr->dst, dcontext,channel, dstchannel, lastapp, lastdata,cdr->duration,cdr->billsec,ast_cdr_disp2str(cdr->disposition),cdr->amaflags, cdr->accountcode, uniqueid, userfield);
 		ast_log(LOG_DEBUG,"cdr_pgsql: SQL command executed:  %s\n",sqlcmd);
 	
 		/* Test to be sure we're still connected... */
@@ -175,6 +175,11 @@ static int my_unload_module(void)
 		free(pgdbport);
 		pgdbport = NULL;
 		dbport_alloc = 0;
+	}
+	if (table && table_alloc) {
+		free(table);
+		table = NULL;
+		table_alloc = 0;
 	}
 	ast_cdr_unregister(name);
 	return 0;
@@ -272,6 +277,22 @@ static int process_my_load_module(struct ast_config *cfg)
 		ast_log(LOG_WARNING,"PostgreSQL database port not specified.  Using default 5432.\n");
 		pgdbport = "5432";
 	}
+        /* Loading stuff for table name */
+	tmp = ast_variable_retrieve(cfg,"global","table");
+	if (tmp) {
+		table = malloc(strlen(tmp) + 1);
+		if (table != NULL) {
+			memset(table, 0, strlen(tmp) + 1);
+			table_alloc = 1;
+			strncpy(table, tmp, strlen(tmp));
+		} else {
+			ast_log(LOG_ERROR,"Out of memory error.\n");
+			return -1;
+		}
+	} else {
+		ast_log(LOG_WARNING,"CDR table not specified.  Assuming cdr\n");
+		table = "cdr";
+	}
 
 	ast_log(LOG_DEBUG,"cdr_pgsql: got hostname of %s\n",pghostname);
 	ast_log(LOG_DEBUG,"cdr_pgsql: got port of %s\n",pgdbport);
@@ -280,7 +301,8 @@ static int process_my_load_module(struct ast_config *cfg)
 	ast_log(LOG_DEBUG,"cdr_pgsql: got user of %s\n",pgdbuser);
 	ast_log(LOG_DEBUG,"cdr_pgsql: got dbname of %s\n",pgdbname);
 	ast_log(LOG_DEBUG,"cdr_pgsql: got password of %s\n",pgpassword);
-
+	ast_log(LOG_DEBUG,"cdr_pgsql: got sql table name of %s\n",table);
+	
 	conn = PQsetdbLogin(pghostname, pgdbport, NULL, NULL, pgdbname, pgdbuser, pgpassword);
 	if (PQstatus(conn) != CONNECTION_BAD) {
 		ast_log(LOG_DEBUG,"Successfully connected to PostgreSQL database.\n");
@@ -331,7 +353,13 @@ int reload(void)
 
 int usecount(void)
 {
-	return connected;
+	/* To be able to unload the module */
+	if ( ast_mutex_trylock(&pgsql_lock) ) {
+		return 1;
+	} else {
+		ast_mutex_unlock(&pgsql_lock);
+		return 0;
+	}
 }
 
 char *key()

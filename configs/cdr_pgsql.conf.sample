@@ -6,3 +6,4 @@
 ;dbname=asterisk
 ;password=password
 ;user=postgres
+;table=cdr		;SQL table where CDRs will be inserted
