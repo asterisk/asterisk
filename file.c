@@ -184,9 +184,12 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 			res = 0;
 			/* Get the translated frame but don't consume the original in case they're using it on another stream */
 			trf = ast_translate(fs->trans, f, 0);
-			res = fs->fmt->write(fs, trf);
-			if (res) 
-				ast_log(LOG_WARNING, "Translated frame write failed\n");
+			if (trf) {
+				res = fs->fmt->write(fs, trf);
+				if (res) 
+					ast_log(LOG_WARNING, "Translated frame write failed\n");
+			} else
+				res = 0;
 		}
 		return res;
 	}
@@ -547,6 +550,6 @@ char ast_waitstream(struct ast_channel *c, char *breakon)
 	
 		
 	}
-	return (c->softhangup ? -1 : 0);
+	return (c->_softhangup ? -1 : 0);
 }
 
