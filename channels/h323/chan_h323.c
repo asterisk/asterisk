@@ -1645,7 +1645,7 @@ int load_module()
 		/* start the h.323 listener */
 		if (h323_start_listener(port, bindaddr, jitter)) {
 			ast_log(LOG_ERROR, "Unable to create H323 listener.\n");
-			h323_end_process();
+//			h323_end_process();
 			return -1;
 		}
 
@@ -1653,7 +1653,7 @@ int load_module()
 		if (gatekeeper_disable == 0) {
 			if (h323_set_gk(gatekeeper_discover, gatekeeper, secret)) {
 				ast_log(LOG_ERROR, "Gatekeeper registration failed.\n");
-				h323_end_process();
+//				h323_end_process();
 				return -1;
 			}
 		}

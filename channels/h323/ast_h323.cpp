@@ -879,8 +879,6 @@ int h323_set_gk(int gatekeeper_discover, char *gatekeeper, char *secret)
 	PString gkName = PString(gatekeeper);
 	PString pass   = PString(secret);
 
-	cout << "begining" << endl;
-
 	if (!end_point_exist()) {
 		cout << "ERROR: [h323_set_gk] No Endpoint, this is bad!" << endl;
 		return 1;
