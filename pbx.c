@@ -4074,9 +4074,9 @@ int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *
 			strncpy(as->appdata,  appdata, sizeof(as->appdata) - 1);
 		as->timeout = timeout;
 		if (variable) {
-			tmp = ast_strdupa(variable);
-				for (var = strtok_r(tmp, "|", &tmp); var; var = strtok_r(NULL, "|", &tmp))
-					pbx_builtin_setvar( chan, var );
+			vartmp = ast_strdupa(variable);
+			for (var = strtok_r(vartmp, "|", &vartmp); var; var = strtok_r(NULL, "|", &vartmp))
+				pbx_builtin_setvar( chan, var );
 		}
 		/* Start a new thread, and get something handling this channel. */
 		pthread_attr_init(&attr);
