@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
+#include <asterisk/lock.h>
 #include <asterisk/channel.h>
 #include <asterisk/channel_pvt.h>
 #include <asterisk/config.h>
@@ -64,14 +65,14 @@ static int baudrate = 115200;
 
 static int stripmsd = 0;
 
-static pthread_mutex_t usecnt_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 /* Protect the interface list (of ast_modem_pvt's) */
-static pthread_mutex_t iflock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t iflock = AST_MUTEX_INITIALIZER;
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
-static pthread_mutex_t monlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t monlock = AST_MUTEX_INITIALIZER;
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
@@ -90,7 +91,7 @@ static int modem_digit(struct ast_channel *ast, char digit)
 	p = ast->pvt->pvt;
 	if (p->mc->dialdigit)
 		return p->mc->dialdigit(p, digit);
-	else ast_log(LOG_DEBUG, "Channel %s lacks digit dialing\n");
+	else ast_log(LOG_DEBUG, "Channel %s lacks digit dialing\n", ast->name);
 	return 0;
 }
 
@@ -411,6 +412,7 @@ static int modem_hangup(struct ast_channel *ast)
 		p->mc->init(p);
 	ast->state = AST_STATE_DOWN;
 	memset(p->cid, 0, sizeof(p->cid));
+	memset(p->dnid, 0, sizeof(p->dnid));
 	((struct ast_modem_pvt *)(ast->pvt->pvt))->owner = NULL;
 	ast_pthread_mutex_lock(&usecnt_lock);
 	usecnt--;
@@ -468,16 +470,25 @@ static struct ast_frame *modem_read(struct ast_channel *ast)
 static int modem_write(struct ast_channel *ast, struct ast_frame *frame)
 {
 	int res=0;
+	long flags;
 	struct ast_modem_pvt *p = ast->pvt->pvt;
+
+	/* Temporarily make non-blocking */
+	flags = fcntl(ast->fds[0], F_GETFL);
+	fcntl(ast->fds[0], F_SETFL, flags | O_NONBLOCK);
+
 	if (p->mc->write)
 		res = p->mc->write(p, frame);
+
+	/* Block again */
+	fcntl(ast->fds[0], F_SETFL, flags);
 	return 0;
 }
 
 struct ast_channel *ast_modem_new(struct ast_modem_pvt *i, int state)
 {
 	struct ast_channel *tmp;
-	tmp = ast_channel_alloc();
+	tmp = ast_channel_alloc(1);
 	if (tmp) {
 		snprintf(tmp->name, sizeof(tmp->name), "Modem[%s]/%s", i->mc->name, i->dev + 5);
 		tmp->type = type;
@@ -498,6 +509,8 @@ struct ast_channel *ast_modem_new(struct ast_modem_pvt *i, int state)
 			tmp->callerid = strdup(i->cid);
 		if (strlen(i->language))
 			strncpy(tmp->language,i->language, sizeof(tmp->language)-1);
+		if (strlen(i->dnid))
+			strncpy(tmp->exten, i->dnid, sizeof(tmp->exten) - 1);
 		i->owner = tmp;
 		ast_pthread_mutex_lock(&usecnt_lock);
 		usecnt++;
@@ -691,10 +704,6 @@ static struct ast_modem_pvt *mkif(char *iface)
 			free(tmp);
 			return NULL;
 		}
-#if 0
-		flags = fcntl(tmp->fd, F_GETFL);
-		fcntl(tmp->fd, F_SETFL, flags | O_NONBLOCK);
-#endif
 		tmp->owner = NULL;
 		tmp->ministate = 0;
 		tmp->stripmsd = stripmsd;
