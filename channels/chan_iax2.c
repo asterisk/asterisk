@@ -1672,6 +1672,17 @@ static int forward_delivery(struct iax_frame *fr)
 				ast_inet_ntoa(iabuf, sizeof(iabuf), p2->addr.sin_addr),
 				ntohs(p2->addr.sin_port));
 
+	/* Undo wraparound - which can happen when full VOICE frame wasn't sent by our peer.
+	   This is necessary for when our peer is chan_iax2.c v1.175 or earlier which didn't
+	   send full frame on timestamp wrap when doing optimized bridging
+	*/
+	if (fr->ts + 32767 <= p1->last) {
+		fr->ts = ( (p1->last & 0xFFFF0000) + 0x10000) | (fr->ts & 0xFFFF);
+		p1->last = fr->ts; /* necessary? */
+		if (option_debug)
+			ast_log(LOG_DEBUG, "forward_delivery: pushed forward timestamp to %u\n", fr->ts);
+	}
+
 	/* Fix relative timestamp */
 	fr->ts = calc_fakestamp(p1, p2, fr->ts);
 	/* Now just send it send on the 2nd one 
@@ -2824,6 +2835,8 @@ static unsigned int calc_fakestamp(struct chan_iax2_pvt *p1, struct chan_iax2_pv
 	ms = (p1->rxcore.tv_sec - p2->offset.tv_sec) * 1000 +
 		(1000000 + p1->rxcore.tv_usec - p2->offset.tv_usec) / 1000 - 1000;
 	fakets += ms;
+
+	/* FIXME? SLD would rather remove this and leave it to the end system to deal with */
 	if (fakets <= p2->lastsent)
 		fakets = p2->lastsent + 1;
 	p2->lastsent = fakets;
@@ -3279,7 +3292,7 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 						iaxs[x]->oseqno, iaxs[x]->iseqno, 
 						iaxs[x]->lag,
 						iaxs[x]->jitter,
-						jitterbufsize(iaxs[x]),
+						use_jitterbuffer ? jitterbufsize(iaxs[x]) : 0,
 						ast_getformatname(iaxs[x]->voiceformat) );
 			numchans++;
 		}
