@@ -893,6 +893,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 						strncpy(workspace, *ret, workspacelen - 1);
 						*ret = workspace;
 					}
+					break;
 				}
 			}
 		}
