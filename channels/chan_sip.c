@@ -8258,6 +8258,7 @@ static int reload_config(void)
 	global_canreinvite = REINVITE_INVITE;
 	videosupport = 0;
 	relaxdtmf = 0;
+	ourport = DEFAULT_SIP_PORT;
 	global_rtptimeout = 0;
 	global_rtpholdtimeout = 0;
 	pedanticsipchecking=0;
