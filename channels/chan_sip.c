@@ -687,17 +687,20 @@ static int sip_sendtext(struct ast_channel *ast, char *text)
 
 #ifdef MYSQL_FRIENDS
 
-static void mysql_update_peer(char *peer, struct sockaddr_in *sin)
+static void mysql_update_peer(char *peer, struct sockaddr_in *sin, char *username)
 {
 	if (mysql && (strlen(peer) < 128)) {
 		char query[512];
 		char *name;
+		char *uname;
 		time_t nowtime;
 		name = alloca(strlen(peer) * 2 + 1);
+		uname = alloca(strlen(username) * 2 + 1);
 		time(&nowtime);
 		mysql_real_escape_string(mysql, name, peer, strlen(peer));
-		snprintf(query, sizeof(query), "UPDATE sipfriends SET ipaddr=\"%s\", port=\"%d\", regseconds=\"%ld\" WHERE name=\"%s\"", 
-			inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), nowtime, name);
+		mysql_real_escape_string(mysql, uname, username, strlen(username));
+		snprintf(query, sizeof(query), "UPDATE sipfriends SET ipaddr=\"%s\", port=\"%d\", regseconds=\"%ld\", username=\"%s\" WHERE name=\"%s\"", 
+			inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), nowtime, uname, name);
 		ast_mutex_lock(&mysqllock);
 		if (mysql_real_query(mysql, query, strlen(query))) 
 			ast_log(LOG_WARNING, "Unable to update database\n");
@@ -745,6 +748,8 @@ static struct sip_peer *mysql_peer(char *peer, struct sockaddr_in *sin)
 							strncpy(p->name, rowval[x], sizeof(p->name) - 1);
 						} else if (!strcasecmp(fields[x].name, "context")) {
 							strncpy(p->context, rowval[x], sizeof(p->context) - 1);
+						} else if (!strcasecmp(fields[x].name, "username")) {
+							strncpy(p->username, rowval[x], sizeof(p->username) - 1);
 						} else if (!strcasecmp(fields[x].name, "ipaddr")) {
 							inet_aton(rowval[x], &p->addr.sin_addr);
 						} else if (!strcasecmp(fields[x].name, "port")) {
@@ -855,8 +860,11 @@ static int create_addr(struct sip_pvt *r, char *peer)
 					r->sa.sin_port = p->defaddr.sin_port;
 				}
 				memcpy(&r->recv, &r->sa, sizeof(r->recv));
-			} else
+			} else {
+				if (p->temponly)
+					free(p);
 				p = NULL;
+			}
 	}
 	ast_mutex_unlock(&peerl.lock);
 	if (!p && !found) {
@@ -3495,14 +3503,14 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	if (!p->temponly)
 		p->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, p);
 	pvt->expiry = expiry;
-	if (inaddrcmp(&p->addr, &oldsin)) {
 #ifdef MYSQL_FRIENDS
-		if (p->temponly)
-			mysql_update_peer(p->name, &p->addr);
+	if (p->temponly)
+		mysql_update_peer(p->name, &p->addr, p->username);
 #endif
+	snprintf(data, sizeof(data), "%s:%d:%d:%s", inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username);
+	ast_db_put("SIP/Registry", p->name, data);
+	if (inaddrcmp(&p->addr, &oldsin)) {
 		sip_poke_peer(p);
-		snprintf(data, sizeof(data), "%s:%d:%d:%s", inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username);
-		ast_db_put("SIP/Registry", p->name, data);
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", p->name, inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
 	}
