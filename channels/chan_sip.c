@@ -2551,7 +2551,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 				if (x < AST_FORMAT_MAX_AUDIO) {
 					strncat(m, costr, sizeof(m) - strlen(m));
 					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, x));
-					strncat(a, costr, sizeof(m) - strlen(a));
+					strncat(a, costr, sizeof(a) - strlen(a));
 				} else {
 					strncat(m2, costr, sizeof(m2) - strlen(m2));
 					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/90000\r\n", codec, ast_rtp_lookup_mime_subtype(1, x));
