@@ -9004,6 +9004,16 @@ static char *descrip_sipaddheader = ""
 "Adding the wrong headers may jeopardize the SIP dialog.\n"
 "Always returns 0\n";
 
+static char *app_sipgetheader = "SIPGetHeader";
+static char *synopsis_sipgetheader = "Get a SIP header from an incoming call";
+ 
+static char *descrip_sipgetheader = ""
+"  SIPGetHeader(var=headername): \n"
+"Sets a channel variable to the content of a SIP header\n"
+"Skips to priority+101 if header does not exist\n"
+"Otherwise returns 0\n";
+
+
 /*--- sip_dtmfmode: change the DTMFmode for a SIP call (application) ---*/
 static int sip_dtmfmode(struct ast_channel *chan, void *data)
 {
@@ -9087,6 +9097,50 @@ static int sip_addheader(struct ast_channel *chan, void *data)
                ast_log(LOG_WARNING, "Too many SIP headers added, max 50\n");
 	}
         ast_mutex_unlock(&chan->lock);
+	return 0;
+}
+
+
+/*--- sip_getheader: Get a SIP header (dialplan app) ---*/
+static int sip_getheader(struct ast_channel *chan, void *data)
+{
+	struct sip_pvt *p;
+	char *argv, *varname = NULL, *header = NULL, *content;
+	
+	argv = strdupa(data);
+	if (!argv) {
+		ast_log(LOG_DEBUG, "Memory allocation failed\n");
+		return 0;
+	}
+
+	if (strchr (argv, '=') ) {	/* Pick out argumenet */
+		varname = strsep (&argv, "=");
+		header = strsep (&argv, "\0");
+	}
+
+	if (!varname || !header) {
+		ast_log(LOG_DEBUG, "SipGetHeader: Ignoring command, Syntax error in argument\n");
+		return 0;
+	}
+
+	ast_mutex_lock(&chan->lock);
+	if (chan->type != type) {
+		ast_log(LOG_WARNING, "Call this application only on incoming SIP calls\n");
+		ast_mutex_unlock(&chan->lock);
+		return 0;
+	}
+
+	p = chan->pvt->pvt;
+	content = get_header(&p->initreq, header);	/* Get the header */
+	if (!ast_strlen_zero(content)) {
+		pbx_builtin_setvar_helper(chan, varname, content);
+	} else {
+		ast_log(LOG_WARNING,"SIP Header %s not found for channel variable %s\n", header, varname);
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
+			chan->priority += 100;
+	}
+	
+	ast_mutex_unlock(&chan->lock);
 	return 0;
 }
 
@@ -9265,6 +9319,7 @@ int load_module()
 		ast_rtp_proto_register(&sip_rtp);
 		ast_register_application(app_dtmfmode, sip_dtmfmode, synopsis_dtmfmode, descrip_dtmfmode);
 		ast_register_application(app_sipaddheader, sip_addheader, synopsis_sipaddheader, descrip_sipaddheader);
+		ast_register_application(app_sipgetheader, sip_getheader, synopsis_sipgetheader, descrip_sipgetheader);
 		ast_mutex_lock(&peerl.lock);
 		for (peer = peerl.peers; peer; peer = peer->next)
 			sip_poke_peer(peer);
@@ -9288,6 +9343,7 @@ int unload_module()
 	/* First, take us out of the channel loop */
 	ast_unregister_application(app_dtmfmode);
 	ast_unregister_application(app_sipaddheader);
+	ast_unregister_application(app_sipgetheader);
 	ast_cli_unregister(&cli_show_users);
 	ast_cli_unregister(&cli_show_channels);
 	ast_cli_unregister(&cli_show_channel);
