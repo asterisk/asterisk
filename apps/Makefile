@@ -72,6 +72,7 @@ app_rpt.so : app_rpt.o
 install: all
 	for x in $(APPS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 	rm -f $(DESTDIR)$(MODULES_DIR)/app_datetime.so
+	rm -f $(DESTDIR)$(MODULES_DIR)/app_qcall.so
 
 app_voicemail.so : app_voicemail.o
 ifeq ($(USE_MYSQL_VM_INTERFACE),1)
