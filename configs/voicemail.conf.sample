@@ -53,7 +53,7 @@ maxlogins=3
 ;pagerfromstring=The Asterisk PBX
 ;
 ; Change the email body and/or subject, variables: 
-;     VM_NAME, VM_DUR, VM_MSGNUM, VM_MAILBOX, VM_CALLERID, VM_DATE
+;     VM_NAME, VM_DUR, VM_MSGNUM, VM_MAILBOX, VM_CALLERID, VM_CALLERID, VM_CIDNAME, VM_DATE
 ;
 ; Note: The emailbody config row can be up to 512 characters due to a limitation in 
 ;       asterisk config files.
