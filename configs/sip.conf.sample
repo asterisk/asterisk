@@ -67,6 +67,9 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
                                 ; no = Use NAT mode only according to RFC3581 
                                 ; never = Never attempt NAT mode or RFC3581 support
 ;promiscredir = no      ; If yes, allows 302 or REDIR to non-local SIP address
+;                       ; Note that promiscredir when redirects are made to the
+;                       ; local system will cause loops since SIP is incapable
+;                       ; of performing a "hairpin" call.
 ; Asterisk can register as a SIP user agent to a SIP proxy (provider)
 ; Format for the register statement is:
 ;       register => user[:secret[:authuser]]@host[:port][/extension]
