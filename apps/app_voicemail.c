@@ -1438,7 +1438,7 @@ static int base_encode(char *filename, FILE *so)
 	return 1;
 }
 
-static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu, int msgnum, char *mailbox, char *cidnum, char *cidname, char *dur, char *date, char *passdata, size_t passdatasize)
+static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *dur, char *date, char *passdata, size_t passdatasize)
 {
 	char callerid[256];
 	/* Prepare variables for substition in email body and subject */
@@ -1446,6 +1446,7 @@ static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu
 	pbx_builtin_setvar_helper(ast, "VM_DUR", dur);
 	snprintf(passdata, passdatasize, "%d", msgnum);
 	pbx_builtin_setvar_helper(ast, "VM_MSGNUM", passdata);
+	pbx_builtin_setvar_helper(ast, "VM_CONTEXT", context);
 	pbx_builtin_setvar_helper(ast, "VM_MAILBOX", mailbox);
 	pbx_builtin_setvar_helper(ast, "VM_CALLERID", ast_callerid_merge(callerid, sizeof(callerid), cidname, cidnum, "Unknown Caller"));
 	pbx_builtin_setvar_helper(ast, "VM_CIDNAME", (cidname ? cidname : "an unknown caller"));
@@ -1453,7 +1454,7 @@ static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu
 	pbx_builtin_setvar_helper(ast, "VM_DATE", date);
 }
 
-static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail)
+static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail)
 {
 	FILE *p=NULL;
 	int pfd;
@@ -1523,7 +1524,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 				int vmlen = strlen(fromstring)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
 					memset(passdata, 0, vmlen);
-					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
+					prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
 					pbx_substitute_variables_helper(ast,fromstring,passdata,vmlen);
 					fprintf(p, "From: %s <%s>\n",passdata,who);
 				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
@@ -1540,7 +1541,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 				int vmlen = strlen(emailsubject)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
 					memset(passdata, 0, vmlen);
-					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
+					prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
 					pbx_substitute_variables_helper(ast,emailsubject,passdata,vmlen);
 					fprintf(p, "Subject: %s\n",passdata);
 				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
@@ -1573,7 +1574,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 				int vmlen = strlen(emailbody)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
 					memset(passdata, 0, vmlen);
-					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
+					prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
 					pbx_substitute_variables_helper(ast,emailbody,passdata,vmlen);
 					fprintf(p, "%s\n",passdata);
 				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
@@ -1608,7 +1609,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 	return 0;
 }
 
-static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char *cidnum, char *cidname, int duration, struct ast_vm_user *vmu)
+static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, int duration, struct ast_vm_user *vmu)
 {
 	FILE *p=NULL;
 	int pfd;
@@ -1670,7 +1671,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char
 				int vmlen = strlen(fromstring)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
 					memset(passdata, 0, vmlen);
-					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
+					prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
 					pbx_substitute_variables_helper(ast,pagerfromstring,passdata,vmlen);
 					fprintf(p, "From: %s <%s>\n",passdata,who);
 				} else 
@@ -2886,14 +2887,14 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 			attach_user_voicemail = ast_test_flag(vmu, VM_ATTACH);
 			if (!ast_strlen_zero(vmu->serveremail))
 				myserveremail = vmu->serveremail;
-			sendmail(myserveremail, vmu, msgnum, vmu->mailbox, cidnum, cidname, fn, fmt, duration, attach_user_voicemail);
+			sendmail(myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, fn, fmt, duration, attach_user_voicemail);
 		}
 
 		if (!ast_strlen_zero(vmu->pager)) {
 			char *myserveremail = serveremail;
 			if (!ast_strlen_zero(vmu->serveremail))
 				myserveremail = vmu->serveremail;
-			sendpage(myserveremail, vmu->pager, msgnum, vmu->mailbox, cidnum, cidname, duration, vmu);
+			sendpage(myserveremail, vmu->pager, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, duration, vmu);
 		}
 	} else {
 		ast_log(LOG_ERROR, "Out of memory\n");
@@ -3095,14 +3096,14 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 						attach_user_voicemail = ast_test_flag(vmtmp, VM_ATTACH);
 						if (!ast_strlen_zero(vmtmp->serveremail))
 							myserveremail = vmtmp->serveremail;
-						sendmail(myserveremail, vmtmp, todircount, vmtmp->mailbox, chan->cid.cid_num, chan->cid.cid_name, fn, tmp, duration, attach_user_voicemail);
+						sendmail(myserveremail, vmtmp, todircount, vmtmp->context, vmtmp->mailbox, chan->cid.cid_num, chan->cid.cid_name, fn, tmp, duration, attach_user_voicemail);
 					}
 
 					if (!ast_strlen_zero(vmtmp->pager)) {
 						char *myserveremail = serveremail;
 						if (!ast_strlen_zero(vmtmp->serveremail))
 							myserveremail = vmtmp->serveremail;
-						sendpage(myserveremail, vmtmp->pager, todircount, vmtmp->mailbox, chan->cid.cid_num, chan->cid.cid_name, duration, vmtmp);
+						sendpage(myserveremail, vmtmp->pager, todircount, vmtmp->context, vmtmp->mailbox, chan->cid.cid_num, chan->cid.cid_name, duration, vmtmp);
 					}
 				  
 					ast_config_destroy(mif); /* or here */
