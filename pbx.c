@@ -1245,18 +1245,21 @@ int ast_extension_state_add(char *context, char *exten,
     struct ast_notify_cb *cblist;
     struct ast_exten *e;
 
+    e = ast_hint_extension(NULL, context, exten);    
+    if (!e) {
+        return -1;
+    }
+    
     pthread_mutex_lock(&notifylock);
     list = notifys;        
     
     while (list) {
-	if (!strcmp(list->exten->parent->name, context) && 
-	    !strcmp(list->exten->exten, exten))
+	if (list->exten == e)
 	    break;	    
 	list = list->next;    
     }
 
     if (!list) {
-	e = ast_hint_extension(NULL, context, exten);    
 	if (!e) {
 	    pthread_mutex_unlock(&notifylock);
 	    return -1;
@@ -1267,9 +1270,9 @@ int ast_extension_state_add(char *context, char *exten,
 	    return -1;
 	}
 	/* Initialize and insert new item */
-	memset(list, 0, sizeof(struct ast_notify));	    
+	memset(list, 0, sizeof(struct ast_notify));
 	list->exten = e;
-	list->laststate = -1;
+	list->laststate = ast_extension_state2(e);
 	list->next = notifys;
 	notifys = list;
     }
