@@ -648,19 +648,19 @@ static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	 */
 	struct sockaddr_in theirs;
 	theirs.sin_addr = *them;
-	if (externexpire && (time(NULL) >= externexpire)) {
-		struct ast_hostent ahp;
-		struct hostent *hp;
-		time(&externexpire);
-		externexpire += externrefresh;
-		if ((hp = ast_gethostbyname(externhost, &ahp))) {
-			memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip));
-		} else
-			ast_log(LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", externhost);
-	}
 	if (localaddr && externip.sin_addr.s_addr &&
 	   ast_apply_ha(localaddr, &theirs)) {
 		char iabuf[INET_ADDRSTRLEN];
+		if (externexpire && (time(NULL) >= externexpire)) {
+			struct ast_hostent ahp;
+			struct hostent *hp;
+			time(&externexpire);
+			externexpire += externrefresh;
+			if ((hp = ast_gethostbyname(externhost, &ahp))) {
+				memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
+			} else
+				ast_log(LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", externhost);
+		}
 		memcpy(us, &externip.sin_addr, sizeof(struct in_addr));
 		ast_inet_ntoa(iabuf, sizeof(iabuf), *(struct in_addr *)&them->s_addr);
 		ast_log(LOG_DEBUG, "Target address %s is not local, substituting externip\n", iabuf);
