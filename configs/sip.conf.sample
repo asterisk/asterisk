@@ -38,11 +38,30 @@ context = default		; Default context for incoming calls
 ;allow=ulaw			; Allow codecs in order of preference
 ;allow=ilbc
 
+; Asterisk can register as a SIP user agent to a SIP proxy (provider)
+; Format for the register statement is:
+;       register => user[:secret[:authuser]]@host[:port][/extension]
+;
+; If no extension is given, the 's' extension is used. The extension
+; needs to be defined in extensions.conf to be able to accept calls
+; from this SIP proxy (provider)
+;
+; host is either a host name defined in DNS or the name of a 
+; section defined below.
+;
+; Examples:
+,
 ;register => 1234:password@mysipprovider.com	
-;Register with a SIP provider
-
+;
+;    Will call to the 's' extension
+;
+;
 ;register => 2345@mysipprovider.com/1234 	
-;Register 2345 at sip provider. Calls from this provider connect to local extension 1234 in extensions.conf.
+;
+;    Register 2345 at sip provider.  Calls from this provider connect to local 
+;    extension 1234 in extensions.conf default context, unless you define 
+;    [mysipprovider.com] in a section below, and configure a context
+  
 
 ;externip = 200.201.202.203	; Address that we're going to put in outbound SIP messages
 				; if we're behind a NAT
