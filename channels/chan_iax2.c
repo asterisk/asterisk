@@ -207,8 +207,14 @@ struct iax2_context {
 #define IAX_CODEC_USER_FIRST (1 << 14)  /* are we willing to let the other guy choose the codec? */
 #define IAX_CODEC_NOPREFS (1 << 15) /* Force old behaviour by turning off prefs */
 #define IAX_CODEC_NOCAP (1 << 16) /* only consider requested format and ignore capabilities*/
+#define IAX_RTCACHEFRIENDS (1 << 17) /* let realtime stay till your reload */
+#define IAX_RTNOUPDATE (1 << 18) /* Don't send a realtime update */
+#define IAX_RTAUTOCLEAR (1 << 19) /* erase me on expire */ 
+
+static int global_rtautoclear = 120;
 
 static struct iax2_peer *realtime_peer(const char *peername);
+static int reload_config(void);
 
 struct iax2_user {
 	char name[80];
@@ -576,8 +582,15 @@ static int send_command_locked(unsigned short callno, char, int, unsigned int, c
 static int send_command_immediate(struct chan_iax2_pvt *, char, int, unsigned int, char *, int, int);
 static int send_command_final(struct chan_iax2_pvt *, char, int, unsigned int, char *, int, int);
 static int send_command_transfer(struct chan_iax2_pvt *, char, int, unsigned int, char *, int);
+static struct iax2_user *build_user(const char *name, struct ast_variable *v, int temponly);
+static void destroy_user(struct iax2_user *user);
+static int expire_registry(void *data);
+static int iax2_write(struct ast_channel *c, struct ast_frame *f);
+static int iax2_do_register(struct iax2_registry *reg);
+static void prune_peers(void);
+static int iax2_poke_peer(struct iax2_peer *peer, int heldcall);
+static int iax2_provision(struct sockaddr_in *end, char *dest, const char *template, int force);
 
-static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, struct ast_frame *f);
 
 static int send_ping(void *data)
 {
@@ -653,7 +666,7 @@ static int uncompress_subclass(unsigned char csub)
 		return csub;
 }
 
-static struct iax2_peer *find_peer(const char *name) 
+static struct iax2_peer *find_peer(const char *name, int realtime) 
 {
 	struct iax2_peer *peer;
 	ast_mutex_lock(&peerl.lock);
@@ -663,7 +676,7 @@ static struct iax2_peer *find_peer(const char *name)
 		}
 	}
 	ast_mutex_unlock(&peerl.lock);
-	if(!peer)
+	if(!peer && realtime)
 		peer = realtime_peer(name);
 	return peer;
 }
@@ -1623,6 +1636,29 @@ static char jitter_usage[] =
 "to establish the maximum excess jitter buffer that is permitted before the jitter\n"
 "buffer size is reduced.";
 
+static int iax2_prune_realtime(int fd, int argc, char *argv[])
+{
+	struct iax2_peer *peer;
+
+	if (argc != 4)
+        return RESULT_SHOWUSAGE;
+	if (!strcmp(argv[3],"all")) {
+		reload_config();
+		ast_cli(fd, "OK cache is flushed.\n");
+	} else if ((peer = find_peer(argv[3], 0))) {
+		if(ast_test_flag(peer, IAX_RTCACHEFRIENDS)) {
+			ast_set_flag(peer, IAX_RTAUTOCLEAR);
+			expire_registry(peer);
+			ast_cli(fd, "OK peer %s was removed from the cache.\n", argv[3]);
+		} else {
+			ast_cli(fd, "SORRY peer %s is not eligible for this operation.\n", argv[3]);
+		}
+	} else {
+		ast_cli(fd, "SORRY peer %s was not found in the cache.\n", argv[3]);
+	}
+	
+	return RESULT_SUCCESS;
+}
 
 /*--- iax2_show_peer: Show one peer in detail ---*/
 static int iax2_show_peer(int fd, int argc, char *argv[])
@@ -1632,11 +1668,14 @@ static int iax2_show_peer(int fd, int argc, char *argv[])
 	char iabuf[INET_ADDRSTRLEN];
 	struct iax2_peer *peer;
 	char codec_buf[512];
-	int x = 0, codec = 0;
+	int x = 0, codec = 0, load_realtime = 0;
 
-	if (argc != 4)
+	if (argc < 4)
 		return RESULT_SHOWUSAGE;
-	peer = find_peer(argv[3]);
+
+	load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? 1 : 0;
+
+	peer = find_peer(argv[3], load_realtime);
 	if (peer) {
 		ast_cli(fd,"\n\n");
 		ast_cli(fd, "  * Name       : %s\n", peer->name);
@@ -1798,6 +1837,10 @@ static char show_peer_usage[] =
 "Usage: iax show peer <name>\n"
 "       Display details on specific IAX peer\n";
 
+static char prune_realtime_usage[] =
+"Usage: iax2 prune realtime [<peername>|all]\n"
+"       Prunes object(s) from the cache\n";
+
 static struct ast_cli_entry cli_set_jitter = 
 { { "iax2", "set", "jitter", NULL }, iax2_set_jitter, "Sets IAX jitter buffer", jitter_usage };
 
@@ -1809,6 +1852,9 @@ static struct ast_cli_entry cli_show_cache =
 
 static struct ast_cli_entry  cli_show_peer =
 	{ { "iax2", "show", "peer", NULL }, iax2_show_peer, "Show details on specific IAX peer", show_peer_usage, complete_iax2_show_peer };
+
+static struct ast_cli_entry  cli_prune_realtime =
+	{ { "iax2", "prune", "realtime", NULL }, iax2_prune_realtime, "Prune a cached realtime lookup", prune_realtime_usage, complete_iax2_show_peer };
 
 static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset);
 
@@ -2142,6 +2188,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 static struct iax2_user *build_user(const char *name, struct ast_variable *v, int temponly);
 
 static void destroy_user(struct iax2_user *user);
+static int expire_registry(void *data);
 
 static struct iax2_peer *realtime_peer(const char *peername)
 {
@@ -2153,10 +2200,9 @@ static struct iax2_peer *realtime_peer(const char *peername)
 	var = ast_load_realtime("iaxfriends", "name", peername, NULL);
 	if (var) {
 		/* Make sure it's not a user only... */
-		peer = build_peer(peername, var, 1);
+		peer = build_peer(peername, var, ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS) ? 0 : 1);
+
 		if (peer) {
-			/* Add some finishing touches, addresses, etc */
-			ast_set_flag(peer, IAX_TEMPONLY);	
 			tmp = var;
 			while(tmp) {
 				if (!strcasecmp(tmp->name, "type")) {
@@ -2180,6 +2226,20 @@ static struct iax2_peer *realtime_peer(const char *peername)
 				}
 				tmp = tmp->next;
 			}
+
+			/* Add some finishing touches, addresses, etc */
+		  	if(ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS)) {
+				ast_mutex_lock(&peerl.lock);
+				peer->next = peerl.peers;
+				peerl.peers = peer;
+				ast_mutex_unlock(&peerl.lock);
+				ast_copy_flags(peer, &globalflags, IAX_RTAUTOCLEAR|IAX_RTCACHEFRIENDS);
+				if (ast_test_flag(peer, IAX_RTAUTOCLEAR))
+					peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_registry, (void *)peer);
+			} else {
+		    		ast_set_flag(peer, IAX_TEMPONLY);	
+			}
+
 			if (peer && dynamic) {
 				time(&nowtime);
 				if ((nowtime - regseconds) > IAX_DEFAULT_REG_EXPIRE) {
@@ -2202,10 +2262,18 @@ static struct iax2_user *realtime_user(const char *username)
 	var = ast_load_realtime("iaxfriends", "name", username, NULL);
 	if (var) {
 		/* Make sure it's not a user only... */
-		user = build_user(username, var, 1);
+		user = build_user(username, var, !ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS));
 		if (user) {
 			/* Add some finishing touches, addresses, etc */
-			ast_set_flag(user, IAX_TEMPONLY);	
+		  	if(ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS)) {
+				ast_mutex_lock(&userl.lock);
+				user->next = userl.users;
+				userl.users = user;
+				ast_mutex_unlock(&userl.lock);
+				ast_set_flag(user, IAX_RTCACHEFRIENDS);
+			} else {
+				ast_set_flag(user, IAX_TEMPONLY);	
+			}
 			tmp = var;
 			while(tmp) {
 				if (!strcasecmp(tmp->name, "type")) {
@@ -2259,7 +2327,7 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani,
 	if (sockfd)
 		*sockfd = defaultsockfd;
 	sin->sin_family = AF_INET;
-	p = find_peer(peer);
+	p = find_peer(peer, 1);
 	if (p) {
 		found++;
 		if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
@@ -4344,7 +4412,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	/* We release the lock for the call to prevent a deadlock, but it's okay because
 	   only the current thread could possibly make it go away or make changes */
 	ast_mutex_unlock(&iaxsl[callno]);
-	p = find_peer(peer);
+	p = find_peer(peer, 1);
 	ast_mutex_lock(&iaxsl[callno]);
 
 	if (!p) {
@@ -4835,6 +4903,7 @@ static void register_peer_exten(struct iax2_peer *peer, int onoff)
 		}
 	}
 }
+static void prune_peers(void);
 
 static int expire_registry(void *data)
 {
@@ -4850,6 +4919,12 @@ static int expire_registry(void *data)
 	register_peer_exten(p, 0);
 	if (iax2_regfunk)
 		iax2_regfunk(p->name, 0);
+
+	if (!ast_test_flag(p, IAX_RTAUTOCLEAR)) {
+		ast_set_flag(p, IAX_DELME);
+		prune_peers();
+	}
+
 	return 0;
 }
 
@@ -4904,9 +4979,9 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 	char iabuf[INET_ADDRSTRLEN];
 	int version;
 	memset(&ied, 0, sizeof(ied));
-	p = find_peer(name);
+	p = find_peer(name, 1);
 	if (p) {
-		if (ast_test_flag(p, IAX_TEMPONLY))
+		if (!ast_test_flag((&globalflags), IAX_RTNOUPDATE) && (ast_test_flag(p, IAX_TEMPONLY|IAX_RTCACHEFRIENDS)))
 			realtime_update_peer(name, sin);
 		if (inaddrcmp(&p->addr, sin)) {
 			if (iax2_regfunk)
@@ -4980,7 +5055,7 @@ static int registry_authrequest(char *name, int callno)
 {
 	struct iax_ie_data ied;
 	struct iax2_peer *p;
-	p = find_peer(name);
+	p = find_peer(name, 1);
 	if (p) {
 		memset(&ied, 0, sizeof(ied));
 		iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, p->authmethods);
@@ -7626,7 +7701,18 @@ static int set_config(char *config_file, int reload)
 			delayreject = ast_true(v->value);
 		else if (!strcasecmp(v->name, "mailboxdetail"))
 			ast_set2_flag((&globalflags), ast_true(v->value), IAX_MESSAGEDETAIL);	
-		else if (!strcasecmp(v->name, "trunkfreq")) {
+		else if (!strcasecmp(v->name, "rtcachefriends"))
+			ast_set2_flag((&globalflags), ast_true(v->value), IAX_RTCACHEFRIENDS);	
+		else if (!strcasecmp(v->name, "rtnoupdate"))
+			ast_set2_flag((&globalflags), ast_true(v->value), IAX_RTNOUPDATE);	
+		else if (!strcasecmp(v->name, "rtautoclear")) {
+			int i = atoi(v->value);
+			if(i > 0)
+				global_rtautoclear = i;
+			else
+				i = 0;
+			ast_set2_flag((&globalflags), i || ast_true(v->value), IAX_RTAUTOCLEAR);	
+		} else if (!strcasecmp(v->name, "trunkfreq")) {
 			trunkfreq = atoi(v->value);
 			if (trunkfreq < 10)
 				trunkfreq = 10;
@@ -8151,6 +8237,7 @@ static int __unload_module(void)
 	ast_cli_unregister(&cli_show_stats);
 	ast_cli_unregister(&cli_show_cache);
 	ast_cli_unregister(&cli_show_peer);
+	ast_cli_unregister(&cli_prune_realtime);
 	ast_unregister_switch(&iax2_switch);
 	ast_channel_unregister(channeltype);
 	delete_users();
@@ -8222,6 +8309,7 @@ int load_module(void)
 	ast_cli_register(&cli_show_peers);
 	ast_cli_register(&cli_show_firmware);
 	ast_cli_register(&cli_show_registry);
+	ast_cli_register(&cli_prune_realtime);
 	ast_cli_register(&cli_provision);
 	ast_cli_register(&cli_debug);
 	ast_cli_register(&cli_trunk_debug);

@@ -157,6 +157,18 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; route = Assume NAT, don't send rport 
 				; (work around more UNIDEN bugs)
 
+;rtcachefriends=yes ; Cache realtime friends by adding them to the internal list
+			        ; just like friends added from the config file only on a
+                                ; as-needed basis.
+;rtnoupdate=yes ; do not send the update request over realtime.
+;rtautoclear=yes ; Auto-Expire friends created on the fly on the same schedule
+                                ; as if it had just registered when the registration expires
+                                ; the friend will vanish from the configuration until requested
+                                ; again.  If set to an integer, friends expire
+								; within this number of seconds instead of the
+								; same as the registration interval
+
+
 ;-----------------------------------------------------------------------------------
 ; Users and peers have different settings available. Friends have all settings,
 ; since a friend is both a peer and a user

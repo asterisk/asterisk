@@ -138,6 +138,7 @@ static char default_fromdomain[AST_MAX_EXTENSION] = "";
 static char default_notifymime[AST_MAX_EXTENSION] = DEFAULT_NOTIFYMIME;
 
 static struct ast_flags global_flags = {0};		/* global SIP_ flags */
+static struct ast_flags global_flags_page2 = {0};		/* more global SIP_ flags */
 
 static int srvlookup = 0;		/* SRV Lookup on or off. Default is off, RFC behavior is on */
 
@@ -301,6 +302,13 @@ struct sip_history {
 #define SIP_OSPAUTH_NO		(0 << 26)
 #define SIP_OSPAUTH_YES		(1 << 26)
 #define SIP_OSPAUTH_EXCLUSIVE	(2 << 26)
+
+/* a new page of flags */
+#define SIP_PAGE2_RTCACHEFRIENDS 	(1 << 0)
+#define SIP_PAGE2_RTNOUPDATE 		(1 << 1)
+#define SIP_PAGE2_RTAUTOCLEAR 		(1 << 2)
+
+static int global_rtautoclear = 120;
 
 /* sip_pvt: PVT structures are used for each SIP conversation, ie. a call  */
 static struct sip_pvt {
@@ -469,6 +477,7 @@ struct sip_peer {
 	int lastmsgssent;
 	time_t	lastmsgcheck;		/* Last time we checked for MWI */
 	unsigned int flags;		/* SIP_ flags */	
+	struct ast_flags flags_page2; /* SIP_PAGE2 flags */
 	int expire;			/* Registration expiration */
 	int expiry;
 	int capability;			/* Codec capability */
@@ -586,7 +595,7 @@ static int build_reply_digest(struct sip_pvt *p, char *orig_header, char *digest
 static int update_user_counter(struct sip_pvt *fup, int event);
 static void prune_peers(void);
 static int sip_do_reload(void);
-
+static int expire_register(void *data);
 static int callevents = 0;
 
 /*--- sip_debug_test_addr: See if we pass debug IP filter */
@@ -1109,7 +1118,9 @@ static void sip_destroy_peer(struct sip_peer *peer)
 /*--- update_peer: Update peer data in database (if used) ---*/
 static void update_peer(struct sip_peer *p, int expiry)
 {
-	if (ast_test_flag(p, SIP_REALTIME))
+	if (!ast_test_flag((&global_flags_page2), SIP_PAGE2_RTNOUPDATE) && 
+		(ast_test_flag(p, SIP_REALTIME) || 
+		 ast_test_flag(&(p->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)))
 		realtime_update_peer(p->name, &p->addr, p->username, expiry);
 }
 
@@ -1144,9 +1155,18 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 		tmp = tmp->next;
 	}
 
-	peer = build_peer(peername, var, 1);
-	if (peer)
-		ast_set_flag(peer, SIP_REALTIME);
+	peer = build_peer(peername, var, ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS) ? 0 : 1);
+	if (peer) {
+		if(ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
+			ast_copy_flags((&peer->flags_page2),(&global_flags_page2), SIP_PAGE2_RTAUTOCLEAR|SIP_PAGE2_RTCACHEFRIENDS);
+			if(ast_test_flag((&global_flags_page2), SIP_PAGE2_RTAUTOCLEAR)) {
+				peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_register, (void *)peer);
+			}
+			ASTOBJ_CONTAINER_LINK(&peerl,peer);
+		} else {
+			ast_set_flag(peer, SIP_REALTIME);
+		}
+	}
 	ast_variables_destroy(var);
 	return peer;
 }
@@ -1161,7 +1181,7 @@ static int sip_addrcmp(char *name, struct sockaddr_in *sin)
 }
 
 /*--- find_peer: Locate peer by name or ip address */
-static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin)
+static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int realtime)
 {
 	struct sip_peer *p = NULL;
 
@@ -1170,7 +1190,7 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin)
 	else
 		p = ASTOBJ_CONTAINER_FIND_FULL(&peerl,sin,name,sip_addr_hashfunc,1,sip_addrcmp);
 
-	if (!p) {
+	if (!p && realtime) {
 		p = realtime_peer(peer, sin);
 	}
 
@@ -1206,20 +1226,29 @@ static struct sip_user *realtime_user(const char *username)
 	tmp = var;
 	while (tmp) {
 		if (!strcasecmp(tmp->name, "type") &&
-		    !strcasecmp(tmp->value, "peer")) {
+			!strcasecmp(tmp->value, "peer")) {
 			ast_variables_destroy(var);
 			return NULL;
 		}
 		tmp = tmp->next;
 	}
+	
 
-	user = build_user(username, var, 1);
+
+	user = build_user(username, var, !ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS));
+	
 	if (user) {
-		/* Move counter from s to r... */
-		suserobjs--;
-		ruserobjs++;
 		/* Add some finishing touches, addresses, etc */
-		ast_set_flag(user, SIP_REALTIME);	
+		if(ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
+			suserobjs++;
+
+            ASTOBJ_CONTAINER_LINK(&userl,user);
+        } else {
+			/* Move counter from s to r... */
+			suserobjs--;
+			ruserobjs++;
+            ast_set_flag(user, SIP_REALTIME);
+        }
 	}
 	ast_variables_destroy(var);
 	return user;
@@ -1258,7 +1287,7 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 		port++;
 	}
 	r->sa.sin_family = AF_INET;
-	p = find_peer(peer, NULL);
+	p = find_peer(peer, NULL, 1);
 
 	if (p) {
 		found++;
@@ -4458,7 +4487,7 @@ static int expire_register(void *data)
 	register_peer_exten(p, 0);
 	p->expire = -1;
 	ast_device_state_changed("SIP/%s", p->name);
-	if (ast_test_flag(p, SIP_SELFDESTRUCT)) {
+	if (ast_test_flag(p, SIP_SELFDESTRUCT) || ast_test_flag((&p->flags_page2), SIP_PAGE2_RTAUTOCLEAR)) {
 		ASTOBJ_MARK(p);	
 		prune_peers();
 	}
@@ -5074,7 +5103,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 		*c = '\0';
 	strncpy(p->exten, name, sizeof(p->exten) - 1);
 	build_contact(p);
-	peer = find_peer(name, NULL);
+	peer = find_peer(name, NULL, 1);
 	if (!(peer && ast_apply_ha(peer->ha, sin))) {
 		if (peer)
 			ASTOBJ_UNREF(peer,sip_destroy_peer);
@@ -5670,7 +5699,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 		/* If peer is registred from this IP address or have this as a default
 		   IP address, this call is from the peer 
  		*/
-		peer = find_peer(NULL, &p->recv);
+		peer = find_peer(NULL, &p->recv, 1);
 		if (peer) {
 			if (debug)
 				ast_verbose("Found peer '%s'\n", peer->name);
@@ -5863,7 +5892,7 @@ static int sip_show_users(int fd, int argc, char *argv[])
 	regex_t regexbuf;
 	int havepattern = 0;
 
-#define FORMAT  "%-25.25s  %-15.15s  %-15.15s  %-15.15s  %-5.5s%-5.5s\n"
+#define FORMAT  "%-25.25s  %-15.15s  %-15.15s  %-15.15s  %-5.5s%-10.10s\n"
 
 	if (argc > 4)
 		return RESULT_SHOWUSAGE;
@@ -6051,6 +6080,30 @@ static const char *insecure2str(int mode)
 	return "<error>";
 }
 
+static int sip_prune_realtime(int fd, int argc, char *argv[])
+{
+	struct sip_peer *peer;
+
+	if (argc != 4)
+        return RESULT_SHOWUSAGE;
+	if (!strcmp(argv[3],"all")) {
+		sip_do_reload();
+		ast_cli(fd, "OK Cache is flushed.\n");
+	} else if ((peer = find_peer(argv[3], NULL, 0))) {
+		if(ast_test_flag((&peer->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
+			ast_set_flag((&peer->flags_page2), SIP_PAGE2_RTAUTOCLEAR);
+			expire_register(peer);
+			ast_cli(fd, "OK peer %s was removed from the cache.\n", argv[3]);
+		} else {
+			ast_cli(fd, "SORRY peer %s is not eligible for this operation.\n", argv[3]);
+		}
+	} else {
+		ast_cli(fd, "SORRY peer %s was not found in the cache.\n", argv[3]);
+	}
+	
+	return RESULT_SUCCESS;
+}
+
 /*--- sip_show_peer: Show one peer in detail ---*/
 static int sip_show_peer(int fd, int argc, char *argv[])
 {
@@ -6060,11 +6113,13 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 	struct sip_peer *peer;
 	char codec_buf[512];
 	struct ast_codec_pref *pref;
-	int x = 0, codec = 0;
+	int x = 0, codec = 0, load_realtime = 0;
 
-	if (argc != 4)
+	if (argc < 4)
 		return RESULT_SHOWUSAGE;
-	peer = find_peer(argv[3], NULL);
+
+	load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? 1 : 0;
+	peer = find_peer(argv[3], NULL, load_realtime);
 	if (peer) {
 		ast_cli(fd,"\n\n");
 		ast_cli(fd, "  * Name       : %s\n", peer->name);
@@ -6530,7 +6585,7 @@ static int sip_do_debug_peer(int fd, int argc, char *argv[])
 	char iabuf[INET_ADDRSTRLEN];
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	peer = find_peer(argv[3], NULL);
+	peer = find_peer(argv[3], NULL, 1);
 	if (peer) {
 		if (peer->addr.sin_addr.s_addr) {
 			debugaddr.sin_family = AF_INET;
@@ -6875,6 +6930,10 @@ static char show_peer_usage[] =
 "Usage: sip show peer <peername>\n"
 "       Lists all details on one SIP peer and the current status.\n";
 
+static char prune_realtime_usage[] =
+"Usage: sip prune realtime [<peername>|all]\n"
+"       Prunes object(s) from the cache\n";
+
 static char show_reg_usage[] =
 "Usage: sip show registry\n"
 "       Lists all registration requests and status.\n";
@@ -6913,6 +6972,9 @@ static char show_objects_usage[] =
 "Usage: sip show objects\n" 
 "       Shows status of known SIP objects\n";
 
+
+
+
 static struct ast_cli_entry  cli_notify =
 	{ { "sip", "notify", NULL }, sip_notify, "Send a notify packet to a SIP peer", notify_usage, complete_sipnotify };
 static struct ast_cli_entry  cli_show_objects = 
@@ -6935,6 +6997,8 @@ static struct ast_cli_entry  cli_show_peer =
 	{ { "sip", "show", "peer", NULL }, sip_show_peer, "Show details on specific SIP peer", show_peer_usage, complete_sip_show_peer };
 static struct ast_cli_entry  cli_show_peers =
 	{ { "sip", "show", "peers", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage };
+static struct ast_cli_entry  cli_prune_realtime =
+	{ { "sip", "prune", "realtime", NULL }, sip_prune_realtime, "Prune a cached realtime lookup", prune_realtime_usage, complete_sip_show_peer };
 static struct ast_cli_entry  cli_inuse_show =
 	{ { "sip", "show", "inuse", NULL }, sip_show_inuse, "List all inuse/limit", show_inuse_usage };
 static struct ast_cli_entry  cli_show_registry =
@@ -8512,7 +8576,7 @@ static int sip_devicestate(void *data)
 		ext = NULL;
 	}
 
-	p = find_peer(host, NULL);
+	p = find_peer(host, NULL, 1);
 	if (p) {
 		found++;
 		res = AST_DEVICE_UNAVAILABLE;
@@ -9127,6 +9191,17 @@ static int reload_config(void)
 			strncpy(default_useragent, v->value, sizeof(default_useragent)-1);
 			ast_log(LOG_DEBUG, "Setting User Agent Name to %s\n",
 				default_useragent);
+		} else if (!strcasecmp(v->name, "rtcachefriends")) {
+			ast_set2_flag((&global_flags_page2), ast_true(v->value), SIP_PAGE2_RTCACHEFRIENDS);	
+		} else if (!strcasecmp(v->name, "rtnoupdate")) {
+			ast_set2_flag((&global_flags_page2), ast_true(v->value), SIP_PAGE2_RTNOUPDATE);	
+		} else if (!strcasecmp(v->name, "rtautoclear")) {
+			int i = atoi(v->value);
+			if(i > 0)
+				global_rtautoclear = i;
+			else
+				i = 0;
+			ast_set2_flag((&global_flags_page2), i || ast_true(v->value), SIP_PAGE2_RTAUTOCLEAR);
 		} else if (!strcasecmp(v->name, "usereqphone")) {
 			ast_set2_flag((&global_flags), ast_true(v->value), SIP_USEREQPHONE);	
 		} else if (!strcasecmp(v->name, "relaxdtmf")) {
@@ -9689,6 +9764,7 @@ int load_module()
 		ast_cli_register(&cli_show_channels);
 		ast_cli_register(&cli_show_channel);
 		ast_cli_register(&cli_show_history);
+		ast_cli_register(&cli_prune_realtime);
 		ast_cli_register(&cli_show_peer);
 		ast_cli_register(&cli_show_peers);
 		ast_cli_register(&cli_show_registry);
@@ -9728,6 +9804,7 @@ int unload_module()
 	ast_cli_unregister(&cli_show_channels);
 	ast_cli_unregister(&cli_show_channel);
 	ast_cli_unregister(&cli_show_history);
+	ast_cli_unregister(&cli_prune_realtime);
 	ast_cli_unregister(&cli_show_peer);
 	ast_cli_unregister(&cli_show_peers);
 	ast_cli_unregister(&cli_show_registry);

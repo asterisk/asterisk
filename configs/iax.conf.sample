@@ -192,6 +192,26 @@ tos=lowdelay
 ; The default value is 'host'
 ;
 autokill=yes
+
+;
+; Cache realtime friends by adding them to the internal list
+; just like friends added from the config file only on a
+; as-needed basis.
+;
+;rtcachefriends=yes 
+;
+; do not send the update request over realtime.
+;
+;rtnoupdate=yes 
+;
+; Auto-Expire friends created on the fly on the same schedule
+; as if it had just registered when the registration expires
+; the friend will vanish from the configuration until requested
+; again.  If set to an integer, friends expire
+; within this number of seconds instead of the
+; same as the registration interval
+;
+;rtautoclear=yes 
 ;
 ; Guest sections for unauthenticated connection attempts.  Just
 ; specify an empty secret, or provide no secret section.
