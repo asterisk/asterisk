@@ -824,6 +824,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 				} else
 					ast_log(LOG_WARNING, "Error opening text file for output\n");
 				res = play_and_record(chan, NULL, fn, maxmessage, fmt);
+				if (res > 0)
+					res = 0;
 				txt = fopen(txtfile, "a");
 				if (txt) {
 					time(&end);
@@ -1945,7 +1947,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		}
 		logretries++;
 	}
-	if (logretries >= maxlogins) {
+	if (!valid && (logretries >= maxlogins)) {
 		ast_stopstream(chan);
 		res = play_and_wait(chan, "vm-goodbye");
 		if (res > 0)
