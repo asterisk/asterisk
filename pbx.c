@@ -3844,7 +3844,7 @@ int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char
 		if (!as)
 			return -1;
 		memset(as, 0, sizeof(struct async_stat));
-		chan = ast_request_and_dial(type, format, data, 0, reason, callerid);
+		chan = ast_request_and_dial(type, format, data, timeout, reason, callerid);
 		if (!chan) {
 			free(as);
 			return -1;
@@ -3939,7 +3939,7 @@ int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *
 		if (!as)
 			return -1;
 		memset(as, 0, sizeof(struct async_stat));
-		chan = ast_request_and_dial(type, format, data, 0, reason, callerid);
+		chan = ast_request_and_dial(type, format, data, timeout, reason, callerid);
 		if (!chan) {
 			free(as);
 			return -1;
