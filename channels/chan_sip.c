@@ -4538,8 +4538,17 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 		p2 = iflist;
 		while(p2) {
 			if (!strcmp(p2->callid, tmp5)) {
-				/* Go ahead and lock it before returning */
+				/* Go ahead and lock it (and its owner) before returning */
 				ast_mutex_lock(&p2->lock);
+				if (p2->owner) {
+					while(ast_mutex_trylock(&p2->owner->lock)) {
+						ast_mutex_unlock(&p2->lock);
+						usleep(1);
+						ast_mutex_lock(&p2->lock);
+						if (!p2->owner)
+							break;
+					}
+				}
 				p->refer_call = p2;
 				break;
 			}
@@ -6471,6 +6480,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				if (p->refer_call) {
 					ast_log(LOG_DEBUG,"202 Accepted (supervised)\n");
 					attempt_transfer(p, p->refer_call);
+					if (p->refer_call->owner)
+						ast_mutex_unlock(&p->refer_call->owner->lock);
 					ast_mutex_unlock(&p->refer_call->lock);
 					p->refer_call = NULL;
 					p->gotrefer = 1;

@@ -740,9 +740,8 @@ static struct ast_config *__ast_load(char *configfile, struct ast_config *tmp, s
 			return NULL;
 		}
 		while(!feof(f)) {
-			fgets(buf, sizeof(buf), f);
 			lineno++;
-			if (!feof(f)) {
+			if (fgets(buf, sizeof(buf), f)) {
 				if (cfg_process(tmp, _tmpc, _last, buf, lineno, configfile, includelevel
 #ifdef PRESERVE_COMMENTS
 				, acs
