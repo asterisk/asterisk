@@ -396,16 +396,12 @@ static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const cha
 		memset(retval, 0, sizeof(struct ast_vm_user));
 		if (!ivm)
 			retval->alloced=1;
-		if (mailbox) {
+		if (mailbox) 
 			strncpy(retval->mailbox, mailbox, sizeof(retval->mailbox) - 1);
-		}
-		if (context) {
+		if (context) 
 			strncpy(retval->context, context, sizeof(retval->context) - 1);
-		}
 		else
-		{
 			strncpy(retval->context, "default", sizeof(retval->context) - 1);
-		}
 		populate_defaults(retval);
 		var = ast_load_realtime("voicemail", "mailbox", mailbox, "context", retval->context, NULL);
 		if (var) {
@@ -416,6 +412,12 @@ static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const cha
 					strncpy(retval->password, tmp->value, sizeof(retval->password) - 1);
 				} else if (!strcasecmp(tmp->name, "uniqueid")) {
 					strncpy(retval->uniqueid, tmp->value, sizeof(retval->uniqueid) - 1);
+				} else if (!strcasecmp(tmp->name, "pager")) {
+					strncpy(retval->pager, tmp->value, sizeof(retval->pager) - 1);
+				} else if (!strcasecmp(tmp->name, "email")) {
+					strncpy(retval->email, tmp->value, sizeof(retval->email) - 1);
+				} else if (!strcasecmp(tmp->name, "fullname")) {
+					strncpy(retval->fullname, tmp->value, sizeof(retval->fullname) - 1);
 				} else
 					apply_option(retval, tmp->name, tmp->value);
 				tmp = tmp->next;
