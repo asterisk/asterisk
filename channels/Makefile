@@ -41,8 +41,6 @@ CFLAGS+=$(shell [ -f /usr/lib/libmfcr2.so.1 ] && echo " -DZAPATA_R2")
 CFLAGS+=$(shell [ -f alsa-monitor.h ] && echo " -DALSA_MONITOR")
 ZAPPRI=$(shell [ -f /usr/lib/libpri.so.1 ] && echo "-lpri")
 ZAPR2=$(shell [ -f /usr/lib/libmfcr2.so.1 ] && echo "-lmfcr2")
-CHANZAP=$(shell if [ -f .oldzap ]; then echo "chan_zap_old.c"; else echo "chan_zap.c"; fi)
-ZAPLIB=$(shell if [ -f .oldzap ]; then echo "-lzap"; fi)
 CFLAGS+=$(shell [ -f /usr/include/linux/zaptel.h ] && echo "-DIAX_TRUNKING")
 CHANNEL_LIBS+=$(shell [ -f /usr/include/vpbapi.h ] && echo "chan_vpb.so" )
 
@@ -120,11 +118,11 @@ else
 	$(CC) $(SOLINK) -o $@ chan_iax.o
 endif
 
-chan_zap.o: $(CHANZAP)
-	$(CC) -c $(CFLAGS) -o chan_zap.o $(CHANZAP)
+chan_zap.o: chan_zap.c
+	$(CC) -c $(CFLAGS) -o chan_zap.o chan_zap.c
 
 chan_zap.so: chan_zap.o
-	$(CC) $(SOLINK) -o $@ $<  $(ZAPPRI) $(ZAPR2) -ltonezone $(ZAPLIB)
+	$(CC) $(SOLINK) -o $@ $<  $(ZAPPRI) $(ZAPR2) -ltonezone
 
 chan_alsa.o: $(ALSA_SRC)
 
