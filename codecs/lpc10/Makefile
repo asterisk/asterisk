@@ -25,11 +25,13 @@ WARNINGS = -Wall -Wno-comment -Wno-error
 CFLAGS = $(OPTIMIZE) -I$(LIB_TARGET_DIR) $(WARNINGS) -fPIC
 #CFLAGS+= $(shell if uname -m | grep -q 86; then echo "-mpentium" ; fi)
 
-#fix for PPC processors
+#fix for PPC processors and ALPHA too
 ifneq ($(OSARCH),Darwin)
 ifneq ($(PROC),ppc)
 ifneq ($(PROC),x86_64)
+ifneq ($(PROC),alpha)
 	CFLAGS+= -march=$(PROC)
+endif
 endif
 endif
 endif
