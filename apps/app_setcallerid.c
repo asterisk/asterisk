@@ -30,8 +30,8 @@ static char *app = "SetCallerID";
 static char *synopsis = "Set CallerID";
 
 static char *descrip = 
-"  SetCallerID(clid): Set Caller*ID on a call to a new\n"
-"value.  Always returns 0\n";
+"  SetCallerID(clid[|a]): Set Caller*ID on a call to a new\n"
+"value.  Sets ANI as well if a flag is used.  Always returns 0\n";
 
 STANDARD_LOCAL_USER;
 
@@ -40,11 +40,21 @@ LOCAL_USER_DECL;
 static int setcallerid_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
+	char tmp[256] = "";
 	struct localuser *u;
-	if (data && !strlen((char *)data))
-		data = NULL;
+	char *opt;
+	int anitoo = 0;
+	if (data)
+		strncpy(tmp, (char *)data, sizeof(tmp) - 1);
+	opt = strchr(tmp, '|');
+	if (opt) {
+		*opt = '\0';
+		opt++;
+		if (*opt == 'a')
+			anitoo = 1;
+	}
 	LOCAL_USER_ADD(u);
-	ast_set_callerid(chan, (char *)data);
+	ast_set_callerid(chan, strlen(tmp) ? tmp : NULL, anitoo);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
