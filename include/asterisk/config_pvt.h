@@ -52,6 +52,8 @@ int ast_save(char *filename, struct ast_config *cfg, char *generator);
 struct ast_config *ast_new_config(void);
 struct ast_category *ast_new_category(char *name);
 struct ast_variable *ast_new_variable(char *name,char *value);
+void ast_category_append(struct ast_config *config, struct ast_category *cat);
+void ast_category_destroy(struct ast_category *cat);
 int ast_cust_config_register(struct ast_config_reg *new);
 int ast_cust_config_deregister(struct ast_config_reg *new);
 int register_config_cli(void);

@@ -54,6 +54,12 @@ void ast_destroy_realtime(struct ast_variable *v)
 	}
 }
 
+void ast_category_destroy(struct ast_category *cat)
+{
+	ast_destroy_realtime(cat->root);
+	free(cat);
+}
+
 void ast_destroy(struct ast_config *ast)
 {
 	struct ast_category *cat, *catn;
@@ -589,6 +595,18 @@ struct ast_config *ast_load(char *configfile)
 	struct ast_variable *last = NULL;
 
 	return __ast_load(configfile, NULL, &tmpc, &last, 0);
+}
+
+void ast_category_append(struct ast_config *config, struct ast_category *cat)
+{
+	struct ast_category *prev = NULL;
+	cat->next = NULL;
+	if (config->root) {
+		prev = config->root;
+		while(prev->next) prev = prev->next;
+		prev->next = cat;
+	} else
+		config->root = cat;
 }
 
 char *ast_category_browse(struct ast_config *config, char *prev)

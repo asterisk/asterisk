@@ -167,6 +167,159 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 	return var;
 }
 
+static struct ast_config *realtime_multi_odbc(const char *database, const char *table, va_list ap)
+{
+	odbc_obj *obj;
+	SQLHSTMT stmt;
+	char sql[1024];
+	char coltitle[256];
+	char rowdata[2048];
+	char *op;
+	const char *newparam, *newval;
+	char *stringp;
+	char *chunk;
+	SQLSMALLINT collen;
+	int res;
+	int x;
+	struct ast_variable *var=NULL, *prev=NULL;
+	struct ast_config *cfg=NULL;
+	struct ast_category *cat=NULL;
+	SQLLEN rowcount=0;
+	SQLULEN colsize;
+	SQLSMALLINT colcount=0;
+	SQLSMALLINT datatype;
+	SQLSMALLINT decimaldigits;
+	SQLSMALLINT nullable;
+	va_list aq;
+	
+	va_copy(aq, ap);
+	
+	
+	if (!table)
+		return NULL;
+
+	obj = fetch_odbc_obj(database);
+	if (!obj)
+		return NULL;
+
+	res = SQLAllocHandle (SQL_HANDLE_STMT, obj->con, &stmt);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+		return NULL;
+	}
+
+	newparam = va_arg(aq, const char *);
+	if (!newparam)  {
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
+	newval = va_arg(aq, const char *);
+	if (!strchr(newparam, ' ')) op = " ="; else op = "";
+	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s ?", table, newparam, op);
+	while((newparam = va_arg(aq, const char *))) {
+		if (!strchr(newparam, ' ')) op = " ="; else op = "";
+		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s%s ?", newparam, op);
+		newval = va_arg(aq, const char *);
+	}
+	va_end(aq);
+	res = SQLPrepare(stmt, sql, SQL_NTS);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
+	
+	/* Now bind the parameters */
+	x = 1;
+
+	while((newparam = va_arg(ap, const char *))) {
+		newval = va_arg(ap, const char *);
+		SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(newval), 0, (void *)newval, 0, NULL);
+	}
+		
+	res = SQLExecute(stmt);
+
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
+
+	res = SQLRowCount(stmt, &rowcount);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
+
+	res = SQLNumResultCols(stmt, &colcount);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", sql);
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
+
+	while (rowcount) {
+		var = NULL;
+		prev = NULL;
+		res = SQLFetch(stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			continue;
+		}
+		for (x=0;x<colcount;x++) {
+			rowdata[0] = '\0';
+			collen = sizeof(coltitle);
+			res = SQLDescribeCol(stmt, x + 1, coltitle, sizeof(coltitle), &collen, 
+						&datatype, &colsize, &decimaldigits, &nullable);
+			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+				ast_log(LOG_WARNING, "SQL Describe Column error!\n[%s]\n\n", sql);
+				if (var)
+					ast_destroy_realtime(var);
+				continue;
+			}
+			res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+				ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+				if (var)
+					ast_destroy_realtime(var);
+				continue;
+			}
+			stringp = rowdata;
+			while(stringp) {
+				chunk = strsep(&stringp, ";");
+				if (chunk && !ast_strlen_zero(ast_strip(chunk))) {
+					if (prev) {
+						prev->next = ast_new_variable(coltitle, chunk);
+						if (prev->next)
+							prev = prev->next;
+					} else 
+						prev = var = ast_new_variable(coltitle, chunk);
+					
+				}
+			}
+			if (var) {
+				cat = ast_new_category("");
+				if (cat) {
+					cat->root = var;
+					if (!cfg) 
+						cfg = ast_new_config();
+					if (cfg)
+						ast_category_append(cfg, cat);
+					else 
+						ast_category_destroy(cat);
+				} else {
+					ast_log(LOG_WARNING, "Out of memory!\n");
+					ast_destroy_realtime(var);
+				}
+			}
+		}
+	}
+
+	SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+	return cfg;
+}
+
 static int update_odbc(const char *database, const char *table, const char *keyfield, const char *lookup, va_list ap)
 {
 	odbc_obj *obj;
@@ -383,6 +536,7 @@ int load_module (void)
 	strncpy(reg1.name, "odbc", sizeof(reg1.name) - 1);
 	reg1.static_func = config_odbc;
 	reg1.realtime_func = realtime_odbc;
+	reg1.realtime_multi_func = realtime_multi_odbc;
 	reg1.update_func = update_odbc;
 	ast_cust_config_register (&reg1);
 	if (option_verbose)
