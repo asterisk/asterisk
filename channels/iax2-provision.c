@@ -65,6 +65,10 @@ static struct iax_flag {
 	{ "secure", PROV_FLAG_SECURE },
 	{ "heartbeat", PROV_FLAG_HEARTBEAT },
 	{ "debug", PROV_FLAG_DEBUG },
+	{ "disablecid", PROV_FLAG_DIS_CALLERID },
+	{ "disablecw", PROV_FLAG_DIS_CALLWAIT },
+	{ "disablecidcw", PROV_FLAG_DIS_CIDCW },
+	{ "disable3way", PROV_FLAG_DIS_THREEWAY },
 };
 
 char *iax_provflags2str(char *buf, int buflen, unsigned int flags)

@@ -36,6 +36,11 @@
 #define PROV_FLAG_HEARTBEAT		(1 << 2)
 #define PROV_FLAG_DEBUG			(1 << 3)
 
+#define PROV_FLAG_DIS_CALLERID	(1 << 4)	/* Caller-ID Disabled */
+#define PROV_FLAG_DIS_CALLWAIT	(1 << 5)	/* Caller-ID / Call Waiting Disable */
+#define PROV_FLAG_DIS_CIDCW		(1 << 6)	/* CID/CW Disabled */
+#define PROV_FLAG_DIS_THREEWAY	(1 << 7)	/* Three-way calling, transfer disabled */
+
 extern char *iax_provflags2str(char *buf, int buflen, unsigned int flags);
 extern int iax_provision_reload(void);
 extern int iax_provision_unload(void);
