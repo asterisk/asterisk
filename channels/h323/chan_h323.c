@@ -651,8 +651,6 @@ static struct ast_channel *oh323_new(struct oh323_pvt *i, int state, const char 
 		if (strlen(i->callerid))
 			tmp->callerid = strdup(i->callerid);
 		if (state != AST_STATE_DOWN) {
-			printf ("oh323_new   EXTEN: %s\n", tmp->exten);
-			printf ("oh323_new CONTEXT: %s\n", tmp->context);
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 				ast_hangup(tmp);
@@ -889,8 +887,6 @@ int create_connection(unsigned call_reference)
 
 int setup_incoming_call(call_details_t cd)
 {
-
-	ast_log(LOG_DEBUG, "default_context [%s]\n", default_context);
 	
 	struct oh323_pvt *p = NULL;
 	struct ast_channel *c = NULL;
@@ -990,8 +986,6 @@ int setup_incoming_call(call_details_t cd)
 		} 
 	}
 	
-	printf ("CONTEXT: [%s]\n", p->context);
-	printf ("EXTEN: [%s]\n", p->exten);
 	/* allocate a channel and tell asterisk about it */
 	c = oh323_new(p, AST_STATE_RINGING, cd.call_token);
 
