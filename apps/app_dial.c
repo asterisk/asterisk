@@ -115,16 +115,21 @@ static char *descrip =
    use it not only for keeping track of what is in use but
    also for keeping track of who we're dialing. */
 
+#define DIAL_STILLGOING			(1 << 0)
+#define DIAL_ALLOWREDIRECT_IN		(1 << 1)
+#define DIAL_ALLOWREDIRECT_OUT		(1 << 2)
+#define DIAL_ALLOWDISCONNECT_IN		(1 << 3)
+#define DIAL_ALLOWDISCONNECT_OUT	(1 << 4)
+#define DIAL_RINGBACKONLY		(1 << 5)
+#define DIAL_MUSICONHOLD		(1 << 6)
+#define DIAL_FORCECALLERID		(1 << 7)
+#define DIAL_MONITOR_IN			(1 << 8)
+#define DIAL_MONITOR_OUT		(1 << 9)
+#define DIAL_GO_ON			(1 << 10)
+
 struct localuser {
 	struct ast_channel *chan;
-	int stillgoing;
-	int allowredirect_in;
-	int allowredirect_out;
-	int ringbackonly;
-	int musiconhold;
-	int allowdisconnect_in;
-	int allowdisconnect_out;
-	int forcecallerid;
+	unsigned int flags;
 	int forwards;
 	struct localuser *next;
 };
@@ -169,7 +174,7 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 } while(0)
 
 
-static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect_in, int *allowdisconnect_out, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart)
+static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, struct ast_flags *locflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart)
 {
 	struct localuser *o;
 	int found;
@@ -187,7 +192,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 	int single;
 	struct ast_channel *winner;
 	
-	single = (outgoing && !outgoing->next && !outgoing->musiconhold && !outgoing->ringbackonly);
+	single = (outgoing && !outgoing->next && !ast_test_flag(outgoing, DIAL_MUSICONHOLD) && !ast_test_flag(outgoing, DIAL_RINGBACKONLY));
 	
 	if (single) {
 		/* Turn off hold music, etc */
@@ -205,7 +210,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 		watchers[0] = in;
 		while(o) {
 			/* Keep track of important channels */
-			if (o->stillgoing && o->chan) {
+			if (ast_test_flag(o, DIAL_STILLGOING) && o->chan) {
 				watchers[pos++] = o->chan;
 				found = 1;
 			}
@@ -235,15 +240,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 		winner = ast_waitfor_n(watchers, pos, to);
 		o = outgoing;
 		while(o) {
-			if (o->stillgoing && o->chan && (o->chan->_state == AST_STATE_UP)) {
+			if (ast_test_flag(o, DIAL_STILLGOING) && o->chan && (o->chan->_state == AST_STATE_UP)) {
 				if (!peer) {
 					if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
 					peer = o->chan;
-					*allowredir_in = o->allowredirect_in;
-					*allowredir_out = o->allowredirect_out;
-					*allowdisconnect_in = o->allowdisconnect_in;
-					*allowdisconnect_out = o->allowdisconnect_out;
+					ast_copy_flags(locflags, o, DIAL_ALLOWREDIRECT_IN|DIAL_ALLOWREDIRECT_OUT|DIAL_ALLOWDISCONNECT_IN|DIAL_ALLOWDISCONNECT_OUT);
 				}
 			} else if (o->chan && (o->chan == winner)) {
 				if (!ast_strlen_zero(o->chan->call_forward)) {
@@ -276,7 +278,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						o->chan = NULL;
 					}
 					if (!o->chan) {
-						o->stillgoing = 0;
+						ast_clear_flag(o, DIAL_STILLGOING);	
 						HANDLE_CAUSE(cause, in);
 					} else {
 						if (o->chan->cid.cid_num)
@@ -286,7 +288,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							free(o->chan->cid.cid_name);
 						o->chan->cid.cid_name = NULL;
 
-						if (o->forcecallerid) {
+						if (ast_test_flag(o, DIAL_FORCECALLERID)) {
 							char *newcid = NULL;
 
 							if (strlen(in->macroexten))
@@ -330,7 +332,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							o->chan->cid.cid_rdnis = strdup(in->exten);
 						if (ast_call(o->chan, tmpchan, 0)) {
 							ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
-							o->stillgoing = 0;
+							ast_clear_flag(o, DIAL_STILLGOING);	
 							ast_hangup(o->chan);
 							o->chan = NULL;
 							numnochan++;
@@ -350,10 +352,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 								if (option_verbose > 2)
 									ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
 								peer = o->chan;
-								*allowredir_in = o->allowredirect_in;
-								*allowredir_out = o->allowredirect_out;
-								*allowdisconnect_in = o->allowdisconnect_in;
-								*allowdisconnect_out = o->allowdisconnect_out;
+								ast_copy_flags(locflags, o, DIAL_ALLOWREDIRECT_IN|DIAL_ALLOWREDIRECT_OUT|DIAL_ALLOWDISCONNECT_IN|DIAL_ALLOWDISCONNECT_OUT);
 							}
 							/* If call has been answered, then the eventual hangup is likely to be normal hangup */
 							in->hangupcause = AST_CAUSE_NORMAL_CLEARING;
@@ -365,7 +364,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							in->hangupcause = o->chan->hangupcause;
 							ast_hangup(o->chan);
 							o->chan = NULL;
-							o->stillgoing = 0;
+							ast_clear_flag(o, DIAL_STILLGOING);	
 							HANDLE_CAUSE(AST_CAUSE_BUSY, in);
 							break;
 						case AST_CONTROL_CONGESTION:
@@ -374,13 +373,13 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							in->hangupcause = o->chan->hangupcause;
 							ast_hangup(o->chan);
 							o->chan = NULL;
-							o->stillgoing = 0;
+							ast_clear_flag(o, DIAL_STILLGOING);
 							HANDLE_CAUSE(AST_CAUSE_CONGESTION, in);
 							break;
 						case AST_CONTROL_RINGING:
 							if (option_verbose > 2)
 								ast_verbose( VERBOSE_PREFIX_3 "%s is ringing\n", o->chan->name);
-							if (!(*sentringing) && !outgoing->musiconhold) {
+							if (!(*sentringing) && !ast_test_flag(outgoing, DIAL_MUSICONHOLD)) {
 								ast_indicate(in, AST_CONTROL_RINGING);
 								(*sentringing)++;
 							}
@@ -388,7 +387,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						case AST_CONTROL_PROGRESS:
 							if (option_verbose > 2)
 								ast_verbose ( VERBOSE_PREFIX_3 "%s is making progress passing it to %s\n", o->chan->name,in->name);
-							if (!outgoing->ringbackonly)
+							if (!ast_test_flag(outgoing, DIAL_RINGBACKONLY))
 								ast_indicate(in, AST_CONTROL_PROGRESS);
 							break;
 						case AST_CONTROL_OFFHOOK:
@@ -396,7 +395,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							/* Ignore going off hook and flash */
 							break;
 						case -1:
-							if (!outgoing->ringbackonly && !outgoing->musiconhold) {
+							if (!ast_test_flag(outgoing, DIAL_RINGBACKONLY) && !ast_test_flag(outgoing, DIAL_MUSICONHOLD)) {
 								if (option_verbose > 2)
 									ast_verbose( VERBOSE_PREFIX_3 "%s stopped sounds\n", o->chan->name);
 								ast_indicate(in, -1);
@@ -407,11 +406,11 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							ast_log(LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
 						}
 					} else if (single && (f->frametype == AST_FRAME_VOICE) && 
-								!(outgoing->ringbackonly || outgoing->musiconhold)) {
+								!(ast_test_flag(outgoing, DIAL_RINGBACKONLY) || ast_test_flag(outgoing, DIAL_MUSICONHOLD))) {
 						if (ast_write(in, f)) 
 							ast_log(LOG_WARNING, "Unable to forward frame\n");
 					} else if (single && (f->frametype == AST_FRAME_IMAGE) && 
-								!(outgoing->ringbackonly || outgoing->musiconhold)) {
+								!(ast_test_flag(outgoing, DIAL_RINGBACKONLY) || ast_test_flag(outgoing, DIAL_MUSICONHOLD))) {
 						if (ast_write(in, f))
 							ast_log(LOG_WARNING, "Unable to forward image\n");
 					}
@@ -420,7 +419,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					in->hangupcause = o->chan->hangupcause;
 					ast_hangup(o->chan);
 					o->chan = NULL;
-					o->stillgoing = 0;
+					ast_clear_flag(o, DIAL_STILLGOING);
 				}
 			}
 			o = o->next;
@@ -441,7 +440,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					ast_frfree(f);
 				return NULL;
 			}
-			if (f && (f->frametype == AST_FRAME_DTMF) && *allowdisconnect_out &&
+			if (f && (f->frametype == AST_FRAME_DTMF) && ast_test_flag(locflags, DIAL_ALLOWDISCONNECT_OUT) &&
 				(f->subclass == '*')) {
 			    if (option_verbose > 3)
 				ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
@@ -474,12 +473,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	struct localuser *outgoing=NULL, *tmp;
 	struct ast_channel *peer;
 	int to;
-	int allowredir_in=0;
-	int allowredir_out=0;
-	int monitor_in = 0;
-	int monitor_out = 0;
-	int allowdisconnect_in=0;
-	int allowdisconnect_out=0;
+	struct ast_flags locflags={0};	
 	int hasmacro = 0;
 	int privacy=0;
 	int announce=0;
@@ -497,7 +491,6 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	struct ast_var_t *current;
 	struct varshead *headp, *newheadp;
 	struct ast_var_t *newvar;
-	int go_on=0;
 	unsigned int calldurationlimit=0;
 	char *cdl;
 	time_t now;
@@ -793,33 +786,16 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		}
 		memset(tmp, 0, sizeof(struct localuser));
 		if (transfer) {
-			if (strchr(transfer, 'w'))
-				monitor_in = 1;
-			if (strchr(transfer, 'W'))
-				monitor_out = 1;
-			if (strchr(transfer, 't'))
-				tmp->allowredirect_in = 1;
-			else    tmp->allowredirect_in = 0;
-			if (strchr(transfer, 'T'))
-				tmp->allowredirect_out = 1;
-			else    tmp->allowredirect_out = 0;
-			if (strchr(transfer, 'r'))
-				tmp->ringbackonly = 1;
-			else    tmp->ringbackonly = 0;
-			if (strchr(transfer, 'm'))
-				tmp->musiconhold = 1;
-			else    tmp->musiconhold = 0;
-			if (strchr(transfer, 'H'))
-				allowdisconnect_out = tmp->allowdisconnect_out = 1;
-			else    allowdisconnect_out = tmp->allowdisconnect_out = 0;
-			if(strchr(transfer, 'h'))
-				allowdisconnect_in = tmp->allowdisconnect_in = 1;
-			else	allowdisconnect_in = tmp->allowdisconnect_in = 0;
-			if(strchr(transfer, 'g'))
-				go_on=1;
-			if (strchr(transfer, 'f'))
-				tmp->forcecallerid = 1;
-			else	tmp->forcecallerid = 0;
+			ast_set2_flag(tmp, strchr(transfer, 't'), DIAL_ALLOWREDIRECT_IN);
+			ast_set2_flag(tmp, strchr(transfer, 't'), DIAL_ALLOWREDIRECT_OUT);
+			ast_set2_flag(tmp, strchr(transfer, 'r'), DIAL_RINGBACKONLY);	
+			ast_set2_flag(tmp, strchr(transfer, 'm'), DIAL_MUSICONHOLD);	
+			ast_set2_flag(tmp, strchr(transfer, 'H'), DIAL_ALLOWDISCONNECT_OUT);	
+			ast_set2_flag(tmp, strchr(transfer, 'h'), DIAL_ALLOWDISCONNECT_IN);	
+			ast_set2_flag(tmp, strchr(transfer, 'f'), DIAL_FORCECALLERID);	
+			ast_set2_flag(tmp, strchr(transfer, 'w'), DIAL_MONITOR_IN);	
+			ast_set2_flag(tmp, strchr(transfer, 'W'), DIAL_MONITOR_OUT);	
+			ast_set2_flag(tmp, strchr(transfer, 'g'), DIAL_GO_ON);	
 		}
 		strncpy(numsubst, number, sizeof(numsubst)-1);
 		/* If we're dialing by extension, look at the extension to know what to dial */
@@ -977,7 +953,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		/* Put them in the list of outgoing thingies...  We're ready now. 
 		   XXX If we're forcibly removed, these outgoing calls won't get
 		   hung up XXX */
-		tmp->stillgoing = -1;
+		ast_set_flag(tmp, DIAL_STILLGOING);	
 		tmp->next = outgoing;
 		outgoing = tmp;
 		/* If this line is up, don't try anybody else */
@@ -998,10 +974,10 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	if (outgoing) {
 		/* Our status will at least be NOANSWER */
 		strncpy(status, "NOANSWER", sizeof(status) - 1);
-		if (outgoing->musiconhold) {
+		if (ast_test_flag(outgoing, DIAL_MUSICONHOLD)) {
 			moh=1;
 			ast_moh_start(chan, mohclass);
-		} else if (outgoing->ringbackonly) {
+		} else if (ast_test_flag(outgoing, DIAL_RINGBACKONLY)) {
 			ast_indicate(chan, AST_CONTROL_RINGING);
 			sentringing++;
 		}
@@ -1009,8 +985,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		strncpy(status, "CHANUNAVAIL", sizeof(status) - 1);
 
 	time(&start_time);
-	peer = wait_for_answer(chan, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect_in, &allowdisconnect_out, &sentringing, status, sizeof(status), numbusy, numnochan, numcongestion);
-
+	peer = wait_for_answer(chan, outgoing, &to, &locflags, &sentringing, status, sizeof(status), numbusy, numnochan, numcongestion);
+	
 	if (!peer) {
 		if (to) 
 			/* Musta gotten hung up */
@@ -1095,13 +1071,13 @@ static int dial_exec(struct ast_channel *chan, void *data)
 					if (!strcasecmp(macro_result, "BUSY")) {
 						strncpy(status, macro_result, sizeof(status) - 1);
 						if (!ast_goto_if_exists(chan, NULL, NULL, chan->priority + 101)) {
-							go_on = 1;
+							ast_set_flag(&locflags, DIAL_GO_ON);
 						}
 						res = -1;
 					}
 					else if (!strcasecmp(macro_result, "CONGESTION") || !strcasecmp(macro_result, "CHANUNAVAIL")) {
 						strncpy(status, macro_result, sizeof(status) - 1);
-						go_on = 1;
+						ast_set_flag(&locflags, DIAL_GO_ON);	
 						res = -1;
 					}
 					else if (!strcasecmp(macro_result, "CONTINUE")) {
@@ -1109,7 +1085,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 						   the context / exten / priority or perhaps 
 						   the next priority in the current exten is desired.
 						*/
-						go_on = 1;
+						ast_set_flag(&locflags, DIAL_GO_ON);	
 						res = -1;
 					} else if (!strcasecmp(macro_result, "ABORT")) {
 						/* Hangup both ends unless the caller has the g flag */
@@ -1124,8 +1100,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 									macro_transfer_dest[res] = '|';
 
 							if(!ast_parseable_goto(chan, macro_transfer_dest))
-								go_on = 1;
-							
+								ast_set_flag(&locflags, DIAL_GO_ON);
+
 						}
 					}
 				}
@@ -1147,18 +1123,18 @@ static int dial_exec(struct ast_channel *chan, void *data)
 				config.features_caller |= AST_FEATURE_PLAY_WARNING;
 			if (play_to_callee)
 				config.features_callee |= AST_FEATURE_PLAY_WARNING;
-			if (allowredir_in)
+			if (ast_test_flag(&locflags, DIAL_ALLOWREDIRECT_IN))
 				config.features_callee |= AST_FEATURE_REDIRECT;
-			if (allowredir_out)
+			if (ast_test_flag(&locflags, DIAL_ALLOWREDIRECT_OUT))
 				config.features_caller |= AST_FEATURE_REDIRECT;
-			if (monitor_in)
-				config.features_callee |= AST_FEATURE_AUTOMON;
-			if (monitor_out)
-				config.features_caller |= AST_FEATURE_AUTOMON;
-			if (allowdisconnect_in)
+			if (ast_test_flag(&locflags, DIAL_ALLOWDISCONNECT_IN))
 				config.features_callee |= AST_FEATURE_DISCONNECT;
-			if (allowdisconnect_out)
+			if (ast_test_flag(&locflags, DIAL_ALLOWDISCONNECT_OUT))
 				config.features_caller |= AST_FEATURE_DISCONNECT;
+			if (ast_test_flag(&locflags, DIAL_MONITOR_IN))
+				config.features_callee |= AST_FEATURE_AUTOMON;
+			if (ast_test_flag(&locflags, DIAL_MONITOR_OUT))
+				config.features_caller |= AST_FEATURE_AUTOMON;
 			config.timelimit = timelimit;
 			config.play_warning = play_warning;
 			config.warning_freq = warning_freq;
@@ -1211,7 +1187,7 @@ out:
 	
 	LOCAL_USER_REMOVE(u);
 	
-	if((go_on>0) && (!chan->_softhangup))
+	if((ast_test_flag(&locflags, DIAL_GO_ON)) && (!chan->_softhangup))
 	    res=0;
 	    
 	return res;

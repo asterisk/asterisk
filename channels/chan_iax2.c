@@ -212,7 +212,7 @@ struct iax2_user {
 	char inkeys[80];				/* Key(s) this user can use to authenticate to us */
 	char language[MAX_LANGUAGE];
 	int amaflags;
-	int flags;
+	unsigned int flags;
 	int capability;
 	char cid_num[AST_MAX_EXTENSION];
 	char cid_name[AST_MAX_EXTENSION];
@@ -235,7 +235,7 @@ struct iax2_peer {
 	struct sockaddr_in addr;
 	int formats;
 	struct in_addr mask;
-	int flags;
+	unsigned int flags;
 
 	/* Dynamic Registration fields */
 	struct sockaddr_in defaddr;			/* Default address if there is one */
@@ -450,7 +450,7 @@ struct chan_iax2_pvt {
 	/* Associated peer for poking */
 	struct iax2_peer *peerpoke;
 	/* IAX_ flags */
-	int flags;
+	unsigned int flags;
 
 	/* Transferring status */
 	int transferring;

@@ -311,7 +311,7 @@ static struct sip_pvt {
 	unsigned int callgroup;			/* Call group */
 	unsigned int pickupgroup;		/* Pickup group */
 	int lastinvite;				/* Last Cseq of invite */
-	int flags;				/* SIP_ flags */	
+	unsigned int flags;			/* SIP_ flags */	
 	int capability;				/* Special capability (codec) */
 	int jointcapability;			/* Supported capability at both ends (codecs ) */
 	int peercapability;			/* Supported peer capability */
@@ -406,7 +406,7 @@ struct sip_pkt {
 	struct sip_pkt *next;				/* Next packet */
 	int retrans;					/* Retransmission number */
 	int seqno;					/* Sequence number */
-	int flags;					/* non-zero if this is a response packet (e.g. 200 OK) */
+	unsigned int flags;				/* non-zero if this is a response packet (e.g. 200 OK) */
 	struct sip_pvt *owner;				/* Owner call */
 	int retransid;					/* Retransmission ID */
 	int packetlen;					/* Length of packet */
@@ -429,7 +429,7 @@ struct sip_user {
 	struct ast_codec_pref prefs; /* codec prefs */
 	unsigned int callgroup;		/* Call group */
 	unsigned int pickupgroup;	/* Pickup Group */
-	int flags;			/* SIP_ flags */	
+	unsigned int flags;		/* SIP_ flags */	
 	int amaflags;			/* AMA flags for billing */
 	int callingpres;		/* Calling id presentation */
 	int capability;			/* Codec capability */
@@ -462,7 +462,7 @@ struct sip_peer {
 	struct ast_codec_pref prefs; /* codec prefs */
 	int lastmsgssent;
 	time_t	lastmsgcheck;		/* Last time we checked for MWI */
-	int flags;			/* SIP_ flags */	
+	unsigned int flags;		/* SIP_ flags */	
 	int expire;			/* Registration expiration */
 	int expiry;
 	int capability;			/* Codec capability */
@@ -718,10 +718,10 @@ static int retrans_pkt(void *data)
 		__sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
 		res = 1;
 	} else {
-		ast_log(LOG_WARNING, "Maximum retries exceeded on call %s for seqno %d (%s %s)\n", pkt->owner->callid, pkt->seqno, (pkt->flags & FLAG_FATAL) ? "Critical" : "Non-critical", (pkt->flags & FLAG_RESPONSE) ? "Response" : "Request");
-		append_history(pkt->owner, "MaxRetries", pkt->flags & FLAG_FATAL ? "(Critical)" : "(Non-critical)");
+		ast_log(LOG_WARNING, "Maximum retries exceeded on call %s for seqno %d (%s %s)\n", pkt->owner->callid, pkt->seqno, (ast_test_flag(pkt, FLAG_FATAL)) ? "Critical" : "Non-critical", (ast_test_flag(pkt, FLAG_RESPONSE)) ? "Response" : "Request");
+		append_history(pkt->owner, "MaxRetries", (ast_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
 		pkt->retransid = -1;
-		if (pkt->flags & FLAG_FATAL) {
+		if (ast_test_flag(pkt, FLAG_FATAL)) {
 			while(pkt->owner->owner && ast_mutex_trylock(&pkt->owner->owner->lock)) {
 				ast_mutex_unlock(&pkt->owner->lock);
 				usleep(1);
@@ -777,7 +777,7 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
 	pkt->flags = resp;
 	pkt->data[len] = '\0';
 	if (fatal)
-		pkt->flags |= FLAG_FATAL;
+		ast_set_flag(pkt, FLAG_FATAL);
 	/* Schedule retransmission */
 	pkt->retransid = ast_sched_add(sched, DEFAULT_RETRANS, retrans_pkt, pkt);
 	pkt->next = p->packets;
@@ -842,8 +842,8 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, const char *msg)
 	if (!msg) msg = "___NEVER___";
 	cur = p->packets;
 	while(cur) {
-		if ((cur->seqno == seqno) && ((cur->flags & FLAG_RESPONSE) == resp) &&
-			((cur->flags & FLAG_RESPONSE) || 
+		if ((cur->seqno == seqno) && ((ast_test_flag(cur, FLAG_RESPONSE)) == resp) &&
+			((ast_test_flag(cur, FLAG_RESPONSE)) || 
 			 (!strncasecmp(msg, cur->data, strlen(msg)) && (cur->data[strlen(msg)] < 33)))) {
 			if (!resp && (seqno == p->pendinginvite)) {
 				ast_log(LOG_DEBUG, "Acked pending invite %d\n", p->pendinginvite);
@@ -872,7 +872,7 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, const char *msg)
 static int __sip_pretend_ack(struct sip_pvt *p)
 {
 	while(p->packets) {
-		__sip_ack(p, p->packets->seqno, (p->packets->flags & FLAG_RESPONSE), p->packets->data);
+		__sip_ack(p, p->packets->seqno, (ast_test_flag(p->packets, FLAG_RESPONSE)), p->packets->data);
 	}
 	return 0;
 }
@@ -884,8 +884,8 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, const char *ms
 	int res = -1;
 	cur = p->packets;
 	while(cur) {
-		if ((cur->seqno == seqno) && ((cur->flags & FLAG_RESPONSE) == resp) &&
-			((cur->flags & FLAG_RESPONSE) || 
+		if ((cur->seqno == seqno) && ((ast_test_flag(cur, FLAG_RESPONSE)) == resp) &&
+			((ast_test_flag(cur, FLAG_RESPONSE)) || 
 			 (!strncasecmp(msg, cur->data, strlen(msg)) && (cur->data[strlen(msg)] < 33)))) {
 			/* this is our baby */
 			if (cur->retransid > -1)
