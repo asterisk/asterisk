@@ -214,6 +214,16 @@ static char *descrip_vm_box_exists =
 "  MailboxExists(mailbox[@context]): Conditionally branches to priority n+101\n"
 "if the specified voice mailbox exists.\n";
 
+static char *synopsis_vmauthenticate =
+"Authenticate off voicemail passwords";
+
+static char *descrip_vmauthenticate =
+"  VMAuthenticate([mailbox][@context]): Behaves identically to the Authenticate\n"
+"application, with the exception that the passwords are taken from\n"
+"voicemail.conf.\n"
+"  If the mailbox is specified, only that mailbox's password will be considered\n"
+"valid. If the mailbox is not specified, the channel variable AUTH_MAILBOX will\n"
+"be set with the authenticated mailbox.\n";
 
 /* Leave a message */
 static char *app = "VoiceMail";
@@ -222,6 +232,7 @@ static char *app = "VoiceMail";
 static char *app2 = "VoiceMailMain";
 
 static char *app3 = "MailboxExists";
+static char *app4 = "VMAuthenticate";
 
 AST_MUTEX_DEFINE_STATIC(vmlock);
 struct ast_vm_user *users;
@@ -3249,6 +3260,98 @@ static int vm_browse_messages_pt(struct ast_channel *chan, struct vm_state *vms,
 	return cmd;
 }
 
+static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_size, struct ast_vm_user *res_vmu, const char *context, const char *prefix, int skipuser, int maxlogins)
+{
+	int useadsi, valid=0, logretries=0;
+	char password[AST_MAX_EXTENSION]="", *passptr;
+	struct ast_vm_user vmus, *vmu = NULL;
+
+	/* If ADSI is supported, setup login screen */
+	adsi_begin(chan, &useadsi);
+	if (!skipuser && useadsi)
+		adsi_login(chan);
+	if (!skipuser && ast_streamfile(chan, "vm-login", chan->language)) {
+		ast_log(LOG_WARNING, "Couldn't stream login file\n");
+		return -1;
+	}
+	
+	/* Authenticate them and get their mailbox/password */
+	
+	while (!valid && (logretries < maxlogins)) {
+		/* Prompt for, and read in the username */
+		if (!skipuser && ast_readstring(chan, mailbox, mailbox_size - 1, 2000, 10000, "#") < 0) {
+			ast_log(LOG_WARNING, "Couldn't read username\n");
+			return -1;
+		}
+		if (ast_strlen_zero(mailbox)) {
+			if (chan->cid.cid_num) {
+				strncpy(mailbox, chan->cid.cid_num, mailbox_size);
+			} else {
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Username not entered\n");	
+				return -1;
+			}
+		}
+		if (useadsi)
+			adsi_password(chan);
+		if (!skipuser)
+			vmu = find_user(&vmus, context, mailbox);
+		if (vmu && (vmu->password[0] == '\0' || (vmu->password[0] == '-' && vmu->password[1] == '\0'))) {
+			/* saved password is blank, so don't bother asking */
+			password[0] = '\0';
+		} else {
+			if (ast_streamfile(chan, "vm-password", chan->language)) {
+				ast_log(LOG_WARNING, "Unable to stream password file\n");
+				return -1;
+			}
+			if (ast_readstring(chan, password, sizeof(password) - 1, 2000, 10000, "#") < 0) {
+				ast_log(LOG_WARNING, "Unable to read password\n");
+				return -1;
+			}
+		}
+		if (prefix) {
+			char fullusername[80] = "";
+			strncpy(fullusername, prefix, sizeof(fullusername) - 1);
+			strncat(fullusername, mailbox, sizeof(fullusername) - 1 - strlen(fullusername));
+			strncpy(mailbox, fullusername, mailbox_size - 1);
+		}
+		if (vmu) {
+			passptr = vmu->password;
+			if (passptr[0] == '-') passptr++;
+		}
+		if (vmu && !strcmp(passptr, password))
+			valid++;
+		else {
+			if (option_verbose > 2)
+				ast_verbose( VERBOSE_PREFIX_3 "Incorrect password '%s' for user '%s' (context = %s)\n", password, mailbox, context ? context : "<any>");
+			if (prefix)
+				strncpy(mailbox, "", mailbox_size -1);
+		}
+		logretries++;
+		if (!valid) {
+			if (skipuser || logretries >= maxlogins) {
+				if (ast_streamfile(chan, "vm-incorrect", chan->language))
+					break;
+			} else {
+				if (useadsi)
+					adsi_login(chan);
+				if (ast_streamfile(chan, "vm-incorrect-mailbox", chan->language))
+					break;
+			}
+			ast_waitstream(chan, "");
+		}
+	}
+	if (!valid && (logretries >= maxlogins)) {
+		ast_stopstream(chan);
+		ast_play_and_wait(chan, "vm-goodbye");
+		return -1;
+	}
+	if (!skipuser) {
+		memcpy(res_vmu, vmu, sizeof(struct ast_vm_user));
+	}
+	return 0;
+}
+
 static int vm_execmain(struct ast_channel *chan, void *data)
 {
 	/* XXX This is, admittedly, some pretty horrendus code.  For some
@@ -3260,20 +3363,16 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	int cmd=0;
 	struct localuser *u;
 	char prefixstr[80] ="";
-	char empty[80] = "";
 	char ext_context[256]="";
 	int box;
 	int useadsi = 0;
 	int skipuser = 0;
 	char tmp[256], *ext;
 	char fmtc[256] = "";
-	char password[80];
 	struct vm_state vms;
-	int logretries = 0;
 	struct ast_vm_user *vmu = NULL, vmus;
 	char *context=NULL;
 	int silentexit = 0;
-	char *passptr;
 
 	LOCAL_USER_ADD(u);
 	memset(&vms, 0, sizeof(vms));
@@ -3316,88 +3415,19 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 
 	}
 
+	res = vm_authenticate(chan, vms.username, sizeof(vms.username), &vmus, context, prefixstr, skipuser, maxlogins);
+
+	if (!res) {
+		valid = 1;
+		if (!skipuser) {
+			vmu = &vmus;
+		}
+	} else {
+		res = 0;
+	}
+
 	/* If ADSI is supported, setup login screen */
 	adsi_begin(chan, &useadsi);
-	if (!skipuser && useadsi)
-		adsi_login(chan);
-	if (!skipuser && ast_streamfile(chan, "vm-login", chan->language)) {
-		ast_log(LOG_WARNING, "Couldn't stream login file\n");
-		goto out;
-	}
-	
-	/* Authenticate them and get their mailbox/password */
-	
-	while (!valid && (logretries < maxlogins)) {
-		/* Prompt for, and read in the username */
-		if (!skipuser && ast_readstring(chan, vms.username, sizeof(vms.username) - 1, 2000, 10000, "#") < 0) {
-			ast_log(LOG_WARNING, "Couldn't read username\n");
-			goto out;
-		}
-		if (ast_strlen_zero(vms.username)) {
-			if (chan->cid.cid_num) {
-				strncpy(vms.username, chan->cid.cid_num, sizeof(vms.username) - 1);
-			} else {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Username not entered\n");	
-				res = 0;
-				goto out;
-			}
-		}
-		if (useadsi)
-			adsi_password(chan);
-		if (!skipuser)
-			vmu = find_user(&vmus, context, vms.username);
-		if (vmu && (vmu->password[0] == '\0' || (vmu->password[0] == '-' && vmu->password[1] == '\0'))) {
-			/* saved password is blank, so don't bother asking */
-			password[0] = '\0';
-		} else {
-			if (ast_streamfile(chan, "vm-password", chan->language)) {
-				ast_log(LOG_WARNING, "Unable to stream password file\n");
-				goto out;
-			}
-			if (ast_readstring(chan, password, sizeof(password) - 1, 2000, 10000, "#") < 0) {
-				ast_log(LOG_WARNING, "Unable to read password\n");
-				goto out;
-			}
-		}
-		if (prefix) {
-			char fullusername[80] = "";
-			strncpy(fullusername, prefixstr, sizeof(fullusername) - 1);
-			strncat(fullusername, vms.username, sizeof(fullusername) - 1);
-			strncpy(vms.username, fullusername, sizeof(vms.username) - 1);
-		}
-		if (vmu) {
-			passptr = vmu->password;
-			if (passptr[0] == '-') passptr++;
-		}
-		if (vmu && !strcmp(passptr, password))
-			valid++;
-		else {
-			if (option_verbose > 2)
-				ast_verbose( VERBOSE_PREFIX_3 "Incorrect password '%s' for user '%s' (context = %s)\n", password, vms.username, context ? context : "<any>");
-			if (prefix)
-				strncpy(vms.username, empty, sizeof(vms.username) -1);
-		}
-		logretries++;
-		if (!valid) {
-			if (skipuser || logretries >= maxlogins) {
-				if (ast_streamfile(chan, "vm-incorrect", chan->language))
-					break;
-			} else {
-				if (useadsi)
-					adsi_login(chan);
-				if (ast_streamfile(chan, "vm-incorrect-mailbox", chan->language))
-					break;
-			}
-			ast_waitstream(chan, "");
-		}
-	}
-	if (!valid && (logretries >= maxlogins)) {
-		ast_stopstream(chan);
-		res = ast_play_and_wait(chan, "vm-goodbye");
-		if (res > 0)
-			res = 0;
-	}
 
 	if (valid) {
 		/* Set language from config to override channel language */
@@ -3859,6 +3889,33 @@ static int vm_box_exists(struct ast_channel *chan, void *data) {
 	}
 	LOCAL_USER_REMOVE(u);
 	return 0;
+}
+
+static int vmauthenticate(struct ast_channel *chan, void *data) {
+	struct localuser *u;
+	char *s = data, *user=NULL, *context=NULL, mailbox[AST_MAX_EXTENSION];
+	struct ast_vm_user vmus;
+
+	if (s) {
+		s = ast_strdupa(s);
+		if (!s) {
+			ast_log(LOG_ERROR, "Out of memory\n");
+			return -1;
+		}
+		user = strsep(&s, "@");
+		context = strsep(&s, "");
+	}
+	LOCAL_USER_ADD(u);
+
+	if (!vm_authenticate(chan, mailbox, sizeof(mailbox), &vmus, context, NULL, 0, 3)) {
+		pbx_builtin_setvar_helper(chan, "AUTH_MAILBOX", mailbox);
+		pbx_builtin_setvar_helper(chan, "AUTH_CONTEXT", vmus.context);
+		LOCAL_USER_REMOVE(u);
+		return 0;
+	} else {
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
 }
 
 static char show_voicemail_users_help[] =
@@ -4371,6 +4428,7 @@ int unload_module(void)
 	res = ast_unregister_application(app);
 	res |= ast_unregister_application(app2);
 	res |= ast_unregister_application(app3);
+	res |= ast_unregister_application(app4);
 	ast_cli_unregister(&show_voicemail_users_cli);
 	ast_cli_unregister(&show_voicemail_zones_cli);
 	return res;
@@ -4382,6 +4440,7 @@ int load_module(void)
 	res = ast_register_application(app, vm_exec, synopsis_vm, descrip_vm);
 	res |= ast_register_application(app2, vm_execmain, synopsis_vmain, descrip_vmain);
 	res |= ast_register_application(app3, vm_box_exists, synopsis_vm_box_exists, descrip_vm_box_exists);
+	res |= ast_register_application(app4, vmauthenticate, synopsis_vmauthenticate, descrip_vmauthenticate);
 	if (res)
 		return(res);
 
