@@ -6553,7 +6553,10 @@ static void *pri_dchannel(void *vpri)
 						pri->pvt[chan]->callingpres = e->ring.callingpres;
 						/* Start PBX */
 						if (pri->overlapdial && ast_matchmore_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid)) {
+							/* Release the PRI lock while we create the channel */
+							ast_mutex_unlock(&pri->lock);
 							c = zt_new(pri->pvt[chan], AST_STATE_RING, 0, SUB_REAL, law, e->ring.ctype);
+							ast_mutex_lock(&pri->lock);
 							if (c && !pthread_create(&threadid, &attr, ss_thread, c)) {
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Accepting overlap call from '%s' to '%s' on channel %d, span %d\n",
@@ -6572,7 +6575,10 @@ static void *pri_dchannel(void *vpri)
 								}
 							}
 						} else  {
+							ast_mutex_unlock(&pri->lock);
+							/* Release PRI lock while we create the channel */
 							c = zt_new(pri->pvt[chan], AST_STATE_RING, 1, SUB_REAL, law, e->ring.ctype);
+							ast_mutex_lock(&pri->lock);
 							if (c) {
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Accepting call from '%s' to '%s' on channel %d, span %d\n",

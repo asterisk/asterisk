@@ -1667,12 +1667,17 @@ struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, i
 	struct ast_channel *chan;
 	struct ast_frame *f;
 	int res = 0;
+	char *variable;
 	chan = ast_request(type, format, data);
 	if (chan) {
 		if (oh) {
 			char *tmp, *var;
 			/* JDG chanvar */
-			tmp = oh->variable;
+			if (oh->variable)
+				variable = ast_strdupa(oh->variable);
+			else
+				variable = NULL;
+			tmp = variable;
 			/* FIXME replace this call with strsep  NOT*/
 			while( (var = strtok_r(NULL, "|", &tmp)) ) {
 				pbx_builtin_setvar( chan, var );
