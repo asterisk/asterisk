@@ -100,7 +100,7 @@ struct ast_channel {
 	/*! Lock, can be used to lock a channel for some operations */
 	ast_mutex_t lock;			
 	/*! Procedure causing blocking */
-	char *blockproc;			
+	const char *blockproc;			
 
 	/*! Current application */
 	char *appl;				
