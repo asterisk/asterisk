@@ -4939,6 +4939,7 @@ static int pbx_builtin_goto(struct ast_channel *chan, void *data)
 	char *exten, *pri, *context;
 	char *stringp=NULL;
 	int ipri;
+	int mode = 0;
 
 	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Goto requires an argument (optional context|optional extension|priority)\n");
@@ -4962,15 +4963,26 @@ static int pbx_builtin_goto(struct ast_channel *chan, void *data)
 			context = NULL;
 		}
 	}
+	if (*pri == '+') {
+		mode = 1;
+		pri++;
+	} else if (*pri == '-') {
+		mode = -1;
+		pri++;
+	}
 	if (sscanf(pri, "%i", &ipri) != 1) {
 		if ((ipri = ast_findlabel_extension(chan, context ? context : chan->context, (exten && strcasecmp(exten, "BYEXTENSION")) ? exten : chan->exten, 
 			pri, chan->cid.cid_num)) < 1) {
 			ast_log(LOG_WARNING, "Priority '%s' must be a number > 0, or valid label\n", pri);
 			return -1;
-		}
+		} else
+			mode = 0;
 	} 
 	/* At this point we have a priority and maybe an extension and a context */
-	chan->priority = ipri - 1;
+	if (mode)
+		chan->priority += mode * ipri - 1;
+	else
+		chan->priority = ipri - 1;
 	if (exten && strcasecmp(exten, "BYEXTENSION"))
 		strncpy(chan->exten, exten, sizeof(chan->exten)-1);
 	if (context)
