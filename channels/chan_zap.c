@@ -271,6 +271,7 @@ struct zt_pri {
 	int dialplan;			/* Dialing plan */
 	int dchannel;			/* What channel the dchannel is on */
 	int channels;			/* Num of chans in span (31 or 24) */
+	int overlapdial;		/* In overlap dialing mode */
 	struct pri *pri;
 	int debug;
 	int fd;
@@ -438,7 +439,6 @@ static struct zt_pvt {
 #ifdef PRI_EVENT_PROCEEDING
 	int proceeding;
 #endif
-	int overlapdial;
 #endif	
 #ifdef ZAPATA_R2
 	int r2prot;
@@ -3424,7 +3424,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 			ast_log(LOG_DEBUG,"Received AST_CONTROL_PROGRESS on %s\n",chan->name);
 #ifdef ZAPATA_PRI
 #ifdef PRI_EVENT_PROCEEDING
-			if (!p->proceeding && p->overlapdial && p->sig==SIG_PRI) {
+			if (!p->proceeding && p->pri->overlapdial && p->sig==SIG_PRI) {
 				if (p->pri && p->pri->pri) {		
 					if (!pri_grab(p, p->pri))
 						pri_acknowledge(p->pri->pri,p->call, p->prioffset, 1);
@@ -4819,13 +4819,13 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 					pris[span].dchannel = dchannel;
 					pris[span].minunused = minunused;
 					pris[span].minidle = minidle;
+					pris[span].overlapdial = overlapdial;
 					strncpy(pris[span].idledial, idledial, sizeof(pris[span].idledial) - 1);
 					strncpy(pris[span].idleext, idleext, sizeof(pris[span].idleext) - 1);
 					
 					tmp->pri = &pris[span];
 					tmp->prioffset = offset;
 					tmp->call = NULL;
-					tmp->overlapdial=overlapdial;
 				} else {
 					ast_log(LOG_ERROR, "Channel %d is reserved for D-channel.\n", offset);
 					free(tmp);
@@ -5594,7 +5594,7 @@ static void *pri_dchannel(void *vpri)
 					else
 						strcpy(pri->pvt[chan]->exten, "");
 					/* queue DTMF frame if the PBX for this call was already started (we're forwarding INFORMATION further on */
-					if (pri->pvt[chan]->overlapdial && pri->pvt[chan]->call==e->ring.call && pri->pvt[chan]->owner) {
+					if (pri->overlapdial && pri->pvt[chan]->call==e->ring.call && pri->pvt[chan]->owner) {
 						/* how to do that */
 						char digit = e->ring.callednum[strlen(e->ring.callednum)-1];
 						struct ast_frame f = { AST_FRAME_DTMF, digit, };
@@ -5629,7 +5629,7 @@ static void *pri_dchannel(void *vpri)
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Accepting call from '%s' to '%s' on channel %d, span %d\n",
 									e->ring.callingnum, pri->pvt[chan]->exten, chan, pri->span);
-							if (!pri->pvt[chan]->overlapdial) {
+							if (!pri->overlapdial) {
 								pri_acknowledge(pri->pri, e->ring.call, chan, 1);
 							}
 							/* If we got here directly and didn't send the SETUP_ACKNOWLEDGE we need to send it otherwise we don't sent anything */
@@ -5691,7 +5691,7 @@ static void *pri_dchannel(void *vpri)
 				if (e->e == PRI_EVENT_PROCEEDING) 
 					chan = e->proceeding.channel;
                                 if ((chan >= 1) && (chan <= pri->channels)) 
-	                                        if (pri->pvt[chan] && pri->pvt[chan]->overlapdial && !pri->pvt[chan]->proceeding) {
+	                                        if (pri->pvt[chan] && pri->overlapdial && !pri->pvt[chan]->proceeding) {
 							struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
 							ast_log(LOG_DEBUG, "queling frame from PRI_EVENT_PROCEEDING on channel %d span %d\n",chan,pri->pvt[chan]->span);
 							ast_queue_frame(pri->pvt[chan]->owner, &f, 0);
@@ -5922,6 +5922,9 @@ static int start_pri(struct zt_pri *pri)
 		ast_log(LOG_ERROR, "Unable to create PRI structure\n");
 		return -1;
 	}
+#ifdef PRI_SET_OVERLAPDIAL
+	pri_set_overlapdial(pri->pri,pri->overlapdial);
+#endif
 	pri_set_debug(pri->pri, DEFAULT_PRI_DEBUG);
 	if (pthread_create(&pri->master, NULL, pri_dchannel, pri)) {
 		close(pri->fd);
