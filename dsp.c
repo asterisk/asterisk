@@ -1023,8 +1023,9 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 			for (y=0;y<7;y++)
 				hz[y] = goertzel_result(&dsp->freqs[y]);
 #if 0
-			printf("Got whole dsp state: 350: %e, 440: %e, 480: %e, 620: %e, 950: %e, 1400: %e, 1800: %e, Energy: %e\n", 
-				hz_350, hz_440, hz_480, hz_620, hz_950, hz_1400, hz_1800, dsp->genergy);
+			printf("\n350:     425:     440:     480:     620:     950:     1400:    1800:    Energy:   \n");
+			printf("%.2e %.2e %.2e %.2e %.2e %.2e %.2e %.2e %.2e\n", 
+				hz[HZ_350], hz[HZ_425], hz[HZ_440], hz[HZ_480], hz[HZ_620], hz[HZ_950], hz[HZ_1400], hz[HZ_1800], dsp->genergy);
 #endif
 			switch(dsp->progmode) {
 			case PROG_MODE_NA:
