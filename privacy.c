@@ -29,6 +29,7 @@
 #include <asterisk/astdb.h>
 #include <asterisk/callerid.h>
 #include <asterisk/privacy.h>
+#include <asterisk/utils.h>
 #include "asterisk.h"
 
 int ast_privacy_check(char *dest, char *cid)
@@ -81,7 +82,7 @@ int ast_privacy_set(char *dest, char *cid, int status)
 		ast_shrink_phone_number(l);
 		trimcid = l;
 	}
-	if (!strlen(trimcid)) {
+	if (ast_strlen_zero(trimcid)) {
 		/* Don't store anything for empty Caller*ID */
 		return 0;
 	}
