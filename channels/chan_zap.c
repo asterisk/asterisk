@@ -447,6 +447,7 @@ static struct zt_pvt {
 	char mate;			/* flag to say its in MATE mode */
 	int pulsedial;		/* whether a pulse dial phone is detected */
 	int dtmfrelax;		/* whether to run in relaxed DTMF mode */
+	int fake_event;
 #ifdef ZAPATA_PRI
 	struct zt_pri *pri;
 	q931_call *call;
@@ -2682,7 +2683,11 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 	p->subs[index].f.data = NULL;
 	if (index < 0)
 		return &p->subs[index].f;
-	res = zt_get_event(p->subs[index].zfd);
+	if (p->fake_event) {
+		res = p->fake_event;
+		p->fake_event = 0;
+	} else
+		res = zt_get_event(p->subs[index].zfd);
 	ast_log(LOG_DEBUG, "Got event %s(%d) on channel %d (index %d)\n", event2str(res), res, p->channel, index);
 	if (res & (ZT_EVENT_PULSEDIGIT | ZT_EVENT_DTMFDIGIT)) {
 		if (res & ZT_EVENT_PULSEDIGIT)
@@ -3197,7 +3202,11 @@ struct ast_frame *zt_exception(struct ast_channel *ast)
 		   other end hangs up our channel so that it no longer exists, but we
 		   have neither FLASH'd nor ONHOOK'd to signify our desire to
 		   change to the other channel. */
-		res = zt_get_event(p->subs[SUB_REAL].zfd);
+		if (p->fake_event) {
+			res = p->fake_event;
+			p->fake_event = 0;
+		} else
+			res = zt_get_event(p->subs[SUB_REAL].zfd);
 		/* Switch to real if there is one and this isn't something really silly... */
 		if ((res != ZT_EVENT_RINGEROFF) && (res != ZT_EVENT_RINGERON) &&
 			(res != ZT_EVENT_HOOKCOMPLETE)) {
@@ -3550,6 +3559,10 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		f = &p->subs[index].f;
 	}
 #endif	
+	/* If we have a fake_event, trigger exception to handle it */
+	if (p->fake_event)
+		ast->exception = 1;
+	
 	ast_mutex_unlock(&p->lock);
 	return f;
 }
@@ -6758,6 +6771,100 @@ static int change_callingpres(struct ast_channel *chan, void *data)
 	return 0;
 }
 
+#define TRANSFER	0
+#define HANGUP		1
+
+static int zap_fake_event(struct zt_pvt *p, int mode)
+{
+	if (p) {
+		switch(mode) {
+			case TRANSFER:
+				p->fake_event = ZT_EVENT_WINKFLASH;
+				break;
+			case HANGUP:
+				p->fake_event = ZT_EVENT_ONHOOK;
+				break;
+			default:
+				ast_log(LOG_WARNING, "I don't know how to handle transfer event with this: %d on channel %s\n",mode, p->owner->name);	
+		}
+	}
+	return 0;
+}
+static struct zt_pvt *find_channel(int channel)
+{
+	struct zt_pvt *p = iflist;
+	while(p) {
+		if (p->channel == channel) {
+			break;
+		}
+		p = p->next;
+	}
+	return p;
+}
+
+static int action_transfer(struct mansession *s, struct message *m)
+{
+	struct zt_pvt *p = NULL;
+	char *channel = astman_get_header(m, "ZapChannel");
+	if (!strlen(channel)) {
+		astman_send_error(s, m, "No channel specified");
+		return 0;
+	}
+	p = find_channel(atoi(channel));
+	if (!p) {
+		astman_send_error(s, m, "No such channel");
+		return 0;
+	}
+	zap_fake_event(p,TRANSFER);
+	astman_send_ack(s, m, "ZapTransfer");
+	return 0;
+}
+
+static int action_transferhangup(struct mansession *s, struct message *m)
+{
+	struct zt_pvt *p = NULL;
+	char *channel = astman_get_header(m, "ZapChannel");
+	if (!strlen(channel)) {
+		astman_send_error(s, m, "No channel specified");
+		return 0;
+	}
+	p = find_channel(atoi(channel));
+	if (!p) {
+		astman_send_error(s, m, "No such channel");
+		return 0;
+	}
+	zap_fake_event(p,HANGUP);
+	astman_send_ack(s, m, "ZapHangup");
+	return 0;
+}
+
+static int action_zapdialoffhook(struct mansession *s, struct message *m)
+{
+	struct zt_pvt *p = NULL;
+	char *channel = astman_get_header(m, "ZapChannel");
+	char *number = astman_get_header(m, "Number");
+	int i;
+	if (!strlen(channel)) {
+		astman_send_error(s, m, "No channel specified");
+		return 0;
+	}
+	if (!strlen(number)) {
+		astman_send_error(s, m, "No number specified");
+		return 0;
+	}
+	p = find_channel(atoi(channel));
+	if (!p) {
+		astman_send_error(s, m, "No such channel");
+		return 0;
+	}
+	for (i=0; i<strlen(number); i++) {
+		struct ast_frame f = { AST_FRAME_DTMF, number[i] };
+		ast_queue_frame(p->owner, &f, 0); 
+	}
+	astman_send_ack(s, m, "ZapDialOffhook");
+	return 0;
+}
+		
 int load_module()
 {
 	struct ast_config *cfg;
@@ -7143,6 +7250,9 @@ int load_module()
 	ast_cli_register(&cli_destroy_channel);
 	ast_register_application(app_callingpres, change_callingpres, synopsis_callingpres, descrip_callingpres);
 	memset(round_robin, 0, sizeof(round_robin));
+	ast_manager_register( "ZapTransfer", 0, action_transfer, "Transfer Zap Channel" );
+	ast_manager_register( "ZapHangup", 0, action_transferhangup, "Hangup Zap Channel" );
+	ast_manager_register( "ZapDialOffhook", 0, action_zapdialoffhook, "Dial over Zap channel while offhook" );
 	/* And start the monitor for the first time */
 	restart_monitor();
 	return 0;
