@@ -52,6 +52,7 @@
 #define SIPDUMPER
 #define DEFAULT_DEFAULT_EXPIRY  120
 #define DEFAULT_MAX_EXPIRY      3600
+#define EXPIRY_GUARD_SECS	15
 
 #define SIP_DTMF_RFC2833	(1 << 0)
 #define SIP_DTMF_INBAND		(1 << 1)
@@ -2540,7 +2541,10 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 		} else
 			p = r->call;
 	} else {
-		build_callid(r->callid, sizeof(r->callid), __ourip);
+		if (!r->callid_valid) {
+			build_callid(r->callid, sizeof(r->callid), __ourip);
+			r->callid_valid = 1;
+		}
 		p=sip_alloc( r->callid, &r->addr, 0);
 		if (!p) {
 			ast_log(LOG_WARNING, "Unable to allocate registration call\n");
@@ -3919,7 +3923,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 						ast_sched_del(sched, r->expire);
 					expires=atoi(get_header(req, "expires"));
 					if (!expires) expires=default_expiry;
-						r->expire=ast_sched_add(sched, (expires-2)*1000, sip_reregister, r); 
+					if (expires > EXPIRY_GUARD_SECS)
+						expires -= EXPIRY_GUARD_SECS;
+					r->expire=ast_sched_add(sched, expires*1000, sip_reregister, r); 
 				} else
 					ast_log(LOG_WARNING, "Got 200 OK on REGISTER that isn't a register\n");
 
