@@ -33,7 +33,6 @@
 #endif
 
 #define BUF_SIZE 80		/* 160 samples */
-#define BUF_SHIFT	5
 
 struct ast_filestream {
 	void *reserved[AST_RESERVED_POINTERS];
@@ -42,7 +41,7 @@ struct ast_filestream {
 	struct ast_frame fr;				/* Frame information */
 	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
 	char empty;							/* Empty character */
-	unsigned char buf[BUF_SIZE + BUF_SHIFT];	/* Output Buffer */
+	unsigned char buf[BUF_SIZE];	/* Output Buffer */
 	int lasttimeout;
 	struct timeval last;
 	short signal;						/* Signal level (file side) */
@@ -58,143 +57,6 @@ static int glistcnt = 0;
 static char *name = "vox";
 static char *desc = "Dialogic VOX (ADPCM) File Format";
 static char *exts = "vox";
-
-/*
- * Step size index shift table 
- */
-
-static short indsft[8] = { -1, -1, -1, -1, 2, 4, 6, 8 };
-
-/*
- * Step size table, where stpsz[i]=floor[16*(11/10)^i]
- */
-
-static short stpsz[49] = {
-  16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45, 50, 55, 60, 66, 73,
-  80, 88, 97, 107, 118, 130, 143, 157, 173, 190, 209, 230, 253, 279,
-  307, 337, 371, 408, 449, 494, 544, 598, 658, 724, 796, 876, 963,
-  1060, 1166, 1282, 1411, 1552
-};
-
-/* 
- * Nibble to bit map
- */
-
-static short nbl2bit[16][4] = {
-  {1, 0, 0, 0}, {1, 0, 0, 1}, {1, 0, 1, 0}, {1, 0, 1, 1},
-  {1, 1, 0, 0}, {1, 1, 0, 1}, {1, 1, 1, 0}, {1, 1, 1, 1},
-  {-1, 0, 0, 0}, {-1, 0, 0, 1}, {-1, 0, 1, 0}, {-1, 0, 1, 1},
-  {-1, 1, 0, 0}, {-1, 1, 0, 1}, {-1, 1, 1, 0}, {-1, 1, 1, 1}
-};
-
-/*
- * Decode(encoded)
- *  Decodes the encoded nibble from the adpcm file.
- *
- * Results:
- *  Returns the encoded difference.
- *
- * Side effects:
- *  Sets the index to the step size table for the next encode.
- */
-
-static inline void 
-decode (unsigned char encoded, short *ssindex, short *signal, unsigned char *rkey, unsigned char *next)
-{
-  short diff, step;
-  step = stpsz[*ssindex];
-
-  diff = step * nbl2bit[encoded][1] +
-		(step >> 1) * nbl2bit[encoded][2] +
-		(step >> 2) * nbl2bit[encoded][3] +
-		(step >> 3);
-  if (nbl2bit[encoded][2] && (step & 0x1))
-	diff++;
-  diff *= nbl2bit[encoded][0];
-
-  if ( *next & 0x1 )
-        *signal -= 8;
-  else if ( *next & 0x2 )
-        *signal += 8;
-
-  *signal += diff;
-
-  if (*signal > 2047)
-	*signal = 2047;
-  else if (*signal < -2047)
-	*signal = -2047;
-
-  *next = 0;
-  if( encoded & 0x7 )
-        *rkey = 0;
-  else if ( ++(*rkey) == 24 ) {
-	*rkey = 0;
-	if (*signal > 0)
-		*next = 0x1;
-	else if (*signal < 0)
-		*next = 0x2;
-  }
-
-  *ssindex = *ssindex + indsft[(encoded & 7)];
-  if (*ssindex < 0)
-    *ssindex = 0;
-  else if (*ssindex > 48)
-    *ssindex = 48;
-}
-
-/*
- * Adpcm
- *  Takes a signed linear signal and encodes it as ADPCM
- *  For more information see http://support.dialogic.com/appnotes/adpcm.pdf
- *
- * Results:
- *  Foo.
- *
- * Side effects:
- *  signal gets updated with each pass.
- */
-
-static inline unsigned char
-adpcm (short csig, short *ssindex, short *signal)
-{
-  short diff, step;
-  unsigned char encoded;
-  unsigned char zero_count, next_flag;
-  step = stpsz[*ssindex];
-  /* 
-   * Clip csig if too large or too small
-   */
-   
-  csig >>= 4;
-
-  diff = csig - *signal;
-  
-  if (diff < 0)
-    {
-      encoded = 8;
-      diff = -diff;
-    }
-  else
-    encoded = 0;
-  if (diff >= step)
-    {
-      encoded |= 4;
-      diff -= step;
-    }
-  step >>= 1;
-  if (diff >= step)
-    {
-      encoded |= 2;
-      diff -= step;
-    }
-  step >>= 1;
-  if (diff >= step)
-    encoded |= 1;
-    
-  decode (encoded, ssindex, signal, &zero_count, &next_flag);
-
-  return (encoded);
-}
 
 static struct ast_filestream *vox_open(int fd)
 {
@@ -263,31 +125,19 @@ static void vox_close(struct ast_filestream *s)
 static struct ast_frame *vox_read(struct ast_filestream *s, int *whennext)
 {
 	int res;
-	int x;
 	/* Send a frame from the file to the appropriate channel */
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_ADPCM;
 	s->fr.offset = AST_FRIENDLY_OFFSET;
 	s->fr.mallocd = 0;
 	s->fr.data = s->buf;
-	if ((res = read(s->fd, s->buf + BUF_SHIFT, BUF_SIZE)) < 1) {
+	if ((res = read(s->fd, s->buf, BUF_SIZE)) < 1) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
 	}
-	/* Store index, then signal */
-	s->buf[0] = s->ssindex & 0xff;
-	s->buf[1] = (s->signal >> 8) & 0xff;
-	s->buf[2] = s->signal & 0xff;
-	s->buf[3] = s->zero_count;
-	s->buf[4] = s->next_flag;
-	/* Do the decoder to be sure we get the right stuff in the signal and index fields. */
-	for (x=BUF_SHIFT;x<res+BUF_SHIFT;x++) {
-		decode (s->buf[x] >> 4, &s->ssindex, &s->signal, &s->zero_count, &s->next_flag);
-		decode (s->buf[x] & 0xf, &s->ssindex, &s->signal, &s->zero_count, &s->next_flag);
-	}
 	s->fr.samples = res * 2;
-	s->fr.datalen = res + BUF_SHIFT;
+	s->fr.datalen = res;
 	*whennext = s->fr.samples;
 	return &s->fr;
 }
@@ -303,11 +153,7 @@ static int vox_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-ADPCM frame (%d)!\n", f->subclass);
 		return -1;
 	}
-	if (f->datalen < BUF_SHIFT) {
-		ast_log(LOG_WARNING, "Invalid frame of data (< %d bytes long) from %s\n", BUF_SHIFT, f->src);
-		return -1;
-	}
-	if ((res = write(fs->fd, f->data + BUF_SHIFT, f->datalen - BUF_SHIFT)) != f->datalen - BUF_SHIFT) {
+	if ((res = write(fs->fd, f->data, f->datalen)) != f->datalen) {
 			ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
 			return -1;
 	}
