@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Microsoft WAV File Format using libaudiofile 
+ * Work with WAV in the proprietary Microsoft format.
  * 
  * Copyright (C) 1999, Mark Spencer
  *
@@ -18,34 +18,35 @@
 #include <asterisk/module.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
+#include <sys/time.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
 #include <pthread.h>
-#include <audiofile.h>
+#include <endian.h>
 
+/* Some Ideas for this code came from makewave.c by Jeffery Chilton */
 
-/* Read 320 samples at a time, max */ 
-#define WAV_MAX_SIZE 320
-
-/* Fudge in milliseconds */
-#define WAV_FUDGE 2
+/* Portions of the conversion code are by guido@sienanet.it */
 
 struct ast_filestream {
-	/* First entry MUST be reserved for the channel type */
 	void *reserved[AST_RESERVED_POINTERS];
+	/* Believe it or not, we must decode/recode to account for the
+	   weird MS format */
 	/* This is what a filestream means to us */
 	int fd; /* Descriptor */
-	/* Audio File */
-	AFfilesetup afs;
-	AFfilehandle af;
-	int lasttimeout;
+	int bytes;
 	struct ast_channel *owner;
-	struct ast_filestream *next;
 	struct ast_frame fr;				/* Frame information */
 	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
-	short samples[WAV_MAX_SIZE];
+	char empty;							/* Empty character */
+	short buf[160];				/* Two Real GSM Frames */
+	int foffset;
+	int lasttimeout;
+	struct timeval last;
+	int adj;
+	struct ast_filestream *next;
 };
 
 
@@ -54,8 +55,234 @@ static pthread_mutex_t wav_lock = PTHREAD_MUTEX_INITIALIZER;
 static int glistcnt = 0;
 
 static char *name = "wav";
-static char *desc = "Microsoft WAV format (PCM/16, 8000Hz mono)";
+static char *desc = "Microsoft WAV format (8000hz Signed Linear)";
 static char *exts = "wav";
+
+#define BLOCKSIZE 160
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+#define htoll(b) (b)
+#define htols(b) (b)
+#define ltohl(b) (b)
+#define ltohs(b) (b)
+#else
+#if __BYTE_ORDER == __BIG_ENDIAN
+#define htoll(b)  \
+          (((((b)      ) & 0xFF) << 24) | \
+	       ((((b) >>  8) & 0xFF) << 16) | \
+		   ((((b) >> 16) & 0xFF) <<  8) | \
+		   ((((b) >> 24) & 0xFF)      ))
+#define htols(b) \
+          (((((b)      ) & 0xFF) << 8) | \
+		   ((((b) >> 8) & 0xFF)      ))
+#define ltohl(b) htoll(b)
+#define ltohs(b) htols(b)
+#else
+#error "Endianess not defined"
+#endif
+#endif
+
+
+static int check_header(int fd)
+{
+	int type, size, formtype;
+	int fmt, hsize;
+	short format, chans, bysam, bisam;
+	int bysec;
+	int freq;
+	int data;
+	if (read(fd, &type, 4) != 4) {
+		ast_log(LOG_WARNING, "Read failed (type)\n");
+		return -1;
+	}
+	if (read(fd, &size, 4) != 4) {
+		ast_log(LOG_WARNING, "Read failed (size)\n");
+		return -1;
+	}
+	size = ltohl(size);
+	if (read(fd, &formtype, 4) != 4) {
+		ast_log(LOG_WARNING, "Read failed (formtype)\n");
+		return -1;
+	}
+	if (memcmp(&type, "RIFF", 4)) {
+		ast_log(LOG_WARNING, "Does not begin with RIFF\n");
+		return -1;
+	}
+	if (memcmp(&formtype, "WAVE", 4)) {
+		ast_log(LOG_WARNING, "Does not contain WAVE\n");
+		return -1;
+	}
+	if (read(fd, &fmt, 4) != 4) {
+		ast_log(LOG_WARNING, "Read failed (fmt)\n");
+		return -1;
+	}
+	if (memcmp(&fmt, "fmt ", 4)) {
+		ast_log(LOG_WARNING, "Does not say fmt\n");
+		return -1;
+	}
+	if (read(fd, &hsize, 4) != 4) {
+		ast_log(LOG_WARNING, "Read failed (formtype)\n");
+		return -1;
+	}
+	if (ltohl(hsize) != 16) {
+		ast_log(LOG_WARNING, "Unexpected header size %d\n", ltohl(hsize));
+		return -1;
+	}
+	if (read(fd, &format, 2) != 2) {
+		ast_log(LOG_WARNING, "Read failed (format)\n");
+		return -1;
+	}
+	if (ltohs(format) != 1) {
+		ast_log(LOG_WARNING, "Not a wav file %d\n", ltohs(format));
+		return -1;
+	}
+	if (read(fd, &chans, 2) != 2) {
+		ast_log(LOG_WARNING, "Read failed (format)\n");
+		return -1;
+	}
+	if (ltohs(chans) != 1) {
+		ast_log(LOG_WARNING, "Not in mono %d\n", ltohs(chans));
+		return -1;
+	}
+	if (read(fd, &freq, 4) != 4) {
+		ast_log(LOG_WARNING, "Read failed (freq)\n");
+		return -1;
+	}
+	if (ltohl(freq) != 8000) {
+		ast_log(LOG_WARNING, "Unexpected freqency %d\n", ltohl(freq));
+		return -1;
+	}
+	/* Ignore the byte frequency */
+	if (read(fd, &bysec, 4) != 4) {
+		ast_log(LOG_WARNING, "Read failed (BYTES_PER_SECOND)\n");
+		return -1;
+	}
+	/* Check bytes per sample */
+	if (read(fd, &bysam, 2) != 2) {
+		ast_log(LOG_WARNING, "Read failed (BYTES_PER_SAMPLE)\n");
+		return -1;
+	}
+	if (ltohs(bysam) != 2) {
+		ast_log(LOG_WARNING, "Can only handle 16bits per sample: %d\n", ltohs(bysam));
+		return -1;
+	}
+	if (read(fd, &bisam, 2) != 2) {
+		ast_log(LOG_WARNING, "Read failed (Bits Per Sample): &d\n", ltohs(bisam));
+		return -1;
+	}
+        /* Begin data chunk */
+	if (read(fd, &data, 4) != 4) {
+		ast_log(LOG_WARNING, "Read failed (data)\n");
+		return -1;
+	}
+	if (memcmp(&data, "data", 4)) {
+		ast_log(LOG_WARNING, "Does not say data\n");
+		return -1;
+	}
+	/* Ignore the data length */
+	if (read(fd, &data, 4) != 4) {
+		ast_log(LOG_WARNING, "Read failed (data)\n");
+		return -1;
+	}
+	return 0;
+}
+
+static int update_header(int fd, int bytes)
+{
+	int cur;
+	int datalen = htoll(bytes);
+	/* int filelen = htoll(52 + ((bytes + 1) & ~0x1)); */
+	int filelen = htoll(36 + bytes);
+	
+	cur = lseek(fd, 0, SEEK_CUR);
+	if (cur < 0) {
+		ast_log(LOG_WARNING, "Unable to find our position\n");
+		return -1;
+	}
+	if (lseek(fd, 4, SEEK_SET) != 4) {
+		ast_log(LOG_WARNING, "Unable to set our position\n");
+		return -1;
+	}
+	if (write(fd, &filelen, 4) != 4) {
+		ast_log(LOG_WARNING, "Unable to set write file size\n");
+		return -1;
+	}
+	if (lseek(fd, 40, SEEK_SET) != 40) {
+		ast_log(LOG_WARNING, "Unable to set our position\n");
+		return -1;
+	}
+	if (write(fd, &datalen, 4) != 4) {
+		ast_log(LOG_WARNING, "Unable to set write datalen\n");
+		return -1;
+	}
+	if (lseek(fd, cur, SEEK_SET) != cur) {
+		ast_log(LOG_WARNING, "Unable to return to position\n");
+		return -1;
+	}
+	return 0;
+}
+
+static int write_header(int fd)
+{
+	unsigned int hz=htoll(8000);
+	unsigned int bhz = htoll(16000);
+	unsigned int hs = htoll(16);
+	unsigned short fmt = htols(1);
+	unsigned short chans = htols(1);
+	unsigned short bysam = htols(2);
+	unsigned short bisam = htols(16);
+	unsigned int size = htoll(0);
+	/* Write a wav header, ignoring sizes which will be filled in later */
+	if (write(fd, "RIFF", 4) != 4) {
+		ast_log(LOG_WARNING, "Unable to write header\n");
+		return -1;
+	}
+	if (write(fd, &size, 4) != 4) {
+		ast_log(LOG_WARNING, "Unable to write header\n");
+		return -1;
+	}
+	if (write(fd, "WAVEfmt ", 8) != 8) {
+		ast_log(LOG_WARNING, "Unable to write header\n");
+		return -1;
+	}
+	if (write(fd, &hs, 4) != 4) {
+		ast_log(LOG_WARNING, "Unable to write header\n");
+		return -1;
+	}
+	if (write(fd, &fmt, 2) != 2) {
+		ast_log(LOG_WARNING, "Unable to write header\n");
+		return -1;
+	}
+	if (write(fd, &chans, 2) != 2) {
+		ast_log(LOG_WARNING, "Unable to write header\n");
+		return -1;
+	}
+	if (write(fd, &hz, 4) != 4) {
+		ast_log(LOG_WARNING, "Unable to write header\n");
+		return -1;
+	}
+	if (write(fd, &bhz, 4) != 4) {
+		ast_log(LOG_WARNING, "Unable to write header\n");
+		return -1;
+	}
+	if (write(fd, &bysam, 2) != 2) {
+		ast_log(LOG_WARNING, "Unable to write header\n");
+		return -1;
+	}
+	if (write(fd, &bisam, 2) != 2) {
+		ast_log(LOG_WARNING, "Unable to write header\n");
+		return -1;
+	}
+	if (write(fd, "data", 4) != 4) {
+		ast_log(LOG_WARNING, "Unable to write header\n");
+		return -1;
+	}
+	if (write(fd, &size, 4) != 4) {
+		ast_log(LOG_WARNING, "Unable to write header\n");
+		return -1;
+	}
+	return 0;
+}
 
 static struct ast_filestream *wav_open(int fd)
 {
@@ -63,59 +290,13 @@ static struct ast_filestream *wav_open(int fd)
 	   if we did, it would go here.  We also might want to check
 	   and be sure it's a valid file.  */
 	struct ast_filestream *tmp;
-	int notok = 0;
-	int fmt, width;
-	double rate;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		tmp->afs = afNewFileSetup();
-		if (!tmp->afs) {
-			ast_log(LOG_WARNING, "Unable to create file setup\n");
+		memset(tmp, 0, sizeof(struct ast_filestream));
+		if (check_header(fd)) {
 			free(tmp);
 			return NULL;
 		}
-		afInitFileFormat(tmp->afs, AF_FILE_WAVE);
-		tmp->af = afOpenFD(fd, "r", tmp->afs);
-		if (!tmp->af) {
-			afFreeFileSetup(tmp->afs);
-			ast_log(LOG_WARNING, "Unable to open file descriptor\n");
-			free(tmp);
-			return NULL;
-		}
-#if 0
-		afGetFileFormat(tmp->af, &version);
-		if (version != AF_FILE_WAVE) {
-			ast_log(LOG_WARNING, "This is not a wave file (%d)\n", version);
-			notok++;
-		}
-#endif
-		/* Read the format and make sure it's exactly what we seek. */
-		if (afGetChannels(tmp->af, AF_DEFAULT_TRACK) != 1) {
-			ast_log(LOG_WARNING, "Invalid number of channels %d.  Should be mono (1)\n", afGetChannels(tmp->af, AF_DEFAULT_TRACK));
-			notok++;
-		}
-		afGetSampleFormat(tmp->af, AF_DEFAULT_TRACK, &fmt, &width);
-		if (fmt != AF_SAMPFMT_TWOSCOMP) {
-			ast_log(LOG_WARNING, "Input file is not signed\n");
-			notok++;
-		}
-		rate = afGetRate(tmp->af, AF_DEFAULT_TRACK);
-		if ((rate < 7900) || (rate > 8100)) {
-			ast_log(LOG_WARNING, "Rate %f is not close enough to 8000 Hz\n", rate);
-			notok++;
-		}
-		if (width != 16) {
-			ast_log(LOG_WARNING, "Input file is not 16-bit\n");
-			notok++;
-		}
-		if (notok) {
-			afCloseFile(tmp->af);
-			afFreeFileSetup(tmp->afs);
-			free(tmp);
-			return NULL;
-		}
-		if (pthread_mutex_lock(&wav_lock)) {
-			afCloseFile(tmp->af);
-			afFreeFileSetup(tmp->afs);
+		if (ast_pthread_mutex_lock(&wav_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock wav list\n");
 			free(tmp);
 			return NULL;
@@ -124,15 +305,16 @@ static struct ast_filestream *wav_open(int fd)
 		glist = tmp;
 		tmp->fd = fd;
 		tmp->owner = NULL;
-		tmp->fr.data = tmp->samples;
+		tmp->fr.data = tmp->buf;
 		tmp->fr.frametype = AST_FRAME_VOICE;
 		tmp->fr.subclass = AST_FORMAT_SLINEAR;
 		/* datalen will vary for each frame */
 		tmp->fr.src = name;
 		tmp->fr.mallocd = 0;
 		tmp->lasttimeout = -1;
+		tmp->bytes = 0;
 		glistcnt++;
-		pthread_mutex_unlock(&wav_lock);
+		ast_pthread_mutex_unlock(&wav_lock);
 		ast_update_use_count();
 	}
 	return tmp;
@@ -145,28 +327,12 @@ static struct ast_filestream *wav_rewrite(int fd, char *comment)
 	   and be sure it's a valid file.  */
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		tmp->afs = afNewFileSetup();
-		if (!tmp->afs) {
-			ast_log(LOG_WARNING, "Unable to create file setup\n");
+		memset(tmp, 0, sizeof(struct ast_filestream));
+		if (write_header(fd)) {
 			free(tmp);
 			return NULL;
 		}
-		/* WAV format */
-		afInitFileFormat(tmp->afs, AF_FILE_WAVE);
-		/* Mono */
-		afInitChannels(tmp->afs, AF_DEFAULT_TRACK, 1);
-		/* Signed linear, 16-bit */
-		afInitSampleFormat(tmp->afs, AF_DEFAULT_TRACK, AF_SAMPFMT_TWOSCOMP, 16);
-		/* 8000 Hz */
-		afInitRate(tmp->afs, AF_DEFAULT_TRACK, (double)8000.0);
-		tmp->af = afOpenFD(fd, "w", tmp->afs);
-		if (!tmp->af) {
-			afFreeFileSetup(tmp->afs);
-			ast_log(LOG_WARNING, "Unable to open file descriptor\n");
-			free(tmp);
-			return NULL;
-		}
-		if (pthread_mutex_lock(&wav_lock)) {
+		if (ast_pthread_mutex_lock(&wav_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock wav list\n");
 			free(tmp);
 			return NULL;
@@ -177,7 +343,7 @@ static struct ast_filestream *wav_rewrite(int fd, char *comment)
 		tmp->owner = NULL;
 		tmp->lasttimeout = -1;
 		glistcnt++;
-		pthread_mutex_unlock(&wav_lock);
+		ast_pthread_mutex_unlock(&wav_lock);
 		ast_update_use_count();
 	} else
 		ast_log(LOG_WARNING, "Out of memory\n");
@@ -192,7 +358,8 @@ static struct ast_frame *wav_read(struct ast_filestream *s)
 static void wav_close(struct ast_filestream *s)
 {
 	struct ast_filestream *tmp, *tmpl = NULL;
-	if (pthread_mutex_lock(&wav_lock)) {
+	char zero = 0;
+	if (ast_pthread_mutex_lock(&wav_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock wav list\n");
 		return;
 	}
@@ -215,54 +382,54 @@ static void wav_close(struct ast_filestream *s)
 			ast_sched_del(s->owner->sched, s->owner->streamid);
 		s->owner->streamid = -1;
 	}
-	pthread_mutex_unlock(&wav_lock);
+	ast_pthread_mutex_unlock(&wav_lock);
 	ast_update_use_count();
 	if (!tmp) 
 		ast_log(LOG_WARNING, "Freeing a filestream we don't seem to own\n");
-	afCloseFile(tmp->af);
-	afFreeFileSetup(tmp->afs);
+	/* Pad to even length */
+	if (s->bytes & 0x1)
+		write(s->fd, &zero, 1);
 	close(s->fd);
 	free(s);
+#if 0
+	printf("bytes = %d\n", s->bytes);
+#endif
 }
 
 static int ast_read_callback(void *data)
 {
-	u_int32_t delay = -1;
 	int retval = 0;
 	int res;
+	int delay;
 	struct ast_filestream *s = data;
 	/* Send a frame from the file to the appropriate channel */
-
-	if ((res = afReadFrames(s->af, AF_DEFAULT_TRACK, s->samples, sizeof(s->samples)/2)) < 1) {
-		if (res)
+	
+	if ( (res = read(s->fd, s->buf, sizeof(s->buf))) <= 0 ) {
+		if (res) {
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
+		}
 		s->owner->streamid = -1;
 		return 0;
 	}
-	/* Per 8 samples, one milisecond */
-	delay = res / 8;
+		
+	delay = res / 16;
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_SLINEAR;
 	s->fr.offset = AST_FRIENDLY_OFFSET;
-	s->fr.datalen = res * 2;
-	s->fr.data = s->samples;
+	s->fr.datalen = res;
+	s->fr.data = s->buf;
 	s->fr.mallocd = 0;
 	s->fr.timelen = delay;
-	/* Unless there is no delay, we're going to exit out as soon as we
-	   have processed the current frame. */
-	/* If there is a delay, lets schedule the next event */
+
+	/* Lastly, process the frame */	
 	if (delay != s->lasttimeout) {
-		/* We'll install the next timeout now. */
-		s->owner->streamid = ast_sched_add(s->owner->sched, 
-											  delay, 
-											  ast_read_callback, s);
-		
+		s->owner->streamid = ast_sched_add(s->owner->sched, delay, ast_read_callback, s);
 		s->lasttimeout = delay;
 	} else {
-		/* Just come back again at the same time */
 		retval = -1;
 	}
-	/* Lastly, process the frame */
+	
+	
 	if (ast_write(s->owner, &s->fr)) {
 		ast_log(LOG_WARNING, "Failed to write frame\n");
 		s->owner->streamid = -1;
@@ -282,20 +449,38 @@ static int wav_apply(struct ast_channel *c, struct ast_filestream *s)
 
 static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 {
-	int res;
+	int res = 0;
+#if 0
+	int size = 0;
+#endif
 	if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
 	}
 	if (f->subclass != AST_FORMAT_SLINEAR) {
-		ast_log(LOG_WARNING, "Asked to write non-signed linear frame (%d)!\n", f->subclass);
+		ast_log(LOG_WARNING, "Asked to write non-GSM frame (%d)!\n", f->subclass);
 		return -1;
 	}
-	if ((res = afWriteFrames(fs->af, AF_DEFAULT_TRACK, f->data, f->datalen/2)) != f->datalen/2) {
-		ast_log(LOG_WARNING, "Unable to write frame: res=%d (%s)\n", res, strerror(errno));
+
+#if 0
+	printf("Data Length: %d\n", f->datalen);
+#endif	
+
+	if (fs->buf) {
+		if ((write (fs->fd, f->data, f->datalen) != f->datalen) ) {
+			ast_log(LOG_WARNING, "Bad write (%d): %s\n", res, strerror(errno));
+			return -1;
+		}
+	} else {
+		ast_log(LOG_WARNING, "Cannot write data to file.\n");
 		return -1;
-	}	
+	}
+	
+	fs->bytes += f->datalen;
+	update_header(fs->fd, fs->bytes);
+		
 	return 0;
+
 }
 
 static char *wav_getcomment(struct ast_filestream *s)
@@ -312,7 +497,7 @@ int load_module()
 								wav_write,
 								wav_read,
 								wav_close,
-								wav_getcomment);								
+								wav_getcomment);
 								
 								
 }
@@ -320,7 +505,7 @@ int load_module()
 int unload_module()
 {
 	struct ast_filestream *tmp, *tmpl;
-	if (pthread_mutex_lock(&wav_lock)) {
+	if (ast_pthread_mutex_lock(&wav_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock wav list\n");
 		return -1;
 	}
@@ -332,19 +517,19 @@ int unload_module()
 		tmp = tmp->next;
 		free(tmpl);
 	}
-	pthread_mutex_unlock(&wav_lock);
+	ast_pthread_mutex_unlock(&wav_lock);
 	return ast_format_unregister(name);
 }	
 
 int usecount()
 {
 	int res;
-	if (pthread_mutex_lock(&wav_lock)) {
+	if (ast_pthread_mutex_lock(&wav_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock wav list\n");
 		return -1;
 	}
 	res = glistcnt;
-	pthread_mutex_unlock(&wav_lock);
+	ast_pthread_mutex_unlock(&wav_lock);
 	return res;
 }
 

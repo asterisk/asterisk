@@ -17,6 +17,7 @@
 #include <asterisk/translate.h>
 #include <asterisk/module.h>
 #include <asterisk/logger.h>
+#include <asterisk/channel.h>
 #include <pthread.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -108,40 +109,30 @@ static struct ast_frame *mp3tolin_sample()
 
 static struct ast_frame *mp3tolin_frameout(struct ast_translator_pvt *tmp)
 {
-	int sent;
 	if (!tmp->tail)
 		return NULL;
-	sent = tmp->tail;
-	if (sent > MAX_OUT_FRAME/2)
-		sent = MAX_OUT_FRAME/2;
 	/* Signed linear is no particular frame size, so just send whatever
 	   we have in the buffer in one lump sum */
 	tmp->f.frametype = AST_FRAME_VOICE;
 	tmp->f.subclass = AST_FORMAT_SLINEAR;
-	tmp->f.datalen = sent * 2;
+	tmp->f.datalen = tmp->tail * 2;
 	/* Assume 8000 Hz */
-	tmp->f.timelen = sent / 8;
+	tmp->f.timelen = tmp->tail / 8;
 	tmp->f.mallocd = 0;
 	tmp->f.offset = AST_FRIENDLY_OFFSET;
 	tmp->f.src = __PRETTY_FUNCTION__;
-	memcpy(tmp->outbuf, tmp->buf, tmp->tail * 2);
-	tmp->f.data = tmp->outbuf;
+	tmp->f.data = tmp->buf;
 	/* Reset tail pointer */
-	tmp->tail -= sent;
-	if (tmp->tail) 
-		memmove(tmp->buf, tmp->buf + sent, tmp->tail * 2);
+	tmp->tail = 0;
 
 #if 0
 	/* Save a sample frame */
-	{ static int samplefr = 0;
-	if (samplefr == 80) {
-		int fd;
-		fd = open("mp3.example", O_WRONLY | O_CREAT, 0644);
+	{
+		static int fd = -1;
+		if (fd < 0) 
+			fd = open("mp3out.raw", O_WRONLY | O_CREAT | O_TRUNC, 0644);
 		write(fd, tmp->f.data, tmp->f.datalen);
-		close(fd);
 	} 		
-	samplefr++;
-	}
 #endif
 	return &tmp->f;	
 }
@@ -295,11 +286,11 @@ static struct ast_translator mp3tolin =
 int unload_module(void)
 {
 	int res;
-	pthread_mutex_lock(&localuser_lock);
+	ast_pthread_mutex_lock(&localuser_lock);
 	res = ast_unregister_translator(&mp3tolin);
 	if (localusecnt)
 		res = -1;
-	pthread_mutex_unlock(&localuser_lock);
+	ast_pthread_mutex_unlock(&localuser_lock);
 	return res;
 }
 

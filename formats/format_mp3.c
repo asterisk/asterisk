@@ -62,7 +62,7 @@ static struct ast_filestream *mp3_open(int fd)
 	   and be sure it's a valid file.  */
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		if (pthread_mutex_lock(&mp3_lock)) {
+		if (ast_pthread_mutex_lock(&mp3_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock mp3 list\n");
 			free(tmp);
 			return NULL;
@@ -76,7 +76,7 @@ static struct ast_filestream *mp3_open(int fd)
 		tmp->last.tv_sec = 0;
 		tmp->adj = 0;
 		glistcnt++;
-		pthread_mutex_unlock(&mp3_lock);
+		ast_pthread_mutex_unlock(&mp3_lock);
 		ast_update_use_count();
 	}
 	return tmp;
@@ -89,7 +89,7 @@ static struct ast_filestream *mp3_rewrite(int fd, char *comment)
 	   and be sure it's a valid file.  */
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		if (pthread_mutex_lock(&mp3_lock)) {
+		if (ast_pthread_mutex_lock(&mp3_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock mp3 list\n");
 			free(tmp);
 			return NULL;
@@ -99,7 +99,7 @@ static struct ast_filestream *mp3_rewrite(int fd, char *comment)
 		tmp->fd = fd;
 		tmp->owner = NULL;
 		glistcnt++;
-		pthread_mutex_unlock(&mp3_lock);
+		ast_pthread_mutex_unlock(&mp3_lock);
 		ast_update_use_count();
 	} else
 		ast_log(LOG_WARNING, "Out of memory\n");
@@ -114,7 +114,7 @@ static struct ast_frame *mp3_read(struct ast_filestream *s)
 static void mp3_close(struct ast_filestream *s)
 {
 	struct ast_filestream *tmp, *tmpl = NULL;
-	if (pthread_mutex_lock(&mp3_lock)) {
+	if (ast_pthread_mutex_lock(&mp3_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock mp3 list\n");
 		return;
 	}
@@ -137,7 +137,7 @@ static void mp3_close(struct ast_filestream *s)
 			ast_sched_del(s->owner->sched, s->owner->streamid);
 		s->owner->streamid = -1;
 	}
-	pthread_mutex_unlock(&mp3_lock);
+	ast_pthread_mutex_unlock(&mp3_lock);
 	ast_update_use_count();
 	if (!tmp) 
 		ast_log(LOG_WARNING, "Freeing a filestream we don't seem to own\n");
@@ -187,8 +187,9 @@ static int ast_read_callback(void *data)
 		gettimeofday(&tv, NULL);
 		ms = ((tv.tv_usec - s->last.tv_usec) / 1000 + (tv.tv_sec - s->last.tv_sec) * 1000);
 		/* If we're within 2 milliseconds, that's close enough */
-		if ((ms - delay) * (ms - delay) > 4)
+		if ((ms - delay) > 0 )
 			s->adj -= (ms - delay);
+		s->adj -= 2;
 	}
 	s->fr.timelen = delay;
 #if 0
@@ -260,7 +261,7 @@ int load_module()
 int unload_module()
 {
 	struct ast_filestream *tmp, *tmpl;
-	if (pthread_mutex_lock(&mp3_lock)) {
+	if (ast_pthread_mutex_lock(&mp3_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock mp3 list\n");
 		return -1;
 	}
@@ -272,19 +273,19 @@ int unload_module()
 		tmp = tmp->next;
 		free(tmpl);
 	}
-	pthread_mutex_unlock(&mp3_lock);
+	ast_pthread_mutex_unlock(&mp3_lock);
 	return ast_format_unregister(name);
 }	
 
 int usecount()
 {
 	int res;
-	if (pthread_mutex_lock(&mp3_lock)) {
+	if (ast_pthread_mutex_lock(&mp3_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock mp3 list\n");
 		return -1;
 	}
 	res = glistcnt;
-	pthread_mutex_unlock(&mp3_lock);
+	ast_pthread_mutex_unlock(&mp3_lock);
 	return res;
 }
 
