@@ -880,7 +880,7 @@ static int zt_digit(struct ast_channel *ast, char digit)
 	p = ast->pvt->pvt;
 	ast_mutex_lock(&p->lock);
 	index = zt_get_index(ast, p, 0);
-	if (index == SUB_REAL) {
+	if ((index == SUB_REAL) && p->owner) {
 #ifdef ZAPATA_PRI
 		if (p->sig == SIG_PRI && ast->_state == AST_STATE_DIALING && (p->proceeding < 2)) {
 			if (p->setup_ack) {
