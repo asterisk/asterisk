@@ -3139,6 +3139,8 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' q 'digits/nl-om' HM", NULL);
  	else if (!strcasecmp(chan->language,"it"))      /* ITALIAN syntax */
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' q 'digits/at' 'digits/hours' k 'digits/e' M 'digits/minutes'", NULL);
+	else if (!strcasecmp(chan->language,"gr"))
+		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' q  H 'digits/kai' M ", NULL);
 	else
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' q 'digits/at' IMp", NULL);
 #if 0
@@ -3358,6 +3360,34 @@ static void close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 	memset(vms->heard, 0, sizeof(vms->heard)); 
 }
 
+/* In Greek even though we CAN use a syntax like "friends messages"
+ * ("filika mynhmata") it is not elegant. This also goes for "work/family messages"
+ * ("ergasiaka/oikogeniaka mynhmata"). Therefore it is better to use a reversed 
+ * syntax for the above three categories which is more elegant. 
+*/
+
+static int vm_play_folder_name_gr(struct ast_channel *chan, char *mbox)
+{
+	int cmd;
+	char buf[sizeof(mbox)+1]; 
+
+	memset(buf, '\0', sizeof(char)*(sizeof(buf)));
+	strcpy(buf, mbox);
+	strcat(buf,"s");
+
+	if (!strcasecmp(mbox, "vm-INBOX") || !strcasecmp(mbox, "vm-Old")){
+		cmd = ast_play_and_wait(chan, buf); /* "NEA / PALIA" */
+		if (cmd)
+		return cmd;
+		return ast_play_and_wait(chan, "vm-messages"); /* "messages" -> "MYNHMATA" */
+	} else {
+		cmd = ast_play_and_wait(chan, "vm-messages"); /* "messages" -> "MYNHMATA" */
+	  	if (cmd)
+			return cmd;
+	  	return ast_play_and_wait(chan, mbox); /* friends/family/work... -> "FILWN"/"OIKOGENIAS"/"DOULEIAS"*/
+	}
+}
+
 static int vm_play_folder_name(struct ast_channel *chan, char *mbox)
 {
 	int cmd;
@@ -3367,6 +3397,8 @@ static int vm_play_folder_name(struct ast_channel *chan, char *mbox)
 		if (cmd)
 			return cmd;
 		return ast_play_and_wait(chan, mbox);
+	} else if (!strcasecmp(chan->language, "gr")){
+		return vm_play_folder_name_gr(chan, mbox);
 	} else {  /* Default English */
 		cmd = ast_play_and_wait(chan, mbox);
 		if (cmd)
@@ -3405,8 +3437,7 @@ static int vm_intro_gr(struct ast_channel *chan, struct vm_state *vms)
 					res = ast_play_and_wait(chan, "vm-messages");
 		 	}
 		}	  
-	 }
-	 else if (vms->oldmessages){
+	} else if (vms->oldmessages){
 		res = ast_play_and_wait(chan, "vm-youhave");
 		if (!res)
 			res = ast_say_number(chan, vms->oldmessages, AST_DIGIT_ANY, chan->language, NULL);
