@@ -411,6 +411,14 @@ static int sip_scheddestroy(struct sip_pvt *p, int ms)
 	return 0;
 }
 
+static int sip_cancel_destroy(struct sip_pvt *p)
+{
+	if (p->autokillid > -1)
+		ast_sched_del(sched, p->autokillid);
+	p->autokillid = -1;
+	return 0;
+}
+
 static int __sip_ack(struct sip_pvt *p, int seqno, int resp)
 {
 	struct sip_pkt *cur, *prev = NULL;
@@ -2491,6 +2499,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 			p->nat = peer->nat;
 			transmit_response(p, "100 Trying", req);
 			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, "REGISTER", uri, 0))) {
+				sip_cancel_destroy(p);
 				if (parse_contact(p, peer, req)) {
 					ast_log(LOG_WARNING, "Failed to parse contact info\n");
 				} else {
@@ -2736,6 +2745,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				ast_rtp_setnat(p->rtp, p->nat);
 			}
 			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, cmd, uri, 1))) {
+				sip_cancel_destroy(p);
 				strncpy(p->context, user->context, sizeof(p->context) - 1);
 				if (strlen(user->callerid) && strlen(p->callerid)) 
 					strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
