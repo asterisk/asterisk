@@ -2103,7 +2103,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		}
 	}
 out:
-	if ((res > -1) && (cmd != '#')) {
+	if (res > -1) {
 		ast_stopstream(chan);
 		adsi_goodbye(chan);
 		if (useadsi)
