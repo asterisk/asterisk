@@ -5174,9 +5174,11 @@ static void *ss_thread(void *data)
 					p->subs[SUB_THREEWAY].owner;
 				struct zt_pvt *pbridge = NULL;
 				  /* set up the private struct of the bridged one, if any */
-				if (nbridge && ast_bridged_channel(nbridge)) pbridge = ast_bridged_channel(nbridge)->pvt->pvt;
-				if (nbridge && 
-				    (!strcmp(nbridge->type,"Zap")) &&
+				if (nbridge && ast_bridged_channel(nbridge)) 
+					pbridge = ast_bridged_channel(nbridge)->pvt->pvt;
+				if (nbridge && pbridge && 
+				    (!strcmp(nbridge->type,"Zap")) && 
+					(!strcmp(ast_bridged_channel(nbridge)->type, "Zap")) &&
 				    ISTRUNK(pbridge)) {
 					int func = ZT_FLASH;
 					/* Clear out the dial buffer */
