@@ -1601,6 +1601,61 @@ static struct iax2_peer *mysql_peer(char *peer)
 	}
 	return p;
 }
+static struct iax2_user *mysql_user(char *user)
+{
+	struct iax2_user *p;
+	struct iax2_context *con;
+	int success = 0;
+	
+	p = malloc(sizeof(struct iax2_user));
+	memset(p, 0, sizeof(struct iax2_user));
+	con = malloc(sizeof(struct iax2_context));
+	memset(con, 0, sizeof(struct iax2_context));
+	strcpy(con->context, "default");
+	p->contexts = con;
+	if (mysql && (strlen(user) < 128)) {
+		char query[512];
+		char *name;
+		int numfields, x;
+		MYSQL_RES *result;
+		MYSQL_FIELD *fields;
+		MYSQL_ROW rowval;
+		name = alloca(strlen(user) * 2 + 1);
+		mysql_real_escape_string(mysql, name, user, strlen(user));
+		snprintf(query, sizeof(query), "SELECT * FROM iaxfriends WHERE name=\"%s\"", name);
+		ast_mutex_lock(&mysqllock);
+		mysql_query(mysql, query);
+		if ((result = mysql_store_result(mysql))) {
+			if ((rowval = mysql_fetch_row(result))) {
+				numfields = mysql_num_fields(result);
+				fields = mysql_fetch_fields(result);
+				success = 1;
+				for (x=0;x<numfields;x++) {
+					if (rowval[x]) {
+						if (!strcasecmp(fields[x].name, "secret")) {
+							strncpy(p->secret, rowval[x], sizeof(p->secret));
+						} else if (!strcasecmp(fields[x].name, "context")) {
+							strncpy(p->contexts->context, rowval[x], sizeof(p->contexts->context) - 1);
+						}
+					}
+				}
+			}
+		}
+		ast_mutex_unlock(&mysqllock);
+	}
+	if (!success) {
+		if (p->contexts)
+			free(p->contexts);
+		free(p);
+		p = NULL;
+	} else {
+		strncpy(p->name, user, sizeof(p->name) - 1);
+		p->delme = 1;
+		p->capability = iax2_capability;
+		p->authmethods = IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT;
+	}
+	return p;
+}
 #endif /* MYSQL_FRIENDS */
 
 static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context, int *trunk, int *notransfer, char *secret, int seclen)
@@ -2799,44 +2854,58 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			&& ast_apply_ha(user->ha, sin) 	/* Access is permitted from this IP */
 			&& (!strlen(iaxs[callno]->context) ||			/* No context specified */
 			     apply_context(user->contexts, iaxs[callno]->context))) {			/* Context is permitted */
-			/* We found our match (use the first) */
-			
-			/* Store the requested username if not specified */
-			if (!strlen(iaxs[callno]->username))
-				strncpy(iaxs[callno]->username, user->name, sizeof(iaxs[callno]->username)-1);
-			/* Store whether this is a trunked call, too, of course, and move if appropriate */
-			iaxs[callno]->trunk = user->trunk;
-			iaxs[callno]->capability = user->capability;
-			/* And use the default context */
-			if (!strlen(iaxs[callno]->context)) {
-				if (user->contexts)
-					strncpy(iaxs[callno]->context, user->contexts->context, sizeof(iaxs[callno]->context)-1);
-				else
-					strncpy(iaxs[callno]->context, context, sizeof(iaxs[callno]->context)-1);
-			}
-			/* Copy the secret */
-			strncpy(iaxs[callno]->secret, user->secret, sizeof(iaxs[callno]->secret)-1);
-			/* And any input keys */
-			strncpy(iaxs[callno]->inkeys, user->inkeys, sizeof(iaxs[callno]->inkeys));
-			/* And the permitted authentication methods */
-			iaxs[callno]->authmethods = user->authmethods;
-			/* If they have callerid, override the given caller id.  Always store the ANI */
-			if (strlen(iaxs[callno]->callerid)) {
-				if (user->hascallerid)
-					strncpy(iaxs[callno]->callerid, user->callerid, sizeof(iaxs[callno]->callerid)-1);
-				strncpy(iaxs[callno]->ani, user->callerid, sizeof(iaxs[callno]->ani)-1);
-			}
-			if (strlen(user->accountcode))
-				strncpy(iaxs[callno]->accountcode, user->accountcode, sizeof(iaxs[callno]->accountcode)-1);
-			if (user->amaflags)
-				iaxs[callno]->amaflags = user->amaflags;
-			iaxs[callno]->notransfer = user->notransfer;
-			res = 0;
 			break;
 		}
 		user = user->next;	
 	}
 	ast_mutex_unlock(&userl.lock);
+#ifdef MYSQL_FRIENDS
+	if (!user && mysql && strlen(iaxs[callno]->username) && (strlen(iaxs[callno]->username) < 128)) {
+		user = mysql_user(iaxs[callno]->username);
+		if (user && strlen(iaxs[callno]->context) &&			/* No context specified */
+			     !apply_context(user->contexts, iaxs[callno]->context)) {			/* Context is permitted */
+			if (user->contexts)
+				free(user->contexts);
+			free(user);
+			user = NULL;
+		}
+	}
+#endif	
+	if (user) {
+		/* We found our match (use the first) */
+		
+		/* Store the requested username if not specified */
+		if (!strlen(iaxs[callno]->username))
+			strncpy(iaxs[callno]->username, user->name, sizeof(iaxs[callno]->username)-1);
+		/* Store whether this is a trunked call, too, of course, and move if appropriate */
+		iaxs[callno]->trunk = user->trunk;
+		iaxs[callno]->capability = user->capability;
+		/* And use the default context */
+		if (!strlen(iaxs[callno]->context)) {
+			if (user->contexts)
+				strncpy(iaxs[callno]->context, user->contexts->context, sizeof(iaxs[callno]->context)-1);
+			else
+				strncpy(iaxs[callno]->context, context, sizeof(iaxs[callno]->context)-1);
+		}
+		/* Copy the secret */
+		strncpy(iaxs[callno]->secret, user->secret, sizeof(iaxs[callno]->secret)-1);
+		/* And any input keys */
+		strncpy(iaxs[callno]->inkeys, user->inkeys, sizeof(iaxs[callno]->inkeys));
+		/* And the permitted authentication methods */
+		iaxs[callno]->authmethods = user->authmethods;
+		/* If they have callerid, override the given caller id.  Always store the ANI */
+		if (strlen(iaxs[callno]->callerid)) {
+			if (user->hascallerid)
+				strncpy(iaxs[callno]->callerid, user->callerid, sizeof(iaxs[callno]->callerid)-1);
+			strncpy(iaxs[callno]->ani, user->callerid, sizeof(iaxs[callno]->ani)-1);
+		}
+		if (strlen(user->accountcode))
+			strncpy(iaxs[callno]->accountcode, user->accountcode, sizeof(iaxs[callno]->accountcode)-1);
+		if (user->amaflags)
+			iaxs[callno]->amaflags = user->amaflags;
+		iaxs[callno]->notransfer = user->notransfer;
+		res = 0;
+	}
 	iaxs[callno]->trunk = iax2_getpeertrunk(*sin);
 	return res;
 }
@@ -3035,6 +3104,8 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 			sprintf(requeststr + (x << 1), "%2.2x", digest[x]);
 		if (strcasecmp(requeststr, md5secret)) {
 			ast_log(LOG_NOTICE, "Host %s failed MD5 authentication for '%s' (%s != %s)\n", inet_ntoa(sin->sin_addr), p->name, requeststr, md5secret);
+			if (p->delme)
+				free(p);
 			return -1;
 		} else
 			iaxs[callno]->state |= IAX_STATE_AUTHENTICATED;
@@ -5396,9 +5467,8 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 			} else {
 				amaflags = format;
 			}
-		} 
 #ifdef MYSQL_FRIENDS
-		else if (!strcasecmp(v->name, "dbuser")) {
+		} else if (!strcasecmp(v->name, "dbuser")) {
 			strncpy(mydbuser, v->value, sizeof(mydbuser) - 1);
 		} else if (!strcasecmp(v->name, "dbpass")) {
 			strncpy(mydbpass, v->value, sizeof(mydbpass) - 1);
@@ -5406,9 +5476,8 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 			strncpy(mydbhost, v->value, sizeof(mydbhost) - 1);
 		} else if (!strcasecmp(v->name, "dbname")) {
 			strncpy(mydbname, v->value, sizeof(mydbname) - 1);
-		}
 #endif
-		//else if (strcasecmp(v->name,"type"))
+		} //else if (strcasecmp(v->name,"type"))
 		//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 		v = v->next;
 	}
