@@ -26,6 +26,7 @@
 #include <asterisk/config.h>
 #include <asterisk/cli.h>
 #include <asterisk/manager.h>
+#include <asterisk/utils.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
