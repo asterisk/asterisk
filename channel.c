@@ -1492,9 +1492,11 @@ struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int
 						state = AST_CONTROL_RINGING;
 					else if ((f->subclass == AST_CONTROL_BUSY) || (f->subclass == AST_CONTROL_CONGESTION)) {
 						state = f->subclass;
+						ast_frfree(f);
 						break;
 					} else if (f->subclass == AST_CONTROL_ANSWER) {
 						state = f->subclass;
+						ast_frfree(f);
 						break;
 					} else {
 						ast_log(LOG_NOTICE, "Don't know what to do with control frame %d\n", f->subclass);
