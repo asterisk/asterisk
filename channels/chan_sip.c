@@ -2229,9 +2229,9 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	} else {
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	}
-	p->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, p->ourip);
+	p->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, __ourip);
 	if (videosupport)
-		p->vrtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, p->ourip);
+		p->vrtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, __ourip);
 	p->branch = rand();	
 	p->tag = rand();
 	
