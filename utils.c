@@ -14,7 +14,7 @@
 #include <asterisk/lock.h>
 #include <asterisk/utils.h>
 
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__)
 
 /* duh? ERANGE value copied from web... */
 #define ERANGE 34
