@@ -948,12 +948,12 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 				else if (p->state == VPB_STATE_PLAYBUSY) {
 					playtone(p->handle, &Busytone);
 					p->wantdtmf = 1;
-					p->ext[0] = 0;	/* Just to be sure & paranoid. */
+					p->ext[0] = 0;	
 				}
 				else if (p->state == VPB_STATE_PLAYRING) {
 					playtone(p->handle, &Ringbacktone);
 					p->wantdtmf = 1;
-					p->ext[0] = 0;	/* Just to be sure & paranoid. */
+					p->ext[0] = 0;
 				}
 				*/
 			} else {
@@ -2127,7 +2127,6 @@ static void *do_chanreads(void *pvt)
 				
 /*
 				res = ast_mutex_trylock(&p->owner->lock);
-/*				res=0; */
 				if (res==0)  {
 					ast_queue_frame(p->owner, fr);
 					ast_mutex_unlock(&p->owner->lock);
@@ -2149,7 +2148,6 @@ static void *do_chanreads(void *pvt)
 						else if (res == EBUSY )
 							if (option_verbose > 4) ast_verbose("%s: chanreads: try owner->lock gave me EBUSY[%d]\n", p->dev,res);
 						if (option_verbose > 4) ast_verbose("%s: chanreads: Couldnt get lock on owner[%s][%d][%d] channel to send frame!\n", p->dev,p->owner->name,(int)p->owner->lock.__m_owner,(int)p->owner->lock.__m_count);
-						/*assert(p->dev!=p->dev); */
 					}
 				}
 */
