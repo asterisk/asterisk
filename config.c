@@ -751,12 +751,47 @@ static void clear_config_maps(void)
 	ast_mutex_unlock(&config_lock);
 }
 
+static int append_mapping(char *name, char *driver, char *database, char *table)
+{
+	struct ast_config_map *map;
+	int length;
+
+	length = sizeof(*map);
+	length += strlen(name) + 1;
+	length += strlen(driver) + 1;
+	length += strlen(database) + 1;
+	if (table)
+		length += strlen(table) + 1;
+	map = malloc(length);
+
+	if (!map)
+		return -1;
+
+	memset(map, 0, length);
+	map->name = map->stuff;
+	strcpy(map->name, name);
+	map->driver = map->name + strlen(map->name) + 1;
+	strcpy(map->driver, driver);
+	map->database = map->driver + strlen(map->driver) + 1;
+	strcpy(map->database, database);
+	if (table) {
+		map->table = map->database + strlen(map->database) + 1;
+		strcpy(map->table, table);
+	}
+	map->next = config_maps;
+
+	if (option_verbose > 1)
+		ast_verbose(VERBOSE_PREFIX_2 "Binding %s to %s/%s/%s\n",
+			    map->name, map->driver, map->database, map->table ? map->table : map->name);
+
+	config_maps = map;
+	return 0;
+}
+
 void read_config_maps(void) 
 {
 	struct ast_config *config;
 	struct ast_variable *v;
-	struct ast_config_map *map;
-	int length;
 	char *driver, *table, *database, *stringp;
 
 	clear_config_maps();
@@ -780,36 +815,16 @@ void read_config_maps(void)
 
 		if (!driver || !database)
 			continue;
-
-		length = sizeof(*map);
-		length += strlen(v->name) + 1;
-		length += strlen(driver) + 1;
-		length += strlen(database) + 1;
-		if (table)
-			length += strlen(table) + 1;
-		map = malloc(length);
-
-		if (!map)
-			continue;
-
-		memset(map, 0, length);
-		map->name = map->stuff;
-		strcpy(map->name, v->name);
-		map->driver = map->name + strlen(map->name) + 1;
-		strcpy(map->driver, driver);
-		map->database = map->driver + strlen(map->driver) + 1;
-		strcpy(map->database, database);
-		if (table) {
-			map->table = map->database + strlen(map->database) + 1;
-			strcpy(map->table, table);
-		}
-		map->next = config_maps;
-
-		if (option_verbose > 1)
-			ast_verbose(VERBOSE_PREFIX_2 "Binding %s to %s/%s/%s\n",
-				    map->name, map->driver, map->database, map->table ? map->table : map->name);
-
-		config_maps = map;
+		if (!strcasecmp(v->name, "sipfriends")) {
+			ast_log(LOG_WARNING, "The 'sipfriends' table is obsolete, update your config to use sipusers and sippeers, though they can point to the same table.\n");
+			append_mapping("sipusers", driver, database, table ? table : "sipfriends");
+			append_mapping("sippeers", driver, database, table ? table : "sipfriends");
+		} else if (!strcasecmp(v->name, "iaxfriends")) {
+			ast_log(LOG_WARNING, "The 'iaxfriends' table is obsolete, update your config to use iaxusers and iaxpeers, though they can point to the same table.\n");
+			append_mapping("iaxusers", driver, database, table ? table : "iaxfriends");
+			append_mapping("iaxpeers", driver, database, table ? table : "iaxfriends");
+		} else 
+			append_mapping(v->name, driver, database, table);
 	}
 		
 	ast_config_destroy(config);

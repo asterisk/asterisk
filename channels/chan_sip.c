@@ -1076,7 +1076,7 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 	snprintf(regseconds, sizeof(regseconds), "%ld", nowtime);
 	ast_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
 	snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
-	ast_update_realtime("sipfriends", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds, "username", username, NULL);
+	ast_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds, "username", username, NULL);
 }
 
 static void register_peer_exten(struct sip_peer *peer, int onoff)
@@ -1133,12 +1133,12 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 	struct ast_variable *tmp;
 
 	if (peername) 
-		var = ast_load_realtime("sipfriends", "name", peername, NULL);
+		var = ast_load_realtime("sippeers", "name", peername, NULL);
 	else if (sin) {
 		char iabuf[80];
 
 		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr);
-		var = ast_load_realtime("sipfriends", "ipaddr", iabuf, NULL);
+		var = ast_load_realtime("sippeers", "ipaddr", iabuf, NULL);
 	} else
 		return NULL;
 
@@ -1218,7 +1218,7 @@ static struct sip_user *realtime_user(const char *username)
 	struct ast_variable *tmp;
 	struct sip_user *user = NULL;
 
-	var = ast_load_realtime("sipfriends", "name", username, NULL);
+	var = ast_load_realtime("sipusers", "name", username, NULL);
 
 	if (!var)
 		return NULL;

@@ -28,8 +28,10 @@
 ; the family if the table is not specified
 ;
 ;example => odbc,asterisk,alttable
-;iaxfriends => odbc,asterisk
-;sipfriends => odbc,asterisk
+;iaxusers => odbc,asterisk
+;iaxpeers => odbc,asterisk
+;sipusers => odbc,asterisk
+;sippeers => odbc,asterisk
 ;voicemail => odbc,asterisk
 ;extensions => odbc,asterisk
 

@@ -2197,7 +2197,7 @@ static struct iax2_peer *realtime_peer(const char *peername)
 	struct iax2_peer *peer=NULL;
 	time_t regseconds, nowtime;
 	int dynamic=0;
-	var = ast_load_realtime("iaxfriends", "name", peername, NULL);
+	var = ast_load_realtime("iaxpeers", "name", peername, NULL);
 	if (var) {
 		/* Make sure it's not a user only... */
 		peer = build_peer(peername, var, ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS) ? 0 : 1);
@@ -2259,7 +2259,7 @@ static struct iax2_user *realtime_user(const char *username)
 	struct ast_variable *var;
 	struct ast_variable *tmp;
 	struct iax2_user *user=NULL;
-	var = ast_load_realtime("iaxfriends", "name", username, NULL);
+	var = ast_load_realtime("iaxusers", "name", username, NULL);
 	if (var) {
 		/* Make sure it's not a user only... */
 		user = build_user(username, var, !ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS));
@@ -2304,7 +2304,7 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin)
 	snprintf(regseconds, sizeof(regseconds), "%ld", nowtime);
 	ast_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
 	snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
-	ast_update_realtime("iaxfriends", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds, NULL);
+	ast_update_realtime("iaxpeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds, NULL);
 }
 
 
