@@ -983,8 +983,11 @@ int setup_incoming_call(call_details_t cd)
 
 			if (strlen(user->accountcode)) {
 				strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)-1);
+				printf("ACCOUNT CODE: %s", p->accountcode);
+			} else {
+				printf("NO ACCOUNT CODE IN USERS");
 			}
-	
+
 			/* Increment the usage counter */
 			user->inUse++;
 		} 
