@@ -199,12 +199,10 @@ static int check_header(int fd)
 		ast_log(LOG_WARNING, "Read failed (data)\n");
 		return -1;
 	}
-#if 0  /* Does this header actually exist?  It doesn't appear to in the files that are created with ast_writefile using this format */
 	if (memcmp(&data, "data", 4)) {
 		ast_log(LOG_WARNING, "Does not say data\n");
 		return -1;
 	}
-#endif
 	/* Ignore the data length */
 	if (read(fd, &data, 4) != 4) {
 		ast_log(LOG_WARNING, "Read failed (data)\n");
@@ -483,7 +481,7 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 static int wav_seek(struct ast_filestream *fs, long sample_offset, int whence)
 {
 	off_t offset=0,distance,cur,min,max;
-	min = 52;
+	min = 60;
 	cur = lseek(fs->fd, 0, SEEK_CUR);
 	max = lseek(fs->fd, 0, SEEK_END);
 	/* I'm getting sloppy here, I'm only going to go to even splits of the 2
