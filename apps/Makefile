@@ -66,7 +66,7 @@ app_todd.o: app_todd.c
 app_todd.so: app_todd.o
 	$(CC) $(SOLINK) -o $@ $< -L/usr/local/ssl/lib -lssl -lcrypto
 
-app_voicemail2.so : app_voicemail2.o
+app_voicemail.so : app_voicemail.o
 ifeq ($(USE_MYSQL_VM_INTERFACE),1)
 	$(CC) $(SOLINK) -o $@ $(MLFLAGS) $< -lmysqlclient -lz
 else
