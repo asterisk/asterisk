@@ -60,8 +60,7 @@ all: asterisk subdirs
 _version: 
 	if [ -d CVS ] && ! [ -f .version ]; then echo "CVS-`date +"%D-%T"`" > .version; fi 
 
-.version:
-	_version
+.version: _version
 
 build.h:
 	./make_build_h
