@@ -2712,11 +2712,13 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 	unsigned short callno0 = PTR_TO_CALLNO(c0->pvt->pvt);
 	unsigned short callno1 = PTR_TO_CALLNO(c1->pvt->pvt);
 	struct timeval waittimer = {0, 0}, tv;
-	
+
 	lock_both(callno0, callno1);
 	/* Put them in native bridge mode */
-	iaxs[callno0]->bridgecallno = callno1;
-	iaxs[callno1]->bridgecallno = callno0;
+	if (!flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1)) {
+		iaxs[callno0]->bridgecallno = callno1;
+		iaxs[callno1]->bridgecallno = callno0;
+	}
 	unlock_both(callno0, callno1);
 
 	/* If not, try to bridge until we can execute a transfer, if we can */
