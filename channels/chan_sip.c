@@ -4620,7 +4620,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 		strncpy(p->owner->call_forward, s, sizeof(p->owner->call_forward) - 1);
 }
 
-static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req)
+static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore)
 {
 	char *to;
 	char *msg, *c;
@@ -4801,9 +4801,12 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* First we ACK */
 				transmit_request(p, "ACK", seqno, 0);
 				/* Then we AUTH */
-				if ((p->authtries > 1) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", "INVITE", 1)) {
-					ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
-					p->needdestroy = 1;
+				/* But only if the packet wasn't marked as ignore in handle_request */
+				if(!ignore){
+					if ((p->authtries > 1) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", "INVITE", 1)) {
+						ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
+						p->needdestroy = 1;
+					}
 				}
 			} else if (!strcasecmp(msg, "BYE") || !strcasecmp(msg, "REFER")) {
 				if (!strlen(p->peername))
@@ -5376,7 +5379,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		if (sscanf(e, "%i %n", &respid, &len) != 1) {
 			ast_log(LOG_WARNING, "Invalid response: '%s'\n", e);
 		} else {
-			handle_response(p, respid, e + len, req);
+			handle_response(p, respid, e + len, req,ignore);
 		}
 	} else {
 		transmit_response_with_allow(p, "405 Method Not Allowed", req);
