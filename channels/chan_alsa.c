@@ -721,6 +721,8 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 		tmp->type = type;
 		tmp->fds[0] = readdev;
 		tmp->nativeformats = AST_FORMAT_SLINEAR;
+		tmp->readformat = AST_FORMAT_SLINEAR;
+		tmp->writeformat = AST_FORMAT_SLINEAR;
 		tmp->pvt->pvt = p;
 		tmp->pvt->send_digit = alsa_digit;
 		tmp->pvt->send_text = alsa_text;

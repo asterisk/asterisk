@@ -338,7 +338,7 @@ static void *changethread(void *data)
 		*loc = '\0';
 		loc++;
 	} else {
-		ast_log(LOG_WARNING, "Can't change device with no technology!\n");
+		ast_log(LOG_WARNING, "Can't change device '%s' with no technology!\n", sc->dev);
 		free(sc);
 		return NULL;
 	}

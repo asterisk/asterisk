@@ -633,6 +633,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	struct ast_channel *c=NULL;
 	struct timeval now;
 	char buf[1024];
+	char cdrtime[256];
 	long elapsed_seconds=0;
 	int hour=0, min=0, sec=0;
 	if (argc != 3)
@@ -646,7 +647,9 @@ static int handle_showchan(int fd, int argc, char *argv[])
 				hour = elapsed_seconds / 3600;
 				min = (elapsed_seconds % 3600) / 60;
 				sec = elapsed_seconds % 60;
-			}
+				snprintf(cdrtime, sizeof(cdrtime), "%dh%dm%ds", hour, min, sec);
+			} else
+				strncpy(cdrtime, "N/A", sizeof(cdrtime) -1);
 			ast_cli(fd, 
 	" -- General --\n"
 	"           Name: %s\n"
@@ -664,7 +667,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	"      Frames in: %d%s\n"
 	"     Frames out: %d%s\n"
 	" Time to Hangup: %ld\n"
-	"   Elapsed Time: %dh%dm%ds\n"
+	"   Elapsed Time: %s\n"
 	" --   PBX   --\n"
 	"        Context: %s\n"
 	"      Extension: %s\n"
@@ -680,7 +683,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	(c->cid.cid_dnid ? c->cid.cid_dnid : "(N/A)" ), ast_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
 	c->fds[0], c->fin & 0x7fffffff, (c->fin & 0x80000000) ? " (DEBUGGED)" : "",
 	c->fout & 0x7fffffff, (c->fout & 0x80000000) ? " (DEBUGGED)" : "", (long)c->whentohangup,
-	hour, min, sec, 
+	cdrtime,
 	c->context, c->exten, c->priority, c->callgroup, c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
 	( c-> data ? (!ast_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
 	(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));

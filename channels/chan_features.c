@@ -60,6 +60,8 @@ struct feature_sub {
 	struct ast_channel *owner;
 	int inthreeway;
 	int pfd;
+	int timingfdbackup;
+	int alertpipebackup[2];
 };
 
 static struct feature_pvt {
@@ -80,6 +82,8 @@ static inline void init_sub(struct feature_sub *sub)
 {
 	sub->inthreeway = 0;
 	sub->pfd = -1;
+	sub->timingfdbackup = -1;
+	sub->alertpipebackup[0] = sub->alertpipebackup[1] = -1;
 }
 
 static inline int indexof(struct feature_pvt *p, struct ast_channel *owner, int nullok)
@@ -115,9 +119,46 @@ static void wakeup_sub(struct feature_pvt *p, int a)
 	}
 }
 
-static void swap_subs(struct feature_pvt *p, int a, int b)
+static void restore_channel(struct feature_pvt *p, int index)
+{
+	/* Restore timing/alertpipe */
+	p->subs[index].owner->timingfd = p->subs[index].timingfdbackup;
+	p->subs[index].owner->pvt->alertpipe[0] = p->subs[index].alertpipebackup[0];
+	p->subs[index].owner->pvt->alertpipe[1] = p->subs[index].alertpipebackup[1];
+	p->subs[index].owner->fds[AST_MAX_FDS-1] = p->subs[index].alertpipebackup[0];
+	p->subs[index].owner->fds[AST_MAX_FDS-2] = p->subs[index].timingfdbackup;
+}
+
+static void update_features(struct feature_pvt *p, int index)
 {
 	int x;
+	if (p->subs[index].owner) {
+		for (x=0;x<AST_MAX_FDS;x++) {
+			if (index) 
+				p->subs[index].owner->fds[x] = -1;
+			else
+				p->subs[index].owner->fds[x] = p->subchan->fds[x];
+		}
+		if (!index) {
+			/* Copy timings from master channel */
+			p->subs[index].owner->timingfd = p->subchan->timingfd;
+			p->subs[index].owner->pvt->alertpipe[0] = p->subchan->pvt->alertpipe[0];
+			p->subs[index].owner->pvt->alertpipe[1] = p->subchan->pvt->alertpipe[1];
+			if (p->subs[index].owner->nativeformats != p->subchan->readformat) {
+				p->subs[index].owner->nativeformats = p->subchan->readformat;
+				if (p->subs[index].owner->readformat)
+					ast_set_read_format(p->subs[index].owner, p->subs[index].owner->readformat);
+				if (p->subs[index].owner->writeformat)
+					ast_set_write_format(p->subs[index].owner, p->subs[index].owner->writeformat);
+			}
+		} else{
+			restore_channel(p, index);
+		}
+	}
+}
+
+static void swap_subs(struct feature_pvt *p, int a, int b)
+{
 	int tinthreeway;
 	struct ast_channel *towner;
 
@@ -131,22 +172,8 @@ static void swap_subs(struct feature_pvt *p, int a, int b)
 
 	p->subs[b].owner = towner;
 	p->subs[b].inthreeway = tinthreeway;
-
-	if (p->subs[a].owner) {
-		for (x=0;x<AST_MAX_FDS;x++) {
-			if (a) 
-				p->subs[a].owner->fds[x] = -1;
-			else
-				p->subs[a].owner->fds[x] = p->subchan->fds[x];
-		}
-	}
-	if (p->subs[b].owner) {
-		for (x=0;x<AST_MAX_FDS;x++)
-			if (b)
-				p->subs[b].owner->fds[x] = -1;
-			else
-				p->subs[b].owner->fds[x] = p->subchan->fds[x];
-	}
+	update_features(p,a);
+	update_features(p,b);
 	wakeup_sub(p, a);
 	wakeup_sub(p, b);
 }
@@ -174,8 +201,10 @@ static struct ast_frame  *features_read(struct ast_channel *ast)
 	f = &null_frame;
 	ast_mutex_lock(&p->lock);
 	x = indexof(p, ast, 0);
-	if (!x && p->subchan)
+	if (!x && p->subchan) {
+		update_features(p, x);
 		f = ast_read(p->subchan);
+	}
 	ast_mutex_unlock(&p->lock);
 	return f;
 }
@@ -241,36 +270,42 @@ static int features_call(struct ast_channel *ast, char *dest, int timeout)
 	struct feature_pvt *p = ast->pvt->pvt;
 	int res = -1;
 	int x;
+	char *dest2;
 		
-	ast_mutex_lock(&p->lock);
-	x = indexof(p, ast, 0);
-	if (!x && p->subchan) {
-		if (p->owner->cid.cid_num)
-			p->subchan->cid.cid_num = strdup(p->owner->cid.cid_num);
-		else 
-			p->subchan->cid.cid_num = NULL;
-	
-		if (p->owner->cid.cid_name)
-			p->subchan->cid.cid_name = strdup(p->owner->cid.cid_name);
-		else 
-			p->subchan->cid.cid_name = NULL;
-	
-		if (p->owner->cid.cid_rdnis)
-			p->subchan->cid.cid_rdnis = strdup(p->owner->cid.cid_rdnis);
-		else
-			p->subchan->cid.cid_rdnis = NULL;
-	
-		if (p->owner->cid.cid_ani)
-			p->subchan->cid.cid_ani = strdup(p->owner->cid.cid_ani);
-		else
-			p->subchan->cid.cid_ani = NULL;
-	
-		strncpy(p->subchan->language, p->owner->language, sizeof(p->subchan->language) - 1);
-		strncpy(p->subchan->accountcode, p->owner->accountcode, sizeof(p->subchan->accountcode) - 1);
-		p->subchan->cdrflags = p->owner->cdrflags;
-	} else
-		ast_log(LOG_NOTICE, "Uhm yah, not quite there with the call waiting...\n");
-	ast_mutex_unlock(&p->lock);
+	dest2 = strchr(dest, '/');
+	if (dest2) {
+		ast_mutex_lock(&p->lock);
+		x = indexof(p, ast, 0);
+		if (!x && p->subchan) {
+			if (p->owner->cid.cid_num)
+				p->subchan->cid.cid_num = strdup(p->owner->cid.cid_num);
+			else 
+				p->subchan->cid.cid_num = NULL;
+		
+			if (p->owner->cid.cid_name)
+				p->subchan->cid.cid_name = strdup(p->owner->cid.cid_name);
+			else 
+				p->subchan->cid.cid_name = NULL;
+		
+			if (p->owner->cid.cid_rdnis)
+				p->subchan->cid.cid_rdnis = strdup(p->owner->cid.cid_rdnis);
+			else
+				p->subchan->cid.cid_rdnis = NULL;
+		
+			if (p->owner->cid.cid_ani)
+				p->subchan->cid.cid_ani = strdup(p->owner->cid.cid_ani);
+			else
+				p->subchan->cid.cid_ani = NULL;
+		
+			strncpy(p->subchan->language, p->owner->language, sizeof(p->subchan->language) - 1);
+			strncpy(p->subchan->accountcode, p->owner->accountcode, sizeof(p->subchan->accountcode) - 1);
+			p->subchan->cdrflags = p->owner->cdrflags;
+			res = ast_call(p->subchan, dest2, timeout);
+			update_features(p, x);
+		} else
+			ast_log(LOG_NOTICE, "Uhm yah, not quite there with the call waiting...\n");
+		ast_mutex_unlock(&p->lock);
+	}
 	return res;
 }
 
@@ -283,6 +318,7 @@ static int features_hangup(struct ast_channel *ast)
 	ast_mutex_lock(&p->lock);
 	x = indexof(p, ast, 0);
 	if (x > -1) {
+		restore_channel(p, x);
 		p->subs[x].owner = NULL;
 		/* XXX Re-arrange, unconference, etc XXX */
 	}
@@ -385,17 +421,19 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 		ast_log(LOG_WARNING, "Called to put index %d already there!\n", index);
 		return NULL;
 	}
-	tmp = ast_channel_alloc(1);
+	tmp = ast_channel_alloc(0);
 	if (!tmp)
 		return NULL;
 	if (tmp) {
 		for (x=1;x<4;x++) {
 			snprintf(tmp->name, sizeof(tmp->name), "Feature/%s/%s-%d", p->tech, p->dest, x);
 			for (y=0;y<3;y++) {
+				if (y == index)
+					continue;
 				if (p->subs[x].owner && !strcasecmp(p->subs[x].owner->name, tmp->name))
 					break;
 			}
-			if (y < 3)
+			if (y >= 3)
 				break;
 		}
 		tmp->type = type;
@@ -404,6 +442,7 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 		tmp->pvt->rawwriteformat = p->subchan->pvt->rawwriteformat;
 		tmp->readformat = p->subchan->readformat;
 		tmp->pvt->rawreadformat = p->subchan->pvt->rawreadformat;
+		tmp->nativeformats = p->subchan->readformat;
 		tmp->pvt->pvt = p;
 		tmp->pvt->send_digit = features_digit;
 		tmp->pvt->call = features_call;
@@ -434,6 +473,8 @@ static struct ast_channel *features_request(const char *type, int format, void *
 	p = features_alloc(data, format);
 	if (p && !p->subs[SUB_REAL].owner)
 		chan = features_new(p, AST_STATE_DOWN, SUB_REAL);
+	if (chan)
+		update_features(p,SUB_REAL);
 	return chan;
 }
 

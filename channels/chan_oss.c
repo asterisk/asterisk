@@ -713,6 +713,8 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *p, int state)
 		tmp->type = type;
 		tmp->fds[0] = sounddev;
 		tmp->nativeformats = AST_FORMAT_SLINEAR;
+		tmp->readformat = AST_FORMAT_SLINEAR;
+		tmp->writeformat = AST_FORMAT_SLINEAR;
 		tmp->pvt->pvt = p;
 		tmp->pvt->send_digit = oss_digit;
 		tmp->pvt->send_text = oss_text;
