@@ -9,6 +9,12 @@
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
+ * 
+ */
+
+/* This module is now being supported by Voicetronix. If you wish to submit
+ * any patches to it please email them to support@voicetronix.com.au
+ *
  */
 
 #include <stdio.h>
