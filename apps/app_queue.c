@@ -632,18 +632,22 @@ static int calc_metric(struct ast_call_queue *q, struct member *mem, int pos, st
 		break;
 	case QUEUE_STRATEGY_ROUNDROBIN:
 		if (!pos) {
-			/* rrpos > number of queue entries */
-			if (!q->wrapped)
-				q->rrpos = 1;
-			else
+			if (!q->wrapped) {
+				/* No more channels, start over */
+				q->rrpos = 0;
+			} else {
+				/* Prioritize next entry */
 				q->rrpos++;
+			}
 			q->wrapped = 0;
 		}
 		if (pos < q->rrpos) {
 			tmp->metric = 1000 + pos;
 		} else {
-			if (pos > q->rrpos)
+			if (pos > q->rrpos) {
+				/* Indicate there is another priority */
 				q->wrapped = 1;
+			}
 			tmp->metric = pos;
 		}
 		tmp->metric += mem->penalty * 1000000;
