@@ -844,8 +844,12 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 		return NULL;
 	}
 	/* set the O_TRUNC flag if and only if there is no O_APPEND specified */
-	if (!(flags & O_APPEND)) 
+	if (flags & O_APPEND){ 
+		/* We really can't use O_APPEND as it will break WAV header updates */
+		flags &= ~O_APPEND;
+	}else{
 		myflags = O_TRUNC;
+	}
 	
 	myflags |= O_WRONLY | O_CREAT;
 
