@@ -264,6 +264,8 @@
 
 ;digits directory  - File Name Sound File Script
 
+%minus.gsm%minus
+
 %0.gsm%zero
 
 %1.gsm%one
