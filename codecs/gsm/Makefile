@@ -489,7 +489,7 @@ clean:	semi-clean
 		-rm $(RMFLAGS) $(LIBGSM) $(ADDTST)/add		\
 			$(TOAST) $(TCAT) $(UNTOAST)	\
 			$(ROOT)/gsm-1.0.tar.Z
-
+		rm -rf lib
 
 # Two tools that helped me generate gsm_encode.c and gsm_decode.c,
 # but aren't generally needed to port this.

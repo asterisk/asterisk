@@ -24,7 +24,7 @@ none:
 	@echo Not building the Asterisk Manager "astman"
 
 clean:
-	rm -f *.o astman .depend
+	rm -f *.o astman smsq .depend
 
 astman: astman.o ../md5.o
 	$(CC) $(CFLAGS) -o astman astman.o ../md5.o -lnewt
