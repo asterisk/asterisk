@@ -221,6 +221,7 @@ static struct sip_pvt {
 	char our_contact[256];				/* Our contact header */
 	char realm[256];				/* Authorization realm */
 	char nonce[256];				/* Authorization nonce */
+	char domain[256];				/* Authorization nonce */
 	int amaflags;						/* AMA Flags */
 	int pendinginvite;					/* Any pending invite */
 	int pendingbye;						/* Need to send bye after we ack? */
@@ -4087,6 +4088,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 	char tmp[256] = "";
 	char *realm = "";
 	char *nonce = "";
+	char *domain = "";
 	char *c;
 
 
@@ -4121,6 +4123,17 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 				if ((c = strchr(c,',')))
 					*c = '\0';
 			}
+		} else if (!strncasecmp(c, "domain=", strlen("domain="))) {
+			c+=strlen("domain=");
+			if ((*c == '\"')) {
+				domain=++c;
+				if ((c = strchr(c,'\"')))
+					*c = '\0';
+			} else {
+				domain = c;
+				if ((c = strchr(c,',')))
+					*c = '\0';
+			}
 		} else
 			c = strchr(c,',');
 		if (c)
@@ -4130,7 +4143,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 	/* copy realm and nonce for later authorization of CANCELs and BYEs */
 	strncpy(p->realm, realm, sizeof(p->realm)-1);
 	strncpy(p->nonce, nonce, sizeof(p->nonce)-1);
-
+	strncpy(p->domain, domain, sizeof(p->domain)-1);
 	build_reply_digest(p, orig_header, digest, digest_len); 
 	return 0;
 }
@@ -4145,7 +4158,9 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 	char resp_hash[256];
 	char uri[256] = "";
 
-	if (strlen(p->uri))
+	if (strlen(p->domain))
+		strncpy(uri, p->domain, sizeof(uri) - 1);
+	else if (strlen(p->uri))
 		strncpy(uri, p->uri, sizeof(uri) - 1);
 	else
 		snprintf(uri, sizeof(uri), "sip:%s@%s",p->username, inet_ntoa(p->sa.sin_addr));
