@@ -1,0 +1,3 @@
+%_tmppath       /tmp/asterisk
+%_topdir        %{_tmppath}/redhat
+%_rpmfilename   %%{ARCH}/%%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm
