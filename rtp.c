@@ -33,9 +33,10 @@
 #include <asterisk/acl.h>
 #include <asterisk/channel_pvt.h>
 
-#define TYPE_SILENCE	 0x2
 #define TYPE_HIGH	 0x0
 #define TYPE_LOW	 0x1
+#define TYPE_SILENCE	 0x2
+#define TYPE_DONTSEND	 0x3
 #define TYPE_MASK	 0x3
 
 static int dtmftimeout = 300;	/* 300 samples */
@@ -88,7 +89,9 @@ int ast_rtp_fd(struct ast_rtp *rtp)
 static int g723_len(unsigned char buf)
 {
 	switch(buf & TYPE_MASK) {
-	case TYPE_MASK:
+	case TYPE_DONTSEND:
+		return 0;
+		break;
 	case TYPE_SILENCE:
 		return 4;
 		break;

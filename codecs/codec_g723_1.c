@@ -15,9 +15,10 @@
  * the GNU General Public License
  */
 
-#define TYPE_SILENCE	 0x2
 #define TYPE_HIGH	 0x0
 #define TYPE_LOW	 0x1
+#define TYPE_SILENCE	 0x2
+#define TYPE_DONTSEND	 0x3
 #define TYPE_MASK	 0x3
 
 #include <asterisk/translate.h>
@@ -189,7 +190,9 @@ static struct ast_frame *g723tolin_frameout(struct ast_translator_pvt *pvt)
 static int g723_len(unsigned char buf)
 {
 	switch(buf & TYPE_MASK) {
-	case TYPE_MASK:
+	case TYPE_DONTSEND:
+		return 0;
+		break;
 	case TYPE_SILENCE:
 		return 4;
 		break;
@@ -293,6 +296,7 @@ static struct ast_frame *lintog723_frameout(struct ast_translator_pvt *pvt)
 #endif
 		/* Assume 8000 Hz */
 		tmp->f.samples += 30;
+		/* FIXME:SLD: Shouldn't the [0] be [cnt]?? */
 		cnt += g723_len(tmp->outbuf[0]);
 		tmp->tail -= Frame;
 		/* Move the data at the end of the buffer to the front */
