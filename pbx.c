@@ -21,6 +21,10 @@
 #include <asterisk/callerid.h>
 #include <asterisk/cdr.h>
 #include <asterisk/term.h>
+#include <asterisk/manager.h>
+#include <asterisk/ast_expr.h>
+#include <asterisk/channel_pvt.h>
+#include <asterisk/linkedlists.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -140,6 +144,10 @@ static int pbx_builtin_setlanguage(struct ast_channel *, void *);
 static int pbx_builtin_ringing(struct ast_channel *, void *);
 static int pbx_builtin_congestion(struct ast_channel *, void *);
 static int pbx_builtin_busy(struct ast_channel *, void *);
+static int pbx_builtin_setvar(struct ast_channel *, void *);
+static int pbx_builtin_gotoif(struct ast_channel *, void *);
+void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value);
+
 
 static struct pbx_builtin {
 	char name[AST_MAX_APP];
@@ -247,6 +255,17 @@ static struct pbx_builtin {
 "Indicate busy condition and stop",
 "  Busy(): Requests that the channel indicate busy condition and then waits\n"
 "for the user to hang up.  Always returns -1." },
+
+	{ "Setvar", pbx_builtin_setvar,
+"Set variable to value",
+"  Setvar(#n=value): Sets variable n to value" },
+
+	{ "GotoIf", pbx_builtin_gotoif,
+"Conditional goto",
+"  GotoIf(Condition?label1:label2): Go to label 1 if condition is\n"
+"true, to label2 if condition is false. Either label1 or label2 may be\n"
+"omitted (in that case, we just don't take the particular branch) but not\n"
+"both.  Look for the condition syntax in examples or documentation." },
 
 };
 
@@ -623,12 +642,224 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, char *cont
 	return NULL;
 }
 
+static void *pbx_substitute_variables(struct ast_channel *c, struct ast_exten *e) {
+	char *cp1,*cp3,*cp4,*cp5;
+	void *cp2;
+	char c1,c2;
+	int m,mve,origlen,quoted,dolsign,docopy;
+	struct ast_var_t *variables;
+	struct varshead *headp;
+	char pri[80];
+        
+        headp=&c->varshead;
+        origlen=strlen(e->data)+1;
+	cp2=malloc(origlen);
+        memset(cp2,0,origlen);
+        
+	if ((strchr(e->data,'$')==NULL) && (strchr(e->data,'[')==NULL)) {
+		strncpy(cp2,e->data,strlen(e->data));
+		return(cp2);
+		/* No variables or expressions in e->data, so why scan it? */
+	}
+	
+	cp4=NULL;
+	cp1=e->data;
+	quoted=0;
+	dolsign=0;
+	docopy=1;
+	
+	/* First stage, variable substitution */
+	
+	do {
+		c1=*cp1;
+		mve=0;
+	        switch (c1) {
+	        	case '\\' :
+	        		dolsign=0;
+	        		if (quoted==1) {
+	        			quoted=0;
+	        			docopy=1;
+	        		} else {
+	        			quoted=1;
+	        			docopy=0;
+	        		}
+	        		break;
+	        	case '$' :
+	        		if (quoted==1) {
+	        			quoted=0;
+	        			docopy=1;
+	        			dolsign=0;
+	        		} else {
+	        			docopy=0;
+	        			dolsign=1;
+	        		}
+	        		break;
+	        	case '{' : 
+	        		if (quoted==1) {
+	        			quoted=0;
+	        			dolsign=0;
+	        			docopy=1;
+	        			break;
+	        		}
+	        		if (dolsign==0) {
+	        			docopy=1;
+	        			break;
+	        		}
+	        		docopy=0;
+	        		dolsign=0;
+	        		m=0;
+	        		cp1++;
+	        		while (((c2=*(cp1+m))!='}') && (c2!='\0')) {
+        				m++;
+        			}
+	        		mve=1;
+	        		cp3=malloc(m+2);
+	        		strncpy(cp3,cp1,m);
+	        		cp3[m]='\0';
+	        		cp1+=m;
+	        		/* Now we have the variable name on cp3 */
+	        		if (!strcmp(cp3, "CALLERID")) {
+						cp4 = c->callerid;
+						break;
+					} else if (!strcmp(cp3, "EXTEN")) {
+						cp4 = c->exten;
+						break;
+					} else if (!strcmp(cp3, "CONTEXT")) {
+						cp4 = c->context;
+						break;
+					} else if (!strcmp(cp3, "PRIORITY")) {
+						snprintf(pri, sizeof(pri), "%d", c->priority);
+						cp4 = pri;
+						break;
+					} else {
+		        		AST_LIST_TRAVERSE(headp,variables,entries) {
+//		        			ast_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",cp3,ast_var_name(variables));
+						if (strncasecmp(ast_var_name(variables),cp3,m)==0) {
+							cp4=ast_var_value(variables);
+							break;
+						}
+					}
+				}
+	        		free(cp3);
+	        		break;
+	        	default :
+	        		if (dolsign==1) {
+	        			strncat((char *)cp2,"$",1);
+	        		} 
+	        		if (quoted==1) {
+	        			quoted=0;
+	        		}
+	        		mve=0;
+		        	dolsign=0;
+		        	docopy=1;
+	        		break;
+	        }
+	        if (cp1!='\0') {
+	        	if (mve==0) {
+	        		if (docopy==1) {
+		        		strncat((char *)cp2,&c1,1);
+		        	}
+	        	} else {
+	        		if (cp4!=NULL) {
+		        		cp2=realloc(cp2,origlen+strlen(cp4)+1);
+		        		strncat((char *)cp2,cp4,strlen(cp4));
+		        	} else {
+		        		ast_log(LOG_WARNING,"mve!=0 and cp4=NULL, something gone astray\n");
+		        	}
+	        	}
+	        }
+	                
+	} while (*cp1++!='\0');
+	
+	/* Second stage, expression evaluation */
+		
+	if ((strstr(cp2,"$[")==NULL)) {
+		/* No expressions in cp2, return it */
+		return(cp2);
+	}
+	/* else, do expression evaluation */
+	
+	dolsign=0;
+	docopy=1;
+	origlen=strlen(cp2)+1;
+	
+	cp5=malloc(origlen);
+	memset(cp5,0,origlen);
+	cp4=NULL;
+	cp1=cp2;
+	quoted=0;
+	
+	do {
+		c1=*cp1;
+		mve=0;
+	        switch (c1) {
+	        	case '$' : 
+	        		dolsign=1;
+	        		docopy=0;
+	        		break;
+	        	case '[' :
+	        		if (dolsign==0) {
+	        			docopy=1;
+	        			dolsign=0;
+	        			break;
+	        		}
+	        		dolsign=0;
+	        		docopy=0;
+	        		m=0;
+	        		mve=1;
+	        		cp1++;
+	        		
+	        		while (((c2=*(cp1+m))!=']') && (c2!='\0')) {
+	        			m++;
+	        		}
+	        		cp3=malloc(m+2);
+	        		strncpy(cp3,cp1,m);
+	        		cp3[m]='\0';
+	        		cp1+=m;
+	        		/* Now we have the expression to evaluate on cp3 */
+	        		cp4=ast_expr(cp3);
+	        		free(cp3);
+	        		break;
+	        	default :
+	        		if (dolsign==1) {
+	        			strncat((char *)cp5,"$",1);
+	        		}
+	        		dolsign=0;
+	        		docopy=1;
+	        		mve=0;
+	        		break;
+	        }
+	        if (cp1!='\0') {
+	        	if (mve==0) {
+	        		if (docopy==1) {
+		        		strncat((char *)cp5,&c1,1);
+		        	}
+	        	} else {
+	        		if (cp4!=NULL) {
+		        		cp5=realloc(cp5,origlen+strlen(cp4)+1);
+		        		strncat((char *)cp5,cp4,strlen(cp4));
+		        		free(cp4);
+		        	} else {
+		        		ast_log(LOG_WARNING,"mve!=0 and cp4=NULL, something gone astray\n");
+		        	}
+	        	}
+	        }
+	                
+	} while (*cp1++!='\0');
+	free(cp2);
+	return(cp5);
+}
+	        		
+	        	
+		                                                
+
 static int pbx_extension_helper(struct ast_channel *c, char *context, char *exten, int priority, char *callerid, int action) 
 {
 	struct ast_exten *e;
 	struct ast_app *app;
 	struct ast_switch *sw;
 	char *data;
+	char *newdata;
 	int newstack = 0;
 	int res;
 	int status = 0;
@@ -663,23 +894,24 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 				strncpy(c->context, context, sizeof(c->context-1));
 				strncpy(c->exten, exten, sizeof(c->exten)-1);
 				c->priority = priority;
+				newdata=pbx_substitute_variables(c,e);
 				if (option_debug)
 						ast_log(LOG_DEBUG, "Launching '%s'\n", app->name);
 				else if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\") %s\n", 
 								term_color(tmp, app->name, COLOR_BRCYAN, 0, sizeof(tmp)),
 								term_color(tmp2, c->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
-								term_color(tmp3, (e->data ? (char *)e->data : NULL), COLOR_BRMAGENTA, 0, sizeof(tmp3)),
+								term_color(tmp3, (newdata ? (char *)newdata : NULL), COLOR_BRMAGENTA, 0, sizeof(tmp3)),
 								(newstack ? "in new stack" : "in same stack"));
-				res = pbx_exec(c, app, e->data, newstack);
+				res = pbx_exec(c, app, newdata, newstack);
+				free(newdata);
 				return res;
 			} else {
 				ast_log(LOG_WARNING, "No application '%s' for extension (%s, %s, %d)\n", e->app, context, exten, priority);
 				return -1;
 			}
 		default:
-			ast_log(LOG_WARNING, "Huh (%d)?\n", action);
-			return -1;
+			ast_log(LOG_WARNING, "Huh (%d)?\n", action);			return -1;
 		}
 	} else if (sw) {
 		switch(action) {
@@ -804,6 +1036,12 @@ int ast_pbx_run(struct ast_channel *c)
 		digit = 0;
 		while(ast_exists_extension(c, c->context, c->exten, c->priority, c->callerid)) {
 			memset(exten, 0, sizeof(exten));
+			manager_event(EVENT_FLAG_CALL, "Newexten", 
+				"Channel: %s\r\n"
+				"Context: %s\r\n"
+				"Extension: %s\r\n"
+				"Priority: %d\r\n",
+				c->name, c->context, c->exten, c->priority);			
 			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->callerid))) {
 				/* Something bad happened, or a hangup has been requested. */
 				switch(res) {
@@ -812,17 +1050,22 @@ int ast_pbx_run(struct ast_channel *c)
 						ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
 					else if (option_verbose > 1)
 						ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
-				break;
+					goto out;
+					break;
 				default:
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
 					else if (option_verbose > 1)
 						ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
+					if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
+						c->_softhangup =0;
+						break;
+					}
+					goto out;
 				}
-				goto out;
 			}
-			if (c->softhangup) {
-				ast_log(LOG_WARNING, "Extension %s, priority %d returned normally even though call was hung up\n",
+			if (c->_softhangup) {
+				ast_log(LOG_DEBUG, "Extension %s, priority %d returned normally even though call was hung up\n",
 					c->exten, c->priority);
 				goto out;
 			}
@@ -830,15 +1073,19 @@ int ast_pbx_run(struct ast_channel *c)
 			if (c->stream) {
 				digit = ast_waitstream(c, AST_DIGIT_ANY);
 				ast_stopstream(c);
-				/* Hang up if something goes wrong */
-				if (digit < 0) {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Lost connection on %s\n", c->name);
-					goto out;
-				}
-				else if (digit) {
-					exten[pos++] = digit;
-					break;
+				if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
+					c->_softhangup = 0;
+				} else {
+					/* Hang up if something goes wrong */
+					if (digit < 0) {
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "Lost connection on %s\n", c->name);
+						goto out;
+					}
+					else if (digit) {
+						exten[pos++] = digit;
+						break;
+					}
 				}
 			}
 			firstpass = 0;
@@ -867,14 +1114,18 @@ int ast_pbx_run(struct ast_channel *c)
 				/* As long as we're willing to wait, and as long as it's not defined, 
 				   keep reading digits until we can't possibly get a right answer anymore.  */
 				digit = ast_waitfordigit(c, waittime * 1000);
-				if (!digit)
-					/* No entry */
-					break;
-				if (digit < 0)
-					/* Error, maybe a  hangup */
-					goto out;
-				exten[pos++] = digit;
-				waittime = c->pbx->dtimeout;
+				if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
+					c->_softhangup = 0;
+				} else {
+					if (!digit)
+						/* No entry */
+						break;
+					if (digit < 0)
+						/* Error, maybe a  hangup */
+						goto out;
+					exten[pos++] = digit;
+					waittime = c->pbx->dtimeout;
+				}
 			}
 			if (ast_exists_extension(c, c->context, exten, 1, c->callerid)) {
 				/* Prepare the next cycle */
@@ -955,6 +1206,7 @@ int ast_pbx_start(struct ast_channel *c)
 		ast_log(LOG_WARNING, "Asked to start thread on NULL channel?\n");
 		return -1;
 	}
+	   
 	/* Start a new thread, and get something handling this channel. */
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -1864,7 +2116,7 @@ int ast_context_add_include(char *context, char *include, char *registrar)
 do { \
 	c = info; \
 	while(*c && (*c != '|')) c++; \
-	if (*c) *c = '\0'; else c = NULL; \
+	if (*c) { *c = '\0'; c++; } else c = NULL; \
 } while(0)
 
 static void get_timerange(struct ast_include *i, char *times)
@@ -1935,7 +2187,7 @@ static unsigned int get_dow(char *dow)
 	char *c;
 	/* The following line is coincidence, really! */
 	int s, e, x;
-	unsigned mask;
+	unsigned int mask;
 	/* Check for all days */
 	if (!strlen(dow) || !strcmp(dow, "*"))
 		return (1 << 7) - 1;
@@ -1944,7 +2196,8 @@ static unsigned int get_dow(char *dow)
 	if (c) {
 		*c = '\0';
 		c++;
-	}
+	} else
+		c = NULL;
 	/* Find the start */
 	s = 0;
 	while((s < 7) && strcasecmp(dow, days[s])) s++;
@@ -1954,7 +2207,7 @@ static unsigned int get_dow(char *dow)
 	}
 	if (c) {
 		e = 0;
-		while((e < 7) && strcasecmp(dow, days[e])) e++;
+		while((e < 7) && strcasecmp(c, days[e])) e++;
 		if (e >= 7) {
 			ast_log(LOG_WARNING, "Invalid day '%s', assuming none\n", c);
 			return 0;
@@ -1979,6 +2232,7 @@ static unsigned int get_day(char *day)
 	/* Check for all days */
 	if (!strlen(day) || !strcmp(day, "*")) {
 		mask = (1 << 30)  + ((1 << 30) - 1);
+		return mask;
 	}
 	/* Get start and ending days */
 	c = strchr(day, '-');
@@ -2085,7 +2339,6 @@ static void build_timing(struct ast_include *i, char *info)
 	i->dowmask = (1 << 7) - 1;
 	/* Avoid using strtok */
 	FIND_NEXT;
-
 	/* Info has the time range, start with that */
 	get_timerange(i, info);
 	info = c;
@@ -2440,6 +2693,86 @@ int ast_add_extension(char *context, int replace, char *extension, int priority,
 	return -1;
 }
 
+int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int priority, int needlock)
+{
+	int res = 0;
+	if (needlock)
+		ast_pthread_mutex_lock(&chan->lock);
+	if (chan->pbx) {
+		/* This channel is currently in the PBX */
+		if (context && strlen(context))
+			strncpy(chan->context, context, sizeof(chan->context) - 1);
+		if (exten && strlen(exten))
+			strncpy(chan->exten, exten, sizeof(chan->context) - 1);
+		if (priority)
+			chan->priority = priority - 1;
+		ast_softhangup_nolock(chan, AST_SOFTHANGUP_ASYNCGOTO);
+		if (needlock)
+			ast_pthread_mutex_unlock(&chan->lock);
+	} else {
+		/* In order to do it when the channel doesn't really exist within
+		   the PBX, we have to make a new channel, masquerade, and start the PBX
+		   at the new location */
+		struct ast_channel *tmpchan;
+		struct ast_frame *f;
+		tmpchan = ast_channel_alloc(0);
+		if (tmpchan) {
+			snprintf(tmpchan->name, sizeof(tmpchan->name), "AsyncGoto/%s", chan->name);
+			/* Make formats okay */
+			tmpchan->readformat = chan->readformat;
+			tmpchan->writeformat = chan->writeformat;
+			/* Setup proper location */
+			if (context && strlen(context))
+				strncpy(tmpchan->context, context, sizeof(tmpchan->context) - 1);
+			else
+				strncpy(tmpchan->context, chan->context, sizeof(tmpchan->context) - 1);
+			if (exten && strlen(exten))
+				strncpy(tmpchan->exten, exten, sizeof(tmpchan->exten) - 1);
+			else
+				strncpy(tmpchan->exten, chan->exten, sizeof(tmpchan->exten) - 1);
+			if (priority)
+				tmpchan->priority = priority;
+			else
+				tmpchan->priority = chan->priority;
+			if (needlock)
+				ast_pthread_mutex_unlock(&chan->lock);
+			
+			/* Masquerade into temp channel */
+			ast_channel_masquerade(tmpchan, chan);
+			
+			/* Make the masquerade happen by reading a frame from the tmp channel */
+			f = ast_read(tmpchan);
+			if (f)
+				ast_frfree(f);
+			/* Start the PBX going on our stolen channel */
+			if (ast_pbx_start(tmpchan)) {
+				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmpchan->name);
+				ast_hangup(tmpchan);
+				res = -1;
+			}
+		} else {
+			res = -1;
+			if (needlock)
+				ast_pthread_mutex_unlock(&chan->lock);
+		}
+	}
+	return res;
+}
+
+int ast_async_goto_by_name(char *channame, char *context, char *exten, int priority)
+{
+	struct ast_channel *chan;
+	chan = ast_channel_walk(NULL);
+	while(chan) {
+		if (!strcasecmp(channame, chan->name))
+			break;
+		chan = ast_channel_walk(chan);
+	}
+	if (chan)
+		return ast_async_goto(chan, context, exten, priority, 1);
+	return -1;
+}
+
 static void ext_strncpy(char *dst, char *src, int len)
 {
 	int count=0;
@@ -2640,6 +2973,112 @@ int ast_add_extension2(struct ast_context *con,
 	return 0;	
 }
 
+struct async_stat {
+	pthread_t p;
+	struct ast_channel *chan;
+	char context[AST_MAX_EXTENSION];
+	char exten[AST_MAX_EXTENSION];
+	int priority;
+	int timeout;
+	char app[AST_MAX_EXTENSION];
+	char data[1024];
+};
+
+static void *async_wait(void *data) 
+{
+	struct async_stat *as = data;
+	struct ast_channel *chan = as->chan;
+	int timeout = as->timeout;
+	int res;
+	struct ast_frame *f;
+	
+	while(timeout && (chan->_state != AST_STATE_UP)) {
+		res = ast_waitfor(chan, timeout);
+		if (res < 1) 
+			break;
+		if (timeout > -1)
+			timeout = res;
+		f = ast_read(chan);
+		if (!f)
+			break;
+		if (f->frametype == AST_FRAME_CONTROL) {
+			if ((f->subclass == AST_CONTROL_BUSY)  ||
+				(f->subclass == AST_CONTROL_CONGESTION) )
+					break;
+		}
+		ast_frfree(f);
+	}
+	if (chan->_state == AST_STATE_UP) {
+		if (strlen(as->context))
+			strncpy(chan->context, as->context, sizeof(chan->context) - 1);
+		if (strlen(as->exten))
+			strncpy(chan->exten, as->exten, sizeof(chan->exten) - 1);
+		if (as->priority > 0)
+			chan->priority = as->priority;
+		/* Run the PBX */
+		if (ast_pbx_run(chan)) {
+			ast_log(LOG_WARNING, "Failed to start PBX on %s\n", chan->name);
+		} else {
+			/* PBX will have taken care of this */
+			chan = NULL;
+		}
+			
+	}
+	free(as);
+	if (chan)
+		ast_hangup(chan);
+	return NULL;
+}
+
+int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char *context, char *exten, int priority, int *reason, int sync)
+{
+	struct ast_channel *chan;
+	struct async_stat *as;
+	int res = -1;
+	if (sync) {
+		chan = ast_request_and_dial(type, format, data, timeout, reason);
+		if (chan) {
+			if (chan->_state == AST_STATE_UP) {
+				res = 0;
+				if (option_verbose > 3)
+					ast_verbose(VERBOSE_PREFIX_4 "Channel %s was answered.\n", chan->name);
+				if (ast_pbx_start(chan)) {
+					ast_log(LOG_WARNING, "Unable to start PBX on %s\n", chan->name);
+					ast_hangup(chan);
+					res = -1;
+				} 
+			} else {
+				if (option_verbose > 3)
+					ast_verbose(VERBOSE_PREFIX_4 "Channel %s was never answered.\n", chan->name);
+				ast_hangup(chan);
+			}
+		}
+	} else {
+		as = malloc(sizeof(struct async_stat));
+		if (!as)
+			return -1;
+		memset(as, 0, sizeof(struct async_stat));
+		chan = ast_request_and_dial(type, format, data, 0, reason);
+		if (!chan) {
+			free(as);
+			return -1;
+		}
+		as->chan = chan;
+		strncpy(as->context, context, sizeof(as->context) - 1);
+		strncpy(as->exten,  exten, sizeof(as->exten) - 1);
+		as->priority = priority;
+		as->timeout = timeout;
+		if (pthread_create(&as->p, NULL, async_wait, as)) {
+			ast_log(LOG_WARNING, "Failed to start async wait\n");
+			free(as);
+			ast_hangup(chan);
+			return -1;
+		}
+		res = 0;
+	}
+	return res;
+}
+
 void ast_context_destroy(struct ast_context *con, char *registrar)
 {
 	struct ast_context *tmp, *tmpl=NULL;
@@ -2788,7 +3227,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 {
 	int res;
 	/* Answer if need be */
-	if (chan->state != AST_STATE_UP)
+	if (chan->_state != AST_STATE_UP)
 		if (ast_answer(chan))
 			return -1;
 	/* Stop anything playing */
@@ -2867,6 +3306,96 @@ static int pbx_builtin_goto(struct ast_channel *chan, void *data)
 	return 0;
 }
 
+void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value) {
+	struct ast_var_t *newvariable;
+        struct varshead *headp;
+        
+        headp=&chan->varshead;
+                
+	AST_LIST_TRAVERSE (headp,newvariable,entries) {
+		if (strncasecmp(ast_var_name(newvariable),name,strlen(name))==0) {
+			/* there is already such a variable, delete it */
+			AST_LIST_REMOVE(headp,newvariable,ast_var_t,entries);
+			ast_var_delete(newvariable);
+			break;
+		}
+	} 
+	
+	newvariable=ast_var_assign(name,value);	
+	AST_LIST_INSERT_HEAD(headp,newvariable,entries);
+	
+        return;
+}
+
+static int pbx_builtin_setvar(struct ast_channel *chan, void *data)
+{
+	char *name;
+	char *value;
+	char *ptrptr;
+                
+	if (!data || !strlen(data)) {
+		ast_log(LOG_WARNING, "Ignoring, since there is no variable to set\n");
+		return 0;
+	}
+	
+	name=strtok_r(data,"=",&ptrptr);
+	value=strtok_r(NULL,"\0",&ptrptr); 
+	
+	pbx_builtin_setvar_helper(chan,name,value);
+			
+        return(0);
+}
+
+static int pbx_checkcondition(char *condition) {
+	char *s;
+	int ret;
+	
+	s=strdup(condition);
+	
+	ret=1;
+	
+	if ((strcasecmp(s,"0")) || (strlen(s)==0)) {
+		ret=0;
+	}
+	
+	free(s);
+	return(ret);
+}
+
+
+static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
+{
+	char *condition,*branch1,*branch2,*branch;
+	char *s;
+	char *ptrptr;
+	int rc;
+
+	if (!data || !strlen(data)) {
+		ast_log(LOG_WARNING, "Ignoring, since there is no variable to set\n");
+		return 0;
+	}
+	
+	s=strdup(data);
+	condition=strtok_r(s,"?",&ptrptr);
+	branch1=strtok_r(NULL,":",&ptrptr);
+	branch2=strtok_r(NULL,"",&ptrptr);
+	
+	if (pbx_checkcondition(condition)) {
+		branch=branch2;
+	} else {
+		branch=branch1;
+	}
+	
+	if ((branch==NULL) || (strlen(branch)==0)) {
+		ast_log(LOG_WARNING, "Not taking any branch\n");
+		return(0);
+	}
+	
+	rc=pbx_builtin_goto(chan,branch);
+	free(s);
+	return(rc);
+}           
+	
 int load_pbx(void)
 {
 	int x;

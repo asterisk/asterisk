@@ -1,0 +1,22 @@
+
+app_festival is an application that allows one to send text-to-speech commands
+to a background festival server, and to obtain the resulting waveform which
+gets sent down to the respective channel. app_festival also employs a waveform 
+cache, so invariant text-to-speech strings ("Please press 1 for instructions") 
+do not need to be dynamically generated all the time. 
+
+You need : 
+
+1) festival, patched to produce 8khz waveforms on output. Patch for Festival
+1.4.1 RELEASE are included. The patch adds a new command to festival 
+(asterisk_tts). 
+
+2) My patches to asterisk that provide variable substitution and quoting to 
+the Asterisk Extension Logic. This is not really a requirement, but without
+this, app_festival is mostly useless (you could very well use prerecorded
+voices for static information). 
+
+3) Before running asterisk, you have to run festival-server with a command 
+like : 
+
+/usr/local/festival/bin/festival --server > /dev/null 2>&1 &
