@@ -375,10 +375,24 @@ static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
 		char tmpin[AST_CONFIG_MAX_PATH];
 		char tmpout[AST_CONFIG_MAX_PATH];
 		char *user, *pass, *rest, *trim;
-	snprintf((char *)tmpin, sizeof(tmpin)-1, "%s/voicemail.conf",(char *)ast_config_AST_CONFIG_DIR);
-	snprintf((char *)tmpout, sizeof(tmpout)-1, "%s/voicemail.conf.new",(char *)ast_config_AST_CONFIG_DIR);
+		snprintf((char *)tmpin, sizeof(tmpin)-1, "%s/voicemail.conf",(char *)ast_config_AST_CONFIG_DIR);
+		snprintf((char *)tmpout, sizeof(tmpout)-1, "%s/voicemail.conf.new",(char *)ast_config_AST_CONFIG_DIR);
         configin = fopen((char *)tmpin,"r");
-        configout = fopen((char *)tmpout,"w+");
+		if (configin)
+	        configout = fopen((char *)tmpout,"w+");
+		else
+			configout = NULL;
+		if(!configin || !configout) {
+			if (configin)
+				fclose(configin);
+			else
+				ast_log(LOG_WARNING, "Warning: Unable to open '%s' for reading: %s\n", tmpin, strerror(errno));
+			if (configout)
+				fclose(configout);
+			else
+				ast_log(LOG_WARNING, "Warning: Unable to open '%s' for writing: %s\n", tmpout, strerror(errno));
+			return;
+		}
 
         while (!feof(configin)) {
 			/* Read in the line */
@@ -1955,7 +1969,7 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 	/* Can't think of how other diffs might be helpful, but I'm sure somebody will think of something. */
 #endif
 	if (the_zone)
-		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, the_zone->msg_format, &(the_zone->timezone));
+		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, the_zone->msg_format, the_zone->timezone);
 	else
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' q 'digits/at' IMp", NULL);
 #if 0

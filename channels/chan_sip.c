@@ -187,6 +187,7 @@ static struct sip_pvt {
 	int alreadygone;					/* Whether or not we've already been destroyed by or peer */
 	int needdestroy;					/* if we need to be destroyed */
 	int capability;						/* Special capability */
+	int jointcapability;				/* Supported capability at both ends */
 	int noncodeccapability;
 	int outgoing;						/* Outgoing or incoming call? */
 	int authtries;						/* Times we've tried to authenticate */
@@ -1224,9 +1225,11 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	if (tmp) {
 		/* Select our native format based on codec preference until we receive
 		   something from another device to the contrary. */
-		if (i->capability)
+		if (i->jointcapability)
+			tmp->nativeformats = sip_codec_choose(i->jointcapability);
+		else if (i->capability)
 			tmp->nativeformats = sip_codec_choose(i->capability);
-		else 
+		else
 			tmp->nativeformats = sip_codec_choose(capability);
 		fmt = ast_best_codec(tmp->nativeformats);
 		if (title)
@@ -1847,24 +1850,24 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	if (p->vrtp)
 		ast_rtp_get_current_formats(p->vrtp,
 				&vpeercapability, &vpeernoncodeccapability);
-	p->capability = capability & (peercapability | vpeercapability);
+	p->jointcapability = p->capability & (peercapability | vpeercapability);
 	p->noncodeccapability = noncodeccapability & (peernoncodeccapability | vpeernoncodeccapability);
 	
 	if (sipdebug) {
 		ast_verbose("Capabilities: us - %d, them - %d/%d, combined - %d\n",
-			    capability, peercapability, vpeercapability, p->capability);
+			    p->capability, peercapability, vpeercapability, p->jointcapability);
 		ast_verbose("Non-codec capabilities: us - %d, them - %d, combined - %d\n",
 			    noncodeccapability, peernoncodeccapability,
 			    p->noncodeccapability);
 	}
-	if (!p->capability) {
+	if (!p->jointcapability) {
 		ast_log(LOG_WARNING, "No compatible codecs!\n");
 		return -1;
 	}
 	if (p->owner) {
-		if (!(p->owner->nativeformats & p->capability)) {
-			ast_log(LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %d and not %d\n", p->capability, p->owner->nativeformats);
-			p->owner->nativeformats = sip_codec_choose(p->capability);
+		if (!(p->owner->nativeformats & p->jointcapability)) {
+			ast_log(LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %d and not %d\n", p->jointcapability, p->owner->nativeformats);
+			p->owner->nativeformats = sip_codec_choose(p->jointcapability);
 			ast_set_read_format(p->owner, p->owner->readformat);
 			ast_set_write_format(p->owner, p->owner->writeformat);
 		}
@@ -4128,8 +4131,9 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 	while(cur) {
 		if (!strcasecmp(cur->callid, argv[3])) {
 			ast_cli(fd, "Call-ID: %s\n", cur->callid);
-			ast_cli(fd, "Codec Capability: %d\n", cur->capability);
+			ast_cli(fd, "Our Codec Capability: %d\n", cur->capability);
 			ast_cli(fd, "Non-Codec Capability: %d\n", cur->noncodeccapability);
+			ast_cli(fd, "Joint Codec Capability: %d\n", cur->jointcapability);
 			ast_cli(fd, "Theoretical Address: %s:%d\n", inet_ntoa(cur->sa.sin_addr), ntohs(cur->sa.sin_port));
 			ast_cli(fd, "Received Address:    %s:%d\n", inet_ntoa(cur->recv.sin_addr), ntohs(cur->recv.sin_port));
 			ast_cli(fd, "NAT Support:         %s\n", cur->nat ? "Yes" : "No");
@@ -4831,7 +4835,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				if (process_sdp(p, req))
 					return -1;
 			} else {
-				p->capability = capability;
+				p->jointcapability = p->capability;
 				ast_log(LOG_DEBUG, "Hm....  No sdp for the moemnt\n");
 			}
 			/* Queue NULL frame to prod ast_rtp_bridge if appropriate */
