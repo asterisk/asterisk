@@ -2537,8 +2537,8 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 		ast_log(LOG_DEBUG, "Scheduled a timeout # %d\n", r->timeout);
 	}
 
-	snprintf(from, sizeof(from), "<sip:%s@%s>;tag=as%08x", r->username, inet_ntoa(r->addr.sin_addr) /* r->hostname */, p->tag);
-	snprintf(to, sizeof(to),     "<sip:%s@%s>;tag=as%08x", r->username, inet_ntoa(r->addr.sin_addr) /* r->hostname */, p->tag);
+	snprintf(from, sizeof(from), "<sip:%s@%s>;tag=as%08x", r->username, r->hostname, p->tag);
+	snprintf(to, sizeof(to),     "<sip:%s@%s>;tag=as%08x", r->username, r->hostname, p->tag);
 	
 	snprintf(addr, sizeof(addr), "sip:%s", inet_ntoa(r->addr.sin_addr));
 
