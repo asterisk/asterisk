@@ -3783,8 +3783,6 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 			res = 0;
 		}
 		/* Assume success ;-) */
-		/* Eliminate random data */
-		strcpy(randdata, "");
 	}
 	return res;
 }
