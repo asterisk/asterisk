@@ -414,7 +414,7 @@ static int transmit_message_with_text(struct sip_pvt *p, char *text);
 static int transmit_refer(struct sip_pvt *p, char *dest);
 static struct sip_peer *temp_peer(char *name);
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, char *msg, int init);
-static char *getsipuri(char *header);
+// static char *getsipuri(char *header);
 static void free_old_route(struct sip_route *route);
 static int build_reply_digest(struct sip_pvt *p, char *orig_header, char *digest, int digest_len);
 static int find_user(struct sip_pvt *fup, int event);
@@ -6649,6 +6649,8 @@ char *description()
 	return desc;
 }
 
+#if 0
+// XXX What is this?
 static char *getsipuri(char *header)
 {
 	char *c, *d, *retval;
@@ -6670,5 +6672,5 @@ static char *getsipuri(char *header)
 
 	return retval;
 }
-
+#endif 
 
