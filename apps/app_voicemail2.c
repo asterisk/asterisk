@@ -164,7 +164,7 @@ static void apply_options(struct ast_vm_user *vmu, char *options)
 	char *s;
 	char *var, *value;
 	while((s = strsep(&stringp, "|"))) {
-		value = stringp;
+		value = s;
 		if ((var = strsep(&value, "=")) && value) {
 			if (!strcasecmp(var, "attach")) {
 				if (ast_true(value))
@@ -1937,13 +1937,6 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 		}
 	}
 
-	/* If no zone, use a default */
-	if (!the_zone) {
-		the_zone = alloca(sizeof(struct vm_zone));
-		memset(the_zone,0,sizeof(struct vm_zone));
-		strncpy(the_zone->msg_format, "'vm-received' q 'digits/at' IMp", sizeof(the_zone->msg_format) - 1);
-	}
-
 /* No internal variable parsing for now, so we'll comment it out for the time being */
 #if 0
 	/* Set the DIFF_* variables */
@@ -1961,7 +1954,10 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 
 	/* Can't think of how other diffs might be helpful, but I'm sure somebody will think of something. */
 #endif
-	res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, the_zone->msg_format, the_zone->timezone);
+	if (! the_zone)
+		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, the_zone->msg_format, the_zone->timezone);
+	else
+		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' q 'digits/at' IMp", NULL);
 #if 0
 	pbx_builtin_setvar_helper(chan, "DIFF_DAY", NULL);
 #endif
