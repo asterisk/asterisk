@@ -2711,8 +2711,8 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 		tmp->type = type;
 		/* We can support any format by default, until we get restricted */
 		tmp->nativeformats = capability;
-		tmp->readformat = 0;
-		tmp->writeformat = 0;
+		tmp->readformat = ast_best_codec(capability);
+		tmp->writeformat = ast_best_codec(capability);
 		tmp->pvt->pvt = CALLNO_TO_PTR(i->callno);
 		tmp->pvt->send_digit = iax2_digit;
 		tmp->pvt->send_text = iax2_sendtext;
@@ -6270,7 +6270,7 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 	ast_mutex_unlock(&iaxsl[callno]);
 	if (c) {
 		/* Choose a format we can live with */
-		if (c->nativeformats & format)
+		if (c->nativeformats & format) 
 			c->nativeformats &= format;
 		else {
 			native = c->nativeformats;
@@ -6283,6 +6283,8 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 			}
 			c->nativeformats = native;
 		}
+		c->readformat = ast_best_codec(c->nativeformats);
+		c->writeformat = c->readformat;
 	}
 	return c;
 }
