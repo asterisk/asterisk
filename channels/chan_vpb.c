@@ -63,6 +63,7 @@ extern "C" {
 #define VPB_WAIT_TIMEOUT 4000
 
 #define MAX_VPB_GAIN 12.0
+#define MIN_VPB_GAIN -12.0
 
 #define DTMF_CALLERID  
 #define DTMF_CID_START 'D'
@@ -194,6 +195,10 @@ VPB_TONE_MAP DialToneMap[] = { 	{ VPB_BUSY_AUST, VPB_CALL_DISCONNECT, 0 },
 #define VPB_STATE_PLAYBUSY	6
 #define VPB_STATE_PLAYRING	7
 
+#define VPB_GOT_RXHWG		1
+#define VPB_GOT_TXHWG		2
+#define VPB_GOT_RXSWG		4
+#define VPB_GOT_TXSWG		8
 
 typedef struct  {
 	int inuse;
@@ -1331,7 +1336,7 @@ static void mkbrd(vpb_model_t model, int echo_cancel)
 	}
 }
 
-static struct vpb_pvt *mkif(int board, int channel, int mode, float txgain, float rxgain,
+static struct vpb_pvt *mkif(int board, int channel, int mode, int gains, float txgain, float rxgain,
 			 float txswgain, float rxswgain, int bal1, int bal2, int bal3,
 			 char * callerid, int echo_cancel, int group )
 {
@@ -1393,17 +1398,46 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, float txgain, floa
 	if(bal1>=0) vpb_set_codec_reg(tmp->handle, 0x32, bal1);
 	if(bal2>=0) vpb_set_codec_reg(tmp->handle, 0x3a, bal2);
 
-	tmp->txgain = txgain;
-	vpb_play_set_hw_gain(tmp->handle, (txgain > MAX_VPB_GAIN) ? MAX_VPB_GAIN : txgain);
+	if (gains & VPB_GOT_TXHWG){
+		if (txgain > MAX_VPB_GAIN){
+			tmp->txgain = MAX_VPB_GAIN;
+		}
+		else if (txgain < MIN_VPB_GAIN){
+			tmp->txgain = MIN_VPB_GAIN;
+		}
+		else {
+			tmp->txgain = txgain;
+		}
+		
+		ast_log(LOG_NOTICE,"VPB setting Tx Hw gain to [%f]\n",tmp->txgain);
+		vpb_play_set_hw_gain(tmp->handle, tmp->txgain);
+	}
 
-	tmp->rxgain = rxgain;
-	vpb_record_set_hw_gain(tmp->handle, (rxgain > MAX_VPB_GAIN) ? MAX_VPB_GAIN : rxgain);
+	if (gains & VPB_GOT_RXHWG){
+		if (rxgain > MAX_VPB_GAIN){
+			tmp->rxgain = MAX_VPB_GAIN;
+		}
+		else if (rxgain < MIN_VPB_GAIN){
+			tmp->rxgain = MIN_VPB_GAIN;
+		}
+		else {
+			tmp->rxgain = rxgain;
+		}
+		ast_log(LOG_NOTICE,"VPB setting Rx Hw gain to [%f]\n",tmp->rxgain);
+		vpb_record_set_hw_gain(tmp->handle,tmp->rxgain);
+	}
 
-	tmp->txswgain = txswgain;
-	vpb_play_set_gain(tmp->handle, (txswgain > MAX_VPB_GAIN) ? MAX_VPB_GAIN : txswgain);
+	if (gains & VPB_GOT_TXSWG){
+		tmp->txswgain = txswgain;
+		ast_log(LOG_NOTICE,"VPB setting Tx Sw gain to [%f]\n",tmp->txswgain);
+		vpb_play_set_gain(tmp->handle, tmp->txswgain);
+	}
 
-	tmp->rxswgain = rxswgain;
-	vpb_record_set_gain(tmp->handle, (rxswgain > MAX_VPB_GAIN) ? MAX_VPB_GAIN : rxswgain);
+	if (gains & VPB_GOT_RXSWG){
+		tmp->rxswgain = rxswgain;
+		ast_log(LOG_NOTICE,"VPB setting Rx Sw gain to [%f]\n",tmp->rxswgain);
+		vpb_record_set_gain(tmp->handle, tmp->rxswgain);
+	}
 
 	tmp->vpb_model = vpb_model_unknown;
 	if( vpb_get_model(buf) == VPB_OK ) {
@@ -1450,9 +1484,8 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, float txgain, floa
 	/* define grunt tone */
 	vpb_settonedet(tmp->handle,&toned_ungrunt);
 
-	ast_log(LOG_NOTICE,"Voicetronix %s channel %s initialized (rxgain=%f txgain=%f) (%f/%f/0x%X/0x%X/0x%X)\n",
-		(tmp->vpb_model==vpb_model_v4pci)?"V4PCI":
-		(tmp->vpb_model==vpb_model_v12pci)?"V12PCI":"[Unknown model]",
+	ast_log(LOG_NOTICE,"Voicetronix %s channel %s initialized (rxsg=%f/txsg=%f/rxhg=%f/txhg=%f)(0x%x/0x%x/0x%x)\n",
+		(tmp->vpb_model==vpb_model_v4pci)?"V4PCI": (tmp->vpb_model==vpb_model_v12pci)?"V12PCI":"[Unknown model]",
 		tmp->dev, tmp->rxswgain, tmp->txswgain, tmp->rxgain, tmp->txgain, bal1, bal2, bal3 );
 
 	return tmp;
@@ -2465,6 +2498,7 @@ int load_module()
 	int mode = MODE_IMMEDIATE;
 	float txgain = DEFAULT_GAIN, rxgain = DEFAULT_GAIN; 
 	float txswgain = 0, rxswgain = 0; 
+	int got_gain=0;
 	int first_channel = 1;
 	int echo_cancel = DEFAULT_ECHO_CANCEL;
 	int error = 0; /* Error flag */
@@ -2516,7 +2550,7 @@ int load_module()
 				UseNativeBridge = atoi(v->value);
 			} else if (strcasecmp(v->name, "channel") == 0) {
 				int channel = atoi(v->value);
-				tmp = mkif(board, channel, mode, txgain, rxgain, txswgain, rxswgain, bal1, bal2, bal3, callerid, echo_cancel,group);
+				tmp = mkif(board, channel, mode, got_gain, txgain, rxgain, txswgain, rxswgain, bal1, bal2, bal3, callerid, echo_cancel,group);
 				if (tmp) {
 					if(first_channel) {
 						mkbrd( tmp->vpb_model, echo_cancel );
@@ -2549,12 +2583,16 @@ int load_module()
 					echo_cancel = 0;
 			} else if (strcasecmp(v->name, "txgain") == 0) {
 				txswgain = parse_gain_value(v->name, v->value);
+				got_gain |=VPB_GOT_TXSWG;
 			} else if (strcasecmp(v->name, "rxgain") == 0) {
 				rxswgain = parse_gain_value(v->name, v->value);
+				got_gain |=VPB_GOT_RXSWG;
 			} else if (strcasecmp(v->name, "txhwgain") == 0) {
 				txgain = parse_gain_value(v->name, v->value);
+				got_gain |=VPB_GOT_TXHWG;
 			} else if (strcasecmp(v->name, "rxhwgain") == 0) {
 				rxgain = parse_gain_value(v->name, v->value);
+				got_gain |=VPB_GOT_RXHWG;
 			} else if (strcasecmp(v->name, "bal1") == 0) {
 				bal1 = strtol(v->value, NULL, 16);
 				if(bal1<0 || bal1>255) {
