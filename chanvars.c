@@ -11,7 +11,7 @@
  * the GNU General Public License
  */
 
-#include <malloc.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <asterisk/chanvars.h>

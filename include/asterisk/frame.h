@@ -26,6 +26,11 @@ extern "C" {
 #ifndef __BYTE_ORDER
 #ifdef __linux__
 #include <endian.h>
+#elif defined(__OpenBSD__)
+#include <machine/endian.h>
+#define __BYTE_ORDER BYTE_ORDER
+#define __LITTLE_ENDIAN LITTLE_ENDIAN
+#define __BIG_ENDIAN BIG_ENDIAN
 #else
 #ifdef __LITTLE_ENDIAN__
 #define __BYTE_ORDER __LITTLE_ENDIAN
