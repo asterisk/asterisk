@@ -230,7 +230,7 @@ static int join_queue(char *queuename, struct queue_ent *qe)
 				res = 0;
 				manager_event(EVENT_FLAG_CALL, "Join", 
         	                                               	"Channel: %s\r\nCallerID: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
-	                                                       	qe->chan->name, (qe->chan->callerid ? qe->chan->callerid : ""), q->name, qe->pos, q->count );
+	                                                       	qe->chan->name, (qe->chan->callerid ? qe->chan->callerid : "unknown"), q->name, qe->pos, q->count );
 #if 0
 ast_log(LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
 #endif
