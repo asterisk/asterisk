@@ -51,6 +51,7 @@
 #include <sys/resource.h>
 #include <grp.h>
 #include <pwd.h>
+#include <sys/stat.h>
 
 #if  defined(__FreeBSD__) || defined( __NetBSD__ ) || defined(SOLARIS)
 #include <netdb.h>

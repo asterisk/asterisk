@@ -13,6 +13,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <asterisk/channel.h>
 #include <asterisk/options.h>
 #include <asterisk/module.h>
