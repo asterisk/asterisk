@@ -3553,7 +3553,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 		strncpy(tmp, req->rlPart2, sizeof(tmp) - 1);
 	c = ditch_braces(tmp);
 	
-	strncpy(tmpf, get_header(oreq, "From"), sizeof(tmpf) - 1);
+	strncpy(tmpf, get_header(req, "From"), sizeof(tmpf) - 1);
 	fr = ditch_braces(tmpf);
 	
 	if (fr && !strlen(fr))
