@@ -115,6 +115,7 @@ struct ast_vm_user {
 	int saycid;
 	int review;
 	int operator;
+	int envelope;
 	struct ast_vm_user *next;
 };
 
@@ -227,6 +228,7 @@ static int maxlogins;
 static int reviewvm;
 static int calloper;
 static int saycidinfo;
+static int hearenv;
 static char dialcontext[80];
 static char callcontext[80];
 
@@ -254,6 +256,8 @@ static void populate_defaults(struct ast_vm_user *vmu)
 		vmu->operator = 1;
 	if (saycidinfo)
 		vmu->saycid = 1;
+	if (hearenv)
+		vmu->envelope = 1;
 	if (callcontext)
 		strncpy(vmu->callback, callcontext, sizeof(vmu->callback) -1);
 	if (dialcontext)
@@ -294,6 +298,11 @@ static void apply_options(struct ast_vm_user *vmu, char *options)
 					vmu->operator = 1;
 				else
 					vmu->operator = 0;
+			} else if (!strcasecmp(var, "envelope")){
+				if(ast_true(value))
+					vmu->envelope = 1;
+				else
+					vmu->envelope = 0;
 			} else if (!strcasecmp(var, "callback")) {
 				strncpy(vmu->callback, value, sizeof(vmu->callback) -1);
 			} else if (!strcasecmp(var, "dialout")) {
@@ -2706,7 +2715,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	if(!strncasecmp("macro",context,5)) /* Macro names in contexts are useless for our needs */
 		context = ast_variable_retrieve(msg_cfg, "message","macrocontext");
 
-	if (!res)
+	if ((!res)&&(vmu->envelope))
 		res = play_message_datetime(chan, vmu, origtime, filename);
 
 	if ((!res)&&(vmu->saycid))
@@ -3588,6 +3597,7 @@ static int load_config(void)
 	char *astsaycid;
 	char *astcallop;
 	char *astreview;
+	char *asthearenv;
 	char *silencestr;
 	char *thresholdstr;
 	char *fmt;
@@ -3739,6 +3749,13 @@ static int load_config(void)
 			astsaycid = "no";
 		} 
 		saycidinfo = ast_true(astsaycid);
+
+		hearenv = 1;
+		if (!(asthearenv = ast_variable_retrieve(cfg, "general", "envelope"))) {
+			ast_log(LOG_DEBUG,"ENVELOPE before msg enabled globally\n");
+			asthearenv = "yes";
+		}
+		hearenv = ast_true(asthearenv);	
 		
 		if ((dialoutcxt = ast_variable_retrieve(cfg, "general", "dialout"))) {
                         strncpy(dialcontext, dialoutcxt, sizeof(dialcontext) - 1);

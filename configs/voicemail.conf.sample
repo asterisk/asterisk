@@ -90,24 +90,30 @@ central24=America/Chicago|'vm-received' q 'digits/at' H 'digits/hundred' M 'hour
 ; received, to the given mailbox. If pager is specified, a message will be sent there as well.
 ;
 ; Advanced options example is extension 4069
-; NOTE: All options can be expressed globally in the general section, and overriden in the per-mailbox settings.
+; NOTE: All options can be expressed globally in the general section, and overriden in the per-mailbox 
+; settings.
 ; 
-; tz=central (timezone from zonemessages above)
-; attach=yes (attach the voicemail to the notification email *NOT* the pager email)
-; saycid=yes (say the caller id information before the message. If not described, or set to no, it will be in the envelope)
-; dialout=fromvm (context to dial out from [option 4 from the advanced menu]; if not listed, dialing out will not be permitted)
-; callback=fromvm (context to call back from; if not listed, calling the sender back will not be permitted) 
-; review=yes (allow sender to review/rerecord their message before saving it)
-; operator=yes (allow sender to hit 0 after leaving a voicemail to reach an operator)
-; 
-
+; tz=central 		; Timezone from zonemessages above
+; attach=yes 		; Attach the voicemail to the notification email *NOT* the pager email
+; saycid=yes 		; Say the caller id information before the message. If not described, 
+			;     or set to no, it will be in the envelope
+; dialout=fromvm 	; Context to dial out from [option 4 from the advanced menu]
+			;     if not listed, dialing out will not be permitted
+; callback=fromvm 	; Context to call back from  
+			;     if not listed, calling the sender back will not be permitted
+; review=yes 		; Allow sender to review/rerecord their message before saving it [OFF by default
+; operator=yes 		; Allow sender to hit 0 before/after/during  leaving a voicemail to 
+			;     reach an operator  [OFF by default]
+; envelope=no 		; Turn on/off envelope playback before message playback. [ON by default] 
+			;     This does NOT affect option 3,3 from the advanced options menu
+			
 
 [default]
 1234 => 4242,Example Mailbox,root@localhost
 ;4200 => 9855,Mark Spencer,markster@linux-support.net,mypager@digium.com,attach=no|serveremail=myaddy@digium.com|tz=central
 ;4300 => 3456,Ben Rigas,ben@american-computer.net
 ;4310 => 5432,Sales,sales@marko.net
-;4069 => 6522,Matt Brooks,matt@marko.net,,|tz=central|attach=yes|saycid=yes|dialout=fromvm|callback=fromvm|review=yes|operator=yes 
+;4069 => 6522,Matt Brooks,matt@marko.net,,|tz=central|attach=yes|saycid=yes|dialout=fromvm|callback=fromvm|review=yes|operator=yes|envelope=yes
 ;4110 => 3443,Rob Flynn,rflynn@blueridge.net
 
 ;
