@@ -651,19 +651,24 @@ struct val *a, *b;
 {
 	struct val *r;
 
-	if (!to_integer (a) || !to_integer (b)) {
+	if (!to_integer (a)) {
 		ast_log(LOG_WARNING,"non-numeric argument\n");
-		free_value(a);
+		if (!to_integer (b)) {
+			free_value(a);
+			free_value(b);
+			return make_integer(0);
+		} else {
+			free_value(a);
+			return (b);
+		}
+	} else if (!to_integer(b)) {
 		free_value(b);
-		return(NULL);
+		return (a);
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i + b->u.i));
 	if (chk_plus (a->u.i, b->u.i, r->u.i)) {
 		ast_log(LOG_WARNING,"overflow\n");
-		free_value(a);
-		free_value(b);
-		return(NULL);
 	}
 	free_value (a);
 	free_value (b);
@@ -691,19 +696,27 @@ struct val *a, *b;
 {
 	struct val *r;
 
-	if (!to_integer (a) || !to_integer (b)) {
-		free_value(a);
-		free_value(b);
+	if (!to_integer (a)) {
 		ast_log(LOG_WARNING, "non-numeric argument\n");
-		return(NULL);
+		if (!to_integer (b)) {
+			free_value(a);
+			free_value(b);
+			return make_integer(0);
+		} else {
+			r = make_integer(0 - b->u.i);
+			free_value(a);
+			free_value(b);
+			return (r);
+		}
+	} else if (!to_integer(b)) {
+		ast_log(LOG_WARNING, "non-numeric argument\n");
+		free_value(b);
+		return (a);
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i - b->u.i));
 	if (chk_minus (a->u.i, b->u.i, r->u.i)) {
-		free_value(a);
-		free_value(b);
-		ast_log(LOG_WARNING, "overload\n");
-		return(NULL);
+		ast_log(LOG_WARNING, "overflow\n");
 	}
 	free_value (a);
 	free_value (b);
@@ -733,15 +746,12 @@ struct val *a, *b;
 		free_value(a);
 		free_value(b);
 		ast_log(LOG_WARNING, "non-numeric argument\n");
-		return(NULL);
+		return(make_integer(0));
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i * b->u.i));
 	if (chk_times (a->u.i, b->u.i, r->u.i)) {
 		ast_log(LOG_WARNING, "overflow\n");
-		free_value(a);
-		free_value(b);
-		return(NULL);
 	}
 	free_value (a);
 	free_value (b);
@@ -766,26 +776,28 @@ struct val *a, *b;
 {
 	struct val *r;
 
-	if (!to_integer (a) || !to_integer (b)) {
+	if (!to_integer (a)) {
 		free_value(a);
 		free_value(b);
 		ast_log(LOG_WARNING, "non-numeric argument\n");
-		return(NULL);
+		return make_integer(0);
+	} else if (!to_integer (b)) {
+		free_value(a);
+		free_value(b);
+		ast_log(LOG_WARNING, "non-numeric argument\n");
+		return make_integer(INT_MAX);
 	}
 
 	if (b->u.i == 0) {
 		ast_log(LOG_WARNING, "division by zero\n");		
 		free_value(a);
 		free_value(b);
-		return(NULL);
+		return make_integer(INT_MAX);
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i / b->u.i));
 	if (chk_div (a->u.i, b->u.i)) {
 		ast_log(LOG_WARNING, "overflow\n");
-		free_value(a);
-		free_value(b);
-		return(NULL);
 	}
 	free_value (a);
 	free_value (b);
@@ -802,14 +814,13 @@ struct val *a, *b;
 		ast_log(LOG_WARNING, "non-numeric argument\n");
 		free_value(a);
 		free_value(b);
-		return(NULL);
+		return make_integer(0);
 	}
 
 	if (b->u.i == 0) {
 		ast_log(LOG_WARNING, "div by zero\n");
 		free_value(a);
-		free_value(b);
-		return(NULL);
+		return (b);
 	}
 
 	r = make_integer (/*(quad_t)*/(a->u.i % b->u.i));
@@ -839,7 +850,7 @@ struct val *a, *b;
 		ast_log(LOG_WARNING,"regcomp() error : %s",errbuf);
 		free_value(a);
 		free_value(b);
-		return(NULL);		
+		return make_str("");		
 	}
 
 	/* compare string against pattern */
