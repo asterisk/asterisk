@@ -1,22 +1,5 @@
 /* MD5 checksum routines used for authentication.  Not covered by GPL, but
    in the public domain as per the copyright below */
-#if defined( __OpenBSD__ )
-#  include <machine/types.h>
-#  include <sys/endian.h>
-#elif defined( __FreeBSD__ ) || defined( __NetBSD__ )
-#  include <sys/types.h>
-#  include <sys/endian.h>
-#elif defined( BSD ) && ( BSD >= 199103 ) || defined(__APPLE__)
-#  include <machine/endian.h>
-#elif defined( __sparc__ ) && defined( SOLARIS )
-#  define BIG_ENDIAN 4321
-#  define BYTE_ORDER BIG_ENDIAN
-#else
-#  include <endian.h>
-#endif
-# if __BYTE_ORDER == __BIG_ENDIAN || BYTE_ORDER == BIG_ENDIAN
-#  define HIGHFIRST 1
-# endif
 
 /*
  * This code implements the MD5 message-digest algorithm.
@@ -35,8 +18,12 @@
  * will fill a supplied 16-byte array with the digest.
  */
 #include <string.h>		/* for memcpy() */
+#include <asterisk/endian.h>
 #include <asterisk/md5.h>
 
+# if __BYTE_ORDER == __BIG_ENDIAN
+#  define HIGHFIRST 1
+# endif
 #ifndef HIGHFIRST
 #define byteReverse(buf, len)	/* Nothing */
 #else

@@ -19,6 +19,7 @@
 #include <asterisk/cli.h>
 #include <asterisk/utils.h>
 #include <asterisk/causes.h>
+#include <asterisk/endian.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -27,7 +28,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <endian.h>
 
 #define ALSA_PCM_NEW_HW_PARAMS_API
 #define ALSA_PCM_NEW_SW_PARAMS_API

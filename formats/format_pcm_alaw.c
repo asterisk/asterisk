@@ -17,6 +17,7 @@
 #include <asterisk/logger.h>
 #include <asterisk/sched.h>
 #include <asterisk/module.h>
+#include <asterisk/endian.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
@@ -27,15 +28,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#ifdef __linux__
-#include <endian.h>
-#else
-#ifdef SOLARIS
-#include "solaris-compat/compat.h"
-#else
-#include <machine/endian.h>
-#endif
-#endif
 
 #define BUF_SIZE 160		/* 160 samples */
 

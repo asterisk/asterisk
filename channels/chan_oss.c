@@ -26,6 +26,7 @@
 #include <asterisk/cli.h>
 #include <asterisk/utils.h>
 #include <asterisk/causes.h>
+#include <asterisk/endian.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -34,23 +35,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-#if defined( __OpenBSD__ )
-#  include <sys/endian.h>
-#elif defined( __FreeBSD__ ) || defined( __NetBSD__ )
-#  include <sys/endian.h>   
-#elif defined( BSD ) && ( BSD >= 199103 ) || defined(__APPLE__)
-#  include <machine/endian.h>
-#elif defined ( SOLARIS )
-#  include <solaris-compat/compat.h>
-#elif defined( __GNUC__ ) || defined( __GNU_LIBRARY__ )
-#  include <endian.h>
-#if !defined(__APPLE__)
-#  include <byteswap.h>
-#endif
-#elif defined( linux )
-#  include <endian.h>
-#endif
 
 #ifdef __linux
 #include <linux/soundcard.h>

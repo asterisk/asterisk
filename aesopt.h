@@ -136,6 +136,7 @@
 #define _AESOPT_H
 
 #include <asterisk/aes.h>
+#include <asterisk/endian.h>
 
 /*  CONFIGURATION - USE OF DEFINES
 
@@ -145,27 +146,6 @@
     setting either 1's or 0's respectively on the branches of the related
     #if clauses.
 */
-
-/*  PLATFORM SPECIFIC INCLUDES */
-
-#if defined( __OpenBSD__ )
-#  include <machine/types.h>
-#  include <sys/endian.h>
-#elif defined( __FreeBSD__ ) || defined( __NetBSD__ )
-#  include <sys/types.h>
-#  include <sys/endian.h>
-#elif defined( BSD ) && ( BSD >= 199103 ) || defined(__APPLE__)
-#  include <machine/endian.h>
-#elif defined ( SOLARIS )
-#  include <solaris-compat/compat.h>
-#elif defined( __GNUC__ ) || defined( __GNU_LIBRARY__ )
-#  include <endian.h>
-#if !defined(__APPLE__)
-#  include <byteswap.h>
-#endif
-#elif defined( linux )
-#  include <endian.h>
-#endif
 
 /*  BYTE ORDER IN 32-BIT WORDS
 

@@ -37,6 +37,7 @@
 #include <asterisk/lock.h>
 #include <asterisk/utils.h>
 #include <asterisk/cli.h>
+#include <asterisk/unaligned.h>
 
 #define MAX_TIMESTAMP_SKEW	640
 
@@ -1173,18 +1174,6 @@ int ast_rtp_sendcng(struct ast_rtp *rtp, int level)
 	return 0;
 }
 
-#if defined(SOLARIS) && defined(__sparc__)
-static void put_uint32(unsigned char *buf, int i)
-{
-	buf[0] = (i>>24) & 0xff;
-	buf[1] = (i>>16) & 0xff;
-	buf[2] = (i>>8)  & 0xff;
-	buf[3] = i       & 0xff;
-}
-#else
-#define put_uint32(p,v) ((*((unsigned int *)(p))) = (v))
-#endif
-
 static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec)
 {
 	unsigned char *rtpheader;
@@ -1270,9 +1259,9 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	/* Get a pointer to the header */
 	rtpheader = (unsigned char *)(f->data - hdrlen);
 
-	put_uint32(rtpheader, htonl((2 << 30) | (codec << 16) | (rtp->seqno) | (mark << 23)));
-	put_uint32(rtpheader + 4, htonl(rtp->lastts));
-	put_uint32(rtpheader + 8, htonl(rtp->ssrc)); 
+	put_unaligned_uint32(rtpheader, htonl((2 << 30) | (codec << 16) | (rtp->seqno) | (mark << 23)));
+	put_unaligned_uint32(rtpheader + 4, htonl(rtp->lastts));
+	put_unaligned_uint32(rtpheader + 8, htonl(rtp->ssrc)); 
 
 	if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
 		res = sendto(rtp->s, (void *)rtpheader, f->datalen + hdrlen, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
