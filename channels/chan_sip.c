@@ -3572,6 +3572,9 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	if ((a = strchr(c, '@')) || (a = strchr(c, ';'))) {
 		*a = '\0';
 	}
+	if ((a = strchr(fr, '@')) || (a = strchr(fr, ';'))) {
+		*a = '\0';
+	}
 	if (sipdebug)
 		ast_verbose("Looking for %s in %s\n", c, p->context);
 	if (ast_exists_extension(NULL, p->context, c, 1, fr) ||
