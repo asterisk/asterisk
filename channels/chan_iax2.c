@@ -32,6 +32,7 @@
 #include <asterisk/callerid.h>
 #include <asterisk/app.h>
 #include <asterisk/astdb.h>
+#include <asterisk/musiconhold.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -3989,12 +3990,22 @@ retryowner:
 				/* Do nothing */
 				break;
 			case IAX_COMMAND_QUELCH:
-				if (iaxs[fr.callno]->state & IAX_STATE_STARTED)
+				if (iaxs[fr.callno]->state & IAX_STATE_STARTED) {
 					iaxs[fr.callno]->quelch = 1;
+					if (ies.musiconhold) {
+						if (iaxs[fr.callno]->owner &&
+							iaxs[fr.callno]->owner->bridge)
+								ast_moh_start(iaxs[fr.callno]->owner->bridge, NULL);
+					}
+				}
 				break;
 			case IAX_COMMAND_UNQUELCH:
-				if (iaxs[fr.callno]->state & IAX_STATE_STARTED)
+				if (iaxs[fr.callno]->state & IAX_STATE_STARTED) {
 					iaxs[fr.callno]->quelch = 0;
+					if (iaxs[fr.callno]->owner &&
+						iaxs[fr.callno]->owner->bridge)
+							ast_moh_stop(iaxs[fr.callno]->owner->bridge);
+				}
 				break;
 			case IAX_COMMAND_TXACC:
 				if (iaxs[fr.callno]->transferring == TRANSFER_BEGIN) {
