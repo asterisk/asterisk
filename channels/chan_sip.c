@@ -5849,6 +5849,7 @@ static struct sip_peer *temp_peer(char *name)
 	/* Assume can reinvite */
 	peer->canreinvite = globalcanreinvite;
 	peer->dtmfmode = globaldtmfmode;
+	peer->nat = globalnat;
 	peer->selfdestruct = 1;
 	peer->dynamic = 1;
 	strcpy(peer->methods, "md5,plaintext");
