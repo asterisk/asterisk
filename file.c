@@ -524,7 +524,9 @@ static int ast_readaudio_callback(void *data)
 	}
 	if (whennext != s->lasttimeout) {
 #ifdef ZAPTEL_OPTIMIZATIONS
-		ast_settimeout(s->owner, whennext, ast_readaudio_callback, s);
+		if (s->timingfd > -1)
+			ast_settimeout(s->owner, whennext, ast_readaudio_callback, s);
+		else
 #else
 		s->owner->streamid = ast_sched_add(s->owner->sched, whennext/8, ast_readaudio_callback, s);
 #endif		
