@@ -458,7 +458,7 @@ static int locals_show(int fd, int argc, char **argv)
 {
 	struct local_pvt *p;
 
-	if (argc != 2)
+	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&locallock);
 	p = locals;
@@ -475,11 +475,11 @@ static int locals_show(int fd, int argc, char **argv)
 }
 
 static char show_locals_usage[] = 
-"Usage: show locals\n"
-"       Provides summary information on locals.\n";
+"Usage: local show channels\n"
+"       Provides summary information on local channels.\n";
 
 static struct ast_cli_entry cli_show_locals = {
-	{ "show", "locals", NULL }, locals_show, 
+	{ "local", "show", "channels", NULL }, locals_show, 
 	"Show status of local channels", show_locals_usage, NULL };
 
 int load_module()
