@@ -1,8 +1,8 @@
 /*
 
 $Log$
-Revision 1.12  2000/01/05 08:20:39  markster
-Version 0.2.0 from FTP
+Revision 1.13  2000/01/05 08:20:39  markster
+Version 0.3.0 from FTP
 
 Revision 1.2  2000/01/05 08:20:39  markster
 Some OSS fixes and a few lpc changes to make it actually work
@@ -44,8 +44,8 @@ static integer c__1 = 1;
 /* 	PREPRO Version 48 */
 
 /* $Log$
- * Revision 1.12  2000/01/05 08:20:39  markster
- * Version 0.2.0 from FTP
+ * Revision 1.13  2000/01/05 08:20:39  markster
+ * Version 0.3.0 from FTP
  *
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
