@@ -11,7 +11,8 @@
 # the GNU General Public License
 #
 
-FORMAT_LIBS=format_g723.so format_wav.so format_mp3.so format_wav_gsm.so format_gsm.so format_vox.so format_pcm.so format_g729.so
+FORMAT_LIBS=format_g723.so format_wav.so format_mp3.so format_wav_gsm.so \
+	format_gsm.so format_vox.so format_pcm.so format_g729.so format_pcm_alaw.so
 FORMAT_LIBS+=format_jpeg.so
 
 GSMLIB=../codecs/gsm/lib/libgsm.a
