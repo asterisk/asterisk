@@ -5791,11 +5791,13 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 {
 	struct sip_user *user;
 	int format;
+	struct ast_ha *oldha = NULL;
 	user = (struct sip_user *)malloc(sizeof(struct sip_user));
 	if (user) {
 		memset(user, 0, sizeof(struct sip_user));
 		strncpy(user->name, name, sizeof(user->name)-1);
-
+		oldha = user->ha;
+		user->ha = NULL;
 		/* set the usage flag to a sane staring value*/
 		user->inUse = 0;
 		user->outUse = 0;
@@ -5888,6 +5890,8 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 		else if (strlen(user->md5secret))
 		        strncpy(user->methods, "md5", sizeof(user->methods) - 1);
 	}
+	if (oldha)
+		ast_free_ha(oldha);
 	return user;
 }
 
@@ -5918,6 +5922,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 {
 	struct sip_peer *peer;
 	struct sip_peer *prev;
+	struct ast_ha *oldha = NULL;
 	int maskfound=0;
 	int format;
 	int found=0;
@@ -5955,6 +5960,8 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 			peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
 			peer->expiry = expiry;
 		}
+		oldha = peer->ha;
+		peer->ha = NULL;
 		peer->capability = capability;
 		/* Assume can reinvite */
 		peer->canreinvite = REINVITE_INVITE;
@@ -6075,6 +6082,8 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 			reg_source_db(peer);
 		peer->delme = 0;
 	}
+	if (oldha)
+		ast_free_ha(oldha);
 	return peer;
 }
 
