@@ -486,8 +486,8 @@ static double get_time_in_ms()
  * Use ANALYSE_CID to record rings and determine location of callerid
  */
 /* #define ANALYSE_CID */
-#define RING_SKIP 600
-#define CID_MSECS 1700
+#define RING_SKIP 300
+#define CID_MSECS 3700
 
 static void get_callerid(struct vpb_pvt *p)
 {
@@ -541,16 +541,21 @@ static void get_callerid(struct vpb_pvt *p)
 		cli_struct->ra_cn[0]=0;
 		/* This decodes FSK 1200baud type callerid */
 		if ((rc=vpb_cid_decode2(cli_struct, buf, CID_MSECS*8)) == VPB_OK ) {
+			/*
 			if (owner->cid.cid_num)
 				free(owner->cid.cid_num);
 			owner->cid.cid_num=NULL;
 			if (owner->cid.cid_name)
 				free(owner->cid.cid_name);
 			owner->cid.cid_name=NULL;
+			*/
 			
 			if (cli_struct->ra_cldn[0]=='\0'){
+				/*
 				owner->cid.cid_num = strdup(cli_struct->cldn);
 				owner->cid.cid_name = strdup(cli_struct->cn);
+				*/
+				ast_set_callerid(owner, cli_struct->cldn, cli_struct->cn, cli_struct->cldn);
 				if (option_verbose>3) 
 					ast_verbose(VERBOSE_PREFIX_4 "CID record - got [%s] [%s]\n",owner->cid.cid_num,owner->cid.cid_name );
 			}
@@ -567,6 +572,7 @@ static void get_callerid(struct vpb_pvt *p)
 	} else 
 		ast_log(LOG_ERROR, "CID record - Failed to set record mode for caller id on %s\n", p->dev );
 }
+
 static void get_callerid_ast(struct vpb_pvt *p)
 {
 	struct callerid_state *cs;
@@ -603,21 +609,27 @@ static void get_callerid_ast(struct vpb_pvt *p)
 /*	vpb_record_get_gain(p->handle, &old_gain); */
 	cs = callerid_new(which_cid);
 	if (cs){
-/*		vpb_wave_open_write(&ws, file, VPB_MULAW); */
-/*		vpb_record_set_gain(p->handle, 3.0); */
-/*		vpb_record_set_hw_gain(p->handle,12.0); */
+/*
+		vpb_wave_open_write(&ws, file, VPB_MULAW); 
+		vpb_record_set_gain(p->handle, 3.0); 
+		vpb_record_set_hw_gain(p->handle,12.0); 
+*/
 		vpb_record_buf_start(p->handle, VPB_MULAW);
 		while((rc == 0)&&(sam_count<8000*3)){
 			vrc = vpb_record_buf_sync(p->handle, (char*)buf, sizeof(buf));
 			if (vrc != VPB_OK)
 				ast_log(LOG_ERROR, "%s: Caller ID couldnt read audio buffer!\n",p->dev);
 			rc = callerid_feed(cs,(unsigned char *)buf,sizeof(buf),AST_FORMAT_ULAW);
-/*			vpb_wave_write(ws,(char*)buf,sizeof(buf)); */
+/*
+			vpb_wave_write(ws,(char*)buf,sizeof(buf)); 
+*/
 			sam_count+=sizeof(buf);
 			if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collecting Caller ID samples [%d][%d]...\n",sam_count,rc);
 		}
 		vpb_record_buf_finish(p->handle);
-/*		vpb_wave_close_write(ws); */
+/*
+		vpb_wave_close_write(ws); 
+*/
 		if (rc == 1){
 			callerid_get(cs, &name, &number, &flags);
 			if (option_verbose>0) 
@@ -917,6 +929,8 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 {
 	char s[2] = {0};
 	struct ast_channel *owner = p->owner;
+	char cid_num[256];
+	char cid_name[256];
 
 	if (option_verbose > 3) {
 		char str[VPB_MAX_STR];
@@ -997,6 +1011,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 " %s: DTMF CallerID %s\n",p->dev,p->callerid);
 						if (owner){
+							/*
 							if (owner->cid.cid_num)
 								free(owner->cid.cid_num);
 							owner->cid.cid_num=NULL;
@@ -1004,6 +1019,12 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 								free(owner->cid.cid_name);
 							owner->cid.cid_name=NULL;
 							owner->cid.cid_num = strdup(p->callerid);
+							*/
+							cid_name[0] = '\0';
+							cid_num[0] = '\0';
+							ast_callerid_split(p->callerid, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
+							ast_set_callerid(owner, cid_num, cid_name, cid_num);
+
 						}
 						else {
 							if (option_verbose > 2)
