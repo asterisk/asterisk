@@ -1512,6 +1512,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	/* Assume reinvite OK and via INVITE */
 	p->canreinvite = globalcanreinvite;
 	p->dtmfmode = globaldtmfmode;
+	p->capability = capability;
 	if (p->dtmfmode & SIP_DTMF_RFC2833)
 		p->noncodeccapability |= AST_RTP_DTMF;
 	strncpy(p->context, context, sizeof(p->context) - 1);
