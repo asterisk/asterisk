@@ -48,6 +48,7 @@ struct ast_filestream {
 	short buf[160];	
 	int foffset;
 	int lasttimeout;
+	int maxlen;
 	struct timeval last;
 	int adj;
 	struct ast_filestream *next;
@@ -185,12 +186,18 @@ static int check_header(int fd)
 		ast_log(LOG_WARNING, "Does not say data\n");
 		return -1;
 	}
-	/* Ignore the data length */
+	/* Data has the actual length of data in it */
 	if (read(fd, &data, 4) != 4) {
 		ast_log(LOG_WARNING, "Read failed (data)\n");
 		return -1;
 	}
-	return 0;
+#if 0
+	curpos = lseek(fd, 0, SEEK_CUR);
+	truelength = lseek(fd, 0, SEEK_END);
+	lseek(fd, curpos, SEEK_SET);
+	truelength -= curpos;
+#endif	
+	return ltohl(data);
 }
 
 static int update_header(int fd)
@@ -305,7 +312,7 @@ static struct ast_filestream *wav_open(int fd)
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
 		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (check_header(fd)) {
+		if ((tmp->maxlen = check_header(fd)) < 0) {
 			free(tmp);
 			return NULL;
 		}
@@ -419,9 +426,17 @@ static int ast_read_callback(void *data)
 	int x;
 	struct ast_filestream *s = data;
 	short tmp[sizeof(s->buf) / 2];
+	int bytes = sizeof(tmp);
+	off_t here;
 	/* Send a frame from the file to the appropriate channel */
+	here = lseek(s->fd, 0, SEEK_CUR);
+	if ((s->maxlen - here) < bytes)
+		bytes = s->maxlen - here;
+	if (bytes < 0)
+		bytes = 0;
+/* 	ast_log(LOG_DEBUG, "here: %d, maxlen: %d, bytes: %d\n", here, s->maxlen, bytes); */
 	
-	if ( (res = read(s->fd, tmp, sizeof(tmp))) <= 0 ) {
+	if ( (res = read(s->fd, tmp, bytes)) <= 0 ) {
 		if (res) {
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		}
@@ -550,7 +565,7 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 static int wav_seek(struct ast_filestream *fs, long sample_offset, int whence)
 {
 	off_t min,max,cur;
-	long offset,samples;
+	long offset=0,samples;
 	
 	samples = sample_offset * 2; /* SLINEAR is 16 bits mono, so sample_offset * 2 = bytes */
 	min = 44; /* wav header is 44 bytes */
