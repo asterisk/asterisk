@@ -4,10 +4,10 @@
 #include <asterisk/lock.h>
 
 #define AST_LIST_LOCK(head)						\
-	ast_mutex_lock(&head->lock) 
+	ast_mutex_lock(&(head)->lock) 
 	
 #define AST_LIST_UNLOCK(head) 						\
-	ast_mutex_unlock(&head->lock)
+	ast_mutex_unlock(&(head)->lock)
 
 #define AST_LIST_HEAD(name, type)					\
 struct name {								\
