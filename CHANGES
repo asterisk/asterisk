@@ -3,6 +3,11 @@
        is available through the Asterisk-CVS mailing list hosted
        at http://lists.digium.com.
 
+Asterisk 1.0.5
+ -- chan_zap
+    -- fix a callerid bug introduced in 1.0.4
+ -- app_queue
+    -- fix some penalty behavior
 Asterisk 1.0.4
  -- general
     -- fix memory leak evident with extensive use of variables
