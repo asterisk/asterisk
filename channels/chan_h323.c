@@ -100,7 +100,7 @@ static char secret[50];
 struct oh323_pvt {
 	ast_mutex_t lock;					/* Channel private lock */
 	call_options_t calloptions;				/* Options to be used during call setup */
-	int alreadygone;					/* Whether or not we've already been destroyed by or peer */
+	int alreadygone;					/* Whether or not we've already been destroyed by our peer */
 	int needdestroy;					/* if we need to be destroyed */
 	call_details_t cd;					/* Call details */
 	struct ast_channel *owner;				/* Who owns us */
@@ -492,11 +492,11 @@ static int oh323_hangup(struct ast_channel *c)
 
 	/* Start the process if it's not already started */
 	if (!p->alreadygone) {
-		p->needdestroy = 1;
 		if (h323_clear_call((p->cd).call_token)) { 
 			ast_log(LOG_DEBUG, "ClearCall failed.\n");
 		}
-	}
+		p->needdestroy = 1;
+	} 
 
 	/* Update usage counter */
 	ast_mutex_lock(&usecnt_lock);
@@ -603,7 +603,6 @@ static int oh323_indicate(struct ast_channel *c, int condition)
 		return 0;
 	case AST_CONTROL_BUSY:
 		if (c->_state != AST_STATE_UP) {
-		//	transmit_response(p, "600 Busy everywhere", &p->initreq);
 			p->alreadygone = 1;
 			ast_softhangup(c, AST_SOFTHANGUP_DEV);
 			break;
@@ -611,7 +610,6 @@ static int oh323_indicate(struct ast_channel *c, int condition)
 		return 0;
 	case AST_CONTROL_CONGESTION:
 		if (c->_state != AST_STATE_UP) {
-		//	transmit_response(p, "486 Busy here", &p->initreq);
 			p->alreadygone = 1;
 			ast_softhangup(c, AST_SOFTHANGUP_DEV);
 			break;
@@ -1176,25 +1174,25 @@ void cleanup_connection(call_details_t cd)
 //	struct oh323_peer *peer = NULL;
 	struct oh323_user *user = NULL;
 	struct ast_rtp *rtp = NULL;
-
-	ast_log(LOG_DEBUG, "Cleaning up our mess\n");
 	
 	p = find_call(cd.call_reference);
 
 	if (!p) {
 		return;
 	}
+	ast_mutex_lock(&p->lock);
 
 	/* Decrement usage counter */
 	if (!p->outgoing) {
 		user = find_user(cd);
 		
-		if(user)
+		if(user) {
 			user->inUse--;
+		}
 	}
 
 #if 0
-		if (p->outgoing) {
+	if (p->outgoing) {
 		peer = find_peer(cd.call_dest_alias);
 		peer->inUse--;
 	} else {
@@ -1209,14 +1207,15 @@ void cleanup_connection(call_details_t cd)
 		/* Immediately stop RTP */
 		ast_rtp_destroy(rtp);
 	}
-	
+
 	p->alreadygone = 1;
-
+	
 	/* Send hangup */	
-	if (p->owner)
+	if (p->owner) {
 		ast_queue_hangup(p->owner);
+	} 
 
-	p = NULL;
+	ast_mutex_unlock(&p->lock);
 	return;	
 }
 
