@@ -532,7 +532,7 @@ static struct ast_config *__ast_load(const char *configfile, struct ast_config *
 							/* Yuck, gotta memmove */
 							memmove(comment_p - 1, comment_p, strlen(comment_p) + 1);
 							new_buf = comment_p;
-						} else if(comment_p[1] == COMMENT_TAG && comment_p[2] == COMMENT_TAG) {
+						} else if(comment_p[1] == COMMENT_TAG && comment_p[2] == COMMENT_TAG && (comment_p[3] != '-')) {
 							/* Meta-Comment start detected ";--" */
 							if (comment < MAX_NESTED_COMMENTS) {
 								*comment_p = '\0';
