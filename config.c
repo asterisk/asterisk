@@ -177,6 +177,7 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 						"Out of memory, line %d\n", lineno);
 					return -1;
 				}
+				memset(*_tmpc, 0, sizeof(struct ast_category));
 				strncpy((*_tmpc)->name, cur+1, sizeof((*_tmpc)->name) - 1);
 				(*_tmpc)->root =  NULL;
 				(*_tmpc)->next = tmp->root;
@@ -237,6 +238,7 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 					c++;
 				v = malloc(sizeof(struct ast_variable));
 				if (v) {
+					memset(v, 0, sizeof(struct ast_variable));
 					v->next = NULL;
 					v->name = strdup(strip(cur));
 					v->value = strdup(strip(c));
@@ -283,7 +285,8 @@ static struct ast_config *__ast_load(char *configfile, struct ast_config *tmp, s
 			ast_verbose( "Found\n");
 		if (!tmp) {
 			tmp = malloc(sizeof(struct ast_config));
-			tmp->root = NULL;
+			if (tmp)
+				memset(tmp, 0, sizeof(struct ast_config));
 		}
 		if (!tmp) {
 			ast_log(LOG_WARNING, "Out of memory\n");
