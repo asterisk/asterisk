@@ -22,9 +22,17 @@ The agent dumped the caller while listening to the queue announcement.
 AGENTLOGIN(channel)
 The agent logged in.  The channel is recorded.
 
+AGENTCALLBACKLOGIN(exten@context)
+The callback agent logged in.  The login extension and context is recorded.
+
 AGENTLOGOFF(channel|logintime)
 The agent logged off.  The channel is recorded, along with the total time
 the agent was logged in.
+
+AGENTCALLBACKLOGOFF(exten@context|logintime|reason)
+The callback agent logged off.  The last login extension and context is
+recorded, along with the total time the agent was logged in, and the
+reason for the logoff if it was not a normal logoff (e.g., Autologoff)
 
 COMPLETEAGENT(holdtime|calltime|origposition)
 The caller was connected to an agent, and the call was terminated normally

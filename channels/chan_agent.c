@@ -113,6 +113,7 @@ static struct agent_pvt {
 	int abouttograb;					/* About to grab */
 	int autologoff;					/* Auto timeout time */
 	int ackcall;					/* ackcall */
+	time_t loginstart;					/* When agent first logged in (0 when logged off) */
 	time_t start;						/* When call started */
 	struct timeval lastdisc;			/* When last disconnected */
 	int wrapuptime;						/* Wrapup time in ms */
@@ -518,7 +519,19 @@ static int agent_hangup(struct ast_channel *ast)
 			}
 			ast_log(LOG_DEBUG, "Hungup, howlong is %d, autologoff is %d\n", howlong, p->autologoff);
 			if (howlong  && p->autologoff && (howlong > p->autologoff)) {
+				char agent[AST_MAX_AGENT] = "";
+				long logintime = time(NULL) - p->loginstart;
+				p->loginstart = 0;
 				ast_log(LOG_NOTICE, "Agent '%s' didn't answer/confirm within %d seconds (waited %d)\n", p->name, p->autologoff, howlong);
+				manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogoff",
+					"Agent: %s\r\n"
+					"Loginchan: %s\r\n"
+					"Logintime: %ld\r\n"
+					"Reason: Autologoff\r\n"
+					"Uniqueid: %s\r\n",
+					p->agent, p->loginchan, logintime, ast->uniqueid);
+				snprintf(agent, sizeof(agent), "Agent/%s", p->agent);
+				ast_queue_log("NONE", ast->uniqueid, agent, "AGENTCALLBACKLOGOFF", "%s|%ld|%s", p->loginchan, logintime, "Autologoff");
 				strcpy(p->loginchan, "");
 			}
 		} else if (p->dead) {
@@ -1120,7 +1133,6 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	struct agent_pvt *p;
 	struct localuser *u;
 	struct timeval tv;
-	time_t start;
 	char user[AST_MAX_AGENT];
 	char pass[AST_MAX_AGENT];
 	char agent[AST_MAX_AGENT] = "";
@@ -1196,6 +1208,10 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 			if (!strcmp(p->agent, user) &&
 				!strcmp(p->password, pass) && !p->pending) {
 					if (!p->chan) {
+						char last_loginchan[80] = "";
+						long logintime;
+						snprintf(agent, sizeof(agent), "Agent/%s", p->agent);
+
 						if (callbackmode) {
 							char tmpchan[AST_MAX_BUF] = "";
 							int pos = 0;
@@ -1230,8 +1246,10 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 							if (!res) {
 								if (context && !ast_strlen_zero(context) && !ast_strlen_zero(tmpchan))
 									snprintf(p->loginchan, sizeof(p->loginchan), "%s@%s", tmpchan, context);
-								else
+								else {
+	                                                                strncpy(last_loginchan, p->loginchan, sizeof(last_loginchan) - 1);
 									strncpy(p->loginchan, tmpchan, sizeof(p->loginchan) - 1);
+								}
 								if (ast_strlen_zero(p->loginchan))
 									filename = "agent-loggedoff";
 								p->acknowledged = 0;
@@ -1279,6 +1297,30 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 							res = -1;
 						if (callbackmode && !res) {
 							/* Just say goodbye and be done with it */
+							if (!ast_strlen_zero(p->loginchan)) {
+								if (p->loginstart == 0)
+									time(&p->loginstart);
+								manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogin",
+									"Agent: %s\r\n"
+									"Loginchan: %s\r\n"
+									"Uniqueid: %s\r\n",
+									p->agent, p->loginchan, chan->uniqueid);
+								ast_queue_log("NONE", chan->uniqueid, agent, "AGENTCALLBACKLOGIN", "%s", p->loginchan);
+								if (option_verbose > 2)
+									ast_verbose(VERBOSE_PREFIX_3 "Callback Agent '%s' logged in on %s\n", p->agent, p->loginchan);
+							} else {
+								logintime = time(NULL) - p->loginstart;
+								p->loginstart = 0;
+								manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogoff",
+									"Agent: %s\r\n"
+									"Loginchan: %s\r\n"
+									"Logintime: %ld\r\n"
+									"Uniqueid: %s\r\n",
+									p->agent, last_loginchan, logintime, chan->uniqueid);
+								ast_queue_log("NONE", chan->uniqueid, agent, "AGENTCALLBACKLOGOFF", "%s|%ld|", last_loginchan, logintime);
+								if (option_verbose > 2)
+									ast_verbose(VERBOSE_PREFIX_3 "Callback Agent '%s' logged out\n", p->agent);
+							}
 							ast_mutex_unlock(&agentlock);
 							if (!res)
 								res = ast_safe_sleep(chan, 500);
@@ -1295,12 +1337,13 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								strncpy(p->moh, chan->musicclass, sizeof(p->moh) - 1);
 #endif								
 							ast_moh_start(chan, p->moh);
+							if (p->loginstart == 0)
+								time(&p->loginstart);
 							manager_event(EVENT_FLAG_AGENT, "Agentlogin",
 								"Agent: %s\r\n"
-								"Channel: %s\r\n",
-								p->agent, chan->name);
-							time(&start);
-							snprintf(agent, sizeof(agent), "Agent/%s", p->agent);
+								"Channel: %s\r\n"
+								"Uniqueid: %s\r\n",
+								p->agent, chan->name, chan->uniqueid);
 							if (updatecdr && chan->cdr)
 								snprintf(chan->cdr->channel, sizeof(chan->cdr->channel), "Agent/%s", p->agent);
 							ast_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGIN", "%s", chan->name);
@@ -1370,13 +1413,17 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 							if (p->chan == chan)
 								p->chan = NULL;
 							p->acknowledged = 0;
+							logintime = time(NULL) - p->loginstart;
+							p->loginstart = 0;
 							ast_mutex_unlock(&p->lock);
+							manager_event(EVENT_FLAG_AGENT, "Agentlogoff",
+								"Agent: %s\r\n"
+								"Logintime: %ld\r\n"
+								"Uniqueid: %s\r\n",
+								p->agent, logintime, chan->uniqueid);
+							ast_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGOFF", "%s|%ld", chan->name, logintime);
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Agent '%s' logged out\n", p->agent);
-							ast_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGOFF", "%s|%ld", chan->name, (long)(time(NULL) - start));
-							manager_event(EVENT_FLAG_AGENT, "Agentlogoff",
-								"Agent: %s\r\n",
-								p->agent);
 							/* If there is no owner, go ahead and kill it now */
 							if (p->dead && !p->owner)
 								free(p);
