@@ -64,6 +64,7 @@ static struct local_pvt {
 	int glaredetect;					/* Detect glare on hangup */
 	int cancelqueue;					/* Cancel queue */
 	int alreadymasqed;					/* Already masqueraded */
+	int launchedpbx;					/* Did we launch the PBX */
 	struct ast_channel *owner;			/* Master Channel */
 	struct ast_channel *chan;			/* Outbound channel */
 	struct local_pvt *next;				/* Next entity */
@@ -226,7 +227,9 @@ static int local_digit(struct ast_channel *ast, char digit)
 static int local_call(struct ast_channel *ast, char *dest, int timeout)
 {
 	struct local_pvt *p = ast->pvt->pvt;
-
+	int res;
+	
+	ast_mutex_lock(&p->lock);
 	if (p->owner->callerid)
 		p->chan->callerid = strdup(p->owner->callerid);
 	else
@@ -235,8 +238,11 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 		p->chan->ani = strdup(p->owner->ani);
 	else
 		p->chan->ani = NULL;
+	p->launchedpbx = 1;
 	/* Start switch on sub channel */
-	return ast_pbx_start(p->chan);
+	res = ast_pbx_start(p->chan);
+	ast_mutex_unlock(&p->lock);
+	return res;
 }
 
 static void local_destroy(struct local_pvt *p)
@@ -270,9 +276,10 @@ static int local_hangup(struct ast_channel *ast)
 	struct ast_channel *ochan = NULL;
 	int glaredetect;
 	ast_mutex_lock(&p->lock);
-	if (isoutbound)
+	if (isoutbound) {
 		p->chan = NULL;
-	else
+		p->launchedpbx = 0;
+	} else
 		p->owner = NULL;
 	ast->pvt->pvt = NULL;
 	
@@ -304,7 +311,7 @@ static int local_hangup(struct ast_channel *ast)
 			free(p);
 		return 0;
 	}
-	if (p->chan && !p->chan->pbx)
+	if (p->chan && !p->launchedpbx)
 		/* Need to actually hangup since there is no PBX */
 		ochan = p->chan;
 	else
@@ -364,7 +371,7 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 	if (tmp) {
 		tmp->nativeformats = p->reqformat;
 		tmp2->nativeformats = p->reqformat;
-		snprintf(tmp->name, sizeof(tmp->name), "Local/%s@%s-%04x.1", p->exten, p->context, randnum);
+		snprintf(tmp->name, sizeof(tmp->name), "Local/%s@%s-%04x,1", p->exten, p->context, randnum);
 		snprintf(tmp2->name, sizeof(tmp2->name), "Local/%s@%s-%04x,2", p->exten, p->context, randnum);
 		tmp->type = type;
 		tmp2->type = type;
