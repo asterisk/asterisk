@@ -44,7 +44,7 @@ mod 11/15/95 for Layer I
 #pragma warning(disable:4056)
 #endif
 
-
+#include <string.h>
 
 /* Read Only */
 static long steps[18] =

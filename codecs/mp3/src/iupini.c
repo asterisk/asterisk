@@ -35,6 +35,7 @@ mods 1/8/97 warnings
 
 =========================================================*/
 #include <limits.h>
+#include <string.h>
 
 /* Read only */
 static long steps[18] =
