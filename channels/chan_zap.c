@@ -223,6 +223,8 @@ static int cur_rxwink = -1;
 static int cur_rxflash = -1;
 static int cur_debounce = -1;
 
+static int priindication_oob = 0;
+
 #ifdef ZAPATA_PRI
 static int minunused = 2;
 static int minidle = 0;
@@ -494,6 +496,7 @@ static struct zt_pvt {
 	int busydetect;
 	int busycount;
 	int callprogress;
+	int priindication_oob;
 	struct timeval flashtime;	/* Last flash-hook time */
 	struct ast_dsp *dsp;
 	int cref;					/* Call reference number */
@@ -4135,7 +4138,12 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 	if (index == SUB_REAL) {
 		switch(condition) {
 		case AST_CONTROL_BUSY:
-			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_BUSY);
+#ifdef ZAPATA_PRI
+			if (p->priindication_oob && p->sig == SIG_PRI)
+				res = pri_hangup(p->pri->pri, p->call, PRI_CAUSE_USER_BUSY);
+			else
+#endif
+				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_BUSY);
 			break;
 		case AST_CONTROL_RINGING:
 #ifdef ZAPATA_PRI
@@ -4198,7 +4206,12 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 			break;
 		case AST_CONTROL_CONGESTION:
 			chan->hangupcause = AST_CAUSE_CONGESTION;
-			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
+#ifdef ZAPATA_PRI
+			if (p->priindication_oob && p->sig == SIG_PRI)
+				res = pri_hangup(p->pri->pri, p->call, PRI_CAUSE_SWITCH_CONGESTION);
+			else
+#endif
+				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
 			break;
 		case AST_CONTROL_RADIO_KEY:
 			if (p->radio) 
@@ -6132,6 +6145,8 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		tmp->zaptrcallerid = zaptrcallerid;
 		tmp->restrictcid = restrictcid;
 		tmp->use_callingpres = use_callingpres;
+		tmp->priindication_oob = priindication_oob;
+
 		strncpy(tmp->accountcode, accountcode, sizeof(tmp->accountcode)-1);
 		tmp->amaflags = amaflags;
 		if (!here) {
@@ -9094,19 +9109,27 @@ static int setup_zap(void)
 				ast_mutex_unlock(&iflock);
 				return -1;
 			}
-               } else if (!strcasecmp(v->name, "nsf")) {
-                       if (!strcasecmp(v->value, "sdn"))
-                               nsf = PRI_NSF_SDN;
-                       else if (!strcasecmp(v->value, "megacom"))
-                               nsf = PRI_NSF_MEGACOM;
-                       else if (!strcasecmp(v->value, "accunet"))
-                               nsf = PRI_NSF_ACCUNET;
-                       else if (!strcasecmp(v->value, "none"))
-                               nsf = PRI_NSF_NONE;
-                       else {
-                               ast_log(LOG_WARNING, "Unknown network-specific facility '%s'\n", v->value);
-                               nsf = PRI_NSF_NONE;
-                       }
+		} else if (!strcasecmp(v->name, "nsf")) {
+			if (!strcasecmp(v->value, "sdn"))
+				nsf = PRI_NSF_SDN;
+			else if (!strcasecmp(v->value, "megacom"))
+				nsf = PRI_NSF_MEGACOM;
+			else if (!strcasecmp(v->value, "accunet"))
+				nsf = PRI_NSF_ACCUNET;
+			else if (!strcasecmp(v->value, "none"))
+				nsf = PRI_NSF_NONE;
+			else {
+				ast_log(LOG_WARNING, "Unknown network-specific facility '%s'\n", v->value);
+				nsf = PRI_NSF_NONE;
+			}
+		} else if (!strcasecmp(v->name, "priindication")) {
+			if (!strcasecmp(v->value, "outofband"))
+				priindication_oob = 1;
+			else if (!strcasecmp(v->name, "inband"))
+				priindication_oob = 0;
+			else
+				ast_log(LOG_WARNING, "'%s' is not a valid pri indication value, should be 'inband' or 'outofband' at line %d\n",
+					v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "minunused")) {
 			minunused = atoi(v->value);
 		} else if (!strcasecmp(v->name, "idleext")) {

@@ -80,6 +80,17 @@ switchtype=national
 ;
 ;overlapdial=yes
 ;
+; PRI Out of band indications.
+; Enable this to report Busy and Congestion on a PRI using out-of-band
+; notification. Inband indication, as used by Asterisk doesn't seem to work
+; with all telcos.
+; 
+; outofband:      Signal Busy/Congestion out of band with RELEASE/DISCONNECT
+; inband:         Signal Busy/Congestion using in-band tones
+;
+; priindication = outofband
+;
+;
 ; Signalling method (default is fxs).  Valid values:
 ; em:      E & M
 ; em_w:    E & M Wink
