@@ -418,7 +418,6 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	int res;
 	int len;
 
-	ast_log(LOG_NOTICE, "XXX Blind Transfer %s, %s (sense=%d) XXX\n", chan->name, peer->name, sense);
 	if (sense == FEATURE_SENSE_PEER) {
 		transferer = peer;
 		transferee = chan;

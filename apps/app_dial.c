@@ -787,7 +787,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		memset(tmp, 0, sizeof(struct localuser));
 		if (transfer) {
 			ast_set2_flag(tmp, strchr(transfer, 't'), DIAL_ALLOWREDIRECT_IN);
-			ast_set2_flag(tmp, strchr(transfer, 't'), DIAL_ALLOWREDIRECT_OUT);
+			ast_set2_flag(tmp, strchr(transfer, 'T'), DIAL_ALLOWREDIRECT_OUT);
 			ast_set2_flag(tmp, strchr(transfer, 'r'), DIAL_RINGBACKONLY);	
 			ast_set2_flag(tmp, strchr(transfer, 'm'), DIAL_MUSICONHOLD);	
 			ast_set2_flag(tmp, strchr(transfer, 'H'), DIAL_ALLOWDISCONNECT_OUT);	
