@@ -4508,55 +4508,55 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_background(struct ast_channel *chan, void *data)
 {
-        int res = 0;
-        int option_skip = 0;
-        int option_noanswer = 0;
-        char filename[256] = "";
-        char* stringp;
-        char* options;
-		char *lang = NULL;
+	int res = 0;
+	int option_skip = 0;
+	int option_noanswer = 0;
+	char filename[256] = "";
+	char* stringp;
+	char* options;
+	char *lang = NULL;
 
-        if (!data || ast_strlen_zero(data)) {
-                ast_log(LOG_WARNING, "Background requires an argument(filename)\n");
-                return -1;
-        }
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "Background requires an argument(filename)\n");
+		return -1;
+	}
 
-        strncpy(filename, (char*)data, sizeof(filename) - 1);
-        stringp = filename;
-        strsep(&stringp, "|");
-        options = strsep(&stringp, "|");
-		if (options)
-	        lang = strsep(&stringp, "|");
-		if (!lang)
-			lang = chan->language;
+	strncpy(filename, (char*)data, sizeof(filename) - 1);
+	stringp = filename;
+	strsep(&stringp, "|");
+	options = strsep(&stringp, "|");
+	if (options)
+		lang = strsep(&stringp, "|");
+	if (!lang)
+		lang = chan->language;
 
-        if (options && !strcasecmp(options, "skip"))
-                option_skip = 1;
-        if (options && !strcasecmp(options, "noanswer"))
-                option_noanswer = 1;
+	if (options && !strcasecmp(options, "skip"))
+		option_skip = 1;
+	if (options && !strcasecmp(options, "noanswer"))
+		option_noanswer = 1;
 
-        /* Answer if need be */
-        if (chan->_state != AST_STATE_UP) {
-                if (option_skip) {
-                        return 0;
-                } else if (!option_noanswer) {
-                        res = ast_answer(chan);
-                }
-        }
+	/* Answer if need be */
+	if (chan->_state != AST_STATE_UP) {
+		if (option_skip) {
+			return 0;
+		} else if (!option_noanswer) {
+			res = ast_answer(chan);
+		}
+	}
 
-        if (!res) {
-                /* Stop anything playing */
-                ast_stopstream(chan);
-                /* Stream a file */
-                res = ast_streamfile(chan, filename, lang);
-                if (!res) {
-                        res = ast_waitstream(chan, AST_DIGIT_ANY);
-                        ast_stopstream(chan);
-                } else {
-                        ast_log(LOG_WARNING, "ast_streamfile failed on %s fro %s\n", chan->name, (char*)data);
-                        res = 0;
-                }
-        }
+	if (!res) {
+		/* Stop anything playing */
+		ast_stopstream(chan);
+		/* Stream a file */
+		res = ast_streamfile(chan, filename, lang);
+		if (!res) {
+			res = ast_waitstream(chan, AST_DIGIT_ANY);
+			ast_stopstream(chan);
+		} else {
+			ast_log(LOG_WARNING, "ast_streamfile failed on %s fro %s\n", chan->name, (char*)data);
+			res = 0;
+		}
+	}
 
 	return res;
 }
