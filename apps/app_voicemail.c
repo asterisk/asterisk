@@ -85,8 +85,6 @@ static inline void sql_close(void) { }
 #define MAX_DATETIME_FORMAT	512
 #define MAX_NUM_CID_CONTEXTS 10
 
-#define DIGITS_DIR	AST_SOUNDS "/digits/"
-
 
 struct baseio {
 	int iocp;
@@ -111,6 +109,7 @@ struct ast_vm_user {
 	char dialout[80];
 	char exit[80];
 	int attach;
+	int delete;
 	int alloced;
 	int saycid;
 	int review;
@@ -163,8 +162,8 @@ static char *synopsis_vm =
 "Leave a voicemail message";
 
 static char *descrip_vm =
-"  VoiceMail([s|u|b]extension[@context]):  Leaves voicemail for a given\n"
-"extension (must be configured in voicemail.conf).\n"
+"  VoiceMail([s|u|b]extension[@context][&extension[@context]][...]):  Leaves"
+"voicemail for a given extension (must be configured in voicemail.conf).\n"
 " If the extension is preceded by \n"
 "* 's' then instructions for leaving the message will be skipped.\n"
 "* 'u' then the \"unavailable\" message will be played.\n"
@@ -176,6 +175,8 @@ static char *descrip_vm =
 "extension 'a' in the current context.\n"
 "If the requested mailbox does not exist, and there exists a priority\n"
 "n + 101, then that priority will be taken next.\n"
+"When multiple mailboxes are specified, the unavailable or busy message\n"
+"will be taken from the first mailbox specified.\n"
 "Returns -1 on error or mailbox not found, or if the user hangs up.\n"
 "Otherwise, it returns 0.\n";
 
@@ -288,6 +289,8 @@ static void apply_options(struct ast_vm_user *vmu, char *options)
 				strncpy(vmu->serveremail, value, sizeof(vmu->serveremail) - 1);
 			} else if (!strcasecmp(var, "tz")) {
 				strncpy(vmu->zonetag, value, sizeof(vmu->zonetag) - 1);
+			} else if (!strcasecmp(var, "delete")) {
+				vmu->delete = ast_true(value);
 			} else if (!strcasecmp(var, "saycid")){
 				if(ast_true(value))
 					vmu->saycid = 1;
@@ -1499,6 +1502,128 @@ static void free_zone(struct vm_zone *z)
 	free(z);
 }
 
+static char *mbox(int id)
+{
+	switch(id) {
+	case 0:
+		return "INBOX";
+	case 1:
+		return "Old";
+	case 2:
+		return "Work";
+	case 3:
+		return "Family";
+	case 4:
+		return "Friends";
+	case 5:
+		return "Cust1";
+	case 6:
+		return "Cust2";
+	case 7:
+		return "Cust3";
+	case 8:
+		return "Cust4";
+	case 9:
+		return "Cust5";
+	default:
+		return "Unknown";
+	}
+}
+
+static int copy(char *infile, char *outfile)
+{
+	int ifd;
+	int ofd;
+	int res;
+	int len;
+	char buf[4096];
+
+#ifdef HARDLINK_WHEN_POSSIBLE
+	/* Hard link if possible; saves disk space & is faster */
+	if (link(infile, outfile)) {
+#endif
+		if ((ifd = open(infile, O_RDONLY)) < 0) {
+			ast_log(LOG_WARNING, "Unable to open %s in read-only mode\n", infile);
+			return -1;
+		}
+		if ((ofd = open(outfile, O_WRONLY | O_TRUNC | O_CREAT, 0600)) < 0) {
+			ast_log(LOG_WARNING, "Unable to open %s in write-only mode\n", outfile);
+			close(ifd);
+			return -1;
+		}
+		do {
+			len = read(ifd, buf, sizeof(buf));
+			if (len < 0) {
+				ast_log(LOG_WARNING, "Read failed on %s: %s\n", infile, strerror(errno));
+				close(ifd);
+				close(ofd);
+				unlink(outfile);
+			}
+			if (len) {
+				res = write(ofd, buf, len);
+				if (res != len) {
+					ast_log(LOG_WARNING, "Write failed on %s (%d of %d): %s\n", outfile, res, len, strerror(errno));
+					close(ifd);
+					close(ofd);
+					unlink(outfile);
+				}
+			}
+		} while(len);
+		close(ifd);
+		close(ofd);
+		return 0;
+#ifdef HARDLINK_WHEN_POSSIBLE
+	} else {
+		/* Hard link succeeded */
+		return 0;
+	}
+#endif
+}
+
+static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, int msgnum, long duration, char *fmt, char *callerid);
+
+static void copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt)
+{
+	char fromdir[256], todir[256], frompath[256], topath[256];
+	char *frombox = mbox(imbox);
+	int recipmsgnum;
+
+	ast_log(LOG_NOTICE, "Copying message from %s@%s to %s@%s\n", vmu->mailbox, vmu->context, recip->mailbox, recip->context);
+
+	make_dir(todir, sizeof(todir), recip->context, "", "");
+	/* It's easier just to try to make it than to check for its existence */
+	if (mkdir(todir, 0700) && (errno != EEXIST))
+		ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", todir, strerror(errno));
+	make_dir(todir, sizeof(todir), recip->context, recip->mailbox, "");
+	/* It's easier just to try to make it than to check for its existence */
+	if (mkdir(todir, 0700) && (errno != EEXIST))
+		ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", todir, strerror(errno));
+	make_dir(todir, sizeof(todir), recip->context, recip->mailbox, "INBOX");
+	if (mkdir(todir, 0700) && (errno != EEXIST))
+		ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", todir, strerror(errno));
+
+	make_dir(fromdir, sizeof(fromdir), vmu->context, vmu->mailbox, frombox);
+	make_file(frompath, sizeof(frompath), fromdir, msgnum);
+	recipmsgnum = 0;
+	do {
+		make_file(topath, sizeof(topath), todir, recipmsgnum);
+		if (ast_fileexists(topath, NULL, chan->language) <= 0) 
+			break;
+		recipmsgnum++;
+	} while(recipmsgnum < MAXMSG);
+	if (recipmsgnum < MAXMSG) {
+		char frompath2[256],topath2[256];
+		ast_filecopy(frompath, topath, NULL);
+		snprintf(frompath2, sizeof(frompath2), "%s.txt", frompath);
+		snprintf(topath2, sizeof(topath2), "%s.txt", topath);
+		copy(frompath2, topath2);
+	} else {
+		ast_log(LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
+	}
+
+	notify_new_message(chan, recip, recipmsgnum, duration, fmt, chan->callerid);
+}
+
 static void run_externnotify(char *context, char *extension, int numvoicemails)
 {
 	char arguments[255];
@@ -1514,7 +1639,6 @@ static void run_externnotify(char *context, char *extension, int numvoicemails)
 
 static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int busy, int unavail)
 {
-	char comment[256];
 	char txtfile[256];
 	FILE *txt;
 	int res = 0;
@@ -1529,11 +1653,9 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	char fmt[80];
 	char *context;
 	char ecodes[16] = "#";
-	char *stringp;
-	char tmp[256] = "";
+	char tmp[256] = "", *tmpptr;
 	struct ast_vm_user *vmu;
 	struct ast_vm_user svm;
-
 
 	strncpy(tmp, ext, sizeof(tmp) - 1);
 	ext = tmp;
@@ -1541,6 +1663,14 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	if (context) {
 		*context = '\0';
 		context++;
+		tmpptr = strchr(context, '&');
+	} else {
+		tmpptr = strchr(ext, '&');
+	}
+
+	if (tmpptr) {
+		*tmpptr = '\0';
+		tmpptr++;
 	}
 
 	if ((vmu = find_user(&svm, context, ext))) {
@@ -1641,9 +1771,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 			msgnum = 0;
 			do {
 				make_file(fn, sizeof(fn), dir, msgnum);
-				snprintf(comment, sizeof(comment), "Voicemail from %s to %s (%s) on %s\n",
-									(chan->callerid ? chan->callerid : "Unknown"), 
-									vmu->fullname, ext, chan->name);
 				if (ast_fileexists(fn, NULL, chan->language) <= 0) 
 					break;
 				msgnum++;
@@ -1697,24 +1824,23 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 					vm_delete(fn);
 					goto leave_vm_out;
 				}
-				stringp = fmt;
-				strsep(&stringp, "|");
-				/* Send e-mail if applicable */
-				if (strlen(vmu->email)) {
-					int attach_user_voicemail = attach_voicemail;
-					char *myserveremail = serveremail;
-					if (vmu->attach > -1)
-						attach_user_voicemail = vmu->attach;
-					if (strlen(vmu->serveremail))
-						myserveremail = vmu->serveremail;
-						sendmail(myserveremail, vmu, msgnum, ext, chan->callerid, fn, fmt, duration, attach_user_voicemail);
+				/* Are there to be more recipients of this message? */
+				while (tmpptr) {
+					struct ast_vm_user recipu, *recip;
+					char *exten, *context;
+
+					exten = strsep(&tmpptr, "&");
+					context = strchr(exten, '@');
+					if (context) {
+						*context = '\0';
+						context++;
+					}
+					if ((recip = find_user(&recipu, context, exten))) {
+						copy_message(chan, vmu, 0, msgnum, duration, recip, fmt);
+						free_user(recip);
+					}
 				}
-				if (strlen(vmu->pager)) {
-					char *myserveremail = serveremail;
-					if (strlen(vmu->serveremail))
-						myserveremail = vmu->serveremail;
-					sendpage(myserveremail, vmu->pager, msgnum, ext, chan->callerid, duration, vmu);
-				}
+				notify_new_message(chan, vmu, msgnum, duration, fmt, chan->callerid);
 			} else {
 				res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
 				if (!res)
@@ -1722,50 +1848,17 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 				ast_log(LOG_WARNING, "No more messages possible\n");
 			}
 		} else
-			ast_log(LOG_WARNING, "No format for saving voicemail?\n");					
+			ast_log(LOG_WARNING, "No format for saving voicemail?\n");
 leave_vm_out:
 		free_user(vmu);
 	} else {
 		ast_log(LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
-			/*Send the call to n+101 priority, where n is the current priority*/
-			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
-				chan->priority+=100;
+		/*Send the call to n+101 priority, where n is the current priority*/
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
+			chan->priority+=100;
 	}
-	/* Leave voicemail for someone */
-	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, ast_app_has_voicemail(ext_context));
-
-	/* If an external program is specified to be run after leaving a voicemail */
-	run_externnotify(chan->context, ext_context, ast_app_has_voicemail(ext_context));
 
 	return res;
-}
-
-static char *mbox(int id)
-{
-	switch(id) {
-	case 0:
-		return "INBOX";
-	case 1:
-		return "Old";
-	case 2:
-		return "Work";
-	case 3:
-		return "Family";
-	case 4:
-		return "Friends";
-	case 5:
-		return "Cust1";
-	case 6:
-		return "Cust2";
-	case 7:
-		return "Cust3";
-	case 8:
-		return "Cust4";
-	case 9:
-		return "Cust5";
-	default:
-		return "Unknown";
-	}
 }
 
 static int count_messages(char *dir)
@@ -1785,45 +1878,6 @@ static int say_and_wait(struct ast_channel *chan, int num)
 	int d;
 	d = ast_say_number(chan, num, AST_DIGIT_ANY, chan->language, (char *) NULL);
 	return d;
-}
-
-static int copy(char *infile, char *outfile)
-{
-	int ifd;
-	int ofd;
-	int res;
-	int len;
-	char buf[4096];
-	if ((ifd = open(infile, O_RDONLY)) < 0) {
-		ast_log(LOG_WARNING, "Unable to open %s in read-only mode\n", infile);
-		return -1;
-	}
-	if ((ofd = open(outfile, O_WRONLY | O_TRUNC | O_CREAT, 0600)) < 0) {
-		ast_log(LOG_WARNING, "Unable to open %s in write-only mode\n", outfile);
-		close(ifd);
-		return -1;
-	}
-	do {
-		len = read(ifd, buf, sizeof(buf));
-		if (len < 0) {
-			ast_log(LOG_WARNING, "Read failed on %s: %s\n", infile, strerror(errno));
-			close(ifd);
-			close(ofd);
-			unlink(outfile);
-		}
-		if (len) {
-			res = write(ofd, buf, len);
-			if (res != len) {
-				ast_log(LOG_WARNING, "Write failed on %s (%d of %d): %s\n", outfile, res, len, strerror(errno));
-				close(ifd);
-				close(ofd);
-				unlink(outfile);
-			}
-		}
-	} while(len);
-	close(ifd);
-	close(ofd);
-	return 0;
 }
 
 static int save_to_folder(char *dir, int msg, char *context, char *username, int box)
@@ -2420,6 +2474,49 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 	if (cmd == 't')
 		cmd = 0;
 	return cmd;
+}
+
+static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, int msgnum, long duration, char *fmt, char *callerid)
+{
+	char todir[256], fn[256], *stringp;
+
+	make_dir(todir, sizeof(todir), vmu->context, vmu->mailbox, "INBOX");
+	make_file(fn, sizeof(fn), todir, msgnum);
+
+	/* Attach only the first format */
+	fmt = ast_strdupa(fmt);
+	if (fmt) {
+		stringp = fmt;
+		strsep(&stringp, "|");
+
+		if (strlen(vmu->email)) {
+			int attach_user_voicemail = attach_voicemail;
+			char *myserveremail = serveremail;
+			if (vmu->attach > -1)
+				attach_user_voicemail = vmu->attach;
+			if (strlen(vmu->serveremail))
+				myserveremail = vmu->serveremail;
+			sendmail(myserveremail, vmu, msgnum, vmu->mailbox, callerid, fn, fmt, duration, attach_user_voicemail);
+		}
+
+		if (strlen(vmu->pager)) {
+			char *myserveremail = serveremail;
+			if (strlen(vmu->serveremail))
+				myserveremail = vmu->serveremail;
+			sendpage(myserveremail, vmu->pager, msgnum, vmu->mailbox, callerid, duration, vmu);
+		}
+	} else {
+		ast_log(LOG_ERROR, "Out of memory\n");
+	}
+
+	if (vmu->delete) {
+		vm_delete(fn);
+	}
+
+	/* Leave voicemail for someone */
+	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", vmu->mailbox, ast_app_has_voicemail(vmu->mailbox));
+	run_externnotify(chan->context, vmu->mailbox, ast_app_has_voicemail(vmu->mailbox));
+	return 0;
 }
 
 static int forward_message(struct ast_channel *chan, char *context, char *dir, int curmsg, struct ast_vm_user *sender, char *fmt)
@@ -3363,12 +3460,10 @@ out:
 		snprintf(ext_context, sizeof(ext_context), "%s@%s", vms.username, vmu->context);
 		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, ast_app_has_voicemail(ext_context));
 		run_externnotify(chan->context, ext_context, ast_app_has_voicemail(ext_context));
-
 	}
 	LOCAL_USER_REMOVE(u);
 
 	return res;
-
 }
 
 static int vm_exec(struct ast_channel *chan, void *data)

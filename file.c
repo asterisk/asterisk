@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <sys/types.h>
 #include <sys/stat.h>
 #include "asterisk.h"
 #include "astconf.h"
@@ -241,6 +242,7 @@ static int copy(char *infile, char *outfile)
 	int res;
 	int len;
 	char buf[4096];
+
 	if ((ifd = open(infile, O_RDONLY)) < 0) {
 		ast_log(LOG_WARNING, "Unable to open %s in read-only mode\n", infile);
 		return -1;
@@ -343,6 +345,9 @@ static int ast_filehelper(char *filename, char *filename2, char *fmt, int action
 			/* Try each kind of extension */
 			stringp=exts;
 			ext = strsep(&stringp, "|");
+			if (!strcmp(ext,"wav49")) {
+				ext = "WAV";
+			}
 			do {
 				fn = build_filename(filename, ext);
 				if (fn) {

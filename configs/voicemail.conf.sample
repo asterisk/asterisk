@@ -87,9 +87,9 @@ maxlogins=3
 ;
 ; Advanced options example is extension 4069
 ; NOTE: All options can be expressed globally in the general section, and overriden in the per-mailbox 
-; settings.
+; settings, unless listed otherwise.
 ; 
-; tz=central 		; Timezone from zonemessages above
+; tz=central 		; Timezone from zonemessages above.  Irrelevant if envelope=no.
 ; attach=yes 		; Attach the voicemail to the notification email *NOT* the pager email
 ; saycid=yes 		; Say the caller id information before the message. If not described, 
 			;     or set to no, it will be in the envelope
@@ -102,6 +102,8 @@ maxlogins=3
 			;     reach an operator  [OFF by default]
 ; envelope=no 		; Turn on/off envelope playback before message playback. [ON by default] 
 			;     This does NOT affect option 3,3 from the advanced options menu
+; delete=yes		; After notification, the voicemail is deleted from the server. [per-mailbox only]
+			;     This is intended for use with users who wish to receive their voicemail ONLY by email.
 			
 [zonemessages]
 eastern=America/New_York|'vm-received' Q 'digits/at' IMp
@@ -114,6 +116,7 @@ central24=America/Chicago|'vm-received' q 'digits/at' H 'digits/hundred' M 'hour
 ;4300 => 3456,Ben Rigas,ben@american-computer.net
 ;4310 => 5432,Sales,sales@marko.net
 ;4069 => 6522,Matt Brooks,matt@marko.net,,|tz=central|attach=yes|saycid=yes|dialout=fromvm|callback=fromvm|review=yes|operator=yes|envelope=yes
+;4073 => 1099,Bianca Paige,bianca@biancapaige.com,,delete=1
 ;4110 => 3443,Rob Flynn,rflynn@blueridge.net
 
 ;
