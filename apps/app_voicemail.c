@@ -144,6 +144,7 @@ struct vm_state {
 static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int msg, int option);
 static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num, char *outgoing_context);
 static int play_record_review(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int outsidecaller, struct ast_vm_user *vmu, int *duration);
+static int vm_delete(char *file);
 
 
 
@@ -753,7 +754,7 @@ static int base_encode(char *filename, FILE *so)
 	return 1;
 }
 
-static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *mailbox, char *callerid, char *attach, char *format, long duration, int attach_user_voicemail)
+static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *mailbox, char *callerid, char *attach, char *format, int duration, int attach_user_voicemail)
 {
 	FILE *p=NULL;
 	int pfd;
@@ -789,7 +790,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 		else {
 			snprintf(who, sizeof(who), "%s@%s", srcemail, host);
 		}
-		snprintf(dur, sizeof(dur), "%ld:%02ld", duration / 60, duration % 60);
+		snprintf(dur, sizeof(dur), "%d:%02d", duration / 60, duration % 60);
 		time(&t);
 
 		/* Does this user have a timezone specified? */
@@ -889,7 +890,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 	return 0;
 }
 
-static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char *callerid, long duration, struct ast_vm_user *vmu)
+static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char *callerid, int duration, struct ast_vm_user *vmu)
 {
 	FILE *p=NULL;
 	int pfd;
@@ -919,7 +920,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char
 		else {
 			snprintf(who, sizeof(who), "%s@%s", srcemail, host);
 		}
-		snprintf(dur, sizeof(dur), "%ld:%02ld", duration / 60, duration % 60);
+		snprintf(dur, sizeof(dur), "%d:%02d", duration / 60, duration % 60);
 		time(&t);
 
 		/* Does this user have a timezone specified? */
@@ -1013,7 +1014,7 @@ static int play_and_wait(struct ast_channel *chan, char *fn)
 	return d;
 }
 
-static int play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int beep)
+static int play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int *duration, int beep)
 {
 	char d = 0, *fmts;
 	char comment[256];
@@ -1031,7 +1032,11 @@ static int play_and_prepend(struct ast_channel *chan, char *playfile, char *reco
 	int rfmt=0;	
 	char prependfile[80];
 	
-	ast_log(LOG_DEBUG,"play_and_preped: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
+	/* barf if no pointer passed to store duration in */
+	if (duration == NULL)
+		ast_log(LOG_WARNING, "Error play_and_prepend called without duration pointer\n");
+
+	ast_log(LOG_DEBUG,"play_and_prepend: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
 	snprintf(comment,sizeof(comment),"Playing %s, Recording to: %s on %s\n", playfile ? playfile : "<None>", recordfile, chan->name);
 
 	if (playfile || beep) {	
@@ -1062,8 +1067,8 @@ static int play_and_prepend(struct ast_channel *chan, char *playfile, char *reco
 		sfmt[fmtcnt++] = ast_strdupa(fmt);
 	}
 
-	if (maxtime)
-		time(&start);
+	time(&start);
+	end=start;  /* pre-initialize end to be same as start in case we never get into loop */
 	for (x=0;x<fmtcnt;x++) {
 		others[x] = ast_writefile(prependfile, sfmt[x], comment, O_TRUNC, 0, 0700);
 		ast_verbose( VERBOSE_PREFIX_3 "x=%i, open writing:  %s format: %s, %p\n", x, prependfile, sfmt[x], others[x]);
@@ -1166,6 +1171,7 @@ static int play_and_prepend(struct ast_channel *chan, char *playfile, char *reco
 			}
 			ast_frfree(f);
 		}
+		if (end == start) time(&end);
 		if (!f) {
 			if (option_verbose > 2) 
 				ast_verbose( VERBOSE_PREFIX_3 "User hung up\n");
@@ -1184,6 +1190,7 @@ static int play_and_prepend(struct ast_channel *chan, char *playfile, char *reco
 	} else {
 		ast_log(LOG_WARNING, "Error creating writestream '%s', format '%s'\n", prependfile, sfmt[x]); 
 	}
+	*duration = end - start;
 #if 0
 	if (outmsg > 1) {
 #else
@@ -1228,7 +1235,7 @@ static int play_and_prepend(struct ast_channel *chan, char *playfile, char *reco
 	return res;
 }
 
-static int play_and_record(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt)
+static int play_and_record(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int *duration)
 {
 	char d, *fmts;
 	char comment[256];
@@ -1243,6 +1250,10 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 	int dspsilence = 0;
 	int gotsilence = 0;		/* did we timeout for silence? */
 	int rfmt=0;
+
+	/* barf if no pointer passed to store duration in */
+	if (duration == NULL)
+		ast_log(LOG_WARNING, "Error play_and_record called without duration pointer\n");
 
 	ast_log(LOG_DEBUG,"play_and_record: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
 	snprintf(comment,sizeof(comment),"Playing %s, Recording to: %s on %s\n", playfile ? playfile : "<None>", recordfile, chan->name);
@@ -1272,8 +1283,8 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 		sfmt[fmtcnt++] = ast_strdupa(fmt);
 	}
 
-	if (maxtime)
-		time(&start);
+	time(&start);
+	end=start;  /* pre-initialize end to be same as start in case we never get into loop */
 	for (x=0;x<fmtcnt;x++) {
 		others[x] = ast_writefile(recordfile, sfmt[x], comment, O_TRUNC, 0, 0700);
 		ast_verbose( VERBOSE_PREFIX_3 "x=%i, open writing:  %s format: %s, %p\n", x, recordfile, sfmt[x], others[x]);
@@ -1385,6 +1396,7 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 			}
 			ast_frfree(f);
 		}
+		if (end == start) time(&end);
 		if (!f) {
 			if (option_verbose > 2)
 				ast_verbose( VERBOSE_PREFIX_3 "User hung up\n");
@@ -1394,6 +1406,8 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 	} else {
 		ast_log(LOG_WARNING, "Error creating writestream '%s', format '%s'\n", recordfile, sfmt[x]);
 	}
+
+	*duration = end - start;
 
 	for (x=0;x<fmtcnt;x++) {
 		if (!others[x])
@@ -1462,8 +1476,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	char *context;
 	char *ecodes = "#";
 	char *stringp;
-	time_t start;
-	time_t end;
 	char tmp[256] = "";
 	struct ast_vm_user *vmu;
 	struct ast_vm_user svm;
@@ -1574,7 +1586,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
  				txt = fopen(txtfile, "w+");
 				if (txt) {
 					get_date(date, sizeof(date));
-					time(&start);
 					fprintf(txt, 
 ";\n"
 "; Message Information file\n"
@@ -1609,14 +1620,13 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 				if (fd > -1) {
 					txt = fdopen(fd, "a");
 					if (txt) {
-						time(&end);
-						fprintf(txt, "duration=%ld\n", (long)(duration));
+						fprintf(txt, "duration=%d\n", duration);
 						fclose(txt);
 					} else
 						close(fd);
 				}
-				if (end - start < vmminmessage) {
-					ast_filedelete(fn, NULL);
+				if (duration < vmminmessage) {
+					vm_delete(fn);
 					goto leave_vm_out;
 				}
 				stringp = fmt;
@@ -1629,13 +1639,13 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 						attach_user_voicemail = vmu->attach;
 					if (strlen(vmu->serveremail))
 						myserveremail = vmu->serveremail;
-						sendmail(myserveremail, vmu, msgnum, ext, chan->callerid, fn, fmt, end - start, attach_user_voicemail);
+						sendmail(myserveremail, vmu, msgnum, ext, chan->callerid, fn, fmt, duration, attach_user_voicemail);
 				}
 				if (strlen(vmu->pager)) {
 					char *myserveremail = serveremail;
 					if (strlen(vmu->serveremail))
 						myserveremail = vmu->serveremail;
-					sendpage(myserveremail, vmu->pager, msgnum, ext, chan->callerid, end - start, vmu);
+					sendpage(myserveremail, vmu->pager, msgnum, ext, chan->callerid, duration, vmu);
 				}
 			} else {
 				res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
@@ -2307,6 +2317,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 {
 	int cmd = 0;
 	int retries = 0;
+	int duration = 0;
 
 	while((cmd >= 0) && (cmd != 't') && (cmd != '*')) {
 		if (cmd)
@@ -2317,7 +2328,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 		{
 			char file[200];
 			snprintf(file, sizeof(file), "%s/msg%04d", curdir, curmsg);
-			cmd = play_and_prepend(chan, NULL, file, 0, vmfmts, 1);
+			cmd = play_and_prepend(chan, NULL, file, 0, vmfmts, &duration, 1);
 			break;
 		}
 		case '2': 
@@ -2349,7 +2360,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 	char sys[256];
 	char todir[256];
 	int todircount=0;
-	long duration;
+	int duration;
 	struct ast_config *mif;
 	char miffile[256];
 	char fn[256];
@@ -2717,9 +2728,7 @@ static void close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 			make_file(vms->fn, sizeof(vms->fn), vms->curdir, x); 
 			if (ast_fileexists(vms->fn, NULL, NULL) < 1) 
 				break;
-			snprintf(txt, sizeof(txt), "%s.txt", vms->fn); 
-			ast_filedelete(vms->fn, NULL); 
-			unlink(txt); 
+			vm_delete(vms->fn);
 		} 
 	} 
 	memset(vms->deleted, 0, sizeof(vms->deleted)); 
@@ -2821,6 +2830,7 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 {
 	int cmd = 0;
 	int retries = 0;
+	int duration = 0;
 	char newpassword[80] = "";
 	char newpassword2[80] = "";
 	char prefile[256]="";
@@ -2842,15 +2852,15 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 		switch (cmd) {
 		case '1':
 			snprintf(prefile,sizeof(prefile),"voicemail/%s/%s/unavail",vmu->context, vms->username);
-			cmd = play_record_review(chan,"vm-rec-unv",prefile, maxgreet, fmtc, 0, vmu, 0);
+			cmd = play_record_review(chan,"vm-rec-unv",prefile, maxgreet, fmtc, 0, vmu, &duration);
 			break;
 		case '2': 
 			snprintf(prefile,sizeof(prefile),"voicemail/%s/%s/busy",vmu->context, vms->username);
-			cmd = play_record_review(chan,"vm-rec-busy",prefile, maxgreet, fmtc, 0, vmu, 0);
+			cmd = play_record_review(chan,"vm-rec-busy",prefile, maxgreet, fmtc, 0, vmu, &duration);
 			break;
 		case '3': 
 			snprintf(prefile,sizeof(prefile),"voicemail/%s/%s/greet",vmu->context, vms->username);
-			cmd = play_record_review(chan,"vm-rec-name",prefile, maxgreet, fmtc, 0, vmu, 0);
+			cmd = play_record_review(chan,"vm-rec-name",prefile, maxgreet, fmtc, 0, vmu, &duration);
 			break;
 		case '4':
 			newpassword[1] = '\0';
@@ -4116,11 +4126,13 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  	int max_attempts = 3;
  	int attempts = 0;
  	int recorded = 0;
- 	time_t start = 0;
- 	time_t end = 0;
  	int message_exists = 0;
  	/* Note that urgent and private are for flagging messages as such in the future */
  
+	/* barf if no pointer passed to store duration in */
+	if (duration == NULL)
+		ast_log(LOG_WARNING, "Error play_record_review called without duration pointer\n");
+
  	cmd = '3';	 /* Want to start by recording */
  
         	while((cmd >= 0) && (cmd != 't')) {
@@ -4154,35 +4166,29 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  			}
  			recorded = 1;
  			/* After an attempt has been made to record message, we have to take care of INTRO and beep for incoming messages, but not for greetings */
-			/* twisted says: don't touch the pointer if it's null! */
-			if (duration) *duration = 0;
- 			time(&start);
- 			cmd = play_and_record(chan, playfile, recordfile, maxtime, fmt);
- 			time(&end);
-			/* twisted says: don't touch the pointer if it's null! */
-			if (duration) *duration = end - start;
+			cmd = play_and_record(chan, playfile, recordfile, maxtime, fmt, duration);
  			if (cmd == -1)
  			/* User has hung up, no options to give */
  				return res;
  			if (cmd == '0') {
  				/* Erase the message if 0 pushed during playback */
  				play_and_wait(chan, "vm-deleted");
- 			 	ast_filedelete(recordfile, NULL);
+ 			 	vm_delete(recordfile);
  			} else if (cmd == '*') {
  				break;
  			} 
 #if 0			
- 			else if (vmu->review && ((int)&end - (int)&start < 5)) {
+ 			else if (vmu->review && (*duration < 5)) {
  				/* Message is too short */
  				ast_verbose(VERBOSE_PREFIX_3 "Message too short\n");
 				cmd = play_and_wait(chan, "vm-tooshort");
- 				cmd = ast_filedelete(recordfile, NULL);
+ 				cmd = vm_delete(recordfile);
  				break;
  			}
- 			else if (vmu->review && (cmd == 2 && duration < (maxsilence + 3))) {
+ 			else if (vmu->review && (cmd == 2 && *duration < (maxsilence + 3))) {
  				/* Message is all silence */
  				ast_verbose(VERBOSE_PREFIX_3 "Nothing recorded\n");
- 				cmd = ast_filedelete(recordfile, NULL);
+ 				cmd = vm_delete(recordfile);
 	                        cmd = play_and_wait(chan, "vm-nothingrecorded");
                                 if (!cmd)
  					cmd = play_and_wait(chan, "vm-speakup");
@@ -4211,7 +4217,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  		case '*':
  			/* Cancel recording, delete message, offer to take another message*/
  			cmd = play_and_wait(chan, "vm-deleted");
- 			cmd = ast_filedelete(recordfile, NULL);
+ 			cmd = vm_delete(recordfile);
  			if (outsidecaller) {
  				res = vm_exec(chan, NULL);
  				return res;
@@ -4269,6 +4275,15 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  }
  
 
+static int vm_delete(char *file)
+{
+	char *txt;
+	txt = (char *)alloca((strlen(file) + 5)*sizeof(char));
+	/* Sprintf here is safe because we alloca'd exactly the right length */
+	sprintf(txt, "%s.txt", file);
+	unlink(txt);
+	return ast_filedelete(file, NULL);
+}
 
 int usecount(void)
 {
