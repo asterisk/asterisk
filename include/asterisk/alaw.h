@@ -29,6 +29,6 @@ extern unsigned char __ast_lin2a[8192];
 extern short __ast_alaw[256];
 
 #define AST_LIN2A(a) (__ast_lin2a[((unsigned short)(a)) >> 3])
-#define AST_ALAW(a) (__ast_alaw[(a)])
+#define AST_ALAW(a) (__ast_alaw[(int)(a)])
 
 #endif
