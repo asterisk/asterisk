@@ -370,8 +370,10 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
         ast_verbose(VERBOSE_PREFIX_3 "User hit '%s' to record call.\n", code);
 	if (monitor_ok) {
 		if (!monitor_app) { 
-			if (!(monitor_app = pbx_findapp("Monitor")))
+			if (!(monitor_app = pbx_findapp("Monitor"))) {
 				monitor_ok=0;
+				return -1;
+			}
 		}
 		/* Copy to local variable just in case one of the channels goes away */
 		args = pbx_builtin_getvar_helper(chan, "TOUCH_MONITOR");
@@ -381,6 +383,19 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 			args = "WAV||m";
 
 		pbx_exec(peer, monitor_app, args, 1);
+		if (!ast_strlen_zero(courtesytone)) {
+			if (ast_autoservice_start(peer))
+				return -1;
+			if (!ast_streamfile(chan, courtesytone, chan->language)) {
+				if (ast_waitstream(chan, "") < 0) {
+					ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+					ast_autoservice_stop(peer);
+					return -1;
+				}
+			}
+			if (ast_autoservice_stop(peer))
+				return -1;
+		}
 		return FEATURE_RETURN_SUCCESS;
 	}
 
