@@ -2701,7 +2701,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			case SIG_SF_FEATD:
 			case SIG_SF_FEATDMF:
 			case SIG_SF_FEATB:
-				if (ast->_state == AST_STATE_DOWN) {
+				if ((ast->_state == AST_STATE_DOWN) || (ast->_state == AST_STATE_RING)) {
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Ring detected\n");
 					p->subs[index].f.frametype = AST_FRAME_CONTROL;
