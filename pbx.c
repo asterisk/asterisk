@@ -1259,6 +1259,15 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 								term_color(tmp2, c->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
 								term_color(tmp3, (!ast_strlen_zero(passdata) ? (char *)passdata : ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)),
 								(newstack ? "in new stack" : "in same stack"));
+				manager_event(EVENT_FLAG_CALL, "Newexten", 
+					"Channel: %s\r\n"
+					"Context: %s\r\n"
+					"Extension: %s\r\n"
+					"Priority: %d\r\n"
+					"Application: %s\r\n"
+					"AppData: %s\r\n"
+					"Uniqueid: %s\r\n",
+					c->name, c->context, c->exten, c->priority, app->name, passdata ? passdata : "(NULL)", c->uniqueid);
 				res = pbx_exec(c, app, passdata, newstack);
 				return res;
 			} else {
@@ -1795,13 +1804,6 @@ int ast_pbx_run(struct ast_channel *c)
 		digit = 0;
 		while(ast_exists_extension(c, c->context, c->exten, c->priority, c->callerid)) {
 			memset(exten, 0, sizeof(exten));
-			manager_event(EVENT_FLAG_CALL, "Newexten", 
-				"Channel: %s\r\n"
-				"Context: %s\r\n"
-				"Extension: %s\r\n"
-				"Priority: %d\r\n"
-				"Uniqueid: %s\r\n",
-				c->name, c->context, c->exten, c->priority, c->uniqueid);
 			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->callerid))) {
 				/* Something bad happened, or a hangup has been requested. */
 				if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F')) ||
