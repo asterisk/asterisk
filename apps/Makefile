@@ -24,7 +24,7 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_mp3.so\
      app_authenticate.so app_softhangup.so app_lookupblacklist.so \
      app_waitforring.so app_privacy.so app_db.so app_chanisavail.so \
      app_enumlookup.so app_voicemail2.so app_transfer.so app_setcidnum.so app_cdr.so \
-     app_hasnewvoicemail.so app_sayunixtime.so app_cut.so
+     app_hasnewvoicemail.so app_sayunixtime.so app_cut.so app_read.so
 
 ifneq (${OSARCH},Darwin)
 APPS+=app_intercom.so
