@@ -1201,7 +1201,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		codec1 = pr1->get_codec(c1);
 		/* Hey, we can't do reinvite if both parties speak diffrent codecs */
 		if (codec0 != codec1) {
-			ast_log(LOG_WARNING, "codec0 = %d is not codec1 = %d, can't do reinvite\n",codec0,codec1);
+			ast_log(LOG_WARNING, "codec0 = %d is not codec1 = %d, cannot native bridge.\n",codec0,codec1);
 			ast_mutex_unlock(&c0->lock);
 			ast_mutex_unlock(&c1->lock);
 			return -2;
