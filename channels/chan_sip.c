@@ -5718,9 +5718,11 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			p->needdestroy = 1;
 		transmit_response(p, "200 OK", req);
 	} else if (!strcasecmp(cmd, "MESSAGE")) {
-		if (sipdebug)
-			ast_verbose("Receiving message!\n");
-		receive_message(p, req);
+		if (!ignore) {
+			if (sipdebug)
+				ast_verbose("Receiving message!\n");
+			receive_message(p, req);
+		}
 		transmit_response(p, "200 OK", req);
 	} else if (!strcasecmp(cmd, "SUBSCRIBE")) {
 		if (!ignore) {
@@ -5788,9 +5790,11 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		    transmit_state_notify(p, ast_extension_state(NULL, p->context, p->exten),1);
 		}
 	} else if (!strcasecmp(cmd, "INFO")) {
-		if (sipdebug)
-			ast_verbose("Receiving DTMF!\n");
-		receive_info(p, req);
+		if (!ignore) {
+			if (sipdebug)
+				ast_verbose("Receiving DTMF!\n");
+			receive_info(p, req);
+		}
 		transmit_response(p, "200 OK", req);
 	} else if (!strcasecmp(cmd, "REGISTER")) {
 		/* Use this as the basis */
