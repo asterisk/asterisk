@@ -57,6 +57,7 @@ static struct ast_region {
 	(((unsigned long)(a)) % SOME_PRIME)
 	
 static ast_mutex_t reglock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t showmemorylock = AST_MUTEX_INITIALIZER;
 
 static inline void *__ast_alloc_region(size_t size, int which, const char *file, int lineno, const char *func)
 {
@@ -227,7 +228,7 @@ static int handle_show_memory(int fd, int argc, char *argv[])
 		fn = argv[3];
 
 	/* try to lock applications list ... */
-	ast_mutex_lock(&reglock);
+	ast_mutex_lock(&showmemorylock);
 
 	for (x=0;x<SOME_PRIME;x++) {
 		reg = regions[x];
@@ -241,7 +242,7 @@ static int handle_show_memory(int fd, int argc, char *argv[])
 		}
 	}
 	ast_cli(fd, "%d bytes allocated %d units total\n", len, count);
-	ast_mutex_unlock(&reglock);
+	ast_mutex_unlock(&showmemorylock);
 	return RESULT_SUCCESS;
 }
 
