@@ -61,6 +61,9 @@ TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 ; while _1NXXNXXXXXX would represent an area code plus phone number
 ; preceeded by a one.
 ;
+; Each step of an extension is ordered by priority, which must
+; always start with 1 to be considered a valid extension.
+;
 ; Contexts contain several lines, one for each step of each
 ; extension, which can take one of two forms as listed below,
 ; with the first form being preferred.  One may include another
