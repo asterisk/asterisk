@@ -804,11 +804,11 @@ static int zt_digit(struct ast_channel *ast, char digit)
 		if (p->sig == SIG_PRI && ast->_state == AST_STATE_DIALING) {
 #endif
 #endif
-			if (!pri_grab(p, p->pri))
+			if (!pri_grab(p, p->pri)) {
 				pri_information(p->pri->pri,p->call,digit);
-			else
+				pri_rel(p->pri);
+			} else
 				ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
-			pri_rel(p->pri);
 		} else {
 #else
 		{

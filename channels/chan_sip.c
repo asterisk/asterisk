@@ -3212,7 +3212,7 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 
 static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 {
-	char tmp[2000];
+	char tmp[4000];
 	char from[256], to[256];
 	char *t, *c, *a;
 	char *mfrom, *mto;
@@ -3262,11 +3262,11 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 	    t = tmp + strlen(tmp);
 	    sprintf(t, "<presence>\n");
 	    t = tmp + strlen(tmp);
-	    sprintf(t, "<presentity uri=\"%s;method=SUBSCRIBE\" />\n", mfrom);
+	    snprintf(t, 1000, "<presentity uri=\"%s;method=SUBSCRIBE\" />\n", mfrom);
 	    t = tmp + strlen(tmp);
-	    sprintf(t, "<atom id=\"%s\">\n", p->exten);
+	    snprintf(t, 1000, "<atom id=\"%s\">\n", p->exten);
 	    t = tmp + strlen(tmp);
-	    sprintf(t, "<address uri=\"%s;user=ip\" priority=\"0,800000\">\n", mto);
+	    snprintf(t, 1000, "<address uri=\"%s;user=ip\" priority=\"0,800000\">\n", mto);
 	    t = tmp + strlen(tmp);
 	    sprintf(t, "<status status=\"%s\" />\n", !state ? "open" : (state==1) ? "inuse" : "closed");
 	    t = tmp + strlen(tmp);
@@ -3280,9 +3280,9 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 	    t = tmp;		
 	    sprintf(t, "<?xml version=\"1.0\"?>\n");
 	    t = tmp + strlen(tmp);
-	    sprintf(t, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">\n", p->dialogver++, full ? "full":"partial", mfrom);
+	    snprintf(t, 1000, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">\n", p->dialogver++, full ? "full":"partial", mfrom);
 	    t = tmp + strlen(tmp);
-	    sprintf(t, "<dialog id=\"%s\">\n", p->exten);
+	    snprintf(t, 1000, "<dialog id=\"%s\">\n", p->exten);
 	    t = tmp + strlen(tmp);
 	    sprintf(t, "<state>%s</state>\n", state ? "confirmed" : "terminated");
 	    t = tmp + strlen(tmp);
@@ -4654,14 +4654,14 @@ static int sip_show_users(int fd, int argc, char *argv[])
 
 static int sip_show_peers(int fd, int argc, char *argv[])
 {
-#define FORMAT2 "%-15.15s  %-15.15s %s  %-15.15s  %-8s %-10s\n"
-#define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-8d %-10s\n"
+#define FORMAT2 "%-15.15s  %-15.15s %s %s %s  %-15.15s  %-8s %-10s\n"
+#define FORMAT "%-15.15s  %-15.15s %s %s %s %-15.15s  %-8d %-10s\n"
 	struct sip_peer *peer;
 	char name[256] = "";
 	if (argc != 3 && argc != 5)
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&peerl.lock);
-	ast_cli(fd, FORMAT2, "Name/username", "Host", "   ", "Mask", "Port", "Status");
+	ast_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Mask", "Port", "Status");
 	for (peer = peerl.peers;peer;peer = peer->next) {
 		char nm[20] = "";
 		char status[20];
@@ -4684,10 +4684,12 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 		} else 
 			strcpy(status, "Unmonitored");
                 sprintf(srch, FORMAT, name,
-                                        peer->addr.sin_addr.s_addr ? inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
-                                        peer->dynamic ? "(D)" : "   ",
-                                        nm,
-                                        ntohs(peer->addr.sin_port), status);
+                        peer->addr.sin_addr.s_addr ? inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
+                        peer->dynamic ? " D " : "   ", 	/* Dynamic or not? */
+                        peer->nat ? " N " : "   ",	/* NAT=yes? */
+                        peer->ha ? " A " : "   ", 	/* permit/deny */
+                        nm,
+                        ntohs(peer->addr.sin_port), status);
 
                 if (argc == 5) {
                   if (!strcasecmp(argv[3],"include") && strstr(srch,argv[4])) {
@@ -4702,11 +4704,13 @@ static int sip_show_peers(int fd, int argc, char *argv[])
                 }
 
 		if (print_line) {
-		ast_cli(fd, FORMAT, name, 
-					peer->addr.sin_addr.s_addr ? inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
-					peer->dynamic ? "(D)" : "   ",
-					nm,
-					ntohs(peer->addr.sin_port), status);
+		    ast_cli(fd, FORMAT, name, 
+			peer->addr.sin_addr.s_addr ? inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
+                        peer->dynamic ? " D " : "   ",  /* Dynamic or not? */
+                        peer->nat ? " N " : "   ",	/* NAT=yes? */
+                        peer->ha ? " A " : "   ",       /* permit/deny */
+			nm,
+			ntohs(peer->addr.sin_port), status);
 		}
 	}
 	ast_mutex_unlock(&peerl.lock);
@@ -4735,6 +4739,104 @@ static char *regstate2str(int regstate)
 	default:
 		return "Unknown";
 	}
+}
+
+/*--- sip_show_peer: Show one peer in detail ---*/
+static int sip_show_peer(int fd, int argc, char *argv[])
+{
+	char status[30];
+	struct sip_peer *peer;
+
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	ast_mutex_lock(&peerl.lock);
+	peer = find_peer(argv[3], NULL);
+	if (peer) {
+		ast_cli(fd,"\n\n");
+		ast_cli(fd, "  * Name       : %s\n", peer->name);
+		ast_cli(fd, "  Secret       : %s\n", strlen(peer->secret)?"<Set>":"<Not set>");
+		ast_cli(fd, "  MD5Secret    : %s\n", strlen(peer->md5secret)?"<Set>":"<Not set>");
+		ast_cli(fd, "  Context      : %s\n", peer->context);
+		ast_cli(fd, "  Methods      : %s\n", peer->methods);
+		ast_cli(fd, "  Language     : %s\n", peer->language);
+		ast_cli(fd, "  FromUser     : %s\n", peer->fromuser);
+		ast_cli(fd, "  FromDomain   : %s\n", peer->fromdomain);
+		ast_cli(fd, "  Callgroup    : %d (bitfield, decimal)\n", peer->callgroup);
+		ast_cli(fd, "  Pickupgroup  : %d (bitfield, decimal)\n", peer->pickupgroup);
+		ast_cli(fd, "  Mailbox      : %s\n", peer->mailbox);
+		ast_cli(fd, "  LastMsgsSent : %d\n", peer->lastmsgssent);
+		ast_cli(fd, "  Dynamic      : %s\n", (peer->dynamic?"Yes":"No"));
+		ast_cli(fd, "  Expire       : %d\n", peer->expire);
+		ast_cli(fd, "  Expiry       : %d\n", peer->expiry);
+		ast_cli(fd, "  Insecure     : %s\n", (peer->insecure?((peer->insecure == 2)?"Very":"Yes"):"No") );
+		ast_cli(fd, "  Nat          : %s\n", (peer->nat?"Yes":"No"));
+		ast_cli(fd, "  ACL          : %s\n", (peer->ha?"Yes":"No"));
+		ast_cli(fd, "  CanReinvite  : %s\n", (peer->canreinvite?"Yes":"No"));
+
+		/* DTMFmode is enumerated */
+		ast_cli(fd, "  DTMFmode     : ");
+		if (peer->dtmfmode == SIP_DTMF_RFC2833)
+                       ast_cli(fd, "rfc2833 ");
+                if (peer->dtmfmode == SIP_DTMF_INFO)
+                       ast_cli(fd, "info ");
+                if (peer->dtmfmode == SIP_DTMF_INBAND)
+                        ast_cli(fd, "inband ");
+                ast_cli(fd, "\n" );
+		ast_cli(fd, "  LastMsg      : %d\n", peer->lastmsg);
+		ast_cli(fd, "  ToHost       : %s\n", peer->tohost);
+		ast_cli(fd, "  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? inet_ntoa(peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port));
+		ast_cli(fd, "  Defaddr->IP  : %s Port %d\n", inet_ntoa(peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
+		ast_cli(fd, "  Codecs       : ");
+		/* This should really be a function in frame.c */
+		if (peer->capability & AST_FORMAT_G723_1)
+               		ast_cli(fd, "G723 ");
+		if (peer->capability & AST_FORMAT_GSM)
+			ast_cli(fd, "GSM ");
+		if (peer->capability & AST_FORMAT_ULAW)
+			ast_cli(fd, "ULAW ");
+		if (peer->capability & AST_FORMAT_ALAW)
+			ast_cli(fd, "ALAW ");
+		if (peer->capability & AST_FORMAT_G726)
+			ast_cli(fd, "G.726 ");
+		if (peer->capability & AST_FORMAT_SLINEAR)
+			ast_cli(fd, "SLINR ");
+		if (peer->capability & AST_FORMAT_LPC10)
+			ast_cli(fd, "LPC10 ");
+		if (peer->capability & AST_FORMAT_ADPCM)
+			ast_cli(fd, "ADPCM ");
+		if (peer->capability & AST_FORMAT_G729A)
+			ast_cli(fd, "G.729A ");
+		if (peer->capability & AST_FORMAT_SPEEX)
+			ast_cli(fd, "SPEEX ");
+		if (peer->capability & AST_FORMAT_ILBC)
+			ast_cli(fd, "ILBC ");
+		if (peer->capability & AST_FORMAT_JPEG)
+			ast_cli(fd, "JPEG ");
+		if (peer->capability & AST_FORMAT_PNG)
+			ast_cli(fd, "PNG ");
+		if (peer->capability & AST_FORMAT_H261)
+			ast_cli(fd, "H.261 ");
+		if (peer->capability & AST_FORMAT_H263)   
+			ast_cli(fd, "H.263 ");
+		ast_cli(fd, "\n");
+		ast_cli(fd, "  Status       : ");
+		if (peer->lastms < 0)
+			strcpy(status, "UNREACHABLE");
+		else if (peer->lastms > peer->maxms)
+			snprintf(status, sizeof(status), "LAGGED (%d ms)", peer->lastms);
+		else if (peer->lastms)
+			snprintf(status, sizeof(status), "OK (%d ms)", peer->lastms);
+		else
+			strcpy(status, "UNKNOWN");
+		ast_cli(fd, "%s\n",status);
+		ast_cli(fd,"\n");
+	} else {
+		ast_cli(fd,"Peer %s not found.\n", argv[3]);
+		ast_cli(fd,"\n");
+	}
+
+	ast_mutex_unlock(&peerl.lock);
+	return RESULT_SUCCESS;
 }
 
 static int sip_show_registry(int fd, int argc, char *argv[])
@@ -5212,6 +5314,10 @@ static char show_peers_usage[] =
 "Usage: sip show peers\n"
 "       Lists all known SIP peers.\n";
 
+static char show_peer_usage[] =
+"Usage: sip show peer <peername>\n"
+"       Lists all details on one SIP peer and the current status.\n";
+
 static char show_reg_usage[] =
 "Usage: sip show registry\n"
 "       Lists all registration requests and status.\n";
@@ -5250,6 +5356,8 @@ static struct ast_cli_entry  cli_debug_ip =
 	{ { "sip", "debug", "ip", NULL }, sip_do_debug, "Enable SIP debugging on IP", debug_usage };
 static struct ast_cli_entry  cli_debug_peer =
 	{ { "sip", "debug", "peer", NULL }, sip_do_debug, "Enable SIP debugging on Peername", debug_usage };
+static struct ast_cli_entry  cli_show_peer =
+	{ { "sip", "show", "peer", NULL }, sip_show_peer, "Show details on specific SIP peer", show_peer_usage };
 static struct ast_cli_entry  cli_show_peers =
 	{ { "sip", "show", "peers", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage };
 static struct ast_cli_entry  cli_show_peers_include =
@@ -7355,6 +7463,7 @@ int load_module()
 		ast_cli_register(&cli_show_subscriptions);
 		ast_cli_register(&cli_show_channels);
 		ast_cli_register(&cli_show_channel);
+		ast_cli_register(&cli_show_peer);
 		ast_cli_register(&cli_show_peers);
 		ast_cli_register(&cli_show_peers_begin);
 		ast_cli_register(&cli_show_peers_include);
@@ -7394,6 +7503,7 @@ int unload_module()
 	ast_cli_unregister(&cli_show_users);
 	ast_cli_unregister(&cli_show_channels);
 	ast_cli_unregister(&cli_show_channel);
+	ast_cli_unregister(&cli_show_peer);
 	ast_cli_unregister(&cli_show_peers);
 	ast_cli_unregister(&cli_show_peers_include);
 	ast_cli_unregister(&cli_show_peers_exclude);
