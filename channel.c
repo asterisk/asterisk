@@ -750,16 +750,17 @@ void ast_channel_unregister(char *type)
 int ast_answer(struct ast_channel *chan)
 {
 	int res = 0;
+	ast_mutex_lock(&chan->lock);
 	/* Stop if we're a zombie or need a soft hangup */
-	if (chan->zombie || ast_check_hangup(chan)) 
+	if (chan->zombie || ast_check_hangup(chan)) {
+		ast_mutex_unlock(&chan->lock);
 		return -1;
+	}
 	switch(chan->_state) {
 	case AST_STATE_RINGING:
 	case AST_STATE_RING:
-		ast_mutex_lock(&chan->lock);
 		if (chan->pvt->answer)
 			res = chan->pvt->answer(chan);
-		ast_mutex_unlock(&chan->lock);
 		ast_setstate(chan, AST_STATE_UP);
 		if (chan->cdr)
 			ast_cdr_answer(chan->cdr);
@@ -770,6 +771,7 @@ int ast_answer(struct ast_channel *chan)
 			ast_cdr_answer(chan->cdr);
 		break;
 	}
+	ast_mutex_unlock(&chan->lock);
 	return 0;
 }
 

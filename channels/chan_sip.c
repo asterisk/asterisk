@@ -1597,7 +1597,7 @@ static int sip_answer(struct ast_channel *ast)
 	char *codec;
 	struct sip_pvt *p = ast->pvt->pvt;
 
-	
+	ast_mutex_lock(&p->lock);
 	if (ast->_state != AST_STATE_UP) {
 	
 	
@@ -1616,6 +1616,7 @@ static int sip_answer(struct ast_channel *ast)
 			ast_log(LOG_DEBUG, "sip_answer(%s)\n", ast->name);
 		res = transmit_response_with_sdp(p, "200 OK", &p->initreq, 1);
 	}
+	ast_mutex_unlock(&p->lock);
 	return res;
 }
 
