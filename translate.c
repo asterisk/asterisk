@@ -304,7 +304,8 @@ struct ast_frame_chain *ast_translate(struct ast_trans_pvt *path, struct ast_fra
 
 #define FUDGE 0
 
-static void translator_apply(struct translator_pvt *pvt, struct ast_trans_pvt *path, struct ast_frame *f, int fd, struct ast_channel *c, struct timeval *last)
+static void translator_apply(struct translator_pvt *pvt, struct ast_trans_pvt *path, struct ast_frame *f, int fd, struct ast_channel *c, 
+								struct timeval *last)
 {
 	struct ast_trans_pvt *p;
 	struct ast_frame *out;
@@ -328,7 +329,7 @@ static void translator_apply(struct translator_pvt *pvt, struct ast_trans_pvt *p
 #ifdef EXPERIMENTAL_TRANSLATION
 					if (ms + FUDGE < out->timelen) 
 						schedule_delivery(pvt->sched, pvt, 
-											c, fd, out, ms);
+											c, fd, out, out->timelen - ms);
 					else {
 						if (c)
 							ast_write(c, out);
@@ -340,13 +341,17 @@ static void translator_apply(struct translator_pvt *pvt, struct ast_trans_pvt *p
 					/* Schedule this packet to be delivered at the
 					   right time */
 				} else
+					gettimeofday(last, NULL);
 #else
+#if 0
 					/* XXX Not correct in the full duplex case XXX */
 					if (ms + FUDGE < out->timelen) 
 						usleep((out->timelen - ms - FUDGE) * 1000);
+#endif
 					last->tv_sec = tv.tv_sec;
 					last->tv_usec = tv.tv_usec;
-				}
+				} else
+					gettimeofday(last, NULL);
 #endif
 				if (c)
 					ast_write(c, out);
