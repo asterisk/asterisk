@@ -136,7 +136,7 @@ static char language[MAX_LANGUAGE] = "";
 static char musicclass[MAX_LANGUAGE] = "";
 
 static int use_callerid = 1;
-
+static int useincomingcalleridonzaptransfer = 0;
 static int cur_signalling = -1;
 
 static unsigned int cur_group = 0;
@@ -372,6 +372,7 @@ static struct zt_pvt {
 	char musicclass[MAX_LANGUAGE];
 	char callerid[AST_MAX_EXTENSION];
 	char lastcallerid[AST_MAX_EXTENSION];
+	char *origcallerid;			/* malloced original callerid */
 	char callwaitcid[AST_MAX_EXTENSION];
 	char rdnis[AST_MAX_EXTENSION];
 	char dnid[AST_MAX_EXTENSION];
@@ -455,6 +456,7 @@ static struct zt_pvt {
 	int resetting;
 	int prioffset;
 	int alreadyhungup;
+	int useincomingcalleridonzaptransfer;
 #ifdef PRI_EVENT_PROCEEDING
 	int proceeding;
 #endif
@@ -1664,7 +1666,11 @@ static int zt_hangup(struct ast_channel *ast)
 	x = 0;
 	zt_confmute(p, 0);
 	restore_gains(p);
-	
+	if (p->origcallerid) {
+		strncpy(p->callerid, p->origcallerid, sizeof(p->callerid) - 1);
+		free(p->origcallerid);
+		p->origcallerid = NULL;
+	}	
 	if (p->dsp)
 		ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
 
@@ -3016,7 +3022,10 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						if (p->subs[SUB_REAL].owner->bridge)
 								ast_moh_stop(p->subs[SUB_REAL].owner->bridge);
 					} else if (!p->subs[SUB_THREEWAY].owner) {
+						char callerid[256];
 						if (p->threewaycalling && !check_for_conference(p)) {
+							if (p->useincomingcalleridonzaptransfer && p->owner)
+								strncpy(callerid, p->owner->callerid, sizeof(callerid) - 1);
 							/* XXX This section needs much more error checking!!! XXX */
 							/* Start a 3-way call if feasible */
 							if ((ast->pbx) ||
@@ -3025,6 +3034,13 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 								if (!alloc_sub(p, SUB_THREEWAY)) {
 									/* Make new channel */
 									chan = zt_new(p, AST_STATE_RESERVED, 0, SUB_THREEWAY, 0, 0);
+									if (p->useincomingcalleridonzaptransfer) {
+										if (!p->origcallerid) {
+											p->origcallerid = malloc(strlen(p->callerid) + 1);
+											strncpy(p->origcallerid, p->callerid, strlen(p->callerid) + 1);
+										}
+										strncpy(p->callerid, callerid, sizeof(p->callerid) -1);
+									}
 									/* Swap things around between the three-way and real call */
 									swap_subs(p, SUB_THREEWAY, SUB_REAL);
 									/* Disable echo canceller for better dialing */
@@ -5303,6 +5319,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		tmp->channel = channel;
 		tmp->stripmsd = stripmsd;
 		tmp->use_callerid = use_callerid;
+		tmp->useincomingcalleridonzaptransfer = useincomingcalleridonzaptransfer;
 		tmp->restrictcid = restrictcid;
 		tmp->use_callingpres = use_callingpres;
 		strncpy(tmp->accountcode, accountcode, sizeof(tmp->accountcode)-1);
@@ -7143,6 +7160,8 @@ static int setup_zap(void)
 				strcpy(callerid,"");
 			else
 				strncpy(callerid, v->value, sizeof(callerid)-1);
+		} else if (!strcasecmp(v->name, "useincomingcalleridonzaptransfer")) {
+			useincomingcalleridonzaptransfer = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "restrictcid")) {
 			restrictcid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "usecallingpres")) {
