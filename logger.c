@@ -423,8 +423,6 @@ int init_logger(void)
 	} else 
 		ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
 
-	init_logger_chain();
-
 	/* create log channels */
 	init_logger_chain();
 	return -1;
