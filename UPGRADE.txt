@@ -14,3 +14,8 @@ Dialing:
   called, rather than the Caller*ID of the inbound leg of the call.  The 
   "o" flag for Dial can be used to restore the original behavior if 
   desired.
+
+IAX: 
+
+* The naming convention for IAX channels has changed in a minor way such 
+  that the call number follows a "-" rather than a "/" character.
