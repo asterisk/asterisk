@@ -16,6 +16,8 @@
 
 %auth-incorrect.gsm%Login incorrect.  Please enter your password followed by the pound key.
 
+%auth-thankyou.gsm%Thank you.
+
 %beep.gsm%(this is a simple beep tone)
 
 %conf-getconfno.gsm%Please enter your conference number followed by the pound key.

@@ -23,7 +23,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
-
+#include <stdio.h>
 #include <pthread.h>
 
 
@@ -86,7 +86,6 @@ static int auth_exec(struct ast_channel *chan, void *data)
 		res = 0;
 		if (password[0] == '/') {
 			/* Compare against a file */
-			char tmp[80];
 			FILE *f;
 			f = fopen(password, "r");
 			if (f) {
@@ -114,6 +113,9 @@ static int auth_exec(struct ast_channel *chan, void *data)
 	if ((retries < 3) && !res) {
 		if (strchr(opts, 'a')) 
 			ast_cdr_setaccount(chan, passwd);
+		res = ast_streamfile(chan, "auth-thankyou", chan->language);
+		if (!res)
+			res = ast_waitstream(chan, "");
 	} else {
 		if (!res)
 			res = ast_streamfile(chan, "vm-goodbye", chan->language);

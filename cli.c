@@ -801,7 +801,7 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 				matchnum++;
 				if (matchnum > state) {
 					/* Now, what we're supposed to return is the next word... */
-					if (strlen(word)) {
+					if (strlen(word) && x>0) {
 						res = e->cmda[x-1];
 					} else {
 						res = e->cmda[x];

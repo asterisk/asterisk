@@ -112,6 +112,11 @@ static struct io_context *io;
 #define SIP_MAX_HEADERS		64
 #define SIP_MAX_LINES 		64
 
+static struct sip_codec_pref {
+	int codec;
+	struct sip_codec_pref *next;
+} *prefs;
+
 struct sip_request {
   char *rlPart1; /* SIP Method Name or "SIP/2.0" protocol version */
   char *rlPart2; /* The Request URI or Response Status */
@@ -409,6 +414,67 @@ static int auto_congest(void *nothing)
 	}
 	ast_pthread_mutex_unlock(&p->lock);
 	return 0;
+}
+
+static void sip_prefs_free(void)
+{
+	struct sip_codec_pref *cur, *next;
+	cur = prefs;
+	while(cur) {
+		next = cur->next;
+		free(cur);
+		cur = next;
+	}
+	prefs = NULL;
+}
+
+static void sip_pref_remove(int format)
+{
+	struct sip_codec_pref *cur, *prev;
+	cur = prefs;
+	while(cur) {
+		if (cur->codec == format) {
+			if (prev)
+				prev->next = cur->next;
+			else
+				prefs = cur->next;
+			free(cur);
+			return;
+		}
+		prev = cur;
+		cur = cur->next;
+	}
+}
+
+static int sip_pref_append(int format)
+{
+	struct sip_codec_pref *cur, *tmp;
+	sip_pref_remove(format);
+	tmp = (struct sip_codec_pref *)malloc(sizeof(struct sip_codec_pref));
+	if (!tmp)
+		return -1;
+	memset(tmp, 0, sizeof(struct sip_codec_pref));
+	tmp->codec = format;
+	if (prefs) {
+		cur = prefs;
+		while(cur->next)
+			cur = cur->next;
+		cur->next = tmp;
+	} else
+		prefs = tmp;
+	return 0;
+}
+
+static int sip_codec_choose(int formats)
+{
+	struct sip_codec_pref *cur;
+	cur = prefs;
+	while(cur) {
+		if (formats & cur->codec)
+			return cur->codec;
+		cur = cur->next;
+	}
+	return ast_best_codec(formats);
 }
 
 static int sip_call(struct ast_channel *ast, char *dest, int timeout)
@@ -813,9 +879,12 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	int fmt;
 	tmp = ast_channel_alloc(1);
 	if (tmp) {
-		tmp->nativeformats = i->capability;
-		if (!tmp->nativeformats)
-			tmp->nativeformats = capability;
+		/* Select our native format based on codec preference until we receive
+		   something from another device to the contrary. */
+		if (i->capability)
+			tmp->nativeformats = sip_codec_choose(i->capability);
+		else 
+			tmp->nativeformats = sip_codec_choose(capability);
 		fmt = ast_best_codec(tmp->nativeformats);
 		if (title)
 			snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%04x", title, rand() & 0xffff);
@@ -1255,9 +1324,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		return -1;
 	}
 	if (p->owner) {
-		if (p->owner->nativeformats & p->capability) {
+		if (!(p->owner->nativeformats & p->capability)) {
 			ast_log(LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %d and not %d\n", p->capability, p->owner->nativeformats);
-			p->owner->nativeformats = p->capability;
+			p->owner->nativeformats = sip_codec_choose(p->capability);
 			ast_set_read_format(p->owner, p->owner->readformat);
 			ast_set_write_format(p->owner, p->owner->writeformat);
 		}
@@ -3064,6 +3133,14 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		else 
 			transmit_response_with_allow(p, "200 OK", req);
 	} else if (!strcasecmp(cmd, "INVITE")) {
+		if (p->outgoing && p->owner && (p->owner->_state != AST_STATE_UP)) {
+			/* This is a call to ourself.  Send ourselves an error code and stop
+			   processing immediately, as SIP really has no good mechanism for
+			   being able to call yourself */
+			transmit_response(p, "482 Loop Detected", req);
+			/* We do NOT destroy p here, so that our response will be accepted */
+			return 0;
+		}
 		/* Process the SDP portion */
 		if (!ignore) {
 			/* Use this as the basis */
@@ -3726,6 +3803,9 @@ static int reload_config()
 		ast_log(LOG_NOTICE, "Unable to load config %s, SIP disabled\n", config);
 		return 0;
 	}
+	
+	sip_prefs_free();
+	
 	memset(&bindaddr, 0, sizeof(bindaddr));
 	/* Initialize some reasonable defaults */
 	strncpy(context, "default", sizeof(context) - 1);
@@ -3755,14 +3835,18 @@ static int reload_config()
 			format = ast_getformatbyname(v->value);
 			if (format < 1) 
 				ast_log(LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
-			else
+			else {
 				capability |= format;
+				sip_pref_append(format);
+			}
 		} else if (!strcasecmp(v->name, "disallow")) {
 			format = ast_getformatbyname(v->value);
 			if (format < 1) 
 				ast_log(LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
-			else
+			else {
 				capability &= ~format;
+				sip_pref_remove(format);
+			}
 		} else if (!strcasecmp(v->name, "register")) {
 			sip_register(v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "tos")) {

@@ -1,3 +1,5 @@
+ -- Choose best priority from codec from allow/disallow
+ -- Reject SIP calls to self
  -- Allow SIP registration to provide an alternative contact
  -- Make HOLD on SIP make use of asterisk MOH
  -- Add supervised transfer (tested with Pingtel only)

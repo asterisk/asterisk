@@ -5385,9 +5385,9 @@ static void *pri_dchannel(void *vpri)
 						/* Re-use *69 field for PRI */
 						snprintf(pri->pvt[chan]->lastcallerid, sizeof(pri->pvt[chan]->lastcallerid), "\"%s\" <%s>", e->facname.callingname, e->facname.callingnum);
 						pri->pvt[chan]->subs[SUB_REAL].needcallerid =1;
+						zt_enable_ec(pri->pvt[chan]);
 					}
 				}
-				zt_enable_ec(pri->pvt[chan]);
 				break;				
 			case PRI_EVENT_ANSWER:
 				chan = e->answer.channel;

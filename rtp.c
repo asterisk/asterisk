@@ -116,7 +116,7 @@ void ast_rtp_set_callback(struct ast_rtp *rtp, ast_rtp_callback callback)
 
 static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
 {
-	printf("Sending dtmf: %d (%c)\n", rtp->resp, rtp->resp);
+	ast_log(LOG_DEBUG, "Sending dtmf: %d (%c)\n", rtp->resp, rtp->resp);
 	rtp->f.frametype = AST_FRAME_DTMF;
 	rtp->f.subclass = rtp->resp;
 	rtp->f.datalen = 0;
@@ -325,7 +325,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 
 	/* Send any pending DTMF */
 	if (rtp->resp && !rtp->dtmfcount) {
-		printf("Sending pending DTMF\n");
+		ast_log(LOG_DEBUG, "Sending pending DTMF\n");
 		return send_dtmf(rtp);
 	}
 	rtp->f.mallocd = 0;
@@ -581,7 +581,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		pred = rtp->lastts + f->datalen * 8;
 		break;
 	case AST_FORMAT_GSM:
-		pred = rtp->lastts + f->datalen * 20 / 33;
+		pred = rtp->lastts + (f->datalen * 160 / 33);
 		break;
 	case AST_FORMAT_G723_1:
 		pred = rtp->lastts + g723_samples(f->data, f->datalen);
@@ -596,7 +596,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	/* If it's close to ou prediction, go for it */
 	if (abs(rtp->lastts - pred) < 640)
 		rtp->lastts = pred;
-#if 0
+#if 1
 	else
 		printf("Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);
 #endif			

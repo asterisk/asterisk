@@ -1,16 +1,29 @@
 #!/bin/sh
 TTY=9			# TTY (if you want one) for Asterisk to run on
 CONSOLE=yes		# Whether or not you want a console
-NOTIFY=			# Who to notify about crashes
+#NOTIFY=ben@alkaloid.net	# Who to notify about crashes
+DUMPDROP=/tmp
 #
 # Don't fork when running "safely"
 #
 ASTARGS=""
 if [ "$TTY" != "" ]; then
+	if [ -c /dev/tty${TTY} ]; then
+		TTY=tty${TTY}
+	elif [ -c /dev/vc/${TTY} ]; then
+		TTY=vc/${TTY}
+	else
+		echo "Cannot find your TTY (${TTY})" >&2
+		exit 1
+	fi
 	ASTARGS="${ASTARGS} -vvv"
 	if [ "$CONSOLE" != "no" ]; then
 		ASTARGS="${ASTARGS} -c"
 	fi
+fi
+if [ ! -w ${DUMPDROP} ]; then	
+	echo "Cannot write to ${DUMPDROP}" >&2
+	exit 1
 fi
 
 #
@@ -27,13 +40,15 @@ run_asterisk()
 	while :; do 
 
 		if [ "$TTY" != "" ]; then
-			stty sane < /dev/tty${TTY}
-			asterisk ${ASTARGS} >& /dev/tty${TTY} < /dev/tty${TTY}
+			cd /tmp
+			stty sane < /dev/${TTY}
+			asterisk ${ASTARGS} >& /dev/${TTY} < /dev/${TTY}
 		else
+			cd /tmp
 			asterisk ${ASTARGS}
 		fi
 		EXITSTATUS=$?
-		#echo "Asterisk ended with exit status $EXITSTATUS"
+		echo "Asterisk ended with exit status $EXITSTATUS"
 		if [ "$EXITSTATUS" = "0" ]; then
 			# Properly shutdown....
 			echo "Asterisk shutdown normally."
@@ -45,8 +60,14 @@ run_asterisk()
 				echo "Asterisk exited on signal $EXITSIGNAL.  Might want to take a peek." | \
 				mail -s "Asterisk Died" $NOTIFY
 			fi
+                        if [ -f /tmp/core ]; then
+				mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
+			fi
 		else
 			echo "Asterisk died with code $EXITSTATUS.  Aborting."
+                        if [ -f /tmp/core ]; then
+				mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
+			fi
 			exit 0
 		fi
 		echo "Automatically restarting Asterisk."

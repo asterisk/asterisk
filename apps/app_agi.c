@@ -958,6 +958,8 @@ static agi_command *find_command(char *cmds[], int exact)
 			   then this is not a match */
 			if (!commands[x].cmda[y] && !exact)
 				break;
+			/* don't segfault if the next part of a command doesn't exist */
+			if (!commands[x].cmda[y]) return NULL;
 			if (strcasecmp(commands[x].cmda[y], cmds[y]))
 				match = 0;
 		}
