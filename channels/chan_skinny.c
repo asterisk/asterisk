@@ -478,7 +478,6 @@ struct hostent *hp;
 static int skinnysock  = -1;
 static pthread_t tcp_thread;
 static pthread_t accept_t;
-static ast_mutex_t devicelock = AST_MUTEX_INITIALIZER;
 static char context[AST_MAX_EXTENSION] = "default";
 static char language[MAX_LANGUAGE] = "";
 static char musicclass[MAX_LANGUAGE] = "";
@@ -528,6 +527,17 @@ static int callnums = 1;
 #define SKINNY_REORDER 37
 #define SKINNY_CALLWAITTONE 45
 
+#define SKINNY_LAMP_OFF 1
+#define SKINNY_LAMP_ON  2
+#define SKINNY_LAMP_WINK 3
+#define SKINNY_LAMP_FLASH 4
+#define SKINNY_LAMP_BLINK 5
+
+#define SKINNY_RING_OFF 1
+#define SKINNY_RING_INSIDE 2
+#define SKINNY_RING_OUTSIDE 3
+#define SKINNY_RING_FEATURE 4
+
 #define TYPE_TRUNK		1
 #define TYPE_LINE		2
 
@@ -571,9 +581,12 @@ static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
 static ast_mutex_t monlock	   = AST_MUTEX_INITIALIZER;
-
+/* Protect the network socket */
 static ast_mutex_t netlock	   = AST_MUTEX_INITIALIZER;
+/* Protect the session list */
 static ast_mutex_t sessionlock = AST_MUTEX_INITIALIZER;
+/* Protect the device list */
+static ast_mutex_t devicelock = AST_MUTEX_INITIALIZER;
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
@@ -679,12 +692,65 @@ static skinny_req *req_alloc(size_t size)
 	return req;
 }
 
-static struct skinny_subchannel *find_subchannel(struct skinny_line *l)
+static struct skinny_subchannel *find_subchannel_by_line(struct skinny_line *l)
 {
 	/* Need to figure out how to determine which sub we want */
 	
 	struct skinny_subchannel *sub = l->sub;
 	return sub;
+}
+
+static struct skinny_subchannel *find_subchannel_by_name(char *dest)
+{
+	struct skinny_line *l;
+	struct skinny_device *d;
+	char line[256];
+	char *at;
+	char *device;
+	
+	printf("dest: %s\n", dest);
+
+	strncpy(line, dest, sizeof(line) - 1);
+	at = strchr(line, '@');
+	if (!at) {
+		ast_log(LOG_NOTICE, "Device '%s' has no @ (at) sign!\n", dest);
+		return NULL;
+	}
+	*at = '\0';
+	at++;
+	device = at;
+
+	printf("line: %s\n", line);
+	printf("device: %s\n", device);
+	
+	ast_mutex_lock(&devicelock);
+	d = devices;
+	while(d) {
+		if (!strcasecmp(d->name, device)) {
+			if (skinnydebug) {
+				printf("Found device: %s\n", d->name);
+			}
+			/* Found the device */
+			l = d->lines;
+			while (l) {
+				/* Search for the right line */
+				if (!strcasecmp(l->name, line)) {
+					ast_mutex_unlock(&devicelock);
+					if (skinnydebug) {
+						printf("Found line: %s\n", l->name);
+					}
+					return l->sub;
+				}
+				printf("line cycle\n");
+				l = l->next;
+			}
+		}
+		printf("device cycle\n");
+		d = d->next;
+	}
+	/* Device not found*/
+	ast_mutex_unlock(&devicelock);
+	return NULL;
 }
 
 static int transmit_response(struct skinnysession *s, skinny_req *req)
@@ -713,7 +779,7 @@ static void transmit_speaker_mode(struct skinnysession *s, int mode)
 {
 	skinny_req *req;
 
-	req = req_alloc(sizeof(struct set_ringer_message));
+	req = req_alloc(sizeof(struct set_speaker_message));
 	if (!req) {
 		ast_log(LOG_ERROR, "Unable to allocate skinny_request, this is bad\n");
 		return;
@@ -838,7 +904,7 @@ static void transmit_lamp_indication(struct skinnysession *s, int instance, int 
 	}	
 	req->len = sizeof(set_lamp_message)+4;
 	req->e = SET_LAMP_MESSAGE;
-	req->data.setlamp.stimulus = 9;  // magic number
+	req->data.setlamp.stimulus = 0x9;  // magic number
 	req->data.setlamp.stimulusInstance = instance;
 	req->data.setlamp.deviceStimulus = indication;
 	transmit_response(s, req);
@@ -858,9 +924,6 @@ static void transmit_ringer_mode(struct skinnysession *s, int mode)
 	req->data.setringer.ringerMode = mode; 
 	transmit_response(s, req);
 }
-
-
-
 
 /* I do not believe skinny can deal with video. 
    Anyone know differently? */
@@ -1369,9 +1432,16 @@ static void *skinny_ss(void *data)
 
 static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 {
-	int res;
+	int res = 0;
+	int tone = 0;
 	struct skinny_line *l;
     struct skinny_subchannel *sub;
+	struct skinnysession *session;
+	
+	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
+		ast_log(LOG_WARNING, "skinny_call called on %s, neither down nor reserved\n", ast->name);
+		return -1;
+	}
 
     if (skinnydebug) {
         ast_verbose(VERBOSE_PREFIX_3 "skinny_call(%s)\n", ast->name);
@@ -1379,48 +1449,60 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 	
 	sub = ast->pvt->pvt;
     l = sub->parent;
+	session = l->parent->session;
 
-    switch (l->hookstate) {
+	if (l->dnd) {
+		ast_queue_control(ast, AST_CONTROL_BUSY, 0);
+		return 0;
+	}
+   
+	switch (l->hookstate) {
         case SKINNY_OFFHOOK:
-            // call waiting
+            tone = SKINNY_CALLWAITTONE;
             break;
         case SKINNY_ONHOOK:
+			tone = SKINNY_ALERT;
+			break;
         default:
-            // ring
+            ast_log(LOG_ERROR, "Don't know how to deal with hookstate %d\n", l->hookstate);
             break;
     }
 
-	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
-		ast_log(LOG_WARNING, "skinny_call called on %s, neither down nor reserved\n", ast->name);
-		return -1;
-	}
+	transmit_lamp_indication(session, l->instance, SKINNY_LAMP_BLINK);
+	transmit_ringer_mode(session, SKINNY_RING_INSIDE);
+	transmit_tone(session, tone);
+	transmit_callstate(session, l->instance, SKINNY_RINGIN, sub->callid);
 
-	res = 0;
+// Set the prompt
+// Select the active softkeys
+
+	ast_setstate(ast, AST_STATE_RINGING);
+	ast_queue_control(ast, AST_CONTROL_RINGING, 0);
+
 	sub->outgoing = 1;
-    sub->cxmode = SKINNY_CX_RECVONLY;
+//    sub->cxmode = SKINNY_CX_RECVONLY;
 	if (l->type == TYPE_LINE) {
         if (!sub->rtp) {
             start_rtp(sub);
         } else {
+			/* do we need to anything if there already is an RTP allocated? */
 //           transmit_modify_request(sub);
         }
 
+#if 0
         if (sub->next->owner && sub->next->callid) {
             /* try to prevent a callwait from disturbing the other connection */
             sub->next->cxmode = SKINNY_CX_RECVONLY;
       //      transmit_modify_request(sub->next);
         }
-
-//		transmit_notify_request_with_callerid(sub, tone, ast->callerid);
-		ast_setstate(ast, AST_STATE_RINGING);
-		ast_queue_control(ast, AST_CONTROL_RINGING, 0);
-
+		
 		/* not sure what this doing */
 		if (sub->next->owner && sub->next->callid) {
             /* Put the connection back in sendrecv */
             sub->next->cxmode = SKINNY_CX_SENDRECV;
 //           transmit_modify_request(sub->next);
         }
+#endif
 
 	} else {
 		ast_log(LOG_NOTICE, "Don't know how to dial on trunks yet\n");
@@ -1719,7 +1801,13 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 	time_t timer;
 	struct tm *cmtime;
 	pthread_t t;
-		
+	
+	if ( (!s->device) && (req->e != REGISTER_MESSAGE && req->e != ALARM_MESSAGE)) {
+		ast_log(LOG_WARNING, "Client sent message #%d without first registering.\n", req->e);
+		free(req);
+		return 0;
+	}
+
 		
 	switch(req->e)	{
 	case ALARM_MESSAGE:
@@ -1804,7 +1892,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 			if (skinnydebug)
 				printf("Recieved Stimulus: Line\n");
 
-			sub = find_subchannel(s->device->lines);
+			sub = find_subchannel_by_line(s->device->lines);
 			transmit_speaker_mode(s, 1);  // Turn on
 		break;
 		default:
@@ -1921,7 +2009,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = sizeof(line_stat_res_message)+4;
 		req->e = LINE_STAT_RES_MESSAGE;	
-		sub = find_subchannel(s->device->lines);
+		sub = find_subchannel_by_line(s->device->lines);
 		if (!sub) {
 			ast_log(LOG_NOTICE, "No available lines on: %s\n", s->device->name);
 			return 0;
@@ -1951,38 +2039,44 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		transmit_response(s, req);
 		break;
 	case OFFHOOK_MESSAGE:
-		transmit_ringer_mode(s,1); // Ring off
-		transmit_lamp_indication(s, s->device->lines->instance, 2); // Lamp on
+		transmit_ringer_mode(s,SKINNY_RING_OFF);
+		transmit_lamp_indication(s, s->device->lines->instance, SKINNY_LAMP_ON); 
 		
-		sub = find_subchannel(s->device->lines);
+		sub = find_subchannel_by_line(s->device->lines);
 		if (!sub) {
 			ast_log(LOG_NOTICE, "No available lines on: %s\n", s->device->name);
 			return 0;
 		}
 		sub->parent->hookstate = SKINNY_OFFHOOK;
-		if (!sub->owner) {	
+		
 			if (sub->outgoing) {
-				// deal with asterisk skinny outbound calls	
-			} else { 	
 				transmit_callstate(s, s->device->lines->instance, SKINNY_OFFHOOK, sub->callid);
-				transmit_tone(s, SKINNY_DIALTONE);
-				c = skinny_new(sub, AST_STATE_DOWN);			
-				if (c) {
-					/* start switch */
-					if (pthread_create(&t, NULL, skinny_ss, c)) {
-	                    ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
-						ast_hangup(c);
+				transmit_tone(s, SKINNY_SILENCE);
+				ast_setstate(sub->owner, AST_STATE_UP);
+				// select soft keys
+			} else { 	
+				if (!sub->owner) {	
+
+					transmit_callstate(s, s->device->lines->instance, SKINNY_OFFHOOK, sub->callid);
+					transmit_tone(s, SKINNY_DIALTONE);
+					c = skinny_new(sub, AST_STATE_DOWN);			
+					if(c) {
+						/* start switch */
+						if (pthread_create(&t, NULL, skinny_ss, c)) {
+							ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
+							ast_hangup(c);
+						}
+					} else {
+						ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", sub->parent->name, s->device->name);
 					}
+				
 				} else {
-	                   ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", sub->parent->name, s->device->name);
+					ast_log(LOG_DEBUG, "Current sub [%s] already has owner\n", sub->owner->name);
 				}
 			}
-		} else {
-			ast_log(LOG_DEBUG, "Current sub [%s] already has owner\n", sub->owner->name);
-		}
 		break;
 	case ONHOOK_MESSAGE:
-		sub = find_subchannel(s->device->lines);
+		sub = find_subchannel_by_line(s->device->lines);
 		if (sub->parent->hookstate == SKINNY_ONHOOK) {
 			/* Somthing else already put us back on hook */ 
 			break;
@@ -2022,9 +2116,9 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
        }
        if ((sub->parent->hookstate == SKINNY_ONHOOK) && (!sub->rtp) && (!sub->next->rtp)) {
 			if (has_voicemail(sub->parent)) {
-				transmit_lamp_indication(s, s->device->lines->instance, 4); // Flash
+				transmit_lamp_indication(s, s->device->lines->instance, SKINNY_LAMP_FLASH); 
             } else {
-				transmit_lamp_indication(s, s->device->lines->instance, 1); // Off
+				transmit_lamp_indication(s, s->device->lines->instance, SKINNY_LAMP_OFF);
             }
        }
 	   break;
@@ -2043,7 +2137,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		}
 		f.subclass  = d;  
 		f.src = "skinny";
-		sub = find_subchannel(s->device->lines);		
+		sub = find_subchannel_by_line(s->device->lines);		
 
 		if (sub->owner) {
 			/* XXX MUST queue this frame to all subs in threeway call if threeway call is active */
@@ -2069,7 +2163,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		memcpy(&sin.sin_addr, addr, sizeof(sin.sin_addr));  // Endian?
 		sin.sin_port = htons(port);
 	
-		sub = find_subchannel(s->device->lines);
+		sub = find_subchannel_by_line(s->device->lines);
 		ast_rtp_set_peer(sub->rtp, &sin);
 		ast_rtp_get_us(sub->rtp, &us);
 		
@@ -2138,21 +2232,22 @@ static int get_input(struct skinnysession *s)
  
 	res = ast_select(s->fd + 1, &fds, NULL, NULL, NULL);  
  
-	if (res < 0) {  
-		ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));  
- 	} else if (res > 0) {  
-		ast_mutex_lock(&s->lock);  
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
+ 	} else if (res > 0) {
 		memset(s->inbuf,0,sizeof(s->inbuf));
-		res = read(s->fd, s->inbuf, 4);  
-		dlen = *(int *)s->inbuf; 
-		if (res < 1) {  
-			return -1;  
-		}  
-		res = read(s->fd, s->inbuf+4, dlen+4);  
-		ast_mutex_unlock(&s->lock);  
-		if (res < 1) {  
-			return -1;  
-		}  
+		res = read(s->fd, s->inbuf, 4);
+		if (res != 4) {
+			ast_log(LOG_WARNING, "Skinny Client sent less data than expected.\n");
+			return -1;
+		}
+		dlen = *(int *)s->inbuf;
+		res = read(s->fd, s->inbuf+4, dlen+4);
+		ast_mutex_unlock(&s->lock);
+		if (res != (dlen+4)) {
+			ast_log(LOG_WARNING, "Skinny Client sent less data than expected.\n");
+			return -1;
+		} 
  
 	}  
 	return res;  
@@ -2172,6 +2267,7 @@ static skinny_req *skinny_req_parse(struct skinnysession *s)
 	memcpy(req, s->inbuf, *(int*)(s->inbuf)+8); // +8
 	if (req->e < 0) {
 		ast_log(LOG_ERROR, "Event Message is NULL from socket %d, This is bad\n", s->fd);
+		free(req);
 		return NULL;
 	}
 	return req;
@@ -2325,7 +2421,6 @@ static struct ast_channel *skinny_request(char *type, int format, void *data)
 {
 	int oldformat;
 	struct skinny_subchannel *sub;
-	struct skinny_device *d = NULL;
 	struct ast_channel *tmpc = NULL;
 	char tmp[256];
 	char *dest = data;
@@ -2336,16 +2431,16 @@ static struct ast_channel *skinny_request(char *type, int format, void *data)
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);
 		return NULL;
 	}
-	strncpy(tmp, dest, sizeof(tmp) - 1);  // XXX FIX
+	
+	strncpy(tmp, dest, sizeof(tmp) - 1);
 	if (!strlen(tmp)) {
-		ast_log(LOG_NOTICE, "Skinny channels require something!?\n");
+		ast_log(LOG_NOTICE, "Skinny channels require a device\n");
 		return NULL;
 	}
 	
-	sub = find_subchannel(d->lines);  
-
+	sub = find_subchannel_by_name(tmp);  
 	if (!sub) {
-		ast_log(LOG_NOTICE, "No available lines on: %s\n", d->name);
+		ast_log(LOG_NOTICE, "No available lines on: %s\n", dest);
 		return NULL;
 	}
 	
@@ -2376,14 +2471,14 @@ static int reload_config(void)
 	
 	if (gethostname(ourhost, sizeof(ourhost))) {
 		ast_log(LOG_WARNING, "Unable to get hostname, Skinny disabled\n");
-		return 0;
+		return 1;
 	}
 	cfg = ast_load(config);
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to load config %s, Skinny disabled\n", config);
-		return 0;
+		return 1;
 	}
 
 	/* load the general section */
