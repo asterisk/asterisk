@@ -1,3 +1,33 @@
+Asterisk 0.1.9
+ -- Implement IAX quelching
+ -- Allow Caller*ID to be overridden and suggested
+ -- Configure defaults to use IAXTEL
+ -- Allow remote dialplan polling via IAX
+ -- Eliminate ast_longest_extension
+ -- Implement dialplan request/reply
+ -- Let peers have allow/disallow for codecs
+ -- Change allow/deny to permit/deny in IAX
+ -- Allow dialplan entries to match Caller*ID as well
+ -- Added AGI (Asterisk Gateway Interface) scripting interface (app_agi)
+ -- Added chan_zap for zapata telephony kernel interface, removed chan_tor
+ -- Add convenience functions
+ -- Fix race condition in channel hangup
+ -- Fix memory leaks in both asterisk and iax frame allocations
+ -- Add "iax show stats" command and -DTRACE_FRAMES (for frame tracing)
+ -- Add DISA application (Thanks to Jim Dixon)
+ -- Add IAX transfer support
+ -- Add URL and HTML transmission
+ -- Add application for sending images
+ -- Add RedHat RPM spec file and build capability
+ -- Fix GSM WAV file format bug
+ -- Move ignorepat to main dialplan
+ -- Add ability to specificy TOS bits in IAX
+ -- Allow username:password in IAX strings
+ -- Updates to PhoneJack interface
+ -- Allow "servermail" in voicemail.conf to override e-mail in "from" line
+ -- Add 'skip' option to app_playback
+ -- Reject IAX calls on unknown extensions
+ -- Fix version stuff
 Asterisk 0.1.8
  -- Keep track of version information
  -- Add -f to cause Asterisk not to fork
