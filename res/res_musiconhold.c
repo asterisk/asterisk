@@ -588,7 +588,7 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 	return 0;
 }
 
-int ast_moh_start(struct ast_channel *chan, char *class)
+static int local_ast_moh_start(struct ast_channel *chan, char *class)
 {
 	if (!class || ast_strlen_zero(class))
 		class = chan->musicclass;
@@ -597,7 +597,7 @@ int ast_moh_start(struct ast_channel *chan, char *class)
 	return ast_activate_generator(chan, &mohgen, class);
 }
 
-void ast_moh_stop(struct ast_channel *chan)
+static void local_ast_moh_stop(struct ast_channel *chan)
 {
 	ast_deactivate_generator(chan);
 }
@@ -659,6 +659,7 @@ int load_module(void)
 {
 	int res;
 	load_moh_classes();
+	ast_install_music_functions(local_ast_moh_start, local_ast_moh_stop);
 	res = ast_register_application(app0, moh0_exec, synopsis0, descrip0);
 	ast_register_atexit(ast_moh_destroy);
 	if (!res)

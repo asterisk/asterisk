@@ -24,6 +24,7 @@
 #include <asterisk/sched.h>
 #include <asterisk/options.h>
 #include <asterisk/channel.h>
+#include <asterisk/musiconhold.h>
 #include <asterisk/channel_pvt.h>
 #include <asterisk/logger.h>
 #include <asterisk/say.h>
@@ -2958,4 +2959,41 @@ unsigned int ast_get_group(char *s)
 		}
 	}
 	return group;
+}
+
+
+static int (*ast_moh_start_ptr)(struct ast_channel *, char *) = NULL;
+static void (*ast_moh_stop_ptr)(struct ast_channel *) = NULL;
+
+
+void ast_install_music_functions(int (*start_ptr)(struct ast_channel *, char *),
+								void (*stop_ptr)(struct ast_channel *)) 
+{
+	ast_moh_start_ptr = start_ptr;
+	ast_moh_stop_ptr = stop_ptr;
+}
+
+void ast_uninstall_music_functions(void) 
+{
+	ast_moh_start_ptr = NULL;
+	ast_moh_stop_ptr = NULL;
+}
+
+/*! Turn on/off music on hold on a given channel */
+
+int ast_moh_start(struct ast_channel *chan, char *mclass) 
+{
+	if(ast_moh_start_ptr)
+		return ast_moh_start_ptr(chan, mclass);
+
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_3 "Music class %s requested but no musiconhold loaded.\n", mclass ? mclass : "default");
+	
+	return 0;
+}
+
+void ast_moh_stop(struct ast_channel *chan) 
+{
+	if(ast_moh_stop_ptr)
+		ast_moh_stop_ptr(chan);
 }
