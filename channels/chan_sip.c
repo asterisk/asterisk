@@ -107,7 +107,7 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 #define DEFAULT_RETRANS		1000		/* How frequently to retransmit */
 #define MAX_RETRANS		5		/* Try only 5 times for retransmissions */
 
-						/* SIP Debug		*/
+
 #define DEBUG_READ	0			/* Recieved data	*/
 #define DEBUG_SEND	1			/* Transmit data	*/
 
@@ -4007,6 +4007,20 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs)
 	return send_request(p, &req, 1, p->ocseq);
 }
 
+static int transmit_sip_request(struct sip_pvt *p,struct sip_request *req)
+{
+	if (!p->initreq.headers) {
+		/* Use this as the basis */
+		copy_request(&p->initreq, req);
+		parse(&p->initreq);
+		if (sip_debug_test_pvt(p))
+			ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
+		determine_firstline_parts(&p->initreq);
+	}
+
+	return send_request(p, req, 1, p->ocseq);
+}
+
 /*--- transmit_notify_with_sipfrag: Notify a transferring party of the status of trasnfer ---*/
 /*      Apparently the draft SIP REFER structure was too simple, so it was decided that the
  *      status of transfers also needed to be sent via NOTIFY instead of just the 202 Accepted
@@ -6121,6 +6135,25 @@ static char *complete_sipch(char *line, char *word, int pos, int state)
 	return c;
 }
 
+/*--- complete_sippeer: Support routine for 'sip reboot' CLI ---*/
+static char *complete_sippeer(char *line, char *word, int pos, int state)
+{
+	int which=0;
+	char *c = NULL;
+
+	ASTOBJ_CONTAINER_TRAVERSE(&peerl, !c, do {
+		/* locking of the ASTOBJ is not required because I only compare the name */
+		if (!strncasecmp(word, iterator->name, strlen(word))) {
+			if (++which > state) {
+				c = strdup(iterator->name);
+			}
+		}
+	
+	} while(0) );
+
+	return c;
+}
+
 /*--- sip_show_channel: Show details of one call ---*/
 static int sip_show_channel(int fd, int argc, char *argv[])
 {
@@ -6371,6 +6404,76 @@ static int sip_do_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int sip_notify(int fd, int argc, char *argv[])
+{
+	struct sip_pvt *p;
+	struct sip_request req;
+	struct ast_config *cfg;
+	struct ast_variable *var;
+	char *cat;
+	char name[256] = "";
+	char type[256] = "";
+	char iabuf[INET_ADDRSTRLEN];
+	char foundtype = 0;
+
+	if (argc != 4) {
+		return RESULT_SHOWUSAGE;
+	} else {
+		p = sip_alloc(NULL, NULL, 0);
+		if (!p) {
+			ast_log(LOG_WARNING, "Unable to build sip pvt data for reboot\n");
+			return -1;
+		}
+		strncpy(type,argv[2],sizeof(type) - 1);
+		cfg = ast_load("sip_notify.conf");
+
+		if (!cfg) {
+			ast_log(LOG_WARNING, "No sip_notify.conf file :\n");
+			return RESULT_SUCCESS;
+		}
+
+		initreqprep(&req, p, "NOTIFY", NULL);
+
+		cat = ast_category_browse(cfg, NULL);
+		while(cat) {
+			if (!strcasecmp(cat, type)) {
+				foundtype = 1;
+
+				var = ast_variable_browse(cfg, cat);
+				while (var) {
+					add_header(&req, var->name, var->value);
+					var = var->next;
+				}
+			}
+			cat = ast_category_browse(cfg, cat);
+		}
+		ast_destroy(cfg);
+
+		if (foundtype == 0) {
+			ast_log(LOG_WARNING, "Unable to find notify enter '%s'\n",argv[2]);
+			return RESULT_SUCCESS;
+		}
+
+		strncpy(name, argv[3], sizeof(name) - 1);
+		if (create_addr(p, name)) {
+			/* Maybe they're not registered, etc. */
+			sip_destroy(p);
+			return 0;
+		}
+		/* Recalculate our side, and recalculate Call ID */
+		if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+			memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+		/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
+		if (ast_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581)
+			snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
+		else /* UNIDEN UIP200 bug */
+			snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
+		build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
+		transmit_sip_request(p,&req);
+		sip_scheddestroy(p, 15000);
+	}
+	return RESULT_SUCCESS;
+}
 /*--- sip_do_history: Enable SIP History logging (CLI) ---*/
 static int sip_do_history(int fd, int argc, char *argv[])
 {
@@ -6590,6 +6693,9 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 	
 
 
+static char notify_usage[] =
+"Usage: sip notify <type> <peer>\n"
+"       Send a notify command to a remote SIP peer\n";
 
 static char show_users_usage[] = 
 "Usage: sip show users\n"
@@ -6657,7 +6763,8 @@ static char show_objects_usage[] =
 "Usage: sip show objects\n" 
 "       Shows status of known SIP objects\n";
 
-
+static struct ast_cli_entry  cli_notify =
+	{ { "sip", "notify", NULL }, sip_notify, "Send a notify packet to a SIP peer", notify_usage, complete_sippeer };
 static struct ast_cli_entry  cli_show_objects = 
 	{ { "sip", "show", "objects", NULL }, sip_show_objects, "Show all SIP object allocations", show_objects_usage };
 static struct ast_cli_entry  cli_show_users = 
@@ -9391,6 +9498,7 @@ int load_module()
 			ast_log(LOG_ERROR, "Unable to register channel class %s\n", channeltype);
 			return -1;
 		}
+		ast_cli_register(&cli_notify);
 		ast_cli_register(&cli_show_users);
 		ast_cli_register(&cli_show_objects);
 		ast_cli_register(&cli_show_subscriptions);
@@ -9433,6 +9541,7 @@ int unload_module()
 	ast_unregister_application(app_dtmfmode);
 	ast_unregister_application(app_sipaddheader);
 	ast_unregister_application(app_sipgetheader);
+	ast_cli_unregister(&cli_notify);
 	ast_cli_unregister(&cli_show_users);
 	ast_cli_unregister(&cli_show_objects);
 	ast_cli_unregister(&cli_show_channels);

@@ -1,0 +1,17 @@
+[reboot-polycom]
+Event=>check-sync
+Content-Length=>0
+
+; Untested
+[reboot-sipura]
+Event=>resync
+Content-Length=>0
+
+; Untested
+[reboot-grandstream]
+Event=>sys-control
+
+; Untested
+[reboot-cisco]
+Event=>check-sync
+Content-Length=>0
