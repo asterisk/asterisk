@@ -186,7 +186,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 	mylen += cid->oldlen/2;
 	for (x=0;x<len;x++) 
 		buf[x+cid->oldlen/2] = AST_XLAW(ubuf[x]);
-	while(mylen >= 80) {
+	while(mylen >= 160) {
 		olen = mylen;
 		res = fsk_serie(&cid->fskd, buf, &mylen, &b);
 		if (mylen < 0) {
