@@ -310,6 +310,7 @@ struct sip_registry {
 	pthread_mutex_t lock;				/* Channel private lock */
 	struct sockaddr_in addr;		/* Who we connect to for registration purposes */
 	char username[80];
+	char hostname[80];
 	char secret[80];			/* Password or key name in []'s */
 	char contact[80];			/* Contact extension */
 	char random[80];
@@ -1433,6 +1434,7 @@ static int sip_register(char *value, int lineno)
 		memset(reg, 0, sizeof(struct sip_registry));
 		strncpy(reg->contact, contact, sizeof(reg->contact) - 1);
 		strncpy(reg->username, username, sizeof(reg->username)-1);
+		strncpy(reg->hostname, hostname, sizeof(reg->hostname)-1);
 		if (secret)
 			strncpy(reg->secret, secret, sizeof(reg->secret)-1);
 		reg->expire = -1;
@@ -2489,28 +2491,33 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 	char addr[80];
 	struct sip_pvt *p;
 	/* exit if we are already in process with this registrar ?*/
-	if ( r == NULL || (auth==NULL && r->regstate==REG_STATE_REGSENT) || r->regstate==REG_STATE_AUTHSENT) {
+	if ( r == NULL || ((auth==NULL) && (r->regstate==REG_STATE_REGSENT || r->regstate==REG_STATE_AUTHSENT))) {
 		ast_log(LOG_NOTICE, "Strange, trying to register when registration already pending\n");
 		return 0;
 	}
 
 	if (r->call) {
-		ast_log(LOG_WARNING, "Already have a call??\n");
+		if (!auth) {
+			ast_log(LOG_WARNING, "Already have a call??\n");
+			return 0;
+		} else
+			p = r->call;
+	} else {
+		build_callid(r->callid, sizeof(r->callid), __ourip);
+		p=sip_alloc( r->callid, &r->addr, 0);
+		if (!p) {
+			ast_log(LOG_WARNING, "Unable to allocate registration call\n");
+			return 0;
+		}
+		p->outgoing = 1;
+		r->call=p;
+		p->registry=r;
+		strncpy(p->peersecret, r->secret, sizeof(p->peersecret)-1);
+		strncpy(p->peername, r->username, sizeof(p->peername)-1);
+		strncpy(p->username, r->username, sizeof(p->username)-1);
+		strncpy(p->exten, r->contact, sizeof(p->exten) - 1);
+		build_contact(p);
 	}
-	build_callid(r->callid, sizeof(r->callid), __ourip);
-	p=sip_alloc( r->callid, &r->addr, 0);
-	if (!p) {
-		ast_log(LOG_WARNING, "Unable to allocate registration call\n");
-		return 0;
-	}
-	p->outgoing = 1;
-	r->call=p;
-	p->registry=r;
-	strncpy(p->peersecret, r->secret, sizeof(p->peersecret)-1);
-	strncpy(p->peername, r->username, sizeof(p->peername)-1);
-	strncpy(p->username, r->username, sizeof(p->username)-1);
-	strncpy(p->exten, r->contact, sizeof(p->exten) - 1);
-	build_contact(p);
 
 	/* set up a timeout */
 	if (auth==NULL)  {
@@ -2522,8 +2529,8 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 		ast_log(LOG_DEBUG, "Scheduled a timeout # %d\n", r->timeout);
 	}
 
-	snprintf(from, sizeof(from), "<sip:%s@%s>;tag=as%08x", r->username, inet_ntoa(r->addr.sin_addr), p->tag);
-	snprintf(to, sizeof(to),     "<sip:%s@%s>;tag=as%08x", r->username, inet_ntoa(r->addr.sin_addr), p->tag);
+	snprintf(from, sizeof(from), "<sip:%s@%s>;tag=as%08x", r->username, inet_ntoa(r->addr.sin_addr) /* r->hostname */, p->tag);
+	snprintf(to, sizeof(to),     "<sip:%s@%s>;tag=as%08x", r->username, inet_ntoa(r->addr.sin_addr) /* r->hostname */, p->tag);
 	
 	snprintf(addr, sizeof(addr), "sip:%s", inet_ntoa(r->addr.sin_addr));
 
@@ -2616,9 +2623,13 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	struct sockaddr_in oldsin;
 	if (!strlen(expires)) {
 		expires = strstr(get_header(req, "Contact"), "expires=");
-		if (expires) 
+		if (expires) {
 			if (sscanf(expires + 8, "%d;", &expiry) != 1)
-				expiry = 0;
+				expiry = default_expiry;
+		} else {
+			/* Nothing has been specified */
+			expiry = default_expiry;
+		}
 	}
 	/* Look for brackets */
 	strncpy(contact, get_header(req, "Contact"), sizeof(contact) - 1);
@@ -3540,14 +3551,20 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 static int do_register_auth(struct sip_pvt *p, struct sip_request *req) {
 	char digest[256];
 	memset(digest,0,sizeof(digest));
-	reply_digest(p,req, "WWW-Authenticate", "REGISTER", digest, sizeof(digest) );
+	if (reply_digest(p,req, "WWW-Authenticate", "REGISTER", digest, sizeof(digest))) {
+		/* There's nothing to use for authentication */
+		return -1;
+	}
 	return transmit_register(p->registry,"REGISTER",digest); 
 }
 
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req) {
 	char digest[256];
 	memset(digest,0,sizeof(digest));
-	reply_digest(p,req, "Proxy-Authenticate", "INVITE", digest, sizeof(digest) );
+	if (reply_digest(p,req, "Proxy-Authenticate", "INVITE", digest, sizeof(digest) )) {
+		/* No way to authenticate */
+		return -1;
+	}
 	return transmit_invite(p,"INVITE",1,digest, NULL); 
 }
 
@@ -3560,6 +3577,8 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 
 
 	strncpy(tmp, get_header(req, header),sizeof(tmp) - 1);
+	if (!strlen(tmp)) 
+		return -1;
 	c = tmp;
 	c+=strlen("Digest ");
 	while (c) {
@@ -3840,6 +3859,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					}
 					r->timeout=-1;
 					r->call = NULL;
+					p->registry = NULL;
 					p->needdestroy = 1;
 					/* set us up for re-registering */
 					/* figure out how long we got registered for */
@@ -3854,13 +3874,25 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			}
 			break;
 		case 401: /* Not authorized on REGISTER */
-			do_register_auth(p, req);
+			if (p->registry && !strcasecmp(msg, "REGISTER")) {
+				if (do_register_auth(p, req)) {
+					ast_log(LOG_NOTICE, "Failed to authenticate on REGISTER to '%s'\n", get_header(&p->initreq, "From"));
+					p->needdestroy = 1;
+				}
+			} else
+				p->needdestroy = 1;
 			break;
 		case 407:
-			/* First we ACK */
-			transmit_request(p, "ACK", seqno, 0);
-			/* Then we AUTH */
-			do_proxy_auth(p, req);
+			if (!strcasecmp(msg, "INVITE")) {
+				/* First we ACK */
+				transmit_request(p, "ACK", seqno, 0);
+				/* Then we AUTH */
+				if (do_proxy_auth(p, req)) {
+					ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
+					p->needdestroy = 1;
+				}
+			} else
+				p->needdestroy = 1;
 			break;
 		default:
 			if ((resp >= 300) && (resp < 700)) {
