@@ -6266,7 +6266,7 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 {
 	struct sip_pvt *p = chan->pvt->pvt;
 	char *mode;
-	if (strcasecmp(chan->name, "SIP")) {
+	if (chan->type != type) {
 		ast_log(LOG_WARNING, "Call this application only on SIP incoming calls\n");
 		return 0;
 	}
