@@ -81,6 +81,7 @@ struct chanspy_translation_helper {
 
 /* Prototypes */
 static struct ast_channel *local_get_channel_by_name(char *name);
+static struct ast_channel *local_get_channel_begin_name(char *name);
 static struct ast_channel *local_channel_walk(struct ast_channel *chan);
 static void spy_release(struct ast_channel *chan, void *data);
 static void *spy_alloc(struct ast_channel *chan, void *params);
@@ -115,6 +116,24 @@ static struct ast_channel *local_channel_walk(struct ast_channel *chan)
 	ast_mutex_unlock(&modlock);			
 	return ret;
 }
+
+static struct ast_channel *local_get_channel_begin_name(char *name) 
+{
+	struct ast_channel *chan, *ret = NULL;
+	ast_mutex_lock(&modlock);
+	chan = local_channel_walk(NULL);
+	while (chan) {
+		if (!strncmp(chan->name, name, strlen(name))) {
+			ret = chan;
+			break;
+		}
+		chan = local_channel_walk(chan);
+	}
+	ast_mutex_unlock(&modlock);
+	
+	return ret;
+}
+
 
 static void spy_release(struct ast_channel *chan, void *data) 
 {
@@ -420,7 +439,7 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 	char *argv[5];
 	char *mygroup = NULL;
 	int bronly = 0;
-
+	int chosen = 0;
 
 	if (!(args = ast_strdupa((char *)data))) {
 		ast_log(LOG_ERROR, "Out of memory!\n");
@@ -493,9 +512,10 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 				char *group = NULL;
 				int igrp = 1;
 
-				if (peer == prev) {
+				if (peer == prev && !chosen) {
 					break;
 				}
+				chosen = 0;
 				group = pbx_builtin_getvar_helper(peer, "SPYGROUP");
 				if (mygroup) {
 					if (!group || strcmp(mygroup, group)) {
@@ -540,17 +560,17 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 							ALL_DONE(u, -1);
 						} else if (res > 1 && spec) {
 							snprintf(name, AST_NAME_STRLEN, "%s/%d", spec, res);
-							if (!silent)
-								ast_say_digits(chan, res, "", chan->language);
-							peer=local_get_channel_by_name(name);
+							if ((peer = local_get_channel_begin_name(name))) {
+								chosen = 1;
+							}
 							continue;
 						}
 					}
 				}
 			}
-
-			if ((peer = local_channel_walk(peer)) == NULL)
+			if ((peer = local_channel_walk(peer)) == NULL) {
 				break;
+			}
 		}
 		waitms = count ? 100 : 5000;
 	}
