@@ -37,11 +37,20 @@
 #define MAX_OTHER_FORMATS 10
 
 
+/* 
+This function presents a dialtone and reads an extension into 'collect' 
+which must be a pointer to a **pre-initilized** array of char having a 
+size of 'size' suitable for writing to.  It will collect no more than the smaller 
+of 'maxlen' or 'size' minus the original strlen() of collect digits.
+*/
 int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout) 
 {
 	struct tone_zone_sound *ts;
 	int res=0, x=0;
 
+	if(maxlen > size)
+		maxlen = size;
+	
 	if(!timeout && chan->pbx)
 		timeout = chan->pbx->dtimeout;
 	else if(!timeout)
@@ -53,8 +62,7 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 	} else 
 		ast_log(LOG_NOTICE,"Huh....? no dial for indications?\n");
 	
-	memset(collect, 0, size);
-	for (x=0; strlen(collect) < size; ) {
+	for (x = strlen(collect); strlen(collect) < maxlen; ) {
 		res = ast_waitfordigit(chan, timeout);
 		if (!ast_ignore_pattern(context, collect))
 			ast_playtones_stop(chan);

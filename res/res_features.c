@@ -458,9 +458,8 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	struct ast_channel *transferer;
 	struct ast_channel *transferee;
 	char *transferer_real_context;
-	char newext[256], *ptr;
+	char newext[256];
 	int res;
-	int len;
 
 	if (sense == FEATURE_SENSE_PEER) {
 		transferer = peer;
@@ -484,8 +483,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	ast_moh_start(transferee, NULL);
 
 	memset(newext, 0, sizeof(newext));
-	ptr = newext;
-
+	
 	/* Transfer */
 	if ((res=ast_streamfile(transferer, "pbx-transfer", transferer->language))) {
 		ast_moh_stop(transferee);
@@ -498,15 +496,12 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		ast_autoservice_stop(transferee);
 		ast_indicate(transferee, AST_CONTROL_UNHOLD);
 		return res;
-	}
-	ast_stopstream(transferer);
-	if (res > 0) {
+	} else if (res > 0) {
 		/* If they've typed a digit already, handle it */
-		newext[0] = res;
-		ptr++;
-		len--;
+		newext[0] = (char) res;
 	}
 
+	ast_stopstream(transferer);
 	res = ast_app_dtget(transferer, transferer_real_context, newext, sizeof(newext), 100, transferdigittimeout);
 	if (res < 0) {
 		ast_moh_stop(transferee);
@@ -619,7 +614,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	ast_indicate(transferee, AST_CONTROL_HOLD);
 	ast_autoservice_start(transferee);
 	ast_moh_start(transferee, NULL);
-
+	memset(xferto, 0, sizeof(xferto));
 	/* Transfer */
 	if ((res=ast_streamfile(transferer, "pbx-transfer", transferer->language))) {
 		ast_moh_stop(transferee);
@@ -632,6 +627,9 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		ast_autoservice_stop(transferee);
 		ast_indicate(transferee, AST_CONTROL_UNHOLD);
 		return res;
+	} else if(res > 0) {
+		/* If they've typed a digit already, handle it */
+		xferto[0] = (char) res;
 	}
 	if ((ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout))) {
 		cid_num = transferer->cid.cid_num;
