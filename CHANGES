@@ -1,3 +1,4 @@
+ -- Support 302 Redirect on SIP
  -- Management interface improvements
  -- Add "hint" support
  -- Improve call forwarding using new "Local" channel driver.
