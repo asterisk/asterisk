@@ -44,7 +44,7 @@ ${TIMESTAMP}	Current date time in the format: YYYYMMDD-HHMMSS
 ${UNIQUEID}	Current call unique identifier
 ${DNID}         Dialed Number Identifier
 ${RDNIS}        Redirected Dial Number ID Service
-${HANGUPCAUSE}	Hangup cause on last PRI hangup
+${HANGUPCAUSE}	Asterisk hangup cause
 ${ACCOUNTCODE}  Account code (if specified)
 
 ${SIPDOMAIN}    SIP destination domain of an inbound call (if appropriate)
