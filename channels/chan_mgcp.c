@@ -1945,6 +1945,7 @@ static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp 
 	add_header(&resp, "X", sub->txident);
 	add_header(&resp, "I", sub->cxident);
 	/*add_header(&resp, "S", "");*/
+	ast_rtp_offered_from_local(rtp, 0);
 	add_sdp(&resp, sub, rtp);
     /* SC: fill in new fields */
     resp.cmd = MGCP_CMD_MDCX;
@@ -1978,6 +1979,7 @@ static int transmit_connect_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp
     /* SC: X header should not be sent. kept for compatibility */
 	add_header(&resp, "X", sub->txident);
 	/*add_header(&resp, "S", "");*/
+	ast_rtp_offered_from_local(rtp, 1);
 	add_sdp(&resp, sub, rtp);
     /* SC: fill in new fields */
     resp.cmd = MGCP_CMD_CRCX;

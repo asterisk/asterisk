@@ -5,7 +5,7 @@
  * 	Supports RTP and RTCP with Symmetric RTP support for NAT
  * 	traversal
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -99,6 +99,7 @@ struct ast_rtp {
     int rtp_lookup_code_cache_isAstFormat;	/* a cache for the result of rtp_lookup_code(): */
     int rtp_lookup_code_cache_code;
     int rtp_lookup_code_cache_result;
+    int rtp_offered_from_local;
 	struct ast_rtcp *rtcp;
 };
 
@@ -281,43 +282,28 @@ static struct ast_frame *process_rfc3389(struct ast_rtp *rtp, unsigned char *dat
 	/* Convert comfort noise into audio with various codecs.  Unfortunately this doesn't
 	   totally help us out becuase we don't have an engine to keep it going and we are not
 	   guaranteed to have it every 20ms or anything */
-#if 0
-	printf("RFC3389: %d bytes, format is %d\n", len, rtp->lastrxformat);
+#if 1
+	printf("RFC3389: %d bytes, level %d...\n", len, rtp->lastrxformat);
 #endif	
 	if (!(rtp->flags & FLAG_3389_WARNING)) {
 		ast_log(LOG_NOTICE, "RFC3389 support incomplete.  Turn off on client if possible\n");
 		rtp->flags |= FLAG_3389_WARNING;
 	}
-	if (!rtp->lastrxformat)
-		return 	NULL;
-	switch(rtp->lastrxformat) {
-	case AST_FORMAT_ULAW:
-		rtp->f.frametype = AST_FRAME_VOICE;
-		rtp->f.subclass = AST_FORMAT_ULAW;
-		rtp->f.datalen = 160;
-		rtp->f.samples = 160;
-		memset(rtp->f.data, 0x7f, rtp->f.datalen);
-		f = &rtp->f;
-		break;
-	case AST_FORMAT_ALAW:
-		rtp->f.frametype = AST_FRAME_VOICE;
-		rtp->f.subclass = AST_FORMAT_ALAW;
-		rtp->f.datalen = 160;
-		rtp->f.samples = 160;
-		memset(rtp->f.data, 0x7e, rtp->f.datalen); /* XXX Is this right? XXX */
-		f = &rtp->f;
-		break;
-	case AST_FORMAT_SLINEAR:
-		rtp->f.frametype = AST_FRAME_VOICE;
-		rtp->f.subclass = AST_FORMAT_SLINEAR;
-		rtp->f.datalen = 320;
-		rtp->f.samples = 160;
-		memset(rtp->f.data, 0x00, rtp->f.datalen);
-		f = &rtp->f;
-		break;
-	default:
-		ast_log(LOG_NOTICE, "Don't know how to handle RFC3389 for receive codec %d\n", rtp->lastrxformat);
+	/* Must have at least one byte */
+	if (!len)
+		return NULL;
+	if (len < 24) {
+		rtp->f.datalen = len - 1;
+		memcpy(rtp->f.data, data + 1, len - 1);
+	} else {
+		rtp->f.datalen = 0;
 	}
+	rtp->f.frametype = AST_FRAME_CNG;
+	rtp->f.subclass = data[0] & 0x7f;
+	rtp->f.datalen = len - 1;
+	rtp->f.samples = 0;
+	rtp->f.delivery.tv_usec = rtp->f.delivery.tv_sec = 0;
+	f = &rtp->f;
 	return f;
 }
 
@@ -587,7 +573,7 @@ static struct {
   {{1, AST_FORMAT_SLINEAR}, "audio", "L16"},
   {{1, AST_FORMAT_LPC10}, "audio", "LPC"},
   {{1, AST_FORMAT_G729A}, "audio", "G729"},
-  {{1, AST_FORMAT_SPEEX}, "audio", "SPEEX"},
+  {{1, AST_FORMAT_SPEEX}, "audio", "speex"},
   {{1, AST_FORMAT_ILBC}, "audio", "iLBC"},
   {{0, AST_RTP_DTMF}, "audio", "telephone-event"},
   {{0, AST_RTP_CISCO_DTMF}, "audio", "cisco-telephone-event"},
@@ -698,19 +684,27 @@ void ast_rtp_get_current_formats(struct ast_rtp* rtp,
   }
 }
 
+void ast_rtp_offered_from_local(struct ast_rtp* rtp, int local) {
+  if (rtp)
+    rtp->rtp_offered_from_local = local;
+  else
+    ast_log(LOG_WARNING, "rtp structure is null\n");
+}
+
 struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt) 
 {
   struct rtpPayloadType result;
 
+  result.isAstFormat = result.code = 0;
   if (pt < 0 || pt > MAX_RTP_PT) {
-    result.isAstFormat = result.code = 0;
     return result; /* bogus payload type */
   }
   /* Start with the negotiated codecs */
-  result = rtp->current_RTP_PT[pt];
+  if (!rtp->rtp_offered_from_local)
+    result = rtp->current_RTP_PT[pt];
   /* If it doesn't exist, check our static RTP type list, just in case */
   if (!result.code) 
-  	result = static_RTP_PT[pt];
+    result = static_RTP_PT[pt];
   return result;
 }
 

@@ -89,6 +89,7 @@ void ast_rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,
 // Mapping between RTP payload format codes and Asterisk codes:
 struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt);
 int ast_rtp_lookup_code(struct ast_rtp* rtp, int isAstFormat, int code);
+void ast_rtp_offered_from_local(struct ast_rtp* rtp, int local);
 
 void ast_rtp_get_current_formats(struct ast_rtp* rtp,
 			     int* astFormats, int* nonAstFormats);

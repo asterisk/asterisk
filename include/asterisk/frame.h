@@ -118,7 +118,7 @@ struct ast_frame_chain {
 #define AST_FRAME_CONTROL	4
 /*! An empty, useless frame */
 #define AST_FRAME_NULL		5
-/*! Inter Aterisk Exchange private frame type */
+/*! Inter Asterisk Exchange private frame type */
 #define AST_FRAME_IAX		6
 /*! Text messages */
 #define AST_FRAME_TEXT		7
@@ -126,6 +126,9 @@ struct ast_frame_chain {
 #define AST_FRAME_IMAGE		8
 /*! HTML Frame */
 #define AST_FRAME_HTML		9
+/*! Comfort Noise frame (subclass is level of CNG in -dBov), 
+    body may include zero or more 8-bit quantization coefficients */
+#define AST_FRAME_CNG		10
 
 /* HTML subclasses */
 /*! Sending a URL */

@@ -3511,6 +3511,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 		return -1;
 	}
 	respprep(&resp, p, msg, req);
+	ast_rtp_offered_from_local(p->rtp, 0);
 	add_sdp(&resp, p);
 	return send_response(p, &resp, retrans, seqno);
 }
@@ -3587,6 +3588,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 		reqprep(&req, p, "INVITE", 0, 1);
 	
 	add_header(&req, "Allow", ALLOWED_METHODS);
+	ast_rtp_offered_from_local(p->rtp, 1);
 	add_sdp(&req, p);
 	/* Use this as the basis */
 	copy_request(&p->initreq, &req);
@@ -3745,6 +3747,7 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 	}
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	if (sdp) {
+		ast_rtp_offered_from_local(p->rtp, 1);
 		add_sdp(&req, p);
 	} else {
 		add_header(&req, "Content-Length", "0");
