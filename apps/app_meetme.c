@@ -541,7 +541,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		user->nextuser = NULL;
 		if (conf->lastuser->nextuser != NULL) {
 			ast_log(LOG_WARNING, "Error in User Management!\n");
-		      	goto outrun;
+			ast_mutex_unlock(&conflock);
+			goto outrun;
 		} else {
 			conf->lastuser->nextuser = user;
 			conf->lastuser = user;
@@ -784,150 +785,149 @@ zapretry:
 				}
 			}
 
-		if (c) {
-			if (c->fds[0] != origfd) {
-				if (using_pseudo) {
-					/* Kill old pseudo */
-					close(fd);
-				}
-				ast_log(LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
-				retryzap = 0;
-				using_pseudo = 0;
-				goto zapretry;
-			}
-			f = ast_read(c);
-			if (!f) 
-				break;
-			if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '#') && (confflags & CONFFLAG_POUNDEXIT)) {
-				ret = 0;
-				break;
-				} else if (((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*') && (confflags & CONFFLAG_STARMENU)) || ((f->frametype == AST_FRAME_DTMF) && menu_active)) {
-						if (musiconhold) {
-				   			ast_moh_stop(chan);
-						}
-					if ((confflags & CONFFLAG_ADMIN)) {
-							/* Admin menu */
-							if (!menu_active) {
-								menu_active = 1;
-								/* Record this sound! */
-								if (!ast_streamfile(chan, "conf-adminmenu", chan->language))
-									ast_waitstream(chan, "");
-					} else {
-								switch(f->subclass - 48) {
-									case 1: /* Un/Mute */
-										menu_active = 0;
-			 							if (ztc.confmode & ZT_CONF_TALKER) {
-			 						       		ztc.confmode = ZT_CONF_CONF | ZT_CONF_LISTENER;
-			 						       		confflags |= CONFFLAG_MONITOR ^ CONFFLAG_TALKER;
-										} else {
-											ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
-											confflags ^= CONFFLAG_MONITOR | CONFFLAG_TALKER;
-										}
-										if (ioctl(fd, ZT_SETCONF, &ztc)) {
-											ast_log(LOG_WARNING, "Error setting conference - Un/Mute \n");
-											ret = -1;
-											break;
-										}
-										if (ztc.confmode & ZT_CONF_TALKER) {
-											if (!ast_streamfile(chan, "conf-unmuted", chan->language))
-												ast_waitstream(chan, "");
-										} else {
-											if (!ast_streamfile(chan, "conf-muted", chan->language))
-												ast_waitstream(chan, "");
-										}
-										break;
-									case 2: /* Un/Lock the Conference */
-										menu_active = 0;
-										if (conf->locked) {
-											conf->locked = 0;
-											if (!ast_streamfile(chan, "conf-unlockednow", chan->language))
-												ast_waitstream(chan, "");
-										} else {
-											conf->locked = 1;
-											if (!ast_streamfile(chan, "conf-lockednow", chan->language))
-												ast_waitstream(chan, "");
+			if (c) {
+				if (c->fds[0] != origfd) {
+					if (using_pseudo) {
+						/* Kill old pseudo */
+						close(fd);
 					}
-
-										break;
-									default:
-										menu_active = 0;
-										/* Play an error message! */
-										if (!ast_streamfile(chan, "conf-errormenu", chan->language))
-											ast_waitstream(chan, "");
-										break;
-								}
-							}
+					ast_log(LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
+					retryzap = 0;
+					using_pseudo = 0;
+					goto zapretry;
+				}
+				f = ast_read(c);
+				if (!f) 
+					break;
+				if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '#') && (confflags & CONFFLAG_POUNDEXIT)) {
+					ret = 0;
+					break;
+				} else if (((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*') && (confflags & CONFFLAG_STARMENU)) || ((f->frametype == AST_FRAME_DTMF) && menu_active)) {
+					if (musiconhold) {
+			   			ast_moh_stop(chan);
+					}
+					if ((confflags & CONFFLAG_ADMIN)) {
+						/* Admin menu */
+						if (!menu_active) {
+							menu_active = 1;
+							/* Record this sound! */
+							if (!ast_streamfile(chan, "conf-adminmenu", chan->language))
+								ast_waitstream(chan, "");
 						} else {
-							/* User menu */
-							if (!menu_active) {
-								menu_active = 1;
-								/* Record this sound! */
-								if (!ast_streamfile(chan, "conf-usermenu", chan->language))
-									ast_waitstream(chan, "");
-							} else {
-								switch(f->subclass - 48) {
-									case 1: /* Un/Mute */
-										menu_active = 0;
-			 							if (ztc.confmode & ZT_CONF_TALKER) {
-			 						       		ztc.confmode = ZT_CONF_CONF | ZT_CONF_LISTENER;
-			 						       		confflags |= CONFFLAG_MONITOR ^ CONFFLAG_TALKER;
-										} else if (!(user->adminflags & ADMINFLAG_MUTED)) {
-											ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
-											confflags ^= CONFFLAG_MONITOR | CONFFLAG_TALKER;
-										}
-										if (ioctl(fd, ZT_SETCONF, &ztc)) {
-											ast_log(LOG_WARNING, "Error setting conference - Un/Mute \n");
-											ret = -1;
-											break;
-										}
-										if (ztc.confmode & ZT_CONF_TALKER) {
-											if (!ast_streamfile(chan, "conf-unmuted", chan->language))
-												ast_waitstream(chan, "");
-										} else {
-											if (!ast_streamfile(chan, "conf-muted", chan->language))
-												ast_waitstream(chan, "");
-										}
+							switch(f->subclass - 48) {
+								case 1: /* Un/Mute */
+									menu_active = 0;
+		 							if (ztc.confmode & ZT_CONF_TALKER) {
+	 						       		ztc.confmode = ZT_CONF_CONF | ZT_CONF_LISTENER;
+	 						       		confflags |= CONFFLAG_MONITOR ^ CONFFLAG_TALKER;
+									} else {
+										ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
+										confflags ^= CONFFLAG_MONITOR | CONFFLAG_TALKER;
+									}
+									if (ioctl(fd, ZT_SETCONF, &ztc)) {
+										ast_log(LOG_WARNING, "Error setting conference - Un/Mute \n");
+										ret = -1;
 										break;
-									default:
-										menu_active = 0;
-										/* Play an error message! */
-										if (!ast_streamfile(chan, "errormenu", chan->language))
+									}
+									if (ztc.confmode & ZT_CONF_TALKER) {
+										if (!ast_streamfile(chan, "conf-unmuted", chan->language))
 											ast_waitstream(chan, "");
-										break;
-								}
+									} else {
+										if (!ast_streamfile(chan, "conf-muted", chan->language))
+											ast_waitstream(chan, "");
+									}
+									break;
+								case 2: /* Un/Lock the Conference */
+									menu_active = 0;
+									if (conf->locked) {
+										conf->locked = 0;
+										if (!ast_streamfile(chan, "conf-unlockednow", chan->language))
+											ast_waitstream(chan, "");
+									} else {
+										conf->locked = 1;
+										if (!ast_streamfile(chan, "conf-lockednow", chan->language))
+											ast_waitstream(chan, "");
+									}
+									break;
+								default:
+									menu_active = 0;
+									/* Play an error message! */
+									if (!ast_streamfile(chan, "conf-errormenu", chan->language))
+										ast_waitstream(chan, "");
+									break;
 							}
 						}
-						if (musiconhold) {
-				   			ast_moh_start(chan, NULL);
+					} else {
+						/* User menu */
+						if (!menu_active) {
+							menu_active = 1;
+							/* Record this sound! */
+							if (!ast_streamfile(chan, "conf-usermenu", chan->language))
+								ast_waitstream(chan, "");
+						} else {
+							switch(f->subclass - 48) {
+								case 1: /* Un/Mute */
+									menu_active = 0;
+		 							if (ztc.confmode & ZT_CONF_TALKER) {
+	 						       		ztc.confmode = ZT_CONF_CONF | ZT_CONF_LISTENER;
+	 						       		confflags |= CONFFLAG_MONITOR ^ CONFFLAG_TALKER;
+									} else if (!(user->adminflags & ADMINFLAG_MUTED)) {
+										ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
+										confflags ^= CONFFLAG_MONITOR | CONFFLAG_TALKER;
+									}
+									if (ioctl(fd, ZT_SETCONF, &ztc)) {
+										ast_log(LOG_WARNING, "Error setting conference - Un/Mute \n");
+										ret = -1;
+										break;
+									}
+									if (ztc.confmode & ZT_CONF_TALKER) {
+										if (!ast_streamfile(chan, "conf-unmuted", chan->language))
+											ast_waitstream(chan, "");
+									} else {
+										if (!ast_streamfile(chan, "conf-muted", chan->language))
+											ast_waitstream(chan, "");
+									}
+									break;
+								default:
+									menu_active = 0;
+									/* Play an error message! */
+									if (!ast_streamfile(chan, "errormenu", chan->language))
+										ast_waitstream(chan, "");
+									break;
+							}
 						}
-			} else if (using_pseudo) {
-				if (f->frametype == AST_FRAME_VOICE) {
-					if (f->subclass == AST_FORMAT_SLINEAR) {
-						/* Carefully write */
-						careful_write(fd, f->data, f->datalen);
-					} else
-						ast_log(LOG_WARNING, "Huh?  Got a non-linear (%d) frame in the conference\n", f->subclass);
+					}
+					if (musiconhold) {
+			   			ast_moh_start(chan, NULL);
+					}
+				} else if (using_pseudo) {
+					if (f->frametype == AST_FRAME_VOICE) {
+						if (f->subclass == AST_FORMAT_SLINEAR) {
+							/* Carefully write */
+							careful_write(fd, f->data, f->datalen);
+						} else
+							ast_log(LOG_WARNING, "Huh?  Got a non-linear (%d) frame in the conference\n", f->subclass);
+					}
 				}
+				ast_frfree(f);
+			} else if (outfd > -1) {
+				res = read(outfd, buf, CONF_SIZE);
+				if (res > 0) {
+					memset(&fr, 0, sizeof(fr));
+					fr.frametype = AST_FRAME_VOICE;
+					fr.subclass = AST_FORMAT_SLINEAR;
+					fr.datalen = res;
+					fr.samples = res/2;
+					fr.data = buf;
+					fr.offset = AST_FRIENDLY_OFFSET;
+					if (ast_write(chan, &fr) < 0) {
+						ast_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
+						/* break; */
+					}
+				} else 
+					ast_log(LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
 			}
-			ast_frfree(f);
-		} else if (outfd > -1) {
-			res = read(outfd, buf, CONF_SIZE);
-			if (res > 0) {
-				memset(&fr, 0, sizeof(fr));
-				fr.frametype = AST_FRAME_VOICE;
-				fr.subclass = AST_FORMAT_SLINEAR;
-				fr.datalen = res;
-				fr.samples = res/2;
-				fr.data = buf;
-				fr.offset = AST_FRIENDLY_OFFSET;
-				if (ast_write(chan, &fr) < 0) {
-					ast_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
-					/* break; */
-				}
-			} else 
-				ast_log(LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
 		}
-	}
 	}
 	if (using_pseudo)
 		close(fd);
@@ -1216,52 +1216,63 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			}
 			ast_mutex_unlock(&conflock);
 
-			/* Disqualify static conferences with pins */
-			cfg = ast_load("meetme.conf");
-			if (cfg) {
-				var = ast_variable_browse(cfg, "rooms");
-				while(var) {
-					if (!strcasecmp(var->name, "conf")) {
-						char *stringp = ast_strdupa(var->value);
-						if (stringp) {
-							char *confno_tmp = strsep(&stringp, "|,");
-							int found = 0;
-							if (sscanf(confno_tmp, "%d", &confno_int) == 1) {
-								if (confno_int >= 0 && confno_int < 1024) {
-									if (stringp && empty_no_pin) {
-										map[confno_int]++;
+			/* We only need to load the config file for static and empty_no_pin (otherwise we don't care) */
+			if ((empty_no_pin) || (!dynamic)) {
+				cfg = ast_load("meetme.conf");
+				if (cfg) {
+					var = ast_variable_browse(cfg, "rooms");
+					while(var) {
+						if (!strcasecmp(var->name, "conf")) {
+							char *stringp = ast_strdupa(var->value);
+							if (stringp) {
+								char *confno_tmp = strsep(&stringp, "|,");
+								int found = 0;
+								if (sscanf(confno_tmp, "%d", &confno_int) == 1) {
+									if ((confno_int >= 0) && (confno_int < 1024)) {
+										if (stringp && empty_no_pin) {
+											map[confno_int]++;
+										}
 									}
 								}
-							}
-							if (! dynamic) {
-								/* For static:  run through the list and see if this conference is empty */
-								ast_mutex_lock(&conflock);
-								cnf = confs;
-								while (cnf) {
-									if (!strcmp(confno_tmp, cnf->confno)) {
-										found = 1;
-										break;
+								if (! dynamic) {
+									/* For static:  run through the list and see if this conference is empty */
+									ast_mutex_lock(&conflock);
+									cnf = confs;
+									while (cnf) {
+										if (!strcmp(confno_tmp, cnf->confno)) {
+											/* The conference exists, therefore it's not empty */
+											found = 1;
+											break;
+										}
+										cnf = cnf->next;
+									}
+									ast_mutex_unlock(&conflock);
+									if (!found) {
+										/* At this point, we have a confno_tmp (static conference) that is empty */
+										if ((empty_no_pin && ((!stringp) || (stringp && (stringp[0] == '\0')))) || (!empty_no_pin)) {
+										/* Case 1:  empty_no_pin and pin is nonexistant (NULL)
+										 * Case 2:  empty_no_pin and pin is blank (but not NULL)
+										 * Case 3:  not empty_no_pin
+										 */
+											strncpy(confno, confno_tmp, sizeof(confno) - 1);
+											break;
+											/* XXX the map is not complete (but we do have a confno) */
+										}
 									}
 								}
-								ast_mutex_unlock(&conflock);
-								if (!found) {
-									if ((empty_no_pin && (!stringp)) || (!empty_no_pin)) {
-										strncpy(confno, confno_tmp, sizeof(confno) - 1);
-										break;
-									}
-								}
+							} else {
+								ast_log(LOG_ERROR, "Out of memory\n");
 							}
 						}
+						var = var->next;
 					}
-					var = var->next;
+					ast_destroy(cfg);
 				}
-				ast_destroy(cfg);
 			}
-
 			/* Select first conference number not in use */
-			if (dynamic) {
+			if (ast_strlen_zero(confno) && dynamic) {
 				for (i=0;i<1024;i++) {
-					if (dynamic && (!map[i])) {
+					if (!map[i]) {
 						snprintf(confno, sizeof(confno) - 1, "%d", i);
 						break;
 					}
@@ -1280,6 +1291,8 @@ static int conf_exec(struct ast_channel *chan, void *data)
 						ast_waitstream(chan, "");
 						res = ast_say_digits(chan, confno_int, "", chan->language);
 					}
+				} else {
+					ast_log(LOG_ERROR, "Could not scan confno '%s'\n", confno);
 				}
 			}
 		}
