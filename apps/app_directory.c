@@ -40,7 +40,9 @@ static char *descrip =
 "the vm-context if unspecified. The 'f' option causes the directory to match\n"
 "based on the first name in voicemail.conf instead of the last name.\n"
 "Returns 0 unless the user hangs up. It  also sets up the channel on exit\n"
-"to enter the extension the user selected.\n";
+"to enter the extension the user selected.  If the user enters '0' and there\n"
+"exists an extension 'o' in the current context, the directory will exit with 0\n"
+"and call control will resume at that extension.\n";
 
 /* For simplicity, I'm keeping the format compatible with the voicemail config,
    but i'm open to suggestions for isolating it */
@@ -227,6 +229,20 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 			"(context in which to interpret extensions)\n");
 		return -1;
 	}
+	if (digit == '0') {
+		if (ast_exists_extension(chan,chan->context,"o",1,chan->cid.cid_num) || 
+			(!ast_strlen_zero(chan->macrocontext) &&
+		     ast_exists_extension(chan, chan->macrocontext, "o", 1, chan->cid.cid_num))) {
+			strncpy(chan->exten, "o", sizeof(chan->exten)-1);
+			chan->priority = 0;
+			return 0;
+		} else {
+
+			ast_log(LOG_WARNING, "Can't find extension 'o' in current context.  "
+				"Not Exiting the Directory!\n");
+			res = 0;
+		}
+	}	
 	memset(ext, 0, sizeof(ext));
 	ext[0] = digit;
 	res = 0;
