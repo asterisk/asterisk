@@ -339,7 +339,6 @@ struct sip_user {
         char md5secret[80];
 	char context[80];
 	char callerid[80];
-	char methods[80];
 	char accountcode[20];
 	char language[MAX_LANGUAGE];
 	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
@@ -367,7 +366,6 @@ struct sip_peer {
 	char secret[80];
 	char md5secret[80];
 	char context[80];		/* JK02: peers need context too to allow parking etc */
-	char methods[80];
 	char username[80];
 	char tohost[80];
 	char fromuser[80];
@@ -4725,15 +4723,19 @@ static int sip_show_inuse(int fd, int argc, char *argv[]) {
 
 static int sip_show_users(int fd, int argc, char *argv[])
 {
-#define FORMAT  "%-15.15s  %-15.15s  %-15.15s  %-15.15s  %-5.5s\n"
+#define FORMAT  "%-15.15s  %-15.15s  %-15.15s %-15.15s %-5.5s%-5.5s\n"
 	struct sip_user *user;
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&userl.lock);
-	ast_cli(fd, FORMAT, "Username", "Secret", "Authen", "Def.Context", "A/C");
+	ast_cli(fd, FORMAT, "Username", "Secret", "Accountcode", "Def.Context", "ACL", "NAT");
 	for(user=userl.users;user;user=user->next) {
-		ast_cli(fd, FORMAT, user->name, user->secret, user->methods, 
-				user->context,user->ha ? "Yes" : "No");
+		ast_cli(fd, FORMAT, user->name, 
+				user->secret, 
+				user->accountcode,
+				user->context,
+				user->ha ? "Yes" : "No",
+				user->nat ? "Yes" : "No");
 	}
 	ast_mutex_unlock(&userl.lock);
 	return RESULT_SUCCESS;
@@ -4864,7 +4866,6 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 		ast_cli(fd, "  Secret       : %s\n", ast_strlen_zero(peer->secret)?"<Not set>":"<Set>");
 		ast_cli(fd, "  MD5Secret    : %s\n", ast_strlen_zero(peer->md5secret)?"<Not set>":"<Set>");
 		ast_cli(fd, "  Context      : %s\n", peer->context);
-		ast_cli(fd, "  Methods      : %s\n", peer->methods);
 		ast_cli(fd, "  Language     : %s\n", peer->language);
 		ast_cli(fd, "  FromUser     : %s\n", peer->fromuser);
 		ast_cli(fd, "  FromDomain   : %s\n", peer->fromdomain);
@@ -6869,8 +6870,6 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "permit") ||
 					   !strcasecmp(v->name, "deny")) {
 				user->ha = ast_append_ha(v->name, v->value, user->ha);
-			} else if (!strcasecmp(v->name, "auth")) {
-				strncpy(user->methods, v->value, sizeof(user->methods)-1);
 			} else if (!strcasecmp(v->name, "secret")) {
 				strncpy(user->secret, v->value, sizeof(user->secret)-1); 
 			} else if (!strcasecmp(v->name, "md5secret")) {
@@ -6944,12 +6943,6 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 			v = v->next;
 		}
 	}
-	if (ast_strlen_zero(user->methods)) {
-		if (!ast_strlen_zero(user->secret)) 
-			strncpy(user->methods, "md5,plaintext", sizeof(user->methods) - 1);
-		else if (!ast_strlen_zero(user->md5secret))
-		        strncpy(user->methods, "md5", sizeof(user->methods) - 1);
-	}
 	if (oldha)
 		ast_free_ha(oldha);
 	return user;
@@ -6975,7 +6968,6 @@ static struct sip_peer *temp_peer(char *name)
 	peer->nat = globalnat;
 	peer->selfdestruct = 1;
 	peer->dynamic = 1;
-	strcpy(peer->methods, "md5,plaintext");
 	reg_source_db(peer);
 	return peer;
 }
@@ -7035,8 +7027,6 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 				strncpy(peer->secret, v->value, sizeof(peer->secret)-1);
 			else if (!strcasecmp(v->name, "md5secret")) 
 				strncpy(peer->md5secret, v->value, sizeof(peer->md5secret)-1);
-			else if (!strcasecmp(v->name, "auth")) 
-				strncpy(peer->methods, v->value, sizeof(peer->methods)-1);
 			else if (!strcasecmp(v->name, "canreinvite")) {
 				if (!strcasecmp(v->value, "update"))
 					peer->canreinvite = REINVITE_UPDATE;
@@ -7151,8 +7141,6 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 			 */
 			v=v->next;
 		}
-		if (ast_strlen_zero(peer->methods))
-			strcpy(peer->methods, "md5,plaintext");
 		if (!found && peer->dynamic)
 			reg_source_db(peer);
 		peer->delme = 0;
