@@ -2497,11 +2497,16 @@ static int iax2_getpeertrunk(struct sockaddr_in sin)
 	return res;
 }
 
-static struct ast_channel *ast_iax2_new(struct chan_iax2_pvt *i, int state, int capability)
+static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 {
 	struct ast_channel *tmp;
+	struct chan_iax2_pvt *i;
+	/* Don't hold call lock */
+	ast_mutex_unlock(&iaxsl[callno]);
 	tmp = ast_channel_alloc(1);
-	if (tmp) {
+	ast_mutex_lock(&iaxsl[callno]);
+	i = iaxs[callno];
+	if (i && tmp) {
 		if (!ast_strlen_zero(i->username))
 			snprintf(tmp->name, sizeof(tmp->name), "IAX2[%s@%s]/%d", i->username, i->host, i->callno);
 		else
@@ -5061,7 +5066,7 @@ retryowner:
 								if (option_verbose > 2) 
 									ast_verbose(VERBOSE_PREFIX_3 "Accepting unauthenticated call from %s, requested format = %d, actual format = %d\n", 
 										inet_ntoa(sin.sin_addr), iaxs[fr.callno]->peerformat,format);
-								if(!(c = ast_iax2_new(iaxs[fr.callno], AST_STATE_RING, format)))
+								if(!(c = ast_iax2_new(fr.callno, AST_STATE_RING, format)))
 									iax2_destroy_nolock(fr.callno);
 							} else {
 								iaxs[fr.callno]->state |= IAX_STATE_TBD;
@@ -5332,7 +5337,7 @@ retryowner2:
 								ast_verbose(VERBOSE_PREFIX_3 "Accepting AUTHENTICATED call from %s, requested format = %d, actual format = %d\n", 
 									inet_ntoa(sin.sin_addr), iaxs[fr.callno]->peerformat,format);
 							iaxs[fr.callno]->state |= IAX_STATE_STARTED;
-							if(!(c = ast_iax2_new(iaxs[fr.callno], AST_STATE_RING, format)))
+							if(!(c = ast_iax2_new(fr.callno, AST_STATE_RING, format)))
 								iax2_destroy_nolock(fr.callno);
 						} else {
 							iaxs[fr.callno]->state |= IAX_STATE_TBD;
@@ -5359,7 +5364,7 @@ retryowner2:
 							ast_verbose(VERBOSE_PREFIX_3 "Accepting DIAL from %s, formats = 0x%x\n", inet_ntoa(sin.sin_addr), iaxs[fr.callno]->peerformat);
 						iaxs[fr.callno]->state |= IAX_STATE_STARTED;
 						send_command(iaxs[fr.callno], AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, 0, NULL, 0, -1);
-						if(!(c = ast_iax2_new(iaxs[fr.callno], AST_STATE_RING, iaxs[fr.callno]->peerformat)))
+						if(!(c = ast_iax2_new(fr.callno, AST_STATE_RING, iaxs[fr.callno]->peerformat)))
 							iax2_destroy_nolock(fr.callno);
 					}
 				}
@@ -5735,7 +5740,7 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 	iaxs[callno]->sendani = sendani;
 	iaxs[callno]->maxtime = maxtime;
 	iaxs[callno]->notransfer = notransfer;
-	c = ast_iax2_new(iaxs[callno], AST_STATE_DOWN, capability);
+	c = ast_iax2_new(callno, AST_STATE_DOWN, capability);
 	ast_mutex_unlock(&iaxsl[callno]);
 	if (c) {
 		/* Choose a format we can live with */

@@ -1747,7 +1747,10 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 {
 	struct ast_channel *tmp;
 	int fmt;
+	ast_mutex_unlock(&i->lock);
+	/* Don't hold a sip pvt lock while we allocate a channel */
 	tmp = ast_channel_alloc(1);
+	ast_mutex_lock(&i->lock);
 	if (tmp) {
 		/* Select our native format based on codec preference until we receive
 		   something from another device to the contrary. */
@@ -7183,7 +7186,9 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 	printf("Setting up to call extension '%s' at '%s'\n", ext ? ext : "<none>", host);
 #endif
 	p->prefcodec = format;
+	ast_mutex_lock(&p->lock);
 	tmpc = sip_new(p, AST_STATE_DOWN, host);
+	ast_mutex_unlock(&p->lock);
 	if (!tmpc)
 		sip_destroy(p);
 	ast_update_use_count();
