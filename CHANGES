@@ -1,3 +1,5 @@
+ -- ADPCM Standardization
+ -- Numerous bug fixes
  -- Add IAX2 Firmware Support
  -- Add G.726 support
  -- Add ices/icecast support

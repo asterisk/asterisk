@@ -72,6 +72,18 @@
 
 %pbx-transfer.gsm%Transfer.
 
+%queue-callswaiting.gsm%Waiting to speak with a representative
+
+%queue-holdtime.gsm%The estimated hold time is currently
+
+%queue-minutes.gsm%Minutes
+
+%queue-thankyou.gsm%Thank you for your patience
+
+%queue-thereare.gsm%You are currently caller number
+
+%queue-youarenext.gsm%Your call is now first in line and will be answered by the next available representative.
+
 %ss-noservice.gsm%The number you have dialed is not in service. Please check the number and try again.
 
 %transfer.gsm%Please hold while I try that extension.
