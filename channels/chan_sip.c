@@ -165,6 +165,7 @@ static struct sip_pvt {
 	int capability;						/* Special capability */
 	int noncodeccapability;
 	int outgoing;						/* Outgoing or incoming call? */
+	int authtries;						/* Times we've tried to authenticate */
 	int insecure;						/* Don't check source port/ip */
 	int expiry;						/* How long we take to expire */
 	int branch;							/* One random number */
@@ -190,6 +191,7 @@ static struct sip_pvt {
 	char theirtag[256];				/* Their tag */
 	char username[81];
 	char peername[81];
+	char uri[81];					/* Original requested URI */
 	char peersecret[81];
 	char callerid[256];					/* Caller*ID */
 	char via[256];
@@ -2286,6 +2288,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	} else {
 		snprintf(invite, sizeof(invite), "sip:%s", inet_ntoa(p->sa.sin_addr));
 	}
+	strncpy(p->uri, invite, sizeof(p->uri) - 1);
 	/* If there is a VXML URL append it to the SIP URL */
 	if (vxml_url)
 	{
@@ -2538,9 +2541,10 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 	}
 
 	snprintf(from, sizeof(from), "<sip:%s@%s>;tag=as%08x", r->username, r->hostname, p->tag);
-	snprintf(to, sizeof(to),     "<sip:%s@%s>;tag=as%08x", r->username, r->hostname, p->tag);
+	snprintf(to, sizeof(to),     "<sip:%s@%s>", r->username, r->hostname);
 	
-	snprintf(addr, sizeof(addr), "sip:%s", inet_ntoa(r->addr.sin_addr));
+	snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
+	strncpy(p->uri, addr, sizeof(p->uri) - 1);
 
 	memset(&req, 0, sizeof(req));
 	init_req(&req, cmd, addr);
@@ -3565,6 +3569,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 
 static int do_register_auth(struct sip_pvt *p, struct sip_request *req) {
 	char digest[256];
+	p->authtries++;
 	memset(digest,0,sizeof(digest));
 	if (reply_digest(p,req, "WWW-Authenticate", "REGISTER", digest, sizeof(digest))) {
 		/* There's nothing to use for authentication */
@@ -3575,6 +3580,7 @@ static int do_register_auth(struct sip_pvt *p, struct sip_request *req) {
 
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req) {
 	char digest[256];
+	p->authtries++;
 	memset(digest,0,sizeof(digest));
 	if (reply_digest(p,req, "Proxy-Authenticate", "INVITE", digest, sizeof(digest) )) {
 		/* No way to authenticate */
@@ -3646,7 +3652,10 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 	char resp_hash[256];
 	char uri[256] = "";
 
-	snprintf(uri, sizeof(uri), "sip:%s@%s",p->username, inet_ntoa(p->sa.sin_addr));
+	if (strlen(p->uri))
+		strncpy(uri, p->uri, sizeof(uri) - 1);
+	else
+		snprintf(uri, sizeof(uri), "sip:%s@%s",p->username, inet_ntoa(p->sa.sin_addr));
 
 	snprintf(a1,sizeof(a1),"%s:%s:%s",p->peername,p->realm,p->peersecret);
 	snprintf(a2,sizeof(a2),"%s:%s",orig_header,uri);
@@ -3890,7 +3899,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		case 401: /* Not authorized on REGISTER */
 			if (p->registry && !strcasecmp(msg, "REGISTER")) {
-				if (do_register_auth(p, req)) {
+				if ((p->authtries > 1) || do_register_auth(p, req)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on REGISTER to '%s'\n", get_header(&p->initreq, "From"));
 					p->needdestroy = 1;
 				}
@@ -3902,7 +3911,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* First we ACK */
 				transmit_request(p, "ACK", seqno, 0);
 				/* Then we AUTH */
-				if (do_proxy_auth(p, req)) {
+				if ((p->authtries > 1) || do_proxy_auth(p, req)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
 					p->needdestroy = 1;
 				}
