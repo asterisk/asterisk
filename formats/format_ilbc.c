@@ -47,7 +47,7 @@ struct ast_filestream {
 	struct ast_frame fr;				/* Frame information */
 	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
 	char empty;							/* Empty character */
-	unsigned char ilbc[50];				/* Two Real Speex Frames */
+	unsigned char ilbc[50];				/* One Real iLBC Frame */
 };
 
 
