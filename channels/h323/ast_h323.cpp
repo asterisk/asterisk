@@ -78,14 +78,14 @@ MyProcess::MyProcess(): PProcess("The NuFone Network's", "H.323 Channel Driver f
 
 void MyProcess::Main()
 {
-	ast_verbose("  == Creating H.323 Endpoint\n");
+	cout << "  == Creating H.323 Endpoint" << endl;
 	endPoint = new MyH323EndPoint();
 	PTrace::Initialise(0, NULL, PTrace::Timestamp | PTrace::Thread | PTrace::FileAndLine);
 }
 
-#define H323_G7231 OPAL_G7231_6k3"{sw}"
-#define H323_G729  OPAL_G729 "{sw}"
-#define H323_G729A OPAL_G729A"{sw}"
+#define H323_G7231 OPAL_G7231_6k3 "{sw}"
+#define H323_G729 OPAL_G729 "{sw}"
+#define H323_G729A OPAL_G729A "{sw}"
 
 H323_REGISTER_CAPABILITY(H323_G7231Capability, H323_G7231);
 H323_REGISTER_CAPABILITY(AST_G729Capability,  H323_G729);
@@ -94,69 +94,66 @@ H323_REGISTER_CAPABILITY(AST_G729ACapability, H323_G729A);
 H323_G7231Capability::H323_G7231Capability(BOOL annexA_)
   : H323AudioCapability(7, 4)
 {
-  annexA = annexA_;
+  	annexA = annexA_;
 }
 
 PObject::Comparison H323_G7231Capability::Compare(const PObject & obj) const
 {
-  Comparison result = H323AudioCapability::Compare(obj);
-  if (result != EqualTo)
-    return result;
-
-  PINDEX otherAnnexA = ((const H323_G7231Capability &)obj).annexA;
-  if (annexA < otherAnnexA)
-    return LessThan;
-  if (annexA > otherAnnexA)
-    return GreaterThan;
-  return EqualTo;
+  	Comparison result = H323AudioCapability::Compare(obj);
+  	if (result != EqualTo) {
+    		return result;
+	}
+  	PINDEX otherAnnexA = ((const H323_G7231Capability &)obj).annexA;
+  	if (annexA < otherAnnexA) {
+    		return LessThan;
+	}
+  	if (annexA > otherAnnexA) {
+    		return GreaterThan;
+	}
+	return EqualTo;
 }
 
 PObject * H323_G7231Capability::Clone() const
 {
-  return new H323_G7231Capability(*this);
+ 	 return new H323_G7231Capability(*this);
 }
 
 PString H323_G7231Capability::GetFormatName() const
 {
-  return H323_G7231;
+  	return H323_G7231;
 }
 
 unsigned H323_G7231Capability::GetSubType() const
 {
-  return H245_AudioCapability::e_g7231;
+  	return H245_AudioCapability::e_g7231;
 }
 
 BOOL H323_G7231Capability::OnSendingPDU(H245_AudioCapability & cap,
                                           unsigned packetSize) const
 {
-  cap.SetTag(H245_AudioCapability::e_g7231);
-
-  H245_AudioCapability_g7231 & g7231 = cap;
-  g7231.m_maxAl_sduAudioFrames = packetSize;
-  g7231.m_silenceSuppression = annexA;
-
-  return TRUE;
+  	cap.SetTag(H245_AudioCapability::e_g7231);
+  	H245_AudioCapability_g7231 & g7231 = cap;
+  	g7231.m_maxAl_sduAudioFrames = packetSize;
+  	g7231.m_silenceSuppression = annexA;
+  	return TRUE;
 }
 
 BOOL H323_G7231Capability::OnReceivedPDU(const H245_AudioCapability & cap,
                                            unsigned & packetSize)
 {
-  if (cap.GetTag() != H245_AudioCapability::e_g7231)
-    return FALSE;
-
-  const H245_AudioCapability_g7231 & g7231 = cap;
-  packetSize = g7231.m_maxAl_sduAudioFrames;
-  annexA = g7231.m_silenceSuppression;
-
-  return TRUE;
+	if (cap.GetTag() != H245_AudioCapability::e_g7231) {
+    		return FALSE;
+	}
+  	const H245_AudioCapability_g7231 & g7231 = cap;
+  	packetSize = g7231.m_maxAl_sduAudioFrames;
+  	annexA = g7231.m_silenceSuppression;
+  	return TRUE;
 }
 
 H323Codec * H323_G7231Capability::CreateCodec(H323Codec::Direction direction) const
 {
-  return NULL;
+  	return NULL;
 }
-
-/////////////////////////////////////////////////////////////////////////////
 
 AST_G729Capability::AST_G729Capability()
   : H323AudioCapability(24, 6)
@@ -165,25 +162,23 @@ AST_G729Capability::AST_G729Capability()
 
 PObject * AST_G729Capability::Clone() const
 {
-  return new AST_G729Capability(*this);
+  	return new AST_G729Capability(*this);
 }
 
 unsigned AST_G729Capability::GetSubType() const
 {
-  return H245_AudioCapability::e_g729;
+  	return H245_AudioCapability::e_g729;
 }
 
 PString AST_G729Capability::GetFormatName() const
 {
-  return H323_G729;
+  	return H323_G729;
 }
 
 H323Codec * AST_G729Capability::CreateCodec(H323Codec::Direction direction) const
 {
-  return NULL;
+  	return NULL;
 }
-
-/////////////////////////////////////////////////////////////////////////////
 
 AST_G729ACapability::AST_G729ACapability()
   : H323AudioCapability(24, 6)
@@ -192,22 +187,22 @@ AST_G729ACapability::AST_G729ACapability()
 
 PObject * AST_G729ACapability::Clone() const
 {
-  return new AST_G729ACapability(*this);
+  	return new AST_G729ACapability(*this);
 }
 
 unsigned AST_G729ACapability::GetSubType() const
 {
-  return H245_AudioCapability::e_g729AnnexA;
+  	return H245_AudioCapability::e_g729AnnexA;
 }
 
 PString AST_G729ACapability::GetFormatName() const
 {
-  return H323_G729A;
+  	return H323_G729A;
 }
 
 H323Codec * AST_G729ACapability::CreateCodec(H323Codec::Direction direction) const
 {
-  return NULL;
+  	return NULL;
 }
 
 /** MyH323EndPoint 
@@ -218,7 +213,7 @@ H323Codec * AST_G729ACapability::CreateCodec(H323Codec::Direction direction) con
   *					transport = ip.
   *					port = 1720.
   */
-int MyH323EndPoint::MakeCall(const PString & dest, PString & token, unsigned int *callReference, unsigned int port, char *cid_name, char *cid_name)
+int MyH323EndPoint::MakeCall(const PString & dest, PString & token, unsigned int *callReference, unsigned int port, char *cid_name, char *cid_num)
 {
 	PString fullAddress;
 	MyH323Connection * connection;
@@ -253,9 +248,9 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token, unsigned int
                 connection->SetLocalPartyName(PString(cid_num));
         }
 	if (h323debug) {
-		cout << "	-- " << GetLocalUserName() << " is calling host " << fullAddress << endl;
-		cout << "	-- " << "Call token is " << (const char *)token << endl;
-		cout << "	-- Call reference is " << *callReference << endl;
+		cout << "\t-- " << GetLocalUserName() << " is calling host " << fullAddress << endl;
+		cout << "\t--" << "Call token is " << (const char *)token << endl;
+		cout << "\t-- Call reference is " << *callReference << endl;
 	}
 	connection->Unlock(); 	
 	return 0;
@@ -263,16 +258,16 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token, unsigned int
 
 void MyH323EndPoint::SetEndpointTypeInfo( H225_EndpointType & info ) const
 {
-  H323EndPoint::SetEndpointTypeInfo(info);
-  info.m_gateway.IncludeOptionalField(H225_GatewayInfo::e_protocol);
-  info.m_gateway.m_protocol.SetSize(1);
-  H225_SupportedProtocols &protocol=info.m_gateway.m_protocol[0];
-  protocol.SetTag(H225_SupportedProtocols::e_voice);
-  PINDEX as=SupportedPrefixes.GetSize();
-  ((H225_VoiceCaps &)protocol).m_supportedPrefixes.SetSize(as);
-  for (PINDEX p=0; p<as; p++) {
-    H323SetAliasAddress(SupportedPrefixes[p], ((H225_VoiceCaps &)protocol).m_supportedPrefixes[p].m_prefix);
-  }
+  	H323EndPoint::SetEndpointTypeInfo(info);
+  	info.m_gateway.IncludeOptionalField(H225_GatewayInfo::e_protocol);
+  	info.m_gateway.m_protocol.SetSize(1);
+  	H225_SupportedProtocols &protocol=info.m_gateway.m_protocol[0];
+  	protocol.SetTag(H225_SupportedProtocols::e_voice);
+  	PINDEX as=SupportedPrefixes.GetSize();
+  	((H225_VoiceCaps &)protocol).m_supportedPrefixes.SetSize(as);
+  	for (PINDEX p=0; p<as; p++) {
+    		H323SetAliasAddress(SupportedPrefixes[p], ((H225_VoiceCaps &)protocol).m_supportedPrefixes[p].m_prefix);
+  	}
 }
 
 void MyH323EndPoint::SetGateway(void)
@@ -288,7 +283,7 @@ H323Capabilities MyH323EndPoint::GetCapabilities(void)
 BOOL MyH323EndPoint::ClearCall(const PString & token)
 {
 	if (h323debug) {
-		cout << "	-- ClearCall: Request to clear call with token " << token << endl;
+		cout << "\t-- ClearCall: Request to clear call with token " << token << endl;
 	}
 	return H323EndPoint::ClearCall(token);
 }
@@ -307,8 +302,9 @@ void MyH323EndPoint::SendUserTone(const PString &token, char tone)
 void MyH323EndPoint::OnClosedLogicalChannel(H323Connection & connection, const H323Channel & channel)
 {
 	channelsOpen--;
-	if (h323debug)
-		cout << "		channelsOpen = " << channelsOpen << endl;
+	if (h323debug) {
+		cout << "\t\tchannelsOpen = " << channelsOpen << endl;
+	}
 	H323EndPoint::OnClosedLogicalChannel(connection, channel);
 }
 
@@ -317,7 +313,7 @@ BOOL MyH323EndPoint::OnConnectionForwarded(H323Connection & connection,
  		const H323SignalPDU & pdu)
  {
  	if (h323debug) {
-	 	cout << "       -- Call Forwarded to " << forwardParty << endl;
+	 	cout << "\t-- Call Forwarded to " << forwardParty << endl;
  	}
 	return FALSE;
  }
@@ -327,7 +323,7 @@ BOOL MyH323EndPoint::ForwardConnection(H323Connection & connection,
  		const H323SignalPDU & pdu)
 {
  	if (h323debug) {
- 		cout << "       -- Forwarding call to " << forwardParty << endl;
+ 		cout << "\t-- Forwarding call to " << forwardParty << endl;
  	}
 	return H323EndPoint::ForwardConnection(connection, forwardParty, pdu);
 }
@@ -352,104 +348,118 @@ void MyH323EndPoint::OnConnectionCleared(H323Connection & connection, const PStr
 	WORD sourcePort;
 
 	remoteName = connection.GetRemotePartyName();
-
 	cd.call_reference = connection.GetCallReference();
 	cd.call_token = strdup((const char *)clearedCallToken);
 	cd.call_source_aliases = strdup((const char *)connection.GetRemotePartyName());
-	
   	connection.GetSignallingChannel()->GetRemoteAddress().GetIpAndPort(Ip, sourcePort);
 	cd.sourceIp = strdup((const char *)Ip.AsString());
 	
 	/* Convert complex strings */
 	char *s;
-	if ((s = strchr(cd.call_source_aliases, ' ')) != NULL)
+	if ((s = strchr(cd.call_source_aliases, ' ')) != NULL) {
 		*s = '\0';
-
+	}
 	switch (connection.GetCallEndReason()) {
-		case H323Connection::EndedByCallForwarded :
-			if (h323debug)
-				cout << " -- " << remoteName << " has forwarded the call" << endl;
+		case H323Connection::EndedByCallForwarded:
+			if (h323debug) {
+				cout << "-- " << remoteName << " has forwarded the call" << endl;
+			}
 			break;
-		case H323Connection::EndedByRemoteUser :
-			if (h323debug)
-				cout << " -- " << remoteName << " has cleared the call" << endl;
+		case H323Connection::EndedByRemoteUser:
+			if (h323debug) {
+				cout << "-- " << remoteName << " has cleared the call" << endl;
+			}
 			break;
-		case H323Connection::EndedByCallerAbort :
-			if (h323debug)
-				cout << " -- " << remoteName << " has stopped calling" << endl;
+		case H323Connection::EndedByCallerAbort:
+			if (h323debug) {
+				cout << "-- " << remoteName << " has stopped calling" << endl;
+			}
 			break;
-		case H323Connection::EndedByRefusal :
-			if (h323debug)
-				cout << " -- " << remoteName << " did not accept your call" << endl;
+		case H323Connection::EndedByRefusal:
+			if (h323debug) {
+				cout << "-- " << remoteName << " did not accept your call" << endl;
+			}
 			break;
-		case H323Connection::EndedByRemoteBusy :
-			if (h323debug)
-			cout << " -- " << remoteName << " was busy" << endl;
+		case H323Connection::EndedByRemoteBusy:
+			if (h323debug) {
+				cout << "-- " << remoteName << " was busy" << endl;
+			}
 			break;
-		case H323Connection::EndedByRemoteCongestion :
-			if (h323debug)
-				cout << " -- Congested link to " << remoteName << endl;
+		case H323Connection::EndedByRemoteCongestion:
+			if (h323debug) {
+				cout << "-- Congested link to " << remoteName << endl;
+			}
 			break;
-		case H323Connection::EndedByNoAnswer :
-			if (h323debug)
-				cout << " -- " << remoteName << " did not answer your call" << endl;
+		case H323Connection::EndedByNoAnswer:
+			if (h323debug) {
+				cout << "-- " << remoteName << " did not answer your call" << endl;
+			}
 			break;
-		case H323Connection::EndedByTransportFail :
-			if (h323debug)
-				cout << " -- Call with " << remoteName << " ended abnormally" << endl;
+		case H323Connection::EndedByTransportFail:
+			if (h323debug) {
+				cout << "-- Call with " << remoteName << " ended abnormally" << endl;
+			}
 			break;
-		case H323Connection::EndedByCapabilityExchange :
-			if (h323debug)
-				cout << " -- Could not find common codec with " << remoteName << endl;
+		case H323Connection::EndedByCapabilityExchange:
+			if (h323debug) {
+				cout << "-- Could not find common codec with " << remoteName << endl;
+			}
 			break;
-		case H323Connection::EndedByNoAccept :
-			if (h323debug)
-				cout << " -- Did not accept incoming call from " << remoteName << endl;
+		case H323Connection::EndedByNoAccept:
+			if (h323debug) {
+				cout << "-- Did not accept incoming call from " << remoteName << endl;
+			}
 			break;
-		case H323Connection::EndedByAnswerDenied :
-			if (h323debug)
-				cout << " -- Refused incoming call from " << remoteName << endl;
+		case H323Connection::EndedByAnswerDenied:
+			if (h323debug) {
+				cout << "-- Refused incoming call from " << remoteName << endl;
+			}
 			break;
-		case H323Connection::EndedByNoUser :
-			if (h323debug)
-				cout << " -- Remote endpoint could not find user: " << remoteName << endl;
+		case H323Connection::EndedByNoUser:
+			if (h323debug) {
+				cout << "-- Remote endpoint could not find user: " << remoteName << endl;
+			}
 			break;
-		case H323Connection::EndedByNoBandwidth :
-			if (h323debug)
-				cout << " -- Call to " << remoteName << " aborted, insufficient bandwidth." << endl;
+		case H323Connection::EndedByNoBandwidth:
+			if (h323debug) {
+				cout << "-- Call to " << remoteName << " aborted, insufficient bandwidth." << endl;
+			}
 			break;
-		case H323Connection::EndedByUnreachable :
-			if (h323debug)
-				cout << " -- " << remoteName << " could not be reached." << endl;
+		case H323Connection::EndedByUnreachable:
+			if (h323debug) {
+				cout << "-- " << remoteName << " could not be reached." << endl;
+			}
 			break;
-		case H323Connection::EndedByHostOffline :
-			if (h323debug)
-				cout << " -- " << remoteName << " is not online." << endl;
+		case H323Connection::EndedByHostOffline:
+			if (h323debug) {
+				cout << "-- " << remoteName << " is not online." << endl;
+			}
 			break;
-		case H323Connection::EndedByNoEndPoint :
-			if (h323debug)
-				cout << " -- No phone running for " << remoteName << endl;
+		case H323Connection::EndedByNoEndPoint:
+			if (h323debug) {
+				cout << "-- No phone running for " << remoteName << endl;
+			}
 			break;
-		case H323Connection::EndedByConnectFail :
-			if (h323debug)
-				cout << " -- Transport error calling " << remoteName << endl;
+		case H323Connection::EndedByConnectFail:
+			if (h323debug) {
+				cout << "-- Transport error calling " << remoteName << endl;
+			}
 			break;
-		default :
+		default:
 			if (h323debug)
 				cout << " -- Call with " << remoteName << " completed (" << connection.GetCallEndReason() << ")" << endl;
 
 	}
 
-	if(connection.IsEstablished()) 
-		if (h323debug)
-			cout << "	 -- Call duration " << setprecision(0) << setw(5) << (PTime() - connection.GetConnectionStartTime()) << endl;
-
+	if (connection.IsEstablished()) {
+		if (h323debug) {
+			cout << "\t-- Call duration " << setprecision(0) << setw(5) << (PTime() - connection.GetConnectionStartTime()) << endl;
+		}
+	}	
 	/* Invoke the PBX application registered callback */
 	on_connection_cleared(cd);
-
 	return;
 }
-
 
 H323Connection * MyH323EndPoint::CreateConnection(unsigned callReference, void *o)
 {
@@ -466,6 +476,7 @@ H323Connection * MyH323EndPoint::CreateConnection(unsigned callReference, void *
 	} else {
 		options |= H323Connection::H245TunnelingOptionEnable;
 	}
+/* Disable until I can figure out the proper way to deal with this */
 #if 0
 	if (opts->noSilenceSuppression) {
 		options |= H323Connection::SilenceSuppresionOptionDisable;
@@ -476,7 +487,7 @@ H323Connection * MyH323EndPoint::CreateConnection(unsigned callReference, void *
 	return new MyH323Connection(*this, callReference, options);
 }
 
-/* MyH323Connection */    
+/* MyH323Connection Implementation */    
 MyH323Connection::MyH323Connection(MyH323EndPoint & ep, unsigned callReference,
 							unsigned options)
 	: H323Connection(ep, callReference, options)
@@ -500,9 +511,9 @@ H323Connection::AnswerCallResponse MyH323Connection::OnAnswerCall(const PString 
 								  H323SignalPDU & /*connectPDU*/)
 {
 
-       if (h323debug)
+       if (h323debug) {
                cout << "\t=-= In OnAnswerCall for call " << GetCallReference() << endl;
-	
+	}
 	if (!on_answer_call(GetCallReference(), (const char *)GetCallToken())) {
 		return H323Connection::AnswerCallDenied;
 	}
@@ -511,12 +522,12 @@ H323Connection::AnswerCallResponse MyH323Connection::OnAnswerCall(const PString 
 	return H323Connection::AnswerCallDeferred;
 }
 
-BOOL  MyH323Connection::OnAlerting(const H323SignalPDU & /*alertingPDU*/, const PString & username)
+BOOL MyH323Connection::OnAlerting(const H323SignalPDU & /*alertingPDU*/, const PString & username)
 {
 	if (h323debug) {
-	        cout << "\t =-= In OnAlerting for call " << GetCallReference()
+	        cout << "\t=-= In OnAlerting for call " << GetCallReference()
 	              << ": sessionId=" << sessionId << endl;
-                 cout << "       -- Ringing phone for \"" << username << "\"" << endl;
+                 cout << "\t-- Ringing phone for \"" << username << "\"" << endl;
 	}     
         on_chan_ringing(GetCallReference(), (const char *)GetCallToken() );
         return TRUE;
@@ -524,11 +535,6 @@ BOOL  MyH323Connection::OnAlerting(const H323SignalPDU & /*alertingPDU*/, const 
 
 BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 {
-	
-	if (h323debug) {
-		ast_verbose("	-- Received SETUP message\n");
-	}
-	
 	call_details_t cd;
 	PString sourceE164;
 	PString destE164;
@@ -538,6 +544,10 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 	PIPSocket::Address Ip;
 	WORD sourcePort;
 	char *s, *s1; 
+
+	if (h323debug) {
+		cout << ("\t--Received SETUP message\n");
+	}
 
 	sourceAliases = setupPDU.GetSourceAliases();
 	destAliases = setupPDU.GetDestinationAlias();
@@ -551,21 +561,24 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 
 	/* Convert complex strings */
 	//  FIXME: deal more than one source alias 
-    	if ((s = strchr(sourceAliases, ' ')) != NULL)
+    	if ((s = strchr(sourceAliases, ' ')) != NULL) {
                 *s = '\0';
-    	if ((s = strchr(sourceAliases, '\t')) != NULL)
+	}
+    	if ((s = strchr(sourceAliases, '\t')) != NULL) {
                 *s = '\0';
- 	if ((s1 = strchr(destAliases, ' ')) != NULL)
+	}
+ 	if ((s1 = strchr(destAliases, ' ')) != NULL) {
          	*s1 = '\0';
-	if ((s1 = strchr(destAliases, '\t')) != NULL)
+	}
+	if ((s1 = strchr(destAliases, '\t')) != NULL) {
          	*s1 = '\0';
-
+	}
 
 	cd.call_reference = GetCallReference();
 	Lock();
 	cd.call_token = strdup((const char *)GetCallToken());
 	Unlock();
-	cd.call_source_aliases  =  strdup((const char *)sourceAliases);
+	cd.call_source_aliases = strdup((const char *)sourceAliases);
 	cd.call_dest_alias = strdup((const char *)destAliases);
 	cd.call_source_e164 = strdup((const char *)sourceE164);
 	cd.call_dest_e164 = strdup((const char *)destE164);
@@ -583,7 +596,6 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 		}
 		return FALSE;
 	}
-	
 	return H323Connection::OnReceivedSignalSetup(setupPDU);
 }
 
@@ -606,15 +618,18 @@ BOOL MyH323Connection::OnSendSignalSetup(H323SignalPDU & setupPDU)
 	/* Convert complex strings */
 	//  FIXME: deal more than one source alias 
 	
-    	if ((s = strchr(sourceAliases, ' ')) != NULL)
+    	if ((s = strchr(sourceAliases, ' ')) != NULL) {
                 *s = '\0';
-    	if ((s = strchr(sourceAliases, '\t')) != NULL)
+	}
+    	if ((s = strchr(sourceAliases, '\t')) != NULL) {
                 *s = '\0';
-    	if ((s1 = strchr(destAliases, ' ')) != NULL)
+	}
+    	if ((s1 = strchr(destAliases, ' ')) != NULL) {
         	 *s1 = '\0';
-	if ((s1 = strchr(destAliases, '\t')) != NULL)
+	}
+	if ((s1 = strchr(destAliases, '\t')) != NULL) {
          	*s1 = '\0';
-
+	}
 	cd.call_reference = GetCallReference();
 	Lock();
 	cd.call_token = strdup((const char *)GetCallToken());
@@ -624,22 +639,20 @@ BOOL MyH323Connection::OnSendSignalSetup(H323SignalPDU & setupPDU)
 	cd.call_source_e164 = strdup((const char *)sourceE164);
 	cd.call_dest_e164 = strdup((const char *)destE164);
 
-	int res = on_outgoing_call(cd);	
-		
+	int res = on_outgoing_call(cd);		
 	if (!res) {
 		if (h323debug) {
-			cout << "	-- Call Failed" << endl;
+			cout << "\t-- Call Failed" << endl;
 		}
 		return FALSE;
 	}
-
 	return H323Connection::OnSendSignalSetup(setupPDU);
 }
 
 BOOL MyH323Connection::OnSendReleaseComplete(H323SignalPDU & releaseCompletePDU)
 {
 	if (h323debug) {
-		cout << "	-- Sending RELEASE COMPLETE" << endl;
+		cout << "\t-- Sending RELEASE COMPLETE" << endl;
 	}
 	return H323Connection::OnSendReleaseComplete(releaseCompletePDU);
 }
@@ -647,7 +660,7 @@ BOOL MyH323Connection::OnSendReleaseComplete(H323SignalPDU & releaseCompletePDU)
 BOOL MyH323Connection::OnReceivedFacility(const H323SignalPDU & pdu)
 {
 	if (h323debug) {
-		cout << "	-- Received Facility message... " << endl;
+		cout << "\t-- Received Facility message... " << endl;
 	}	
 	return H323Connection::OnReceivedFacility(pdu);
 }
@@ -655,7 +668,7 @@ BOOL MyH323Connection::OnReceivedFacility(const H323SignalPDU & pdu)
 void MyH323Connection::OnReceivedReleaseComplete(const H323SignalPDU & pdu)
 {
 	if (h323debug) {
-		cout <<  "	-- Received RELEASE COMPLETE message..." << endl;
+		cout <<  "\t-- Received RELEASE COMPLETE message..." << endl;
 	}
 	return H323Connection::OnReceivedReleaseComplete(pdu);
 }
@@ -663,16 +676,15 @@ void MyH323Connection::OnReceivedReleaseComplete(const H323SignalPDU & pdu)
 BOOL MyH323Connection::OnClosingLogicalChannel(H323Channel & channel)
 {
 	if (h323debug) {
-		cout << "	-- Closing logical channel..." << endl;
+		cout << "\t-- Closing logical channel..." << endl;
 	}
 	return H323Connection::OnClosingLogicalChannel(channel);
 }
 
-
 void MyH323Connection::SendUserInputTone(char tone, unsigned duration)
 {
 	if (h323debug) {
-		cout << "	-- Sending user input tone (" << tone << ") to remote" << endl;
+		cout << "\t-- Sending user input tone (" << tone << ") to remote" << endl;
 	}
 	on_send_digit(GetCallReference(), tone, (const char *)GetCallToken());	
 	H323Connection::SendUserInputTone(tone, duration);
@@ -682,7 +694,7 @@ void MyH323Connection::OnUserInputTone(char tone, unsigned duration, unsigned lo
 {
 	if (mode == H323_DTMF_INBAND) {
 		if (h323debug) {
-			cout << "	-- Received user input tone (" << tone << ") from remote" << endl;
+			cout << "\t-- Received user input tone (" << tone << ") from remote" << endl;
 		}
 		on_send_digit(GetCallReference(), tone, (const char *)GetCallToken());
 	}
@@ -693,7 +705,7 @@ void MyH323Connection::OnUserInputString(const PString &value)
 {
 	if (mode == H323_DTMF_RFC2833) {
 		if (h323debug) {
-			cout <<  "	-- Received user input string (" << value << ") from remote." << endl;
+			cout <<  "\t-- Received user input string (" << value << ") from remote." << endl;
 		}
 		on_send_digit(GetCallReference(), value[0], (const char *)GetCallToken());
 	}	
@@ -719,13 +731,12 @@ BOOL MyH323Connection::OnStartLogicalChannel(H323Channel & channel)
 		cout << (const char *)(channel.GetCapability()).GetFormatName() << endl;
 	}
 
-	/* adjust the count of channels we have open */
+	/* Increase the count of channels we have open */
 	channelsOpen++;
 
 	if (h323debug) {
 		cout <<  "\t\t-- channelsOpen = " << channelsOpen << endl;
 	}
-
 	return TRUE;	
 }
 
@@ -752,7 +763,7 @@ MyH323_ExternalRTPChannel::MyH323_ExternalRTPChannel(MyH323Connection & connecti
 		free(info);
 	}
 
-	// Get the payload code	
+	/* Get the payload code	*/
 	OpalMediaFormat format(capability.GetFormatName(), FALSE);
 	payloadCode = format.GetPayloadType();
 } 
@@ -880,8 +891,8 @@ int h323_set_capability(int cap, int dtmfMode)
 	oldcaps = endPoint->GetCapabilities();
 	for (PINDEX i=0; i< oldcaps.GetSize(); i++) {
                  codecs.AppendString(oldcaps[i].GetFormatName());
-         }
-         endPoint->RemoveCapabilities(codecs);
+        }
+        endPoint->RemoveCapabilities(codecs);
 
 	mode = dtmfMode;
 	if (dtmfMode == H323_DTMF_INBAND) {
@@ -948,16 +959,12 @@ int h323_start_listener(int listenPort, struct sockaddr_in bindaddr)
 	}
 	
 	PIPSocket::Address interfaceAddress(bindaddr.sin_addr);
-
 	if (!listenPort) {
 		listenPort = 1720;
 	}
-
 	/** H.323 listener */  
 	H323ListenerTCP *tcpListener;
-
 	tcpListener = new H323ListenerTCP(*endPoint, interfaceAddress, (WORD)listenPort);
-
 	if (!endPoint->StartListener(tcpListener)) {
 		cout << "ERROR: Could not open H.323 listener port on " << ((H323ListenerTCP *) tcpListener)->GetListenerPort() << endl;
 		delete tcpListener;
@@ -965,11 +972,9 @@ int h323_start_listener(int listenPort, struct sockaddr_in bindaddr)
 		
 	}
 	cout << "  == H.323 listener started" << endl;
-
 	return 0;
 };
  
-   
 int h323_set_alias(struct oh323_alias *alias)
 {
 	char *p;
@@ -982,28 +987,26 @@ int h323_set_alias(struct oh323_alias *alias)
 		return 1;
 	}
 
-	cout << "  == Adding alias \"" << h323id << "\" to endpoint" << endl;
+	cout << "== Adding alias \"" << h323id << "\" to endpoint" << endl;
 	endPoint->AddAliasName(h323id);	
 	endPoint->RemoveAliasName(localProcess->GetUserName());
 
 	if (!e164.IsEmpty()) {
-		cout << "  == Adding E.164 \"" << e164 << "\" to endpoint" << endl;
+		cout << "== Adding E.164 \"" << e164 << "\" to endpoint" << endl;
 		endPoint->AddAliasName(e164);
 	}
 	if (strlen(alias->prefix)) {
 		p = alias->prefix;
 		num = strsep(&p, ",");
 		while(num) {
-	        cout << "  == Adding Prefix \"" << num << "\" to endpoint" << endl;
-			endPoint->SupportedPrefixes += PString(num);
-			endPoint->SetGateway();
+	        cout << "== Adding Prefix \"" << num << "\" to endpoint" << endl;
+		endPoint->SupportedPrefixes += PString(num);
+		endPoint->SetGateway();
 	        num = strsep(&p, ",");		
 		}
 	}
-
 	return 0;
 }
-
 
 void h323_set_id(char *id)
 {
@@ -1012,7 +1015,6 @@ void h323_set_id(char *id)
 	if (h323debug) {
 		cout << "  == Using '" << h323id << "' as our H.323ID for this call" << endl;
 	}
-
 	/* EVIL HACK */
 	endPoint->SetLocalUserName(h323id);
 }
@@ -1022,14 +1024,13 @@ void h323_show_tokens(void)
 	cout << "Current call tokens: " << setprecision(2) << endPoint->GetAllConnections() << endl;
 }
 
-
 /** Establish Gatekeeper communiations, if so configured, 
   *	register aliases for the H.323 endpoint to respond to.
   */
 int h323_set_gk(int gatekeeper_discover, char *gatekeeper, char *secret)
 {
 	PString gkName = PString(gatekeeper);
-	PString pass   = PString(secret);
+	PString pass = PString(secret);
 	H323TransportUDP *rasChannel;
 
 	if (!h323_end_point_exist()) {
@@ -1041,36 +1042,32 @@ int h323_set_gk(int gatekeeper_discover, char *gatekeeper, char *secret)
 		cout << "Error: Gatekeeper cannot be NULL" << endl;
 		return 1;
 	}
-
 	if (strlen(secret)) {
 		endPoint->SetGatekeeperPassword(pass);
 	}
-
 	if (gatekeeper_discover) {
 		/* discover the gk using multicast */
 		if (endPoint->DiscoverGatekeeper(new H323TransportUDP(*endPoint))) {
-			cout << "  == Using " << (endPoint->GetGatekeeper())->GetName() << " as our Gatekeeper." << endl;
+			cout << "== Using " << (endPoint->GetGatekeeper())->GetName() << " as our Gatekeeper." << endl;
 		} else {
-			cout << "  *** Could not find a gatekeeper." << endl;
+			cout << "Warning: Could not find a gatekeeper." << endl;
 			return 1;
 		}	
 	} else {
 		rasChannel = new H323TransportUDP(*endPoint);
 
 		if (!rasChannel) {
-			cout << "  *** No RAS Channel, this is bad" << endl;
+			cout << "Error: No RAS Channel, this is bad" << endl;
 			return 1;
 		}
 		if (endPoint->SetGatekeeper(gkName, rasChannel)) {
-			cout << "  == Using " << (endPoint->GetGatekeeper())->GetName() << " as our Gatekeeper." << endl;
+			cout << "== Using " << (endPoint->GetGatekeeper())->GetName() << " as our Gatekeeper." << endl;
 		} else {
-			cout << "  *** Error registering with gatekeeper \"" << gkName << "\". " << endl;
-			
+			cout << "Error registering with gatekeeper \"" << gkName << "\". " << endl;
 			/* XXX Maybe we should fire a new thread to attempt to re-register later and not kill asterisk here? */
 			return 1;
 		}
 	}
-	
 	return 0;
 }
 
@@ -1083,7 +1080,6 @@ void h323_send_tone(const char *call_token, char tone)
 		cout << "ERROR: [h323_send_tone] No Endpoint, this is bad!" << endl;
 		return;
 	}
-
 	PString token = PString(call_token);
 	endPoint->SendUserTone(token, tone);
 }
@@ -1109,7 +1105,6 @@ int h323_clear_call(const char *call_token)
 	if (!h323_end_point_exist()) {
 		return 1;
 	}
-
         endPoint->ClearCall(PString(call_token));
 	return 0;
 };
@@ -1120,19 +1115,16 @@ int h323_send_alerting(const char *token)
         const PString currentToken(token);
         H323Connection * connection;
 
+        if (h323debug) {
+        	cout << "\tSending alerting\n" << endl;
+        }
         connection = endPoint->FindConnectionWithLock(currentToken);
-
-        if (h323debug)
-        	ast_verbose("\tSending alerting\n");
-        
         if (!connection) {
                 cout << "No connection found for " << token << endl;
                 return -1;
         }
-
         connection->AnsweringCall(H323Connection::AnswerCallPending);
         connection->Unlock();
-
         return 0; 
 
 }
@@ -1144,15 +1136,12 @@ int h323_send_progress(const char *token)
         H323Connection * connection;
 
         connection = endPoint->FindConnectionWithLock(currentToken);
-
         if (!connection) {
                 cout << "No connection found for " << token << endl;
                 return -1;
         }
-
         connection->AnsweringCall(H323Connection::AnswerCallDeferredWithMedia);
         connection->Unlock();
-
         return 0;  
 }
 
@@ -1165,24 +1154,24 @@ int h323_answering_call(const char *token, int busy)
 	
 	connection = endPoint->FindConnectionWithLock(currentToken);
 	
-	if (connection == NULL) {
+	if (!connection) {
 		cout << "No connection found for " << token << endl;
 		return -1;
 	}
-
 	if (!busy) {
-		if (h323debug)
-			ast_verbose("\tanswering call\n");
+		if (h323debug) {
+			cout << "\tAnswering call " << token << endl;
+		}
 		connection->AnsweringCall(H323Connection::AnswerCallNow);
 	} else {
-		if (h323debug)
-			ast_verbose("\tdenying call\n");
+		if (h323debug) {
+			cout << "\tdenying call " << token << endl;
+		}
 		connection->AnsweringCall(H323Connection::AnswerCallDenied);
 	}
 	connection->Unlock();
 	return 0;
 }
-
 
 int h323_show_codec(int fd, int argc, char *argv[])
 {
@@ -1205,7 +1194,7 @@ void h323_native_bridge(const char *token, const char *them, char *capability)
 	H323Channel *channel;
 	MyH323Connection *connection = (MyH323Connection *)endPoint->FindConnectionWithLock(token);
 	
-	if (!connection){
+	if (!connection) {
 		cout << "ERROR: No connection found, this is bad\n";
 		return;
 	}

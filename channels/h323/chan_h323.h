@@ -134,21 +134,23 @@ extern setup_incoming_cb on_incoming_call;
 typedef int (*setup_outbound_cb)(call_details_t);
 extern setup_outbound_cb on_outgoing_call; 
 
-/* This is a callback prototype function, called when openh323
+/* This is a callback prototype function, called when
    OnAlerting is invoked */
 typedef void (*chan_ringing_cb)(unsigned, const char *);
 extern chan_ringing_cb on_chan_ringing;
 
-/* This is a callback protoype function, called when the openh323
+/* This is a callback protoype function, called when
    OnConnectionEstablished is inovked */
 typedef void (*con_established_cb)(unsigned, const char *);
 extern con_established_cb on_connection_established;
 
-/* This is a callback prototype function, called when the openH323
+/* This is a callback prototype function, called when
    OnConnectionCleared callback is invoked */
 typedef void (*clear_con_cb)(call_details_t);
 extern clear_con_cb on_connection_cleared;
 
+/* This is a callback prototype function, called when
+    an H.323 call is answered */
 typedef int (*answer_call_cb)(unsigned, const char *);
 extern answer_call_cb on_answer_call;
 
@@ -179,12 +181,9 @@ extern "C" {
 				    con_established_cb,
  				    send_digit_cb,
  				    answer_call_cb);
-
-
 	int h323_set_capability(int, int);
 	int h323_set_alias(struct oh323_alias *);
 	int h323_set_gk(int, char *, char *);
-
 	void h323_set_id(char *);
 	void h323_show_tokens(void);
 
@@ -203,11 +202,9 @@ extern "C" {
 	/* H.323 alerting and progress */
 	int h323_send_alerting(const char *token);
 	int h323_send_progress(const char *token);
-
 	int h323_answering_call(const char *token, int);
 	int h323_soft_hangup(const char *data);	
 	int h323_show_codec(int fd, int argc, char *argv[]);
-
 
 #ifdef __cplusplus
 }
