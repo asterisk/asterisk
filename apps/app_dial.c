@@ -336,7 +336,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						case AST_CONTROL_PROGRESS:
 							if (option_verbose > 2)
 								ast_verbose ( VERBOSE_PREFIX_3 "%s is making progress passing it to %s\n", o->chan->name,in->name);
-							ast_indicate(in, AST_CONTROL_PROGRESS);
+							if (!outgoing->ringbackonly)
+								ast_indicate(in, AST_CONTROL_PROGRESS);
 							break;
 						case AST_CONTROL_OFFHOOK:
 							/* Ignore going off hook */
@@ -383,6 +384,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				/* Got hung up */
 				*to=-1;
 				strncpy(status, "CANCEL", statussize - 1);
+				if (f)
+					ast_frfree(f);
 				return NULL;
 			}
 			if (f && (f->frametype == AST_FRAME_DTMF) && *allowdisconnect_out &&
@@ -391,6 +394,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 				*to=0;
 				strcpy(status, "CANCEL");
+				ast_frfree(f);
 				return NULL;
 			}
 			if (single && ((f->frametype == AST_FRAME_VOICE) || (f->frametype == AST_FRAME_DTMF)))  {
@@ -746,6 +750,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			cur = rest;
 			continue;
 		}
+		pbx_builtin_setvar_helper(tmp->chan, "DIALEDPEERNUMBER", numsubst);
 		if (!ast_strlen_zero(tmp->chan->call_forward)) {
 			char tmpchan[256]="";
 			char *stuff;
@@ -908,8 +913,11 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			ast_cdr_setdestchan(chan->cdr, peer->name);
 		if (peer->name)
 			pbx_builtin_setvar_helper(chan, "DIALEDPEERNAME", peer->name);
-		if (numsubst)
-			pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", numsubst);
+
+		number = pbx_builtin_getvar_helper(peer, "DIALEDPEERNUMBER");
+		if (!number)
+			number = numsubst;
+		pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", number);
  		/* JDG: sendurl */
  		if( url && !ast_strlen_zero(url) && ast_channel_supports_html(peer) ) {
  			ast_log(LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
@@ -1029,7 +1037,7 @@ out:
 	
 	LOCAL_USER_REMOVE(u);
 	
-	if((go_on>0) && (!chan->_softhangup))
+	if((go_on>0) && (!chan->_softhangup) && (res != AST_PBX_KEEPALIVE))
 	    res=0;
 	    
 	return res;

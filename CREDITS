@@ -58,6 +58,8 @@ Thorsten Lockert - OpenBSD, FreeBSD ports, making MacOS X port run on 10.3,
 	bugs. tholo@sigmasoft.com
 Brian West - ODBC support and Bug Marshaling  
 William Waites - syslog support, SIP NAT traversal for SIP-UA. ww@styx.org
+Rich Murphey - Porting to FreeBSD, NetBSD, OpenBSD, and Darwin.
+	rich@whiteoaklabs.com  http://whiteoaklabs.com
 
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt

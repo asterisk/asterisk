@@ -481,7 +481,7 @@ int pbx_exec(struct ast_channel *c, 		/* Channel */
 
 
 /* Go no deeper than this through includes (not counting loops) */
-#define AST_PBX_MAX_STACK	64
+#define AST_PBX_MAX_STACK	128
 
 #define HELPER_EXISTS 0
 #define HELPER_SPAWN 1
@@ -577,6 +577,7 @@ static void pbx_destroy(struct ast_pbx *p)
 	match=1;\
 	pattern++;\
 	while(match && *data && *pattern && (*pattern != '/')) {\
+		while (*data == '-' && (*(data+1) != '\0')) data++;\
 		switch(toupper(*pattern)) {\
 		case '[': \
 		{\
@@ -816,6 +817,9 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, char *cont
 	return NULL;
 }
 
+/*--- pbx_retrieve_variable: Support for Asterisk built-in variables and
+      functions in the dialplan
+  ---*/
 static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen)
 {
 	char *first,*second;
@@ -831,7 +835,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var
 		headp=&c->varshead;
 	*ret=NULL;
 	/* Now we have the variable name on cp3 */
-	if (!strncasecmp(var,"LEN(",4)) {
+	if (!strncasecmp(var,"LEN(",4)) {	/* ${LEN(<string>)} */
 		int len=strlen(var);
 		int len_len=4;
 		if (strrchr(var,')')) {
@@ -844,37 +848,45 @@ static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var
 			/* length is zero */
 			*ret = "0";
 		}
-	} else if ((first=strchr(var,':'))) {
+	} else if ((first=strchr(var,':'))) {	/* : Remove characters counting from end or start of string */
 		strncpy(tmpvar, var, sizeof(tmpvar) - 1);
 		first = strchr(tmpvar, ':');
 		if (!first)
 			first = tmpvar + strlen(tmpvar);
 		*first='\0';
 		pbx_substitute_variables_temp(c,tmpvar,ret,workspace,workspacelen - 1);
-		if (!(*ret)) return;
-		offset=atoi(first+1);
-	 	if ((second=strchr(first+1,':'))) {
+		if (!(*ret)) 
+			return;
+		offset=atoi(first+1);	/* The number of characters, 
+					   positive: remove # of chars from start
+					   negative: keep # of chars from end */
+						
+	 	if ((second=strchr(first+1,':'))) {	
 			*second='\0';
-			offset2=atoi(second+1);
-		} else
-			offset2=strlen(*ret)-offset;
-		if (abs(offset)>strlen(*ret)) {
-			if (offset>=0) 
+			offset2 = atoi(second+1);		/* Number of chars to copy */
+		} else if (offset >= 0) {
+			offset2 = strlen(*ret)-offset;	/* Rest of string */
+		} else {
+			offset2 = abs(offset);
+		}
+
+		if (abs(offset) > strlen(*ret)) {	/* Offset beyond string */
+			if (offset >= 0) 
 				offset=strlen(*ret);
 			else 
 				offset=-strlen(*ret);
 		}
-		if ((offset<0 && offset2>-offset) || (offset>=0 && offset+offset2>strlen(*ret))) {
-			if (offset>=0) 
+		if ((offset < 0 && offset2 > -offset) || (offset >= 0 && offset+offset2 > strlen(*ret))) {
+			if (offset >= 0) 
 				offset2=strlen(*ret)-offset;
 			else 
 				offset2=strlen(*ret)+offset;
 		}
-		if (offset>=0)
-			*ret+=offset;
+		if (offset >= 0)
+			*ret += offset;
 		else
-			*ret+=strlen(*ret)+offset;
-		(*ret)[offset2] = '\0';
+			*ret += strlen(*ret)+offset;
+			(*ret)[offset2] = '\0';		/* Cut at offset2 position */
 	} else if (c && !strcmp(var, "CALLERIDNUM")) {
 		if (c->callerid)
 			strncpy(workspace, c->callerid, workspacelen - 1);
@@ -1258,7 +1270,7 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 				pbx_substitute_variables(passdata, sizeof(passdata), c, e);
 				if (option_debug)
 						ast_log(LOG_DEBUG, "Launching '%s'\n", app->name);
-				else if (option_verbose > 2)
+				if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\") %s\n", 
 								term_color(tmp, app->name, COLOR_BRCYAN, 0, sizeof(tmp)),
 								term_color(tmp2, c->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
@@ -2760,6 +2772,7 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 				e = ast_walk_context_extensions(c, NULL);
 				while (e) {
 					struct ast_exten *p;
+					int prio;
 
 					/* looking for extension? is this our extension? */
 					if (exten &&
@@ -2786,11 +2799,18 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 					snprintf(buf, sizeof(buf), "'%s' =>",
 						ast_get_extension_name(e));
 
-					snprintf(buf2, sizeof(buf2),
-						"%d. %s(%s)",
-						ast_get_extension_priority(e),
-						ast_get_extension_app(e),
-						(char *)ast_get_extension_app_data(e));
+					prio = ast_get_extension_priority(e);
+					if (prio == PRIORITY_HINT) {
+						snprintf(buf2, sizeof(buf2),
+							"hint: %s",
+							ast_get_extension_app(e));
+					} else {
+						snprintf(buf2, sizeof(buf2),
+							"%d. %s(%s)",
+							prio,
+							ast_get_extension_app(e),
+							(char *)ast_get_extension_app_data(e));
+					}
 
 					ast_cli(fd, "  %-17s %-45s [%s]\n", buf, buf2,
 						ast_get_extension_registrar(e));
@@ -2800,11 +2820,18 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 					while (p) {
 						bzero((void *)buf2, sizeof(buf2));
 
-						snprintf(buf2, sizeof(buf2),
-							"%d. %s(%s)",
-							ast_get_extension_priority(p),
-							ast_get_extension_app(p),
-							(char *)ast_get_extension_app_data(p));
+						prio = ast_get_extension_priority(p);
+						if (prio == PRIORITY_HINT) {
+							snprintf(buf2, sizeof(buf2),
+								"hint: %s",
+								ast_get_extension_app(p));
+						} else {
+							snprintf(buf2, sizeof(buf2),
+								"%d. %s(%s)",
+								prio,
+								ast_get_extension_app(p),
+								(char *)ast_get_extension_app_data(p));
+						}
 
 						ast_cli(fd,"  %-17s %-45s [%s]\n",
 							"", buf2,
@@ -4381,7 +4408,8 @@ static int pbx_builtin_answer(struct ast_channel *chan, void *data)
 static int pbx_builtin_setlanguage(struct ast_channel *chan, void *data)
 {
 	/* Copy the language as specified */
-	strncpy(chan->language, (char *)data, sizeof(chan->language)-1);
+	if (data)	
+		strncpy(chan->language, (char *)data, sizeof(chan->language)-1);
 	return 0;
 }
 
@@ -4567,7 +4595,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 			res = ast_waitstream(chan, AST_DIGIT_ANY);
 			ast_stopstream(chan);
 		} else {
-			ast_log(LOG_WARNING, "ast_streamfile failed on %s fro %s\n", chan->name, (char*)data);
+			ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char*)data);
 			res = 0;
 		}
 	}

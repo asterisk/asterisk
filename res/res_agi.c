@@ -11,12 +11,12 @@
  * the GNU General Public License
  */
 
+#include <sys/types.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
-#include <sys/types.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -119,7 +119,7 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 	struct pollfd pfds[1];
 	char *host;
 	char *c; int port = AGI_PORT;
-	char *script;
+	char *script = "";
 	struct sockaddr_in sin;
 	struct hostent *hp;
 	struct ast_hostent ahp;
@@ -136,7 +136,7 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 	if ((c = strchr(host, ':'))) {
 		*c = '\0';
 		c++;
-		port = atoi(c + 1);
+		port = atoi(c);
 	}
 	if (efd) {
 		ast_log(LOG_WARNING, "AGI URI's don't support Enhanced AGI yet\n");
@@ -185,6 +185,9 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 		return -1;
 	}
 	ast_log(LOG_DEBUG, "Wow, connected!\n");
+	/* Send the script parameter */
+	if (!ast_strlen_zero(script))
+		fdprintf(s, "agi_network_script: %s\n", script);
 	fds[0] = s;
 	fds[1] = s;
 	*opid = -1;
@@ -432,8 +435,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	fs = ast_openstream(chan, argv[2], chan->language);
 	if(!fs){
 		fdprintf(agi->fd, "200 result=%d endpos=%ld\n", 0, sample_offset);
-		ast_log(LOG_WARNING, "Unable to open %s\n", argv[2]);
-		return RESULT_FAILURE;
+		return RESULT_SUCCESS;
 	}
 	ast_seekstream(fs, 0, SEEK_END);
 	max_length = ast_tellstream(fs);

@@ -844,8 +844,12 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 		return NULL;
 	}
 	/* set the O_TRUNC flag if and only if there is no O_APPEND specified */
-	if (!(flags & O_APPEND)) 
+	if (flags & O_APPEND){ 
+		/* We really can't use O_APPEND as it will break WAV header updates */
+		flags &= ~O_APPEND;
+	}else{
 		myflags = O_TRUNC;
+	}
 	
 	myflags |= O_WRONLY | O_CREAT;
 
@@ -980,6 +984,14 @@ char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char
 {
 	int res;
 	struct ast_frame *fr;
+
+	if (!breakon)
+			breakon = "";
+	if (!forward)
+			forward = "";
+	if (!rewind)
+			rewind = "";
+	
 	while(c->stream) {
 		res = ast_sched_wait(c->sched);
 		if ((res < 0) && !c->timingfunc) {
@@ -1044,6 +1056,9 @@ char ast_waitstream_full(struct ast_channel *c, char *breakon, int audiofd, int 
 	int outfd;
 	struct ast_frame *fr;
 	struct ast_channel *rchan;
+
+	if (!breakon)
+		breakon = "";
 	
 	while(c->stream) {
 		ms = ast_sched_wait(c->sched);

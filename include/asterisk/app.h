@@ -62,11 +62,18 @@ int ast_play_and_wait(struct ast_channel *chan, char *fn);
 
 //! Record a file for a max amount of time (in seconds), in a given list of formats separated by '|', outputting the duration of the recording, and with a maximum
 //  permitted silence time in milliseconds of 'maxsilence' under 'silencethreshold' or use '-1' for either or both parameters for defaults.
-int ast_play_and_record(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime_sec, char *fmt, int *duration, int silencethreshold, int maxsilence_ms);
+//  calls ast_unlock_path() on 'path' if passed
+int ast_play_and_record(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime_sec, char *fmt, int *duration, int silencethreshold, int maxsilence_ms, const char *path);
 
 //! Record a message and prepend the message to the given record file after playing the optional playfile (or a beep), storing the duration in 'duration' and with a maximum
 //  permitted silence time in milliseconds of 'maxsilence' under 'silencethreshold' or use '-1' for either or both parameters for defaults.
 int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime_sec, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence_ms);
+
+/* Lock a path */
+int ast_lock_path(const char *path);
+
+/* Unlock a path */
+int ast_unlock_path(const char *path);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -188,8 +188,13 @@ static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
 		return &null_frame;
 	}
 	ast_log(LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
-	rtp->f.frametype = AST_FRAME_DTMF;
-	rtp->f.subclass = rtp->resp;
+	if (rtp->resp == 'X') {
+		rtp->f.frametype = AST_FRAME_CONTROL;
+		rtp->f.subclass = AST_CONTROL_FLASH;
+	} else {
+		rtp->f.frametype = AST_FRAME_DTMF;
+		rtp->f.subclass = rtp->resp;
+	}
 	rtp->f.datalen = 0;
 	rtp->f.samples = 0;
 	rtp->f.mallocd = 0;
@@ -218,6 +223,8 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 		resp = '#';
 	} else if (event < 16) {
 		resp = 'A' + (event - 12);
+	} else if (event < 17) {
+		resp = 'X';
 	}
 	if (rtp->resp && (rtp->resp != resp)) {
 		f = send_dtmf(rtp);
@@ -252,6 +259,8 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 		resp = '#';
 	} else if (event < 16) {
 		resp = 'A' + (event - 12);
+	} else if (event < 17) {
+		resp = 'X';
 	}
 	if (rtp->resp && (rtp->resp != resp)) {
 		f = send_dtmf(rtp);
@@ -397,6 +406,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	struct sockaddr_in sin;
 	int len;
 	unsigned int seqno;
+	int version;
 	int payloadtype;
 	int hdrlen = 12;
 	int mark;
@@ -445,6 +455,12 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 
 	/* Get fields */
 	seqno = ntohl(rtpheader[0]);
+
+	/* Check RTP version */
+	version = (seqno & 0xC0000000) >> 30;
+	if (version != 2)
+		return &null_frame;
+	
 	payloadtype = (seqno & 0x7f0000) >> 16;
 	mark = seqno & (1 << 23);
 	ext = seqno & (1 << 28);
@@ -469,17 +485,17 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	  /* This is special in-band data that's not one of our codecs */
 	  if (rtpPT.code == AST_RTP_DTMF) {
 	    /* It's special -- rfc2833 process it */
-	    if (rtp->lasteventseqn <= seqno) {
+	    if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
 	      f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
 	      rtp->lasteventseqn = seqno;
-	    }
+	    } else f = NULL;
 	    if (f) return f; else return &null_frame;
 	  } else if (rtpPT.code == AST_RTP_CISCO_DTMF) {
 	    /* It's really special -- process it the Cisco way */
-	    if (rtp->lasteventseqn <= seqno) {
+	    if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
 	      f = process_cisco_dtmf(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
 	      rtp->lasteventseqn = seqno;
-	    }
+	    } else f = NULL;
 	    if (f) return f; else return &null_frame;
 	  } else if (rtpPT.code == AST_RTP_CN) {
 	    /* Comfort Noise */
@@ -978,7 +994,6 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	unsigned int *rtpheader;
 	int hdrlen = 12;
 	int res;
-	int ms;
 	int x;
 	int payload;
 	char data[256];
@@ -1010,10 +1025,6 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 		rtp->dtmfmute.tv_usec -= 1000000;
 		rtp->dtmfmute.tv_sec += 1;
 	}
-
-	ms = calc_txstamp(rtp, NULL);
-	/* Default prediction */
-	rtp->lastts = rtp->lastts + ms * 8;
 	
 	/* Get a pointer to the header */
 	rtpheader = (unsigned int *)data;
@@ -1021,7 +1032,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	rtpheader[1] = htonl(rtp->lastts);
 	rtpheader[2] = htonl(rtp->ssrc); 
 	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
-	for (x=0;x<4;x++) {
+	for (x=0;x<6;x++) {
 		if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
 			res = sendto(rtp->s, (void *)rtpheader, hdrlen + 4, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
 			if (res <0) 
@@ -1030,13 +1041,15 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 		printf("Sent %d bytes of RTP data to %s:%d\n", res, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port));
 	#endif		
 		}
-		if (x ==0) {
+		if (x == 2) {
 			/* Clear marker bit and increment seqno */
 			rtpheader[0] = htonl((2 << 30)  | (payload << 16) | (rtp->seqno++));
 			/* Make duration 800 (100ms) */
 			rtpheader[3] |= htonl((800));
 			/* Set the End bit for the last 3 */
 			rtpheader[3] |= htonl((1 << 23));
+		} else if ( x < 5) {
+			rtpheader[0] = htonl((2 << 30) | (payload << 16) | (rtp->seqno++));
 		}
 	}
 	return 0;

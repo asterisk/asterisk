@@ -304,6 +304,10 @@ static int local_hangup(struct ast_channel *ast)
 		p->owner = NULL;
 	ast->pvt->pvt = NULL;
 	
+	ast_mutex_lock(&usecnt_lock);
+	usecnt--;
+	ast_mutex_unlock(&usecnt_lock);
+	
 	if (!p->owner && !p->chan) {
 		/* Okay, done with the private part now, too. */
 		glaredetect = p->glaredetect;
@@ -371,7 +375,7 @@ static struct local_pvt *local_alloc(char *data, int format)
 			strncpy(tmp->context, "default", sizeof(tmp->context) - 1);
 		tmp->reqformat = format;
 		if (!ast_exists_extension(NULL, tmp->context, tmp->exten, 1, NULL)) {
-			ast_log(LOG_NOTICE, "No such extension/context %s@%s creating local channel\n", tmp->context, tmp->exten);
+			ast_log(LOG_NOTICE, "No such extension/context %s@%s creating local channel\n", tmp->exten, tmp->context);
 			ast_mutex_destroy(&tmp->lock);
 			free(tmp);
 			tmp = NULL;
@@ -440,6 +444,7 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 		p->owner = tmp;
 		p->chan = tmp2;
 		ast_mutex_lock(&usecnt_lock);
+		usecnt++;
 		usecnt++;
 		ast_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();

@@ -1888,7 +1888,7 @@ struct ast_channel *ast_request(char *type, int format, void *data)
 					manager_event(EVENT_FLAG_CALL, "Newchannel",
 					"Channel: %s\r\n"
 					"State: %s\r\n"
-					"Callerid: %s\r\n"
+					"CallerID: %s\r\n"
 					"Uniqueid: %s\r\n",
 					c->name, ast_state2str(c->_state), c->callerid ? c->callerid : "<unknown>", c->uniqueid);
 				}
@@ -2205,7 +2205,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	char orig[100];
 	char masqn[100];
 	char zombn[100];
-	
+
 #if 1
 	ast_log(LOG_DEBUG, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
 		clone->name, clone->_state, original->name, original->_state);
@@ -2304,9 +2304,12 @@ int ast_do_masquerade(struct ast_channel *original)
 	strncpy(clone->name, zombn, sizeof(clone->name) - 1);
 	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", masqn, zombn, clone->uniqueid);
 
-	/* Keep the same language.  */
 	/* Update the type. */
 	original->type = clone->type;
+	
+	/* Keep the same language.  */
+	strncpy(original->language, clone->language, sizeof(original->language));
+
 	/* Copy the FD's */
 	for (x=0;x<AST_MAX_FDS;x++) {
 		original->fds[x] = clone->fds[x];
@@ -2362,6 +2365,9 @@ int ast_do_masquerade(struct ast_channel *original)
 	/* Set the read format */
 	ast_set_read_format(original, rformat);
 
+	/* Copy the music class */
+	strncpy(original->musicclass, clone->musicclass, sizeof(original->musicclass) - 1);
+
 	ast_log(LOG_DEBUG, "Putting channel %s in %d/%d formats\n", original->name, wformat, rformat);
 
 	/* Okay.  Last thing is to let the channel driver know about all this mess, so he
@@ -2387,8 +2393,10 @@ int ast_do_masquerade(struct ast_channel *original)
 		ast_channel_free(clone);
 		manager_event(EVENT_FLAG_CALL, "Hangup", "Channel: %s\r\n", zombn);
 	} else {
+		struct ast_frame null_frame = { AST_FRAME_NULL, };
 		ast_log(LOG_DEBUG, "Released clone lock on '%s'\n", clone->name);
 		clone->zombie=1;
+		ast_queue_frame(clone, &null_frame);
 		ast_mutex_unlock(&clone->lock);
 	}
 	
@@ -2419,7 +2427,7 @@ void ast_set_callerid(struct ast_channel *chan, char *callerid, int anitoo)
 		ast_cdr_setcid(chan->cdr, chan);
 	manager_event(EVENT_FLAG_CALL, "Newcallerid", 
 				"Channel: %s\r\n"
-				"Callerid: %s\r\n"
+				"CallerID: %s\r\n"
 				"Uniqueid: %s\r\n",
 				chan->name, chan->callerid ? 
 				chan->callerid : "<Unknown>",
@@ -2436,14 +2444,14 @@ int ast_setstate(struct ast_channel *chan, int state)
 			manager_event(EVENT_FLAG_CALL, "Newchannel",
 			"Channel: %s\r\n"
 			"State: %s\r\n"
-			"Callerid: %s\r\n"
+			"CallerID: %s\r\n"
 			"Uniqueid: %s\r\n",
 			chan->name, ast_state2str(chan->_state), chan->callerid ? chan->callerid : "<unknown>", chan->uniqueid);
 		} else {
 			manager_event(EVENT_FLAG_CALL, "Newstate", 
 				"Channel: %s\r\n"
 				"State: %s\r\n"
-				"Callerid: %s\r\n"
+				"CallerID: %s\r\n"
 				"Uniqueid: %s\r\n",
 				chan->name, ast_state2str(chan->_state), chan->callerid ? chan->callerid : "<unknown>", chan->uniqueid);
 		}
@@ -2899,8 +2907,8 @@ unsigned int ast_get_group(char *s)
 			/* Just one */
 			finish = start;
 		} else {
-			ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'.  Using '0'\n", s,piece);
-			return 0;
+			ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'.\n", s, piece);
+			continue;
 		}
 		for (x=start;x<=finish;x++) {
 			if ((x > 31) || (x < 0)) {
