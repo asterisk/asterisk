@@ -1463,6 +1463,7 @@ static int pbx_load_module(void)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
+	char *ptrptr;
 	char *cxt, *ext, *pri, *appl, *data, *tc, *cidmatch;
 	struct ast_context *con;
 
@@ -1485,17 +1486,22 @@ static int pbx_load_module(void)
 				while(v) {
 					if (!strcasecmp(v->name, "exten")) {
 						tc = strdup(v->value);
-						ext = strtok(tc, ",");
+						ext = strtok_r(tc, ",",&ptrptr);
 						if (!ext)
 							ext="";
-						pri = strtok(NULL, ",");
+						pri = strtok_r(NULL, ",",&ptrptr);
 						if (!pri)
 							pri="";
-						appl = strtok(NULL, ",");
+						appl = strtok_r(NULL, ",",&ptrptr);
 						if (!appl)
 							appl="";
-						data = strtok(NULL, ",");
-
+ 						if (*ptrptr=='"') {
+ 							ptrptr++;
+ 							data = strtok_r(NULL, "\"",&ptrptr);
+ 							ptrptr++;
+ 						} else {
+ 							data = strtok_r(NULL, ",",&ptrptr);
+ 						}
 						cidmatch = strchr(ext, '/');
 						if (cidmatch) {
 							*cidmatch = '\0';

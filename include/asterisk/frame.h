@@ -129,6 +129,8 @@ struct ast_frame_chain {
 #define AST_FORMAT_LPC10	(1 << 7)
 /*! G.729A audio */
 #define AST_FORMAT_G729A	(1 << 8)
+/*! SpeeX Free Compression */
+#define AST_FORMAT_SPEEX	(1 << 9)
 /*! Maximum audio format */
 #define AST_FORMAT_MAX_AUDIO	(1 << 15)
 /*! JPEG Images */
