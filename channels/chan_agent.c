@@ -904,7 +904,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 							/* Retrieve login chan */
 							res = ast_app_getdata(chan, "agent-newlocation", tmpchan, sizeof(tmpchan) - 1, 0);
 							if (!res) {
-								if (context && strlen(context))
+								if (context && strlen(context) && strlen(tmpchan))
 									snprintf(p->loginchan, sizeof(p->loginchan), "%s@%s", tmpchan, context);
 								else
 									strncpy(p->loginchan, tmpchan, sizeof(p->loginchan) - 1);
