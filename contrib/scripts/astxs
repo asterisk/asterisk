@@ -131,7 +131,7 @@ if($ext eq "so") {
 
 my $bad=0;
 
-$bad = esystem("$vars{CC} -I/usr/src/asterisk -I/usr/src/asterisk/include $vars{CFLAGS} -c ${base}.c -o ${base}.o") unless($args{linkonly} or $args{installonly});
+$bad = esystem("$vars{CC} -I${astdir} -I${astdir}/include $vars{CFLAGS} -c ${base}.c -o ${base}.o") unless($args{linkonly} or $args{installonly});
 exit -1 if($bad);
 exit if($args{nolink});
 
