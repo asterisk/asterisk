@@ -1,0 +1,12 @@
+* Asterisk MP3 Support
+======================
+
+Asterisk supports mp3 playback for music on hold via the mpg123
+program, available from www.mpg123.de.
+
+The latest release of mpg123 is mpg123 0.59r.
+The latest development release of mpg123 is mpg123 pre0.59s.
+
+Please use mpg123 0.59r.  Using mpg123 pre0.59s can/may/will result
+in crashes and/or unreliable playback.
+
