@@ -500,7 +500,7 @@ static int cidrings[] = {
 #define CANPROGRESSDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
 
 /* translate between PRI causes and asterisk's */
-int hangup_pri2cause(int cause)
+static int hangup_pri2cause(int cause)
 {
 	switch(cause) {
 #ifdef ZAPATA_PRI
