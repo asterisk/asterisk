@@ -743,7 +743,9 @@ int ast_answer(struct ast_channel *chan)
 	return 0;
 }
 
-void ast_deactivate_generator(struct ast_channel *chan)
+
+
+static void __ast_deactivate_generator(struct ast_channel *chan)
 {
 	if (chan->generatordata) {
 		if (chan->generator && chan->generator->release) 
@@ -754,6 +756,12 @@ void ast_deactivate_generator(struct ast_channel *chan)
 	}
 }
 
+void ast_deactivate_generator(struct ast_channel *chan)
+{
+	ast_mutex_lock(&chan->lock);
+	__ast_deactivate_generator(chan);
+	ast_mutex_unlock(&chan->lock);
+}
 int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, void *params)
 {
 	if (chan->generatordata) {
@@ -1059,7 +1067,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 	/* Stop if we're a zombie or need a soft hangup */
 	if (chan->zombie || ast_check_hangup(chan)) {
 		if (chan->generator)
-			ast_deactivate_generator(chan);
+			__ast_deactivate_generator(chan);
 		ast_mutex_unlock(&chan->lock);
 		return NULL;
 	}
@@ -1193,7 +1201,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 	if (!f) {
 		chan->_softhangup |= AST_SOFTHANGUP_DEV;
 		if (chan->generator)
-			ast_deactivate_generator(chan);
+			__ast_deactivate_generator(chan);
 		/* End the CDR if appropriate */
 		if (chan->cdr)
 			ast_cdr_end(chan->cdr);
@@ -1208,21 +1216,25 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		ast_setstate(chan, AST_STATE_UP);
 		ast_cdr_answer(chan->cdr);
 	} 
-	ast_mutex_unlock(&chan->lock);
 
 	/* Run any generator sitting on the line */
 	if (f && (f->frametype == AST_FRAME_VOICE) && chan->generatordata) {
 		/* Mask generator data temporarily */
 		void *tmp;
 		int res;
+		int (*generate)(struct ast_channel *chan, void *tmp, int datalen, int samples);
 		tmp = chan->generatordata;
 		chan->generatordata = NULL;
-		res = chan->generator->generate(chan, tmp, f->datalen, f->samples);
+		generate = chan->generator->generate;
+		ast_mutex_unlock(&chan->lock);
+		res = generate(chan, tmp, f->datalen, f->samples);
+		ast_mutex_lock(&chan->lock);
 		chan->generatordata = tmp;
 		if (res) {
 			ast_log(LOG_DEBUG, "Auto-deactivating generator\n");
-			ast_deactivate_generator(chan);
+			__ast_deactivate_generator(chan);
 		}
+		ast_mutex_unlock(&chan->lock);
 	}
 	if (chan->fin & 0x80000000)
 		ast_frame_dump(chan->name, f, "<<");
@@ -1230,6 +1242,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		chan->fin &= 0x80000000;
 	else
 		chan->fin++;
+	ast_mutex_unlock(&chan->lock);
 	return f;
 }
 
@@ -1415,7 +1428,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	}
 	if (chan->generatordata) {
 		if (chan->writeinterrupt)
-			ast_deactivate_generator(chan);
+			__ast_deactivate_generator(chan);
 		else {
 			ast_mutex_unlock(&chan->lock);
 			return 0;
