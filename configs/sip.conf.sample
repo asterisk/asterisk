@@ -45,6 +45,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;maxexpirey=3600		; Max length of incoming registration we allow
 ;defaultexpirey=120		; Default length of incoming/outoing registration
 ;notifymimetype=text/plain	; Allow overriding of mime type in MWI NOTIFY
+;checkmwi=10			; Default time between mailbox checks for peers
 ;videosupport=yes		; Turn on support for SIP video
 
 ;disallow=all			; First disallow all codecs
@@ -66,11 +67,16 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
                                 ; yes = Always ignore info and assume NAT
                                 ; no = Use NAT mode only according to RFC3581 
                                 ; never = Never attempt NAT mode or RFC3581 support
-				; route = Assume NAT, don't send rport (work around more UNIDEN bugs)
-;promiscredir = no      ; If yes, allows 302 or REDIR to non-local SIP address
-;                       ; Note that promiscredir when redirects are made to the
-;                       ; local system will cause loops since SIP is incapable
-;                       ; of performing a "hairpin" call.
+				; route = Assume NAT, don't send rport 
+				; (work around more UNIDEN bugs)
+;promiscredir = no      	; If yes, allows 302 or REDIR to non-local SIP address
+	                       	; Note that promiscredir when redirects are made to the
+       	                	; local system will cause loops since SIP is incapable
+       	                	; of performing a "hairpin" call.
+;dtmfmode = rfc2833		; Set default dtmfmode for sending DTMF. Default: rfc2833
+				; Other options: 
+				; info : SIP INFO messages
+				; inband : Inband audio
 ;
 ; If regcontext is specified, Asterisk will dynamically 
 ; create and destroy a NoOp priority 1 extension for a given
@@ -79,7 +85,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; name if 'regexten' is not provided.  More than one regexten may be supplied
 ; if they are separated by '&'.  Patterns may be used in regexten.
 ;
-;regcontext=iaxregistrations
+;regcontext=sipregistrations
 ;
 ; Asterisk can register as a SIP user agent to a SIP proxy (provider)
 ; Format for the register statement is:

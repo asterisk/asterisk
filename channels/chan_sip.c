@@ -129,7 +129,7 @@ static char default_fromdomain[AST_MAX_EXTENSION] = "";
 
 static char notifymime[AST_MAX_EXTENSION] = "application/simple-message-summary";
 
-static int srvlookup = 1;		/* SRV Lookup on or off. Default now on */
+static int srvlookup = 0;		/* SRV Lookup on or off. Default now on */
 
 static int pedanticsipchecking = 0;	/* Extra checking ?  Default off */
 
