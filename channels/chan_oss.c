@@ -661,7 +661,7 @@ static struct ast_frame *oss_read(struct ast_channel *chan)
 	return &f;
 }
 
-static int oss_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, int needlock)
+static int oss_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct chan_oss_pvt *p = newchan->pvt->pvt;
 	p->owner = newchan;
