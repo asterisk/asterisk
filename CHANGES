@@ -1,4 +1,12 @@
+Asterisk 0.1.11
+ -- Add ISDN RAS capability
+ -- Add stutter dialtone to Chan Zap
+ -- Add "#include" capability to config files.
+ -- Add call-forward variable to Chan Zap (*72, *73)
+ -- Optimize IAX flow when transfer isn't possible
+ -- Allow transmission of ANI over IAX
 Asterisk 0.1.10
+ -- Make ast_readstring parameter be the max # of digits, not the max size with \0
  -- Make up any missing messages on the fly
  -- Add support for specific DTMF interruption to saying numbers
  -- Add new "u" and "b" options to condense busy/unavail handling
