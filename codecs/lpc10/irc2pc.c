@@ -1,8 +1,8 @@
 /*
 
 $Log$
-Revision 1.6  2000/01/05 08:20:39  markster
-Version 0.1.7 from FTP
+Revision 1.7  2000/01/05 08:20:39  markster
+Version 0.1.8 from FTP
 
 Revision 1.2  2000/01/05 08:20:39  markster
 Some OSS fixes and a few lpc changes to make it actually work
@@ -29,8 +29,8 @@ extern int irc2pc_(real *rc, real *pc, integer *order, real *gprime, real *g2pas
 /* 	IRC2PC Version 48 */
 
 /* $Log$
- * Revision 1.6  2000/01/05 08:20:39  markster
- * Version 0.1.7 from FTP
+ * Revision 1.7  2000/01/05 08:20:39  markster
+ * Version 0.1.8 from FTP
  *
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
@@ -82,8 +82,8 @@ extern int irc2pc_(real *rc, real *pc, integer *order, real *gprime, real *g2pas
 
 /* 	Arguments */
 /* $Log$
- * Revision 1.6  2000/01/05 08:20:39  markster
- * Version 0.1.7 from FTP
+ * Revision 1.7  2000/01/05 08:20:39  markster
+ * Version 0.1.8 from FTP
  *
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work

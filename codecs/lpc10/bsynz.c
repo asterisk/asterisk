@@ -1,8 +1,8 @@
 /*
 
 $Log$
-Revision 1.6  2000/01/05 08:20:39  markster
-Version 0.1.7 from FTP
+Revision 1.7  2000/01/05 08:20:39  markster
+Version 0.1.8 from FTP
 
 Revision 1.2  2000/01/05 08:20:39  markster
 Some OSS fixes and a few lpc changes to make it actually work
@@ -48,8 +48,8 @@ extern struct {
 /* 	BSYNZ Version 54 */
 
 /* $Log$
- * Revision 1.6  2000/01/05 08:20:39  markster
- * Version 0.1.7 from FTP
+ * Revision 1.7  2000/01/05 08:20:39  markster
+ * Version 0.1.8 from FTP
  *
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
@@ -144,8 +144,8 @@ extern struct {
     real lpi0, hpi0;
 
 /* $Log$
- * Revision 1.6  2000/01/05 08:20:39  markster
- * Version 0.1.7 from FTP
+ * Revision 1.7  2000/01/05 08:20:39  markster
+ * Version 0.1.8 from FTP
  *
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
@@ -175,8 +175,8 @@ extern struct {
 /* Frame size, Prediction order, Pitch period */
 /*       Arguments */
 /* $Log$
- * Revision 1.6  2000/01/05 08:20:39  markster
- * Version 0.1.7 from FTP
+ * Revision 1.7  2000/01/05 08:20:39  markster
+ * Version 0.1.8 from FTP
  *
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
