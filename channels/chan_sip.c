@@ -1088,7 +1088,7 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 		return -1;
 	case AST_CONTROL_BUSY:
 		if (ast->_state != AST_STATE_UP) {
-			transmit_response(p, "600 Busy everywhere", &p->initreq);
+			transmit_response(p, "486 Busy Here", &p->initreq);
 			p->alreadygone = 1;
 			ast_softhangup(ast, AST_SOFTHANGUP_DEV);
 			break;
@@ -1096,7 +1096,7 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 		return -1;
 	case AST_CONTROL_CONGESTION:
 		if (ast->_state != AST_STATE_UP) {
-			transmit_response(p, "486 Busy here", &p->initreq);
+			transmit_response(p, "503 Service Unavailable", &p->initreq);
 			p->alreadygone = 1;
 			ast_softhangup(ast, AST_SOFTHANGUP_DEV);
 			break;
