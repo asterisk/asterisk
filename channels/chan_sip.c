@@ -859,6 +859,8 @@ static struct in_addr *myaddrfor(struct in_addr *them)
 	return temp;
 }
 
+static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req);
+
 
 static int sip_hangup(struct ast_channel *ast)
 {
@@ -891,7 +893,14 @@ static int sip_hangup(struct ast_channel *ast)
 	/* Start the process if it's not already started */
 	if (!p->alreadygone && strlen(p->initreq.data)) {
 		if (needcancel) {
-			transmit_request(p, "CANCEL", 0, 1);
+			if (p->outgoing) {
+				transmit_request(p, "CANCEL", 0, 1);
+				/* Actually don't destroy us yet, wait for the 487 on our original 
+				   INVITE, but do set an autodestruct just in case. */
+				p->needdestroy = 0;
+				sip_scheddestroy(p, 15000);
+			} else
+				transmit_response_reliable(p, "480 Temporarily Unavailable", &p->initreq);
 		} else {
 			/* Send a hangup */
 			transmit_request(p, "BYE", 1, 1);
@@ -1741,6 +1750,7 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	++h;
 	hn = strcspn(h, ":;>");
 	strncpy(hostname, h, (hn>255)?255:hn);
+	hostname[(hn > 255) ? 255 : hn] = '\0';
 	h+=hn;
 	/* Is "port" present? if not default to 5060 */
 	if (*h == ':') {
@@ -1757,6 +1767,7 @@ static void set_destination(struct sip_pvt *p, char *uri)
 		maddr += 7;
 		hn = strspn(maddr, "0123456789.");
 		strncpy(hostname, maddr, (hn>255)?255:hn);
+		hostname[(hn > 255) ? 255 : hn] = '\0';
 	}
 	
 	hp = gethostbyname(hostname);
@@ -3657,6 +3668,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				}
 				transmit_request(p, "ACK", 0, 0);
 				p->alreadygone = 1;
+				if (!p->owner)
+					p->needdestroy = 1;
 			} else
 				ast_log(LOG_NOTICE, "Dunno anything about a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : inet_ntoa(p->sa.sin_addr));
 		}
