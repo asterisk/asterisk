@@ -144,6 +144,7 @@ struct ast_hint {
     struct ast_hint *next;
 };
 
+
 static int pbx_builtin_prefix(struct ast_channel *, void *);
 static int pbx_builtin_suffix(struct ast_channel *, void *);
 static int pbx_builtin_stripmsd(struct ast_channel *, void *);
@@ -170,7 +171,6 @@ static int pbx_builtin_saynumber(struct ast_channel *, void *);
 static int pbx_builtin_saydigits(struct ast_channel *, void *);
 void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value);
 char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name);
-static int ast_extension_patmatch_repeated(const char *pattern, const char *data, const int num);
 
 static struct varshead globals = AST_LIST_HEAD_INITIALIZER(varshead);
 
@@ -491,360 +491,92 @@ static void pbx_destroy(struct ast_pbx *p)
 	free(p);
 }
 
-int  patmatch_groupcounter = 0;
-char patmatch_group[80] = "";
-
-/* Derived from code by Steffen Offermann 1991, public domain
-   http://www.cs.umu.se/~isak/Snippets/xstrcmp.c
-
- * a regex must start with "_"
- * regex patterns are case-insensitive except characters inside []
- * "." matches zero or more characters (as in * in glob)
- * character ranges as in [0-9a-zA-Z]
- * X,Z,N match 0-9,1-9,2-9 resp.
- 
- new additional features:
- * "?" matches any character
- * negation as in [^0] ("any char but 0")
-               or [^a-z]
- * explicit quantifiers as in X{2,4} ("from 2 to 4 digits"),
-                           or X{2,}  ("at least 2 digits"),
-                           or X{2}   ("exactly 2 digits"),
- * regex-style quantifiers like ?, + and * are supported by 
-   "{}" grouping.
-     ? <=> {0,1}
-     + <=> {1,}
-     * <=> {0,}
- * grouping as in N(1X){1,2}  ("one or two sequences of 1X")
- * capturing (dependent on AST_PBX_MATCH_CAPTURE)
-   With () grouped matches are stored in subsequent numbered global
-   variables, starting with $1, $2 and so on.
- * alternation as in (01|0|99) ("01 or 0 or 99")
- */
-int ast_extension_patmatch(const char *pattern, const char *data) 
-{
-    int i,border=0;
-    char *where;
-    static char prev = '\0';
-    static char groupdata[80] = "";
-    static char *group = patmatch_group;
-
-    if (option_debug)
-	ast_log(LOG_DEBUG, " >>> \"%s\" =~ /%s/\n", data, pattern);
-    switch (toupper(*pattern))
-	{
-	case '\0':
-	    if (option_debug)
-		ast_log(LOG_DEBUG, " !>>> \"%s\" => %s\n", data, !*data ? "OK" : "FAIL");
-	    return !*data;
-	    
-	case ' ':
-	case '-':
-	    /* Ignore these characters in the pattern */
-	    return *data && ast_extension_patmatch(pattern+1, data);
-
-	case '.' : /* wildcard as '*' in glob(). Match any sequence of characters. 0 or more */
-	    prev = *pattern;
-	    if (! *(pattern+1) ) 
-		return 1; /* return *data; => match one or more */
-	    else
-		return ast_extension_patmatch(pattern+1, data) || (*data && ast_extension_patmatch(pattern, data+1));
-
-	/* wildcard character: Match any char */
-	case '?' :
-	    prev = *pattern;
-	    return *data && ast_extension_patmatch(pattern+1, data+1);
-
-	case 'X': /* 0-9 */
-	    prev = *pattern;
-	    return ((*data >= '0') && (*data <= '9')) && ast_extension_patmatch(pattern+1, data+1);
-	    
-	case 'Z': /* 1-9 */
-	    prev = *pattern;
-	    return ((*data >= '1') && (*data <= '9')) && ast_extension_patmatch(pattern+1, data+1);
-	    
-	case 'N': /* 2-9 */
-	    prev = *pattern;
-	    return ((*data >= '2') && (*data <= '9')) && ast_extension_patmatch(pattern+1, data+1);
-
-	case '{': /* quantifier {n[,m]} */
-	  {
-	    char *comma=NULL;
-	    int cpos;
-	    where=strchr(pattern,'}');
-	    if (where) {
-		border=(int)(where-pattern);
-		comma = strchr(pattern,',');
-	    }
-	    if (!where || border > strlen(pattern)) {
-		ast_log(LOG_WARNING, "Wrong %s pattern usage\n", pattern);
-		return 0;
-	    } else {
-		char tmp[8];
-		int from, to;
-		if (comma)
-		    cpos = (int)(comma-pattern);
-		else 
-		    cpos = border;
-		strncpy(tmp,pattern+1,cpos-1);
-		tmp[cpos-1] = '\0';
-		from = atoi(tmp);
-		if (comma) {
-		    if (border-cpos > 1) { /* {f,t} */
-			strncpy(tmp,comma+1,border-cpos);
-			tmp[border-cpos+1] = '\0';
-			to = atoi(tmp);
-		    } else { /* {f,} */
-			to = strlen(data); /* may fail if after the group are more pattern chars */
-			if (*(pattern+border+1)) {
-			    to = to - strlen(pattern+border+1) + 1;
-			}
-		    }
-		} else {     /* {f} */
-		    if (from == 0) {
-			ast_log(LOG_WARNING, "Invalid {0} pattern quantifier %s\n", pattern);
-			return 0;
-		    }
-		    to = from;
-		}
-		if (from < 0 || to <= 0 || to < from) {
-		    ast_log(LOG_WARNING, "Invalid pattern quantifier %s\n", pattern);
-		    return 0;
-		}
-
-		if (*group) { 	/* check for repeated pattern{n,m} in previous group */
-		    int i;
-		    for (i=0; i< strlen(group); i++) {
-			data--;
-		    }
-		    if (option_debug)
-			ast_log(LOG_DEBUG, ">>> check for repeated pattern{%d,%d} of group '%s' in data '%s'\n", from, to, group, data);
-		    strcat(group,".");
-		} else {
-		    if (option_debug)
-			ast_log(LOG_DEBUG, ">>> check for repeated pattern{%d,%d} in previous character '%c'\n", from, to, prev);
-		    data--;
-		    group[0] = prev;
-		    group[1] = '.';
-		    group[2] = '\0';
-		}
-		*tmp = prev;
-		for (i=to; i>=from; i--) {
-		    if (ast_extension_patmatch_repeated(group,data,i)) break;
-		}
-		prev = *tmp;
-		if (i >= from || !from) { /* if found */
-		    int l = strlen(groupdata) - strlen(data);
-		    if (option_debug)
-			ast_log(LOG_DEBUG, " >>>> found '%s' in data '%s' after %d runs\n", group, data, i);
-		    data = data + (i * (strlen(group)- 1)) - 1;
-		    /* data = data-i+from-1; */		/* possible failure here! */
-		    if (prev == ')') {			/* grouping => capture */
-			*(group+strlen(group)-1) = '\0';
-			groupdata[l+1] = '\0';
-			if (option_debug)
-			    ast_log(LOG_DEBUG, "  >>>>> end of group '%s', data: %s\n", group, groupdata);
-			/* capture the found data in variables $1, $2, ... */
-#ifdef AST_PBX_MATCH_CAPTURE
-			sprintf(name,"%d",++groupcounter);
-			pbx_builtin_setvar_helper(NULL,name,groupdata);
-			if (option_verbose > 2)
-			    ast_log(VERBOSE_PREFIX_3 "global variable $%s set to '%s'\n", name, groupdata);
-#endif
-		    }
-		}
-		*group = '\0';
-		prev = '\0';
-		if (i >= from) {        /* found: continue */
-		    if (option_debug)
-			ast_log(LOG_DEBUG, " >>>> found in round %d from %d\n", i, to);
-		    if (*data) {
-			if (*(pattern+border+1)) /* if the tail check fails, try the other rounds */
-			    if (ast_extension_patmatch(pattern+border+1, data+1))
-				return 1;
-			    else return (ast_extension_patmatch_repeated(group, data, i--) && 
-					 ast_extension_patmatch(pattern+border+1, data+i));
-			else
-			    return ast_extension_patmatch(pattern+border+1, data+1);
-		    }
-		    else 
-			return 1;
-		} else if (from == 0) { /* not found, but special case from=0: no match needed */
-		    if (option_debug)
-			ast_log(LOG_DEBUG, " >>>> not found, but no match needed and data exhausted\n");
-		    if (*data)
-			return ast_extension_patmatch(pattern+border+1, data+1);
-		    else 
-			return 1;
-		} else                /* not found */
-		    return 0;
-	    }
-	  }
-	  /* unreachable code */
-	    
-	case '(': /* grouping */
-	    prev = *pattern;
-	    if (*group) {
-		ast_log(LOG_WARNING, "Unexpected subgroup ( in pattern %s\n", pattern);
-		return 0;
-	    }
-	    where=strchr(pattern,')');
-	    if (where)
-		border=(int)(where-pattern);
-	    if (!where || border > strlen(pattern)) {
-		ast_log(LOG_WARNING, "Wrong (%s) pattern usage\n", pattern);
-		return 0;
-	    }
-	    strncpy(group,pattern+1,border-1);
-	    group[border-1] = '\0';
-	    strcpy(groupdata,data);
-	    if (option_debug)
-		ast_log(LOG_DEBUG, ">>> group '%s' stored, data: '%s'\n", group, groupdata);
-	    if (strchr(pattern,'|')) { /* alternations */
-		char *s, *scopy, *sep, *sepcopy;
-		s = scopy = (char *) malloc(strlen(pattern));
-		sepcopy   = (char *) malloc(strlen(pattern));
-		strcpy(s,group);
-		while ((sep = strsep(&s,"|"))) {
-		    strcpy(sepcopy,sep);
-		    strcat(sepcopy,pattern+border+1);
-		    if (option_debug)
-			ast_log(LOG_DEBUG, "  >>>> alternative '%s' =~ /%s/\n", sepcopy, data);
-		    if (ast_extension_patmatch(sepcopy, data)) break;
-		    if (!*data) { 
-			sep = NULL; break; 
-		    }
-		}
-		free(scopy);
-		if (sep) { /* found */
-		    free(sepcopy);
-		    return 1;
-		} else {
-		    free(sepcopy);
-		    return 0;
-		}
-	    } else {
-		return ast_extension_patmatch(pattern+1, data);
-	    }
-
-	case ')': /* group end */
-	    prev = *pattern;
-	    if (!*group) {
-		ast_log(LOG_WARNING, "Unexpected ) in pattern %s\n", pattern);
-		return 0;
-	    } else {
-		if (pattern[1] != '{') { /* capture without quantifiers */
-		    int l = strlen(groupdata) - strlen(data);
-		    groupdata[l-1] = '\0';
-		    *(group+strlen(group)-1) = '\0';
-		    if (option_debug)
-			ast_log(LOG_DEBUG, ">>> end of group '%s', data: %s\n", group, groupdata);
-#ifdef AST_PBX_MATCH_CAPTURE
-		    /* capture the found data in variables $1, $2, ... */
-		    sprintf(name,"%d",++groupcounter);
-		    pbx_builtin_setvar_helper(NULL,name,groupdata);
-		    ast_log(VERBOSE_PREFIX_3 "global variable $%s set to '%s'\n", name, groupdata);
-#endif
-		    *group = '\0';
-		}
-	    }
-	    return ast_extension_patmatch(pattern+1, data);
-
-	case '|': /* alternation */
-	    if (!*group) {
-		ast_log(LOG_WARNING, "Need group for | in %s\n", pattern);
-		return 0;
-	    }
-
-	case '[': /* Character ranges: [0-9a-zA-Z] */
-	    prev = *pattern;
-	    pattern++;
-	    where=strchr(pattern,']');
-	    if (where)
-		border=(int)(where-pattern);
-	    if (!where || border > strlen(pattern)) {
-		ast_log(LOG_WARNING, "Wrong [%s] pattern usage\n", pattern);
-		return 0;
-	    }
-	    if (*pattern == '^') { /* Negation like [^...] */
-		for (i=1; i<border; i++) {
-		    if (*data==pattern[i])
-			return 0;
-		    else if ((pattern[i+1]=='-') && (i+2<border)) {
-			if (*data >= pattern[i] && *data <= pattern[i+2]) {
-			    return 0;
-			} else {
-			    i+=2;
-			    continue;
-			}
-		    }
-		}
-		return ast_extension_patmatch(where+1, data+1);
-	    } else {
-		for (i=0; i<border; i++) {
-		    if (i+2<border) {
-			if (*data==pattern[i])
-			    return ast_extension_patmatch(where+1, data+1);
-			else if (pattern[i+1]=='-') {
-			    if (*data >= pattern[i] && *data <= pattern[i+2]) {
-				return ast_extension_patmatch(where+1, data+1);
-			    } else {
-				i+=2;
-				continue;
-			    }
-			}
-		    }
-		}
-	    }
-	    break;
-	    
-	default  :
-	    prev = *pattern;
-	    return (toupper(*pattern) == toupper(*data)) && ast_extension_patmatch(pattern+1, data+1);
-	}
-    return 0;
-}
-
-/* try exactly num repetitions, from high to from */
-static int ast_extension_patmatch_repeated(const char *pattern, const char *data, const int num) 
-{
-    int i;
-    ast_log(LOG_DEBUG, "  >>> try %d repetitions of '%s' in data '%s'\n", num, pattern, data);
-    if (num <= 0) return 0;
-    for (i=1; i<=num; i++) {
-	ast_log(LOG_DEBUG, "  >>>> round %d with data %s\n", i, data);
-	if (!ast_extension_patmatch(pattern, data)) return 0;
-	data = data + strlen(pattern) - 1;
-    }
-    return 1;
+#define EXTENSION_MATCH_CORE(data,pattern,match) {\
+	/* All patterns begin with _ */\
+	if (pattern[0] != '_') \
+		return 0;\
+	/* Start optimistic */\
+	match=1;\
+	pattern++;\
+	while(match && *data && *pattern && (*pattern != '/')) {\
+		switch(toupper(*pattern)) {\
+		case '[': \
+		{\
+			int i,border=0;\
+			char *where;\
+			match=0;\
+			pattern++;\
+			where=strchr(pattern,']');\
+			if (where)\
+				border=(int)(where-pattern);\
+			if (!where || border > strlen(pattern)) {\
+				ast_log(LOG_WARNING, "Wrong usage of [] in the extension\n");\
+				return match;\
+			}\
+			for (i=0; i<border; i++) {\
+				int res=0;\
+				if (i+2<border)\
+					if (pattern[i+1]=='-') {\
+						if (*data >= pattern[i] && *data <= pattern[i+2]) {\
+							res=1;\
+						} else {\
+							i+=2;\
+							continue;\
+						}\
+					}\
+				if (res==1 || *data==pattern[i]) {\
+					match = 1;\
+					break;\
+				}\
+			}\
+			pattern+=border;\
+			break;\
+		}\
+		case 'N':\
+			if ((*data < '2') || (*data > '9'))\
+				match=0;\
+			break;\
+		case 'X':\
+			if ((*data < '0') || (*data > '9'))\
+				match = 0;\
+			break;\
+		case 'Z':\
+			if ((*data < '1') || (*data > '9'))\
+				match = 0;\
+			break;\
+		case '.':\
+			/* Must match */\
+			return 1;\
+		case ' ':\
+		case '-':\
+			/* Ignore these characters */\
+			data--;\
+			break;\
+		default:\
+			if (*data != *pattern)\
+				match =0;\
+		}\
+		data++;\
+		pattern++;\
+	}\
 }
 
 int ast_extension_match(char *pattern, char *data)
 {
 	int match;
-	patmatch_groupcounter = 0;
-	*patmatch_group = '\0';
-	if (!*pattern) {
-	    ast_log(LOG_WARNING, "ast_extension_match: empty pattern\n");
-	    return 0;
-	}
-	if (!*data) {
-	    ast_log(LOG_WARNING, "ast_extension_match: empty data\n");
-	    return 0;
-	}
-	if (pattern[0] != '_') {
-	    match = (strcmp(pattern, data) == 0);
-	    /* ast_log(LOG_DEBUG, "ast_extension_match %s == /%s/ => %d\n", data, pattern, match); */
-	} else {
-	    match = ast_extension_patmatch(pattern+1,data);
-	    /* ast_log(LOG_DEBUG, "ast_extension_match %s =~ /%s/ => %d\n", data, pattern+1, match); */
-	}
+	/* If they're the same return */
+	if (!strcmp(pattern, data))
+		return 1;
+	EXTENSION_MATCH_CORE(data,pattern,match);
+	/* Must be at the end of both */
+	if (*data || (*pattern && (*pattern != '/')))
+		match = 0;
 	return match;
 }
 
 static int extension_close(char *pattern, char *data, int needmore)
 {
-	int match=0;
+	int match;
 	/* If "data" is longer, it can'be a subset of pattern unless
 	   pattern is a pattern match */
 	if ((strlen(pattern) < strlen(data)) && (pattern[0] != '_'))
@@ -854,9 +586,7 @@ static int extension_close(char *pattern, char *data, int needmore)
 		(!needmore || (strlen(pattern) > strlen(data)))) {
 		return 1;
 	}
-	if (pattern[0] == '_') {
-	    match = ast_extension_patmatch(pattern+1,data);
-	}
+	EXTENSION_MATCH_CORE(data,pattern,match);
 	/* If there's more or we don't care about more, return non-zero, otlherwise it's a miss */
 	if (!needmore || *pattern) {
 		return match;
