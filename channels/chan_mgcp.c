@@ -1249,9 +1249,9 @@ static int transmit_notify_request_with_callerid(struct mgcp_endpoint *p, char *
 	reqprep(&resp, p, "RQNT");
 	add_header(&resp, "X", p->txident);
 	if (offhook)
-		add_header(&resp, "R", "hu(N),hf(N),D/[0-9#*](N)");
+		add_header(&resp, "R", "L/hu(N),L/hf(N),D/[0-9#*](N)");
 	else
-		add_header(&resp, "R", "hd(N)");
+		add_header(&resp, "R", "L/hd(N)");
 	add_header(&resp, "S", tone2);
 	return send_request(p, &resp, oseq);
 }
