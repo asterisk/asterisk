@@ -51,22 +51,24 @@
 
 ; known to work with wave7optics FTTH LMGs
 ;[192.168.1.20]
-;context=local
-;host=192.168.1.20
-;nat=no
-;wcardep=aaln/*		; enables wildcard endpoint and sets it to 'aaln/*' another common format is '*'
-;callerid = "Duane Cox" <123>
-;callwaiting=no
-;transfer=no
-;cancallforward=no
-;canreinvite=no
-;dtmfmode=inband
-;singlepath=yes		; This device only supports a single RTP path
-;line => aaln/1
-;callerid = "Duane Cox" <456>
-;callwaiting=no
-;transfer=no
-;cancallforward=no
-;canreinvite=no
-;dtmfmode=inband
-;line => aaln/2
+;accountcode	= 1000		; record this in cdr as account identification for billing
+;amaflags	= billing	; record this in cdr as flagged for 'billing', 'documentation', or 'omit'
+;context	= local
+;host		= 192.168.1.20
+;wcardep	= aaln/*	; enables wildcard endpoint and sets it to 'aaln/*' another common format is '*'
+;callerid 	= "Duane Cox" <123>	; now lets setup line 1 using per endpoint configuration...
+;callwaiting	= no
+;callreturn	= yes
+;cancallforward = yes
+;canreinvite	= no
+;transfer	= no
+;dtmfmode	= inband
+;line => aaln/1			; now lets save this config to line1 aka aaln/1
+;callerid 	= "Duane Cox" <456>	; now lets setup line 2
+;callwaiting	= no
+;callreturn	= yes
+;cancallforward = yes
+;canreinvite	= no
+;transfer	= no
+;dtmfmode	= inband
+;line => aaln/2			; now lets save this config to line2 aka aaln/2
