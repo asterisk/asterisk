@@ -1363,7 +1363,11 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		ast_log(LOG_WARNING, "Don't know how to handle control frames yet\n");
 		break;
 	case AST_FRAME_DTMF:
+		chan->blocking = 0;
+		ast_mutex_unlock(&chan->lock);
 		res = do_senddigit(chan,fr->subclass);
+		ast_mutex_lock(&chan->lock);
+		CHECK_BLOCKING(chan);
 		break;
 	case AST_FRAME_TEXT:
 		if (chan->pvt->send_text)
