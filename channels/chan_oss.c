@@ -34,6 +34,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <endian.h>
 #ifdef __linux
 #include <linux/soundcard.h>
 #elif defined(__FreeBSD__)
@@ -350,7 +351,13 @@ static int setformat(void)
 	int fmt, desired, res, fd = sounddev;
 	static int warnedalready = 0;
 	static int warnedalready2 = 0;
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 	fmt = AFMT_S16_LE;
+#else
+	fmt = AFMT_S16_BE;
+#endif
+
 	res = ioctl(fd, SNDCTL_DSP_SETFMT, &fmt);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set format to 16-bit signed\n");

@@ -27,6 +27,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <endian.h>
 
 #define ALSA_PCM_NEW_HW_PARAMS_API
 #define ALSA_PCM_NEW_SW_PARAMS_API
@@ -59,7 +60,12 @@
 /* Don't switch between read/write modes faster than every 300 ms */
 #define MIN_SWITCH_TIME 600
 
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 static snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
+#else
+static snd_pcm_format_t format = SND_PCM_FORMAT_S16_BE;
+#endif
+
 /* static int block = O_NONBLOCK; */
 static char indevname[50] = ALSA_INDEV;
 static char outdevname[50] = ALSA_OUTDEV;
