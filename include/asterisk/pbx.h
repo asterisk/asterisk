@@ -118,6 +118,7 @@ int pbx_exec(struct ast_channel *c, struct ast_app *app, void *data, int newstac
 
 //! Register a new context
 /*!
+ * \param extcontexts pointer to the ast_context structure pointer
  * \param name name of the new context
  * \param registrar registrar of the context
  * This will first search for a context with your name.  If it exists already, it will not
@@ -125,7 +126,13 @@ int pbx_exec(struct ast_channel *c, struct ast_app *app, void *data, int newstac
  * and registrar.
  * It returns NULL on failure, and an ast_context structure on success
  */
-struct ast_context *ast_context_create(char *name, char *registrar);
+struct ast_context *ast_context_create(struct ast_context **extcontexts, char *name, char *registrar);
+
+//! Merge the temporary contexts into a global contexts list and delete from the global list the ones that are being added
+/*!
+ * \param extcontexts pointer to the ast_context structure pointer
+ */
+void ast_merge_contexts_and_delete(struct ast_context **extcontexts);
 
 //! Destroy a context (matches the specified context (or ANY context if NULL)
 /*!

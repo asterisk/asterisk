@@ -44,6 +44,8 @@ static int write_protect_config = 1;
 
 static pthread_mutex_t save_dialplan_lock = AST_MUTEX_INITIALIZER;
 
+static struct ast_context *local_contexts = NULL;
+
 /*
  * Help for commands provided by this module ...
  */
@@ -88,6 +90,12 @@ static char context_remove_ignorepat_help[] =
 "       This command remove ignore pattern from context <context>\n"
 "\n"
 "Example: remove ignorepat _3XX from local\n";
+
+static char reload_extensions_help[] =
+"Usage: reload extensions.conf without reloading any other modules\n"
+"       This command does not delete global variables\n"
+"\n"
+"Example: reload extensions\n";
 
 /*
  * Implementation of functions provided by this module
@@ -1337,6 +1345,15 @@ static int handle_context_remove_ignorepat(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int pbx_load_module(void);
+
+static int handle_reload_extensions(int fd, int argc, char *argv[])
+{
+	if (argc!=2) return RESULT_SHOWUSAGE;
+	pbx_load_module();
+	return RESULT_SUCCESS;
+}
+
 static char *complete_context_remove_ignorepat(char *line, char *word,
 	int pos, int state)
 {
@@ -1492,6 +1509,10 @@ static struct ast_cli_entry context_remove_ignorepat_cli =
 		"Remove ignore pattern from context", context_remove_ignorepat_help,
 		complete_context_remove_ignorepat };
 
+static struct ast_cli_entry reload_extensions_cli = 
+	{ { "extensions", "reload", NULL}, handle_reload_extensions,
+		"Reload extensions and *only* extensions", reload_extensions_help };
+
 /*
  * Standard module functions ...
  */
@@ -1505,6 +1526,7 @@ int unload_module(void)
 	ast_cli_unregister(&context_remove_extension_cli);
 	ast_cli_unregister(&context_remove_ignorepat_cli);
 	ast_cli_unregister(&context_add_ignorepat_cli);
+	ast_cli_unregister(&reload_extensions_cli);
 	ast_context_destroy(NULL, registrar);
 	return 0;
 }
@@ -1536,7 +1558,7 @@ static int pbx_load_module(void)
 				cxt = ast_category_browse(cfg, cxt);
 				continue;
 			}
-			if ((con=ast_context_create(cxt, registrar))) {
+			if ((con=ast_context_create(&local_contexts,cxt, registrar))) {
 				v = ast_variable_browse(cfg, cxt);
 				while(v) {
 					if (!strcasecmp(v->name, "exten")) {
@@ -1619,6 +1641,7 @@ static int pbx_load_module(void)
 		}
 		ast_destroy(cfg);
 	}
+	ast_merge_contexts_and_delete(&local_contexts);
 	return 0;
 }
 
@@ -1634,6 +1657,7 @@ int load_module(void)
 	ast_cli_register(&context_add_extension_cli);
 	ast_cli_register(&context_add_ignorepat_cli);
 	ast_cli_register(&context_remove_ignorepat_cli);
+	ast_cli_register(&reload_extensions_cli);
 
 	return 0;
 }

@@ -633,7 +633,7 @@ int load_module(void)
 	}
 	con = ast_context_find(parking_con);
 	if (!con) {
-		con = ast_context_create(parking_con, registrar);
+		con = ast_context_create(NULL,parking_con, registrar);
 		if (!con) {
 			ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
 			return -1;
