@@ -700,7 +700,8 @@ static int mf_detect (mf_detect_state_t *s,
 		}
 		
         hit = 0;
-		sofarsogood=1;
+		if (best1 != best2) sofarsogood=1;
+		else sofarsogood=0;
 		/* Check for relative energies */
 		for (i=0;i<6;i++) {
 			if (i == best1) continue;
