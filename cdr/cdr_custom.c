@@ -135,7 +135,7 @@ int load_module(void)
 		if (mf)
 			fclose(mf);
 	}
-	return res;
+	return 0;
 }
 
 int reload(void)
