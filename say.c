@@ -765,8 +765,8 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, char *ints,
 			snprintf(fn, sizeof(fn), "digits/thousand");
 			num = 0;
 		} else 	if (num < 1000000) {
-			t = 1;
 			int thousands = num / 1000;
+			t = 1;
 			if (thousands == 1) {
 				snprintf(fn, sizeof(fn), "digits/1N");
 				snprintf(fna, sizeof(fna), "digits/thousand");
@@ -778,8 +778,8 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, char *ints,
 			}
 			num = num % 1000;
 		} else if (num < 1000000000) {
-			t = 1;
 			int millions = num / 1000000;
+			t = 1;
 			if (millions == 1) {
 				snprintf(fn, sizeof(fn), "digits/1N");
 				snprintf(fna, sizeof(fna), "digits/million");
