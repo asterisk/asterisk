@@ -2328,45 +2328,45 @@ int ast_setstate(struct ast_channel *chan, int state)
 	return 0;
 }
 
-
-static long tvdiff(struct timeval *now,struct timeval *then) {
+static long tvdiff(struct timeval *now, struct timeval *then) 
+{
 	return (((now->tv_sec * 1000) + now->tv_usec / 1000) - ((then->tv_sec * 1000) + then->tv_usec / 1000));
 }
 
-static void bridge_playfile(struct ast_channel *chan,char *sound,int remain) {
-	int res=0,min=0,sec=0;
+static void bridge_playfile(struct ast_channel *chan, char *sound, int remain) 
+{
+	int res=0, min=0, sec=0;
 	
-	if(remain > 0) {
-		if(remain / 60 > 1) {
+	if (remain > 0) {
+		if (remain / 60 > 1) {
 			min = remain / 60;
 			sec = remain % 60;
-		}
-		else {
+		} else {
 			sec = remain;
 		}
 	}
 	
-	if(!strcmp(sound,"timeleft")) {
-		res=ast_streamfile(chan,"vm-youhave",chan->language);
+	if (!strcmp(sound,"timeleft")) {
+		res = ast_streamfile(chan, "vm-youhave", chan->language);
 		res = ast_waitstream(chan, "");
-		if(min) {
-			res = ast_say_number(chan,min, AST_DIGIT_ANY, chan->language, (char *) NULL);
-			res=ast_streamfile(chan,"minutes",chan->language);
+		if (min) {
+			res = ast_say_number(chan, min, AST_DIGIT_ANY, chan->language, (char *) NULL);
+			res = ast_streamfile(chan, "minutes", chan->language);
 			res = ast_waitstream(chan, "");
 		}
-		if(sec) {
-			res = ast_say_number(chan,sec, AST_DIGIT_ANY, chan->language, (char *) NULL);
-			res=ast_streamfile(chan,"seconds",chan->language);
+		if (sec) {
+			res = ast_say_number(chan, sec, AST_DIGIT_ANY, chan->language, (char *) NULL);
+			res = ast_streamfile(chan, "seconds", chan->language);
 			res = ast_waitstream(chan, "");
 		}
-	}
-	else {
-		res=ast_streamfile(chan,sound,chan->language);
+	} else {
+		res = ast_streamfile(chan, sound, chan->language);
 		res = ast_waitstream(chan, "");
 	}
 }
 
-int ast_channel_bridge(struct ast_channel *c0,struct ast_channel *c1,struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc) {
+int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc) 
+{
 	/* Copy voice back and forth between the two channels.	Give the peer
 	   the ability to transfer calls with '#<extension' syntax. */
 	int flags;
@@ -2377,9 +2377,8 @@ int ast_channel_bridge(struct ast_channel *c0,struct ast_channel *c1,struct ast_
 	int res=0;
 	int nativefailed=0;
 	struct timeval start_time,precise_now;
-	long elapsed_ms=0,time_left_ms=0;
-	int playit=0,playitagain=1,first_time=1;
-
+	long elapsed_ms=0, time_left_ms=0;
+	int playit=0, playitagain=1, first_time=1;
 
 	flags = (config->allowdisconnect||config->allowredirect_out ? AST_BRIDGE_DTMF_CHANNEL_0 : 0) + (config->allowredirect_in ? AST_BRIDGE_DTMF_CHANNEL_1 : 0);
 
@@ -2387,14 +2386,10 @@ int ast_channel_bridge(struct ast_channel *c0,struct ast_channel *c1,struct ast_
 	gettimeofday(&start_time,NULL);
 	time_left_ms = config->timelimit;
 
-	if(config->play_to_caller && config->start_sound){
+	if (config->play_to_caller && config->start_sound)
 		bridge_playfile(c0,config->start_sound,time_left_ms / 1000);
-	}
-	if(config->play_to_callee && config->start_sound){
+	if (config->play_to_callee && config->start_sound)
 		bridge_playfile(c1,config->start_sound,time_left_ms / 1000);
-	}
-
-
 
 	/* Stop if we're a zombie or need a soft hangup */
 	if (c0->zombie || ast_check_hangup_locked(c0) || c1->zombie || ast_check_hangup_locked(c1)) 
@@ -2424,59 +2419,46 @@ int ast_channel_bridge(struct ast_channel *c0,struct ast_channel *c1,struct ast_
 			c0->name, c1->name, c0->uniqueid, c1->uniqueid);
 
 	for (/* ever */;;) {
-
 		/* timestamp */
-		if(config->timelimit) {
+		if (config->timelimit) {
 			gettimeofday(&precise_now,NULL);
 			elapsed_ms = tvdiff(&precise_now,&start_time);
 			time_left_ms = config->timelimit - elapsed_ms;
 
-			if(playitagain && (config->play_to_caller || config->play_to_callee) && (config->play_warning && time_left_ms <= config->play_warning)) { 
+			if (playitagain && (config->play_to_caller || config->play_to_callee) && (config->play_warning && time_left_ms <= config->play_warning)) { 
 				/* narrowing down to the end */
-				if(config->warning_freq == 0) {
+				if (config->warning_freq == 0) {
 					playit = 1;
 					first_time=0;
 					playitagain=0;
-				}
-				else if(first_time) {
+				} else if (first_time) {
 					playit = 1;
 					first_time=0;
-				}
-				else {
-					if((time_left_ms % config->warning_freq) <= 50) {
+				} else {
+					if ((time_left_ms % config->warning_freq) <= 50) {
 						playit = 1;
 					}
 				}
 			}
-			if(time_left_ms <= 0) {
-				if(config->play_to_caller && config->end_sound){
+			if (time_left_ms <= 0) {
+				if (config->play_to_caller && config->end_sound)
 					bridge_playfile(c0,config->end_sound,0);
-				}
-
-				if(config->play_to_callee && config->end_sound){
+				if (config->play_to_callee && config->end_sound)
 					bridge_playfile(c1,config->end_sound,0);
-				}
 				*fo = NULL;
 				if (who) *rc = who;
 				res = 0;
 				break;
 			}
-
-			if(time_left_ms >= 5000 && playit) {
-				if(config->play_to_caller && config->warning_sound && config->play_warning){
+			if (time_left_ms >= 5000 && playit) {
+				if (config->play_to_caller && config->warning_sound && config->play_warning)
 					bridge_playfile(c0,config->warning_sound,time_left_ms / 1000);
-				}
-
-				if(config->play_to_callee && config->warning_sound && config->play_warning){
+				if (config->play_to_callee && config->warning_sound && config->play_warning)
 					bridge_playfile(c1,config->warning_sound,time_left_ms / 1000);
-				}
 				playit = 0;
 			}
 			
 		}
-
-
-
 		/* Stop if we're a zombie or need a soft hangup */
 		if (c0->zombie || ast_check_hangup_locked(c0) || c1->zombie || ast_check_hangup_locked(c1)) {
 			*fo = NULL;
@@ -2509,7 +2491,6 @@ int ast_channel_bridge(struct ast_channel *c0,struct ast_channel *c1,struct ast_
 			if (res != -3) nativefailed++;
 		}
 	
-			
 		if (((c0->writeformat != c1->readformat) || (c0->readformat != c1->writeformat)) &&
 			!(c0->generator || c1->generator))  {
 			if (ast_channel_make_compatible(c0, c1)) {
