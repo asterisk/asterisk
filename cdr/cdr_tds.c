@@ -391,7 +391,7 @@ int load_module(void)
 	TDS_INT result_type;
 #endif
 
-	cfg = ast_load(config);
+	cfg = ast_config_load(config);
 	if (!cfg)
 	{
 		ast_log(LOG_NOTICE, "Unable to load config for MSSQL CDR's: %s\n", config);
@@ -462,7 +462,7 @@ int load_module(void)
 		language = strdupa("us_english");
 	}
 
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 
 	/* Connect to M$SQL Server */
 	if (!(login = tds_alloc_login()))

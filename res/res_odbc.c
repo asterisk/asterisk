@@ -93,7 +93,7 @@ static int load_odbc_config(void)
 
 	odbc_obj *obj;
 
-	config = ast_load(cfg);
+	config = ast_config_load(cfg);
 	if (config) {
 		for (cat = ast_category_browse(config, NULL); cat; cat=ast_category_browse(config, cat)) {
 			if (!strcmp(cat, "ENV")) {
@@ -140,7 +140,7 @@ static int load_odbc_config(void)
 
 			}
 		}
-		ast_destroy(config);
+		ast_config_destroy(config);
 	}
 	return 0;
 }

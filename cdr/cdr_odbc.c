@@ -231,7 +231,7 @@ static int odbc_load_module(void)
 
 	ast_mutex_lock(&odbc_lock);
 
-	cfg = ast_load(config);
+	cfg = ast_config_load(config);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "cdr_odbc: Unable to load config for ODBC CDR's: %s\n", config);
 		goto out;
@@ -331,7 +331,7 @@ static int odbc_load_module(void)
 		table = "cdr";
 	}
 
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 	if (option_verbose > 2) {
 		ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: dsn is %s\n",dsn);
 		ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: username is %s\n",username);

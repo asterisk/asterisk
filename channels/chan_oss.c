@@ -1026,7 +1026,7 @@ int load_module()
 	}
 	for (x=0;x<sizeof(myclis)/sizeof(struct ast_cli_entry); x++)
 		ast_cli_register(myclis + x);
-	if ((cfg = ast_load(config))) {
+	if ((cfg = ast_config_load(config))) {
 		v = ast_variable_browse(cfg, "general");
 		while(v) {
 			if (!strcasecmp(v->name, "autoanswer"))
@@ -1045,7 +1045,7 @@ int load_module()
 				playbackonly = ast_true(v->value);
 			v=v->next;
 		}
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
 	}
 	ast_pthread_create(&sthread, NULL, sound_thread, NULL);
 	return 0;

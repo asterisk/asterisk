@@ -18,7 +18,6 @@
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>
 #include <asterisk/channel_pvt.h>
-#include <asterisk/config_pvt.h>
 #include <asterisk/config.h>
 #include <asterisk/logger.h>
 #include <asterisk/module.h>
@@ -1137,7 +1136,7 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 	while(tmp) {
 		if (!strcasecmp(tmp->name, "type") &&
 		    !strcasecmp(tmp->value, "user")) {
-			ast_destroy_realtime(var);
+			ast_variables_destroy(var);
 			return NULL;
 		}
 		tmp = tmp->next;
@@ -1146,7 +1145,7 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 	peer = build_peer(peername, var, 1);
 	if (peer)
 		ast_set_flag(peer, SIP_REALTIME);
-	ast_destroy_realtime(var);
+	ast_variables_destroy(var);
 	return peer;
 }
 
@@ -1180,7 +1179,7 @@ static void sip_destroy_user(struct sip_user *user)
 {
 	ast_free_ha(user->ha);
 	if(user->vars) {
-		ast_destroy_realtime(user->vars);
+		ast_variables_destroy(user->vars);
 		user->vars = NULL;
 	}
 	if (ast_test_flag(user, SIP_REALTIME))
@@ -1206,7 +1205,7 @@ static struct sip_user *realtime_user(const char *username)
 	while (tmp) {
 		if (!strcasecmp(tmp->name, "type") &&
 		    !strcasecmp(tmp->value, "peer")) {
-			ast_destroy_realtime(var);
+			ast_variables_destroy(var);
 			return NULL;
 		}
 		tmp = tmp->next;
@@ -1220,7 +1219,7 @@ static struct sip_user *realtime_user(const char *username)
 		/* Add some finishing touches, addresses, etc */
 		ast_set_flag(user, SIP_REALTIME);	
 	}
-	ast_destroy_realtime(var);
+	ast_variables_destroy(var);
 	return user;
 }
 
@@ -1531,7 +1530,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 		}
 		ast_mutex_destroy(&p->lock);
 		if(p->vars) {
-			ast_destroy_realtime(p->vars);
+			ast_variables_destroy(p->vars);
 			p->vars = NULL;
 		}
 		free(p);
@@ -2295,7 +2294,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 		ast_log(LOG_WARNING, "Unable to create RTP session: %s\n", strerror(errno));
                 ast_mutex_destroy(&p->lock);
 		if(p->vars) {
-			ast_destroy_realtime(p->vars);
+			ast_variables_destroy(p->vars);
 			p->vars = NULL;
 		}
 		free(p);
@@ -5569,7 +5568,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 		ast_copy_flags(p, user, SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_NAT | SIP_PROG_INBAND | SIP_OSPAUTH);
 		/* copy vars */
 		for (v = user->vars ; v ; v = v->next) {
-			if((tmpvar = ast_new_variable(v->name, v->value))) {
+			if((tmpvar = ast_variable_new(v->name, v->value))) {
 				tmpvar->next = p->vars; 
 				p->vars = tmpvar;
 			}
@@ -8693,7 +8692,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 				if (varname && (varval = strchr(varname,'='))) {
 					*varval = '\0';
 					varval++;
-					if((tmpvar = ast_new_variable(varname, varval))) {
+					if((tmpvar = ast_variable_new(varname, varval))) {
 						tmpvar->next = user->vars;
 						user->vars = tmpvar;
 					}
@@ -9012,7 +9011,7 @@ static int reload_config(void)
 		ast_log(LOG_WARNING, "Unable to get hostname, SIP disabled\n");
 		return 0;
 	}
-	cfg = ast_load(config);
+	cfg = ast_config_load(config);
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
@@ -9252,7 +9251,7 @@ static int reload_config(void)
 		if (!hp) {
 			ast_log(LOG_WARNING, "Unable to get IP address for %s, SIP disabled\n", ourhost);
 			if (!__ourip.s_addr) {
-				ast_destroy(cfg);
+				ast_config_destroy(cfg);
 				return 0;
 			}
 		} else
@@ -9297,12 +9296,12 @@ static int reload_config(void)
 	ast_mutex_unlock(&netlock);
 
 	/* Release configuration from memory */
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 
 	/* Load the list of manual NOTIFY types to support */
 	if (notify_types)
-		ast_destroy(notify_types);
-	notify_types = ast_load(notify_config);
+		ast_config_destroy(notify_types);
+	notify_types = ast_config_load(notify_config);
 
 	return 0;
 }
@@ -9740,7 +9739,7 @@ int unload_module()
 			/* Free associated memory */
 			ast_mutex_destroy(&pl->lock);
 			if(pl->vars) {
-				ast_destroy_realtime(pl->vars);
+				ast_variables_destroy(pl->vars);
 				pl->vars = NULL;
 			}
 			free(pl);

@@ -36,7 +36,7 @@ static void loadconfigurationfile(void)
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	
-	cfg = ast_load(CONF_FILE);
+	cfg = ast_config_load(CONF_FILE);
 	if (!cfg) {
 		/* Standard configuration */
 		enablecdr = 0;
@@ -60,7 +60,7 @@ static void loadconfigurationfile(void)
 		cat = ast_category_browse(cfg, cat);
 	}
 	
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 }
 
 static int manager_log(struct ast_cdr *cdr)

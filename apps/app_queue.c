@@ -2388,7 +2388,7 @@ static void reload_queues(void)
 	int new;
 	char *general_val = NULL;
 	
-	cfg = ast_load("queues.conf");
+	cfg = ast_config_load("queues.conf");
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "No call queueing config file (queues.conf), so no call queues\n");
 		return;
@@ -2578,7 +2578,7 @@ static void reload_queues(void)
 		}
 		cat = ast_category_browse(cfg, cat);
 	}
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 	q = queues;
 	ql = NULL;
 	while(q) {

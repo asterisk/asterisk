@@ -3,9 +3,9 @@
  *
  * Configuration File Parser
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2005, Mark Spencer
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -18,12 +18,11 @@
 extern "C" {
 #endif
 
+#include <stdarg.h>
+
 struct ast_config;
 
-struct ast_comment {
-	struct ast_comment *next;
-	char cmt[0];
-};
+struct ast_category;
 
 struct ast_variable {
 	char *name;
@@ -37,35 +36,54 @@ struct ast_variable {
 	char stuff[0];
 };
 
+#include <asterisk/config_old.h>
+
+typedef struct ast_config *config_load_func(const char *database, const char *table, const char *configfile, struct ast_config *config);
+typedef struct ast_variable *realtime_var_get(const char *database, const char *table, va_list ap);
+typedef struct ast_config *realtime_multi_get(const char *database, const char *table, va_list ap);
+typedef int realtime_update(const char *database, const char *table, const char *keyfield, const char *entity, va_list ap);
+
+struct ast_config_engine {
+	char *name;
+	config_load_func *load_func;
+	realtime_var_get *realtime_func;
+	realtime_multi_get *realtime_multi_func;
+	realtime_update *update_func;
+	struct ast_config_engine *next;
+};
+
 /*! Load a config file */
 /*! 
  * \param configfile path of file to open.  If no preceding '/' character, path is considered relative to AST_CONFIG_DIR
  * Create a config structure from a given configuration file.
+ *
  * Returns NULL on error, or an ast_config data structure on success
  */
-struct ast_config *ast_load(char *configfile);
+struct ast_config *ast_config_load(const char *filename);
 
-/*! Removes a config */
+/*! Destroys a config */
 /*!
- * \param config config data structure associated with the config.
+ * \param config pointer to config data structure
  * Free memory associated with a given config
- * Returns nothing
+ *
  */
-void ast_destroy(struct ast_config *config);
+void ast_config_destroy(struct ast_config *config);
 
 /*! Goes through categories */
 /*!
- * \param config Which config file you wish to "browse"
+ * \param config Which config structure you wish to "browse"
  * \param prev A pointer to a previous category.
- * This funtion is kind of non-intuitive in it's use.  To begin, one passes NULL as the second arguement.  It will return a pointer to the string of the first category in the file.  From here on after, one must then pass the previous usage's return value as the second pointer, and it will return a pointer to the category name afterwards.  Note:  If you manually strcpy a string into a character array and pass it thinking it will return your category, it will not; the comparisons are not done doing strcmp, they are done by checking whether the value of the string POINTER is the same.
+ * This funtion is kind of non-intuitive in it's use.  To begin, one passes NULL as the second arguement.  It will return a pointer to the string of the first category in the file.  From here on after, one must then pass the previous usage's return value as the second pointer, and it will return a pointer to the category name afterwards.
+ *
  * Returns a category on success, or NULL on failure/no-more-categories
  */
-char *ast_category_browse(struct ast_config *config, char *prev);
+char *ast_category_browse(struct ast_config *config, const char *prev);
 
 /*! Goes through variables */
 /*!
- * Somewhat similar in intent as the ast_category_browse.  The category MUST be an actual pointer to an actual category (such as one obtained by using ast_category_browse()).
- * List variables of config file
+ * Somewhat similar in intent as the ast_category_browse.
+ * List variables of config file category
+ *
  * Returns ast_variable list on success, or NULL on failure
  */
 struct ast_variable *ast_variable_browse(const struct ast_config *config, const char *category);
@@ -73,43 +91,51 @@ struct ast_variable *ast_variable_browse(const struct ast_config *config, const 
 /*! Gets a variable */
 /*!
  * \param config which (opened) config to use
- * \param category category under which the variable lies (must be a pointer to the category, such as one given by ast_category_browse)
+ * \param category category under which the variable lies
  * \param value which variable you wish to get the data for
  * Goes through a given config file in the given category and searches for the given variable
+ *
  * Returns the variable value on success, or NULL if unable to find it.
- * Retrieve a specific variable */
-char *ast_variable_retrieve(const struct ast_config *config, const char *category, const char *value);
+ */
+char *ast_variable_retrieve(const struct ast_config *config, const char *category, const char *variable);
 
 /*! Make sure something is true */
 /*!
- * Determine affermativeness of a boolean value.
- * This function checks to see whether a string passed to it is an indication of an affirmitave value.  It checks to see if the string is "yes", "true", "y", "t", and "1".  
- * Returns 0 if the value of s is a NULL pointer, 0 on "truth", and -1 on falsehood.
+ * Determine if a string containing a boolean value is "true".
+ * This function checks to see whether a string passed to it is an indication of an "true" value.  It checks to see if the string is "yes", "true", "y", "t", "on" or "1".  
+ *
+ * Returns 0 if val is a NULL pointer, -1 if "true", and 0 otherwise.
  */
 int ast_true(const char *val);
 
 /*! Make sure something is false */
 /*!
- * Determine falseness of a boolean value.
- * This function checks to see whether a string passed to it is an indication of a negatirve value.  It checks to see if the string is "no", "false", "n", "f", and "0".  
- * Returns 0 if the value of s is a NULL pointer, 0 on "truth", and -1 on falsehood.
+ * Determine if a string containing a boolean value is "false".
+ * This function checks to see whether a string passed to it is an indication of an "false" value.  It checks to see if the string is "no", "false", "n", "f", "off" or "0".  
+ *
+ * Returns 0 if val is a NULL pointer, -1 if "false", and 0 otherwise.
  */
 int ast_false(const char *val);
 
-/*! Retrieve a category if it exists
+/*! Retrieve a category if it exists */
+/*!
  * \param config which config to use
  * \param category_name name of the category you're looking for
- * This will search through the categories within a given config file and search for a match.  The passed category_name can be a regular string.
- * Returns pointer to category if found, NULL if not. */
+ * This will search through the categories within a given config file for a match.
+ *
+ * Returns pointer to category if found, NULL if not.
+ */
 struct ast_category *ast_category_get(const struct ast_config *config, const char *category_name);
 
 /*! Check for category duplicates */
 /*!
  * \param config which config to use
  * \param category_name name of the category you're looking for
- * This will search through the categories within a given config file and search for a match.  The passed category_name can be a regular string (as opposed to a pointer of an existent string, lol)
- * Browse config structure and check for category duplicity Return non-zero if found */
-int ast_category_exist(struct ast_config *config, char *category_name);
+ * This will search through the categories within a given config file for a match.
+ *
+ * Return non-zero if found
+ */
+int ast_category_exist(const struct ast_config *config, const char *category_name);
 
 /*! Retrieve realtime configuration */
 /*!
@@ -148,18 +174,39 @@ struct ast_config *ast_load_realtime_multientry(const char *family, ...);
  */
 int ast_update_realtime(const char *family, const char *keyfield, const char *lookup, ...);
 
-/*! Free realtime configuration */
+/*! Free variable list */
 /*!
  * \param var the linked list of variables to free
- * This command free's a list of variables and should ONLY be used
- * in conjunction with ast_load_realtime and not with the regular ast_load.
+ * This function frees a list of variables.
  */
-void ast_destroy_realtime(struct ast_variable *var);
+void ast_variables_destroy(struct ast_variable *var);
+
+int ast_config_engine_register(struct ast_config_engine *new);
+int ast_config_engine_deregister(struct ast_config_engine *del);
+int register_config_cli(void);
+void read_config_maps(void);
+
+struct ast_config *ast_config_new(void);
+struct ast_category *ast_config_get_current_category(const struct ast_config *cfg);
+void ast_config_set_current_category(struct ast_config *cfg, const struct ast_category *cat);
+
+struct ast_category *ast_category_new(const char *name);
+void ast_category_append(struct ast_config *config, struct ast_category *cat);
+int ast_category_delete(struct ast_config *cfg, char *category);
+void ast_category_destroy(struct ast_category *cat);
+struct ast_variable *ast_category_detach_variables(struct ast_category *cat);
+void ast_category_rename(struct ast_category *cat, const char *name);
+
+struct ast_variable *ast_variable_new(const char *name, const char *value);
+void ast_variable_append(struct ast_category *category, struct ast_variable *variable);
+int ast_variable_delete(struct ast_config *cfg, char *category, char *variable, char *value);
+
+int config_text_file_save(const char *filename, const struct ast_config *cfg, const char *generator);
+
+struct ast_config *ast_config_internal_load(const char *configfile, struct ast_config *cfg);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
-
-
 
 #endif

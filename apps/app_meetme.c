@@ -1187,7 +1187,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 			}
 		} else {
 			/* Check the config */
-			cfg = ast_load("meetme.conf");
+			cfg = ast_config_load("meetme.conf");
 			if (!cfg) {
 				ast_log(LOG_WARNING, "No meetme.conf file :(\n");
 				return NULL;
@@ -1215,7 +1215,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 			if (!var) {
 				ast_log(LOG_DEBUG, "%s isn't a valid conference\n", confno);
 			}
-			ast_destroy(cfg);
+			ast_config_destroy(cfg);
 		}
 	} else if (dynamic_pin) {
 		/* Correct for the user selecting 'D' instead of 'd' to have
@@ -1373,7 +1373,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 
 			/* We only need to load the config file for static and empty_no_pin (otherwise we don't care) */
 			if ((empty_no_pin) || (!dynamic)) {
-				cfg = ast_load("meetme.conf");
+				cfg = ast_config_load("meetme.conf");
 				if (cfg) {
 					var = ast_variable_browse(cfg, "rooms");
 					while(var) {
@@ -1421,7 +1421,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 						}
 						var = var->next;
 					}
-					ast_destroy(cfg);
+					ast_config_destroy(cfg);
 				}
 			}
 			/* Select first conference number not in use */

@@ -413,7 +413,7 @@ int ast_enum_init(void)
 		free(sl);
 	}
 	toplevs = NULL;
-	cfg = ast_load("enum.conf");
+	cfg = ast_config_load("enum.conf");
 	if (cfg) {
 		sl = NULL;
 		v = ast_variable_browse(cfg, "general");
@@ -430,7 +430,7 @@ int ast_enum_init(void)
 			}
 			v = v->next;
 		}
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
 	} else {
 		toplevs = enum_newtoplev(TOPLEV);
 	}

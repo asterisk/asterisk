@@ -747,7 +747,7 @@ static int load_config(void)
 
 	/* Read in the config file */
 
-	cfg = ast_load(ALMRCV_CONFIG);
+	cfg = ast_config_load(ALMRCV_CONFIG);
                                                                                                                                   
 	if(!cfg){
 	
@@ -817,7 +817,7 @@ static int load_config(void)
 			strncpy(db_family, p, sizeof(db_family) - 1);
 			db_family[sizeof(db_family) - 1] = '\0';
 		}
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
 	}
 	return 0;
 

@@ -483,7 +483,7 @@ int iax_provision_reload(void)
 		cur->dead = 1;
 		cur = cur->next;
 	}
-	cfg = ast_load("iaxprov.conf");
+	cfg = ast_config_load("iaxprov.conf");
 	if (cfg) {
 		/* Load as appropriate */
 		cat = ast_category_browse(cfg, NULL);

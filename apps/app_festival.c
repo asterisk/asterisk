@@ -282,7 +282,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	char *intstr;
 	
 	struct ast_config *cfg;
-	cfg = ast_load(FESTIVAL_CONFIG);
+	cfg = ast_config_load(FESTIVAL_CONFIG);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "No such configuration file %s\n", FESTIVAL_CONFIG);
 		return -1;
@@ -308,7 +308,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	}
 	if (!vdata || ast_strlen_zero(vdata)) {
 		ast_log(LOG_WARNING, "festival requires an argument (text)\n");
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
 		return -1;
 	}
 	strncpy(data, vdata, sizeof(data) - 1);
@@ -326,7 +326,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 
     	if (fd < 0) {
 		ast_log(LOG_WARNING,"festival_client: can't get socket\n");
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
         	return -1;
 	}
         memset(&serv_addr, 0, sizeof(serv_addr));
@@ -335,7 +335,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	        serverhost = ast_gethostbyname(host, &ahp);
 	        if (serverhost == (struct hostent *)0) {
         	    	ast_log(LOG_WARNING,"festival_client: gethostbyname failed\n");
-			ast_destroy(cfg);
+			ast_config_destroy(cfg);
 	            	return -1;
         	}
 	        memmove(&serv_addr.sin_addr,serverhost->h_addr, serverhost->h_length);
@@ -345,7 +345,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 
 	if (connect(fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) != 0) {
 		ast_log(LOG_WARNING,"festival_client: connect to server failed\n");
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
         	return -1;
     	}
     	
@@ -448,7 +448,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
     		}
 	} while (strcmp(ack,"OK\n") != 0);
 	close(fd);
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 	LOCAL_USER_REMOVE(u);                                                                                
 	return res;
 

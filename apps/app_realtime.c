@@ -185,7 +185,7 @@ static int realtime_exec(struct ast_channel *chan, void *data)
 
 				pbx_builtin_setvar_helper(chan, vname, itt->value);
 			}
-			ast_destroy_realtime(var);
+			ast_variables_destroy(var);
 		} else if (option_verbose > 3)
 			ast_verbose(VERBOSE_PREFIX_4"No Realtime Matches Found.\n");
 	}

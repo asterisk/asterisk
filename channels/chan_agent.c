@@ -876,7 +876,7 @@ static int read_agent_config(void)
 	autologoff = 0;
 	wrapuptime = 0;
 	ackcall = 1;
-	cfg = ast_load(config);
+	cfg = ast_config_load(config);
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "No agent configuration found -- agent support disabled\n");
 		return 0;
@@ -988,7 +988,7 @@ static int read_agent_config(void)
 		p = pn;
 	}
 	ast_mutex_unlock(&agentlock);
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 	return 0;
 }
 

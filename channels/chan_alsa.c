@@ -990,7 +990,7 @@ int load_module()
 	int x;
 	struct ast_config *cfg;
 	struct ast_variable *v;
-	if ((cfg = ast_load(config))) {
+	if ((cfg = ast_config_load(config))) {
 		v = ast_variable_browse(cfg, "general");
 		while(v) {
 			if (!strcasecmp(v->name, "autoanswer"))
@@ -1011,7 +1011,7 @@ int load_module()
 				strncpy(outdevname, v->value, sizeof(outdevname)-1);
 			v=v->next;
 		}
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
 	}
 	res = pipe(sndcmd);
 	if (res) {

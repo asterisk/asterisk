@@ -1444,9 +1444,9 @@ static int load_config(void)
 	transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
 	featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
 
-	cfg = ast_load("features.conf");
+	cfg = ast_config_load("features.conf");
 	if (!cfg) {
-		cfg = ast_load("parking.conf");
+		cfg = ast_config_load("parking.conf");
 		if (cfg)
 			ast_log(LOG_NOTICE, "parking.conf is deprecated in favor of 'features.conf'.  Please rename it.\n");
 	}
@@ -1501,7 +1501,7 @@ static int load_config(void)
 				ast_log(LOG_NOTICE, "Unknown feature '%s'\n", var->name);
 			var = var->next;
 		}
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
 	}
 	
 	if (con)

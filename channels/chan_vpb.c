@@ -2425,7 +2425,7 @@ int load_module()
 	int bal3 = -1;
 	char * callerid = NULL;
 
-	cfg = ast_load(config);
+	cfg = ast_config_load(config);
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
@@ -2530,7 +2530,7 @@ int load_module()
 		done: (void)0;
 	} ast_mutex_unlock(&iflock);
 
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 
 	if (!error && ast_channel_register(type, tdesc, prefformat, vpb_request) != 0) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);

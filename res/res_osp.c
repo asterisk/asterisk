@@ -746,7 +746,7 @@ static int config_load(void)
 		osp = osp->next;
 	}
 	ast_mutex_unlock(&osplock);
-	cfg = ast_load("osp.conf");
+	cfg = ast_config_load("osp.conf");
 	if (cfg) {
 		if (!initialized) {
 			cat = ast_variable_retrieve(cfg, "general", "accelerate");
@@ -766,7 +766,7 @@ static int config_load(void)
 				osp_build(cfg, cat);
 			cat = ast_category_browse(cfg, cat);
 		}
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
 	} else
 		ast_log(LOG_NOTICE, "No OSP configuration found.  OSP support disabled\n");
 	ast_mutex_lock(&osplock);

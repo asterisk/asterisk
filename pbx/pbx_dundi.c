@@ -4446,7 +4446,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 	dundi_eid testeid;
 
 	dundi_ttl = DUNDI_DEFAULT_TTL;
-	cfg = ast_load(config_file);
+	cfg = ast_config_load(config_file);
 	
 	
 	if (!cfg) {
@@ -4569,7 +4569,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 		cat = ast_category_browse(cfg, cat);
 	}
 	prune_peers();
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 	load_password();
 	if (globalpcmodel & DUNDI_MODEL_OUTBOUND)
 		dundi_precache_full();

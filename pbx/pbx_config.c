@@ -972,13 +972,13 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 		snprintf(filename, sizeof(filename), "%s/%s",
 			(char *)ast_config_AST_CONFIG_DIR, config);
 
-	cfg = ast_load("extensions.conf");
+	cfg = ast_config_load("extensions.conf");
 
 	/* try to lock contexts list */
 	if (ast_lock_contexts()) {
 		ast_cli(fd, "Failed to lock contexts list\n");
 		ast_mutex_unlock(&save_dialplan_lock);
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
 		return RESULT_FAILURE;
 	}
 
@@ -988,7 +988,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 			filename);
 		ast_unlock_contexts();
 		ast_mutex_unlock(&save_dialplan_lock);
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
 		return RESULT_FAILURE;
 	}
 
@@ -1006,7 +1006,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 		fprintf(output, "\n");
 	}
 
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 	
 	/* walk all contexts */
 	c = ast_walk_contexts(NULL);
@@ -1623,7 +1623,7 @@ static int pbx_load_module(void)
 	char realvalue[256];
 	int lastpri = -2;
 
-	cfg = ast_load(config);
+	cfg = ast_config_load(config);
 	if (cfg) {
 		/* Use existing config to populate the PBX table */
 		static_config = ast_true(ast_variable_retrieve(cfg, "general",
@@ -1775,7 +1775,7 @@ static int pbx_load_module(void)
 			}
 			cxt = ast_category_browse(cfg, cxt);
 		}
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
 	}
 	ast_merge_contexts_and_delete(&local_contexts,registrar);
 

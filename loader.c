@@ -19,7 +19,6 @@
 #include <asterisk/module.h>
 #include <asterisk/options.h>
 #include <asterisk/config.h>
-#include <asterisk/config_pvt.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
 #include <asterisk/term.h>
@@ -169,9 +168,9 @@ char *ast_module_helper(char *line, char *word, int pos, int state, int rpos, in
 		ret = strdup(m->resource);
 	} else {
 		ret = NULL;
-		if (!strncasecmp(word, "astconfig", strlen(word))) {
+		if (!strncasecmp(word, "extconfig", strlen(word))) {
 			if (++which > state)
-				ret = strdup("astconfig");
+				ret = strdup("extconfig");
 		} else if (!strncasecmp(word, "manager", strlen(word))) {
 			if (++which > state)
 				ret = strdup("manager");
@@ -200,8 +199,8 @@ int ast_module_reload(const char *name)
 		ast_verbose("The previous reload command didn't finish yet\n");
 		return -1;
 	}
-	if (!name || !strcasecmp(name, "astconfig")) {
-		read_ast_cust_config();
+	if (!name || !strcasecmp(name, "extconfig")) {
+		read_config_maps();
 		reloaded = 2;
 	}
 	if (!name || !strcasecmp(name, "manager")) {
@@ -403,11 +402,11 @@ int ast_load_resource(const char *resource_name)
 	/* Keep the module file parsing silent */
 	o = option_verbose;
 	option_verbose = 0;
-	cfg = ast_load(AST_MODULE_CONFIG);
+	cfg = ast_config_load(AST_MODULE_CONFIG);
 	option_verbose = o;
 	res = __load_resource(resource_name, cfg);
 	if (cfg)
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
 	return res;
 }	
 
@@ -444,7 +443,7 @@ int load_modules()
 	char tmp[80];
 	if (option_verbose) 
 		ast_verbose( "Asterisk Dynamic Loader Starting:\n");
-	cfg = ast_load(AST_MODULE_CONFIG);
+	cfg = ast_config_load(AST_MODULE_CONFIG);
 	if (cfg) {
 		/* Load explicitly defined modules */
 		v = ast_variable_browse(cfg, "modules");
@@ -459,7 +458,7 @@ int load_modules()
 				if (__load_resource(v->value, cfg)) {
 					ast_log(LOG_WARNING, "Loading module %s failed!\n", v->value);
 					if (cfg)
-						ast_destroy(cfg);
+						ast_config_destroy(cfg);
 					return -1;
 				}
 			}
@@ -509,7 +508,7 @@ int load_modules()
 						if (__load_resource(d->d_name, cfg)) {
 							ast_log(LOG_WARNING, "Loading module %s failed!\n", d->d_name);
 							if (cfg)
-								ast_destroy(cfg);
+								ast_config_destroy(cfg);
 							return -1;
 						}
 					}
@@ -521,7 +520,7 @@ int load_modules()
 			}
 		}
 	} 
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 	return 0;
 }
 

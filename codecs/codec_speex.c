@@ -308,7 +308,7 @@ static void parse_config(void)
 	struct ast_variable *var;
 	int res;
 
-	if ((cfg = ast_load("codecs.conf"))) {
+	if ((cfg = ast_config_load("codecs.conf"))) {
 		if ((var = ast_variable_browse(cfg, "speex"))) {
 			while (var) {
 				if (!strcasecmp(var->name, "quality")) {

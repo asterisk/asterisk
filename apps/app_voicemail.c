@@ -1072,7 +1072,7 @@ static int store_file(char *dir, int msgnum)
 		else
 			strncpy(fn, dir, sizeof(fn) - 1);
 		snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
-		cfg = ast_load(full_fn);
+		cfg = ast_config_load(full_fn);
 		snprintf(full_fn, sizeof(full_fn), "%s.%s", fn, fmt);
 		fd = open(full_fn, O_RDWR);
 		if (fd < 0) {
@@ -1144,7 +1144,7 @@ static int store_file(char *dir, int msgnum)
 		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
 yuck:	
 	if (cfg)
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
 	if (fdm)
 		munmap(fdm, fdlen);
 	if (fd > -1)
@@ -3091,7 +3091,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 	
 				/* load the information on the source message so we can send an e-mail like a new message */
 				snprintf(miffile, sizeof(miffile), "%s/msg%04d.txt", dir, curmsg);
-				if ((mif=ast_load(miffile))) {
+				if ((mif=ast_config_load(miffile))) {
 	
 					/* set callerid and duration variables */
 					snprintf(callerid, sizeof(callerid), "FWD from: %s from %s", sender->fullname, ast_variable_retrieve(mif, NULL, "callerid"));
@@ -3116,7 +3116,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 						sendpage(myserveremail, vmtmp->pager, todircount, vmtmp->mailbox, chan->cid.cid_num, chan->cid.cid_name, duration, vmtmp);
 					}
 				  
-					ast_destroy(mif); /* or here */
+					ast_config_destroy(mif); /* or here */
 				}
 				/* Leave voicemail for someone */
 				manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, has_voicemail(ext_context, NULL));
@@ -3344,7 +3344,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg);
 	snprintf(filename,sizeof(filename), "%s.txt", vms->fn2);
 	RETRIEVE(vms->curdir, vms->curmsg);
-	msg_cfg = ast_load(filename);
+	msg_cfg = ast_config_load(filename);
 	if (!msg_cfg) {
 		ast_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
 		return 0;
@@ -3375,7 +3375,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	/* Allow pressing '1' to skip envelope / callerid */
 	if (res == '1')
 		res = 0;
-	ast_destroy(msg_cfg);
+	ast_config_destroy(msg_cfg);
 
 	if (!res) {
 		make_file(vms->fn, sizeof(vms->fn), vms->curdir, vms->curmsg);
@@ -5139,7 +5139,7 @@ static int load_config(void)
 	int x;
 	int tmpadsi[4];
 
-	cfg = ast_load(VOICEMAIL_CONFIG);
+	cfg = ast_config_load(VOICEMAIL_CONFIG);
 	ast_mutex_lock(&vmlock);
 	cur = users;
 	while (cur) {
@@ -5475,7 +5475,7 @@ static int load_config(void)
 				tmpread = tmpwrite+len;
 			}
 		}
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
 		ast_mutex_unlock(&vmlock);
 		return 0;
 	} else {
@@ -5605,7 +5605,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 
 	make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg);
 	snprintf(filename,sizeof(filename), "%s.txt", vms->fn2);
-	msg_cfg = ast_load(filename);
+	msg_cfg = ast_config_load(filename);
 	if (!msg_cfg) {
 		ast_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
 		return 0;
@@ -5735,7 +5735,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 		}
 	}
 
-	ast_destroy(msg_cfg);
+	ast_config_destroy(msg_cfg);
 
 	if (!res) {
 		make_file(vms->fn, sizeof(vms->fn), vms->curdir, msg);

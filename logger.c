@@ -267,7 +267,7 @@ static void init_logger_chain(void)
 	/* close syslog */
 	closelog();
 	
-	cfg = ast_load("logger.conf");
+	cfg = ast_config_load("logger.conf");
 	
 	/* If no config file, we're fine */
 	if (!cfg)
@@ -299,7 +299,7 @@ static void init_logger_chain(void)
 		var = var->next;
 	}
 
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 	ast_mutex_unlock(&loglock);
 }
 

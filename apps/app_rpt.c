@@ -3856,7 +3856,7 @@ pthread_attr_t attr;
 	/* start with blank config */
 	memset(&rpt_vars,0,sizeof(rpt_vars));
 
-	cfg = ast_load("rpt.conf");
+	cfg = ast_config_load("rpt.conf");
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to open radio repeater configuration rpt.conf.  Radio Repeater disabled.\n");
 		pthread_exit(NULL);

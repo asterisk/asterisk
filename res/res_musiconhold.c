@@ -865,7 +865,7 @@ static int load_moh_classes(void)
 	char *args;
 	int x = 0;
 
-	cfg = ast_load("musiconhold.conf");
+	cfg = ast_config_load("musiconhold.conf");
 
 	if (!cfg)
 		return 0;
@@ -897,7 +897,7 @@ static int load_moh_classes(void)
 		var = var->next;
 	}
 
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 	return x;
 }
 

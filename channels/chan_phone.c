@@ -1232,7 +1232,7 @@ int load_module()
 	struct phone_pvt *tmp;
 	int mode = MODE_IMMEDIATE;
 	int txgain = DEFAULT_GAIN, rxgain = DEFAULT_GAIN; /* default gain 1.0 */
-	cfg = ast_load(config);
+	cfg = ast_config_load(config);
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
@@ -1255,7 +1255,7 @@ int load_module()
 					
 				} else {
 					ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
-					ast_destroy(cfg);
+					ast_config_destroy(cfg);
 					ast_mutex_unlock(&iflock);
 					__unload_module();
 					return -1;
@@ -1316,11 +1316,11 @@ int load_module()
 			 AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | 
 			 AST_FORMAT_ULAW : prefformat, phone_request)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
 		__unload_module();
 		return -1;
 	}
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 	/* And start the monitor for the first time */
 	restart_monitor();
 	return 0;

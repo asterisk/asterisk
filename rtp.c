@@ -1753,7 +1753,7 @@ void ast_rtp_reload(void)
 #ifdef SO_NO_CHECK
 	checksums = 1;
 #endif
-	cfg = ast_load("rtp.conf");
+	cfg = ast_config_load("rtp.conf");
 	if (cfg) {
 		if ((s = ast_variable_retrieve(cfg, "general", "rtpstart"))) {
 			rtpstart = atoi(s);
@@ -1780,7 +1780,7 @@ void ast_rtp_reload(void)
 				ast_log(LOG_WARNING, "Disabling RTP checksums is not supported on this operating system!\n");
 #endif
 		}
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
 	}
 	if (rtpstart >= rtpend) {
 		ast_log(LOG_WARNING, "Unreasonable values for RTP start in rtp.conf/end\n");

@@ -1728,7 +1728,7 @@ int reload_config(void)
 	char *cat;
     	char *utype;
 	
-	cfg = ast_load(config);
+	cfg = ast_config_load(config);
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
@@ -1867,7 +1867,7 @@ int reload_config(void)
 		}
 		cat = ast_category_browse(cfg, cat);
 	}
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 
 	/* Register our H.323 aliases if any*/
 	while (alias) {		

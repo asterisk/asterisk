@@ -351,7 +351,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "directory requires an argument (context[,dialcontext])\n");
 		return -1;
 	}
-	cfg = ast_load(DIRECTORY_CONFIG);
+	cfg = ast_config_load(DIRECTORY_CONFIG);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "Unable to open directory configuration %s\n", DIRECTORY_CONFIG);
 		return -1;
@@ -400,7 +400,7 @@ top:
 			}
 		}
 	}
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }

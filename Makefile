@@ -231,7 +231,7 @@ OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	cdr.o tdd.o acl.o rtp.o manager.o asterisk.o ast_expr.o \
 	dsp.o chanvars.o indications.o autoservice.o db.o privacy.o \
 	astmm.o enum.o srv.o dns.o aescrypt.o aestab.o aeskey.o \
-	utils.o 
+	utils.o config_old.o
 ifeq (${OSARCH},Darwin)
 OBJS+=poll.o dlfcn.o
 ASTLINK=-Wl,-dynamic
@@ -597,4 +597,3 @@ cleantest:
 	if ! cmp -s .cleancount .lastclean ; then \
 		$(MAKE) clean; cp -f .cleancount .lastclean;\
 	fi
-		

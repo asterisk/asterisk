@@ -230,7 +230,7 @@ static int ind_load_module(void)
 
 	/* that the following cast is needed, is yuk! */
 	/* yup, checked it out. It is NOT written to. */
-	cfg = ast_load((char *)config);
+	cfg = ast_config_load((char *)config);
 	if (!cfg)
 		return 0;
 
@@ -245,7 +245,7 @@ static int ind_load_module(void)
 		tones = malloc(sizeof(struct tone_zone));
 		if (!tones) {
 			ast_log(LOG_WARNING,"Out of memory\n");
-			ast_destroy(cfg);
+			ast_config_destroy(cfg);
 			return -1;
 		}
 		memset(tones,0,sizeof(struct tone_zone));
@@ -269,7 +269,7 @@ static int ind_load_module(void)
 					tmp = realloc(tones->ringcadance,(tones->nrringcadance+1)*sizeof(int));
 					if (!tmp) {
 						ast_log(LOG_WARNING, "Out of memory\n");
-						ast_destroy(cfg);
+						ast_config_destroy(cfg);
 						return -1;
 					}
 					tones->ringcadance = tmp;
@@ -286,7 +286,7 @@ static int ind_load_module(void)
 					struct tone_zone* azone = malloc(sizeof(struct tone_zone));
 					if (!azone) {
 						ast_log(LOG_WARNING,"Out of memory\n");
-						ast_destroy(cfg);
+						ast_config_destroy(cfg);
 						return -1;
 					}
 					memset(azone,0,sizeof(struct tone_zone));
@@ -313,7 +313,7 @@ static int ind_load_module(void)
 				ts = malloc(sizeof(struct tone_zone_sound));
 				if (!ts) {
 					ast_log(LOG_WARNING, "Out of memory\n");
-					ast_destroy(cfg);
+					ast_config_destroy(cfg);
 					return -1;
 				}
 				ts->next = NULL;
@@ -341,7 +341,7 @@ out:			v = v->next;
 	if (!country || !*country || ast_set_indication_country(country))
 		ast_log(LOG_WARNING,"Unable to set the default country (for indication tones)\n");
 
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 	return 0;
 }
 

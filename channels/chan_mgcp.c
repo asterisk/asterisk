@@ -4043,7 +4043,7 @@ static int reload_config(void)
 		ast_log(LOG_WARNING, "Unable to get hostname, MGCP disabled\n");
 		return 0;
 	}
-	cfg = ast_load(config);
+	cfg = ast_config_load(config);
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
@@ -4144,7 +4144,7 @@ static int reload_config(void)
 		hp = ast_gethostbyname(ourhost, &ahp);
 		if (!hp) {
 			ast_log(LOG_WARNING, "Unable to get our IP address, MGCP disabled\n");
-			ast_destroy(cfg);
+			ast_config_destroy(cfg);
 			return 0;
 		}
 		memcpy(&__ourip, hp->h_addr, sizeof(__ourip));
@@ -4181,7 +4181,7 @@ static int reload_config(void)
 		}
 	}
 	ast_mutex_unlock(&netlock);
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 
 	/* SC: send audit only to the new endpoints */
 	g = gateways;

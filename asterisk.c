@@ -48,7 +48,6 @@
 #include "editline/histedit.h"
 #include "asterisk.h"
 #include <asterisk/config.h>
-#include <asterisk/config_pvt.h>
 #include <sys/resource.h>
 #include <grp.h>
 #include <pwd.h>
@@ -1498,11 +1497,11 @@ static void ast_readconfig(void) {
 	char *config = ASTCONFPATH;
 
 	if (option_overrideconfig == 1) {
-		cfg = ast_load((char *)ast_config_AST_CONFIG_FILE);
+		cfg = ast_config_load((char *)ast_config_AST_CONFIG_FILE);
 		if (!cfg)
 			ast_log(LOG_WARNING, "Unable to open specified master config file '%s', using builtin defaults\n", ast_config_AST_CONFIG_FILE);
 	} else {
-		cfg = ast_load(config);
+		cfg = ast_config_load(config);
 	}
 
 	/* init with buildtime config */
@@ -1571,7 +1570,7 @@ static void ast_readconfig(void) {
 		}
 		v = v->next;
 	}
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 }
 
 int main(int argc, char *argv[])
@@ -1742,10 +1741,10 @@ int main(int argc, char *argv[])
 	ast_readconfig();
 
 	if (option_console && !option_verbose) 
-		ast_verbose("[ Initializing Custom Configuration Options]");
+		ast_verbose("[ Initializing Custom Configuration Options ]");
 	/* custom config setup */
 	register_config_cli();
-	read_ast_cust_config();
+	read_config_maps();
 	
 
 	if (option_console) {

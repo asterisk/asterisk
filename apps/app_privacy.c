@@ -82,7 +82,7 @@ privacy_exec (struct ast_channel *chan, void *data)
 			}
 		}
 		/*Read in the config file*/
-		cfg = ast_load(PRIV_CONFIG);
+		cfg = ast_config_load(PRIV_CONFIG);
 		
 		
 		/*Play unidentified call*/
@@ -144,7 +144,7 @@ privacy_exec (struct ast_channel *chan, void *data)
 				chan->priority+=100;
 		}
 		if (cfg) 
-			ast_destroy(cfg);
+			ast_config_destroy(cfg);
 	}
 
   LOCAL_USER_REMOVE (u);

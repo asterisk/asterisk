@@ -398,7 +398,7 @@ static int authenticate(struct mansession *s, struct message *m)
 	char *key = astman_get_header(m, "Key");
 	char *events = astman_get_header(m, "Events");
 	
-	cfg = ast_load("manager.conf");
+	cfg = ast_config_load("manager.conf");
 	if (!cfg)
 		return -1;
 	cat = ast_category_browse(cfg, NULL);
@@ -423,7 +423,7 @@ static int authenticate(struct mansession *s, struct message *m)
 				if (ha && !ast_apply_ha(ha, &(s->sin))) {
 					ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
 					ast_free_ha(ha);
-					ast_destroy(cfg);
+					ast_config_destroy(cfg);
 					return -1;
 				} else if (ha)
 					ast_free_ha(ha);
@@ -443,7 +443,7 @@ static int authenticate(struct mansession *s, struct message *m)
 						if (!strcmp(md5key, key))
 							break;
 						else {
-							ast_destroy(cfg);
+							ast_config_destroy(cfg);
 							return -1;
 						}
 					}
@@ -451,7 +451,7 @@ static int authenticate(struct mansession *s, struct message *m)
 					break;
 				} else {
 					ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
-					ast_destroy(cfg);
+					ast_config_destroy(cfg);
 					return -1;
 				}	
 			}
@@ -462,13 +462,13 @@ static int authenticate(struct mansession *s, struct message *m)
 		strncpy(s->username, cat, sizeof(s->username) - 1);
 		s->readperm = get_perm(ast_variable_retrieve(cfg, cat, "read"));
 		s->writeperm = get_perm(ast_variable_retrieve(cfg, cat, "write"));
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
 		if (events)
 			set_eventmask(s, events);
 		return 0;
 	}
 	ast_log(LOG_NOTICE, "%s tried to authenticate with non-existant user '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 	return -1;
 }
 
@@ -1455,7 +1455,7 @@ int init_manager(void)
 	}
 	portno = DEFAULT_MANAGER_PORT;
 	displayconnects = 1;
-	cfg = ast_load("manager.conf");
+	cfg = ast_config_load("manager.conf");
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to open management configuration manager.conf.  Call management disabled.\n");
 		return 0;
@@ -1507,7 +1507,7 @@ int init_manager(void)
 		ast_log(LOG_WARNING, "Unable to change management port / enabled\n");
 #endif
 	}
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 	
 	/* If not enabled, do nothing */
 	if (!enabled) {

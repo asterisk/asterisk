@@ -87,14 +87,14 @@ static int load_config(void)
 	struct ast_config *cfg;
 	char *s;
 
-	cfg = ast_load(ENUM_CONFIG);
+	cfg = ast_config_load(ENUM_CONFIG);
 	if (cfg) {
 		if (!(s=ast_variable_retrieve(cfg, "general", "h323driver"))) {
 			strncpy(h323driver, H323DRIVERDEFAULT, sizeof(h323driver) - 1);
 		} else {
 			strncpy(h323driver, s, sizeof(h323driver) - 1);
 		}
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
 		return 0;
 	}
 	ast_log(LOG_NOTICE, "No ENUM Config file, using defaults\n");

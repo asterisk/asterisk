@@ -13,7 +13,6 @@
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
 #include <asterisk/config.h>
-#include <asterisk/config_pvt.h>
 #include <asterisk/options.h>
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
@@ -92,7 +91,6 @@ static struct ast_variable *realtime_switch_common(const char *table, const char
 {
 	struct ast_variable *var;
 	struct ast_config *cfg;
-	struct ast_category *cat;
 	char pri[20];
 	char *ematch;
 	char rexten[AST_MAX_EXTENSION + 20]="";
@@ -116,27 +114,27 @@ static struct ast_variable *realtime_switch_common(const char *table, const char
 	if (!var) {
 		cfg = ast_load_realtime_multientry(table, "exten LIKE", "\\_%", "context", context, "priority", pri, NULL);	
 		if (cfg) {
-			cat = cfg->root;
+			char *cat = ast_category_browse(cfg, NULL);
+
 			while(cat) {
 				switch(mode) {
 				case MODE_MATCHMORE:
-					match = ast_extension_close(cat->name, exten, 1);
+					match = ast_extension_close(cat, exten, 1);
 					break;
 				case MODE_CANMATCH:
-					match = ast_extension_close(cat->name, exten, 0);
+					match = ast_extension_close(cat, exten, 0);
 					break;
 				case MODE_MATCH:
 				default:
-					match = ast_extension_match(cat->name, exten);
+					match = ast_extension_match(cat, exten);
 				}
 				if (match) {
-					var = cat->root;
-					cat->root = NULL;
+					var = ast_category_detach_variables(ast_category_get(cfg, cat));
 					break;
 				}
-				cat = cat->next;
+				cat = ast_category_browse(cfg, cat);
 			}
-			ast_destroy(cfg);
+			ast_config_destroy(cfg);
 		}
 	}
 	return var;
@@ -145,7 +143,7 @@ static struct ast_variable *realtime_switch_common(const char *table, const char
 static int realtime_exists(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	REALTIME_COMMON(MODE_MATCH);
-	if (var) ast_destroy_realtime(var);
+	if (var) ast_variables_destroy(var);
 	if (var)
 		res = 1;
 	return res > 0 ? res : 0;
@@ -154,7 +152,7 @@ static int realtime_exists(struct ast_channel *chan, const char *context, const 
 static int realtime_canmatch(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	REALTIME_COMMON(MODE_CANMATCH);
-	if (var) ast_destroy_realtime(var);
+	if (var) ast_variables_destroy(var);
 	if (var)
 		res = 1;
 	return res > 0 ? res : 0;
@@ -180,7 +178,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 				tmp = ast_strdupa(v->value);
 			v = v->next;
 		}
-		ast_destroy_realtime(var);
+		ast_variables_destroy(var);
 		if (!ast_strlen_zero(app)) {
 			a = pbx_findapp(app);
 			if (a) {
@@ -212,7 +210,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 static int realtime_matchmore(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	REALTIME_COMMON(MODE_MATCHMORE);
-	if (var) ast_destroy_realtime(var);
+	if (var) ast_variables_destroy(var);
 	if (var)
 		res = 1;
 	return res > 0 ? res : 0;

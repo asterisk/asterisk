@@ -949,7 +949,7 @@ int load_module()
 	struct ast_variable *v;
 	struct ast_modem_pvt *tmp;
 	char driver[80];
-	cfg = ast_load(config);
+	cfg = ast_config_load(config);
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
@@ -972,7 +972,7 @@ int load_module()
 					
 				} else {
 					ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
-					ast_destroy(cfg);
+					ast_config_destroy(cfg);
 					ast_mutex_unlock(&iflock);
 					__unload_module();
 					return -1;
@@ -984,7 +984,7 @@ int load_module()
 				
 			if (ast_load_resource(driver)) {
 				ast_log(LOG_ERROR, "Failed to load driver %s\n", driver);
-				ast_destroy(cfg);
+				ast_config_destroy(cfg);
 				ast_mutex_unlock(&iflock);
 				__unload_module();
 				return -1;
@@ -1055,11 +1055,11 @@ int load_module()
 	if (ast_channel_register(type, tdesc, /* XXX Don't know our types -- maybe we should register more than one XXX */ 
 						AST_FORMAT_SLINEAR, modem_request)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
-		ast_destroy(cfg);
+		ast_config_destroy(cfg);
 		__unload_module();
 		return -1;
 	}
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 	/* And start the monitor for the first time */
 	restart_monitor();
 	return 0;

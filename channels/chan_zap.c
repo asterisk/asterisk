@@ -9236,7 +9236,7 @@ static int setup_zap(int reload)
 	struct zt_pri *pri;
 #endif
 
-	cfg = ast_load(config);
+	cfg = ast_config_load(config);
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
@@ -9321,7 +9321,7 @@ static int setup_zap(int reload)
 			if (reload == 0) {
 				if (cur_signalling < 0) {
 					ast_log(LOG_ERROR, "Signalling must be specified before any channels are.\n");
-					ast_destroy(cfg);
+					ast_config_destroy(cfg);
 					ast_mutex_unlock(&iflock);
 					return -1;
 				}
@@ -9333,13 +9333,13 @@ static int setup_zap(int reload)
 			if (!strcasecmp(v->name, "crv")) {
 				if (sscanf(c, "%d:%n", &trunkgroup, &y) != 1) {
 					ast_log(LOG_WARNING, "CRV must begin with trunkgroup followed by a colon at line %d\n", v->lineno);
-					ast_destroy(cfg);
+					ast_config_destroy(cfg);
 					ast_mutex_unlock(&iflock);
 					return -1;
 				}
 				if (trunkgroup < 1) {
 					ast_log(LOG_WARNING, "CRV trunk group must be a postive number at line %d\n", v->lineno);
-					ast_destroy(cfg);
+					ast_config_destroy(cfg);
 					ast_mutex_unlock(&iflock);
 					return -1;
 				}
@@ -9352,7 +9352,7 @@ static int setup_zap(int reload)
 				}
 				if (!pri) {
 					ast_log(LOG_WARNING, "No such trunk group %d at CRV declaration at line %d\n", trunkgroup, v->lineno);
-					ast_destroy(cfg);
+					ast_config_destroy(cfg);
 					ast_mutex_unlock(&iflock);
 					return -1;
 				}
@@ -9370,7 +9370,7 @@ static int setup_zap(int reload)
 					found_pseudo = 1;
 				} else {
 					ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'\n", v->value, chan);
-					ast_destroy(cfg);
+					ast_config_destroy(cfg);
 					ast_mutex_unlock(&iflock);
 					return -1;
 				}
@@ -9401,7 +9401,7 @@ static int setup_zap(int reload)
 							ast_log(LOG_ERROR, "Unable to reconfigure channel '%s'\n", v->value);
 						else
 							ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
-						ast_destroy(cfg);
+						ast_config_destroy(cfg);
 						ast_mutex_unlock(&iflock);
 						return -1;
 					}
@@ -9741,7 +9741,7 @@ static int setup_zap(int reload)
 					switchtype = PRI_SWITCH_QSIG;
 				else {
 					ast_log(LOG_ERROR, "Unknown switchtype '%s'\n", v->value);
-					ast_destroy(cfg);
+					ast_config_destroy(cfg);
 					ast_mutex_unlock(&iflock);
 					return -1;
 				}
@@ -9923,7 +9923,7 @@ static int setup_zap(int reload)
 		}
 	}
 	ast_mutex_unlock(&iflock);
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 #ifdef ZAPATA_PRI
 	if (!reload) {
 		for (x=0;x<NUM_SPANS;x++) {

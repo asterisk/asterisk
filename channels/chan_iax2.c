@@ -15,7 +15,6 @@
 #include <asterisk/frame.h> 
 #include <asterisk/channel.h>
 #include <asterisk/channel_pvt.h>
-#include <asterisk/config_pvt.h>
 #include <asterisk/logger.h>
 #include <asterisk/module.h>
 #include <asterisk/pbx.h>
@@ -1470,7 +1469,7 @@ retry:
 		}
 		if (!owner) {
 			if (pvt->vars) {
-				ast_destroy_realtime(pvt->vars);
+				ast_variables_destroy(pvt->vars);
 				pvt->vars = NULL;
 			}
 			free(pvt);
@@ -2170,7 +2169,7 @@ static struct iax2_peer *realtime_peer(const char *peername)
 				}
 			}
 		}
-		ast_destroy_realtime(var);
+		ast_variables_destroy(var);
 	}
 	return peer;
 }
@@ -2201,12 +2200,12 @@ static struct iax2_user *realtime_user(const char *username)
 				tmp = tmp->next;
 			}
 		}
-		ast_destroy_realtime(var);
+		ast_variables_destroy(var);
 	}
 	return user;
 }
 
-static void realtime_update(const char *peername, struct sockaddr_in *sin)
+static void realtime_update_peer(const char *peername, struct sockaddr_in *sin)
 {
 	char port[10];
 	char ipaddr[20];
@@ -4090,7 +4089,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		/* We found our match (use the first) */
 		/* copy vars */
 		for (v = user->vars ; v ; v = v->next) {
-			if((tmpvar = ast_new_variable(v->name, v->value))) {
+			if((tmpvar = ast_variable_new(v->name, v->value))) {
 				tmpvar->next = iaxs[callno]->vars; 
 				iaxs[callno]->vars = tmpvar;
 			}
@@ -4871,7 +4870,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 	p = find_peer(name);
 	if (p) {
 		if (ast_test_flag(p, IAX_TEMPONLY))
-			realtime_update(name, sin);
+			realtime_update_peer(name, sin);
 		if (inaddrcmp(&p->addr, sin)) {
 			if (iax2_regfunk)
 				iax2_regfunk(p->name, 1);
@@ -7297,7 +7296,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 				if (varname && (varval = strchr(varname,'='))) {
 					*varval = '\0';
 					varval++;
-					if((tmpvar = ast_new_variable(varname, varval))) {
+					if((tmpvar = ast_variable_new(varname, varval))) {
 						tmpvar->next = user->vars; 
 						user->vars = tmpvar;
 					}
@@ -7421,7 +7420,7 @@ static void destroy_user(struct iax2_user *user)
 	ast_free_ha(user->ha);
 	free_context(user->contexts);
 	if(user->vars) {
-		ast_destroy_realtime(user->vars);
+		ast_variables_destroy(user->vars);
 		user->vars = NULL;
 	}
 	free(user);
@@ -7521,7 +7520,7 @@ static int set_config(char *config_file, int reload)
 	static unsigned short int last_port=0;
 #endif
 
-	cfg = ast_load(config_file);
+	cfg = ast_config_load(config_file);
 	
 	if (!cfg) {
 		ast_log(LOG_ERROR, "Unable to load config %s\n", config_file);
@@ -7688,7 +7687,7 @@ static int set_config(char *config_file, int reload)
 		}
 		cat = ast_category_browse(cfg, cat);
 	}
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 	set_timing();
 	return capability;
 }

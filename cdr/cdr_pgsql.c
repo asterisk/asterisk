@@ -330,13 +330,13 @@ static int my_load_module(void)
 {
 	struct ast_config *cfg;
 	int res;
-	cfg = ast_load(config);
+	cfg = ast_config_load(config);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "Unable to load config for PostgreSQL CDR's: %s\n", config);
 		return 0;
 	}
 	res = process_my_load_module(cfg);
-	ast_destroy(cfg);
+	ast_config_destroy(cfg);
 	return res;
 }
 

@@ -1024,7 +1024,7 @@ static void adsi_load(void)
 	struct ast_variable *v;
 	char *name, *sname;
 	init_state();
-	conf = ast_load("adsi.conf");
+	conf = ast_config_load("adsi.conf");
 	if (conf) {
 		x=0;
 		v = ast_variable_browse(conf, "intro");
@@ -1067,7 +1067,7 @@ static void adsi_load(void)
 		}
 		if (x)
 			speeds = x;
-		ast_destroy(conf);
+		ast_config_destroy(conf);
 	}
 }
 
