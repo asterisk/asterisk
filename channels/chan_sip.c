@@ -82,6 +82,8 @@ static char language[MAX_LANGUAGE] = "";
 
 static char callerid[AST_MAX_EXTENSION] = "asterisk";
 
+static char fromdomain[AST_MAX_EXTENSION] = "";
+
 static int usecnt =0;
 static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
@@ -2172,7 +2174,10 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	}
 	if (!n)
 		n = l;
-	snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%08x", n, l, inet_ntoa(p->ourip), ourport, p->tag);
+	if (ourport != 5060)
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%08x", n, l, strlen(fromdomain) ? fromdomain : inet_ntoa(p->ourip), ourport, p->tag);
+	else
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%08x", n, l, strlen(fromdomain) ? fromdomain : inet_ntoa(p->ourip), p->tag);
 
 	if (strlen(p->username)) {
 		if (ntohs(p->sa.sin_port) != DEFAULT_SIP_PORT) {
@@ -2364,6 +2369,8 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 	snprintf(tmp, sizeof(tmp), "%d", default_expirey);
 	add_header(&req, "Expires", tmp);
 	add_header(&req, "Event", "registration");
+	add_header(&req, "Content-length", "0");
+	add_blank_header(&req);
 	copy_request(&p->initreq, &req);
 	r->regstate=auth?REG_STATE_AUTHSENT:REG_STATE_REGSENT;
 	return send_request(p, &req, 1, p->ocseq);
@@ -4578,6 +4585,7 @@ static int reload_config(void)
 	/* Initialize some reasonable defaults */
 	strncpy(context, "default", sizeof(context) - 1);
 	strcpy(language, "");
+	strcpy(fromdomain, "");
 	v = ast_variable_browse(cfg, "general");
 	while(v) {
 		/* Create the interface list */
@@ -4598,6 +4606,8 @@ static int reload_config(void)
 			strncpy(language, v->value, sizeof(language)-1);
 		} else if (!strcasecmp(v->name, "callerid")) {
 			strncpy(callerid, v->value, sizeof(callerid)-1);
+		} else if (!strcasecmp(v->name, "fromdomain")) {
+			strncpy(fromdomain, v->value, sizeof(fromdomain)-1);
 		} else if (!strcasecmp(v->name, "nat")) {
 			globalnat = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "maxexpirey")) {
