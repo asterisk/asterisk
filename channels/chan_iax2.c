@@ -5499,7 +5499,6 @@ static void prune_users(void)
 		if (user->delme) {
 			ast_free_ha(user->ha);
 			free_context(user->contexts);
-			user=user->next;
 			free(user);
 			if (userlast)
 				userlast->next = usernext;
