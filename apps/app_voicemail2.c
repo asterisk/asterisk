@@ -160,7 +160,7 @@ LOCAL_USER_DECL;
 static void apply_options(struct ast_vm_user *vmu, char *options)
 {
 	/* Destructively Parse options and apply */
-	char *stringp = strdupa(options);
+	char *stringp = ast_strdupa(options);
 	char *s;
 	char *var, *value;
 	while((s = strsep(&stringp, "|"))) {
@@ -2989,7 +2989,7 @@ static int load_config(void)
 						z = malloc(sizeof(struct vm_zone));
 						if (z != NULL) {
 							char *msg_format, *timezone;
-							msg_format = strdupa(var->value);
+							msg_format = ast_strdupa(var->value);
 							if (msg_format != NULL) {
 								timezone = strsep(&msg_format, "|");
 								strncpy(z->name, var->name, sizeof(z->name) - 1);
