@@ -55,7 +55,7 @@
 #include <ctype.h>
 #ifdef ZAPATA_PRI
 #include <libpri.h>
-#ifndef PRI_ENSLAVE_SUPPORT
+#ifndef PRI_EVENT_PROGRESS
 #error "You need newer libpri"
 #endif
 #endif
@@ -7147,10 +7147,20 @@ static void *pri_dchannel(void *vpri)
 						ast_log(LOG_DEBUG, "Deferring ringing notification because of extra digits to dial...\n");
 				}
 				break;
-			case PRI_EVENT_PROCEEDING:
+			case PRI_EVENT_PROGRESS:
 				/* Get chan value if e->e is not PRI_EVNT_RINGING */
-				if (e->e == PRI_EVENT_PROCEEDING) 
-					chanpos = pri_find_principle(pri, e->proceeding.channel);
+				chanpos = pri_find_principle(pri, e->proceeding.channel);
+				if (chanpos > -1) {
+					if (pri->overlapdial && !pri->pvts[chanpos]->proceeding) {
+						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
+							ast_log(LOG_DEBUG, "Queuing frame from PRI_EVENT_PROGRESS on channel %d/%d span %d\n",
+								pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
+							zap_queue_frame(pri->pvts[chanpos], &f);
+					}
+				}
+				break;
+			case PRI_EVENT_PROCEEDING:
+				chanpos = pri_find_principle(pri, e->proceeding.channel);
 				if (chanpos > -1) {
 					if (pri->overlapdial && !pri->pvts[chanpos]->proceeding) {
 						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
