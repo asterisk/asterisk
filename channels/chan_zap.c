@@ -1610,8 +1610,10 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			ast_mutex_unlock(&p->lock);
 			return -1;
 		}
+#ifdef ZAPATA_PRI
 		/* Start the trunk, if not GR-303 */
 		if (!p->pri) {
+#endif
 			x = ZT_START;
 			res = ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x);
 			if (res < 0) {
@@ -1621,7 +1623,9 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 					return -1;
 				}
 			}
+#ifdef ZAPATA_PRI
 		}
+#endif
 		ast_log(LOG_DEBUG, "Dialing '%s'\n", c);
 		p->dop.op = ZT_DIAL_OP_REPLACE;
 		if (p->sig == SIG_FEATD) {
@@ -4748,7 +4752,7 @@ static void *ss_thread(void *data)
 				return NULL;
 			} else if (res)  {
 				exten[len++]=res;
-            	exten[len] = '\0';
+				exten[len] = '\0';
 			}
 			if (!ast_ignore_pattern(chan->context, exten))
 				tone_zone_play_tone(p->subs[index].zfd, -1);
@@ -4981,6 +4985,7 @@ static void *ss_thread(void *data)
 	case SIG_FXSLS:
 	case SIG_FXSGS:
 	case SIG_FXSKS:
+#ifdef ZAPATA_PRI
 		if (p->pri) {
 			/* This is a GR-303 trunk actually.  Wait for the first ring... */
 			struct ast_frame *f;
@@ -5010,6 +5015,7 @@ static void *ss_thread(void *data)
 				}
 			}
 		}
+#endif
 		if (p->use_callerid) {
 			cs = callerid_new();
 			if (cs) {
