@@ -15,11 +15,21 @@ CONSOLE=yes		# Whether or not you want a console
 NOTIFY=root		# Who to notify about crashes
 DUMPDROP=/tmp
 HOSTNAME=`hostname`
+CONFIGFILE=/etc/sysconfig/`basename $0`
 
 # Setup environment
 cd /usr/src
-OPENH323DIR=/usr/src/openh323
-PWLIBDIR=/usr/src/pwlib
+if [ -f /usr/lib/asterisk/modules/chan_h323.so -a `grep -c ^noload=chan_h323.so /etc/asterisk/modules.conf` -eq 0 ]; then
+	OPENH323DIR=/usr/src/h323/openh323
+	PWLIBDIR=/usr/src/h323/pwlib
+else
+	OPENH323DIR=/usr/src/oh323/openh323
+	PWLIBDIR=/usr/src/oh323/pwlib
+fi
+
+# Put overrides in /etc/sysconfig/asterisk
+[ -f $CONFIGFILE ] && . $CONFIGFILE
+
 LD_LIBRARY_PATH=$OPENH323DIR/lib:$PWLIBDIR/lib
 export OPENH323DIR PWLIBDIR LD_LIBRARY_PATH
 
@@ -58,6 +68,8 @@ ulimit -c unlimited
 #{
 #}
 
+SIGMSG=("Hangup" "Interrupt" "Quit" "Illegal instruction" "Trace trap" "IOT Trap" "Bus Error" "Floating-point exception" "Killed" "User-defined signal 1" "Segmentation violation" "User-defined signal 2" "Broken pipe" "Alarm clock" "Termination" "Stack fault")
+
 run_asterisk()
 {
 	while :; do 
@@ -77,55 +89,8 @@ run_asterisk()
 			echo "Asterisk shutdown normally."
 			exit 0
 		elif [ $EXITSTATUS -gt 128 ]; then
-			if [ "$EXITSTATUS" = "129" ]; then
-				EXITSIGNAL=1
-				EXITMSG="Hangup"
-			elif [ "$EXITSTATUS" = "130" ]; then
-				EXITSIGNAL=2
-				EXITMSG="Interrupt"
-			elif [ "$EXITSTATUS" = "131" ]; then
-				EXITSIGNAL=3
-				EXITMSG="Quit"
-			elif [ "$EXITSTATUS" = "132" ]; then
-				EXITSIGNAL=4
-				EXITMSG="Illegal instruction"
-			elif [ "$EXITSTATUS" = "133" ]; then
-				EXITSIGNAL=5
-				EXITMSG="Trace trap"
-			elif [ "$EXITSTATUS" = "134" ]; then
-				EXITSIGNAL=6
-				EXITMSG="IOT Trap"
-			elif [ "$EXITSTATUS" = "135" ]; then
-				EXITSIGNAL=7
-				EXITMSG="Bus Error"
-			elif [ "$EXITSTATUS" = "136" ]; then
-				EXITSIGNAL=8
-				EXITMSG="Floating-point exception"
-			elif [ "$EXITSTATUS" = "137" ]; then
-				EXITSIGNAL=9
-				EXITMSG="Killed"
-			elif [ "$EXITSTATUS" = "138" ]; then
-				EXITSIGNAL=10
-				EXITMSG="User-defined signal 1"
-			elif [ "$EXITSTATUS" = "139" ]; then
-				EXITSIGNAL=11
-				EXITMSG="Segmentation violation"
-			elif [ "$EXITSTATUS" = "140" ]; then
-				EXITSIGNAL=12
-				EXITMSG="User-defined signal 2"
-			elif [ "$EXITSTATUS" = "141" ]; then
-				EXITSIGNAL=13
-				EXITMSG="Broken pipe"
-			elif [ "$EXITSTATUS" = "142" ]; then
-				EXITSIGNAL=14
-				EXITMSG="Alarm clock"
-			elif [ "$EXITSTATUS" = "143" ]; then
-				EXITSIGNAL=15
-				EXITMSG="Termination"
-			elif [ "$EXITSTATUS" = "144" ]; then
-				EXITSIGNAL=16
-				EXITMSG="Stack fault"
-			fi
+			EXITSIGNAL=$(($EXITSTATUS - 128))
+			EXITMSG=$SIGMSG[$EXITSIGNAL]
 			echo "Asterisk exited on signal $EXITSIGNAL - $EXITMSG."
 			if [ "$NOTIFY" != "" ]; then
 				echo "Asterisk exited on signal $EXITSIGNAL - $EXITMSG.  Might want to take a peek." | \
@@ -186,6 +151,16 @@ case "$1" in
 		$0 stopnow
 		$0 start
 		;;
+	fullrestart)
+		$0 stop
+		service zaptel restart
+		$0 start
+		;;
+	fullrestartnow)
+		$0 stopnow
+		service zaptel restart
+		$0 start
+		;;
 	status)
 		succeeded=`pidof asterisk|awk '{print NF}'`
 		if [ $succeeded = "0" ]; then
@@ -195,7 +170,7 @@ case "$1" in
 		fi
 		;;
 	*)
-		gprintf "*** Usage: $0 {start|stop|reload|restart|stopnow|restartnow|status}\n"
+		gprintf "*** Usage: $0 {start|stop[now]|reload|[full]restart[now]|status}\n"
 		exit 1
 esac
 

@@ -12,15 +12,16 @@
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-######################################
-#   CONFIGURE ME !!!
+# Default modules - override in /etc/sysconfig/zaptel
 ######################################
 MODULES="usb-uhci zaptel wcfxo wcusb"
 ######################################
 
+[ -f /etc/sysconfig/`basename $0` ] && . /etc/sysconfig/`basename $0`
+
 function probe() {
 	gprintf "                           $1"
-	insmod $1
+	modprobe -i $1
 	# It has to be in the module list, otherwise something is wrong
 	if lsmod | grep -c ^$1 >/dev/null; then
 		success
@@ -69,7 +70,20 @@ case "$1" in
 	done
 	;;
   status)
-  	ztcfg -vv
+  	#ztcfg -vv
+	OK=1
+	gprintf "Checking Asterisk modules"
+	for i in $MODULES; do
+		if [ `lsmod | grep -c $i` -eq 0 ]; then
+			OK=0
+		fi
+	done
+	if [ $OK -gt 0 ]; then
+		success
+	else
+		failure
+	fi
+	echo
 	;;
   restart)
   	$0 stop
