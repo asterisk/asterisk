@@ -764,12 +764,12 @@ static char shutdown_when_convenient_help[] =
 
 static char restart_now_help[] = 
 "Usage: restart now\n"
-"       Causes Asterisk to hangup all calls and exec() itself performing a cold.\n"
+"       Causes Asterisk to hangup all calls and exec() itself performing a cold\n"
 "       restart.\n";
 
 static char restart_gracefully_help[] = 
 "Usage: restart gracefully\n"
-"       Causes Asterisk to stop accepting new calls and exec() itself performing a cold.\n"
+"       Causes Asterisk to stop accepting new calls and exec() itself performing a cold\n"
 "       restart when all active calls have ended.\n";
 
 static char restart_when_convenient_help[] = 
@@ -932,7 +932,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 							usleep(1000000 / reconnects_per_second);
 						}
 					}
-					if (tries >= 30) {
+					if (tries >= 30 * reconnects_per_second) {
 						fprintf(stderr, "Failed to reconnect for 30 seconds.  Quitting.\n");
 						quit_handler(0, 0, 0, 0);
 					}
@@ -1410,9 +1410,9 @@ static void ast_remotecontrol(char * data)
 		pid = atoi(cpid);
 	else
 		pid = -1;
-	snprintf(tmp, sizeof(tmp), "set verbose atleast %d", option_verbose);
+	snprintf(tmp, sizeof(tmp), "set verbose at least %d", option_verbose);
 	fdprint(ast_consock, tmp);
-	snprintf(tmp, sizeof(tmp), "set debug atleast %d", option_debug);
+	snprintf(tmp, sizeof(tmp), "set debug at least %d", option_debug);
 	fdprint(ast_consock, tmp);
 	ast_verbose("Connected to Asterisk %s currently running on %s (pid = %d)\n", version, hostname, pid);
 	remotehostname = hostname;
@@ -1479,13 +1479,13 @@ static int show_cli_help(void) {
 	printf("   -f              Do not fork\n");
 	printf("   -g              Dump core in case of a crash\n");
 	printf("   -h              This help screen\n");
-	printf("   -i              Initializie crypto keys at startup\n");
+	printf("   -i              Initialize crypto keys at startup\n");
 	printf("   -n              Disable console colorization\n");
 	printf("   -p              Run as pseudo-realtime thread\n");
-	printf("   -q              Quiet mode (supress output)\n");
+	printf("   -q              Quiet mode (suppress output)\n");
 	printf("   -r              Connect to Asterisk on this machine\n");
 	printf("   -R              Connect to Asterisk, and attempt to reconnect if disconnected\n");
-	printf("   -t              Record soundfiles in /tmp and move them where they belong after they are done.\n");
+	printf("   -t              Record soundfiles in /var/tmp and move them where they belong after they are done.\n");
 	printf("   -v              Increase verbosity (multiple v's = more verbose)\n");
 	printf("   -x <cmd>        Execute command <cmd> (only valid with -r)\n");
 	printf("\n");
