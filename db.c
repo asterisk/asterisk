@@ -135,7 +135,7 @@ int ast_db_put(const char *family, const char *keys, char *value)
 
 int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
 {
-	char fullkey[256];
+	char fullkey[256]="";
 	DBT key, data;
 	int res;
 
