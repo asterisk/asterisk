@@ -6045,10 +6045,15 @@ static int __unload_module(void)
 	ast_cli_unregister(&cli_show_users);
 	ast_cli_unregister(&cli_show_channels);
 	ast_cli_unregister(&cli_show_peers);
+	ast_cli_unregister(&cli_show_registry);
+	ast_cli_unregister(&cli_debug);
+	ast_cli_unregister(&cli_trunk_debug);
+	ast_cli_unregister(&cli_no_debug);
 	ast_cli_unregister(&cli_set_jitter);
 	ast_cli_unregister(&cli_show_stats);
 	ast_cli_unregister(&cli_show_cache);
 	ast_unregister_switch(&iax2_switch);
+	ast_channel_unregister(type);
 	delete_users();
 	return 0;
 }
