@@ -3939,7 +3939,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs)
 	char tmp[256];
 	char tmp2[256];
 	char clen[20];
-	initreqprep(&req, p, "NOTIFY", NULL);
+	reqprep(&req, p, "NOTIFY", 0, 1);
 	add_header(&req, "Event", "message-summary");
 	add_header(&req, "Content-Type", notifymime);
 
