@@ -1092,13 +1092,13 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 					if (vmu->attach > -1)
 						attach_user_voicemail = vmu->attach;
 					if (strlen(vmu->serveremail))
-						myserveremail = serveremail;
+						myserveremail = vmu->serveremail;
 					sendmail(myserveremail, vmu->email, vmu->fullname, msgnum, ext, chan->callerid, fn, fmt, end - start, attach_user_voicemail);
 				}
 				if (strlen(vmu->pager)) {
 					char *myserveremail = serveremail;
 					if (strlen(vmu->serveremail))
-						myserveremail = serveremail;
+						myserveremail = vmu->serveremail;
 					sendpage(myserveremail, vmu->pager, msgnum, ext, chan->callerid, end - start);
 				}
 			} else
