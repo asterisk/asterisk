@@ -28,8 +28,6 @@
 
 #include <arpa/inet.h>
 
-static struct sockaddr_in bindaddr;
-
 /* structure to hold the valid asterisk users */
 struct oh323_user {
 	char name[80];

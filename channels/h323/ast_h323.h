@@ -213,12 +213,13 @@ class MyH323EndPoint : public H323EndPoint {
 
 	PStringArray SupportedPrefixes;	
 	
-    void SetEndpointTypeInfo( H225_EndpointType & info ) const;
-    void SetGateway(void);
+    	void SetEndpointTypeInfo( H225_EndpointType & info ) const;
+    	void SetGateway(void);
+
+	H323TransportUDP *rasChannel;
 
 };
 
-  
 class MyH323Connection : public H323Connection {
 
 	PCLASSINFO(MyH323Connection, H323Connection);
@@ -248,69 +249,12 @@ class MyH323Connection : public H323Connection {
 	PString destE164;
 
 	PIPSocket::Address externalIpAddress;	// IP address of media server
-    PIPSocket::Address remoteIpAddress;		// IP Address of remote endpoint
+    	PIPSocket::Address remoteIpAddress;		// IP Address of remote endpoint
 	WORD			   externalPort;		// local media server Data port (control is dataPort+1)
 	WORD			   remotePort;			// remote endpoint Data port (control is dataPort+1)
 	WORD			   sessionId;
 	BOOL			   bridging;			// Used to help determine which IP to use
 };
-
-
-#if 0
-class MyGatekeeperServer : public H323GatekeeperServer
-{
-    PCLASSINFO(MyGatekeeperServer, H323GatekeeperServer);
-  public:
-    MyGatekeeperServer(MyH323EndPoint & ep);
-
-    // Overrides
-    virtual H323GatekeeperCall * CreateCall(
-      const OpalGloballyUniqueID & callIdentifier,
-      H323GatekeeperCall::Direction direction
-    );
-    virtual BOOL TranslateAliasAddressToSignalAddress(
-      const H225_AliasAddress & alias,
-      H323TransportAddress & address
-    );
-
-    // new functions
-    BOOL Initialise();
-
-  private:
-    class RouteMap : public PObject {
-        PCLASSINFO(RouteMap, PObject);
-      public:
-        RouteMap(
-          const PString & alias,
-          const PString & host
-        );
-        RouteMap(
-          const RouteMap & map
-        ) : alias(map.alias), regex(map.alias), host(map.host) { }
-
-        void PrintOn(
-          ostream & strm
-        ) const;
-
-        BOOL IsValid() const;
-
-        BOOL IsMatch(
-          const PString & alias
-        ) const;
-
-        const H323TransportAddress & GetHost() const { return host; }
-
-      private:
-        PString              alias;
-        PRegularExpression   regex;
-        H323TransportAddress host;
-    };
-    PList<RouteMap> routes;
-
-    PMutex reconfigurationMutex;
-};
-
-#endif
 
 /**
  * The MyProcess is a necessary descendant PProcess class so that the H323EndPoint 
@@ -322,7 +266,6 @@ class MyProcess : public PProcess {
     
 	public:
 	MyProcess();
-	~MyProcess();
 
 	void Main(); 
 	

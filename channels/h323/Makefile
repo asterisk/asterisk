@@ -38,22 +38,6 @@ CFLAGS += -I$(OPENH323DIR)/include -Wno-missing-prototypes -Wno-missing-declarat
 
 all:   	libchanh323.a
 
-
-install: all
-	install -m 755 chan_h323.so $(ASTERISKDIR)
-	@echo " + ---- chan_h323 Installation Complete ----- +"
-	@echo " +                                            +"
-	@echo " + chan_h323 has successfully been installed. +"
-	@echo " + If you would like to install the sample    +"
-	@echo " + configuration file (overwriting existing   +"
-	@echo " + config file), run:                         +"
-	@echo " +                                            +"
-	@echo " +               $(MAKE) samples                 +"
-	@echo " +                                            +"
-	@echo " + ------------------------------------------ +"
-	@echo " "
- 
-
 samples: 
 	if [ -f $(ASTETCDIR)/h323.conf ]; then \
 		mv -f $(ASTETCDIR)/h323.conf $(ASTETCDIR)/h323.conf.old ; \
