@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Trivial application to dial a channel
+ * Trivial application to dial a channel and send an URL on answer
  * 
  * Copyright (C) 1999, Mark Spencer
  *
@@ -22,6 +22,7 @@
 #include <asterisk/say.h>
 #include <asterisk/parking.h>
 #include <asterisk/musiconhold.h>
+#include <asterisk/callerid.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -41,7 +42,7 @@ static char *app = "Dial";
 static char *synopsis = "Place an call and connect to the current channel";
 
 static char *descrip =
-"  Dial(Technology/resource[&Technology2/resource2...][|timeout][|options]):\n"
+"  Dial(Technology/resource[&Technology2/resource2...][|timeout][|options][|URL]):\n"
 "Requests  one  or more channels and places specified outgoing calls on them.\n"
 "As soon as a  channel  answers, the  Dial  app  will  answer the originating\n"
 "channel (if it needs to be answered) and will bridge a call with the channel\n"
@@ -63,8 +64,11 @@ static char *descrip =
 "      'm' -- provide hold music to the calling party until answered.\n"
 "      'd' -- data-quality (modem) call (minimum delay).\n"
 "      'H' -- allow caller to hang up by hitting *.\n"
+"      'P[(x)]' -- privacy mode, using 'x' as database if provided.\n"
 "  In addition to transferring the call, a call may be parked and then picked\n"
-"up by another user.\n";
+"up by another user.\n"
+"  The optionnal URL will be sent to the called party if the channel supports\n"
+"it.\n";
 
 /* We define a customer "local user" structure because we
    use it not only for keeping track of what is in use but
@@ -160,6 +164,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					ast_verbose( VERBOSE_PREFIX_2 "No one is available to answer at this time\n");
 			}
 			*to = 0;
+			/* if no one available we'd better stop MOH/ringing to */
+			if (moh) {
+				ast_moh_stop(in);
+			} else if (ringind) {
+				ast_indicate(in, -1);
+			}
 			return NULL;
 		}
 		winner = ast_waitfor_n(watchers, pos, to);
@@ -210,6 +220,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							if (!sentringing) {
 								ast_indicate(in, AST_CONTROL_RINGING);
 								sentringing++;
+								ringind++;
 							}
 							break;
 						case AST_CONTROL_OFFHOOK:
@@ -277,15 +288,22 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	int res=-1;
 	struct localuser *u;
 	char info[256], *peers, *timeout, *tech, *number, *rest, *cur;
+	char  privdb[256] = "", *s;
 	struct localuser *outgoing=NULL, *tmp;
 	struct ast_channel *peer;
 	int to;
 	int allowredir=0;
 	int allowdisconnect=0;
+	int privacy=0;
 	char numsubst[AST_MAX_EXTENSION];
 	char restofit[AST_MAX_EXTENSION];
 	char *transfer = NULL;
 	char *newnum;
+	char callerid[256], *l, *n;
+	char *url=NULL; /* JDG */
+	struct ast_var_t *current;
+	struct varshead *headp, *newheadp;
+	struct ast_var_t *newvar;
 	
 	if (!data) {
 		ast_log(LOG_WARNING, "Dial requires an argument (technology1/number1&technology2/number2...|optional timeout)\n");
@@ -306,6 +324,15 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			if (transfer) {
 				*transfer = '\0';
 				transfer++;
+				/* JDG */
+				url = strchr(transfer, '|');
+				if (url) {
+					*url = '\0';
+					url++;
+					ast_log(LOG_DEBUG, "DIAL WITH URL=%s_\n", url);
+				} else 
+					ast_log(LOG_DEBUG, "SIMPLE DIAL (NO URL)\n");
+				/* /JDG */
 			}
 		}
 	} else
@@ -315,6 +342,46 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		goto out;
 	}
 	
+
+	if (transfer) {
+		/* Extract privacy info from transfer */
+		if ((s = strstr(transfer, "P("))) {
+			privacy = 1;
+			strncpy(privdb, s + 2, sizeof(privdb) - 1);
+			/* Overwrite with X's what was the privacy info */
+			while(*s && (*s != ')')) 
+				*(s++) = 'X';
+			if (*s)
+				*s = 'X';
+			/* Now find the end of the privdb */
+			s = strchr(privdb, ')');
+			if (s)
+				*s = '\0';
+			else {
+				ast_log(LOG_WARNING, "Transfer with privacy lacking trailing '('\n");
+				privacy = 0;
+			}
+		} else if (strchr(transfer, 'P')) {
+			/* No specified privdb */
+			privacy = 1;
+		}
+	}
+	if (!strlen(privdb) && privacy) {
+		/* If privdb is not specified and we are using privacy, copy from extension */
+		strncpy(privdb, chan->exten, sizeof(privdb) - 1);
+	}
+	if (privacy) {
+		if (chan->callerid)
+			strncpy(callerid, chan->callerid, sizeof(callerid));
+		else
+			strcpy(callerid, "");
+		ast_callerid_parse(callerid, &n, &l);
+		if (l) {
+			ast_shrink_phone_number(l);
+		} else
+			l = "";
+		ast_log(LOG_NOTICE, "Privacy DB is '%s', privacy is %d, clid is '%s'\n", privdb, privacy, l);
+	}
 	cur = peers;
 	do {
 		/* Remember where to start next time */
@@ -341,14 +408,19 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		if (transfer) {
 			if (strchr(transfer, 't'))
 				tmp->allowredirect = 1;
+                        else    tmp->allowredirect = 0;
 			if (strchr(transfer, 'r'))
 				tmp->ringbackonly = 1;
+                        else    tmp->ringbackonly = 0;
 			if (strchr(transfer, 'm'))
 				tmp->musiconhold = 1;
+                        else    tmp->musiconhold = 0;
 			if (strchr(transfer, 'd'))
 				tmp->dataquality = 1;
+                        else    tmp->dataquality = 0;
 			if (strchr(transfer, 'H'))
 				tmp->allowdisconnect = 1;
+                        else    tmp->allowdisconnect = 0;
 		}
 		strncpy(numsubst, number, sizeof(numsubst)-1);
 		/* If we're dialing by extension, look at the extension to know what to dial */
@@ -382,6 +454,23 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			cur = rest;
 			break;
 		}
+		/* If creating a SIP channel, look for a variable called */
+		/* VXML_URL in the calling channel and copy it to the    */
+		/* new channel.                                          */
+		if (strcasecmp(tech,"SIP")==0)
+		{
+			headp=&chan->varshead;
+			AST_LIST_TRAVERSE(headp,current,entries) {
+				if (strcasecmp(ast_var_name(current),"VXML_URL")==0)
+				{
+					newvar=ast_var_assign(ast_var_name(current),ast_var_value(current));
+					newheadp=&tmp->chan->varshead;
+					AST_LIST_INSERT_HEAD(newheadp,newvar,entries);
+					break;
+				}
+			}
+		}
+		
 		tmp->chan->appl = "AppDial";
 		tmp->chan->data = "(Outgoing Line)";
 		tmp->chan->whentohangup = 0;
@@ -445,6 +534,18 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the 
 		   conversation.  */
+		if (!strcmp(chan->type,"Zap"))
+		{
+			int x = 2;
+			if (tmp->dataquality) x = 0;
+			ast_channel_setoption(chan,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
+		}			
+		if (!strcmp(peer->type,"Zap"))
+		{
+			int x = 2;
+			if (tmp->dataquality) x = 0;
+			ast_channel_setoption(peer,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
+		}			
 		hanguptree(outgoing, peer);
 		outgoing = NULL;
 		/* If appropriate, log that we have a destination channel */
@@ -457,16 +558,11 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			ast_hangup(peer);
 			return -1;
 		}
-		if (!strcmp(chan->type,"Zap")) {
-			int x = 2;
-			if (tmp->dataquality) x = 0;
-			ast_channel_setoption(chan,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
-		}			
-		if (!strcmp(peer->type,"Zap")) {
-			int x = 2;
-			if (tmp->dataquality) x = 0;
-			ast_channel_setoption(peer,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
-		}			
+ 		/* JDG: sendurl */
+ 		if( url && strlen(url) && ast_channel_supports_html(peer) ) {
+ 			ast_log(LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
+ 			ast_channel_sendurl( peer, url );
+ 		} /* /JDG */
 		res = ast_bridge_call(chan, peer, allowredir, allowdisconnect);
 		ast_hangup(peer);
 	}	
