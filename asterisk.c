@@ -17,6 +17,8 @@
 #include <asterisk/options.h>
 #include <asterisk/cli.h>
 #include <asterisk/channel.h>
+#include <asterisk/ulaw.h>
+#include <asterisk/callerid.h>
 #include <stdio.h>
 #include <signal.h>
 #include <sched.h>
@@ -34,9 +36,6 @@ int option_highpriority=0;
 int fully_booted = 0;
 
 char defaultlanguage[MAX_LANGUAGE] = DEFAULT_LANGUAGE;
-
-#define HIGH_PRIORITY 1
-#define HIGH_PRIORITY_SCHED SCHED_RR
 
 static void urg_handler(int num)
 {
@@ -64,14 +63,17 @@ static void set_icon(char *text)
 static int set_priority(int pri)
 {
 	struct sched_param sched;
+	memset(&sched, 0, sizeof(sched));
 	/* We set ourselves to a high priority, that we might pre-empt everything
 	   else.  If your PBX has heavy activity on it, this is a good thing.  */
 	if (pri) {  
-		sched.sched_priority = HIGH_PRIORITY;
-		if (sched_setscheduler(0, HIGH_PRIORITY_SCHED, &sched)) {
+		sched.sched_priority = 10;
+		if (sched_setscheduler(0, SCHED_RR, &sched)) {
 			ast_log(LOG_WARNING, "Unable to set high priority\n");
 			return -1;
-		}
+		} else
+			if (option_verbose)
+				ast_verbose("Set to realtime thread\n");
 	} else {
 		sched.sched_priority = 0;
 		if (sched_setscheduler(0, SCHED_OTHER, &sched)) {
@@ -161,6 +163,11 @@ int main(int argc, char *argv[])
 	fd_set rfds;
 	int res;
 	char filename[80] = "";
+	char hostname[256];
+	if (gethostname(hostname, sizeof(hostname)))
+		strncpy(hostname, "<Unknown>", sizeof(hostname));
+	ast_ulaw_init();
+	callerid_init();
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 	/* Check if we're root */
@@ -178,6 +185,7 @@ int main(int argc, char *argv[])
 		case 'c':
 			option_console++;
 			option_nofork++;
+			break;
 		case 'p':
 			option_highpriority++;
 			break;
@@ -205,13 +213,13 @@ int main(int argc, char *argv[])
 	signal(SIGINT, quit_handler);
 	signal(SIGTERM, quit_handler);
 	signal(SIGHUP, quit_handler);
+	if (set_priority(option_highpriority))
+		exit(1);
 	if (init_logger())
 		exit(1);
 	if (load_pbx())
 		exit(1);
 	if (load_modules())
-		exit(1);
-	if (set_priority(option_highpriority))
 		exit(1);
 	/* We might have the option of showing a console, but for now just
 	   do nothing... */
@@ -225,7 +233,7 @@ int main(int argc, char *argv[])
 		/* Register our quit function */
 		char title[256];
 		set_icon("Asterisk");
-		snprintf(title, sizeof(title), "Asterisk Console (pid %d)", getpid());
+		snprintf(title, sizeof(title), "Asterisk Console on '%s' (pid %d)", hostname, getpid());
 		set_title(title);
 	    ast_cli_register(&quit);
 		consolethread = pthread_self();

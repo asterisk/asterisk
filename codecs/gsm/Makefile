@@ -7,11 +7,11 @@
 SASR	= -DSASR
 ######### Define SASR if >> is a signed arithmetic shift (-1 >> 1 == -1)
 
-MULHACK = -DUSE_FLOAT_MUL
+#MULHACK = -DUSE_FLOAT_MUL
 ######### Define this if your host multiplies floats faster than integers,
 ######### e.g. on a SPARCstation.
 
-FAST	= -DFAST
+#FAST	= -DFAST
 ######### Define together with USE_FLOAT_MUL to enable the GSM library's
 ######### approximation option for incorrect, but good-enough results.
 
@@ -43,7 +43,7 @@ WAV49	= -DWAV49
 # CC		= /usr/lang/acc
 # CCFLAGS 	= -c -O
 
-CC		= gcc -ansi -pedantic
+CC		= gcc -ansi -pedantic -O6 -mpentium -fomit-frame-pointer -fschedule-insns2
 CCFLAGS 	+= -c -DNeedFunctionPrototypes=1 -finline-functions -funroll-loops
 
 LD 		= $(CC)

@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-FORMAT_LIBS=format_g723.so format_wav.so format_mp3.so format_wav_gsm.so format_gsm.so
+FORMAT_LIBS=format_g723.so format_wav.so format_mp3.so format_wav_gsm.so format_gsm.so format_vox.so
 
 GSMLIB=../codecs/gsm/lib/libgsm.a
 
@@ -27,6 +27,9 @@ clean:
 
 format_wav.so : format_wav.o
 	$(CC) -shared -Xlinker -x -o $@ $< -laudiofile
+
+format_mp3.so : format_mp3.o
+	$(CC) -shared -Xlinker -x -o $@ $< -lm
 
 install: all
 	for x in $(FORMAT_LIBS); do $(INSTALL) -m 755 $$x $(MODULES_DIR) ; done

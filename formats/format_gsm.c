@@ -230,8 +230,8 @@ static int gsm_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-GSM frame (%d)!\n", f->subclass);
 		return -1;
 	}
-	if (f->datalen != 33) {
-		ast_log(LOG_WARNING, "Invalid data length, %d, should be 33\n", f->datalen);
+	if (f->datalen % 33) {
+		ast_log(LOG_WARNING, "Invalid data length, %d, should be multiple of 33\n", f->datalen);
 		return -1;
 	}
 	if ((res = write(fs->fd, f->data, f->datalen)) != f->datalen) {
@@ -296,3 +296,8 @@ char *description()
 	return desc;
 }
 
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
+}
