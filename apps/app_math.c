@@ -178,7 +178,7 @@ static int math_exec(struct ast_channel *chan, void *data)
 		ftmp = (fnum1 * fnum2);
 		break;
 	case SUBTRACTFUNCTION :
-		ftmp = (fnum2 - fnum1);
+		ftmp = (fnum1 - fnum2);
 		break;
 	case MODULUSFUNCTION : {
 		int inum1 = fnum1;
