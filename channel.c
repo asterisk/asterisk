@@ -1576,6 +1576,8 @@ struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, i
 						state = f->subclass;
 						ast_frfree(f);
 						break;
+					} else if (f->subclass == -1) {
+						/* Ignore -- just stopping indications */
 					} else {
 						ast_log(LOG_NOTICE, "Don't know what to do with control frame %d\n", f->subclass);
 					}
