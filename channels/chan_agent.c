@@ -388,7 +388,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 				if (p->chan)
 					ast_log(LOG_DEBUG, "Bridge on '%s' being cleared (2)\n", p->chan->name);
 				ast_hangup(p->chan);
-				if (p->wrapuptime) {
+				if (p->wrapuptime && p->acknowledged) {
 					gettimeofday(&p->lastdisc, NULL);
 					p->lastdisc.tv_usec += (p->wrapuptime % 1000) * 1000;
 					if (p->lastdisc.tv_usec > 1000000) {
@@ -642,7 +642,7 @@ static int agent_hangup(struct ast_channel *ast)
 		/* If they're dead, go ahead and hang up on the agent now */
 		if (!ast_strlen_zero(p->loginchan)) {
 			/* Store last disconnect time */
-			if (p->wrapuptime) {
+			if (p->wrapuptime && p->acknowledged) {
 				gettimeofday(&p->lastdisc, NULL);
 				p->lastdisc.tv_usec += (p->wrapuptime % 1000) * 1000;
 				if (p->lastdisc.tv_usec >= 1000000) {
