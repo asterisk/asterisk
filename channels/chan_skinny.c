@@ -628,18 +628,18 @@ struct skinny_subchannel {
 struct skinny_line {
 	ast_mutex_t lock;
 	char name[80];
-	char label[42];							/* Label that shows next to the line buttons */
+	char label[42];					/* Label that shows next to the line buttons */
   	struct skinny_subchannel *sub;			/* pointer to our current connection, channel and stuff */
 	char accountcode[80];
 	char exten[AST_MAX_EXTENSION];			/* Extention where to start */
 	char context[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
 	char callerid[AST_MAX_EXTENSION];		/* Caller*ID */
-	char lastcallerid[AST_MAX_EXTENSION];	/* Last Caller*ID */
+	char lastcallerid[AST_MAX_EXTENSION];		/* Last Caller*ID */
 	char call_forward[AST_MAX_EXTENSION];	
 	char mailbox[AST_MAX_EXTENSION];
 	char musicclass[MAX_LANGUAGE];
-	int curtone;						/* Current tone */
+	int curtone;					/* Current tone */
 	unsigned int callgroup;
 	unsigned int pickupgroup;
 	int callwaiting;
@@ -681,7 +681,7 @@ static struct skinny_device {
 	struct skinny_device *next;
 } *devices = NULL;
 
-struct skinnysession {
+static struct skinnysession {
 	pthread_t t;
 	ast_mutex_t lock;
 	struct sockaddr_in sin;
@@ -704,8 +704,7 @@ static skinny_req *req_alloc(size_t size)
 
 static struct skinny_subchannel *find_subchannel_by_line(struct skinny_line *l)
 {
-	/* Need to figure out how to determine which sub we want */
-	
+	/* XXX Need to figure out how to determine which sub we want */
 	struct skinny_subchannel *sub = l->sub;
 	return sub;
 }
@@ -2199,12 +2198,13 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		sin.sin_port = htons(port);
 	
 		sub = find_subchannel_by_line(s->device->lines);
-		ast_rtp_set_peer(sub->rtp, &sin);
-		ast_rtp_get_us(sub->rtp, &us);
-		
-		printf("us port: %d\n", ntohs(us.sin_port));
-		printf("sin port: %d\n", ntohs(sin.sin_port));
-
+		if (sub->rtp) {
+			ast_rtp_set_peer(sub->rtp, &sin);
+			ast_rtp_get_us(sub->rtp, &us);	
+		} else {
+			ast_log(LOG_ERROR, "No RTP structure, this is very bad\n");
+			break;
+		}
 		memset(req, 0, SKINNY_MAX_PACKET);
         	req->len = sizeof(start_media_transmission_message)+4;
         	req->e = START_MEDIA_TRANSMISSION_MESSAGE;
@@ -2390,16 +2390,6 @@ static void *accept_thread(void *ignore)
 static void *do_monitor(void *data)
 {
 	int res;
-
-#if 0
-	/* Add an I/O event to our TCP socket */
-	if (skinnysock > -1)  {
-		ast_io_add(io, skinnysock, accept_thread, AST_IO_IN, NULL);
-	} else {
-		ast_log(LOG_WARNING, "Unable to create I/O socket event\n");		
-	}
-#endif
-
 
 	/* This thread monitors all the interfaces which are not yet in use
 	   (and thus do not have a separate thread) indefinitely */
@@ -2626,7 +2616,6 @@ static int reload_config(void)
 	}
 	ast_mutex_unlock(&netlock);
 
-
 	/* and unload the configuration when were done */
 	ast_destroy(cfg);
 
@@ -2714,27 +2703,16 @@ int load_module()
 
 int unload_module()
 {
+#if 0
+	struct skinny_session *session, s;
+	struct skinny_subchannel *sub;
+	struct skinny_line *line = session;
 
-#if 0	
-	struct skinny_subchannel *p, *pl;
-
-	ast_channel_unregister(type);
-        ast_verbose("Skinny module unloading\n");
-        
-	/* First, take us out of the channel loop */
-	ast_channel_unregister(type);
-	
 	/* close all IP connections */
 	if (!ast_mutex_lock(&devicelock)) {
-		/* Hangup all interfaces if they have an owner */
-		p = iflist;
-		while(p) {
-			if (p->owner)
-				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
-			p = p->next;
-		}
-		iflist = NULL;
-		ast_mutex_unlock(&iflock);
+		/* Terminate tcp listener thread */
+		
+
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
@@ -2751,7 +2729,6 @@ int unload_module()
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
 	}
-
 	if (!ast_mutex_lock(&iflock)) {
 		/* Destroy all the interfaces and free their memory */
 		p = iflist;
@@ -2767,9 +2744,14 @@ int unload_module()
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
 	}
+
+        ast_rtp_proto_register(&skinny_rtp);
+        ast_cli_register(&cli_show_lines);
+        ast_cli_register(&cli_debug);
+        ast_cli_register(&cli_no_debug);
+
+	return 0;
 #endif
-	/* if we're still here something was fscked up */   
-	return -1;
 }
 
 int usecount()
