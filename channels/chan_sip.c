@@ -2563,6 +2563,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 	add_header(&req, "Content-length", "0");
 	add_blank_header(&req);
 	copy_request(&p->initreq, &req);
+	parse(&p->initreq);
 	r->regstate=auth?REG_STATE_AUTHSENT:REG_STATE_REGSENT;
 	return send_request(p, &req, 1, p->ocseq);
 }
