@@ -130,6 +130,7 @@ permit=216.207.245.47/255.255.255.255
 ;context=local
 ;auth=md5,plaintext,rsa
 ;secret=markpasswd
+;notransfer=yes		; Disable IAX native transfer
 ;callerid="Mark Spencer" <(256) 428-6275>
 ;deny=0.0.0.0/0.0.0.0
 ;accountcode=markster0101
