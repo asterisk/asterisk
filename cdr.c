@@ -21,6 +21,7 @@
 #include <asterisk/callerid.h>
 #include <asterisk/causes.h>
 #include <asterisk/options.h>
+#include <asterisk/utils.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -106,7 +107,7 @@ void ast_cdr_free(struct ast_cdr *cdr)
 {
 	char *chan; 
 	if (cdr) {
-		chan = strlen(cdr->channel) ? cdr->channel : "<unknown>";
+		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 		if (!cdr->posted)
 			ast_log(LOG_WARNING, "CDR on channel '%s' not posted\n", chan);
 		if (!cdr->end.tv_sec && !cdr->end.tv_usec)
@@ -131,7 +132,7 @@ void ast_cdr_start(struct ast_cdr *cdr)
 {
 	char *chan; 
 	if (cdr) {
-		chan = strlen(cdr->channel) ? cdr->channel : "<unknown>";
+		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 		if (cdr->posted)
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 		if (cdr->start.tv_sec || cdr->start.tv_usec)
@@ -144,7 +145,7 @@ void ast_cdr_answer(struct ast_cdr *cdr)
 {
 	char *chan; 
 	if (cdr) {
-		chan = strlen(cdr->channel) ? cdr->channel : "<unknown>";
+		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 		if (cdr->posted)
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 		if (cdr->disposition < AST_CDR_ANSWERED)
@@ -159,7 +160,7 @@ void ast_cdr_busy(struct ast_cdr *cdr)
 {
 	char *chan; 
 	if (cdr) {
-		chan = strlen(cdr->channel) ? cdr->channel : "<unknown>";
+		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 		if (cdr->posted)
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 		if (cdr->disposition < AST_CDR_BUSY)
@@ -171,7 +172,7 @@ void ast_cdr_failed(struct ast_cdr *cdr)
 {
 	char *chan; 
 	if (cdr) {
-		chan = strlen(cdr->channel) ? cdr->channel : "<unknown>";
+		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 		if (cdr->posted)
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 			cdr->disposition = AST_CDR_FAILED;
@@ -206,7 +207,7 @@ void ast_cdr_setdestchan(struct ast_cdr *cdr, char *chann)
 {
 	char *chan; 
 	if (cdr) {
-		chan = strlen(cdr->channel) ? cdr->channel : "<unknown>";
+		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 		if (cdr->posted)
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 		strncpy(cdr->dstchannel, chann, sizeof(cdr->dstchannel) - 1);
@@ -217,7 +218,7 @@ void ast_cdr_setapp(struct ast_cdr *cdr, char *app, char *data)
 {
 	char *chan; 
 	if (cdr) {
-		chan = strlen(cdr->channel) ? cdr->channel : "<unknown>";
+		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 		if (cdr->posted)
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 		if (!app)
@@ -258,8 +259,8 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 	char *num, *name;
 	char tmp[AST_MAX_EXTENSION] = "";
 	if (cdr) {
-		chan = strlen(cdr->channel) ? cdr->channel : "<unknown>";
-		if (strlen(cdr->channel)) 
+		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+		if (!ast_strlen_zero(cdr->channel)) 
 			ast_log(LOG_WARNING, "CDR already initialized on '%s'\n", chan); 
 		strncpy(cdr->channel, c->name, sizeof(cdr->channel) - 1);
 		/* Grab source from ANI or normal Caller*ID */
@@ -299,7 +300,7 @@ void ast_cdr_end(struct ast_cdr *cdr)
 {
 	char *chan;
 	if (cdr) {
-		chan = strlen(cdr->channel) ? cdr->channel : "<unknown>";
+		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 		if (cdr->posted)
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 		if (!cdr->start.tv_sec && !cdr->start.tv_usec)
@@ -378,9 +379,9 @@ int ast_cdr_update(struct ast_channel *c)
 	if (cdr) {
 		if (c->ani)
 			strncpy(tmp, c->ani, sizeof(tmp) - 1);
-		else if (c->callerid && strlen(c->callerid))
+		else if (c->callerid && !ast_strlen_zero(c->callerid))
 			strncpy(tmp, c->callerid, sizeof(tmp) - 1);
-		if (c->callerid && strlen(c->callerid))
+		if (c->callerid && !ast_strlen_zero(c->callerid))
 			strncpy(cdr->clid, c->callerid, sizeof(cdr->clid) - 1);
 		else
 			strcpy(cdr->clid, "");
@@ -418,7 +419,7 @@ void ast_cdr_post(struct ast_cdr *cdr)
 	char *chan;
 	struct ast_cdr_beitem *i;
 	if (cdr) {
-		chan = strlen(cdr->channel) ? cdr->channel : "<unknown>";
+		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 		if (cdr->posted)
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 		if (!cdr->end.tv_sec && !cdr->end.tv_usec)
