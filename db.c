@@ -32,6 +32,7 @@
 #include <asterisk/options.h>
 #include <asterisk/astdb.h>
 #include <asterisk/cli.h>
+#include <asterisk/utils.h>
 #include "db1-ast/include/db.h"
 #include "asterisk.h"
 #include "astconf.h"
@@ -54,13 +55,14 @@ static int dbinit(void)
 
 static inline int keymatch(const char *key, const char *prefix)
 {
-	if (!strlen(prefix))
+	int preflen = strlen(prefix);
+	if (!preflen)
 		return 1;
 	if (!strcasecmp(key, prefix))
 		return 1;
-	if ((strlen(key) > strlen(prefix)) &&
-		!strncasecmp(key, prefix, strlen(prefix))) {
-		if (key[strlen(prefix)] == '/')
+	if ((strlen(key) > preflen) &&
+		!strncasecmp(key, prefix, preflen)) {
+		if (key[preflen] == '/')
 			return 1;
 	}
 	return 0;
@@ -110,7 +112,7 @@ int ast_db_put(const char *family, const char *keys, char *value)
 {
 	char fullkey[256];
 	DBT key, data;
-	int res;
+	int res, fullkeylen;
 
 	ast_mutex_lock(&dblock);
 	if (dbinit()) {
@@ -118,11 +120,11 @@ int ast_db_put(const char *family, const char *keys, char *value)
 		return -1;
 	}
 
-	snprintf(fullkey, sizeof(fullkey), "/%s/%s", family, keys);
+	fullkeylen = snprintf(fullkey, sizeof(fullkey), "/%s/%s", family, keys);
 	memset(&key, 0, sizeof(key));
 	memset(&data, 0, sizeof(data));
 	key.data = fullkey;
-	key.size = strlen(fullkey) + 1;
+	key.size = fullkeylen + 1;
 	data.data = value;
 	data.size = strlen(value) + 1;
 	res = astdb->put(astdb, &key, &data, 0);
@@ -137,7 +139,7 @@ int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
 {
 	char fullkey[256]="";
 	DBT key, data;
-	int res;
+	int res, fullkeylen;
 
 	ast_mutex_lock(&dblock);
 	if (dbinit()) {
@@ -145,12 +147,12 @@ int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
 		return -1;
 	}
 
-	snprintf(fullkey, sizeof(fullkey), "/%s/%s", family, keys);
+	fullkeylen = snprintf(fullkey, sizeof(fullkey), "/%s/%s", family, keys);
 	memset(&key, 0, sizeof(key));
 	memset(&data, 0, sizeof(data));
 	memset(value, 0, valuelen);
 	key.data = fullkey;
-	key.size = strlen(fullkey) + 1;
+	key.size = fullkeylen + 1;
 	
 	res = astdb->get(astdb, &key, &data, 0);
 	
@@ -178,7 +180,7 @@ int ast_db_del(const char *family, const char *keys)
 {
 	char fullkey[256];
 	DBT key;
-	int res;
+	int res, fullkeylen;
 
 	ast_mutex_lock(&dblock);
 	if (dbinit()) {
@@ -186,10 +188,10 @@ int ast_db_del(const char *family, const char *keys)
 		return -1;
 	}
 	
-	snprintf(fullkey, sizeof(fullkey), "/%s/%s", family, keys);
+	fullkeylen = snprintf(fullkey, sizeof(fullkey), "/%s/%s", family, keys);
 	memset(&key, 0, sizeof(key));
 	key.data = fullkey;
-	key.size = strlen(fullkey) + 1;
+	key.size = fullkeylen + 1;
 	
 	res = astdb->del(astdb, &key, 0);
 	astdb->sync(astdb, 0);
@@ -314,8 +316,8 @@ struct ast_db_entry *ast_db_gettree(const char *family, const char *keytree)
 	struct ast_db_entry *last = NULL;
 	struct ast_db_entry *cur, *ret=NULL;
 
-	if (family && strlen(family)) {
-		if (keytree && strlen(keytree))
+	if (family && !ast_strlen_zero(family)) {
+		if (keytree && !ast_strlen_zero(keytree))
 			/* Family and key tree */
 			snprintf(prefix, sizeof(prefix), "/%s/%s", family, prefix);
 		else
