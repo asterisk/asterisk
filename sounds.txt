@@ -8,6 +8,10 @@
 
 %agent-incorrect.gsm%Login incorrect.  Please enter your agent number followed by the pound key.
 
+%agent-newlocation.gsm%Please enter new extension followed by pound, or just press pound for immediate service.
+
+%agent-loggedoff.gsm%Agent Logged off.
+
 %agent-loginok.gsm%Agent logged in.
 
 %agent-pass.gsm%Please enter your password followed by the pound key.
