@@ -1665,6 +1665,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			ast_mutex_unlock(&p->lock);
 			return -1;
 		}
+		p->proceeding = 1;
 		ast_setstate(ast, AST_STATE_DIALING);
 		pri_rel(p->pri);
 		break;
