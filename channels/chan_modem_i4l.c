@@ -428,7 +428,7 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 
 static int i4l_write(struct ast_modem_pvt *p, struct ast_frame *f)
 {
-#define MAX_WRITE_SIZE 1024
+#define MAX_WRITE_SIZE 2048
 	unsigned char result[MAX_WRITE_SIZE << 1];
 	unsigned char b;
 	int bpos=0, x;
