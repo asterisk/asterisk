@@ -2175,9 +2175,11 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 						free_user(recip);
 					}
 				}
-				notify_new_message(chan, vmu, msgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
-				STORE(dir, msgnum);
-				DISPOSE(dir, msgnum);
+				if (ast_fileexists(fn, NULL, NULL)) {
+					notify_new_message(chan, vmu, msgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
+					STORE(dir, msgnum);
+					DISPOSE(dir, msgnum);
+				}
 			} else {
 				res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
 				if (!res)
