@@ -3,6 +3,33 @@
 ;
 ; Configuration file
 
+[trunkgroups]
+;
+; Trunk groups are used for NFAS or GR-303 connections.
+;
+; Group: Defines a trunk group.  
+;        group => <trunkgroup>,<dchannel>[,<backup1>...]
+;
+;        trunkgroup  is the numerical trunk group to create
+;        dchannel    is the zap channel which will have the 
+;                    d-channel for the trunk.
+;        backup1     is an optional list of backup d-channels.
+;
+;trunkgroup => 1,24,48
+;
+; Spanmap: Associates a span with a trunk group
+;        spanmap => <zapspan>,<trunkgroup>[,<logicalspan>]
+;
+;        zapspan     is the zap span number to associate
+;        trunkgroup  is the trunkgroup (specified above) for the mapping
+;        logicalspan is the logical span number within the trunk group to use.
+;                    if unspecified, no logical span number is used.
+;
+;spanmap => 1,1,1
+;spanmap => 2,1,2
+;spanmap => 3,1,3
+;spanmap => 4,1,4
+
 [channels]
 ;
 ; Default language
@@ -52,6 +79,7 @@ switchtype=national
 ; fxo_ks:  FXO (Kewl Start)
 ; pri_cpe: PRI signalling, CPE side
 ; pri_net: PRI signalling, Network side
+; gr303fxoks_net: GR-303 Signalling, FXO Loopstart, Network side
 ; sf:	      SF (Inband Tone) Signalling
 ; sf_w:	      SF Wink
 ; sf_featd:   SF Feature Group D (The fake, Adtran style, DTMF)

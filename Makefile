@@ -52,11 +52,6 @@ OPTIMIZE=-O6
 #Include debug symbols in the executables (-g) and profiling info (-pg)
 DEBUG=-g #-pg
 
-# New hangup routines for chan_zap.c
-# If this flag is uncommented then you need to have new libpri code in your system
-# You can still use the old libpri if you do "cvs update -D "08/03/03" in libpri source code
-OPTIONS += -DNEW_PRI_HANGUP
-
 # If you are running a radio application, define RADIO_RELAX so that the DTMF
 # will be received more reliably
 #OPTIONS += -DRADIO_RELAX
