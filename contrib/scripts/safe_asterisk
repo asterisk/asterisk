@@ -3,6 +3,7 @@ CLIARGS="$*"		# Grab any args passed to safe_asterisk
 TTY=9			# TTY (if you want one) for Asterisk to run on
 CONSOLE=yes		# Whether or not you want a console
 #NOTIFY=ben@alkaloid.net	# Who to notify about crashes
+MACHINE=`hostname`      # To specify which machine has crashed when getting the mail
 DUMPDROP=/tmp
 #
 # Don't fork when running "safely"
@@ -58,7 +59,7 @@ run_asterisk()
 			let EXITSIGNAL=EXITSTATUS-128
 			echo "Asterisk exited on signal $EXITSIGNAL."
 			if [ "$NOTIFY" != "" ]; then
-				echo "Asterisk exited on signal $EXITSIGNAL.  Might want to take a peek." | \
+				echo "Asterisk on $MACHINE exited on signal $EXITSIGNAL.  Might want to take a peek." | \
 				mail -s "Asterisk Died" $NOTIFY
 			fi
                         if [ -f /tmp/core ]; then
