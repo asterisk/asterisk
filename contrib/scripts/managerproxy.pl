@@ -1,23 +1,21 @@
-﻿<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<!-- saved from url=(0027)http://homey/simpleproxy.pl -->
-<HTML><HEAD>
-<META http-equiv=Content-Type content="text/html; charset=utf-8">
-<META content="MSHTML 6.00.2900.2180" name=GENERATOR></HEAD>
-<BODY><PRE>#!/usr/bin/perl -w 
+#!/usr/bin/perl -w 
 #
 #  Simple Asterisk Manager Proxy, Version 1.01
 #  2004-09-26
-#  Copyright (c) 2004 David C. Troy &lt;dave@popvox.com&gt;
+#  Copyright (c) 2004 David C. Troy &lt;dave@popvox.com>
 #
 #  This code is based on Flash Operator Panel 'op_server.pl'
-#  by Nicol᳠Gudi񯬠Copyright (C) 2004.
+#  by Nicol᳠Gudi�
+#  �Copyright (C) 2004.
 #
-#  David C. Troy &lt;dave@popvox.com&gt;
-#  Nicol᳠Gudi񯠼nicolas@house.com.ar&gt;
+#  David C. Troy &lt;dave@popvox.com>
+#  Nicol᳠Gudi񯠼nicolas@house.com.ar>
 #
 #  This program is free software, distributed under the terms of
 #  the GNU General Public License.
 #
+#  Security consideration: This script will open your manager port
+#  for unauthenticated logins. Be careful out there :-)
 #############################
 
 #############################
@@ -31,11 +29,15 @@ use POSIX qw(setsid);
 #############################
 # User Configurable Options
 #############################
+# Configuration for logging in to your asterisk server
+# Check you Asterisk config file "manager.conf" for details
 my $manager_host = '127.0.0.1';
-my $listen_port = 1234;
 my $manager_port = 5038;
 my $manager_user = 'your_username';
 my $manager_secret = 'your_secret';
+# Port For this proxy
+my $listen_port = 1234;
+my $manager_pid = "/var/run/asterisk_managerproxy.pid";
 
 #############################
 # Declarations
@@ -58,7 +60,7 @@ if (defined($ARGV[0]))
         defined(my $pid = fork) or die "Can't Fork: $!";
         exit if $pid;
         setsid or die "Can't start a new session: $!";
-        open MYPIDFILE, "&gt;/var/run/op_panel.pid";
+        open MYPIDFILE, ">$manager_pid";
         print MYPIDFILE $$;
         close MYPIDFILE;
     }
@@ -69,26 +71,26 @@ if (defined($ARGV[0]))
 
 # Connect to manager
 $p =
-  new IO::Socket::INET-&gt;new(
-                            PeerAddr =&gt; $manager_host,
-                            PeerPort =&gt; $manager_port,
-                            Proto    =&gt; "tcp",
-                            Type     =&gt; SOCK_STREAM
+  new IO::Socket::INET->new(
+                            PeerAddr => $manager_host,
+                            PeerPort => $manager_port,
+                            Proto    => "tcp",
+                            Type     => SOCK_STREAM
                            )
-  or die "\nCould not connect to Asterisk Manager Port\n";
+  or die "\nCould not connect to Asterisk Manager Port at $manager_host\n";
 
-$p-&gt;autoflush(1);
+$p->autoflush(1);
 
 # Login to Manager
 send_command_to_manager( "Action: Login\r\nUsername: $manager_user\r\nSecret: $manager_secret\r\n\r\n" );
 
 # Start up listener for new connections
 my $m =
-  new IO::Socket::INET(Listen =&gt; 1, LocalPort =&gt; $listen_port, ReuseAddr =&gt; 1)
+  new IO::Socket::INET(Listen => 1, LocalPort => $listen_port, ReuseAddr => 1)
   or die "\nCan't listen to port $listen_port\n";
 $O = new IO::Select();
-$O-&gt;add($m);
-$O-&gt;add($p);
+$O->add($m);
+$O->add($p);
 $/ = "\0";
 
 sub manager_reconnect()
@@ -100,20 +102,20 @@ sub manager_reconnect()
     {
         log_debug("** Attempt reconnection to manager port # $attempt", 16);
         $p =
-          new IO::Socket::INET-&gt;new(
-                                    PeerAddr =&gt; $manager_host,
-                                    PeerPort =&gt; $manager_port,
-                                    Proto    =&gt; "tcp",
-                                    Type     =&gt; SOCK_STREAM
+          new IO::Socket::INET->new(
+                                    PeerAddr => $manager_host,
+                                    PeerPort => $manager_port,
+                                    Proto    => "tcp",
+                                    Type     => SOCK_STREAM
                                    );
         $attempt++;
-        if ($attempt &gt; $total_attempts)
+        if ($attempt > $total_attempts)
         {
             die("!! Could not reconnect to Asterisk Manager port");
         }
         sleep(10);    # wait 10 seconds before trying to reconnect
     } until $p;
-    $O-&gt;add($p);
+    $O->add($p);
     send_command_to_manager(
         "Action: Login\r\nUsername: $manager_user\r\nSecret: $manager_secret\r\n\r\n"
     );
@@ -122,30 +124,30 @@ sub manager_reconnect()
 # Loop, continuously processing new connections, input from those connections, and input from Manager conn
 while (1)
 {
-    while (@S = $O-&gt;can_read)
+    while (@S = $O->can_read)
     {
         foreach (@S)
         {
             if ($_ == $m)
             {
                 log_debug("** New client connection", 16);
-                my $C = $m-&gt;accept;
+                my $C = $m->accept;
                 $proxy_clients{$C} = \$C;                
                 print "New Connection: $C\n" if $debug;
-                $O-&gt;add($C);
+                $O->add($C);
             } else {
                 # It's not a new client connection
                 my $i;
                 my $R = sysread($_, $i, 2);    # 2048; interleave every two bytes?
-                if (defined($R) &amp;&amp; $R == 0)
+                if (defined($R) && $R == 0)
                 {
                     # Confirm it's really dead by trying to write to it?
                     my $T = syswrite($_, ' ', 2);    # 2048
                     if (!defined($T))
                     {
                         # connection went away...
-                        $O-&gt;remove($_);
-                        $_-&gt;close;
+                        $O->remove($_);
+                        $_->close;
 
                         # If we lost the socket for the Asterisk Mgr, then reconnect
                         if ($_ == $p)
@@ -188,7 +190,7 @@ while (1)
 
                 } # end if read succeeded
             } # end if new client connection
-        }    # end foreach @S -&gt; can read
+        }    # end foreach @S -> can read
     }    # while can read
 }    # endless loop
 
@@ -196,9 +198,9 @@ sub close_all
 {
     log_debug("Exiting...", 0);
 
-    foreach my $hd ($O-&gt;handles)
+    foreach my $hd ($O->handles)
     {
-        $O-&gt;remove($hd);
+        $O->remove($hd);
         close($hd);
     }
 
@@ -214,7 +216,7 @@ sub send_command_to_manager
         foreach my $linea (@lineas)
         {
             syswrite($p, "$linea\r\n");
-            log_debug("-&gt; $linea", 2);
+            log_debug("-> $linea", 2);
         }
         log_debug(" ", 2);
         syswrite($p, "\r\n");
@@ -238,5 +240,3 @@ sub list_clients()
    print "$cnt clients.\n\n";
 }
 
-
-</PRE></BODY></HTML>
