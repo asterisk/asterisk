@@ -767,6 +767,7 @@ static void reload_queues(void)
 				if (q) {
 					/* Initialize it */
 					memset(q, 0, sizeof(struct ast_call_queue));
+					ast_pthread_mutex_init(&q->lock);
 					strncpy(q->name, cat, sizeof(q->name));
 					new = 1;
 				} else new = 0;
