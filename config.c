@@ -124,59 +124,13 @@ struct ast_variable *ast_variable_new(const char *name, const char *value)
 	return variable;
 }
 
-static struct ast_variable *variable_get(const struct ast_category *category, const char *name)
-{
-	struct ast_variable *variable;
-
-	for (variable = category->root; variable; variable = variable->next)
-		if (!strcasecmp(variable->name, name))
-			return variable;
-
-	return NULL;
-}
-
-static void variable_remove(struct ast_category *category, const struct ast_variable *variable)
-{
-	struct ast_variable *prev = category->root;
-
-	if (!prev)
-		return;
-
-	if (prev == variable) {
-		category->root = prev->next;
-		if (category->last == variable)
-			category->last = NULL;
-	} else {
-		while (prev->next && (prev->next != variable)) prev = prev->next;
-		if (prev->next) {
-			prev->next = variable->next;
-			if (category->last == variable)
-				category->last = prev;
-		}
-	}
-}
-
 void ast_variable_append(struct ast_category *category, struct ast_variable *variable)
 {
-	/* Note: this function also implements "variable replacement"... if the
-	   new variable's value is empty, then existing variables of the same
-	   name in the category are removed (and the new variable is destroyed)
-	*/
-	if (variable->value && !ast_strlen_zero(variable->value)) {
-		if (category->last)
-			category->last->next = variable;
-		else
-			category->root = variable;
-		category->last = variable;
-	} else {
-		struct ast_variable *v;
-
-		while ((v = variable_get(category, variable->name))) {
-			variable_remove(category, v);
-			ast_variables_destroy(v);
-		}
-		ast_variables_destroy(variable);
-	}
+	if (category->last)
+		category->last->next = variable;
+	else
+		category->root = variable;
+	category->last = variable;
 }
 
 void ast_variables_destroy(struct ast_variable *v)
