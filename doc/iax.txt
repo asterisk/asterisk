@@ -1,0 +1,55 @@
+Inter-Asterisk eXchange Protocol
+================================
+
+Usage:
+======
+The format for the dialing string on Asterisk is:
+IAX/[user@]peer[:exten[@context]]
+
+(Note, []'s denote optional fields).  The peer is either an IP address
+or a peer as specified in the /etc/asterisk/iax.conf file.  Exten is
+an optional requested extension (otherwise "s" will be used), and 
+"context" is an optional context to request.  The user is an optional
+username specified in the peer's iax.conf.  If the user is not specified,
+the peer will select one.
+
+Protocol and rationale:
+=======================
+IAX is a simple, low overhead and low bandwidth VoIP protocol designed to 
+allow multiple Asterisk PBX's to communicate with one another without
+the overhead of more complex protocols like H.323.  Payload is sent with
+a header overhead of only 4 octets.  Control functions (and one payload packet
+per minute or so) is sent with a more complex header of 12 octets.
+
+IAX is slightly stateful.
+
+IAX contains two kinds of packets:  The full header packet type, which 
+contains much information about the frame, in addition to its contents,
+and the mini header type, which is used only for non-reliable voice
+packet delivery.
+
+All packets are immediately transmitted.  Packets are received, but not
+delivered to the actual channels until a given time quantum has passed, in
+order to try to eliminate jitter.
+
+All full header packets must be ackd (except, obviously for the ACK packets
+themselves and not so obviously for hangup packets).  The "timestamp" field of
+ack packets is not the normal offset, but rather a quote of the timestamp as
+included with the original packet that you're acking, and likewise the
+seqno field is the seqno of the packet you're acking, not your own seqno,
+and you do not increment your own sequence number.  ACKing is based on the
+sequence number.
+
+See iax.h for a description of the frame formats. 
+
+IAX internal frames use the AST_FRAME_IAX type.  The subclass of these
+frames is the IAX control number, as seen in iax.h.  The first frame sent
+must be an AST_FRAME_IAX with the control AST_IAX_CONTROL_NEW.  
+
+The AST_IAX_CONTROL_NEW establishes a new connection.  
+
+The first frame sent MUST be an AST_CONTROL_NEW to start a connection.
+
+IAX connnections may require authentication using either simple plaintext
+passwords or an md5 challenge/response pair.
+
