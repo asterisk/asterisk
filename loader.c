@@ -30,6 +30,10 @@
 #include "asterisk.h"
 #include "astconf.h"
 
+#ifndef RTLD_NOW
+#define RTLD_NOW 0
+#endif
+
 static char expected_key[] =
 { 0x8e, 0x93, 0x22, 0x83, 0xf5, 0xc3, 0xc0, 0x75,
   0xff, 0x8b, 0xa9, 0xbe, 0x7c, 0x43, 0x74, 0x63 };
@@ -174,14 +178,20 @@ int ast_load_resource(char *resource_name)
 		cfg = ast_load(AST_MODULE_CONFIG);
 		option_verbose = o;
 		if (cfg) {
+#ifdef RTLD_GLOBAL
 			if ((val = ast_variable_retrieve(cfg, "global", resource_name))
 					&& ast_true(val))
 				flags |= RTLD_GLOBAL;
+#endif
 			ast_destroy(cfg);
 		}
 	} else {
 		/* Resource modules are always loaded global and lazy */
+#ifdef RTLD_GLOBAL
 		flags = (RTLD_GLOBAL | RTLD_LAZY);
+#else
+		flags = RTLD_LAZY;
+#endif
 	}
 	
 	if (ast_pthread_mutex_lock(&modlock))
@@ -215,31 +225,43 @@ int ast_load_resource(char *resource_name)
 		return -1;
 	}
 	m->load_module = dlsym(m->lib, "load_module");
+	if (m->load_module == NULL)
+		m->load_module = dlsym(m->lib, "_load_module");
 	if (!m->load_module) {
 		ast_log(LOG_WARNING, "No load_module in module %s\n", fn);
 		errors++;
 	}
 	m->unload_module = dlsym(m->lib, "unload_module");
+	if (m->unload_module == NULL)
+		m->unload_module = dlsym(m->lib, "_unload_module");
 	if (!m->unload_module) {
 		ast_log(LOG_WARNING, "No unload_module in module %s\n", fn);
 		errors++;
 	}
 	m->usecount = dlsym(m->lib, "usecount");
+	if (m->usecount == NULL)
+		m->usecount = dlsym(m->lib, "_usecount");
 	if (!m->usecount) {
 		ast_log(LOG_WARNING, "No usecount in module %s\n", fn);
 		errors++;
 	}
 	m->description = dlsym(m->lib, "description");
+	if (m->description == NULL)
+		m->description = dlsym(m->lib, "_description");
 	if (!m->description) {
 		ast_log(LOG_WARNING, "No description in module %s\n", fn);
 		errors++;
 	}
 	m->key = dlsym(m->lib, "key");
+	if (m->key == NULL)
+		m->key = dlsym(m->lib, "_key");
 	if (!m->key) {
 		ast_log(LOG_WARNING, "No key routine in module %s\n", fn);
 		errors++;
 	}
 	m->reload = dlsym(m->lib, "reload");
+	if (m->reload == NULL)
+		m->reload = dlsym(m->lib, "_reload");
 	if (m->key && !(key = m->key())) {
 		ast_log(LOG_WARNING, "Key routine returned NULL in module %s\n", fn);
 		errors++;

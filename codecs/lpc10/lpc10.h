@@ -1,8 +1,11 @@
 /*
 
 $Log$
-Revision 1.15  2003/03/16 22:37:30  matteo
-dom mar 16 23:37:23 CET 2003
+Revision 1.16  2003/04/23 19:13:35  markster
+More OpenBSD patches
+
+Revision 1.2  2003/04/23 19:13:35  markster
+More OpenBSD patches
 
 Revision 1.1.1.2  2003/03/16 22:37:30  matteo
 dom mar 16 23:37:23 CET 2003
@@ -35,7 +38,7 @@ Add broken lpc10 code...  It's not too far from working I don't think...
 
  */
 
-#if defined(unix)
+#if defined(unix) || defined(__unix__)
 typedef short		INT16;
 typedef int		INT32;
 #endif

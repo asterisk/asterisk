@@ -11,6 +11,7 @@ all: $(LIB)
 
 $(LIB): $(OBJS)
 	ar cr $(LIB) $(OBJS)
+	ranlib $(LIB)
 
 clean:
 	rm -f $(LIB) *.o

@@ -2684,7 +2684,7 @@ struct ast_context *ast_context_create(char *name, char *registrar)
 /*
  * errno values
  *  EBUSY  - can't lock
- *  ENODATA - no existence of context
+ *  ENOENT - no existence of context
  */
 int ast_context_add_include(char *context, char *include, char *registrar)
 {
@@ -2710,7 +2710,7 @@ int ast_context_add_include(char *context, char *include, char *registrar)
 
 	/* we can't find the right context */
 	ast_unlock_contexts();
-	errno = ENODATA;
+	errno = ENOENT;
 	return -1;
 }
 
@@ -3035,7 +3035,7 @@ int ast_context_add_include2(struct ast_context *con, char *value,
 /*
  * errno values
  *  EBUSY  - can't lock
- *  ENODATA - no existence of context
+ *  ENOENT - no existence of context
  */
 int ast_context_add_switch(char *context, char *sw, char *data, char *registrar)
 {
@@ -3061,7 +3061,7 @@ int ast_context_add_switch(char *context, char *sw, char *data, char *registrar)
 
 	/* we can't find the right context */
 	ast_unlock_contexts();
-	errno = ENODATA;
+	errno = ENOENT;
 	return -1;
 }
 
@@ -3129,7 +3129,7 @@ int ast_context_add_switch2(struct ast_context *con, char *value,
 
 /*
  * EBUSY  - can't lock
- * ENODATA - there is not context existence
+ * ENOENT - there is not context existence
  */
 int ast_context_remove_ignorepat(char *context, char *ignorepat, char *registrar)
 {
@@ -3151,7 +3151,7 @@ int ast_context_remove_ignorepat(char *context, char *ignorepat, char *registrar
 	}
 
 	ast_unlock_contexts();
-	errno = ENODATA;
+	errno = ENOENT;
 	return -1;
 }
 
@@ -3188,7 +3188,7 @@ int ast_context_remove_ignorepat2(struct ast_context *con, char *ignorepat, char
 
 /*
  * EBUSY - can't lock
- * ENODATA - there is no existence of context
+ * ENOENT - there is no existence of context
  */
 int ast_context_add_ignorepat(char *con, char *value, char *registrar)
 {
@@ -3210,7 +3210,7 @@ int ast_context_add_ignorepat(char *con, char *value, char *registrar)
 	}
 
 	ast_unlock_contexts();
-	errno = ENODATA;
+	errno = ENOENT;
 	return -1;
 }
 
@@ -3266,7 +3266,7 @@ int ast_ignore_pattern(char *context, char *pattern)
 
 /*
  * EBUSY   - can't lock
- * ENODATA  - no existence of context
+ * ENOENT  - no existence of context
  *
  */
 int ast_add_extension(char *context, int replace, char *extension, int priority, char *callerid,
@@ -3291,7 +3291,7 @@ int ast_add_extension(char *context, int replace, char *extension, int priority,
 	}
 
 	ast_unlock_contexts();
-	errno = ENODATA;
+	errno = ENOENT;
 	return -1;
 }
 

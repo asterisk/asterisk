@@ -689,10 +689,10 @@ static int handle_context_add_include(int fd, int argc, char *argv[])
 				ast_cli(fd, "Context '%s' already included in '%s' context\n",
 					argv[1], argv[3]); break;
 
-			case ENODATA:
+			case ENOENT:
 			case EINVAL:
 				ast_cli(fd, "There is no existence of context '%s'\n",
-					errno == ENODATA ? argv[3] : argv[1]); break;
+					errno == ENOENT ? argv[3] : argv[1]); break;
 
 			default:
 				ast_cli(fd, "Failed to include '%s' in '%s' context\n",
@@ -1115,7 +1115,7 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 			case EBUSY:
 				ast_cli(fd, "Failed to lock context(s) list, please try again later\n"); break;
 
-			case ENODATA:
+			case ENOENT:
 				ast_cli(fd, "No existence of '%s' context\n", argv[4]); break;
 
 			case EEXIST:
@@ -1197,7 +1197,7 @@ static int handle_context_add_ignorepat(int fd, int argc, char *argv[])
 			case ENOMEM:
 				ast_cli(fd, "Out of free memory\n"); break;
 
-			case ENODATA:
+			case ENOENT:
 				ast_cli(fd, "There is no existence of '%s' context\n", argv[4]);
 				break;
 
@@ -1294,7 +1294,7 @@ static int handle_context_remove_ignorepat(int fd, int argc, char *argv[])
 				ast_cli(fd, "Failed to lock context(s) list, please try again later\n");
 				break;
 
-			case ENODATA:
+			case ENOENT:
 				ast_cli(fd, "There is no existence of '%s' context\n", argv[4]);
 				break;
 
