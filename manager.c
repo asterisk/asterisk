@@ -38,6 +38,7 @@
 #include <asterisk/pbx.h>
 #include <asterisk/md5.h>
 #include <asterisk/acl.h>
+#include <asterisk/utils.h>
 
 struct fast_originate_helper
 {
@@ -193,7 +194,7 @@ void astman_send_error(struct mansession *s, struct message *m, char *error)
 	char *id = astman_get_header(m,"ActionID");
 	ast_mutex_lock(&s->lock);
 	ast_cli(s->fd, "Response: Error\r\n");
-	if (id && strlen(id))
+	if (id && !ast_strlen_zero(id))
 		ast_cli(s->fd, "ActionID: %s\r\n",id);
 	ast_cli(s->fd, "Message: %s\r\n\r\n", error);
 	ast_mutex_unlock(&s->lock);
@@ -204,7 +205,7 @@ void astman_send_response(struct mansession *s, struct message *m, char *resp, c
 	char *id = astman_get_header(m,"ActionID");
 	ast_mutex_lock(&s->lock);
 	ast_cli(s->fd, "Response: %s\r\n", resp);
-	if (id && strlen(id))
+	if (id && !ast_strlen_zero(id))
 		ast_cli(s->fd, "ActionID: %s\r\n",id);
 	if (msg)
 		ast_cli(s->fd, "Message: %s\r\n\r\n", msg);
@@ -297,7 +298,7 @@ static int authenticate(struct mansession *s, struct message *m)
 				} else if (ha)
 					ast_free_ha(ha);
 				if (!strcasecmp(authtype, "MD5")) {
-					if (key && strlen(key) && s->challenge) {
+					if (key && !ast_strlen_zero(key) && s->challenge) {
 						int x;
 						int len=0;
 						char md5key[256] = "";
@@ -372,7 +373,7 @@ static int action_hangup(struct mansession *s, struct message *m)
 {
 	struct ast_channel *c = NULL;
 	char *name = astman_get_header(m, "Channel");
-	if (!strlen(name)) {
+	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
@@ -402,7 +403,7 @@ static int action_status(struct mansession *s, struct message *m)
 	char bridge[256];
 	astman_send_ack(s, m, "Channel status will follow");
 	c = ast_channel_walk_locked(NULL);
-        if (id && strlen(id))
+        if (id && !ast_strlen_zero(id))
                 snprintf(idText,256,"ActionID: %s\r\n",id);
 	while(c) {
 		if (c->bridge)
@@ -458,11 +459,11 @@ static int action_redirect(struct mansession *s, struct message *m)
 	struct ast_channel *chan, *chan2 = NULL;
 	int pi = 0;
 	int res;
-	if (!name || !strlen(name)) {
+	if (!name || ast_strlen_zero(name)) {
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
-	if (strlen(priority) && (sscanf(priority, "%d", &pi) != 1)) {
+	if (!ast_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
 		astman_send_error(s, m, "Invalid priority\n");
 		return 0;
 	}
@@ -471,11 +472,11 @@ static int action_redirect(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Channel not existant");
 		return 0;
 	}
-	if (strlen(name2))
+	if (!ast_strlen_zero(name2))
 		chan2 = ast_get_channel_by_name_locked(name2);
 	res = ast_async_goto(chan, context, exten, pi);
 	if (!res) {
-		if (strlen(name2)) {
+		if (!ast_strlen_zero(name2)) {
 			if (chan2)
 				res = ast_async_goto(chan2, context, exten, pi);
 			else
@@ -503,7 +504,7 @@ static int action_command(struct mansession *s, struct message *m)
 	s->blocking = 1;
 	ast_mutex_unlock(&s->lock);
 	ast_cli(s->fd, "Response: Follows\r\n");
-	if (id && strlen(id))
+	if (id && !ast_strlen_zero(id))
 		ast_cli(s->fd, "ActionID: %s\r\n", id);
 	/* FIXME: Wedge a ActionID response in here, waiting for later changes */
 	ast_cli_command(s->fd, cmd);
@@ -519,10 +520,10 @@ static void *fast_originate(void *data)
 	struct fast_originate_helper *in = data;
 	int res;
 	int reason = 0;
-	if (strlen(in->app)) {
-		res = ast_pbx_outgoing_app(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->app, in->appdata, &reason, 1, strlen(in->callerid) ? in->callerid : NULL, in->variable, in->account);
+	if (!ast_strlen_zero(in->app)) {
+		res = ast_pbx_outgoing_app(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->app, in->appdata, &reason, 1, !ast_strlen_zero(in->callerid) ? in->callerid : NULL, in->variable, in->account);
 	} else {
-		res = ast_pbx_outgoing_exten(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, strlen(in->callerid) ? in->callerid : NULL, in->variable, in->account);
+		res = ast_pbx_outgoing_exten(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, !ast_strlen_zero(in->callerid) ? in->callerid : NULL, in->variable, in->account);
 	}   
 	free(in);
 	return NULL;
@@ -553,11 +554,11 @@ static int action_originate(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
-	if (strlen(priority) && (sscanf(priority, "%d", &pi) != 1)) {
+	if (!ast_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
 		astman_send_error(s, m, "Invalid priority\n");
 		return 0;
 	}
-	if (strlen(timeout) && (sscanf(timeout, "%d", &to) != 1)) {
+	if (!ast_strlen_zero(timeout) && (sscanf(timeout, "%d", &to) != 1)) {
 		astman_send_error(s, m, "Invalid timeout\n");
 		return 0;
 	}
@@ -602,11 +603,11 @@ static int action_originate(struct mansession *s, struct message *m)
 				res = 0;
 			}
 		}
-	} else if (strlen(app)) {
-        	res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 0, strlen(callerid) ? callerid : NULL, variable, account);
+	} else if (!ast_strlen_zero(app)) {
+        	res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 0, !ast_strlen_zero(callerid) ? callerid : NULL, variable, account);
     	} else {
 		if (exten && context && pi)
-	        	res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 0, strlen(callerid) ? callerid : NULL, variable, account);
+	        	res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 0, !ast_strlen_zero(callerid) ? callerid : NULL, variable, account);
 		else {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
 			return 0;
@@ -624,11 +625,11 @@ static int action_mailboxstatus(struct mansession *s, struct message *m)
 	char *mailbox = astman_get_header(m, "Mailbox");
 	char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
-	if (!mailbox || !strlen(mailbox)) {
+	if (!mailbox || ast_strlen_zero(mailbox)) {
 		astman_send_error(s, m, "Mailbox not specified");
 		return 0;
 	}
-        if (id && strlen(id))
+        if (id && !ast_strlen_zero(id))
                 snprintf(idText,256,"ActionID: %s\r\n",id);
 	ast_cli(s->fd, "Response: Success\r\n"
 				   "%s"
@@ -644,12 +645,12 @@ static int action_mailboxcount(struct mansession *s, struct message *m)
 	char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
 	int newmsgs = 0, oldmsgs = 0;
-	if (!mailbox || !strlen(mailbox)) {
+	if (!mailbox || ast_strlen_zero(mailbox)) {
 		astman_send_error(s, m, "Mailbox not specified");
 		return 0;
 	}
 	ast_app_messagecount(mailbox, &newmsgs, &oldmsgs);
-        if (id && strlen(id)) {
+        if (id && !ast_strlen_zero(id)) {
                 snprintf(idText,256,"ActionID: %s\r\n",id);
         }
 	ast_cli(s->fd, "Response: Success\r\n"
@@ -671,15 +672,15 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 	char idText[256] = "";
 	char hint[256] = "";
 	int status;
-	if (!exten || !strlen(exten)) {
+	if (!exten || ast_strlen_zero(exten)) {
 		astman_send_error(s, m, "Extension not specified");
 		return 0;
 	}
-	if (!context || !strlen(context))
+	if (!context || ast_strlen_zero(context))
 		context = "default";
 	status = ast_extension_state(NULL, context, exten);
 	ast_get_hint(hint, sizeof(hint) - 1, NULL, context, exten);
-        if (id && strlen(id)) {
+        if (id && !ast_strlen_zero(id)) {
                 snprintf(idText,256,"ActionID: %s\r\n",id);
         }
 	ast_cli(s->fd, "Response: Success\r\n"
@@ -698,7 +699,7 @@ static int action_timeout(struct mansession *s, struct message *m)
 	struct ast_channel *c = NULL;
 	char *name = astman_get_header(m, "Channel");
 	int timeout = atoi(astman_get_header(m, "Timeout"));
-	if (!strlen(name)) {
+	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
@@ -734,11 +735,11 @@ static int process_message(struct mansession *s, struct message *m)
 	strncpy(action, astman_get_header(m, "Action"), sizeof(action));
 	ast_log( LOG_DEBUG, "Manager received command '%s'\n", action );
 
-	if (!strlen(action)) {
+	if (ast_strlen_zero(action)) {
 		astman_send_error(s, m, "Missing action in request");
 		return 0;
 	}
-        if (id && strlen(id)) {
+        if (id && !ast_strlen_zero(id)) {
                 snprintf(idText,256,"ActionID: %s\r\n",id);
         }
 	if (!s->authenticated) {
@@ -746,7 +747,7 @@ static int process_message(struct mansession *s, struct message *m)
 			char *authtype;
 			authtype = astman_get_header(m, "AuthType");
 			if (!strcasecmp(authtype, "MD5")) {
-				if (!s->challenge || !strlen(s->challenge)) {
+				if (!s->challenge || ast_strlen_zero(s->challenge)) {
 					ast_mutex_lock(&s->lock);
 					snprintf(s->challenge, sizeof(s->challenge), "%d", rand());
 					ast_mutex_unlock(&s->lock);
@@ -851,7 +852,7 @@ static void *session_do(void *data)
 			if (strlen(m.headers[m.hdrcount]) < 2)
 				continue;
 			m.headers[m.hdrcount][strlen(m.headers[m.hdrcount]) - 2] = '\0';
-			if (!strlen(m.headers[m.hdrcount])) {
+			if (ast_strlen_zero(m.headers[m.hdrcount])) {
 				if (process_message(s, &m))
 					break;
 				memset(&m, 0, sizeof(&m));
