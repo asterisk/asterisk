@@ -161,6 +161,21 @@ static void setup_env(struct ast_channel *chan, char *request, int fd)
 	fdprintf(fd, "\n");
 }
 
+static int handle_answer(struct ast_channel *chan, int fd, int argc, char *argv[])
+{
+	int res;
+	res = 0;
+	if (chan->state != AST_STATE_UP) {
+		/* Answer the chan */
+		res = ast_answer(chan);
+	}
+	fdprintf(fd, "200 result=%d\n", res);
+	if (res >= 0)
+		return RESULT_SUCCESS;
+	else
+		return RESULT_FAILURE;
+}
+
 static int handle_waitfordigit(struct ast_channel *chan, int fd, int argc, char *argv[])
 {
 	int res;
@@ -223,6 +238,8 @@ static int handle_tddmode(struct ast_channel *chan, int fd, int argc, char *argv
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	if (!strncasecmp(argv[2],"on",2)) x = 1; else x = 0;
+	if (!strncasecmp(argv[2],"mate",4)) x = 2;
+	if (!strncasecmp(argv[2],"tdd",3)) x = 1;
 	res = ast_channel_setoption(chan,AST_OPTION_TDD,&x,sizeof(char),0);
 	fdprintf(fd, "200 result=%d\n", res);
 	if (res >= 0) 
@@ -260,7 +277,7 @@ static int handle_streamfile(struct ast_channel *chan, int fd, int argc, char *a
 			return RESULT_FAILURE;
 	}
 	res = ast_waitstream(chan, argv[3]);
-	
+	ast_stopstream(chan);
 	fdprintf(fd, "200 result=%d\n", res);
 	if (res >= 0)
 		return RESULT_SUCCESS;
@@ -277,6 +294,22 @@ static int handle_saynumber(struct ast_channel *chan, int fd, int argc, char *ar
 	if (sscanf(argv[2], "%i", &num) != 1)
 		return RESULT_SHOWUSAGE;
 	res = ast_say_number(chan, num, AST_DIGIT_ANY, chan->language);
+	fdprintf(fd, "200 result=%d\n", res);
+	if (res >= 0)
+		return RESULT_SUCCESS;
+	else
+		return RESULT_FAILURE;
+}
+
+static int handle_saydigits(struct ast_channel *chan, int fd, int argc, char *argv[])
+{
+	int res;
+	int num;
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	if (sscanf(argv[2], "%i", &num) != 1)
+		return RESULT_SHOWUSAGE;
+	res = ast_say_digit_str(chan, argv[2], AST_DIGIT_ANY, chan->language);
 	fdprintf(fd, "200 result=%d\n", res);
 	if (res >= 0)
 		return RESULT_SUCCESS;
@@ -476,6 +509,11 @@ static int handle_recordfile(struct ast_channel *chan, int fd, int argc, char *a
 	return RESULT_SUCCESS;
 }
 
+static char usage_answer[] = 
+" Usage: ANSWER\n"
+"        Answers channel if not already in answer state. Returns -1 on\n"
+" channel failure, or 0 if successful.\n";
+
 static char usage_waitfordigit[] = 
 " Usage: WAIT FOR DIGIT <timeout>\n"
 "        Waits up to 'timeout' seconds for channel to receive a DTMF digit.\n"
@@ -527,6 +565,13 @@ static char usage_saynumber[] =
 " being pressed, or the ASCII numerical value of the digit if one was pressed or\n"
 " -1 on error/hangup.\n";
 
+static char usage_saydigits[] =
+" Usage: SAY DIGITS <number> <escape digits>\n"
+"        Say a given digit string, returning early if any of the given DTMF digits\n"
+" are received on the channel.  Returns 0 if playback completes without a digit\n"
+" being pressed, or the ASCII numerical value of the digit if one was pressed or\n"
+" -1 on error/hangup.\n";
+
 static char usage_getdata[] =
 " Usage: GET DATA <file to be streamed> [timeout] [max digits]\n"
 "	 Stream the given file, and recieve DTMF data. Returns the digits recieved\n"
@@ -552,12 +597,15 @@ static char usage_recordfile[] =
 " -1 for no timeout\n";
 
 agi_command commands[] = {
+	{ { "answer", NULL }, handle_answer, "Asserts answer", usage_answer },
+	{ { "answer\n", NULL }, handle_answer, "Asserts answer", usage_answer },
 	{ { "wait", "for", "digit", NULL }, handle_waitfordigit, "Waits for a digit to be pressed", usage_waitfordigit },
 	{ { "send", "text", NULL }, handle_sendtext, "Sends text to channels supporting it", usage_sendtext },
 	{ { "receive", "char", NULL }, handle_recvchar, "Receives text from channels supporting it", usage_recvchar },
 	{ { "tdd", "mode", NULL }, handle_tddmode, "Sends text to channels supporting it", usage_tddmode },
 	{ { "stream", "file", NULL }, handle_streamfile, "Sends audio file on channel", usage_streamfile },
 	{ { "send", "image", NULL }, handle_sendimage, "Sends images to channels supporting it", usage_sendimage },
+	{ { "say", "digits", NULL }, handle_saydigits, "Says a given digit string", usage_saydigits },
 	{ { "say", "number", NULL }, handle_saynumber, "Says a given number", usage_saynumber },
 	{ { "get", "data", NULL }, handle_getdata, "Gets data on a channel", usage_getdata },
 	{ { "set", "context", NULL }, handle_setcontext, "Sets channel context", usage_setcontext },
@@ -733,14 +781,10 @@ static int run_agi(struct ast_channel *chan, char *request, int *fds, int pid)
 				pid = -1;
 				break;
 			}
-#if	0			
-			/* Un-comment this code to fix the problem with
-			   the newline being included in the parsed
-			   command string(s) output --DUDE */
 			  /* get rid of trailing newline, if any */
 			if (*buf && buf[strlen(buf) - 1] == '\n')
 				buf[strlen(buf) - 1] = 0;
-#endif
+
 			returnstatus |= agi_handle_command(chan, fds[1], buf);
 			/* If the handle_command returns -1, we need to stop */
 			if (returnstatus < 0) {
@@ -780,6 +824,7 @@ static int agi_exec(struct ast_channel *chan, void *data)
 	if (!args)
 		args = "";
 	LOCAL_USER_ADD(u);
+#if 0
 	 /* Answer if need be */
         if (chan->state != AST_STATE_UP) {
 		if (ringy) { /* if for ringing first */
@@ -792,6 +837,7 @@ static int agi_exec(struct ast_channel *chan, void *data)
 			return -1;
 		}
 	}
+#endif
 	res = launch_script(tmp, args, fds, &pid);
 	if (!res) {
 		res = run_agi(chan, tmp, fds, pid);
