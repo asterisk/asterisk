@@ -169,14 +169,44 @@ static int cut_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+static char *function_fieldqty(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	char *varname, *varval="", workspace[256];
+	char *delim = ast_strdupa(data);
+	int fieldcount=0;
+
+	if (delim) {
+		varname = strsep(&delim, "|");
+		pbx_retrieve_variable(chan, varname, &varval, workspace, sizeof(workspace), NULL);
+		while (strsep(&varval, delim)) {
+			fieldcount++;
+		}
+		snprintf(buf, len, "%d", fieldcount);
+	} else {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		strncpy(buf, "1", len);
+	}
+	return buf;
+}
+
+static struct ast_custom_function_obj fieldqty_function = {
+	.name = "FIELDQTY",
+	.desc = "Count the fields, with an arbitrary delimiter",
+	.syntax = "FIELDQTY(<varname>,<delim>)",
+	.read = function_fieldqty,
+	.write = NULL,
+};
+
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
+	ast_custom_function_unregister(&fieldqty_function);
 	return ast_unregister_application(app_cut);
 }
 
 int load_module(void)
 {
+	ast_custom_function_register(&fieldqty_function);
 	return ast_register_application(app_cut, cut_exec, cut_synopsis, cut_descrip);
 }
 
