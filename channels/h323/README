@@ -8,12 +8,14 @@
 	Developed using:	RedHat 7.2/7.3/8.0
 				Open H.323 v1.11.7		
 				PWLib      v1.4.11
-				GCC	  2.96/3.1
+				GCC   2.96/3.1/3.2
 
 	Dependancies:  		openssl-0.9.6b
 				openssl-devel-0.9.6b
 		       		expat-1.95
 		       		expat-dev-1.95
+
+	Warning: Older versions than listed will NOT work. 
 
 We have implemented this driver using Asterisk's RTP stack insted of trying
 to implement a pseudo sound card driver. 
@@ -25,29 +27,20 @@ Check everything out of CVS. If you dont know how to deal with cvs, learn.
 Also, if you are not using the listed versions of Open H.323 or PWlib 
 you are on your own, sorry. 
 
-Warning: Older versions than listed will NOT work, but newer  versions 
-~should~ work but are untested and you would be on your own. 
-
-As of June 16th, 2003 the release version of Open H.323 does not compile 
-due to the G729Capability is missing. If you want G.729 support see
-the Makefile.  
-
-Some chan_h323 users have reported success and others have reported dramatic
-failures when using newer versions of Open H.323. We haven't personally tested
-anything newer and will not be able to assist you if you have 'issues'. Sorry. 
-
 
 
 To compile this code:
-Issue a make in the asterisk/channels/h323 directory, then go back to the Asterisk 
-source top level directory and issue a make install.
+You first need the latest release versions of PWLib and Open H.323 from
+http://www.openh323.org/. Make sure you follow the build instructions EXCPLICTLY.
 
+Once PWLib and Open H.323 have been compiled, issue a make in the asterisk/channels/h323 
+directory, then go back to the Asterisk source top level directory and issue a make install.
 
 
 
 Most common compile error:  
 
-If you receive anything that says 'undefined symbol' you are experiencing
+If you receive ANYTHING that says 'undefined symbol' you are experiencing
 typical version skew.  For example:
 
 libh323_linux_x86_r.so.1: undefined symbol: GetNumberValueAt__C14PAbstractArrayi
@@ -117,7 +110,7 @@ Send whatever shows up right after the 'bt'
 
 Also, a full debug screen output is almost needed. Make sure you are 
 in the full console mode (-c) and turn on 'h.323  debug'. A nice way 
-to capture everything is to use the utility called 'script' (man script) 
+to capture everything is with script (man script) 
 
 
 
