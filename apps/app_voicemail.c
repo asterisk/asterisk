@@ -130,6 +130,8 @@ static char *descrip_vm =
 "message will be played (/var/lib/asterisk/sounds/vm/<exten>/unavail) if it\n"
 "exists.  If the extension is preceeded by a 'b' then the the busy message\n"
 "will be played (that is, busy instead of unavail).\n"
+"If the requested mailbox does not exist, and there exists a priority\n"
+"n + 101, then that priority will be taken next.\n"
 "Returns -1 on error or mailbox not found, or if the user hangs up.\n"
 "Otherwise, it returns 0.\n";
 
