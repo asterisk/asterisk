@@ -60,7 +60,7 @@ static int mp3play(char *filename, int fd)
 			close(x);
 	}
 	/* Execute mpg123, but buffer if it's a net connection */
-	if (!strncmp(filename, "http://", 7)) {
+	if (!strncasecmp(filename, "http://", 7)) {
 		/* Most commonly installed in /usr/local/bin */
 	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-b", "1024", "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
 		/* But many places has it in /usr/bin */
@@ -80,15 +80,15 @@ static int mp3play(char *filename, int fd)
 	return -1;
 }
 
-static int timed_read(int fd, void *data, int datalen)
+static int timed_read(int fd, void *data, int datalen, int timeout)
 {
 	int res;
 	struct pollfd fds[1];
 	fds[0].fd = fd;
 	fds[0].events = POLLIN;
-	res = poll(fds, 1, 2000);
+	res = poll(fds, 1, timeout);
 	if (res < 1) {
-		ast_log(LOG_NOTICE, "Selected timed out/errored out with %d\n", res);
+		ast_log(LOG_NOTICE, "Poll timed out/errored out with %d\n", res);
 		return -1;
 	}
 	return read(fd, data, datalen);
@@ -103,6 +103,7 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 	int ms = -1;
 	int pid = -1;
 	int owriteformat;
+	int timeout = 2000;
 	struct timeval now, next;
 	struct ast_frame *f;
 	struct myframe {
@@ -110,7 +111,6 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 		char offset[AST_FRIENDLY_OFFSET];
 		short frdata[160];
 	} myf;
-
 	if (!data) {
 		ast_log(LOG_WARNING, "MP3 Playback requires an argument (filename)\n");
 		return -1;
@@ -131,6 +131,9 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 	
 	gettimeofday(&now, NULL);
 	res = mp3play((char *)data, fds[1]);
+	if (!strncasecmp((char *)data, "http://", 7)) {
+		timeout = 10000;
+	}
 	/* Wait 1000 ms first */
 	next = now;
 	next.tv_sec += 1;
@@ -155,7 +158,7 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 					last = tv;
 				}
 #endif
-				res = timed_read(fds[0], myf.frdata, sizeof(myf.frdata));
+				res = timed_read(fds[0], myf.frdata, sizeof(myf.frdata), timeout);
 				if (res > 0) {
 					myf.f.frametype = AST_FRAME_VOICE;
 					myf.f.subclass = AST_FORMAT_SLINEAR;
