@@ -38,9 +38,11 @@ static char *tdesc = "Simple MeetMe conference bridge";
 
 static char *app = "MeetMe";
 static char *app2 = "MeetMeCount";
+static char *app3 = "MeetMeAdmin";
 
 static char *synopsis = "Simple MeetMe conference bridge";
 static char *synopsis2 = "MeetMe participant count";
+static char *synopsis3 = "Send Admin Commands to a conference";
 
 static char *descrip =
 "  MeetMe(confno[,[options][,pin]]): Enters the user into a specified MeetMe conference.\n"
@@ -59,11 +61,11 @@ static char *descrip =
 "      'v' -- video mode\n"
 "      'q' -- quiet mode (don't play enter/leave sounds)\n"
 "      'M' -- enable music on hold when the conference has a single caller\n"
+"      'x' -- exit the conference if the last marked user left\n"
 "      'b' -- run AGI script specified in ${MEETME_AGI_BACKGROUND}\n"
 "	      Default: conf-background.agi\n"
 "             (Note: This does not work with non-Zap channels in the same conference)\n"
-"      Not implemented yet:\n"
-"      's' -- send user to admin/user menu if '*' is received\n"
+"      'u' -- send user to admin/user menu if '*' is received\n"
 "      'a' -- set admin mode\n";
 
 static char *descrip2 =
@@ -71,6 +73,8 @@ static char *descrip2 =
 "MeetMe conference. If var is specified, playback will be skipped and the value\n"
 "will be returned in the variable. Returns 0 on success or -1 on a hangup.\n"
 "A ZAPTEL INTERFACE MUST BE INSTALLED FOR CONFERENCING FUNCTIONALITY.\n";
+
+static char *descrip3 = "";
 
 STANDARD_LOCAL_USER;
 
@@ -81,13 +85,34 @@ static struct ast_conference {
 	int fd;				/* Announcements fd */
 	int zapconf;			/* Zaptel Conf # */
 	int users;			/* Number of active users */
+        int markedusers;		  /* Number of marked users */
+        struct ast_conf_user *firstuser;  /* Pointer to the first user struct */
+        struct ast_conf_user *lastuser;   /* Pointer to the last user struct */
 	time_t start;			/* Start time (s) */
 	int isdynamic;			/* Created on the fly? */
+        int locked;			  /* Is the conference locked? */
 	char pin[AST_MAX_EXTENSION];			/* If protected by a PIN */
 	struct ast_conference *next;
 } *confs;
 
+struct ast_conf_user {
+	int user_no;                     /* User Number */
+	struct ast_conf_user *prevuser;  /* Pointer to the previous user */
+	struct ast_conf_user *nextuser;  /* Pointer to the next user */
+	int userflags;			 /* Flags as set in the conference */
+	int adminflags;			 /* Flags set by the Admin */
+	struct ast_channel *chan; 	 /* Connected channel */
+	char usrvalue[50];		 /* Custom User Value */
+	time_t jointime;		 /* Time the user joined the conference */
+};
+
+#define ADMINFLAG_MUTED (1 << 1)	/* User is muted */
+#define ADMINFLAG_KICKME (1 << 2)	/* User is kicked */
+
+
 static ast_mutex_t conflock = AST_MUTEX_INITIALIZER;
+
+static int admin_exec(struct ast_channel *chan, void *data);
 
 #include "enter.h"
 #include "leave.h"
@@ -106,6 +131,7 @@ static ast_mutex_t conflock = AST_MUTEX_INITIALIZER;
 #define CONFFLAG_VIDEO (1 << 7)		/* Set to enable video mode */
 #define CONFFLAG_AGI (1 << 8)		/* Set to run AGI Script in Background */
 #define CONFFLAG_MOH (1 << 9)		/* Set to have music on hold when */
+#define CONFFLAG_ADMINEXIT (1 << 10)    /* If set the MeetMe will return if all marked with this flag left */
 
 
 static int careful_write(int fd, unsigned char *data, int len)
@@ -186,9 +212,13 @@ static struct ast_conference *build_conf(char *confno, char *pin, int make, int 
 				cnf = NULL;
 				goto cnfout;
 			}
+                        /* Fill the conference struct */
 			cnf->start = time(NULL);
 			cnf->zapconf = ztc.confno;
 			cnf->isdynamic = dynamic;
+                        cnf->firstuser = NULL;
+                        cnf->lastuser = NULL;
+                        cnf->locked = 0;
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Created ZapTel conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
 			cnf->next = confs;
@@ -203,48 +233,209 @@ cnfout:
 
 static int confs_show(int fd, int argc, char **argv)
 {
-	struct ast_conference *conf;
+	ast_cli(fd, "Deprecated! Please use 'meetme' instead.\n");
+        return RESULT_SUCCESS;
+}
+
+static char show_confs_usage[] =
+"Deprecated! Please use 'meetme' instead.\n";
+
+static struct ast_cli_entry cli_show_confs = {
+        { "show", "conferences", NULL }, confs_show,
+        "Show status of conferences", show_confs_usage, NULL };
+        
+static int conf_cmd(int fd, int argc, char **argv) {
+	/* Process the command */
+	struct ast_conference *cnf;
+	struct ast_conf_user *user;
 	int hr, min, sec;
+	int i = 0;
 	time_t now;
 	char *header_format = "%-14s %-14s %-8s  %-8s\n";
 	char *data_format = "%-12.12s   %4.4d           %02d:%02d:%02d  %-8s\n";
-
+	char cmdline[1024] = "";
+	if (argc > 8)
+		ast_cli(fd, "Invalid Arguments.\n");
+	/* Check for length so no buffer will overflow... */
+	for (i = 0; i < argc; i++) {
+		if (strlen(argv[i]) > 100)
+			ast_cli(fd, "Invalid Arguments.\n");
+	}
+	if (argc == 1) {
+		/* List all the conferences */	
 	now = time(NULL);
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
-	conf = confs;
-	if (!conf) {
+	        cnf = confs;
+	        if (!cnf) {
 		ast_cli(fd, "No active conferences.\n");
 		return RESULT_SUCCESS;
 	}
 	ast_cli(fd, header_format, "Conf Num", "Parties", "Activity", "Creation");
-	while(conf) {
-		hr = (now - conf->start) / 3600;
-		min = ((now - conf->start) % 3600) / 60;
-		sec = (now - conf->start) % 60;
+	        while(cnf) {
+	                hr = (now - cnf->start) / 3600;
+	                min = ((now - cnf->start) % 3600) / 60;
+	                sec = (now - cnf->start) % 60;
 
-		if (conf->isdynamic)
-			ast_cli(fd, data_format, conf->confno, conf->users, hr, min, sec, "Dynamic");
+	                if (cnf->isdynamic)
+	                        ast_cli(fd, data_format, cnf->confno, cnf->users, hr, min, sec, "Dynamic");
 		else
-			ast_cli(fd, data_format, conf->confno, conf->users, hr, min, sec, "Static");
+	                        ast_cli(fd, data_format, cnf->confno, cnf->users, hr, min, sec, "Static");
 
-		conf = conf->next;
+	                cnf = cnf->next;
 	}
 	return RESULT_SUCCESS;
+	}
+	if (argc < 3)
+		return RESULT_SHOWUSAGE;
+	strncpy(cmdline, argv[2], 100);
+	if (strstr(argv[1], "lock")) {
+		if (strcmp(argv[1], "lock") == 0) {
+			/* Lock */
+			strcat(cmdline, "|L");
+		} else {
+			/* Unlock */
+			strcat(cmdline, "|l");
+		}
+	} else if (strstr(argv[1], "mute")) {
+		if (argc < 4)
+			return RESULT_SHOWUSAGE;
+		if (strcmp(argv[1], "mute") == 0) {
+			/* Mute */
+			strcat(cmdline, "|M|");	
+			strcat(cmdline, argv[3]);
+		} else {
+			/* Unmute */
+			strcat(cmdline, "|m|");
+			strcat(cmdline, argv[3]);
+		}
+	} else if (strcmp(argv[1], "kick") == 0) {
+		if (argc < 4)
+			return RESULT_SHOWUSAGE;
+		if (strcmp(argv[3], "all") == 0) {
+			/* Kick all */
+			strcat(cmdline, "|K");
+		} else {
+			/* Kick a single user */
+			strcat(cmdline, "|k|");
+			strcat(cmdline, argv[3]);
+		}	
+	} else if(strcmp(argv[1], "list") == 0) {
+		/* List all the users in a conference */
+		if (!confs) {
+			ast_cli(fd, "No active conferences.\n");
+			return RESULT_SUCCESS;	
+		}
+		cnf = confs;
+		/* Find the right conference */
+		while(cnf) {
+			if (strcmp(cnf->confno, argv[2]) == 0)
+				break;
+			if (cnf->next) {
+				cnf = cnf->next;	
+			} else {
+				ast_cli(fd, "No such conference: %s.\n",argv[2]);
+				return RESULT_SUCCESS;
+			}
+		}
+		/* Show all the users */
+		user = cnf->firstuser;
+		while(user) {
+			ast_cli(fd, "User Number: %i  on Channel: %s\n", user->user_no, user->chan->name);
+			user = user->nextuser;
+		}
+		return RESULT_SUCCESS;
+	} else 
+		return RESULT_SHOWUSAGE;
+	ast_log(LOG_NOTICE, "Cmdline: %s\n", cmdline);
+	admin_exec(NULL, cmdline);
+	return 0;
 }
 
-static char show_confs_usage[] = 
-"Usage: show conferences\n"
-"       Provides summary information on conferences with active\n"
-"       participation.\n";
+static char *complete_confcmd(char *line, char *word, int pos, int state) {
+	#define CONF_COMMANDS 6
+	int which = 0, x = 0;
+	struct ast_conference *cnf = NULL;
+	struct ast_conf_user *usr = NULL;
+	char *confno = NULL;
+	char usrno[50] = "";
+	char cmds[CONF_COMMANDS][20] = {"lock", "unlock", "mute", "unmute", "kick", "list"};
+	char *myline;
+	
+	if (pos == 1) {
+		/* Command */
+		for (x = 0;x < CONF_COMMANDS; x++) {
+			if (!strncasecmp(cmds[x], word, strlen(word))) {
+				if (++which > state) {
+					return strdup(cmds[x]);
+				}
+			}
+		}
+	} else if (pos == 2) {
+		/* Conference Number */
+		ast_mutex_lock(&conflock);
+		cnf = confs;
+		while(cnf) {
+			if (!strncasecmp(word, cnf->confno, strlen(word))) {
+				if (++which > state)
+					break;
+			}
+			cnf = cnf->next;
+		}
+		ast_mutex_unlock(&conflock);
+		return cnf ? strdup(cnf->confno) : NULL;
+	} else if (pos == 3) {
+		/* User Number || Conf Command option*/
+		if (strstr(line, "mute") || strstr(line, "kick")) {
+			if ((state == 0) && (strstr(line, "kick")) && !(strncasecmp(word, "all", strlen(word)))) {
+				return strdup("all");
+			}
+			which++;
+			ast_mutex_lock(&conflock);
+			cnf = confs;
 
-static struct ast_cli_entry cli_show_confs = {
-	{ "show", "conferences", NULL }, confs_show, 
-	"Show status of conferences", show_confs_usage, NULL };
+			/* TODO: Find the conf number from the cmdline (ignore spaces) <- test this and make it fail-safe! */
+			myline = strdupa(line);
+			if (strsep(&myline, " ") && strsep(&myline, " ") && !confno) {
+				while((confno = strsep(&myline, " ")) && (strcmp(confno, " ") == 0))
+					;
+			}
+			
+			while(cnf) {
+				if (strcmp(confno, cnf->confno) == 0) {
+					break;
+				}
+				cnf = cnf->next;
+			}
+			if (cnf) {
+				/* Search for the user */
+				usr = cnf->firstuser;
+				while(usr) {
+					sprintf(usrno, "%i", usr->user_no);
+					if (!strncasecmp(word, usrno, strlen(word))) {
+						if (++which > state)
+							break;
+					}
+					usr = usr->nextuser;
+				}
+			}
+			ast_mutex_unlock(&conflock);
+			return usr ? strdup(usrno) : NULL;
+		}
+	}
+	return NULL;
+}
+        
+static char conf_usage[] =
+"Usage: meetme  (un)lock|(un)mute|kick|list confno usernumber\n"
+"       Executes a command for the conference or on a conferee\n";
+
+static struct ast_cli_entry cli_conf = {
+        { "meetme", NULL, NULL }, conf_cmd,
+        "Execute a command on a conference or conferee", conf_usage, complete_confcmd };
 
 static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags)
 {
 	struct ast_conference *prev=NULL, *cur;
+        struct ast_conf_user *user = malloc(sizeof(struct ast_conf_user));
 	int fd;
 	struct zt_confinfo ztc;
 	struct ast_frame *f;
@@ -261,16 +452,62 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	int firstpass = 0;
 	int ret = -1;
 	int x;
+        int menu_active = 0;
 
 	struct ast_app *app;
 	char *agifile;
 	char *agifiledefault = "conf-background.agi";
+        char meetmesecs[30];
 
 	ZT_BUFFERINFO bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
 	
+        user->user_no = 0; /* User number 0 means starting up user! (dead - not in the list!) */
+	
+	if (conf->locked) {
+		/* Sorry, but this confernce is locked! */	
+		if (!ast_streamfile(chan, "conf-locked", chan->language))
+			ast_waitstream(chan, "");
+		goto outrun;
+	}
+	
 	conf->users++;
+        if (confflags & CONFFLAG_ADMINEXIT) {
+        	if (conf->markedusers == -1) {
+        		conf->markedusers = 1;
+        	} else {
+        		conf->markedusers++;
+        	}
+        }
+      
+      	ast_mutex_lock(&conflock);
+        if (conf->firstuser == NULL) {
+		/* Fill the first new User struct */
+                user->user_no = 1;
+                user->nextuser = NULL;
+                user->prevuser = NULL;
+        	conf->firstuser = user;
+        	conf->lastuser = user;
+        } else {
+        	/* Fill the new user struct */	
+        	user->user_no = conf->lastuser->user_no + 1; 
+                user->prevuser = conf->lastuser;
+                user->nextuser = NULL;
+                if (conf->lastuser->nextuser != NULL) {
+                	ast_log(LOG_WARNING, "Error in User Management!\n");
+                      	goto outrun;
+                } else {
+                	conf->lastuser->nextuser = user;
+                	conf->lastuser = user;
+                }
+        }
+        strncpy(user->usrvalue, "test", sizeof(user->usrvalue));
+	user->chan = chan;
+	user->userflags = confflags;
+	user->adminflags = 0;
+	ast_mutex_unlock(&conflock);
+        
 	if (!(confflags & CONFFLAG_QUIET) && conf->users == 1) {
 		if (!ast_streamfile(chan, "conf-onlyperson", chan->language))
 			ast_waitstream(chan, "");
@@ -388,7 +625,6 @@ zapretry:
 			"Meetme: %s\r\n",
 			chan->name, chan->uniqueid, conf->confno);
 
-
 	if (!firstpass && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN)) {
 		firstpass = 1;
 		if (!(confflags & CONFFLAG_QUIET))
@@ -422,10 +658,20 @@ zapretry:
 			x = 0;
                         ast_channel_setoption(chan,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
                 }
-	} else for(;;) {
+        } else {
+        	if (!strcasecmp(chan->type,"Zap") && (confflags & CONFFLAG_STARMENU)) {
+                        /*  Set CONFMUTE mode on Zap channel to mute DTMF tones when the menu is enabled */
+                        x = 1;
+                        ast_channel_setoption(chan,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
+                }	
+	        for(;;) {
 		outfd = -1;
 		ms = -1;
 		c = ast_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
+	                
+	                /* Update the struct with the actual confflags */
+	                user->userflags = confflags;
+	                
 		/* trying to add moh for single person conf */
 		if (confflags & CONFFLAG_MOH) {
 			if (conf->users == 1) {
@@ -440,7 +686,47 @@ zapretry:
 				}
 			}
 		}
-		/* end modifications */
+	                
+	                /* Leave if the last marked user left */
+	                if ((confflags & CONFFLAG_ADMINEXIT) && (conf->markedusers == 0)) {
+	                	ret = 0;
+	                	break;
+	                }
+	
+			/* Check if the admin changed my modes */
+			if (user->adminflags) {			
+				/* Set the new modes */
+				if ((user->adminflags & ADMINFLAG_MUTED) && (ztc.confmode & ZT_CONF_TALKER)) {
+					ztc.confmode ^= ZT_CONF_TALKER;
+					if (ioctl(fd, ZT_SETCONF, &ztc)) {
+	                			ast_log(LOG_WARNING, "Error setting conference - Un/Mute \n");
+	                			ret = -1;
+	                			break;
+	        			}
+				}
+				if (!(user->adminflags & ADMINFLAG_MUTED) && !(confflags & CONFFLAG_MONITOR) && !(ztc.confmode & ZT_CONF_TALKER)) {
+					ztc.confmode |= ZT_CONF_TALKER;
+					if (ioctl(fd, ZT_SETCONF, &ztc)) {
+	                			ast_log(LOG_WARNING, "Error setting conference - Un/Mute \n");
+	                			ret = -1;
+	                			break;
+	        			}
+				}
+				if (user->adminflags & ADMINFLAG_KICKME) {
+					//You have been kicked.
+					if (!ast_streamfile(chan, "conf-kicked", chan->language))
+                        			ast_waitstream(chan, "");
+					ret = 0;
+	                		break;
+				}
+			} else if (!(confflags & CONFFLAG_MONITOR) && !(ztc.confmode & ZT_CONF_TALKER)) {
+				ztc.confmode |= ZT_CONF_TALKER;
+				if (ioctl(fd, ZT_SETCONF, &ztc)) {
+	                		ast_log(LOG_WARNING, "Error setting conference - Un/Mute \n");
+					ret = -1;
+					break;
+	        		}
+			}
 
 		if (c) {
 			if (c->fds[0] != origfd) {
@@ -458,13 +744,105 @@ zapretry:
 			if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '#') && (confflags & CONFFLAG_POUNDEXIT)) {
 				ret = 0;
 				break;
-			} else if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*') && (confflags & CONFFLAG_STARMENU)) {
+	                        } else if (((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*') && (confflags & CONFFLAG_STARMENU)) || ((f->frametype == AST_FRAME_DTMF) && menu_active)) {
+	                        		if (musiconhold) {
+				   	        	ast_moh_stop(chan);
+				                }
 					if ((confflags & CONFFLAG_ADMIN)) {
-					/* Do admin stuff here */
+	                                        	/* Admin menu */
+	                                        	if (!menu_active) {
+	                                        		menu_active = 1;
+	                                        		/* Record this sound! */
+		                                        	if (!ast_streamfile(chan, "conf-adminmenu", chan->language))
+                        						ast_waitstream(chan, "");
 					} else {
-					/* Do user menu here */
+		                                        	switch(f->subclass - 48) {
+		                                        		case 1: /* Un/Mute */
+		                                        			menu_active = 0;
+		         							if (ztc.confmode & ZT_CONF_TALKER) {
+		         						       		ztc.confmode = ZT_CONF_CONF | ZT_CONF_LISTENER;
+		         						       		confflags |= CONFFLAG_MONITOR ^ CONFFLAG_TALKER;
+		        							} else {
+		        						        	ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
+		        						        	confflags ^= CONFFLAG_MONITOR | CONFFLAG_TALKER;
+		        						        }
+		        							if (ioctl(fd, ZT_SETCONF, &ztc)) {
+		                							ast_log(LOG_WARNING, "Error setting conference - Un/Mute \n");
+		                							ret = -1;
+		                							break;
+		        							}
+		        							if (ztc.confmode & ZT_CONF_TALKER) {
+		        								if (!ast_streamfile(chan, "conf-unmuted", chan->language))
+			                                        				ast_waitstream(chan, "");
+			                                        		} else {
+			                                        			if (!ast_streamfile(chan, "conf-muted", chan->language))
+		                                        					ast_waitstream(chan, "");
+			                                        		}
+		                                        			break;
+		                                        		case 2: /* Un/Lock the Conference */
+		                                        			menu_active = 0;
+		                                        			if (conf->locked) {
+		                                        				conf->locked = 0;
+		                                        				if (!ast_streamfile(chan, "conf-unlockednow", chan->language))
+		                                        					ast_waitstream(chan, "");
+		                                        			} else {
+		                                        				conf->locked = 1;
+		                                        				if (!ast_streamfile(chan, "conf-lockednow", chan->language))
+		                                        					ast_waitstream(chan, "");
 					}
 
+		                                        			break;
+		                                        		default:
+		                                        			menu_active = 0;
+		                                        			/* Play an error message! */
+		                                        			if (!ast_streamfile(chan, "conf-errormenu", chan->language))
+		                                        				ast_waitstream(chan, "");
+		                                        			break;
+		                                        	}
+		                                        }
+	                                        } else {
+	                                        	/* User menu */
+	                                        	if (!menu_active) {
+	                                        		menu_active = 1;
+	                                        		/* Record this sound! */
+		                                        	if (!ast_streamfile(chan, "conf-usermenu", chan->language))
+                        						ast_waitstream(chan, "");
+		                                        } else {
+		                                        	switch(f->subclass - 48) {
+		                                        		case 1: /* Un/Mute */
+		                                        			menu_active = 0;
+		         							if (ztc.confmode & ZT_CONF_TALKER) {
+		         						       		ztc.confmode = ZT_CONF_CONF | ZT_CONF_LISTENER;
+		         						       		confflags |= CONFFLAG_MONITOR ^ CONFFLAG_TALKER;
+		        							} else if (!(user->adminflags & ADMINFLAG_MUTED)) {
+		        						        	ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
+		        						        	confflags ^= CONFFLAG_MONITOR | CONFFLAG_TALKER;
+		        						        }
+		        							if (ioctl(fd, ZT_SETCONF, &ztc)) {
+		                							ast_log(LOG_WARNING, "Error setting conference - Un/Mute \n");
+		                							ret = -1;
+		                							break;
+		        							}
+		        							if (ztc.confmode & ZT_CONF_TALKER) {
+		        								if (!ast_streamfile(chan, "conf-unmuted", chan->language))
+			                                        				ast_waitstream(chan, "");
+			                                        		} else {
+			                                        			if (!ast_streamfile(chan, "conf-muted", chan->language))
+		                                        					ast_waitstream(chan, "");
+			                                        		}
+		                                        			break;
+		                                        		default:
+		                                        			menu_active = 0;
+		                                        			/* Play an error message! */
+		                                        			if (!ast_streamfile(chan, "errormenu", chan->language))
+		                                        				ast_waitstream(chan, "");
+		                                        			break;
+		                                        	}
+		                                        }
+	                                        }
+						if (musiconhold) {
+				   	        	ast_moh_start(chan, NULL);
+				                }
 			} else if (fd != chan->fds[0]) {
 				if (f->frametype == AST_FRAME_VOICE) {
 					if (f->subclass == AST_FORMAT_ULAW) {
@@ -493,7 +871,7 @@ zapretry:
 				ast_log(LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
 		}
 	}
-
+	}
 	if (fd != chan->fds[0])
 		close(fd);
 	else {
@@ -510,23 +888,17 @@ zapretry:
 		conf_play(conf, LEAVE);
 
 outrun:
-
-	ast_mutex_lock(&conflock);
-	/* Clean up */
-	conf->users--;
-
-	ast_log(LOG_DEBUG, "Removed channel %s from ZAP conf %d\n", chan->name, conf->zapconf);
-
+        if (user->user_no) { /* Only cleanup users who really joined! */
 	manager_event(EVENT_FLAG_CALL, "MeetmeLeave", 
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
 			"Meetme: %s\r\n",
 			chan->name, chan->uniqueid, conf->confno);
-
-
+        	ast_mutex_lock(&conflock);
+	        conf->users--;
+	        cur = confs;
 	if (!conf->users) {
 		/* No more users -- close this one out */
-		cur = confs;
 		while(cur) {
 			if (cur == conf) {
 				if (prev)
@@ -542,7 +914,24 @@ outrun:
 			ast_log(LOG_WARNING, "Conference not found\n");
 		close(conf->fd);
 		free(conf);
+	        } else {
+	        	/* Remove the user struct */ 
+	        	if (user == cur->firstuser) {
+	        		cur->firstuser->nextuser->prevuser = NULL;
+	        		cur->firstuser = cur->firstuser->nextuser;
+	        	} else if (user == cur->lastuser){
+	        		cur->lastuser->prevuser->nextuser = NULL;
+	        		cur->lastuser = cur->lastuser->prevuser;
+	        	} else {
+	        		user->nextuser->prevuser = user->prevuser;
+	        		user->prevuser->nextuser = user->nextuser;
+	        	}
+	        	/* Return the number of seconds the user was in the conf */
+	        	sprintf(meetmesecs, "%i", (int) (user->jointime - time(NULL)));
+	        	pbx_builtin_setvar_helper(chan, "MEETMESECS", meetmesecs);
+	        }
 	}
+	free(user);
 	ast_mutex_unlock(&conflock);
 	return ret;
 }
@@ -692,7 +1081,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			confflags |= CONFFLAG_MONITOR;
 		if (strchr(inflags, 'p'))
 			confflags |= CONFFLAG_POUNDEXIT;
-		if (strchr(inflags, 's'))
+		if (strchr(inflags, 'u'))
 			confflags |= CONFFLAG_STARMENU;
 		if (strchr(inflags, 't'))
 			confflags |= CONFFLAG_TALKER;
@@ -700,6 +1089,8 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			confflags |= CONFFLAG_QUIET;
 		if (strchr(inflags, 'M'))
 			confflags |= CONFFLAG_MOH;
+                if (strchr(inflags, 'x'))
+                        confflags |= CONFFLAG_ADMINEXIT;
 		if (strchr(inflags, 'b'))
 			confflags |= CONFFLAG_AGI;
 		if (strchr(inflags, 'd'))
@@ -873,10 +1264,102 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+static struct ast_conf_user* find_user(struct ast_conference *conf, char *callerident) {
+	struct ast_conf_user *user = NULL;
+	char usrno[1024] = "";
+	if (conf && callerident) {
+		user = conf->firstuser;
+		while(user) {
+			sprintf(usrno, "%i", user->user_no);
+			if (strcmp(usrno, callerident) == 0)
+				return user;
+			user = user->nextuser;
+		}
+	}
+	return NULL;
+}
+
+static int admin_exec(struct ast_channel *chan, void *data) {
+	/* MeetMeAdmin(confno, command, caller) */
+	char *params, *command = NULL, *caller = NULL, *conf = NULL;
+	struct ast_conference *cnf;
+	struct ast_conf_user *user = NULL;
+
+	ast_mutex_lock(&conflock);
+	/* The param has the conference number the user and the command to execute */
+	if (data && strlen(data)) {		
+		params = ast_strdupa((char *) data);
+		conf = strsep(&params, "|");
+		command = strsep(&params, "|");
+		caller = strsep(&params, "|");
+		
+		ast_mutex_lock(&conflock);
+                cnf = confs;
+                while (cnf) {
+                        if (strcmp(cnf->confno, conf) == 0) 
+                        	break;
+                	cnf = cnf->next;
+                }
+                ast_mutex_unlock(&conflock);
+                
+                if (caller)
+                	user = find_user(cnf, caller);
+                
+		if (cnf) {
+			switch((int) (*command)) {
+				case 76: /* L: Lock */ 
+					cnf->locked = 1;
+					break;
+				case 108: /* l: Unlock */ 
+					cnf->locked = 0;
+					break;
+				case 75: /* K: kick all users*/
+					user = cnf->firstuser;
+					while(user) {
+						user->adminflags |= ADMINFLAG_KICKME;
+						if (user->nextuser) {
+							user = user->nextuser;
+						} else {
+							break;
+						}
+					}
+					break;
+				case 77: /* M: Mute */ 
+					if (user) {
+						user->adminflags |= ADMINFLAG_MUTED;
+					} else {
+						ast_log(LOG_NOTICE, "Specified User not found!");
+					}
+					break;
+				case 109: /* m: Unmute */ 
+					if (user && (user->adminflags & ADMINFLAG_MUTED)) {
+						user->adminflags ^= ADMINFLAG_MUTED;
+					} else {
+						ast_log(LOG_NOTICE, "Specified User not found or he muted himself!");
+					}
+					break;
+				case 107: /* k: Kick user */ 
+					if (user) {
+						user->adminflags |= ADMINFLAG_KICKME;
+					} else {
+						ast_log(LOG_NOTICE, "Specified User not found!");
+					}
+					break;
+			}
+		} else {
+			ast_log(LOG_NOTICE, "Conference Number not found\n");
+		}
+	}
+	ast_mutex_unlock(&conflock);
+	return 0;
+}
+
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
 	ast_cli_unregister(&cli_show_confs);
+        ast_cli_unregister(&cli_conf);
+        ast_unregister_application(app3);
 	ast_unregister_application(app2);
 	return ast_unregister_application(app);
 }
@@ -884,6 +1367,8 @@ int unload_module(void)
 int load_module(void)
 {
 	ast_cli_register(&cli_show_confs);
+        ast_cli_register(&cli_conf);
+        ast_register_application(app3, admin_exec, synopsis3, descrip3);
 	ast_register_application(app2, count_exec, synopsis2, descrip2);
 	return ast_register_application(app, conf_exec, synopsis, descrip);
 }

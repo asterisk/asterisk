@@ -612,3 +612,21 @@
 %plus.gsm%plus [+]
 
 %equals.gsm%equals [=]
+
+%conf-locked.gsm%This conference is locked!
+
+%conf-kicked.gsm%You have been kicked from this conference
+
+%conf-adminmenu.gsm%Please press 1 to mute or unmute yourself, or press 2 to lock or unlock the conference
+
+%conf-usermenu.gsm%Please press 1 to mute or unmute yourself
+
+%conf-errormenu.gsm%Invalid Choice
+
+%conf-muted.gsm%You are now muted
+
+%conf-unmuted.gsm%You are now unmuted
+
+%conf-lockednow.gsm%The conference is now locked
+
+%conf-unlockednow.gsm%The conference is now unlocked

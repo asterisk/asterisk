@@ -455,6 +455,7 @@ static int action_redirect(struct mansession *s, struct message *m)
 	char *exten = astman_get_header(m, "Exten");
 	char *context = astman_get_header(m, "Context");
 	char *priority = astman_get_header(m, "Priority");
+	struct ast_channel *chan, *chan2 = NULL;
 	int pi = 0;
 	int res;
 	if (!name || !strlen(name)) {
@@ -465,10 +466,16 @@ static int action_redirect(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Invalid priority\n");
 		return 0;
 	}
-	res = ast_async_goto_by_name(name, context, exten, pi);
+	chan = ast_get_channel_by_name_locked(name);
+	if (strlen(name2))
+		chan2 = ast_get_channel_by_name_locked(name2);
+	res = ast_async_goto(chan, context, exten, pi);
 	if (!res) {
 		if (strlen(name2)) {
-			res = ast_async_goto_by_name(name2, context, exten, pi);
+			if (chan2)
+				res = ast_async_goto(chan2, context, exten, pi);
+			else
+				res = -1;
 			if (!res)
 				astman_send_ack(s, m, "Dual Redirect successful");
 			else
@@ -477,6 +484,10 @@ static int action_redirect(struct mansession *s, struct message *m)
 			astman_send_ack(s, m, "Redirect successful");
 	} else
 		astman_send_error(s, m, "Redirect failed");
+	if (chan)
+		ast_mutex_unlock(&chan->lock);
+	if (chan2)
+		ast_mutex_unlock(&chan2->lock);
 	return 0;
 }
 

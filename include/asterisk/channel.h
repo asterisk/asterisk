@@ -628,6 +628,9 @@ int ast_recvchar(struct ast_channel *chan, int timeout);
  */
 struct ast_channel *ast_channel_walk_locked(struct ast_channel *prev);
 
+//! Get channel by name (locks channel)
+struct ast_channel *ast_get_channel_by_name_locked(char *channame);
+
 //! Waits for a digit
 /*! 
  * \param c channel to wait for a digit on

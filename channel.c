@@ -468,6 +468,19 @@ struct ast_channel *ast_channel_walk_locked(struct ast_channel *prev)
 	
 }
 
+struct ast_channel *ast_get_channel_by_name_locked(char *channame)
+{
+	struct ast_channel *chan;
+	chan = ast_channel_walk_locked(NULL);
+	while(chan) {
+		if (!strcasecmp(chan->name, channame))
+			return chan;
+		ast_mutex_unlock(&chan->lock);
+		chan = ast_channel_walk_locked(NULL);
+	}
+	return NULL;
+}
+
 int ast_safe_sleep_conditional(	struct ast_channel *chan, int ms,
 								int (*cond)(void*), void *data )
 {
