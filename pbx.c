@@ -2696,16 +2696,22 @@ int ast_unregister_application(char *app) {
 	return -1;
 }
 
-struct ast_context *ast_context_create(char *name, char *registrar)
+struct ast_context *ast_context_create(struct ast_context **extcontexts, char *name, char *registrar)
 {
-	struct ast_context *tmp;
-	
-	ast_pthread_mutex_lock(&conlock);
-	tmp = contexts;
+	struct ast_context *tmp, **local_contexts;
+	if (!extcontexts) {
+		local_contexts = &contexts;
+		ast_pthread_mutex_lock(&conlock);
+	} else
+		local_contexts = extcontexts;
+
+	tmp = *local_contexts;
 	while(tmp) {
 		if (!strcasecmp(tmp->name, name)) {
 			ast_pthread_mutex_unlock(&conlock);
 			ast_log(LOG_WARNING, "Tried to register context '%s', already in use\n", name);
+			if (!extcontexts)
+				ast_pthread_mutex_unlock(&conlock);
 			return NULL;
 		}
 		tmp = tmp->next;
@@ -2717,10 +2723,10 @@ struct ast_context *ast_context_create(char *name, char *registrar)
 		strncpy(tmp->name, name, sizeof(tmp->name)-1);
 		tmp->root = NULL;
 		tmp->registrar = registrar;
-		tmp->next = contexts;
+		tmp->next = *local_contexts;
 		tmp->includes = NULL;
 		tmp->ignorepats = NULL;
-		contexts = tmp;
+		*local_contexts = tmp;
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Registered context '%s'\n", tmp->name);
 		else if (option_verbose > 2)
@@ -2728,8 +2734,30 @@ struct ast_context *ast_context_create(char *name, char *registrar)
 	} else
 		ast_log(LOG_WARNING, "Out of memory\n");
 	
-	ast_pthread_mutex_unlock(&conlock);
+	if (!extcontexts)
+		ast_pthread_mutex_unlock(&conlock);
 	return tmp;
+}
+
+void __ast_context_destroy(struct ast_context *con, char *registrar, int lock);
+
+void ast_merge_contexts_and_delete(struct ast_context **extcontexts) {
+	struct ast_context *tmp, *lasttmp = NULL;
+	tmp = *extcontexts;
+	ast_pthread_mutex_lock(&conlock);
+	while (tmp) {
+		__ast_context_destroy(tmp,tmp->registrar,0);
+		lasttmp = tmp;
+		tmp = tmp->next;
+	}
+	if (lasttmp) {
+		lasttmp->next = contexts;
+		contexts = *extcontexts;
+		*extcontexts = NULL;
+	} else 
+		ast_log(LOG_WARNING, "Requested contexts didn't get merged\n");
+	ast_pthread_mutex_unlock(&conlock);
+	return;	
 }
 
 /*
@@ -3890,16 +3918,17 @@ static void destroy_exten(struct ast_exten *e)
 	free(e);
 }
 
-void ast_context_destroy(struct ast_context *con, char *registrar)
+void __ast_context_destroy(struct ast_context *con, char *registrar, int lock)
 {
 	struct ast_context *tmp, *tmpl=NULL;
 	struct ast_include *tmpi, *tmpil= NULL;
 	struct ast_sw *sw, *swl= NULL;
 	struct ast_exten *e, *el, *en;
-	ast_pthread_mutex_lock(&conlock);
+	if (lock)
+		ast_pthread_mutex_lock(&conlock);
 	tmp = contexts;
 	while(tmp) {
-		if (((tmp == con) || !con) &&
+		if (((tmp->name && con && con->name && !strcasecmp(tmp->name, con->name)) || !con) &&
 		    (!registrar || !strcasecmp(registrar, tmp->registrar))) {
 			/* Okay, let's lock the structure to be sure nobody else
 			   is searching through it. */
@@ -3945,13 +3974,20 @@ void ast_context_destroy(struct ast_context *con, char *registrar)
 				tmpil = NULL;
 				continue;
 			}
-			ast_pthread_mutex_unlock(&conlock);
+			if (lock)
+				ast_pthread_mutex_unlock(&conlock);
 			return;
 		}
 		tmpl = tmp;
 		tmp = tmp->next;
 	}
-	ast_pthread_mutex_unlock(&conlock);
+	if (lock)
+		ast_pthread_mutex_unlock(&conlock);
+}
+
+void ast_context_destroy(struct ast_context *con, char *registrar)
+{
+	__ast_context_destroy(con,registrar,1);
 }
 
 static void wait_for_hangup(struct ast_channel *chan)
