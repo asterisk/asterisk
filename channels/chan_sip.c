@@ -122,6 +122,8 @@ static int pedanticsipchecking = 0;
 
 static int autocreatepeer = 0;
 
+static int relaxdtmf = 0;
+
 static int usecnt =0;
 static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
@@ -1550,6 +1552,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
                 if (i->dtmfmode & SIP_DTMF_INBAND) {
                     i->vad = ast_dsp_new();
                     ast_dsp_set_features(i->vad, DSP_FEATURE_DTMF_DETECT);
+		    if (relaxdtmf)
+			ast_dsp_digitmode(i->vad, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
                 }
 		tmp->fds[0] = ast_rtp_fd(i->rtp);
 		tmp->fds[1] = ast_rtcp_fd(i->rtp);
@@ -1734,6 +1738,8 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 			}
             if ((p->dtmfmode & SIP_DTMF_INBAND) && p->vad) {
                    f = ast_dsp_process(p->owner,p->vad,f);
+		   if (f && (f->frametype == AST_FRAME_DTMF)) 
+			ast_log(LOG_DEBUG, "Detected DTMF '%c'\n", f->subclass);
             }
 		}
 	}
@@ -6588,12 +6594,15 @@ static int reload_config(void)
 	strcpy(fromdomain, "");
 	globalcanreinvite = REINVITE_INVITE;
 	videosupport = 0;
+	relaxdtmf = 0;
 	pedanticsipchecking=0;
 	v = ast_variable_browse(cfg, "general");
 	while(v) {
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "context")) {
 			strncpy(context, v->value, sizeof(context)-1);
+		} else if (!strcasecmp(v->name, "relaxdtmf")) {
+			relaxdtmf = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "dtmfmode")) {
 			if (!strcasecmp(v->value, "inband"))
 				globaldtmfmode=SIP_DTMF_INBAND;
