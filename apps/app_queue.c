@@ -80,7 +80,7 @@ static char *descrip =
 "      'n' -- no retries on the timeout; will exit this application and go to the next step.\n"
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n"
-"  The optionnal URL will be sent to the called party if the channel supports\n"
+"  The optional URL will be sent to the called party if the channel supports\n"
 "it.\n";
 
 // [PHM 06/26/03]
