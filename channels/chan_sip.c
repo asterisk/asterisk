@@ -74,6 +74,7 @@
 #define SIPDUMPER
 #define DEFAULT_DEFAULT_EXPIRY  120
 #define DEFAULT_MAX_EXPIRY      3600
+#define DEFAULT_REGISTRATION_TIMEOUT	20
 
 /* guard limit must be larger than guard secs */
 /* guard min must be < 1000, and should be >= 250 */
@@ -153,6 +154,8 @@ static int global_rtpholdtimeout = 0;
 static int global_trustrpid = 0;	/* Trust RPID headers? Default off. */
 
 static int global_progressinband = 0;
+
+static int global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
 
 #ifdef OSP_SUPPORT
 static int global_ospauth = 0;		/* OSP = Open Settlement Protocol */
@@ -4160,7 +4163,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 			ast_log(LOG_WARNING, "Still have a timeout, %d\n", r->timeout);
 			ast_sched_del(sched, r->timeout);
 		}
-		r->timeout = ast_sched_add(sched, 20*1000, sip_reg_timeout, r);
+		r->timeout = ast_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
 		ast_log(LOG_DEBUG, "Scheduled a timeout # %d\n", r->timeout);
 	}
 
@@ -8809,6 +8812,10 @@ static int reload_config(void)
 			default_expiry = atoi(v->value);
 			if (default_expiry < 1)
 				default_expiry = DEFAULT_DEFAULT_EXPIRY;
+		} else if (!strcasecmp(v->name, "registertimeout")){
+			global_reg_timeout = atoi(v->value);
+			if (global_reg_timeout < 1)
+				global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
 		} else if (!strcasecmp(v->name, "bindaddr")) {
 			if (!(hp = ast_gethostbyname(v->value, &ahp))) {
 				ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);

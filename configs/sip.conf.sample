@@ -121,6 +121,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;        Tip 2: Use separate type=peer and type=user sections for SIP providers
 ;                      (instead of type=friend) if you have calls in both directions
   
+;registertimeout=20		; retry registration calls every 20 seconds (default)
 
 ;externip = 200.201.202.203	; Address that we're going to put in outbound SIP messages
 				; if we're behind a NAT
