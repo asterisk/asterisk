@@ -3435,7 +3435,7 @@ static int load_config(void)
 										zonesl = z;
 									}
 								} else {
-									ast_log(LOG_WARNING, "Invalid tonezone definition at line %d\n", var->lineno);
+									ast_log(LOG_WARNING, "Invalid timezone definition at line %d\n", var->lineno);
 									free(z);
 								}
 							} else {
