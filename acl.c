@@ -234,7 +234,7 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	pid_t pid = getpid();
 	static int routeseq;	/* Protected by "routeseq_lock" mutex */
 
-	p = ast_strdupa(ast_inet_ntoa(tmp, sizeof(tmp), *them))
+	p = ast_strdupa(ast_inet_ntoa(tmp, sizeof(tmp), *them));
 	memset(us, 0, sizeof(struct in_addr));
 
 	memset(&m_rtmsg, 0, sizeof(m_rtmsg));
