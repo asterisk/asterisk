@@ -274,21 +274,22 @@ void astman_send_ack(struct mansession *s, struct message *m, char *msg)
    ast_instring("this|that|more","this",',') == 1;
 
    feel free to move this to app.c -anthm */
-static int ast_instring(char *bigstr, char *smallstr, char delim) {
-    char *val = bigstr, *next;
+static int ast_instring(char *bigstr, char *smallstr, char delim) 
+{
+	char *val = bigstr, *next;
 
-    do {
-        if ( ( next = strchr ( val, delim ) ) )
-            if ( ! strncmp ( val , smallstr , ( next - val ) ) )
-                return 1;
-            else
-                continue;
-        else
-            return ! strcmp ( smallstr , val );
+	do {
+		if ((next = strchr(val, delim))) {
+			if (!strncmp(val, smallstr, (next - val)))
+				return 1;
+			else
+				continue;
+		} else
+			return !strcmp(smallstr, val);
 
-    } while ( * ( val = ( next + 1 ) ) ) ;
+	} while (*(val = (next + 1)));
 
-    return 0;
+	return 0;
 }
 
 static int get_perm(char *instr)
@@ -305,14 +306,15 @@ static int get_perm(char *instr)
 	return ret;
 }
 
-static int ast_is_number(char *string) {
+static int ast_is_number(char *string) 
+{
 	int ret = 1, x = 0;
 
-	if(!string)
+	if (!string)
 		return 0;
 
-	for (x=0; x < strlen(string) ; x++ ) {
-		if (! (string[x] >= 48 && string[x] <= 57)) {
+	for (x=0; x < strlen(string); x++) {
+		if (!(string[x] >= 48 && string[x] <= 57)) {
 			ret = 0;
 			break;
 		}
@@ -321,15 +323,15 @@ static int ast_is_number(char *string) {
 	return ret ? atoi(string) : 0;
 }
 
-
-static int ast_strings_to_mask(char *string) {
+static int ast_strings_to_mask(char *string) 
+{
 	int x = 0, ret = -1;
 	
 	x = ast_is_number(string);
 
-	if(x) 
+	if (x) 
 		ret = x;
-	else if (! string || ast_strlen_zero(string))
+	else if (!string || ast_strlen_zero(string))
 		ret = -1;
 	else if (!strcasecmp(string, "off") || ast_false(string))
 		ret = 0;
@@ -337,13 +339,13 @@ static int ast_strings_to_mask(char *string) {
 		ret = -1;
 	else {
 		ret = 0;
-		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++) 
+		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++) {
 			if (ast_instring(string, perms[x].label, ',')) 
 				ret |= perms[x].num;		
+		}
 	}
 
 	return ret;
-
 }
 
 /* 
@@ -488,8 +490,8 @@ static char mandescr_events[] =
 "  client.\n"
 "Variables:\n"
 "	EventMask: 'on' if all events should be sent,\n"
-"   EventMask: 'system,call,log' if events should be sent matching these specific channels,\n" 
-"   EventMask: 'off' if no events should be sent.\n";
+"		'off' if no events should be sent,\n"
+"		'system,call,log' to select which flags events should have to be sent.\n";
 
 static int action_events(struct mansession *s, struct message *m)
 {
