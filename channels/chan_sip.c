@@ -6497,6 +6497,33 @@ static char *complete_sip_debug_peer(char *line, char *word, int pos, int state)
 	return NULL;
 }
 
+/*--- complete_sip_user: Do completion on user name ---*/
+static char *complete_sip_user(char *word, int state)
+{
+	char *result = NULL;
+	int wordlen = strlen(word);
+	int which = 0;
+
+	ASTOBJ_CONTAINER_TRAVERSE(&userl, !result, do {
+		/* locking of the object is not required because only the name is being compared */
+		if (!strncasecmp(word, iterator->name, wordlen)) {
+			if (++which > state) {
+				result = strdup(iterator->name);
+			}
+		}
+	} while(0) );
+	return result;
+}
+
+/*--- complete_sip_show_user: Support routine for 'sip show user' CLI ---*/
+static char *complete_sip_show_user(char *line, char *word, int pos, int state)
+{
+	if (pos == 3)
+		return complete_sip_user(word, state);
+
+	return NULL;
+}
+
 /*--- complete_sipnotify: Support routine for 'sip notify' CLI ---*/
 static char *complete_sipnotify(char *line, char *word, int pos, int state)
 {
@@ -7152,7 +7179,7 @@ static struct ast_cli_entry  cli_show_objects =
 static struct ast_cli_entry  cli_show_users = 
 	{ { "sip", "show", "users", NULL }, sip_show_users, "Show defined SIP users", show_users_usage };
 static struct ast_cli_entry  cli_show_user =
-	{ { "sip", "show", "user", NULL }, sip_show_user, "Show details on specific SIP user", show_user_usage };
+	{ { "sip", "show", "user", NULL }, sip_show_user, "Show details on specific SIP user", show_user_usage, complete_sip_show_user };
 static struct ast_cli_entry  cli_show_subscriptions =
 	{ { "sip", "show", "subscriptions", NULL }, sip_show_subscriptions, "Show active SIP subscriptions", show_subscriptions_usage};
 static struct ast_cli_entry  cli_show_channels =
