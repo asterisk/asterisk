@@ -69,7 +69,7 @@ static char *descrip =
 "      'A(x)' -- play an announcement to the called party, using x as file\n"
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n"
-"  The optionnal URL will be sent to the called party if the channel supports\n"
+"  The optional URL will be sent to the called party if the channel supports\n"
 "it.\n";
 
 /* We define a customer "local user" structure because we
