@@ -6491,7 +6491,6 @@ static void *pri_dchannel(void *vpri)
 							if (res < 0) {
 								ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", pri->pvt[chan]->channel);
 								pri->pvt[chan]->dop.dialstr[0] = '\0';
-								return NULL;
 							} else 
 								ast_log(LOG_DEBUG, "Sent deferred digit string: %s\n", pri->pvt[chan]->dop.dialstr);
 							pri->pvt[chan]->dop.dialstr[0] = '\0';
@@ -6576,7 +6575,7 @@ static void *pri_dchannel(void *vpri)
 							switch(e->hangup.cause) {
 							case PRI_CAUSE_USER_BUSY:
 								pri->pvt[chan]->subs[SUB_REAL].needbusy =1;
-							break;
+								break;
 							case PRI_CAUSE_CALL_REJECTED:
 							case PRI_CAUSE_NETWORK_OUT_OF_ORDER:
 							case PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION:
