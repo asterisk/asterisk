@@ -176,7 +176,7 @@
 
 %vm-onefor.gsm%Press 1 for
 
-%vm-options.gsm%Press 1 to record your unavailable message, press 2 to record your busy message, press 3 to record your name, press 4 to change  your password, press star to return to the main menu.
+%vm-options.gsm%Press 1 to record your unavailable message, press 2 to record your busy message, press 3 to record your name, press 4 to record your temporary message, press 5 to change your password, press star to return to the main menu.
 
 %vm-opts.gsm%Press 2 to change folders, press zero for mailbox options.
 
@@ -194,6 +194,8 @@
 
 %vm-rec-unv.gsm%After the tone say your unavailable message and then press the pound key.
 
+%vm-rec-temp.gsm%After the tone, say your temporary message, and then press the pound key.
+
 %vm-reenterpassword.gsm%Please re-enter your password followed by the pound key.
 
 %vm-repeat.gsm%Press 5 to repeat the current message.
@@ -207,6 +209,12 @@
 %vm-savemessage.gsm%or 9 to save this message
 
 %vm-sorry.gsm%I'm sorry I did not understand your response.
+
+%vm-tempgreeting.gsm%press 1 to record your temporary greeting
+
+%vm-tempgreeting2.gsm%press 1 to record your temporary greeting, or press 2 to erase your temporary greeting
+
+%vm-tempremoved.gsm%Your temporary greeting has been removed
 
 %vm-theperson.gsm%The person at extension
 

@@ -176,6 +176,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num, char *outgoing_context);
 static int play_record_review(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int outsidecaller, struct ast_vm_user *vmu, int *duration);
 static int vm_delete(char *file);
+static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc);
 
 static char ext_pass_cmd[128];
 
@@ -1262,6 +1263,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	char dir[256];
 	char fn[256];
 	char prefile[256]="";
+	char tempfile[256]="";
 	char ext_context[256] = "";
 	char fmt[80];
 	char *context;
@@ -1291,7 +1293,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		if (strcmp(vmu->context, "default"))
 			snprintf(ext_context, sizeof(ext_context), "%s@%s", ext, vmu->context);
 		else
-			strncpy(ext_context, vmu->context, sizeof(ext_context) - 1);
+			strncpy(ext_context, vmu->context, sizeof(ext_context) - 1);		
 		if (busy)
 			snprintf(prefile, sizeof(prefile), "voicemail/%s/%s/busy", vmu->context, ext);
 		else if (unavail)
@@ -1329,8 +1331,12 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 			ausemacro = 1;
 		}
 
+		snprintf(tempfile, sizeof(tempfile), "voicemail/%s/%s/temp", vmu->context, ext);
+
 		/* Play the beginning intro if desired */
 		if (!ast_strlen_zero(prefile)) {
+			if (ast_fileexists(tempfile, NULL, NULL) > 0)
+				strncpy(prefile, tempfile, sizeof(prefile) - 1);
 			if (ast_fileexists(prefile, NULL, NULL) > 0) {
 				if (ast_streamfile(chan, prefile, chan->language) > -1) 
 					res = ast_waitstream(chan, ecodes);
@@ -3297,7 +3303,10 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 			snprintf(prefile,sizeof(prefile),"voicemail/%s/%s/greet",vmu->context, vms->username);
 			cmd = play_record_review(chan,"vm-rec-name",prefile, maxgreet, fmtc, 0, vmu, &duration);
 			break;
-		case '4':
+		case '4': 
+			cmd = vm_tempgreeting(chan, vmu, vms, fmtc);
+			break;
+		case '5':
 			if (vmu->password[0] == '-') {
 				cmd = ast_play_and_wait(chan, "vm-no");
 				break;
@@ -3341,6 +3350,64 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 			if (retries > 3)
 				cmd = 't';
 		 }
+	}
+	if (cmd == 't')
+		cmd = 0;
+	return cmd;
+}
+
+static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc)
+{
+	int cmd = 0;
+	int retries = 0;
+	int duration = 0;
+	char prefile[256]="";
+	char buf[256];
+	int bytes=0;
+
+	if (adsi_available(chan))
+	{
+		bytes += adsi_logo(buf + bytes);
+		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_CENT, 0, "Temp Greeting Menu", "");
+		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_CENT, 0, "Not Done", "");
+		bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+		bytes += adsi_voice_mode(buf + bytes, 0);
+		adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+	}
+	snprintf(prefile,sizeof(prefile),"voicemail/%s/%s/temp",vmu->context, vms->username);
+	while((cmd >= 0) && (cmd != 't')) {
+		if (cmd)
+			retries = 0;
+		if (ast_fileexists(prefile, NULL, NULL) > 0) {
+			switch (cmd) {
+			case '1':
+				cmd = play_record_review(chan,"vm-rec-temp",prefile, maxgreet, fmtc, 0, vmu, &duration);
+				break;
+			case '2':
+				ast_filedelete(prefile, NULL);
+				ast_play_and_wait(chan,"vm-tempremoved");
+				cmd = 't';	
+				break;
+			case '*': 
+				cmd = 't';
+				break;
+			default:
+				if (ast_fileexists(prefile, NULL, NULL) > 0) {
+					cmd = ast_play_and_wait(chan,"vm-tempgreeting2");
+				} else {
+					cmd = ast_play_and_wait(chan,"vm-tempgreeting");
+				} if (!cmd) {
+					cmd = ast_waitfordigit(chan,6000);
+				} if (!cmd) {
+					retries++;
+				} if (retries > 3) {
+					cmd = 't';
+				}
+			}
+		} else {
+			play_record_review(chan,"vm-rec-temp",prefile, maxgreet, fmtc, 0, vmu, &duration);
+			cmd = 't';	
+		}
 	}
 	if (cmd == 't')
 		cmd = 0;
