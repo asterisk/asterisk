@@ -84,7 +84,7 @@ struct oh323_alias {
 	PBX application and passed through make_call 
 	function*/
 typedef struct call_options {
-	const char     *callerid;
+	char		   *callerid;
 	int				noFastStart;
 	int				noH245Tunnelling;
 	int				noSilenceSuppression;

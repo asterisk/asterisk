@@ -181,7 +181,7 @@ H323Codec * H323_G7231Capability::CreateCodec(H323Codec::Direction direction) co
   *					port = 1720.
   */
 int MyH323EndPoint::MakeCall(const PString & dest, PString & token, 
-							  			unsigned int *callReference, unsigned int port)
+							  			unsigned int *callReference, unsigned int port, char *callerid)
 {
 	PString fullAddress;
 	MyH323Connection * connection;
@@ -195,7 +195,7 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token,
 			fullAddress = dest; /* host */
 			if (h323debug)
 				cout << " -- Making call to " << fullAddress << "." << endl;
-		}
+	}
 
 	if (!(connection = (MyH323Connection *)H323EndPoint::MakeCallLocked(fullAddress, token))) {
 		if (h323debug)
@@ -204,8 +204,12 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token,
 	}
 	
 	*callReference = connection->GetCallReference();
-	connection->Unlock();
 	
+	if (strlen(callerid))
+		connection->SetLocalPartyName(PString(callerid));
+
+	connection->Unlock(); 	
+
 	if (h323debug) {
 		cout << "	-- " << GetLocalUserName() << " is calling host " << fullAddress << endl;
 		cout << "	-- " << "Call token is " << (const char *)token << endl;
@@ -969,7 +973,7 @@ int h323_make_call(char *host, call_details_t *cd, call_options_t call_options)
 	
 	PString dest(host);
 
-	res = endPoint->MakeCall(dest, token, &cd->call_reference, call_options.port);
+	res = endPoint->MakeCall(dest, token, &cd->call_reference, call_options.port, call_options.callerid);
 	memcpy((char *)(cd->call_token), (const unsigned char *)token, token.GetLength());
 	
 	return res;

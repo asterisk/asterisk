@@ -103,7 +103,7 @@ class MyH323EndPoint : public H323EndPoint {
 
 	public:
 
-	int MakeCall(const PString &, PString &, unsigned int *, unsigned int);
+	int MakeCall(const PString &, PString &, unsigned int *, unsigned int, char *);
 	BOOL ClearCall(const PString &);
 
 	void OnClosedLogicalChannel(H323Connection &, const H323Channel &);
