@@ -20,6 +20,10 @@ OSARCH=$(shell uname -s)
 
 ifeq (${OSARCH},Linux)
 PROC=$(shell uname -m)
+else
+ifeq (${OSARCH},FreeBSD)
+PROC=$(shell uname -m)
+endif
 endif
 # Pentium Pro Optimize
 #PROC=i686
