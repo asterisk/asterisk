@@ -1432,19 +1432,16 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	headp=&ast->varshead;
 	AST_LIST_TRAVERSE(headp,current,entries) {
 		/* Check whether there is a VXML_URL variable */
-		if (strcasecmp(ast_var_name(current),"VXML_URL")==0)
-	        {
+		if (!vxml_url && !strcasecmp(ast_var_name(current),"VXML_URL")) {
 			vxml_url = ast_var_value(current);
-		} else
-		/* Check whether there is a ALERT_INFO variable */
-		if (strcasecmp(ast_var_name(current),"ALERT_INFO")==0)
-	        {
+		} else if (!distinctive_ring && !strcasecmp(ast_var_name(current),"ALERT_INFO")) {
+			/* Check whether there is a ALERT_INFO variable */
 			distinctive_ring = ast_var_value(current);
 		}
 #ifdef OSP_SUPPORT
-		else if (!strcasecmp(ast_var_name(current), "OSPTOKEN")) {
+		  else if (!osptoken && !strcasecmp(ast_var_name(current), "OSPTOKEN")) {
 			osptoken = ast_var_value(current);
-		} else if (!strcasecmp(ast_var_name(current), "OSPHANDLE")) {
+		} else if (!osphandle && !strcasecmp(ast_var_name(current), "OSPHANDLE")) {
 			osphandle = ast_var_value(current);
 		}
 #endif
