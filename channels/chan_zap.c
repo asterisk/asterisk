@@ -3666,8 +3666,11 @@ static void *ss_thread(void *data)
 			else 
 				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
 		}
-		/* Wait for the first digit (up to 5 seconds). */
-		res = ast_waitfordigit(chan,5000);
+		/* Wait for the first digit only if immediate=no */
+		if (!p->immediate)
+			/* Wait for the first digit (up to 5 seconds). */
+			res = ast_waitfordigit(chan,5000);
+		else res = 0;
 		if (res > 0) {
 			/* save first char */
 			dtmfbuf[0] = res;
