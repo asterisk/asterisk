@@ -1542,7 +1542,6 @@ struct ast_channel *ast_request(char *type, int format, void *data)
 			if (chan->requester)
 				c = chan->requester(type, capabilities, data);
 			if (c) {
-//				ast_device_state_changed(c->name);
 				if (c->_state == AST_STATE_DOWN) {
 					manager_event(EVENT_FLAG_CALL, "Newchannel",
 					"Channel: %s\r\n"

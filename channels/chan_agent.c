@@ -128,11 +128,18 @@ static struct agent_pvt {
 	} \
 } while(0)
 
+/* Cleanup moves all the relevant FD's from the 2nd to the first, but retains things
+   properly for a timingfd XXX This might need more work if agents were logged in as agents or other
+   totally impractical combinations XXX */
+
 #define CLEANUP(ast, p) do { \
 	int x; \
 	if (p->chan) { \
-		for (x=0;x<AST_MAX_FDS;x++) \
-			ast->fds[x] = p->chan->fds[x]; \
+		for (x=0;x<AST_MAX_FDS;x++) {\
+			if (x != AST_MAX_FDS - 2) \
+				ast->fds[x] = p->chan->fds[x]; \
+		} \
+		ast->fds[AST_MAX_FDS - 3] = p->chan->fds[AST_MAX_FDS - 2]; \
 	} \
 } while(0)
 
@@ -247,7 +254,10 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 	CHECK_FORMATS(ast, p);
 	if (p->chan) {
 		p->chan->exception = ast->exception;
-		p->chan->fdno = ast->fdno;
+		if (ast->fdno == AST_MAX_FDS - 3)
+			p->chan->fdno = AST_MAX_FDS - 2;
+		else
+			p->chan->fdno = ast->fdno;
 		f = ast_read(p->chan);
 	} else
 		f = &null_frame;

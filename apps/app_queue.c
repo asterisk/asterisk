@@ -817,7 +817,6 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 			res2 = ast_autoservice_start(qe->chan);
 			if (!res2)
 				res2 = ast_streamfile(peer, announce, peer->language);
-			/* XXX Need a function to wait on *both* streams XXX */
 			if (!res2)
 				res2 = ast_waitstream(peer, "");
 			res2 |= ast_autoservice_stop(qe->chan);
