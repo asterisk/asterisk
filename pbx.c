@@ -3844,6 +3844,19 @@ int ast_add_extension(const char *context, int replace, const char *extension, i
 	return -1;
 }
 
+int ast_explicit_goto(struct ast_channel *chan, const char *context, const char *exten, int priority) {
+	if(chan && !ast_check_hangup(chan)) {
+		if (context && !ast_strlen_zero(context))
+			strncpy(chan->context, context, sizeof(chan->context) - 1);
+		if (exten && !ast_strlen_zero(exten))
+			strncpy(chan->exten, exten, sizeof(chan->context) - 1);
+		if (priority)
+			chan->priority = priority - 1;	
+		return 0;
+	}
+	return -1;
+}
+
 int ast_async_goto(struct ast_channel *chan, const char *context, const char *exten, int priority)
 {
 	int res = 0;
@@ -3851,12 +3864,7 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 
 	if (chan->pbx) {
 		/* This channel is currently in the PBX */
-		if (context && !ast_strlen_zero(context))
-			strncpy(chan->context, context, sizeof(chan->context) - 1);
-		if (exten && !ast_strlen_zero(exten))
-			strncpy(chan->exten, exten, sizeof(chan->context) - 1);
-		if (priority)
-			chan->priority = priority - 1;
+		ast_explicit_goto(chan, context, exten, priority);
 		ast_softhangup_nolock(chan, AST_SOFTHANGUP_ASYNCGOTO);
 	} else {
 		/* In order to do it when the channel doesn't really exist within
@@ -3871,19 +3879,11 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 			tmpchan->readformat = chan->readformat;
 			tmpchan->writeformat = chan->writeformat;
 			/* Setup proper location */
-			if (context && !ast_strlen_zero(context))
-				strncpy(tmpchan->context, context, sizeof(tmpchan->context) - 1);
-			else
-				strncpy(tmpchan->context, chan->context, sizeof(tmpchan->context) - 1);
-			if (exten && !ast_strlen_zero(exten))
-				strncpy(tmpchan->exten, exten, sizeof(tmpchan->exten) - 1);
-			else
-				strncpy(tmpchan->exten, chan->exten, sizeof(tmpchan->exten) - 1);
-			if (priority)
-				tmpchan->priority = priority;
-			else
-				tmpchan->priority = chan->priority;
-			
+			ast_explicit_goto(tmpchan,
+							  (context && !ast_strlen_zero(context)) ? context : chan->context,
+							  (exten && !ast_strlen_zero(exten)) ? exten : chan->exten,
+							  priority ? priority : chan->priority);
+
 			/* Masquerade into temp channel */
 			ast_channel_masquerade(tmpchan, chan);
 		
@@ -5423,15 +5423,17 @@ int ast_context_verify_includes(struct ast_context *con)
 }
 
 
-int ast_goto_if_exists(struct ast_channel *chan, char* context, char *exten, int priority) 
+static int __ast_goto_if_exists(struct ast_channel *chan, char* context, char *exten, int priority, int async) 
 {
+	int (*goto_func)(struct ast_channel *chan, const char *context, const char *exten, int priority) = async ? ast_async_goto : ast_explicit_goto;
+
 	if(chan) {
 		if(ast_exists_extension(chan, 
 								context ? context : chan->context,
 								exten ? exten : chan->exten,
 								priority ? priority : chan->priority,
 								chan->cid.cid_num)) {
-			return ast_async_goto(chan,
+			return goto_func(chan,
 								  context ? context : chan->context,
 								  exten ? exten : chan->exten,
 								  priority ? priority : chan->priority);
@@ -5440,6 +5442,14 @@ int ast_goto_if_exists(struct ast_channel *chan, char* context, char *exten, int
 	}
 	
 	return -2;
+}
+
+int ast_goto_if_exists(struct ast_channel *chan, char* context, char *exten, int priority) {
+	return __ast_goto_if_exists(chan, context, exten, priority, 0);
+}
+
+int ast_async_goto_if_exists(struct ast_channel *chan, char* context, char *exten, int priority) {
+	return __ast_goto_if_exists(chan, context, exten, priority, 1);
 }
 
 int ast_parseable_goto(struct ast_channel *chan, const char *goto_string) 
