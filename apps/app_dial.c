@@ -877,8 +877,11 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		} else 
 			res = -1;
 		
-		if (res != AST_PBX_NO_HANGUP_PEER)
+		if (res != AST_PBX_NO_HANGUP_PEER) {
+			if (!chan->_softhangup)
+				chan->hangupcause = peer->hangupcause;
 			ast_hangup(peer);
+		}
 	}	
 out:
 	hanguptree(outgoing, NULL);
