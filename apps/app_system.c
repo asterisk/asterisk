@@ -28,6 +28,14 @@ static char *tdesc = "Generic System() application";
 
 static char *app = "System";
 
+static char *synopsis = "Execute a system command";
+
+static char *descrip =
+"  System(command): Executes a command by using system().  Returns -1 on failure to execute\n"
+"  the specified command.  If the command itself executes but is in error, and if there exists\n"
+"  a priority n + 101, where 'n' is the priority of the current instance, then the channel will\n"
+"  will be setup to continue at that priority level.  Otherwise, System returns 0.\n";
+
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
@@ -66,7 +74,7 @@ int unload_module(void)
 
 int load_module(void)
 {
-	return ast_register_application(app, skel_exec);
+	return ast_register_application(app, skel_exec, synopsis, descrip);
 }
 
 char *description(void)

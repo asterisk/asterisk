@@ -25,6 +25,13 @@ static char *tdesc = "Trivial Playback Application";
 
 static char *app = "Playback";
 
+static char *synopsis = "Play a file";
+
+static char *descrip = 
+	"Playback(filename): Plays back a given filename (do not put extension).\n"
+	"Returns -1 if the channel was hung up, or if the file does not exist.\n"
+	"Returns 0 otherwise.\n";
+
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
@@ -61,7 +68,7 @@ int unload_module(void)
 
 int load_module(void)
 {
-	return ast_register_application(app, playback_exec);
+	return ast_register_application(app, playback_exec, synopsis, descrip);
 }
 
 char *description(void)

@@ -28,6 +28,14 @@
 static char *tdesc = "Extension Directory";
 static char *app = "Directory";
 
+static char *synopsis = "Provide directory of voicemail extensions";
+static char *descrip =
+"  Directory(context): Presents the user with a directory of extensions from which\n"
+"  they may select by name.  The list of names and extensions is discovered from\n"
+"  voicemail.conf.  The context argument is required, and specifies the context\n"
+"  in which to interpret the extensions\n.  Returns 0 unless the user hangs up.  It\n"
+"  also sets up the channel on exit to enter the extension the user selected.\n";
+
 /* For simplicity, I'm keeping the format compatible with the voicemail config,
    but i'm open to suggestions for isolating it */
 
@@ -248,7 +256,7 @@ int unload_module(void)
 
 int load_module(void)
 {
-	return ast_register_application(app, directory_exec);
+	return ast_register_application(app, directory_exec, synopsis, descrip);
 }
 
 char *description(void)

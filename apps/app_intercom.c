@@ -37,6 +37,12 @@ static char *tdesc = "Intercom using /dev/dsp for output";
 
 static char *app = "Intercom";
 
+static char *synopsis = "(Obsolete) Send to Intercom";
+static char *descrip = 
+"  Intercom(): Sends the user to the intercom (i.e. /dev/dsp).  This program\n"
+"  is generally considered obselete by the chan_oss module.  Returns 0 if the\n"
+"  user exits with a DTMF tone, or -1 if they hangup.\n";
+
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
@@ -48,19 +54,19 @@ static int write_audio(short *data, int len)
 {
 	int res;
 	struct audio_buf_info info;
-	pthread_mutex_lock(&sound_lock);
+	ast_pthread_mutex_lock(&sound_lock);
 	if (sound < 0) {
 		ast_log(LOG_WARNING, "Sound device closed?\n");
-		pthread_mutex_unlock(&sound_lock);
+		ast_pthread_mutex_unlock(&sound_lock);
 		return -1;
 	}
     if (ioctl(sound, SNDCTL_DSP_GETOSPACE, &info)) {
 		ast_log(LOG_WARNING, "Unable to read output space\n");
-		pthread_mutex_unlock(&sound_lock);
+		ast_pthread_mutex_unlock(&sound_lock);
         return -1;
     }
 	res = write(sound, data, len);
-	pthread_mutex_unlock(&sound_lock);
+	ast_pthread_mutex_unlock(&sound_lock);
 	return res;
 }
 
@@ -117,10 +123,6 @@ static int intercom_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	struct ast_frame *f;
 	int oreadformat;
-	if (!data) {
-		ast_log(LOG_WARNING, "Playback requires an argument (filename)\n");
-		return -1;
-	}
 	LOCAL_USER_ADD(u);
 	/* Remember original read format */
 	oreadformat = chan->readformat;
@@ -173,7 +175,7 @@ int load_module(void)
 {
 	if (create_audio())
 		return -1;
-	return ast_register_application(app, intercom_exec);
+	return ast_register_application(app, intercom_exec, synopsis, descrip);
 }
 
 char *description(void)

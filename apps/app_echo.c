@@ -28,11 +28,17 @@ static char *tdesc = "Simple Echo Application";
 
 static char *app = "Echo";
 
+static char *synopsis = "Echo audio read back to the user";
+
+static char *descrip = 
+"  Echo():  Echo audio read from channel back to the channel.  Returns 0\n"
+"  if the user exits with the '#' key, or -1 if the user hangs up.\n";
+
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int skel_exec(struct ast_channel *chan, void *data)
+static int echo_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
 	struct localuser *u;
@@ -64,7 +70,7 @@ int unload_module(void)
 
 int load_module(void)
 {
-	return ast_register_application(app, skel_exec);
+	return ast_register_application(app, echo_exec, synopsis, descrip);
 }
 
 char *description(void)
