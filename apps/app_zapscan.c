@@ -54,6 +54,24 @@ LOCAL_USER_DECL;
 
 #define CONF_SIZE 160
 
+static struct ast_channel *get_zap_channel(int num) {
+	struct ast_channel *c=NULL;
+	char name[80];
+
+	snprintf(name,sizeof(name),"Zap/%d-1",num);
+	c = ast_channel_walk(NULL);
+	while(c) {
+		if (!strcasecmp(c->name, name)) {
+			break;
+		}
+		c = ast_channel_walk(c);
+	}
+	if (c)
+		return c;
+
+	return NULL;
+}
+
 static int careful_write(int fd, unsigned char *data, int len)
 {
         int res;
@@ -87,6 +105,8 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
         int retryzap;
         int origfd;
         int ret = -1;
+		char input[4];
+		int ic=0;
 
         ZT_BUFFERINFO bi;
         char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
@@ -188,14 +208,30 @@ zapretry:
                         f = ast_read(c);
                         if (!f)
                                 break;
-                        if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '#')) {
-                                ret = 0;
+						if(f->frametype == AST_FRAME_DTMF) {
+							if(f->subclass == '#') {
+								ret = 0;
                                 break;
-                        } else if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*')) {
-				ret = -1;
-				break;
-                        } else if (fd != chan->fds[0]) {
-                                if (f->frametype == AST_FRAME_VOICE) {
+							}
+							else if (f->subclass == '*') {
+								ret = -1;
+								break;
+								
+							}
+							else {
+								input[ic++] = f->subclass;
+							}
+							if(ic == 3) {
+								input[ic++] = '\0';
+								ic=0;
+								ret = atoi(input);
+								ast_verbose(VERBOSE_PREFIX_3 "Zapscan: change channel to %d\n",ret);
+								break;
+							}
+						}
+
+						if (fd != chan->fds[0]) {
+							if (f->frametype == AST_FRAME_VOICE) {
                                         if (f->subclass == AST_FORMAT_ULAW) {
                                                 /* Carefully write */
                                                 careful_write(fd, f->data, f->datalen);
@@ -247,9 +283,10 @@ static int conf_exec(struct ast_channel *chan, void *data)
         int confflags = 0;
         int confno = 0;
         char confstr[80], *tmp;
-        struct ast_channel *tempchan = NULL, *lastchan = NULL;
-	struct ast_frame *f;
-
+        struct ast_channel *tempchan = NULL, *lastchan = NULL,*ichan = NULL;
+		struct ast_frame *f;
+		int input=0;
+		
         LOCAL_USER_ADD(u);
 
         if (chan->_state != AST_STATE_UP)
@@ -266,22 +303,31 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			break;
 		}
 		ast_frfree(f);
-                tempchan = ast_channel_walk(tempchan);
-                if ( !tempchan && !lastchan )
-                        break;
-                if ( tempchan && tempchan->type && (!strcmp(tempchan->type, "Zap")) && (tempchan != chan) ) {
-                        ast_verbose(VERBOSE_PREFIX_3 "Zap channel %s is in-use, monitoring...\n", tempchan->name);
-                        strcpy(confstr, tempchan->name);
-                        if ((tmp = strchr(confstr,'-'))) {
-                                *tmp = '\0';
+		ichan = NULL;
+		if(input) {
+			ichan = get_zap_channel(input);
+			input = 0;
+		}
+
+		tempchan = ichan ? ichan : ast_channel_walk(tempchan);
+		
+		
+		if ( !tempchan && !lastchan )
+			break;
+		if ( tempchan && tempchan->type && (!strcmp(tempchan->type, "Zap")) && (tempchan != chan) ) {
+			ast_verbose(VERBOSE_PREFIX_3 "Zap channel %s is in-use, monitoring...\n", tempchan->name);
+			strcpy(confstr, tempchan->name);
+			if ((tmp = strchr(confstr,'-'))) {
+				*tmp = '\0';
 			}
-                        confno = atoi(strchr(confstr,'/') + 1);
-                        ast_stopstream(chan);
-                        ast_say_number(chan, confno, AST_DIGIT_ANY, chan->language);
-                	res = conf_run(chan, confno, confflags);
-                        if (res<0) break;
-        }
-                lastchan = tempchan;
+			confno = atoi(strchr(confstr,'/') + 1);
+			ast_stopstream(chan);
+			ast_say_number(chan, confno, AST_DIGIT_ANY, chan->language);
+			res = conf_run(chan, confno, confflags);
+			if (res<0) break;
+			input = res;
+		}
+		lastchan = tempchan;
         }
 
         LOCAL_USER_REMOVE(u);
