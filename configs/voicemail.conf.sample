@@ -104,6 +104,8 @@ maxlogins=3
 			;     This does NOT affect option 3,3 from the advanced options menu
 ; delete=yes		; After notification, the voicemail is deleted from the server. [per-mailbox only]
 			;     This is intended for use with users who wish to receive their voicemail ONLY by email.
+; nextaftercmd=yes	; Skips to the next message after hitting 7 or 9 to delete/save current message.
+			;     [global option only at this time] 
 			
 [zonemessages]
 eastern=America/New_York|'vm-received' Q 'digits/at' IMp

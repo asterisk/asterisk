@@ -263,6 +263,7 @@ static int reviewvm;
 static int calloper;
 static int saycidinfo;
 static int hearenv;
+static int skipaftercmd;
 static char dialcontext[80];
 static char callcontext[80];
 static char exitcontext[80];
@@ -3771,7 +3772,16 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 					cmd = play_and_wait(chan, "vm-deleted");
 				else
 					cmd = play_and_wait(chan, "vm-undeleted");
+				if (skipaftercmd) {
+					if (vms.curmsg < vms.lastmsg) {
+                                	        vms.curmsg++;
+                                	        cmd = play_message(chan, vmu, &vms);
+                                	} else {
+                                        	cmd = play_and_wait(chan, "vm-nomore");
+                                	}
+                                }
 				break;
+	
 			case '8':
 				if(vms.lastmsg > -1)
 					cmd = forward_message(chan, context, vms.curdir, vms.curmsg, vmu, vmfmts);
@@ -3815,7 +3825,16 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 					if (!cmd)
 						cmd = play_and_wait(chan, "vm-messages");
 				}
-				break;
+				if (skipaftercmd) {
+					if (vms.curmsg < vms.lastmsg) {
+                                       		 vms.curmsg++;
+                                       	 	cmd = play_message(chan, vmu, &vms);
+                                	} else {
+                                        	cmd = play_and_wait(chan, "vm-nomore");
+                                	}
+				}
+                                break;
+
 			case '*':
 				if (!vms.starting) {
 					cmd = play_and_wait(chan, "vm-onefor");
@@ -4131,6 +4150,7 @@ static int load_config(void)
 	char *astsaycid;
 	char *astcallop;
 	char *astreview;
+	char *astskipcmd;
 	char *asthearenv;
 	char *silencestr;
 	char *thresholdstr;
@@ -4291,7 +4311,14 @@ static int load_config(void)
 			asthearenv = "yes";
 		}
 		hearenv = ast_true(asthearenv);	
-		
+
+		skipaftercmd = 0;
+		if (!(astskipcmd = ast_variable_retrieve(cfg, "general", "nextaftercmd"))) {
+			ast_log(LOG_DEBUG,"We are not going to skip to the next msg after save/delete\n");
+			astskipcmd = "no";
+		}
+		skipaftercmd = ast_true(astskipcmd);
+
 		if ((dialoutcxt = ast_variable_retrieve(cfg, "general", "dialout"))) {
                         strncpy(dialcontext, dialoutcxt, sizeof(dialcontext) - 1);
                         ast_log(LOG_DEBUG, "found dialout context: %s\n", dialcontext);
