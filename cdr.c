@@ -103,10 +103,258 @@ void ast_cdr_unregister(char *name)
 		free(i);
 }
 
+static const char *ast_cdr_getvar_internal(struct ast_cdr *cdr, const char *name, int recur) 
+{
+	struct ast_var_t *variables;
+	struct varshead *headp;
+
+	while(cdr) {
+		headp = &cdr->varshead;
+		if (name) {
+			AST_LIST_TRAVERSE(headp,variables,entries) {
+				if (!strcmp(name, ast_var_name(variables)))
+					return ast_var_value(variables);
+			}
+		}
+		if (!recur) {
+			break;
+		}
+		cdr = cdr->next;
+	}
+	return NULL;
+}
+
+#define ast_val_or_null(val) do { \
+	if (val[0]) { \
+		strncpy(workspace, val, workspacelen - 1);\
+		*ret = workspace; \
+	} \
+} while(0)
+
+void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int recur) 
+{
+	struct tm tm;
+	time_t t;
+	const char *fmt = "%Y-%m-%d %T";
+
+	*ret = NULL;
+	/* special vars (the ones from the struct ast_cdr when requested by name) 
+	   I'd almost say we should convert all the stringed vals to vars */
+
+	if (!strcasecmp(name, "clid")) {
+		ast_val_or_null(cdr->clid);
+	} else if (!strcasecmp(name, "src")) {
+		ast_val_or_null(cdr->src);
+	} else if (!strcasecmp(name, "dst")) {
+		ast_val_or_null(cdr->dst);
+	} else if (!strcasecmp(name, "dcontext")) {
+		ast_val_or_null(cdr->dcontext);
+	} else if (!strcasecmp(name, "channel")) {
+		ast_val_or_null(cdr->channel);
+	} else if (!strcasecmp(name, "dstchannel")) {
+		ast_val_or_null(cdr->dstchannel);
+	} else if (!strcasecmp(name, "lastapp")) {
+		ast_val_or_null(cdr->lastapp);
+	} else if (!strcasecmp(name, "lastdata")) {
+		ast_val_or_null(cdr->lastdata);
+	} else if (!strcasecmp(name, "start")) {
+		t = cdr->start.tv_sec;
+		if (t) {
+			localtime_r(&t,&tm);
+			strftime(workspace, workspacelen, fmt, &tm);
+			*ret = workspace;
+		}
+	} else if (!strcasecmp(name, "answer")) {
+		t = cdr->start.tv_sec;
+		if (t) {
+			localtime_r(&t,&tm);
+			strftime(workspace, workspacelen, fmt, &tm);
+			*ret = workspace;
+		}
+	} else if (!strcasecmp(name, "end")) {
+		t = cdr->start.tv_sec;
+		if (t) {
+			localtime_r(&t,&tm);
+			strftime(workspace, workspacelen, fmt, &tm);
+			*ret = workspace;
+		}
+	} else if (!strcasecmp(name, "duration")) {
+		snprintf(workspace, workspacelen, "%d", cdr->duration);
+		*ret = workspace;
+	} else if (!strcasecmp(name, "billsec")) {
+		snprintf(workspace, workspacelen, "%d", cdr->billsec);
+		*ret = workspace;
+	} else if (!strcasecmp(name, "disposition")) {
+		strncpy(workspace, ast_cdr_disp2str(cdr->disposition), workspacelen - 1);
+		*ret = workspace;
+	} else if (!strcasecmp(name, "amaflags")) {
+		strncpy(workspace, ast_cdr_flags2str(cdr->amaflags), workspacelen - 1);
+		*ret = workspace;
+	} else if (!strcasecmp(name, "accountcode")) {
+		ast_val_or_null(cdr->accountcode);
+	} else if (!strcasecmp(name, "uniqueid")) {
+		ast_val_or_null(cdr->uniqueid);
+	} else if (!strcasecmp(name, "userfield")) {
+		ast_val_or_null(cdr->userfield);
+	} else {
+		if ((*ret = (char *)ast_cdr_getvar_internal(cdr, name, recur))) {
+			strncpy(workspace, *ret, workspacelen - 1);
+			*ret = workspace;
+		}
+	}
+}
+
+int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, char *value, int recur) 
+{
+	struct ast_var_t *newvariable;
+    struct varshead *headp;
+	
+    if (!cdr) {
+		ast_log(LOG_ERROR, "Attempt to set a variable on a nonexistant CDR record.\n");
+		return -1;
+	}
+	while (cdr) {
+		headp = &cdr->varshead;
+		AST_LIST_TRAVERSE (headp, newvariable, entries) {
+			if (strcasecmp(ast_var_name(newvariable), name) == 0) {
+				/* there is already such a variable, delete it */
+				AST_LIST_REMOVE(headp, newvariable, entries);
+				ast_var_delete(newvariable);
+				break;
+			}
+		}
+
+		if (value) {
+			newvariable = ast_var_assign(name, value);
+			AST_LIST_INSERT_HEAD(headp, newvariable, entries);
+		}
+
+		if (!recur) {
+			break;
+		}
+		cdr = cdr->next;
+	}
+	return 0;
+}
+
+int ast_cdr_copy_vars(struct ast_cdr *to_cdr, struct ast_cdr *from_cdr)
+{
+	struct ast_var_t *variables, *newvariable = NULL;
+    struct varshead *headpa, *headpb;
+	char *var, *val;
+	int x = 0;
+
+	headpa=&from_cdr->varshead;
+	headpb=&to_cdr->varshead;
+
+	AST_LIST_TRAVERSE(headpa,variables,entries) {
+		if (variables && (var=ast_var_name(variables)) && (val=ast_var_value(variables)) && !ast_strlen_zero(var) && !ast_strlen_zero(val)) {
+			newvariable = ast_var_assign(var, val);
+			AST_LIST_INSERT_HEAD(headpb, newvariable, entries);
+			x++;
+		}
+	}
+
+	return x;
+}
+
+#define CDR_CLEN 18
+int ast_cdr_serialize_variables(struct ast_cdr *cdr, char *buf, size_t size, char delim, char sep, int recur) 
+{
+	struct ast_var_t *variables;
+	struct varshead *headp;
+	char *var=NULL ,*val=NULL;
+	char *tmp = NULL;
+	char workspace[256];
+	int workspacelen;
+	int total = 0, x = 0, i = 0;
+	const char *cdrcols[CDR_CLEN] = { 
+		"clid",
+		"src",
+		"dst",
+		"dcontext",
+		"channel",
+		"dstchannel",
+		"lastapp",
+		"lastdata",
+		"start",
+		"answer",
+		"end",
+		"duration",
+		"billsec",
+		"disposition",
+		"amaflags",
+		"accountcode",
+		"uniqueid",
+		"userfield"
+	};
+
+
+	memset(buf,0,size);
+	while (cdr) {
+		x++;
+		if (x > 1) {
+			strncat(buf, "\n", size);
+		}
+		headp=&cdr->varshead;
+		AST_LIST_TRAVERSE(headp,variables,entries) {
+			if (cdr && variables && (var=ast_var_name(variables)) && (val=ast_var_value(variables)) && !ast_strlen_zero(var) && !ast_strlen_zero(val)) {
+				snprintf(buf + strlen(buf), size - strlen(buf), "level %d: %s%c%s%c", x, var, delim, val, sep);
+				if (strlen(buf) >= size) {
+					ast_log(LOG_ERROR,"Data Buffer Size Exceeded!\n");
+					break;
+				}
+				total++;
+			} else 
+				break;
+		}
+		for (i = 0 ; i < CDR_CLEN; i++) {
+			workspacelen = sizeof(workspace);
+			ast_cdr_getvar(cdr, cdrcols[i], &tmp, workspace, workspacelen, 0);
+			if (!tmp)
+				continue;
+			
+			snprintf(buf + strlen(buf), size - strlen(buf), "level %d: %s%c%s%c", x, cdrcols[i], delim, tmp, sep);
+			if (strlen(buf) >= size) {
+				ast_log(LOG_ERROR,"Data Buffer Size Exceeded!\n");
+				break;
+			}
+			total++;
+		}
+
+		if (!recur) {
+			break;
+		}
+		cdr = cdr->next;
+	}
+	return total;
+}
+
+
+void ast_cdr_free_vars(struct ast_cdr *cdr, int recur)
+{
+	struct varshead *headp;
+	struct ast_var_t *vardata;
+
+	/* clear variables */
+	while(cdr) {
+		headp = &cdr->varshead;
+		while (!AST_LIST_EMPTY(headp)) {
+			vardata = AST_LIST_REMOVE_HEAD(headp, entries);
+			ast_var_delete(vardata);
+		}
+		if (!recur) {
+			break;
+		}
+		cdr = cdr->next;
+	}
+}
+
 void ast_cdr_free(struct ast_cdr *cdr)
 {
 	char *chan;
 	struct ast_cdr *next; 
+
 	while (cdr) {
 		next = cdr->next;
 		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
@@ -116,6 +364,8 @@ void ast_cdr_free(struct ast_cdr *cdr)
 			ast_log(LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
 		if (!cdr->start.tv_sec && !cdr->start.tv_usec)
 			ast_log(LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
+
+		ast_cdr_free_vars(cdr, 0);
 		free(cdr);
 		cdr = next;
 	}
@@ -185,7 +435,7 @@ void ast_cdr_failed(struct ast_cdr *cdr)
 		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 		if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
-		if(!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
 			cdr->disposition = AST_CDR_FAILED;
 		cdr = cdr->next;
 	}
@@ -223,7 +473,7 @@ void ast_cdr_setdestchan(struct ast_cdr *cdr, char *chann)
 		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 		if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
-		if(!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
 			strncpy(cdr->dstchannel, chann, sizeof(cdr->dstchannel) - 1);
 		cdr = cdr->next;
 	}
@@ -233,7 +483,7 @@ void ast_cdr_setapp(struct ast_cdr *cdr, char *app, char *data)
 {
 	char *chan; 
 	while (cdr) {
-		if(!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 			chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 			if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
 				ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
@@ -253,7 +503,7 @@ int ast_cdr_setcid(struct ast_cdr *cdr, struct ast_channel *c)
 	char tmp[AST_MAX_EXTENSION] = "";
 	char *num;
 	while (cdr) {
-		if(!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 			/* Grab source from ANI or normal Caller*ID */
 			if (c->cid.cid_ani)
 				num = c->cid.cid_ani;
@@ -279,13 +529,14 @@ int ast_cdr_setcid(struct ast_cdr *cdr, struct ast_channel *c)
 	return 0;
 }
 
+
 int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 {
 	char *chan;
 	char *num;
 	char tmp[AST_MAX_EXTENSION] = "";
 	while (cdr) {
-		if(!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 			chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 			if (!ast_strlen_zero(cdr->channel)) 
 				ast_log(LOG_WARNING, "CDR already initialized on '%s'\n", chan); 
@@ -380,7 +631,7 @@ int ast_cdr_setaccount(struct ast_channel *chan, const char *account)
 
 	strncpy(chan->accountcode, account, sizeof(chan->accountcode) - 1);
 	while (cdr) {
-		if(!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
 			strncpy(cdr->accountcode, chan->accountcode, sizeof(cdr->accountcode) - 1);
 		cdr = cdr->next;
 	}
@@ -404,7 +655,7 @@ int ast_cdr_setuserfield(struct ast_channel *chan, const char *userfield)
 	struct ast_cdr *cdr = chan->cdr;
 
 	while (cdr) {
-		if(!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) 
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) 
 			strncpy(cdr->userfield, userfield, sizeof(cdr->userfield) - 1);
 		cdr = cdr->next;
 	}
@@ -419,7 +670,7 @@ int ast_cdr_appenduserfield(struct ast_channel *chan, const char *userfield)
 	{
 
 		int len = strlen(cdr->userfield);
-		if(!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
 			strncpy(cdr->userfield+len, userfield, sizeof(cdr->userfield) - len - 1);
 		cdr = cdr->next;
 	}
@@ -433,7 +684,7 @@ int ast_cdr_update(struct ast_channel *c)
 	char tmp[AST_MAX_EXTENSION] = "";
 	/* Grab source from ANI or normal Caller*ID */
 	while (cdr) {
-		if(!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 			/* Grab source from ANI or normal Caller*ID */
 			if (c->cid.cid_ani)
 				num = c->cid.cid_ani;
@@ -524,6 +775,12 @@ void ast_cdr_reset(struct ast_cdr *cdr, int flags)
 				ast_cdr_end(cdr);
 				ast_cdr_post(cdr);
 			}
+
+			/* clear variables */
+			if (! ast_test_flag(&tmp, AST_CDR_FLAG_KEEP_VARS)) {
+				ast_cdr_free_vars(cdr, 0);
+			}
+
 			/* Reset to initial state */
 			ast_clear_flag(cdr, AST_FLAGS_ALL);	
 			memset(&cdr->start, 0, sizeof(cdr->start));

@@ -22,14 +22,15 @@ MySQL.
 Applications
 ------------
 
-    * SetAccount  	Set account code for billing
-    * SetAMAFlags 	Sets AMA flags
-    * NoCDR  		Make sure no CDR is saved for a specific call
-    * ResetCDR  	Reset CDR
-    * ForkCDR 		Save current CDR and start a new CDR for this call
-    * Authenticate 	Authenticates and sets the account code
-    * SetCDRUserField   Set CDR user field
-    * AppendCDRUserField   Append data to CDR User field 
+    * SetAccount  		Set account code for billing
+    * SetAMAFlags 		Sets AMA flags
+    * NoCDR  			Make sure no CDR is saved for a specific call
+    * ResetCDR  		Reset CDR
+    * ForkCDR 			Save current CDR and start a new CDR for this call
+    * Authenticate 		Authenticates and sets the account code
+    * SetCDRUserField   	Set CDR user field
+    * AppendCDRUserField   	Append data to CDR User field 
+    * SetVarCDR			Set CDR Vars
 
 For more information, use the "show application" command.
 You can set default account codes and AMA flags for devices in 
@@ -72,4 +73,53 @@ will report a short call time.  If you want detailed records you must
 turn off IAX transfer, but unless your servers are very close together, you
 will definitely get a latency hit from doing so.
 
+____________________________________
+CDR Variables
+------------------------------------
+
+If the channel has a cdr, that cdr record has it's own set of variables which 
+can be accessed just like channel variables. The following builtin variables
+are available.
+
+${CDR(clid)}			Caller ID
+${CDR(src)}			Source 
+${CDR(dst)}			Destination
+${CDR(dcontext)}		Destination context
+${CDR(channel)}			Channel name
+${CDR(dstchannel)}		Destination channel
+${CDR(lastapp)}			Last app executed
+${CDR(lastdata)}		Last app's arguments
+${CDR(start)}			Time the call started.
+${CDR(answer)}			Time the call was answered.
+${CDR(end)}			Time the call ended.
+${CDR(duration)}		Duration of the call.
+${CDR(billsec)}			Duration of the call once it was answered.
+${CDR(disposition)}		ANSWERED, NO ANSWER, BUSY
+${CDR(amaflags)}		DOCUMENTATION, BILL, IGNORE etc
+${CDR(accountcode)}		The channel's account code.
+${CDR(uniqueid)}		The channel's unique id.
+${CDR(userfield)}		The channels uses specified field.
+
+
+In addition, you can set your own extra variables with the application SetVarCDR(var=val)
+or a traditional SetVAR(CDR(var=val) to anything you want.
+
+SetVar(CDR(var)=val) will set the var to all cdr in a stack of cdrs.
+
+______________________________
+cdr_csv2
+------------------------------
+
+This module is an experimental new cdr module to demonstrate the cdr vars.
+usage(
+
+*) Create a file called cdr.conf and place it in your /etc/asterisk (or wherever your config files are) in the [cdr_csv2] section.
+*) Add an entry called format to indicate any format you want for the output.
+
+The following format string will emulate the regular cdr file format:
+[cdr_csv2]
+
+format => "${CDR(clid)}","${CDR(src)}","${CDR(dst)}","${CDR(dcontext)}","${CDR(channel)}","${CDR(dstchannel)}","${CDR(lastapp)}","${CDR(lastdata)}","${CDR(start)}","${CDR(answer)}","${CDR(end)}","${CDR(duration)}","${CDR(billsec)}","${CDR(disposition)}","${CDR(amaflags)}","${CDR(accountcode)}","${CDR(uniqueid)}","${CDR(userfield)}"
+
+You can put anything you want as the value of format incuding new cdr vars you make up or any global variables.
 

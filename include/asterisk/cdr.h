@@ -19,10 +19,12 @@
 
 #include <asterisk/channel.h>
 #include <sys/time.h>
-
+#define AST_CDR_FLAG_KEEP_VARS		(1 << 0)
 #define AST_CDR_FLAG_POSTED			(1 << 1)
 #define AST_CDR_FLAG_LOCKED			(1 << 2)
 #define AST_CDR_FLAG_CHILD			(1 << 3)
+#define AST_CDR_FLAG_SETVAR			(1 << 4)
+#define AST_CDR_FLAG_RECUR		 	(1 << 5)
 
 #define AST_CDR_NOANSWER			(1 << 0)
 #define AST_CDR_BUSY				(1 << 1)
@@ -37,6 +39,7 @@
 #define AST_MAX_USER_FIELD			256
 
 struct ast_channel;
+AST_LIST_HEAD(varshead,ast_var_t);
 
 /*! Responsible for call detail data */
 struct ast_cdr {
@@ -78,8 +81,18 @@ struct ast_cdr {
 	char uniqueid[32];
 	/* User field */
 	char userfield[AST_MAX_USER_FIELD];
+
+	/* A linked list for variables */
+	struct varshead varshead;
+
 	struct ast_cdr *next;
 };
+
+extern void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int recur);
+extern int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, char *value, int recur);
+extern int ast_cdr_serialize_variables(struct ast_cdr *cdr, char *buf, size_t size, char delim, char sep, int recur);
+extern void ast_cdr_free_vars(struct ast_cdr *cdr, int recur);
+extern int ast_cdr_copy_vars(struct ast_cdr *to_cdr, struct ast_cdr *from_cdr);
 
 typedef int (*ast_cdrbe)(struct ast_cdr *cdr);
 

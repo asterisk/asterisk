@@ -25,8 +25,10 @@ static char *app = "ForkCDR";
 static char *synopsis = 
 "Forks the Call Data Record";
 static char *descrip = 
-"  ForkCDR():  Causes the Call Data Record to fork an additional\n"
-	"cdr record starting from the time of the fork call\n";
+"  ForkCDR([options]):  Causes the Call Data Record to fork an additional\n"
+	"cdr record starting from the time of the fork call\n"
+"If the option 'v' is passed all cdr variables will be passed along also.\n"
+"";
 
 
 STANDARD_LOCAL_USER;
@@ -34,17 +36,24 @@ STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
 
 
-static void ast_cdr_clone(struct ast_cdr *cdr) {
+static void ast_cdr_clone(struct ast_cdr *cdr) 
+{
 	struct ast_cdr *newcdr = ast_cdr_alloc();
 	memcpy(newcdr,cdr,sizeof(struct ast_cdr));
 	ast_cdr_append(cdr,newcdr);
 	gettimeofday(&newcdr->start, NULL);
 	memset(&newcdr->answer, 0, sizeof(newcdr->answer));
+	memset(&newcdr->varshead, 0, sizeof(newcdr->varshead));
+	ast_cdr_copy_vars(newcdr, cdr);
+	if (!ast_test_flag(cdr, AST_CDR_FLAG_KEEP_VARS)) {
+		ast_cdr_free_vars(cdr, 0);
+	}
 	newcdr->disposition = AST_CDR_NOANSWER;
 	ast_set_flag(cdr, AST_CDR_FLAG_CHILD|AST_CDR_FLAG_LOCKED);
 }
 
-static void ast_cdr_fork(struct ast_channel *chan) {
+static void ast_cdr_fork(struct ast_channel *chan) 
+{
 	if(chan && chan->cdr) {
 		ast_cdr_clone(chan->cdr);
 	}
@@ -55,7 +64,8 @@ static int forkcdr_exec(struct ast_channel *chan, void *data)
 	int res=0;
 	struct localuser *u;
 	LOCAL_USER_ADD(u);
-
+	ast_set2_flag(chan->cdr, strchr((char *)data, 'v'), AST_CDR_FLAG_KEEP_VARS);
+	
 	ast_cdr_fork(chan);
 
 	LOCAL_USER_REMOVE(u);

@@ -651,10 +651,11 @@ static int handle_showchan(int fd, int argc, char *argv[])
 {
 	struct ast_channel *c=NULL;
 	struct timeval now;
-	char buf[1024];
+	char buf[2048];
 	char cdrtime[256];
 	long elapsed_seconds=0;
 	int hour=0, min=0, sec=0;
+	
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	gettimeofday(&now, NULL);
@@ -709,9 +710,11 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	( c-> data ? (!ast_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
 	(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
 			if(pbx_builtin_serialize_variables(c,buf,sizeof(buf)))
-				ast_cli(fd,"Variables:\n%s\n",buf);
+				ast_cli(fd,"      Variables:\n%s\n",buf);
+			if(c->cdr && ast_cdr_serialize_variables(c->cdr,buf, sizeof(buf), '=', '\n', 1))
+				ast_cli(fd,"  CDR Variables:\n%s\n",buf);
 
-		ast_mutex_unlock(&c->lock);
+			ast_mutex_unlock(&c->lock);
 		break;
 		}
 		ast_mutex_unlock(&c->lock);

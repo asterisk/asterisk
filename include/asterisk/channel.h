@@ -211,7 +211,7 @@ struct ast_channel {
 	int hangupcause;
 	
 	/* A linked list for variables */
-	AST_LIST_HEAD(varshead,ast_var_t) varshead;
+	struct varshead varshead;
 
 	unsigned int callgroup;
 	unsigned int pickupgroup;
