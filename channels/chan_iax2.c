@@ -379,6 +379,9 @@ struct chan_iax2_pvt {
 	
 	/* Who we are bridged to */
 	unsigned short bridgecallno;
+	unsigned int bridgesfmt;
+	struct ast_trans_pvt *bridgetrans;
+	
 	int pingid;			/* Transmit PING request */
 	int lagid;			/* Retransmit lag request */
 	int autoid;			/* Auto hangup for Dialplan requestor */
@@ -1034,6 +1037,9 @@ retry:
 		pvt->lagid = -1;
 		pvt->autoid = -1;
 		pvt->initid = -1;
+		if (pvt->bridgetrans)
+			ast_translator_free_path(p->bridgetrans);
+		pvt->bridgetrans = NULL;
 
 		/* Already gone */
 		pvt->alreadygone = 1;
