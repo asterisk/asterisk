@@ -69,8 +69,6 @@ static int max_expiry = DEFAULT_MAX_EXPIRY;
 static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 
 #define DEFAULT_MAXMS		2000		/* Must be faster than 2 seconds by default */
-
-#define DEFAULT_MAXMS		2000		/* Must be faster than 2 seconds by default */
 #define DEFAULT_FREQ_OK		60 * 1000		/* How often to check for the host to be up */
 #define DEFAULT_FREQ_NOTOK	10 * 1000		/* How often to check, if the host is down... */
 
