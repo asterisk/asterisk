@@ -182,9 +182,6 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 		}
 	}
 	strncpy(o->fn, fn, sizeof(o->fn) - 1);
-	/* Check sanity of times */
-	if (o->retrytime < o->waittime + 5)
-		o->retrytime = o->waittime + 5;
 	if (!strlen(o->tech) || !strlen(o->dest) || (!strlen(o->app) && !strlen(o->exten))) {
 		ast_log(LOG_WARNING, "At least one of app or extension must be specified, along with tech and dest in file %s\n", fn);
 		return -1;

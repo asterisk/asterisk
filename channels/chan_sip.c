@@ -254,6 +254,7 @@ static struct sip_pvt {
 	char our_contact[256];				/* Our contact header */
 	char realm[256];				/* Authorization realm */
 	char nonce[256];				/* Authorization nonce */
+	char opaque[256];				/* Opaque nonsense */
 	char domain[256];				/* Authorization nonce */
 	char lastmsg[256];				/* Last Message sent/received */
 	int amaflags;						/* AMA Flags */
@@ -4720,6 +4721,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 	char *realm = "";
 	char *nonce = "";
 	char *domain = "";
+	char *opaque = "";
 	char *c;
 
 
@@ -4754,6 +4756,17 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 				if ((c = strchr(c,',')))
 					*c = '\0';
 			}
+		} else if (!strncasecmp(c, "opaque=", strlen("opaque="))) {
+			c+=strlen("opaque=");
+			if ((*c == '\"')) {
+				opaque=++c;
+				if ((c = strchr(c,'\"')))
+					*c = '\0';
+			} else {
+				opaque = c;
+				if ((c = strchr(c,',')))
+					*c = '\0';
+			}
 		} else if (!strncasecmp(c, "domain=", strlen("domain="))) {
 			c+=strlen("domain=");
 			if ((*c == '\"')) {
@@ -4777,6 +4790,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 	strncpy(p->realm, realm, sizeof(p->realm)-1);
 	strncpy(p->nonce, nonce, sizeof(p->nonce)-1);
 	strncpy(p->domain, domain, sizeof(p->domain)-1);
+	strncpy(p->opaque, opaque, sizeof(p->opaque)-1);
 	build_reply_digest(p, orig_header, digest, digest_len); 
 	return 0;
 }
@@ -4808,7 +4822,7 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 	snprintf(resp,sizeof(resp),"%s:%s:%s",a1_hash,p->nonce,a2_hash);
 	md5_hash(resp_hash,resp);
 
-	snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\"",p->peername,p->realm,uri,p->nonce,resp_hash);
+	snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"",p->peername,p->realm,uri,p->nonce,resp_hash, p->opaque);
 
 	return 0;
 }
