@@ -73,8 +73,8 @@ static int odbc_log(struct ast_cdr *cdr)
 	{
 		sprintf(sqlcmd,"INSERT INTO cdr "
 		"(calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,"
-		"lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid) "
-		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+		"lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) "
+		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
 	}
 	else
 	{
@@ -144,6 +144,7 @@ static int odbc_log(struct ast_cdr *cdr)
 	if((loguniqueid != NULL) && ((strcmp(loguniqueid, "1") == 0) || (strcmp(loguniqueid, "yes") == 0)))
 	{
 		SQLBindParameter(ODBC_stmt, 15, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->uniqueid, 0, NULL);
+		SQLBindParameter(ODBC_stmt, 16, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->userfield, 0, NULL);
 	}
 
 	if(connected)
