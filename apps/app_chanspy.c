@@ -35,7 +35,7 @@ AST_MUTEX_DEFINE_STATIC(modlock);
 #define ALL_DONE(u, ret) LOCAL_USER_REMOVE(u); return ret;
 #define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
 #define minmax(x,y) x ? (x > y) ? y : ((x < (y * -1)) ? (y * -1) : x) : 0
-#define CS_BUFLEN 1024
+
 
 static char *synopsis = "Tap into any type of asterisk channel and listen to audio";
 static char *app = "ChanSpy";
@@ -75,20 +75,24 @@ struct chanspy_translation_helper {
 
 	/* read frame */
 	int fmt0;
-	short buf0[CS_BUFLEN];
+	short *buf0;
+	int len0;
 	struct ast_trans_pvt *trans0;
 
 	/* write frame */
 	int fmt1;
 	struct ast_trans_pvt *trans1;
-	short buf1[CS_BUFLEN];
-	
+	short *buf1;
+	int len1;
+
 	/* muxed frame */
 	struct ast_frame frame;
-	short buf[CS_BUFLEN];
-
+	short *buf;
+	int len;
+	
+	int samples;
+	int rsamples;
 	int volfactor;
-
 };
 
 /* Prototypes */
@@ -150,19 +154,28 @@ static struct ast_channel *local_get_channel_begin_name(char *name)
 static void spy_release(struct ast_channel *chan, void *data) 
 {
 	struct chanspy_translation_helper *csth = data;
-	int same=0;
 
-	same = (csth->trans0 == csth->trans1) ? 1 : 0;
 
 	if (csth->trans0) {
 		ast_translator_free_path(csth->trans0);
 		csth->trans0 = NULL;
 	}
-	if (same)
-		return;
 	if (csth->trans1) {
 		ast_translator_free_path(csth->trans1);
 		csth->trans1 = NULL;
+	}
+
+	if (csth->buf0) {
+		free(csth->buf0);
+		csth->buf0 = NULL;
+	}
+	if (csth->buf1) {
+		free(csth->buf1);
+		csth->buf1 = NULL;
+	}
+	if (csth->buf) {
+		free(csth->buf);
+		csth->buf = NULL;
 	}
 	return;
 }
@@ -204,119 +217,207 @@ static void ast_flush_spy_queue(struct ast_channel_spy *spy)
 static int spy_generate(struct ast_channel *chan, void *data, int len, int samples) 
 {
 	struct ast_frame *f, *f0, *f1;
-	int x = 0, vf = 0;
-
+	int x, vf, dlen, maxsamp, loops;
 	struct chanspy_translation_helper *csth = data;
 
-	ast_mutex_lock(&csth->spy.lock);
-	f0 = spy_queue_shift(&csth->spy, 0);
-	f1 = spy_queue_shift(&csth->spy, 1);
-	ast_mutex_unlock(&csth->spy.lock);
-	
-	if (!f0 && !f1) {
+	if (csth->rsamples < csth->samples) {
+		csth->rsamples += samples;
 		return 0;
-	}
+	} 
+	csth->rsamples += samples;
+	loops = 0;
+	do {
+		loops++;
+		f = f0 = f1 = NULL;
+		x = vf = dlen = maxsamp = 0;
+		if (csth->rsamples == csth->samples) {
+			csth->rsamples = csth->samples = 0;
+		}
 
-	if (f0 && csth->fmt0 && csth->fmt0 != f0->subclass) {
-		ast_translator_free_path(csth->trans0);
-        csth->trans0 = NULL;
-		csth->fmt0 = csth->fmt0;
-	}
+		ast_mutex_lock(&csth->spy.lock);
+		f0 = spy_queue_shift(&csth->spy, 0);
+		f1 = spy_queue_shift(&csth->spy, 1);
+		ast_mutex_unlock(&csth->spy.lock);
 
-	if (f1 && csth->fmt1 && csth->fmt1 != f1->subclass) {
-		ast_translator_free_path(csth->trans1);
-        csth->trans1 = NULL;
-		csth->fmt1 = csth->fmt1;
-	}
-	
-	if (!csth->fmt0 && f0) {
-		csth->fmt0 = f0->subclass;
-	}
-
-	if (!csth->fmt1 && f1) {
-		csth->fmt1 = f1->subclass;
-	}
-
-	if (csth->fmt0 && csth->fmt0 != AST_FORMAT_SLINEAR && !csth->trans0) {
-		if (csth->fmt0 == csth->fmt1 && csth->trans1) {
-			csth->trans0 = csth->trans1;
-		} else if ((csth->trans0 = ast_translator_build_path(AST_FORMAT_SLINEAR, csth->fmt0)) == NULL) {
-			ast_log(LOG_WARNING, "Cannot build a path from %s to slin\n", ast_getformatname(csth->fmt0));
+		if (csth->spy.status == CHANSPY_DONE) {
 			return -1;
 		}
-	}
 	
-	if (csth->fmt1 && csth->fmt1 != AST_FORMAT_SLINEAR && !csth->trans1) {
-		if (csth->fmt1 == csth->fmt0 && csth->trans0) {
-			csth->trans1 = csth->trans0;
-		} else if ((csth->trans1 = ast_translator_build_path(AST_FORMAT_SLINEAR, csth->fmt1)) == NULL) {
-			ast_log(LOG_WARNING, "Cannot build a path from %s to slin\n", ast_getformatname(csth->fmt1));
+		if (!f0 && !f1) {
+			return 0;
+		}
+
+		if (f0 && csth->fmt0 && csth->fmt0 != f0->subclass) {
+			ast_translator_free_path(csth->trans0);
+			csth->trans0 = NULL;
+			csth->fmt0 = csth->fmt0;
+		}
+
+		if (f1 && csth->fmt1 && csth->fmt1 != f1->subclass) {
+			ast_translator_free_path(csth->trans1);
+			csth->trans1 = NULL;
+			csth->fmt1 = csth->fmt1;
+		}
+	
+		if (!csth->fmt0 && f0) {
+			csth->fmt0 = f0->subclass;
+		}
+
+		if (!csth->fmt1 && f1) {
+			csth->fmt1 = f1->subclass;
+		}
+
+		if (csth->fmt0 && csth->fmt0 != AST_FORMAT_SLINEAR && !csth->trans0) {
+			if ((csth->trans0 = ast_translator_build_path(AST_FORMAT_SLINEAR, csth->fmt0)) == NULL) {
+				ast_log(LOG_WARNING, "Cannot build a path from %s to slin\n", ast_getformatname(csth->fmt0));
+				csth->spy.status = CHANSPY_DONE;
+				return -1;
+			}
+		}
+		if (csth->fmt1 && csth->fmt1 != AST_FORMAT_SLINEAR && !csth->trans1) {
+			if ((csth->trans1 = ast_translator_build_path(AST_FORMAT_SLINEAR, csth->fmt1)) == NULL) {
+				ast_log(LOG_WARNING, "Cannot build a path from %s to slin\n", ast_getformatname(csth->fmt1));
+				csth->spy.status = CHANSPY_DONE;
+				return -1;
+			}
+		}
+	
+		if (f0) {
+			if (csth->trans0) {
+				if ((f = ast_translate(csth->trans0, f0, 0))) {
+					if (csth->len0 < f->datalen) {
+						if (!csth->len0) {
+							if (!(csth->buf0 = malloc(f->datalen * 2))) {
+								csth->spy.status = CHANSPY_DONE;
+								return -1;
+							}
+						} else {
+							if (!realloc(csth->buf0, f->datalen * 2)) {
+								csth->spy.status = CHANSPY_DONE;
+								return -1;
+							}
+						}
+						csth->len0 = f->datalen;
+					}
+					memcpy(csth->buf0, f->data, f->datalen);
+					maxsamp = f->samples;
+					ast_frfree(f);
+				} else {
+					return 0;
+				}
+			} else {
+				memcpy(csth->buf0, f0->data, f0->datalen);
+				maxsamp = f0->samples;
+			}
+		}
+	
+		if (f1) {
+			if (csth->trans1) {
+				if ((f = ast_translate(csth->trans1, f1, 0))) {
+					if (csth->len1 < f->datalen) {
+						if (!csth->len1) {
+							if (!(csth->buf1 = malloc(f->datalen))) {
+								csth->spy.status = CHANSPY_DONE;
+								return -1;
+							}
+						} else {
+							if (!realloc(csth->buf1, f->datalen)) {
+								csth->spy.status = CHANSPY_DONE;
+								return -1;
+							}
+						}
+						csth->len1 = f->datalen;
+					}
+					memcpy(csth->buf1, f->data, f->datalen);
+					if (f->samples > maxsamp) {
+						maxsamp = f->samples;
+					}
+					ast_frfree(f);
+				
+				} else {
+					return 0;
+				}
+			} else {
+				memcpy(csth->buf1, f1->data, f1->datalen);
+				if (f1->samples > maxsamp) {
+					maxsamp = f1->samples;
+				}
+			}
+		}
+
+		vf = get_volfactor(csth->volfactor);
+		vf = minmax(vf, 16);
+
+		dlen = (csth->len0 > csth->len1) ? csth->len0 : csth->len1;
+
+		if (csth->len < dlen) {
+			if (!csth->len) {
+				if (!(csth->buf = malloc(dlen*2))) {
+					csth->spy.status = CHANSPY_DONE;
+					return -1;
+				}
+			} else {
+				if (!realloc(csth->buf, dlen * 2)) {
+					csth->spy.status = CHANSPY_DONE;
+					return -1;
+				}
+			}
+			csth->len = dlen;
+		}
+
+		for(x=0; x < maxsamp; x++) {
+			if (vf < 0) {
+				if (f0) {
+					csth->buf0[x] /= abs(vf);
+				}
+				if (f1) {
+					csth->buf1[x] /= abs(vf);
+				}
+			} else if (vf > 0) {
+				if (f0) {
+					csth->buf0[x] *= vf;
+				}
+				if (f1) {
+					csth->buf1[x] *= vf;
+				}
+			}
+			if (f0 && f1) {
+				if (x < csth->len0 && x < csth->len1) {
+					csth->buf[x] = ast_fit_in_short(csth->buf0[x] + csth->buf1[x]);
+				} else if (x < csth->len0) {
+					csth->buf[x] = csth->buf0[x];
+				} else if (x < csth->len1) {
+					csth->buf[x] = csth->buf1[x];
+				}
+			} else if (f0 && x < csth->len0) {
+				csth->buf[x] = csth->buf0[x];
+			} else if (f1 && x < csth->len1) {
+				csth->buf[x] = csth->buf1[x];
+			}
+		}
+
+		csth->frame.data = csth->buf;
+		csth->frame.samples = maxsamp;
+		csth->frame.datalen = csth->frame.samples * 2;
+		csth->samples += csth->frame.samples;
+		
+		if (ast_write(chan, &csth->frame)) {
+			csth->spy.status = CHANSPY_DONE;
 			return -1;
 		}
-	}
-	
-	if (f0) {
-		if (csth->trans0) {
-			if ((f = ast_translate(csth->trans0, f0, 0))) {
-				memcpy(csth->buf0, f->data, f->datalen * sizeof(short));
-				ast_frfree(f);
-			} else {
-				return 0;
-			}
-		} else {
-			memcpy(csth->buf0, f0->data, f0->datalen * sizeof(short));
-		}
-	}
-	
-	if (f1) {
-		if (csth->trans1) {
-			if ((f = ast_translate(csth->trans1, f1, 0))) {
-				memcpy(csth->buf1, f->data, f->datalen * sizeof(short));
-				ast_frfree(f);
-			} else {
-				return 0;
-			}
-		} else {
-			memcpy(csth->buf1, f1->data, f1->datalen * sizeof(short));
-		}
-	}
 
-	vf = get_volfactor(csth->volfactor);
-	vf = minmax(vf, 16);
-	for(x=0; x < len; x++) {
-		if (vf < 0) {
-			if (f0) {
-				csth->buf0[x] /= abs(vf);
-			}
-			if (f1) {
-				csth->buf1[x] /= abs(vf);
-			}
-		} else if (vf > 0) {
-			if (f0) {
-				csth->buf0[x] *= vf;
-			}
-			if (f1) {
-				csth->buf1[x] *= vf;
-			}
+		if (f0) {
+			ast_frfree(f0);
 		}
-		if (f0 && f1) {
-			csth->buf[x] = ast_fit_in_short(csth->buf0[x] + csth->buf1[x]);
-		} else if (f0) {
-			csth->buf[x] = csth->buf0[x];
-		} else if (f1) {
-			csth->buf[x] = csth->buf1[x];
+		if (f1) {
+			ast_frfree(f1);
 		}
-	}
 
-	csth->frame.data = csth->buf;
-	ast_write(chan, &csth->frame);
-
-	if (f0) {
-		ast_frfree(f0);
-	}
-	if (f1) {
-		ast_frfree(f1);
-	}
+		if (loops > 10) {
+			ast_log(LOG_WARNING, "Too Many Loops Bailing Out....");
+			break;
+		}
+	} while (csth->samples <  csth->rsamples);
 
 	return 0;
 }
@@ -368,7 +469,7 @@ static void stop_spying(struct ast_channel *chan, struct ast_channel_spy *spy)
 			return;
 		}
 		count++;
-		if(count > 10) {
+		if (count > 10) {
 			return;
 		}
 		sched_yield();
@@ -421,13 +522,15 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 			  (res = ast_waitfor(chan, -1) > -1)) {
 			if ((f = ast_read(chan))) {
 				res = 0;
-				if(f->frametype == AST_FRAME_DTMF) {
+				if (f->frametype == AST_FRAME_DTMF) {
 					res = f->subclass;
 				}
 				ast_frfree(f);
-				if(!res) {
+				if (!res) {
 					continue;
 				}
+			} else {
+				break;
 			}
 			if (x == sizeof(inp)) {
 				x = 0;
@@ -591,7 +694,7 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 						*ptr = '\0';
 						ptr++;
 						for (x = 0 ; x < strlen(peer_name) ; x++) {
-							if(peer_name[x] == '/') {
+							if (peer_name[x] == '/') {
 								break;
 							}
 							peer_name[x] = tolower(peer_name[x]);
