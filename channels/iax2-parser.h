@@ -41,6 +41,7 @@ struct iax_ies {
 	unsigned short dpstatus;
 	unsigned short callno;
 	char *cause;
+	unsigned char causecode;
 	unsigned char iax_unknown;
 	int msgcount;
 	int autoanswer;

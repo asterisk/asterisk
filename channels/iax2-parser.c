@@ -648,6 +648,14 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 		case IAX_IE_CAUSE:
 			ies->cause = data + 2;
 			break;
+		case IAX_IE_CAUSECODE:
+			if (len != 1) {
+				snprintf(tmp, (int)sizeof(tmp), "Expecting causecode to be single byte but was %d\n", len);
+				errorf(tmp);
+			} else {
+				ies->causecode = data[2];
+			}
+			break;
 		case IAX_IE_IAX_UNKNOWN:
 			if (len == 1)
 				ies->iax_unknown = data[2];

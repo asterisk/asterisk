@@ -116,6 +116,7 @@
 #define IAX_IE_CALLINGTON			39		/* Calling type of number (u8) */
 #define IAX_IE_CALLINGTNS			40		/* Calling transit network select (u16) */
 #define IAX_IE_SAMPLINGRATE			41		/* Supported sampling rates (u16) */
+#define IAX_IE_CAUSECODE			42		/* Hangup cause (u8) */
 
 #define IAX_AUTH_PLAINTEXT			(1 << 0)
 #define IAX_AUTH_MD5				(1 << 1)
