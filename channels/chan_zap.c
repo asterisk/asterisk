@@ -6412,6 +6412,7 @@ static struct zt_pvt *pri_find_crv(struct zt_pri *pri, int crv)
 			return p;
 		p = p->next;
 	}
+	return NULL;
 }
 
 
