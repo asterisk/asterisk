@@ -141,7 +141,6 @@ central24=America/Chicago|'vm-received' q 'digits/at' H 'digits/hundred' M 'hour
 ;4069 => 6522,Matt Brooks,matt@marko.net,,|tz=central|attach=yes|saycid=yes|dialout=fromvm|callback=fromvm|review=yes|operator=yes|envelope=yes
 ;4073 => 1099,Bianca Paige,bianca@biancapaige.com,,delete=1
 ;4110 => 3443,Rob Flynn,rflynn@blueridge.net
-;4321 => 4321,Russell Bryant,russelb@clemson.edu,,|tz=central|attach=no|saycid=yes|dialout=fromvm|callback=fromvm|review=yes|operator=yes|envelope=yes|forcename=yes|forcegreetings=yes
 
 
 ;

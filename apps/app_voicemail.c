@@ -2949,6 +2949,7 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 		return cmd;
 	newpassword2[1] = '\0';
 	newpassword2[0] = cmd = ast_play_and_wait(chan,"vm-reenterpassword");
+	if (cmd < 0 || cmd == 't' || cmd == '#')
 		return cmd;
 	cmd = ast_readstring(chan,newpassword2 + strlen(newpassword2),sizeof(newpassword2)-1,2000,10000,"#");
 	if (cmd < 0 || cmd == 't' || cmd == '#')
