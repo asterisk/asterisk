@@ -44,7 +44,7 @@ static char *synopsis = "Executes Zaptel ISDN RAS application";
 static char *descrip =
 "  ZapRAS(args): Executes a RAS server using pppd on the given channel.\n"
 "The channel must be a clear channel (i.e. PRI source) and a Zaptel\n"
-"channel to be able to use this function (No modem emulcation is included).\n"
+"channel to be able to use this function (No modem emulation is included).\n"
 "Your pppd must be patched to be zaptel aware. Arguments should be\n"
 "separated by | characters.  Always returns -1.\n";
 
