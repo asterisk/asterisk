@@ -401,6 +401,15 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 
 static void sip_destroy(struct sip_pvt *p);
 
+static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
+{
+	if (bindaddr.sin_addr.s_addr)
+		memcpy(us, &bindaddr.sin_addr, sizeof(struct in_addr));
+	else
+		return ast_ouraddrfor(them, us);
+	return 0;
+}
+
 static int retrans_pkt(void *data)
 {
 	struct sip_pkt *pkt=data;
@@ -536,7 +545,7 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp)
 
 static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp)
 {
-	struct sip_pkt *cur, *prev = NULL;
+	struct sip_pkt *cur;
 	int res = -1;
 	cur = p->packets;
 	while(cur) {
@@ -548,10 +557,9 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp)
 			res = 0;
 			break;
 		}
-		prev = cur;
 		cur = cur->next;
 	}
-	ast_log(LOG_DEBUG, "Stopping retransmission (but retaining packet) on provisional '%s' of %s %d: %s\n", p->callid, resp ? "Response" : "Request", seqno, res ? "Not Found" : "Found");
+	ast_log(LOG_DEBUG, "(Provisional) Stopping retransmission (but retaining packet) on '%s' %s %d: %s\n", p->callid, resp ? "Response" : "Request", seqno, res ? "Not Found" : "Found");
 	return res;
 }
 
@@ -1452,7 +1460,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 
 	if (sin) {
 		memcpy(&p->sa, sin, sizeof(p->sa));
-		if (ast_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+		if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
 			memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	} else {
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
@@ -5015,7 +5023,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 		return 0;
 	}
 	/* Recalculate our side, and recalculate Call ID */
-	if (ast_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
@@ -5182,7 +5190,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 		snprintf(p->tohost, sizeof(p->tohost), "%s", inet_ntoa(peer->addr.sin_addr));
 
 	/* Recalculate our side, and recalculate Call ID */
-	if (ast_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
@@ -5293,7 +5301,7 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 	if (!strlen(p->peername) && ext)
 		strncpy(p->peername, ext, sizeof(p->peername) - 1);
 	/* Recalculate our side, and recalculate Call ID */
-	if (ast_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
