@@ -26,7 +26,7 @@ silencethreshold=128
 maxlogins=3
 ; If you need to have an external program, i.e. /usr/bin/myapp
 ; called when a voicemail is left, delivered, or your voicemailbox 
-; changes, uncomment this:
+; is checked, uncomment this:
 ;externnotify=/usr/bin/myapp
 ; For the directory, you can override the intro file if you want
 ;directoryintro=dir-intro
