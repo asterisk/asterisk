@@ -1334,7 +1334,7 @@ static int handle_context_remove_ignorepat(int fd, int argc, char *argv[])
 				break;
 
 			default:
-				ast_cli(fd, "Failed to remove ignore pattern '%s' from '%s' context\n");
+				ast_cli(fd, "Failed to remove ignore pattern '%s' from '%s' context\n", argv[2], argv[4]);
 				break;
 		}
 		return RESULT_FAILURE;

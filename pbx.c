@@ -1134,7 +1134,7 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 			ast_mutex_unlock(&conlock);
 			if (app) {
 				if (c->context != context)
-					strncpy(c->context, context, sizeof(c->context-1));
+					strncpy(c->context, context, sizeof(c->context)-1);
 				if (c->exten != exten)
 					strncpy(c->exten, exten, sizeof(c->exten)-1);
 				c->priority = priority;
@@ -2512,7 +2512,7 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 
 	/* try to lock contexts */
 	if (ast_lock_contexts()) {
-		ast_cli(LOG_WARNING, "Failed to lock contexts list\n");
+		ast_log(LOG_WARNING, "Failed to lock contexts list\n");
 		return RESULT_FAILURE;
 	}
 
@@ -3798,12 +3798,16 @@ int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char
 				res = 0;
 				if (option_verbose > 3)
 					ast_verbose(VERBOSE_PREFIX_4 "Channel %s was answered.\n", chan->name);
-				if (context && strlen(context))
+				if (context && *context)
 					strncpy(chan->context, context, sizeof(chan->context) - 1);
-				if (exten && strlen(exten))
+				if (exten && *exten)
 					strncpy(chan->exten, exten, sizeof(chan->exten) - 1);
-				if (callerid && strlen(callerid))
-					strncpy(chan->callerid, callerid, sizeof(chan->callerid) - 1);
+				if (callerid && *callerid) {
+					/* XXX call ast_set_callerid? */
+					if (chan->callerid)
+						free(chan->callerid);
+					chan->callerid = strdup(callerid);
+				}
 				if (priority > 0)
 					chan->priority = priority;
 				if (sync > 1) {

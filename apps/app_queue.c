@@ -1383,7 +1383,7 @@ static int queues_show(int fd, int argc, char **argv)
 			pos = 1;
 			ast_cli(fd, "   Callers: \n");
 			for (qe = q->head; qe; qe = qe->next) 
-				ast_cli(fd, "      %d. %s (wait: %d:%02.2d)\n", pos++, qe->chan->name,
+				ast_cli(fd, "      %d. %s (wait: %d:%2.2d)\n", pos++, qe->chan->name,
 								(now - qe->start) / 60, (now - qe->start) % 60);
 		} else
 			ast_cli(fd, "   No Callers\n");
@@ -1441,7 +1441,7 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 				"Wait: %ld\r\n"
 				"%s"
 				"\r\n", 
-					q->name, pos++, qe->chan->name, (qe->chan->callerid ? qe->chan->callerid : ""), now - qe->start), idText;
+					q->name, pos++, qe->chan->name, (qe->chan->callerid ? qe->chan->callerid : ""), (long)(now - qe->start), idText);
 		ast_mutex_unlock(&q->lock);
 		q = q->next;
 	}

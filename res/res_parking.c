@@ -582,7 +582,7 @@ static int handle_parkedcalls(int fd, int argc, char *argv[])
 
 	cur=parkinglot;
 	while(cur) {
-		ast_cli(fd, "%4d %25s (%-15s %-12s %-4d) %6ds\n"
+		ast_cli(fd, "%4d %25s (%-15s %-12s %-4d) %6lds\n"
 			,cur->parkingnum, cur->chan->name, cur->context, cur->exten
 			,cur->priority, cur->start.tv_sec + (cur->parkingtime/1000) - time(NULL));
 

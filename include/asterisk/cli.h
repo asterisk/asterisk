@@ -20,7 +20,8 @@ extern "C" {
 
 #include <stdarg.h>
 
-extern void ast_cli(int fd, char *fmt, ...);
+extern void ast_cli(int fd, char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
 
 #define RESULT_SUCCESS		0
 #define RESULT_SHOWUSAGE	1
