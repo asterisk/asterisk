@@ -2634,9 +2634,13 @@ void delete_devices(void)
 
 int reload(void)
 {
+#if 0
+// XXX Causes Seg
+
 	delete_devices();
 	reload_config();
 	restart_monitor();
+#endif
 	return 0;
 }
 
