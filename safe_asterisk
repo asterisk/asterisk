@@ -5,7 +5,7 @@ NOTIFY=			# Who to notify about crashes
 #
 # Don't fork when running "safely"
 #
-ASTARGS="-f"
+ASTARGS=""
 if [ "$TTY" != "" ]; then
 	ASTARGS="${ASTARGS} -vvv"
 	if [ "$CONSOLE" != "no" ]; then
@@ -18,30 +18,39 @@ fi
 #
 ulimit -c unlimited
 
-while :; do 
+launch_asterisk()
+{
+}
 
-	if [ "$TTY" != "" ]; then
-		stty sane < /dev/tty${TTY}
-		asterisk ${ASTARGS} >& /dev/tty${TTY} < /dev/tty${TTY}
-	else
-		asterisk ${ASTARGS}
-	fi
-	EXITSTATUS=$?
-	#echo "Asterisk ended with exit status $EXITSTATUS"
-	if [ "$EXITSTATUS" = "0" ]; then
-		# Properly shutdown....
-		echo "Asterisk shutdown normally."
-		exit 0
-	elif [ $EXITSTATUS -gt 128 ]; then
-		let EXITSIGNAL=EXITSTATUS-128
-		echo "Asterisk exited on signal $EXITSIGNAL."
-		if [ "$NOTIFY" != "" ]; then
-			echo "Asterisk exited on signal $EXITSIGNAL.  Might want to take a peek." | \
-			mail -s "Asterisk Died" $NOTIFY
+run_asterisk()
+{
+	while :; do 
+
+		if [ "$TTY" != "" ]; then
+			stty sane < /dev/tty${TTY}
+			asterisk ${ASTARGS} >& /dev/tty${TTY} < /dev/tty${TTY}
+		else
+			asterisk ${ASTARGS}
 		fi
-	else
-		echo "Asterisk died with code $EXITSTATUS.  Aborting."
-		exit 0
-	fi
-	echo "Automatically restarting Asterisk."
-done
+		EXITSTATUS=$?
+		#echo "Asterisk ended with exit status $EXITSTATUS"
+		if [ "$EXITSTATUS" = "0" ]; then
+			# Properly shutdown....
+			echo "Asterisk shutdown normally."
+			exit 0
+		elif [ $EXITSTATUS -gt 128 ]; then
+			let EXITSIGNAL=EXITSTATUS-128
+			echo "Asterisk exited on signal $EXITSIGNAL."
+			if [ "$NOTIFY" != "" ]; then
+				echo "Asterisk exited on signal $EXITSIGNAL.  Might want to take a peek." | \
+				mail -s "Asterisk Died" $NOTIFY
+			fi
+		else
+			echo "Asterisk died with code $EXITSTATUS.  Aborting."
+			exit 0
+		fi
+		echo "Automatically restarting Asterisk."
+	done
+}
+
+run_asterisk &
