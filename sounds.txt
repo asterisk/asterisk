@@ -112,7 +112,7 @@
 
 %vm-mismatch.gsm%The passwords you entered and re-entered did not match.  Please try again.
 
-%vm-msginstruct.gsm%To hear the next message press 6, to repeat this message press 5, to hear the previous message press 4, to delete or undelete this message press seven, to quite voicemail press pound.
+%vm-msginstruct.gsm%To hear the next message press 6, to repeat this message press 5, to hear the previous message press 4, to delete or undelete this message press seven, to quite voicemail press pound.  During message playback, you may press * to rewind, and # to fast forward.
  
 %vm-msgsaved.gsm%Your message has been saved.
 
