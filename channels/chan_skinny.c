@@ -2258,13 +2258,12 @@ static int get_input(struct skinnysession *s)
 {  
  
 	int res;  
-	int dlen = 0;  
+	int dlen = 0;
+	struct pollfd fds[1];  
  
-	fd_set fds;  
-	FD_ZERO(&fds);  
-	FD_SET(s->fd, &fds);  
- 
-	res = ast_select(s->fd + 1, &fds, NULL, NULL, NULL);  
+ 	fds[0].fd = s->fd;
+	fds[0].events = POLLIN;
+	res = poll(fds, 1, -1);
  
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
