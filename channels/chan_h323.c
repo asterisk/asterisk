@@ -487,10 +487,13 @@ static int oh323_hangup(struct ast_channel *c)
 
 	/* Start the process if it's not already started */
 	if (!p->alreadygone) {
-		if (h323_clear_call((p->cd).call_token)) 
-			ast_log(LOG_DEBUG, "ClearCall failed.\n");
 		p->needdestroy = 1;
-	}
+	}	
+	
+       /* Tell the H.323 stack to cleanly tare down the call */
+       if (h323_clear_call((p->cd).call_token)) {
+               ast_log(LOG_DEBUG, "ClearCall failed.\n");
+       }
 
 	/* Update usage counter */
 	ast_mutex_lock(&usecnt_lock);
@@ -1236,13 +1239,15 @@ restartsearch:
 		}
 		ast_mutex_unlock(&iflock);
 
-		pthread_testcancel();
-
 		/* Wait for sched or io */
 		res = ast_sched_wait(sched);
 		if ((res < 0) || (res > 1000))
 			res = 1000;
 		res = ast_io_wait(io, res);
+                
+		/* Check for thread cancellation */
+                pthread_testcancel();
+
 		ast_mutex_lock(&monlock);
 		if (res >= 0) 
 			ast_sched_runq(sched);
