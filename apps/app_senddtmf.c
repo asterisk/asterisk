@@ -30,8 +30,9 @@ static char *app = "SendDTMF";
 static char *synopsis = "Sends arbitrary DTMF digits";
 
 static char *descrip = 
-"  SendDTMF(digits): Sends DTMF digits on a channel.  Returns 0 on success"
-"or -1 on a hangup.\n";
+"  SendDTMF(digits): Sends DTMF digits on a channel. \n"
+"  Accepted digits: 0-9, *#abcd\n"
+" Returns 0 on success or -1 on a hangup.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -45,7 +46,7 @@ static int senddtmf_exec(struct ast_channel *chan, void *data)
 	struct ast_frame f;
 	int x;
 	if (!digits || !strlen(digits)) {
-		ast_log(LOG_WARNING, "SendDTMF requires an argument (digits)\n");
+		ast_log(LOG_WARNING, "SendDTMF requires an argument (digits or *#abcd)\n");
 		return -1;
 	}
 	LOCAL_USER_ADD(u);
@@ -55,12 +56,17 @@ static int senddtmf_exec(struct ast_channel *chan, void *data)
 		f.subclass = digits[x];
 		f.src = "app_senddtmf";
 		res = ast_write(chan, &f);
-		if (res)
+		 if (strchr("0123456789*#abcd",digits[x])==NULL) {
+                       ast_log(LOG_WARNING, "Illegal DTMF character in string. (0-9*#abcd allowed)\n");
+               } else {
+                  res = ast_write(chan, &f);
+		  if (res)
 			break;
-		/* Wait 250ms */
-		res = ast_safe_sleep(chan, 250);
-		if (res)
+		  /* Wait 250ms */
+		  res = ast_safe_sleep(chan, 250);
+		  if (res)
 			break;
+	       }
 	}
 	if (!res)
 		if (option_verbose > 2)
