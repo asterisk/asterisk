@@ -1777,6 +1777,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		pri_sr_set_caller(sr, l, n, p->pri->localdialplan - 1, 
 					l ? (p->use_callingpres ? ast->cid.cid_pres : PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN) : 
 						 PRES_NUMBER_NOT_AVAILABLE);
+		pri_sr_set_redirecting(sr, ast->cid.cid_rdnis, p->pri->localdialplan - 1, PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, PRI_REDIR_UNCONDITIONAL);
 		if (pri_setup(p->pri->pri, p->call,  sr)) {
 			ast_log(LOG_WARNING, "Unable to setup call to %s\n", c + p->stripmsd);
 			pri_rel(p->pri);

@@ -839,6 +839,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		tmp->chan->cdrflags = chan->cdrflags;
 		if (ast_strlen_zero(tmp->chan->musicclass))
 			strncpy(tmp->chan->musicclass, chan->musicclass, sizeof(tmp->chan->musicclass) - 1);
+		if (chan->cid.cid_rdnis)
+			tmp->chan->cid.cid_rdnis = strdup(chan->cid.cid_rdnis);
 		/* Pass callingpres setting */
 		tmp->chan->cid.cid_pres = chan->cid.cid_pres;
 		/* Pass type of number */
