@@ -6719,6 +6719,14 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 						update_user_counter(p, DEC_IN_USE);
 					}
 					break;
+				case 482: /* SIP is incapable of performing a hairpin call, which
+				             is yet another failure of not having a layer 2 (again, YAY
+							 IETF for thinking ahead).  So we treat this as a call
+							 forward and hope we end up at the right place... */
+					ast_log(LOG_DEBUG, "Hairpin detected, setting up call forward for what it's worth\n");
+					if (p->owner)
+						snprintf(p->owner->call_forward, sizeof(p->owner->call_forward), "Local/%s@%s", p->username, p->context);
+					/* Fall through */
 				case 486: /* Busy here */
 				case 600: /* Busy everywhere */
 				case 603: /* Decline */

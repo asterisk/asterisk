@@ -250,10 +250,11 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							if (!o->chan->callerid)
 								ast_log(LOG_WARNING, "Out of memory\n");
 						} else {
-							if (in->callerid)
+							if (in->callerid) {
 								o->chan->callerid = strdup(in->callerid);
-							if (!o->chan->callerid)
-								ast_log(LOG_WARNING, "Out of memory\n");
+								if (!o->chan->callerid)
+									ast_log(LOG_WARNING, "Out of memory\n");	
+							}
 							strncpy(o->chan->accountcode, in->accountcode, sizeof(o->chan->accountcode) - 1);
 							o->chan->cdrflags = in->cdrflags;
 						}
