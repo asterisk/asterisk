@@ -551,6 +551,8 @@ static struct iax2_dpcache {
 
 AST_MUTEX_DEFINE_STATIC(dpcache_lock);
 
+static void destroy_peer(struct iax2_peer *peer);
+
 static void iax_debug_output(const char *data)
 {
 	if (iaxdebug)
@@ -653,13 +655,11 @@ static int uncompress_subclass(unsigned char csub)
 static struct iax2_peer *find_peer(const char *name) 
 {
 	struct iax2_peer *peer;
-	struct iax2_peer *prev;
 	ast_mutex_lock(&peerl.lock);
 	for(peer = peerl.peers; peer; peer = peer->next) {
 		if (!strcasecmp(peer->name, name)) {
 			break;
 		}
-		prev = peer;
 	}
 	ast_mutex_unlock(&peerl.lock);
 	if(!peer)
@@ -1633,7 +1633,6 @@ static int iax2_show_peer(int fd, int argc, char *argv[])
 
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	ast_mutex_lock(&peerl.lock);
 	peer = find_peer(argv[3]);
 	if (peer) {
 		ast_cli(fd,"\n\n");
@@ -1676,12 +1675,12 @@ static int iax2_show_peer(int fd, int argc, char *argv[])
 			strncpy(status, "UNKNOWN", sizeof(status) - 1);
 		ast_cli(fd, "%s\n",status);
 		ast_cli(fd,"\n");
+		if (ast_test_flag(peer, IAX_TEMPONLY))
+			destroy_peer(peer);
 	} else {
 		ast_cli(fd,"Peer %s not found.\n", argv[3]);
 		ast_cli(fd,"\n");
 	}
-
-	ast_mutex_unlock(&peerl.lock);
 
 	return RESULT_SUCCESS;
 }
@@ -2118,7 +2117,6 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 static struct iax2_user *build_user(const char *name, struct ast_variable *v, int temponly);
 
 static void destroy_user(struct iax2_user *user);
-static void destroy_peer(struct iax2_peer *peer);
 
 static struct iax2_peer *realtime_peer(const char *peername)
 {
@@ -2236,17 +2234,7 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani,
 	if (sockfd)
 		*sockfd = defaultsockfd;
 	sin->sin_family = AF_INET;
-	ast_mutex_lock(&peerl.lock);
-	p = peerl.peers;
-	while(p) {
-		if (!strcasecmp(p->name, peer)) {
-			break;
-		}
-		p = p->next;
-	}
-	ast_mutex_unlock(&peerl.lock);
-	if (!p)
-		p = realtime_peer(peer);
+	p = find_peer(peer);
 	if (p) {
 		found++;
 		if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
@@ -4302,14 +4290,8 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	/* We release the lock for the call to prevent a deadlock, but it's okay because
 	   only the current thread could possibly make it go away or make changes */
 	ast_mutex_unlock(&iaxsl[callno]);
-	ast_mutex_lock(&peerl.lock);
-	for (p = peerl.peers; p ; p = p->next) 
-		if (!strcasecmp(p->name, peer))
-			break;
-	ast_mutex_unlock(&peerl.lock);
+	p = find_peer(peer);
 	ast_mutex_lock(&iaxsl[callno]);
-	if (!p) 
-		p = realtime_peer(peer);
 
 	if (!p) {
 		if (authdebug)
@@ -4868,13 +4850,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 	char iabuf[INET_ADDRSTRLEN];
 	int version;
 	memset(&ied, 0, sizeof(ied));
-	for (p = peerl.peers;p;p = p->next) {
-		if (!strcasecmp(name, p->name)) {
-			break;
-		}
-	}
-	if (!p)
-		p = realtime_peer(name);
+	p = find_peer(name);
 	if (p) {
 		if (ast_test_flag(p, IAX_TEMPONLY))
 			realtime_update(name, sin);
@@ -4950,15 +4926,7 @@ static int registry_authrequest(char *name, int callno)
 {
 	struct iax_ie_data ied;
 	struct iax2_peer *p;
-	ast_mutex_lock(&peerl.lock);
-	for (p = peerl.peers;p;p = p->next) {
-		if (!strcasecmp(name, p->name)) {
-			break;
-		}
-	}
-	ast_mutex_unlock(&peerl.lock);
-	if (!p)
-		p = realtime_peer(name);
+	p = find_peer(name);
 	if (p) {
 		memset(&ied, 0, sizeof(ied));
 		iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, p->authmethods);
