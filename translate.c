@@ -3,9 +3,9 @@
  *
  * Translate via the use of pseudo channels
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -442,33 +442,40 @@ int ast_translator_best_choice(int *dst, int *srcs)
 	int bestdst=0;
 	int cur = 1;
 	int besttime=999999999;
-	ast_mutex_lock(&list_lock);
-	for (y=0;y<MAX_FORMAT;y++) {
-		if ((cur & *dst) && (cur & *srcs)) {
-			/* This is a common format to both.  Pick it if we don't have one already */
-			besttime=0;
-			bestdst = cur;
-			best = cur;
-			break;
-		}
-		if (cur & *dst)
-			for (x=0;x<MAX_FORMAT;x++) {
-				if (tr_matrix[x][y].step &&	/* There's a step */
-			   	 (tr_matrix[x][y].cost < besttime) && /* We're better than what exists now */
-					(*srcs & (1 << x)))			/* x is a valid source format */
-					{
-						best = 1 << x;
-						bestdst = cur;
-						besttime = tr_matrix[x][y].cost;
-					}
+	if ((*dst) & (*srcs)) {
+		/* We have a format in common */
+		for (y=0;y<MAX_FORMAT;y++) {
+			if ((cur & *dst) && (cur & *srcs)) {
+				/* This is a common format to both.  Pick it if we don't have one already */
+				besttime=0;
+				bestdst = cur;
+				best = cur;
 			}
-		cur = cur << 1;
+			cur = cur << 1;
+		}
+	} else {
+		/* We will need to translate */
+		ast_mutex_lock(&list_lock);
+		for (y=0;y<MAX_FORMAT;y++) {
+			if (cur & *dst)
+				for (x=0;x<MAX_FORMAT;x++) {
+					if (tr_matrix[x][y].step &&	/* There's a step */
+				   	 (tr_matrix[x][y].cost < besttime) && /* We're better than what exists now */
+						(*srcs & (1 << x)))			/* x is a valid source format */
+						{
+							best = 1 << x;
+							bestdst = cur;
+							besttime = tr_matrix[x][y].cost;
+						}
+				}
+			cur = cur << 1;
+		}
+		ast_mutex_unlock(&list_lock);
 	}
 	if (best > -1) {
 		*srcs = best;
 		*dst = bestdst;
 		best = 0;
 	}
-	ast_mutex_unlock(&list_lock);
 	return best;
 }
