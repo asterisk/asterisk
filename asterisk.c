@@ -740,7 +740,7 @@ static struct ast_cli_entry aborthalt = { { "abort", "halt", NULL }, handle_abor
 static struct ast_cli_entry quit = 	{ { "quit", NULL }, no_more_quit, "Exit Asterisk", quit_help };
 static struct ast_cli_entry astexit = 	{ { "exit", NULL }, no_more_quit, "Exit Asterisk", quit_help };
 
-static struct ast_cli_entry astshutdownnow = 	{ { "stop", "now", NULL }, handle_shutdown_now, "Shut down Asterisk imediately", shutdown_now_help };
+static struct ast_cli_entry astshutdownnow = 	{ { "stop", "now", NULL }, handle_shutdown_now, "Shut down Asterisk immediately", shutdown_now_help };
 static struct ast_cli_entry astshutdowngracefully = 	{ { "stop", "gracefully", NULL }, handle_shutdown_gracefully, "Gracefully shut down Asterisk", shutdown_gracefully_help };
 static struct ast_cli_entry astshutdownwhenconvenient = 	{ { "stop", "when","convenient", NULL }, handle_shutdown_when_convenient, "Shut down Asterisk at empty call volume", shutdown_when_convenient_help };
 static struct ast_cli_entry astrestartnow = 	{ { "restart", "now", NULL }, handle_restart_now, "Restart Asterisk immediately", restart_now_help };
