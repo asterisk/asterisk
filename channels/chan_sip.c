@@ -567,6 +567,8 @@ static int __sip_autodestruct(void *data)
 
 static int sip_scheddestroy(struct sip_pvt *p, int ms)
 {
+	if (sipdebug)
+		ast_verbose("Scheduling destruction of call '%s' in %d ms\n", p->callid, ms);
 	if (p->autokillid > -1)
 		ast_sched_del(sched, p->autokillid);
 	p->autokillid = ast_sched_add(sched, ms, __sip_autodestruct, p);
@@ -1052,7 +1054,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	struct sip_pvt *cur, *prev = NULL;
 	struct sip_pkt *cp;
 	if (sipdebug)
-		ast_log(LOG_DEBUG, "Destroying call '%s'\n", p->callid);
+		ast_verbose("Destroying call '%s'\n", p->callid);
 	if (p->stateid > -1)
 		ast_extension_state_del(p->stateid, NULL);
 	if (p->initid > -1)
