@@ -87,9 +87,11 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 	regex_t preg;
 	regmatch_t pmatch[9];
 
+
+	strcpy(dst, "");
 	
 	if (len < sizeof(struct naptr)) {
-		printf("Length too short\n");
+		ast_log(LOG_WARNING, "Length too short\n");
 		return -1;
 	}
 	answer += sizeof(struct naptr);
@@ -135,9 +137,9 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 	} else if (!strncasecmp(services, "e2u+voice:", 10)) {
 		strncpy(tech, services+10, techsize -1); 
 	} else {
-		ast_log(LOG_WARNING, 
+		ast_log(LOG_DEBUG, 
 		"Services must be e2u+${tech}, ${tech}+e2u, or e2u+voice: where $tech is from (sip, h323, tel, iax, iax2). \n");
-		return -1;
+		return 0;
 	}
 
 	/* DEDBUGGING STUB
