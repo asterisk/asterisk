@@ -2939,6 +2939,7 @@ static int iax2_getpeertrunk(struct sockaddr_in sin)
 	return res;
 }
 
+/*--- ast_iax2_new: Create new call, interface with the PBX core */
 static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 {
 	struct ast_channel *tmp;
@@ -3067,15 +3068,15 @@ static unsigned int fix_peerts(struct timeval *tv, int callno, unsigned int ts)
 }
 
 static void add_ms(struct timeval *tv, int ms) {
-  tv->tv_usec += ms * 1000;
-  if(tv->tv_usec > 1000000) {
-      tv->tv_usec -= 1000000;
-      tv->tv_sec++;
-  }
-  if(tv->tv_usec < 0) {
-      tv->tv_usec += 1000000;
-      tv->tv_sec--;
-  }
+	tv->tv_usec += ms * 1000;
+	if(tv->tv_usec > 1000000) {
+		tv->tv_usec -= 1000000;
+		tv->tv_sec++;
+	}
+	if(tv->tv_usec < 0) {
+		tv->tv_usec += 1000000;
+		tv->tv_sec--;
+	}
 }
 
 static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, struct ast_frame *f)
@@ -4595,6 +4596,9 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	/* Choose lowest expirey number */
 	if (expire && (expire < iaxs[callno]->expirey)) 
 		iaxs[callno]->expirey = expire;
+
+	ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
+
 	if (ast_test_flag(p, IAX_TEMPONLY))
 		destroy_peer(p);
 	return 0;
@@ -4996,6 +5000,7 @@ static int expire_registry(void *data)
 	if (!ast_test_flag(p, IAX_TEMPONLY))
 		ast_db_del("IAX/Registry", p->name);
 	register_peer_exten(p, 0);
+	ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 	if (iax2_regfunk)
 		iax2_regfunk(p->name, 0);
 
@@ -5037,6 +5042,7 @@ static void reg_source_db(struct iax2_peer *p)
 					p->addr.sin_port = htons(atoi(c));
 					if (p->expire > -1)
 						ast_sched_del(sched, p->expire);
+					ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 					p->expire = ast_sched_add(sched, (p->expirey + 10) * 1000, expire_registry, (void *)p);
 					if (iax2_regfunk)
 						iax2_regfunk(p->name, 1);
@@ -5071,13 +5077,15 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 				if  (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Registered IAX2 '%s' (%s) at %s:%d\n", p->name, 
 					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
-				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Registered\r\n", p->name);+                               manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Registered\r\n", p->name);
+				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Registered\r\n", p->name);
+				ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 				register_peer_exten(p, 1);
 			} else if (!ast_test_flag(p, IAX_TEMPONLY)) {
 				if  (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Unregistered IAX2 '%s' (%s)\n", p->name, 
 					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED");
 				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unregistered\r\n", p->name);
+				ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 				register_peer_exten(p, 0);
 				ast_db_del("IAX/Registry", p->name);
 			}
@@ -5614,9 +5622,9 @@ static void construct_rr(struct chan_iax2_pvt *pvt, struct iax_ie_data *iep)
 	iax_ie_append_int(iep,IAX_IE_RR_JITTER, pvt->jitter);
 	iax_ie_append_int(iep,IAX_IE_RR_PKTS, pvt->frames_received);
 	if(!ast_test_flag(pvt, IAX_USEJITTERBUF)) 
-	    iax_ie_append_short(iep,IAX_IE_RR_DELAY, 0);
+		iax_ie_append_short(iep,IAX_IE_RR_DELAY, 0);
 	else
-	    iax_ie_append_short(iep,IAX_IE_RR_DELAY, pvt->jitterbuffer - pvt->min);
+		iax_ie_append_short(iep,IAX_IE_RR_DELAY, pvt->jitterbuffer - pvt->min);
 	iax_ie_append_int(iep,IAX_IE_RR_DROPPED, pvt->frames_dropped);
 	/* don't know, don't send! iax_ie_append_int(&ied,IAX_IE_RR_OOO, 0); */
 	/* don't know, don't send! iax_ie_append_int(&ied,IAX_IE_RR_LOSS, 0); */
@@ -6411,11 +6419,13 @@ retryowner2:
 						if (iaxs[fr.callno]->pingtime <= peer->maxms) {
 							ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! Time: %d\n", peer->name, iaxs[fr.callno]->pingtime);
 							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, iaxs[fr.callno]->pingtime); 
+							ast_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 						}
 					} else if ((peer->lastms > 0) && (peer->lastms <= peer->maxms)) {
 						if (iaxs[fr.callno]->pingtime > peer->maxms) {
 							ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED (%d ms)!\n", peer->name, iaxs[fr.callno]->pingtime);
 							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, iaxs[fr.callno]->pingtime); 
+							ast_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 						}
 					}
 					peer->lastms = iaxs[fr.callno]->pingtime;
@@ -7054,6 +7064,7 @@ static int iax2_poke_noanswer(void *data)
 	if (peer->lastms > -1) {
 		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE! Time: %d\n", peer->name, peer->lastms);
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, peer->lastms);
+		ast_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 	}
 	if (peer->callno > 0)
 		iax2_destroy(peer->callno);
@@ -7279,6 +7290,7 @@ static int get_auth_methods(char *value)
 }
 
 
+/*--- build_peer: Create peer structure based on configuration */
 static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, int temponly)
 {
 	struct iax2_peer *peer;
@@ -7453,6 +7465,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 	return peer;
 }
 
+/*--- build_user: Create in-memory user structure from configuration */
 static struct iax2_user *build_user(const char *name, struct ast_variable *v, int temponly)
 {
 	struct iax2_user *prev, *user;
@@ -7733,6 +7746,7 @@ static void set_timing(void)
 }
 
 
+/*--- set_config: Load configuration */
 static int set_config(char *config_file, int reload)
 {
 	struct ast_config *cfg;
@@ -8199,6 +8213,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 	return dp;	
 }
 
+/*--- iax2_exists: Part of the IAX2 switch interface ---*/
 static int iax2_exists(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	struct iax2_dpcache *dp;
@@ -8221,6 +8236,7 @@ static int iax2_exists(struct ast_channel *chan, const char *context, const char
 	return res;
 }
 
+/*--- iax2_canmatch: part of the IAX2 dial plan switch interface */
 static int iax2_canmatch(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	int res = 0;
@@ -8243,6 +8259,7 @@ static int iax2_canmatch(struct ast_channel *chan, const char *context, const ch
 	return res;
 }
 
+/*--- iax2_matchmore: Part of the IAX2 Switch interface */
 static int iax2_matchmore(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	int res = 0;
@@ -8265,6 +8282,7 @@ static int iax2_matchmore(struct ast_channel *chan, const char *context, const c
 	return res;
 }
 
+/*--- iax2_exec: Execute IAX2 dialplan switch */
 static int iax2_exec(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data)
 {
 	char odata[256];
@@ -8318,10 +8336,61 @@ static int iax2_exec(struct ast_channel *chan, const char *context, const char *
 	return -1;
 }
 
+/*--- iax2_devicestate: Part of the device state notification system ---*/
+static int iax2_devicestate(void *data) 
+{
+	char *dest = (char *) data;
+	struct iax2_peer *p;
+	int found = 0;
+	char *ext, *host;
+	char tmp[256] = "";
+	int res = AST_DEVICE_INVALID;
+
+	strncpy(tmp, dest, sizeof(tmp) - 1);
+	host = strchr(tmp, '@');
+	if (host) {
+		*host = '\0';
+		host++;
+		ext = tmp;
+	} else {
+		host = tmp;
+		ext = NULL;
+	}
+
+	if (option_debug > 1)
+		ast_log(LOG_DEBUG, "Checking device state for device %s\n", dest);
+
+	p = find_peer(host, 1);
+	if (p) {
+		found++;
+		res = AST_DEVICE_UNAVAILABLE;
+		if (option_debug > 2) 
+			ast_log(LOG_DEBUG, "Found peer. Now checking device state for peer %s\n", host);
+
+
+		if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
+			(!p->maxms || ((p->lastms > -1)  && (p->lastms <= p->maxms)))) {
+			/* Peer is registred, or have default IP address
+			   and a valid registration */
+			if (p->lastms == 0 || p->lastms <= p->lastms)
+				res = AST_DEVICE_NOT_INUSE;
+			else
+				res = AST_DEVICE_UNKNOWN;	/* Not reachable */
+		}
+	} else {
+		if (option_debug > 2) 
+			ast_log(LOG_DEBUG, "Devicestate: Can't find peer %s.\n", host);
+	}
+	
+	if (p && ast_test_flag(p, IAX_TEMPONLY))
+		destroy_peer(p);
+	return res;
+}
+
 static struct ast_switch iax2_switch = 
 {
 	name: 			"IAX2",
-	description: 	"IAX Remote Dialplan Switch",
+	description: 		"IAX Remote Dialplan Switch",
 	exists:			iax2_exists,
 	canmatch:		iax2_canmatch,
 	exec:			iax2_exec,
@@ -8373,6 +8442,8 @@ int unload_module()
 	return __unload_module();
 }
 
+
+/*--- load_module: Load IAX2 module, load configuraiton ---*/
 int load_module(void)
 {
 	char *config = "iax.conf";
@@ -8445,7 +8516,7 @@ int load_module(void)
 
 	set_config(config, 0);
 
-	if (ast_channel_register(channeltype, tdesc, iax2_capability, iax2_request)) {
+	if (ast_channel_register_ex(channeltype, tdesc, iax2_capability, iax2_request, iax2_devicestate)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", channeltype);
 		__unload_module();
 		return -1;
