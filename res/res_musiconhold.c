@@ -94,16 +94,9 @@ static struct mohclass *mohclasses;
 
 static ast_mutex_t moh_lock = AST_MUTEX_INITIALIZER;
 
+#define LOCAL_MPG_123 "/usr/local/bin/mpg123"
 #define MPG_123 "/usr/bin/mpg123"
 #define MAX_MP3S 256
-
-static void child_handler(int sig)
-{
-	int status;
-	if (wait4(-1,&status, WNOHANG, NULL)<1)	
-		if (option_debug)	
-			ast_log(LOG_DEBUG, "Huh?  Child handler, but nobody there?\n");
-}
 
 static int spawn_mp3(struct mohclass *class)
 {
@@ -121,7 +114,7 @@ static int spawn_mp3(struct mohclass *class)
 		ast_log(LOG_WARNING, "%s is not a valid directory\n", class->dir);
 		return -1;
  	}
-	argv[0] = MPG_123;
+	argv[0] = "mpg123";
 	argv[1] = "-q";
 	argv[2] = "-s";
 	argv[3] = "--mono";
@@ -190,7 +183,12 @@ static int spawn_mp3(struct mohclass *class)
 			close(x);
 		/* Child */
 		chdir(class->dir);
+		/* Default install is /usr/local/bin */
+		execv(LOCAL_MPG_123, argv);
+		/* Many places have it in /usr/bin */
 		execv(MPG_123, argv);
+		/* Check PATH as a last-ditch effort */
+		execvp("mpg123", argv);
 		ast_log(LOG_WARNING, "Exec failed: %s\n", strerror(errno));
 		exit(1);
 	} else {
@@ -220,7 +218,6 @@ static void *monmp3thread(void *data)
 	tv.tv_usec = 0;
 	error_sec = 0;
 	error_usec = 0;
-	signal(SIGCHLD, child_handler);
 	for(;/* ever */;) {
 		/* Spawn mp3 player if it's not there */
 		if (class->srcfd < 0)  {

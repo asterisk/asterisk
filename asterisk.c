@@ -337,11 +337,19 @@ static void hup_handler(int num)
 	ast_module_reload();
 }
 
-
-static void pipe_handler(int num)
+static void child_handler(int sig)
 {
-	/* Ignore sigpipe */
+	int n, status;
+
+	/*
+	 * Reap all dead children -- not just one
+	 */
+	for (n = 0; wait4(-1, &status, WNOHANG, NULL) > 0; n++)
+		;
+	if (n == 0 && option_debug)	
+		ast_log(LOG_DEBUG, "Huh?  Child handler, but nobody there?\n");
 }
+
 static void set_title(char *text)
 {
 	/* Set an X-term or screen title */
@@ -1366,11 +1374,14 @@ int main(int argc, char *argv[])
 	}
 	if (option_console && !option_verbose) 
 		ast_verbose("[ Booting...");
+
 	signal(SIGURG, urg_handler);
 	signal(SIGINT, __quit_handler);
 	signal(SIGTERM, __quit_handler);
 	signal(SIGHUP, hup_handler);
-	signal(SIGPIPE, pipe_handler);
+	signal(SIGCHLD, child_handler);
+	signal(SIGPIPE, SIG_IGN);
+
 	if (set_priority(option_highpriority)) {
 		printf(term_quit());
 		exit(1);
