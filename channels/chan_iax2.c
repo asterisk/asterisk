@@ -539,7 +539,7 @@ static int get_samples(struct ast_frame *f)
 		samples = 240 /* XXX Not necessarily true XXX */;
 		break;
 	case AST_FORMAT_ILBC:
-		samples = 240 * (f->datalen / 52);
+		samples = 240 * (f->datalen / 50);
 		break;
 	case AST_FORMAT_GSM:
 		samples = 160 * (f->datalen / 33);

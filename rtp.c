@@ -334,7 +334,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		rtp->f.samples = 160 * (rtp->f.datalen / 33);
 		break;
 	case AST_FORMAT_ILBC:
-		rtp->f.samples = 240 * (rtp->f.datalen / 52);
+		rtp->f.samples = 240 * (rtp->f.datalen / 50);
 		break;
 	case AST_FORMAT_ADPCM:
 		rtp->f.samples = rtp->f.datalen * 2;
@@ -717,7 +717,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		pred = rtp->lastts + (f->datalen * 160 / 33);
 		break;
 	case AST_FORMAT_ILBC:
-		pred = rtp->lastts + (f->datalen * 240 / 52);
+		pred = rtp->lastts + (f->datalen * 240 / 50);
 		break;
 	case AST_FORMAT_G723_1:
 		pred = rtp->lastts + g723_samples(f->data, f->datalen);
@@ -833,7 +833,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		break;
 	case AST_FORMAT_ILBC:
 		if (!rtp->smoother) {
-			rtp->smoother = ast_smoother_new(52);
+			rtp->smoother = ast_smoother_new(50);
 		}
 		if (!rtp->smoother) {
 			ast_log(LOG_WARNING, "Unable to create ILBC smoother :(\n");
