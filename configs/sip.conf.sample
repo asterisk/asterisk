@@ -57,6 +57,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; when we're not on hold
 ;rtpholdtimeout=300		; Terminate call if 300 seconds of no RTP activity
 				; when we're on hold (must be > rtptimeout)
+;useragent=Asterisk PBX		; Allows you to change the user agent string
 
 ; Asterisk can register as a SIP user agent to a SIP proxy (provider)
 ; Format for the register statement is:
