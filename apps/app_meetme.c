@@ -51,6 +51,7 @@ static char *descrip =
 "      'p' -- allow user to exit the conference by pressing '#'\n"
 "      's' -- send user to admin/user menu if '*' is received\n"
 "      't' -- set talk only mode\n"
+"      'd' -- dynamically add conference\n"
 "      'v' -- video mode\n"
 "      'q' -- quiet mode (don't play enter/leave sounds)\n"
 "      'b' -- run AGI script specified in ${MEETME_AGI_BACKGROUND} (Zap channels only)\n"
@@ -494,7 +495,7 @@ outrun:
 	return ret;
 }
 
-static struct conf *find_conf(char *confno, int make)
+static struct conf *find_conf(char *confno, int make, int dynamic)
 {
 	struct ast_config *cfg;
 	struct ast_variable *var;
@@ -515,7 +516,11 @@ static struct conf *find_conf(char *confno, int make)
 		var = var->next;
 	}
 	if (!var) {
-		ast_log(LOG_DEBUG, "%s isn't a valid conference\n", confno);
+		if (dynamic) {
+			ast_log(LOG_DEBUG, "Using dynamic conference '%s'\n", confno);
+			cnf = build_conf(confno, make);
+		} else
+			ast_log(LOG_DEBUG, "%s isn't a valid conference\n", confno);
 	}
 	ast_destroy(cfg);
 	return cnf;
@@ -539,7 +544,7 @@ static int count_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	strcpy(localdata,data);
 	confnum = strsep(&localdata,"|");       
-	conf = find_conf(confnum, 0);
+	conf = find_conf(confnum, 0, 1);
 	if (conf)
 		cnt = conf->users;
 	else
@@ -567,6 +572,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	int retrycnt = 0;
 	struct conf *cnf;
 	int confflags = 0;
+	int dynamic = 0;
 	char info[256], *ptr, *inflags, *inpin;
 
 
@@ -600,6 +606,8 @@ static int conf_exec(struct ast_channel *chan, void *data)
 				confflags |= CONFFLAG_QUIET;
 			if (strchr(inflags, 'b'))
 				confflags |= CONFFLAG_AGI;
+			if (strchr(inflags, 'd'))
+				dynamic = 1;
 
 
 			inpin = strchr(inflags, '|');
@@ -622,7 +630,7 @@ retry:
 	}
 	if (strlen(confno)) {
 		/* Check the validity of the conference */
-		cnf = find_conf(confno, 1);
+		cnf = find_conf(confno, 1, dynamic);
 		if (!cnf) {
 			res = ast_streamfile(chan, "conf-invalid", chan->language);
 			if (res < 0)
