@@ -39,6 +39,9 @@ Ross Finlayson - Dynamic RTP payload support
 Mahmut Fettahlioglu - Audio recording, music-on-hold changes, alaw file
 		format, and various fixes. Can be contacted at mahmut@oa.com.au
 
+=== OTHER CONTRIBUTIONS ===
+John Todd - Monkey sounds and associated teletorture prompt
+
 === OTHER SOURCE CODE IN ASTERISK ===
 
 I did not implement the codecs in asterisk.  Here is the copyright on the
