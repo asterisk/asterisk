@@ -488,8 +488,6 @@ static int agent_hangup(struct ast_channel *ast)
 	}
 #endif	
 	ast_mutex_unlock(&p->lock);
-	/* Release ownership of the agent to other threads (presumably running the login app). */
-	ast_mutex_unlock(&p->app_lock);
 
 	if (p->pending) {
 		ast_mutex_lock(&agentlock);
@@ -508,6 +506,8 @@ static int agent_hangup(struct ast_channel *ast)
 		/* Store last disconnect time */
 		gettimeofday(&p->lastdisc, NULL);
 		ast_mutex_unlock(&p->lock);
+		/* Release ownership of the agent to other threads (presumably running the login app). */
+		ast_mutex_unlock(&p->app_lock);
 	}
 	return 0;
 }
@@ -539,7 +539,7 @@ static int agent_cont_sleep( void *data )
 static int agent_ack_sleep( void *data )
 {
 	struct agent_pvt *p;
-	int res;
+	int res=0;
 	int to = 1000;
 
 	/* Wait a second and look for something */
