@@ -152,7 +152,8 @@ static int macro_exec(struct ast_channel *chan, void *data)
   while(ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
 	if ((res = ast_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num))) {
 		/* Something bad happened, or a hangup has been requested. */
-		if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F'))) {
+		if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F')) ||
+		    (res == '*') || (res == '#')) {
 			/* Just return result as to the previous application as if it had been dialed */
 			ast_log(LOG_DEBUG, "Oooh, got something to jump out with ('%c')!\n", res);
 			break;
