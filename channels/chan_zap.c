@@ -9628,7 +9628,7 @@ static int setup_zap(int reload)
 			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 		v = v->next;
 	}
-	if (!found_pseudo) {
+	if (!found_pseudo && reload == 0) {
 	
 		/* Make sure pseudo isn't a member of any groups if
 		   we're automatically making it. */	
