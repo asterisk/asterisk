@@ -4174,9 +4174,10 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 		switch(condition) {
 		case AST_CONTROL_BUSY:
 #ifdef ZAPATA_PRI
-			if (p->priindication_oob && p->sig == SIG_PRI)
-				res = pri_hangup(p->pri->pri, p->call, PRI_CAUSE_USER_BUSY);
-			else
+			if (p->priindication_oob && p->sig == SIG_PRI) {
+				chan->hangupcause = AST_CAUSE_USER_BUSY;
+				chan->_softhangup |= AST_SOFTHANGUP_DEV;
+			} else
 #endif
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_BUSY);
 			break;
@@ -4242,9 +4243,10 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 		case AST_CONTROL_CONGESTION:
 			chan->hangupcause = AST_CAUSE_CONGESTION;
 #ifdef ZAPATA_PRI
-			if (p->priindication_oob && p->sig == SIG_PRI)
-				res = pri_hangup(p->pri->pri, p->call, PRI_CAUSE_SWITCH_CONGESTION);
-			else
+			if (p->priindication_oob && p->sig == SIG_PRI) {
+				chan->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
+				chan->_softhangup |= AST_SOFTHANGUP_DEV;
+			} else
 #endif
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
 			break;
