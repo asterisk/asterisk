@@ -406,7 +406,13 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 
 	/* Copy callerid, if there is any */
 	if (strlen(c->callerid)) {
-		p->calloptions.callerid = strdup(c->callerid);
+		char *tmp = strchr(c->callerid, '"');
+		if (tmp) {
+			p->calloptions.callerid = malloc(sizeof(c->callerid+20)); // evil
+			sprintf(p->calloptions.callerid, "\"Unknown Name\" <%s>", c->callerid);
+		} else {
+			p->calloptions.callerid = strdup(c->callerid);
+		}
 	}
 
 	res = h323_make_call(called_addr, &(p->cd), p->calloptions);
