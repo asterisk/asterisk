@@ -53,10 +53,9 @@ static int txtcidname_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
 	char tech[80];
-	char txt[256];
+	char txt[256] = "";
 	char dest[80];
 
-	txt[0] = 0;
 	struct localuser *u;
 	if (!data || !strlen(data)) {
 		ast_log(LOG_WARNING, "TXTCIDName requires an argument (extension)\n");
