@@ -657,7 +657,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 	} else { /* can't open file */
 		if (option_debug)
 			ast_log(LOG_DEBUG, "No file to parse: %s\n", fn);
-		else if (option_verbose > 2)
+		else if (option_verbose > 1)
 			ast_verbose( "Not found (%s)\n", strerror(errno));
 	}
 	if (comment) {
