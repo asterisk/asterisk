@@ -2084,7 +2084,7 @@ static int play_datetime_format(struct ast_channel *chan, time_t time, struct vm
 			case 'P':
 			case 'p':
 				/* AM/PM */
-				if ((tm.tm_hour == 0) || (tm.tm_hour > 12))
+				if ((tm.tm_hour == 0) || (tm.tm_hour > 11))
 					snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "p-m");
 				else
 					snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "a-m");
