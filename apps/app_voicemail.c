@@ -118,6 +118,78 @@ static int make_file(char *dest, int len, char *dir, int num)
 	return snprintf(dest, len, "%s/msg%04d", dir, num);
 }
 
+static int vm_change_password(char *username, char *password, char *newpassword)
+{
+        /*  There's probably a better way of doing this. */
+        /*  That's why I've put the password change in a separate function. */
+
+        FILE *configin;
+        FILE *configout;
+		char inbuf[256];
+		char orig[256];
+		char *user, *pass, *rest, *trim;
+        configin = fopen("/etc/asterisk/voicemail.conf","r");
+        configout = fopen("/etc/asterisk/voicemail.conf.new","w+");
+
+        while (!feof(configin)) {
+			/* Read in the line */
+			fgets(inbuf, sizeof(inbuf), configin);
+			if (!feof(configin)) {
+				/* Make a backup of it */
+				memcpy(orig, inbuf, sizeof(orig));
+				/* Strip trailing \n and comment */
+				inbuf[strlen(inbuf) - 1] = '\0';
+				user = strchr(inbuf, ';');
+				if (user)
+					*user = '\0';
+				user=inbuf;
+				while(*user < 33)
+					user++;
+				pass = strchr(user, '=');
+				if (pass > user) {
+					trim = pass - 1;
+					while(*trim && *trim < 33) {
+						*trim = '\0';
+						trim--;
+					}
+				}
+				if (pass) {
+					*pass = '\0';
+					pass++;
+					if (*pass == '>')
+						pass++;
+					while(*pass && *pass < 33)
+						pass++;
+				}
+				if (pass) {
+					rest = strchr(pass,',');
+					if (rest) {
+						*rest = '\0';
+						rest++;
+					}
+				} else
+					rest = NULL;
+				if (user && pass && *user && *pass && !strcmp(user, username) && !strcmp(pass, password)) {
+					/* This is the line */
+					if (rest) {
+						fprintf(configout, "%s => %s,%s\n", username,newpassword,rest);
+					} else {
+						fprintf(configout, "%s => %s\n", username,newpassword);
+					}
+				} else {
+					/* Put it back like it was */
+					fprintf(configout, orig);
+				}
+			}
+        }
+        fclose(configin);
+        fclose(configout);
+
+        unlink("/etc/asterisk/voicemail.conf");
+        rename("/etc/asterisk/voicemail.conf.new","/etc/asterisk/voicemail.conf");
+	return(1);
+}
+
 #if 0
 
 static int announce_message(struct ast_channel *chan, char *dir, int msgcnt)
@@ -288,7 +360,7 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 			gethostname(host, sizeof(host));
 			snprintf(who, sizeof(who), "%s@%s", srcemail, host);
 		}
-		snprintf(dur, sizeof(dur), "%ld:%02ld", duration, duration % 60);
+		snprintf(dur, sizeof(dur), "%ld:%02ld", duration / 60, duration % 60);
 		time(&t);
 		tm = localtime(&t);
 		strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", tm);
@@ -484,14 +556,15 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 "priority=%d\n"
 "callerchan=%s\n"
 "callerid=%s\n"
-"origdate=%s\n",
+"origdate=%s\n"
+"origtime=%ld\n",
 	ext,
 	chan->context,
 	chan->exten,
 	chan->priority,
 	chan->name,
 	chan->callerid ? chan->callerid : "Unknown",
-	date);
+	date, time(NULL));
 							fclose(txt);
 						} else
 							ast_log(LOG_WARNING, "Error opening text file for output\n");
@@ -554,21 +627,22 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 									for (x=0;x<fmtcnt;x++) {
 										res |= ast_writestream(others[x], f);
 									}
-									ast_frfree(f);
 									/* Exit on any error */
 									if (res) {
 										ast_log(LOG_WARNING, "Error writing frame\n");
+										ast_frfree(f);
 										break;
 									}
-								}
-								if (f->frametype == AST_FRAME_DTMF) {
+								} else if (f->frametype == AST_FRAME_DTMF) {
 									if (f->subclass == '#') {
 										if (option_verbose > 2) 
 											ast_verbose( VERBOSE_PREFIX_3 "User ended message by pressing %c\n", f->subclass);
 										outmsg=2;
+										ast_frfree(f);
 										break;
 									}
 								}
+								ast_frfree(f);
 							}
 							if (!f) {
 								if (option_verbose > 2) 
@@ -1364,10 +1438,10 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 {
 	char d, *fmt, *fmts;
 	char comment[256];
-	int x,y, fmtcnt=1, res=-1,outmsg=0, wavother=0;
+	int x, fmtcnt=1, res=-1,outmsg=0, wavother=0;
 	struct ast_frame *f;
 	struct ast_config *cfg;
-	struct ast_filestream *writer=NULL, *others[MAX_OTHER_FORMATS];
+	struct ast_filestream *others[MAX_OTHER_FORMATS];
 	char *sfmt[MAX_OTHER_FORMATS];
 	
 	ast_log(LOG_DEBUG,"play_and_record: %s, %s\n", playfile, recordfile);
@@ -1439,22 +1513,22 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 					for (x=0;x<fmtcnt;x++) {
 						res = ast_writestream(others[x], f);
 						}
-					ast_frfree(f);
 					/* Exit on any error */
 					if (res) {
 						ast_log(LOG_WARNING, "Error writing frame\n");
+						ast_frfree(f);
 						break;
-						}
 					}
-				if (f->frametype == AST_FRAME_DTMF) {
+				} else if (f->frametype == AST_FRAME_DTMF) {
 					if (f->subclass == '#') {
 						if (option_verbose > 2) 
 							ast_verbose( VERBOSE_PREFIX_3 "User ended message by pressing %c\n", f->subclass);
 						outmsg=2;
 						break;
-						}
 					}
 				}
+				ast_frfree(f);
+			}
 			if (!f) {
 				if (option_verbose > 2) 
 					ast_verbose( VERBOSE_PREFIX_3 "User hung up\n");
@@ -1495,17 +1569,19 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	int valid = 0;
 	char d;
 	struct localuser *u;
-	char username[80];
-	char password[80], *copy;
-	char curbox[80];
-	char curdir[256];
-	char vmbox[256];
-	char fn[256];
-	char fn2[256];
+	char username[80] ="";
+	char password[80] = "", *copy;
+	char newpassword[80] = "";
+	char newpassword2[80] = "";
+	char curbox[80] = "";
+	char curdir[256] = "";
+	char vmbox[256] = "";
+	char fn[256] = "";
+	char fn2[256] = "";
 	char prefile[256]="";
 	int x;
-	char ntxt[256];
-	char txt[256];
+	char ntxt[256] = "";
+	char txt[256] = "";
 	int deleted[MAXMSG] = { 0, };
 	int heard[MAXMSG] = { 0, };
 	int newmessages;
@@ -1524,7 +1600,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "No voicemail configuration\n");
 		goto out;
 	}
-	if (chan->state != AST_STATE_UP)
+	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
 
 	/* If ADSI is supported, setup login screen */
@@ -1810,10 +1886,37 @@ vm_options:
 			play_and_record(chan,"vm-rec-busy",prefile);
 			break;
 		case '3': 
-			snprintf(prefile,sizeof(prefile),"vm/%s/name",username);
+			snprintf(prefile,sizeof(prefile),"vm/%s/greet",username);
 			play_and_record(chan,"vm-rec-name",prefile);
 			break;
-		
+		case '4':
+			newpassword[1] = '\0';
+			newpassword[0] = play_and_wait(chan,"vm-newpassword");
+			if (ast_readstring(chan,newpassword + strlen(newpassword),sizeof(newpassword)-1,2000,10000,"#") < 0) {
+				play_and_wait(chan, "vm-sorry");
+				ast_log(LOG_NOTICE,"Unable to read new password\n");
+				goto vm_options;
+            }
+			newpassword2[1] = '\0';
+			newpassword2[0] = play_and_wait(chan,"vm-reenterpassword");
+
+			if (ast_readstring(chan,newpassword2 + strlen(newpassword2),sizeof(newpassword2)-1,2000,10000,"#") < 0) {
+				play_and_wait(chan, "vm-sorry");
+				ast_log(LOG_NOTICE,"Unable to read re-entered password\n");
+				goto vm_options;
+            }
+			if (strcmp(newpassword, newpassword2)) {
+				ast_log(LOG_NOTICE,"Password mismatch for user %s (%s != %s)\n", username, newpassword, newpassword2);
+				play_and_wait(chan, "vm-mismatch");
+				goto vm_options;
+			}
+			if (vm_change_password(username,password,newpassword) < 0)
+			{
+				ast_log(LOG_DEBUG,"Failed to set new password of user %s\n",username);
+			} else
+                ast_log(LOG_DEBUG,"User %s set password to %s of length %i\n",username,newpassword,strlen(newpassword));
+			play_and_wait(chan,"vm-passchanged");
+			break;
 		case '*': 
 			goto instructions;
 
@@ -1845,7 +1948,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 		unavail++;
 		ext++;
 	}
-	if (chan->state != AST_STATE_UP)
+	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
 	res = leave_voicemail(chan, ext, silent, busy, unavail);
 	LOCAL_USER_REMOVE(u);
