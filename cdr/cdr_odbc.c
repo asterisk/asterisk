@@ -241,7 +241,7 @@ static int odbc_unload_module(void)
 
 static int odbc_load_module(void)
 {
-	int res;
+	int res = 0;
 	struct ast_config *cfg;
 	struct ast_variable *var;
 	char *tmp;
@@ -252,13 +252,13 @@ static int odbc_load_module(void)
 	if (!cfg)
 	{
 		ast_log(LOG_WARNING, "cdr_odbc: Unable to load config for ODBC CDR's: %s\n", config);
-		return 0;
+		goto out;
 	}
 	
 	var = ast_variable_browse(cfg, "global");
 	if (!var) {
 		/* nothing configured */
-		return 0;
+		goto out;
 	}
 
 	tmp = ast_variable_retrieve(cfg,"global","dsn");
@@ -368,6 +368,7 @@ static int odbc_load_module(void)
 	{
 		ast_log(LOG_ERROR, "cdr_odbc: Unable to register ODBC CDR handling\n");
 	}
+out:
 	ast_mutex_unlock(&odbc_lock);
 	return res;
 }
