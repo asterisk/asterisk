@@ -1,0 +1,27 @@
+; V6PCI/V12PCI config file for VoiceTronix Hardware
+; Options
+; board = board_number (1, 2, 3, ...)
+; channel = channel_number (1,2,3...)
+; mode = fxo|immediate|dialtone -- for type of line and line handling
+; context = starting context
+; 
+
+[interfaces]
+
+echocancel = on
+board = 1
+
+context = vpbtest
+
+; Note that V6PCI channel numbers start at 7!
+mode = fxo
+;channel = 7
+;channel = 8
+
+mode = dialtone
+;channel = 9
+;channel = 10
+;channel = 11
+;channel = 12
+
+

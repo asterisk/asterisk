@@ -35,6 +35,7 @@ ZAPR2=$(shell [ -f /usr/lib/libmfcr2.so.1 ] && echo "-lmfcr2")
 CHANZAP=$(shell if [ -f .oldzap ]; then echo "chan_zap_old.c"; else echo "chan_zap.c"; fi)
 ZAPLIB=$(shell if [ -f .oldzap ]; then echo "-lzap"; fi)
 CFLAGS+=$(shell [ -f /usr/include/linux/zaptel.h ] && echo "-DIAX_TRUNKING")
+CHANNEL_LIBS+=$(shell [ -f /usr/include/vpbapi.h ] && echo "chan_vpb.so" )
 
 ALSA_SRC=chan_alsa.c
 ALSA_SRC+=$(shell [ -f alsa-monitor.h ] && echo "alsa-monitor.h")
@@ -85,11 +86,18 @@ chan_zap.so: chan_zap.o
 
 chan_alsa.o: $(ALSA_SRC)
 
+
 chan_alsa.so: chan_alsa.o
 	$(CC) -shared -Xlinker -x -o $@ $< -lasound -lm -ldl
 
 chan_nbs.so: chan_nbs.o
 	$(CC) -shared -Xlinker -x -o $@ $< -lnbs
+
+chan_vpb.o: chan_vpb.c
+	$(CC) -c $(CFLAGS) -o $@ chan_vpb.c
+
+chan_vpb.so: chan_vpb.o
+	 $(CCC) -shared -Xlinker -x -o $@ $< -lvpb -lpthread -lm -ldl
 
 #chan_modem.so : chan_modem.o
 #	$(CC) -rdynamic -shared -Xlinker -x -o $@ $<
