@@ -1307,7 +1307,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	} else {
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	}
-	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=%08x", inet_ntoa(p->ourip), ourport, p->branch);
+	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	if (!callid)
 		build_callid(p->callid, sizeof(p->callid), p->ourip);
 	else
@@ -2497,7 +2497,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 
 	snprintf(tmp, sizeof(tmp), "%d %s", ++p->ocseq, cmd);
 
-	snprintf(via, sizeof(via), "SIP/2.0/UDP %s:%d;branch=%08x", inet_ntoa(p->ourip), ourport, p->branch);
+	snprintf(via, sizeof(via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	add_header(&req, "Via", via);
 	add_header(&req, "From", from);
 	add_header(&req, "To", to);
@@ -4404,7 +4404,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	}
 	/* Recalculate our side, and recalculate Call ID */
 	memcpy(&p->ourip, myaddrfor(&p->sa.sin_addr), sizeof(p->ourip));
-	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=%08x", inet_ntoa(p->ourip), ourport, p->branch);
+	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	build_callid(p->callid, sizeof(p->callid), p->ourip);
 	/* Send MWI */
 	p->outgoing = 1;
@@ -4548,7 +4548,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 
 	/* Recalculate our side, and recalculate Call ID */
 	memcpy(&p->ourip, myaddrfor(&p->sa.sin_addr), sizeof(p->ourip));
-	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=%08x", inet_ntoa(p->ourip), ourport, p->branch);
+	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	build_callid(p->callid, sizeof(p->callid), p->ourip);
 
 	if (peer->pokeexpire > -1)
@@ -4655,7 +4655,7 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 	}
 	/* Recalculate our side, and recalculate Call ID */
 	memcpy(&p->ourip, myaddrfor(&p->sa.sin_addr), sizeof(p->ourip));
-	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=%08x", inet_ntoa(p->ourip), ourport, p->branch);
+	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	build_callid(p->callid, sizeof(p->callid), p->ourip);
 	if (ext)
 		strncpy(p->username, ext, sizeof(p->username) - 1);
