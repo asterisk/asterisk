@@ -410,8 +410,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	char info[256], *peers, *timeout, *tech, *number, *rest, *cur;
 	char  privdb[256] = "", *s;
 	char  announcemsg[256] = "", *ann;
-	struct localuser *outgoing=NULL, *tmp,*o=NULL;
-	struct ast_channel *peer,*in=NULL;
+	struct localuser *outgoing=NULL, *tmp;
+	struct ast_channel *peer;
 	int to;
 	int allowredir_in=0;
 	int allowredir_out=0;
@@ -713,7 +713,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			char tmpchan[256]="";
 			char *stuff;
 			char *tech;
-			strncpy(tmpchan, o->chan->call_forward, sizeof(tmpchan) - 1);
+			strncpy(tmpchan, tmp->chan->call_forward, sizeof(tmpchan) - 1);
 			if ((stuff = strchr(tmpchan, '/'))) {
 				*stuff = '\0';
 				stuff++;
@@ -725,10 +725,10 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			}
 			/* Before processing channel, go ahead and check for forwarding */
 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, tmp->chan->name);
+				ast_verbose(VERBOSE_PREFIX_3 "Forwarding %s to '%s/%s' (thanks to %s)\n", chan->name, tech, stuff, tmp->chan->name);
 			/* Setup parameters */
-			ast_hangup(o->chan);
-			tmp->chan = ast_request(tech, in->nativeformats, stuff);
+			ast_hangup(tmp->chan);
+			tmp->chan = ast_request(tech, chan->nativeformats, stuff);
 			if (!tmp->chan) {
 				ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s'\n", tech, stuff);
 				free(tmp);
