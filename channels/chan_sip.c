@@ -827,6 +827,15 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, const char *msg)
 	return res;
 }
 
+/* Pretend to ack all packets */
+static int __sip_pretend_ack(struct sip_pvt *p)
+{
+	while(p->packets) {
+		__sip_ack(p, p->packets->seqno, (p->packets->flags & FLAG_RESPONSE), p->packets->data);
+	}
+	return 0;
+}
+
 /*--- __sip_semi_ack: Acks receipt of packet, keep it around (used for provisional responses) ---*/
 static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, const char *msg)
 {
@@ -4040,6 +4049,8 @@ static int sip_reg_timeout(void *data)
 		p->registry = NULL;
 		r->call = NULL;
 		p->needdestroy = 1;
+		/* Pretend to ACK anything just in case */
+		__sip_pretend_ack(p);
 	}
 	r->regstate=REG_STATE_UNREGISTERED;
 	manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
