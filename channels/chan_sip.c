@@ -441,8 +441,8 @@ struct sip_user {
 	char language[MAX_LANGUAGE];	/* Default language for this user */
 	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
 	char useragent[256];		/* User agent in SIP request */
-	struct ast_codec_pref prefs; /* codec prefs */
-	ast_group_t callgroup;	/* Call group */
+	struct ast_codec_pref prefs;	/* codec prefs */
+	ast_group_t callgroup;		/* Call group */
 	ast_group_t pickupgroup;	/* Pickup Group */
 	unsigned int flags;		/* SIP_ flags */	
 	int amaflags;			/* AMA flags for billing */
@@ -465,6 +465,7 @@ struct sip_peer {
 	char context[80];		/* Default context for incoming calls */
 	char username[80];		/* Temporary username until registration */ 
 	char accountcode[20];		/* Account code */
+	int amaflags;			/* AMA Flags (for billing) */
 	char tohost[80];		/* If not dynamic, IP address */
 	char regexten[AST_MAX_EXTENSION]; /* Extension to register (if regcontext is used) */
 	char fromuser[80];		/* From: user when calling this peer */
@@ -1279,11 +1280,11 @@ static struct sip_user *realtime_user(const char *username)
 /* Locates user by name (From: sip uri user name part) first
    from in-memory list (static configuration) then from 
    realtime storage (defined in extconfig.conf) */
-static struct sip_user *find_user(const char *name)
+static struct sip_user *find_user(const char *name, int realtime)
 {
 	struct sip_user *u = NULL;
 	u = ASTOBJ_CONTAINER_FIND(&userl,name);
-	if (!u) {
+	if (!u && realtime) {
 		u = realtime_user(name);
 	}
 	return(u);
@@ -1601,7 +1602,7 @@ static int update_user_counter(struct sip_pvt *fup, int event)
 	char name[256] = "";
 	struct sip_user *u;
 	strncpy(name, fup->username, sizeof(name) - 1);
-	u = find_user(name);
+	u = find_user(name, 1);
 	if (!u) {
 		ast_log(LOG_DEBUG, "%s is not a local user\n", name);
 		return 0;
@@ -5663,7 +5664,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 		strncpy(p->cid_name, calleridname, sizeof(p->cid_name) - 1);
 	if (ast_strlen_zero(of))
 		return 0;
-	user = find_user(of);
+	user = find_user(of, 1);
 	/* Find user based on user name in the from header */
 	if (!mailbox && user && ast_apply_ha(user->ha, sin)) {
 		ast_copy_flags(p, user, SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_NAT | SIP_PROG_INBAND | SIP_OSPAUTH);
@@ -5799,6 +5800,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 				strncpy(p->peermd5secret, peer->md5secret, sizeof(p->peermd5secret) - 1);
 				strncpy(p->language, peer->language, sizeof(p->language)  -1);
 				strncpy(p->accountcode, peer->accountcode, sizeof(p->accountcode) - 1);
+				p->amaflags = peer->amaflags;
 				p->callgroup = peer->callgroup;
 				p->pickupgroup = peer->pickupgroup;
 				p->capability = peer->capability;
@@ -6102,6 +6104,7 @@ static void  print_group(int fd, unsigned int group)
 	ast_cli(fd, ast_print_group(buf, sizeof(buf), group) );
 }
 
+/*--- dtmfmode2str: Convert DTMF mode to printable string ---*/
 static const char *dtmfmode2str(int mode)
 {
 	switch (mode) {
@@ -6115,6 +6118,7 @@ static const char *dtmfmode2str(int mode)
 	return "<error>";
 }
 
+/*--- insecure2str: Convert Insecure setting to printable string ---*/
 static const char *insecure2str(int mode)
 {
 	switch (mode) {
@@ -6128,25 +6132,27 @@ static const char *insecure2str(int mode)
 	return "<error>";
 }
 
+/*--- sip_prune_realtime: Remove temporary realtime object from memory (CLI) ---*/
 static int sip_prune_realtime(int fd, int argc, char *argv[])
 {
 	struct sip_peer *peer;
 
 	if (argc != 4)
-        return RESULT_SHOWUSAGE;
+        	return RESULT_SHOWUSAGE;
+
 	if (!strcmp(argv[3],"all")) {
 		sip_do_reload();
-		ast_cli(fd, "OK Cache is flushed.\n");
+		ast_cli(fd, "OK. Cache is flushed.\n");
 	} else if ((peer = find_peer(argv[3], NULL, 0))) {
 		if(ast_test_flag((&peer->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
 			ast_set_flag((&peer->flags_page2), SIP_PAGE2_RTAUTOCLEAR);
 			expire_register(peer);
-			ast_cli(fd, "OK peer %s was removed from the cache.\n", argv[3]);
+			ast_cli(fd, "OK. Peer %s was removed from the cache.\n", argv[3]);
 		} else {
-			ast_cli(fd, "SORRY peer %s is not eligible for this operation.\n", argv[3]);
+			ast_cli(fd, "SORRY. Peer %s is not eligible for this operation.\n", argv[3]);
 		}
 	} else {
-		ast_cli(fd, "SORRY peer %s was not found in the cache.\n", argv[3]);
+		ast_cli(fd, "SORRY. Peer %s was not found in the cache.\n", argv[3]);
 	}
 	
 	return RESULT_SUCCESS;
@@ -6165,6 +6171,8 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 	int x = 0, codec = 0, load_realtime = 0;
 
 	if (argc < 4)
+
+	if (argc < 4)
 		return RESULT_SHOWUSAGE;
 
 	load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? 1 : 0;
@@ -6178,6 +6186,7 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 		ast_cli(fd, "  Language     : %s\n", peer->language);
 		if (!ast_strlen_zero(peer->accountcode))
 			ast_cli(fd, "  Accountcode  : %s\n", peer->accountcode);
+		ast_cli(fd, "  AMA flag     : %s\n", ast_cdr_flags2str(peer->amaflags));
 		if (!ast_strlen_zero(peer->fromuser))
 			ast_cli(fd, "  FromUser     : %s\n", peer->fromuser);
 		if (!ast_strlen_zero(peer->fromdomain))
@@ -6245,6 +6254,70 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 		ASTOBJ_UNREF(peer,sip_destroy_peer);
 	} else {
 		ast_cli(fd,"Peer %s not found.\n", argv[3]);
+		ast_cli(fd,"\n");
+	}
+
+	return RESULT_SUCCESS;
+}
+
+/*--- sip_show_user: Show one user in detail ---*/
+static int sip_show_user(int fd, int argc, char *argv[])
+{
+	char cbuf[256];
+	struct sip_user *user;
+	struct ast_codec_pref *pref;
+	struct ast_variable *v;
+	int x = 0, codec = 0, load_realtime = 0;
+
+	if (argc < 4)
+		return RESULT_SHOWUSAGE;
+
+	/* Load from realtime storage? */
+	load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? 1 : 0;
+
+	user = find_user(argv[3], load_realtime);
+	if (user) {
+		ast_cli(fd,"\n\n");
+		ast_cli(fd, "  * Name       : %s\n", user->name);
+		ast_cli(fd, "  Secret       : %s\n", ast_strlen_zero(user->secret)?"<Not set>":"<Set>");
+		ast_cli(fd, "  MD5Secret    : %s\n", ast_strlen_zero(user->md5secret)?"<Not set>":"<Set>");
+		ast_cli(fd, "  Context      : %s\n", user->context);
+		ast_cli(fd, "  Language     : %s\n", user->language);
+		if (!ast_strlen_zero(user->accountcode))
+			ast_cli(fd, "  Accountcode  : %s\n", user->accountcode);
+		ast_cli(fd, "  AMA flag     : %s\n", ast_cdr_flags2str(user->amaflags));
+		ast_cli(fd, "  Inc. limit   : %d\n", user->incominglimit);
+		ast_cli(fd, "  Outg. limit  : %d\n", user->outgoinglimit);
+		ast_cli(fd, "  Callgroup    : ");
+		print_group(fd, user->callgroup);
+		ast_cli(fd, "  Pickupgroup  : ");
+		print_group(fd, user->pickupgroup);
+		ast_cli(fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), user->cid_name, user->cid_num, "<unspecified>"));
+		ast_cli(fd, "  ACL          : %s\n", (user->ha?"Yes":"No"));
+		ast_cli(fd, "  Codec Order  : (");
+		pref = &user->prefs;
+		for(x = 0; x < 32 ; x++) {
+			codec = ast_codec_pref_index(pref,x);
+			if(!codec)
+				break;
+			ast_cli(fd, "%s", ast_getformatname(codec));
+			if(x < 31 && ast_codec_pref_index(pref,x+1))
+				ast_cli(fd, "|");
+		}
+
+		if (!x)
+			ast_cli(fd, "none");
+		ast_cli(fd, ")\n");
+
+		if (user->chanvars) {
+ 			ast_cli(fd, "  Variables    :\n");
+			for (v = user->chanvars ; v ; v = v->next)
+ 				ast_cli(fd, "                 %s = %s\n", v->name, v->value);
+		}
+		ast_cli(fd,"\n");
+		ASTOBJ_UNREF(user,sip_destroy_user);
+	} else {
+		ast_cli(fd,"User %s not found.\n", argv[3]);
 		ast_cli(fd,"\n");
 	}
 
@@ -6963,6 +7036,11 @@ static char show_users_usage[] =
 "       Lists all known SIP users.\n"
 "       Optional regular expression pattern is used to filter the user list.\n";
 
+static char show_user_usage[] =
+"Usage: sip show user <name> [load]\n"
+"       Lists all details on one SIP user and the current status.\n"
+"       Option \"load\" forces lookup of peer in realtime storage.\n";
+
 static char show_inuse_usage[] = 
 "Usage: sip show inuse\n"
 "       List all users known to the SIP (Session Initiation Protocol) subsystem usage counters and limits.\n";
@@ -6985,8 +7063,9 @@ static char show_peers_usage[] =
 "       Optional regular expression pattern is used to filter the peer list.\n";
 
 static char show_peer_usage[] =
-"Usage: sip show peer <peername>\n"
-"       Lists all details on one SIP peer and the current status.\n";
+"Usage: sip show peer <name> [load]\n"
+"       Lists all details on one SIP peer and the current status.\n"
+"       Option \"load\" forces lookup of peer in realtime storage.\n";
 
 static char prune_realtime_usage[] =
 "Usage: sip prune realtime [<peername>|all]\n"
@@ -7039,6 +7118,8 @@ static struct ast_cli_entry  cli_show_objects =
 	{ { "sip", "show", "objects", NULL }, sip_show_objects, "Show all SIP object allocations", show_objects_usage };
 static struct ast_cli_entry  cli_show_users = 
 	{ { "sip", "show", "users", NULL }, sip_show_users, "Show defined SIP users", show_users_usage };
+static struct ast_cli_entry  cli_show_user =
+	{ { "sip", "show", "user", NULL }, sip_show_user, "Show details on specific SIP user", show_user_usage };
 static struct ast_cli_entry  cli_show_subscriptions =
 	{ { "sip", "show", "subscriptions", NULL }, sip_show_subscriptions, "Show active SIP subscriptions", show_subscriptions_usage};
 static struct ast_cli_entry  cli_show_channels =
@@ -8952,6 +9033,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 	int maskfound=0;
 	int obproxyfound=0;
 	int found=0;
+	int format=0;		/* Ama flags */
 	time_t regseconds;
 	char *varname = NULL, *varval = NULL;
 	struct ast_variable *tmpvar = NULL;
@@ -9100,6 +9182,13 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 				strncpy(peer->language, v->value, sizeof(peer->language)-1);
 			} else if (!strcasecmp(v->name, "regexten")) {
 				strncpy(peer->regexten, v->value, sizeof(peer->regexten)-1);
+			} else if (!strcasecmp(v->name, "amaflags")) {
+				format = ast_cdr_amaflags2int(v->value);
+				if (format < 0) {
+					ast_log(LOG_WARNING, "Invalid AMA Flags for peer: %s at line %d\n", v->value, v->lineno);
+				} else {
+					peer->amaflags = format;
+				}
 			} else if (!strcasecmp(v->name, "accountcode")) {
 				strncpy(peer->accountcode, v->value, sizeof(peer->accountcode)-1);
 			} else if (!strcasecmp(v->name, "musiconhold")) {
@@ -9832,6 +9921,7 @@ int load_module()
 		}
 		ast_cli_register(&cli_notify);
 		ast_cli_register(&cli_show_users);
+		ast_cli_register(&cli_show_user);
 		ast_cli_register(&cli_show_objects);
 		ast_cli_register(&cli_show_subscriptions);
 		ast_cli_register(&cli_show_channels);
@@ -9873,6 +9963,7 @@ int unload_module()
 	ast_unregister_application(app_sipgetheader);
 	ast_cli_unregister(&cli_notify);
 	ast_cli_unregister(&cli_show_users);
+	ast_cli_unregister(&cli_show_user);
 	ast_cli_unregister(&cli_show_objects);
 	ast_cli_unregister(&cli_show_channels);
 	ast_cli_unregister(&cli_show_channel);
