@@ -19,7 +19,7 @@
  * linked (see the Makefile)
  */
 
-
+#include <sys/types.h>
 #include <asterisk/pbx.h>
 #include <asterisk/config.h>
 #include <asterisk/module.h>

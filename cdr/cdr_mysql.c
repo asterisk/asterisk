@@ -10,7 +10,7 @@
  *
  */
 
-
+#include <sys/types.h>
 #include <asterisk/config.h>
 #include <asterisk/options.h>
 #include <asterisk/channel.h>

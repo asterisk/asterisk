@@ -28,6 +28,7 @@
         detriment.
 */
 
+#include <sys/types.h>
 #include <asterisk/frame.h>
 #include <asterisk/channel.h>
 #include <asterisk/channel_pvt.h>

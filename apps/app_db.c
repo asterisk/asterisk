@@ -13,6 +13,7 @@
  * the GNU General Public License
  */
 
+#include <sys/types.h>
 #include <asterisk/options.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>

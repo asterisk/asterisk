@@ -14,6 +14,7 @@
  *
  */
 
+#include <sys/types.h>
 #include <asterisk/channel.h>
 #include <asterisk/cdr.h>
 #include <asterisk/module.h>
