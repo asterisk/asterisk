@@ -13,10 +13,33 @@ $context = "default";
 # Age (Delete files older than $age days old)
 $age = 31;
 
-# Delete all files older than $age (but named msg????.??? to be sure
-# we don't delete greetings or the user's name)
+# Age for unheard messages (Defaults to same age for all messages)
+# Set to 0 to not delete unheard messages
+$unheardage = $age;
 
-system('find '.$dir.'/'.$context.' -name msg????.??? -mtime +'.$age.' -exec rm {} \; -exec echo Deleted {} \;');
+
+# Delete all files older than $age and $unheardage
+# (named msg????.??? to get the audio and txt files, 
+# but we don't delete greetings or the user's name)
+
+if($age==$unheardage) {
+
+  # Save time by doing one find if we're treating everything the same
+  system('find '.$dir.'/'.$context.' -name msg????.??? -mtime +'.$age.' -exec rm {} \; -exec echo Deleted {} \;');
+
+} else {
+
+  # Find everything not in a folder called 'INBOX' and delete it after $age days
+  system('find '.$dir.'/'.$context.' -path \'*INBOX*\' -prune -o -name msg????.??? -mtime +'.$age.' -exec rm {} \; -exec echo Deleted {} \;');
+
+  # If unheardage is set to 0, we won't delete any unheard messages
+  if($unheardage > 0) {
+
+    # Delete things that are in a folder called INBOX after $unheardage days
+    system('find '.$dir.'/'.$context.' -path \'*INBOX*\' -name msg????.??? -mtime +'.$unheardage.' -exec rm {} \; -exec echo Deleted {} \;');
+
+  }
+}
 
 # For testing - what number to we start when we renumber?
 $start = "0";
