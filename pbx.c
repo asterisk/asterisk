@@ -1745,6 +1745,10 @@ int ast_pbx_run(struct ast_channel *c)
 					if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT) {
 						break;
 					}
+
+					if (c->cdr) {
+						ast_cdr_update(c);
+					}
 					goto out;
 				}
 			}
