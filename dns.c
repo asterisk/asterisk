@@ -137,8 +137,10 @@ static int dns_parse_answer(void *context,
 
 		if (ntohs(ans->class) == class && ntohs(ans->rtype) == type) {
 			if (callback) {
-				if ((res = callback(context, answer, ntohs(ans->size), fullanswer)) < 0)
+				if ((res = callback(context, answer, ntohs(ans->size), fullanswer)) < 0) {
 					ast_log(LOG_WARNING, "Failed to parse result\n");
+					return -1;
+				}
 				if (res > 0)
 					return 1;
 			}
