@@ -100,7 +100,7 @@ static int odbc_log(struct ast_cdr *cdr)
 
 	if((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO))
 	{
-		if(option_verbose > 3)
+		if(option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Failure in AllocStatement %d\n", ODBC_res);
 		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, ODBC_stat, &ODBC_err, ODBC_msg, 100, &ODBC_mlen);
 		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);	
@@ -117,7 +117,7 @@ static int odbc_log(struct ast_cdr *cdr)
 	
 	if((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO))
 	{
-		if(option_verbose > 3)
+		if(option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error in PREPARE %d\n", ODBC_res);
 		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, ODBC_stat, &ODBC_err, ODBC_msg, 100, &ODBC_mlen);
 		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
@@ -126,25 +126,25 @@ static int odbc_log(struct ast_cdr *cdr)
 		return 0;
 	}
 
-	SQLBindParameter(ODBC_stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, &timestr, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->clid, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->src, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->dst, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->dcontext, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->channel, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->dstchannel, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->lastapp, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->lastdata, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(timestr), 0, &timestr, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->clid), 0, cdr->clid, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->src), 0, cdr->src, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->dst), 0, cdr->dst, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->dcontext), 0, cdr->dcontext, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->channel), 0, cdr->channel, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->dstchannel), 0, cdr->dstchannel, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->lastapp), 0, cdr->lastapp, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->lastdata), 0, cdr->lastdata, 0, NULL);
 	SQLBindParameter(ODBC_stmt, 10, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->duration, 0, NULL);
 	SQLBindParameter(ODBC_stmt, 11, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->billsec, 0, NULL);
 	SQLBindParameter(ODBC_stmt, 12, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->disposition, 0, NULL);
 	SQLBindParameter(ODBC_stmt, 13, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->amaflags, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 14, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->accountcode, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 14, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->accountcode), 0, cdr->accountcode, 0, NULL);
 
 	if((loguniqueid != NULL) && ((strcmp(loguniqueid, "1") == 0) || (strcmp(loguniqueid, "yes") == 0)))
 	{
-		SQLBindParameter(ODBC_stmt, 15, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->uniqueid, 0, NULL);
-		SQLBindParameter(ODBC_stmt, 16, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->userfield, 0, NULL);
+		SQLBindParameter(ODBC_stmt, 15, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->uniqueid), 0, cdr->uniqueid, 0, NULL);
+		SQLBindParameter(ODBC_stmt, 16, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->userfield), 0, cdr->userfield, 0, NULL);
 	}
 
 	if(connected)
@@ -152,25 +152,25 @@ static int odbc_log(struct ast_cdr *cdr)
 		res = odbc_do_query();
 		if(res < 0)
 		{
-			if(option_verbose > 3)		
+			if(option_verbose > 10)		
 				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query FAILED Call not logged!\n");
 			res = odbc_init();
-			if(option_verbose > 3)
+			if(option_verbose > 10)
 				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Reconnecting to dsn %s\n", dsn);
 			if(res < 0)
 			{
-				if(option_verbose > 3)
+				if(option_verbose > 10)
 					ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: %s has gone away!\n", dsn);
 				connected = 0;
 			}
 			else
 			{
-				if(option_verbose > 3)
+				if(option_verbose > 10)
 					ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Trying Query again!\n");
 				res = odbc_do_query();
 				if(res < 0)
 				{
-					if(option_verbose > 3)
+					if(option_verbose > 10)
 						ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query FAILED Call not logged!\n");
 				}
 			}
@@ -178,7 +178,7 @@ static int odbc_log(struct ast_cdr *cdr)
 	}
 	else
 	{
-		if(option_verbose > 3)
+		if(option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query FAILED Call not logged!\n");
 	}
 	ast_mutex_unlock(&odbc_lock);
@@ -195,7 +195,7 @@ static int odbc_unload_module(void)
 	ast_mutex_lock(&odbc_lock);
 	if (connected)
 	{
-		if(option_verbose > 3)
+		if(option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Disconnecting from %s\n", dsn);
 		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
 		SQLDisconnect(ODBC_con);
@@ -205,7 +205,7 @@ static int odbc_unload_module(void)
 	}
 	if (dsn && dsn_alloc)
 	{
-		if(option_verbose > 3)
+		if(option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free dsn\n");
 		free(dsn);
 		dsn = NULL;
@@ -213,7 +213,7 @@ static int odbc_unload_module(void)
 	}
 	if (username && username_alloc)
 	{
-		if(option_verbose > 3)
+		if(option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free username\n");
 		free(username);
 		username = NULL;
@@ -221,7 +221,7 @@ static int odbc_unload_module(void)
 	}
 	if (password && password_alloc)
 	{
-		if(option_verbose > 3)
+		if(option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free password\n");
 		free(password);
 		password = NULL;
@@ -229,7 +229,7 @@ static int odbc_unload_module(void)
 	}
 	if (loguniqueid && loguniqueid_alloc)
 	{
-		if(option_verbose > 3)
+		if(option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free loguniqueid\n");
 		free(loguniqueid);
 		loguniqueid = NULL;
@@ -385,7 +385,7 @@ static int odbc_do_query(void)
 
 	if((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO))
 	{
-		if(option_verbose > 3)
+		if(option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error in Query %d\n", ODBC_res);
 		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, ODBC_stat, &ODBC_err, ODBC_msg, 100, &ODBC_mlen);
 		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
@@ -394,7 +394,7 @@ static int odbc_do_query(void)
 	}
 	else
 	{
-		if(option_verbose > 3)
+		if(option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query Successful!\n");
 		connected = 1;
 	}
@@ -414,7 +414,7 @@ static int odbc_init(void)
 
 		if((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO))
 		{
-			if(option_verbose > 3)
+			if(option_verbose > 10)
 				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error AllocHandle\n");
 			connected = 0;
 			return -1;
@@ -424,7 +424,7 @@ static int odbc_init(void)
 
 		if((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO))
 		{
-			if(option_verbose > 3)
+			if(option_verbose > 10)
 				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error SetEnv\n");
 			SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
 			connected = 0;
@@ -435,7 +435,7 @@ static int odbc_init(void)
 
 		if((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO))
 		{
-			if(option_verbose > 3)
+			if(option_verbose > 10)
 				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error AllocHDB %d\n", ODBC_res);
 			SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
 			connected = 0;
@@ -449,7 +449,7 @@ static int odbc_init(void)
 
 	if((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO))
 	{
-		if(option_verbose > 3)
+		if(option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error SQLConnect %d\n", ODBC_res);
 		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, ODBC_stat, &ODBC_err, ODBC_msg, 100, &ODBC_mlen);
 		SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
@@ -458,7 +458,7 @@ static int odbc_init(void)
 	}
 	else
 	{
-		if(option_verbose > 3)
+		if(option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Connected to %s\n", dsn);
 		connected = 1;
 	}
