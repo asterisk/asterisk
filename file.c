@@ -683,7 +683,7 @@ int ast_closestream(struct ast_filestream *f)
 			snprintf(cmd,size,"/bin/mv -f %s %s",f->filename,f->realfilename);
 			ast_safe_system(cmd);
 	}
-	f->fmt->close(f);
+
 	if (f->filename) {
 		free(f->filename);
 		f->filename = NULL;
@@ -692,7 +692,7 @@ int ast_closestream(struct ast_filestream *f)
 		free(f->realfilename);
 		f->realfilename = NULL;
 	}
-
+	f->fmt->close(f);
 	return 0;
 }
 
