@@ -135,7 +135,7 @@ struct ast_vm_user *users;
 struct ast_vm_user *usersl;
 static int attach_voicemail;
 static int maxsilence;
-static int silencethreshold;
+static int silencethreshold = 128;
 static char serveremail[80];
 static char vmfmts[80];
 static int vmmaxmessage;
@@ -772,7 +772,7 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 		ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
 		return -1;
 	}
-	ast_dsp_set_threshold(sildet, 50);
+	ast_dsp_set_threshold(sildet, silencethreshold);
 	
 	if (maxsilence > 0) {
 		rfmt = chan->readformat;
