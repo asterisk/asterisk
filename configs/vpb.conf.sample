@@ -5,20 +5,53 @@
 ; mode = fxo|immediate|dialtone -- for type of line and line handling
 ; context = starting context
 ; 
+[general]
+type = v12pci
+;type = v6pci
+;type = v4pci
+cards = 1
 
 [interfaces]
 
-echocancel = on
 board = 1
+echocancel = on
 
-context = vpbtest
 
-; Note that V6PCI channel numbers start at 7!
+; For OpenLine4 cards
+;context = demo
+;mode = fxo
+;channel = 1
+;channel = 2
+;channel = 3
+;channel = 4
+
+; For OpenSwith12 with jumpers at factory default
+context = demo
 mode = fxo
+channel = 9
+channel = 10
+channel = 11
+channel = 12
+
+context = local
+mode = dialtone
+channel = 1
+channel = 2
+channel = 3
+channel = 4
+channel = 5
+channel = 6
+channel = 7
+channel = 8
+;
+; For OpenSwitch6
+; Note that V6PCI channel numbers start at 7!
+;context = demo
+;mode = fxo
 ;channel = 7
 ;channel = 8
 
-mode = dialtone
+;mode = dialtone
 ;channel = 9
 ;channel = 10
 ;channel = 11
