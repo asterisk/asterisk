@@ -14,10 +14,11 @@
  -- res_agi
     -- A fix has been added to prevent calls from being hung up when more than one
        call is executing an AGI script calling the GET DATA command.
- -- asterisk.spec
-    -- A line was missing for the autosupport script that caused "make rpm" to fail
  -- general
     -- A problem has been fixed with saying the date in Spanish.
+    -- A line was missing for the autosupport script that caused "make rpm" to fail
+    -- Fixed a problem with wav formatting that prevented files from being played
+       in some media players
 
 Asterisk 1.0.7
 
