@@ -1080,7 +1080,11 @@ static struct ast_frame *mgcp_rtp_read(struct mgcp_subchannel *sub)
 {
 	/* Retrieve audio/etc from channel.  Assumes sub->lock is already held. */
 	struct ast_frame *f;
+	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 	f = ast_rtp_read(sub->rtp);
+	/* Don't send RFC2833 if we're not supposed to */
+	if (f && (f->frametype == AST_FRAME_DTMF) && !(sub->parent->dtmfmode & MGCP_DTMF_RFC2833))
+		return &null_frame;
 	if (sub->owner) {
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
@@ -1091,7 +1095,7 @@ static struct ast_frame *mgcp_rtp_read(struct mgcp_subchannel *sub)
 				ast_set_write_format(sub->owner, sub->owner->writeformat);
 			}
             /* Courtesy fearnor aka alex@pilosoft.com */
-            if (sub->parent->dtmfmode & MGCP_DTMF_INBAND) {
+            if ((sub->parent->dtmfmode & MGCP_DTMF_INBAND) && (sub->parent->dsp)) {
 #if 0
                 ast_log(LOG_NOTICE, "MGCP ast_dsp_process\n");
 #endif
@@ -1105,18 +1109,12 @@ static struct ast_frame *mgcp_rtp_read(struct mgcp_subchannel *sub)
 
 static struct ast_frame  *mgcp_read(struct ast_channel *ast)
 {
-	struct ast_frame *fr;
+	struct ast_frame *f;
 	struct mgcp_subchannel *sub = ast->pvt->pvt;
-	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 	ast_mutex_lock(&sub->lock);
-	fr = mgcp_rtp_read(sub);
-	if (!(sub->parent->dtmfmode & MGCP_DTMF_RFC2833)) {
-		if (fr && (fr->frametype == AST_FRAME_DTMF)) {
-			fr = &null_frame;
-		}
-	}
+	f = mgcp_rtp_read(sub);
 	ast_mutex_unlock(&sub->lock);
-	return fr;
+	return f;
 }
 
 static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame)
