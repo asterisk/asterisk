@@ -51,6 +51,11 @@ context=default
 ;
 switchtype=national
 ;
+; Some switches (AT&T especially) require network specific facility IE
+; supported values are currently 'none', 'sdn', 'megacom', 'accunet'
+;
+;nsf=none
+;
 ; PRI Dialplan:  Only RARELY used for PRI.
 ;
 ; unknown:        Unknown

@@ -55,7 +55,7 @@
 #include <ctype.h>
 #ifdef ZAPATA_PRI
 #include <libpri.h>
-#ifndef PRI_RECEIVE_SUBADDR
+#ifndef PRI_NSF_NONE
 #error "You need newer libpri"
 #endif
 #endif
@@ -316,6 +316,7 @@ struct zt_pri {
 	int minidle;				/* Min # of "idling" calls to keep active */
 	int nodetype;				/* Node type */
 	int switchtype;				/* Type of switch to emulate */
+	int nsf;			/* Network-Specific Facilities */
 	int dialplan;			/* Dialing plan */
 	int dchannels[NUM_DCHANS];	/* What channel are the dchannels on */
 	int trunkgroup;			/* What our trunkgroup is */
@@ -355,6 +356,7 @@ static inline void pri_rel(struct zt_pri *pri)
 }
 
 static int switchtype = PRI_SWITCH_NI2;
+static int nsf = PRI_NSF_NONE;
 static int dialplan = PRI_NATIONAL_ISDN + 1;
 
 #else
@@ -5910,6 +5912,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 					}
 					pris[span].nodetype = pritype;
 					pris[span].switchtype = myswitchtype;
+					pris[span].nsf = nsf;
 					pris[span].dialplan = dialplan;
 					pris[span].pvts[pris[span].numchans++] = tmp;
 					pris[span].minunused = minunused;
@@ -7609,6 +7612,7 @@ static int start_pri(struct zt_pri *pri)
 			return -1;
 		}
 		pri_set_debug(pri->dchans[i], DEFAULT_PRI_DEBUG);
+		pri_set_nsf(pri->dchans[i], pri->nsf);
 	}
 	/* Assume primary is the one we use */
 	pri->pri = pri->dchans[0];
@@ -8832,6 +8836,19 @@ static int setup_zap(void)
 				ast_mutex_unlock(&iflock);
 				return -1;
 			}
+               } else if (!strcasecmp(v->name, "nsf")) {
+                       if (!strcasecmp(v->value, "sdn"))
+                               nsf = PRI_NSF_SDN;
+                       else if (!strcasecmp(v->value, "megacom"))
+                               nsf = PRI_NSF_MEGACOM;
+                       else if (!strcasecmp(v->value, "accunet"))
+                               nsf = PRI_NSF_ACCUNET;
+                       else if (!strcasecmp(v->value, "none"))
+                               nsf = PRI_NSF_NONE;
+                       else {
+                               ast_log(LOG_WARNING, "Unknown network-specific facility '%s'\n", v->value);
+                               nsf = PRI_NSF_NONE;
+                       }
 		} else if (!strcasecmp(v->name, "minunused")) {
 			minunused = atoi(v->value);
 		} else if (!strcasecmp(v->name, "idleext")) {
@@ -9289,6 +9306,19 @@ static int reload_zt(void)
 				ast_mutex_unlock(&iflock);
 				return -1;
 			}
+               } else if (!strcasecmp(v->name, "nsf")) {
+                       if (!strcasecmp(v->value, "sdn"))
+                               nsf = PRI_NSF_SDN;
+                       else if (!strcasecmp(v->value, "megacom"))
+                               nsf = PRI_NSF_MEGACOM;
+                       else if (!strcasecmp(v->value, "accunet"))
+                               nsf = PRI_NSF_ACCUNET
+                       else if (!strcasecmp(v->value, "none"))
+                               nsf = PRI_NSF_NONE;
+                       else {
+                               ast_log(LOG_WARN, "Unknown network-specific facility '%s'\n", v->value);
+                               nsf = PRI_NSF_NONE;
+                       }
 		} else if (!strcasecmp(v->name, "jitterbuffers")) {
 			numbufs = atoi(v->value);
 		} else if (!strcasecmp(v->name, "minunused")) {
