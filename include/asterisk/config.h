@@ -181,7 +181,7 @@ int ast_update_realtime(const char *family, const char *keyfield, const char *lo
  */
 void ast_variables_destroy(struct ast_variable *var);
 
-int ast_config_engine_register(struct ast_config_engine *new);
+int ast_config_engine_register(struct ast_config_engine *newconfig);
 int ast_config_engine_deregister(struct ast_config_engine *del);
 int register_config_cli(void);
 void read_config_maps(void);
