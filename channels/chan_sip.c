@@ -9973,6 +9973,7 @@ static int reload_config(void)
 	global_rtptimeout = 0;
 	global_rtpholdtimeout = 0;
 	global_rtpkeepalive = 0;
+	global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
 	pedanticsipchecking = 0;
 	ast_clear_flag(&global_flags, AST_FLAGS_ALL);
 	ast_set_flag(&global_flags, SIP_DTMF_RFC2833);
