@@ -455,12 +455,13 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 	if (options) {
 		char *opts[2];
 		ast_parseoptions(chanspy_opts, &flags, opts, options);
-		if (ast_test_flag(&flags, OPTION_GROUP))
-			mygroup = opts[0];
+		if (ast_test_flag(&flags, OPTION_GROUP)) {
+			mygroup = opts[1];
+		}
 		silent = ast_test_flag(&flags, OPTION_QUIET);
 		bronly = ast_test_flag(&flags, OPTION_BRIDGED);
 		if (ast_test_flag(&flags, OPTION_VOLUME) && opts[1]) {
-			if (sscanf(opts[1], "%d", &volfactor) != 1)
+			if (sscanf(opts[0], "%d", &volfactor) != 1)
 				ast_log(LOG_NOTICE, "volfactor must be a number between -4 and 4\n");
 			else {
 				volfactor = minmax(volfactor, 4);
@@ -490,19 +491,20 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 		while(peer) {
 			if (peer != chan) {
 				char *group = NULL;
+				int igrp = 1;
 
 				if (peer == prev) {
 					break;
 				}
-
-				group = pbx_builtin_getvar_helper(chan, "SPYGROUP");
-
-				if (mygroup && group && strcmp(group, mygroup)) { 
-					continue;
+				group = pbx_builtin_getvar_helper(peer, "SPYGROUP");
+				if (mygroup) {
+					if (!group || strcmp(mygroup, group)) {
+						igrp = 0;
+					}
 				}
-				if (!spec || ((strlen(spec) < strlen(peer->name) && 
-							   !strncasecmp(peer->name, spec, strlen(spec))))) {
-						
+				
+				if (igrp && (!spec || ((strlen(spec) < strlen(peer->name) &&
+									   !strncasecmp(peer->name, spec, strlen(spec)))))) {
 					if (peer && (!bronly || ast_bridged_channel(peer)) &&
 						!ast_check_hangup(peer) && !ast_test_flag(peer, AST_FLAG_SPYING)) {
 						int x = 0;
