@@ -187,7 +187,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					*allowredir_out = o->allowredirect_out;
 					*allowdisconnect = o->allowdisconnect;
 				}
-			} else if (o->chan == winner) {
+			} else if (o->chan && (o->chan == winner)) {
 				if (strlen(o->chan->call_forward)) {
 					char tmpchan[256];
 					/* Before processing channel, go ahead and check for forwarding */
