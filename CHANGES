@@ -1,3 +1,9 @@
+ -- Merge support for 'T'
+ -- Allow pending agent calling (Agent/:1)
+ -- Add groupings to agents.conf
+ -- Add video support to IAX2
+ -- Zaptel optimize playback
+ -- Add video support to SIP
  -- Make RTP ports configurable
  -- Add RDNIS support to SIP and IAX2
  -- Add transfer app (implement in SIP and IAX2)

@@ -8,6 +8,13 @@
 ;
 ;musiconhold => default
 ;
+;
+; Group memberships for agents (may change in mid-file just)
+; 
+;group=3
+;group=1,2
+;group=
+;
 ; This section contains the agent definitions, in the form:
 ;
 ; agent => agentid,agentpassword,name
