@@ -2011,6 +2011,10 @@ static int zt_answer(struct ast_channel *ast)
 				p->owner = p->subs[SUB_REAL].owner;
 			}
 		}
+		if (p->sig & __ZT_SIG_FXS) {
+			zt_enable_ec(p);
+			zt_train_ec(p);
+		}
 		break;
 #ifdef ZAPATA_PRI
 	case SIG_PRI:
@@ -4673,7 +4677,6 @@ static void *ss_thread(void *data)
 		ast_setstate(chan, AST_STATE_RING);
 		chan->rings = 1;
 		p->ringt = RINGT;
-		zt_enable_ec(p);
 		res = ast_pbx_run(chan);
 		if (res) {
 			ast_hangup(chan);
