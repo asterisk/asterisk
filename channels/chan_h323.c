@@ -821,7 +821,7 @@ static struct oh323_pvt *oh323_alloc(int callid)
 	return p;
 }
 
-static struct oh323_pvt *find_call(int call_reference)
+static struct oh323_pvt *find_call(int call_reference, const char *token)
 {  
         struct oh323_pvt *p;
 
@@ -830,14 +830,23 @@ static struct oh323_pvt *find_call(int call_reference)
 
         while(p) {
                 if ((signed int)p->cd.call_reference == call_reference) {
-                        /* Found the call */						
-						ast_mutex_unlock(&iflock);
-						return p;
+                        /* Found the call */
+                         
+                        
+                        if ((token != NULL) && (strcmp(p->cd.call_token, token) == 0)) {
+        			ast_mutex_unlock(&iflock);
+	        		return p;
+                        } else if(token == NULL) {
+                                ast_log(LOG_DEBUG, "token is NULL, skipping comparition\n");
+                                ast_mutex_unlock(&iflock);
+                                return p;
+                        }
+                                
                 }
                 p = p->next; 
         }
         ast_mutex_unlock(&iflock);
-		return NULL;
+	return NULL;
         
 }
 
@@ -979,13 +988,14 @@ struct oh323_peer *find_peer(char *dest_peer)
   * Callback for sending digits from H.323 up to asterisk
   *
   */
-int send_digit(unsigned call_reference, char digit)
+int send_digit(unsigned call_reference, char digit, const char *token)
 {
 	struct oh323_pvt *p;
 	struct ast_frame f;
 
 	ast_log(LOG_DEBUG, "Recieved Digit: %c\n", digit);
-	p = find_call(call_reference);
+        
+	p = find_call(call_reference, token); 
 	
 	if (!p) {
 		ast_log(LOG_ERROR, "Private structure not found in send_digit.\n");
@@ -1009,12 +1019,13 @@ int send_digit(unsigned call_reference, char digit)
   *
   * Returns the local RTP information
   */
-struct rtp_info *create_connection(unsigned call_reference)
+struct rtp_info *create_connection(unsigned call_reference, const char * token)
 {	
 	struct oh323_pvt *p;
 	struct sockaddr_in us;
 	struct sockaddr_in them;
 	struct rtp_info *info;
+        
 	/* XXX This is sooooo bugus.  inet_ntoa is not reentrant
 	   but this function wants to return a static variable so
 	   the only way to do this will be to declare iabuf within
@@ -1023,7 +1034,7 @@ struct rtp_info *create_connection(unsigned call_reference)
 
 	info = (struct rtp_info *) malloc(sizeof(struct rtp_info));
 
-	p = find_call(call_reference);
+	p = find_call(call_reference, token); 
 
 	if (!p) {
 		ast_log(LOG_ERROR, "Unable to allocate private structure, this is very bad.\n");
@@ -1180,13 +1191,13 @@ exit:
  *
  * Returns 1 on success
  */
-static int answer_call(unsigned call_reference)
+static int answer_call(unsigned call_reference, const char *token)
 {
 	struct oh323_pvt *p = NULL;
 	struct ast_channel *c = NULL;
-	
+
 	/* Find the call or allocate a private structure if call not found */
-	p = find_call(call_reference);
+	p = find_call(call_reference, token); 
 	
 	if (!p) {
 		ast_log(LOG_ERROR, "Something is wrong: answer_call\n");
@@ -1229,13 +1240,13 @@ if (!p) {
   *
   * Returns nothing 
   */
-void setup_rtp_connection(unsigned call_reference, const char *remoteIp, int remotePort)
+void setup_rtp_connection(unsigned call_reference, const char *remoteIp, int remotePort, const char *token)
 {
 	struct oh323_pvt *p = NULL;
 	struct sockaddr_in them;
 
 	/* Find the call or allocate a private structure if call not found */
-	p = find_call(call_reference);
+	p = find_call(call_reference, token); 
 
 	if (!p) {
 		ast_log(LOG_ERROR, "Something is wrong: rtp\n");
@@ -1254,12 +1265,12 @@ void setup_rtp_connection(unsigned call_reference, const char *remoteIp, int rem
   *	Call-back function to signal asterisk that the channel has been answered 
   * Returns nothing
   */
-void connection_made(unsigned call_reference)
+void connection_made(unsigned call_reference, const char *token)
 {
 	struct ast_channel *c = NULL;
 	struct oh323_pvt *p = NULL;
 	
-	p = find_call(call_reference);
+	p = find_call(call_reference, token); 
 	
 	if (!p) {
 		ast_log(LOG_ERROR, "Something is wrong: connection\n");
@@ -1281,12 +1292,12 @@ void connection_made(unsigned call_reference)
   *  Call-back function to signal asterisk that the channel is ringing
   *  Returns nothing
   */
-void chan_ringing(unsigned call_reference)
+void chan_ringing(unsigned call_reference, const char *token)
 {
         struct ast_channel *c = NULL;
         struct oh323_pvt *p = NULL;
 
-        p = find_call(call_reference);
+        p = find_call(call_reference, token); 
 
         if (!p) {
                 ast_log(LOG_ERROR, "Something is wrong: ringing\n");
@@ -1339,7 +1350,7 @@ void cleanup_connection(call_details_t cd)
 	struct oh323_user *user = NULL;
 	struct ast_rtp *rtp = NULL;
 	
-	p = find_call(cd.call_reference);
+	p = find_call(cd.call_reference, cd.call_token); 
 
 	if (!p) {
 		return;

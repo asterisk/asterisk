@@ -359,7 +359,7 @@ void MyH323EndPoint::OnConnectionEstablished(H323Connection & connection, const 
 	if (h323debug) {
 		cout << "	-- Connection Established with \"" << connection.GetRemotePartyName() << "\"" << endl;
 	}
-	on_connection_established(connection.GetCallReference());
+	on_connection_established(connection.GetCallReference(), (const char *)connection.GetCallToken());
 }
 
 /** OnConnectionCleared callback function is called upon the dropping of an established
@@ -493,6 +493,7 @@ MyH323Connection::MyH323Connection(MyH323EndPoint & ep, unsigned callReference,
 	if (h323debug) {
 		cout << "	== New H.323 Connection created." << endl;
 	}
+
 	return;
 }
 
@@ -508,7 +509,9 @@ H323Connection::AnswerCallResponse MyH323Connection::OnAnswerCall(const PString 
 																   const H323SignalPDU & /*setupPDU*/,
 																   H323SignalPDU & /*connectPDU*/)
 {
-	if (!on_answer_call(GetCallReference()))
+
+	
+	if (!on_answer_call(GetCallReference(), (const char *)GetCallToken()))
 		return H323Connection::AnswerCallDenied;
 
 	/* The call will be answered later with "AnsweringCall()" function.
@@ -522,7 +525,7 @@ BOOL  MyH323Connection::OnAlerting(const H323SignalPDU & /*alertingPDU*/, const 
 	if (h323debug) {
 		cout << "	-- Ringing phone for \"" << username << "\"" << endl;
 	}
-	on_chan_ringing(GetCallReference());
+	on_chan_ringing(GetCallReference(), (const char *)GetCallToken());
 	return TRUE;
 }
 
@@ -712,7 +715,7 @@ H323Channel * MyH323Connection::CreateRealTimeLogicalChannel(const H323Capabilit
 	WORD port;
 
 	/* Determine the Local (A side) IP Address and port */
-	info = on_create_connection(GetCallReference()); 
+	info = on_create_connection(GetCallReference(), (const char *)GetCallToken()); 
 
 	if (!info) {
 		return NULL;
@@ -720,7 +723,7 @@ H323Channel * MyH323Connection::CreateRealTimeLogicalChannel(const H323Capabilit
 
 	GetControlChannel().GetLocalAddress().GetIpAndPort(externalIpAddress, port);
 	externalPort = info->port;
-	
+
 	if (h323debug) {
 		cout << "	=*= In CreateRealTimeLogicalChannel for call " << GetCallReference() << endl;
 		cout << "		-- externalIpAddress: " << externalIpAddress << endl;
@@ -728,6 +731,7 @@ H323Channel * MyH323Connection::CreateRealTimeLogicalChannel(const H323Capabilit
 		cout << "		-- SessionID: " << sessionID << endl;
 		cout << "		-- Direction: " << dir << endl;
 	}
+
 	return new MyH323_ExternalRTPChannel(*this, capability, dir, sessionID, externalIpAddress, externalPort);
 }
 
@@ -793,7 +797,8 @@ BOOL MyH323_ExternalRTPChannel::OnReceivedAckPDU(const H245_H2250LogicalChannelA
         if (H323_ExternalRTPChannel::OnReceivedAckPDU(param)) {
                H323_ExternalRTPChannel::GetRemoteAddress(remoteIpAddress, remotePort);
                /* Notify Asterisk of remote RTP information */
-               on_start_logical_channel(connection.GetCallReference(), (const char *)remoteIpAddress.AsString(), remotePort);
+               on_start_logical_channel(connection.GetCallReference(), (const char *)remoteIpAddress.AsString(), remotePort, 
+                                         (const char *)connection.GetCallToken() );
                 return TRUE;
         }
         return FALSE;

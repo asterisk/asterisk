@@ -241,6 +241,7 @@ class MyH323Connection : public H323Connection {
 	WORD externalPort;
 	WORD sessionId;
 	BOOL bridging;			
+        
 };
 
 class MyH323_ExternalRTPChannel : public H323_ExternalRTPChannel {
