@@ -3,13 +3,12 @@
  *
  * ODBC CDR Backend
  * 
+ * Copyright (C) 2003-2005, Digium, Inc.
+ *
  * Brian K. West <brian@bkw.org>
  *
  * This program is free software, distributed under the terms of
- * the GNU General Public License.
- *
- * Copyright (c) 2003 Digium, Inc.
- *
+ * the GNU General Public License
  */
 
 #include <sys/types.h>
@@ -37,10 +36,11 @@
 static char *desc = "ODBC CDR Backend";
 static char *name = "ODBC";
 static char *config = "cdr_odbc.conf";
-static char *dsn = NULL, *username = NULL, *password = NULL, *loguniqueid = NULL, *table = NULL;
-static int dsn_alloc = 0, username_alloc = 0, password_alloc = 0, loguniqueid_alloc = 0, table_alloc = 0;
-static int connected = 0;
+static char *dsn = NULL, *username = NULL, *password = NULL, *table = NULL;
+static int dsn_alloc = 0, username_alloc = 0, password_alloc = 0, table_alloc = 0;
+static int loguniqueid = 0;
 static int dispositionstring = 0;
+static int connected = 0;
 
 AST_MUTEX_DEFINE_STATIC(odbc_lock);
 
@@ -66,7 +66,7 @@ static int odbc_log(struct ast_cdr *cdr)
 	ast_mutex_lock(&odbc_lock);
 	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
 	memset(sqlcmd,0,2048);
-	if ((loguniqueid != NULL) && (ast_true(loguniqueid))) {
+	if (loguniqueid) {
 		snprintf(sqlcmd,sizeof(sqlcmd),"INSERT INTO %s "
 		"(calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,"
 		"lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) "
@@ -79,13 +79,12 @@ static int odbc_log(struct ast_cdr *cdr)
 	}
 
 	if (!connected) {
-		res =  odbc_init();
+		res = odbc_init();
 		if (res < 0) {
 			connected = 0;
 			ast_mutex_unlock(&odbc_lock);
 			return 0;
 		}				
-		
 	}
 
 	ODBC_res = SQLAllocHandle(SQL_HANDLE_STMT, ODBC_con, &ODBC_stmt);
@@ -134,7 +133,7 @@ static int odbc_log(struct ast_cdr *cdr)
 	SQLBindParameter(ODBC_stmt, 13, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->amaflags, 0, NULL);
 	SQLBindParameter(ODBC_stmt, 14, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->accountcode), 0, cdr->accountcode, 0, NULL);
 
-	if ((loguniqueid != NULL) && (ast_true(loguniqueid))) {
+	if (loguniqueid) {
 		SQLBindParameter(ODBC_stmt, 15, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->uniqueid), 0, cdr->uniqueid, 0, NULL);
 		SQLBindParameter(ODBC_stmt, 16, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->userfield), 0, cdr->userfield, 0, NULL);
 	}
@@ -208,13 +207,6 @@ static int odbc_unload_module(void)
 		password = NULL;
 		password_alloc = 0;
 	}
-	if (loguniqueid && loguniqueid_alloc) {
-		if (option_verbose > 10)
-			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free loguniqueid\n");
-		free(loguniqueid);
-		loguniqueid = NULL;
-		loguniqueid_alloc = 0;
-	}
 	if (table && table_alloc) {
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free table\n");
@@ -222,6 +214,9 @@ static int odbc_unload_module(void)
 		table = NULL;
 		table_alloc = 0;
 	}
+	loguniqueid = 0;
+	dispositionstring = 0;
+
 	ast_cdr_unregister(name);
 	ast_mutex_unlock(&odbc_lock);
 	return 0;
@@ -257,7 +252,8 @@ static int odbc_load_module(void)
 			strncpy(dsn, tmp, strlen(tmp));
 		} else {
 			ast_log(LOG_ERROR,"cdr_odbc: Out of memory error.\n");
-			return -1;
+			res = -1;
+			goto out;
 		}
 	} else {
 		ast_log(LOG_WARNING,"cdr_odbc: dsn not specified.  Assuming asteriskdb\n");
@@ -265,8 +261,11 @@ static int odbc_load_module(void)
 	}
 
 	tmp = ast_variable_retrieve(cfg,"global","dispositionstring");
-	if (tmp) 
+	if (tmp) {
 		dispositionstring = ast_true(tmp);
+	} else {
+		dispositionstring = 0;
+	}
 		
 	tmp = ast_variable_retrieve(cfg,"global","username");
 	if (tmp) {
@@ -277,7 +276,8 @@ static int odbc_load_module(void)
 			strncpy(username, tmp, strlen(tmp));
 		} else {
 			ast_log(LOG_ERROR,"cdr_odbc: Out of memory error.\n");
-			return -1;
+			res = -1;
+			goto out;
 		}
 	} else {
 		ast_log(LOG_WARNING,"cdr_odbc: username not specified.  Assuming root\n");
@@ -293,7 +293,8 @@ static int odbc_load_module(void)
 			strncpy(password, tmp, strlen(tmp));
 		} else {
 			ast_log(LOG_ERROR,"cdr_odbc: Out of memory error.\n");
-			return -1;
+			res = -1;
+			goto out;
 		}
 	} else {
 		ast_log(LOG_WARNING,"cdr_odbc: database password not specified.  Assuming blank\n");
@@ -302,19 +303,15 @@ static int odbc_load_module(void)
 
 	tmp = ast_variable_retrieve(cfg,"global","loguniqueid");
 	if (tmp) {
-		loguniqueid = malloc(strlen(tmp) + 1);
-		if (loguniqueid != NULL) {
-			strcpy(loguniqueid,tmp);
-			loguniqueid_alloc = 1;
+		loguniqueid = ast_true(tmp);
+		if (loguniqueid) {
 			ast_log(LOG_NOTICE,"cdr_odbc: Logging uniqueid\n");
 		} else {
 			ast_log(LOG_ERROR,"cdr_odbc: Not logging uniqueid\n");
-			loguniqueid_alloc = 1;
-			loguniqueid = NULL;
 		}
 	} else {
 		ast_log(LOG_WARNING,"cdr_odbc: Not logging uniqueid\n");
-		loguniqueid = NULL;
+		loguniqueid = 0;
 	}
 
 	tmp = ast_variable_retrieve(cfg,"global","table");
@@ -326,7 +323,8 @@ static int odbc_load_module(void)
 			strncpy(table, tmp, strlen(tmp));
 		} else {
 			ast_log(LOG_ERROR,"cdr_odbc: Out of memory error.\n");
-			return -1;
+			res = -1;
+			goto out;
 		}
 	} else {
 		ast_log(LOG_WARNING,"cdr_odbc: table not specified.  Assuming cdr\n");
@@ -334,17 +332,19 @@ static int odbc_load_module(void)
 	}
 
 	ast_destroy(cfg);
-	if (option_verbose > 3) {
-		ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: dsn is %s\n",dsn);
-		ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: username is %s\n",username);
-		ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: password is [secret]\n");
-		ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: table is %s\n",table);
+	if (option_verbose > 2) {
+		ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: dsn is %s\n",dsn);
+		ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: username is %s\n",username);
+		ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: password is [secret]\n");
+		ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: table is %s\n",table);
 	}
 	
 	res = odbc_init();
 	if (res < 0) {
 		ast_log(LOG_ERROR, "cdr_odbc: Unable to connect to datasource: %s\n", dsn);
-		ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Unable to connect to datasource: %s\n", dsn);
+		if (option_verbose > 2) {
+			ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: Unable to connect to datasource: %s\n", dsn);
+		}
 	}
 	res = ast_cdr_register(name, desc, odbc_log);
 	if (res) {
