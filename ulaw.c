@@ -17,8 +17,8 @@
 #define BIAS 0x84   /* define the add-in bias for 16 bit samples */
 #define CLIP 32635
 
-unsigned char ast_lin2mu[65536];
-short ast_mulaw[256];
+unsigned char __ast_lin2mu[16384];
+short __ast_mulaw[256];
 
 static unsigned char
 linear2ulaw(short sample)
@@ -76,12 +76,12 @@ void ast_ulaw_init(void)
 		y = f * (1 << (e + 3));
 		y += etab[e];
 		if (mu & 0x80) y = -y;
-	        ast_mulaw[i] = y;
+	        __ast_mulaw[i] = y;
 	   }
 	  /* set up the reverse (mu-law) conversion table */
-	for(i = 0; i < 65536; i++)
+	for(i = -32768; i < 32768; i++)
 	   {
-		ast_lin2mu[i] = linear2ulaw(i - 32768);
+		__ast_lin2mu[((unsigned short)i) >> 2] = linear2ulaw(i);
 	   }
 
 }

@@ -88,7 +88,7 @@ float	val;
 	{
 		val = loudness * sin((f1 * 2.0 * M_PI * (*x))/8000.0);
 		val += loudness * sin((f2 * 2.0 * M_PI * (*x)++)/8000.0);
-		data[i] = ast_lin2mu[(int)val + 32768];
+		data[i] = AST_LIN2MU((int)val);
 	 }		
 	  /* wrap back around from 8000 */
 	if (*x >= 8000) *x = 0;
@@ -108,7 +108,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 {
 	int i,j,k,x;
 	struct localuser *u;
-	char tmp[256],exten[AST_MAX_EXTENSION];
+	char tmp[256],exten[AST_MAX_EXTENSION],acctcode[20];
 	unsigned char tone_block[TONE_BLOCK_SIZE],sil_block[TONE_BLOCK_SIZE];
 	char *ourcontext;
 	struct ast_frame *f,wf;
@@ -134,7 +134,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "disa requires an argument (passcode/passcode file)\n");
 		return -1;
 	}
-	strncpy(tmp, (char *)data, sizeof(tmp));
+	strncpy(tmp, (char *)data, sizeof(tmp)-1);
 	strtok(tmp, "|");
 	ourcontext = strtok(NULL, "|");
 	  /* if context not specified, use "disa" */
@@ -255,10 +255,13 @@ static int disa_exec(struct ast_channel *chan, void *data)
 					{
 						ast_log(LOG_WARNING,"DISA on chan %s got bad password %s\n",chan->name,exten);
 						goto reorder;
+
 					}
 					 /* password good, set to dial state */
 					k = 1;
 					i = 0;  /* re-set buffer pointer */
+					exten[sizeof(acctcode)] = 0;
+					strcpy(acctcode,exten);
 					exten[0] = 0;
 					ast_log(LOG_DEBUG,"Successful DISA log-in on chan %s\n",chan->name);
 					continue;
@@ -272,7 +275,9 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			{
 				strcpy(chan->exten,exten);
 				strcpy(chan->context,ourcontext);
+				strcpy(chan->accountcode,acctcode);
 				chan->priority = 0;
+				ast_cdr_init(chan->cdr,chan);
 				LOCAL_USER_REMOVE(u);
 				return 0;
 			}

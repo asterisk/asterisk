@@ -138,7 +138,7 @@ ulawtolin_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
   /* Reset ssindex and signal to frame's specified values */
   b = f->data;
   for (x=0;x<f->datalen;x++)
-  	tmp->outbuf[tmp->tail + x] = ast_mulaw[b[x]];
+  	tmp->outbuf[tmp->tail + x] = AST_MULAW(b[x]);
 
   tmp->tail += f->datalen;
   return 0;
@@ -200,7 +200,7 @@ lintoulaw_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
     }
   s = f->data;
   for (x=0;x<f->datalen/2;x++) 
-  	tmp->outbuf[x+tmp->tail] = ast_lin2mu[s[x]+32768];
+  	tmp->outbuf[x+tmp->tail] = AST_LIN2MU(s[x]);
   tmp->tail += f->datalen/2;
   return 0;
 }
