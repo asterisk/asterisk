@@ -1797,6 +1797,11 @@ int ast_pbx_run(struct ast_channel *c)
 					}
 				}	
 			}
+			if (c->cdr) {
+			    if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_2,"CDR updated on %s\n",c->name);	
+			    ast_cdr_update(c);
+		    }
 		}
 	}
 	if (firstpass) 
