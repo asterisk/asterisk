@@ -151,9 +151,9 @@ static int vm_delete(char *file);
 
 static char *tdesc = "Comedian Mail (Voicemail System)";
 
-static char *adapp = "CoMa";
+static char *adapp = "\x00\x00\x00\x0F";
 
-static char *adsec = "_AST";
+static char *adsec = "\x9B\xDB\xF7\xAC";
 
 static char *addesc = "Comedian Mail";
 
