@@ -175,6 +175,9 @@ endif
 ifeq (${OSARCH},FreeBSD)
 LIBS+=-lcrypto
 endif
+ifeq (${OSARCH},OpenBSD)
+LIBS=-lcrypto -lpthread -lm -lncurses
+endif
 LIBS+=-lssl
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o say.o pbx.o cli.o md5.o term.o \
