@@ -12,6 +12,8 @@
     -- We no longer send a "to" tag on "100 Trying" messages, as it is inappropriate
        to do so.
     -- We now respond correctly to an invite for T.38 with a "488 Not acceptable here"
+    -- We now discard saved tags on 401/407 responses in case the provider we're talking
+       to tries to pull a dirty trick on us and change it.
  -- chan_mgcp
     -- Fixed setting of accountcode
     -- Fixed where *67 to block callerid only worked for first call

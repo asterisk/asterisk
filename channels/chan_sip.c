@@ -6821,6 +6821,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* First we ACK */
 				transmit_request(p, "ACK", seqno, 0, 0);
 				/* Then we AUTH */
+				p->theirtag[0]='\0';    /* forget their old tag, so we don't match tags when getting response */
 				if ((p->authtries > 1) || do_proxy_auth(p, req, "WWW-Authenticate", "Authorization", "INVITE", 1)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
 					p->needdestroy = 1;
@@ -6855,6 +6856,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* Then we AUTH */
 				/* But only if the packet wasn't marked as ignore in handle_request */
 				if(!ignore){
+					p->theirtag[0]='\0';    /* forget their old tag, so we don't match tags when getting response */
 					if ((p->authtries > 1) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", "INVITE", 1)) {
 						ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
 						p->needdestroy = 1;
