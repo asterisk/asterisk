@@ -2572,8 +2572,10 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 		case ZT_EVENT_ALARM:
 #ifdef ZAPATA_PRI
 #ifdef PRI_DESTROYCALL
-			if (p->call && p->pri->pri)
+			if (p->call && p->pri && p->pri->pri)
 				pri_destroycall(p->pri->pri, p->call);
+			else
+				ast_log(LOG_WARNING, "The PRI Call have not been destroyed\n");
 			p->call = NULL;
 #else
 #error Please "cvs update" and recompile libpri
