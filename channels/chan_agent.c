@@ -1314,7 +1314,8 @@ static int agent_logoff_cmd(int fd, int argc, char **argv)
 {
 	struct agent_pvt *p;
 	char *agent = argv[2] + 6;
-
+	long logintime;
+	
 	if (argc < 3 || argc > 4)
 		return RESULT_SHOWUSAGE;
 	if (argc == 4 && strcasecmp(argv[3], "soft"))
@@ -1330,6 +1331,15 @@ static int agent_logoff_cmd(int fd, int argc, char **argv)
 					ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
 				}
 			}
+			logintime = time(NULL) - p->loginstart;
+			p->loginstart = 0;
+			
+			manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogoff",
+				"Agent: %s\r\n"
+				"Loginchan: %s\r\n"
+				"Logintime: %ld\r\n",
+				p->agent, p->loginchan, logintime);
+			ast_queue_log("NONE", "NONE", agent, "AGENTCALLBACKLOGOFF", "%s|%ld|%s", p->loginchan, logintime, "CommandLogoff");
 			p->loginchan[0] = '\0';
 			ast_cli(fd, "Logging out %s\n", agent);
 			break;
