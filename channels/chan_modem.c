@@ -53,7 +53,7 @@ static char context[AST_MAX_EXTENSION]= "default";
 static char language[MAX_LANGUAGE] = "";
 
 /* Initialization String */
-static char initstr[AST_MAX_INIT_STR] = "ATE1Q0";
+static char initstr[AST_MAX_INIT_STR] = "ATE0Q0";
 
 /* Default MSN */
 static char msn[AST_MAX_EXTENSION]="";
@@ -161,9 +161,10 @@ int ast_unregister_modem_driver(struct ast_modem_driver *mc)
 
 static int modem_call(struct ast_channel *ast, char *idest, int timeout)
 {
+	static int modem_hangup(struct ast_channel *ast);
 	struct ast_modem_pvt *p;
 	int ms = timeout;
-	char rdest[80], *where;
+	char rdest[80], *where, dstr[100];
 	strncpy(rdest, idest, sizeof(rdest));
 	strtok(rdest, ":");
 	where = strtok(NULL, ":");
@@ -172,9 +173,17 @@ static int modem_call(struct ast_channel *ast, char *idest, int timeout)
 		return -1;
 	}
 	p = ast->pvt->pvt;
-	if ((ast->state != AST_STATE_DOWN) && (ast->state != AST_STATE_RESERVED)) {
-		ast_log(LOG_WARNING, "modem_call called on %s, neither down nor reserved\n", ast->name);
-		return -1;
+	strcpy(dstr,where + p->stripmsd);
+	/* if not a transfer or just sending tones, must be in correct state */
+	if (strcasecmp(rdest, "transfer") && strcasecmp(rdest,"sendtones")) {
+		if ((ast->state != AST_STATE_DOWN) && (ast->state != AST_STATE_RESERVED)) {
+			ast_log(LOG_WARNING, "modem_call called on %s, neither down nor reserved\n", ast->name);
+			return -1;
+		}
+	} 
+	if (!strcasecmp(rdest,"transfer")) /* if a transfer, put in transfer stuff */
+	{
+		sprintf(dstr,"!,%s",where + p->stripmsd);
 	}
 	if (!strcasecmp(where, "handset")) {
 		if (p->mc->setdev)
@@ -187,7 +196,7 @@ static int modem_call(struct ast_channel *ast, char *idest, int timeout)
 			if (p->mc->setdev(p, MODEM_DEV_TELCO_SPK))
 				return -1;
 		if (p->mc->dial)
-			p->mc->dial(p, where + p->stripmsd);
+			p->mc->dial(p, dstr);
 		ast->state = AST_STATE_DIALING;
 		while((ast->state != AST_STATE_UP) && (ms > 0)) {
 			ms = ast_waitfor(ast, ms);
@@ -205,14 +214,20 @@ static int modem_call(struct ast_channel *ast, char *idest, int timeout)
 
 int ast_modem_send(struct ast_modem_pvt *p, char *cmd, int len)
 {
-	int res;
+	int i;
+	usleep(5000);
 	if (!len) {
-		fprintf(p->f, "%s\r\n", cmd);
-		res = ast_modem_expect(p, cmd, ECHO_TIMEOUT);
-		if (res) {
-			ast_log(LOG_WARNING, "Unexpected reply %s\n", p->response);
-			return -1;
-		}
+		for(i = 0; cmd[i];)
+		   {
+			if (fwrite(cmd + i,1,1,p->f) != 1)
+			   {
+				if (errno == EWOULDBLOCK) continue;
+				return -1;
+			   }
+			i++;
+		   }
+		tcdrain(fileno(p->f)); 
+		fprintf(p->f,"\r\n");
 		return 0;
 	} else {
 		if (fwrite(cmd, 1, len, p->f) < len)
@@ -223,18 +238,50 @@ int ast_modem_send(struct ast_modem_pvt *p, char *cmd, int len)
 
 int ast_modem_read_response(struct ast_modem_pvt *p, int timeout)
 {
-	int res = -1;
+	int res = -1,c,i;
 	timeout *= 1000;
-	strncpy(p->response, "(No Response)", sizeof(p->response));
+	p->response[0] = 0;
+	c = i = 0;
 	do {
 		res = ast_waitfor_n_fd(&p->fd, 1, &timeout, NULL);
 		if (res < 0) {
+			strncpy(p->response, "(No Response)", sizeof(p->response));
 			return -1;
 		}
-		/* Read a response */
-		fgets(p->response, sizeof(p->response), p->f);
-		return 0;
+		  /* get no more then buffer length */
+		while(i < sizeof(p->response) - 1)
+		{
+			c = fgetc(p->f);  /* get a char */
+			if (c < 1) /* if error */
+			{
+				  /* if nothing in buffer, go back into timeout stuff */
+				if (errno == EWOULDBLOCK) break;
+				/* return as error */
+				strncpy(p->response, "(No Response)", sizeof(p->response));
+				return -1;
+			}
+		 	  /* save char */
+			p->response[i++] = c;
+			p->response[i] = 0;			
+			  /* if end of input */
+			if (c == '\n') break;
+		}
+		if (c >= 0)  /* if input terminated normally */
+		{
+			  /* ignore just CR/LF */
+			if (!strcmp(p->response,"\r\n"))
+			{
+				  /* reset input buffer stuff */
+				i = 0; 
+				p->response[0] = 0;
+			}
+			else /* otherwise return with info in buffer */
+			{
+				return 0;
+			}
+		}
 	} while(timeout > 0);
+	strncpy(p->response, "(No Response)", sizeof(p->response));
 	return -1;
 }
 
@@ -250,7 +297,7 @@ int ast_modem_expect(struct ast_modem_pvt *p, char *result, int timeout)
 		}
 		/* Read a response */
 		fgets(p->response, sizeof(p->response), p->f);
-#if 0
+#if	0
 		fprintf(stderr, "Modem said: %s", p->response);
 #endif
 		if (!strncasecmp(p->response, result, strlen(result))) 
@@ -273,11 +320,12 @@ void ast_modem_trim(char *s)
 
 static int modem_setup(struct ast_modem_pvt *p, int baudrate)
 {
+
 	/* Make sure there's a modem there and that it's in a reasonable 
 	   mode.  Set the baud rate, etc.  */
 	char identity[256];
 	char *ident = NULL;
-	char etx[2] = { 0x10, 0x03 };
+	char etx[2] = { 0x10, '!' }; 
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Setting up modem %s\n", p->dev);
 	if (ast_modem_send(p, etx, 2)) {
@@ -288,6 +336,7 @@ static int modem_setup(struct ast_modem_pvt *p, int baudrate)
 		ast_log(LOG_WARNING, "Failed to send enter?\n");
 		return -1;
 	}
+	usleep(10000);
 	/* Read any outstanding stuff */
 	while(!ast_modem_read_response(p, 0));
 	if (ast_modem_send(p, "ATZ", 0)) {
@@ -394,6 +443,7 @@ static int modem_answer(struct ast_channel *ast)
 	return res;
 }
 
+#if	0
 static char modem_2digit(char c)
 {
 	if (c == 12)
@@ -405,7 +455,7 @@ static char modem_2digit(char c)
 	else
 		return '?';
 }
-
+#endif
 static struct ast_frame *modem_read(struct ast_channel *ast)
 {
 	struct ast_modem_pvt *p = ast->pvt->pvt;
@@ -469,6 +519,7 @@ static void modem_mini_packet(struct ast_modem_pvt *i)
 {
 	struct ast_frame *fr;
 	fr = i->mc->read(i);
+	if (!fr) return;
 	if (fr->frametype == AST_FRAME_CONTROL) {
 		if (fr->subclass == AST_CONTROL_RING) {
 			ast_modem_new(i, AST_STATE_RING);
