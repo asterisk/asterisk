@@ -228,7 +228,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						case AST_CONTROL_BUSY:
 							if (option_verbose > 2)
 								ast_verbose( VERBOSE_PREFIX_3 "%s is busy\n", o->chan->name);
-							ast_hangup(o->chan)
+							ast_hangup(o->chan);
 							o->chan = NULL;
 							o->stillgoing = 0;
 							if (in->cdr)
@@ -238,7 +238,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						case AST_CONTROL_CONGESTION:
 							if (option_verbose > 2)
 								ast_verbose( VERBOSE_PREFIX_3 "%s is circuit-busy\n", o->chan->name);
-							ast_hangup(o->chan)
+							ast_hangup(o->chan);
 							o->chan = NULL;
 							o->stillgoing = 0;
 							if (in->cdr)
@@ -281,7 +281,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					}
 					ast_frfree(f);
 				} else {
-					ast_hangup(o->chan)
+					ast_hangup(o->chan);
 					o->chan = NULL;
 					o->stillgoing = 0;
 				}
