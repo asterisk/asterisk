@@ -2539,6 +2539,8 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			case '8':
 				if(vms.lastmsg > -1)
 					cmd = forward_message(chan, context, vms.curdir, vms.curmsg, vmu, vmfmts);
+				else
+					cmd = play_and_wait(chan, "vm-nomore");
 				break;
 			case '9':
 				if (useadsi)
