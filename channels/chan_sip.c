@@ -3024,6 +3024,8 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "Theoretical Address: %s:%d\n", inet_ntoa(cur->sa.sin_addr), ntohs(cur->sa.sin_port));
 			ast_cli(fd, "Received Address:    %s:%d\n", inet_ntoa(cur->recv.sin_addr), ntohs(cur->recv.sin_port));
 			ast_cli(fd, "NAT Support:         %s\n", cur->nat ? "Yes" : "No");
+			ast_cli(fd, "Our Tag:             %08d\n", cur->tag);
+			ast_cli(fd, "Their Tag:           %s\n", cur->theirtag);
 			strcpy(tmp, "");
 			if (cur->dtmfmode & SIP_DTMF_RFC2833)
 				strcat(tmp, "rfc2833 ");
@@ -3556,6 +3558,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	struct sip_request resp;
 	char *cmd;
 	char *cseq;
+	char *from;
 	char *e;
 	struct ast_channel *c=NULL;
 	int seqno;
@@ -3594,6 +3597,17 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			/* ignore means "don't do anything with it" but still have to 
 			   respond appropriately  */
 			ignore=1;
+		}
+		if (!strlen(p->theirtag)) {
+			from = get_header(req, "From");
+			from = strstr(from, "tag=");
+			if (from) {
+				from += 4;
+				strncpy(p->theirtag, from, sizeof(p->theirtag) - 1);
+				from = strchr(p->theirtag, ';');
+				if (from)
+					*from = '\0';
+			}
 		}
 	} else {
 		/* Response to our request -- Do some sanity checks */	
