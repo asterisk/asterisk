@@ -554,7 +554,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			break;
 		case AST_FORMAT_LPC10:
 		    rtp->f.samples = 22 * 8;
-			rtp->f.samples += (((char *)(f->data))[7] & 0x1) * 8;
+			rtp->f.samples += (((char *)(rtp->f.data))[7] & 0x1) * 8;
 			break;
 		default:
 			ast_log(LOG_NOTICE, "Unable to calculate samples for format %s\n", ast_getformatname(rtp->f.subclass));
