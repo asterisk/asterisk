@@ -76,7 +76,8 @@ export LD_LIBRARY_PATH
 
 We recomend puting the above directives into your /etc/profile so 
 you do not have to remember to export those values every time you 
-want to recompile.
+want to recompile. Make sure to logout and log back in, so your
+envrionment can pick up the new variables.
 
 
 Upgrading Asterisk
