@@ -979,10 +979,15 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		if (announce) {
 			int res2;
 			res2 = ast_autoservice_start(qe->chan);
-			if (!res2)
+			if (!res2) {
 				res2 = ast_streamfile(peer, announce, peer->language);
-			if (!res2)
-				res2 = ast_waitstream(peer, "");
+				if (!res2)
+					res2 = ast_waitstream(peer, "");
+				else {
+					ast_log(LOG_WARNING, "Announcement file '%s' is unavailable, continuing anyway...\n", announce);
+					res2 = 0;
+				}
+			}
 			res2 |= ast_autoservice_stop(qe->chan);
 			if (res2) {
 				/* Agent must have hung up */
