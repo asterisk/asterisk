@@ -33,7 +33,7 @@
 /* From now on, Asterisk REQUIRES Recursive (not error checking) mutexes
    and will not run without them. */
 
-#define AST_MUTEX_INITIALIZER      PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+#define AST_MUTEX_INITIALIZER      { PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP, NULL, 0, NULL, 0 }
 #define AST_MUTEX_KIND             PTHREAD_MUTEX_RECURSIVE_NP
 
 struct ast_mutex_info {
