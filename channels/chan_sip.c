@@ -1194,13 +1194,13 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		if (title)
 			snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%04x", title, rand() & 0xffff);
 		else
-			if (strchr(i->from,':'))
+			if (strchr(i->fromdomain,':'))
 			{
-				snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", strchr(i->from,':')+1, (int)(i));
+				snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", strchr(i->fromdomain,':')+1, (int)(i));
 			}
 			else
 			{
-				snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", i->from, (int)(i));
+				snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", i->fromdomain, (int)(i));
 			}
 		tmp->type = type;
                 if (i->dtmfmode & SIP_DTMF_INBAND) {
@@ -4413,6 +4413,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					p->needdestroy = 1;
 				}
 			} else if (!strcasecmp(msg, "BYE")) {
+				if (!strlen(p->username))
+					ast_log(LOG_WARNING, "Acked to authenticate BYE, to %s:%d but we have no matching peer!\n",
+							inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 				if ((p->authtries > 1) || do_proxy_auth(p, req, "BYE", 0)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on BYE to '%s'\n", get_header(&p->initreq, "From"));
 					p->needdestroy = 1;
@@ -4482,6 +4485,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		case 407:
 			if (!strcasecmp(msg, "BYE")) {
+				if (!strlen(p->username))
+					ast_log(LOG_WARNING, "Acked to authenticate BYE, to %s:%d but we have no matching peer!\n",
+							inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 				if ((p->authtries > 1) || do_proxy_auth(p, req, "BYE", 0)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on BYE to '%s'\n", get_header(&p->initreq, "From"));
 					p->needdestroy = 1;
