@@ -51,7 +51,7 @@ static char *descrip =
 "INSTALLED FOR CONFERENCING TO WORK!\n\n"
 
 "The option string may contain zero or more of the following characters:\n"
-"      'm' -- set monitor only mode (Listen only, no talking\n"
+"      'm' -- set monitor only mode (Listen only, no talking)\n"
 "      't' -- set talk only mode. (Talk only, no listening)\n"
 "      'p' -- allow user to exit the conference by pressing '#'\n"
 "      'd' -- dynamically add conference\n"
@@ -404,7 +404,7 @@ static char *complete_confcmd(char *line, char *word, int pos, int state) {
 			cnf = confs;
 
 			/* TODO: Find the conf number from the cmdline (ignore spaces) <- test this and make it fail-safe! */
-			myline = strdupa(line);
+			myline = ast_strdupa(line);
 			if (strsep(&myline, " ") && strsep(&myline, " ") && !confno) {
 				while((confno = strsep(&myline, " ")) && (strcmp(confno, " ") == 0))
 					;
