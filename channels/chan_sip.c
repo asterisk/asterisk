@@ -1045,8 +1045,12 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 	switch(condition) {
 	case AST_CONTROL_RINGING:
 		if (ast->_state == AST_STATE_RING) {
-			transmit_response(p, "180 Ringing", &p->initreq);
-			break;
+			if (!p->progress) {
+				transmit_response(p, "180 Ringing", &p->initreq);
+				break;
+			} else {
+				/* Oops, we've sent progress tones.  Let Asterisk do it instead */
+			}
 		}
 		return -1;
 	case AST_CONTROL_BUSY:
