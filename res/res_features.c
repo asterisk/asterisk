@@ -1080,6 +1080,7 @@ static void *do_parking_thread(void *ignore)
 	struct ast_frame *f;
 	char exten[AST_MAX_EXTENSION];
 	char *peername,*cp;
+	char returnexten[AST_MAX_EXTENSION];
 	struct ast_context *con;
 	int x;
 	fd_set rfds, efds;
@@ -1122,7 +1123,8 @@ static void *do_parking_thread(void *ignore)
 						}
 					}
 					if (con) {
-						ast_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", strdup(peername), free, registrar);
+						snprintf(returnexten, sizeof(returnexten), "%s||t", peername);
+						ast_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", strdup(returnexten), free, registrar);
 					}
 					strncpy(pu->chan->exten, peername, sizeof(pu->chan->exten) - 1);
 					strncpy(pu->chan->context, parking_con_dial, sizeof(pu->chan->context) - 1);
