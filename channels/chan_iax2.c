@@ -4025,7 +4025,9 @@ retryowner:
 					fr.callno = make_trunk(fr.callno, 1);
 				}
 				/* This might re-enter the IAX code and need the lock */
+				ast_mutex_unlock(&iaxs[fr.callno]);
 				exists = ast_exists_extension(NULL, iaxs[fr.callno]->context, iaxs[fr.callno]->exten, 1, iaxs[fr.callno]->callerid);
+				ast_mutex_lock(&iaxs[fr.callno]);
 				if (!strlen(iaxs[fr.callno]->secret) && !strlen(iaxs[fr.callno]->inkeys)) {
 					if (strcmp(iaxs[fr.callno]->exten, "TBD") && !exists) {
 						memset(&ied0, 0, sizeof(ied0));
