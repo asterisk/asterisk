@@ -1401,6 +1401,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 									exten = NULL;
 									pos = 0;
 								} else {
+									ast_log(LOG_WARNING, "Extension '%s@%s' is not valid for automatic login of agent '%s'\n", tmpchan, context && !ast_strlen_zero(context) ? context : "default", p->agent);
 									res = ast_streamfile(chan, "invalid", chan->language);
 									if (!res)
 										res = ast_waitstream(chan, AST_DIGIT_ANY);

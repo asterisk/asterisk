@@ -1556,6 +1556,7 @@ int ast_prod(struct ast_channel *chan)
 		ast_log(LOG_DEBUG, "Prodding channel '%s'\n", chan->name);
 		a.subclass = chan->pvt->rawwriteformat;
 		a.data = nothing + AST_FRIENDLY_OFFSET;
+		a.src = "ast_prod";
 		if (ast_write(chan, &a))
 			ast_log(LOG_WARNING, "Prodding channel '%s' failed\n", chan->name);
 	}

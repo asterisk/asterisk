@@ -1232,7 +1232,7 @@ static void zt_enable_ec(struct zt_pvt *p)
 			ast_log(LOG_DEBUG, "Enabled echo cancellation on channel %d\n", p->channel);
 		}
 	} else
-		ast_log(LOG_DEBUG, "No echocancellation requested\n");
+		ast_log(LOG_DEBUG, "No echo cancellation requested\n");
 }
 
 static void zt_train_ec(struct zt_pvt *p)
@@ -4225,6 +4225,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 	int index;
 	ast_mutex_lock(&p->lock);
 	index = zt_get_index(chan, p, 0);
+	ast_log(LOG_DEBUG, "Requested indication %d on channel %s\n", condition, chan->name);
 	if (index == SUB_REAL) {
 		switch(condition) {
 		case AST_CONTROL_BUSY:
@@ -6214,7 +6215,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 					return NULL;
 				}
 				if (p.sigtype != (signalling & 0x3ffff)) {
-					ast_log(LOG_ERROR, "Signalling requested is %s but line is in %s signalling\n", sig2str(signalling), sig2str(p.sigtype));
+					ast_log(LOG_ERROR, "Signalling requested on channel %d is %s but line is in %s signalling\n", channel, sig2str(signalling), sig2str(p.sigtype));
 					destroy_zt_pvt(&tmp);
 					return tmp;
 				}
