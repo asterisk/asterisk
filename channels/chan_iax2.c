@@ -4725,7 +4725,7 @@ retryowner:
 								orignative = iaxs[fr.callno]->owner->nativeformats;
 								iaxs[fr.callno]->owner->nativeformats = f.subclass;
 								if (iaxs[fr.callno]->owner->readformat)
-									ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat);
+									ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat, 0);
 								iaxs[fr.callno]->owner->nativeformats = orignative;
 								ast_mutex_unlock(&iaxs[fr.callno]->owner->lock);
 							}
@@ -4962,9 +4962,9 @@ retryowner2:
 						if (iaxs[fr.callno] && iaxs[fr.callno]->owner) {
 							/* Setup read/write formats properly. */
 							if (iaxs[fr.callno]->owner->writeformat)
-								ast_set_write_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->writeformat);	
+								ast_set_write_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->writeformat, 0);	
 							if (iaxs[fr.callno]->owner->readformat)
-								ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat);	
+								ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat, 0);	
 							ast_mutex_unlock(&iaxs[fr.callno]->owner->lock);
 						}
 					}

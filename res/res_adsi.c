@@ -367,15 +367,15 @@ int adsi_transmit_message(struct ast_channel *chan, unsigned char *msg, int msgl
 
 	ast_stopstream(chan);
 
-	if (ast_set_write_format(chan, AST_FORMAT_ULAW)) {
+	if (ast_set_write_format(chan, AST_FORMAT_ULAW, 1)) {
 		ast_log(LOG_WARNING, "Unable to set write format to ULAW\n");
 		return -1;
 	}
 
-	if (ast_set_read_format(chan, AST_FORMAT_ULAW)) {
+	if (ast_set_read_format(chan, AST_FORMAT_ULAW, 1)) {
 		ast_log(LOG_WARNING, "Unable to set read format to ULAW\n");
 		if (writeformat) {
-			if (ast_set_write_format(chan, writeformat)) 
+			if (ast_set_write_format(chan, writeformat, 1)) 
 				ast_log(LOG_WARNING, "Unable to restore write format to %d\n", writeformat);
 		}
 		return -1;
@@ -385,9 +385,9 @@ int adsi_transmit_message(struct ast_channel *chan, unsigned char *msg, int msgl
 		chan->adsicpe = (chan->adsicpe & ~ADSI_FLAG_DATAMODE) | newdatamode;
 
 	if (writeformat)
-		ast_set_write_format(chan, writeformat);
+		ast_set_write_format(chan, writeformat, 1);
 	if (readformat)
-		ast_set_read_format(chan, readformat);
+		ast_set_read_format(chan, readformat, 1);
 
 	return res;
 }

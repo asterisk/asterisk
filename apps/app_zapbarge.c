@@ -93,13 +93,13 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
 
 	/* Set it into U-law mode (write) */
-	if (ast_set_write_format(chan, AST_FORMAT_ULAW) < 0) {
+	if (ast_set_write_format(chan, AST_FORMAT_ULAW, 1) < 0) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to write ulaw mode\n", chan->name);
 		goto outrun;
 	}
 
 	/* Set it into U-law mode (read) */
-	if (ast_set_read_format(chan, AST_FORMAT_ULAW) < 0) {
+	if (ast_set_read_format(chan, AST_FORMAT_ULAW, 1) < 0) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to read ulaw mode\n", chan->name);
 		goto outrun;
 	}

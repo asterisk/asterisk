@@ -1499,12 +1499,13 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	return res;
 }
 
-int ast_set_write_format(struct ast_channel *chan, int fmts)
+int ast_set_write_format(struct ast_channel *chan, int fmts, int needlock)
 {
 	int fmt;
 	int native;
 	int res;
 	
+	ast_mutex_lock(&chan->lock);
 	native = chan->nativeformats;
 	fmt = fmts;
 	
@@ -1512,6 +1513,7 @@ int ast_set_write_format(struct ast_channel *chan, int fmts)
 	if (res < 0) {
 		ast_log(LOG_NOTICE, "Unable to find a path from %s to %s\n",
 			ast_getformatname(fmts), ast_getformatname(chan->nativeformats));
+		ast_mutex_unlock(&chan->lock);
 		return -1;
 	}
 	
@@ -1526,15 +1528,18 @@ int ast_set_write_format(struct ast_channel *chan, int fmts)
 	chan->pvt->writetrans = ast_translator_build_path(chan->pvt->rawwriteformat, chan->writeformat);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Set channel %s to write format %s\n", chan->name, ast_getformatname(chan->writeformat));
+	ast_mutex_unlock(&chan->lock);
 	return 0;
 }
 
-int ast_set_read_format(struct ast_channel *chan, int fmts)
+int ast_set_read_format(struct ast_channel *chan, int fmts, int needlock)
 {
 	int fmt;
 	int native;
 	int res;
 	
+	if (needlock)
+		ast_mutex_lock(&chan->lock);
 	native = chan->nativeformats;
 	fmt = fmts;
 	/* Find a translation path from the native read format to one of the user's read formats */
@@ -1542,6 +1547,7 @@ int ast_set_read_format(struct ast_channel *chan, int fmts)
 	if (res < 0) {
 		ast_log(LOG_NOTICE, "Unable to find a path from %s to %s\n",
 			ast_getformatname(chan->nativeformats), ast_getformatname(fmts));
+		ast_mutex_unlock(&chan->lock);
 		return -1;
 	}
 	
@@ -1557,6 +1563,7 @@ int ast_set_read_format(struct ast_channel *chan, int fmts)
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Set channel %s to read format %s\n", 
 			chan->name, ast_getformatname(chan->readformat));
+	ast_mutex_unlock(&chan->lock);
 	return 0;
 }
 
@@ -1913,21 +1920,25 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 	int peerf;
 	int chanf;
 	int res;
+	ast_mutex_lock(&peer->lock);
 	peerf = peer->nativeformats;
+	ast_mutex_unlock(&peer->lock);
+	ast_mutex_lock(&chan->lock);
 	chanf = chan->nativeformats;
+	ast_mutex_unlock(&chan->lock);
 	res = ast_translator_best_choice(&peerf, &chanf);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", chan->name, chan->nativeformats, peer->name, peer->nativeformats);
 		return -1;
 	}
 	/* Set read format on channel */
-	res = ast_set_read_format(chan, peerf);
+	res = ast_set_read_format(chan, peerf, 1);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", chan->name, chanf);
 		return -1;
 	}
 	/* Set write format on peer channel */
-	res = ast_set_write_format(peer, peerf);
+	res = ast_set_write_format(peer, peerf, 1);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", peer->name, peerf);
 		return -1;
@@ -1941,13 +1952,13 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 		return -1;
 	}
 	/* Set writeformat on channel */
-	res = ast_set_write_format(chan, chanf);
+	res = ast_set_write_format(chan, chanf, 1);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", chan->name, chanf);
 		return -1;
 	}
 	/* Set read format on peer channel */
-	res = ast_set_read_format(peer, chanf);
+	res = ast_set_read_format(peer, chanf, 1);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", peer->name, peerf);
 		return -1;
@@ -2154,10 +2165,10 @@ int ast_do_masquerade(struct ast_channel *original, int needlock)
 	/* pvt switches.  pbx stays the same, as does next */
 	
 	/* Set the write format */
-	ast_set_write_format(original, wformat);
+	ast_set_write_format(original, wformat, 0);
 
 	/* Set the read format */
-	ast_set_read_format(original, rformat);
+	ast_set_read_format(original, rformat, 0);
 
 	ast_log(LOG_DEBUG, "Putting channel %s in %d/%d formats\n", original->name, wformat, rformat);
 
@@ -2453,7 +2464,7 @@ static void tonepair_release(struct ast_channel *chan, void *params)
 {
 	struct tonepair_state *ts = params;
 	if (chan) {
-		ast_set_write_format(chan, ts->origwfmt);
+		ast_set_write_format(chan, ts->origwfmt, 0);
 	}
 	free(ts);
 }
@@ -2467,7 +2478,7 @@ static void * tonepair_alloc(struct ast_channel *chan, void *params)
 		return NULL;
 	memset(ts, 0, sizeof(struct tonepair_state));
 	ts->origwfmt = chan->writeformat;
-	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
+	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR, 1)) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to signed linear format (write)\n", chan->name);
 		tonepair_release(NULL, ts);
 		ts = NULL;

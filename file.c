@@ -166,7 +166,7 @@ int ast_stopstream(struct ast_channel *tmp)
 		ast_closestream(tmp->vstream);
 	if (tmp->stream) {
 		ast_closestream(tmp->stream);
-		if (tmp->oldwriteformat && ast_set_write_format(tmp, tmp->oldwriteformat))
+		if (tmp->oldwriteformat && ast_set_write_format(tmp, tmp->oldwriteformat, 1))
 			ast_log(LOG_WARNING, "Unable to restore format back to %d\n", tmp->oldwriteformat);
 	}
 	return 0;
@@ -464,7 +464,7 @@ struct ast_filestream *ast_openstream(struct ast_channel *chan, char *filename, 
 	}
 	chan->oldwriteformat = chan->writeformat;
 	/* Set the channel to a format we can work with */
-	res = ast_set_write_format(chan, fmts);
+	res = ast_set_write_format(chan, fmts, 1);
 	
  	fd = ast_filehelper(filename2, (char *)chan, NULL, ACTION_OPEN);
 	if(fd >= 0)

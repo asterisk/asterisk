@@ -1015,8 +1015,8 @@ static struct ast_frame *mgcp_rtp_read(struct mgcp_subchannel *sub)
 			if (f->subclass != sub->owner->nativeformats) {
 				ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
 				sub->owner->nativeformats = f->subclass;
-				ast_set_read_format(sub->owner, sub->owner->readformat);
-				ast_set_write_format(sub->owner, sub->owner->writeformat);
+				ast_set_read_format(sub->owner, sub->owner->readformat, 0);
+				ast_set_write_format(sub->owner, sub->owner->writeformat, 0);
 			}
             /* Courtesy fearnor aka alex@pilosoft.com */
             if (sub->parent->dtmfinband) {

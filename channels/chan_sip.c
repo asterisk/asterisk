@@ -1675,8 +1675,8 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 			if (f->subclass != p->owner->nativeformats) {
 				ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
 				p->owner->nativeformats = f->subclass;
-				ast_set_read_format(p->owner, p->owner->readformat);
-				ast_set_write_format(p->owner, p->owner->writeformat);
+				ast_set_read_format(p->owner, p->owner->readformat, 0);
+				ast_set_write_format(p->owner, p->owner->writeformat, 0);
 			}
             if (p->dtmfmode & SIP_DTMF_INBAND) {
                    f = ast_dsp_process(p->owner,p->vad,f,0);
@@ -2132,8 +2132,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		if (!(p->owner->nativeformats & p->jointcapability)) {
 			ast_log(LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %d and not %d\n", p->jointcapability, p->owner->nativeformats);
 			p->owner->nativeformats = sip_codec_choose(p->jointcapability);
-			ast_set_read_format(p->owner, p->owner->readformat);
-			ast_set_write_format(p->owner, p->owner->writeformat);
+			ast_set_read_format(p->owner, p->owner->readformat, 0);
+			ast_set_write_format(p->owner, p->owner->writeformat, 0);
 		}
 		if (p->owner->bridge) {
 			/* Turn on/off music on hold if we are holding/unholding */

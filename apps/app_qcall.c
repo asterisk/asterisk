@@ -219,8 +219,8 @@ time_t	t;
 	channel = ast_request(dialstr,AST_FORMAT_SLINEAR,tele);
 	if (channel)
 	   {
-		ast_set_read_format(channel,AST_FORMAT_SLINEAR);
-		ast_set_write_format(channel,AST_FORMAT_SLINEAR);
+		ast_set_read_format(channel,AST_FORMAT_SLINEAR, 1);
+		ast_set_write_format(channel,AST_FORMAT_SLINEAR, 1);
 #ifdef	OURCLID
 		if (channel->callerid)
 			free(channel->callerid);

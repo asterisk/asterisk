@@ -1602,8 +1602,8 @@ static struct ast_frame *skinny_rtp_read(struct skinny_subchannel *sub)
 			if (f->subclass != sub->owner->nativeformats) {
 				ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
 				sub->owner->nativeformats = f->subclass;
-				ast_set_read_format(sub->owner, sub->owner->readformat);
-				ast_set_write_format(sub->owner, sub->owner->writeformat);
+				ast_set_read_format(sub->owner, sub->owner->readformat, 0);
+				ast_set_write_format(sub->owner, sub->owner->writeformat, 0);
 			}
 		}
 	}

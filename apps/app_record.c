@@ -141,7 +141,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 
 		if (silence > 0) {
 	        	rfmt = chan->readformat;
-        		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
+        		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR, 1);
         		if (res < 0) {
                 		ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
         		        return -1;
@@ -223,7 +223,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_REMOVE(u);
 	if (silence > 0) {
-	        res = ast_set_read_format(chan, rfmt);
+	        res = ast_set_read_format(chan, rfmt, 1);
         	if (res)
         	        ast_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
 		if (sildet)

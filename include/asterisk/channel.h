@@ -572,7 +572,7 @@ int ast_prod(struct ast_channel *chan);
  * Set read format for channel to whichever component of "format" is best. 
  * Returns 0 on success, -1 on failure
  */
-int ast_set_read_format(struct ast_channel *chan, int format);
+int ast_set_read_format(struct ast_channel *chan, int format, int needlock);
 
 //! Sets write format on channel chan
 /*! 
@@ -581,7 +581,7 @@ int ast_set_read_format(struct ast_channel *chan, int format);
  * Set write format for channel to whichever compoent of "format" is best. 
  * Returns 0 on success, -1 on failure
  */
-int ast_set_write_format(struct ast_channel *chan, int format);
+int ast_set_write_format(struct ast_channel *chan, int format, int needlock);
 
 //! Sends text to a channel
 /*! 
