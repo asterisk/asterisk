@@ -3138,7 +3138,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					} else if (!p->subs[SUB_THREEWAY].owner) {
 						char callerid[256];
 						if (p->threewaycalling && !check_for_conference(p)) {
-							if (p->zaptrcallerid && p->owner)
+							if (p->zaptrcallerid && p->owner && p->owner->callerid)
 								strncpy(callerid, p->owner->callerid, sizeof(callerid) - 1);
 							/* XXX This section needs much more error checking!!! XXX */
 							/* Start a 3-way call if feasible */
