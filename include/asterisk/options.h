@@ -27,6 +27,8 @@ extern int option_initcrypto;
 extern int option_nocolor;
 extern int fully_booted;
 extern char defaultlanguage[];
+extern time_t ast_startuptime;
+extern time_t ast_lastreloadtime;
 
 #define VERBOSE_PREFIX_1 " "
 #define VERBOSE_PREFIX_2 "  == "

@@ -30,8 +30,10 @@ extern "C" {
 #define AST_RTP_DTMF            (1 << 0)
 /*! 'Comfort Noise' (RFC3389) */
 #define AST_RTP_CN              (1 << 1)
+/*! DTMF (Cisco Proprietary) */
+#define AST_RTP_CISCO_DTMF      (1 << 2)
 /*! Maximum RTP-specific code */
-#define AST_RTP_MAX             AST_RTP_CN
+#define AST_RTP_MAX             AST_RTP_CISCO_DTMF
 
 struct ast_rtp_protocol {
 	struct ast_rtp *(*get_rtp_info)(struct ast_channel *chan);				/* Get RTP struct, or NULL if unwilling to transfer */

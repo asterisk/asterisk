@@ -151,6 +151,33 @@ static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
 	
 }
 
+static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *data, int len)
+{
+	unsigned int event;
+	char resp = 0;
+	struct ast_frame *f = NULL;
+	event = ntohl(*((unsigned int *)(data)));
+	event &= 0x001F;
+#if 0
+	printf("Cisco Digit: %08x (len = %d)\n", event, len);
+#endif	
+	if (event < 10) {
+		resp = '0' + event;
+	} else if (event < 11) {
+		resp = '*';
+	} else if (event < 12) {
+		resp = '#';
+	} else if (event < 16) {
+		resp = 'A' + (event - 12);
+	}
+	if (rtp->resp && (rtp->resp != resp)) {
+		f = send_dtmf(rtp);
+	}
+	rtp->resp = resp;
+	rtp->dtmfcount = dtmftimeout;
+	return f;
+}
+
 static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *data, int len)
 {
 	unsigned int event;
@@ -287,6 +314,10 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	    /* It's special -- rfc2833 process it */
 	    f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
 	    if (f) return f; else return &null_frame;
+	  } else if (rtpPT.code == AST_RTP_CISCO_DTMF) {
+	    /* It's really special -- process it the Cisco way */
+	    f = process_cisco_dtmf(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
+	    if (f) return f; else return &null_frame;
 	  } else if (rtpPT.code == AST_RTP_CN) {
 	    /* Comfort Noise */
 	    f = process_rfc3389(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
@@ -379,6 +410,7 @@ static struct {
   {{1, AST_FORMAT_SPEEX}, "audio", "SPEEX"},
   {{1, AST_FORMAT_ILBC}, "audio", "iLBC"},
   {{0, AST_RTP_DTMF}, "audio", "telephone-event"},
+  {{0, AST_RTP_CISCO_DTMF}, "audio", "bastard-telephone-event"},
   {{0, AST_RTP_CN}, "audio", "CN"},
   {{1, AST_FORMAT_JPEG}, "video", "JPEG"},
   {{1, AST_FORMAT_PNG}, "video", "PNG"},
@@ -410,6 +442,7 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
   [97] = {1, AST_FORMAT_ILBC},
   [101] = {0, AST_RTP_DTMF},
   [110] = {1, AST_FORMAT_SPEEX},
+  [121] = {0, AST_RTP_CISCO_DTMF}, // Must be type 121
 };
 
 void ast_rtp_pt_clear(struct ast_rtp* rtp) 

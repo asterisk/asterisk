@@ -146,6 +146,7 @@ void ast_module_reload(void)
 	/* We'll do the logger and manager the favor of calling its reload here first */
 	reload_manager();
 	ast_enum_reload();
+	time(&ast_lastreloadtime);
 
 	ast_pthread_mutex_lock(&modlock);
 	m = module_list;

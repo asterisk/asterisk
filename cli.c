@@ -173,6 +173,92 @@ static char version_help[] =
 "Usage: show version\n"
 "       Shows Asterisk version information.\n ";
 
+static char *format_uptimestr(time_t timeval)
+{
+	int years = 0, weeks = 0, days = 0, hours = 0, mins = 0, secs = 0;
+	char timestr[256];
+	int pos = 0;
+#define SECOND (1)
+#define MIN (SECOND*60)
+#define HOUR (MIN*60)
+#define DAY (HOUR*24)
+#define WEEK (DAY*7)
+#define YEAR (DAY*365)
+
+	if (timeval > YEAR) {
+		years = (timeval / YEAR);
+		timeval -= (years * YEAR);
+		if (years > 1)
+			pos += sprintf(timestr + pos, "%d years, ", years);
+		else
+			pos += sprintf(timestr + pos, "1 year, ");
+	}
+	if (timeval > WEEK) {
+		weeks = (timeval / WEEK);
+		timeval -= (weeks * WEEK);
+		if (weeks > 1)
+			pos += sprintf(timestr + pos, "%d weeks, ", weeks);
+		else
+			pos += sprintf(timestr + pos, "1 week, ");
+	}
+	if (timeval > DAY) {
+		days = (timeval / DAY);
+		timeval -= (days * DAY);
+		if (days > 1)
+			pos += sprintf(timestr + pos, "%d days, ", days);
+		else
+			pos += sprintf(timestr + pos, "1 day, ");
+
+	}
+	if (timeval > HOUR) {
+		hours = (timeval / HOUR);
+		timeval -= (hours * HOUR);
+		if (hours > 1)
+			pos += sprintf(timestr + pos, "%d hours, ", hours);
+		else
+			pos += sprintf(timestr + pos, "1 hour, ");
+	}
+	if (timeval > MIN) {
+		mins = (timeval / MIN);
+		timeval -= (mins * MIN);
+		if (mins > 1)
+			pos += sprintf(timestr + pos, "%d minutes, ", mins);
+		else if (mins > 0)
+			pos += sprintf(timestr + pos, "1 minute, ");
+	}
+	secs = timeval;
+
+	if (secs > 0)
+		pos += sprintf(timestr + pos, "%d seconds", secs);
+
+	return timestr ? strdup(timestr) : NULL;
+}
+
+static int handle_showuptime(int fd, int argc, char *argv[])
+{
+	time_t curtime, tmptime;
+	char *timestr;
+
+	time(&curtime);
+	if (ast_startuptime) {
+		tmptime = curtime - ast_startuptime;
+		timestr = format_uptimestr(tmptime);
+		if (timestr) {
+			ast_cli(fd, "System uptime: %s\n", timestr);
+			free(timestr);
+		}
+	}		
+	if (ast_lastreloadtime) {
+		tmptime = curtime - ast_lastreloadtime;
+		timestr = format_uptimestr(tmptime);
+		if (timestr) {
+			ast_cli(fd, "Last reload: %s\n", timestr);
+			free(timestr);
+		}
+	}
+	return RESULT_SUCCESS;
+}
+
 static int handle_modlist(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
@@ -476,6 +562,7 @@ static struct ast_cli_entry builtins[] = {
 	{ { "show", "channel", NULL }, handle_showchan, "Display information on a specific channel", showchan_help, complete_ch },
 	{ { "show", "channels", NULL }, handle_chanlist, "Display information on channels", chanlist_help },
 	{ { "show", "modules", NULL }, handle_modlist, "List modules and info", modlist_help },
+	{ { "show", "uptime", NULL }, handle_showuptime, "Show uptime information", modlist_help },
 	{ { "show", "version", NULL }, handle_version, "Display version info", version_help },
 	{ { "soft", "hangup", NULL }, handle_softhangup, "Request a hangup on a given channel", softhangup_help, complete_ch },
 	{ { "unload", NULL }, handle_unload, "Unload a dynamic module by name", unload_help, complete_fn },

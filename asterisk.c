@@ -70,6 +70,9 @@ struct console {
 	pthread_t t;			/* Thread of handler */
 };
 
+time_t ast_startuptime;
+time_t ast_lastreloadtime;
+
 static History *el_hist = NULL;
 static EditLine *el = NULL;
 static char *remotehostname;
@@ -1349,6 +1352,7 @@ int main(int argc, char *argv[])
 #ifdef __AST_DEBUG_MALLOC
 	__ast_mm_init();
 #endif	
+	time(&ast_startuptime);
 	ast_cli_register(&astshutdownnow);
 	ast_cli_register(&astshutdowngracefully);
 	ast_cli_register(&astrestartnow);
