@@ -148,12 +148,14 @@ static char *synopsis_vm =
 
 static char *descrip_vm =
 "  VoiceMail([s|u|b]extension[@context]):  Leaves voicemail for a given\n"
-"extension (must be configured in voicemail.conf).  If the extension is\n"
-"preceded by an 's' then instructions for leaving the message will be\n"
-"skipped.  If the extension is preceeded by 'u' then the \"unavailable\"\n"
-"message will be played (/var/lib/asterisk/sounds/vm/<exten>/unavail) if it\n"
-"exists.  If the extension is preceeded by a 'b' then the the busy message\n"
-"will be played (that is, busy instead of unavail).\n"
+"extension (must be configured in voicemail.conf).\n"
+" If the extension is preceded by \n"
+"* 's' then instructions for leaving the message will be skipped.\n"
+"* 'u' then the \"unavailable\" message will be played.\n"
+"  (/var/lib/asterisk/sounds/vm/<exten>/unavail) if it exists.\n"
+"* 'b' then the the busy message will be played (that is, busy instead of unavail).\n"
+"If the caller presses '0' (zero) during the prompt, the call jumps to\n"
+"priority 'o' in the current cnotext.\n"
 "If the requested mailbox does not exist, and there exists a priority\n"
 "n + 101, then that priority will be taken next.\n"
 "Returns -1 on error or mailbox not found, or if the user hangs up.\n"
@@ -167,7 +169,7 @@ static char *descrip_vmain =
 "for the checking of voicemail.  The mailbox can be passed as the option,\n"
 "which will stop the voicemail system from prompting the user for the mailbox.\n"
 "If the mailbox is preceded by 's' then the password check will be skipped.  If\n"
-"a context is specified, logins are considered in that context only.\n"
+"a context is specified, logins are considered in that voicemail context only.\n"
 "Returns -1 if the user hangs up or 0 otherwise.\n";
 
 static char *synopsis_vm_box_exists =
