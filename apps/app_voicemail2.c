@@ -1842,6 +1842,8 @@ forward_message(struct ast_channel *chan, char *context, char *dir, int curmsg, 
 			  
 			  ast_destroy(mif); /* or here */
 			}
+			/* Leave voicemail for someone */
+			manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", username, ast_app_has_voicemail(username));
 
 			/* give confirmatopm that the message was saved */
 			res = play_and_wait(chan, "vm-message");
