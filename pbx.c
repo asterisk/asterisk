@@ -2303,21 +2303,19 @@ int ast_pbx_run(struct ast_channel *c)
 					ast_cdr_update(c);
 			    }
 			} else {
-				if (option_verbose > 0) {
-					char *status;
-					status = pbx_builtin_getvar_helper(c, "DIALSTATUS");
-					if (!status)
-						status = "UNKNOWN";
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_2 "Auto fallthrough, channel '%s' status is '%s'\n", c->name, status);
-					if (!strcasecmp(status, "CONGESTION"))
-						res = pbx_builtin_congestion(c, "10");
-					else if (!strcasecmp(status, "CHANUNAVAIL"))
-						res = pbx_builtin_congestion(c, "10");
-					else if (!strcasecmp(status, "BUSY"))
-						res = pbx_builtin_busy(c, "10");
-					goto out;
-				}
+				char *status;
+				status = pbx_builtin_getvar_helper(c, "DIALSTATUS");
+				if (!status)
+					status = "UNKNOWN";
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_2 "Auto fallthrough, channel '%s' status is '%s'\n", c->name, status);
+				if (!strcasecmp(status, "CONGESTION"))
+					res = pbx_builtin_congestion(c, "10");
+				else if (!strcasecmp(status, "CHANUNAVAIL"))
+					res = pbx_builtin_congestion(c, "10");
+				else if (!strcasecmp(status, "BUSY"))
+					res = pbx_builtin_busy(c, "10");
+				goto out;
 			}
 		}
 	}
