@@ -39,7 +39,7 @@
 
 static int dtmftimeout = 300;	/* 300 samples */
 
-// The value of each RTP payload format mapping:
+// The value of each payload format mapping:
 struct rtpPayloadType {
   int isAstFormat; // whether the following code is an AST_FORMAT
   int code;
@@ -276,7 +276,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	printf("Got RTP packet from %s:%d (type %d, seq %d, ts %d, len = %d)\n", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
 #endif	
 	rtp->f.frametype = AST_FRAME_VOICE;
-	rtpPT = rtp_lookup_pt(rtp, payloadtype);
+	rtpPT = ast_rtp_lookup_pt(rtp, payloadtype);
 	if (!rtpPT.isAstFormat) {
 	  // This is special in-band data that's not one of our codecs
 	  if (rtpPT.code == AST_RTP_DTMF) {
@@ -370,7 +370,7 @@ static struct {
   {{1, AST_FORMAT_LPC10}, "audio", "LPC"},
   {{1, AST_FORMAT_G729A}, "audio", "G729"},
   {{1, AST_FORMAT_SPEEX}, "audio", "SPEEX"},
-  {{0, AST_RTP_DTMF}, "audio", "TELEPHONE-EVENT"},
+  {{0, AST_RTP_DTMF}, "audio", "telephone-event"},
   {{0, AST_RTP_CN}, "audio", "CN"},
   {{1, AST_FORMAT_JPEG}, "video", "JPEG"},
   {{1, AST_FORMAT_PNG}, "video", "PNG"},
@@ -397,9 +397,11 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
   [26] = {1, AST_FORMAT_JPEG},
   [31] = {1, AST_FORMAT_H261},
   [34] = {1, AST_FORMAT_H263},
+  [101] = {0, AST_RTP_DTMF},
 };
 
-void rtp_pt_init(struct ast_rtp* rtp) {
+void ast_rtp_pt_clear(struct ast_rtp* rtp) 
+{
   int i;
 
   for (i = 0; i < MAX_RTP_PT; ++i) {
@@ -412,10 +414,24 @@ void rtp_pt_init(struct ast_rtp* rtp) {
   rtp->rtp_lookup_code_cache_result = 0;
 }
 
+void ast_rtp_pt_default(struct ast_rtp* rtp) 
+{
+  int i;
+  /* Initialize to default payload types */
+  for (i = 0; i < MAX_RTP_PT; ++i) {
+    rtp->current_RTP_PT[i].isAstFormat = static_RTP_PT[i].isAstFormat;
+    rtp->current_RTP_PT[i].code = static_RTP_PT[i].code;
+  }
+
+  rtp->rtp_lookup_code_cache_isAstFormat = 0;
+  rtp->rtp_lookup_code_cache_code = 0;
+  rtp->rtp_lookup_code_cache_result = 0;
+}
+
 // Make a note of a RTP payload type that was seen in a SDP "m=" line.
 // By default, use the well-known value for this type (although it may
 // still be set to a different value by a subsequent "a=rtpmap:" line):
-void rtp_set_m_type(struct ast_rtp* rtp, int pt) {
+void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt) {
   if (pt < 0 || pt > MAX_RTP_PT) return; // bogus payload type
 
   if (static_RTP_PT[pt].code != 0) {
@@ -425,15 +441,15 @@ void rtp_set_m_type(struct ast_rtp* rtp, int pt) {
 
 // Make a note of a RTP payload type (with MIME type) that was seen in
 // a SDP "a=rtpmap:" line.
-void rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,
+void ast_rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,
 			 char* mimeType, char* mimeSubtype) {
   int i;
 
   if (pt < 0 || pt > MAX_RTP_PT) return; // bogus payload type
 
   for (i = 0; i < sizeof mimeTypes/sizeof mimeTypes[0]; ++i) {
-    if (strcmp(mimeSubtype, mimeTypes[i].subtype) == 0 &&
-	strcmp(mimeType, mimeTypes[i].type) == 0) {
+    if (strcasecmp(mimeSubtype, mimeTypes[i].subtype) == 0 &&
+	strcasecmp(mimeType, mimeTypes[i].type) == 0) {
       rtp->current_RTP_PT[pt] = mimeTypes[i].payloadType;
       return;
     }
@@ -442,7 +458,7 @@ void rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,
 
 // Return the union of all of the codecs that were set by rtp_set...() calls
 // They're returned as two distinct sets: AST_FORMATs, and AST_RTPs
-void rtp_get_current_formats(struct ast_rtp* rtp,
+void ast_rtp_get_current_formats(struct ast_rtp* rtp,
 			     int* astFormats, int* nonAstFormats) {
   int pt;
 
@@ -456,7 +472,7 @@ void rtp_get_current_formats(struct ast_rtp* rtp,
   }
 }
 
-struct rtpPayloadType rtp_lookup_pt(struct ast_rtp* rtp, int pt) {
+struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt) {
   if (pt < 0 || pt > MAX_RTP_PT) {
     struct rtpPayloadType result;
     result.isAstFormat = result.code = 0;
@@ -465,7 +481,7 @@ struct rtpPayloadType rtp_lookup_pt(struct ast_rtp* rtp, int pt) {
   return rtp->current_RTP_PT[pt];
 }
 
-int rtp_lookup_code(struct ast_rtp* rtp, int isAstFormat, int code) {
+int ast_rtp_lookup_code(struct ast_rtp* rtp, int isAstFormat, int code) {
   int pt;
 
   if (isAstFormat == rtp->rtp_lookup_code_cache_isAstFormat &&
@@ -486,7 +502,7 @@ int rtp_lookup_code(struct ast_rtp* rtp, int isAstFormat, int code) {
   return -1;
 }
 
-char* rtp_lookup_mime_subtype(int isAstFormat, int code) {
+char* ast_rtp_lookup_mime_subtype(int isAstFormat, int code) {
   int i;
 
   for (i = 0; i < sizeof mimeTypes/sizeof mimeTypes[0]; ++i) {
@@ -540,6 +556,7 @@ struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io)
 		rtp->io = io;
 		rtp->ioid = ast_io_add(rtp->io, rtp->s, rtpread, AST_IO_IN, rtp);
 	}
+	ast_rtp_pt_default(rtp);
 	return rtp;
 }
 
@@ -733,7 +750,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		return -1;
 	}
 
-	codec = rtp_lookup_code(rtp, 1, _f->subclass);
+	codec = ast_rtp_lookup_code(rtp, 1, _f->subclass);
 	if (codec < 0) {
 		ast_log(LOG_WARNING, "Don't know how to send format %d packets with RTP\n", _f->subclass);
 		return -1;

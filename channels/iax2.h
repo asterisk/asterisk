@@ -107,12 +107,12 @@ struct ast_iax2_full_hdr {
 	unsigned short scallno;	/* Source call number -- high bit must be 1 */
 	unsigned short dcallno;	/* Destination call number -- high bit is 1 if retransmission */
 	unsigned int ts;		/* 32-bit timestamp in milliseconds (from 1st transmission) */
-	unsigned short oseqno;	/* Packet number (outgoing) */
-	unsigned short iseqno;	/* Packet number (next incoming expected) */
+	unsigned char oseqno;	/* Packet number (outgoing) */
+	unsigned char iseqno;	/* Packet number (next incoming expected) */
 	char type;				/* Frame type */
 	unsigned char csub;		/* Compressed subclass */
 	unsigned char iedata[0];
-};
+} __attribute__ ((__packed__));
 
 /* Mini header is used only for voice frames -- delivered unreliably */
 struct ast_iax2_mini_hdr {
@@ -121,6 +121,6 @@ struct ast_iax2_mini_hdr {
 							/* Frametype implicitly VOICE_FRAME */
 							/* subclass implicit from last ast_iax2_full_hdr */
 	unsigned char iedata[0];
-};
+} __attribute__ ((__packed__));
 
 #endif

@@ -867,14 +867,14 @@ static int process_sdp(struct mgcp_endpoint *p, struct mgcp_request *req)
 	printf("Peer RTP is at port %s:%d\n", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 #endif	
 	// Scan through the RTP payload types specified in a "m=" line:
-        rtp_pt_init(p->rtp);
+    ast_rtp_pt_clear(p->rtp);
 	codecs = m + len;
 	while(strlen(codecs)) {
 		if (sscanf(codecs, "%d %n", &codec, &len) != 1) {
 			ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 			return -1;
 		}
-		rtp_set_m_type(p->rtp, codec);
+		ast_rtp_set_m_type(p->rtp, codec);
 		codecs += len;
 	}
 
@@ -883,20 +883,14 @@ static int process_sdp(struct mgcp_endpoint *p, struct mgcp_request *req)
         sdpLineNum_iterator_init(&iterator);
         while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
           char* mimeSubtype = strdup(a); // ensures we have enough space
-          int subtypeLen, i;
           if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2) continue;
           // Note: should really look at the 'freq' and '#chans' params too
-          subtypeLen = strlen(mimeSubtype);
-          // Convert the MIME subtype to upper case, for ease of searching:
-          for (i = 0; i < subtypeLen; ++i) {
-            mimeSubtype[i] = toupper(mimeSubtype[i]);
-          }
-          rtp_set_rtpmap_type(p->rtp, codec, "audio", mimeSubtype);
+          ast_rtp_set_rtpmap_type(p->rtp, codec, "audio", mimeSubtype);
 	  free(mimeSubtype);
         }
 
         // Now gather all of the codecs that were asked for:
-        rtp_get_current_formats(p->rtp,
+        ast_rtp_get_current_formats(p->rtp,
                                 &peercapability, &peerNonCodecCapability);
 	p->capability = capability & peercapability;
 	if (mgcpdebug) {
@@ -1065,11 +1059,11 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_endpoint *p, struct as
 		if (p->capability & x) {
 			if (mgcpdebug)
 				ast_verbose("Answering with capability %d\n", x);
-			codec = rtp_lookup_code(p->rtp, 1, x);
+			codec = ast_rtp_lookup_code(p->rtp, 1, x);
                         if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
 				strcat(m, costr);
-				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, rtp_lookup_mime_subtype(1, x));
+				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, x));
 				strcat(a, costr);
 			}
 		}
@@ -1078,11 +1072,11 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_endpoint *p, struct as
 	        if (p->nonCodecCapability & x) {
 		        if (mgcpdebug)
 			        ast_verbose("Answering with non-codec capability %d\n", x);
-			codec = rtp_lookup_code(p->rtp, 0, x);
+			codec = ast_rtp_lookup_code(p->rtp, 0, x);
 			if (codec > -1) {
 			        snprintf(costr, sizeof(costr), " %d", codec);
 				strcat(m, costr);
-				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, rtp_lookup_mime_subtype(0, x));
+				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(0, x));
 				strcat(a, costr);
 				if (x == AST_RTP_DTMF) {
 				  /* Indicate we support DTMF...  Not sure about 16, but MSN supports it so dang it, we will too... */
@@ -1121,7 +1115,7 @@ static int transmit_modify_with_sdp(struct mgcp_endpoint *p, struct ast_rtp *rtp
 	snprintf(local, sizeof(local), "p:20");
 	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
 		if (p->capability & x) {
-			snprintf(tmp, sizeof(tmp), ", a:%s", rtp_lookup_mime_subtype(1, x));
+			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype(1, x));
 			strcat(local, tmp);
 		}
 	}
@@ -1146,7 +1140,7 @@ static int transmit_connect_with_sdp(struct mgcp_endpoint *p, struct ast_rtp *rt
 	snprintf(local, sizeof(local), "p:20");
 	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
 		if (p->capability & x) {
-			snprintf(tmp, sizeof(tmp), ", a:%s", rtp_lookup_mime_subtype(1, x));
+			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype(1, x));
 			strcat(local, tmp);
 		}
 	}

@@ -277,13 +277,13 @@ struct chan_iax2_pvt {
 	/* Expirey (optional) */
 	int expirey;
 	/* Next outgoing sequence number */
-	unsigned short oseqno;
+	unsigned char oseqno;
 	/* Next sequence number they have not yet acknowledged */
-	unsigned short rseqno;
+	unsigned char rseqno;
 	/* Next incoming sequence number */
-	unsigned short iseqno;
+	unsigned char iseqno;
 	/* Last incoming sequence number we have acknowledged */
-	unsigned short aseqno;
+	unsigned char aseqno;
 	/* Peer name */
 	char peer[80];
 	/* Default Context */
@@ -606,9 +606,9 @@ void showframe(struct ast_iax2_frame *f, struct ast_iax2_full_hdr *fhi, int rx, 
 		subclass = subclass2;
 	}
 	ast_verbose(
-"%s-Frame Retry[%s] -- OSeqno: %4.4d ISeqno: %4.4d Type: %s Subclass: %s\n",
+"%s-Frame Retry[%s] -- OSeqno: %3.3d ISeqno: %3.3d Type: %s Subclass: %s\n",
 	(rx ? "Rx" : "Tx"),
-	retries, ntohs(fh->oseqno), ntohs(fh->iseqno), class, subclass);
+	retries, fh->oseqno, fh->iseqno, class, subclass);
 		fprintf(stderr,
 "   Timestamp: %05dms  SCall: %5.5d  DCall: %5.5d [%s:%d]\n",
 	ntohl(fh->ts),
@@ -1163,7 +1163,7 @@ static int update_packet(struct ast_iax2_frame *f)
 	fh->dcallno = ntohs(AST_FLAG_RETRANS | f->dcallno);
 	/* Update iseqno */
 	f->iseqno = iaxs[f->callno]->iseqno;
-	fh->iseqno = ntohs(f->iseqno);
+	fh->iseqno = f->iseqno;
 	return 0;
 }
 
@@ -1398,7 +1398,7 @@ static int forward_delivery(struct ast_iax2_frame *fr)
 }
 #endif
 
-static int schedule_delivery(struct ast_iax2_frame *fr, int reallydeliver)
+static int schedule_delivery(struct ast_iax2_frame *fr, int reallydeliver, int updatehistory)
 {
 	int ms,x;
 	int drops[MEMORY_SIZE];
@@ -1423,10 +1423,12 @@ static int schedule_delivery(struct ast_iax2_frame *fr, int reallydeliver)
 	
 	/* Rotate our history queue of "lateness".  Don't worry about those initial
 	   zeros because the first entry will always be zero */
-	for (x=0;x<MEMORY_SIZE - 1;x++) 
-		iaxs[fr->callno]->history[x] = iaxs[fr->callno]->history[x+1];
-	/* Add a history entry for this one */
-	iaxs[fr->callno]->history[x] = ms;
+	if (updatehistory) {
+		for (x=0;x<MEMORY_SIZE - 1;x++) 
+			iaxs[fr->callno]->history[x] = iaxs[fr->callno]->history[x+1];
+		/* Add a history entry for this one */
+		iaxs[fr->callno]->history[x] = ms;
+	}
 
 	/* Initialize the minimum to reasonable values.  It's too much
 	   work to do the same for the maximum, repeatedly */
@@ -2177,9 +2179,9 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 	int res;
 	unsigned int lastsent;
 	/* Allocate an ast_iax2_frame */
-	if (now)
+	if (now) {
 		fr = &fr2;
-	else
+	} else
 		fr = ast_iax2_frame_new(DIRECTION_OUTGRESS, f->datalen);
 	if (!fr) {
 		ast_log(LOG_WARNING, "Out of memory\n");
@@ -2220,8 +2222,8 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		fh = (struct ast_iax2_full_hdr *)(fr->af.data - sizeof(struct ast_iax2_full_hdr));
 		fh->scallno = htons(fr->callno | AST_FLAG_FULL);
 		fh->ts = htonl(fr->ts);
-		fh->oseqno = htons(fr->oseqno);
-		fh->iseqno = htons(fr->iseqno);
+		fh->oseqno = fr->oseqno;
+		fh->iseqno = fr->iseqno;
 		/* Keep track of the last thing we've acknowledged */
 		pvt->aseqno = fr->iseqno;
 		fh->type = fr->af.frametype & 0xFF;
@@ -3491,6 +3493,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 {
 	struct sockaddr_in sin;
 	int res;
+	int updatehistory=1;
 	int new = NEW_PREVENT;
 	char buf[4096];
 	int len = sizeof(sin);
@@ -3568,10 +3571,13 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		iaxs[fr.callno]->peercallno = (short)(ntohs(mh->callno) & ~AST_FLAG_FULL);
 	if (ntohs(mh->callno) & AST_FLAG_FULL) {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Received packet %d, (%d, %d)\n", ntohs(fh->oseqno), f.frametype, f.subclass);
+			ast_log(LOG_DEBUG, "Received packet %d, (%d, %d)\n", fh->oseqno, f.frametype, f.subclass);
 		/* Check if it's out of order (and not an ACK or INVAL) */
-		fr.oseqno = ntohs(fh->oseqno);
-		fr.iseqno = ntohs(fh->iseqno);
+		fr.oseqno = fh->oseqno;
+		fr.iseqno = fh->iseqno;
+		fr.ts = ntohl(fh->ts);
+		if (ntohs(fh->dcallno) & AST_FLAG_RETRANS)
+			updatehistory = 0;
 		if ((iaxs[fr.callno]->iseqno != fr.oseqno) &&
 			(iaxs[fr.callno]->iseqno ||
 				((f.subclass != AST_IAX2_COMMAND_TXCNT) &&
@@ -3684,7 +3690,6 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				f.data = empty;
 			memset(&ies, 0, sizeof(ies));
 		}
-		fr.ts = ntohl(fh->ts);
 		if (f.frametype == AST_FRAME_VOICE) {
 			if (f.subclass != iaxs[fr.callno]->voiceformat) {
 					iaxs[fr.callno]->voiceformat = f.subclass;
@@ -3713,7 +3718,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			/* Go through the motions of delivering the packet without actually doing so,
 			   unless this is a lag request since it will be done for real */
 			if (f.subclass != AST_IAX2_COMMAND_LAGRQ)
-				schedule_delivery(&fr, 0);
+				schedule_delivery(&fr, 0, updatehistory);
 			switch(f.subclass) {
 			case AST_IAX2_COMMAND_ACK:
 				/* Do nothing */
@@ -3963,7 +3968,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					f.offset = 0;
 					f.samples = 0;
 					ast_iax2_frame_wrap(&fr, &f);
-					schedule_delivery(iaxfrdup2(&fr), 1);
+					schedule_delivery(iaxfrdup2(&fr), 1, updatehistory);
 #ifdef BRIDGE_OPTIMIZATION
 				}
 #endif				
@@ -4239,10 +4244,10 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	if (iaxs[fr.callno]->bridgecallno) {
 		forward_delivery(&fr);
 	} else {
-		schedule_delivery(iaxfrdup2(&fr), 1);
+		schedule_delivery(iaxfrdup2(&fr), 1, updatehistory);
 	}
 #else
-	schedule_delivery(iaxfrdup2(&fr), 1);
+	schedule_delivery(iaxfrdup2(&fr), 1, updatehistory);
 #endif
 	/* Always run again */
 	ast_pthread_mutex_unlock(&iaxsl[fr.callno]);
