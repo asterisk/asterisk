@@ -637,6 +637,9 @@ static int get_samples(struct ast_frame *f)
 	case AST_FORMAT_GSM:
 		samples = 160 * (f->datalen / 33);
 		break;
+	case AST_FORMAT_ILBC:
+		samples = 240 * (f->datalen / 52);
+		break;
 	case AST_FORMAT_SLINEAR:
 		samples = f->datalen / 2;
 		break;
