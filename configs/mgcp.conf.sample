@@ -36,3 +36,15 @@
 ;cancallforward=yes 
 ;line => aaln/1 
 ;
+
+;[dph100]
+;
+; Supporting the DPH100M requires defining DLINK_BUGGY_FIRMWARE in
+; chan_mgcp.c in addition to enabling the slowsequence mode due to
+; bugs in the D-Link firmware
+;
+;context=local
+;host=dynamic
+;slowsequence=yes	; The DPH100M does not follow MGCP standards for sequencing
+;line => aaln/1
+

@@ -93,6 +93,12 @@
 #define IPTOS_MINCOST 0x02
 #endif
 
+/*
+ * Define to work around buggy dlink MGCP phone firmware which
+ * appears not to know that "rt" is part of the "G" package.
+ */
+/* #define DLINK_BUGGY_FIRMWARE	 */
+
 #define MGCPDUMPER
 #define DEFAULT_EXPIREY 120
 #define MAX_EXPIREY     3600
@@ -173,6 +179,8 @@ static int callwaiting = 0;
 /*static int hidecallerid = 0;*/
 
 static int callreturn = 0;
+
+static int slowsequence = 0;
 
 static int threewaycalling = 0;
 
@@ -363,6 +371,7 @@ struct mgcp_endpoint {
 	int dtmfinband;
 	int amaflags;
 	int type;
+	int slowsequence;				  /* MS: Sequence the endpoint as a whole */
 	int group;
 	int iseq; /* Not used? */
 	int lastout; /* tracking this on the subchannels.  Is it needed here? */
@@ -703,6 +712,12 @@ static int send_request(struct mgcp_endpoint *p, struct mgcp_subchannel *sub,
 	char iabuf[INET_ADDRSTRLEN];
     ast_mutex_t *l;
 
+	ast_log(LOG_DEBUG, "Slow sequence is %d\n", p->slowsequence);
+	if (p->slowsequence) {
+		queue = &p->cmd_queue;
+		l = &p->cmd_queue_lock;
+		ast_mutex_lock(l);
+	} else
     switch (req->cmd) {
         case MGCP_CMD_DLCX:
             queue = &sub->cx_queue;
@@ -1181,7 +1196,11 @@ static int mgcp_indicate(struct ast_channel *ast, int ind)
     }
 	switch(ind) {
 	case AST_CONTROL_RINGING:
+#ifdef DLINK_BUGGY_FIRMWARE	
+		transmit_notify_request(sub, "rt");
+#else
 		transmit_notify_request(sub, "G/rt");
+#endif		
 		break;
 	case AST_CONTROL_BUSY:
 		transmit_notify_request(sub, "L/bz");
@@ -2209,7 +2228,9 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
         return;
     }
 
-    if (sub)
+	if (p->slowsequence) 
+		req = find_command(p, sub, &p->cmd_queue, &p->cmd_queue_lock, ident);
+	else if (sub)
         req = find_command(p, sub, &sub->cx_queue, &sub->cx_queue_lock, ident);
     else if (!(req = find_command(p, sub, &p->rqnt_queue, &p->rqnt_queue_lock, ident)))
         req = find_command(p, sub, &p->cmd_queue, &p->cmd_queue_lock, ident);
@@ -2746,7 +2767,11 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
             }
             if (p->immediate) {
                 /* The channel is immediately up.  Start right away */
-                transmit_notify_request(sub, "G/rt");
+#ifdef DLINK_BUGGY_FIRMWARE	
+				transmit_notify_request(sub, "rt");
+#else
+				transmit_notify_request(sub, "G/rt");
+#endif		
                 c = mgcp_new(sub, AST_STATE_RING);
                 if (!c) {
                     ast_log(LOG_WARNING, "Unable to start PBX on channel %s@%s\n", p->name, p->parent->name);
@@ -3465,6 +3490,8 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
                 immediate = ast_true(v->value);
             } else if (!strcasecmp(v->name, "callwaiting")) {
                 callwaiting = ast_true(v->value);
+            } else if (!strcasecmp(v->name, "slowsequence")) {
+                slowsequence = ast_true(v->value);
             } else if (!strcasecmp(v->name, "transfer")) {
                 transfer = ast_true(v->value);
             } else if (!strcasecmp(v->name, "threewaycalling")) {
@@ -3518,6 +3545,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
             		e->cancallforward = cancallforward;
             		e->canreinvite = canreinvite;
             		e->callwaiting = callwaiting;
+            		e->slowsequence = slowsequence;
             		e->transfer = transfer;
             		e->threewaycalling = threewaycalling;
             		e->onhooktime = time(NULL);
@@ -3615,6 +3643,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
                     e->cancallforward = cancallforward;
                     e->canreinvite = canreinvite;
                     e->callwaiting = callwaiting;
+            		e->slowsequence = slowsequence;
                     e->transfer = transfer;
                     e->threewaycalling = threewaycalling;
                     if (!ep_reload) {
