@@ -1,9 +1,9 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Time of day - Report the time of day
+ * Caller*id name lookup - Look up the caller's name via DNS
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -36,7 +36,7 @@ static char *app = "TXTCIDName";
 static char *synopsis = "Lookup caller name from TXT record";
 
 static char *descrip = 
-"  TXTLookup(CallerID):  Looks up an Caller Name via DNS and sets\n"
+"  TXTLookup(CallerID):  Looks up a Caller Name via DNS and sets\n"
 "the variable 'TXTCIDNAME'. TXTCIDName will either be blank\n"
 "or return the value found in the TXT record in DNS.\n" ;
 
