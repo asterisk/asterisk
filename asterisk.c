@@ -1102,6 +1102,7 @@ static char *cli_complete(EditLine *el, int ch)
 			snprintf(buf, sizeof(buf),"_COMMAND MATCHESARRAY \"%s\" \"%s\"", lf->buffer, ptr); 
 			fdprint(ast_consock, buf);
 			res = 0;
+			mbuf[0] = '\0';
 			while (!strstr(mbuf, AST_CLI_COMPLETE_EOF) && res != -1) {
 				if (mlen + 1024 > maxmbuf) {
 					/* Every step increment buffer 1024 bytes */
