@@ -1139,7 +1139,7 @@ int ast_pbx_run(struct ast_channel *c)
 				/* Something bad happened, or a hangup has been requested. */
 				if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F'))) {
 					ast_log(LOG_DEBUG, "Oooh, got something to jump out with ('%c')!\n", res);
-					exten[pos++] = res;
+					exten[pos++] = digit = res;
 					break;
 				}
 				switch(res) {

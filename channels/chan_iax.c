@@ -1758,6 +1758,10 @@ static int iax_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 				ast_verbose(VERBOSE_PREFIX_3 "Can't masquerade, we're different...\n");
 			return -2;
 		}
+		if (c0->nativeformats != c1->nativeformats) {
+			ast_verbose(VERBOSE_PREFIX_3 "Operating with different codecs, can't native bridge...\n");
+			return -2;
+		}
 		if (!transferstarted) {
 			/* Try the transfer */
 			if (iax_start_transfer(c0, c1))
@@ -2240,12 +2244,13 @@ static int iax_show_channels(int fd, int argc, char *argv[])
 #define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-7.7s  %-6.6s  %s\n"
 #define FORMAT  "%-15.15s  %-10.10s  %5.5d/%5.5d  %5.5d/%5.5d  %-5.5dms  %-4.4dms  %d\n"
 	int x;
+	int numchans = 0;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, FORMAT2, "Peer", "Username", "ID (Lo/Rem)", "Seq (Tx/Rx)", "Lag", "Jitter", "Format");
 	for (x=0;x<AST_IAX_MAX_CALLS;x++) {
 		ast_pthread_mutex_lock(&iaxsl[x]);
-		if (iaxs[x]) 
+		if (iaxs[x]) {
 			ast_cli(fd, FORMAT, inet_ntoa(iaxs[x]->addr.sin_addr), 
 						strlen(iaxs[x]->username) ? iaxs[x]->username : "(None)", 
 						iaxs[x]->callno, iaxs[x]->peercallno, 
@@ -2253,8 +2258,11 @@ static int iax_show_channels(int fd, int argc, char *argv[])
 						iaxs[x]->lag,
 						iaxs[x]->jitter,
 						iaxs[x]->voiceformat);
+			numchans++;
+		}
 		ast_pthread_mutex_unlock(&iaxsl[x]);
 	}
+	ast_cli(fd, "%d active IAX channel(s)\n", numchans);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2

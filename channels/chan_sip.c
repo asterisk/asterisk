@@ -2413,6 +2413,7 @@ static int sip_show_channels(int fd, int argc, char *argv[])
 #define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-7.7s  %-6.6s  %s\n"
 #define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-5.5dms  %-4.4dms  %d\n"
 	struct sip_pvt *cur;
+	int numchans = 0;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_pthread_mutex_lock(&iflock);
@@ -2427,8 +2428,10 @@ static int sip_show_channels(int fd, int argc, char *argv[])
 						0,
 						cur->owner ? cur->owner->nativeformats : 0);
 		cur = cur->next;
+		numchans++;
 	}
 	ast_pthread_mutex_unlock(&iflock);
+	ast_cli(fd, "%d active SIP channel(s)\n", numchans);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -3048,9 +3051,12 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		else
 			transmit_response(p, "202 Accepted", req);
 		ast_log(LOG_DEBUG,"202 Accepted\n");
-		transfer_to = c->bridge;
-		if (transfer_to)
-			ast_async_goto(transfer_to,"", p->refer_to,1, 1);
+		c = p->owner;
+		if (c) {
+			transfer_to = c->bridge;
+			if (transfer_to)
+				ast_async_goto(transfer_to,"", p->refer_to,1, 1);
+		}
 			
 	} else if (!strcasecmp(cmd, "CANCEL") || !strcasecmp(cmd, "BYE")) {
 		copy_request(&p->initreq, req);

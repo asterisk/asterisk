@@ -967,7 +967,8 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		if (!(f->subclass & chan->nativeformats)) {
 			/* This frame can't be from the current native formats -- drop it on the
 			   floor */
-			ast_log(LOG_NOTICE, "Dropping incompatible voice frame on %s since our native format has changed\n", chan->name);
+			ast_log(LOG_NOTICE, "Dropping incompatible voice frame on %s of format %d since our native format has changed to %d\n", chan->name, f->subclass, chan->nativeformats);
+			ast_frfree(f);
 			f = &null_frame;
 		} else if (chan->pvt->readtrans) {
 			f = ast_translate(chan->pvt->readtrans, f, 1);

@@ -352,14 +352,14 @@ int ast_app_getdata(struct ast_channel *c, char *prompt, char *s, int maxlen, in
 static int handle_getdata(struct ast_channel *chan, int fd, int argc, char *argv[])
 {
 	int res;
-	char data[50];
+	char data[1024];
 	int max;
 	int timeout;
 
 	if (argc < 3)
 		return RESULT_SHOWUSAGE;
 	if (argc >= 4) timeout = atoi(argv[3]); else timeout = 0;
-	if (argc >= 5) max = atoi(argv[4]); else max = 50;
+	if (argc >= 5) max = atoi(argv[4]); else max = 1024;
 	res = ast_app_getdata(chan, argv[2], data, max, timeout);
 	if (res == 1)
 		fdprintf(fd, "200 result=%s (timeout)\n", data);

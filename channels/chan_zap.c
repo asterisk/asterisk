@@ -5361,11 +5361,11 @@ static void *pri_dchannel(void *vpri)
 						ast_log(LOG_WARNING, "Ringing requested on channel %d not in use on span %d\n", e->ringing.channel, pri->span);
 						chan = 0;
 					} else if (!strlen(pri->pvt[chan]->dop.dialstr)) {
+						zt_enable_ec(pri->pvt[chan]);
 						pri->pvt[chan]->subs[SUB_REAL].needringing =1;
 					} else
 						ast_log(LOG_DEBUG, "Deferring ringing notification because of extra digits to dial...\n");
 				}
-				zt_enable_ec(pri->pvt[chan]);
 				break;				
 			case PRI_EVENT_FACNAME:
 				chan = e->facname.channel;

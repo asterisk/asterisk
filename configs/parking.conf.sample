@@ -6,4 +6,4 @@
 parkext => 700				; What ext. to dial to park
 parkpos => 701-720			; What extensions to park calls on
 context => parkedcalls			; Which context parked calls are in
-
+;parkingtime => 45			; Number of seconds a call can be parked for (default is 45 seconds)
