@@ -571,7 +571,10 @@ static int process_message(struct mansession *s, struct message *m)
 				ast_log(LOG_EVENT, "Manager '%s' logged on from %s\n", s->username, inet_ntoa(s->sin.sin_addr));
 				astman_send_ack(s, "Authentication accepted");
 			}
-		} else 
+		} else if (!strcasecmp(action, "Logoff")) {
+			astman_send_ack(s, "See ya");
+			return -1;
+		} else
 			astman_send_error(s, "Authentication Required");
 	} else {
 		while( tmp ) { 		
