@@ -3915,8 +3915,10 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		/* Assume calls are not idle calls unless we're told differently */
 		i->isidlecall = 0;
 		i->alreadyhungup = 0;
-		i->digital = ctype;
-		ast_set2_flag(tmp, ctype, AST_FLAG_DIGITAL);
+		if (ctype & PRI_TRANS_CAP_DIGITAL) {
+			i->digital = 1;
+			ast_set_flag(tmp, AST_FLAG_DIGITAL);
+		}
 #endif
 		/* clear the fake event in case we posted one before we had ast_chanenl */
 		i->fake_event = 0;
