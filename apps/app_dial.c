@@ -366,8 +366,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	
 	LOCAL_USER_ADD(u);
 	
-	/* Parse our arguments XXX Check for failure XXX */
-	strncpy(info, (char *)data, strlen((char *)data) + AST_MAX_EXTENSION-1);
+	strncpy(info, (char *)data, sizeof(info) - 1);
 	peers = info;
 	if (peers) {
 		timeout = strchr(info, '|');
