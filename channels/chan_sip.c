@@ -1156,7 +1156,7 @@ static int sip_addrcmp(char *name, struct sockaddr_in *sin)
 {
 	/* We know name is the first field, so we can cast */
 	struct sip_peer *p = (struct sip_peer *)name;
-	return 	(!inaddrcmp(&p->addr, sin) || 
+	return 	!(!inaddrcmp(&p->addr, sin) || 
 					(p->insecure &&
 					(p->addr.sin_addr.s_addr == sin->sin_addr.s_addr)));
 }
