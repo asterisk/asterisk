@@ -5885,6 +5885,7 @@ restartsearch:
 
 static int restart_monitor(void)
 {
+	pthread_attr_t attr;
 	/* If we're supposed to be stopped -- stay stopped */
 	if (monitor_thread == AST_PTHREADT_STOP)
 		return 0;
@@ -5901,8 +5902,10 @@ static int restart_monitor(void)
 		/* Wake up the thread */
 		pthread_kill(monitor_thread, SIGURG);
 	} else {
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		/* Start a new monitor */
-		if (pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {
+		if (pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {
 			ast_mutex_unlock(&monlock);
 			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
 			return -1;
@@ -6701,26 +6704,34 @@ static char *descrip_dtmfmode = "SIPDtmfMode(inband|info|rfc2833): Changes the d
 static char *app_dtmfmode = "SIPDtmfMode";
 static int sip_dtmfmode(struct ast_channel *chan, void *data)
 {
-	struct sip_pvt *p = chan->pvt->pvt;
+	struct sip_pvt *p;
 	char *mode;
-	if (chan->type != type) {
-		ast_log(LOG_WARNING, "Call this application only on SIP incoming calls\n");
-		return 0;
-	}
 	if (data)
 		mode = (char *)data;
 	else {
 		ast_log(LOG_WARNING, "This application requires the argument: info, inband, rfc2833\n");
 		return 0;
 	}
-	if (!strcasecmp(mode,"info"))
-		p->dtmfmode = SIP_DTMF_INFO;
-	else if (!strcasecmp(mode,"rfc2833"))
-		p->dtmfmode = SIP_DTMF_RFC2833;
-	else if (!strcasecmp(mode,"inband"))
-		p->dtmfmode = SIP_DTMF_INBAND;
-	else
-		ast_log(LOG_WARNING, "I don't know about this dtmf mode: %s\n",mode);
+	ast_mutex_lock(&chan->lock);
+	if (chan->type != type) {
+		ast_log(LOG_WARNING, "Call this application only on SIP incoming calls\n");
+		ast_mutex_unlock(&chan->lock);
+		return 0;
+	}
+	p = chan->pvt->pvt;
+	if (p) {
+		ast_mutex_lock(&p->lock);
+		if (!strcasecmp(mode,"info"))
+			p->dtmfmode = SIP_DTMF_INFO;
+		else if (!strcasecmp(mode,"rfc2833"))
+			p->dtmfmode = SIP_DTMF_RFC2833;
+		else if (!strcasecmp(mode,"inband"))
+			p->dtmfmode = SIP_DTMF_INBAND;
+		else
+			ast_log(LOG_WARNING, "I don't know about this dtmf mode: %s\n",mode);
+		ast_mutex_unlock(&p->lock);
+	}
+	ast_mutex_unlock(&chan->lock);
 	return 0;
 }
 

@@ -25,15 +25,15 @@ the "default" context within other private contexts by using:
 in the appropriate section.  A well designed PBX might look like this:
 
 [longdistance]
-exten => _91NXXNXXXXXX,1,Dial,Tor/g2/BYEXTENSION
+exten => _91NXXNXXXXXX,1,Dial(Zap/g2/${EXTEN:1})
 include => local
 
 [local]
-exten => _9NXXNXXX,1,Dial,Tor/g2/BYEXTENSION
+exten => _9NXXNXXX,1,Dial(Zap/g2/${EXTEN:1})
 include => default
 
 [default]
-exten => 6123,Dial,Tor/1
+exten => 6123,Dial(Zap/1)
 
 
 DON'T FORGET TO TAKE THE DEMO CONTEXT OUT OF YOUR DEFAULT CONTEXT.  There

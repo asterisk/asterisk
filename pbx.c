@@ -4044,7 +4044,10 @@ int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *
 		if (appdata)
 			strncpy(as->appdata,  appdata, sizeof(as->appdata) - 1);
 		as->timeout = timeout;
-		if (pthread_create(&as->p, NULL, async_wait, as)) {
+		/* Start a new thread, and get something handling this channel. */
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+		if (pthread_create(&as->p, &attr, async_wait, as)) {
 			ast_log(LOG_WARNING, "Failed to start async wait\n");
 			free(as);
 			ast_hangup(chan);
