@@ -3166,6 +3166,27 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					} else if (p->subs[SUB_THREEWAY].owner) {
 						struct timeval tv;
 						unsigned int mssinceflash;
+						/* Here we have to retain the lock on both the main channel, the 3-way channel, and
+						   the private structure -- not especially easy or clean */
+						while(p->subs[SUB_THREEWAY].owner && ast_mutex_trylock(&p->subs[SUB_THREEWAY].owner->lock)) {
+							/* Yuck, didn't get the lock on the 3-way, gotta release everything and re-grab! */
+							ast_mutex_unlock(&p->lock);
+							ast_mutex_unlock(&ast->lock);
+							usleep(1);
+							/* We can grab ast and p in that order, without worry.  We should make sure
+							   nothing seriously bad has happened though like some sort of bizarre double
+							   masquerade! */
+							ast_mutex_lock(&ast->lock);
+							ast_mutex_lock(&p->lock);
+							if (p->owner != ast) {
+								ast_log(LOG_WARNING, "This isn't good...\n");
+								return NULL;
+							}
+						}
+						if (p->subs[SUB_THREEWAY].owner) {
+							ast_log(LOG_NOTICE, "Whoa, threeway disappeared kinda randomly.\n");
+							return NULL;
+						}
 						gettimeofday(&tv, NULL);
 						mssinceflash = (tv.tv_sec - p->flashtime.tv_sec) * 1000 + (tv.tv_usec - p->flashtime.tv_usec) / 1000;
 						ast_log(LOG_DEBUG, "Last flash was %d ms ago\n", mssinceflash);
@@ -3176,6 +3197,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 								ast_queue_hangup(p->subs[SUB_THREEWAY].owner);
 							p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							ast_log(LOG_DEBUG, "Looks like a bounced flash, hanging up both calls on %d\n", p->channel);
+							ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
 						} else if ((ast->pbx) ||
 							(ast->_state == AST_STATE_UP)) {
 							if (p->transfer) {
@@ -3186,11 +3208,14 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 									p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
 								else if (res) {
 									/* Don't actually hang up at this point */
+									ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
 									break;
 								}
 							} else
 								p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
 						} else {
+							ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
 							/* Swap subs and dis-own channel */
 							swap_subs(p, SUB_THREEWAY, SUB_REAL);
 							p->owner = NULL;
