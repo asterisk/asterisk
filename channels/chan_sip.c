@@ -7283,6 +7283,7 @@ static int sip_notify(int fd, int argc, char *argv[])
 		for (var = varlist; var; var = var->next)
 			add_header(&req, var->name, var->value);
 
+		add_blank_header(&req);
 		/* Recalculate our side, and recalculate Call ID */
 		if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
 			memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
