@@ -147,6 +147,11 @@ static struct io_context *io;
 #define SIP_MAX_HEADERS		64
 #define SIP_MAX_LINES 		64
 
+#define DEC_IN_USE	0
+#define INC_IN_USE	1
+#define DEC_OUT_USE	2
+#define INC_OUT_USE	3
+
 static struct sip_codec_pref {
 	int codec;
 	struct sip_codec_pref *next;
@@ -279,6 +284,8 @@ struct sip_user {
 	int dtmfmode;
 	int inUse;
 	int incominglimit;
+	int outUse;
+	int outgoinglimit;
 	int restrictcid;
 	struct ast_ha *ha;
 	struct sip_user *next;
@@ -391,6 +398,7 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *msg, 
 static char *getsipuri(char *header);
 static void free_old_route(struct sip_route *route);
 static int build_reply_digest(struct sip_pvt *p, char *orig_header, char *digest, int digest_len);
+static int find_user(struct sip_pvt *fup, int event);
 
 static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
@@ -844,6 +852,8 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	
 	res = 0;
 	p->outgoing = 1;
+	ast_log(LOG_DEBUG, "Outgoing Call for %s\n", p->username);
+	res = find_user(p,INC_OUT_USE);
 	p->restrictcid = ast->restrictcid;
 	transmit_invite(p, "INVITE", 1, NULL, vxml_url,distinctive_ring, 1);
 	if (p->maxtime) {
@@ -933,22 +943,44 @@ static int find_user(struct sip_pvt *fup, int event)
 		ast_mutex_unlock(&userl.lock);
 		return 0;
 	}
-	if(event == 0) {
-		if ( u->inUse > 0 ) {
-			u->inUse = u->inUse - 1;
-		} else {
-			u->inUse = 0;
-		}
-	} else {
-		if (u->incominglimit > 0 ) {
-			if (u->inUse >= u->incominglimit) {
-				ast_log(LOG_ERROR, "Call from user '%s' rejected due to usage limit of %d\n", u->name, u->incominglimit);
-				ast_mutex_unlock(&userl.lock);
-				return -1; 
+	switch(event) {
+		case DEC_IN_USE:
+			if ( u->inUse > 0 ) {
+				u->inUse--;
+			} else {
+				u->inUse = 0;
 			}
-		}
-		u->inUse++;
-		ast_log(LOG_DEBUG, "Call from user '%s' is %d out of %d\n", u->name, u->inUse, u->incominglimit);
+			break;
+		case INC_IN_USE:
+			if (u->incominglimit > 0 ) {
+				if (u->inUse >= u->incominglimit) {
+					ast_log(LOG_ERROR, "Call from user '%s' rejected due to usage limit of %d\n", u->name, u->incominglimit);
+					ast_mutex_unlock(&userl.lock);
+					return -1; 
+				}
+			}
+			u->inUse++;
+			ast_log(LOG_DEBUG, "Call from user '%s' is %d out of %d\n", u->name, u->inUse, u->incominglimit);
+			break;
+		case DEC_OUT_USE:
+			if ( u->outUse > 0 ) {
+				u->outUse--;
+			} else {
+				u->outUse = 0;
+			}
+			break;
+		case INC_OUT_USE:
+			if ( u->outgoinglimit > 0 ) {
+				if ( u->outUse >= u->outgoinglimit ) {
+					ast_log(LOG_ERROR, "Outgoing call from user '%s' rejected due to usage limit of %d\n", u->name, u->outgoinglimit);
+					ast_mutex_unlock(&userl.lock);
+					return -1;
+				}
+			}
+			u->outUse++;
+			break;
+		default:
+			ast_log(LOG_ERROR, "find_user(%s,%d) called with no event!\n",u->name,event);
 	}
 	ast_mutex_unlock(&userl.lock);
 	return 0;
@@ -976,8 +1008,13 @@ static int sip_hangup(struct ast_channel *ast)
 		return 0;
 	}
 	ast_mutex_lock(&p->lock);
-	ast_log(LOG_DEBUG, "find_user(%s)\n", p->username);
-	find_user(p, 0);
+	if ( p->outgoing ) {
+		ast_log(LOG_DEBUG, "find_user(%s) - decrement outUse counter\n", p->username);
+		find_user(p, DEC_OUT_USE);
+	} else {
+		ast_log(LOG_DEBUG, "find_user(%s) - decrement inUse counter\n", p->username);
+		find_user(p, DEC_IN_USE);
+	}
 	/* Determine how to disconnect */
 	if (p->owner != ast) {
 		ast_log(LOG_WARNING, "Huh?  We aren't the owner?\n");
@@ -3896,23 +3933,30 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 }
 
 static int sip_show_inuse(int fd, int argc, char *argv[]) {
-#define FORMAT  "%-15.15s %-15.15s %-15.15s\n"
-#define FORMAT2 "%-15.15s %-15.15s %-15.15s\n"
+#define FORMAT  "%-15.15s %-15.15s %-15.15s %-15.15s %-15.15s\n"
+#define FORMAT2 "%-15.15s %-15.15s %-15.15s %-15.15s %-15.15s\n"
 	struct sip_user *user;
-	char limits[80];
-	char used[80];
+	char ilimits[40];
+	char olimits[40];
+	char iused[40];
+	char oused[40];
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&userl.lock);
 	user = userl.users;
-	ast_cli(fd, FORMAT, "Username", "inUse", "Limit");
+	ast_cli(fd, FORMAT, "Username", "incoming", "Limit","outgoing","Limit");
 	for(user=userl.users;user;user=user->next) {
 		if (user->incominglimit)
-			snprintf(limits, sizeof(limits), "%d", user->incominglimit);
+			snprintf(ilimits, sizeof(ilimits), "%d", user->incominglimit);
 		else
-			strcpy(limits, "N/A");
-		snprintf(used, sizeof(used), "%d", user->inUse);
-		ast_cli(fd, FORMAT2, user->name, used, limits);
+			strcpy(ilimits, "N/A");
+		if (user->outgoinglimit)
+			snprintf(olimits, sizeof(olimits), "%d", user->outgoinglimit);
+		else
+			strcpy(olimits, "N/A");
+		snprintf(iused, sizeof(iused), "%d", user->inUse);
+		snprintf(oused, sizeof(oused), "%d", user->outUse);
+		ast_cli(fd, FORMAT2, user->name, iused, ilimits,oused,olimits);
 	}
 	ast_mutex_unlock(&userl.lock);
 	return RESULT_SUCCESS;
@@ -4296,7 +4340,7 @@ static char show_users_usage[] =
 
 static char show_inuse_usage[] = 
 "Usage: sip show inuse\n"
-"       List all users known to the SIP (Session Initiation Protocol) subsystem inUse counters and their incominglimit.\n";
+"       List all users known to the SIP (Session Initiation Protocol) subsystem usage counters and limits.\n";
 
 static char show_channels_usage[] = 
 "Usage: sip show channels\n"
@@ -4809,8 +4853,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			if (!strlen(p->context))
 				strncpy(p->context, context, sizeof(p->context) - 1);
 			/* Check number of concurrent calls -vs- incoming limit HERE */
-			ast_log(LOG_DEBUG, "Check for res\n");
-			res = find_user(p,1);
+			ast_log(LOG_DEBUG, "Check for res for %s\n", p->username);
+			res = find_user(p,INC_IN_USE);
 			if (res) {
 				if (res < 0) {
 					ast_log(LOG_DEBUG, "Failed to place call for user %s, too many calls\n", p->username);
@@ -4827,10 +4871,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			if (gotdest) {
 				if (gotdest < 0) {
 					transmit_response(p, "404 Not Found", req);
-					find_user(p,0);
+					find_user(p,DEC_IN_USE);
 				} else {
 					transmit_response(p, "484 Address Incomplete", req);
-					find_user(p,0);
+					find_user(p,DEC_IN_USE);
 				}
 				p->needdestroy = 1;
 			} else {
@@ -5492,6 +5536,7 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 
 		/* set the usage flag to a sane staring value*/
 		user->inUse = 0;
+		user->outUse = 0;
 
 		user->canreinvite = REINVITE_INVITE;
 		/* JK02: set default context */
@@ -5537,6 +5582,10 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 				user->incominglimit = atoi(v->value);
 				if (user->incominglimit < 0)
 				   user->incominglimit = 0;
+			} else if (!strcasecmp(v->name, "outgoinglimit")) {
+				user->outgoinglimit = atoi(v->value);
+				if (user->outgoinglimit < 0)
+				   user->outgoinglimit = 0;
 			} else if (!strcasecmp(v->name, "amaflags")) {
 				format = ast_cdr_amaflags2int(v->value);
 				if (format < 0) {
