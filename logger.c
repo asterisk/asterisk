@@ -231,7 +231,7 @@ int reload_logger(int rotate)
 		    for(x=0;;x++) {
 		      snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR,f->fn,x);
 		      myf = fopen((char *)new, "r");
-		      if(f) 
+		      if(myf) 
 					fclose(myf);
 		      else
 					break;
