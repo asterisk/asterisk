@@ -1690,6 +1690,26 @@ static int iax2_show_peer(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static char *complete_iax2_show_peer(char *line, char *word, int pos, int state)
+{
+	int which = 0;
+	struct iax2_peer *p;
+
+	/* 0 - iax2; 1 - show; 2 - peer; 3 - <peername> */
+	if(pos == 3) {
+		ast_mutex_lock(&peerl.lock);
+		for(p = peerl.peers ; p ; p = p->next) {
+			if(!strncasecmp(p->name, word, strlen(word))) {
+				if(++which > state) {
+					return strdup(p->name);
+				}
+			}
+		}
+		ast_mutex_unlock(&peerl.lock);
+	}
+
+	return NULL;
+}
 
 static int iax2_show_stats(int fd, int argc, char *argv[])
 {
@@ -1788,7 +1808,7 @@ static struct ast_cli_entry cli_show_cache =
 { { "iax2", "show", "cache", NULL }, iax2_show_cache, "Display IAX cached dialplan", show_cache_usage };
 
 static struct ast_cli_entry  cli_show_peer =
-	{ { "iax2", "show", "peer", NULL }, iax2_show_peer, "Show details on specific IAX peer", show_peer_usage };
+	{ { "iax2", "show", "peer", NULL }, iax2_show_peer, "Show details on specific IAX peer", show_peer_usage, complete_iax2_show_peer };
 
 static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset);
 
