@@ -3423,31 +3423,33 @@ static int append_mailbox(char *context, char *mbox, char *data)
 
 static int vm_box_exists(struct ast_channel *chan, void *data) {
 	struct localuser *u;
-	struct ast_vm_user *vmu;
 	struct ast_vm_user svm;
 	char *context, *box;
+	char tmp[256];
 
 	if (!data || !strlen(data)) {
 		ast_log(LOG_ERROR, "MailboxExists requires an argument: (vmbox[@context])\n");
 		return -1;
+	} else {
+		strncpy(tmp, data, sizeof(tmp) - 1);
 	}
 
 	LOCAL_USER_ADD(u);
-	context = ast_strdupa(data);
-	if (index(context, '@')) {
-		box = strsep(&context, "@");
-	} else {
-		box = context;
-		context = "default";
-	}
+	box = tmp;
 	while(*box) {
-		if ((*box != 'u') && (*box != 's') && (*box != 'b'))
+		if ((*box == 's') || (*box == 'b') || (*box == 'u')) {
+			box++;
+		} else
 			break;
-		box++;
 	}
-	vmu = find_user(&svm, context, box);
 
-	if (vmu) {
+	context = strchr(tmp, '@');
+	if (context) {
+		*context = '\0';
+		context++;
+	}
+
+	if ((!find_user(&svm, context, box))) {
 		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid)) {
 			chan->priority += 100;
 		} else
@@ -3456,7 +3458,6 @@ static int vm_box_exists(struct ast_channel *chan, void *data) {
 	LOCAL_USER_REMOVE(u);
 	return 0;
 }
-
 
 #ifndef USEMYSQLVM
 /* XXX TL Bug 690 */
