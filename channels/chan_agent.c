@@ -605,7 +605,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 			continue;
 		}
 		ast_pthread_mutex_lock(&p->lock);
-		if (p->pending && ((p->group && (newlyavailable->group & p->group)) || !strcmp(p->agent, newlyavailable->agent))) {
+		if (!p->abouttograb && p->pending && ((p->group && (newlyavailable->group & p->group)) || !strcmp(p->agent, newlyavailable->agent))) {
 			ast_log(LOG_DEBUG, "Call '%s' looks like a winner for agent '%s'\n", p->owner->name, newlyavailable->agent);
 			/* We found a pending call, time to merge */
 			chan = agent_new(newlyavailable, AST_STATE_DOWN);
