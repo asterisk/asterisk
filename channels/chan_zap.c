@@ -244,6 +244,7 @@ static char idleext[AST_MAX_EXTENSION];
 static char idledial[AST_MAX_EXTENSION];
 static int overlapdial = 0;
 static struct ast_channel inuse = { "GR-303InUse" };
+static int pritimers[PRI_MAX_TIMERS];
 #endif
 
 /* Wait up to 16 seconds for first digit (FXO logic) */
@@ -8101,6 +8102,12 @@ static int start_pri(struct zt_pri *pri)
 		}
 		pri_set_debug(pri->dchans[i], DEFAULT_PRI_DEBUG);
 		pri_set_nsf(pri->dchans[i], pri->nsf);
+#ifdef PRI_GETSET_TIMERS
+		for (x = 0; x < PRI_MAX_TIMERS; x++) {
+			if (pritimers[x] != 0)
+				pri_set_timer(pri->dchans[i], x, pritimers[x]);
+		}
+#endif
 	}
 	/* Assume primary is the one we use */
 	pri->pri = pri->dchans[0];
@@ -9496,7 +9503,26 @@ static int setup_zap(void)
 			strncpy(idledial, v->value, sizeof(idledial) - 1);
 		} else if (!strcasecmp(v->name, "overlapdial")) {
 			overlapdial = ast_true(v->value);
-#endif		
+		} else if (!strcasecmp(v->name, "pritimer")) {
+#ifdef PRI_GETSET_TIMERS
+			char *timerc;
+			int timer, timeridx;
+			c = v->value;
+			timerc = strsep(&c, ",");
+			if (timerc) {
+				timer = atoi(c);
+				if (!timer)
+					ast_log(LOG_WARNING, "'%s' is not a valid value for an ISDN timer\n", timerc);
+				else {
+					if ((timeridx = pri_timer2idx(timerc)))
+						pritimers[timeridx] = timer;
+					else
+						ast_log(LOG_WARNING, "'%s' is not a valid ISDN timer\n", timerc);
+				}
+			} else
+				ast_log(LOG_WARNING, "'%s' is not a valid ISDN timer configuration string\n", v->value);
+#endif /* PRI_GETSET_TIMERS */
+#endif /* ZAPATA_PRI */
 		} else if (!strcasecmp(v->name, "cadence")) {
 			/* setup to scan our argument */
 			int element_count, c[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};

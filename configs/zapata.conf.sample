@@ -90,6 +90,13 @@ switchtype=national
 ;
 ; priindication = outofband
 ;
+; ISDN Timers
+; All of the ISDN timers and counters that are used are configurable.  Specify 
+; the timer name, and its value (in ms for timers)
+;
+; pritimer => t200,1000
+; pritimer => t313,4000
+;
 ;
 ; Signalling method (default is fxs).  Valid values:
 ; em:      E & M
