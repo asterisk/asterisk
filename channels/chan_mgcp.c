@@ -1307,8 +1307,8 @@ static int rtpready(struct ast_rtp *rtp, struct ast_frame *f, void *data)
 				if (f->subclass != p->owner->nativeformats) {
 					ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
 					p->owner->nativeformats = f->subclass;
-					ast_set_read_format(p->owner, p->owner->readformat);
-					ast_set_write_format(p->owner, p->owner->writeformat);
+					ast_set_read_format(p->owner, p->owner->readformat, 0);
+					ast_set_write_format(p->owner, p->owner->writeformat, 0);
 				}
 				if (p->dtmfinband) {
 				    f = ast_dsp_process(p->owner,p->dsp,f,0);
