@@ -59,12 +59,8 @@ static int odbc_log(struct ast_cdr *cdr)
 	char sqlcmd[2048], timestr[128];
 	int res = 0;
 	struct tm tm;
-	struct timeval tv;
-	time_t t;
 
-	gettimeofday(&tv,NULL);
-	t = tv.tv_sec;
-	localtime_r(&t,&tm);
+	localtime_r(&cdr->start.tv_sec,&tm);
 
 	ast_mutex_lock(&odbc_lock);
 	strftime(timestr,128,DATE_FORMAT,&tm);
