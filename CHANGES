@@ -15,6 +15,9 @@
  -- chan_mgcp
     -- Fixed setting of accountcode
     -- Fixed where *67 to block callerid only worked for first call
+ -- chan_agent
+    -- We now will not pass audio until the agent has acked the call if the configuration
+       is set up for the agent to do so.
  -- res_agi
     -- A fix has been added to prevent calls from being hung up when more than one
        call is executing an AGI script calling the GET DATA command.
