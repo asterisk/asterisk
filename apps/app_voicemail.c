@@ -863,7 +863,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 			/* Something unique. */
 			snprintf(bound, sizeof(bound), "Boundary=%d%s%d", msgnum, mailbox, getpid());
 
-			fprintf(p, "Content-Type: MULTIPART/MIXED; BOUNDARY=\"%s\"\n\n\n", bound);
+			fprintf(p, "Content-Type: multipart/mixed; boundary=\"%s\"\n\n\n", bound);
 
 			fprintf(p, "--%s\n", bound);
 		}
