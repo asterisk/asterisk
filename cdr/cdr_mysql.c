@@ -291,7 +291,7 @@ int load_module(void)
 
 	mysql_init(&mysql);
 
-	if (!mysql_real_connect(&mysql, hostname, dbuser, password, dbname, 0, NULL, 0)) {
+	if (!mysql_real_connect(&mysql, hostname, dbuser, password, dbname, dbport, dbsock, 0)) {
 		ast_log(LOG_ERROR, "Failed to connect to mysql database %s on %s.\n", dbname, hostname);
 		connected = 0;
 	} else {
