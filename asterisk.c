@@ -20,6 +20,8 @@
 #include <asterisk/ulaw.h>
 #include <asterisk/callerid.h>
 #include <asterisk/module.h>
+#include <asterisk/image.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <signal.h>
 #include <sched.h>
@@ -102,8 +104,9 @@ static void *netconsole(void *vconsole)
 		}
 		if (FD_ISSET(con->fd, &rfds)) {
 			res = read(con->fd, tmp, sizeof(tmp));
-			if (res < 1)
+			if (res < 1) {
 				break;
+			}
 			tmp[res] = 0;
 			ast_cli_command(con->fd, tmp);
 		}
@@ -134,6 +137,7 @@ static void *listener(void *unused)
 	int s;
 	int len;
 	int x;
+	int flags;
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -145,13 +149,15 @@ static void *listener(void *unused)
 		} else {
 			for (x=0;x<AST_MAX_CONNECTS;x++) {
 				if (consoles[x].fd < 0) {
-					if (pipe(consoles[x].p)) {
+					if (socketpair(AF_LOCAL, SOCK_STREAM, 0, consoles[x].p)) {
 						ast_log(LOG_ERROR, "Unable to create pipe: %s\n", strerror(errno));
 						consoles[x].fd = -1;
 						fdprint(s, "Server failed to create pipe\n");
 						close(s);
 						break;
 					}
+					flags = fcntl(consoles[x].p[1], F_GETFL);
+					fcntl(consoles[x].p[1], F_SETFL, flags | O_NONBLOCK);
 					consoles[x].fd = s;
 					if (pthread_create(&consoles[x].t, &attr, netconsole, &consoles[x])) {
 						ast_log(LOG_ERROR, "Unable to spawn thread to handle connection\n");
@@ -626,9 +632,13 @@ int main(int argc, char *argv[])
 		exit(1);
 	if (init_logger())
 		exit(1);
+	if (ast_image_init())
+		exit(1);
 	if (load_pbx())
 		exit(1);
 	if (load_modules())
+		exit(1);
+	if (init_framer())
 		exit(1);
 	/* We might have the option of showing a console, but for now just
 	   do nothing... */

@@ -189,7 +189,7 @@ static int handle_version(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	ast_cli(fd, VERSION_INFO);
+	ast_cli(fd, "%s\n", VERSION_INFO);
 	return RESULT_SUCCESS;
 }
 static int handle_chanlist(int fd, int argc, char *argv[])
@@ -345,10 +345,10 @@ static struct ast_cli_entry builtins[] = {
 	{ { "set", "verbose", NULL }, handle_set_verbose, "Set level of verboseness", set_verbose_help },
 	{ { "show", "channel", NULL }, handle_showchan, "Display information on a specific channel", showchan_help, complete_ch },
 	{ { "show", "channels", NULL }, handle_chanlist, "Display information on channels", chanlist_help },
-    { { "show", "modules", NULL }, handle_modlist, "List modules and info", modlist_help },
+	{ { "show", "modules", NULL }, handle_modlist, "List modules and info", modlist_help },
+	{ { "show", "version", NULL }, handle_version, "Display version info", version_help },
 	{ { "soft", "hangup", NULL }, handle_softhangup, "Request a hangup on a given channel", softhangup_help, complete_ch },
 	{ { "unload", NULL }, handle_unload, "Unload a dynamic module by name", unload_help, complete_fn },
-	{ { "version", NULL }, handle_version, "Display version info", version_help },
 	{ { NULL }, NULL, NULL, NULL }
 };
 
@@ -464,8 +464,8 @@ int ast_cli_register(struct ast_cli_entry *e)
 	ast_pthread_mutex_lock(&clilock);
 	join2(fulle, sizeof(fulle), e->cmda);
 	if (find_cli(e->cmda, -1)) {
-		ast_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n", fulle);
 		ast_pthread_mutex_unlock(&clilock);
+		ast_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n", fulle);
 		return -1;
 	}
 	cur = helpers;
@@ -655,7 +655,7 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 				join(fullcmd2, sizeof(fullcmd2), e2->cmda);
 			if (e1->cmda[0])
 				join(fullcmd1, sizeof(fullcmd1), e1->cmda);
-			if (!e1->cmda || 
+			if (!e1->cmda[0] || 
 					(e2 && (strcmp(fullcmd2, fullcmd1) < 0))) {
 				/* Use e2 */
 				e = e2;
