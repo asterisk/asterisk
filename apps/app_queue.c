@@ -1380,6 +1380,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	char *newnum;
 	char *monitorfilename;
 	struct ast_channel *peer;
+	struct ast_channel *which;
 	struct localuser *lpeer;
 	struct member *member;
 	int res = 0, bridge = 0;
@@ -1584,14 +1585,18 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		}
 		/* Begin Monitoring */
 		if (qe->parent->monfmt && *qe->parent->monfmt) {
-			monitorfilename = pbx_builtin_getvar_helper( qe->chan, "MONITOR_FILENAME");
+			monitorfilename = pbx_builtin_getvar_helper(qe->chan, "MONITOR_FILENAME");
+			if(pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC") || pbx_builtin_getvar_helper( qe->chan, "MONITOR_EXEC_ARGS"))
+				which = qe->chan;
+			else
+				which = peer;
 			if(monitorfilename) {
-				ast_monitor_start( peer, qe->parent->monfmt, monitorfilename, 1 );
+				ast_monitor_start(which, qe->parent->monfmt, monitorfilename, 1 );
 			} else {
-				ast_monitor_start( peer, qe->parent->monfmt, qe->chan->cdr->uniqueid, 1 );
+				ast_monitor_start(which, qe->parent->monfmt, qe->chan->cdr->uniqueid, 1 );
 			}
 			if(ast_test_flag(qe->parent, QUEUE_FLAG_MONJOIN)) {
-				ast_monitor_setjoinfiles( peer, 1);
+				ast_monitor_setjoinfiles(which, 1);
 			}
 		}
 		/* Drop out of the queue at this point, to prepare for next caller */
