@@ -1243,7 +1243,7 @@ static void mkbrd(vpb_model_t model, int echo_cancel)
 	}
 }
 
-struct vpb_pvt *mkif(int board, int channel, int mode, float txgain, float rxgain,
+static struct vpb_pvt *mkif(int board, int channel, int mode, float txgain, float rxgain,
 			 float txswgain, float rxswgain, int bal1, int bal2, int bal3,
 			 char * callerid, int echo_cancel, int group )
 {
