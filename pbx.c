@@ -3833,12 +3833,12 @@ int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char
 						strncpy(chan->context, context, sizeof(chan->context) - 1);
 					strncpy(chan->exten, "failed", sizeof(chan->exten) - 1);
 					chan->priority = 1;
-					/* JDG chanvar */
-					tmp = variable;
-					/* FIXME replace this call with strsep  NOT*/
-					while( (var = strtok_r(NULL, "|", &tmp)) ) {
-						pbx_builtin_setvar( chan, var );
-					} /* /JDG */
+					if (variable) {
+						tmp = ast_strdupa(variable);
+						for (var = strtok_r(tmp, "|", &tmp); var; var = strtok_r(NULL, "|", &tmp)) {
+							pbx_builtin_setvar( chan, var );
+						}
+					}
 					ast_pbx_run(chan);	
 				} else
 					ast_log(LOG_WARNING, "Can't allocate the channel structure, skipping execution of extension 'failed'\n");
@@ -3909,9 +3909,11 @@ int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *
 	if (sync) {
 		chan = ast_request_and_dial(type, format, data, timeout, reason, callerid);
 		if (chan) {
-			vartmp = variable;
-			while( (var = strtok_r(NULL, "|", &vartmp)) ) {
-				pbx_builtin_setvar( chan, var );
+			if (variable) {
+				vartmp = ast_strdupa(variable);
+				for (var = strtok_r(vartmp, "|", &vartmp); var; var = strtok_r(NULL, "|", &vartmp)) {
+					pbx_builtin_setvar( chan, var );
+				}
 			}
 			if (chan->_state == AST_STATE_UP) {
 				res = 0;
