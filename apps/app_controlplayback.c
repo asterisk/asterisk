@@ -57,33 +57,31 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 	char tmp[256];
 	char *skip = NULL, *fwd = NULL, *rev = NULL, *stop = NULL, *pause = NULL, *file = NULL;
 
-
 	if (!data || ast_strlen_zero((char *)data)) {
 		ast_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
 		return -1;
 	}
-	
 
 	strncpy(tmp, (char *)data, sizeof(tmp)-1);
 	file = tmp;
 
-	if((skip=strchr(tmp,'|'))) {
+	if ((skip=strchr(tmp,'|'))) {
 		*skip = '\0';
 		*skip++;
 		fwd=strchr(skip,'|');
-		if(fwd) {
+		if (fwd) {
 			*fwd = '\0';
 			*fwd++;
 			rev = strchr(fwd,'|');
-			if(rev) {
+			if (rev) {
 				*rev = '\0';
 				*rev++;
 				stop = strchr(rev,'|');
-				if(stop) {
+				if (stop) {
 					*stop = '\0';
 					*stop++;
 					pause = strchr(stop,'|');
-					if(pause) {
+					if (pause) {
 						*pause = '\0';
 						*pause++;
 					}
@@ -93,18 +91,17 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 	}
 
 	skipms = skip ? atoi(skip) : 3000;
-	if(!skipms)
+	if (!skipms)
 		skipms = 3000;
 
-	if(!fwd || ! is_on_phonepad(*fwd))
+	if (!fwd || !is_on_phonepad(*fwd))
 		fwd = "#";
-	if(!rev || ! is_on_phonepad(*rev))
+	if (!rev || !is_on_phonepad(*rev))
 		rev = "*";
-	if(stop && ! is_on_phonepad(*stop))
+	if (stop && !is_on_phonepad(*stop))
 		stop = NULL;
-	if(pause && ! is_on_phonepad(*pause))
+	if (pause && !is_on_phonepad(*pause))
 		pause = NULL;
-
 
 	LOCAL_USER_ADD(u);
 

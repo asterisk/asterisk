@@ -407,9 +407,8 @@ int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, in
 	return res;
 }
 
-int ast_control_streamfile(struct ast_channel *chan, char *file,char *fwd,char *rev,char *stop,char *pause,int skipms) 
+int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char *rev, char *stop, char *pause, int skipms) 
 {
-
 	struct timeval started, ended;
 	long elapsed = 0,last_elapsed =0;
 	char breaks[5];
@@ -418,68 +417,63 @@ int ast_control_streamfile(struct ast_channel *chan, char *file,char *fwd,char *
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
 
-
-	if(stop != NULL && stop[0]) {
+	if (stop != NULL && stop[0]) {
 		breaks[x++] = stop[0];
 	}
-	if(pause != NULL && pause[0]) {
+	if (pause != NULL && pause[0]) {
 		breaks[x++] = pause[0];
 	}
 	breaks[x] = '\0';
 
-	if(chan)
+	if (chan)
 		ast_stopstream(chan);
 
-	for(;;) {
+	for (;;) {
 		gettimeofday(&started,NULL);
 
-		if(chan)
+		if (chan)
 			ast_stopstream(chan);
 		res = ast_streamfile(chan, file, chan->language);
-		if(!res) {
+		if (!res) {
 			res = 1;
-			if(elapsed) {
-				ast_stream_fastforward(chan->stream,elapsed);
+			if (elapsed) {
+				ast_stream_fastforward(chan->stream, elapsed);
 				last_elapsed = elapsed - 200;
 			}
-			if(res) {
-				res = ast_waitstream_fr(chan,breaks,fwd,rev,skipms);
-			}
-			else {
+			if (res)
+				res = ast_waitstream_fr(chan, breaks, fwd, rev, skipms);
+			else
 				break;
-			}
 		}
 
 		if (res < 1)
 			break;
 
-		if(pause != NULL && res == *pause) {
-			gettimeofday(&ended,NULL);
+		if (pause != NULL && res == *pause) {
+			gettimeofday(&ended, NULL);
 			elapsed = (((ended.tv_sec * 1000) + ended.tv_usec / 1000) - ((started.tv_sec * 1000) + started.tv_usec / 1000) + last_elapsed);
 			for(;;) {
-				if(chan)
+				if (chan)
 					ast_stopstream(chan);
 				res = ast_waitfordigit(chan, 1000);
-				if(res == -1 || res == *pause || (stop && res == *stop))
+				if (res == -1 || res == *pause || (stop && res == *stop))
 					break;
 			}
-			if(res == *pause) {
+			if (res == *pause) {
 				res = 0;
 				continue;
 			}
 		}
-		if(res == -1)
+		if (res == -1)
 			break;
 
-		if(stop != NULL && res == *stop) {
+		if (stop != NULL && res == *stop) {
 			res = 0;
 			break;
 		}
 	}
-	if(chan)
+	if (chan)
 		ast_stopstream(chan);
 
 	return res;
-
 }
-
