@@ -38,8 +38,15 @@
 #define AST_IAX_COMMAND_INVAL	10
 #define AST_IAX_COMMAND_LAGRQ	11
 #define AST_IAX_COMMAND_LAGRP	12
-#define AST_IAX_COMMAND_REGRQ	13
-#define AST_IAX_COMMAND_REGRP	14
+#define AST_IAX_COMMAND_REGREQ	13	/* Registration request */
+#define AST_IAX_COMMAND_REGAUTH	14	/* Registration authentication required */
+#define AST_IAX_COMMAND_REGACK	15	/* Registration accepted */
+#define AST_IAX_COMMAND_REGREJ	16	/* Registration rejected */
+#define AST_IAX_COMMAND_REGREL	17	/* Force release of registration */
+#define AST_IAX_COMMAND_VNAK	18	/* If we receive voice before valid first voice frame, send this */
+#define AST_IAX_COMMAND_DPREQ	19	/* Request status of a dialplan entry */
+#define AST_IAX_COMMAND_DPREP	20	/* Request status of a dialplan entry */
+#define AST_IAX_COMMAND_DIAL	21	/* Request a dial on channel brought up TBD */
 
 #define AST_DEFAULT_REG_EXPIRE  60	/* By default require re-registration once per minute */
 
