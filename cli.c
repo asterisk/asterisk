@@ -153,7 +153,7 @@ static int handle_unload(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-#define MODLIST_FORMAT  "%-20s %-40.40s %-10d\n"
+#define MODLIST_FORMAT  "%-25s %-40.40s %-10d\n"
 #define MODLIST_FORMAT2 "%-25s %-40.40s %-10s\n"
 
 static ast_mutex_t climodentrylock = AST_MUTEX_INITIALIZER;
