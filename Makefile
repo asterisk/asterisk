@@ -155,7 +155,7 @@ all: depend asterisk subdirs
 editline/config.h:
 	cd editline && unset CFLAGS LIBS && ./configure ; \
 
-editline/libedit.a: editline/config.h
+editline/libedit.a:
 	$(MAKE) -C editline libedit.a
 
 db1-ast/libdb1.a: 
@@ -194,16 +194,16 @@ build.h:
 	./make_build_h
 endif
 
-stdtime/localtime.o:
+stdtime/libtime.a:
 	@if [ -d stdtime ]; then \
-		$(MAKE) -C stdtime; \
+		$(MAKE) -C stdtime libtime.a ; \
 	else \
 		echo "You need to do a cvs update -d not just cvs update"; \
 		exit 1; \
 	fi
 
-asterisk: editline/libedit.a db1-ast/libdb1.a stdtime/localtime.o $(OBJS)
-	$(CC) $(DEBUG) -o asterisk -Wl,-E $(OBJS) $(LIBS) $(LIBEDIT) db1-ast/libdb1.a stdtime/localtime.o
+asterisk: editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS)
+	$(CC) $(DEBUG) -o asterisk -Wl,-E $(OBJS) $(LIBS) $(LIBEDIT) db1-ast/libdb1.a stdtime/libtime.a
 
 subdirs: 
 	for x in $(SUBDIRS); do $(MAKE) -C $$x || exit 1 ; done
@@ -412,6 +412,6 @@ valgrind: dont-optimize
 depend: .depend
 	for x in $(SUBDIRS); do $(MAKE) -C $$x depend || exit 1 ; done
 
-.depend: build.h
+.depend:
 	./mkdep ${CFLAGS} `ls *.c`
 

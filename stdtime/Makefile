@@ -1,19 +1,26 @@
-
 CC=gcc
 #CFLAGS=-Wall
 INCLUDE=-I../include
 
-all: localtime.o
+OBJS=localtime.o
 
-clean::
-	rm -f localtime.o test
+all: libtime.a
 
-depend::
-	@echo "Nothing to do for depend"
+libtime.a: $(OBJS)
+	ar rv $@ $(OBJS)
+	ranlib $@
+
+clean:
+	rm -f libtime.a *.o test
+
+depend: .depend
+
+.depend:
+	../mkdep $(CFLAGS) *.c
 
 test: test.c
 	${CC} ${CFLAGS} -o test test.c
 
-localtime.o: localtime.c
-
-
+ifneq ($(wildcard .depend),)
+include .depend
+endif
