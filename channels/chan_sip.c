@@ -3292,8 +3292,7 @@ retrylock:
 					break;
 				}
 				transmit_request(p, "ACK", 0);
-				__sip_destroy(p, 0);
-				p = NULL;
+				p->alreadygone = 1;
 			} else
 				ast_log(LOG_NOTICE, "Dunno anything about a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : inet_ntoa(p->sa.sin_addr));
 		}
