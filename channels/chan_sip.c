@@ -77,6 +77,8 @@ static char context[AST_MAX_EXTENSION] = "default";
 
 static char language[MAX_LANGUAGE] = "";
 
+static char callerid[AST_MAX_EXTENSION] = "asterisk";
+
 static int usecnt =0;
 static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
@@ -1951,17 +1953,17 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	char to[256];
 	char tmp[80];
 	char cid[256];
-	char *l = "asterisk", *n=NULL;
+	char *l = callerid, *n=NULL;
 	if (p->owner && p->owner->callerid) {
 		strcpy(cid, p->owner->callerid);
 		ast_callerid_parse(cid, &n, &l);
 		if (l) 
 			ast_shrink_phone_number(l);
 		if (!l || !ast_isphonenumber(l))
-				l = "asterisk";
+				l = callerid;
 	}
 	if (!n)
-		n = l;
+		n = callerid;
 	snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%08x", n, l, inet_ntoa(p->ourip), p->tag);
 	if (strlen(p->username)) {
 		if (ntohs(p->sa.sin_port) != DEFAULT_SIP_PORT) {
@@ -4212,6 +4214,8 @@ static int reload_config(void)
 			}
 		} else if (!strcasecmp(v->name, "language")) {
 			strncpy(language, v->value, sizeof(language)-1);
+		} else if (!strcasecmp(v->name, "callerid")) {
+			strncpy(callerid, v->value, sizeof(callerid)-1);
 		} else if (!strcasecmp(v->name, "nat")) {
 			globalnat = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "maxexpirey")) {

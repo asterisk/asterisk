@@ -223,21 +223,36 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 	struct agent_pvt *p = ast->pvt->pvt;
 	int res = -1;
 	ast_pthread_mutex_lock(&p->lock);
+	ast_verbose( VERBOSE_PREFIX_3 "agent_call, call to agent '%s' call on '%s'\n", p->agent, p->chan->name);
+	ast_log( LOG_DEBUG, "Playing beep, lang '%s'\n", p->chan->language);
 	res = ast_streamfile(p->chan, "beep", p->chan->language);
-	if (!res)
+	ast_log( LOG_DEBUG, "Played beep, result '%d'\n", res);
+	if (!res) {
 		res = ast_waitstream(p->chan, "");
+		ast_log( LOG_DEBUG, "Waited for stream, result '%d'\n", res);
+	}
 	if (!res) {
 		res = ast_set_read_format(p->chan, ast_best_codec(p->chan->nativeformats));
+		ast_log( LOG_DEBUG, "Set read format, result '%d'\n", res);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to set read format to %d\n", ast_best_codec(p->chan->nativeformats));
 	}
+	else {
+		// Agent hung-up
+		p->chan = NULL;
+	}
+
 	if (!res) {
 		ast_set_write_format(p->chan, ast_best_codec(p->chan->nativeformats));
+		ast_log( LOG_DEBUG, "Set write format, result '%d'\n", res);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to set write format to %d\n", ast_best_codec(p->chan->nativeformats));
 	}
-	/* Call is immediately up */
-	ast_setstate(ast, AST_STATE_UP);
+	if( !res )
+	{
+		/* Call is immediately up */
+		ast_setstate(ast, AST_STATE_UP);
+	}
 	CLEANUP(ast,p);
 	ast_pthread_mutex_unlock(&p->lock);
 	return res;
@@ -250,9 +265,6 @@ static int agent_hangup(struct ast_channel *ast)
 	p->owner = NULL;
 	ast->pvt->pvt = NULL;
 	p->app_sleep_cond = 1;
-	ast_pthread_mutex_unlock(&p->lock);
-	/* Release ownership of the agent to other threads (presumably running the login app). */
-	ast_pthread_mutex_unlock(&p->app_lock);
 	if (p->chan) {
 		/* If they're dead, go ahead and hang up on the agent now */
 		ast_pthread_mutex_lock(&p->chan->lock);
@@ -260,9 +272,20 @@ static int agent_hangup(struct ast_channel *ast)
 			ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
 		ast_moh_start(p->chan, p->moh);
 		ast_pthread_mutex_unlock(&p->chan->lock);
-	} else if (p->dead)
+		ast_pthread_mutex_unlock(&p->lock);
+		/* Release ownership of the agent to other threads (presumably running the login app). */
+		ast_pthread_mutex_unlock(&p->app_lock);
+	} else if (p->dead) {
 		/* Go ahead and lose it */
+		ast_pthread_mutex_unlock(&p->lock);
+		/* Release ownership of the agent to other threads (presumably running the login app). */
+		ast_pthread_mutex_unlock(&p->app_lock);
 		free(p);
+	} else {
+		ast_pthread_mutex_unlock(&p->lock);
+		/* Release ownership of the agent to other threads (presumably running the login app). */
+		ast_pthread_mutex_unlock(&p->app_lock);
+	}
 
 	return 0;
 }
@@ -333,6 +356,15 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 			ast_pthread_mutex_unlock(&p->lock);	/* For other thread to read the condition. */
 			ast_pthread_mutex_lock(&p->app_lock);
 			ast_pthread_mutex_lock(&p->lock);
+			if( !p->chan )
+			{
+				ast_log(LOG_WARNING, "Agent disconnected while we were connecting the call\n");
+				p->owner = NULL;
+				tmp->pvt->pvt = NULL;
+				p->app_sleep_cond = 1;
+				ast_channel_free( tmp );
+				return NULL;
+			}
 		}
 		p->owning_app = pthread_self();
 		/* After the above step, there should not be any blockers. */
@@ -486,9 +518,6 @@ static int login_exec(struct ast_channel *chan, void *data)
 	char *opt_user = NULL;
 	char *options = NULL;
 	int play_announcement;
-	struct timespec required;
-	struct timespec remaining;
-	int delay;
 	
 	LOCAL_USER_ADD(u);
 
@@ -577,21 +606,12 @@ static int login_exec(struct ast_channel *chan, void *data)
 							ast_pthread_mutex_unlock(&p->lock);
 							ast_pthread_mutex_unlock(&agentlock);
 							while (res >= 0) {
-								/* If we are not the owner, delay here for a while
-								 * so other interested threads can kick in. */
-								delay = 0;
 								ast_pthread_mutex_lock(&p->lock);
 								if (p->chan != chan)
 									res = -1;
-								if (p->owner) 
-									delay = 1;
 								ast_pthread_mutex_unlock(&p->lock);
-								if (delay) {
-									sched_yield();
-									required.tv_sec = 0;
-									required.tv_nsec = 20 * 1000 * 1000;
-									nanosleep( &required, &remaining );
-								}
+								/* Yield here so other interested threads can kick in. */
+								sched_yield();
 								if (res)
 									break;
 
@@ -603,12 +623,15 @@ static int login_exec(struct ast_channel *chan, void *data)
 								res = ast_safe_sleep_conditional( chan, 1000,
 														agent_cont_sleep, p );
 								pthread_mutex_unlock( &p->app_lock );
+								sched_yield();
 							}
+							ast_pthread_mutex_lock(&p->lock);
 							if (res && p->owner) 
 								ast_log(LOG_WARNING, "Huh?  We broke out when there was still an owner?\n");
 							/* Log us off if appropriate */
 							if (p->chan == chan)
 								p->chan = NULL;
+							ast_pthread_mutex_unlock(&p->lock);
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Agent '%s' logged out\n", p->agent);
 							manager_event(EVENT_FLAG_AGENT, "Agentlogoff",

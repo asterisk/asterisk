@@ -16,8 +16,11 @@
 #include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <signal.h>
 #include <errno.h>
@@ -432,6 +435,7 @@ static int process_message(struct mansession *s, struct message *m)
 	struct manager_action *tmp = first_action;
 
 	strncpy(action, get_header(m, "Action"), sizeof(action));
+	ast_log( LOG_DEBUG, "Manager received command '%s'\n", action );
 
 	if (!strlen(action)) {
 		send_error(s, "Missing action in request");
@@ -569,16 +573,25 @@ static void *accept_thread(void *ignore)
 	struct sockaddr_in sin;
 	int sinlen;
 	struct mansession *s;
+	struct protoent *p;
+	int arg = 1;
 	pthread_attr_t attr;
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
 	for (;;) {
 		sinlen = sizeof(sin);
 		as = accept(asock, &sin, &sinlen);
 		if (as < 0) {
 			ast_log(LOG_NOTICE, "Accept returned -1: %s\n", strerror(errno));
 			continue;
+		}
+		p = getprotobyname("tcp");
+		if( p ) {
+			if( setsockopt(as, p->p_proto, TCP_NODELAY, (char *)&arg, sizeof(arg) ) < 0 ) {
+				ast_log(LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\n", strerror(errno));
+			}
 		}
 		s = malloc(sizeof(struct mansession));
 		if (!s) {

@@ -156,7 +156,8 @@ static int join_queue(char *queuename, struct queue_ent *qe)
 				q->count++;
 				res = 0;
 				manager_event(EVENT_FLAG_CALL, "Join", 
-									 "Queue: %s\r\nPosition: %d\r\n", q->name, qe->pos );
+							 	"Channel: %s\r\nQueue: %s\r\nPosition: %d\r\n",
+								qe->chan->name, q->name, qe->pos );
 
 			}
 			ast_pthread_mutex_unlock(&q->lock);
@@ -212,7 +213,8 @@ static void leave_queue(struct queue_ent *qe)
 	ast_pthread_mutex_lock(&q->lock);
 	/* Take us out of the queue */
 	manager_event(EVENT_FLAG_CALL, "Leave",
-						 "Queue: %s\r\n", q->name );
+						 "Channel: %s\r\nQueue: %s\r\n", 
+						 qe->chan->name, q->name );
 	prev = NULL;
 	cur = q->head;
 	while(cur) {
