@@ -11,6 +11,7 @@
  -- chan_sip
     -- We no longer send a "to" tag on "100 Trying" messages, as it is inappropriate
        to do so.
+    -- We now respond correctly to an invite for T.38 with a "488 Not acceptable here"
  -- res_agi
     -- A fix has been added to prevent calls from being hung up when more than one
        call is executing an AGI script calling the GET DATA command.
