@@ -51,6 +51,7 @@ struct fast_originate_helper
 	char account[256];
 	char context[256];
 	char exten[256];
+	char idtext[256];
 	int priority;
 };
 
@@ -813,6 +814,23 @@ static void *fast_originate(void *data)
 	} else {
 		res = ast_pbx_outgoing_exten(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, !ast_strlen_zero(in->callerid) ? in->callerid : NULL, in->variable, in->account);
 	}   
+        if(!res)
+            manager_event(EVENT_FLAG_CALL,
+                "OriginateSuccess",
+				"%s"
+                "Channel: %s/%s\r\n"
+                "Context: %s\r\n"
+                "Exten: %s\r\n",
+                in->tech, in->data, in->idtext, in->context, in->exten);
+        else
+            manager_event(EVENT_FLAG_CALL,
+                "OriginateFailure",
+				"%s"
+                "Channel: %s/%s\r\n"
+                "Context: %s\r\n"
+                "Exten: %s\r\n",
+                in->tech, in->data, in->idtext, in->context, in->exten);
+
 	free(in);
 	return NULL;
 }
@@ -846,6 +864,7 @@ static int action_originate(struct mansession *s, struct message *m)
 	char *app = astman_get_header(m, "Application");
 	char *appdata = astman_get_header(m, "Data");
 	char *async = astman_get_header(m, "Async");
+	char *id = astman_get_header(m, "ActionID");
 	char *tech, *data;
 	int pi = 0;
 	int res;
@@ -885,6 +904,8 @@ static int action_originate(struct mansession *s, struct message *m)
 		else
 		{
 			memset(fast, 0, sizeof(struct fast_originate_helper));
+			if (id && !ast_strlen_zero(id))
+				snprintf(fast->idtext, sizeof(fast->idtext), "ActionID: %s\r\n", id);
 			strncpy(fast->tech, tech, sizeof(fast->tech) - 1);
    			strncpy(fast->data, data, sizeof(fast->data) - 1);
 			strncpy(fast->app, app, sizeof(fast->app) - 1);
