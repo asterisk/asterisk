@@ -433,28 +433,35 @@ static int oh323_digit(struct ast_channel *c, char digit)
  * Returns -1 on error, 0 on success.
  */
 static int oh323_call(struct ast_channel *c, char *dest, int timeout)
-{
-	int res = 0;
-	struct oh323_pvt *pvt = (struct oh323_pvt *)c->pvt->pvt;
-	char called_addr[INET_ADDRSTRLEN];
-
-	if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
-		ast_log(LOG_WARNING, "Line is already in use (%s)\n", c->name);
-		return -1;
+{  
+        int res = 0;
+        struct oh323_pvt *pvt = (struct oh323_pvt *)c->pvt->pvt;
+        char addr[INET_ADDRSTRLEN];
+        char called_addr[INET_ADDRSTRLEN];
+  
+        ast_log(LOG_DEBUG, "Dest is %s\n", dest);
+        
+        if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
+                ast_log(LOG_WARNING, "Line is already in use (%s)\n", c->name);
+                return -1;
+        }
+        /* Clear and then set the address to call */
+        memset(addr, 0, sizeof(addr));
+        if (usingGk) {
+                memcpy(addr, dest, strlen(addr));
+                pvt->options.noFastStart = noFastStart;
+                pvt->options.noH245Tunneling = noH245Tunneling;
+                pvt->options.noSilenceSuppression = noSilenceSuppression;
+                pvt->options.port = h323_signalling_port;
+        } else {
+                ast_inet_ntoa(addr, sizeof(addr), pvt->sa.sin_addr);
+                pvt->options.port = htons(pvt->sa.sin_port);
+        }
+	if (pvt->username) {
+	        sprintf(called_addr, "%s:%s", pvt->username, addr);
+        } else {
+		memcpy(called_addr, addr, strlen(called_addr));
 	}
-	/* Clear and then set the address to call */
-	memset(called_addr, 0, sizeof(called_addr));
-	if (usingGk) {
-		memcpy(called_addr, dest, strlen(called_addr));
-		pvt->options.noFastStart = noFastStart;
-		pvt->options.noH245Tunneling = noH245Tunneling;
-		pvt->options.noSilenceSuppression = noSilenceSuppression;
-		pvt->options.port = h323_signalling_port;
-	} else {
-		ast_inet_ntoa(called_addr, sizeof(called_addr), pvt->sa.sin_addr);
-		pvt->options.port = htons(pvt->sa.sin_port);
-	}
-	/* indicate that this is an outgoing call */
 	pvt->outgoing = 1;
 	ast_log(LOG_DEBUG, "Placing outgoing call to %s:%d\n", called_addr, pvt->options.port);
 	res = h323_make_call(called_addr, &(pvt->cd), pvt->options);
