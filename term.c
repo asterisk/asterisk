@@ -40,6 +40,8 @@ int term_init(void)
 		vt100compat = 1; else
 	if (!strncasecmp(term, "xterm", 5))
 		vt100compat = 1; else
+	if (!strncasecmp(term, "crt", 3))
+		vt100compat = 1; else
 	if (!strncasecmp(term, "vt", 2))
 		vt100compat = 1;
 	if (vt100compat) {
