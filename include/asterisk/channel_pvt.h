@@ -23,7 +23,7 @@ extern "C" {
 
 struct ast_channel_pvt {
 	/* Private data used by channel backend */
-	void *pvt;	
+	void *pvt;
 	/* Write translation path */
 	struct ast_trans_pvt *writetrans;
 	/* Read translation path */
@@ -51,6 +51,14 @@ struct ast_channel_pvt {
 	struct ast_frame * (*exception)(struct ast_channel *chan);
 	/* Bridge two channels of the same type together */
 	int (*bridge)(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
+	/* Indicate a particular condition (e.g. AST_CONTROL_BUSY or AST_CONTROL_RINGING or AST_CONTROL_CONGESTION */
+	int (*indicate)(struct ast_channel *c, int condition);
+	/* Fix up a channel:  If a channel is consumed, this is called.  Basically update any ->owner links */
+	int (*fixup)(struct ast_channel *oldchan, struct ast_channel *newchan);
+	/* Set a given option */
+	int (*setoption)(struct ast_channel *chan, int option, void *data, int datalen);
+	/* Query a given option */
+	int (*queryoption)(struct ast_channel *chan, int option, void *data, int *datalen);
 };
 
 /* Create a channel structure */

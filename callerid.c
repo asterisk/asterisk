@@ -24,6 +24,8 @@
 #include <asterisk/callerid.h>
 #include <asterisk/logger.h>
 #include <asterisk/fskmodem.h>
+#include "sas.h"
+#include "cas.h"
 
 
 struct callerid_state {
@@ -94,6 +96,33 @@ void callerid_get(struct callerid_state *cid, char **name, char **number, int *f
 		*number = NULL;
 	else
 		*number = cid->number;
+}
+
+int ast_callerid_gen_cas(unsigned char *outbuf, int len)
+{
+	int pos = 0;
+	int cnt;
+	int saslen=2400;
+	if (len < saslen)
+		return -1;
+	while(saslen) {
+		cnt = saslen;
+		if (cnt > sizeof(sas))
+			cnt = sizeof(sas);
+		memcpy(outbuf + pos, sas, cnt);
+		pos += cnt;
+		len -= cnt;
+		saslen -= cnt;
+	}
+	while(len) {
+		cnt = len;
+		if (cnt > sizeof(cas))
+			cnt = sizeof(cas);
+		memcpy(outbuf + pos, cas, cnt);
+		pos += cnt;
+		len -= cnt;
+	}
+	return 0;
 }
 
 int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len)
@@ -363,7 +392,7 @@ static inline float callerid_getcarrier(float *cr, float *ci, int bit)
 	PUT_CLID_BAUD(1);	/* Stop bit */ \
 } while(0);	
 
-int callerid_generate(unsigned char *buf, char *number, char *name, int flags)
+int callerid_generate(unsigned char *buf, char *number, char *name, int flags, int callwaiting)
 {
 	int bytes=0;
 	int x, sum;
@@ -373,11 +402,14 @@ int callerid_generate(unsigned char *buf, char *number, char *name, int flags)
 	float scont = 0.0;
 	char msg[256];
 	callerid_genmsg(msg, sizeof(msg), number, name, flags);
-	for (x=0;x<4000;x++)
-		PUT_BYTE(0x7f);
-	/* Transmit 30 0x55's (looks like a square wave */
-	for (x=0;x<30;x++)
-		PUT_CLID(0x55);
+	if (!callwaiting) {
+		/* Wait a half a second */
+		for (x=0;x<4000;x++)
+			PUT_BYTE(0x7f);
+		/* Transmit 30 0x55's (looks like a square wave) for channel seizure */
+		for (x=0;x<30;x++)
+			PUT_CLID(0x55);
+	}
 	/* Send 150ms of callerid marks */
 	for (x=0;x<150;x++)
 		PUT_CLID_MARKMS;
@@ -412,6 +444,8 @@ void ast_shrink_phone_number(char *n)
 int ast_isphonenumber(char *n)
 {
 	int x;
+	if (!n)
+		return 0;
 	for (x=0;n[x];x++)
 		if (!strchr("0123456789", n[x]))
 			return 0;
@@ -422,6 +456,7 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 {
 	char *ns, *ne;
 	char *ls, *le;
+	char tmp[256];
 	/* Try for "name" <location> format or 
 	   name <location> format */
 	if ((ls = strchr(instr, '<')) && (le = strchr(ls, '>'))) {
@@ -446,29 +481,46 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 			return 0;
 		}
 	} else {
-		/* Assume it's just a location */
-		*name = NULL;
-		*location = instr;
+		strncpy(tmp, instr, sizeof(tmp));
+		ast_shrink_phone_number(tmp);
+		if (!ast_isphonenumber(tmp)) {
+			/* Assume it's just a location */
+			*name = NULL;
+			*location = instr;
+		} else {
+			/* Assume it's just a name */
+			*name = instr;
+			*location = NULL;
+		}
 		return 0;
 	}
 	return -1;
 }
 
-int ast_callerid_generate(unsigned char *buf, char *callerid)
+static int __ast_callerid_generate(unsigned char *buf, char *callerid, int callwaiting)
 {
 	char tmp[256];
 	char *n, *l;
 	if (!callerid)
-		return callerid_generate(buf, NULL, NULL, 0);
+		return callerid_generate(buf, NULL, NULL, 0, callwaiting);
 	strncpy(tmp, callerid, sizeof(tmp));
 	if (ast_callerid_parse(tmp, &n, &l)) {
 		ast_log(LOG_WARNING, "Unable to parse '%s' into CallerID name & number\n", callerid);
-		return callerid_generate(buf, NULL, NULL, 0);
+		return callerid_generate(buf, NULL, NULL, 0, callwaiting);
 	}
-	ast_shrink_phone_number(l);
-	if (!n && (!ast_isphonenumber(l)))
-		return callerid_generate(buf, NULL, NULL, 0);
-	if (!ast_isphonenumber(l)) 
-		return callerid_generate(buf, NULL, n, 0);
-	return callerid_generate(buf, l, n, 0);
+	if (l)
+		ast_shrink_phone_number(l);
+	if (!ast_isphonenumber(l))
+		return callerid_generate(buf, NULL, n, 0, callwaiting);
+	return callerid_generate(buf, l, n, 0, callwaiting);
+}
+
+int ast_callerid_generate(unsigned char *buf, char *callerid)
+{
+	return __ast_callerid_generate(buf, callerid, 0);
+}
+
+int ast_callerid_callwaiting_generate(unsigned char *buf, char *callerid)
+{
+	return __ast_callerid_generate(buf, callerid, 1);
 }
