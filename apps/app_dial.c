@@ -95,7 +95,7 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 	struct localuser *oo;
 	while(outgoing) {
 		/* Hangup any existing lines we have open */
-		if (outgoing->chan != exception)
+		if (outgoing->chan && (outgoing->chan != exception))
 			ast_hangup(outgoing->chan);
 		oo = outgoing;
 		outgoing=outgoing->next;
@@ -187,15 +187,26 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				}
 			} else if (o->chan == winner) {
 				if (strlen(o->chan->call_forward)) {
+					char tmpchan[256];
 					/* Before processing channel, go ahead and check for forwarding */
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s@%s' (thanks to %s)\n", in->name, o->chan->call_forward, o->chan->context, o->chan->name);
 					/* Setup parameters */
-					strncpy(in->exten, o->chan->call_forward, sizeof(in->exten));
-					strncpy(in->context, o->chan->context, sizeof(in->context));
-					in->priority = 0;
-					*to = 0;
-					break;
+					snprintf(tmpchan, sizeof(tmpchan),"%s@%s", o->chan->call_forward, o->chan->context);
+					ast_hangup(o->chan);
+					o->chan = ast_request("Local", in->nativeformats, tmpchan);
+					if (!o->chan) {
+						ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s'\n", tmpchan);
+						o->stillgoing = 0;
+						numbusies++;
+					}
+					if (ast_call(o->chan, tmpchan, 0)) {
+						ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
+						o->stillgoing = 0;
+						ast_hangup(o->chan);
+						o->chan = NULL;
+					}
+					continue;
 				}
 				f = ast_read(winner);
 				if (f) {
@@ -470,17 +481,18 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			continue;
 		}
 		if (strlen(tmp->chan->call_forward)) {
+			char tmpchan[256];
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Forwarding call to '%s@%s'\n", tmp->chan->call_forward, tmp->chan->context);
-			/* Setup parameters */
-			strncpy(chan->exten, tmp->chan->call_forward, sizeof(chan->exten));
-			strncpy(chan->context, tmp->chan->context, sizeof(chan->context));
-			chan->priority = 0;
-			to = 0;
+			snprintf(tmpchan, sizeof(tmpchan),"%s@%s", tmp->chan->call_forward, tmp->chan->context);
 			ast_hangup(tmp->chan);
-			free(tmp);
-			cur = rest;
-			break;
+			tmp->chan = ast_request("Local", chan->nativeformats, tmpchan);
+			if (!tmp->chan) {
+				ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s'\n", tmpchan);
+				free(tmp);
+				cur = rest;
+				continue;
+			}
 		}
 		/* If creating a SIP channel, look for a variable called */
 		/* VXML_URL in the calling channel and copy it to the    */

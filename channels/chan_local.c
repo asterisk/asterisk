@@ -85,8 +85,6 @@ retrylock:
 		ast_pthread_mutex_lock(&p->lock);
 		goto retrylock;
 	}
-	if (f->frametype != AST_FRAME_VOICE)
-		ast_verbose("Queueing frmae %d/%d on %s\n", f->frametype, f->subclass, other->name);
 	ast_queue_frame(other, f, 0);
 	ast_pthread_mutex_unlock(&other->lock);
 	return 0;
