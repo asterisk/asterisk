@@ -1,8 +1,11 @@
 /*
 
 $Log$
-Revision 1.14  2003/02/12 13:59:15  matteo
-mer feb 12 14:56:57 CET 2003
+Revision 1.15  2003/10/16 10:44:04  markster
+Sane FreeBSD patch
+
+Revision 1.2  2003/10/16 10:44:04  markster
+Sane FreeBSD patch
 
 Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 mer feb 12 14:56:57 CET 2003
@@ -34,7 +37,7 @@ extern int lpcini_(void);
 
 #include "f2c.h"
 
-#include <malloc.h>
+#include <stdlib.h>
 
 /* Common Block Declarations */
 
@@ -48,9 +51,12 @@ struct {
 /* ***************************************************************** */
 
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:15  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2003/10/16 10:44:04  markster
+ * Sane FreeBSD patch
  *
+/* Revision 1.2  2003/10/16 10:44:04  markster
+/* Sane FreeBSD patch
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*
@@ -77,9 +83,12 @@ struct {
 {
 
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:15  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2003/10/16 10:44:04  markster
+ * Sane FreeBSD patch
  *
+/* Revision 1.2  2003/10/16 10:44:04  markster
+/* Sane FreeBSD patch
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*
@@ -106,9 +115,12 @@ struct {
 /*   LPC Configuration parameters: */
 /* Frame size, Prediction order, Pitch period */
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:15  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2003/10/16 10:44:04  markster
+ * Sane FreeBSD patch
  *
+/* Revision 1.2  2003/10/16 10:44:04  markster
+/* Sane FreeBSD patch
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*

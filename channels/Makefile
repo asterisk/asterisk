@@ -91,12 +91,13 @@ ringtone.h: gentone
 
 chan_oss.o: chan_oss.c  busy.h ringtone.h
 
-chan_iax2.so: chan_iax2.o iax2-parser.o
-ifeq (${OSARCH},Linux)
-	$(CC) -shared -Xlinker -x -o $@ chan_iax2.o iax2-parser.o
-else
-	$(CC) -shared -Xlinker -x -o $@ chan_iax2.o iax2-parser.o -lossaudio
+ifeq (${OSARCH},OpenBSD)
+chan_oss.so: chan_oss.o
+	$(CC) -shared -Xlinker -x -o $@ chan_oss.o -lossaudio
 endif
+
+chan_iax2.so: chan_iax2.o iax2-parser.o
+	$(CC) -shared -Xlinker -x -o $@ chan_iax2.o iax2-parser.o
 
 chan_zap.o: $(CHANZAP)
 	$(CC) -c $(CFLAGS) -o chan_zap.o $(CHANZAP)

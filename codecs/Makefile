@@ -22,6 +22,7 @@ MODG723+=$(shell [ -f g723.1b/coder2.c ] && echo "codec_g723_1b.so")
 MODSPEEX=$(shell [ -f /usr/include/speex.h ] || [ -f /usr/local/include/speex.h ] && echo "codec_speex.so")
 MODILBC=$(shell [ -f ilbc/iLBC_decode.h ] && echo "codec_ilbc.so")
 CFLAGS+=-fPIC
+CFLAGS+=$(shell [ -f /usr/local/include/speex.h ] && echo "-I/usr/local/include")
 
 LIBG723=g723.1/libg723.a
 LIBG723B=g723.1b/libg723b.a
@@ -30,7 +31,8 @@ LIBGSM=$(shell if uname -m | grep -q 86; then echo gsm/lib/libgsm.a; else echo "
 LIBGSMT=$(shell if uname -m | grep -q 86; then echo gsm/lib/libgsm.a; fi)
 LIBMP3=mp3/libmp3.a
 LIBLPC10=lpc10/liblpc10.a
-LIBSPEEX=-lspeex -lm
+LIBSPEEX=$(shell [ -f /usr/local/lib/libspeex.a ] && echo "-L/usr/local/lib")
+LIBSPEEX+=-lspeex -lm
 LIBILBC=ilbc/libilbc.a
 
 CODECS+=$(MODG723) $(MODSPEEX) $(MODILBC) codec_gsm.so codec_mp3_d.so codec_lpc10.so  \

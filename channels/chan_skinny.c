@@ -863,6 +863,7 @@ static void transmit_tone(struct skinnysession *s, int tone)
 	transmit_response(s, req);
 }
 
+#if 0
 static void transmit_selectsoftkeys(struct skinnysession *s, int instance, int callid, int softkey)
 {
 	skinny_req *req;
@@ -881,6 +882,7 @@ static void transmit_selectsoftkeys(struct skinnysession *s, int instance, int c
 	req->data.selectsoftkey.softKeySetIndex = softkey;
 	transmit_response(s, req);
 }
+#endif
 
 static void transmit_lamp_indication(struct skinnysession *s, int instance, int indication)
 {
@@ -2318,7 +2320,7 @@ static void *accept_thread(void *ignore)
 
 	for (;;) {
 		sinlen = sizeof(sin);
-		as = accept(skinnysock, &sin, &sinlen);
+		as = accept(skinnysock, (struct sockaddr *)&sin, &sinlen);
 		if (as < 0) {
 			ast_log(LOG_NOTICE, "Accept returned -1: %s\n", strerror(errno));
 			continue;
@@ -2393,7 +2395,7 @@ static int restart_monitor(void)
 {
 
 	/* If we're supposed to be stopped -- stay stopped */
-	if (monitor_thread == -2)
+	if (monitor_thread == (pthread_t)-2)
 		return 0;
 	if (ast_mutex_lock(&monlock)) {
 		ast_log(LOG_WARNING, "Unable to lock monitor\n");
