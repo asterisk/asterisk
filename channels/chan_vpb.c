@@ -322,19 +322,29 @@ static int vpb_indicate(struct ast_channel *ast, int condition);
 static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 
 static const struct ast_channel_tech vpb_tech = {
-	.type = type,
-	.description = tdesc,
-	.capabilities = AST_FORMAT_SLINEAR,
-	.requester = vpb_request,
-	.send_digit = vpb_digit,
-	.call = vpb_call,
-	.hangup = vpb_hangup,
-	.answer = vpb_answer,
-	.read = vpb_read,
-	.write = vpb_write,
-	.bridge = vpb_bridge,
-	.indicate = vpb_indicate,
-	.fixup = vpb_fixup,
+	type,
+	tdesc,
+	AST_FORMAT_SLINEAR,
+	vpb_request,
+	NULL,
+	vpb_digit,
+	vpb_call,
+	vpb_hangup,
+	vpb_answer,
+	vpb_read,
+	vpb_write,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	vpb_bridge,
+	vpb_indicate,
+	vpb_fixup,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL
 };
 
 /* Can't get vpb_bridge() working on v4pci without either a horrible 
@@ -771,7 +781,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 	if (option_verbose > 3) 
 		ast_verbose(VERBOSE_PREFIX_4 "%s: handle_owned: got event: [%d=>%d]\n", p->dev, e->type, e->data);
 
-	f.src = type;
+	f.src = (char *)type;
 	switch (e->type) {
 		case VPB_RING:
 			if (p->mode == MODE_FXO) {
@@ -2032,7 +2042,7 @@ static struct ast_frame  *vpb_read(struct ast_channel *ast)
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->tech_pvt; 
 	static struct ast_frame f = {AST_FRAME_NULL}; 
 
-	f.src = type;
+	f.src = (char *)type;
 	ast_log(LOG_NOTICE, "%s: vpb_read: should never be called!\n", p->dev);
 	ast_verbose("%s: vpb_read: should never be called!\n", p->dev);
 
@@ -2207,7 +2217,7 @@ static void *do_chanreads(void *pvt)
 	char * getdtmf_var = NULL;
 
 	fr->frametype = AST_FRAME_VOICE;
-	fr->src = type;
+	fr->src = (char *)type;
 	fr->mallocd = 0;
 	fr->delivery.tv_sec = 0;
 	fr->delivery.tv_usec = 0;
