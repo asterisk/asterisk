@@ -69,14 +69,12 @@ static struct local_pvt {
 	struct local_pvt *next;				/* Next entity */
 } *locals = NULL;
 
-static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_frame *f)
+static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_frame *f, struct ast_channel *us)
 {
-	struct ast_channel *other, *us;
+	struct ast_channel *other;
 	if (isoutbound) {
-		us = p->chan;
 		other = p->owner;
 	} else {
-		us = p->owner;
 		other = p->chan;
 	}
 	if (!other)
@@ -93,11 +91,13 @@ retrylock:
 	if (pthread_mutex_trylock(&other->lock)) {
 		/* Failed to lock.  Release main lock and try again */
 		ast_pthread_mutex_unlock(&p->lock);
-		ast_pthread_mutex_unlock(&us->lock);
+		if (us)
+			ast_pthread_mutex_unlock(&us->lock);
 		/* Wait just a bit */
 		usleep(1);
 		/* Only we can destroy ourselves, so we can't disappear here */
-		ast_pthread_mutex_lock(&us->lock);
+		if (us)
+			ast_pthread_mutex_lock(&us->lock);
 		ast_pthread_mutex_lock(&p->lock);
 		goto retrylock;
 	}
@@ -116,7 +116,7 @@ static int local_answer(struct ast_channel *ast)
 	if (isoutbound) {
 		/* Pass along answer since somebody answered us */
 		struct ast_frame answer = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
-		res = local_queue_frame(p, isoutbound, &answer);
+		res = local_queue_frame(p, isoutbound, &answer, ast);
 	} else
 		ast_log(LOG_WARNING, "Huh?  Local is being asked to answer?\n");
 	ast_pthread_mutex_unlock(&p->lock);
@@ -153,7 +153,7 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f)
 
 	/* Just queue for delivery to the other side */
 	ast_pthread_mutex_lock(&p->lock);
-	res = local_queue_frame(p, isoutbound, f);
+	res = local_queue_frame(p, isoutbound, f, ast);
 	check_bridge(p, isoutbound);
 	ast_pthread_mutex_unlock(&p->lock);
 	return res;
@@ -185,7 +185,7 @@ static int local_indicate(struct ast_channel *ast, int condition)
 	/* Queue up a frame representing the indication as a control frame */
 	ast_pthread_mutex_lock(&p->lock);
 	f.subclass = condition;
-	res = local_queue_frame(p, isoutbound, &f);
+	res = local_queue_frame(p, isoutbound, &f, ast);
 	ast_pthread_mutex_unlock(&p->lock);
 	return res;
 }
@@ -198,7 +198,7 @@ static int local_digit(struct ast_channel *ast, char digit)
 	int isoutbound = IS_OUTBOUND(ast, p);
 	ast_pthread_mutex_lock(&p->lock);
 	f.subclass = digit;
-	res = local_queue_frame(p, isoutbound, &f);
+	res = local_queue_frame(p, isoutbound, &f, ast);
 	ast_pthread_mutex_unlock(&p->lock);
 	return res;
 }
@@ -288,7 +288,7 @@ static int local_hangup(struct ast_channel *ast)
 		/* Need to actually hangup since there is no PBX */
 		ochan = p->chan;
 	else
-		local_queue_frame(p, isoutbound, &f);
+		local_queue_frame(p, isoutbound, &f, ast);
 	ast_pthread_mutex_unlock(&p->lock);
 	if (ochan)
 		ast_hangup(ochan);
