@@ -70,7 +70,6 @@ static char default_context[AST_MAX_EXTENSION];
 static char gatekeeper[100];
 static int	gatekeeper_disable = 1;
 static int	gatekeeper_discover = 0;
-static int  manual = 0;
 static int  usingGk;
 static int	port = 1720;
 static int	jitter;
@@ -1245,7 +1244,7 @@ static int h323_gk_cycle(int fd, int argc, char *argv[])
 	h323_gk_urq();
 	
 	/* Possibly register with a GK */
-	if (!gatekeeper_disable) {
+	if (gatekeeper_disable == 0) {
 		if (h323_set_gk(gatekeeper_discover, gatekeeper, secret)) {
 			ast_log(LOG_ERROR, "Gatekeeper registration failed.\n");
 			h323_end_process();
@@ -1387,8 +1386,6 @@ int reload_config()
 		} else if (!strcasecmp(v->name, "context")) {
 			strncpy(default_context, v->value, sizeof(default_context)-1);
 			printf("  == Setting default context to %s\n", default_context);	
-		} else if (!strcasecmp(v->name, "manual")) {
-				manual = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "dtmfmode")) {
 			if (!strcasecmp(v->value, "inband"))
 				dtmfmode=H323_DTMF_INBAND;
@@ -1534,7 +1531,7 @@ int reload(void)
 	reload_config();
 
 	/* Possibly register with a GK */
-	if (!gatekeeper_disable) {
+	if (gatekeeper_disable == 0) {
 		if (h323_set_gk(gatekeeper_discover, gatekeeper, secret)) {
 			ast_log(LOG_ERROR, "Gatekeeper registration failed.\n");
 			h323_end_process();
@@ -1637,7 +1634,7 @@ int load_module()
 		}
 
 		/* Possibly register with a GK */
-		if (!gatekeeper_disable) {
+		if (gatekeeper_disable == 0) {
 			if (h323_set_gk(gatekeeper_discover, gatekeeper, secret)) {
 				ast_log(LOG_ERROR, "Gatekeeper registration failed.\n");
 				h323_end_process();
