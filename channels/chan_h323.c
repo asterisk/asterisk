@@ -788,7 +788,7 @@ static struct ast_channel *oh323_new(struct oh323_pvt *pvt, int state, const cha
 	ast_update_use_count();
 	ast_mutex_lock(&pvt->lock);
 	if (ch) {
-		tmp->tech = &oh323_tech;
+		ch->tech = &oh323_tech;
 		snprintf(ch->name, sizeof(ch->name), "H323/%s", host);
 		ch->nativeformats = pvt->capability;
 		if (!ch->nativeformats) {
@@ -2221,7 +2221,7 @@ int usecount()
 
 char *description()
 {
-	return desc;
+	return (char *) desc;
 }
 
 char *key()
