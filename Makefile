@@ -26,7 +26,7 @@ INCLUDE=-Iinclude -I../include
 CFLAGS=-pipe -Wall -Werror -Wmissing-prototypes -Wmissing-declarations -O6 $(DEBUG) $(INCLUDE) -D_REENTRANT
 CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
 SUBDIRS=channels pbx apps codecs formats
-LIBS=-ldl -lpthread -lreadline # -lefence
+LIBS=-ldl -lpthread -lreadline -lncurses # -lefence
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o translate.o file.o say.o pbx.o cli.o md5.o asterisk.o
 CC=gcc
 INSTALL=install
