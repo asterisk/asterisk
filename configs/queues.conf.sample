@@ -156,6 +156,12 @@ persistentmembers = yes
 ;member => Agent/1001
 ;member => Agent/1002
 
+;
+; Note that using agent groups is probably not what you want.  Strategies do
+; not propagate down to the Agent system so if you want round robin, least
+; recent, etc, you should list all the agents in this file individually and not
+; use agent groups.
+;
 ;member => Agent/@1		; Any agent in group 1
 ;member => Agent/:1,1		; Any agent in group 1, wait for first
                                 ; available, but consider with penalty
