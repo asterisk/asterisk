@@ -320,6 +320,13 @@ immediate=no
 ; Each channel consists of the channel number or range.  It
 ; inherits the parameters that were specified above its declaration
 ;
+; For GR-303, CRV's are created like channels except they must start
+; with the trunk group followed by a colon, e.g.: 
+;
+; crv => 1:1
+; crv => 2:1-2,5-8
+;
+;
 ;callerid="Green Phone"<(256) 428-6121>
 ;channel => 1
 ;callerid="Black Phone"<(256) 428-6122>
