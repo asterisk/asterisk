@@ -7056,6 +7056,7 @@ static int zap_show_channel(int fd, int argc, char **argv)
 	int channel;
 	struct zt_pvt *tmp = NULL;
 	ZT_CONFINFO ci;
+	ZT_PARAMS ps;
 	int x;
 
 	if (argc != 4)
@@ -7127,8 +7128,12 @@ static int zap_show_channel(int fd, int argc, char **argv)
 				ast_cli(fd, "Actual Confmute: %s\n", x ? "Yes" : "No");
 			}
 #endif
-			ast_mutex_unlock(&iflock);
-			return RESULT_SUCCESS;
+			ps.channo = tmp->channel;
+			if (ioctl(tmp->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &ps) < 0) {
+				ast_log(LOG_WARNING, "Failed to get parameters on channel %d\n", tmp->channel);
+			} else {
+				ast_cli(fd, "Actual Hookstate: %s\n", ps.rxisoffhook ? "Offhook" : "Onhook");
+			}
 		}
 		tmp = tmp->next;
 	}
