@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <asterisk/frame.h>
 #include <asterisk/file.h>
+#include <asterisk/cli.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
 #include <asterisk/sched.h>
@@ -1043,4 +1044,42 @@ char ast_waitstream_full(struct ast_channel *c, char *breakon, int audiofd, int 
 		
 	}
 	return (c->_softhangup ? -1 : 0);
+}
+
+static int show_file_formats(int fd, int argc, char *argv[])
+{
+#define FORMAT "%-10s %-10s %-20s\n"
+#define FORMAT2 "%-10s %-10s %-20s\n"
+	struct ast_format *f;
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	ast_cli(fd, FORMAT, "Format", "Name", "Extensions");
+	        
+	if (ast_mutex_lock(&formatlock)) {
+		ast_log(LOG_WARNING, "Unable to lock format list\n");
+		return -1;
+        }
+
+	f = formats;
+	while(f) {
+		ast_cli(fd, FORMAT2, ast_getformatname(f->format), f->name, f->exts);
+		f = f->next;
+	};
+	ast_mutex_unlock(&formatlock);
+	return RESULT_SUCCESS;
+}
+
+struct ast_cli_entry show_file =
+{
+	{ "show", "file", "formats" },
+	show_file_formats,
+	"Displays file formats",
+	"Usage: show file formats\n"
+	"       displays currently registered file formats (if any)\n"
+};
+
+int ast_file_init(void)
+{
+	ast_cli_register(&show_file);
+	return 0;
 }

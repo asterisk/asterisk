@@ -284,6 +284,14 @@ long ast_tellstream(struct ast_filestream *fs);
  */ 
 struct ast_frame *ast_readframe(struct ast_filestream *s);
 
+//! Initialize file stuff
+/*!
+ * Initializes all the various file stuff.  Basically just registers the cli stuff
+ * Returns 0 all the time
+ */
+extern int ast_file_init(void);
+
+
 #define AST_RESERVED_POINTERS 20
 
 #if defined(__cplusplus) || defined(c_plusplus)

@@ -1703,6 +1703,10 @@ int main(int argc, char *argv[])
 		printf(term_quit());
 		exit(1);
 	}
+	if (ast_file_init()) {
+		printf(term_quit());
+		exit(1);
+	}
 	if (load_pbx()) {
 		printf(term_quit());
 		exit(1);
