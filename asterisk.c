@@ -38,6 +38,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/select.h>
+#include <sys/wait.h>
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>

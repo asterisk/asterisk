@@ -351,30 +351,28 @@ int ast_cdr_update(struct ast_channel *c)
 	char *name, *num;
 	char tmp[AST_MAX_EXTENSION] = "";
 	/* Grab source from ANI or normal Caller*ID */
-	if (!cdr) {
-		ast_log(LOG_NOTICE, "The cdr pointer is not set\n");
-		return -1;
+	if (cdr) {
+		if (c->ani)
+			strncpy(tmp, c->ani, sizeof(tmp) - 1);
+		else if (c->callerid && strlen(c->callerid))
+			strncpy(tmp, c->callerid, sizeof(tmp) - 1);
+		if (c->callerid && strlen(c->callerid))
+			strncpy(cdr->clid, c->callerid, sizeof(cdr->clid) - 1);
+		else
+			strcpy(cdr->clid, "");
+		name = NULL;
+		num = NULL;
+		ast_callerid_parse(tmp, &name, &num);
+		if (num) {
+			ast_shrink_phone_number(num);
+			strncpy(cdr->src, num, sizeof(cdr->src) - 1);
+		}
+		/* Copy account code et-al */	
+		strncpy(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode) - 1);
+		/* Destination information */
+		strncpy(cdr->dst, c->exten, sizeof(cdr->dst) - 1);
+		strncpy(cdr->dcontext, c->context, sizeof(cdr->dcontext) - 1);
 	}
-	if (c->ani)
-		strncpy(tmp, c->ani, sizeof(tmp) - 1);
-	else if (c->callerid && strlen(c->callerid))
-		strncpy(tmp, c->callerid, sizeof(tmp) - 1);
-	if (c->callerid && strlen(c->callerid))
-		strncpy(cdr->clid, c->callerid, sizeof(cdr->clid) - 1);
-	else
-		strcpy(cdr->clid, "");
-	name = NULL;
-	num = NULL;
-	ast_callerid_parse(tmp, &name, &num);
-	if (num) {
-		ast_shrink_phone_number(num);
-		strncpy(cdr->src, num, sizeof(cdr->src) - 1);
-	}
-	/* Copy account code et-al */	
-	strncpy(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode) - 1);
-	/* Destination information */
-	strncpy(cdr->dst, c->exten, sizeof(cdr->dst) - 1);
-	strncpy(cdr->dcontext, c->context, sizeof(cdr->dcontext) - 1);
 	return 0;
 }
 
@@ -421,18 +419,20 @@ void ast_cdr_post(struct ast_cdr *cdr)
 
 void ast_cdr_reset(struct ast_cdr *cdr, int post)
 {
-	/* Post if requested */
-	if (post) {
-		ast_cdr_end(cdr);
-		ast_cdr_post(cdr);
+	if (cdr) {
+		/* Post if requested */
+		if (post) {
+			ast_cdr_end(cdr);
+			ast_cdr_post(cdr);
+		}
+		/* Reset to initial state */
+		cdr->posted = 0;
+		memset(&cdr->start, 0, sizeof(cdr->start));
+		memset(&cdr->end, 0, sizeof(cdr->end));
+		memset(&cdr->answer, 0, sizeof(cdr->answer));
+		cdr->billsec = 0;
+		cdr->duration = 0;
+		ast_cdr_start(cdr);
+		cdr->disposition = AST_CDR_NOANSWER;
 	}
-	/* Reset to initial state */
-	cdr->posted = 0;
-	memset(&cdr->start, 0, sizeof(cdr->start));
-	memset(&cdr->end, 0, sizeof(cdr->end));
-	memset(&cdr->answer, 0, sizeof(cdr->answer));
-	cdr->billsec = 0;
-	cdr->duration = 0;
-	ast_cdr_start(cdr);
-	cdr->disposition = AST_CDR_NOANSWER;
 }
