@@ -353,7 +353,7 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 {
 	if (!rtp->rxcore.tv_sec && !rtp->rxcore.tv_usec) {
 		gettimeofday(&rtp->rxcore, NULL);
-		rtp->rxcore.tv_usec -= timestamp / 8000;
+		rtp->rxcore.tv_sec -= timestamp / 8000;
 		rtp->rxcore.tv_usec -= (timestamp % 8000) * 125;
 		if (rtp->rxcore.tv_usec < 0) {
 			/* Adjust appropriately if necessary */
@@ -847,7 +847,7 @@ static unsigned int calc_txstamp(struct ast_rtp *rtp, struct timeval *delivery)
 	}
 	if (delivery && (delivery->tv_sec || delivery->tv_usec)) {
 		/* Use previous txcore */
-		ms = (delivery->tv_sec - rtp->txcore.tv_usec) * 1000;
+		ms = (delivery->tv_sec - rtp->txcore.tv_sec) * 1000;
 		ms += (delivery->tv_usec - rtp->txcore.tv_usec) / 1000;
 		rtp->txcore.tv_sec = delivery->tv_sec;
 		rtp->txcore.tv_usec = delivery->tv_usec;
@@ -969,14 +969,16 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		default:
 			ast_log(LOG_WARNING, "Not sure about timestamp format for codec format %s\n", ast_getformatname(f->subclass));
 		}
-
 		/* Re-calculate last TS */
 		rtp->lastts = rtp->lastts + ms * 8;
-		/* If it's close to our prediction, go for it */
-		if (abs(rtp->lastts - pred) < 640)
-			rtp->lastts = pred;
-		else
-			ast_log(LOG_DEBUG, "Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);
+		if (!f->delivery.tv_sec && f->delivery.tv_usec) {
+			/* If this isn't an absolute delivery time, Check if it is close to our prediction, 
+			   and if so, go with our prediction */
+			if (abs(rtp->lastts - pred) < 640)
+				rtp->lastts = pred;
+			else
+				ast_log(LOG_DEBUG, "Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);
+		}
 	} else {
 		mark = f->subclass & 0x1;
 		pred = rtp->lastovidtimestamp + f->samples;
