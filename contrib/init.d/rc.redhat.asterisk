@@ -1,56 +1,106 @@
 #!/bin/sh
+# $Id: asterisk,v 1.2 2004/07/18 20:24:07 Gregory Boehnlein <damin@nacs.net>
 #
-# asterisk    This shell script takes care of starting and stopping Asterisk.
-#               
+# asterisk    Starts, Stops and Reloads Asterisk.
 #
-# chkconfig: 2345 60 60
-# description: Asterisk is the Linux based PBX
+# chkconfig: 2345 40 60
+# description: Asterisk PBX and telephony daemon.
 # processname: asterisk
+# pidfile: /var/run/asterisk.pid
+#
+# Sun Jul 18 2004 Gregory Boehnlein <damin@nacs.net>
+# - Updated Version to 1.2
+# - Added test for safe_asterisk
+# - Verified SIGTERM issued by "killproc" ensures "stop gracefully"
+# - Added support for -U and -G command line options
+# - Modified "reload" to call asterisk -rx 'reload' 
 
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-[ -f /usr/sbin/asterisk ] || exit 0
+[ -x /usr/sbin/asterisk ] || exit 0
+[ -d /etc/asterisk ] || exit 0
+
+# Leave this set unless you know what you are doing.
+export LD_ASSUME_KERNEL=2.4.1
+
+# Full path to asterisk binary
+DAEMON=/usr/sbin/asterisk
+
+# Full path to safe_asterisk script
+SAFE_ASTERISK=/usr/sbin/safe_asterisk
+
+# Uncomment the following and set them to the user/groups that you
+# want to run Asterisk as. NOTE: this requires substantial work to
+# be sure that Asterisk's environment has permission to write the
+# files required  for  its  operation, including logs, its comm
+# socket, the asterisk database, etc.
+#AST_USER="asterisk"
+#AST_GROUP="asterisk"
 
 RETVAL=0
+
+start() {
+	# Start daemons.
+	echo -n $"Starting asterisk: "
+        if [ -f $SAFE_ASTERISK ] ; then
+		DAEMON=$SAFE_ASTERISK
+	fi
+	if [ $AST_USER ] ; then
+		ASTARGS="-U $AST_USER"
+	fi
+	if [ $AST_GROUP ] ; then
+		ASTARGS="`echo $ASTARGS` -G $AST_GROUP"
+	fi
+	daemon $DAEMON $ASTARGS
+	RETVAL=$?
+	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/asterisk
+	echo
+	return $RETVAL
+}
+
+stop() {
+	# Stop daemons.
+	echo -n $"Shutting down asterisk: "
+	killproc asterisk
+	RETVAL=$?
+	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/asterisk
+	echo
+	return $RETVAL
+}
+
+restart() {
+	stop
+	start
+}
+
+reload() {
+	$DAEMON -rx 'reload' > /dev/null 2> /dev/null
+}
 
 # See how we were called.
 case "$1" in
   start)
-        # Start daemons.
-        echo -n "Starting asterisk: "
-        daemon safe_asterisk
-	RETVAL=$?
-        echo
-        [ $RETVAL -eq 0 ] && touch /var/lock/subsys/asterisk
-        ;;
-  stop)
-        # Stop daemons.
-        echo -n "Shutting down asterisk: "
-	killproc asterisk
-	RETVAL=$?
-        echo
-        [ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/asterisk
-        ;;
-  status)
-	status asterisk
-	RETVAL=$?
+	start
 	;;
-  reload)
-	echo -n "Reloading asterisk: "
-	asterisk -r -x reload > /dev/null 2>&1
-	RETVAL=$?
-	[ $RETVAL -eq 0 ] && success || failure
-	echo
+  stop)
+	stop
 	;;
   restart)
-	$0 stop
-	$0 start
-	RETVAL=$?
+	restart
+	;;
+  reload)
+	reload
+	;;
+  condrestart)
+	[ -f /var/lock/subsys/asterisk ] && restart || :
+	;;
+  status)
+	status asterisk
 	;;
   *)
-        echo "Usage: asterisk {start|stop|restart|reload|status}"
-        exit 1
+	echo "Usage: asterisk {start|stop|restart|reload|condrestart|status}"
+	exit 1
 esac
 
-exit $RETVAL
+exit $?
