@@ -4408,8 +4408,10 @@ static int load_config(void)
 			strncpy(fromstring,s,sizeof(fromstring)-1);
 		if ((s=ast_variable_retrieve(cfg, "general", "charset")))
 			strncpy(charset,s,sizeof(charset)-1);
-		if ((s=ast_variable_retrieve(cfg, "general", "emailtitle")))
+		if ((s=ast_variable_retrieve(cfg, "general", "emailtitle"))) {
+			ast_log(LOG_NOTICE, "Keyword 'emailtitle' is DEPRECATED, please use 'emailsubject' instead.\n");
 			strncpy(emailtitle,s,sizeof(emailtitle)-1);
+		}
 		if ((s=ast_variable_retrieve(cfg, "general", "emailsubject")))
 			emailsubject = strdup(s);
 		if ((s=ast_variable_retrieve(cfg, "general", "emailbody"))) {
