@@ -2435,8 +2435,10 @@ int ast_do_masquerade(struct ast_channel *original)
 		ast_channel_free(clone);
 		manager_event(EVENT_FLAG_CALL, "Hangup", "Channel: %s\r\n", zombn);
 	} else {
+		struct ast_frame null_frame = { AST_FRAME_NULL, };
 		ast_log(LOG_DEBUG, "Released clone lock on '%s'\n", clone->name);
 		ast_set_flag(clone, AST_FLAG_ZOMBIE);
+		ast_queue_frame(clone, &null_frame);
 		ast_mutex_unlock(&clone->lock);
 	}
 	
