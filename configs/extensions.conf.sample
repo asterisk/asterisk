@@ -1,6 +1,9 @@
 ;
-; Static extension configuration files, used by
-; the pbx_config module.
+; Static extension configuration file, used by
+; the pbx_config module. This is where you configure all your 
+; inbound and outbound calls in Asterisk. 
+; 
+
 ;
 ; The "General" category is for certain variables.  
 ;
@@ -48,12 +51,14 @@ TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 ; literal.  In patterns, some characters have special meanings:
 ;
 ;   X - any digit from 0-9
+;   Z - any digit from 1-9
 ;   N - any digit from 2-9
 ;   [1235-9] - any digit in the brackets (in this example, 1,2,3,5,6,7,8,9)
-;   . - wildcard, matches anything remaining (e.g. _9011. matches anything starting with 9011 excluding 9011 itself)
+;   . - wildcard, matches anything remaining (e.g. _9011. matches 
+;	anything starting with 9011 excluding 9011 itself)
 ;
-; For example the extenion _NXXXXXX would match normal 7 digit dialings, while
-; _1NXXNXXXXXX would represent an area code plus phone number
+; For example the extension _NXXXXXX would match normal 7 digit dialings, 
+; while _1NXXNXXXXXX would represent an area code plus phone number
 ; preceeded by a one.
 ;
 ; Contexts contain several lines, one for each step of each
@@ -159,6 +164,7 @@ include => iaxprovider
 ; You can use an alternative switch type as well, to resolve
 ; extensions that are not known here, for example with remote 
 ; IAX switching you transparently get access to the remote
+; Asterisk PBX
 ; 
 ; switch => IAX2/user:password@bigserver/local
 
@@ -293,10 +299,13 @@ include => demo
 ;
 ;exten => 8600,1,Meetme,1234
 ;
-; Or playing an announce to the called party, as soon it answers
+; Or playing an announcement to the called party, as soon it answers
 ;
 ;exten = 8700,1,Dial(${MARK},30,A(/path/to/my/announcemsg))
 ;
 ; For more information on applications, just type "show applications" at your
 ; friendly Asterisk CLI prompt.
+;
+; 'show application <command>' will show details of how you
+; use that particular application in this file, the dial plan. 
 ;
