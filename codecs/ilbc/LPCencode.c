@@ -15,6 +15,7 @@
 
 
 #include "iLBC_define.h"
+#include "LPCencode.h"
 #include "helpfun.h"
 #include "lsf.h"
 #include "constants.h"
@@ -23,7 +24,7 @@
  *  lpc analysis (subrutine to LPCencode)
  *---------------------------------------------------------------*/
 
-void SimpleAnalysis(
+static void SimpleAnalysis(
     float *lsf,         /* (o) lsf coefficients */
     float *data,    /* (i) new data vector */
     iLBC_Enc_Inst_t *iLBCenc_inst 
@@ -73,7 +74,7 @@ void SimpleAnalysis(
  *  (subrutine to SimpleInterpolateLSF)
  *---------------------------------------------------------------*/
 
-void LSFinterpolate2a_enc(
+static void LSFinterpolate2a_enc(
     float *a,       /* (o) lpc coefficients */ 
     float *lsf1,/* (i) first set of lsf coefficients */
     float *lsf2,/* (i) second set of lsf coefficients */
@@ -91,7 +92,7 @@ void LSFinterpolate2a_enc(
  *  lsf interpolator (subrutine to LPCencode)
  *---------------------------------------------------------------*/
 
-void SimpleInterpolateLSF(
+static void SimpleInterpolateLSF(
     float *syntdenum,   /* (o) the synthesis filter denominator 
                                resulting from the quantized 
                                interpolated lsf */
@@ -174,7 +175,7 @@ void SimpleInterpolateLSF(
  *  lsf quantizer (subrutine to LPCencode)
  *---------------------------------------------------------------*/
 
-void SimplelsfQ(
+static void SimplelsfQ(
     float *lsfdeq,    /* (o) dequantized lsf coefficients
                            (dimension FILTERORDER) */
     int *index,     /* (o) quantization index */

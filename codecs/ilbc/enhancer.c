@@ -13,6 +13,7 @@
 #include <math.h>
 #include <string.h>
 #include "iLBC_define.h"
+#include "enhancer.h"
 #include "constants.h"
 #include "filter.h"
 
@@ -24,7 +25,7 @@
  * according to the squared-error criterion
  *---------------------------------------------------------------*/
 
-void NearestNeighbor(
+static void NearestNeighbor(
     int   *index,   /* (o) index of array element closest 
                            to value */
     float *array,   /* (i) data array */
@@ -52,7 +53,7 @@ void NearestNeighbor(
  * compute cross correlation between sequences
  *---------------------------------------------------------------*/
 
-void mycorr1( 
+static void mycorr1( 
     float* corr,    /* (o) correlation of seq1 and seq2 */
     float* seq1,    /* (i) first sequence */
     int dim1,           /* (i) dimension first seq1 */
@@ -75,7 +76,7 @@ void mycorr1(
 
 
 
-void enh_upsample( 
+static void enh_upsample( 
     float* useq1,   /* (o) upsampled output sequence */
     float* seq1,/* (i) unupsampled sequence */
     int dim1,       /* (i) dimension seq1 */
@@ -160,7 +161,7 @@ void enh_upsample(
  * sampling rate
  *---------------------------------------------------------------*/
 
-void refiner(
+static void refiner(
     float *seg,         /* (o) segment array */
     float *updStartPos, /* (o) updated start point */
     float* idata,       /* (i) original data buffer */
@@ -250,7 +251,7 @@ void refiner(
  * find the smoothed output data
  *---------------------------------------------------------------*/
 
-void smath(
+static void smath(
     float *odata,   /* (o) smoothed output */
     float *sseq,/* (i) said second sequence of waveforms */
     int hl,         /* (i) 2*hl+1 is sseq dimension */
@@ -347,7 +348,7 @@ void smath(
  * get the pitch-synchronous sample sequence
  *---------------------------------------------------------------*/
 
-void getsseq(
+static void getsseq(
     float *sseq,    /* (o) the pitch-synchronous sequence */
     float *idata,       /* (i) original data */
     int idatal,         /* (i) dimension of data */
@@ -425,7 +426,7 @@ void getsseq(
  * idata+centerStartPos+ENH_BLOCKL-1
  *---------------------------------------------------------------*/
 
-void enhancer(
+static void enhancer(
     float *odata,       /* (o) smoothed block, dimension blockl */
     float *idata,       /* (i) data buffer used for enhancing */
     int idatal,         /* (i) dimension idata */

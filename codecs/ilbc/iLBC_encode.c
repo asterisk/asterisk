@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "iLBC_define.h"
+#include "iLBC_encode.h"
 #include "LPCencode.h"
 #include "FrameClassify.h"
 #include "StateSearchW.h"

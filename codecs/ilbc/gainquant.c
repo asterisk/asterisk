@@ -15,6 +15,7 @@
 #include <string.h>
 #include <math.h>
 #include "constants.h"
+#include "gainquant.h"
 #include "filter.h"
 
 /*----------------------------------------------------------------*

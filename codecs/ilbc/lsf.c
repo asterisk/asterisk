@@ -14,6 +14,7 @@
 #include <math.h>
 
 #include "iLBC_define.h"
+#include "lsf.h"
 
 /*----------------------------------------------------------------*
  *  conversion from lpc coefficients to lsf coefficients 

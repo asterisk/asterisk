@@ -16,6 +16,7 @@
 #include "iLBC_define.h"
 #include "constants.h"
 #include "helpfun.h"
+#include "packing.h"
 #include "string.h"
 
 /*----------------------------------------------------------------*

@@ -13,6 +13,7 @@
 #include <math.h>
 
 #include "iLBC_define.h"
+#include "iCBConstruct.h"
 #include "gainquant.h"
 #include "getCBvec.h"
 

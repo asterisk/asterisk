@@ -13,6 +13,7 @@
 
 
 #include "iLBC_define.h"
+#include "filter.h"
 
 /*----------------------------------------------------------------*
  *  all-pole filter

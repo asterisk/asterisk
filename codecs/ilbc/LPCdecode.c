@@ -16,6 +16,7 @@
 #include "helpfun.h"
 #include "lsf.h"
 #include "iLBC_define.h"
+#include "LPCdecode.h"
 #include "constants.h"
 
 /*---------------------------------------------------------------*

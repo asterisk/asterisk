@@ -11,6 +11,7 @@
 ******************************************************************/
 
 #include "iLBC_define.h"
+#include "getCBvec.h"
 #include "constants.h"
 #include <string.h>
 

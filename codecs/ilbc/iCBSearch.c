@@ -14,6 +14,7 @@
 #include <string.h>
 
 #include "iLBC_define.h"
+#include "iCBSearch.h"
 #include "gainquant.h"
 #include "createCB.h"
 #include "filter.h"
@@ -121,7 +122,8 @@ void iCBSearch(
             *ppe=0.0;
             pp=buf+LPC_FILTERORDER+lMem-lTarget;
             for (j=0; j<lTarget; j++) {
-                *ppe+=(*pp)*(*pp++);
+                *ppe+=(*pp)*(*pp);
+				pp++;
             }
             
             if (*ppe>0.0) {
@@ -303,7 +305,8 @@ void iCBSearch(
 
             pp=cbvectors+lMem-lTarget;
             for (j=0; j<lTarget; j++) {
-                *ppe+=(*pp)*(*pp++);
+                *ppe+=(*pp)*(*pp);
+				pp++;
             }
 
             ppi = cbvectors + lMem - 1 - lTarget;

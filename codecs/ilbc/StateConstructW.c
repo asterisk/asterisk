@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "iLBC_define.h"
+#include "StateConstructW.h"
 #include "constants.h"
 #include "filter.h"
 

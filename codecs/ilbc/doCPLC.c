@@ -15,13 +15,14 @@
 #include <stdio.h>
 
 #include "iLBC_define.h"
+#include "doCPLC.h"
 
 /*----------------------------------------------------------------*
  *  Compute cross correlation and pitch gain for pitch prediction
  *  of last subframe at given lag.
  *---------------------------------------------------------------*/
 
-void compCorr(
+static void compCorr(
     float *cc,      /* (o) cross correlation coefficient */
     float *gc,      /* (o) gain */
     float *pm,

@@ -14,6 +14,7 @@
 #include <stdlib.h>
 
 #include "iLBC_define.h"
+#include "iLBC_decode.h"
 #include "StateConstructW.h"
 #include "LPCdecode.h"
 #include "iCBConstruct.h"
@@ -110,7 +111,7 @@ short initDecode(                   /* (o) Number of decoded
  *  frame residual decoder function (subrutine to iLBC_decode) 
  *---------------------------------------------------------------*/
 
-void Decode(
+static void Decode(
     iLBC_Dec_Inst_t *iLBCdec_inst,  /* (i/o) the decoder state 
                                              structure */
     float *decresidual,             /* (o) decoded residual frame */

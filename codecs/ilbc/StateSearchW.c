@@ -14,6 +14,7 @@
 #include <string.h>
 
 #include "iLBC_define.h"
+#include "StateSearchW.h"
 #include "constants.h"
 #include "filter.h"
 #include "helpfun.h"
