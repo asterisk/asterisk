@@ -1476,7 +1476,7 @@ static int get_folder2(struct ast_channel *chan, char *fn, int start)
 	int res = 0;
 	res = play_and_wait(chan, fn);
 	while (((res < '0') || (res > '9')) &&
-			(res != '#') && (res > 0)) {
+			(res != '#') && (res >= 0)) {
 		res = get_folder(chan, 0);
 	}
 	return res;
