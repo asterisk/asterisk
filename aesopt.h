@@ -149,6 +149,7 @@
 /*  PLATFORM SPECIFIC INCLUDES */
 
 #if defined( __FreeBSD__ ) || defined( __OpenBSD__ )
+#  include <sys/types.h>
 #  include <sys/endian.h>
 #elif defined( BSD ) && ( BSD >= 199103 )
 #  include <machine/endian.h>
