@@ -5975,6 +5975,30 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 	return -1;
 }
 
+static char *synopsis_dtmfmode = "Change the dtmfmode for a SIP call";
+static char *descrip_dtmfmode = "SIPDtmfMode(inband|info|rfc2833): Changes the dtmfmode for a SIP call\n";
+static char *app_dtmfmode = "SIPDtmfMode";
+static int sip_dtmfmode(struct ast_channel *chan, void *data)
+{
+	struct sip_pvt *p = chan->pvt->pvt;
+	char *mode;
+	if (data)
+		mode = (char *)data;
+	else {
+		ast_log(LOG_WARNING, "This application requires the argument: info, inband, rfc2833\n");
+		return 0;
+	}
+	if (strcasecmp(mode,"info"))
+		p->dtmfmode = SIP_DTMF_INFO;
+	else if (strcasecmp(mode,"rfc2833"))
+		p->dtmfmode = SIP_DTMF_RFC2833;
+	else if (strcasecmp(mode,"inband"))
+		p->dtmfmode = SIP_DTMF_INBAND;
+	else
+		ast_log(LOG_WARNING, "I don't know about this dtmf mode: %s\n",mode);
+	return 0;
+}
+
 static struct ast_rtp_protocol sip_rtp = {
 	get_rtp_info: sip_get_rtp_peer,
 	get_vrtp_info: sip_get_vrtp_peer,
@@ -6012,13 +6036,13 @@ int load_module()
 		ast_cli_register(&cli_inuse_show);
 		sip_rtp.type = type;
 		ast_rtp_proto_register(&sip_rtp);
+		ast_register_application(app_dtmfmode, sip_dtmfmode, synopsis_dtmfmode, descrip_dtmfmode);
 		ast_mutex_lock(&peerl.lock);
 		for (peer = peerl.peers; peer; peer = peer->next)
 			sip_poke_peer(peer);
 
 		for (reg = registrations; reg; reg = reg->next) 
 			sip_do_register(reg);
-
 		ast_mutex_unlock(&peerl.lock);
 		
 		/* And start the monitor for the first time */
@@ -6114,6 +6138,7 @@ int unload_module()
 	
 	/* First, take us out of the channel loop */
 	ast_channel_unregister(type);
+	ast_unregister_application(app_dtmfmode);
 	if (!ast_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = iflist;
@@ -6200,3 +6225,5 @@ static char *getsipuri(char *header)
 
 	return retval;
 }
+
+
