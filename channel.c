@@ -2506,6 +2506,8 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 	int res=0;
 	int nativefailed=0;
 	int firstpass;
+	int o0nativeformats;
+	int o1nativeformats;
 	struct timeval start_time,precise_now;
 	long elapsed_ms=0, time_left_ms=0;
 	int playit=0, playitagain=1, first_time=1;
@@ -2550,7 +2552,8 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 			"Uniqueid1: %s\r\n"
 			"Uniqueid2: %s\r\n",
 			c0->name, c1->name, c0->uniqueid, c1->uniqueid);
-
+	o1nativeformats = c1->nativeformats;
+	o0nativeformats = c0->nativeformats;
 	for (/* ever */;;) {
 		/* timestamp */
 		if (config->timelimit) {
@@ -2624,7 +2627,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 			if (res != -3) nativefailed++;
 		}
 	
-		if (((c0->writeformat != c1->readformat) || (c0->readformat != c1->writeformat)) &&
+		if (((c0->writeformat != c1->readformat) || (c0->readformat != c1->writeformat) || (c0->nativeformats != o0nativeformats) || (c1->nativeformats != o1nativeformats)) &&
 			!(c0->generator || c1->generator))  {
 			if (ast_channel_make_compatible(c0, c1)) {
 				ast_log(LOG_WARNING, "Can't make %s and %s compatible\n", c0->name, c1->name);
@@ -2636,6 +2639,8 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 					c0->name, c1->name, c0->uniqueid, c1->uniqueid);
 				return -1;
 			}
+			o0nativeformats = c0->nativeformats;
+			o1nativeformats = c1->nativeformats;
 		}
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
