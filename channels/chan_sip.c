@@ -4338,6 +4338,12 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			} else
 				p->needdestroy = 1;
 			break;
+		case 501: /* Not Implemented */
+			if (!strcasecmp(msg, "INVITE"))
+				ast_queue_control(p->owner, AST_CONTROL_CONGESTION, 0);
+			else
+				ast_log(LOG_WARNING, "Host '%s' does not implement '%s'\n", inet_ntoa(p->sa.sin_addr), msg);
+			break;
 		default:
 			if ((resp >= 300) && (resp < 700)) {
 				if ((option_verbose > 2) && (resp != 487))
@@ -4367,7 +4373,6 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				case 404: /* Not Found */
 				case 410: /* Gone */
 				case 500: /* Server error */
-				case 501: /* Not Implemented */
 					if (owner)
 						ast_queue_control(p->owner, AST_CONTROL_CONGESTION, 0);
 					break;
