@@ -43,67 +43,112 @@ static int connected = 0;
 
 static ast_mutex_t odbc_lock = AST_MUTEX_INITIALIZER;
 
-static int odbc_do_query(char *sqlcmd);
+static int odbc_do_query(void);
 static int odbc_init(void);
-static size_t escape_string(char *to, const char *from, size_t length);
 
 static SQLHENV	ODBC_env = SQL_NULL_HANDLE;	/* global ODBC Environment */
-static int 	ODBC_res;			/* global ODBC Result of Functions */
 static SQLHDBC	ODBC_con;			/* global ODBC Connection Handle */
 static SQLHSTMT	ODBC_stmt;			/* global ODBC Statement Handle */
 
 static int odbc_log(struct ast_cdr *cdr)
 {
-	int res;
+	long int ODBC_err;
+	short int ODBC_mlen;
+	int ODBC_res;
+	char ODBC_msg[200], ODBC_stat[10];
+	char sqlcmd[2048], timestr[128];
+	int res = 0;
 	struct tm tm;
 	struct timeval tv;
 	time_t t;
-	char sqlcmd[2048], timestr[128];
-	char *clid=NULL, *dcontext=NULL, *channel=NULL, *dstchannel=NULL, *lastapp=NULL, *lastdata=NULL, *uniqueid=NULL;
-	
-	ast_mutex_lock(&odbc_lock);
 
 	gettimeofday(&tv,NULL);
 	t = tv.tv_sec;
 	localtime_r(&t,&tm);
+
+	ast_mutex_lock(&odbc_lock);
 	strftime(timestr,128,DATE_FORMAT,&tm);
-
 	memset(sqlcmd,0,2048);
-
-	if((clid = alloca(strlen(cdr->clid) * 2 + 1)) != NULL)
-		escape_string(clid, cdr->clid, strlen(cdr->clid));
-	if((dcontext = alloca(strlen(cdr->dcontext) * 2 + 1)) != NULL)
-		escape_string(dcontext, cdr->dcontext, strlen(cdr->dcontext));
-	if((channel = alloca(strlen(cdr->channel) * 2 + 1)) != NULL)
-		escape_string(channel, cdr->channel, strlen(cdr->channel));
-	if((dstchannel = alloca(strlen(cdr->dstchannel) * 2 + 1)) != NULL)
-		escape_string(dstchannel, cdr->dstchannel, strlen(cdr->dstchannel));
-	if((lastapp = alloca(strlen(cdr->lastapp) * 2 + 1)) != NULL)
-		escape_string(lastapp, cdr->lastapp, strlen(cdr->lastapp));
-	if((lastdata = alloca(strlen(cdr->lastdata) * 2 + 1)) != NULL)
-        	escape_string(lastdata, cdr->lastdata, strlen(cdr->lastdata));
-	if((uniqueid = alloca(strlen(cdr->uniqueid) * 2 + 1)) != NULL)
-		escape_string(uniqueid, cdr->uniqueid, strlen(cdr->uniqueid));
-
-	if ((!clid) || (!dcontext) || (!channel) || (!dstchannel) || (!lastapp) || (!lastdata) || (!uniqueid))
-	{
-		ast_log(LOG_ERROR, "cdr_odbc:  Out of memory error (insert fails)\n");
-		ast_mutex_unlock(&odbc_lock);
-		return -1;
-	}
-
 	if((loguniqueid != NULL) && ((strcmp(loguniqueid, "1") == 0) || (strcmp(loguniqueid, "yes") == 0)))
 	{
-		sprintf(sqlcmd,"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid) VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s',%i,%i,%i,%i,'%s','%s')", timestr, clid, cdr->src, cdr->dst, dcontext, channel, dstchannel, lastapp, lastdata, cdr->duration, cdr->billsec, cdr->disposition, cdr->amaflags, cdr->accountcode, uniqueid);
+		sprintf(sqlcmd,"INSERT INTO cdr "
+		"(calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,"
+		"lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid) "
+		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
 	}
 	else
 	{
-		sprintf(sqlcmd,"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode) VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s',%i,%i,%i,%i,'%s')", timestr, clid, cdr->src, cdr->dst, dcontext, channel, dstchannel, lastapp, lastdata, cdr->duration, cdr->billsec, cdr->disposition, cdr->amaflags, cdr->accountcode);
+		sprintf(sqlcmd,"INSERT INTO cdr "
+		"(calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,"
+		"duration,billsec,disposition,amaflags,accountcode) "
+		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+	}
+
+	if(!connected)
+	{
+		res =  odbc_init();
+		if(res < 0)
+		{
+			connected = 0;
+			ast_mutex_unlock(&odbc_lock);
+			return 0;
+		}				
+		
+	}
+
+	ODBC_res = SQLAllocHandle(SQL_HANDLE_STMT, ODBC_con, &ODBC_stmt);
+
+	if((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO))
+	{
+		if(option_verbose > 3)
+			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Failure in AllocStatement %d\n", ODBC_res);
+		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, ODBC_stat, &ODBC_err, ODBC_msg, 100, &ODBC_mlen);
+		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);	
+		connected = 0;
+		ast_mutex_unlock(&odbc_lock);
+		return 0;
+	}
+
+	/* We really should only have to do this once.  But for some
+	   strange reason if I don't it blows holes in memory like
+	   like a shotgun.  So we just do this so its safe. */
+
+	ODBC_res = SQLPrepare(ODBC_stmt, sqlcmd, SQL_NTS);
+	
+	if((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO))
+	{
+		if(option_verbose > 3)
+			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error in PREPARE %d\n", ODBC_res);
+		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, ODBC_stat, &ODBC_err, ODBC_msg, 100, &ODBC_mlen);
+		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
+		connected = 0;
+		ast_mutex_unlock(&odbc_lock);
+		return 0;
+	}
+
+	SQLBindParameter(ODBC_stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, &timestr, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->clid, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->src, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->dst, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->dcontext, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->channel, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->dstchannel, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->lastapp, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->lastdata, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 10, SQL_PARAM_INPUT, SQL_C_SSHORT, SQL_INTEGER, 0, 0, &cdr->duration, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 11, SQL_PARAM_INPUT, SQL_C_SSHORT, SQL_INTEGER, 0, 0, &cdr->billsec, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 12, SQL_PARAM_INPUT, SQL_C_SSHORT, SQL_INTEGER, 0, 0, &cdr->disposition, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 13, SQL_PARAM_INPUT, SQL_C_SSHORT, SQL_INTEGER, 0, 0, &cdr->amaflags, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 14, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->accountcode, 0, NULL);
+
+	if((loguniqueid != NULL) && ((strcmp(loguniqueid, "1") == 0) || (strcmp(loguniqueid, "yes") == 0)))
+	{
+		SQLBindParameter(ODBC_stmt, 15, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->uniqueid, 0, NULL);
 	}
 
 	if(connected)
 	{
-		res = odbc_do_query(sqlcmd);
+		res = odbc_do_query();
 		if(res < 0)
 		{
 			if(option_verbose > 3)		
@@ -121,7 +166,7 @@ static int odbc_log(struct ast_cdr *cdr)
 			{
 				if(option_verbose > 3)
 					ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Trying Query again!\n");
-				res = odbc_do_query(sqlcmd);
+				res = odbc_do_query();
 				if(res < 0)
 				{
 					if(option_verbose > 3)
@@ -133,27 +178,7 @@ static int odbc_log(struct ast_cdr *cdr)
 	else
 	{
 		if(option_verbose > 3)
-			 ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Reconnecting to dsn %s\n", dsn);
-		res = odbc_init();
-		if(res < 0)
-		{
-			if(option_verbose > 3)
-			{
-				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: %s has gone away!\n", dsn);
-				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Call not logged!\n");
-			}
-		}
-		else
-		{
-			if(option_verbose > 3)
-				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Trying Query again!\n");
-			res = odbc_do_query(sqlcmd);
-			if(res < 0)
-			{
-				if(option_verbose > 3)
-					ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query FAILED Call not logged!\n");
-			}
-		}
+			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query FAILED Call not logged!\n");
 	}
 	ast_mutex_unlock(&odbc_lock);
 	return 0;
@@ -166,6 +191,7 @@ char *description(void)
 
 static int odbc_unload_module(void)
 {
+	ast_mutex_lock(&odbc_lock);
 	if (connected)
 	{
 		if(option_verbose > 3)
@@ -201,6 +227,7 @@ static int odbc_unload_module(void)
 		password_alloc = 0;
 	}
 	ast_cdr_unregister(name);
+	ast_mutex_unlock(&odbc_lock);
 	return 0;
 }
 
@@ -210,6 +237,8 @@ static int odbc_load_module(void)
 	struct ast_config *cfg;
 	struct ast_variable *var;
 	char *tmp;
+
+	ast_mutex_lock(&odbc_lock);
 
 	cfg = ast_load(config);
 	if (!cfg)
@@ -329,37 +358,16 @@ static int odbc_load_module(void)
 	{
 		ast_log(LOG_ERROR, "cdr_odbc: Unable to register ODBC CDR handling\n");
 	}
+	ast_mutex_unlock(&odbc_lock);
 	return res;
 }
 
-static int odbc_do_query(char *sqlcmd)
+static int odbc_do_query(void)
 {
         long int ODBC_err;
+	int ODBC_res;
         short int ODBC_mlen;
         char ODBC_msg[200], ODBC_stat[10];
-
-	ODBC_res = SQLAllocHandle(SQL_HANDLE_STMT, ODBC_con, &ODBC_stmt);
-
-	if((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO))
-	{
-		if(option_verbose > 3)
-			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Failure in AllocStatement %d\n", ODBC_res);
-		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, ODBC_stat, &ODBC_err, ODBC_msg, 100, &ODBC_mlen);
-		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);	
-		connected = 0;
-		return -1;
-	}
-
-	ODBC_res = SQLPrepare(ODBC_stmt, sqlcmd, SQL_NTS);
-
-	if((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO))
-	{
-		if(option_verbose > 3)
-			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error in PREPARE %d\n", ODBC_res);
-		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, ODBC_stat, &ODBC_err, ODBC_msg, 100, &ODBC_mlen);
-		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
-		return -1;
-	}
 
 	ODBC_res = SQLExecute(ODBC_stmt);
 
@@ -385,9 +393,10 @@ static int odbc_init(void)
 {
 	long int ODBC_err;
 	short int ODBC_mlen;
+	int ODBC_res;
 	char ODBC_msg[200], ODBC_stat[10];
 
-	if ( ODBC_env == SQL_NULL_HANDLE || connected == 0)
+	if ( ODBC_env == SQL_NULL_HANDLE || connected == 0 )
 	{
 		ODBC_res = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &ODBC_env);
 
@@ -441,43 +450,7 @@ static int odbc_init(void)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Connected to %s\n", dsn);
 		connected = 1;
 	}
-
 	return 0;
-}
-
-static size_t escape_string(char *to, const char *from, size_t length)
-{
-	const char *source = from;
-	char *target = to;
-	unsigned int remaining = length;
-	while (remaining > 0) {
-		switch (*source) {
-			case '\\':
-				*target = '\\';
-				target++;
-				*target = '\\';
-				break;
-			case '\'':
-				*target = '\\';
-				target++;
-				*target = '\'';
-				break;
-			 case '"':
-				*target = '\\';
-				target++;
-				*target = '"';
-				break;
-			default:
-				*target = *source;
-			}
-		source++;
-		target++;
-		remaining--;
-	}
-
-	*target = '\0';
- 
-	return target - to;
 }
 
 int load_module(void)
