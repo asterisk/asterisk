@@ -329,18 +329,13 @@ static int play_tone_pair(struct ast_channel *chan, int f1, int f2, int duration
 {
 	int flags = ZT_IOMUX_WRITEEMPTY;
 	int res;
-	struct ast_frame *f;	
 
         if ((res = ast_tonepair_start(chan, f1, f2, duration, amplitude)))
                 return res;
                                                                                                                                             
         while(chan->generatordata) {
-                f = ast_read(chan);
-                if (f)
-                        ast_frfree(f);
-                else
-                        return -1;
-        }
+		if (ast_safe_sleep(chan,1)) return -1;
+	}
 
 	/*
 	* Wait for the zaptel driver to physically write the tone blocks to the hardware
@@ -2577,7 +2572,7 @@ char *s;
 * Shift out a formatted serial bit stream
 */
 
-static void rbi_out(struct rpt *myrpt,unsigned char *data)
+static void rbi_out_parallel(struct rpt *myrpt,unsigned char *data)
     {
     int i,j;
     unsigned char od,d;
@@ -2602,6 +2597,28 @@ static void rbi_out(struct rpt *myrpt,unsigned char *data)
 	/* >= 50 us */
         for(delayvar = 1; delayvar < 50000; delayvar++); 
     }
+
+static void rbi_out(struct rpt *myrpt,unsigned char *data)
+{
+struct zt_radio_param r;
+
+	memset(&r,0,sizeof(struct zt_radio_param));
+	r.radpar = ZT_RADPAR_REMMODE;
+	r.data = ZT_RADPAR_REM_RBI1;
+	/* if setparam ioctl fails, its probably not a pciradio card */
+	if (ioctl(myrpt->rxchannel->fds[0],ZT_RADIO_SETPARAM,&r) == -1)
+	{
+		rbi_out_parallel(myrpt,data);
+		return;
+	}
+	r.radpar = ZT_RADPAR_REMCOMMAND;
+	memcpy(&r.data,data,5);
+	if (ioctl(myrpt->rxchannel->fds[0],ZT_RADIO_SETPARAM,&r) == -1)
+	{
+		ast_log(LOG_WARNING,"Cannot send RBI command for channel %s\n",myrpt->rxchannel->name);
+		return;
+	}
+}
 
 static int setrbi(struct rpt *myrpt)
 {
