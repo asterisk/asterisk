@@ -5615,7 +5615,13 @@ static void *pri_dchannel(void *vpri)
 					}
 					/* Get called number */
 					else if (strlen(e->ring.callednum)) {
-						strncpy(pri->pvt[chan]->exten, e->ring.callednum, sizeof(pri->pvt[chan]->exten)-1);
+#ifndef PRI_COPY_DIGITS_CALLED_NUMBER
+#error Please update the libpri package
+#endif
+						if (e->e==PRI_EVENT_RING)
+							strncpy(pri->pvt[chan]->exten, e->ring.callednum, sizeof(pri->pvt[chan]->exten)-1);
+						else
+							strncat(pri->pvt[chan]->exten, e->ring.callednum, sizeof(pri->pvt[chan]->exten)-1);
 					} 
 #if 0
 					else
@@ -5626,12 +5632,20 @@ static void *pri_dchannel(void *vpri)
 					/* queue DTMF frame if the PBX for this call was already started (we're forwarding INFORMATION further on */
 					if (pri->overlapdial && pri->pvt[chan]->call==e->ring.call && pri->pvt[chan]->owner) {
 						/* how to do that */
-						char digit = e->ring.callednum[strlen(e->ring.callednum)-1];
-						struct ast_frame f = { AST_FRAME_DTMF, digit, };
+						int digitlen = strlen(e->ring.callednum);
+						char digit;
+						int i;
 						/* make sure that we store the right number in CDR */
 						if (pri->pvt[chan]->owner->cdr)
-							strncat(pri->pvt[chan]->owner->cdr->dst,&digit,1);
-						ast_queue_frame(pri->pvt[chan]->owner, &f, 0);
+							strncat(pri->pvt[chan]->owner->cdr->dst,e->ring.callednum,digitlen);
+					
+						for (i=0; i<digitlen; i++) {	
+							digit = e->ring.callednum[i];
+							{
+								struct ast_frame f = { AST_FRAME_DTMF, digit, };
+								ast_queue_frame(pri->pvt[chan]->owner, &f, 0);
+							}
+						}
 					}
 					/* Make sure extension exists */
 					/* If extensions is empty then make sure we send later on SETUP_ACKNOWLEDGE to get digits in overlap mode */
