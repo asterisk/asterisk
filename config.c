@@ -743,7 +743,7 @@ static struct ast_config *__ast_load(char *configfile, struct ast_config *tmp, s
 		if (option_debug)
 			ast_log(LOG_DEBUG, "No file to parse: %s\n", fn);
 		else if (option_verbose > 1)
-			ast_verbose( "Not found (%s)", strerror(errno));
+			ast_verbose( "Not found (%s)\n", strerror(errno));
 	}
 #ifdef PRESERVE_COMMENTS
 	if (master) {

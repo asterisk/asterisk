@@ -33,6 +33,7 @@
 #include <asterisk/app.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/manager.h>
+#include <asterisk/parking.h>
 #include <sys/socket.h>
 #include <errno.h>
 #include <unistd.h>
@@ -66,6 +67,8 @@ static char moh[80] = "default";
 
 static int capability = -1;
 
+static unsigned int group;
+
 static int usecnt =0;
 static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
@@ -75,6 +78,7 @@ static pthread_mutex_t agentlock = AST_MUTEX_INITIALIZER;
 static struct agent_pvt {
 	pthread_mutex_t lock;				/* Channel private lock */
 	int dead;							/* Poised for destruction? */
+	unsigned int group;					/* Group memberships */
 	char moh[80];						/* Which music on hold */
 	char agent[AST_MAX_AGENT];			/* Agent ID */
 	char password[AST_MAX_AGENT];		/* Password for Agent login */
@@ -128,6 +132,7 @@ static int add_agent(struct ast_variable *var)
 			ast_pthread_mutex_init( &p->app_lock );
 			p->owning_app = -1;
 			p->app_sleep_cond = 1;
+			p->group = group;
 			p->next = agents;
 			agents = p;
 			
@@ -384,6 +389,7 @@ static int read_agent_config(void)
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	struct agent_pvt *p, *pl, *pn;
+	group = 0;
 	cfg = ast_load(config);
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "No agent configuration found -- agent support disabled\n");
@@ -401,6 +407,8 @@ static int read_agent_config(void)
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "agent")) {
 			add_agent(v);
+		} else if (!strcasecmp(v->name, "group")) {
+			group = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "musiconhold")) {
 			strncpy(moh, v->value, sizeof(moh) - 1);
 		}
@@ -438,10 +446,18 @@ static struct ast_channel *agent_request(char *type, int format, void *data)
 {
 	struct agent_pvt *p;
 	struct ast_channel *chan = NULL;
+	char *s;
+	unsigned int groupmatch;
+	s = data;
+	if ((s[0] == '@') && (sscanf(s + 1, "%d", &groupmatch) == 1)) {
+		groupmatch = (1 << groupmatch);
+	} else {
+		groupmatch = 0;
+	}
 	ast_pthread_mutex_lock(&agentlock);
 	p = agents;
 	while(p) {
-		if (!strcmp(data, p->agent)) {
+		if ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent)) {
 			ast_pthread_mutex_lock(&p->lock);
 			/* Agent must be registered, but not have any active call */
 			if (!p->owner && p->chan) {
@@ -535,7 +551,7 @@ static int login_exec(struct ast_channel *chan, void *data)
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
 	if (!res) {
-		if( opt_user )
+		if( opt_user && strlen(opt_user))
 			strncpy( user, opt_user, AST_MAX_AGENT );
 		else
 			res = ast_app_getdata(chan, "agent-user", user, sizeof(user) - 1, 0);
