@@ -1172,6 +1172,8 @@ static int ast_el_initialize(void)
 	el_set(el, EL_BIND, "^I", "ed-complete", NULL);
 	/* Bind ? to command completion */
 	el_set(el, EL_BIND, "?", "ed-complete", NULL);
+	/* Bind ^D to redisplay */
+	el_set(el, EL_BIND, "^D", "ed-redisplay", NULL);
 
 	return 0;
 }
