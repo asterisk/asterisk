@@ -868,9 +868,11 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	char *announce = NULL;
 	char digit = 0;
 	time_t callstart;
+	time_t now;
 	/* Hold the lock while we setup the outgoing calls */
 	ast_mutex_lock(&qe->parent->lock);
 	strncpy(queuename, qe->parent->name, sizeof(queuename) - 1);
+	time(&now);
 	cur = qe->parent->members;
 	if (strlen(qe->announce))
 		announce = qe->announce;
@@ -899,7 +901,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 				tmp->dataquality = 1;
 			if (strchr(options, 'H'))
 				tmp->allowdisconnect = 1;
-			if (strchr(options, 'n'))
+			if ((strchr(options, 'n')) && (now - qe->start >= qe->parent->timeout))
 				*go_on = 1;
 		}
 		if (url) {
