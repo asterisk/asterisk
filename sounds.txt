@@ -82,6 +82,8 @@
 
 %queue-holdtime.gsm%The estimated hold time is currently
 
+%queue-reporthold.gsm%Hold time
+
 %queue-minutes.gsm%Minutes
 
 %queue-seconds.gsm%Seconds

@@ -211,6 +211,7 @@ struct ast_call_queue {
 	char sound_lessthan[80];        /* Sound file: "less-than" (def. queue-lessthan) */
 	char sound_seconds[80];         /* Sound file: "seconds." (def. queue-seconds) */
 	char sound_thanks[80];          /* Sound file: "Thank you for your patience." (def. queue-thankyou) */
+	char sound_reporthold[80];	/* Sound file: "Hold time" (def. queue-reporthold) */
 
 	int count;			/* How many entries are in the queue */
 	int maxlen;			/* Max number of entries in queue */
@@ -227,6 +228,7 @@ struct ast_call_queue {
 	int joinempty;			/* Do we care if the queue has no members? */
 	int eventwhencalled;			/* Generate an event when the agent is called (before pickup) */
 	int leavewhenempty;		/* If all agents leave the queue, remove callers from the queue */
+	int reportholdtime;		/* Should we report caller hold time to member? */
 
 	struct member *members;		/* Member channels to be tried */
 	struct queue_ent *head;		/* Start of the actual queue */
@@ -1160,16 +1162,28 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		member = lpeer->member;
 		hanguptree(outgoing, peer);
 		outgoing = NULL;
-		if (announce) {
+		if (announce || qe->parent->reportholdtime) {
 			int res2;
 			res2 = ast_autoservice_start(qe->chan);
 			if (!res2) {
-				res2 = ast_streamfile(peer, announce, peer->language);
-				if (!res2)
-					res2 = ast_waitstream(peer, "");
-				else {
-					ast_log(LOG_WARNING, "Announcement file '%s' is unavailable, continuing anyway...\n", announce);
-					res2 = 0;
+				if (announce) {
+					if (play_file(peer, announce))
+						ast_log(LOG_WARNING, "Announcement file '%s' is unavailable, continuing anyway...\n", announce);
+				}
+				if (qe->parent->reportholdtime) {
+					if (!play_file(peer, qe->parent->sound_reporthold)) {
+						int holdtime;
+						time_t now;
+
+						time(&now);
+						holdtime = abs((now - qe->start) / 60);
+						if (holdtime < 2) {
+							play_file(peer, qe->parent->sound_lessthan);
+							ast_say_number(peer, 2, AST_DIGIT_ANY, peer->language, NULL);
+						} else 
+							ast_say_number(peer, holdtime, AST_DIGIT_ANY, peer->language, NULL);
+						play_file(peer, qe->parent->sound_minutes);
+					}
 				}
 			}
 			res2 |= ast_autoservice_stop(qe->chan);
@@ -1803,6 +1817,7 @@ static void reload_queues(void)
 				strncpy(q->sound_seconds, "queue-seconds", sizeof(q->sound_seconds) - 1);
 				strncpy(q->sound_thanks, "queue-thankyou", sizeof(q->sound_thanks) - 1);
 				strncpy(q->sound_lessthan, "queue-less-than", sizeof(q->sound_lessthan) - 1);
+				strncpy(q->sound_reporthold, "queue-reporthold", sizeof(q->sound_reporthold) - 1);
 				prev = q->members;
 				if (prev) {
 					/* find the end of any dynamic members */
@@ -1867,6 +1882,8 @@ static void reload_queues(void)
 						strncpy(q->sound_lessthan, var->value, sizeof(q->sound_lessthan) - 1);
 					} else if (!strcasecmp(var->name, "queue-thankyou")) {
 						strncpy(q->sound_thanks, var->value, sizeof(q->sound_thanks) - 1);
+					} else if (!strcasecmp(var->name, "queue-reporthold")) {
+						strncpy(q->sound_reporthold, var->value, sizeof(q->sound_reporthold) - 1);
 					} else if (!strcasecmp(var->name, "announce-frequency")) {
 						q->announcefrequency = atoi(var->value);
 					} else if (!strcasecmp(var->name, "announce-round-seconds")) {
@@ -1897,6 +1914,8 @@ static void reload_queues(void)
 						q->leavewhenempty = ast_true(var->value);
 					} else if (!strcasecmp(var->name, "eventwhencalled")) {
 						q->eventwhencalled = ast_true(var->value);
+					} else if (!strcasecmp(var->name, "reportholdtime")) {
+						q->reportholdtime = ast_true(var->value);
 					} else {
 						ast_log(LOG_WARNING, "Unknown keyword in queue '%s': %s at line %d of queue.conf\n", cat, var->name, var->lineno);
 					}

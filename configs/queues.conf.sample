@@ -93,6 +93,7 @@
 ;queue-seconds = queue-seconds			;	("seconds.")
 ;queue-thankyou = queue-thankyou		;	("Thank you for your patience.")
 ;queue-lessthan = queue-less-than		;       ("less than")
+;queue-reporthold = queue-reporthold		;       ("Hold time")
 ;
 ; Calls may be recorded using Asterisk's monitor resource
 ; This can be enabled from within the Queue application, starting recording
@@ -122,6 +123,12 @@
 ; (may generate a LOT of extra manager events)
 ;
 ; eventwhencalled = yes
+;
+; If you wish to report the caller's hold time to the member before they are connected
+; to the caller, set this to yes.
+;
+; reportholdtime = no
+;
 ;
 ; Each member of this call queue is listed on a separate line in
 ; the form technology/dialstring.  "member" means a normal member of a
