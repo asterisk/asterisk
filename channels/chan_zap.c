@@ -9480,6 +9480,7 @@ static int setup_zap(void)
 			int i;
 			struct zt_ring_cadence new_cadence;
 			int cid_location = -1;
+                        int firstcadencepos = 0;
 			char original_args[80];
 			int cadence_is_ok = 1;
 
@@ -9495,23 +9496,30 @@ static int setup_zap(void)
 
 			/* Ring cadences cannot be negative */
 			for (i=0;i<element_count;i++) {
-				if (c[i] < 1) {
-					if ((i % 2 == 1) && (cid_location == -1)) {
-						/* Silence duration, negative possibly okay */
-						if (c[i] == 0) {
-							ast_log(LOG_ERROR, "Silence duration cannot be zero: %s\n", original_args);
-							cadence_is_ok = 0;
-						} else {
-							cid_location = i;
+			        if (c[i] == 0) {
+				        ast_log(LOG_ERROR, "Ring or silence duration cannot be zero: %s\n", original_args);
+					cadence_is_ok = 0;
+					break;
+				} else if (c[i] < 0) {
+					if (i % 2 == 1) {
+					        /* Silence duration, negative possibly okay */
+						if (cid_location == -1) {
+						        cid_location = i;
 							c[i] *= -1;
+						} else {
+						        ast_log(LOG_ERROR, "CID location specified twice: %s\n",original_args);
+							cadence_is_ok = 0;
+							break;
 						}
-					} else if (cid_location) {
-						ast_log(LOG_ERROR, "CID location specified twice: %s\n",original_args);
-						cadence_is_ok = 0;
 					} else {
-						ast_log(LOG_ERROR, "Negative or zero ring duration: %s\n",original_args);
-						cadence_is_ok = 0;
-						break;
+						if (firstcadencepos == 0) {
+						        firstcadencepos = i; /* only recorded to avoid duplicate specification */
+							                     /* duration will be passed negative to the zaptel driver */
+						} else {
+						        ast_log(LOG_ERROR, "First cadence position specified twice: %s\n",original_args);
+							cadence_is_ok = 0;
+							break;
+						}
 					}
 				}
 			}
