@@ -70,10 +70,11 @@ static int powerof(int d)
 
 void ast_translator_free_path(struct ast_trans_pvt *p)
 {
-	struct ast_trans_pvt *pl;
-	while(p) {
-		pl = p;
-		p = p->next;
+	struct ast_trans_pvt *pl, *pn;
+	pn = p;
+	while(pn) {
+		pl = pn;
+		pn = pn->next;
 		if (pl->state && pl->step->destroy)
 			pl->step->destroy(pl->state);
 		free(pl);
