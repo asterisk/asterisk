@@ -137,6 +137,7 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 {
 	struct ast_trans_pvt *p;
 	struct ast_frame *out;
+	struct timeval delivery;
 	p = path;
 	/* Feed the first frame into the first translator */
 	p->step->framein(p->state, f);
@@ -179,6 +180,8 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 			path->nextin.tv_sec++;
 		}
 	}
+	delivery.tv_sec = f->delivery.tv_sec;
+	delivery.tv_usec = f->delivery.tv_usec;
 	if (consume)
 		ast_frfree(f);
 	while(p) {
@@ -191,7 +194,7 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 		if (p->next) 
 			p->next->step->framein(p->next->state, out);
 		else {
-			if (f->delivery.tv_sec || f->delivery.tv_usec) {
+			if (delivery.tv_sec || delivery.tv_usec) {
 				/* Use next predicted outgoing timestamp */
 				out->delivery.tv_sec = path->nextout.tv_sec;
 				out->delivery.tv_usec = path->nextout.tv_usec;
