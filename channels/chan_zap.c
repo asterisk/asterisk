@@ -9648,13 +9648,15 @@ static int setup_zap(int reload)
 	ast_mutex_unlock(&iflock);
 	ast_destroy(cfg);
 #ifdef ZAPATA_PRI
-	for (x=0;x<NUM_SPANS;x++) {
-		if (pris[x].pvts[0]) {
-			if (start_pri(pris + x)) {
-				ast_log(LOG_ERROR, "Unable to start D-channel on span %d\n", x + 1);
-				return -1;
-			} else if (option_verbose > 1) 
-				ast_verbose(VERBOSE_PREFIX_2 "Starting D-Channel on span %d\n", x + 1);
+	if (!reload) {
+		for (x=0;x<NUM_SPANS;x++) {
+			if (pris[x].pvts[0]) {
+				if (start_pri(pris + x)) {
+					ast_log(LOG_ERROR, "Unable to start D-channel on span %d\n", x + 1);
+					return -1;
+				} else if (option_verbose > 1) 
+					ast_verbose(VERBOSE_PREFIX_2 "Starting D-Channel on span %d\n", x + 1);
+			}
 		}
 	}
 #endif
