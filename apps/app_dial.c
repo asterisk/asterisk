@@ -857,7 +857,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 				chan->whentohangup = now + calldurationlimit;
 			}
 			if (!ast_strlen_zero(sdtmfdata)) 
-				res = ast_dtmf_stream(peer,chan,sdtmfdata,0);
+				res = ast_dtmf_stream(peer,chan,sdtmfdata,250);
 		}
 		
 		if (!res) {
