@@ -7541,6 +7541,8 @@ static int setup_zap(void)
 			strncpy(context, v->value, sizeof(context)-1);
 		} else if (!strcasecmp(v->name, "language")) {
 			strncpy(language, v->value, sizeof(language)-1);
+		} else if (!strcasecmp(v->name, "progzone")) {
+			strncpy(progzone, v->value, sizeof(progzone)-1);
 		} else if (!strcasecmp(v->name, "musiconhold")) {
 			strncpy(musicclass, v->value, sizeof(musicclass)-1);
 		} else if (!strcasecmp(v->name, "stripmsd")) {
@@ -8096,7 +8098,7 @@ static int reload_zt(void)
 		} else if (!strcasecmp(v->name, "language")) {
 			strncpy(language, v->value, sizeof(language)-1);
 		} else if (!strcasecmp(v->name, "progzone")) {
-			strncpy(progzone, v->value, sizeov(progzone) - 1);
+			strncpy(progzone, v->value, sizeof(progzone) - 1);
 		} else if (!strcasecmp(v->name, "musiconhold")) {
 			strncpy(musicclass, v->value, sizeof(musicclass)-1);
 		} else if (!strcasecmp(v->name, "stripmsd")) {
