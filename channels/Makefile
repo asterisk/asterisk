@@ -13,7 +13,8 @@
 
 CHANNEL_LIBS=chan_modem.so chan_iax.so chan_sip.so \
 	     chan_modem_aopen.so chan_oss.so \
-             chan_modem_bestdata.so chan_modem_i4l.so
+             chan_modem_bestdata.so chan_modem_i4l.so \
+             chan_agent.so
 
 #
 # If you really want VoFR you can have it :-P

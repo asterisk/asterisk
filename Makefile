@@ -28,8 +28,8 @@ PROC=$(shell uname -m)
 
 DEBUG=-g #-pg
 INCLUDE=-Iinclude -I../include
-CFLAGS=-pipe  -Wall -Wmissing-prototypes -Wmissing-declarations -O6 $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE
-#CFLAGS+=-Werror
+CFLAGS=-pipe  -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE #-DMAKE_VALGRIND_HAPPY
+CFLAGS+=-O6
 CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
 CFLAGS+=$(shell if uname -m | grep -q ppc; then echo "-fsigned-char"; fi)
 
@@ -42,12 +42,12 @@ CFLAGS+= -DDO_CRASH -DDEBUG_THREADS
 # Uncomment next one to enable ast_frame tracing (for debugging)
 #CLFAGS+= -DTRACE_FRAMES
 CFLAGS+=# -fomit-frame-pointer 
-SUBDIRS=res channels pbx apps codecs formats agi cdr
+SUBDIRS=res channels pbx apps codecs formats agi cdr astman
 LIBS=-ldl -lpthread -lreadline -lncurses -lm #-lnjamd
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o say.o pbx.o cli.o md5.o term.o \
 	ulaw.o alaw.o callerid.o fskmodem.o image.o app.o \
-	cdr.o tdd.o acl.o rtp.o asterisk.o 
+	cdr.o tdd.o acl.o rtp.o manager.o asterisk.o ast_expr.o chanvars.o
 CC=gcc
 INSTALL=install
 
@@ -67,6 +67,11 @@ _version:
 
 .version: _version
 
+.y.c:
+	bison $< --name-prefix=ast_yy -o $@
+
+ast_expr.o: ast_expr.c
+
 build.h:
 	./make_build_h
 
@@ -79,14 +84,15 @@ subdirs:
 clean:
 	for x in $(SUBDIRS); do $(MAKE) -C $$x clean || exit 1 ; done
 	rm -f *.o *.so asterisk
-	rm -f build.h
+	rm -f build.h 
+	rm -f ast_expr.c
 
 datafiles: all
 	mkdir -p $(INSTALL_PREFIX)/var/lib/asterisk/sounds/digits
 	for x in sounds/digits/*; do \
 		install $$x $(INSTALL_PREFIX)/var/lib/asterisk/sounds/digits ; \
 	done
-	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-*; do \
+	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-* sounds/agent-*; do \
 		install $$x $(INSTALL_PREFIX)/var/lib/asterisk/sounds ; \
 	done
 	mkdir -p $(INSTALL_PREFIX)/var/lib/asterisk/mohmp3

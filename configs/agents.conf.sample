@@ -1,0 +1,11 @@
+;
+; Agent configuration
+;
+;
+[agents]
+;
+; This section contains the agent definitions, in the form:
+;
+; agent => agentid,agentpassword,name
+;
+;agent => 1234,4321,Mark Spencer

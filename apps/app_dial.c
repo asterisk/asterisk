@@ -61,6 +61,8 @@ static char *descrip =
 "      'T' -- to allow the calling user to transfer the call.\n"
 "      'r' -- indicate ringing to the calling party, pass no audio until answered.\n"
 "      'm' -- provide hold music to the calling party until answered.\n"
+"      'd' -- data-quality (modem) call (minimum delay).\n"
+"      'H' -- allow caller to hang up by hitting *.\n"
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n";
 
@@ -74,6 +76,8 @@ struct localuser {
 	int allowredirect;
 	int ringbackonly;
 	int musiconhold;
+	int dataquality;
+	int allowdisconnect;
 	struct localuser *next;
 };
 
@@ -95,7 +99,7 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 
 #define MAX 256
 
-static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir)
+static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir, int *allowdisconnect)
 {
 	struct localuser *o;
 	int found;
@@ -161,7 +165,15 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 		winner = ast_waitfor_n(watchers, pos, to);
 		o = outgoing;
 		while(o) {
-			if (o->chan == winner) {
+			if (o->stillgoing && (o->chan->_state == AST_STATE_UP)) {
+				if (!peer) {
+					if (option_verbose > 2)
+						ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
+					peer = o->chan;
+					*allowredir = o->allowredirect;
+					*allowdisconnect = o->allowdisconnect;
+				}
+			} else if (o->chan == winner) {
 				f = ast_read(winner);
 				if (f) {
 					if (f->frametype == AST_FRAME_CONTROL) {
@@ -173,6 +185,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 									ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
 								peer = o->chan;
 								*allowredir = o->allowredirect;
+								*allowdisconnect = o->allowdisconnect;
 							}
 							break;
 						case AST_CONTROL_BUSY:
@@ -234,6 +247,17 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				*to=-1;
 				return NULL;
 			}
+			if (f && (f->frametype == AST_FRAME_DTMF) && allowdisconnect &&
+				(f->subclass == '*')) {
+			    if (option_verbose > 3)
+				ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
+				*to=0;
+				return NULL;
+			}
+			if (single && ((f->frametype == AST_FRAME_VOICE) || (f->frametype == AST_FRAME_DTMF)))  {
+				if (ast_write(outgoing->chan, f))
+					ast_log(LOG_WARNING, "Unable to forward voice\n");
+			}
 		}
 		if (!*to && (option_verbose > 2))
 			ast_verbose( VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", orig);
@@ -252,11 +276,12 @@ static int dial_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
 	struct localuser *u;
-	char *info, *peers, *timeout, *tech, *number, *rest, *cur;
+	char info[256], *peers, *timeout, *tech, *number, *rest, *cur;
 	struct localuser *outgoing=NULL, *tmp;
 	struct ast_channel *peer;
 	int to;
 	int allowredir=0;
+	int allowdisconnect=0;
 	char numsubst[AST_MAX_EXTENSION];
 	char restofit[AST_MAX_EXTENSION];
 	char *transfer = NULL;
@@ -270,11 +295,6 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	
 	/* Parse our arguments XXX Check for failure XXX */
-	info = malloc(strlen((char *)data) + AST_MAX_EXTENSION);
-	if (!info) {
-		ast_log(LOG_WARNING, "Out of memory\n");
-		return -1;
-	}
 	strncpy(info, (char *)data, strlen((char *)data) + AST_MAX_EXTENSION-1);
 	peers = info;
 	if (peers) {
@@ -325,6 +345,10 @@ static int dial_exec(struct ast_channel *chan, void *data)
 				tmp->ringbackonly = 1;
 			if (strchr(transfer, 'm'))
 				tmp->musiconhold = 1;
+			if (strchr(transfer, 'd'))
+				tmp->dataquality = 1;
+			if (strchr(transfer, 'H'))
+				tmp->allowdisconnect = 1;
 		}
 		strncpy(numsubst, number, sizeof(numsubst)-1);
 		/* If we're dialing by extension, look at the extension to know what to dial */
@@ -396,6 +420,9 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		tmp->stillgoing = -1;
 		tmp->next = outgoing;
 		outgoing = tmp;
+		/* If this line is up, don't try anybody else */
+		if (outgoing->chan->_state == AST_STATE_UP)
+			break;
 		cur = rest;
 	} while(cur);
 	
@@ -403,7 +430,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		to = atoi(timeout) * 1000;
 	else
 		to = -1;
-	peer = wait_for_answer(chan, outgoing, &to, &allowredir);
+	peer = wait_for_answer(chan, outgoing, &to, &allowredir, &allowdisconnect);
 	if (!peer) {
 		if (to) 
 			/* Musta gotten hung up */
@@ -432,18 +459,19 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		}
 		if (!strcmp(chan->type,"Zap")) {
 			int x = 2;
+			if (tmp->dataquality) x = 0;
 			ast_channel_setoption(chan,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
 		}			
 		if (!strcmp(peer->type,"Zap")) {
 			int x = 2;
+			if (tmp->dataquality) x = 0;
 			ast_channel_setoption(peer,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
 		}			
-		res = ast_bridge_call(chan, peer, allowredir);
+		res = ast_bridge_call(chan, peer, allowredir, allowdisconnect);
 		ast_hangup(peer);
 	}	
 out:
 	hanguptree(outgoing, NULL);
-	free(info);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
