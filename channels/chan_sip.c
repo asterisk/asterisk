@@ -206,6 +206,7 @@ static struct sip_pvt {
 	int needdestroy;					/* if we need to be destroyed */
 	int capability;						/* Special capability */
 	int jointcapability;				/* Supported capability at both ends */
+	int prefcodec;						/* Preferred codec (outbound only) */
 	int noncodeccapability;
 	int outgoing;						/* Outgoing or incoming call? */
 	int authtries;						/* Times we've tried to authenticate */
@@ -976,7 +977,7 @@ static int sip_pref_append(int format)
 static int sip_codec_choose(int formats)
 {
 	struct sip_codec_pref *cur;
-	formats &= (AST_FORMAT_MAX_AUDIO - 1);
+	formats &= ((AST_FORMAT_MAX_AUDIO << 1) - 1);
 	cur = prefs;
 	while(cur) {
 		if (formats & cur->codec)
@@ -2673,16 +2674,34 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	snprintf(t, sizeof(t), "t=0 0\r\n");
 	snprintf(m, sizeof(m), "m=audio %d RTP/AVP", ntohs(dest.sin_port));
 	snprintf(m2, sizeof(m2), "m=video %d RTP/AVP", ntohs(vdest.sin_port));
+	if (p->jointcapability & p->prefcodec) {
+		if (sipdebug)
+			ast_verbose("Answering/Requesting with root capability %d\n", p->prefcodec);
+		codec = ast_rtp_lookup_code(p->rtp, 1, p->prefcodec);
+		if (codec > -1) {
+			snprintf(costr, sizeof(costr), " %d", codec);
+			if (p->prefcodec <= AST_FORMAT_MAX_AUDIO) {
+				strncat(m, costr, sizeof(m) - strlen(m));
+				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, p->prefcodec));
+				strncat(a, costr, sizeof(a));
+			} else {
+				strncat(m2, costr, sizeof(m2) - strlen(m2));
+				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/90000\r\n", codec, ast_rtp_lookup_mime_subtype(1, p->prefcodec));
+				strncat(a2, costr, sizeof(a2));
+			}
+		}
+		alreadysent |= p->prefcodec;
+	}
 	/* Start by sending our preferred codecs */
 	cur = prefs;
 	while(cur) {
 		if (p->jointcapability & cur->codec) {
 			if (sipdebug)
-				ast_verbose("Answering with preferred capability %d\n", cur->codec);
+				ast_verbose("Answering/Requesting with preferred capability %d\n", cur->codec);
 			codec = ast_rtp_lookup_code(p->rtp, 1, cur->codec);
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
-				if (cur->codec < AST_FORMAT_MAX_AUDIO) {
+				if (cur->codec <= AST_FORMAT_MAX_AUDIO) {
 					strncat(m, costr, sizeof(m) - strlen(m));
 					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, cur->codec));
 					strncat(a, costr, sizeof(a));
@@ -2704,7 +2723,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 			codec = ast_rtp_lookup_code(p->rtp, 1, x);
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
-				if (x < AST_FORMAT_MAX_AUDIO) {
+				if (x <= AST_FORMAT_MAX_AUDIO) {
 					strncat(m, costr, sizeof(m) - strlen(m));
 					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, x));
 					strncat(a, costr, sizeof(a) - strlen(a));
@@ -5972,7 +5991,7 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 	char *dest = data;
 
 	oldformat = format;
-	format &= capability;
+	format &= ((AST_FORMAT_MAX_AUDIO << 1) - 1);
 	if (!format) {
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format %s while capability is %s\n", ast_getformatname(oldformat), ast_getformatname(capability));
 		return NULL;
@@ -6021,6 +6040,7 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 #if 0
 	printf("Setting up to call extension '%s' at '%s'\n", ext ? ext : "<none>", host);
 #endif
+	p->prefcodec = format;
 	tmpc = sip_new(p, AST_STATE_DOWN, host);
 	if (!tmpc)
 		sip_destroy(p);
@@ -6805,7 +6825,7 @@ int load_module()
 	res = reload_config();
 	if (!res) {
 		/* Make sure we can register our sip channel type */
-		if (ast_channel_register_ex(type, tdesc, capability, sip_request, sip_devicestate)) {
+		if (ast_channel_register_ex(type, tdesc, ((AST_FORMAT_MAX_AUDIO << 1) - 1), sip_request, sip_devicestate)) {
 			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
 			return -1;
 		}
