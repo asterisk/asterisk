@@ -32,7 +32,9 @@ clean:
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<
 
+ifneq ($(wildcard .depend),)
 include .depend
+endif
 
 depend: .depend
 

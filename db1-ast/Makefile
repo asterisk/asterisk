@@ -40,7 +40,7 @@ clean:
 	rm -f $(LIBDB) $(LIBDBSO) $(OBJS) $(SHOBJS)
 
 OORG=	-O2
-CL=	$(CC) -c -D__DBINTERFACE_PRIVATE $(OORG) -I. -Iinclude
+CL=	$(CC) -Wall -c -D__DBINTERFACE_PRIVATE $(OORG) -I. -Iinclude
 
 db_dump185.o: db_dump185.c
 	$(CL) -o $@ $<

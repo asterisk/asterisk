@@ -57,7 +57,9 @@ pbx_kdeconsole.so: $(KDE_CONSOLE_OBJS)
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<
 
+ifneq ($(wildcard .depend),)
 include .depend
+endif
 
 install: all
 	for x in $(PBX_LIBS); do $(INSTALL) -m 755 $$x $(MODULES_DIR) ; done

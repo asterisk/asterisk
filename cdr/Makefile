@@ -40,7 +40,9 @@ clean:
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<
 
+ifneq ($(wildcard .depend),)
 include .depend
+endif
 
 cdr_mysql.so: cdr_mysql.o
 	$(CC) -shared -Xlinker -x -o $@ $< -lmysqlclient -lz $(MLFLAGS)

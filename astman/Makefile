@@ -21,7 +21,9 @@ clean:
 astman: astman.o ../md5.o
 	$(CC) -o astman astman.o ../md5.o -lnewt
 
+ifneq ($(wildcard .depend),)
 include .depend
+endif
 
 depend: .depend
 

@@ -171,7 +171,9 @@ db1-ast/libdb1.a:
 		exit 1; \
 	fi
 
+ifneq ($(wildcard .depend),)
 include .depend
+endif
 
 _version: 
 	if [ -d CVS ] && ! [ -f .version ]; then echo "CVS-`date +"%D-%T"`" > .version; fi 

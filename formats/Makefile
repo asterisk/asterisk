@@ -32,7 +32,9 @@ clean:
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<
 
+ifneq ($(wildcard .depend),)
 include .depend
+endif
 
 format_mp3.so : format_mp3.o
 	$(CC) -shared -Xlinker -x -o $@ $< -lm

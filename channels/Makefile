@@ -73,7 +73,9 @@ clean:
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<
 
+ifneq ($(wildcard .depend),)
 include .depend
+endif
 
 gentone: gentone.c
 	$(CC) -o gentone gentone.c -lm
