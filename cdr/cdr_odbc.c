@@ -92,7 +92,7 @@ static int odbc_log(struct ast_cdr *cdr)
 		return -1;
 	}
 
-	if((strcmp(loguniqueid, "1") == 0) || (strcmp(loguniqueid, "yes") == 0))
+	if((loguniqueid != NULL) && ((strcmp(loguniqueid, "1") == 0) || (strcmp(loguniqueid, "yes") == 0)))
 	{
 		sprintf(sqlcmd,"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid) VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s',%i,%i,%i,%i,'%s','%s')", timestr, clid, cdr->src, cdr->dst, dcontext, channel, dstchannel, lastapp, lastdata, cdr->duration, cdr->billsec, cdr->disposition, cdr->amaflags, cdr->accountcode, uniqueid);
 	}
@@ -299,6 +299,7 @@ static int odbc_load_module(void)
 		else
 		{
 			ast_log(LOG_ERROR,"cdr_odbc: Not logging uniqueid\n");
+			loguniqueid = NULL;
 		}
 	}
 	else
