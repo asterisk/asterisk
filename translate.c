@@ -379,6 +379,7 @@ int ast_register_translator(struct ast_translator *t)
 
 int ast_unregister_translator(struct ast_translator *t)
 {
+	char tmp[80];
 	struct ast_translator *u, *ul = NULL;
 	ast_mutex_lock(&list_lock);
 	u = list;
@@ -388,6 +389,8 @@ int ast_unregister_translator(struct ast_translator *t)
 				ul->next = u->next;
 			else
 				list = u->next;
+			if (option_verbose > 1)
+				ast_verbose(VERBOSE_PREFIX_2 "Unregistered translator '%s' from format %s to %s\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), ast_getformatname(1 << t->srcfmt), ast_getformatname(1 << t->dstfmt));
 			break;
 		}
 		ul = u;
