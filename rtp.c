@@ -233,7 +233,10 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	}
 	else if(event_end & 0x80)
 	{
-		f = send_dtmf(rtp);
+		if (rtp->resp) {
+			f = send_dtmf(rtp);
+			rtp->resp = 0;
+		}
 		resp = 0;
 		duration = 0;
 	}
@@ -241,8 +244,8 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	{
 		f = send_dtmf(rtp);
 	}
-
-	rtp->resp = resp;
+	if (!(event_end & 0x80))
+		rtp->resp = resp;
 	rtp->dtmfcount = dtmftimeout;
 	rtp->dtmfduration = duration;
 	return f;
