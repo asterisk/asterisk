@@ -18,6 +18,9 @@ Asterisk 1.0.6
     -- Asterisk was not sending the same From: line in SIP messages during certain times.
        Fixed to make sure it stays the same. This makes some providers happier, to a working state.
     -- Certain circumstances involving a blank callerid caused asterisk to segmentation fault.
+    -- There was a problem incorrectly matching codec availablity when global preferences were 
+       different from that of the user.  To fix this, processing of SDP data has been moved 
+       to after determining who the call is coming from.
  -- chan_zap:
     -- During a certain scenario when using flash and '#' transfers you would hear the
        other person and the music they were hearing. This has been fixed.
