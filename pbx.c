@@ -993,6 +993,7 @@ void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char 
 			}
 			
 			/* Retrieve variable value */
+			strcpy(workspace, "");
 			pbx_substitute_variables_temp(c,vars,&cp4, workspace, sizeof(workspace));
 			if (cp4) {
 				length = strlen(cp4);
