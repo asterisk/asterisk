@@ -3282,6 +3282,8 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
 	strncpy(p->uri, addr, sizeof(p->uri) - 1);
 
+	p->branch ^= rand();
+
 	memset(&req, 0, sizeof(req));
 	init_req(&req, cmd, addr);
 

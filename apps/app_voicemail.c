@@ -849,7 +849,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char
 	time_t t;
 	struct tm tm;
 	struct vm_zone *the_zone = NULL;
-	p = popen(mailcmd, "w");
+	pfd = mkstemp(tmp);
 
 	if (pfd > -1) {
 		p = fdopen(pfd, "w");

@@ -150,6 +150,8 @@ static int NBScat_exec(struct ast_channel *chan, void *data)
 					myf.f.subclass = AST_FORMAT_SLINEAR;
 					myf.f.datalen = res;
 					myf.f.samples = res / 2;
+					myf.f.delivery.tv_usec = 0;
+					myf.f.delivery.tv_sec = 0;
 					myf.f.mallocd = 0;
 					myf.f.offset = AST_FRIENDLY_OFFSET;
 					myf.f.src = __PRETTY_FUNCTION__;
