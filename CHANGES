@@ -21,6 +21,9 @@ Asterisk 1.0.6
  -- chan_zap:
     -- During a certain scenario when using flash and '#' transfers you would hear the
        other person and the music they were hearing. This has been fixed.
+    -- A fix for a compilation issue with gcc4 was added.
+ -- chan_modem_bestdata:
+    -- A fix for a compilation issue with gcc4 was added.
  -- format_g729:
     -- Treat a 10-byte read as an end of file indication instead of an error. Some G729 encoders
        like to put 10-bytes at the end to indicate this.
