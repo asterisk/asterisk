@@ -108,7 +108,7 @@ static struct logfile *make_logfile(char *fn, char *components, int lineno)
 		return NULL;
 	f = malloc(sizeof(struct logfile));
 	if (f) {
-		memset(f, 0, sizeof(f));
+		memset(f, 0, sizeof(struct logfile));
 		strncpy(f->fn, fn, sizeof(f->fn) - 1);
 		if (!strcasecmp(fn, "ignore")) {
 			f->f = NULL;
