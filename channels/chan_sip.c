@@ -1031,6 +1031,7 @@ static void destroy_peer(struct sip_peer *peer)
 	if (peer->pokeexpire > -1)
 		ast_sched_del(sched, peer->pokeexpire);
 	register_peer_exten(peer, 0);
+	ast_free_ha(peer->ha);
 	free(peer);
 }
 
@@ -1275,10 +1276,7 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 				memcpy(&r->recv, &r->sa, sizeof(r->recv));
 			} else {
 				if (p->temponly) {
-					if (p->ha) {
-						ast_free_ha(p->ha);
-					}
-					free(p);
+					destroy_peer(p);
 				}
 				p = NULL;
 			}
@@ -1316,10 +1314,7 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 		return -1;
 	else {
 		if (p->temponly) {
-			if (p->ha) {
-				ast_free_ha(p->ha);
-			}
-			free(p);
+			destroy_peer(p);
 		}
 		return 0;
 	}
@@ -1590,6 +1585,9 @@ static int update_user_counter(struct sip_pvt *fup, int event)
 						u->inUse++;
 					}
 					ast_mutex_unlock(&userl.lock);
+					if (u->temponly) {
+						destroy_user(u);
+					}
 					return -1; 
 				}
 			}
@@ -1609,6 +1607,9 @@ static int update_user_counter(struct sip_pvt *fup, int event)
 				if ( u->outUse >= u->outgoinglimit ) {
 					ast_log(LOG_ERROR, "Outgoing call from user '%s' rejected due to usage limit of %d\n", u->name, u->outgoinglimit);
 					ast_mutex_unlock(&userl.lock);
+					if (u->temponly) {
+						destroy_user(u);
+					}
 					return -1;
 				}
 			}
@@ -1619,6 +1620,9 @@ static int update_user_counter(struct sip_pvt *fup, int event)
 			ast_log(LOG_ERROR, "update_user_counter(%s,%d) called with no event!\n",u->name,event);
 	}
 	ast_mutex_unlock(&userl.lock);
+	if (u->temponly) {
+		destroy_user(u);
+	}
 	return 0;
 }
 
@@ -5425,6 +5429,10 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 
 	}
 
+	if (user && user->temponly) {
+		destroy_user(user);
+	}
+
 	return res;
 }
 static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, char *uri, int reliable, struct sockaddr_in *sin, int ignore)
@@ -5738,6 +5746,10 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 	}
 
 	ast_mutex_unlock(&peerl.lock);
+
+	if (peer && peer->dynamic) {
+		destroy_peer(peer);
+	}
 	return RESULT_SUCCESS;
 }
 
@@ -7882,6 +7894,10 @@ static int sip_devicestate(void *data)
 		if (hp)
 			res = AST_DEVICE_UNKNOWN;
 	}
+
+	if (p && p->dynamic) {
+		destroy_peer(p);
+	}
 	return res;
 }
 
@@ -8089,8 +8105,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v)
 			v = v->next;
 		}
 	}
-	if (oldha)
-		ast_free_ha(oldha);
+	ast_free_ha(oldha);
 	return user;
 }
 
@@ -8347,8 +8362,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v)
 			reg_source_db(peer);
 		peer->delme = 0;
 	}
-	if (oldha)
-		ast_free_ha(oldha);
+	ast_free_ha(oldha);
 	return peer;
 }
 
@@ -9021,12 +9035,10 @@ int unload_module()
 		return -1;
 	}
 	/* Free memory for local network address mask */
-	if (localaddr) {
-		ast_free_ha(localaddr);
-	}
-        ast_mutex_destroy(&userl.lock);
-        ast_mutex_destroy(&peerl.lock);
-        ast_mutex_destroy(&regl.lock);
+	ast_free_ha(localaddr);
+	ast_mutex_destroy(&userl.lock);
+	ast_mutex_destroy(&peerl.lock);
+	ast_mutex_destroy(&regl.lock);
 		
 	return 0;
 }
