@@ -312,7 +312,7 @@ static struct sip_pvt {
 	char callerid[256];			/* Caller*ID */
 	int restrictcid;			/* hide presentation from remote user */
 	char via[256];
-	char extraparams[80];		/* Extra parameters to go in the "To" header */
+	char fullcontact[80];		/* Extra parameters to go in the "To" header */
 	char accountcode[20];			/* Account code */
 	char our_contact[256];			/* Our contact header */
 	char realm[256];			/* Authorization realm */
@@ -424,7 +424,7 @@ struct sip_peer {
 	char tohost[80];
 	char fromuser[80];
 	char fromdomain[80];
-	char extraparams[80];
+	char fullcontact[80];
 	char mailbox[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
 	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
@@ -3674,7 +3674,10 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	else
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=as%08x", n, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, p->tag);
 
-	if (!ast_strlen_zero(p->username)) {
+	if (!ast_strlen_zero(p->fullcontact)) {
+		/* If we have full contact, trust it */
+		strncpy(invite, p->fullcontact, sizeof(invite) - 1);
+	} else if (!ast_strlen_zero(p->username)) {
 		if (ntohs(p->sa.sin_port) != DEFAULT_SIP_PORT) {
 			snprintf(invite, sizeof(invite), "sip:%s@%s:%d",p->username, p->tohost, ntohs(p->sa.sin_port));
 		} else {
@@ -3684,10 +3687,6 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 		snprintf(invite, sizeof(invite), "sip:%s:%d", p->tohost, ntohs(p->sa.sin_port));
 	} else {
 		snprintf(invite, sizeof(invite), "sip:%s", p->tohost);
-	}
-	if (!ast_strlen_zero(p->extraparams)) {
-		strncat(invite, ";", sizeof(invite) - strlen(invite));
-		strncat(invite, p->extraparams, sizeof(invite) - strlen(invite));
 	}
 	strncpy(p->uri, invite, sizeof(p->uri) - 1);
 	/* If there is a VXML URL append it to the SIP URL */
@@ -4253,7 +4252,7 @@ static void reg_source_db(struct sip_peer *p)
 						if (e) {
 							*e = '\0';
 							e++;
-							strncpy(p->extraparams, e, sizeof(p->extraparams) - 1);
+							strncpy(p->fullcontact, e, sizeof(p->fullcontact) - 1);
 						}
 						strncpy(p->username, u, sizeof(p->username) - 1);
 						
@@ -4318,12 +4317,14 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 			ast_sched_del(sched, p->expire);
 		p->expire = -1;
 		ast_db_del("SIP/Registry", p->name);
+		p->fullcontact[0] = '\0';
 		p->useragent[0] = '\0';
 		p->lastms = 0;
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", p->name);
 		return 0;
 	}
+	strncpy(p->fullcontact, c, sizeof(p->fullcontact) - 1);
 	/* For the 200 OK, we should use the received contact */
 	snprintf(pvt->our_contact, sizeof(pvt->our_contact) - 1, "<%s>", c);
 	/* Make sure it's a SIP URL */
@@ -4335,10 +4336,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	n = strchr(c, ';');
 	if (n) {
 		*n = '\0';
-		n++;
-		strncpy(p->extraparams, n, sizeof(p->extraparams) - 1);
-	} else
-		strncpy(p->extraparams, "", sizeof(p->extraparams) - 1);
+	}
 	/* Grab host */
 	n = strchr(c, '@');
 	if (!n) {
@@ -4382,7 +4380,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	if (!p->temponly)
 		p->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, p);
 	pvt->expiry = expiry;
-	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username, p->extraparams);
+	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username, p->fullcontact);
 	ast_db_put("SIP/Registry", p->name, data);
 	if (inaddrcmp(&p->addr, &oldsin)) {
 		sip_poke_peer(p);
@@ -5368,7 +5366,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 					strncpy(p->username, peer->username, sizeof(p->username) - 1);
 					strncpy(p->authname, peer->username, sizeof(p->authname) - 1);
 				}
-				strncpy(p->extraparams, peer->extraparams, sizeof(p->extraparams) - 1);
+				strncpy(p->fullcontact, peer->fullcontact, sizeof(p->fullcontact) - 1);
 				if (!ast_strlen_zero(peer->context))
 					strncpy(p->context, peer->context, sizeof(p->context) - 1);
 				strncpy(p->peersecret, peer->secret, sizeof(p->peersecret) - 1);
@@ -5728,7 +5726,7 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 			strncpy(status, "UNKNOWN", sizeof(status) - 1);
 		ast_cli(fd, "%s\n",status);
  		ast_cli(fd, "  Useragent    : %s\n", peer->useragent);
- 		ast_cli(fd, "  Extra Params : %s\n", peer->extraparams);
+ 		ast_cli(fd, "  Full Contact : %s\n", peer->fullcontact);
 		ast_cli(fd,"\n");
 	} else {
 		ast_cli(fd,"Peer %s not found.\n", argv[3]);
