@@ -5052,7 +5052,7 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value
 	AST_LIST_TRAVERSE (headp, newvariable, entries) {
 		if (strcasecmp(ast_var_name(newvariable), name) == 0) {
 			/* there is already such a variable, delete it */
-			AST_LIST_REMOVE(headp, newvariable, ast_var_t, entries);
+			AST_LIST_REMOVE(headp, newvariable, entries);
 			ast_var_delete(newvariable);
 			break;
 		}
@@ -5155,7 +5155,7 @@ void pbx_builtin_clear_globals(void)
 {
 	struct ast_var_t *vardata;
 	while (!AST_LIST_EMPTY(&globals)) {
-		vardata = AST_LIST_REMOVE_HEAD(&globals, ast_var_t, entries);
+		vardata = AST_LIST_REMOVE_HEAD(&globals, entries);
 		ast_var_delete(vardata);
 	}
 }

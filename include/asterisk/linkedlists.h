@@ -148,6 +148,50 @@ struct {								\
 	for((var) = (head)->first; (var); (var) = (var)->field.next)
 
 /*!
+  \brief Loops safely over (traverses) the entries in a list.
+  \param head This is a pointer to the list head structure
+  \param var This is the name of the variable that will hold a pointer to the
+  current list entry on each iteration. It must be declared before calling
+  this macro.
+  \param field This is the name of the field (declared using AST_LIST_ENTRY())
+  used to link entries of this list together.
+
+  This macro is used to safely loop over (traverse) the entries in a list. It
+  uses a \a for loop, and supplies the enclosed code with a pointer to each list
+  entry as it loops. It is typically used as follows:
+  \code
+  static AST_LIST_HEAD(entry_list, list_entry) entries;
+  ...
+  struct list_entry {
+  	...
+  	AST_LIST_ENTRY(list_entry) list;
+  }
+  ...
+  struct list_entry *current;
+  ...
+  AST_LIST_TRAVERSE_SAFE_BEGIN(&entries, current, list_entry, list) {
+     (do something with current here)
+  }
+  AST_LIST_TRAVERSE_SAFE_END
+  \endcode
+
+  It differs from AST_LIST_TRAVERSE in that the code inside the loop can modify
+  (or even free) the entry pointed to by the \a current pointer without affecting
+  the loop traversal.
+*/
+#define AST_LIST_TRAVERSE_SAFE_BEGIN(head, var, field) {				\
+	typeof((head)->first) __list_next;						\
+	for ((var) = (head)->first,  __list_next = (var) ? (var)->field.next : NULL;	\
+	     (var);									\
+	     (var) = __list_next,  __list_next = (var) ? (var)->field.next : NULL	\
+	    )
+
+/*!
+  \brief Closes a safe loop traversal block.
+ */
+#define AST_LIST_TRAVERSE_SAFE_END  }
+
+/*!
   \brief Initializes a list head structure.
   \param head This is a pointer to the list head structure
 
@@ -188,34 +232,32 @@ struct {								\
   \brief Inserts a list entry at the tail of a list.
   \param head This is a pointer to the list head structure
   \param elm This is a pointer to the entry to be inserted.
-  \param type This is the type of each list entry.
   \param field This is the name of the field (declared using AST_LIST_ENTRY())
   used to link entries of this list together.
  */
-#define AST_LIST_INSERT_TAIL(head, elm, type, field) do {             \
-      struct type *curelm = (head)->first;                            \
-      if(!curelm) {                                                   \
+#define AST_LIST_INSERT_TAIL(head, elm, field) do {		      \
+      typeof(elm) curelm = (head)->first;                             \
+      if (!curelm) {                                                  \
               AST_LIST_INSERT_HEAD(head, elm, field);                 \
       } else {                                                        \
-              while ( curelm->field.next!=NULL ) {                    \
+              while (curelm->field.next!=NULL) {                      \
                       curelm=curelm->field.next;                      \
               }                                                       \
-              AST_LIST_INSERT_AFTER(curelm,elm,field);                \
+              AST_LIST_INSERT_AFTER(curelm, elm, field);              \
       }                                                               \
 } while (0)
 
 /*!
   \brief Removes and returns the head entry from a list.
   \param head This is a pointer to the list head structure
-  \param type This is the type of each list entry.
   \param field This is the name of the field (declared using AST_LIST_ENTRY())
   used to link entries of this list together.
 
   Removes the head entry from the list, and returns a pointer to it. The
   forward-link pointer in the returned entry is \b not cleared.
  */
-#define AST_LIST_REMOVE_HEAD(head, type, field) ({				\
-		struct type *cur = (head)->first;				\
+#define AST_LIST_REMOVE_HEAD(head, field) ({    				\
+		typeof((head)->first) cur = (head)->first;			\
 		(head)->first = (head)->first->field.next;			\
 		cur;								\
 	})
@@ -224,17 +266,16 @@ struct {								\
   \brief Removes a specific entry from a list.
   \param head This is a pointer to the list head structure
   \param elm This is a pointer to the entry to be removed.
-  \param type This is the type of each list entry.
   \param field This is the name of the field (declared using AST_LIST_ENTRY())
   used to link entries of this list together.
   \warning The removed entry is \b not freed nor modified in any way.
  */
-#define AST_LIST_REMOVE(head, elm, type, field) do {			\
+#define AST_LIST_REMOVE(head, elm, field) do {			        \
 	if ((head)->first == (elm)) {					\
-		AST_LIST_REMOVE_HEAD((head), type, field);		\
+		AST_LIST_REMOVE_HEAD((head), field);			\
 	}								\
 	else {								\
-		struct type *curelm = (head)->first;			\
+		typeof(elm) curelm = (head)->first;			\
 		while( curelm->field.next != (elm) )			\
 			curelm = curelm->field.next;			\
 		curelm->field.next =					\

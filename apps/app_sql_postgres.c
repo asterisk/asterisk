@@ -191,7 +191,7 @@ static int del_identifier(int identifier,int identifier_type) {
 		AST_LIST_TRAVERSE(headp,i,entries) {
 			if ((i->identifier==identifier) && 
 			    (i->identifier_type==identifier_type)) {
-				AST_LIST_REMOVE(headp,i,ast_PGSQL_id,entries);
+				AST_LIST_REMOVE(headp,i,entries);
 				free(i);
 				found=1;
 				break;
