@@ -18,9 +18,9 @@ fi
 #
 ulimit -c unlimited
 
-launch_asterisk()
-{
-}
+#launch_asterisk()
+#{
+#}
 
 run_asterisk()
 {
