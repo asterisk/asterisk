@@ -649,7 +649,7 @@ int ast_extension_match(const char *pattern, const char *data)
 	return match;
 }
 
-static int extension_close(const char *pattern, const char *data, int needmore)
+int ast_extension_close(const char *pattern, const char *data, int needmore)
 {
 	int match;
 	/* If "data" is longer, it can'be a subset of pattern unless
@@ -749,8 +749,8 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, struct ast
 			while(eroot) {
 				/* Match extension */
 				if ((((action != HELPER_MATCHMORE) && ast_extension_match(eroot->exten, exten)) ||
-						((action == HELPER_CANMATCH) && (extension_close(eroot->exten, exten, 0))) ||
-						((action == HELPER_MATCHMORE) && (extension_close(eroot->exten, exten, 1)))) &&
+						((action == HELPER_CANMATCH) && (ast_extension_close(eroot->exten, exten, 0))) ||
+						((action == HELPER_MATCHMORE) && (ast_extension_close(eroot->exten, exten, 1)))) &&
 						(!eroot->matchcid || matchcid(eroot->cidmatch, callerid))) {
 						e = eroot;
 						if (*status < STATUS_NO_PRIORITY)

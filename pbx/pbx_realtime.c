@@ -13,6 +13,7 @@
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
 #include <asterisk/config.h>
+#include <asterisk/config_pvt.h>
 #include <asterisk/options.h>
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
@@ -34,9 +35,9 @@
 #include <string.h>
 #include <errno.h>
 
-#define MODE_MATCH 0
-#define MODE_MATCHMORE 1
-#define MODE_CANMATCH 2
+#define MODE_MATCH 		0
+#define MODE_MATCHMORE 	1
+#define MODE_CANMATCH 	2
 
 static char *tdesc = "Realtime Switch";
 
@@ -49,7 +50,7 @@ static char *tdesc = "Realtime Switch";
 
 	The realtime table should have entries for context,exten,priority,app,args
 	
-	The realtime table currently does not support patterns or callerid fields.
+	The realtime table currently does not support callerid fields.
 
 */
 
@@ -86,9 +87,12 @@ static char *tdesc = "Realtime Switch";
 static struct ast_variable *realtime_switch_common(const char *table, const char *context, const char *exten, int priority, int mode)
 {
 	struct ast_variable *var;
+	struct ast_config *cfg;
+	struct ast_category *cat;
 	char pri[20];
 	char *ematch;
 	char rexten[AST_MAX_EXTENSION + 20]="";
+	int match;
 	snprintf(pri, sizeof(pri), "%d", priority);
 	switch(mode) {
 	case MODE_MATCHMORE:
@@ -104,7 +108,33 @@ static struct ast_variable *realtime_switch_common(const char *table, const char
 		ematch = "exten";
 		strncpy(rexten, exten, sizeof(rexten) - 1);
 	}
-	var = ast_load_realtime(table, "context", context, ematch, rexten, "priority", pri, NULL);
+	var = ast_load_realtime(table, ematch, rexten, "context", context, "priority", pri, NULL);
+	if (!var) {
+		cfg = ast_load_realtime_multientry(table, "exten RLIKE", "_.*", "context", context, "priority", pri, NULL);	
+		if (cfg) {
+			cat = cfg->root;
+			while(cat) {
+				switch(mode) {
+				case MODE_MATCHMORE:
+					match = ast_extension_close(cat->name, exten, 1);
+					break;
+				case MODE_CANMATCH:
+					match = ast_extension_close(cat->name, exten, 0);
+					break;
+				case MODE_MATCH:
+				default:
+					match = ast_extension_match(cat->name, exten);
+				}
+				if (match) {
+					var = cat->root;
+					cat->root = NULL;
+					break;
+				}
+				cat = cat->next;
+			}
+			ast_destroy(cfg);
+		}
+	}
 	return var;
 }
 

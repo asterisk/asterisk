@@ -356,7 +356,7 @@ int ast_matchmore_extension(struct ast_channel *c, const char *context, const ch
  * Returns 1 on match, 0 on failure
  */
 int ast_extension_match(const char *pattern, const char *extension);
-
+int ast_extension_close(const char *pattern, const char *data, int needmore);
 //! Launch a new extension (i.e. new stack)
 /*!
  * \param c not important

@@ -174,6 +174,8 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	char sql[1024];
 	char coltitle[256];
 	char rowdata[2048];
+	char *title=NULL;
+	const char *initfield=NULL;
 	char *op;
 	const char *newparam, *newval;
 	char *stringp;
@@ -213,6 +215,9 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		return NULL;
 	}
+	initfield = ast_strdupa(newparam);
+	if (initfield && (op = strchr(initfield, ' '))) 
+		*op = '\0';
 	newval = va_arg(aq, const char *);
 	if (!strchr(newparam, ' ')) op = " ="; else op = "";
 	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s ?", table, newparam, op);
@@ -221,6 +226,8 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s%s ?", newparam, op);
 		newval = va_arg(aq, const char *);
 	}
+	if (initfield)
+		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " ORDER BY %s", initfield);
 	va_end(aq);
 	res = SQLPrepare(stmt, sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -259,7 +266,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 		return NULL;
 	}
 
-	while (rowcount) {
+	while (rowcount--) {
 		var = NULL;
 		prev = NULL;
 		res = SQLFetch(stmt);
@@ -289,6 +296,8 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 			while(stringp) {
 				chunk = strsep(&stringp, ";");
 				if (chunk && !ast_strlen_zero(ast_strip(chunk))) {
+					if (initfield && !strcmp(initfield, coltitle) && !title)
+						title = ast_strdupa(chunk);
 					if (prev) {
 						prev->next = ast_new_variable(coltitle, chunk);
 						if (prev->next)
@@ -298,20 +307,20 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 					
 				}
 			}
-			if (var) {
-				cat = ast_new_category("");
-				if (cat) {
-					cat->root = var;
-					if (!cfg) 
-						cfg = ast_new_config();
-					if (cfg)
-						ast_category_append(cfg, cat);
-					else 
-						ast_category_destroy(cat);
-				} else {
-					ast_log(LOG_WARNING, "Out of memory!\n");
-					ast_destroy_realtime(var);
-				}
+		}
+		if (var) {
+			cat = ast_new_category(title ? title : "");
+			if (cat) {
+				cat->root = var;
+				if (!cfg) 
+					cfg = ast_new_config();
+				if (cfg)
+					ast_category_append(cfg, cat);
+				else 
+					ast_category_destroy(cat);
+			} else {
+				ast_log(LOG_WARNING, "Out of memory!\n");
+				ast_destroy_realtime(var);
 			}
 		}
 	}
