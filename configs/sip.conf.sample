@@ -24,13 +24,11 @@
 context=default			; Default context for incoming calls
 ;allowguest=no			; Allow or reject guest calls (default is yes, this can also be set to 'osp'
 				; if asterisk was compiled with OSP support.
-;recordhistory=yes		; Record SIP history by default 
-				; (see sip history / sip no history)
 ;realm=mydomain.tld		; Realm for digest authentication
 				; defaults to "asterisk"
 				; Realms MUST be globally unique according to RFC 3261
 				; Set this to your host name or domain name
-port=5060			; UDP Port to bind to (SIP standard port is 5060)
+bindport=5060			; UDP Port to bind to (SIP standard port is 5060)
 bindaddr=0.0.0.0		; IP address to bind to (0.0.0.0 binds to all)
 srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; Note: Asterisk only uses the first host 
@@ -49,6 +47,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;notifymimetype=text/plain	; Allow overriding of mime type in MWI NOTIFY
 ;checkmwi=10			; Default time between mailbox checks for peers
 ;videosupport=yes		; Turn on support for SIP video
+;recordhistory=yes		; Record SIP history by default 
+				; (see sip history / sip no history)
 
 ;disallow=all			; First disallow all codecs
 ;allow=ulaw			; Allow codecs in order of preference

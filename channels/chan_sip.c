@@ -164,7 +164,7 @@ static int rpeerobjs = 0;
 static int apeerobjs = 0;
 static int regobjs = 0;
 
-static int global_allowguest = 0;    /* allow unathuncated peers to connect? */
+static int global_allowguest = 0;    /* allow unauthenticated users/peers to connect? */
 
 #define DEFAULT_MWITIME 10
 static int global_mwitime = DEFAULT_MWITIME;	/* Time between MWI checks for peers */
@@ -209,7 +209,8 @@ static int compactheaders = 0; 						/* send compact sip headers */
 static int recordhistory = 0;				/* Record SIP history. Off by default */
 
 static char global_musicclass[MAX_LANGUAGE] = "";	/* Global music on hold class */
-static char global_realm[AST_MAX_EXTENSION] = "asterisk"; 	/* Default realm */
+#define DEFAULT_REALM	"asterisk"
+static char global_realm[AST_MAX_EXTENSION] = DEFAULT_REALM; 	/* Default realm */
 static char regcontext[AST_MAX_EXTENSION] = "";		/* Context for auto-extensions */
 
 /* Expire slowly */
@@ -285,7 +286,7 @@ struct sip_history {
 #define SIP_NAT_ALWAYS		(3 << 18)
 /* re-INVITE related settings */
 #define SIP_REINVITE		(3 << 20)	/* two bits used */
-#define SIP_CAN_REINVITE	(1 << 20)	/* allow peers to be reinvited to send media directly to us */
+#define SIP_CAN_REINVITE	(1 << 20)	/* allow peers to be reinvited to send media directly p2p */
 #define SIP_REINVITE_UPDATE	(2 << 20)	/* use UPDATE (RFC3311) when reinviting this peer */
 /* "insecure" settings */
 #define SIP_INSECURE		(3 << 22)	/* three settings, uses two bits */
@@ -8890,7 +8891,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			} else if (!strcasecmp(v->name, "mask")) {
 				maskfound++;
 				inet_aton(v->value, &peer->mask);
-			} else if (!strcasecmp(v->name, "port")) {
+			} else if (!strcasecmp(v->name, "port") || !strcasecmp(v-name, "bindport") {
 				if (!realtime && ast_test_flag(peer, SIP_DYNAMIC))
 					peer->defaddr.sin_port = htons(atoi(v->value));
 				else
@@ -9011,7 +9012,7 @@ static int reload_config(void)
 	externrefresh = 10;
 	strncpy(default_useragent, DEFAULT_USERAGENT, sizeof(default_useragent) - 1);
 	strncpy(default_notifymime, DEFAULT_NOTIFYMIME, sizeof(default_notifymime) - 1);
-	global_realm[sizeof(global_realm)-1] = '\0';
+	strncpy(global_realm, DEFAULT_REALM, sizeof(global_realm) - 1);
 	strncpy(global_musicclass, "default", sizeof(global_musicclass) - 1);
 	strncpy(default_callerid, DEFAULT_CALLERID, sizeof(default_callerid) - 1);
 	memset(&outboundproxyip, 0, sizeof(outboundproxyip));
@@ -9085,7 +9086,7 @@ static int reload_config(void)
 			compactheaders = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "notifymimetype")) {
 			strncpy(default_notifymime, v->value, sizeof(default_notifymime) - 1);
-		} else if (!strcasecmp(v->name, "musicclass")) {
+		} else if (!strcasecmp(v->name, "musicclass") || !strcasecmp(v->name, "musiconhold") {
 			strncpy(global_musicclass, v->value, sizeof(global_musicclass) - 1);
 		} else if (!strcasecmp(v->name, "language")) {
 			strncpy(default_language, v->value, sizeof(default_language)-1);
