@@ -55,18 +55,17 @@ static int senddtmf_exec(struct ast_channel *chan, void *data)
 		f.frametype = AST_FRAME_DTMF;
 		f.subclass = digits[x];
 		f.src = "app_senddtmf";
-		res = ast_write(chan, &f);
-		 if (strchr("0123456789*#abcd",digits[x])==NULL) {
-                       ast_log(LOG_WARNING, "Illegal DTMF character in string. (0-9*#abcd allowed)\n");
-               } else {
-                  res = ast_write(chan, &f);
-		  if (res)
-			break;
-		  /* Wait 250ms */
-		  res = ast_safe_sleep(chan, 250);
-		  if (res)
-			break;
-	       }
+		if (strchr("0123456789*#abcd",digits[x])==NULL) {
+			ast_log(LOG_WARNING, "Illegal DTMF character in string. (0-9*#abcd allowed)\n");
+		} else {
+        	res = ast_write(chan, &f);
+			if (res)
+				break;
+		  	/* Wait 250ms */
+		  	res = ast_safe_sleep(chan, 250);
+		  	if (res)
+				break;
+	    }
 	}
 	if (!res)
 		if (option_verbose > 2)
