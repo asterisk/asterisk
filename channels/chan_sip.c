@@ -313,7 +313,7 @@ static struct sockaddr_in bindaddr;
 
 static struct ast_frame  *sip_read(struct ast_channel *ast);
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
-static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req);
+static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
 static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *rand, int reliable);
 static int transmit_request(struct sip_pvt *p, char *msg, int inc, int reliable);
 static int transmit_invite(struct sip_pvt *p, char *msg, int sendsdp, char *auth, char *vxml_url);
@@ -900,7 +900,7 @@ static int sip_answer(struct ast_channel *ast)
 		ast_setstate(ast, AST_STATE_UP);
 		if (option_debug)
 			ast_log(LOG_DEBUG, "sip_answer(%s)\n", ast->name);
-		res = transmit_response_with_sdp(p, "200 OK", &p->initreq);
+		res = transmit_response_with_sdp(p, "200 OK", &p->initreq, 1);
 	}
 	return res;
 }
@@ -927,7 +927,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 		ast_pthread_mutex_lock(&p->lock);
 		if (p->rtp) {
 			if ((ast->_state != AST_STATE_UP) && !p->progress && !p->outgoing) {
-				transmit_response_with_sdp(p, "183 Session Progress", &p->initreq);
+				transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, 0);
 				p->progress = 1;
 			}
 			res =  ast_rtp_write(p->rtp, frame);
@@ -2001,7 +2001,7 @@ static void copy_request(struct sip_request *dst,struct sip_request *src)
 		dst->line[x] += offset;
 }
 
-static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req)
+static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans)
 {
 	struct sip_request resp;
 	int seqno;
@@ -2011,7 +2011,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 	}
 	respprep(&resp, p, msg, req);
 	add_sdp(&resp, p, NULL);
-	return send_response(p, &resp, 1, seqno);
+	return send_response(p, &resp, retrans, seqno);
 }
 
 static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp)
@@ -3678,7 +3678,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				transmit_response(p, "180 Ringing", req);
 				break;
 			case AST_STATE_UP:
-				transmit_response_with_sdp(p, "200 OK", req);
+				transmit_response_with_sdp(p, "200 OK", req, 1);
 				break;
 			default:
 				ast_log(LOG_WARNING, "Don't know how to handle INVITE in state %d\n", c->_state);
