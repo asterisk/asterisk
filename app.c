@@ -710,10 +710,12 @@ int ast_play_and_record(struct ast_channel *chan, char *playfile, char *recordfi
 	for (x=0;x<fmtcnt;x++) {
 		if (!others[x])
 			break;
-		if (totalsilence)
-			ast_stream_rewind(others[x], totalsilence-200);
-		else
-			ast_stream_rewind(others[x], 200);
+		if (res > 0) {
+			if (totalsilence)
+				ast_stream_rewind(others[x], totalsilence-200);
+			else
+				ast_stream_rewind(others[x], 200);
+		}
 		ast_truncstream(others[x]);
 		ast_closestream(others[x]);
 	}
@@ -722,14 +724,11 @@ int ast_play_and_record(struct ast_channel *chan, char *playfile, char *recordfi
 			ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_getformatname(rfmt), chan->name);
 		}
 	}
-	if (outmsg) {
-		if (outmsg > 1) {
+	if (outmsg > 1) {
 		/* Let them know recording is stopped */
-			ast_streamfile(chan, "auth-thankyou", chan->language);
+		if(!ast_streamfile(chan, "auth-thankyou", chan->language))
 			ast_waitstream(chan, "");
-		}
 	}
-
 	return res;
 }
 
