@@ -128,7 +128,7 @@ static int check_header(int fd)
 		ast_log(LOG_WARNING, "Read failed (formtype)\n");
 		return -1;
 	}
-	if (ltohl(hsize) != 16) {
+	if (ltohl(hsize) < 16) {
 		ast_log(LOG_WARNING, "Unexpected header size %d\n", ltohl(hsize));
 		return -1;
 	}
@@ -174,19 +174,36 @@ static int check_header(int fd)
 		ast_log(LOG_WARNING, "Read failed (Bits Per Sample): %d\n", ltohs(bisam));
 		return -1;
 	}
-        /* Begin data chunk */
-	if (read(fd, &data, 4) != 4) {
-		ast_log(LOG_WARNING, "Read failed (data)\n");
+	// Skip any additional header
+	if ( lseek(fd,ltohl(hsize)-16,SEEK_CUR) == -1 ) {
+		ast_log(LOG_WARNING, "Failed to skip remaining header bytes: %d\n", ltohl(hsize)-16 );
 		return -1;
 	}
-	if (memcmp(&data, "data", 4)) {
-		ast_log(LOG_WARNING, "Does not say data\n");
-		return -1;
-	}
-	/* Data has the actual length of data in it */
-	if (read(fd, &data, 4) != 4) {
+	// Skip any facts and get the first data block
+	for(;;)
+	{ 
+            char buf[4];
+	    
+	    /* Begin data chunk */
+	    if (read(fd, &buf, 4) != 4) {
 		ast_log(LOG_WARNING, "Read failed (data)\n");
 		return -1;
+	    }
+	    /* Data has the actual length of data in it */
+	    if (read(fd, &data, 4) != 4) {
+		ast_log(LOG_WARNING, "Read failed (data)\n");
+		return -1;
+	    }
+	    data = ltohl(data);
+	    if( memcmp(buf, "data", 4) == 0 ) break;
+	    if( memcmp(buf, "fact", 4) != 0 ) {
+		ast_log(LOG_WARNING, "Unknown block - not fact or data\n");
+		return -1;
+	    }
+	    if ( lseek(fd,data,SEEK_CUR) == -1 ) {
+		ast_log(LOG_WARNING, "Failed to skip fact block: %d\n", data );
+		return -1;
+	    }
 	}
 #if 0
 	curpos = lseek(fd, 0, SEEK_CUR);
@@ -194,7 +211,7 @@ static int check_header(int fd)
 	lseek(fd, curpos, SEEK_SET);
 	truelength -= curpos;
 #endif	
-	return ltohl(data);
+	return data;
 }
 
 static int update_header(int fd)
