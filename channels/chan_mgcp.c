@@ -39,6 +39,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/signal.h>
+#include <asterisk/dsp.h>
 
 #define MGCPDUMPER
 #define DEFAULT_EXPIREY 120
@@ -122,6 +123,7 @@ struct mgcp_endpoint {
 	char cxident[80];
 	char callid[80];
 	int hascallerid;
+	int dtmfinband;
 	int amaflags;
 	int type;
 	int group;
@@ -132,6 +134,7 @@ struct mgcp_endpoint {
 	int needdestroy;
 	int capability;
 	int outgoing;
+	struct ast_dsp *vad;
 	struct ast_channel *owner;
 	struct ast_rtp *rtp;
 	struct sockaddr_in tmpdest;
@@ -327,6 +330,9 @@ static int mgcp_hangup(struct ast_channel *ast)
 		ast_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
 		return 0;
 	}
+	if ((p->dtmfinband) && (p->vad != NULL)){
+	    ast_dsp_free(p->vad);
+	}
 	ast_pthread_mutex_lock(&p->lock);
 	p->owner = NULL;
 	if (strlen(p->cxident))
@@ -515,6 +521,12 @@ static struct ast_channel *mgcp_new(struct mgcp_endpoint *i, int state)
 		if (i->rtp)
 			tmp->fds[0] = ast_rtp_fd(i->rtp);
 		tmp->type = type;
+		if (i->dtmfinband) {
+		    i->vad = ast_dsp_new();
+		    ast_dsp_set_features(i->vad,DSP_FEATURE_DTMF_DETECT);
+		} else {
+		    i->vad = NULL;
+		}
 		ast_setstate(tmp, state);
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
@@ -616,6 +628,9 @@ static int rtpready(struct ast_rtp *rtp, struct ast_frame *f, void *data)
 					p->owner->nativeformats = f->subclass;
 					ast_set_read_format(p->owner, p->owner->readformat);
 					ast_set_write_format(p->owner, p->owner->writeformat);
+				}
+				if (p->dtmfinband) {
+				    f = ast_dsp_process(p->owner,p->vad,f,0);
 				}
 			}
 			ast_queue_frame(p->owner, f, 0);
@@ -1478,6 +1493,7 @@ struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 	char context[AST_MAX_EXTENSION] = "default";
 	char language[80] = "";
 	char callerid[AST_MAX_EXTENSION] = "";
+	int inbanddtmf = 0;
 	int nat = 0;
 
 	gw = malloc(sizeof(struct mgcp_gateway));
@@ -1519,6 +1535,8 @@ struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 				gw->addr.sin_port = htons(atoi(v->value));
 			} else if (!strcasecmp(v->name, "context")) {
 				strncpy(context, v->value, sizeof(context) - 1);
+			} else if (!strcasecmp(v->name, "inbanddtmf")) {
+				inbanddtmf = atoi(v->value);
 			} else if (!strcasecmp(v->name, "nat")) {
 				nat = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "callerid")) {
@@ -1540,6 +1558,7 @@ struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					strncpy(e->language, language, sizeof(e->language) - 1);
 					e->capability = capability;
 					e->parent = gw;
+					e->dtmfinband = inbanddtmf;
 					e->nat = nat;
 					strncpy(e->name, v->value, sizeof(e->name) - 1);
 					if (!strcasecmp(v->name, "trunk"))
@@ -1555,6 +1574,7 @@ struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 		}
 		
 	}
+
 	if (!ntohl(gw->addr.sin_addr.s_addr) && !gw->dynamic) {
 		ast_log(LOG_WARNING, "Gateway '%s' lacks IP address and isn't dynamic\n", gw->name);
 		free(gw);

@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+#include <asterisk/md5.h>
 #include <asterisk/manager.h>
 
 #define MAX_HEADERS 80
@@ -609,17 +610,48 @@ static int login(char *hostname)
 		if (es.u.co == login) {
 			snprintf(tmp, sizeof(tmp), "Logging in '%s'...", user);
 			show_doing("Logging in", tmp);
-			manager_action("Login", 
-				"Username: %s\r\n"
-				"Secret: %s\r\n",
-					user, pass);
+			/* Check to see if the remote host supports MD5 Authentication */
+			manager_action("Challenge", "AuthType: MD5\r\n");
 			m = wait_for_response(10000);
-			hide_doing();
-			if (m) {
+			if (m && !strcasecmp(get_header(m, "Response"), "Success")) {
+				char *challenge = get_header(m, "Challenge");
+				int x;
+				int len = 0;
+				char md5key[256] = "";
+				struct MD5Context md5;
+				unsigned char digest[16];
+				MD5Init(&md5);
+				MD5Update(&md5, challenge, strlen(challenge));
+				MD5Update(&md5, pass, strlen(pass));
+				MD5Final(digest, &md5);
+				for (x=0; x<16; x++)
+					len += sprintf(md5key + len, "%2.2x", digest[x]);
+				manager_action("Login",
+						"AuthType: MD5\r\n"
+						"Username: %s\r\n"
+						"Key: %s\r\n",
+						user, md5key);
+				m = wait_for_response(10000);
+				hide_doing();
 				if (!strcasecmp(get_header(m, "Response"), "Success")) {
 					res = 0;
 				} else {
 					show_message("Login Failed", get_header(m, "Message"));
+				}
+			} else {
+				memset(m, 0, sizeof(m));
+				manager_action("Login", 
+					"Username: %s\r\n"
+					"Secret: %s\r\n",
+						user, pass);
+				m = wait_for_response(10000);
+				hide_doing();
+				if (m) {
+					if (!strcasecmp(get_header(m, "Response"), "Success")) {
+						res = 0;
+					} else {
+						show_message("Login Failed", get_header(m, "Message"));
+					}
 				}
 			}
 		}

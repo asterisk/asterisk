@@ -288,6 +288,7 @@ static int sip_do_register(struct sip_registry *r);
 struct sip_registry *registrations;
 
 static int sipsock  = -1;
+static int globalnat = 0;
 
 static struct sockaddr_in bindaddr;
 
@@ -1128,6 +1129,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin)
 	p->rtp = ast_rtp_new(NULL, NULL);
 	p->branch = rand();	
 	p->tag = rand();
+	p->nat = globalnat;
 	/* Start with 101 instead of 1 */
 	p->ocseq = 101;
 	if (!p->rtp) {
@@ -3996,6 +3998,8 @@ static int reload_config(void)
 		return 0;
 	}
 	
+	globalnat = 0;
+	
 	sip_prefs_free();
 	
 	memset(&bindaddr, 0, sizeof(bindaddr));
@@ -4009,6 +4013,8 @@ static int reload_config(void)
 			strncpy(context, v->value, sizeof(context)-1);
 		} else if (!strcasecmp(v->name, "language")) {
 			strncpy(language, v->value, sizeof(language)-1);
+		} else if (!strcasecmp(v->name, "nat")) {
+			globalnat = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "maxexpirey")) {
 			max_expirey = atoi(v->value);
 			if (max_expirey < 1)

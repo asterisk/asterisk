@@ -15,5 +15,5 @@ none:
 clean:
 	rm -f *.o astman
 
-astman: astman.o
-	$(CC) -o astman astman.o -lnewt
+astman: astman.o ../md5.o
+	$(CC) -o astman astman.o ../md5.o -lnewt
