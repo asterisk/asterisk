@@ -30,7 +30,7 @@
 #include <time.h>
 
 #include <mysql.h>
-#include <mysql/errmsg.h>
+#include <errmsg.h>
 
 #define DATE_FORMAT "%Y-%m-%d %T"
 
