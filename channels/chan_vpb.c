@@ -97,11 +97,10 @@ static int restart_monitor(void);
 #define MODE_FXO	3
 
 
+static VPB_TONE Dialtone     = {440, 440, 440, 0,  0, 0, 5000, 0   };
+static VPB_TONE Busytone     = {440,   0,   0, 0,  -100, -100,   500,  500};
+static VPB_TONE Ringbacktone = {440,   0,   0, 0,  -100, -100,  100, 100};
 
-
-static VPB_TONE Dialtone     = {450, 425, 400, -10,   -10,  -10, 10000, 0   };
-static VPB_TONE Busytone     = {425,   0,   0, -10,  -100, -100,   500,  500};
-static VPB_TONE Ringbacktone = {425,   0,   0, -10,  -100, -100,  1000, 3000};
 
 
 #define VPB_MAX_BRIDGES 128 
@@ -305,7 +304,11 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
      case VPB_STATION_FLASH:
 	  f.subclass = AST_CONTROL_FLASH;
 	  break;
-
+	
+     case VPB_DIALEND:
+	  f.subclass = AST_CONTROL_ANSWER;
+	  break;
+	  
      default:
 	  f.frametype = -1;
 	  break;
@@ -669,7 +672,7 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 	return -1;
     }
     if (p->mode != MODE_FXO)  /* Station port, ring it. */
-	res = vpb_ring_station_async(p->handle, VPB_RING_STATION_ON);       
+	res = vpb_ring_station_async(p->handle, VPB_RING_STATION_ON,'1');       
      else {
 	  VPB_CALL call;
 
@@ -704,7 +707,7 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 
     if (res == 0) {
 	 if (timeout) {
-	      vpb_timer_open(&p->timer, p->handle, 0, 1000*timeout);
+	      vpb_timer_open(&p->timer, p->handle, 0, 100*timeout);
 	      vpb_timer_start(p->timer);
 	 }
 	 p->calling = 1;
@@ -733,7 +736,7 @@ static int vpb_hangup(struct ast_channel *ast)
     vpb_record_terminate(p->handle);
     
     if (p->mode != MODE_FXO) { /* station port. */
-	vpb_ring_station_async(p->handle, VPB_RING_STATION_OFF);	
+	vpb_ring_station_async(p->handle, VPB_RING_STATION_OFF,'1');	
 	vpb_playtone_async(p->handle, &Busytone);
 
     } else
@@ -889,7 +892,7 @@ static void *do_chanreads(void *pvt)
      while (!p->stopreads && p->owner) {	 
 	 int res = -1, fmt;
 	 struct ast_channel *owner = p->owner;
-	 int afmt = (owner) ? owner->pvt->rawreadformat : AST_FORMAT_SLINEAR;
+	 int afmt = (owner) ? owner->pvt->rawreadformat : AST_FORMAT_ALAW;
 	 int state = (owner) ? owner->_state : AST_STATE_DOWN;
 	 int readlen;	
 	 
@@ -975,8 +978,8 @@ static struct ast_channel *vpb_new(struct vpb_pvt *i, int state, char *context)
 		tmp->type = type;
 	       
 		tmp->nativeformats = prefformat;
-		tmp->pvt->rawreadformat = AST_FORMAT_SLINEAR;
-		tmp->pvt->rawwriteformat =  AST_FORMAT_SLINEAR;
+		tmp->pvt->rawreadformat = AST_FORMAT_ALAW;
+		tmp->pvt->rawwriteformat =  AST_FORMAT_ALAW;
 		ast_setstate(tmp, state);
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
