@@ -4,7 +4,7 @@
 [general]
 port = 5060			; Port to bind to
 bindaddr = 0.0.0.0		; Address to bind to
-externip = 200.201.202.203	; Address that we're going to put in SIP messages if we're behind a NAT
+;externip = 200.201.202.203	; Address that we're going to put in SIP messages if we're behind a NAT
 context = default		; Default for incoming calls
 ;srvlookup = yes		; Enable SRV lookups on outbound calls
 ;pedantic = yes			; Enable slow, pedantic checking for Pingtel
