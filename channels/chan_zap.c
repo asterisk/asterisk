@@ -6283,13 +6283,15 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 	prev = NULL;
 
 	while (tmp2) {
-		if (tmp2->channel == channel) {
-			tmp = tmp2;
-			here = 1;
-			break;
-		}
-		if (tmp2->channel > channel) {
-			break;
+		if (!tmp2->destroy) {
+			if (tmp2->channel == channel) {
+				tmp = tmp2;
+				here = 1;
+				break;
+			}
+			if (tmp2->channel > channel) {
+				break;
+			}
 		}
 		prev = tmp2;
 		tmp2 = tmp2->next;
@@ -9131,61 +9133,63 @@ static int setup_zap(int reload)
 		return -1;
 	}
 #ifdef ZAPATA_PRI
-	/* Process trunkgroups first */
-	v = ast_variable_browse(cfg, "trunkgroups");
-	while(v) {
-		if (!strcasecmp(v->name, "trunkgroup")) {
-			trunkgroup = atoi(v->value);
-			if (trunkgroup > 0) {
-				if ((c = strchr(v->value, ','))) {
-					i = 0;
-					memset(dchannels, 0, sizeof(dchannels));
-					while(c && (i < NUM_DCHANS)) {
-						dchannels[i] = atoi(c + 1);
-						if (dchannels[i] < 0) {
-							ast_log(LOG_WARNING, "D-channel for trunk group %d must be a postiive number at line %d of zapata.conf\n", trunkgroup, v->lineno);
+	if (!reload) {
+		/* Process trunkgroups first */
+		v = ast_variable_browse(cfg, "trunkgroups");
+		while(v) {
+			if (!strcasecmp(v->name, "trunkgroup")) {
+				trunkgroup = atoi(v->value);
+				if (trunkgroup > 0) {
+					if ((c = strchr(v->value, ','))) {
+						i = 0;
+						memset(dchannels, 0, sizeof(dchannels));
+						while(c && (i < NUM_DCHANS)) {
+							dchannels[i] = atoi(c + 1);
+							if (dchannels[i] < 0) {
+								ast_log(LOG_WARNING, "D-channel for trunk group %d must be a postiive number at line %d of zapata.conf\n", trunkgroup, v->lineno);
+							} else
+								i++;
+							c = strchr(c + 1, ',');
+						}
+						if (i) {
+							if (pri_create_trunkgroup(trunkgroup, dchannels)) {
+								ast_log(LOG_WARNING, "Unable to create trunk group %d with Primary D-channel %d at line %d of zapata.conf\n", trunkgroup, dchannels[0], v->lineno);
+							} else if (option_verbose > 1)
+								ast_verbose(VERBOSE_PREFIX_2 "Created trunk group %d with Primary D-channel %d and %d backup%s\n", trunkgroup, dchannels[0], i - 1, (i == 1) ? "" : "s");
 						} else
-							i++;
-						c = strchr(c + 1, ',');
-					}
-					if (i) {
-						if (pri_create_trunkgroup(trunkgroup, dchannels)) {
-							ast_log(LOG_WARNING, "Unable to create trunk group %d with Primary D-channel %d at line %d of zapata.conf\n", trunkgroup, dchannels[0], v->lineno);
-						} else if (option_verbose > 1)
-							ast_verbose(VERBOSE_PREFIX_2 "Created trunk group %d with Primary D-channel %d and %d backup%s\n", trunkgroup, dchannels[0], i - 1, (i == 1) ? "" : "s");
+							ast_log(LOG_WARNING, "Trunk group %d lacks any valid D-channels at line %d of zapata.conf\n", trunkgroup, v->lineno);
 					} else
-						ast_log(LOG_WARNING, "Trunk group %d lacks any valid D-channels at line %d of zapata.conf\n", trunkgroup, v->lineno);
+						ast_log(LOG_WARNING, "Trunk group %d lacks a primary D-channel at line %d of zapata.conf\n", trunkgroup, v->lineno);
 				} else
-					ast_log(LOG_WARNING, "Trunk group %d lacks a primary D-channel at line %d of zapata.conf\n", trunkgroup, v->lineno);
-			} else
-				ast_log(LOG_WARNING, "Trunk group identifier must be a positive integer at line %d of zapata.conf\n", v->lineno);
-		} else if (!strcasecmp(v->name, "spanmap")) {
-			spanno = atoi(v->value);
-			if (spanno > 0) {
-				if ((c = strchr(v->value, ','))) {
-					trunkgroup = atoi(c + 1);
-					if (trunkgroup > 0) {
-						if ((c = strchr(c + 1, ','))) 
-							logicalspan = atoi(c + 1);
-						else
-							logicalspan = 0;
-						if (logicalspan >= 0) {
-							if (pri_create_spanmap(spanno - 1, trunkgroup, logicalspan)) {
-								ast_log(LOG_WARNING, "Failed to map span %d to trunk group %d (logical span %d)\n", spanno, trunkgroup, logicalspan);
-							} else if (option_verbose > 1) 
-								ast_verbose(VERBOSE_PREFIX_2 "Mapped span %d to trunk group %d (logical span %d)\n", spanno, trunkgroup, logicalspan);
+					ast_log(LOG_WARNING, "Trunk group identifier must be a positive integer at line %d of zapata.conf\n", v->lineno);
+			} else if (!strcasecmp(v->name, "spanmap")) {
+				spanno = atoi(v->value);
+				if (spanno > 0) {
+					if ((c = strchr(v->value, ','))) {
+						trunkgroup = atoi(c + 1);
+						if (trunkgroup > 0) {
+							if ((c = strchr(c + 1, ','))) 
+								logicalspan = atoi(c + 1);
+							else
+								logicalspan = 0;
+							if (logicalspan >= 0) {
+								if (pri_create_spanmap(spanno - 1, trunkgroup, logicalspan)) {
+									ast_log(LOG_WARNING, "Failed to map span %d to trunk group %d (logical span %d)\n", spanno, trunkgroup, logicalspan);
+								} else if (option_verbose > 1) 
+									ast_verbose(VERBOSE_PREFIX_2 "Mapped span %d to trunk group %d (logical span %d)\n", spanno, trunkgroup, logicalspan);
+							} else
+								ast_log(LOG_WARNING, "Logical span must be a postive number, or '0' (for unspecified) at line %d of zapata.conf\n", v->lineno);
 						} else
-							ast_log(LOG_WARNING, "Logical span must be a postive number, or '0' (for unspecified) at line %d of zapata.conf\n", v->lineno);
+							ast_log(LOG_WARNING, "Trunk group must be a postive number at line %d of zapata.conf\n", v->lineno);
 					} else
-						ast_log(LOG_WARNING, "Trunk group must be a postive number at line %d of zapata.conf\n", v->lineno);
+						ast_log(LOG_WARNING, "Missing trunk group for span map at line %d of zapata.conf\n", v->lineno);
 				} else
-					ast_log(LOG_WARNING, "Missing trunk group for span map at line %d of zapata.conf\n", v->lineno);
-			} else
-				ast_log(LOG_WARNING, "Span number must be a postive integer at line %d of zapata.conf\n", v->lineno);
-		} else {
-			ast_log(LOG_NOTICE, "Ignoring unknown keyword '%s' in trunkgroups\n", v->name);
+					ast_log(LOG_WARNING, "Span number must be a postive integer at line %d of zapata.conf\n", v->lineno);
+			} else {
+				ast_log(LOG_NOTICE, "Ignoring unknown keyword '%s' in trunkgroups\n", v->name);
+			}
+			v = v->next;
 		}
-		v = v->next;
 	}
 #endif
 	v = ast_variable_browse(cfg, "channels");
