@@ -3416,7 +3416,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		if (i->busydetect && CANBUSYDETECT(i)) {
 			features |= DSP_FEATURE_BUSY_DETECT;
 		}
-		if (i->callprogress && CANPROGRESSDETECT(i)) {
+		if (i->callprogress && CANPROGRESSDETECT(i) && i->outgoing) {
 			features |= DSP_FEATURE_CALL_PROGRESS;
 		}
 		features |= DSP_FEATURE_DTMF_DETECT;
@@ -5057,6 +5057,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 					break;
 				}
 			}
+			p->outgoing = 1;
 			tmp = zt_new(p, AST_STATE_RESERVED, 0, p->owner ? SUB_CALLWAIT : SUB_REAL, 0);
 			/* Make special notes */
 			if (res > 1) {
