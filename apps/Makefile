@@ -35,9 +35,9 @@ endif
 
 #APPS+=app_sql_postgres.so
 #APPS+=app_sql_odbc.so
+#APPS+=app_rpt.so
 
 APPS+=$(shell if [ -f /usr/include/linux/zaptel.h ]; then echo "app_zapras.so app_meetme.so app_flash.so app_zapbarge.so app_zapscan.so" ; fi)
-#APPS+=$(shell if [ -f /usr/include/zap.h ]; then echo "app_rpt.so" ; fi)
 
 CFLAGS+=-fPIC
 
@@ -63,12 +63,6 @@ app_rpt.so : app_rpt.o
 install: all
 	for x in $(APPS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 	rm -f $(DESTDIR)$(MODULES_DIR)/app_datetime.so
-
-app_todd.o: app_todd.c
-	gcc -pipe -O6 -g  -Iinclude -I../include -D_REENTRANT -march=i586 -DDO_CRASH -c -o  app_todd.o app_todd.c
-
-app_todd.so: app_todd.o
-	$(CC) $(SOLINK) -o $@ $< -L/usr/local/ssl/lib -lssl -lcrypto
 
 app_voicemail.so : app_voicemail.o
 ifeq ($(USE_MYSQL_VM_INTERFACE),1)

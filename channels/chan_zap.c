@@ -5676,11 +5676,15 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 				p.debouncetime = cur_debounce;
 		}
 
-		res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_SET_PARAMS, &p);
-		if (res < 0) {
-			ast_log(LOG_ERROR, "Unable to set parameters\n");
-			free(tmp);
-			return NULL;
+		/* dont set parms on a pseudo-channel */
+		if (tmp->subs[SUB_REAL].zfd >= 0)
+		{
+			res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_SET_PARAMS, &p);
+			if (res < 0) {
+				ast_log(LOG_ERROR, "Unable to set parameters\n");
+				free(tmp);
+				return NULL;
+			}
 		}
 #if 1
 		if (!here && (tmp->subs[SUB_REAL].zfd > -1)) {

@@ -57,6 +57,10 @@ DEBUG=-g #-pg
 # You can still use the old libpri if you do "cvs update -D "08/03/03" in libpri source code
 OPTIONS += -DNEW_PRI_HANGUP
 
+# If you are running a radio application, define RADIO_RELAX so that the DTMF
+# will be received more reliably
+#OPTIONS += -DRADIO_RELAX
+
 # Optional debugging parameters
 DEBUG_THREADS = #-DDEBUG_THREADS #-DDO_CRASH 
 

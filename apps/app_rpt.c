@@ -2,17 +2,40 @@
  *
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Radio Repeater program
+ * Radio Repeater / Remote Base program 
+ *  version 0.2 5/30/04
  * 
- * Copyright (C) 2002, Jim Dixon
+ * Copyright (C) 2002-2004, Jim Dixon
  *
  * Jim Dixon <jim@lambdatel.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
  *
+ * Repeater / Remote Functions:
+ * "Simple" Mode:  * - autopatch access, # - autopatch hangup
+ * Normal mode:
+ *  *0 - autopatch access
+ *  *1 - remote base off
+ *  *2 - remote base monitor
+ *  *3 - remote base tranceive
+ *  *8 - force ID
+ *  *9 - system reset
+ *
+ *  To send an asterisk (*) while dialing or talking on phone,
+ *  use the autopatch acess code.
  */
  
+/* number of digits for function after *. Must be at least 1 */
+#define	FUNCTION_LEN 1
+
+/* maximum digits in DTMF buffer, and seconds after * for DTMF command timeout */
+
+#define	MAXDTMF 10
+#define	DTMF_TIMEOUT 3
+
+enum {REM_OFF,REM_MONITOR,REM_TX};
+
 #include <asterisk/lock.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
@@ -40,7 +63,7 @@
 #include <tonezone.h>
 #include <linux/zaptel.h>
 
-static  char *tdesc = "Radio Repeater";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.2  05/30/2004";
 static int debug = 0;
 STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
@@ -58,17 +81,25 @@ static struct rpt
 	char *name;
 	char *rxchanname;
 	char *txchanname;
+	char *rem_rxchanname;
+	char *rem_txchanname;
 	char *ourcontext;
 	char *ourcallerid;
 	char *acctcode;
 	char *idrecording;
+	char *tonezone;
 	int hangtime;
 	int totime;
 	int idtime;
-	struct ast_channel *rxchannel,*txchannel,*pchannel;
+	char remoterx;
+	char remotetx;
+	char remotemode;
+	char simple;
+	struct ast_channel *rxchannel,*txchannel,*rem_rxchannel;
+	struct ast_channel *rem_txchannel,*pchannel;
 	int tailtimer,totimer,idtimer,txconf,pconf,callmode,cidx;
 	pthread_t rpt_id_thread,rpt_term_thread,rpt_proc_thread,rpt_call_thread;
-	char mydtmf,iding,terming;
+	char mydtmf,iding,terming,teleing,comping,procing;
 	char exten[AST_MAX_EXTENSION];
 } rpt_vars[MAXRPTS];		
 
@@ -130,7 +161,7 @@ struct ast_channel *mychannel;
 	}
 	/* make a conference for the tx */
 	ci.chan = 0;
-	ci.confno = myrpt->pconf; /* use the tx conference */
+	ci.confno = myrpt->txconf; /* use the tx conference */
 	ci.confmode = ZT_CONF_CONFANN;
 	/* first put the channel on the conference in announce mode */
 	if (ioctl(mychannel->fds[0],ZT_SETCONF,&ci) == -1)
@@ -138,7 +169,7 @@ struct ast_channel *mychannel;
 		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 		pthread_exit(NULL);
 	}
-	myrpt->terming = 1;
+	myrpt->procing = 1;
 	ast_stopstream(mychannel);
 	res = ast_streamfile(mychannel, "callproceeding", mychannel->language);
 	if (!res) 
@@ -147,7 +178,7 @@ struct ast_channel *mychannel;
 		ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
 		res = 0;
 	}
-	myrpt->terming = 0;
+	myrpt->procing = 0;
 	ast_stopstream(mychannel);
 	ast_hangup(mychannel);
 	pthread_exit(NULL);
@@ -171,7 +202,7 @@ struct ast_channel *mychannel;
 	}
 	/* make a conference for the tx */
 	ci.chan = 0;
-	ci.confno = myrpt->pconf; /* use the tx conference */
+	ci.confno = myrpt->txconf; /* use the tx conference */
 	ci.confmode = ZT_CONF_CONFANN;
 	/* first put the channel on the conference in announce mode */
 	if (ioctl(mychannel->fds[0],ZT_SETCONF,&ci) == -1)
@@ -190,6 +221,89 @@ struct ast_channel *mychannel;
 	}
 	myrpt->terming = 0;
 	ast_stopstream(mychannel);
+	ast_hangup(mychannel);
+	pthread_exit(NULL);
+}
+
+static void *rpt_complete(void *this)
+{
+ZT_CONFINFO ci;  /* conference info */
+int	res;
+struct	rpt *myrpt = (struct rpt *)this;
+struct ast_channel *mychannel;
+
+	/* wait a little bit */
+	usleep(1000000);
+	/* allocate a pseudo-channel thru asterisk */
+	mychannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo");
+	if (!mychannel)
+	{
+		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
+		pthread_exit(NULL);
+	}
+	/* make a conference for the tx */
+	ci.chan = 0;
+	ci.confno = myrpt->txconf; /* use the tx conference */
+	ci.confmode = ZT_CONF_CONFANN;
+	/* first put the channel on the conference in announce mode */
+	if (ioctl(mychannel->fds[0],ZT_SETCONF,&ci) == -1)
+	{
+		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+		pthread_exit(NULL);
+	}
+	myrpt->comping = 1;
+	ast_stopstream(mychannel);
+	res = ast_streamfile(mychannel, "functioncomplete", mychannel->language);
+	if (!res) 
+		res = ast_waitstream(mychannel, "");
+	else {
+		ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+		res = 0;
+	}
+	myrpt->comping = 0;
+	ast_stopstream(mychannel);
+	ast_hangup(mychannel);
+	pthread_exit(NULL);
+}
+
+static void *rpt_remote_telemetry(void *this)
+{
+ZT_CONFINFO ci;  /* conference info */
+int res;
+struct	rpt *myrpt = (struct rpt *)this;
+struct ast_channel *mychannel;
+
+	/* wait a little bit */
+	usleep(1000000);
+	/* allocate a pseudo-channel thru asterisk */
+	mychannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo");
+	if (!mychannel)
+	{
+		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
+		pthread_exit(NULL);
+	}
+	/* make a conference for the tx */
+	ci.chan = 0;
+	ci.confno = myrpt->txconf; /* use the tx conference */
+	ci.confmode = ZT_CONF_CONFANN;
+	/* first put the channel on the conference in announce mode */
+	if (ioctl(mychannel->fds[0],ZT_SETCONF,&ci) == -1)
+	{
+		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+		pthread_exit(NULL);
+	}
+	myrpt->teleing = 1;
+	ast_stopstream(mychannel);
+	res = ast_streamfile(mychannel, 
+		((myrpt->remotemode == REM_MONITOR) ? "remote_monitor" : "remote_tx"),
+			mychannel->language);
+	if (!res) 
+		res = ast_waitstream(mychannel, "");
+	else {
+		ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+		res = 0;
+	}
+	myrpt->teleing = 0;
 	ast_hangup(mychannel);
 	pthread_exit(NULL);
 }
@@ -239,6 +353,22 @@ struct ast_channel *mychannel,*genchannel;
 	if (ioctl(genchannel->fds[0],ZT_SETCONF,&ci) == -1)
 	{
 		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+		ast_hangup(mychannel);
+		ast_hangup(genchannel);
+		myrpt->callmode = 0;
+		pthread_exit(NULL);
+	}
+	if (myrpt->tonezone && (tone_zone_set_zone(mychannel->fds[0],myrpt->tonezone) == -1))
+	{
+		ast_log(LOG_WARNING, "Unable to set tone zone %s\n",myrpt->tonezone);
+		ast_hangup(mychannel);
+		ast_hangup(genchannel);
+		myrpt->callmode = 0;
+		pthread_exit(NULL);
+	}
+	if (myrpt->tonezone && (tone_zone_set_zone(genchannel->fds[0],myrpt->tonezone) == -1))
+	{
+		ast_log(LOG_WARNING, "Unable to set tone zone %s\n",myrpt->tonezone);
 		ast_hangup(mychannel);
 		ast_hangup(genchannel);
 		myrpt->callmode = 0;
@@ -358,14 +488,104 @@ struct ast_channel *mychannel,*genchannel;
 	pthread_exit(NULL);
 }
 
+static void process_dtmf(char *cmd,struct rpt *myrpt)
+{
+pthread_attr_t attr;
+ZT_CONFINFO ci;  /* conference info */
+
+	switch(atoi(cmd))
+	{
+	case 0:	/* autopatch on / send asterisk (*) */
+		/* if on call, force * into current audio stream */
+		if ((myrpt->callmode == 2) || (myrpt->callmode == 3))
+		{
+			myrpt->mydtmf = '*';
+			break;
+		}
+		if (myrpt->callmode) return;
+		myrpt->callmode = 1;
+		myrpt->cidx = 0;
+		myrpt->exten[myrpt->cidx] = 0;
+	        pthread_attr_init(&attr);
+	        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+		pthread_create(&myrpt->rpt_call_thread,&attr,rpt_call,(void *)myrpt);
+		return;
+	case 9: /* master reset */
+		myrpt->callmode = 0;
+		/* fall thru intentionally */
+	case 1: /* remote base off */
+		if (myrpt->rem_rxchannel == NULL) return;
+		myrpt->remotemode = REM_OFF;
+		ci.chan = 0;
+		ci.confno = 0;
+		ci.confmode = 0;
+		/* Take off conf */
+		if (ioctl(myrpt->rem_rxchannel->fds[0],ZT_SETCONF,&ci) == -1)
+		{
+			ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+			pthread_exit(NULL);
+		}
+		/* Take off conf */
+		if (ioctl(myrpt->rem_txchannel->fds[0],ZT_SETCONF,&ci) == -1)
+		{
+			ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+			pthread_exit(NULL);
+		}
+		break;
+	case 2: /* remote base monitor */
+		if (myrpt->rem_rxchannel == NULL) return;
+		myrpt->remotemode = REM_MONITOR;
+		if (myrpt->remoterx && (!myrpt->remotetx))
+		{
+			ci.chan = 0;
+			ci.confno = myrpt->pconf;
+			ci.confmode = ZT_CONF_CONF | ZT_CONF_TALKER;
+			/* Put on conf */
+			if (ioctl(myrpt->rem_rxchannel->fds[0],ZT_SETCONF,&ci) == -1)
+			{
+				ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+				pthread_exit(NULL);
+			}
+		}
+		break;
+	case 3: /* remote base tranceieve */
+		if (myrpt->rem_rxchannel == NULL) return;
+		myrpt->remotemode = REM_TX;
+		if (myrpt->remoterx && (!myrpt->remotetx))
+		{
+			ci.chan = 0;
+			ci.confno = myrpt->pconf;
+			ci.confmode = ZT_CONF_CONF | ZT_CONF_TALKER;
+			/* Put on conf */
+			if (ioctl(myrpt->rem_rxchannel->fds[0],ZT_SETCONF,&ci) == -1)
+			{
+				ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+				pthread_exit(NULL);
+			}
+		}
+		break;
+	case 8: /* force ID */
+		myrpt->idtimer = 0;
+		return;
+	default:
+		return;
+	}
+	/* send function complete */
+        pthread_attr_init(&attr);
+        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	pthread_create(&myrpt->rpt_call_thread,&attr,rpt_complete,(void *)myrpt);
+}
+
 /* single thread with one file (request) to dial */
 static void *rpt(void *this)
 {
 struct	rpt *myrpt = (struct rpt *)this;
 char *tele;
-int ms = MSWAIT,lasttx,keyed,val;
+int ms = MSWAIT,lasttx,keyed,val,dtmfidx;
+char dtmfbuf[MAXDTMF];
 struct ast_channel *who;
 ZT_CONFINFO ci;  /* conference info */
+time_t	dtmf_time,t;
 pthread_attr_t attr;
 
 	tele = strchr(myrpt->rxchanname,'/');
@@ -390,7 +610,7 @@ pthread_attr_t attr;
 	}
 	else
 	{
-		fprintf(stderr,"rpt:Sorry unable to obtain channel\n");
+		fprintf(stderr,"rpt:Sorry unable to obtain Rx channel\n");
 		pthread_exit(NULL);
 	}
 	if (myrpt->txchanname)
@@ -417,13 +637,77 @@ pthread_attr_t attr;
 		}
 		else
 		{
-			fprintf(stderr,"rpt:Sorry unable to obtain channel\n");
+			fprintf(stderr,"rpt:Sorry unable to obtain Tx channel\n");
 			pthread_exit(NULL);
 		}
 	}
 	else
 	{
 		myrpt->txchannel = myrpt->rxchannel;
+	}
+	myrpt->rem_rxchannel = NULL;
+	myrpt->rem_txchannel = NULL;
+	myrpt->remoterx = 0;
+	myrpt->remotemode = REM_OFF;
+	if (myrpt->rem_rxchanname)
+	{
+		tele = strchr(myrpt->rem_rxchanname,'/');
+		if (!tele)
+		{
+			fprintf(stderr,"rpt:Dial number must be in format tech/number\n");
+			pthread_exit(NULL);
+		}
+		*tele++ = 0;
+		myrpt->rem_rxchannel = ast_request(myrpt->rem_rxchanname,AST_FORMAT_SLINEAR,tele);
+		if (myrpt->rem_rxchannel)
+		{
+			ast_set_read_format(myrpt->rem_rxchannel,AST_FORMAT_SLINEAR);
+			ast_set_write_format(myrpt->rem_rxchannel,AST_FORMAT_SLINEAR);
+			myrpt->rem_rxchannel->whentohangup = 0;
+			myrpt->rem_rxchannel->appl = "Apprpt";
+			myrpt->rem_rxchannel->data = "(Repeater/Remote Rx)";
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "rpt (RemoteRx) initiating call to %s/%s on %s\n",
+					myrpt->rem_rxchanname,tele,myrpt->rem_rxchannel->name);
+			ast_call(myrpt->rem_rxchannel,tele,999);
+		}
+		else
+		{
+			fprintf(stderr,"rpt:Sorry unable to obtain RemoteRx channel\n");
+			pthread_exit(NULL);
+		}
+		if (myrpt->rem_txchanname)  /* if in remote base mode */
+		{
+			tele = strchr(myrpt->rem_txchanname,'/');
+			if (!tele)
+			{
+				fprintf(stderr,"rpt:Dial number must be in format tech/number\n");
+				pthread_exit(NULL);
+			}
+			*tele++ = 0;
+			myrpt->rem_txchannel = ast_request(myrpt->rem_txchanname,AST_FORMAT_SLINEAR,tele);
+			if (myrpt->rem_txchannel)
+			{
+				ast_set_read_format(myrpt->rem_txchannel,AST_FORMAT_SLINEAR);
+				ast_set_write_format(myrpt->rem_txchannel,AST_FORMAT_SLINEAR);
+				myrpt->rem_txchannel->whentohangup = 0;
+				myrpt->rem_txchannel->appl = "Apprpt";
+				myrpt->rem_txchannel->data = "(Repeater/Remote Tx)";
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "rpt (RemoteTx) initiating call to %s/%s on %s\n",
+						myrpt->rem_txchanname,tele,myrpt->rem_txchannel->name);
+				ast_call(myrpt->rem_txchannel,tele,999);
+			}
+			else
+			{
+				fprintf(stderr,"rpt:Sorry unable to obtain Tx channel\n");
+				pthread_exit(NULL);
+			}
+		}
+		else
+		{
+			myrpt->rem_txchannel = myrpt->rem_rxchannel;
+		}
 	}
 	/* allocate a pseudo-channel thru asterisk */
 	myrpt->pchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo");
@@ -463,19 +747,39 @@ pthread_attr_t attr;
 	myrpt->totimer = 0;
 	myrpt->idtimer = 0;
 	lasttx = 0;
+	myrpt->remotetx = 0;
 	keyed = 0;
 	myrpt->callmode = 0;
+	dtmfidx = -1;
+	dtmfbuf[0] = 0;
+	dtmf_time = 0;
 	val = 0;
 	ast_channel_setoption(myrpt->rxchannel,AST_OPTION_TONE_VERIFY,&val,sizeof(char),0);
 	val = 1;
 	ast_channel_setoption(myrpt->rxchannel,AST_OPTION_RELAXDTMF,&val,sizeof(char),0);
+	if (myrpt->rem_rxchannel)
+	{
+		val = 0;
+		ast_channel_setoption(myrpt->rem_rxchannel,AST_OPTION_TONE_VERIFY,&val,sizeof(char),0);
+		val = 1;
+		ast_channel_setoption(myrpt->rem_rxchannel,AST_OPTION_RELAXDTMF,&val,sizeof(char),0);
+	}
 	while (ms >= 0)
 	{
 		struct ast_frame *f;
-		struct ast_channel *cs[3];
-		int totx,elap;
+		struct ast_channel *cs[5];
+		int totx,rem_totx,elap,n;
 
-		totx = (keyed || myrpt->callmode || myrpt->iding || myrpt->terming);
+		if (ast_check_hangup(myrpt->rxchannel)) break;
+		if (ast_check_hangup(myrpt->txchannel)) break;
+		if (myrpt->rem_rxchannel)
+		{
+			if (ast_check_hangup(myrpt->rem_rxchannel)) break;
+			if (ast_check_hangup(myrpt->rem_txchannel)) break;
+		}
+		totx = (keyed || myrpt->callmode || myrpt->iding || myrpt->terming
+		    || ((myrpt->remotemode != REM_OFF) && myrpt->remoterx) ||
+			myrpt->teleing || myrpt->comping || myrpt->procing);
 		if (!totx) myrpt->totimer = myrpt->totime;
 		else myrpt->tailtimer = myrpt->hangtime;
 		totx = (totx || myrpt->tailtimer) && myrpt->totimer;
@@ -485,6 +789,11 @@ pthread_attr_t attr;
 		{
 			myrpt->totimer = myrpt->totime;
 			continue;
+		}
+		/* if timed-out and in circuit busy after call */
+		if ((!totx) && (!myrpt->totimer) && (myrpt->callmode == 4))
+		{
+			myrpt->callmode = 0;
 		}
 		if (totx && (!myrpt->idtimer))
 		{
@@ -503,12 +812,75 @@ pthread_attr_t attr;
 			lasttx = 0;
 			ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
 		}
-
-		cs[0] = myrpt->rxchannel;
-		cs[1] = myrpt->pchannel;
-		cs[2] = myrpt->txchannel;
+		rem_totx = ((keyed && (myrpt->remotemode == REM_TX)) && myrpt->totimer);
+		if (rem_totx && (!myrpt->remotetx))
+		{
+			myrpt->remotetx = 1;
+			ci.chan = 0;
+			ci.confno = 0;
+			ci.confmode = 0;
+			/* Take off conf */
+			if (ioctl(myrpt->rem_rxchannel->fds[0],ZT_SETCONF,&ci) == -1)
+			{
+				ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+				pthread_exit(NULL);
+			}
+			ast_indicate(myrpt->rem_txchannel,AST_CONTROL_RADIO_KEY);
+			ci.chan = 0;
+			ci.confno = myrpt->txconf;
+			ci.confmode = ZT_CONF_CONF | ZT_CONF_LISTENER; 
+			/* Put the channel on the conference in listener mode */
+			if (ioctl(myrpt->rem_txchannel->fds[0],ZT_SETCONF,&ci) == -1)
+			{
+				ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+				pthread_exit(NULL);
+			}
+		}
+		if ((!rem_totx) && myrpt->remotetx)
+		{
+			myrpt->remotetx = 0;
+			ast_indicate(myrpt->rem_txchannel,AST_CONTROL_RADIO_UNKEY);
+			ci.chan = 0;
+			ci.confno = 0;
+			ci.confmode = 0;
+			/* Take off conf */
+			if (ioctl(myrpt->rem_txchannel->fds[0],ZT_SETCONF,&ci) == -1)
+			{
+				ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+				pthread_exit(NULL);
+			}
+			if (myrpt->remotemode != REM_OFF)
+			{
+				ci.chan = 0;
+				ci.confno = myrpt->pconf;
+				ci.confmode = ZT_CONF_CONF | ZT_CONF_TALKER;
+				/* Put on conf */
+				if (ioctl(myrpt->rem_rxchannel->fds[0],ZT_SETCONF,&ci) == -1)
+				{
+					ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+					pthread_exit(NULL);
+				}
+			}
+		}
+		time(&t);
+		/* if DTMF timeout */
+		if ((dtmfidx >= 0) && ((dtmf_time + DTMF_TIMEOUT) < t))
+		{
+			dtmfidx = -1;
+			dtmfbuf[0] = 0;
+		}			
+		n = 0;
+		cs[n++] = myrpt->rxchannel;
+		cs[n++] = myrpt->pchannel;
+		if (myrpt->txchannel != myrpt->rxchannel) cs[n++] = myrpt->txchannel;
+		if (myrpt->rem_rxchannel)
+		{
+			cs[n++] = myrpt->rem_rxchannel;
+			if (myrpt->rem_txchannel != myrpt->rem_rxchannel)
+				cs[n++] = myrpt->rem_txchannel;
+		}
 		ms = MSWAIT;
-		who = ast_waitfor_n(cs,3,&ms);
+		who = ast_waitfor_n(cs,n,&ms);
 		if (who == NULL) ms = 0;
 		elap = MSWAIT - ms;
 		if (myrpt->tailtimer) myrpt->tailtimer -= elap;
@@ -535,15 +907,44 @@ pthread_attr_t attr;
 				char c;
 
 				c = (char) f->subclass; /* get DTMF char */
-				if ((!myrpt->callmode) && (c == '*'))
+				if (!myrpt->simple)
 				{
-					myrpt->callmode = 1;
-					myrpt->cidx = 0;
-					myrpt->exten[myrpt->cidx] = 0;
-				        pthread_attr_init(&attr);
-		 		        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-					pthread_create(&myrpt->rpt_call_thread,&attr,rpt_call,(void *)myrpt);
-					continue;
+					if (c == '*')
+					{
+						dtmfidx = 0;
+						dtmfbuf[dtmfidx] = 0;
+						time(&dtmf_time);
+						continue;
+					} 
+					else if ((c != '#') && (dtmfidx >= 0))
+					{
+						time(&dtmf_time);
+						if (dtmfidx < MAXDTMF)
+						{
+							dtmfbuf[dtmfidx++] = c;
+							dtmfbuf[dtmfidx] = 0;
+						}
+						if (dtmfidx == FUNCTION_LEN)
+						{
+							process_dtmf(dtmfbuf,myrpt);
+							dtmfbuf[0] = 0;
+							dtmfidx = -1;
+							continue;
+						}
+					}
+				}
+				else
+				{
+					if ((!myrpt->callmode) && (c == '*'))
+					{
+						myrpt->callmode = 1;
+						myrpt->cidx = 0;
+						myrpt->exten[myrpt->cidx] = 0;
+					        pthread_attr_init(&attr);
+			 		        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+						pthread_create(&myrpt->rpt_call_thread,&attr,rpt_call,(void *)myrpt);
+						continue;
+					}
 				}
 				if (myrpt->callmode && (c == '#'))
 				{
@@ -595,9 +996,16 @@ pthread_attr_t attr;
 				{
 					if (debug) printf("@@@@ rx un-key\n");
 					keyed = 0;
+					if (myrpt->remotemode != REM_OFF)
+					{
+					        pthread_attr_init(&attr);
+			 		        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+						pthread_create(&myrpt->rpt_proc_thread,&attr,rpt_remote_telemetry,(void *) myrpt);
+					}
 				}
 			}
 			ast_frfree(f);
+			continue;
 		}
 		if (who == myrpt->pchannel) /* if it was a read from pseudo */
 		{
@@ -610,6 +1018,8 @@ pthread_attr_t attr;
 			if (f->frametype == AST_FRAME_VOICE)
 			{
 				ast_write(myrpt->txchannel,f);
+				if (myrpt->remotemode == REM_TX)
+					ast_write(myrpt->rem_txchannel,f);
 			}
 			if (f->frametype == AST_FRAME_CONTROL)
 			{
@@ -621,6 +1031,7 @@ pthread_attr_t attr;
 				}
 			}
 			ast_frfree(f);
+			continue;
 		}
 		if (who == myrpt->txchannel) /* if it was a read from tx */
 		{
@@ -640,12 +1051,95 @@ pthread_attr_t attr;
 				}
 			}
 			ast_frfree(f);
+			continue;
+		}
+		if (who == myrpt->rem_rxchannel) /* if it was a read from rx */
+		{
+			f = ast_read(myrpt->rem_rxchannel);
+			if (!f)
+			{
+				if (debug) printf("@@@@ rpt:Hung Up\n");
+				break;
+			}
+			if (f->frametype == AST_FRAME_CONTROL)
+			{
+				if (f->subclass == AST_CONTROL_HANGUP)
+				{
+					if (debug) printf("@@@@ rpt:Hung Up\n");
+					ast_frfree(f);
+					break;
+				}
+				/* if RX key */
+				if (f->subclass == AST_CONTROL_RADIO_KEY)
+				{
+					if (debug) printf("@@@@ remote rx key\n");
+					if (!myrpt->remotetx)
+					{
+						myrpt->remoterx = 1;
+						ci.chan = 0;
+						ci.confno = myrpt->pconf;
+						ci.confmode = ZT_CONF_CONF | ZT_CONF_TALKER;
+						/* Put on conf */
+						if (ioctl(myrpt->rem_rxchannel->fds[0],ZT_SETCONF,&ci) == -1)
+						{
+							ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+							pthread_exit(NULL);
+						}
+					}
+				}
+				/* if RX un-key */
+				if (f->subclass == AST_CONTROL_RADIO_UNKEY)
+				{
+					if (debug) printf("@@@@ remote rx un-key\n");
+					if (!myrpt->remotetx) 
+					{
+						myrpt->remoterx = 0;
+						ci.chan = 0;
+						ci.confno = 0;
+						ci.confmode = 0;
+						/* Take off conf */
+						if (ioctl(myrpt->rem_rxchannel->fds[0],ZT_SETCONF,&ci) == -1)
+						{
+							ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+							pthread_exit(NULL);
+						}
+					}
+				}
+			}
+			ast_frfree(f);
+			continue;
+		}
+		if (who == myrpt->rem_txchannel) /* if it was a read from remote tx */
+		{
+			f = ast_read(myrpt->rem_txchannel);
+			if (!f)
+			{
+				if (debug) printf("@@@@ rpt:Hung Up\n");
+				break;
+			}
+			if (f->frametype == AST_FRAME_CONTROL)
+			{
+				if (f->subclass == AST_CONTROL_HANGUP)
+				{
+					if (debug) printf("@@@@ rpt:Hung Up\n");
+					ast_frfree(f);
+					break;
+				}
+			}
+			ast_frfree(f);
+			continue;
 		}
 
 	}
 	ast_hangup(myrpt->pchannel);
 	ast_hangup(myrpt->rxchannel);
-	ast_hangup(myrpt->txchannel);
+	if (myrpt->txchannel != myrpt->rxchannel) ast_hangup(myrpt->txchannel);
+	if (myrpt->rem_rxchannel)
+	{
+		ast_hangup(myrpt->rem_rxchannel);
+		if (myrpt->rem_txchannel != myrpt->rem_rxchannel) 
+			ast_hangup(myrpt->rem_txchannel);
+	}
 	if (debug) printf("@@@@ rpt:Hung up channel\n");
 	pthread_exit(NULL);
 	return NULL;
@@ -675,6 +1169,8 @@ int	i,n;
 		rpt_vars[n].name = this;
 		rpt_vars[n].rxchanname = ast_variable_retrieve(cfg,this,"rxchannel");
 		rpt_vars[n].txchanname = ast_variable_retrieve(cfg,this,"txchannel");
+		rpt_vars[n].rem_rxchanname = ast_variable_retrieve(cfg,this,"remote_rxchannel");
+		rpt_vars[n].rem_txchanname = ast_variable_retrieve(cfg,this,"remote_txchannel");
 		rpt_vars[n].ourcontext = ast_variable_retrieve(cfg,this,"context");
 		if (!rpt_vars[n].ourcontext) rpt_vars[n].ourcontext = this;
 		rpt_vars[n].ourcallerid = ast_variable_retrieve(cfg,this,"callerid");
@@ -689,6 +1185,10 @@ int	i,n;
 		val = ast_variable_retrieve(cfg,this,"idtime");
 		if (val) rpt_vars[n].idtime = atoi(val);
 			else rpt_vars[n].idtime = IDTIME;
+		val = ast_variable_retrieve(cfg,this,"simple");
+		if (val) rpt_vars[n].simple = ast_true(val); 
+			else rpt_vars[n].simple = 0;
+		rpt_vars[n].tonezone = ast_variable_retrieve(cfg,this,"tonezone");
 		n++;
 	}
 	ast_log(LOG_DEBUG, "Total of %d repeaters configured.\n",n);

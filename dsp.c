@@ -123,7 +123,11 @@ static struct progress {
 #define FAX_THRESHOLD              8.0e7
 #define FAX_2ND_HARMONIC       		2.0     /* 4dB */
 #define DTMF_NORMAL_TWIST           6.3     /* 8dB */
+#ifdef	RADIO_RELAX
+#define DTMF_REVERSE_TWIST          ((digitmode & DSP_DIGITMODE_RELAXDTMF) ? 6.5 : 2.5)     /* 4dB normal */
+#else
 #define DTMF_REVERSE_TWIST          ((digitmode & DSP_DIGITMODE_RELAXDTMF) ? 4.0 : 2.5)     /* 4dB normal */
+#endif
 #define DTMF_RELATIVE_PEAK_ROW      6.3     /* 8dB */
 #define DTMF_RELATIVE_PEAK_COL      6.3     /* 8dB */
 #define DTMF_2ND_HARMONIC_ROW       ((digitmode & DSP_DIGITMODE_RELAXDTMF) ? 1.7 : 2.5)     /* 4dB normal */

@@ -1,4 +1,4 @@
-; Radio Repeater configuration file (for use with app_rpt)
+; Radio Repeater / Remote Base configuration file (for use with app_rpt)
 ;
 
 ;[oakhurst]				; Name of First Repeater
@@ -7,8 +7,14 @@
 ; Note: if you use a unified interface (tx/rx on one channel), only
 ; specify the rxchannel and the txchannel will be assumed from the rxchannel
 ;txchannel = Zap/2			; Tx audio/signalling channel
+;remote_rxchannel = Zap/3		; Remote Base Rx audio/signalling channel
+; Note: if you use a unified interface (tx/rx on one channel), only
+; specify the remote_rxchannel and the remote_txchannel will be assumed from the rxchannel
+;remote_txchannel = Zap/4		; Remote Base Tx audio/signalling channel
+;tonezone = us				; use US tones
+;simple = no				; Not in "simple" mode
 ;context = default			; dialing context for phone
-;callerid = "WB6NIL Repeater" <(818) 325-2757>  ; Callerid for phone calls
+;callerid = "WB6NIL Repeater" <(559) 692-1234>  ; Callerid for phone calls
 ;idrecording = wb6nil			; id recording
 ;accountcode=RADIO			; account code (optional)
 ;hangtime=1000				; squelch tail hang time (in ms) (optional)
