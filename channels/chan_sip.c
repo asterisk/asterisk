@@ -39,6 +39,7 @@
 #include <asterisk/srv.h>
 #include <asterisk/astdb.h>
 #include <asterisk/causes.h>
+#include <asterisk/utils.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -717,7 +718,7 @@ static int sip_sendtext(struct ast_channel *ast, char *text)
 		ast_verbose("Sending text %s on %s\n", text, ast->name);
 	if (!p)
 		return -1;
-	if (!text || !strlen(text))
+	if (!text || ast_strlen_zero(text))
 		return 0;
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Really sending text %s on %s\n", text, ast->name);
@@ -935,15 +936,15 @@ static int create_addr(struct sip_pvt *r, char *peer)
 			strncpy(r->peermd5secret, p->md5secret, sizeof(r->peermd5secret)-1);
 			strncpy(r->username, p->username, sizeof(r->username)-1);
 			strncpy(r->tohost, p->tohost, sizeof(r->tohost)-1);
-			if (!strlen(r->tohost)) {
+			if (ast_strlen_zero(r->tohost)) {
 				if (p->addr.sin_addr.s_addr)
 					snprintf(r->tohost, sizeof(r->tohost), inet_ntoa(p->addr.sin_addr));
 				else
 					snprintf(r->tohost, sizeof(r->tohost), inet_ntoa(p->defaddr.sin_addr));
 			}
-			if (strlen(p->fromdomain))
+			if (!ast_strlen_zero(p->fromdomain))
 				strncpy(r->fromdomain, p->fromdomain, sizeof(r->fromdomain)-1);
-			if (strlen(p->fromuser))
+			if (!ast_strlen_zero(p->fromuser))
 				strncpy(r->fromuser, p->fromuser, sizeof(r->fromuser)-1);
 			r->insecure = p->insecure;
 			r->canreinvite = p->canreinvite;
@@ -1362,7 +1363,7 @@ static int sip_hangup(struct ast_channel *ast)
 
 	needdestroy = 1;
 	/* Start the process if it's not already started */
-	if (!p->alreadygone && strlen(p->initreq.data)) {
+	if (!p->alreadygone && !ast_strlen_zero(p->initreq.data)) {
 		if (needcancel) {
 			if (p->outgoing) {
 				transmit_request_with_auth(p, "CANCEL", p->ocseq, 1, 0);
@@ -1624,11 +1625,11 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
 		tmp->restrictcid = i->restrictcid;
-                if (strlen(i->accountcode))
+                if (!ast_strlen_zero(i->accountcode))
                         strncpy(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode)-1);
                 if (i->amaflags)
                         tmp->amaflags = i->amaflags;
-		if (strlen(i->language))
+		if (!ast_strlen_zero(i->language))
 			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
 		i->owner = tmp;
 		ast_mutex_lock(&usecnt_lock);
@@ -1636,14 +1637,14 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		ast_mutex_unlock(&usecnt_lock);
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);
-		if (strlen(i->callerid))
+		if (!ast_strlen_zero(i->callerid))
 			tmp->callerid = strdup(i->callerid);
-		if (strlen(i->rdnis))
+		if (!ast_strlen_zero(i->rdnis))
 			tmp->rdnis = strdup(i->rdnis);
-		if (strlen(i->exten) && strcmp(i->exten, "s"))
+		if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s"))
 			tmp->dnid = strdup(i->exten);
 		tmp->priority = 1;
-		if (strlen(i->domain)) {
+		if (!ast_strlen_zero(i->domain)) {
 			pbx_builtin_setvar_helper(tmp, "SIPDOMAIN", i->domain);
 		}
 		ast_setstate(tmp, state);
@@ -1921,7 +1922,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 			
 	}
 		
-	if (!strlen(callid)) {
+	if (ast_strlen_zero(callid)) {
 		ast_log(LOG_WARNING, "Call missing call ID from '%s'\n", inet_ntoa(sin->sin_addr));
 		return NULL;
 	}
@@ -1929,7 +1930,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	p = iflist;
 	while(p) {
 		if (!strcmp(p->callid, callid) && 
-			(!pedanticsipchecking || !tag || !strlen(p->theirtag) || !strcmp(p->theirtag, tag))) {
+			(!pedanticsipchecking || !tag || ast_strlen_zero(p->theirtag) || !strcmp(p->theirtag, tag))) {
 			/* Found the call */
 			ast_mutex_lock(&p->lock);
 			ast_mutex_unlock(&iflock);
@@ -1965,7 +1966,7 @@ static int sip_register(char *value, int lineno)
 		*hostname = '\0';
 		hostname++;
 	}
-	if (!username || !strlen(username) || !hostname || !strlen(hostname)) {
+	if (!username || ast_strlen_zero(username) || !hostname || !strlen(hostname)) {
 		ast_log(LOG_WARNING, "Format for registration is user[:secret[:authuser]]@host[:port][/contact] at line %d", lineno);
 		return -1;
 	}
@@ -1980,7 +1981,7 @@ static int sip_register(char *value, int lineno)
 	hostname = strsep(&stringp, "/");
 	if (hostname) 
 		contact = strsep(&stringp, "/");
-	if (!contact || !strlen(contact))
+	if (!contact || ast_strlen_zero(contact))
 		contact = "s";
 	stringp=hostname;
 	hostname = strsep(&stringp, ":");
@@ -2088,7 +2089,7 @@ static void parse(struct sip_request *req)
 #if 0
 			printf("Header: %s (%d)\n", req->header[f], strlen(req->header[f]));
 #endif			
-			if (!strlen(req->header[f])) {
+			if (ast_strlen_zero(req->header[f])) {
 				/* Line by itself means we're now in content */
 				c++;
 				break;
@@ -2105,7 +2106,7 @@ static void parse(struct sip_request *req)
 		c++;
 	}
 	/* Check for last header */
-	if (strlen(req->header[f])) 
+	if (!ast_strlen_zero(req->header[f])) 
 		f++;
 	req->headers = f;
 	/* Now we process any mime content */
@@ -2130,7 +2131,7 @@ static void parse(struct sip_request *req)
 		c++;
 	}
 	/* Check for last line */
-	if (strlen(req->line[f])) 
+	if (!ast_strlen_zero(req->line[f])) 
 		f++;
 	req->lines = f;
 	if (*c) 
@@ -2164,7 +2165,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	}
 	m = get_sdp(req, "m");
 	c = get_sdp(req, "c");
-	if (!strlen(m) || !strlen(c)) {
+	if (ast_strlen_zero(m) || ast_strlen_zero(c)) {
 		ast_log(LOG_WARNING, "Insufficient information for SDP (m = '%s', c = '%s')\n", m, c);
 		return -1;
 	}
@@ -2185,7 +2186,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			/* Scan through the RTP payload types specified in a "m=" line: */
 			ast_rtp_pt_clear(p->rtp);
 			codecs = m + len;
-			while(strlen(codecs)) {
+			while(!ast_strlen_zero(codecs)) {
 				if (sscanf(codecs, "%d%n", &codec, &len) != 1) {
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 					return -1;
@@ -2205,7 +2206,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			vportno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
 			codecs = m + len;
-			while(strlen(codecs)) {
+			while(!ast_strlen_zero(codecs)) {
 				if (sscanf(codecs, "%d%n", &codec, &len) != 1) {
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 					return -1;
@@ -2365,7 +2366,7 @@ static int copy_header(struct sip_request *req, struct sip_request *orig, char *
 {
 	char *tmp;
 	tmp = get_header(orig, field);
-	if (strlen(tmp)) {
+	if (!ast_strlen_zero(tmp)) {
 		/* Add what we're responding to */
 		return add_header(req, field, tmp);
 	}
@@ -2380,7 +2381,7 @@ static int copy_all_header(struct sip_request *req, struct sip_request *orig, ch
 	int copied = 0;
 	for (;;) {
 		tmp = __get_header(orig, field, &start);
-		if (strlen(tmp)) {
+		if (!ast_strlen_zero(tmp)) {
 			/* Add what we're responding to */
 			add_header(req, field, tmp);
 			copied++;
@@ -2398,7 +2399,7 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
 	char new[256];
 	for (;;) {
 		tmp = __get_header(orig, field, &start);
-		if (strlen(tmp)) {
+		if (!ast_strlen_zero(tmp)) {
 			if (!copied && p->nat) {
 #ifdef THE_SIP_AUTHORS_CAN_SUCK_MY_GONADS
 				/* SLD: FIXME: Nice try, but the received= should not have a port */
@@ -2557,7 +2558,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	if (!strstr(ot, "tag=")) {
 		/* Add the proper tag if we don't have it already.  If they have specified
 		   their tag, use it.  Otherwise, use our own tag */
-		if (strlen(p->theirtag) && p->outgoing)
+		if (!ast_strlen_zero(p->theirtag) && p->outgoing)
 			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->theirtag);
 		else if (p->tag && !p->outgoing)
 			snprintf(newto, sizeof(newto), "%s;tag=as%08x", ot, p->tag);
@@ -2608,7 +2609,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int se
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	}
 
-	if (strlen(p->uri)) {
+	if (!ast_strlen_zero(p->uri)) {
 		c = p->uri;
 	} else {
 		if (p->outgoing)
@@ -2646,7 +2647,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int se
 	if (!strstr(ot, "tag=") && strcasecmp(msg, "CANCEL")) {
 		/* Add the proper tag if we don't have it already.  If they have specified
 		   their tag, use it.  Otherwise, use our own tag */
-		if (p->outgoing && strlen(p->theirtag))
+		if (p->outgoing && !ast_strlen_zero(p->theirtag))
 			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->theirtag);
 		else if (!p->outgoing)
 			snprintf(newto, sizeof(newto), "%s;tag=as%08x", ot, p->tag);
@@ -3067,7 +3068,7 @@ static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 	n = strchr(c, ';');
 	if (n)
 		*n = '\0';
-	if (c && strlen(c))
+	if (c && !ast_strlen_zero(c))
 		strncpy(p->uri, c, sizeof(p->uri) - 1);
 }
 
@@ -3104,18 +3105,18 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 		l = CALLERID_UNKNOWN;
 		n = l;
 	}
-	if (!n || !strlen(n))
+	if (!n || ast_strlen_zero(n))
 		n = l;
 	/* Allow user to be overridden */
-	if (strlen(p->fromuser))
+	if (!ast_strlen_zero(p->fromuser))
 		l = p->fromuser;
 
-	if ((ourport != 5060) && !strlen(p->fromdomain))
+	if ((ourport != 5060) && ast_strlen_zero(p->fromdomain))
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=as%08x", n, l, strlen(p->fromdomain) ? p->fromdomain : inet_ntoa(p->ourip), ourport, p->tag);
 	else
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=as%08x", n, l, strlen(p->fromdomain) ? p->fromdomain : inet_ntoa(p->ourip), p->tag);
 
-	if (strlen(p->username)) {
+	if (!ast_strlen_zero(p->username)) {
 		if (ntohs(p->sa.sin_port) != DEFAULT_SIP_PORT) {
 			snprintf(invite, sizeof(invite), "sip:%s@%s:%d",p->username, p->tohost, ntohs(p->sa.sin_port));
 		} else {
@@ -3169,9 +3170,9 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 		add_header(&req, authheader, auth);
 	append_date(&req);
 	if (!strcasecmp(cmd, "REFER")) {
-		if (strlen(p->refer_to))
+		if (!ast_strlen_zero(p->refer_to))
 			add_header(&req, "Refer-To", p->refer_to);
-		if (strlen(p->referred_by))
+		if (!ast_strlen_zero(p->referred_by))
 			add_header(&req, "Referred-By", p->referred_by);
 	}
 	
@@ -3399,7 +3400,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 		p->registry=r;
 		strncpy(p->peersecret, r->secret, sizeof(p->peersecret)-1);
 		strncpy(p->peermd5secret, r->md5secret, sizeof(p->peermd5secret)-1);
-		if (strlen(r->authuser)) {
+		if (!ast_strlen_zero(r->authuser)) {
 			strncpy(p->peername, r->authuser, sizeof(p->peername)-1);
 			strncpy(p->authname, r->authuser, sizeof(p->authname)-1);
 		} else {
@@ -3518,7 +3519,7 @@ static int transmit_refer(struct sip_pvt *p, char *dest)
 
 	reqprep(&req, p, "REFER", 0, 1);
 	add_header(&req, "Refer-To", referto);
-	if (strlen(p->our_contact))
+	if (!ast_strlen_zero(p->our_contact))
 		add_header(&req, "Referred-By", p->our_contact);
 	add_blank_header(&req);
 	return send_request(p, &req, 1, p->ocseq);
@@ -3625,7 +3626,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	struct sockaddr_in oldsin;
-	if (!strlen(expires)) {
+	if (ast_strlen_zero(expires)) {
 		expires = strstr(get_header(req, "Contact"), "expires=");
 		if (expires) {
 			if (sscanf(expires + 8, "%d;", &expiry) != 1)
@@ -3804,7 +3805,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 	/* 2nd append the Contact: if there is one */
 	/* Can be multiple Contact headers, comma separated values - we just take the first */
 	contact = get_header(req, "Contact");
-	if (strlen(contact)) {
+	if (!ast_strlen_zero(contact)) {
 		ast_log(LOG_DEBUG, "build_route: Contact hop: %s\n", contact);
 		/* Look for <: delimited address */
 		c = strchr(contact, '<');
@@ -3854,12 +3855,12 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 {
 	int res = -1;
 	/* Always OK if no secret */
-	if (!strlen(secret) && !strlen(md5secret))
+	if (ast_strlen_zero(secret) && ast_strlen_zero(md5secret))
 		return 0;
-	if (ignore && strlen(randdata) && !strlen(get_header(req, "Proxy-Authorization"))) {
+	if (ignore && !ast_strlen_zero(randdata) && ast_strlen_zero(get_header(req, "Proxy-Authorization"))) {
 		/* This is a retransmitted invite/register/etc, don't reconstruct authentication
 		   information */
-		if (strlen(randdata)) {
+		if (!ast_strlen_zero(randdata)) {
 			if (!reliable) {
 				/* Resend message if this was NOT a reliable delivery.   Otherwise the
 				   retransmission should get it */
@@ -3869,7 +3870,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 			}
 			res = 1;
 		}
-	} else if (!strlen(randdata) || !strlen(get_header(req, "Proxy-Authorization"))) {
+	} else if (ast_strlen_zero(randdata) || ast_strlen_zero(get_header(req, "Proxy-Authorization"))) {
 		snprintf(randdata, randlen, "%08x", rand());
 		transmit_response_with_auth(p, "407 Proxy Authentication Required", req, randdata, reliable);
 		/* Schedule auto destroy in 15 seconds */
@@ -3929,11 +3930,11 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 				c++;
 		}
 		snprintf(a1, sizeof(a1), "%s:%s:%s", username, "asterisk", secret);
-		if(strlen(resp_uri))
+		if(!ast_strlen_zero(resp_uri))
 			snprintf(a2, sizeof(a2), "%s:%s", method, resp_uri);
 		else
 			snprintf(a2, sizeof(a2), "%s:%s", method, uri);
-		if (strlen(md5secret))
+		if (!ast_strlen_zero(md5secret))
 		        snprintf(a1_hash, sizeof(a1_hash), "%s", md5secret);
 		else
 		        md5_hash(a1_hash, a1);
@@ -4073,7 +4074,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 	if (!req)
 		req = &p->initreq;
 	strncpy(tmp, get_header(req, "Diversion"), sizeof(tmp) - 1);
-	if (!strlen(tmp))
+	if (ast_strlen_zero(tmp))
 		return 0;
 	c = ditch_braces(tmp);
 	if (strncmp(c, "sip:", 4)) {
@@ -4111,7 +4112,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 		return -1;
 	}
 	c += 4;
-	if (strlen(fr)) {
+	if (!ast_strlen_zero(fr)) {
 		if (strncmp(fr, "sip:", 4)) {
 			ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", fr);
 			return -1;
@@ -4238,7 +4239,7 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 		ast_verbose("Looking for %s in %s\n", c, p->context);
 		ast_verbose("Looking for %s in %s\n", c2, p->context);
 	}
-	if (strlen(tmp5)) {	
+	if (!ast_strlen_zero(tmp5)) {	
 		/* This is a supervised transfer */
 		ast_log(LOG_DEBUG,"Assigning Replace-Call-ID Info %s to REPLACE_CALL_ID\n",tmp5);
 		
@@ -4415,7 +4416,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 	memset(calleridname,0,sizeof(calleridname));
 	get_calleridname(from,calleridname);
 	of = ditch_braces(from);
-	if (!strlen(p->exten)) {
+	if (ast_strlen_zero(p->exten)) {
 		t = uri;
 		if (!strncmp(t, "sip:", 4))
 			t+= 4;
@@ -4423,7 +4424,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 		t = strchr(p->exten, '@');
 		if (t)
 			*t = '\0';
-		if (!strlen(p->our_contact))
+		if (ast_strlen_zero(p->our_contact))
 			build_contact(p);
 	}
 	if (strncmp(of, "sip:", 4)) {
@@ -4439,7 +4440,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 		sprintf(p->callerid,"\"%s\" <%s>",calleridname,of);
 	else
 		strncpy(p->callerid, of, sizeof(p->callerid) - 1);
-	if (!strlen(of))
+	if (ast_strlen_zero(of))
 			return 0;
 	ast_mutex_lock(&userl.lock);
 	user = find_user(of);
@@ -4455,9 +4456,9 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 		}
 		if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, cmd, uri, reliable, ignore))) {
 			sip_cancel_destroy(p);
-			if (strlen(user->context))
+			if (!ast_strlen_zero(user->context))
 				strncpy(p->context, user->context, sizeof(p->context) - 1);
-			if (strlen(user->callerid) && strlen(p->callerid)) 
+			if (!ast_strlen_zero(user->callerid) && !ast_strlen_zero(p->callerid)) 
 				strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
 			strncpy(p->username, user->name, sizeof(p->username) - 1);
 			strncpy(p->peersecret, user->secret, sizeof(p->peersecret) - 1);
@@ -4504,11 +4505,11 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				p->canreinvite = peer->canreinvite;
 				strncpy(p->peername, peer->name, sizeof(p->peername) - 1);
 				strncpy(p->authname, peer->name, sizeof(p->authname) - 1);
-				if (strlen(peer->username)) {
+				if (!ast_strlen_zero(peer->username)) {
 					strncpy(p->username, peer->username, sizeof(p->username) - 1);
 					strncpy(p->authname, peer->username, sizeof(p->authname) - 1);
 				}
-				if (strlen(peer->context))
+				if (!ast_strlen_zero(peer->context))
 					strncpy(p->context, peer->context, sizeof(p->context) - 1);
 				strncpy(p->peersecret, peer->secret, sizeof(p->peersecret) - 1);
 				strncpy(p->peermd5secret, peer->md5secret, sizeof(p->peermd5secret) - 1);
@@ -4645,7 +4646,7 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 		int print_line = -1;
 		char srch[2000];
 		strncpy(nm, inet_ntoa(peer->mask), sizeof(nm)-1);
-		if (strlen(peer->username))
+		if (!ast_strlen_zero(peer->username))
 			snprintf(name, sizeof(name), "%s/%s", peer->name, peer->username);
 		else
 			strncpy(name, peer->name, sizeof(name) - 1);
@@ -4834,7 +4835,7 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
 	struct ast_frame f;
 	char *c;
 	/* Try getting the "signal=" part */
-	if (strlen(c = get_sdp(req, "Signal")) || strlen(c = get_sdp(req, "d"))) {
+	if (!ast_strlen_zero(c = get_sdp(req, "Signal")) || !ast_strlen_zero(c = get_sdp(req, "d"))) {
 		strncpy(buf, c, sizeof(buf) - 1);
 	} else if (get_msg_text(buf, sizeof(buf), req)) {
 		/* Normal INFO method */
@@ -4843,7 +4844,7 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
 	}
 	
 	if (p->owner) {
-		if (strlen(buf)) {
+		if (!ast_strlen_zero(buf)) {
 			if (sip_debug_test_pvt(p))
 				ast_verbose("DTMF received: '%c'\n", buf[0]);
 			if (buf[0] == '*')
@@ -4995,7 +4996,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 
 
 	strncpy(tmp, get_header(req, header),sizeof(tmp) - 1);
-	if (!strlen(tmp)) 
+	if (ast_strlen_zero(tmp)) 
 		return -1;
 	c = tmp;
 	c+=strlen("Digest ");
@@ -5087,9 +5088,9 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 	char uri[256] = "";
 	char cnonce[80];
 
-	if (strlen(p->domain))
+	if (!ast_strlen_zero(p->domain))
 		strncpy(uri, p->domain, sizeof(uri) - 1);
-	else if (strlen(p->uri))
+	else if (!ast_strlen_zero(p->uri))
 		strncpy(uri, p->uri, sizeof(uri) - 1);
 	else
 		snprintf(uri, sizeof(uri), "sip:%s@%s",p->username, inet_ntoa(p->sa.sin_addr));
@@ -5098,20 +5099,20 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 
 	snprintf(a1,sizeof(a1),"%s:%s:%s",p->authname,p->realm,p->peersecret);
 	snprintf(a2,sizeof(a2),"%s:%s",orig_header,uri);
-	if (strlen(p->peermd5secret))
+	if (!ast_strlen_zero(p->peermd5secret))
 	        strncpy(a1_hash, p->peermd5secret, sizeof(a1_hash) - 1);
 	else
 	        md5_hash(a1_hash,a1);
 	md5_hash(a2_hash,a2);
 	/* XXX We hard code the nonce-number to 1... What are the odds? Are we seriously going to keep
 	       track of every nonce we've seen? Also we hard code to "auth"...  XXX */
-	if (strlen(p->qop))
+	if (!ast_strlen_zero(p->qop))
 		snprintf(resp,sizeof(resp),"%s:%s:%s:%s:%s:%s",a1_hash,p->nonce, "00000001", cnonce, "auth", a2_hash);
 	else
 		snprintf(resp,sizeof(resp),"%s:%s:%s",a1_hash,p->nonce,a2_hash);
 	md5_hash(resp_hash,resp);
 	/* XXX We hard code our qop to "auth" for now.  XXX */
-	if (strlen(p->qop))
+	if (!ast_strlen_zero(p->qop))
 		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=\"%s\", cnonce=\"%s\", nc=%s",p->authname,p->realm,uri,p->nonce,resp_hash, p->opaque, "auth", cnonce, "00000001");
 	else
 		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"",p->authname,p->realm,uri,p->nonce,resp_hash, p->opaque);
@@ -5300,7 +5301,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		case 183:	
 			if (!strcasecmp(msg, "INVITE")) {
-				if (strlen(get_header(req, "Content-Type")))
+				if (!ast_strlen_zero(get_header(req, "Content-Type")))
 					process_sdp(p, req);
 				if (p->owner) {
 					/* Queue a progress frame */
@@ -5327,7 +5328,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					}
 				}
 			} else if (!strcasecmp(msg, "INVITE")) {
-				if (strlen(get_header(req, "Content-Type")))
+				if (!ast_strlen_zero(get_header(req, "Content-Type")))
 					process_sdp(p, req);
 				/* Save Record-Route for any later requests we make on this dialogue */
 				build_route(p, req, 1);
@@ -5371,14 +5372,14 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					/* according to section 6.13 of RFC, contact headers override
 					   expires headers, so check those first */
 					expires = 0;
-					if (strlen(get_header(req, "Contact")) != 0) {
+					if (!ast_strlen_zero(get_header(req, "Contact"))) {
 						char *contact = NULL;
 						char *tmptmp = NULL;
 						int start = 0;
 						for(;;) {
 							contact = __get_header(req, "Contact", &start);
 							/* this loop ensures we get a contact header about our register request */
-							if(strlen(contact)) {
+							if(!ast_strlen_zero(contact)) {
 								if(strstr(contact, p->our_contact))
 									break;
 							} else
@@ -5435,7 +5436,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					}
 				}
 			} else if (!strcasecmp(msg, "BYE") || !strcasecmp(msg, "REFER")) {
-				if (!strlen(p->authname))
+				if (ast_strlen_zero(p->authname))
 					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
 							msg, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 				if ((p->authtries > 1) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", msg, 0)) {
@@ -5528,7 +5529,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		case 407:
 			if (!strcasecmp(msg, "BYE") || !strcasecmp(msg, "REFER")) {
-				if (!strlen(p->authname))
+				if (ast_strlen_zero(p->authname))
 					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
 							msg, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 				if ((p->authtries > 1) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", msg, 0)) {
@@ -5600,7 +5601,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	cseq = get_header(req, "Cseq");
 	cmd = req->header[0];
 	/* Must have Cseq */
-	if (!strlen(cmd) || !strlen(cseq))
+	if (ast_strlen_zero(cmd) || ast_strlen_zero(cseq))
 			return -1;
 	if (sscanf(cseq, "%i%n", &seqno, &len) != 1) {
 		ast_log(LOG_DEBUG, "No seqno in '%s'\n", cmd);
@@ -5626,7 +5627,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			   respond appropriately  */
 			ignore=1;
 		}
-		if (!strlen(p->theirtag)) {
+		if (ast_strlen_zero(p->theirtag)) {
 			from = get_header(req, "From");
 			from = strstr(from, "tag=");
 			if (from) {
@@ -5663,7 +5664,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		res = get_destination(p, req);
 		build_contact(p);
 		/* XXX Should we authenticate OPTIONS? XXX */
-		if (!strlen(p->context))
+		if (ast_strlen_zero(p->context))
 			strncpy(p->context, context, sizeof(p->context) - 1);
 		if (res < 0)
 			transmit_response_with_allow(p, "404 Not Found", req);
@@ -5693,7 +5694,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			p->outgoing = 0;
 			copy_request(&p->initreq, req);
 			check_via(p, req);
-			if (strlen(get_header(req, "Content-Type"))) {
+			if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
 				if (process_sdp(p, req))
 					return -1;
 			} else {
@@ -5716,7 +5717,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				return 0;
 			}
 			/* Initialize the context if it hasn't been already */
-			if (!strlen(p->context))
+			if (ast_strlen_zero(p->context))
 				strncpy(p->context, context, sizeof(p->context) - 1);
 			/* Check number of concurrent calls -vs- incoming limit HERE */
 			ast_log(LOG_DEBUG, "Check for res for %s\n", p->username);
@@ -5745,12 +5746,12 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				p->needdestroy = 1;
 			} else {
 				/* If no extension was specified, use the s one */
-				if (!strlen(p->exten))
+				if (ast_strlen_zero(p->exten))
 					strncpy(p->exten, "s", sizeof(p->exten) - 1);
 				/* Initialize tag */	
 				p->tag = rand();
 				/* First invitation */
-				c = sip_new(p, AST_STATE_DOWN, strlen(p->username) ? p->username : NULL);
+				c = sip_new(p, AST_STATE_DOWN, ast_strlen_zero(p->username) ? NULL : p->username );
 				*recount = 1;
 				/* Save Record-Route for any later requests we make on this dialogue */
 				build_route(p, req, 0);
@@ -5822,7 +5823,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		}
 	} else if (!strcasecmp(cmd, "REFER")) {
 		ast_log(LOG_DEBUG, "We found a REFER!\n");
-		if (!strlen(p->context))
+		if (ast_strlen_zero(p->context))
 			strncpy(p->context, context, sizeof(p->context) - 1);
 		res = get_refer_info(p, req);
 		if (res < 0)
@@ -5890,10 +5891,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			/* Immediately stop VRTP */
 			ast_rtp_stop(p->vrtp);
 		}
-		if (strlen(get_header(req, "Also"))) {
+		if (!ast_strlen_zero(get_header(req, "Also"))) {
 			ast_log(LOG_NOTICE, "Client '%s' using deprecated BYE/Also transfer method.  Ask vendor to support REFER instead\n",
 				inet_ntoa(p->recv.sin_addr));
-			if (!strlen(p->context))
+			if (ast_strlen_zero(p->context))
 				strncpy(p->context, context, sizeof(p->context) - 1);
 			res = get_also_info(p, req);
 			if (!res) {
@@ -5946,7 +5947,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				return 0;
 			}
 			/* Initialize the context if it hasn't been already */
-			if (!strlen(p->context))
+			if (ast_strlen_zero(p->context))
 				strncpy(p->context, context, sizeof(p->context) - 1);
 			/* Get destination right away */
 			gotdest = get_destination(p, NULL);
@@ -6013,11 +6014,11 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		   supposed to retransmit responses until we get an ack? 
 		   Make sure this is on a valid call */
 		__sip_ack(p, seqno, FLAG_RESPONSE);
-		if (strlen(get_header(req, "Content-Type"))) {
+		if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
 			if (process_sdp(p, req))
 				return -1;
 		} 
-		if (!p->lastinvite && !strlen(p->randdata))
+		if (!p->lastinvite && ast_strlen_zero(p->randdata))
 			p->needdestroy = 1;
 	} else if (!strcasecmp(cmd, "SIP/2.0")) {
 		extract_uri(p, req);
@@ -6209,7 +6210,7 @@ restartsearch:
 		fastrestart = 0;
 		curpeernum = 0;
 		while(peer) {
-			if ((curpeernum > lastpeernum) && strlen(peer->mailbox) && ((t - peer->lastmsgcheck) > 10)) {
+			if ((curpeernum > lastpeernum) && !ast_strlen_zero(peer->mailbox) && ((t - peer->lastmsgcheck) > 10)) {
 				sip_send_mwi_to_peer(peer);
 				fastrestart = 1;
 				lastpeernum = curpeernum;
@@ -6302,7 +6303,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 	}
 	memcpy(&p->sa, &peer->addr, sizeof(p->sa));
 	memcpy(&p->recv, &peer->addr, sizeof(p->sa));
-	if (strlen(p->tohost))
+	if (!ast_strlen_zero(p->tohost))
 		strncpy(p->tohost, peer->tohost, sizeof(p->tohost) - 1);
 	else
 		snprintf(p->tohost, sizeof(p->tohost), "%s", inet_ntoa(peer->addr.sin_addr));
@@ -6420,7 +6421,7 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 		sip_destroy(p);
 		return NULL;
 	}
-	if (!strlen(p->peername) && ext)
+	if (ast_strlen_zero(p->peername) && ext)
 		strncpy(p->peername, ext, sizeof(p->peername) - 1);
 	/* Recalculate our side, and recalculate Call ID */
 	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
@@ -6541,10 +6542,10 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 			v = v->next;
 		}
 	}
-	if (!strlen(user->methods)) {
-		if (strlen(user->secret)) 
+	if (ast_strlen_zero(user->methods)) {
+		if (!ast_strlen_zero(user->secret)) 
 			strncpy(user->methods, "md5,plaintext", sizeof(user->methods) - 1);
-		else if (strlen(user->md5secret))
+		else if (!ast_strlen_zero(user->md5secret))
 		        strncpy(user->methods, "md5", sizeof(user->methods) - 1);
 	}
 	if (oldha)
@@ -6740,7 +6741,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 			 */
 			v=v->next;
 		}
-		if (!strlen(peer->methods))
+		if (ast_strlen_zero(peer->methods))
 			strcpy(peer->methods, "md5,plaintext");
 		if (!found && peer->dynamic)
 			reg_source_db(peer);
@@ -7004,7 +7005,7 @@ static int reload_config(void)
 	ast_destroy(cfg);
 #ifdef MYSQL_FRIENDS
 	/* Connect to db if appropriate */
-	if (!mysql && strlen(mydbname)) {
+	if (!mysql && !ast_strlen_zero(mydbname)) {
 		mysql = mysql_init(NULL);
 		if (!mysql_real_connect(mysql, mydbhost[0] ? mydbhost : NULL, mydbuser, mydbpass, mydbname, 0, NULL, 0)) {
 			memset(mydbpass, '*', strlen(mydbpass));
