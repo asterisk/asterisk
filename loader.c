@@ -421,6 +421,7 @@ static int ast_resource_exists(char *resource)
 
 static const char *loadorder[] =
 {
+	"format_",
 	"res_",
 	"chan_",
 	"pbx_",

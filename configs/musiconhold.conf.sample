@@ -9,3 +9,26 @@ default => quietmp3:/var/lib/asterisk/mohmp3
 ;quietunbuf => quietmp3nb:/var/lib/asterisk/mohmp3
 ; Note that the custom mode cannot handle escaped parameters (specifically embedded spaces)
 ;manual => custom:/var/lib/asterisk/mohmp3,/usr/bin/mpg123 -q -r 8000 -f 8192 -b 2048 --mono -s
+
+;
+; File-based (native) music on hold
+;
+; This plays files directly from the specified directory, no external
+; processes are required. Files are played in normal sorting order
+; (same as a sorted directory listing), and no volume or other
+; sound adjustments are available. If the file is available in
+; the same format as the channel's codec, then it will be played
+; without transcoding (same as Playback would do in the dialplan).
+; Files can be present in as many formats as you wish, and the
+; 'best' format will be chosen at playback time.
+;
+; NOTE:
+; If you are not using "autoload" in modules.conf, then you
+; must ensure that the format modules for any formats you wish
+; to use are loaded _before_ res_musiconhold. If you do not do
+; this, res_musiconhold will skip the files it is not able to
+; understand when it loads.
+;
+[moh_files]
+;native => /var/lib/asterisk/moh-native
+;native-random => /var/lib/asterisk/moh-native,r
