@@ -441,7 +441,10 @@ char *ast_codec2str(int codec) {
 		"undefined",                  /* 23 */
         "Maximum video format",       /* 24 */
 		};
-	return codecs[codec];
+	if ((codec >= 0) && (codec <= 24))
+		return codecs[codec];
+	else
+		return "unknown";
 }
 
 static int show_codecs(int fd, int argc, char *argv[])
@@ -454,19 +457,19 @@ static int show_codecs(int fd, int argc, char *argv[])
 	if ((argc == 2) || (!strcasecmp(argv[1],"audio"))) {
 		found = 1;
 		for (i=0;i<11;i++)
-			ast_cli(fd, "%8d (1 << %2d)  %s\n",1 << i,i,ast_codec2str(i));
+			ast_cli(fd, "%11u (1 << %2d)  %s\n",1 << i,i,ast_codec2str(i));
 	}
 
 	if ((argc == 2) || (!strcasecmp(argv[1],"image"))) {
 		found = 1;
 		for (i=16;i<18;i++)
-			ast_cli(fd, "%8d (1 << %2d)  %s\n",1 << i,i,ast_codec2str(i));
+			ast_cli(fd, "%11u (1 << %2d)  %s\n",1 << i,i,ast_codec2str(i));
 	}
 
 	if ((argc == 2) || (!strcasecmp(argv[1],"video"))) {
 		found = 1;
 		for (i=18;i<20;i++)
-			ast_cli(fd, "%8d (1 << %2d)  %s\n",1 << i,i,ast_codec2str(i));
+			ast_cli(fd, "%11u (1 << %2d)  %s\n",1 << i,i,ast_codec2str(i));
 	}
 
 	if (! found)
@@ -499,9 +502,9 @@ static int show_codec_n(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 
 	for (i=0;i<32;i++)
-		if (codec == (1 << i)) {
+		if (codec & (1 << i)) {
 			found = 1;
-			ast_cli(fd, "%d (1 << %d)  %s\n",1 << i,i,ast_codec2str(i));
+			ast_cli(fd, "%11u (1 << %2d)  %s\n",1 << i,i,ast_codec2str(i));
 		}
 
 	if (! found)
