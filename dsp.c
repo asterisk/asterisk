@@ -1142,7 +1142,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 				if (digit) {
 					/* Thought we saw one last time.  Pretty sure we really have now */
 					if (dsp->thinkdigit) {
-						if (dsp->thinkdigit != 'x') {
+						if ((dsp->thinkdigit != 'x') && (dsp->thinkdigit != digit)) {
 							/* If we found a digit, and we're changing digits, go
 							   ahead and send this one, but DON'T stop confmute because
 							   we're detecting something else, too... */
