@@ -1937,8 +1937,11 @@ forward_message(struct ast_channel *chan, char *context, char *dir, int curmsg, 
 
               /* set callerid and duration variables */
               snprintf(callerid, sizeof(callerid), "FWD from: %s from %s", sender->fullname, ast_variable_retrieve(mif, NULL, "callerid"));
-              duration = atol(ast_variable_retrieve(mif, NULL, "duration"));
-              		
+	      s = ast_variable_retrieve(mif, NULL, "duration");
+              if (s)
+		      duration = atol(s);
+	      else
+		      duration = 0;
 	      if (strlen(receiver->email)) {
 				int attach_user_voicemail = attach_voicemail;
 				char *myserveremail = serveremail;
@@ -1946,7 +1949,7 @@ forward_message(struct ast_channel *chan, char *context, char *dir, int curmsg, 
 					attach_user_voicemail = receiver->attach;
 				if (strlen(receiver->serveremail))
 					myserveremail = receiver->serveremail;
-		      sendmail(myserveremail, receiver, todircount, username, callerid, fn, tmp, atol(ast_variable_retrieve(mif, NULL, "duration")), attach_user_voicemail);
+		      sendmail(myserveremail, receiver, todircount, username, callerid, fn, tmp, duration), attach_user_voicemail);
 	      }
 	     
 			if (strlen(receiver->pager)) {
