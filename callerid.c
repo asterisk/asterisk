@@ -538,7 +538,7 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 				instr[strlen(instr) - 1] = '\0';
 			/* And leading spaces */
 			while(**name && (**name < 33))
-				name++;
+				(*name)++;
 			return 0;
 		}
 	} else {
