@@ -3455,7 +3455,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	/* Prefer the codec we were requested to use, first, no matter what */
 	if (capability & p->prefcodec) {
 		if (debug)
-			ast_verbose("Answering/Requesting with root capability %d\n", p->prefcodec);
+			ast_verbose("Answering/Requesting with root capability 0x%x (%s)\n", p->prefcodec, ast_getformatname(p->prefcodec));
 		codec = ast_rtp_lookup_code(p->rtp, 1, p->prefcodec);
 		if (codec > -1) {
 			snprintf(costr, sizeof(costr), " %d", codec);
@@ -5242,7 +5242,8 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 	char tmp5[256] = "";		/* CallID to replace */
 	struct sip_request *req;
 	struct sip_pvt *p2;
-	
+	struct ast_channel *chan = NULL, *peer = NULL;
+
 	req = oreq;
 	if (!req)
 		req = &p->initreq;
@@ -5346,6 +5347,7 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 			ast_log(LOG_NOTICE, "Supervised transfer requested, but unable to find callid '%s'\n", tmp5);
 	} else if (ast_exists_extension(NULL, p->context, c, 1, NULL) || !strcmp(c, ast_parking_ext())) {
 		/* This is an unsupervised transfer */
+		
 		ast_log(LOG_DEBUG,"Assigning Extension %s to REFER-TO\n", c);
 		ast_log(LOG_DEBUG,"Assigning Extension %s to REFERRED-BY\n", c2);
 		ast_log(LOG_DEBUG,"Assigning Contact Info %s to REFER_CONTACT\n", tmp3);
@@ -5353,6 +5355,10 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 		strncpy(p->referred_by, c2, sizeof(p->referred_by) - 1);
 		strncpy(p->refer_contact, tmp3, sizeof(p->refer_contact) - 1);
 		p->refer_call = NULL;
+		if((chan = p->owner) && (peer = ast_bridged_channel(p->owner))) {
+			pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", peer->name);
+			pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", chan->name);
+		}
 		return 0;
 	} else if (ast_canmatch_extension(NULL, p->context, c, 1, NULL)) {
 		return 1;
