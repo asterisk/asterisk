@@ -1438,6 +1438,15 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
     struct skinny_subchannel *sub;
 	struct skinnysession *session;
 	
+	sub = ast->pvt->pvt;
+    l = sub->parent;
+	session = l->parent->session;
+
+	if (!l->parent->registered) {
+		ast_log(LOG_ERROR, "Device not registered, cannot call %s\n", dest);
+		return -1;
+	}
+	
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "skinny_call called on %s, neither down nor reserved\n", ast->name);
 		return -1;
@@ -1446,14 +1455,10 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
     if (skinnydebug) {
         ast_verbose(VERBOSE_PREFIX_3 "skinny_call(%s)\n", ast->name);
     }
-	
-	sub = ast->pvt->pvt;
-    l = sub->parent;
-	session = l->parent->session;
 
 	if (l->dnd) {
 		ast_queue_control(ast, AST_CONTROL_BUSY, 0);
-		return 0;
+		return -1;
 	}
    
 	switch (l->hookstate) {
@@ -1525,18 +1530,19 @@ static int skinny_hangup(struct ast_channel *ast)
         ast_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
         return 0;
     }
-    if ((sub->parent->type = TYPE_LINE) && (sub->parent->hookstate == SKINNY_OFFHOOK)) {
-		sub->parent->hookstate = SKINNY_ONHOOK;
-		transmit_callstate(s, l->instance, SKINNY_ONHOOK, sub->callid);
-		transmit_speaker_mode(s, SKINNY_SPEAKEROFF); 
-	} else if ((sub->parent->type = TYPE_LINE) && (sub->parent->hookstate == SKINNY_ONHOOK)) {
-		transmit_callstate(s, l->instance, SKINNY_ONHOOK, sub->callid);
-		transmit_speaker_mode(s, SKINNY_SPEAKEROFF); 
-		transmit_ringer_mode(s, SKINNY_RING_OFF);
-		transmit_tone(s, SKINNY_SILENCE);
-	} 
-		
 
+	if (l->parent->registered) {
+		    if ((sub->parent->type = TYPE_LINE) && (sub->parent->hookstate == SKINNY_OFFHOOK)) {
+			sub->parent->hookstate = SKINNY_ONHOOK;
+			transmit_callstate(s, l->instance, SKINNY_ONHOOK, sub->callid);
+			transmit_speaker_mode(s, SKINNY_SPEAKEROFF); 
+		} else if ((sub->parent->type = TYPE_LINE) && (sub->parent->hookstate == SKINNY_ONHOOK)) {
+			transmit_callstate(s, l->instance, SKINNY_ONHOOK, sub->callid);
+			transmit_speaker_mode(s, SKINNY_SPEAKEROFF); 
+			transmit_ringer_mode(s, SKINNY_RING_OFF);
+			transmit_tone(s, SKINNY_SILENCE);
+		} 
+	}
     ast_mutex_lock(&sub->lock);
     sub->owner = NULL;
     ast->pvt->pvt = NULL;
