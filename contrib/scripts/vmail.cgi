@@ -52,7 +52,7 @@ $stdcontainerstart
 <input type=hidden name="action" value="login">
 <table align=center>
 <tr><td valign=top align=center rowspan=6><img align=center src="$astpath/animlogo.gif"></td></tr>
-<tr><td align=center colspan=2><font size=+2>Commedian Mail Login</font></td></tr>
+<tr><td align=center colspan=2><font size=+2>Comedian Mail Login</font></td></tr>
 <tr><td align=center colspan=2><font size=+1>$message</font></td></tr>
 <tr><td>Mailbox:</td><td><input type=text name="mailbox"></td></tr>
 <tr><td>Password:</td><td><input type=password name="password"></td></tr>
