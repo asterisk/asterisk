@@ -41,7 +41,6 @@ endif
 #
 # Obsolete things...
 #
-#APPS+=app_qcall.so
 
 #APPS+=app_sql_postgres.so
 #APPS+=app_sql_odbc.so
