@@ -31,13 +31,14 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static struct ast_variable *realtime_odbc(const char *database, const char *table, const char *keyfield, const char *lookup)
+static struct ast_variable *realtime_odbc(const char *database, const char *table, va_list ap)
 {
 	odbc_obj *obj;
 	SQLHSTMT stmt;
 	char sql[256];
 	char coltitle[256];
 	char rowdata[2048];
+	const char *newparam, *newval;
 	char *stringp;
 	char *chunk;
 	SQLSMALLINT collen;
@@ -50,6 +51,10 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 	SQLSMALLINT datatype;
 	SQLSMALLINT decimaldigits;
 	SQLSMALLINT nullable;
+	va_list aq;
+	
+	va_copy(aq, ap);
+	
 	
 	if (!table)
 		return NULL;
@@ -64,7 +69,19 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 		return NULL;
 	}
 
-	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s=?", table, keyfield);
+	newparam = va_arg(aq, const char *);
+	if (!newparam)  {
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
+	newval = va_arg(aq, const char *);
+	
+	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s=?", table, newparam);
+	while((newparam = va_arg(aq, const char *))) {
+		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s=?", newparam);
+		newval = va_arg(aq, const char *);
+	}
+	va_end(aq);
 	
 	res = SQLPrepare(stmt, sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -72,8 +89,15 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		return NULL;
 	}
-	SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(lookup), 0, (void *)lookup, 0, NULL);
+	
+	/* Now bind the parameters */
+	x = 1;
 
+	while((newparam = va_arg(ap, const char *))) {
+		newval = va_arg(ap, const char *);
+		SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(newval), 0, (void *)newval, 0, NULL);
+	}
+		
 	res = SQLExecute(stmt);
 
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {

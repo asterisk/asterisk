@@ -109,7 +109,7 @@ static int realtime_exec(struct ast_channel *chan, void *data)
 	} else {
 		if (option_verbose > 3)
 			ast_verbose(VERBOSE_PREFIX_4"Realtime Lookup: family:'%s' colmatch:'%s' value:'%s'\n",family,colmatch,value);
-		if ((var = ast_load_realtime(family, colmatch, value))) {
+		if ((var = ast_load_realtime(family, colmatch, value, NULL))) {
 			for (itt = var; itt; itt = itt->next) {
 				if(prefix) {
 					len = strlen(prefix) + strlen(itt->name) + 2;

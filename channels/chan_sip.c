@@ -1055,9 +1055,9 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 	if (sin)
 		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr);
 	if (peername) 
-		var = ast_load_realtime("sipfriends", "name", peername);
+		var = ast_load_realtime("sipfriends", "name", peername, NULL);
 	else
-		var = ast_load_realtime("sipfriends", "ipaddr", iabuf);
+		var = ast_load_realtime("sipfriends", "ipaddr", iabuf, NULL);
 	if (var) {
 		/* Make sure it's not a user only... */
 		peer = build_peer(peername, var);
@@ -1147,7 +1147,7 @@ static struct sip_user *realtime_user(const char *username)
 	struct ast_variable *var;
 	struct ast_variable *tmp;
 	struct sip_user *user=NULL;
-	var = ast_load_realtime("sipfriends", "name", username);
+	var = ast_load_realtime("sipfriends", "name", username, NULL);
 	if (var) {
 		/* Make sure it's not a user only... */
 		user = build_user(username, var);

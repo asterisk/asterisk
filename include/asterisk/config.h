@@ -114,7 +114,7 @@ int ast_category_exist(struct ast_config *config, char *category_name);
  * that unlike the variables in ast_config, the resulting list of variables
  * MUST be fred with ast_free_runtime() as there is no container.
  */
-struct ast_variable *ast_load_realtime(const char *family, const char *keyfield, const char *lookup);
+struct ast_variable *ast_load_realtime(const char *family, ...);
 
 //! Update realtime configuration
 /*!

@@ -1992,7 +1992,7 @@ static struct iax2_peer *realtime_peer(const char *peername)
 	struct iax2_peer *peer=NULL;
 	time_t regseconds, nowtime;
 	int dynamic=0;
-	var = ast_load_realtime("iaxfriends", "name", peername);
+	var = ast_load_realtime("iaxfriends", "name", peername, NULL);
 	if (var) {
 		/* Make sure it's not a user only... */
 		peer = build_peer(peername, var);
@@ -2041,7 +2041,7 @@ static struct iax2_user *realtime_user(const char *username)
 	struct ast_variable *var;
 	struct ast_variable *tmp;
 	struct iax2_user *user=NULL;
-	var = ast_load_realtime("iaxfriends", "name", username);
+	var = ast_load_realtime("iaxfriends", "name", username, NULL);
 	if (var) {
 		/* Make sure it's not a user only... */
 		user = build_user(username, var);
