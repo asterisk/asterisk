@@ -659,6 +659,7 @@ int jb_get(jitterbuf *jb, jb_frame *frameout, long now)
     if(thists && thists < lastts) jb_warn("XXXX timestamp roll-back!!!\n");
     lastts = thists;
 #endif
+    if(ret == JB_INTERP) frameout->ms = jb->info.last_voice_ms;
     return ret;
 }
 
