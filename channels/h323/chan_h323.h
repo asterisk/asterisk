@@ -162,6 +162,8 @@ extern "C" {
 	int h323_set_alias(struct oh323_alias *);
 	int h323_set_gk(int, char *, char *);
 
+	void h323_set_id(char *);
+
 	/* H323 listener related funcions */
 	int h323_start_listener(int, struct sockaddr_in);
 

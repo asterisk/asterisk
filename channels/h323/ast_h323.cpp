@@ -873,6 +873,14 @@ int h323_set_alias(struct oh323_alias *alias)
 	return 0;
 }
 
+
+void h323_set_id(char *id)
+{
+	PString h323id(id);
+	/* EVIL HACK */
+	endPoint->SetLocalUserName(h323id);
+}
+
 /** Establish Gatekeeper communiations, if so configured, 
   *	register aliases for the H.323 endpoint to respond to.
   */
@@ -952,9 +960,7 @@ int h323_make_call(char *host, call_details_t *cd, call_options_t call_options)
 		return 1;
 	}
 	
-	PString dest = PString(host);
-	
-	cout << "dest: " << dest << endl;
+	PString dest(host);
 
 	res = endPoint->MakeCall(dest, token, &cd->call_reference, call_options.port);
 	memcpy((char *)(cd->call_token), (const unsigned char *)token, token.GetLength());

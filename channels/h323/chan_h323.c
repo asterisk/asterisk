@@ -373,7 +373,9 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	int res;
 	struct oh323_pvt *p = c->pvt->pvt;
 	char called_addr[256];
+	char *tmp;
 
+	strtok_r(dest, "/", &(tmp));
 
 	ast_log(LOG_DEBUG, "dest=%s, timeout=%d.\n", dest, timeout);
 
@@ -734,8 +736,10 @@ static struct ast_channel *oh323_request(char *type, int format, void *data)
 	struct ast_channel *tmpc = NULL;
 	char *dest = data;
 	char *ext, *host;
+	char *h323id = NULL;
 	char tmp[256];
 
+	
 	ast_log(LOG_DEBUG, "type=%s, format=%d, data=%s.\n", type, format, (char *)data);
 
 	oldformat = format;
@@ -746,6 +750,7 @@ static struct ast_channel *oh323_request(char *type, int format, void *data)
 	}
 	
 	strncpy(tmp, dest, sizeof(tmp) - 1);
+		
 	host = strchr(tmp, '@');
 	if (host) {
 		*host = '\0';
@@ -756,6 +761,13 @@ static struct ast_channel *oh323_request(char *type, int format, void *data)
 		ext = NULL;
 	}
 
+	strtok_r(host, "/", &(h323id));
+		
+	if (*h323id) {
+		h323_set_id(h323id);
+	}
+		
+	
 	p = oh323_alloc(0);
 
 	if (!p) {
@@ -1459,9 +1471,6 @@ int reload_config()
 		ast_log(LOG_ERROR, "Capabilities failure, this is bad.\n");
 		return -1;
 	}	
-
-	printf("CONTEXT RELOAD: [%s]\n", default_context);
-
 	ast_destroy(cfg);
 
 	return 0;
