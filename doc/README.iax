@@ -31,7 +31,7 @@ and H.323, some of which are:
 	* High performance, low overhead protocol
 	     When running on low-bandwidth connections, or when running 
 	     large numbers of calls, optimized bandwidth utilization is 
-	     imperitive.  IAX uses only 4 bytes of overhead
+	     imperative.  IAX uses only 4 bytes of overhead
 
 	* Internationalization support
 	     IAX transmits language information, so that remote PBX 
@@ -198,7 +198,7 @@ these packets, improving voice quality.
 
 > register => <name>[:<secret>]@<host>[:port]
 
-Any number of registery entries may be instantiated in the general 
+Any number of registry entries may be instantiated in the general 
 section.  Registration allows Asterisk to notify a remote Asterisk server 
 (with a fixed address) what our current address is.  In order for 
 registration to work, the remote Asterisk server will need to have a 
@@ -244,7 +244,7 @@ One or more context lines may be specified in a user, thus giving the user
 access to place calls in the given contexts.  Contexts are used by 
 Asterisk to divide dialing plans into logical units each with the ability 
 to have numbers interpreted differently, have their own security model, 
-auxilliary switch handling, and include other contexts.  Most users are 
+auxiliary switch handling, and include other contexts.  Most users are 
 given access to the default context.  Trusted users could be given access 
 to the local context for example.
 
@@ -265,7 +265,7 @@ whereas:
 > deny = 192.168.0.0/255.255.255.0
 > permit = 0.0.0.0/0.0.0.0
 
-would not deny anyone since the final rule would permit anyone, thsu 
+would not deny anyone since the final rule would permit anyone, thus 
 overriding the denial.  
 
 If no permit/deny rules are listed, it is assumed that someone may connect 
@@ -283,7 +283,7 @@ You may select which authentication methods are permitted to be used by
 the user to authenticate to us.  Multiple methods may be specified, 
 separated by commas.  If md5 or plaintext authentication is selected, a 
 secret must be provided.  If RSA authentication is specified, then one or 
-more key names must be specifed with "inkeys"
+more key names must be specified with "inkeys"
 
 If no secret is specified and no authentication method is specified, then 
 no authentication will be required.
