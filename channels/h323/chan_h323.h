@@ -28,23 +28,7 @@
 
 #include <arpa/inet.h>
 
-//static struct sockaddr_in bindaddr;
-
-/** call_option struct is filled from the 
-	PBX application and passed through make_call 
-	function*/
-typedef struct call_options {
-	char		*callerid;
-	int		noFastStart;
-	int		noH245Tunnelling;
-	int		noSilenceSuppression;
-	int		progress_setup;
-	int		progress_alert;
-	int		progress_audio;
-	unsigned int	port;
-} call_options_t;
-
-extern call_options_t global_options;
+static struct sockaddr_in bindaddr;
 
 /* structure to hold the valid asterisk users */
 struct oh323_user {
@@ -54,13 +38,15 @@ struct oh323_user {
 	char callerid[80];
 	char accountcode[20];
 	int amaflags;
+	int noFastStart;
+	int noH245Tunneling;
+	int noSilenceSuppression;
 	int inUse;
 	int incominglimit;
 	int bridge;
 	int nat;
 	int dtmfmode;
 	int host;
-	call_options_t call_options;
 	struct ast_ha *ha;
 	struct sockaddr_in addr;
 	struct oh323_user *next;
@@ -71,6 +57,9 @@ struct oh323_user {
 struct oh323_peer {
 	char name[80];
 	char context[80];
+	int	noFastStart;
+	int	noH245Tunneling;
+	int	noSilenceSuppression;
 	int inUse;
 	int outgoinglimit;
 	int bridge;
@@ -78,7 +67,6 @@ struct oh323_peer {
 	int dtmfmode;
 	struct sockaddr_in addr;
 	int delme;
-	call_options_t call_options;
 	struct oh323_peer *next;
 };
 
@@ -93,6 +81,17 @@ struct oh323_alias {
 	struct oh323_alias *next;	
 };
 
+/** call_option struct is filled from the 
+	PBX application and passed through make_call 
+	function*/
+typedef struct call_options {
+	char		   *callerid;
+	int				noFastStart;
+	int				noH245Tunnelling;
+	int				noSilenceSuppression;
+	unsigned int	port;
+} call_options_t;
+
 /** call_details struct call detail records 
 	to asterisk for processing and used for matching up 
 	asterisk channels to acutal h.323 connections */
@@ -104,7 +103,6 @@ typedef struct call_details {
 	const char *call_dest_alias;
 	const char *call_source_e164;
 	const char *call_dest_e164;
-	const char *call_redir_e164;
 	const char *sourceIp;
 } call_details_t;
 
@@ -125,7 +123,7 @@ on_connection_cb	on_create_connection;
 
 /* This is a callback prototype function, called upon
    an incoming call happens. */
-typedef call_options_t *(*setup_incoming_cb)(call_details_t);
+typedef int (*setup_incoming_cb)(call_details_t);
 setup_incoming_cb		on_incoming_call;
 
 /* This is a callback prototype function, called upon
@@ -134,10 +132,8 @@ typedef int (*setup_outbound_cb)(call_details_t);
 setup_outbound_cb	on_outgoing_call; 
 
 /* This is a callback prototype function, called when the openh323 
-   OnStartLogicalChannel is invoked.
-   2 more arguments - direction and payload type.
- */
-typedef void (*start_logchan_cb)(unsigned int, const char *, int, int, int);
+   OnStartLogicalChannel is invoked. */
+typedef void (*start_logchan_cb)(unsigned int, const char *, int);
 start_logchan_cb	on_start_logical_channel; 
 
 /* This is a callback protoype function, called when the openh323
@@ -150,33 +146,15 @@ con_established_cb		on_connection_established;
 typedef void (*clear_con_cb)(call_details_t);
 clear_con_cb		on_connection_cleared;
 
-/* This is a callback prototype function, called when the openh323 
-   OnReceivedAckPDU is invoked. */
-typedef void (*setup_rtp_cb)(unsigned int, const char *, int);
-setup_rtp_cb		on_setup_rtp_peer; 
-
-typedef int (*progress_cb)(unsigned, int);
-progress_cb		on_progress;
-
 /* debug flag */
 int h323debug;
 
 #define H323_DTMF_RFC2833	(1 << 0)
 #define H323_DTMF_INBAND	(1 << 1)
 
-/* Required to declare global variables from chan_h323.c */
-#ifndef BOOL
-#define BOOL int
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif   
-
-	/* chan_h323 global parameters */
-	extern BOOL noFastStart;
-	extern BOOL noH245Tunnelling;
-	extern BOOL noSilenceSuppression;
     
 	void h323_gk_urq(void);
 	void h323_end_point_create(void);
@@ -187,13 +165,13 @@ extern "C" {
 
 	/* callback function handler*/
 	void h323_callback_register(setup_incoming_cb,
-					setup_outbound_cb,
-					on_connection_cb,
-					start_logchan_cb,
-					clear_con_cb,
-					con_established_cb,
-					send_digit_cb,
-					progress_cb);
+ 								setup_outbound_cb,
+ 								on_connection_cb,
+ 								start_logchan_cb,
+ 								clear_con_cb,
+ 								con_established_cb,
+ 								send_digit_cb);
+
 
 	int h323_set_capability(int, int);
 	int h323_set_alias(struct oh323_alias *);
@@ -210,7 +188,7 @@ extern "C" {
 	void h323_send_tone(const char *call_token, char tone);
 
 	/* H323 create and destroy sessions */
-	int h323_make_call(char *host, call_details_t *cd, call_options_t *call_options);
+	int h323_make_call(char *host, call_details_t *cd, call_options_t);
 	int h323_clear_call(const char *);
 	int h323_answering_call(const char *token, int);
 	

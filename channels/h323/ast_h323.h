@@ -88,7 +88,7 @@ class H323_G7231Capability : public H323AudioCapability
       H245_AudioCapability & pdu,  /// PDU to set information on
       unsigned packetSize          /// Packet size to use in capability
     ) const;
-    
+
     BOOL OnReceivedPDU(
       const H245_AudioCapability & pdu,  /// PDU to get information from
       unsigned & packetSize              /// Packet size to use in capability
@@ -198,7 +198,7 @@ class MyH323EndPoint : public H323EndPoint {
 
 	public:
 
-	int MakeCall(const PString &, PString &, unsigned int *, call_options_t *);
+	int MakeCall(const PString &, PString &, unsigned int *, unsigned int, char *);
 	BOOL ClearCall(const PString &);
 
 	void OnClosedLogicalChannel(H323Connection &, const H323Channel &);
@@ -213,8 +213,9 @@ class MyH323EndPoint : public H323EndPoint {
 
 	PStringArray SupportedPrefixes;	
 	
-	void SetEndpointTypeInfo( H225_EndpointType & info ) const;
-	void SetGateway(void);
+    void SetEndpointTypeInfo( H225_EndpointType & info ) const;
+    void SetGateway(void);
+
 };
 
   
@@ -224,7 +225,6 @@ class MyH323Connection : public H323Connection {
 
 	public:
 	MyH323Connection(MyH323EndPoint &, unsigned, unsigned);
-	MyH323Connection(MyH323EndPoint &, unsigned, unsigned, call_options_t *);
 	~MyH323Connection();
 
 	H323Channel * CreateRealTimeLogicalChannel(const H323Capability &, H323Channel::Directions, unsigned, 
@@ -241,9 +241,6 @@ class MyH323Connection : public H323Connection {
 	void SendUserInputTone(char, unsigned);
 	void OnUserInputTone(char, unsigned, unsigned, unsigned);
 	void OnUserInputString(const PString &value);
-	BOOL OnReceivedProgress(const H323SignalPDU &);
-	/* Set up H.323 caller id */
-	void SetCID(const char *callerid);	
 
 	PString sourceAliases;
 	PString destAliases;
@@ -251,53 +248,11 @@ class MyH323Connection : public H323Connection {
 	PString destE164;
 
 	PIPSocket::Address externalIpAddress;	// IP address of media server
-	PIPSocket::Address remoteIpAddress;	// IP Address of remote endpoint
-	WORD			externalPort;	// local media server Data port (control is dataPort+1)
-	WORD			remotePort;	// remote endpoint Data port (control is dataPort+1)
-	WORD			sessionId;
-	BOOL			bridging;	// Used to help determine which IP to use
-	unsigned		progressSetup;	// ProgressIndicator IE value for SETUP message
-	unsigned		progressAlert;	// ProgressIndicator IE value for ALERT message
-};
-
-class MyH323_ExternalRTPChannel : public H323_ExternalRTPChannel
-{
-	PCLASSINFO(MyH323_ExternalRTPChannel, H323_ExternalRTPChannel);
-
-public:
-  /**@name Construction */
-  //@{
-    /**Create a new channel.
-     */
-    MyH323_ExternalRTPChannel(
-      H323Connection & connection,        /// Connection to endpoint for channel
-      const H323Capability & capability,  /// Capability channel is using
-      Directions direction,               /// Direction of channel
-      unsigned sessionID                  /// Session ID for channel
-    );
-    /**Create a new channel.
-     */
-    MyH323_ExternalRTPChannel(
-      H323Connection & connection,        /// Connection to endpoint for channel
-      const H323Capability & capability,  /// Capability channel is using
-      Directions direction,               /// Direction of channel
-      unsigned sessionID,                 /// Session ID for channel
-      const H323TransportAddress & data,  /// Data address
-      const H323TransportAddress & control/// Control address
-    );
-    /**Create a new channel.
-     */
-    MyH323_ExternalRTPChannel(
-      H323Connection & connection,        /// Connection to endpoint for channel
-      const H323Capability & capability,  /// Capability channel is using
-      Directions direction,               /// Direction of channel
-      unsigned sessionID,                 /// Session ID for channel
-      const PIPSocket::Address & ip,      /// IP address of media server
-      WORD dataPort                       /// Data port (control is dataPort+1)
-    );
-  //@}
-//	BOOL OnReceivedAckPDU(const H245_H2250LogicalChannelAckParameters & param);
-	BOOL Start(void);
+    PIPSocket::Address remoteIpAddress;		// IP Address of remote endpoint
+	WORD			   externalPort;		// local media server Data port (control is dataPort+1)
+	WORD			   remotePort;			// remote endpoint Data port (control is dataPort+1)
+	WORD			   sessionId;
+	BOOL			   bridging;			// Used to help determine which IP to use
 };
 
 
@@ -393,3 +348,5 @@ class ClearCallThread : public PThread {
 	protected:
 	PString	token;
 };
+
+

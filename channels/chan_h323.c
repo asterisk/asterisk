@@ -46,7 +46,6 @@
 #include <asterisk/callerid.h>
 #include <asterisk/cli.h>
 #include <asterisk/dsp.h>
-#include <asterisk/translate.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <errno.h>
@@ -59,19 +58,6 @@
 
 
 #include "h323/chan_h323.h"
-
-#define TRUE  1
-#define FALSE 0
-
-/* from rtp.c to translate RTP's payload type to Asterisk's frame subcode */
-struct rtpPayloadType {
-	int isAstFormat; // whether the following code is an AST_FORMAT
-	int code;
-};
-
-call_options_t global_options;
-
-static struct sockaddr_in bindaddr;    
 
 /** String variables required by ASTERISK */
 static char *type	= "H323";
@@ -120,8 +106,6 @@ struct oh323_pvt {
 	int bridge;								/* Determine of we should native bridge or not*/
 	char exten[AST_MAX_EXTENSION];			/* Requested extension */
 	char context[AST_MAX_EXTENSION];		/* Context where to start */
-	char dnid[AST_MAX_EXTENSION];			/* Called number */
-	char rdnis[AST_MAX_EXTENSION];			/* Redirecting number */
 	char username[81];						/* H.323 alias using this channel */
 	char accountcode[256];					/* Account code */
 	int amaflags;							/* AMA Flags */
@@ -261,37 +245,17 @@ static struct oh323_user *build_user(char *name, struct ast_variable *v)
                       } else if (!strcasecmp(v->name, "nat")) {
                               user->nat = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "noFastStart")) {
-				user->call_options.noFastStart = ast_true(v->value);
+				user->noFastStart = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "noH245Tunneling")) {
-				user->call_options.noH245Tunnelling = ast_true(v->value);
+				user->noH245Tunneling = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "noSilenceSuppression")) {
-				user->call_options.noSilenceSuppression = ast_true(v->value);
+				user->noSilenceSuppression = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "secret")) {
 				strncpy(user->secret, v->value, sizeof(user->secret)-1);
 			} else if (!strcasecmp(v->name, "callerid")) {
 				strncpy(user->callerid, v->value, sizeof(user->callerid)-1);
 			} else if (!strcasecmp(v->name, "accountcode")) {
 				strncpy(user->accountcode, v->value, sizeof(user->accountcode)-1);
-			} else if (!strcasecmp(v->name, "progress_setup")) {
-				int progress_setup = atoi(v->value);
-				if((progress_setup != 0) &&
-				   (progress_setup != 1) &&
-				   (progress_setup != 3) &&
-				   (progress_setup != 8)) {
-					ast_log(LOG_WARNING, "Invalid value %d for progress_setup at line %d, assuming 0\n", progress_setup, v->lineno);
-					progress_setup = 0;
-				}
-				user->call_options.progress_setup = progress_setup;
-			} else if (!strcasecmp(v->name, "progress_alert")) {
-				int progress_alert = atoi(v->value);
-				if((progress_alert != 0) &&
-				   (progress_alert != 8)) {
-					ast_log(LOG_WARNING, "Invalid value %d for progress_alert at line %d, assuming 0\n", progress_alert, v->lineno);
-					progress_alert = 0;
-				}
-				user->call_options.progress_alert = progress_alert;
-			} else if (!strcasecmp(v->name, "progress_audio")) {
-				user->call_options.progress_audio = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "incominglimit")) {
 				user->incominglimit = atoi(v->value);
 				if (user->incominglimit < 0)
@@ -368,31 +332,11 @@ static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
 			}  else if (!strcasecmp(v->name, "bridge")) {
 				peer->bridge = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "noFastStart")) {
-				peer->call_options.noFastStart = ast_true(v->value);
+				peer->noFastStart = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "noH245Tunneling")) {
-				peer->call_options.noH245Tunnelling = ast_true(v->value);
+				peer->noH245Tunneling = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "noSilenceSuppression")) {
-				peer->call_options.noSilenceSuppression = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "progress_setup")) {
-				int progress_setup = atoi(v->value);
-				if((progress_setup != 0) &&
-				   (progress_setup != 1) &&
-				   (progress_setup != 3) &&
-				   (progress_setup != 8)) {
-					ast_log(LOG_WARNING, "Invalid value %d for progress_setup at line %d, assuming 0\n", progress_setup, v->lineno);
-					progress_setup = 0;
-				}
-				peer->call_options.progress_setup = progress_setup;
-			} else if (!strcasecmp(v->name, "progress_alert")) {
-				int progress_alert = atoi(v->value);
-				if((progress_alert != 0) &&
-				   (progress_alert != 8)) {
-					ast_log(LOG_WARNING, "Invalid value %d for progress_alert at line %d, assuming 0\n", progress_alert, v->lineno);
-					progress_alert = 0;
-				}
-				peer->call_options.progress_alert = progress_alert;
-			} else if (!strcasecmp(v->name, "progress_audio")) {
-				peer->call_options.progress_audio = ast_true(v->value);
+				peer->noSilenceSuppression = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "outgoinglimit")) {
 				peer->outgoinglimit = atoi(v->value);
 				if (peer->outgoinglimit > 0)
@@ -483,16 +427,16 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 		} else {
 			p->calloptions.callerid = strdup(c->callerid);
 		}	
-	}
+	 }
 
-	res = h323_make_call(called_addr, &(p->cd), &p->calloptions);
+	res = h323_make_call(called_addr, &(p->cd), p->calloptions);
 
 	if (res) {
 		ast_log(LOG_NOTICE, "h323_make_call failed(%s)\n", c->name);
 		return -1;
 	}
 
-	ast_setstate(c, AST_STATE_RING);
+	ast_setstate(c, AST_STATE_RINGING);
 	return 0;
 }
 
@@ -560,31 +504,20 @@ static int oh323_hangup(struct ast_channel *c)
 	return 0;
 }
 
-/* Pass channel struct too to allow RTCP handling */
-static struct ast_frame *oh323_rtp_read(struct ast_channel *c, struct oh323_pvt *p)
+static struct ast_frame *oh323_rtp_read(struct oh323_pvt *p)
 {
 	/* Retrieve audio/etc from channel.  Assumes p->lock is already held. */
 	struct ast_frame *f;
 	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 
-	/* Only apply it for the first packet, we just need the correct ip/port */
-	if(p->nat)
-	{
-		ast_rtp_setnat(p->rtp,p->nat);
-		p->nat = 0;
-	}
+      /* Only apply it for the first packet, we just need the correct ip/port */
+      if(p->nat)
+      {
+              ast_rtp_setnat(p->rtp,p->nat);
+              p->nat = 0;
+      }
 
-	switch(c->fdno) {
-	case 0:	/* RTP stream */
-		f = ast_rtp_read(p->rtp);
-		break;
-	case 1:	/* RTCP stream */
-		f = ast_rtcp_read(p->rtp);
-		break;
-	default:
-		f = &null_frame;
-	}
-
+	f = ast_rtp_read(p->rtp);
 	/* Don't send RFC2833 if we're not supposed to */
 	if (f && (f->frametype == AST_FRAME_DTMF) && !(p->dtmfmode & H323_DTMF_RFC2833))
 		return &null_frame;
@@ -592,12 +525,10 @@ static struct ast_frame *oh323_rtp_read(struct ast_channel *c, struct oh323_pvt 
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
 			if (f->subclass != p->owner->nativeformats) {
-				/* Must be handled on opening logical channel */
 				ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
 				p->owner->nativeformats = f->subclass;
 				ast_set_read_format(p->owner, p->owner->readformat);
-				/* Don't set write format because it will be set up when channel started */
-//				ast_set_write_format(p->owner, p->owner->writeformat);
+				ast_set_write_format(p->owner, p->owner->writeformat);
 			}
 		
 			/* Do in-band DTMF detection */
@@ -619,8 +550,7 @@ static struct ast_frame  *oh323_read(struct ast_channel *c)
 	struct ast_frame *fr;
 	struct oh323_pvt *p = c->pvt->pvt;
 	ast_mutex_lock(&p->lock);
-	/* Pass channel structure to handle other streams than just RTP */
-	fr = oh323_rtp_read(c, p);
+	fr = oh323_rtp_read(p);
 	ast_mutex_unlock(&p->lock);
 	return fr;
 }
@@ -629,7 +559,6 @@ static int oh323_write(struct ast_channel *c, struct ast_frame *frame)
 {
 	struct oh323_pvt *p = c->pvt->pvt;
 	int res = 0;
-	int need_frfree = 0;	/* Does ast_frfree() call required? */
 	if (frame->frametype != AST_FRAME_VOICE) {
 		if (frame->frametype == AST_FRAME_IMAGE)
 			return 0;
@@ -639,47 +568,9 @@ static int oh323_write(struct ast_channel *c, struct ast_frame *frame)
 		}
 	} else {
 		if (!(frame->subclass & c->nativeformats)) {
-			if(!(frame->subclass & c->writeformat)) { /* Someone sent frame with old format */
-				ast_log(LOG_WARNING, "Asked to transmit frame type %s from %s by '%s', while native formats is %s (read/write = %s/%s)\n",
-					ast_getformatname(frame->subclass), frame->src, c->name, ast_getformatname(c->nativeformats), ast_getformatname(c->readformat), ast_getformatname(c->writeformat));
-				return (c->nativeformats ? 0 : -1);
-			} else {
-				/* Frame goes from RTP is not in our native
-				 * format - try to translate it... Or we must
-				 * just drop it?
-				 */
-
-				/* Sometimes translation table isn't set
-				 * correctly but writeformat is invalid,
-				 * so force required translation allocation
-				 */
-				ast_set_write_format(c, c->nativeformats);
-				ast_set_write_format(c, frame->subclass);
-
-				/* Translate it on-the-fly */
-				if (c->pvt->writetrans) {
-					struct ast_frame *frame1;
-					ast_log(LOG_WARNING, "Asked to transmit frame type %s from %s by '%s', while native formats is %s (read/write = %s/%s) - 2 TRANSLATE\n",
-						ast_getformatname(frame->subclass), frame->src, c->name, ast_getformatname(c->nativeformats), ast_getformatname(c->readformat), ast_getformatname(c->writeformat));
-					/* Allocate new frame with translated context.
-					 * Don't free frame because it will be freed on
-					 * upper layer (RTP).
-					 */
-					frame1 = ast_translate(c->pvt->writetrans, frame, 0);
-					if(frame1) {
-						/* Substitute passed frame with translated and
-						   mark it for freeing before return */
-						frame = frame1;
-						need_frfree = 1;
-					}
-					else
-						ast_log(LOG_WARNING, "Unable to translate frame type %s to %s\n", ast_getformatname(frame->subclass), ast_getformatname(c->nativeformats));
-				} else {
-					ast_log(LOG_WARNING, "Asked to transmit frame type %s from %s by '%s', while native formats is %s (read/write = %s/%s)\n",
-						ast_getformatname(frame->subclass), frame->src, c->name, ast_getformatname(c->nativeformats), ast_getformatname(c->readformat), ast_getformatname(c->writeformat));
-					return -1;
-				}
-			}
+			ast_log(LOG_WARNING, "Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
+				frame->subclass, c->nativeformats, c->readformat, c->writeformat);
+			return -1;
 		}
 	}
 	if (p) {
@@ -689,9 +580,6 @@ static int oh323_write(struct ast_channel *c, struct ast_frame *frame)
 		}
 		ast_mutex_unlock(&p->lock);
 	}
-	/* Free translated frame */
-	if(need_frfree)
-		ast_frfree(frame);
 	return res;
 }
 
@@ -725,7 +613,7 @@ static int oh323_indicate(struct ast_channel *c, int condition)
 		}
 		return 0;
 	case -1:
-		return 0;
+		return -1;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to indicate condition %d\n", condition);
 		return -1;
@@ -756,20 +644,13 @@ static struct ast_channel *oh323_new(struct oh323_pvt *i, int state, const char 
 	
 	if (ch) {
 		
-//		snprintf(ch->name, sizeof(ch->name)-1, "H323/%s-%04x", host, rand() & 0xffff);
 		snprintf(ch->name, sizeof(ch->name)-1, "H323/%s", host);
 		ch->nativeformats = i->capability;
 		if (!ch->nativeformats)
 			ch->nativeformats = capability;
 		fmt = ast_best_codec(ch->nativeformats);
 		ch->type = type;
-
-		/* RTP stream */
 		ch->fds[0] = ast_rtp_fd(i->rtp);
-
-		/* RTCP stream */
-		ch->fds[1] = ast_rtcp_fd(i->rtp);
-
 		ast_setstate(ch, state);
 		
 		if (state == AST_STATE_RING)
@@ -810,10 +691,6 @@ static struct ast_channel *oh323_new(struct oh323_pvt *i, int state, const char 
 		ch->priority = 1;
 		if (strlen(i->callerid))
 			ch->callerid = strdup(i->callerid);
-		if (strlen(i->dnid))
-			ch->dnid = strdup(i->dnid);
-		if (strlen(i->rdnis))
-			ch->rdnis = strdup(i->rdnis);
 		if (strlen(i->accountcode))
 			strncpy(ch->accountcode, i->accountcode, sizeof(ch->accountcode)-1);
 		if (i->amaflags)
@@ -854,7 +731,6 @@ static struct oh323_pvt *oh323_alloc(int callid)
 	
 	p->cd.call_reference = callid;
 	p->bridge = bridge_default;
-	memcpy(&p->calloptions, &global_options, sizeof(global_options));
 	
 	p->dtmfmode = dtmfmode;
 	if (p->dtmfmode & H323_DTMF_RFC2833)
@@ -872,24 +748,25 @@ static struct oh323_pvt *find_call(int call_reference)
 {  
         struct oh323_pvt *p;
 
-	ast_mutex_lock(&iflock);
+		ast_mutex_lock(&iflock);
         p = iflist; 
 
         while(p) {
                 if (p->cd.call_reference == call_reference) {
                         /* Found the call */						
-			ast_mutex_unlock(&iflock);
-			return p;
+						ast_mutex_unlock(&iflock);
+						return p;
                 }
                 p = p->next; 
         }
         ast_mutex_unlock(&iflock);
-
-	return NULL;
+		return NULL;
+        
 }
 
 static struct ast_channel *oh323_request(char *type, int format, void *data)
 {
+
 	int oldformat;
 	struct oh323_pvt *p;
 	struct ast_channel *tmpc = NULL;
@@ -958,45 +835,20 @@ static struct ast_channel *oh323_request(char *type, int format, void *data)
 	return tmpc;
 }
 
-struct oh323_alias *find_alias(call_details_t cd)
+struct oh323_alias *find_alias(const char *source_aliases)
 {
-	struct oh323_alias *a, *a_e164 = NULL, *a_pfx = NULL;
-	char *s, *p;
-	int a_pfxlen, numlen;
+	struct oh323_alias *a;
 
 	a = aliasl.aliases;
-	a_pfxlen = 0;
-	numlen = strlen(cd.call_dest_e164);
 
 	while(a) {
 
-		if (!strcasecmp(a->name, cd.call_dest_alias)) {
+		if (!strcasecmp(a->name, source_aliases)) {
 			break;
-		}
-		/* Check for match of E164 number */
-		if (!strcasecmp(a->e164, cd.call_dest_e164))
-			a_e164 = a;
-		else { /* Check for match called number with prefixes */
-			for(s = a->prefix; *s; ) {
-				for(; *s == ' '; ++s);
-				if(!(p = strchr(s, ',')))
-					p = s + strlen(s);
-				if((p - s > a_pfxlen) && (numlen >= p - s) && (strncasecmp(s, cd.call_dest_e164, p - s) == 0)) {
-					a_pfxlen = p - s;
-					a_pfx = a;
-				}
-				s = p;
-				if(*s == ',')
-				  ++s;
-			}
 		}
 		a = a->next;
 	}
-	if(a)
-		return a;
-	if(a_e164)
-		return a_e164;
-	return a_pfx;
+	return a;
 }
 
 struct oh323_user *find_user(const call_details_t cd)
@@ -1042,27 +894,6 @@ struct oh323_peer *find_peer(char *dest_peer)
 
 }
 
-static int progress(unsigned call_reference, int inband)
-{
-	struct oh323_pvt *p;
-	
-	ast_log(LOG_DEBUG, "Received ALERT/PROGRESS message for %s tones\n", (inband ? "inband" : "self-generated"));
-	p = find_call(call_reference);
-
-	if (!p) {
-		ast_log(LOG_ERROR, "Private structure not found in send_digit.\n");
-		return -1;
-	}
-	if (!p->owner) {
-		ast_log(LOG_ERROR, "No asterisk's channel associated with private structure.\n");
-		return -1;
-	}
-
-	ast_queue_control(p->owner, (inband ? AST_CONTROL_PROGRESS : AST_CONTROL_RINGING), 0);
-	
-	return 0;
-}
-
 /**
   * Callback for sending digits from H.323 up to asterisk
   *
@@ -1081,13 +912,13 @@ int send_digit(unsigned call_reference, char digit)
 	}
 	memset(&f, 0, sizeof(f));
 	f.frametype = AST_FRAME_DTMF;
-	f.subclass = digit;
-	f.datalen = 0;
-	f.samples = 300;
+    f.subclass = digit;
+    f.datalen = 0;
+    f.samples = 300;
 	f.offset = 0;
 	f.data = NULL;
-	f.mallocd = 0;
-	f.src = "SEND_DIGIT";
+    f.mallocd = 0;
+    f.src = "SEND_DIGIT";
    	
 	return ast_queue_frame(p->owner, &f, 1);	
 }
@@ -1131,21 +962,20 @@ struct rtp_info *create_connection(unsigned call_reference)
  *  Returns 1 on success
  */
 
-call_options_t *setup_incoming_call(call_details_t cd)
+int setup_incoming_call(call_details_t cd)
 {
 	
 	struct oh323_pvt *p = NULL;
 	struct ast_channel *c = NULL;
 	struct oh323_user *user = NULL;
 	struct oh323_alias *alias = NULL;
-	call_options_t *call_options = NULL;
 
 	/* allocate the call*/
 	p = oh323_alloc(cd.call_reference);
 
 	if (!p) {
 		ast_log(LOG_ERROR, "Unable to allocate private structure, this is bad.\n");
-		return NULL;
+		return 0;
 	}
 
 	/* Populate the call details in the private structure */
@@ -1156,28 +986,21 @@ call_options_t *setup_incoming_call(call_details_t cd)
 	p->cd.call_dest_e164 = cd.call_dest_e164;
 
 	if (h323debug) {
-		ast_verbose(VERBOSE_PREFIX_2 "Setting up Call\n");
-		ast_verbose(VERBOSE_PREFIX_3 "Calling party name:  [%s]\n", p->cd.call_source_aliases);
-		ast_verbose(VERBOSE_PREFIX_3 "Calling party number:  [%s]\n", p->cd.call_source_e164);
-		ast_verbose(VERBOSE_PREFIX_3 "Called party name:  [%s]\n", p->cd.call_dest_alias);
-		ast_verbose(VERBOSE_PREFIX_3 "Called party number:  [%s]\n", p->cd.call_dest_e164);
-		ast_verbose(VERBOSE_PREFIX_3 "Redirecting party number:  [%s]\n", p->cd.call_redir_e164);
+		ast_verbose(VERBOSE_PREFIX_3 "Setting up Call\n");
+		ast_verbose(VERBOSE_PREFIX_3 "	   Calling party name:  [%s]\n", p->cd.call_source_aliases);
+		ast_verbose(VERBOSE_PREFIX_3 "	   Calling party number:  [%s]\n", p->cd.call_source_e164);
+		ast_verbose(VERBOSE_PREFIX_3 "	   Called  party name:  [%s]\n", p->cd.call_dest_alias);
+		ast_verbose(VERBOSE_PREFIX_3 "	   Called  party number:  [%s]\n", p->cd.call_dest_e164);
 	}
 
 	/* Decide if we are allowing Gatekeeper routed calls*/
 	if ((!strcasecmp(cd.sourceIp, gatekeeper)) && (gkroute == -1) && (usingGk == 1)) {
 		
 		if (strlen(cd.call_dest_e164)) {
-                       char *ctx;
-
-                       alias = find_alias(cd);
-                       ctx = alias ? alias->context : default_context;
-
-                       strncpy(p->dnid, cd.call_dest_e164, sizeof(p->dnid)-1);
-                       strncpy(p->exten, cd.call_dest_e164, sizeof(p->exten)-1);
-                       strncpy(p->context, ctx, sizeof(p->context)-1);
+			strncpy(p->exten, cd.call_dest_e164, sizeof(p->exten)-1);
+			strncpy(p->context, default_context, sizeof(p->context)-1); 
 		} else {
-			alias = find_alias(cd);
+			alias = find_alias(cd.call_dest_alias);
 		
 			if (!alias) {
 				ast_log(LOG_ERROR, "Call for %s rejected, alias not found\n", cd.call_dest_alias);
@@ -1187,8 +1010,8 @@ call_options_t *setup_incoming_call(call_details_t cd)
 			strncpy(p->context, alias->context, sizeof(p->context)-1);
 		}
 
-		/* Asterisk prefers user name to be quoted */
-		sprintf(p->callerid, "\"%s\" <%s>", p->cd.call_source_aliases, p->cd.call_source_e164);
+
+		sprintf(p->callerid, "%s <%s>", p->cd.call_source_aliases, p->cd.call_source_e164);
 
 	} else { 
 		/* Either this call is not from the Gatekeeper 
@@ -1199,13 +1022,11 @@ call_options_t *setup_incoming_call(call_details_t cd)
 
 
 		if (!user) {
-			/* Asterisk prefers user name to be quoted */
-			sprintf(p->callerid, "\"%s\" <%s>", p->cd.call_source_aliases, p->cd.call_source_e164); 
+			sprintf(p->callerid, "%s <%s>", p->cd.call_source_aliases, p->cd.call_source_e164); 
 			if (strlen(p->cd.call_dest_e164)) {
-				strncpy(p->dnid, cd.call_dest_e164, sizeof(p->dnid)-1);
 				strncpy(p->exten, cd.call_dest_e164, sizeof(p->exten)-1);
 			} else {
-				strncpy(p->exten, cd.call_dest_alias, sizeof(p->exten)-1);
+				strncpy(p->exten, cd.call_dest_alias, sizeof(p->exten)-1);		
 			}
 			if (!strlen(default_context)) {
 				ast_log(LOG_ERROR, "Call from user '%s' rejected due to no default context\n", p->cd.call_source_aliases);
@@ -1213,14 +1034,13 @@ call_options_t *setup_incoming_call(call_details_t cd)
 			}
 			strncpy(p->context, default_context, sizeof(p->context)-1);
 			ast_log(LOG_DEBUG, "Sending %s to context [%s]\n", cd.call_source_aliases, p->context);
-		} else {
-			call_options = &user->call_options;
+		} else {					
 			if (user->host) {
 				if (strcasecmp(cd.sourceIp, inet_ntoa(user->addr.sin_addr))){
 					
 					if(!strlen(default_context)) {
 						ast_log(LOG_ERROR, "Call from user '%s' rejected due to non-matching IP address of '%s'\n", user->name, cd.sourceIp);
-                				return NULL;
+                				return 0;
 					}
 					
 					strncpy(p->context, default_context, sizeof(p->context)-1);
@@ -1232,12 +1052,12 @@ call_options_t *setup_incoming_call(call_details_t cd)
 			if (user->incominglimit > 0) {
 				if (user->inUse >= user->incominglimit) {
 					ast_log(LOG_ERROR, "Call from user '%s' rejected due to usage limit of %d\n", user->name, user->incominglimit);
-					return NULL;
+					return 0;
 				}
 			}
 			strncpy(p->context, user->context, sizeof(p->context)-1);
 			p->bridge = user->bridge;
-			p->nat = user->nat;
+                      p->nat = user->nat;
 
 			if (strlen(user->callerid)) 
 				strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
@@ -1260,21 +1080,14 @@ call_options_t *setup_incoming_call(call_details_t cd)
 
 /* I know this is horrid, don't kill me saddam */
 exit:
-//	if(strlen(p->cd.call_redir_e164))
-//		strncpy(p->rdnis, cd.call_redir_e164, sizeof(p->rdnis)-1);
 	/* allocate a channel and tell asterisk about it */
 	c = oh323_new(p, AST_STATE_RINGING, cd.call_token);
 	if (!c) {
 		ast_log(LOG_ERROR, "Couldn't create channel. This is bad\n");
-		return NULL;
+		return 0;
 	}
 
-	ast_queue_control(c, AST_CONTROL_RINGING, 0);
-
-	if(!call_options)
-		return &global_options;
-
-	return call_options;
+	return 1;
 }
 
 /**
@@ -1304,12 +1117,10 @@ if (!p) {
   *
   * Returns nothing 
   */
-void setup_rtp_connection(unsigned call_reference, const char *remoteIp, int remotePort, int direction, int payloadType)
+void setup_rtp_connection(unsigned call_reference, const char *remoteIp, int remotePort)
 {
 	struct oh323_pvt *p = NULL;
 	struct sockaddr_in them;
-	struct rtpPayloadType payload;
-	struct ast_channel *chan;
 
 	/* Find the call or allocate a private structure if call not found */
 	p = find_call(call_reference);
@@ -1322,54 +1133,9 @@ void setup_rtp_connection(unsigned call_reference, const char *remoteIp, int rem
 	them.sin_family = AF_INET;
 	them.sin_addr.s_addr = inet_addr(remoteIp); // only works for IPv4
 	them.sin_port = htons(remotePort);
-
-	/* Find RTP payload <=> asterisk's subcode association */
-	payload = ast_rtp_lookup_pt(p->rtp, payloadType);
-
-	ast_log(LOG_DEBUG, "Setting up %sbound RTP connection for %s:%d with payload %s (RTP code %d)\n", (direction ? "out" : "in"), inet_ntoa(them.sin_addr), remotePort, ast_getformatname(payload.code), payloadType);
-
-	/* Set channel's native codec and prepare translation table
-	 * for given direction and currently used format
-	 */
-	if ((chan = p->owner)) {
-		if (payload.isAstFormat) {
-			/* Don't allow any transmission until codec is changed */
-//			ast_mutex_lock(&chan->lock);
-			chan->nativeformats = payload.code;
-			if(direction)
-				ast_set_write_format(chan, chan->writeformat);
-			else
-				ast_set_read_format(chan, chan->readformat);
-//			ast_mutex_unlock(&chan->lock);
-		}
-	}
-
 	ast_rtp_set_peer(p->rtp, &them);
-	
-	if(p->calloptions.progress_audio)
-		progress(call_reference, TRUE);
 
 	return;
-}
-
-/* Not used for now - set RTP peer's address */
-void setup_rtp_peer(unsigned call_reference, const char *remoteIp, int remotePort)
-{
-	struct oh323_pvt *p = NULL;
-	struct sockaddr_in them;
-
-	/* Find the call or allocate a private structure if call not found */
-	p = find_call(call_reference);
-
-	if (!p) {
-		ast_log(LOG_ERROR, "Something is wrong: rtp\n");
-		return;
-	}
-
-	them.sin_family = AF_INET;
-	them.sin_addr.s_addr = inet_addr(remoteIp); // only works for IPv4
-	them.sin_port = htons(remotePort);
-	ast_rtp_set_peer(p->rtp, &them);
 }
 
 /**  
@@ -1470,15 +1236,13 @@ restartsearch:
 		}
 		ast_mutex_unlock(&iflock);
 
+		pthread_testcancel();
+
 		/* Wait for sched or io */
 		res = ast_sched_wait(sched);
 		if ((res < 0) || (res > 1000))
 			res = 1000;
 		res = ast_io_wait(io, res);
-
-		/* Check for thread cancellation */
-		pthread_testcancel();
-
 		ast_mutex_lock(&monlock);
 		if (res >= 0) 
 			ast_sched_runq(sched);
@@ -1628,7 +1392,7 @@ int reload_config(void)
 	struct oh323_alias *alias = NULL;
 	struct hostent *hp;
 	char *cat;
-	char *utype;
+    char *utype;
 	
 	cfg = ast_load(config);
 
@@ -1644,8 +1408,6 @@ int reload_config(void)
 	}
 	h323debug=0;
 	dtmfmode = H323_DTMF_RFC2833;
-	/* Fill global variables with pre-determined values */
-	memset(&global_options, 0, sizeof(global_options));
 
 	memset(&bindaddr, 0, sizeof(bindaddr));
 
@@ -1716,33 +1478,6 @@ int reload_config(void)
 				ast_log(LOG_WARNING, "Unknown dtmf mode '%s', using rfc2833\n", v->value);
 				dtmfmode = H323_DTMF_RFC2833;
 			}
-		/* Setup global parameters */
-		} else if (!strcasecmp(v->name, "noFastStart")) {
-			global_options.noFastStart = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "noH245Tunneling")) {
-			global_options.noH245Tunnelling = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "noSilenceSuppression")) {
-			global_options.noSilenceSuppression = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "progress_setup")) {
-			int progress_setup = atoi(v->value);
-			if((progress_setup != 0) &&
-			   (progress_setup != 1) &&
-			   (progress_setup != 3) &&
-			   (progress_setup != 8)) {
-				ast_log(LOG_WARNING, "Invalid value %d for progress_setup at line %d, assuming 0\n", progress_setup, v->lineno);
-				progress_setup = 0;
-			}
-			global_options.progress_setup = progress_setup;
-		} else if (!strcasecmp(v->name, "progress_alert")) {
-			int progress_alert = atoi(v->value);
-			if((progress_alert != 0) &&
-			   (progress_alert != 8)) {
-				ast_log(LOG_WARNING, "Invalid value %d for progress_alert at line %d, assuming 0\n", progress_alert, v->lineno);
-				progress_alert = 0;
-			}
-			global_options.progress_alert = progress_alert;
-		} else if (!strcasecmp(v->name, "progress_audio")) {
-			global_options.progress_audio = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "UserByAlias")) {
                         userbyalias = ast_true(v->value);
                 } else if (!strcasecmp(v->name, "bridge")) {
@@ -1873,20 +1608,15 @@ int reload(void)
 	delete_aliases();
 	prune_peers();
 
-	reload_config();
-
-
-#if 0
-
-This code causes seg on -r
-
 	if (strlen(gatekeeper)) {
 		h323_gk_urq();
 	}
 
+	reload_config();
 
+#if 0
 	/* Possibly register with a GK */
-	if (!gatekeeper_disable) {
+	if (gatekeeper_disable == 0) {
 		if (h323_set_gk(gatekeeper_discover, gatekeeper, secret)) {
 			ast_log(LOG_ERROR, "Gatekeeper registration failed.\n");
 			h323_end_process();
@@ -1894,7 +1624,6 @@ This code causes seg on -r
 		}
 	}
 #endif
-
 	restart_monitor();
 	return 0;
 }
@@ -2018,9 +1747,7 @@ int load_module()
 							   create_connection, 
 							   setup_rtp_connection, 
 							   cleanup_connection, 
-							   connection_made,
-							   send_digit,
-							   progress);
+							   connection_made, send_digit);	
 	
 
 		/* start the h.323 listener */
@@ -2078,7 +1805,6 @@ int unload_module()
 		return -1;
 	}
 	h323_gk_urq();
-	h323_debug(0,0);
 	h323_end_process();
 
 	/* unregister rtp */
@@ -2117,3 +1843,7 @@ char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
+
+
+
+
