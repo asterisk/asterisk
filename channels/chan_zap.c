@@ -74,6 +74,9 @@
 
 /* #define ZHONE_HACK */
 
+/* Typically, how many rings before we should send Caller*ID */
+#define DEFAULT_CIDRINGS 1
+
 #define CHANNEL_PSEUDO -12
 
 #define AST_LAW(p) (((p)->law == ZT_LAW_ALAW) ? AST_FORMAT_ALAW : AST_FORMAT_ULAW)
@@ -1177,7 +1180,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			} else {
 				if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETCADENCE, NULL))
 					ast_log(LOG_WARNING, "Unable to reset default ring on '%s'\n", ast->name);
-				p->cidrings = 1;
+				p->cidrings = DEFAULT_CIDRINGS;
 			}
 
 
