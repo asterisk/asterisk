@@ -65,7 +65,7 @@ app_todd.so: app_todd.o
 	$(CC) -shared -Xlinker -x -o $@ $< -L/usr/local/ssl/lib -lssl -lcrypto
 
 app_voicemail2.so : app_voicemail2.o
-	$(CC) -shared -Xlinker -x -o $@ $(MLMFLAGS) $<
+	$(CC) -shared -Xlinker -x -o $@ $(MLFLAGS) $<
 
 app_sql_postgres.o: app_sql_postgres.c
 	$(CC) -pipe -I/usr/local/pgsql/include $(CFLAGS) -c -o app_sql_postgres.o app_sql_postgres.c

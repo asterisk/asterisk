@@ -67,6 +67,7 @@ static char *descrip =
 "      'H' -- allow caller to hang up by hitting *.\n"
 "      'C' -- reset call detail record for this call.\n"
 "      'P[(x)]' -- privacy mode, using 'x' as database if provided.\n"
+"      'g' -- goes on in context if the destination channel hangs up\n"
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n"
 "  The optionnal URL will be sent to the called party if the channel supports\n"
@@ -351,6 +352,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	struct ast_var_t *current;
 	struct varshead *headp, *newheadp;
 	struct ast_var_t *newvar;
+	int go_on=0;
 	
 	if (!data) {
 		ast_log(LOG_WARNING, "Dial requires an argument (technology1/number1&technology2/number2...|optional timeout)\n");
@@ -479,6 +481,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 				clearchannel = 1;
             else    
 				clearchannel = 0;
+			if(strchr(transfer, 'g'))
+				go_on=1;
 		}
 		strncpy(numsubst, number, sizeof(numsubst)-1);
 		/* If we're dialing by extension, look at the extension to know what to dial */
@@ -671,6 +675,10 @@ static int dial_exec(struct ast_channel *chan, void *data)
 out:
 	hanguptree(outgoing, NULL);
 	LOCAL_USER_REMOVE(u);
+	
+	if((go_on>0) && (!chan->_softhangup))
+	    res=0;
+	    
 	return res;
 }
 
