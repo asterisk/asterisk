@@ -1552,7 +1552,7 @@ static void ast_readconfig(void) {
 		/* whether or not to support #exec in config files */
 		} else if (!strcasecmp(v->name, "execincludes")) {
 			option_exec_includes = ast_true(v->value);
-		/* debug level (-v at startup) */
+		/* debug level (-d at startup) */
 		} else if (!strcasecmp(v->name, "debug")) {
 			option_debug = 0;
 			if (sscanf(v->value, "%d", &option_debug) != 1) {
