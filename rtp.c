@@ -1208,6 +1208,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		}
 		to = -1;
 		ast_rtp_get_peer(p1, &t1);
+		ast_rtp_get_peer(p0, &t0);
 		if (vp1)
 			ast_rtp_get_peer(vp1, &vt1);
 		if (vp0)
