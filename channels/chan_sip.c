@@ -3691,6 +3691,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				if (strlen(user->callerid) && strlen(p->callerid)) 
 					strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
 				strncpy(p->username, user->name, sizeof(p->username) - 1);
+				strncpy(p->peersecret, user->secret, sizeof(p->peersecret) - 1);
 				strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)  -1);
 				p->canreinvite = user->canreinvite;
 				p->amaflags = user->amaflags;
@@ -3732,6 +3733,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				strncpy(p->peername, peer->name, sizeof(p->peername) - 1);
 				if (strlen(peer->context))
 					strncpy(p->context, peer->context, sizeof(p->context) - 1);
+				strncpy(p->peersecret, peer->secret, sizeof(p->peersecret) - 1);
 				p->callgroup = peer->callgroup;
 				p->pickupgroup = peer->pickupgroup;
 				if (peer->dtmfmode) {
