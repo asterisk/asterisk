@@ -1972,84 +1972,68 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 }
 
 /* Dump AgentCallbackLogin agents to the database for persistence
- *  (basically copied from dump_queue_members() in apps/app_queue.c)
  */
 
 static void dump_agents(void)
 {
 	struct agent_pvt *cur_agent = NULL;
-	cur_agent = agents;
-	while (cur_agent) {
-		if (cur_agent->chan != NULL) {
-			cur_agent = cur_agent->next;
+
+	for (cur_agent = agents; cur_agent; cur_agent = cur_agent->next) {
+		if (cur_agent->chan)
 			continue;
-		}
+
 		if (!ast_strlen_zero(cur_agent->loginchan)) {
-			if (ast_db_put(pa_family, cur_agent->agent, cur_agent->loginchan)) {
+			if (ast_db_put(pa_family, cur_agent->agent, cur_agent->loginchan))
 				ast_log(LOG_WARNING, "failed to create persistent entry!\n");
-			} else {
-				if (option_debug) {
-					ast_log(LOG_DEBUG, "Saved Agent: %s on %s\n",
-							cur_agent->agent, cur_agent->loginchan);
-				}
-			}
-			
+			else if (option_debug)
+				ast_log(LOG_DEBUG, "Saved Agent: %s on %s\n", cur_agent->agent, cur_agent->loginchan);
 		} else {
 			/* Delete -  no agent or there is an error */
 			ast_db_del(pa_family, cur_agent->agent);
 		}
-		cur_agent = cur_agent->next;
 	}
 }
 
 /* Reload the persistent agents from astdb */
 static void reload_agents(void)
 {
-	char *pa_agent_num;
-	struct ast_db_entry *pa_db_tree = NULL;
-	int pa_family_len = 0;
-	struct agent_pvt *cur_agent = NULL;
+	char *agent_num;
+	struct ast_db_entry *db_tree;
+	struct ast_db_entry *entry;
+	struct agent_pvt *cur_agent;
 	char agent_data[80];
 
-	pa_db_tree = ast_db_gettree(pa_family, NULL);
+	db_tree = ast_db_gettree(pa_family, NULL);
 
-	pa_family_len = strlen(pa_family);
 	ast_mutex_lock(&agentlock);
-	while (pa_db_tree) {
-		pa_agent_num = pa_db_tree->key + pa_family_len + 2;
+	for (entry = db_tree; entry; entry = entry->next) {
+		agent_num = db_tree->key + strlen(pa_family) + 2;
 		cur_agent = agents;
 		while (cur_agent) {
 			ast_mutex_lock(&cur_agent->lock);
-
-			if (strcmp(pa_agent_num, cur_agent->agent) == 0)
+			if (strcmp(agent_num, cur_agent->agent) == 0)
 				break;
-
 			ast_mutex_unlock(&cur_agent->lock);
 			cur_agent = cur_agent->next;
 		}
 		if (!cur_agent) {
-			ast_db_del(pa_family, pa_agent_num);
-			pa_db_tree = pa_db_tree->next;
+			ast_db_del(pa_family, agent_num);
 			continue;
 		} else
 			ast_mutex_unlock(&cur_agent->lock);
-		if (!ast_db_get(pa_family, pa_agent_num, agent_data, 80)) {
-			if (option_debug) {
-				ast_log(LOG_DEBUG, "Reload Agent: %s on %s\n",
-						cur_agent->agent, agent_data);
-			}
-			strncpy(cur_agent->loginchan,agent_data,80);
+		if (!ast_db_get(pa_family, agent_num, agent_data, sizeof(agent_data)-1)) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Reload Agent: %s on %s\n", cur_agent->agent, agent_data);
+			strncpy(cur_agent->loginchan, agent_data, sizeof(cur_agent->loginchan)-1);
 			if (cur_agent->loginstart == 0)
 				time(&cur_agent->loginstart);
 			ast_device_state_changed("Agent/%s", cur_agent->agent);	
 		}
-		pa_db_tree = pa_db_tree->next;
 	}
-	ast_log(LOG_NOTICE, "Agents sucessfully reloaded from database.\n");
 	ast_mutex_unlock(&agentlock);
-	if (pa_db_tree) {
-		ast_db_freetree(pa_db_tree);
-		pa_db_tree = NULL;
+	if (db_tree) {
+		ast_log(LOG_NOTICE, "Agents sucessfully reloaded from database.\n");
+		ast_db_freetree(db_tree);
 	}
 }
 

@@ -1730,42 +1730,41 @@ static struct member *create_queue_node(char *interface, int penalty, int paused
 
 /* Dump all members in a specific queue to the databse
  *
- * <pm_family>/<queuename> = <interface>;<penalty>;<paused>;...
+ * <pm_family>/<queuename> = <interface>;<penalty>;<paused>[|...]
  *
  */
 static void dump_queue_members(struct ast_call_queue *pm_queue)
 {
-	struct member *cur_member = NULL;
+	struct member *cur_member;
 	char value[PM_MAX_LEN];
 	int value_len = 0;
 	int res;
 
 	memset(value, 0, sizeof(value));
 
-	if (pm_queue) {
-		cur_member = pm_queue->members;
-		while (cur_member) {
-			if (cur_member->dynamic) {
-				value_len = strlen(value);
-				res = snprintf(value+value_len, sizeof(value)-value_len, "%s;%d;%d;", cur_member->interface, cur_member->penalty, cur_member->paused);
-				if (res != strlen(value + value_len)) {
-					ast_log(LOG_WARNING, "Could not create persistent member string, out of space\n");
-					break;
-				}
-			}					
-			cur_member = cur_member->next;
-		}
+	if (!pm_queue)
+		return;
 
-		if (!ast_strlen_zero(value) && !cur_member) {
-			if (ast_db_put(pm_family, pm_queue->name, value))
-			    ast_log(LOG_WARNING, "failed to create persistent dynamic entry!\n");
-		} else {
-			/* Delete the entry if the queue is empty or there is an error */
-		    ast_db_del(pm_family, pm_queue->name);
-		}
+	for (cur_member = pm_queue->members; cur_member; cur_member = cur_member->next) {
+		if (!cur_member->dynamic)
+			continue;
 
+		res = snprintf(value + value_len, sizeof(value) - value_len, "%s;%d;%d%s",
+			       cur_member->interface, cur_member->penalty, cur_member->paused,
+			       cur_member->next ? "|" : "");
+		if (res != strlen(value + value_len)) {
+			ast_log(LOG_WARNING, "Could not create persistent member string, out of space\n");
+			break;
+		}
+		value_len += res;
 	}
-
+	
+	if (value_len && !cur_member) {
+		if (ast_db_put(pm_family, pm_queue->name, value))
+			ast_log(LOG_WARNING, "failed to create persistent dynamic entry!\n");
+	} else
+		/* Delete the entry if the queue is empty or there is an error */
+		ast_db_del(pm_family, pm_queue->name);
 }
 
 static int remove_from_queue(char *queuename, char *interface)
@@ -1813,7 +1812,7 @@ static int remove_from_queue(char *queuename, char *interface)
 	return res;
 }
 
-static int add_to_queue(char *queuename, char *interface, int penalty, int paused)
+static int add_to_queue(char *queuename, char *interface, int penalty, int paused, int dump)
 {
 	struct ast_call_queue *q;
 	struct member *new_member;
@@ -1842,7 +1841,7 @@ static int add_to_queue(char *queuename, char *interface, int penalty, int pause
 					q->name, new_member->interface, new_member->dynamic ? "dynamic" : "static",
 					new_member->penalty, new_member->calls, new_member->lastcall, new_member->status, new_member->paused);
 					
-					if (queue_persistent_members)
+					if (dump)
 						dump_queue_members(q);
 
 					res = RES_OKAY;
@@ -1904,101 +1903,93 @@ static int set_member_paused(char *queuename, char *interface, int paused)
 		return RESULT_FAILURE;
 }
 
-/* Add members saved in the queue members DB file saves
- * created by dump_queue_members(), back into the queues */
+/* Reload dynamic queue members persisted into the astdb */
 static void reload_queue_members(void)
 {
-	char *cur_pm_ptr;	
-	char *pm_queue_name;
-	char *pm_interface;
-	char *pm_penalty_tok;
-	int pm_penalty = 0;
-	char *pm_paused_tok;
-	int pm_paused = 0;
-	struct ast_db_entry *pm_db_tree = NULL;
-	int pm_family_len = 0;
-	struct ast_call_queue *cur_queue = NULL;
+	char *cur_ptr;	
+	char *queue_name;
+	char *member;
+	char *interface;
+	char *penalty_tok;
+	int penalty = 0;
+	char *paused_tok;
+	int paused = 0;
+	struct ast_db_entry *db_tree;
+	struct ast_db_entry *entry;
+	struct ast_call_queue *cur_queue;
 	char queue_data[PM_MAX_LEN];
 
-	pm_db_tree = ast_db_gettree(pm_family, NULL);
-
-	pm_family_len = strlen(pm_family);
 	ast_mutex_lock(&qlock);
-	/* Each key in 'pm_family' is the name of a specific queue in which
-	 * we will reload members into. */
-	while (pm_db_tree) {
-		pm_queue_name = pm_db_tree->key+pm_family_len+2;
+
+	/* Each key in 'pm_family' is the name of a queue */
+	db_tree = ast_db_gettree(pm_family, NULL);
+	for (entry = db_tree; entry; entry = entry->next) {
+
+		queue_name = entry->key + strlen(pm_family) + 2;
 
 		cur_queue = queues;
 		while (cur_queue) {
 			ast_mutex_lock(&cur_queue->lock);
-			
-			if (strcmp(pm_queue_name, cur_queue->name) == 0)
+			if (!strcmp(queue_name, cur_queue->name))
 				break;
-			
 			ast_mutex_unlock(&cur_queue->lock);
-			
 			cur_queue = cur_queue->next;
 		}
 
 		if (!cur_queue) {
 			/* If the queue no longer exists, remove it from the
 			 * database */
-			ast_db_del(pm_family, pm_queue_name);
-			pm_db_tree = pm_db_tree->next;
+			ast_db_del(pm_family, queue_name);
 			continue;
 		} else
 			ast_mutex_unlock(&cur_queue->lock);
 
-		if (!ast_db_get(pm_family, pm_queue_name, queue_data, PM_MAX_LEN)) {
-			cur_pm_ptr = queue_data;
-			while ((pm_interface = strsep(&cur_pm_ptr, ";"))) {
-				/* On the last iteration, pm_interface is a pointer to an empty string. Don't report a spurious error. */
-				if (pm_interface[0] == 0)
-					break;
-				if (!(pm_penalty_tok = strsep(&cur_pm_ptr, ";"))) {
-					ast_log(LOG_WARNING, "Error parsing corrupted Queue DB string for '%s' (penalty)\n", pm_queue_name);
-					break;
-				}
-				pm_penalty = strtol(pm_penalty_tok, NULL, 10);
-				if (errno == ERANGE) {
-					ast_log(LOG_WARNING, "Error converting penalty: %s: Out of range.\n", pm_penalty_tok);
-					break;
-				}
+		if (ast_db_get(pm_family, queue_name, queue_data, PM_MAX_LEN))
+			continue;
 
-				/* If ptr[1] is ';', the string is 1 char long and can't be an interface */
+		cur_ptr = queue_data;
+		while ((member = strsep(&cur_ptr, "|"))) {
+			if (ast_strlen_zero(member))
+				continue;
 
-				if (cur_pm_ptr[1] == ';') {
-					if (!(pm_paused_tok = strsep(&cur_pm_ptr, ";"))) {
-						ast_log(LOG_WARNING, "Error parsing corrupted Queue DB string for '%s' (paused)\n", pm_queue_name);
-						break;
-					}
-					pm_paused = strtol(pm_paused_tok, NULL, 10);
-					if ((errno == ERANGE) || (pm_paused < 0 || pm_paused > 1)) {
-						ast_log(LOG_WARNING, "Error converting paused: %s: Expected 0 or 1.\n", pm_paused_tok);
-						break;
-					}
-				} else if (option_debug)
-					ast_verbose(VERBOSE_PREFIX_3 "Found old-format queue member %s:%s\n", pm_queue_name, pm_interface);
-	
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Reload Members: Queue: %s  Member: %s  Penalty: %d  Paused: %d\n", pm_queue_name, pm_interface, pm_penalty, pm_paused);
-	
-				if (add_to_queue(pm_queue_name, pm_interface, pm_penalty, pm_paused) == RES_OUTOFMEMORY) {
-					ast_log(LOG_ERROR, "Out of Memory when loading queue member from astdb\n");
-					break;
-				}
+			interface = strsep(&member, ";");
+			penalty_tok = strsep(&member, ";");
+			paused_tok = strsep(&member, ";");
+
+			if (!penalty_tok) {
+				ast_log(LOG_WARNING, "Error parsing persisent member string for '%s' (penalty)\n", queue_name);
+				break;
+			}
+			penalty = strtol(penalty_tok, NULL, 10);
+			if (errno == ERANGE) {
+				ast_log(LOG_WARNING, "Error converting penalty: %s: Out of range.\n", penalty_tok);
+				break;
+			}
+			
+			if (!paused_tok) {
+				ast_log(LOG_WARNING, "Error parsing persistent member string for '%s' (paused)\n", queue_name);
+				break;
+			}
+			paused = strtol(paused_tok, NULL, 10);
+			if ((errno == ERANGE) || paused < 0 || paused > 1) {
+				ast_log(LOG_WARNING, "Error converting paused: %s: Expected 0 or 1.\n", paused_tok);
+				break;
+			}
+
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Reload Members: Queue: %s  Member: %s  Penalty: %d  Paused: %d\n", queue_name, interface, penalty, paused);
+			
+			if (add_to_queue(queue_name, interface, penalty, paused, 0) == RES_OUTOFMEMORY) {
+				ast_log(LOG_ERROR, "Out of Memory when reloading persistent queue member\n");
+				break;
 			}
 		}
-		
-		pm_db_tree = pm_db_tree->next;
 	}
 
-	ast_log(LOG_NOTICE, "Queue members sucessfully reloaded from database.\n");
 	ast_mutex_unlock(&qlock);
-	if (pm_db_tree) {
-		ast_db_freetree(pm_db_tree);
-		pm_db_tree = NULL;
+	if (db_tree) {
+		ast_log(LOG_NOTICE, "Queue members sucessfully reloaded from database.\n");
+		ast_db_freetree(db_tree);
 	}
 }
 
@@ -2200,7 +2191,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	switch (add_to_queue(queuename, interface, penalty, 0)) {
+	switch (add_to_queue(queuename, interface, penalty, 0, queue_persistent_members)) {
 	case RES_OKAY:
 		ast_log(LOG_NOTICE, "Added interface '%s' to queue '%s'\n", interface, queuename);
 		res = 0;
@@ -2916,7 +2907,7 @@ static int manager_add_queue_member(struct mansession *s, struct message *m)
 	else
 		paused = abs(ast_true(paused_s));
 
-	switch (add_to_queue(queuename, interface, penalty, paused)) {
+	switch (add_to_queue(queuename, interface, penalty, paused, queue_persistent_members)) {
 	case RES_OKAY:
 		astman_send_ack(s, m, "Added interface to queue");
 		break;
@@ -3018,7 +3009,7 @@ static int handle_add_queue_member(int fd, int argc, char *argv[])
 		penalty = 0;
 	}
 
-	switch (add_to_queue(queuename, interface, penalty, 0)) {
+	switch (add_to_queue(queuename, interface, penalty, 0, queue_persistent_members)) {
 	case RES_OKAY:
 		ast_cli(fd, "Added interface '%s' to queue '%s'\n", interface, queuename);
 		return RESULT_SUCCESS;
