@@ -248,7 +248,8 @@ static void *netconsole(void *vconsole)
 
 		res = poll(fds, 2, -1);
 		if (res < 0) {
-			ast_log(LOG_WARNING, "poll returned < 0: %s\n", strerror(errno));
+			if (errno != EINTR)
+				ast_log(LOG_WARNING, "poll returned < 0: %s\n", strerror(errno));
 			continue;
 		}
 		if (fds[0].revents) {
@@ -321,7 +322,7 @@ static void *listener(void *unused)
 					fcntl(consoles[x].p[1], F_SETFL, flags | O_NONBLOCK);
 					consoles[x].fd = s;
 					if (pthread_create(&consoles[x].t, &attr, netconsole, &consoles[x])) {
-						ast_log(LOG_ERROR, "Unable to spawn thread to handle connection\n");
+						ast_log(LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
 						consoles[x].fd = -1;
 						fdprint(s, "Server failed to spawn thread\n");
 						close(s);
