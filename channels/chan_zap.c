@@ -997,6 +997,14 @@ static char *event2str(int event)
         return buf;
 }
 
+static char *dialplan2str(int dialplan)
+{
+	if (dialplan == -1) {
+		return("Dynamically set dialplan in ISDN");
+	}
+	return(pri_plan2str(dialplan));
+}
+
 #ifdef ZAPATA_R2
 static int str2r2prot(char *swtype)
 {
@@ -1764,6 +1772,10 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 #ifdef ZAPATA_PRI
 	if (p->pri) {
 		struct pri_sr *sr;
+		int pridialplan;
+		int dp_strip;
+		int prilocaldialplan;
+		int ldp_strip;
 		c = strchr(dest, '/');
 		if (c)
 			c++;
@@ -1824,13 +1836,41 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		pri_sr_set_bearer(sr, p->digital ? PRI_TRANS_CAP_DIGITAL : PRI_TRANS_CAP_SPEECH, 
 					(p->digital ? -1 : 
 						((p->law == ZT_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW)));
-		pri_sr_set_called(sr, c + p->stripmsd, p->pri->dialplan - 1,  s ? 1 : 0);
-		pri_sr_set_caller(sr, l, n, p->pri->localdialplan - 1, 
+ 		dp_strip = 0;
+ 		pridialplan = p->pri->dialplan - 1;
+ 		if (pridialplan == -2) { /* compute dynamically */
+ 			if (strncmp(c + p->stripmsd, p->pri->internationalprefix, strlen(p->pri->internationalprefix)) == 0) {
+ 				dp_strip = strlen(p->pri->internationalprefix);
+ 				pridialplan = PRI_INTERNATIONAL_ISDN;
+ 			} else if (strncmp(c + p->stripmsd, p->pri->nationalprefix, strlen(p->pri->nationalprefix)) == 0) {
+ 				dp_strip = strlen(p->pri->nationalprefix);
+ 				pridialplan = PRI_NATIONAL_ISDN;
+ 			} else {
+				pridialplan = PRI_LOCAL_ISDN;
+ 			}
+ 		}
+ 		pri_sr_set_called(sr, c + p->stripmsd + dp_strip, pridialplan,  s ? 1 : 0);
+
+		ldp_strip = 0;
+		prilocaldialplan = p->pri->localdialplan - 1;
+		if ((l != NULL) && (prilocaldialplan == -2)) { /* compute dynamically */
+			if (strncmp(l, p->pri->internationalprefix, strlen(p->pri->internationalprefix)) == 0) {
+				ldp_strip = strlen(p->pri->internationalprefix);
+				prilocaldialplan = PRI_INTERNATIONAL_ISDN;
+			} else if (strncmp(l, p->pri->nationalprefix, strlen(p->pri->nationalprefix)) == 0) {
+				ldp_strip = strlen(p->pri->nationalprefix);
+				prilocaldialplan = PRI_NATIONAL_ISDN;
+			} else {
+				prilocaldialplan = PRI_LOCAL_ISDN;
+			}
+		}
+		pri_sr_set_caller(sr, l ? (l + ldp_strip) : NULL, n, prilocaldialplan, 
 					l ? (p->use_callingpres ? ast->cid.cid_pres : PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN) : 
 						 PRES_NUMBER_NOT_AVAILABLE);
 		pri_sr_set_redirecting(sr, ast->cid.cid_rdnis, p->pri->localdialplan - 1, PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, PRI_REDIR_UNCONDITIONAL);
 		if (pri_setup(p->pri->pri, p->call,  sr)) {
-			ast_log(LOG_WARNING, "Unable to setup call to %s\n", c + p->stripmsd);
+ 			ast_log(LOG_WARNING, "Unable to setup call to %s (using %s)\n", 
+ 						c + p->stripmsd + dp_strip, dialplan2str(p->pri->dialplan));
 			pri_rel(p->pri);
 			ast_mutex_unlock(&p->lock);
 			pri_sr_free(sr);
@@ -6494,7 +6534,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 							return NULL;
 						}
 						if ((pris[span].dialplan) && (pris[span].dialplan != dialplan)) {
-							ast_log(LOG_ERROR, "Span %d is already a %s dialing plan\n", span + 1, pri_plan2str(pris[span].dialplan));
+							ast_log(LOG_ERROR, "Span %d is already a %s dialing plan\n", span + 1, dialplan2str(pris[span].dialplan));
 							destroy_zt_pvt(&tmp);
 							return NULL;
 						}
@@ -9815,6 +9855,8 @@ static int setup_zap(int reload)
 					dialplan = PRI_INTERNATIONAL_ISDN + 1;
 				} else if (!strcasecmp(v->value, "local")) {
 					dialplan = PRI_LOCAL_ISDN + 1;
+	 			} else if (!strcasecmp(v->value, "dynamic")) {
+ 					dialplan = -1;
 				} else {
 					ast_log(LOG_WARNING, "Unknown PRI dialplan '%s' at line %d.\n", v->value, v->lineno);
 				}
@@ -9829,6 +9871,8 @@ static int setup_zap(int reload)
 					localdialplan = PRI_INTERNATIONAL_ISDN + 1;
 				} else if (!strcasecmp(v->value, "local")) {
 					localdialplan = PRI_LOCAL_ISDN + 1;
+				} else if (!strcasecmp(v->value, "dynamic")) {
+					localdialplan = -1;
 				} else {
 					ast_log(LOG_WARNING, "Unknown PRI dialplan '%s' at line %d.\n", v->value, v->lineno);
 				}
