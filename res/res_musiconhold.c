@@ -140,23 +140,32 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 }
 
 
-static int ast_moh_files_next(struct ast_channel *chan) {
+static int ast_moh_files_next(struct ast_channel *chan) 
+{
 	struct moh_files_state *state = chan->music_state;
+	int tries;
 
 	if (state->save_pos) {
 		state->pos = state->save_pos - 1;
 		state->save_pos = 0;
 	} else {
-		state->samples = 0;
-		if (chan->stream) {
-			ast_closestream(chan->stream);
-			chan->stream = NULL;
-			state->pos++;
-		}
+		/* Try 20 times to find something good */
+		for (tries=0;tries < 20;tries++) {
+			state->samples = 0;
+			if (chan->stream) {
+				ast_closestream(chan->stream);
+				chan->stream = NULL;
+				state->pos++;
+			}
 
-		if (ast_test_flag(state->class, MOH_RANDOMIZE)) {
-			srand(time(NULL)+getpid()+strlen(chan->name)-state->class->total_files);
-			state->pos = rand();
+			if (ast_test_flag(state->class, MOH_RANDOMIZE)) {
+				srand(time(NULL)+getpid()+strlen(chan->name)-state->class->total_files);
+				state->pos = rand();
+			}
+			/* check to see if this file's format can be opened */
+			if (ast_fileexists(state->class->filearray[state->pos], NULL, NULL) != -1)
+				break;
+
 		}
 	}
 
@@ -711,10 +720,6 @@ static int moh_scan_files(struct mohclass *class) {
 			*ext = '\0';
 			ext++;
 		}
-
-		/* check to see if this file's format can be opened */
-		if (ast_fileexists(filepath, ext, NULL) == -1)
-			continue;
 
 		/* if the file is present in multiple formats, ensure we only put it into the list once */
 		for (i = 0; i < class->total_files; i++)
