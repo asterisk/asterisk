@@ -42,8 +42,10 @@ ifneq (${OSARCH},SunOS)
 ifneq (${PROC},x86_64)
 ifneq (${PROC},ultrasparc)
 ifneq ($(shell uname -m),ppc)
+ifneq ($(shell uname -m),ppc64)
 ifneq ($(shell uname -m),alpha)
 OPTIMIZE+=-march=$(PROC)
+endif
 endif
 endif
 endif
@@ -215,9 +217,11 @@ GSM_SOURCES =	$(SRC)/add.c		\
 ifeq (${OSARCH},Linux)
 ifneq ($(shell uname -m),x86_64)
 ifneq ($(shell uname -m),ppc)
+ifneq ($(shell uname -m),ppc64)
 ifneq ($(shell uname -m),alpha)
 ifneq ($(shell uname -m),sparc64)
 GSM_SOURCES+= $(SRC)/k6opt.s
+endif
 endif
 endif
 endif
@@ -271,9 +275,11 @@ GSM_OBJECTS =	$(SRC)/add.o		\
 ifeq (${OSARCH},Linux)
 ifneq ($(shell uname -m), x86_64)
 ifneq ($(shell uname -m), ppc)
+ifneq ($(shell uname -m), ppc64)
 ifneq ($(shell uname -m), alpha)
 ifneq ($(shell uname -m), sparc64)
 GSM_OBJECTS+= $(SRC)/k6opt.o
+endif
 endif
 endif
 endif
