@@ -310,7 +310,7 @@ ${CALLINGTNS} 	 	* Transit Network Selector (PRI channels)
 ${CALLINGTON}    	* Caller Type of Number (PRI channels)
 ${CHANNEL}	 	* Current channel name
 ${CONTEXT}       	* Current context
-${DATETIME}	 	* Current date time in the format: YYYY-MM-DD_HH:MM:SS
+${DATETIME}	 	* Current date time in the format: DDMMYYYY-HH:MM:SS
 ${DNID}          	* Dialed Number Identifier
 ${EPOCH}	 	* Current unix style epoch
 ${EXTEN}	 	* Current extension
