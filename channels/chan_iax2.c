@@ -2548,7 +2548,8 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 			return -2;
 		}
 		/* check if transfered and if we really want native bridging */
-		if (!transferstarted && !ast_test_flag(iaxs[callno0], IAX_NOTRANSFER) && !ast_test_flag(iaxs[callno1], IAX_NOTRANSFER)) {
+		if (!transferstarted && !ast_test_flag(iaxs[callno0], IAX_NOTRANSFER) && !ast_test_flag(iaxs[callno1], IAX_NOTRANSFER) && 
+		!(flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))) {
 			/* Try the transfer */
 			if (iax2_start_transfer(callno0, callno1))
 				ast_log(LOG_WARNING, "Unable to start the transfer\n");
