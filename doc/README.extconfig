@@ -1,11 +1,11 @@
 Asterisk external configuration
 ===============================
 
-The Asterisk external configuration engine is the result of work by 
-Anthony Minessale II and Mark Spencer.  It is designed to provide a
-flexible, seamless integration between Asterisk's internal
-configuration structure and external SQL other other databases
-(maybe even LDAP one day).
+The Asterisk external configuration engine is the result of work by
+Anthony Minessale II, Mark Spencer and Constantine (last name???). 
+It is designed to provide a flexible, seamless integration between
+Asterisk's internal configuration structure and external SQL other other
+databases (maybe even LDAP one day).
 
 External configuration is configured in /etc/asterisk/extconfig.conf
 allowing you to map any configuration file (static mappings) to
@@ -36,3 +36,13 @@ Note that for use with IAX or SIP, the table will also need the "name",
 "ipaddr", "port", "regseconds" columns.  If you wanted to be able to 
 configure the callerid, you could just add a callerid column to the 
 table, for example.
+
+A SIP table would look more like this:
+
++------+--------+-------+----------+-----+------------+----------+
+| name | host   | secret| ipaddr   | port| regseconds | username |
++------+--------+-------+----------+-----+------------+----------+
+| foo  | dynamic|  bar  | 127.0.0.1| 4569| 1096954152 |   1234   |
++------+--------+-------+----------+-----+------------+----------+
+
+in order to store appropriate parameters required for SIP.

@@ -25,4 +25,5 @@
 ; the family if the table is not specified
 ;
 ;iaxfriends => odbc,asterisk
+;sipfriends => odbc,asterisk
 

@@ -58,11 +58,6 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 
-#ifdef SIP_MYSQL_FRIENDS
-#define MYSQL_FRIENDS
-#include <mysql/mysql.h>
-#endif
-
 #ifndef DEFAULT_USERAGENT
 #define DEFAULT_USERAGENT "Asterisk PBX"
 #endif
@@ -107,17 +102,6 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 
 #define DEFAULT_RETRANS		1000			/* How frequently to retransmit */
 #define MAX_RETRANS		5			/* Try only 5 times for retransmissions */
-
-/* MYSQL_FRIENDS: Check if peer exists in database and read some configuration
-   from databse (not all options supported though) */
-#ifdef MYSQL_FRIENDS
-AST_MUTEX_DEFINE_STATIC(mysqllock);
-static MYSQL *mysql;
-static char mydbuser[80];
-static char mydbpass[80];
-static char mydbhost[80];
-static char mydbname[80];
-#endif
 
 							/* SIP Debug		*/
 #define DEBUG_READ	0				/* Recieved data	*/
@@ -412,9 +396,7 @@ struct sip_user {
 	int trustrpid;
 	int progressinband;
 	struct ast_ha *ha;
-#ifdef MYSQL_USERS
 	int temponly;
-#endif /* MYSQL_FRIENDS */
 	struct sip_user *next;
 };
 
@@ -1008,210 +990,118 @@ static int sip_sendtext(struct ast_channel *ast, char *text)
 	return 0;	
 }
 
-#ifdef MYSQL_USERS
-
-/* Ehud Gavron 08-Jun-2004:                                            */
-/*    The Mysql stuff works great for peers but not for users.         */
-/* Unfortunately multi-line phones (e.g. cisco 7960) and many          */
-/* SIP users behind the same NAT gateway need users.  So....           */
-/*                                                                     */
-/* mysql_update_user is not needed */
-/*--- mysql_host: Get user from database ---*/
-static struct sip_user *mysql_user(char *user)
+static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, int expirey)
 {
-	struct sip_user *u;
-	int success = 0;
-	u = malloc(sizeof(struct sip_user));
-	memset(u, 0, sizeof(struct sip_user));
-	if (mysql && (!user || (strlen(user) < 128))) {
-		char query[512];
-		char *name = NULL;
-		int numfields, x;
-		time_t regseconds, nowtime;
-		MYSQL_RES *result;
-		MYSQL_FIELD *fields;
-		MYSQL_ROW rowval;
-		if (user) {
-			name = alloca(strlen(user) * 2 + 1);
-			mysql_real_escape_string(mysql, name, user, strlen(user));
-		}
-
-		snprintf(query, sizeof(query), "SELECT name, secret, context, username, ipaddr, port, regseconds, callerid, callingpres FROM sipfriends WHERE name=\"%s\"", name);
-
-		ast_mutex_lock(&mysqllock);
-		mysql_query(mysql, query);
-		if ((result = mysql_store_result(mysql))) {
-
-			if ((rowval = mysql_fetch_row(result))) {
-				numfields = mysql_num_fields(result);
-				fields = mysql_fetch_fields(result);
-				success = 1;
-				for (x=0;x<numfields;x++) {
-					if (rowval[x]) {
-						if (!strcasecmp(fields[x].name, "secret")) {
-							strncpy(u->secret, rowval[x], sizeof(u->secret) - 1);
-						} else if (!strcasecmp(fields[x].name, "name")) {
-							strncpy(u->name, rowval[x], sizeof(u->name) - 1);
-						} else if (!strcasecmp(fields[x].name, "context")) {
-							strncpy(u->context, rowval[x], sizeof(u->context) - 1);
-						} else if (!strcasecmp(fields[x].name, "username")) {
-							strncpy(u->name, rowval[x], sizeof(u->name) - 1);
-						} else if (!strcasecmp(fields[x].name, "regseconds")) {
-							if (sscanf(rowval[x], "%li", &regseconds) != 1)
-								regseconds = 0;
-						} else if (!strcasecmp(fields[x].name, "callingpres")) {
-							u->callingpres = atoi(rowval[x]);
-						} else if (!strcasecmp(fields[x].name, "callerid")) {
-							ast_callerid_split(rowval[x],
-								u->cid_name, sizeof(u->cid_name),
-								u->cid_num, sizeof(u->cid_num));
-							u->hascallerid=1;
-						}
-					}
-				}
-				time(&nowtime);
-			}
-			mysql_free_result(result);
-			result = NULL;
-		}
-		ast_mutex_unlock(&mysqllock);
-	}
-	if (!success) {
-		free(u);
-		u = NULL;
-	} else {
-		u->capability = global_capability;
-		u->nat = global_nat;
-		u->dtmfmode = global_dtmfmode;
-		u->insecure = 1;
-		u->temponly = 1;
-	}
-	return u;
-}
-#endif /* MYSQL_USERS */
-
-#ifdef MYSQL_FRIENDS
-/*--- mysql_update_peer: Update peer from database ---*/
-/* This function adds registration state to database */
-static void mysql_update_peer(char *peer, struct sockaddr_in *sin, char *username, int expiry)
-{
-	if (mysql && (strlen(peer) < 128)) {
-		char query[512];
-		char *name;
-		char *uname;
-		char iabuf[INET_ADDRSTRLEN];
-		time_t nowtime;
-		name = alloca(strlen(peer) * 2 + 1);
-		uname = alloca(strlen(username) * 2 + 1);
-		time(&nowtime);
-		mysql_real_escape_string(mysql, name, peer, strlen(peer));
-		mysql_real_escape_string(mysql, uname, username, strlen(username));
-		snprintf(query, sizeof(query), "UPDATE sipfriends SET ipaddr=\"%s\", port=\"%d\", regseconds=\"%ld\", username=\"%s\" WHERE name=\"%s\"", 
-			ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port), nowtime + expiry, uname, name);
-		ast_mutex_lock(&mysqllock);
-		if (mysql_real_query(mysql, query, strlen(query))) 
-			ast_log(LOG_WARNING, "Unable to update database\n");
-			
-		ast_mutex_unlock(&mysqllock);
-	}
-}
-
-/*--- mysql_peer: Get peer from database ---*/
-static struct sip_peer *mysql_peer(char *peer, struct sockaddr_in *sin)
-{
-	struct sip_peer *p;
-	int success = 0;
+	char port[10];
+	char ipaddr[20];
+	char regseconds[20];
+	time_t nowtime;
 	
-	p = malloc(sizeof(struct sip_peer));
-	memset(p, 0, sizeof(struct sip_peer));
-	if (mysql && (!peer || (strlen(peer) < 128))) {
-		char query[512];
-		char *name = NULL;
-		int numfields, x;
-		int port;
-		char iabuf[INET_ADDRSTRLEN];
-		time_t regseconds, nowtime;
-		MYSQL_RES *result;
-		MYSQL_FIELD *fields;
-		MYSQL_ROW rowval;
-		if (peer) {
-			name = alloca(strlen(peer) * 2 + 1);
-			mysql_real_escape_string(mysql, name, peer, strlen(peer));
-		}
-		if (sin)
-			snprintf(query, sizeof(query), "SELECT name, secret, context, username, ipaddr, port, regseconds FROM sipfriends WHERE ipaddr=\"%s\" AND port=\"%d\"", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
-		else
-			snprintf(query, sizeof(query), "SELECT name, secret, context, username, ipaddr, port, regseconds FROM sipfriends WHERE name=\"%s\"", name);
-		ast_mutex_lock(&mysqllock);
-		mysql_query(mysql, query);
-		if ((result = mysql_store_result(mysql))) {
-			if ((rowval = mysql_fetch_row(result))) {
-				numfields = mysql_num_fields(result);
-				fields = mysql_fetch_fields(result);
-				success = 1;
-				p->addr.sin_family = AF_INET;
-				for (x=0;x<numfields;x++) {
-					if (rowval[x]) {
-						if (!strcasecmp(fields[x].name, "secret")) {
-							strncpy(p->secret, rowval[x], sizeof(p->secret) - 1);
-						} else if (!strcasecmp(fields[x].name, "name")) {
-							strncpy(p->name, rowval[x], sizeof(p->name) - 1);
-						} else if (!strcasecmp(fields[x].name, "context")) {
-							strncpy(p->context, rowval[x], sizeof(p->context) - 1);
-						} else if (!strcasecmp(fields[x].name, "username")) {
-							strncpy(p->username, rowval[x], sizeof(p->username) - 1);
-						} else if (!strcasecmp(fields[x].name, "ipaddr")) {
-							inet_aton(rowval[x], &p->addr.sin_addr);
-						} else if (!strcasecmp(fields[x].name, "port")) {
-							if (sscanf(rowval[x], "%i", &port) != 1)
-								port = 0;
-							p->addr.sin_port = htons(port);
-						} else if (!strcasecmp(fields[x].name, "regseconds")) {
-							if (sscanf(rowval[x], "%li", &regseconds) != 1)
-								regseconds = 0;
-						}
-					}
-				}
-				time(&nowtime);
-				if (nowtime > regseconds) 
-					memset(&p->addr, 0, sizeof(p->addr));
-			}
-			mysql_free_result(result);
-			result = NULL;
-		}
-		ast_mutex_unlock(&mysqllock);
-	}
-	if (!success) {
-		free(p);
-		p = NULL;
-	} else {
-		p->dynamic = 1;
-		p->capability = global_capability;
-		p->nat = global_nat;
-		p->dtmfmode = global_dtmfmode;
-		p->promiscredir = global_promiscredir;
-		p->insecure = 1;
-		p->pokeexpire = -1;
-		p->expire = -1;
-		p->temponly = 1;
-		
-	}
-	return p;
+	time(&nowtime);
+	nowtime += expirey;
+	snprintf(regseconds, sizeof(regseconds), "%ld", nowtime);
+	ast_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
+	snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
+	ast_update_realtime("sipfriends", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds, "username", username, NULL);
 }
-#endif /* MYSQL_FRIENDS */
+
+static void register_peer_exten(struct sip_peer *peer, int onoff)
+{
+	unsigned char multi[256]="";
+	char *stringp, *ext;
+	if (!ast_strlen_zero(regcontext)) {
+		strncpy(multi, ast_strlen_zero(peer->regexten) ? peer->name : peer->regexten, sizeof(multi) - 1);
+		stringp = multi;
+		while((ext = strsep(&stringp, "&"))) {
+			if (onoff)
+				ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", strdup(peer->name), free, type);
+			else
+				ast_context_remove_extension(regcontext, ext, 1, NULL);
+		}
+	}
+}
+
+static void destroy_peer(struct sip_peer *peer)
+{
+	/* Delete it, it needs to disappear */
+	if (peer->call)
+		sip_destroy(peer->call);
+	if (peer->expire > -1)
+		ast_sched_del(sched, peer->expire);
+	if (peer->pokeexpire > -1)
+		ast_sched_del(sched, peer->pokeexpire);
+	register_peer_exten(peer, 0);
+	free(peer);
+}
 
 /*--- update_peer: Update peer data in database (if used) ---*/
 static void update_peer(struct sip_peer *p, int expiry)
 {
-#ifdef MYSQL_FRIENDS
 	if (p->temponly)
-		mysql_update_peer(p->name, &p->addr, p->username, expiry);
-#endif
-	return;
+		realtime_update_peer(p->name, &p->addr, p->username, expiry);
+}
+
+static struct sip_peer *build_peer(const char *name, struct ast_variable *v);
+
+static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *sin)
+{
+	struct ast_variable *var, *tmp=NULL;
+	char iabuf[80];
+	struct sip_peer *peer=NULL;
+	time_t nowtime, regseconds;
+	int dynamic=0;
+	
+	if (sin)
+		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr);
+	if (peername) 
+		var = ast_load_realtime("sipfriends", "name", peername);
+	else
+		var = ast_load_realtime("sipfriends", "ipaddr", iabuf);
+	if (var) {
+		/* Make sure it's not a user only... */
+		peer = build_peer(peername, var);
+		if (peer) {
+			/* Add some finishing touches, addresses, etc */
+			peer->temponly = 1;
+			tmp = var;
+			while(tmp) {
+				if (!strcasecmp(tmp->name, "type")) {
+					if (strcasecmp(tmp->value, "friend") &&
+						strcasecmp(tmp->value, "peer")) {
+						/* Whoops, we weren't supposed to exist! */
+						destroy_peer(peer);
+						peer = NULL;
+						break;
+					} 
+				} else if (!strcasecmp(tmp->name, "regseconds")) {
+					if (sscanf(tmp->value, "%li", &regseconds) != 1)
+						regseconds = 0;
+				} else if (!strcasecmp(tmp->name, "ipaddr")) {
+					inet_aton(tmp->value, &(peer->addr.sin_addr));
+				} else if (!strcasecmp(tmp->name, "port")) {
+					peer->addr.sin_port = htons(atoi(tmp->value));
+				} else if (!strcasecmp(tmp->name, "host")) {
+					if (!strcasecmp(tmp->value, "dynamic"))
+						dynamic = 1;
+				}
+				tmp = tmp->next;
+			}
+			if (peer && dynamic) {
+				time(&nowtime);
+				if ((nowtime - regseconds) > 0) {
+					memset(&peer->addr, 0, sizeof(peer->addr));
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Bah, we're expired (%ld/%ld/%ld)!\n", nowtime - regseconds, regseconds, nowtime);
+				}
+			}
+		}
+		ast_destroy_realtime(var);
+	}
+	return NULL;
 }
 
 /*--- find_peer: Locate peer by name or ip address */
-static struct sip_peer *find_peer(char *peer, struct sockaddr_in *sin)
+static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin)
 {
 	struct sip_peer *p = NULL;
 
@@ -1237,13 +1127,49 @@ static struct sip_peer *find_peer(char *peer, struct sockaddr_in *sin)
 		}
 	}
 
-#ifdef MYSQL_FRIENDS
 	if (!p) {
-		p = mysql_peer(peer, sin);
+		p = realtime_peer(peer, sin);
 	}
-#endif
 
 	return(p);
+}
+
+static void destroy_user(struct sip_user *user)
+{
+	ast_free_ha(user->ha);
+	free(user);
+}
+
+static struct sip_user *build_user(const char *name, struct ast_variable *v);
+static struct sip_user *realtime_user(const char *username)
+{
+	struct ast_variable *var;
+	struct ast_variable *tmp;
+	struct sip_user *user=NULL;
+	var = ast_load_realtime("sipfriends", "name", username);
+	if (var) {
+		/* Make sure it's not a user only... */
+		user = build_user(username, var);
+		if (user) {
+			/* Add some finishing touches, addresses, etc */
+			user->temponly = 1;
+			tmp = var;
+			while(tmp) {
+				if (!strcasecmp(tmp->name, "type")) {
+					if (strcasecmp(tmp->value, "friend") &&
+						strcasecmp(tmp->value, "user")) {
+						/* Whoops, we weren't supposed to exist! */
+						destroy_user(user);
+						user = NULL;
+						break;
+					} 
+				}
+				tmp = tmp->next;
+			}
+		}
+		ast_destroy_realtime(var);
+	}
+	return user;
 }
 
 /*--- find_user: Locate user by name */
@@ -1258,11 +1184,9 @@ static struct sip_user *find_user(char *name)
 		}
 		u = u->next;
 	}
-#ifdef MYSQL_USERS
 	if (!u) {
-		u = mysql_user(name);
+		u = realtime_user(name);
 	}
-#endif /* MYSQL_USERS */
 	return(u);
 }
 
@@ -4290,22 +4214,6 @@ static int transmit_request_with_auth(struct sip_pvt *p, char *msg, int seqno, i
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);	
 }
 
-static void register_peer_exten(struct sip_peer *peer, int onoff)
-{
-	unsigned char multi[256]="";
-	char *stringp, *ext;
-	if (!ast_strlen_zero(regcontext)) {
-		strncpy(multi, ast_strlen_zero(peer->regexten) ? peer->name : peer->regexten, sizeof(multi) - 1);
-		stringp = multi;
-		while((ext = strsep(&stringp, "&"))) {
-			if (onoff)
-				ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", strdup(peer->name), free, type);
-			else
-				ast_context_remove_extension(regcontext, ext, 1, NULL);
-		}
-	}
-}
-
 /*--- expire_register: Expire registration of SIP peer ---*/
 static int expire_register(void *data)
 {
@@ -4852,10 +4760,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	peer = find_peer(name, NULL);
 	if (!(peer && ast_apply_ha(peer->ha, sin))) {
 		if (peer && peer->temponly) {
-			if (peer->ha) {
-				ast_free_ha(peer->ha);
-			}
-			free(peer);
+			destroy_peer(peer);
 		}
 		peer = NULL;
 	}
@@ -4908,10 +4813,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	if (res < 0)
 		transmit_response(p, "403 Forbidden", &p->initreq);
 	if (peer && peer->temponly) {
-		if (peer->ha) {
-			ast_free_ha(peer->ha);
-		}
-		free(peer);
+		destroy_peer(peer);
 	}
 	return res;
 }
@@ -5439,10 +5341,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			ast_verbose("Found user '%s', but fails host access\n", user->name);
 		user = NULL;
 	}
-#ifdef MYSQL_USERS
 	if (user && user->temponly)
-		free(user);
-#endif	
+		destroy_user(user);
 	ast_mutex_unlock(&userl.lock);
 	if (!user) {
 		/* If we didn't find a user match, check for peers */
@@ -5516,12 +5416,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 						p->noncodeccapability &= ~AST_RTP_DTMF;
 				}
 			}
-			if (peer->temponly) {
-				if (peer->ha) {
-					ast_free_ha(peer->ha);
-				}
-				free(peer);
-			}
+			if (peer->temponly) 
+				destroy_peer(peer);
 		} else
 			if (debug)
 				ast_verbose("Found no matching peer or user for '%s:%d'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
@@ -6161,10 +6057,8 @@ static int sip_do_debug_peer(int fd, int argc, char *argv[])
 		if (!strcmp(peer->name, argv[3])) 
 			break;
 	ast_mutex_unlock(&peerl.lock);
-#ifdef MYSQL_FRIENDS
 	if (!peer)
-		peer = mysql_peer(argv[3], NULL);
-#endif		
+		peer = realtime_peer(argv[3], NULL);
 	if (peer) {
 		if (peer->addr.sin_addr.s_addr) {
 			debugaddr.sin_family = AF_INET;
@@ -6175,7 +6069,7 @@ static int sip_do_debug_peer(int fd, int argc, char *argv[])
 		} else
 			ast_cli(fd, "Unable to get IP address of peer '%s'\n", argv[3]);
 		if (peer->temponly)
-			free(peer);
+			destroy_peer(peer);
 		peer = NULL;
 	} else
 		ast_cli(fd, "No such peer '%s'\n", argv[3]);
@@ -7807,7 +7701,7 @@ restartsearch:
 		ast_mutex_lock(&monlock);
 		if (res >= 0) 
 			ast_sched_runq(sched);
-		/* needs work to send mwi to mysql peers */
+		/* needs work to send mwi to realtime peers */
 		ast_mutex_lock(&peerl.lock);
 		peer = peerl.peers;
 		time(&t);
@@ -8068,7 +7962,7 @@ static struct ast_channel *sip_request(const char *type, int format, void *data)
 }
 
 /*--- build_user: Initiate a SIP user structure from sip.conf ---*/
-static struct sip_user *build_user(char *name, struct ast_variable *v)
+static struct sip_user *build_user(const char *name, struct ast_variable *v)
 {
 	struct sip_user *user;
 	int format;
@@ -8235,7 +8129,7 @@ static struct sip_peer *temp_peer(char *name)
 }
 
 /*--- build_peer: Build peer from config file ---*/
-static struct sip_peer *build_peer(char *name, struct ast_variable *v)
+static struct sip_peer *build_peer(const char *name, struct ast_variable *v)
 {
 	struct sip_peer *peer;
 	struct sip_peer *prev;
@@ -8355,7 +8249,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 					peer->expire = -1;
 					peer->dynamic = 0;
 					if (ast_get_ip(&peer->addr, v->value)) {
-						free(peer);
+						destroy_peer(peer);
 						return NULL;
 					}
 					strncpy(peer->tohost, v->value, sizeof(peer->tohost) - 1);
@@ -8364,7 +8258,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 					inet_aton("255.255.255.255", &peer->mask);
 			} else if (!strcasecmp(v->name, "defaultip")) {
 				if (ast_get_ip(&peer->defaddr, v->value)) {
-					free(peer);
+					destroy_peer(peer);
 					return NULL;
 				}
 			} else if (!strcasecmp(v->name, "permit") ||
@@ -8665,16 +8559,6 @@ static int reload_config(void)
 			} else {
 				ast_log(LOG_WARNING, "Invalid port number '%s' at line %d of %s\n", v->value, v->lineno, config);
 			}
-#ifdef MYSQL_FRIENDS
-		} else if (!strcasecmp(v->name, "dbuser")) {
-			strncpy(mydbuser, v->value, sizeof(mydbuser) - 1);
-		} else if (!strcasecmp(v->name, "dbpass")) {
-			strncpy(mydbpass, v->value, sizeof(mydbpass) - 1);
-		} else if (!strcasecmp(v->name, "dbhost")) {
-			strncpy(mydbhost, v->value, sizeof(mydbhost) - 1);
-		} else if (!strcasecmp(v->name, "dbname")) {
-			strncpy(mydbname, v->value, sizeof(mydbname) - 1);
-#endif
 		}
 		/* else if (strcasecmp(v->name,"type"))
 		 *	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
@@ -8765,21 +8649,6 @@ static int reload_config(void)
 	ast_mutex_unlock(&netlock);
 
 	ast_destroy(cfg);
-#ifdef MYSQL_FRIENDS
-	/* Connect to db if appropriate */
-	if (!mysql && !ast_strlen_zero(mydbname)) {
-		mysql = mysql_init(NULL);
-		if (!mysql_real_connect(mysql, mydbhost[0] ? mydbhost : NULL, mydbuser, mydbpass, mydbname, 0, NULL, 0)) {
-			memset(mydbpass, '*', strlen(mydbpass));
-			ast_log(LOG_WARNING, "Database connection failed (db=%s, host=%s, user=%s, pass=%s)!\n",
-				mydbname, mydbhost, mydbuser, mydbpass);
-			free(mysql);
-			mysql = NULL;
-		} else
-			ast_verbose(VERBOSE_PREFIX_1 "Connected to database '%s' on '%s' as '%s'\n",
-				mydbname, mydbhost, mydbuser);
-	}
-#endif
 	return 0;
 }
 
@@ -8915,10 +8784,9 @@ static void delete_users(void)
 	/* Delete all users */
 	ast_mutex_lock(&userl.lock);
 	for (user=userl.users;user;) {
-		ast_free_ha(user->ha);
 		userlast = user;
 		user=user->next;
-		free(userlast);
+		destroy_user(user);
 	}
 	userl.users=NULL;
 	ast_mutex_unlock(&userl.lock);
@@ -8962,15 +8830,7 @@ static void prune_peers(void)
 	for (peer=peerl.peers;peer;) {
 		peernext = peer->next;
 		if (peer->delme) {
-			/* Delete it, it needs to disappear */
-			if (peer->call)
-				sip_destroy(peer->call);
-			if (peer->expire > -1)
-				ast_sched_del(sched, peer->expire);
-			if (peer->pokeexpire > -1)
-				ast_sched_del(sched, peer->pokeexpire);
-			register_peer_exten(peer, 0);
-			free(peer);
+			destroy_peer(peer);
 			if (peerlast)
 				peerlast->next = peernext;
 			else
