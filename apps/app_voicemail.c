@@ -833,7 +833,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 	time_t t;
 	struct tm tm;
 	struct vm_zone *the_zone = NULL;
-	if (vmu && !ast_strlen_zero(vmu->email)) {
+	if (vmu && ast_strlen_zero(vmu->email)) {
 		ast_log(LOG_WARNING, "E-mail address missing for mailbox [%s].  E-mail will not be sent.\n", vmu->mailbox);
 		return(0);
 	}
