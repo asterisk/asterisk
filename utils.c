@@ -15,6 +15,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -23,7 +24,6 @@
 #include <asterisk/lock.h>
 #include <asterisk/utils.h>
 #include <asterisk/logger.h>
-#include <alloca.h>
 
 static char base64[64];
 static char b2a[256];
