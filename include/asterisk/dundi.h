@@ -94,6 +94,22 @@ struct dundi_cause {
 	char desc[0];					/* Textual description */
 } __attribute__ ((__packed__));
 
+struct dundi_peer_status {
+	unsigned int flags;
+	unsigned short netlag;
+	unsigned short querylag;
+	dundi_eid peereid;
+} __attribute__ ((__packed__));
+
+#define DUNDI_PEER_PRIMARY			(1 << 0)
+#define DUNDI_PEER_SECONDARY		(1 << 1)
+#define DUNDI_PEER_UNAVAILABLE		(1 << 2)
+#define DUNDI_PEER_REGISTERED		(1 << 3)
+#define DUNDI_PEER_MOD_OUTBOUND		(1 << 4)
+#define DUNDI_PEER_MOD_INBOUND		(1 << 5)
+#define DUNDI_PEER_PCMOD_OUTBOUND	(1 << 6)
+#define DUNDI_PEER_PCMOD_INBOUND	(1 << 7)
+
 #define DUNDI_COMMAND_FINAL			(0x80)		/* Or'd with other flags */
 
 #define DUNDI_COMMAND_ACK			(0 | 0x40)	/* Ack a message */
@@ -111,6 +127,8 @@ struct dundi_cause {
 #define DUNDI_COMMAND_CANCEL		(12)		/* Cancel transaction entirely */
 #define DUNDI_COMMAND_ENCRYPT		(13)		/* Send an encrypted message */
 #define DUNDI_COMMAND_ENCREJ		(14 | 0x40)	/* Reject an encrypted message */
+
+#define DUNDI_COMMAND_STATUS		15			/* Status command */
 
 /*
  * Remember that some information elements may occur
@@ -143,6 +161,8 @@ struct dundi_cause {
 #define DUNDI_IE_PHONE				27	/* Contact Phone, for EIDQUERY (string) */
 #define DUNDI_IE_IPADDR				28	/* IP Address, for EIDQUERY (string) */
 #define DUNDI_IE_CACHEBYPASS		29	/* Bypass cache (empty) */
+
+#define DUNDI_IE_PEERSTATUS			30 	/* Peer/peer status (struct dundi_peer_status) */
 
 #define DUNDI_FLUFF_TIME			2000	/* Amount of time for answer */
 #define DUNDI_TTL_TIME				200		/* Incremental average time */
