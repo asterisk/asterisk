@@ -1921,9 +1921,9 @@ static int sip_hangup(struct ast_channel *ast)
 		needcancel = 1;
 	/* Disconnect */
 	p = ast->tech_pvt;
-        if (p->vad) {
-            ast_dsp_free(p->vad);
-        }
+	if (p->vad) {
+		ast_dsp_free(p->vad);
+	}
 	p->owner = NULL;
 	ast->tech_pvt = NULL;
 
@@ -2204,24 +2204,21 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 			tmp->nativeformats = ast_codec_choose(&i->prefs, global_capability, 1);
 		ast_mutex_unlock(&i->lock);
 		fmt = ast_best_codec(tmp->nativeformats);
+
 		if (title)
 			snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%04x", title, rand() & 0xffff);
+		else if (strchr(i->fromdomain,':'))
+			snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", strchr(i->fromdomain,':')+1, (int)(long)(i));
 		else
-			if (strchr(i->fromdomain,':'))
-			{
-				snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", strchr(i->fromdomain,':')+1, (int)(long)(i));
-			}
-			else
-			{
-				snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", i->fromdomain, (int)(long)(i));
-			}
+			snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", i->fromdomain, (int)(long)(i));
+
 		tmp->type = channeltype;
-                if (ast_test_flag(i, SIP_DTMF) ==  SIP_DTMF_INBAND) {
-                	i->vad = ast_dsp_new();
-                	ast_dsp_set_features(i->vad, DSP_FEATURE_DTMF_DETECT);
+		if (ast_test_flag(i, SIP_DTMF) ==  SIP_DTMF_INBAND) {
+			i->vad = ast_dsp_new();
+			ast_dsp_set_features(i->vad, DSP_FEATURE_DTMF_DETECT);
 			if (relaxdtmf)
 				ast_dsp_digitmode(i->vad, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
-                }
+		}
 		tmp->fds[0] = ast_rtp_fd(i->rtp);
 		tmp->fds[1] = ast_rtcp_fd(i->rtp);
 		if (i->vrtp) {
