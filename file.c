@@ -1081,6 +1081,9 @@ char ast_waitstream_full(struct ast_channel *c, const char *breakon, int audiofd
 			ms = 1000;
 		rchan = ast_waitfor_nandfds(&c, 1, &cmdfd, (cmdfd > -1) ? 1 : 0, NULL, &outfd, &ms);
 		if (!rchan && (outfd < 0) && (ms)) {
+			/* Continue */
+			if (errno == EINTR)
+				continue;
 			ast_log(LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
 			return -1;
 		} else if (outfd > -1) {
