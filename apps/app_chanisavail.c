@@ -54,7 +54,7 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
 	struct localuser *u;
-	char info[512], *peers, *tech, *number, *rest, *cur;
+	char info[512], tmp[512], *peers, *tech, *number, *rest, *cur;
 	struct ast_channel *tempchan;
 
 	if (!data) {
@@ -85,8 +85,8 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 			if ((tempchan = ast_request(tech, chan->nativeformats, number))) {
 					pbx_builtin_setvar_helper(chan, "AVAILCHAN", tempchan->name);
 					/* Store the originally used channel too */
-					snprintf(info, sizeof(info), "%s/%s", tech, number);
-					pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", info);
+					snprintf(tmp, sizeof(tmp), "%s/%s", tech, number);
+					pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", tmp);
 					ast_hangup(tempchan);
 					tempchan = NULL;
 					res = 1;
