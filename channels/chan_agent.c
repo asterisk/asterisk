@@ -585,7 +585,7 @@ static int read_agent_config(void)
 	group = 0;
 	autologoff = 0;
 	wrapuptime = 0;
-	ackcall = 0;
+	ackcall = 1;
 	cfg = ast_load(config);
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "No agent configuration found -- agent support disabled\n");

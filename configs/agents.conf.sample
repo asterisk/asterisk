@@ -10,6 +10,11 @@
 ;
 ;autologoff=15
 ;
+; Define ackcall to require an acknowledgement by '#' when
+; an agent logs in over agentcallpark.  Default is "yes".
+;
+;ackcall=yes
+;
 ; Define wrapuptime.  This is the minimum amount of time when
 ; after disconnecting before the caller can receive a new call
 ; note this is in milliseconds.
