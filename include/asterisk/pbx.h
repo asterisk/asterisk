@@ -484,7 +484,7 @@ int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char
 
 /* Synchronously or asynchronously make an outbound call and send it to a
    particular application with given extension */
-int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *app, char *appdata, int *reason, int sync, char *callerid);
+int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *app, char *appdata, int *reason, int sync, char *callerid, char *variable);
 
 /* Functions for returning values from structures */
 char *ast_get_context_name(struct ast_context *con);

@@ -3855,17 +3855,22 @@ static void *ast_pbx_run_app(void *data)
 	return NULL;
 }
 
-int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *app, char *appdata, int *reason, int sync, char *callerid)
+int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *app, char *appdata, int *reason, int sync, char *callerid, char *variable)
 {
 	struct ast_channel *chan;
 	struct async_stat *as;
 	struct app_tmp *tmp;
+	char *var, *vartmp;
 	int res = -1;
 	if (!app || !strlen(app))
 		return -1;
 	if (sync) {
 		chan = ast_request_and_dial(type, format, data, timeout, reason, callerid);
 		if (chan) {
+			vartmp = variable;
+			while( (var = strtok_r(NULL, "|", &vartmp)) ) {
+				pbx_builtin_setvar( chan, var );
+			}
 			if (chan->_state == AST_STATE_UP) {
 				res = 0;
 				if (option_verbose > 3)
