@@ -5608,8 +5608,11 @@ static void *pri_dchannel(void *vpri)
 						strncpy(pri->pvt[chan]->rdnis, e->ring.redirectingnum, sizeof(pri->pvt[chan]->rdnis));
 					}
 					/* If immediate=yes go to s|1 */
-					if (pri->pvt[chan]->immediate)
+					if (pri->pvt[chan]->immediate) {
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "Going to extension s|1 because of immediate=yes\n");
 						strcpy(pri->pvt[chan]->exten, "s");
+					}
 					/* Get called number */
 					else if (strlen(e->ring.callednum)) {
 						strncpy(pri->pvt[chan]->exten, e->ring.callednum, sizeof(pri->pvt[chan]->exten)-1);
