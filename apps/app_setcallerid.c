@@ -31,25 +31,9 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static struct {
-	int val;
-	char *name;
-} preses[] = {
-	{  AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED, "allowed_not_screened" },
-	{  AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, "allowed_passed_screen" },
-	{  AST_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN, "allowed_failed_screen" },
-	{  AST_PRES_ALLOWED_NETWORK_NUMBER, "allowed" },
-	{  AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED	, "prohib_not_screened" },
-	{  AST_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN, "prohib_passed_screen" },
-	{  AST_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN, "prohib_failed_screen" },
-	{  AST_PRES_PROHIB_NETWORK_NUMBER, "prohib" },
-	{  AST_PRES_NUMBER_NOT_AVAILABLE, "unavailable" },
-};
-
 static char *descrip2 = 
-"  SetCallerPres(presentation): Set Caller*ID presentation on\n"
-"a call to a new value.  Sets ANI as well if a flag is used.\n"
-"Always returns 0.  Valid presentations are:\n"
+"  SetCallerPres(presentation): Set Caller*ID presentation on a call.\n"
+"  Always returns 0.  Valid presentations are:\n"
 "\n"
 "      allowed_not_screened    : Presentation Allowed, Not Screened\n"
 "      allowed_passed_screen   : Presentation Allowed, Passed Screen\n" 
@@ -65,33 +49,21 @@ static char *descrip2 =
 
 static int setcallerid_pres_exec(struct ast_channel *chan, void *data)
 {
-	int res = 0;
-	char tmp[256] = "";
 	struct localuser *u;
-	int x;
-	char *opts;
 	int pres = -1;
-	if (data)
-		strncpy(tmp, (char *)data, sizeof(tmp) - 1);
-	opts = strchr(tmp, '|');
-	if (opts) {
-		*opts = '\0';
-		opts++;
-	}
-	for (x=0;x<sizeof(preses) / sizeof(preses[0]);x++) {
-		if (!strcasecmp(preses[x].name, tmp)) {
-			pres = preses[x].val;
-			break;
-		}
-	}
+
+	pres = ast_parse_caller_presentation(data);
+
 	if (pres < 0) {
-		ast_log(LOG_WARNING, "'%s' is not a valid presentation (see 'show application SetCallerPres')\n", tmp);
+		ast_log(LOG_WARNING, "'%s' is not a valid presentation (see 'show application SetCallerPres')\n",
+			(char *) data);
 		return 0;
 	}
+
 	LOCAL_USER_ADD(u);
 	chan->cid.cid_pres = pres;
 	LOCAL_USER_REMOVE(u);
-	return res;
+	return 0;
 }
 
 

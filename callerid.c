@@ -715,3 +715,43 @@ int ast_callerid_split(const char *buf, char *name, int namelen, char *num, int 
 		num[0] = '\0';
 	return 0;
 }
+
+static struct {
+	int val;
+	char *name;
+	char *description;
+} pres_types[] = {
+	{  AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED, "allowed_not_screened", "Presentation Allowed, Not Screened"},
+	{  AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, "allowed_passed_screen", "Presentation Allowed, Passed Screen"},
+	{  AST_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN, "allowed_failed_screen", "Presentation Allowed, Failed Screen"},
+	{  AST_PRES_ALLOWED_NETWORK_NUMBER, "allowed", "Presentation Allowed, Network Number"},
+	{  AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED, "prohib_not_screened", "Presentation Prohibited, Not Screened"},
+	{  AST_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN, "prohib_passed_screen", "Presentation Prohibited, Passed Screen"},
+	{  AST_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN, "prohib_failed_screen", "Presentation Prohibited, Failed Screen"},
+	{  AST_PRES_PROHIB_NETWORK_NUMBER, "prohib", "Presentation Prohibited, Network Number"},
+	{  AST_PRES_NUMBER_NOT_AVAILABLE, "unavailable", "Number Unavailable"},
+};
+
+int ast_parse_caller_presentation(const char *data)
+{
+	int i;
+
+	for (i = 0; i < ((sizeof(pres_types) / sizeof(pres_types[0]))); i++) {
+		if (!strcasecmp(pres_types[i].name, data))
+			return pres_types[i].val;
+	}
+
+	return -1;
+}
+
+const char *ast_describe_caller_presentation(int data)
+{
+	int i;
+
+	for (i = 0; i < ((sizeof(pres_types) / sizeof(pres_types[0]))); i++) {
+		if (pres_types[i].val == data)
+			return pres_types[i].description;
+	}
+
+	return "unknown";
+}

@@ -3864,7 +3864,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	if (!l || (!ast_isphonenumber(l) && default_callerid[0]))
 			l = default_callerid;
 	/* if user want's his callerid restricted */
-	if (p->callingpres & AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED) {
+	if ((p->callingpres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED) {
 		l = CALLERID_UNKNOWN;
 		n = l;
 	}
@@ -6256,7 +6256,8 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 		ast_cli(fd, "  Language     : %s\n", peer->language);
 		if (!ast_strlen_zero(peer->accountcode))
 			ast_cli(fd, "  Accountcode  : %s\n", peer->accountcode);
-		ast_cli(fd, "  AMA flag     : %s\n", ast_cdr_flags2str(peer->amaflags));
+		ast_cli(fd, "  AMA flags    : %s\n", ast_cdr_flags2str(peer->amaflags));
+		ast_cli(fd, "  CallingPres  : %s\n", ast_describe_caller_presentation(peer->callingpres));
 		if (!ast_strlen_zero(peer->fromuser))
 			ast_cli(fd, "  FromUser     : %s\n", peer->fromuser);
 		if (!ast_strlen_zero(peer->fromdomain))
@@ -6357,7 +6358,8 @@ static int sip_show_user(int fd, int argc, char *argv[])
 		ast_cli(fd, "  Language     : %s\n", user->language);
 		if (!ast_strlen_zero(user->accountcode))
 			ast_cli(fd, "  Accountcode  : %s\n", user->accountcode);
-		ast_cli(fd, "  AMA flag     : %s\n", ast_cdr_flags2str(user->amaflags));
+		ast_cli(fd, "  AMA flags    : %s\n", ast_cdr_flags2str(user->amaflags));
+		ast_cli(fd, "  CallingPres  : %s\n", ast_describe_caller_presentation(user->callingpres));
 		ast_cli(fd, "  Inc. limit   : %d\n", user->incominglimit);
 		ast_cli(fd, "  Outg. limit  : %d\n", user->outgoinglimit);
 		ast_cli(fd, "  Callgroup    : ");
@@ -9113,7 +9115,9 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			} else if (!strcasecmp(v->name, "disallow")) {
 				ast_parse_allow_disallow(&user->prefs, &user->capability, v->value, 0);
 			} else if (!strcasecmp(v->name, "callingpres")) {
-				user->callingpres = atoi(v->value);
+				user->callingpres = ast_parse_caller_presentation(v->value);
+				if (user->callingpres == -1)
+					user->callingpres = atoi(v->value);
 			}
 			/*else if (strcasecmp(v->name,"type"))
 			 *	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
@@ -9316,7 +9320,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 				else
 					peer->addr.sin_port = htons(atoi(v->value));
 			} else if (!strcasecmp(v->name, "callingpres")) {
-				peer->callingpres = atoi(v->value);
+				peer->callingpres = ast_parse_caller_presentation(v->value);
+				if (peer->callingpres == -1)
+					peer->callingpres = atoi(v->value);
 			} else if (!strcasecmp(v->name, "username")) {
 				strncpy(peer->username, v->value, sizeof(peer->username)-1);
 			} else if (!strcasecmp(v->name, "language")) {
