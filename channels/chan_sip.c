@@ -500,7 +500,7 @@ static struct ast_ha *localaddr;
 static struct ast_frame  *sip_read(struct ast_channel *ast);
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
 static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
-static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *rand, int reliable);
+static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *rand, int reliable, char *header);
 static int transmit_request(struct sip_pvt *p, char *msg, int inc, int reliable, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, char *msg, int inc, int reliable, int newbranch);
 static int transmit_invite(struct sip_pvt *p, char *msg, int sendsdp, char *auth, char *authheader, char *vxml_url,char *distinctive_ring, int init);
@@ -2979,7 +2979,7 @@ static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip
 }
 
 /* transmit_response_with_auth: Respond with authorization request */
-static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *randdata, int reliable)
+static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *randdata, int reliable, char *header)
 {
 	struct sip_request resp;
 	char tmp[256];
@@ -2990,7 +2990,7 @@ static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_
 	}
 	snprintf(tmp, sizeof(tmp), "Digest realm=\"%s\", nonce=\"%s\"", global_realm, randdata);
 	respprep(&resp, p, msg, req);
-	add_header(&resp, "Proxy-Authenticate", tmp);
+	add_header(&resp, header, tmp);
 	add_header(&resp, "Content-Length", "0");
 	add_blank_header(&resp);
 	return send_response(p, &resp, reliable, seqno);
@@ -4164,25 +4164,38 @@ static void md5_hash(char *output, char *input)
 static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata, int randlen, char *username, char *secret, char *md5secret, char *method, char *uri, int reliable, int ignore)
 {
 	int res = -1;
+	char *response = "407 Proxy Authentication Required";
+	char *reqheader = "Proxy-Authorization";
+	char *respheader = "Proxy-Authenticate";
+	char *authtoken;
 	/* Always OK if no secret */
 	if (ast_strlen_zero(secret) && ast_strlen_zero(md5secret))
 		return 0;
-	if (ignore && !ast_strlen_zero(randdata) && ast_strlen_zero(get_header(req, "Proxy-Authorization"))) {
+	if (!strcasecmp(method, "REGISTER")) {
+		/* On a REGISTER, we have to use 401 and its family of headers instead of 407 and its family
+		   of headers -- GO SIP!  Whoo hoo!  Two things that do the same thing but are used in
+		   different circumstances! What a surprise. */
+		response = "401 Unauthorized";
+		reqheader = "Authorization";
+		respheader = "WWW-Authenticate";
+	}
+	authtoken =  get_header(req, reqheader);	
+	if (ignore && !ast_strlen_zero(randdata) && ast_strlen_zero(authtoken)) {
 		/* This is a retransmitted invite/register/etc, don't reconstruct authentication
 		   information */
 		if (!ast_strlen_zero(randdata)) {
 			if (!reliable) {
 				/* Resend message if this was NOT a reliable delivery.   Otherwise the
 				   retransmission should get it */
-				transmit_response_with_auth(p, "407 Proxy Authentication Required", req, randdata, reliable);
+				transmit_response_with_auth(p, response, req, randdata, reliable, respheader);
 				/* Schedule auto destroy in 15 seconds */
 				sip_scheddestroy(p, 15000);
 			}
 			res = 1;
 		}
-	} else if (ast_strlen_zero(randdata) || ast_strlen_zero(get_header(req, "Proxy-Authorization"))) {
+	} else if (ast_strlen_zero(randdata) || ast_strlen_zero(authtoken)) {
 		snprintf(randdata, randlen, "%08x", rand());
-		transmit_response_with_auth(p, "407 Proxy Authentication Required", req, randdata, reliable);
+		transmit_response_with_auth(p, response, req, randdata, reliable, respheader);
 		/* Schedule auto destroy in 15 seconds */
 		sip_scheddestroy(p, 15000);
 		res = 1;
@@ -4202,7 +4215,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 		char *resp_uri ="";
 
 		/* Find their response among the mess that we'r sent for comparison */
-		strncpy(tmp, get_header(req, "Proxy-Authorization"), sizeof(tmp) - 1);
+		strncpy(tmp, authtoken, sizeof(tmp) - 1);
 		c = tmp;
 
 		while(c) {
@@ -4367,7 +4380,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	    ast_device_state_changed("SIP/%s", peer->name);
 	}
 	if (res < 0)
-		transmit_response(p, "401 Unauthorized", &p->initreq);
+		transmit_response(p, "403 Forbidden", &p->initreq);
 	if (peer && peer->temponly) {
 		if (peer->ha) {
 			ast_free_ha(peer->ha);
