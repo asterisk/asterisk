@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * True call queues
+ * True call queues with optional send URL on answer
  * 
  * Copyright (C) 1999, Mark Spencer
  *
@@ -23,6 +23,7 @@
 #include <asterisk/parking.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/cli.h>
+#include <asterisk/manager.h> /* JDG */
 #include <asterisk/config.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -47,7 +48,7 @@ static char *app = "Queue";
 static char *synopsis = "Queue a call for a call queue";
 
 static char *descrip =
-"  Queue(queuename[|timeout[|options]]):\n"
+"  Queue(queuename[|options[|URL][|announceoverride]]):\n"
 "Queues an incoming call in a particular call queue as defined in queues.conf.\n"
 "  This application returns -1 if the originating channel hangs up, or if the\n"
 "call is bridged and  either of the parties in the bridge terminate the call.\n"
@@ -58,7 +59,9 @@ static char *descrip =
 "      'd' -- data-quality (modem) call (minimum delay).\n"
 "      'H' -- allow caller to hang up by hitting *.\n"
 "  In addition to transferring the call, a call may be parked and then picked\n"
-"up by another user.\n";
+"up by another user.\n"
+"  The optionnal URL will be sent to the called party if the channel supports\n"
+"it.\n";
 
 /* We define a customer "local user" structure because we
    use it not only for keeping track of what is in use but
@@ -81,7 +84,7 @@ struct queue_ent {
 	struct ast_call_queue *parent;	/* What queue is our parent */
 	char moh[80];				/* Name of musiconhold to be used */
 	char announce[80];		/* Announcement to play */
-	char context[80];		/* Announcement to play */
+	char context[80];		/* Context when user exits queue */
 	int pos;					/* Where we are in the queue */
 	time_t start;				/* When we started holding */
 	struct ast_channel *chan;	/* Our channel */
@@ -152,6 +155,9 @@ static int join_queue(char *queuename, struct queue_ent *qe)
 				strncpy(qe->context, q->context, sizeof(qe->context));
 				q->count++;
 				res = 0;
+				manager_event(EVENT_FLAG_CALL, "Join", 
+									 "Queue: %s\r\nPosition: %d\r\n", q->name, qe->pos );
+
 			}
 			ast_pthread_mutex_unlock(&q->lock);
 			break;
@@ -205,6 +211,8 @@ static void leave_queue(struct queue_ent *qe)
 		return;
 	ast_pthread_mutex_lock(&q->lock);
 	/* Take us out of the queue */
+	manager_event(EVENT_FLAG_CALL, "Leave",
+						 "Queue: %s\r\n", q->name );
 	prev = NULL;
 	cur = q->head;
 	while(cur) {
@@ -397,7 +405,7 @@ static int wait_our_turn(struct queue_ent *qe)
 	return res;
 }
 
-static int try_calling(struct queue_ent *qe, char *options)
+static int try_calling(struct queue_ent *qe, char *options, char *announceoverride, char *url)
 {
 	struct member *cur;
 	struct localuser *outgoing=NULL, *tmp = NULL;
@@ -408,10 +416,15 @@ static int try_calling(struct queue_ent *qe, char *options)
 	char restofit[AST_MAX_EXTENSION];
 	char *newnum;
 	struct ast_channel *peer;
-	int res = 0;
+	int res = 0, bridge = 0;
+	char *announce = NULL;
 	/* Hold the lock while we setup the outgoing calls */
 	ast_pthread_mutex_lock(&qe->parent->lock);
 	cur = qe->parent->members;
+	if (strlen(qe->announce))
+		announce = qe->announce;
+	if (announceoverride && strlen(announceoverride))
+		announce = announceoverride;
 	while(cur) {
 		/* Get a technology/[device:]number pair */
 		tmp = malloc(sizeof(struct localuser));
@@ -432,6 +445,10 @@ static int try_calling(struct queue_ent *qe, char *options)
 			if (strchr(options, 'H'))
 				tmp->allowdisconnect = 1;
 		}
+		if (url) {
+			ast_log(LOG_DEBUG, "Queue with URL=%s_\n", url);
+		} else 
+			ast_log(LOG_DEBUG, "Simple queue (no URL)\n");
 
 		strncpy(numsubst, cur->loc, sizeof(numsubst)-1);
 		/* If we're dialing by extension, look at the extension to know what to dial */
@@ -539,9 +556,10 @@ static int try_calling(struct queue_ent *qe, char *options)
 		/* Stop music on hold */
 		ast_moh_stop(qe->chan);
 		outgoing = NULL;
-		if (strlen(qe->announce)) {
+		if (announce) {
 			int res2;
-			res2 = ast_streamfile(peer, qe->announce, peer->language);
+			res2 = ast_streamfile(peer, announce, peer->language);
+			/* XXX Need a function to wait on *both* streams XXX */
 			if (!res2)
 				res2 = ast_waitstream(peer, "");
 			else
@@ -575,8 +593,15 @@ static int try_calling(struct queue_ent *qe, char *options)
 		}
 		/* Drop out of the queue at this point, to prepare for next caller */
 		leave_queue(qe);			
-		res = ast_bridge_call(qe->chan, peer, allowredir, allowdisconnect);
+ 		/* JDG: sendurl */
+ 		if( url && strlen(url) && ast_channel_supports_html(peer) ) {
+ 			ast_log(LOG_DEBUG, "app_queue: sendurl=%s.\n", url);
+ 			ast_channel_sendurl( peer, url );
+ 		} /* /JDG */
+		bridge = ast_bridge_call(qe->chan, peer, allowredir, allowdisconnect);
 		ast_hangup(peer);
+		if( bridge == 0 ) res=1; /* JDG: bridge successfull, leave app_queue */
+		else res = bridge; /* bridge error, stay in the queue */
 	}	
 out:
 	hanguptree(outgoing, NULL);
@@ -616,12 +641,14 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	char *queuename;
 	char info[512];
 	char *options = NULL;
+	char *url = NULL;
+	char *announceoverride = NULL;
 	
 	/* Our queue entry */
 	struct queue_ent qe;
 	
 	if (!data) {
-		ast_log(LOG_WARNING, "Queue requires an argument (queuename|optional timeout)\n");
+		ast_log(LOG_WARNING, "Queue requires an argument (queuename|optional timeout|optional URL)\n");
 		return -1;
 	}
 	
@@ -635,9 +662,20 @@ static int queue_exec(struct ast_channel *chan, void *data)
 		if (options) {
 			*options = '\0';
 			options++;
+			url = strchr(options, '|');
+			if (url) {
+				*url = '\0';
+				url++;
+				announceoverride = strchr(url, '|');
+				if (announceoverride) {
+					*announceoverride = '\0';
+					announceoverride++;
+				}
+			}
 		}
 	}
-
+	printf("queue: %s, options: %s, url: %s, announce: %s\n",
+		queuename, options, url, announceoverride);
 	/* Setup our queue entry */
 	memset(&qe, 0, sizeof(qe));
 	qe.chan = chan;
@@ -662,7 +700,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 		}
 		if (!res) {
 			for (;;) {
-				res = try_calling(&qe, options);
+				res = try_calling(&qe, options, announceoverride, url);
 				if (res)
 					break;
 				res = wait_a_bit(&qe);
@@ -864,6 +902,13 @@ static int queues_show(int fd, int argc, char **argv)
 	return RESULT_SUCCESS;
 }
 
+/* JDG: callback to display queues status in manager */
+static int manager_queues_show( struct mansession *s, struct message *m )
+{
+	char *a[] = { "show", "queues" };
+	return queues_show( s->fd, 2, a );
+} /* /JDG */
+
 static char show_queues_usage[] = 
 "Usage: show queues\n"
 "       Provides summary information on call queues.\n";
@@ -872,12 +917,11 @@ static struct ast_cli_entry cli_show_queues = {
 	{ "show", "queues", NULL }, queues_show, 
 	"Show status of queues", show_queues_usage, NULL };
 
-
-
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
 	ast_cli_unregister(&cli_show_queues);
+	ast_manager_unregister( "Queues" );
 	return ast_unregister_application(app);
 }
 
@@ -885,8 +929,10 @@ int load_module(void)
 {
 	int res;
 	res = ast_register_application(app, queue_exec, synopsis, descrip);
-	if (!res)
+	if (!res) {
 		ast_cli_register(&cli_show_queues);
+		ast_manager_register( "Queues", 0, manager_queues_show, "Queues" );
+	}
 	reload_queues();
 	return res;
 }

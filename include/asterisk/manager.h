@@ -18,6 +18,10 @@
 #define _ASTERISK_MANAGER_H
 
 #include <stdarg.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 /* 
  * Call management packages are text fields of the form a: b.  There is
@@ -41,6 +45,46 @@
 #define EVENT_FLAG_VERBOSE		(1 << 3) /* Verbose messages */
 #define EVENT_FLAG_COMMAND		(1 << 4) /* Ability to read/set commands */
 #define EVENT_FLAG_AGENT		(1 << 5) /* Ability to read/set agent info */
+
+/* JDG: export manager structures */
+#define MAX_HEADERS 80
+#define MAX_LEN 256
+
+struct mansession {
+	pthread_t t;
+	pthread_mutex_t lock;
+	struct sockaddr_in sin;
+	int fd;
+	int blocking;
+	char username[80];
+	int authenticated;
+	int readperm;
+	int writeperm;
+	char inbuf[MAX_LEN];
+	int inlen;
+	
+	struct mansession *next;
+};
+
+
+struct message {
+	int hdrcount;
+	char headers[MAX_HEADERS][MAX_LEN];
+};
+
+struct manager_action {
+	char action[256];
+	char *synopsis;
+	int authority;
+	int (*func)(struct mansession *s, struct message *m);
+	struct manager_action *next;
+};
+
+/* External routines may register/unregister manager callbacks this way */
+int ast_manager_register( char *action, int authority, 
+					 int (*func)(struct mansession *s, struct message *m), char *synopsis);
+int ast_manager_unregister( char *action );
+/* /JDG */
 
 /* External routines may send asterisk manager events this way */
 extern int manager_event(int category, char *event, char *contents, ...)
