@@ -1090,7 +1090,7 @@ int unload_module(void)
 
 char *description(void)
 {
-	return "Call Parking Resource";
+	return "ADSI Resource";
 }
 
 int usecount(void)
