@@ -37,6 +37,7 @@
 #include <asterisk/indications.h>
 #include <asterisk/monitor.h>
 #include <asterisk/causes.h>
+#include <asterisk/utils.h>
 #ifdef ZAPTEL_OPTIMIZATIONS
 #include <sys/ioctl.h>
 #include <linux/zaptel.h>
@@ -1128,7 +1129,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		return NULL;
 	}
 
-	if (!chan->deferdtmf && strlen(chan->dtmfq)) {
+	if (!chan->deferdtmf && !ast_strlen_zero(chan->dtmfq)) {
 		/* We have DTMF that has been deferred.  Return it now */
 		chan->dtmff.frametype = AST_FRAME_DTMF;
 		chan->dtmff.subclass = chan->dtmfq[0];
@@ -1653,7 +1654,7 @@ struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, i
 			if (oh->account && *oh->account)
 				ast_cdr_setaccount(chan, oh->account);
 		}
-		if (callerid && strlen(callerid))
+		if (callerid && !ast_strlen_zero(callerid))
 			ast_set_callerid(chan, callerid, 1);
 
 		if (!ast_call(chan, data, 0)) {
