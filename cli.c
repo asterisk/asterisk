@@ -42,6 +42,7 @@ void ast_cli(int fd, char *fmt, ...)
 	vasprintf(&stuff, fmt, ap);
 	va_end(ap);
 	write(fd, stuff, strlen(stuff));
+	free(stuff);
 }
 
 ast_mutex_t clilock = AST_MUTEX_INITIALIZER;
