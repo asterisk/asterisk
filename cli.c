@@ -69,9 +69,10 @@ static char help_help[] =
 "       topic, it provides a list of commands.\n";
 
 static char chanlist_help[] = 
-"Usage: show channels\n"
+"Usage: show channels [concise]\n"
 "       Lists currently defined channels and some information about\n"
-"       them.\n";
+"       them.  If 'concise' is specified, format is abridged and in\n"
+"       a more easily machine parsable format\n";
 
 static char reload_help[] = 
 "Usage: reload\n"
@@ -286,20 +287,34 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 {
 #define FORMAT_STRING  "%15s  (%-10s %-12s %-4d) %7s %-12s  %-15s\n"
 #define FORMAT_STRING2 "%15s  (%-10s %-12s %-4s) %7s %-12s  %-15s\n"
+#define CONCISE_FORMAT_STRING  "%s:%s:%s:%d:%s:%s:%s:%s:%s:%d\n"
+
 	struct ast_channel *c=NULL;
 	int numchans = 0;
-	if (argc != 2)
+	int concise = 0;
+	if (argc < 2 || argc > 3)
 		return RESULT_SHOWUSAGE;
+	
+	concise = (argc == 3 && (!strcasecmp(argv[2],"concise")));
 	c = ast_channel_walk_locked(NULL);
-	ast_cli(fd, FORMAT_STRING2, "Channel", "Context", "Extension", "Pri", "State", "Appl.", "Data");
+	if(!concise)
+		ast_cli(fd, FORMAT_STRING2, "Channel", "Context", "Extension", "Pri", "State", "Appl.", "Data");
 	while(c) {
-		ast_cli(fd, FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
-		c->appl ? c->appl : "(None)", c->data ? ( !ast_strlen_zero(c->data) ? c->data : "(Empty)" ): "(None)");
+		if(concise)
+			ast_cli(fd, CONCISE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
+					c->appl ? c->appl : "(None)", c->data ? ( !ast_strlen_zero(c->data) ? c->data : "" ): "",
+					(c->callerid && !ast_strlen_zero(c->callerid)) ? c->callerid : "",
+					(c->accountcode && !ast_strlen_zero(c->accountcode)) ? c->accountcode : "",c->amaflags);
+		else
+			ast_cli(fd, FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
+					c->appl ? c->appl : "(None)", c->data ? ( !ast_strlen_zero(c->data) ? c->data : "(Empty)" ): "(None)");
+
 		numchans++;
 		ast_mutex_unlock(&c->lock);
 		c = ast_channel_walk_locked(c);
 	}
-	ast_cli(fd, "%d active channel(s)\n", numchans);
+	if(!concise)
+		ast_cli(fd, "%d active channel(s)\n", numchans);
 	return RESULT_SUCCESS;
 }
 
