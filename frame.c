@@ -15,6 +15,7 @@
 #include <asterisk/frame.h>
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
+#include <asterisk/channel.h>
 #include <asterisk/cli.h>
 #include <asterisk/term.h>
 #include <asterisk/utils.h>
@@ -32,6 +33,13 @@ AST_MUTEX_DEFINE_STATIC(framelock);
 #endif
 
 #define SMOOTHER_SIZE 8000
+
+struct ast_format_list {
+	int visible; /* Can we see this entry */
+	int bits; /* bitmask value */
+	char *name; /* short name */
+	char *desc; /* Description */
+};
 
 struct ast_smoother {
 	int size;
@@ -391,141 +399,137 @@ int ast_fr_fdhangup(int fd)
 	return ast_fr_fdwrite(fd, &hangup);
 }
 
-char* ast_getformatname(int format)
-{
-	if (format == AST_FORMAT_G723_1) 
-		return "G723";
-	else if (format == AST_FORMAT_GSM)
-		return "GSM";
-	else if (format == AST_FORMAT_ULAW)
-		return "ULAW";
-	else if (format == AST_FORMAT_ALAW)
-		return "ALAW";
-	else if (format == AST_FORMAT_G726)
-		return "G726";
-	else if (format == AST_FORMAT_SLINEAR)
-		return "SLINR";
-	else if (format == AST_FORMAT_LPC10)
-		return "LPC10";
-	else if (format == AST_FORMAT_ADPCM)
-		return "ADPCM";
-	else if (format == AST_FORMAT_G729A)
-		return "G729A";
-	else if (format == AST_FORMAT_SPEEX)
-		return "SPEEX";
-	else if (format == AST_FORMAT_ILBC)
-		return "ILBC";
-	else if (format == AST_FORMAT_JPEG)
-		return "JPEG";
-	else if (format == AST_FORMAT_PNG)
-		return "PNG";
-	else if (format == AST_FORMAT_H261)
-		return "H261";
-	else if (format == AST_FORMAT_H263)
-		return "H263";
-	return "UNKN";
+static struct ast_format_list AST_FORMAT_LIST[] = {
+	{ 1, AST_FORMAT_G723_1 , "g723" , "G.723.1"},
+	{ 1, AST_FORMAT_GSM, "gsm" , "GSM"},
+	{ 1, AST_FORMAT_ULAW, "ulaw", "G.711 u-law" },
+	{ 1, AST_FORMAT_ALAW, "alaw", "G.711 A-law" },
+	{ 1, AST_FORMAT_G726, "g726", "G.726" },
+	{ 1, AST_FORMAT_ADPCM, "adpcm" , "ADPCM"},
+	{ 1, AST_FORMAT_SLINEAR, "slin",  "16 bit Signed Linear PCM"},
+	{ 1, AST_FORMAT_LPC10, "lpc10", "LPC10" },
+	{ 1, AST_FORMAT_G729A, "g729", "G.729A" },
+	{ 1, AST_FORMAT_SPEEX, "speex", "SpeeX" },
+	{ 1, AST_FORMAT_ILBC, "ilbc", "iLBC"},
+	{ 0, 0, "nothing", "undefined" },
+	{ 0, 0, "nothing", "undefined" },
+	{ 0, 0, "nothing", "undefined" },
+	{ 0, 0, "nothing", "undefined" },
+	{ 0, AST_FORMAT_MAX_AUDIO, "maxaudio", "Maximum audio format" },
+	{ 1, AST_FORMAT_JPEG, "jpeg", "JPEG image"},
+	{ 1, AST_FORMAT_PNG, "png", "PNG image"},
+	{ 1, AST_FORMAT_H261, "h261", "H.261 Video" },
+	{ 1, AST_FORMAT_H263, "h263", "H.263 Video" },
+	{ 0, 0, "nothing", "undefined" },
+	{ 0, 0, "nothing", "undefined" },
+	{ 0, 0, "nothing", "undefined" },
+	{ 0, 0, "nothing", "undefined" },
+	{ 0, AST_FORMAT_MAX_VIDEO, "maxvideo", "Maximum video format" },
+};
+
+struct ast_format_list *ast_get_format_list_index(int index) {
+	return &AST_FORMAT_LIST[index];
 }
 
-char* ast_getformatname_multiple(char *buf, unsigned n, int format) {
-	unsigned u=1;
-	unsigned len;
-	char *b = buf;
-	char *start = buf;
-	if (!n) return buf;
-	snprintf(b,n,"0x%x(",format);
-	len = strlen(b);
-	b += len;
-	n -= len;
-	start = b;
-	while (u) {
-		if (u&format) {
-			snprintf(b,n,"%s|",ast_getformatname(u));
-			len = strlen(b);
-			b += len;
-			n -= len;
+struct ast_format_list *ast_get_format_list(size_t *size) {
+	*size = (sizeof(AST_FORMAT_LIST) / sizeof(struct ast_format_list));
+	return AST_FORMAT_LIST;
+}
+
+char* ast_getformatname(int format)
+{
+	int x = 0;
+	char *ret = "unknown";
+	for (x = 0 ; x < sizeof(AST_FORMAT_LIST) / sizeof(struct ast_format_list) ; x++) {
+		if(AST_FORMAT_LIST[x].visible && AST_FORMAT_LIST[x].bits == format) {
+			ret = AST_FORMAT_LIST[x].name;
+			break;
 		}
-		u *= 2;
 	}
-	if (start==b)
-		snprintf(start,n,"EMPTY)");
-	else if (n>1)
-		b[-1]=')';
+	return ret;
+}
+
+char *ast_getformatname_multiple(char *buf, size_t size, int format) {
+
+	int x = 0;
+	unsigned len;
+	char *end = buf;
+	char *start = buf;
+	if (!size) return buf;
+	snprintf(end, size, "0x%x (", format);
+	len = strlen(end);
+	end += len;
+	size -= len;
+	start = end;
+	for (x = 0 ; x < sizeof(AST_FORMAT_LIST) / sizeof(struct ast_format_list) ; x++) {
+		if (AST_FORMAT_LIST[x].visible && (AST_FORMAT_LIST[x].bits & format)) {
+			snprintf(end, size,"%s|",AST_FORMAT_LIST[x].name);
+			len = strlen(end);
+			end += len;
+			size -= len;
+		}
+	}
+	if (start == end)
+		snprintf(start, size, "nothing)");
+	else if (size > 1)
+		*(end -1) = ')';
 	return buf;
+}
+
+static struct ast_codec_alias_table {
+	char *alias;
+	char *realname;
+
+} ast_codec_alias_table[] = {
+	{"slinear","slin"},
+	{"g723.1","g723"},
+};
+
+static char *ast_expand_codec_alias(char *in) {
+	int x = 0;
+
+	for (x = 0; x < sizeof(ast_codec_alias_table) / sizeof(struct ast_codec_alias_table) ; x++) {
+		if(!strcmp(in,ast_codec_alias_table[x].alias))
+			return ast_codec_alias_table[x].realname;
+	}
+	return in;
 }
 
 int ast_getformatbyname(char *name)
 {
-	if (!strcasecmp(name, "g723.1")) 
-		return AST_FORMAT_G723_1;
-	else if (!strcasecmp(name, "gsm"))
-		return AST_FORMAT_GSM;
-	else if (!strcasecmp(name, "ulaw"))
-		return AST_FORMAT_ULAW;
-	else if (!strcasecmp(name, "alaw"))
-		return AST_FORMAT_ALAW;
-	else if (!strcasecmp(name, "g726"))
-		return AST_FORMAT_G726;
-	else if (!strcasecmp(name, "slinear"))
-		return AST_FORMAT_SLINEAR;
-	else if (!strcasecmp(name, "lpc10"))
-		return AST_FORMAT_LPC10;
-	else if (!strcasecmp(name, "adpcm"))
-		return AST_FORMAT_ADPCM;
-	else if (!strcasecmp(name, "g729"))
-		return AST_FORMAT_G729A;
-	else if (!strcasecmp(name, "speex"))
-		return AST_FORMAT_SPEEX;
-	else if (!strcasecmp(name, "ilbc"))
-		return AST_FORMAT_ILBC;
-	else if (!strcasecmp(name, "h261"))
-		return AST_FORMAT_H261;
-	else if (!strcasecmp(name, "h263"))
-		return AST_FORMAT_H263;
-	else if (!strcasecmp(name, "all"))
-		return 0x7FFFFFFF;
-	return 0;
+	int x = 0, all = 0, format = 0;
+
+	all = strcmp(name, "all") ? 0 : 1;
+	for (x = 0 ; x < sizeof(AST_FORMAT_LIST) / sizeof(struct ast_format_list) ; x++) {
+		if(AST_FORMAT_LIST[x].visible && (all || 
+										  !strcmp(AST_FORMAT_LIST[x].name,name) ||
+										  !strcmp(AST_FORMAT_LIST[x].name,ast_expand_codec_alias(name)))) {
+			format |= AST_FORMAT_LIST[x].bits;
+			if(!all)
+				break;
+		}
+	}
+
+	return format;
 }
 
 char *ast_codec2str(int codec) {
-	static char codecs[25][30] = {
-		/* Audio formats */
-		"G.723.1",                    /*  0 */
-		"GSM",                        /*  1 */
-		"G.711 u-law",                /*  2 */
-		"G.711 A-law",                /*  3 */
-		"G.726",                      /*  4 */
-		"ADPCM",                      /*  5 */
-		"16 bit Signed Linear PCM",   /*  6 */
-		"LPC10",                      /*  7 */
-		"G.729A audio",               /*  8 */
-		"SpeeX",                      /*  9 */
-		"iLBC",                       /* 10 */
-		"undefined",                  /* 11 */
-		"undefined",                  /* 12 */
-		"undefined",                  /* 13 */
-		"undefined",                  /* 14 */
-		"Maximum audio format",       /* 15 */
-		/* Image formats */
-		"JPEG image",                 /* 16 */
-		"PNG image",                  /* 17 */
-		"H.261 Video",                /* 18 */
-		"H.263 Video",                /* 19 */
-		"undefined",                  /* 20 */
-		"undefined",                  /* 21 */
-		"undefined",                  /* 22 */
-		"undefined",                  /* 23 */
-		"Maximum video format",       /* 24 */
-		};
-	if ((codec >= 0) && (codec <= 24))
-		return codecs[codec];
-	else
-		return "unknown";
+	int x = 0;
+	char *ret = "unknown";
+	for (x = 0 ; x < sizeof(AST_FORMAT_LIST) / sizeof(struct ast_format_list) ; x++) {
+		if(AST_FORMAT_LIST[x].visible && AST_FORMAT_LIST[x].bits == codec) {
+			ret = AST_FORMAT_LIST[x].desc;
+			break;
+		}
+	}
+	return ret;
 }
 
 static int show_codecs(int fd, int argc, char *argv[])
 {
 	int i, found=0;
-
+	char hex[25];
+	
 	if ((argc < 2) || (argc > 3))
 		return RESULT_SHOWUSAGE;
 
@@ -533,22 +537,30 @@ static int show_codecs(int fd, int argc, char *argv[])
 		ast_cli(fd, "Disclaimer: this command is for informational purposes only.\n"
 				"\tIt does not indicate anything about your configuration.\n");
 
+	ast_cli(fd, "%11s %9s %10s   TYPE   %5s   %s\n","INT","BINARY","HEX","NAME","DESC");
+	ast_cli(fd, "--------------------------------------------------------------------------------\n");
 	if ((argc == 2) || (!strcasecmp(argv[1],"audio"))) {
 		found = 1;
-		for (i=0;i<11;i++)
-			ast_cli(fd, "%11u (1 << %2d)  %s\n",1 << i,i,ast_codec2str(i));
+		for (i=0;i<11;i++) {
+			snprintf(hex,25,"(0x%x)",1<<i);
+			ast_cli(fd, "%11u (1 << %2d) %10s  audio   %5s   (%s)\n",1 << i,i,hex,ast_getformatname(1<<i),ast_codec2str(1<<i));
+		}
 	}
 
 	if ((argc == 2) || (!strcasecmp(argv[1],"image"))) {
 		found = 1;
-		for (i=16;i<18;i++)
-			ast_cli(fd, "%11u (1 << %2d)  %s\n",1 << i,i,ast_codec2str(i));
+		for (i=16;i<18;i++) {
+			snprintf(hex,25,"(0x%x)",1<<i);
+			ast_cli(fd, "%11u (1 << %2d) %10s  image   %5s   (%s)\n",1 << i,i,hex,ast_getformatname(1<<i),ast_codec2str(1<<i));
+		}
 	}
 
 	if ((argc == 2) || (!strcasecmp(argv[1],"video"))) {
 		found = 1;
-		for (i=18;i<20;i++)
-			ast_cli(fd, "%11u (1 << %2d)  %s\n",1 << i,i,ast_codec2str(i));
+		for (i=18;i<20;i++) {
+			snprintf(hex,25,"(0x%x)",1<<i);
+			ast_cli(fd, "%11u (1 << %2d) %10s  video   %5s   (%s)\n",1 << i,i,hex,ast_getformatname(1<<i),ast_codec2str(1<<i));
+		}
 	}
 
 	if (! found)
@@ -797,3 +809,185 @@ int init_framer(void)
 	ast_cli_register(&cli_show_codec_n);
 	return 0;	
 }
+
+void ast_codec_pref_shift(struct ast_codec_pref *pref, char *buf, size_t size, int right) 
+{
+	int x = 0, differential = 65, mem = 0;
+	char *from = NULL, *to = NULL;
+
+	if(right) {
+		from = pref->order;
+		to = buf;
+		mem = size;
+	} else {
+		to = pref->order;
+		from = buf;
+		mem = 32;
+	}
+
+	memset(to, 0, mem);
+	for (x = 0; x < 32 ; x++) {
+		if(!from[x])
+			break;
+		to[x] = right ? (from[x] + differential) : (from[x] - differential);
+	}
+}
+
+int ast_codec_pref_string(struct ast_codec_pref *pref, char *buf, size_t size) 
+{
+	int x = 0, codec = 0; 
+	size_t total_len = 0, slen = 0;
+	char *formatname = 0;
+	
+	memset(buf,0,size);
+	total_len = size;
+	buf[0] = '(';
+	total_len--;
+	for(x = 0; x < 32 ; x++) {
+		if(total_len <= 0)
+			break;
+		if(!(codec = ast_codec_pref_index(pref,x)))
+			break;
+		if((formatname = ast_getformatname(codec))) {
+			slen = strlen(formatname);
+			if(slen > total_len)
+				break;
+			strncat(buf,formatname,total_len);
+			total_len -= slen;
+		}
+		if(total_len && x < 31 && ast_codec_pref_index(pref , x + 1)) {
+			strncat(buf,"|",total_len);
+			total_len--;
+		}
+	}
+	if(total_len) {
+		strncat(buf,")",total_len);
+		total_len--;
+	}
+
+	return size - total_len;
+}
+
+int ast_codec_pref_index(struct ast_codec_pref *pref, int index) 
+{
+	int slot = 0;
+
+	
+	if((index >= 0) && (index < sizeof(pref->order))) {
+		slot = pref->order[index];
+	}
+
+	return slot ? AST_FORMAT_LIST[slot-1].bits : 0;
+}
+
+/*--- ast_codec_pref_remove: Remove codec from pref list ---*/
+void ast_codec_pref_remove(struct ast_codec_pref *pref, int format)
+{
+	struct ast_codec_pref oldorder;
+	int x=0, y=0;
+	size_t size = 0;
+	int slot = 0;
+
+	if(!pref->order[0])
+		return;
+
+	size = sizeof(AST_FORMAT_LIST) / sizeof(struct ast_format_list);
+
+	memcpy(&oldorder,pref,sizeof(struct ast_codec_pref));
+	memset(pref,0,sizeof(struct ast_codec_pref));
+
+	for (x = 0; x < size; x++) {
+		slot = oldorder.order[x];
+		if(! slot)
+			break;
+		if(AST_FORMAT_LIST[slot-1].bits != format)
+			pref->order[y++] = slot;
+	}
+	
+}
+
+/*--- ast_codec_pref_append: Append codec to list ---*/
+int ast_codec_pref_append(struct ast_codec_pref *pref, int format)
+{
+	size_t size = 0;
+	int x = 0, newindex = -1;
+
+	ast_codec_pref_remove(pref, format);
+	size = sizeof(AST_FORMAT_LIST) / sizeof(struct ast_format_list);
+
+	for (x = 0; x < size; x++) {
+		if(AST_FORMAT_LIST[x].bits == format) {
+			newindex = x + 1;
+			break;
+		}
+	}
+
+	if(newindex) {
+		for (x = 0; x < size; x++) {
+			if(!pref->order[x]) {
+				pref->order[x] = newindex;
+				break;
+			}
+		}
+	}
+
+	return x;
+}
+
+
+/*--- sip_codec_choose: Pick a codec ---*/
+int ast_codec_choose(struct ast_codec_pref *pref, int formats, int find_best)
+{
+	size_t size = 0;
+	int x = 0, ret = 0, slot = 0;
+
+	size = sizeof(AST_FORMAT_LIST) / sizeof(struct ast_format_list);
+	for (x = 0; x < size; x++) {
+		slot = pref->order[x];
+
+		if(!slot)
+			break;
+		if ( formats & AST_FORMAT_LIST[slot-1].bits ) {
+			ret = AST_FORMAT_LIST[slot-1].bits;
+			break;
+		}
+	}
+	if(ret)
+		return ret;
+
+   	return find_best ? ast_best_codec(formats) : 0;
+}
+
+void ast_parse_allow_deny(struct ast_codec_pref *pref, int *mask, char *list, int allowing) 
+{
+	int format_i = 0;
+	char *next_format = NULL, *last_format = NULL;
+
+	last_format = ast_strdupa(list);
+	while(last_format) {
+		if((next_format = strchr(last_format, ','))) {
+			*next_format = '\0';
+			next_format++;
+		}
+		if ((format_i = ast_getformatbyname(last_format)) > 0) {
+			if (mask) {
+				if (allowing)
+					(*mask) |= format_i;
+				else
+					(*mask) &= format_i;
+			}
+			/* can't consider 'all' a prefered codec*/
+			if(pref && strcasecmp(last_format, "all")) {
+				if(allowing)
+					ast_codec_pref_append(pref, format_i);
+				else
+					ast_codec_pref_remove(pref, format_i);
+			}
+		} else
+			ast_log(LOG_WARNING, "Cannot %s unknown format '%s'\n", allowing ? "allow" : "disallow", last_format);
+
+		last_format = next_format;
+	}
+}
+
+

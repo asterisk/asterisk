@@ -58,6 +58,11 @@ extern "C" {
 #error Need to know endianess
 #endif /* __BYTE_ORDER */
 
+struct ast_codec_pref {
+	char order[32];
+};
+
+
 //! Data structure associated with a single frame of data
 /* A frame of data read used to communicate between 
    between channels and applications */
@@ -337,11 +342,10 @@ extern char* ast_getformatname(int format);
  * \param n size of buf (bytes)
  * \param format the format (combined IDs of codecs)
  * Prints a list of readable codec names corresponding to "format".
- * ex: for format=AST_FORMAT_GSM|AST_FORMAT_SPEEX|AST_FORMAT_ILBC it will return "0x602(GSM|SPEEX|ILBC)"
+ * ex: for format=AST_FORMAT_GSM|AST_FORMAT_SPEEX|AST_FORMAT_ILBC it will return "0x602 (GSM|SPEEX|ILBC)"
  * \return The return value is buf.
  */
-extern char* ast_getformatname_multiple(char *buf, unsigned n, int format);
-
+extern char* ast_getformatname_multiple(char *buf, size_t size, int format);
 
 /*!
  * \param name string of format
@@ -364,6 +368,8 @@ extern int ast_best_codec(int fmts);
 
 struct ast_smoother;
 
+extern struct ast_format_list *ast_get_format_list_index(int index);
+extern struct ast_format_list *ast_get_format_list(size_t *size);
 extern struct ast_smoother *ast_smoother_new(int bytes);
 extern void ast_smoother_set_flags(struct ast_smoother *smoother, int flags);
 extern int ast_smoother_get_flags(struct ast_smoother *smoother);
@@ -373,6 +379,32 @@ extern int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f);
 extern struct ast_frame *ast_smoother_read(struct ast_smoother *s);
 
 extern void ast_frame_dump(char *name, struct ast_frame *f, char *prefix);
+
+/* Initialize a codec preference to "no preference" */
+extern void ast_codec_pref_init(struct ast_codec_pref *pref);
+
+/* Codec located at  a particular place in the preference index */
+extern int ast_codec_pref_index(struct ast_codec_pref *pref, int index);
+
+/* Remove a codec from a preference list */
+extern void ast_codec_pref_remove(struct ast_codec_pref *pref, int format);
+
+/* Append a codec to a preference list, removing it first if it was already there */
+extern int ast_codec_pref_append(struct ast_codec_pref *pref, int format);
+
+/* Select the best format according to preference list from supplied options. 
+   If "find_best" is non-zero then if nothing is found, the "Best" format of 
+   the format list is selected, otherwise 0 is returned. */
+extern int ast_codec_choose(struct ast_codec_pref *pref, int formats, int find_best);
+
+/* Parse an "allow" or "deny" line and update the mask and pref if provided */
+extern void ast_parse_allow_deny(struct ast_codec_pref *pref, int *mask, char *list, int allowing);
+
+/* Dump codec preference list into a string */
+extern int ast_codec_pref_string(struct ast_codec_pref *pref, char *buf, size_t size);
+
+/* Shift a codec preference list up or down 65 bytes so that it becomes an ASCII string */
+extern void ast_codec_pref_shift(struct ast_codec_pref *pref, char *buf, size_t size, int right);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
