@@ -215,13 +215,15 @@ static struct pbx_builtin {
 
 	{ "Busy", pbx_builtin_busy,
 "Indicate busy condition and stop",
-"  Busy(): Requests that the channel indicate busy condition and then waits\n"
-"for the user to hang up.  Always returns -1." },
+"  Busy([timeout]): Requests that the channel indicate busy condition and\n"
+"then waits for the user to hang up or the optional timeout to expire.\n"
+"Always returns -1." },
 
 	{ "Congestion", pbx_builtin_congestion,
 "Indicate congestion and stop",
-"  Congestion(): Requests that the channel indicate congestion and then\n"
-"waits for the user to hang up.  Always returns -1." },
+"  Congestion([timeout]): Requests that the channel indicate congestion\n"
+"and then waits for the user to hang up or for the optional timeout to\n"
+"expire.  Always returns -1." },
 
 	{ "DigitTimeout", pbx_builtin_dtimeout,
 "Set maximum timeout between digits",
@@ -4209,11 +4211,17 @@ void ast_context_destroy(struct ast_context *con, char *registrar)
 	__ast_context_destroy(con,registrar);
 }
 
-static void wait_for_hangup(struct ast_channel *chan)
+static void wait_for_hangup(struct ast_channel *chan, void *data)
 {
 	int res;
 	struct ast_frame *f;
-	do {
+	int waittime;
+	
+	if (!data || !strlen(data) || (sscanf(data, "%i", &waittime) != 1) || (waittime < 0))
+		waittime = -1;
+	if (waittime > -1) {
+		ast_safe_sleep(chan, waittime * 1000);
+	} else do {
 		res = ast_waitfor(chan, -1);
 		if (res < 0)
 			return;
@@ -4238,14 +4246,14 @@ static int pbx_builtin_ringing(struct ast_channel *chan, void *data)
 static int pbx_builtin_busy(struct ast_channel *chan, void *data)
 {
 	ast_indicate(chan, AST_CONTROL_BUSY);		
-	wait_for_hangup(chan);
+	wait_for_hangup(chan, data);
 	return -1;
 }
 
 static int pbx_builtin_congestion(struct ast_channel *chan, void *data)
 {
 	ast_indicate(chan, AST_CONTROL_CONGESTION);
-	wait_for_hangup(chan);
+	wait_for_hangup(chan, data);
 	return -1;
 }
 
