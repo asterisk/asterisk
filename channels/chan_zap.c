@@ -5991,6 +5991,9 @@ static void *pri_dchannel(void *vpri)
 			case PRI_EVENT_RING:
 				chan = e->ring.channel;
 				if (e->e==PRI_EVENT_RING) {
+					/* if no channel specified find one empty */
+					if (chan == -1)
+						chan = pri_find_empty_chan(pri);
 					if ((chan < 1) || (chan > pri->channels)) {
 						ast_log(LOG_WARNING, "Ring requested on odd channel number %d span %d\n", chan, pri->span);
 						chan = 0;
