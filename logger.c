@@ -323,6 +323,8 @@ int reload_logger(int rotate)
 
 	ast_mutex_unlock(&loglock);
 
+	queue_log_init();
+
 	if (eventlog) {
 		init_logger_chain();
 		ast_log(LOG_EVENT, "Restarted Asterisk Event Logger\n");
@@ -331,7 +333,6 @@ int reload_logger(int rotate)
 		return 0;
 	} else 
 		ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
-	queue_log_init();
 	init_logger_chain();
 	return -1;
 }
@@ -401,6 +402,9 @@ int init_logger(void)
 	ast_cli_register(&reload_logger_cli);
 	ast_cli_register(&rotate_logger_cli);
 
+	/* initialize queue logger */
+	queue_log_init();
+
 	/* create the eventlog */
 	mkdir((char *)ast_config_AST_LOG_DIR, 0755);
 	snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_LOG_DIR, EVENTLOG);
@@ -418,8 +422,6 @@ int init_logger(void)
 
 	/* create log channels */
 	init_logger_chain();
-	/* initialize queue logger */
-	queue_log_init();
 	return -1;
 }
 
