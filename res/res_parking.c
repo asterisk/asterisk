@@ -645,6 +645,11 @@ static struct ast_cli_entry showparked =
 static int manager_parking_status( struct mansession *s, struct message *m )
 {
 	struct parkeduser *cur;
+	char *id = astman_get_header(m,"ActionID");
+	char idText[256] = "";
+
+	if (id && !ast_strlen_zero(id))
+		snprintf(idText,256,"ActionID: %s\r\n",id);
 
 	astman_send_ack(s, m, "Parked calls will follow");
 
@@ -657,14 +662,20 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 			"Channel: %s\r\n"
 			"Timeout: %ld\r\n"
 			"CallerID: %s\r\n"
+			"%s"
 			"\r\n"
                         ,cur->parkingnum, cur->chan->name
                         ,(long)cur->start.tv_sec + (long)(cur->parkingtime/1000) - (long)time(NULL)
 			,(cur->chan->callerid ? cur->chan->callerid : "")
-			);
+			,idText);
 
                 cur = cur->next;
         }
+
+	ast_cli(s->fd,
+	"Event: ParkedCallsComplete\r\n"
+	"%s"
+	"\r\n",idText);
 
         ast_mutex_unlock(&parking_lock);
 
