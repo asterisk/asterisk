@@ -186,6 +186,7 @@ static int noncodeccapability = AST_RTP_DTMF;
 
 static char ourhost[256];
 static struct in_addr __ourip;
+static struct sockaddr_in outboundproxyip;
 static int ourport;
 
 static int sipdebug = 0;
@@ -8375,6 +8376,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 	struct sip_peer *prev;
 	struct ast_ha *oldha = NULL;
 	int maskfound=0;
+	int obproxyfound=0;
 	int found=0;
 
 	prev = NULL;
@@ -8480,18 +8482,22 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 					ast_log(LOG_WARNING, "Unknown dtmf mode '%s', using rfc2833\n", v->value);
 					peer->dtmfmode = SIP_DTMF_RFC2833;
 				}
-			} else if (!strcasecmp(v->name, "host")) {
+			} else if (!strcasecmp(v->name, "host") || !strcasecmp(v->name, "outboundproxy")) {
 				if (!strcasecmp(v->value, "dynamic")) {
-					/* They'll register with us */
-					peer->dynamic = 1;
-					if (!found) {
-						/* Initialize stuff iff we're not found, otherwise
-						   we keep going with what we had */
-						memset(&peer->addr.sin_addr, 0, 4);
-						if (peer->addr.sin_port) {
-							/* If we've already got a port, make it the default rather than absolute */
-							peer->defaddr.sin_port = peer->addr.sin_port;
-							peer->addr.sin_port = 0;
+					if (!strcasecmp(v->name, "outboundproxy") || obproxyfound) {
+						ast_log(LOG_WARNING, "You can't have a dynamic outbound proxy, you big silly head at line %d.\n", v->lineno);
+					} else {
+						/* They'll register with us */
+						peer->dynamic = 1;
+						if (!found) {
+							/* Initialize stuff iff we're not found, otherwise
+							   we keep going with what we had */
+							memset(&peer->addr.sin_addr, 0, 4);
+							if (peer->addr.sin_port) {
+								/* If we've already got a port, make it the default rather than absolute */
+								peer->defaddr.sin_port = peer->addr.sin_port;
+								peer->addr.sin_port = 0;
+							}
 						}
 					}
 				} else {
@@ -8500,11 +8506,16 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 						ast_sched_del(sched, peer->expire);
 					peer->expire = -1;
 					peer->dynamic = 0;
-					if (ast_get_ip(&peer->addr, v->value)) {
-						destroy_peer(peer);
-						return NULL;
+					if (!obproxyfound || !strcasecmp(v->name, "outboundproxy")) {
+						if (ast_get_ip_or_srv(&peer->addr, v->value, "_sip._udp")) {
+							destroy_peer(peer);
+							return NULL;
+						}
 					}
-					strncpy(peer->tohost, v->value, sizeof(peer->tohost) - 1);
+					if (!strcasecmp(v->name, "outboundproxy"))
+						obproxyfound=1;
+					else
+						strncpy(peer->tohost, v->value, sizeof(peer->tohost) - 1);
 				}
 				if (!maskfound)
 					inet_aton("255.255.255.255", &peer->mask);
@@ -8652,6 +8663,9 @@ static int reload_config(void)
 	global_realm[sizeof(global_realm)-1] = '\0';
 	strncpy(global_musicclass, "default", sizeof(global_musicclass) - 1);
 	strncpy(default_callerid, DEFAULT_CALLERID, sizeof(default_callerid) - 1);
+	memset(&outboundproxyip, 0, sizeof(outboundproxyip));
+	outboundproxyip.sin_port = htons(DEFAULT_SIP_PORT);
+	outboundproxyip.sin_family = AF_INET;	/* Type of address: IPv4 */
 	global_canreinvite = REINVITE_INVITE;
 	videosupport = 0;
 	compactheaders = 0;
@@ -8748,6 +8762,13 @@ static int reload_config(void)
 				global_nat = SIP_NAT_ALWAYS;
 			else
 				global_nat = SIP_NAT_NEVER;
+		} else if (!strcasecmp(v->name, "outboundproxy")) {
+			if (ast_get_ip_or_srv(&outboundproxyip, v->value, "_sip._udp") < 0)
+				ast_log(LOG_WARNING, "Unable to locate host '%s'\n", v->value);
+		} else if (!strcasecmp(v->name, "outboundproxyport")) {
+			/* Port needs to be after IP */
+			sscanf(v->value, "%i", &format);
+			outboundproxyip.sin_port = htons(format);
 		} else if (!strcasecmp(v->name, "autocreatepeer")) {
 			autocreatepeer = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "srvlookup")) {

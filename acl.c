@@ -23,6 +23,7 @@
 #include <asterisk/channel.h>
 #include <asterisk/utils.h>
 #include <asterisk/lock.h>
+#include <asterisk/srv.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -186,10 +187,20 @@ int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin)
 	return res;
 }
 
-int ast_get_ip(struct sockaddr_in *sin, char *value)
+int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service)
 {
 	struct hostent *hp;
 	struct ast_hostent ahp;
+	char srv[256];
+	char host[256];
+	int tportno = ntohs(sin->sin_port);
+	if (service) {
+		snprintf(srv, sizeof(srv), "%s.%s", service, value);
+		if (ast_get_srv(NULL, host, sizeof(host), &tportno, srv) > 0) {
+			sin->sin_port = htons(tportno);
+			value = host;
+		}
+	}
 	hp = ast_gethostbyname(value, &ahp);
 	if (hp) {
 		memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
@@ -198,6 +209,11 @@ int ast_get_ip(struct sockaddr_in *sin, char *value)
 		return -1;
 	}
 	return 0;
+}
+
+int ast_get_ip(struct sockaddr_in *sin, const char *value)
+{
+	return ast_get_ip_or_srv(sin, value, NULL);
 }
 
 /* iface is the interface (e.g. eth0); address is the return value */
