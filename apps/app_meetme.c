@@ -47,18 +47,19 @@ static char *descrip =
 "one.  This application always returns -1.\n"
 
 "The option string may contain zero or more of the following characters:\n"
-"      'a' -- set admin mode\n"
 "      'm' -- set monitor only mode (Listen only, no talking\n"
 "      't' -- set talk only mode. (Talk only, no listening)\n"
 "      'p' -- allow user to exit the conference by pressing '#'\n"
-"      's' -- send user to admin/user menu if '*' is received\n"
 "      'd' -- dynamically add conference\n"
 "      'v' -- video mode\n"
 "      'q' -- quiet mode (don't play enter/leave sounds)\n"
 "      'M' -- enable music on hold when the conference has a single caller\n"
 "      'b' -- run AGI script specified in ${MEETME_AGI_BACKGROUND}\n"
 "	      Default: conf-background.agi\n"
-"             (Note: This does not work with non-Zap channels in the same conference)\n";
+"             (Note: This does not work with non-Zap channels in the same conference)\n"
+"      Not implemented yet:\n"
+"      's' -- send user to admin/user menu if '*' is received\n"
+"      'a' -- set admin mode\n";
 
 static char *descrip2 =
 "  MeetMeCount(confno[|var]): Plays back the number of users in the specifiedi\n"
