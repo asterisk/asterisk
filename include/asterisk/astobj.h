@@ -32,8 +32,7 @@ extern "C" {
 #define ASTOBJ_DEFAULT_BUCKETS	256
 #define ASTOBJ_DEFAULT_HASH		ast_strhash
 
-#define ASTOBJ_FLAG_DELME 	(1 << 0)		/* Object has been deleted, remove on last unref */
-#define ASTOBJ_FLAG_MARKED	(1 << 1)		/* Object has been marked for possible deletion */
+#define ASTOBJ_FLAG_MARKED	(1 << 0)		/* Object has been marked for future operation */
 
 #if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 96)
 #define __builtin_expect(exp, c) (exp)
@@ -81,13 +80,17 @@ extern "C" {
 	
 #define ASTOBJ_UNREF(object,destructor) \
 	do { \
+		int newcount = 0; \
 		ASTOBJ_WRLOCK(object); \
 		if (__builtin_expect((object)->refcount, 1)) \
-			(object)->refcount--; \
+			newcount = --((object)->refcount); \
 		else \
 			ast_log(LOG_WARNING, "Unreferencing unreferenced (object)!\n"); \
 		ASTOBJ_UNLOCK(object); \
-		ASTOBJ_DESTROY(object,destructor); \
+		if (newcount == 0) { \
+			ast_mutex_destroy(&(object)->_lock); \
+			destructor((object)); \
+		} \
 		(object) = NULL; \
 	} while(0)
 
@@ -105,18 +108,6 @@ extern "C" {
 		ASTOBJ_UNLOCK(object); \
 	} while(0)
 
-#define ASTOBJ_DESTROY(object,destructor) \
-	do { \
-		if (__builtin_expect((object)->refcount, 1)) { \
-			ASTOBJ_WRLOCK(object); \
-			(object)->objflags |= ASTOBJ_FLAG_DELME; \
-			ASTOBJ_UNLOCK(object); \
-		} else { \
-			ast_mutex_destroy(&(object)->_lock); \
-			destructor((object)); \
-		} \
-	} while(0)
-	
 #define ASTOBJ_INIT(object) \
 	do { \
 		ast_mutex_init(&(object)->_lock); \
@@ -190,7 +181,6 @@ extern "C" {
 		ASTOBJ_CONTAINER_WRLOCK(container); \
 		while((iterator = (container)->head)) { \
 			(container)->head = (iterator)->next[0]; \
-			ASTOBJ_DESTROY(iterator,destructor); \
 			ASTOBJ_UNREF(iterator,destructor); \
 		} \
 		ASTOBJ_CONTAINER_UNLOCK(container); \
@@ -203,6 +193,7 @@ extern "C" {
 		ASTOBJ_CONTAINER_TRAVERSE(container, !found, do { \
 			if (!(strcasecmp(iterator->name, (namestr)))) { \
 				found = iterator; \
+				found->next[0] = NULL; \
 				ASTOBJ_CONTAINER_WRLOCK(container); \
 				if (prev) \
 					prev->next[0] = next; \
@@ -223,6 +214,7 @@ extern "C" {
 			ASTOBJ_RDLOCK(iterator); \
 			if (!(comparefunc(iterator->field, (data)))) { \
 				found = iterator; \
+				found->next[0] = NULL; \
 				ASTOBJ_CONTAINER_WRLOCK(container); \
 				if (prev) \
 					prev->next[0] = next; \
@@ -249,7 +241,7 @@ extern "C" {
 					(container)->head = next; \
 				ASTOBJ_CONTAINER_UNLOCK(container); \
 				ASTOBJ_UNLOCK(iterator); \
-				ASTOBJ_DESTROY(iterator,destructor); \
+				ASTOBJ_UNREF(iterator,destructor); \
 				continue; \
 			} \
 			ASTOBJ_UNLOCK(iterator); \

@@ -1111,66 +1111,44 @@ static void update_peer(struct sip_peer *p, int expiry)
 		realtime_update_peer(p->name, &p->addr, p->username, expiry);
 }
 
-static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int temponly);
+static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int realtime);
 
 static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *sin)
 {
-	struct ast_variable *var, *tmp=NULL;
-	char iabuf[80];
 	struct sip_peer *peer=NULL;
-	time_t nowtime, regseconds;
-	int dynamic=0;
-	
-	if (sin)
-		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr);
+	struct ast_variable *var;
+	struct ast_variable *tmp;
+
 	if (peername) 
 		var = ast_load_realtime("sipfriends", "name", peername, NULL);
-	else
+	else if (sin) {
+		char iabuf[80];
+
+		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr);
 		var = ast_load_realtime("sipfriends", "ipaddr", iabuf, NULL);
-	if (var) {
-		/* Make sure it's not a user only... */
-		peer = build_peer(peername, var, 1);
-		if (peer) {
-			/* Add some finishing touches, addresses, etc */
-			ast_set_flag(peer, SIP_REALTIME);
-			tmp = var;
-			while(tmp) {
-				if (!strcasecmp(tmp->name, "type")) {
-					if (strcasecmp(tmp->value, "friend") &&
-						strcasecmp(tmp->value, "peer")) {
-						/* Whoops, we weren't supposed to exist! */
-						sip_destroy_peer(peer);
-						peer = NULL;
-						break;
-					} 
-				} else if (!strcasecmp(tmp->name, "regseconds")) {
-					if (sscanf(tmp->value, "%li", &regseconds) != 1)
-						regseconds = 0;
-				} else if (!strcasecmp(tmp->name, "ipaddr")) {
-					inet_aton(tmp->value, &(peer->addr.sin_addr));
-				} else if (!strcasecmp(tmp->name, "port")) {
-					peer->addr.sin_port = htons(atoi(tmp->value));
-				} else if (!strcasecmp(tmp->name, "host")) {
-					if (!strcasecmp(tmp->value, "dynamic"))
-						dynamic = 1;
-				}
-				tmp = tmp->next;
-			}
-			if (peer && dynamic) {
-				time(&nowtime);
-				if ((nowtime - regseconds) > 0) {
-					memset(&peer->addr, 0, sizeof(peer->addr));
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Bah, we're expired (%ld/%ld/%ld)!\n", nowtime - regseconds, regseconds, nowtime);
-				}
-			}
+	} else
+		return NULL;
+
+	if (!var)
+		return NULL;
+
+	tmp = var;
+	while(tmp) {
+		if (strcasecmp(tmp->name, "type"))
+			continue;
+
+		if (!strcasecmp(tmp->value, "user")) {
+			ast_destroy_realtime(var);
+			return NULL;
 		}
-		ast_destroy_realtime(var);
+
+		tmp = tmp->next;
 	}
-	if (peer) {
-		/* Destroy, so when our caller unrefs, it will disappear */
-		ASTOBJ_DESTROY(peer, sip_destroy_peer);
-	}
+
+	peer = build_peer(peername, var, 1);
+	if (peer)
+		ast_set_flag(peer, SIP_REALTIME);
+	ast_destroy_realtime(var);
 	return peer;
 }
 
@@ -1214,43 +1192,39 @@ static void sip_destroy_user(struct sip_user *user)
 	free(user);
 }
 
-static struct sip_user *build_user(const char *name, struct ast_variable *v);
+static struct sip_user *build_user(const char *name, struct ast_variable *v, int realtime);
 static struct sip_user *realtime_user(const char *username)
 {
 	struct ast_variable *var;
 	struct ast_variable *tmp;
-	struct sip_user *user=NULL;
+	struct sip_user *user = NULL;
+
 	var = ast_load_realtime("sipfriends", "name", username, NULL);
-	if (var) {
-		/* Make sure it's not a user only... */
-		user = build_user(username, var);
-		if (user) {
-			/* Move counter from s to r... */
-			suserobjs--;
-			ruserobjs++;
-			/* Add some finishing touches, addresses, etc */
-			ast_set_flag(user, SIP_REALTIME);	
-			tmp = var;
-			while(tmp) {
-				if (!strcasecmp(tmp->name, "type")) {
-					if (strcasecmp(tmp->value, "friend") &&
-						strcasecmp(tmp->value, "user")) {
-						/* Whoops, we weren't supposed to exist! */
-						sip_destroy_user(user);
-						user = NULL;
-						break;
-					} 
-				}
-				tmp = tmp->next;
-			}
+
+	if (!var)
+		return NULL;
+
+	tmp = var;
+	while (tmp) {
+		if (strcasecmp(tmp->name, "type"))
+			continue;
+
+		if (!strcasecmp(tmp->value, "peer")) {
+			ast_destroy_realtime(var);
+			return NULL;
 		}
-		ast_destroy_realtime(var);
+		tmp = tmp->next;
 	}
+
+	user = build_user(username, var, 1);
 	if (user) {
-		/* Reference and destroy, so when our caller unrefs, we disappear */
-		ASTOBJ_REF(user);
-		ASTOBJ_DESTROY(user, sip_destroy_user);
+		/* Move counter from s to r... */
+		suserobjs--;
+		ruserobjs++;
+		/* Add some finishing touches, addresses, etc */
+		ast_set_flag(user, SIP_REALTIME);	
 	}
+	ast_destroy_realtime(var);
 	return user;
 }
 
@@ -1290,60 +1264,60 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 	p = find_peer(peer, NULL);
 
 	if (p) {
-			found++;
-			ast_copy_flags(r, p, SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_DTMF | SIP_NAT | SIP_REINVITE | SIP_INSECURE);
-			r->capability = p->capability;
-			if (r->rtp) {
-				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
-				ast_rtp_setnat(r->rtp, (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
+		found++;
+		ast_copy_flags(r, p, SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_DTMF | SIP_NAT | SIP_REINVITE | SIP_INSECURE);
+		r->capability = p->capability;
+		if (r->rtp) {
+			ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
+			ast_rtp_setnat(r->rtp, (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
+		}
+		if (r->vrtp) {
+			ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
+			ast_rtp_setnat(r->vrtp, (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
+		}
+		strncpy(r->peername, p->username, sizeof(r->peername)-1);
+		strncpy(r->authname, p->username, sizeof(r->authname)-1);
+		strncpy(r->peersecret, p->secret, sizeof(r->peersecret)-1);
+		strncpy(r->peermd5secret, p->md5secret, sizeof(r->peermd5secret)-1);
+		strncpy(r->username, p->username, sizeof(r->username)-1);
+		strncpy(r->tohost, p->tohost, sizeof(r->tohost)-1);
+		strncpy(r->fullcontact, p->fullcontact, sizeof(r->fullcontact)-1);
+		if (!r->initreq.headers && !ast_strlen_zero(p->fromdomain)) {
+			if ((callhost = strchr(r->callid, '@'))) {
+				strncpy(callhost + 1, p->fromdomain, sizeof(r->callid) - (callhost - r->callid) - 2);
 			}
-			if (r->vrtp) {
-				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
-				ast_rtp_setnat(r->vrtp, (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
-			}
-			strncpy(r->peername, p->username, sizeof(r->peername)-1);
-			strncpy(r->authname, p->username, sizeof(r->authname)-1);
-			strncpy(r->peersecret, p->secret, sizeof(r->peersecret)-1);
-			strncpy(r->peermd5secret, p->md5secret, sizeof(r->peermd5secret)-1);
-			strncpy(r->username, p->username, sizeof(r->username)-1);
-			strncpy(r->tohost, p->tohost, sizeof(r->tohost)-1);
-			strncpy(r->fullcontact, p->fullcontact, sizeof(r->fullcontact)-1);
-			if (!r->initreq.headers && !ast_strlen_zero(p->fromdomain)) {
-				if ((callhost = strchr(r->callid, '@'))) {
-					strncpy(callhost + 1, p->fromdomain, sizeof(r->callid) - (callhost - r->callid) - 2);
-				}
-			}
-			if (ast_strlen_zero(r->tohost)) {
-				if (p->addr.sin_addr.s_addr)
-					ast_inet_ntoa(r->tohost, sizeof(r->tohost), p->addr.sin_addr);
-				else
-					ast_inet_ntoa(r->tohost, sizeof(r->tohost), p->defaddr.sin_addr);
-			}
-			if (!ast_strlen_zero(p->fromdomain))
-				strncpy(r->fromdomain, p->fromdomain, sizeof(r->fromdomain)-1);
-			if (!ast_strlen_zero(p->fromuser))
-				strncpy(r->fromuser, p->fromuser, sizeof(r->fromuser)-1);
-			r->maxtime = p->maxms;
-			r->callgroup = p->callgroup;
-			r->pickupgroup = p->pickupgroup;
-			if (ast_test_flag(r, SIP_DTMF) == SIP_DTMF_RFC2833)
-				r->noncodeccapability |= AST_RTP_DTMF;
+		}
+		if (ast_strlen_zero(r->tohost)) {
+			if (p->addr.sin_addr.s_addr)
+				ast_inet_ntoa(r->tohost, sizeof(r->tohost), p->addr.sin_addr);
 			else
-				r->noncodeccapability &= ~AST_RTP_DTMF;
-			strncpy(r->context, p->context,sizeof(r->context)-1);
-			if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
-				(!p->maxms || ((p->lastms >= 0)  && (p->lastms <= p->maxms)))) {
-				if (p->addr.sin_addr.s_addr) {
-					r->sa.sin_addr = p->addr.sin_addr;
-					r->sa.sin_port = p->addr.sin_port;
-				} else {
-					r->sa.sin_addr = p->defaddr.sin_addr;
-					r->sa.sin_port = p->defaddr.sin_port;
-				}
-				memcpy(&r->recv, &r->sa, sizeof(r->recv));
+				ast_inet_ntoa(r->tohost, sizeof(r->tohost), p->defaddr.sin_addr);
+		}
+		if (!ast_strlen_zero(p->fromdomain))
+			strncpy(r->fromdomain, p->fromdomain, sizeof(r->fromdomain)-1);
+		if (!ast_strlen_zero(p->fromuser))
+			strncpy(r->fromuser, p->fromuser, sizeof(r->fromuser)-1);
+		r->maxtime = p->maxms;
+		r->callgroup = p->callgroup;
+		r->pickupgroup = p->pickupgroup;
+		if (ast_test_flag(r, SIP_DTMF) == SIP_DTMF_RFC2833)
+			r->noncodeccapability |= AST_RTP_DTMF;
+		else
+			r->noncodeccapability &= ~AST_RTP_DTMF;
+		strncpy(r->context, p->context,sizeof(r->context)-1);
+		if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
+		    (!p->maxms || ((p->lastms >= 0)  && (p->lastms <= p->maxms)))) {
+			if (p->addr.sin_addr.s_addr) {
+				r->sa.sin_addr = p->addr.sin_addr;
+				r->sa.sin_port = p->addr.sin_port;
 			} else {
-				ASTOBJ_UNREF(p,sip_destroy_peer);
+				r->sa.sin_addr = p->defaddr.sin_addr;
+				r->sa.sin_port = p->defaddr.sin_port;
 			}
+			memcpy(&r->recv, &r->sa, sizeof(r->recv));
+		} else {
+			ASTOBJ_UNREF(p,sip_destroy_peer);
+		}
 	}
 	if (!p && !found) {
 		hostn = peer;
@@ -8644,7 +8618,7 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 }
 
 /*--- build_user: Initiate a SIP user structure from sip.conf ---*/
-static struct sip_user *build_user(const char *name, struct ast_variable *v)
+static struct sip_user *build_user(const char *name, struct ast_variable *v, int realtime)
 {
 	struct sip_user *user;
 	int format;
@@ -8778,15 +8752,16 @@ static struct sip_peer *temp_peer(char *name)
 }
 
 /*--- build_peer: Build peer from config file ---*/
-static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int temponly)
+static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int realtime)
 {
 	struct sip_peer *peer = NULL;
 	struct ast_ha *oldha = NULL;
 	int maskfound=0;
 	int obproxyfound=0;
 	int found=0;
+	time_t regseconds;
 
-	if (!temponly)
+	if (!realtime)
 		/* Note we do NOT use find_peer here, to avoid realtime recursion */
 		peer = ASTOBJ_CONTAINER_FIND_UNLINK(&peerl, name);
 
@@ -8797,7 +8772,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		peer = malloc(sizeof(struct sip_peer));
 		if (peer) {
 			memset(peer, 0, sizeof(struct sip_peer));
-			if (temponly)
+			if (realtime)
 				rpeerobjs++;
 			else
 				speerobjs++;
@@ -8838,7 +8813,12 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 				continue;
 			}
 
-			if (!strcasecmp(v->name, "name"))
+			if (realtime && !strcasecmp(v->name, "regseconds")) {
+				if (sscanf(v->value, "%li", &regseconds) != 1)
+					regseconds = 0;
+			} else if (realtime && !strcasecmp(v->name, "ipaddr")) {
+				inet_aton(v->value, &(peer->addr.sin_addr));
+			} else if (realtime && !strcasecmp(v->name, "name"))
 				strncpy(peer->name, v->value, sizeof(peer->name)-1);
 			else if (!strcasecmp(v->name, "secret")) 
 				strncpy(peer->secret, v->value, sizeof(peer->secret)-1);
@@ -8880,7 +8860,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 					ast_clear_flag(peer, SIP_DYNAMIC);	
 					if (!obproxyfound || !strcasecmp(v->name, "outboundproxy")) {
 						if (ast_get_ip_or_srv(&peer->addr, v->value, "_sip._udp")) {
-							ASTOBJ_DESTROY(peer, sip_destroy_peer);
+							ASTOBJ_UNREF(peer, sip_destroy_peer);
 							return NULL;
 						}
 					}
@@ -8893,7 +8873,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 					inet_aton("255.255.255.255", &peer->mask);
 			} else if (!strcasecmp(v->name, "defaultip")) {
 				if (ast_get_ip(&peer->defaddr, v->value)) {
-					ASTOBJ_DESTROY(peer, sip_destroy_peer);
+					ASTOBJ_UNREF(peer, sip_destroy_peer);
 					return NULL;
 				}
 			} else if (!strcasecmp(v->name, "permit") ||
@@ -8903,7 +8883,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 				maskfound++;
 				inet_aton(v->value, &peer->mask);
 			} else if (!strcasecmp(v->name, "port")) {
-				if (ast_test_flag(peer, SIP_DYNAMIC))
+				if (!realtime && ast_test_flag(peer, SIP_DYNAMIC))
 					peer->defaddr.sin_port = htons(atoi(v->value));
 				else
 					peer->addr.sin_port = htons(atoi(v->value));
@@ -8954,6 +8934,16 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			 *	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 			 */
 			v=v->next;
+		}
+		if (realtime && ast_test_flag(peer, SIP_DYNAMIC)) {
+			time_t nowtime;
+
+			time(&nowtime);
+			if ((nowtime - regseconds) > 0) {
+				memset(&peer->addr, 0, sizeof(peer->addr));
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Bah, we're expired (%ld/%ld/%ld)!\n", nowtime - regseconds, regseconds, nowtime);
+			}
 		}
 		ast_copy_flags(peer, &peerflags, mask.flags);
 		if (!found && ast_test_flag(peer, SIP_DYNAMIC))
@@ -9200,7 +9190,7 @@ static int reload_config(void)
 			utype = ast_variable_retrieve(cfg, cat, "type");
 			if (utype) {
 				if (!strcasecmp(utype, "user") || !strcasecmp(utype, "friend")) {
-					user = build_user(cat, ast_variable_browse(cfg, cat));
+					user = build_user(cat, ast_variable_browse(cfg, cat), 0);
 					if (user) {
 						ASTOBJ_CONTAINER_LINK(&userl,user);
 						ASTOBJ_UNREF(user, sip_destroy_user);
