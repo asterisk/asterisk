@@ -363,7 +363,7 @@ int unload_module(void)
 int load_module(void)
 {
 	snprintf((char *)qdir,sizeof(qdir)-1,"%s/%s",(char *)ast_config_AST_SPOOL_DIR,"qcall");
-	mkdir(qdir,0660);
+	mkdir(qdir,0760);
 	pthread_create(&qcall_thread,NULL,qcall,NULL);
 	return 0;
 }

@@ -3726,7 +3726,9 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 					ast_rtp_setnat(p->vrtp, p->nat);
 				}
 				p->canreinvite = peer->canreinvite;
+				if (strlen(peer->username))
 				strncpy(p->username, peer->name, sizeof(p->username) - 1);
+				strncpy(p->peername, peer->name, sizeof(p->peername) - 1);
 				if (strlen(peer->context))
 					strncpy(p->context, peer->context, sizeof(p->context) - 1);
 				p->callgroup = peer->callgroup;
@@ -4413,8 +4415,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					p->needdestroy = 1;
 				}
 			} else if (!strcasecmp(msg, "BYE")) {
-				if (!strlen(p->username))
-					ast_log(LOG_WARNING, "Acked to authenticate BYE, to %s:%d but we have no matching peer!\n",
+				if (!strlen(p->peername))
+					ast_log(LOG_WARNING, "Asked to authenticate BYE, to %s:%d but we have no matching peer!\n",
 							inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 				if ((p->authtries > 1) || do_proxy_auth(p, req, "BYE", 0)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on BYE to '%s'\n", get_header(&p->initreq, "From"));
@@ -4485,8 +4487,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		case 407:
 			if (!strcasecmp(msg, "BYE")) {
-				if (!strlen(p->username))
-					ast_log(LOG_WARNING, "Acked to authenticate BYE, to %s:%d but we have no matching peer!\n",
+				if (!strlen(p->peername))
+					ast_log(LOG_WARNING, "Asked to authenticate BYE, to %s:%d but we have no matching peer!\n",
 							inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 				if ((p->authtries > 1) || do_proxy_auth(p, req, "BYE", 0)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on BYE to '%s'\n", get_header(&p->initreq, "From"));
