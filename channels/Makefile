@@ -106,7 +106,7 @@ endif
 
 chan_iax2.so: chan_iax2.o iax2-parser.o
 ifeq ($(USE_MYSQL_FRIENDS),1)
-	$(CC) $(SOLINK) -o $@ chan_iax2.o iax2-parser.o -lmysqlclient -lz
+	$(CC) $(SOLINK) -o $@ chan_iax2.o iax2-parser.o -L/usr/lib/mysql -lmysqlclient -lz
 else
 	$(CC) $(SOLINK) -o $@ chan_iax2.o iax2-parser.o
 endif
