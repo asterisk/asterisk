@@ -4657,7 +4657,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 			cmd = ast_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, silencethreshold, maxsilence);
  			if (cmd == -1)
  			/* User has hung up, no options to give */
- 				return res;
+ 				return cmd;
  			if (cmd == '0') {
  				break;
  			} else if (cmd == '*') {
@@ -4752,7 +4752,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  		}
  	}
  	if (outsidecaller)  
- 		ast_play_and_wait(chan, "vm-goodbye");
+		ast_play_and_wait(chan, "vm-goodbye");
  	if (cmd == 't')
  		cmd = 0;
  	return cmd;
