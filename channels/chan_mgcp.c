@@ -2931,7 +2931,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 				g = p->parent;
 				tmp_ep = g->endpoints;
 				while (tmp_ep) {
-					/*if ((strcmp(tmp_ep->name, "*") != 0) && (strcmp(tmp_ep->name, "aaln/*") != 0)) { */
+					/*if ((strcmp(tmp_ep->name, "*") != 0) && (strcmp(tmp_ep->name, "aaln/" "*") != 0)) { */
 					if (strcmp(tmp_ep->name, g->wcardep) != 0) {
 						struct mgcp_subchannel *tmp_sub, *first_sub;
 						if (option_verbose > 2) {
@@ -3635,7 +3635,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
                         e->needaudit = 1;
                     }
                     strncpy(gw->wcardep, v->value, sizeof(gw->wcardep)-1);
-					/*strncpy(e->name, "aaln/*", sizeof(e->name) - 1); */
+					/*strncpy(e->name, "aaln/" "*", sizeof(e->name) - 1); */
 					/* XXX Should we really check for uniqueness?? XXX */
 					strncpy(e->context, context, sizeof(e->context) - 1);
 					strncpy(e->cid_num, cid_num, sizeof(e->cid_num) - 1);
