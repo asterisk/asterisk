@@ -844,6 +844,9 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 		free_old_route(p->route);
 		p->route = NULL;
 	}
+	if (p->registry) {
+		p->registry->call=NULL;
+	}
 	/* Unlink us from the owner if we have one */
 	if (p->owner) {
 		if (lockowner)
