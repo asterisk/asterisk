@@ -1509,15 +1509,10 @@ struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, i
 			while( (var = strtok_r(NULL, "|", &tmp)) ) {
 				pbx_builtin_setvar( chan, var );
 			} /* /JDG */
-			if (oh->context && *oh->context)
-				strncpy(chan->context, oh->context, sizeof(chan->context) - 1);
-			if (oh->exten && *oh->exten)
-				strncpy(chan->exten, oh->exten, sizeof(chan->exten) - 1);
 			if (oh->callerid && *oh->callerid)
 				ast_set_callerid(chan, oh->callerid, 1);
 			if (oh->account && *oh->account)
 				ast_cdr_setaccount(chan, oh->account);
-			chan->priority = oh->priority;
 		}
 		if (callerid && strlen(callerid))
 			ast_set_callerid(chan, callerid, 1);
@@ -1561,8 +1556,18 @@ struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, i
 			ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
 	} else
 		ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
-	if (chan && (chan->_state == AST_STATE_UP))
-		state = AST_CONTROL_ANSWER;
+	if (chan) {
+		/* Final fixups */
+		if (oh) {
+			if (oh->context && *oh->context)
+				strncpy(chan->context, oh->context, sizeof(chan->context) - 1);
+			if (oh->exten && *oh->exten)
+				strncpy(chan->exten, oh->exten, sizeof(chan->exten) - 1);
+			chan->priority = oh->priority;
+		}
+		if (chan->_state == AST_STATE_UP) 
+			state = AST_CONTROL_ANSWER;
+	}
 	if (outstate)
 		*outstate = state;
 	if (chan && res <= 0) {
