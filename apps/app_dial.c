@@ -790,8 +790,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			ast_set2_flag(tmp, strchr(transfer, 'h'), DIAL_ALLOWDISCONNECT_IN);
 			ast_set2_flag(&peerflags, strchr(transfer, 'h'), DIAL_ALLOWDISCONNECT_IN);
 			ast_set2_flag(tmp, strchr(transfer, 'f'), DIAL_FORCECALLERID);	
-			ast_set2_flag(tmp, strchr(transfer, 'w'), DIAL_MONITOR_IN);	
-			ast_set2_flag(tmp, strchr(transfer, 'W'), DIAL_MONITOR_OUT);	
+			ast_set2_flag(&peerflags, strchr(transfer, 'w'), DIAL_MONITOR_IN);	
+			ast_set2_flag(&peerflags, strchr(transfer, 'W'), DIAL_MONITOR_OUT);	
 			ast_set2_flag(tmp, strchr(transfer, 'g'), DIAL_GO_ON);	
 		}
 		strncpy(numsubst, number, sizeof(numsubst)-1);
