@@ -103,7 +103,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 			/* try creating the directory just in case it doesn't exist */
 			if (directory) {
 				char *name = strdup(fname_base);
-				snprintf(tmp, sizeof(tmp), "mkdir -p %s",dirname(name));
+				snprintf(tmp, sizeof(tmp), "mkdir -p \"%s\"",dirname(name));
 				free(name);
 				system(tmp);
 			}
@@ -243,9 +243,9 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 				execute_args = "";
 			}
 			
-			snprintf(tmp, sizeof(tmp), "%s %s/%s-in.%s %s/%s-out.%s %s/%s.%s %s &", execute, dir, name, format, dir, name, format, dir, name, format,execute_args);
+			snprintf(tmp, sizeof(tmp), "%s \"%s/%s-in.%s\" \"%s/%s-out.%s\" \"%s/%s.%s\" %s &", execute, dir, name, format, dir, name, format, dir, name, format,execute_args);
 			if (delfiles) {
-				snprintf(tmp2,sizeof(tmp2), "( %s& rm -f %s/%s-* ) &",tmp, dir ,name); /* remove legs when done mixing */
+				snprintf(tmp2,sizeof(tmp2), "( %s& rm -f \"%s\"/%s-* ) &",tmp, dir ,name); /* remove legs when done mixing */
 				strncpy(tmp, tmp2, sizeof(tmp) - 1);
 			}
 			ast_verbose("monitor executing %s\n",tmp);
