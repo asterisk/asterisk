@@ -3,7 +3,7 @@
 ;
 [general]
 port = 1720
-bindaddr = 1.2.3.4 	; this SHALL contain a single, valid IP address
+bindaddr = 1.2.3.4 	; this SHALL contain a single, valid IP address for this machine
 ;tos=lowdelay
 ;
 ; You may specify a global default AMA flag for iaxtel calls.  It must be
