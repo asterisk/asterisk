@@ -26,7 +26,7 @@ Examples:
 
 [inbound] ; here falls all incoming calls
 exten => s,1,Answer
-exten => s,2,Dial(local/200@internals,30,r)
+exten => s,2,Dial(local/200@internal,30,r)
 exten => s,3,Playback(sorrynoanswer)
 exten => s,4,Hangup
 
