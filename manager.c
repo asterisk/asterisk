@@ -340,8 +340,8 @@ static int action_status(struct mansession *s, struct message *m)
 			"CallerID: %s\r\n"
 			"State: %s\r\n"
 			"%s"
-			"\r\n"
-			"Uniqueid: %s\r\n",
+			"Uniqueid: %s\r\n"
+			"\r\n",
 			c->name, c->callerid ? c->callerid : "<unknown>", 
 			ast_state2str(c->_state), bridge, c->uniqueid);
 		}
