@@ -43,7 +43,7 @@ extern int init_logger(void);
 /* Provided by frame.c */
 extern int init_framer(void);
 /* Provided by logger.c */
-extern int reload_logger(void);
+extern int reload_logger(int);
 /* Provided by term.c */
 extern int term_init(void);
 /* Provided by db.c */

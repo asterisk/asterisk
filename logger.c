@@ -11,6 +11,7 @@
  *
  */
 
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -27,6 +28,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <sys/stat.h>
+#include <syslog.h>
 #include "asterisk.h"
 #include "astconf.h"
 
@@ -44,6 +46,7 @@ struct logfile {
 	char fn[256];
 	int logflags;
 	FILE *f;
+        int facility; /* syslog */
 	struct logfile *next;
 };
 
@@ -68,6 +71,8 @@ static int colors[] = {
 	COLOR_BRRED,
 	COLOR_RED
 };
+
+
 
 static int make_components(char *s, int lineno)
 {
@@ -109,6 +114,9 @@ static struct logfile *make_logfile(char *fn, char *components, int lineno)
 			f->f = NULL;
 		} else if (!strcasecmp(fn, "console")) {
 			f->f = stdout;
+		} else if (!strcasecmp(fn, "syslog")) {
+		  f->f = NULL;
+		  f->facility = LOG_LOCAL0;
 		} else {
 			if (fn[0] == '/') 
 				strncpy(tmp, fn, sizeof(tmp) - 1);
@@ -174,14 +182,73 @@ static void init_logger_chain(void)
 
 }
 
-int reload_logger(void)
+int reload_logger(int rotate)
 {
+	char old[AST_CONFIG_MAX_PATH];
 	char tmp[AST_CONFIG_MAX_PATH];
+	char new[AST_CONFIG_MAX_PATH];
+	struct logfile *f;
+
+	int x;
+
 	ast_mutex_lock(&loglock);
-	if (eventlog)
-		fclose(eventlog);
+	if (eventlog) 
+	  fclose(eventlog);
+	else 
+	  rotate = 0;
+
+
+
 	mkdir((char *)ast_config_AST_LOG_DIR, 0755);
-	snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_LOG_DIR, EVENTLOG);
+	snprintf(old, sizeof(old), "%s/%s", (char *)ast_config_AST_LOG_DIR, EVENTLOG);
+
+	for(x=0;;x++) {
+	  snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR, EVENTLOG,x);
+	  eventlog = fopen((char *)new, "r");
+	  if(eventlog) 
+	    fclose(eventlog);
+	  else
+	    break;
+	}
+
+	if(rotate) {
+	  /* do it */
+	  if(! link(old,new))
+	    unlink(old);
+	  strcpy(tmp,old);
+	}
+
+
+	f = logfiles;
+	while(f) {
+	  if (f->f && (f->f != stdout) && (f->f != stderr)) {
+	    fclose(f->f);
+	    snprintf(old, sizeof(old), "%s/%s", (char *)ast_config_AST_LOG_DIR,f->fn);
+
+	    for(x=0;;x++) {
+	      snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR,f->fn,x);
+	      eventlog = fopen((char *)new, "r");
+	      if(eventlog) 
+		fclose(eventlog);
+	      else
+		break;
+	    }
+	    
+	    if(rotate) {
+	      /* do it */
+	      if(! link(old,new))
+		unlink(old);
+	      f->f = fopen((char *)old, "a");
+	    }
+	    
+
+	  }
+
+
+	  f = f->next;
+	}
+
+
 	eventlog = fopen((char *)tmp, "a");
 	ast_mutex_unlock(&loglock);
 
@@ -199,7 +266,25 @@ int reload_logger(void)
 
 static int handle_logger_reload(int fd, int argc, char *argv[])
 {
-	if(reload_logger())
+	if(reload_logger(0))
+	{
+		ast_cli(fd, "Failed to reloadthe logger\n");
+		return RESULT_FAILURE;
+	}
+	else
+		return RESULT_SUCCESS;
+}
+
+
+
+
+
+
+
+
+static int handle_logger_rotate(int fd, int argc, char *argv[])
+{
+	if(reload_logger(1))
 	{
 		ast_cli(fd, "Failed to reloadthe logger\n");
 		return RESULT_FAILURE;
@@ -218,18 +303,46 @@ static char logger_reload_help[] =
 "Usage: logger reload\n"
 "       Reopens the log files.  Use after a rotating the log files\n";
 
+
+static char logger_rotate_help[] =
+"Usage: logger reload\n"
+"       Rotates and Reopens the log files.\n";
+
+
 static struct ast_cli_entry reload_logger_cli = 
 	{ { "logger", "reload", NULL }, 
 	handle_logger_reload, "Reopens the log files",
 	logger_reload_help };
 
 
+static struct ast_cli_entry rotate_logger_cli = 
+	{ { "logger", "rotate", NULL }, 
+	handle_logger_rotate, "Reopens the log files",
+	logger_rotate_help };
+
+
+
+static int handle_SIGXFSZ(int sig) {
+  reload_logger(1);
+  ast_log(LOG_EVENT,"Rotated Logs Per SIGXFSZ\n");
+  if (option_verbose)
+    ast_verbose("Rotated Logs Per SIGXFSZ\n");
+  
+  return 0;
+}
+
 int init_logger(void)
 {
 	char tmp[AST_CONFIG_MAX_PATH];
 
+
+
+	/* auto rotate if sig SIGXFSZ comes a-knockin */
+	(void) signal(SIGXFSZ,(void *) handle_SIGXFSZ);
+
 	/* register the relaod logger cli command */
 	ast_cli_register(&reload_logger_cli);
+	ast_cli_register(&rotate_logger_cli);
 	
 	mkdir((char *)ast_config_AST_LOG_DIR, 0755);
 	snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_LOG_DIR, EVENTLOG);
@@ -283,7 +396,18 @@ extern void ast_log(int level, const char *file, int line, const char *function,
 		if (logfiles) {
 			f = logfiles;
 			while(f) {
-				if (f->logflags & (1 << level) && f->f) {
+			  if (f->logflags & (1 << level) && f->facility) {
+			    time(&t);
+			    localtime_r(&t,&tm);
+			    strftime(date, sizeof(date), "%b %e %T", &tm);
+			    
+			    openlog("asterisk_pbx",LOG_PID,f->facility);
+			    syslog(LOG_INFO|f->facility,"%s %s[%ld]: File %s, Line %d (%s): ",date, 
+				   levels[level], (long)pthread_self(), file, line, function);
+			    closelog();
+
+			  }
+			  else if (f->logflags & (1 << level) && f->f) {
 					if ((f->f != stdout) && (f->f != stderr)) {
 						time(&t);
 						localtime_r(&t,&tm);
@@ -355,7 +479,7 @@ extern void ast_verbose(const char *fmt, ...)
 				last = m;
 			} else {
 				msgcnt--;
-				ast_log(LOG_DEBUG, "Out of memory\n");
+				ast_log(LOG_ERROR, "Out of memory\n");
 				free(m);
 			}
 		}

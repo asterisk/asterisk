@@ -15,3 +15,11 @@
 console => notice,warning,error
 ;console => notice,warning,error,debug
 messages => notice,warning,error
+
+;syslog keyword : This special keyword logs to syslog facility 
+;local0 edit /etc/syslog.conf and add 
+;local0.* /var/log/myastlog 
+;
+;syslog => notice,warning,error
+
+
