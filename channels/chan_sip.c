@@ -456,7 +456,7 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
 	pkt->seqno = seqno;
 	pkt->resp = resp;
 	/* Schedule retransmission */
-	pkt->retransid = ast_sched_add(sched, 1000, retrans_pkt, pkt);
+	pkt->retransid = ast_sched_add(sched, DEFAULT_RETRANS, retrans_pkt, pkt);
 	pkt->next = p->packets;
 	p->packets = pkt;
 	__sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
@@ -5512,7 +5512,7 @@ static int reload_config(void)
 	}
 	
 	if (ntohl(bindaddr.sin_addr.s_addr)) {
-		memcpy(&__ourip, &bindaddr, sizeof(__ourip));
+		memcpy(&__ourip, &bindaddr.sin_addr, sizeof(__ourip));
 	} else {
 		hp = gethostbyname(ourhost);
 		if (!hp) {
