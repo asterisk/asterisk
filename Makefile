@@ -76,7 +76,7 @@ DEBUG=-g #-pg
 #OPTIONS += -DLOW_MEMORY
 
 # Optional debugging parameters
-DEBUG_THREADS = -DDEBUG_THREADS #-DDO_CRASH 
+DEBUG_THREADS = #-DDEBUG_THREADS #-DDO_CRASH 
 
 # Uncomment next one to enable ast_frame tracing (for debugging)
 TRACE_FRAMES = #-DTRACE_FRAMES
