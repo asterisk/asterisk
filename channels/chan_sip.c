@@ -35,6 +35,7 @@
 #include <asterisk/musiconhold.h>
 #include <asterisk/dsp.h>
 #include <asterisk/parking.h>
+#include <asterisk/acl.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -844,94 +845,6 @@ static void sip_destroy(struct sip_pvt *p)
 	ast_pthread_mutex_unlock(&iflock);
 }
 
-/* Interface lookup code courtesy Tilghman of DrunkCoder.com.  Thanks! */
-
-struct my_ifreq {
-	char ifrn_name[IFNAMSIZ];	/* Interface name, e.g. "en0".  */
-	struct sockaddr_in ifru_addr;
-};
-
-static struct in_addr *lookup_iface(char *iface) {
-	int mysock;
-	int res;
-	static struct  my_ifreq ifreq;
-	memset(&ifreq, 0, sizeof(ifreq));
-	strncpy(ifreq.ifrn_name,iface,sizeof(ifreq.ifrn_name) - 1);
-
-	mysock = socket(PF_INET,SOCK_DGRAM,IPPROTO_IP);
-	res = ioctl(mysock,SIOCGIFADDR,&ifreq);
-	
-	close(mysock);
-	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to get IP of %s: %s\n", iface, strerror(errno));
-		return &__ourip;
-	}
-	return( (struct in_addr *) &ifreq.ifru_addr.sin_addr );
-}
-
-static struct in_addr *myaddrfor(struct in_addr *them)
-{
-	FILE *PROC;
-	struct in_addr *temp = NULL;
-	unsigned int remote_ip;
-	char line[256];
-	remote_ip = them->s_addr;
-	
-	PROC = fopen("/proc/net/route","r");
-	if (!PROC) {
-		/* If /proc/net/route doesn't exist, fall back to the old method */
-		return &__ourip;
-	}
-	/* First line contains headers */
-	fgets(line,sizeof(line),PROC);
-
-	while (!feof(PROC)) {
-		char iface[8];
-		unsigned int dest, gateway, mask;
-		int i,aoffset;
-		char *fields[40];
-
-		fgets(line,sizeof(line),PROC);
-
-		aoffset = 0;
-		for (i=0;i<sizeof(line);i++) {
-			char *boffset;
-
-			fields[aoffset++] = line + i;
-			boffset = strchr(line + i,'\t');
-			if (boffset == NULL) {
-				/* Exit loop */
-				break;
-			} else {
-				*boffset = '\0';
-				i = boffset - line;
-			}
-		}
-
-		sscanf(fields[0],"%s",iface);
-		sscanf(fields[1],"%x",&dest);
-		sscanf(fields[2],"%x",&gateway);
-		sscanf(fields[7],"%x",&mask);
-#if 0
-		printf("Addr: %s %08x Dest: %08x Mask: %08x\n", inet_ntoa(*them), remote_ip, dest, mask);
-#endif		
-		if (((remote_ip & mask) ^ dest) == 0) {
-			if (sipdebug)
-				ast_verbose("Interface is %s\n",iface);
-			temp = lookup_iface(iface);
-			if (sipdebug)
-				ast_verbose("IP Address is %s\n",inet_ntoa(*temp));
-			break;
-		}
-	}
-	fclose(PROC);
-	if (!temp) {
-		ast_log(LOG_WARNING, "Couldn't figure out how to get to %s.  Using default\n", inet_ntoa(*them));
- 		temp = &__ourip;
- 	}
-	return temp;
-}
-
 static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req);
 
 
@@ -1363,10 +1276,12 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 #endif	
 	if (sin) {
 		memcpy(&p->sa, sin, sizeof(p->sa));
-		memcpy(&p->ourip, myaddrfor(&p->sa.sin_addr), sizeof(p->ourip));
+		if (ast_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+			memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	} else {
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	}
+	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	if (!callid)
 		build_callid(p->callid, sizeof(p->callid), p->ourip);
@@ -2668,6 +2583,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 	snprintf(tmp, sizeof(tmp), "%u %s", ++r->ocseq, cmd);
 	p->ocseq = r->ocseq;
 
+	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	snprintf(via, sizeof(via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	add_header(&req, "Via", via);
 	add_header(&req, "From", from);
@@ -4595,7 +4511,9 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 		return 0;
 	}
 	/* Recalculate our side, and recalculate Call ID */
-	memcpy(&p->ourip, myaddrfor(&p->sa.sin_addr), sizeof(p->ourip));
+	if (ast_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	build_callid(p->callid, sizeof(p->callid), p->ourip);
 	/* Send MWI */
@@ -4746,7 +4664,9 @@ static int sip_poke_peer(struct sip_peer *peer)
 		snprintf(p->tohost, sizeof(p->tohost), "%s", inet_ntoa(peer->addr.sin_addr));
 
 	/* Recalculate our side, and recalculate Call ID */
-	memcpy(&p->ourip, myaddrfor(&p->sa.sin_addr), sizeof(p->ourip));
+	if (ast_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	build_callid(p->callid, sizeof(p->callid), p->ourip);
 
@@ -4855,7 +4775,9 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 	if (!strlen(p->peername) && ext)
 		strncpy(p->peername, ext, sizeof(p->peername) - 1);
 	/* Recalculate our side, and recalculate Call ID */
-	memcpy(&p->ourip, myaddrfor(&p->sa.sin_addr), sizeof(p->ourip));
+	if (ast_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	build_callid(p->callid, sizeof(p->callid), p->ourip);
 	if (ext)

@@ -41,6 +41,8 @@ Mahmut Fettahlioglu - Audio recording, music-on-hold changes, alaw file
        format, and various fixes. Can be contacted at mahmut@oa.com.au
 James Dennis - Cisco SIP compatibility patches to work with SIP service
        providers. Can be contacted at asterisk@jdennis.net
+Tilghman Lesher - Route lookup code, gotoiftime application, and various
+       other patches.  http://asterisk.drunkcoder.com/
 
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt

@@ -278,103 +278,6 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 	return res;
 }
 
-/* Interface lookup code courtesy Tilghman of DrunkCoder.com.  Thanks! */
-
-struct my_ifreq {
-    union
-      {
-	char ifrn_name[IFNAMSIZ];	/* Interface name, e.g. "en0".  */
-      } ifr_ifrn;
-
-    union
-      {
-	struct sockaddr_in ifru_addr;
-	char ifru_data[512];
-      } ifr_ifru;
-};
-
-static struct in_addr *lookup_iface(char *iface) {
-	int mysock;
-	int res;
-	static struct  my_ifreq ifreq;
-	strncpy(ifreq.ifr_ifrn.ifrn_name,iface,sizeof(ifreq.ifr_ifrn.ifrn_name));
-
-	mysock = socket(PF_INET,SOCK_DGRAM,IPPROTO_IP);
-	res = ioctl(mysock,SIOCGIFADDR,&ifreq);
-	
-	close(mysock);
-	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to get IP of %s: %s\n", iface, strerror(errno));
-		return &__ourip;
-	}
-	return( (struct in_addr *) &ifreq.ifr_ifru.ifru_addr.sin_addr );
-}
-
-static struct in_addr *myaddrfor(struct in_addr *them)
-{
-	FILE *PROC;
-	struct in_addr *temp = NULL;
-	unsigned int remote_ip;
-	char line[256];
-	remote_ip = them->s_addr;
-	
-	PROC = fopen("/proc/net/route","r");
-	if (!PROC) {
-		/* If /proc/net/route doesn't exist, fall back to the old method */
-		return &__ourip;
-	}
-	/* First line contains headers */
-	fgets(line,sizeof(line),PROC);
-
-	while (!feof(PROC)) {
-		char iface[8];
-		unsigned int dest, gateway, mask;
-		int i,aoffset;
-		char *fields[40];
-
-		fgets(line,sizeof(line),PROC);
-
-		aoffset = 0;
-		for (i=0;i<sizeof(line);i++) {
-			char *boffset;
-
-			fields[aoffset++] = line + i;
-			boffset = strchr(line + i,'\t');
-			if (boffset == NULL) {
-				/* Exit loop */
-				break;
-			} else {
-				*boffset = '\0';
-				i = boffset - line;
-			}
-		}
-
-		sscanf(fields[0],"%s",iface);
-		sscanf(fields[1],"%x",&dest);
-		sscanf(fields[2],"%x",&gateway);
-		sscanf(fields[7],"%x",&mask);
-#if 0
-		printf("Addr: %s %08x Dest: %08x Mask: %08x\n", inet_ntoa(*them), remote_ip, dest, mask);
-#endif		
-		if (((remote_ip & mask) ^ dest) == 0) {
-
-			if (mgcpdebug)
-					ast_verbose("Interface is %s\n",iface);
-			temp = lookup_iface(iface);
-			if (mgcpdebug)
-				ast_verbose("IP Address is %s\n",inet_ntoa(*temp));
-			break;
-		}
-	}
-	fclose(PROC);
-	if (!temp) {
-		ast_log(LOG_WARNING, "Couldn't figure out how to get to %s.  Using default\n", inet_ntoa(*them));
- 		temp = &__ourip;
- 	}
-	return temp;
-}
-
-
 static int mgcp_hangup(struct ast_channel *ast)
 {
 	struct mgcp_endpoint *p = ast->pvt->pvt;
@@ -808,7 +711,8 @@ static struct mgcp_endpoint *find_endpoint(char *name, int msgid, struct sockadd
 				if ((g->addr.sin_addr.s_addr != sin->sin_addr.s_addr) ||
 					(g->addr.sin_port != sin->sin_port)) {
 					memcpy(&g->addr, sin, sizeof(g->addr));
-					memcpy(&g->ourip, myaddrfor(&g->addr.sin_addr), sizeof(g->ourip));
+					if (ast_ouraddrfor(&g->addr.sin_addr, &g->ourip))
+						memcpy(&g->ourip, &__ourip, sizeof(g->ourip));
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Registered MGCP gateway '%s' at %s port %d\n", g->name, inet_ntoa(g->addr.sin_addr), ntohs(g->addr.sin_port));
 				}
@@ -1793,7 +1697,8 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 	if (gw->addr.sin_addr.s_addr && !ntohs(gw->addr.sin_port))
 		gw->addr.sin_port = htons(DEFAULT_MGCP_PORT);
 	if (gw->addr.sin_addr.s_addr)
-		memcpy(&gw->ourip, myaddrfor(&gw->addr.sin_addr), sizeof(gw->ourip));
+		if (ast_ouraddrfor(&gw->addr.sin_addr, &gw->ourip))
+			memcpy(&gw->ourip, &__ourip, sizeof(gw->ourip));
 	return gw;
 }
 
