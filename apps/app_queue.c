@@ -1344,28 +1344,41 @@ static void reload_queues(void)
 	ast_mutex_unlock(&qlock);
 }
 
-static int queues_show(int fd, int argc, char **argv)
+static int __queues_show(int fd, int argc, char **argv, int queue_show)
 {
-	struct ast_call_queue *q;
+	struct ast_call_queue *q, tmpq;
 	struct queue_ent *qe;
 	struct member *mem;
 	int pos;
 	time_t now;
 	char max[80];
 	char calls[80];
-	
 	time(&now);
-	if (argc != 2)
+	if ((!queue_show && argc != 2) || (queue_show && argc != 3))
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&qlock);
 	q = queues;
 	if (!q) {	
 		ast_mutex_unlock(&qlock);
-		ast_cli(fd, "No queues.\n");
+		if (queue_show)
+			ast_cli(fd, "No such queue: %s.\n",argv[2]);
+		else
+			ast_cli(fd, "No queues.\n");
 		return RESULT_SUCCESS;
 	}
 	while(q) {
 		ast_mutex_lock(&q->lock);
+		if (queue_show) {
+			if (strcasecmp(q->name, argv[2]) != 0) {
+				q = q->next;
+				ast_mutex_unlock(&q->lock);
+				if (!q) {
+					ast_cli(fd, "No such queue: %s.\n",argv[2]);
+					break;
+				}
+				continue;
+			}
+		}
 		if (q->maxlen)
 			snprintf(max, sizeof(max), "%d", q->maxlen);
 		else
@@ -1400,9 +1413,39 @@ static int queues_show(int fd, int argc, char **argv)
 		ast_cli(fd, "\n");
 		ast_mutex_unlock(&q->lock);
 		q = q->next;
+		if (queue_show)
+			break;
 	}
 	ast_mutex_unlock(&qlock);
 	return RESULT_SUCCESS;
+}
+
+static int queues_show(int fd, int argc, char **argv)
+{
+	return __queues_show(fd, argc, argv, 0);
+}
+
+static int queue_show(int fd, int argc, char **argv)
+{
+	return __queues_show(fd, argc, argv, 1);
+}
+
+static char *complete_queue(char *line, char *word, int pos, int state)
+{
+	struct ast_call_queue *q;
+	int which=0;
+	
+	ast_mutex_lock(&qlock);
+	q = queues;
+	while(q) {
+		if (!strncasecmp(word, q->name, strlen(word))) {
+			if (++which > state)
+				break;
+		}
+		q = q->next;
+	}
+	ast_mutex_unlock(&qlock);
+	return q ? strdup(q->name) : NULL;
 }
 
 /* JDG: callback to display queues status in manager */
@@ -1469,9 +1512,18 @@ static struct ast_cli_entry cli_show_queues = {
 	{ "show", "queues", NULL }, queues_show, 
 	"Show status of queues", show_queues_usage, NULL };
 
+static char show_queue_usage[] = 
+"Usage: show queue\n"
+"       Provides summary information on a specified queue.\n";
+
+static struct ast_cli_entry cli_show_queue = {
+	{ "show", "queue", NULL }, queue_show, 
+	"Show status of a specified queue", show_queue_usage, complete_queue };
+
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
+	ast_cli_unregister(&cli_show_queue);
 	ast_cli_unregister(&cli_show_queues);
 	ast_manager_unregister( "Queues" );
 	ast_manager_unregister( "QueueStatus" );
@@ -1483,6 +1535,7 @@ int load_module(void)
 	int res;
 	res = ast_register_application(app, queue_exec, synopsis, descrip);
 	if (!res) {
+		ast_cli_register(&cli_show_queue);
 		ast_cli_register(&cli_show_queues);
 		ast_manager_register( "Queues", 0, manager_queues_show, "Queues" );
 		ast_manager_register( "QueueStatus", 0, manager_queues_status, "Queue Status" );
