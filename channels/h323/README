@@ -10,7 +10,7 @@
 	       			expat-1.95
 	       			expat-dev-1.95
 
-This code runs on Open H.323 v1.13.5 and PWLib v1.6.6. If you use different
+This code runs on Open H.323 and PWLib Janus (Patch 2). If you use different
 versions, you are on your own.
 
 chan_h323 has been implemented using Asterisk's RTP stack insted of trying
