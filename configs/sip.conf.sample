@@ -50,7 +50,7 @@ context = default		; Default context for incoming calls
 ; section defined below.
 ;
 ; Examples:
-,
+;
 ;register => 1234:password@mysipprovider.com	
 ;
 ;    Will call to the 's' extension
