@@ -186,6 +186,13 @@ callwaiting=yes
 ;
 usecallingpres=yes
 ;
+; Some countries (UK) have ring tones with different ring tones (ring-ring),
+; which means the callerid needs to be set later on, and not just after
+; the first ring, as per the default. 
+;
+;sendcalleridafter=1
+;
+;
 ; Support Caller*ID on Call Waiting
 ;
 callwaitingcallerid=yes

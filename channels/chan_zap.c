@@ -277,6 +277,9 @@ static int hanguponpolarityswitch = 0;
 /* How long (ms) to ignore Polarity Switch events after we answer a call */
 static int polarityonanswerdelay = 600;
 
+/* When to send the CallerID signals (rings) */
+static int sendcalleridafter = DEFAULT_CIDRINGS;
+
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
 AST_MUTEX_DEFINE_STATIC(monlock);
@@ -566,6 +569,7 @@ static struct zt_pvt {
 	int hanguponpolarityswitch;
 	int polarityonanswerdelay;
 	struct timeval polaritydelaytv;
+	int sendcalleridafter;
 #ifdef ZAPATA_PRI
 	struct zt_pri *pri;
 	struct zt_pvt *bearer;
@@ -1567,7 +1571,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			} else {
 				if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETCADENCE, NULL))
 					ast_log(LOG_WARNING, "Unable to reset default ring on '%s'\n", ast->name);
-				p->cidrings = DEFAULT_CIDRINGS;
+				p->cidrings = p->sendcalleridafter;
 			}
 
 
@@ -6652,6 +6656,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 
 		tmp->polarityonanswerdelay = polarityonanswerdelay;
 		tmp->hanguponpolarityswitch = hanguponpolarityswitch;
+		tmp->sendcalleridafter = sendcalleridafter;
 
 	}
 	if (tmp && !here) {
@@ -9809,6 +9814,8 @@ static int setup_zap(int reload)
 				polarityonanswerdelay = atoi(v->value);
 			} else if (!strcasecmp(v->name, "hanguponpolarityswitch")) {
 				hanguponpolarityswitch = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "sendcalleridafter")) {
+				sendcalleridafter = atoi(v->value);
 			} 
 		} else 
 			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
