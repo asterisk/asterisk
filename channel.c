@@ -1811,6 +1811,7 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
 	   not really safe not to XXX */
 	ast_queue_frame(original, &null, 0);
 	ast_queue_frame(clone, &null, 0);
+	ast_log(LOG_DEBUG, "Done planning to masquerade %s into the structure of %s\n", original->name, clone->name);
 	return 0;
 }
 
