@@ -182,6 +182,7 @@ static int pbx_builtin_saydigits(struct ast_channel *, void *);
 static int pbx_builtin_saycharacters(struct ast_channel *, void *);
 static int pbx_builtin_sayphonetic(struct ast_channel *, void *);
 int pbx_builtin_setvar(struct ast_channel *, void *);
+static int pbx_builtin_importvar(struct ast_channel *, void *);
 void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value);
 char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name);
 
@@ -386,6 +387,12 @@ static struct pbx_builtin {
 	{ "SetVar", pbx_builtin_setvar,
 	"Set variable to value",
 	"  SetVar(#n=value): Sets variable n to value.  If prefixed with _, single\n"
+	"inheritance assumed.  If prefixed with __, infinite inheritance is assumed.\n" },
+
+	{ "ImportVar", pbx_builtin_importvar,
+	"Set variable to value",
+	"  ImportVar(#n=channel|variable): Sets variable n to variable as evaluated on\n"
+	"the specified channel (instead of current).  If prefixed with _, single\n"
 	"inheritance assumed.  If prefixed with __, infinite inheritance is assumed.\n" },
 
 	{ "StripMSD", pbx_builtin_stripmsd,
@@ -910,16 +917,6 @@ static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var
 	} else if (c && !strcmp(var, "EXTEN")) {
 		strncpy(workspace, c->exten, workspacelen - 1);
 		*ret = workspace;
-	} else if (c && !strncmp(var, "EXTEN-", strlen("EXTEN-")) && 
-		/* XXX Remove me eventually */
-		(sscanf(var + strlen("EXTEN-"), "%d", &offset) == 1)) {
-		if (offset < 0)
-			offset=0;
-		if (offset > strlen(c->exten))
-			offset = strlen(c->exten);
-		strncpy(workspace, c->exten + offset, workspacelen - 1);
-		*ret = workspace;
-		ast_log(LOG_WARNING, "The use of 'EXTEN-foo' has been deprecated in favor of 'EXTEN:foo'\n");
 	} else if (c && !strcmp(var, "RDNIS")) {
 		if (c->cid.cid_rdnis) {
 			strncpy(workspace, c->cid.cid_rdnis, workspacelen - 1);
@@ -5075,11 +5072,50 @@ int pbx_builtin_setvar(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
-	stringp = data;
+	stringp = ast_strdupa(data);
 	name = strsep(&stringp,"=");
 	value = strsep(&stringp,"\0"); 
 
 	pbx_builtin_setvar_helper(chan, name, value);
+
+	return(0);
+}
+
+int pbx_builtin_importvar(struct ast_channel *chan, void *data)
+{
+	char *name;
+	char *value;
+	char *stringp=NULL;
+	char *channel;
+	struct ast_channel *chan2=NULL;
+	char tmp[4096]="";
+	char *s;
+
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "Ignoring, since there is no variable to set\n");
+		return 0;
+	}
+
+	stringp = ast_strdupa(data);
+	name = strsep(&stringp,"=");
+	channel = strsep(&stringp,"|"); 
+	value = strsep(&stringp,"\0");
+	if (channel && value && name) {
+		while((chan2 = ast_channel_walk_locked(chan2))) {
+			if (!strcmp(chan2->name, channel))
+				break;
+			ast_mutex_unlock(&chan2->lock);
+		}
+		if (chan2) {
+			s = alloca(strlen(value) + 4);
+			if (s) {
+				sprintf(s, "${%s}", value);
+				pbx_substitute_variables_helper(chan2, s, tmp, sizeof(tmp) - 1);
+			}
+			ast_mutex_unlock(&chan2->lock);
+		}
+		pbx_builtin_setvar_helper(chan, name, tmp);
+	}
 
 	return(0);
 }
