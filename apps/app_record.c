@@ -28,10 +28,10 @@ static char *app = "Record";
 static char *synopsis = "Record to a file";
 
 static char *descrip = 
-"  Record(filename:extension): Records from the channel into a given filename.\n"
-"  If the file exists it will be overwritten.  The 'extension' is the extension\n"
-"  of the file type to be recorded (wav, gsm, etc).  Returns -1 when the user\n"
-"  hangs up.\n";
+"  Record(filename:extension): Records from the  channel into a given\n"
+"filename. If the file exists it will be overwritten. The 'extension'\n"
+"is the extension of the file type  to  be  recorded (wav, gsm, etc).\n"
+"Returns -1 when the user hangs up.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -124,6 +124,12 @@ static int record_exec(struct ast_channel *chan, void *data)
 						break;
 					}
 				}
+				if ((f->frametype == AST_FRAME_DTMF) &&
+					(f->subclass == '#')) {
+					ast_frfree(f);
+					break;
+				}
+				ast_frfree(f);
 			}
 			if (!f) {
 					ast_log(LOG_DEBUG, "Got hangup\n");
