@@ -214,7 +214,6 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, o->chan->name);
 					/* Setup parameters */
-					ast_hangup(o->chan);
 					o->chan = ast_request(tech, in->nativeformats, stuff);
 					if (!o->chan) {
 						ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s'\n", tech, stuff);
@@ -234,6 +233,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							else
 								newcid = in->exten;
 							o->chan->callerid = strdup(newcid);
+							strncpy(o->chan->accountcode, winner->accountcode, sizeof(o->chan->accountcode) - 1);
+							o->chan->cdrflags = winner->cdrflags;
 							if (!o->chan->callerid)
 								ast_log(LOG_WARNING, "Out of memory\n");
 						} else {
@@ -241,6 +242,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 								o->chan->callerid = strdup(in->callerid);
 							if (!o->chan->callerid)
 								ast_log(LOG_WARNING, "Out of memory\n");
+							strncpy(o->chan->accountcode, in->accountcode, sizeof(o->chan->accountcode) - 1);
+							o->chan->cdrflags = in->cdrflags;
 						}
 
 						if (in->ani) {
@@ -266,6 +269,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							numnochan++;
 						}
 					}
+					/* Hangup the original channel now, in case we needed it */
+					ast_hangup(winner);
 					continue;
 				}
 				f = ast_read(winner);

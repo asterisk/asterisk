@@ -252,6 +252,9 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	else
 		p->chan->ani = NULL;
 	strncpy(p->chan->language, p->owner->language, sizeof(p->chan->language) - 1);
+	strncpy(p->chan->accountcode, p->owner->accountcode, sizeof(p->chan->accountcode) - 1);
+	p->chan->cdrflags = p->owner->cdrflags;
+	
 	p->launchedpbx = 1;
 	/* Start switch on sub channel */
 	res = ast_pbx_start(p->chan);
