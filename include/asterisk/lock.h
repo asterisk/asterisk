@@ -20,10 +20,10 @@
 #define AST_PTHREADT_STOP (pthread_t) -2
 
 #ifdef DEBUG_THREADS
+
 #ifdef THREAD_CRASH
 #define DO_THREAD_CRASH do { *((int *)(0)) = 1; } while(0)
 #endif
-
 
 #include <errno.h>
 #include <string.h>
@@ -164,7 +164,7 @@ static inline int __ast_pthread_mutex_destroy(char *filename, int lineno, char *
 #define pthread_mutex_init use_ast_pthread_mutex_init_instead_of_pthread_mutex_init
 #define pthread_mutex_destroy use_ast_pthread_mutex_destroy_instead_of_pthread_mutex_destroy
 
-#else
+#else /* DEBUG_THREADS */
 
 #define AST_MUTEX_INITIALIZER      PTHREAD_MUTEX_INITIALIZER
 #ifdef PTHREAD_MUTEX_FAST_NP
@@ -182,7 +182,7 @@ typedef pthread_mutex_t ast_mutex_t;
 #define ast_pthread_mutex_init(t,a) pthread_mutex_init(t,a)
 #define ast_mutex_destroy(t) pthread_mutex_destroy(t)
 
-#endif
+#endif /* DEBUG_THREADS */
 
 
 #endif
