@@ -534,6 +534,27 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp)
 	return res;
 }
 
+static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp)
+{
+	struct sip_pkt *cur, *prev = NULL;
+	int res = -1;
+	cur = p->packets;
+	while(cur) {
+		if ((cur->seqno == seqno) && (cur->resp == resp)) {
+			/* this is our baby */
+			if (cur->retransid > -1)
+				ast_sched_del(sched, cur->retransid);
+			cur->retransid = -1;
+			res = 0;
+			break;
+		}
+		prev = cur;
+		cur = cur->next;
+	}
+	ast_log(LOG_DEBUG, "Stopping retransmission (but retaining packet) on provisional '%s' of %s %d: %s\n", p->callid, resp ? "Response" : "Request", seqno, res ? "Not Found" : "Found");
+	return res;
+}
+
 static int send_response(struct sip_pvt *p, struct sip_request *req, int reliable, int seqno)
 {
 	int res;
@@ -4224,7 +4245,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	if (!msg) msg = ""; else msg++;
 	owner = p->owner;
 	/* Acknowledge whatever it is destined for */
-	__sip_ack(p, seqno, 0);
+	if ((resp >= 100) && (resp <= 199))
+		__sip_semi_ack(p, seqno, 0);
+	else
+		__sip_ack(p, seqno, 0);
 	/* Get their tag if we haven't already */
 	to = get_header(req, "To");
 	to = strstr(to, "tag=");
@@ -4235,7 +4259,6 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		if (to)
 			*to = '\0';
 	}
-		
 	if (p->peerpoke) {
 		/* We don't really care what the response is, just that it replied back. 
 		   Well, as long as it's not a 100 response...  since we might
@@ -4329,7 +4352,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				transmit_request(p, "ACK", seqno, 0);
 				/* Go ahead and send bye at this point */
 				if (p->pendingbye) {
-					transmit_request(p, "BYE", 0, 1);
+					transmit_request_with_auth(p, "BYE", 0, 1);
 					p->needdestroy = 1;
 				}
 			} else if (!strcasecmp(msg, "REGISTER")) {
