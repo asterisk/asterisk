@@ -7537,9 +7537,9 @@ int load_module(void)
 
 	if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
 		ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
-	
+
+	res = start_network_thread();
 	if (!res) {
-		res = start_network_thread();
 		if (option_verbose > 1) 
 			ast_verbose(VERBOSE_PREFIX_2 "IAX Ready and Listening on %s port %d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 	} else {
