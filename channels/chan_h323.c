@@ -1592,6 +1592,7 @@ int reload(void)
 
 	reload_config();
 
+#if 0
 	/* Possibly register with a GK */
 	if (gatekeeper_disable == 0) {
 		if (h323_set_gk(gatekeeper_discover, gatekeeper, secret)) {
@@ -1600,6 +1601,7 @@ int reload(void)
 			return -1;
 		}
 	}
+#endif
 	restart_monitor();
 	return 0;
 }
