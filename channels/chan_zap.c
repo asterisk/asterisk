@@ -478,7 +478,7 @@ static struct zt_pvt {
 	int echocanbridged;
 	int echocanon;
 	int echobreak;
-	char echorest[10];
+	char echorest[20];
 	int permcallwaiting;
 	int callwaitingcallerid;
 	int threewaycalling;
@@ -1200,7 +1200,7 @@ static void zt_train_ec(struct zt_pvt *p)
 	int x;
 	int res;
 	if (p && p->echocancel && p->echotraining) {
-		x = 400;
+		x = p->echotraining;
 		res = ioctl(p->subs[SUB_REAL].zfd, ZT_ECHOTRAIN, &x);
 		if (res) 
 			ast_log(LOG_WARNING, "Unable to request echo training on channel %d\n", p->channel);
@@ -1646,8 +1646,9 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		} else 
 			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%sw", c + p->stripmsd);
 		if (strlen(p->dop.dialstr) > 4) {
-			strcpy(p->echorest, "w");
-			strcpy(p->echorest + 1, p->dop.dialstr + strlen(p->dop.dialstr) - 2);
+			memset(p->echorest, 'w', sizeof(p->echorest) - 1);
+			p->echorest[sizeof(p->echorest) - 1] = '\0';
+			strcpy(p->echorest + (p->echotraining / 400) + 1, p->dop.dialstr + strlen(p->dop.dialstr) - 2);
 			p->echobreak = 1;
 			p->dop.dialstr[strlen(p->dop.dialstr)-2] = '\0';
 		} else
@@ -3193,8 +3194,9 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				if (*c) snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*0%s#", c);
 				else strcpy(p->dop.dialstr,"M*2#");
 				if (strlen(p->dop.dialstr) > 4) {
-					strcpy(p->echorest, "w");
-					strcpy(p->echorest + 1, p->dop.dialstr + strlen(p->dop.dialstr) - 2);
+					memset(p->echorest, 'w', sizeof(p->echorest) - 1);
+					p->echorest[sizeof(p->echorest) - 1] = '\0';
+					strcpy(p->echorest + (p->echotraining / 400) + 1, p->dop.dialstr + strlen(p->dop.dialstr) - 2);
 					p->echobreak = 1;
 					p->dop.dialstr[strlen(p->dop.dialstr)-2] = '\0';
 				} else
@@ -8603,7 +8605,16 @@ static int setup_zap(void)
 					echocancel=128;
 			}
 		} else if (!strcasecmp(v->name, "echotraining")) {
-			echotraining = ast_true(v->value);
+			if (sscanf(v->value, "%i", &y) == 1) {
+				if ((y < 10) || (y > 4000)) {
+					ast_log(LOG_WARNING, "Echo training time must be within the range of 10 to 2000 ms at line %d\n", v->lineno);					
+				} else {
+					echotraining = y;
+				}
+			} else if (ast_true(v->value)) {
+				echotraining = 400;
+			} else
+				echotraining = 0;
 		} else if (!strcasecmp(v->name, "hidecallerid")) {
 			hidecallerid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "callreturn")) {

@@ -194,9 +194,11 @@ echocancelwhenbridged=yes
 ; is echo at the beginning of the call.  Enabling echo training will cause
 ; asterisk to briefly mute the channel, send an impulse, and use the impulse
 ; response to pre-train the echo canceller so it can start out with a much
-; closer idea of the actual echo.
+; closer idea of the actual echo.  Value may be "yes", "no", or a number of
+; milliseconds to delay before training (default = 400)
 ;
 ;echotraining=yes
+;echotraining=800
 ;
 ; If you are having trouble with DTMF detection, you can relax the
 ; DTMF detection parameters.  Relaxing them may make the DTMF detector
