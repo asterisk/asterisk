@@ -185,7 +185,8 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token,
 							  			unsigned int *callReference, unsigned int port)
 {
 	PString fullAddress;
-	
+	MyH323Connection * connection;
+
 	/* Determine whether we are using a gatekeeper or not. */
 	if (GetGatekeeper() != NULL) {
 		fullAddress = dest;
@@ -197,18 +198,14 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token,
 				cout << " -- Making call to " << fullAddress << "." << endl;
 		}
 
-	if (!H323EndPoint::MakeCall(fullAddress, token)) {
+	if (!(connection = (MyH323Connection *)H323EndPoint::MakeCallLocked(fullAddress, token))) {
 		if (h323debug)
 			cout << "Error making call to \"" << fullAddress << '"' << endl;
 		return 1;
 	}
 	
-	MyH323Connection * connection = (MyH323Connection *)FindConnectionWithLock(token);
-
-	if (connection != NULL) {
-		*callReference = connection->GetCallReference();
-		connection->Unlock();
-	}
+	*callReference = connection->GetCallReference();
+	connection->Unlock();
 	
 	if (h323debug) {
 		cout << "	-- " << GetLocalUserName() << " is calling host " << fullAddress << endl;
