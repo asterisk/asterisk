@@ -186,8 +186,11 @@ void ast_channel_free(struct ast_channel *chan)
 		ast_log(LOG_WARNING, "Unable to find channel in list\n");
 	if (chan->pvt->pvt)
 		ast_log(LOG_WARNING, "Channel '%s' may not have been hung up properly\n", chan->name);
-	if (chan->trans)
-		ast_log(LOG_WARNING, "Hard hangup called on '%s' while a translator is in place!  Expect a failure.\n", chan->name);
+	/* Free translatosr */
+	if (chan->pvt->readtrans)
+		ast_translator_free_path(chan->pvt->readtrans);
+	if (chan->pvt->writetrans)
+		ast_translator_free_path(chan->pvt->writetrans);
 	if (chan->pbx) 
 		ast_log(LOG_WARNING, "PBX may not have been terminated properly on '%s'\n", chan->name);
 	if (chan->dnid)
@@ -195,6 +198,7 @@ void ast_channel_free(struct ast_channel *chan)
 	if (chan->callerid)
 		free(chan->callerid);	
 	pthread_mutex_destroy(&chan->lock);
+	free(chan->pvt);
 	free(chan);
 	PTHREAD_MUTEX_UNLOCK(&chlock);
 }
@@ -206,8 +210,6 @@ int ast_softhangup(struct ast_channel *chan)
 		ast_stopstream(chan);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Soft-Hanging up channel '%s'\n", chan->name);
-	if (chan->trans)
-		ast_log(LOG_WARNING, "Soft hangup called on '%s' while a translator is in place!  Expect a failure.\n", chan->name);
 	if (chan->pvt->hangup)
 		res = chan->pvt->hangup(chan);
 	if (chan->pvt->pvt)
@@ -227,8 +229,12 @@ int ast_hangup(struct ast_channel *chan)
 		ast_stopstream(chan);
 	if (chan->sched)
 		sched_context_destroy(chan->sched);
-	if (chan->blocking)
-		ast_log(LOG_WARNING, "Hard hangup called, while fd is blocking!  Expect a failure\n");
+	if (chan->blocking) {
+		ast_log(LOG_WARNING, "Hard hangup called by thread %ld on %s, while fd "
+					"is blocked by thread %ld in procedure %s!  Expect a failure\n",
+					pthread_self(), chan->name, chan->blocker, chan->blockproc);
+		CRASH;
+	}
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Hanging up channel '%s'\n", chan->name);
 	if (chan->pvt->hangup)
@@ -273,7 +279,7 @@ int ast_answer(struct ast_channel *chan)
 	return 0;
 }
 
-int ast_waitfor_n_fd(int *fds, int n, int *ms)
+int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 {
 	/* Wait for x amount of time on a file descriptor to have input.  */
 	struct timeval tv;
@@ -297,8 +303,11 @@ int ast_waitfor_n_fd(int *fds, int n, int *ms)
 	else
 		res = select(max + 1, &rfds, NULL, &efds, NULL);
 	for (x=0;x<n;x++) {
-		if ((FD_ISSET(fds[x], &rfds) || FD_ISSET(fds[x], &efds)) && (winner < 0))
+		if ((FD_ISSET(fds[x], &rfds) || FD_ISSET(fds[x], &efds)) && (winner < 0)) {
+			if (exception)
+				*exception = FD_ISSET(fds[x], &efds);
 			winner = fds[x];
+		}
 	}
 	*ms = tv.tv_sec * 1000 + tv.tv_usec / 1000;
 	if (res < 0)
@@ -332,8 +341,12 @@ struct ast_channel *ast_waitfor_n(struct ast_channel **c, int n, int *ms)
 		res = select(max + 1, &rfds, NULL, &efds, NULL);
 	for (x=0;x<n;x++) {
 		c[x]->blocking = 0;
-		if ((FD_ISSET(c[x]->fd, &rfds) || FD_ISSET(c[x]->fd, &efds)) && !winner)
+		if ((FD_ISSET(c[x]->fd, &rfds) || FD_ISSET(c[x]->fd, &efds)) && !winner) {
+			/* Set exception flag if appropriate */
+			if (FD_ISSET(c[x]->fd, &efds))
+				c[x]->exception = 1;
 			winner = c[x];
+		}
 	}
 	*ms = tv.tv_sec * 1000 + tv.tv_usec / 1000;
 	if (res < 0)
@@ -380,11 +393,30 @@ char ast_waitfordigit(struct ast_channel *c, int ms)
 struct ast_frame *ast_read(struct ast_channel *chan)
 {
 	struct ast_frame *f = NULL;
+	static struct ast_frame null_frame = 
+	{
+		AST_FRAME_NULL,
+	};
 	chan->blocker = pthread_self();
+	if (chan->exception) {
+		if (chan->pvt->exception) 
+			f = chan->pvt->exception(chan);
+		else
+			ast_log(LOG_WARNING, "Exception flag set, but no exception handler\n");
+		/* Clear the exception flag */
+		chan->exception = 0;
+	} else
 	if (chan->pvt->read)
 		f = chan->pvt->read(chan);
 	else
 		ast_log(LOG_WARNING, "No read routine on channel %s\n", chan);
+	if (f && (f->frametype == AST_FRAME_VOICE)) {
+		if (chan->pvt->readtrans) {
+			f = ast_translate(chan->pvt->readtrans, f, 1);
+			if (!f)
+				f = &null_frame;
+		}
+	}
 	return f;
 }
 
@@ -401,6 +433,7 @@ int ast_sendtext(struct ast_channel *chan, char *text)
 int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 {
 	int res = -1;
+	struct ast_frame *f;
 	CHECK_BLOCKING(chan);
 	switch(fr->frametype) {
 	case AST_FRAME_CONTROL:
@@ -413,17 +446,81 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			res = chan->pvt->send_digit(chan, fr->subclass);
 		break;
 	default:
-		if (chan->pvt->write)
-			res = chan->pvt->write(chan, fr);
+		if (chan->pvt->write) {
+			if (chan->pvt->writetrans) {
+				f = ast_translate(chan->pvt->writetrans, fr, 1);
+			} else
+				f = fr;
+			if (f)	
+				res = chan->pvt->write(chan, f);
+		}
 	}
 	chan->blocking = 0;
 	return res;
+}
+
+int ast_set_write_format(struct ast_channel *chan, int fmts)
+{
+	int fmt;
+	int native;
+	int res;
+	
+	native = chan->nativeformats;
+	fmt = fmts;
+	
+	res = ast_translator_best_choice(&native, &fmt);
+	if (res < 0) {
+		ast_log(LOG_NOTICE, "Unable to find a path from %d to %d\n", fmts, chan->nativeformats);
+		return -1;
+	}
+	
+	/* Now we have a good choice for both.  We'll write using our native format. */
+	chan->pvt->rawwriteformat = native;
+	/* User perspective is fmt */
+	chan->writeformat = fmt;
+	/* Free any write translation we have right now */
+	if (chan->pvt->writetrans)
+		ast_translator_free_path(chan->pvt->writetrans);
+	/* Build a translation path from the user write format to the raw writing format */
+	chan->pvt->writetrans = ast_translator_build_path(chan->pvt->rawwriteformat, chan->writeformat);
+	ast_log(LOG_DEBUG, "Set channel %s to format %d\n", chan->name, chan->writeformat);
+	return 0;
+}
+
+int ast_set_read_format(struct ast_channel *chan, int fmts)
+{
+	int fmt;
+	int native;
+	int res;
+	
+	native = chan->nativeformats;
+	fmt = fmts;
+	/* Find a translation path from the native read format to one of the user's read formats */
+	res = ast_translator_best_choice(&fmt, &native);
+	if (res < 0) {
+		ast_log(LOG_NOTICE, "Unable to find a path from %d to %d\n", chan->nativeformats, fmts);
+		return -1;
+	}
+	
+	/* Now we have a good choice for both.  We'll write using our native format. */
+	chan->pvt->rawreadformat = native;
+	/* User perspective is fmt */
+	chan->readformat = fmt;
+	/* Free any read translation we have right now */
+	if (chan->pvt->readtrans)
+		ast_translator_free_path(chan->pvt->readtrans);
+	/* Build a translation path from the raw read format to the user reading format */
+	chan->pvt->readtrans = ast_translator_build_path(chan->readformat, chan->pvt->rawreadformat);
+	return 0;
 }
 
 struct ast_channel *ast_request(char *type, int format, void *data)
 {
 	struct chanlist *chan;
 	struct ast_channel *c = NULL;
+	int capabilities;
+	int fmt;
+	int res;
 	if (PTHREAD_MUTEX_LOCK(&chlock)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return NULL;
@@ -431,12 +528,17 @@ struct ast_channel *ast_request(char *type, int format, void *data)
 	chan = backends;
 	while(chan) {
 		if (!strcasecmp(type, chan->type)) {
-			if (!(chan->capabilities & format)) {
-				format = ast_translator_best_choice(format, chan->capabilities);
+			capabilities = chan->capabilities;
+			fmt = format;
+			res = ast_translator_best_choice(&fmt, &capabilities);
+			if (res < 0) {
+				ast_log(LOG_WARNING, "No translator path exists for channel type %s (native %d) to %d\n", type, chan->capabilities, format);
+				PTHREAD_MUTEX_UNLOCK(&chlock);
+				return NULL;
 			}
 			PTHREAD_MUTEX_UNLOCK(&chlock);
 			if (chan->requester)
-				c = chan->requester(type, format, data);
+				c = chan->requester(type, capabilities, data);
 			return c;
 		}
 		chan = chan->next;
@@ -466,7 +568,7 @@ int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int fti
 	if (!len)
 		return -1;
 	do {
-		if ((c->streamid > -1) || (c->trans && (c->trans->streamid > -1))) {
+		if (c->streamid > -1) {
 			d = ast_waitstream(c, AST_DIGIT_ANY);
 			ast_stopstream(c);
 			usleep(1000);
@@ -486,5 +588,132 @@ int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int fti
 		to = timeout;
 	} while(1);
 	/* Never reached */
+	return 0;
+}
+
+int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *peer)
+{
+	int peerf;
+	int chanf;
+	int res;
+	peerf = peer->nativeformats;
+	chanf = chan->nativeformats;
+	res = ast_translator_best_choice(&peerf, &chanf);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", chan, chan->nativeformats, peer, peer->nativeformats);
+		return -1;
+	}
+	/* Set read format on channel */
+	res = ast_set_read_format(chan, peerf);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", chan, chanf);
+		return -1;
+	}
+	/* Set write format on peer channel */
+	res = ast_set_write_format(peer, peerf);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", peer, peerf);
+		return -1;
+	}
+	/* Now we go the other way */
+	peerf = peer->nativeformats;
+	chanf = chan->nativeformats;
+	res = ast_translator_best_choice(&chanf, &peerf);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", peer, peer->nativeformats, chan, chan->nativeformats);
+		return -1;
+	}
+	/* Set writeformat on channel */
+	res = ast_set_write_format(chan, chanf);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", chan, chanf);
+		return -1;
+	}
+	/* Set read format on peer channel */
+	res = ast_set_read_format(peer, chanf);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", peer, peerf);
+		return -1;
+	}
+	return 0;
+}
+
+
+
+int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
+{
+	/* Copy voice back and forth between the two channels.  Give the peer
+	   the ability to transfer calls with '#<extension' syntax. */
+	struct ast_channel *cs[3];
+	int to = -1;
+	struct ast_frame *f;
+	struct ast_channel *who;
+	if (c0->pvt->bridge && 
+		(c0->pvt->bridge == c1->pvt->bridge)) {
+			/* Looks like they share a bridge code */
+		if (!c0->pvt->bridge(c0, c1, flags, fo, rc))
+			return 0;
+		ast_log(LOG_WARNING, "Private bridge between %s and %s failed\n", c0->name, c1->name);
+		/* If they return non-zero then continue on normally */
+	}
+	
+	
+	
+	cs[0] = c0;
+	cs[1] = c1;
+	for (/* ever */;;) {
+		who = ast_waitfor_n(cs, 2, &to);
+		if (!who) {
+			ast_log(LOG_WARNING, "Nobody there??\n");
+			continue;
+		}
+		f = ast_read(who);
+		if (!f) {
+			*fo = NULL;
+			*rc = who;
+			return 0;
+		}
+		if ((f->frametype == AST_FRAME_CONTROL) && !(flags & AST_BRIDGE_IGNORE_SIGS)) {
+			*fo = f;
+			*rc = who;
+			return 0;
+		}
+		if ((f->frametype == AST_FRAME_VOICE) ||
+			(f->frametype == AST_FRAME_TEXT) ||
+			(f->frametype == AST_FRAME_VIDEO) || 
+			(f->frametype == AST_FRAME_IMAGE) ||
+			(f->frametype == AST_FRAME_DTMF)) {
+			if ((f->frametype == AST_FRAME_DTMF) && (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))) {
+				if ((who == c0) && (flags & AST_BRIDGE_DTMF_CHANNEL_0)) {
+					*rc = c0;
+					*fo = f;
+					/* Take out of conference mode */
+					return 0;
+				} else
+				if ((who == c1) && (flags & AST_BRIDGE_DTMF_CHANNEL_1)) {
+					*rc = c1;
+					*fo = f;
+					return 0;
+				}
+			} else {
+#if 0
+				ast_log(LOG_DEBUG, "Read from %s\n", who->name);
+				if (who == last) 
+					ast_log(LOG_DEBUG, "Servicing channel %s twice in a row?\n", last->name);
+				last = who;
+#endif
+				if (who == c0) 
+					ast_write(c1, f);
+				else 
+					ast_write(c0, f);
+			}
+			ast_frfree(f);
+		} else
+			ast_frfree(f);
+		/* Swap who gets priority */
+		cs[2] = cs[0];
+		cs[0] = cs[1];
+		cs[1] = cs[2];
+	}
 	return 0;
 }
