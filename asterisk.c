@@ -106,6 +106,11 @@ char ast_config_AST_PID[AST_CONFIG_MAX_PATH];
 char ast_config_AST_SOCKET[AST_CONFIG_MAX_PATH];
 char ast_config_AST_RUN_DIR[AST_CONFIG_MAX_PATH];
 
+static char *_argv[256];
+static int shuttingdown = 0;
+static int restartnow = 0;
+static pthread_t consolethread = (pthread_t) -1;
+
 int ast_register_atexit(void (*func)(void))
 {
 	int res = -1;
@@ -365,6 +370,8 @@ static void hup_handler(int num)
 {
 	if (option_verbose > 1) 
 		printf("Received HUP signal -- Reloading configs\n");
+	if (restartnow)
+		execvp(_argv[0], _argv);
 	/* XXX This could deadlock XXX */
 	ast_module_reload();
 }
@@ -435,10 +442,6 @@ static int set_priority(int pri)
 #endif
 	return 0;
 }
-
-static char *_argv[256];
-
-static int shuttingdown = 0;
 
 static void ast_run_atexits(void)
 {
@@ -536,7 +539,14 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		}
 		if (option_verbose || option_console)
 			ast_verbose("Restarting Asterisk NOW...\n");
-		execvp(_argv[0], _argv);
+		restartnow = 1;
+		/* If there is a consolethread running send it a SIGHUP 
+		   so it can execvp, otherwise we can do it ourselves */
+		if (consolethread != (pthread_t) -1)
+			pthread_kill(consolethread, SIGHUP);
+		else
+			execvp(_argv[0], _argv);
+	
 	}
 	exit(0);
 }
@@ -545,8 +555,6 @@ static void __quit_handler(int num)
 {
 	quit_handler(num, 0, 1, 0);
 }
-
-static pthread_t consolethread = (pthread_t) -1;
 
 static const char *fix_header(char *outbuf, int maxout, const char *s, char *cmp)
 {
@@ -1476,6 +1484,8 @@ int main(int argc, char *argv[])
 	ast_cli_register(&astshutdownwhenconvenient);
 	ast_cli_register(&aborthalt);
 	ast_cli_register(&astbang);
+	if (option_nofork)
+		consolethread = pthread_self();
 	if (option_console) {
 		/* Console stuff now... */
 		/* Register our quit function */
@@ -1485,7 +1495,6 @@ int main(int argc, char *argv[])
 		set_title(title);
 	    ast_cli_register(&quit);
 	    ast_cli_register(&astexit);
-		consolethread = pthread_self();
 
 		for (;;) {
 			buf = (char *)el_gets(el, &num);
