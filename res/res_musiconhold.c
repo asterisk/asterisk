@@ -945,11 +945,11 @@ static void ast_moh_destroy(void)
 	while (moh) {
 		if (moh->pid) {
 			ast_log(LOG_DEBUG, "killing %d!\n", moh->pid);
-			stime = time(NULL) + 5;
+			stime = time(NULL) + 2;
 			pid = moh->pid;
 			moh->pid = 0;
 			kill(pid, SIGKILL);
-			while ((bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime) {
+			while ((ast_wait_for_input(moh->srcfd, 100) > -1) && (bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime) {
 				tbytes = tbytes + bytes;
 			}
 			ast_log(LOG_DEBUG, "mpg123 pid %d and child died after %d bytes read\n", pid, tbytes);

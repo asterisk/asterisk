@@ -136,6 +136,7 @@ extern int test_for_thread_safety(void);
 
 extern const char *ast_inet_ntoa(char *buf, int bufsiz, struct in_addr ia);
 extern int ast_utils_init(void);
+extern int ast_wait_for_input(int fd, int ms);
 
 /* The realloca lets us ast_restrdupa(), but you can't mix any other ast_strdup calls! */
 

@@ -24,6 +24,7 @@
 #include <arpa/inet.h>
 #include <asterisk/lock.h>
 #include <asterisk/utils.h>
+#include <asterisk/io.h>
 #include <asterisk/logger.h>
 #include <asterisk/md5.h>
 
@@ -402,6 +403,15 @@ int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*st
 	if (errno)
 		ast_log(LOG_WARNING, "pthread_attr_setstacksize returned non-zero: %s\n", strerror(errno));
 	return pthread_create(thread, attr, start_routine, data); /* We're in ast_pthread_create, so it's okay */
+}
+
+int ast_wait_for_input(int fd, int ms)
+{
+	struct pollfd pfd[1];
+	memset(pfd, 0, sizeof(pfd));
+	pfd[0].fd = fd;
+	pfd[0].events = POLLIN|POLLPRI;
+	return poll(pfd, 1, ms);
 }
 
 /* Case-insensitive substring matching */
