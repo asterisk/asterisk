@@ -995,7 +995,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 							context_header_written = 1;
 						}
 
-						if (!ast_get_extension_priority(p)==PRIORITY_HINT)
+						if (ast_get_extension_priority(p)!=PRIORITY_HINT)
 							fprintf(output, "exten => %s,%d,%s,%s\n",
 							    ast_get_extension_name(p),
 							    ast_get_extension_priority(p),
