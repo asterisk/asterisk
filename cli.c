@@ -3,9 +3,9 @@
  *
  * Standard Command Line Interface
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -530,6 +530,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	struct ast_channel *c=NULL;
 	struct timeval now;
 	long elapsed_seconds=0;
+	int hour=0, min=0, sec=0;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	gettimeofday(&now, NULL);
@@ -538,6 +539,9 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		if (!strcasecmp(c->name, argv[2])) {
 			if(c->cdr) {
 				elapsed_seconds = now.tv_sec - c->cdr->start.tv_sec;
+				hour = elapsed_seconds / 3600;
+				min = (elapsed_seconds % 3600) / 60;
+				sec = elapsed_seconds % 60;
 			}
 			ast_cli(fd, 
 	" -- General --\n"
@@ -555,7 +559,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	"      Frames in: %d%s\n"
 	"     Frames out: %d%s\n"
 	" Time to Hangup: %ld\n"
-	"Elapsed Seconds: %ld\n"
+	"   Elapsed Time: %dh%dm%ds\n"
 	" --   PBX   --\n"
 	"        Context: %s\n"
 	"      Extension: %s\n"
@@ -571,7 +575,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	(c->dnid ? c->dnid : "(N/A)" ), ast_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
 	c->fds[0], c->fin & 0x7fffffff, (c->fin & 0x80000000) ? " (DEBUGGED)" : "",
 	c->fout & 0x7fffffff, (c->fout & 0x80000000) ? " (DEBUGGED)" : "", (long)c->whentohangup,
-	(long)elapsed_seconds, 
+	hour, min, sec, 
 	c->context, c->exten, c->priority, c->callgroup, c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
 	( c-> data ? (!ast_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
 	c->stack, (c->blocking ? c->blockproc : "(Not Blocking)"));
