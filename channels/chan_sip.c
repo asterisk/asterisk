@@ -2273,6 +2273,65 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 	return send_response(p, &resp, retrans, seqno);
 }
 
+static int determine_firstline_parts( struct sip_request *req ) {
+
+  char *e, *cmd;
+  int len;
+  
+  cmd= req->header[0];
+  while(*cmd && (*cmd < 33)) {
+    cmd++;
+  }
+  if (!*cmd) {
+    return -1;
+  }
+  e= cmd;
+  while(*e && (*e > 32)) {
+    e++;
+  }
+  /* Get the command */
+  if (*e) {
+    *e = '\0';
+    e++;
+  }
+  req->rlPart1= cmd;
+  while( *e && ( *e < 33 ) ) {
+    e++; 
+  }
+  if( !*e ) {
+    return -1;
+  }
+    
+  if ( !strcasecmp(cmd, "SIP/2.0") ) {
+    /* We have a response */
+    req->rlPart2= e;
+    len= strlen( req->rlPart2 );
+    if( len < 2 ) { return -1; }
+    e+= len - 1;
+    while( *e && *e<33 ) {
+      e--; 
+    }
+    *(++e)= '\0';
+  } else {
+    /* We have a request */
+    if( *e == '<' ) { 
+      e++;
+      if( !*e ) { return -1; }  
+    }
+    req->rlPart2= e;
+    if( ( e= strrchr( req->rlPart2, 'S' ) ) == NULL ) {
+      return -1;
+    }
+    while( isspace( *(--e) ) ) {}
+    if( *e == '>' ) {
+      *e= '\0';
+    } else {
+      *(++e)= '\0';
+    }
+  }
+  return 1;
+}
+
 static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp)
 {
 	struct sip_request req;
@@ -2284,6 +2343,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp)
 	/* Use this as the basis */
 	copy_request(&p->initreq, &req);
 	parse(&p->initreq);
+	determine_firstline_parts(&p->initreq);
 	p->lastinvite = p->ocseq;
 	p->outgoing = 1;
 	return send_request(p, &req, 1, p->ocseq);
@@ -2379,6 +2439,7 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 		/* Use this as the basis */
 		copy_request(&p->initreq, &req);
 		parse(&p->initreq);
+		determine_firstline_parts(&p->initreq);
 	}
 	p->lastinvite = p->ocseq;
 	return send_request(p, &req, 1, p->ocseq);
@@ -2491,6 +2552,7 @@ static int transmit_notify(struct sip_pvt *p, int newmsgs, int oldmsgs)
 		/* Use this as the basis */
 		copy_request(&p->initreq, &req);
 		parse(&p->initreq);
+		determine_firstline_parts(&p->initreq);
 	}
 
 	return send_request(p, &req, 1, p->ocseq);
@@ -2624,6 +2686,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 	add_blank_header(&req);
 	copy_request(&p->initreq, &req);
 	parse(&p->initreq);
+	determine_firstline_parts(&p->initreq);
 	r->regstate=auth?REG_STATE_AUTHSENT:REG_STATE_REGSENT;
 	return send_request(p, &req, 1, p->ocseq);
 }
@@ -4031,65 +4094,6 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		}
 	}
-}
-
-static int determine_firstline_parts( struct sip_request *req ) {
-
-  char *e, *cmd;
-  int len;
-  
-  cmd= req->header[0];
-  while(*cmd && (*cmd < 33)) {
-    cmd++;
-  }
-  if (!*cmd) {
-    return -1;
-  }
-  e= cmd;
-  while(*e && (*e > 32)) {
-    e++;
-  }
-  /* Get the command */
-  if (*e) {
-    *e = '\0';
-    e++;
-  }
-  req->rlPart1= cmd;
-  while( *e && ( *e < 33 ) ) {
-    e++; 
-  }
-  if( !*e ) {
-    return -1;
-  }
-    
-  if ( !strcasecmp(cmd, "SIP/2.0") ) {
-    /* We have a response */
-    req->rlPart2= e;
-    len= strlen( req->rlPart2 );
-    if( len < 2 ) { return -1; }
-    e+= len - 1;
-    while( *e && *e<33 ) {
-      e--; 
-    }
-    *(++e)= '\0';
-  } else {
-    /* We have a request */
-    if( *e == '<' ) { 
-      e++;
-      if( !*e ) { return -1; }  
-    }
-    req->rlPart2= e;
-    if( ( e= strrchr( req->rlPart2, 'S' ) ) == NULL ) {
-      return -1;
-    }
-    while( isspace( *(--e) ) ) {}
-    if( *e == '>' ) {
-      *e= '\0';
-    } else {
-      *(++e)= '\0';
-    }
-  }
-  return 1;
 }
 
 static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
