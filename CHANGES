@@ -25,6 +25,8 @@
        call is executing an AGI script calling the GET DATA command.
     -- AGI scripts will now continue to run even if a file was not found with the
        GET DATA command.
+    -- When calling SAY NUMBER with a number like 09, we will now say "nine" instead
+       of "zero"
  -- app_disa
     -- Fixed the timeout used when no password is set
  -- rtp
