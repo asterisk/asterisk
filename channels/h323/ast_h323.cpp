@@ -566,7 +566,9 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 
 
 	cd.call_reference = GetCallReference();
+	Lock();
 	cd.call_token = strdup((const char *)GetCallToken());
+	Unlock();
 	cd.call_source_aliases  =  strdup((const char *)sourceAliases);
 	cd.call_dest_alias = strdup((const char *)destAliases);
 	cd.call_source_e164 = strdup((const char *)sourceE164);
@@ -617,12 +619,14 @@ BOOL MyH323Connection::OnSendSignalSetup(H323SignalPDU & setupPDU)
 	if ((s1 = strchr(destAliases, '\t')) != NULL)
          	*s1 = '\0';
 
-	cd.call_reference		= GetCallReference();
-	cd.call_token			= strdup((const char *)GetCallToken());
-	cd.call_source_aliases  	= strdup((const char *)sourceAliases);
-	cd.call_dest_alias		= strdup((const char *)destAliases);
-	cd.call_source_e164		= strdup((const char *)sourceE164);
-	cd.call_dest_e164		= strdup((const char *)destE164);
+	cd.call_reference = GetCallReference();
+	Lock();
+	cd.call_token = strdup((const char *)GetCallToken());
+	Unlock();
+	cd.call_source_aliases = strdup((const char *)sourceAliases);
+	cd.call_dest_alias = strdup((const char *)destAliases);
+	cd.call_source_e164 = strdup((const char *)sourceE164);
+	cd.call_dest_e164 = strdup((const char *)destE164);
 
 	int res = on_outgoing_call(cd);	
 		
@@ -1181,15 +1185,12 @@ int h323_answering_call(const char *token, int busy)
 		return -1;
 	}
 
-	if (!busy){
+	if (!busy) {
 		connection->AnsweringCall(H323Connection::AnswerCallNow);
-		connection->Unlock();
-
 	} else {
 		connection->AnsweringCall(H323Connection::AnswerCallDenied);
-		connection->Unlock();
-	};
-
+	}
+	connection->Unlock();
 	return 0;
 }
 
