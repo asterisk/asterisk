@@ -3085,6 +3085,11 @@ int unload_module(void)
 int load_module(void)
 {
 	int res;
+	res = ast_register_application(app, vm_exec, synopsis_vm, descrip_vm);
+	res |= ast_register_application(app2, vm_execmain, synopsis_vmain, descrip_vmain);
+	if (res)
+		return(res);
+
 	if ((res=load_config())) {
 		return(res);
 	}
@@ -3093,9 +3098,6 @@ int load_module(void)
 		return(res);
 	}
 #endif
-	res = ast_register_application(app, vm_exec, synopsis_vm, descrip_vm);
-	if (!res)
-		res = ast_register_application(app2, vm_execmain, synopsis_vmain, descrip_vmain);
 	return res;
 }
 
