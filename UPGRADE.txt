@@ -44,3 +44,14 @@ Queues:
   none of the members are available (e.g. agents not logged on).  To
   restore the original behavior, use "leavewhenempty=strict" or 
   "joinwhenempty=strict" instead of "=yes" for those options.
+
+Extensions:
+
+* By default, there is a new option called "autofallthrough" in
+  extensions.conf that is set to yes.  Asterisk 1.0 (and earlier) 
+  behavior was to wait for an extension to be dialed after there were no 
+  more extensions to execute.  "autofallthrough" changes this behavior
+  so that the call will immediately be terminated with BUSY,
+  CONGESTION, or HANGUP based on Asterisk's best guess.  If you are
+  writing an extension for IVR, you must use the WaitExten application
+  if "autofallthrough" is set to yes.
