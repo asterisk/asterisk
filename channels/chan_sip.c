@@ -5428,6 +5428,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 					strncpy(p->context, peer->context, sizeof(p->context) - 1);
 				strncpy(p->peersecret, peer->secret, sizeof(p->peersecret) - 1);
 				strncpy(p->peermd5secret, peer->md5secret, sizeof(p->peermd5secret) - 1);
+				strncpy(p->language, peer->language, sizeof(p->language)  -1);
 				p->callgroup = peer->callgroup;
 				p->pickupgroup = peer->pickupgroup;
 				p->capability = peer->capability;
