@@ -3979,6 +3979,17 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 	memset(calleridname,0,sizeof(calleridname));
 	get_calleridname(from,calleridname);
 	of = ditch_braces(from);
+	if (!strlen(p->exten)) {
+		t = uri;
+		if (!strncmp(t, "sip:", 4))
+			t+= 4;
+		strncpy(p->exten, t, sizeof(p->exten) - 1);
+		t = strchr(p->exten, '@');
+		if (t)
+			*t = '\0';
+		if (!strlen(p->our_contact))
+			build_contact(p);
+	}
 	if (strncmp(of, "sip:", 4)) {
 		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
 	} else
