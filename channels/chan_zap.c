@@ -1614,6 +1614,7 @@ static int zt_hangup(struct ast_channel *ast)
 		if (p->sig == SIG_PRI) {
 			if (p->call) {
 				if (!pri_grab(p, p->pri)) {
+#ifndef NEW_PRI_HANGUP
 					if (!p->alreadyhungup) {
 						res = pri_disconnect(p->pri->pri, p->call, PRI_CAUSE_NORMAL_CLEARING);
 					} else {
@@ -1621,6 +1622,12 @@ static int zt_hangup(struct ast_channel *ast)
 						p->call = NULL;
 						p->alreadyhungup = 0;
 					}
+#else
+#ifndef PRI_HANGUP
+#error Please update libpri. The new hangup routines were implemented. You can debug then using "pri debug span <span_no>". If you dont want to update libpri code simply comment out OPTIONS += -DNEW_PRI_HANGUP in asterisk/Makefile
+#endif
+					pri_hangup(p->pri->pri, p->call, -1);
+#endif
 					if (res < 0) 
 						ast_log(LOG_WARNING, "pri_disconnect failed\n");
 					pri_rel(p->pri);			
@@ -5685,7 +5692,11 @@ static void *pri_dchannel(void *vpri)
 							zt_enable_ec(pri->pvt[chan]);
 						} else {
 							ast_log(LOG_WARNING, "Unable to start PBX on channel %d, span %d\n", chan, pri->span);
+#if NEW_PRI_HANGUP
+							pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_SWITCH_CONGESTION);
+#else
 							pri_release(pri->pri, e->ring.call, PRI_CAUSE_SWITCH_CONGESTION);
+#endif
 							pri->pvt[chan]->call = 0;
 						}
 					} else {
@@ -5696,11 +5707,19 @@ static void *pri_dchannel(void *vpri)
 						} else {
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Extension '%s' in context '%s' from '%s' does not exist.  Rejecting call on channel %d, span %d\n",pri->pvt[chan]->exten, pri->pvt[chan]->context, pri->pvt[chan]->callerid, chan, pri->span);
+#ifdef NEW_PRI_HANGUP
+							pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_UNALLOCATED);
+#else
 							pri_release(pri->pri, e->ring.call, PRI_CAUSE_UNALLOCATED);
+#endif
 						}
 					}
 				} else 
+#ifdef NEW_PRI_HANGUP
+					pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_REQUESTED_CHAN_UNAVAIL);
+#else
 					pri_release(pri->pri, e->ring.call, PRI_CAUSE_REQUESTED_CHAN_UNAVAIL);
+#endif
 				break;
 			case PRI_EVENT_RINGING:
 				chan = e->ringing.channel;
