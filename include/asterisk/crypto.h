@@ -53,6 +53,17 @@ extern int ast_key_init(int fd);
  */
 extern int ast_check_signature(struct ast_key *key, char *msg, char *sig);
 
+//! Check the authenticity of a message signature using a given public key
+/*!
+ * \param key a public key to use to verify
+ * \param msg the message that has been signed
+ * \param sig the proposed valid signature in raw binary representation
+ *
+ * Returns 0 if the signature is valid, or -1 otherwise
+ *
+ */
+extern int ast_check_signature_bin(struct ast_key *key, char *msg, unsigned char *sig);
+
 /*!
  * \param key a private key to use to create the signature
  * \param msg the message to sign
@@ -63,6 +74,16 @@ extern int ast_check_signature(struct ast_key *key, char *msg, char *sig);
  *
  */
 extern int ast_sign(struct ast_key *key, char *msg, char *sig);
+/*!
+ * \param key a private key to use to create the signature
+ * \param msg the message to sign
+ * \param sig a pointer to a buffer of at least 128 bytes in which the
+ * raw encoded signature will be stored
+ *
+ * Returns 0 on success or -1 on failure.
+ *
+ */
+extern int ast_sign_bin(struct ast_key *key, char *msg, unsigned char *sig);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -296,10 +296,9 @@ static char *binary(int y, int len)
 
 #endif
 
-int ast_sign(struct ast_key *key, char *msg, char *sig)
+int ast_sign_bin(struct ast_key *key, char *msg, unsigned char *dsig)
 {
 	unsigned char digest[20];
-	unsigned char dsig[128];
 	int siglen = sizeof(dsig);
 	int res;
 
@@ -324,29 +323,32 @@ int ast_sign(struct ast_key *key, char *msg, char *sig)
 		return -1;
 	}
 
-	/* Success -- encode (256 bytes max as documented) */
-	ast_base64encode(sig, dsig, siglen, 256);
 	return 0;
 	
 }
 
-int ast_check_signature(struct ast_key *key, char *msg, char *sig)
+int ast_sign(struct ast_key *key, char *msg, char *sig)
+{
+	unsigned char dsig[128];
+	int siglen = sizeof(dsig);
+	int res;
+	res = ast_sign_bin(key, msg, dsig);
+	if (!res)
+		/* Success -- encode (256 bytes max as documented) */
+		ast_base64encode(sig, dsig, siglen, 256);
+	return res;
+	
+}
+
+int ast_check_signature_bin(struct ast_key *key, char *msg, unsigned char *dsig)
 {
 	unsigned char digest[20];
-	unsigned char dsig[128];
 	int res;
 
 	if (key->ktype != AST_KEY_PUBLIC) {
 		/* Okay, so of course you really *can* but for our purposes
 		   we're going to say you can't */
 		ast_log(LOG_WARNING, "Cannot check message signature with a private key\n");
-		return -1;
-	}
-
-	/* Decode signature */
-	res = ast_base64decode(dsig, sig, sizeof(dsig));
-	if (res != sizeof(dsig)) {
-		ast_log(LOG_WARNING, "Signature improper length (expect %d, got %d)\n", (int)sizeof(dsig), (int)res);
 		return -1;
 	}
 
@@ -362,6 +364,21 @@ int ast_check_signature(struct ast_key *key, char *msg, char *sig)
 	}
 	/* Pass */
 	return 0;
+}
+
+int ast_check_signature(struct ast_key *key, char *msg, char *sig)
+{
+	unsigned char dsig[128];
+	int res;
+
+	/* Decode signature */
+	res = ast_base64decode(dsig, sig, sizeof(dsig));
+	if (res != sizeof(dsig)) {
+		ast_log(LOG_WARNING, "Signature improper length (expect %d, got %d)\n", (int)sizeof(dsig), (int)res);
+		return -1;
+	}
+	res = ast_check_signature_bin(key, msg, dsig);
+	return res;
 }
 
 static void crypto_load(int ifd, int ofd)
