@@ -2751,12 +2751,10 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		/* Acks' don't get retried */
 		if ((f->frametype == AST_FRAME_IAX) && (f->subclass == IAX_COMMAND_ACK))
 			fr->retries = -1;
-		if (f->frametype == AST_FRAME_VOICE) {
+		else if (f->frametype == AST_FRAME_VOICE)
 			pvt->svoiceformat = f->subclass;
-		}
-		if (f->frametype == AST_FRAME_VIDEO) {
+		else if (f->frametype == AST_FRAME_VIDEO)
 			pvt->svideoformat = f->subclass & ~0x1;
-		}
 		if (now) {
 			res = send_packet(fr);
 		} else
