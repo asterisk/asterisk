@@ -31,10 +31,11 @@ static char *app = "System";
 static char *synopsis = "Execute a system command";
 
 static char *descrip =
-"  System(command): Executes a command by using system().  Returns -1 on failure to execute\n"
-"  the specified command.  If the command itself executes but is in error, and if there exists\n"
-"  a priority n + 101, where 'n' is the priority of the current instance, then the channel will\n"
-"  will be setup to continue at that priority level.  Otherwise, System returns 0.\n";
+"  System(command): Executes a command  by  using  system(). Returns -1 on\n"
+"failure to execute the specified command. If  the command itself executes\n"
+"but is in error, and if there exists a priority n + 101, where 'n' is the\n"
+"priority of the current instance, then  the  channel  will  be  setup  to\n"
+"continue at that priority level.  Otherwise, System returns 0.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -58,7 +59,7 @@ static int skel_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Unable to execute '%s'\n", data);
 		res = -1;
 	} else {
-		if (res && ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101)) 
+		if (res && ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid)) 
 			chan->priority+=100;
 		res = 0;
 	}

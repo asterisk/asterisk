@@ -1,7 +1,11 @@
 The Asterisk Open Source PBX
 by Mark Spencer <markster@linux-support.net>
-Copyright (C) 1999, Mark Spencer
+Copyright (C) 2001, Linux Support Services, Inc.
 ================================================================
+* SECURITY
+  It is imperative that you read and fully understand the contents of
+  the SECURITY file before you attempt to configure an Asterisk server.
+
 * WHAT IS ASTERISK
   Asterisk is an Open Source PBX and telephony toolkit.  It is, in a
 sense, middleware between Internet and telephony channels on the bottom,
@@ -10,7 +14,27 @@ on the project itself, please visit the Asterisk home page at:
 
            http://www.asteriskpbx.com
 
+* LICENSING
+  Asterisk is distributed under GNU General Public License.  The GPL also
+must apply to all loadable modules as well, except as defined below.
 
+  Linux Support Services, Inc. retains copyright to all of the core
+Asterisk system, and therefore can grant, at its sole discression, the
+ability for companies, individuals, or organizations to create proprietary
+or Open Source (but non-GPL'd) modules which may be dynamically linked at
+runtime with the portions of Asterisk which fall under our copyright
+umbrella, or are distributed under more flexible licenses than GPL.  At
+this time (5/21/2001) the only component of Asterisk which is covered
+under GPL and not under our Copyright is the Xing MP3 decoder.
+
+  If you wish to use our code in other GPL programs, don't worry -- there
+is no requirement that you provide the same exemption in your GPL'd
+products (although if you've written a module for Asterisk we would
+strongly encourage you to make the same excemption that we do).
+
+  If you have any questions, whatsoever, regarding our licensing policy,
+please contact us.
+  
 * REQUIRED COMPONENTS
 
 == Linux ==

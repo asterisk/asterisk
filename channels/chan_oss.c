@@ -56,6 +56,7 @@ static struct timeval lasttime;
 
 static int usecnt;
 static int needanswer = 0;
+static int needringing = 0;
 static int needhangup = 0;
 static int silencesuppression = 0;
 static int silencethreshold = 1000;
@@ -438,6 +439,7 @@ static int oss_call(struct ast_channel *c, char *dest, int timeout)
 		needanswer = 1;
 	} else {
 		ast_verbose( " << Type 'answer' to answer, or use 'autoanswer' for future calls >> \n");
+		needringing = 1;
 		write(sndcmd[1], &res, sizeof(res));
 	}
 	return 0;
@@ -591,7 +593,15 @@ static struct ast_frame *oss_read(struct ast_channel *chan)
 	f.src = type;
 	f.mallocd = 0;
 	
+	if (needringing) {
+		f.frametype = AST_FRAME_CONTROL;
+		f.subclass = AST_CONTROL_RINGING;
+		needringing = 0;
+		return &f;
+	}
+	
 	if (needhangup) {
+		needhangup = 0;
 		return NULL;
 	}
 	if (strlen(text2send)) {
@@ -632,8 +642,10 @@ static struct ast_frame *oss_read(struct ast_channel *chan)
 	}
 	res = read(sounddev, buf + AST_FRIENDLY_OFFSET + readpos, FRAME_SIZE * 2 - readpos);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Error reading from sound device: %s\n", strerror(errno));
+		ast_log(LOG_WARNING, "Error reading from sound device (If you're running 'artsd' then kill it): %s\n", strerror(errno));
+#if 0
 		CRASH;
+#endif		
 		return NULL;
 	}
 	readpos += res;
@@ -641,6 +653,10 @@ static struct ast_frame *oss_read(struct ast_channel *chan)
 	if (readpos >= FRAME_SIZE * 2) {
 		/* A real frame */
 		readpos = 0;
+		if (chan->state != AST_STATE_UP) {
+			/* Don't transmit unless it's up */
+			return &f;
+		}
 		f.frametype = AST_FRAME_VOICE;
 		f.subclass = AST_FORMAT_SLINEAR;
 		f.timelen = FRAME_SIZE / 8;
@@ -887,7 +903,7 @@ static int console_dial(int fd, int argc, char *argv[])
 		if (tmp2 && strlen(tmp2))
 			myc = tmp2;
 	}
-	if (ast_exists_extension(NULL, myc, mye, 1)) {
+	if (ast_exists_extension(NULL, myc, mye, 1, NULL)) {
 		strncpy(oss.exten, mye, sizeof(oss.exten));
 		strncpy(oss.context, myc, sizeof(oss.context));
 		hookstate = 1;

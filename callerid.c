@@ -62,7 +62,7 @@ struct callerid_state *callerid_new(void)
 {
 	struct callerid_state *cid;
 	cid = malloc(sizeof(struct callerid_state));
-	memset(cid, 0, sizeof(*cid));
+	memset(cid, 0, sizeof(struct callerid_state));
 	if (cid) {
 		cid->fskd.spb = 7;		/* 1200 baud */
 		cid->fskd.hdlc = 0;		/* Async */
@@ -146,6 +146,10 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len)
 	while(mylen >= 80) {
 		olen = mylen;
 		res = fsk_serie(&cid->fskd, buf, &mylen, &b);
+		if (mylen < 0) {
+			ast_log(LOG_ERROR, "fsk_serie made mylen < 0 (%d)\n", mylen);
+			return -1;
+		}
 		buf += (olen - mylen);
 		if (res < 0) {
 			ast_log(LOG_NOTICE, "fsk_serie failed\n");
@@ -263,7 +267,8 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len)
 	if (mylen) {
 		memcpy(cid->oldstuff, buf, mylen * 2);
 		cid->oldlen = mylen * 2;
-	}
+	} else
+		cid->oldlen = 0;
 	free(obuf);
 	return 0;
 }
@@ -444,7 +449,7 @@ void ast_shrink_phone_number(char *n)
 int ast_isphonenumber(char *n)
 {
 	int x;
-	if (!n)
+	if (!n || !strlen(n))
 		return 0;
 	for (x=0;n[x];x++)
 		if (!strchr("0123456789", n[x]))
@@ -483,7 +488,7 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 	} else {
 		strncpy(tmp, instr, sizeof(tmp));
 		ast_shrink_phone_number(tmp);
-		if (!ast_isphonenumber(tmp)) {
+		if (ast_isphonenumber(tmp)) {
 			/* Assume it's just a location */
 			*name = NULL;
 			*location = instr;

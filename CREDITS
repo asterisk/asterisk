@@ -6,6 +6,13 @@ and TSU 120e to the project. (http://www.adtran.com)
 * Thanks to QuickNet Technologies for their donation of an Internet
 PhoneJack card to the project.  (http://www.quicknet.net)
 
+=== DEVELOPMENT SUPPORT ===
+I'd like to thank the following companies for helping fund development of
+Asterisk:
+
+* Celera Networks - US Digital
+* Adtran, Inc.
+
 === OTHER SOURCE CODE IN ASTERISK ===
 
 I did not implement the codecs in asterisk.  Here is the copyright on the
