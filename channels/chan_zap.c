@@ -4193,7 +4193,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 			if (!p->faxhandled) {
 				p->faxhandled++;
 				if (strcmp(ast->exten, "fax")) {
-					if (ast_exists_extension(ast, ast->context, "fax", 1, ast->cid.cid_num)) {
+					if (ast_exists_extension(ast, ast_strlen_zero(ast->macrocontext) ? ast->context : ast->macrocontext, "fax", 1, ast->cid.cid_num)) {
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", ast->name);
 						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
