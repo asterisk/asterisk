@@ -192,7 +192,7 @@ exten => s-NOANSWER,2,Goto(default,s,1)			; If they press #, return to start
 exten => s-BUSY,1,Voicemail(b${ARG1})			; If busy, send to voicemail w/ busy announce
 exten => s-BUSY,2,Goto(default,s,1)				; If they press #, return to start
 
-exten => s-.,1,Goto(s-NOANSWER,1)				; Treat anything else as no answer
+exten => _s-.,1,Goto(s-NOANSWER,1)				; Treat anything else as no answer
 
 exten => a,1,VoicemailMain(${ARG1})				; If they press *, send the user into VoicemailMain
 
