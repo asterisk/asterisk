@@ -30,8 +30,7 @@
 ;pickupgroup=0
 ;nat=no 
 ;threewaycalling=yes 
-;transfer=yes     ; transfer requires threewaycalling=yes. Use FLASH to
-transfer
+;transfer=yes     ; transfer requires threewaycalling=yes. Use FLASH to transfer
 ;callwaiting=yes  ; this might be a cause of trouble for ip10s
 ;cancallforward=yes 
 ;line => aaln/1 
