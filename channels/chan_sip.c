@@ -489,8 +489,8 @@ struct sip_peer {
 	time_t	lastmsgcheck;		/* Last time we checked for MWI */
 	unsigned int flags;		/* SIP_ flags */	
 	struct ast_flags flags_page2;	/* SIP_PAGE2 flags */
-	int expire;			/* Registration expiration */
-	int expiry;
+	int expire;			/* When to expire this peer registration */
+	int expiry;			/* Duration of registration */
 	int capability;			/* Codec capability */
 	int rtptimeout;			/* RTP timeout */
 	int rtpholdtimeout;		/* RTP Hold Timeout */
@@ -1116,16 +1116,18 @@ static int sip_sendtext(struct ast_channel *ast, char *text)
 /*--- realtime_update_peer: Update peer object in realtime storage ---*/
 static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, int expirey)
 {
-	char port[10];
-	char ipaddr[20];
-	char regseconds[20];
-	time_t nowtime;
+	char port[10] = "";
+	char ipaddr[20] = "";
+	char regseconds[20] = "0";
 	
-	time(&nowtime);
-	nowtime += expirey;
-	snprintf(regseconds, sizeof(regseconds), "%ld", nowtime);
-	ast_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
-	snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
+	if (expirey) {	/* Registration */
+		time_t nowtime;
+		time(&nowtime);
+		nowtime += expirey;
+		snprintf(regseconds, sizeof(regseconds), "%ld", nowtime);	/* Expiration time */
+		ast_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
+		snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
+	}
 	ast_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds, "username", username, NULL);
 }
 
@@ -1176,8 +1178,11 @@ static void update_peer(struct sip_peer *p, int expiry)
 {
 	if (!ast_test_flag((&global_flags_page2), SIP_PAGE2_RTNOUPDATE) && 
 		(ast_test_flag(p, SIP_REALTIME) || 
-		 ast_test_flag(&(p->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)))
+		 ast_test_flag(&(p->flags_page2), SIP_PAGE2_RTCACHEFRIENDS))) {
+		if (p->expire == -1)
+			expiry = 0;	/* Unregister realtime peer */
 		realtime_update_peer(p->name, &p->addr, p->username, expiry);
+	}
 }
 
 
@@ -1306,12 +1311,12 @@ static struct sip_user *realtime_user(const char *username)
 		if(ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
 			suserobjs++;
 
-            ASTOBJ_CONTAINER_LINK(&userl,user);
-        } else {
+        		ASTOBJ_CONTAINER_LINK(&userl,user);
+        	} else {
 			/* Move counter from s to r... */
 			suserobjs--;
 			ruserobjs++;
-            ast_set_flag(user, SIP_REALTIME);
+			ast_set_flag(user, SIP_REALTIME);
         }
 	}
 	ast_variables_destroy(var);
@@ -4761,7 +4766,8 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	struct sockaddr_in oldsin;
-	if (ast_strlen_zero(expires)) {
+
+	if (ast_strlen_zero(expires)) {	/* No expires header */
 		expires = strstr(get_header(req, "Contact"), "expires=");
 		if (expires) {
 			if (sscanf(expires + 8, "%d;", &expiry) != 1)
@@ -4782,7 +4788,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		if (n) 
 			*n = '\0';
 	}
-	if (!strcasecmp(c, "*") || !expiry) {
+	if (!strcasecmp(c, "*") || !expiry) {	/* Unregister this peer */
 		/* This means remove all registrations and return OK */
 		memset(&p->addr, 0, sizeof(p->addr));
 		if (p->expire > -1)
@@ -4793,6 +4799,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		p->fullcontact[0] = '\0';
 		p->useragent[0] = '\0';
 		p->lastms = 0;
+
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", p->name);
 			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\n", p->name);
@@ -5193,6 +5200,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 		name = c;
 		ast_log(LOG_NOTICE, "Invalid to address: '%s' from %s (missing sip:) trying to use anyway...\n", c, ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 	}
+	/* Strip off the domain name */
 	c = strchr(name, '@');
 	if (c) 
 		*c = '\0';
@@ -5214,8 +5222,8 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 					if (parse_contact(p, peer, req)) {
 						ast_log(LOG_WARNING, "Failed to parse contact info\n");
 					} else {
-					update_peer(peer, p->expiry);
-					/* Say OK and ask subsystem to retransmit msg counter */
+						update_peer(peer, p->expiry);
+						/* Say OK and ask subsystem to retransmit msg counter */
 						transmit_response_with_date(p, "200 OK", req);
 						peer->lastmsgssent = -1;
 						res = 0;
@@ -7519,10 +7527,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* If I understand this right, the branch is different for a non-200 ACK only */
 				transmit_request(p, "ACK", seqno, 0, 1);
 				check_pendings(p);
-			} else if (!strcasecmp(msg, "REGISTER")) {
-				/* char *exp; */
+			} else if (!strcasecmp(msg, "REGISTER")) {	/* Registration or re-registration */
 				int expires, expires_ms;
 				struct sip_registry *r;
+
 				r=p->registry;
 				if (r) {
 					r->regstate=REG_STATE_REGISTERED;
@@ -9314,7 +9322,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			if (realtime && !strcasecmp(v->name, "regseconds")) {
 				if (sscanf(v->value, "%li", &regseconds) != 1)
 					regseconds = 0;
-			} else if (realtime && !strcasecmp(v->name, "ipaddr")) {
+			} else if (realtime && !strcasecmp(v->name, "ipaddr") && !ast_strlen_zero(v->value) ) {
 				inet_aton(v->value, &(peer->addr.sin_addr));
 			} else if (realtime && !strcasecmp(v->name, "name"))
 				strncpy(peer->name, v->value, sizeof(peer->name)-1);
