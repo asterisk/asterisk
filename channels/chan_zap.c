@@ -582,6 +582,7 @@ static struct zt_pvt {
 	int alreadyhungup;
 	int proceeding;
 	int setup_ack;		/* wheter we received SETUP_ACKNOWLEDGE or not */
+	int dsp_features;
 #endif	
 #ifdef ZAPATA_R2
 	int r2prot;
@@ -4487,6 +4488,7 @@ static void set_calltype(struct ast_channel *chan, int ctype)
 	pbx_builtin_setvar_helper(chan, "CALLTYPE", s);
 }
 #endif
+
 static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int index, int law, int ctype)
 {
 	struct ast_channel *tmp;
@@ -4562,6 +4564,15 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 			} else {
 				i->dsp = ast_dsp_new();
 				if (i->dsp) {
+#ifdef ZAPATA_PRI
+					/* We cannot do progress detection until receives PROGRESS message */
+					if (i->outgoing && (i->sig == SIG_PRI)) {
+						/* Remember requested DSP features, don't treat
+						   talking as ANSWER */
+						i->dsp_features = features & ~DSP_PROGRESS_TALK;
+						features = 0;
+					}
+#endif
 					ast_dsp_set_features(i->dsp, features);
 					ast_dsp_digitmode(i->dsp, DSP_DIGITMODE_DTMF | i->dtmfrelax);
 					if (!ast_strlen_zero(progzone))
@@ -7888,6 +7899,18 @@ static void *pri_dchannel(void *vpri)
 							pri->pvts[chanpos]->proceeding=2;
 						} else
 							ast_log(LOG_DEBUG, "Deferring ringing notification because of extra digits to dial...\n");
+#ifdef PRI_PROGRESS_MASK
+						if (e->ringing.progressmask & PRI_PROG_INBAND_AVAILABLE) {
+#else
+						if (e->ringing.progress == 8) {
+#endif
+							/* Now we can do call progress detection */
+							if(pri->pvts[chanpos]->dsp && pri->pvts[chanpos]->dsp_features) {
+								/* RINGING detection isn't required because we got ALERTING signal */
+								ast_dsp_set_features(pri->pvts[chanpos]->dsp, pri->pvts[chanpos]->dsp_features & ~DSP_PROGRESS_RINGING);
+								pri->pvts[chanpos]->dsp_features = 0;
+							}
+						}
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
 				}
@@ -7902,7 +7925,18 @@ static void *pri_dchannel(void *vpri)
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						ast_log(LOG_DEBUG, "Queuing frame from PRI_EVENT_PROGRESS on channel %d/%d span %d\n",
 								pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
-							zap_queue_frame(pri->pvts[chanpos], &f, pri);
+						zap_queue_frame(pri->pvts[chanpos], &f, pri);
+#ifdef PRI_PROGRESS_MASK
+						if (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE) {
+#else
+						if (e->proceeding.progress == 8) {
+#endif
+							/* Now we can do call progress detection */
+							if(pri->pvts[chanpos]->dsp && pri->pvts[chanpos]->dsp_features) {
+								ast_dsp_set_features(pri->pvts[chanpos]->dsp, pri->pvts[chanpos]->dsp_features);
+								pri->pvts[chanpos]->dsp_features = 0;
+							}
+						}
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
 				}
@@ -7920,6 +7954,17 @@ static void *pri_dchannel(void *vpri)
 						f.subclass = AST_CONTROL_PROCEEDING;
 						zap_queue_frame(pri->pvts[chanpos], &f, pri);
 						pri->pvts[chanpos]->proceeding=2;
+#ifdef PRI_PROGRESS_MASK
+						if (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE) {
+#else
+						if (e->proceeding.progress == 8) {
+#endif
+							/* Now we can do call progress detection */
+							if(pri->pvts[chanpos]->dsp && pri->pvts[chanpos]->dsp_features) {
+								ast_dsp_set_features(pri->pvts[chanpos]->dsp, pri->pvts[chanpos]->dsp_features);
+								pri->pvts[chanpos]->dsp_features = 0;
+							}
+						}
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
 				}
@@ -7963,6 +8008,17 @@ static void *pri_dchannel(void *vpri)
 						chanpos = -1;
 					} else {
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
+#ifdef PRI_PROGRESS_MASK
+						if (e->answer.progressmask & PRI_PROG_INBAND_AVAILABLE) {
+#else
+						if (e->answer.progress == 8) {
+#endif
+							/* Now we can do call progress detection */
+							if(pri->pvts[chanpos]->dsp && pri->pvts[chanpos]->dsp_features) {
+								ast_dsp_set_features(pri->pvts[chanpos]->dsp, pri->pvts[chanpos]->dsp_features);
+								pri->pvts[chanpos]->dsp_features = 0;
+							}
+						}
 						if (pri->pvts[chanpos]->realcall && (pri->pvts[chanpos]->realcall->sig == SIG_FXSKS)) {
 							ast_log(LOG_DEBUG, "Starting up GR-303 trunk now that we got CONNECT...\n");
 							x = ZT_START;
