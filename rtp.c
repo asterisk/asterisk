@@ -1013,7 +1013,6 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	unsigned int *rtpheader;
 	int hdrlen = 12;
 	int res;
-	int ms;
 	int x;
 	int payload;
 	char data[256];
@@ -1045,10 +1044,6 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 		rtp->dtmfmute.tv_usec -= 1000000;
 		rtp->dtmfmute.tv_sec += 1;
 	}
-
-	ms = calc_txstamp(rtp, NULL);
-	/* Default prediction */
-	rtp->lastts = rtp->lastts + ms * 8;
 	
 	/* Get a pointer to the header */
 	rtpheader = (unsigned int *)data;
