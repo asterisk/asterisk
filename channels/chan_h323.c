@@ -1417,7 +1417,7 @@ static struct ast_cli_entry  cli_show_codecs =
 static struct ast_cli_entry  cli_gk_cycle =
 	{ { "h.323", "gk", "cycle", NULL }, h323_gk_cycle, "Manually re-register with the Gatekeper", show_cycle_usage };
 static struct ast_cli_entry  cli_hangup_call =
-	{ { "h.323", "hangup", NULL }, h323_ep_hangup, "Manually try to hang up a call", show_hangup_usage };
+	{ { "h.323", "hangup", NULL }, h323_ep_hangup, "Show all active call tokens", show_hangup_usage };
 static struct ast_cli_entry  cli_show_tokens =
 	{ { "h.323", "show", "tokens", NULL }, h323_tokens_show, "Manually try to hang up a call", show_tokens_usage };
 
