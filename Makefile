@@ -431,6 +431,17 @@ bininstall: all
 	@echo " + **Note** This requires that you have      +"
 	@echo " + doxygen installed on your local system    +"
 	@echo " +-------------------------------------------+"
+	@echo " +                                           +"
+	@echo " + ** NOTE FOR DOWNGRADING FROM CVS HEAD **  +"
+	@echo " +                                           +"
+	@echo " + If you are downgrading from CVS HEAD to   +"
+	@echo " + a stable release, remember to delete      +"
+	@echo " + everything from your asterisk modules     +"
+	@echo " + directory (/usr/lib/asterisk/modules/)    +"
+	@echo " + before doing a '$(MAKE) install'.            +"
+	@echo " +                                           +"
+	@echo " +-------------------------------------------+"
+
 
 install: all datafiles bininstall
 
