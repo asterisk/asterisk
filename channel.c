@@ -303,8 +303,8 @@ void ast_channel_free(struct ast_channel *chan)
 		free(chan->dnid);
 	if (chan->callerid)
 		free(chan->callerid);	
-	if (chan->hidden_callerid)
-		free(chan->hidden_callerid);
+	if (chan->ani)
+		free(chan->ani);
 	pthread_mutex_destroy(&chan->lock);
 	free(chan->pvt);
 	free(chan);
@@ -539,8 +539,12 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		/* Simulate a timeout if we were interrupted */
 		if (errno != EINTR)
 			*ms = -1;
-		else
+		else {
+			/* Just an interrupt */
+#if 0
 			*ms = 0;
+#endif			
+		}
 		return NULL;
 	}
 
@@ -931,7 +935,7 @@ int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int fti
 		}
 		if (!strchr(enders, d))
 			s[pos++] = d;
-		if (strchr(enders, d) || (pos >= len - 1)) {
+		if (strchr(enders, d) || (pos >= len)) {
 			s[pos]='\0';
 			return 0;
 		}
@@ -1205,6 +1209,8 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 		if (c0->pvt->bridge && 
 			(c0->pvt->bridge == c1->pvt->bridge) && !nativefailed) {
 				/* Looks like they share a bridge code */
+			if (option_verbose > 2) 
+				ast_verbose(VERBOSE_PREFIX_3 "Attempting native bridge of %s and %s\n", c0->name, c1->name);
 			if (!(res = c0->pvt->bridge(c0, c1, flags, fo, rc))) {
 				c0->bridge = NULL;
 				c1->bridge = NULL;
