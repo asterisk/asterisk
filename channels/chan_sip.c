@@ -4225,6 +4225,17 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	owner = p->owner;
 	/* Acknowledge whatever it is destined for */
 	__sip_ack(p, seqno, 0);
+	/* Get their tag if we haven't already */
+	to = get_header(req, "To");
+	to = strstr(to, "tag=");
+	if (to) {
+		to += 4;
+		strncpy(p->theirtag, to, sizeof(p->theirtag) - 1);
+		to = strchr(p->theirtag, ';');
+		if (to)
+			*to = '\0';
+	}
+		
 	if (p->peerpoke) {
 		/* We don't really care what the response is, just that it replied back. 
 		   Well, as long as it's not a 100 response...  since we might
@@ -4273,17 +4284,6 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			ast_sched_del(sched, p->initid);
 			p->initid = -1;
 		}
-		/* Get their tag if we haven't already */
-		to = get_header(req, "To");
-		to = strstr(to, "tag=");
-		if (to) {
-			to += 4;
-			strncpy(p->theirtag, to, sizeof(p->theirtag) - 1);
-			to = strchr(p->theirtag, ';');
-			if (to)
-				*to = '\0';
-		}
-		
 		switch(resp) {
 		case 100:
 			break;
@@ -4447,6 +4447,14 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		case 200:
 			if (!strcasecmp(msg, "INVITE") || !strcasecmp(msg, "REGISTER") )
 				transmit_request(p, "ACK", seqno, 0);
+			break;
+		case 407:
+			if (!strcasecmp(msg, "BYE")) {
+				if ((p->authtries > 1) || do_proxy_auth(p, req, "BYE")) {
+					ast_log(LOG_NOTICE, "Failed to authenticate on BYE to '%s'\n", get_header(&p->initreq, "From"));
+					p->needdestroy = 1;
+				}
+			}
 			break;
 		}
 	}
