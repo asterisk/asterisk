@@ -206,6 +206,8 @@ struct iax2_context {
 #define IAX_ENCRYPTED	(1 << 12)	/* Whether we should assume encrypted tx/rx */
 #define IAX_KEYPOPULATED (1 << 13)	/* Whether we have a key populated */
 #define IAX_CODEC_USER_FIRST (1 << 14)  /* are we willing to let the other guy choose the codec? */
+#define IAX_CODEC_NOPREFS (1 << 15) /* Force old behaviour by turning off prefs */
+#define IAX_CODEC_NOCAP (1 << 16) /* only consider requested format and ignore capabilities*/
 
 static struct iax2_peer *realtime_peer(const char *peername);
 
@@ -1652,6 +1654,7 @@ static int iax2_show_peer(int fd, int argc, char *argv[])
 		ast_cli(fd, "  Codecs       : ");
 		ast_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, peer->capability);
 		ast_cli(fd, "%s\n", codec_buf);
+
 		ast_cli(fd, "  Codec Order  : (");
 		for(x = 0; x < 32 ; x++) {
 			codec = ast_codec_pref_index(&peer->prefs,x);
@@ -1665,6 +1668,7 @@ static int iax2_show_peer(int fd, int argc, char *argv[])
 		if (!x)
 			ast_cli(fd, "none");
 		ast_cli(fd, ")\n");
+
 
 		ast_cli(fd, "  Status       : ");
 		if (peer->lastms < 0)
@@ -3507,11 +3511,12 @@ static int iax2_show_users(int fd, int argc, char *argv[])
 	regex_t regexbuf;
 	int havepattern = 0;
 
-#define FORMAT "%-15.15s  %-20.20s  %-15.15s  %-15.15s  %-5.5s  %-5.5s\n"
-#define FORMAT2 "%-15.15s  %-20.20s  %-15.15d  %-15.15s  %-5.5s  %-5.5s\n"
+#define FORMAT "%-15.15s  %-20.20s  %-15.15s  %-15.15s  %-5.5s  %-5.10s\n"
+#define FORMAT2 "%-15.15s  %-20.20s  %-15.15d  %-15.15s  %-5.5s  %-5.10s\n"
 
 	struct iax2_user *user;
 	char auth[90] = "";
+	char *pstr = "";
 
 	if (argc < 3 || argc > 4)
 		return RESULT_SHOWUSAGE;
@@ -3535,9 +3540,18 @@ static int iax2_show_users(int fd, int argc, char *argv[])
   			snprintf(auth, sizeof(auth), "Key: %-15.15s ", user->inkeys);
  		} else
 			strncpy(auth, "-no secret-", sizeof(auth) - 1);
+
+		if(ast_test_flag(user,IAX_CODEC_NOCAP))
+			pstr = "REQ Only";
+		else if(ast_test_flag(user,IAX_CODEC_NOPREFS))
+			pstr = "Disabled";
+		else
+			pstr = ast_test_flag(user,IAX_CODEC_USER_FIRST) ? "Caller" : "Host";
+
 		ast_cli(fd, FORMAT2, user->name, auth, user->authmethods, 
 				user->contexts ? user->contexts->context : context,
-				user->ha ? "Yes" : "No", ast_test_flag(user,IAX_CODEC_USER_FIRST) ? "Caller" : "Host");
+				user->ha ? "Yes" : "No", pstr);
+
 	}
 	ast_mutex_unlock(&userl.lock);
 
@@ -4083,6 +4097,8 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		}
 		iaxs[callno]->prefs = user->prefs;
 		ast_copy_flags(iaxs[callno], user, IAX_CODEC_USER_FIRST);
+		ast_copy_flags(iaxs[callno], user, IAX_CODEC_NOPREFS);
+		ast_copy_flags(iaxs[callno], user, IAX_CODEC_NOCAP);
 		iaxs[callno]->encmethods = user->encmethods;
 		/* Store the requested username if not specified */
 		if (ast_strlen_zero(iaxs[callno]->username))
@@ -5875,47 +5891,77 @@ retryowner:
 							ast_log(LOG_NOTICE, "Rejected connect attempt from %s, request '%s@%s' does not exist\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->exten, iaxs[fr.callno]->context);
 					} else {
 						/* Select an appropriate format */
-						if(ies.codec_prefs) {
-							ast_codec_pref_convert(&rpref, ies.codec_prefs, 32, 0);
-							/* If we are codec_first_choice we let the caller have the 1st shot at picking the codec.*/
-							using_prefs = "mine";
-							if (ast_test_flag(iaxs[fr.callno], IAX_CODEC_USER_FIRST)) {
-								pref = rpref;
-								using_prefs = "caller";
+
+						if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOPREFS)) {
+							if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP)) {
+								using_prefs = "reqonly";
 							} else {
-								pref = iaxs[fr.callno]->prefs;
+								using_prefs = "disabled";
 							}
-						} else
-							pref = iaxs[fr.callno]->prefs;
-
-						format = ast_codec_choose(&pref, iaxs[fr.callno]->capability & iaxs[fr.callno]->peercapability, 0);
-						ast_codec_pref_string(&rpref, caller_pref_buf, sizeof(caller_pref_buf) - 1);
-						ast_codec_pref_string(&iaxs[fr.callno]->prefs, host_pref_buf, sizeof(host_pref_buf) - 1);
+							format = iaxs[fr.callno]->peerformat & iaxs[fr.callno]->capability;
+							memset(&pref, 0, sizeof(pref));
+							strcpy(caller_pref_buf, "disabled");
+							strcpy(host_pref_buf, "disabled");
+						} else {
+							using_prefs = "mine";
+							if(ies.codec_prefs) {
+								ast_codec_pref_convert(&rpref, ies.codec_prefs, 32, 0);
+								/* If we are codec_first_choice we let the caller have the 1st shot at picking the codec.*/
+								if (ast_test_flag(iaxs[fr.callno], IAX_CODEC_USER_FIRST)) {
+									pref = rpref;
+									using_prefs = "caller";
+								} else {
+									pref = iaxs[fr.callno]->prefs;
+								}
+							} else
+								pref = iaxs[fr.callno]->prefs;
 						
+							format = ast_codec_choose(&pref, iaxs[fr.callno]->capability & iaxs[fr.callno]->peercapability, 0);
+							ast_codec_pref_string(&rpref, caller_pref_buf, sizeof(caller_pref_buf) - 1);
+							ast_codec_pref_string(&iaxs[fr.callno]->prefs, host_pref_buf, sizeof(host_pref_buf) - 1);
+						}
 						if (!format) {
-							format = iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability;
-
+							if(!ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP))
+								format = iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability;
 							if (!format) {
 								memset(&ied0, 0, sizeof(ied0));
 								iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
 								iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
 								send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
-								if (authdebug)
-									ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible  with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
+								if (authdebug) {
+									if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP))
+										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested 0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->capability);
+									else 
+										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
+								}
 							} else {
 								/* Pick one... */
-								using_prefs = "mine";
-								if(ies.codec_prefs) {
-									/* Do the opposite of what we tried above. */
-									if (ast_test_flag(iaxs[fr.callno], IAX_CODEC_USER_FIRST)) {
-										pref = iaxs[fr.callno]->prefs;								
+								if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP)) {
+									if(!(iaxs[fr.callno]->peerformat & iaxs[fr.callno]->capability))
+										format = 0;
+								} else {
+									if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOPREFS)) {
+										using_prefs = ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP) ? "reqonly" : "disabled";
+										memset(&pref, 0, sizeof(pref));
+										format = ast_best_codec(iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);
+										strcpy(caller_pref_buf,"disabled");
+										strcpy(host_pref_buf,"disabled");
 									} else {
-										pref = rpref;
-										using_prefs = "caller";
+										using_prefs = "mine";
+										if(ies.codec_prefs) {
+											/* Do the opposite of what we tried above. */
+											if (ast_test_flag(iaxs[fr.callno], IAX_CODEC_USER_FIRST)) {
+												pref = iaxs[fr.callno]->prefs;								
+											} else {
+												pref = rpref;
+												using_prefs = "caller";
+											}
+											format = ast_codec_choose(&pref, iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability, 1);
+									
+										} else /* if no codec_prefs IE do it the old way */
+											format = ast_best_codec(iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);	
 									}
-									format = ast_codec_choose(&pref, iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability, 1);
-								} else /* if no codec_prefs IE do it the old way */
-									format = ast_best_codec(iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);	
+								}
 
 								if (!format) {
 									memset(&ied0, 0, sizeof(ied0));
@@ -5924,7 +5970,7 @@ retryowner:
 									ast_log(LOG_ERROR, "No best format in 0x%x???\n", iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);
 									send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 									if (authdebug)
-										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible  with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
+										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
 									ast_set_flag(iaxs[fr.callno], IAX_ALREADYGONE);	
 									break;
 								}
@@ -5938,8 +5984,24 @@ retryowner:
 							if (strcmp(iaxs[fr.callno]->exten, "TBD")) {
 								iaxs[fr.callno]->state |= IAX_STATE_STARTED;
 								if (option_verbose > 2) 
-									ast_verbose(VERBOSE_PREFIX_3 "Accepting unauthenticated call from %s, requested format = %s, requested prefs = %s, actual format = %s, my prefs = %s priority = %s \n", 
-												ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ast_getformatname(iaxs[fr.callno]->peerformat), caller_pref_buf, ast_getformatname(format), host_pref_buf, using_prefs);
+									ast_verbose(VERBOSE_PREFIX_3 "Accepting UNAUTHENTICATED call from %s:\n"
+												"%srequested format = %s,\n"
+												"%srequested prefs = %s,\n"
+												"%sactual format = %s,\n"
+												"%shost prefs = %s,\n"
+												"%spriority = %s\n",
+												ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), 
+												VERBOSE_PREFIX_4,
+												ast_getformatname(iaxs[fr.callno]->peerformat), 
+												VERBOSE_PREFIX_4,
+												caller_pref_buf,
+												VERBOSE_PREFIX_4,
+												ast_getformatname(format), 
+												VERBOSE_PREFIX_4,
+												host_pref_buf, 
+												VERBOSE_PREFIX_4,
+												using_prefs);
+								
 								if(!(c = ast_iax2_new(fr.callno, AST_STATE_RING, format)))
 									iax2_destroy_nolock(fr.callno);
 							} else {
@@ -6211,54 +6273,86 @@ retryowner2:
 					send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 				} else {
 					/* Select an appropriate format */
-					using_prefs = "mine";
-					if(ies.codec_prefs) {
-						/* If we are codec_first_choice we let the caller have the 1st shot at picking the codec.*/
-						ast_codec_pref_convert(&rpref, ies.codec_prefs, 32, 0);
-						if (ast_test_flag(iaxs[fr.callno], IAX_CODEC_USER_FIRST)) {
-							ast_codec_pref_convert(&pref, ies.codec_prefs, 32, 0);
-							using_prefs = "caller";
+					if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOPREFS)) {
+						if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP)) {
+							using_prefs = "reqonly";
 						} else {
-							pref = iaxs[fr.callno]->prefs;
+							using_prefs = "disabled";
 						}
-					} else /* if no codec_prefs IE do it the old way */
-						pref = iaxs[fr.callno]->prefs;
-
+						format = iaxs[fr.callno]->peerformat & iaxs[fr.callno]->capability;
+						memset(&pref, 0, sizeof(pref));
+						strcpy(caller_pref_buf, "disabled");
+						strcpy(host_pref_buf, "disabled");
+					} else {
+						using_prefs = "mine";
+						if(ies.codec_prefs) {
+							/* If we are codec_first_choice we let the caller have the 1st shot at picking the codec.*/
+							ast_codec_pref_convert(&rpref, ies.codec_prefs, 32, 0);
+							if (ast_test_flag(iaxs[fr.callno], IAX_CODEC_USER_FIRST)) {
+								ast_codec_pref_convert(&pref, ies.codec_prefs, 32, 0);
+								using_prefs = "caller";
+							} else {
+								pref = iaxs[fr.callno]->prefs;
+							}
+						} else /* if no codec_prefs IE do it the old way */
+							pref = iaxs[fr.callno]->prefs;
 					
-					format = ast_codec_choose(&pref, iaxs[fr.callno]->capability & iaxs[fr.callno]->peercapability, 0);
-					ast_codec_pref_string(&rpref, caller_pref_buf, sizeof(caller_pref_buf) - 1);
-					ast_codec_pref_string(&iaxs[fr.callno]->prefs, host_pref_buf, sizeof(host_pref_buf) - 1);
-
+						format = ast_codec_choose(&pref, iaxs[fr.callno]->capability & iaxs[fr.callno]->peercapability, 0);
+						ast_codec_pref_string(&rpref, caller_pref_buf, sizeof(caller_pref_buf) - 1);
+						ast_codec_pref_string(&iaxs[fr.callno]->prefs, host_pref_buf, sizeof(host_pref_buf) - 1);
+					}
 					if (!format) {
-						ast_log(LOG_DEBUG, "We don't do requested format %s, falling back to peer capability %d\n", ast_getformatname(iaxs[fr.callno]->peerformat), iaxs[fr.callno]->peercapability);
-						format = iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability;
-
+						if(!ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP)) {
+							ast_log(LOG_DEBUG, "We don't do requested format %s, falling back to peer capability %d\n", ast_getformatname(iaxs[fr.callno]->peerformat), iaxs[fr.callno]->peercapability);
+							format = iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability;
+						}
 						if (!format) {
-							if (authdebug)
-								ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible  with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
+							if (authdebug) {
+								if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP)) 
+									ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested 0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->capability);
+								else
+									ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
+							}
 							memset(&ied0, 0, sizeof(ied0));
 							iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
 							iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
 							send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 						} else {
 							/* Pick one... */
-							using_prefs = "mine";
-							if(ies.codec_prefs) {
-								/* Do the opposite of what we tried above. */
-								if (ast_test_flag(iaxs[fr.callno], IAX_CODEC_USER_FIRST)) {
-									pref = iaxs[fr.callno]->prefs;						
+							if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP)) {
+								if(!(iaxs[fr.callno]->peerformat & iaxs[fr.callno]->capability))
+									format = 0;
+							} else {
+								if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOPREFS)) {
+									using_prefs = ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP) ? "reqonly" : "disabled";
+									memset(&pref, 0, sizeof(pref));
+									format = ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP) ?
+										iaxs[fr.callno]->peerformat : ast_best_codec(iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);
+									strcpy(caller_pref_buf,"disabled");
+									strcpy(host_pref_buf,"disabled");
 								} else {
-									pref = rpref;
-									using_prefs = "caller";
+									using_prefs = "mine";
+									if(ies.codec_prefs) {
+										/* Do the opposite of what we tried above. */
+										if (ast_test_flag(iaxs[fr.callno], IAX_CODEC_USER_FIRST)) {
+											pref = iaxs[fr.callno]->prefs;						
+										} else {
+											pref = rpref;
+											using_prefs = "caller";
+										}
+										format = ast_codec_choose(&pref, iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability, 1);
+									} else /* if no codec_prefs IE do it the old way */
+										format = ast_best_codec(iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);	
 								}
-								format = ast_codec_choose(&pref, iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability, 1);
-							} else /* if no codec_prefs IE do it the old way */
-								format = ast_best_codec(iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);	
-
+							}
 							if (!format) {
 								ast_log(LOG_ERROR, "No best format in 0x%x???\n", iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);
-								if (authdebug)
-									ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible  with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
+								if (authdebug) {
+									if(ast_test_flag(iaxs[fr.callno], IAX_CODEC_NOCAP))
+										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested 0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->capability);
+									else
+										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
+								}
 								memset(&ied0, 0, sizeof(ied0));
 								iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
 								iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
@@ -6274,9 +6368,24 @@ retryowner2:
 						if (strcmp(iaxs[fr.callno]->exten, "TBD")) {
 							iaxs[fr.callno]->state |= IAX_STATE_STARTED;
 							if (option_verbose > 2) 
-								ast_verbose(VERBOSE_PREFIX_3 "Accepting AUTHENTICATED call from %s, requested format = %s, requested prefs = %s, actual format = %s, my prefs = %s priority = %s\n", 
-											ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ast_getformatname(iaxs[fr.callno]->peerformat),
-											caller_pref_buf, ast_getformatname(format), host_pref_buf, using_prefs);
+								ast_verbose(VERBOSE_PREFIX_3 "Accepting AUTHENTICATED call from %s:\n"
+											"%srequested format = %s,\n"
+											"%srequested prefs = %s,\n"
+											"%sactual format = %s,\n"
+											"%shost prefs = %s,\n"
+											"%spriority = %s\n", 
+											ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), 
+											VERBOSE_PREFIX_4,
+											ast_getformatname(iaxs[fr.callno]->peerformat),
+											VERBOSE_PREFIX_4,
+											caller_pref_buf,
+											VERBOSE_PREFIX_4,
+											ast_getformatname(format),
+											VERBOSE_PREFIX_4,
+											host_pref_buf,
+											VERBOSE_PREFIX_4,
+											using_prefs);
+
 							iaxs[fr.callno]->state |= IAX_STATE_STARTED;
 							if(!(c = ast_iax2_new(fr.callno, AST_STATE_RING, format)))
 								iax2_destroy_nolock(fr.callno);
@@ -7167,6 +7276,9 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 		strncpy(user->name, name, sizeof(user->name)-1);
 		strncpy(user->language, language, sizeof(user->language) - 1);
 		ast_copy_flags(user, (&globalflags), IAX_USEJITTERBUF);	
+		ast_copy_flags(user, (&globalflags), IAX_CODEC_USER_FIRST);
+		ast_copy_flags(user, (&globalflags), IAX_CODEC_NOPREFS);	
+		ast_copy_flags(user, (&globalflags), IAX_CODEC_NOCAP);	
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
 				con = build_context(v->value);
@@ -7206,8 +7318,15 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 				user->encmethods = get_encrypt_methods(v->value);
 			} else if (!strcasecmp(v->name, "notransfer")) {
 				ast_set2_flag(user, ast_true(v->value), IAX_NOTRANSFER);	
-			} else if (!strcasecmp(v->name, "codecpriority") && !strcasecmp(v->value, "caller")) {
-				ast_set_flag(user, IAX_CODEC_USER_FIRST);	
+			} else if (!strcasecmp(v->name, "codecpriority")) {
+				if(!strcasecmp(v->value, "caller"))
+					ast_set_flag(user, IAX_CODEC_USER_FIRST);
+				else if(!strcasecmp(v->value, "disabled"))
+					ast_set_flag(user, IAX_CODEC_NOPREFS);
+				else if(!strcasecmp(v->value, "reqonly")) {
+					ast_set_flag(user, IAX_CODEC_NOCAP);
+					ast_set_flag(user, IAX_CODEC_NOPREFS);
+				}
 			} else if (!strcasecmp(v->name, "jitterbuffer")) {
 				ast_set2_flag(user, ast_true(v->value), IAX_USEJITTERBUF);	
 			} else if (!strcasecmp(v->name, "dbsecret")) {
@@ -7410,6 +7529,9 @@ static int set_config(char *config_file, int reload)
 	}
 	memset(&prefs, 0 , sizeof(struct ast_codec_pref));
 	v = ast_variable_browse(cfg, "general");
+	/* Reset Global Flags */
+	memset(&globalflags, 0, sizeof(globalflags));
+
 	while(v) {
 		if (!strcasecmp(v->name, "bindport")){ 
 			if (reload)
@@ -7453,7 +7575,16 @@ static int set_config(char *config_file, int reload)
 			iax2_encryption = get_encrypt_methods(v->value);
 		else if (!strcasecmp(v->name, "notransfer"))
 			ast_set2_flag((&globalflags), ast_true(v->value), IAX_NOTRANSFER);	
-		else if (!strcasecmp(v->name, "jitterbuffer"))
+		else if (!strcasecmp(v->name, "codecpriority")) {
+			if(!strcasecmp(v->value, "caller"))
+				ast_set_flag((&globalflags), IAX_CODEC_USER_FIRST);
+			else if(!strcasecmp(v->value, "disabled"))
+				ast_set_flag((&globalflags), IAX_CODEC_NOPREFS);
+			else if(!strcasecmp(v->value, "reqonly")) {
+				ast_set_flag((&globalflags), IAX_CODEC_NOCAP);
+				ast_set_flag((&globalflags), IAX_CODEC_NOPREFS);
+			}
+		} else if (!strcasecmp(v->name, "jitterbuffer"))
 			ast_set2_flag((&globalflags), ast_true(v->value), IAX_USEJITTERBUF);	
 		else if (!strcasecmp(v->name, "delayreject"))
 			delayreject = ast_true(v->value);

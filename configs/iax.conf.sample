@@ -173,6 +173,24 @@ tos=lowdelay
 ; of milliseconds.  See 'qualify' for individual peers to turn on for just
 ; a specific peer.
 ;
+;codecpriority=host
+;
+; codecpriority controls the codec negotiation of an inbound IAX call.
+; This option is inherited to all user entities.  It can also be defined 
+; in each user entity seperately which will override the setting in general.
+;
+; The valid values are:
+;
+; caller   - Consider the callers preferred order ahead of the host's.
+; host     - Consider the host's preferred order ahead of the caller's.
+; disabled - Disable the consideration of codec preference alltogether.
+;            (this is the original behaviour before preferences were added)
+; reqonly  - Same as disabled, only do not consider capabilities if
+;            the requested format is not available the call will only
+;            be accepted if the requested format is available.
+;
+; The default value is 'host'
+;
 autokill=yes
 ;
 ; Guest sections for unauthenticated connection attempts.  Just
