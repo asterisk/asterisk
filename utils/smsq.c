@@ -3,7 +3,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <malloc.h>
 #include <dirent.h>
 #include <string.h>
 #include <ctype.h>
@@ -78,7 +77,7 @@ static char txqcheck (char *dir, char *queue, char subaddress, char *channel, ch
    DIR *d;
    int ql = strlen (queue);
    struct dirent *fn;
-   sprintf (dirname, "sms/%s", dir);
+   snprintf (dirname, sizeof(dirname), "sms/%s", dir);
    d = opendir (dirname);
    if (!d)
       return 0;
@@ -101,7 +100,7 @@ static char txqcheck (char *dir, char *queue, char subaddress, char *channel, ch
       ql = p - queue;
       subaddress = p[1];
    }
-   sprintf (temp, "sms/.smsq-%d", getpid ());
+   snprintf (temp, sizeof(temp), "sms/.smsq-%d", getpid ());
    f = fopen (temp, "w");
    if (!f)
    {
@@ -149,7 +148,7 @@ static char txqcheck (char *dir, char *queue, char subaddress, char *channel, ch
       while (try < concurrent)
       {
          try++;
-         sprintf (ogname, "outgoing/smsq.%s.%s.%d", dir, queue, try);
+         snprintf(ogname, sizeof(ogname), "outgoing/smsq.%s.%s.%d", dir, queue, try);
          if (!link (temp, ogname))
          {                      // queued OK
             unlink (temp);
@@ -171,8 +170,8 @@ static void rxqcheck (char *dir, char *queue, char *process)
    DIR *d;
    int ql = strlen (queue);
    struct dirent *fn;
-   sprintf (temp, "sms/.smsq-%d", getpid ());
-   sprintf (dirname, "sms/%s", dir);
+   snprintf(temp, sizeof(temp), "sms/.smsq-%d", getpid ());
+   snprintf(dirname, sizeof(dirname), "sms/%s", dir);
    d = opendir (dirname);
    if (!d)
       return;
@@ -180,12 +179,12 @@ static void rxqcheck (char *dir, char *queue, char *process)
       if ((*fn->d_name != '.'
            && ((!ql && (p = strchr (fn->d_name, '.'))) || (ql && !strncmp (fn->d_name, queue, ql) && fn->d_name[ql] == '.'))))
       {                         /* process file */
-         char filename[NAME_MAX + 10];
+         char filename[1010];
          char line[1000];
          unsigned short ud[160];
          unsigned char udl = 0;
          FILE *f;
-         sprintf (filename, "sms/%s/%s", dir, fn->d_name);
+         snprintf (filename, sizeof(filename), "sms/%s/%s", dir, fn->d_name);
          if (rename (filename, temp))
             continue;           // cannot access file
          f = fopen (temp, "r");
@@ -648,10 +647,10 @@ main (int argc, const char *argv[])
         queuename[100],
        *dir = (mo ? rx ? "sms/morx" : "sms/motx" : rx ? "sms/mtrx" : "sms/mttx");
       FILE *f;
-      sprintf (temp, "sms/.smsq-%d", getpid ());
+      snprintf (temp, sizeof(temp), "sms/.smsq-%d", getpid ());
       mkdir ("sms", 0777);      // ensure directory exists
       mkdir (dir, 0777);        // ensure directory exists
-      sprintf (queuename, "%s/%s.%ld-%d", dir, *queue ? queue : "0", (long)time (0), getpid ());
+      snprintf (queuename, sizeof(queuename), "%s/%s.%ld-%d", dir, *queue ? queue : "0", (long)time (0), getpid ());
       f = fopen (temp, "w");
       if (!f)
       {
