@@ -47,6 +47,9 @@ int ast_say_digit_str(struct ast_channel *chan, char *fn2, char *ints, char *lan
 			case ('#'):
 				snprintf(fn, sizeof(fn), "digits/pound");
 				break;
+			case ('-'):
+				snprintf(fn, sizeof(fn), "digits/minus");
+				break;
 			default:
 				if((fn2[num] >= '0') && (fn2[num] <= '9')){ /* Must be in {0-9} */
 					snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
