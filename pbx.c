@@ -4483,7 +4483,8 @@ static int pbx_builtin_answer(struct ast_channel *chan, void *data)
 static int pbx_builtin_setlanguage(struct ast_channel *chan, void *data)
 {
 	/* Copy the language as specified */
-	strncpy(chan->language, (char *)data, sizeof(chan->language)-1);
+	if (data)
+		strncpy(chan->language, (char *)data, sizeof(chan->language)-1);
 	return 0;
 }
 

@@ -827,7 +827,7 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, char **argv
 	app = pbx_findapp(argv[1]);
 
 	if (app) {
-		res = pbx_exec(chan, app, argv[2], 1);
+		res = pbx_exec(chan, app, argv[2] ? argv[2] : NULL, 1);
 	} else {
 		ast_log(LOG_WARNING, "Could not find application (%s)\n", argv[1]);
 		res = -2;
