@@ -3673,6 +3673,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		   need to hang around for something more "difinitive" */
 		if (resp != 100) {
 			int statechanged = 0;
+			__sip_ack(p, seqno, 0);
 			peer = p->peerpoke;
 			gettimeofday(&tv, NULL);
 			pingtime = (tv.tv_sec - peer->ps.tv_sec) * 1000 +
