@@ -183,6 +183,27 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, cha
 	return vmu;
 }
 
+static int reset_user_pw(char *context, char *mailbox, char *newpass)
+{
+	/* This function could be made to generate one from a database, too */
+	struct ast_vm_user *cur;
+	int res = -1;
+	ast_pthread_mutex_lock(&vmlock);
+	cur = users;
+	while(cur) {
+		if ((!context || !strcasecmp(context, cur->context)) &&
+			(!strcasecmp(mailbox, cur->mailbox)))
+				break;
+		cur=cur->next;
+	}
+	if (cur) {
+		strncpy(cur->password, newpass, sizeof(cur->password) - 1);
+		res = 0;
+	}
+	ast_pthread_mutex_unlock(&vmlock);
+	return res;
+}
+
 static int vm_change_password(struct ast_vm_user *vmu, char *newpassword)
 {
         /*  There's probably a better way of doing this. */
@@ -257,6 +278,8 @@ static int vm_change_password(struct ast_vm_user *vmu, char *newpassword)
 
         unlink((char *)tmpin);
         rename((char *)tmpout,(char *)tmpin);
+	reset_user_pw(vmu->context, vmu->mailbox, newpassword);
+	strncpy(vmu->password, newpassword, sizeof(vmu->password) - 1);
 	return(1);
 }
 
