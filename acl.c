@@ -49,6 +49,7 @@ struct ast_netsock {
 	int sockfd;
 	int *ioref;
 	struct io_context *ioc;
+	void *data;
 };
 
 
@@ -317,25 +318,25 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 	if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
 		ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
 
-	/* Establish I/O callback for socket read */
-	ioref = ast_io_add(ioc, netsocket, callback, AST_IO_IN, data);
-	if (!ioref) {
-		ast_log(LOG_WARNING, "Out of memory!\n");
-		close(netsocket);
-		return NULL;
-	}
-	
 	ns = malloc(sizeof(struct ast_netsock));
 	if (ns) {
+		/* Establish I/O callback for socket read */
+		ioref = ast_io_add(ioc, netsocket, callback, AST_IO_IN, ns);
+		if (!ioref) {
+			ast_log(LOG_WARNING, "Out of memory!\n");
+			close(netsocket);
+			free(ns);
+			return NULL;
+		}	
 		ASTOBJ_INIT(ns);
 		ns->ioref = ioref;
 		ns->ioc = ioc;
 		ns->sockfd = netsocket;
+		ns->data = data;
 		memcpy(&ns->bindaddr, bindaddr, sizeof(ns->bindaddr));
 		ASTOBJ_CONTAINER_LINK(list, ns);
 	} else {
 		ast_log(LOG_WARNING, "Out of memory!\n");
-		ast_io_remove(ioc, ioref);
 		close(netsocket);
 	}
 	return ns;
@@ -360,6 +361,16 @@ int ast_netsock_release(struct ast_netsock_list *list)
 	ASTOBJ_CONTAINER_DESTROYALL(list, ast_netsock_destroy);
 	ASTOBJ_CONTAINER_DESTROY(list);
 	return 0;
+}
+
+const struct sockaddr_in *ast_netsock_boundaddr(struct ast_netsock *ns)
+{
+	return &(ns->bindaddr);
+}
+
+void *ast_netsock_data(struct ast_netsock *ns)
+{
+	return ns->data;
 }
 
 struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_context *ioc, const char *bindinfo, int defaultport, int tos, ast_io_cb callback, void *data)
