@@ -76,7 +76,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 
 	if (connected) {
 		char *clid=NULL, *dcontext=NULL, *channel=NULL, *dstchannel=NULL, *lastapp=NULL, *lastdata=NULL;
-		char *uniqueid=NULL;
+		char *uniqueid=NULL, *userfield=NULL;
 
 		/* Maximum space needed would be if all characters needed to be escaped, plus a trailing NULL */
 		if ((clid = alloca(strlen(cdr->clid) * 2 + 1)) != NULL)
@@ -93,9 +93,11 @@ static int pgsql_log(struct ast_cdr *cdr)
 			PQescapeString(lastdata, cdr->lastdata, strlen(cdr->lastdata));
 		if ((uniqueid = alloca(strlen(cdr->uniqueid) * 2 + 1)) != NULL)
 			PQescapeString(uniqueid, cdr->uniqueid, strlen(cdr->uniqueid));
+		if ((userfield = alloca(strlen(cdr->userfield) * 2 + 1)) !+ NULL)
+			PQescapeString(userfield, cdr->userfield, strlen(cdr->userfield));
 
 		/* Check for all alloca failures above at once */
-		if ((!clid) || (!dcontext) || (!channel) || (!dstchannel) || (!lastapp) || (!lastdata) || (!uniqueid)) {
+		if ((!clid) || (!dcontext) || (!channel) || (!dstchannel) || (!lastapp) || (!lastdata) || (!uniqueid) || (!userfield)) {
 			ast_log(LOG_ERROR, "cdr_pgsql:  Out of memory error (insert fails)\n");
 			ast_mutex_unlock(&pgsql_lock);
 			return -1;
@@ -103,7 +105,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 
 		ast_log(LOG_DEBUG,"cdr_pgsql: inserting a CDR record.\n");
 
-		sprintf(sqlcmd,"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,'%s',%i,'%s','%s')",timestr,clid,cdr->src, cdr->dst, dcontext,channel, dstchannel, lastapp, lastdata,cdr->duration,cdr->billsec,ast_cdr_disp2str(cdr->disposition),cdr->amaflags, cdr->accountcode, uniqueid);
+		sprintf(sqlcmd,"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,'%s',%i,'%s','%s','%s')",timestr,clid,cdr->src, cdr->dst, dcontext,channel, dstchannel, lastapp, lastdata,cdr->duration,cdr->billsec,ast_cdr_disp2str(cdr->disposition),cdr->amaflags, cdr->accountcode, uniqueid, userfield);
 		ast_log(LOG_DEBUG,"cdr_pgsql: SQL command executed:  %s\n",sqlcmd);
 	
 		/* Test to be sure we're still connected... */
