@@ -752,6 +752,7 @@ static struct ast_channel *agent_request(char *type, int format, void *data)
 	char *s;
 	unsigned int groupmatch;
 	int waitforagent=0;
+	int hasagent = 0;
 	s = data;
 	if ((s[0] == '@') && (sscanf(s + 1, "%d", &groupmatch) == 1)) {
 		groupmatch = (1 << groupmatch);
@@ -768,20 +769,19 @@ static struct ast_channel *agent_request(char *type, int format, void *data)
 	while(p) {
 		ast_mutex_lock(&p->lock);
 		if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent)) &&
-				!p->lastdisc.tv_sec && !strlen(p->loginchan)) {
-			/* Agent must be registered, but not have any active call, and not be in a waiting state */
-			if (!p->owner && p->chan) {
-				/* Fixed agent */
-				chan = agent_new(p, AST_STATE_DOWN);
-			} else if (!p->owner && strlen(p->loginchan)) {
-				/* Adjustable agent */
-				p->chan = ast_request("Local", format, p->loginchan);
-				if (p->chan)
+				!strlen(p->loginchan)) {
+			if (p->chan)
+				hasagent++;
+			if (!p->lastdisc.tv_sec) {
+				/* Agent must be registered, but not have any active call, and not be in a waiting state */
+				if (!p->owner && p->chan) {
+					/* Fixed agent */
 					chan = agent_new(p, AST_STATE_DOWN);
-			}
-			if (chan) {
-				ast_mutex_unlock(&p->lock);
-				break;
+				}
+				if (chan) {
+					ast_mutex_unlock(&p->lock);
+					break;
+				}
 			}
 		}
 		ast_mutex_unlock(&p->lock);
@@ -791,21 +791,24 @@ static struct ast_channel *agent_request(char *type, int format, void *data)
 		p = agents;
 		while(p) {
 			ast_mutex_lock(&p->lock);
-			if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent)) &&
-					!p->lastdisc.tv_sec) {
-				/* Agent must be registered, but not have any active call, and not be in a waiting state */
-				if (!p->owner && p->chan) {
-					/* Fixed agent */
-					chan = agent_new(p, AST_STATE_DOWN);
-				} else if (!p->owner && strlen(p->loginchan)) {
-					/* Adjustable agent */
-					p->chan = ast_request("Local", format, p->loginchan);
-					if (p->chan)
+			if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent))) {
+				if (p->chan || strlen(p->loginchan))
+					hasagent++;
+				if (!p->lastdisc.tv_sec) {
+					/* Agent must be registered, but not have any active call, and not be in a waiting state */
+					if (!p->owner && p->chan) {
+						/* Could still get a fixed agent */
 						chan = agent_new(p, AST_STATE_DOWN);
-				}
-				if (chan) {
-					ast_mutex_unlock(&p->lock);
-					break;
+					} else if (!p->owner && strlen(p->loginchan)) {
+						/* Adjustable agent */
+						p->chan = ast_request("Local", format, p->loginchan);
+						if (p->chan)
+							chan = agent_new(p, AST_STATE_DOWN);
+					}
+					if (chan) {
+						ast_mutex_unlock(&p->lock);
+						break;
+					}
 				}
 			}
 			ast_mutex_unlock(&p->lock);
@@ -816,13 +819,16 @@ static struct ast_channel *agent_request(char *type, int format, void *data)
 	if (!chan && waitforagent) {
 		/* No agent available -- but we're requesting to wait for one.
 		   Allocate a place holder */
-		ast_log(LOG_DEBUG, "Creating place holder for '%s'\n", s);
-		p = add_agent(data, 1);
-		p->group = groupmatch;
-		chan = agent_new(p, AST_STATE_DOWN);
-		if (!chan) {
-			ast_log(LOG_WARNING, "Weird...  Fix this to drop the unused pending agent\n");
-		}
+		if (hasagent) {
+			ast_log(LOG_DEBUG, "Creating place holder for '%s'\n", s);
+			p = add_agent(data, 1);
+			p->group = groupmatch;
+			chan = agent_new(p, AST_STATE_DOWN);
+			if (!chan) {
+				ast_log(LOG_WARNING, "Weird...  Fix this to drop the unused pending agent\n");
+			}
+		} else
+			ast_log(LOG_DEBUG, "Not creating place holder for '%s' since nobody logged in\n");
 	}
 	ast_mutex_unlock(&agentlock);
 	return chan;
