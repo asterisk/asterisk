@@ -484,7 +484,7 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
         int res = 0;
         struct oh323_pvt *pvt = (struct oh323_pvt *)c->pvt->pvt;
         char addr[INET_ADDRSTRLEN];
-        char called_addr[INET_ADDRSTRLEN];
+        char called_addr[1024];
   
         if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
                 ast_log(LOG_WARNING, "Line is already in use (%s)\n", c->name);
@@ -511,9 +511,9 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	pvt->outgoing = 1;
 
 	if (pvt->exten) {
-		sprintf(called_addr, "%s@%s:%d", pvt->exten, addr, pvt->options.port);
+		snprintf(called_addr, sizeof(called_addr), "%s@%s:%d", pvt->exten, addr, pvt->options.port);
 	} else {
-		sprintf(called_addr, "%s:%d",addr, pvt->options.port);
+		snprintf(called_addr, sizeof(called_addr), "%s:%d",addr, pvt->options.port);
 	}
 	ast_log(LOG_DEBUG, "Placing outgoing call to %s, %d\n", called_addr, pvt->options.dtmfcodec);
 	res = h323_make_call(called_addr, &(pvt->cd), &pvt->options);
@@ -925,7 +925,7 @@ struct oh323_user *find_user(const call_details_t cd)
 	return u;
 }
 
-struct oh323_peer *find_peer(char *peer, struct sockaddr_in *sin)
+struct oh323_peer *find_peer(const char *peer, struct sockaddr_in *sin)
 {
 	struct oh323_peer *p = NULL;
        	static char iabuf[INET_ADDRSTRLEN];
