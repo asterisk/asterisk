@@ -26,7 +26,7 @@ CHANNEL_LIBS=chan_modem.so chan_sip.so \
 # If you really want IAX1 uncomment the following, but it is
 # unmaintained
 #
-CHANNEL_LIBS+=chan_iax.so
+#CHANNEL_LIBS+=chan_iax.so
 
 #
 # If you really want VoFR you can have it :-P
