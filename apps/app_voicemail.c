@@ -1523,7 +1523,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 						free_user(recip);
 					}
 				}
-				notify_new_message(chan, vmu, msgnum, duration, fmt, chan->callerid);
+				if (ast_fileexists(fn, NULL, NULL))	
+					notify_new_message(chan, vmu, msgnum, duration, fmt, chan->callerid);
 			} else {
 				res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
 				if (!res)
