@@ -42,6 +42,15 @@
 
 #include "iax.h"
 
+/*
+ * Uncomment to try experimental IAX bridge optimization,
+ * designed to reduce latency when IAX calls cannot
+ * be trasnferred
+ */
+
+#define BRIDGE_OPTIMIZATION 
+
+
 #define DEFAULT_RETRY_TIME 1000
 #define MEMORY_SIZE 100
 #define DEFAULT_DROP 3
@@ -161,7 +170,10 @@ struct iax_peer {
 	char inkeys[80];				/* Key(s) this peer can use to authenticate to us */
 
 	int hascallerid;
+	/* Suggested caller id if registering */
 	char callerid[AST_MAX_EXTENSION];
+	/* Whether or not to send ANI */
+	int sendani;
 	int expire;						/* Schedule entry for expirey */
 	int expirey;					/* How soon to expire */
 	int capability;					/* Capability */
@@ -268,8 +280,10 @@ struct chan_iax_pvt {
 	char context[80];
 	/* Caller ID if available */
 	char callerid[80];
-	/* Hidden Caller ID if appropriate */
-	char hidden_callerid[80];
+	/* Hidden Caller ID (i.e. ANI) if appropriate */
+	char ani[80];
+	/* Whether or not ani should be transmitted in addition to Caller*ID */
+	int sendani;
 	/* DNID */
 	char dnid[80];
 	/* Requested Extension */
@@ -519,8 +533,12 @@ static unsigned int calc_timestamp(struct chan_iax_pvt *p, unsigned int ts);
 static int send_ping(void *data)
 {
 	int callno = (long)data;
+	/* Ping only if it's real, not if it's bridged */
 	if (iaxs[callno]) {
-		send_command(iaxs[callno], AST_FRAME_IAX, AST_IAX_COMMAND_PING, 0, NULL, 0, -1);
+#ifdef BRIDGE_OPTIMIZATION
+		if (iaxs[callno]->bridgecallno < 0)
+#endif		
+			send_command(iaxs[callno], AST_FRAME_IAX, AST_IAX_COMMAND_PING, 0, NULL, 0, -1);
 		return 1;
 	} else
 		return 0;
@@ -529,8 +547,12 @@ static int send_ping(void *data)
 static int send_lagrq(void *data)
 {
 	int callno = (long)data;
+	/* Ping only if it's real not if it's bridged */
 	if (iaxs[callno]) {
-		send_command(iaxs[callno], AST_FRAME_IAX, AST_IAX_COMMAND_LAGRQ, 0, NULL, 0, -1);
+#ifdef BRIDGE_OPTIMIZATION
+		if (iaxs[callno]->bridgecallno < 0)
+#endif		
+			send_command(iaxs[callno], AST_FRAME_IAX, AST_IAX_COMMAND_LAGRQ, 0, NULL, 0, -1);
 		return 1;
 	} else
 		return 0;
@@ -734,7 +756,7 @@ static int find_callno(short callno, short dcallno ,struct sockaddr_in *sin, int
 	if ((res < 0) && (new >= NEW_ALLOW)) {
 		/* Create a new one */
 		start = nextcallno;
-		for (x = nextcallno + 1; iaxs[x] && (x != start); x = (x + 1) % AST_IAX_MAX_CALLS) 
+		for (x = (nextcallno + 1) % AST_IAX_MAX_CALLS; iaxs[x] && (x != start); x = (x + 1) % AST_IAX_MAX_CALLS) 
 		if (x == start) {
 			ast_log(LOG_WARNING, "Unable to accept more calls\n");
 			return -1;
@@ -1106,6 +1128,22 @@ static struct ast_cli_entry cli_show_cache =
 
 static unsigned int calc_rxstamp(struct chan_iax_pvt *p);
 
+#ifdef BRIDGE_OPTIMIZATION
+static unsigned int calc_fakestamp(struct chan_iax_pvt *from, struct chan_iax_pvt *to, unsigned int ts);
+
+static int forward_delivery(struct ast_iax_frame *fr)
+{
+	struct chan_iax_pvt *p1, *p2;
+	p1 = iaxs[fr->callno];
+	p2 = iaxs[p1->bridgecallno];
+	/* Fix relative timestamp */
+	fr->ts = calc_fakestamp(p1, p2, fr->ts);
+	/* Now just send it send on the 2nd one 
+	   with adjusted timestamp */
+	return iax_send(p2, fr->f, fr->ts, -1, 0, 0, 0);
+}
+#endif
+
 static int schedule_delivery(struct ast_iax_frame *fr, int reallydeliver)
 {
 	int ms,x;
@@ -1114,6 +1152,7 @@ static int schedule_delivery(struct ast_iax_frame *fr, int reallydeliver)
 	/* ms is a measure of the "lateness" of the packet relative to the first
 	   packet we received, which always has a lateness of 1.  */
 	ms = calc_rxstamp(iaxs[fr->callno]) - fr->ts;
+
 	if (ms > 32768) {
 		/* What likely happened here is that our counter has circled but we haven't
 		   gotten the update from the main packet.  We'll just pretend that we did, and
@@ -1292,11 +1331,13 @@ static int iax_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan
 	return 0;
 }
 
-static int create_addr(struct sockaddr_in *sin, int *capability, char *peer)
+static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, char *peer)
 {
 	struct hostent *hp;
 	struct iax_peer *p;
 	int found=0;
+	if (sendani)
+		*sendani = 0;
 	sin->sin_family = AF_INET;
 	ast_pthread_mutex_lock(&peerl.lock);
 	p = peerl.peers;
@@ -1306,6 +1347,8 @@ static int create_addr(struct sockaddr_in *sin, int *capability, char *peer)
 			if (capability)
 				*capability = p->capability;
 			if (p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) {
+				if (sendani)
+					*sendani = p->sendani;
 				if (p->addr.sin_addr.s_addr) {
 					sin->sin_addr = p->addr.sin_addr;
 					sin->sin_port = p->addr.sin_port;
@@ -1376,7 +1419,7 @@ static int iax_call(struct ast_channel *c, char *dest, int timeout)
 		strtok(hname, ":");
 		portno = strtok(hname, ":");
 	}
-	if (create_addr(&sin, NULL, hname)) {
+	if (create_addr(&sin, NULL, NULL, hname)) {
 		ast_log(LOG_WARNING, "No address associated with '%s'\n", hname);
 		return -1;
 	}
@@ -1389,6 +1432,8 @@ static int iax_call(struct ast_channel *c, char *dest, int timeout)
 	MYSNPRINTF "exten=%s;", rdest);
 	if (c->callerid)
 		MYSNPRINTF "callerid=%s;", c->callerid);
+	if (p->sendani && c->ani)
+		MYSNPRINTF "ani=%s;", c->ani);
 	if (c->language && strlen(c->language))
 		MYSNPRINTF "language=%s;", c->language);
 	if (c->dnid)
@@ -1548,8 +1593,11 @@ static int iax_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 	cs[1] = c1;
 	for (/* ever */;;) {
 		/* Check in case we got masqueraded into */
-		if ((c0->type != type) || (c1->type != type))
+		if ((c0->type != type) || (c1->type != type)) {
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Can't masquerade, we're different...\n");
 			return -2;
+		}
 		if (!transferstarted) {
 			/* Try the transfer */
 			if (iax_start_transfer(c0, c1))
@@ -1708,8 +1756,8 @@ static struct ast_channel *ast_iax_new(struct chan_iax_pvt *i, int state, int ca
 		tmp->pvt->bridge = iax_bridge;
 		if (strlen(i->callerid))
 			tmp->callerid = strdup(i->callerid);
-		if (strlen(i->hidden_callerid))
-			tmp->hidden_callerid = strdup(i->hidden_callerid);
+		if (strlen(i->ani))
+			tmp->ani = strdup(i->ani);
 		if (strlen(i->language))
 			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
 		if (strlen(i->dnid))
@@ -1758,13 +1806,42 @@ static unsigned int calc_timestamp(struct chan_iax_pvt *p, unsigned int ts)
 	return ms;
 }
 
+#ifdef BRIDGE_OPTIMIZATION
+static unsigned int calc_fakestamp(struct chan_iax_pvt *p1, struct chan_iax_pvt *p2, unsigned int fakets)
+{
+	int ms;
+	/* Receive from p1, send to p2 */
+	
+	/* Setup rxcore if necessary on outgoing channel */
+	if (!p1->rxcore.tv_sec && !p1->rxcore.tv_usec)
+		gettimeofday(&p1->rxcore, NULL);
+
+	/* Setup txcore if necessary on outgoing channel */
+	if (!p2->offset.tv_sec && !p2->offset.tv_usec)
+		gettimeofday(&p2->offset, NULL);
+	
+	/* Now, ts is the timestamp of the original packet in the orignal context.
+	   Adding rxcore to it gives us when we would want the packet to be delivered normally.
+	   Subtracting txcore of the outgoing channel gives us what we'd expect */
+	
+	ms = (p1->rxcore.tv_sec - p2->offset.tv_sec) * 1000 + (p1->rxcore.tv_usec - p1->offset.tv_usec) / 1000;
+	fakets += ms;
+	if (fakets <= p2->lastsent)
+		fakets = p2->lastsent + 1;
+	p2->lastsent = fakets;
+	return fakets;
+}
+#endif
+
 static unsigned int calc_rxstamp(struct chan_iax_pvt *p)
 {
 	/* Returns where in "receive time" we are */
 	struct timeval tv;
 	unsigned int ms;
+	/* Setup rxcore if necessary */
 	if (!p->rxcore.tv_sec && !p->rxcore.tv_usec)
 		gettimeofday(&p->rxcore, NULL);
+
 	gettimeofday(&tv, NULL);
 	ms = (tv.tv_sec - p->rxcore.tv_sec) * 1000 + (tv.tv_usec - p->rxcore.tv_usec) / 1000;
 	return ms;
@@ -2099,6 +2176,13 @@ static int send_command(struct chan_iax_pvt *i, char type, int command, unsigned
 	return __send_command(i, type, command, ts, data, datalen, seqno, 0, 0, 0);
 }
 
+#ifdef BRIDGE_OPTIMIZATION
+static int forward_command(struct chan_iax_pvt *i, char type, int command, unsigned int ts, char *data, int datalen, int seqno)
+{
+	return __send_command(iaxs[i->bridgecallno], type, command, ts, data, datalen, seqno, 0, 0, 0);
+}
+#endif
+
 static int send_command_final(struct chan_iax_pvt *i, char type, int command, unsigned int ts, char *data, int datalen, int seqno)
 {
 	iax_predestroy(i);
@@ -2183,6 +2267,8 @@ static int check_access(int callno, struct sockaddr_in *sin, char *orequest, int
 				strncpy(iaxs[callno]->exten, value, sizeof(iaxs[callno]->exten)-1);
 			else if (!strcmp(var, "callerid"))
 				strncpy(iaxs[callno]->callerid, value, sizeof(iaxs[callno]->callerid)-1);
+			else if (!strcmp(var, "ani"))
+				strncpy(iaxs[callno]->ani, value, sizeof(iaxs[callno]->ani) - 1);
 			else if (!strcmp(var, "dnid"))
 				strncpy(iaxs[callno]->dnid, value, sizeof(iaxs[callno]->dnid)-1);
 			else if (!strcmp(var, "context"))
@@ -2239,11 +2325,11 @@ static int check_access(int callno, struct sockaddr_in *sin, char *orequest, int
 			strncpy(iaxs[callno]->inkeys, user->inkeys, sizeof(iaxs[callno]->inkeys));
 			/* And the permitted authentication methods */
 			strncpy(iaxs[callno]->methods, user->methods, sizeof(iaxs[callno]->methods)-1);
-			/* If they have callerid, override the given caller id.  Always store the hidden */
+			/* If they have callerid, override the given caller id.  Always store the ANI */
 			if (strlen(iaxs[callno]->callerid)) {
 				if (user->hascallerid)
 					strncpy(iaxs[callno]->callerid, user->callerid, sizeof(iaxs[callno]->callerid)-1);
-				strncpy(iaxs[callno]->hidden_callerid, user->callerid, sizeof(iaxs[callno]->hidden_callerid)-1);
+				strncpy(iaxs[callno]->ani, user->callerid, sizeof(iaxs[callno]->ani)-1);
 			}
 			if (strlen(user->accountcode))
 				strncpy(iaxs[callno]->accountcode, user->accountcode, sizeof(iaxs[callno]->accountcode)-1);
@@ -2332,7 +2418,7 @@ static int authenticate_verify(struct chan_iax_pvt *p, char *orequest)
 				res = 0;
 				break;
 			} else if (!key)
-				ast_log(LOG_WARNING, "requested inkey '%s' for RSA authentication does not exist\n");
+				ast_log(LOG_WARNING, "requested inkey '%s' for RSA authentication does not exist\n", keyn);
 			keyn = strtok(NULL, ":");
 		}
 	} else if (strstr(p->methods, "md5")) {
@@ -3364,24 +3450,53 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				ast_pthread_mutex_unlock(&dpcache_lock);
 				break;
 			case AST_IAX_COMMAND_PING:
+#ifdef BRIDGE_OPTIMIZATION
+				if (iaxs[fr.callno]->bridgecallno > -1) {
+					/* If we're in a bridged call, just forward this */
+					forward_command(iaxs[fr.callno], AST_FRAME_IAX, AST_IAX_COMMAND_PING, fr.ts, NULL, 0, -1);
+				} else {
+					/* Send back a pong packet with the original timestamp */
+					send_command(iaxs[fr.callno], AST_FRAME_IAX, AST_IAX_COMMAND_PONG, fr.ts, NULL, 0, -1);
+				}
+#else				
 				/* Send back a pong packet with the original timestamp */
 				send_command(iaxs[fr.callno], AST_FRAME_IAX, AST_IAX_COMMAND_PONG, fr.ts, NULL, 0, -1);
+#endif				
 				break;
 			case AST_IAX_COMMAND_PONG:
+#ifdef BRIDGE_OPTIMIZATION
+				if (iaxs[fr.callno]->bridgecallno > -1) {
+					/* Forward to the other side of the bridge */
+					forward_command(iaxs[fr.callno], AST_FRAME_IAX, AST_IAX_COMMAND_PONG, fr.ts, NULL, 0, -1);
+				} else {
+					/* Calculate ping time */
+					iaxs[fr.callno]->pingtime =  calc_timestamp(iaxs[fr.callno], 0) - fr.ts;
+				}
+#else
+				/* Calculate ping time */
 				iaxs[fr.callno]->pingtime =  calc_timestamp(iaxs[fr.callno], 0) - fr.ts;
+#endif					
 				break;
 			case AST_IAX_COMMAND_LAGRQ:
 			case AST_IAX_COMMAND_LAGRP:
-				/* A little strange -- We have to actually go through the motions of
-				   delivering the packet.  In the very last step, it will be properly
-				   handled by do_deliver */
-				snprintf(src, sizeof(src), "LAGRQ-IAX/%s/%d", inet_ntoa(sin.sin_addr),fr.callno);
-				f.src = src;
-				f.mallocd = 0;
-				f.offset = 0;
-				fr.f = &f;
-				f.timelen = 0;
-				schedule_delivery(iaxfrdup2(&fr, 0), 1);
+#ifdef BRIDGE_OPTIMIZATION
+				if (iaxs[fr.callno]->bridgecallno > -1) {
+					forward_command(iaxs[fr.callno], AST_FRAME_IAX, f.subclass, fr.ts, NULL, 0, -1);
+				} else {
+#endif				
+					/* A little strange -- We have to actually go through the motions of
+					   delivering the packet.  In the very last step, it will be properly
+					   handled by do_deliver */
+					snprintf(src, sizeof(src), "LAGRQ-IAX/%s/%d", inet_ntoa(sin.sin_addr),fr.callno);
+					f.src = src;
+					f.mallocd = 0;
+					f.offset = 0;
+					fr.f = &f;
+					f.timelen = 0;
+					schedule_delivery(iaxfrdup2(&fr, 0), 1);
+#ifdef BRIDGE_OPTIMIZATION
+				}
+#endif				
 				break;
 			case AST_IAX_COMMAND_AUTHREQ:
 				if (iaxs[fr.callno]->state & (IAX_STATE_STARTED | IAX_STATE_TBD)) {
@@ -3632,7 +3747,15 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			ast_log(LOG_DEBUG, "Received out of order packet... (type=%d, subclass %d, ts = %d, last = %d)\n", f.frametype, f.subclass, fr.ts, iaxs[fr.callno]->last);
 		fr.outoforder = -1;
 	}
+#ifdef BRIDGE_OPTIMIZATION
+	if (iaxs[fr.callno]->bridgecallno > -1) {
+		forward_delivery(&fr);
+	} else {
+		schedule_delivery(iaxfrdup2(&fr, 0), 1);
+	}
+#else
 	schedule_delivery(iaxfrdup2(&fr, 0), 1);
+#endif
 	/* Always run again */
 	ast_pthread_mutex_unlock(&iaxs_lock);
 	return 1;
@@ -3690,6 +3813,7 @@ static struct ast_channel *iax_request(char *type, int format, void *data)
 {
 	int callno;
 	int res;
+	int sendani;
 	int fmt, native;
 	struct sockaddr_in sin;
 	char s[256];
@@ -3703,7 +3827,7 @@ static struct ast_channel *iax_request(char *type, int format, void *data)
 	if (!st)
 		st = s;
 	/* Populate our address from the given */
-	if (create_addr(&sin, &capability, st)) {
+	if (create_addr(&sin, &capability, &sendani, st)) {
 		return NULL;
 	}
 	ast_pthread_mutex_lock(&iaxs_lock);
@@ -3712,6 +3836,8 @@ static struct ast_channel *iax_request(char *type, int format, void *data)
 		ast_log(LOG_WARNING, "Unable to create call\n");
 		return NULL;
 	}
+	/* Keep track of sendani flag */
+	iaxs[callno]->sendani = sendani;
 	c = ast_iax_new(iaxs[callno], AST_STATE_DOWN, capability);
 	if (c) {
 		/* Choose a format we can live with */
@@ -3963,6 +4089,8 @@ static struct iax_peer *build_peer(char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "callerid")) {
 				strncpy(peer->callerid, v->value, sizeof(peer->callerid)-1);
 				peer->hascallerid=1;
+			} else if (!strcasecmp(v->name, "sendani")) {
+				peer->sendani = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "inkeys")) {
 				strncpy(peer->inkeys, v->value, sizeof(peer->inkeys));
 			} else if (!strcasecmp(v->name, "outkey")) {
@@ -4293,7 +4421,7 @@ static int cache_get_callno(char *data)
 		host = st;
 	}
 	/* Populate our address from the given */
-	if (create_addr(&sin, NULL, host)) {
+	if (create_addr(&sin, NULL, NULL, host)) {
 		return -1;
 	}
 	ast_log(LOG_DEBUG, "host: %s, user: %s, password: %s, context: %s\n", host, username, password, context);

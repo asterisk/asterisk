@@ -588,6 +588,8 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 		tmp->fds[0] = i->fd;
 		/* XXX Switching formats silently causes kernel panics XXX */
 		tmp->nativeformats = prefformat;
+		tmp->pvt->rawreadformat = prefformat;
+		tmp->pvt->rawwriteformat = prefformat;
 		tmp->state = state;
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
@@ -911,7 +913,7 @@ static struct phone_pvt *mkif(char *iface, int mode, int txgain, int rxgain)
 				ast_log(LOG_DEBUG, "Unable to set port to PSTN\n");
 		} else {
 			if (ioctl(tmp->fd, IXJCTL_PORT, PORT_POTS)) 
-				ast_log(LOG_DEBUG, "Unable to set port to PSTN\n");
+				ast_log(LOG_DEBUG, "Unable to set port to POTS\n");
 		}
 		ioctl(tmp->fd, PHONE_PLAY_STOP);
 		ioctl(tmp->fd, PHONE_REC_STOP);
@@ -1088,7 +1090,7 @@ int load_module()
 	ast_pthread_mutex_unlock(&iflock);
 	/* Make sure we can register our Adtranphone channel type */
 	if (ast_channel_register(type, tdesc, 
-			AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW, phone_request)) {
+			 AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW, phone_request)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
 		ast_destroy(cfg);
 		unload_module();
