@@ -97,9 +97,13 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 		lineno++;
 		if (!feof(f)) {
 			/* Trim comments */
-			c = strchr(buf, '#');
-			if (c)
-				 *c = '\0';
+			c = buf;
+			while ((c = strchr(c, '#'))) {
+				if ((c == buf) || (*(c-1) == ' ') || (*(c-1) == '\t'))
+					*c = '\0';
+				else
+					c++;
+			}
 			c = strchr(buf, ';');
 			if (c)
 				 *c = '\0';
