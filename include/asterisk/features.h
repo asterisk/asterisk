@@ -14,8 +14,8 @@
  *
  */
 
-#ifndef _FEATURES_H
-#define _FEATURES_H
+#ifndef _AST_FEATURES_H
+#define _AST_FEATURES_H
 
 //! Park a call and read back parked location
 /*! \param chan the channel to actually be parked
@@ -51,4 +51,4 @@ extern int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,st
 extern int ast_pickup_call(struct ast_channel *chan);
 
 
-#endif /* _FEATURES_H */
+#endif /* _AST_FEATURES_H */
