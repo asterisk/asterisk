@@ -769,7 +769,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 			free_user(vmu);
 			return 0;
 		}
-		if (!res && (silent < 2)) {
+		if (res >= 0) {
 			/* Unless we're *really* silent, try to send the beep */
 			res = ast_streamfile(chan, "beep", chan->language);
 			if (!res)
