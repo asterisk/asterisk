@@ -68,6 +68,19 @@ static inline int keymatch(const char *key, const char *prefix)
 	return 0;
 }
 
+static inline int subkeymatch(const char *key, const char *suffix)
+{
+	int suffixlen = strlen(suffix);
+	if (suffixlen) {
+		const char *subkey = key + strlen(key) - suffixlen;
+		if (subkey < key)
+			return 0;
+		if (!strcasecmp(subkey, suffix))
+			return 1;
+	}
+	return 0;
+}
+
 int ast_db_deltree(const char *family, const char *keytree)
 {
 	char prefix[256];
@@ -307,6 +320,47 @@ static int database_show(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;	
 }
 
+static int database_showkey(int fd, int argc, char *argv[])
+{
+	char suffix[256];
+	DBT key, data;
+	char *keys, *values;
+	int res;
+	int pass;
+
+	if (argc == 3) {
+		/* Key only */
+		snprintf(suffix, sizeof(suffix), "/%s", argv[2]);
+	} else
+		return RESULT_SHOWUSAGE;
+	ast_mutex_lock(&dblock);
+	if (dbinit()) {
+		ast_mutex_unlock(&dblock);
+		ast_cli(fd, "Database unavailable\n");
+		return RESULT_SUCCESS;	
+	}
+	memset(&key, 0, sizeof(key));
+	memset(&data, 0, sizeof(data));
+	pass = 0;
+	while(!(res = astdb->seq(astdb, &key, &data, pass++ ? R_NEXT : R_FIRST))) {
+		if (key.size) {
+			keys = key.data;
+			keys[key.size - 1] = '\0';
+		} else
+			keys = "<bad key>";
+		if (data.size) {
+			values = data.data;
+			values[data.size - 1]='\0';
+		} else
+			values = "<bad value>";
+		if (subkeymatch(keys, suffix)) {
+				ast_cli(fd, "%-50s: %-25s\n", keys, values);
+		}
+	}
+	ast_mutex_unlock(&dblock);
+	return RESULT_SUCCESS;	
+}
+
 struct ast_db_entry *ast_db_gettree(const char *family, const char *keytree)
 {
 	char prefix[256];
@@ -380,6 +434,10 @@ static char database_show_usage[] =
 "       Shows Asterisk database contents, optionally restricted\n"
 "to a given family, or family and keytree.\n";
 
+static char database_showkey_usage[] =
+"Usage: database showkey <keytree>\n"
+"       Shows Asterisk database contents, restricted to a given key.\n";
+
 static char database_put_usage[] =
 "Usage: database put <family> <key> <value>\n"
 "       Adds or updates an entry in the Asterisk database for\n"
@@ -403,6 +461,9 @@ static char database_deltree_usage[] =
 struct ast_cli_entry cli_database_show =
 { { "database", "show", NULL }, database_show, "Shows database contents", database_show_usage };
 
+struct ast_cli_entry cli_database_showkey =
+{ { "database", "showkey", NULL }, database_showkey, "Shows database contents", database_showkey_usage };
+
 struct ast_cli_entry cli_database_get =
 { { "database", "get", NULL }, database_get, "Gets database value", database_get_usage };
 
@@ -419,6 +480,7 @@ int astdb_init(void)
 {
 	dbinit();
 	ast_cli_register(&cli_database_show);
+	ast_cli_register(&cli_database_showkey);
 	ast_cli_register(&cli_database_get);
 	ast_cli_register(&cli_database_put);
 	ast_cli_register(&cli_database_del);
