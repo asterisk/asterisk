@@ -195,10 +195,10 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; useclientcode               useclientcode
 ; accountcode                 accountcode
 ; setvar                      setvar
-; callerid
+; callerid		      callerid
 ; amaflags		      amaflags
-; incominglimit
-; restrictcid
+; incominglimit		      incominglimit
+; restrictcid		      restrictcid
 ;                             mailbox
 ;                             username
 ;                             template

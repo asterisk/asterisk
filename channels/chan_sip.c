@@ -473,6 +473,11 @@ struct sip_peer {
 	char fullcontact[128];		/* Contact registred with us (not in sip.conf) */
 	char cid_num[80];		/* Caller ID num */
 	char cid_name[80];		/* Caller ID name */
+	int callingpres;		/* Calling id presentation */
+	int inUse;			/* Number of calls in use */
+	int incominglimit;		/* Limit of incoming calls */
+	int outUse;			/* disabled */
+	int outgoinglimit;		/* disabled */
 	char mailbox[AST_MAX_EXTENSION]; /* Mailbox setting for MWI checks */
 	char language[MAX_LANGUAGE];	/* Default language for prompts */
 	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
@@ -1597,43 +1602,65 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 
 /*--- update_user_counter: Handle incominglimit and outgoinglimit for SIP users ---*/
 /* Note: This is going to be replaced by app_groupcount */
+/* Thought: For realtime, we should propably update storage with inuse counter... */
 static int update_user_counter(struct sip_pvt *fup, int event)
 {
 	char name[256] = "";
 	struct sip_user *u;
+	struct sip_peer *p;
+	int *inuse, *incominglimit;
+
 	strncpy(name, fup->username, sizeof(name) - 1);
+
+	/* Check the list of users */
 	u = find_user(name, 1);
-	if (!u) {
-		ast_log(LOG_DEBUG, "%s is not a local user\n", name);
-		return 0;
+	if (u) {
+		inuse = &u->inUse;
+		incominglimit = &u->incominglimit;
+		p = NULL;
+	} else {
+		/* Try to find peer */
+		p = find_peer(fup->peername, NULL, 1);
+		if (p) {
+			inuse = &p->inUse;
+			incominglimit = &p->incominglimit;
+			strncpy(name, fup->peername, sizeof(name) -1);
+		} else {
+			ast_log(LOG_DEBUG, "%s is not a local user\n", name);
+			return 0;
+		}
 	}
 	switch(event) {
 		/* incoming and outgoing affects the inUse counter */
 		case DEC_OUT_USE:
 		case DEC_IN_USE:
-			if ( u->inUse > 0 ) {
-				u->inUse--;
+			if ( *inuse > 0 ) {
+				(*inuse)--;
 			} else {
-				u->inUse = 0;
+				*inuse = 0;
 			}
 			break;
 		case INC_IN_USE:
 		case INC_OUT_USE:
-			if (u->incominglimit > 0 ) {
-				if (u->inUse >= u->incominglimit) {
-					ast_log(LOG_ERROR, "Call from user '%s' rejected due to usage limit of %d\n", u->name, u->incominglimit);
+			if (*incominglimit > 0 ) {
+				if (*inuse >= *incominglimit) {
+					ast_log(LOG_ERROR, "Call from %s '%s' rejected due to usage limit of %d\n", u?"user":"peer", name, *incominglimit);
 					/* inc inUse as well */
 					if ( event == INC_OUT_USE ) {
-						u->inUse++;
+						(*inuse)++;
 					}
-					ASTOBJ_UNREF(u,sip_destroy_user);
+					if (u)
+						ASTOBJ_UNREF(u,sip_destroy_user);
+					else
+						ASTOBJ_UNREF(p,sip_destroy_peer);
 					return -1; 
 				}
 			}
 			u->inUse++;
-			ast_log(LOG_DEBUG, "Call from user '%s' is %d out of %d\n", u->name, u->inUse, u->incominglimit);
+			ast_log(LOG_DEBUG, "Call from %s '%s' is %d out of %d\n", u?"user":"peer", name, *inuse, *incominglimit);
 			break;
-		/* we don't use these anymore
+#ifdef DISABLED_CODE
+		/* we don't use these anymore */
 		case DEC_OUT_USE:
 			if ( u->outUse > 0 ) {
 				u->outUse--;
@@ -1654,11 +1681,14 @@ static int update_user_counter(struct sip_pvt *fup, int event)
 			}
 			u->outUse++;
 			break;
-		*/
+#endif
 		default:
-			ast_log(LOG_ERROR, "update_user_counter(%s,%d) called with no event!\n",u->name,event);
+			ast_log(LOG_ERROR, "update_user_counter(%s,%d) called with no event!\n",name,event);
 	}
-	ASTOBJ_UNREF(u,sip_destroy_user);
+	if (u)
+		ASTOBJ_UNREF(u,sip_destroy_user);
+	else
+		ASTOBJ_UNREF(p,sip_destroy_peer);
 	return 0;
 }
 
@@ -5764,6 +5794,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			p->peersecret[sizeof(p->peersecret)-1] = '\0';
 			strncpy(p->peermd5secret, peer->md5secret, sizeof(p->peermd5secret)-1);
 			p->peermd5secret[sizeof(p->peermd5secret)-1] = '\0';
+			p->callingpres = peer->callingpres;
 			if (ast_test_flag(peer, SIP_INSECURE) == SIP_INSECURE_VERY) {
 				/* Pretend there is no required authentication if insecure is "very" */
 				p->peersecret[0] = '\0';
@@ -6197,6 +6228,8 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 		print_group(fd, peer->pickupgroup);
 		ast_cli(fd, "  Mailbox      : %s\n", peer->mailbox);
 		ast_cli(fd, "  LastMsgsSent : %d\n", peer->lastmsgssent);
+		ast_cli(fd, "  Inc. limit   : %d\n", peer->incominglimit);
+		ast_cli(fd, "  Outg. limit  : %d\n", peer->outgoinglimit);
 		ast_cli(fd, "  Dynamic      : %s\n", (ast_test_flag(peer, SIP_DYNAMIC)?"Yes":"No"));
 		ast_cli(fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
 		ast_cli(fd, "  Expire       : %d\n", peer->expire);
@@ -8962,11 +8995,11 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			} else if (!strcasecmp(v->name, "incominglimit")) {
 				user->incominglimit = atoi(v->value);
 				if (user->incominglimit < 0)
-				   user->incominglimit = 0;
+					user->incominglimit = 0;
 			} else if (!strcasecmp(v->name, "outgoinglimit")) {
 				user->outgoinglimit = atoi(v->value);
 				if (user->outgoinglimit < 0)
-				   user->outgoinglimit = 0;
+					user->outgoinglimit = 0;
 			} else if (!strcasecmp(v->name, "amaflags")) {
 				format = ast_cdr_amaflags2int(v->value);
 				if (format < 0) {
@@ -9176,12 +9209,22 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 					peer->defaddr.sin_port = htons(atoi(v->value));
 				else
 					peer->addr.sin_port = htons(atoi(v->value));
+			} else if (!strcasecmp(v->name, "callingpres")) {
+				peer->callingpres = atoi(v->value);
 			} else if (!strcasecmp(v->name, "username")) {
 				strncpy(peer->username, v->value, sizeof(peer->username)-1);
 			} else if (!strcasecmp(v->name, "language")) {
 				strncpy(peer->language, v->value, sizeof(peer->language)-1);
 			} else if (!strcasecmp(v->name, "regexten")) {
 				strncpy(peer->regexten, v->value, sizeof(peer->regexten)-1);
+			} else if (!strcasecmp(v->name, "incominglimit")) {
+				peer->incominglimit = atoi(v->value);
+				if (peer->incominglimit < 0)
+					peer->incominglimit = 0;
+			} else if (!strcasecmp(v->name, "outgoinglimit")) {
+				peer->outgoinglimit = atoi(v->value);
+				if (peer->outgoinglimit < 0)
+					peer->outgoinglimit = 0;
 			} else if (!strcasecmp(v->name, "amaflags")) {
 				format = ast_cdr_amaflags2int(v->value);
 				if (format < 0) {
