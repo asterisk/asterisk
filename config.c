@@ -542,7 +542,7 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 								load_func = reg->func;
 							if(load_func) { 
 								ast_log(LOG_NOTICE,"External Include '%s' via '%s' config engine\n",arg,cur);
-								load_func(configfile,tmp, _tmpc, _last, includelevel
+								load_func(arg,tmp, _tmpc, _last, includelevel
 #ifdef PRESERVE_COMMENTS
 										  ,&acs
 #endif
