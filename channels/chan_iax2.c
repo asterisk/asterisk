@@ -3509,7 +3509,7 @@ static int expire_registry(void *data)
 }
 
 
-static int iax2_poke_peer(struct iax2_peer *peer);
+static int iax2_poke_peer(struct iax2_peer *peer, int heldcall);
 
 static void reg_source_db(struct iax2_peer *p)
 {
@@ -3529,7 +3529,7 @@ static void reg_source_db(struct iax2_peer *p)
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Seeding '%s' at %s:%d for %d\n", p->name, 
 						inet_ntoa(in), atoi(c), atoi(d));
-					iax2_poke_peer(p);
+					iax2_poke_peer(p, 0);
 					p->expirey = atoi(d);
 					memset(&p->addr, 0, sizeof(p->addr));
 					p->addr.sin_family = AF_INET;
@@ -3580,7 +3580,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 			/* Update the host */
 			memcpy(&p->addr, sin, sizeof(p->addr));
 			/* Verify that the host is really there */
-			iax2_poke_peer(p);
+			iax2_poke_peer(p, callno);
 		}		
 		/* Setup the expirey */
 		if (p->expire > -1)
@@ -3754,7 +3754,7 @@ static int iax2_poke_peer_s(void *data)
 {
 	struct iax2_peer *peer = data;
 	peer->pokeexpire = -1;
-	iax2_poke_peer(peer);
+	iax2_poke_peer(peer, 0);
 	return 0;
 }
 
@@ -4896,7 +4896,7 @@ static int iax2_poke_noanswer(void *data)
 	return 0;
 }
 
-static int iax2_poke_peer(struct iax2_peer *peer)
+static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 {
 	if (!peer->maxms || !peer->addr.sin_addr.s_addr) {
 		/* IF we have no IP, or this isn't to be monitored, return
@@ -4910,7 +4910,11 @@ static int iax2_poke_peer(struct iax2_peer *peer)
 		ast_log(LOG_NOTICE, "Still have a callno...\n");
 		iax2_destroy(peer->callno);
 	}
+	if (heldcall)
+		ast_mutex_unlock(&iaxsl[heldcall]);
 	peer->callno = find_callno(0, 0, &peer->addr, NEW_FORCE, 0);
+	if (heldcall)
+		ast_mutex_lock(&iaxsl[heldcall]);
 	if (peer->callno < 1) {
 		ast_log(LOG_WARNING, "Unable to allocate call for poking peer '%s'\n", peer->name);
 		return -1;
@@ -5627,7 +5631,7 @@ static int reload_config(void)
 	/* Qualify hosts, too */
 	ast_mutex_lock(&peerl.lock);
 	for (peer = peerl.peers; peer; peer = peer->next)
-		iax2_poke_peer(peer);
+		iax2_poke_peer(peer, 0);
 	ast_mutex_unlock(&peerl.lock);
 	return 0;
 }
@@ -6113,7 +6117,7 @@ int load_module(void)
 		iax2_do_register(reg);
 	ast_mutex_lock(&peerl.lock);
 	for (peer = peerl.peers; peer; peer = peer->next)
-		iax2_poke_peer(peer);
+		iax2_poke_peer(peer, 0);
 	ast_mutex_unlock(&peerl.lock);
 	return res;
 }
