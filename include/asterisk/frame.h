@@ -20,6 +20,8 @@
 extern "C" {
 #endif
 
+#include <sys/types.h>
+	
 /*
  * Autodetect system endianess
  */
@@ -51,8 +53,6 @@ extern "C" {
 #ifndef __BYTE_ORDER
 #error Need to know endianess
 #endif /* __BYTE_ORDER */
-
-#include <sys/types.h>
 
 //! Data structure associated with a single frame of data
 /* A frame of data read used to communicate between 
