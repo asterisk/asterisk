@@ -3568,6 +3568,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
             		strncpy(e->mailbox, mailbox, sizeof(e->mailbox)-1);
 					snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08x", rand());
             		e->msgstate = -1;
+					e->amaflags = amaflags;	
 					e->capability = capability;
 					e->parent = gw;
 					e->dtmfmode = dtmfmode;
@@ -3667,6 +3668,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
                         e->msgstate = -1;
                         e->parent = gw;
                     }
+					e->amaflags = amaflags;	
 					e->capability = capability;
 					e->dtmfmode = dtmfmode;
 					e->adsi = adsi;
