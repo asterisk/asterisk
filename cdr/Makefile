@@ -16,7 +16,7 @@ MODS=cdr_csv.so
 CFLAGS+=-fPIC
 
 #
-# MySQL stuff...  Autoconf anyone??
+# PGSQL stuff...  Autoconf anyone??
 #
 MODS+=$(shell if [ -d /usr/local/pgsql/include ] || [ -d /usr/include/pgsql ] || [ -d /usr/local/include/pgsql ] || [ -d /opt/pgsql/include ] || [ -f /usr/include/libpq-fe.h ] ; then echo "cdr_pgsql.so"; fi)
 CFLAGS+=$(shell if [ -d /usr/local/pgsql/include ]; then echo "-I/usr/local/pgsql/include"; fi)
