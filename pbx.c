@@ -300,7 +300,8 @@ static struct pbx_builtin {
 	"  ExecIfTime(<times>|<weekdays>|<mdays>|<months>?<appname>[|<appdata>]):\n"
 	"If the current time matches the specified time, then execute the specified\n"
 	"application. Each of the elements may be specified either as '*' (for always)\n"
-	"or as a range. See the 'include' syntax for details." 
+	"or as a range. See the 'include' syntax for details. It will return whatever\n"
+	"<appname> returns, or a non-zero value if the application is not found.\n"
 	},
 	
 	{ "Hangup", pbx_builtin_hangup,
@@ -5372,10 +5373,10 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 	int res = 0;
 	char *ptr1, *ptr2;
 	struct ast_timing timing;
-	const char *usage = "ExecIfTime requires an argument:\n  <time range>|<days of week>|<days of month>|<months>?<appname>[|<ptr1>]";
+	const char *usage = "ExecIfTime requires an argument:\n  <time range>|<days of week>|<days of month>|<months>?<appname>[|<appargs>]";
 
 	if (!data || ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "%s\n", usage);
+		ast_log(LOG_WARNING, "%s\n", usage);	
 		return -1;
 	}
 
@@ -5393,18 +5394,21 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 					ptr1++;
 				}
 				if ((app = pbx_findapp(ptr2))) {
-					pbx_exec(chan, app, ptr1 ? ptr1 : "", 1);
+					res = pbx_exec(chan, app, ptr1 ? ptr1 : "", 1);
 				} else {
 					ast_log(LOG_WARNING, "Cannot locate application %s\n", ptr2);
+					res = -1;
 				}
 			} else {
 				ast_log(LOG_WARNING, "%s\n", usage);
 			}
 		} else {
-			ast_log(LOG_WARNING, "Invalid Time Spec: %s\n%s\n", ptr1, usage);
+			ast_log(LOG_WARNING, "Invalid Time Spec: %s\nCorrect usage: %s\n", ptr1, usage);
+			res = -1;
 		}
 	} else {
 		ast_log(LOG_ERROR, "Memory Error!\n");
+		res = -1;
 	}
 	return res;
 }

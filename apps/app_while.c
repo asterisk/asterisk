@@ -29,7 +29,9 @@
 
 static char *exec_app = "ExecIf";
 static char *exec_desc = "  ExecIF (<expr>|<app>|<data>)\n"
-"If <expr> is true, execute and return the result of <app>(<data>)\n\n";
+"If <expr> is true, execute and return the result of <app>(<data>).\n"
+"If <expr> is true, but <app> is not found, then the application\n"
+"will return a non-zero value.";
 static char *exec_synopsis = "ExecIF (<expr>|<app>|<data>)";
 
 static char *start_app = "While";
@@ -73,8 +75,13 @@ static int execif_exec(struct ast_channel *chan, void *data) {
 		} else
 			mydata = "";
 
-		if(ast_true(expr) && (app = pbx_findapp(myapp))) {
-			res = pbx_exec(chan, app, mydata, 1);
+		if (ast_true(expr)) { 
+			if ((app = pbx_findapp(myapp))) {
+				res = pbx_exec(chan, app, mydata, 1);
+			} else {
+				ast_log(LOG_WARNING, "Count not find application! (%s)\n", myapp);
+				res = -1;
+			}
 		}
 	} else {
 		ast_log(LOG_ERROR,"Invalid Syntax.\n");

@@ -37,7 +37,7 @@ static char *exec_descrip =
 "Exec(appname(arguments))\n"
 "  Allows an arbitrary application to be invoked even when not\n"
 "hardcoded into the dialplan.  Returns whatever value the\n"
-"app returns or -2 when the app cannot be found.\n";
+"app returns or a non-zero value when the app cannot be found.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -71,7 +71,7 @@ static int exec_exec(struct ast_channel *chan, void *data)
 					res = pbx_exec(chan, app, args, 1);
 				} else {
 					ast_log(LOG_WARNING, "Could not find application (%s)\n", appname);
-					res = -2;
+					res = -1;
 				}
 			}
 		} else {
