@@ -7141,6 +7141,8 @@ static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 				/* Fix it all up now */
 				pri->pvts[principle]->owner = pri->pvts[x]->owner;
 				if (pri->pvts[principle]->owner) {
+					snprintf(pri->pvts[principle]->owner->name, sizeof(pri->pvts[principle]->owner->name), 
+						"Zap/%d:%d-%d", pri->trunkgroup, pri->pvts[principle]->channel, 1);
 					pri->pvts[principle]->owner->pvt->pvt = pri->pvts[principle];
 					pri->pvts[principle]->owner->fds[0] = pri->pvts[principle]->subs[SUB_REAL].zfd;
 					pri->pvts[principle]->subs[SUB_REAL].owner = pri->pvts[x]->subs[SUB_REAL].owner;
