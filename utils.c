@@ -365,7 +365,7 @@ int ast_utils_init(void)
 }
 
 
-#ifndef LINUX
+#ifndef __linux__
 #undef pthread_create /* For ast_pthread_create function only */
 int ast_pthread_create(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data)
 {
@@ -381,6 +381,8 @@ int ast_pthread_create(pthread_t *thread, pthread_attr_t *attr, void *(*start_ro
 }
 #endif /* ! LINUX */
 
+/* Case-insensitive substring matching */
+#ifndef LINUX
 static char *upper(const char *orig, char *buf, int bufsize)
 {
 	int i;
@@ -394,8 +396,6 @@ static char *upper(const char *orig, char *buf, int bufsize)
 	return buf;
 }
 
-/* Case-insensitive substring matching */
-#ifndef LINUX
 char *ast_strcasestr(const char *haystack, const char *needle)
 {
 	char *u1, *u2;

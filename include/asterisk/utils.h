@@ -15,6 +15,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <pthread.h>
+#include <asterisk/lock.h>
 
 static inline int ast_strlen_zero(const char *s)
 {
@@ -41,7 +42,7 @@ extern int ast_utils_init(void);
 #endif
 #define inet_ntoa __dont__use__inet_ntoa__use__ast_inet_ntoa__instead__
 
-#ifdef LINUX
+#ifdef __linux__
 #define ast_pthread_create pthread_create
 #define ast_strcasestr strcasestr
 #else
@@ -50,7 +51,7 @@ extern int ast_utils_init(void);
 #define	PTHREAD_ATTR_STACKSIZE		2097152
 #endif /* PTHREAD_ATTR_STACKSIZE */
 extern int ast_pthread_create(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data);
-#endif /* LINUX */
+#endif /* __linux__ */
 
 extern char *ast_strcasestr(const char *, const char *);
 

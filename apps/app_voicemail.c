@@ -1332,16 +1332,22 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		}
 		/* Check for a '0' here */
 		if (res == '0') {
-		transfer:
-			strncpy(chan->exten, "o", sizeof(chan->exten) - 1);
-			if (!ast_strlen_zero(vmu->exit)) {
-				strncpy(chan->context, vmu->exit, sizeof(chan->context) - 1);
-			} else if (ousemacro && !ast_strlen_zero(chan->macrocontext)) {
-				strncpy(chan->context, chan->macrocontext, sizeof(chan->context) - 1);
+			transfer:
+			if (vmu->operator) {
+				strncpy(chan->exten, "o", sizeof(chan->exten) - 1);
+				if (!ast_strlen_zero(vmu->exit)) {
+					strncpy(chan->context, vmu->exit, sizeof(chan->context) - 1);
+				} else if (ousemacro && !ast_strlen_zero(chan->macrocontext)) {
+					strncpy(chan->context, chan->macrocontext, sizeof(chan->context) - 1);
+				}
+				ast_play_and_wait(chan, "transfer");
+				chan->priority = 0;
+				free_user(vmu);
+				return 0;
+			} else {
+				ast_play_and_wait(chan, "vm-sorry");
+				return 0;
 			}
-			chan->priority = 0;
-			free_user(vmu);
-			return 0;
 		}
 		if (res < 0) {
 			free_user(vmu);
@@ -4605,9 +4611,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  			/* User has hung up, no options to give */
  				return res;
  			if (cmd == '0') {
- 				/* Erase the message if 0 pushed during playback */
- 				ast_play_and_wait(chan, "vm-deleted");
- 			 	vm_delete(recordfile);
+ 				break;
  			} else if (cmd == '*') {
  				break;
  			} 
@@ -4660,13 +4664,11 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  				return 1;
 #endif
  		case '0':
- 			if (outsidecaller && vmu->operator) {
- 				if (message_exists)
- 					ast_play_and_wait(chan, "vm-msgsaved");
- 				return cmd;
- 			} else
- 				cmd = ast_play_and_wait(chan, "vm-sorry");
- 			break;
+			if (message_exists || recorded) {
+				ast_play_and_wait(chan, "vm-deleted");
+				vm_delete(recordfile);
+			}
+			return cmd;
  		default:
 			/* If the caller is an ouside caller, and the review option is enabled,
 			   allow them to review the message, but let the owner of the box review

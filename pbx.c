@@ -4818,7 +4818,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 			res = ast_waitstream(chan, AST_DIGIT_ANY);
 			ast_stopstream(chan);
 		} else {
-			ast_log(LOG_WARNING, "ast_streamfile failed on %s fro %s\n", chan->name, (char*)data);
+			ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char*)data);
 			res = 0;
 		}
 	}
