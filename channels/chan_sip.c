@@ -3980,6 +3980,28 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
 	return send_request(p, &req, 1, p->ocseq);
 }
 
+static char *regstate2str(int regstate)
+{
+	switch(regstate) {
+	case REG_STATE_UNREGISTERED:
+		return "Unregistered";
+	case REG_STATE_REGSENT:
+		return "Request Sent";
+	case REG_STATE_AUTHSENT:
+		return "Auth. Sent";
+	case REG_STATE_REGISTERED:
+		return "Registered";
+	case REG_STATE_REJECTED:
+		return "Rejected";
+	case REG_STATE_TIMEOUT:
+		return "Timeout";
+	case REG_STATE_NOAUTH:
+		return "No Authentication";
+	default:
+		return "Unknown";
+	}
+}
+
 static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char *authheader);
 
 /*--- sip_reregister: Update registration with SIP Proxy---*/
@@ -5675,28 +5697,6 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
-}
-
-static char *regstate2str(int regstate)
-{
-	switch(regstate) {
-	case REG_STATE_UNREGISTERED:
-		return "Unregistered";
-	case REG_STATE_REGSENT:
-		return "Request Sent";
-	case REG_STATE_AUTHSENT:
-		return "Auth. Sent";
-	case REG_STATE_REGISTERED:
-		return "Registered";
-	case REG_STATE_REJECTED:
-		return "Rejected";
-	case REG_STATE_TIMEOUT:
-		return "Timeout";
-	case REG_STATE_NOAUTH:
-		return "No Authentication";
-	default:
-		return "Unknown";
-	}
 }
 
 /*--- print_group: Print call group and pickup group ---*/
