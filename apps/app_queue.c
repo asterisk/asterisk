@@ -39,9 +39,10 @@
 #include <asterisk/parking.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/cli.h>
-#include <asterisk/manager.h> /* JDG */
+#include <asterisk/manager.h>
 #include <asterisk/config.h>
 #include <asterisk/monitor.h>
+#include <asterisk/utils.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -576,7 +577,7 @@ static int ring_one(struct queue_ent *qe, struct localuser *outgoing)
 static int valid_exit(struct queue_ent *qe, char digit)
 {
 	char tmp[2];
-	if (!strlen(qe->context))
+	if (ast_strlen_zero(qe->context))
 		return 0;
 	tmp[0] = digit;
 	tmp[1] = '\0';
@@ -880,9 +881,9 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	strncpy(queuename, qe->parent->name, sizeof(queuename) - 1);
 	time(&now);
 	cur = qe->parent->members;
-	if (strlen(qe->announce))
+	if (!ast_strlen_zero(qe->announce))
 		announce = qe->announce;
-	if (announceoverride && strlen(announceoverride))
+	if (announceoverride && !ast_strlen_zero(announceoverride))
 		announce = announceoverride;
 	while(cur) {
 		/* Get a technology/[device:]number pair */
@@ -1022,11 +1023,10 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		}
 		/* Drop out of the queue at this point, to prepare for next caller */
 		leave_queue(qe);			
- 		/* JDG: sendurl */
- 		if( url && strlen(url) && ast_channel_supports_html(peer) ) {
+ 		if( url && !ast_strlen_zero(url) && ast_channel_supports_html(peer) ) {
  			ast_log(LOG_DEBUG, "app_queue: sendurl=%s.\n", url);
  			ast_channel_sendurl( peer, url );
- 		} /* /JDG */
+ 		}
 		ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "CONNECT", "%ld", (long)time(NULL) - qe->start);
 		strncpy(oldcontext, qe->chan->context, sizeof(oldcontext) - 1);
 		strncpy(oldexten, qe->chan->exten, sizeof(oldexten) - 1);

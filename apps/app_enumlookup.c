@@ -20,6 +20,7 @@
 #include <asterisk/config.h>
 #include <asterisk/module.h>
 #include <asterisk/enum.h>
+#include <asterisk/utils.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -64,7 +65,7 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 	char tmp[256];
 	char *c,*t;
 	struct localuser *u;
-	if (!data || !strlen(data)) {
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "EnumLookup requires an argument (extension)\n");
 		res = 1;
 	}
@@ -128,7 +129,7 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 				else
 					res = 0;
 			}
-		} else if (strlen(tech)) {
+		} else if (!ast_strlen_zero(tech)) {
 			ast_log(LOG_NOTICE, "Don't know how to handle technology '%s'\n", tech);
 			res = 0;
 		}

@@ -34,6 +34,7 @@
 #include <asterisk/musiconhold.h>
 #include <asterisk/manager.h>
 #include <asterisk/parking.h>
+#include <asterisk/utils.h>
 #include <sys/socket.h>
 #include <errno.h>
 #include <unistd.h>
@@ -318,7 +319,7 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 		if (p->chan) {
 			/* Note that we don't hangup if it's not a callback because Asterisk will do it
 			   for us when the PBX instance that called login finishes */
-			if (strlen(p->loginchan))
+			if (!ast_strlen_zero(p->loginchan))
 				ast_hangup(p->chan);
 			p->chan = NULL;
 			p->acknowledged = 0;
@@ -437,7 +438,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		}
 		ast_mutex_unlock(&p->lock);
 		return res;
-	} else if (strlen(p->loginchan)) {
+	} else if (!ast_strlen_zero(p->loginchan)) {
 		time(&p->start);
 		/* Call on this agent */
 		if (option_verbose > 2)
@@ -509,7 +510,7 @@ static int agent_hangup(struct ast_channel *ast)
 	time(&p->start);
 	if (p->chan) {
 		/* If they're dead, go ahead and hang up on the agent now */
-		if (strlen(p->loginchan)) {
+		if (!ast_strlen_zero(p->loginchan)) {
 			if (p->chan) {
 				/* Recognize the hangup and pass it along immediately */
 				ast_hangup(p->chan);
@@ -975,7 +976,7 @@ static struct ast_channel *agent_request(char *type, int format, void *data)
 	while(p) {
 		ast_mutex_lock(&p->lock);
 		if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent)) &&
-				!strlen(p->loginchan)) {
+				ast_strlen_zero(p->loginchan)) {
 			if (p->chan)
 				hasagent++;
 			if (!p->lastdisc.tv_sec) {
@@ -998,14 +999,14 @@ static struct ast_channel *agent_request(char *type, int format, void *data)
 		while(p) {
 			ast_mutex_lock(&p->lock);
 			if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent))) {
-				if (p->chan || strlen(p->loginchan))
+				if (p->chan || !ast_strlen_zero(p->loginchan))
 					hasagent++;
 				if (!p->lastdisc.tv_sec) {
 					/* Agent must be registered, but not have any active call, and not be in a waiting state */
 					if (!p->owner && p->chan) {
 						/* Could still get a fixed agent */
 						chan = agent_new(p, AST_STATE_DOWN);
-					} else if (!p->owner && strlen(p->loginchan)) {
+					} else if (!p->owner && !ast_strlen_zero(p->loginchan)) {
 						/* Adjustable agent */
 						p->chan = ast_request("Local", format, p->loginchan);
 						if (p->chan)
@@ -1069,7 +1070,7 @@ static int agents_show(int fd, int argc, char **argv)
 			else
 				ast_cli(fd, "-- Pending call to agent %s\n", p->agent);
 		} else {
-			if (strlen(p->name))
+			if (!ast_strlen_zero(p->name))
 				snprintf(username, sizeof(username), "(%s) ", p->name);
 			else
 				strcpy(username, "");
@@ -1080,7 +1081,7 @@ static int agents_show(int fd, int argc, char **argv)
 				} else {
 					strcpy(talkingto, " is idle");
 				}
-			} else if (strlen(p->loginchan)) {
+			} else if (!ast_strlen_zero(p->loginchan)) {
 				snprintf(location, sizeof(location) - 20, "available at '%s'", p->loginchan);
 				strcpy(talkingto, "");
 				if (p->acknowledged)
@@ -1089,7 +1090,7 @@ static int agents_show(int fd, int argc, char **argv)
 				strcpy(location, "not logged in");
 				strcpy(talkingto, "");
 			}
-			if (strlen(p->moh))
+			if (!ast_strlen_zero(p->moh))
 				snprintf(moh, sizeof(moh), " (musiconhold is '%s')", p->moh);
 			ast_cli(fd, "%-12.12s %s%s%s%s\n", p->agent, 
 					username, location, talkingto, moh);
@@ -1160,7 +1161,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
 	if (!res) {
-		if( opt_user && strlen(opt_user))
+		if( opt_user && !ast_strlen_zero(opt_user))
 			strncpy( user, opt_user, AST_MAX_AGENT );
 		else
 			res = ast_app_getdata(chan, "agent-user", user, sizeof(user) - 1, 0);
@@ -1176,7 +1177,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 		}
 		ast_mutex_unlock(&agentlock);
 		if (!res) {
-			if (strlen(xpass))
+			if (!ast_strlen_zero(xpass))
 				res = ast_app_getdata(chan, "agent-pass", pass, sizeof(pass) - 1, 0);
 			else
 				strcpy(pass, "");
@@ -1205,7 +1206,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 									res = 0;
 								} else
 									res = ast_app_getdata(chan, "agent-newlocation", tmpchan+pos, sizeof(tmpchan) - 2, 0);
-								if (!strlen(tmpchan) || ast_exists_extension(chan, context && strlen(context) ? context : "default", tmpchan,
+								if (ast_strlen_zero(tmpchan) || ast_exists_extension(chan, context && !ast_strlen_zero(context) ? context : "default", tmpchan,
 											1, NULL))
 									break;
 								if (exten) {
@@ -1227,18 +1228,18 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								}
 							}
 							if (!res) {
-								if (context && strlen(context) && strlen(tmpchan))
+								if (context && !ast_strlen_zero(context) && !ast_strlen_zero(tmpchan))
 									snprintf(p->loginchan, sizeof(p->loginchan), "%s@%s", tmpchan, context);
 								else
 									strncpy(p->loginchan, tmpchan, sizeof(p->loginchan) - 1);
-								if (!strlen(p->loginchan))
+								if (ast_strlen_zero(p->loginchan))
 									filename = "agent-loggedoff";
 								p->acknowledged = 0;
 								/* store/clear the global variable that stores agentid based on the callerid */
 								if (chan->callerid) {
 									char agentvar[AST_MAX_BUF];
 									snprintf(agentvar, sizeof(agentvar), "%s_%s",GETAGENTBYCALLERID, chan->callerid);
-									if (!strlen(p->loginchan))
+									if (ast_strlen_zero(p->loginchan))
 										pbx_builtin_setvar_helper(NULL, agentvar, NULL);
 									else
 										pbx_builtin_setvar_helper(NULL, agentvar, p->agent);

@@ -17,6 +17,7 @@
 #include <asterisk/options.h>
 #include <asterisk/cli.h>
 #include <asterisk/term.h>
+#include <asterisk/utils.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -703,7 +704,7 @@ void ast_frame_dump(char *name, struct ast_frame *f, char *prefix)
 	default:
 		snprintf(ftype, sizeof(ftype), "Unknown Frametype '%d'", f->frametype);
 	}
-	if (strlen(moreinfo))
+	if (!ast_strlen_zero(moreinfo))
 		ast_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) '%s' ] [%s]\n",  
 			term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
 			term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),

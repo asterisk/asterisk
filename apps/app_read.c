@@ -20,6 +20,7 @@
 #include <asterisk/module.h>
 #include <asterisk/translate.h>
 #include <asterisk/options.h>
+#include <asterisk/utils.h>
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -53,7 +54,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 	char *stringp;
 	char *maxdigitstr;
 	int maxdigits=255;
-	if (!data || !strlen((char *)data)) {
+	if (!data || ast_strlen_zero((char *)data)) {
 		ast_log(LOG_WARNING, "Read requires an argument (variable)\n");
 		return -1;
 	}
@@ -63,17 +64,16 @@ static int read_exec(struct ast_channel *chan, void *data)
 	varname = strsep(&stringp, "|");
 	filename = strsep(&stringp, "|");
 	maxdigitstr = strsep(&stringp,"|");
-	if (!(filename) || (strlen(filename)==0)) filename = NULL;
-	if (maxdigitstr)
-	{
+	if (!(filename) || ast_strlen_zero(filename)) 
+		filename = NULL;
+	if (maxdigitstr) {
 	    maxdigits = atoi(maxdigitstr);
 	    if ((maxdigits<1) || (maxdigits>255)) {
     		maxdigits = 255;
-	    }
-	    else
+	    } else
 		ast_verbose(VERBOSE_PREFIX_3 "Accepting a maximum of %i digits.\n", maxdigits);
 	}	
-	if (!(varname) || (strlen(varname)==0)) {
+	if (!(varname) || ast_strlen_zero(varname)) {
 		ast_log(LOG_WARNING, "Read requires an variable name\n");
 		return -1;
 	}

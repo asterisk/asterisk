@@ -19,7 +19,7 @@
 #include <asterisk/logger.h>
 #include <asterisk/config.h>
 #include <asterisk/manager.h>
-
+#include <asterisk/utils.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -68,11 +68,11 @@ static int action_setcdruserfield(struct mansession *s, struct message *m)
 	char *channel = astman_get_header(m, "Channel");
 	char *append = astman_get_header(m, "Append");
 
-	if (!strlen(channel)) {
+	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "No Channel specified");
 		return 0;
 	}
-	if (!strlen(userfield)) {
+	if (ast_strlen_zero(userfield)) {
 		astman_send_error(s, m, "No UserField specified");
 		return 0;
 	}

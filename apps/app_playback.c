@@ -18,6 +18,7 @@
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
 #include <asterisk/translate.h>
+#include <asterisk/utils.h>
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -52,7 +53,7 @@ static int playback_exec(struct ast_channel *chan, void *data)
 	int option_skip=0;
 	int option_noanswer = 0;
 	char *stringp;
-	if (!data || !strlen((char *)data)) {
+	if (!data || ast_strlen_zero((char *)data)) {
 		ast_log(LOG_WARNING, "Playback requires an argument (filename)\n");
 		return -1;
 	}

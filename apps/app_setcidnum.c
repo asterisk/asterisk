@@ -21,6 +21,7 @@
 #include <asterisk/translate.h>
 #include <asterisk/image.h>
 #include <asterisk/callerid.h>
+#include <asterisk/utils.h>
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -64,17 +65,17 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 		strncpy(oldcid, chan->callerid, sizeof(oldcid) - 1);
 		ast_callerid_parse(oldcid, &n, &l);
 		l = tmp;
-		if (strlen(l)) {
-			if (n && strlen(n))
+		if (!ast_strlen_zero(l)) {
+			if (n && !ast_strlen_zero(n))
 				snprintf(newcid, sizeof(newcid), "\"%s\" <%s>", n, l);
 			else
 				strncpy(newcid, tmp, sizeof(newcid) - 1);
-		} else if (n && strlen(n)) {
+		} else if (n && !ast_strlen_zero(n)) {
 			strncpy(newcid, n, sizeof(newcid) - 1);
 		}
 	} else
 		strncpy(newcid, tmp, sizeof(newcid));
-	ast_set_callerid(chan, strlen(newcid) ? newcid : NULL, anitoo);
+	ast_set_callerid(chan, !ast_strlen_zero(newcid) ? newcid : NULL, anitoo);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }

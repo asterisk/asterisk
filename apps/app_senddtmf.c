@@ -19,6 +19,7 @@
 #include <asterisk/module.h>
 #include <asterisk/translate.h>
 #include <asterisk/options.h>
+#include <asterisk/utils.h>
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -44,7 +45,7 @@ static int senddtmf_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	char *digits = data;
 
-	if (!digits || !strlen(digits)) {
+	if (!digits || ast_strlen_zero(digits)) {
 		ast_log(LOG_WARNING, "SendDTMF requires an argument (digits or *#aAbBcCdD)\n");
 		return -1;
 	}

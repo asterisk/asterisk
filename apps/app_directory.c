@@ -19,6 +19,7 @@
 #include <asterisk/module.h>
 #include <asterisk/config.h>
 #include <asterisk/say.h>
+#include <asterisk/utils.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -132,7 +133,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 	char *start, *pos, *conv,*stringp=NULL;
 	char fn[256];
 	char fn2[256];
-	if (!context || !strlen(context)) {
+	if (!context || ast_strlen_zero(context)) {
 		ast_log(LOG_WARNING, "Directory must be called with an argument (context in which to interpret extensions)\n");
 		return -1;
 	}
@@ -190,7 +191,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 						res = ast_waitstream(chan, AST_DIGIT_ANY);
 					ast_stopstream(chan);
 				} else {
-					res = ast_say_character_str(chan, strlen(name) ? name : v->name, AST_DIGIT_ANY, chan->language);
+					res = ast_say_character_str(chan, !ast_strlen_zero(name) ? name : v->name, AST_DIGIT_ANY, chan->language);
 				}
 ahem:
 				if (!res)
@@ -260,9 +261,9 @@ top:
 	} else
 		dialcontext = context;
 	dirintro = ast_variable_retrieve(cfg, context, "directoryintro");
-	if (!dirintro || !strlen(dirintro))
+	if (!dirintro || ast_strlen_zero(dirintro))
 		dirintro = ast_variable_retrieve(cfg, "general", "directoryintro");
-	if (!dirintro || !strlen(dirintro))
+	if (!dirintro || ast_strlen_zero(dirintro))
 		dirintro = "dir-intro";
 	if (chan->_state != AST_STATE_UP) 
 		res = ast_answer(chan);

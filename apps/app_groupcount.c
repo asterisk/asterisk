@@ -21,6 +21,7 @@
 #include <asterisk/channel.h>
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
+#include <asterisk/utils.h>
 
 static char *tdesc = "Group Management Routines";
 
@@ -64,7 +65,7 @@ static int group_get_count(char *group)
 	struct ast_channel *chan;
 	int count = 0;
 	char *test;
-	if (group && strlen(group)) {
+	if (group && !ast_strlen_zero(group)) {
 		chan = ast_channel_walk(NULL);
 		while(chan) {
 			test = pbx_builtin_getvar_helper(chan, "GROUP");
@@ -87,7 +88,7 @@ static int group_count_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 
 	/* Check and parse arguments */
-	if (data && strlen(data)) {
+	if (data && !ast_strlen_zero(data)) {
 		group = (char *)data;
 	} else {
 		group = pbx_builtin_getvar_helper(chan, "GROUP");
@@ -106,7 +107,7 @@ static int group_set_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 	/* Check and parse arguments */
-	if (data && strlen(data)) {
+	if (data && !ast_strlen_zero(data)) {
 		pbx_builtin_setvar_helper(chan, "GROUP", (char *)data);
 	} else
 		ast_log(LOG_WARNING, "GroupSet requires an argument (group name)\n");

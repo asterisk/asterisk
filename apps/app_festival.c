@@ -19,6 +19,7 @@
 #include <asterisk/module.h>
 #include <asterisk/md5.h>
 #include <asterisk/config.h>
+#include <asterisk/utils.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -304,10 +305,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	if (!(festivalcommand = ast_variable_retrieve(cfg, "general", "festivalcommand"))) {
 		festivalcommand = "(tts_textasterisk \"%s\" 'file)(quit)\n";
 	}
-	
-		
-
-	if (!vdata || !strlen(vdata)) {
+	if (!vdata || ast_strlen_zero(vdata)) {
 		ast_log(LOG_WARNING, "festival requires an argument (text)\n");
 		return -1;
 	}
