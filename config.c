@@ -17,6 +17,10 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#define AST_INCLUDE_GLOB 1
+#ifdef AST_INCLUDE_GLOB
+# include <glob.h>
+#endif
 #include <asterisk/config.h>
 #include <asterisk/config_pvt.h>
 #include <asterisk/cli.h>
@@ -299,7 +303,8 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 						if(arg && cur) {
 							ast_log(LOG_WARNING, "Including files with explicit config engine no longer permitted.  Please use extconfig.conf to specify all mappings\n");
 						} else {
-							__ast_load(cur, tmp, _tmpc, _last, includelevel + 1);
+							if (!__ast_load(cur, tmp, _tmpc, _last, includelevel + 1))
+								return -1;
 						}
 					} else
 						ast_log(LOG_WARNING, "Maximum Include level (%d) exceeded\n", includelevel);
@@ -503,6 +508,24 @@ static struct ast_config *__ast_load(const char *configfile, struct ast_config *
 	} else {
 		snprintf(fn, sizeof(fn), "%s/%s", (char *)ast_config_AST_CONFIG_DIR, configfile);
 	}
+#ifdef AST_INCLUDE_GLOB
+	{
+		int glob_ret;
+		glob_t globbuf;
+		globbuf.gl_offs = 0;	/* initialize it to silence gcc */
+		glob_ret = glob(fn, GLOB_NOMATCH|GLOB_BRACE, NULL, &globbuf);
+		if (glob_ret == GLOB_NOSPACE)
+			ast_log(LOG_WARNING,
+				"Glob Expansion of pattern '%s' failed: Not enough memory\n", fn);
+		else if (glob_ret  == GLOB_ABORTED)
+			ast_log(LOG_WARNING,
+				"Glob Expansion of pattern '%s' failed: Read error\n", fn);
+		else  {
+			/* loop over expanded files */
+			int i;
+			for (i=0; i<globbuf.gl_pathc; i++) {
+				strncpy(fn, globbuf.gl_pathv[i], sizeof(fn)-1);
+#endif
 	if ((option_verbose > 1) && !option_debug) {
 		ast_verbose(  VERBOSE_PREFIX_2 "Parsing '%s': ", fn);
 		fflush(stdout);
@@ -569,7 +592,7 @@ static struct ast_config *__ast_load(const char *configfile, struct ast_config *
 								new_buf = comment_p + 1;
 						}
 					}
-					if (process_buf && cfg_process(tmp, _tmpc, _last, process_buf, lineno, configfile, includelevel)) {
+					if (process_buf && cfg_process(tmp, _tmpc, _last, process_buf, lineno, fn, includelevel)) {
 						tmp = NULL;
 						break;
 					}
@@ -588,6 +611,15 @@ static struct ast_config *__ast_load(const char *configfile, struct ast_config *
 	if (comment) {
 		ast_log(LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment]);
 	}
+#ifdef AST_INCLUDE_GLOB
+					if (!tmp)
+						break;
+				}
+				globfree(&globbuf);
+			}
+		}
+#endif
+
 	return tmp;
 }
 
