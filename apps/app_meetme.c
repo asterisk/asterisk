@@ -685,8 +685,9 @@ zapretry:
 	manager_event(EVENT_FLAG_CALL, "MeetmeJoin", 
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
-			"Meetme: %s\r\n",
-			chan->name, chan->uniqueid, conf->confno);
+			"Meetme: %s\r\n"
+			"Usernum: %i\r\n",
+			chan->name, chan->uniqueid, conf->confno, user->user_no);
 
 	if (!firstpass && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN)) {
 		firstpass = 1;
@@ -956,8 +957,9 @@ outrun:
 		manager_event(EVENT_FLAG_CALL, "MeetmeLeave", 
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
-			"Meetme: %s\r\n",
-			chan->name, chan->uniqueid, conf->confno);
+			"Meetme: %s\r\n"
+			"Usernum: %i\r\n",
+			chan->name, chan->uniqueid, conf->confno, user->user_no);
 		prev = NULL;
 		conf->users--;
 		if (confflags & CONFFLAG_ADMINEXIT) 
