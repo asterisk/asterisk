@@ -3555,7 +3555,6 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		tmp->pvt->rawwriteformat = deflaw;
 		tmp->writeformat = deflaw;
 		i->subs[index].linear = 0;
-		i->alreadyhungup = 0;
 		zt_setlinear(i->subs[index].zfd, i->subs[index].linear);
 		features = 0;
 		if (i->busydetect && CANBUSYDETECT(i)) {
@@ -3636,6 +3635,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 #ifdef ZAPATA_PRI
 		/* Assume calls are not idle calls unless we're told differently */
 		i->isidlecall = 0;
+		i->alreadyhungup = 0;
 #endif
 		/* Assure there is no confmute on this channel */
 		zt_confmute(i, 0);
