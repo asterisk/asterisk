@@ -2926,6 +2926,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 	destroy_packets(trans->packets);
 	destroy_packets(trans->lasttrans);
 	trans->packets = NULL;
+	trans->lasttrans = NULL;
 	if (trans->autokillid > -1)
 		ast_sched_del(sched, trans->autokillid);
 	trans->autokillid = -1;
