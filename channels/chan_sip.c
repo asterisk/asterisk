@@ -196,6 +196,7 @@ static struct sip_pvt {
 	struct sip_pvt *refer_call;			/* Call we are referring */
 	struct sip_route *route;			/* Head of linked list of routing steps (fm Record-Route) */
 	char remote_party_id[256];
+	char from[256];
 	char context[AST_MAX_EXTENSION];
 	char fromdomain[AST_MAX_EXTENSION];	/* Domain to show in the from field */
 	char fromuser[AST_MAX_EXTENSION];	/* Domain to show in the user field */
@@ -1094,7 +1095,14 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		if (title)
 			snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%04x", title, rand() & 0xffff);
 		else
-			snprintf(tmp->name, sizeof(tmp->name), "SIP/%s:%d", inet_ntoa(i->sa.sin_addr), ntohs(i->sa.sin_port));
+			if (strchr(i->from,':'))
+			{
+				snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", strchr(i->from,':')+1, (int)(i));
+			}
+			else
+			{
+				snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", i->from, (int)(i));
+			}
 		tmp->type = type;
                 if (i->dtmfmode & SIP_DTMF_INBAND) {
                     i->vad = ast_dsp_new();
@@ -1120,7 +1128,9 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		tmp->pvt->transfer = sip_transfer;
 		tmp->pvt->fixup = sip_fixup;
 		tmp->pvt->send_digit = sip_senddigit;
+
 		tmp->pvt->bridge = ast_rtp_bridge;
+
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
                 if (strlen(i->accountcode))
@@ -2688,6 +2698,7 @@ static int transmit_refer(struct sip_pvt *p, char *dest)
 		of = get_header(&p->initreq, "From");
 	strncpy(from, of, sizeof(from) - 1);
 	of = ditch_braces(from);
+	strncpy(p->from,of,sizeof(p->from) - 1);
 	if (strncmp(of, "sip:", 4)) {
 		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
 	} else
@@ -3630,11 +3641,11 @@ static int sip_show_channels(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	ast_pthread_mutex_lock(&iflock);
 	cur = iflist;
-	ast_cli(fd, FORMAT2, "Peer", "Username", "Call ID", "Seq (Tx/Rx)", "Lag", "Jitter", "Format");
+	ast_cli(fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)", "Lag", "Jitter", "Format");
 	while (cur) {
 		if (!cur->subscribed) {
 			ast_cli(fd, FORMAT, inet_ntoa(cur->sa.sin_addr), 
-						strlen(cur->username) ? cur->username : "(None)", 
+						strlen(cur->username) ? cur->username : ( strlen(cur->callerid) ? cur->callerid: "(None)" ), 
 						cur->callid, 
 						cur->ocseq, cur->icseq, 
 						0,
