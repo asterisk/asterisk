@@ -179,6 +179,7 @@ static int transmit_response(struct mgcp_endpoint *p, char *msg, struct mgcp_req
 static int transmit_notify_request(struct mgcp_endpoint *p, char *tone, int offhook);
 static int transmit_connection_del(struct mgcp_endpoint *p);
 static int transmit_notify_request_with_callerid(struct mgcp_endpoint *p, char *tone, int offhook, char *callerid);
+static int transmit_audit_endpoint(struct mgcp_endpoint *p);
 
 static int __mgcp_xmit(struct mgcp_endpoint *p, char *data, int len)
 {
@@ -441,6 +442,63 @@ static char show_endpoints_usage[] =
 
 static struct ast_cli_entry  cli_show_endpoints = 
 	{ { "mgcp", "show", "endpoints", NULL }, mgcp_show_endpoints, "Show defined MGCP endpoints", show_endpoints_usage };
+
+static int mgcp_audit_endpoint(int fd, int argc, char *argv[])
+{
+	struct mgcp_gateway  *g;
+	struct mgcp_endpoint *e;
+	int found = 0;
+    char *ename,*gname;
+	if (!mgcpdebug) {
+		return RESULT_SHOWUSAGE;
+    }
+	if (argc != 4) 
+		return RESULT_SHOWUSAGE;
+    /* split the name into parts by null */
+    ename = argv[3];
+    gname = ename;
+    while (*gname) {
+        if (*gname == '@') {
+            *gname = 0;
+            gname++;
+            break;
+        }
+        gname++;
+    }
+
+	ast_pthread_mutex_lock(&gatelock);
+	g = gateways;
+	while(g) {
+        if (!strcasecmp(g->name, gname)) {
+            e = g->endpoints;
+            while(e) {
+                if (!strcasecmp(e->name, ename)) {
+                    found = 1;
+                    transmit_audit_endpoint(e);
+                    break;
+                }
+                e = e->next;
+            }
+            if (found) {
+                break;
+            }
+        }
+        g = g->next;
+	}
+    if (!found) {
+        ast_cli(fd, "   << Could not find endpoint >>     ");
+    }
+	ast_pthread_mutex_unlock(&gatelock);
+	return RESULT_SUCCESS;
+}
+
+static char audit_endpoint_usage[] = 
+"Usage: mgcp audit endpoint <endpointid>\n"
+"       List the capabilities of an endpoint in the MGCP (Media Gateawy Control Protocol) subsystem.\n"
+"       mgcp debug MUST be on to see the results of this command.\n";
+
+static struct ast_cli_entry  cli_audit_endpoint = 
+	{ { "mgcp", "audit", "endpoint", NULL }, mgcp_audit_endpoint, "Audit specified MGCP endpoint", audit_endpoint_usage };
 
 static int mgcp_answer(struct ast_channel *ast)
 {
@@ -1255,6 +1313,15 @@ static int transmit_notify_request_with_callerid(struct mgcp_endpoint *p, char *
 	add_header(&resp, "S", tone2);
 	return send_request(p, &resp, oseq);
 }
+
+static int transmit_audit_endpoint(struct mgcp_endpoint *p)
+{
+	struct mgcp_request resp;
+	reqprep(&resp, p, "AUEP");
+	add_header(&resp, "F", "A,R,D,S,X,N,I,T,O,ES,VS,E,MD");
+	return send_request(p, &resp, oseq);
+}
+
 static int transmit_connection_del(struct mgcp_endpoint *p)
 {
 	struct mgcp_request resp;
@@ -1888,6 +1955,7 @@ int load_module()
 	mgcp_rtp.type = type;
 	ast_rtp_proto_register(&mgcp_rtp);
 	ast_cli_register(&cli_show_endpoints);
+	ast_cli_register(&cli_audit_endpoint);
 	ast_cli_register(&cli_debug);
 	ast_cli_register(&cli_no_debug);
 	/* And start the monitor for the first time */
