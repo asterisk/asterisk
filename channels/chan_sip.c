@@ -518,7 +518,8 @@ static int sip_do_reload(void);
 
 
 /*--- sip_debug_test_addr: See if we pass debug IP filter */
-static inline int sip_debug_test_addr(struct sockaddr_in *addr) {
+static inline int sip_debug_test_addr(struct sockaddr_in *addr) 
+{
 	if (sipdebug == 0)
 		return 0;
 	if (debugaddr.sin_addr.s_addr) {
@@ -530,7 +531,8 @@ static inline int sip_debug_test_addr(struct sockaddr_in *addr) {
 	return 1;
 }
 
-static inline int sip_debug_test_pvt(struct sip_pvt *p) {
+static inline int sip_debug_test_pvt(struct sip_pvt *p) 
+{
 	if (sipdebug == 0)
 		return 0;
 	return sip_debug_test_addr((p->nat ? &p->recv : &p->sa));
