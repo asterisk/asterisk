@@ -1,3 +1,7 @@
+* Asterisk 0.1.4
+ -- Update VoFR some more
+ -- Fix the QuickNet driver to work with LineJack
+ -- Add ability to pass images for IAX.
 * Asterisk 0.1.3
  -- Update VoFR for latest sangoma code
  -- Update QuickNet Driver
