@@ -669,10 +669,11 @@ static void console_verboser(const char *s, int pos, int replace, int complete)
 	else
 		fputs(s + pos,stdout);
 	fflush(stdout);
-	if (complete)
-	/* Wake up a poll()ing console */
+	if (complete) {
+		/* Wake up a poll()ing console */
 		if (option_console && consolethread != AST_PTHREADT_NULL)
 			pthread_kill(consolethread, SIGURG);
+	}
 }
 
 static int ast_all_zeros(char *s)
@@ -1169,7 +1170,8 @@ static int ast_cli_display_match_list(char **matches, int len, int max)
 				continue;
 			}
 
-			numoutput++;  numoutputline++;
+			numoutput++;
+			numoutputline++;
 			fprintf(stdout, "%-*s  ", max, matches[idx]);
 			free(matches[idx]);
 			matches[idx] = NULL;
@@ -1247,7 +1249,7 @@ static char *cli_complete(EditLine *el, int ch)
 			matches = (char **) NULL;
 
 
-	}  else {
+	} else {
 
 		nummatches = ast_cli_generatornummatches((char *)lf->buffer,ptr);
 		matches = ast_cli_completion_matches((char *)lf->buffer,ptr);
@@ -1538,7 +1540,7 @@ static void ast_readconfig(void) {
 	}
 	v = ast_variable_browse(cfg, "options");
 	while(v) {
-		if(!strcasecmp(v->name, "verbose")) {
+		if (!strcasecmp(v->name, "verbose")) {
 			option_verbose= atoi(v->value);
 		} else if (!strcasecmp(v->name, "debug")) {
 			option_debug= ast_true(v->value);
@@ -1590,7 +1592,7 @@ int main(int argc, char *argv[])
 	_argv[x] = NULL;
 
 	/* if the progname is rasterisk consider it a remote console */
-	if ( argv[0] && (strstr(argv[0], "rasterisk")) != NULL)  {
+	if (argv[0] && (strstr(argv[0], "rasterisk")) != NULL) {
 		option_remote++;
 		option_nofork++;
 	}
@@ -1894,8 +1896,8 @@ int main(int argc, char *argv[])
 		set_icon("Asterisk");
 		snprintf(title, sizeof(title), "Asterisk Console on '%s' (pid %d)", hostname, ast_mainpid);
 		set_title(title);
-	    ast_cli_register(&quit);
-	    ast_cli_register(&astexit);
+		ast_cli_register(&quit);
+		ast_cli_register(&astexit);
 
 		for (;;) {
 			buf = (char *)el_gets(el, &num);
