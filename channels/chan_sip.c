@@ -253,6 +253,7 @@ static struct sip_pvt {
 	char refer_contact[AST_MAX_EXTENSION];/* Place to store Contact info from a REFER extension */
 	struct sip_pvt *refer_call;			/* Call we are referring */
 	struct sip_route *route;			/* Head of linked list of routing steps (fm Record-Route) */
+	int route_persistant;				/* Is this the "real" route? */
 	char remote_party_id[256];
 	char from[256];
 	char context[AST_MAX_EXTENSION];
@@ -3747,10 +3748,19 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 	int len;
 	char *rr, *contact, *c;
 
+	/* Once a persistant route is set, don't fool with it */
+	if (p->route && p->route_persistant) {
+		ast_log(LOG_DEBUG, "build_route: Retaining previous route: <%s>\n", p->route->hop);
+		return;
+	}
+
 	if (p->route) {
 		free_old_route(p->route);
 		p->route = NULL;
 	}
+	
+	p->route_persistant = backwards;
+	
 	/* We build up head, then assign it to p->route when we're done */
 	head = NULL;  tail = head;
 	/* 1st we pass through all the hops in any Record-Route headers */
