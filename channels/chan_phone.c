@@ -34,7 +34,7 @@
 #include <linux/ixjuser.h>
 #include "DialTone.h"
 
-#define phone_MAX_BUF 480
+#define PHONE_MAX_BUF 480
 
 static char *desc = "Linux Telephony API Support";
 static char *type = "Phone";
@@ -74,6 +74,7 @@ static int restart_monitor(void);
    
 #define MODE_DIALTONE 	1
 #define MODE_IMMEDIATE	2
+#define MODE_FXO		3
    
 static struct phone_pvt {
 	int fd;							/* Raw file descriptor for this device */
@@ -86,12 +87,12 @@ static struct phone_pvt {
 	struct phone_pvt *next;			/* Next channel in list */
 	struct ast_frame fr;			/* Frame */
 	char offset[AST_FRIENDLY_OFFSET];
-	char buf[phone_MAX_BUF];					/* Static buffer for reading frames */
+	char buf[PHONE_MAX_BUF];					/* Static buffer for reading frames */
 	int obuflen;
 	int dialtone;
 	int silencesupression;
 	char context[AST_MAX_EXTENSION];
-	char obuf[phone_MAX_BUF * 2];
+	char obuf[PHONE_MAX_BUF * 2];
 	char ext[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
 } *iflist = NULL;
@@ -165,6 +166,13 @@ static int phone_hangup(struct ast_channel *ast)
 		ast_log(LOG_WARNING, "Failed to stop ringing\n");
 	if (ioctl(p->fd, PHONE_CPT_STOP))
 		ast_log(LOG_WARNING, "Failed to stop sounds\n");
+
+	/* If it's an FXO, hang them up */
+	if (p->mode == MODE_FXO) {
+		if (ioctl(p->fd, PHONE_PSTN_SET_STATE, PSTN_ON_HOOK)) 
+			ast_log(LOG_DEBUG, "ioctl(PHONE_PSTN_SET_STATE) failed on %s (%s)\n",ast->name, strerror(errno));
+	}
+
 	/* If they're off hook, give a busy signal */
 	if (ioctl(p->fd, PHONE_HOOKSTATE)) {
 		if (option_debug)
@@ -230,6 +238,15 @@ static int phone_setup(struct ast_channel *ast)
 
 static int phone_answer(struct ast_channel *ast)
 {
+	struct phone_pvt *p;
+	p = ast->pvt->pvt;
+	/* In case it's a LineJack, take it off hook */
+	if (p->mode == MODE_FXO) {
+		if (ioctl(p->fd, PHONE_PSTN_SET_STATE, PSTN_OFF_HOOK)) 
+			ast_log(LOG_DEBUG, "ioctl(PHONE_PSTN_SET_STATE) failed on %s (%s)\n", ast->name, strerror(errno));
+		else
+			ast_log(LOG_DEBUG, "Took linejack off hook\n");
+	}
 	phone_setup(ast);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "phone_answer(%s)\n", ast->name);
@@ -267,6 +284,8 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 
 	phonee.bytes = ioctl(p->fd, PHONE_EXCEPTION);
 	if (phonee.bits.dtmf_ready)  {
+		ast_log(LOG_DEBUG, "phone_read(): DTMF\n");
+	
 		/* We've got a digit -- Just handle this nicely and easily */
 		digit =  ioctl(p->fd, PHONE_GET_DTMF_ASCII);
 		p->fr.subclass = digit;
@@ -274,9 +293,11 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 		return &p->fr;
 	}
 	if (phonee.bits.hookstate) {
+		ast_log(LOG_DEBUG, "Hookstate changed\n");
 		res = ioctl(p->fd, PHONE_HOOKSTATE);
 		/* See if we've gone on hook, if so, notify by returning NULL */
-		if (!res)
+		ast_log(LOG_DEBUG, "New hookstate: %d\n", res);
+		if (!res && (p->mode != MODE_FXO))
 			return NULL;
 		else {
 			if (ast->state == AST_STATE_RINGING) {
@@ -290,16 +311,18 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 				ast_log(LOG_WARNING, "Got off hook in weird state %d\n", ast->state);
 		}
 	}
-#if 0
+#if 1
 	if (phonee.bits.pstn_ring)
 		ast_verbose("Unit is ringing\n");
 	if (phonee.bits.caller_id) {
 		ast_verbose("We have caller ID: %s\n");
 	}
+	if (phonee.bits.pstn_wink)
+		ast_verbose("Detected Wink\n");
 #endif
 	/* Try to read some data... */
 	CHECK_BLOCKING(ast);
-	res = read(p->fd, p->buf, phone_MAX_BUF);
+	res = read(p->fd, p->buf, PHONE_MAX_BUF);
 	ast->blocking = 0;
 	if (res < 0) {
 #if 0
@@ -618,8 +641,10 @@ static void phone_check_exception(struct phone_pvt *i)
 			i->dialtone = 0;
 		}
 	}
-	if (phonee.bits.pstn_ring)
+	if (phonee.bits.pstn_ring) {
 		ast_verbose("Unit is ringing\n");
+		phone_new(i, AST_STATE_RING, i->context);
+	}
 	if (phonee.bits.caller_id)
 		ast_verbose("We have caller ID\n");
 	
@@ -793,10 +818,16 @@ static struct phone_pvt *mkif(char *iface, int mode)
 			free(tmp);
 			return NULL;
 		}
+		if (mode == MODE_FXO) {
+			if (ioctl(tmp->fd, IXJCTL_PORT, PORT_PSTN)) 
+				ast_log(LOG_DEBUG, "Unable to set port to PSTN\n");
+		}
 		ioctl(tmp->fd, PHONE_PLAY_STOP);
 		ioctl(tmp->fd, PHONE_REC_STOP);
 		ioctl(tmp->fd, PHONE_RING_STOP);
 		ioctl(tmp->fd, PHONE_CPT_STOP);
+		if (ioctl(tmp->fd, PHONE_PSTN_SET_STATE, PSTN_ON_HOOK)) 
+			ast_log(LOG_DEBUG, "ioctl(PHONE_PSTN_SET_STATE) failed on %s (%s)\n",iface, strerror(errno));
 		if (echocancel != AEC_OFF)
 			ioctl(tmp->fd, IXJCTL_AEC_START, echocancel);
 		if (silencesupression) 
@@ -900,6 +931,8 @@ int load_module()
 				mode = MODE_DIALTONE;
 			else if (!strncasecmp(v->value, "im", 2))
 				mode = MODE_IMMEDIATE;
+			else if (!strncasecmp(v->value, "fx", 2))
+				mode = MODE_FXO;
 			else
 				ast_log(LOG_WARNING, "Unknown mode: %s\n", v->value);
 		} else if (!strcasecmp(v->name, "context")) {

@@ -43,8 +43,10 @@ static int playback_exec(struct ast_channel *chan, void *data)
 	if (!res) {
 		ast_stopstream(chan);
 		res = ast_streamfile(chan, (char *)data, chan->language);
-		if (!res)
+		if (!res) 
 			res = ast_waitstream(chan, "");
+		else
+			ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char *)data);
 		ast_stopstream(chan);
 	}
 	LOCAL_USER_REMOVE(u);

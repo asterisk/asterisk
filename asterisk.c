@@ -48,6 +48,19 @@ static void urg_handler(int num)
 	return;
 }
 
+static void set_title(char *text)
+{
+	/* Set an X-term or screen title */
+	if (getenv("TERM") && strstr(getenv("TERM"), "xterm"))
+		fprintf(stdout, "\033]2;%s\007", text);
+}
+
+static void set_icon(char *text)
+{
+	if (getenv("TERM") && strstr(getenv("TERM"), "xterm"))
+		fprintf(stdout, "\033]1;%s\007", text);
+}
+
 static int set_priority(int pri)
 {
 	struct sched_param sched;
@@ -210,6 +223,10 @@ int main(int argc, char *argv[])
 	if (option_console) {
 		/* Console stuff now... */
 		/* Register our quit function */
+		char title[256];
+		set_icon("Asterisk");
+		snprintf(title, sizeof(title), "Asterisk Console (pid %d)", getpid());
+		set_title(title);
 	    ast_cli_register(&quit);
 		consolethread = pthread_self();
 		if (strlen(filename))
