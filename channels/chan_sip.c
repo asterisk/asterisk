@@ -2029,10 +2029,23 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp)
 {
 	struct sip_request resp;
+	char *from;
 	if (p->canreinvite == REINVITE_UPDATE)
 		reqprep(&resp, p, "UPDATE", 1);
 	else
 		reqprep(&resp, p, "INVITE", 1);
+	if (p->outgoing)
+		from = get_header(&p->initreq, "From");
+	else
+		from = get_header(&p->initreq, "To");
+	{
+		/* Add contact header */
+		char contact2[256] ="", *c, contact[256];
+		strncpy(contact2, from, sizeof(contact2)-1);
+		c = ditch_braces(contact2);
+		snprintf(contact, sizeof(contact), "<%s>", c);
+		add_header(&resp, "Contact", contact);
+	}
 	add_sdp(&resp, p, rtp);
 	return send_request(p, &resp, 1, p->ocseq);
 }
