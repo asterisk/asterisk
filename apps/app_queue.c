@@ -892,7 +892,7 @@ static int valid_exit(struct queue_ent *qe, char digit)
 
 #define AST_MAX_WATCHERS 256
 
-static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser *outgoing, int *to, struct localuser *flags, char *digit)
+static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser *outgoing, int *to, struct ast_flags *flags, char *digit)
 {
 	char *queue = qe->parent->name;
 	struct localuser *o;
@@ -1247,7 +1247,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	struct member *cur;
 	struct localuser *outgoing=NULL, *tmp = NULL;
 	int to;
-	struct localuser flags_dummy;
+	struct ast_flags flags;
 	char restofit[AST_MAX_EXTENSION];
 	char oldexten[AST_MAX_EXTENSION]="";
 	char oldcontext[AST_MAX_EXTENSION]="";
@@ -1354,7 +1354,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		to = -1;
 	ring_one(qe, outgoing);
 	ast_mutex_unlock(&qe->parent->lock);
-	lpeer = wait_for_answer(qe, outgoing, &to, &flags_dummy, &digit);
+	lpeer = wait_for_answer(qe, outgoing, &to, &flags, &digit);
 	ast_mutex_lock(&qe->parent->lock);
 	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY) {
 		store_next(qe, outgoing);
@@ -1473,10 +1473,10 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		time(&callstart);
 
 		memset(&config,0,sizeof(struct ast_bridge_config));
-		config.allowredirect_in = ast_test_flag(&flags_dummy, QUEUE_FLAG_REDIR_IN);
-		config.allowredirect_out = ast_test_flag(&flags_dummy, QUEUE_FLAG_REDIR_OUT);
-		config.allowdisconnect_in = ast_test_flag(&flags_dummy, QUEUE_FLAG_DISCON_IN);
-		config.allowdisconnect_out = ast_test_flag(&flags_dummy, QUEUE_FLAG_DISCON_OUT);
+		config.allowredirect_in = ast_test_flag(&flags, QUEUE_FLAG_REDIR_IN);
+		config.allowredirect_out = ast_test_flag(&flags, QUEUE_FLAG_REDIR_OUT);
+		config.allowdisconnect_in = ast_test_flag(&flags, QUEUE_FLAG_DISCON_IN);
+		config.allowdisconnect_out = ast_test_flag(&flags, QUEUE_FLAG_DISCON_OUT);
 		bridge = ast_bridge_call(qe->chan,peer,&config);
 
 		if (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten)) {
