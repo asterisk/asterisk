@@ -104,6 +104,7 @@ static int		ast_yylex __P(());
 %%
 
 start: expr { ((struct parser_control *)kota)->result = $$; }
+	;
 
 expr:	TOKEN
 	| '(' expr ')' { $$ = $2; }
@@ -299,6 +300,7 @@ char *ast_expr (char *arg)
 	char *pirouni;
 	
 	kota=strdup(arg);
+	karoto.result = NULL;
 	karoto.firsttoken=1;
 	karoto.argv=kota;
 
