@@ -928,13 +928,17 @@ struct rtp_info *create_connection(unsigned call_reference)
 	ast_rtp_get_us(p->rtp, &us);
 	ast_rtp_get_peer(p->rtp, &them);
 
-	printf("  us: %s:%d\n", inet_ntoa(us.sin_addr), ntohs(us.sin_port));
-	printf("them: %s:%d\n", inet_ntoa(them.sin_addr), ntohs(them.sin_port));
 
 	info->addr = inet_ntoa(us.sin_addr);
 	info->port = ntohs(us.sin_port);
-	
+
+#if 0
+	printf("  us: %s:%d\n", inet_ntoa(us.sin_addr), ntohs(us.sin_port));
+	printf("them: %s:%d\n", inet_ntoa(them.sin_addr), ntohs(them.sin_port));
+
 	printf("info: %s:%d\n", info->addr, info->port);	
+#endif
+
 	return info;
 }
 
