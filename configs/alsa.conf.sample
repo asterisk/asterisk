@@ -1,0 +1,31 @@
+;
+; Open Sound System Console Driver Configuration File
+;
+[general]
+;
+; Automatically answer incoming calls on the console?  Choose yes if
+; for example you want to use this as an intercom.
+;
+autoanswer=yes
+;
+; Default context (is overridden with @context syntax)
+;
+context=local
+;
+; Default extension to call
+;
+extension=s
+;
+; Default language
+;
+;language=en
+;
+; Silence supression can be enabled when sound is over a certain threshold.
+; The value for the threshold should probably be between 500 and 2000 or so,
+; but your mileage may vary.  Use the echo test to evaluate the best setting.
+;silencesuppression = yes
+;silencethreshold = 1000
+;
+; To set which ALSA device to use, change this parameter
+;input_device=hw:0,0
+;output_device=default
