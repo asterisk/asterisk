@@ -163,7 +163,8 @@ static int macro_exec(struct ast_channel *chan, void *data)
 			ast_verbose(VERBOSE_PREFIX_2 "Channel '%s' jumping out of macro '%s'\n", chan->name, macro);
 		break;
 	}
-	if (chan->_softhangup) {
+	/* don't stop executing extensions when we're in "h" */
+	if (chan->_softhangup && strcasecmp(chan->exten,"h")) {
 		ast_log(LOG_DEBUG, "Extension %s, priority %d returned normally even though call was hung up\n",
 			chan->exten, chan->priority);
 		goto out;
