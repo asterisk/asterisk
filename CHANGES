@@ -1,3 +1,6 @@
+Asterisk 0.7.1
+ -- Fixed timed include context's and GotoIfTime
+ -- Fixed chan_h323 it now gets remote ip properly instead of 127.0.0.1
 Asterisk 0.7.0
  -- Removed MP3 format and codec
  -- Can now load and unload SIP,IAX,IAX2,H323 channels without core
