@@ -149,7 +149,7 @@ include => parkedcalls
 include => trunklocal
 include => iaxtel700
 include => trunktollfree
-include => provider
+include => iaxprovider
 ;
 ; You can use an alternative switch type as well, to resolve
 ; extensions that are not known here, for example with remote 
