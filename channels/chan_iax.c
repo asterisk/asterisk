@@ -35,6 +35,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <netdb.h>
+#include <fcntl.h>
 
 #include "iax.h"
 
@@ -58,9 +59,11 @@ static int max_retries = 4;
 static int ping_time = 20;
 static int lagrq_time = 10;
 static int nextcallno = 0;
-static int maxjitterbuffer=4000;
+static int maxjitterbuffer=3000;
 
 static int netsocket = -1;
+
+static int expirey = AST_DEFAULT_REG_EXPIRE;
 
 static int usecnt;
 static pthread_mutex_t usecnt_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -129,16 +132,39 @@ struct iax_peer {
 	struct in_addr mask;
 
 	/* Dynamic Registration fields */
-	int dynamic;
-	struct sockaddr_in defaddr;
-	char regsecret[80];
+	int dynamic;					/* If this is a dynamic peer */
+	struct sockaddr_in defaddr;		/* Default address if there is one */
+	char challenge[80];				/* Challenge used to authenticate the secret */
 	char methods[80];
-	struct timeval nexpire;
-	int expire;
+	int expire;						/* Schedule entry for expirey */
+	int expirey;					/* How soon to expire */
 	struct iax_ha *ha;
 	struct iax_peer *next;
 };
-	
+
+#define REG_STATE_UNREGISTERED 0
+#define REG_STATE_REGSENT	   1
+#define REG_STATE_AUTHSENT 	   2
+#define REG_STATE_REGISTERED   3
+#define REG_STATE_REJECTED	   4
+#define REG_STATE_TIMEOUT	   5
+#define REG_STATE_NOAUTH	   6
+
+struct iax_registry {
+	struct sockaddr_in addr;		/* Who we connect to for registration purposes */
+	char username[80];
+	char secret[80];
+	char random[80];
+	int expire;						/* Sched ID of expiration */
+	int refresh;					/* How often to refresh */
+	int regstate;
+	int callno;						/* Associated call number if applicable */
+	struct sockaddr_in us;			/* Who the server thinks we are */
+	struct iax_registry *next;
+};
+
+struct iax_registry *registrations;
+
 /* Don't retry more frequently than every 10 ms, or less frequently than every 5 seconds */
 #define MIN_RETRY_TIME	10
 #define MAX_RETRY_TIME  10000
@@ -188,6 +214,8 @@ struct chan_iax_pvt {
 	struct ast_channel *owner;
 	/* What's our state? */
 	int state;
+	/* Expirey (optional) */
+	int expirey;
 	/* Next outgoing sequence number */
 	unsigned short oseqno;
 	/* Next incoming sequence number */
@@ -210,6 +238,10 @@ struct chan_iax_pvt {
 	char methods[80];
 	/* MD5 challenge */
 	char challenge[10];
+	/* Preferred language */
+	char language[80];
+	/* Associated registry */
+	struct iax_registry *reg;
 };
 
 struct ast_iax_frame {
@@ -314,6 +346,7 @@ static int uncompress_subclass(unsigned char csub)
 static struct chan_iax_pvt *new_iax(void)
 {
 	struct chan_iax_pvt *tmp;
+	int flags;
 	tmp = malloc(sizeof(struct chan_iax_pvt));
 	if (tmp) {
 		memset(tmp, 0, sizeof(struct chan_iax_pvt));
@@ -323,6 +356,11 @@ static struct chan_iax_pvt *new_iax(void)
 			free(tmp);
 			return NULL;
 		}
+		flags = fcntl(tmp->pipe[1], F_GETFL);
+		if (flags < 0) 
+			ast_log(LOG_WARNING, "Unable to get flags\n");
+		if (fcntl(tmp->pipe[1], F_SETFL, flags | O_NONBLOCK))
+			ast_log(LOG_WARNING, "Unable to set flags\n");
 		tmp->callno = -1;
 		tmp->peercallno = -1;
 		/* strncpy(tmp->context, context, sizeof(tmp->context)); */
@@ -437,10 +475,13 @@ static int find_callno(short callno, short dcallno ,struct sockaddr_in *sin, int
 			iaxs[x]->peercallno = callno;
 			iaxs[x]->callno = x;
 			iaxs[x]->pingtime = DEFAULT_RETRY_TIME;
+			iaxs[x]->expirey = expirey;
 			ast_sched_add(sched, ping_time * 1000, send_ping, (void *)x);
 			ast_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)x);
-		} else
-			ast_log(LOG_DEBUG, "Out of memory\n");
+		} else {
+			ast_log(LOG_WARNING, "Out of resources\n");
+			return -1;
+		}
 		res = x;
 		nextcallno = x;
 	}
@@ -529,10 +570,11 @@ static int send_packet(struct ast_iax_frame *f)
 	}
 	if (iaxs[f->callno]->error)
 		return -1;
-	res = sendto(netsocket, f->data, f->datalen, 0, &iaxs[f->callno]->addr, 
+	res = sendto(netsocket, f->data, f->datalen, 0,(struct sockaddr *)&iaxs[f->callno]->addr, 
 					sizeof(iaxs[f->callno]->addr));
 	if (res < 0) { 
-		ast_log(LOG_WARNING, "Received error: %s\n", strerror(errno));
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Received error: %s\n", strerror(errno));
 		handle_error();
 	} else 
 		res = 0;
@@ -652,10 +694,30 @@ static struct ast_cli_entry sim_show_cli =
 
 #endif
 
+
+static void iax_destroy(int callno)
+{
+	struct chan_iax_pvt *pvt = iaxs[callno];
+	if (pvt) {
+		if (pvt->owner) {
+			/* If there's an owner, prod it to give up */
+			ast_fr_fdhangup(pvt->pipe[1]);
+			return;
+		}
+		if (pvt->reg) {
+			pvt->reg->callno = -1;
+		}
+		iaxs[callno] = NULL;
+		close(pvt->pipe[0]);
+		close(pvt->pipe[1]);
+		free(pvt);
+	}
+}
+
+
 static int attempt_transmit(void *data)
 {
 	/* Attempt to transmit the frame to the remote peer */
-	char zero = 0;
 	struct ast_iax_frame *f = data;
 	int res = 0;
 	/* Make sure this call is still active */
@@ -664,13 +726,24 @@ static int attempt_transmit(void *data)
 		    (f->retries >= max_retries) /* Too many attempts */) {
 				/* Record an error if we've transmitted too many times */
 				if (f->retries >= max_retries) {
-					ast_log(LOG_WARNING, "Max retries exceeded to host %s (type = %d, subclass = %d, ts=%d, seqno=%d)\n", inet_ntoa(iaxs[f->callno]->addr.sin_addr), f->f->frametype, f->f->subclass, f->ts, f->seqno);
+					if (iaxs[f->callno]->owner)
+						ast_log(LOG_WARNING, "Max retries exceeded to host %s (type = %d, subclass = %d, ts=%d, seqno=%d)\n", inet_ntoa(iaxs[f->callno]->addr.sin_addr), f->f->frametype, f->f->subclass, f->ts, f->seqno);
 					iaxs[f->callno]->error = ETIMEDOUT;
-					/* Send a bogus frame to wake up the waiting process */
-					write(iaxs[f->callno]->pipe[1], &zero, 1);
+					if (iaxs[f->callno]->owner)
+						/* Hangup the fd */
+						ast_fr_fdhangup(iaxs[f->callno]->pipe[1]);
+					else {
+						if (iaxs[f->callno]->reg) {
+							memset(&iaxs[f->callno]->reg->us, 0, sizeof(iaxs[f->callno]->reg->us));
+							iaxs[f->callno]->reg->regstate = REG_STATE_TIMEOUT;
+							iaxs[f->callno]->reg->refresh = AST_DEFAULT_REG_EXPIRE;
+						}
+						iax_destroy(f->callno);
+					}
+
 				}
 				/* Don't attempt delivery, just remove it from the queue */
-				pthread_mutex_lock(&iaxq.lock);
+				ast_pthread_mutex_lock(&iaxq.lock);
 				if (f->prev) 
 					f->prev->next = f->next;
 				else
@@ -680,13 +753,13 @@ static int attempt_transmit(void *data)
 				else
 					iaxq.tail = f->prev;
 				iaxq.count--;
-				pthread_mutex_unlock(&iaxq.lock);
+				ast_pthread_mutex_unlock(&iaxq.lock);
 		} else {
 			/* Attempt transmission */
 			send_packet(f);
 			f->retries++;
-			/* Try again later after 10 times as long */
-			f->retrytime *= 10;
+			/* Try again later after 4 times as long */
+			f->retrytime *= 4;
 			if (f->retrytime > MAX_RETRY_TIME)
 				f->retrytime = MAX_RETRY_TIME;
 			ast_sched_add(sched, f->retrytime, attempt_transmit, f);
@@ -707,7 +780,7 @@ static int iax_set_jitter(int fd, int argc, char *argv[])
 			max_jitter_buffer = 0;
 	} else {
 		if (argc == 5) {
-			pthread_mutex_lock(&iaxs_lock);
+			ast_pthread_mutex_lock(&iaxs_lock);
 			if ((atoi(argv[3]) >= 0) && (atoi(argv[3]) < AST_IAX_MAX_CALLS)) {
 				if (iaxs[atoi(argv[3])]) {
 					iaxs[atoi(argv[3])]->jitterbuffer = atoi(argv[4]);
@@ -717,7 +790,7 @@ static int iax_set_jitter(int fd, int argc, char *argv[])
 					ast_cli(fd, "No such call '%d'\n", atoi(argv[3]));
 			} else
 				ast_cli(fd, "%d is not a valid call number\n", atoi(argv[3]));
-			pthread_mutex_unlock(&iaxs_lock);
+			ast_pthread_mutex_unlock(&iaxs_lock);
 		}
 	}
 	return RESULT_SUCCESS;
@@ -735,9 +808,8 @@ static struct ast_cli_entry cli_set_jitter =
 
 static unsigned int calc_rxstamp(struct chan_iax_pvt *p);
 
-static int schedule_delivery(struct ast_iax_frame *fr)
+static int schedule_delivery(struct ast_iax_frame *fr, int reallydeliver)
 {
-	/* XXX FIXME: I should delay delivery with a sliding jitter buffer XXX */
 	int ms,x;
 	int drops[MEMORY_SIZE];
 	int min, max=0, maxone=0,y,z, match;
@@ -756,7 +828,7 @@ static int schedule_delivery(struct ast_iax_frame *fr)
 	   work to do the same for the maximum, repeatedly */
 	min=iaxs[fr->callno]->history[0];
 	for (z=0;z < iax_dropcount + 1;z++) {
-		/* Start very pessimistic ;-) */
+		/* Start very optimistic ;-) */
 		max=-999999999;
 		for (x=0;x<MEMORY_SIZE;x++) {
 			if (max < iaxs[fr->callno]->history[x]) {
@@ -817,6 +889,10 @@ static int schedule_delivery(struct ast_iax_frame *fr)
 	if (!use_jitterbuffer)
 		ms = 0;
 
+	/* If the caller just wanted us to update, return now */
+	if (!reallydeliver)
+		return 0;
+		
 	if (ms < 1) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Calculated ms is %d\n", ms);
@@ -846,7 +922,7 @@ static int iax_transmit(struct ast_iax_frame *fr)
 	/* By setting this to 0, the network thread will send it for us, and
 	   queue retransmission if necessary */
 	fr->sentyet = 0;
-	pthread_mutex_lock(&iaxq.lock);
+	ast_pthread_mutex_lock(&iaxq.lock);
 	if (!iaxq.head) {
 		/* Empty queue */
 		iaxq.head = fr;
@@ -858,7 +934,7 @@ static int iax_transmit(struct ast_iax_frame *fr)
 		iaxq.tail = fr;
 	}
 	iaxq.count++;
-	pthread_mutex_unlock(&iaxq.lock);
+	ast_pthread_mutex_unlock(&iaxq.lock);
 	/* Wake up the network thread */
 	pthread_kill(netthreadid, SIGURG);
 	return 0;
@@ -878,31 +954,51 @@ static int iax_sendtext(struct ast_channel *c, char *text)
 		0, 0, text, strlen(text) + 1, -1);
 }
 
+static int iax_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan)
+{
+	struct chan_iax_pvt *pvt = newchan->pvt->pvt;
+	pvt->owner = newchan;
+	return 0;
+}
+
 static int create_addr(struct sockaddr_in *sin, char *peer)
 {
 	struct hostent *hp;
 	struct iax_peer *p;
+	int found=0;
 	sin->sin_family = AF_INET;
-	pthread_mutex_lock(&peerl.lock);
+	ast_pthread_mutex_lock(&peerl.lock);
 	p = peerl.peers;
 	while(p) {
 		if (!strcasecmp(p->name, peer)) {
-			sin->sin_addr = p->addr.sin_addr;
-			sin->sin_port = p->addr.sin_port;
-			break;
+			found++;
+			if (p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) {
+				if (p->addr.sin_addr.s_addr) {
+					sin->sin_addr = p->addr.sin_addr;
+					sin->sin_port = p->addr.sin_port;
+				} else {
+					sin->sin_addr = p->defaddr.sin_addr;
+					sin->sin_port = p->defaddr.sin_port;
+				}
+				break;
+			}
 		}
 		p = p->next;
 	}
-	pthread_mutex_unlock(&peerl.lock);
-	if (!p) {
+	ast_pthread_mutex_unlock(&peerl.lock);
+	if (!p && !found) {
 		hp = gethostbyname(peer);
 		if (hp) {
 			memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
 			sin->sin_port = htons(AST_DEFAULT_IAX_PORTNO);
 			return 0;
-		} else
+		} else {
+			ast_log(LOG_WARNING, "No such host: %s\n", peer);
 			return -1;
-	} else
+		}
+	} else if (!p)
+		return -1;
+	else
 		return 0;
 }
 static int iax_call(struct ast_channel *c, char *dest, int timeout)
@@ -953,6 +1049,8 @@ static int iax_call(struct ast_channel *c, char *dest, int timeout)
 	MYSNPRINTF "exten=%s;", rdest);
 	if (c->callerid)
 		MYSNPRINTF "callerid=%s;", c->callerid);
+	if (c->language && strlen(c->language))
+		MYSNPRINTF "language=%s;", c->language);
 	if (c->dnid)
 		MYSNPRINTF "dnid=%s;", c->dnid);
 	if (rcontext)
@@ -973,23 +1071,6 @@ static int iax_call(struct ast_channel *c, char *dest, int timeout)
 	return 0;
 }
 
-static void iax_destroy(int callno)
-{
-	char zero=0;
-	struct chan_iax_pvt *pvt = iaxs[callno];
-	if (pvt) {
-		if (pvt->owner) {
-			/* If there's an owner, prod it to give up */
-			write(pvt->pipe[1], &zero, 1);
-			return;
-		}
-		iaxs[callno] = NULL;
-		close(pvt->pipe[0]);
-		close(pvt->pipe[1]);
-		free(pvt);
-	}
-}
-
 static int iax_hangup(struct ast_channel *c) {
 	struct chan_iax_pvt *pvt = c->pvt->pvt;
 	/* Send the hangup unless we have had a transmission error */
@@ -1000,22 +1081,39 @@ static int iax_hangup(struct ast_channel *c) {
 		   soon enough, but it's a nicity if it can know now.  */
 		sleep(1);
 	}
-	pthread_mutex_lock(&iaxs_lock);
+	ast_pthread_mutex_lock(&iaxs_lock);
 	c->pvt->pvt = NULL;
 	pvt->owner = NULL;
-	pthread_mutex_lock(&usecnt_lock);
+	ast_pthread_mutex_lock(&usecnt_lock);
 	usecnt--;
 	if (usecnt < 0) 
 		ast_log(LOG_WARNING, "Usecnt < 0???\n");
-	pthread_mutex_unlock(&usecnt_lock);
+	ast_pthread_mutex_unlock(&usecnt_lock);
 	ast_update_use_count();
 	if (option_verbose > 2) 
-		ast_verbose( VERBOSE_PREFIX_3 "Hungup '%s'\n", c->name);
+		ast_verbose(VERBOSE_PREFIX_3 "Hungup '%s'\n", c->name);
 	iax_destroy(pvt->callno);
-	pthread_mutex_unlock(&iaxs_lock);
+	ast_pthread_mutex_unlock(&iaxs_lock);
 	return 0;
 }
 
+static int iax_setoption(struct ast_channel *c, int option, void *data, int datalen)
+{
+	struct ast_option_header *h;
+	int res;
+	h = malloc(datalen + sizeof(struct ast_option_header));
+	if (h) {
+		h->flag = AST_OPTION_FLAG_REQUEST;
+		h->option = htons(option);
+		memcpy(h->data, data, datalen);
+		res = send_command((struct chan_iax_pvt *)c->pvt->pvt, AST_FRAME_CONTROL,
+			AST_CONTROL_OPTION, 0, (char *)h, datalen + sizeof(struct ast_option_header), -1);
+		free(h);
+		return res;
+	} else 
+		ast_log(LOG_WARNING, "Out of memory\n");
+	return -1;
+}
 static struct ast_frame *iax_read(struct ast_channel *c) 
 {
 	struct chan_iax_pvt *pvt = c->pvt->pvt;
@@ -1041,6 +1139,15 @@ static int iax_answer(struct ast_channel *c)
 	return send_command(pvt, AST_FRAME_CONTROL, AST_CONTROL_ANSWER, 0, NULL, 0, -1);
 }
 
+static int iax_indicate(struct ast_channel *c, int condition)
+{
+	struct chan_iax_pvt *pvt = c->pvt->pvt;
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Indicating condition %d\n", condition);
+	return send_command(pvt, AST_FRAME_CONTROL, condition, 0, NULL, 0, -1);
+}
+	
+
 static int iax_write(struct ast_channel *c, struct ast_frame *f);
 
 static struct ast_channel *ast_iax_new(struct chan_iax_pvt *i, int state)
@@ -1050,7 +1157,7 @@ static struct ast_channel *ast_iax_new(struct chan_iax_pvt *i, int state)
 	if (tmp) {
 		snprintf(tmp->name, sizeof(tmp->name), "IAX[%s:%d]/%d", inet_ntoa(i->addr.sin_addr), ntohs(i->addr.sin_port), i->callno);
 		tmp->type = type;
-		tmp->fd = i->pipe[0];
+		tmp->fds[0] = i->pipe[0];
 		/* We can support any format by default, until we get restricted */
 		tmp->nativeformats = iax_capability;
 		tmp->pvt->pvt = i;
@@ -1061,17 +1168,22 @@ static struct ast_channel *ast_iax_new(struct chan_iax_pvt *i, int state)
 		tmp->pvt->answer = iax_answer;
 		tmp->pvt->read = iax_read;
 		tmp->pvt->write = iax_write;
+		tmp->pvt->indicate = iax_indicate;
+		tmp->pvt->setoption = iax_setoption;
 		if (strlen(i->callerid))
 			tmp->callerid = strdup(i->callerid);
+		if (strlen(i->language))
+			strncpy(tmp->language, i->language, sizeof(tmp->language));
 		if (strlen(i->dnid))
 			tmp->dnid = strdup(i->dnid);
 		strncpy(tmp->context, i->context, sizeof(tmp->context));
 		strncpy(tmp->exten, i->exten, sizeof(tmp->exten));
+		tmp->pvt->fixup = iax_fixup;
 		i->owner = tmp;
 		tmp->state = state;
-		pthread_mutex_lock(&usecnt_lock);
+		ast_pthread_mutex_lock(&usecnt_lock);
 		usecnt++;
-		pthread_mutex_unlock(&usecnt_lock);
+		ast_pthread_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
@@ -1110,7 +1222,7 @@ static unsigned int calc_rxstamp(struct chan_iax_pvt *p)
 	if (!p->rxcore.tv_sec && !p->rxcore.tv_usec)
 		gettimeofday(&p->rxcore, NULL);
 	gettimeofday(&tv, NULL);
-	ms = (tv.tv_sec - p->offset.tv_sec) * 1000 + (tv.tv_usec - p->offset.tv_usec) / 1000;
+	ms = (tv.tv_sec - p->rxcore.tv_sec) * 1000 + (tv.tv_usec - p->rxcore.tv_usec) / 1000;
 	return ms;
 }
 static int iax_send(struct chan_iax_pvt *pvt, struct ast_frame *f, unsigned int ts, int seqno)
@@ -1213,37 +1325,86 @@ static int iax_show_users(int fd, int argc, char *argv[])
 	struct iax_user *user;
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
-	pthread_mutex_lock(&userl.lock);
+	ast_pthread_mutex_lock(&userl.lock);
 	ast_cli(fd, FORMAT, "Username", "Secret", "Authen", "Def.Context", "A/C");
 	for(user=userl.users;user;user=user->next) {
 		ast_cli(fd, FORMAT, user->name, user->secret, user->methods, 
 				user->contexts ? user->contexts->context : context,
 				user->ha ? "Yes" : "No");
 	}
-	pthread_mutex_unlock(&userl.lock);
+	ast_pthread_mutex_unlock(&userl.lock);
 	return RESULT_SUCCESS;
 #undef FORMAT
 }
 
 static int iax_show_peers(int fd, int argc, char *argv[])
 {
-#define FORMAT2 "%-15.15s  %-15.15s  %-15.15s  %-15.15s  %s\n"
-#define FORMAT "%-15.15s  %-15.15s  %-15.15s  %-15.15s  %d\n"
+#define FORMAT2 "%-15.15s  %-15.15s  %-15.15s %s  %-15.15s  %s\n"
+#define FORMAT "%-15.15s  %-15.15s  %-15.15s %s  %-15.15s  %d\n"
 	struct iax_peer *peer;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	pthread_mutex_lock(&peerl.lock);
-	ast_cli(fd, FORMAT2, "Name", "Username", "Host", "Mask", "Port");
+	ast_pthread_mutex_lock(&peerl.lock);
+	ast_cli(fd, FORMAT2, "Name", "Username", "Host", "   ", "Mask", "Port");
 	for (peer = peerl.peers;peer;peer = peer->next) {
 		char nm[20];
 		strncpy(nm, inet_ntoa(peer->mask), sizeof(nm));
 		ast_cli(fd, FORMAT, peer->name, 
 					peer->username ? peer->username : "(Any)",
-					peer->addr.sin_addr.s_addr ? inet_ntoa(peer->addr.sin_addr) : "(Any)",
+					peer->addr.sin_addr.s_addr ? inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
+					peer->dynamic ? "(D)" : "   ",
 					nm,
 					ntohs(peer->addr.sin_port));
 	}
-	pthread_mutex_unlock(&peerl.lock);
+	ast_pthread_mutex_unlock(&peerl.lock);
+	return RESULT_SUCCESS;
+#undef FORMAT
+#undef FORMAT2
+}
+
+static char *regstate2str(int regstate)
+{
+	switch(regstate) {
+	case REG_STATE_UNREGISTERED:
+		return "Unregistered";
+	case REG_STATE_REGSENT:
+		return "Request Sent";
+	case REG_STATE_AUTHSENT:
+		return "Auth. Sent";
+	case REG_STATE_REGISTERED:
+		return "Registered";
+	case REG_STATE_REJECTED:
+		return "Rejected";
+	case REG_STATE_TIMEOUT:
+		return "Timeout";
+	case REG_STATE_NOAUTH:
+		return "No Authentication";
+	default:
+		return "Unknown";
+	}
+}
+
+static int iax_show_registry(int fd, int argc, char *argv[])
+{
+#define FORMAT2 "%-20.20s  %-10.10s  %-20.20s %8.8s  %s\n"
+#define FORMAT "%-20.20s  %-10.10s  %-20.20s %8d  %s\n"
+	struct iax_registry *reg;
+	char host[80];
+	char perceived[80];
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	ast_pthread_mutex_lock(&peerl.lock);
+	ast_cli(fd, FORMAT2, "Host", "Username", "Perceived", "Refresh", "State");
+	for (reg = registrations;reg;reg = reg->next) {
+		snprintf(host, sizeof(host), "%s:%d", inet_ntoa(reg->addr.sin_addr), ntohs(reg->addr.sin_port));
+		if (reg->us.sin_addr.s_addr) 
+			snprintf(perceived, sizeof(perceived), "%s:%d", inet_ntoa(reg->us.sin_addr), ntohs(reg->us.sin_port));
+		else
+			strcpy(perceived, "<Unregistered>");
+		ast_cli(fd, FORMAT, host, 
+					reg->username, perceived, reg->refresh, regstate2str(reg->regstate));
+	}
+	ast_pthread_mutex_unlock(&peerl.lock);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -1256,7 +1417,7 @@ static int iax_show_channels(int fd, int argc, char *argv[])
 	int x;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	pthread_mutex_lock(&iaxs_lock);
+	ast_pthread_mutex_lock(&iaxs_lock);
 	ast_cli(fd, FORMAT2, "Peer", "Username", "ID (Lo/Rem)", "Seq (Tx/Rx)", "Lag", "Jitter", "Format");
 	for (x=0;x<AST_IAX_MAX_CALLS;x++)
 		if (iaxs[x]) 
@@ -1267,7 +1428,7 @@ static int iax_show_channels(int fd, int argc, char *argv[])
 						iaxs[x]->lag,
 						iaxs[x]->jitter,
 						iaxs[x]->voiceformat);
-	pthread_mutex_unlock(&iaxs_lock);
+	ast_pthread_mutex_unlock(&iaxs_lock);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -1285,12 +1446,18 @@ static char show_peers_usage[] =
 "Usage: iax show peers\n"
 "       Lists all known IAX peers.\n";
 
+static char show_reg_usage[] =
+"Usage: iax show registry\n"
+"       Lists all registration requests and status.\n";
+
 static struct ast_cli_entry  cli_show_users = 
 	{ { "iax", "show", "users", NULL }, iax_show_users, "Show defined IAX users", show_users_usage };
 static struct ast_cli_entry  cli_show_channels =
 	{ { "iax", "show", "channels", NULL }, iax_show_channels, "Show active IAX channels", show_channels_usage };
 static struct ast_cli_entry  cli_show_peers =
 	{ { "iax", "show", "peers", NULL }, iax_show_peers, "Show defined IAX peers", show_peers_usage };
+static struct ast_cli_entry  cli_show_registry =
+	{ { "iax", "show", "registry", NULL }, iax_show_registry, "Show IAX registration status", show_reg_usage };
 
 static int iax_write(struct ast_channel *c, struct ast_frame *f)
 {
@@ -1366,6 +1533,7 @@ static int iax_getformats(int callno, char *orequest)
 	return 0;
 }
 
+
 static int check_access(int callno, struct sockaddr_in *sin, char *orequest, int requestl)
 {
 	/* Start pessimistic */
@@ -1391,6 +1559,8 @@ static int check_access(int callno, struct sockaddr_in *sin, char *orequest, int
 				strncpy(iaxs[callno]->dnid, value, sizeof(iaxs[callno]->dnid));
 			else if (!strcmp(var, "context"))
 				strncpy(iaxs[callno]->context, value, sizeof(iaxs[callno]->context));
+			else if (!strcmp(var, "language"))
+				strncpy(iaxs[callno]->language, value, sizeof(iaxs[callno]->language));
 			else if (!strcmp(var, "username"))
 				strncpy(iaxs[callno]->username, value, sizeof(iaxs[callno]->username));
 			else if (!strcmp(var, "formats"))
@@ -1407,7 +1577,7 @@ static int check_access(int callno, struct sockaddr_in *sin, char *orequest, int
 			inet_ntoa(sin->sin_addr), version);
 		return res;
 	}
-	pthread_mutex_lock(&userl.lock);
+	ast_pthread_mutex_lock(&userl.lock);
 	/* Search the userlist for a compatible entry, and fill in the rest */
 	user = userl.users;
 	while(user) {
@@ -1437,7 +1607,7 @@ static int check_access(int callno, struct sockaddr_in *sin, char *orequest, int
 		}
 		user = user->next;	
 	}
-	pthread_mutex_unlock(&userl.lock);
+	ast_pthread_mutex_unlock(&userl.lock);
 	return res;
 }
 
@@ -1452,7 +1622,7 @@ static int raw_hangup(struct sockaddr_in *sin, short src, short dst)
 	fh.csub = compress_subclass(AST_IAX_COMMAND_INVAL);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Raw Hangup\n");
-	return sendto(netsocket, &fh, sizeof(fh), 0, sin, sizeof(*sin));
+	return sendto(netsocket, &fh, sizeof(fh), 0, (struct sockaddr *)sin, sizeof(*sin));
 }
 
 static int authenticate_request(struct chan_iax_pvt *p)
@@ -1461,7 +1631,6 @@ static int authenticate_request(struct chan_iax_pvt *p)
 	MYSNPRINTF "methods=%s;", p->methods);
 	if (strstr(p->methods, "md5")) {
 		/* Build the challenge */
-		srand(time(NULL));
 		snprintf(p->challenge, sizeof(p->challenge), "%d", rand());
 		MYSNPRINTF "challenge=%s;", p->challenge);
 	}
@@ -1517,6 +1686,101 @@ static int authenticate_verify(struct chan_iax_pvt *p, char *orequest)
 	return res;
 }
 
+static int register_verify(int callno, struct sockaddr_in *sin, char *orequest)
+{
+	char request[256];
+	char requeststr[256];
+	char peer[256] = "";
+	char md5secret[256] = "";
+	char secret[256] = "";
+	struct iax_peer *p;
+	char *var;
+	char *value;
+	int x;
+	int expire = 0;
+	iaxs[callno]->state &= ~IAX_STATE_AUTHENTICATED;
+	strcpy(iaxs[callno]->peer, "");
+	if (!orequest)
+		return -1;
+	strncpy(request, orequest, sizeof(request));
+	var = strtok(request, ";");
+	while(var) {
+		value = strchr(var, '=');
+		if (value) { 
+			*value='\0';
+			value++;
+			if (!strcmp(var, "peer")) 
+				strncpy(peer, value, sizeof(peer));
+			else if (!strcmp(var, "md5secret"))
+				strncpy(md5secret, value, sizeof(md5secret));
+			else if (!strcmp(var, "secret"))
+				strncpy(secret, value, sizeof(secret));
+			else if (!strcmp(var, "refresh"))
+				expire = atoi(value);
+			else 
+				ast_log(LOG_WARNING, "Unknown variable '%s' with value '%s'\n", var, value);
+		}
+		var = strtok(NULL, ";");
+	}
+
+	if (!strlen(peer)) {
+		ast_log(LOG_NOTICE, "Empty registration from %s\n", inet_ntoa(sin->sin_addr));
+		return -1;
+	}
+
+	for (p = peerl.peers; p ; p = p->next) 
+		if (!strcasecmp(p->name, peer))
+			break;
+
+	if (!p) {
+		ast_log(LOG_NOTICE, "No registration for peer '%s' (from %s)\n", peer, inet_ntoa(sin->sin_addr));
+		return -1;
+	}
+
+	if (!p->dynamic) {
+		ast_log(LOG_NOTICE, "Peer '%s' is not dynamic (from %s)\n", peer, inet_ntoa(sin->sin_addr));
+		return -1;
+	}
+
+	if (apply_ha(p->ha, sin) != IAX_SENSE_ALLOW) {
+		ast_log(LOG_NOTICE, "Host %s denied access to register peer '%s'\n", inet_ntoa(sin->sin_addr), p->name);
+		return -1;	
+	}
+	strncpy(iaxs[callno]->secret, p->secret, sizeof(iaxs[callno]->secret));
+	/* Check secret against what we have on file */
+	if (strlen(secret) && strstr(p->methods, "plaintext")) {
+		/* They've provided a plain text password and we support that */
+		if (strcmp(secret, p->secret)) {
+			ast_log(LOG_NOTICE, "Host %s did not provide proper plaintext password for '%s'\n", inet_ntoa(sin->sin_addr), p->name);
+			return -1;
+		} else
+			iaxs[callno]->state |= IAX_STATE_AUTHENTICATED;
+	} else if (strlen(md5secret) && strstr(p->methods, "md5") && strlen(p->challenge)) {
+		struct MD5Context md5;
+		unsigned char digest[16];
+		MD5Init(&md5);
+		MD5Update(&md5, p->challenge, strlen(p->challenge));
+		MD5Update(&md5, p->secret, strlen(p->secret));
+		MD5Final(digest, &md5);
+		for (x=0;x<16;x++)
+			MYSNPRINTF "%2.2x", digest[x]);
+		if (strcasecmp(requeststr, md5secret)) {
+			ast_log(LOG_NOTICE, "Host %s failed MD5 authentication for '%s'\n", inet_ntoa(sin->sin_addr), p->name);
+			return -1;
+		} else
+			iaxs[callno]->state |= IAX_STATE_AUTHENTICATED;
+	} else if (strlen(md5secret) || strlen(secret)) {
+		ast_log(LOG_NOTICE, "Inappropriate authentication received\n");
+		return -1;
+	}
+	strncpy(iaxs[callno]->peer, peer, sizeof(iaxs[callno]->peer));
+	/* Choose lowest expirey number */
+	if (expire && (expire < iaxs[callno]->expirey)) 
+		iaxs[callno]->expirey = expire;
+	return 0;
+	
+}
+
 static int authenticate_reply(struct chan_iax_pvt *p, struct sockaddr_in *sin, char *orequest)
 {
 	struct iax_peer *peer;
@@ -1545,7 +1809,7 @@ static int authenticate_reply(struct chan_iax_pvt *p, struct sockaddr_in *sin, c
 		}
 		var = strtok(NULL, ";");
 	}
-	pthread_mutex_lock(&peerl.lock);
+	ast_pthread_mutex_lock(&peerl.lock);
 	peer = peerl.peers;
 	while(peer) {
 		if ((!strlen(p->peer) || !strcmp(p->peer, peer->name)) 
@@ -1581,8 +1845,269 @@ static int authenticate_reply(struct chan_iax_pvt *p, struct sockaddr_in *sin, c
 		}
 		peer = peer->next;
 	}
-	pthread_mutex_unlock(&peerl.lock);
+	ast_pthread_mutex_unlock(&peerl.lock);
 	return res;
+}
+
+static int iax_do_register(struct iax_registry *reg);
+
+static int iax_do_register_s(void *data)
+{
+	struct iax_registry *reg = data;
+	reg->expire = -1;
+	iax_do_register(reg);
+	return 0;
+}
+
+static int iax_ack_registry(char *orequest, struct sockaddr_in *sin)
+{
+	struct iax_registry *reg;
+	/* Start pessimistic */
+	char request[256] = "";
+	char peer[256] = "";
+	int ourport = 0;
+	int refresh = 0;
+	char ourip[256] = "<Unspecified>";
+	struct sockaddr_in oldus;
+	char *var, *value;
+
+	if (!orequest)
+		return -1;
+
+	strncpy(request, orequest, sizeof(request));
+	var = strtok(request, ";");
+	while(var) {
+		value = strchr(var, '=');
+		if (value) { 
+			*value='\0';
+			value++;
+			if (!strcmp(var, "yourip")) 
+				strncpy(ourip, value, sizeof(ourip));
+			else if (!strcmp(var, "peer"))
+				strncpy(peer, value, sizeof(peer));
+			else if (!strcmp(var, "yourport"))
+				ourport = atoi(value);
+			else if (!strcmp(var, "refresh"))
+				refresh = atoi(value);
+			else 
+				ast_log(LOG_WARNING, "Unknown variable '%s' with value '%s'\n", var, value);
+		}
+		var = strtok(NULL, ";");
+	}
+	reg = registrations;
+	while(reg) {
+		if (!strcasecmp(reg->username, peer)) {
+			memcpy(&oldus, &reg->us, sizeof(oldus));
+			if (memcmp(&reg->addr, sin, sizeof(&reg->addr))) {
+				ast_log(LOG_WARNING, "Received unsolicited registry ack from '%s'\n", inet_ntoa(sin->sin_addr));
+				return -1;
+			}
+			if (!inet_aton(ourip, &reg->us.sin_addr)) {
+				ast_log(LOG_WARNING, "Registry ack from '%s' contains invalid IP '%s'\n", inet_ntoa(sin->sin_addr), ourip);
+				return -1;
+			}
+			reg->us.sin_port = htons(ourport);
+			if (refresh && (reg->refresh < refresh)) {
+				/* Refresh faster if necessary */
+				reg->refresh = refresh;
+				if (reg->expire > -1)
+					ast_sched_del(sched, reg->expire);
+				reg->expire = ast_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax_do_register_s, reg);
+			}
+			if (memcmp(&oldus, &reg->us, sizeof(oldus)) && (option_verbose > 2)) {
+				snprintf(ourip, sizeof(ourip), "%s:%d", inet_ntoa(reg->us.sin_addr), ntohs(reg->us.sin_port));
+				ast_verbose(VERBOSE_PREFIX_3 "Registered to '%s', who sees us as %s\n", inet_ntoa(sin->sin_addr), ourip);
+			}
+			reg->regstate = REG_STATE_REGISTERED;
+			return 0;
+		}
+		reg = reg->next;
+	}
+	ast_log(LOG_WARNING, "Registry acknowledge on unknown registery '%s'\n", peer);
+	return -1;
+}
+
+static int iax_register(char *value, int lineno)
+{
+	struct iax_registry *reg;
+	char copy[256];
+	char *username, *hostname, *secret;
+	char *porta;
+	
+	struct hostent *hp;
+	if (!value)
+		return -1;
+	strncpy(copy, value, sizeof(copy));
+	username = strtok(copy, "@");
+	hostname = strtok(NULL, "@");
+	if (!hostname) {
+		ast_log(LOG_WARNING, "Format for registration is user[:secret]@host[:port] at line %d", lineno);
+		return -1;
+	}
+	username = strtok(username, ":");
+	secret = strtok(NULL, ":");
+	hostname = strtok(hostname, ":");
+	porta = strtok(NULL, ";");
+	
+	if (porta && !atoi(porta)) {
+		ast_log(LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
+		return -1;
+	}
+	hp = gethostbyname(hostname);
+	if (!hp) {
+		ast_log(LOG_WARNING, "Host '%s' not found at line %d\n", hostname, lineno);
+		return -1;
+	}
+	reg = malloc(sizeof(struct iax_registry));
+	if (reg) {
+		memset(reg, 0, sizeof(struct iax_registry));
+		strncpy(reg->username, username, sizeof(reg->username));
+		if (secret)
+			strncpy(reg->secret, secret, sizeof(reg->secret));
+		reg->expire = -1;
+		reg->refresh = AST_DEFAULT_REG_EXPIRE;
+		reg->addr.sin_family = AF_INET;
+		memcpy(&reg->addr.sin_addr, hp->h_addr, sizeof(&reg->addr.sin_addr));
+		reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(AST_DEFAULT_IAX_PORTNO);
+		reg->next = registrations;
+		reg->callno = -1;
+		registrations = reg;
+	} else {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		return -1;
+	}
+	return 0;
+}
+
+static int expire_registry(void *data)
+{
+	struct iax_peer *p = data;
+	/* Reset the address */
+	memset(&p->addr, 0, sizeof(p->addr));
+	/* Reset expire notice */
+	p->expire = -1;
+	/* Reset expirey value */
+	p->expirey = expirey;
+	return 0;
+}
+
+static int update_registry(char *name, struct sockaddr_in *sin, int callno)
+{
+	char requeststr[256] = "";
+	struct iax_peer *p;
+	for (p = peerl.peers;p;p = p->next) {
+		if (!strcasecmp(name, p->name)) {
+			if (memcmp(&p->addr, sin, sizeof(p->addr)) && (option_verbose > 2))
+				ast_verbose(VERBOSE_PREFIX_3 "Registered '%s' (%s) at %s:%d\n", p->name, 
+					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", inet_ntoa(sin->sin_addr), htons(sin->sin_port));
+			/* Update the host */
+			memcpy(&p->addr, sin, sizeof(p->addr));
+			/* Setup the expirey */
+			if (p->expire > -1)
+				ast_sched_del(sched, p->expire);
+			p->expire = ast_sched_add(sched, p->expirey * 1000, expire_registry, (void *)p);
+			MYSNPRINTF "peer=%s;yourip=%s;yourport=%d;refresh=%d;",
+				p->name, inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), p->expirey);
+			requeststr[strlen(requeststr)-1] = '\0';
+			return send_command(iaxs[callno], AST_FRAME_IAX, AST_IAX_COMMAND_REGACK, 0, requeststr, strlen(requeststr) + 1, -1);;
+		}
+	}
+	ast_log(LOG_WARNING, "No such peer '%s'\n", name);
+	return -1;
+}
+
+static int registry_authrequest(char *name, int callno)
+{
+	char requeststr[256] = "";
+	struct iax_peer *p;
+	for (p = peerl.peers;p;p = p->next) {
+		if (!strcasecmp(name, p->name)) {
+			MYSNPRINTF "methods=%s;", p->methods);
+			if (strstr(p->methods, "md5")) {
+				/* Build the challenge */
+				snprintf(p->challenge, sizeof(p->challenge), "%d", rand());
+				MYSNPRINTF "challenge=%s;", p->challenge);
+			}
+			MYSNPRINTF "peer=%s;", name);
+			requeststr[strlen(requeststr)-1] = '\0';
+			return send_command(iaxs[callno], AST_FRAME_IAX, AST_IAX_COMMAND_REGAUTH, 0, requeststr, strlen(requeststr) + 1, -1);;
+		}
+	}
+	ast_log(LOG_WARNING, "No such peer '%s'\n", name);
+	return 0;
+}
+
+static int registry_rerequest(char *orequest, int callno, struct sockaddr_in *sin)
+{
+	struct iax_registry *reg;
+	/* Start pessimistic */
+	char request[256] = "";
+	char requeststr[256] = "";
+	char peer[256] = "";
+	char methods[256] = "";
+	char challenge[256] = "";
+	char *var, *value;
+	int x;
+
+	if (!orequest)
+		return -1;
+
+	strncpy(request, orequest, sizeof(request));
+	var = strtok(request, ";");
+	while(var) {
+		value = strchr(var, '=');
+		if (value) { 
+			*value='\0';
+			value++;
+			if (!strcmp(var, "methods")) 
+				strncpy(methods, value, sizeof(methods));
+			else if (!strcmp(var, "peer"))
+				strncpy(peer, value, sizeof(peer));
+			else if (!strcmp(var, "challenge"))
+				strncpy(challenge, value, sizeof(challenge));
+			else 
+				ast_log(LOG_WARNING, "Unknown variable '%s' with value '%s'\n", var, value);
+		}
+		var = strtok(NULL, ";");
+	}
+	reg = registrations;
+	while(reg) {
+		if (!strcasecmp(reg->username, peer)) {
+			if (memcmp(&reg->addr, sin, sizeof(&reg->addr))) {
+				ast_log(LOG_WARNING, "Received unsolicited registry authenticate request from '%s'\n", inet_ntoa(sin->sin_addr));
+				return -1;
+			}
+			if (!strlen(reg->secret)) {
+				ast_log(LOG_NOTICE, "No secret associated with peer '%s'\n", reg->username);
+				reg->regstate = REG_STATE_NOAUTH;
+				return -1;
+			}
+			MYSNPRINTF "peer=%s;refresh=%d;", reg->username, reg->refresh);
+			if (strstr(methods, "md5")) {
+				struct MD5Context md5;
+				unsigned char digest[16];
+				MD5Init(&md5);
+				MD5Update(&md5, challenge, strlen(challenge));
+				MD5Update(&md5, reg->secret, strlen(reg->secret));
+				MD5Final(digest, &md5);
+				/* If they support md5, authenticate with it.  */
+				MYSNPRINTF "md5secret=");
+				for (x=0;x<16;x++)
+					MYSNPRINTF "%2.2x", digest[x]);
+				MYSNPRINTF ";");
+			} else if (strstr(methods, "plaintext")) {
+				MYSNPRINTF "secret=%s;", reg->secret);
+			} else {
+				ast_log(LOG_WARNING, "No valid methods suggested by peer '%s'\n", inet_ntoa(sin->sin_addr));
+				return -1;
+			}
+			reg->regstate = REG_STATE_AUTHSENT;
+			return send_command(iaxs[callno], AST_FRAME_IAX, AST_IAX_COMMAND_REGREQ, 0, requeststr, strlen(requeststr) + 1, -1);;
+		}
+		reg = reg->next;
+	}
+	ast_log(LOG_WARNING, "Registry acknowledge on unknown registery '%s'\n", peer);
+	return -1;
 }
 
 static int socket_read(int *id, int fd, short events, void *cbdata)
@@ -1599,9 +2124,10 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	struct ast_iax_frame fr, *cur;
 	struct ast_frame f;
 	struct ast_channel *c;
-	res = recvfrom(netsocket, buf, sizeof(buf), 0, &sin, &len);
+	res = recvfrom(netsocket, buf, sizeof(buf), 0,(struct sockaddr *) &sin, &len);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Error: %s\n", strerror(errno));
+		if (errno != ECONNREFUSED)
+			ast_log(LOG_WARNING, "Error: %s\n", strerror(errno));
 		handle_error();
 		return 1;
 	}
@@ -1619,10 +2145,10 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		f.subclass = fh->subclasshigh << 16;
 		f.subclass += ntohs(fh->subclasslow);
 #endif
-		if ((f.frametype == AST_FRAME_IAX) && (f.subclass == AST_IAX_COMMAND_NEW))
+		if ((f.frametype == AST_FRAME_IAX) && ((f.subclass == AST_IAX_COMMAND_NEW) || (f.subclass == AST_IAX_COMMAND_REGREQ)))
 			new = NEW_ALLOW;
 	}
-	pthread_mutex_lock(&iaxs_lock);
+	ast_pthread_mutex_lock(&iaxs_lock);
 	fr.callno = find_callno(ntohs(mh->callno) & ~AST_FLAG_FULL, dcallno, &sin, new);
 	if ((fr.callno < 0) || !iaxs[fr.callno]) {
 		/* A call arrived for a non-existant destination.  Unless it's an "inval"
@@ -1632,7 +2158,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			if ((f.subclass != AST_IAX_COMMAND_INVAL) || (f.frametype != AST_FRAME_IAX))
 				raw_hangup(&sin, ntohs(fh->dcallno), ntohs(mh->callno));
 		}
-		pthread_mutex_unlock(&iaxs_lock);
+		ast_pthread_mutex_unlock(&iaxs_lock);
 		return 1;
 	}
 	iaxs[fr.callno]->peercallno = ntohs(mh->callno) & ~AST_FLAG_FULL;
@@ -1643,8 +2169,9 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		fr.seqno = ntohs(fh->seqno);
 		if (iaxs[fr.callno]->iseqno != fr.seqno) {
 			if (
-			 ((f.subclass != AST_IAX_COMMAND_ACK) && (f.subclass != AST_IAX_COMMAND_INVAL)) ||
-			 (f.frametype != AST_FRAME_IAX)) {
+			 ((f.subclass != AST_IAX_COMMAND_ACK) && 
+			  (f.subclass != AST_IAX_COMMAND_INVAL)) ||
+			  (f.frametype != AST_FRAME_IAX)) {
 			 	/* If it's not an ACK packet, it's out of order. */
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Packet arrived out of order (expecting %d, got %d) (frametype = %d, subclass = %d)\n", 
@@ -1658,7 +2185,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 						send_command(iaxs[fr.callno], AST_FRAME_IAX, AST_IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.seqno);
 					}
 				}
-				pthread_mutex_unlock(&iaxs_lock);
+				ast_pthread_mutex_unlock(&iaxs_lock);
 				return 1;
 			}
 		} else {
@@ -1670,7 +2197,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		/* A full frame */
 		if (res < sizeof(struct ast_iax_full_hdr)) {
 			ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, sizeof(struct ast_iax_full_hdr));
-			pthread_mutex_unlock(&iaxs_lock);
+			ast_pthread_mutex_unlock(&iaxs_lock);
 			return 1;
 		}
 		f.datalen = res - sizeof(struct ast_iax_full_hdr);
@@ -1689,16 +2216,20 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			/* Handle the IAX pseudo frame itself */
 			if (option_debug)
 				ast_log(LOG_DEBUG, "IAX subclass %d received\n", f.subclass);
+			/* Go through the motions of delivering the packet without actually doing so,
+			   unless this is a lag request since it will be done for real */
+			if (f.subclass != AST_IAX_COMMAND_LAGRQ)
+				schedule_delivery(&fr, 0);
 			switch(f.subclass) {
 			case AST_IAX_COMMAND_ACK:
 				/* Ack the packet with the given timestamp */
-				pthread_mutex_lock(&iaxq.lock);
+				ast_pthread_mutex_lock(&iaxq.lock);
 				for (cur = iaxq.head; cur ; cur = cur->next) {
 					/* If it's our call, and our timestamp, mark -1 retries */
 					if ((fr.callno == cur->callno) && (fr.seqno == cur->seqno))
 						cur->retries = -1;
 				}
-				pthread_mutex_unlock(&iaxq.lock);
+				ast_pthread_mutex_unlock(&iaxq.lock);
 				break;
 			case AST_IAX_COMMAND_NEW:
 				((char *)f.data)[f.datalen] = '\0';
@@ -1707,9 +2238,9 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					send_command(iaxs[fr.callno], AST_FRAME_IAX, AST_IAX_COMMAND_REJECT, 0, "No authority found", strlen("No authority found"), -1);
 					ast_log(LOG_NOTICE, "Rejected connect attempt from %s, request '%s'\n", inet_ntoa(sin.sin_addr), f.data);
 					/* XXX Not guaranteed to work, but probably does XXX */
-					pthread_mutex_lock(&iaxq.lock);
+					ast_pthread_mutex_lock(&iaxq.lock);
 					send_packet(iaxq.tail);
-					pthread_mutex_unlock(&iaxq.lock);
+					ast_pthread_mutex_unlock(&iaxq.lock);
 					iax_destroy(fr.callno);
 					break;
 				}
@@ -1719,9 +2250,9 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					if (option_verbose > 2) 
 						ast_verbose(VERBOSE_PREFIX_3 "Accepting unauthenticated call from %s, formats = %d\n", inet_ntoa(sin.sin_addr), iaxs[fr.callno]->peerformats);
 					iaxs[fr.callno]->state |= IAX_STATE_STARTED;
-					if(!(c = ast_iax_new(iaxs[fr.callno], AST_STATE_RING)))
+					if(!(c = ast_iax_new(iaxs[fr.callno], AST_STATE_RING))) {
 						iax_destroy(fr.callno);
-					else
+					} else
 						c->nativeformats = iaxs[fr.callno]->peerformats;
 					break;
 				}
@@ -1737,7 +2268,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			case AST_IAX_COMMAND_REJECT:
 				if (f.data)
 					((char *)f.data)[f.datalen] = '\0';
-				ast_log(LOG_WARNING, "Call rejected by %s: %s\n", inet_ntoa(iaxs[fr.callno]->addr.sin_addr), f.data);
+				if (iaxs[fr.callno]->owner)
+					ast_log(LOG_WARNING, "Call rejected by %s: %s\n", inet_ntoa(iaxs[fr.callno]->addr.sin_addr), f.data);
 				iaxs[fr.callno]->error = EPERM;
 				iax_destroy(fr.callno);
 				break;
@@ -1786,7 +2318,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				f.offset = 0;
 				fr.f = &f;
 				f.timelen = 0;
-				schedule_delivery(iaxfrdup2(&fr, 0));
+				schedule_delivery(iaxfrdup2(&fr, 0), 1);
 				break;
 			case AST_IAX_COMMAND_AUTHREQ:
 				((char *)f.data)[f.datalen] = '\0';
@@ -1803,9 +2335,9 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					ast_log(LOG_NOTICE, "Host %s failed to authenticate as %s\n", inet_ntoa(iaxs[fr.callno]->addr.sin_addr), iaxs[fr.callno]->username);
 					send_command(iaxs[fr.callno], AST_FRAME_IAX, AST_IAX_COMMAND_REJECT, 0, "No authority found", strlen("No authority found"), -1);
 					/* XXX Not guaranteed to work, but probably does XXX */
-					pthread_mutex_lock(&iaxq.lock);
+					ast_pthread_mutex_lock(&iaxq.lock);
 					send_packet(iaxq.tail);
-					pthread_mutex_unlock(&iaxq.lock);
+					ast_pthread_mutex_unlock(&iaxq.lock);
 					iax_destroy(fr.callno);
 					break;
 				}
@@ -1825,11 +2357,75 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Destroying call %d\n", fr.callno);
 				break;
+			case AST_IAX_COMMAND_VNAK:
+				/* Force retransmission */
+				ast_log(LOG_NOTICE, "Need to implement VNAK\n");
+				break;
+			case AST_IAX_COMMAND_REGREQ:
+				if (f.data) 
+					((char *)f.data)[f.datalen]='\0';
+				if (register_verify(fr.callno, &sin, (char *)f.data)) {
+					send_command(iaxs[fr.callno], AST_FRAME_IAX, AST_IAX_COMMAND_REGREJ, 0, "Registration Refused", strlen("Registration Refused"), -1);
+					ast_pthread_mutex_lock(&iaxq.lock);
+					send_packet(iaxq.tail);
+					ast_pthread_mutex_unlock(&iaxq.lock);
+					iax_destroy(fr.callno);
+					break;
+				}
+				if (!strlen(iaxs[fr.callno]->secret) || (iaxs[fr.callno]->state & IAX_STATE_AUTHENTICATED)) {
+					if (update_registry(iaxs[fr.callno]->peer, &sin, fr.callno))
+						ast_log(LOG_WARNING, "Registry error\n");
+					else {
+						/* Transmit the accept packet */
+						ast_pthread_mutex_lock(&iaxq.lock);
+						send_packet(iaxq.tail);
+						ast_pthread_mutex_unlock(&iaxq.lock);
+					}
+					iax_destroy(fr.callno);
+					break;
+				}
+				registry_authrequest(iaxs[fr.callno]->peer, fr.callno);
+				break;
+			case AST_IAX_COMMAND_REGACK:
+				if (f.data)
+					((char *)f.data)[f.datalen] = '\0';
+				if (iax_ack_registry(f.data, &sin)) 
+					ast_log(LOG_WARNING, "Registration failure\n");
+				iax_destroy(fr.callno);
+				break;
+			case AST_IAX_COMMAND_REGREJ:
+				if (f.data)
+					((char *)f.data)[f.datalen] = '\0';
+				if (iaxs[fr.callno]->reg) {
+					ast_log(LOG_NOTICE, "Registration of '%s' rejected: %s\n", iaxs[fr.callno]->reg->username, f.data);
+					iaxs[fr.callno]->reg->regstate = REG_STATE_REJECTED;
+#if 0
+					/* Stop any retransmissions at this point */
+					if (iaxs[fr.callno]->reg->expire > -1) 
+						ast_sched_del(iaxs[fr.callno]->reg->expire)
+					iaxs[fr.callno]->reg->expire = -1;
+#endif					
+				}
+				iax_destroy(fr.callno);
+				break;
+			case AST_IAX_COMMAND_REGAUTH:
+				/* Authentication request */
+				if (f.data)
+					((char *)f.data)[f.datalen] = '\0';
+				if (registry_rerequest(f.data, fr.callno, &sin)) {
+					send_command(iaxs[fr.callno], AST_FRAME_IAX, AST_IAX_COMMAND_REJECT, 0, "No authority found", strlen("No authority found"), -1);
+					/* XXX Not guaranteed to work, but probably does XXX */
+					ast_pthread_mutex_lock(&iaxq.lock);
+					send_packet(iaxq.tail);
+					ast_pthread_mutex_unlock(&iaxq.lock);
+					iax_destroy(fr.callno);
+				}
+				break;
 			default:
 				ast_log(LOG_DEBUG, "Unknown IAX command %d on %d/%d\n", f.subclass, fr.callno, iaxs[fr.callno]->peercallno);
 			}
 			/* Don't actually pass these frames along */
-			pthread_mutex_unlock(&iaxs_lock);
+			ast_pthread_mutex_unlock(&iaxs_lock);
 			return 1;
 		}
 	} else {
@@ -1839,13 +2435,13 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			f.subclass = iaxs[fr.callno]->voiceformat;
 		else {
 			ast_log(LOG_WARNING, "Received mini frame before first full voice frame\n ");
-			pthread_mutex_unlock(&iaxs_lock);
+			ast_pthread_mutex_unlock(&iaxs_lock);
 			return 1;
 		}
 		f.datalen = res - sizeof(struct ast_iax_mini_hdr);
 		if (f.datalen < 0) {
 			ast_log(LOG_WARNING, "Datalen < 0?\n");
-			pthread_mutex_unlock(&iaxs_lock);
+			ast_pthread_mutex_unlock(&iaxs_lock);
 			return 1;
 		}
 		if (f.datalen)
@@ -1856,7 +2452,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	}
 	/* Don't pass any packets until we're started */
 	if (!(iaxs[fr.callno]->state & IAX_STATE_STARTED)) {
-		pthread_mutex_unlock(&iaxs_lock);
+		ast_pthread_mutex_unlock(&iaxs_lock);
 		return 1;
 	}
 	/* Common things */
@@ -1879,10 +2475,38 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			ast_log(LOG_DEBUG, "Received out of order packet... (type=%d, subclass %d, ts = %d, last = %d)\n", f.frametype, f.subclass, fr.ts, iaxs[fr.callno]->last);
 		fr.outoforder = -1;
 	}
-	schedule_delivery(iaxfrdup2(&fr, 0));
+	schedule_delivery(iaxfrdup2(&fr, 0), 1);
 	/* Always run again */
-	pthread_mutex_unlock(&iaxs_lock);
+	ast_pthread_mutex_unlock(&iaxs_lock);
 	return 1;
+}
+
+static int iax_do_register(struct iax_registry *reg)
+{
+	char requeststr[256] = "";
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Sending registration request for '%s'\n", reg->username);
+	if (reg->callno < 0) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Allocate call number\n");
+		reg->callno = find_callno(-1, -1, &reg->addr, NEW_FORCE);
+		if (reg->callno < 0) {
+			ast_log(LOG_WARNING, "Unable to create call for registration\n");
+			return -1;
+		} else if (option_debug)
+			ast_log(LOG_DEBUG, "Registration created on call %d\n", reg->callno);
+		iaxs[reg->callno]->reg = reg;
+	}
+	/* Schedule the next registration attempt */
+	if (reg->expire > -1)
+		ast_sched_del(sched, reg->expire);
+	/* Setup the registration a little early */
+	reg->expire  = ast_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax_do_register_s, reg);
+	/* Send the request */
+	MYSNPRINTF "peer=%s;refresh=%d;", reg->username, reg->refresh);
+	send_command(iaxs[reg->callno],AST_FRAME_IAX, AST_IAX_COMMAND_REGREQ, 0, requeststr, strlen(requeststr) + 1, -1);
+	reg->regstate = REG_STATE_REGSENT;
+	return 0;
 }
 
 static void free_ha(struct iax_ha *ha)
@@ -1922,10 +2546,9 @@ static struct ast_channel *iax_request(char *type, int format, void *data)
 		st = s;
 	/* Populate our address from the given */
 	if (create_addr(&sin, st)) {
-		ast_log(LOG_WARNING, "Unable to assign address for %s\n", st);
 		return NULL;
 	}
-	pthread_mutex_lock(&iaxs_lock);
+	ast_pthread_mutex_lock(&iaxs_lock);
 	callno = find_callno(-1, -1, &sin, NEW_FORCE);
 	if (callno < 0) {
 		ast_log(LOG_WARNING, "Unable to create call\n");
@@ -1948,7 +2571,7 @@ static struct ast_channel *iax_request(char *type, int format, void *data)
 			c->nativeformats = native;
 		}
 	}
-	pthread_mutex_unlock(&iaxs_lock);
+	ast_pthread_mutex_unlock(&iaxs_lock);
 	return c;
 }
 
@@ -1960,11 +2583,11 @@ static void *network_thread(void *ignore)
 	struct ast_iax_frame *f, *freeme;
 	/* Establish I/O callback for socket read */
 	ast_io_add(io, netsocket, socket_read, AST_IO_IN, NULL);
-	pthread_mutex_lock(&iaxs_lock);
+	ast_pthread_mutex_lock(&iaxs_lock);
 	for(;;) {
 		/* Go through the queue, sending messages which have not yet been
 		   sent, and scheduling retransmissions if appropriate */
-		pthread_mutex_lock(&iaxq.lock);
+		ast_pthread_mutex_lock(&iaxq.lock);
 		f = iaxq.head;
 		while(f) {
 			freeme = NULL;
@@ -1999,11 +2622,11 @@ static void *network_thread(void *ignore)
 			if (freeme)
 				free(freeme);
 		}
-		pthread_mutex_unlock(&iaxq.lock);
-		pthread_mutex_unlock(&iaxs_lock);
+		ast_pthread_mutex_unlock(&iaxq.lock);
+		ast_pthread_mutex_unlock(&iaxs_lock);
 		res = ast_sched_wait(sched);
 		res = ast_io_wait(io, res);
-		pthread_mutex_lock(&iaxs_lock);
+		ast_pthread_mutex_lock(&iaxs_lock);
 		if (res >= 0) {
 			ast_sched_runq(sched);
 		}
@@ -2045,7 +2668,7 @@ static struct iax_ha *build_ha(char *sense, char *stuff)
 			return NULL;
 		}
 		ha->netaddr.s_addr &= ha->netmask.s_addr;
-		if (!strcasecmp(sense, "a")) {
+		if (!strncasecmp(sense, "a", 1)) {
 			ha->sense = IAX_SENSE_ALLOW;
 		} else {
 			ha->sense = IAX_SENSE_DENY;
@@ -2055,47 +2678,84 @@ static struct iax_ha *build_ha(char *sense, char *stuff)
 	return ha;
 }
 
+static int get_ip(struct sockaddr_in *sin, char *value)
+{
+	struct hostent *hp;
+	hp = gethostbyname(value);
+	if (hp) {
+		memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
+	} else {
+		ast_log(LOG_WARNING, "Unable to lookup '%s'\n", value);
+		return -1;
+	}
+	return 0;
+}
+
 static struct iax_peer *build_peer(char *name, struct ast_variable *v)
 {
 	struct iax_peer *peer;
+	struct iax_ha *ha, *hal = NULL;
 	int maskfound=0;
-	struct hostent *hp;
 	peer = malloc(sizeof(struct iax_peer));
 	if (peer) {
 		memset(peer, 0, sizeof(struct iax_peer));
 		strncpy(peer->name, name, sizeof(peer->name));
 		peer->addr.sin_port = htons(AST_DEFAULT_IAX_PORTNO);
+		peer->expirey = expirey;
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) 
 				strncpy(peer->secret, v->value, sizeof(peer->secret));
+			else if (!strcasecmp(v->name, "auth")) 
+				strncpy(peer->methods, v->value, sizeof(peer->methods));
 			else if (!strcasecmp(v->name, "host")) {
 				if (!strcasecmp(v->value, "dynamic")) {
 					/* They'll register with us */
 					peer->dynamic = 1;
+					peer->expire = -1;
 					memset(&peer->addr.sin_addr, 0, 4);
+					if (peer->addr.sin_port) {
+						/* If we've already got a port, make it the default rather than absolute */
+						peer->defaddr.sin_port = peer->addr.sin_port;
+						peer->addr.sin_port = 0;
+					}
 				} else {
 					peer->dynamic = 0;
-					hp = gethostbyname(v->value);
-					if (hp) {
-						memcpy(&peer->addr.sin_addr, hp->h_addr, sizeof(peer->addr.sin_addr));
-					} else {
-						ast_log(LOG_WARNING, "Unable to lookup '%s'\n", v->value);
+					if (get_ip(&peer->addr, v->value)) {
 						free(peer);
 						return NULL;
 					}
-					if (!maskfound)
-						inet_aton("255.255.255.255", &peer->mask);
 				}
-			}
-			else if (!strcasecmp(v->name, "mask")) {
+				if (!maskfound)
+					inet_aton("255.255.255.255", &peer->mask);
+			} else if (!strcasecmp(v->name, "defaultip")) {
+				if (get_ip(&peer->defaddr, v->value)) {
+					free(peer);
+					return NULL;
+				}
+			} else if (!strcasecmp(v->name, "allow") ||
+					   !strcasecmp(v->name, "deny")) {
+				ha = build_ha(v->name, v->value);
+				if (ha) {
+					if (hal)
+						hal->next = ha;
+					else
+						peer->ha = ha;
+					hal = ha;
+				}
+			} else if (!strcasecmp(v->name, "mask")) {
 				maskfound++;
 				inet_aton(v->value, &peer->mask);
-			} else if (!strcasecmp(v->name, "port"))
-				peer->addr.sin_port = htons(atoi(v->value));
-			else if (!strcasecmp(v->name, "username"))
+			} else if (!strcasecmp(v->name, "port")) {
+				if (peer->dynamic)
+					peer->defaddr.sin_port = htons(atoi(v->value));
+				else
+					peer->addr.sin_port = htons(atoi(v->value));
+			} else if (!strcasecmp(v->name, "username"))
 				strncpy(peer->username, v->value, sizeof(peer->username));
 			v=v->next;
 		}
+		if (!strlen(peer->methods))
+			strcpy(peer->methods, "md5,plaintext");
 	}
 	return peer;
 }
@@ -2147,11 +2807,15 @@ int load_module()
 	struct ast_variable *v;
 	struct iax_user *user;
 	struct iax_peer *peer;
+	struct iax_registry *reg;
 	char *cat;
 	char *utype;
 	int format;
 	
 	struct sockaddr_in sin;
+	
+	/* Seed random number generator */
+	srand(time(NULL));
 	
 	sin.sin_family = AF_INET;
 	sin.sin_port = ntohs(AST_DEFAULT_IAX_PORTNO);
@@ -2171,6 +2835,7 @@ int load_module()
 	ast_cli_register(&cli_show_users);
 	ast_cli_register(&cli_show_channels);
 	ast_cli_register(&cli_show_peers);
+	ast_cli_register(&cli_show_registry);
 	ast_cli_register(&cli_set_jitter);
 #ifdef IAX_SIMULATOR
 	ast_cli_register(&delay_cli);
@@ -2223,6 +2888,8 @@ int load_module()
 				ast_log(LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
 			else
 				iax_capability &= ~format;
+		} else if (!strcasecmp(v->name, "register")) {
+			iax_register(v->value, v->lineno);
 		}
 		v = v->next;
 	}
@@ -2234,18 +2901,18 @@ int load_module()
 				if (!strcasecmp(utype, "user")) {
 					user = build_user(cat, ast_variable_browse(cfg, cat));
 					if (user) {
-						pthread_mutex_lock(&userl.lock);
+						ast_pthread_mutex_lock(&userl.lock);
 						user->next = userl.users;
 						userl.users = user;
-						pthread_mutex_unlock(&userl.lock);
+						ast_pthread_mutex_unlock(&userl.lock);
 					}
 				} else if (!strcasecmp(utype, "peer")) {
 					peer = build_peer(cat, ast_variable_browse(cfg, cat));
 					if (peer) {
-						pthread_mutex_lock(&peerl.lock);
+						ast_pthread_mutex_lock(&peerl.lock);
 						peer->next = peerl.peers;
 						peerl.peers = peer;
-						pthread_mutex_unlock(&peerl.lock);
+						ast_pthread_mutex_unlock(&peerl.lock);
 					}
 				} else {
 					ast_log(LOG_WARNING, "Unknown type '%s' for '%s' in %s\n", utype, cat, config);
@@ -2269,7 +2936,7 @@ int load_module()
 		ast_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
 		return -1;
 	}
-	if (bind(netsocket, &sin, sizeof(sin))) {
+	if (bind(netsocket,(struct sockaddr *)&sin, sizeof(sin))) {
 		ast_log(LOG_ERROR, "Unable to bind to %s port %d\n", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 		return -1;
 	}
@@ -2282,6 +2949,8 @@ int load_module()
 		ast_log(LOG_ERROR, "Unable to start network thread\n");
 		close(netsocket);
 	}
+	for (reg = registrations; reg; reg = reg->next)
+		iax_do_register(reg);
 	return res;
 }
 
@@ -2330,9 +2999,9 @@ int unload_module()
 int usecount()
 {
 	int res;
-	pthread_mutex_lock(&usecnt_lock);
+	ast_pthread_mutex_lock(&usecnt_lock);
 	res = usecnt;
-	pthread_mutex_unlock(&usecnt_lock);
+	ast_pthread_mutex_unlock(&usecnt_lock);
 	return res;
 }
 

@@ -35,8 +35,14 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ;dropcount=3
 ;maxjitterbuffer=500
 ;maxexccessbuffer=100
-
 ;
+; We can register with another IAX server to let him know where we are
+; in case we have a dynamic IP address for example
+;
+;register => marko:secretpass@tormenta.linux-support.net
+;register => joe@remotehost:5656
+;
+
 ; Guest sections for unauthenticated connection attempts.  Just
 ; specify an empty secret, or provide no secret section.
 ;
@@ -54,7 +60,7 @@ context=default
 ;type=user
 ;context=default
 ;context=local
-;auth=md5,cleartext
+;auth=md5,plaintext
 ;secret=markpasswd
 ;deny=0.0.0.0/0.0.0.0
 ;allow=209.16.236.73/255.255.255.0
