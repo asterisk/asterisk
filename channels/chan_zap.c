@@ -2884,7 +2884,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			case SIG_SF_FEATDMF:
 			case SIG_SF_FEATB:
 				/* FGD MF *Must* wait for wink */
-				if (strlen(p->dop.dialstr)) {
+				if (strlen(p->dop.dialstr))
 					res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop);
 				else if (res < 0) {
 					ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
