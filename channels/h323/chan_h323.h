@@ -85,10 +85,11 @@ struct oh323_alias {
 	PBX application and passed through make_call 
 	function*/
 typedef struct call_options {
-	char		   *callerid;
-	int				noFastStart;
-	int				noH245Tunnelling;
-	int				noSilenceSuppression;
+	char		*callerid;
+	char		*callername;
+	int	  	noFastStart;
+	int		noH245Tunnelling;
+	int		noSilenceSuppression;
 	unsigned int	port;
 } call_options_t;
 
@@ -101,6 +102,7 @@ typedef struct call_details {
 	const char *call_token;				
 	const char *call_source_aliases;
 	const char *call_dest_alias;
+	const char *call_source_name;
 	const char *call_source_e164;
 	const char *call_dest_e164;
 	const char *sourceIp;
@@ -136,6 +138,11 @@ setup_outbound_cb	on_outgoing_call;
 typedef void (*start_logchan_cb)(unsigned int, const char *, int);
 start_logchan_cb	on_start_logical_channel; 
 
+/* This is a callback prototype function, called when openh323
+   OnAlerting is invoked */
+typedef void (*chan_ringing_cb)(unsigned);
+chan_ringing_cb		on_chan_ringing;
+
 /* This is a callback protoype function, called when the openh323
    OnConnectionEstablished is inovked */
 typedef void (*con_established_cb)(unsigned);
@@ -164,13 +171,14 @@ extern "C" {
 	void h323_debug(int, unsigned);
 
 	/* callback function handler*/
-	void h323_callback_register(setup_incoming_cb,
- 								setup_outbound_cb,
- 								on_connection_cb,
- 								start_logchan_cb,
- 								clear_con_cb,
- 								con_established_cb,
- 								send_digit_cb);
+	void h323_callback_register(setup_incoming_cb,  
+				    setup_outbound_cb,
+ 				    on_connection_cb,
+ 				    start_logchan_cb,
+ 				    clear_con_cb,
+ 				    chan_ringing_cb,
+				    con_established_cb,
+ 				    send_digit_cb);
 
 
 	int h323_set_capability(int, int);
@@ -191,9 +199,13 @@ extern "C" {
 	/* H323 create and destroy sessions */
 	int h323_make_call(char *host, call_details_t *cd, call_options_t);
 	int h323_clear_call(const char *);
+
+	/* H.323 alerting and progress */
+	int h323_send_alerting(const char *token);
+	int h323_send_progress(const char *token);
+
 	int h323_answering_call(const char *token, int);
-	int h323_soft_hangup(const char *data);
-	
+	int h323_soft_hangup(const char *data);	
 	int h323_show_codec(int fd, int argc, char *argv[]);
 	
 

@@ -393,7 +393,7 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	int res;
 	struct oh323_pvt *p = c->pvt->pvt;
 	char called_addr[256];
-	char *tmp;
+	char *tmp, *cid, *cidname, oldcid[256];
 
 	strtok_r(dest, "/", &(tmp));
 
@@ -424,15 +424,46 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 
 	/* Copy callerid, if there is any */
 	if (c->callerid) {
-		char *tmp = strchr(c->callerid, '"');
-		if (!tmp) {
-			p->calloptions.callerid = malloc(80); // evil
-			// sprintf(p->calloptions.callerid, "\"%s\"", c->callerid);
-			sprintf(p->calloptions.callerid, "\"\" <%s>", c->callerid);
-		} else {
-			p->calloptions.callerid = strdup(c->callerid);
-		}	
-	 }
+                memset(oldcid, 0, sizeof(oldcid));
+                memcpy(oldcid, c->callerid, strlen(c->callerid));
+                oldcid[sizeof(oldcid)-1] = '\0';
+                ast_callerid_parse(oldcid, &cidname, &cid);
+                if (p->calloptions.callerid) {
+                        free(p->calloptions.callerid);
+                        p->calloptions.callerid = NULL;
+                }
+                if (p->calloptions.callername) {
+                        free(p->calloptions.callername);
+                        p->calloptions.callername = NULL;
+                }
+                p->calloptions.callerid = (char*)malloc(256);
+                if (p->calloptions.callerid == NULL) {
+                        ast_log(LOG_ERROR, "Not enough memory.\n");
+                        return(-1);
+                }
+                memset(p->calloptions.callerid, 0, 256);
+                if ((cid != NULL)&&(strlen(cid) > 0))
+                        strncpy(p->calloptions.callerid, cid, 255);
+
+                p->calloptions.callername = (char*)malloc(256);
+                if (p->calloptions.callername == NULL) {
+                        ast_log(LOG_ERROR, "Not enough memory.\n");
+                        return(-1);
+                }
+                memset(p->calloptions.callername, 0, 256);
+                if ((cidname != NULL)&&(strlen(cidname) > 0))
+                        strncpy(p->calloptions.callername, cidname, 255);
+
+        } else {
+                if (p->calloptions.callerid) {
+                        free(p->calloptions.callerid);
+                        p->calloptions.callerid = NULL;
+                }
+                if (p->calloptions.callername) {
+                        free(p->calloptions.callername);
+                        p->calloptions.callername = NULL;
+                }
+        }
 
 	res = h323_make_call(called_addr, &(p->cd), p->calloptions);
 
@@ -440,11 +471,8 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 		ast_log(LOG_NOTICE, "h323_make_call failed(%s)\n", c->name);
 		return -1;
 	}
-
-	ast_setstate(c, AST_STATE_RINGING);
 	return 0;
 }
-
 
 static int oh323_answer(struct ast_channel *c)
 {
@@ -597,24 +625,34 @@ static int oh323_indicate(struct ast_channel *c, int condition)
 	
 	switch(condition) {
 	case AST_CONTROL_RINGING:
-		if (c->_state == AST_STATE_RING) {
-			return -1;
+		if (c->_state == AST_STATE_RING || c->_state == AST_STATE_RINGING) {
+			h323_send_alerting(p->cd.call_token);
+ 			break;
+ 		}		
+		return -1;
+	case AST_CONTROL_PROGRESS:
+		if (c->_state != AST_STATE_UP) {
+			h323_send_progress(p->cd.call_token);
+			break;
 		}
-		return 0;
+		return -1;
+
 	case AST_CONTROL_BUSY:
 		if (c->_state != AST_STATE_UP) {
-			p->alreadygone = 1;
-			ast_softhangup(c, AST_SOFTHANGUP_DEV);
+			h323_answering_call(p->cd.call_token, 1);
+ 			p->alreadygone = 1;
+			ast_softhangup_nolock(c, AST_SOFTHANGUP_DEV);			
 			break;
 		}
-		return 0;
+		return -1;
 	case AST_CONTROL_CONGESTION:
 		if (c->_state != AST_STATE_UP) {
+			h323_answering_call(p->cd.call_token, 1);
 			p->alreadygone = 1;
-			ast_softhangup(c, AST_SOFTHANGUP_DEV);
+			ast_softhangup_nolock(c, AST_SOFTHANGUP_DEV);
 			break;
 		}
-		return 0;
+		return -1;
 	case -1:
 		return -1;
 	default:
@@ -986,13 +1024,14 @@ int setup_incoming_call(call_details_t cd)
 	p->cd.call_token = cd.call_token;
 	p->cd.call_source_aliases = cd.call_source_aliases;
 	p->cd.call_dest_alias = cd.call_dest_alias;
+	p->cd.call_source_name = cd.call_source_name;
 	p->cd.call_source_e164 = cd.call_source_e164;
 	p->cd.call_dest_e164 = cd.call_dest_e164;
 
 	if (h323debug) {
 		ast_verbose(VERBOSE_PREFIX_3 "Setting up Call\n");
 		ast_verbose(VERBOSE_PREFIX_3 "	   Call token:  [%s]\n", p->cd.call_token);
-		ast_verbose(VERBOSE_PREFIX_3 "	   Calling party name:  [%s]\n", p->cd.call_source_aliases);
+		ast_verbose(VERBOSE_PREFIX_3 "	   Calling party name:  [%s]\n", p->cd.call_source_name);
 		ast_verbose(VERBOSE_PREFIX_3 "	   Calling party number:  [%s]\n", p->cd.call_source_e164);
 		ast_verbose(VERBOSE_PREFIX_3 "	   Called  party name:  [%s]\n", p->cd.call_dest_alias);
 		ast_verbose(VERBOSE_PREFIX_3 "	   Called  party number:  [%s]\n", p->cd.call_dest_e164);
@@ -1014,17 +1053,14 @@ int setup_incoming_call(call_details_t cd)
 			strncpy(p->exten, alias->name, sizeof(p->exten)-1);
 			strncpy(p->context, alias->context, sizeof(p->context)-1);
 		}
-
-
-		sprintf(p->callerid, "%s <%s>", p->cd.call_source_aliases, p->cd.call_source_e164);
-
+		sprintf(p->callerid, "%s <%s>", p->cd.call_source_name, p->cd.call_source_e164);
 	} else { 
 		/* Either this call is not from the Gatekeeper 
 		   or we are not allowing gk routed calls */
 		user  = find_user(cd);
 
 		if (!user) {
-			sprintf(p->callerid, "%s <%s>", p->cd.call_source_aliases, p->cd.call_source_e164); 
+			sprintf(p->callerid, "%s <%s>", p->cd.call_source_name, p->cd.call_source_e164);
 			if (!ast_strlen_zero(p->cd.call_dest_e164)) {
 				strncpy(p->exten, cd.call_dest_e164, sizeof(p->exten)-1);
 			} else {
@@ -1061,11 +1097,11 @@ int setup_incoming_call(call_details_t cd)
 			p->bridge = user->bridge;
                       p->nat = user->nat;
 
-			if (!ast_strlen_zero(user->callerid)) 
+			if (!ast_strlen_zero(user->callerid)) {
 				strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
-			else
-				sprintf(p->callerid, "%s <%s>", p->cd.call_source_aliases, p->cd.call_source_e164); 
-
+			} else {
+				 sprintf(p->callerid, "%s <%s>", p->cd.call_source_name, p->cd.call_source_e164); 
+			}
 			if (!ast_strlen_zero(p->cd.call_dest_e164)) {
 				strncpy(p->exten, cd.call_dest_e164, sizeof(p->exten)-1);
 			} else {
@@ -1161,7 +1197,33 @@ void connection_made(unsigned call_reference)
 	c = p->owner;	
 
 	ast_setstate(c, AST_STATE_UP);
+	ast_queue_control(c, AST_CONTROL_ANSWER);
 	return;
+}
+
+/**
+  *  Call-back function to signal asterisk that the channel is ringing
+  *  Returns nothing
+  */
+void chan_ringing(unsigned call_reference)
+{
+        struct ast_channel *c = NULL;
+        struct oh323_pvt *p = NULL;
+
+        p = find_call(call_reference);
+
+        if (!p) {
+                ast_log(LOG_ERROR, "Something is wrong: ringing\n");
+	}
+
+        if (!p->owner) {
+                ast_log(LOG_ERROR, "Channel has no owner\n");
+                return;
+        }
+        c = p->owner;
+        ast_setstate(c, AST_STATE_RINGING);
+        ast_queue_control(c, AST_CONTROL_RINGING);
+        return;
 }
 
 /**
@@ -1171,7 +1233,7 @@ void connection_made(unsigned call_reference)
 void cleanup_connection(call_details_t cd)
 {	
 	struct oh323_pvt *p = NULL;
-//	struct oh323_peer *peer = NULL;
+/*	struct oh323_peer *peer = NULL; */
 	struct oh323_user *user = NULL;
 	struct ast_rtp *rtp = NULL;
 	
@@ -1793,6 +1855,7 @@ int load_module()
 	 			       create_connection, 
 				       setup_rtp_connection, 
 				       cleanup_connection, 
+				       chan_ringing,
 				       connection_made, 
 				       send_digit);	
 	
@@ -1800,7 +1863,6 @@ int load_module()
 		/* start the h.323 listener */
 		if (h323_start_listener(port, bindaddr)) {
 			ast_log(LOG_ERROR, "Unable to create H323 listener.\n");
-//			h323_end_process();
 			return -1;
 		}
 
@@ -1808,7 +1870,6 @@ int load_module()
 		if (gatekeeper_disable == 0) {
 			if (h323_set_gk(gatekeeper_discover, gatekeeper, secret)) {
 				ast_log(LOG_ERROR, "Gatekeeper registration failed.\n");
-//				h323_end_process();
 				return 0;
 			}
 		}

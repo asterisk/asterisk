@@ -198,7 +198,7 @@ class MyH323EndPoint : public H323EndPoint {
 
 	public:
 
-	int MakeCall(const PString &, PString &, unsigned int *, unsigned int, char *);
+	int MakeCall(const PString &, PString &, unsigned int *, unsigned int, char *, char *s);
 	BOOL ClearCall(const PString &);
 
 	void OnClosedLogicalChannel(H323Connection &, const H323Channel &);
@@ -225,8 +225,10 @@ class MyH323Connection : public H323Connection {
 	MyH323Connection(MyH323EndPoint &, unsigned, unsigned);
 	~MyH323Connection();
 
-	H323Channel * CreateRealTimeLogicalChannel(const H323Capability &, H323Channel::Directions, unsigned, 
-											   const H245_H2250LogicalChannelParameters *);
+	H323Channel * CreateRealTimeLogicalChannel(const H323Capability &, 
+						   H323Channel::Directions, 
+					 	   unsigned, 
+						   const H245_H2250LogicalChannelParameters *);
 	H323Connection::AnswerCallResponse OnAnswerCall(const PString &, const H323SignalPDU &, H323SignalPDU &);
 	void OnReceivedReleaseComplete(const H323SignalPDU &);
 	BOOL OnAlerting(const H323SignalPDU &, const PString &);
@@ -245,33 +247,53 @@ class MyH323Connection : public H323Connection {
 	PString sourceE164;
 	PString destE164;
 
-	PIPSocket::Address externalIpAddress;	// IP address of media server
-    	PIPSocket::Address remoteIpAddress;		// IP Address of remote endpoint
-	WORD			   externalPort;		// local media server Data port (control is dataPort+1)
-	WORD			   remotePort;			// remote endpoint Data port (control is dataPort+1)
-	WORD			   sessionId;
-	BOOL			   bridging;			// Used to help determine which IP to use
+	PIPSocket::Address externalIpAddress;	
+    	PIPSocket::Address remoteIpAddress;	
+	WORD externalPort;
+	WORD remotePort;		
+	WORD sessionId;
+	BOOL bridging;			
 };
 
 class MyH323_ExternalRTPChannel : public H323_ExternalRTPChannel {
 
-	PCLASSINFO(MyH323_ExternalRTPChannel, H323_ExternalRTPChannel);
+        PCLASSINFO(MyH323_ExternalRTPChannel, H323_ExternalRTPChannel);
 
-	public:
+        public:
+	MyH323_ExternalRTPChannel(
+      		MyH323Connection & connection,     
+      		const H323Capability & capability, 
+      		Directions direction,              
+      		unsigned sessionID);
 
-    MyH323_ExternalRTPChannel(MyH323Connection &, const H323Capability &, Directions,
-    						unsigned, const PIPSocket::Address &, WORD);
+    	MyH323_ExternalRTPChannel(
+      		MyH323Connection & connection,      
+      		const H323Capability & capability,  
+      		Directions direction,               
+      		unsigned sessionID,                 
+      		const H323TransportAddress & data,  
+      		const H323TransportAddress & control);
+    
+	/* Create a new channel. */
+    	MyH323_ExternalRTPChannel(
+      		MyH323Connection & connection,        
+      		const H323Capability & capability,  
+      		Directions direction,               
+      		unsigned sessionID,                 
+      		const PIPSocket::Address & ip,      
+      		WORD dataPort); 
 
+	/* Destructor */
 	~MyH323_ExternalRTPChannel();
 
-    BOOL OnReceivedPDU(
-      const H245_H2250LogicalChannelParameters & param, /// Acknowledgement PDU
-      unsigned & errorCode                              /// Error on failure
-    );
+	
+     	BOOL OnReceivedAckPDU(const H245_H2250LogicalChannelAckParameters & param);
 
-    BOOL OnReceivedAckPDU(const H245_H2250LogicalChannelAckParameters & param);
-
-};
+     	PIPSocket::Address externalIpAddress;   
+     	PIPSocket::Address remoteIpAddress;             
+     	WORD externalPort;               
+     	WORD remotePort;
+}; 
 
 /**
  * The MyProcess is a necessary descendant PProcess class so that the H323EndPoint 

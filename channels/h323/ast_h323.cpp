@@ -218,8 +218,7 @@ H323Codec * AST_G729ACapability::CreateCodec(H323Codec::Direction direction) con
   *					transport = ip.
   *					port = 1720.
   */
-int MyH323EndPoint::MakeCall(const PString & dest, PString & token, 
-							  			unsigned int *callReference, unsigned int port, char *callerid)
+int MyH323EndPoint::MakeCall(const PString & dest, PString & token, unsigned int *callReference, unsigned int port, char *callerid, char *callername)
 {
 	PString fullAddress;
 	MyH323Connection * connection;
@@ -245,6 +244,15 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token,
 	
 	if (callerid)
 		connection->SetLocalPartyName(PString(callerid));
+	if (callername) {
+                localAliasNames.RemoveAll();
+		connection->SetLocalPartyName(PString(callername));
+	        if (callerid)
+                  localAliasNames.AppendString(PString(callerid));
+        } else if (callerid) {
+                localAliasNames.RemoveAll();
+                connection->SetLocalPartyName(PString(callerid));
+        }
 
 	connection->Unlock(); 	
 
@@ -486,7 +494,7 @@ H323Connection::AnswerCallResponse MyH323Connection::OnAnswerCall(const PString 
 {
 	/* The call will be answered later with "AnsweringCall()" function.
 	 */ 
-	return H323Connection::AnswerCallAlertWithMedia;
+	return H323Connection::AnswerCallDeferred;
 }
 
 BOOL  MyH323Connection::OnAlerting(const H323SignalPDU & /*alertingPDU*/, const PString & username)
@@ -495,6 +503,7 @@ BOOL  MyH323Connection::OnAlerting(const H323SignalPDU & /*alertingPDU*/, const 
 	if (h323debug) {
 		cout << "	-- Ringing phone for \"" << username << "\"" << endl;
 	}
+	on_chan_ringing(GetCallReference());
 	return TRUE;
 }
 
@@ -508,6 +517,7 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 	call_details_t cd;
 	PString sourceE164;
 	PString destE164;
+	PString sourceName;
 	PString sourceAliases;	
 	PString destAliases;
 	PIPSocket::Address Ip;
@@ -519,6 +529,8 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 			
 	sourceE164 = "";
 	setupPDU.GetSourceE164(sourceE164);
+	sourceName = "";
+	sourceName=setupPDU.GetQ931().GetDisplayName();
 	destE164 = "";
 	setupPDU.GetDestinationE164(destE164);
 
@@ -540,6 +552,7 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 	cd.call_dest_alias = (const char *)destAliases;
 	cd.call_source_e164 = (const char *)sourceE164;
 	cd.call_dest_e164 = (const char *)destE164;
+	cd.call_source_name = (const char *)sourceName;
 
 	GetSignallingChannel()->GetRemoteAddress().GetIpAndPort(Ip, sourcePort);
 	cd.sourceIp = (const char *)Ip.AsString();
@@ -727,11 +740,11 @@ BOOL MyH323Connection::OnStartLogicalChannel(H323Channel & channel)
 
 /* MyH323_ExternalRTPChannel */
 MyH323_ExternalRTPChannel::MyH323_ExternalRTPChannel(MyH323Connection & connection,
-													const H323Capability & capability,
-													Directions direction,
-													unsigned sessionID,
-													const PIPSocket::Address & ip,
-													WORD dataPort)
+						     const H323Capability & capability,
+						     Directions direction,
+ 						     unsigned sessionID,
+						     const PIPSocket::Address & ip,
+		  				     WORD dataPort)
 	: H323_ExternalRTPChannel(connection, capability, direction, sessionID, ip, dataPort)
 {
 	if (h323debug) {
@@ -739,6 +752,24 @@ MyH323_ExternalRTPChannel::MyH323_ExternalRTPChannel(MyH323Connection & connecti
 	}
 	return;
 }
+
+MyH323_ExternalRTPChannel::MyH323_ExternalRTPChannel(MyH323Connection & connection,
+	                                             const H323Capability & capability,
+                                                     Directions direction,
+                                                     unsigned id)
+ : H323_ExternalRTPChannel::H323_ExternalRTPChannel(connection, capability, direction, id)
+{   
+} 
+
+MyH323_ExternalRTPChannel::MyH323_ExternalRTPChannel(MyH323Connection & connection, 
+						     const H323Capability & capability,
+                                                     Directions direction,
+                                                     unsigned id,
+                                                     const H323TransportAddress & data,
+                                                     const H323TransportAddress & control) 
+ : H323_ExternalRTPChannel::H323_ExternalRTPChannel(connection, capability, direction, id, data, control)
+{
+} 
 
 MyH323_ExternalRTPChannel::~MyH323_ExternalRTPChannel()
 {
@@ -748,29 +779,17 @@ MyH323_ExternalRTPChannel::~MyH323_ExternalRTPChannel()
 	return;
 }
 
-BOOL MyH323_ExternalRTPChannel::OnReceivedPDU(
-				const H245_H2250LogicalChannelParameters & param,
-				unsigned & errorCode)
+BOOL MyH323_ExternalRTPChannel::OnReceivedAckPDU(const H245_H2250LogicalChannelAckParameters & param)
 {
-	if (h323debug) {
-		cout << "	MyH323_ExternalRTPChannel::OnReceivedPDU " << endl;
-	}
-	return H323_ExternalRTPChannel::OnReceivedPDU( param, errorCode );
-}
-
-BOOL MyH323_ExternalRTPChannel::OnReceivedAckPDU(
-				const H245_H2250LogicalChannelAckParameters & param)
-{
-
-	PIPSocket::Address remoteIpAddress;		// IP Address of remote endpoint
-	WORD			   remotePort;			// remote endpoint Data port (control is dataPort+1)
+	PIPSocket::Address remoteIpAddress;
+	WORD remotePort;
 
 	if (h323debug) {
 		cout << "	MyH323_ExternalRTPChannel::OnReceivedAckPDU " << endl;
 	}
 
-	if (H323_ExternalRTPChannel::OnReceivedAckPDU( param )) {
-		GetRemoteAddress(remoteIpAddress, remotePort);
+	if (H323_ExternalRTPChannel::OnReceivedAckPDU(param)) {
+		H323_ExternalRTPChannel::GetRemoteAddress(remoteIpAddress, remotePort);
 		if (h323debug) {
 			cout << "		-- remoteIpAddress: " << remoteIpAddress << endl;
 			cout << "		-- remotePort: " << remotePort << endl;
@@ -838,7 +857,8 @@ void h323_callback_register(setup_incoming_cb  	ifunc,
  			    on_connection_cb   	confunc,
 			    start_logchan_cb   	lfunc,
  			    clear_con_cb	clfunc,
- 			    con_established_cb 	efunc,
+ 			    chan_ringing_cb     rfunc,
+			    con_established_cb 	efunc,
  			    send_digit_cb	dfunc)
 {
 	on_incoming_call = ifunc;
@@ -846,6 +866,7 @@ void h323_callback_register(setup_incoming_cb  	ifunc,
 	on_create_connection = confunc;
 	on_start_logical_channel = lfunc;
 	on_connection_cleared = clfunc;
+	on_chan_ringing = rfunc;
 	on_connection_established = efunc;
 	on_send_digit = dfunc;
 }
@@ -1085,7 +1106,7 @@ int h323_make_call(char *host, call_details_t *cd, call_options_t call_options)
 	
 	PString dest(host);
 
-	res = endPoint->MakeCall(dest, token, &cd->call_reference, call_options.port, call_options.callerid);
+	res = endPoint->MakeCall(dest, token, &cd->call_reference, call_options.port, call_options.callerid, call_options.callername);
 	memcpy((char *)(cd->call_token), (const unsigned char *)token, token.GetLength());
 	
 	return res;
@@ -1100,6 +1121,45 @@ int h323_clear_call(const char *call_token)
         endPoint->ClearCall(PString(call_token));
 	return 0;
 };
+
+/* Send Alerting PDU to H.323 caller */
+int h323_send_alerting(const char *token)
+{
+        const PString currentToken(token);
+        H323Connection * connection;
+
+        connection = endPoint->FindConnectionWithLock(currentToken);
+
+        if (!connection) {
+                cout << "No connection found for " << token << endl;
+                return -1;
+        }
+
+        connection->AnsweringCall(H323Connection::AnswerCallPending);
+        connection->Unlock();
+
+        return 0; 
+
+}
+
+/* Send Progress PDU to H.323 caller */
+int h323_send_progress(const char *token)
+{
+        const PString currentToken(token);
+        H323Connection * connection;
+
+        connection = endPoint->FindConnectionWithLock(currentToken);
+
+        if (!connection) {
+                cout << "No connection found for " << token << endl;
+                return -1;
+        }
+
+        connection->AnsweringCall(H323Connection::AnswerCallDeferredWithMedia);
+        connection->Unlock();
+
+        return 0;  
+}
 
 /** This function tells the h.323 stack to either 
     answer or deny an incoming call  */
