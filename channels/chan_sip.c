@@ -7079,7 +7079,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 
 		if (!ignore && p)
 			p->lastinvite = seqno;
-		if (p) {
+		if (p && !p->needdestroy) {
 		    if (!(p->expiry = atoi(get_header(req, "Expires")))) {
 			transmit_response(p, "200 OK", req);
 			p->needdestroy = 1;

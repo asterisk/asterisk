@@ -452,7 +452,7 @@ int ast_osp_validate(char *provider, char *token, int *handle, unsigned int *tim
 	}
 	callerid = l;
 	ast_mutex_lock(&osplock);
-	ast_inet_ntoa(ip, sizeof(ip), addr));
+	ast_inet_ntoa(ip, sizeof(ip), addr);
 	osp = providers;
 	while(osp) {
 		if (!strcasecmp(osp->name, provider)) {

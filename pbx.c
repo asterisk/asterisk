@@ -1878,7 +1878,7 @@ int ast_pbx_run(struct ast_channel *c)
 						strncpy(c->exten, "i", sizeof(c->exten)-1);
 						c->priority = 1;
 					} else {
-						ast_log(LOG_WARNING, "Invalid extension, but no rule 'i' in context '%s'\n", c->context);
+						ast_log(LOG_WARNING, "Invalid extension '%s', but no rule 'i' in context '%s'\n", exten, c->context);
 						goto out;
 					}
 				} else {
