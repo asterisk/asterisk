@@ -38,6 +38,7 @@
 #include <asterisk/astdb.h>
 #include <asterisk/manager.h>
 #include <asterisk/causes.h>
+#include <asterisk/term.h>
 #include <sys/signal.h>
 #include <sys/select.h>
 #include <errno.h>
@@ -521,7 +522,11 @@ static inline int pri_grab(struct zt_pvt *pvt, struct zt_pri *pri)
 }
 #endif
 
-static struct zt_ring_cadence cadences[] = {
+#define NUM_CADENCE_MAX 25
+static int num_cadence = 4;
+static int user_has_defined_cadences = 0;
+
+static struct zt_ring_cadence cadences[NUM_CADENCE_MAX] = {
 	{ { 125, 125, 2000, 4000 } },			/* Quick chirp followed by normal ring */
 	{ { 250, 250, 500, 1000, 250, 250, 500, 4000 } }, /* British style ring */
 	{ { 125, 125, 125, 125, 125, 4000 } },	/* Three short bursts */
@@ -530,15 +535,16 @@ static struct zt_ring_cadence cadences[] = {
 
 int receivedRingT; /* Used to find out what ringtone we are on */
 
+/* cidrings says in which pause to transmit the cid information, where the first pause
+ * is 1, the second pause is 2 and so on.
+ */
 
-static int cidrings[] = {
+static int cidrings[NUM_CADENCE_MAX] = {
 	2,										/* Right after first long ring */
 	4,										/* Right after long part */
 	3,										/* After third chirp */
 	2,										/* Second spell */
 };
-
-#define NUM_CADENCE (sizeof(cadences) / sizeof(cadences[0]))
 
 #define ISTRUNK(p) ((p->sig == SIG_FXSLS) || (p->sig == SIG_FXSKS) || \
 			(p->sig == SIG_FXSGS) || (p->sig == SIG_PRI))
@@ -1403,7 +1409,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 					ast_log(LOG_WARNING, "Unable to generate CallerID spill\n");
 			}
 			/* Select proper cadence */
-			if ((p->distinctivering > 0) && (p->distinctivering <= NUM_CADENCE)) {
+			if ((p->distinctivering > 0) && (p->distinctivering <= num_cadence)) {
 				if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETCADENCE, &cadences[p->distinctivering-1]))
 					ast_log(LOG_WARNING, "Unable to set distinctive ring cadence %d on '%s'\n", p->distinctivering, ast->name);
 				p->cidrings = cidrings[p->distinctivering - 1];
@@ -7055,6 +7061,41 @@ static int zap_show_channel(int fd, int argc, char **argv)
 	return RESULT_FAILURE;
 }
 
+static char zap_show_cadences_help[] =
+"Usage: zap show cadences\n"
+"       Shows all cadences currently defined\n";
+
+static int handle_zap_show_cadences(int fd, int argc, char *argv[])
+{
+	int i, j;
+	for (i=0;i<num_cadence;i++) {
+		char output[1024];
+		char tmp[16], tmp2[64];
+		snprintf(tmp, sizeof(tmp) - 1, "r%d: ", i + 1);
+		term_color(output, tmp, COLOR_GREEN, COLOR_BLACK, sizeof(output));
+
+		for (j=0;j<16;j++) {
+			if (cadences[i].ringcadence[j] == 0)
+				break;
+			snprintf(tmp,sizeof(tmp) - 1,"%d", cadences[i].ringcadence[j]);
+			if (cidrings[i] * 2 - 1 == j)
+				term_color(tmp2, tmp, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp2) - 1);
+			else
+				term_color(tmp2, tmp, COLOR_GREEN, COLOR_BLACK, sizeof(tmp2) - 1);
+			if (j != 0)
+				strncat(output, ",", sizeof(output) - strlen(output));
+			strncat(output, tmp2, sizeof(output) - strlen(output));
+		}
+		ast_cli(fd,"%s\n",output);
+	}
+	return 0;
+}
+
+static struct ast_cli_entry zap_show_cadences_cli =
+	{ { "zap", "show", "cadences", NULL },
+	handle_zap_show_cadences, "List cadences",
+	zap_show_cadences_help, NULL };
+
 static char show_channels_usage[] =
 	"Usage: zap show channels\n"
 	"	Shows a list of available channels\n";
@@ -7207,6 +7248,7 @@ static int __unload_module(void)
 	ast_cli_unregister(&cli_show_channels);
 	ast_cli_unregister(&cli_show_channel);
 	ast_cli_unregister(&cli_destroy_channel);
+	ast_cli_unregister(&zap_show_cadences_cli);
 	ast_manager_unregister( "ZapDialOffhook" );
 	ast_manager_unregister( "ZapHangup" );
 	ast_manager_unregister( "ZapTransfer" );
@@ -7630,6 +7672,79 @@ static int setup_zap(void)
 		} else if (!strcasecmp(v->name, "overlapdial")) {
 			overlapdial = ast_true(v->value);
 #endif		
+		} else if (!strcasecmp(v->name, "cadence")) {
+			/* setup to scan our argument */
+			int element_count, c[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+			int i;
+			struct zt_ring_cadence new_cadence;
+			int cid_location = -1;
+			char original_args[80];
+			int cadence_is_ok = 1;
+
+			strncpy(original_args, v->value, sizeof(original_args));
+			/* 16 cadences allowed (8 pairs) */
+			element_count = sscanf(v->value, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d", &c[0], &c[1], &c[2], &c[3], &c[4], &c[5], &c[6], &c[7], &c[8], &c[9], &c[10], &c[11], &c[12], &c[13], &c[14], &c[15]);
+
+			/* Cadence must be even (on/off) */
+			if (element_count % 2 == 1) {
+				ast_log(LOG_ERROR, "Must be a silence duration for each ring duration: %s\n",original_args);
+				cadence_is_ok = 0;
+			}
+
+			/* Ring cadences cannot be negative */
+			for (i=0;i<element_count;i++) {
+				if (c[i] < 1) {
+					if ((i % 2 == 1) && (cid_location == -1)) {
+						/* Silence duration, negative possibly okay */
+						if (c[i] == 0) {
+							ast_log(LOG_ERROR, "Silence duration cannot be zero: %s\n", original_args);
+							cadence_is_ok = 0;
+						} else {
+							cid_location = i;
+							c[i] *= -1;
+						}
+					} else if (cid_location) {
+						ast_log(LOG_ERROR, "CID location specified twice: %s\n",original_args);
+						cadence_is_ok = 0;
+					} else {
+						ast_log(LOG_ERROR, "Negative or zero ring duration: %s\n",original_args);
+						cadence_is_ok = 0;
+						break;
+					}
+				}
+			}
+
+			/* Substitute our scanned cadence */
+			for (i=0;i<16;i++) {
+				new_cadence.ringcadence[i] = c[i];
+			}
+
+			if (cadence_is_ok) {
+				/* ---we scanned it without getting annoyed; now some sanity checks--- */
+				if (element_count < 2) {
+					ast_log(LOG_ERROR, "Minimum cadence is ring,pause: %s\n", original_args);
+				} else {
+					if (cid_location == -1) {
+						/* user didn't say; default to first pause */
+						cid_location = 1;
+					} else {
+						/* convert element_index to cidrings value */
+						cid_location = (cid_location + 1) / 2;
+					}
+					/* ---we like their cadence; try to install it--- */
+					if (!user_has_defined_cadences++)
+						/* this is the first user-defined cadence; clear the default user cadences */
+						num_cadence = 0;
+					if ((num_cadence+1) >= NUM_CADENCE_MAX)
+						ast_log(LOG_ERROR, "Already %d cadences; can't add another: %s\n", NUM_CADENCE_MAX, original_args);
+					else {
+						cadences[num_cadence] = new_cadence;
+						cidrings[num_cadence++] = cid_location;
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "cadence 'r%d' added: %s\n",num_cadence,original_args);
+					}
+				}
+			}
 		} else
 			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 		v = v->next;
@@ -7702,6 +7817,8 @@ int load_module(void)
 	ast_cli_register(&cli_show_channels);
 	ast_cli_register(&cli_show_channel);
 	ast_cli_register(&cli_destroy_channel);
+	ast_cli_register(&zap_show_cadences_cli);
+
 	ast_register_application(app_callingpres, change_callingpres, synopsis_callingpres, descrip_callingpres);
 	memset(round_robin, 0, sizeof(round_robin));
 	ast_manager_register( "ZapTransfer", 0, action_transfer, "Transfer Zap Channel" );

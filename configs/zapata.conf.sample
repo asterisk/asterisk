@@ -259,6 +259,20 @@ immediate=no
 ;
 ;jitterbuffers=4
 ;
+; You can define your own custom ring cadences here.  You can define up to
+; 8 pairs.  If the silence is negative, it indicates where the callerid
+; spill is to be placed.  Also, if you define any custom cadences, the
+; default cadences will be turned off.
+;
+; Syntax is:  cadence=ring,silence[,ring,silence[...]]
+;
+; These are the default cadences:
+;
+;cadence=125,125,2000,-4000
+;cadence=250,250,500,1000,250,250,500,-4000
+;cadence=125,125,125,125,125,-4000
+;cadence=1000,500,2500,-5000
+;
 ; Each channel consists of the channel number or range.  It
 ; inherits the parameters that were specified above its declaration
 ;
