@@ -3570,29 +3570,29 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
             		e->onhooktime = time(NULL);
             		/* ASSUME we're onhook */
             		e->hookstate = MGCP_ONHOOK;
-            		/*snprintf(txident, sizeof(txident), "%08x", rand());*/
-					for (i = 0; i < MAX_SUBS; i++) {
-						sub = malloc(sizeof(struct mgcp_subchannel));
-						if (sub) {
-							ast_verbose(VERBOSE_PREFIX_3 "Allocating subchannel '%d' on %s@%s\n", i, e->name, gw->name);
-							memset(sub, 0, sizeof(struct mgcp_subchannel));
-							ast_mutex_init(&sub->lock);
-							ast_mutex_init(&sub->cx_queue_lock);
-							sub->parent = e;
-							sub->id = i;
-							snprintf(sub->txident, sizeof(sub->txident), "%08x", rand());
-							/*stnrcpy(sub->txident, txident, sizeof(sub->txident) - 1);*/
-							sub->cxmode = MGCP_CX_INACTIVE;
-							sub->nat = nat;
-							sub->next = e->sub;
-							e->sub = sub;
-						} else {
-							/* XXX Should find a way to clean up our memory */
-							ast_log(LOG_WARNING, "Out of memory allocating subchannel");
-							return NULL;
-						}
- 					}
 					if (!ep_reload) {
+	            		/*snprintf(txident, sizeof(txident), "%08x", rand());*/
+						for (i = 0; i < MAX_SUBS; i++) {
+							sub = malloc(sizeof(struct mgcp_subchannel));
+							if (sub) {
+								ast_verbose(VERBOSE_PREFIX_3 "Allocating subchannel '%d' on %s@%s\n", i, e->name, gw->name);
+								memset(sub, 0, sizeof(struct mgcp_subchannel));
+								ast_mutex_init(&sub->lock);
+								ast_mutex_init(&sub->cx_queue_lock);
+								sub->parent = e;
+								sub->id = i;
+								snprintf(sub->txident, sizeof(sub->txident), "%08x", rand());
+								/*stnrcpy(sub->txident, txident, sizeof(sub->txident) - 1);*/
+								sub->cxmode = MGCP_CX_INACTIVE;
+								sub->nat = nat;
+								sub->next = e->sub;
+								e->sub = sub;
+							} else {
+								/* XXX Should find a way to clean up our memory */
+								ast_log(LOG_WARNING, "Out of memory allocating subchannel");
+								return NULL;
+							}
+	 					}
 						/* Make out subs a circular linked list so we can always sping through the whole bunch */
 						sub = e->sub;
 						/* find the end of the list */
