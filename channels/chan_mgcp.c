@@ -3417,7 +3417,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
             ast_mutex_init(&gw->msgs_lock);
             strncpy(gw->name, cat, sizeof(gw->name) - 1);
             /* SC: check if the name is numeric ip */
-            if (inet_addr(gw->name) != INADDR_NONE)
+            if ((strchr(gw->name, '.')) && inet_addr(gw->name) != INADDR_NONE)
                 gw->isnamedottedip = 1;
         }
 		while(v) {
