@@ -10,7 +10,7 @@
  * Table Structure for `cdr`
  *
  * Created on: 05/20/2004 16:16
- * Last changed on: 07/19/2004 13:01
+ * Last changed on: 07/27/2004 20:01
 
 CREATE TABLE [dbo].[cdr] (
 	[accountcode] [varchar] (20) NULL ,
@@ -66,13 +66,12 @@ static TDSSOCKET *tds;
 static TDSLOGIN *login;
 static TDSCONTEXT *context;
 
-char *stristr(const char*, const char*);
-char *anti_injection(const char *, int);
+static char *stristr(const char*, const char*);
+static char *anti_injection(const char *, int);
+static void get_date(char *, struct timeval);
 
 static int tds_log(struct ast_cdr *cdr)
 {
-	struct tm tm;
-	time_t t;
 	char sqlcmd[2048], start[80], answer[80], end[80];
 	char *accountcode, *src, *dst, *dcontext, *clid, *channel, *dstchannel, *lastapp, *lastdata, *uniqueid;
 	int res = 0;
@@ -92,17 +91,70 @@ static int tds_log(struct ast_cdr *cdr)
 	lastdata = anti_injection(cdr->lastdata, 80);
 	uniqueid = anti_injection(cdr->uniqueid, 32);
 
-	t = cdr->start.tv_sec;
-	localtime_r(&t, &tm);
-	strftime(start, 80, DATE_FORMAT, &tm);
-	t = cdr->answer.tv_sec;
-	localtime_r(&t, &tm);
-	strftime(answer, 80, DATE_FORMAT, &tm);
-	t = cdr->end.tv_sec;
-	localtime_r(&t, &tm);
-	strftime(end, 80, DATE_FORMAT, &tm);
+	get_date(start, cdr->start);
+	get_date(answer, cdr->answer);
+	get_date(end, cdr->end);
 
-	sprintf(sqlcmd, "INSERT INTO cdr (accountcode, src, dst, dcontext, clid, channel, dstchannel, lastapp, lastdata, start, answer, [end], duration, billsec, disposition, amaflags, uniqueid) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %i, %i, '%s', '%s', '%s')", accountcode, src, dst, dcontext, clid, channel, dstchannel, lastapp, lastdata, start, answer, end, cdr->duration, cdr->billsec, ast_cdr_disp2str(cdr->disposition), ast_cdr_flags2str(cdr->amaflags), uniqueid);
+	sprintf(
+		sqlcmd,
+		"INSERT INTO cdr "
+		"("
+			"accountcode, "
+			"src, "
+			"dst, "
+			"dcontext, "
+			"clid, "
+			"channel, "
+			"dstchannel, "
+			"lastapp, "
+			"lastdata, "
+			"start, "
+			"answer, "
+			"[end], "
+			"duration, "
+			"billsec, "
+			"disposition, "
+			"amaflags, "
+			"uniqueid"
+		") "
+		"VALUES "
+		"("
+			"'%s', "	/* accountcode */
+			"'%s', "	/* src */
+			"'%s', "	/* dst */
+			"'%s', "	/* dcontext */
+			"'%s', "	/* clid */
+			"'%s', "	/* channel */
+			"'%s', "	/* dstchannel */
+			"'%s', "	/* lastapp */
+			"'%s', "	/* lastdata */
+			"%s, "		/* start */
+			"%s, "		/* answer */
+			"%s, "		/* end */
+			"%i, "		/* duration */
+			"%i, "		/* billsec */
+			"'%s', "	/* disposition */
+			"'%s', "	/* amaflags */
+			"'%s'"		/* uniqueid */
+		")",
+		accountcode,
+		src,
+		dst,
+		dcontext,
+		clid,
+		channel,
+		dstchannel,
+		lastapp,
+		lastdata,
+		start,
+		answer,
+		end,
+		cdr->duration,
+		cdr->billsec,
+		ast_cdr_disp2str(cdr->disposition),
+		ast_cdr_flags2str(cdr->amaflags),
+		uniqueid
+	);
 
 	if ((tds_submit_query(tds, sqlcmd) != TDS_SUCCEED) || (tds_process_simple_query(tds) != TDS_SUCCEED))
 	{
@@ -155,7 +207,7 @@ static int tds_log(struct ast_cdr *cdr)
  *
  * Stephen R. van den Berg, berg@pool.informatik.rwth-aachen.de	*/
 
-char *
+static char *
 stristr (phaystack, pneedle)
      const char *phaystack;
      const char *pneedle;
@@ -240,7 +292,7 @@ ret0:
   return 0;
 }
 
-char *anti_injection(const char *str, int len)
+static char *anti_injection(const char *str, int len)
 {
 	/* Reference to http://www.nextgenss.com/papers/advanced_sql_injection.pdf */
 
@@ -277,6 +329,26 @@ char *anti_injection(const char *str, int len)
 	}
 
 	return buf;
+}
+
+static void get_date(char *dateField, struct timeval tv)
+{
+	struct tm tm;
+	time_t t;
+	char buf[80];
+
+	/* To make sure we have date variable if not insert null to SQL */
+	if (tv.tv_sec && tv.tv_usec)
+	{
+		t = tv.tv_sec;
+		localtime_r(&t, &tm);
+		strftime(buf, 80, DATE_FORMAT, &tm);
+		sprintf(dateField, "'%s'", buf);
+	}
+	else
+	{
+		strcpy(dateField, "null");
+	}
 }
 
 char *description(void)
