@@ -1,3 +1,4 @@
+ -- Enforce case sensitivity on extension/context names
  -- Add monitor support (Thanks, Mahmut)
  -- Add experimental "trunk" option to IAX2 for high density VoIP
  -- Add experimental "debug channel" command
