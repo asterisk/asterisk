@@ -25,6 +25,11 @@ bindaddr = 0.0.0.0
 ;allow=gsm		; Always allow GSM, it's cool :)
 ;allow=ulaw
 ;
+; Options for broken H.323 stacks
+;noFastStart = no
+;noH245Tunneling = no
+;noSilenceSuppression = no
+;
 ; User-Input Mode (DTMF)
 ;
 ; valid entries are:   rfc2833, inband
@@ -88,43 +93,17 @@ bindaddr = 0.0.0.0
 ;
 ;
 ; Inbound H.323 calls from BillyBob would land in the incoming
-; context with a maximum of 4 concurrent incoming calls
-; using a password of 'supersecret'
+; context with a maximum of 4 concurrent incoming calls 
+; 
 ;
-; Note: If keywords 'outgoinglimit' or 'incominglimit' are omitted
-; Asterisk will not enforce any maximum number of concurrent calls.
-;
-; If you wish to use Authentication you need to set the approprate
-; auth keyword above.
+; Note: If keyword 'incominglimit' are omitted Asterisk will not 
+; enforce any maximum number of concurrent calls.
 ;
 ;[BillyBob]
 ;type=user
-;secret=supersecret
+;host=192.168.1.1
 ;context=incoming
 ;incominglimit=4
-;
-; Asterisk would allow 2 concurrent outgoing calls to JoeSmow
-; using 192.168.1.15 as his IP and will use the context outbound
-;
-;[JoeSmo]
-;type=peer
-;host=192.168.1.15
-;context=outgoing
-;outgoinglimit=2
-;
-; Asterisk would allow 6 concurrent incoming calls to be 
-; recieved from and 4 concurrent outgoing calls to be placed 
-; to SouthOffice using 192.168.0.2 as his IP and 
-; 'securepassword' has the password and lands in the 
-; default context
-;
-;[SouthOffice]
-;type=friend
-;host=192.168.0.2
-;secret=securepassword
-;context=default
-;incominglimit=6
-;outgoinglimit=4
 
 
 
