@@ -1,8 +1,8 @@
 /*
 
 $Log$
-Revision 1.7  2000/01/05 08:20:40  markster
-Version 0.1.8 from FTP
+Revision 1.8  2000/01/05 08:20:40  markster
+Version 0.1.9 from FTP
 
 Revision 1.2  2000/01/05 08:20:40  markster
 Some OSS fixes and a few lpc changes to make it actually work
@@ -33,8 +33,8 @@ static real c_b2 = 1.f;
 /* 	VPARMS Version 50 */
 
 /* $Log$
- * Revision 1.7  2000/01/05 08:20:40  markster
- * Version 0.1.8 from FTP
+ * Revision 1.8  2000/01/05 08:20:40  markster
+ * Version 0.1.9 from FTP
  *
 /* Revision 1.2  2000/01/05 08:20:40  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
