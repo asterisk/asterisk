@@ -1,8 +1,8 @@
 /*
 
 $Log$
-Revision 1.9  2000/01/05 08:20:39  markster
-Version 0.1.10 from FTP
+Revision 1.10  2000/01/05 08:20:39  markster
+Version 0.1.11 from FTP
 
 Revision 1.2  2000/01/05 08:20:39  markster
 Some OSS fixes and a few lpc changes to make it actually work
@@ -37,8 +37,8 @@ extern int deemp_(real *x, integer *n, struct lpc10_decoder_state *st);
 /* 	DEEMP Version 48 */
 
 /* $Log$
- * Revision 1.9  2000/01/05 08:20:39  markster
- * Version 0.1.10 from FTP
+ * Revision 1.10  2000/01/05 08:20:39  markster
+ * Version 0.1.11 from FTP
  *
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
