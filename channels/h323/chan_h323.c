@@ -684,7 +684,8 @@ static struct oh323_pvt *oh323_alloc(int callid)
 
 	/* Keep track of stuff */
 	memset(p, 0, sizeof(struct oh323_pvt));
-	p->rtp = ast_rtp_new(NULL, NULL);
+	p->rtp = ast_rtp_new(sched, io, 1, 0);
+
 	if (!p->rtp) {
 		ast_log(LOG_WARNING, "Unable to create RTP session: %s\n", strerror(errno));
 		free(p);
@@ -1569,8 +1570,15 @@ static struct ast_rtp *oh323_get_rtp_peer(struct ast_channel *chan)
 	return NULL;
 }
 
-static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp)
+static struct ast_rtp *oh323_get_vrtp_peer(struct ast_channel *chan)
 {
+	return NULL;
+}
+
+static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp)
+{
+	/* XXX Deal with Video */
+	
 	struct oh323_pvt *p;
 	struct sockaddr_in them;
 	struct sockaddr_in us;
@@ -1598,8 +1606,10 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp)
 
 static struct ast_rtp_protocol oh323_rtp = {
 	get_rtp_info: oh323_get_rtp_peer,
+	get_vrtp_info: oh323_get_vrtp_peer,
 	set_rtp_peer: oh323_set_rtp_peer,
 };
+
 
 int load_module()
 {
