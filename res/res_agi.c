@@ -112,6 +112,8 @@ static void agi_debug_cli(int fd, char *fmt, ...)
 	}
 }
 
+/* launch_netscript: The fastagi handler.
+	FastAGI defaults to port 4573 */
 static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int *opid)
 {
 	int s;
@@ -123,8 +125,8 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 	struct sockaddr_in sin;
 	struct hostent *hp;
 	struct ast_hostent ahp;
-	ast_log(LOG_DEBUG, "Blah\n");
-	host = ast_strdupa(agiurl + 6);
+
+	host = ast_strdupa(agiurl + 6);	/* Remove agi:// */
 	if (!host)
 		return -1;
 	/* Strip off any script name */
@@ -184,7 +186,13 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 		close(s);
 		return -1;
 	}
-	ast_log(LOG_DEBUG, "Wow, connected!\n");
+
+	/* If we have a script parameter, relay it to the fastagi server */
+	if (!ast_strlen_zero(script))
+		fdprintf(s, "agi_network_script: %s\n", script);
+
+	if (option_debug > 3)
+		ast_log(LOG_DEBUG, "Wow, connected!\n");
 	fds[0] = s;
 	fds[1] = s;
 	*opid = -1;
@@ -307,8 +315,8 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 	fdprintf(fd, "agi_priority: %d\n", chan->priority);
 	fdprintf(fd, "agi_enhanced: %s\n", enhanced ? "1.0" : "0.0");
 
-    /* User information */
-    fdprintf(fd, "agi_accountcode: %s\n", chan->accountcode ? chan->accountcode : "");
+	/* User information */
+	fdprintf(fd, "agi_accountcode: %s\n", chan->accountcode ? chan->accountcode : "");
     
 	/* End with empty return */
 	fdprintf(fd, "\n");
@@ -390,10 +398,15 @@ static int handle_tddmode(struct ast_channel *chan, AGI *agi, int argc, char *ar
 	int res,x;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	if (!strncasecmp(argv[2],"on",2)) x = 1; else x = 0;
-	if (!strncasecmp(argv[2],"mate",4)) x = 2;
-	if (!strncasecmp(argv[2],"tdd",3)) x = 1;
-	res = ast_channel_setoption(chan,AST_OPTION_TDD,&x,sizeof(char),0);
+	if (!strncasecmp(argv[2],"on",2)) 
+		x = 1; 
+	else 
+		x = 0;
+	if (!strncasecmp(argv[2],"mate",4)) 
+		x = 2;
+	if (!strncasecmp(argv[2],"tdd",3))
+		x = 1;
+	res = ast_channel_setoption(chan, AST_OPTION_TDD, &x, sizeof(char), 0);
 	fdprintf(agi->fd, "200 result=%d\n", res);
 	if (res >= 0) 
 		return RESULT_SUCCESS;
@@ -450,7 +463,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	res = ast_waitstream_full(chan, argv[3], agi->audio, agi->ctrl);
 	/* this is to check for if ast_waitstream closed the stream, we probably are at
 	 * the end of the stream, return that amount, else check for the amount */
-	sample_offset = (chan->stream)?ast_tellstream(fs):max_length;
+	sample_offset = (chan->stream) ? ast_tellstream(fs) : max_length;
 	ast_stopstream(chan);
 	if (res == 1) {
 		/* Stop this command, don't print a result line, as there is a new command */
@@ -637,8 +650,14 @@ static int handle_getdata(struct ast_channel *chan, AGI *agi, int argc, char *ar
 
 	if (argc < 3)
 		return RESULT_SHOWUSAGE;
-	if (argc >= 4) timeout = atoi(argv[3]); else timeout = 0;
-	if (argc >= 5) max = atoi(argv[4]); else max = 1024;
+	if (argc >= 4)
+		timeout = atoi(argv[3]); 
+	else
+		timeout = 0;
+	if (argc >= 5) 
+		max = atoi(argv[4]); 
+	else
+		max = 1024;
 	res = ast_app_getdata_full(chan, argv[2], data, max, timeout, agi->audio, agi->ctrl);
 	if (res == 2)			/* New command */
 		return RESULT_SUCCESS;
@@ -831,7 +850,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 		    	gettimeofday(&tv, NULL);
 			if (gotsilence)
 				break;
-        }
+        	}
 
               	if (gotsilence) {
                      	ast_stream_rewind(fs, silence-1000);
@@ -872,32 +891,32 @@ static int handle_autohangup(struct ast_channel *chan, AGI *agi, int argc, char 
 
 static int handle_hangup(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
-        struct ast_channel *c;
-        if (argc==1) {
-            /* no argument: hangup the current channel */
-	    ast_softhangup(chan,AST_SOFTHANGUP_EXPLICIT);
-	    fdprintf(agi->fd, "200 result=1\n");
-	    return RESULT_SUCCESS;
-        } else if (argc==2) {
-            /* one argument: look for info on the specified channel */
-            c = ast_channel_walk_locked(NULL);
-            while (c) {
-                if (strcasecmp(argv[1],c->name)==0) {
-                    /* we have a matching channel */
-		            ast_softhangup(c,AST_SOFTHANGUP_EXPLICIT);
-		            fdprintf(agi->fd, "200 result=1\n");
-					ast_mutex_unlock(&c->lock);
-                    return RESULT_SUCCESS;
-                }
+	struct ast_channel *c;
+	if (argc == 1) {
+		/* no argument: hangup the current channel */
+		ast_softhangup(chan,AST_SOFTHANGUP_EXPLICIT);
+		fdprintf(agi->fd, "200 result=1\n");
+		return RESULT_SUCCESS;
+        } else if (argc == 2) {
+		/* one argument: look for info on the specified channel */
+		c = ast_channel_walk_locked(NULL);
+		while (c) {
+			if (strcasecmp(argv[1], c->name) == 0) {
+				/* we have a matching channel */
+				ast_softhangup(c,AST_SOFTHANGUP_EXPLICIT);
+				fdprintf(agi->fd, "200 result=1\n");
 				ast_mutex_unlock(&c->lock);
-                c = ast_channel_walk_locked(c);
-            }
-            /* if we get this far no channel name matched the argument given */
-            fdprintf(agi->fd, "200 result=-1\n");
-            return RESULT_SUCCESS;
-        } else {
-            return RESULT_SHOWUSAGE;
-        }
+       				return RESULT_SUCCESS;
+			}
+			ast_mutex_unlock(&c->lock);
+			c = ast_channel_walk_locked(c);
+		}
+		/* if we get this far no channel name matched the argument given */
+		fdprintf(agi->fd, "200 result=-1\n");
+		return RESULT_SUCCESS;
+	} else {
+		return RESULT_SHOWUSAGE;
+	}
 }
 
 static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, char **argv)
@@ -928,6 +947,7 @@ static int handle_setcallerid(struct ast_channel *chan, AGI *agi, int argc, char
 {
 	char tmp[256]="";
 	char *l = NULL, *n = NULL;
+
 	if (argv[2]) {
 		strncpy(tmp, argv[2], sizeof(tmp) - 1);
 		ast_callerid_parse(tmp, &n, &l);
@@ -947,11 +967,11 @@ static int handle_setcallerid(struct ast_channel *chan, AGI *agi, int argc, char
 static int handle_channelstatus(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
 	struct ast_channel *c;
-	if (argc==2) {
+	if (argc == 2) {
 		/* no argument: supply info on the current channel */
 		fdprintf(agi->fd, "200 result=%d\n", chan->_state);
 		return RESULT_SUCCESS;
-	} else if (argc==3) {
+	} else if (argc == 3) {
 		/* one argument: look for info on the specified channel */
 		c = ast_channel_walk_locked(NULL);
 		while (c) {
@@ -984,6 +1004,7 @@ static int handle_getvariable(struct ast_channel *chan, AGI *agi, int argc, char
 {
 	char *ret;
 	char tempstr[1024];
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	pbx_retrieve_variable(chan, argv[2], &ret, tempstr, sizeof(tempstr), NULL);
@@ -999,6 +1020,7 @@ static int handle_getvariablefull(struct ast_channel *chan, AGI *agi, int argc, 
 {
 	char tmp[4096];
 	struct ast_channel *chan2=NULL;
+
 	if ((argc != 4) && (argc != 5))
 		return RESULT_SHOWUSAGE;
 	if (argc == 5) {
@@ -1060,6 +1082,7 @@ static int handle_dbget(struct ast_channel *chan, AGI *agi, int argc, char **arg
 {
 	int res;
 	char tmp[256];
+
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	res = ast_db_get(argv[2], argv[3], tmp, sizeof(tmp));
@@ -1074,6 +1097,7 @@ static int handle_dbget(struct ast_channel *chan, AGI *agi, int argc, char **arg
 static int handle_dbput(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
 	int res;
+
 	if (argc != 5)
 		return RESULT_SHOWUSAGE;
 	res = ast_db_put(argv[2], argv[3], argv[4]);
@@ -1088,6 +1112,7 @@ static int handle_dbput(struct ast_channel *chan, AGI *agi, int argc, char **arg
 static int handle_dbdel(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
 	int res;
+
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	res = ast_db_del(argv[2], argv[3]);
@@ -1265,7 +1290,7 @@ static char usage_waitfordigit[] =
 
 static char usage_sendtext[] =
 " Usage: SEND TEXT \"<text to send>\"\n"
-"	Sends the given text on a channel.  Most channels do not support the\n"
+"	Sends the given text on a channel. Most channels do not support the\n"
 " transmission of text.  Returns 0 if text is sent, or if the channel does not\n"
 " support text transmission.  Returns -1 only on error/hangup.  Text\n"
 " consisting of greater than one word should be placed in quotes since the\n"
@@ -1273,9 +1298,9 @@ static char usage_sendtext[] =
 
 static char usage_recvchar[] =
 " Usage: RECEIVE CHAR <timeout>\n"
-"	Receives a character of text on a channel.  Specify timeout to be the\n"
+"	Receives a character of text on a channel. Specify timeout to be the\n"
 " maximum time to wait for input in milliseconds, or 0 for infinite. Most channels\n"
-" do not support the reception of text.  Returns the decimal value of the character\n"
+" do not support the reception of text. Returns the decimal value of the character\n"
 " if one is received, or 0 if the channel does not support text reception.  Returns\n"
 " -1 only on error/hangup.\n";
 
@@ -1286,19 +1311,19 @@ static char usage_tddmode[] =
 
 static char usage_sendimage[] =
 " Usage: SEND IMAGE <image>\n"
-"	Sends the given image on a channel.  Most channels do not support the\n"
-" transmission of images.  Returns 0 if image is sent, or if the channel does not\n"
-" support image transmission.  Returns -1 only on error/hangup.  Image names\n"
+"	Sends the given image on a channel. Most channels do not support the\n"
+" transmission of images. Returns 0 if image is sent, or if the channel does not\n"
+" support image transmission.  Returns -1 only on error/hangup. Image names\n"
 " should not include extensions.\n";
 
 static char usage_streamfile[] =
 " Usage: STREAM FILE <filename> <escape digits> [sample offset]\n"
 "	Send the given file, allowing playback to be interrupted by the given\n"
-" digits, if any.  Use double quotes for the digits if you wish none to be\n"
-" permitted.  If sample offset is provided then the audio will seek to sample\n"
+" digits, if any. Use double quotes for the digits if you wish none to be\n"
+" permitted. If sample offset is provided then the audio will seek to sample\n"
 " offset before play starts.  Returns 0 if playback completes without a digit\n"
 " being pressed, or the ASCII numerical value of the digit if one was pressed,\n"
-" or -1 on error or if the channel was disconnected.  Remember, the file\n"
+" or -1 on error or if the channel was disconnected. Remember, the file\n"
 " extension must not be included in the filename.\n";
 
 static char usage_getoption[] = 
@@ -1315,14 +1340,14 @@ static char usage_saynumber[] =
 static char usage_saydigits[] =
 " Usage: SAY DIGITS <number> <escape digits>\n"
 "	Say a given digit string, returning early if any of the given DTMF digits\n"
-" are received on the channel.  Returns 0 if playback completes without a digit\n"
+" are received on the channel. Returns 0 if playback completes without a digit\n"
 " being pressed, or the ASCII numerical value of the digit if one was pressed or\n"
 " -1 on error/hangup.\n";
 
 static char usage_sayalpha[] =
 " Usage: SAY ALPHA <number> <escape digits>\n"
 "	Say a given character string, returning early if any of the given DTMF digits\n"
-" are received on the channel.  Returns 0 if playback completes without a digit\n"
+" are received on the channel. Returns 0 if playback completes without a digit\n"
 " being pressed, or the ASCII numerical value of the digit if one was pressed or\n"
 " -1 on error/hangup.\n";
 
@@ -1330,14 +1355,14 @@ static char usage_saytime[] =
 " Usage: SAY TIME <time> <escape digits>\n"
 "	Say a given time, returning early if any of the given DTMF digits are\n"
 " received on the channel.  <time> is number of seconds elapsed since 00:00:00\n"
-" on January 1, 1970, Coordinated Universal Time (UTC).  Returns 0 if playback\n"
+" on January 1, 1970, Coordinated Universal Time (UTC). Returns 0 if playback\n"
 " completes without a digit being pressed, or the ASCII numerical value of the\n"
 " digit if one was pressed or -1 on error/hangup.\n";
 
 static char usage_sayphonetic[] =
 " Usage: SAY PHONETIC <string> <escape digits>\n"
 "	Say a given character string with phonetics, returning early if any of the\n"
-" given DTMF digits are received on the channel.  Returns 0 if playback\n"
+" given DTMF digits are received on the channel. Returns 0 if playback\n"
 " completes without a digit pressed, the ASCII numerical value of the digit\n"
 " if one was pressed, or -1 on error/hangup.\n";
 
@@ -1373,7 +1398,7 @@ static char usage_recordfile[] =
 static char usage_autohangup[] =
 " Usage: SET AUTOHANGUP <time>\n"
 "	Cause the channel to automatically hangup at <time> seconds in the\n"
-" future.  Of course it can be hungup before then as well.  Setting to 0 will\n"
+" future.  Of course it can be hungup before then as well. Setting to 0 will\n"
 " cause the autohangup feature to be disabled on this channel.\n";
 
 static char usage_noop[] =
@@ -1419,12 +1444,13 @@ static agi_command commands[MAX_COMMANDS] = {
 static void join(char *s, size_t len, char *w[])
 {
 	int x;
+
 	/* Join words into a string */
 	if (!s) {
 		return;
 	}
 	s[0] = '\0';
-	for (x=0;w[x];x++) {
+	for (x=0; w[x]; x++) {
 		if (x)
 			strncat(s, " ", len - strlen(s) - 1);
 		strncat(s, w[x], len - strlen(s) - 1);
@@ -1460,13 +1486,13 @@ static int help_workhorse(int fd, char *match[])
 int agi_register(agi_command *agi)
 {
 	int x;
-	for (x=0;x<MAX_COMMANDS - 1;x++) {
+	for (x=0; x<MAX_COMMANDS - 1; x++) {
 		if (commands[x].cmda[0] == agi->cmda[0]) {
 			ast_log(LOG_WARNING, "Command already registered!\n");
 			return -1;
 		}
 	}
-	for (x=0;x<MAX_COMMANDS - 1;x++) {
+	for (x=0; x<MAX_COMMANDS - 1; x++) {
 		if (!commands[x].cmda[0]) {
 			commands[x] = *agi;
 			return 0;
@@ -1479,7 +1505,7 @@ int agi_register(agi_command *agi)
 void agi_unregister(agi_command *agi)
 {
 	int x;
-	for (x=0;x<MAX_COMMANDS - 1;x++) {
+	for (x=0; x<MAX_COMMANDS - 1; x++) {
 		if (commands[x].cmda[0] == agi->cmda[0]) {
 			memset(&commands[x], 0, sizeof(agi_command));
 		}
@@ -1491,18 +1517,21 @@ static agi_command *find_command(char *cmds[], int exact)
 	int x;
 	int y;
 	int match;
-	for (x=0;x < sizeof(commands) / sizeof(commands[0]);x++) {
-		if (!commands[x].cmda[0]) break;
+
+	for (x=0; x < sizeof(commands) / sizeof(commands[0]); x++) {
+		if (!commands[x].cmda[0])
+			break;
 		/* start optimistic */
 		match = 1;
-		for (y=0;match && cmds[y]; y++) {
+		for (y=0; match && cmds[y]; y++) {
 			/* If there are no more words in the command (and we're looking for
 			   an exact match) or there is a difference between the two words,
 			   then this is not a match */
 			if (!commands[x].cmda[y] && !exact)
 				break;
 			/* don't segfault if the next part of a command doesn't exist */
-			if (!commands[x].cmda[y]) return NULL;
+			if (!commands[x].cmda[y])
+				return NULL;
 			if (strcasecmp(commands[x].cmda[y], cmds[y]))
 				match = 0;
 		}
@@ -1590,10 +1619,11 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf)
 	int res;
 	agi_command *c;
 	argc = MAX_ARGS;
+
 	parse_args(buf, &argc, argv);
 #if	0
 	{ int x;
-	for (x=0;x<argc;x++) 
+	for (x=0; x<argc; x++) 
 		fprintf(stderr, "Got Arg%d: %s\n", x, argv[x]); }
 #endif
 	c = find_command(argv, 0);
@@ -1673,7 +1703,7 @@ static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid, i
 				pid = -1;
 				break;
 			}
-			  /* get rid of trailing newline, if any */
+			/* get rid of trailing newline, if any */
 			if (*buf && buf[strlen(buf) - 1] == '\n')
 				buf[strlen(buf) - 1] = 0;
 			if (agidebug)
@@ -1790,6 +1820,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 	int pid;
         char *stringp;
 	AGI agi;
+
 	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "AGI requires an argument (script)\n");
 		return -1;
@@ -1837,6 +1868,7 @@ static int eagi_exec(struct ast_channel *chan, void *data)
 {
 	int readformat;
 	int res;
+
 	if (chan->_softhangup)
 		ast_log(LOG_WARNING, "If you want to run AGI on hungup channels you should use DeadAGI!\n");
 	readformat = chan->readformat;
