@@ -975,8 +975,6 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		recalc_holdtime(qe);
 		update_queue(qe->parent, lpeer);
 		hanguptree(outgoing, peer);
-		/* Stop music on hold */
-		ast_moh_stop(qe->chan);
 		outgoing = NULL;
 		if (announce) {
 			int res2;
@@ -994,6 +992,8 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 				return -1;
 			}
 		}
+		/* Stop music on hold */
+		ast_moh_stop(qe->chan);
 		/* If appropriate, log that we have a destination channel */
 		if (qe->chan->cdr)
 			ast_cdr_setdestchan(qe->chan->cdr, peer->name);
