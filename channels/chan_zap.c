@@ -6992,26 +6992,34 @@ static void *pri_dchannel(void *vpri)
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "Ring requested on unconfigured channel %d/%d span %d\n", 
 						PRI_SPAN(e->ring.channel), PRI_CHANNEL(e->ring.channel), pri->span);
-				} else if (pri->pvts[chanpos]->owner) {
-					if (pri->pvts[chanpos]->call == e->ring.call) {
-						ast_log(LOG_WARNING, "Duplicate setup requested on channel %d/%d already in use on span %d\n", 
+				} else {
+					ast_mutex_lock(&pri->pvts[chanpos]->lock);
+					if (pri->pvts[chanpos]->owner) {
+						if (pri->pvts[chanpos]->call == e->ring.call) {
+							ast_log(LOG_WARNING, "Duplicate setup requested on channel %d/%d already in use on span %d\n", 
+								PRI_SPAN(e->ring.channel), PRI_CHANNEL(e->ring.channel), pri->span);
+							break;
+						} else {
+							ast_log(LOG_WARNING, "Ring requested on channel %d/%d already in use on span %d.  Hanging up owner.\n", 
 							PRI_SPAN(e->ring.channel), PRI_CHANNEL(e->ring.channel), pri->span);
-						break;
-					} else {
-						ast_log(LOG_WARNING, "Ring requested on channel %d/%d already in use on span %d.  Hanging up owner.\n", 
-						PRI_SPAN(e->ring.channel), PRI_CHANNEL(e->ring.channel), pri->span);
-						if (pri->pvts[chanpos]->master) 
-							pri_hangup_all(pri->pvts[chanpos]->master);
-						else
-							pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
-						chanpos = -1;
+							if (pri->pvts[chanpos]->master) 
+								pri_hangup_all(pri->pvts[chanpos]->master);
+							else
+								pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							chanpos = -1;
+						}
 					}
+					ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 				}
 				if ((chanpos < 0) && (e->ring.flexible))
 					chanpos = pri_find_empty_chan(pri, 1);
 				if (chanpos > -1) {
+					ast_mutex_lock(&pri->pvts[chanpos]->lock);
 					if (pri->switchtype == PRI_SWITCH_GR303_TMC) {
+						/* Should be safe to lock CRV AFAIK while bearer is still locked */
 						crv = pri_find_crv(pri, pri_get_crv(pri->pri, e->ring.call, NULL));
+						if (crv)
+							ast_mutex_lock(&crv->lock);
 						if (!crv || crv->owner) {
 							pri->pvts[chanpos]->call = NULL;
 							if (crv) {
@@ -7021,6 +7029,9 @@ static void *pri_dchannel(void *vpri)
 							} else
 								ast_log(LOG_NOTICE, "Call received for unconfigured CRV %d on span %d\n", pri_get_crv(pri->pri, e->ring.call, NULL), pri->span);
 							pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_INVALID_CALL_REFERENCE);
+							if (crv)
+								ast_mutex_unlock(&crv->lock);
+							ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 							break;
 						}
 					}
@@ -7139,6 +7150,9 @@ static void *pri_dchannel(void *vpri)
 						pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_UNALLOCATED);
 						pri->pvts[chanpos]->call = NULL;
 					}
+					if (crv)
+						ast_mutex_unlock(&crv->lock);
+					ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 				} else 
 					pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_REQUESTED_CHAN_UNAVAIL);
 				break;
@@ -7155,12 +7169,16 @@ static void *pri_dchannel(void *vpri)
 						ast_log(LOG_WARNING, "Ringing requested on channel %d/%d not in use on span %d\n", 
 							PRI_SPAN(e->ringing.channel), PRI_CHANNEL(e->ringing.channel), pri->span);
 						chanpos = -1;
-					} else if (ast_strlen_zero(pri->pvts[chanpos]->dop.dialstr)) {
-						zt_enable_ec(pri->pvts[chanpos]);
-						pri->pvts[chanpos]->subs[SUB_REAL].needringing =1;
-						pri->pvts[chanpos]->proceeding=2;
-					} else
-						ast_log(LOG_DEBUG, "Deferring ringing notification because of extra digits to dial...\n");
+					} else {
+						ast_mutex_lock(&pri->pvts[chanpos]->lock);
+						if (ast_strlen_zero(pri->pvts[chanpos]->dop.dialstr)) {
+							zt_enable_ec(pri->pvts[chanpos]);
+							pri->pvts[chanpos]->subs[SUB_REAL].needringing =1;
+							pri->pvts[chanpos]->proceeding=2;
+						} else
+							ast_log(LOG_DEBUG, "Deferring ringing notification because of extra digits to dial...\n");
+						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
+					}
 				}
 				break;
 			case PRI_EVENT_PROGRESS:
@@ -7169,9 +7187,12 @@ static void *pri_dchannel(void *vpri)
 				if (chanpos > -1) {
 					if (pri->overlapdial && !pri->pvts[chanpos]->proceeding) {
 						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
-							ast_log(LOG_DEBUG, "Queuing frame from PRI_EVENT_PROGRESS on channel %d/%d span %d\n",
+						
+						ast_mutex_lock(&pri->pvts[chanpos]->lock);
+						ast_log(LOG_DEBUG, "Queuing frame from PRI_EVENT_PROGRESS on channel %d/%d span %d\n",
 								pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
 							zap_queue_frame(pri->pvts[chanpos], &f);
+						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
 				}
 				break;
@@ -7180,12 +7201,15 @@ static void *pri_dchannel(void *vpri)
 				if (chanpos > -1) {
 					if (pri->overlapdial && !pri->pvts[chanpos]->proceeding) {
 						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
-							ast_log(LOG_DEBUG, "Queuing frame from PRI_EVENT_PROCEEDING on channel %d/%d span %d\n",
+						
+						ast_mutex_lock(&pri->pvts[chanpos]->lock);
+						ast_log(LOG_DEBUG, "Queuing frame from PRI_EVENT_PROCEEDING on channel %d/%d span %d\n",
 								pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
-							zap_queue_frame(pri->pvts[chanpos], &f);
-							f.subclass = AST_CONTROL_PROCEEDING;
-							zap_queue_frame(pri->pvts[chanpos], &f);
-							pri->pvts[chanpos]->proceeding=2;
+						zap_queue_frame(pri->pvts[chanpos], &f);
+						f.subclass = AST_CONTROL_PROCEEDING;
+						zap_queue_frame(pri->pvts[chanpos], &f);
+						pri->pvts[chanpos]->proceeding=2;
+						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
 				}
 				break;
@@ -7204,9 +7228,11 @@ static void *pri_dchannel(void *vpri)
 						chanpos = -1;
 					} else {
 						/* Re-use *69 field for PRI */
+						ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						snprintf(pri->pvts[chanpos]->lastcallerid, sizeof(pri->pvts[chanpos]->lastcallerid), "\"%s\" <%s>", e->facname.callingname, e->facname.callingnum);
 						pri->pvts[chanpos]->subs[SUB_REAL].needcallerid =1;
 						zt_enable_ec(pri->pvts[chanpos]);
+						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
 				}
 				break;				
@@ -7224,6 +7250,7 @@ static void *pri_dchannel(void *vpri)
 							PRI_SPAN(e->answer.channel), PRI_CHANNEL(e->answer.channel), pri->span);
 						chanpos = -1;
 					} else {
+						ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						if (!ast_strlen_zero(pri->pvts[chanpos]->dop.dialstr)) {
 							pri->pvts[chanpos]->dialing = 1;
 							/* Send any "w" waited stuff */
@@ -7238,6 +7265,7 @@ static void *pri_dchannel(void *vpri)
 							pri->pvts[chanpos]->subs[SUB_REAL].needanswer =1;
 						/* Enable echo cancellation if it's not on already */
 						zt_enable_ec(pri->pvts[chanpos]);
+						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
 				}
 				break;				
@@ -7434,7 +7462,9 @@ static void *pri_dchannel(void *vpri)
 					ast_log(LOG_WARNING, "Received SETUP_ACKNOWLEDGE on unconfigured channel %d/%d span %d\n", 
 						PRI_SPAN(e->setup_ack.channel), PRI_CHANNEL(e->setup_ack.channel), pri->span);
 				} else {
+					ast_mutex_lock(&pri->pvts[chanpos]->lock);
 					pri->pvts[chanpos]->setup_ack = 1;
+					ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 				}
 				break;
 			default:
