@@ -4,8 +4,9 @@
  * VoiceTronix Interface driver
  * 
  * Copyright (C) 2003, Paul Bagyenda
- *
  * Paul Bagyenda <bagyenda@dsmagic.com>
+ * Copyright (C) 2004, Ben Kramer
+ * Ben Kramer <ben@voicetronix.com.au>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -34,6 +35,7 @@
 #include <ctype.h>
 
 #include <vpbapi.h>
+#include <assert.h>
 
 #define DEFAULT_GAIN 0
 #define DEFAULT_ECHO_CANCEL 1
@@ -165,6 +167,7 @@ typedef struct  {
 	pthread_cond_t cond;
 	int endbridge;
 } vpb_bridge_t;
+
 static vpb_bridge_t * bridges;
 static int max_bridges = MAX_BRIDGES_V4PCI;
 
@@ -481,6 +484,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 {
 	struct ast_frame f = {AST_FRAME_CONTROL}; /* default is control, Clear rest. */
 	int endbridge = 0;
+	int res=0;
 
 	if (option_verbose > 3) 
 		ast_verbose(VERBOSE_PREFIX_4 "%s: handle_owned: got event: [%d=>%d]\n",
@@ -526,7 +530,6 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 
 		case VPB_TONEDETECT:
 			if (e->data == VPB_BUSY || e->data == VPB_BUSY_308 || e->data == VPB_BUSY_AUST ) {
-				f.subclass = AST_CONTROL_HANGUP;
 				if (p->owner->_state == AST_STATE_UP) {
 					f.subclass = AST_CONTROL_HANGUP;
 				}
@@ -569,7 +572,6 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 			f.subclass = AST_CONTROL_ANSWER;
 			break;
 
-		/* not sure why this was commented out */	  
 		case VPB_DROP:
 			if ((p->mode == MODE_FXO)&&(UseLoopDrop)){ /* ignore loop drop on stations */
 				if (p->owner->_state == AST_STATE_UP) 
@@ -578,7 +580,6 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 					f.frametype = -1;
 			}
 			break;
-		/* */	  
 		case VPB_STATION_ONHOOK:
 			f.subclass = AST_CONTROL_HANGUP;
 			break;
@@ -618,13 +619,15 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 		ast_verbose(VERBOSE_PREFIX_4 "%s: handle_owned: putting frame type[%d]subclass[%d], bridge=%p\n",
 			p->dev, f.frametype, f.subclass, (void *)p->bridge);
 
-	ast_mutex_lock(&p->lock); {
+	res = ast_mutex_lock(&p->lock); 
+	if (option_verbose > 3) ast_verbose("%s: LOCKING in handle_owned [%d]\n", p->dev,res);
+	{
 		if (p->bridge) { /* Check what happened, see if we need to report it. */
 			switch (f.frametype) {
 				case AST_FRAME_DTMF:
-					if (!(p->bridge->c0 == p->owner && 
+					if (	!(p->bridge->c0 == p->owner && 
 							(p->bridge->flags & AST_BRIDGE_DTMF_CHANNEL_0) ) &&
-							!(p->bridge->c1 == p->owner && 
+						!(p->bridge->c1 == p->owner && 
 							(p->bridge->flags & AST_BRIDGE_DTMF_CHANNEL_1) )) 
 						/* Kill bridge, this is interesting. */
 						endbridge = 1;
@@ -656,14 +659,18 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 				} ast_mutex_unlock(&p->bridge->lock); 	       		   
 			}	  
 		}
-	} ast_mutex_unlock(&p->lock);
+	} 
 
-	if (endbridge) return 0;
+	if (endbridge){
+		res = ast_mutex_unlock(&p->lock);
+		if (option_verbose > 3) ast_verbose("%s: unLOCKING in handle_owned [%d]\n", p->dev,res);
+		return 0;
+	}
 
 	// Trylock used here to avoid deadlock that can occur if we
 	// happen to be in here handling an event when hangup is called
 	// Problem is that hangup holds p->owner->lock
-	if (f.frametype >= 0 && f.frametype != AST_FRAME_NULL) {
+	if ((f.frametype >= 0)&& (f.frametype != AST_FRAME_NULL)&&(p->owner)) {
 		if (ast_mutex_trylock(&p->owner->lock)==0)  {
 			ast_queue_frame(p->owner, &f);
 			ast_mutex_unlock(&p->owner->lock);
@@ -672,6 +679,8 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 				p->dev,f.frametype, f.subclass);
 		}
 	}
+	res = ast_mutex_unlock(&p->lock);
+	if (option_verbose > 3) ast_verbose("%s: unLOCKING in handle_owned [%d]\n", p->dev,res);
 
 	return 0;
 }
@@ -895,10 +904,11 @@ static void *do_monitor(void *unused)
 		} else {
 			monitor_handle_notowned(p, &e);
 		}
-		if ((!p->owner)&&(p->golock)){
+		/* if ((!p->owner)&&(p->golock)){
 			ast_mutex_unlock(&p->owner->lock);
 			ast_mutex_unlock(&p->lock);
 		}
+		*/
 
 	}
 
@@ -1091,13 +1101,15 @@ static int vpb_indicate(struct ast_channel *ast, int condition)
 {
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->pvt->pvt;
 	int res = 0;
+	int tmp = 0;
 
 	if (option_verbose > 3)
-		ast_verbose(VERBOSE_PREFIX_4 "%s: vpb indicate [%d]\n", p->dev, condition);
+		ast_verbose(VERBOSE_PREFIX_4 "%s: vpb indicate [%d] state[%d]\n", p->dev, condition,ast->_state);
 	if (ast->_state != AST_STATE_UP) {
 		return res;
 	}
 
+	if (option_verbose > 3) ast_verbose("%s: LOCKING in indicate \n", p->dev);
 	ast_mutex_lock(&p->lock);
 	switch(condition) {
 		case AST_CONTROL_BUSY:
@@ -1133,14 +1145,17 @@ static int vpb_indicate(struct ast_channel *ast, int condition)
 			res = 0;
 			break;
 	}
-	ast_mutex_unlock(&p->lock);
+	tmp = ast_mutex_unlock(&p->lock);
+	if (option_verbose > 3) ast_verbose("%s: unLOCKING in indicate [%d]\n", p->dev,tmp);
 	return res;
 }
 
 static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct vpb_pvt *p = (struct vpb_pvt *)newchan->pvt->pvt;
+	int res = 0;
 
+	if (option_verbose > 3) ast_verbose("%s: LOCKING in fixup \n", p->dev);
 	ast_mutex_lock(&p->lock);
 	ast_log(LOG_DEBUG, "New owner for channel %s is %s\n", p->dev, newchan->name);
 
@@ -1151,7 +1166,8 @@ static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	if (newchan->_state == AST_STATE_RINGING) 
 		vpb_indicate(newchan, AST_CONTROL_RINGING);
 
-	ast_mutex_unlock(&p->lock);
+	res= ast_mutex_unlock(&p->lock);
+	if (option_verbose > 3) ast_verbose("%s: unLOCKING in fixup [%d]\n", p->dev,res);
 	return 0;
 }
 
@@ -1159,7 +1175,9 @@ static int vpb_digit(struct ast_channel *ast, char digit)
 {
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->pvt->pvt;
 	char s[2];
+	int res = 0;
 
+	if (option_verbose > 3) ast_verbose("%s: LOCKING in digit \n", p->dev);
 	ast_mutex_lock(&p->lock);
 
 
@@ -1173,7 +1191,8 @@ static int vpb_digit(struct ast_channel *ast, char digit)
 	strncat(p->play_dtmf,s,sizeof(*p->play_dtmf));
 	ast_mutex_unlock(&p->play_dtmf_lock);
 
-	ast_mutex_unlock(&p->lock);
+	res = ast_mutex_unlock(&p->lock);
+	if (option_verbose > 3) ast_verbose("%s: unLOCKING in digit [%d]\n", p->dev,res);
 	return 0;
 }
 
@@ -1183,7 +1202,9 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 	int res = 0,i;
 	char *s = strrchr(dest, '/');
 	char dialstring[254];
+	int tmp = 0;
 
+	if (option_verbose > 3) ast_verbose("%s: LOCKING in call \n", p->dev);
 	ast_mutex_lock(&p->lock);
 
 	if (s)
@@ -1202,7 +1223,8 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 
 	if (ast->_state != AST_STATE_DOWN && ast->_state != AST_STATE_RESERVED) {
 		ast_log(LOG_WARNING, "vpb_call on %s neither down nor reserved!\n", ast->name);
-		ast_mutex_unlock(&p->lock);
+		tmp = ast_mutex_unlock(&p->lock);
+		if (option_verbose > 3) ast_verbose("%s: unLOCKING in call [%d]\n", p->dev,tmp);
 		return -1;
 	}
 	if (p->mode != MODE_FXO)  /* Station port, ring it. */
@@ -1267,7 +1289,8 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 		pthread_create(&p->readthread, NULL, do_chanreads, (void *)p);
 	}
 
-	ast_mutex_unlock(&p->lock);
+	tmp = ast_mutex_unlock(&p->lock);
+	if (option_verbose > 3) ast_verbose("%s: unLOCKING in call [%d]\n", p->dev,tmp);
 	return res;
 }
 
@@ -1276,14 +1299,17 @@ static int vpb_hangup(struct ast_channel *ast)
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->pvt->pvt;
 	VPB_EVENT je;
 	char str[VPB_MAX_STR];
+	int res =0 ;
 
+	if (option_verbose > 3) ast_verbose("%s: LOCKING in hangup \n", p->dev);
 	ast_mutex_lock(&p->lock);
 	if (option_verbose > 1) 
 		ast_verbose(VERBOSE_PREFIX_2 "%s: Hangup requested\n", ast->name);
 
 	if (!ast->pvt || !ast->pvt->pvt) {
 		ast_log(LOG_WARNING, "%s: channel not connected?\n", ast->name);
-		ast_mutex_unlock(&p->lock);
+		res = ast_mutex_unlock(&p->lock);
+		if (option_verbose > 3) ast_verbose("%s: unLOCKING in hangup [%d]\n", p->dev,res);
 		return 0;
 	}
 
@@ -1356,7 +1382,8 @@ static int vpb_hangup(struct ast_channel *ast)
 		ast_verbose(VERBOSE_PREFIX_2 "%s: Hangup complete\n", ast->name);
 
 	restart_monitor();
-	ast_mutex_unlock(&p->lock);
+	res = ast_mutex_unlock(&p->lock);
+	if (option_verbose > 3) ast_verbose("%s: unLOCKING in hangup [%d]\n", p->dev,res);
 	return 0;
 }
 
@@ -1365,6 +1392,8 @@ static int vpb_answer(struct ast_channel *ast)
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->pvt->pvt;
 	VPB_EVENT je;
 	int ret;
+	int res = 0;
+	if (option_verbose > 3) ast_verbose("%s: LOCKING in answer \n", p->dev);
 	ast_mutex_lock(&p->lock);
 
 	if (option_verbose > 3)
@@ -1391,6 +1420,8 @@ static int vpb_answer(struct ast_channel *ast)
 
 		ast->rings = 0;
 		if( !p->readthread ){
+	//		res = ast_mutex_unlock(&p->lock);
+	//		ast_verbose("%s: unLOCKING in answer [%d]\n", p->dev,res);
 			pthread_create(&p->readthread, NULL, do_chanreads, (void *)p);
 		} else {
 			if(option_verbose>3) 
@@ -1400,8 +1431,11 @@ static int vpb_answer(struct ast_channel *ast)
 		if(option_verbose>3) {
 			ast_verbose(VERBOSE_PREFIX_4 "%s: Answered state is up\n",p->dev);
 		}
+	//	res = ast_mutex_unlock(&p->lock);
+	//	ast_verbose("%s: unLOCKING in answer [%d]\n", p->dev,res);
 	}
-	ast_mutex_unlock(&p->lock);
+	res = ast_mutex_unlock(&p->lock);
+	if(option_verbose>3) ast_verbose("%s: unLOCKING in answer [%d]\n", p->dev,res);
 	return 0;
 }
 
@@ -1466,20 +1500,20 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 {
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->pvt->pvt; 
 	int res = 0, fmt = 0;
-	ast_mutex_lock(&p->lock);
+//	ast_mutex_lock(&p->lock);
 	if(option_verbose>5) 
 		ast_verbose( VERBOSE_PREFIX_4 "%s: Writing to channel\n", p->dev);
 
 	if (frame->frametype != AST_FRAME_VOICE) {
 		if(option_verbose>3) 
 			ast_verbose( VERBOSE_PREFIX_4 "%s: Don't know how to handle from type %d\n", ast->name, frame->frametype);
-		ast_mutex_unlock(&p->lock);
+//		ast_mutex_unlock(&p->lock);
 		return 0;
 	} else if (ast->_state != AST_STATE_UP) {
 		if(option_verbose>3) 
 			ast_verbose( VERBOSE_PREFIX_4 "%s: Attempt to Write frame type[%d]subclass[%d] on not up chan\n",ast->name, frame->frametype, frame->subclass);
 		p->lastoutput = -1;
-		ast_mutex_unlock(&p->lock);
+//		ast_mutex_unlock(&p->lock);
 		return 0;
 	}
 
@@ -1515,7 +1549,7 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	}
 
 	ast_mutex_unlock(&p->play_lock);
-	ast_mutex_unlock(&p->lock);
+//	ast_mutex_unlock(&p->lock);
 	return 0;
 }
 
@@ -1549,12 +1583,20 @@ static void *do_chanreads(void *pvt)
 			ast_verbose("%s: chanreads: Starting cycle ...\n", p->dev);
 		res = ast_mutex_trylock(&p->lock);
 		if (res !=0){
-			ast_verbose("%s: chanreads: Cant get private lock\n", p->dev);
+			if (res == EINVAL )
+				if (option_verbose > 4) ast_verbose("%s: chanreads: try lock gave me EINVAL[%d]\n", p->dev,res);
+			else if (res == EBUSY )
+				if (option_verbose > 4) ast_verbose("%s: chanreads: try lock gave me EBUSY[%d]\n", p->dev,res);
 			res = ast_mutex_unlock(&p->lock);
-			ast_verbose("%s: chanreads: Releasing it gave me[%d]\n", p->dev,res);
-			vpb_sleep(10);
+			if (res == EINVAL )
+				if (option_verbose > 4) ast_verbose("%s: chanreads: Releasing it gave me EINVAL[%d]\n", p->dev,res);
+			else if (res == EPERM )
+				if (option_verbose > 4) ast_verbose("%s: chanreads: Releasing it gave me EPERM[%d]\n", p->dev,res);
 			res = ast_mutex_trylock(&p->lock);
-			ast_verbose("%s: chanreads: trying again it gave me[%d]\n", p->dev,res);
+			if (res == EINVAL )
+				if (option_verbose > 4) ast_verbose("%s: chanreads: trying again it gave me EINVAL[%d]\n", p->dev,res);
+			else if (res == EBUSY )
+				if (option_verbose > 4) ast_verbose("%s: chanreads: trying again it gave me EBUSY[%d]\n", p->dev,res);
 		}
 		if (res==0)  {
 			if (option_verbose > 4)
@@ -1568,11 +1610,6 @@ static void *do_chanreads(void *pvt)
 					bridgerec = 0;
 			} else {
 				bridgerec = 1;
-			}
-			if (bridgerec == 0){
-				if ((p->bridge->c0 != p->owner)||(p->bridge->c1 != p->owner)){
-					ast_verbose("%s: chanreads: neither bridges are the owner\n", p->dev);
-				}
 			}
 			ast_mutex_unlock(&p->lock);
 		} else {
@@ -1675,19 +1712,38 @@ static void *do_chanreads(void *pvt)
 					ast_verbose("%s: chanreads: queueing buffer on frame (state[%d])\n", p->dev,p->owner->_state);
 				}  
 				
-				if (ast_mutex_trylock(&p->owner->lock)==0)  {
+				res = ast_mutex_trylock(&p->owner->lock);
+				if (res==0)  {
 					ast_queue_frame(p->owner, fr);
 					ast_mutex_unlock(&p->owner->lock);
 				} else {
-					ast_mutex_unlock(&p->lock);
-					ast_mutex_lock(&p->lock);
-					if (ast_mutex_trylock(&p->owner->lock)==0)  {
+					if (res == EINVAL )
+						if (option_verbose > 4) ast_verbose("%s: chanreads: try owner->lock gave me EINVAL[%d]\n", p->dev,res);
+					else if (res == EBUSY )
+						if (option_verbose > 4) ast_verbose("%s: chanreads: try owner->lock gave me EBUSY[%d]\n", p->dev,res);
+					res = ast_mutex_unlock(&p->lock);
+					if (res == EINVAL )
+						if (option_verbose > 4) ast_verbose("%s: chanreads: Releasing pvt->lock it gave me EINVAL[%d]\n", p->dev,res);
+					else if (res == EPERM )
+						if (option_verbose > 4) ast_verbose("%s: chanreads: Releasing pvt->lock it gave me EPERM[%d]\n", p->dev,res);
+					res = ast_mutex_trylock(&p->lock);
+					if (res == EINVAL )
+						if (option_verbose > 4) ast_verbose("%s: chanreads: trying pvt->lock again it gave me EINVAL[%d]\n", p->dev,res);
+					else if (res == EBUSY )
+						if (option_verbose > 4) ast_verbose("%s: chanreads: trying pvt->lock again it gave me EBUSY[%d]\n", p->dev,res);
+					res = ast_mutex_trylock(&p->owner->lock);
+					if (res==0)  {
 						ast_queue_frame(p->owner, fr);
 						ast_mutex_unlock(&p->owner->lock);
 					}
 					else {
+						if (res == EINVAL )
+							if (option_verbose > 4) ast_verbose("%s: chanreads: try owner->lock gave me EINVAL[%d]\n", p->dev,res);
+						else if (res == EBUSY )
+							if (option_verbose > 4) ast_verbose("%s: chanreads: try owner->lock gave me EBUSY[%d]\n", p->dev,res);
 						if (option_verbose > 3) 
-							ast_verbose("%s: Couldnt get lock on owner channel to send frame!\n", p->dev);
+							if (option_verbose > 4) ast_verbose("%s: chanreads: Couldnt get lock on owner channel to send frame!\n", p->dev);
+						//assert(p->dev!=p->dev);
 					}
 				}
 				if (option_verbose > 6) {
