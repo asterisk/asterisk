@@ -41,7 +41,7 @@ extern char *ast_parking_ext(void);
 
 //! Bridge a call, optionally allowing redirection
 
-extern int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allowredirect);
+extern int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allowredirect, int allowdisconnect);
 
 
 #endif /* _PARKING_H */
