@@ -3460,10 +3460,12 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 	if (iaxtrunkdebug)
 		ast_verbose("Beginning trunk processing\n");
 	if (events & AST_IO_PRI) {
+#ifdef ZT_TIMERACK
 		/* Great, this is a timing interface, just call the ioctl */
 		if (ioctl(fd, ZT_TIMERACK, x)) 
 			ast_log(LOG_WARNING, "Unable to acknowledge zap timer\n");
 		res = 0;
+#endif		
 	} else {
 		/* Read and ignore from the pseudo channel for timing */
 		res = read(fd, buf, sizeof(buf));
@@ -4891,7 +4893,10 @@ static void set_timing(void)
 #ifdef IAX_TRUNKING
 	int bs = trunkfreq * 8;
 	if (timingfd > -1) {
-		if (ioctl(timingfd, ZT_TIMERCONFIG, &bs) &&
+		if (
+#ifdef ZT_TIMERACK
+			ioctl(timingfd, ZT_TIMERCONFIG, &bs) &&
+#endif			
 			ioctl(timingfd, ZT_SET_BLOCKSIZE, &bs))
 			ast_log(LOG_WARNING, "Unable to set blocksize on timing source\n");
 	}
@@ -5428,8 +5433,10 @@ int load_module(void)
 	sin.sin_addr.s_addr = INADDR_ANY;
 
 #ifdef IAX_TRUNKING
+#ifdef ZT_TIMERACK
 	timingfd = open("/dev/zap/timer", O_RDWR);
 	if (timingfd < 0)
+#endif
 		timingfd = open("/dev/zap/pseudo", O_RDWR);
 	if (timingfd < 0) 
 		ast_log(LOG_WARNING, "Unable to open IAX timing interface: %s\n", strerror(errno));
