@@ -16,12 +16,6 @@ ifndef ASTETCDIR
 ASTETCDIR=/etc/asterisk
 endif
 
-# Uncomment if u want to attempt to include the G.729 stuff
-# This is a quick fix to work around the missing H323Capability
-# in Open H.323. As of Open H.323 1.12.0 the H323Capability for
-# G.729 was removed due to legal reasons, use Open H.323 v1.11.7
-#
-#CFLAGS += -DWANT_G729
 #
 # This needs to be updated to deal with more than just little endian machines
 #

@@ -100,8 +100,12 @@ void ClearCallThread::Main()
 
 
 #define H323_NAME OPAL_G7231_6k3"{sw}"
+#define H323_G729  OPAL_G729 "{sw}"
+#define H323_G729A OPAL_G729A"{sw}"
 
 H323_REGISTER_CAPABILITY(H323_G7231Capability, H323_NAME);
+H323_REGISTER_CAPABILITY(AST_G729Capability,  H323_G729);
+H323_REGISTER_CAPABILITY(AST_G729ACapability, H323_G729A);
 
 H323_G7231Capability::H323_G7231Capability(BOOL annexA_)
   : H323AudioCapability(7, 4)
@@ -169,6 +173,68 @@ BOOL H323_G7231Capability::OnReceivedPDU(const H245_AudioCapability & cap,
 
 
 H323Codec * H323_G7231Capability::CreateCodec(H323Codec::Direction direction) const
+{
+  return NULL;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
+
+AST_G729Capability::AST_G729Capability()
+  : H323AudioCapability(24, 6)
+{
+}
+
+
+PObject * AST_G729Capability::Clone() const
+{
+  return new AST_G729Capability(*this);
+}
+
+
+unsigned AST_G729Capability::GetSubType() const
+{
+  return H245_AudioCapability::e_g729;
+}
+
+
+PString AST_G729Capability::GetFormatName() const
+{
+  return H323_G729;
+}
+
+
+H323Codec * AST_G729Capability::CreateCodec(H323Codec::Direction direction) const
+{
+  return NULL;
+}
+/////////////////////////////////////////////////////////////////////////////
+
+AST_G729ACapability::AST_G729ACapability()
+  : H323AudioCapability(24, 6)
+{
+}
+
+
+PObject * AST_G729ACapability::Clone() const
+{
+  return new AST_G729ACapability(*this);
+}
+
+
+unsigned AST_G729ACapability::GetSubType() const
+{
+  return H245_AudioCapability::e_g729AnnexA;
+}
+
+
+PString AST_G729ACapability::GetFormatName() const
+{
+  return H323_G729A;
+}
+
+
+H323Codec * AST_G729ACapability::CreateCodec(H323Codec::Direction direction) const
 {
   return NULL;
 }
@@ -806,12 +872,12 @@ int h323_set_capability(int cap, int dtmfMode)
 		endPoint->SetCapability(0, 0, new SpeexNarrow6AudioCapability());
 	}
 
-#if WANT_G729
 	if (cap & AST_FORMAT_G729A) {
-		H323_G729ACapability *g729aCap;
-		endPoint->SetCapability(0, 0, g729aCap = new H323_G729ACapability);
+		AST_G729ACapability *g729aCap;
+		AST_G729Capability *g729Cap;
+		endPoint->SetCapability(0, 0, g729aCap = new AST_G729ACapability);
+		endPoint->SetCapability(0, 0, g729Cap = new AST_G729Capability);
 	}
-#endif
 	
 	if (cap & AST_FORMAT_G723_1) {
 		H323_G7231Capability *g7231Cap;

@@ -98,6 +98,100 @@ class H323_G7231Capability : public H323AudioCapability
     BOOL annexA;
 };
 
+/**This class describes the (fake) G729 codec capability.
+ */
+class AST_G729Capability : public H323AudioCapability
+{
+  PCLASSINFO(AST_G729Capability, H323AudioCapability);
+
+  public:
+  /**@name Construction */
+  //@{
+    /**Create a new G.729 capability.
+     */
+    AST_G729Capability();
+  //@}
+
+  /**@name Overrides from class PObject */
+  //@{
+    /**Create a copy of the object.
+      */
+    virtual PObject * Clone() const;
+  //@}
+
+  /**@name Operations */
+  //@{
+    /**Create the codec instance, allocating resources as required.
+     */
+    virtual H323Codec * CreateCodec(
+      H323Codec::Direction direction  /// Direction in which this instance runs
+    ) const;
+  //@}
+
+  /**@name Identification functions */
+  //@{
+    /**Get the sub-type of the capability. This is a code dependent on the
+       main type of the capability.
+
+       This returns one of the four possible combinations of mode and speed
+       using the enum values of the protocol ASN H245_AudioCapability class.
+     */
+    virtual unsigned GetSubType() const;
+
+    /**Get the name of the media data format this class represents.
+     */
+    virtual PString GetFormatName() const;
+  //@}
+};
+
+
+/**This class describes the VoiceAge G729A codec capability.
+ */
+class AST_G729ACapability : public H323AudioCapability
+{
+  PCLASSINFO(AST_G729ACapability, H323AudioCapability);
+
+  public:
+  /**@name Construction */
+  //@{
+    /**Create a new G.729A capability.
+     */
+    AST_G729ACapability();
+  //@}
+
+  /**@name Overrides from class PObject */
+  //@{
+    /**Create a copy of the object.
+      */
+    virtual PObject * Clone() const;
+  //@}
+
+  /**@name Operations */
+  //@{
+    /**Create the codec instance, allocating resources as required.
+     */
+    virtual H323Codec * CreateCodec(
+      H323Codec::Direction direction  /// Direction in which this instance runs
+    ) const;
+  //@}
+
+  /**@name Identification functions */
+  //@{
+    /**Get the sub-type of the capability. This is a code dependent on the
+       main type of the capability.
+
+       This returns one of the four possible combinations of mode and speed
+       using the enum values of the protocol ASN H245_AudioCapability class.
+     */
+    virtual unsigned GetSubType() const;
+
+    /**Get the name of the media data format this class represents.
+     */
+    virtual PString GetFormatName() const;
+  //@}
+};
+
+
 class MyH323EndPoint : public H323EndPoint {
 
 	PCLASSINFO(MyH323EndPoint, H323EndPoint);
