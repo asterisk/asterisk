@@ -511,7 +511,7 @@ int ast_isphonenumber(char *n)
 	if (!n || !strlen(n))
 		return 0;
 	for (x=0;n[x];x++)
-		if (!strchr("0123456789*#", n[x]))
+		if (!strchr("0123456789*#+", n[x]))
 			return 0;
 	return 1;
 }
