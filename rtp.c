@@ -137,7 +137,7 @@ static int g723_samples(unsigned char *buf, int maxlen)
 	int res;
 	while(pos < maxlen) {
 		res = g723_len(buf[pos]);
-		if (res < 0)
+		if (res <= 0)
 			break;
 		samples += 240;
 		pos += res;
