@@ -216,6 +216,7 @@ static void *netconsole(void *vconsole)
 static void *listener(void *unused)
 {
 	struct sockaddr_un sun;
+	fd_set fds;
 	int s;
 	int len;
 	int x;
@@ -226,6 +227,13 @@ static void *listener(void *unused)
 	for(;;) {
 		if (ast_socket < 0)
 			return NULL;
+		FD_ZERO(&fds);
+		FD_SET(ast_socket, &fds);
+		s = ast_select(ast_socket + 1, &fds, NULL, NULL, NULL);
+		if (s < 0) {
+			ast_log(LOG_WARNING, "Select retured error: %s\n", strerror(errno));
+			continue;
+		}
 		len = sizeof(sun);
 		s = accept(ast_socket, (struct sockaddr *)&sun, &len);
 		if (s < 0) {
