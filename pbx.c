@@ -285,7 +285,7 @@ static struct pbx_builtin {
 "  SayDigits(digits): Says the passed digits\n" },
 
 	{ "SetAccount", pbx_builtin_setaccount,
-"Sets user language",
+"Sets account code",
 "  SetAccount([account]):  Set  the  channel account code for billing\n"
 "purposes. Always returns 0.\n"  },
 
