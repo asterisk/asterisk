@@ -389,6 +389,8 @@ int adsi_transmit_message(struct ast_channel *chan, unsigned char *msg, int msgl
 	if (readformat)
 		ast_set_read_format(chan, readformat);
 
+	if (!res)
+		res = ast_safe_sleep(chan, 100 );
 	return res;
 }
 
