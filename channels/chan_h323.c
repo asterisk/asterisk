@@ -598,8 +598,7 @@ static int oh323_indicate(struct ast_channel *c, int condition)
 	switch(condition) {
 	case AST_CONTROL_RINGING:
 		if (c->_state == AST_STATE_RING) {
-		//	transmit_response(p, "180 Ringing", &p->initreq);
-			break;
+			return -1;
 		}
 		return 0;
 	case AST_CONTROL_BUSY:
@@ -1024,10 +1023,7 @@ int setup_incoming_call(call_details_t cd)
 	} else { 
 		/* Either this call is not from the Gatekeeper 
 		   or we are not allowing gk routed calls */
-		
-
 		user  = find_user(cd);
-
 
 		if (!user) {
 			sprintf(p->callerid, "%s <%s>", p->cd.call_source_aliases, p->cd.call_source_e164); 
@@ -1086,7 +1082,6 @@ int setup_incoming_call(call_details_t cd)
 		} 
 	}
 
-/* I know this is horrid, don't kill me saddam */
 exit:
 	/* allocate a channel and tell asterisk about it */
 	c = oh323_new(p, AST_STATE_RINGING, cd.call_token);
