@@ -68,6 +68,8 @@ void ast_image_unregister(struct ast_imager *img)
 
 int ast_supports_images(struct ast_channel *chan)
 {
+	if (!chan || !chan->pvt)
+		return 0;
 	if (!chan->pvt->send_image)
 		return 0;
 	return 1;
