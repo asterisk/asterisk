@@ -113,7 +113,7 @@ static struct ast_frame *lintog723_sample()
 	f.subclass = AST_FORMAT_SLINEAR;
 	f.datalen = sizeof(slin_g723_ex);
 	/* Assume 8000 Hz */
-	f.timelen = sizeof(slin_g723_ex)/16;
+	f.samples = sizeof(slin_g723_ex)/16;
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
@@ -128,7 +128,7 @@ static struct ast_frame *g723tolin_sample()
 	f.subclass = AST_FORMAT_G723_1;
 	f.datalen = sizeof(g723_slin_ex);
 	/* All frames are 30 ms long */
-	f.timelen = 30;
+	f.samples = 30;
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
@@ -165,7 +165,7 @@ static struct ast_frame *g723tolin_frameout(struct ast_translator_pvt *pvt)
 	tmp->f.subclass = AST_FORMAT_SLINEAR;
 	tmp->f.datalen = tmp->tail * 2;
 	/* Assume 8000 Hz */
-	tmp->f.timelen = tmp->tail / 8;
+	tmp->f.samples = tmp->tail / 8;
 	tmp->f.mallocd = 0;
 	tmp->f.offset = AST_FRIENDLY_OFFSET;
 	tmp->f.src = __PRETTY_FUNCTION__;
@@ -276,7 +276,7 @@ static struct ast_frame *lintog723_frameout(struct ast_translator_pvt *pvt)
 	tmp->f.subclass = AST_FORMAT_G723_1;
 	tmp->f.offset = AST_FRIENDLY_OFFSET;
 	tmp->f.src = __PRETTY_FUNCTION__;
-	tmp->f.timelen = 0;
+	tmp->f.samples = 0;
 	tmp->f.mallocd = 0;
 	while(tmp->tail >= Frame) {
 		/* Encode a frame of data */
@@ -292,7 +292,7 @@ static struct ast_frame *lintog723_frameout(struct ast_translator_pvt *pvt)
 		Coder(&tmp->cod, tmp->buf, tmp->outbuf + cnt);
 #endif
 		/* Assume 8000 Hz */
-		tmp->f.timelen += 30;
+		tmp->f.samples += 30;
 		cnt += g723_len(tmp->outbuf[0]);
 		tmp->tail -= Frame;
 		/* Move the data at the end of the buffer to the front */
