@@ -1577,6 +1577,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 				res = 0;
 			}
 		}
+		if (res > 0)
+			ast_stopstream(chan);
 		/* Check for a '*' here in case the caller wants to escape from voicemail to something
 		other than the operator -- an automated attendant or mailbox login for example */
 		if (res == '*') {
