@@ -3,9 +3,9 @@
  *
  * Channel Management
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -816,8 +816,28 @@ void ast_deactivate_generator(struct ast_channel *chan)
 		chan->generatordata = NULL;
 		chan->generator = NULL;
 		chan->writeinterrupt = 0;
+		ast_settimeout(chan, 0, NULL, NULL);
 	}
 	ast_mutex_unlock(&chan->lock);
+}
+
+static int generator_force(void *data)
+{
+	/* Called if generator doesn't have data */
+	void *tmp;
+	int res;
+	int (*generate)(struct ast_channel *chan, void *tmp, int datalen, int samples);
+	struct ast_channel *chan = data;
+	tmp = chan->generatordata;
+	chan->generatordata = NULL;
+	generate = chan->generator->generate;
+	res = generate(chan, tmp, 0, 160);
+	chan->generatordata = tmp;
+	if (res) {
+		ast_log(LOG_DEBUG, "Auto-deactivating generator\n");
+		ast_deactivate_generator(chan);
+	}
+	return 0;
 }
 
 int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, void *params)
@@ -831,6 +851,7 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 	}
 	ast_prod(chan);
 	if ((chan->generatordata = gen->alloc(chan, params))) {
+		ast_settimeout(chan, 160, generator_force, chan);
 		chan->generator = gen;
 	} else {
 		res = -1;
@@ -1338,8 +1359,9 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 	} 
 
 	/* Run any generator sitting on the line */
-	if (f && (f->frametype == AST_FRAME_VOICE) && chan->generatordata) {
-		/* Mask generator data temporarily */
+	if (f && (f->frametype == AST_FRAME_VOICE) && chan->generatordata && !chan->timingfunc) {
+		/* Mask generator data temporarily and apply.  If there is a timing function, it
+		   will be calling the generator instead */
 		void *tmp;
 		int res;
 		int (*generate)(struct ast_channel *chan, void *tmp, int datalen, int samples);
