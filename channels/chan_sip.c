@@ -866,6 +866,30 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 	return res;
 }
 
+static void url_decode(char *s) 
+{
+	char *o = s;
+	unsigned int tmp;
+	while(*s) {
+		switch(*s) {
+		case '%':
+			if (strlen(s) > 2) {
+				if (sscanf(s + 1, "%2x", &tmp) == 1) {
+					*o = tmp;
+					s += 2;	/* Will be incremented once more when we break out */
+					break;
+				}
+			}
+			/* Fall through if something wasn't right with the formatting */
+		default:
+			*o = *s;
+		}
+		s++;
+		o++;
+	}
+	*o = '\0';
+}
+
 /*--- ditch_braces: Pick out text in braces from character string  ---*/
 static char *ditch_braces(char *tmp)
 {
@@ -1600,8 +1624,8 @@ static int hangup_sip2cause(int cause)
 	switch(cause) {
 		case 404:       /* Not found */
 			return AST_CAUSE_UNALLOCATED;
-                case 483:       /* Too many hops */
-                        return AST_CAUSE_FAILURE;
+		case 483:       /* Too many hops */
+			return AST_CAUSE_FAILURE;
 		case 486:
 			return AST_CAUSE_BUSY;
 		default:
@@ -4656,6 +4680,8 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 		} else
 			strncpy(p->fromdomain, fr, sizeof(p->fromdomain) - 1);
 	}
+	if (pedanticsipchecking)
+		url_decode(c);
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Looking for %s in %s\n", c, p->context);
 	if (ast_exists_extension(NULL, p->context, c, 1, fr) ||
