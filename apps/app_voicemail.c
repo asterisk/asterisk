@@ -1133,6 +1133,7 @@ static int store_file(char *dir, int msgnum)
 	char fmt[80]="";
 	char *c;
 	char *context="", *macrocontext="", *callerid="", *origtime="", *duration="";
+	char *category = "";
 	struct ast_config *cfg=NULL;
 	odbc_obj *obj;
 
@@ -1173,6 +1174,8 @@ static int store_file(char *dir, int msgnum)
 			if (!origtime) origtime = "";
 			duration = ast_variable_retrieve(cfg, "message", "duration");
 			if (!duration) duration = "";
+			category = ast_variable_retrieve(cfg, "message", "category");
+			if (!category) category = "";
 		}
 		fdlen = lseek(fd, 0, SEEK_END);
 		lseek(fd, 0, SEEK_SET);
@@ -1187,7 +1190,10 @@ static int store_file(char *dir, int msgnum)
 			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
 			goto yuck;
 		}
-		snprintf(sql, sizeof(sql), "INSERT INTO voicemessages (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration) VALUES (?,?,?,?,?,?,?,?)");
+		if (!ast_strlen_zero(category)) 
+			snprintf(sql, sizeof(sql), "INSERT INTO voicemessages (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,category) VALUES (?,?,?,?,?,?,?,?,?)");
+		else
+			snprintf(sql, sizeof(sql), "INSERT INTO voicemessages (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration) VALUES (?,?,?,?,?,?,?,?)");
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
@@ -1203,6 +1209,8 @@ static int store_file(char *dir, int msgnum)
 		SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(callerid), 0, (void *)callerid, 0, NULL);
 		SQLBindParameter(stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(origtime), 0, (void *)origtime, 0, NULL);
 		SQLBindParameter(stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(duration), 0, (void *)duration, 0, NULL);
+		if (!ast_strlen_zero(category))
+			SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(category), 0, (void *)category, 0, NULL);
 		res = SQLExecute(stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
@@ -1957,6 +1965,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	char tmp[256] = "", *tmpptr;
 	struct ast_vm_user *vmu;
 	struct ast_vm_user svm;
+	char *category = NULL;
 
 	strncpy(tmp, ext, sizeof(tmp) - 1);
 	ext = tmp;
@@ -1973,6 +1982,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		*tmpptr = '\0';
 		tmpptr++;
 	}
+
+	category = pbx_builtin_getvar_helper(chan, "VM_CATEGORY");
 
 	if ((vmu = find_user(&svm, context, ext))) {
 		/* Setup pre-file if appropriate */
@@ -2127,7 +2138,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 "callerchan=%s\n"
 "callerid=%s\n"
 "origdate=%s\n"
-"origtime=%ld\n",
+"origtime=%ld\n"
+"category=%s\n",
 	ext,
 	chan->context,
 	chan->macrocontext, 
@@ -2135,7 +2147,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	chan->priority,
 	chan->name,
 	ast_callerid_merge(callerid, sizeof(callerid), chan->cid.cid_name, chan->cid.cid_num, "Unknown"),
-	date, (long)time(NULL));
+	date, (long)time(NULL),
+	category ? category : "");
 					fclose(txt);
 				} else
 					ast_log(LOG_WARNING, "Error opening text file for output\n");
@@ -3110,6 +3123,16 @@ static int wait_file(struct ast_channel *chan, struct vm_state *vms, char *file)
 	return ast_control_streamfile(chan, file, "#", "*", "1456789", "0", skipms);
 }
 
+static int play_message_category(struct ast_channel *chan, char *category)
+{
+	int res = 0;
+
+	if (category && !ast_strlen_zero(category))
+		res = ast_play_and_wait(chan, category);
+
+	return res;
+}
+
 static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *vmu, char *origtime, char *filename)
 {
 	int res = 0;
@@ -3261,6 +3284,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 {
 	int res = 0;
 	char filename[256],*origtime, *cid, *context, *duration;
+	char *category;
 	struct ast_config *msg_cfg;
 
 	vms->starting = 0; 
@@ -3296,11 +3320,14 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 
 	cid = ast_variable_retrieve(msg_cfg, "message", "callerid");
 	duration = ast_variable_retrieve(msg_cfg, "message", "duration");
+	category = ast_variable_retrieve(msg_cfg, "message", "category");
 
 	context = ast_variable_retrieve(msg_cfg, "message", "context");
 	if (!strncasecmp("macro",context,5)) /* Macro names in contexts are useless for our needs */
 		context = ast_variable_retrieve(msg_cfg, "message","macrocontext");
 
+	if (!res)
+		res = play_message_category(chan, category);
 	if ((!res)&&(vmu->envelope))
 		res = play_message_datetime(chan, vmu, origtime, filename);
 	if ((!res)&&(vmu->saycid))
