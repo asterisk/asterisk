@@ -5479,9 +5479,10 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 	int fmt, native;
 	struct sockaddr_in sin;
 	char s[256];
-	char *st;
+	char *st, *hostname;
 	struct ast_channel *c;
 	char *stringp=NULL;
+	char *portno=NULL;
 	int capability = iax2_capability;
 	int trunk;
 	int notransfer = 0;
@@ -5493,11 +5494,24 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 	stringp=s;
 	strsep(&stringp, "@");
 	st = strsep(&stringp, "@");
+	
 	if (!st)
+	{
 		st = s;
+	}
+			
+	hostname = strsep(&st, ":");
+	
+        if (st) {	
+		portno = strsep(&st, ":");
+	}							
+
 	/* Populate our address from the given */
-	if (create_addr(&sin, &capability, &sendani, &maxtime, st, NULL, &trunk, &notransfer, NULL, 0)) {
+	if (create_addr(&sin, &capability, &sendani, &maxtime, hostname, NULL, &trunk, &notransfer, NULL, 0)) {
 		return NULL;
+	}
+	if (portno) {
+		sin.sin_port = htons(atoi(portno));
 	}
 	callno = find_callno(0, 0, &sin, NEW_FORCE, 1);
 	if (callno < 1) {
