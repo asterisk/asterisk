@@ -1,0 +1,43 @@
+#!/bin/bash
+
+## Make sure we were called from Makefile
+
+if [ "x$ASTERISKVERSIONNUM" == "x" ]; then
+  echo " ** Do not call this script directly"
+  exit
+fi
+
+## Create a pkgconfig spec file for 3rd party modules (pkg-config asterisk --cflags)
+
+if [ ! -d /usr/lib/pkgconfig ]; then
+  exit
+fi
+
+## Clean out CFLAGS for the spec file.
+
+LOCAL_CFLAGS=$(echo $CFLAGS | sed -e 's/\s*-pipe\s*//g' | sed -e 's/-[Wmp]\S*\s*//g' | \
+  sed -r -e 's/-I(include|\.\.\/include) //g' |
+  sed -e 's/-DINSTALL_PREFIX=\S* //g' |
+  sed -r -e 's/-DASTERISK_VERSION=\S* //g' |
+  sed -r -e 's/-DAST(ETCDIR|LIBDIR|VARLIBDIR|VARRUNDIR|SPOOLDIR|LOGDIR|CONFPATH|MODDIR|AGIDIR)=\S* //g'
+)
+
+cat <<EOF > /usr/lib/pkgconfig/asterisk.pc
+install_prefix=$INSTALL_PREFIX
+version_number=$ASTERISKVERSIONNUM
+etcdir=$ASTETCDIR
+libdir=$ASTLIBDIR
+varlibdir=$ASTVARLIBDIR
+varrundir=$ASTVARRUNDIR
+spooldir=$ASTSPOOLDIR
+logdir=$ASTLOGDIR
+confpath=$ASTCONFPATH
+moddir=$MODULES_DIR
+agidir=$AGI_DIR
+
+Name: asterisk
+Description: Open Source PBX and telephony toolkit
+Version: $ASTERISKVERSION
+Libs: $LIBS
+Cflags: $LOCAL_CFLAGS
+EOF

@@ -314,6 +314,7 @@ clean:
 	$(MAKE) -C stdtime clean
 
 datafiles: all
+	sh mkpkgconfig
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits
 	for x in sounds/digits/*.gsm; do \
 		if grep -q "^%`basename $$x`%" sounds.txt; then \
