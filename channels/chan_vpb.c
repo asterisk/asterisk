@@ -488,7 +488,7 @@ static double get_time_in_ms()
  */
 /* #define ANALYSE_CID */
 #define RING_SKIP 300
-#define CID_MSECS 3700
+#define CID_MSECS 2000
 
 static void get_callerid(struct vpb_pvt *p)
 {
