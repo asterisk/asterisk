@@ -523,6 +523,8 @@ extern void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char
 extern void pbx_builtin_clear_globals(void);
 extern void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char *cp2,int count);
 
+int ast_extension_patmatch(const char *pattern, const char *data);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

@@ -12,11 +12,20 @@
  */
 
 #include <sys/types.h>
+#include <string.h>
+#include <stdlib.h>
+#include <netinet/in.h>
+#include <time.h>
 #include <asterisk/file.h>
 #include <asterisk/channel.h>
 #include <asterisk/logger.h>
 #include <asterisk/say.h>
+#include <asterisk/lock.h>
+#include <asterisk/localtime.h>
+#include "asterisk.h"
 #include <stdio.h>
+
+#define DIGITS_DIR	AST_SOUNDS "/digits/"
 
 int ast_say_digit_str(struct ast_channel *chan, char *fn2, char *ints, char *lang)
 {
@@ -105,14 +114,14 @@ int ast_say_number_full(struct ast_channel *chan, int num, char *ints, char *lan
 					playh++;
 					num -= ((num / 100) * 100);
 				} else {
-					if (num < 1000000) {
+					if (num < 1000000) { /* 1,000,000 */
 						res = ast_say_number_full(chan, num / 1000, ints, language, audiofd, ctrlfd);
 						if (res)
 							return res;
 						num = num % 1000;
 						snprintf(fn, sizeof(fn), "digits/thousand");
 					} else {
-						if (num < 1000000000) {
+						if (num < 1000000000) {	/* 1,000,000,000 */
 							res = ast_say_number_full(chan, num / 1000000, ints, language, audiofd, ctrlfd);
 							if (res)
 								return res;
@@ -204,11 +213,7 @@ int ast_say_date(struct ast_channel *chan, time_t t, char *ints, char *lang)
 	struct tm tm;
 	char fn[256];
 	int res = 0;
-	localtime_r(&t,&tm);
-	if (!&tm) {
-		ast_log(LOG_WARNING, "Unable to derive local time\n");
-		return -1;
-	}
+	ast_localtime(&t,&tm,NULL);
 	if (!res) {
 		snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
 		res = ast_streamfile(chan, fn, lang);
@@ -231,16 +236,267 @@ int ast_say_date(struct ast_channel *chan, time_t t, char *ints, char *lang)
 	return res;
 }
 
+static int wait_file(struct ast_channel *chan, char *ints, char *file, char *lang) 
+{
+	int res;
+	if ((res = ast_streamfile(chan, file, lang)))
+		ast_log(LOG_WARNING, "Unable to play message %s\n", file);
+	if (!res)
+		res = ast_waitstream(chan, ints);
+	return res;
+}
+
+int ast_say_date_with_format(struct ast_channel *chan, time_t time, char *ints, char *lang, char *format, char *timezone)
+{
+	struct tm tm;
+	int res=0, offset, sndoffset;
+	char sndfile[256], nextmsg[256];
+
+	ast_log(LOG_DEBUG, "ast_say_date_with_format() called\n");
+
+	ast_localtime(&time,&tm,timezone);
+
+	ast_log(LOG_DEBUG, "ast_localtime() returned\n");
+
+	for (offset=0 ; format[offset] != '\0' ; offset++) {
+		ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		switch (format[offset]) {
+			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
+			case '\'':
+				/* Literal name of a sound file */
+				sndoffset=0;
+				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
+					sndfile[sndoffset] = format[offset];
+				sndfile[sndoffset] = '\0';
+				snprintf(nextmsg,sizeof(nextmsg), AST_SOUNDS "/%s", sndfile);
+				res = wait_file(chan,ints,nextmsg,lang);
+				break;
+			case 'A':
+			case 'a':
+				/* Sunday - Saturday */
+				snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "day-%d", tm.tm_wday);
+				res = wait_file(chan,ints,nextmsg,lang);
+				break;
+			case 'B':
+			case 'b':
+			case 'h':
+				/* January - December */
+				snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "mon-%d", tm.tm_mon);
+				res = wait_file(chan,ints,nextmsg,lang);
+				break;
+			case 'd':
+			case 'e':
+				/* First - Thirtyfirst */
+				if ((tm.tm_mday < 21) || (tm.tm_mday == 30)) {
+					snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "h-%d", tm.tm_mday);
+					res = wait_file(chan,ints,nextmsg,lang);
+				} else if (tm.tm_mday == 31) {
+					/* "Thirty" and "first" */
+					res = wait_file(chan,ints,DIGITS_DIR "30",lang);
+					if (!res) {
+						res = wait_file(chan,ints,DIGITS_DIR "h-1",lang);
+					}
+				} else {
+					/* Between 21 and 29 - two sounds */
+					res = wait_file(chan,ints,DIGITS_DIR "20",lang);
+					if (!res) {
+						snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "h-%d", tm.tm_mday - 20);
+						res = wait_file(chan,ints,nextmsg,lang);
+					}
+				}
+				break;
+			case 'Y':
+				/* Year */
+				if (tm.tm_year > 99) {
+					res = wait_file(chan,ints,DIGITS_DIR "2",lang);
+					if (!res) {
+						res = wait_file(chan,ints,DIGITS_DIR "thousand",lang);
+					}
+					if (tm.tm_year > 100) {
+						if (!res) {
+							/* This works until the end of 2020 */
+							snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_year - 100);
+							res = wait_file(chan,ints,nextmsg,lang);
+						}
+					}
+				} else {
+					if (tm.tm_year < 1) {
+						/* I'm not going to handle 1900 and prior */
+						/* We'll just be silent on the year, instead of bombing out. */
+					} else {
+						res = wait_file(chan,ints,DIGITS_DIR "19",lang);
+						if (!res) {
+							if (tm.tm_year <= 9) {
+								/* 1901 - 1909 */
+								res = wait_file(chan,ints,DIGITS_DIR "oh",lang);
+								if (!res) {
+									snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_year);
+									res = wait_file(chan,ints,nextmsg,lang);
+								}
+							} else if (tm.tm_year <= 20) {
+								/* 1910 - 1920 */
+								snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_year);
+								res = wait_file(chan,ints,nextmsg,lang);
+							} else {
+								/* 1921 - 1999 */
+								int ten, one;
+								ten = tm.tm_year / 10;
+								one = tm.tm_year % 10;
+								snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", ten * 10);
+								res = wait_file(chan,ints,nextmsg,lang);
+								if (!res) {
+									if (one != 0) {
+										snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", one);
+										res = wait_file(chan,ints,nextmsg,lang);
+									}
+								}
+							}
+						}
+					}
+				}
+				break;
+			case 'I':
+			case 'l':
+				/* 12-Hour */
+				if (tm.tm_hour == 0)
+					snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "12");
+				else if (tm.tm_hour > 12)
+					snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_hour - 12);
+				else
+					snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_hour);
+				res = wait_file(chan,ints,nextmsg,lang);
+				break;
+			case 'H':
+			case 'k':
+				/* 24-Hour */
+				if (format[offset] == 'H') {
+					/* e.g. oh-eight */
+					if (tm.tm_hour < 10) {
+						res = wait_file(chan,ints,DIGITS_DIR "oh",lang);
+					}
+				} else {
+					/* e.g. eight */
+					if (tm.tm_hour == 0) {
+						res = wait_file(chan,ints,DIGITS_DIR "oh",lang);
+					}
+				}
+				if (!res) {
+					if (tm.tm_hour != 0) {
+						snprintf(nextmsg,sizeof(nextmsg), AST_SOUNDS "/digits/%d", tm.tm_hour);
+						res = wait_file(chan,ints,nextmsg,lang);
+					}
+				}
+				break;
+			case 'M':
+				/* Minute */
+				if (tm.tm_min == 0) {
+					res = wait_file(chan,ints,DIGITS_DIR "oclock",lang);
+				} else if (tm.tm_min < 10) {
+					res = wait_file(chan,ints,DIGITS_DIR "oh",lang);
+					if (!res) {
+						snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_min);
+						res = wait_file(chan,ints,nextmsg,lang);
+					}
+				} else if ((tm.tm_min < 21) || (tm.tm_min % 10 == 0)) {
+					snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_min);
+					res = wait_file(chan,ints,nextmsg,lang);
+				} else {
+					int ten, one;
+					ten = (tm.tm_min / 10) * 10;
+					one = (tm.tm_min % 10);
+					snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", ten);
+					res = wait_file(chan,ints,nextmsg,lang);
+					if (!res) {
+						/* Fifty, not fifty-zero */
+						if (one != 0) {
+							snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", one);
+							res = wait_file(chan,ints,nextmsg,lang);
+						}
+					}
+				}
+				break;
+			case 'P':
+			case 'p':
+				/* AM/PM */
+				if ((tm.tm_hour == 0) || (tm.tm_hour > 11))
+					snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "p-m");
+				else
+					snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "a-m");
+				res = wait_file(chan,ints,nextmsg,lang);
+				break;
+			case 'Q':
+				/* Shorthand for "Today", "Yesterday", or ABdY */
+				{
+					struct timeval now;
+					struct tm tmnow;
+					time_t beg_today;
+
+					gettimeofday(&now,NULL);
+					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
+					/* In any case, it saves not having to do ast_mktime() */
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					if (beg_today < time) {
+						/* Today */
+						res = wait_file(chan,ints,DIGITS_DIR "today",lang);
+					} else if (beg_today - 86400 < time) {
+						/* Yesterday */
+						res = wait_file(chan,ints,DIGITS_DIR "yesterday",lang);
+					} else {
+						res = ast_say_date_with_format(chan, time, ints, lang, "ABdY", timezone);
+					}
+				}
+				break;
+			case 'q':
+				/* Shorthand for "" (today), "Yesterday", A (weekday), or ABdY */
+				{
+					struct timeval now;
+					struct tm tmnow;
+					time_t beg_today;
+
+					gettimeofday(&now,NULL);
+					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
+					/* In any case, it saves not having to do ast_mktime() */
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					if (beg_today < time) {
+						/* Today */
+					} else if ((beg_today - 86400) < time) {
+						/* Yesterday */
+						res = wait_file(chan,ints,DIGITS_DIR "yesterday",lang);
+					} else if (beg_today - 86400 * 6 < time) {
+						/* Within the last week */
+						res = ast_say_date_with_format(chan, time, ints, lang, "A", timezone);
+					} else {
+						res = ast_say_date_with_format(chan, time, ints, lang, "ABdY", timezone);
+					}
+				}
+				break;
+			case 'R':
+				res = ast_say_date_with_format(chan, time, ints, lang, "HM", timezone);
+				break;
+			case ' ':
+			case '	':
+				/* Just ignore spaces and tabs */
+				break;
+			default:
+				/* Unknown character */
+				ast_log(LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
+		}
+		/* Jump out on DTMF */
+		if (res) {
+			break;
+		}
+	}
+	return res;
+}
+
 int ast_say_time(struct ast_channel *chan, time_t t, char *ints, char *lang)
 {
 	struct tm tm;
 	int res = 0;
 	int hour, pm=0;
 	localtime_r(&t,&tm);
-	if (!&tm) {
-		ast_log(LOG_WARNING, "Unable to derive local time\n");
-		return -1;
-	}
 	hour = tm.tm_hour;
 	if (!hour)
 		hour = 12;
@@ -288,10 +544,6 @@ int ast_say_datetime(struct ast_channel *chan, time_t t, char *ints, char *lang)
 	int res = 0;
 	int hour, pm=0;
 	localtime_r(&t,&tm);
-	if (!&tm) {
-		ast_log(LOG_WARNING, "Unable to derive local time\n");
-		return -1;
-	}
 	if (!res) {
 		snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
 		res = ast_streamfile(chan, fn, lang);
@@ -361,10 +613,6 @@ int ast_say_datetime_from_now(struct ast_channel *chan, time_t t, char *ints, ch
 	time(&nowt);
 
 	localtime_r(&t,&tm);
-	if (!&tm) {
-		ast_log(LOG_WARNING, "Unable to derive local time\n");
-		return -1;
-	}
 	localtime_r(&nowt,&now);
 	daydiff = now.tm_yday - tm.tm_yday;
 	if ((daydiff < 0) || (daydiff > 6)) {

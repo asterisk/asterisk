@@ -153,12 +153,7 @@ _all: all
 all: depend asterisk subdirs
 
 editline/config.h:
-	@if [ -d editline ]; then \
-		cd editline && unset CFLAGS LIBS && ./configure ; \
-	else \
-		echo "You need to do a cvs update -d not just cvs update"; \
-		exit 1; \
-	fi
+	cd editline && unset CFLAGS LIBS && ./configure ; \
 
 editline/libedit.a: editline/config.h
 	$(MAKE) -C editline libedit.a
@@ -199,8 +194,16 @@ build.h:
 	./make_build_h
 endif
 
-asterisk: editline/libedit.a db1-ast/libdb1.a $(OBJS)
-	$(CC) $(DEBUG) -o asterisk -rdynamic $(OBJS) $(LIBS) $(LIBEDIT) db1-ast/libdb1.a
+stdtime/localtime.o:
+	@if [ -d stdtime ]; then \
+		$(MAKE) -C stdtime; \
+	else \
+		echo "You need to do a cvs update -d not just cvs update"; \
+		exit 1; \
+	fi
+
+asterisk: editline/libedit.a db1-ast/libdb1.a stdtime/localtime.o $(OBJS)
+	$(CC) $(DEBUG) -o asterisk -rdynamic $(OBJS) $(LIBS) $(LIBEDIT) db1-ast/libdb1.a stdtime/localtime.o
 
 subdirs: 
 	for x in $(SUBDIRS); do $(MAKE) -C $$x || exit 1 ; done
@@ -212,6 +215,7 @@ clean:
 	rm -f ast_expr.c
 	@if [ -e editline/Makefile ]; then $(MAKE) -C editline clean ; fi
 	$(MAKE) -C db1-ast clean
+	$(MAKE) -C stdtime clean
 
 datafiles: all
 	mkdir -p $(ASTVARLIBDIR)/sounds/digits

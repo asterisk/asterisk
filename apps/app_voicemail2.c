@@ -106,26 +106,26 @@ static char *synopsis_vm =
 "Leave a voicemail message";
 
 static char *descrip_vm =
-"  VoiceMail([s|u|b]extension[@context]): Leaves voicemail for a given  extension (must\n"
-"be configured in voicemail.conf). If the extension is preceeded by an 's'"
-"then instructions for leaving the message will be skipped.  If the extension\n"
-"is preceeded by 'u' then the \"unavailable\" message will be played (that is, \n"
-"/var/lib/asterisk/sounds/vm/<exten>/unavail) if it exists.  If the extension\n"
-"is preceeded by a 'b' then the the busy message will be played (that is,\n"
-"busy instead of unavail). \n"
-"Returns  -1 on  error or mailbox not found, or if the user hangs up. \n"
-"Otherwise, it returns 0. \n";
+"  VoiceMail([s|u|b]extension[@context]):  Leaves voicemail for a given\n"
+"extension (must be configured in voicemail.conf).  If the extension is\n"
+"preceded by an 's' then instructions for leaving the message will be\n"
+"skipped.  If the extension is preceeded by 'u' then the \"unavailable\"\n"
+"message will be played (/var/lib/asterisk/sounds/vm/<exten>/unavail) if it\n"
+"exists.  If the extension is preceeded by a 'b' then the the busy message\n"
+"will be played (that is, busy instead of unavail).\n"
+"Returns -1 on error or mailbox not found, or if the user hangs up.\n"
+"Otherwise, it returns 0.\n";
 
 static char *synopsis_vmain =
 "Enter voicemail system";
 
 static char *descrip_vmain =
-"  VoiceMailMain([[s]mailbox][@context]): Enters the main voicemail system for the checking of\n"
-"voicemail.  The mailbox can be passed as the option, which will stop the\n"
-"voicemail system from prompting the user for the mailbox.  If the mailbox\n"
-"is preceded by 's' then the password check will be skipped.  If a context is\n"
-"specified, logins are considered in that context only. Returns -1 if\n"
-"the user hangs up or 0 otherwise.\n";
+"  VoiceMailMain([[s]mailbox][@context]): Enters the main voicemail system\n"
+"for the checking of voicemail.  The mailbox can be passed as the option,\n"
+"which will stop the voicemail system from prompting the user for the mailbox.\n"
+"If the mailbox is preceded by 's' then the password check will be skipped.  If\n"
+"a context is specified, logins are considered in that context only.\n"
+"Returns -1 if the user hangs up or 0 otherwise.\n";
 
 /* Leave a message */
 static char *app = "VoiceMail2";
@@ -1897,298 +1897,13 @@ static int wait_file(struct ast_channel *chan, struct vm_state *vms, char *file)
 	return res;
 }
 
-static int play_datetime_format(struct ast_channel *chan, time_t time, struct vm_state *vms, struct vm_zone *zone)
-{
-	int d = 0, offset = 0, sndoffset = 0;
-	char sndfile[256], nextmsg[256];
-	struct tm tm;
-	char *tzenv, current_tz[256] = "", *qmark;
-
-	tzenv = getenv("TZ");
-	if (tzenv != NULL)
-		strncpy(current_tz, tzenv, sizeof(current_tz) - 1);
-	if (zone->timezone && strcmp(current_tz,zone->timezone)) {
-		setenv("TZ", zone->timezone, 1);
-		tzset();
-		localtime_r(&time, &tm);
-		if (tzenv != NULL)
-			setenv("TZ", current_tz, 1);
-		else
-			unsetenv("TZ");
-	} else {
-		/* No need to change the timezone */
-		localtime_r(&time, &tm);
-	}
-
-	/* Check for a subexpression */
-	if ((qmark = index(zone->msg_format, '?'))) {
-		/* TODO Allow subexpressions - we probably need to implement a parser here. */
-	}
-
-	for (offset=0 ; zone->msg_format[offset] != '\0' ; offset++) {
-		ast_log(LOG_NOTICE, "Parsing %c in %s\n", zone->msg_format[offset], zone->msg_format);
-		switch (zone->msg_format[offset]) {
-			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
-			case '\'':
-				/* Literal name of a sound file */
-				sndoffset=0;
-				for (sndoffset=0 ; zone->msg_format[++offset] != '\'' ; sndoffset++)
-					sndfile[sndoffset] = zone->msg_format[offset];
-				sndfile[sndoffset] = '\0';
-				snprintf(nextmsg,sizeof(nextmsg), AST_SOUNDS "/%s", sndfile);
-				d = wait_file(chan,vms,nextmsg);
-				break;
-			case '$':
-				/* Ooooh, variables and/or expressions */
-				{
-					struct vm_zone z;
-					memcpy(&z,zone,sizeof(struct vm_zone));
-					pbx_substitute_variables_helper(chan, zone->msg_format + offset, z.msg_format, sizeof(z.msg_format));
-					d = play_datetime_format(chan, time, vms, &z);
-					/* Subtract one, so that when the for loop increments, we point at the nil */
-					offset = strlen(zone->msg_format) - 1;
-				}
-				break;
-			case 'A':
-			case 'a':
-				/* Sunday - Saturday */
-				snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "day-%d", tm.tm_wday);
-				d = wait_file(chan,vms,nextmsg);
-				break;
-			case 'B':
-			case 'b':
-			case 'h':
-				/* January - December */
-				snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "mon-%d", tm.tm_mon);
-				d = wait_file(chan,vms,nextmsg);
-				break;
-			case 'd':
-			case 'e':
-				/* First - Thirtyfirst */
-				if ((tm.tm_mday < 21) || (tm.tm_mday == 30)) {
-					snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "h-%d", tm.tm_mday);
-					d = wait_file(chan,vms,nextmsg);
-				} else if (tm.tm_mday == 31) {
-					/* "Thirty" and "first" */
-					d = wait_file(chan,vms,DIGITS_DIR "30");
-					if (!d) {
-						d = wait_file(chan,vms,DIGITS_DIR "h-1");
-					}
-				} else {
-					/* Between 21 and 29 - two sounds */
-					d = wait_file(chan,vms,DIGITS_DIR "20");
-					if (!d) {
-						snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "h-%d", tm.tm_mday - 20);
-						d = wait_file(chan,vms,nextmsg);
-					}
-				}
-				break;
-			case 'Y':
-				/* Year */
-				if (tm.tm_year > 99) {
-					d = wait_file(chan,vms,DIGITS_DIR "2");
-					if (!d) {
-						d = wait_file(chan,vms,DIGITS_DIR "thousand");
-					}
-					if (tm.tm_year > 100) {
-						if (!d) {
-							/* This works until the end of 2020 */
-							snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_year - 100);
-							d = wait_file(chan,vms,nextmsg);
-						}
-					}
-				} else {
-					if (tm.tm_year < 1) {
-						/* I'm not going to handle 1900 and prior */
-						/* We'll just be silent on the year, instead of bombing out. */
-					} else {
-						d = wait_file(chan,vms,DIGITS_DIR "19");
-						if (!d) {
-							if (tm.tm_year < 20) {
-								/* 1901 - 1920 */
-								snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_year);
-								d = wait_file(chan,vms,nextmsg);
-							} else {
-								/* 1921 - 1999 */
-								int ten, one;
-								ten = tm.tm_year / 10;
-								one = tm.tm_year % 10;
-								snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", ten * 10);
-								d = wait_file(chan,vms,nextmsg);
-								if (!d) {
-									if (one != 0) {
-										snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", one);
-										d = wait_file(chan,vms,nextmsg);
-									}
-								}
-							}
-						}
-					}
-				}
-				break;
-			case 'I':
-			case 'l':
-				/* 12-Hour */
-				if (tm.tm_hour == 0)
-					snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "12");
-				else if (tm.tm_hour > 12)
-					snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_hour - 12);
-				else
-					snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_hour);
-				d = wait_file(chan,vms,nextmsg);
-				break;
-			case 'H':
-			case 'k':
-				/* 24-Hour */
-				if (zone->msg_format[offset] == 'H') {
-					/* e.g. oh-eight */
-					if (tm.tm_hour < 10) {
-						d = wait_file(chan,vms,DIGITS_DIR "oh");
-					}
-				} else {
-					/* e.g. eight */
-					if (tm.tm_hour == 0) {
-						d = wait_file(chan,vms,DIGITS_DIR "oh");
-					}
-				}
-				if (!d) {
-					if (tm.tm_hour != 0) {
-						snprintf(nextmsg,sizeof(nextmsg), AST_SOUNDS "/digits/%d", tm.tm_hour);
-						d = wait_file(chan,vms,nextmsg);
-					}
-				}
-				break;
-			case 'M':
-				/* Minute */
-				if (tm.tm_min == 0) {
-					d = wait_file(chan,vms,DIGITS_DIR "oclock");
-				} else if (tm.tm_min < 10) {
-					d = wait_file(chan,vms,DIGITS_DIR "oh");
-					if (!d) {
-						snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_min);
-						d = wait_file(chan,vms,nextmsg);
-					}
-				} else if ((tm.tm_min < 21) || (tm.tm_min % 10 == 0)) {
-					snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_min);
-					d = wait_file(chan,vms,nextmsg);
-				} else {
-					int ten, one;
-					ten = (tm.tm_min / 10) * 10;
-					one = (tm.tm_min % 10);
-					snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", ten);
-					d = wait_file(chan,vms,nextmsg);
-					if (!d) {
-						/* Fifty, not fifty-zero */
-						if (one != 0) {
-							snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", one);
-							d = wait_file(chan,vms,nextmsg);
-						}
-					}
-				}
-				break;
-			case 'P':
-			case 'p':
-				/* AM/PM */
-				if ((tm.tm_hour == 0) || (tm.tm_hour > 11))
-					snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "p-m");
-				else
-					snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "a-m");
-				d = wait_file(chan,vms,nextmsg);
-				break;
-			case 'Q':
-				/* Shorthand for "Today", "Yesterday", or ABdY */
-				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tnow;
-
-					gettimeofday(&now,NULL);
-					tnow = now.tv_sec;
-					localtime_r(&tnow,&tmnow);
-					tmnow.tm_hour = 0;
-					tmnow.tm_min = 0;
-					tmnow.tm_sec = 0;
-					beg_today = mktime(&tmnow);
-					if (beg_today < time) {
-						/* Today */
-						d = wait_file(chan,vms,DIGITS_DIR "today");
-					} else if (beg_today - 86400 < time) {
-						/* Yesterday */
-						d = wait_file(chan,vms,DIGITS_DIR "yesterday");
-					} else {
-						struct vm_zone z;
-						memcpy(&z, zone, sizeof(struct vm_zone));
-						strcpy(z.msg_format, "ABdY");
-						d = play_datetime_format(chan, time, vms, &z);
-					}
-				}
-				break;
-			case 'q':
-				/* Shorthand for "" (today), "Yesterday", A (weekday), or ABdY */
-				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tnow;
-
-					gettimeofday(&now,NULL);
-					tnow = now.tv_sec;
-					localtime_r(&tnow,&tmnow);
-					tmnow.tm_hour = 0;
-					tmnow.tm_min = 0;
-					tmnow.tm_sec = 0;
-					beg_today = mktime(&tmnow);
-					if (beg_today < time) {
-						/* Today */
-					} else if (beg_today - 86400 < time) {
-						/* Yesterday */
-						d = wait_file(chan,vms,DIGITS_DIR "yesterday");
-					} else if (beg_today - 86400 * 6 < time) {
-						/* Within the last week */
-						struct vm_zone z;
-						memcpy(&z, zone, sizeof(struct vm_zone));
-						strcpy(z.msg_format, "A");
-						d = play_datetime_format(chan, time, vms, &z);
-					} else {
-						struct vm_zone z;
-						memcpy(&z, zone, sizeof(struct vm_zone));
-						strcpy(z.msg_format, "ABdY");
-						d = play_datetime_format(chan, time, vms, &z);
-					}
-				}
-				break;
-			case 'R':
-				{
-					struct vm_zone z;
-					memcpy(&z, zone, sizeof(struct vm_zone));
-					strcpy(z.msg_format, "HM");
-					d = play_datetime_format(chan, time, vms, &z);
-				}
-				break;
-			case ' ':
-			case '	':
-				/* Just ignore spaces and tabs */
-				break;
-			default:
-				/* Unknown character */
-				ast_log(LOG_WARNING, "Unknown character in datetime format %s: %c\n", zone->msg_format, zone->msg_format[offset]);
-		}
-		/* Jump out on DTMF */
-		if (d) {
-			break;
-		}
-	}
-	return d;
-}
-
 static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms)
 {
 	int res = 0;
-	char filename[256], *origtime, temp[256];
+	char filename[256], *origtime;
 	struct vm_zone *the_zone = NULL;
 	struct ast_config *msg_cfg;
-	time_t t, tnow;
-	struct timeval tv_now;
-	struct tm time_now, time_then;
+	time_t t;
 	long tin;
 
 	make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg); 
@@ -2229,6 +1944,8 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 		strncpy(the_zone->msg_format, "'vm-received' q 'digits/at' IMp", sizeof(the_zone->msg_format) - 1);
 	}
 
+/* No internal variable parsing for now, so we'll comment it out for the time being */
+#if 0
 	/* Set the DIFF_* variables */
 	localtime_r(&t, &time_now);
 	gettimeofday(&tv_now,NULL);
@@ -2243,9 +1960,11 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 	pbx_builtin_setvar_helper(chan, "DIFF_DAY", temp);
 
 	/* Can't think of how other diffs might be helpful, but I'm sure somebody will think of something. */
-
-	res = play_datetime_format(chan, t, vms, the_zone);
+#endif
+	res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, the_zone->msg_format, the_zone->timezone);
+#if 0
 	pbx_builtin_setvar_helper(chan, "DIFF_DAY", NULL);
+#endif
 	return res;
 }
 

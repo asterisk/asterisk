@@ -144,8 +144,6 @@ struct ast_hint {
     struct ast_hint *next;
 };
 
-int ast_extension_patmatch(const char *pattern, const char *data);
-
 static int pbx_builtin_prefix(struct ast_channel *, void *);
 static int pbx_builtin_suffix(struct ast_channel *, void *);
 static int pbx_builtin_stripmsd(struct ast_channel *, void *);
@@ -172,6 +170,7 @@ static int pbx_builtin_saynumber(struct ast_channel *, void *);
 static int pbx_builtin_saydigits(struct ast_channel *, void *);
 void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value);
 char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name);
+static int ast_extension_patmatch_repeated(const char *pattern, const char *data, const int num);
 
 static struct varshead globals = AST_LIST_HEAD_INITIALIZER(varshead);
 
@@ -522,14 +521,13 @@ char patmatch_group[80] = "";
    variables, starting with $1, $2 and so on.
  * alternation as in (01|0|99) ("01 or 0 or 99")
  */
-int ast_extension_patmatch(const char *pattern, char *data) 
+int ast_extension_patmatch(const char *pattern, const char *data) 
 {
     int i,border=0;
     char *where;
     static char prev = '\0';
     static char groupdata[80] = "";
     static char *group = patmatch_group;
-    int groupcounter = patmatch_groupcounter;
 
     if (option_debug)
 	ast_log(LOG_DEBUG, " >>> \"%s\" =~ /%s/\n", data, pattern);
@@ -571,7 +569,7 @@ int ast_extension_patmatch(const char *pattern, char *data)
 
 	case '{': /* quantifier {n[,m]} */
 	  {
-	    char *comma;
+	    char *comma=NULL;
 	    int cpos;
 	    where=strchr(pattern,'}');
 	    if (where) {
@@ -636,11 +634,10 @@ int ast_extension_patmatch(const char *pattern, char *data)
 		}
 		prev = *tmp;
 		if (i >= from || !from) { /* if found */
+		    int l = strlen(groupdata) - strlen(data);
 		    if (option_debug)
 			ast_log(LOG_DEBUG, " >>>> found '%s' in data '%s' after %d runs\n", group, data, i);
-		    char name[16];
 		    data = data + (i * (strlen(group)- 1)) - 1;
-		    int l = strlen(groupdata) - strlen(data);
 		    /* data = data-i+from-1; */		/* possible failure here! */
 		    if (prev == ')') {			/* grouping => capture */
 			*(group+strlen(group)-1) = '\0';
@@ -708,7 +705,7 @@ int ast_extension_patmatch(const char *pattern, char *data)
 		s = scopy = (char *) malloc(strlen(pattern));
 		sepcopy   = (char *) malloc(strlen(pattern));
 		strcpy(s,group);
-		while (sep = strsep(&s,"|")) {
+		while ((sep = strsep(&s,"|"))) {
 		    strcpy(sepcopy,sep);
 		    strcat(sepcopy,pattern+border+1);
 		    if (option_debug)
@@ -737,7 +734,6 @@ int ast_extension_patmatch(const char *pattern, char *data)
 		return 0;
 	    } else {
 		if (pattern[1] != '{') { /* capture without quantifiers */
-		    char name[16];
 		    int l = strlen(groupdata) - strlen(data);
 		    groupdata[l-1] = '\0';
 		    *(group+strlen(group)-1) = '\0';
@@ -810,7 +806,7 @@ int ast_extension_patmatch(const char *pattern, char *data)
 }
 
 /* try exactly num repetitions, from high to from */
-int ast_extension_patmatch_repeated(const char *pattern, char *data, const int num) 
+static int ast_extension_patmatch_repeated(const char *pattern, const char *data, const int num) 
 {
     int i;
     ast_log(LOG_DEBUG, "  >>> try %d repetitions of '%s' in data '%s'\n", num, pattern, data);
@@ -848,7 +844,7 @@ int ast_extension_match(char *pattern, char *data)
 
 static int extension_close(char *pattern, char *data, int needmore)
 {
-	int match;
+	int match=1;
 	/* If "data" is longer, it can'be a subset of pattern unless
 	   pattern is a pattern match */
 	if ((strlen(pattern) < strlen(data)) && (pattern[0] != '_'))

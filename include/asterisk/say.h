@@ -69,6 +69,8 @@ int ast_say_date(struct ast_channel *chan, time_t t, char *ints, char *lang);
 
 int ast_say_datetime_from_now(struct ast_channel *chan, time_t t, char *ints, char *lang);
 
+int ast_say_date_with_format(struct ast_channel *chan, time_t t, char *ints, char *lang, char *format, char *timezone);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
