@@ -78,6 +78,9 @@ ${TXTCIDNAME}	Result of application TXTCIDName
 ${UNIQUEID}	Current call unique identifier
 ${PRIREDIRECTREASON} Reason for redirect, if a call was directed
 
+NOTE: Attempting to set any of these "special" variables will not change 
+their value, but will not display any warning either.
+
 The dial() application sets the following variables:
 
 ${DIALEDPEERNAME} Dialed peer name
