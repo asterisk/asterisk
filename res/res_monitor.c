@@ -4,7 +4,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <libgen.h>		//dirname()
+#include <libgen.h>		/* dirname() */
 
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>
@@ -65,7 +65,7 @@ static char *changemonitor_descrip = "ChangeMonitor\n"
 
 /* Start monitoring a channel */
 int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
-						const char *fname_base, int need_lock)
+		const char *fname_base, int need_lock)
 {
 	int res = 0;
 	char tmp[256];
@@ -85,7 +85,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		if (mkdir(AST_MONITOR_DIR, 0770) < 0) {
 			if (errno != EEXIST) {
 				ast_log(LOG_WARNING, "Unable to create audio monitor directory: %s\n",
-						strerror(errno));
+					strerror(errno));
 			}
 		}
 
@@ -133,14 +133,14 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 
 		monitor->stop = ast_monitor_stop;
 
-		// Determine file format
+		/* Determine file format */
 		if (format_spec && !ast_strlen_zero(format_spec)) {
 			monitor->format = strdup(format_spec);
 		} else {
 			monitor->format = strdup("wav");
 		}
 		
-		// open files
+		/* open files */
 		if (ast_fileexists(monitor->read_filename, NULL, NULL) > 0) {
 			ast_filedelete(monitor->read_filename, NULL);
 		}
@@ -410,7 +410,7 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 	}
 
 	if ((!fname) || (ast_strlen_zero(fname))) {
-		// No filename base specified, default to channel name as per CLI
+		/* No filename base specified, default to channel name as per CLI */
 		fname = malloc (FILENAME_MAX);
 		if (!fname) {
 			astman_send_error(s, m, "Could not start monitoring channel");
@@ -419,7 +419,7 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 		}
 		memset(fname, 0, FILENAME_MAX);
 		strncpy(fname, c->name, FILENAME_MAX-1);
-		// Channels have the format technology/channel_name - have to replace that / 
+		/* Channels have the format technology/channel_name - have to replace that /  */
 		if ((d=strchr(fname, '/'))) *d='-';
 	}
 	

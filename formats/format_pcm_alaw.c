@@ -3,9 +3,9 @@
  *
  * Flat, binary, alaw PCM file format.
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999, Digium, inc
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -39,7 +39,7 @@
 
 #define BUF_SIZE 160		/* 160 samples */
 
-// #define REALTIME_WRITE
+/* #define REALTIME_WRITE */
 
 struct ast_filestream {
 	void *reserved[AST_RESERVED_POINTERS];
@@ -192,18 +192,19 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 
 #ifdef REALTIME_WRITE
 	cur_time = get_time();
-	fpos = ( cur_time - fs->start_time ) * 8;	// 8 bytes per msec
-	// Check if we have written to this position yet. If we have, then increment pos by one frame
-	// for some degree of protection against receiving packets in the same clock tick.
+	fpos = ( cur_time - fs->start_time ) * 8;	/* 8 bytes per msec */
+	/* Check if we have written to this position yet. If we have, then increment pos by one frame
+	*  for some degree of protection against receiving packets in the same clock tick.
+	*/
 	fstat( fs->fd, &stat_buf );
 	if( stat_buf.st_size > fpos )
 	{
-		fpos += f->datalen;	// Incrementing with the size of this current frame
+		fpos += f->datalen;	/* Incrementing with the size of this current frame */
 	}
 
 	if( stat_buf.st_size < fpos )
 	{
-		// fill the gap with 0x55 rather than 0.
+		/* fill the gap with 0x55 rather than 0. */
 		char buf[ 512 ];
 		unsigned long cur, to_write;
 
@@ -232,7 +233,7 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log( LOG_WARNING, "Cannot seek in file: %s\n", strerror(errno) );
 		return -1;
 	}
-#endif	// REALTIME_WRITE
+#endif	/* REALTIME_WRITE */
 	
 	if ((res = write(fs->fd, f->data, f->datalen)) != f->datalen) {
 			ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
@@ -257,7 +258,7 @@ static int pcm_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	if (whence != SEEK_FORCECUR) {
 		offset = (offset > max)?max:offset;
 	}
-	// Always protect against seeking past begining
+	/* Always protect against seeking past begining */
 	offset = (offset < min)?min:offset;
 	return lseek(fs->fd, offset, SEEK_SET);
 }

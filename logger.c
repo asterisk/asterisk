@@ -424,7 +424,7 @@ static int handle_logger_reload(int fd, int argc, char *argv[])
 {
 	if(reload_logger(0))
 	{
-		ast_cli(fd, "Failed to reloadthe logger\n");
+		ast_cli(fd, "Failed to reload the logger\n");
 		return RESULT_FAILURE;
 	}
 	else
@@ -435,7 +435,7 @@ static int handle_logger_rotate(int fd, int argc, char *argv[])
 {
 	if(reload_logger(1))
 	{
-		ast_cli(fd, "Failed to reloadthe logger\n");
+		ast_cli(fd, "Failed to reload the logger and rotate log files\n");
 		return RESULT_FAILURE;
 	}
 	else

@@ -64,18 +64,18 @@ struct ast_context;
 
 /* ast_exten: An extension */
 struct ast_exten {
-	char *exten;		/* Extension name */
-	int matchcid;				/* Match caller id ? */
-	char *cidmatch;	/* Caller id to match for this extension */
-	int priority;				/* Priority */
-	char *label;	/* Label */
-	struct ast_context *parent;		/* An extension */
-	char *app; 		/* Application to execute */
-	void *data;				/* Data to use */
-	void (*datad)(void *);			/* Data destructor */
-	struct ast_exten *peer;			/* Next higher priority with our extension */
-	const char *registrar;			/* Registrar */
-	struct ast_exten *next;			/* Extension with a greater ID */
+	char *exten;			/* Extension name */
+	int matchcid;			/* Match caller id ? */
+	char *cidmatch;			/* Caller id to match for this extension */
+	int priority;			/* Priority */
+	char *label;			/* Label */
+	struct ast_context *parent;	/* The context this extension belongs to  */
+	char *app; 			/* Application to execute */
+	void *data;			/* Data to use (arguments) */
+	void (*datad)(void *);		/* Data destructor */
+	struct ast_exten *peer;		/* Next higher priority with our extension */
+	const char *registrar;		/* Registrar */
+	struct ast_exten *next;		/* Extension with a greater ID */
 	char stuff[0];
 };
 

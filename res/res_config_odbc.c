@@ -425,7 +425,7 @@ static struct ast_config *config_odbc (const char *database, const char *table, 
 
 
 	if (!file || !strcmp (file, "res_config_odbc.conf"))
-		return NULL;		// cant configure myself with myself !
+		return NULL;		/* cant configure myself with myself ! */
 
 	obj = fetch_odbc_obj(database);
 	if (!obj)
@@ -518,7 +518,7 @@ static struct ast_config *config_odbc (const char *database, const char *table, 
 				}
 			}
 
-		// next row 
+		/* next row  */
 			res = SQLFetch (stmt);
 		}
 

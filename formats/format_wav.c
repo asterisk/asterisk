@@ -177,12 +177,12 @@ static int check_header(int fd)
 		ast_log(LOG_WARNING, "Read failed (Bits Per Sample): %d\n", ltohs(bisam));
 		return -1;
 	}
-	// Skip any additional header
+	/* Skip any additional header */
 	if ( lseek(fd,ltohl(hsize)-16,SEEK_CUR) == -1 ) {
 		ast_log(LOG_WARNING, "Failed to skip remaining header bytes: %d\n", ltohl(hsize)-16 );
 		return -1;
 	}
-	// Skip any facts and get the first data block
+	/* Skip any facts and get the first data block */
 	for(;;)
 	{ 
             char buf[4];
@@ -529,7 +529,7 @@ static int wav_seek(struct ast_filestream *fs, long sample_offset, int whence)
         if (whence != SEEK_FORCECUR) {
 		offset = (offset > max)?max:offset;
 	}
-	// always protect the header space.
+	/* always protect the header space. */
 	offset = (offset < min)?min:offset;
 	return lseek(fs->fd,offset,SEEK_SET);
 }

@@ -276,7 +276,7 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 	close(fromast[0]);
 
 	if (efd) {
-		// [PHM 12/18/03]
+		/* [PHM 12/18/03] */
 		close(audio[0]);
 	}
 
@@ -484,7 +484,7 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *
 		timeout = atoi(argv[4]);
 	else if (chan->pbx->dtimeout) {
 		/* by default dtimeout is set to 5sec */
-		timeout = chan->pbx->dtimeout * 1000; //in msec
+		timeout = chan->pbx->dtimeout * 1000; /* in msec */
 	}
 
         fs = ast_openstream(chan, argv[2], chan->language);

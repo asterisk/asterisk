@@ -33,7 +33,7 @@
 #include <asterisk/indications.h>
 
 
-// Globals
+/* Globals */
 static const char dtext[] = "Indications Configuration";
 static const char config[] = "indications.conf";
 
@@ -41,11 +41,11 @@ static const char config[] = "indications.conf";
  * Help for commands provided by this module ...
  */
 static char help_add_indication[] =
-"Usage: add indication <country> <indication> \"<tonelist>\"\n"
+"Usage: indication add <country> <indication> \"<tonelist>\"\n"
 "       Add the given indication to the country.\n";
 
 static char help_remove_indication[] =
-"Usage: remove indication <country> <indication>\n"
+"Usage: indication remove <country> <indication>\n"
 "       Remove the given indication from the country.\n";
 
 static char help_show_indications[] =
@@ -292,7 +292,7 @@ static int ind_load_module(void)
 					country = strsep(&c,",");
 				}
 			} else {
-				// add tone to country
+				/* add tone to country */
 				struct tone_zone_sound *ps,*ts;
 				for (ps=NULL,ts=tones->tones; ts; ps=ts, ts=ts->next) {
 					if (strcasecmp(v->name,ts->name)==0) {
@@ -341,12 +341,12 @@ out:			v = v->next;
  * CLI entries for commands provided by this module
  */
 static struct ast_cli_entry add_indication_cli =
-	{ { "add", "indication", NULL }, handle_add_indication,
+	{ { "indication", "add", NULL }, handle_add_indication,
 		"Add the given indication to the country", help_add_indication,
 		NULL };
 
 static struct ast_cli_entry remove_indication_cli =
-	{ { "remove", "indication", NULL }, handle_remove_indication,
+	{ { "indication", "remove", NULL }, handle_remove_indication,
 		"Remove the given indication from the country", help_remove_indication,
 		NULL };
 
@@ -367,8 +367,8 @@ int unload_module(void)
 	ast_cli_unregister(&add_indication_cli);
 	ast_cli_unregister(&remove_indication_cli);
 	ast_cli_unregister(&show_indications_cli);
-	ast_unregister_application("Playlist");
-	ast_unregister_application("StopPlaylist");
+	ast_unregister_application("Playtones");
+	ast_unregister_application("StopPlaytones");
 	return 0;
 }
 

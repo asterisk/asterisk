@@ -162,8 +162,8 @@ static int use_ast_ind=0;
 			|VPB_MRING_OFF|VPB_MSTATION_FLASH)
 
 
-// Dialing parameters for Australia
-//#define DIAL_WITH_CALL_PROGRESS
+/* Dialing parameters for Australia */
+/* #define DIAL_WITH_CALL_PROGRESS */
 VPB_TONE_MAP DialToneMap[] = { 	{ VPB_BUSY_AUST, VPB_CALL_DISCONNECT, 0 },
   				{ VPB_DIAL, VPB_CALL_DIALTONE, 0 },
 				{ VPB_RINGBACK_308, VPB_CALL_RINGBACK, 0 },
@@ -277,14 +277,16 @@ static struct vpb_pvt {
 static struct ast_channel *vpb_new(struct vpb_pvt *i, int state, char *context);
 static void *do_chanreads(void *pvt);
 
-// Can't get vpb_bridge() working on v4pci without either a horrible
-// high pitched feedback noise or bad hiss noise depending on gain settings
-// Get asterisk to do the bridging
+/* Can't get vpb_bridge() working on v4pci without either a horrible 
+*  high pitched feedback noise or bad hiss noise depending on gain settings
+*  Get asterisk to do the bridging
+*/
 #define BAD_V4PCI_BRIDGE
 
-// This one enables a half duplex bridge which may be required to prevent high pitched
-// feedback when getting asterisk to do the bridging and when using certain gain settings.
-//#define HALF_DUPLEX_BRIDGE
+/* This one enables a half duplex bridge which may be required to prevent high pitched
+ * feedback when getting asterisk to do the bridging and when using certain gain settings.
+ */
+/* #define HALF_DUPLEX_BRIDGE */
 
 /* This is the Native bridge code, which Asterisk will try before using its own bridging code */
 static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
@@ -394,9 +396,9 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 
 	res = vpb_bridge(p0->handle, p1->handle, VPB_BRIDGE_ON, i+1 /* resource 1 & 2 only for V4PCI*/ );
 	if (res == VPB_OK) {
-		//pthread_cond_wait(&bridges[i].cond, &bridges[i].lock); /* Wait for condition signal. */
+		/* pthread_cond_wait(&bridges[i].cond, &bridges[i].lock);*/ /* Wait for condition signal. */
 		while( !bridges[i].endbridge ) {
-			// Are we really ment to be doing nothing ?!?!
+			/* Are we really ment to be doing nothing ?!?! */
 			who = ast_waitfor_n(cs, 2, &to);
 			if (!who) {
 				ast_log(LOG_DEBUG, "vpb_bridge: Empty frame read...\n");
@@ -423,7 +425,7 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 				}
 */
 				/* That's all we needed */
-				//return 0;
+				/*return 0; */
 				break;
 			} else {
 				if ((f->frametype == AST_FRAME_DTMF) || 
@@ -476,16 +478,17 @@ static double get_time_in_ms()
 	return ((double)tv.tv_sec*1000)+((double)tv.tv_usec/1000);
 }
 
-// Caller ID can be located in different positions between the rings depending on your Telco
-// Australian (Telstra) callerid starts 700ms after 1st ring and finishes 1.5s after first ring
-// Use ANALYSE_CID to record rings and determine location of callerid
-//#define ANALYSE_CID
+/* Caller ID can be located in different positions between the rings depending on your Telco
+ * Australian (Telstra) callerid starts 700ms after 1st ring and finishes 1.5s after first ring
+ * Use ANALYSE_CID to record rings and determine location of callerid
+ */
+/* #define ANALYSE_CID */
 #define RING_SKIP 600
 #define CID_MSECS 1700
 
 static void get_callerid(struct vpb_pvt *p)
 {
-	short buf[CID_MSECS*8]; // 8kHz sampling rate
+	short buf[CID_MSECS*8]; /* 8kHz sampling rate */
 	double cid_record_time;
 	int rc;
 	struct ast_channel *owner = p->owner;
@@ -501,7 +504,7 @@ static void get_callerid(struct vpb_pvt *p)
 		if (option_verbose>3) 
 			ast_verbose(VERBOSE_PREFIX_4 "CID record - start\n");
 
-		// Skip any trailing ringtone
+		/* Skip any trailing ringtone */
 		vpb_sleep(RING_SKIP);
 
 		if (option_verbose>3) 
@@ -509,7 +512,7 @@ static void get_callerid(struct vpb_pvt *p)
 				 get_time_in_ms() - cid_record_time);
 		cid_record_time = get_time_in_ms();
 
-		// Record bit between the rings which contains the callerid
+		/* Record bit between the rings which contains the callerid */
 		vpb_record_buf_start(p->handle, VPB_LINEAR);
 		rc = vpb_record_buf_sync(p->handle, (char*)buf, sizeof(buf));
 		vpb_record_buf_finish(p->handle);
@@ -533,7 +536,7 @@ static void get_callerid(struct vpb_pvt *p)
 		VPB_CID *cli_struct = new VPB_CID;
 		cli_struct->ra_cldn[0]=0;
 		cli_struct->ra_cn[0]=0;
-		// This decodes FSK 1200baud type callerid
+		/* This decodes FSK 1200baud type callerid */
 		if ((rc=vpb_cid_decode2(cli_struct, buf, CID_MSECS*8)) == VPB_OK ) {
 			if (owner->cid.cid_num)
 				free(owner->cid.cid_num);
@@ -593,13 +596,13 @@ static void get_callerid_ast(struct vpb_pvt *p)
 		return;
 	}
 	if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collecting Caller ID type[%s/%d]...\n",p->callerid,which_cid);
-//	vpb_sleep(RING_SKIP);
-//	vpb_record_get_gain(p->handle, &old_gain);
+/*	vpb_sleep(RING_SKIP); */
+/*	vpb_record_get_gain(p->handle, &old_gain); */
 	cs = callerid_new(which_cid);
 	if (cs){
-//		vpb_wave_open_write(&ws, file, VPB_MULAW);
-//		vpb_record_set_gain(p->handle, 3.0);
-//		vpb_record_set_hw_gain(p->handle,12.0);
+/*		vpb_wave_open_write(&ws, file, VPB_MULAW); */
+/*		vpb_record_set_gain(p->handle, 3.0); */
+/*		vpb_record_set_hw_gain(p->handle,12.0); */
 		vpb_record_buf_start(p->handle, VPB_MULAW);
 		while((rc == 0)&&(sam_count<8000*3)){
 			vrc = vpb_record_buf_sync(p->handle, (char*)buf, sizeof(buf));
@@ -611,7 +614,7 @@ static void get_callerid_ast(struct vpb_pvt *p)
 			if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collecting Caller ID samples [%d][%d]...\n",sam_count,rc);
 		}
 		vpb_record_buf_finish(p->handle);
-//		vpb_wave_close_write(ws);
+/*		vpb_wave_close_write(ws); */
 		if (rc == 1){
 			callerid_get(cs, &name, &number, &flags);
 			if (option_verbose>0) 
@@ -620,8 +623,8 @@ static void get_callerid_ast(struct vpb_pvt *p)
 		else {
 			ast_log(LOG_ERROR, "%s: Failed to decode Caller ID \n", p->dev );
 		}
-//		vpb_record_set_gain(p->handle, old_gain);
-//		vpb_record_set_hw_gain(p->handle,6.0);
+/*		vpb_record_set_gain(p->handle, old_gain); */
+/*		vpb_record_set_hw_gain(p->handle,6.0); */
 	}
 	else {
 		ast_log(LOG_ERROR, "%s: Failed to create Caller ID struct\n", p->dev );
@@ -647,7 +650,7 @@ static void get_callerid_ast(struct vpb_pvt *p)
 		callerid_free(cs);
 }
 
-// Terminate any tones we are presently playing
+/* Terminate any tones we are presently playing */
 static void stoptone( int handle)
 {
 	int ret;
@@ -659,7 +662,7 @@ static void stoptone( int handle)
 			if (option_verbose > 3){
 					ast_verbose(VERBOSE_PREFIX_4 "Stop tone collected a wrong event!![%d]\n",je.type);
 			}
-//			vpb_put_event(&je);
+/*			vpb_put_event(&je); */
 		}
 		vpb_sleep(10);
 	}
@@ -736,8 +739,8 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 				}
 			} else if (e->data == VPB_GRUNT) {
 				if( ( get_time_in_ms() - p->lastgrunt ) > gruntdetect_timeout ) {
-					// Nothing heard on line for a very long time
-					// Timeout connection
+					/* Nothing heard on line for a very long time
+					 * Timeout connection */
 					if (option_verbose > 2) 
 						ast_verbose(VERBOSE_PREFIX_3 "grunt timeout\n");
 					ast_log(LOG_NOTICE,"%s: Line hangup due of lack of conversation\n",p->dev); 
@@ -786,8 +789,9 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 			f.subclass = AST_CONTROL_FLASH;
 			break;
 
-		// Called when dialing has finished and ringing starts
-		// No indication that call has really been answered when using blind dialing
+		/* Called when dialing has finished and ringing starts
+		 * No indication that call has really been answered when using blind dialing
+		 */
 		case VPB_DIALEND:
 			if (p->state < 5){
 				f.subclass = AST_CONTROL_ANSWER;
@@ -870,9 +874,10 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 		ast_verbose(VERBOSE_PREFIX_4 "%s: handle_owned: Prepared frame type[%d]subclass[%d], bridge=%p owner=[%s]\n",
 			p->dev, f.frametype, f.subclass, (void *)p->bridge, p->owner->name);
 
-	// Trylock used here to avoid deadlock that can occur if we
-	// happen to be in here handling an event when hangup is called
-	// Problem is that hangup holds p->owner->lock
+	/* Trylock used here to avoid deadlock that can occur if we
+	 * happen to be in here handling an event when hangup is called
+	 * Problem is that hangup holds p->owner->lock
+	 */
 	if ((f.frametype >= 0)&& (f.frametype != AST_FRAME_NULL)&&(p->owner)) {
 		if (ast_mutex_trylock(&p->owner->lock)==0)  {
 			ast_queue_frame(p->owner, &f);
@@ -911,9 +916,9 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 				if(!strcasecmp(p->callerid, "on")) {
 					if (option_verbose>3) 
 						ast_verbose(VERBOSE_PREFIX_4 "Using VPB Caller ID\n");
-					get_callerid(p);	// Australian Caller ID only between 1st and 2nd ring 
+					get_callerid(p);	/* Australian Caller ID only between 1st and 2nd ring  */
 				}
-				get_callerid_ast(p);	// Caller ID using the ast functions
+				get_callerid_ast(p);	/* Caller ID using the ast functions */
 			}
 			break;
 
@@ -937,18 +942,18 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 				if (p->state == VPB_STATE_PLAYDIAL) {
 					playtone(p->handle, &Dialtone);
 					p->wantdtmf = 1;
-					p->ext[0] = 0;	// Just to be sure & paranoid.
+					p->ext[0] = 0;	/* Just to be sure & paranoid. */
 				}
 				/* These are not needed as they have timers to restart them
 				else if (p->state == VPB_STATE_PLAYBUSY) {
 					playtone(p->handle, &Busytone);
 					p->wantdtmf = 1;
-					p->ext[0] = 0;	// Just to be sure & paranoid.
+					p->ext[0] = 0;	/* Just to be sure & paranoid. */
 				}
 				else if (p->state == VPB_STATE_PLAYRING) {
 					playtone(p->handle, &Ringbacktone);
 					p->wantdtmf = 1;
-					p->ext[0] = 0;	// Just to be sure & paranoid.
+					p->ext[0] = 0;	/* Just to be sure & paranoid. */
 				}
 				*/
 			} else {
@@ -1203,7 +1208,7 @@ static int restart_monitor(void)
 	return error;
 }
 
-// Per board config that must be called after vpb_open()
+/* Per board config that must be called after vpb_open() */
 static void mkbrd(vpb_model_t model, int echo_cancel)
 {
 	if(!bridges) {
@@ -1513,18 +1518,18 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 	else {
 		VPB_CALL call;
 
-		// Dial must timeout or it can leave channels unuseable
+		/* Dial must timeout or it can leave channels unuseable */
 		if( timeout == 0 )
 			timeout = TIMER_PERIOD_NOANSWER;
 		else 
-			timeout = timeout * 1000; //convert from secs to ms.
+			timeout = timeout * 1000; /* convert from secs to ms. */
 
-		// These timeouts are only used with call progress dialing
-		call.dialtones = 1; // Number of dialtones to get outside line
-		call.dialtone_timeout = VPB_DIALTONE_WAIT; // Wait this long for dialtone (ms)
-		call.ringback_timeout = VPB_RINGWAIT; // Wait this long for ringing after dialing (ms)
-		call.inter_ringback_timeout = VPB_CONNECTED_WAIT; // If ringing stops for this long consider it connected (ms)
-		call.answer_timeout = timeout; // Time to wait for answer after ringing starts (ms)
+		/* These timeouts are only used with call progress dialing */
+		call.dialtones = 1; /* Number of dialtones to get outside line */
+		call.dialtone_timeout = VPB_DIALTONE_WAIT; /* Wait this long for dialtone (ms) */
+		call.ringback_timeout = VPB_RINGWAIT; /* Wait this long for ringing after dialing (ms) */
+		call.inter_ringback_timeout = VPB_CONNECTED_WAIT; /* If ringing stops for this long consider it connected (ms) */
+		call.answer_timeout = timeout; /* Time to wait for answer after ringing starts (ms) */
 		memcpy( &call.tone_map,  DialToneMap, sizeof(DialToneMap) );
 		vpb_set_call(p->handle, &call);
 
@@ -1659,7 +1664,7 @@ static int vpb_hangup(struct ast_channel *ast)
 			stoptone(p->handle);
 		}
 	} else {
-		stoptone(p->handle); // Terminates any dialing
+		stoptone(p->handle); /* Terminates any dialing */
 		vpb_sethook_sync(p->handle, VPB_ONHOOK);
 		p->state=VPB_STATE_ONHOOK;
 	}
@@ -1738,15 +1743,17 @@ static int vpb_answer(struct ast_channel *ast)
 		ast_setstate(ast, AST_STATE_UP);
 
 		if(option_verbose>1) 
-//			ast_verbose( VERBOSE_PREFIX_2 "%s: Answered call from %s on %s [%s]\n", p->dev,
-//					p->owner->callerid, ast->name,(p->mode == MODE_FXO)?"FXO":"FXS");
+/*
+			ast_verbose( VERBOSE_PREFIX_2 "%s: Answered call from %s on %s [%s]\n", p->dev, 
+					p->owner->callerid, ast->name,(p->mode == MODE_FXO)?"FXO":"FXS"); 
+*/
 			ast_verbose( VERBOSE_PREFIX_2 "%s: Answered call on %s [%s]\n", p->dev,
 					 ast->name,(p->mode == MODE_FXO)?"FXO":"FXS");
 
 		ast->rings = 0;
 		if( !p->readthread ){
-	//		res = ast_mutex_unlock(&p->lock);
-	//		ast_verbose("%s: unLOCKING in answer [%d]\n", p->dev,res);
+	/*		res = ast_mutex_unlock(&p->lock); */
+	/*		ast_verbose("%s: unLOCKING in answer [%d]\n", p->dev,res); */
 			ast_pthread_create(&p->readthread, NULL, do_chanreads, (void *)p);
 		} else {
 			if(option_verbose>3) 
@@ -1756,8 +1763,8 @@ static int vpb_answer(struct ast_channel *ast)
 		if(option_verbose>3) {
 			ast_verbose(VERBOSE_PREFIX_4 "%s: Answered state is up\n",p->dev);
 		}
-	//	res = ast_mutex_unlock(&p->lock);
-	//	ast_verbose("%s: unLOCKING in answer [%d]\n", p->dev,res);
+	/*	res = ast_mutex_unlock(&p->lock); */
+	/*	ast_verbose("%s: unLOCKING in answer [%d]\n", p->dev,res); */
 	}
 	vpb_sleep(500);
 	if (p->mode == MODE_FXO){
@@ -1852,34 +1859,34 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->pvt->pvt; 
 	int res = 0, fmt = 0;
 	struct timeval play_buf_time_start,play_buf_time_finish;
-//	ast_mutex_lock(&p->lock);
+/*	ast_mutex_lock(&p->lock); */
 	if(option_verbose>5) 
 		ast_verbose("%s: vpb_write: Writing to channel\n", p->dev);
 
 	if (frame->frametype != AST_FRAME_VOICE) {
 		if(option_verbose>3) 
 			ast_verbose("%s: vpb_write: Don't know how to handle from type %d\n", ast->name, frame->frametype);
-//		ast_mutex_unlock(&p->lock);
+/*		ast_mutex_unlock(&p->lock); */
 		return 0;
 	} else if (ast->_state != AST_STATE_UP) {
 		if(option_verbose>3) 
 			ast_verbose("%s: vpb_write: Attempt to Write frame type[%d]subclass[%d] on not up chan\n",ast->name, frame->frametype, frame->subclass);
 		p->lastoutput = -1;
-//		ast_mutex_unlock(&p->lock);
+/*		ast_mutex_unlock(&p->lock); */
 		return 0;
 	}
-//	ast_log(LOG_DEBUG, "%s: vpb_write: Checked frame type..\n", p->dev);
+/*	ast_log(LOG_DEBUG, "%s: vpb_write: Checked frame type..\n", p->dev); */
 
 	fmt = ast2vpbformat(frame->subclass);
 	if (fmt < 0) {
 		ast_log(LOG_WARNING, "%s: vpb_write: Cannot handle frames of %d format!\n",ast->name, frame->subclass);
 		return -1;
 	}
-//	ast_log(LOG_DEBUG, "%s: vpb_write: Checked frame format..\n", p->dev);
+/*	ast_log(LOG_DEBUG, "%s: vpb_write: Checked frame format..\n", p->dev); */
 
 	ast_mutex_lock(&p->play_lock);
 
-//	ast_log(LOG_DEBUG, "%s: vpb_write: Got play lock..\n", p->dev);
+/*	ast_log(LOG_DEBUG, "%s: vpb_write: Got play lock..\n", p->dev); */
 
 	/* Check if we have set up the play_buf */
 	if (p->lastoutput == -1) {
@@ -1897,14 +1904,14 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 
 
 
-	// Apply extra gain !
+	/* Apply extra gain ! */
 	if( p->txswgain > MAX_VPB_GAIN )
 		a_gain_vector(p->txswgain - MAX_VPB_GAIN , (short*)frame->data, frame->datalen/sizeof(short));
 
-//	ast_log(LOG_DEBUG, "%s: vpb_write: Applied gain..\n", p->dev);
+/*	ast_log(LOG_DEBUG, "%s: vpb_write: Applied gain..\n", p->dev); */
 
-//	gettimeofday(&tv, NULL);
-//	return ((double)tv.tv_sec*1000)+((double)tv.tv_usec/1000);
+/*	gettimeofday(&tv, NULL); */
+/*	return ((double)tv.tv_sec*1000)+((double)tv.tv_usec/1000); */
 
 	if ((p->read_state == 1)&&(p->play_buf_time<5)){
 	gettimeofday(&play_buf_time_start,NULL);
@@ -1916,12 +1923,12 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	gettimeofday(&play_buf_time_finish,NULL);
 	if (play_buf_time_finish.tv_sec == play_buf_time_start.tv_sec){
 		p->play_buf_time=(int)((play_buf_time_finish.tv_usec-play_buf_time_start.tv_usec)/1000);
-//		ast_log(LOG_DEBUG, "%s: vpb_write: Timing start(%d) finish(%d)\n", p->dev,play_buf_time_start.tv_usec,play_buf_time_finish.tv_usec);
+/*		ast_log(LOG_DEBUG, "%s: vpb_write: Timing start(%d) finish(%d)\n", p->dev,play_buf_time_start.tv_usec,play_buf_time_finish.tv_usec); */
 	}
 	else {
 		p->play_buf_time=(int)((play_buf_time_finish.tv_sec - play_buf_time_start.tv_sec)*100)+(int)((play_buf_time_finish.tv_usec-play_buf_time_start.tv_usec)/1000);
 	}
-//	ast_log(LOG_DEBUG, "%s: vpb_write: Wrote data [%d](%d=>%s) to play_buf in [%d]ms..\n", p->dev,frame->datalen,fmt,ast2vpbformatname(frame->subclass),p->play_buf_time);
+/*	ast_log(LOG_DEBUG, "%s: vpb_write: Wrote data [%d](%d=>%s) to play_buf in [%d]ms..\n", p->dev,frame->datalen,fmt,ast2vpbformatname(frame->subclass),p->play_buf_time); */
 	}
 	else {
 		p->chuck_count++;
@@ -1930,7 +1937,7 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	}
 
 	ast_mutex_unlock(&p->play_lock);
-//	ast_mutex_unlock(&p->lock);
+/*	ast_mutex_unlock(&p->lock); */
 	if(option_verbose>5) 
 		ast_verbose("%s: vpb_write: Done Writing to channel\n", p->dev);
 	return 0;
@@ -1990,7 +1997,7 @@ static void *do_chanreads(void *pvt)
 			}
 		}
 
-//		if ( (p->owner->_state != AST_STATE_UP) || !bridgerec) {
+/*		if ( (p->owner->_state != AST_STATE_UP) || !bridgerec) { */
 		if ( (p->owner->_state != AST_STATE_UP) ) {
 			if (option_verbose > 4) {
 				if (p->owner->_state != AST_STATE_UP)
@@ -2002,10 +2009,11 @@ static void *do_chanreads(void *pvt)
 			continue;
 		}
 
-		// Voicetronix DTMF detection can be triggered off ordinary speech
-		// This leads to annoying beeps during the conversation
-		// Avoid this problem by just setting VPB_GETDTMF when you want to listen for DTMF
-		//ignore_dtmf = 1;
+		/* Voicetronix DTMF detection can be triggered off ordinary speech
+		 * This leads to annoying beeps during the conversation
+		 * Avoid this problem by just setting VPB_GETDTMF when you want to listen for DTMF
+		 */
+		/* ignore_dtmf = 1; */
 		ignore_dtmf = 0; /* set this to 1 to turn this feature on */
 		getdtmf_var = pbx_builtin_getvar_helper(p->owner,"VPB_GETDTMF");
 		if( getdtmf_var && ( strcasecmp( getdtmf_var, "yes" ) == 0 ) )
@@ -2019,15 +2027,16 @@ static void *do_chanreads(void *pvt)
 		}
 		p->last_ignore_dtmf = ignore_dtmf;
 
-		// Play DTMF digits here to avoid problem you get if playing a digit during
-		// a record operation
+		/* Play DTMF digits here to avoid problem you get if playing a digit during 
+		 * a record operation
+		 */
 		if (option_verbose > 5) {
 			ast_verbose("%s: chanreads: Checking dtmf's \n", p->dev);
 		}  
 		ast_mutex_lock(&p->play_dtmf_lock);
 		if( p->play_dtmf[0] ) {
-			// Try to ignore DTMF event we get after playing digit
-			// This DTMF is played by asterisk and leads to an annoying trailing beep on CISCO phones
+			/* Try to ignore DTMF event we get after playing digit */
+			/* This DTMF is played by asterisk and leads to an annoying trailing beep on CISCO phones */
 			if( !ignore_dtmf) 
 				vpb_set_event_mask(p->handle, VPB_EVENTS_NODTMF );
 			if (strcmp(p->owner->type,"vpb")==0){
@@ -2041,21 +2050,21 @@ static void *do_chanreads(void *pvt)
 			}
 			p->play_dtmf[0] = '\0';
 			ast_mutex_unlock(&p->play_dtmf_lock);
-			vpb_sleep(700); // Long enough to miss echo and DTMF event
+			vpb_sleep(700); /* Long enough to miss echo and DTMF event */
 			if( !ignore_dtmf) 
 				vpb_set_event_mask(p->handle, VPB_EVENTS_ALL );
 			continue;
 		}
 		ast_mutex_unlock(&p->play_dtmf_lock);
 
-//		afmt = (p->owner) ? p->owner->pvt->rawreadformat : AST_FORMAT_SLINEAR;
+/*		afmt = (p->owner) ? p->owner->pvt->rawreadformat : AST_FORMAT_SLINEAR; */
 		if (p->owner){
 			afmt = p->owner->pvt->rawreadformat;
-//			ast_log(LOG_DEBUG,"%s: Record using owner format [%s]\n", p->dev, ast2vpbformatname(afmt));
+/*			ast_log(LOG_DEBUG,"%s: Record using owner format [%s]\n", p->dev, ast2vpbformatname(afmt)); */
 		}
 		else {
 			afmt = AST_FORMAT_SLINEAR;
-//			ast_log(LOG_DEBUG,"%s: Record using default format [%s]\n", p->dev, ast2vpbformatname(afmt));
+/*			ast_log(LOG_DEBUG,"%s: Record using default format [%s]\n", p->dev, ast2vpbformatname(afmt)); */
 		}
 		fmt = ast2vpbformat(afmt);
 		if (fmt < 0) {
@@ -2085,7 +2094,7 @@ static void *do_chanreads(void *pvt)
 			if (option_verbose > 5) {
 				ast_verbose("%s: chanreads: got buffer!\n", p->dev);
 			}  
-			// Apply extra gain !
+			/* Apply extra gain ! */
 			if( p->rxswgain > MAX_VPB_GAIN )
 				a_gain_vector(p->rxswgain - MAX_VPB_GAIN , (short*)readbuf, readlen/sizeof(short));
 			if (option_verbose > 5) {
@@ -2096,8 +2105,9 @@ static void *do_chanreads(void *pvt)
 			fr->data = readbuf;
 			fr->datalen = readlen;
 
-			// Using trylock here to prevent deadlock when channel is hungup
-			// (ast_hangup() immediately gets lock)
+			/* Using trylock here to prevent deadlock when channel is hungup
+			 * (ast_hangup() immediately gets lock)
+			 */
 			if (p->owner && !p->stopreads ) {
 				if (option_verbose > 5) {
 					ast_verbose("%s: chanreads: queueing buffer on read frame q (state[%d])\n", p->dev,p->owner->_state);
@@ -2117,7 +2127,7 @@ static void *do_chanreads(void *pvt)
 				
 /*
 				res = ast_mutex_trylock(&p->owner->lock);
-//				res=0;
+/*				res=0; */
 				if (res==0)  {
 					ast_queue_frame(p->owner, fr);
 					ast_mutex_unlock(&p->owner->lock);
@@ -2139,7 +2149,7 @@ static void *do_chanreads(void *pvt)
 						else if (res == EBUSY )
 							if (option_verbose > 4) ast_verbose("%s: chanreads: try owner->lock gave me EBUSY[%d]\n", p->dev,res);
 						if (option_verbose > 4) ast_verbose("%s: chanreads: Couldnt get lock on owner[%s][%d][%d] channel to send frame!\n", p->dev,p->owner->name,(int)p->owner->lock.__m_owner,(int)p->owner->lock.__m_count);
-						//assert(p->dev!=p->dev);
+						/*assert(p->dev!=p->dev); */
 					}
 				}
 */
@@ -2190,9 +2200,10 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, int state, char *context)
 		strncpy(tmp->name, me->dev, sizeof(tmp->name) - 1);
 		tmp->type = type;
 	       
-		// Linear is the preferred format. Although Voicetronix supports other formats
-		// they are all converted to/from linear in the vpb code. Best for us to use
-		// linear since we can then adjust volume in this modules.
+		/* Linear is the preferred format. Although Voicetronix supports other formats
+		 * they are all converted to/from linear in the vpb code. Best for us to use
+		 * linear since we can then adjust volume in this modules.
+		 */
 		tmp->nativeformats = prefformat;
 		tmp->pvt->rawreadformat = AST_FORMAT_SLINEAR;
 		tmp->pvt->rawwriteformat =  AST_FORMAT_SLINEAR;
@@ -2317,8 +2328,8 @@ static float parse_gain_value(char *gain_type, char *value)
 
 
 	/* percentage? */
-	//if (value[strlen(value) - 1] == '%')
-	//	return gain / (float)100;
+	/*if (value[strlen(value) - 1] == '%') */
+	/*	return gain / (float)100; */
 
 	return gain;
 }
@@ -2335,7 +2346,7 @@ int load_module()
 	int first_channel = 1;
 	int echo_cancel = DEFAULT_ECHO_CANCEL;
 	int error = 0; /* Error flag */
-	int bal1 = -1; // Special value - means do not set
+	int bal1 = -1; /* Special value - means do not set */
 	int bal2 = -1; 
 	int bal3 = -1;
 	char * callerid = NULL;

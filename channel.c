@@ -643,7 +643,7 @@ void ast_channel_free(struct ast_channel *chan)
 	while (!AST_LIST_EMPTY(headp)) {           /* List Deletion. */
 	            vardata = AST_LIST_FIRST(headp);
 	            AST_LIST_REMOVE_HEAD(headp, entries);
-//	            printf("deleting var %s=%s\n",ast_var_name(vardata),ast_var_value(vardata));
+/*	            printf("deleting var %s=%s\n",ast_var_name(vardata),ast_var_value(vardata)); */
 	            ast_var_delete(vardata);
 	}
 	                                                 
