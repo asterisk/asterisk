@@ -100,24 +100,22 @@ static char reload_extensions_help[] =
 /*
  * Static code
  */
-static char* process_quotes_and_slashes( char* start, char find, char replace_with )
+static char *process_quotes_and_slashes(char* start, char find, char replace_with)
 {
- 	char* dataPut   = start;
-	int   inEscape  = 0;
-	int   inQuotes  = 0;
-	for( ; *start; start++ ) {
-		if( inEscape ) {
+ 	char *dataPut = start;
+	int inEscape = 0;
+	int inQuotes = 0;
+
+	for (; *start; start++) {
+		if (inEscape) {
 			*dataPut++ = *start;       /* Always goes verbatim */
 			inEscape = 0;
-    		}
-		else {
-			if( *start == '\\' ) {
+    		} else {
+			if (*start == '\\') {
 				inEscape = 1;      /* Do not copy \ into the data */
-			}
-			else if( *start == '\"' ) {
+			} else if (*start == '\"') {
 				inQuotes = 1-inQuotes;   /* Do not copy " into the data */
-			}
-			else {
+			} else {
 				/* Replace , with |, unless in quotes */
 				*dataPut++ = inQuotes ? *start : ((*start==find) ? replace_with : *start);
 			}
@@ -1170,18 +1168,18 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 			}
 		}
 	}
-	app         = strsep(&whole_exten,",");
+	app = strsep(&whole_exten, ",");
 	if (app && (start = strchr(app, '(')) && (end = strrchr(app, ')'))) {
 		*start = *end = '\0';
 		app_data = start + 1;
-		process_quotes_and_slashes(app_data,',','|');
+		process_quotes_and_slashes(app_data, ',', '|');
 	} else
-		app_data    = whole_exten;
+		app_data = whole_exten;
 
 	if (!exten || !prior || !app || (!app_data && iprior != PRIORITY_HINT)) return RESULT_SHOWUSAGE;
 
 	if (!app_data)
-	    app_data="";
+		app_data="";
 	if (ast_add_extension(argv[4], argc == 6 ? 1 : 0, exten, iprior, cidmatch, app,
 		(void *)strdup(app_data), free, registrar)) {
 		switch (errno) {
