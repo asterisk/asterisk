@@ -4966,7 +4966,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				inet_ntoa(p->recv.sin_addr));
 			if (!strlen(p->context))
 				strncpy(p->context, context, sizeof(p->context) - 1);
-			res = get_refer_info(p, req);
+			res = get_also_info(p, req);
 			if (!res) {
 				c = p->owner;
 				if (c) {
