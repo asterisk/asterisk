@@ -2802,7 +2802,9 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 	struct ast_context *c;
 	char *exten = NULL, *context = NULL;
 	int context_existence = 0, extension_existence = 0;
-
+	/* Variables used for different counters */
+	int total_context = 0, total_exten = 0, total_prio = 0;
+	
 	if (argc != 3 && argc != 2) return -1;
 
 	/* we obtain [exten@]context? if yes, split them ... */
@@ -2852,6 +2854,7 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 				 * if we our extension only
 				 */
 				if (!exten) {
+					total_context++;
 					ast_cli(fd, "[ Context '%s' created by '%s' ]\n",
 						ast_get_context_name(c), ast_get_context_registrar(c));
 					context_info_printed = 1;
@@ -2876,11 +2879,13 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 
 					/* may we print context info? */	
 					if (!context_info_printed) {
+						total_context++;
 						ast_cli(fd, "[ Context '%s' created by '%s' ]\n",
 							ast_get_context_name(c),
 							ast_get_context_registrar(c));
 						context_info_printed = 1;
 					}
+					total_prio++;
 
 					/* write extension name and first peer */	
 					bzero(buf, sizeof(buf));		
@@ -2896,9 +2901,11 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 					ast_cli(fd, "  %-17s %-45s [%s]\n", buf, buf2,
 						ast_get_extension_registrar(e));
 
+					total_exten++;
 					/* walk next extension peers */
 					p = ast_walk_extension_priorities(e, e);
 					while (p) {
+						total_prio++;
 						bzero((void *)buf2, sizeof(buf2));
 						bzero((void *)buf, sizeof(buf));
 						if (ast_get_extension_label(p))
@@ -2985,7 +2992,8 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 				exten);
 		return RESULT_FAILURE;
 	}
-
+	ast_cli(fd,"-= %d extensions (%d priorities) in %d contexts. =-\n",total_exten, total_prio, total_context);
+	
 	/* everything ok */
 	return RESULT_SUCCESS;
 }
