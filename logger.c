@@ -440,7 +440,7 @@ static void ast_log_vsyslog(int level, const char *file, int line, const char *f
 		 levels[level], (long)pthread_self(), file, line, function);
     }
     vsnprintf(buf+strlen(buf), sizeof(buf)-strlen(buf), fmt, args);
-    syslog(syslog_level_map[level], buf);
+    syslog(syslog_level_map[level], "%s", buf);
 }
 
 /*
