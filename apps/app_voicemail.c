@@ -772,6 +772,8 @@ static int retrieve_file(char *dir, int msgnum)
 							SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 							goto yuck;
 						}
+						fdlen = colsize;
+						ftruncate(fd, fdlen);
 					}
 				} else {
 					res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
@@ -780,7 +782,6 @@ static int retrieve_file(char *dir, int msgnum)
 						SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 						goto yuck;
 					}
-					printf("Got field '%s'\n", coltitle);
 					if (strcmp(coltitle, "msgnum") && strcmp(coltitle, "dir") && f)
 						fprintf(f, "%s=%s\n", coltitle, rowdata);
 				}
