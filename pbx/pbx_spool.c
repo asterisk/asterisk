@@ -167,6 +167,7 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 					} else if (!strcasecmp(buf, "endretry") || !strcasecmp(buf, "abortretry")) {
 						o->callingpid = 0;
 						o->retries++;
+					} else if (!strcasecmp(buf, "delayedretry")) {
 					} else if (!strcasecmp(buf, "setvar")) { /* JDG variable support */
 						strncat(o->variable, c, sizeof(o->variable) - strlen(o->variable) - 1);
 						strncat(o->variable, "|", sizeof(o->variable) - strlen(o->variable) - 1);
@@ -193,15 +194,21 @@ static void safe_append(struct outgoing *o, time_t now, char *s)
 {
 	int fd;
 	FILE *f;
+	struct utimbuf tbuf;
 	fd = open(o->fn, O_WRONLY|O_APPEND);
 	if (fd > -1) {
 		f = fdopen(fd, "a");
 		if (f) {
-			fprintf(f, "%s: %d (%ld) (%ld)\n", s, o->retries, (long)ast_mainpid, (long) now);
+			fprintf(f, "%s: %ld %d (%ld)\n", s, (long)ast_mainpid, o->retries, (long) now);
 			fclose(f);
 		} else
 			close(fd);
 	}
+	/* Update the file time */
+	tbuf.actime = now;
+	tbuf.modtime = now + o->retrytime;
+	if (utime(o->fn, &tbuf))
+		ast_log(LOG_WARNING, "Unable to set utime on %s: %s\n", o->fn, strerror(errno));
 }
 
 static void *attempt_thread(void *data)
@@ -260,10 +267,12 @@ static int scan_service(char *fn, time_t now, time_t atime)
 		if (f) {
 			if (!apply_outgoing(o, fn, f)) {
 #if 0
-				printf("Retries: %d, max: %d\n", o->retries, o->maxretries);
+				printf("Filename: %s, Retries: %d, max: %d\n", fn, o->retries, o->maxretries);
 #endif
+				fclose(f);
 				if (o->retries <= o->maxretries) {
 					if (o->callingpid && (o->callingpid == ast_mainpid)) {
+						safe_append(o, time(NULL), "DelayedRetry");
 						ast_log(LOG_DEBUG, "Delaying retry since we're currently running '%s'\n", o->fn);
 					} else {
 						/* Increment retries */
@@ -272,23 +281,14 @@ static int scan_service(char *fn, time_t now, time_t atime)
 						   so abort their retry and continue as we were... */
 						if (o->callingpid)
 							safe_append(o, time(NULL), "AbortRetry");
-							
-						/* Add a retry line at the end */
-						fseek(f, 0L, SEEK_END);
-						fprintf(f, "StartRetry: %d %d (%ld)\n", ast_mainpid, o->retries, (long) now);
-						fclose(f);
+
+						safe_append(o, now, "StartRetry");
 						launch_service(o);
 					}
-					/* Update the file time */
-					tbuf.actime = atime;
-					tbuf.modtime = now + o->retrytime;
-					if (utime(o->fn, &tbuf))
-						ast_log(LOG_WARNING, "Unable to set utime on %s: %s\n", fn, strerror(errno));
 					now += o->retrytime;
 					return now;
 				} else {
 					ast_log(LOG_EVENT, "Queued call to %s/%s expired without completion after %d attempt(s)\n", o->tech, o->dest, o->retries - 1);
-					fclose(f);
 					free(o);
 					unlink(fn);
 					return 0;
