@@ -62,6 +62,7 @@ struct ast_comment {
 
 struct ast_category {
 	char name[80];
+	int ignored;			/* do not let user of the config see this category */
 	struct ast_variable *root;
 	struct ast_variable *last;
 	struct ast_category *next;
@@ -123,13 +124,59 @@ struct ast_variable *ast_variable_new(const char *name, const char *value)
 	return variable;
 }
 
+static struct ast_variable *variable_get(const struct ast_category *category, const char *name)
+{
+	struct ast_variable *variable;
+
+	for (variable = category->root; variable; variable = variable->next)
+		if (!strcasecmp(variable->name, name))
+			return variable;
+
+	return NULL;
+}
+
+static void variable_remove(struct ast_category *category, const struct ast_variable *variable)
+{
+	struct ast_variable *prev = category->root;
+
+	if (!prev)
+		return;
+
+	if (prev == variable) {
+		category->root = prev->next;
+		if (category->last == variable)
+			category->last = NULL;
+	} else {
+		while (prev->next && (prev->next != variable)) prev = prev->next;
+		if (prev->next) {
+			prev->next = variable->next;
+			if (category->last == variable)
+				category->last = prev;
+		}
+	}
+}
+
 void ast_variable_append(struct ast_category *category, struct ast_variable *variable)
 {
-	if (category->last)
-		category->last->next = variable;
-	else
-		category->root = variable;
-	category->last = variable;
+	/* Note: this function also implements "variable replacement"... if the
+	   new variable's value is empty, then existing variables of the same
+	   name in the category are removed (and the new variable is destroyed)
+	*/
+	if (variable->value && !ast_strlen_zero(variable->value)) {
+		if (category->last)
+			category->last->next = variable;
+		else
+			category->root = variable;
+		category->last = variable;
+	} else {
+		struct ast_variable *v;
+
+		while ((v = variable_get(category, variable->name))) {
+			variable_remove(category, v);
+			ast_variables_destroy(v);
+		}
+		ast_variables_destroy(variable);
+	}
 }
 
 void ast_variables_destroy(struct ast_variable *v)
@@ -181,6 +228,34 @@ char *ast_variable_retrieve(const struct ast_config *config, const char *categor
 	return NULL;
 }
 
+static struct ast_variable *variable_clone(const struct ast_variable *old)
+{
+	struct ast_variable *new = ast_variable_new(old->name, old->value);
+
+	if (new) {
+		new->lineno = old->lineno;
+		new->object = old->object;
+		new->blanklines = old->blanklines;
+		/* TODO: clone comments? */
+	}
+
+	return new;
+}
+ 
+static void move_variables(struct ast_category *old, struct ast_category *new)
+{
+	struct ast_variable *var;
+	struct ast_variable *next;
+
+	next = old->root;
+	old->root = NULL;
+	for (var = next; var; var = next) {
+		next = var->next;
+		var->next = NULL;
+		ast_variable_append(new, var);
+	}
+}
+
 struct ast_category *ast_category_new(const char *name) 
 {
 	struct ast_category *category;
@@ -194,21 +269,26 @@ struct ast_category *ast_category_new(const char *name)
 	return category;
 }
 
-struct ast_category *ast_category_get(const struct ast_config *config, const char *category_name)
+static struct ast_category *category_get(const struct ast_config *config, const char *category_name, int ignored)
 {
 	struct ast_category *cat;
 
 	for (cat = config->root; cat; cat = cat->next) {
-		if (cat->name == category_name)
+		if (cat->name == category_name && (ignored || !cat->ignored))
 			return cat;
 	}
 
 	for (cat = config->root; cat; cat = cat->next) {
-		if (!strcasecmp(cat->name, category_name))
+		if (!strcasecmp(cat->name, category_name) && (ignored || !cat->ignored))
 			return cat;
 	}
 
 	return NULL;
+}
+
+struct ast_category *ast_category_get(const struct ast_config *config, const char *category_name)
+{
+	return category_get(config, category_name, 0);
 }
 
 int ast_category_exist(const struct ast_config *config, const char *category_name)
@@ -230,6 +310,13 @@ void ast_category_destroy(struct ast_category *cat)
 {
 	ast_variables_destroy(cat->root);
 	free(cat);
+}
+
+static struct ast_category *next_available_category(struct ast_category *cat)
+{
+	for (; cat && cat->ignored; cat = cat->next);
+
+	return cat;
 }
 
 char *ast_category_browse(struct ast_config *config, const char *prev)
@@ -256,6 +343,9 @@ char *ast_category_browse(struct ast_config *config, const char *prev)
 			}
 		}
 	}
+	
+	if (cat)
+		cat = next_available_category(cat);
 
 	config->last_browse = cat;
 	if (cat)
@@ -277,6 +367,19 @@ struct ast_variable *ast_category_detach_variables(struct ast_category *cat)
 void ast_category_rename(struct ast_category *cat, const char *name)
 {
 	strncpy(cat->name, name, sizeof(cat->name) - 1);
+}
+
+static void inherit_category(struct ast_category *new, const struct ast_category *base)
+{
+	struct ast_variable *var;
+
+	for (var = base->root; var; var = var->next) {
+		struct ast_variable *v;
+		
+		v = variable_clone(var);
+		if (v)
+			ast_variable_append(new, v);
+	}
 }
 
 struct ast_config *ast_config_new(void) 
@@ -323,30 +426,69 @@ void ast_config_set_current_category(struct ast_config *cfg, const struct ast_ca
 static int process_text_line(struct ast_config *cfg, struct ast_category **cat, char *buf, int lineno, const char *configfile)
 {
 	char *c;
-	char *cur;
+	char *cur = buf;
 	struct ast_variable *v;
 	int object;
 
-	cur = ast_strip(buf);
-	if (ast_strlen_zero(cur))
-		return 0;
-
 	/* Actually parse the entry */
 	if (cur[0] == '[') {
+		struct ast_category *newcat = NULL;
+		char *catname;
+
 		/* A category header */
 		c = strchr(cur, ']');
 		if (!c) {
 			ast_log(LOG_WARNING, "parse error: no closing ']', line %d of %s\n", lineno, configfile);
 			return -1;
 		}
-		*c = '\0';
+		*c++ = '\0';
 		cur++;
-		*cat = ast_category_new(cur);
-		if (!*cat) {
+ 		if (*c++ != '(')
+ 			c = NULL;
+		catname = cur;
+		*cat = newcat = ast_category_new(catname);
+		if (!newcat) {
 			ast_log(LOG_WARNING, "Out of memory, line %d of %s\n", lineno, configfile);
 			return -1;
 		}
-		ast_category_append(cfg, *cat);
+ 		/* If there are options or categories to inherit from, process them now */
+ 		if (c) {
+ 			if (!(cur = strchr(c, ')'))) {
+ 				ast_log(LOG_WARNING, "parse error: no closing ')', line %d of %s\n", lineno, configfile);
+ 				return -1;
+ 			}
+ 			*cur = '\0';
+ 			while ((cur = strsep(&c, ","))) {
+				if (!strcasecmp(cur, "!")) {
+					(*cat)->ignored = 1;
+				} else if (!strcasecmp(cur, "+")) {
+					*cat = category_get(cfg, catname, 1);
+					if (!*cat) {
+						ast_destroy(cfg);
+						if (newcat)
+							ast_category_destroy(newcat);
+						ast_log(LOG_WARNING, "Category addition requested, but category '%s' does not exist, line %d of %s\n", catname, lineno, configfile);
+						return -1;
+					}
+					if (newcat) {
+						move_variables(newcat, *cat);
+						ast_category_destroy(newcat);
+						newcat = NULL;
+					}
+				} else {
+					struct ast_category *base;
+ 				
+					base = category_get(cfg, cur, 1);
+					if (!base) {
+						ast_log(LOG_WARNING, "Inheritance requested, but category '%s' does not exist, line %d of %s\n", cur, lineno, configfile);
+						return -1;
+					}
+					inherit_category(*cat, base);
+				}
+ 			}
+ 		}
+		if (newcat)
+			ast_category_append(cfg, *cat);
 	} else if (cur[0] == '#') {
 		/* A directive */
 		cur++;
@@ -518,9 +660,13 @@ static struct ast_config *config_text_file_load(const char *database, const char
 							new_buf = comment_p + 1;
 					}
 				}
-				if (process_buf && process_text_line(cfg, &cat, process_buf, lineno, filename)) {
-					cfg = NULL;
-					break;
+				if (process_buf) {
+					char *buf = ast_strip(process_buf);
+					if (!ast_strlen_zero(buf))
+						if (process_text_line(cfg, &cat, buf, lineno, filename)) {
+							cfg = NULL;
+							break;
+						}
 				}
 			}
 		}
