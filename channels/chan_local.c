@@ -121,9 +121,10 @@ retrylock:
 static int local_answer(struct ast_channel *ast)
 {
 	struct local_pvt *p = ast->pvt->pvt;
-	int isoutbound = IS_OUTBOUND(ast, p);
+	int isoutbound;
 	int res = -1;
 	ast_mutex_lock(&p->lock);
+	isoutbound = IS_OUTBOUND(ast, p);
 	if (isoutbound) {
 		/* Pass along answer since somebody answered us */
 		struct ast_frame answer = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
@@ -174,11 +175,12 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f)
 {
 	struct local_pvt *p = ast->pvt->pvt;
 	int res = -1;
-	int isoutbound = IS_OUTBOUND(ast, p);
+	int isoutbound;
 
 
 	/* Just queue for delivery to the other side */
 	ast_mutex_lock(&p->lock);
+	isoutbound = IS_OUTBOUND(ast, p);
 	res = local_queue_frame(p, isoutbound, f, ast);
 	check_bridge(p, isoutbound);
 	ast_mutex_unlock(&p->lock);
@@ -207,9 +209,10 @@ static int local_indicate(struct ast_channel *ast, int condition)
 	struct local_pvt *p = ast->pvt->pvt;
 	int res = -1;
 	struct ast_frame f = { AST_FRAME_CONTROL, };
-	int isoutbound = IS_OUTBOUND(ast, p);
+	int isoutbound;
 	/* Queue up a frame representing the indication as a control frame */
 	ast_mutex_lock(&p->lock);
+	isoutbound = IS_OUTBOUND(ast, p);
 	f.subclass = condition;
 	res = local_queue_frame(p, isoutbound, &f, ast);
 	ast_mutex_unlock(&p->lock);
@@ -221,8 +224,9 @@ static int local_digit(struct ast_channel *ast, char digit)
 	struct local_pvt *p = ast->pvt->pvt;
 	int res = -1;
 	struct ast_frame f = { AST_FRAME_DTMF, };
-	int isoutbound = IS_OUTBOUND(ast, p);
+	int isoutbound;
 	ast_mutex_lock(&p->lock);
+	isoutbound = IS_OUTBOUND(ast, p);
 	f.subclass = digit;
 	res = local_queue_frame(p, isoutbound, &f, ast);
 	ast_mutex_unlock(&p->lock);
@@ -282,12 +286,13 @@ static void local_destroy(struct local_pvt *p)
 static int local_hangup(struct ast_channel *ast)
 {
 	struct local_pvt *p = ast->pvt->pvt;
-	int isoutbound = IS_OUTBOUND(ast, p);
+	int isoutbound;
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
 	struct local_pvt *cur, *prev=NULL;
 	struct ast_channel *ochan = NULL;
 	int glaredetect;
 	ast_mutex_lock(&p->lock);
+	isoutbound = IS_OUTBOUND(ast, p);
 	if (isoutbound) {
 		p->chan = NULL;
 		p->launchedpbx = 0;
