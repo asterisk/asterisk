@@ -3348,6 +3348,8 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 	p->subs[index].f.mallocd = 0;
 	p->subs[index].f.offset = 0;
 	p->subs[index].f.subclass = 0;
+	p->subs[index].f.delivery.tv_sec = 0;
+	p->subs[index].f.delivery.tv_usec = 0;
 	p->subs[index].f.src = "zt_exception";
 	p->subs[index].f.data = NULL;
 	
@@ -3462,6 +3464,8 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	p->subs[index].f.mallocd = 0;
 	p->subs[index].f.offset = 0;
 	p->subs[index].f.subclass = 0;
+	p->subs[index].f.delivery.tv_sec = 0;
+	p->subs[index].f.delivery.tv_usec = 0;
 	p->subs[index].f.src = "zt_read";
 	p->subs[index].f.data = NULL;
 	
