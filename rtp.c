@@ -56,6 +56,8 @@ struct rtpPayloadType {
 
 #define MAX_RTP_PT 256
 
+#define FLAG_3389_WARNING (1 << 0)
+
 struct ast_rtp {
 	int s;
 	char resp;
@@ -71,6 +73,7 @@ struct ast_rtp {
 	int dtmfcount;
 	unsigned int dtmfduration;
 	int nat;
+	int flags;
 	struct sockaddr_in us;
 	struct sockaddr_in them;
 	struct timeval rxcore;
@@ -272,7 +275,10 @@ static struct ast_frame *process_rfc3389(struct ast_rtp *rtp, unsigned char *dat
 #if 0
 	printf("RFC3389: %d bytes, format is %d\n", len, rtp->lastrxformat);
 #endif	
-	ast_log(LOG_NOTICE, "RFC3389 support incomplete.  Turn off on client if possible\n");
+	if (!(rtp->flags & FLAG_3389_WARNING)) {
+		ast_log(LOG_NOTICE, "RFC3389 support incomplete.  Turn off on client if possible\n");
+		rtp->flags |= FLAG_3389_WARNING;
+	}
 	if (!rtp->lastrxformat)
 		return 	NULL;
 	switch(rtp->lastrxformat) {
