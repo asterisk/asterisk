@@ -160,19 +160,12 @@ struct ast_realloca {
 #endif
 #define inet_ntoa __dont__use__inet_ntoa__use__ast_inet_ntoa__instead__
 
-#define AST_STACK_SIZE 128 * 1024
+#define AST_STACKSIZE 128 * 1024
 
 #ifdef __linux__
-#define ast_pthread_create pthread_create
 #define ast_strcasestr strcasestr
 #else
-/* Linux threads have a default 2MB stack size. */
-#ifndef PTHREAD_ATTR_STACKSIZE
-#define	PTHREAD_ATTR_STACKSIZE		2097152
-#endif /* PTHREAD_ATTR_STACKSIZE */
-extern int ast_pthread_create(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data);
 extern char *ast_strcasestr(const char *, const char *);
 #endif /* __linux__ */
-
-
+extern int ast_pthread_create(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data);
 #endif

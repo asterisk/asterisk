@@ -389,8 +389,6 @@ int ast_utils_init(void)
 }
 
 
-#ifndef __linux__
-#undef pthread_create /* For ast_pthread_create function only */
 int ast_pthread_create(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data)
 {
 	pthread_attr_t lattr;
@@ -403,7 +401,6 @@ int ast_pthread_create(pthread_t *thread, pthread_attr_t *attr, void *(*start_ro
 		ast_log(LOG_WARNING, "pthread_attr_setstacksize returned non-zero: %s\n", strerror(errno));
 	return pthread_create(thread, attr, start_routine, data); /* We're in ast_pthread_create, so it's okay */
 }
-#endif /* ! LINUX */
 
 /* Case-insensitive substring matching */
 #ifndef LINUX
