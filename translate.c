@@ -264,17 +264,16 @@ static int show_translation(int fd, int argc, char *argv[])
 	for (x=-1;x<SHOW_TRANS; x++) {
 		strcpy(line, " ");
 		for (y=-1;y<SHOW_TRANS;y++) {
-			/* Skip MP3 (y = 4) as Destination format */
-			if (y != 4 && x >= 0 && y >= 0 && tr_matrix[x][y].step)
-				snprintf(line + strlen(line), sizeof(line) - strlen(line), " %6d", tr_matrix[x][y].cost);
+			if (x >= 0 && y >= 0 && tr_matrix[x][y].step)
+				snprintf(line + strlen(line), sizeof(line) - strlen(line), " %5d", tr_matrix[x][y].cost);
 			else
-				if ((y != 4) && ((x == -1 && y >= 0) || (y == -1 && x >= 0))) {
+				if (((x == -1 && y >= 0) || (y == -1 && x >= 0))) {
 					snprintf(line + strlen(line), sizeof(line) - strlen(line), 
-						" %6s", ast_getformatname(1<<(x+y+1)) );
+						" %5s", ast_getformatname(1<<(x+y+1)) );
 				} else if (x != -1 && y != -1 && y != 4) {
-					snprintf(line + strlen(line), sizeof(line) - strlen(line), "      -");
+					snprintf(line + strlen(line), sizeof(line) - strlen(line), "     -");
 				} else if (y != 4) {
-					snprintf(line + strlen(line), sizeof(line) - strlen(line), "       ");
+					snprintf(line + strlen(line), sizeof(line) - strlen(line), "      ");
 				}
 		}
 		snprintf(line + strlen(line), sizeof(line) - strlen(line), "\n");
