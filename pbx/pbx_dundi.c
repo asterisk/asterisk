@@ -39,7 +39,7 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <errno.h>
-#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(SOLARIS)
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(SOLARIS) || defined(__OSX__)
 #include <sys/types.h>
 #include <netinet/in_systm.h>
 #endif
@@ -47,7 +47,7 @@
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <net/if.h>
-#if defined(__FreeBSD__) || defined(__NetBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OSX__)
 #include <net/if_dl.h>
 #include <ifaddrs.h>
 #endif
