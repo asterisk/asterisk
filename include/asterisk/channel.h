@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <setjmp.h>
 #include <pthread.h>
+#include <sys/poll.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -780,6 +781,21 @@ int ast_transfer(struct ast_channel *chan, char *dest);
 int ast_do_masquerade(struct ast_channel *chan);
 
 /* Misc. functions below */
+
+/* Helper function for migrating select to poll */
+static inline int ast_fdisset(struct pollfd *pfds, int fd, int max, int *start)
+{
+	int x;
+	for (x=start ? *start : 0;x<max;x++)
+		if (pfds[x].fd == fd) {
+			if (start) {
+				if (x==*start)
+					(*start)++;
+			}
+			return pfds[x].revents;
+		}
+	return 0;
+}
 
 //! Waits for activity on a group of channels
 /*! 
