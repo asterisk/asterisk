@@ -37,6 +37,12 @@
 
 #include <pthread.h>
 
+#define QUEUE_STRATEGY_RINGALL		0
+#define QUEUE_STRATEGY_ROUNDROBIN	1
+#define QUEUE_STRATEGY_LEASTRECENT	2
+#define QUEUE_STRATEGY_FEWESTCALLS	3
+#define QUEUE_STRATEGY_RANDOM		4
+
 #define DEFAULT_RETRY		5
 #define DEFAULT_TIMEOUT		15
 #define RECHECK				1		/* Recheck every second to see we we're at the top yet */
@@ -91,7 +97,10 @@ static char *app_rqm_descrip =
 
 struct localuser {
 	struct ast_channel *chan;
+	char numsubst[256];
+	char tech[40];
 	int stillgoing;
+	int metric;
 	int allowredirect_in;
 	int allowredirect_out;
 	int ringbackonly;
@@ -117,6 +126,7 @@ struct queue_ent {
 struct member {
 	char tech[80];				/* Technology */
 	char loc[256];				/* Location */
+	struct timeval lastcall;	/* When last successful call was hungup */
 	struct member *next;		/* Next member */
 };
 
@@ -126,6 +136,7 @@ struct ast_call_queue {
 	char moh[80];			/* Name of musiconhold to be used */
 	char announce[80];		/* Announcement to play */
 	char context[80];		/* Announcement to play */
+	int strategy;			/* Queueing strategy */
 	int announcetimeout;	/* How often to announce their position */
 	int count;				/* How many entries are in the queue */
 	int maxlen;				/* Max number of entries in queue */
@@ -274,7 +285,7 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 	struct localuser *oo;
 	while(outgoing) {
 		/* Hangup any existing lines we have open */
-		if (outgoing->chan != exception)
+		if (outgoing->chan && (outgoing->chan != exception))
 			ast_hangup(outgoing->chan);
 		oo = outgoing;
 		outgoing=outgoing->next;
@@ -306,7 +317,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 		watchers[0] = in;
 		while(o) {
 			/* Keep track of important channels */
-			if (o->stillgoing) {
+			if (o->stillgoing && o->chan) {
 				watchers[pos++] = o->chan;
 				found = 1;
 			}
@@ -439,6 +450,65 @@ static int wait_our_turn(struct queue_ent *qe)
 	return res;
 }
 
+static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
+{
+	int res;
+	/* Request the peer */
+	tmp->chan = ast_request(tmp->tech, qe->chan->nativeformats, tmp->numsubst);
+	if (!tmp->chan) {			/* If we can't, just go on to the next call */
+#if 0
+		ast_log(LOG_NOTICE, "Unable to create channel of type '%s'\n", cur->tech);
+#endif			
+		if (qe->chan->cdr)
+			ast_cdr_busy(qe->chan->cdr);
+		tmp->stillgoing = 0;
+		return 0;
+	}
+	tmp->chan->appl = "AppQueue";
+	tmp->chan->data = "(Outgoing Line)";
+	tmp->chan->whentohangup = 0;
+	if (tmp->chan->callerid)
+		free(tmp->chan->callerid);
+	if (tmp->chan->ani)
+		free(tmp->chan->ani);
+	if (qe->chan->callerid)
+		tmp->chan->callerid = strdup(qe->chan->callerid);
+	else
+		tmp->chan->callerid = NULL;
+	if (qe->chan->ani)
+		tmp->chan->ani = strdup(qe->chan->ani);
+	else
+		tmp->chan->ani = NULL;
+	/* Presense of ADSI CPE on outgoing channel follows ours */
+	tmp->chan->adsicpe = qe->chan->adsicpe;
+	/* Place the call, but don't wait on the answer */
+	res = ast_call(tmp->chan, tmp->numsubst, 0);
+	if (res) {
+		/* Again, keep going even if there's an error */
+		if (option_debug)
+			ast_log(LOG_DEBUG, "ast call on peer returned %d\n", res);
+		else if (option_verbose > 2)
+			ast_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", tmp->numsubst);
+		ast_hangup(tmp->chan);
+		tmp->chan = NULL;
+		tmp->stillgoing = 0;
+		return 0;
+	} else
+		if (option_verbose > 2)
+			ast_verbose(VERBOSE_PREFIX_3 "Called %s\n", tmp->numsubst);
+	return 0;
+}
+
+static int calc_metric(struct ast_call_queue *q, struct queue_ent *qe, struct localuser *tmp)
+{
+	switch (q->strategy) {
+	case QUEUE_STRATEGY_RINGALL:
+		ast_log(LOG_WARNING, "Can't calculate metric for ringall strategy\n");
+		break;
+	}
+	return 0;
+}
+
 static int try_calling(struct queue_ent *qe, char *options, char *announceoverride, char *url)
 {
 	struct member *cur;
@@ -447,7 +517,6 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	int allowredir_in=0;
 	int allowredir_out=0;
 	int allowdisconnect=0;
-	char numsubst[AST_MAX_EXTENSION];
 	char restofit[AST_MAX_EXTENSION];
 	char *newnum;
 	struct ast_channel *peer;
@@ -469,6 +538,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 			goto out;
 		}
 		memset(tmp, 0, sizeof(struct localuser));
+		tmp->stillgoing = -1;
 		if (options) {
 			if (strchr(options, 't'))
 				tmp->allowredirect_in = 1;
@@ -488,83 +558,28 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		} else 
 			ast_log(LOG_DEBUG, "Simple queue (no URL)\n");
 
-		strncpy(numsubst, cur->loc, sizeof(numsubst)-1);
+		strncpy(tmp->tech, cur->tech, sizeof(tmp->tech)-1);
+		strncpy(tmp->numsubst, cur->loc, sizeof(tmp->numsubst)-1);
 		/* If we're dialing by extension, look at the extension to know what to dial */
-		if ((newnum = strstr(numsubst, "BYEXTENSION"))) {
+		if ((newnum = strstr(tmp->numsubst, "BYEXTENSION"))) {
 			strncpy(restofit, newnum + strlen("BYEXTENSION"), sizeof(restofit)-1);
-			snprintf(newnum, sizeof(numsubst) - (newnum - numsubst), "%s%s", qe->chan->exten,restofit);
+			snprintf(newnum, sizeof(tmp->numsubst) - (newnum - tmp->numsubst), "%s%s", qe->chan->exten,restofit);
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Dialing by extension %s\n", numsubst);
+				ast_log(LOG_DEBUG, "Dialing by extension %s\n", tmp->numsubst);
 		}
-		/* Request the peer */
-		tmp->chan = ast_request(cur->tech, qe->chan->nativeformats, numsubst);
-		if (!tmp->chan) {
-			/* If we can't, just go on to the next call */
-#if 0
-			ast_log(LOG_NOTICE, "Unable to create channel of type '%s'\n", cur->tech);
-#endif			
-			if (qe->chan->cdr)
-				ast_cdr_busy(qe->chan->cdr);
-			free(tmp);
-			cur = cur->next;
-			continue;
-		}
-#if 0		
-		/* Don't honor call forwarding on a queue! */
-		if (strlen(tmp->chan->call_forward)) {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Forwarding call to '%s@%s'\n", tmp->chan->call_forward, tmp->chan->context);
-			/* Setup parameters */
-			strncpy(chan->exten, tmp->chan->call_forward, sizeof(chan->exten));
-			strncpy(chan->context, tmp->chan->context, sizeof(chan->context));
-			chan->priority = 0;
-			to = 0;
-			ast_hangup(tmp->chan);
-			free(tmp);
-			cur = rest;
-			break;
-		}
-#endif		
-		tmp->chan->appl = "AppQueue";
-		tmp->chan->data = "(Outgoing Line)";
-		tmp->chan->whentohangup = 0;
-		if (tmp->chan->callerid)
-			free(tmp->chan->callerid);
-		if (tmp->chan->ani)
-			free(tmp->chan->ani);
-		if (qe->chan->callerid)
-			tmp->chan->callerid = strdup(qe->chan->callerid);
+		/* Special case: If we ring everyone, go ahead and ring them, otherwise
+		   just calculate their metric for the appropriate strategy */
+		if (!qe->parent->strategy)
+			ring_entry(qe, tmp);
 		else
-			tmp->chan->callerid = NULL;
-		if (qe->chan->ani)
-			tmp->chan->ani = strdup(qe->chan->ani);
-		else
-			tmp->chan->ani = NULL;
-		/* Presense of ADSI CPE on outgoing channel follows ours */
-		tmp->chan->adsicpe = qe->chan->adsicpe;
-		/* Place the call, but don't wait on the answer */
-		res = ast_call(tmp->chan, numsubst, 0);
-		if (res) {
-			/* Again, keep going even if there's an error */
-			if (option_debug)
-				ast_log(LOG_DEBUG, "ast call on peer returned %d\n", res);
-			else if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", numsubst);
-			ast_hangup(tmp->chan);
-			free(tmp);
-			cur = cur->next;
-			continue;
-		} else
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Called %s\n", numsubst);
+			calc_metric(qe->parent, qe, tmp);
 		/* Put them in the list of outgoing thingies...  We're ready now. 
 		   XXX If we're forcibly removed, these outgoing calls won't get
 		   hung up XXX */
-		tmp->stillgoing = -1;
 		tmp->next = outgoing;
 		outgoing = tmp;		
 		/* If this line is up, don't try anybody else */
-		if (outgoing->chan->_state == AST_STATE_UP)
+		if (outgoing->chan && (outgoing->chan->_state == AST_STATE_UP))
 			break;
 
 		cur = cur->next;
