@@ -1124,7 +1124,7 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 		if (pass > dsp->gsamp_size - dsp->gsamps) 
 			pass = dsp->gsamp_size - dsp->gsamps;
 		for (x=0;x<pass;x++) {
-			for (y=0;y<dsp->freqcount;y++) 
+			for (y=0;y<=dsp->freqcount;y++) 
 				goertzel_sample(&dsp->freqs[y], s[x]);
 			dsp->genergy += s[x] * s[x];
 		}
