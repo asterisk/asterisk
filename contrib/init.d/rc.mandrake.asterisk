@@ -2,7 +2,7 @@
 # 
 # asterisk:		Starts the asterisk service
 # 
-# Version:		@(#) /etc/rc.d/init.d/zaptel 1.0
+# Version:		@(#) /etc/rc.d/init.d/asterisk 1.0
 # 
 # chkconfig: 2345 95 10
 # description:	Starts the asterisk service
