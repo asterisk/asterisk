@@ -525,9 +525,22 @@ static int agent_hangup(struct ast_channel *ast)
 	ast->pvt->pvt = NULL;
 	p->app_sleep_cond = 1;
 	p->acknowledged = 0;
-	if (p->start && (ast->_state != AST_STATE_UP))
+
+	/* if they really are hung up then set start to 0 so the test
+	 * later if we're called on an already downed channel
+	 * doesn't cause an agent to be logged out like when
+	 * agent_request() is followed immediately by agent_hangup()
+	 * as in apps/app_chanisavail.c:chanavail_exec()
+	 */
+
+	ast_log(LOG_DEBUG, "Hangup called for state %s\n", ast_state2str(ast->_state));
+	if (p->start && (ast->_state != AST_STATE_UP)) {
 		howlong = time(NULL) - p->start;
-	time(&p->start);
+		p->start = 0;
+	} else if (ast->_state == AST_STATE_RESERVED) {
+		howlong = 0;
+	} else
+		p->start = 0; 
 	if (p->chan) {
 		/* If they're dead, go ahead and hang up on the agent now */
 		if (!ast_strlen_zero(p->loginchan)) {
