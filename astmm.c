@@ -211,7 +211,7 @@ char *__ast_strndup(const char *s, size_t n, const char *file, int lineno, const
 	len = strlen(s) + 1;
 	if (len > n)
 		len = n;
-	ptr = __ast_alloc_region(len, FUNC_STRDUP, file, lineno, func);
+	ptr = __ast_alloc_region(len, FUNC_STRNDUP, file, lineno, func);
 	if (ptr)
 		strcpy(ptr, s);
 	return ptr;
