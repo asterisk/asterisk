@@ -3494,13 +3494,13 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 									chan = zt_new(p, AST_STATE_RESERVED, 0, SUB_THREEWAY, 0, 0);
 									if (p->zaptrcallerid) {
 										if (!p->origcid_num) {
-											p->origcid_num = malloc(strlen(p->origcid_num) + 1);
+											p->origcid_num = malloc(strlen(p->cid_num) + 1);
 											strncpy(p->origcid_num, p->cid_num, strlen(p->cid_num)); /* safe */
 											/* make sure p->origcallerid is terminated */
 											p->origcid_num[strlen(p->cid_num)] = '\0';
 										}
 										if (!p->origcid_name) {
-											p->origcid_name = malloc(strlen(p->origcid_name) + 1);
+											p->origcid_name = malloc(strlen(p->cid_name) + 1);
 											strncpy(p->origcid_name, p->cid_name, strlen(p->cid_name)); /* safe */
 											/* make sure p->origcallerid is terminated */
 											p->origcid_name[strlen(p->cid_name)] = '\0';
