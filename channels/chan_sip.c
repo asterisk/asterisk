@@ -6208,6 +6208,42 @@ static char *complete_sipch(char *line, char *word, int pos, int state)
 	return c;
 }
 
+/*--- complete_sip_peer: Do completion on peer name ---*/
+static char *complete_sip_peer(char *word, int state)
+{
+	char *result = NULL;
+	int wordlen = strlen(word);
+	int which = 0;
+
+	ASTOBJ_CONTAINER_TRAVERSE(&peerl, !result, do {
+		/* locking of the object is not required because only the name is being compared */
+		if (!strncasecmp(word, iterator->name, wordlen)) {
+			if (++which > state) {
+				result = strdup(iterator->name);
+			}
+		}
+	} while(0) );
+	return result;
+}
+
+/*--- complete_sip_show_peer: Support routine for 'sip show peer' CLI ---*/
+static char *complete_sip_show_peer(char *line, char *word, int pos, int state)
+{
+	if (pos == 3)
+		return complete_sip_peer(word, state);
+
+	return NULL;
+}
+
+/*--- complete_sip_debug_peer: Support routine for 'sip debug peer' CLI ---*/
+static char *complete_sip_debug_peer(char *line, char *word, int pos, int state)
+{
+	if (pos == 3)
+		return complete_sip_peer(word, state);
+
+	return NULL;
+}
+
 /*--- complete_sipnotify: Support routine for 'sip notify' CLI ---*/
 static char *complete_sipnotify(char *line, char *word, int pos, int state)
 {
@@ -6235,21 +6271,8 @@ static char *complete_sipnotify(char *line, char *word, int pos, int state)
 		return c;
 	}
 
-	if (pos > 2) {
-		int which = 0;
-
-		/* do completion for peer name */
-
-		ASTOBJ_CONTAINER_TRAVERSE(&peerl, !c, do {
-			/* locking of the ASTOBJ is not required because I only compare the name */
-			if (!strncasecmp(word, iterator->name, strlen(word))) {
-				if (++which > state) {
-					c = strdup(iterator->name);
-				}
-			}
-		} while(0) );
-		return c;
-	}
+	if (pos > 2)
+		return complete_sip_peer(word, state);
 
 	return NULL;
 }
@@ -6869,9 +6892,9 @@ static struct ast_cli_entry  cli_show_history =
 static struct ast_cli_entry  cli_debug_ip =
 	{ { "sip", "debug", "ip", NULL }, sip_do_debug, "Enable SIP debugging on IP", debug_usage };
 static struct ast_cli_entry  cli_debug_peer =
-	{ { "sip", "debug", "peer", NULL }, sip_do_debug, "Enable SIP debugging on Peername", debug_usage };
+	{ { "sip", "debug", "peer", NULL }, sip_do_debug, "Enable SIP debugging on Peername", debug_usage, complete_sip_debug_peer };
 static struct ast_cli_entry  cli_show_peer =
-	{ { "sip", "show", "peer", NULL }, sip_show_peer, "Show details on specific SIP peer", show_peer_usage };
+	{ { "sip", "show", "peer", NULL }, sip_show_peer, "Show details on specific SIP peer", show_peer_usage, complete_sip_show_peer };
 static struct ast_cli_entry  cli_show_peers =
 	{ { "sip", "show", "peers", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage };
 static struct ast_cli_entry  cli_inuse_show =
