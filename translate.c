@@ -148,8 +148,8 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 		if (p->next) 
 			p->next->step->framein(p->next->state, out);
 		else {
-			out->delivery.tv_sec = f->delivery.tv_sec;
-			out->delivery.tv_usec = f->delivery.tv_usec;
+			out->delivery.tv_sec = delivery.tv_sec;
+			out->delivery.tv_usec = delivery.tv_usec;
 			return out;
 		}
 		p = p->next;
