@@ -159,7 +159,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		ourcallerid = NULL;
 		ourcontext = "disa";
 	}
-	(char *)mailbox = strsep(&stringp, "|");
+	mailbox = strsep(&stringp, "|");
 	if (!mailbox)
 		mailbox = "";
 	ast_log(LOG_DEBUG, "Mailbox: %s\n",mailbox);
