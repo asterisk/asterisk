@@ -468,6 +468,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			rtp->f.samples = 240 * (rtp->f.datalen / 50);
 			break;
 		case AST_FORMAT_ADPCM:
+		case AST_FORMAT_G726:
 			rtp->f.samples = rtp->f.datalen * 2;
 			break;
 		case AST_FORMAT_G729A:
@@ -912,7 +913,13 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		case AST_FORMAT_ALAW:
 			/* If we're within +/- 20ms from when where we
 			   predict we should be, use that */
-			pred = rtp->lastts + f->datalen;
+			pred = rtp->lastts + f->datalen * 2;
+			break;
+		case AST_FORMAT_ADPCM:
+		case AST_FORMAT_G726:
+			/* If we're within +/- 20ms from when where we
+			   predict we should be, use that */
+			pred = rtp->lastts + f->datalen * 2;
 			break;
 		case AST_FORMAT_G729A:
 			pred = rtp->lastts + f->datalen * 8;
@@ -1018,6 +1025,19 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 	case AST_FORMAT_ALAW:
 		if (!rtp->smoother) {
 			rtp->smoother = ast_smoother_new(160);
+		}
+		if (!rtp->smoother) {
+			ast_log(LOG_WARNING, "Unable to create smoother :(\n");
+			return -1;
+		}
+		ast_smoother_feed(rtp->smoother, _f);
+		
+		while((f = ast_smoother_read(rtp->smoother)))
+			ast_rtp_raw_write(rtp, f, codec);
+		break;
+	case AST_FORMAT_G726:
+		if (!rtp->smoother) {
+			rtp->smoother = ast_smoother_new(80);
 		}
 		if (!rtp->smoother) {
 			ast_log(LOG_WARNING, "Unable to create smoother :(\n");

@@ -34,7 +34,8 @@ LIBSPEEX+=-lspeex -lm
 LIBILBC=ilbc/libilbc.a
 
 CODECS+=$(MODG723) $(MODSPEEX) $(MODILBC) codec_gsm.so codec_lpc10.so  \
-        codec_adpcm.so codec_ulaw.so codec_alaw.so codec_a_mu.so
+        codec_adpcm.so codec_ulaw.so codec_alaw.so codec_a_mu.so \
+	codec_g726.so
 
 all: depend $(CODECS)
 
