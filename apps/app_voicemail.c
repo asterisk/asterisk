@@ -889,7 +889,7 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 
 	if (playfile) {	
 		d = play_and_wait(chan, playfile);
-		if (!d)
+		if (d > -1)
 			d = ast_streamfile(chan, "beep",chan->language);
 		if (!d)
 			d = ast_waitstream(chan,"");
