@@ -23,6 +23,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. 
  *
+ * Version Info: $Id$
  */
 
 
@@ -656,7 +657,7 @@ static struct ast_channel *oh323_new(struct oh323_pvt *i, int state, const char 
 		ch->pvt->write = oh323_write;
 		ch->pvt->indicate = oh323_indicate;
 		ch->pvt->fixup = oh323_fixup;
-		ch->pvt->bridge = ast_rtp_bridge;
+//		ch->pvt->bridge = ast_rtp_bridge;
 
 		/*  Set the owner of this channel */
 		i->owner = ch;
@@ -895,23 +896,36 @@ int send_digit(unsigned call_reference, char digit)
 /**
   * Call-back function that gets called when any H.323 connection is made
   *
-  * Returns the local RTP port
+  * Returns the local RTP information
   */
-int create_connection(unsigned call_reference)
+struct rtp_info *create_connection(unsigned call_reference)
 {	
 	struct oh323_pvt *p;
 	struct sockaddr_in us;
+	struct sockaddr_in them;
+	struct rtp_info *info;
+
+	info = malloc(sizeof(struct rtp_info));
 
 	p = find_call(call_reference);
 
 	if (!p) {
 		ast_log(LOG_ERROR, "Unable to allocate private structure, this is very bad.\n");
-		return -1;
+		return NULL;
 	}
 
 	/* figure out our local RTP port and tell the H.323 stack about it*/
 	ast_rtp_get_us(p->rtp, &us);
-	return ntohs(us.sin_port);
+	ast_rtp_get_peer(p->rtp, &them);
+
+	printf("  us: %s:%d\n", inet_ntoa(us.sin_addr), ntohs(us.sin_port));
+	printf("them: %s:%d\n", inet_ntoa(them.sin_addr), ntohs(them.sin_port));
+
+	info->addr = inet_ntoa(us.sin_addr);
+	info->port = ntohs(us.sin_port);
+	
+	printf("info: %s:%d\n", info->addr, info->port);	
+	return info;
 }
 
 /**
@@ -945,10 +959,10 @@ int setup_incoming_call(call_details_t cd)
 
 	if (h323debug) {
 		printf("	== Setting up Call\n");
-		printf("	   -- Calling party name:  %s\n", p->cd.call_source_aliases);
-		printf("	   -- Calling party number:  %s\n", p->cd.call_source_e164);
-		printf("	   -- Called  party name:  %s\n", p->cd.call_dest_alias);
-		printf("	   -- Called  party number:  %s\n", p->cd.call_dest_e164);
+		printf("	   -- Calling party name:  [%s]\n", p->cd.call_source_aliases);
+		printf("	   -- Calling party number:  [%s]\n", p->cd.call_source_e164);
+		printf("	   -- Called  party name:  [%s]\n", p->cd.call_dest_alias);
+		printf("	   -- Called  party number:  [%s]\n", p->cd.call_dest_e164);
 	}
 
 	/* Decide if we are allowing Gatekeeper routed calls*/
@@ -970,14 +984,17 @@ int setup_incoming_call(call_details_t cd)
 			strncpy(p->context, alias->context, sizeof(p->context)-1);
 		}
 
+
 		sprintf(p->callerid, "%s <%s>", p->cd.call_source_aliases, p->cd.call_source_e164);
 
 	} else { 
 		/* Either this call is not from the Gatekeeper 
 		   or we are not allowing gk routed calls */
 		
+
 		user  = find_user(cd.call_source_aliases);
-		
+
+
 		if (!user) {
 			sprintf(p->callerid, "%s <%s>", p->cd.call_source_aliases, p->cd.call_source_e164); 
 			if (strlen(p->cd.call_dest_e164)) {
@@ -991,16 +1008,18 @@ int setup_incoming_call(call_details_t cd)
 			}
 			strncpy(p->context, default_context, sizeof(p->context)-1);
 			ast_log(LOG_DEBUG, "Sending %s to context [%s]\n", cd.call_source_aliases, p->context);
-		} else {
+		} else {					
 			if (user->host) {
 				if (strcasecmp(cd.sourceIp, inet_ntoa(user->addr.sin_addr))){
 					
 					if(!strlen(default_context)) {
 						ast_log(LOG_ERROR, "Call from user '%s' rejected due to non-matching IP address of '%s'\n", user->name, cd.sourceIp);
-                		return 0;
+                				return 0;
 					}
+					
 					strncpy(p->context, default_context, sizeof(p->context)-1);
 					sprintf(p->exten,"i");
+
 					goto exit;					
 				}
 			}
@@ -1017,13 +1036,14 @@ int setup_incoming_call(call_details_t cd)
 				strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
 			else
 				sprintf(p->callerid, "%s <%s>", p->cd.call_source_aliases, p->cd.call_source_e164); 
-	
+
 			if (strlen(p->cd.call_dest_e164)) {
 				strncpy(p->exten, cd.call_dest_e164, sizeof(p->exten)-1);
+				printf("e164: [%s]\n", p->exten);
 			} else {
 				strncpy(p->exten, cd.call_dest_alias, sizeof(p->exten)-1);		
+				printf("dest alias: %s\n", p->exten);
 			}
-
 			if (strlen(user->accountcode)) {
 				strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)-1);
 			} 
@@ -1036,6 +1056,7 @@ int setup_incoming_call(call_details_t cd)
 /* I know this is horrid, don't kill me saddam */
 exit:
 	/* allocate a channel and tell asterisk about it */
+	printf("exten b4: %s\n", p->exten);
 	c = oh323_new(p, AST_STATE_RINGING, cd.call_token);
 
 	if (!c) {
@@ -1579,9 +1600,9 @@ static struct ast_rtp *oh323_get_rtp_peer(struct ast_channel *chan)
 {
 	struct oh323_pvt *p;
 	p = chan->pvt->pvt;
-	if (p && p->rtp && p->bridge)
+	if (p && p->rtp && p->bridge) {
 		return p->rtp;
-	ast_log(LOG_ERROR, "No associated RTP structure in pvt???\n");
+	}
 	return NULL;
 }
 
@@ -1590,18 +1611,46 @@ static struct ast_rtp *oh323_get_vrtp_peer(struct ast_channel *chan)
 	return NULL;
 }
 
+static char *convertcap(int cap)
+{
+	switch (cap) {
+	case AST_FORMAT_G723_1:
+		return "G.723";
+	case AST_FORMAT_GSM:
+		return "GSM";
+	case AST_FORMAT_ULAW:
+		return "ULAW";
+	case AST_FORMAT_ALAW:
+		return "ALAW";
+	case AST_FORMAT_ADPCM:
+		return "G.728";
+	case AST_FORMAT_G729A:
+		return "G.729";
+	case AST_FORMAT_SPEEX:
+		return "SPEEX";
+	case AST_FORMAT_ILBC:
+		return "ILBC";
+	default:
+		ast_log(LOG_NOTICE, "Don't know how to deal with mode %d\n", cap);
+		return NULL;
+	}
+
+}
+
 static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp)
 {
 	/* XXX Deal with Video */
-	
 	struct oh323_pvt *p;
 	struct sockaddr_in them;
 	struct sockaddr_in us;
+	char *mode;
+
+	mode = convertcap(chan->writeformat); 
 
 	if (!rtp) {
-		ast_log(LOG_NOTICE, "RTP is Null\n");
 		return 0;
 	}
+
 	p = chan->pvt->pvt;
 	if (!p) {
 		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");
@@ -1609,12 +1658,13 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, str
 	}
 
 	ast_rtp_get_peer(rtp, &them);	
-	printf("peer is now: %s\n", inet_ntoa(them.sin_addr));
-		
-	ast_rtp_set_peer(p->rtp, &them);
-	ast_rtp_get_us(p->rtp, &us);
+	ast_rtp_get_us(rtp, &us);
 
-	h323_native_bridge(p->cd.call_token, inet_ntoa(them.sin_addr), inet_ntoa(us.sin_addr));
+	printf("peer is now: %s:%d\n", inet_ntoa(them.sin_addr), htons(them.sin_port));
+	printf("Us is: %s\n", inet_ntoa(us.sin_addr));
+		
+
+	h323_native_bridge(p->cd.call_token, inet_ntoa(them.sin_addr), mode);
 	
 	return 0;
 	
