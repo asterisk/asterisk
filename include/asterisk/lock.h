@@ -172,7 +172,6 @@ static inline int ast_mutex_init(ast_mutex_t *t)
 	pthread_mutexattr_settype(&attr, AST_MUTEX_KIND);
 	return pthread_mutex_init(t, &attr);
 }
-#define ast_mutex_init(t) pthread_mutex_init(t, NULL)
 #define ast_pthread_mutex_init(t,a) pthread_mutex_init(t,a)
 #define ast_mutex_destroy(t) pthread_mutex_destroy(t)
 
