@@ -394,9 +394,12 @@ static struct sip_registry *registrations;
 static int sipsock  = -1;
 static int globalnat = 0;
 static int globalcanreinvite = REINVITE_INVITE;
-static int use_external_ip = 0;
+
 
 static struct sockaddr_in bindaddr;
+static struct sockaddr_in localnet;
+static struct sockaddr_in localmask;
+static struct sockaddr_in externip;
 
 static struct ast_frame  *sip_read(struct ast_channel *ast);
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
@@ -434,14 +437,18 @@ static void sip_destroy(struct sip_pvt *p);
 
 static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 {
-	if (use_external_ip) {
-		return -1;
-	} else {
-		if (bindaddr.sin_addr.s_addr)
-			memcpy(us, &bindaddr.sin_addr, sizeof(struct in_addr));
-		else
-			return ast_ouraddrfor(them, us);
-		}
+	/*
+	  check to see if them is contained in our localnet/mask,
+	  if not, use our externip for us, otherwise use the 
+	  real internal address in bindaddr
+         */
+	if (localnet.sin_addr.s_addr && externip.sin_addr.s_addr &&
+      	    ((htonl(them->s_addr) & htonl(localnet.sin_addr.s_addr)) != htonl(localnet.sin_addr.s_addr)))
+		memcpy(us, &externip.sin_addr, sizeof(struct in_addr));
+	else if (bindaddr.sin_addr.s_addr)
+		memcpy(us, &bindaddr.sin_addr, sizeof(struct in_addr));
+	else
+		return ast_ouraddrfor(them, us);
 	return 0;
 }
 
@@ -3018,6 +3025,8 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	char via[80];
 	char addr[80];
 	struct sip_pvt *p;
+	struct hostent *hp;
+
 	/* exit if we are already in process with this registrar ?*/
 	if ( r == NULL || ((auth==NULL) && (r->regstate==REG_STATE_REGSENT || r->regstate==REG_STATE_AUTHSENT))) {
 		ast_log(LOG_NOTICE, "Strange, trying to register when registration already pending\n");
@@ -3051,9 +3060,16 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 			strncpy(p->peername, r->username, sizeof(p->peername)-1);
 		strncpy(p->username, r->username, sizeof(p->username)-1);
 		strncpy(p->exten, r->contact, sizeof(p->exten) - 1);
-		/* Always bind to our IP if specified */
-		if (!use_external_ip && bindaddr.sin_addr.s_addr)
-			memcpy(&p->ourip, &bindaddr.sin_addr, sizeof(p->ourip));
+
+		/*
+		  check which address we should use in our contact header 
+		  based on whether the remote host is on the external or
+		  internal network so we can register through nat
+		 */
+		if ((hp = gethostbyname(r->hostname))) {
+			if (ast_sip_ouraddrfor((struct in_addr *)hp->h_addr, &p->ourip))
+				memcpy(&p->ourip, &bindaddr.sin_addr, sizeof(p->ourip));
+		}
 		build_contact(p);
 	}
 
@@ -6135,6 +6151,10 @@ static int reload_config(void)
 	sip_prefs_free();
 	
 	memset(&bindaddr, 0, sizeof(bindaddr));
+	memset(&localnet, 0, sizeof(localnet));
+	memset(&localmask, 0, sizeof(localmask));
+	memset(&externip, 0, sizeof(externip));
+
 	/* Initialize some reasonable defaults */
 	strncpy(context, "default", sizeof(context) - 1);
 	strcpy(language, "");
@@ -6195,13 +6215,21 @@ static int reload_config(void)
 			} else {
 				memcpy(&bindaddr.sin_addr, hp->h_addr, sizeof(bindaddr.sin_addr));
 			}
+		} else if (!strcasecmp(v->name, "localnet")) {
+			if (!(hp = gethostbyname(v->value)))
+				ast_log(LOG_WARNING, "Invalid localnet keyword: %s\n", v->value);
+			else 
+				memcpy(&localnet.sin_addr, hp->h_addr, sizeof(localnet.sin_addr));
+		} else if (!strcasecmp(v->name, "localmask")) {
+			if (!(hp = gethostbyname(v->value)))
+				ast_log(LOG_WARNING, "Invalid localmask keyword: %s\n", v->value);
+			else
+				memcpy(&localmask.sin_addr, hp->h_addr, sizeof(localmask.sin_addr));
 		} else if (!strcasecmp(v->name, "externip")) {
-			if (!(hp = gethostbyname(v->value))) {
+			if (!(hp = gethostbyname(v->value))) 
 				ast_log(LOG_WARNING, "Invalid address for externip keyword: %s\n", v->value);
-			} else {
-				memcpy(&__ourip, hp->h_addr, sizeof(__ourip));
-				use_external_ip = 1;
-			}
+			else
+				memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
 		} else if (!strcasecmp(v->name, "allow")) {
 			format = ast_getformatbyname(v->value);
 			if (format < 1) 
@@ -6276,17 +6304,16 @@ static int reload_config(void)
 		}
 		cat = ast_category_browse(cfg, cat);
 	}
-	if (!use_external_ip) {	
-		if (ntohl(bindaddr.sin_addr.s_addr)) {
-			memcpy(&__ourip, &bindaddr.sin_addr, sizeof(__ourip));
-		} else {
-			hp = gethostbyname(ourhost);
-			if (!hp) {
-				ast_log(LOG_WARNING, "Unable to get IP address for %s, SIP disabled\n", ourhost);
-				return 0;
-			}
-			memcpy(&__ourip, hp->h_addr, sizeof(__ourip));
+	
+	if (ntohl(bindaddr.sin_addr.s_addr)) {
+		memcpy(&__ourip, &bindaddr.sin_addr, sizeof(__ourip));
+	} else {
+		hp = gethostbyname(ourhost);
+		if (!hp) {
+			ast_log(LOG_WARNING, "Unable to get IP address for %s, SIP disabled\n", ourhost);
+			return 0;
 		}
+		memcpy(&__ourip, hp->h_addr, sizeof(__ourip));
 	}
 	if (!ntohs(bindaddr.sin_port))
 		bindaddr.sin_port = ntohs(DEFAULT_SIP_PORT);
