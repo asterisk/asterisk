@@ -682,6 +682,7 @@ static int get_samples(struct ast_frame *f)
 		samples = f->datalen;
 		break;
 	case AST_FORMAT_ADPCM:
+	case AST_FORMAT_G726:
 		samples = f->datalen *2;
 		break;
 	case AST_FORMAT_SPEEX:
