@@ -4465,6 +4465,10 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	int x,y;
 	int features;
 	ZT_PARAMS ps;
+	if (i->subs[index].owner) {
+		ast_log(LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[index]);
+		return NULL;
+	}
 	tmp = ast_channel_alloc(0);
 	if (tmp) {
 		ps.channo = i->channel;
@@ -4569,9 +4573,6 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 			strncpy(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode)-1);
 		if (i->amaflags)
 			tmp->amaflags = i->amaflags;
-		if (i->subs[index].owner) {
-			ast_log(LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[index]);
-		}
 		i->subs[index].owner = tmp;
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		/* Copy call forward info */
