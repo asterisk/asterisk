@@ -1848,9 +1848,9 @@ static void *do_chanreads(void *pvt)
 		} else {
 			if (option_verbose > 4)
 				ast_verbose("%s: chanreads: No native bridge.\n", p->dev);
-			if (p->owner->bridge){
+			if (p->owner->_bridge){
 				if (option_verbose > 4){
-					ast_verbose("%s: chanreads: Got Asterisk bridge with [%s].\n", p->dev,p->owner->bridge->name);
+					ast_verbose("%s: chanreads: Got Asterisk bridge with [%s].\n", p->dev,p->owner->_bridge->name);
 				}
 				bridgerec = 1;
 			}
