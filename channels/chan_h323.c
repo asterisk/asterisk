@@ -585,7 +585,7 @@ static int oh323_indicate(struct ast_channel *c, int condition)
 		//	transmit_response(p, "180 Ringing", &p->initreq);
 			break;
 		}
-		return -1;
+		return 0;
 	case AST_CONTROL_BUSY:
 		if (c->_state != AST_STATE_UP) {
 		//	transmit_response(p, "600 Busy everywhere", &p->initreq);
@@ -593,7 +593,7 @@ static int oh323_indicate(struct ast_channel *c, int condition)
 			ast_softhangup(c, AST_SOFTHANGUP_DEV);
 			break;
 		}
-		return -1;
+		return 0;
 	case AST_CONTROL_CONGESTION:
 		if (c->_state != AST_STATE_UP) {
 		//	transmit_response(p, "486 Busy here", &p->initreq);
@@ -601,7 +601,7 @@ static int oh323_indicate(struct ast_channel *c, int condition)
 			ast_softhangup(c, AST_SOFTHANGUP_DEV);
 			break;
 		}
-		return -1;
+		return 0;
 	case -1:
 		return -1;
 	default:
