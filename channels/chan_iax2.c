@@ -267,8 +267,12 @@ struct chan_iax2_pvt {
 	int quelch;
 	/* Last received voice format */
 	int voiceformat;
+	/* Last received voice format */
+	int videoformat;
 	/* Last sent voice format */
 	int svoiceformat;
+	/* Last sent video format */
+	int svideoformat;
 	/* What we are capable of sending */
 	int capability;
 	/* Last received timestamp */
@@ -1983,6 +1987,7 @@ static struct ast_channel *ast_iax2_new(struct chan_iax2_pvt *i, int state, int 
 		tmp->pvt->answer = iax2_answer;
 		tmp->pvt->read = iax2_read;
 		tmp->pvt->write = iax2_write;
+		tmp->pvt->write_video = iax2_write;
 		tmp->pvt->indicate = iax2_indicate;
 		tmp->pvt->setoption = iax2_setoption;
 		tmp->pvt->bridge = iax2_bridge;
@@ -2127,17 +2132,17 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 	   or delayed, with retransmission */
 	struct ast_iax2_full_hdr *fh;
 	struct ast_iax2_mini_hdr *mh;
-	unsigned char buffer[4096];		/* Buffer -- must preceed fr2 */
-	struct iax_frame fr2;
+	struct ast_iax2_video_hdr *vh;
+	struct {
+		struct iax_frame fr2;
+		unsigned char buffer[4096];
+	} frb;
 	struct iax_frame *fr;
 	int res;
 	int sendmini=0;
 	unsigned int lastsent;
 	unsigned int fts;
-	
-	/* Shut up GCC */
-	buffer[0] = 0;
-	
+		
 	if (!pvt) {
 		ast_log(LOG_WARNING, "No private structure for packet?\n");
 		return -1;
@@ -2158,9 +2163,15 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 			/* Mark that mini-style frame is appropriate */
 			sendmini = 1;
 	}
+	if (((fts & 0xFFFF8000L) == (lastsent & 0xFFFF8000L)) && 
+		(f->frametype == AST_FRAME_VIDEO) &&
+		((f->subclass & ~0x1) == pvt->svideoformat)) {
+			now = 1;
+			sendmini = 1;
+	}
 	/* Allocate an iax_frame */
 	if (now) {
-		fr = &fr2;
+		fr = &frb.fr2;
 	} else
 		fr = iax_frame_new(DIRECTION_OUTGRESS, f->datalen);
 	if (!fr) {
@@ -2198,7 +2209,10 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		/* Keep track of the last thing we've acknowledged */
 		pvt->aseqno = fr->iseqno;
 		fh->type = fr->af.frametype & 0xFF;
-		fh->csub = compress_subclass(fr->af.subclass);
+		if (fr->af.frametype == AST_FRAME_VIDEO)
+			fh->csub = compress_subclass(fr->af.subclass & ~0x1) | (fr->af.subclass & 0x1);
+		else
+			fh->csub = compress_subclass(fr->af.subclass);
 		if (transfer) {
 			fr->dcallno = pvt->transfercallno;
 		} else
@@ -2219,6 +2233,9 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		if (f->frametype == AST_FRAME_VOICE) {
 			pvt->svoiceformat = f->subclass;
 		}
+		if (f->frametype == AST_FRAME_VIDEO) {
+			pvt->svideoformat = f->subclass & ~0x1;
+		}
 		if (now) {
 			res = send_packet(fr);
 		} else
@@ -2237,6 +2254,18 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 				pvt->trunkerror = 1;
 			}
 			res = 0;
+		} else if (fr->af.frametype == AST_FRAME_VIDEO) {
+			/* Video frame have no sequence number */
+			fr->oseqno = -1;
+			fr->iseqno = -1;
+			vh = (struct ast_iax2_video_hdr *)(fr->af.data - sizeof(struct ast_iax2_video_hdr));
+			vh->zeros = 0;
+			vh->callno = htons(0x8000 | fr->callno);
+			vh->ts = htons((fr->ts & 0x7FFF) | (fr->af.subclass & 0x1 ? 0x8000 : 0));
+			fr->datalen = fr->af.datalen + sizeof(struct ast_iax2_video_hdr);
+			fr->data = vh;
+			fr->retries = -1;
+			res = send_packet(fr);			
 		} else {
 			/* Mini-frames have no sequence number */
 			fr->oseqno = -1;
@@ -3055,6 +3084,8 @@ static int complete_transfer(int callno, struct iax_ies *ies)
 	pvt->transferring = TRANSFER_NONE;
 	pvt->svoiceformat = -1;
 	pvt->voiceformat = 0;
+	pvt->svideoformat = -1;
+	pvt->videoformat = 0;
 	pvt->transfercallno = -1;
 	memset(&pvt->rxcore, 0, sizeof(pvt->rxcore));
 	memset(&pvt->offset, 0, sizeof(pvt->offset));
@@ -3528,6 +3559,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	struct ast_iax2_full_hdr *fh = (struct ast_iax2_full_hdr *)buf;
 	struct ast_iax2_mini_hdr *mh = (struct ast_iax2_mini_hdr *)buf;
 	struct ast_iax2_meta_hdr *meta = (struct ast_iax2_meta_hdr *)buf;
+	struct ast_iax2_video_hdr *vh = (struct ast_iax2_video_hdr *)buf;
 	struct ast_iax2_meta_trunk_hdr *mth;
 	struct ast_iax2_meta_trunk_entry *mte;
 	char dblbuf[4096];	/* Declaration of dblbuf must immediately *preceed* fr  on the stack */
@@ -3542,9 +3574,13 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	int format;
 	int exists;
 	int mm;
+	int minivid = 0;
 	unsigned int ts;
 	char empty[32]="";		/* Safety measure */
 	dblbuf[0] = 0;	/* Keep GCC from whining */
+
+	fr.callno = 0;
+	
 	res = recvfrom(netsocket, buf, sizeof(buf), 0,(struct sockaddr *) &sin, &len);
 	if (res < 0) {
 		if (errno != ECONNREFUSED)
@@ -3556,7 +3592,11 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, sizeof(struct ast_iax2_mini_hdr));
 		return 1;
 	}
-	if (meta->zeros == 0) {
+	if ((vh->zeros == 0) && (ntohs(vh->callno) & 0x8000)) {
+		/* This is a video frame, get call number */
+		fr.callno = find_callno(ntohs(vh->callno) & ~0x8000, dcallno, &sin, new, 1);
+		minivid = 1;
+	} else if (meta->zeros == 0) {
 		/* This is a a meta header */
 		switch(meta->metacmd) {
 		case IAX_META_TRUNK:
@@ -3655,11 +3695,11 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		dcallno = ntohs(fh->dcallno) & ~IAX_FLAG_RETRANS;
 		/* Retrieve the type and subclass */
 		f.frametype = fh->type;
-		f.subclass = uncompress_subclass(fh->csub);
-#if 0
-		f.subclass = fh->subclasshigh << 16;
-		f.subclass += ntohs(fh->subclasslow);
-#endif
+		if (f.frametype == AST_FRAME_VOICE) {
+			f.subclass = uncompress_subclass(fh->csub & ~0x1) | (fh->csub & 0x1);
+		} else {
+			f.subclass = uncompress_subclass(fh->csub);
+		}
 		if ((f.frametype == AST_FRAME_IAX) && ((f.subclass == IAX_COMMAND_NEW) || (f.subclass == IAX_COMMAND_REGREQ)
 				|| (f.subclass == IAX_COMMAND_POKE)))
 			new = NEW_ALLOW;
@@ -3669,7 +3709,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		f.subclass = 0;
 	}
 
-	fr.callno = find_callno(ntohs(mh->callno) & ~IAX_FLAG_FULL, dcallno, &sin, new, 1);
+	if (!fr.callno)
+		fr.callno = find_callno(ntohs(mh->callno) & ~IAX_FLAG_FULL, dcallno, &sin, new, 1);
 
 	if (fr.callno > 0) 
 		ast_pthread_mutex_lock(&iaxsl[fr.callno]);
@@ -3851,6 +3892,12 @@ retryowner:
 							return 1;
 						}
 					}
+			}
+		}
+		if (f.frametype == AST_FRAME_VIDEO) {
+			if (f.subclass != iaxs[fr.callno]->videoformat) {
+				ast_log(LOG_DEBUG, "Ooh, video format changed to %d\n", f.subclass & ~0x1);
+				iaxs[fr.callno]->videoformat = f.subclass & ~0x1;
 			}
 		}
 		if (f.frametype == AST_FRAME_IAX) {
@@ -4363,6 +4410,22 @@ retryowner:
 		/* Unless this is an ACK or INVAL frame, ack it */
 		if (iaxs[fr.callno]->aseqno != iaxs[fr.callno]->iseqno)
 			send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
+	} else if (minivid) {
+		f.frametype = AST_FRAME_VIDEO;
+		if (iaxs[fr.callno]->videoformat > 0) 
+			f.subclass = iaxs[fr.callno]->videoformat | (ntohs(vh->ts) & 0x8000 ? 1 : 0);
+		else {
+			ast_log(LOG_WARNING, "Received mini frame before first full voice frame\n ");
+			iax2_vnak(fr.callno);
+			ast_pthread_mutex_unlock(&iaxsl[fr.callno]);
+			return 1;
+		}
+		f.datalen = res - sizeof(struct ast_iax2_video_hdr);
+		if (f.datalen)
+			f.data = buf + sizeof(struct ast_iax2_video_hdr);
+		else
+			f.data = NULL;
+		fr.ts = (iaxs[fr.callno]->last & 0xFFFF8000L) | (ntohs(mh->ts) & 0x7fff);
 	} else {
 		/* A mini frame */
 		f.frametype = AST_FRAME_VOICE;

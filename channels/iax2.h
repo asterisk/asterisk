@@ -142,6 +142,13 @@ struct ast_iax2_meta_hdr {
 	unsigned char data[0];
 } __attribute__ ((__packed__));
 
+struct ast_iax2_video_hdr {
+	unsigned short zeros;			/* Zeros field -- must be zero */
+	unsigned short callno;			/* Video call number */
+	unsigned short ts;				/* Timestamp and mark if present */
+	unsigned char data[0];
+} __attribute__ ((__packed__));
+
 struct ast_iax2_meta_trunk_hdr {
 	unsigned int ts;				/* 32-bit timestamp for all messages */
 	unsigned char data[0];
