@@ -74,21 +74,25 @@ static struct local_pvt {
 static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_frame *f, struct ast_channel *us)
 {
 	struct ast_channel *other;
+retrylock:		
+	/* Recalculate outbound channel */
 	if (isoutbound) {
 		other = p->owner;
 	} else {
 		other = p->chan;
 	}
-	if (!other)
-		return 0;
+	/* Set glare detection */
 	p->glaredetect = 1;
-retrylock:		
 	if (p->cancelqueue) {
 		/* We had a glare on the hangup.  Forget all this business,
 		return and destroy p.  */
 		ast_mutex_unlock(&p->lock);
 		free(p);
 		return -1;
+	}
+	if (!other) {
+		p->glaredetect = 0;
+		return 0;
 	}
 	if (ast_mutex_trylock(&other->lock)) {
 		/* Failed to lock.  Release main lock and try again */
