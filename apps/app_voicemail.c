@@ -427,7 +427,7 @@ static int change_password_realtime(struct ast_vm_user *vmu, const char *passwor
 {
 	int res;
 	if (!ast_strlen_zero(vmu->uniqueid)) {
-		res = ast_update_realtime("voicemail", "uniqueid", vmu->uniqueid, "password", password);
+		res = ast_update_realtime("voicemail", "uniqueid", vmu->uniqueid, "password", password, NULL);
 		if (!res)
 			strncpy(vmu->password, password, sizeof(vmu->password) - 1);
 		return res;
