@@ -35,6 +35,11 @@ struct ast_frame {
 	int offset;					/* How far into "data" the data really starts */
 	char *src;					/* Optional source of frame for debugging */
 	void *data;					/* Pointer to actual data */
+	struct ast_frame *prev;		/* Next/Prev for linking stand alone frames */
+	struct ast_frame *next;		/* Next/Prev for linking stand alone frames */
+								/* Unused except if debugging is turned on, but left
+								   in the struct so that it can be turned on without
+								   requiring a recompile of the whole thing */
 };
 
 struct ast_frame_chain {
@@ -62,6 +67,16 @@ struct ast_frame_chain {
 #define AST_FRAME_IAX		6		/* Inter Aterisk Exchange private frame type */
 #define AST_FRAME_TEXT		7		/* Text messages */
 #define AST_FRAME_IMAGE		8		/* Image Frames */
+#define AST_FRAME_HTML		9		/* HTML Frame */
+
+/* HTML subclasses */
+#define AST_HTML_URL		1		/* Sending a URL */
+#define AST_HTML_DATA		2		/* Data frame */
+#define AST_HTML_BEGIN		4		/* Beginning frame */
+#define AST_HTML_END		8		/* End frame */
+#define AST_HTML_LDCOMPLETE	16		/* Load is complete */
+#define AST_HTML_NOSUPPORT	17		/* Peer is unable to support HTML */
+#define AST_HTML_LINKURL	18		/* Send URL, and track */
 
 /* Data formats for capabilities and frames alike */
 #define AST_FORMAT_G723_1	(1 << 0)	/* G.723.1 compression */
@@ -149,6 +164,9 @@ int ast_fr_fdhangup(int fd);
 
 /* Get a format by its name */
 extern int ast_getformatbyname(char *name);
+
+/* Choose the best codec...  Uhhh...   Yah. */
+extern int ast_best_codec(int fmts);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
