@@ -877,10 +877,31 @@ static int console_hangup(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int console_flash(int fd, int argc, char *argv[])
+{
+	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_FLASH };
+	if (argc != 1)
+		return RESULT_SHOWUSAGE;
+	cursound = -1;
+	if (!oss.owner) {
+		ast_cli(fd, "No call to flash\n");
+		return RESULT_FAILURE;
+	}
+	hookstate = 0;
+	if (oss.owner) {
+		ast_queue_frame(oss.owner, &f);
+	}
+	return RESULT_SUCCESS;
+}
+
 static char hangup_usage[] =
 "Usage: hangup\n"
 "       Hangs up any call currently placed on the console.\n";
 
+
+static char flash_usage[] =
+"Usage: flash\n"
+"       Flashes the call currently placed on the console.\n";
 
 static int console_dial(int fd, int argc, char *argv[])
 {
@@ -965,6 +986,7 @@ static char transfer_usage[] =
 static struct ast_cli_entry myclis[] = {
 	{ { "answer", NULL }, console_answer, "Answer an incoming console call", answer_usage },
 	{ { "hangup", NULL }, console_hangup, "Hangup a call on the console", hangup_usage },
+	{ { "flash", NULL }, console_flash, "Flash a call on the console", flash_usage },
 	{ { "dial", NULL }, console_dial, "Dial an extension on the console", dial_usage },
 	{ { "transfer", NULL }, console_transfer, "Transfer a call to a different extension", transfer_usage },
 	{ { "send", "text", NULL }, console_sendtext, "Send text to the remote device", sendtext_usage },
