@@ -433,8 +433,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	fs = ast_openstream(chan, argv[2], chan->language);
 	if(!fs){
 		fdprintf(agi->fd, "200 result=%d endpos=%ld\n", 0, sample_offset);
-		ast_log(LOG_WARNING, "Unable to open %s\n", argv[2]);
-		return RESULT_FAILURE;
+		return RESULT_SUCCESS;
 	}
 	ast_seekstream(fs, 0, SEEK_END);
 	max_length = ast_tellstream(fs);
