@@ -242,12 +242,9 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static void apply_options(struct ast_vm_user *vmu, char *options)
+static void populate_defaults(struct ast_vm_user *vmu)
 {
-	/* Destructively Parse options and apply */
-	char *stringp = ast_strdupa(options);
-	char *s;
-	char *var, *value;
+	vmu->attach = -1;
 	if (reviewvm)
 		vmu->review = 1;
 	if (calloper)
@@ -258,6 +255,15 @@ static void apply_options(struct ast_vm_user *vmu, char *options)
 		strncpy(vmu->callback, callcontext, sizeof(vmu->callback) -1);
 	if (dialcontext)
 		strncpy(vmu->dialout, dialcontext, sizeof(vmu->dialout) -1);
+}
+
+static void apply_options(struct ast_vm_user *vmu, char *options)
+{
+	/* Destructively Parse options and apply */
+	char *stringp = ast_strdupa(options);
+	char *s;
+	char *var, *value;
+	
 	while((s = strsep(&stringp, "|"))) {
 		value = s;
 		if ((var = strsep(&value, "=")) && value) {
@@ -344,16 +350,8 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, cha
 /*	fprintf(stderr,"postgres find_user:\n"); */
 
 	if (retval) {
-		*retval->mailbox='\0';
-		*retval->context='\0';
-		strcpy(retval->password, "NULL");
-		*retval->fullname='\0';
-		*retval->email='\0';
-		*retval->pager='\0';
-		*retval->serveremail='\0';
-		retval->attach=-1;
+		memset(retval, 0, sizeof(struct ast_vm_user));
 		retval->alloced=1;
-		retval->next=NULL;
 		if (mailbox) {
 			strcpy(retval->mailbox, mailbox);
 		}
@@ -364,6 +362,7 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, cha
 		{
 			strcpy(retval->context, "default");
 		}
+		populate_defaults(retval);
 		sprintf(query, "SELECT password,fullname,email,pager,options FROM voicemail WHERE context='%s' AND mailbox='%s'", retval->context, mailbox);
 		
 /*	fprintf(stderr,"postgres find_user: query = %s\n",query); */
@@ -3338,7 +3337,7 @@ static int append_mailbox(char *context, char *mbox, char *data)
 		memset(vmu, 0, sizeof(struct ast_vm_user));
 		strncpy(vmu->context, context, sizeof(vmu->context) - 1);
 		strncpy(vmu->mailbox, mbox, sizeof(vmu->mailbox) - 1);
-		vmu->attach = -1;
+		populate_defaults(vmu);
 		stringp = tmp;
 		if ((s = strsep(&stringp, ","))) 
 			strncpy(vmu->password, s, sizeof(vmu->password) - 1);
