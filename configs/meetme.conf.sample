@@ -4,6 +4,7 @@
 ;
 [rooms]
 ;
-; Usage is conf => confno
+; Usage is conf => confno[,pin]
 ;
 ;conf => 1234 
+;conf => 2345,9938
