@@ -8636,7 +8636,7 @@ static int zap_show_channel(int fd, int argc, char **argv)
 				if (ioctl(tmp->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &ps) < 0) {
 					ast_log(LOG_WARNING, "Failed to get parameters on channel %d\n", tmp->channel);
 				} else {
-					ast_cli(fd, "Actual Hookstate: %s\n", ps.rxisoffhook ? "Offhook" : "Onhook");
+					ast_cli(fd, "Hookstate (FXS only): %s\n", ps.rxisoffhook ? "Offhook" : "Onhook");
 				}
 			}
 			ast_mutex_unlock(lock);
