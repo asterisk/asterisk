@@ -561,6 +561,10 @@ static int agent_hangup(struct ast_channel *ast)
 	 * as in apps/app_chanisavail.c:chanavail_exec()
 	 */
 
+	ast_mutex_lock(&usecnt_lock);
+	usecnt--;
+	ast_mutex_unlock(&usecnt_lock);
+
 	ast_log(LOG_DEBUG, "Hangup called for state %s\n", ast_state2str(ast->_state));
 	if (p->start && (ast->_state != AST_STATE_UP)) {
 		howlong = time(NULL) - p->start;
