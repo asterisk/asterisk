@@ -31,7 +31,6 @@
 #include <time.h>
 
 #include <libpq-fe.h>
-#include <errmsg.h>
 
 #define DATE_FORMAT "%Y-%m-%d %T"
 
