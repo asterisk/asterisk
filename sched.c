@@ -238,6 +238,7 @@ int ast_sched_del(struct sched_context *con, int id)
 			else
 				con->schedq = s->next;
 			con->schedcnt--;
+			sched_release(con, s);
 			return 0;
 		}
 		last = s;
