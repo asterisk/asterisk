@@ -80,6 +80,11 @@ static struct strategy {
 #define DEFAULT_TIMEOUT		15
 #define RECHECK				1		/* Recheck every second to see we we're at the top yet */
 
+#define	RES_OKAY	0			/* Action completed */
+#define	RES_EXISTS	(-1)		/* Entry already exists */
+#define	RES_OUTOFMEMORY	(-2)	/* Out of memory */
+#define	RES_NOSUCHQUEUE	(-3)	/* No such queue */
+
 static char *tdesc = "True Call Queueing";
 
 static char *app = "Queue";
@@ -277,8 +282,7 @@ static int join_queue(char *queuename, struct queue_ent *qe)
 	int inserted = 0;
 
 	ast_mutex_lock(&qlock);
-	q = queues;
-	while(q) {
+	for (q = queues; q; q = q->next) {
 		if (!strcasecmp(q->name, queuename)) {
 			/* This is our one */
 			ast_mutex_lock(&q->lock);
@@ -319,7 +323,6 @@ ast_log(LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, q
 			ast_mutex_unlock(&q->lock);
 			break;
 		}
-		q = q->next;
 	}
 	ast_mutex_unlock(&qlock);
 	return res;
@@ -349,8 +352,7 @@ static void destroy_queue(struct ast_call_queue *q)
 {
 	struct ast_call_queue *cur, *prev = NULL;
 	ast_mutex_lock(&qlock);
-	cur = queues;
-	while(cur) {
+	for (cur = queues; cur; cur = cur->next) {
 		if (cur == q) {
 			if (prev)
 				prev->next = cur->next;
@@ -359,7 +361,6 @@ static void destroy_queue(struct ast_call_queue *q)
 		} else {
 			prev = cur;
 		}
-		cur = cur->next;
 	}
 	ast_mutex_unlock(&qlock);
 	free_members(q, 1);
@@ -1275,29 +1276,97 @@ static struct member * create_queue_node( char * interface, int penalty )
 	return( cur ) ;
 }
 
+static int remove_from_queue(char *queuename, char *interface)
+{
+	struct ast_call_queue *q;
+	struct member *last_member, *look;
+	int res = RES_NOSUCHQUEUE;
+
+	ast_mutex_lock(&qlock);
+	for (q = queues ; q ; q = q->next) {
+		ast_mutex_lock(&q->lock);
+		if (!strcmp(q->name, queuename)) {
+			if ((last_member = interface_exists(q, interface))) {
+				if ((look = q->members) == last_member) {
+					q->members = last_member->next;
+				} else {
+					while (look != NULL) {
+						if (look->next == last_member) {
+							look->next = last_member->next;
+							break;
+						} else {
+							 look = look->next;
+						}
+					}
+				}
+				free(last_member);
+				res = RES_OKAY;
+			} else {
+				res = RES_EXISTS;
+			}
+			ast_mutex_unlock(&q->lock);
+			break;
+		}
+		ast_mutex_unlock(&q->lock);
+	}
+	ast_mutex_unlock(&qlock);
+	return res;
+}
+
+static int add_to_queue(char *queuename, char *interface, int penalty)
+{
+	struct ast_call_queue *q;
+	struct member *new_member;
+	int res = RES_NOSUCHQUEUE;
+
+	ast_mutex_lock(&qlock);
+	for (q = queues ; q ; q = q->next) {
+		ast_mutex_lock(&q->lock);
+		if (!strcmp(q->name, queuename)) {
+			if (interface_exists(q, interface) == NULL) {
+				new_member = create_queue_node(interface, penalty);
+
+				if (new_member != NULL) {
+					new_member->dynamic = 1;
+					new_member->next = q->members;
+					q->members = new_member;
+					res = RES_OKAY;
+				} else {
+					res = RES_OUTOFMEMORY;
+				}
+			} else {
+				res = RES_EXISTS;
+			}
+			ast_mutex_unlock(&q->lock);
+			break;
+		}
+		ast_mutex_unlock(&q->lock);
+	}
+	ast_mutex_unlock(&qlock);
+	return res;
+}
 
 static int rqm_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
 	struct localuser *u;
-	char *queuename;
-	struct member * node ;
-	struct member * look ;
-	char info[512];
+	char *info, *queuename;
 	char tmpchan[256]="";
-	char *interface=NULL;
-	struct ast_call_queue *q;
-	int found=0 ;
+	char *interface = NULL;
 
 	if (!data) {
-		ast_log(LOG_WARNING, "RemoveQueueMember requires an argument (queuename|optional interface)\n");
+		ast_log(LOG_WARNING, "RemoveQueueMember requires an argument (queuename[|interface])\n");
 		return -1;
 	}
-	
-	LOCAL_USER_ADD(u); // not sure if we need this, but better be safe than sorry ;-)
-	
-	/* Parse our arguments XXX Check for failure XXX */
-	strncpy(info, (char *)data, strlen((char *)data) + AST_MAX_EXTENSION-1);
+
+	info = ast_strdupa((char *)data);
+	if (!info) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		return -1;
+	}
+
+	LOCAL_USER_ADD(u);
+
 	queuename = info;
 	if (queuename) {
 		interface = strchr(queuename, '|');
@@ -1314,90 +1383,54 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	if( ( q = queues) != NULL )
-	{
-		while( q && ( res != 0 ) && (!found) ) 
-		{
-			ast_mutex_lock(&q->lock);
-			if( strcmp( q->name, queuename) == 0 )
-			{
-				// found queue, try to remove  interface
-				found=1 ;
-
-				if( ( node = interface_exists( q, interface ) ) != NULL )
-				{
-					if( ( look = q->members ) == node )
-					{
-						// 1st
-						q->members = node->next;
-					}
-					else
-					{
-						while( look != NULL )
-							if( look->next == node )
-							{
-								look->next = node->next ;
-								break ;
-							}
-							else
-								look = look->next ;
-					}
-
-					free( node ) ;
-
-					ast_log(LOG_NOTICE, "Removed interface '%s' to queue '%s'\n", 
-						interface, queuename);
-					res = 0 ;
-				}
-				else
-				{
-					ast_log(LOG_WARNING, "Unable to remove interface '%s' from queue '%s': "
-						"Not there\n", interface, queuename);
-	                                if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
-						{
-						chan->priority += 100;
-						res = 0 ;
-						}
-				}
-			}
-
-			ast_mutex_unlock(&q->lock);
-			q = q->next;
+	switch (remove_from_queue(queuename, interface)) {
+	case RES_OKAY:
+		ast_log(LOG_NOTICE, "Removed interface '%s' from queue '%s'\n", interface, queuename);
+		res = 0;
+		break;
+	case RES_EXISTS:
+		ast_log(LOG_WARNING, "Unable to remove interface '%s' from queue '%s': Not there\n", interface, queuename);
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid)) {
+			chan->priority += 100;
 		}
-	}
-
-	if( ! found )
+		res = 0;
+		break;
+	case RES_NOSUCHQUEUE:
 		ast_log(LOG_WARNING, "Unable to remove interface from queue '%s': No such queue\n", queuename);
+		res = 0;
+		break;
+	case RES_OUTOFMEMORY:
+		ast_log(LOG_ERROR, "Out of memory\n");
+		break;
+	}
 
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
-
-
 
 static int aqm_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
 	struct localuser *u;
 	char *queuename;
-	char info[512];
+	char *info;
 	char tmpchan[512]="";
 	char *interface=NULL;
 	char *penaltys=NULL;
 	int penalty = 0;
-	struct ast_call_queue *q;
-	struct member *save;
-	int found=0 ;
 
 	if (!data) {
-		ast_log(LOG_WARNING, "AddQueueMember requires an argument (queuename|optional interface|optional penalty)\n");
+		ast_log(LOG_WARNING, "AddQueueMember requires an argument (queuename[|[interface][|penalty]])\n");
 		return -1;
 	}
-	
-	LOCAL_USER_ADD(u); // not sure if we need this, but better be safe than sorry ;-)
-	
-	/* Parse our arguments XXX Check for failure XXX */
-	strncpy(info, (char *)data, strlen((char *)data) + AST_MAX_EXTENSION-1);
+
+	info = ast_strdupa((char *)data);
+	if (!info) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		return -1;
+	}
+	LOCAL_USER_ADD(u);
+
 	queuename = info;
 	if (queuename) {
 		interface = strchr(queuename, '|');
@@ -1408,11 +1441,11 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 		if (interface) {
 			penaltys = strchr(interface, '|');
 			if (penaltys) {
-				*penaltys = 0;
+				*penaltys = '\0';
 				penaltys++;
 			}
 		}
-		if (!interface || !strlen(interface)) {
+		if (!interface || ast_strlen_zero(interface)) {
 			strncpy(tmpchan, chan->name, sizeof(tmpchan) - 1);
 			interface = strrchr(tmpchan, '-');
 			if (interface)
@@ -1427,54 +1460,30 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	if( ( q = queues) != NULL )
-	{
-		while( q && ( res != 0 ) && (!found) ) 
-		{
-			ast_mutex_lock(&q->lock);
-			if( strcmp( q->name, queuename) == 0 )
-			{
-				// found queue, try to enable interface
-				found=1 ;
-
-				if( interface_exists( q, interface ) == NULL )
-				{
-					save = q->members ;
-					q->members = create_queue_node( interface, penalty ) ;
-
-					if( q->members != NULL ) {
-						q->members->dynamic = 1;
-						q->members->next = save ;
-					} else
-						q->members = save ;
-
-					ast_log(LOG_NOTICE, "Added interface '%s' to queue '%s'\n", interface, queuename);
-					res = 0 ;
-				}
-				else
-				{
-					ast_log(LOG_WARNING, "Unable to add interface '%s' to queue '%s': "
-						"Already there\n", interface, queuename);
-			                if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
-                                        {
-                                                chan->priority += 100;
-                                                res = 0 ;
-                                        }
-				}
-			}
-
-			ast_mutex_unlock(&q->lock);
-			q = q->next;
+	switch (add_to_queue(queuename, interface, penalty)) {
+	case RES_OKAY:
+		ast_log(LOG_NOTICE, "Added interface '%s' to queue '%s'\n", interface, queuename);
+		res = 0;
+		break;
+	case RES_EXISTS:
+		ast_log(LOG_WARNING, "Unable to add interface '%s' to queue '%s': Already there\n", interface, queuename);
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid)) {
+			chan->priority += 100;
 		}
-	}
-
-	if( ! found )
+		res = 0;
+		break;
+	case RES_NOSUCHQUEUE:
 		ast_log(LOG_WARNING, "Unable to add interface to queue '%s': No such queue\n", queuename);
+		res = 0;
+		break;
+	case RES_OUTOFMEMORY:
+		ast_log(LOG_ERROR, "Out of memory\n");
+		break;
+	}
 
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
-
 
 static int queue_exec(struct ast_channel *chan, void *data)
 {
@@ -1497,7 +1506,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	struct queue_ent qe;
 	
 	if (!data) {
-		ast_log(LOG_WARNING, "Queue requires an argument (queuename|optional timeout|optional URL)\n");
+		ast_log(LOG_WARNING, "Queue requires an argument (queuename[|[timeout][|URL]])\n");
 		return -1;
 	}
 	
@@ -1989,13 +1998,11 @@ static char *complete_queue(char *line, char *word, int pos, int state)
 	int which=0;
 	
 	ast_mutex_lock(&qlock);
-	q = queues;
-	while(q) {
+	for (q = queues; q; q = q->next) {
 		if (!strncasecmp(word, q->name, strlen(word))) {
 			if (++which > state)
 				break;
 		}
-		q = q->next;
 	}
 	ast_mutex_unlock(&qlock);
 	return q ? strdup(q->name) : NULL;
@@ -2023,11 +2030,10 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 	astman_send_ack(s, m, "Queue status will follow");
 	time(&now);
 	ast_mutex_lock(&qlock);
-	q = queues;
-	if (id && !ast_strlen_zero(id)) {
+	if (!ast_strlen_zero(id)) {
 		snprintf(idText,256,"ActionID: %s\r\n",id);
 	}
-	while(q) {
+	for (q = queues; q; q = q->next) {
 		ast_mutex_lock(&q->lock);
 
 		/* List queue properties */
@@ -2075,10 +2081,239 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 				"\r\n", 
 					q->name, pos++, qe->chan->name, (qe->chan->callerid ? qe->chan->callerid : ""), (long)(now - qe->start), idText);
 		ast_mutex_unlock(&q->lock);
-		q = q->next;
 	}
 	ast_mutex_unlock(&qlock);
 	return RESULT_SUCCESS;
+}
+
+static int manager_add_queue_member(struct mansession *s, struct message *m)
+{
+	char *queuename, *interface, *penalty_s;
+	int penalty = 0;
+
+	queuename = astman_get_header(m, "Queue");
+	interface = astman_get_header(m, "Interface");
+	penalty_s = astman_get_header(m, "Penalty");
+
+	if (ast_strlen_zero(queuename)) {
+		astman_send_error(s, m, "'Queue' not specified.");
+		return 0;
+	}
+
+	if (ast_strlen_zero(interface)) {
+		astman_send_error(s, m, "'Interface' not specified.");
+		return 0;
+	}
+
+	if (ast_strlen_zero(penalty_s))
+		penalty = 0;
+	else if (sscanf(penalty_s, "%d", &penalty) != 1) {
+		penalty = 0;
+	}
+
+	switch (add_to_queue(queuename, interface, penalty)) {
+	case RES_OKAY:
+		astman_send_ack(s, m, "Added interface to queue");
+		break;
+	case RES_EXISTS:
+		astman_send_error(s, m, "Unable to add interface: Already there");
+		break;
+	case RES_NOSUCHQUEUE:
+		astman_send_error(s, m, "Unable to add interface to queue: No such queue");
+		break;
+	case RES_OUTOFMEMORY:
+		astman_send_error(s, m, "Out of memory");
+		break;
+	}
+	return 0;
+}
+
+static int manager_remove_queue_member(struct mansession *s, struct message *m)
+{
+	char *queuename, *interface;
+
+	queuename = astman_get_header(m, "Queue");
+	interface = astman_get_header(m, "Interface");
+
+	if (ast_strlen_zero(queuename) || ast_strlen_zero(interface)) {
+		astman_send_error(s, m, "Need 'Queue' and 'Interface' parameters.");
+		return 0;
+	}
+
+	switch (remove_from_queue(queuename, interface)) {
+	case RES_OKAY:
+		astman_send_ack(s, m, "Removed interface from queue");
+		break;
+	case RES_EXISTS:
+		astman_send_error(s, m, "Unable to remove interface: Not there");
+		break;
+	case RES_NOSUCHQUEUE:
+		astman_send_error(s, m, "Unable to remove interface from queue: No such queue");
+		break;
+	case RES_OUTOFMEMORY:
+		astman_send_error(s, m, "Out of memory");
+		break;
+	}
+	return 0;
+}
+
+static int handle_add_queue_member(int fd, int argc, char *argv[])
+{
+	char *queuename, *interface;
+	int penalty;
+
+	if ((argc != 6) && (argc != 8)) {
+		return RESULT_SHOWUSAGE;
+	} else if (strcmp(argv[4], "to")) {
+		return RESULT_SHOWUSAGE;
+	} else if ((argc == 8) && strcmp(argv[6], "priority")) {
+		return RESULT_SHOWUSAGE;
+	}
+
+	queuename = argv[5];
+	interface = argv[3];
+	if (argc == 8) {
+		if (sscanf(argv[7], "%d", &penalty) == 1) {
+			if (penalty < 0) {
+				ast_cli(fd, "Penalty must be >= 0\n");
+				penalty = 0;
+			}
+		} else {
+			ast_cli(fd, "Penalty must be an integer >= 0\n");
+			penalty = 0;
+		}
+	} else {
+		penalty = 0;
+	}
+
+	switch (add_to_queue(queuename, interface, penalty)) {
+	case RES_OKAY:
+		ast_cli(fd, "Added interface '%s' to queue '%s'\n", interface, queuename);
+		return RESULT_SUCCESS;
+	case RES_EXISTS:
+		ast_cli(fd, "Unable to add interface '%s' to queue '%s': Already there\n", interface, queuename);
+		return RESULT_FAILURE;
+	case RES_NOSUCHQUEUE:
+		ast_cli(fd, "Unable to add interface to queue '%s': No such queue\n", queuename);
+		return RESULT_FAILURE;
+	case RES_OUTOFMEMORY:
+		ast_cli(fd, "Out of memory\n");
+		return RESULT_FAILURE;
+	default:
+		return RESULT_FAILURE;
+	}
+}
+
+static char *complete_add_queue_member(char *line, char *word, int pos, int state)
+{
+	/* 0 - add; 1 - queue; 2 - member; 3 - <member>; 4 - to; 5 - <queue>; 6 - penalty; 7 - <penalty> */
+	switch (pos) {
+	case 3:
+		/* Don't attempt to complete name of member (infinite possibilities) */
+		return NULL;
+	case 4:
+		if (state == 0) {
+			return strdup("to");
+		} else {
+			return NULL;
+		}
+	case 5:
+		/* No need to duplicate code */
+		return complete_queue(line, word, pos, state);
+	case 6:
+		if (state == 0) {
+			return strdup("penalty");
+		} else {
+			return NULL;
+		}
+	case 7:
+		if (state < 100) {	/* 0-99 */
+			char *num = malloc(3);
+			if (num) {
+				sprintf(num, "%d", state);
+			}
+			return num;
+		} else {
+			return NULL;
+		}
+	default:
+		return NULL;
+	}
+}
+
+static int handle_remove_queue_member(int fd, int argc, char *argv[])
+{
+	char *queuename, *interface;
+
+	if (argc != 6) {
+		return RESULT_SHOWUSAGE;
+	} else if (strcmp(argv[4], "from")) {
+		return RESULT_SHOWUSAGE;
+	}
+
+	queuename = argv[5];
+	interface = argv[3];
+
+	switch (remove_from_queue(queuename, interface)) {
+	case RES_OKAY:
+		ast_cli(fd, "Removed interface '%s' from queue '%s'\n", interface, queuename);
+		return RESULT_SUCCESS;
+	case RES_EXISTS:
+		ast_cli(fd, "Unable to remove interface '%s' from queue '%s': Not there\n", interface, queuename);
+		return RESULT_FAILURE;
+	case RES_NOSUCHQUEUE:
+		ast_cli(fd, "Unable to remove interface from queue '%s': No such queue\n", queuename);
+		return RESULT_FAILURE;
+	case RES_OUTOFMEMORY:
+		ast_cli(fd, "Out of memory\n");
+		return RESULT_FAILURE;
+	default:
+		return RESULT_FAILURE;
+	}
+}
+
+static char *complete_remove_queue_member(char *line, char *word, int pos, int state)
+{
+	int which = 0;
+	struct ast_call_queue *q;
+	struct member *m;
+
+	/* 0 - add; 1 - queue; 2 - member; 3 - <member>; 4 - to; 5 - <queue> */
+	if ((pos > 5) || (pos < 3)) {
+		return NULL;
+	}
+	if (pos == 4) {
+		if (state == 0) {
+			return strdup("from");
+		} else {
+			return NULL;
+		}
+	}
+
+	if (pos == 5) {
+		/* No need to duplicate code */
+		return complete_queue(line, word, pos, state);
+	}
+
+	if (queues != NULL) {
+		for (q = queues ; q ; q = q->next) {
+			ast_mutex_lock(&q->lock);
+			for (m = q->members ; m ; m = m->next) {
+				if (++which > state) {
+					char *tmp = malloc(strlen(m->tech) + strlen(m->loc) + 2);
+					if (tmp) {
+						sprintf(tmp, "%s/%s", m->tech, m->loc);
+					} else {
+						ast_log(LOG_ERROR, "Out of memory\n");
+					}
+					ast_mutex_unlock(&q->lock);
+					return tmp;
+				}
+			}
+			ast_mutex_unlock(&q->lock);
+		}
+	}
+	return NULL;
 }
 
 static char show_queues_usage[] = 
@@ -2097,13 +2332,31 @@ static struct ast_cli_entry cli_show_queue = {
 	{ "show", "queue", NULL }, queue_show, 
 	"Show status of a specified queue", show_queue_usage, complete_queue };
 
+static char aqm_cmd_usage[] =
+"Usage: add queue member <channel> to <queue> [penalty <penalty>]\n";
+
+static struct ast_cli_entry cli_add_queue_member = {
+	{ "add", "queue", "member", NULL }, handle_add_queue_member,
+	"Add a channel to a specified queue", aqm_cmd_usage, complete_add_queue_member };
+
+static char rqm_cmd_usage[] =
+"Usage: remove queue member <channel> from <queue>\n";
+
+static struct ast_cli_entry cli_remove_queue_member = {
+	{ "remove", "queue", "member", NULL }, handle_remove_queue_member,
+	"Removes a channel from a specified queue", rqm_cmd_usage, complete_remove_queue_member };
+
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
 	ast_cli_unregister(&cli_show_queue);
 	ast_cli_unregister(&cli_show_queues);
-	ast_manager_unregister( "Queues" );
-	ast_manager_unregister( "QueueStatus" );
+	ast_cli_unregister(&cli_add_queue_member);
+	ast_cli_unregister(&cli_remove_queue_member);
+	ast_manager_unregister("Queues");
+	ast_manager_unregister("QueueStatus");
+	ast_manager_unregister("QueueAdd");
+	ast_manager_unregister("QueueRemove");
 	ast_unregister_application(app_aqm);
 	ast_unregister_application(app_rqm);
 	return ast_unregister_application(app);
@@ -2116,10 +2369,12 @@ int load_module(void)
 	if (!res) {
 		ast_cli_register(&cli_show_queue);
 		ast_cli_register(&cli_show_queues);
+		ast_cli_register(&cli_add_queue_member);
+		ast_cli_register(&cli_remove_queue_member);
 		ast_manager_register( "Queues", 0, manager_queues_show, "Queues" );
 		ast_manager_register( "QueueStatus", 0, manager_queues_status, "Queue Status" );
-
-		// [PHM 06/26/03]
+		ast_manager_register( "QueueAdd", 0, manager_add_queue_member, "Add interface to queue." );
+		ast_manager_register( "QueueRemove", 0, manager_remove_queue_member, "Remove interface from queue." );
 		ast_register_application(app_aqm, aqm_exec, app_aqm_synopsis, app_aqm_descrip) ;
 		ast_register_application(app_rqm, rqm_exec, app_rqm_synopsis, app_rqm_descrip) ;
 	}
