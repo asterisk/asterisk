@@ -51,6 +51,7 @@ struct iax_ies {
 	unsigned char *fwdata;
 	unsigned char fwdatalen;
 	unsigned int provver;
+	int provverpres;
 };
 
 #define DIRECTION_INGRESS 1

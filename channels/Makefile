@@ -136,11 +136,11 @@ chan_oss.so: chan_oss.o
 	$(CC) $(SOLINK) -o $@ chan_oss.o -lossaudio
 endif
 
-chan_iax2.so: chan_iax2.o iax2-parser.o
+chan_iax2.so: chan_iax2.o iax2-parser.o iax2-provision.o
 ifeq ($(USE_MYSQL_FRIENDS),1)
-	$(CC) $(SOLINK) -o $@ chan_iax2.o iax2-parser.o $(MYSQLLIB) -lz
+	$(CC) $(SOLINK) -o $@ chan_iax2.o iax2-parser.o iax2-provision.o $(MYSQLLIB) -lz
 else
-	$(CC) $(SOLINK) -o $@ chan_iax2.o iax2-parser.o
+	$(CC) $(SOLINK) -o $@ chan_iax2.o iax2-parser.o iax2-provision.o
 endif
 
 chan_iax.so: chan_iax.o

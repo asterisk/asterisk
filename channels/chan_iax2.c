@@ -67,6 +67,7 @@
 #endif
 #include "iax2.h"
 #include "iax2-parser.h"
+#include "iax2-provision.h"
 #include "../astconf.h"
 
 #ifndef IPTOS_MINCOST
@@ -452,6 +453,9 @@ struct chan_iax2_pvt {
 	unsigned short bridgecallno;
 	unsigned int bridgesfmt;
 	struct ast_trans_pvt *bridgetrans;
+	
+	/* If this is a provisioning request */
+	int provision;
 	
 	int pingid;			/* Transmit PING request */
 	int lagid;			/* Retransmit lag request */
@@ -1591,6 +1595,7 @@ static struct ast_cli_entry cli_show_stats =
 
 static struct ast_cli_entry cli_show_cache =
 { { "iax2", "show", "cache", NULL }, iax2_show_cache, "Display IAX cached dialplan", show_cache_usage };
+
 
 static unsigned int calc_rxstamp(struct chan_iax2_pvt *p);
 
@@ -4742,6 +4747,22 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2)
 }
 
 
+static int iax2_provision(struct sockaddr_in *end, char *dest, const char *template, int force);
+
+static int check_provisioning(struct sockaddr_in *sin, char *si, unsigned int ver)
+{
+	unsigned int ourver;
+	unsigned char rsi[80];
+	snprintf(rsi, sizeof(rsi), "si-%s", si);
+	if (iax_provision_version(&ourver, rsi, 1))
+		return 0;
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Service identifier '%s', we think '%08x', they think '%08x'\n", si, ourver, ver);
+	if (ourver != ver) 
+		iax2_provision(sin, NULL, rsi, 1);
+	return 0;
+}
+
 static int socket_read(int *id, int fd, short events, void *cbdata)
 {
 	struct sockaddr_in sin;
@@ -5150,6 +5171,8 @@ retryowner:
 				/* Ignore if it's already up */
 				if (iaxs[fr.callno]->state & (IAX_STATE_STARTED | IAX_STATE_TBD))
 					break;
+				if (ies.provverpres && ies.serviceident && sin.sin_addr.s_addr)
+					check_provisioning(&sin, ies.serviceident, ies.provver);
 				/* For security, always ack immediately */
 				if (delayreject)
 					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
@@ -5250,6 +5273,12 @@ retryowner:
 				iax2_destroy_nolock(fr.callno);
 				break;
 			case IAX_COMMAND_REJECT:
+				if (iaxs[fr.callno]->provision) {
+					/* Send ack immediately, before we destroy */
+					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
+					iax2_destroy_nolock(fr.callno);
+					break;
+				}
 				if (iaxs[fr.callno]->owner) {
 					if (authdebug)
 						ast_log(LOG_WARNING, "Call rejected by %s: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr.callno]->addr.sin_addr), ies.cause ? ies.cause : "<Unknown>");
@@ -5282,6 +5311,12 @@ retryowner:
 				/* Ignore if call is already up or needs authentication or is a TBD */
 				if (iaxs[fr.callno]->state & (IAX_STATE_STARTED | IAX_STATE_TBD | IAX_STATE_AUTHENTICATED))
 					break;
+				if (iaxs[fr.callno]->provision) {
+					/* Send ack immediately, before we destroy */
+					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
+					iax2_destroy_nolock(fr.callno);
+					break;
+				}
 				if (ies.format) {
 					iaxs[fr.callno]->peerformat = ies.format;
 				} else {
@@ -5549,6 +5584,8 @@ retryowner2:
 						memset(&sin, 0, sizeof(sin));
 					if (update_registry(iaxs[fr.callno]->peer, &sin, fr.callno, ies.devicetype))
 						ast_log(LOG_WARNING, "Registry error\n");
+					if (ies.provverpres && ies.serviceident && sin.sin_addr.s_addr)
+						check_provisioning(&sin, ies.serviceident, ies.provver);
 					break;
 				}
 				registry_authrequest(iaxs[fr.callno]->peer, fr.callno);
@@ -5779,6 +5816,86 @@ static int iax2_do_register(struct iax2_registry *reg)
 	return 0;
 }
 
+static char *iax2_prov_complete_template_3rd(char *line, char *word, int pos, int state)
+{
+	if (pos != 3)
+		return NULL;
+	return iax_prov_complete_template(line, word, pos, state);
+}
+
+static int iax2_provision(struct sockaddr_in *end, char *dest, const char *template, int force)
+{
+	/* Returns 1 if provisioned, -1 if not able to find destination, or 0 if no provisioning
+	   is found for template */
+	struct iax_ie_data provdata;
+	struct iax_ie_data ied;
+	unsigned int sig;
+	struct sockaddr_in sin;
+	int callno;
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Provisioning '%s' from template '%s'\n", dest, template);
+	if (iax_provision_build(&provdata, &sig, template, force)) {
+		ast_log(LOG_DEBUG, "No provisioning found for template '%s'\n", template);
+		return 0;
+	}
+	if (end)
+		memcpy(&sin, end, sizeof(sin));
+	else {
+		if (create_addr(&sin, NULL, NULL, NULL, dest, NULL, NULL, NULL, NULL, 0, NULL, NULL))
+			return -1;
+	}
+	/* Build the rest of the message */
+	memset(&ied, 0, sizeof(ied));
+	iax_ie_append_raw(&ied, IAX_IE_PROVISIONING, provdata.buf, provdata.pos);
+
+	callno = find_callno(0, 0, &sin, NEW_FORCE, 1);
+	if (!callno)
+		return -1;
+	ast_mutex_lock(&iaxsl[callno]);
+	if (iaxs[callno]) {
+		/* Schedule autodestruct in case they don't ever give us anything back */
+		if (iaxs[callno]->autoid > -1)
+			ast_sched_del(sched, iaxs[callno]->autoid);
+		iaxs[callno]->autoid = ast_sched_add(sched, 15000, auto_hangup, (void *)(long)callno);
+		iaxs[callno]->provision = 1;
+		/* Got a call number now, so go ahead and send the provisioning information */
+		send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_PROVISION, 0, ied.buf, ied.pos, -1);
+	}
+	ast_mutex_unlock(&iaxsl[callno]);
+	return 1;
+}
+
+static int iax2_prov_cmd(int fd, int argc, char *argv[])
+{
+	int force = 0;
+	int res;
+	if (argc < 4)
+		return RESULT_SHOWUSAGE;
+	if ((argc > 4)) {
+		if (!strcasecmp(argv[4], "forced"))
+			force = 1;
+		else
+			return RESULT_SHOWUSAGE;
+	}
+	res = iax2_provision(NULL, argv[2], argv[3], force);
+	if (res < 0)
+		ast_cli(fd, "Unable to find peer/address '%s'\n", argv[2]);
+	else if (res < 1)
+		ast_cli(fd, "No template (including wildcard) matching '%s'\n", argv[3]);
+	else
+		ast_cli(fd, "Provisioning '%s' with template '%s'%s\n", argv[2], argv[3], force ? ", forced" : "");
+	return RESULT_SUCCESS;
+}
+
+static char show_prov_usage[] =
+"Usage: iax2 provision <host> <template> [forced]\n"
+"       Provisions the given peer or IP address using a template\n"
+"       matching either 'template' or '*' if the template is not\n"
+"       found.  If 'forced' is specified, even empty provisioning\n"
+"       fields will be provisioned as empty fields.\n";
+
+static struct ast_cli_entry cli_provision = 
+{ { "iax2", "provision", NULL }, iax2_prov_cmd, "Provision an IAX device", show_prov_usage, iax2_prov_complete_template_3rd };
 
 static int iax2_poke_noanswer(void *data)
 {
@@ -6600,6 +6717,7 @@ static int reload_config(void)
 		iax2_poke_peer(peer, 0);
 	ast_mutex_unlock(&peerl.lock);
 	reload_firmware();
+	iax_provision_reload();
 	return 0;
 }
 
@@ -6980,6 +7098,7 @@ static int __unload_module(void)
 	ast_cli_unregister(&cli_show_peers_begin);
 	ast_cli_unregister(&cli_show_firmware);
 	ast_cli_unregister(&cli_show_registry);
+	ast_cli_unregister(&cli_provision);
 	ast_cli_unregister(&cli_debug);
 	ast_cli_unregister(&cli_trunk_debug);
 	ast_cli_unregister(&cli_no_debug);
@@ -7056,6 +7175,7 @@ int load_module(void)
 	ast_cli_register(&cli_show_peers_begin);
 	ast_cli_register(&cli_show_firmware);
 	ast_cli_register(&cli_show_registry);
+	ast_cli_register(&cli_provision);
 	ast_cli_register(&cli_debug);
 	ast_cli_register(&cli_trunk_debug);
 	ast_cli_register(&cli_no_debug);
@@ -7109,6 +7229,7 @@ int load_module(void)
 		iax2_poke_peer(peer, 0);
 	ast_mutex_unlock(&peerl.lock);
 	reload_firmware();
+	iax_provision_reload();
 	return res;
 }
 
