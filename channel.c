@@ -809,15 +809,25 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	fd_set rfds, efds;
 	int res;
 	int x, y, max=-1;
+	time_t now;
+	long whentohangup = 0, havewhen = 0, diff;
 	struct ast_channel *winner = NULL;
 	if (outfd)
-		*outfd = -1;
+		*outfd = -99999;
 	if (exception)
 		*exception = 0;
 	
+	time(&now);
 	/* Perform any pending masquerades */
 	for (x=0;x<n;x++) {
 		ast_mutex_lock(&c[x]->lock);
+		if (c[x]->whentohangup) {
+			diff = c[x]->whentohangup - now;
+			if (!havewhen || (diff < whentohangup)) {
+				havewhen++;
+				whentohangup = diff;
+			}
+		}
 		if (c[x]->masq) {
 			if (ast_do_masquerade(c[x], 1)) {
 				ast_log(LOG_WARNING, "Masquerade failed\n");
@@ -831,6 +841,13 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	
 	tv.tv_sec = *ms / 1000;
 	tv.tv_usec = (*ms % 1000) * 1000;
+	
+	if (havewhen) {
+		if ((*ms < 0) || (whentohangup * 1000 < *ms)) {
+			tv.tv_sec = whentohangup / 1000;
+			tv.tv_usec = (whentohangup % 1000) * 1000;
+		}
+	}
 	FD_ZERO(&rfds);
 	FD_ZERO(&efds);
 
@@ -851,7 +868,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		if (fds[x] > max)
 			max = fds[x];
 	}
-	if (*ms >= 0)
+	if ((*ms >= 0) || (havewhen))
 		res = ast_select(max + 1, &rfds, NULL, &efds, &tv);
 	else
 		res = ast_select(max + 1, &rfds, NULL, &efds, NULL);
