@@ -161,9 +161,9 @@ static int i4l_init(struct ast_modem_pvt *p)
 		ast_log(LOG_WARNING, "Unable to set to transparent mode\n");
 		return -1;
 	}
-	if (ast_modem_send(p, "ATS23=1", 0) ||
+	if (ast_modem_send(p, "ATS23=9", 0) ||
 	     ast_modem_expect(p, "OK", 5)) {
-		ast_log(LOG_WARNING, "Unable to set to transparent mode\n");
+		ast_log(LOG_WARNING, "Unable to set to transparent/ringing mode\n");
 		return -1;
 	}
 
@@ -199,6 +199,10 @@ static struct ast_frame *i4l_handle_escape(struct ast_modem_pvt *p, char esc)
 	case 'R': /* Pseudo ring */
 		p->fr.frametype = AST_FRAME_CONTROL;
 		p->fr.subclass = AST_CONTROL_RING;
+		return &p->fr;
+	case 'I': /* Pseudo ringing */
+		p->fr.frametype = AST_FRAME_CONTROL;
+		p->fr.subclass =  AST_CONTROL_RINGING;
 		return &p->fr;
 	case 'X': /* Pseudo connect */
 		p->fr.frametype = AST_FRAME_CONTROL;
@@ -289,6 +293,11 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 			if (!strncasecmp(result, "CALLER NUMBER: ", 15 )) {
 				strncpy(p->cid, result + 15, sizeof(p->cid)-1);
 				return i4l_handle_escape(p, 'R');
+			} else
+			if (!strcasecmp(result, "RINGING")) {
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "%s is ringing...\n", p->dev);
+				return i4l_handle_escape(p, 'I');
 			} else
 			if (!strncasecmp(result, "RING", 4)) {
 				if (result[4]=='/') 
