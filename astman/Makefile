@@ -8,8 +8,7 @@ ifeq ($(findstring BSD,${OSARCH}),BSD)
 CFLAGS+=-I/usr/local/include -L/usr/local/lib
 endif
 
-TARGET=$(shell if [ -f /usr/include/newt.h ]; then echo "astman"; else echo "none" ; fi)
-TARGET=$(shell if [ -f /usr/local/include/newt.h ]; then echo "astman"; else echo "none" ; fi)
+TARGET=$(shell if [ -f /usr/include/newt.h ]; then echo "astman"; else if [ -f /usr/local/include/newt.h ]; then echo "astman"; else echo "none" ; fi ; fi)
 all: depend $(TARGET)
 
 install:
