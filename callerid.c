@@ -436,6 +436,9 @@ int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec)
 		sum += msg[x];
 	sum = (256 - (sum & 255));
 	msg[len++] = sum;
+	/* Wait a half a second */
+	for (x=0;x<4000;x++)
+		PUT_BYTE(0x7f);
 	/* Transmit 30 0x55's (looks like a square wave) for channel seizure */
 	for (x=0;x<30;x++)
 		PUT_CLID(0x55);
