@@ -188,6 +188,9 @@ struct ast_frame_chain {
 /* Relax the parameters for DTMF reception (mainly for radio use) */
 #define	AST_OPTION_RELAXDTMF		3
 
+/* Set (or clear) Audio (Not-Clear) Mode */
+#define	AST_OPTION_AUDIO_MODE		4
+
 struct ast_option_header {
 	/* Always keep in network byte order */
 #if __BYTE_ORDER == __BIG_ENDIAN

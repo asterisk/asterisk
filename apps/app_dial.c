@@ -545,12 +545,16 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			int x = 2;
 			if (tmp->dataquality) x = 0;
 			ast_channel_setoption(chan,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
+			x = 0;
+			ast_channel_setoption(chan,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 		}			
 		if (!strcmp(peer->type,"Zap"))
 		{
 			int x = 2;
 			if (tmp->dataquality) x = 0;
 			ast_channel_setoption(peer,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
+			x = 0;
+			ast_channel_setoption(chan,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 		}			
 		hanguptree(outgoing, peer);
 		outgoing = NULL;
@@ -573,7 +577,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
  			ast_log(LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
  			ast_channel_sendurl( peer, url );
  		} /* /JDG */
-		res = ast_bridge_call(chan, peer, allowredir, allowdisconnect);
+		res = ast_bridge_call(chan, peer, allowredir, allowdisconnect | tmp->dataquality);
 		ast_hangup(peer);
 	}	
 out:

@@ -1617,6 +1617,8 @@ static int zt_hangup(struct ast_channel *ast)
 		x = 0;
 		ast_channel_setoption(ast,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
 		ast_channel_setoption(ast,AST_OPTION_TDD,&x,sizeof(char),0);
+		x = 1;
+		ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 		p->didtdd = 0;
 		p->cidspill = NULL;
 		p->callwaitcas = 0;
@@ -1743,7 +1745,7 @@ int	x;
 	struct zt_pvt *p = chan->pvt->pvt;
 
 	
-	if ((option != AST_OPTION_TONE_VERIFY) &&
+	if ((option != AST_OPTION_TONE_VERIFY) && (option != AST_OPTION_AUDIO_MODE) &&
 		(option != AST_OPTION_TDD) && (option != AST_OPTION_RELAXDTMF))
 	   {
 		errno = ENOSYS;
@@ -1856,6 +1858,20 @@ int	x;
 			x = 1;
 		}
 		ast_dsp_digitmode(p->dsp,x ? DSP_DIGITMODE_RELAXDTMF : DSP_DIGITMODE_DTMF | p->dtmfrelax);
+		break;
+	    case AST_OPTION_AUDIO_MODE:  /* Set AUDIO mode (or not) */
+		if (!*cp)
+		{		
+			ast_log(LOG_DEBUG, "Set option AUDIO MODE, value: OFF(0) on %s\n",chan->name);
+			x = 0;
+		}
+		else
+		{		
+			ast_log(LOG_DEBUG, "Set option AUDIO MODE, value: ON(1) on %s\n",chan->name);
+			x = 1;
+		}
+		if (ioctl(p->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &x) == -1)
+			ast_log(LOG_WARNING, "Unable to set audio mode on channel %d\n", p->channel);
 		break;
 	}
 	errno = 0;
