@@ -247,13 +247,15 @@ static void network_verboser(const char *s, int pos, int replace, int complete)
 		char *t = alloca(strlen(s) + 2);
 		if (t) {
 			sprintf(t, "\r%s", s);
-			ast_network_puts(t);
+			if (complete)
+				ast_network_puts(t);
 		} else {
 			ast_log(LOG_ERROR, "Out of memory\n");
 			ast_network_puts(s);
 		}
 	} else {
-		ast_network_puts(s);
+		if (complete)
+			ast_network_puts(s);
 	}
 }
 
