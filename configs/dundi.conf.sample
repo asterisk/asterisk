@@ -52,6 +52,15 @@ autokill=yes
 ; the key being held at dundi/secret).
 ;
 ;secretpath=dundi
+;
+; The 'storehistory' option (also changeable at runtime with
+; 'dundi store history' and 'dundi no store history') will
+; cause the DUNDi engine to keep track of the last several
+; queries and the amount of time each query took to execute
+; for the purpose of tracking slow nodes.  This option is
+; off by default due to performance impacts.
+;
+;slowhistory=yes
 
 [mappings]
 ;
