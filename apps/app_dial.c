@@ -352,6 +352,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 								*allowdisconnect_in = o->allowdisconnect_in;
 								*allowdisconnect_out = o->allowdisconnect_out;
 							}
+							/* If call has been answered, then the eventual hangup is likely to be normal hangup */
+							in->hangupcause = AST_CAUSE_NORMAL_CLEARING;
+							o->chan->hangupcause = AST_CAUSE_NORMAL_CLEARING;
 							break;
 						case AST_CONTROL_BUSY:
 							if (option_verbose > 2)
