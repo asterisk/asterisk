@@ -4142,7 +4142,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				transmit_response(p, "100 Trying", req);
 			}
 		} else {
-			if (p) {
+			if (p && !p->needdestroy) {
 				ast_log(LOG_NOTICE, "Unable to create/find channel\n");
 				transmit_response_reliable(p, "503 Unavailable", req);
 				p->needdestroy = 1;
