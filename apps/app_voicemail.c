@@ -1035,7 +1035,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char
 		fclose(p);
 		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
 		ast_safe_system(tmp2);
-		ast_log(LOG_DEBUG, "Sent mail to %s with command '%s'\n", who, mailcmd);
+		ast_log(LOG_DEBUG, "Sent page to %s with command '%s'\n", pager, mailcmd);
 	} else {
 		ast_log(LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
 		return -1;
