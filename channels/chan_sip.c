@@ -2562,6 +2562,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 					/* If this was the first then it'll be the tail */
 					if (!tail) tail = thishop;
 				} else {
+					thishop->next = NULL;
 					/* Link in at the end */
 					if (tail)
 						tail->next = thishop;
@@ -2591,6 +2592,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 		thishop = (struct sip_route *)malloc(sizeof(struct sip_route)+len+1);
 		strncpy(thishop->hop, c, len);
 		thishop->hop[len] = '\0';
+		thishop->next = NULL;
 		/* Goes at the end */
 		if (tail)
 			tail->next = thishop;
