@@ -844,7 +844,7 @@ zapretry:
 	if (!firstpass && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN)) {
 		firstpass = 1;
 		if (!(confflags & CONFFLAG_QUIET))
-			if ((confflags & CONFFLAG_WAITMARKED) && conf->markedusers >= 1)
+			if (!(confflags & CONFFLAG_WAITMARKED) || (conf->markedusers >= 1))
 				conf_play(chan, conf, ENTER);
 	}
 	conf_flush(fd);
