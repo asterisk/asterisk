@@ -130,9 +130,12 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 {
 	struct ast_trans_pvt *p;
 	struct ast_frame *out;
+	struct timeval delivery;
 	p = path;
 	/* Feed the first frame into the first translator */
 	p->step->framein(p->state, f);
+	delivery.tv_sec = f->delivery.tv_sec;
+	delivery.tv_usec = f->delivery.tv_usec;
 	if (consume)
 		ast_frfree(f);
 	while(p) {
@@ -144,8 +147,11 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 		   return this frame  */
 		if (p->next) 
 			p->next->step->framein(p->next->state, out);
-		else
+		else {
+			out->delivery.tv_sec = f->delivery.tv_sec;
+			out->delivery.tv_usec = f->delivery.tv_usec;
 			return out;
+		}
 		p = p->next;
 	}
 	ast_log(LOG_WARNING, "I should never get here...\n");
