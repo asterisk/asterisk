@@ -1042,7 +1042,7 @@ static void update_peer(struct sip_peer *p, int expiry)
 		realtime_update_peer(p->name, &p->addr, p->username, expiry);
 }
 
-static struct sip_peer *build_peer(const char *name, struct ast_variable *v);
+static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int temponly);
 
 static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *sin)
 {
@@ -1060,7 +1060,7 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 		var = ast_load_realtime("sipfriends", "ipaddr", iabuf, NULL);
 	if (var) {
 		/* Make sure it's not a user only... */
-		peer = build_peer(peername, var);
+		peer = build_peer(peername, var, 1);
 		if (peer) {
 			/* Add some finishing touches, addresses, etc */
 			peer->temponly = 1;
@@ -8147,7 +8147,7 @@ static struct sip_peer *temp_peer(char *name)
 }
 
 /*--- build_peer: Build peer from config file ---*/
-static struct sip_peer *build_peer(const char *name, struct ast_variable *v)
+static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int temponly)
 {
 	struct sip_peer *peer;
 	struct sip_peer *prev;
@@ -8157,13 +8157,17 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v)
 	int found=0;
 	prev = NULL;
 	ast_mutex_lock(&peerl.lock);
-	peer = peerl.peers;
-	while(peer) {
-		if (!strcasecmp(peer->name, name)) {	
-			break;
+	if (temponly) {
+		peer = NULL;
+	} else {
+		peer = peerl.peers;
+		while(peer) {
+			if (!strcasecmp(peer->name, name)) {	
+				break;
+			}
+			prev = peer;
+			peer = peer->next;
 		}
-		prev = peer;
-		peer = peer->next;
 	}
 	if (peer) {
 		found++;
@@ -8598,7 +8602,7 @@ static int reload_config(void)
 					}
 				}
 				if (!strcasecmp(utype, "peer") || !strcasecmp(utype, "friend")) {
-					peer = build_peer(cat, ast_variable_browse(cfg, cat));
+					peer = build_peer(cat, ast_variable_browse(cfg, cat), 0);
 					if (peer) {
 						ast_mutex_lock(&peerl.lock);
 						peer->next = peerl.peers;

@@ -1983,8 +1983,8 @@ static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newcha
 	return 0;
 }
 
-static struct iax2_peer *build_peer(const char *name, struct ast_variable *v);
-static struct iax2_user *build_user(const char *name, struct ast_variable *v);
+static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, int temponly);
+static struct iax2_user *build_user(const char *name, struct ast_variable *v, int temponly);
 
 static void destroy_user(struct iax2_user *user);
 static void destroy_peer(struct iax2_peer *peer);
@@ -1999,7 +1999,7 @@ static struct iax2_peer *realtime_peer(const char *peername)
 	var = ast_load_realtime("iaxfriends", "name", peername, NULL);
 	if (var) {
 		/* Make sure it's not a user only... */
-		peer = build_peer(peername, var);
+		peer = build_peer(peername, var, 1);
 		if (peer) {
 			/* Add some finishing touches, addresses, etc */
 			peer->temponly = 1;
@@ -2048,7 +2048,7 @@ static struct iax2_user *realtime_user(const char *username)
 	var = ast_load_realtime("iaxfriends", "name", username, NULL);
 	if (var) {
 		/* Make sure it's not a user only... */
-		user = build_user(username, var);
+		user = build_user(username, var, 1);
 		if (user) {
 			/* Add some finishing touches, addresses, etc */
 			user->temponly = 1;
@@ -6366,7 +6366,7 @@ static int get_auth_methods(char *value)
 	return methods;
 }
 
-static struct iax2_peer *build_peer(const char *name, struct ast_variable *v)
+static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, int temponly)
 {
 	struct iax2_peer *peer;
 	struct iax2_peer *prev;
@@ -6376,14 +6376,17 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v)
 	int found=0;
 	prev = NULL;
 	ast_mutex_lock(&peerl.lock);
-	peer = peerl.peers;
-	while(peer) {
-		if (!strcasecmp(peer->name, name)) {	
-			break;
+	if (!temponly) {
+		peer = peerl.peers;
+		while(peer) {
+			if (!strcasecmp(peer->name, name)) {	
+				break;
+			}
+			prev = peer;
+			peer = peer->next;
 		}
-		prev = peer;
-		peer = peer->next;
-	}
+	} else
+		peer = NULL;	
 	if (peer) {
 		found++;
 		oldha = peer->ha;
@@ -6538,7 +6541,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v)
 	return peer;
 }
 
-static struct iax2_user *build_user(const char *name, struct ast_variable *v)
+static struct iax2_user *build_user(const char *name, struct ast_variable *v, int temponly)
 {
 	struct iax2_user *prev, *user;
 	struct iax2_context *con, *conl = NULL;
@@ -6549,14 +6552,17 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v)
 	
 	prev = NULL;
 	ast_mutex_lock(&userl.lock);
-	user = userl.users;
-	while(user) {
-		if (!strcasecmp(user->name, name)) {	
-			break;
+	if (!temponly) {
+		user = userl.users;
+		while(user) {
+			if (!strcasecmp(user->name, name)) {	
+				break;
+			}
+			prev = user;
+			user = user->next;
 		}
-		prev = user;
-		user = user->next;
-	}
+	} else
+		user = NULL;
 	if (user) {
 		found++;
 		oldha = user->ha;
@@ -6933,7 +6939,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 			utype = ast_variable_retrieve(cfg, cat, "type");
 			if (utype) {
 				if (!strcasecmp(utype, "user") || !strcasecmp(utype, "friend")) {
-					user = build_user(cat, ast_variable_browse(cfg, cat));
+					user = build_user(cat, ast_variable_browse(cfg, cat), 0);
 					if (user) {
 						ast_mutex_lock(&userl.lock);
 						user->next = userl.users;
@@ -6942,7 +6948,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 					}
 				}
 				if (!strcasecmp(utype, "peer") || !strcasecmp(utype, "friend")) {
-					peer = build_peer(cat, ast_variable_browse(cfg, cat));
+					peer = build_peer(cat, ast_variable_browse(cfg, cat), 0);
 					if (peer) {
 						ast_mutex_lock(&peerl.lock);
 						peer->next = peerl.peers;
