@@ -33,6 +33,9 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <time.h>
+#ifdef USEMYSQLVM
+#include <mysql/mysql.h>
+#endif
 
 #include <pthread.h>
 #include "../asterisk.h"
@@ -142,15 +145,125 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int make_dir(char *dest, int len, char *context, char *ext, char *mailbox)
+#ifdef USEMYSQLVM
+MYSQL *dbhandler=NULL;
+pthread_mutex_t mysqllock;
+char dbuser[80];
+char dbpass[80];
+char dbname[80];
+
+static int mysql_login(void)
 {
-	return snprintf(dest, len, "%s/voicemail/%s/%s/%s", (char *)ast_config_AST_SPOOL_DIR,context, ext, mailbox);
+	ast_verbose( VERBOSE_PREFIX_3 "Logging into database with user %s, password %s, and database %s\n", dbuser, dbpass, dbname);
+
+	dbhandler=mysql_init(NULL);
+	if (!mysql_real_connect(dbhandler, NULL, dbuser, dbpass, dbname, 0, NULL, 0)) {
+		ast_log(LOG_WARNING, "Error Logging into database\n");
+		return(-1);
+	}
+	pthread_mutex_init(&mysqllock, NULL);
+	return(0);
 }
 
-static int make_file(char *dest, int len, char *dir, int num)
+static void mysql_logout(void)
 {
-	return snprintf(dest, len, "%s/msg%04d", dir, num);
+	mysql_close(dbhandler);
 }
+
+static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, char *mailbox)
+{
+	MYSQL_RES *result;
+	MYSQL_ROW rowval;
+	MYSQL_FIELD *fields;
+	int numFields, i;
+	char query[240];
+	struct ast_vm_user *retval;
+
+	retval=malloc(sizeof(struct ast_vm_user));
+
+	*retval->mailbox='\0';
+	*retval->context='\0';
+	*retval->password='\0';
+	*retval->fullname='\0';
+	*retval->email='\0';
+	*retval->pager='\0';
+	retval->alloced=1;
+	retval->next=NULL;
+	if (mailbox) {
+		strcpy(retval->mailbox, mailbox);
+	}
+	if (context) {
+		strcpy(retval->context, context);
+	}
+
+	if (*retval->context) {
+		sprintf(query, "SELECT password,fullname,email,pager FROM users WHERE context='%s' AND mailbox='%s'", context, mailbox);
+	} else {
+		sprintf(query, "SELECT password,fullname,email,pager FROM users WHERE mailbox='%s'", mailbox);
+	}
+	pthread_mutex_lock(&mysqllock);
+	mysql_query(dbhandler, query);
+	if ((result=mysql_store_result(dbhandler))!=NULL) {
+		if ((rowval=mysql_fetch_row(result))!=NULL) {
+			numFields=mysql_num_fields(result);
+			fields=mysql_fetch_fields(result);
+			for (i=0; i<numFields; i++) {
+				if (rowval[i]) {
+					if (!strcmp(fields[i].name, "password")) {
+						strcpy(retval->password, rowval[i]);
+					} else if (!strcmp(fields[i].name, "fullname")) {
+						strcpy(retval->fullname, rowval[i]);
+					} else if (!strcmp(fields[i].name, "email")) {
+						strcpy(retval->email, rowval[i]);
+					} else if (!strcmp(fields[i].name, "pager")) {
+						strcpy(retval->pager, rowval[i]);
+					}
+				}
+			}
+			mysql_free_result(result);
+			pthread_mutex_unlock(&mysqllock);
+			return(retval);
+		} else {
+			mysql_free_result(result);
+			pthread_mutex_unlock(&mysqllock);
+			free(retval);
+			return(NULL);
+		}
+	}
+	pthread_mutex_unlock(&mysqllock);
+	free(retval);
+	return(NULL);
+}
+
+static void vm_change_password(struct ast_vm_user *vmu, char *password)
+{
+	char query[400];
+
+	if (*vmu->context) {
+		sprintf(query, "UPDATE users SET password='%s' WHERE context='%s' AND mailbox='%s' AND password='%s'", password, vmu->context, vmu->mailbox, vmu->password);
+	} else {
+		sprintf(query, "UPDATE users SET password='%s' WHERE mailbox='%s' AND password='%s'", password, vmu->mailbox, vmu->password);
+	}
+	pthread_mutex_lock(&mysqllock);
+	mysql_query(dbhandler, query);
+	strcpy(vmu->password, password);
+	pthread_mutex_unlock(&mysqllock);
+}
+
+static void reset_user_pw(char *context, char *mailbox, char *password)
+{
+	char query[320];
+
+	if (context) {
+		sprintf(query, "UPDATE users SET password='%s' WHERE context='%s' AND mailbox='%s'", password, context, mailbox);
+	} else {
+		sprintf(query, "UPDATE users SET password='%s' WHERE mailbox='%s'", password, mailbox);
+	}
+	pthread_mutex_lock(&mysqllock);
+	mysql_query(dbhandler, query);
+	pthread_mutex_unlock(&mysqllock);
+}
+#else
 
 static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, char *mailbox)
 {
@@ -204,7 +317,7 @@ static int reset_user_pw(char *context, char *mailbox, char *newpass)
 	return res;
 }
 
-static int vm_change_password(struct ast_vm_user *vmu, char *newpassword)
+static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
 {
         /*  There's probably a better way of doing this. */
         /*  That's why I've put the password change in a separate function. */
@@ -280,7 +393,17 @@ static int vm_change_password(struct ast_vm_user *vmu, char *newpassword)
         rename((char *)tmpout,(char *)tmpin);
 	reset_user_pw(vmu->context, vmu->mailbox, newpassword);
 	strncpy(vmu->password, newpassword, sizeof(vmu->password) - 1);
-	return(1);
+}
+#endif
+
+static int make_dir(char *dest, int len, char *context, char *ext, char *mailbox)
+{
+	return snprintf(dest, len, "%s/voicemail/%s/%s/%s", (char *)ast_config_AST_SPOOL_DIR,context, ext, mailbox);
+}
+
+static int make_file(char *dest, int len, char *dir, int num)
+{
+	return snprintf(dest, len, "%s/msg%04d", dir, num);
 }
 
 static int
@@ -444,13 +567,13 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 
 			fprintf(p, "--%s\n", bound);
 		}
-			fprintf(p, "Content-Type: TEXT/PLAIN; charset=US-ASCII\n\n");
-			strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
-			fprintf(p, "Dear %s:\n\n\tJust wanted to let you know you were just left a %s long message (number %d)\n"
+		fprintf(p, "Content-Type: TEXT/PLAIN; charset=US-ASCII\n\n");
+		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
+		fprintf(p, "Dear %s:\n\n\tJust wanted to let you know you were just left a %s long message (number %d)\n"
 
-		           "in mailbox %s from %s, on %s so you might\n"
-				   "want to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n\n", name, 
-				dur, msgnum, mailbox, (callerid ? callerid : "an unknown caller"), date);
+			"in mailbox %s from %s, on %s so you might\n"
+			"want to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n\n", name, 
+			dur, msgnum, mailbox, (callerid ? callerid : "an unknown caller"), date);
 		if (attach_voicemail) {
 			fprintf(p, "--%s\n", bound);
 			fprintf(p, "Content-Type: audio/x-wav; name=\"msg%04d.%s\"\n", msgnum, format);
@@ -1848,11 +1971,8 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 				cmd = play_and_wait(chan, "vm-mismatch");
 				break;
 			}
-			if (vm_change_password(vmu,newpassword) < 0)
-			{
-				ast_log(LOG_DEBUG,"Failed to set new password of user %s\n",vms->username);
-			} else
-                ast_log(LOG_DEBUG,"User %s set password to %s of length %i\n",vms->username,newpassword,strlen(newpassword));
+			vm_change_password(vmu,newpassword);
+			ast_log(LOG_DEBUG,"User %s set password to %s of length %i\n",vms->username,newpassword,strlen(newpassword));
 			cmd = play_and_wait(chan,"vm-passchanged");
 			break;
 		case '*': 
@@ -2243,7 +2363,7 @@ static int append_mailbox(char *context, char *mbox, char *data)
 	return 0;
 }
 
-static int load_users(void)
+static int load_config(void)
 {
 	struct ast_vm_user *cur, *l;
 	struct ast_config *cfg;
@@ -2256,6 +2376,7 @@ static int load_users(void)
 	char *astemail;
 	char *s;
 	int x;
+
 	cfg = ast_load(VOICEMAIL_CONFIG);
 	ast_pthread_mutex_lock(&vmlock);
 	cur = users;
@@ -2326,6 +2447,23 @@ static int load_users(void)
 			}
 		}
 
+#ifdef USEMYSQLVM
+		if (!(s=ast_variable_retrieve(cfg, "general", "dbuser"))) {
+			strcpy(dbuser, "test");
+		} else {
+			strcpy(dbuser, s);
+		}
+		if (!(s=ast_variable_retrieve(cfg, "general", "dbpass"))) {
+			strcpy(dbpass, "test");
+		} else {
+			strcpy(dbpass, s);
+		}
+		if (!(s=ast_variable_retrieve(cfg, "general", "dbname"))) {
+			strcpy(dbname, "vmdb");
+		} else {
+			strcpy(dbname, s);
+		}
+#else
 		cat = ast_category_browse(cfg, NULL);
 		while(cat) {
 			if (strcasecmp(cat, "general")) {
@@ -2338,16 +2476,20 @@ static int load_users(void)
 			}
 			cat = ast_category_browse(cfg, cat);
 		}
+#endif
 		ast_destroy(cfg);
+		ast_pthread_mutex_unlock(&vmlock);
+		return 0;
+	} else {
+		ast_pthread_mutex_unlock(&vmlock);
+		ast_log(LOG_WARNING, "Error reading voicemail config\n");
+		return -1;
 	}
-	ast_pthread_mutex_unlock(&vmlock);
-	return 0;
 }
 
 int reload(void)
 {
-	load_users();
-	return 0;
+	return(load_config());
 }
 
 int unload_module(void)
@@ -2356,13 +2498,23 @@ int unload_module(void)
 	STANDARD_HANGUP_LOCALUSERS;
 	res = ast_unregister_application(app);
 	res |= ast_unregister_application(app2);
+#ifdef USEMYSQLVM
+	mysql_logout();
+#endif
 	return res;
 }
 
 int load_module(void)
 {
 	int res;
-	load_users();
+	if ((res=load_config())) {
+		return(res);
+	}
+#ifdef USEMYSQLVM
+	if ((res=mysql_login())) {
+		return(res);
+	}
+#endif
 	res = ast_register_application(app, vm_exec, synopsis_vm, descrip_vm);
 	if (!res)
 		res = ast_register_application(app2, vm_execmain, synopsis_vmain, descrip_vmain);

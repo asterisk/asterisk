@@ -11,6 +11,8 @@
 # the GNU General Public License
 #
 
+USE_MYSQL_VM_INTERFACE=0
+
 #APPS=app_dial.so app_playback.so app_directory.so app_intercom.so app_mp3.so 
 APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_intercom.so app_mp3.so \
      app_system.so app_echo.so app_record.so app_image.so app_url.so app_disa.so \
@@ -49,6 +51,14 @@ app_todd.o: app_todd.c
 
 app_todd.so: app_todd.o
 	$(CC) -shared -Xlinker -x -o $@ $< -L/usr/local/ssl/lib -lssl -lcrypto
+
+ifeq (${USE_MYSQL_VM_INTERFACE}, 1)
+app_voicemail2.o: app_voicemail2.c
+	$(CC) -pipe -Wall -Wmissing-prototypes -Wmissing-declarations -O6 -g  -Iinclude -I../include -DUSEMYSQLVM=\"1\" -D_REENTRANT -D_GNU_SOURCE -march=i686  -DASTERISK_VERSION=\"CVS-07/21/02-14:49:14\" -DDO_CRASH -DDEBUG_THREADS     -c -o app_voicemail2.o app_voicemail2.c
+else
+app_voicemail2.so : app_voicemail2.o
+	$(CC) -shared -Xlinker -x -o $@ $< -L/usr/lib/mysql -lmysqlclient
+endif
 
 app_sql_postgres.o: app_sql_postgres.c
 	$(CC) -pipe -I/usr/local/pgsql/include -Wall -Wmissing-prototypes -Wmissing-declarations -O6 -g  -Iinclude -I../include -D_REENTRANT -D_GNU_SOURCE -march=i686  -DASTERISK_VERSION=\"CVS-07/21/02-14:49:14\" -DDO_CRASH -DDEBUG_THREADS     -c -o app_sql_postgres.o app_sql_postgres.c
