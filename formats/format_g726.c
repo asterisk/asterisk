@@ -457,14 +457,9 @@ int unload_module()
 {
 	int res;
 
-	res = ast_format_unregister(name40);
+	res = ast_format_unregister(name16);
 	if (res) {
-		ast_log(LOG_WARNING, "Failed to unregister format %s.\n", name40);
-		return(-1);
-	}
-	res = ast_format_unregister(name32);
-	if (res) {
-		ast_log(LOG_WARNING, "Failed to unregister format %s.\n", name32);
+		ast_log(LOG_WARNING, "Failed to unregister format %s.\n", name16);
 		return(-1);
 	}
 	res = ast_format_unregister(name24);
@@ -472,9 +467,14 @@ int unload_module()
 		ast_log(LOG_WARNING, "Failed to unregister format %s.\n", name24);
 		return(-1);
 	}
-	res = ast_format_unregister(name16);
+	res = ast_format_unregister(name32);
 	if (res) {
-		ast_log(LOG_WARNING, "Failed to unregister format %s.\n", name16);
+		ast_log(LOG_WARNING, "Failed to unregister format %s.\n", name32);
+		return(-1);
+	}
+	res = ast_format_unregister(name40);
+	if (res) {
+		ast_log(LOG_WARNING, "Failed to unregister format %s.\n", name40);
 		return(-1);
 	}
 	return(0);
