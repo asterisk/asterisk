@@ -148,10 +148,10 @@ int ast_lookup_iface(char *iface, struct in_addr *address) {
 	close(mysock);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to get IP of %s: %s\n", iface, strerror(errno));
-		strncpy((char *)address,(char *)&__ourip,sizeof(__ourip));
+		memcpy((char *)address,(char *)&__ourip,sizeof(__ourip));
 		return -1;
 	} else {
-		strncpy((char *)address,(char *)&ifreq.ifru_addr.sin_addr,sizeof(ifreq.ifru_addr.sin_addr));
+		memcpy((char *)address,(char *)&ifreq.ifru_addr.sin_addr,sizeof(ifreq.ifru_addr.sin_addr));
 		return 0;
 	}
 }
