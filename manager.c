@@ -65,10 +65,12 @@ static ast_mutex_t actionlock = AST_MUTEX_INITIALIZER;
 static int handle_showmancmds(int fd, int argc, char *argv[])
 {
 	struct manager_action *cur = first_action;
+	char *format = "  %-15.15s  %-45.45s\n";
 
 	ast_mutex_lock(&actionlock);
+	ast_cli(fd, format, "Action", "Synopsis");
 	while(cur) { /* Walk the list of actions */
-		ast_cli(fd, "\t%s  %s\r\n",cur->action, cur->synopsis);
+		ast_cli(fd, format, cur->action, cur->synopsis);
 		cur = cur->next;
 	}
 
@@ -79,12 +81,12 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 static int handle_showmanconn(int fd, int argc, char *argv[])
 {
 	struct mansession *s;
-
+	char *format = "  %-15.15s  %-15.15s\n";
 	ast_mutex_lock(&sessionlock);
 	s = sessions;
-	ast_cli(fd, "  Username\tIP Address\n");
+	ast_cli(fd, format, "Username", "IP Address");
 	while(s) {
-		ast_cli(fd, "  %s\t\t%s\r\n",s->username, inet_ntoa(s->sin.sin_addr));
+		ast_cli(fd, format,s->username, inet_ntoa(s->sin.sin_addr));
 		s = s->next;
 	}
 
