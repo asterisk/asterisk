@@ -1224,7 +1224,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 	int length;
 	char workspace[4096];
 	char ltmp[4096], var[4096];
-	char *nextvar, *nextexp, *nextfunc;
+	char *nextvar, *nextexp, *nextfunc, *nextthing;
 	char *vars, *vare;
 	int pos, brackets, needsub, len, needfunc;
 	
@@ -1234,35 +1234,23 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 	while(!ast_strlen_zero(whereweare) && count) {
 		/* Assume we're copying the whole remaining string */
 		pos = strlen(whereweare);
-
-		/* Look for a variable */
-		nextvar = strstr(whereweare, "${");
-		
-		/* Look for an expression */
-		nextexp = strstr(whereweare, "$[");
-
-		/* Look for a function */
-		nextfunc = strstr(whereweare, "$(");
-		
-		/* Pick the first one only */
-		len = 0;
-		if (nextvar)
-			len++;
-		if(nextexp)
-			len++;
-		if(nextfunc)
-			len++;
-
-		if (len > 1) {
-			if(nextfunc) {
-				nextvar = nextexp = NULL;
-			} else if (nextvar) {
-                nextexp = nextfunc = NULL;
-			} else if (nextexp) {
-                nextvar = nextfunc = NULL;
-            }
+		nextvar = NULL;
+		nextexp = NULL;
+		nextfunc = NULL;
+		nextthing = strchr(whereweare, '$');
+		if (nextthing) {
+			switch(nextthing[1]) {
+			case '{':
+				nextvar = nextthing;
+				break;
+			case '[':
+				nextexp = nextthing;
+				break;
+			case '(':
+				nextfunc = nextthing;
+				break;
+			}
 		}
-		
 		/* If there is one, we only go that far */
 		if (nextvar)
 			pos = nextvar - whereweare;
