@@ -1533,7 +1533,9 @@ static int attempt_transmit(void *data)
 							fr.frametype = AST_FRAME_CONTROL;
 							fr.subclass = AST_CONTROL_HANGUP;
 							iax2_queue_frame(f->callno, &fr);
-							iaxs[f->callno]->owner->hangupcause = AST_CAUSE_DESTINATION_OUT_OF_ORDER;
+							/* Remember, owner could disappear */
+							if (iaxs[f->callno]->owner)
+								iaxs[f->callno]->owner->hangupcause = AST_CAUSE_DESTINATION_OUT_OF_ORDER;
 						} else {
 							if (iaxs[f->callno]->reg) {
 								memset(&iaxs[f->callno]->reg->us, 0, sizeof(iaxs[f->callno]->reg->us));
