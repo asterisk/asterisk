@@ -38,6 +38,7 @@
 #include <netinet/in.h>
 
 #define DEFAULT_PARK_TIME 45000
+#define DEFAULT_TRANSFER_DIGIT_TIMEOUT 3000
 
 static char *parkedcall = "ParkedCall";
 
@@ -57,6 +58,8 @@ static int parking_start = 701;
 
 /* Last available extension for parking */
 static int parking_stop = 750;
+
+static int transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
 
 /* Registrar for operations */
 static char *registrar = "res_parking";
@@ -342,7 +345,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				}
 				res = 0;
 				while(strlen(newext) < sizeof(newext) - 1) {
-					res = ast_waitfordigit(transferer, 3000);
+					res = ast_waitfordigit(transferer, transferdigittimeout);
 					if (res < 1) 
 						break;
 					if (res == '#')
@@ -728,6 +731,12 @@ int load_module(void)
 					parking_start = start;
 					parking_stop = end;
 				}
+			} else if(!strcasecmp(var->name, "transferdigittimeout")) {
+				if ((sscanf(var->value, "%d", &transferdigittimeout) != 1) || (transferdigittimeout < 1)) {
+					ast_log(LOG_WARNING, "%s is not a valid transferdigittimeout\n", var->value);
+					transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
+				} else
+					transferdigittimeout = transferdigittimeout * 1000;
 			}
 			var = var->next;
 		}
