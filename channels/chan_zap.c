@@ -618,12 +618,29 @@ static int zt_get_index(struct ast_channel *ast, struct zt_pvt *p, int nullok)
 	return res;
 }
 
+static void wakeup_sub(struct zt_pvt *p, int a)
+{
+	struct ast_frame null = { AST_FRAME_NULL, };
+	for (;;) {
+		if (p->subs[a].owner) {
+			if (ast_mutex_trylock(&p->subs[a].owner->lock)) {
+				ast_mutex_unlock(&p->lock);
+				usleep(1);
+				ast_mutex_lock(&p->lock);
+			} else {
+				ast_queue_frame(p->subs[a].owner, &null);
+				ast_mutex_unlock(&p->subs[a].owner->lock);
+			}
+		} else
+			break;
+	}
+}
+
 static void swap_subs(struct zt_pvt *p, int a, int b)
 {
 	int tchan;
 	int tinthreeway;
 	struct ast_channel *towner;
-	struct ast_frame null = { AST_FRAME_NULL, };
 
 	ast_log(LOG_DEBUG, "Swapping %d and %d\n", a, b);
 
@@ -639,15 +656,12 @@ static void swap_subs(struct zt_pvt *p, int a, int b)
 	p->subs[b].owner = towner;
 	p->subs[b].inthreeway = tinthreeway;
 
-	if (p->subs[a].owner) {
+	if (p->subs[a].owner) 
 		p->subs[a].owner->fds[0] = p->subs[a].zfd;
-		ast_queue_frame(p->subs[a].owner, &null);
-	}
-	if (p->subs[b].owner) {
+	if (p->subs[b].owner) 
 		p->subs[b].owner->fds[0] = p->subs[b].zfd;
-		ast_queue_frame(p->subs[b].owner, &null);
-	}
-	
+	wakeup_sub(p, a);
+	wakeup_sub(p, b);
 }
 
 static int zt_open(char *fn)
