@@ -2581,9 +2581,7 @@ static int vm_instructions(struct ast_channel *chan, struct vm_state *vms)
 		if (!res) {
 			vms->repeats++;
 			if (vms->repeats > 2) {
-				res = play_and_wait(chan, "vm-goodbye");
-				if (!res)
-					res = 't';
+				res = 't';
 			}
 		}
 	}
