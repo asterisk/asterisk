@@ -5029,11 +5029,6 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 	char resp_hash[256];
 	char uri[256] = "";
 	char cnonce[80];
-	char *uname;
-	if (strlen(p->username))
-		uname = p->username;
-	else
-		uname = p->peername;
 
 	if (strlen(p->domain))
 		strncpy(uri, p->domain, sizeof(uri) - 1);
@@ -5044,7 +5039,7 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 
 	snprintf(cnonce, sizeof(cnonce), "%08x", rand());
 
-	snprintf(a1,sizeof(a1),"%s:%s:%s",uname,p->realm,p->peersecret);
+	snprintf(a1,sizeof(a1),"%s:%s:%s",p->peername,p->realm,p->peersecret);
 	snprintf(a2,sizeof(a2),"%s:%s",orig_header,uri);
 	if (strlen(p->peermd5secret))
 	        strncpy(a1_hash, p->peermd5secret, sizeof(a1_hash) - 1);
@@ -5060,9 +5055,9 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 	md5_hash(resp_hash,resp);
 	/* XXX We hard code our qop to "auth" for now.  XXX */
 	if (strlen(p->qop))
-		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=\"%s\", cnonce=\"%s\", nc=%s",uname,p->realm,uri,p->nonce,resp_hash, p->opaque, "auth", cnonce, "00000001");
+		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=\"%s\", cnonce=\"%s\", nc=%s",p->peername,p->realm,uri,p->nonce,resp_hash, p->opaque, "auth", cnonce, "00000001");
 	else
-		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"",uname,p->realm,uri,p->nonce,resp_hash, p->opaque);
+		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"",p->peername,p->realm,uri,p->nonce,resp_hash, p->opaque);
 
 	return 0;
 }
