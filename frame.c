@@ -14,10 +14,38 @@
 #include <asterisk/frame.h>
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
+#include <asterisk/cli.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <pthread.h>
+#include "asterisk.h"
+
+#ifdef TRACE_FRAMES
+static int headers = 0;
+static struct ast_frame *headerlist = NULL;
+static pthread_mutex_t framelock = PTHREAD_MUTEX_INITIALIZER;
+#endif
+
+static struct ast_frame *ast_frame_header_new(void)
+{
+	struct ast_frame *f;
+	f = malloc(sizeof(struct ast_frame));
+#ifdef TRACE_FRAMES
+	if (f) {
+		headers++;
+		f->prev = NULL;
+		pthread_mutex_lock(&framelock);
+		f->next = headerlist;
+		if (headerlist)
+			headerlist->prev = f;
+		headerlist = f;
+		pthread_mutex_unlock(&framelock);
+	}
+#endif	
+	return f;
+}
 
 /*
  * Important: I should be made more efficient.  Frame headers should
@@ -35,19 +63,18 @@ void ast_frfree(struct ast_frame *fr)
 			free(fr->src);
 	}
 	if (fr->mallocd & AST_MALLOCD_HDR) {
+#ifdef TRACE_FRAMES
+		headers--;
+		pthread_mutex_lock(&framelock);
+		if (fr->next)
+			fr->next->prev = fr->prev;
+		if (fr->prev)
+			fr->prev->next = fr->next;
+		else
+			headerlist = fr->next;
+		pthread_mutex_unlock(&framelock);
+#endif			
 		free(fr);
-	}
-}
-
-void ast_frchain(struct ast_frame_chain *fc)
-{
-	struct ast_frame_chain *last;
-	while(fc) {
-		last = fc;
-		fc = fc->next;
-		if (last->fr)
-			ast_frfree(last->fr);
-		free(last);
 	}
 }
 
@@ -56,7 +83,7 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 	struct ast_frame *out;
 	if (!(fr->mallocd & AST_MALLOCD_HDR)) {
 		/* Allocate a new header if needed */
-		out = malloc(sizeof(struct ast_frame));
+		out = ast_frame_header_new();
 		if (!out) {
 			ast_log(LOG_WARNING, "Out of memory\n");
 			return NULL;
@@ -107,7 +134,7 @@ struct ast_frame *ast_frdup(struct ast_frame *f)
 
 struct ast_frame *ast_fr_fdread(int fd)
 {
-	char buf[4096];
+	char buf[65536];
 	int res;
 	int ttl = sizeof(struct ast_frame);
 	struct ast_frame *f = (struct ast_frame *)buf;
@@ -197,4 +224,39 @@ int ast_getformatbyname(char *name)
 	else if (!strcasecmp(name, "all"))
 		return 0x7FFFFFFF;
 	return 0;
+}
+
+#ifdef TRACE_FRAMES
+static int show_frame_stats(int fd, int argc, char *argv[])
+{
+	struct ast_frame *f;
+	int x=1;
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	ast_cli(fd, "     Framer Statistics     \n");
+	ast_cli(fd, "---------------------------\n");
+	ast_cli(fd, "Total allocated headers: %d\n", headers);
+	ast_cli(fd, "Queue Dump:\n");
+	pthread_mutex_lock(&framelock);
+	for (f=headerlist; f; f = f->next) {
+		ast_cli(fd, "%d.  Type %d, subclass %d from %s\n", x++, f->frametype, f->subclass, f->src ? f->src : "<Unknown>");
+	}
+	pthread_mutex_unlock(&framelock);
+	return RESULT_SUCCESS;
+}
+
+static char frame_stats_usage[] =
+"Usage: show frame stats\n"
+"       Displays debugging statistics from framer\n";
+
+struct ast_cli_entry cli_frame_stats =
+{ { "show", "frame", "stats", NULL }, show_frame_stats, "Shows frame statistics", frame_stats_usage };
+#endif
+
+int init_framer(void)
+{
+#ifdef TRACE_FRAMES
+	ast_cli_register(&cli_frame_stats);
+#endif
+	return 0;	
 }

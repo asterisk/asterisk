@@ -42,19 +42,41 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ;register => marko:secretpass@tormenta.linux-support.net
 ;register => joe@remotehost:5656
 ;
+; Finally, you can set values for your TOS bits to help improve 
+; performance.  Valid values are:
+;   lowdelay		-- Minimize delay
+;   throughput		-- Maximize throughput
+;   reliability		-- Maximize reliability
+;   mincost		-- Minimize cost
+;   none		-- No flags
+;
+tos=lowdelay
+;
+; Trust Caller*ID Coming from iaxtel.com
+;
+[iaxtel]
+type=user
+context=default
+deny=0.0.0.0/0.0.0.0
+permit=216.207.245.47/255.255.255.255
 
+;
 ; Guest sections for unauthenticated connection attempts.  Just
 ; specify an empty secret, or provide no secret section.
 ;
 [guest]
 type=user
 context=default
+callerid="Guest IAX User"
 ;
 ; Further user sections may be added, specifying a context and a
 ; secret used for connections with that given authentication name.
 ; Limited IP based access control is allowed by use of "allow" and
 ; "deny" keywords.  Multiple rules are permitted.  Multiple permitted
 ; contexts may be specified, in which case the first will be the default.
+; You can also override caller*ID so that when you receive a call you
+; set the Caller*ID to be what you want instead of trusting what
+; the remote user provides
 ;
 ;[markster]
 ;type=user
@@ -62,8 +84,9 @@ context=default
 ;context=local
 ;auth=md5,plaintext
 ;secret=markpasswd
+;callerid="Mark Spencer" <(256) 428-6275>
 ;deny=0.0.0.0/0.0.0.0
-;allow=209.16.236.73/255.255.255.0
+;permit=209.16.236.73/255.255.255.0
 ;
 ; Peers may also be specified, with a secret and
 ; a remote hostname.
@@ -76,3 +99,29 @@ host=216.207.245.57
 ;host=asterisk.linux-support.net
 ;port=5036
 ;mask=255.255.255.255
+
+;
+; Peers can remotely register as well, so that they can be
+; mobile.  Default IP's can also optionally be given but
+; are not required.  Caller*ID can be suggested to the other
+; side as well if it is for example a phone instead of another
+; PBX.
+;
+
+;[dynamichost]
+;host=dynamic
+;secret=mysecret
+;defaultip=216.207.245.34
+;callerid="Some Host" <(256) 428-6011>
+;
+
+;
+; Friends are a short cut for creating a user and
+; a peer with the same values.
+;
+;[marko]
+;type=friend
+;host=dynamic
+;secret=moofoo
+;context=default
+;allow=0.0.0.0/0.0.0.0
