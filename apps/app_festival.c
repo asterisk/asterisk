@@ -199,7 +199,7 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 				needed = f->samples * 2;
 				if (needed > sizeof(myf.frdata)) {
 					ast_log(LOG_WARNING, "Only able to deliver %d of %d requested samples\n",
-						sizeof(myf.frdata) / 2, needed/2);
+						(int)sizeof(myf.frdata) / 2, needed/2);
 					needed = sizeof(myf.frdata);
 				}
 				res = read(fds[0], myf.frdata, needed);
@@ -374,7 +374,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
     			}
     		} else {
     			read(fdesc,&strln,sizeof(int));
-    			ast_log(LOG_DEBUG,"Cache file exists, strln=%d, strlen=%d\n",strln,strlen((char *)data));
+    			ast_log(LOG_DEBUG,"Cache file exists, strln=%d, strlen=%d\n",strln,(int)strlen((char *)data));
     			if (strlen((char *)data)==strln) {
     				ast_log(LOG_DEBUG,"Size OK\n");
     				read(fdesc,&bigstring,strln);

@@ -794,7 +794,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 			char cp3[80];
 			strncpy(cp3, var, sizeof(cp3) - 1);
 			cp3[len-len_len-1]='\0';
-			sprintf(workspace,"%d",strlen(cp3));
+			sprintf(workspace,"%d",(int)strlen(cp3));
 			*ret = workspace;
 		} else {
 			/* length is zero */

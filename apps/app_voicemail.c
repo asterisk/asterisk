@@ -2953,7 +2953,7 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 				break;
 			}
 			vm_change_password(vmu,newpassword);
-			ast_log(LOG_DEBUG,"User %s set password to %s of length %i\n",vms->username,newpassword,strlen(newpassword));
+			ast_log(LOG_DEBUG,"User %s set password to %s of length %i\n",vms->username,newpassword,(int)strlen(newpassword));
 			cmd = play_and_wait(chan,"vm-passchanged");
 			break;
 		case '*': 

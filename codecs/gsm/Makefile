@@ -200,7 +200,7 @@ GSM_SOURCES =	$(SRC)/add.c		\
 		$(SRC)/short_term.c	\
 		$(SRC)/table.c
 ifeq (${OSARCH},Linux)
-ifneq (${PROC},x86_64)
+ifneq ($(shell uname -m),x86_64)
 ifneq ($(shell uname -m),ppc)
 ifneq ($(shell uname -m),alpha)
 GSM_SOURCES+=	$(SRC)/k6opt.s
@@ -253,7 +253,7 @@ GSM_OBJECTS =	$(SRC)/add.o		\
 		$(SRC)/short_term.o	\
 		$(SRC)/table.o
 ifeq (${OSARCH},Linux)
-ifneq (${PROC},x86_64)
+ifneq ($(shell uname -m), x86_64)
 ifneq ($(shell uname -m), ppc)
 ifneq ($(shell uname -m), alpha)
 GSM_OBJECTS+=	$(SRC)/k6opt.o

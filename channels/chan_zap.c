@@ -9206,7 +9206,7 @@ static int zt_sendtext(struct ast_channel *c, char *text)
 	else {
 		len = tdd_generate(p->tdd,buf,text);
 		if (len < 1) {
-			ast_log(LOG_ERROR, "TDD generate (len %d) failed!!\n",strlen(text));
+			ast_log(LOG_ERROR, "TDD generate (len %d) failed!!\n",(int)strlen(text));
 			free(mybuf);
 			return -1;
 		}

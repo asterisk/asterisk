@@ -405,7 +405,7 @@ int ast_sign(struct ast_key *key, char *msg, char *sig)
 	}
 
 	if (siglen != sizeof(dsig)) {
-		ast_log(LOG_WARNING, "Unexpected signature length %d, expecting %d\n", siglen, sizeof(dsig));
+		ast_log(LOG_WARNING, "Unexpected signature length %d, expecting %d\n", (int)siglen, (int)sizeof(dsig));
 		return -1;
 	}
 
@@ -431,7 +431,7 @@ int ast_check_signature(struct ast_key *key, char *msg, char *sig)
 	/* Decode signature */
 	res = base64decode(dsig, sig, sizeof(dsig));
 	if (res != sizeof(dsig)) {
-		ast_log(LOG_WARNING, "Signature improper length (expect %d, got %d)\n", sizeof(dsig), res);
+		ast_log(LOG_WARNING, "Signature improper length (expect %d, got %d)\n", (int)sizeof(dsig), (int)res);
 		return -1;
 	}
 

@@ -210,7 +210,7 @@ static int csv_log(struct ast_cdr *cdr)
 	printf("[CDR] %s ('%s' -> '%s') Dur: %ds Bill: %ds Disp: %s Flags: %s Account: [%s]\n", cdr->channel, cdr->src, cdr->dst, cdr->duration, cdr->billsec, ast_cdr_disp2str(cdr->disposition), ast_cdr_flags2str(cdr->amaflags), cdr->accountcode);
 #endif
 	if (build_csv_record(buf, sizeof(buf), cdr)) {
-		ast_log(LOG_WARNING, "Unable to create CSV record in %d bytes.  CDR not recorded!\n", sizeof(buf));
+		ast_log(LOG_WARNING, "Unable to create CSV record in %d bytes.  CDR not recorded!\n", (int)sizeof(buf));
 	} else {
 		/* because of the absolutely unconditional need for the
 		   highest reliability possible in writing billing records,

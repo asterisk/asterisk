@@ -454,7 +454,7 @@ static int moh_generate(struct ast_channel *chan, void *data, int len, int sampl
 
 	len = samples * 2;
 	if (len > sizeof(buf) - AST_FRIENDLY_OFFSET) {
-		ast_log(LOG_WARNING, "Only doing %d of %d requested bytes on %s\n", sizeof(buf), len, chan->name);
+		ast_log(LOG_WARNING, "Only doing %d of %d requested bytes on %s\n", (int)sizeof(buf), (int)len, chan->name);
 		len = sizeof(buf) - AST_FRIENDLY_OFFSET;
 	}
 	res = read(moh->pipe[0], buf + AST_FRIENDLY_OFFSET/2, len);

@@ -1,4 +1,5 @@
-CFLAGS+=-Wall -Werror -fPIC -O3 -march=$(shell uname -m) -funroll-loops -fomit-frame-pointer
+ARCH=$(PROC)
+CFLAGS+=-Wall -Werror -fPIC -O3 -march=$(ARCH) -funroll-loops -fomit-frame-pointer
 LIB=libilbc.a
 
 OBJS= anaFilter.o iCBSearch.o packing.o \

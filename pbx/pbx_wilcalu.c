@@ -184,7 +184,7 @@ static void *dialstring(void *string){
 		free(string);
 		pthread_exit(NULL);
 	}
-	ast_log(LOG_DEBUG, "Autodial Tech %s(%d) Tele %s(%d) Filename %s(%d)\n",tech,strlen(tech),tele,strlen(tele),filename,strlen(filename));
+	ast_log(LOG_DEBUG, "Autodial Tech %s(%d) Tele %s(%d) Filename %s(%d)\n",tech,(int)strlen(tech),tele,(int)strlen(tele),filename,(int)strlen(filename));
 
 	channel=ast_request(tech,AST_FORMAT_SLINEAR,tele);
 	if(channel!=NULL){

@@ -773,8 +773,8 @@ static int make_trunk(unsigned short callno, int locked)
 				ast_sched_del(sched, iaxs[x]->pingid);
 			if (iaxs[x]->lagid > -1)
 				ast_sched_del(sched, iaxs[x]->lagid);
-			iaxs[x]->pingid = ast_sched_add(sched, ping_time * 1000, send_ping, (void *)x);
-			iaxs[x]->lagid = ast_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)x);
+			iaxs[x]->pingid = ast_sched_add(sched, ping_time * 1000, send_ping, (void *)(long)x);
+			iaxs[x]->lagid = ast_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)(long)x);
 			if (locked)
 				ast_mutex_unlock(&iaxsl[callno]);
 			res = x;
@@ -848,8 +848,8 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			iaxs[x]->callno = x;
 			iaxs[x]->pingtime = DEFAULT_RETRY_TIME;
 			iaxs[x]->expirey = expirey;
-			iaxs[x]->pingid = ast_sched_add(sched, ping_time * 1000, send_ping, (void *)x);
-			iaxs[x]->lagid = ast_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)x);
+			iaxs[x]->pingid = ast_sched_add(sched, ping_time * 1000, send_ping, (void *)(long)x);
+			iaxs[x]->lagid = ast_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)(long)x);
 			iaxs[x]->amaflags = amaflags;
 			iaxs[x]->notransfer = globalnotransfer;
 			strncpy(iaxs[x]->accountcode, accountcode, sizeof(iaxs[x]->accountcode)-1);
@@ -4288,7 +4288,7 @@ static void iax2_dprequest(struct iax2_dpcache *dp, int callno)
 	/* Auto-hangup with 30 seconds of inactivity */
 	if (iaxs[callno]->autoid > -1)
 		ast_sched_del(sched, iaxs[callno]->autoid);
-	iaxs[callno]->autoid = ast_sched_add(sched, 30000, auto_hangup, (void *)callno);
+	iaxs[callno]->autoid = ast_sched_add(sched, 30000, auto_hangup, (void *)(long)callno);
 	memset(&ied, 0, sizeof(ied));
 	iax_ie_append_str(&ied, IAX_IE_CALLED_NUMBER, dp->exten);
 	send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_DPREQ, 0, ied.buf, ied.pos, -1);
@@ -4638,7 +4638,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		return 1;
 	}
 	if (res < sizeof(struct ast_iax2_mini_hdr)) {
-		ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, sizeof(struct ast_iax2_mini_hdr));
+		ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, (int)sizeof(struct ast_iax2_mini_hdr));
 		return 1;
 	}
 	if ((vh->zeros == 0) && (ntohs(vh->callno) & 0x8000)) {
@@ -4650,7 +4650,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		switch(meta->metacmd) {
 		case IAX_META_TRUNK:
 			if (res < sizeof(struct ast_iax2_meta_hdr) + sizeof(struct ast_iax2_meta_trunk_hdr)) {
-				ast_log(LOG_WARNING, "midget meta trunk packet received (%d of %d min)\n", res, sizeof(struct ast_iax2_mini_hdr));
+				ast_log(LOG_WARNING, "midget meta trunk packet received (%d of %d min)\n", res, (int)sizeof(struct ast_iax2_mini_hdr));
 				return 1;
 			}
 			mth = (struct ast_iax2_meta_trunk_hdr *)(meta->data);
@@ -4836,7 +4836,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		}
 		/* A full frame */
 		if (res < sizeof(struct ast_iax2_full_hdr)) {
-			ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, sizeof(struct ast_iax2_full_hdr));
+			ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, (int)sizeof(struct ast_iax2_full_hdr));
 			ast_mutex_unlock(&iaxsl[fr.callno]);
 			return 1;
 		}

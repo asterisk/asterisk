@@ -1216,7 +1216,7 @@ static char *cli_complete(EditLine *el, int ch)
 	free(matches);
 	}
 
-	return (char *)retval;
+	return (char *)(long)retval;
 }
 
 static int ast_el_initialize(void)
@@ -1459,7 +1459,7 @@ int main(int argc, char *argv[])
 
 	/* Remember original args for restart */
 	if (argc > sizeof(_argv) / sizeof(_argv[0]) - 1) {
-		fprintf(stderr, "Truncating argument size to %d\n", sizeof(_argv) / sizeof(_argv[0]) - 1);
+		fprintf(stderr, "Truncating argument size to %d\n", (int)(sizeof(_argv) / sizeof(_argv[0])) - 1);
 		argc = sizeof(_argv) / sizeof(_argv[0]) - 1;
 	}
 	for (x=0;x<argc;x++)

@@ -1766,11 +1766,11 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		else
 			if (strchr(i->fromdomain,':'))
 			{
-				snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", strchr(i->fromdomain,':')+1, (int)(i));
+				snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", strchr(i->fromdomain,':')+1, (int)(long)(i));
 			}
 			else
 			{
-				snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", i->fromdomain, (int)(i));
+				snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", i->fromdomain, (int)(long)(i));
 			}
 		tmp->type = type;
                 if (i->dtmfmode & SIP_DTMF_INBAND) {
@@ -3554,7 +3554,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 	if (t > tmp + sizeof(tmp))
 		ast_log(LOG_WARNING, "Buffer overflow detected!!  (Please file a bug report)\n");
 
-	snprintf(clen, sizeof(clen), "%d", strlen(tmp));
+	snprintf(clen, sizeof(clen), "%d", (int)strlen(tmp));
 	add_header(&req, "Content-Length", clen);
 	add_line(&req, tmp);
 
@@ -3579,7 +3579,7 @@ static int transmit_notify(struct sip_pvt *p, int newmsgs, int oldmsgs)
 
 	snprintf(tmp, sizeof(tmp), "Messages-Waiting: %s\n", newmsgs ? "yes" : "no");
 	snprintf(tmp2, sizeof(tmp2), "Voicemail: %d/%d\n", newmsgs, oldmsgs);
-	snprintf(clen, sizeof(clen), "%d", strlen(tmp) + strlen(tmp2));
+	snprintf(clen, sizeof(clen), "%d", (int)(strlen(tmp) + strlen(tmp2)));
 	add_header(&req, "Content-Length", clen);
 	add_line(&req, tmp);
 	add_line(&req, tmp2);

@@ -64,7 +64,7 @@ static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int
 
 	if (len > sizeof(buf))
 	{
-		ast_log(LOG_WARNING,"Only doing %d bytes (%d bytes requested)\n",sizeof(buf),len);
+		ast_log(LOG_WARNING,"Only doing %d bytes (%d bytes requested)\n",(int)sizeof(buf),len);
 		len = sizeof(buf);
 	}
 	waste[0] = 0; /* make compiler happy */
