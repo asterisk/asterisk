@@ -585,6 +585,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		tmp->chan->callingpres = chan->callingpres;
 		/* Presense of ADSI CPE on outgoing channel follows ours */
 		tmp->chan->adsicpe = chan->adsicpe;
+		/* pass the digital flag */
+		ast_dup_flag(tmp->chan, chan, AST_FLAG_DIGITAL);
 		/* Place the call, but don't wait on the answer */
 		res = ast_call(tmp->chan, numsubst, 0);
 

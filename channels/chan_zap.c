@@ -1558,6 +1558,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			ast_log(LOG_WARNING, "Unable to create call on channel %d\n", p->channel);
 			return -1;
 		}
+		p->digital = ast_test_flag(ast,AST_FLAG_DIGITAL);
 		if (pri_call(p->pri->pri, p->call, p->digital ? PRI_TRANS_CAP_DIGITAL : PRI_TRANS_CAP_SPEECH, 
 			p->prioffset, p->pri->nodetype == PRI_NETWORK ? 0 : 1, 1, l, p->pri->dialplan - 1, n,
 			l ? (ast->restrictcid ? PRES_PROHIB_USER_NUMBER_PASSED_SCREEN : (p->use_callingpres ? ast->callingpres : PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN)) : PRES_NUMBER_NOT_AVAILABLE,
@@ -3914,6 +3915,8 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		/* Assume calls are not idle calls unless we're told differently */
 		i->isidlecall = 0;
 		i->alreadyhungup = 0;
+		i->digital = ctype;
+		ast_set2_flag(tmp, ctype, AST_FLAG_DIGITAL);
 #endif
 		/* clear the fake event in case we posted one before we had ast_chanenl */
 		i->fake_event = 0;

@@ -224,11 +224,47 @@ struct ast_channel {
 
 	unsigned int callgroup;
 	unsigned int pickupgroup;
+
+	/*! channel flags of AST_FLAG_ type */
+	int flag;
 	
 	/*! For easy linking */
 	struct ast_channel *next;
 
 };
+
+#define AST_FLAG_DIGITAL	1	/* if the call is a digital ISDN call */
+
+static inline int ast_test_flag(struct ast_channel *chan, int mode)
+{
+	return chan->flag & mode;
+}
+
+static inline void ast_set_flag(struct ast_channel *chan, int mode)
+{
+	chan->flag |= mode;
+}
+
+static inline void ast_clear_flag(struct ast_channel *chan, int mode)
+{
+	chan->flag &= ~mode;
+}
+
+static inline void ast_set2_flag(struct ast_channel *chan, int value, int mode)
+{
+	if (value)
+		ast_set_flag(chan, mode);
+	else
+		ast_clear_flag(chan, mode);
+}
+
+static inline void ast_dup_flag(struct ast_channel *dstchan, struct ast_channel *srcchan, int mode)
+{
+	if (ast_test_flag(srcchan, mode))
+		ast_set_flag(dstchan, mode);
+	else
+		ast_clear_flag(dstchan, mode);
+}	
 
 struct chanmon;
 
