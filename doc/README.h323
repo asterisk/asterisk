@@ -1,0 +1,23 @@
+The Asterisk PBX supports H.323 via two totally separate 
+channel drivers.
+
+You can find more information Asterisk's native H.323 
+support in /path/to/asterisk/channels/h323/README or 
+you can download a third party driver at
+http://www.inaccessnetworks.com/projects/asterisk-oh323
+
+Asterisk's native H.323 is supported and maintained by
+Jeremy McNamara (JerJer in irc). Support for the third 
+party H.323 driver is supplied by inAccessNetworks. 
+
+If you have trouble with either driver you should direct
+your debug and comments to the appropriate party, making
+sure to be specific in exactly which H.323 driver you are
+running.
+
+Please, read all supplied documentation before contacting 
+either party for support. Many issues can be quickly
+resolved by simply following the instructions that are 
+provided.
+
+
