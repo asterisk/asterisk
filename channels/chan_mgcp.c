@@ -2883,7 +2883,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 						tmp_sub = tmp_ep->sub;
 						while (tmp_sub) {
 							if (tmp_sub->owner)
-								ast_softhangup(sub->owner, AST_SOFTHANGUP_DEV);
+								ast_softhangup(tmp_sub->owner, AST_SOFTHANGUP_DEV);
 							tmp_sub = tmp_sub->next;
 							if (tmp_sub == first_sub)
 								break;
