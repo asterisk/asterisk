@@ -226,10 +226,11 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 	struct ast_frame *f = NULL;
 	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 	static struct ast_frame answer_frame = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
-	ast_pthread_mutex_lock(&p->lock);
-	if (p->chan)
+	ast_pthread_mutex_lock(&p->lock); 
+	if (p->chan) {
+		p->chan->pvt->rawreadformat = ast->pvt->rawreadformat;
 		f = ast_read(p->chan);
-	else
+	} else
 		f = &null_frame;
 	if (!f) {
 		/* If there's a channel, hang it up  (if it's on a callback) make it NULL */
@@ -278,9 +279,10 @@ static int agent_write(struct ast_channel *ast, struct ast_frame *f)
 	struct agent_pvt *p = ast->pvt->pvt;
 	int res = -1;
 	ast_pthread_mutex_lock(&p->lock);
-	if (p->chan)
+	if (p->chan) {
+		p->chan->pvt->rawwriteformat = ast->pvt->rawwriteformat;
 		res = ast_write(p->chan, f);
-	else
+	} else
 		res = 0;
 	CLEANUP(ast, p);
 	ast_pthread_mutex_unlock(&p->lock);
