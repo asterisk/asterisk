@@ -80,6 +80,7 @@ static char *descrip3 =
 "  AgentMonitorOutgoing([options]):\n"
 "Tries to figure out the id of the agent who is placing outgoing call based on comparision of the callerid of the current interface and the global variable placed by the AgentCallbackLogin application. That's why it should be used only with the AgentCallbackLogin app. Uses the monitoring functions in chan_agent instead of Monitor application. That have to be configured in the agents.conf file. Normally the app returns 0 unless the options are passed. Also if the callerid or the agentid are not specified it'll look for n+101 priority. The options are:\n"
 "	'd' - make the app return -1 if there is an error condition and there is no extension n+101\n"
+"	'c' - change the CDR so that the source of the call is 'Agent/agent_id'\n"
 "	'n' - don't generate the warnings when there is no callerid or the agentid is not known. It's handy if you want to have one context for agent and non-agent calls.\n";
 
 static char mandescr_agents[] =
@@ -1761,6 +1762,7 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 {
 	int exitifnoagentid = 0;
 	int nowarnings = 0;
+	int changeoutgoing = 0;
 	int res = 0;
 	char agent[AST_MAX_AGENT], *tmp;
 	if (data) {
@@ -1768,6 +1770,8 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 			exitifnoagentid = 1;
 		if (strchr(data, 'n'))
 			nowarnings = 1;
+		if (strchr(data, 'c'))
+			changeoutgoing = 1;
 	}
 	if (chan->cid.cid_num) {
 		char agentvar[AST_MAX_BUF];
@@ -1778,6 +1782,7 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 			ast_mutex_lock(&agentlock);
 			while (p) {
 				if (!strcasecmp(p->agent, tmp)) {
+					if (changeoutgoing) snprintf(chan->cdr->channel, sizeof(chan->cdr->channel), "Agent/%s", p->agent);
 					__agent_start_monitoring(chan, p, 1);
 					break;
 				}
