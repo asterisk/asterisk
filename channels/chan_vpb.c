@@ -1499,9 +1499,11 @@ static int vpb_answer(struct ast_channel *ast)
 	if (option_verbose > 3)
 			ast_verbose(VERBOSE_PREFIX_4 "%s: Answering channel\n",p->dev);
 
-	if (option_verbose > 4)
-			ast_verbose("%s: Disabling Loop Drop detection\n",p->dev);
-	vpb_disable_event(p->handle, VPB_MDROP);
+	if (p->mode == MODE_FXO){
+		if (option_verbose > 4)
+				ast_verbose("%s: Disabling Loop Drop detection\n",p->dev);
+		vpb_disable_event(p->handle, VPB_MDROP);
+	}
 
 	if (ast->_state != AST_STATE_UP) {
 		if (p->mode == MODE_FXO){
@@ -1540,9 +1542,11 @@ static int vpb_answer(struct ast_channel *ast)
 	//	ast_verbose("%s: unLOCKING in answer [%d]\n", p->dev,res);
 	}
 	vpb_sleep(500);
-	if (option_verbose > 4)
-			ast_verbose("%s: Re-enabling Loop Drop detection\n",p->dev);
-	vpb_enable_event(p->handle,VPB_MDROP);
+	if (p->mode == MODE_FXO){
+		if (option_verbose > 4)
+				ast_verbose("%s: Re-enabling Loop Drop detection\n",p->dev);
+		vpb_enable_event(p->handle,VPB_MDROP);
+	}
 	res = ast_mutex_unlock(&p->lock);
 /*
 	if(option_verbose>3) ast_verbose("%s: unLOCKING in answer [%d]\n", p->dev,res);
