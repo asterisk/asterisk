@@ -185,15 +185,36 @@ info = 950/330,1400/330,1800/330,0/1000
 [uk]
 description = United Kingdom
 ringcadance = 400,200,400,2000
+; These are the official tones taken from BT SIN350. The actual tones
+; used by BT include some volume differences so sound slightly different
+; from Asterisk-generated ones.
 dial = 350+440
+; Special dial is the intermittent dial tone heard when, for example,
+; you have a divert active on the line
+specialdial = 350+440/750,440/750
+; Busy is also called "Engaged"
 busy = 400/375,0/375
-ring = 400+450/400,0/200,400+450/400,0/2000
+; "Congestion" is the Beep-bip engaged tone
 congestion = 400/400,0/350,400/225,0/525
-callwaiting = 440/100,0/4000
-dialrecall = 350+440
-; XXX Not sure about the RECORDTONE
-record = 1400/500,0/10000
-info = 950/330,1400/330,1800/330
+; "Special Congestion" is not used by BT very often if at all
+specialcongestion = 400/200,1004/300
+unobtainable = 400
+ring = 400+450/400,0/200,400+450/400,0/2000
+callwaiting = 400/100,0/4000
+; BT seem to use "Special Call Waiting" rather than just "Call Waiting" tones
+specialcallwaiting = 400/250,0/250,400/250,0/250,400/250,0/5000
+; "Pips" used by BT on payphones. (Souds wrong, but this is what BT claim it
+; is and I've not used a payphone for years)
+creditexpired = 400/125,0/125
+; These two are used to confirm/reject service requests on exchanges that
+; don't do voice announcements.
+confirm = 1400
+switching = 400/200,0/400,400/2000,0/400
+; This is the three rising tones Doo-dah-dee "Special Information Tone",
+; usually followed by the BT woman saying an appropriate message.
+info = 950/330,0/15,1400/330,0/15,1800/330,0/1000
+; Not listed in SIN350
+record = 1400/500,0/60000
 
 [fi]
 description = Finland
