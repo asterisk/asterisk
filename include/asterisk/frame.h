@@ -127,6 +127,8 @@ struct ast_frame_chain {
 #define AST_FORMAT_SLINEAR	(1 << 6)
 /*! LPC10, 180 samples/frame */
 #define AST_FORMAT_LPC10	(1 << 7)
+/*! G.729A audio */
+#define AST_FORMAT_G729A	(1 << 8)
 /*! Maximum audio format */
 #define AST_FORMAT_MAX_AUDIO	(1 << 15)
 /*! JPEG Images */
