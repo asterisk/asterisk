@@ -8,6 +8,7 @@
 ; dtmfidd = 3000 (Inter Digit Delay timeout for when collecting DTMF tones for dialling from a Station port, in ms)
 ; ast-dtmf-det=1 ( To use Asterisk DTMF detection )
 ; relaxdtmf=1 ( Used with ast-dtmf-det )
+; break-for-dtmf=no (When a native bridge occurs between 2 vpb channels, it will only break the connection for '#' and '*')
 ;
 ; For [interface] section
 ; board = board_number (1, 2, 3, ...)

@@ -154,6 +154,9 @@ static int relaxdtmf=0;
 /* Use Asterisk DTMF play back or VPB */
 static int use_ast_dtmf=0;
 
+/* Break for DTMF on native bridge ? */
+static int break_for_dtmf=1;
+
 /* Set EC suppression threshold */
 static int ec_supp_threshold=-1;
 
@@ -363,7 +366,7 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 	} ast_mutex_unlock(&bridge_lock); 
 
 	if (i == max_bridges) {
-		ast_log(LOG_WARNING, "vpb_bridge: Failed to bridge %s and %s!\n", c0->name, c1->name);
+		ast_log(LOG_WARNING, "%s: vpb_bridge: Failed to bridge %s and %s!\n", p0->dev, c0->name, c1->name);
 		ast_mutex_unlock(&p0->lock);
 		ast_mutex_unlock(&p1->lock);
 		return -2;
@@ -378,13 +381,13 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 		} ast_mutex_unlock(&p1->lock);
 
 		if (option_verbose>1) 
-			ast_verbose(VERBOSE_PREFIX_2 "vpb_bridge: Bridging call entered with [%s, %s]\n", c0->name, c1->name);
+			ast_verbose(VERBOSE_PREFIX_2 "%s: vpb_bridge: Bridging call entered with [%s, %s]\n",p0->dev, c0->name, c1->name);
 	}
 
 	#ifdef HALF_DUPLEX_BRIDGE
 
 	if (option_verbose>1) 
-		ast_verbose(VERBOSE_PREFIX_2 "vpb_bridge: Starting half-duplex bridge [%s, %s]\n", c0->name, c1->name);
+		ast_verbose(VERBOSE_PREFIX_2 "%s: vpb_bridge: Starting half-duplex bridge [%s, %s]\n",p0->dev, c0->name, c1->name);
 
 	int dir = 0;
 
@@ -417,7 +420,7 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 	vpb_play_buf_finish(p1->handle);
 
 	if (option_verbose>1) 
-		ast_verbose(VERBOSE_PREFIX_2 "vpb_bridge: Finished half-duplex bridge [%s, %s]\n", c0->name, c1->name);
+		ast_verbose(VERBOSE_PREFIX_2 "%s: vpb_bridge: Finished half-duplex bridge [%s, %s]\n",p0->dev, c0->name, c1->name);
 
 	res = VPB_OK;
 
@@ -430,7 +433,7 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 			/* Are we really ment to be doing nothing ?!?! */
 			who = ast_waitfor_n(cs, 2, &to);
 			if (!who) {
-				ast_log(LOG_DEBUG, "vpb_bridge: Empty frame read...\n");
+				ast_log(LOG_DEBUG, "%s: vpb_bridge: Empty frame read...\n",p0->dev);
 				/* check for hangup / whentohangup */
 				if (ast_check_hangup(c0) || ast_check_hangup(c1))
 					break;
@@ -442,7 +445,7 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 				       ((who == c1) && (flags & AST_BRIDGE_DTMF_CHANNEL_1))))) {
 				*fo = f;
 				*rc = who;
-				ast_log(LOG_DEBUG, "vpb_bridge: Got a [%s]\n", f ? "digit" : "hangup");
+				ast_log(LOG_DEBUG, "%s: vpb_bridge: Got a [%s]\n",p0->dev, f ? "digit" : "hangup");
 /*
 				if ((c0->pvt->pvt == pvt0) && (!c0->_softhangup)) {
 					if (pr0->set_rtp_peer(c0, NULL, NULL, 0)) 
@@ -455,7 +458,13 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 */
 				/* That's all we needed */
 				/*return 0; */
-				break;
+				/* Check if we need to break */
+				if (break_for_dtmf){
+					break;
+				}
+				else if ((f->frametype == AST_FRAME_DTMF) && ((f->subclass == '#')||(f->subclass == '*'))){
+					break;
+				}
 			} else {
 				if ((f->frametype == AST_FRAME_DTMF) || 
 					(f->frametype == AST_FRAME_VOICE) || 
@@ -1504,9 +1513,9 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, int gains, float t
 	if (use_ast_dtmfdet) {
 		tmp->vad = ast_dsp_new();
 		ast_dsp_set_features(tmp->vad, DSP_FEATURE_DTMF_DETECT);
-		ast_dsp_digitmode(tmp->vad, DSP_DIGITMODE_DTMF );
+		ast_dsp_digitmode(tmp->vad, DSP_DIGITMODE_DTMF);
 		if (relaxdtmf)
-			ast_dsp_digitmode(tmp->vad, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+			ast_dsp_digitmode(tmp->vad, DSP_DIGITMODE_DTMF|DSP_DIGITMODE_RELAXDTMF);
 	}
 	else {
 		tmp->vad = NULL;
@@ -1636,7 +1645,7 @@ static int vpb_digit(struct ast_channel *ast, char digit)
 	s[1] = '\0';
 
 	if (option_verbose > 3)
-		ast_verbose(VERBOSE_PREFIX_4 "%s: play digit[%s]\n", p->dev, s);
+		ast_verbose(VERBOSE_PREFIX_4 "%s: vpb_digit: asked to play digit[%s]\n", p->dev, s);
 
 	ast_mutex_lock(&p->play_dtmf_lock);
 	strncat(p->play_dtmf,s,sizeof(*p->play_dtmf));
@@ -2300,6 +2309,18 @@ static void *do_chanreads(void *pvt)
 				fr = ast_dsp_process(p->owner,p->vad,fr);
 				if (fr && (fr->frametype == AST_FRAME_DTMF))
 					ast_log(LOG_DEBUG, "%s: chanreads: Detected DTMF '%c'\n",p->dev, fr->subclass);
+				if (fr->subclass == 'm'){
+					/* conf mute request */
+					fr->frametype = AST_FRAME_NULL;
+					fr->subclass = 0;
+				}
+				else if (fr->subclass == 'u'){
+					/* Unmute */
+					fr->frametype = AST_FRAME_NULL;
+					fr->subclass = 0;
+				}
+				else if (fr->subclass == 'f'){
+				}
 			}
 			/* Using trylock here to prevent deadlock when channel is hungup
 			 * (ast_hangup() immediately gets lock)
@@ -2576,6 +2597,15 @@ int load_module()
 			else if (strcasecmp(v->name, "indication") == 0) {
 				use_ast_ind = 1;
 				ast_log(LOG_NOTICE,"VPB driver using Asterisk Indication functions!\n");
+			}
+			else if (strcasecmp(v->name, "break-for-dtmf") == 0) {
+				if (ast_true(v->value)){
+					break_for_dtmf = 1;
+				}
+				else {
+					break_for_dtmf = 0;
+					ast_log(LOG_NOTICE,"VPB driver not stopping for DTMF's in native bridge\n");
+				}
 			}
 			else if (strcasecmp(v->name, "ast-dtmf") == 0) {
 				use_ast_dtmf = 1;
