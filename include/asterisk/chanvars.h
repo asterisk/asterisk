@@ -17,9 +17,9 @@
 #include <asterisk/linkedlists.h>
 
 struct ast_var_t {
-	char *name;
-	char *value;
 	AST_LIST_ENTRY(ast_var_t) entries;
+	char *value;
+	char name[0];
 };
 
 struct ast_var_t *ast_var_assign(const char *name, const char *value);

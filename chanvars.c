@@ -21,8 +21,14 @@ struct ast_var_t *ast_var_assign(const char *name, const char *value)
 {
 	int i;
 	struct ast_var_t *var;
+	int len;
 	
-	var = malloc(sizeof(struct ast_var_t));
+	len = sizeof(struct ast_var_t);
+	
+	len += strlen(name) + 1;
+	len += strlen(value) + 1;
+	
+	var = malloc(len);
 
 	if (var == NULL)
 	{
@@ -30,41 +36,22 @@ struct ast_var_t *ast_var_assign(const char *name, const char *value)
 		return NULL;
 	}
 	
-	i = strlen(value);
-	var->value = malloc(i + 1);
-	if (var->value == NULL)
-	{
-		ast_log(LOG_WARNING, "Out of memory\n");
-		free(var);
-		return NULL;
-	}
-
-	strncpy(var->value, value, i);
-	var->value[i] = '\0';
-	
 	i = strlen(name);
-	var->name = malloc(i + 1);
-	if (var->name == NULL)
-	{
-		ast_log(LOG_WARNING, "Out of memory\n");
-		free(var->value);
-		free(var);
-		return NULL;
-	}
-
 	strncpy(var->name, name, i); 
 	var->name[i] = '\0';
 
+	var->value = var->name + i + 1;
+
+	i = strlen(value);
+	strncpy(var->value, value, i);
+	var->value[i] = '\0';
+	
 	return var;
 }	
 	
 void ast_var_delete(struct ast_var_t *var)
 {
 	if (var == NULL) return;
-
-	if (var->name != NULL) free(var->name);
-	if (var->value != NULL) free(var->value);
-
 	free(var);
 }
 
