@@ -36,17 +36,13 @@ CFLAGS += -DNDEBUG -DDO_CRASH -DDEBUG_THREADS
 CFLAGS += -pipe -Wall -fPIC -Wmissing-prototypes -Wmissing-declarations 
 CFLAGS += -DP_LINUX  -D_REENTRANT -D_GNU_SOURCE
 CFLAGS += -DP_HAS_SEMAPHORES -DP_SSL -DP_PTHREADS
-CFLAGS += -DPHAS_TEMPLATES -DPTRACING -DP_USE_PRAGMA 
+CFLAGS += -DPHAS_TEMPLATES -DPTRACING -DP_USE_PRAGMA
+CFLAGS += -I../../include
 CFLAGS += -I$(PWLIBDIR)/include/ptlib/unix -I$(PWLIBDIR)/include 
 CFLAGS += -I$(OPENH323DIR)/include -Wno-missing-prototypes -Wno-missing-declarations
 
 
-all:   	chan_h323.so
-
-
-noshared: chan_h323_s.so
-optnoshared: chan_h323_s.so
-debug:	chan_h323_d.so
+all:   	libchanh323.a
 
 
 install: all
@@ -71,19 +67,13 @@ samples:
 	install h323.conf.sample $(ASTETCDIR)/h323.conf
  
 
-chan_h323.o: chan_h323.c
-	@echo " + --------------- chan_h323 ---------------- +"
-	@echo " +	                                      +"
-	@echo " + 	    Please read the README            +"
-	@echo " +    Doing so will save you many headaches   +"
-	@echo " +                                            +"
-	@echo " + ------------------------------------------ +"
-	$(CC) -g -c -o $@ $(CFLAGS) $<
 ast_h323.o:	ast_h323.cpp
 	g++ -g -c -o $@ $(CFLAGS) $<
 
-chan_h323.so:	chan_h323.o ast_h323.o
-	
+libchanh323.a:	ast_h323.o
+	ar cr libchanh323.a ast_h323.o
+
+chan_h323.so:	
 	g++  -g -shared -Xlinker -x -o chan_h323.so chan_h323.o ast_h323.o -L$(PWLIBDIR)/lib  -lpt_linux_x86_r -L$(OPENH323DIR)/lib -lh323_linux_x86_r -L/usr/lib -lpthread -ldl -lcrypto -lssl -lexpat
 
 chan_h323_d.so:	chan_h323.o ast_h323.o
