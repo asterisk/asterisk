@@ -1387,6 +1387,7 @@ static int adsi_load_vmail(struct ast_channel *chan, int *useadsi)
 		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_CENT, 0, "Load Cancelled.", "");
 		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_CENT, 0, "ADSI Unavailable", "");
 		bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+      bytes += adsi_voice_mode(buf + bytes, 0);
 		bytes += adsi_voice_mode(buf + bytes, 0);
 		adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 		return 0;
@@ -1414,6 +1415,8 @@ static int adsi_load_vmail(struct ast_channel *chan, int *useadsi)
 	/* Add another dot */
 	bytes = 0;
 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_LEFT, 0, "   ...", "");
+      bytes += adsi_voice_mode(buf + bytes, 0);
+
 	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
  	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 #endif
@@ -1500,6 +1503,8 @@ static void adsi_begin(struct ast_channel *chan, int *useadsi)
 			ast_log(LOG_WARNING, "Unable to upload voicemail scripts\n");
 			return;
 		}
+      bytes += adsi_voice_mode(buf + bytes, 0);
+
 	} else
 		*useadsi = 1;
 }
@@ -1543,6 +1548,8 @@ static void adsi_password(struct ast_channel *chan)
 		keys[x] = 0;
 	/* Set one key for next */
 	keys[3] = ADSI_KEY_APPS + 3;
+      bytes += adsi_voice_mode(buf + bytes, 0);
+
 
 	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
 	bytes += adsi_input_format(buf + bytes, 1, ADSI_DIR_FROM_LEFT, 0, "Password: ******", "");
@@ -1586,6 +1593,8 @@ static void adsi_message(struct ast_channel *chan, char *folder, int msg, int la
 	int bytes=0;
 	char buf[256], buf1[256], buf2[256];
 	char fn2[256];
+      bytes += adsi_voice_mode(buf + bytes, 0);
+
 	char cid[256]="";
 	char *val;
 	char *name, *num;
@@ -1624,6 +1633,8 @@ static void adsi_message(struct ast_channel *chan, char *folder, int msg, int la
 	for (x=0;x<5;x++)
 		keys[x] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 6 + x);
 	keys[6] = 0x0;
+      bytes += adsi_voice_mode(buf + bytes, 0);
+
 	keys[7] = 0x0;
 
 	if (!msg) {
@@ -1635,6 +1646,8 @@ static void adsi_message(struct ast_channel *chan, char *folder, int msg, int la
 		if (msg) {
 			/* but not only message, provide "Folder" instead */
 			keys[3] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 1);
+      bytes += adsi_voice_mode(buf + bytes, 0);
+
 		} else {
 			/* Otherwise if only message, leave blank */
 			keys[3] = 1;
@@ -1649,6 +1662,8 @@ static void adsi_message(struct ast_channel *chan, char *folder, int msg, int la
 		name = "Unknown Caller";
 
 	/* If deleted, show "undeleted" */
+      bytes += adsi_voice_mode(buf + bytes, 0);
+
 	if (deleted)
 		keys[1] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 11);
 
