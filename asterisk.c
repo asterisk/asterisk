@@ -588,7 +588,7 @@ static void console_verboser(const char *s, int pos, int replace, int complete)
 	fflush(stdout);
 	if (complete)
 	/* Wake up a select()ing console */
-		if (consolethread != (pthread_t) -1)
+		if (option_console && consolethread != (pthread_t) -1)
 			pthread_kill(consolethread, SIGURG);
 }
 
