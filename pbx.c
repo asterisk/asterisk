@@ -4935,63 +4935,13 @@ static int pbx_builtin_dtimeout(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_goto(struct ast_channel *chan, void *data)
 {
-	char *s;
-	char *exten, *pri, *context;
-	char *stringp=NULL;
-	int ipri;
-	int mode = 0;
-
-	if (!data || ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Goto requires an argument (optional context|optional extension|priority)\n");
-		return -1;
-	}
-	s = ast_strdupa((void *) data);
-	stringp=s;
-	context = strsep(&stringp, "|");
-	exten = strsep(&stringp, "|");
-	if (!exten) {
-		/* Only a priority in this one */
-		pri = context;
-		exten = NULL;
-		context = NULL;
-	} else {
-		pri = strsep(&stringp, "|");
-		if (!pri) {
-			/* Only an extension and priority in this one */
-			pri = exten;
-			exten = context;
-			context = NULL;
-		}
-	}
-	if (*pri == '+') {
-		mode = 1;
-		pri++;
-	} else if (*pri == '-') {
-		mode = -1;
-		pri++;
-	}
-	if (sscanf(pri, "%i", &ipri) != 1) {
-		if ((ipri = ast_findlabel_extension(chan, context ? context : chan->context, (exten && strcasecmp(exten, "BYEXTENSION")) ? exten : chan->exten, 
-			pri, chan->cid.cid_num)) < 1) {
-			ast_log(LOG_WARNING, "Priority '%s' must be a number > 0, or valid label\n", pri);
-			return -1;
-		} else
-			mode = 0;
-	} 
-	/* At this point we have a priority and maybe an extension and a context */
-	if (mode)
-		chan->priority += mode * ipri - 1;
-	else
-		chan->priority = ipri - 1;
-	if (exten && strcasecmp(exten, "BYEXTENSION"))
-		strncpy(chan->exten, exten, sizeof(chan->exten)-1);
-	if (context)
-		strncpy(chan->context, context, sizeof(chan->context)-1);
-	if (option_verbose > 2)
+	int res;
+	res = ast_parseable_goto(chan, (const char *) data);
+	if (!res && (option_verbose > 2))
 		ast_verbose( VERBOSE_PREFIX_3 "Goto (%s,%s,%d)\n", chan->context,chan->exten, chan->priority+1);
-	ast_cdr_update(chan);
-	return 0;
+	return res;
 }
+
 
 int pbx_builtin_serialize_variables(struct ast_channel *chan, char *buf, size_t size) 
 {
@@ -5468,4 +5418,90 @@ int ast_context_verify_includes(struct ast_context *con)
 		}
 	return res;
 }
+
+
+int ast_goto_if_exists(struct ast_channel *chan, char* context, char *exten, int priority) 
+{
+	if(chan) {
+		if(ast_exists_extension(chan, 
+								context ? context : chan->context,
+								exten ? exten : chan->exten,
+								priority ? priority : chan->priority,
+								chan->cid.cid_num)) {
+			return ast_async_goto(chan,
+								  context ? context : chan->context,
+								  exten ? exten : chan->exten,
+								  priority ? priority : chan->priority);
+		} else 
+			return -3;
+	}
+	
+	return -2;
+}
+
+int ast_parseable_goto(struct ast_channel *chan, const char *goto_string) 
+{
+	char *s;
+	char *exten, *pri, *context;
+	char *stringp=NULL;
+	int ipri;
+	int mode = 0;
+
+	if (!goto_string || ast_strlen_zero(goto_string)) {
+		ast_log(LOG_WARNING, "Goto requires an argument (optional context|optional extension|priority)\n");
+		return -1;
+	}
+	s = ast_strdupa(goto_string);
+	stringp=s;
+	context = strsep(&stringp, "|");
+	exten = strsep(&stringp, "|");
+	if (!exten) {
+		/* Only a priority in this one */
+		pri = context;
+		exten = NULL;
+		context = NULL;
+	} else {
+		pri = strsep(&stringp, "|");
+		if (!pri) {
+			/* Only an extension and priority in this one */
+			pri = exten;
+			exten = context;
+			context = NULL;
+		}
+	}
+	if (*pri == '+') {
+		mode = 1;
+		pri++;
+	} else if (*pri == '-') {
+		mode = -1;
+		pri++;
+	}
+	if (sscanf(pri, "%i", &ipri) != 1) {
+		if ((ipri = ast_findlabel_extension(chan, context ? context : chan->context, (exten && strcasecmp(exten, "BYEXTENSION")) ? exten : chan->exten, 
+			pri, chan->cid.cid_num)) < 1) {
+			ast_log(LOG_WARNING, "Priority '%s' must be a number > 0, or valid label\n", pri);
+			return -1;
+		} else
+			mode = 0;
+	} 
+	/* At this point we have a priority and maybe an extension and a context */
+
+	if (exten && !strcasecmp(exten, "BYEXTENSION"))
+		exten = NULL;
+
+	if (mode) 
+		ipri = chan->priority + (ipri * mode);
+
+	/* This channel is currently in the PBX */
+	if (context && !ast_strlen_zero(context))
+		strncpy(chan->context, context, sizeof(chan->context) - 1);
+	if (exten && !ast_strlen_zero(exten))
+		strncpy(chan->exten, exten, sizeof(chan->context) - 1);
+	chan->priority = ipri - 1;
+
+	ast_cdr_update(chan);
+	return 0;
+
+}
+
 

@@ -68,7 +68,13 @@ static char *descrip =
 "             that are assigned to you.\n"
 "      'r' -- indicate ringing to the calling party, pass no audio until answered.\n"
 "      'm' -- provide hold music to the calling party until answered.\n"
-"      'M(x) -- Executes the macro (x) upon connect of the call\n"
+"      'M(x[^arg]) -- Executes the macro (x with ^ delim arg list) upon connect of the call.\n"
+"                     Also, the macro can set the MACRO_RESULT variable to do the following:\n"
+"                     -- ABORT - Hangup both legs of the call.\n"
+"                     -- CONGESTION - Behave as if line congestion was encountered.\n"
+"                     -- BUSY - Behave as if a busy signal was encountered. (n+101)\n"
+"                     -- CONTINUE - Hangup the called party and continue on in the dialplan.\n"
+"                     -- GOTO:<context>^<exten>^<priority> - Transfer the call.\n"
 "      'h' -- allow callee to hang up by hitting *.\n"
 "      'H' -- allow caller to hang up by hitting *.\n"
 "      'C' -- reset call detail record for this call.\n"
@@ -484,7 +490,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	char *sdtmfptr;
 	char sdtmfdata[256] = "";
 	char *stack,*var;
-	char *mac = NULL, macroname[256] = "";
+	char *mac = NULL, *macroname = NULL;
 	char status[256]="";
 	char toast[80];
 	int play_to_caller=0,play_to_callee=0;
@@ -492,9 +498,10 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	char *varname;
 	int vartype;
 	char *outbound_group = NULL;
-
+	char *macro_result = NULL, *macro_transfer_dest = NULL;
 	int digit = 0;
 	time_t start_time, answer_time, end_time;
+	struct ast_app *app = NULL;
 
 	if (!data) {
 		ast_log(LOG_WARNING, "Dial requires an argument (technology1/number1&technology2/number2...|optional timeout|options)\n");
@@ -661,7 +668,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		/* Get the macroname from the dial option string */
 		if ((mac = strstr(transfer, "M("))) {
 			hasmacro = 1;
-			strncpy(macroname, mac + 2, sizeof(macroname) - 1);
+			macroname = ast_strdupa(mac + 2);
 			while (*mac && (*mac != ')'))
 				*(mac++) = 'X';
 			if (*mac)
@@ -1001,8 +1008,6 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			res = 0;
 
 		if (hasmacro && macroname) {
-			void *app = NULL;
-
 			res = ast_autoservice_start(chan);
 			if (res) {
 				ast_log(LOG_ERROR, "Unable to start autoservice on calling channel\n");
@@ -1012,6 +1017,9 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			app = pbx_findapp("Macro");
 
 			if (app && !res) {
+				for(res=0;res<strlen(macroname);res++)
+					if(macroname[res] == '^')
+						macroname[res] = '|';
 				res = pbx_exec(peer, app, macroname, 1);
 				ast_log(LOG_DEBUG, "Macro exited with status %d\n", res);
 				res = 0;
@@ -1023,6 +1031,47 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			if (ast_autoservice_stop(chan) < 0) {
 				ast_log(LOG_ERROR, "Could not stop autoservice on calling channel\n");
 				res = -1;
+			}
+
+			if (!res) {
+				if ((macro_result = pbx_builtin_getvar_helper(peer, "MACRO_RESULT"))) {
+					if (!strcasecmp(macro_result, "BUSY")) {
+						strncpy(status, macro_result, sizeof(status) - 1);
+						if (!ast_goto_if_exists(chan, NULL, NULL, chan->priority + 101)) {
+							go_on = 1;
+						}
+						res = -1;
+					}
+					else if (!strcasecmp(macro_result, "CONGESTION") || !strcasecmp(macro_result, "CHANUNAVAIL")) {
+						strncpy(status, macro_result, sizeof(status) - 1);
+						go_on = 1;
+						res = -1;
+					}
+					else if (!strcasecmp(macro_result, "CONTINUE")) {
+						/* hangup peer and keep chan alive assuming the macro has changed 
+						   the context / exten / priority or perhaps 
+						   the next priority in the current exten is desired.
+						*/
+						go_on = 1;
+						res = -1;
+					} else if (!strcasecmp(macro_result, "ABORT")) {
+						/* Hangup both ends unless the caller has the g flag */
+						res = -1;
+					} else if(!strncasecmp(macro_result, "GOTO:",5) && (macro_transfer_dest = ast_strdupa(macro_result + 5))) {
+						res = -1;
+						/* perform a transfer to a new extension */
+						if(strchr(macro_transfer_dest,'^')) { /* context^exten^priority*/
+							/* no brainer mode... substitute ^ with | and feed it to builtin goto */
+							for(res=0;res<strlen(macro_transfer_dest);res++)
+								if(macro_transfer_dest[res] == '^')
+									macro_transfer_dest[res] = '|';
+
+							if(!ast_parsable_goto(chan, macro_transfer_dest))
+								go_on = 1;
+							
+						}
+					}
+				}
 			}
 		}
 
