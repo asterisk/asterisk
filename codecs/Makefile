@@ -28,7 +28,8 @@ LIBGSM=gsm/lib/libgsm.a
 LIBMP3=mp3/libmp3.a
 LIBLPC10=lpc10/liblpc10.a
 
-CODECS+=$(MODG723) codec_gsm.so codec_mp3_d.so codec_lpc10.so codec_adpcm.so codec_ulaw.so
+CODECS+=$(MODG723) codec_gsm.so codec_mp3_d.so codec_lpc10.so  \
+        codec_adpcm.so codec_ulaw.so codec_alaw.so codec_a_mu.so
 
 all: $(CODECS)
 
