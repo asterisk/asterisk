@@ -3,7 +3,7 @@
  *
  * Old-style G.723 frame/timestamp format.
  * 
- * Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+ * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -285,7 +285,7 @@ static int g723_write(struct ast_filestream *fs, struct ast_frame *f)
 	return 0;
 }
 
-char *g723_getcomment(struct ast_filestream *s)
+static char *g723_getcomment(struct ast_filestream *s)
 {
 	return NULL;
 }

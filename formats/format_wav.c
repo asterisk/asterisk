@@ -3,7 +3,7 @@
  *
  * Microsoft WAV File Format using libaudiofile 
  * 
- * Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+ * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -298,7 +298,7 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 	return 0;
 }
 
-char *wav_getcomment(struct ast_filestream *s)
+static char *wav_getcomment(struct ast_filestream *s)
 {
 	return NULL;
 }

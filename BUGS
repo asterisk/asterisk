@@ -2,8 +2,10 @@
   these bugs are in asterisk, and sometimes they relate to the products
   that asterisk uses.
 
-* The MP3 decoder is completely broken
-
 * The translator API may introduce warble in the case of going in both
   directions, but I haven't verified that.  The trouble should only enter
   in the case of mismatched frame lengths.
+
+* In general Asterisk is a very new program, and there are liable to be
+  many bugs yet to be discovered, so if you think you've found one, please
+  be sure to report it.

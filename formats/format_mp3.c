@@ -3,7 +3,7 @@
  *
  * Everybody's favorite format: MP3 Files!  Yay!
  * 
- * Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+ * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -26,8 +26,7 @@
 #include <sys/time.h>
 #include "../channels/adtranvofr.h"
 
-
-#define MP3_MAX_SIZE 1400
+#define MAX_FRAME_SIZE 1441
 
 struct ast_filestream {
 	/* First entry MUST be reserved for the channel type */
@@ -36,9 +35,13 @@ struct ast_filestream {
 	int fd; /* Descriptor */
 	struct ast_channel *owner;
 	struct ast_filestream *next;
-	struct ast_frame *fr;	/* Frame representation of buf */
-	char buf[sizeof(struct ast_frame) + MP3_MAX_SIZE + AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
+	struct ast_frame fr;	/* Frame representation of buf */
+	char offset[AST_FRIENDLY_OFFSET];
+	unsigned char buf[MAX_FRAME_SIZE * 2];
+	int lasttimeout;
 	int pos;
+	int adj;
+	struct timeval last;
 };
 
 
@@ -47,16 +50,10 @@ static pthread_mutex_t mp3_lock = PTHREAD_MUTEX_INITIALIZER;
 static int glistcnt = 0;
 
 static char *name = "mp3";
-static char *desc = "MPEG-2 Layer 3 File Format Support";
+static char *desc = "MPEG-1,2 Layer 3 File Format Support";
 static char *exts = "mp3|mpeg3";
 
-#if 0
-#define MP3_FRAMELEN 417
-#else
-#define MP3_FRAMELEN 400
-#endif
-#define MP3_OUTPUTLEN 2304	/* Bytes */
-#define MP3_TIMELEN ((MP3_OUTPUTLEN * 1000 / 16000) )
+#include "../codecs/mp3anal.h"
 
 static struct ast_filestream *mp3_open(int fd)
 {
@@ -74,13 +71,10 @@ static struct ast_filestream *mp3_open(int fd)
 		glist = tmp;
 		tmp->fd = fd;
 		tmp->owner = NULL;
-		tmp->fr = (struct ast_frame *)tmp->buf;
-		tmp->fr->data = tmp->buf + sizeof(struct ast_frame);
-		tmp->fr->frametype = AST_FRAME_VOICE;
-		tmp->fr->subclass = AST_FORMAT_MP3;
-		/* datalen will vary for each frame */
-		tmp->fr->src = name;
-		tmp->fr->mallocd = 0;
+		tmp->lasttimeout = -1;
+		tmp->last.tv_usec = 0;
+		tmp->last.tv_sec = 0;
+		tmp->adj = 0;
 		glistcnt++;
 		pthread_mutex_unlock(&mp3_lock);
 		ast_update_use_count();
@@ -104,7 +98,6 @@ static struct ast_filestream *mp3_rewrite(int fd, char *comment)
 		glist = tmp;
 		tmp->fd = fd;
 		tmp->owner = NULL;
-		tmp->fr = NULL;
 		glistcnt++;
 		pthread_mutex_unlock(&mp3_lock);
 		ast_update_use_count();
@@ -155,26 +148,65 @@ static void mp3_close(struct ast_filestream *s)
 static int ast_read_callback(void *data)
 {
 	/* XXX Don't assume frames are this size XXX */
-	u_int16_t size=MP3_FRAMELEN;
 	u_int32_t delay = -1;
 	int res;
 	struct ast_filestream *s = data;
-	/* Send a frame from the file to the appropriate channel */
-	/* Read the data into the buffer */
-	s->fr->offset = AST_FRIENDLY_OFFSET;
-	s->fr->datalen = size;
-	s->fr->data = s->buf + sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET;
-	if ((res = read(s->fd, s->fr->data , size)) != size) {
-		ast_log(LOG_WARNING, "Short read (%d of %d bytes) (%s)!\n", res, size, strerror(errno));
+	int size;
+	int ms=0;
+	struct timeval tv;
+	if ((res = read(s->fd, s->buf , 4)) != 4) {
+		ast_log(LOG_WARNING, "Short read (%d of 4 bytes) (%s)!\n", res, strerror(errno));
 		s->owner->streamid = -1;
 		return 0;
 	}
-	delay = MP3_TIMELEN;
-	s->fr->timelen = delay;
+	if (mp3_badheader(s->buf)) {
+		ast_log(LOG_WARNING, "Bad mp3 header\n");
+		return 0;
+	}
+	if ((size = mp3_framelen(s->buf)) < 0) {
+		ast_log(LOG_WARNING, "Unable to calculate frame size\n");
+		return 0;
+	}
+	if ((res = read(s->fd, s->buf + 4 , size - 4)) != size - 4) {
+		ast_log(LOG_WARNING, "Short read (%d of %d bytes) (%s)!\n", res, size - 4, strerror(errno));
+		s->owner->streamid = -1;
+		return 0;
+	}
+	/* Send a frame from the file to the appropriate channel */
+	/* Read the data into the buffer */
+	s->fr.offset = AST_FRIENDLY_OFFSET;
+	s->fr.frametype = AST_FRAME_VOICE;
+	s->fr.subclass = AST_FORMAT_MP3;
+	s->fr.mallocd = 0;
+	s->fr.src = name;
+	s->fr.datalen = size;
+	s->fr.data = s->buf;
+	delay = mp3_samples(s->buf) * 1000 / mp3_samplerate(s->buf);
+	if (s->last.tv_sec || s->last.tv_usec) {
+		/* To keep things running smoothly, we watch how close we're coming */
+		gettimeofday(&tv, NULL);
+		ms = ((tv.tv_usec - s->last.tv_usec) / 1000 + (tv.tv_sec - s->last.tv_sec) * 1000);
+		/* If we're within 2 milliseconds, that's close enough */
+		if ((ms - delay) * (ms - delay) > 4)
+			s->adj -= (ms - delay);
+	}
+	s->fr.timelen = delay;
+#if 0
+	ast_log(LOG_DEBUG, "delay is %d, adjusting by %d, as last was %d\n", delay, s->adj, ms);
+#endif
+	delay += s->adj;
+	if (delay < 1)
+		delay = 1;
 	/* Lastly, process the frame */
-	if (ast_write(s->owner, s->fr)) {
+	if (ast_write(s->owner, &s->fr)) {
 		ast_log(LOG_WARNING, "Failed to write frame\n");
 		s->owner->streamid = -1;
+		return 0;
+	}
+	gettimeofday(&s->last, NULL);
+	if (s->lasttimeout != delay) {
+		s->owner->streamid = ast_sched_add(s->owner->sched, delay, ast_read_callback, s);
+		s->lasttimeout = delay;
 		return 0;
 	}
 	return -1;
@@ -184,7 +216,6 @@ static int mp3_apply(struct ast_channel *c, struct ast_filestream *s)
 {
 	/* Select our owner for this stream, and get the ball rolling. */
 	s->owner = c;
-	s->owner->streamid = ast_sched_add(s->owner->sched, MP3_TIMELEN, ast_read_callback, s);
 	ast_read_callback(s);
 	return 0;
 }
@@ -192,10 +223,6 @@ static int mp3_apply(struct ast_channel *c, struct ast_filestream *s)
 static int mp3_write(struct ast_filestream *fs, struct ast_frame *f)
 {
 	int res;
-	if (fs->fr) {
-		ast_log(LOG_WARNING, "Asked to write on a read stream??\n");
-		return -1;
-	}
 	if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
@@ -211,7 +238,7 @@ static int mp3_write(struct ast_filestream *fs, struct ast_frame *f)
 	return 0;
 }
 
-char *mp3_getcomment(struct ast_filestream *s)
+static char *mp3_getcomment(struct ast_filestream *s)
 {
 	return NULL;
 }

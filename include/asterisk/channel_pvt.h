@@ -3,7 +3,7 @@
  *
  * Private channel definitions for channel implementations only.
  * 
- * Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+ * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -40,8 +40,8 @@ struct ast_channel_pvt {
 };
 
 /* Create a channel structure */
-struct ast_channel *ast_channel_alloc();
-#define ast_channel_free(a) free(a)
+struct ast_channel *ast_channel_alloc(void);
+void  ast_channel_free(struct ast_channel *);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

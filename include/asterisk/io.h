@@ -3,7 +3,7 @@
  * 
  * Mark Spencer <markster@marko.net>
  *
- * Copyright(C) 1999, Adtran, Inc.
+ * Copyright(C) Mark Spencer
  * 
  * Distributed under the terms of the GNU General Public License (GPL) Version 2
  *
@@ -38,10 +38,10 @@ extern "C" {
 struct io_context;
 
 /* Create a context for I/O operations */
-struct io_context *io_context_create();
+extern struct io_context *io_context_create(void);
 
 /* Destroy a context for I/O operations */
-void io_context_destroy(struct io_context *ioc);
+extern void io_context_destroy(struct io_context *ioc);
 
 typedef int (*ast_io_cb)(int *id, int fd, short events, void *cbdata);
 #define AST_IO_CB(a) ((ast_io_cb)(a))

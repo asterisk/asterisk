@@ -3,7 +3,7 @@
  * 
  * Mark Spencer <markster@marko.net>
  *
- * Copyright(C) 1999, Adtran, Inc.
+ * Copyright(C) Mark Spencer
  * 
  * Distributed under the terms of the GNU General Public License (GPL) Version 2
  *
@@ -58,7 +58,7 @@ struct io_context {
 };
 
 
-struct io_context *io_context_create()
+struct io_context *io_context_create(void)
 {
 	/* Create an I/O context */
 	struct io_context *tmp;

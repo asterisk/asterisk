@@ -3,7 +3,7 @@
  *
  * QuickNet Internet Phone Jack Channel
  * 
- * Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+ * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -60,7 +60,7 @@ static pthread_mutex_t monlock = PTHREAD_MUTEX_INITIALIZER;
    which are not currently in use.  */
 static pthread_t monitor_thread = -1;
 
-static int restart_monitor();
+static int restart_monitor(void);
 
 /* The private structures of the Phone Jack channels are linked for
    selecting outgoing channels */
@@ -129,7 +129,8 @@ static int ixj_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 	/* When we call, it just works, really, there's no destination...  Just
 	   ring the phone and wait for someone to answer */
-	ast_log(LOG_DEBUG, "Ringing %s on %s (%d)\n", dest, ast->name, ast->fd);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Ringing %s on %s (%d)\n", dest, ast->name, ast->fd);
 	ioctl(p->fd, IXJCTL_RING_START);
 	ast->state = AST_STATE_RINGING;
 	return 0;
@@ -139,7 +140,8 @@ static int ixj_hangup(struct ast_channel *ast)
 {
 	struct ixj_pvt *p;
 	p = ast->pvt->pvt;
-	ast_log(LOG_DEBUG, "ixj_hangup(%s)\n", ast->name);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "ixj_hangup(%s)\n", ast->name);
 	if (!ast->pvt->pvt) {
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
@@ -217,7 +219,8 @@ static int ixj_setup(struct ast_channel *ast)
 static int ixj_answer(struct ast_channel *ast)
 {
 	ixj_setup(ast);
-	ast_log(LOG_DEBUG, "ixj_answer(%s)\n", ast->name);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "ixj_answer(%s)\n", ast->name);
 	ast->rings = 0;
 	ast->state = AST_STATE_UP;
 	return 0;
@@ -287,6 +290,14 @@ static struct ast_frame  *ixj_read(struct ast_channel *ast)
 	res = read(p->fd, p->buf, IXJ_MAX_BUF);
 	ast->blocking = 0;
 	if (res < 0) {
+#if 0
+		if (errno == EAGAIN) {
+			ast_log(LOG_WARNING, "Null frame received\n");
+			p->fr.frametype = AST_FRAME_NULL;
+			p->fr.subclass = 0;
+			return &p->fr;
+		}
+#endif
 		ast_log(LOG_WARNING, "Error reading: %s\n", strerror(errno));
 		return NULL;
 	}
@@ -486,6 +497,10 @@ static void ixj_check_exception(struct ixj_pvt *i)
 				ixj_new(i, AST_STATE_UP);
 				/* No need to restart monitor, we are the monitor */
 				if (i->owner) {
+					pthread_mutex_lock(&usecnt_lock);
+					usecnt--;
+					pthread_mutex_unlock(&usecnt_lock);
+					ast_update_use_count();
 					ixj_setup(i->owner);
 				}
 			} else if (ast_exists_extension(NULL, "default", i->ext, 1)) {
@@ -494,10 +509,16 @@ static void ixj_check_exception(struct ixj_pvt *i)
 				strncpy(i->context, "default", sizeof(i->context));
 				ixj_new(i, AST_STATE_UP);
 				if (i->owner) {
+					pthread_mutex_lock(&usecnt_lock);
+					usecnt--;
+					pthread_mutex_unlock(&usecnt_lock);
+					ast_update_use_count();
 					ixj_setup(i->owner);
 				}
 			} else if ((strlen(i->ext) >= ast_pbx_longest_extension(i->context)) &&
 					   (strlen(i->ext) >= ast_pbx_longest_extension("default"))) {
+				if (option_debug)
+					ast_log(LOG_DEBUG, "%s is too long\n", i->ext);
 				/* It's not a valid extension, give a busy signal */
 				ioctl(i->fd, IXJCTL_BUSY);
 			}
@@ -512,18 +533,23 @@ static void ixj_check_exception(struct ixj_pvt *i)
 			if (i->mode == MODE_IMMEDIATE) {
 				ixj_new(i, AST_STATE_RING);
 			} else if (i->mode == MODE_DIALTONE) {
-#if 0
-				/* XXX Bug in the Phone jack, you can't detect DTMF when playing a tone XXX */
-				ioctl(i->fd, IXJCTL_DIALTONE);
-#else
+				pthread_mutex_lock(&usecnt_lock);
+				usecnt++;
+				pthread_mutex_unlock(&usecnt_lock);
+				ast_update_use_count();
 				/* Play the dialtone */
 				i->dialtone++;
 				ioctl(i->fd, IXJCTL_PLAY_STOP);
 				ioctl(i->fd, IXJCTL_PLAY_CODEC, ULAW);
 				ioctl(i->fd, IXJCTL_PLAY_START);
-#endif
 			}
 		} else {
+			if (i->dialtone) {
+				pthread_mutex_lock(&usecnt_lock);
+				usecnt--;
+				pthread_mutex_unlock(&usecnt_lock);
+				ast_update_use_count();
+			}
 			memset(i->ext, 0, sizeof(i->ext));
 			ioctl(i->fd, IXJCTL_CPT_STOP);
 			ioctl(i->fd, IXJCTL_PLAY_STOP);
@@ -690,11 +716,13 @@ static int restart_monitor()
 	return 0;
 }
 
-struct ixj_pvt *mkif(char *iface, int mode)
+static struct ixj_pvt *mkif(char *iface, int mode)
 {
 	/* Make a ixj_pvt structure for this interface */
 	struct ixj_pvt *tmp;
+#if 0
 	int flags;	
+#endif
 	
 	tmp = malloc(sizeof(struct ixj_pvt));
 	if (tmp) {
@@ -709,8 +737,10 @@ struct ixj_pvt *mkif(char *iface, int mode)
 		ioctl(tmp->fd, IXJCTL_RING_STOP);
 		ioctl(tmp->fd, IXJCTL_CPT_STOP);
 		tmp->mode = mode;
+#if 0
 		flags = fcntl(tmp->fd, F_GETFL);
 		fcntl(tmp->fd, F_SETFL, flags | O_NONBLOCK);
+#endif
 		tmp->owner = NULL;
 		tmp->lastformat = -1;
 		tmp->lastinput = -1;

@@ -3,7 +3,7 @@
  *
  * Implementation of Voice over Frame Relay, Adtran Style
  * 
- * Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+ * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -55,7 +55,7 @@ static pthread_mutex_t monlock = PTHREAD_MUTEX_INITIALIZER;
    which are not currently in use.  */
 static pthread_t monitor_thread = -1;
 
-static int restart_monitor();
+static int restart_monitor(void);
 
 /* The private structures of the Adtran VoFR channels are linked for
    selecting outgoing channels */
@@ -558,6 +558,9 @@ static struct ast_frame  *vofr_read(struct ast_channel *ast)
 				fr->subclass = 0;
 				break;
 			}
+		case VOFR_SIGNAL_RING:
+			ast->rings++;
+			break;
 		case VOFR_SIGNAL_UNKNOWN:
 			switch(vh->data[1]) {
 			case 0x1:
@@ -783,7 +786,21 @@ static int vofr_mini_packet(struct vofr_pvt *i, struct vofr_hdr *pkt, int len)
 		switch(pkt->data[0]) {
 		case VOFR_SIGNAL_RING:
 			/* If we get a RING, we definitely want to start a new thread */
-			vofr_new(i, AST_STATE_RING);
+			if (!i->owner)
+				vofr_new(i, AST_STATE_RING);
+			else
+				ast_log(LOG_WARNING, "Got a ring, but there's an owner?\n");
+			break;
+		case VOFR_SIGNAL_OFF_HOOK:
+			/* Network termination, go off hook */
+#if 0
+			ast_log(LOG_DEBUG, "Off hook\n");
+#endif
+			vofr_xmit_signal(i, 0x10, 2);
+			if (!i->owner)
+				vofr_new(i, AST_STATE_UP);
+			else
+				ast_log(LOG_WARNING, "Got an offhook, but there's an owner?\n");
 			break;
 		case VOFR_SIGNAL_ON_HOOK:
 			break;
@@ -896,7 +913,7 @@ static void *do_monitor(void *data)
 	
 }
 
-static int restart_monitor()
+static int restart_monitor(void)
 {
 	/* If we're supposed to be stopped -- stay stopped */
 	if (monitor_thread == -2)
@@ -926,7 +943,7 @@ static int restart_monitor()
 	return 0;
 }
 
-struct vofr_pvt *mkif(char *type, char *iface)
+static struct vofr_pvt *mkif(char *type, char *iface)
 {
 	/* Make a vofr_pvt structure for this interface */
 	struct vofr_pvt *tmp;
