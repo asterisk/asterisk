@@ -45,8 +45,10 @@ Example commands to make sure everything gets cleaned and then
 rebult in proper order:
 
 cd /path/to/pwlib
+./configure
 make clean opt
 cd /path/to/openh323
+./configure
 make clean opt 
 cd /path/to/asterisk/channels/h323
 make  
