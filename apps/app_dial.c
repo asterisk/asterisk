@@ -888,6 +888,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 				ast_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", numsubst);
 			ast_hangup(tmp->chan);
 			tmp->chan = NULL;
+			cur = rest;
 			continue;
 		} else
 			if (option_verbose > 2)
