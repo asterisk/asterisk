@@ -173,6 +173,9 @@ AST_MUTEX_DEFINE_STATIC(usecnt_lock);
    when it's doing something critical. */
 AST_MUTEX_DEFINE_STATIC(monlock);
 
+/* Avoid two chan to pass capabilities simultaneaously to the h323 stack. */
+AST_MUTEX_DEFINE_STATIC(caplock);
+
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
 static pthread_t monitor_thread = AST_PTHREADT_NULL;
@@ -423,6 +426,11 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 
 	ast_log(LOG_DEBUG, "dest=%s, timeout=%d.\n", dest, timeout);
 
+	if (strlen(dest) > sizeof(called_addr) - 1) {
+		ast_log(LOG_DEBUG, "Destination is too long (%d)\n", strlen(dest));
+		return -1;
+	}
+
 	if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "Line is already in use (%s)\n", c->name);
 		return -1;
@@ -443,8 +451,8 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	}
 
 	/* Build the address to call */
-	memset(called_addr, 0, sizeof(dest));
-	memcpy(called_addr, dest, sizeof(called_addr));
+	memset(called_addr, 0, sizeof(called_addr));
+	memcpy(called_addr, dest, strlen(dest));
 
 	/* Copy callerid, if there is any */
 	if (c->callerid) {
@@ -890,7 +898,9 @@ static struct ast_channel *oh323_request(char *type, int format, void *data)
 		}
 	}
 	/* pass on our preferred codec to the H.323 stack */
+	ast_mutex_lock(&caplock);
 	h323_set_capability(format, dtmfmode);
+	ast_mutex_unlock(&caplock);
 
 	if (ext) {
 		strncpy(p->username, ext, sizeof(p->username) - 1);
@@ -1725,6 +1735,7 @@ int reload_config(void)
 		}
 		cat = ast_category_browse(cfg, cat);
 	}
+	ast_destroy(cfg);
 
 	/* Register our H.323 aliases if any*/
 	while (alias) {		
@@ -1736,11 +1747,13 @@ int reload_config(void)
 	}
 
 	/* Add some capabilities */
+	ast_mutex_lock(&caplock);
 	if(h323_set_capability(capability, dtmfmode)) {
 		ast_log(LOG_ERROR, "Capabilities failure, this is bad.\n");
+		ast_mutex_unlock(&caplock);
 		return -1;
-	}	
-	ast_destroy(cfg);
+	}
+	ast_mutex_unlock(&caplock);
 
 	return 0;
 }
