@@ -99,7 +99,7 @@ static int restart_monitor(void);
 
 /* Codecs that we support by default: */
 static int capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM;
-static int nonCodecCapability = AST_RTP_DTMF;
+static int noncodeccapability = AST_RTP_DTMF;
 
 static char ourhost[256];
 static struct in_addr __ourip;
@@ -138,6 +138,8 @@ struct sip_request {
 	char data[SIP_MAX_PACKET];
 };
 
+struct sip_pkt;
+
 static struct sip_pvt {
 	pthread_mutex_t lock;				/* Channel private lock */
 	char callid[80];					/* Global CallID */
@@ -148,7 +150,7 @@ static struct sip_pvt {
 	int alreadygone;					/* Whether or not we've already been destroyed by or peer */
 	int needdestroy;					/* if we need to be destroyed */
 	int capability;						/* Special capability */
-	int nonCodecCapability;
+	int noncodeccapability;
 	int outgoing;						/* Outgoing or incoming call? */
 	int insecure;						/* Don't check source port/ip */
 	int expirey;						/* How long we take to expire */
@@ -190,16 +192,19 @@ static struct sip_pvt {
 	struct sip_peer *peerpoke;			/* If this calls is to poke a peer, which one */
 	struct sip_registry *registry;			/* If this is a REGISTER call, to which registry */
 	struct ast_rtp *rtp;				/* RTP Session */
+	struct sip_pkt *packets;			/* Packets scheduled for re-transmission */
 	struct sip_pvt *next;
 } *iflist = NULL;
 
-static struct sip_pkt {
-	int retrans;
-	struct sip_pvt *owner;
-	int packetlen;
-	char data[SIP_MAX_PACKET];
-	struct sip_pkt *next;
-} *packets = NULL;	
+struct sip_pkt {
+	struct sip_pkt *next;				/* Next packet */
+	int retrans;						/* Retransmission number */
+	int seqno;							/* Sequence number */
+	struct sip_pvt *owner;				/* Owner call */
+	int retransid;						/* Retransmission ID */
+	int packetlen;						/* Length of packet */
+	char data[0];
+};	
 
 struct sip_user {
 	/* Users who can access various contexts */
@@ -410,9 +415,9 @@ static int create_addr(struct sip_pvt *r, char *peer)
 			if (p->dtmfmode) {
 				r->dtmfmode = p->dtmfmode;
 				if (r->dtmfmode & SIP_DTMF_RFC2833)
-					r->nonCodecCapability |= AST_RTP_DTMF;
+					r->noncodeccapability |= AST_RTP_DTMF;
 				else
-					r->nonCodecCapability &= ~AST_RTP_DTMF;
+					r->noncodeccapability &= ~AST_RTP_DTMF;
 			}
 			strncpy(r->context, p->context,sizeof(r->context)-1);
 			if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
@@ -562,6 +567,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 static void __sip_destroy(struct sip_pvt *p, int lockowner)
 {
 	struct sip_pvt *cur, *prev = NULL;
+	struct sip_pkt *cp;
 	if (p->rtp) {
 		ast_rtp_destroy(p->rtp);
 	}
@@ -591,6 +597,12 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	} else {
 		if (p->initid > -1)
 			ast_sched_del(sched, p->initid);
+		while((cp = p->packets)) {
+			p->packets = p->packets->next;
+			if (cp->retransid > -1)
+				ast_sched_del(sched, cp->retransid);
+			free(cp);
+		}
 		free(p);
 	}
 }
@@ -1182,7 +1194,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	p->canreinvite = 1;
 	p->dtmfmode = globaldtmfmode;
 	if (p->dtmfmode & SIP_DTMF_RFC2833)
-		p->nonCodecCapability |= AST_RTP_DTMF;
+		p->noncodeccapability |= AST_RTP_DTMF;
 	/* Add to list */
 	ast_pthread_mutex_lock(&iflock);
 	p->next = iflist;
@@ -1371,7 +1383,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	char host[258];
 	int len = -1;
 	int portno;
-	int peercapability, peerNonCodecCapability;
+	int peercapability, peernoncodeccapability;
 	struct sockaddr_in sin;
 	char *codecs;
 	struct hostent *hp;
@@ -1436,15 +1448,15 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
 	// Now gather all of the codecs that were asked for:
 	ast_rtp_get_current_formats(p->rtp,
-				&peercapability, &peerNonCodecCapability);
+				&peercapability, &peernoncodeccapability);
 	p->capability = capability & peercapability;
-	p->nonCodecCapability = nonCodecCapability & peerNonCodecCapability;
+	p->noncodeccapability = noncodeccapability & peernoncodeccapability;
 	if (sipdebug) {
 		ast_verbose("Capabilities: us - %d, them - %d, combined - %d\n",
 			    capability, peercapability, p->capability);
 		ast_verbose("Non-codec capabilities: us - %d, them - %d, combined - %d\n",
-			    nonCodecCapability, peerNonCodecCapability,
-			    p->nonCodecCapability);
+			    noncodeccapability, peernoncodeccapability,
+			    p->noncodeccapability);
 	}
 	if (!p->capability) {
 		ast_log(LOG_WARNING, "No compatible codecs!\n");
@@ -1881,7 +1893,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 		}
 	}
 	for (x = 1; x <= AST_RTP_MAX; x <<= 1) {
-		if (p->nonCodecCapability & x) {
+		if (p->noncodeccapability & x) {
 			if (sipdebug)
 				ast_verbose("Answering with non-codec capability %d\n", x);
 			codec = ast_rtp_lookup_code(p->rtp, 0, x);
@@ -2671,9 +2683,9 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				if (user->dtmfmode) {
 					p->dtmfmode = user->dtmfmode;
 					if (p->dtmfmode & SIP_DTMF_RFC2833)
-						p->nonCodecCapability |= AST_RTP_DTMF;
+						p->noncodeccapability |= AST_RTP_DTMF;
 					else
-						p->nonCodecCapability &= ~AST_RTP_DTMF;
+						p->noncodeccapability &= ~AST_RTP_DTMF;
 				}
 			}
 			break;
@@ -2698,9 +2710,9 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				if (peer->dtmfmode) {
 					p->dtmfmode = peer->dtmfmode;
 					if (p->dtmfmode & SIP_DTMF_RFC2833)
-						p->nonCodecCapability |= AST_RTP_DTMF;
+						p->noncodeccapability |= AST_RTP_DTMF;
 					else
-						p->nonCodecCapability &= ~AST_RTP_DTMF;
+						p->noncodeccapability &= ~AST_RTP_DTMF;
 				}
 				break;
 			}
@@ -2906,7 +2918,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 		if (!strcasecmp(cur->callid, argv[3])) {
 			ast_cli(fd, "Call-ID: %s\n", cur->callid);
 			ast_cli(fd, "Codec Capability: %s\n", cur->capability);
-			ast_cli(fd, "Non-Codec Capability: %s\n", cur->nonCodecCapability);
+			ast_cli(fd, "Non-Codec Capability: %s\n", cur->noncodeccapability);
 			ast_cli(fd, "Theoretical Address: %s:%d\n", inet_ntoa(cur->sa.sin_addr), ntohs(cur->sa.sin_port));
 			ast_cli(fd, "Received Address:    %s:%d\n", inet_ntoa(cur->recv.sin_addr), ntohs(cur->recv.sin_port));
 			ast_cli(fd, "NAT Support:         %s\n", cur->nat ? "Yes" : "No");
@@ -3737,7 +3749,6 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 static void *do_monitor(void *data)
 {
 	int res;
-	struct sip_pkt *p;
 	struct sip_pvt *sip;
 	struct sip_peer *peer;
 	time_t t;
@@ -3766,11 +3777,6 @@ restartsearch:
 		ast_pthread_mutex_lock(&monlock);
 		/* Lock the network interface */
 		ast_pthread_mutex_lock(&netlock);
-		p = packets;
-		while(p) {
-			/* Handle any retransmissions */
-			p = p->next;
-		}
 		/* Okay, now that we know what to do, release the network lock */
 		ast_pthread_mutex_unlock(&netlock);
 		/* And from now on, we're okay to be killed, so release the monitor lock as well */
