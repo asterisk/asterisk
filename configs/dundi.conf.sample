@@ -172,14 +172,14 @@ autokill=yes
 ;
 ; Sample Primary e164 DUNDi peer
 ;
-[00:50:8B:F3:75:BB]
-model = symmetric
-host = 64.215.96.114
-inkey = digium
-outkey = misery
-include = e164
-permit = e164
-qualify = yes
+;[00:50:8B:F3:75:BB]
+;model = symmetric
+;host = 64.215.96.114
+;inkey = digium
+;outkey = misery
+;include = e164
+;permit = e164
+;qualify = yes
 
 ;
 ; Sample Secondary e164 DUNDi peer
