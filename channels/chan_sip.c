@@ -2014,10 +2014,10 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
 		tmp->cid.cid_pres = i->callingpres;
-                if (!ast_strlen_zero(i->accountcode))
-                        strncpy(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode)-1);
-                if (i->amaflags)
-                        tmp->amaflags = i->amaflags;
+		if (!ast_strlen_zero(i->accountcode))
+			strncpy(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode)-1);
+		if (i->amaflags)
+			tmp->amaflags = i->amaflags;
 		if (!ast_strlen_zero(i->language))
 			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
 		if (!ast_strlen_zero(i->musicclass))
@@ -5606,7 +5606,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 				strncpy(p->cid_num, user->cid_num, sizeof(p->cid_num) - 1);
 				ast_shrink_phone_number(p->cid_num);
 			}
-			if (!ast_strlen_zero(user->cid_name) && !ast_strlen_zero(p->cid_name)) 
+			if (!ast_strlen_zero(user->cid_name) && !ast_strlen_zero(p->cid_num)) 
 				strncpy(p->cid_name, user->cid_name, sizeof(p->cid_name) - 1);
 			strncpy(p->username, user->name, sizeof(p->username) - 1);
 			strncpy(p->peersecret, user->secret, sizeof(p->peersecret) - 1);
