@@ -34,6 +34,7 @@
 #include <asterisk/astdb.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/parking.h>
+#include <asterisk/utils.h>
 #include <sys/mman.h>
 #include <arpa/inet.h>
 #include <dirent.h>
