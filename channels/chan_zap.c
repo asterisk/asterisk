@@ -8254,7 +8254,9 @@ static int handle_pri_show_span(int fd, int argc, char *argv[])
 	}
 	for(x=0;x<NUM_DCHANS;x++) {
 		if (pris[span-1].dchannels[x]) {
+#ifdef PRI_DUMP_INFO_STR
 			char *info_str = NULL;
+#endif
 			ast_cli(fd, "%s D-channel: %d\n", pri_order(x), pris[span-1].dchannels[x]);
 			build_status(status, sizeof(status), pris[span-1].dchanavail[x], pris[span-1].dchans[x] == pris[span-1].pri);
 			ast_cli(fd, "Status: %s\n", status);
