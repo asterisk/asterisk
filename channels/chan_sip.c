@@ -900,7 +900,7 @@ static int sip_hangup(struct ast_channel *ast)
 				p->needdestroy = 0;
 				sip_scheddestroy(p, 15000);
 			} else
-				transmit_response_reliable(p, "480 Temporarily Unavailable", &p->initreq);
+				transmit_response_reliable(p, "403 Forbidden", &p->initreq);
 		} else {
 			/* Send a hangup */
 			transmit_request(p, "BYE", 1, 1);
@@ -3996,7 +3996,17 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			transmit_request(p, "BYE", 1, 1);
 			p->alreadygone = 1;
 		}
-	} else if (!strcasecmp(cmd, "CANCEL") || !strcasecmp(cmd, "BYE")) {
+	} else if (!strcasecmp(cmd, "CANCEL")) {
+		p->alreadygone = 1;
+		if (p->rtp) {
+			/* Immediately stop RTP */
+			ast_rtp_stop(p->rtp);
+		}
+		if (p->owner)
+			ast_queue_hangup(p->owner, 0);
+		transmit_response(p, "200 OK", req);
+		transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
+	} else if (!strcasecmp(cmd, "BYE")) {
 		copy_request(&p->initreq, req);
 		p->alreadygone = 1;
 		if (p->rtp) {

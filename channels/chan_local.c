@@ -115,7 +115,6 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f)
 {
 	struct local_pvt *p = ast->pvt->pvt;
 	int res = -1;
-	ast_pthread_mutex_lock(&p->lock);
 	int isoutbound = IS_OUTBOUND(ast, p);
 
 	/* Just queue for delivery to the other side */
