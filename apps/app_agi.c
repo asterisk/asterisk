@@ -70,17 +70,20 @@ static char *app = "AGI";
 
 static char *eapp = "EAGI";
 
+static char *deadapp = "DeadAGI";
+
 static char *synopsis = "Executes an AGI compliant application";
 static char *esynopsis = "Executes an EAGI compliant application";
+static char *deadsynopsis = "Executes AGI on a hungup channel";
 
 static char *descrip =
-"  [E]AGI(command|args): Executes an Asterisk Gateway Interface compliant\n"
+"  [E|Dead]AGI(command|args): Executes an Asterisk Gateway Interface compliant\n"
 "program on a channel. AGI allows Asterisk to launch external programs\n"
 "written in any language to control a telephony channel, play audio,\n"
 "read DTMF digits, etc. by communicating with the AGI protocol on stdin\n"
 "and stdout.\n"
-"Returns -1 on hangup or if application requested hangup, or\n"
-"0 on non-hangup exit. \n"
+"Returns -1 on hangup (except for DeadAGI) or if application requested\n"
+" hangup, or 0 on non-hangup exit. \n"
 "Using 'EAGI' provides enhanced AGI, with incoming audio available out of band"
 "on file descriptor 3\n\n"
 "Use the CLI command 'show agi' to list available agi commands\n";
@@ -1256,7 +1259,7 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf)
 	return 0;
 }
 #define RETRY	3
-static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid)
+static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid, int dead)
 {
 	struct ast_channel *c;
 	int outfd;
@@ -1265,7 +1268,8 @@ static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid)
 	struct ast_frame *f;
 	char buf[2048];
 	FILE *readf;
-	//how many times we'll retry if ast_waitfor_nandfs will return without either channel or file descriptor in case select is interrupted by a system call (EINTR)
+	/* how many times we'll retry if ast_waitfor_nandfs will return without either 
+	  channel or file descriptor in case select is interrupted by a system call (EINTR) */
 	int retry = RETRY;
 
 	if (!(readf = fdopen(agi->ctrl, "r"))) {
@@ -1277,7 +1281,7 @@ static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid)
 	setup_env(chan, request, agi->fd, (agi->audio > -1));
 	for (;;) {
 		ms = -1;
-		c = ast_waitfor_nandfds(&chan, 1, &agi->ctrl, 1, NULL, &outfd, &ms);
+		c = ast_waitfor_nandfds(&chan, dead ? 0 : 1, &agi->ctrl, 1, NULL, &outfd, &ms);
 		if (c) {
 			retry = RETRY;
 			/* Idle the channel until we get a command */
@@ -1408,7 +1412,7 @@ static int handle_dumpagihtml(int fd, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced)
+static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int dead)
 {
 	int res=0;
 	struct localuser *u;
@@ -1452,7 +1456,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced)
 		agi.fd = fds[1];
 		agi.ctrl = fds[0];
 		agi.audio = efd;
-		res = run_agi(chan, tmp, &agi, pid);
+		res = run_agi(chan, tmp, &agi, pid, dead);
 		close(fds[0]);
 		close(fds[1]);
 		if (efd > -1)
@@ -1464,7 +1468,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced)
 
 static int agi_exec(struct ast_channel *chan, void *data)
 {
-	return agi_exec_full(chan, data, 0);
+	return agi_exec_full(chan, data, 0, 0);
 }
 
 static int eagi_exec(struct ast_channel *chan, void *data)
@@ -1476,13 +1480,18 @@ static int eagi_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Unable to set channel '%s' to linear mode\n", chan->name);
 		return -1;
 	}
-	res = agi_exec_full(chan, data, 1);
+	res = agi_exec_full(chan, data, 1, 0);
 	if (!res) {
 		if (ast_set_read_format(chan, readformat)) {
 			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format %s\n", chan->name, ast_getformatname(readformat));
 		}
 	}
 	return res;
+}
+
+static int deadagi_exec(struct ast_channel *chan, void *data)
+{
+	return agi_exec_full(chan, data, 0, 1);
 }
 
 static char showagi_help[] =
@@ -1508,6 +1517,7 @@ int unload_module(void)
 	ast_cli_unregister(&showagi);
 	ast_cli_unregister(&dumpagihtml);
 	ast_unregister_application(eapp);
+	ast_unregister_application(deadapp);
 	return ast_unregister_application(app);
 }
 
@@ -1515,6 +1525,7 @@ int load_module(void)
 {
 	ast_cli_register(&showagi);
 	ast_cli_register(&dumpagihtml);
+	ast_register_application(deadapp, deadagi_exec, deadsynopsis, descrip);
 	ast_register_application(eapp, eagi_exec, esynopsis, descrip);
 	return ast_register_application(app, agi_exec, synopsis, descrip);
 }
