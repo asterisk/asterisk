@@ -100,7 +100,7 @@ sub check_login()
 			}
 		} elsif (/\[(.*)\]/) {
 			$category = $1;
-		} elsif ($category ne "general") {
+		} elsif (($category ne "general") && ($category ne "zonemessages")) { 
 			if (/([^\s]+)\s*\=\>?\s*(.*)/) {
 				@fields = split(/\,\s*/, $2);
 #				print "<p>Mailbox is $1\n";
@@ -142,7 +142,7 @@ sub validmailbox()
 			}
 		} elsif (/\[(.*)\]/) {
 			$category = $1;
-		} elsif (($category ne "general") && ($category eq $context)) {
+		} elsif (($category ne "general") && ($category ne "zonemessages") && ($category eq $context)) {
 			if (/([^\s]+)\s*\=\>?\s*(.*)/) {
 				@fields = split(/\,\s*/, $2);
 				if (($mbox eq $1) && ($context eq $category)) {
@@ -178,11 +178,11 @@ sub mailbox_options()
 			$tmp .= $tmp2;
 		} elsif (/\[(.*)\]/) {
 			$category = $1;
-		} elsif ($category ne "general") {
+		} elsif (($category ne "general") && ($category ne "zonemessages")) {
 			if (/([^\s]+)\s*\=\>?\s*(.*)/) {
 				@fields = split(/\,\s*/, $2);
 				$text = "$1";
-				if ($fields[2]) {
+				if ($fields[1]) {
 					$text .= " ($fields[1])";
 				}
 				if ($1 eq $current) {
@@ -285,6 +285,7 @@ sub message_prefs()
 	my ($nextaction, $msgid) = @_;
 	my $folder = param('folder');
 	my $mbox = param('mailbox');
+	my $context = param('context');
 	my $passwd = param('password');
 	my $format = param('format');
 	if (!$format) {
@@ -373,7 +374,7 @@ _EOH
 <table>
 	<tr><td colspan=2 align=center><font size=+1>$folder <b>$msgid</b></font></td></tr>
 	<tr><td><b>Message:</b></td><td>$msgid</td></tr>\n
-	<tr><td><b>Mailbox:</b></td><td>$mbox</td></tr>\n
+	<tr><td><b>Mailbox:</b></td><td>$mbox\@$context</td></tr>\n
 	<tr><td><b>Folder:</b></td><td>$folder</td></tr>\n
 	<tr><td><b>From:</b></td><td>$fields->{callerid}</td></tr>\n
 	<tr><td><b>Duration:</b></td><td>$duration</td></tr>\n
@@ -391,7 +392,7 @@ _EOH
 	<input name="action" type=submit value="download">
 </td></tr>
 <tr><td colspan=2 align=center>
-<embed width=400 height=40 src="vmail.cgi?action=audio&folder=$folder&mailbox=$mbox&password=$passwd&msgid=$msgid&format=$format&dontcasheme=$$.$format" autostart=yes loop=false></embed>
+<embed width=400 height=40 src="vmail.cgi?action=audio&folder=$folder&mailbox=$mbox&context=$context&password=$passwd&msgid=$msgid&format=$format&dontcasheme=$$.$format" autostart=yes loop=false></embed>
 </td></tr></table>
 </td></tr>
 </table>
@@ -412,11 +413,12 @@ sub message_audio()
 	my $folder = param('folder');
 	my $msgid = param('msgid');
 	my $mailbox = param('mailbox');
+	my $context = param('context');
 	my $format = param('format');
 	if (!$format) {
 		$format = &getcookie('format');
 	}
-	my $path = "/var/spool/asterisk/vm/$mailbox/$folder/msg${msgid}.$format";
+	my $path = "/var/spool/asterisk/voicemail/$context/$mailbox/$folder/msg${msgid}.$format";
 
 	$msgid =~ /^\d\d\d\d$/ || die("Msgid Liar ($msgid)!");
 	grep(/^${format}$/, keys %formats) || die("Format Liar ($format)!");
@@ -507,7 +509,7 @@ sub message_index()
 	print header(-cookie => &makecookie($format));
 	print <<_EOH;
 
-<TITLE>Asterisk Web-Voicemail: $mbox $folder</TITLE>
+<TITLE>Asterisk Web-Voicemail: $mbox\@$context $folder</TITLE>
 <BODY BGCOLOR="white">
 $stdcontainerstart
 <FORM METHOD="post">
@@ -638,7 +640,7 @@ sub message_rename()
 	}
 	
 	my $path = "/var/spool/asterisk/voicemail/$context/$mbox/$newfolder";
-	mkdir $path, 0755;
+	mkdir $path, 0770;
 	my $path = "/var/spool/asterisk/voicemail/$context/$mbox/$oldfolder";
 	opendir(DIR, $path) || die("Unable to open directory\n");
 	my @files = grep /^msg${old}\.\w+$/, readdir(DIR);
@@ -672,7 +674,7 @@ sub file_copy()
 
 sub message_copy()
 {
-	my ($mbox, $newmbox, $oldfolder, $old, $new) = @_;
+	my ($context, $mbox, $newmbox, $oldfolder, $old, $new) = @_;
 	my $oldfile, $newfile;
 	return if ($mbox eq $newmbox);
 	
@@ -706,11 +708,11 @@ sub message_copy()
 		die("Invalid old Message<BR>\n");
 	}
 	
-	my $path = "/var/spool/asterisk/vm/$newmbox";
-	mkdir $path, 0755;
-	my $path = "/var/spool/asterisk/vm/$newmbox/INBOX";
-	mkdir $path, 0755;
-	my $path = "/var/spool/asterisk/vm/$mbox/$oldfolder";
+	my $path = "/var/spool/asterisk/voicemail/$context/$newmbox";
+	mkdir $path, 0770;
+	my $path = "/var/spool/asterisk/voicemail/$context/$newmbox/INBOX";
+	mkdir $path, 0770;
+	my $path = "/var/spool/asterisk/voicemail/$context/$mbox/$oldfolder";
 	opendir(DIR, $path) || die("Unable to open directory\n");
 	my @files = grep /^msg${old}\.\w+$/, readdir(DIR);
 	closedir(DIR);
@@ -720,7 +722,7 @@ sub message_copy()
 			$tmp = $1;
 			$oldfile = $path . "/$tmp";
 			$tmp =~ s/msg${old}/msg${new}/;
-			$newfile = "/var/spool/asterisk/vm/$newmbox/INBOX/$tmp";
+			$newfile = "/var/spool/asterisk/voicemail/$context/$newmbox/INBOX/$tmp";
 #			print "Copying $oldfile to $newfile<BR>\n";
 			&file_copy($oldfile, $newfile);
 		}
@@ -788,7 +790,7 @@ sub message_forward()
 #		print header;
 		foreach $msg (@msgs) {
 #			print "Forwarding $msg from $mbox to $newmbox<BR>\n";
-			&message_copy($mbox, $newmbox, $folder, $msg, sprintf "%04d", $msgcount);
+			&message_copy($context, $mbox, $newmbox, $folder, $msg, sprintf "%04d", $msgcount);
 			$msgcount++;
 		}
 		$txt = "Forwarded messages " . join(', ', @msgs) . "to $newmbox";
