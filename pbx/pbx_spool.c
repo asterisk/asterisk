@@ -116,7 +116,7 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 				if (c) {
 					*c = '\0';
 					c++;
-					while(*c < 33)
+					while ((*c) && (*c < 33))
 						c++;
 #if 0
 					printf("'%s' is '%s' at line %d\n", buf, c, lineno);
