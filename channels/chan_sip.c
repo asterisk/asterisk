@@ -2682,17 +2682,25 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	/* RTP addresses and ports for audio and video */
 	sin.sin_family = AF_INET;
 	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
+
 	/* Setup audio port number */
 	sin.sin_port = htons(portno);
-	if (p->rtp && sin.sin_port)
+	if (p->rtp && sin.sin_port) {
 		ast_rtp_set_peer(p->rtp, &sin);
+		if (debug) {
+			ast_verbose("Peer audio RTP is at port %s:%d\n", ast_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+			ast_log(LOG_DEBUG,"Peer audio RTP is at port %s:%d\n",ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+		}
+	}
 	/* Setup video port number */
 	sin.sin_port = htons(vportno);
-	if (p->vrtp && sin.sin_port)
+	if (p->vrtp && sin.sin_port) {
 		ast_rtp_set_peer(p->vrtp, &sin);
-
-	if (sipdebug)
-		ast_verbose("Peer RTP is at port %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+		if (debug) {
+			ast_verbose("Peer video RTP is at port %s:%d\n", ast_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+			ast_log(LOG_DEBUG,"Peer video RTP is at port %s:%d\n",ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+		}
+	}
 
 	/* Next, scan through each "a=rtpmap:" line, noting each
 	 * specified RTP payload type (with corresponding MIME subtype):
