@@ -240,6 +240,7 @@ static struct sip_pvt {
 	int amaflags;						/* AMA Flags */
 	int pendinginvite;					/* Any pending invite */
 	int pendingbye;						/* Need to send bye after we ack? */
+	int gotrefer;						/* Got a refer? */
 	struct sip_request initreq;			/* Initial request */
 	
 	int maxtime;						/* Max time for first response */
@@ -5123,6 +5124,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				attempt_transfer(p, p->refer_call);
 				ast_mutex_unlock(&p->refer_call->lock);
 				p->refer_call = NULL;
+				p->gotrefer = 1;
 			} else {
 				ast_log(LOG_DEBUG,"202 Accepted (blind)\n");
 				c = p->owner;
@@ -5133,6 +5135,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 						ast_async_goto(transfer_to,p->context, p->refer_to,1, 1);
 					}
 				}
+				p->gotrefer = 1;
 			}
 			/* Always increment on a BYE */
 			transmit_request_with_auth(p, "BYE", 0, 1);
@@ -6231,8 +6234,10 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 			ast_rtp_get_peer(vrtp, &p->vredirip);
 		else
 			memset(&p->vredirip, 0, sizeof(p->vredirip));
-		transmit_reinvite_with_sdp(p, rtp, vrtp);
-		p->outgoing = 1;
+		if (!p->gotrefer) {
+			transmit_reinvite_with_sdp(p, rtp, vrtp);
+			p->outgoing = 1;
+		}
 		return 0;
 	}
 	return -1;
