@@ -681,3 +681,17 @@
 
 %conf-onlyone.gsm%There is currently only one other participant in the conference.
 
+
+%agent.gsm%Agent
+
+%h323.gsm%H.323
+
+%iax.gsm%IAX
+
+%mgcp.gsm%MGCP
+
+%sip.gsm%SIP
+
+%skinny.gsm%Skinny
+
+%zap.gsm%Zap
