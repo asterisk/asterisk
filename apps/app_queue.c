@@ -244,7 +244,7 @@ ast_log(LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, q
 	return res;
 }
 
-static void free_members(struct ast_call_queue *q)
+static void free_members(struct ast_call_queue *q, int all)
 {
 	/* Free non-dynamic members */
 	struct member *curm, *next, *prev;
@@ -252,7 +252,7 @@ static void free_members(struct ast_call_queue *q)
 	prev = NULL;
 	while(curm) {
 		next = curm->next;
-		if (!curm->dynamic) {
+		if (all || !curm->dynamic) {
 			if (prev)
 				prev->next = next;
 			else
@@ -281,7 +281,7 @@ static void destroy_queue(struct ast_call_queue *q)
 		cur = cur->next;
 	}
 	ast_mutex_unlock(&qlock);
-	free_members(q);
+	free_members(q, 1);
 	free(q);
 }
 
@@ -1237,11 +1237,16 @@ static void reload_queues(void)
 				q->retry = 0;
 				q->timeout = -1;
 				q->maxlen = 0;
-				free_members(q);
+				free_members(q, 0);
 				strcpy(q->moh, "");
 				strcpy(q->announce, "");
 				strcpy(q->context, "");
-				prev = NULL;
+				prev = q->members;
+				if (prev) {
+					/* find the end of any dynamic members */
+					while(prev->next)
+						prev = prev->next;
+				}
 				var = ast_variable_browse(cfg, cat);
 				while(var) {
 					if (!strcasecmp(var->name, "member")) {
