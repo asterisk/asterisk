@@ -7,7 +7,7 @@
 ; local addresses).
 ;
 [general]
-;port=5036
+;bindport=4569
 ;bindaddr=192.168.0.1
 ;
 ; Set iaxcompat to yes if you plan to use layered 

@@ -6601,10 +6601,9 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 	}
 	v = ast_variable_browse(cfg, "general");
 	while(v) {
-		if (!strcasecmp(v->name, "port")){ 
-				ast_log(LOG_WARNING, "Ignoring port for now\n");
-#if 0				
+		if (!strcasecmp(v->name, "bindport")){ 
 			sin->sin_port = ntohs(atoi(v->value));
+#if 0				
 			if(last_port==0){
 				last_port=sin->sin_port;
 #if	0

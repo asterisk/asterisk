@@ -289,7 +289,7 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 					foundportno = 1;
 				} else {
 					cur->serverport = x;
-					foundserverportno = 0;
+					foundserverportno = 1;
 				}
 			} else
 				ast_log(LOG_WARNING, "Ignoring invalid %s '%s' for '%s' at line %d\n", v->name, v->value, s, v->lineno);
