@@ -33,6 +33,13 @@ static char *tdesc = "Silly MP3 Application";
 
 static char *app = "MP3Player";
 
+static char *synopsis = "Play an MP3 file or stream";
+
+static char *descrip = 
+"  MP3Player(location) Executes mpg123 to play the given location\n"
+"  which typically would be a filename or a URL.  Returns -1 on\n"
+"  hangup or 0 otherwise.  User can exit by pressing any key\n.";
+
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
@@ -60,7 +67,7 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 	int res=0;
 	struct localuser *u;
 	int fds[2];
-	int rfds[2];
+	int rfds[1 + AST_MAX_FDS];
 	int ms = -1;
 	int pid;
 	int us;
@@ -69,6 +76,7 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 	struct timeval tv;
 	struct timeval last;
 	struct ast_frame *f;
+	int x;
 	struct myframe {
 		struct ast_frame f;
 		char offset[AST_FRIENDLY_OFFSET];
@@ -99,17 +107,23 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 		pid = res;
 		/* Order is important -- there's almost always going to be mp3...  we want to prioritize the
 		   user */
-		rfds[0] = chan->fd;
-		rfds[1] = fds[0];
+		for (x=0;x<AST_MAX_FDS;x++) 
+			rfds[x] = chan->fds[x];
+		rfds[x] = fds[0];
 		for (;;) {
 			CHECK_BLOCKING(chan);
-			res = ast_waitfor_n_fd(rfds, 2, &ms, &exception);
+			res = ast_waitfor_n_fd(rfds, AST_MAX_FDS+1, &ms, &exception);
 			chan->blocking = 0;
 			if (res < 1) {
 				ast_log(LOG_DEBUG, "Hangup detected\n");
 				res = -1;
 				break;
-			} else if (res == chan->fd) {
+			}
+			for(x=0;x<AST_MAX_FDS;x++) 
+				if (res == chan->fds[x])
+					break;
+
+			if (x < AST_MAX_FDS) {
 				if (exception)
 					chan->exception = 1;
 				f = ast_read(chan);
@@ -181,7 +195,7 @@ int unload_module(void)
 
 int load_module(void)
 {
-	return ast_register_application(app, mp3_exec);
+	return ast_register_application(app, mp3_exec, synopsis, descrip);
 }
 
 char *description(void)
