@@ -381,7 +381,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp, st
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
 static int transmit_message_with_text(struct sip_pvt *p, char *text);
 static int transmit_refer(struct sip_pvt *p, char *dest);
-static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req);
+static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *msg);
 static char *getsipuri(char *header);
 static void free_old_route(struct sip_route *route);
 static int build_reply_digest(struct sip_pvt *p, char *orig_header, char *digest, int digest_len);
@@ -4039,11 +4039,11 @@ static int do_register_auth(struct sip_pvt *p, struct sip_request *req) {
 	return transmit_register(p->registry,"REGISTER",digest); 
 }
 
-static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req) {
+static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *msg) {
 	char digest[256];
 	p->authtries++;
 	memset(digest,0,sizeof(digest));
-	if (reply_digest(p,req, "Proxy-Authenticate", "INVITE", digest, sizeof(digest) )) {
+	if (reply_digest(p,req, "Proxy-Authenticate", msg, digest, sizeof(digest) )) {
 		/* No way to authenticate */
 		return -1;
 	}
@@ -4325,6 +4325,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 						ast_queue_frame(p->owner, &af, 0);
 					}
 				}
+				p->authtries = 0;
 				transmit_request(p, "ACK", seqno, 0);
 				/* Go ahead and send bye at this point */
 				if (p->pendingbye) {
@@ -4375,12 +4376,16 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* First we ACK */
 				transmit_request(p, "ACK", seqno, 0);
 				/* Then we AUTH */
-				if ((p->authtries > 1) || do_proxy_auth(p, req)) {
+				if ((p->authtries > 1) || do_proxy_auth(p, req, "INVITE")) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
 					p->needdestroy = 1;
 				}
-			} else
-				p->needdestroy = 1;
+			} else if (!strcasecmp(msg, "BYE")) {
+				if ((p->authtries > 1) || do_proxy_auth(p, req, "BYE")) {
+					ast_log(LOG_NOTICE, "Failed to authenticate on BYE to '%s'\n", get_header(&p->initreq, "From"));
+					p->needdestroy = 1;
+				}
+			}
 			break;
 		case 501: /* Not Implemented */
 			if (!strcasecmp(msg, "INVITE"))
