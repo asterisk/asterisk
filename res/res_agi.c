@@ -988,7 +988,6 @@ static int handle_getvariablefull(struct ast_channel *chan, AGI *agi, int argc, 
 			if (!strcmp(chan2->name, argv[4]))
 				break;
 			ast_mutex_unlock(&chan2->lock);
-			chan2 = ast_channel_walk_locked(chan2);
 		}
 	} else {
 		chan2 = chan;
