@@ -390,7 +390,7 @@ static void ast_mf_detect_init (mf_detect_state_t *s)
 static int dtmf_detect (dtmf_detect_state_t *s,
                  int16_t amp[],
                  int samples, 
-		 int digitmode, int *writeback)
+		 int digitmode, int *writeback, int faxdetect)
 {
 
     float row_energy[4];
@@ -639,21 +639,7 @@ static int dtmf_detect (dtmf_detect_state_t *s,
             }
         } 
 #ifdef FAX_DETECT
-#ifdef OLD_DSP_ROUTINES
-		if (!hit && (fax_energy >= FAX_THRESHOLD) && (fax_energy > s->energy * 21.0)) {
-				fax_energy_2nd = goertzel_result(&s->fax_tone2nd);
-				fax_energy_2nd = goertzel_result(&s->fax_tone2nd);
-				if (fax_energy_2nd * FAX_2ND_HARMONIC < fax_energy) {
-#if 0
-					printf("Fax energy/Second Harmonic: %f/%f\n", fax_energy, fax_energy_2nd);
-#endif					
-					/* XXX Probably need better checking than just this the energy XXX */
-					hit = 'f';
-					s->fax_hits++;
-				} /* Don't reset fax hits counter */
-		}
-#else /* OLD_DSP_ROUTINES */
-		if (!hit && (fax_energy >= FAX_THRESHOLD) && (fax_energy >= DTMF_TO_TOTAL_ENERGY*s->energy)) {
+		if (!hit && (fax_energy >= FAX_THRESHOLD) && (fax_energy >= DTMF_TO_TOTAL_ENERGY*s->energy) && (faxdetect)) {
 #if 0
 				printf("Fax energy/Second Harmonic: %f\n", fax_energy);
 #endif					
@@ -661,7 +647,6 @@ static int dtmf_detect (dtmf_detect_state_t *s,
 				hit = 'f';
 				s->fax_hits++;
 		}
-#endif /* OLD_DSP_ROUTINES */
 		else {
 			if (s->fax_hits > 5) {
 				 hit = 'f';
@@ -1057,7 +1042,7 @@ static int __ast_dsp_digitdetect(struct ast_dsp *dsp, short *s, int len, int *wr
 	if (dsp->digitmode & DSP_DIGITMODE_MF)
 		res = mf_detect(&dsp->td.mf, s, len, dsp->digitmode & DSP_DIGITMODE_RELAXDTMF, writeback);
 	else
-		res = dtmf_detect(&dsp->td.dtmf, s, len, dsp->digitmode & DSP_DIGITMODE_RELAXDTMF, writeback);
+		res = dtmf_detect(&dsp->td.dtmf, s, len, dsp->digitmode & DSP_DIGITMODE_RELAXDTMF, writeback, dsp->features & DSP_FEATURE_FAX_DETECT);
 	return res;
 }
 

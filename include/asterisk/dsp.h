@@ -18,6 +18,7 @@
 #define DSP_FEATURE_BUSY_DETECT      (1 << 1)
 #define DSP_FEATURE_CALL_PROGRESS    (1 << 2)
 #define DSP_FEATURE_DTMF_DETECT		 (1 << 3)
+#define DSP_FEATURE_FAX_DETECT		 (1 << 4)
 
 #define	DSP_DIGITMODE_DTMF			0				/* Detect DTMF digits */
 #define DSP_DIGITMODE_MF			1				/* Detect MF digits */

@@ -4197,8 +4197,11 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		if (i->busydetect && CANBUSYDETECT(i)) {
 			features |= DSP_FEATURE_BUSY_DETECT;
 		}
-		if (i->callprogress && CANPROGRESSDETECT(i)) {
+		if ((i->callprogress & 1) && CANPROGRESSDETECT(i)) {
 			features |= DSP_FEATURE_CALL_PROGRESS;
+		}
+		if (i->callprogress & 2) {
+			features |= DSP_FEATURE_FAX_DETECT;
 		}
 		features |= DSP_FEATURE_DTMF_DETECT;
 		if (features) {
@@ -6589,7 +6592,6 @@ static void *pri_dchannel(void *vpri)
 	struct zt_pri *pri = vpri;
 	pri_event *e;
 	struct pollfd fds[NUM_DCHANS];
-	struct zt_spaninfo si;
 	int res;
 	int chanpos = 0;
 	int x;
@@ -8406,7 +8408,15 @@ static int setup_zap(void)
 		} else if (!strcasecmp(v->name, "busycount")) {
 			busycount = atoi(v->value);
 		} else if (!strcasecmp(v->name, "callprogress")) {
-			callprogress = ast_true(v->value);
+			if (ast_true(v->value))
+				callprogress |= 1;
+			else
+				callprogress &= ~1;
+		} else if (!strcasecmp(v->name, "faxdetect")) {
+			if (ast_true(v->value))
+				callprogress |= 2;
+			else
+				callprogress &= ~2;
 		} else if (!strcasecmp(v->name, "echocancel")) {
 			if (v->value && !ast_strlen_zero(v->value)) {
 				y = atoi(v->value);
