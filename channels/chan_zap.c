@@ -5887,6 +5887,7 @@ static int pri_fixup(struct zt_pri *pri, int channel, q931_call *c)
 				if (pri->pvt[channel]->owner) {
 					pri->pvt[channel]->owner->pvt->pvt = pri->pvt[channel];
 					pri->pvt[channel]->owner->fds[0] = pri->pvt[channel]->subs[SUB_REAL].zfd;
+					pri->pvt[channel]->subs[SUB_REAL].owner = pri->pvt[x]->subs[SUB_REAL].owner;
 				} else
 					ast_log(LOG_WARNING, "Whoa, there's no  owner, and we're having to fix up channel %d to channel %d\n", x, channel);
 				pri->pvt[channel]->call = pri->pvt[x]->call;
