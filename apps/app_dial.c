@@ -1306,11 +1306,11 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 		if (ast_test_flag(chan, AST_FLAG_MOH))
 			ast_moh_stop(chan);
 
-		if ((res = dial_exec(chan, dialdata)) == 0) {
+		if ((res = dial_exec_full(chan, dialdata, &peerflags)) == 0) {
 			if (ast_test_flag(&peerflags, DIAL_HALT_ON_DTMF)) {
 				if (!(res = ast_streamfile(chan, announce, chan->language)))
 					res = ast_waitstream(chan, AST_DIGIT_ANY);
-				if (!res) {
+				if (!res && sleep) {
 					if (!ast_test_flag(chan, AST_FLAG_MOH))
 						ast_moh_start(chan, NULL);
 					res = ast_waitfordigit(chan, sleep);
@@ -1318,8 +1318,12 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 			} else {
 				if (!(res = ast_streamfile(chan, announce, chan->language)))
 					res = ast_waitstream(chan, "");
-				if (!res) 
-					res = ast_safe_sleep(chan, sleep);
+				if (sleep) {
+					if (!ast_test_flag(chan, AST_FLAG_MOH))
+						ast_moh_start(chan, NULL);
+					if (!res) 
+						res = ast_safe_sleep(chan, sleep);
+				}
 			}
 		}
 
