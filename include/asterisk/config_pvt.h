@@ -31,6 +31,7 @@ struct ast_config_reg {
 	char name[CONFIG_KEYWORD_STRLEN];
 	struct ast_config *(*static_func)(const char *database, const char *table, const char *, struct ast_config *,struct ast_category **,struct ast_variable **,int);
 	struct ast_variable *(*realtime_func)(const char *database, const char *table, va_list ap);
+	struct ast_config *(*realtime_multi_func)(const char *database, const char *table, va_list ap);
 	int (*update_func)(const char *database, const char *table, const char *keyfield, const char *entity, va_list ap);
 	struct ast_config_reg *next;
 };

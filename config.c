@@ -431,6 +431,21 @@ struct ast_variable *ast_load_realtime(const char *family, ...)
 	return res;
 }
 
+struct ast_config *ast_load_realtime_multientry(const char *family, ...)
+{
+	struct ast_config_reg *reg;
+	char db[256]="";
+	char table[256]="";
+	struct ast_config *res=NULL;
+	va_list ap;
+	va_start(ap, family);
+	reg = get_ast_cust_config_keyword(family, db, sizeof(db), table, sizeof(table));
+	if (reg && reg->realtime_multi_func) 
+		res = reg->realtime_multi_func(db, table, ap);
+	va_end(ap);
+	return res;
+}
+
 int ast_update_realtime(const char *family, const char *keyfield, const char *lookup, ...)
 {
 	struct ast_config_reg *reg;

@@ -464,16 +464,18 @@ int ast_update_module_list(int (*modentry)(char *module, char *description, int 
 {
 	struct module *m;
 	int unlock = -1;
+	int total_mod_loaded = 0;
 	if (ast_mutex_trylock(&modlock))
 		unlock = 0;
 	m = module_list;
 	while(m) {
 		modentry(m->resource, m->description(), m->usecount());
 		m = m->next;
+		total_mod_loaded++;
 	}
 	if (unlock)
 		ast_mutex_unlock(&modlock);
-	return 0;
+	return total_mod_loaded;
 }
 
 int ast_loader_register(int (*v)(void)) 

@@ -116,6 +116,19 @@ int ast_category_exist(struct ast_config *config, char *category_name);
  */
 struct ast_variable *ast_load_realtime(const char *family, ...);
 
+//! Retrieve realtime configuration
+/*!
+ * \param family which family/config to lookup
+ * \param keyfield which field to use as the key
+ * \param lookup which value to look for in the key field to match the entry.
+ * This will use builtin configuration backends to look up a particular 
+ * entity in realtime and return a variable list of its parameters. Unlike
+ * the ast_load_realtime, this function can return more than one entry and
+ * is thus stored inside a taditional ast_config structure rather than 
+ * just returning a linked list of variables.
+ */
+struct ast_config *ast_load_realtime_multientry(const char *family, ...);
+
 //! Update realtime configuration
 /*!
  * \param family which family/config to be updated

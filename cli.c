@@ -337,7 +337,7 @@ static int handle_modlist(int fd, int argc, char *argv[])
 	ast_mutex_lock(&climodentrylock);
 	climodentryfd = fd;
 	ast_cli(fd, MODLIST_FORMAT2, "Module", "Description", "Use Count");
-	ast_update_module_list(modlist_modentry);
+	ast_cli(fd,"%d modules loaded\n",ast_update_module_list(modlist_modentry));
 	climodentryfd = -1;
 	ast_mutex_unlock(&climodentrylock);
 	return RESULT_SUCCESS;
