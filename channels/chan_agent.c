@@ -541,6 +541,7 @@ static int agent_ack_sleep( void *data )
 	struct agent_pvt *p;
 	int res=0;
 	int to = 1000;
+	struct ast_frame *f;
 
 	/* Wait a second and look for something */
 
@@ -556,6 +557,16 @@ static int agent_ack_sleep( void *data )
 				res = 0;
 				break;
 			}
+			f = ast_read(p->chan);
+			if (!f) {
+				res = -1;
+				break;
+			}
+			if (f->frametype == AST_FRAME_DTMF)
+				res = f->subclass;
+			else
+				res = 0;
+			ast_frfree(f);
 			ast_mutex_lock(&p->lock);
 			if (!p->app_sleep_cond) {
 				ast_mutex_unlock(&p->lock);
