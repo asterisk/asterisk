@@ -42,7 +42,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int skel_exec(struct ast_channel *chan, void *data)
+static int system_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
@@ -76,7 +76,7 @@ int unload_module(void)
 
 int load_module(void)
 {
-	return ast_register_application(app, skel_exec, synopsis, descrip);
+	return ast_register_application(app, system_exec, synopsis, descrip);
 }
 
 char *description(void)
