@@ -866,9 +866,12 @@ int init_manager(void)
 		ast_log(LOG_WARNING, "Unable to change management port / enabled\n");
 #endif
 	}
+	ast_destroy(cfg);
+	
 	/* If not enabled, do nothing */
-	if (!enabled)
+	if (!enabled) {
 		return 0;
+	}
 	if (asock < 0) {
 		asock = socket(AF_INET, SOCK_STREAM, 0);
 		if (asock < 0) {
@@ -892,7 +895,6 @@ int init_manager(void)
 			ast_verbose("Asterisk Management interface listening on port %d\n", portno);
 		pthread_create(&t, NULL, accept_thread, NULL);
 	}
-	ast_destroy(cfg);
 	return 0;
 }
 
