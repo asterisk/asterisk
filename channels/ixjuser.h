@@ -1,8 +1,8 @@
 /******************************************************************************
 $Id$
 $Log$
-Revision 1.3  1999/12/01 05:25:58  markster
-Version 0.1.2 from FTP
+Revision 1.4  1999/12/01 05:25:58  markster
+Version 0.1.3 from FTP
 
 Revision 1.1  1999/12/01 05:25:58  markster
 Start on the Internet Phone Jack channel
