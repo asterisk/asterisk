@@ -166,7 +166,7 @@ ASTERISKVERSIONNUM=$(shell if [ -d CVS ]; then echo 999999 ; else if [ -f .versi
 HTTPDIR=$(shell if [ -d /var/www ]; then echo "/var/www"; else echo "/home/httpd"; fi)
 RPMVERSION=$(shell if [ -f .version ]; then sed 's/[-\/:]/_/g' .version; else echo "unknown" ; fi)
 CFLAGS+=-DASTERISK_VERSION=\"$(ASTERISKVERSION)\"
-CFLAGS+=-DASTERISK_VERSION_NUM=\"$(ASTERISKVERSIONNUM)\"
+CFLAGS+=-DASTERISK_VERSION_NUM=$(ASTERISKVERSIONNUM)
 CFLAGS+=-DINSTALL_PREFIX=\"$(INSTALL_PREFIX)\"
 CFLAGS+=-DASTETCDIR=\"$(ASTETCDIR)\"
 CFLAGS+=-DASTLIBDIR=\"$(ASTLIBDIR)\"
