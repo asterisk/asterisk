@@ -1728,10 +1728,6 @@ int main(int argc, char *argv[])
 	printf(term_end());
 	fflush(stdout);
 
-	/* Test recursive mutex locking. */
-	if (test_for_thread_safety())
-		ast_verbose("Warning! Asterisk is not thread safe.\n");
-
 	if (option_console && !option_verbose) 
 		ast_verbose("[ Reading Master Configuration ]");
 	ast_readconfig();
@@ -1795,6 +1791,10 @@ int main(int argc, char *argv[])
 		} else
 			ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)ast_config_AST_PID, strerror(errno));
 	}
+
+	/* Test recursive mutex locking. */
+	if (test_for_thread_safety())
+		ast_verbose("Warning! Asterisk is not thread safe.\n");
 
 	ast_makesocket();
 	sigemptyset(&sigs);

@@ -138,8 +138,8 @@ CFLAGS+=$(shell if [ -f /usr/include/osp/osp.h ]; then echo "-DOSP_SUPPORT -I/us
 
 ifeq (${OSARCH},FreeBSD)
 OSVERSION=$(shell make -V OSVERSION -f /usr/share/mk/bsd.port.subdir.mk)
-CFLAGS+=$(if ${OSVERSION}<500016,-D_THREAD_SAFE)
-LIBS+=$(if ${OSVERSION}<502102,-lc_r,-pthread)
+CFLAGS+=$(shell if test ${OSVERSION} -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
+LIBS+=$(shell if test  ${OSVERSION} -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
 INCLUDE+=-I/usr/local/include
 CFLAGS+=$(shell if [ -d /usr/local/include/spandsp ]; then echo "-I/usr/local/include/spandsp"; fi)
 endif # FreeBSD
