@@ -9128,7 +9128,7 @@ static int sip_getheader(struct ast_channel *chan, void *data)
 	struct sip_pvt *p;
 	char *argv, *varname = NULL, *header = NULL, *content;
 	
-	argv = strdupa(data);
+	argv = ast_strdupa(data);
 	if (!argv) {
 		ast_log(LOG_DEBUG, "Memory allocation failed\n");
 		return 0;
