@@ -5038,7 +5038,7 @@ retryowner2:
 					forward_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr.ts, NULL, 0, -1);
 				} else {
 					/* Calculate ping time */
-					iaxs[fr.callno]->pingtime =  calc_timestamp(iaxs[fr.callno], 0, NULL) - fr.ts;
+					iaxs[fr.callno]->pingtime =  calc_timestamp(iaxs[fr.callno], 0, &f) - fr.ts;
 				}
 #else
 				/* Calculate ping time */
