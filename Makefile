@@ -15,15 +15,18 @@
 
 OSARCH=$(shell uname -s)
 
-# Pentium Pro Optimize
-PROC=i686
-# Pentium Optimize
-#PROC=i586
-#PROC=k6
-#PROC=ppc
 ifeq (${OSARCH},Linux)
 PROC=$(shell uname -m)
 endif
+# Pentium Pro Optimize
+#PROC=i686
+
+# Pentium & VIA processors optimize
+#PROC=i586
+
+#PROC=k6
+#PROC=ppc
+
 PWD=$(shell pwd)
 
 ######### More GSM codec optimization
