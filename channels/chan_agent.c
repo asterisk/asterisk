@@ -64,7 +64,7 @@ static char *descrip =
 "      's' -- silent login - do not announce the login ok segment\n";
 
 static char *descrip2 =
-"  AgentCallbackLogin([AgentNo][|@context]):\n"
+"  AgentCallbackLogin([AgentNo][|[options][exten]@context]):\n"
 "Asks the agent to login to the system with callback.  Always returns -1.\n"
 "The agent's callback extension is called (optionally with the specified\n"
 "context. \n";
