@@ -1038,7 +1038,7 @@ retry:
 		pvt->autoid = -1;
 		pvt->initid = -1;
 		if (pvt->bridgetrans)
-			ast_translator_free_path(p->bridgetrans);
+			ast_translator_free_path(pvt->bridgetrans);
 		pvt->bridgetrans = NULL;
 
 		/* Already gone */
