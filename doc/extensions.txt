@@ -1,0 +1,22 @@
+Extensions are routed according to priority, and may be based on any set
+of digits, #, and *.  For each extension, several actions may be listed
+and each given a priority.  When each action completes, it generally moves
+to the next priority (except for some modules which use explicity GOTO's. 
+Extensions frequently have data they pass to the executing application
+(most frequently a string).  There are some reserved application names: 
+
+	GoTo:	Go to a specific extension
+	Answer:	Answer the line, if it hasn't already been answered
+	
+Also, there are some extensions with important meanings:
+
+	s:	What to do when an extension context is entered (unless
+		overridden by the low level channel interface)
+	i:	What to do if an invalid extension is entered
+	t: 	What to do if nothing is entered in the requisite amount
+		of time.
+
+And finally, the extension context "default" is used when either a) an 
+extension context is deleted while an extension is in use, or b) a specific
+starting extension handler has not been defined (unless overrridden by the
+low level channel interface).
