@@ -11,6 +11,9 @@
  * the GNU General Public License
  */
 
+#define AST_MONITOR_DIR AST_SPOOL_DIR "/monitor"
+
+#include <../asterisk.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -44,7 +47,8 @@ static char *desc = "   Chanspy([<scanspec>][|<options>])\n\n"
 " - q: quiet, don't announce channels beep, etc.\n"
 " - b: bridged, only spy on channels involved in a bridged call.\n"
 " - v([-4..4]): adjust the initial volume. (negative is quieter)\n"
-" - g(grp): enforce group.  Match only calls where their ${SPYGROUP} is 'grp'.\n\n"
+" - g(grp): enforce group.  Match only calls where their ${SPYGROUP} is 'grp'.\n"
+" - r[(basename)]: Record session to monitor spool dir (with optional basename, default is 'chanspy')\n\n"
 "If <scanspec> is specified, only channel names *beginning* with that string will be scanned.\n"
 "('all' or an empty string are also both valid <scanspec>)\n\n"
 "While Spying:\n\n"
@@ -58,12 +62,14 @@ static char *desc = "   Chanspy([<scanspec>][|<options>])\n\n"
 #define OPTION_BRIDGED   (1 << 1)	/* Only look at bridged calls */
 #define OPTION_VOLUME    (1 << 2)	/* Specify initial volume */
 #define OPTION_GROUP     (1 << 3)   /* Only look at channels in group */
+#define OPTION_RECORD    (1 << 4)   /* Record */
 
 AST_DECLARE_OPTIONS(chanspy_opts,{
 	['q'] = { OPTION_QUIET },
 	['b'] = { OPTION_BRIDGED },
 	['v'] = { OPTION_VOLUME, 1 },
 	['g'] = { OPTION_GROUP, 2 },
+	['r'] = { OPTION_RECORD, 3 },
 });
 
 STANDARD_LOCAL_USER;
@@ -93,6 +99,7 @@ struct chanspy_translation_helper {
 	int samples;
 	int rsamples;
 	int volfactor;
+	int fd;
 };
 
 /* Prototypes */
@@ -106,7 +113,7 @@ static void ast_flush_spy_queue(struct ast_channel_spy *spy);
 static int spy_generate(struct ast_channel *chan, void *data, int len, int samples);
 static void start_spying(struct ast_channel *chan, struct ast_channel *spychan, struct ast_channel_spy *spy);
 static void stop_spying(struct ast_channel *chan, struct ast_channel_spy *spy);
-static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int *volfactor);
+static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int *volfactor, int fd);
 static int chanspy_exec(struct ast_channel *chan, void *data);
 
 
@@ -250,13 +257,13 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 		if (f0 && csth->fmt0 && csth->fmt0 != f0->subclass) {
 			ast_translator_free_path(csth->trans0);
 			csth->trans0 = NULL;
-			csth->fmt0 = csth->fmt0;
+			csth->fmt0 = f0->subclass;
 		}
 
 		if (f1 && csth->fmt1 && csth->fmt1 != f1->subclass) {
 			ast_translator_free_path(csth->trans1);
 			csth->trans1 = NULL;
-			csth->fmt1 = csth->fmt1;
+			csth->fmt1 = f1->subclass;
 		}
 	
 		if (!csth->fmt0 && f0) {
@@ -405,6 +412,9 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 			csth->spy.status = CHANSPY_DONE;
 			return -1;
 		}
+		if (csth->fd) {
+			write(csth->fd, csth->frame.data, csth->frame.datalen);
+		}
 
 		if (f0) {
 			ast_frfree(f0);
@@ -489,7 +499,7 @@ static void stop_spying(struct ast_channel *chan, struct ast_channel_spy *spy)
 
 }
 
-static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int *volfactor) 
+static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int *volfactor, int fd) 
 {
 	struct chanspy_translation_helper csth;
 	int running = 1, res = 0, x = 0;
@@ -511,6 +521,9 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 		csth.frame.subclass = AST_FORMAT_SLINEAR;
 		csth.frame.datalen = 320;
 		csth.frame.samples = 160;
+		if (fd) {
+			csth.fd = fd;
+		}
 		start_spying(spyee, chan, &csth.spy);
 		ast_activate_generator(chan, &spygen, &csth);
 
@@ -587,7 +600,8 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 		*options = NULL,
 		*spec = NULL,
 		*argv[5],
-		*mygroup = NULL;
+		*mygroup = NULL,
+		*recbase = NULL;
 	int res = -1,
 		volfactor = 0,
 		silent = 0,
@@ -596,7 +610,10 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 		chosen = 0,
 		count=0,
 		waitms = 100,
-		num = 0;
+		num = 0,
+		oldrf = 0,
+		oldwf = 0,
+		fd = 0;
 	struct ast_flags flags;
 
 
@@ -605,6 +622,8 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
+	oldrf = chan->readformat;
+	oldwf = chan->writeformat;
 	if (ast_set_read_format(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_ERROR, "Could Not Set Read Format.\n");
 		return -1;
@@ -632,10 +651,15 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 	}
 	
 	if (options) {
-		char *opts[2];
+		char *opts[3];
 		ast_parseoptions(chanspy_opts, &flags, opts, options);
 		if (ast_test_flag(&flags, OPTION_GROUP)) {
 			mygroup = opts[1];
+		}
+		if (ast_test_flag(&flags, OPTION_RECORD)) {
+			if (!(recbase = opts[2])) {
+				recbase = "chanspy";
+			}
 		}
 		silent = ast_test_flag(&flags, OPTION_QUIET);
 		bronly = ast_test_flag(&flags, OPTION_BRIDGED);
@@ -648,6 +672,14 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
+	if (recbase) {
+		char filename[512];
+		snprintf(filename,sizeof(filename),"%s/%s.%ld.raw",AST_MONITOR_DIR, recbase, time(NULL));
+		if ((fd = open(filename, O_CREAT | O_WRONLY, O_TRUNC)) <= 0) {
+			ast_log(LOG_WARNING, "Cannot open %s for recording\n", filename);
+			fd = 0;
+		}
+	}
 
 	for(;;) {
 		res = ast_streamfile(chan, "beep", chan->language);
@@ -655,14 +687,14 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 			res = ast_waitstream(chan, "");
 		if (res < 0) {
 			ast_clear_flag(chan, AST_FLAG_SPYING);
-			ALL_DONE(u, -1);
+			break;
 		}			
 
 		count = 0;
 		res = ast_waitfordigit(chan, waitms);
 		if (res < 0) {
 			ast_clear_flag(chan, AST_FLAG_SPYING);
-			ALL_DONE(u, -1);
+			break;
 		}
 				
 		peer = local_channel_walk(NULL);
@@ -714,10 +746,9 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 						}
 						count++;
 						prev = peer;
-						res = channel_spy(chan, peer, &volfactor);
+						res = channel_spy(chan, peer, &volfactor, fd);
 						if (res == -1) {
-							ast_clear_flag(chan, AST_FLAG_SPYING);
-							ALL_DONE(u, -1);
+							break;
 						} else if (res > 1 && spec) {
 							snprintf(name, AST_NAME_STRLEN, "%s/%d", spec, res);
 							if ((peer = local_get_channel_begin_name(name))) {
@@ -735,6 +766,18 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 		waitms = count ? 100 : 5000;
 	}
 	
+
+	if (fd > 0) {
+		close(fd);
+	}
+
+	if (oldrf && ast_set_read_format(chan, oldrf) < 0) {
+		ast_log(LOG_ERROR, "Could Not Set Read Format.\n");
+	}
+	
+	if (oldwf && ast_set_write_format(chan, oldwf) < 0) {
+		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
+	}
 
 	ast_clear_flag(chan, AST_FLAG_SPYING);
 	ALL_DONE(u, res);
