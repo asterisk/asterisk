@@ -9124,7 +9124,7 @@ static int sip_getheader(struct ast_channel *chan, void *data)
 	}
 
 	ast_mutex_lock(&chan->lock);
-	if (chan->type != type) {
+	if (chan->type != channeltype) {
 		ast_log(LOG_WARNING, "Call this application only on incoming SIP calls\n");
 		ast_mutex_unlock(&chan->lock);
 		return 0;
