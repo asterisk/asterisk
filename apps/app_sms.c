@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <ctype.h>
+#include "../astconf.h"
 
 /* ToDo */
 /* When acting as SC and answering, should check for messages and send instead of sending EST as first packet */
@@ -35,6 +36,9 @@
 /* USC2 coding */
 
 static unsigned char message_ref;	/* arbitary message ref */
+
+static char log_file[255];
+static char spool_dir[255];
 
 static char *tdesc = "SMS/PSTN handler";
 
@@ -315,7 +319,7 @@ sms_log (sms_t * h, char status)
 {				/* log the output, and remove file */
   if (*h->oa || *h->da)
     {
-      int o = open ("/var/log/asterisk/sms", O_CREAT | O_APPEND | O_WRONLY, 0666);
+      int o = open (log_file, O_CREAT | O_APPEND | O_WRONLY, 0666);
       if (o >= 0)
 	{
 	  char line[1000], *p;
@@ -517,7 +521,7 @@ sms_writefile (sms_t * h)
 	char fn2[200] = "";
 	FILE *o;
 
-	strncpy(fn, "/var/spool/asterisk/sms", sizeof(fn) - 1);
+	strncpy(fn, spool_dir, sizeof(fn) - 1);
 	mkdir (fn, 0777);		/* ensure it exists */
 	snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/%s.%s", h->smsc ? "me-sc" : "sc-me", h->queue);
 	mkdir (fn, 0777);		/* ensure it exists */
@@ -689,7 +693,7 @@ sms_nextoutgoing (sms_t * h)
   DIR *d;
   char more = 0;
 
-  strncpy(fn, "/var/spool/asterisk/sms", sizeof(fn) - 1);
+  strncpy(fn, spool_dir, sizeof(fn) - 1);
   mkdir(fn, 0777);		/* ensure it exists */
   snprintf(fn + strlen (fn), sizeof(fn) - strlen(fn), "/%s.%s", h->smsc ? "sc-me" : "me-sc", h->queue);
   mkdir (fn, 0777);		/* ensure it exists */
@@ -1195,6 +1199,8 @@ load_module (void)
     for (p = 0; p < 128; p++)
       sms8to7[sms7to8[p]] = p;
   }
+  snprintf(log_file, sizeof(log_file), "%s/sms", ast_config_AST_LOG_DIR);
+  snprintf(spool_dir, sizeof(spool_dir), "%s/sms", ast_config_AST_SPOOL_DIR);
   return ast_register_application (app, sms_exec, synopsis, descrip);
 }
 

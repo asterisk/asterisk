@@ -1546,7 +1546,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 				ast_sched_del(sched, cp->retransid);
 			free(cp);
 		}
-                ast_mutex_destroy(&p->lock);
+		ast_mutex_destroy(&p->lock);
 		free(p);
 	}
 }
