@@ -475,6 +475,35 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static int action_timeout(struct mansession *s, struct message *m)
+{
+	struct ast_channel *c = NULL;
+	char *name = astman_get_header(m, "Channel");
+	int timeout = atoi(astman_get_header(m, "Timeout"));
+	if (!strlen(name)) {
+		astman_send_error(s, "No channel specified");
+		return 0;
+	}
+	if (!timeout) {
+		astman_send_error(s, "No timeout specified");
+		return 0;
+	}
+	c = ast_channel_walk(NULL);
+	while(c) {
+		if (!strcasecmp(c->name, name)) {
+			break;
+		}
+		c = ast_channel_walk(c);
+	}
+	if (!c) {
+		astman_send_error(s, "No such channel");
+		return 0;
+	}
+	ast_channel_setwhentohangup(c, timeout);
+	astman_send_ack(s, "Timeout Set");
+	return 0;
+}
+
 static int process_message(struct mansession *s, struct message *m)
 {
 	char action[80];
@@ -764,6 +793,7 @@ int init_manager(void)
 		ast_manager_register( "MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox" );
 		ast_manager_register( "Command", EVENT_FLAG_COMMAND, action_command, "Execute Command" );
 		ast_manager_register( "ExtensionState", EVENT_FLAG_CALL, action_extensionstate, "Check Extension Status" );
+		ast_manager_register( "AbsoluteTimeout", EVENT_FLAG_CALL, action_timeout, "Set Absolute Timeout" );
 
 		ast_cli_register(&show_mancmds_cli);
 		ast_cli_register(&show_manconn_cli);
