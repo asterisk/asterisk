@@ -6585,7 +6585,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 		peer->delme = 0;
 		/* Make sure these are IPv4 addresses */
 		peer->addr.sin_family = AF_INET;
-		if (!found && peer->dynamic)
+		if (!found && peer->dynamic && !temponly)
 			reg_source_db(peer);
 	}
 	if (oldha)
