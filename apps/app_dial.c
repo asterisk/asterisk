@@ -1282,7 +1282,7 @@ out:
 	
 	LOCAL_USER_REMOVE(u);
 	
-	if ((ast_test_flag(peerflags, DIAL_GO_ON)) && (!chan->_softhangup))
+	if ((ast_test_flag(peerflags, DIAL_GO_ON)) && (!chan->_softhangup) && (res != AST_PBX_KEEPALIVE))
 	    res=0;
 	    
 	return res;

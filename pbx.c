@@ -5320,7 +5320,7 @@ int pbx_builtin_setvar(struct ast_channel *chan, void *data)
 	char *name, *value, *mydata, *next, *fstr = NULL;
 	struct ast_flags flags = {0};
 
-	if (data && !ast_strlen_zero(data) && chan->cdr && (mydata = ast_strdupa(data))) {
+	if (data && !ast_strlen_zero(data) && (mydata = ast_strdupa(data))) {
 		next = mydata;
 		while(next) {
 			name = next;
