@@ -1338,6 +1338,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	FILE *txt;
 	int res = 0;
 	int msgnum;
+	int fd;
 	char date[256];
 	char dir[256];
 	char fn[256];
@@ -1473,11 +1474,15 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 				res = play_and_record(chan, NULL, fn, vmmaxmessage, fmt);
 				if (res > 0)
 					res = 0;
-				txt = fopen(txtfile, "a");
-				if (txt) {
-					time(&end);
-					fprintf(txt, "duration=%ld\n", (long)(end-start));
-					fclose(txt);
+				fd = open(txtfile, O_APPEND | O_WRONLY);
+				if (fd > -1) {
+					txt = fdopen(fd, "a");
+					if (txt) {
+						time(&end);
+						fprintf(txt, "duration=%ld\n", (long)(end-start));
+						fclose(txt);
+					} else
+						close(fd);
 				}
 				stringp = fmt;
 				strsep(&stringp, "|");
