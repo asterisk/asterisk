@@ -570,6 +570,7 @@ void iax_frame_wrap(struct iax_frame *fr, struct ast_frame *f)
 	fr->af.samples = f->samples;
 	fr->af.offset = AST_FRIENDLY_OFFSET;
 	fr->af.src = f->src;
+	fr->af.delivery = f->delivery;
 	fr->af.data = fr->afdata;
 	if (fr->af.datalen) 
 		memcpy(fr->af.data, f->data, fr->af.datalen);
