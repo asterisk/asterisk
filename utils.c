@@ -386,7 +386,7 @@ static char *upper(const char *orig, char *buf, int bufsize)
 char *ast_strcasestr(const char *haystack, const char *needle)
 {
 	char *u1, *u2;
-	int u1len = strlen(haystack), u2len = strlen(needle);
+	int u1len = strlen(haystack) + 1, u2len = strlen(needle) + 1;
 
 	u1 = alloca(u1len);
 	u2 = alloca(u2len);
