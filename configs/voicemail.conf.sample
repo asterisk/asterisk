@@ -24,6 +24,11 @@ maxsilence=10
 silencethreshold=128
 ; Max number of failed login attempts
 maxlogins=3
+; If you need to have an external program, i.e. /usr/bin/myapp
+; called when a voicemail is left, delivered, or your voicemailbox 
+; changes, uncomment this:
+;externnotify=/usr/bin/myapp
+
 
 ; Skip the "[PBX]:" string from the message title
 ;pbxskip=yes
