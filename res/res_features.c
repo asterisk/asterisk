@@ -152,6 +152,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	struct ast_context *con;
 	pu = malloc(sizeof(struct parkeduser));
 	if (pu) {
+		memset(pu,0,sizeof(struct parkeduser));
 		ast_mutex_lock(&parking_lock);
 		for (x=parking_start;x<=parking_stop;x++) {
 			cur = parkinglot;
