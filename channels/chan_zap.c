@@ -5386,7 +5386,6 @@ static void *pri_dchannel(void *vpri)
 				pri_dump_event(pri->pri, e);
 			switch(e->e) {
 			case PRI_EVENT_DCHAN_UP:
-				printf("Up!\n");
 				if (option_verbose > 1) 
 					ast_verbose(VERBOSE_PREFIX_2 "D-Channel on span %d up\n", pri->span);
 				pri->up = 1;
