@@ -576,7 +576,7 @@ static int process_message(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Missing action in request");
 		return 0;
 	}
-        if (id && &id) {
+        if (id && *id) {
                 snprintf(idText,256,"ActionID: %s\r\n",id);
         }
 	if (!s->authenticated) {
