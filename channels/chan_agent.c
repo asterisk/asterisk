@@ -1422,6 +1422,55 @@ static int agents_show(int fd, int argc, char **argv)
 	return RESULT_SUCCESS;
 }
 
+static int agent_logoff(int fd, int argc, char **argv)
+{
+	struct agent_pvt *p = NULL;
+	char *line = NULL;
+	int res = 0;
+
+	/* Check args */
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	
+	line = argv[2];
+
+	ast_mutex_lock(&agentlock);
+	p = agents;
+	while (p) {
+		ast_mutex_lock(&p->lock);
+		res = strcmp(p->agent, line);
+
+		if (!res) {
+			/* Found him! Now we're going to kill him. */
+			
+			if (ast_strlen_zero(p->loginchan)) {
+				ast_cli(fd, "Agent %s already logged off the system.\n", line);
+				ast_mutex_unlock(&p->lock);
+				break;
+			}
+				
+			strcpy(p->loginchan, ""); /* Bang! Killed him */
+			ast_cli(fd, "Agent %s successfully logged off.\n", line);
+			ast_mutex_unlock(&p->lock);
+			break;
+		}
+		
+		ast_mutex_unlock(&p->lock);
+		p = p->next;
+	}
+	ast_mutex_unlock(&agentlock);
+	if (res) ast_cli(fd, "Unable to find agent %s.\n", line);
+	return RESULT_SUCCESS;
+}
+
+static char agent_logoff_usage[] =
+"Usage: agent logoff <agentnum>\n"
+"	Log an agent off the system that maybe forgot to log off, etc....\n";
+
+static struct ast_cli_entry cli_agent_logoff = {
+	{ "agent", "logoff", NULL }, agent_logoff,
+	"Log an agent off of the system", agent_logoff_usage, NULL};
+
 static char show_agents_usage[] = 
 "Usage: show agents\n"
 "       Provides summary information on agents.\n";
