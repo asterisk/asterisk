@@ -1929,7 +1929,7 @@ static int ast_do_masquerade(struct ast_channel *original)
 	int x,i;
 	int res=0;
 	char *tmp;
-	void *tmpv;
+	struct ast_var_t *varptr;
 	struct ast_frame *cur, *prev;
 	struct ast_channel_pvt *p;
 	struct ast_channel *clone = original->masq;
@@ -2037,10 +2037,19 @@ static int ast_do_masquerade(struct ast_channel *original)
 	for (x=0;x<AST_MAX_FDS;x++) {
 		original->fds[x] = clone->fds[x];
 	}
-	/* Move the variables */
-	tmpv = original->varshead.first;
+	/* Append variables from clone channel into original channel */
+	/* XXX Is this always correct?  We have to in order to keep MACROS working XXX */
+	varptr = original->varshead.first;
+	if (varptr) {
+		while(varptr->entries.next) {
+			varptr = varptr->entries.next;
+		}
+		varptr->entries.next = clone->varshead.first;
+	} else {
+		original->varshead.first = clone->varshead.first;
+	}
+	clone->varshead.first = NULL;
 	original->varshead.first = clone->varshead.first;
-	clone->varshead.first = tmpv;
 	/* Presense of ADSI capable CPE follows clone */
 	original->adsicpe = clone->adsicpe;
 	/* Bridge remains the same */
