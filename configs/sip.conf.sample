@@ -17,6 +17,7 @@ context = default		; Default for incoming calls
 ;type=friend
 ;secret=blah
 ;host=dynamic
+;dtmf=inband			; Choices are inband, rfc2833, or info
 ;defaultip=192.168.0.59
 
 ;[pingtel]

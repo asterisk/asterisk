@@ -184,7 +184,7 @@ out:
   pbx_builtin_setvar_helper(chan, "MACRO_PRIORITY", save_macro_priority);
   if (save_macro_priority) free(save_macro_priority);
 
-  if (!strcasecmp(chan->context, fullmacro)) {
+  if (!strcasecmp(chan->context, fullmacro) && !chan->_softhangup) {
   	/* If we're leaving the macro normally, restore original information */
 	chan->priority = oldpriority;
 	strncpy(chan->exten, oldexten, sizeof(chan->exten) - 1);

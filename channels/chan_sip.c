@@ -33,6 +33,7 @@
 #include <asterisk/md5.h>
 #include <asterisk/app.h>
 #include <asterisk/musiconhold.h>
+#include <asterisk/dsp.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -50,6 +51,10 @@
 #define SIPDUMPER
 #define DEFAULT_DEFAULT_EXPIREY 120
 #define DEFAULT_MAX_EXPIREY     3600
+
+#define SIP_DTMF_RFC2833	(1 << 0)
+#define SIP_DTMF_INBAND		(1 << 1)
+#define SIP_DTMF_INFO		(1 << 2)
 
 static int max_expirey = DEFAULT_MAX_EXPIREY;
 static int default_expirey = DEFAULT_DEFAULT_EXPIREY;
@@ -172,6 +177,9 @@ static struct sip_pvt {
 	
 	int maxtime;						/* Max time for first response */
 	int initid;							/* Auto-congest ID if appropriate */
+
+        int dtmfmode;
+        struct ast_dsp *vad;
 	
 	struct sip_peer *peerpoke;			/* If this calls is to poke a peer, which one */
 	struct sip_registry *registry;			/* If this is a REGISTER call, to which registry */
@@ -200,6 +208,7 @@ struct sip_user {
 	int amaflags;
 	int insecure;
 	int canreinvite;
+        int dtmfmode;
 	struct ast_ha *ha;
 	struct sip_user *next;
 };
@@ -220,6 +229,7 @@ struct sip_peer {
 	int insecure;
 	int nat;
 	int canreinvite;
+        int dtmfmode;
 	struct sockaddr_in addr;
 	struct in_addr mask;
 
@@ -383,6 +393,7 @@ static int create_addr(struct sip_pvt *r, char *peer)
 			r->insecure = p->insecure;
 			r->canreinvite = p->canreinvite;
 			r->maxtime = p->maxms;
+			r->dtmfmode = p->dtmfmode;
 			strncpy(r->context, p->context,sizeof(r->context)-1);
 			if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
 				(!p->maxms || ((p->lastms > 0)  && (p->lastms <= p->maxms)))) {
@@ -688,6 +699,9 @@ static int sip_hangup(struct ast_channel *ast)
 		needcancel = 1;
 	/* Disconnect */
 	p = ast->pvt->pvt;
+        if (p->vad) {
+            ast_dsp_free(p->vad);
+        }
 	p->owner = NULL;
 	ast->pvt->pvt = NULL;
 
@@ -800,11 +814,13 @@ static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 static int sip_senddigit(struct ast_channel *ast, char digit)
 {
 	struct sip_pvt *p = ast->pvt->pvt;
-	if (p && p->rtp) {
+	if (p && p->rtp && (p->dtmfmode & SIP_DTMF_RFC2833)) {
 		ast_rtp_senddigit(p->rtp, digit);
-		return 0;
 	}
-	return -1;
+	/* If in-band DTMF is desired, send that */
+	if (p->dtmfmode & SIP_DTMF_INBAND)
+		return -1;
+	return 0;
 }
 
 static int sip_indicate(struct ast_channel *ast, int condition)
@@ -933,6 +949,10 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		else
 			snprintf(tmp->name, sizeof(tmp->name), "SIP/%s:%d", inet_ntoa(i->sa.sin_addr), ntohs(i->sa.sin_port));
 		tmp->type = type;
+                if (i->dtmfmode & SIP_DTMF_INBAND) {
+                    i->vad = ast_dsp_new();
+                    ast_dsp_set_features(i->vad, DSP_FEATURE_DTMF_DETECT);
+                }
 		tmp->fds[0] = ast_rtp_fd(i->rtp);
 		ast_setstate(tmp, state);
 		if (state == AST_STATE_RING)
@@ -1043,7 +1063,11 @@ static struct ast_frame *sip_rtp_read(struct sip_pvt *p)
 {
 	/* Retrieve audio/etc from channel.  Assumes p->lock is already held. */
 	struct ast_frame *f;
+	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 	f = ast_rtp_read(p->rtp);
+	/* Don't send RFC2833 if we're not supposed to */
+	if (f && (f->frametype == AST_FRAME_DTMF) && !(p->dtmfmode & SIP_DTMF_RFC2833))
+		return &null_frame;
 	if (p->owner) {
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
@@ -1053,6 +1077,9 @@ static struct ast_frame *sip_rtp_read(struct sip_pvt *p)
 				ast_set_read_format(p->owner, p->owner->readformat);
 				ast_set_write_format(p->owner, p->owner->writeformat);
 			}
+            if (p->dtmfmode & SIP_DTMF_INBAND) {
+                   f = ast_dsp_process(p->owner,p->vad,f,0);
+            }
 		}
 	}
 	return f;
@@ -1122,6 +1149,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin)
 		strncpy(p->callid, callid, sizeof(p->callid) - 1);
 	/* Assume reinvite OK */
 	p->canreinvite = 1;
+	p->dtmfmode = SIP_DTMF_RFC2833;
 	/* Add to list */
 	ast_pthread_mutex_lock(&iflock);
 	p->next = iflist;
@@ -1839,7 +1867,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 				l = "asterisk";
 	}
 	if (!n)
-		n = "asterisk";
+		n = l;
 	snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%08x", n, l, inet_ntoa(p->ourip), p->tag);
 	if (strlen(p->username)) {
 		if (ntohs(p->sa.sin_port) != DEFAULT_SIP_PORT) {
@@ -2119,16 +2147,22 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		port = atoi(pt);
 	} else
 		port = DEFAULT_SIP_PORT;
-	/* XXX This could block for a long time XXX */
-	hp = gethostbyname(n);
-	if (!hp)  {
-		ast_log(LOG_WARNING, "Invalid host '%s'\n", n);
-		return -1;
+	if (!p->nat) {
+		/* XXX This could block for a long time XXX */
+		hp = gethostbyname(n);
+		if (!hp)  {
+			ast_log(LOG_WARNING, "Invalid host '%s'\n", n);
+			return -1;
+		}
+		memcpy(&oldsin, &p->addr, sizeof(oldsin));
+		p->addr.sin_family = AF_INET;
+		memcpy(&p->addr.sin_addr, hp->h_addr, sizeof(p->addr.sin_addr));
+		p->addr.sin_port = htons(port);
+	} else {
+		/* Don't trust the contact field.  Just use what they came to us
+		   with */
+		memcpy(&p->addr, &pvt->recv, sizeof(p->addr));
 	}
-	memcpy(&oldsin, &p->addr, sizeof(oldsin));
-	p->addr.sin_family = AF_INET;
-	memcpy(&p->addr.sin_addr, hp->h_addr, sizeof(p->addr.sin_addr));
-	p->addr.sin_port = htons(port);
 	if (c)
 		strncpy(p->username, c, sizeof(p->username) - 1);
 	else
@@ -2526,6 +2560,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)  -1);
 				p->canreinvite = user->canreinvite;
 				p->amaflags = user->amaflags;
+                                p->dtmfmode = user->dtmfmode;
 			}
 			break;
 		}
@@ -2557,13 +2592,13 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 	if (p->owner) {
 		if (sipdebug)
 			ast_verbose("Message received: '%s'\n", buf);
-		memset(&f, 0, sizeof(f));
-		f.frametype = AST_FRAME_TEXT;
-		f.subclass = 0;
-		f.offset = 0;
-		f.data = buf;
-		f.datalen = strlen(buf);
-		ast_queue_frame(p->owner, &f, 1);
+		  memset(&f, 0, sizeof(f));
+		  f.frametype = AST_FRAME_TEXT;
+		  f.subclass = 0;
+		  f.offset = 0;
+		  f.data = buf;
+		  f.datalen = strlen(buf);
+		  ast_queue_frame(p->owner, &f, 1);
 	}
 }
 
@@ -3740,7 +3775,18 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "auth")) {
 				strncpy(user->methods, v->value, sizeof(user->methods)-1);
 			} else if (!strcasecmp(v->name, "secret")) {
-				strncpy(user->secret, v->value, sizeof(user->secret)-1);
+				strncpy(user->secret, v->value, sizeof(user->secret)-1); 
+			} else if (!strcasecmp(v->name, "dtmfmode")) {
+				if (!strcasecmp(v->value, "inband"))
+					user->dtmfmode=SIP_DTMF_INBAND;
+				else if (!strcasecmp(v->value, "rfc2833"))
+					user->dtmfmode = SIP_DTMF_RFC2833;
+				else if (!strcasecmp(v->value, "info"))
+					user->dtmfmode = SIP_DTMF_INFO;
+				else {
+					ast_log(LOG_WARNING, "Unknown dtmf mode '%s', using rfc2833\n", v->value);
+					user->dtmfmode = SIP_DTMF_RFC2833;
+				}
 			} else if (!strcasecmp(v->name, "canreinvite")) {
 				user->canreinvite = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "nat")) {
@@ -3814,6 +3860,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 		peer->capability = capability;
 		/* Assume can reinvite */
 		peer->canreinvite = 1;
+		peer->dtmfmode = SIP_DTMF_RFC2833;
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) 
 				strncpy(peer->secret, v->value, sizeof(peer->secret)-1);
@@ -3825,7 +3872,18 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 				peer->nat = ast_true(v->value);
 			else if (!strcasecmp(v->name, "context"))
 				strncpy(peer->context, v->value, sizeof(peer->context)-1);
-			else if (!strcasecmp(v->name, "host")) {
+                        else if (!strcasecmp(v->name, "dtmfmode")) {
+				if (!strcasecmp(v->value, "inband"))
+					peer->dtmfmode=SIP_DTMF_INBAND;
+				else if (!strcasecmp(v->value, "rfc2833"))
+					peer->dtmfmode = SIP_DTMF_RFC2833;
+				else if (!strcasecmp(v->value, "info"))
+					peer->dtmfmode = SIP_DTMF_INFO;
+				else {
+					ast_log(LOG_WARNING, "Unknown dtmf mode '%s', using rfc2833\n", v->value);
+					peer->dtmfmode = SIP_DTMF_RFC2833;
+				}
+			} else if (!strcasecmp(v->name, "host")) {
 				if (!strcasecmp(v->value, "dynamic")) {
 					/* They'll register with us */
 					peer->dynamic = 1;

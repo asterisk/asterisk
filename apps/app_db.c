@@ -20,6 +20,7 @@
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
 #include <asterisk/pbx.h>
+#include <asterisk/astdb.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -76,7 +77,7 @@ deltree_exec (struct ast_channel *chan, void *data)
     }
   memcpy (argv, data, arglen + 1);
 
-  if (strchr (argv, '/'))
+  if (strchr (argv, '/')) {
     {
       family = strsep (&argv, "/");
       keytree = strsep (&argv, "\0");
@@ -88,7 +89,7 @@ deltree_exec (struct ast_channel *chan, void *data)
       if (!strlen (keytree))
 	keytree = 0;
     }
-  else
+  } else
     {
       family = argv;
       keytree = 0;
