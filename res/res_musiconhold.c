@@ -79,7 +79,6 @@ static int respawn_time = 20;
 
 struct moh_files_state {
 	struct mohclass *class;
-	struct ast_filestream *stream;
 	int origwfmt;
 	int samples;
 	int sample_queue;
@@ -87,18 +86,19 @@ struct moh_files_state {
 	unsigned char save_pos;
 };
 
+#define MOH_QUIET		(1 << 0)
+#define MOH_SINGLE		(1 << 1)
+#define MOH_CUSTOM		(1 << 2)
+#define MOH_RANDOMIZE		(1 << 3)
+
 struct mohclass {
 	char class[80];
 	char dir[256];
 	char miscargs[256];
 	char filearray[MAX_MOHFILES][MAX_MOHFILE_LEN];
+	unsigned int flags;
 	int total_files;
-	int destroyme;
 	int pid;		/* PID of mpg123 */
-	int quiet;
-	int single;
-	int custom;
-	int randomize;
 	time_t start;
 	pthread_t thread;
 	struct mohdata *members;
@@ -143,7 +143,7 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 static int ast_moh_files_next(struct ast_channel *chan) {
 	struct moh_files_state *state = chan->music_state;
 
-	if(state->save_pos) {
+	if (state->save_pos) {
 		state->pos = state->save_pos - 1;
 		state->save_pos = 0;
 	} else {
@@ -154,7 +154,7 @@ static int ast_moh_files_next(struct ast_channel *chan) {
 			state->pos++;
 		}
 
-		if (state->class->randomize) {
+		if (ast_test_flag(state->class, MOH_RANDOMIZE)) {
 			srand(time(NULL)+getpid()+strlen(chan->name)-state->class->total_files);
 			state->pos = rand();
 		}
@@ -175,19 +175,18 @@ static int ast_moh_files_next(struct ast_channel *chan) {
 	if (option_verbose > 2)
 		ast_log(LOG_NOTICE, "%s Opened file %d '%s'\n", chan->name, state->pos, state->class->filearray[state->pos]);
 
-
 	if (state->samples)
 		ast_seekstream(chan->stream, state->samples, SEEK_SET);
 
-	return state->pos;
+	return 0;
 }
 
 
 static struct ast_frame *moh_files_readframe(struct ast_channel *chan) {
 	struct ast_frame *f = NULL;
 	
-	if (!chan->stream || !(f = ast_readframe(chan->stream))) {
-		if (ast_moh_files_next(chan) > -1)
+	if (!(chan->stream && (f = ast_readframe(chan->stream)))) {
+		if (!ast_moh_files_next(chan))
 			f = ast_readframe(chan->stream);
 	}
 
@@ -201,12 +200,12 @@ static int moh_files_generator(struct ast_channel *chan, void *data, int len, in
 	int res = 0;
 	state->sample_queue += samples;
 
-	while(state->sample_queue > 0) {
+	while (state->sample_queue > 0) {
 		if ((f = moh_files_readframe(chan))) {
 			state->samples += f->samples;
 			res = ast_write(chan, f);
 			ast_frfree(f);
-			if(res < 0) {
+			if (res < 0) {
 				ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
 				return -1;
 			}
@@ -224,14 +223,13 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 	struct mohclass *class = params;
 	int allocated = 0;
 
-	if ((!chan->music_state) && ((state = malloc(sizeof(struct moh_files_state))))) {
+	if (!chan->music_state && (state = malloc(sizeof(struct moh_files_state)))) {
 		chan->music_state = state;
 		allocated = 1;
 	} else 
 		state = chan->music_state;
 
-
-	if(state) {
+	if (state) {
 		if (allocated || state->class != class) {
 			/* initialize */
 			memset(state, 0, sizeof(struct moh_files_state));
@@ -246,10 +244,8 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 			chan->music_state = NULL;
 		} else {
 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Started music on hold, class '%s', on %s\n", (char *)params, chan->name);
+				ast_verbose(VERBOSE_PREFIX_3 "Started music on hold, class '%s', on %s\n", class->class, chan->name);
 		}
-
-
 	}
 	
 	return chan->music_state;
@@ -281,7 +277,7 @@ static int spawn_mp3(struct mohclass *class)
 		return -1;
 	}
 
-	if (!class->custom) {
+	if (!ast_test_flag(class, MOH_CUSTOM)) {
 		argv[argc++] = "mpg123";
 		argv[argc++] = "-q";
 		argv[argc++] = "-s";
@@ -289,14 +285,14 @@ static int spawn_mp3(struct mohclass *class)
 		argv[argc++] = "-r";
 		argv[argc++] = "8000";
 		
-		if (!class->single) {
+		if (!ast_test_flag(class, MOH_SINGLE)) {
 			argv[argc++] = "-b";
 			argv[argc++] = "2048";
 		}
 		
 		argv[argc++] = "-f";
 		
-		if (class->quiet)
+		if (ast_test_flag(class, MOH_QUIET))
 			argv[argc++] = "4096";
 		else
 			argv[argc++] = "8192";
@@ -304,7 +300,7 @@ static int spawn_mp3(struct mohclass *class)
 		/* Look for extra arguments and add them to the list */
 		strncpy(xargs, class->miscargs, sizeof(xargs) - 1);
 		argptr = xargs;
-		while(argptr && !ast_strlen_zero(argptr)) {
+		while (argptr && !ast_strlen_zero(argptr)) {
 			argv[argc++] = argptr;
 			argptr = strchr(argptr, ',');
 			if (argptr) {
@@ -316,7 +312,7 @@ static int spawn_mp3(struct mohclass *class)
 		/* Format arguments for argv vector */
 		strncpy(xargs, class->miscargs, sizeof(xargs) - 1);
 		argptr = xargs;
-		while(argptr && !ast_strlen_zero(argptr)) {
+		while (argptr && !ast_strlen_zero(argptr)) {
 			argv[argc++] = argptr;
 			argptr = strchr(argptr, ' ');
 			if (argptr) {
@@ -332,12 +328,12 @@ static int spawn_mp3(struct mohclass *class)
 		argv[argc++] = fns[files];
 		files++;
 	} else {
-		while((de = readdir(dir)) && (files < MAX_MP3S)) {
+		while ((de = readdir(dir)) && (files < MAX_MP3S)) {
 			if ((strlen(de->d_name) > 3) && 
-				((class->custom && 
-				  (!strcasecmp(de->d_name + strlen(de->d_name) - 4, ".raw") || 
-				   !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".sln")))
-				 || !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".mp3"))) {
+			    ((ast_test_flag(class, MOH_CUSTOM) && 
+			      (!strcasecmp(de->d_name + strlen(de->d_name) - 4, ".raw") || 
+			       !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".sln"))) ||
+			     !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".mp3"))) {
 				strncpy(fns[files], de->d_name, sizeof(fns[files]) - 1);
 				argv[argc++] = fns[files];
 				files++;
@@ -387,18 +383,18 @@ static int spawn_mp3(struct mohclass *class)
 				close(x);
 			}
 		}
-        /* Child */
+		/* Child */
 		chdir(class->dir);
-		if(class->custom) {
+		if (ast_test_flag(class, MOH_CUSTOM)) {
 			execv(argv[0], argv);
-        } else {
-            /* Default install is /usr/local/bin */
-            execv(LOCAL_MPG_123, argv);
-            /* Many places have it in /usr/bin */
-            execv(MPG_123, argv);
-            /* Check PATH as a last-ditch effort */
-            execvp("mpg123", argv);
-        }
+		} else {
+			/* Default install is /usr/local/bin */
+			execv(LOCAL_MPG_123, argv);
+			/* Many places have it in /usr/bin */
+			execv(MPG_123, argv);
+			/* Check PATH as a last-ditch effort */
+			execvp("mpg123", argv);
+		}
 		ast_log(LOG_WARNING, "Exec failed: %s\n", strerror(errno));
 		close(fds[1]);
 		exit(1);
@@ -462,7 +458,7 @@ static void *monmp3thread(void *data)
 				tv.tv_sec = tv_tmp.tv_sec + (MOH_MS_INTERVAL/1000 - error_sec);
 				tv.tv_usec = tv_tmp.tv_usec + ((MOH_MS_INTERVAL % 1000) * 1000 - error_usec);
 				delay = (MOH_MS_INTERVAL/1000 - error_sec) * 1000 +
-							((MOH_MS_INTERVAL % 1000) * 1000 - error_usec) / 1000;
+					((MOH_MS_INTERVAL % 1000) * 1000 - error_usec) / 1000;
 			} else {
 				ast_log(LOG_NOTICE, "Request to schedule in the past?!?!\n");
 				tv.tv_sec = tv_tmp.tv_sec;
@@ -494,7 +490,7 @@ static void *monmp3thread(void *data)
 		}
 		ast_mutex_lock(&moh_lock);
 		moh = class->members;
-		while(moh) {
+		while (moh) {
 			/* Write data */
 			if ((res = write(moh->pipe[1], sbuf, res2)) != res2) 
 				if (option_debug)
@@ -512,7 +508,7 @@ static int moh0_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Unable to start music on hold (class '%s') on channel %s\n", (char *)data, chan->name);
 		return -1;
 	}
-	while(!ast_safe_sleep(chan, 10000));
+	while (!ast_safe_sleep(chan, 10000));
 	ast_moh_stop(chan);
 	return -1;
 }
@@ -525,7 +521,7 @@ static int moh1_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	if (ast_moh_start(chan, NULL)) {
-		ast_log(LOG_WARNING, "Unable to start music on hold for %d seconds on channel %s\n", atoi((char *)data), chan->name);
+		ast_log(LOG_WARNING, "Unable to start music on hold for %d seconds on channel %s\n", atoi(data), chan->name);
 		return -1;
 	}
 	res = ast_safe_sleep(chan, atoi(data) * 1000);
@@ -547,7 +543,7 @@ static struct mohclass *get_mohbyname(char *name)
 {
 	struct mohclass *moh;
 	moh = mohclasses;
-	while(moh) {
+	while (moh) {
 		if (!strcasecmp(name, moh->class))
 			return moh;
 		moh = moh->next;
@@ -587,7 +583,7 @@ static void moh_release(struct ast_channel *chan, void *data)
 	/* Unlink */
 	prev = NULL;
 	cur = moh->parent->members;
-	while(cur) {
+	while (cur) {
 		if (cur == moh) {
 			if (prev)
 				prev->next = cur->next;
@@ -616,13 +612,8 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 	struct mohdata *res;
 	struct mohclass *class;
 	class = params;
-	if (class)
-		res = mohalloc(class);
-	else {
-		if (strcasecmp(params, "default"))
-			ast_log(LOG_WARNING, "No class: %s\n", (char *)params);
-		res = NULL;
-	}
+
+	res = mohalloc(class);
 	if (res) {
 		res->origwfmt = chan->writeformat;
 		if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
@@ -631,7 +622,7 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 			res = NULL;
 		}
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Started music on hold, class '%s', on %s\n", (char *)params, chan->name);
+			ast_verbose(VERBOSE_PREFIX_3 "Started music on hold, class '%s', on %s\n", class->class, chan->name);
 	}
 	return res;
 }
@@ -642,11 +633,13 @@ static int moh_generate(struct ast_channel *chan, void *data, int len, int sampl
 	struct mohdata *moh = data;
 	short buf[1280 + AST_FRIENDLY_OFFSET / 2];
 	int res;
-	if(!moh->parent->pid)
-		return - 1;
+
+	if (!moh->parent->pid)
+		return -1;
+
 	len = samples * 2;
 	if (len > sizeof(buf) - AST_FRIENDLY_OFFSET) {
-		ast_log(LOG_WARNING, "Only doing %d of %d requested bytes on %s\n", (int)sizeof(buf), (int)len, chan->name);
+		ast_log(LOG_WARNING, "Only doing %d of %d requested bytes on %s\n", (int)sizeof(buf), len, chan->name);
 		len = sizeof(buf) - AST_FRIENDLY_OFFSET;
 	}
 	res = read(moh->pipe[0], buf + AST_FRIENDLY_OFFSET/2, len);
@@ -655,19 +648,20 @@ static int moh_generate(struct ast_channel *chan, void *data, int len, int sampl
 		ast_log(LOG_WARNING, "Read only %d of %d bytes: %s\n", res, len, strerror(errno));
 	}
 #endif
-	if (res > 0) {
-		memset(&f, 0, sizeof(f));
-		f.frametype = AST_FRAME_VOICE;
-		f.subclass = AST_FORMAT_SLINEAR;
-		f.mallocd = 0;
-		f.datalen = res;
-		f.samples = res / 2;
-		f.data = buf + AST_FRIENDLY_OFFSET / 2;
-		f.offset = AST_FRIENDLY_OFFSET;
-		if (ast_write(chan, &f)< 0) {
-			ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
-			return -1;
-		}
+	if (res <= 0)
+		return 0;
+
+	memset(&f, 0, sizeof(f));
+	f.frametype = AST_FRAME_VOICE;
+	f.subclass = AST_FORMAT_SLINEAR;
+	f.mallocd = 0;
+	f.datalen = res;
+	f.samples = res / 2;
+	f.data = buf + AST_FRIENDLY_OFFSET / 2;
+	f.offset = AST_FRIENDLY_OFFSET;
+	if (ast_write(chan, &f) < 0) {
+		ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
+		return -1;
 	}
 	return 0;
 }
@@ -759,7 +753,7 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 	if (miscargs) {
 		strncpy(moh->miscargs, miscargs, sizeof(moh->miscargs) - 1);
 		if (strchr(miscargs,'r'))
-			moh->randomize=1;
+			ast_set_flag(moh, MOH_RANDOMIZE);
 	}
 	if (!strcasecmp(mode, "files")) {
 		if (param)
@@ -774,11 +768,11 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 			strncpy(moh->dir, param, sizeof(moh->dir) - 1);
 
 		if (!strcasecmp(mode, "custom"))
-			moh->custom = 1;
+			ast_set_flag(moh, MOH_CUSTOM);
 		else if (!strcasecmp(mode, "mp3nb") || !strcasecmp(mode, "quietmp3nb"))
-			moh->single = 1;
+			ast_set_flag(moh, MOH_SINGLE);
 		else if (!strcasecmp(mode, "quietmp3") || !strcasecmp(mode, "quietmp3nb"))
-			moh->quiet = 1;
+			ast_set_flag(moh, MOH_QUIET);
 		
 		moh->srcfd = -1;
 #ifdef ZAPATA_MOH
@@ -815,7 +809,7 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 
 static void local_ast_moh_cleanup(struct ast_channel *chan)
 {
-	if(chan->music_state) {
+	if (chan->music_state) {
 		free(chan->music_state);
 		chan->music_state = NULL;
 	}
@@ -850,8 +844,8 @@ static void local_ast_moh_stop(struct ast_channel *chan)
 	ast_clear_flag(chan, AST_FLAG_MOH);
 	ast_deactivate_generator(chan);
 
-	if(chan->music_state) {
-		if(chan->stream) {
+	if (chan->music_state) {
+		if (chan->stream) {
 			ast_closestream(chan->stream);
 			chan->stream = NULL;
 		}
@@ -865,42 +859,40 @@ static int load_moh_classes(void)
 	char *data;
 	char *args;
 	int x = 0;
+
 	cfg = ast_load("musiconhold.conf");
-	if (cfg) {
-		var = ast_variable_browse(cfg, "classes");
-		while(var) {
-			data = strchr(var->value, ':');
-			if (data) {
-				*data = '\0';
-				data++;
-				args = strchr(data, ',');
-				if (args) {
-					*args = '\0';
-					args++;
-				}
-				if(!(get_mohbyname(var->name))) {
-					moh_register(var->name, var->value, data, args);
-					x++;
-				}
-			}
-			var = var->next;
-		}
-		var = ast_variable_browse(cfg, "moh_files");
-		while(var) {
-			if(!(get_mohbyname(var->name))) {
-				args = strchr(var->value, ',');
-				if (args) {
-					*args = '\0';
-					args++;
-				}
-				moh_register(var->name, "files", var->value, args);
+
+	if (!cfg)
+		return 0;
+
+	var = ast_variable_browse(cfg, "classes");
+	while (var) {
+		data = strchr(var->value, ':');
+		if (data) {
+			*data++ = '\0';
+			args = strchr(data, ',');
+			if (args)
+				*args++ = '\0';
+			if (!(get_mohbyname(var->name))) {
+				moh_register(var->name, var->value, data, args);
 				x++;
 			}
-			var = var->next;
 		}
-
-		ast_destroy(cfg);
+		var = var->next;
 	}
+	var = ast_variable_browse(cfg, "moh_files");
+	while (var) {
+		if (!(get_mohbyname(var->name))) {
+			args = strchr(var->value, ',');
+			if (args)
+				*args++ = '\0';
+			moh_register(var->name, "files", var->value, args);
+			x++;
+		}
+		var = var->next;
+	}
+
+	ast_destroy(cfg);
 	return x;
 }
 
@@ -909,19 +901,20 @@ static void ast_moh_destroy(void)
 	struct mohclass *moh,*tmp;
 	char buff[8192];
 	int bytes, tbytes=0, stime = 0, pid = 0;
+
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Destroying musiconhold processes\n");
 	ast_mutex_lock(&moh_lock);
 	moh = mohclasses;
 
-	while(moh) {
+	while (moh) {
 		if (moh->pid) {
 			ast_log(LOG_DEBUG, "killing %d!\n", moh->pid);
-			stime = time(NULL);
+			stime = time(NULL) + 5;
 			pid = moh->pid;
 			moh->pid = 0;
 			kill(pid, SIGKILL);
-			while ((bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime + 5) {
+			while ((bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime) {
 				tbytes = tbytes + bytes;
 			}
 			ast_log(LOG_DEBUG, "mpg123 pid %d and child died after %d bytes read\n", pid, tbytes);
@@ -935,13 +928,13 @@ static void ast_moh_destroy(void)
 	ast_mutex_unlock(&moh_lock);
 }
 
-
 static void moh_on_off(int on) {
 	struct ast_channel *chan = ast_channel_walk_locked(NULL);
-	while(chan) {
-		if(ast_test_flag(chan, AST_FLAG_MOH)) {
-			if(on)
-				local_ast_moh_start(chan,NULL);
+
+	while (chan) {
+		if (ast_test_flag(chan, AST_FLAG_MOH)) {
+			if (on)
+				local_ast_moh_start(chan, NULL);
 			else
 				ast_deactivate_generator(chan);
 		}
@@ -952,12 +945,13 @@ static void moh_on_off(int on) {
 
 static int moh_cli(int fd, int argc, char *argv[]) 
 {
-	int x = 0;
+	int x;
+
 	moh_on_off(0);
 	ast_moh_destroy();
 	x = load_moh_classes();
 	moh_on_off(1);
-	ast_cli(fd,"\n%d class%s reloaded.\n",x,x == 1 ? "" : "es");
+	ast_cli(fd, "\n%d class%s reloaded.\n", x, x == 1 ? "" : "es");
 	return 0;
 }
 
@@ -984,21 +978,22 @@ static struct ast_cli_entry  cli_moh = { { "moh", "reload"}, moh_cli, "Music On 
 
 static struct ast_cli_entry  cli_moh_files_show = { { "moh", "files", "show"}, cli_files_show, "List MOH file-based classes", "Lists all loaded file-based MOH classes and their files", NULL};
 
-static int init_classes(void) {
-    struct mohclass *moh;
-    load_moh_classes();
+static void init_classes(void) {
+	struct mohclass *moh;
+    
+	load_moh_classes();
 	moh = mohclasses;
-    while(moh) {
-        if (moh->total_files)
-            moh_scan_files(moh);
-        moh = moh->next;
-    }
-	return 0;
+	while (moh) {
+		if (moh->total_files)
+			moh_scan_files(moh);
+		moh = moh->next;
+	}
 }
 
 int load_module(void)
 {
 	int res;
+
 	ast_install_music_functions(local_ast_moh_start, local_ast_moh_stop, local_ast_moh_cleanup);
 	res = ast_register_application(app0, moh0_exec, synopsis0, descrip0);
 	ast_register_atexit(ast_moh_destroy);
@@ -1009,14 +1004,17 @@ int load_module(void)
 	if (!res)
 		res = ast_register_application(app2, moh2_exec, synopsis2, descrip2);
 
-	return init_classes();
+	init_classes();
+
+	return 0;
 }
 
 int reload(void)
 {
-    return init_classes();
-}
+	init_classes();
 
+	return 0;
+}
 
 int unload_module(void)
 {
