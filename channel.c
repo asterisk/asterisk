@@ -1217,8 +1217,11 @@ int ast_prod(struct ast_channel *chan)
 	char nothing[128];
 	/* Send an empty audio frame to get things moving */
 	if (chan->_state != AST_STATE_UP) {
+		ast_log(LOG_DEBUG, "Prodding channel '%s'\n", chan->name);
 		a.subclass = chan->pvt->rawwriteformat;
 		a.data = nothing + AST_FRIENDLY_OFFSET;
+		if (ast_write(chan, &a))
+			ast_log(LOG_WARNING, "Prodding channel '%s' failed\n", chan->name);
 	}
 	return 0;
 }
