@@ -42,7 +42,7 @@ static struct ast_config *config_odbc (char *file, struct ast_config *new_config
 	char connection[128];
 	int configured = 0, res = 0;
 	odbc_obj *obj;
-	SQLINTEGER err, commented, cat_metric, var_metric;
+	SQLINTEGER err, commented, cat_metric, var_metric, last_cat_metric;
 	SQLBIGINT id;
 	char sql[255], filename[128], category[128], var_name[128], var_val[128];
 	SQLSMALLINT rowcount;
@@ -132,8 +132,9 @@ static struct ast_config *config_odbc (char *file, struct ast_config *new_config
 #endif
 				);
 			} else {
-				if (strcmp (last, category)) {
+				if (strcmp (last, category) || last_cat_metric != cat_metric) {
 					strcpy (last, category);
+					last_cat_metric	= cat_metric;
 					new_cat = (struct ast_category *) ast_new_category (category);
 
 					if (!cat_started) {
