@@ -1108,14 +1108,15 @@ zapretry:
 	if (!(confflags & CONFFLAG_QUIET) && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN))
 		conf_play(conf, LEAVE);
 
-	if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER) && conf->users > 1) {
-		if (conf->chan && ast_fileexists(user->namerecloc, NULL, NULL)) {
-			if (!ast_streamfile(conf->chan, user->namerecloc, chan->language))
-				ast_waitstream(conf->chan, "");
-			if (!ast_streamfile(conf->chan, "conf-hasleft", chan->language))
-				ast_waitstream(conf->chan, "");
+	if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER)) {
+		if (ast_fileexists(user->namerecloc, NULL, NULL)) {
+			if ((conf->chan) && (conf->users > 1)) {
+				if (!ast_streamfile(conf->chan, user->namerecloc, chan->language))
+					ast_waitstream(conf->chan, "");
+				if (!ast_streamfile(conf->chan, "conf-hasleft", chan->language))
+					ast_waitstream(conf->chan, "");
+			}
 			ast_filedelete(user->namerecloc, NULL);
-
 		}
 	}
 	ast_mutex_unlock(&conflock);
