@@ -8556,7 +8556,7 @@ int load_module(void)
 			return -1;
 		} else {
 			if (option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Binding IAX2 to default address 0.0.0.0:%d", IAX_DEFAULT_PORTNO);
+				ast_verbose(VERBOSE_PREFIX_2 "Binding IAX2 to default address 0.0.0.0:%d\n", IAX_DEFAULT_PORTNO);
 			defaultsockfd = ast_netsock_sockfd(ns);
 		}
 	}
