@@ -800,10 +800,10 @@ static void *do_monitor(void *unused)
 		char str[VPB_MAX_STR];
 		struct vpb_pvt *p;
 
-		/**/
+		/*
 		if (option_verbose > 3)
 		     ast_verbose(VERBOSE_PREFIX_4 "Monitor waiting for event\n");
-		/**/
+		*/
 
 		int res = vpb_get_event_sync(&e, VPB_WAIT_TIMEOUT);
 		if( (res==VPB_NO_EVENTS) || (res==VPB_TIME_OUT) ){
@@ -1545,10 +1545,20 @@ static void *do_chanreads(void *pvt)
 	p->stopreads = 0; 
 	while (!p->stopreads && p->owner) {
 
-		ast_mutex_lock(&p->lock); {
-			if (option_verbose > 4) {
+		if (option_verbose > 4)
+			ast_verbose("%s: chanreads: Starting cycle ...\n", p->dev);
+		res = ast_mutex_trylock(&p->lock);
+		if (res !=0){
+			ast_verbose("%s: chanreads: Cant get private lock\n", p->dev);
+			res = ast_mutex_unlock(&p->lock);
+			ast_verbose("%s: chanreads: Releasing it gave me[%d]\n", p->dev,res);
+			vpb_sleep(10);
+			res = ast_mutex_trylock(&p->lock);
+			ast_verbose("%s: chanreads: trying again it gave me[%d]\n", p->dev,res);
+		}
+		if (res==0)  {
+			if (option_verbose > 4)
 				ast_verbose("%s: chanreads: Checking bridge \n", p->dev);
-			}  
 			if (p->bridge) {
 				if (p->bridge->c0 == p->owner && (p->bridge->flags & AST_BRIDGE_REC_CHANNEL_0))
 					bridgerec = 1;
@@ -1559,7 +1569,16 @@ static void *do_chanreads(void *pvt)
 			} else {
 				bridgerec = 1;
 			}
-		} ast_mutex_unlock(&p->lock);
+			if (bridgerec == 0){
+				if ((p->bridge->c0 != p->owner)||(p->bridge->c1 != p->owner)){
+					ast_verbose("%s: chanreads: neither bridges are the owner\n", p->dev);
+				}
+			}
+			ast_mutex_unlock(&p->lock);
+		} else {
+			if (option_verbose > 4)
+				ast_verbose("%s: chanreads: Couldnt get channel lock to check bridges!!\n", p->dev);
+		}
 
 		if ( (p->owner->_state != AST_STATE_UP) || !bridgerec) {
 			if (option_verbose > 4) {
@@ -1588,7 +1607,7 @@ static void *do_chanreads(void *pvt)
 
 		// Play DTMF digits here to avoid problem you get if playing a digit during
 		// a record operation
-		if (option_verbose > 4) {
+		if (option_verbose > 5) {
 			ast_verbose("%s: chanreads: Checking dtmf's \n", p->dev);
 		}  
 		ast_mutex_lock(&p->play_dtmf_lock);
@@ -1631,17 +1650,17 @@ static void *do_chanreads(void *pvt)
 		p->lastinput = fmt;
 
 		/* Read only if up and not bridged, or a bridge for which we can read. */
-		if (option_verbose > 4) {
+		if (option_verbose > 5) {
 			ast_verbose("%s: chanreads: getting buffer!\n", p->dev);
 		}  
 		if( (res = vpb_record_buf_sync(p->handle, readbuf, readlen) ) == VPB_OK ) {
-			if (option_verbose > 4) {
+			if (option_verbose > 5) {
 				ast_verbose("%s: chanreads: got buffer!\n", p->dev);
 			}  
 			// Apply extra gain !
 			if( p->rxswgain > MAX_VPB_GAIN )
 				gain_vector(p->rxswgain - MAX_VPB_GAIN , (short*)readbuf, readlen/sizeof(short));
-			if (option_verbose > 4) {
+			if (option_verbose > 5) {
 				ast_verbose("%s: chanreads: applied gain\n", p->dev);
 			}  
 
@@ -1652,7 +1671,7 @@ static void *do_chanreads(void *pvt)
 			// Using trylock here to prevent deadlock when channel is hungup
 			// (ast_hangup() immediately gets lock)
 			if (p->owner && !p->stopreads ) {
-				if (option_verbose > 4) {
+				if (option_verbose > 5) {
 					ast_verbose("%s: chanreads: queueing buffer on frame (state[%d])\n", p->dev,p->owner->_state);
 				}  
 				
@@ -1660,10 +1679,18 @@ static void *do_chanreads(void *pvt)
 					ast_queue_frame(p->owner, fr);
 					ast_mutex_unlock(&p->owner->lock);
 				} else {
-					if (option_verbose > 3) 
-						ast_verbose("%s: Couldnt get lock on owner channel to send frame!\n", p->dev);
+					ast_mutex_unlock(&p->lock);
+					ast_mutex_lock(&p->lock);
+					if (ast_mutex_trylock(&p->owner->lock)==0)  {
+						ast_queue_frame(p->owner, fr);
+						ast_mutex_unlock(&p->owner->lock);
+					}
+					else {
+						if (option_verbose > 3) 
+							ast_verbose("%s: Couldnt get lock on owner channel to send frame!\n", p->dev);
+					}
 				}
-				if (option_verbose > 5) {
+				if (option_verbose > 6) {
 					short * data = (short*)readbuf;
 					ast_verbose("%s: Read channel (codec=%d) %d %d\n", p->dev, fmt, data[0], data[1] );
 				}  
@@ -1678,6 +1705,8 @@ static void *do_chanreads(void *pvt)
 			vpb_record_buf_finish(p->handle);
 			vpb_record_buf_start(p->handle, fmt);
 		}
+		if (option_verbose > 4)
+			ast_verbose("%s: chanreads: Finished cycle...\n", p->dev);
 	}
 
 	/* When stopreads seen, go away! */
