@@ -191,7 +191,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, int make, int 
 			ast_log(LOG_WARNING, "Out of memory\n");
 	}
 cnfout:
-	if (cnf && make) 
+	if (cnf && (make || dynamic)) 
 		cnf->users++;
 	ast_mutex_unlock(&conflock);
 	return cnf;
