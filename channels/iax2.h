@@ -96,6 +96,9 @@
 #define IAX_AUTH_MD5				(1 << 1)
 #define IAX_AUTH_RSA				(1 << 2)
 
+#define IAX_META_TRUNK				1		/* Trunk meta-message */
+#define IAX_META_VIDEO				2		/* Video frame */
+
 #define IAX_DPSTATUS_EXISTS			(1 << 0)
 #define IAX_DPSTATUS_CANEXIST		(1 << 1)
 #define IAX_DPSTATUS_NONEXISTANT	(1 << 2)
@@ -116,11 +119,28 @@ struct ast_iax2_full_hdr {
 
 /* Mini header is used only for voice frames -- delivered unreliably */
 struct ast_iax2_mini_hdr {
-	short callno;			/* Source call number -- high bit must be 0 */
+	unsigned short callno;	/* Source call number -- high bit must be 0, rest must be non-zero */
 	unsigned short ts;		/* 16-bit Timestamp (high 16 bits from last ast_iax2_full_hdr) */
 							/* Frametype implicitly VOICE_FRAME */
 							/* subclass implicit from last ast_iax2_full_hdr */
 	unsigned char iedata[0];
 } __attribute__ ((__packed__));
+
+struct ast_iax2_meta_hdr {
+	unsigned short zeros;			/* Zeros field -- must be zero */
+	unsigned char metacmd;			/* Meta command */
+	unsigned char cmddata;			/* Command Data */
+	unsigned char data[0];
+} __attribute__ ((__packed__));
+
+struct ast_iax2_meta_trunk_hdr {
+	unsigned int ts;				/* 32-bit timestamp for all messages */
+	unsigned char data[0];
+};
+
+struct ast_iax2_meta_trunk_entry {
+	unsigned short callno;			/* Call number */
+	unsigned short len;				/* Length of data for this callno */
+};
 
 #endif

@@ -1345,6 +1345,7 @@ static int handle_request(struct mgcp_endpoint *p, struct mgcp_request *req, str
 				p->alreadygone = 1;
 				ast_queue_hangup(p->owner, 1);
 			}
+			transmit_notify_request(p, "", 0);
 		} else if ((strlen(ev) == 1) && 
 					(((ev[0] >= '0') && (ev[0] <= '9')) ||
 					 ((ev[0] >= 'A') && (ev[0] <= 'D')) ||

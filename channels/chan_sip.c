@@ -2249,6 +2249,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		port = atoi(pt);
 	} else
 		port = DEFAULT_SIP_PORT;
+	memcpy(&oldsin, &p->addr, sizeof(oldsin));
 	if (!p->nat) {
 		/* XXX This could block for a long time XXX */
 		hp = gethostbyname(n);
@@ -2256,7 +2257,6 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 			ast_log(LOG_WARNING, "Invalid host '%s'\n", n);
 			return -1;
 		}
-		memcpy(&oldsin, &p->addr, sizeof(oldsin));
 		p->addr.sin_family = AF_INET;
 		memcpy(&p->addr.sin_addr, hp->h_addr, sizeof(p->addr.sin_addr));
 		p->addr.sin_port = htons(port);
@@ -2273,7 +2273,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		ast_sched_del(sched, p->expire);
 	if ((expirey < 1) || (expirey > max_expirey))
 		expirey = max_expirey;
-	p->expire = ast_sched_add(sched, expirey * 1000, expire_register, p);
+	p->expire = ast_sched_add(sched, (expirey + 10) * 1000, expire_register, p);
 	pvt->expirey = expirey;
 	if (memcmp(&p->addr, &oldsin, sizeof(oldsin))) {
 		sip_poke_peer(p);
@@ -3629,7 +3629,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 static int sipsock_read(int *id, int fd, short events, void *ignore)
 {
 	struct sip_request req;
-	struct sockaddr_in sin;
+	struct sockaddr_in sin = { 0, };
 	struct sip_pvt *p;
 	int res;
 	int len;

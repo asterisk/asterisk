@@ -3500,6 +3500,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	int dcallno = 0;
 	struct ast_iax2_full_hdr *fh = (struct ast_iax2_full_hdr *)buf;
 	struct ast_iax2_mini_hdr *mh = (struct ast_iax2_mini_hdr *)buf;
+	struct ast_iax2_meta_hdr *meta = (struct ast_iax2_meta_hdr *)buf;
 	struct ast_iax2_frame fr, *cur;
 	struct ast_frame f;
 	struct ast_channel *c;
@@ -3520,6 +3521,11 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	}
 	if (res < sizeof(struct ast_iax2_mini_hdr)) {
 		ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, sizeof(struct ast_iax2_mini_hdr));
+		return 1;
+	}
+	if (meta->zeros == 0) {
+		/* This is a a meta header */
+		ast_log(LOG_DEBUG, "Meta header  Command = %d!\n", meta->metacmd);
 		return 1;
 	}
 #ifdef DEBUG_SUPPORT
