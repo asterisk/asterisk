@@ -1,3 +1,5 @@
+ -- Remove MySQL and put PGSql instead for licensing reasons
+Asterisk 0.5.0
  -- Retain IAX2 and SIP registrations past shutdown/crash and restart
  -- True data mode bridging when possible
  -- H.323 build improvements
