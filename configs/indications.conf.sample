@@ -345,3 +345,30 @@ acceptance = 425/125,0/125
 holdinga   = !425*24/500,!0/500			; followed by holdingb
 holdingb   = !425/500,!0/2500
 
+[hu]
+description = Hungary
+ringcadance = 1000,4000
+dial = 425
+busy = 425/300,0/300
+ring = 425/1250,0/3750
+congestion = 425/300,0/300
+callwaiting = 425/40,0/1960
+; Dialrecall not used in Hungary, use standard (using UK standard)
+dialrecall = 350+440
+; Record tone is not used in Hungary, use busy tone
+record = 425/250,0/250
+info = !950/330,!1400/330,!1800/330,!0/1000,!950/330,!1400/330,!1800/330,!0/1000,!950/330,!1400/330,!1800/330,!0/1000,0
+
+[lt]
+description = Lithuania
+ringcadence = 1000,4000
+dial = 425
+busy = 425/350,0/350
+ring = 425/1000,0/4000
+congestion = 425/200,0/200
+callwaiting = 425/150,0/150,425/150,0/4000
+; XXX I'm making up the dialrecall tone XXX
+dialrecall = 425/500,0/50
+; XXX I'm making up the record tone XXX
+record = 1400/500,0/15000
+info = !950/330,!1400/330,!1800/330,!0/1000,!950/330,!1400/330,!1800/330,!0/1000,!950/330,!1400/330,!1800/330,!0/1000,0
