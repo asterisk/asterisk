@@ -437,13 +437,13 @@ int ast_say_digits_full(struct ast_channel *chan, int num, char *ints, char *lan
 /* Forward declarations of language specific variants of ast_say_number_full */
 static int ast_say_number_full_en(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
 static int ast_say_number_full_da(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd);
-static int ast_say_number_full_de(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
+static int ast_say_number_full_de(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_es(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
-static int ast_say_number_full_fr(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
-static int ast_say_number_full_se(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd);
+static int ast_say_number_full_fr(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_it(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
 static int ast_say_number_full_nl(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
 static int ast_say_number_full_pt(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd);
+static int ast_say_number_full_se(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd);
 
 /* Forward declarations of ast_say_date, ast_say_datetime and ast_say_time functions */
 static int ast_say_date_en(struct ast_channel *chan, time_t t, char *ints, char *lang);
@@ -478,24 +478,24 @@ int ast_say_number_full(struct ast_channel *chan, int num, char *ints, char *lan
 {
 	char *options=(char *) NULL; 	/* While waiting for a general hack for agi */
 
-	if (!strcasecmp(language, "no") || !strcasecmp(language,"se") || !strcasecmp(language,"en") ) {
+	if (!strcasecmp(language,"en") ) {	/* English syntax */
 	   return(ast_say_number_full_en(chan, num, ints, language, audiofd, ctrlfd));
-	} else if (!strcasecmp(language, "fr") ) {	/* French syntax */
-	   return(ast_say_number_full_fr(chan, num, ints, language, audiofd, ctrlfd));
-	} else if (!strcasecmp(language, "de") ) {	/* German syntax */
-	   return(ast_say_number_full_de(chan, num, ints, language, audiofd, ctrlfd));
-	} else if (!strcasecmp(language, "se") ) {	/* German syntax */
-	   return(ast_say_number_full_se(chan, num, ints, language, options, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "da") ) {	/* Danish syntax */
 	   return(ast_say_number_full_da(chan, num, ints, language, options, audiofd, ctrlfd));
-	} else if (!strcasecmp(language, "it") ) {	/* Italian syntax */
-	   return(ast_say_number_full_it(chan, num, ints, language, audiofd, ctrlfd));
-	} else if (!strcasecmp(language, "pt") ) {	/* Portuguese syntax */
-	   return(ast_say_number_full_pt(chan, num, ints, language, options, audiofd, ctrlfd));
+	} else if (!strcasecmp(language, "de") ) {	/* German syntax */
+	   return(ast_say_number_full_de(chan, num, ints, language, options, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "es") ) {	/* Spanish syntax */
 	   return(ast_say_number_full_es(chan, num, ints, language, audiofd, ctrlfd));
+	} else if (!strcasecmp(language, "fr") ) {	/* French syntax */
+	   return(ast_say_number_full_fr(chan, num, ints, language, options, audiofd, ctrlfd));
+	} else if (!strcasecmp(language, "it") ) {	/* Italian syntax */
+	   return(ast_say_number_full_it(chan, num, ints, language, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "nl") ) {	/* Dutch syntax */
 	   return(ast_say_number_full_nl(chan, num, ints, language, audiofd, ctrlfd));
+	} else if (!strcasecmp(language, "pt") ) {	/* Portuguese syntax */
+	   return(ast_say_number_full_pt(chan, num, ints, language, options, audiofd, ctrlfd));
+	} else if (!strcasecmp(language, "se") ) {	/* Swedish syntax */
+	   return(ast_say_number_full_se(chan, num, ints, language, options, audiofd, ctrlfd));
 	}
 
 	/* Default to english */
@@ -505,26 +505,24 @@ int ast_say_number_full(struct ast_channel *chan, int num, char *ints, char *lan
 /*--- ast_say_number: call language-specific functions without file descriptors */
 int ast_say_number(struct ast_channel *chan, int num, char *ints, char *language, char *options)
 {
-	if (!strcasecmp(language, "no") || !strcasecmp(language,"se") || !strcasecmp(language,"en") ) {
+	if (!strcasecmp(language,"en") ) {	/* English syntax */
 	   return(ast_say_number_full_en(chan, num, ints, language, -1, -1));
-	}
-	/* French */
-	if (!strcasecmp(language, "fr")) {		/* French syntax */
-	   return(ast_say_number_full_fr(chan, num, ints, language, -1, -1));
-	} else if (!strcasecmp(language, "da")) {	/* Danish syntax */
+	}else if (!strcasecmp(language, "da")) {	/* Danish syntax */
 	   return(ast_say_number_full_da(chan, num, ints, language, options, -1, -1));
 	} else if (!strcasecmp(language, "de")) {	/* German syntax */
-	   return(ast_say_number_full_de(chan, num, ints, language, -1, -1));
-	} else if (!strcasecmp(language, "se")) {	/* Swedish syntax */
-	   return(ast_say_number_full_se(chan, num, ints, language, options, -1, -1));
-	} else if (!strcasecmp(language, "it")) {	/* Italian syntax */
-	   return(ast_say_number_full_it(chan, num, ints, language, -1, -1));
-	} else if (!strcasecmp(language, "pt")) {	/* Portuguese syntax */
-	   return(ast_say_number_full_pt(chan, num, ints, language, options, -1, -1));
-	} else if (!strcasecmp(language, "nl")) {	/* Dutch syntax */
-	   return(ast_say_number_full_nl(chan, num, ints, language, -1, -1));
+	   return(ast_say_number_full_de(chan, num, ints, language, options, -1, -1));
 	} else if (!strcasecmp(language, "es")) {	/* Spanish syntax */
 	   return(ast_say_number_full_es(chan, num, ints, language, -1, -1));
+	} else if (!strcasecmp(language, "fr")) {	/* French syntax */
+	   return(ast_say_number_full_fr(chan, num, ints, language, options, -1, -1));
+	} else if (!strcasecmp(language, "it")) {	/* Italian syntax */
+	   return(ast_say_number_full_it(chan, num, ints, language, -1, -1));
+	} else if (!strcasecmp(language, "nl")) {	/* Dutch syntax */
+	   return(ast_say_number_full_nl(chan, num, ints, language, -1, -1));
+	} else if (!strcasecmp(language, "pt")) {	/* Portuguese syntax */
+	   return(ast_say_number_full_pt(chan, num, ints, language, options, -1, -1));
+	} else if (!strcasecmp(language, "se")) {	/* Swedish syntax */
+	   return(ast_say_number_full_se(chan, num, ints, language, options, -1, -1));
 	}
 
 	/* Default to english */
@@ -591,77 +589,6 @@ static int ast_say_number_full_en(struct ast_channel *chan, int num, char *ints,
 	}
 	return res;
 }
-
-/*--- ast_say_number_full_se: Swedish/norwegian syntax */
-/* This is the default syntax, if no other syntax defined in this file is used */
-static int ast_say_number_full_se(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd)
-{
-	int res = 0;
-	int playh = 0;
-	char fn[256] = "";
-	int cn = 1;		/* +1 = Commune; -1 = Neutrum */
-	if (!num) 
-		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
-	if (options && !strncasecmp(options, "n",1)) cn = -1;
-
-	while(!res && (num || playh)) {
-			if (playh) {
-				snprintf(fn, sizeof(fn), "digits/hundred");
-				playh = 0;
-			} else
-			if (num < 20) {
-				snprintf(fn, sizeof(fn), "digits/%d", num);
-				num = 0;
-			} else
-			if (num < 100) {
-				snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
-				num -= ((num / 10) * 10);
-		        } else 
-			if (num == 1 && cn == -1) {	/* En eller ett? */
-			 	snprintf(fn, sizeof(fn), "digits/1N");
-				num = 0;
-			} else {
-				if (num < 1000){
-					snprintf(fn, sizeof(fn), "digits/%d", (num/100));
-					playh++;
-					num -= ((num / 100) * 100);
-				} else {
-					if (num < 1000000) { /* 1,000,000 */
-						res = ast_say_number_full_se(chan, num / 1000, ints, language, options, audiofd, ctrlfd);
-						if (res)
-							return res;
-						num = num % 1000;
-						snprintf(fn, sizeof(fn), "digits/thousand");
-					} else {
-						if (num < 1000000000) {	/* 1,000,000,000 */
-							res = ast_say_number_full_se(chan, num / 1000000, ints, language, options, audiofd, ctrlfd);
-							if (res)
-								return res;
-							num = num % 1000000;
-							snprintf(fn, sizeof(fn), "digits/million");
-						} else {
-							ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
-							res = -1;
-						}
-					}
-				}
-			}
-			 if (!res) {
-                                if(!ast_streamfile(chan, fn, language)) {
-                                    if (audiofd && ctrlfd)
-                                        res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
-                                    else
-                                         res = ast_waitstream(chan, ints);
-                                }
-                                ast_stopstream(chan);
-
-                        }
-			
-	}
-	return res;
-}
-
-
 
 /*--- ast_say_number_full_da: Danish syntax */
 /* New files:
@@ -768,7 +695,7 @@ static int ast_say_number_full_da(struct ast_channel *chan, int num, char *ints,
 /* New files:
  In addition to English, the following sounds are required: "millions", "and" and "1-and" through "9-and" 
  */
-static int ast_say_number_full_de(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd)
+static int ast_say_number_full_de(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd)
 {
 	int res = 0;
 	int playh = 0;
@@ -818,7 +745,7 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, char *ints,
 					playa++;
 			} else {
 				if (num < 1000000) {
-					res = ast_say_number_full_de(chan, num / 1000, ints, language, audiofd, ctrlfd);
+					res = ast_say_number_full_de(chan, num / 1000, ints, language, options, audiofd, ctrlfd);
 					if (res)
 						return res;
 					num = num % 1000;
@@ -826,7 +753,7 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, char *ints,
 				} else {
 					if (num < 1000000000) {
 						int millions = num / 1000000;
-						res = ast_say_number_full_de(chan, millions, ints, language, audiofd, ctrlfd);
+						res = ast_say_number_full_de(chan, millions, ints, language, options, audiofd, ctrlfd);
 						if (res)
 							return res;
 						if (millions == 1)
@@ -930,14 +857,22 @@ static int ast_say_number_full_es(struct ast_channel *chan, int num, char *ints,
 
 
 /*--- ast_say_number_full_fr: French syntax */
-static int ast_say_number_full_fr(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd)
+/* 	Extra sounds needed: */
+/* 	1F: feminin 'une' */
+/* 	et: 'and' */
+static int ast_say_number_full_fr(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd)
 {
 	int res = 0;
 	int playh = 0;
 	int playa = 0;
+	int mf = 1;                            /* +1 = Masculin; -1 = Feminin */
 	char fn[256] = "";
 	if (!num) 
 		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+	
+	if (options && !strncasecmp(options, "f",1))
+		mf = -1;
+
 	while(!res && (num || playh || playa)) {
 		if (playh) {
 			snprintf(fn, sizeof(fn), "digits/hundred");
@@ -945,6 +880,12 @@ static int ast_say_number_full_fr(struct ast_channel *chan, int num, char *ints,
 		} else if (playa) {
 			snprintf(fn, sizeof(fn), "digits/et");
 			playa = 0;
+		} else if (num == 1) {
+			if (mf < 0)
+				snprintf(fn, sizeof(fn), "digits/%dF", num);
+			else
+				snprintf(fn, sizeof(fn), "digits/%d", num);
+			num = 0;
 		} else if (num < 21) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
 			num = 0;
@@ -970,13 +911,13 @@ static int ast_say_number_full_fr(struct ast_channel *chan, int num, char *ints,
 			snprintf(fn, sizeof(fn), "digits/thousand");
 			num = num - 1000;
 		} else if (num < 1000000) {
-			res = ast_say_number_full_fr(chan, num / 1000, ints, language, audiofd, ctrlfd);
+			res = ast_say_number_full_fr(chan, num / 1000, ints, language, options, audiofd, ctrlfd);
 			if (res)
 				return res;
 			snprintf(fn, sizeof(fn), "digits/thousand");
 			num = num % 1000;
 		} else	if (num < 1000000000) {
-			res = ast_say_number_full_fr(chan, num / 1000000, ints, language, audiofd, ctrlfd);
+			res = ast_say_number_full_fr(chan, num / 1000000, ints, language, options, audiofd, ctrlfd);
 			if (res)
 				return res;
 			snprintf(fn, sizeof(fn), "digits/million");
@@ -1299,6 +1240,74 @@ static int ast_say_number_full_pt(struct ast_channel *chan, int num, char *ints,
 			}
 			ast_stopstream(chan);
 		}
+	}
+	return res;
+}
+
+/*--- ast_say_number_full_se: Swedish/Norwegian syntax */
+static int ast_say_number_full_se(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd)
+{
+	int res = 0;
+	int playh = 0;
+	char fn[256] = "";
+	int cn = 1;		/* +1 = Commune; -1 = Neutrum */
+	if (!num) 
+		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+	if (options && !strncasecmp(options, "n",1)) cn = -1;
+
+	while(!res && (num || playh)) {
+			if (playh) {
+				snprintf(fn, sizeof(fn), "digits/hundred");
+				playh = 0;
+			} else
+			if (num < 20) {
+				snprintf(fn, sizeof(fn), "digits/%d", num);
+				num = 0;
+			} else
+			if (num < 100) {
+				snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
+				num -= ((num / 10) * 10);
+		        } else 
+			if (num == 1 && cn == -1) {	/* En eller ett? */
+			 	snprintf(fn, sizeof(fn), "digits/1N");
+				num = 0;
+			} else {
+				if (num < 1000){
+					snprintf(fn, sizeof(fn), "digits/%d", (num/100));
+					playh++;
+					num -= ((num / 100) * 100);
+				} else {
+					if (num < 1000000) { /* 1,000,000 */
+						res = ast_say_number_full_se(chan, num / 1000, ints, language, options, audiofd, ctrlfd);
+						if (res)
+							return res;
+						num = num % 1000;
+						snprintf(fn, sizeof(fn), "digits/thousand");
+					} else {
+						if (num < 1000000000) {	/* 1,000,000,000 */
+							res = ast_say_number_full_se(chan, num / 1000000, ints, language, options, audiofd, ctrlfd);
+							if (res)
+								return res;
+							num = num % 1000000;
+							snprintf(fn, sizeof(fn), "digits/million");
+						} else {
+							ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+							res = -1;
+						}
+					}
+				}
+			}
+			 if (!res) {
+                                if(!ast_streamfile(chan, fn, language)) {
+                                    if (audiofd && ctrlfd)
+                                        res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+                                    else
+                                         res = ast_waitstream(chan, ints);
+                                }
+                                ast_stopstream(chan);
+
+                        }
+			
 	}
 	return res;
 }
