@@ -1218,7 +1218,7 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf)
 	}
 	return 0;
 }
-
+#define RETRY	3
 static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid)
 {
 	struct ast_channel *c;
@@ -1228,6 +1228,9 @@ static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid)
 	struct ast_frame *f;
 	char buf[2048];
 	FILE *readf;
+	//how many times we'll retry if ast_waitfor_nandfs will return without either channel or file descriptor in case select is interrupted by a system call (EINTR)
+	int retry = RETRY;
+
 	if (!(readf = fdopen(agi->ctrl, "r"))) {
 		ast_log(LOG_WARNING, "Unable to fdopen file descriptor\n");
 		kill(pid, SIGHUP);
@@ -1239,6 +1242,7 @@ static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid)
 		ms = -1;
 		c = ast_waitfor_nandfds(&chan, 1, &agi->ctrl, 1, NULL, &outfd, &ms);
 		if (c) {
+			retry = RETRY;
 			/* Idle the channel until we get a command */
 			f = ast_read(c);
 			if (!f) {
@@ -1254,6 +1258,7 @@ static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid)
 				ast_frfree(f);
 			}
 		} else if (outfd > -1) {
+			retry = RETRY;
 			if (!fgets(buf, sizeof(buf), readf)) {
 				/* Program terminated */
 				if (returnstatus)
@@ -1274,9 +1279,11 @@ static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid)
 				break;
 			}
 		} else {
-			ast_log(LOG_WARNING, "No channel, no fd?\n");
-			returnstatus = -1;
-			break;
+			if (--retry <= 0) {
+				ast_log(LOG_WARNING, "No channel, no fd?\n");
+				returnstatus = -1;
+				break;
+			}
 		}
 	}
 	/* Notify process */
