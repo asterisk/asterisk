@@ -2567,7 +2567,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 			strncpy(tmp, get_header(req, "To"), sizeof(tmp) - 1);
 		else
 			strncpy(tmp, get_header(req, "From"), sizeof(tmp) - 1);
-		tag = strstr(tmp, "tag=");
+		tag = strcasestr(tmp, "tag=");
 		if (tag) {
 			tag += 4;
 			c = strchr(tag, ';');
@@ -3320,7 +3320,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 		copy_all_header(resp, req, "Record-Route");
 	copy_header(resp, req, "From");
 	ot = get_header(req, "To");
-	if (!strstr(ot, "tag=")) {
+	if (!strcasestr(ot, "tag=") && strncmp(msg, "100", 3)) {
 		/* Add the proper tag if we don't have it already.  If they have specified
 		   their tag, use it.  Otherwise, use our own tag */
 		if (!ast_strlen_zero(p->theirtag) && ast_test_flag(p, SIP_OUTGOING))
@@ -3429,7 +3429,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 
 	/* Add tag *unless* this is a CANCEL, in which case we need to send it exactly
 	   as our original request, including tag (or presumably lack thereof) */
-	if (!strstr(ot, "tag=") && sipmethod != SIP_CANCEL) {
+	if (!strcasestr(ot, "tag=") && sipmethod != SIP_CANCEL) {
 		/* Add the proper tag if we don't have it already.  If they have specified
 		   their tag, use it.  Otherwise, use our own tag */
 		if (ast_test_flag(p, SIP_OUTGOING) && !ast_strlen_zero(p->theirtag))
@@ -7470,7 +7470,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 
 	/* Get their tag if we haven't already */
 	to = get_header(req, "To");
-	to = strstr(to, "tag=");
+	to = strcasestr(to, "tag=");
 	if (to) {
 		to += 4;
 		strncpy(p->theirtag, to, sizeof(p->theirtag) - 1);
@@ -8634,7 +8634,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	/* Find their tag if we haven't got it */
 	if (ast_strlen_zero(p->theirtag)) {
 		from = get_header(req, "From");
-		from = strstr(from, "tag=");
+		from = strcasestr(from, "tag=");
 		if (from) {
 			from += 4;
 			strncpy(p->theirtag, from, sizeof(p->theirtag) - 1);
