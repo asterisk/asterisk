@@ -9,13 +9,11 @@
 	       			expat-1.95+
 	       			expat-dev-1.95+
 
-This code was recently updated to deal with Open H.323 v1.14.4 and PWLib
-v1.7.5. Not much testing has been done, please test and report your findings.
-
+You must run Open H.323 v1.15.1 and PWLib v1.8.1. All other versions are not supported.
 You can find the Open H.323 source here: http://www.sf.net/projects/openh323/
 
 NOTICE: Whatever you do, DO NOT USE distrubution specific installs
-of Open H.323 and PWLib. In fact you should check to make sure 
+of Open H.323 and PWLib. In fact, you should check to make sure 
 your distro did not install them for you without your knowledge.
 
 

@@ -16,6 +16,16 @@ ifndef ASTETCDIR
 ASTETCDIR=/etc/asterisk
 endif
 
+PWLIB_MAJOR_VERSION=$(shell cat ${PWLIBDIR}/version.h | grep MAJOR_VERSION | cut -f3 -d' ')
+PWLIB_MINOR_VERSION=$(shell cat ${PWLIBDIR}/version.h | grep MINOR_VERSION | cut -f3 -d' ')
+PWLIB_BUILD_NUMBER=$(shell cat ${PWLIBDIR}/version.h | grep BUILD_NUMBER | cut -f3 -d' ')
+PWLIB_VERSION="${PWLIB_MAJOR_VERSION}.${PWLIB_MINOR_VERSION}.${PWLIB_BUILD_NUMBER}"
+
+OPENH323_MAJOR_VERSION=$(shell cat ${OPENH323DIR}/version.h | grep MAJOR_VERSION | cut -f3 -d' ')
+OPENH323_MINOR_VERSION=$(shell cat ${OPENH323DIR}/version.h | grep MINOR_VERSION | cut -f3 -d' ')
+OPENH323_BUILD_NUMBER=$(shell cat ${OPENH323DIR}/version.h | grep BUILD_NUMBER | cut -f3 -d' ')
+OPENH323_VERSION="${OPENH323_MAJOR_VERSION}.${OPENH323_MINOR_VERSION}.${OPENH323_BUILD_NUMBER}"
+
 #
 # This needs to be updated to deal with more than just little endian machines
 #
@@ -46,7 +56,7 @@ CFLAGS += -I../../include
 CFLAGS += -I$(PWLIBDIR)/include 
 CFLAGS += -I$(OPENH323DIR)/include -Wno-missing-prototypes
 
-all:	depend libchanh323.a
+all:	checkversion depend libchanh323.a
 
 samples: 
 	if [ -f $(ASTETCDIR)/h323.conf ]; then \
@@ -82,4 +92,24 @@ depend: .depend
 .depend:
 	../../mkdep $(CFLAGS) `ls *.cpp`
 
-
+checkversion:
+	@echo -n "PWLib version is ${PWLIB_VERSION}... "
+	@if [ ${PWLIB_VERSION} == "1.8.1" ]; then \
+		echo "ok" ; \
+	else \
+		echo "BAD" ; \
+		echo ; \
+		echo "Please read README for further details!" ; \
+		echo ; \
+		exit 1 ; \
+	fi
+	@echo -n "OpenH323 version is ${OPENH323_VERSION}... "
+	@if [ ${OPENH323_VERSION} == "1.15.1" ]; then \
+		echo "ok" ; \
+	else \
+		echo "BAD" ; \
+		echo ; \
+		echo "Please read README for further details!" ; \
+		echo ; \
+		exit 1 ; \
+	fi
