@@ -32,7 +32,7 @@
 #include <machine/endian.h>
 #endif
 
-/* Some Ideas for this code came from makewave.c by Jeffery Chilton */
+/* Some Ideas for this code came from makewave.c by Jeffrey Chilton */
 
 /* Portions of the conversion code are by guido@sienanet.it */
 
