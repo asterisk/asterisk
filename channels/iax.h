@@ -47,6 +47,14 @@
 #define AST_IAX_COMMAND_DPREQ	19	/* Request status of a dialplan entry */
 #define AST_IAX_COMMAND_DPREP	20	/* Request status of a dialplan entry */
 #define AST_IAX_COMMAND_DIAL	21	/* Request a dial on channel brought up TBD */
+#define AST_IAX_COMMAND_TXREQ	22	/* Transfer Request */
+#define AST_IAX_COMMAND_TXCNT	23	/* Transfer Connect */
+#define AST_IAX_COMMAND_TXACC	24	/* Transfer Accepted */
+#define AST_IAX_COMMAND_TXREADY	25	/* Transfer ready */
+#define AST_IAX_COMMAND_TXREL	26	/* Transfer release */
+#define AST_IAX_COMMAND_TXREJ	27	/* Transfer reject */
+#define AST_IAX_COMMAND_QUELCH	28	/* Stop audio/video transmission */
+#define AST_IAX_COMMAND_UNQUELCH 29	/* Resume audio/video transmission */
 
 #define AST_DEFAULT_REG_EXPIRE  60	/* By default require re-registration once per minute */
 
