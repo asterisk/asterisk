@@ -82,6 +82,7 @@ clear_con_cb on_connection_cleared;
 answer_call_cb on_answer_call;
 progress_cb on_progress;
 rfc2833_cb on_set_rfc2833_payload;
+hangup_cb on_hangup;
 
 /* global debug flag */
 int h323debug;
@@ -137,6 +138,9 @@ struct oh323_pvt {
 	struct ast_rtp *rtp;					/* RTP Session */
 	int dtmfmode;						/* What DTMF Mode is being used */
 	struct ast_dsp *vad;					/* Used for in-band DTMF detection */
+	int nativeformats;					/* Codec formats supported by a channel */
+	int needhangup;						/* Send hangup when Asterisk is ready */
+	int hangupcause;					/* Hangup cause from OpenH323 layer */
 	struct oh323_pvt *next;					/* Next channel in list */
 } *iflist = NULL;
 
@@ -213,6 +217,61 @@ static const struct ast_channel_tech oh323_tech = {
 #endif
 };
 
+static void oh323_update_info(struct ast_channel *c)
+{
+	struct oh323_pvt *pvt = c->tech_pvt;
+
+	ast_mutex_lock(&pvt->lock);
+	if (c->nativeformats != pvt->nativeformats) {
+		if (h323debug)
+			ast_log(LOG_DEBUG, "Preparing %s for new native format\n", c->name);
+		c->nativeformats = pvt->nativeformats;
+		ast_set_read_format(c, c->readformat);
+		ast_set_write_format(c, c->writeformat);
+	}
+	if (pvt->needhangup) {
+		if (h323debug)
+			ast_log(LOG_DEBUG, "Process pending hangup for %s\n", c->name);
+		c->_softhangup |= AST_SOFTHANGUP_DEV;
+		c->hangupcause = pvt->hangupcause;
+		ast_queue_hangup(c);
+		pvt->needhangup = 0;
+	}
+	ast_mutex_unlock(&pvt->lock);
+}
+
+static void cleanup_call_details(call_details_t *cd) 
+{
+        if (cd->call_token) {
+                free(cd->call_token);
+                cd->call_token = NULL;
+        }
+        if (cd->call_source_aliases) {
+                free(cd->call_source_aliases);
+                cd->call_source_aliases = NULL;
+        }
+        if (cd->call_dest_alias) {
+                free(cd->call_dest_alias);
+                cd->call_dest_alias = NULL;
+	}
+        if (cd->call_source_name) { 
+                free(cd->call_source_name);
+                cd->call_source_name = NULL;
+        }
+        if (cd->call_source_e164) {
+                free(cd->call_source_e164);
+                cd->call_source_e164 = NULL;
+        }
+        if (cd->call_dest_e164) {
+                free(cd->call_dest_e164);
+                cd->call_dest_e164 = NULL;
+        }
+        if (cd->sourceIp) {
+                free(cd->sourceIp);
+                cd->sourceIp = NULL;
+        }
+}
+
 static void __oh323_destroy(struct oh323_pvt *p)
 {
 	struct oh323_pvt *cur, *prev = NULL;
@@ -221,6 +280,12 @@ static void __oh323_destroy(struct oh323_pvt *p)
 		ast_rtp_destroy(p->rtp);
 	}
 	
+	/* Free dsp used for in-band DTMF detection */
+	if (p->vad) {
+		ast_dsp_free(p->vad);
+	}
+	cleanup_call_details(&p->cd);
+
 	/* Unlink us from the owner if we have one */
 	if (p->owner) {
 		ast_mutex_lock(&p->owner->lock);
@@ -494,13 +559,20 @@ static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
 static int oh323_digit(struct ast_channel *c, char digit)
 {
 	struct oh323_pvt *p = (struct oh323_pvt *) c->tech_pvt;
-	if (p && p->rtp && (p->dtmfmode & H323_DTMF_RFC2833)) {
+	if (h323debug)
+		ast_log(LOG_DEBUG, "Sending digit %c on %s\n", digit, c->name);
+	if (!p)
+		return -1;
+	ast_mutex_lock(&p->lock);
+	if (p->rtp && (p->dtmfmode & H323_DTMF_RFC2833)) {
 		ast_rtp_senddigit(p->rtp, digit);
 	}
 	/* If in-band DTMF is desired, send that */
-	if (p && (p->dtmfmode & H323_DTMF_INBAND)) {
+	if ((p->dtmfmode & H323_DTMF_INBAND)) {
 		h323_send_tone(p->cd.call_token, digit);
 	}
+	ast_mutex_unlock(&p->lock);
+	oh323_update_info(c);
 	return 0;
 }
 
@@ -516,19 +588,31 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
         char addr[INET_ADDRSTRLEN];
         char called_addr[1024];
   
-        if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
+  	if (h323debug) {
+  		ast_log(LOG_DEBUG, "Calling to %s on %s\n", dest, c->name);
+        }
+	if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
                 ast_log(LOG_WARNING, "Line is already in use (%s)\n", c->name);
                 return -1;
         }
-        /* Clear and then set the address to call */
-        memset(addr, 0, sizeof(addr));
         if (usingGk) {
-                memcpy(addr, dest, strlen(addr));
                 pvt->options.port = h323_signalling_port;
+                if (ast_strlen_zero(pvt->exten)) {
+	               	strncpy(called_addr, dest, sizeof(called_addr));
+                } else {
+                        snprintf(called_addr, sizeof(called_addr), "%s@%s", pvt->exten, dest);
+     		}
         } else {
                 ast_inet_ntoa(addr, sizeof(addr), pvt->sa.sin_addr);
                 pvt->options.port = htons(pvt->sa.sin_port);
+                if (ast_strlen_zero(pvt->exten)) {
+                        snprintf(called_addr, sizeof(called_addr), "%s:%d", addr, pvt->options.port);
+                } else {
+                        snprintf(called_addr, sizeof(called_addr), "%s@%s:%d", pvt->exten, addr, pvt->options.port);
+		}
 	}
+	/* make sure null terminated */
+	called_addr[sizeof(called_addr) - 1] = '\0'; 
 
 	if (c->cid.cid_num) {
 		strncpy(pvt->options.cid_num, c->cid.cid_num, sizeof(pvt->options.cid_num));
@@ -540,17 +624,13 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	/* indicate that this is an outgoing call */
 	pvt->outgoing = 1;
 
-	if (pvt->exten) {
-		snprintf(called_addr, sizeof(called_addr), "%s@%s:%d", pvt->exten, addr, pvt->options.port);
-	} else {
-		snprintf(called_addr, sizeof(called_addr), "%s:%d",addr, pvt->options.port);
-	}
 	ast_log(LOG_DEBUG, "Placing outgoing call to %s, %d\n", called_addr, pvt->options.dtmfcodec);
 	res = h323_make_call(called_addr, &(pvt->cd), &pvt->options);
 	if (res) {
 		ast_log(LOG_NOTICE, "h323_make_call failed(%s)\n", c->name);
 		return -1;
 	}
+	oh323_update_info(c);
 	return 0;
 }
 
@@ -558,9 +638,19 @@ static int oh323_answer(struct ast_channel *c)
 {
 	int res;
 	struct oh323_pvt *pvt = (struct oh323_pvt *) c->tech_pvt;
+	char *token;
 
-	res = h323_answering_call(pvt->cd.call_token, 0);
-	
+	if (h323debug)
+		ast_log(LOG_DEBUG, "Answering on %s\n", c->name);
+
+	ast_mutex_lock(&pvt->lock);
+	token = pvt->cd.call_token ? strdup(pvt->cd.call_token) : NULL;
+	ast_mutex_unlock(&pvt->lock);
+	res = h323_answering_call(token, 0);
+	if (token)
+		free(token);
+
+	oh323_update_info(c);
 	if (c->_state != AST_STATE_UP) {
 		ast_setstate(c, AST_STATE_UP);
 	}
@@ -572,6 +662,11 @@ static int oh323_hangup(struct ast_channel *c)
 	struct oh323_pvt *pvt = (struct oh323_pvt *) c->tech_pvt;
 	int needcancel = 0;
 	int q931cause = AST_CAUSE_NORMAL_CLEARING;
+	char *call_token;
+
+
+	if (h323debug)
+		ast_log(LOG_DEBUG, "Hanging up call %s\n", c->name);
 
 	if (!c->tech_pvt) {
 		ast_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
@@ -587,12 +682,7 @@ static int oh323_hangup(struct ast_channel *c)
 	if (!c || (c->_state != AST_STATE_UP)) {
 		needcancel = 1;
 	}
-	pvt = (struct oh323_pvt *)c->tech_pvt;
 	
-	/* Free dsp used for in-band DTMF detection */
-	if (pvt->vad) {
-		ast_dsp_free(pvt->vad);
-	}
 	pvt->owner = NULL;
 	c->tech_pvt = NULL;
 
@@ -616,12 +706,19 @@ static int oh323_hangup(struct ast_channel *c)
 	}
 
 	/* Start the process if it's not already started */
-	if (!pvt->alreadygone) {
-		if (h323_clear_call((pvt->cd).call_token, q931cause)) { 
-			ast_log(LOG_DEBUG, "ClearCall failed.\n");
+	if (!pvt->alreadygone && !pvt->hangupcause) {
+		call_token = pvt->cd.call_token ? strdup(pvt->cd.call_token) : NULL;
+		if (call_token) {
+			/* Release lock to eliminate deadlock */
+			ast_mutex_unlock(&pvt->lock);
+			if (h323_clear_call(call_token, q931cause)) { 
+				ast_log(LOG_DEBUG, "ClearCall failed.\n");
+			}
+			free(call_token);
+			ast_mutex_lock(&pvt->lock);
 		}
-		pvt->needdestroy = 1;
 	} 
+	pvt->needdestroy = 1;
 
 	/* Update usage counter */
 	ast_mutex_lock(&usecnt_lock);
@@ -630,8 +727,8 @@ static int oh323_hangup(struct ast_channel *c)
 		ast_log(LOG_WARNING, "Usecnt < 0\n");
 	}
 	ast_mutex_unlock(&usecnt_lock);
-	ast_update_use_count();
 	ast_mutex_unlock(&pvt->lock);
+	ast_update_use_count();
 	return 0;
 }
 
@@ -656,10 +753,17 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *pvt)
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
 			if (f->subclass != pvt->owner->nativeformats) {
+				/* Try to avoid deadlock */
+				if (ast_mutex_trylock(&pvt->owner->lock)) {
+					ast_log(LOG_NOTICE, "Format changed but channel is locked. Ignoring frame...\n");
+					return &null_frame;
+				}
 				ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
 				pvt->owner->nativeformats = f->subclass;
+				pvt->nativeformats = f->subclass;
 				ast_set_read_format(pvt->owner, pvt->owner->readformat);
 				ast_set_write_format(pvt->owner, pvt->owner->writeformat);
+				ast_mutex_unlock(&pvt->owner->lock);
 			}	
 			/* Do in-band DTMF detection */
 			if ((pvt->dtmfmode & H323_DTMF_INBAND) && pvt->vad) {
@@ -679,6 +783,7 @@ static struct ast_frame  *oh323_read(struct ast_channel *c)
 	struct ast_frame *fr;
 	struct oh323_pvt *pvt = (struct oh323_pvt *)c->tech_pvt;
 	ast_mutex_lock(&pvt->lock);
+	oh323_update_info(c);
 	fr = oh323_rtp_read(pvt);
 	ast_mutex_unlock(&pvt->lock);
 	return fr;
@@ -699,7 +804,7 @@ static int oh323_write(struct ast_channel *c, struct ast_frame *frame)
 		if (!(frame->subclass & c->nativeformats)) {
 			ast_log(LOG_WARNING, "Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
 				frame->subclass, c->nativeformats, c->readformat, c->writeformat);
-			return -1;
+			return 0;
 		}
 	}
 	if (pvt) {
@@ -716,47 +821,71 @@ static int oh323_indicate(struct ast_channel *c, int condition)
 {
 
 	struct oh323_pvt *pvt = (struct oh323_pvt *) c->tech_pvt;
+	char *token = (char *)NULL;
 
-	ast_log(LOG_DEBUG, "OH323: Indicating %d on %s\n", condition, pvt->cd.call_token);
+	ast_mutex_lock(&pvt->lock);
+	token = (pvt->cd.call_token ? strdup(pvt->cd.call_token) : NULL);
+	ast_mutex_unlock(&pvt->lock);
+
+	if (h323debug)
+		ast_log(LOG_DEBUG, "OH323: Indicating %d on %s\n", condition, token);
 
 	switch(condition) {
 	case AST_CONTROL_RINGING:
 		if (c->_state == AST_STATE_RING || c->_state == AST_STATE_RINGING) {
-			h323_send_alerting(pvt->cd.call_token);
+			h323_send_alerting(token);
  			break;
  		}
+ 		if (token)
+ 			free(token);
 		return -1;
 	case AST_CONTROL_PROGRESS:
 		if (c->_state != AST_STATE_UP) {
-			h323_send_progress(pvt->cd.call_token);
+			h323_send_progress(token);
 			break;
 		}
+		if (token)
+			free(token);
 		return -1;
 
 	case AST_CONTROL_BUSY:
 		if (c->_state != AST_STATE_UP) {
-			h323_answering_call(pvt->cd.call_token, 1);
+			h323_answering_call(token, 1);
  			pvt->alreadygone = 1;
 			ast_softhangup_nolock(c, AST_SOFTHANGUP_DEV);			
 			break;
 		}
+		if (token)
+			free(token);
 		return -1;
 	case AST_CONTROL_CONGESTION:
 		if (c->_state != AST_STATE_UP) {
-			h323_answering_call(pvt->cd.call_token, 1);
+			h323_answering_call(token, 1);
 			pvt->alreadygone = 1;
 			ast_softhangup_nolock(c, AST_SOFTHANGUP_DEV);
 			break;
 		}
+		if (token)
+			free(token);
 		return -1;
 	case AST_CONTROL_PROCEEDING:
 	case -1:
+		if (token)
+			free(token);
 		return -1;
 	default:
-		ast_log(LOG_WARNING, "Don't know how to indicate condition %d\n", condition);
+		ast_log(LOG_WARNING, "Don't know how to indicate condition %d on %s\n", condition, token);
+		if (token)
+			free(token);
 		return -1;
-	ast_mutex_unlock(&pvt->lock);
 	}
+
+	if (h323debug)
+		ast_log(LOG_DEBUG, "OH323: Indicated %d on %s\n", condition, token);
+	if (token)
+		free(token);
+	oh323_update_info(c);
+
 	return -1;
 }
 
@@ -795,6 +924,7 @@ static struct ast_channel *oh323_new(struct oh323_pvt *pvt, int state, const cha
 		if (!ch->nativeformats) {
 			ch->nativeformats = capability;
 		}
+		pvt->nativeformats = ch->nativeformats;
 		fmt = ast_best_codec(ch->nativeformats);
 		ch->type = type;
 		ch->fds[0] = ast_rtp_fd(pvt->rtp);
@@ -903,7 +1033,7 @@ static struct oh323_pvt *find_call(int call_reference, const char *token)
 	ast_mutex_lock(&iflock);
         pvt = iflist; 
         while(pvt) {
-                if ((signed int)pvt->cd.call_reference == call_reference) {
+                if (!pvt->needdestroy && ((signed int)pvt->cd.call_reference == call_reference)) {
                         /* Found the call */             
                         if ((token != NULL) && (!strcmp(pvt->cd.call_token, token))) {
         			ast_mutex_unlock(&iflock);
@@ -1173,8 +1303,10 @@ struct rtp_info *external_rtp_create(unsigned call_reference, const char * token
 		ast_log(LOG_ERROR, "Unable to find call %s(%d)\n", token, call_reference);
 		return NULL;
 	}
+	ast_mutex_lock(&pvt->lock);
 	/* figure out our local RTP port and tell the H.323 stack about it */
 	ast_rtp_get_us(pvt->rtp, &us);
+	ast_mutex_unlock(&pvt->lock);
 	/* evil hack, until I (or someone?) figures out a better way */
 	info->addr = ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr);
 	info->port = ntohs(us.sin_port);
@@ -1202,26 +1334,28 @@ void setup_rtp_connection(unsigned call_reference, const char *remoteIp, int rem
 	struct oh323_pvt *pvt = NULL;
 	struct sockaddr_in them;
 	struct rtpPayloadType rtptype;
-	int fmt;
 
+	if (h323debug)
+		ast_log(LOG_DEBUG, "Setting up RTP connection for %s\n", token);
 	/* Find the call or allocate a private structure if call not found */
 	pvt = find_call(call_reference, token); 
 	if (!pvt) {
 		ast_log(LOG_ERROR, "Something is wrong: rtp\n");
 		return;
 	}
-
-	rtptype = ast_rtp_lookup_pt(pvt->rtp, pt);
-
-	fmt = ast_best_codec(pvt->owner->nativeformats);
-
 	ast_mutex_lock(&pvt->lock);
-	pvt->owner->nativeformats = rtptype.code;
-	pvt->owner->readformat = fmt;
-	pvt->owner->writeformat = fmt;
-	ast_set_read_format(pvt->owner, pvt->owner->readformat);
-	ast_set_write_format(pvt->owner, pvt->owner->writeformat);
-	ast_mutex_unlock(&pvt->lock);
+	if (pvt->alreadygone) {
+		ast_mutex_unlock(&pvt->lock);
+		return;
+	}
+	rtptype = ast_rtp_lookup_pt(pvt->rtp, pt);
+	pvt->nativeformats = rtptype.code;
+	if (pvt->owner && !ast_mutex_trylock(&pvt->owner->lock)) {
+		pvt->owner->nativeformats = pvt->nativeformats;
+		ast_set_read_format(pvt->owner, pvt->owner->readformat);
+		ast_set_write_format(pvt->owner, pvt->owner->writeformat);
+		ast_mutex_unlock(&pvt->owner->lock);
+	}
 
 	them.sin_family = AF_INET;
 	/* only works for IPv4 */
@@ -1230,8 +1364,13 @@ void setup_rtp_connection(unsigned call_reference, const char *remoteIp, int rem
 	ast_rtp_set_peer(pvt->rtp, &them);
 
 	if (pvt->options.progress_audio) {
+		ast_mutex_unlock(&pvt->lock);
 		progress(call_reference, token, 1);
-	}
+	} else
+		ast_mutex_unlock(&pvt->lock);
+
+	if (h323debug)
+		ast_log(LOG_DEBUG, "RTP connection prepared for %s\n", token);
 
 	return;
 }
@@ -1244,6 +1383,9 @@ void connection_made(unsigned call_reference, const char *token)
 {
 	struct ast_channel *c = NULL;
 	struct oh323_pvt *pvt = NULL;
+
+	if (h323debug)
+		ast_log(LOG_DEBUG, "Call %s answered\n", token);
 	
 	pvt = find_call(call_reference, token); 
 	
@@ -1252,13 +1394,23 @@ void connection_made(unsigned call_reference, const char *token)
 		return;
 	}
 
+	ast_mutex_lock(&pvt->lock);
+	/* Inform asterisk about remote party connected only on outgoing calls */
+	if (!pvt->outgoing) {
+		ast_mutex_unlock(&pvt->lock);
+		return;
+	}
 	if (!pvt->owner) {
+		ast_mutex_unlock(&pvt->lock);
 		ast_log(LOG_ERROR, "Channel has no owner\n");
 		return;
 	}
+	ast_mutex_lock(&pvt->owner->lock);
 	c = pvt->owner;	
 	ast_setstate(c, AST_STATE_UP);
 	ast_queue_control(c, AST_CONTROL_ANSWER);
+	ast_mutex_unlock(&pvt->owner->lock);
+	ast_mutex_unlock(&pvt->lock);
 	return;
 }
 
@@ -1273,12 +1425,16 @@ int progress(unsigned call_reference, const char *token, int inband)
 		ast_log(LOG_ERROR, "Private structure not found in progress.\n");
 		return -1;
 	}
+	ast_mutex_lock(&p->lock);
 	if (!p->owner) {
+		ast_mutex_unlock(&p->lock);
 		ast_log(LOG_ERROR, "No Asterisk channel associated with private structure.\n");
 		return -1;
 	}
-
+	ast_mutex_lock(&p->owner->lock);
 	ast_queue_control(p->owner, (inband ? AST_CONTROL_PROGRESS : AST_CONTROL_RINGING));
+	ast_mutex_unlock(&p->owner->lock);
+	ast_mutex_unlock(&p->lock);
 
 	return 0;
 }
@@ -1293,8 +1449,11 @@ call_options_t *setup_incoming_call(call_details_t cd)
 	struct oh323_pvt *pvt = NULL;
 	struct oh323_user *user = NULL;
 	struct oh323_alias *alias = NULL;
-	call_options_t *call_options = NULL;
+	call_options_t *call_options;
 	char iabuf[INET_ADDRSTRLEN];
+
+	if (h323debug)
+		ast_log(LOG_DEBUG, "Setting up incoming call for %s\n", cd.call_token);
 
 	/* allocate the call*/
 	pvt = oh323_alloc(cd.call_reference);
@@ -1311,6 +1470,7 @@ call_options_t *setup_incoming_call(call_details_t cd)
 	pvt->cd.call_source_name = strdup(cd.call_source_name);
 	pvt->cd.call_source_e164 = strdup(cd.call_source_e164);
 	pvt->cd.call_dest_e164 = strdup(cd.call_dest_e164);
+	call_options = &pvt->options;
 
 	if (h323debug) {
 		ast_verbose(VERBOSE_PREFIX_3 "Setting up Call\n");
@@ -1367,7 +1527,7 @@ call_options_t *setup_incoming_call(call_details_t cd)
 					pvt->exten[0] = 'i';
 					pvt->exten[1] = '\0';
 					ast_log(LOG_ERROR, "Call from '%s' rejected due to non-matching IP address (%s)s\n", user->name, cd.sourceIp);
-					goto exit;					
+					return NULL;
 				}
 			}
 			strncpy(pvt->context, user->context, sizeof(pvt->context) - 1);
@@ -1387,7 +1547,6 @@ call_options_t *setup_incoming_call(call_details_t cd)
 			call_options = &user->options;
 		} 
 	}
-exit:
 	return call_options;
 }
 
@@ -1400,6 +1559,9 @@ static int answer_call(unsigned call_reference, const char *token)
 {
 	struct oh323_pvt *pvt = NULL;
 	struct ast_channel *c = NULL;
+
+	if (h323debug)
+		ast_log(LOG_DEBUG, "Preparing Asterisk to answer for %s\n", token);
 
 	/* Find the call or allocate a private structure if call not found */
 	pvt = find_call(call_reference, token); 
@@ -1441,78 +1603,111 @@ void chan_ringing(unsigned call_reference, const char *token)
         struct ast_channel *c = NULL;
         struct oh323_pvt *pvt = NULL;
 
+	if (h323debug)
+		ast_log(LOG_DEBUG, "Ringing on %s\n", token);
+
         pvt = find_call(call_reference, token); 
         if (!pvt) {
                 ast_log(LOG_ERROR, "Something is wrong: ringing\n");
 	}
+	ast_mutex_lock(&pvt->lock);
         if (!pvt->owner) {
+        	ast_mutex_unlock(&pvt->lock);
                 ast_log(LOG_ERROR, "Channel has no owner\n");
                 return;
         }
+        ast_mutex_lock(&pvt->owner->lock);
         c = pvt->owner;
         ast_setstate(c, AST_STATE_RINGING);
         ast_queue_control(c, AST_CONTROL_RINGING);
+        ast_mutex_unlock(&pvt->owner->lock);
+        ast_mutex_unlock(&pvt->lock);
         return;
-}
-
-void cleanup_call_details(call_details_t cd) 
-{
-        if (cd.call_token) {
-                free(cd.call_token);
-        }
-        if (cd.call_source_aliases) {
-                free(cd.call_source_aliases);
-        }
-        if (cd.call_dest_alias) {
-                free(cd.call_dest_alias);
-	}
-        if (cd.call_source_name) { 
-                free(cd.call_source_name);
-        }
-        if (cd.call_source_e164) {
-                free(cd.call_source_e164);
-        }
-        if (cd.call_dest_e164) {
-                free(cd.call_dest_e164);
-        }
-        if (cd.sourceIp) {
-                free(cd.sourceIp);
-        }
 }
 
 /**
   * Call-back function to cleanup communication
   * Returns nothing,
   */
-void cleanup_connection(call_details_t cd)
+static void cleanup_connection(call_details_t cd)
 {	
 	struct oh323_pvt *pvt = NULL;
 	struct ast_rtp *rtp = NULL;
+
+	ast_log(LOG_DEBUG, "Cleaning connection to %s\n", cd.call_token);
 	
-	pvt = find_call(cd.call_reference, cd.call_token); 
-	if (!pvt) {
-		return;
+	while (1) {
+		pvt = find_call(cd.call_reference, cd.call_token); 
+		if (!pvt) {
+			return;
+		}
+		ast_mutex_lock(&pvt->lock);
+		if (!pvt->owner || !ast_mutex_trylock(&pvt->owner->lock))
+			break;
+#if 1
+#ifdef DEBUG_THREADS
+		ast_log(LOG_NOTICE, "Avoiding H.323 destory deadlock on %s, locked at %ld/%d by %s (%s:%d)\n", cd.call_token, pvt->owner->lock.thread, pvt->owner->lock.reentrancy, pvt->owner->lock.func, pvt->owner->lock.file, pvt->owner->lock.lineno);
+#else
+		ast_log(LOG_NOTICE, "Avoiding H.323 destory deadlock on %s\n", cd.call_token);
+#endif
+#endif
+		ast_mutex_unlock(&pvt->lock);
+		usleep(1);
 	}
-	ast_mutex_lock(&pvt->lock);
 	if (pvt->rtp) {
 		rtp = pvt->rtp;
 		pvt->rtp = NULL;
 		/* Immediately stop RTP */
 		ast_rtp_destroy(rtp);
 	}
-	cleanup_call_details(pvt->cd);
+	/* Free dsp used for in-band DTMF detection */
+	if (pvt->vad) {
+		ast_dsp_free(pvt->vad);
+		pvt->vad = NULL;
+	}
+	cleanup_call_details(&pvt->cd);
 	pvt->alreadygone = 1;
 	/* Send hangup */	
 	if (pvt->owner) {
+		pvt->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 		ast_queue_hangup(pvt->owner);
-	} 
+		ast_mutex_unlock(&pvt->owner->lock);
+	}
 	ast_mutex_unlock(&pvt->lock);
 	return;	
+}
+
+static void hangup_connection(unsigned int call_reference, const char *token, int cause)
+{
+	struct oh323_pvt *pvt = NULL;
+
+	ast_log(LOG_DEBUG, "Hanging up connection to %s with cause %d\n", token, cause);
+	
+	pvt = find_call(call_reference, token); 
+	if (!pvt) {
+		return;
+	}
+	ast_mutex_lock(&pvt->lock);
+	if (pvt->owner && !ast_mutex_trylock(&pvt->owner->lock)) {
+		pvt->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+		pvt->owner->hangupcause = pvt->hangupcause = cause;
+		ast_queue_hangup(pvt->owner);
+		ast_mutex_unlock(&pvt->owner->lock);
+	}
+	else {
+		pvt->needhangup = 1;
+		pvt->hangupcause = cause;
+		ast_log(LOG_DEBUG, "Hangup for %s is pending\n", token);
+	}
+	ast_mutex_unlock(&pvt->lock);
 }
 
 void set_dtmf_payload(unsigned call_reference, const char *token, int payload)
 {
 	struct oh323_pvt *pvt = NULL;
+
+	if (h323debug)
+		ast_log(LOG_DEBUG, "Setting DTMF payload to %d on %s\n", payload, token);
 
 	pvt = find_call(call_reference, token);
 	if (!pvt) {
@@ -1523,6 +1718,8 @@ void set_dtmf_payload(unsigned call_reference, const char *token, int payload)
 		ast_rtp_set_rtpmap_type(pvt->rtp, payload, "audio", "telephone-event");
 	}
 	ast_mutex_unlock(&pvt->lock);
+	if (h323debug)
+		ast_log(LOG_DEBUG, "DTMF payload on %s set to %d\n", token, payload);
 }
 
 static void *do_monitor(void *data)
@@ -1562,6 +1759,7 @@ restartsearch:
 			res = 1000;
 		}
 		res = ast_io_wait(io, res);
+		pthread_testcancel();
 		ast_mutex_lock(&monlock);
 		if (res >= 0) {
 			ast_sched_runq(sched);
@@ -2124,7 +2322,8 @@ int load_module()
 				       send_digit,
 				       answer_call,
 				       progress,
-				       set_dtmf_payload);
+				       set_dtmf_payload,
+				       hangup_connection);
 		/* start the h.323 listener */
 		if (h323_start_listener(h323_signalling_port, bindaddr)) {
 			ast_log(LOG_ERROR, "Unable to create H323 listener.\n");
