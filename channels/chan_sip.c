@@ -143,6 +143,11 @@ struct sip_request {
 
 struct sip_pkt;
 
+struct sip_route {
+	struct sip_route *next;
+	char hop[0];
+};
+
 static struct sip_pvt {
 	pthread_mutex_t lock;				/* Channel private lock */
 	char callid[80];					/* Global CallID */
@@ -171,8 +176,7 @@ static struct sip_pvt {
 	char referred_by[AST_MAX_EXTENSION];/* Place to store REFERRED-BY extension */
 	char refer_contact[AST_MAX_EXTENSION];/* Place to store Contact info from a REFER extension */
 	struct sip_pvt *refer_call;			/* Call we are referring */
-	char record_route[256];
-	char record_route_info[256];
+	struct sip_route *route;			/* Head of linked list of routing steps (fm Record-Route) */
 	char remote_party_id[256];
 	char context[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
@@ -322,6 +326,7 @@ static int transmit_info_with_digit(struct sip_pvt *p, char digit);
 static int transmit_message_with_text(struct sip_pvt *p, char *text);
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req);
 char *getsipuri(char *header);
+static void free_old_route(struct sip_route *route);
 
 static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
@@ -713,6 +718,10 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 		ast_sched_del(sched, p->autokillid);
 	if (p->rtp) {
 		ast_rtp_destroy(p->rtp);
+	}
+	if (p->route) {
+		free_old_route(p->route);
+		p->route = NULL;
 	}
 	/* Unlink us from the owner if we have one */
 	if (p->owner) {
@@ -1630,7 +1639,6 @@ static int copy_header(struct sip_request *req, struct sip_request *orig, char *
 	return -1;
 }
 
-#if 0
 static int copy_all_header(struct sip_request *req, struct sip_request *orig, char *field)
 {
 	char *tmp;
@@ -1645,13 +1653,9 @@ static int copy_all_header(struct sip_request *req, struct sip_request *orig, ch
 		} else
 			break;
 	}
-	if (!copied) {
-		ast_log(LOG_NOTICE, "No field '%s' present to copy\n", field);
-		return -1;
-	}
-	return 0;
+	return copied ? 0 : -1;
 }
-#endif
+
 static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct sip_request *orig, char *field)
 {
 	char *tmp;
@@ -1662,6 +1666,8 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
 		tmp = __get_header(orig, field, &start);
 		if (strlen(tmp)) {
 			if (!copied && p->nat) {
+				/* SLD: FIXME: Nice try, but the received= should not have a port */
+				/* SLD: FIXME: See RFC2543 BNF in Section 6.40.5 */
 				if (ntohs(p->recv.sin_port) != DEFAULT_SIP_PORT)
 					snprintf(new, sizeof(new), "%s;received=%s:%d", tmp, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 				else
@@ -1680,6 +1686,82 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
 		return -1;
 	}
 	return 0;
+}
+
+/* Add Route: header into request per learned route */
+static void add_route(struct sip_request *req, struct sip_route *route)
+{
+	char r[256], *p;
+	int n, rem = 255; /* sizeof(r)-1: Room for terminating 0 */
+
+	if (!route) return;
+
+	p = r;
+	while (route) {
+		n = strlen(route->hop);
+		if ((n+3)>rem) break;
+		if (p != r) {
+			*p++ = ',';
+			--rem;
+		}
+		*p++ = '<';
+		strcpy(p, route->hop);  p += n;
+		*p++ = '>';
+		rem -= (n+2);
+		route = route->next;
+	}
+	*p = '\0';
+	add_header(req, "Route", r);
+}
+
+static void set_destination(struct sip_pvt *p, char *uri)
+{
+	char *h, *maddr, hostname[256];
+	int port, hn;
+	struct hostent *hp;
+
+	/* Parse uri to h (host) and port - uri is already just the part inside the <> */
+	/* general form we are expecting is sip[s]:username[:password]@host[:port][;...] */
+
+	if (sipdebug)
+		ast_verbose("set_destination: Parsing <%s> for address/port to send to\n", uri);
+
+	h = strchr(uri, '@');
+	if (!h) {
+		ast_log(LOG_WARNING, "set_destination: Can't parse sip URI '%s'\n", uri);
+		return;
+	}
+	++h;
+	hn = strcspn(h, ":;>");
+	hostname[255] = '\0';
+	strncpy(hostname, h, (hn>255)?255:hn);
+	h+=hn;
+	/* Is "port" present? if not default to 5060 */
+	if (*h == ':') {
+		/* Parse port */
+		++h;
+		port = strtol(h, &h, 10);
+	}
+	else
+		port = 5060;
+
+	/* Got the hostname:port - but maybe there's a ";maddr=" to override address? */
+	maddr = strstr(h, ";maddr=");
+	if (maddr) {
+		maddr += 7;
+		hn = strspn(maddr, "0123456789.");
+		strncpy(hostname, maddr, (hn>255)?255:hn);
+	}
+	
+	hp = gethostbyname(hostname);
+	if (hp == NULL)  {
+		ast_log(LOG_WARNING, "Can't find address for host '%s'\n", h);
+		return;
+	}
+	p->sa.sin_family = AF_INET;
+	memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
+	p->sa.sin_port = htons(port);
+	ast_verbose("set_destination: set destination to %s, port %d\n", inet_ntoa(p->sa.sin_addr), port);
 }
 
 static int init_resp(struct sip_request *req, char *resp, struct sip_request *orig)
@@ -1726,9 +1808,11 @@ static void append_contact(struct sip_request *req, struct sip_pvt *p)
 	else
 		from = get_header(req, "To");
 	strncpy(contact2, from, sizeof(contact2)-1);
-	c = ditch_braces(contact2);
-	snprintf(contact, sizeof(contact), "<%s>", c);
-	add_header(req, "Contact", contact);
+	if (strlen(contact2)) {
+		c = ditch_braces(contact2);
+		snprintf(contact, sizeof(contact), "<%s>", c);
+		add_header(req, "Contact", contact);
+	}
 }
 
 static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, struct sip_request *req)
@@ -1737,10 +1821,9 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	memset(resp, 0, sizeof(*resp));
 	init_resp(resp, msg, req);
 	copy_via_headers(p, resp, req, "Via");
+	if (msg[0] == '2') copy_all_header(resp, req, "Record-Route");
 	copy_header(resp, req, "From");
 	ot = get_header(req, "To");
-	if (strlen(get_header(req, "Record-Route")))
-		copy_header(resp, req, "Record-Route");
 	if (!strstr(ot, "tag=")) {
 		/* Add the proper tag if we don't have it already.  If they have specified
 		   their tag, use it.  Otherwise, use our own tag */
@@ -1820,6 +1903,10 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int in
 	snprintf(tmp, sizeof(tmp), "%d %s", p->ocseq, msg);
 
 	add_header(req, "Via", p->via);
+	if (p->route) {
+		set_destination(p, p->route->hop);
+		add_route(req, p->route->next);
+	}
 
 	ot = get_header(orig, "To");
 	of = get_header(orig, "From");
@@ -2113,6 +2200,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	snprintf(tmp, sizeof(tmp), "%d %s", ++p->ocseq, cmd);
 
 	add_header(req, "Via", p->via);
+	/* SLD: FIXME?: do Route: here too?  I think not cos this is the first request.
+	 * OTOH, then we won't have anything in p->route anyway */
 	add_header(req, "From", from);
 	{
 		char contact2[256] ="", *c, contact[256];
@@ -2409,6 +2498,111 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 			ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", p->username, inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), expirey);
 	}
 	return 0;
+}
+
+static void free_old_route(struct sip_route *route)
+{
+	struct sip_route *next;
+	while (route) {
+		next = route->next;
+		free(route);
+		route = next;
+	}
+}
+
+static void list_route(struct sip_route *route)
+{
+	if (!route) {
+		ast_verbose("list_route: no route\n");
+		return;
+	}
+	while (route) {
+		ast_verbose("list_route: hop: <%s>\n", route->hop);
+		route = route->next;
+	}
+}
+
+static void build_route(struct sip_pvt *p, struct sip_request *req, int backwards)
+{
+	struct sip_route *thishop, *head, *tail;
+	int start = 0;
+	int len;
+	char *rr, *contact, *c;
+
+	if (p->route) {
+		free_old_route(p->route);
+		p->route = NULL;
+	}
+	/* We build up head, then assign it to p->route when we're done */
+	head = NULL;  tail = head;
+	/* 1st pass through all the hops in any Record-Route headers */
+	for (;;) {
+		/* Each Record-Route header */
+		rr = __get_header(req, "Record-Route", &start);
+		/*ast_verbose("Record-Route: %s\n", rr);*/
+		if (*rr == '\0') break;
+		for (;;) {
+			/* Each route entry */
+			/* Find < */
+			rr = strchr(rr, '<');
+			if (!rr) break; /* No more hops */
+			++rr;
+			len = strcspn(rr, ">");
+			/* Make a struct route */
+			thishop = (struct sip_route *)malloc(sizeof(struct sip_route)+len+1);
+			if (thishop) {
+				strncpy(thishop->hop, rr, len);
+				thishop->hop[len] = '\0';
+				ast_verbose("build_route: Record-Route hop: <%s>\n", thishop->hop);
+				/* Link in */
+				if (backwards) {
+					/* Link in at head so they end up in reverse order */
+					thishop->next = head;
+					head = thishop;
+					/* If this was the first then it'll be the tail */
+					if (!tail) tail = thishop;
+				} else {
+					/* Link in at the end */
+					if (tail)
+						tail->next = thishop;
+					else
+						head = thishop;
+					tail = thishop;
+				}
+			}
+			rr += len+1;
+		}
+	}
+	/* 2nd append the Contact: if there is one */
+	/* Can be multiple Contact headers, comma separated values - we just take the first */
+	contact = get_header(req, "Contact");
+	if (strlen(contact)) {
+		ast_log(LOG_DEBUG, "build_route: Contact hop: %s\n", contact);
+		/* Look for <: delimited address */
+		c = strchr(contact, '<');
+		if (c) {
+			/* Take to > */
+			++c;
+			len = strcspn(c, ">");
+		} else {
+			/* No <> - just take the lot */
+			c = contact; len = strlen(contact);
+		}
+		thishop = (struct sip_route *)malloc(sizeof(struct sip_route)+len+1);
+		strncpy(thishop->hop, c, len);
+		thishop->hop[len] = '\0';
+		/* Goes at the end */
+		if (tail)
+			tail->next = thishop;
+		else
+			head = thishop;
+	}
+	/* Store as new route */
+	p->route = head;
+
+	/* For debugging dump what we ended up with */
+	if (sipdebug)
+		list_route(p->route);
 }
 
 static void md5_hash(char *output, char *input)
@@ -3357,6 +3551,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			} else if (!strcasecmp(msg, "INVITE")) {
 				if (strlen(get_header(req, "Content-Type")))
 					process_sdp(p, req);
+				/* Save Record-Route for any later requests we make on this dialogue */
+				build_route(p, req, 1);
 				if (p->owner) {
 					if (p->owner->_state != AST_STATE_UP) {
 						ast_setstate(p->owner, AST_STATE_UP);
@@ -3700,6 +3896,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				p->tag = rand();
 				/* First invitation */
 				c = sip_new(p, AST_STATE_DOWN, strlen(p->username) ? p->username : NULL);
+				/* Save Record-Route for any later requests we make on this dialogue */
+				build_route(p, req, 0);
 				if (c) {
 					/* Pre-lock the call */
 					ast_pthread_mutex_lock(&c->lock);
