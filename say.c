@@ -44,6 +44,8 @@ int ast_say_number(struct ast_channel *chan, int num, char *language)
 	int res = 0;
 	int playh = 0;
 	char fn[256] = "";
+	if (!num) 
+		return ast_say_digits(chan, 0,language);
 	if (0) {
 	/* XXX Only works for english XXX */
 	} else {
@@ -65,9 +67,22 @@ int ast_say_number(struct ast_channel *chan, int num, char *language)
 				if (num < 1000){
 					snprintf(fn, sizeof(fn), "digits/%d", (num/100));
 					playh++;
+					num -= ((num / 100) * 100);
 				} else {
-					ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
-					res = -1;
+					if (num < 1000000) {
+						ast_say_number(chan, num / 1000, language);
+						num = num % 1000;
+						snprintf(fn, sizeof(fn), "digits/thousand");
+					} else {
+						if (num < 1000000000) {
+							ast_say_number(chan, num / 1000000, language);
+							num = num % 1000000;
+							snprintf(fn, sizeof(fn), "digits/million");
+						} else {
+							ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+							res = -1;
+						}
+					}
 				}
 			}
 			if (!res) {
