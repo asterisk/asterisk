@@ -59,9 +59,10 @@ static char *hasvoicemail_descrip =
 static char *app_hasnewvoicemail = "HasNewVoicemail";
 static char *hasnewvoicemail_synopsis = "Conditionally branches to priority + 101";
 static char *hasnewvoicemail_descrip =
-"HasNewVoicemail(vmbox[@context][|varname])\n"
-"  Branches to priority + 101, if there is voicemail in folder INBOX."
-"  Optionally sets <varname> to the number of messages in that folder.\n";
+"HasNewVoicemail(vmbox[/folder][@context][|varname])\n"
+"  Branches to priority + 101, if there is voicemail in folder 'folder' or INBOX.\n"
+"if folder is not specified. Optionally sets <varname> to the number of messages\n" 
+"in that folder.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -71,7 +72,8 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
-	char vmpath[256], *temps, *input, *varname = NULL, *vmbox, *vmfolder = "INBOX", *context = "default";
+	char vmpath[256], *temps, *input, *varname = NULL, *vmbox, *context = "default";
+	char *vmfolder;
 	DIR *vmdir;
 	struct dirent *vment;
 	int vmcount = 0;
@@ -100,7 +102,12 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 				context = input;
 		if (!vmbox)
 			vmbox = input;
-
+		vmfolder = strchr(vmbox, '/');
+		if (vmfolder) {
+			*vmfolder = '\0';
+			vmfolder++;
+		} else
+			vmfolder = "INBOX";
 		snprintf(vmpath,sizeof(vmpath), "%s/voicemail/%s/%s/%s", (char *)ast_config_AST_SPOOL_DIR, context, vmbox, vmfolder);
 		if (!(vmdir = opendir(vmpath))) {
 			ast_log(LOG_NOTICE, "Voice mailbox %s at %s does not exist\n", vmbox, vmpath);
