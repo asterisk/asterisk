@@ -2529,17 +2529,19 @@ static struct ast_channel *ast_iax2_new(struct chan_iax2_pvt *i, int state, int 
 	return tmp;
 }
 
-static unsigned int calc_txpeerstamp(struct iax2_peer *peer)
+static unsigned int calc_txpeerstamp(struct iax2_peer *peer, int sampms)
 {
 	struct timeval tv;
-	unsigned int mssincetx;
-	unsigned int ms;
+	long int mssincetx;
+	long int ms, pred;
+
 	gettimeofday(&tv, NULL);
 	mssincetx = (tv.tv_sec - peer->lasttxtime.tv_sec) * 1000 + (tv.tv_usec - peer->lasttxtime.tv_usec) / 1000;
 	if (mssincetx > 5000) {
 		/* If it's been at least 5 seconds since the last time we transmitted on this trunk, reset our timers */
 		peer->txtrunktime.tv_sec = tv.tv_sec;
 		peer->txtrunktime.tv_usec = tv.tv_usec;
+		peer->lastsent = 999999;
 	}
 	/* Update last transmit time now */
 	peer->lasttxtime.tv_sec = tv.tv_sec;
@@ -2547,6 +2549,10 @@ static unsigned int calc_txpeerstamp(struct iax2_peer *peer)
 	
 	/* Calculate ms offset */
 	ms = (tv.tv_sec - peer->txtrunktime.tv_sec) * 1000 + (tv.tv_usec - peer->txtrunktime.tv_usec) / 1000;
+	/* Predict from last value */
+	pred = peer->lastsent + sampms;
+	if (abs(ms - pred) < 640)
+		ms = pred;
 	
 	/* We never send the same timestamp twice, so fudge a little if we must */
 	if (ms == peer->lastsent)
@@ -4244,7 +4250,7 @@ static int send_trunk(struct iax2_peer *peer)
 		meta->zeros = 0;
 		meta->metacmd = IAX_META_TRUNK;
 		meta->cmddata = 0;
-		mth->ts = htonl(calc_txpeerstamp(peer));
+		mth->ts = htonl(calc_txpeerstamp(peer, trunkfreq));
 		/* And the rest of the ast_iax2 header */
 		fr->direction = DIRECTION_OUTGRESS;
 		fr->retrans = -1;
@@ -5737,6 +5743,7 @@ static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
 		memset(peer, 0, sizeof(struct iax2_peer));
 		peer->expire = -1;
 		peer->pokeexpire = -1;
+		peer->lastsent = 999999;
 	}
 	if (peer) {
 		if (!found) {
