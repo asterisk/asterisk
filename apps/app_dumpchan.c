@@ -30,7 +30,7 @@ static char *desc =
 "   DumpChan([<min_verbose_level>])\n"
 "Displays information on channel and listing of all channel\n"
 "variables.  If min_verbose_level is specified, output is only\n"
-"display when the verbose level is currently set to that number\n"
+"displayed when the verbose level is currently set to that number\n"
 "or greater.  Always returns 0.\n\n";
 
 STANDARD_LOCAL_USER;
