@@ -333,7 +333,7 @@ static int odbc_load_module(void)
 		{
 			strcpy(loguniqueid,tmp);
 			loguniqueid_alloc = 1;
-			ast_log(LOG_WARNING,"cdr_odbc: Logging uniqueid\n");
+			ast_log(LOG_NOTICE,"cdr_odbc: Logging uniqueid\n");
 		}
 		else
 		{
