@@ -3854,7 +3854,7 @@ static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 		if (p->pri->pri) {		
 			if (!pri_grab(p, p->pri)) {
 #ifdef PRI_PROGRESS
-					pri_progress(p->pri->pri,p->call, 1);
+					pri_progress(p->pri->pri,p->call, p->prioffset, 1);
 #else						
 					pri_acknowledge(p->pri->pri,p->call, p->prioffset, 1);
 #endif						
@@ -3968,7 +3968,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
 #ifdef PRI_PROGRESS
-						pri_progress(p->pri->pri,p->call, 1);
+						pri_progress(p->pri->pri,p->call, p->prioffset, 1);
 #else						
 						pri_acknowledge(p->pri->pri,p->call, p->prioffset, 1);
 #endif						
@@ -6536,10 +6536,10 @@ static void *pri_dchannel(void *vpri)
 							ast_log(LOG_WARNING, "Unable to set gains on channel %d\n", pri->pvt[chan]->channel);
 						if (e->ring.complete || !pri->overlapdial) {
 							/* Just announce proceeding */
-#ifdef PRI_PROCEEDING
-							pri_proceeding(pri->pri, e->ring.call, 0);
+#ifdef PRI_PROCEEDING_FULL
+							pri_proceeding(pri->pri, e->ring.call, chan, 0);
 #else
-#warning "You need newer libpri!"
+#warning "You need a newer libpri!"
 #endif							
 						} else  {
 							pri_need_more_info(pri->pri, e->ring.call, chan, 1);
