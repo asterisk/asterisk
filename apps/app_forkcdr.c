@@ -40,6 +40,7 @@ static void ast_cdr_clone(struct ast_cdr *cdr) {
 	ast_cdr_append(cdr,newcdr);
 	gettimeofday(&newcdr->start, NULL);
 	memset(&newcdr->answer, 0, sizeof(newcdr->answer));
+	newcdr->disposition = AST_CDR_NOANSWER;
 	ast_cdr_add_flag(cdr,AST_CDR_FLAG_CHILD|AST_CDR_FLAG_LOCKED);
 }
 
