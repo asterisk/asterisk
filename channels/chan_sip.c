@@ -4339,7 +4339,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	} else
 		port = DEFAULT_SIP_PORT;
 	memcpy(&oldsin, &p->addr, sizeof(oldsin));
-	if (p->nat & SIP_NAT_RFC3581) {
+	if (!(p->nat & SIP_NAT_ROUTE)) {
 		/* XXX This could block for a long time XXX */
 		hp = ast_gethostbyname(n, &ahp);
 		if (!hp)  {
