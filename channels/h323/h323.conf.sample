@@ -3,7 +3,7 @@
 ;
 [general]
 port = 1720
-bindaddr = 0.0.0.0 
+bindaddr = 1.2.3.4 	; this SHALL contain a single, valid IP address
 ;tos=lowdelay
 ;
 ; You may specify a global default AMA flag for iaxtel calls.  It must be
@@ -99,6 +99,14 @@ allow=gsm		; Always allow GSM, it's cool :)
 ;host=192.168.1.1
 ;context=incoming
 ;incominglimit=4
+;
+;
+; Outbound H.323 call to Larry using SlowStart
+;
+[Larry]
+type=peer
+host=192.168.2.1
+noFastStart=yes
 
 
 
