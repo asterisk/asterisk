@@ -27,7 +27,7 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_mp3.so\
      app_hasnewvoicemail.so app_sayunixtime.so app_cut.so app_read.so \
      app_setcdruserfield.so app_random.so app_ices.so app_eval.so \
      app_nbscat.so app_sendtext.so app_exec.so app_sms.so \
-     app_groupcount.so
+     app_groupcount.so app_txtcidname.so
 
 ifneq (${OSARCH},Darwin)
 ifneq (${OSARCH},FreeBSD)

@@ -39,6 +39,11 @@
 #define T_NAPTR 35
 #endif
 
+#ifdef __APPLE__
+#undef T_TXT
+#define T_TXT 16
+#endif
+
 #define TOPLEV "e164.arpa."
 
 static struct enum_search {
@@ -226,8 +231,30 @@ struct enum_context {
 	int dstlen;
 	char *tech;
 	int techlen;
+	char *txt;
+	int txtlen;
 	char *naptrinput;
 };
+
+static int txt_callback(void *context, u_char *answer, int len, u_char *fullanswer)
+{
+	struct enum_context *c = (struct enum_context *)context;
+#if 0
+	printf("ENUMTXT Called\n");
+#endif
+
+	if(answer != NULL)
+	{
+		c->txtlen = strlen(answer) - 2;
+		strncpy(c->txt, answer, 255);
+		c->txt[c->txtlen] = 0;
+		return 1;
+	} else {
+		c->txt = NULL;
+		c->txtlen = 0;
+		return 0;
+	}
+}
 
 static int enum_callback(void *context, u_char *answer, int len, u_char *fullanswer)
 {
@@ -289,6 +316,65 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		if (!s)
 			break;
 		ret = ast_search_dns(&context, tmp, C_IN, T_NAPTR, enum_callback);
+		if (ret > 0)
+			break;
+	}
+	if (ret < 0) {
+		ast_log(LOG_DEBUG, "No such number found: %s (%s)\n", tmp, strerror(errno));
+		ret = 0;
+	}
+	if (chan)
+		ret |= ast_autoservice_stop(chan);
+	return ret;
+}
+
+int ast_get_txt(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen, char *txt, int txtlen)
+{
+	struct enum_context context;
+	char tmp[259 + 80];
+	char naptrinput[80] = "+";
+	int pos = strlen(number) - 1;
+	int newpos = 0;
+	int ret = -1;
+	struct enum_search *s = NULL;
+	int version = -1;
+
+	strncat(naptrinput, number, sizeof(naptrinput) - 2);
+
+	context.naptrinput = naptrinput;
+	context.dst = dst;
+	context.dstlen = dstlen;
+	context.tech = tech;
+	context.techlen = techlen;
+	context.txt = txt;
+	context.txtlen = txtlen;
+
+	if (pos > 128)
+		pos = 128;
+	while(pos >= 0) {
+		tmp[newpos++] = number[pos--];
+		tmp[newpos++] = '.';
+	}
+	
+	if (chan && ast_autoservice_start(chan) < 0)
+		return -1;
+
+	for(;;) {
+		ast_mutex_lock(&enumlock);
+		if (version != enumver) {
+			/* Ooh, a reload... */
+			s = toplevs;
+			version = enumver;
+		} else {
+			s = s->next;
+		}
+		if (s) {
+			strcpy(tmp + newpos, s->toplev);
+		}
+		ast_mutex_unlock(&enumlock);
+		if (!s)
+			break;
+		ret = ast_search_dns(&context, tmp, C_IN, T_TXT, txt_callback);
 		if (ret > 0)
 			break;
 	}
