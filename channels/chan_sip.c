@@ -256,6 +256,7 @@ static struct sip_pvt {
 	char realm[256];				/* Authorization realm */
 	char nonce[256];				/* Authorization nonce */
 	char opaque[256];				/* Opaque nonsense */
+	char qop[80];				/* Quality of Protection, since SIP wasn't complicated enough yet. */
 	char domain[256];				/* Authorization nonce */
 	char lastmsg[256];				/* Last Message sent/received */
 	int amaflags;						/* AMA Flags */
@@ -4727,6 +4728,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 	char *nonce = "";
 	char *domain = "";
 	char *opaque = "";
+	char *qop = "";
 	char *c;
 
 
@@ -4772,6 +4774,17 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 				if ((c = strchr(c,',')))
 					*c = '\0';
 			}
+		} else if (!strncasecmp(c, "qop=", strlen("qop="))) {
+			c+=strlen("qop=");
+			if ((*c == '\"')) {
+				qop=++c;
+				if ((c = strchr(c,'\"')))
+					*c = '\0';
+			} else {
+				qop = c;
+				if ((c = strchr(c,',')))
+					*c = '\0';
+			}
 		} else if (!strncasecmp(c, "domain=", strlen("domain="))) {
 			c+=strlen("domain=");
 			if ((*c == '\"')) {
@@ -4796,6 +4809,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 	strncpy(p->nonce, nonce, sizeof(p->nonce)-1);
 	strncpy(p->domain, domain, sizeof(p->domain)-1);
 	strncpy(p->opaque, opaque, sizeof(p->opaque)-1);
+	strncpy(p->qop, qop, sizeof(p->qop)-1);
 	build_reply_digest(p, orig_header, digest, digest_len); 
 	return 0;
 }
@@ -4809,6 +4823,7 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 	char resp[256];
 	char resp_hash[256];
 	char uri[256] = "";
+	char cnonce[80];
 
 	if (strlen(p->domain))
 		strncpy(uri, p->domain, sizeof(uri) - 1);
@@ -4817,6 +4832,8 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 	else
 		snprintf(uri, sizeof(uri), "sip:%s@%s",p->username, inet_ntoa(p->sa.sin_addr));
 
+	snprintf(cnonce, sizeof(cnonce), "%08x", rand());
+
 	snprintf(a1,sizeof(a1),"%s:%s:%s",p->peername,p->realm,p->peersecret);
 	snprintf(a2,sizeof(a2),"%s:%s",orig_header,uri);
 	if (strlen(p->peermd5secret))
@@ -4824,10 +4841,18 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 	else
 	        md5_hash(a1_hash,a1);
 	md5_hash(a2_hash,a2);
-	snprintf(resp,sizeof(resp),"%s:%s:%s",a1_hash,p->nonce,a2_hash);
+	/* XXX We hard code the nonce-number to 1... What are the odds? Are we seriously going to keep
+	       track of every nonce we've seen? Also we hard code to "auth"...  XXX */
+	if (strlen(p->qop))
+		snprintf(resp,sizeof(resp),"%s:%s:%s:%s:%s:%s",a1_hash,p->nonce, "00000001", cnonce, "auth", a2_hash);
+	else
+		snprintf(resp,sizeof(resp),"%s:%s:%s",a1_hash,p->nonce,a2_hash);
 	md5_hash(resp_hash,resp);
-
-	snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"",p->peername,p->realm,uri,p->nonce,resp_hash, p->opaque);
+	/* XXX We hard code our qop to "auth" for now.  XXX */
+	if (strlen(p->qop))
+		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=\"%s\", cnonce=\"%s\", nc=%s",p->peername,p->realm,uri,p->nonce,resp_hash, p->opaque, "auth", cnonce, "00000001");
+	else
+		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"",p->peername,p->realm,uri,p->nonce,resp_hash, p->opaque);
 
 	return 0;
 }
