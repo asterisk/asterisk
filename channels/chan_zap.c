@@ -2187,6 +2187,7 @@ static int zt_hangup(struct ast_channel *ast)
 			ast_log(LOG_DEBUG, "Freeing up bearer channel %d\n", p->bearer->channel);
 			/* Free up the bearer channel as well, and
 			   don't use its file descriptor anymore */
+			update_conf(p->bearer);
 			p->bearer->owner = NULL;
 			p->bearer = NULL;
 			p->subs[SUB_REAL].zfd = -1;
