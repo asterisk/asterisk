@@ -13,6 +13,7 @@
 
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/poll.h>
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
 #include <asterisk/cli.h>
@@ -229,26 +230,24 @@ static void *netconsole(void *vconsole)
 	char hostname[256];
 	char tmp[512];
 	int res;
-	int max;
-	fd_set rfds;
+	struct pollfd fds[2];
 	
 	if (gethostname(hostname, sizeof(hostname)))
 		strncpy(hostname, "<Unknown>", sizeof(hostname)-1);
 	snprintf(tmp, sizeof(tmp), "%s/%d/%s\n", hostname, ast_mainpid, ASTERISK_VERSION);
 	fdprint(con->fd, tmp);
 	for(;;) {
-		FD_ZERO(&rfds);	
-		FD_SET(con->fd, &rfds);
-		FD_SET(con->p[0], &rfds);
-		max = con->fd;
-		if (con->p[0] > max)
-			max = con->p[0];
-		res = ast_select(max + 1, &rfds, NULL, NULL, NULL);
+		fds[0].fd = con->fd;
+		fds[0].events = POLLIN;
+		fds[1].fd = con->p[0];
+		fds[1].events = POLLIN;
+
+		res = poll(fds, 2, -1);
 		if (res < 0) {
-			ast_log(LOG_WARNING, "select returned < 0: %s\n", strerror(errno));
+			ast_log(LOG_WARNING, "poll returned < 0: %s\n", strerror(errno));
 			continue;
 		}
-		if (FD_ISSET(con->fd, &rfds)) {
+		if (fds[0].revents) {
 			res = read(con->fd, tmp, sizeof(tmp));
 			if (res < 1) {
 				break;
@@ -256,7 +255,7 @@ static void *netconsole(void *vconsole)
 			tmp[res] = 0;
 			ast_cli_command(con->fd, tmp);
 		}
-		if (FD_ISSET(con->p[0], &rfds)) {
+		if (fds[1].revents) {
 			res = read(con->p[0], tmp, sizeof(tmp));
 			if (res < 1) {
 				ast_log(LOG_ERROR, "read returned %d\n", res);
@@ -280,23 +279,23 @@ static void *netconsole(void *vconsole)
 static void *listener(void *unused)
 {
 	struct sockaddr_un sun;
-	fd_set fds;
 	int s;
 	int len;
 	int x;
 	int flags;
+	struct pollfd fds[1];
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	for(;;) {
 		if (ast_socket < 0)
 			return NULL;
-		FD_ZERO(&fds);
-		FD_SET(ast_socket, &fds);
-		s = ast_select(ast_socket + 1, &fds, NULL, NULL, NULL);
+		fds[0].fd = ast_socket;
+		fds[0].events= POLLIN;
+		s = poll(fds, 1, -1);
 		if (s < 0) {
 			if (errno != EINTR)
-				ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
+				ast_log(LOG_WARNING, "poll returned error: %s\n", strerror(errno));
 			continue;
 		}
 		len = sizeof(sun);
@@ -397,7 +396,7 @@ static int ast_tryconnect(void)
 
 static void urg_handler(int num)
 {
-	/* Called by soft_hangup to interrupt the select, read, or other
+	/* Called by soft_hangup to interrupt the poll, read, or other
 	   system call.  We don't actually need to do anything though.  */
 	/* Cannot EVER ast_log from within a signal handler */
 	if (option_debug) 
@@ -628,7 +627,7 @@ static void console_verboser(const char *s, int pos, int replace, int complete)
 		fputs(s + pos,stdout);
 	fflush(stdout);
 	if (complete)
-	/* Wake up a select()ing console */
+	/* Wake up a poll()ing console */
 		if (option_console && consolethread != AST_PTHREADT_NULL)
 			pthread_kill(consolethread, SIGURG);
 }
@@ -821,38 +820,38 @@ static struct ast_cli_entry astbang = { { "!", NULL }, handle_bang, "Execute a s
 
 static int ast_el_read_char(EditLine *el, char *cp)
 {
-        int num_read=0;
+    int num_read=0;
 	int lastpos=0;
-	fd_set rfds;
+	struct pollfd fds[2];
 	int res;
 	int max;
 	char buf[512];
 
 	for (;;) {
-		FD_ZERO(&rfds);
-		FD_SET(ast_consock, &rfds);
-		max = ast_consock;
+		max = 1;
+		fds[0].fd = ast_consock;
+		fds[0].events = POLLIN;
 		if (!option_exec) {
-			FD_SET(STDIN_FILENO, &rfds);
-			if (STDIN_FILENO > max)
-				max = STDIN_FILENO;
+			fds[1].fd = STDIN_FILENO;
+			fds[1].events = POLLIN;
+			max++;
 		}
-		res = ast_select(max+1, &rfds, NULL, NULL, NULL);
+		res = poll(fds, max, -1);
 		if (res < 0) {
 			if (errno == EINTR)
 				continue;
-			ast_log(LOG_ERROR, "select failed: %s\n", strerror(errno));
+			ast_log(LOG_ERROR, "poll failed: %s\n", strerror(errno));
 			break;
 		}
 
-		if (FD_ISSET(STDIN_FILENO, &rfds)) {
+		if (!option_exec && fds[1].revents) {
 			num_read = read(STDIN_FILENO, cp, 1);
 			if (num_read < 1) {
 				break;
 			} else 
 				return (num_read);
 		}
-		if (FD_ISSET(ast_consock, &rfds)) {
+		if (fds[0].revents) {
 			res = read(ast_consock, buf, sizeof(buf) - 1);
 			/* if the remote side disappears exit */
 			if (res < 1) {
@@ -1672,7 +1671,7 @@ int main(int argc, char *argv[])
 
 	} else {
  		/* Do nothing */
-		ast_select(0,NULL,NULL,NULL,NULL);
+		poll(NULL,0, -1);
 	}
 	return 0;
 }
