@@ -1538,6 +1538,7 @@ static int pbx_load_module(void)
 	char *cxt, *ext, *pri, *appl, *data, *tc, *cidmatch;
 	struct ast_context *con;
 	char *start, *end;
+	char realvalue[256] = "";
 
 	cfg = ast_load(config);
 	if (cfg) {
@@ -1548,7 +1549,8 @@ static int pbx_load_module(void)
 			"writeprotect"));
 		v = ast_variable_browse(cfg, "globals");
 		while(v) {
-			pbx_builtin_setvar_helper(NULL, v->name, v->value);
+			pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
+			pbx_builtin_setvar_helper(NULL, v->name, realvalue);
 			v = v->next;
 		}
 		cxt = ast_category_browse(cfg, NULL);

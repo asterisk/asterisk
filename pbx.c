@@ -738,8 +738,9 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 	int offset,offset2;
 	struct ast_var_t *variables;
 	char *name, *num; /* for callerid name + num variables */
-	struct varshead *headp;
-        headp=&c->varshead;
+	struct varshead *headp=NULL;
+    if (c) 
+		headp=&c->varshead;
     *ret=NULL;
         /* Now we have the variable name on cp3 */
 	if ((first=strchr(var,':'))) {
@@ -773,7 +774,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 		else
 			*ret+=strlen(*ret)+offset;
 		(*ret)[offset2] = '\0';
-	} else if (!strcmp(var, "CALLERIDNUM")) {
+	} else if (c && !strcmp(var, "CALLERIDNUM")) {
 		if (c->callerid)
 			strncpy(workspace, c->callerid, workspacelen - 1);
 		ast_callerid_parse(workspace, &name, &num);
@@ -782,7 +783,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 			*ret = num;
 		} else
 			*ret = workspace;
-	} else if (!strcmp(var, "CALLERIDNAME")) {
+	} else if (c && !strcmp(var, "CALLERIDNAME")) {
 		if (c->callerid)
 			strncpy(workspace, c->callerid, workspacelen - 1);
 		ast_callerid_parse(workspace, &name, &num);
@@ -790,21 +791,21 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 			*ret = name;
 		else
 			*ret = workspace;
-	} else if (!strcmp(var, "CALLERID")) {
+	} else if (c && !strcmp(var, "CALLERID")) {
 		if (c->callerid) {
 			strncpy(workspace, c->callerid, workspacelen - 1);
 			*ret = workspace;
 		} else 
 			*ret = NULL;
-	} else if (!strcmp(var, "HINT")) {
+	} else if (c && !strcmp(var, "HINT")) {
 		if (!ast_get_hint(workspace, workspacelen - 1, c, c->context, c->exten))
 			*ret = NULL;
 		else
 			*ret = workspace;
-	} else if (!strcmp(var, "EXTEN")) {
+	} else if (c && !strcmp(var, "EXTEN")) {
 		strncpy(workspace, c->exten, workspacelen - 1);
 		*ret = workspace;
-	} else if (!strncmp(var, "EXTEN-", strlen("EXTEN-")) && 
+	} else if (c && !strncmp(var, "EXTEN-", strlen("EXTEN-")) && 
 		/* XXX Remove me eventually */
 		(sscanf(var + strlen("EXTEN-"), "%d", &offset) == 1)) {
 		if (offset < 0)
@@ -814,25 +815,25 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 		strncpy(workspace, c->exten + offset, workspacelen - 1);
 		*ret = workspace;
 		ast_log(LOG_WARNING, "The use of 'EXTEN-foo' has been derprecated in favor of 'EXTEN:foo'\n");
-	} else if (!strcmp(var, "RDNIS")) {
+	} else if (c && !strcmp(var, "RDNIS")) {
 		if (c->rdnis) {
 			strncpy(workspace, c->rdnis, workspacelen - 1);
 			*ret = workspace;
 		} else
 			*ret = NULL;
-	} else if (!strcmp(var, "CONTEXT")) {
+	} else if (c && !strcmp(var, "CONTEXT")) {
 		strncpy(workspace, c->context, workspacelen - 1);
 		*ret = workspace;
-	} else if (!strcmp(var, "PRIORITY")) {
+	} else if (c && !strcmp(var, "PRIORITY")) {
 		snprintf(workspace, workspacelen, "%d", c->priority);
 		*ret = workspace;
-	} else if (!strcmp(var, "CHANNEL")) {
+	} else if (c && !strcmp(var, "CHANNEL")) {
 		strncpy(workspace, c->name, workspacelen - 1);
 		*ret = workspace;
-	} else if (!strcmp(var, "EPOCH")) {
+	} else if (c && !strcmp(var, "EPOCH")) {
 	  snprintf(workspace, workspacelen -1, "%u",(int)time(NULL));
 	  *ret = workspace;
-	} else if (!strcmp(var, "DATETIME")) {
+	} else if (c && !strcmp(var, "DATETIME")) {
 	  thistime=time(NULL);
 	  localtime_r(&thistime, &brokentime);
 	  snprintf(workspace, workspacelen -1, "%02d%02d%04d-%02d:%02d:%02d",
@@ -844,18 +845,20 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 		   brokentime.tm_sec
 		   );
 	  *ret = workspace;
-	} else if (!strcmp(var, "UNIQUEID")) {
+	} else if (c && !strcmp(var, "UNIQUEID")) {
 	  snprintf(workspace, workspacelen -1, "%s", c->uniqueid);
 	} else {
-		AST_LIST_TRAVERSE(headp,variables,entries) {
+		if (c) {
+			AST_LIST_TRAVERSE(headp,variables,entries) {
 #if 0
-			ast_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",var,ast_var_name(variables));
+				ast_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",var,ast_var_name(variables));
 #endif
-			if (strcasecmp(ast_var_name(variables),var)==0) {
-				*ret=ast_var_value(variables);
-				if (*ret) {
-					strncpy(workspace, *ret, workspacelen - 1);
-					*ret = workspace;
+				if (strcasecmp(ast_var_name(variables),var)==0) {
+					*ret=ast_var_value(variables);
+					if (*ret) {
+						strncpy(workspace, *ret, workspacelen - 1);
+						*ret = workspace;
+					}
 				}
 			}
 		}
