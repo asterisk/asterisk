@@ -359,6 +359,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 	struct agent_pvt *p = ast->pvt->pvt;
 	int res = -1;
 	ast_mutex_lock(&p->lock);
+	p->acknowledged = 0;
 	if (!p->chan) {
 		if (p->pending) {
 			ast_log(LOG_DEBUG, "Pretending to dial on pending agent\n");
@@ -412,8 +413,14 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 	if( !res )
 	{
-		/* Call is immediately up */
-		ast_setstate(ast, AST_STATE_UP);
+		/* Call is immediately up, or might need ack */
+		if (p->ackcall > 1)
+			ast_setstate(ast, AST_STATE_RINGING);
+		else {
+			ast_setstate(ast, AST_STATE_UP);
+			p->acknowledged = 1;
+		}
+		res = 0;
 	}
 	CLEANUP(ast,p);
 	ast_mutex_unlock(&p->lock);
@@ -428,13 +435,13 @@ static int agent_hangup(struct ast_channel *ast)
 	p->owner = NULL;
 	ast->pvt->pvt = NULL;
 	p->app_sleep_cond = 1;
+	p->acknowledged = 0;
 	if (p->start && (ast->_state != AST_STATE_UP))
 		howlong = time(NULL) - p->start;
 	time(&p->start);
 	if (p->chan) {
 		/* If they're dead, go ahead and hang up on the agent now */
 		if (strlen(p->loginchan)) {
-			p->acknowledged = 0;
 			if (p->chan) {
 				/* Recognize the hangup and pass it along immediately */
 				ast_hangup(p->chan);
@@ -645,7 +652,12 @@ static int read_agent_config(void)
 			if (autologoff < 0)
 				autologoff = 0;
 		} else if (!strcasecmp(v->name, "ackcall")) {
-                        ackcall = ast_true(v->value);
+			if (!strcasecmp(v->value, "always"))
+				ackcall = 2;
+			else if (ast_true(v->value))
+                ackcall = 1;
+			else
+				ackcall = 0;
 		} else if (!strcasecmp(v->name, "wrapuptime")) {
 			wrapuptime = atoi(v->value);
 			if (wrapuptime < 0)
@@ -1079,7 +1091,6 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 							/* Login this channel and wait for it to
 							   go away */
 							p->chan = chan;
-							p->acknowledged = 1;
 							check_availability(p, 0);
 							ast_mutex_unlock(&p->lock);
 							ast_mutex_unlock(&agentlock);
