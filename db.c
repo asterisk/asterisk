@@ -148,6 +148,7 @@ int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
 	snprintf(fullkey, sizeof(fullkey), "/%s/%s", family, keys);
 	memset(&key, 0, sizeof(key));
 	memset(&data, 0, sizeof(data));
+	memset(value, 0, valuelen);
 	key.data = fullkey;
 	key.size = strlen(fullkey) + 1;
 	
@@ -157,7 +158,6 @@ int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
 
 	/* Be sure to NULL terminate our data either way */
 	if (res) {
-		value[0] = 0;
 		ast_log(LOG_DEBUG, "Unable to find key '%s' in family '%s'\n", keys, family);
 	} else {
 #if 0
@@ -165,11 +165,10 @@ int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
 #endif
 		if (data.size) {
 			((char *)data.data)[data.size - 1] = '\0';
-			strncpy(value, data.data, valuelen - 1);
-			value[valuelen - 1] = '\0';
+			/* Make sure that we don't write too much to the dst pointer or we don't read too much from the source pointer */
+			strncpy(value, data.data, (valuelen > data.size) ? data.size : valuelen);
 		} else {
 			ast_log(LOG_NOTICE, "Strange, empty value for /%s/%s\n", family, keys);
-			value[0] = '\0';
 		}
 	}
 	return res;
