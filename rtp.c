@@ -663,14 +663,19 @@ void ast_rtp_get_current_formats(struct ast_rtp* rtp,
   }
 }
 
-struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt) {
+struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt) 
+{
+  struct rtpPayloadType result;
   if (pt < 0 || pt > MAX_RTP_PT) {
-    struct rtpPayloadType result;
     result.isAstFormat = result.code = 0;
     return result; // bogus payload type
   }
-  /* Gotta use our static one, since that's what we sent against */
-  return static_RTP_PT[pt];
+  /* Start with the negotiated codecs */
+  result = rtp->current_RTP_PT[pt];
+  /* If it doesn't exist, check our static RTP type list, just in case */
+  if (!result.code) 
+  	result = static_RTP_PT[pt];
+  return result;
 }
 
 int ast_rtp_lookup_code(struct ast_rtp* rtp, int isAstFormat, int code) {
@@ -684,6 +689,18 @@ int ast_rtp_lookup_code(struct ast_rtp* rtp, int isAstFormat, int code) {
     return rtp->rtp_lookup_code_cache_result;
   }
 
+	/* Check the dynamic list first */
+  for (pt = 0; pt < MAX_RTP_PT; ++pt) {
+    if (rtp->current_RTP_PT[pt].code == code &&
+		rtp->current_RTP_PT[pt].isAstFormat == isAstFormat) {
+      rtp->rtp_lookup_code_cache_isAstFormat = isAstFormat;
+      rtp->rtp_lookup_code_cache_code = code;
+      rtp->rtp_lookup_code_cache_result = pt;
+      return pt;
+    }
+  }
+
+	/* Then the static list */
   for (pt = 0; pt < MAX_RTP_PT; ++pt) {
     if (static_RTP_PT[pt].code == code &&
 		static_RTP_PT[pt].isAstFormat == isAstFormat) {
