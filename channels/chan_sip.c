@@ -5716,6 +5716,7 @@ static void *do_monitor(void *data)
 		/* Check for a reload request */
 		ast_mutex_lock(&sip_reload_lock);
 		reloading = sip_reloading;
+		sip_reloading = 0;
 		ast_mutex_unlock(&sip_reload_lock);
 		if (reloading) {
 			if (option_verbose > 0)
@@ -6722,7 +6723,6 @@ static int sip_do_reload(void)
 
 	prune_peers();
 	/* And start the monitor for the first time */
-	restart_monitor();
 	ast_mutex_lock(&regl.lock);
 	for (reg = regl.registrations; reg; reg = reg->next) 
 		__sip_do_register(reg);
