@@ -8387,14 +8387,23 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 		peer->lastmsgssent = -1;
 		if (!found) {
 			strncpy(peer->name, name, sizeof(peer->name)-1);
-			strncpy(peer->context, default_context, sizeof(peer->context)-1);
-			strncpy(peer->language, default_language, sizeof(peer->language)-1);
-			strncpy(peer->musicclass, global_musicclass, sizeof(peer->musicclass)-1);
-			peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
+						peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
 			peer->addr.sin_family = AF_INET;
 			peer->defaddr.sin_family = AF_INET;
 			peer->expiry = expiry;
 		}
+		strncpy(peer->context, default_context, sizeof(peer->context)-1);
+		strncpy(peer->language, default_language, sizeof(peer->language)-1);
+		strncpy(peer->musicclass, global_musicclass, sizeof(peer->musicclass)-1);
+		peer->secret[0] = '\0';
+		peer->md5secret[0] = '\0';
+		peer->fromdomain[0] = '\0';
+		peer->fromuser[0] = '\0';
+		peer->regexten[0] = '\0';
+		peer->mailbox[0] = '\0';
+		peer->callgroup = 0;
+		peer->pickupgroup = 0;
+		peer->maxms = 0;
 		peer->prefs = prefs;
 		oldha = peer->ha;
 		peer->ha = NULL;
