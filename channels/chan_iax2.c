@@ -33,6 +33,7 @@
 #include <asterisk/app.h>
 #include <asterisk/astdb.h>
 #include <asterisk/musiconhold.h>
+#include <asterisk/parking.h>
 #include <sys/mman.h>
 #include <arpa/inet.h>
 #include <dirent.h>
@@ -1750,15 +1751,17 @@ static int iax2_sendhtml(struct ast_channel *c, int subclass, char *data, int da
 	return send_command_locked(PTR_TO_CALLNO(c->pvt->pvt), AST_FRAME_HTML, subclass, 0, data, datalen, -1);
 }
 
-static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan)
+static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan, int lock)
 {
 	unsigned short callno = PTR_TO_CALLNO(newchan->pvt->pvt);
-	ast_mutex_lock(&iaxsl[callno]);
+	if (lock)
+		ast_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno])
 		iaxs[callno]->owner = newchan;
 	else
 		ast_log(LOG_WARNING, "Uh, this isn't a good sign...\n");
-	ast_mutex_unlock(&iaxsl[callno]);
+	if (lock)
+		ast_mutex_unlock(&iaxsl[callno]);
 	return 0;
 }
 
@@ -4228,7 +4231,7 @@ static void dp_lookup(int callno, char *context, char *callednum, char *callerid
 	memset(&ied1, 0, sizeof(ied1));
 	mm = ast_matchmore_extension(NULL, context, callednum, 1, callerid);
 	/* Must be started */
-	if (ast_exists_extension(NULL, context, callednum, 1, callerid)) {
+	if (!strcmp(callednum, ast_parking_ext()) || ast_exists_extension(NULL, context, callednum, 1, callerid)) {
 		dpstatus = IAX_DPSTATUS_EXISTS;
 	} else if (ast_canmatch_extension(NULL, context, callednum, 1, callerid)) {
 		dpstatus = IAX_DPSTATUS_CANEXIST;
@@ -4279,6 +4282,84 @@ static void spawn_dp_lookup(int callno, char *context, char *callednum, char *ca
 		}
 	} else
 		ast_log(LOG_WARNING, "Out of memory!\n");
+}
+
+struct iax_dual {
+	struct ast_channel *chan1;
+	struct ast_channel *chan2;
+};
+
+static void *iax_park_thread(void *stuff)
+{
+	struct ast_channel *chan1, *chan2;
+	struct iax_dual *d;
+	struct ast_frame *f;
+	int ext;
+	int res;
+	d = stuff;
+	chan1 = d->chan1;
+	chan2 = d->chan2;
+	free(d);
+	f = ast_read(chan1);
+	if (f)
+		ast_frfree(f);
+	res = ast_park_call(chan1, chan2, 0, &ext);
+	ast_hangup(chan2);
+	ast_log(LOG_DEBUG, "Parked on extension '%d'\n", ext);
+	return NULL;
+}
+
+static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2)
+{
+	struct iax_dual *d;
+	struct ast_channel *chan1m, *chan2m;
+	pthread_t th;
+	chan1m = ast_channel_alloc(0);
+	chan2m = ast_channel_alloc(0);
+	if (chan2m && chan1m) {
+		snprintf(chan1m->name, sizeof(chan1m->name), "Parking/%s", chan1->name);
+		/* Make formats okay */
+		chan1m->readformat = chan1->readformat;
+		chan1m->writeformat = chan1->writeformat;
+		ast_channel_masquerade(chan1m, chan1);
+		/* Setup the extensions and such */
+		strncpy(chan1m->context, chan1->context, sizeof(chan1m->context) - 1);
+		strncpy(chan1m->exten, chan1->exten, sizeof(chan1m->exten) - 1);
+		chan1m->priority = chan1->priority;
+		
+		/* We make a clone of the peer channel too, so we can play
+		   back the announcement */
+		snprintf(chan2m->name, sizeof (chan2m->name), "IAXPeer/%s",chan2->name);
+		/* Make formats okay */
+		chan2m->readformat = chan2->readformat;
+		chan2m->writeformat = chan2->writeformat;
+		ast_channel_masquerade(chan2m, chan2);
+		/* Setup the extensions and such */
+		strncpy(chan2m->context, chan2->context, sizeof(chan2m->context) - 1);
+		strncpy(chan2m->exten, chan2->exten, sizeof(chan2m->exten) - 1);
+		chan2m->priority = chan2->priority;
+		if (ast_do_masquerade(chan2m, 0)) {
+			ast_log(LOG_WARNING, "Masquerade failed :(\n");
+			ast_hangup(chan2m);
+			return -1;
+		}
+	} else {
+		if (chan1m)
+			ast_hangup(chan1m);
+		if (chan2m)
+			ast_hangup(chan2m);
+		return -1;
+	}
+	d = malloc(sizeof(struct iax_dual));
+	if (d) {
+		memset(d, 0, sizeof(*d));
+		d->chan1 = chan1m;
+		d->chan2 = chan2m;
+		if (!pthread_create(&th, NULL, iax_park_thread, d))
+			return 0;
+		free(d);
+	}
+	return -1;
 }
 
 static int socket_read(int *id, int fd, short events, void *cbdata)
@@ -4799,12 +4880,19 @@ retryowner:
 				break;
 			case IAX_COMMAND_TRANSFER:
 				if (iaxs[fr.callno]->owner && iaxs[fr.callno]->owner->bridge && ies.called_number) {
-					if (ast_async_goto(iaxs[fr.callno]->owner->bridge, iaxs[fr.callno]->context, ies.called_number, 1, 1))
-						ast_log(LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", iaxs[fr.callno]->owner->bridge->name, 
-							ies.called_number, iaxs[fr.callno]->context);
-					else
-						ast_log(LOG_DEBUG, "Async goto of '%s' to '%s@%s' started\n", iaxs[fr.callno]->owner->bridge->name, 
-							ies.called_number, iaxs[fr.callno]->context);
+					if (!strcmp(ies.called_number, ast_parking_ext())) {
+						if (iax_park(iaxs[fr.callno]->owner->bridge, iaxs[fr.callno]->owner)) {
+							ast_log(LOG_WARNING, "Failed to park call on '%s'\n", iaxs[fr.callno]->owner->bridge->name);
+						} else
+							ast_log(LOG_DEBUG, "Parked call on '%s'\n", iaxs[fr.callno]->owner->bridge->name);
+					} else {
+						if (ast_async_goto(iaxs[fr.callno]->owner->bridge, iaxs[fr.callno]->context, ies.called_number, 1, 1))
+							ast_log(LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", iaxs[fr.callno]->owner->bridge->name, 
+								ies.called_number, iaxs[fr.callno]->context);
+						else
+							ast_log(LOG_DEBUG, "Async goto of '%s' to '%s@%s' started\n", iaxs[fr.callno]->owner->bridge->name, 
+								ies.called_number, iaxs[fr.callno]->context);
+					}
 				} else
 						ast_log(LOG_DEBUG, "Async goto not applicable on call %d\n", fr.callno);
 				break;

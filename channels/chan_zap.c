@@ -2537,11 +2537,12 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 
 static int zt_indicate(struct ast_channel *chan, int condition);
 
-static int zt_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
+static int zt_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, int needlock)
 {
 	struct zt_pvt *p = newchan->pvt->pvt;
 	int x;
-	ast_mutex_lock(&p->lock);
+	if (needlock)
+		ast_mutex_lock(&p->lock);
 	ast_log(LOG_DEBUG, "New owner for channel %d is %s\n", p->channel, newchan->name);
 	if (p->owner == oldchan)
 		p->owner = newchan;
@@ -2554,7 +2555,8 @@ static int zt_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	if (newchan->_state == AST_STATE_RINGING) 
 		zt_indicate(newchan, AST_CONTROL_RINGING);
 	update_conf(p);
-	ast_mutex_unlock(&p->lock);
+	if (needlock)
+		ast_mutex_unlock(&p->lock);
 	return 0;
 }
 

@@ -597,8 +597,6 @@ int ast_softhangup(struct ast_channel *chan, int cause)
 	return res;
 }
 
-static int ast_do_masquerade(struct ast_channel *original);
-
 static void free_translation(struct ast_channel *clone)
 {
 	if (clone->pvt->writetrans)
@@ -618,7 +616,7 @@ int ast_hangup(struct ast_channel *chan)
 	   if someone is going to masquerade as us */
 	ast_mutex_lock(&chan->lock);
 	if (chan->masq) {
-		if (ast_do_masquerade(chan)) 
+		if (ast_do_masquerade(chan, 1)) 
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
 	}
 
@@ -821,7 +819,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	for (x=0;x<n;x++) {
 		ast_mutex_lock(&c[x]->lock);
 		if (c[x]->masq) {
-			if (ast_do_masquerade(c[x])) {
+			if (ast_do_masquerade(c[x], 1)) {
 				ast_log(LOG_WARNING, "Masquerade failed\n");
 				*ms = -1;
 				ast_mutex_unlock(&c[x]->lock);
@@ -1008,7 +1006,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 	
 	ast_mutex_lock(&chan->lock);
 	if (chan->masq) {
-		if (ast_do_masquerade(chan)) {
+		if (ast_do_masquerade(chan, 1)) {
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
 			f = NULL;
 		} else
@@ -1343,7 +1341,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	}
 	/* Handle any pending masquerades */
 	if (chan->masq) {
-		if (ast_do_masquerade(chan)) {
+		if (ast_do_masquerade(chan, 1)) {
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
 			ast_mutex_unlock(&chan->lock);
 			return -1;
@@ -1926,7 +1924,7 @@ void ast_change_name(struct ast_channel *chan, char *newname)
 	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", tmp, chan->name, chan->uniqueid);
 }
 
-static int ast_do_masquerade(struct ast_channel *original)
+int ast_do_masquerade(struct ast_channel *original, int needlock)
 {
 	int x,i;
 	int res=0;
@@ -1951,8 +1949,9 @@ static int ast_do_masquerade(struct ast_channel *original)
 	   channel's backend.   I'm not sure we're going to keep this function, because 
 	   while the features are nice, the cost is very high in terms of pure nastiness. XXX */
 
-	/* We need the clone's lock, too */
-	ast_mutex_lock(&clone->lock);
+	if (needlock)
+		/* We need the clone's lock, too */
+		ast_mutex_lock(&clone->lock);
 
 	ast_log(LOG_DEBUG, "Got clone lock on '%s' at %p\n", clone->name, &clone->lock);
 
@@ -2013,7 +2012,7 @@ static int ast_do_masquerade(struct ast_channel *original)
 
 
 	if (clone->pvt->fixup){
-		res = clone->pvt->fixup(original, clone);
+		res = clone->pvt->fixup(original, clone, needlock);
 		if (res) 
 			ast_log(LOG_WARNING, "Fixup failed on channel %s, strange things may happen.\n", clone->name);
 	}
@@ -2023,7 +2022,8 @@ static int ast_do_masquerade(struct ast_channel *original)
 		res = clone->pvt->hangup(clone);
 	if (res) {
 		ast_log(LOG_WARNING, "Hangup failed!  Strange things may happen!\n");
-		ast_mutex_unlock(&clone->lock);
+		if (needlock)
+			ast_mutex_unlock(&clone->lock);
 		return -1;
 	}
 	
@@ -2100,7 +2100,7 @@ static int ast_do_masquerade(struct ast_channel *original)
 	/* Okay.  Last thing is to let the channel driver know about all this mess, so he
 	   can fix up everything as best as possible */
 	if (original->pvt->fixup) {
-		res = original->pvt->fixup(clone, original);
+		res = original->pvt->fixup(clone, original, needlock);
 		if (res) {
 			ast_log(LOG_WARNING, "Driver for '%s' could not fixup channel %s\n",
 				original->type, original->name);
@@ -2115,13 +2115,15 @@ static int ast_do_masquerade(struct ast_channel *original)
 	   zombie, then free it now (since it already is considered invalid). */
 	if (clone->zombie) {
 		ast_log(LOG_DEBUG, "Destroying clone '%s'\n", clone->name);
-		ast_mutex_unlock(&clone->lock);
+		if (needlock)
+			ast_mutex_unlock(&clone->lock);
 		ast_channel_free(clone);
 		manager_event(EVENT_FLAG_CALL, "Hangup", "Channel: %s\r\n", zombn);
 	} else {
 		ast_log(LOG_DEBUG, "Released clone lock on '%s'\n", clone->name);
 		clone->zombie=1;
-		ast_mutex_unlock(&clone->lock);
+		if (needlock)
+			ast_mutex_unlock(&clone->lock);
 	}
 	
 	/* Signal any blocker */

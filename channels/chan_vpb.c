@@ -651,7 +651,7 @@ static int vpb_indicate(struct ast_channel *ast, int condition)
     return res;
 }
 
-static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
+static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, int needlock)
 {
 	struct vpb_pvt *p = (struct vpb_pvt *)newchan->pvt->pvt;
 

@@ -60,7 +60,7 @@ struct ast_channel_pvt {
 	/*! Indicate a particular condition (e.g. AST_CONTROL_BUSY or AST_CONTROL_RINGING or AST_CONTROL_CONGESTION */
 	int (*indicate)(struct ast_channel *c, int condition);
 	/*! Fix up a channel:  If a channel is consumed, this is called.  Basically update any ->owner links */
-	int (*fixup)(struct ast_channel *oldchan, struct ast_channel *newchan);
+	int (*fixup)(struct ast_channel *oldchan, struct ast_channel *newchan, int lock);
 	/*! Set a given option */
 	int (*setoption)(struct ast_channel *chan, int option, void *data, int datalen);
 	/*! Query a given option */

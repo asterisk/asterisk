@@ -1650,7 +1650,7 @@ static int skinny_write(struct ast_channel *ast, struct ast_frame *frame)
 	return res;
 }
 
-static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
+static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, int needlock)
 {
 	struct skinny_subchannel *sub = newchan->pvt->pvt;
     ast_log(LOG_NOTICE, "skinny_fixup(%s, %s)\n", oldchan->name, newchan->name);

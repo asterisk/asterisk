@@ -1364,17 +1364,20 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 	return res;
 }
 
-static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
+static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, int needlock)
 {
 	struct sip_pvt *p = newchan->pvt->pvt;
-	ast_mutex_lock(&p->lock);
+	if (needlock)
+		ast_mutex_lock(&p->lock);
 	if (p->owner != oldchan) {
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
-		ast_mutex_unlock(&p->lock);
+		if (needlock)
+			ast_mutex_unlock(&p->lock);
 		return -1;
 	}
 	p->owner = newchan;
-	ast_mutex_unlock(&p->lock);
+	if (needlock)
+		ast_mutex_unlock(&p->lock);
 	return 0;
 }
 

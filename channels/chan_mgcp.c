@@ -771,7 +771,7 @@ static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame)
 	return res;
 }
 
-static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
+static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, int needlock)
 {
 	struct mgcp_subchannel *sub = newchan->pvt->pvt;
     ast_log(LOG_NOTICE, "mgcp_fixup(%s, %s)\n", oldchan->name, newchan->name);

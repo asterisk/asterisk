@@ -777,6 +777,8 @@ int ast_settimeout(struct ast_channel *c, int samples, int (*func)(void *data), 
    and 1 if supported and requested */
 int ast_transfer(struct ast_channel *chan, char *dest);
 
+int ast_do_masquerade(struct ast_channel *chan, int grablock);
+
 /* Misc. functions below */
 
 //! Waits for activity on a group of channels

@@ -623,17 +623,19 @@ static int oh323_indicate(struct ast_channel *c, int condition)
 }
 
 // FIXME: WTF is this? Do I need this???
-static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
+static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, int needlock)
 {
 	struct oh323_pvt *p = newchan->pvt->pvt;
 
-	ast_mutex_lock(&p->lock);
+	if (needlock)
+		ast_mutex_lock(&p->lock);
 	if (p->owner != oldchan) {
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
 		return -1;
 	}
 	p->owner = newchan;
-	ast_mutex_unlock(&p->lock);
+	if (needlock)
+		ast_mutex_unlock(&p->lock);
 	return 0;
 }
 

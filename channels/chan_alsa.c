@@ -755,7 +755,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 	return &f;
 }
 
-static int alsa_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
+static int alsa_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, int needlock)
 {
 	struct chan_alsa_pvt *p = newchan->pvt->pvt;
 	p->owner = newchan;

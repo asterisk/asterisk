@@ -1515,7 +1515,7 @@ static int iax_sendhtml(struct ast_channel *c, int subclass, char *data, int dat
 	return send_command(c->pvt->pvt, AST_FRAME_HTML, subclass, 0, data, datalen, -1);
 }
 
-static int iax_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan)
+static int iax_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan, int needlock)
 {
 	struct chan_iax_pvt *pvt = newchan->pvt->pvt;
 	pvt->owner = newchan;
