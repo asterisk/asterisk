@@ -125,7 +125,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 	chan = malloc(sizeof(struct logchannel));
 
 	if (chan) {
-		memset(chan, 0, sizeof(chan));
+		memset(chan, 0, sizeof(struct logchannel));
 		if (!strcasecmp(channel, "console")) {
 		    chan->console = 1;
 		} else if (!strncasecmp(channel, "syslog", 6)) {
