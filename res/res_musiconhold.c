@@ -684,7 +684,7 @@ static int moh_scan_files(struct mohclass *class) {
 	struct dirent *files_dirent;
 	char path[512];
 	char filepath[MAX_MOHFILE_LEN];
-	char *scan;
+	char *ext;
 	struct stat statbuf;
 	int dirnamelen;
 	int i;
@@ -713,8 +713,12 @@ static int moh_scan_files(struct mohclass *class) {
 		if (!S_ISREG(statbuf.st_mode))
 			continue;
 
-		if ((scan = strrchr(filepath, '.')))
-			*scan = '\0';
+		if ((ext = strrchr(filepath, '.')))
+			*ext = '\0';
+
+		/* check to see if this file's format can be opened */
+		if (ast_fileexists(filepath, ext, NULL) == -1)
+			continue;
 
 		/* if the file is present in multiple formats, ensure we only put it into the list once */
 		for (i = 0; i < class->total_files; i++)
@@ -955,7 +959,28 @@ static int moh_cli(int fd, int argc, char *argv[])
 	return 0;
 }
 
+static int cli_files_show(int fd, int argc, char *argv[])
+{
+	int i;
+	struct mohclass *class;
+
+	ast_mutex_lock(&moh_lock);
+	for (class = mohclasses; class; class = class->next) {
+		if (!class->total_files)
+			continue;
+
+		ast_cli(fd, "Class: %s\n", class->class);
+		for (i = 0; i < class->total_files; i++)
+			ast_cli(fd, "\tFile: %s\n", class->filearray[i]);
+	}
+	ast_mutex_unlock(&moh_lock);
+
+	return 0;
+}
+
 static struct ast_cli_entry  cli_moh = { { "moh", "reload"}, moh_cli, "Music On Hold", "Music On Hold", NULL};
+
+static struct ast_cli_entry  cli_moh_files_show = { { "moh", "files", "show"}, cli_files_show, "List MOH file-based classes", "Lists all loaded file-based MOH classes and their files", NULL};
 
 
 int load_module(void)
@@ -966,6 +991,7 @@ int load_module(void)
 	res = ast_register_application(app0, moh0_exec, synopsis0, descrip0);
 	ast_register_atexit(ast_moh_destroy);
 	ast_cli_register(&cli_moh);
+	ast_cli_register(&cli_moh_files_show);
 	if (!res)
 		res = ast_register_application(app1, moh1_exec, synopsis1, descrip1);
 	if (!res)
