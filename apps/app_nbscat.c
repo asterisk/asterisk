@@ -91,15 +91,13 @@ static int NBScat_exec(struct ast_channel *chan, void *data)
 	int ms = -1;
 	int pid = -1;
 	int owriteformat;
-	struct timeval last;
+	struct timeval now, next;
 	struct ast_frame *f;
 	struct myframe {
 		struct ast_frame f;
 		char offset[AST_FRIENDLY_OFFSET];
 		short frdata[160];
 	} myf;
-	last.tv_usec = 0;
-	last.tv_sec = 0;
 	if (socketpair(AF_LOCAL, SOCK_STREAM, 0, fds)) {
 		ast_log(LOG_WARNING, "Unable to create socketpair\n");
 		return -1;
@@ -116,55 +114,80 @@ static int NBScat_exec(struct ast_channel *chan, void *data)
 	
 	res = NBScatplay(fds[1]);
 	/* Wait 1000 ms first */
-	ms = 1000;
+	next = now;
+	next.tv_sec += 1;
 	if (res >= 0) {
 		pid = res;
-		/* Order is important -- there's almost always going to be NBScat...  we want to prioritize the
+		/* Order is important -- there's almost always going to be mp3...  we want to prioritize the
 		   user */
 		for (;;) {
-			ms = ast_waitfor(chan, ms);
-			if (ms < 0) {
-				ast_log(LOG_DEBUG, "Hangup detected\n");
-				res = -1;
-				break;
-			}
-			if (ms > 40) {
-				f = ast_read(chan);
-				if (!f) {
-					ast_log(LOG_DEBUG, "Null frame == hangup() detected\n");
-					res = -1;
-					break;
+			gettimeofday(&now, NULL);
+			ms = (next.tv_sec - now.tv_sec) * 1000;
+			ms += (next.tv_usec - now.tv_usec) / 1000;
+#if 0
+			printf("ms: %d\n", ms);
+#endif			
+			if (ms <= 0) {
+#if 0
+				{
+					static struct timeval last;
+					struct timeval tv;
+					gettimeofday(&tv, NULL);
+					printf("Since last: %ld\n", (tv.tv_sec - last.tv_sec) * 1000 + (tv.tv_usec - last.tv_usec) / 1000);
+					last = tv;
 				}
-				if (f->frametype == AST_FRAME_DTMF) {
-					ast_log(LOG_DEBUG, "User pressed a key\n");
-					ast_frfree(f);
-					res = 0;
-					break;
-				}
-				ast_frfree(f);
-			} else  {
+#endif
 				res = timed_read(fds[0], myf.frdata, sizeof(myf.frdata));
 				if (res > 0) {
 					myf.f.frametype = AST_FRAME_VOICE;
 					myf.f.subclass = AST_FORMAT_SLINEAR;
 					myf.f.datalen = res;
 					myf.f.samples = res / 2;
-					myf.f.delivery.tv_usec = 0;
-					myf.f.delivery.tv_sec = 0;
 					myf.f.mallocd = 0;
 					myf.f.offset = AST_FRIENDLY_OFFSET;
 					myf.f.src = __PRETTY_FUNCTION__;
+					myf.f.delivery.tv_sec = 0;
+					myf.f.delivery.tv_usec = 0;
 					myf.f.data = myf.frdata;
 					if (ast_write(chan, &myf.f) < 0) {
 						res = -1;
 						break;
 					}
 				} else {
-					ast_log(LOG_DEBUG, "No more NBScat\n");
+					ast_log(LOG_DEBUG, "No more mp3\n");
 					res = 0;
 					break;
 				}
-				ms += res / 16;
+				next.tv_usec += res / 2 * 125;
+				if (next.tv_usec >= 1000000) {
+					next.tv_usec -= 1000000;
+					next.tv_sec++;
+				}
+#if 0
+				printf("Next: %d\n", ms);
+#endif				
+			} else {
+				ms = ast_waitfor(chan, ms);
+				if (ms < 0) {
+					ast_log(LOG_DEBUG, "Hangup detected\n");
+					res = -1;
+					break;
+				}
+				if (ms) {
+					f = ast_read(chan);
+					if (!f) {
+						ast_log(LOG_DEBUG, "Null frame == hangup() detected\n");
+						res = -1;
+						break;
+					}
+					if (f->frametype == AST_FRAME_DTMF) {
+						ast_log(LOG_DEBUG, "User pressed a key\n");
+						ast_frfree(f);
+						res = 0;
+						break;
+					}
+					ast_frfree(f);
+				} 
 			}
 		}
 	}
