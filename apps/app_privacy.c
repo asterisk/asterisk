@@ -38,7 +38,7 @@ static char *synopsis = "Require phone number to be entered, if no CallerID sent
 static char *descrip =
   "  PrivacyManager: If no Caller*ID is sent, PrivacyManager answers the\n"
   "channel and asks the caller to enter their 10 digit phone number.\n"
-  "The caller is given 3 attempts.  If after 3 attempts, they do no enter\n"
+  "The caller is given 3 attempts.  If after 3 attempts, they do not enter\n"
   "their 10 digit phone number, and if there exists a priority n + 101,\n"
   "where 'n' is the priority of the current instance, then  the\n"
   "channel  will  be  setup  to continue at that priority level.\n"
