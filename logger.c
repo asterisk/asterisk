@@ -185,9 +185,9 @@ static void init_logger_chain(void)
 int reload_logger(int rotate)
 {
 	char old[AST_CONFIG_MAX_PATH];
-	char tmp[AST_CONFIG_MAX_PATH];
 	char new[AST_CONFIG_MAX_PATH];
 	struct logfile *f;
+	FILE *myf;
 
 	int x;
 
@@ -196,50 +196,51 @@ int reload_logger(int rotate)
 	  fclose(eventlog);
 	else 
 	  rotate = 0;
+	eventlog = NULL;
 
 
 
 	mkdir((char *)ast_config_AST_LOG_DIR, 0755);
 	snprintf(old, sizeof(old), "%s/%s", (char *)ast_config_AST_LOG_DIR, EVENTLOG);
 
-	for(x=0;;x++) {
-	  snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR, EVENTLOG,x);
-	  eventlog = fopen((char *)new, "r");
-	  if(eventlog) 
-	    fclose(eventlog);
-	  else
-	    break;
-	}
-
 	if(rotate) {
-	  /* do it */
-	  if(! link(old,new))
-	    unlink(old);
-	  strcpy(tmp,old);
+		for(x=0;;x++) {
+		  snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR, EVENTLOG,x);
+		  myf = fopen((char *)new, "r");
+		  if(myf) 
+		    fclose(myf);
+		  else
+		    break;
+		}
+	
+		  /* do it */
+		if (rename(old,new))
+			fprintf(stderr, "Unable to rename file '%s' to '%s'\n", old, new);
 	}
 
+	eventlog = fopen(old, "a");
 
 	f = logfiles;
 	while(f) {
 	  if (f->f && (f->f != stdout) && (f->f != stderr)) {
 	    fclose(f->f);
-	    snprintf(old, sizeof(old), "%s/%s", (char *)ast_config_AST_LOG_DIR,f->fn);
-
-	    for(x=0;;x++) {
-	      snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR,f->fn,x);
-	      eventlog = fopen((char *)new, "r");
-	      if(eventlog) 
-		fclose(eventlog);
-	      else
-		break;
-	    }
-	    
+		f->f = NULL;
 	    if(rotate) {
-	      /* do it */
-	      if(! link(old,new))
-		unlink(old);
-	      f->f = fopen((char *)old, "a");
-	    }
+		    snprintf(old, sizeof(old), "%s/%s", (char *)ast_config_AST_LOG_DIR,f->fn);
+	
+		    for(x=0;;x++) {
+		      snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR,f->fn,x);
+		      myf = fopen((char *)new, "r");
+		      if(f) 
+					fclose(myf);
+		      else
+					break;
+		    }
+	    
+		      /* do it */
+		      if (rename(old,new))
+			  	fprintf(stderr, "Unable to rename file '%s' to '%s'\n", old, new);
+		    }
 	    
 
 	  }
@@ -249,7 +250,6 @@ int reload_logger(int rotate)
 	}
 
 
-	eventlog = fopen((char *)tmp, "a");
 	ast_mutex_unlock(&loglock);
 
 	if (eventlog) {
