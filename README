@@ -36,6 +36,7 @@ the following:
 	* Adtran Atlas 800 Plus
 	* QuickNet Internet PhoneJack
 	* Full Duplex Sound Card supported by Linux
+	* ISDN4Linux compatible ISDN card
 
 Assuming you have one of these (most likely the third) you're ready to 
 proceed:

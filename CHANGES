@@ -1,3 +1,7 @@
+* Asterisk 0.1.6
+ -- Make app_dial handle a lack of translators smoothly
+ -- Add ISDN4Linux support -- dtmf is weird...
+ -- Minor bug fixes
 * Asterisk 0.1.5
  -- Fix a small mistake in IAX
  -- Fix the QuickNet driver to work with newer cards

@@ -1,0 +1,572 @@
+/*
+ * Asterisk -- A telephony toolkit for Linux.
+ *
+ * ISDN4Linux TTY Driver
+ * 
+ * Copyright (C) 2001, Mark Spencer
+ *
+ * Mark Spencer <markster@linux-support.net>
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License
+ */
+
+#include <stdio.h>
+
+#include <string.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <asterisk/vmodem.h>
+#include <asterisk/module.h>
+#include <asterisk/frame.h>
+#include <asterisk/logger.h>
+#include <asterisk/options.h>
+#include "alaw.h"
+
+#define STATE_COMMAND 	0
+#define STATE_VOICE 	1
+
+static char *breakcmd = "\0x10\0x14\0x10\0x3";
+
+static char *desc = "ISDN4Linux Emulated Modem Driver";
+
+int usecnt;
+pthread_mutex_t usecnt_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static char *i4l_idents[] = {
+	/* Identify ISDN4Linux Driver */
+	"Linux ISDN",
+	NULL
+};
+
+static int i4l_setdev(struct ast_modem_pvt *p, int dev)
+{
+	char cmd[80];
+	if ((dev != MODEM_DEV_TELCO) && (dev != MODEM_DEV_TELCO_SPK)) {
+		ast_log(LOG_WARNING, "ISDN4Linux only supports telco device, not %d.\n", dev);
+		return -1;
+	} else	/* Convert DEV to our understanding of it */
+		dev = 2;
+	if (ast_modem_send(p, "AT+VLS?", 0)) {
+		ast_log(LOG_WARNING, "Unable to select current mode %d\n", dev);
+		return -1;
+	}
+	if (ast_modem_read_response(p, 5)) {
+		ast_log(LOG_WARNING, "Unable to select device %d\n", dev);
+		return -1;
+	}
+	ast_modem_trim(p->response);
+	strncpy(cmd, p->response, sizeof(cmd));
+	if (ast_modem_expect(p, "OK", 5)) {
+		ast_log(LOG_WARNING, "Modem did not respond properly\n");
+		return -1;
+	}
+	if (dev == atoi(cmd)) {
+		/* We're already in the right mode, don't bother changing for fear of
+		   hanging up */
+		return 0;
+	}
+	snprintf(cmd, sizeof(cmd), "AT+VLS=%d", dev);
+	if (ast_modem_send(p, cmd, 0))  {
+		ast_log(LOG_WARNING, "Unable to select device %d\n", dev);
+		return -1;
+	}
+	if (ast_modem_read_response(p, 5)) {
+		ast_log(LOG_WARNING, "Unable to select device %d\n", dev);
+		return -1;
+	}
+	ast_modem_trim(p->response);
+	if (strcasecmp(p->response, "VCON") && strcasecmp(p->response, "OK")) {
+		ast_log(LOG_WARNING, "Unexpected reply: %s\n", p->response);
+		return -1;
+	}
+	return 0;
+}
+
+static int i4l_startrec(struct ast_modem_pvt *p)
+{
+	if (ast_modem_send(p, "AT+VRX+VTX", 0) ||
+	     ast_modem_expect(p, "CONNECT", 5)) {
+		ast_log(LOG_WARNING, "Unable to start recording\n");
+		return -1;
+	}
+	p->ministate = STATE_VOICE;
+	return 0;
+}
+
+static int i4l_break(struct ast_modem_pvt *p)
+{
+	if (ast_modem_send(p, breakcmd, 2)) {
+		ast_log(LOG_WARNING, "Failed to break\n");
+		return -1;
+	}
+	if (ast_modem_send(p, "\r\n", 2)) {
+		ast_log(LOG_WARNING, "Failed to send enter?\n");
+		return -1;
+	}
+#if 0
+	/* Read any outstanding junk */
+	while(!ast_modem_read_response(p, 1));
+#endif
+	if (ast_modem_send(p, "AT", 0)) {
+		/* Modem might be stuck in some weird mode, try to get it out */
+		ast_modem_send(p, "+++", 3);
+		if (ast_modem_expect(p, "OK", 10)) {
+			ast_log(LOG_WARNING, "Modem is not responding\n");
+			return -1;
+		}
+		if (ast_modem_send(p, "AT", 0)) {
+			ast_log(LOG_WARNING, "Modem is not responding\n");
+			return -1;
+		}
+	}
+	if (ast_modem_expect(p, "OK", 5)) {
+		ast_log(LOG_WARNING, "Modem did not respond properly\n");
+		return -1;
+	}
+	return 0;
+}
+
+static int i4l_init(struct ast_modem_pvt *p)
+{
+	char cmd[256];
+	if (option_debug)
+		ast_log(LOG_DEBUG, "i4l_init()\n");
+	if (i4l_break(p))
+		return -1;
+	/* Force into command mode */
+	p->ministate = STATE_COMMAND;
+	if (ast_modem_send(p, "AT+FCLASS=8", 0) ||
+	     ast_modem_expect(p, "OK", 5)) {
+		ast_log(LOG_WARNING, "Unable to set to voice mode\n");
+		return -1;
+	}
+	if (strlen(p->msn)) {
+		snprintf(cmd, sizeof(cmd), "AT&E%s", p->msn);
+		if (ast_modem_send(p, cmd, 0) ||
+		    ast_modem_expect(p, "OK", 5)) {
+			ast_log(LOG_WARNING, "Unable to set MSN to %s\n", p->msn);
+			return -1;
+		}
+	}
+	if (ast_modem_send(p, "ATS18=1", 0) ||
+	     ast_modem_expect(p, "OK", 5)) {
+		ast_log(LOG_WARNING, "Unable to set to audio only mode\n");
+		return -1;
+	}
+	if (ast_modem_send(p, "ATS14=4", 0) ||
+	     ast_modem_expect(p, "OK", 5)) {
+		ast_log(LOG_WARNING, "Unable to set to transparent mode\n");
+		return -1;
+	}
+	if (ast_modem_send(p, "ATS23=1", 0) ||
+	     ast_modem_expect(p, "OK", 5)) {
+		ast_log(LOG_WARNING, "Unable to set to transparent mode\n");
+		return -1;
+	}
+
+	if (ast_modem_send(p, "AT+VSM=5", 0) ||
+	     ast_modem_expect(p, "OK", 5)) {
+		ast_log(LOG_WARNING, "Unable to set to aLAW mode\n");
+		return -1;
+	}
+	if (ast_modem_send(p, "AT+VLS=2", 0) ||
+	     ast_modem_expect(p, "OK", 5)) {
+		ast_log(LOG_WARNING, "Unable to set to phone line interface\n");
+		return -1;
+	}
+	p->escape = 0;
+	return 0;
+}
+
+static struct ast_frame *i4l_handle_escape(struct ast_modem_pvt *p, char esc)
+{
+	/* Handle escaped characters -- but sometimes we call it directly as 
+	   a quick way to cause known responses */
+	p->fr.frametype = AST_FRAME_NULL;
+	p->fr.subclass = 0;
+	p->fr.data = NULL;
+	p->fr.datalen = 0;
+	p->fr.timelen = 0;
+	p->fr.offset = 0;
+	p->fr.mallocd = 0;
+	if (esc && option_debug)
+		ast_log(LOG_DEBUG, "Escaped character '%c'\n", esc);
+	
+	switch(esc) {
+	case 'R': /* Pseudo ring */
+		p->fr.frametype = AST_FRAME_CONTROL;
+		p->fr.subclass = AST_CONTROL_RING;
+		return &p->fr;
+	case 'X': /* Pseudo connect */
+		p->fr.frametype = AST_FRAME_CONTROL;
+		p->fr.subclass = AST_CONTROL_ANSWER;
+		if (p->owner)
+			p->owner->state = AST_STATE_UP;
+		if (i4l_startrec(p))
+			return 	NULL;
+		return &p->fr;
+	case 'b': /* Busy signal */
+		p->fr.frametype = AST_FRAME_CONTROL;
+		p->fr.subclass = AST_CONTROL_BUSY;
+		return &p->fr;
+	case 'o': /* Overrun */
+		ast_log(LOG_WARNING, "Overflow on modem, flushing buffers\n");
+		if (ast_modem_send(p, "\0x10E", 2)) 
+			ast_log(LOG_WARNING, "Unable to flush buffers\n");
+		return &p->fr;	
+	case CHAR_ETX: /* End Transmission */
+		return NULL;
+	case 'u': /* Underrun */
+		ast_log(LOG_WARNING, "Data underrun\n");
+		/* Fall Through */
+	case 'd': /* Dialtone */
+	case 'c': /* Calling Tone */
+	case 'e': /* European version */
+	case 'a': /* Answer Tone */
+	case 'f': /* Bell Answer Tone */
+	case 'T': /* Timing mark */
+	case 't': /* Handset off hook */
+	case 'h': /* Handset hungup */
+		/* Ignore */
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Ignoring Escaped character '%c' (%d)\n", esc, esc);
+		return &p->fr;
+	case '0':
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9':
+	case '*':
+	case '#':
+		ast_log(LOG_DEBUG, "DTMF: '%c' (%d)\n", esc, esc);
+		p->fr.frametype=AST_FRAME_DTMF;
+		p->fr.subclass=esc;
+		return &p->fr;
+	case 0: /* Pseudo signal */
+		return &p->fr;
+	default:
+		ast_log(LOG_DEBUG, "Unknown Escaped character '%c' (%d)\n", esc, esc);
+	}
+	return &p->fr;
+}
+
+static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
+{
+	char result[256];
+	short *b;
+	struct ast_frame *f=NULL;
+	int res;
+	int x;
+	if (p->ministate == STATE_COMMAND) {
+		/* Read the first two bytes, first, in case it's a control message */
+		read(p->fd, result, 2);
+		if (result[0] == CHAR_DLE) {
+			return i4l_handle_escape(p, result[1]);
+			
+		} else {
+			if ((result[0] == '\n') || (result[0] == '\r'))
+				return i4l_handle_escape(p, 0);
+			/* Read the rest of the line */
+			fgets(result + 2, sizeof(result) - 2, p->f);
+			ast_modem_trim(result);
+			if (!strcasecmp(result, "VCON")) {
+				/* If we're in immediate mode, reply now */
+				if (p->mode == MODEM_MODE_IMMEDIATE)
+					return i4l_handle_escape(p, 'X');
+			} else
+			if (!strcasecmp(result, "BUSY")) {
+				/* Same as a busy signal */
+				return i4l_handle_escape(p, 'b');
+			} else
+			if (!strncasecmp(result, "CALLER NUMBER: ", 15 )) {
+				strncpy(p->cid, result + 15, sizeof(p->cid));
+				return i4l_handle_escape(p, 'R');
+			} else
+			if (!strncasecmp(result, "RING", 4)) {
+				if (result[4]=='/') 
+					strncpy(p->dnid, result + 4, sizeof(p->dnid));
+				return i4l_handle_escape(p, 'R');
+			} else
+			if (!strcasecmp(result, "NO CARRIER")) {
+				if (option_verbose > 2) 
+					ast_verbose(VERBOSE_PREFIX_3 "%s hung up on\n", p->dev);
+				return NULL;
+			} else
+			if (!strcasecmp(result, "NO DIALTONE")) {
+				/* There's no dialtone, so the line isn't working */
+				ast_log(LOG_WARNING, "Device '%s' lacking dialtone\n", p->dev);
+				return NULL;
+			}
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Modem said '%s'\n", result);
+			return i4l_handle_escape(p, 0);
+		}
+	} else {
+		/* We have to be more efficient in voice mode */
+		b = (short *)(p->obuf + p->obuflen);
+		while (p->obuflen/2 < 240) {
+			/* Read ahead the full amount */
+			res = read(p->fd, result, 240 - p->obuflen/2);
+			if (res < 1) {
+				/* If there's nothing there, just continue on */
+				if (errno == EAGAIN)
+					return i4l_handle_escape(p, 0);
+				ast_log(LOG_WARNING, "Read failed: %s\n", strerror(errno));
+			}
+			
+			for (x=0;x<res;x++) {
+				/* Process all the bytes that we've read */
+				switch(result[x]) {
+				case CHAR_DLE:
+#if 0
+					ast_log(LOG_DEBUG, "Ooh, an escape at %d...\n", x);
+#endif
+					if (!p->escape) {
+						/* Note that next value is
+						   an escape, and continue. */
+						p->escape++;
+						break;
+					} else {
+						/* Send as is -- fallthrough */
+						p->escape = 0;
+					}
+				default:
+					if (p->escape) {
+						ast_log(LOG_DEBUG, "Value of escape is %c (%d)...\n", result[x] < 32 ? '^' : result[x], result[x]);
+						p->escape = 0;
+						if (f) 
+							ast_log(LOG_WARNING, "Warning: Dropped a signal frame\n");
+						f = i4l_handle_escape(p, result[x]);
+						/* If i4l_handle_escape says NULL, say it now, doesn't matter
+						what else is there, the connection is dead. */
+						if (!f)
+							return NULL;
+					} else {
+						*(b++) = ALAW2INT(result[x] & 0xff);
+						p->obuflen += 2;
+					}
+				}
+			}
+			if (f)
+				break;
+		}
+		/* If we get here, we have a complete voice frame */
+		p->fr.frametype = AST_FRAME_VOICE;
+		p->fr.subclass = AST_FORMAT_SLINEAR;
+		p->fr.timelen = 30;
+		p->fr.data = p->obuf;
+		p->fr.datalen = p->obuflen;
+		p->fr.mallocd = 0;
+		p->fr.offset = AST_FRIENDLY_OFFSET;
+		p->fr.src = __FUNCTION__;
+		p->obuflen = 0;
+		return &p->fr;
+	}
+	return NULL;
+}
+
+static int i4l_write(struct ast_modem_pvt *p, struct ast_frame *f)
+{
+#define MAX_WRITE_SIZE 512
+	unsigned char result[MAX_WRITE_SIZE << 1];
+	unsigned char b;
+	int bpos=0, x;
+	int res;
+	if (f->datalen > MAX_WRITE_SIZE) {
+		ast_log(LOG_WARNING, "Discarding too big frame of size %d\n", f->datalen);
+		return -1;
+	}
+	if (f->frametype != AST_FRAME_VOICE) {
+		ast_log(LOG_WARNING, "Don't know how to handle %d type frames\n", f->frametype);
+		return -1;
+	}
+	if (f->subclass != AST_FORMAT_SLINEAR) {
+		ast_log(LOG_WARNING, "Don't know how to handle anything but signed linear frames\n");
+		return -1;
+	}
+	for (x=0;x<f->datalen/2;x++) {
+		b = INT2ALAW(((short *)f->data)[x]);
+		result[bpos++] = b;
+		if (b == CHAR_DLE)
+			result[bpos++]=b;
+	}
+#if 0
+	res = fwrite(result, bpos, 1, p->f);
+	res *= bpos;
+#else
+	res = write(p->fd, result, bpos);
+#endif
+	if (res < 1) {
+		ast_log(LOG_WARNING, "Failed to write buffer\n");
+		return -1;
+	}
+#if 0
+	printf("Result of write is %d\n", res);
+#endif
+	return 0;
+}
+
+static char *i4l_identify(struct ast_modem_pvt *p)
+{
+	return strdup("Linux ISDN");
+}
+
+static void i4l_incusecnt()
+{
+	pthread_mutex_lock(&usecnt_lock);
+	usecnt++;
+	pthread_mutex_unlock(&usecnt_lock);
+	ast_update_use_count();
+}
+
+static void i4l_decusecnt()
+{
+	pthread_mutex_lock(&usecnt_lock);
+	usecnt++;
+	pthread_mutex_unlock(&usecnt_lock);
+	ast_update_use_count();
+}
+
+static int i4l_answer(struct ast_modem_pvt *p)
+{
+	if (ast_modem_send(p, "ATA", 0) ||
+	     ast_modem_expect(p, "VCON", 10)) {
+		ast_log(LOG_WARNING, "Unable to answer: %s", p->response);
+		return -1;
+	}
+#if 1
+	if (ast_modem_send(p, "AT+VDD=0,8", 0) ||
+	     ast_modem_expect(p, "OK", 5)) {
+		ast_log(LOG_WARNING, "Unable to set to phone line interface\n");
+		return -1;
+	}
+#endif
+	if (ast_modem_send(p, "AT+VTX+VRX", 0) ||
+	     ast_modem_expect(p, "CONNECT", 10)) {
+		ast_log(LOG_WARNING, "Unable to answer: %s", p->response);
+		return -1;
+	}
+	p->ministate = STATE_VOICE;
+	return 0;
+}
+
+static int i4l_dialdigit(struct ast_modem_pvt *p, char digit)
+{
+	char c[2];
+	if (p->ministate == STATE_VOICE) {
+		c[0] = CHAR_DLE;
+		c[1] = digit;
+		write(p->fd, c, 2);
+	} else
+		ast_log(LOG_DEBUG, "Asked to send digit but call not up on %s\n", p->dev);
+	return 0;
+}
+
+static int i4l_dial(struct ast_modem_pvt *p, char *stuff)
+{
+	char cmd[80];
+	snprintf(cmd, sizeof(cmd), "ATD%c %s", p->dialtype,stuff);
+	if (ast_modem_send(p, cmd, 0)) {
+		ast_log(LOG_WARNING, "Unable to dial\n");
+		return -1;
+	}
+	return 0;
+}
+
+static int i4l_hangup(struct ast_modem_pvt *p)
+{
+	char dummy[50];
+	sprintf(dummy, "%c%c", 0x10, 0x3);
+	if (write(p->fd, dummy, 2) < 0) {
+		ast_log(LOG_WARNING, "Failed to break\n");
+		return -1;
+	}
+
+	/* Read anything outstanding */
+	while(read(p->fd, dummy, sizeof(dummy)) > 0);
+
+	sprintf(dummy, "%c%c", 0x10, 0x14);
+	if (write(p->fd, dummy, 2) < 0) {
+		ast_log(LOG_WARNING, "Failed to break\n");
+		return -1;
+	}
+	ast_modem_expect(p, "VCON", 1);
+#if 0
+	if (ast_modem_expect(p, "VCON", 8)) {
+		ast_log(LOG_WARNING, "Didn't get expected VCON\n");
+		return -1;
+	}
+#endif
+	write(p->fd, "\n\n", 2);
+	read(p->fd, dummy, sizeof(dummy));
+	/* Hangup by switching to data, then back to voice */
+	if (ast_modem_send(p, "ATH", 0) ||
+	     ast_modem_expect(p, "NO CARRIER", 8)) {
+		ast_log(LOG_WARNING, "Unable to hang up\n");
+		return -1;
+	}
+	if (ast_modem_expect(p, "OK", 5)) {
+		ast_log(LOG_WARNING, "Final 'OK' not received\n");
+		return -1;
+	}
+	return 0;
+}
+
+static struct ast_modem_driver i4l_driver =
+{
+	"i4l",
+	i4l_idents,
+	AST_FORMAT_SLINEAR,
+	0,		/* Not full duplex */
+	i4l_incusecnt,	/* incusecnt */
+	i4l_decusecnt,	/* decusecnt */
+	i4l_identify,	/* identify */
+	i4l_init,	/* init */
+	i4l_setdev,	/* setdev */
+	i4l_read,
+	i4l_write,
+	i4l_dial,	/* dial */
+	i4l_answer,	/* answer */
+	i4l_hangup,	/* hangup */
+	i4l_startrec,	/* start record */
+	NULL,	/* stop record */
+	NULL,	/* start playback */
+	NULL,	/* stop playback */
+	NULL,	/* set silence supression */
+	i4l_dialdigit,	/* dialdigit */
+};
+
+
+
+int usecount(void)
+{
+	int res;
+	pthread_mutex_lock(&usecnt_lock);
+	res = usecnt;
+	pthread_mutex_unlock(&usecnt_lock);
+	return res;
+}
+
+int load_module(void)
+{
+	return ast_register_modem_driver(&i4l_driver);
+}
+
+int unload_module(void)
+{
+	return ast_unregister_modem_driver(&i4l_driver);
+}
+
+char *description()
+{
+	return desc;
+}
+
