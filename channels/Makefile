@@ -94,10 +94,10 @@ chan_nbs.so: chan_nbs.o
 	$(CC) -shared -Xlinker -x -o $@ $< -lnbs
 
 chan_vpb.o: chan_vpb.c
-	$(CC) -c $(CFLAGS) -o $@ chan_vpb.c
+	$(CXX) -c $(CFLAGS) -o $@ chan_vpb.c
 
 chan_vpb.so: chan_vpb.o
-	 $(CCC) -shared -Xlinker -x -o $@ $< -lvpb -lpthread -lm -ldl
+	 $(CXX) -shared -Xlinker -x -o $@ $< -lvpb -lpthread -lm -ldl
 
 #chan_modem.so : chan_modem.o
 #	$(CC) -rdynamic -shared -Xlinker -x -o $@ $<

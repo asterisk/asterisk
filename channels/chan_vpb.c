@@ -35,8 +35,8 @@
 
 
 #define DEFAULT_GAIN 1.0
-#define VPB_SAMPLES 160 /* 20ms for recording and playback.*/
-#define VPB_MAX_BUF VPB_SAMPLES*4
+#define VPB_SAMPLES 240 
+#define VPB_MAX_BUF VPB_SAMPLES*4 + AST_FRIENDLY_OFFSET
 
 #define VPB_NULL_EVENT 200
 
@@ -102,6 +102,19 @@ static VPB_TONE Busytone     = {425,   0,   0, -10,  -100, -100,   500,  500};
 static VPB_TONE Ringbacktone = {425,   0,   0, -10,  -100, -100,  1000, 3000};
 #endif
 
+#define VPB_MAX_BRIDGES 128 
+static struct vpb_bridge_t {
+     int inuse;
+     struct ast_channel *c0, *c1, **rc;
+     struct ast_frame **fo;
+     int flags;
+     
+     pthread_mutex_t lock;
+     pthread_cond_t cond;
+} bridges[VPB_MAX_BRIDGES]; /* Bridges...*/
+
+static pthread_mutex_t bridge_lock = AST_MUTEX_INITIALIZER;
+
 static struct vpb_pvt {
 
      struct ast_channel *owner;		/* Channel we belong to, possibly NULL */
@@ -110,6 +123,7 @@ static struct vpb_pvt {
 
      char dev[256];
 
+     struct ast_frame f, fr;
      char buf[VPB_MAX_BUF];			/* Static buffer for reading frames */
 
      int dialtone;
@@ -126,10 +140,11 @@ static struct vpb_pvt {
      int lastinput;
      int lastoutput;
 
-    
+     struct vpb_bridge_t *bridge;
+     
      pthread_mutex_t lock;
 
-     int hangup;
+    int stopreads; /* Stop reading...*/
      pthread_t readthread;    /* For monitoring read channel. One per owned channel. */
 
      struct vpb_pvt *next;			/* Next channel in list */
@@ -137,10 +152,90 @@ static struct vpb_pvt {
 
 static char callerid[AST_MAX_EXTENSION];
 
+static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
+{
+     struct vpb_pvt *p0 = (struct vpb_pvt *)c0->pvt->pvt;
+     struct vpb_pvt *p1 = (struct vpb_pvt *)c1->pvt->pvt;
+     int i, len = sizeof bridges/sizeof bridges[0], res;
+     
+     /* Bridge channels, check if we can.  I believe we always can, so find a slot.*/
+     
+     ast_pthread_mutex_lock(&bridge_lock); {
+	  for (i = 0; i < len; i++) 
+	       if (!bridges[i].inuse)
+		    break;
+	  if (i < len) {
+	       bridges[i].inuse = 1;
+	       bridges[i].flags = flags;
+	       bridges[i].rc = rc;
+	       bridges[i].fo = fo;
+	       bridges[i].c0 = c0;
+	       bridges[i].c1 = c1;
+	       pthread_mutex_init(&bridges[i].lock, NULL);
+	       pthread_cond_init(&bridges[i].cond, NULL);
+	  } 	       
+     } ast_pthread_mutex_unlock(&bridge_lock); 
+
+     if (i == len) {
+	  ast_log(LOG_WARNING, "Failed to bridge %s and %s!\n", c0->name, c1->name);
+	  return -2;
+     } else {
+
+	  /* Set bridge pointers. You don't want to take these locks while holding bridge lock.*/
+	  ast_pthread_mutex_lock(&p0->lock); {
+	       p0->bridge = &bridges[i];
+	  } ast_pthread_mutex_unlock(&p0->lock);
+
+	  ast_pthread_mutex_lock(&p1->lock); {
+	       p1->bridge = &bridges[i];
+	  } ast_pthread_mutex_unlock(&p1->lock);
+
+	  if (option_verbose > 1) 
+	       ast_verbose(VERBOSE_PREFIX_3 
+			   " Bridging call entered with [%s, %s]\n", c0->name, c1->name);
+     }
+     res = vpb_bridge(p0->handle, p1->handle, VPB_BRIDGE_ON, 0);
+
+     if (res != VPB_OK) 
+	  goto done;
+
+     res = pthread_cond_wait(&bridges[i].cond, &bridges[i].lock); /* Wait for condition signal. */
+     
+     
+ done: /* Out of wait. */
+
+     vpb_bridge(p0->handle, p1->handle, VPB_BRIDGE_OFF, 0); 
+
+     
+     ast_pthread_mutex_lock(&bridge_lock); {
+	  bridges[i].inuse = 0;
+	  pthread_mutex_destroy(&bridges[i].lock);
+	  pthread_cond_destroy(&bridges[i].cond);	
+     } ast_pthread_mutex_unlock(&bridge_lock); 
+     
+     ast_pthread_mutex_lock(&p0->lock); {
+	  p0->bridge = NULL;
+     } ast_pthread_mutex_unlock(&p0->lock);
+     
+     ast_pthread_mutex_lock(&p1->lock); {
+	  p1->bridge = NULL;
+     } ast_pthread_mutex_unlock(&p1->lock);
+
+     
+     if (option_verbose > 2) 
+	  ast_verbose(VERBOSE_PREFIX_3 
+		      " Bridging call done with [%s, %s] => %d\n", c0->name, c1->name, res);
+    
+     if (res != 0 && res != VPB_OK) /* Don't assume VPB_OK is zero! */
+	  return -1;
+     else 
+	  return 0;
+}
 
 static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 {
      struct ast_frame f = {AST_FRAME_CONTROL}; /* default is control, Clear rest. */
+     int endbridge = 0;
 
      if (option_verbose > 4) 
 	  ast_verbose(VERBOSE_PREFIX_3 " %s handle_owned got event: [%d=>%d]\n",
@@ -201,8 +296,49 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
      }
 
      if (option_verbose > 2) 
-	  ast_verbose(VERBOSE_PREFIX_3 " handle_owned: putting frame: [%d=>%d]\n",
-		      f.frametype, f.subclass);
+	  ast_verbose(VERBOSE_PREFIX_3 " handle_owned: putting frame: [%d=>%d], bridge=%p\n",
+		      f.frametype, f.subclass, (void *)p->bridge);
+
+     ast_pthread_mutex_lock(&p->lock); {
+	  if (p->bridge) { /* Check what happened, see if we need to report it. */
+	       switch (f.frametype) { 
+	       case AST_FRAME_DTMF:
+		    if (!(p->bridge->c0 == p->owner && 
+			  (p->bridge->flags & AST_BRIDGE_DTMF_CHANNEL_0) ) &&
+			!(p->bridge->c1 == p->owner && 
+			  (p->bridge->flags & AST_BRIDGE_DTMF_CHANNEL_1) )) 
+			 /* Kill bridge, this is interesting. */
+			 endbridge = 1;
+		    break;
+		    
+	       case AST_FRAME_CONTROL:
+		    if (!(p->bridge->flags & AST_BRIDGE_IGNORE_SIGS)) 
+#if 0
+			 if (f.subclass == AST_CONTROL_BUSY ||
+			     f.subclass == AST_CONTROL_CONGESTION ||
+			     f.subclass == AST_CONTROL_HANGUP ||
+			     f.subclass == AST_CONTROL_FLASH)
+#endif
+			      endbridge = 1;
+		    break;
+	       default:
+		    
+		    break;
+	       }
+	       if (endbridge) {
+		    if (p->bridge->fo)
+			 *p->bridge->fo = ast_frisolate(&f);
+		    if (p->bridge->rc)
+			 *p->bridge->rc = p->owner;
+		    
+		    ast_pthread_mutex_lock(&p->bridge->lock); {
+			 pthread_cond_signal(&p->bridge->cond);
+		    } ast_pthread_mutex_unlock(&p->bridge->lock); 	       		   
+	       }	  
+	  }
+     } ast_pthread_mutex_unlock(&p->lock);
+     
+     if (endbridge) return 0;
      
      if (f.frametype >= 0 && f.frametype != AST_FRAME_NULL) 
 	  ast_queue_frame(p->owner, &f, 0);
@@ -425,7 +561,11 @@ struct vpb_pvt *mkif(int board, int channel, int mode, float txgain, float rxgai
      tmp->lastinput = -1;
      tmp->lastoutput = -1;
 
+     tmp->bridge = NULL;
+
      tmp->readthread = 0;
+
+     pthread_mutex_init(&tmp->lock, NULL);
 
      if (setrxgain)      
 	  vpb_record_set_gain(tmp->handle, rxgain);
@@ -522,19 +662,21 @@ static int vpb_hangup(struct ast_channel *ast)
 
     ast_setstate(ast,AST_STATE_DOWN);
     
-    p->lastinput = p->lastoutput  = -1;
-    p->ext[0]  = 0;
-    p->owner = NULL;
-    p->dialtone = 0;
-    ast->pvt->pvt = NULL; 
-       
+    ast_pthread_mutex_lock(&p->lock); {    
+	 p->lastinput = p->lastoutput  = -1;
+	 p->ext[0]  = 0;
+	 p->owner = NULL;
+	 p->dialtone = 0;
+	 ast->pvt->pvt = NULL; 
+    } ast_pthread_mutex_unlock(&p->lock);
+	 
     ast_pthread_mutex_lock(&usecnt_lock); {
 	usecnt--;
     } ast_pthread_mutex_unlock(&usecnt_lock);
     ast_update_use_count();
 
     /* Stop thread doing reads. */
-    p->hangup = 1;
+    p->stopreads = 1;
     pthread_join(p->readthread, NULL); 
 
     if (option_verbose > 2)
@@ -625,13 +767,10 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
     fmt = ast2vpbformat(frame->subclass);
 
     if (option_verbose > 4)
-	 ast_verbose(VERBOSE_PREFIX_3 
-		     " Write chan %s: got frame type = %d, "
-		     "samples=%d, len=%d, oldfmt=%d,new=%d,rawwrite=%d\n",
-		     p->dev, frame->subclass, 
-		     frame->samples, frame->datalen, p->lastoutput, fmt, 
-		     ast->pvt->rawwriteformat);
-    
+	ast_verbose(VERBOSE_PREFIX_3 
+		    " Write chan %s: got frame type = %d\n",
+		    p->dev, frame->subclass);
+       
     if (fmt < 0) {
 	ast_log(LOG_WARNING, "vpb_write Cannot handle frames of %d format!\n", 
 		frame->subclass);
@@ -656,54 +795,88 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 static void *do_chanreads(void *pvt)
 {
      struct vpb_pvt *p = (struct vpb_pvt *)pvt;
-     char buf[VPB_MAX_BUF];
-     struct ast_frame fr = {AST_FRAME_VOICE};
+     struct ast_frame *fr = &p->fr;
+     char *readbuf = ((char *)p->buf) + AST_FRIENDLY_OFFSET;
+     int bridgerec = 0;
+ 
+     fr->frametype = AST_FRAME_VOICE;
+     fr->src = type;
+     fr->mallocd = 0;
      
-     fr.src = type;
+     memset(p->buf, 0, sizeof p->buf);
 
-     while (!p->hangup && p->owner) {	 
+     while (!p->stopreads && p->owner) {	 
 	 int res = -1, fmt;
 	 struct ast_channel *owner = p->owner;
 	 int afmt = (owner) ? owner->pvt->rawreadformat : AST_FORMAT_SLINEAR;
 	 int state = (owner) ? owner->_state : AST_STATE_DOWN;
-	 int readlen;
+	 int readlen;	
 	 
 	 fmt = ast2vpbformat(afmt);
+	 
+	 if (fmt < 0) {
+	     p->stopreads = 1;
+	     goto done;
+	 }
+
 	 readlen = VPB_SAMPLES * astformatbits(afmt) / 8;
 
 	 if (p->lastinput != fmt) {
 	     if (option_verbose > 2) 
-		 ast_verbose(" Read_channel ##  %s: Setting record mode\n", 
-			     p->dev);     	     
+		 ast_verbose(" Read_channel ##  %s: Setting record mode, bridge = %d\n", 
+			     p->dev, p->bridge ? 1 : 0);     	     
 	     vpb_record_buf_start(p->handle, fmt);
 	     p->lastinput = fmt;
 	 } 
 
-
-	 if (state == AST_STATE_UP)  /* Read only if up. */
-	      res = vpb_record_buf_sync(p->handle, buf, readlen);
-	
+	 ast_pthread_mutex_lock(&p->lock); {
+	      if (p->bridge) 
+		   if (p->bridge->c0 == p->owner && 
+		       (p->bridge->flags & AST_BRIDGE_REC_CHANNEL_0))
+			bridgerec = 1;
+		   else if (p->bridge->c1 == p->owner && 
+		       (p->bridge->flags & AST_BRIDGE_REC_CHANNEL_1))
+			bridgerec = 1;
+		   else 
+			bridgerec = 0;
+	      else
+		   bridgerec = 1;
+	 } ast_pthread_mutex_unlock(&p->lock);
+	 
+	 if (state == AST_STATE_UP && bridgerec)  /* Read only if up and not bridged, or a bridge for which we can read. */
+	      res = vpb_record_buf_sync(p->handle, readbuf, readlen);
+	 else {
+	      res = 0;
+	      vpb_sleep(10);
+	 }
 	 if (res == VPB_OK) {
-	     fr.subclass = afmt;
-	     fr.samples = VPB_SAMPLES;
-	     fr.datalen = readlen;
-	     fr.data = buf;
-	     
-	     ast_queue_frame(p->owner, &fr, 0);
+	      fr->subclass = afmt;
+	      fr->samples = VPB_SAMPLES;
+	      fr->data = readbuf;
+	      fr->datalen = readlen;
+	      fr->offset = AST_FRIENDLY_OFFSET;
+
+	      ast_pthread_mutex_lock(&p->lock); {    
+		   if (p->owner) ast_queue_frame(p->owner, fr, 0);
+	      } ast_pthread_mutex_unlock(&p->lock);
 	 } else 
-	     vpb_sleep(10);
+	      p->stopreads = 1;
+	 	 
+     done: (void)0;
 	 if (option_verbose > 4)
-	     if (state == AST_STATE_UP)
-		 ast_verbose(" Read_channel  %s (state=%d): got frame: res=%d, rawread=%d, rlen=%d\n", 
-			     p->dev, state, res, owner ? owner->pvt->rawreadformat : -1, readlen);     
+	     ast_verbose(" Read_channel  %s (state=%d), res=%d, bridge=%d\n", 
+			 p->dev, state, res, bridgerec);     
      }
      
-     /* When hangup seen, go away! */
+     /* When stopreads seen, go away! */
      vpb_record_buf_finish(p->handle);
+
+     if (option_verbose > 4)
+	 ast_verbose(" Read_channel  %s terminating, stopreads=%d, owner=%s\n", 
+			     p->dev, p->stopreads, p->owner? "yes" : "no");     
 
      return NULL;
 }
-
 
 static struct ast_channel *vpb_new(struct vpb_pvt *i, int state, char *context)
 {
@@ -732,6 +905,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *i, int state, char *context)
 		tmp->pvt->answer = vpb_answer;
 		tmp->pvt->read = vpb_read;
 		tmp->pvt->write = vpb_write;
+		tmp->pvt->bridge = vpb_bridge;
 
 		strncpy(tmp->context, context, sizeof(tmp->context)-1);
 		if (strlen(i->ext))
@@ -756,8 +930,8 @@ static struct ast_channel *vpb_new(struct vpb_pvt *i, int state, char *context)
 			  ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 			  ast_hangup(tmp);
 		     }
-		pthread_mutex_init(&i->lock, NULL);
-		i->hangup = 0; /* So read thread runs. */	
+
+		i->stopreads = 0; /* So read thread runs. */	
 		/* Finally start read monitoring thread. */
 		pthread_create(&i->readthread, NULL, do_chanreads, (void *)i);
 	} else
@@ -961,7 +1135,10 @@ int unload_module()
 
 		while(iflist) {
 		     p = iflist;		    
-
+		     pthread_mutex_destroy(&p->lock);
+		     pthread_cancel(p->readthread);
+		     p->readthread = 0;
+		     
 		     iflist = iflist->next;
 		     
 		     free(p);
@@ -969,6 +1146,11 @@ int unload_module()
 		iflist = NULL;
 	} ast_pthread_mutex_unlock(&iflock);
 	
+	ast_pthread_mutex_lock(&bridge_lock); {
+	     memset(bridges, 0, sizeof bridges);	     
+	} ast_pthread_mutex_unlock(&bridge_lock);
+	pthread_mutex_destroy(&bridge_lock);
+
 	return 0;
 }
 
