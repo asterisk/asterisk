@@ -734,6 +734,7 @@ static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	return 0;
 }
 
+/*--- append_history: Append to SIP dialog history */
 static int append_history(struct sip_pvt *p, char *event, char *data)
 {
 	struct sip_history *hist, *prev;
@@ -777,9 +778,9 @@ static int retrans_pkt(void *data)
 		pkt->retrans++;
 		if (sip_debug_test_pvt(pkt->owner)) {
 			if (ast_test_flag(pkt->owner, SIP_NAT) & SIP_NAT_ROUTE)
-				ast_verbose("Retransmitting #%d (NAT):\n%s\n to %s:%d\n", pkt->retrans, pkt->data, ast_inet_ntoa(iabuf, sizeof(iabuf), pkt->owner->recv.sin_addr), ntohs(pkt->owner->recv.sin_port));
+				ast_verbose("Retransmitting #%d (NAT) to %s:%d:\n%s\n---\n", pkt->retrans, ast_inet_ntoa(iabuf, sizeof(iabuf), pkt->owner->recv.sin_addr), ntohs(pkt->owner->recv.sin_port), pkt->data);
 			else
-				ast_verbose("Retransmitting #%d (no NAT):\n%s\n to %s:%d\n", pkt->retrans, pkt->data, ast_inet_ntoa(iabuf, sizeof(iabuf), pkt->owner->sa.sin_addr), ntohs(pkt->owner->sa.sin_port));
+				ast_verbose("Retransmitting #%d (no NAT) to %s:%d:\n%s\n---\n", pkt->retrans, ast_inet_ntoa(iabuf, sizeof(iabuf), pkt->owner->sa.sin_addr), ntohs(pkt->owner->sa.sin_port), pkt->data);
 		}
 		append_history(pkt->owner, "ReTx", pkt->data);
 		__sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
@@ -987,9 +988,9 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 	char tmpmsg[80];
 	if (sip_debug_test_pvt(p)) {
 		if (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE)
-			ast_verbose("%sTransmitting (NAT):\n%s\n to %s:%d\n", reliable ? "Reliably " : "", req->data, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
+			ast_verbose("%sTransmitting (NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port), req->data);
 		else
-			ast_verbose("%sTransmitting (no NAT):\n%s\n to %s:%d\n", reliable ? "Reliably " : "", req->data, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port));
+			ast_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), req->data);
 	}
 	if (reliable) {
 		if (recordhistory) {
@@ -1020,9 +1021,9 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 	char tmpmsg[80];
 	if (sip_debug_test_pvt(p)) {
 		if (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE)
-			ast_verbose("%sTransmitting:\n%s (NAT) to %s:%d\n", reliable ? "Reliably " : "", req->data, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
+			ast_verbose("%sTransmitting (NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port), req->data);
 		else
-			ast_verbose("%sTransmitting:\n%s (no NAT) to %s:%d\n", reliable ? "Reliably " : "", req->data, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port));
+			ast_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), req->data);
 	}
 	if (reliable) {
 		if (recordhistory) {
@@ -8549,27 +8550,36 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	int nounlock;
 	int recount = 0;
 	int debug;
+	char iabuf[INET_ADDRSTRLEN];
 
 	len = sizeof(sin);
 	memset(&req, 0, sizeof(req));
 	res = recvfrom(sipsock, req.data, sizeof(req.data) - 1, 0, (struct sockaddr *)&sin, &len);
 	if (res < 0) {
+#if !defined(__FreeBSD__)
 		if (errno == EAGAIN)
 			ast_log(LOG_NOTICE, "SIP: Received packet with bad UDP checksum\n");
-		else if (errno != ECONNREFUSED)
+		else 
+#endif
+		if (errno != ECONNREFUSED)
 			ast_log(LOG_WARNING, "Recv error: %s\n", strerror(errno));
 		return 1;
 	}
 	req.data[res] = '\0';
 	req.len = res;
 	debug = sip_debug_test_addr(&sin);
-	if (debug)
-		ast_verbose("\n\nSip read: \n%s\n", req.data);
 	if (pedanticsipchecking)
 		req.len = lws2sws(req.data, req.len);
-	parse(&req);
 	if (debug)
-		ast_verbose("%d headers, %d lines\n", req.headers, req.lines);
+		ast_verbose("\n<-- SIP read from %s:%d: \n%s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), req.data);
+	parse(&req);
+	if (debug) {
+		ast_verbose("--- (%d headers %d lines)", req.headers, req.lines);
+		if (req.headers + req.lines == 0) 
+			ast_verbose(" Nat keepalive ");
+		ast_verbose("---\n");
+	}
+
 	if (req.headers < 2) {
 		/* Must have at least two headers */
 		return 1;
