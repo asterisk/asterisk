@@ -467,7 +467,6 @@ static int globalcanreinvite = REINVITE_INVITE;
 
 
 static struct sockaddr_in bindaddr;
-static struct sockaddr_in localnet;
 static struct sockaddr_in externip;
 static struct ast_ha *localaddr;
 
@@ -7195,7 +7194,6 @@ static int reload_config(void)
 	sip_prefs_free();
 	
 	memset(&bindaddr, 0, sizeof(bindaddr));
-	memset(&localnet, 0, sizeof(localnet));
 	memset(&localaddr, 0, sizeof(localaddr));
 	memset(&externip, 0, sizeof(externip));
 
@@ -7274,7 +7272,7 @@ static int reload_config(void)
 			else
 				localaddr = na;
 		} else if (!strcasecmp(v->name, "localmask")) {
-			ast_log(LOG_WARNING, "Use of localmask is deprecated; use localnet with mask syntax\n");
+			ast_log(LOG_WARNING, "Use of localmask is no long supported -- use localnet with mask syntax\n");
 		} else if (!strcasecmp(v->name, "externip")) {
 			if (!(hp = ast_gethostbyname(v->value, &ahp))) 
 				ast_log(LOG_WARNING, "Invalid address for externip keyword: %s\n", v->value);

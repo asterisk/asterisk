@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Time of day - Report the time of day
+ * Transfer a caller
  * 
  * Copyright (C) 1999, Mark Spencer
  *
