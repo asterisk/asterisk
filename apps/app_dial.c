@@ -1135,12 +1135,18 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		
 		if (!res) {
 			memset(&config,0,sizeof(struct ast_bridge_config));
-			config.play_to_caller=play_to_caller;
-			config.play_to_callee=play_to_callee;
-			config.allowredirect_in = allowredir_in;
-			config.allowredirect_out = allowredir_out;
-			config.allowdisconnect_in = allowdisconnect_in;
-			config.allowdisconnect_out = allowdisconnect_out;
+			if (play_to_caller)
+				config.features_caller |= AST_FEATURE_PLAY_WARNING;
+			if (play_to_callee)
+				config.features_callee |= AST_FEATURE_PLAY_WARNING;
+			if (allowredir_in)
+				config.features_callee |= AST_FEATURE_REDIRECT;
+			if (allowredir_out)
+				config.features_caller |= AST_FEATURE_REDIRECT;
+			if (allowdisconnect_in)
+				config.features_callee |= AST_FEATURE_DISCONNECT;
+			if (allowdisconnect_out)
+				config.features_caller |= AST_FEATURE_DISCONNECT;
 			config.timelimit = timelimit;
 			config.play_warning = play_warning;
 			config.warning_freq = warning_freq;

@@ -13,3 +13,9 @@ context => parkedcalls		; Which context parked calls are in
 				; when someone dials a parked call
 ;adsipark = yes			; if you want ADSI parking announcements
 ;pickupexten = *8		; Configure the pickup extension.  Default is *8
+;featuredigittimeout = 500	; Max time (ms) between digits for 
+				; feature activation.  Default is 500
+
+[featuremap]
+;blindxfer => #			; Blind transfer
+;disconnect => *		; Disconnect

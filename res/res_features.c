@@ -19,6 +19,7 @@
 #include <asterisk/options.h>
 #include <asterisk/module.h>
 #include <asterisk/translate.h>
+#include <asterisk/app.h>
 #include <asterisk/say.h>
 #include <asterisk/channel_pvt.h>
 #include <asterisk/features.h>
@@ -41,6 +42,7 @@
 
 #define DEFAULT_PARK_TIME 45000
 #define DEFAULT_TRANSFER_DIGIT_TIMEOUT 3000
+#define DEFAULT_FEATURE_DIGIT_TIMEOUT 500
 
 static char *parkedcall = "ParkedCall";
 
@@ -67,6 +69,7 @@ static int parking_stop = 750;
 static int adsipark = 0;
 
 static int transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
+static int featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
 
 /* Default courtesy tone played when party joins conference */
 static char courtesytone[256] = "";
@@ -295,23 +298,257 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 	return 0;
 }
 
+
+#define FEATURE_RETURN_HANGUP		-1
+#define FEATURE_RETURN_SUCCESSBREAK	 0
+#define FEATURE_RETURN_PBX_KEEPALIVE	AST_PBX_KEEPALIVE
+#define FEATURE_RETURN_NO_HANGUP_PEER	AST_PBX_NO_HANGUP_PEER
+#define FEATURE_RETURN_PASSDIGITS	 21
+#define FEATURE_RETURN_STOREDIGITS	 22
+#define FEATURE_RETURN_SUCCESS	 	 23
+
+#define FEATURE_SENSE_CHAN	(1 << 0)
+#define FEATURE_SENSE_PEER	(1 << 1)
+#define FEATURE_MAX_LEN		11
+
+static int builtin_disconnect(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+{
+	if (option_verbose > 3)
+		ast_verbose(VERBOSE_PREFIX_3 "User hit '%s' to disconnect call.\n", code);
+	return FEATURE_RETURN_HANGUP;
+}
+
+static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+{
+	struct ast_channel *transferer;
+	struct ast_channel *transferee;
+	char *transferer_real_context;
+	char newext[256], *ptr;
+	int res;
+	int len;
+
+	ast_log(LOG_NOTICE, "XXX Blind Transfer %s, %s (sense=%d) XXX\n", chan->name, peer->name, sense);
+	if (sense == FEATURE_SENSE_PEER) {
+		transferer = peer;
+		transferee = chan;
+	} else {
+		transferer = chan;
+		transferee = peer;
+	}
+	if (!(transferer_real_context=pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT")) &&
+	   !(transferer_real_context=pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT"))) {
+		/* Use the non-macro context to transfer the call */
+		if (!ast_strlen_zero(transferer->macrocontext))
+			transferer_real_context = transferer->macrocontext;
+		else
+			transferer_real_context = transferer->context;
+	}
+	/* Start autoservice on chan while we talk
+	   to the originator */
+	ast_autoservice_start(transferee);
+	ast_moh_start(transferee, NULL);
+
+	memset(newext, 0, sizeof(newext));
+	ptr = newext;
+
+	/* Transfer */
+	if ((res=ast_streamfile(transferer, "pbx-transfer", transferer->language))) {
+		ast_moh_stop(transferee);
+		ast_autoservice_stop(transferee);
+		return res;
+	}
+	if ((res=ast_waitstream(transferer, AST_DIGIT_ANY)) < 0) {
+		ast_moh_stop(transferee);
+		ast_autoservice_stop(transferee);
+		return res;
+	}
+	ast_stopstream(transferer);
+	if (res > 0) {
+		/* If they've typed a digit already, handle it */
+		newext[0] = res;
+		ptr++;
+		len--;
+	}
+	res = 0;
+	while (strlen(newext) < sizeof(newext) - 1) {
+		res = ast_waitfordigit(transferer, transferdigittimeout);
+		if (res < 1) 
+			break;
+		if (res == '#')
+			break;
+		*(ptr++) = res;
+		if (!ast_matchmore_extension(transferer, transferer_real_context, newext, 1, transferer->cid.cid_num)) 
+			break;
+	}
+
+	if (res < 0) {
+		ast_moh_stop(transferee);
+		ast_autoservice_stop(transferee);
+		return res;
+	}
+	if (!strcmp(newext, ast_parking_ext())) {
+		ast_moh_stop(transferee);
+
+		if (ast_autoservice_stop(transferee))
+			res = -1;
+		else if (!ast_park_call(transferee, transferer, 0, NULL)) {
+			/* We return non-zero, but tell the PBX not to hang the channel when
+			   the thread dies -- We have to be careful now though.  We are responsible for 
+			   hanging up the channel, else it will never be hung up! */
+
+			if (transferer==peer)
+				res=AST_PBX_KEEPALIVE;
+			else
+				res=AST_PBX_NO_HANGUP_PEER;
+			return res;
+		} else {
+			ast_log(LOG_WARNING, "Unable to park call %s\n", transferee->name);
+		}
+		/* XXX Maybe we should have another message here instead of invalid extension XXX */
+	} else if (ast_exists_extension(transferee, transferer_real_context, newext, 1, transferer->cid.cid_num)) {
+		pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", chan->name);
+		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", peer->name);
+		ast_moh_stop(transferee);
+		res=ast_autoservice_stop(transferee);
+		if (!transferee->pbx) {
+			/* Doh!  Use our handy async_goto functions */
+			if (option_verbose > 2) 
+				ast_verbose(VERBOSE_PREFIX_3 "Transferring %s to '%s' (context %s) priority 1\n"
+								,transferee->name, newext, transferer_real_context);
+			if (ast_async_goto(transferee, transferer_real_context, newext, 1))
+				ast_log(LOG_WARNING, "Async goto failed :-(\n");
+			res = -1;
+		} else {
+			/* Set the channel's new extension, since it exists, using transferer context */
+			strncpy(transferee->exten, newext, sizeof(transferee->exten)-1);
+			strncpy(transferee->context, transferer_real_context, sizeof(transferee->context)-1);
+			transferee->priority = 0;
+		}
+		return res;
+	} else {
+		if (option_verbose > 2)	
+			ast_verbose(VERBOSE_PREFIX_3 "Unable to find extension '%s' in context '%s'\n", newext, transferer_real_context);
+	}
+	res = ast_streamfile(transferer, "pbx-invalid", transferee->language);
+	if (res) {
+		ast_moh_stop(transferee);
+		ast_autoservice_stop(transferee);
+		return res;
+	}
+	res = ast_waitstream(transferer, AST_DIGIT_ANY);
+	ast_stopstream(transferer);
+	ast_moh_stop(transferee);
+	res = ast_autoservice_stop(transferee);
+	if (res) {
+		if (option_verbose > 1)
+			ast_verbose(VERBOSE_PREFIX_2 "Hungup during autoservice stop on '%s'\n", transferee->name);
+		return res;
+	}
+	return FEATURE_RETURN_SUCCESS;
+}
+
+struct ast_call_feature {
+	int feature_mask;
+	char *fname;
+	char *sname;
+	char exten[FEATURE_MAX_LEN];
+	char default_exten[FEATURE_MAX_LEN];
+	int (*operation)(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense);
+	unsigned int flags;
+};
+
+#define FEATURES_COUNT (sizeof(builtin_features) / sizeof(builtin_features[0]))
+struct ast_call_feature builtin_features[] = 
+{
+	{ AST_FEATURE_REDIRECT, "Blind Transfer", "blindxfer", "#", "#", builtin_blindtransfer, AST_FEATURE_FLAG_NEEDSDTMF },
+	{ AST_FEATURE_DISCONNECT, "Disconnect Call", "disconnect", "*", "*", builtin_disconnect, AST_FEATURE_FLAG_NEEDSDTMF },
+};
+
+static void unmap_features(void)
+{
+	int x;
+	for (x=0;x<FEATURES_COUNT;x++)
+		strcpy(builtin_features[x].exten, builtin_features[x].default_exten);
+}
+
+static int remap_feature(const char *name, const char *value)
+{
+	int x;
+	int res = -1;
+	for (x=0;x<FEATURES_COUNT;x++) {
+		if (!strcasecmp(name, builtin_features[x].sname)) {
+			strncpy(builtin_features[x].exten, value, sizeof(builtin_features[x].exten) - 1);
+			if (option_verbose > 1)
+				ast_verbose(VERBOSE_PREFIX_2 "Remapping feature %s (%s) to sequence '%s'\n", builtin_features[x].fname, builtin_features[x].sname, builtin_features[x].exten);
+			res = 0;
+		} else if (!strcmp(value, builtin_features[x].exten)) 
+			ast_log(LOG_WARNING, "Sequence '%s' already mapped to function %s (%s) while assigning to %s\n", value, builtin_features[x].fname, builtin_features[x].sname, name);
+	}
+	return res;
+}
+
+static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+{
+	int x;
+	unsigned int features;
+	int res = FEATURE_RETURN_PASSDIGITS;
+
+	if (sense == FEATURE_SENSE_CHAN)
+		features = config->features_caller;
+	else
+		features = config->features_callee;
+	ast_log(LOG_DEBUG, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%d\n", chan->name, peer->name, sense, features);
+	for (x=0;x<FEATURES_COUNT;x++) {
+		if ((features & builtin_features[x].feature_mask) &&
+		    !ast_strlen_zero(builtin_features[x].exten)) {
+			/* Feature is up for consideration */
+			if (!strcmp(builtin_features[x].exten, code)) {
+				res = builtin_features[x].operation(chan, peer, config, code, sense);
+				break;
+			} else if (!strncmp(builtin_features[x].exten, code, strlen(code))) {
+				if (res == FEATURE_RETURN_PASSDIGITS)
+					res = FEATURE_RETURN_STOREDIGITS;
+			}
+		}
+	}
+	return res;
+}
+
+static void set_config_flags(struct ast_bridge_config *config)
+{
+	int x;
+	config->flags = 0;
+	for (x=0;x<FEATURES_COUNT;x++) {
+		if (config->features_caller & builtin_features[x].feature_mask) {
+			if (builtin_features[x].flags & AST_FEATURE_FLAG_NEEDSDTMF)
+				ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
+		}
+		if (config->features_callee & builtin_features[x].feature_mask) {
+			if (builtin_features[x].flags & AST_FEATURE_FLAG_NEEDSDTMF)
+				ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_1);
+		}
+	}
+}
+
 int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast_bridge_config *config)
 {
 	/* Copy voice back and forth between the two channels.  Give the peer
 	   the ability to transfer calls with '#<extension' syntax. */
-	int len;
 	struct ast_frame *f;
 	struct ast_channel *who;
-	char newext[256], *ptr;
+	char chan_featurecode[FEATURE_MAX_LEN + 1]="";
+	char peer_featurecode[FEATURE_MAX_LEN + 1]="";
 	int res;
 	int diff;
+	int hasfeatures=0;
+	int hadfeatures=0;
 	struct ast_option_header *aoh;
-	struct ast_channel *transferer;
-	struct ast_channel *transferee;
 	struct timeval start, end;
-	char *transferer_real_context;
+	struct ast_bridge_config backup_config;
 	int allowdisconnect_in,allowdisconnect_out,allowredirect_in,allowredirect_out;
 	char *monitor_exec;
+
+	memset(&backup_config, 0, sizeof(backup_config));
 
 	if (chan && peer) {
 		pbx_builtin_setvar_helper(chan, "BRIDGEPEER", peer->name);
@@ -330,10 +567,11 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			pbx_exec(peer, monitor_app, monitor_exec, 1);
 	}
 	
-	allowdisconnect_in = config->allowdisconnect_in;
-	allowdisconnect_out = config->allowdisconnect_out;
-	allowredirect_in = config->allowredirect_in;
-	allowredirect_out = config->allowredirect_out;
+	allowdisconnect_in = (config->features_callee & AST_FEATURE_DISCONNECT);
+	allowdisconnect_out = (config->features_caller & AST_FEATURE_DISCONNECT);
+	allowredirect_in = (config->features_callee & AST_FEATURE_REDIRECT);
+	allowredirect_out = (config->features_caller & AST_FEATURE_REDIRECT);
+	set_config_flags(config);
 	config->firstpass = 1;
 
 	/* Answer if need be */
@@ -363,14 +601,52 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			diff = (end.tv_sec - start.tv_sec) * 1000;
 			diff += (end.tv_usec - start.tv_usec) / 1000;
 			config->timelimit -= diff;
-			if (config->timelimit <=0) {
-				/* We ran out of time */
-				config->timelimit = 0;
-				who = chan;
-				if (f)
-					ast_frfree(f);
-				f = NULL;
-				res = 0;
+			if (hasfeatures) {
+				/* Running on backup config, meaning a feature might be being
+				   activated, but that's no excuse to keep things going 
+				   indefinitely! */
+				if (backup_config.timelimit && ((backup_config.timelimit -= diff) <= 0)) {
+					ast_log(LOG_DEBUG, "Timed out, realtime this time!\n");
+					config->timelimit = 0;
+					who = chan;
+					if (f)
+						ast_frfree(f);
+					f = NULL;
+					res = 0;
+				} else if (config->timelimit <= 0) {
+					/* Not *really* out of time, just out of time for
+					   digits to come in for features. */
+					ast_log(LOG_DEBUG, "Timed out for feature!\n");
+					if (!ast_strlen_zero(peer_featurecode)) {
+						ast_dtmf_stream(chan, peer, peer_featurecode, 0);
+						memset(peer_featurecode, 0, sizeof(peer_featurecode));
+					}
+					if (!ast_strlen_zero(chan_featurecode)) {
+						ast_dtmf_stream(peer, chan, chan_featurecode, 0);
+						memset(chan_featurecode, 0, sizeof(chan_featurecode));
+					}
+					if (f)
+						ast_frfree(f);
+					hasfeatures = !ast_strlen_zero(chan_featurecode) || !ast_strlen_zero(peer_featurecode);
+					if (!hasfeatures) {
+						/* Restore original (possibly time modified) bridge config */
+						memcpy(config, &backup_config, sizeof(struct ast_bridge_config));
+						memset(&backup_config, 0, sizeof(backup_config));
+					}
+					hadfeatures = hasfeatures;
+					/* Continue as we were */
+					continue;
+				}
+			} else {
+				if (config->timelimit <=0) {
+					/* We ran out of time */
+					config->timelimit = 0;
+					who = chan;
+					if (f)
+						ast_frfree(f);
+					f = NULL;
+					res = 0;
+				}
 			}
 		}
 		if (res < 0) {
@@ -412,150 +688,62 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			}
 		}
 		/* check for '*', if we find it it's time to disconnect */
-		if (f && (f->frametype == AST_FRAME_DTMF) &&
-			(((who == chan) && allowdisconnect_out) || ((who == peer) && allowdisconnect_in)) &&
-			(f->subclass == '*')) {
-			
-			if (option_verbose > 3)
-				ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
-			res = -1;
-			break;
-		}
-
-		if ((f->frametype == AST_FRAME_DTMF) &&
-			((allowredirect_in && who == peer) || (allowredirect_out && who == chan)) &&
-			(f->subclass == '#')) {
-				if (allowredirect_in &&  who == peer) {
-					transferer = peer;
-					transferee = chan;
-				} else {
-					transferer = chan;
-					transferee = peer;
-				}
-				if (!(transferer_real_context=pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT")) &&
-				   !(transferer_real_context=pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT"))) {
-					/* Use the non-macro context to transfer the call */
-					if (!ast_strlen_zero(transferer->macrocontext))
-						transferer_real_context = transferer->macrocontext;
-					else
-						transferer_real_context = transferer->context;
-				}
-				/* Start autoservice on chan while we talk
-				   to the originator */
-				ast_autoservice_start(transferee);
-				ast_moh_start(transferee, NULL);
-
-				memset(newext, 0, sizeof(newext));
-				ptr = newext;
-
-					/* Transfer */
-				if ((res=ast_streamfile(transferer, "pbx-transfer", transferer->language))) {
-					ast_moh_stop(transferee);
-					ast_autoservice_stop(transferee);
-					break;
-				}
-				if ((res=ast_waitstream(transferer, AST_DIGIT_ANY)) < 0) {
-					ast_moh_stop(transferee);
-					ast_autoservice_stop(transferee);
-					break;
-				}
-				ast_stopstream(transferer);
-				if (res > 0) {
-					/* If they've typed a digit already, handle it */
-					newext[0] = res;
-					ptr++;
-					len --;
-				}
-				res = 0;
-				while (strlen(newext) < sizeof(newext) - 1) {
-					res = ast_waitfordigit(transferer, transferdigittimeout);
-					if (res < 1) 
-						break;
-					if (res == '#')
-						break;
-					*(ptr++) = res;
-					if (!ast_matchmore_extension(transferer, transferer_real_context
-								, newext, 1, transferer->cid.cid_num)) {
-						break;
-					}
-				}
-
-				if (res < 0) {
-					ast_moh_stop(transferee);
-					ast_autoservice_stop(transferee);
-					break;
-				}
-				if (!strcmp(newext, ast_parking_ext())) {
-					ast_moh_stop(transferee);
-
-					if (ast_autoservice_stop(transferee))
-						res = -1;
-					else if (!ast_park_call(transferee, transferer, 0, NULL)) {
-						/* We return non-zero, but tell the PBX not to hang the channel when
-						   the thread dies -- We have to be careful now though.  We are responsible for 
-						   hanging up the channel, else it will never be hung up! */
-
-						if (transferer==peer)
-							res=AST_PBX_KEEPALIVE;
-						else
-							res=AST_PBX_NO_HANGUP_PEER;
-						break;
-					} else {
-						ast_log(LOG_WARNING, "Unable to park call %s\n", transferee->name);
-					}
-					/* XXX Maybe we should have another message here instead of invalid extension XXX */
-				} else if (ast_exists_extension(transferee, transferer_real_context, newext, 1, transferer->cid.cid_num)) {
-					pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", chan->name);
-					pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", peer->name);
-					ast_moh_stop(transferee);
-					res=ast_autoservice_stop(transferee);
-					if (!transferee->pbx) {
-						/* Doh!  Use our handy async_goto functions */
-						if (option_verbose > 2) 
-							ast_verbose(VERBOSE_PREFIX_3 "Transferring %s to '%s' (context %s) priority 1\n"
-								,transferee->name, newext, transferer_real_context);
-						if (ast_async_goto(transferee, transferer_real_context, newext, 1))
-							ast_log(LOG_WARNING, "Async goto failed :-(\n");
-						res = -1;
-					} else {
-						/* Set the channel's new extension, since it exists, using transferer context */
-						strncpy(transferee->exten, newext, sizeof(transferee->exten)-1);
-						strncpy(transferee->context, transferer_real_context, sizeof(transferee->context)-1);
-						transferee->priority = 0;
-						ast_frfree(f);
-					}
-					break;
-				} else {
-					if (option_verbose > 2)	
-						ast_verbose(VERBOSE_PREFIX_3 "Unable to find extension '%s' in context '%s'\n", newext, transferer_real_context);
-				}
-				res = ast_streamfile(transferer, "pbx-invalid", transferee->language);
-				if (res) {
-					ast_moh_stop(transferee);
-					ast_autoservice_stop(transferee);
-					break;
-				}
-				res = ast_waitstream(transferer, AST_DIGIT_ANY);
-				ast_stopstream(transferer);
-				ast_moh_stop(transferee);
-				res = ast_autoservice_stop(transferee);
-				if (res) {
-					if (option_verbose > 1)
-						ast_verbose(VERBOSE_PREFIX_2 "Hungup during autoservice stop on '%s'\n", transferee->name);
-				}
-			} else {
-            			if (f && (f->frametype == AST_FRAME_DTMF)) {
-                  			if (who == peer)
-                        			ast_write(chan, f);
-                  			else
-                        			ast_write(peer, f);
-            			}            
-#if 1
-				ast_log(LOG_DEBUG, "Read from %s (%d,%d)\n", who->name, f->frametype, f->subclass);
-#endif
+		if (f && (f->frametype == AST_FRAME_DTMF)) {
+			char *featurecode;
+			int sense;
+			struct ast_channel *other;
+			hadfeatures = hasfeatures;
+			/* This cannot overrun because the longest feature is one shorter than our buffer */
+			if (who == chan) {
+				other = peer;
+				sense = FEATURE_SENSE_CHAN;
+				featurecode = chan_featurecode;
+			} else  {
+				other = chan;
+				sense = FEATURE_SENSE_PEER;
+				featurecode = peer_featurecode;
 			}
-         if (f)
-               ast_frfree(f);
+			featurecode[strlen(featurecode)] = f->subclass;
+			res = ast_feature_interpret(chan, peer, config, featurecode, sense);
+			switch(res) {
+			case FEATURE_RETURN_PASSDIGITS:
+				ast_dtmf_stream(other, who, featurecode, 0);
+				/* Fall through */
+			case FEATURE_RETURN_SUCCESS:
+				memset(featurecode, 0, sizeof(chan_featurecode));
+				break;
+			}
+			if (res >= FEATURE_RETURN_PASSDIGITS) {
+				res = 0;
+			} else {
+				ast_frfree(f);
+				break;
+			}
+			hasfeatures = !ast_strlen_zero(chan_featurecode) || !ast_strlen_zero(peer_featurecode);
+			if (hadfeatures && !hasfeatures) {
+				/* Restore backup */
+				memcpy(config, &backup_config, sizeof(struct ast_bridge_config));
+				memset(&backup_config, 0, sizeof(struct ast_bridge_config));
+			} else if (hasfeatures) {
+				if (!hadfeatures) {
+					/* Backup configuration */
+					memcpy(&backup_config, config, sizeof(struct ast_bridge_config));
+					/* Setup temporary config options */
+					config->play_warning = 0;
+					config->features_caller &= ~(AST_FEATURE_PLAY_WARNING);
+					config->features_callee &= ~(AST_FEATURE_PLAY_WARNING);
+					config->warning_freq = 0;
+					config->warning_sound = NULL;
+					config->end_sound = NULL;
+					config->start_sound = NULL;
+					config->firstpass = 0;
+				}
+				config->timelimit = featuredigittimeout;
+				ast_log(LOG_DEBUG, "Set time limit to %ld\n", config->timelimit);
+			}
+		}
+		if (f)
+			ast_frfree(f);
 	}
 	return res;
 }
@@ -813,10 +1001,8 @@ static int park_exec(struct ast_channel *chan, void *data)
 			ast_verbose(VERBOSE_PREFIX_3 "Channel %s connected to parked call %d\n", chan->name, park);
 
 		memset(&config,0,sizeof(struct ast_bridge_config));
-		config.allowredirect_in = 1;
-		config.allowredirect_out = 1;
-		config.allowdisconnect_out = 0;
-		config.allowdisconnect_in = 0;
+		config.features_callee |= AST_FEATURE_REDIRECT;
+		config.features_caller |= AST_FEATURE_REDIRECT;
 		config.timelimit = 0;
 		config.play_warning = 0;
 		config.warning_freq = 0;
@@ -928,6 +1114,9 @@ int load_module(void)
 	struct ast_config *cfg;
 	struct ast_variable *var;
 
+	transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
+	featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
+
 	ast_cli_register(&showparked);
 
 	cfg = ast_load("features.conf");
@@ -964,11 +1153,23 @@ int load_module(void)
 					transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
 				} else
 					transferdigittimeout = transferdigittimeout * 1000;
+			} else if (!strcasecmp(var->name, "featuredigittimeout")) {
+				if ((sscanf(var->value, "%d", &featuredigittimeout) != 1) || (transferdigittimeout < 1)) {
+					ast_log(LOG_WARNING, "%s is not a valid featuredigittimeout\n", var->value);
+					featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
+				}
 			} else if (!strcasecmp(var->name, "courtesytone")) {
 				strncpy(courtesytone, var->value, sizeof(courtesytone) - 1);
 			} else if (!strcasecmp(var->name, "pickupexten")) {
 				strncpy(pickup_ext, var->value, sizeof(pickup_ext) - 1);
 			}
+			var = var->next;
+		}
+		unmap_features();
+		var = ast_variable_browse(cfg, "featuremap");
+		while(var) {
+			if (remap_feature(var->name, var->value))
+				ast_log(LOG_NOTICE, "Unknown feature '%s'\n", var->name);
 			var = var->next;
 		}
 		ast_destroy(cfg);

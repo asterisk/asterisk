@@ -2600,7 +2600,6 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 {
 	/* Copy voice back and forth between the two channels.	Give the peer
 	   the ability to transfer calls with '#<extension' syntax. */
-	int flags;
 	struct ast_channel *cs[3];
 	int to = -1;
 	struct ast_frame *f;
@@ -2614,8 +2613,6 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 	long elapsed_ms=0, time_left_ms=0;
 	int playit=0, playitagain=1, first_time=1;
 
-	flags = (config->allowdisconnect_out||config->allowredirect_out ? AST_BRIDGE_DTMF_CHANNEL_0 : 0) + (config->allowdisconnect_in||config->allowredirect_in ? AST_BRIDGE_DTMF_CHANNEL_1 : 0);
-
 	*fo = NULL;
 	firstpass = config->firstpass;
 	config->firstpass = 0;
@@ -2624,9 +2621,9 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 	gettimeofday(&start_time,NULL);
 	time_left_ms = config->timelimit;
 
-	if (config->play_to_caller && config->start_sound && firstpass)
+	if ((config->features_caller & AST_FEATURE_PLAY_WARNING) && config->start_sound && firstpass)
 		bridge_playfile(c0,c1,config->start_sound,time_left_ms / 1000);
-	if (config->play_to_callee && config->start_sound && firstpass)
+	if ((config->features_callee & AST_FEATURE_PLAY_WARNING) && config->start_sound && firstpass)
 		bridge_playfile(c1,c0,config->start_sound,time_left_ms / 1000);
 
 	/* Stop if we're a zombie or need a soft hangup */
@@ -2664,7 +2661,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 			elapsed_ms = tvdiff(&precise_now,&start_time);
 			time_left_ms = config->timelimit - elapsed_ms;
 
-			if (playitagain && (config->play_to_caller || config->play_to_callee) && (config->play_warning && time_left_ms <= config->play_warning)) { 
+			if (playitagain && ((config->features_caller & AST_FEATURE_PLAY_WARNING) || (config->features_callee & AST_FEATURE_PLAY_WARNING)) && (config->play_warning && time_left_ms <= config->play_warning)) { 
 				/* narrowing down to the end */
 				if (config->warning_freq == 0) {
 					playit = 1;
@@ -2680,9 +2677,9 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 				}
 			}
 			if (time_left_ms <= 0) {
-				if (config->play_to_caller && config->end_sound)
+				if ((config->features_caller & AST_FEATURE_PLAY_WARNING) && config->end_sound)
 					bridge_playfile(c0,c1,config->end_sound,0);
-				if (config->play_to_callee && config->end_sound)
+				if ((config->features_callee & AST_FEATURE_PLAY_WARNING) && config->end_sound)
 					bridge_playfile(c1,c0,config->end_sound,0);
 				*fo = NULL;
 				if (who) *rc = who;
@@ -2690,9 +2687,9 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 				break;
 			}
 			if (time_left_ms >= 5000 && playit) {
-				if (config->play_to_caller && config->warning_sound && config->play_warning)
+				if ((config->features_caller & AST_FEATURE_PLAY_WARNING) && config->warning_sound && config->play_warning)
 					bridge_playfile(c0,c1,config->warning_sound,time_left_ms / 1000);
-				if (config->play_to_callee && config->warning_sound && config->play_warning)
+				if ((config->features_callee & AST_FEATURE_PLAY_WARNING) && config->warning_sound && config->play_warning)
 					bridge_playfile(c1,c0,config->warning_sound,time_left_ms / 1000);
 				playit = 0;
 			}
@@ -2711,7 +2708,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 				/* Looks like they share a bridge code */
 			if (option_verbose > 2) 
 				ast_verbose(VERBOSE_PREFIX_3 "Attempting native bridge of %s and %s\n", c0->name, c1->name);
-			if (!(res = c0->pvt->bridge(c0, c1, flags, fo, rc))) {
+			if (!(res = c0->pvt->bridge(c0, c1, config->flags, fo, rc))) {
 				c0->_bridge = NULL;
 				c1->_bridge = NULL;
 				manager_event(EVENT_FLAG_CALL, "Unlink", 
@@ -2759,7 +2756,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 			break;
 		}
 
-		if ((f->frametype == AST_FRAME_CONTROL) && !(flags & AST_BRIDGE_IGNORE_SIGS)) {
+		if ((f->frametype == AST_FRAME_CONTROL) && !(config->flags & AST_BRIDGE_IGNORE_SIGS)) {
 			*fo = f;
 			*rc = who;
 			res =  0;
@@ -2772,9 +2769,9 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 			(f->frametype == AST_FRAME_IMAGE) ||
 			(f->frametype == AST_FRAME_DTMF)) {
 			if ((f->frametype == AST_FRAME_DTMF) && 
-				(flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))) {
+				(config->flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))) {
 				if ((who == c0)) {
-					if  ((flags & AST_BRIDGE_DTMF_CHANNEL_0)) {
+					if  ((config->flags & AST_BRIDGE_DTMF_CHANNEL_0)) {
 						*rc = c0;
 						*fo = f;
 						/* Take out of conference mode */
@@ -2785,7 +2782,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 						goto tackygoto;
 				} else
 				if ((who == c1)) {
-					if (flags & AST_BRIDGE_DTMF_CHANNEL_1) {
+					if (config->flags & AST_BRIDGE_DTMF_CHANNEL_1) {
 						*rc = c1;
 						*fo = f;
 						res =  0;

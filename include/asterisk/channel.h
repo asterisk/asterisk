@@ -233,13 +233,15 @@ struct ast_channel {
 #define AST_FLAG_EXCEPTION	(1 << 5)	/* if there is a pending exception */
 #define AST_FLAG_MOH        (1 << 6)    /* XXX anthm promises me this will disappear XXX listening to moh */
 
+#define AST_FEATURE_PLAY_WARNING	(1 << 0)
+#define AST_FEATURE_REDIRECT		(1 << 1)
+#define AST_FEATURE_DISCONNECT		(1 << 2)
+
+#define AST_FEATURE_FLAG_NEEDSDTMF		(1 << 0)
+
 struct ast_bridge_config {
-	int play_to_caller;
-	int play_to_callee;
-	int allowredirect_in;
-	int allowredirect_out;
-	int allowdisconnect_in;
-	int allowdisconnect_out;
+	unsigned int features_caller;
+	unsigned int features_callee;
 	long timelimit;
 	long play_warning;
 	long warning_freq;
@@ -247,6 +249,7 @@ struct ast_bridge_config {
 	char *end_sound;
 	char *start_sound;
 	int firstpass;
+	int flags;
 };
 
 struct chanmon;

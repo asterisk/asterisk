@@ -1480,10 +1480,14 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		time(&callstart);
 
 		memset(&config,0,sizeof(struct ast_bridge_config));
-		config.allowredirect_in = ast_test_flag(&flags, QUEUE_FLAG_REDIR_IN);
-		config.allowredirect_out = ast_test_flag(&flags, QUEUE_FLAG_REDIR_OUT);
-		config.allowdisconnect_in = ast_test_flag(&flags, QUEUE_FLAG_DISCON_IN);
-		config.allowdisconnect_out = ast_test_flag(&flags, QUEUE_FLAG_DISCON_OUT);
+		if (ast_test_flag(&flags, QUEUE_FLAG_REDIR_IN))
+			config.features_callee |= AST_FEATURE_REDIRECT;
+		if (ast_test_flag(&flags, QUEUE_FLAG_REDIR_OUT))
+			config.features_caller |= AST_FEATURE_REDIRECT;
+		if (ast_test_flag(&flags, QUEUE_FLAG_DISCON_IN))
+			config.features_callee |= AST_FEATURE_DISCONNECT;
+		if (ast_test_flag(&flags, QUEUE_FLAG_DISCON_OUT))
+			config.features_caller |= AST_FEATURE_DISCONNECT;
 		bridge = ast_bridge_call(qe->chan,peer,&config);
 
 		if (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten)) {
