@@ -1195,7 +1195,7 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 				"CallerID: %s\r\n"
 				"Wait: %ld\r\n"
 				"\r\n", 
-					q->name, pos++, qe->chan->name, qe->chan->callerid ? qe->chan->callerid : "", now - qe->start);
+					q->name, pos++, qe->chan->name, (qe->chan->callerid ? qe->chan->callerid : ""), now - qe->start);
 		ast_pthread_mutex_unlock(&q->lock);
 		q = q->next;
 	}
