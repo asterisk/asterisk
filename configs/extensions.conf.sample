@@ -185,7 +185,7 @@ exten => s,2,Voicemail(u${ARG1})				; If unavailable, send to voicemail w/ unava
 exten => s,3,Goto(default,s,1)					; If they press #, return to start
 exten => s,102,Voicemail(b${ARG1})				; If busy, send to voicemail w/ busy announce
 exten => s,103,Goto(default,s,1)				; If they press #, return to start
-
+exten => a,1,VoicemailMain(${ARG1})				; If they press *, send the user into VoicemailMain
 
 [demo]
 ;
