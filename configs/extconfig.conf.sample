@@ -27,6 +27,7 @@
 ; database and table (or uses the name of
 ; the family if the table is not specified
 ;
+;example => odbc,asterisk,alttable
 ;iaxfriends => odbc,asterisk
 ;sipfriends => odbc,asterisk
 ;voicemail => odbc,asterisk
