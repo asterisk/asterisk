@@ -1074,7 +1074,7 @@ struct rtp_info *external_rtp_create(unsigned call_reference, const char * token
 	/* evil hack, until I (someone?) figures out a better way */
 	info->addr = ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr);
 	info->port = ntohs(us.sin_port);
-	ast_log(LOG_DEBUG, "Sending RTP 'US' %s:%d\n", iabuf, info->port);
+	ast_log(LOG_DEBUG, "Sending RTP 'US' %s:%d\n", info->addr, info->port);
 	return info;
 }
 
