@@ -298,6 +298,8 @@ void MyH323EndPoint::OnConnectionCleared(H323Connection & connection, const PStr
 
 	switch (connection.GetCallEndReason()) {
 		case H323Connection::EndedByCallForwarded :
+			if (h323debug)
+				cout << " -- " << remoteName << " has forwarded the call" << endl;
 			break;
 		case H323Connection::EndedByRemoteUser :
 			if (h323debug)
@@ -535,6 +537,20 @@ BOOL MyH323Connection::OnSendSignalSetup(H323SignalPDU & setupPDU)
 	return H323Connection::OnSendSignalSetup(setupPDU);
 }
 
+BOOL MyH323Connection::OnSendReleaseComplete(H323SignalPDU & releaseCompletePDU)
+{
+	if (h323debug)
+		cout << "	-- Sending RELEASE COMPLETE" << endl;
+	return H323Connection::OnSendReleaseComplete(releaseCompletePDU);
+}
+
+BOOL MyH323Connection::OnReceivedFacility(const H323SignalPDU & pdu)
+{
+	if (h323debug)
+		cout << "	-- Received Facility message... " << endl;
+	return H323Connection::OnReceivedFacility(pdu);
+}
+
 void MyH323Connection::OnReceivedReleaseComplete(const H323SignalPDU & pdu)
 {
 	if (h323debug)
@@ -594,7 +610,7 @@ H323Channel * MyH323Connection::CreateRealTimeLogicalChannel(const H323Capabilit
 	externalPort = on_create_connection(GetCallReference()); 
 
 	if (h323debug) {
-		cout << "	=*= In CreateRealTimeLogicalChannel" << endl;
+		cout << "	=*= In CreateRealTimeLogicalChannel for call " << GetCallReference() << endl;
 		cout << "		-- externalIpAddress: " << externalIpAddress << endl;
 		cout << "		-- externalPort: " << externalPort << endl;
 		cout << "		-- Direction: " << dir << endl;

@@ -404,7 +404,7 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	res = h323_make_call(called_addr, &(p->cd), p->call_opt);
 
 	if (res) {
-		printf("h323_make_call failed\n");
+		ast_log(LOG_NOTICE, "h323_make_call failed(%s)\n", c->name);
 		return -1;
 	}
 
@@ -1700,6 +1700,17 @@ int unload_module()
 	}
 	h323_gk_urq();
 	h323_end_process();
+
+	/* unregister rtp */
+	ast_rtp_proto_unregister(&oh323_rtp);
+	
+	/* unregister commands */
+	ast_cli_unregister(&cli_debug);
+	ast_cli_unregister(&cli_no_debug);
+	ast_cli_unregister(&cli_trace);
+	ast_cli_unregister(&cli_no_trace);
+	ast_cli_unregister(&cli_show_codecs);
+	ast_cli_unregister(&cli_gk_cycle);
 
 	/* unregister channel type */
 	ast_channel_unregister(type);

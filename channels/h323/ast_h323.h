@@ -105,7 +105,6 @@ class MyH323EndPoint : public H323EndPoint {
 
 	int MakeCall(const PString &, PString &, unsigned int *, unsigned int);
 	BOOL ClearCall(const PString &);
-//	BOOL OnIncomingCall( H323Connection & connection, const H323SignalPDU &, H323SignalPDU &);
 
 	void OnClosedLogicalChannel(H323Connection &, const H323Channel &);
 	void OnConnectionEstablished(H323Connection &, const PString &);
@@ -133,8 +132,10 @@ class MyH323Connection : public H323Connection {
 											   const H245_H2250LogicalChannelParameters *);
 	H323Connection::AnswerCallResponse OnAnswerCall(const PString &, const H323SignalPDU &, H323SignalPDU &);
 	BOOL OnAlerting(const H323SignalPDU &, const PString &);
+	BOOL OnSendReleaseComplete(H323SignalPDU &);
 	BOOL OnReceivedSignalSetup(const H323SignalPDU &);
 	void OnReceivedReleaseComplete(const H323SignalPDU &);
+	BOOL OnReceivedFacility(const H323SignalPDU &);
 	BOOL OnSendSignalSetup(H323SignalPDU &);
 	BOOL OnStartLogicalChannel(H323Channel &);
 	BOOL OnClosingLogicalChannel(H323Channel &);

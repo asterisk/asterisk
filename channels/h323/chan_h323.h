@@ -10,12 +10,12 @@
  *
  * This file is part of the chan_oh323 driver for Asterisk
  *
- * chan_oh323 is free software; you can redistribute it and/or modify
+ * chan_h323 is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version. 
  *
- * chan_oh323 is distributed WITHOUT ANY WARRANTY; without even 
+ * chan_h323 is distributed WITHOUT ANY WARRANTY; without even 
  * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
  * PURPOSE. See the GNU General Public License for more details. 
  *
