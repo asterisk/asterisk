@@ -68,6 +68,13 @@ struct ast_switch {
 	int (*matchmore)(struct ast_channel *chan, char *context, char *exten, int priority, char *callerid, char *data);
 };
 
+struct ast_pbx {
+        int dtimeout;                                   /* Timeout between digits (seconds) */
+        int rtimeout;                                   /* Timeout for response
+							   (seconds) */
+};
+
+
 //! Register an alternative switch
 /*!
  * \param sw switch to register

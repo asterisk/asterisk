@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <asterisk/channel.h>
+#include <asterisk/pbx.h>
 #include <asterisk/file.h>
 #include <asterisk/app.h>
 #include <asterisk/dsp.h>
@@ -40,8 +41,9 @@ int ast_app_getdata(struct ast_channel *c, char *prompt, char *s, int maxlen, in
 		if (res < 0)
 			return res;
 	}
-	fto = 6000;
-	to = 2000;
+	fto = c->pbx ? c->pbx->rtimeout * 1000 : 6000;
+	to = c->pbx ? c->pbx->dtimeout * 1000 : 2000;
+
 	if (timeout > 0) fto = to = timeout;
 	if (timeout < 0) fto = to = 1000000000;
 	res = ast_readstring(c, s, maxlen, to, fto, "#");

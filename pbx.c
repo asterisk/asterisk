@@ -50,11 +50,6 @@
 
 struct ast_context;
 
-struct ast_pbx {
-	int dtimeout;					/* Timeout between digits (seconds) */
-	int rtimeout;					/* Timeout for response (seconds) */
-};
-
 /* An extension */
 struct ast_exten {
 	char exten[AST_MAX_EXTENSION];
