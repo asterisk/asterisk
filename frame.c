@@ -25,18 +25,93 @@
 #ifdef TRACE_FRAMES
 static int headers = 0;
 static struct ast_frame *headerlist = NULL;
-static pthread_mutex_t framelock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t framelock = AST_MUTEX_INITIALIZER;
 #endif
+
+#define SMOOTHER_SIZE 8000
+
+struct ast_smoother {
+	int size;
+	int format;
+	int readdata;
+	float timeperbyte;
+	struct ast_frame f;
+	char data[SMOOTHER_SIZE];
+	char framedata[SMOOTHER_SIZE + AST_FRIENDLY_OFFSET];
+	int len;
+};
+
+struct ast_smoother *ast_smoother_new(int size)
+{
+	struct ast_smoother *s;
+	s = malloc(sizeof(struct ast_smoother));
+	if (s) {
+		memset(s, 0, sizeof(s));
+		s->size = size;
+	}
+	return s;
+}
+
+int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f)
+{
+	if (f->frametype != AST_FRAME_VOICE) {
+		ast_log(LOG_WARNING, "Huh?  Can't smooth a non-voice frame!\n");
+		return -1;
+	}
+	if (!s->format) {
+		s->format = f->subclass;
+		s->timeperbyte = (float)f->timelen / (float)f->datalen;
+	} else if (s->format != f->subclass) {
+		ast_log(LOG_WARNING, "Smoother was working on %d format frames, now trying to feed %d?\n", s->format, f->subclass);
+		return -1;
+	}
+	if (s->len + f->datalen > SMOOTHER_SIZE) {
+		ast_log(LOG_WARNING, "Out of smoother space\n");
+		return -1;
+	}
+	memcpy(s->data + s->len, f->data, f->datalen);
+	s->len += f->datalen;
+	return 0;
+}
+
+struct ast_frame *ast_smoother_read(struct ast_smoother *s)
+{
+	/* Make sure we have enough data */
+	if (s->len < s->size) 
+		return NULL;
+	/* Make frame */
+	s->f.frametype = AST_FRAME_VOICE;
+	s->f.subclass = s->format;
+	s->f.data = s->framedata;
+	s->f.offset = AST_FRIENDLY_OFFSET;
+	s->f.datalen = s->size;
+	s->f.timelen = s->size * s->timeperbyte;
+	/* Fill Data */
+	memcpy(s->f.data  + AST_FRIENDLY_OFFSET, s->f.data, s->size);
+	s->len -= s->size;
+	/* Move remaining data to the front if applicable */
+	if (s->len) 
+		memmove(s->f.data, s->f.data + s->size, s->len);
+	/* Return frame */
+	return &s->f;
+}
+
+void ast_smoother_free(struct ast_smoother *s)
+{
+	free(s);
+}
 
 static struct ast_frame *ast_frame_header_new(void)
 {
 	struct ast_frame *f;
 	f = malloc(sizeof(struct ast_frame));
+	if (f)
+		memset(f, 0, sizeof(struct ast_frame));
 #ifdef TRACE_FRAMES
 	if (f) {
 		headers++;
 		f->prev = NULL;
-		pthread_mutex_lock(&framelock);
+		ast_pthread_mutex_lock(&framelock);
 		f->next = headerlist;
 		if (headerlist)
 			headerlist->prev = f;
@@ -65,7 +140,7 @@ void ast_frfree(struct ast_frame *fr)
 	if (fr->mallocd & AST_MALLOCD_HDR) {
 #ifdef TRACE_FRAMES
 		headers--;
-		pthread_mutex_lock(&framelock);
+		ast_pthread_mutex_lock(&framelock);
 		if (fr->next)
 			fr->next->prev = fr->prev;
 		if (fr->prev)
@@ -237,7 +312,7 @@ static int show_frame_stats(int fd, int argc, char *argv[])
 	ast_cli(fd, "---------------------------\n");
 	ast_cli(fd, "Total allocated headers: %d\n", headers);
 	ast_cli(fd, "Queue Dump:\n");
-	pthread_mutex_lock(&framelock);
+	ast_pthread_mutex_lock(&framelock);
 	for (f=headerlist; f; f = f->next) {
 		ast_cli(fd, "%d.  Type %d, subclass %d from %s\n", x++, f->frametype, f->subclass, f->src ? f->src : "<Unknown>");
 	}

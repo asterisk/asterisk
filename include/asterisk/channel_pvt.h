@@ -24,6 +24,8 @@ extern "C" {
 struct ast_channel_pvt {
 	/*! Private data used by channel backend */
 	void *pvt;
+	struct ast_frame *readq;
+	int alertpipe[2];
 	/*! Write translation path */
 	struct ast_trans_pvt *writetrans;
 	/*! Read translation path */
@@ -67,7 +69,14 @@ struct ast_channel_pvt {
 
 //! Create a channel structure
 /*! Returns NULL on failure to allocate */
-struct ast_channel *ast_channel_alloc(void);
+struct ast_channel *ast_channel_alloc(int needalertpipe);
+
+/*! Queue an outgoing frame, locking if necessary */
+int ast_queue_frame(struct ast_channel *chan, struct ast_frame *f, int lock);
+
+int ast_queue_hangup(struct ast_channel *chan, int lock);
+
+int ast_queue_control(struct ast_channel *chan, int control, int lock);
 
 //! Free a channel structure
 void  ast_channel_free(struct ast_channel *);

@@ -11,6 +11,7 @@
  * the GNU General Public License
  */
  
+#include <asterisk/lock.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -51,7 +52,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	
 	struct ast_filestream *s = '\0';
 	struct localuser *u;
-	struct ast_frame *f;
+	struct ast_frame *f = NULL;
 	
 	vdata = data; /* explained above */
 	
@@ -103,10 +104,8 @@ static int record_exec(struct ast_channel *chan, void *data)
 		/* Some code to play a nice little beep to signify the start of the record operation */
 		res = ast_streamfile(chan, "beep", chan->language);
 		if (!res) {
-			printf("Waiting on stream\n");
 			res = ast_waitstream(chan, "");
 		} else {
-			printf("streamfile failed\n");
 			ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", chan->name);
 		}
 		ast_stopstream(chan);
@@ -114,8 +113,12 @@ static int record_exec(struct ast_channel *chan, void *data)
 		s = ast_writefile( tmp, ext, NULL, O_CREAT|O_TRUNC|O_WRONLY , 0, 0644);
 	
 		if (s) {
-		
-			while ((f = ast_read(chan))) {
+			while (ast_waitfor(chan, -1) > -1) {
+				f = ast_read(chan);
+				if (!f) {
+					res = -1;
+					break;
+				}
 				if (f->frametype == AST_FRAME_VOICE) {
 					res = ast_writestream(s, f);
 					
