@@ -6,14 +6,14 @@
 # First you have the host, username, and password
 # we use to connect to the asterisk system
 #
-host misery.digium.com
-user mark
-pass blah
+host localhost
+user user
+pass pass
 #
 # List each channel we're supposed to watch
 #
-channel Zap/39
-channel Zap/40
+channel Zap/1
+channel Zap/2
 channel SIP/mark
 #
 # Mute level is the percentage of the current volume we should
