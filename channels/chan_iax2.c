@@ -2122,6 +2122,8 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	if (!secret && strlen(storedsecret))
 		secret = storedsecret;
 	ast_mutex_lock(&iaxsl[callno]);
+	if (strlen(c->context))
+		strncpy(iaxs[callno]->context, c->context, sizeof(iaxs[callno]->context));
 	if (secret) {
 		if (secret[0] == '[') {
 			/* This is an RSA key, not a normal secret */
