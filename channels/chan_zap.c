@@ -631,9 +631,17 @@ static int zt_get_index(struct ast_channel *ast, struct zt_pvt *p, int nullok)
 	return res;
 }
 
-static void wakeup_sub(struct zt_pvt *p, int a)
+#ifdef ZAPATA_PRI
+static void wakeup_sub(struct zt_pvt *p, int a, struct zt_pri *pri)
+#else
+static void wakeup_sub(struct zt_pvt *p, int a, void *pri)
+#endif
 {
 	struct ast_frame null = { AST_FRAME_NULL, };
+#ifdef ZAPATA_PRI
+	if (pri)
+		ast_mutex_unlock(&pri->lock);
+#endif			
 	for (;;) {
 		if (p->subs[a].owner) {
 			if (ast_mutex_trylock(&p->subs[a].owner->lock)) {
@@ -648,10 +656,23 @@ static void wakeup_sub(struct zt_pvt *p, int a)
 		} else
 			break;
 	}
+#ifdef ZAPATA_PRI
+	if (pri)
+		ast_mutex_lock(&pri->lock);
+#endif			
 }
 
-static void zap_queue_frame(struct zt_pvt *p, struct ast_frame *f)
+#ifdef ZAPATA_PRI
+static void zap_queue_frame(struct zt_pvt *p, struct ast_frame *f, struct zt_pri *pri)
+#else
+static void zap_queue_frame(struct zt_pvt *p, struct ast_frame *f, void *pri)
+#endif
 {
+	/* We must unlock the PRI to avoid the possibility of a deadlock */
+#ifdef ZAPATA_PRI
+	if (pri)
+		ast_mutex_unlock(&pri->lock);
+#endif		
 	for (;;) {
 		if (p->owner) {
 			if (ast_mutex_trylock(&p->owner->lock)) {
@@ -666,6 +687,10 @@ static void zap_queue_frame(struct zt_pvt *p, struct ast_frame *f)
 		} else
 			break;
 	}
+#ifdef ZAPATA_PRI
+	if (pri)
+		ast_mutex_lock(&pri->lock);
+#endif		
 }
 
 static void swap_subs(struct zt_pvt *p, int a, int b)
@@ -692,8 +717,8 @@ static void swap_subs(struct zt_pvt *p, int a, int b)
 		p->subs[a].owner->fds[0] = p->subs[a].zfd;
 	if (p->subs[b].owner) 
 		p->subs[b].owner->fds[0] = p->subs[b].zfd;
-	wakeup_sub(p, a);
-	wakeup_sub(p, b);
+	wakeup_sub(p, a, NULL);
+	wakeup_sub(p, b, NULL);
 }
 
 static int zt_open(char *fn)
@@ -6754,7 +6779,7 @@ static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 				ast_log(LOG_DEBUG, "Assigning bearer %d/%d to CRV %d:%d\n",
 									pri->pvts[principle]->logicalspan, pri->pvts[principle]->prioffset,
 									pri->trunkgroup, crv->channel);
-				wakeup_sub(crv, SUB_REAL);
+				wakeup_sub(crv, SUB_REAL, pri);
 			}
 			return principle;
 		}
@@ -7202,7 +7227,7 @@ static void *pri_dchannel(void *vpri)
 								digit = e->ring.callednum[i];
 								{
 									struct ast_frame f = { AST_FRAME_DTMF, digit, };
-									zap_queue_frame(pri->pvts[chanpos], &f);
+									zap_queue_frame(pri->pvts[chanpos], &f, pri);
 								}
 							}
 						}
@@ -7426,7 +7451,7 @@ static void *pri_dchannel(void *vpri)
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						ast_log(LOG_DEBUG, "Queuing frame from PRI_EVENT_PROGRESS on channel %d/%d span %d\n",
 								pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
-							zap_queue_frame(pri->pvts[chanpos], &f);
+							zap_queue_frame(pri->pvts[chanpos], &f, pri);
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
 				}
@@ -7440,9 +7465,9 @@ static void *pri_dchannel(void *vpri)
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						ast_log(LOG_DEBUG, "Queuing frame from PRI_EVENT_PROCEEDING on channel %d/%d span %d\n",
 								pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
-						zap_queue_frame(pri->pvts[chanpos], &f);
+						zap_queue_frame(pri->pvts[chanpos], &f, pri);
 						f.subclass = AST_CONTROL_PROCEEDING;
-						zap_queue_frame(pri->pvts[chanpos], &f);
+						zap_queue_frame(pri->pvts[chanpos], &f, pri);
 						pri->pvts[chanpos]->proceeding=2;
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
@@ -8489,7 +8514,7 @@ static int action_zapdialoffhook(struct mansession *s, struct message *m)
 	}
 	for (i=0; i<strlen(number); i++) {
 		struct ast_frame f = { AST_FRAME_DTMF, number[i] };
-		zap_queue_frame(p, &f); 
+		zap_queue_frame(p, &f, NULL); 
 	}
 	astman_send_ack(s, m, "ZapDialOffhook");
 	return 0;
