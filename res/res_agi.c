@@ -577,6 +577,23 @@ static int handle_saydigits(struct ast_channel *chan, AGI *agi, int argc, char *
 		return RESULT_FAILURE;
 }
 
+static int handle_sayalpha(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
+{
+	int res;
+
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+
+	res = ast_say_character_str_full(chan, argv[2], argv[3], chan->language, agi->audio, agi->ctrl);
+	if (res == 1) /* New command */
+		return RESULT_SUCCESS;
+	fdprintf(agi->fd, "200 result=%d\n", res);
+	if (res >= 0)
+		return RESULT_SUCCESS;
+	else
+		return RESULT_FAILURE;
+}
+
 static int handle_saytime(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	int res;
@@ -1302,6 +1319,13 @@ static char usage_saydigits[] =
 " being pressed, or the ASCII numerical value of the digit if one was pressed or\n"
 " -1 on error/hangup.\n";
 
+static char usage_sayalpha[] =
+" Usage: SAY ALPHA <number> <escape digits>\n"
+"        Say a given character string, returning early if any of the given DTMF digits\n"
+" are received on the channel.  Returns 0 if playback completes without a digit\n"
+" being pressed, or the ASCII numerical value of the digit if one was pressed or\n"
+" -1 on error/hangup.\n";
+
 static char usage_saytime[] =
 " Usage: SAY TIME <time> <escape digits>\n"
 "        Say a given time, returning early if any of the given DTMF digits are\n"
@@ -1366,6 +1390,7 @@ static agi_command commands[MAX_COMMANDS] = {
 	{ { "get", "option", NULL }, handle_getoption, "Stream File", usage_getoption },
 	{ { "send", "image", NULL }, handle_sendimage, "Sends images to channels supporting it", usage_sendimage },
 	{ { "say", "digits", NULL }, handle_saydigits, "Says a given digit string", usage_saydigits },
+	{ { "say", "alpha", NULL }, handle_sayalpha, "Says a given character string", usage_sayalpha },
 	{ { "say", "number", NULL }, handle_saynumber, "Says a given number", usage_saynumber },
 	{ { "say", "phonetic", NULL }, handle_sayphonetic, "Says a given character string with phonetics", usage_sayphonetic },
 	{ { "say", "time", NULL }, handle_saytime, "Says a given time", usage_saytime },
