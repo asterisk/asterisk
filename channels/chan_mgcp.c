@@ -2569,7 +2569,7 @@ static int restart_monitor(void)
 		ast_log(LOG_WARNING, "Cannot kill myself\n");
 		return -1;
 	}
-	if (monitor_thread) {
+	if (monitor_thread != AST_PTHREADT_NULL) {
 		/* Wake up the thread */
 		pthread_kill(monitor_thread, SIGURG);
 	} else {

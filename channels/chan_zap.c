@@ -5182,7 +5182,7 @@ static int restart_monitor(void)
 		ast_log(LOG_WARNING, "Cannot kill myself\n");
 		return -1;
 	}
-	if (monitor_thread) {
+	if (monitor_thread != AST_PTHREADT_NULL) {
 		/* Just signal it to be sure it wakes up */
 #if 0
 		pthread_cancel(monitor_thread);
