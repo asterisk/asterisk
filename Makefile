@@ -293,6 +293,14 @@ _all: all
 
 all: cleantest depend asterisk subdirs 
 
+ifneq ($(wildcard tags),)
+all: tags
+endif
+
+ifneq ($(wildcard TAGS),)
+all: TAGS
+endif
+
 noclean: depend asterisk subdirs
 
 editline/config.h:
@@ -312,6 +320,10 @@ db1-ast/libdb1.a: FORCE
 
 ifneq ($(wildcard .depend),)
 include .depend
+endif
+
+ifneq ($(wildcard .tags-depend),)
+include .tags-depend
 endif
 
 .PHONY: _version
@@ -369,6 +381,7 @@ clean:
 	rm -f build.h 
 	rm -f ast_expr.c
 	rm -f .version
+	rm -f .tags-depend .tags-sources tags TAGS
 	@if [ -f editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
 	@if [ -d mpg123-0.59r ]; then $(MAKE) -C mpg123-0.59r clean; fi
 	$(MAKE) -C db1-ast clean
@@ -646,6 +659,33 @@ depend: .depend
 .depend:
 	./mkdep ${CFLAGS} `ls *.c`
 
+.tags-depend:
+	@echo -n ".tags-depend: " > $@
+	@find . -maxdepth 1 -name \*.c -printf "\t%p \\\\\n" >> $@
+	@find . -maxdepth 1 -name \*.h -printf "\t%p \\\\\n" >> $@
+	@find ${SUBDIRS} -name \*.c -printf "\t%p \\\\\n" >> $@
+	@find ${SUBDIRS} -name \*.h -printf "\t%p \\\\\n" >> $@
+	@find include -name \*.h -printf "\t%p \\\\\n" >> $@
+	@echo >> $@
+
+.tags-sources:
+	@rm -f $@
+	@find . -maxdepth 1 -name \*.c -print >> $@
+	@find . -maxdepth 1 -name \*.h -print >> $@
+	@find ${SUBDIRS} -name \*.c -print >> $@
+	@find ${SUBDIRS} -name \*.h -print >> $@
+	@find include -name \*.h -print >> $@
+
+tags: .tags-depend .tags-sources
+	ctags -L .tags-sources -o $@
+
+ctags: tags
+
+TAGS: .tags-depend .tags-sources
+	etags -o $@ `cat .tags-sources`
+
+etags: TAGS
+
 FORCE:
 
 %_env:
@@ -656,7 +696,7 @@ env:
 
 # If the cleancount has been changed, force a make clean.
 # .cleancount is the global clean count, and .lastclean is the 
-# 	last clean count # we had
+# last clean count we had
 # We can avoid this by making noclean
 
 cleantest:
@@ -677,8 +717,7 @@ patchlist:
 			echo "$$patch (available)"; \
 		fi; \
 	done
-		
-	
+
 apply: 
 	@if [ -z "$(PATCH)" ]; then \
 		echo "Usage: make PATCH=<patchname> apply"; \
@@ -691,7 +730,7 @@ apply:
 	else \
 		echo "No such patch $(PATCH) in patches directory"; \
 	fi
-	
+
 unapply: 
 	@if [ -z "$(PATCH)" ]; then \
 		echo "Usage: make PATCH=<patchname> unapply"; \
@@ -707,5 +746,3 @@ unapply:
 	else \
 		echo "No such patch $(PATCH) in patches directory"; \
 	fi
-
-		
