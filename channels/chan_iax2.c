@@ -1941,6 +1941,24 @@ static int iax2_getpeername(struct sockaddr_in sin, char *host, int len)
 	return res;
 }
 
+static int iax2_getpeertrunk(struct sockaddr_in sin)
+{
+	struct iax2_peer *peer;
+	int res = 0;
+	ast_pthread_mutex_lock(&peerl.lock);
+	peer = peerl.peers;
+	while(peer) {
+		if ((peer->addr.sin_addr.s_addr == sin.sin_addr.s_addr) &&
+				(peer->addr.sin_port == sin.sin_port)) {
+					res = peer->trunk;
+					break;
+		}
+		peer = peer->next;
+	}
+	ast_pthread_mutex_unlock(&peerl.lock);
+	return res;
+}
+
 static struct ast_channel *ast_iax2_new(struct chan_iax2_pvt *i, int state, int capability)
 {
 	char host[256];
@@ -2628,6 +2646,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		user = user->next;	
 	}
 	ast_pthread_mutex_unlock(&userl.lock);
+	iaxs[callno]->trunk = iax2_getpeertrunk(*sin);
 	return res;
 }
 
