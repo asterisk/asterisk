@@ -419,7 +419,9 @@ static void get_callerid(struct vpb_pvt *p)
 	int rc;
 
 	if(strcasecmp(p->callerid, "on")) {
-		p->owner->callerid = strdup("unknown");
+		if (option_verbose>3) 
+			ast_verbose(VERBOSE_PREFIX_4 "Caller ID disabled\n");
+//		p->owner->callerid = strdup("unknown");
 		return;
 	}
 
@@ -471,7 +473,7 @@ static void get_callerid(struct vpb_pvt *p)
 			ast_log(LOG_ERROR, "Failed to decode caller id on %s - %s\n", p->dev, vpb_strerror(rc) );
 			strncpy(callerid,"unknown", sizeof(callerid) - 1);
 		}
-		p->owner->callerid = strdup(callerid);
+//		p->owner->callerid = strdup(callerid);
 
 	} else 
 		ast_log(LOG_ERROR, "Failed to set record mode for caller id on %s\n", p->dev );
@@ -548,8 +550,14 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 
 		case VPB_DTMF:
 			if (p->owner->_state == AST_STATE_UP) {
-				f.frametype = AST_FRAME_DTMF;
-				f.subclass = e->data;
+				if ((strcmp(p->owner->type,"vpb"))||(e->data == '#')||(e->data == '*')){
+					f.frametype = AST_FRAME_DTMF;
+					f.subclass = e->data;
+				}
+				else {
+					if (option_verbose > 3) 
+						ast_verbose(VERBOSE_PREFIX_4 "%s: handle_owned: Not transmiting DTMF frame on native bridge\n", p->dev);
+				}
 			} else
 				f.frametype = -1;
 			break;
@@ -798,6 +806,9 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 			s[0] = e->data;
 			strncat(p->ext, s, sizeof(p->ext) - strlen(p->ext) - 1);
 			if (ast_exists_extension(NULL, p->context, p->ext, 1, p->callerid)){
+				if (option_verbose > 3) {
+					ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: Matched on [%s] in [%s]\n", p->dev,p->ext , p->context);
+				}
 				vpb_new(p,AST_STATE_RING, p->context);
 			} else if (!ast_canmatch_extension(NULL, p->context, p->ext, 1, p->callerid)){
 				if (ast_exists_extension(NULL, "default", p->ext, 1, p->callerid)) {
@@ -1532,8 +1543,10 @@ static int vpb_answer(struct ast_channel *ast)
 		ast_setstate(ast, AST_STATE_UP);
 
 		if(option_verbose>1) 
-			ast_verbose( VERBOSE_PREFIX_2 "%s: Answered call from %s on %s [%s]\n", p->dev,
-					p->owner->callerid, ast->name,(p->mode == MODE_FXO)?"FXO":"FXS");
+//			ast_verbose( VERBOSE_PREFIX_2 "%s: Answered call from %s on %s [%s]\n", p->dev,
+//					p->owner->callerid, ast->name,(p->mode == MODE_FXO)?"FXO":"FXS");
+			ast_verbose( VERBOSE_PREFIX_2 "%s: Answered call on %s [%s]\n", p->dev,
+					 ast->name,(p->mode == MODE_FXO)?"FXO":"FXS");
 
 		ast->rings = 0;
 		if( !p->readthread ){
