@@ -8246,6 +8246,7 @@ static int reload_config(void)
 	strncpy(default_context, "default", sizeof(default_context) - 1);
 	default_language[0] = '\0';
 	default_fromdomain[0] = '\0';
+	strncpy(default_useragent, DEFAULT_USERAGENT, sizeof(default_useragent) - 1);
 	strncpy(global_realm, "asterisk", sizeof(global_realm) - 1);
 	global_realm[sizeof(global_realm)-1] = '\0';
 	global_canreinvite = REINVITE_INVITE;
