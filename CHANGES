@@ -1,3 +1,4 @@
+ -- Retain IAX2 and SIP registrations past shutdown/crash and restart
  -- True data mode bridging when possible
  -- H.323 build improvements
  -- Agent Callback-login support
