@@ -1934,7 +1934,7 @@ static int sip_register(char *value, int lineno)
 static void parse(struct sip_request *req)
 {
 	/* Divide fields by NULL's */
-	char *c, *last = NULL;
+	char *c;
 	int f = 0;
 	c = req->data;
 
@@ -1958,10 +1958,7 @@ static void parse(struct sip_request *req)
 			} else {
 				if ((c[1] == ' ') || (c[1] == '\t')) {
 					/* Continuation of previous header */
-					if (last) {
-						while(last < c)
-							*(last++) = ' ';
-					}
+					*c = ' ';
 				} else {
 					f++;
 					req->header[f] = c + 1;
