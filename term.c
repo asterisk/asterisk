@@ -17,6 +17,9 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <asterisk/term.h>
 #include <asterisk/options.h>
@@ -29,23 +32,95 @@ static char prepdata[80] = "";
 static char enddata[80] = "";
 static char quitdata[80] = "";
 
+static const char *termpath[] = {
+	"/usr/share/terminfo",
+	"/usr/local/share/misc/terminfo",
+	"/usr/lib/terminfo",
+	NULL
+	};
+
+/* Ripped off from Ross Ridge, but it's public domain code (libmytinfo) */
+static short convshort(char *s)
+{
+	register int a,b;
+
+	a = (int) s[0] & 0377;
+	b = (int) s[1] & 0377;
+
+	if (a == 0377 && b == 0377)
+		return -1;
+	if (a == 0376 && b == 0377)
+		return -2;
+
+	return a + b * 256;
+}
+
 int term_init(void)
 {
 	char *term = getenv("TERM");
+	char termfile[256] = "";
+	char buffer[512] = "";
+	int termfd = -1, parseokay = 0, i;
+
 	if (!term)
 		return 0;
 	if (!option_console || option_nocolor || !option_nofork)
 		return 0;
-	if (!strncasecmp(term, "linux", 5)) 
-		vt100compat = 1; else
-	if (!strncasecmp(term, "xterm", 5))
-		vt100compat = 1; else
-	if (!strncasecmp(term, "Eterm", 5))
-		vt100compat = 1; else
-	if (!strncasecmp(term, "crt", 3))
-		vt100compat = 1; else
-	if (!strncasecmp(term, "vt", 2))
-		vt100compat = 1;
+
+	for (i=0 ;; i++) {
+		if (termpath[i] == NULL) {
+			break;
+		}
+		snprintf(termfile, sizeof(termfile), "%s/%c/%s", termpath[i], *term, term);
+		termfd = open(termfile, O_RDONLY);
+		if (termfd > -1) {
+			break;
+		}
+	}
+	if (termfd > -1) {
+		int actsize = read(termfd, buffer, sizeof(buffer) - 1);
+		short sz_names = convshort(buffer + 2);
+		short sz_bools = convshort(buffer + 4);
+		short n_nums   = convshort(buffer + 6);
+
+		/* if ((sz_names + sz_bools) & 1)
+			sz_bools++; */
+
+		if (sz_names + sz_bools + n_nums < actsize) {
+			/* Offset 13 is defined in /usr/include/term.h, though we do not
+			 * include it here, as it conflicts with include/asterisk/term.h */
+			short max_colors = convshort(buffer + 12 + sz_names + sz_bools + 13 * 2);
+			if (max_colors > 0) {
+				vt100compat = 1;
+			}
+			parseokay = 1;
+		}
+		close(termfd);
+	}
+
+	if (!parseokay) {
+		/* These comparisons should not be substrings nor case-insensitive, as
+		 * terminal types are very particular about how they treat suffixes and
+		 * capitalization.  For example, terminal type 'linux-m' does NOT
+		 * support color, while 'linux' does.  Not even all vt100* terminals
+		 * support color, either (e.g. 'vt100+fnkeys'). */
+		if (!strcmp(term, "linux")) {
+			vt100compat = 1;
+		} else if (!strcmp(term, "xterm")) {
+			vt100compat = 1;
+		} else if (!strcmp(term, "xterm-color")) {
+			vt100compat = 1;
+		} else if (!strncmp(term, "Eterm", 5)) {
+			/* Both entries which start with Eterm support color */
+			vt100compat = 1;
+		} else if (!strcmp(term, "vt100")) {
+			vt100compat = 1;
+		} else if (!strncmp(term, "crt", 3)) {
+			/* Both crt terminals support color */
+			vt100compat = 1;
+		}
+	}
+
 	if (vt100compat) {
 		/* Make commands show up in nice colors */
 		snprintf(prepdata, sizeof(prepdata), "%c[%d;%d;%dm", ESC, ATTR_BRIGHT, COLOR_BROWN, COLOR_BLACK + 10);
