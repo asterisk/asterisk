@@ -873,7 +873,7 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 						if (lock)
 							ast_pthread_mutex_unlock(&clilock);
 						free(dup);
-						return res ? res : NULL;
+						return res ? strdup(res) : NULL;
 					}
 				}
 			}
