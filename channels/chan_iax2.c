@@ -2659,7 +2659,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 	lastsent = pvt->lastsent;
 
 	/* Calculate actual timestamp */
-	fts = calc_timestamp(pvt, ts, &f->delivery);
+	fts = calc_timestamp(pvt, ts, (f->frametype == AST_FRAME_VOICE) ? &f->delivery : NULL);
 
 	if ((pvt->trunk || ((fts & 0xFFFF0000L) == (lastsent & 0xFFFF0000L)))
 		/* High two bits are the same on timestamp, or sending on a trunk */ &&
