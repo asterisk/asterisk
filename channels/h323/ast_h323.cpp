@@ -668,23 +668,12 @@ H323Channel * MyH323Connection::CreateRealTimeLogicalChannel(const H323Capabilit
 		 					           const H245_H2250LogicalChannelParameters * /*param*/)
 {
 	struct rtp_info *info;
+	WORD port;
 
 	/* Determine the Local (A side) IP Address and port */
 	info = on_create_connection(GetCallReference()); 
 
-#if 0	
-	WORD port;
-
-	if (bridging) {
-		externalIpAddress = PIPSocket::Address(info->addr);
-	} else {
         GetControlChannel().GetLocalAddress().GetIpAndPort(externalIpAddress, port);
-	}
-
-	externalIpAddress = PIPSocket::Address("192.168.1.50");
-#endif
-
-	externalIpAddress = PIPSocket::Address(info->addr);
 	externalPort = info->port;
 	
 	if (h323debug) {
