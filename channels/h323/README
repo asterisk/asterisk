@@ -22,7 +22,7 @@ versions of Open H.323 or PWlib you are on your own, sorry. Older versions
 will NOT work, but newer versions ~should~ work.
 
 We have implemented this driver using Asterisk's RTP stack insted of trying
-to implement a psudo sound card driver. 
+to implement a pseudo sound card driver. 
  
 If you have trouble please contact 'JerJer' in #Asterisk on irc.freenode.net or
 send and email to jj@indie.org
