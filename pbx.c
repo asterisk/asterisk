@@ -4588,19 +4588,7 @@ void pbx_builtin_clear_globals(void)
 
 static int pbx_checkcondition(char *condition) 
 {
-	char *s;
-	int ret;
-	
-	s=strdup(condition);
-	
-	ret=1;
-	
-	if ((strcasecmp(s,"0")) || ast_strlen_zero(s)) {
-		ret=0;
-	}
-	
-	free(s);
-	return(ret);
+	return condition ? atoi(condition) : 0;
 }
 
 static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
@@ -4615,17 +4603,12 @@ static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	
-	s=strdup(data);
+	s=ast_strdupa(data);
 	stringp=s;
 	condition=strsep(&stringp,"?");
 	branch1=strsep(&stringp,":");
 	branch2=strsep(&stringp,"");
-	
-	if (pbx_checkcondition(condition)) {
-		branch=branch2;
-	} else {
-		branch=branch1;
-	}
+	branch = pbx_checkcondition(condition) ? branch1 : branch2;
 	
 	if ((branch==NULL) || ast_strlen_zero(branch)) {
 		ast_log(LOG_NOTICE, "Not taking any branch\n");
@@ -4633,7 +4616,7 @@ static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 	}
 	
 	rc=pbx_builtin_goto(chan,branch);
-	free(s);
+
 	return(rc);
 }           
 
