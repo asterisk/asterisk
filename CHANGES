@@ -1,3 +1,18 @@
+* Asterisk 0.1.2
+ -- Updated README file with a "Getting Started" section
+ -- Added sample sounds and configuration files.
+ -- Added LPC10 very low bandwidth (low quality) compression
+ -- Enhanced translation selection mechanism.
+ -- Enhanced IAX jitter buffer, improved reliability
+ -- Support echo cancelation on PhoneJack
+ -- Updated PhoneJack driver to std. Telephony interface
+ -- Added app_echo for evaluating VoIP latency
+ -- Added app_system to execute arbitrary programs
+ -- Updated sample configuration files
+ -- Added OSS channel driver (full duplex only)
+ -- Added IAX implementation
+ -- Fixed some deadlocks.
+ -- A whole bunch of bug fixes
 * Asterisk 0.1.1
  -- Revised translator, fixed some general race conditions throughout *
  -- Made dialer somewhat more aware of incompatible voice channels
