@@ -137,6 +137,11 @@ INCLUDE+=-I/usr/local/include
 CFLAGS+=$(shell if [ -d /usr/local/include/spandsp ]; then echo "-I/usr/local/include/spandsp"; fi)
 endif # FreeBSD
 
+ifeq (${OSARCH},NetBSD)
+CFLAGS+=-pthread
+INCLUDE+=-I/usr/local/include
+endif
+
 ifeq (${OSARCH},OpenBSD)
 CFLAGS+=-pthread
 endif
@@ -183,6 +188,9 @@ LIBS+=-lresolv
 endif
 ifeq (${OSARCH},FreeBSD)
 LIBS+=-lcrypto
+endif
+ifeq (${OSARCH},NetBSD)
+LIBS+=-lpthread -lcrypto -lm -L/usr/local/lib -lncurses
 endif
 ifeq (${OSARCH},OpenBSD)
 LIBS=-lcrypto -lpthread -lm -lncurses
@@ -510,7 +518,6 @@ mpg123:
 	[ -f mpg123-0.59r.tar.gz ] || wget http://www.mpg123.de/mpg123/mpg123-0.59r.tar.gz
 	[ -d mpg123-0.59r ] || tar xfz mpg123-0.59r.tar.gz
 	make -C mpg123-0.59r linux
-	
 
 config:
 	if [ -d /etc/rc.d/init.d ]; then \

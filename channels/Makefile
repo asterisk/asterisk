@@ -46,15 +46,18 @@ PTLIB=-lpt_linux_x86_r
 H323LIB=-lh323_linux_x86_r
 CHANH323LIB=-ldl
 endif
-
-ifneq (${OSARCH},Darwin)
-CHANNEL_LIBS+=chan_oss.so
-endif
 ifeq (${OSARCH},FreeBSD)
 PTLIB=-lpt_FreeBSD_x86_r
 H323LIB=-lh323_FreeBSD_x86_r
 CHANH323LIB=-pthread
 SOLINK+=-L/usr/local/lib
+endif
+ifeq (${OSARCH},NetBSD)
+PTLIB=-lpt_NetBSD_x86_r
+H323LIB=-lh323_NetBSD_x86_r
+SOLINK+=-L/usr/local/lib
+endif
+ifneq (${OSARCH},Darwin)
 CHANNEL_LIBS+=chan_oss.so
 endif
 
@@ -136,6 +139,10 @@ ringtone.h: gentone
 chan_oss.o: chan_oss.c  busy.h ringtone.h
 
 ifeq (${OSARCH},OpenBSD)
+chan_oss.so: chan_oss.o
+	$(CC) $(SOLINK) -o $@ chan_oss.o -lossaudio
+endif
+ifeq (${OSARCH},NetBSD)
 chan_oss.so: chan_oss.o
 	$(CC) $(SOLINK) -o $@ chan_oss.o -lossaudio
 endif

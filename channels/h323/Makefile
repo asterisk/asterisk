@@ -21,7 +21,9 @@ endif
 #
 OSARCH=$(shell uname -s)
 ifneq (${OSARCH},FreeBSD)
+ifneq (${OSARCH},NetBSD)
 CFLAGS += -march=$(shell uname -m)
+endif
 endif
 CFLAGS += -DPBYTE_ORDER=PLITTLE_ENDIAN
 

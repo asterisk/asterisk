@@ -47,7 +47,7 @@
 #include "answer.h"
 
 /* Which device to use */
-#ifdef __OpenBSD__
+#if defined( __OpenBSD__ ) || defined( __NetBSD__ )
 #define DEV_DSP "/dev/audio"
 #else
 #define DEV_DSP "/dev/dsp"
@@ -375,7 +375,7 @@ static int soundcard_setoutput(int force)
 		return 0;
 	readmode = 0;
 	if (force || time_has_passed()) {
-		ioctl(sounddev, SNDCTL_DSP_RESET);
+		ioctl(sounddev, SNDCTL_DSP_RESET, 0);
 		/* Keep the same fd reserved by closing the sound device and copying stdin at the same
 		   time. */
 		/* dup2(0, sound); */ 
@@ -405,7 +405,7 @@ static int soundcard_setinput(int force)
 		return 0;
 	readmode = -1;
 	if (force || time_has_passed()) {
-		ioctl(sounddev, SNDCTL_DSP_RESET);
+		ioctl(sounddev, SNDCTL_DSP_RESET, 0);
 		close(sounddev);
 		/* dup2(0, sound); */
 		fd = open(DEV_DSP, O_RDONLY | O_NONBLOCK);

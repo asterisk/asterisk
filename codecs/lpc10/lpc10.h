@@ -1,6 +1,9 @@
 /*
 
 $Log$
+Revision 1.18  2004/08/31 13:32:11  markster
+Merge NetBSD and Courtesty tone with modifications (bug #2329)
+
 Revision 1.17  2003/10/26 18:50:49  markster
 Make it build and run on MacOS X
 
@@ -41,7 +44,7 @@ Add broken lpc10 code...  It's not too far from working I don't think...
 
  */
 
-#if defined(unix) || defined(__unix__)
+#if defined(unix) || defined(__unix__) || defined(__NetBSD__)
 typedef short		INT16;
 typedef int		INT32;
 #endif

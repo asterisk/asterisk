@@ -3,9 +3,9 @@
  *
  * Routines implementing call parking
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -60,6 +60,9 @@ static int parking_start = 701;
 static int parking_stop = 750;
 
 static int transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
+
+/* Default courtesy tone played when party joins conference */
+static char courtesytone[256] = "";
 
 /* Registrar for operations */
 static char *registrar = "res_features";
@@ -692,6 +695,17 @@ static int park_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (peer) {
+		/* Play a courtesy beep in the calling channel to prefix the bridge connecting */	
+		if (!ast_strlen_zero(courtesytone)) {
+			if (!ast_streamfile(chan, courtesytone, chan->language)) {
+				if (ast_waitstream(chan, "") < 0) {
+					ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+					ast_hangup(peer);
+					return -1;
+				}
+			}
+		}
+ 
 		ast_moh_stop(peer);
 		res = ast_channel_make_compatible(chan, peer);
 		if (res < 0) {
@@ -850,6 +864,8 @@ int load_module(void)
 					transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
 				} else
 					transferdigittimeout = transferdigittimeout * 1000;
+			} else if  (!strcasecmp(var->name, "courtesytone")) {
+				strncpy(courtesytone, var->value, sizeof(courtesytone) - 1);
 			}
 			var = var->next;
 		}

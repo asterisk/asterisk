@@ -54,7 +54,7 @@
 #include <grp.h>
 #include <pwd.h>
 
-#if  defined(__FreeBSD__)
+#if  defined(__FreeBSD__) || defined( __NetBSD__ )
 #include <netdb.h>
 #endif
 
