@@ -1355,8 +1355,8 @@ int main(int argc, char *argv[])
 			}
 			printf(term_quit());
 			ast_register_verbose(console_verboser);
-			ast_verbose( "Asterisk " ASTERISK_VERSION ", Copyright (C) 1999-2001 Linux Support Services, Inc.\n");
-			ast_verbose( "Written by Mark Spencer <markster@linux-support.net>\n");
+			ast_verbose( "Asterisk " ASTERISK_VERSION ", Copyright (C) 1999-2004 Digium.\n");
+			ast_verbose( "Written by Mark Spencer <markster@digium.com>\n");
 			ast_verbose( "=========================================================================\n");
 			ast_remotecontrol(NULL);
 			quit_handler(0, 0, 0, 0);
