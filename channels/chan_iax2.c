@@ -114,6 +114,7 @@ static int maxjitterbuffer=1000;
 static int jittershrinkrate=2;
 static int trunkfreq = 20;
 static int authdebug = 1;
+static int autokill = 0;
 static int iaxcompat = 0;
 
 static int iaxdefaultdpcache=10 * 60;	/* Cache dialplan entries for 10 minutes by default */
@@ -2346,6 +2347,9 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		/* Initialize pingtime and auto-congest time */
 		iaxs[callno]->pingtime = iaxs[callno]->maxtime / 2;
 		iaxs[callno]->initid = ast_sched_add(sched, iaxs[callno]->maxtime * 2, auto_congest, CALLNO_TO_PTR(callno));
+	} else if (autokill) {
+		iaxs[callno]->pingtime = autokill / 2;
+		iaxs[callno]->initid = ast_sched_add(sched, autokill * 2, auto_congest, CALLNO_TO_PTR(callno));
 	}
 	send_command(iaxs[callno], AST_FRAME_IAX,
 		IAX_COMMAND_NEW, 0, ied.buf, ied.pos, -1);
@@ -6792,6 +6796,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 	char *cat;
 	char *utype;
 	int format;
+	int  x;
 	struct iax2_user *user;
 	struct iax2_peer *peer;
 #if 0
@@ -6849,6 +6854,17 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 			trunkfreq = atoi(v->value);
 			if (trunkfreq < 10)
 				trunkfreq = 10;
+		} else if (!strcasecmp(v->name, "autokill")) {
+			if (sscanf(v->value, "%i", &x) == 1) {
+				if (x >= 0)
+					autokill = x;
+				else
+					ast_log(LOG_NOTICE, "Nice try, but autokill has to be >0 or 'yes' or 'no' at line %d\n", v->lineno);
+			} else if (ast_true(v->value)) {
+				autokill = DEFAULT_MAXMS;
+			} else {
+				autokill = 0;
+			}
 		} else if (!strcasecmp(v->name, "bandwidth")) {
 			if (!strcasecmp(v->value, "low")) {
 				capability = IAX_CAPABILITY_LOWBANDWIDTH;

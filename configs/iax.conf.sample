@@ -163,6 +163,16 @@ tos=lowdelay
 ;
 ;regcontext=iaxregistrations
 ;
+; If we don't get ACK to our NEW within 2000ms, and autokill is set
+; to yes, then we cancel the whole thing (that's enough time for one 
+; retransmission only).  This is used to keep things from stalling for a long
+; time for a host that is not available, but would be ill advised for bad 
+; connections.  In addition to 'yes' or 'no' you can also specify a number
+; of milliseconds.  See 'qualify' for individual peers to turn on for just
+; a specific peer.
+;
+autokill=yes
+;
 ; Guest sections for unauthenticated connection attempts.  Just
 ; specify an empty secret, or provide no secret section.
 ;
