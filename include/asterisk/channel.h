@@ -843,6 +843,8 @@ static inline int ast_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds,
 									c->blocking = -1; \
 									} }
 
+extern unsigned int ast_get_group(char *s);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

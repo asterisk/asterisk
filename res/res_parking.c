@@ -749,40 +749,6 @@ int ast_pickup_call(struct ast_channel *chan)
 	return res;
 }
 
-unsigned int ast_get_group(char *s)
-{
-	char *copy;
-	char *piece;
-	char *c=NULL;
-	int start=0, finish=0,x;
-	unsigned int group = 0;
-	copy = ast_strdupa(s);
-	if (!copy) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return 0;
-	}
-	c = copy;
-	
-	while((piece = strsep(&c, ","))) {
-		if (sscanf(piece, "%d-%d", &start, &finish) == 2) {
-			/* Range */
-		} else if (sscanf(piece, "%d", &start)) {
-			/* Just one */
-			finish = start;
-		} else {
-			ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'.  Using '0'\n", s,piece);
-			return 0;
-		}
-		for (x=start;x<=finish;x++) {
-			if ((x > 31) || (x < 0)) {
-				ast_log(LOG_WARNING, "Ignoring invalid group %d\n", x);
-			} else
-				group |= (1 << x);
-		}
-	}
-	return group;
-}
-
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
