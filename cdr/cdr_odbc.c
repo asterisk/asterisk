@@ -161,6 +161,7 @@ static int odbc_log(struct ast_cdr *cdr)
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query FAILED Call not logged!\n");
 	}
+	SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
 	ast_mutex_unlock(&odbc_lock);
 	return 0;
 }
