@@ -16,6 +16,12 @@ MODS=cdr_csv.so
 CFLAGS+=-fPIC
 
 #
+# unixODBC stuff...
+#
+MODS+=$(shell if [ -f "/usr/include/odbcinst.h" ]; then echo "cdr_unixodbc.so"; fi)
+
+
+#
 # PGSQL stuff...  Autoconf anyone??
 #
 MODS+=$(shell if [ -d /usr/local/pgsql/include ] || [ -d /usr/include/pgsql ] || [ -d /usr/local/include/pgsql ] || [ -d /opt/pgsql/include ] || [ -f /usr/include/libpq-fe.h ] ; then echo "cdr_pgsql.so"; fi)
@@ -45,6 +51,9 @@ clean:
 ifneq ($(wildcard .depend),)
 include .depend
 endif
+
+cdr_unixodbc.so: cdr_unixodbc.o
+	$(CC) $(SOLINK) -o $@ $< -lodbc -I/usr/include $(MLFLAGS)
 
 cdr_pgsql.so: cdr_pgsql.o
 	$(CC) $(SOLINK) -o $@ $< -lpq -lz $(MLFLAGS)
