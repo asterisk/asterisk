@@ -146,6 +146,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; trustrpid                   trustrpid
 ; progressinband              progressinband
 ; promiscredir                promiscredir
+; useclientcode               useclientcode
 ; callerid
 ; accountcode
 ; amaflags

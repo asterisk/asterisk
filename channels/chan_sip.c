@@ -262,6 +262,7 @@ static struct sip_pvt {
 	int canreinvite;			/* Do we support reinvite */
 	int ringing;				/* Have sent 180 ringing */
 	int progress;				/* Have sent 183 message progress */
+	int useclientcode;			/* Trust X-ClientCode info message */
 	int tag;				/* Another random number */
 	int nat;				/* Whether to try to support NAT */
 	int sessionid;				/* SDP Session ID */
@@ -392,6 +393,7 @@ struct sip_user {
 	int outUse;
 	int outgoinglimit;
 	int promiscredir;
+	int useclientcode;
 	int trustrpid;
 	int progressinband;
 	struct ast_ha *ha;
@@ -436,6 +438,7 @@ struct sip_peer {
 	int promiscredir;
 	int dtmfmode;
 	int trustrpid;
+	int useclientcode;
 	int progressinband;
 	struct sockaddr_in addr;
 	struct in_addr mask;
@@ -5295,6 +5298,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 		p->ospauth = user->ospauth;
 #endif
 		p->trustrpid = user->trustrpid;
+		p->useclientcode = user->useclientcode;
 		p->progressinband = user->progressinband;
 		/* replace callerid if rpid found, and not restricted */
 		if(!ast_strlen_zero(rpid_num) && p->trustrpid) {
@@ -5373,6 +5377,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			/* Take the peer */
 			p->nat = peer->nat;
 			p->trustrpid = peer->trustrpid;
+			p->useclientcode = peer->useclientcode;
 			p->progressinband = peer->progressinband;
 			/* replace callerid if rpid found, and not restricted */
 			if(!ast_strlen_zero(rpid_num) && p->trustrpid) {
@@ -6059,6 +6064,18 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
 		} else {
 			transmit_response(p, "481 Call leg/transaction does not exist", req);
 			p->needdestroy = 1;
+		}
+		return;
+	} else if ((c = get_header(req, "X-ClientCode"))) {
+		/* Client code (from SNOM phone) */
+		if (p->useclientcode) {
+			if (p->owner && p->owner->cdr)
+				ast_cdr_setaccount(p->owner, c);
+			if (p->owner && ast_bridged_channel(p->owner) && ast_bridged_channel(p->owner)->cdr)
+				ast_cdr_setaccount(ast_bridged_channel(p->owner), c);
+			transmit_response(p, "200 OK", req);
+		} else {
+			transmit_response(p, "403 Unauthorized", req);
 		}
 		return;
 	}
@@ -8170,6 +8187,8 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v)
 				user->callingpres = atoi(v->value);
 			} else if (!strcasecmp(v->name, "trustrpid")) {
 				user->trustrpid = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "useclientcode")) {
+				user->useclientcode = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "progressinband")) {
 				user->progressinband = ast_true(v->value);
 #ifdef OSP_SUPPORT
@@ -8432,6 +8451,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 					ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", peer->name, v->lineno);
 					peer->maxms = 0;
 				}
+			} else if (!strcasecmp(v->name, "useclientcode")) {
+				peer->useclientcode = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "trustrpid")) {
 				peer->trustrpid = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "progressinband")) {
