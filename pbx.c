@@ -1,4 +1,4 @@
-/*
+ /*
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Core PBX routines.
@@ -2044,7 +2044,7 @@ int ast_context_remove_include2(struct ast_context *con, char *include, char *re
 	while (i) {
 		/* find our include */
 		if (!strcmp(i->name, include) && 
-			(!strcmp(i->registrar, registrar) || !registrar)) {
+			(!registrar || !strcmp(i->registrar, registrar))) {
 			/* remove from list */
 			if (pi)
 				pi->next = i->next;
@@ -2116,7 +2116,7 @@ int ast_context_remove_switch2(struct ast_context *con, char *sw, char *data, ch
 	while (i) {
 		/* find our switch */
 		if (!strcmp(i->name, sw) && !strcmp(i->data, data) && 
-			(!strcmp(i->registrar, registrar) || !registrar)) {
+			(!registrar || !strcmp(i->registrar, registrar))) {
 			/* remove from list */
 			if (pi)
 				pi->next = i->next;
@@ -2189,7 +2189,7 @@ int ast_context_remove_extension2(struct ast_context *con, char *extension, int 
 
 		/* look for right extension */
 		if (!strcmp(exten->exten, extension) &&
-			(!strcmp(exten->registrar, registrar) || !registrar)) {
+			(!registrar || !strcmp(exten->registrar, registrar))) {
 			struct ast_exten *peer;
 
 			/* should we free all peers in this extension? (priority == 0)? */
@@ -2224,7 +2224,7 @@ int ast_context_remove_extension2(struct ast_context *con, char *extension, int 
 				while (peer) {
 					/* is this our extension? */
 					if (peer->priority == priority &&
-						(!strcmp(peer->registrar, registrar) || !registrar)) {
+						(!registrar || !strcmp(peer->registrar, registrar) )) {
 						/* we are first priority extension? */
 						if (!previous_peer) {
 							/* exists previous extension here? */
@@ -3459,7 +3459,7 @@ int ast_context_remove_ignorepat2(struct ast_context *con, char *ignorepat, char
 	ip = con->ignorepats;
 	while (ip) {
 		if (!strcmp(ip->pattern, ignorepat) &&
-			(registrar == ip->registrar || !registrar)) {
+			(!registrar || (registrar == ip->registrar))) {
 			if (ipl) {
 				ipl->next = ip->next;
 				free(ip);

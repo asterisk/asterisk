@@ -689,7 +689,7 @@ static int remoteconsolehandler(char *s)
 {
 	int ret = 0;
 	/* Called when readline data is available */
-	if (s && !ast_strlen_zero(s))
+	if (s && !ast_all_zeros(s))
 		ast_el_add_history(s);
 	/* Give the console access to the shell */
 	if (s) {
@@ -1340,6 +1340,8 @@ static int ast_el_read_history(char *filename)
 	while (!feof(f)) {
 		fgets(buf, sizeof(buf), f);
 		if (!strcmp(buf, "_HiStOrY_V2_\n"))
+			continue;
+		if (ast_all_zeros(buf))
 			continue;
 		if ((ret = ast_el_add_history(buf)) == -1)
 			break;

@@ -16,11 +16,11 @@ Zaptel compatible hardware
    * Wildcard X100P - Single FXO interface connects to Loopstart phone 
      line
 
-   * Wildcard T400P - Quad T1 interface connects to four T1/PRI 
+   * Wildcard T400P (obsolete) - Quad T1 interface connects to four T1/PRI 
      interfaces.  Supports RBS and PRI voice and PPP, FR, and HDLC data.
 
-   * Wildcard E400P - Quad E1 interface connects to four E1/PRI (or PRA)
-     interfaces.  Supports PRA/PRI, EuroISDN voice and PPP, FR, HDLC data.
+   * Wildcard E400P (obsolete)- Quad E1 interface connects to four E1/PRI 
+     (or PRA) interfaces.  Supports PRA/PRI, EuroISDN voice and data.
 
    * Wildcard T100P - Single T1 interface connects to a single T1/PRI
      interface.  Supports RBS and PRI voice and PPP, FR, and HDLC data.

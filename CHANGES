@@ -1,3 +1,10 @@
+ -- Additional CDR backends
+ -- Allow muted to reconnect
+ -- Call parking improvements (including SIP parking support)
+ -- Added licensed hold music from FreePlayMusic
+ -- GR-303 and Zap improvements
+ -- More bug fixes from the bug tracker
+ -- Improved FreeBSD/OpenBSD/MacOS X support
 Asterisk 1.0-RC1
  -- Innumerable bug fixes and features from the bug tracker
  -- Added Open Settlement Protocol (OSP) support

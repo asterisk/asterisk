@@ -59,6 +59,9 @@ static char *descrip =
 "      'm' -- set monitor only mode (Listen only, no talking)\n"
 "      't' -- set talk only mode. (Talk only, no listening)\n"
 "      'p' -- allow user to exit the conference by pressing '#'\n"
+"      'X' -- allow user to exit the conference by entering a valid single\n"
+"             digit extension ${MEETME_EXIT_CONTEXT} or the current context\n"
+"             if that variable is not defined.\n"
 "      'd' -- dynamically add conference\n"
 "      'D' -- dynamically add conference, prompting for a PIN\n"
 "      'e' -- select an empty conference\n"
@@ -148,6 +151,7 @@ static int admin_exec(struct ast_channel *chan, void *data);
 #define CONFFLAG_MOH (1 << 9)		/* Set to have music on hold when user is alone in conference */
 #define CONFFLAG_ADMINEXIT (1 << 10)    /* If set the MeetMe will return if all marked with this flag left */
 #define CONFFLAG_WAITMARKED (1 << 11)		/* If set, the MeetMe will wait until a marked user enters */
+#define CONFFLAG_EXIT_CONTEXT (1 << 12)		/* If set, the MeetMe will wait until a marked user enters */
 
 
 static int careful_write(int fd, unsigned char *data, int len)
@@ -504,6 +508,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	char *agifile;
 	char *agifiledefault = "conf-background.agi";
 	char meetmesecs[30] = "";
+	char exitcontext[AST_MAX_EXTENSION] = "";
 
 	ZT_BUFFERINFO bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
@@ -560,6 +565,14 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	user->adminflags = 0;
 	ast_mutex_unlock(&conflock);
 	origquiet = confflags & CONFFLAG_QUIET;
+	if (confflags & CONFFLAG_EXIT_CONTEXT) {
+		if ((agifile = pbx_builtin_getvar_helper(chan, "MEETME_EXIT_CONTEXT"))) 
+			strncpy(exitcontext, agifile, sizeof(exitcontext) - 1);
+		else if (!ast_strlen_zero(chan->macrocontext)) 
+			strncpy(exitcontext, chan->macrocontext, sizeof(exitcontext) - 1);
+		else
+			strncpy(exitcontext, chan->context, sizeof(exitcontext) - 1);
+	}
 	while((confflags & CONFFLAG_WAITMARKED) && (conf->markedusers < 0)) {
 		confflags &= ~CONFFLAG_QUIET;
 		confflags |= origquiet;
@@ -806,7 +819,18 @@ zapretry:
 				f = ast_read(c);
 				if (!f) 
 					break;
-				if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '#') && (confflags & CONFFLAG_POUNDEXIT)) {
+				if ((f->frametype == AST_FRAME_DTMF) && (confflags & CONFFLAG_EXIT_CONTEXT)) {
+					char tmp[2];
+					tmp[0] = f->subclass;
+					tmp[1] = '\0';
+					if (ast_exists_extension(chan, exitcontext, tmp, 1, chan->callerid)) {
+						strncpy(chan->context, exitcontext, sizeof(chan->context) - 1);
+						strncpy(chan->exten, tmp, sizeof(chan->exten) - 1);
+						chan->priority = 0;
+						ret = 0;
+						break;
+					}
+				} else if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '#') && (confflags & CONFFLAG_POUNDEXIT)) {
 					ret = 0;
 					break;
 				} else if (((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*') && (confflags & CONFFLAG_STARMENU)) || ((f->frametype == AST_FRAME_DTMF) && menu_active)) {
@@ -1187,6 +1211,8 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			confflags |= CONFFLAG_MOH;
 		if (strchr(inflags, 'x'))
 			confflags |= CONFFLAG_ADMINEXIT;
+		if (strchr(inflags, 'X'))
+			confflags |= CONFFLAG_EXIT_CONTEXT;
 		if (strchr(inflags, 'b'))
 			confflags |= CONFFLAG_AGI;
 		if (strchr(inflags, 'w'))

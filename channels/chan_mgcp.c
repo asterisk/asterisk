@@ -2808,9 +2808,9 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
             }
         } else {
             if (p->hookstate == MGCP_OFFHOOK) {
-                ast_log(LOG_WARNING, "Off hook, but alreaedy have owner on %s@%s\n", p->name, p->parent->name);
+                ast_log(LOG_WARNING, "Off hook, but already have owner on %s@%s\n", p->name, p->parent->name);
             } else {
-                ast_log(LOG_WARNING, "On hook, but alreaedy have owner on %s@%s\n", p->name, p->parent->name);
+                ast_log(LOG_WARNING, "On hook, but already have owner on %s@%s\n", p->name, p->parent->name);
                 ast_log(LOG_WARNING, "If we're onhook why are we here trying to handle a hd or hf?");
             }
             if (sub->owner->bridge) {
@@ -2921,8 +2921,8 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
                 /* Thanks to point on IRC for pointing this out */
                 return -1;
             }
- 	    /* do not let * confrnce two down channels */  
-	    if( sub->owner && sub->owner->_state == AST_STATE_DOWN && !sub->next->owner) return -1;
+	 	    /* do not let * confrnce two down channels */  
+		    if( sub->owner && sub->owner->_state == AST_STATE_DOWN && !sub->next->owner) return -1;
 
             if (p->callwaiting || p->transfer || p->threewaycalling) {
                 if (option_verbose > 2) {

@@ -535,8 +535,16 @@ int main(int argc, char *argv[])
 	if (needfork)
 		daemon(0,0);
 	for(;;) {
-		if (wait_event())
-			exit(1);
+		if (wait_event()) {
+			fclose(astf);
+			while(connect_asterisk()) {
+				sleep(5);
+			}
+			if (login_asterisk()) {
+				fclose(astf);
+				exit(1);
+			}
+		}
 	}
 	exit(0);
 }

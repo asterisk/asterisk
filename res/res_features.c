@@ -62,12 +62,24 @@ static int parking_stop = 750;
 static int transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
 
 /* Registrar for operations */
-static char *registrar = "res_parking";
+static char *registrar = "res_features";
 
 static char *synopsis = "Answer a parked call";
 
 static char *descrip = "ParkedCall(exten):"
 "Used to connect to a parked call.  This Application is always\n"
+"registered internally and does not need to be explicitly added\n"
+"into the dialplan, although you should include the 'parkedcalls'\n"
+"context.\n";
+
+
+static char *parkcall = "Park";
+
+static char *synopsis2 = "Park yourself";
+
+static char *descrip2 = "Park(exten):"
+"Used to park yourself (typically in combination with a supervised\n"
+"transfer to know the parking space.  This Application is always\n"
 "registered internally and does not need to be explicitly added\n"
 "into the dialplan, although you should include the 'parkedcalls'\n"
 "context.\n";
@@ -81,6 +93,7 @@ struct parkeduser {
 	char exten[AST_MAX_EXTENSION];
 	int priority;
 	int parkingtime;
+	int notquiteyet;
 	struct parkeduser *next;
 };
 
@@ -110,6 +123,8 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	   after these channels too */
 	struct parkeduser *pu, *cur;
 	int x;
+	char exten[AST_MAX_EXTENSION];
+	struct ast_context *con;
 	pu = malloc(sizeof(struct parkeduser));
 	if (pu) {
 		ast_mutex_lock(&parking_lock);
@@ -129,7 +144,8 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 
 			pu->chan = chan;
 			/* Start music on hold */
-			ast_moh_start(pu->chan, NULL);
+			if (chan != peer)
+				ast_moh_start(pu->chan, NULL);
 			gettimeofday(&pu->start, NULL);
 			pu->parkingnum = x;
 			if (timeout > 0)
@@ -154,6 +170,9 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 				pu->priority = chan->priority;
 			pu->next = parkinglot;
 			parkinglot = pu;
+			/* If parking a channel directly, don't quiet yet get parking running on it */
+			if (peer == chan)
+				pu->notquiteyet = 1;
 			ast_mutex_unlock(&parking_lock);
 			/* Wake up the (presumably select()ing) thread */
 			pthread_kill(parking_thread, SIGURG);
@@ -171,8 +190,26 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
                                 ,(pu->chan->callerid ? pu->chan->callerid : "")
                                 );
 
-			if (peer)
+			if (peer) {
 				ast_say_digits(peer, pu->parkingnum, "", peer->language);
+				if (pu->notquiteyet) {
+					/* Wake up parking thread if we're really done */
+					ast_moh_start(pu->chan, NULL);
+					pu->notquiteyet = 0;
+					pthread_kill(parking_thread, SIGURG);
+				}
+			}
+			con = ast_context_find(parking_con);
+			if (!con) {
+				con = ast_context_create(NULL,parking_con, registrar);
+				if (!con) {
+					ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
+				}
+			}
+			if (con) {
+				snprintf(exten, sizeof(exten), "%d", x);
+				ast_add_extension2(con, 1, exten, 1, NULL, parkedcall, strdup(exten), free, registrar);
+			}
 			return 0;
 		} else {
 			ast_log(LOG_WARNING, "No more parking spaces\n");
@@ -441,6 +478,8 @@ static void *do_parking_thread(void *ignore)
 	struct parkeduser *pu, *pl, *pt = NULL;
 	struct timeval tv;
 	struct ast_frame *f;
+	char exten[AST_MAX_EXTENSION];
+	struct ast_context *con;
 	int x;
 	fd_set rfds, efds;
 	fd_set nrfds, nefds;
@@ -456,6 +495,12 @@ static void *do_parking_thread(void *ignore)
 		FD_ZERO(&nrfds);
 		FD_ZERO(&nefds);
 		while(pu) {
+			if (pu->notquiteyet) {
+				/* Pretend this one isn't here yet */
+				pl = pu;
+				pu = pu->next;
+				continue;
+			}
 			tms = (tv.tv_sec - pu->start.tv_sec) * 1000 + (tv.tv_usec - pu->start.tv_usec) / 1000;
 			if (tms > pu->parkingtime) {
 				/* They've been waiting too long, send them back to where they came.  Theoretically they
@@ -477,6 +522,13 @@ static void *do_parking_thread(void *ignore)
 					parkinglot = pu->next;
 				pt = pu;
 				pu = pu->next;
+				con = ast_context_find(parking_con);
+				if (con) {
+					snprintf(exten, sizeof(exten), "%d", pt->parkingnum);
+					if (ast_context_remove_extension2(con, exten, 1, NULL))
+						ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
+				} else
+					ast_log(LOG_WARNING, "Whoa, no parking context?\n");
 				free(pt);
 			} else {
 				for (x=0;x<AST_MAX_FDS;x++) {
@@ -498,6 +550,13 @@ static void *do_parking_thread(void *ignore)
 								parkinglot = pu->next;
 							pt = pu;
 							pu = pu->next;
+							con = ast_context_find(parking_con);
+							if (con) {
+								snprintf(exten, sizeof(exten), "%d", pt->parkingnum);
+								if (ast_context_remove_extension2(con, exten, 1, NULL))
+									ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
+							} else
+								ast_log(LOG_WARNING, "Whoa, no parking context?\n");
 							free(pt);
 							break;
 						} else {
@@ -537,12 +596,37 @@ std:					for (x=0;x<AST_MAX_FDS;x++) {
 	return NULL;	/* Never reached */
 }
 
+static int park_call_exec(struct ast_channel *chan, void *data)
+{
+	/* Data is unused at the moment but could contain a parking
+	   lot context eventually */
+	int res=0;
+	struct localuser *u;
+	LOCAL_USER_ADD(u);
+	/* Setup the exten/priority to be s/1 since we don't know
+	   where this call should return */
+	strcpy(chan->exten, "s");
+	chan->priority = 1;
+	if (chan->_state != AST_STATE_UP)
+		res = ast_answer(chan);
+	if (!res)
+		res = ast_safe_sleep(chan, 1000);
+	if (!res)
+		res = ast_park_call(chan, chan, 0, NULL);
+	LOCAL_USER_REMOVE(u);
+	if (!res)
+		res = AST_PBX_KEEPALIVE;
+	return res;
+}
+
 static int park_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
 	struct ast_channel *peer=NULL;
 	struct parkeduser *pu, *pl=NULL;
+	char exten[AST_MAX_EXTENSION];
+	struct ast_context *con;
 	int park;
 	int dres;
 	struct ast_bridge_config config;
@@ -569,6 +653,13 @@ static int park_exec(struct ast_channel *chan, void *data)
 	ast_mutex_unlock(&parking_lock);
 	if (pu) {
 		peer = pu->chan;
+		con = ast_context_find(parking_con);
+		if (con) {
+			snprintf(exten, sizeof(exten), "%d", pu->parkingnum);
+			if (ast_context_remove_extension2(con, exten, 1, NULL))
+				ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
+		} else
+			ast_log(LOG_WARNING, "Whoa, no parking context?\n");
 		free(pu);
 	}
 	/* JK02: it helps to answer the channel if not already up */
@@ -696,10 +787,8 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 int load_module(void)
 {
 	int res;
-	int x;
 	int start, end;
 	struct ast_context *con;
-	char exten[AST_MAX_EXTENSION];
 	struct ast_config *cfg;
 	struct ast_variable *var;
 
@@ -750,12 +839,11 @@ int load_module(void)
 			return -1;
 		}
 	}
-	for(x=parking_start; x<=parking_stop;x++) {
-		snprintf(exten, sizeof(exten), "%d", x);
-		ast_add_extension2(con, 1, exten, 1, NULL, parkedcall, strdup(exten), free, registrar);
-	}
+	ast_add_extension2(con, 1, ast_parking_ext(), 1, NULL, parkcall, strdup(""),free, registrar);
 	pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
 	res = ast_register_application(parkedcall, park_exec, synopsis, descrip);
+	if (!res)
+		res = ast_register_application(parkcall, park_call_exec, synopsis2, descrip2);
 	if (!res) {
 		ast_manager_register( "ParkedCalls", 0, manager_parking_status, "List parked calls" );
 	}
@@ -802,7 +890,7 @@ int unload_module(void)
 
 	ast_manager_unregister( "ParkedCalls" );
 	ast_cli_unregister(&showparked);
-
+	ast_unregister_application(parkcall);
 	return ast_unregister_application(parkedcall);
 }
 
