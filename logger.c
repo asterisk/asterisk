@@ -89,7 +89,7 @@ extern void ast_log(int level, char *file, int line, char *function, char *fmt, 
 		} else
 			ast_log(LOG_WARNING, "Unable to retrieve local time?\n");
 	} else {
-		fprintf(stdout, "%s: File %s, Line %d (%s): ", levels[level], file, line, function);
+		fprintf(stdout, "%s[%ld]: File %s, Line %d (%s): ", levels[level], pthread_self(), file, line, function);
 		vfprintf(stdout, fmt, ap);
 		fflush(stdout);
 	}

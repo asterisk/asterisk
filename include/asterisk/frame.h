@@ -8,7 +8,9 @@
  * Mark Spencer <markster@linux-support.net>
  *
  * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * the GNU Lesser General Public License.  Other components of
+ * Asterisk are distributed under The GNU General Public License
+ * only.
  */
 
 #ifndef _ASTERISK_FRAME_H
@@ -56,6 +58,7 @@ struct ast_frame_chain {
 #define AST_FRAME_NULL		5		/* An empty, useless frame */
 #define AST_FRAME_IAX		6		/* Inter Aterisk Exchange private frame type */
 #define AST_FRAME_TEXT		7		/* Text messages */
+#define AST_FRAME_IMAGE		8		/* Image Frames */
 
 /* Data formats for capabilities and frames alike */
 #define AST_FORMAT_G723_1	(1 << 0)	/* G.723.1 compression */
