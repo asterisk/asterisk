@@ -1694,6 +1694,14 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if (option_console && !option_verbose) 
+		ast_verbose("[ Reading Master Configuration ]");
+	ast_readconfig();
+
+	if (set_priority(option_highpriority)) {
+		exit(1);
+	}
+
 	if (rungroup) {
 		struct group *gr;
 		gr = getgrnam(rungroup);
@@ -1709,9 +1717,6 @@ int main(int argc, char *argv[])
 			ast_verbose("Running as group '%s'\n", rungroup);
 	}
 
-	if (set_priority(option_highpriority)) {
-		exit(1);
-	}
 	if (runuser) {
 		struct passwd *pw;
 		pw = getpwnam(runuser);
@@ -1730,10 +1735,6 @@ int main(int argc, char *argv[])
 	term_init();
 	printf(term_end());
 	fflush(stdout);
-
-	if (option_console && !option_verbose) 
-		ast_verbose("[ Reading Master Configuration ]");
-	ast_readconfig();
 
 	if (option_console && !option_verbose) 
 		ast_verbose("[ Initializing Custom Configuration Options]");
