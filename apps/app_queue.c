@@ -909,6 +909,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	char *monitorfilename;
 	struct ast_channel *peer;
 	struct localuser *lpeer;
+	struct member *member;
 	int res = 0, bridge = 0;
 	int zapx = 2;
 	int x=0;
@@ -1026,7 +1027,8 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		}
 		/* Update parameters for the queue */
 		recalc_holdtime(qe);
-		update_queue(qe->parent, lpeer->member);
+		member = lpeer->member;
+		update_queue(qe->parent, member);
 		hanguptree(outgoing, peer);
 		outgoing = NULL;
 		if (announce) {
@@ -1102,7 +1104,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 
 		if(bridge != AST_PBX_NO_HANGUP_PEER)
 			ast_hangup(peer);
-
+		update_queue(qe->parent, member);
 		if( bridge == 0 ) res=1; /* JDG: bridge successfull, leave app_queue */
 		else res = bridge; /* bridge error, stay in the queue */
 	}	
