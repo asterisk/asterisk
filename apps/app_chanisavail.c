@@ -38,11 +38,12 @@ static char *descrip =
 "Checks is any of the requested channels are available.  If none\n"
 "of the requested channels are available the new priority will be\n"
 "n+101 (unless such a priority does not exist or on error, in which\n"
-"case ChanIsAvail will return -1).  If any of the requested channels\n"
-"are available, the next priority will be n+1, the channel variable\n"
-"${AVAILCHAN} will be set to the name of the available channel and\n"
-"the ChanIsAvail app will return 0.  ${AVAILORIGCHAN} is\n"
-"the canonical channel name that was used to create the channel.\n"
+"case ChanIsAvail will return -1).\n"
+"If any of the requested channels are available, the next priority will be n+1,\n"
+"the channel variable ${AVAILCHAN} will be set to the name of the available channel\n"
+"and the ChanIsAvail app will return 0.\n"
+"${AVAILORIGCHAN} is the canonical channel name that was used to create the channel.\n"
+"${AVAILSTATUS} is the status code for the channel.\n"
 "If the option 's' is specified (state), will consider channel unavailable\n"
 "when the channel is in use at all, even if it can take another call.\n";
 
