@@ -3322,16 +3322,19 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	ast->blocking = 0;
 	/* Check for hangup */
 	if (res < 0) {
+		f = NULL;
 		if (res == -1)  {
 			if (errno == EAGAIN) {
 				/* Return "NULL" frame if there is nobody there */
 				ast_mutex_unlock(&p->lock);
 				return &p->subs[index].f;
+			} else if (errno == ELAST) {
+				f = zt_handle_event(ast);
 			} else
 				ast_log(LOG_WARNING, "zt_rec: %s\n", strerror(errno));
 		}
 		ast_mutex_unlock(&p->lock);
-		return NULL;
+		return f;
 	}
 	if (res != (p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE)) {
 		ast_log(LOG_DEBUG, "Short read (%d/%d), must be an event...\n", res, p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE);
