@@ -250,7 +250,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					/* Setup parameters */
 					o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
 					if (!o->chan) {
-						ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s'\n", tech, stuff);
+						ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
 						o->stillgoing = 0;
 						HANDLE_CAUSE(cause, in);
 					} else {
