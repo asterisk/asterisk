@@ -1564,6 +1564,8 @@ int unload_module(void)
 	ast_cli_unregister(&cli_show_queues);
 	ast_manager_unregister( "Queues" );
 	ast_manager_unregister( "QueueStatus" );
+	ast_unregister_application(app_aqm);
+	ast_unregister_application(app_rqm);
 	return ast_unregister_application(app);
 }
 
