@@ -191,7 +191,7 @@ struct queue_ent {
 	int opos;			/* Where we started in the queue */
 	int handled;			/* Whether our call was handled */
 	time_t start;			/* When we started holding */
-	int queuetimeout;               /* How many seconds before timing out of queue */
+	time_t expire;			/* When this entry should expire (time out of queue) */
 	struct ast_channel *chan;	/* Our channel */
 	struct queue_ent *next;		/* The next queue entry */
 };
@@ -1138,7 +1138,6 @@ static int wait_our_turn(struct queue_ent *qe, int ringing)
 {
 	struct queue_ent *ch;
 	int res = 0;
-	time_t now;
 
 	/* This is the holding pen for callers 2 through maxlen */
 	for (;;) {
@@ -1153,11 +1152,8 @@ static int wait_our_turn(struct queue_ent *qe, int ringing)
 		}
 
 		/* If we have timed out, break out */
-		if ( qe->queuetimeout ) {
-			time(&now);
-			if ( (now - qe->start) >= qe->queuetimeout )
+		if (qe->expire && (time(NULL) > qe->expire))
 			break;
-		}
 
 		/* leave the queue if no agents, if enabled */
 		if (has_no_members(qe->parent) && qe->parent->leavewhenempty) {
@@ -1918,6 +1914,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	char *queuename;
 	char info[512];
+	char *info_ptr = info;
 	char *options = NULL;
 	char *url = NULL;
 	char *announceoverride = NULL;
@@ -1940,35 +1937,21 @@ static int queue_exec(struct ast_channel *chan, void *data)
 
 	/* Setup our queue entry */
 	memset(&qe, 0, sizeof(qe));
+	qe.start = time(NULL);
 	
 	/* Parse our arguments XXX Check for failure XXX */
-	strncpy(info, (char *)data, strlen((char *)data) + AST_MAX_EXTENSION-1);
-	queuename = info;
-	if (queuename) {
-		options = strchr(queuename, '|');
-		if (options) {
-			*options = '\0';
-			options++;
-			url = strchr(options, '|');
-			if (url) {
-				*url = '\0';
-				url++;
-				announceoverride = strchr(url, '|');
-				if (announceoverride) {
-					*announceoverride = '\0';
-					announceoverride++;
-					queuetimeoutstr = strchr(announceoverride, '|');
-					if (queuetimeoutstr) {
-						*queuetimeoutstr = '\0';
-						queuetimeoutstr++;
-						qe.queuetimeout = atoi(queuetimeoutstr);
-					} else {
-						qe.queuetimeout = 0;
-					}
-				}
-			}
-		}
-	}
+	strncpy(info, (char *) data, sizeof(info) - 1);
+	queuename = strsep(&info_ptr, "|");
+	options = strsep(&info_ptr, "|");
+	url = strsep(&info_ptr, "|");
+	announceoverride = strsep(&info_ptr, "|");
+	queuetimeoutstr = info_ptr;
+
+	/* set the expire time based on the supplied timeout; */
+	if (queuetimeoutstr)
+		qe.expire = qe.start + atoi(queuetimeoutstr);
+	else
+		qe.expire = 0;
 
 	/* Get the priority from the variable ${QUEUE_PRIO} */
 	user_priority = pbx_builtin_getvar_helper(chan, "QUEUE_PRIO");
@@ -1995,11 +1978,10 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	}
 
 /*	if (option_debug)  */
-		ast_log(LOG_DEBUG, "queue: %s, options: %s, url: %s, announce: %s, timeout: %d, priority: %d\n",
-				queuename, options, url, announceoverride, qe.queuetimeout, (int)prio);
+		ast_log(LOG_DEBUG, "queue: %s, options: %s, url: %s, announce: %s, expires: %ld, priority: %d\n",
+				queuename, options, url, announceoverride, (long)qe.expire, (int)prio);
 
 	qe.chan = chan;
-	qe.start = time(NULL);
 	qe.prio = (int)prio;
 	qe.last_pos_said = 0;
 	qe.last_pos = 0;
@@ -2043,7 +2025,7 @@ check_turns:
 				/* or, they may timeout. */
 
 				/* Leave if we have exceeded our queuetimeout */
-				if (qe.queuetimeout && ( (time(NULL) - qe.start) >= qe.queuetimeout) ) {
+				if (qe.expire && (time(NULL) > qe.expire)) {
 					res = 0;
 					break;
 				}
@@ -2073,7 +2055,7 @@ check_turns:
 				}
 
 				/* Leave if we have exceeded our queuetimeout */
-				if (qe.queuetimeout && ( (time(NULL) - qe.start) >= qe.queuetimeout) ) {
+				if (qe.expire && (time(NULL) > qe.expire)) {
 					res = 0;
 					break;
 				}
