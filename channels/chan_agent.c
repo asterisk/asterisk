@@ -1363,6 +1363,8 @@ static int agent_logoff_cmd(int fd, int argc, char **argv)
 			ast_queue_log("NONE", "NONE", agent, "AGENTCALLBACKLOGOFF", "%s|%ld|%s", p->loginchan, logintime, "CommandLogoff");
 			p->loginchan[0] = '\0';
 			ast_cli(fd, "Logging out %s\n", agent);
+			if (persistent_agents)
+				dump_agents();
 			break;
 		}
 	}
@@ -1752,7 +1754,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								res = ast_safe_sleep(chan, 500);
 							ast_mutex_unlock(&p->lock);
 							if (persistent_agents)
-                                                        	dump_agents();
+								dump_agents();
 						} else if (!res) {
 #ifdef HONOR_MUSIC_CLASS
 							/* check if the moh class was changed with setmusiconhold */
@@ -2123,7 +2125,7 @@ int load_module()
 	/* Read in the config */
 	read_agent_config();
 	if (persistent_agents)
-        	reload_agents();
+		reload_agents();
 	return 0;
 }
 
@@ -2131,7 +2133,7 @@ int reload()
 {
 	read_agent_config();
 	if (persistent_agents)
-                reload_agents();
+		reload_agents();
 	return 0;
 }
 
