@@ -150,7 +150,7 @@ chan_zap.so: chan_zap.o
 	$(CC) $(SOLINK) -o $@ $<  $(ZAPPRI) $(ZAPR2) -ltonezone
 
 chan_sip.so: chan_sip.o
-ifeq ($(USE_MYSQL_FRIENDS),1)
+ifeq ($(USE_SIP_MYSQL_FRIENDS),1)
 	$(CC) $(SOLINK) -o $@ chan_sip.o $(MYSQLLIB) -lz
 else
 	$(CC) $(SOLINK) -o $@ chan_sip.o
