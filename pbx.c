@@ -859,7 +859,7 @@ static void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp
 	int length;
 	char workspace[256];
 	char ltmp[256], var[256];
-	char *nextpos;
+	char *nextvar, *nextexp;
 	char *vars, *vare;
 	int pos, brackets, needsub, len;
 
@@ -872,11 +872,22 @@ static void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp
 		pos = strlen(whereweare);
 
 		/* Look for a variable */
-		nextpos = strstr(whereweare, "${");
+		nextvar = strstr(whereweare, "${");
+		
+		nextexp = strstr(whereweare, "$[");
+		
+		if (nextvar && nextexp) {
+			if (nextvar < nextexp)
+				nextexp = NULL;
+			else
+				nextvar = NULL;
+		}
 		
 		/* If there is one, we only go that far */
-		if (nextpos)
-			pos = nextpos - whereweare;
+		if (nextvar)
+			pos = nextvar - whereweare;
+		else if (nextexp)
+			pos = nextexp - whereweare;
 		
 		/* Can't copy more than 'count' bytes */
 		if (pos > count)
@@ -889,11 +900,11 @@ static void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp
 		cp2 += pos;
 		whereweare += pos;
 		
-		if (nextpos) {
+		if (nextvar) {
 			/* We have a variable.  Find the start and end, and determine
 			   if we are going to have to recursively call ourselves on the
 			   contents */
-			vars = vare = nextpos + 2;
+			vars = vare = nextvar + 2;
 			brackets = 1;
 			needsub = 0;
 			
@@ -904,7 +915,7 @@ static void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp
 					brackets++;
 				} else if (vare[0] == '}') {
 					brackets--;
-				} else if (vare[0] == '[')
+				} else if ((vare[0] == '$') && (vare[1] == '['))
 					needsub++;
 				vare++;
 			}
@@ -940,18 +951,70 @@ static void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp
 				cp2 += length;
 			}
 			
+		} else if (nextexp) {
+			/* We have an expression.  Find the start and end, and determine
+			   if we are going to have to recursively call ourselves on the
+			   contents */
+			vars = vare = nextexp + 2;
+			brackets = 1;
+			needsub = 0;
+			
+			/* Find the end of it */
+			while(brackets && *vare) {
+				if ((vare[0] == '$') && (vare[1] == '[')) {
+					needsub++;
+					brackets++;
+				} else if (vare[0] == ']') {
+					brackets--;
+				} else if ((vare[0] == '$') && (vare[1] == '{'))
+					needsub++;
+				vare++;
+			}
+			if (brackets)
+				ast_log(LOG_NOTICE, "Error in extension logic (missing ']')\n");
+			len = vare - vars - 1;
+			
+			/* Skip totally over variable name */
+			whereweare += ( len + 3);
+			
+			/* Store variable name (and truncate) */
+			memset(var, 0, sizeof(var));
+			strncpy(var, vars, sizeof(var) - 1);
+			var[len] = '\0';
+			
+			/* Substitute if necessary */
+			if (needsub) {
+				memset(ltmp, 0, sizeof(ltmp));
+				pbx_substitute_variables_helper(c, var, ltmp, sizeof(ltmp) - 1);
+				vars = ltmp;
+			} else {
+				vars = var;
+			}
+
+			/* Evaluate expression */			
+			cp4 = ast_expr(vars);
+			
+			printf("Expression is '%s'\n", cp4);
+			
+			if (cp4) {
+				length = strlen(cp4);
+				if (length > count)
+					length = count;
+				memcpy(cp2, cp4, length);
+				count -= length;
+				cp2 += length;
+				free(cp4);
+			}
+			
 		} else
 			break;
 	}
 }
 
 static void pbx_substitute_variables(char *passdata, int datalen, struct ast_channel *c, struct ast_exten *e) {
-	char *cp1,*cp3,*cp4;
-	char cp2[256] = "";
-	char c1,c2;
-	int m,mve,origlen,quoted,dolsign,docopy;
-	char cp5[256]="";
         
+	memset(passdata, 0, datalen);
+		
 	/* No variables or expressions in e->data, so why scan it? */
 	if (!strstr(e->data,"${") && !strstr(e->data,"$[")) {
 		strncpy(passdata, e->data, datalen - 1);
@@ -959,177 +1022,8 @@ static void pbx_substitute_variables(char *passdata, int datalen, struct ast_cha
 		return;
 	}
 	
-	pbx_substitute_variables_helper(c,e->data,cp2, sizeof(cp2) - 1);
-
-	/* Second stage, expression evaluation */
-	if ((strstr(cp2,"$[")==NULL)) {
-		strncpy(passdata, cp2, datalen - 1);
-		passdata[datalen-1] = '\0';
-		return;
-	}
-	/* else, do expression evaluation */
-	
-	dolsign=0;
-	docopy=1;
-	origlen=strlen(cp2)+1;
-	
-	cp4=NULL;
-	cp1=cp2;
-	quoted=0;
-	
-	do {
-		c1=*cp1;
-		mve=0;
-	        switch (c1) {
-	        	case '$' : 
-	        		dolsign=1;
-	        		docopy=0;
-	        		break;
-	        	case '[' :
-	        		if (dolsign==0) {
-	        			docopy=1;
-	        			dolsign=0;
-	        			break;
-	        		}
-	        		dolsign=0;
-	        		docopy=0;
-	        		m=0;
-	        		mve=1;
-	        		cp1++;
-	        		
-	        		while (((c2=*(cp1+m))!=']') && (c2!='\0')) {
-	        			m++;
-	        		}
-	        		cp3=malloc(m+2);
-	        		strncpy(cp3,cp1,m);
-	        		cp3[m]='\0';
-	        		cp1+=m;
-	        		/* Now we have the expression to evaluate on cp3 */
-	        		cp4=ast_expr(cp3);
-	        		free(cp3);
-	        		break;
-	        	default :
-	        		if (dolsign==1) {
-	        			strncat((char *)cp5,"$",1);
-	        		}
-	        		dolsign=0;
-	        		docopy=1;
-	        		mve=0;
-	        		break;
-	        }
-	        if (cp1!='\0') {
-	        	if (mve==0) {
-	        		if (docopy==1) {
-		        		strncat((char *)cp5,&c1,1);
-		        	}
-	        	} else {
-	        		if (cp4!=NULL) {
-		        		strncat((char *)cp5,cp4,strlen(cp4));
-		        	} else {
-		        		ast_log(LOG_WARNING,"mve!=0 and cp4=NULL, something gone astray\n");
-		        	}
-	        	}
-	        }
-	                
-	} while (*cp1++!='\0');
-	strncpy(passdata, cp5, datalen - 1);
-}
-#if 0
-static void *pbx_substitute_variables(struct ast_channel *c, struct ast_exten *e) {
-	char *cp1,*cp3,*cp4,*cp5;
-	char *cp2;
-	char c1,c2;
-	int m,mve,origlen,quoted,dolsign,docopy;
-        
-	/* No variables or expressions in e->data, so why scan it? */
-	if (!strstr(e->data,"${") && !strstr(e->data,"$[")) {
-		return strndup(e->data,strlen(e->data)+1);
-	}
-	
-	cp1=e->data;
-	cp2=malloc(sizeof(char)*256);
-	pbx_substitute_variables_helper(c,cp1,(char **)&cp2,0);
-
-	/* Second stage, expression evaluation */
-	if ((strstr(cp2,"$[")==NULL)) {
-		/* No expressions in cp2, return it */
-		return(cp2);
-	}
-	/* else, do expression evaluation */
-	
-	dolsign=0;
-	docopy=1;
-	origlen=strlen(cp2)+1;
-	
-	cp5=malloc(origlen);
-	memset(cp5,0,origlen);
-	cp4=NULL;
-	cp1=cp2;
-	quoted=0;
-	
-	do {
-		c1=*cp1;
-		mve=0;
-	        switch (c1) {
-	        	case '$' : 
-	        		dolsign=1;
-	        		docopy=0;
-	        		break;
-	        	case '[' :
-	        		if (dolsign==0) {
-	        			docopy=1;
-	        			dolsign=0;
-	        			break;
-	        		}
-	        		dolsign=0;
-	        		docopy=0;
-	        		m=0;
-	        		mve=1;
-	        		cp1++;
-	        		
-	        		while (((c2=*(cp1+m))!=']') && (c2!='\0')) {
-	        			m++;
-	        		}
-	        		cp3=malloc(m+2);
-	        		strncpy(cp3,cp1,m);
-	        		cp3[m]='\0';
-	        		cp1+=m;
-	        		/* Now we have the expression to evaluate on cp3 */
-	        		cp4=ast_expr(cp3);
-	        		free(cp3);
-	        		break;
-	        	default :
-	        		if (dolsign==1) {
-	        			strncat((char *)cp5,"$",1);
-	        		}
-	        		dolsign=0;
-	        		docopy=1;
-	        		mve=0;
-	        		break;
-	        }
-	        if (cp1!='\0') {
-	        	if (mve==0) {
-	        		if (docopy==1) {
-		        		strncat((char *)cp5,&c1,1);
-		        	}
-	        	} else {
-	        		if (cp4!=NULL) {
-		        		cp5=realloc(cp5,origlen+strlen(cp4)+1);
-		        		strncat((char *)cp5,cp4,strlen(cp4));
-		        		free(cp4);
-		        	} else {
-		        		ast_log(LOG_WARNING,"mve!=0 and cp4=NULL, something gone astray\n");
-		        	}
-	        	}
-	        }
-	                
-	} while (*cp1++!='\0');
-	free(cp2);
-	return(cp5);
-}
-#endif	        		
-	        	
-		                                                
+	pbx_substitute_variables_helper(c,e->data,passdata, datalen - 1);
+}		                                                
 
 static int pbx_extension_helper(struct ast_channel *c, char *context, char *exten, int priority, char *callerid, int action) 
 {
