@@ -41,8 +41,9 @@ static char *descrip =
 "of the requested channels are available the new priority will\n"
 "be n+101 (unless such a priority does not exist, in which case\n"
 "ChanIsAvail will return -1.  If any of the requested channels\n"
-"are available, the next priority will be n+1 and ChanIsAvail\n"
-"will return 0.\n";
+"are available, the next priority will be n+1, the channel variable\n"
+"${CHANAVAIL} will be set to the name of the available channel and\n"
+"the ChanIsAvail app will return 0.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -81,6 +82,7 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 			*number = '\0';
 			number++;
 			if ((tempchan = ast_request(tech, chan->nativeformats, number))) {
+					pbx_builtin_setvar_helper(chan, "AVAILCHAN", tempchan->name);
 					ast_hangup(tempchan);
 					tempchan = NULL;
 					res = 1;
@@ -91,6 +93,7 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (res < 1) {
+		pbx_builtin_setvar_helper(chan, "AVAILCHAN", "");
 		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
 			chan->priority+=100;
 		else
