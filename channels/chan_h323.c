@@ -27,8 +27,29 @@
  */
 
 
+#include <sys/socket.h>
+#include <sys/signal.h>
+#include <sys/param.h>
+#if defined(BSD)
+#ifndef IPTOS_MINCOST
+#define IPTOS_MINCOST 0x02
+#endif
+#endif
+#include <arpa/inet.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
+#include <fcntl.h>
+#ifdef __cplusplus
+extern "C" {
+#endif   
 #include <asterisk/lock.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -46,24 +67,22 @@
 #include <asterisk/callerid.h>
 #include <asterisk/cli.h>
 #include <asterisk/dsp.h>
-#include <sys/socket.h>
-#include <net/if.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <netdb.h>
-#include <sys/signal.h>
-#include <sys/param.h>
-#if defined(BSD)
-#include <netinet/in_systm.h>
-#ifndef IPTOS_MINCOST
-#define IPTOS_MINCOST 0x02
+#ifdef __cplusplus
+}
 #endif
-#endif
-#include <netinet/ip.h>
-
 #include "h323/chan_h323.h"
+
+send_digit_cb		on_send_digit; 
+on_connection_cb	on_create_connection; 
+setup_incoming_cb	on_incoming_call;
+setup_outbound_cb	on_outgoing_call; 
+start_logchan_cb	on_start_logical_channel; 
+chan_ringing_cb		on_chan_ringing;
+con_established_cb	on_connection_established;
+clear_con_cb		on_connection_cleared;
+answer_call_cb		on_answer_call;
+
+int h323debug;
 
 /** String variables required by ASTERISK */
 static char *type	= "H323";
@@ -322,7 +341,7 @@ static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
 		ast_mutex_unlock(&peerl.lock);
  	} else {
 		ast_mutex_unlock(&peerl.lock);
-		peer = malloc(sizeof(struct oh323_peer));
+		peer = (struct oh323_peer*)malloc(sizeof(struct oh323_peer));
 		memset(peer, 0, sizeof(struct oh323_peer));
 	}
 	if (peer) {
@@ -373,7 +392,7 @@ static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
  */
 static int oh323_digit(struct ast_channel *c, char digit)
 {
-	struct oh323_pvt *p = c->pvt->pvt;
+	struct oh323_pvt *p = (struct oh323_pvt *) c->pvt->pvt;
 	if (p && p->rtp && (p->dtmfmode & H323_DTMF_RFC2833)) {
 		ast_rtp_senddigit(p->rtp, digit);
 	}
@@ -393,7 +412,7 @@ static int oh323_digit(struct ast_channel *c, char digit)
 static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 {
 	int res;
-	struct oh323_pvt *p = c->pvt->pvt;
+	struct oh323_pvt *p = (struct oh323_pvt *) c->pvt->pvt;
 	char called_addr[256];
 	char *tmp, *cid, *cidname, oldcid[256];
 
@@ -480,7 +499,7 @@ static int oh323_answer(struct ast_channel *c)
 {
 	int res;
 
-	struct oh323_pvt *p = c->pvt->pvt;
+	struct oh323_pvt *p = (struct oh323_pvt *) c->pvt->pvt;
 
 	res = h323_answering_call(p->cd.call_token, 0);
 	
@@ -492,7 +511,7 @@ static int oh323_answer(struct ast_channel *c)
 
 static int oh323_hangup(struct ast_channel *c)
 {
-	struct oh323_pvt *p = c->pvt->pvt;
+	struct oh323_pvt *p = (struct oh323_pvt *) c->pvt->pvt;
 	int needcancel = 0;
 	if (h323debug)
 		ast_log(LOG_DEBUG, "oh323_hangup(%s)\n", c->name);
@@ -510,7 +529,7 @@ static int oh323_hangup(struct ast_channel *c)
 	if (!c || (c->_state != AST_STATE_UP))
 		needcancel = 1;
 	/* Disconnect */
-	p = c->pvt->pvt;
+	p = (struct oh323_pvt *) c->pvt->pvt;
 	
 	/* Free dsp used for in-band DTMF detection */
 	if (p->vad) {
@@ -584,7 +603,7 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *p)
 static struct ast_frame  *oh323_read(struct ast_channel *c)
 {
 	struct ast_frame *fr;
-	struct oh323_pvt *p = c->pvt->pvt;
+	struct oh323_pvt *p = (struct oh323_pvt *) c->pvt->pvt;
 	ast_mutex_lock(&p->lock);
 	fr = oh323_rtp_read(p);
 	ast_mutex_unlock(&p->lock);
@@ -593,7 +612,7 @@ static struct ast_frame  *oh323_read(struct ast_channel *c)
 
 static int oh323_write(struct ast_channel *c, struct ast_frame *frame)
 {
-	struct oh323_pvt *p = c->pvt->pvt;
+	struct oh323_pvt *p = (struct oh323_pvt *) c->pvt->pvt;
 	int res = 0;
 	if (frame->frametype != AST_FRAME_VOICE) {
 		if (frame->frametype == AST_FRAME_IMAGE)
@@ -623,7 +642,7 @@ static int oh323_write(struct ast_channel *c, struct ast_frame *frame)
 static int oh323_indicate(struct ast_channel *c, int condition)
 {
 
-	struct oh323_pvt *p = c->pvt->pvt;
+	struct oh323_pvt *p = (struct oh323_pvt *) c->pvt->pvt;
 	
 	switch(condition) {
 	case AST_CONTROL_RINGING:
@@ -668,7 +687,7 @@ static int oh323_indicate(struct ast_channel *c, int condition)
 // FIXME: WTF is this? Do I need this???
 static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct oh323_pvt *p = newchan->pvt->pvt;
+	struct oh323_pvt *p = (struct oh323_pvt *) newchan->pvt->pvt;
 
 	ast_mutex_lock(&p->lock);
 	if (p->owner != oldchan) {
@@ -755,7 +774,7 @@ static struct oh323_pvt *oh323_alloc(int callid)
 {
 	struct oh323_pvt *p;
 
-	p = malloc(sizeof(struct oh323_pvt));
+	p = (struct oh323_pvt *) malloc(sizeof(struct oh323_pvt));
 	if (!p) {
 		ast_log(LOG_ERROR, "Couldn't allocate private structure. This is bad\n");
 		return NULL;
@@ -796,7 +815,7 @@ static struct oh323_pvt *find_call(int call_reference)
         p = iflist; 
 
         while(p) {
-                if (p->cd.call_reference == call_reference) {
+                if ((signed int)p->cd.call_reference == call_reference) {
                         /* Found the call */						
 						ast_mutex_unlock(&iflock);
 						return p;
@@ -814,7 +833,7 @@ static struct ast_channel *oh323_request(char *type, int format, void *data)
 	int oldformat;
 	struct oh323_pvt *p;
 	struct ast_channel *tmpc = NULL;
-	char *dest = data;
+	char *dest = (char *) data;
 	char *ext, *host;
 	char *h323id = NULL;
 	char tmp[256];
@@ -980,7 +999,7 @@ struct rtp_info *create_connection(unsigned call_reference)
 	struct sockaddr_in them;
 	struct rtp_info *info;
 
-	info = malloc(sizeof(struct rtp_info));
+	info = (struct rtp_info *) malloc(sizeof(struct rtp_info));
 
 	p = find_call(call_reference);
 
@@ -1769,7 +1788,7 @@ int reload(void)
 static struct ast_rtp *oh323_get_rtp_peer(struct ast_channel *chan)
 {
 	struct oh323_pvt *p;
-	p = chan->pvt->pvt;
+	p = (struct oh323_pvt *) chan->pvt->pvt;
 	if (p && p->rtp && p->bridge) {
 		return p->rtp;
 	}
@@ -1821,7 +1840,7 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, str
 		return 0;
 	}
 
-	p = chan->pvt->pvt;
+	p = (struct oh323_pvt *) chan->pvt->pvt;
 	if (!p) {
 		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");
 		return -1;

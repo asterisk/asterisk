@@ -78,6 +78,7 @@ static char digits[80] = "";
 static char text2send[80] = "";
 
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
+AST_MUTEX_DEFINE_STATIC(alsalock);
 
 static char *type = "Console";
 static char *desc = "ALSA Console Channel Driver";
@@ -330,7 +331,9 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	snd_pcm_uframes_t buffer_size = 0;
 
 	unsigned int rate = DESIRED_RATE;
+#if 0
 	unsigned int per_min = 1;
+#endif
 	//unsigned int per_max = 8;
 	snd_pcm_uframes_t start_threshold, stop_threshold;
 

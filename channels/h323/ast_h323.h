@@ -26,18 +26,8 @@
  * Version Info: $Id$ 
  */
 
-
-#include <ptlib.h>
-#include <h323.h>
-#include <h323pdu.h>
-#include <mediafmt.h>
-#include <lid.h>
-
-#include <list>
-#include <string>
-#include <algorithm>
-
-#include "chan_h323.h"
+#ifndef AST_H323_H
+#define AST_H323_H
 
 /**  These need to be redefined here because the C++
 	 side of this driver is blind to the asterisk headers */
@@ -306,3 +296,4 @@ class MyProcess : public PProcess {
 	
 };
 
+#endif /* !defined AST_H323_H */

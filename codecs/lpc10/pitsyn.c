@@ -1,6 +1,9 @@
 /*
 
 $Log$
+Revision 1.16  2004/06/26 03:50:14  markster
+Merge source cleanups (bug #1911)
+
 Revision 1.15  2003/11/23 22:14:32  markster
 Various warning cleanups
 
@@ -27,10 +30,6 @@ Some OSS fixes and a few lpc changes to make it actually work
 
 */
 
-#ifdef P_R_O_T_O_T_Y_P_E_S
-extern int pitsyn_(integer *order, integer *voice, integer *pitch, real *rms, real *rc, integer *lframe, integer *ivuv, integer *ipiti, real *rmsi, real *rci, integer *nout, real *ratio, struct lpc10_decoder_state *st);
-#endif
-
 /*  -- translated by f2c (version 19951025).
    You must link the resulting object file with the libraries:
 	-lf2c -lm   (in that order)
@@ -38,14 +37,21 @@ extern int pitsyn_(integer *order, integer *voice, integer *pitch, real *rms, re
 
 #include "f2c.h"
 
+#ifdef P_R_O_T_O_T_Y_P_E_S
+extern int pitsyn_(integer *order, integer *voice, integer *pitch, real *rms, real *rc, integer *lframe, integer *ivuv, integer *ipiti, real *rmsi, real *rci, integer *nout, real *ratio, struct lpc10_decoder_state *st);
+#endif
+
 /* ***************************************************************** */
 
 /* 	PITSYN Version 53 */
 
 /* $Log$
- * Revision 1.15  2003/11/23 22:14:32  markster
- * Various warning cleanups
+ * Revision 1.16  2004/06/26 03:50:14  markster
+ * Merge source cleanups (bug #1911)
  *
+/* Revision 1.15  2003/11/23 22:14:32  markster
+/* Various warning cleanups
+/*
 /* Revision 1.14  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*
@@ -155,9 +161,12 @@ extern int pitsyn_(integer *order, integer *voice, integer *pitch, real *rms, re
 
 /*       Arguments */
 /* $Log$
- * Revision 1.15  2003/11/23 22:14:32  markster
- * Various warning cleanups
+ * Revision 1.16  2004/06/26 03:50:14  markster
+ * Merge source cleanups (bug #1911)
  *
+/* Revision 1.15  2003/11/23 22:14:32  markster
+/* Various warning cleanups
+/*
 /* Revision 1.14  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*

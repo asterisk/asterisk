@@ -1,6 +1,9 @@
 /*
 
 $Log$
+Revision 1.15  2004/06/26 03:50:14  markster
+Merge source cleanups (bug #1911)
+
 Revision 1.14  2003/02/12 13:59:15  matteo
 mer feb 12 14:56:57 CET 2003
 
@@ -24,17 +27,17 @@ Some OSS fixes and a few lpc changes to make it actually work
 
 */
 
-#ifdef P_R_O_T_O_T_Y_P_E_S
-extern int dyptrk_(real *amdf, integer *ltau, integer *minptr, integer *voice, integer *pitch, integer *midx, struct lpc10_encoder_state *st);
-/* comlen contrl_ 12 */
-#endif
-
 /*  -- translated by f2c (version 19951025).
    You must link the resulting object file with the libraries:
 	-lf2c -lm   (in that order)
 */
 
 #include "f2c.h"
+
+#ifdef P_R_O_T_O_T_Y_P_E_S
+extern int dyptrk_(real *amdf, integer *ltau, integer *minptr, integer *voice, integer *pitch, integer *midx, struct lpc10_encoder_state *st);
+/* comlen contrl_ 12 */
+#endif
 
 /* Common Block Declarations */
 
@@ -50,9 +53,12 @@ extern struct {
 /* 	DYPTRK Version 52 */
 
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:15  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2004/06/26 03:50:14  markster
+ * Merge source cleanups (bug #1911)
  *
+/* Revision 1.14  2003/02/12 13:59:15  matteo
+/* mer feb 12 14:56:57 CET 2003
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*
@@ -142,9 +148,12 @@ extern struct {
 
 /*       Arguments */
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:15  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2004/06/26 03:50:14  markster
+ * Merge source cleanups (bug #1911)
  *
+/* Revision 1.14  2003/02/12 13:59:15  matteo
+/* mer feb 12 14:56:57 CET 2003
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*

@@ -1,6 +1,9 @@
 /*
 
 $Log$
+Revision 1.16  2004/06/26 03:50:14  markster
+Merge source cleanups (bug #1911)
+
 Revision 1.15  2003/09/19 01:20:22  markster
 Code cleanups (bug #66)
 
@@ -19,10 +22,6 @@ Some OSS fixes and a few lpc changes to make it actually work
 
 */
 
-#ifdef P_R_O_T_O_T_Y_P_E_S
-extern int ivfilt_(real *lpbuf, real *ivbuf, integer *len, integer *nsamp, real *ivrc);
-#endif
-
 /*  -- translated by f2c (version 19951025).
    You must link the resulting object file with the libraries:
 	-lf2c -lm   (in that order)
@@ -30,14 +29,21 @@ extern int ivfilt_(real *lpbuf, real *ivbuf, integer *len, integer *nsamp, real 
 
 #include "f2c.h"
 
+#ifdef P_R_O_T_O_T_Y_P_E_S
+extern int ivfilt_(real *lpbuf, real *ivbuf, integer *len, integer *nsamp, real *ivrc);
+#endif
+
 /* ********************************************************************* */
 
 /* 	IVFILT Version 48 */
 
 /* $Log$
- * Revision 1.15  2003/09/19 01:20:22  markster
- * Code cleanups (bug #66)
+ * Revision 1.16  2004/06/26 03:50:14  markster
+ * Merge source cleanups (bug #1911)
  *
+/* Revision 1.15  2003/09/19 01:20:22  markster
+/* Code cleanups (bug #66)
+/*
 /* Revision 1.2  2003/09/19 01:20:22  markster
 /* Code cleanups (bug #66)
 /*

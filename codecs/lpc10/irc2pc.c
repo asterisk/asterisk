@@ -1,6 +1,9 @@
 /*
 
 $Log$
+Revision 1.15  2004/06/26 03:50:14  markster
+Merge source cleanups (bug #1911)
+
 Revision 1.14  2003/02/12 13:59:15  matteo
 mer feb 12 14:56:57 CET 2003
 
@@ -16,10 +19,6 @@ Some OSS fixes and a few lpc changes to make it actually work
 
 */
 
-#ifdef P_R_O_T_O_T_Y_P_E_S
-extern int irc2pc_(real *rc, real *pc, integer *order, real *gprime, real *g2pass);
-#endif
-
 /*  -- translated by f2c (version 19951025).
    You must link the resulting object file with the libraries:
 	-lf2c -lm   (in that order)
@@ -27,14 +26,21 @@ extern int irc2pc_(real *rc, real *pc, integer *order, real *gprime, real *g2pas
 
 #include "f2c.h"
 
+#ifdef P_R_O_T_O_T_Y_P_E_S
+extern int irc2pc_(real *rc, real *pc, integer *order, real *gprime, real *g2pass);
+#endif
+
 /* ***************************************************************** */
 
 /* 	IRC2PC Version 48 */
 
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:15  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2004/06/26 03:50:14  markster
+ * Merge source cleanups (bug #1911)
  *
+/* Revision 1.14  2003/02/12 13:59:15  matteo
+/* mer feb 12 14:56:57 CET 2003
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*
@@ -88,9 +94,12 @@ extern int irc2pc_(real *rc, real *pc, integer *order, real *gprime, real *g2pas
 
 /* 	Arguments */
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:15  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2004/06/26 03:50:14  markster
+ * Merge source cleanups (bug #1911)
  *
+/* Revision 1.14  2003/02/12 13:59:15  matteo
+/* mer feb 12 14:56:57 CET 2003
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*

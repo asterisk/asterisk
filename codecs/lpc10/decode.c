@@ -1,6 +1,9 @@
 /*
 
 $Log$
+Revision 1.16  2004/06/26 03:50:14  markster
+Merge source cleanups (bug #1911)
+
 Revision 1.15  2003/09/19 01:20:22  markster
 Code cleanups (bug #66)
 
@@ -27,19 +30,19 @@ Some OSS fixes and a few lpc changes to make it actually work
 
 */
 
-#ifdef P_R_O_T_O_T_Y_P_E_S
-extern int decode_(integer *ipitv, integer *irms, integer *irc, integer *voice, integer *pitch, real *rms, real *rc, struct lpc10_decoder_state *st);
-/* comlen contrl_ 12 */
-/*:ref: ham84_ 14 3 4 4 4 */
-/*:ref: median_ 4 3 4 4 4 */
-#endif
-
 /*  -- translated by f2c (version 19951025).
    You must link the resulting object file with the libraries:
 	-lf2c -lm   (in that order)
 */
 
 #include "f2c.h"
+
+#ifdef P_R_O_T_O_T_Y_P_E_S
+extern int decode_(integer *ipitv, integer *irms, integer *irc, integer *voice, integer *pitch, real *rms, real *rc, struct lpc10_decoder_state *st);
+/* comlen contrl_ 12 */
+/*:ref: ham84_ 14 3 4 4 4 */
+/*:ref: median_ 4 3 4 4 4 */
+#endif
 
 /* Common Block Declarations */
 
@@ -59,9 +62,12 @@ static integer c__2 = 2;
 /* 	DECODE Version 54 */
 
 /* $Log$
- * Revision 1.15  2003/09/19 01:20:22  markster
- * Code cleanups (bug #66)
+ * Revision 1.16  2004/06/26 03:50:14  markster
+ * Merge source cleanups (bug #1911)
  *
+/* Revision 1.15  2003/09/19 01:20:22  markster
+/* Code cleanups (bug #66)
+/*
 /* Revision 1.2  2003/09/19 01:20:22  markster
 /* Code cleanups (bug #66)
 /*
@@ -200,9 +206,12 @@ static integer c__2 = 2;
     integer ishift, errcnt, lsb;
 
 /* $Log$
- * Revision 1.15  2003/09/19 01:20:22  markster
- * Code cleanups (bug #66)
+ * Revision 1.16  2004/06/26 03:50:14  markster
+ * Merge source cleanups (bug #1911)
  *
+/* Revision 1.15  2003/09/19 01:20:22  markster
+/* Code cleanups (bug #66)
+/*
 /* Revision 1.2  2003/09/19 01:20:22  markster
 /* Code cleanups (bug #66)
 /*
@@ -237,9 +246,12 @@ static integer c__2 = 2;
 /* Frame size, Prediction order, Pitch period */
 /*       Arguments */
 /* $Log$
- * Revision 1.15  2003/09/19 01:20:22  markster
- * Code cleanups (bug #66)
+ * Revision 1.16  2004/06/26 03:50:14  markster
+ * Merge source cleanups (bug #1911)
  *
+/* Revision 1.15  2003/09/19 01:20:22  markster
+/* Code cleanups (bug #66)
+/*
 /* Revision 1.2  2003/09/19 01:20:22  markster
 /* Code cleanups (bug #66)
 /*

@@ -2722,7 +2722,7 @@ static unsigned int calc_rxstamp(struct chan_iax2_pvt *p)
 	return ms;
 }
 
-struct iax2_trunk_peer *find_tpeer(struct sockaddr_in *sin)
+static struct iax2_trunk_peer *find_tpeer(struct sockaddr_in *sin)
 {
 	struct iax2_trunk_peer *tpeer;
 	/* Finds and locks trunk peer */

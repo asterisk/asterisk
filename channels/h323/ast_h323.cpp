@@ -25,9 +25,28 @@
  *
  * Version Info: $Id$
  */
-#include <asterisk/logger.h>
-#include "ast_h323.h"
+#include <arpa/inet.h>
 
+#include <list>
+#include <string>
+#include <algorithm>
+
+#include <ptlib.h>
+#include <h323.h>
+#include <h323pdu.h>
+#include <mediafmt.h>
+#include <lid.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif   
+#include <asterisk/logger.h>
+#ifdef __cplusplus
+}
+#endif
+
+#include "chan_h323.h"
+#include "ast_h323.h"
 
 /* PWlib Required Components  */
 #define MAJOR_VERSION 1

@@ -1,6 +1,9 @@
 /*
 
 $Log$
+Revision 1.16  2004/06/26 03:50:14  markster
+Merge source cleanups (bug #1911)
+
 Revision 1.15  2003/09/19 01:20:22  markster
 Code cleanups (bug #66)
 
@@ -26,6 +29,8 @@ Some OSS fixes and a few lpc changes to make it actually work
  *
 
 */
+
+#include "f2c.h"
 
 #ifdef P_R_O_T_O_T_Y_P_E_S
 extern int analys_(real *speech, integer *voice, integer *pitch, real *rms, real *rc, struct lpc10_encoder_state *st);
@@ -55,8 +60,6 @@ extern int analys_(real *speech, integer *voice, integer *pitch, real *rms, real
 	-lf2c -lm   (in that order)
 */
 
-#include "f2c.h"
-
 /* Common Block Declarations */
 
 extern struct {
@@ -85,9 +88,12 @@ static integer c__1 = 1;
 /* 	ANALYS Version 55 */
 
 /* $Log$
- * Revision 1.15  2003/09/19 01:20:22  markster
- * Code cleanups (bug #66)
+ * Revision 1.16  2004/06/26 03:50:14  markster
+ * Merge source cleanups (bug #1911)
  *
+/* Revision 1.15  2003/09/19 01:20:22  markster
+/* Code cleanups (bug #66)
+/*
 /* Revision 1.2  2003/09/19 01:20:22  markster
 /* Code cleanups (bug #66)
 /*
@@ -234,13 +240,7 @@ static integer c__1 = 1;
     extern /* Subroutine */ int onset_(real *, integer *, integer *, integer *
 	    , integer *, integer *, integer *, struct lpc10_encoder_state *);
     integer *osptr;
-    extern /* Subroutine */ void placea_(integer *, integer *
-	    , integer *, integer *, integer *, integer *, integer *, integer *
-	    , integer *);
-    extern void dcbias_(integer *, real *, real *);
-    extern void placev_(integer 
-	    *, integer *, integer *, integer *, integer *, integer *, integer 
-	    *, integer *, integer *, integer *, integer *);
+    extern int dcbias_(integer *, real *, real *);
     integer ipitch;
     integer *obound;
     extern /* Subroutine */ int preemp_(real *, real *, integer *, real *, 
@@ -260,9 +260,12 @@ static integer c__1 = 1;
     real phi[100]	/* was [10][10] */, psi[10];
 
 /* $Log$
- * Revision 1.15  2003/09/19 01:20:22  markster
- * Code cleanups (bug #66)
+ * Revision 1.16  2004/06/26 03:50:14  markster
+ * Merge source cleanups (bug #1911)
  *
+/* Revision 1.15  2003/09/19 01:20:22  markster
+/* Code cleanups (bug #66)
+/*
 /* Revision 1.2  2003/09/19 01:20:22  markster
 /* Code cleanups (bug #66)
 /*
@@ -297,9 +300,12 @@ static integer c__1 = 1;
 /* Frame size, Prediction order, Pitch period */
 /*       Arguments to ANALYS */
 /* $Log$
- * Revision 1.15  2003/09/19 01:20:22  markster
- * Code cleanups (bug #66)
+ * Revision 1.16  2004/06/26 03:50:14  markster
+ * Merge source cleanups (bug #1911)
  *
+/* Revision 1.15  2003/09/19 01:20:22  markster
+/* Code cleanups (bug #66)
+/*
 /* Revision 1.2  2003/09/19 01:20:22  markster
 /* Code cleanups (bug #66)
 /*

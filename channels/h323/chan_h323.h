@@ -116,48 +116,48 @@ typedef struct rtp_info {
 /* This is a callback prototype function, called pass
    DTMF down the RTP. */
 typedef int (*send_digit_cb)(unsigned, char);
-send_digit_cb	on_send_digit; 
+extern send_digit_cb	on_send_digit; 
 
 /* This is a callback prototype function, called to collect
    the external RTP port from Asterisk. */
 typedef rtp_info_t *(*on_connection_cb)(unsigned);
-on_connection_cb	on_create_connection; 
+extern on_connection_cb	on_create_connection; 
 
 /* This is a callback prototype function, called upon
    an incoming call happens. */
 typedef int (*setup_incoming_cb)(call_details_t);
-setup_incoming_cb		on_incoming_call;
+extern setup_incoming_cb		on_incoming_call;
 
 /* This is a callback prototype function, called upon
    an outbound call. */
 typedef int (*setup_outbound_cb)(call_details_t);
-setup_outbound_cb	on_outgoing_call; 
+extern setup_outbound_cb	on_outgoing_call; 
 
 /* This is a callback prototype function, called when the openh323 
    OnStartLogicalChannel is invoked. */
 typedef void (*start_logchan_cb)(unsigned int, const char *, int);
-start_logchan_cb	on_start_logical_channel; 
+extern start_logchan_cb	on_start_logical_channel; 
 
 /* This is a callback prototype function, called when openh323
    OnAlerting is invoked */
 typedef void (*chan_ringing_cb)(unsigned);
-chan_ringing_cb		on_chan_ringing;
+extern chan_ringing_cb		on_chan_ringing;
 
 /* This is a callback protoype function, called when the openh323
    OnConnectionEstablished is inovked */
 typedef void (*con_established_cb)(unsigned);
-con_established_cb		on_connection_established;
+extern con_established_cb		on_connection_established;
 
 /* This is a callback prototype function, called when the openH323
    OnConnectionCleared callback is invoked */
 typedef void (*clear_con_cb)(call_details_t);
-clear_con_cb		on_connection_cleared;
+extern clear_con_cb		on_connection_cleared;
 
 typedef int (*answer_call_cb)(unsigned);
-answer_call_cb		on_answer_call;
+extern answer_call_cb		on_answer_call;
 
 /* debug flag */
-int h323debug;
+extern int h323debug;
 
 #define H323_DTMF_RFC2833	(1 << 0)
 #define H323_DTMF_INBAND	(1 << 1)

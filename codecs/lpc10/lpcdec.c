@@ -1,6 +1,9 @@
 /*
 
 $Log$
+Revision 1.15  2004/06/26 03:50:14  markster
+Merge source cleanups (bug #1911)
+
 Revision 1.14  2003/02/12 13:59:15  matteo
 mer feb 12 14:56:57 CET 2003
 
@@ -27,6 +30,13 @@ Some OSS fixes and a few lpc changes to make it actually work
 
 */
 
+/*  -- translated by f2c (version 19951025).
+   You must link the resulting object file with the libraries:
+	-lf2c -lm   (in that order)
+*/
+
+#include "f2c.h"
+
 #ifdef P_R_O_T_O_T_Y_P_E_S
 extern int lpcdec_(integer *bits, real *speech);
 extern int initlpcdec_(void);
@@ -37,13 +47,6 @@ extern int initlpcdec_(void);
 /*:ref: initdecode_ 14 0 */
 /*:ref: initsynths_ 14 0 */
 #endif
-
-/*  -- translated by f2c (version 19951025).
-   You must link the resulting object file with the libraries:
-	-lf2c -lm   (in that order)
-*/
-
-#include "f2c.h"
 
 /* Common Block Declarations */
 
@@ -61,9 +64,12 @@ static integer c__10 = 10;
 /* ***************************************************************** */
 
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:15  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2004/06/26 03:50:14  markster
+ * Merge source cleanups (bug #1911)
  *
+/* Revision 1.14  2003/02/12 13:59:15  matteo
+/* mer feb 12 14:56:57 CET 2003
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*
@@ -119,9 +125,12 @@ static integer c__10 = 10;
     real rms;
 
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:15  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2004/06/26 03:50:14  markster
+ * Merge source cleanups (bug #1911)
  *
+/* Revision 1.14  2003/02/12 13:59:15  matteo
+/* mer feb 12 14:56:57 CET 2003
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*
@@ -156,9 +165,12 @@ static integer c__10 = 10;
 /* Frame size, Prediction order, Pitch period */
 /*       Arguments */
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:15  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2004/06/26 03:50:14  markster
+ * Merge source cleanups (bug #1911)
  *
+/* Revision 1.14  2003/02/12 13:59:15  matteo
+/* mer feb 12 14:56:57 CET 2003
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*
