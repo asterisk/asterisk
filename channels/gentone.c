@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
 	int freq1, freq2;
 	float wlen1, wlen2;
 	float val;
-	int x, samples1, samples2, samples=0;
+	int x, samples1, samples2=0, samples=0;
 	char fn[256];
 	if (argc < 3) {
 		fprintf(stderr, "Usage: gensound <name> <freq1> [freq2]\n");

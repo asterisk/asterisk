@@ -2631,6 +2631,7 @@ static int reload_config(void)
 	return 0;
 }
 
+#if 0
 void delete_devices(void)
 {
 	struct skinny_device *d, *dlast;
@@ -2661,6 +2662,7 @@ void delete_devices(void)
 	devices=NULL;
 	ast_mutex_unlock(&devicelock);
 }
+#endif
 
 int reload(void)
 {

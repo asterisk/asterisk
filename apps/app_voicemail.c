@@ -2065,6 +2065,7 @@ static void adsi_status2(struct ast_channel *chan, char *folder, int messages)
 	
 }
 
+/*
 static void adsi_clear(struct ast_channel *chan)
 {
 	char buf[256];
@@ -2076,6 +2077,7 @@ static void adsi_clear(struct ast_channel *chan)
 
 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 }
+*/
 
 static void adsi_goodbye(struct ast_channel *chan)
 {

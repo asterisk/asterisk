@@ -250,6 +250,7 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	return res;
 }
 
+/*
 static void local_destroy(struct local_pvt *p)
 {
 	struct local_pvt *cur, *prev = NULL;
@@ -271,6 +272,7 @@ static void local_destroy(struct local_pvt *p)
 	if (!cur)
 		ast_log(LOG_WARNING, "Unable ot find local '%s@%s' in local list\n", p->exten, p->context);
 }
+*/
 
 static int local_hangup(struct ast_channel *ast)
 {

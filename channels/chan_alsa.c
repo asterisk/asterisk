@@ -59,7 +59,9 @@ static snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
 static char indevname[50] = ALSA_INDEV;
 static char outdevname[50] = ALSA_OUTDEV;
 
+#if 0
 static struct timeval lasttime;
+#endif
 
 static int usecnt;
 static int needanswer = 0;
@@ -122,6 +124,7 @@ static struct chan_alsa_pvt {
 	
 } alsa;
 
+#if 0
 static int time_has_passed(void)
 {
 	struct timeval tv;
@@ -133,6 +136,7 @@ static int time_has_passed(void)
 		return -1;
 	return 0;
 }
+#endif
 
 /* Number of buffers...  Each is FRAMESIZE/8 ms long.  For example
    with 160 sample frames, and a buffer size of 3, we have a 60ms buffer, 
@@ -153,7 +157,8 @@ static int readdev = -1;
 static int writedev = -1;
 
 static int autoanswer = 1;
- 
+
+#if 0 
 static int calc_loudness(short *frame)
 {
 	int sum = 0;
@@ -167,6 +172,7 @@ static int calc_loudness(short *frame)
 	sum = sum/FRAME_SIZE;
 	return sum;
 }
+#endif
 
 static int cursound = -1;
 static int sampsent = 0;

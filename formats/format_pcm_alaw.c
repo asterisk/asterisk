@@ -62,6 +62,7 @@ static char *desc = "Raw aLaw 8khz PCM Audio support";
 static char *exts = "alaw|al";
 
 
+#if 0
 /* Returns time in msec since system boot. */
 static unsigned long get_time(void)
 {
@@ -76,6 +77,7 @@ static unsigned long get_time(void)
 	}
 	return cur * 1000 / sysconf( _SC_CLK_TCK );
 }
+#endif
 
 static struct ast_filestream *pcm_open(int fd)
 {
