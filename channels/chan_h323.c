@@ -1238,13 +1238,14 @@ restartsearch:
 		}
 		ast_mutex_unlock(&iflock);
 
-		pthread_testcancel();
-
 		/* Wait for sched or io */
 		res = ast_sched_wait(sched);
 		if ((res < 0) || (res > 1000))
 			res = 1000;
 		res = ast_io_wait(io, res);
+
+		pthread_testcancel();
+
 		ast_mutex_lock(&monlock);
 		if (res >= 0) 
 			ast_sched_runq(sched);
