@@ -6638,6 +6638,8 @@ static void delete_users(void)
 	for (reg = registrations;reg;) {
 		regl = reg;
 		reg = reg->next;
+		if (regl->call) 
+			sip_destroy(regl->call);
 		if (regl->expire > -1)
 			ast_sched_del(sched, regl->expire);
 		free(regl);
