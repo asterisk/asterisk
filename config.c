@@ -303,7 +303,8 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 						if(arg && cur) {
 							ast_log(LOG_WARNING, "Including files with explicit config engine no longer permitted.  Please use extconfig.conf to specify all mappings\n");
 						} else {
-							__ast_load(cur, tmp, _tmpc, _last, includelevel + 1);
+							if (!__ast_load(cur, tmp, _tmpc, _last, includelevel + 1))
+								return -1;
 						}
 					} else
 						ast_log(LOG_WARNING, "Maximum Include level (%d) exceeded\n", includelevel);
