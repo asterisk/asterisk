@@ -13,7 +13,6 @@
 
 #include <unistd.h>
 #include <stdlib.h>
-#include <sys/poll.h>
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
 #include <asterisk/cli.h>

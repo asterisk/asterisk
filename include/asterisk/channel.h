@@ -19,7 +19,11 @@
 #include <asterisk/chanvars.h>
 #include <unistd.h>
 #include <setjmp.h>
+#if defined(__APPLE__)
+#include <asterisk/poll-compat.h>
+#else
 #include <sys/poll.h>
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

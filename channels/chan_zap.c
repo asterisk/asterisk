@@ -1213,11 +1213,17 @@ static void zt_enable_ec(struct zt_pvt *p)
 {
 	int x;
 	int res;
+	if (!p)
+		return;
 	if (p->echocanon) {
 		ast_log(LOG_DEBUG, "Echo cancellation already on\n");
 		return;
 	}
-	if (p && p->echocancel) {
+	if (p->digital) {
+		ast_log(LOG_DEBUG, "Echo cancellation isn't required on digital connection\n");
+		return;
+	}
+	if (p->echocancel) {
 		if (p->sig == SIG_PRI) {
 			x = 1;
 			res = ioctl(p->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &x);

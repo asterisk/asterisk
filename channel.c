@@ -19,7 +19,6 @@
 #include <errno.h>
 #include <unistd.h>
 #include <math.h>			/* For PI */
-#include <sys/poll.h>
 #include <asterisk/pbx.h>
 #include <asterisk/frame.h>
 #include <asterisk/sched.h>

@@ -31,7 +31,6 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/time.h>
-#include <sys/poll.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>

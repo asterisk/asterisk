@@ -24,7 +24,6 @@
 #include <signal.h>
 #include <errno.h>
 #include <unistd.h>
-#include <sys/poll.h>
 #include <asterisk/channel.h>
 #include <asterisk/file.h>
 #include <asterisk/manager.h>
