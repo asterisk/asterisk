@@ -584,6 +584,17 @@ static int update_status(struct ast_call_queue *q, struct member *member, int st
 	while(cur) {
 		if (member == cur) {
 			cur->status = status;
+			manager_event(EVENT_FLAG_AGENT, "QueueMemberStatus",
+				"Queue: %s\r\n"
+				"Location: %s/%s\r\n"
+				"Membership: %s\r\n"
+				"Penalty: %d\r\n"
+				"CallsTaken: %d\r\n"
+				"LastCall: %ld\r\n"
+				"Status: %d\r\n"
+				"\r\n",
+					q->name, cur->tech, cur->loc, cur->dynamic ? "dynamic" : "static",
+					cur->penalty, cur->calls, cur->lastcall, cur->status);
 			break;
 		}
 		cur = cur->next;
@@ -2281,10 +2292,11 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 				"Penalty: %d\r\n"
 				"CallsTaken: %d\r\n"
 				"LastCall: %ld\r\n"
+				"Status: %d\r\n"
 				"%s"
 				"\r\n",
 					q->name, mem->tech, mem->loc, mem->dynamic ? "dynamic" : "static",
-					mem->penalty, mem->calls, mem->lastcall, idText);
+					mem->penalty, mem->calls, mem->lastcall, mem->status, idText);
 
 		/* List Queue Entries */
 
