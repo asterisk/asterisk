@@ -266,11 +266,11 @@ static inline int __ast_pthread_mutex_unlock(char *filename, int lineno, char *f
 #endif
 	--t->reentrancy;
 	if (t->reentrancy < 0) {
-		fprintf(stderr, "%s line %d (%s): Freed more times than we've locked!\n",
+		fprintf(stderr, "%s line %d (%s): mutex '%s' freed more times than we've locked!\n",
 			filename, lineno, func, mutex_name);
 		t->reentrancy = 0;
 	}
-	if (!t->rentrancy) {
+	if (!t->reentrancy) {
 		t->file = NULL;
 		t->lineno = 0;
 		t->func = NULL;
