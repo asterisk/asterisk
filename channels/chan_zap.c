@@ -7148,6 +7148,7 @@ static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 					ast_log(LOG_WARNING, "Whoa, there's no  owner, and we're having to fix up channel %d to channel %d\n", pri->pvts[x]->channel, pri->pvts[principle]->channel);
 				pri->pvts[principle]->call = pri->pvts[x]->call;
 				/* Free up the old channel, now not in use */
+				pri->pvts[x]->subs[SUB_REAL].owner = NULL;
 				pri->pvts[x]->owner = NULL;
 				pri->pvts[x]->call = NULL;
 			}
