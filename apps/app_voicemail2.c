@@ -25,6 +25,7 @@
 #include <asterisk/app.h>
 #include <asterisk/manager.h>
 #include <asterisk/dsp.h>
+#include <asterisk/localtime.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -631,7 +632,7 @@ static int base_encode(char *filename, FILE *so)
 	return 1;
 }
 
-static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *mailbox, char *callerid, char *attach, char *format, long duration, int attach_user_voicemail)
+static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *mailbox, char *callerid, char *attach, char *format, long duration, int attach_user_voicemail)
 {
 	FILE *p;
 	char date[256];
@@ -642,6 +643,8 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 	char dur[256];
 	time_t t;
 	struct tm tm;
+	struct vm_zone *the_zone = NULL;
+
 	if (!strcmp(format, "wav49"))
 		format = "WAV";
 	ast_log(LOG_DEBUG, "Attaching file '%s', format '%s', uservm is '%d', global is %d\n", attach, format, attach_user_voicemail, attach_voicemail);
@@ -655,7 +658,25 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 		}
 		snprintf(dur, sizeof(dur), "%ld:%02ld", duration / 60, duration % 60);
 		time(&t);
-		localtime_r(&t,&tm);
+
+		/* Does this user have a timezone specified? */
+		if (strlen(vmu->zonetag)) {
+			/* Find the zone in the list */
+			struct vm_zone *z;
+			z = zones;
+			while (z) {
+				if (!strcmp(z->name, vmu->zonetag)) {
+					the_zone = z;
+					break;
+				}
+				z = z->next;
+			}
+		}
+
+		if (the_zone)
+			ast_localtime(&t,&tm,the_zone->timezone);
+		else
+			ast_localtime(&t,&tm,NULL);
 		strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", &tm);
 		fprintf(p, "Date: %s\n", date);
 		
@@ -663,7 +684,7 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 			fprintf(p, "From: %s <%s>\n", fromstring, who);
 		else
 			fprintf(p, "From: Asterisk PBX <%s>\n", who);
-		fprintf(p, "To: %s <%s>\n", name, email);
+		fprintf(p, "To: %s <%s>\n", vmu->fullname, vmu->email);
 
 		if( *emailtitle)
 		{
@@ -691,27 +712,26 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 			struct ast_channel *ast = ast_channel_alloc(0);
 			if (ast) {
 				char *passdata;
-				int vmlen = strlen(emailbody)*2;
-				if (vmlen < 20)
-					vmlen = 100;
-				passdata = alloca(vmlen);
-				bzero( passdata, vmlen );
-				pbx_builtin_setvar_helper(ast, "VM_NAME", name);
-				pbx_builtin_setvar_helper(ast, "VM_DUR", dur);
-				sprintf(passdata,"%d",msgnum);
-				pbx_builtin_setvar_helper(ast, "VM_MSGNUM", passdata);
-				pbx_builtin_setvar_helper(ast, "VM_MAILBOX", mailbox);
-				pbx_builtin_setvar_helper(ast, "VM_CALLERID", (callerid ? callerid : "an unknown caller"));
-				pbx_builtin_setvar_helper(ast, "VM_DATE", date);
-				pbx_substitute_variables_helper(ast,emailbody,passdata,vmlen);
-				fprintf(p, "%s\n",passdata);
+				int vmlen = strlen(emailbody)*3 + 200;
+				if ((passdata = alloca(vmlen))) {
+					memset(passdata, 0, vmlen);
+					pbx_builtin_setvar_helper(ast, "VM_NAME", vmu->fullname);
+					pbx_builtin_setvar_helper(ast, "VM_DUR", dur);
+					sprintf(passdata,"%d",msgnum);
+					pbx_builtin_setvar_helper(ast, "VM_MSGNUM", passdata);
+					pbx_builtin_setvar_helper(ast, "VM_MAILBOX", mailbox);
+					pbx_builtin_setvar_helper(ast, "VM_CALLERID", (callerid ? callerid : "an unknown caller"));
+					pbx_builtin_setvar_helper(ast, "VM_DATE", date);
+					pbx_substitute_variables_helper(ast,emailbody,passdata,vmlen);
+					fprintf(p, "%s\n",passdata);
+				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
 				ast_channel_free(ast);
 			} else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		} else {
 			fprintf(p, "Dear %s:\n\n\tJust wanted to let you know you were just left a %s long message (number %d)\n"
 
 			"in mailbox %s from %s, on %s so you might\n"
-			"want to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n\n", name, 
+			"want to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n\n", vmu->fullname, 
 			dur, msgnum + 1, mailbox, (callerid ? callerid : "an unknown caller"), date);
 		}
 		if (attach_user_voicemail) {
@@ -733,7 +753,7 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 	return 0;
 }
 
-static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char *callerid, long duration)
+static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char *callerid, long duration, struct ast_vm_user *vmu)
 {
 	FILE *p;
 	char date[256];
@@ -742,6 +762,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char
 	char dur[256];
 	time_t t;
 	struct tm tm;
+	struct vm_zone *the_zone = NULL;
 	p = popen(SENDMAIL, "w");
 
 	if (p) {
@@ -753,7 +774,26 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char
 		}
 		snprintf(dur, sizeof(dur), "%ld:%02ld", duration / 60, duration % 60);
 		time(&t);
-		localtime_r(&t,&tm);
+
+		/* Does this user have a timezone specified? */
+		if (strlen(vmu->zonetag)) {
+			/* Find the zone in the list */
+			struct vm_zone *z;
+			z = zones;
+			while (z) {
+				if (!strcmp(z->name, vmu->zonetag)) {
+					the_zone = z;
+					break;
+				}
+				z = z->next;
+			}
+		}
+
+		if (the_zone)
+			ast_localtime(&t,&tm,the_zone->timezone);
+		else
+			ast_localtime(&t,&tm,NULL);
+
 		strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", &tm);
 		fprintf(p, "Date: %s\n", date);
 		fprintf(p, "From: Asterisk PBX <%s>\n", who);
@@ -1176,13 +1216,13 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 						attach_user_voicemail = vmu->attach;
 					if (strlen(vmu->serveremail))
 						myserveremail = vmu->serveremail;
-					sendmail(myserveremail, vmu->email, vmu->fullname, msgnum, ext, chan->callerid, fn, fmt, end - start, attach_user_voicemail);
+					sendmail(myserveremail, vmu, msgnum, ext, chan->callerid, fn, fmt, end - start, attach_user_voicemail);
 				}
 				if (strlen(vmu->pager)) {
 					char *myserveremail = serveremail;
 					if (strlen(vmu->serveremail))
 						myserveremail = vmu->serveremail;
-					sendpage(myserveremail, vmu->pager, msgnum, ext, chan->callerid, end - start);
+					sendpage(myserveremail, vmu->pager, msgnum, ext, chan->callerid, end - start, vmu);
 				}
 			} else
 				ast_log(LOG_WARNING, "No more messages possible\n");
@@ -1889,14 +1929,14 @@ forward_message(struct ast_channel *chan, char *context, char *dir, int curmsg, 
 					attach_user_voicemail = receiver->attach;
 				if (strlen(receiver->serveremail))
 					myserveremail = receiver->serveremail;
-		      sendmail(myserveremail, receiver->email, receiver->fullname, todircount, username, callerid, fn, tmp, atol(ast_variable_retrieve(mif, NULL, "duration")), attach_user_voicemail);
+		      sendmail(myserveremail, receiver, todircount, username, callerid, fn, tmp, atol(ast_variable_retrieve(mif, NULL, "duration")), attach_user_voicemail);
 	      }
 	     
 			if (strlen(receiver->pager)) {
 				char *myserveremail = serveremail;
 				if (strlen(receiver->serveremail))
 					myserveremail = receiver->serveremail;
-				sendpage(myserveremail, receiver->pager, todircount, username, callerid, duration);
+				sendpage(myserveremail, receiver->pager, todircount, username, callerid, duration, receiver);
 			}
 			  
 			  ast_destroy(mif); /* or here */
