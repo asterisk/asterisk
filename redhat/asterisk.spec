@@ -36,9 +36,9 @@ ln -sf /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 #
 # Configuration files
 #
-%attr(0755,root,root) %dir    %{_sysconfdir}/asterisk
-%config(noreplace) %attr(0640,root,root) %{_sysconfdir}/asterisk/*.conf
-%config(noreplace) %attr(0640,root,root) %{_sysconfdir}/asterisk/*.adsi
+%attr(0755,root,root) %dir    /etc/asterisk
+%config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
+%config(noreplace) %attr(0640,root,root) /etc/asterisk/*.adsi
 
 #
 # RedHat specific init script file
@@ -59,7 +59,19 @@ ln -sf /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 %attr(0755,root,root)      /usr/sbin/safe_asterisk
 %attr(0755,root,root)      /usr/sbin/astgenkey
 %attr(0755,root,root)      /usr/sbin/astman
+%attr(0755,root,root)      /usr/sbin/autosupport
+%attr(0755,root,root)      /usr/sbin/smsq
+%attr(0755,root,root)      /usr/sbin/stereorize
 
+#
+# CDR Locations
+#
+%attr(0755,root,root) %dir /var/log/asterisk
+%attr(0755,root,root) %dir /var/log/asterisk/cdr-csv
+#
+# Running directories
+#
+%attr(0755,root,root) %dir /var/run
 #
 # Sound files
 #
@@ -100,6 +112,12 @@ ln -sf /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 %attr(0755,root,root) %dir /var/spool/asterisk/voicemail/default/1234
 %attr(0755,root,root) %dir /var/spool/asterisk/voicemail/default/1234/INBOX
 %attr(0644,root,root)      /var/spool/asterisk/voicemail/default/1234/*.gsm
+
+#
+# Misc other spool
+#
+%attr(0755,root,root) %dir /var/spool/asterisk/system
+%attr(0755,root,root) %dir /var/spool/asterisk/tmp
 
 %files devel
 #
