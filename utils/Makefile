@@ -8,6 +8,8 @@ ifeq ($(findstring BSD,${OSARCH}),BSD)
 CFLAGS+=-I/usr/local/include -L/usr/local/lib
 endif
 
+TARGET=none
+
 TARGET+=$(shell if [ -f /usr/include/popt.h ]; then echo "smsq"; else if [ -f /usr/local/include/popt.h ]; then echo "smsq"; fi ; fi)
 TARGET+=$(shell if [ -f /usr/include/newt.h ]; then echo "astman"; else if [ -f /usr/local/include/newt.h ]; then echo "astman"; fi ; fi)
 
@@ -21,7 +23,6 @@ install:
 	fi
 
 none:
-	@echo Not building the Asterisk Manager "astman"
 
 clean:
 	rm -f *.o astman smsq .depend
