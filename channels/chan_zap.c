@@ -6510,9 +6510,9 @@ static void *pri_dchannel(void *vpri)
 						if (!pri->pvt[chan]->alreadyhungup) {
 							/* we're calling here zt_hangup so once we get there we need to clear p->call after calling pri_hangup */
 							pri->pvt[chan]->alreadyhungup = 1;
-							pri->pvt[chan]->owner->hangupcause = hangup_pri2cause(e->hangup.cause);
 							/* Queue a BUSY instead of a hangup if our cause is appropriate */
 							if (pri->pvt[chan]->owner) {
+								pri->pvt[chan]->owner->hangupcause = hangup_pri2cause(e->hangup.cause);
 								switch(e->hangup.cause) {
 								case PRI_CAUSE_USER_BUSY:
 									pri->pvt[chan]->subs[SUB_REAL].needbusy =1;
