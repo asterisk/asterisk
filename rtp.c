@@ -1144,7 +1144,6 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 	
 	void *pvt0, *pvt1;
 	int to;
-
 	memset(&vt0, 0, sizeof(vt0));
 	memset(&vt1, 0, sizeof(vt1));
 	memset(&vac0, 0, sizeof(vac0));
@@ -1194,6 +1193,15 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		ast_mutex_unlock(&c0->lock);
 		ast_mutex_unlock(&c1->lock);
 		return -2;
+	}
+	if (pr0->get_codec && pr1->get_codec) {
+		int codec0,codec1;
+		codec0 = pr0->get_codec(c0);
+		codec1 = pr1->get_codec(c1);
+		ast_log(LOG_WARNING, "codec0 = %d is not codec1 = %d, can't do reinvite\n",codec0,codec1);
+		/* Hey, we can't do reinvite if both parties speak diffrent codecs */
+		if (codec0 != codec1)
+			return -2;
 	}
 	if (pr0->set_rtp_peer(c0, p1, vp1)) 
 		ast_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
