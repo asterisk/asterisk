@@ -3750,6 +3750,13 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	
 	index = zt_get_index(ast, p, 0);
 	
+	/* Hang up if we don't really exist */
+	if (index < 0)	{
+		ast_log(LOG_WARNING, "We dont exist?\n");
+		ast_mutex_unlock(&p->lock);
+		return NULL;
+	}
+	
 	p->subs[index].f.frametype = AST_FRAME_NULL;
 	p->subs[index].f.datalen = 0;
 	p->subs[index].f.samples = 0;
@@ -3760,13 +3767,6 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	p->subs[index].f.delivery.tv_usec = 0;
 	p->subs[index].f.src = "zt_read";
 	p->subs[index].f.data = NULL;
-	
-	/* Hang up if we don't really exist */
-	if (index < 0)	{
-		ast_log(LOG_WARNING, "We dont exist?\n");
-		ast_mutex_unlock(&p->lock);
-		return NULL;
-	}
 	
 	/* make sure it sends initial key state as first frame */
 	if (p->radio && (!p->firstradio))
