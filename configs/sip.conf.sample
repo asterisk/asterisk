@@ -28,8 +28,13 @@ context=default			; Default context for incoming calls
 				; Set this to your host name or domain name
 port=5060			; UDP Port to bind to (SIP standard port is 5060)
 bindaddr=0.0.0.0		; IP address to bind to (0.0.0.0 binds to all)
-;srvlookup=yes			; Enable DNS SRV lookups on outbound calls
-				; Note: Asterisk only uses the first host in SRV records
+srvlookup=yes			; Enable DNS SRV lookups on outbound calls
+				; Note: Asterisk only uses the first host 
+				; in SRV records
+				; Disabling DNS SRV lookups disables the 
+				; ability to place SIP calls based on domain 
+				; names to some other SIP users on the Internet
+				
 ;pedantic=yes			; Enable slow, pedantic checking for Pingtel
 				; and multiline formatted headers for strict
 				; SIP compatibility
