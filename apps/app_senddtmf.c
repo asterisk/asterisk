@@ -43,34 +43,13 @@ static int senddtmf_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct localuser *u;
 	char *digits = data;
-	struct ast_frame f;
-	int x;
+
 	if (!digits || !strlen(digits)) {
-		ast_log(LOG_WARNING, "SendDTMF requires an argument (digits or *#abcd)\n");
+		ast_log(LOG_WARNING, "SendDTMF requires an argument (digits or *#aAbBcCdD)\n");
 		return -1;
 	}
 	LOCAL_USER_ADD(u);
-	for (x=0;x<strlen(digits);x++) {
-		memset(&f, 0, sizeof(f));
-		f.frametype = AST_FRAME_DTMF;
-		f.subclass = digits[x];
-		f.src = "app_senddtmf";
-		if (strchr("0123456789*#abcd",digits[x])==NULL) {
-			ast_log(LOG_WARNING, "Illegal DTMF character in string. (0-9*#abcd allowed)\n");
-		} else {
-        	res = ast_write(chan, &f);
-			if (res)
-				break;
-		  	/* Wait 250ms */
-		  	res = ast_safe_sleep(chan, 250);
-		  	if (res)
-				break;
-	    }
-	}
-	if (!res)
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Sent digit string '%s' on %s\n", digits, chan->name);
-			
+	res = ast_dtmf_stream(chan,NULL,digits,250);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }

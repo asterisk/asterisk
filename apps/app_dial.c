@@ -70,6 +70,8 @@ static char *descrip =
 "      'g' -- goes on in context if the destination channel hangs up\n"
 "      'A(x)' -- play an announcement to the called party, using x as file\n"
 "      'S(x)' -- hangup the call after x seconds AFTER called party picked up\n"  	
+"      'D([digits])'  -- Send DTMF digit string *after* called party has answered\n"
+"                        but before the bridge. (w=500ms sec pause)\n"
 "      'L(x[:y][:z])' -- Limit the call to 'x' ms warning when 'y' ms are left (repeated every 'z' ms)\n"
 "                     -- Only 'x' is required, 'y' and 'z' are optional.\n"
 "                     -- The following special variables are optional:\n"
@@ -410,6 +412,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	char *start_sound=NULL;
 	char *limitptr;
 	char limitdata[256];
+	char *sdtmfptr;
+	char sdtmfdata[256] = "";
 	char *stack,*var;
 	int play_to_caller=0,play_to_callee=0;
 	int playargs=0;
@@ -461,83 +465,100 @@ static int dial_exec(struct ast_channel *chan, void *data)
 				ast_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %i seconds.\n",calldurationlimit);			
 		} 
 
+		/* DTMF SCRIPT*/
+		if ((sdtmfptr = strstr(transfer, "D("))) {
+		  strncpy(sdtmfdata, sdtmfptr + 2, sizeof(sdtmfdata) - 1);
+		  /* Overwrite with X's what was the sdtmf info */
+		  while(*sdtmfptr && (*sdtmfptr != ')')) 
+		    *(sdtmfptr++) = 'X';
+		  if (*sdtmfptr)
+		    *sdtmfptr = 'X';
+		  /* Now find the end  */
+		  sdtmfptr = strchr(sdtmfdata, ')');
+		  if (sdtmfptr)
+		    *sdtmfptr = '\0';
+		  else {
+		    ast_log(LOG_WARNING, "D( Data lacking trailing ')'\n");
+		  }
+		}
+		
 		/* XXX LIMIT SUPPORT */
 		if ((limitptr = strstr(transfer, "L("))) {
-			strncpy(limitdata, limitptr + 2, sizeof(limitdata) - 1);
-			/* Overwrite with X's what was the limit info */
-			while(*limitptr && (*limitptr != ')')) 
-				*(limitptr++) = 'X';
-            if (*limitptr)
-                *limitptr = 'X';
-            /* Now find the end of the privdb */
-            limitptr = strchr(limitdata, ')');
-            if (limitptr)
-                *limitptr = '\0';
-            else {
-                ast_log(LOG_WARNING, "Limit Data lacking trailing ')'\n");
-            }
+		  strncpy(limitdata, limitptr + 2, sizeof(limitdata) - 1);
+		  /* Overwrite with X's what was the limit info */
+		  while(*limitptr && (*limitptr != ')')) 
+		    *(limitptr++) = 'X';
+		  if (*limitptr)
+		    *limitptr = 'X';
+		  /* Now find the end */
+		  limitptr = strchr(limitdata, ')');
+		  if (limitptr)
+		    *limitptr = '\0';
+		  else {
+		    ast_log(LOG_WARNING, "Limit Data lacking trailing ')'\n");
+		  }
 
-            var = pbx_builtin_getvar_helper(chan,"LIMIT_PLAYAUDIO_CALLER");
-            play_to_caller = var ? ast_true(var) : 1;
+		  var = pbx_builtin_getvar_helper(chan,"LIMIT_PLAYAUDIO_CALLER");
+		  play_to_caller = var ? ast_true(var) : 1;
+		  
+		  var = pbx_builtin_getvar_helper(chan,"LIMIT_PLAYAUDIO_CALLEE");
+		  play_to_callee = var ? ast_true(var) : 0;
+		  
+		  if(! play_to_caller && ! play_to_callee)
+		    play_to_caller=1;
+		  
+		  var = pbx_builtin_getvar_helper(chan,"LIMIT_WARNING_FILE");
+		  warning_sound = var ? var : "timeleft";
+		  
+		  var = pbx_builtin_getvar_helper(chan,"LIMIT_TIMEOUT_FILE");
+		  end_sound = var ? var : NULL;
+		  
+		  var = pbx_builtin_getvar_helper(chan,"LIMIT_CONNECT_FILE");
+		  start_sound = var ? var : NULL;
+		  
+		  var=stack=limitdata;
 
-            var = pbx_builtin_getvar_helper(chan,"LIMIT_PLAYAUDIO_CALLEE");
-            play_to_callee = var ? ast_true(var) : 0;
-            
-            if(! play_to_caller && ! play_to_callee)
-                play_to_caller=1;
-
-            var = pbx_builtin_getvar_helper(chan,"LIMIT_WARNING_FILE");
-            warning_sound = var ? var : "timeleft";
-            
-            var = pbx_builtin_getvar_helper(chan,"LIMIT_TIMEOUT_FILE");
-            end_sound = var ? var : NULL;
-
-            var = pbx_builtin_getvar_helper(chan,"LIMIT_CONNECT_FILE");
-            start_sound = var ? var : NULL;
-            
-            var=stack=limitdata;
-            
-            var = strsep(&stack, ":");
-            if(var) {
-                timelimit = atol(var);
-                playargs++;
-            }
-            var = strsep(&stack, ":");
-            if(var) {
-                play_warning = atol(var);
-                playargs++;
-            }
-
-            var = strsep(&stack, ":");
-            if(var) {
-                warning_freq = atol(var);
-                playargs++;
-            }
-            
-            if(! timelimit) {
-                timelimit=play_to_caller=play_to_callee=play_warning=warning_freq=0;
-                warning_sound=NULL;
-            }
-            calldurationlimit=0; /* undo effect of S(x) in case they are both used */
-	      /* more efficient do it like S(x) does since no advanced opts*/
-            if(! play_warning && ! start_sound && ! end_sound && timelimit) { 
-	      calldurationlimit=timelimit/1000;
-	      timelimit=play_to_caller=play_to_callee=play_warning=warning_freq=0;
-	    }
-	    else {
-	      ast_verbose(VERBOSE_PREFIX_3"Limit Data:\n");
-	      ast_verbose(VERBOSE_PREFIX_3"timelimit=%ld\n",timelimit);
-	      ast_verbose(VERBOSE_PREFIX_3"play_warning=%ld\n",play_warning);
-	      ast_verbose(VERBOSE_PREFIX_3"play_to_caller=%s\n",play_to_caller ? "yes" : "no");
-	      ast_verbose(VERBOSE_PREFIX_3"play_to_callee=%s\n",play_to_callee ? "yes" : "no");
-	      ast_verbose(VERBOSE_PREFIX_3"warning_freq=%ld\n",warning_freq);
-	      ast_verbose(VERBOSE_PREFIX_3"start_sound=%s\n",start_sound ? start_sound : "UNDEF");
-	      ast_verbose(VERBOSE_PREFIX_3"warning_sound=%s\n",warning_sound ? warning_sound : "UNDEF");
-	      ast_verbose(VERBOSE_PREFIX_3"end_sound=%s\n",end_sound ? end_sound : "UNDEF");
-	    }
-				
+		  var = strsep(&stack, ":");
+		  if(var) {
+		    timelimit = atol(var);
+		    playargs++;
+		    var = strsep(&stack, ":");
+		    if(var) {
+		      play_warning = atol(var);
+		      playargs++;
+		      var = strsep(&stack, ":");
+		      if(var) {
+			warning_freq = atol(var);
+			playargs++;
+		      }
+		    }
+		  }
+		  
+		  if(! timelimit) {
+		    timelimit=play_to_caller=play_to_callee=play_warning=warning_freq=0;
+		    warning_sound=NULL;
+		  }
+		  /* undo effect of S(x) in case they are both used */
+		  calldurationlimit=0; 
+		  /* more efficient do it like S(x) does since no advanced opts*/
+		  if(! play_warning && ! start_sound && ! end_sound && timelimit) { 
+		    calldurationlimit=timelimit/1000;
+		    timelimit=play_to_caller=play_to_callee=play_warning=warning_freq=0;
+		  }
+		  else if (option_verbose > 2) {
+		    ast_verbose(VERBOSE_PREFIX_3"Limit Data:\n");
+		    ast_verbose(VERBOSE_PREFIX_3"timelimit=%ld\n",timelimit);
+		    ast_verbose(VERBOSE_PREFIX_3"play_warning=%ld\n",play_warning);
+		    ast_verbose(VERBOSE_PREFIX_3"play_to_caller=%s\n",play_to_caller ? "yes" : "no");
+		    ast_verbose(VERBOSE_PREFIX_3"play_to_callee=%s\n",play_to_callee ? "yes" : "no");
+		    ast_verbose(VERBOSE_PREFIX_3"warning_freq=%ld\n",warning_freq);
+		    ast_verbose(VERBOSE_PREFIX_3"start_sound=%s\n",start_sound ? start_sound : "UNDEF");
+		    ast_verbose(VERBOSE_PREFIX_3"warning_sound=%s\n",warning_sound ? warning_sound : "UNDEF");
+		    ast_verbose(VERBOSE_PREFIX_3"end_sound=%s\n",end_sound ? end_sound : "UNDEF");
+		  }
+		  
 		}
-
+		
 		/* XXX ANNOUNCE SUPPORT */
 		if ((ann = strstr(transfer, "A("))) {
 			announce = 1;
@@ -813,40 +834,51 @@ static int dial_exec(struct ast_channel *chan, void *data)
  			ast_log(LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
  			ast_channel_sendurl( peer, url );
  		} /* /JDG */
-		if (announce && announcemsg)
-		{
-			int res2;
+		if (announce && announcemsg) {
 			// Start autoservice on the other chan
-			res2 = ast_autoservice_start(chan);
+			res = ast_autoservice_start(chan);
 			// Now Stream the File
-			if (!res2)
-				res2 = ast_streamfile(peer,announcemsg,peer->language);
-			if (!res2)
-				res2 = ast_waitstream(peer,"");
+			if (!res)
+				res = ast_streamfile(peer,announcemsg,peer->language);
+			if (!res)
+				res = ast_waitstream(peer,"");
+			
 			// Ok, done. stop autoservice
-			res2 = ast_autoservice_stop(chan);
+			res = ast_autoservice_stop(chan);
 		}
-		if (calldurationlimit > 0) {
-			time(&now);
-			chan->whentohangup = now + calldurationlimit;
+		else 
+		  res = 0;
+
+		if(!res) {
+		  if (calldurationlimit > 0) {
+		    time(&now);
+		    chan->whentohangup = now + calldurationlimit;
+		  }
+
+		  if(strlen(sdtmfdata)) 
+		    res = ast_dtmf_stream(peer,chan,sdtmfdata,0);
 		}
-
-		memset(&config,0,sizeof(struct ast_bridge_config));
-		config.play_to_caller=play_to_caller;
-		config.play_to_callee=play_to_callee;
-		config.allowredirect_in = allowredir_in;
-		config.allowredirect_out = allowredir_out;
-		config.allowdisconnect = allowdisconnect;
-		config.timelimit = timelimit;
-		config.play_warning = play_warning;
-		config.warning_freq = warning_freq;
-		config.warning_sound = warning_sound;
-		config.end_sound = end_sound;
-		config.start_sound = start_sound;
-		res = ast_bridge_call(chan,peer,&config);
-
+		
+		if(!res) {
+		  memset(&config,0,sizeof(struct ast_bridge_config));
+		  config.play_to_caller=play_to_caller;
+		  config.play_to_callee=play_to_callee;
+		  config.allowredirect_in = allowredir_in;
+		  config.allowredirect_out = allowredir_out;
+		  config.allowdisconnect = allowdisconnect;
+		  config.timelimit = timelimit;
+		  config.play_warning = play_warning;
+		  config.warning_freq = warning_freq;
+		  config.warning_sound = warning_sound;
+		  config.end_sound = end_sound;
+		  config.start_sound = start_sound;
+		  res = ast_bridge_call(chan,peer,&config);
+		}
+		else 
+		  res = -1;
+		
 		if (res != AST_PBX_NO_HANGUP_PEER)
-			ast_hangup(peer);
+		  ast_hangup(peer);
 	}	
 out:
 	hanguptree(outgoing, NULL);

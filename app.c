@@ -259,3 +259,48 @@ int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	}
 	return 0;
 }
+
+int ast_dtmf_stream(struct ast_channel *chan,struct ast_channel *peer,char *digits,int between) {
+  char *ptr=NULL;
+  int res=0;
+  struct ast_frame f;
+  if(!between)
+    between = 100;
+  
+  if(peer)
+    res = ast_autoservice_start(peer);
+
+  if (!res) {
+    res = ast_waitfor(chan,100);
+    if(res > -1) {
+      for(ptr=digits;*ptr;*ptr++) {
+	if(*ptr == 'w') {
+	  res = ast_safe_sleep(chan, 500);
+	  if(res) 
+	    break;
+	  continue;
+	}
+	memset(&f, 0, sizeof(f));
+	f.frametype = AST_FRAME_DTMF;
+	f.subclass = *ptr;
+	f.src = "ast_dtmf_stream";
+	if (strchr("0123456789*#abcdABCD",*ptr)==NULL) {
+	  ast_log(LOG_WARNING, "Illegal DTMF character '%c' in string. (0-9*#aAbBcCdD allowed)\n",*ptr);
+	} 
+	else {
+	  res = ast_write(chan, &f);
+	  if (res) 
+	    break;
+	  /* pause between digits */
+	  res = ast_safe_sleep(chan,between);
+	  if (res) 
+	    break;
+	}
+      }
+    }
+    if(peer)
+      res = ast_autoservice_stop(peer);
+  }
+
+  return res;
+}
