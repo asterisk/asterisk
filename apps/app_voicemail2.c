@@ -154,7 +154,7 @@ static int maxlogins;
 
 static char *emailbody = NULL;
 static int pbxskip = 0;
-static char fromstring[40];
+static char fromstring[100];
 static char emailtitle[100];
 
 STANDARD_LOCAL_USER;
@@ -504,9 +504,9 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 		}
 		else
 		if (pbxskip)
-			fprintf(p, "Subject: New message %d in mailbox %s\n", msgnum, mailbox);
+			fprintf(p, "Subject: New message %d in mailbox %s\n", msgnum + 1, mailbox);
 		else
-			fprintf(p, "Subject: [PBX]: New message %d in mailbox %s\n", msgnum, mailbox);
+			fprintf(p, "Subject: [PBX]: New message %d in mailbox %s\n", msgnum + 1, mailbox);
 		fprintf(p, "Message-ID: <Asterisk-%d-%s-%d@%s>\n", msgnum, mailbox, getpid(), host);
 		fprintf(p, "MIME-Version: 1.0\n");
 		if (attach_user_voicemail) {
@@ -544,11 +544,11 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 
 			"in mailbox %s from %s, on %s so you might\n"
 			"want to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n\n", name, 
-			dur, msgnum, mailbox, (callerid ? callerid : "an unknown caller"), date);
+			dur, msgnum + 1, mailbox, (callerid ? callerid : "an unknown caller"), date);
 		}
 		if (attach_user_voicemail) {
 			fprintf(p, "--%s\n", bound);
-			fprintf(p, "Content-Type: audio/x-wav; name=\"msg%04d.%s\"\n", msgnum, format);
+			fprintf(p, "Content-Type: audio/x-wav; name=\"msg%04d.%s\"\n", msgnum + 1, format);
 			fprintf(p, "Content-Transfer-Encoding: BASE64\n");
 			fprintf(p, "Content-Description: Voicemail sound attachment.\n");
 			fprintf(p, "Content-Disposition: attachment; filename=\"msg%04d.%s\"\n\n", msgnum, format);
