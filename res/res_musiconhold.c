@@ -531,11 +531,27 @@ static void load_moh_classes(void)
 	}
 }
 
+void ast_moh_destroy(void)
+{
+	struct mohclass *moh;
+	ast_pthread_mutex_lock(&moh_lock);
+	moh = mohclasses;
+	while(moh) {
+		if (moh->pid) {
+			kill(moh->pid, SIGKILL);
+			moh->pid = 0;
+			}
+		moh = moh->next;
+	}
+	ast_pthread_mutex_unlock(&moh_lock);
+}
+
 int load_module(void)
 {
 	int res;
 	load_moh_classes();
 	res = ast_register_application(app0, moh0_exec, synopsis0, descrip0);
+	atexit(ast_moh_destroy);
 	if (!res)
 		res = ast_register_application(app1, moh1_exec, synopsis1, descrip1);
 	if (!res)

@@ -766,7 +766,6 @@ static void pbx_substitute_variables_helper(struct ast_channel *c,char *cp1,char
 	*cp2='\0';
 	do {
 		char *start,*start2;
-		if (!(*wherearewe)) break;
 		if ((tmp=strstr(wherearewe,"${"))) {
 			variables++;
 			length=(int)(tmp-wherearewe);
@@ -818,16 +817,15 @@ static void pbx_substitute_variables_helper(struct ast_channel *c,char *cp1,char
 				
 				cp1=cp2;
 			}
-			
-			pbx_substitute_variables_temp(c,cp1,&cp4);
-				
-			if (cp4) {
-				/* reset output variable so we could store the result */
-				*cp2='\0';
-				length=strlen(cp4);
-				strncat(cp2,cp4,length);
-			} else {
-				if (count) cp2[0]='\0';
+			if (count) {			
+				pbx_substitute_variables_temp(c,cp1,&cp4);
+				if (cp4) {
+					/* reset output variable so we could store the result */
+					*cp2='\0';
+					length=strlen(cp4);
+					strncat(cp2,cp4,length);
+				} else
+					cp2[0]='\0';
 			}
 			break;
 		}
