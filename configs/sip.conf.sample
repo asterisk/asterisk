@@ -62,6 +62,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; when we're on hold (must be > rtptimeout)
 ;trustrpid = no			; If Remote-Party-ID should be trusted
 ;progressinband=no		; If we should generate in-band ringing always
+				; use 'never' to never use in-band signalling, even in cases
+				; where some buggy devices might not render it
 ;useragent=Asterisk PBX		; Allows you to change the user agent string
 ;nat=no				; NAT settings 
                                 ; yes = Always ignore info and assume NAT

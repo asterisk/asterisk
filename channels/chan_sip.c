@@ -1900,16 +1900,14 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 	switch(condition) {
 	case AST_CONTROL_RINGING:
 		if (ast->_state == AST_STATE_RING) {
-			/* Send 180 ringing no matter what */
-			transmit_response(p, "180 Ringing", &p->initreq);
-			if (!p->progress) {
+			if (!p->progress || !p->progressinband) {
+				/* Send 180 ringing if out-of-band seems reasonable */
+				transmit_response(p, "180 Ringing", &p->initreq);
 				p->ringing = 1;
-				if (!p->progressinband)
+				if (!p->progressinband > 1)
 					break;
 			} else {
-				/* Oops, we've sent progress tones.  Some devices don't seem to
-				   handle a 180 after a 183, so we'll go ahead and send the
-				   ringback in-band, too. */
+				/* Well, if it's not reasonable, just send in-band */
 			}
 		}
 		return -1;
@@ -8208,7 +8206,12 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "useclientcode")) {
 				user->useclientcode = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "progressinband")) {
-				user->progressinband = ast_true(v->value);
+				if (!strcasecmp(v->value, "never"))
+					user->progressinband = 0;
+				else if (ast_true(v->value))
+					user->progressinband = 2;
+				else
+					user->progressinband = 1;
 #ifdef OSP_SUPPORT
 			} else if (!strcasecmp(v->name, "ospauth")) {
 				if (!strcasecmp(v->value, "exclusive")) {
@@ -8474,7 +8477,12 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			} else if (!strcasecmp(v->name, "trustrpid")) {
 				peer->trustrpid = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "progressinband")) {
-				peer->progressinband = ast_true(v->value);
+				if (!strcasecmp(v->value, "never"))
+					peer->progressinband = 0;
+				else if (ast_true(v->value))
+					peer->progressinband = 2;
+				else
+					peer->progressinband = 1;
 #ifdef OSP_SUPPORT
 			} else if (!strcasecmp(v->name, "ospauth")) {
 				if (!strcasecmp(v->value, "exclusive")) {
@@ -8625,7 +8633,12 @@ static int reload_config(void)
 		} else if (!strcasecmp(v->name, "trustrpid")) {
 			global_trustrpid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "progressinband")) {
-			global_progressinband = ast_true(v->value);
+			if (!strcasecmp(v->value, "never"))
+				global_progressinband = 0;
+			else if (ast_true(v->value))
+				global_progressinband = 2;
+			else
+				global_progressinband = 1;
 #ifdef OSP_SUPPORT
 		} else if (!strcasecmp(v->name, "ospauth")) {
 			if (!strcasecmp(v->value, "exclusive")) {
