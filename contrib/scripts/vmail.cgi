@@ -15,6 +15,8 @@ use CGI qw/:standard/;
 use Carp::Heavy;
 use CGI::Carp qw(fatalsToBrowser);
 
+$context=""; # Define here your by default context (so you dont need to put voicemail@context in the login
+
 @validfolders = ( "INBOX", "Old", "Work", "Family", "Friends", "Cust1", "Cust2", "Cust3", "Cust4", "Cust5" );
 
 %formats = (
@@ -38,7 +40,7 @@ use CGI::Carp qw(fatalsToBrowser);
 $astpath = "/_asterisk";
 
 $stdcontainerstart = "<table align=center width=600><tr><td>\n";
-$footer = "<hr><font size=-1><a href=\"http://www.asterisk.org\">The Asterisk Open Source PBX</a> Copyright 2002, <a href=\"http://www.digium.com\">Digium, Inc.</a></a>";
+$footer = "<hr><font size=-1><a href=\"http://www.asterisk.org\">The Asterisk Open Source PBX</a> Copyright 2004, <a href=\"http://www.digium.com\">Digium, Inc.</a></a>";
 $stdcontainerend = "</td></tr><tr><td align=right>$footer</td></tr></table>\n";
 
 sub login_screen() {
@@ -58,6 +60,7 @@ $stdcontainerstart
 <tr><td>Mailbox:</td><td><input type=text name="mailbox"></td></tr>
 <tr><td>Password:</td><td><input type=password name="password"></td></tr>
 <tr><td align=right colspan=2><input value="Login" type=submit></td></tr>
+<input type=hidden name="context" value="$context">
 </table>
 </FORM>
 $stdcontainerend
