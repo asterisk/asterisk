@@ -3051,16 +3051,19 @@ static int handle_show_voicemail_users(int fd, int argc, char *argv[])
 			struct dirent *vment;
 			int vmcount = 0;
 			char count[12];
-			make_dir(dirname, 255, vmu->context, vmu->mailbox, "INBOX");
-			if ((vmdir = opendir(dirname))) {
-				/* No matter what the format of VM, there will always be a .txt file for each message. */
-				while ((vment = readdir(vmdir)))
-					if (!strncmp(vment->d_name + 7,".txt",4))
-						vmcount++;
-				closedir(vmdir);
+
+			if ((argc == 3) || ((argc == 5) && !strcmp(argv[4],vmu->context))) {
+				make_dir(dirname, 255, vmu->context, vmu->mailbox, "INBOX");
+				if ((vmdir = opendir(dirname))) {
+					/* No matter what the format of VM, there will always be a .txt file for each message. */
+					while ((vment = readdir(vmdir)))
+						if (!strncmp(vment->d_name + 7,".txt",4))
+							vmcount++;
+					closedir(vmdir);
+				}
+				snprintf(count,11,"%d",vmcount);
+				ast_cli(fd, output_format, vmu->context, vmu->mailbox, vmu->fullname, vmu->zonetag, count);
 			}
-			snprintf(count,11,"%d",vmcount);
-			ast_cli(fd, output_format, vmu->context, vmu->mailbox, vmu->fullname, vmu->zonetag, count);
 			vmu = vmu->next;
 		}
 	} else {
