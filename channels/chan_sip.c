@@ -154,7 +154,6 @@ static struct sip_pvt {
 	char callerid[256];					/* Caller*ID */
 	char via[256];
 	char accountcode[256];				/* Account code */
-	char mailbox[AST_MAX_EXTENSION];		/* Associated mailbox */
 	int amaflags;						/* AMA Flags */
 	struct sip_request initreq;			/* Initial request */
 	
@@ -183,7 +182,6 @@ struct sip_user {
 	char callerid[80];
 	char methods[80];
 	char accountcode[80];
-	char mailbox[AST_MAX_EXTENSION];
 	int hascallerid;
 	int amaflags;
 	int insecure;
@@ -199,6 +197,8 @@ struct sip_peer {
 	char methods[80];
 	char username[80];
 	char mailbox[AST_MAX_EXTENSION];
+	int lastmsgssent;
+	time_t	lastmsgcheck;
 	int dynamic;
 	int expire;
 	int expirey;
@@ -274,7 +274,6 @@ static int transmit_invite(struct sip_pvt *p, char *msg, int sendsdp, char *auth
 static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp);
 static int transmit_message_with_text(struct sip_pvt *p, char *text);
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req);
-static int sip_send_mwi(struct sip_pvt *p);
 
 static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
@@ -358,7 +357,6 @@ static int create_addr(struct sip_pvt *r, char *peer)
 			r->canreinvite = p->canreinvite;
 			r->maxtime = p->maxms;
 			strncpy(r->context, p->context,sizeof(r->context)-1);
-			strncpy(r->mailbox, p->mailbox,sizeof(r->mailbox)-1);
 			if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
 				(!p->maxms || ((p->lastms > 0)  && (p->lastms <= p->maxms)))) {
 				if (p->addr.sin_addr.s_addr) {
@@ -638,13 +636,6 @@ static int sip_answer(struct ast_channel *ast)
 	return res;
 }
 
-static struct ast_frame  *sip_read(struct ast_channel *ast)
-{
-	static struct ast_frame f = { AST_FRAME_NULL, };
-	ast_log(LOG_DEBUG, "I should never get called but am on %s!\n", ast->name);
-	return &f;
-}
-
 static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 {
 	struct sip_pvt *p = ast->pvt->pvt;
@@ -818,6 +809,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state)
 		fmt = ast_best_codec(tmp->nativeformats);
 		snprintf(tmp->name, sizeof(tmp->name), "SIP/%s:%d", inet_ntoa(i->sa.sin_addr), ntohs(i->sa.sin_port));
 		tmp->type = type;
+		tmp->fds[0] = ast_rtp_fd(i->rtp);
 		ast_setstate(tmp, state);
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
@@ -922,31 +914,33 @@ static char *get_header(struct sip_request *req, char *name)
 	return __get_header(req, name, &start);
 }
 
-static int rtpready(struct ast_rtp *rtp, struct ast_frame *f, void *data)
+static struct ast_frame *sip_rtp_read(struct sip_pvt *p)
 {
-	/* Just deliver the audio directly */
-	struct sip_pvt *p = data;
-	ast_pthread_mutex_lock(&p->lock);
+	/* Retrieve audio/etc from channel.  Assumes p->lock is already held. */
+	struct ast_frame *f;
+	f = ast_rtp_read(p->rtp);
 	if (p->owner) {
-		/* Generally, you lock in the order channel lock, followed by private
-		   lock.  Since here we are doing the reverse, there is the possibility
-		   of deadlock.  As a result, in the case of a deadlock, we simply fail out
-		   here. */
-		if (!pthread_mutex_trylock(&p->owner->lock)) {
-			if (f->frametype == AST_FRAME_VOICE) {
-				if (f->subclass != p->owner->nativeformats) {
-					ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
-					p->owner->nativeformats = f->subclass;
-					ast_set_read_format(p->owner, p->owner->readformat);
-					ast_set_write_format(p->owner, p->owner->writeformat);
-				}
+		/* We already hold the channel lock */
+		if (f->frametype == AST_FRAME_VOICE) {
+			if (f->subclass != p->owner->nativeformats) {
+				ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
+				p->owner->nativeformats = f->subclass;
+				ast_set_read_format(p->owner, p->owner->readformat);
+				ast_set_write_format(p->owner, p->owner->writeformat);
 			}
-			ast_queue_frame(p->owner, f, 0);
-			pthread_mutex_unlock(&p->owner->lock);
 		}
 	}
+	return f;
+}
+
+static struct ast_frame *sip_read(struct ast_channel *ast)
+{
+	struct ast_frame *fr;
+	struct sip_pvt *p = ast->pvt->pvt;
+	ast_pthread_mutex_lock(&p->lock);
+	fr = sip_rtp_read(p);
 	ast_pthread_mutex_unlock(&p->lock);
-	return 0;
+	return fr;
 }
 
 static void build_callid(char *callid, int len, struct in_addr ourip)
@@ -974,7 +968,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin)
 	/* Keep track of stuff */
 	memset(p, 0, sizeof(struct sip_pvt));
 	p->initid = -1;
-	p->rtp = ast_rtp_new(sched, io);
+	p->rtp = ast_rtp_new(NULL, NULL);
 	p->branch = rand();	
 	p->tag = rand();
 	/* Start with 101 instead of 1 */
@@ -986,8 +980,10 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin)
 	}
 	ast_rtp_settos(p->rtp, tos);
 	ast_pthread_mutex_init(&p->lock);
+#if 0
 	ast_rtp_set_data(p->rtp, p);
 	ast_rtp_set_callback(p->rtp, rtpready);
+#endif	
 	if (sin) {
 		memcpy(&p->sa, sin, sizeof(p->sa));
 		memcpy(&p->ourip, myaddrfor(&p->sa.sin_addr), sizeof(p->ourip));
@@ -1238,8 +1234,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		ast_log(LOG_WARNING, "No compatible codecs!\n");
 		return -1;
 	}
-	if (p->owner && (p->owner->nativeformats != p->capability)) {
-		ast_log(LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %d\n", p->capability);
+	if (p->owner && !(p->owner->nativeformats & p->capability)) {
+		ast_log(LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %d and not %d\n", p->capability, p->owner->nativeformats);
 		p->owner->nativeformats = p->capability;
 		ast_set_read_format(p->owner, p->owner->readformat);
 		ast_set_write_format(p->owner, p->owner->writeformat);
@@ -1630,9 +1626,8 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp)
 	return send_response(p, &resp);
 }
 
-static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, char *vxml_url)
+static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, char *vxml_url)
 {
-	struct sip_request req;
 	char invite[256];
 	char from[256];
 	char to[256];
@@ -1670,12 +1665,12 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 	{
 		snprintf(to, sizeof(to), "<%s>", invite );
 	}
-	memset(&req, 0, sizeof(req));
-	init_req(&req, cmd, invite);
+	memset(req, 0, sizeof(struct sip_request));
+	init_req(req, cmd, invite);
 	snprintf(tmp, sizeof(tmp), "%d %s", ++p->ocseq, cmd);
 
-	add_header(&req, "Via", p->via);
-	add_header(&req, "From", from);
+	add_header(req, "Via", p->via);
+	add_header(req, "From", from);
 	{
 		char contact2[256] ="", *c, contact[256];
 		/* XXX This isn't exactly right and it's implemented
@@ -1683,12 +1678,18 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 		strncpy(contact2, from, sizeof(contact2)-1);
 		c = ditch_braces(contact2);
 		snprintf(contact, sizeof(contact), "<%s>", c);
-		add_header(&req, "Contact", contact);
+		add_header(req, "Contact", contact);
 	}
-	add_header(&req, "To", to);
-	add_header(&req, "Call-ID", p->callid);
-	add_header(&req, "CSeq", tmp);
-	add_header(&req, "User-Agent", "Asterisk PBX");
+	add_header(req, "To", to);
+	add_header(req, "Call-ID", p->callid);
+	add_header(req, "CSeq", tmp);
+	add_header(req, "User-Agent", "Asterisk PBX");
+}
+
+static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, char *vxml_url)
+{
+	struct sip_request req;
+	initreqprep(&req, p, cmd, vxml_url);
 	if (auth)
 		add_header(&req, "Proxy-Authorization", auth);
 	if (sdp) {
@@ -1702,6 +1703,30 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 		copy_request(&p->initreq, &req);
 		parse(&p->initreq);
 	}
+	p->lastinvite = p->ocseq;
+	return send_request(p, &req);
+}
+
+static int transmit_notify(struct sip_pvt *p, int hasmsgs)
+{
+	struct sip_request req;
+	char tmp[256];
+	char clen[20];
+	initreqprep(&req, p, "NOTIFY", NULL);
+	add_header(&req, "Event", "message-summary");
+	add_header(&req, "Content-Type", "text/plain");
+
+	snprintf(tmp, sizeof(tmp), "Message-Waiting: %s\n", hasmsgs ? "yes" : "no");
+	snprintf(clen, sizeof(clen), "%d", strlen(tmp));
+	add_header(&req, "Content-Length", clen);
+	add_line(&req, tmp);
+
+	if (!p->initreq.headers) {
+		/* Use this as the basis */
+		copy_request(&p->initreq, &req);
+		parse(&p->initreq);
+	}
+
 	p->lastinvite = p->ocseq;
 	return send_request(p, &req);
 }
@@ -1801,10 +1826,9 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 	add_header(&req, "User-Agent", "Asterisk PBX");
 	if (auth) 
 		add_header(&req, "Authorization", auth);
-#define EXPIRE_TIMEOUT "Thu, 01 Dec 2003 16:00:00 GMT"
 
-
-	add_header(&req, "expires", EXPIRE_TIMEOUT);
+	snprintf(tmp, sizeof(tmp), "%d", DEFAULT_EXPIREY);
+	add_header(&req, "Expires", tmp);
 	add_header(&req, "Event", "registration");
 	copy_request(&p->initreq, &req);
 	r->regstate=auth?REG_STATE_AUTHSENT:REG_STATE_REGSENT;
@@ -1904,8 +1928,6 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		strncpy(p->username, c, sizeof(p->username) - 1);
 	else
 		strcpy(p->username, "");
-	if (p->mailbox)
-		strncpy(pvt->mailbox, p->mailbox,sizeof(pvt->mailbox)-1);
 	if (p->expire > -1)
 		ast_sched_del(sched, p->expire);
 	if ((expirey < 1) || (expirey > MAX_EXPIREY))
@@ -2050,7 +2072,9 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 				if (parse_contact(p, peer, req)) {
 					ast_log(LOG_WARNING, "Failed to parse contact info\n");
 				} else {
+					/* Say OK and ask subsystem to retransmit msg counter */
 					transmit_response(p, "200 OK", req);
+					peer->lastmsgssent = -1;
 					res = 0;
 				}
 			} 
@@ -2230,7 +2254,6 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 		if (!strcasecmp(user->name, of)) {
 			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, cmd, uri))) {
 				strncpy(p->context, user->context, sizeof(p->context) - 1);
-				strncpy(p->mailbox, user->mailbox, sizeof(p->mailbox) - 1);
 				if (strlen(user->callerid) && strlen(p->callerid)) 
 					strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
 				strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)  -1);
@@ -2705,8 +2728,8 @@ retrylock:
 				if (r->expire != -1)
 					ast_sched_del(sched, r->expire);
 				expires=atoi(get_header(req, "expires"));
-				if (!expires) expires=20;
-				r->expire=ast_sched_add(sched, (expires-2)*1000, sip_reregister, r); 
+				if (!expires) expires=DEFAULT_EXPIREY;
+					r->expire=ast_sched_add(sched, (expires-2)*1000, sip_reregister, r); 
 
 			}
 			break;
@@ -2855,7 +2878,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	char *cmd;
 	char *cseq;
 	char *e;
-	struct ast_channel *c;
+	struct ast_channel *c=NULL;
 	int seqno;
 	int len;
 	int ignore=0;
@@ -3006,24 +3029,24 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				ast_log(LOG_NOTICE, "Unable to create/find channel\n");
 				transmit_response(p, "503 Unavailable", req);
 				sip_destroy(p);
+			}
 		}
-		}
-		} else if (!strcasecmp(cmd, "REFER")) {
-		        struct ast_channel *transfer_to;
-		        ast_log(LOG_DEBUG, "We found a REFER!\n");
-		        if (!strlen(p->context))
-			        strncpy(p->context, context, sizeof(p->context) - 1);
-			    res = get_refer_info(p, req);
-			    if (res < 0)
-				    transmit_response_with_allow(p, "404 Not Found", req);
-			    else if (res > 0)
-				   transmit_response_with_allow(p, "484 Address Incomplete", req);
-			    else
-				   transmit_response(p, "202 Accepted", req);
-			    ast_log(LOG_DEBUG,"202 Accepted\n");
-			    transfer_to = c->bridge;
-				if (transfer_to)
-				   ast_async_goto(transfer_to,"", p->refer_to,1, 1);
+	} else if (!strcasecmp(cmd, "REFER")) {
+		struct ast_channel *transfer_to;
+		ast_log(LOG_DEBUG, "We found a REFER!\n");
+		if (!strlen(p->context))
+			strncpy(p->context, context, sizeof(p->context) - 1);
+		res = get_refer_info(p, req);
+		if (res < 0)
+			transmit_response_with_allow(p, "404 Not Found", req);
+		else if (res > 0)
+			transmit_response_with_allow(p, "484 Address Incomplete", req);
+		else
+			transmit_response(p, "202 Accepted", req);
+		ast_log(LOG_DEBUG,"202 Accepted\n");
+		transfer_to = c->bridge;
+		if (transfer_to)
+			ast_async_goto(transfer_to,"", p->refer_to,1, 1);
 			
 	} else if (!strcasecmp(cmd, "CANCEL") || !strcasecmp(cmd, "BYE")) {
 		copy_request(&p->initreq, req);
@@ -3055,9 +3078,9 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		transmit_response(p, "100 Trying", req);
 		if ((res = register_verify(p, sin, req, e)) < 0) 
 			ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s'\n", get_header(req, "To"), inet_ntoa(sin->sin_addr));
-		sip_send_mwi(p);
-		if (res < 1)
+		if (res < 1) {
 			sip_destroy(p);
+		}
 	} else if (!strcasecmp(cmd, "ACK")) {
 		/* Uhm, I haven't figured out the point of the ACK yet.  Are we
 		   supposed to retransmit responses until we get an ack? 
@@ -3117,11 +3140,55 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	return 1;
 }
 
+static int sip_send_mwi_to_peer(struct sip_peer *peer)
+{
+	/* Called with peerl lock, but releases it */
+	struct sip_pvt *p;
+	int hasmsgs;
+	char name[256] = "";
+	/* Check for messages */
+	hasmsgs = ast_app_has_voicemail(peer->mailbox);
+	
+	time(&peer->lastmsgcheck);
+	
+	/* Return now if it's the same thing we told them last time */
+	if (hasmsgs == peer->lastmsgssent) {
+		ast_pthread_mutex_unlock(&peerl.lock);
+		return 0;
+	}
+	
+	p = sip_alloc(NULL, NULL);
+	if (!p) {
+		ast_log(LOG_WARNING, "Unable to build sip pvt data for MWI\n");
+		ast_pthread_mutex_unlock(&peerl.lock);
+		return -1;
+	}
+	strncpy(name, peer->name, sizeof(name) - 1);
+	peer->lastmsgssent = hasmsgs;
+	ast_pthread_mutex_unlock(&peerl.lock);
+	if (create_addr(p, peer->name)) {
+		/* Maybe they're not registered, etc. */
+		sip_destroy(p);
+		return 0;
+	}
+	/* Recalculate our side, and recalculate Call ID */
+	memcpy(&p->ourip, myaddrfor(&p->sa.sin_addr), sizeof(p->ourip));
+	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=%08x", inet_ntoa(p->ourip), ourport, p->branch);
+	build_callid(p->callid, sizeof(p->callid), p->ourip);
+	/* Send MWI */
+	transmit_notify(p, hasmsgs);
+	/* Destroy channel */
+	sip_destroy(p);
+	return 0;
+}
+
 static void *do_monitor(void *data)
 {
 	int res;
 	struct sip_pkt *p;
 	struct sip_pvt *sip;
+	struct sip_peer *peer;
+	time_t t;
 	/* Add an I/O event to our UDP socket */
 	if (sipsock > -1) 
 		ast_io_add(io, sipsock, sipsock_read, AST_IO_IN, NULL);
@@ -3165,6 +3232,19 @@ restartsearch:
 		ast_pthread_mutex_lock(&monlock);
 		if (res >= 0) 
 			ast_sched_runq(sched);
+		ast_pthread_mutex_lock(&peerl.lock);
+		peer = peerl.peers;
+		time(&t);
+		while(peer) {
+			if (strlen(peer->mailbox) && (t - peer->lastmsgcheck > 10)) {
+				sip_send_mwi_to_peer(peer);
+				break;
+			}
+			peer = peer->next;
+		}
+		/* Remember, sip_send_mwi_to_peer releases the lock if we've called it */
+		if (!peer)
+			ast_pthread_mutex_unlock(&peerl.lock);
 		ast_pthread_mutex_unlock(&monlock);
 	}
 	/* Never reached */
@@ -3260,60 +3340,6 @@ static int sip_poke_peer(struct sip_peer *peer)
 }
 
 
-static int sip_send_mwi(struct sip_pvt *p)
-{
-	struct sip_request req;
-	int res;
-
-	if(strlen(p->mailbox)) {
-		ast_log(LOG_NOTICE, "mwi: check mailbox: %s\n", p->mailbox);
-		res = ast_app_has_voicemail(p->mailbox);
-		if(res) {
-			ast_log(LOG_NOTICE, "mwi: mailbox has messages\n");
-			reqprep(&req, p, "NOTIFY", 1);
-			add_header(&req, "Event", "message-summary");
-			add_header(&req, "Content-Type", "text/plain");
-			add_line(&req, "Message-Waiting: yes\n");
-			send_request(p, &req);
-
-		} else {
-
-			ast_log(LOG_NOTICE, "mwi: mailbox does not contain messages\n");
-                        reqprep(&req, p, "NOTIFY", 1);
-			add_header(&req, "Event", "message-summary");
-                        add_header(&req, "Content-Type", "text/plain");
-			add_line(&req, "Message-Waiting: no\n");
-			send_request(p, &req);
-		}
-
-	}
-	return 0;
-
-}
-
-static int sip_send_mwi_to_peer(struct sip_peer *peer)
-{
-	struct sip_pvt *p;
-	p = sip_alloc(NULL, NULL);
-	if (!p) {
-		ast_log(LOG_WARNING, "Unable to build sip pvt data for MWI\n");
-		return -1;
-	}
-	if (create_addr(p, peer->name)) {
-		sip_destroy(p);
-		return -1;
-	}
-	/* Recalculate our side, and recalculate Call ID */
-	memcpy(&p->ourip, myaddrfor(&p->sa.sin_addr), sizeof(p->ourip));
-	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=%08x", inet_ntoa(p->ourip), ourport, p->branch);
-	build_callid(p->callid, sizeof(p->callid), p->ourip);
-	/* Send MWI */
-	sip_send_mwi(p);
-	/* Destroy channel */
-	sip_destroy(p);
-	return 0;
-}
-
 static struct ast_channel *sip_request(char *type, int format, void *data)
 {
 	int oldformat;
@@ -3326,7 +3352,7 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 	oldformat = format;
 	format &= capability;
 	if (!format) {
-		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);
+		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format %d while capability is %d\n", oldformat, capability);
 		return NULL;
 	}
 	p = sip_alloc(NULL, NULL);
@@ -3397,8 +3423,6 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 				user->hascallerid=1;
 			} else if (!strcasecmp(v->name, "accountcode")) {
 				strncpy(user->accountcode, v->value, sizeof(user->accountcode)-1);
-			} else if (!strcasecmp(v->name, "mailbox")) {
-                                strncpy(user->mailbox, v->value, sizeof(user->mailbox)-1);
 			} else if (!strcasecmp(v->name, "amaflags")) {
 				format = ast_cdr_amaflags2int(v->value);
 				if (format < 0) {
@@ -3451,6 +3475,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 		memset(peer, 0, sizeof(struct sip_peer));
 		peer->expire = -1;
 		peer->pokeexpire = -1;
+		peer->lastmsgssent = -1;
 	}
 	if (peer) {
 		if (!found) {
@@ -3515,7 +3540,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "username")) {
 				strncpy(peer->username, v->value, sizeof(peer->username)-1);
 			} else if (!strcasecmp(v->name, "mailbox")) {
-                                strncpy(peer->mailbox, v->value, sizeof(peer->mailbox)-1);
+				strncpy(peer->mailbox, v->value, sizeof(peer->mailbox)-1);
 			} else if (!strcasecmp(v->name, "allow")) {
 				format = ast_getformatbyname(v->value);
 				if (format < 1) 

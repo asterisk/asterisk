@@ -4712,12 +4712,13 @@ static int cache_get_callno(char *data)
 	for (x=0;x<AST_IAX_MAX_CALLS; x++) {
 		/* Look for an *exact match* call.  Once a call is negotiated, it can only
 		   look up entries for a single context */
-		ast_pthread_mutex_lock(&iaxsl[x]);
-		if (iaxs[x] && !strcasecmp(data, iaxs[x]->dproot)) {
+		if (!pthread_mutex_trylock(&iaxsl[x])) {
+			if (iaxs[x] && !strcasecmp(data, iaxs[x]->dproot)) {
+				ast_pthread_mutex_unlock(&iaxsl[x]);
+				return x;
+			}
 			ast_pthread_mutex_unlock(&iaxsl[x]);
-			return x;
 		}
-		ast_pthread_mutex_unlock(&iaxsl[x]);
 	}
 	/* No match found, we need to create a new one */
 	strncpy(st, data, sizeof(st)-1);

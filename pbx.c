@@ -145,10 +145,12 @@ static int pbx_builtin_ringing(struct ast_channel *, void *);
 static int pbx_builtin_congestion(struct ast_channel *, void *);
 static int pbx_builtin_busy(struct ast_channel *, void *);
 static int pbx_builtin_setvar(struct ast_channel *, void *);
+static int pbx_builtin_noop(struct ast_channel *, void *);
 static int pbx_builtin_gotoif(struct ast_channel *, void *);
 void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value);
 char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name);
 
+static struct varshead globals = AST_LIST_HEAD_INITIALIZER(varshead);
 
 static struct pbx_builtin {
 	char name[AST_MAX_APP];
@@ -260,6 +262,10 @@ static struct pbx_builtin {
 	{ "Setvar", pbx_builtin_setvar,
 "Set variable to value",
 "  Setvar(#n=value): Sets variable n to value" },
+
+	{ "NoOp", pbx_builtin_noop,
+"No operation",
+"  NoOp(): No-operation; Does nothing." },
 
 	{ "GotoIf", pbx_builtin_gotoif,
 "Conditional goto",
@@ -417,47 +423,83 @@ static void pbx_destroy(struct ast_pbx *p)
 	free(p);
 }
 
+#define EXTENSION_MATCH_CORE(data,pattern,match) {\
+	/* All patterns begin with _ */\
+	if (pattern[0] != '_') \
+		return 0;\
+	/* Start optimistic */\
+	match=1;\
+	pattern++;\
+	while(match && *data && *pattern && (*pattern != '/')) {\
+		switch(toupper(*pattern)) {\
+		case '[': \
+		{\
+			int i,border=0;\
+			char *where;\
+			match=0;\
+			pattern++;\
+			where=strchr(pattern,']');\
+			if (where)\
+				border=(int)(where-pattern);\
+			if (!where || border > strlen(pattern)) {\
+				ast_log(LOG_WARNING, "Wrong usage of [] in the extension\n");\
+				return match;\
+			}\
+			for (i=0; i<border; i++) {\
+				int res=0;\
+				if (i+2<border)\
+					if (pattern[i+1]=='-') {\
+						if (*data >= pattern[i] && *data <= pattern[i+2]) {\
+							res=1;\
+						} else {\
+							i+=2;\
+							continue;\
+						}\
+					}\
+				if (res==1 || *data==pattern[i]) {\
+					match = 1;\
+					break;\
+				}\
+			}\
+			pattern+=border;\
+			break;\
+		}\
+		case 'N':\
+			if ((*data < '2') || (*data > '9'))\
+				match=0;\
+			break;\
+		case 'X':\
+			if ((*data < '0') || (*data > '9'))\
+				match = 0;\
+			break;\
+		case 'Z':\
+			if ((*data < '1') || (*data > '9'))\
+				match = 0;\
+			break;\
+		case '.':\
+			/* Must match */\
+			return 1;\
+		case ' ':\
+		case '-':\
+			/* Ignore these characters */\
+			data--;\
+			break;\
+		default:\
+			if (*data != *pattern)\
+				match =0;\
+		}\
+		data++;\
+		pattern++;\
+	}\
+}
+
 int ast_extension_match(char *pattern, char *data)
 {
 	int match;
 	/* If they're the same return */
 	if (!strcasecmp(pattern, data))
 		return 1;
-	/* All patterns begin with _ */
-	if (pattern[0] != '_') 
-		return 0;
-	/* Start optimistic */
-	match=1;
-	pattern++;
-	while(match && *data && *pattern && (*pattern != '/')) {
-		switch(toupper(*pattern)) {
-		case 'N':
-			if ((*data < '2') || (*data > '9'))
-				match=0;
-			break;
-		case 'X':
-			if ((*data < '0') || (*data > '9'))
-				match = 0;
-			break;
-		case 'Z':
-			if ((*data < '1') || (*data > '9'))
-				match = 0;
-			break;
-		case '.':
-			/* Must match */
-			return 1;
-		case ' ':
-		case '-':
-			/* Ignore these characters */
-			data--;
-			break;
-		default:
-			if (*data != *pattern)
-				match =0;
-		}
-		data++;
-		pattern++;
-	}
+	EXTENSION_MATCH_CORE(data,pattern,match);
 	/* Must be at the end of both */
 	if (*data || (*pattern && (*pattern != '/')))
 		match = 0;
@@ -476,41 +518,7 @@ static int extension_close(char *pattern, char *data, int needmore)
 		(!needmore || (strlen(pattern) > strlen(data)))) {
 		return 1;
 	}
-	/* All patterns begin with _ */
-	if (pattern[0] != '_') 
-		return 0;
-	/* Start optimistic */
-	match=1;
-	pattern++;
-	while(match && *data && *pattern && (*pattern != '/')) {
-		switch(toupper(*pattern)) {
-		case 'N':
-			if ((*data < '2') || (*data > '9'))
-				match=0;
-			break;
-		case 'X':
-			if ((*data < '0') || (*data > '9'))
-				match = 0;
-			break;
-		case 'Z':
-			if ((*data < '1') || (*data > '9'))
-				match = 0;
-			break;
-		case '.':
-			/* Must match instantly */
-			return 1;
-		case ' ':
-		case '-':
-			/* Ignore these characters */
-			data--;
-			break;
-		default:
-			if (*data != *pattern)
-				match =0;
-		}
-		data++;
-		pattern++;
-	}
+	EXTENSION_MATCH_CORE(data,pattern,match);
 	/* If there's more or we don't care about more, return non-zero, otlherwise it's a miss */
 	if (!needmore || *pattern) {
 		return match;
@@ -665,7 +673,7 @@ static void *pbx_substitute_variables(struct ast_channel *c, struct ast_exten *e
 	char *cp1,*cp3,*cp4,*cp5;
 	void *cp2;
 	char c1,c2;
-	int m,mve,origlen,quoted,dolsign,docopy;
+	int m,mve,origlen,quoted,dolsign,docopy,offset;
 	struct ast_var_t *variables;
 	struct varshead *headp;
 	char pri[80];
@@ -767,6 +775,13 @@ static void *pbx_substitute_variables(struct ast_channel *c, struct ast_exten *e
 					} else if (!strcmp(cp3, "EXTEN")) {
 						cp4 = c->exten;
 						break;
+					} else if (!strncmp(cp3, "EXTEN-", strlen("EXTEN-")) && 
+						(sscanf(cp3 + strlen("EXTEN-"), "%d", &offset) == 1)) {
+						if (offset < 0)
+							offset=0;
+						if (offset > strlen(c->exten))
+							offset = strlen(c->exten);
+						cp4 = c->exten + offset;
 					} else if (!strcmp(cp3, "RDNIS")) {
 						cp4 = c->rdnis;
 						if (!cp4)
@@ -782,12 +797,22 @@ static void *pbx_substitute_variables(struct ast_channel *c, struct ast_exten *e
 					} else {
 		        		AST_LIST_TRAVERSE(headp,variables,entries) {
 //		        			ast_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",cp3,ast_var_name(variables));
-						if (strncasecmp(ast_var_name(variables),cp3,m)==0) {
-							cp4=ast_var_value(variables);
-							break;
+							if (strncasecmp(ast_var_name(variables),cp3,m)==0) {
+								cp4=ast_var_value(variables);
+								break;
+							}
+						}
+						if (!cp4) {
+							/* Try globals */
+			        		AST_LIST_TRAVERSE(&globals,variables,entries) {
+	//		        			ast_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",cp3,ast_var_name(variables));
+								if (strncasecmp(ast_var_name(variables),cp3,m)==0) {
+									cp4=ast_var_value(variables);
+									break;
+								}
+							}
 						}
 					}
-				}
 	        		free(cp3);
 	        		break;
 	        	default :
@@ -811,12 +836,13 @@ static void *pbx_substitute_variables(struct ast_channel *c, struct ast_exten *e
 	        		if (cp4!=NULL) {
 		        		cp2=realloc(cp2,origlen+strlen(cp4)+1);
 		        		strncat((char *)cp2,cp4,strlen(cp4));
+					origlen += strlen(cp4);
 		        	} else {
 		        		ast_log(LOG_WARNING,"mve!=0 and cp4=NULL, something gone astray\n");
 		        	}
 	        	}
 	        }
-	                
+	              cp4 = NULL;
 	} while (*cp1++!='\0');
 	
 	/* Second stage, expression evaluation */
@@ -2764,6 +2790,7 @@ int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int pri
 		struct ast_frame *f;
 		tmpchan = ast_channel_alloc(0);
 		if (tmpchan) {
+			ast_setstate(tmpchan, chan->_state);
 			snprintf(tmpchan->name, sizeof(tmpchan->name), "AsyncGoto/%s", chan->name);
 			/* Make formats okay */
 			tmpchan->readformat = chan->readformat;
@@ -2826,7 +2853,8 @@ static void ext_strncpy(char *dst, char *src, int len)
 	while(*src && (count < len - 1)) {
 		switch(*src) {
 		case ' ':
-		case '-':
+//otherwise exten => [a-b],1,... doesn't work
+//		case '-':
 			/* Ignore */
 			break;
 		default:
@@ -3485,21 +3513,35 @@ char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name) {
 	struct ast_var_t *variables;
 	struct varshead *headp;
 
-	headp = &chan->varshead;
+    if (chan)
+        headp=&chan->varshead;
+	else
+		headp=&globals;
 
-	if (name)
+	if (name) {
 		AST_LIST_TRAVERSE(headp,variables,entries) {
 			if (!strcmp(name, ast_var_name(variables)))
 				return ast_var_value(variables);
 		}
+		if (headp != &globals) {
+			/* Check global variables if we haven't already */
+			headp = &globals;
+			AST_LIST_TRAVERSE(headp,variables,entries) {
+				if (!strcmp(name, ast_var_name(variables)))
+					return ast_var_value(variables);
+			}
+		}
+	}
 	return NULL;
 }
 
 void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value) {
 	struct ast_var_t *newvariable;
         struct varshead *headp;
-        
+    if (chan)
         headp=&chan->varshead;
+	else
+		headp=&globals;
                 
 	AST_LIST_TRAVERSE (headp,newvariable,entries) {
 		if (strncasecmp(ast_var_name(newvariable),name,strlen(name))==0) {
@@ -3510,10 +3552,12 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value
 		}
 	} 
 	
-	newvariable=ast_var_assign(name,value);	
-	AST_LIST_INSERT_HEAD(headp,newvariable,entries);
-	
-        return;
+	if (value) {
+		if ((option_verbose > 1) && (headp == &globals))
+			ast_verbose(VERBOSE_PREFIX_3 "Setting global variable '%s' to '%s'\n",name, value);
+		newvariable=ast_var_assign(name,value);	
+		AST_LIST_INSERT_HEAD(headp,newvariable,entries);
+	}
 }
 
 static int pbx_builtin_setvar(struct ast_channel *chan, void *data)
@@ -3536,6 +3580,22 @@ static int pbx_builtin_setvar(struct ast_channel *chan, void *data)
         return(0);
 }
 
+static int pbx_builtin_noop(struct ast_channel *chan, void *data)
+{
+	return 0;
+}
+
+
+void pbx_builtin_clear_globals(void)
+{
+	struct ast_var_t *vardata;
+	while (!AST_LIST_EMPTY(&globals)) {
+		vardata = AST_LIST_FIRST(&globals);
+		AST_LIST_REMOVE_HEAD(&globals, entries);
+		ast_var_delete(vardata);
+	}
+}
+
 static int pbx_checkcondition(char *condition) {
 	char *s;
 	int ret;
@@ -3551,7 +3611,6 @@ static int pbx_checkcondition(char *condition) {
 	free(s);
 	return(ret);
 }
-
 
 static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 {

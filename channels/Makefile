@@ -32,7 +32,7 @@ CFLAGS+=$(shell [ -f alsa-monitor.h ] && echo " -DALSA_MONITOR")
 ZAPPRI=$(shell [ -f /usr/lib/libpri.so.1 ] && echo "-lpri")
 ZAPR2=$(shell [ -f /usr/lib/libmfcr2.so.1 ] && echo "-lmfcr2")
 CHANZAP=$(shell if [ -f .oldzap ]; then echo "chan_zap_old.c"; else echo "chan_zap.c"; fi)
-ZAPLIB=$(shell if ! [ -f .newzap ]; then echo "-lzap"; fi)
+ZAPLIB=$(shell if [ -f .oldzap ]; then echo "-lzap"; fi)
 
 ALSA_SRC=chan_alsa.c
 ALSA_SRC+=$(shell [ -f alsa-monitor.h ] && echo "alsa-monitor.h")

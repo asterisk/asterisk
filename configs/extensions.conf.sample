@@ -2,8 +2,7 @@
 ; Static extension configuration files, used by
 ; the pbx_config module.
 ;
-; The "General" category is for certain variables.  All other categories
-; are interpreted as extension contexts
+; The "General" category is for certain variables.  
 ;
 [general]
 ;
@@ -14,24 +13,68 @@
 ; XXX Not yet implemented XXX
 ;
 static=yes
-
 ;
-; if stati=yes and writeprotect=no, you can save dialplan by
+; if static=yes and writeprotect=no, you can save dialplan by
 ; CLI command 'save dialplan' too
 ;
 writeprotect=no
 
-; Remote things always ring all phones first.
-;[remote]
-;exten => s,1,Dial,AdtranVoFR/4200&AdtranVoFR/4151&AdtranVoFR/4300|15
-;exten => s,2,Goto,default|s|2
-;include => default
+;
+; The "Globals" category contains global variables that can be referenced
+; in the dialplan with ${VARIABLE}
+;
+[globals]
+CONSOLE=Console/dsp				; Console interface for demo
+;CONSOLE=Zap/1
+;CONSOLE=Phone/phone0
+IAXINFO=guest					; IAXtel username/password
+;IAXINFO=myuser:mypass
+TRUNK=Zap/g2					; Trunk interface
+;TRUNK=IAX/user:pass@provider
+
+;
+; Any category other than "General" and "Globals" represent 
+; extension contexts, which are collections of extensions.  
+;
+; Extension names may be numbers, letters, or combinations
+; thereof. If an extension name is prefixed by a '_'
+; character, it is interpreted as a pattern rather than a
+; literal.  In patterns, some characters have special meanings:
+;
+;   X - any digit from 0-9
+;   N - any digit from 2-9
+;   [1235-9] - any digit in the brackets (in this example, 1,2,3,5,6,7,8,9)
+;   . - wildcard, matches anything remaining (e.g. _9011. matches anything starting with 9011 including 9011)
+;
+; For example the extenion _NXXXXXX would match normal 7 digit dialings, while
+; _1NXXNXXXXXX would represent an area code plus phone number
+; preceeded by a one.
+;
+; Contexts contain several lines, one for each step of each
+; extension, which can take one of two forms as listed below,
+; with the first form being preferred.  One may include another
+; context in the current one as well, optionally with a
+; date and time.  Included contexts are included in the order
+; they are listed.
+;
+;[context]
+;exten => someexten,priority,application(arg1,arg2,...)
+;exten => someexten,priority,application,arg1|arg2...
 ;
 ; Timing list for includes is 
 ;
 ;   <time range>|<days of week>|<days of month>|<months>
 ;
 ;include => daytime|9:00-17:00|mon-fri|*|*
+;
+; ignorepat can be used to instruct drivers to not cancel dialtone upon
+; receipt of a particular pattern.  The most commonly used example is
+; of course '9' like this:
+;
+;ignorepat => 9
+;
+; so that dialtone remains even after dialing a 9.
+;
 
 ;
 ; Here are the entries you need to participate in the IAXTEL
@@ -39,41 +82,91 @@ writeprotect=no
 ; there are exceptions.  For more information, and to sign
 ; up, please go to www.gnophone.com or www.iaxtel.com
 ;
-[iaxtel]
-exten => _91NXXNXXXXXX,1,StripMSD,1
-exten => _1NXXNXXXXXX,2,Dial,IAX/iaxtel.com/BYEXTENSION@iaxtel
+[iaxtel700]
+exten => _91700NXXXXXX,1,Dial(IAX/${IAXINFO}@iaxtel.com/${EXTEN-1}@iaxtel)
 
-[provider]
+[iaxprovider]
 ;switch => IAX/user:[key]@myserver/mycontext
 
-; Local stuff
-[local]
-; Special extension for local phone numbers, long distance, etc, going
-; out via the Frame Relay interface.  Patterns are prefixed with "_", which
-; is ignored.
+[trunkint]
 ;
-; ignorepat can be used to instruct drivers to not cancel dialtone upon
-; receipt of a particular pattern.  The most commonly used example is
-; of course '9' like this:
+; International long distance through trunk
 ;
-; ignorepat => 9
+exten => 9011.,1,Dial(${TRUNK}/${EXTEN-1})
+exten => 9011.,2,Congestion
+
+[trunkld]
 ;
-; so that dialtone remains even after dialing a 9.
+; Long distance context accessed through trunk
+;
+exten => _91NXXNXXXXXX,1,Dial(${TRUNK}/${EXTEN-1})
+exten => _91NXXNXXXXXX,2,Congestion
+
+[trunklocal]
+;
+; Local seven-digit dialing accessed through trunk interface
+;
+exten => _9NXXXXXX,1,Dial(${TRUNK}/${EXTEN-1})
+exten => _9NXXXXXX,2,Congestion
+
+[trunktollfree]
+;
+; Long distance context accessed through trunk interface
+;
+exten => _91800NXXXXXX,1,Dial(${TRUNK}/${EXTEN-1})
+exten => _91800NXXXXXX,2,Congestion
+exten => _91888NXXXXXX,1,Dial(${TRUNK}/${EXTEN-1})
+exten => _91888NXXXXXX,2,Congestion
+exten => _91877NXXXXXX,1,Dial(${TRUNK}/${EXTEN-1})
+exten => _91877NXXXXXX,2,Congestion
+exten => _91866NXXXXXX,1,Dial(${TRUNK}/${EXTEN-1})
+exten => _91866NXXXXXX,2,Congestion
+
+[international]
+;
+; Master context for international long distance
 ;
 ignorepat => 9
-;exten => _9NXXXXXX,1,Dial,IAX/user:[key]@myserver/BYEXTENSION
-;exten => _91NXXNXXXXXX,1,Dial,IAX/user:[key]@myserver/BYEXTENSION
-;exten => _9911,1,Dial,IAX/user:[key]@myserver/BYEXTENSION
-include => parkedcalls
+include => longdistance
+include => trunkint
+
+[longdistance]
+;
+; Master context for long distance
+;
+ignorepat => 9
+include => local
+include => trunkld
+
+[local]
+;
+; Master context for local, toll-free, and iaxtel calls only
+;
+ignorepat => 9
 include => default
+include => parkedcalls
+include => trunklocal
+include => iaxtel700
+include => trunktollfree
 include => provider
-include => iaxtel
 ;
 ; You can use an alternative switch type as well, to resolve
 ; extensions that are not known here, for example with remote 
 ; IAX switching you transparently get access to the remote
 ; 
 ; switch => IAX/user:password@bigserver/local
+
+[macro-stdexten];
+;
+; Standard extension macro:
+;   ${ARG1} - Extension  (we could have used ${MACRO_EXTEN} here as well
+;   ${ARG2} - Device(s) to ring
+;
+exten => s,1,Dial(${ARG2},20)					; Ring the interface, 20 seconds maximum
+exten => s,2,Voicemail(u${ARG1})				; If unavailable, send to voicemail w/ unavail announce
+exten => s,3,Goto(default,s,1)					; If they press #, return to start
+exten => s,102,Voicemail(b${ARG1})				; If busy, send to voicemail w/ busy announce
+exten => s,103,Goto(default,s,1)				; If they press #, return to start
 
 
 [demo]
@@ -84,71 +177,85 @@ exten => s,1,Wait,1			; Wait a second, just for fun
 exten => s,2,Answer			; Answer the line
 exten => s,3,DigitTimeout,5		; Set Digit Timeout to 5 seconds
 exten => s,4,ResponseTimeout,10		; Set Response Timeout to 10 seconds
-exten => s,5,BackGround,demo-congrats	; Play a congratulatory message
-exten => s,6,BackGround,demo-instruct	; Play some instructions
+exten => s,5,BackGround(demo-congrats)	; Play a congratulatory message
+exten => s,6,BackGround(demo-instruct)	; Play some instructions
 
-exten => 2,1,BackGround,demo-moreinfo	; Give some more information.
-exten => 2,2,Goto,s|6
+exten => 2,1,BackGround(demo-moreinfo)	; Give some more information.
+exten => 2,2,Goto(s,6)
 
-exten => 3,1,SetLanguage,fr		; Set language to french
-exten => 3,2,Goto,s|5			; Start with the congratulations
+exten => 3,1,SetLanguage(fr)		; Set language to french
+exten => 3,2,Goto(s,5)			; Start with the congratulations
 
+exten => 1000,1,Goto(default,s,1)
 ;
 ; We also create an example user, 1234, who is on the console and has
 ; voicemail, etc.
 ;
-exten => 1234,1,Playback,transfer|skip		; "Please hold while..." 
+exten => 1234,1,Playback(transfer,skip)		; "Please hold while..." 
 					; (but skip if channel is not up)
-exten => 1234,2,Dial,Console/dsp|10	; Ring the console, 10 secs max
-exten => 1234,3,Voicemail,u1234		; Send to voicemail...
-exten => 1234,5,Goto,s|6			; Start over
-exten => 1234,103,Voicemail,b1234	; (2 + 101) "I'm on the phone"
-exten => 1234,104,Goto,5			; Go to voicemail, etc.
+exten => 1234,2,Macro(stdexten,1234,${CONSOLE})
 
-exten => 1235,1,Goto,1234|3		; Right to voicemail
+exten => 1235,1,Voicemail(u1234)		; Right to voicemail
 
-exten => 1236,1,Dial,Console/dsp		; Ring forever
-exten => 1236,2,Goto,1234|103		; Unless busy
+exten => 1236,1,Dial(Console/dsp)		; Ring forever
+exten => 1236,2,Voicemail(u1234)		; Unless busy
 
 ;
 ; # for when they're done with the demo
 ;
-exten => #,1,Playback,demo-thanks		; "Thanks for trying the demo"
+exten => #,1,Playback(demo-thanks)		; "Thanks for trying the demo"
 exten => #,2,Hangup			; Hang them up.
 
 ;
 ; A timeout and "invalid extension rule"
 ;
-exten => t,1,Goto,#|1			; If they take too long, give up
-exten => i,1,Playback,invalid		; "That's not valid, try again"
+exten => t,1,Goto(#,1)			; If they take too long, give up
+exten => i,1,Playback(invalid)		; "That's not valid, try again"
 
 ;
 ; Create an extension, 500, for dialing the
 ; Asterisk demo.
 ;
-exten => 500,1,Playback,demo-abouttotry	; Let them know what's going on
-exten => 500,2,Dial,IAX/asterisk@demo	; Call the Asterisk demo
-exten => 500,3,Playback,demo-nogo		; Couldn't connect to the demo site
-exten => 500,4,Goto,s|6			; Return to the start over message.
+exten => 500,1,Playback(demo-abouttotry); Let them know what's going on
+exten => 500,2,Dial(IAX/guest@misery.digium.com/s@default)	; Call the Asterisk demo
+exten => 500,3,Playback(demo-nogo)	; Couldn't connect to the demo site
+exten => 500,4,Goto(s,6)		; Return to the start over message.
 
 ;
 ; Create an extension, 600, for evaulating echo latency.
 ;
-exten => 600,1,Playback,demo-echotest	; Let them know what's going on
+exten => 600,1,Playback(demo-echotest)	; Let them know what's going on
 exten => 600,2,Echo			; Do the echo test
-exten => 600,3,Playback,demo-echodone	; Let them know it's over
-exten => 600,4,Goto,s|6			; Start over
+exten => 600,3,Playback(demo-echodone)	; Let them know it's over
+exten => 600,4,Goto(s,6)		; Start over
 
 ;
 ; Give voicemail at extension 8500
 ;
 exten => 8500,1,VoicemailMain
-exten => 8500,2,Goto,s|6
+exten => 8500,2,Goto(s,6)
 ;
 ; Here's what a phone entry would look like (IXJ for example)
 ;
-;exten => 1265,1,Dial,Phone/phone0|15
-;exten => 1265,2,Goto,s|5
+;exten => 1265,1,Dial(Phone/phone0,15)
+;exten => 1265,2,Goto(s,5)
+
+;[mainmenu]
+;
+; Example "main menu" context with submenu
+;
+;exten => s,1,Answer
+;exten => s,2,Background(thanks)		; "Thanks for calling press 1 for sales, 2 for support, ..."
+;exten => 1,1,Goto(submenu,s,1)
+;exten => 2,1,Hangup
+;include => default
+;
+;[submenu]
+;exten => s,1,Ringing					; Make them comfortable with 2 seconds of ringback
+;exten => s,2,Wait,2
+;exten => s,3,Background(submenuopts)	; "Thanks for calling the sales department.  Press 1 for steve, 2 for..."
+;exten => 1,1,Goto(default,steve,1)
+;exten => 2,1,Goto(default,mark,2)
 
 [default]
 ;
@@ -157,95 +264,29 @@ exten => 8500,2,Goto,s|6
 ;
 include => demo
 
-; This is a more complicated sample extension configuration, similar to
-; what we used to use at LSS.
 
-;[default]
-;exten => s,1,Wait,0
-;exten => s,2,Answer
-;exten => s,3,DigitTimeout,5
-;exten => s,4,ResponseTimeout,10
-;exten => s,5,BackGround,welcome
-;exten => *,1,Directory,default
-;exten => *,2,Goto,s|4
-;exten => #,1,Playback,goodbye
-;exten => #,2,Hangup
-;exten => 100,1,Goto,other|s|1
-;exten => 200,1,Intercom
-;exten => 400,1,MP3Player,song8.mp3
-;exten => 401,1,MP3Player,sample.mp3
-;exten => 402,1,MP3Player,sunscreen.mp3
-;exten => 403,1,MP3Player,http://trode.vergenet.net:8000
-;exten => 404,1,MP3Player,http://216.32.166.94:14900
-;exten => 405,1,Playback,sample
+; Real extensions would go here.  Generally you want real extensions to be 4 or 5
+; digits long (although there is no such requirement) and start with a single
+; digit that is fairly large (like 6 or 7) so that you have plenty of room to
+; overlap extensions and menu options without conflict.  You can alias them with
+; names, too and use global variables
+
+
+;exten => 6275,Macro(stdexten,6275,${MARK})			; assuming ${MARK} is something like Zap/2
+;exten => mark,1,Goto(6275|1)						; alias mark to 6275
+;exten => 6236,Macro(stdexten,6236,${WIL})			; Ditto for wil
+;exten => wil,1,Goto(6236|1)
 ;
-; Here's the template for a typical extension, carefully broken apart
-; for analysis.  The others are pretty much the same, but not as well
-; documented.
+; Some other handy things are an extension for checking voicemail via
+; voicemailmain
 ;
-; Step 1:  Play back a "Please hold while I try that extension" message
-;exten => 4300,1,Playback,transfer
-; Step 2:  Dial the numbers where Ben is likely to be.  Try for no more
-;          than 15 seconds.
-;exten => 4300,2,Dial,AdtranVoFR/4300|15
-; Step 3:  Send them to voicemail, preceeded by their unavailable message.
-;exten => 4300,3,Voicemail,u4300
-; Step 4:  If they return from voicemail, go back to the top
-;exten => 4300,4,Goto,s|4
-; Step 103: If the Dialing is busy, it will try here first.  We'll play a
-;           special "I'm busy" message and send them to voicemail
-;exten => 4300,103,Voicemail,b4300
-; Step 104: And then continue from whereever the other would
-;exten => 4300,104,Goto,4
-; Exten. 4301: Provide a short-circuit so we can transfer striaght to 
-;              voicemail.
-;exten => 4301,1,Goto,4300|3
-; Exten. 4302: Provide a way to ring a given phone indefinitely
-;exten => 4302,1,Dial,AdtranVoFR/4300
-
-;exten => 4200,1,Playback,transfer
-;exten => 4200,2,Dial,AdtranVoFR/4200|15
-;exten => 4200,3,Playback,vm/4200/unavail
-;exten => 4200,4,Voicemail,4200
-;exten => 4200,5,Goto,s|4
-;exten => 4200,103,Playback,vm/4200/busy
-;exten => 4200,104,Goto,4
-;exten => 4201,1,Goto,4200|3
-;exten => 4202,1,Dial,AdtranVoFR/4200
-
-;exten => 4110,1,Playback,transfer
-;exten => 4110,2,Dial,AdtranVoFR/4110|15
-;exten => 4110,2,Wait,5
-;exten => 4110,3,Playback,vm/4110/unavail
-;exten => 4110,4,Voicemail,4110
-;exten => 4110,5,Goto,s|4
-;exten => 4110,103,Playback,vm/4110/busy
-;exten => 4110,104,Goto,4
-;exten => 4111,1,Goto,4110|3
-;exten => 4112,1,Dial,AdtranVoFR/4110
-;exten => 4113,1,Voicemail,s4110
-
 ;exten => 8500,1,VoicemailMain
-;exten => 8500,2,Goto,s|4
-;exten => 762,1,Playback,somepeople
-;exten => 762,2,Wait,4
-;exten => 762,3,Goto,s|4
-
-; Timeout stuff...  We could send to an operator, or just ditch them.
-;exten => t,1,Goto,#|1
-;exten => i,1,BackGround,invalid
-include => parkedcalls
-
-;[other]
-;exten => s,1,Playback,digits/9
-;exten => s,2,Playback,digits/8
-;exten => s,3,Playback,digits/7
-;exten => s,4,Goto,100|1
-;exten => 100,1,Playback,digits/6
-;exten => 100,2,Playback,digits/5
-;exten => 100,3,Goto,default|s|4
-
-;[outboundpri]
-;exten => _91NXXNXXXXXX,1,StripMSD,1
-;exten => _1NXXNXXXXXX,2,Dial,Zap/g2/BYEXTENSION
-;ignorepat => 9
+;exten => 8500,2,Hangup
+;
+; Or a conference room (you'll need to edit meetme.conf to enable this room)
+;
+;exten => 8600,1,Meetme,1234
+;
+; For more information on applications, just type "show applications" at your
+; friendly Asterisk CLI prompt.
+;

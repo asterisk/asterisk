@@ -1,8 +1,11 @@
 /*
 
 $Log$
-Revision 1.13  2000/01/05 08:20:39  markster
-Version 0.3.0 from FTP
+Revision 1.14  2003/02/12 13:59:14  matteo
+mer feb 12 14:56:57 CET 2003
+
+Revision 1.1.1.1  2003/02/12 13:59:14  matteo
+mer feb 12 14:56:57 CET 2003
 
 Revision 1.2  2000/01/05 08:20:39  markster
 Some OSS fixes and a few lpc changes to make it actually work
@@ -79,9 +82,12 @@ static integer c__1 = 1;
 /* 	ANALYS Version 55 */
 
 /* $Log$
- * Revision 1.13  2000/01/05 08:20:39  markster
- * Version 0.3.0 from FTP
+ * Revision 1.14  2003/02/12 13:59:14  matteo
+ * mer feb 12 14:56:57 CET 2003
  *
+/* Revision 1.1.1.1  2003/02/12 13:59:14  matteo
+/* mer feb 12 14:56:57 CET 2003
+/*
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
 /*
@@ -246,9 +252,12 @@ static integer c__1 = 1;
     real phi[100]	/* was [10][10] */, psi[10];
 
 /* $Log$
- * Revision 1.13  2000/01/05 08:20:39  markster
- * Version 0.3.0 from FTP
+ * Revision 1.14  2003/02/12 13:59:14  matteo
+ * mer feb 12 14:56:57 CET 2003
  *
+/* Revision 1.1.1.1  2003/02/12 13:59:14  matteo
+/* mer feb 12 14:56:57 CET 2003
+/*
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
 /*
@@ -277,9 +286,12 @@ static integer c__1 = 1;
 /* Frame size, Prediction order, Pitch period */
 /*       Arguments to ANALYS */
 /* $Log$
- * Revision 1.13  2000/01/05 08:20:39  markster
- * Version 0.3.0 from FTP
+ * Revision 1.14  2003/02/12 13:59:14  matteo
+ * mer feb 12 14:56:57 CET 2003
  *
+/* Revision 1.1.1.1  2003/02/12 13:59:14  matteo
+/* mer feb 12 14:56:57 CET 2003
+/*
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
 /*

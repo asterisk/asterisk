@@ -1,3 +1,11 @@
+ -- Create special variable "EXTEN-n" where it is extension stripped by n MSD
+ -- Fix uninitialized frame pointer in channel.c
+ -- Add global variables support under [globals] of extensions.conf
+ -- Add macro support (show application Macro)
+ -- Allow [123-5] etc in extensions
+ -- Allow format of App(arg1,arg2,...) instead of just App,arg1|arg2 in dialplan
+ -- Add message waiting indicator to SIP
+ -- Fix double free bug in channel.c
 Asterisk 0.3.0
  -- Add fastfoward, rewind, seek, and truncate functions to streams
  -- Support registration

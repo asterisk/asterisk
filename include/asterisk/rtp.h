@@ -44,6 +44,10 @@ void ast_rtp_set_data(struct ast_rtp *rtp, void *data);
 
 int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *f);
 
+struct ast_frame *ast_rtp_read(struct ast_rtp *rtp);
+
+int ast_rtp_fd(struct ast_rtp *rtp);
+
 int ast_rtp_senddigit(struct ast_rtp *rtp, char digit);
 
 int ast_rtp_settos(struct ast_rtp *rtp, int tos);

@@ -380,11 +380,34 @@ static int mgcp_answer(struct ast_channel *ast)
 	return res;
 }
 
+static struct ast_frame *mgcp_rtp_read(struct mgcp_endpoint *p)
+{
+	/* Retrieve audio/etc from channel.  Assumes p->lock is already held. */
+	struct ast_frame *f;
+	f = ast_rtp_read(p->rtp);
+	if (p->owner) {
+		/* We already hold the channel lock */
+		if (f->frametype == AST_FRAME_VOICE) {
+			if (f->subclass != p->owner->nativeformats) {
+				ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
+				p->owner->nativeformats = f->subclass;
+				ast_set_read_format(p->owner, p->owner->readformat);
+				ast_set_write_format(p->owner, p->owner->writeformat);
+			}
+		}
+	}
+	return f;
+}
+
+
 static struct ast_frame  *mgcp_read(struct ast_channel *ast)
 {
-	static struct ast_frame f = { AST_FRAME_NULL, };
-	ast_log(LOG_DEBUG, "I should never get called but am on %s!\n", ast->name);
-	return &f;
+	struct ast_frame *fr;
+	struct mgcp_endpoint *p = ast->pvt->pvt;
+	ast_pthread_mutex_lock(&p->lock);
+	fr = mgcp_rtp_read(p);
+	ast_pthread_mutex_unlock(&p->lock);
+	return fr;
 }
 
 static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame)
@@ -473,6 +496,8 @@ static struct ast_channel *mgcp_new(struct mgcp_endpoint *i, int state)
 			tmp->nativeformats = capability;
 		fmt = ast_best_codec(tmp->nativeformats);
 		snprintf(tmp->name, sizeof(tmp->name), "MGCP/%s@%s", i->name, i->parent->name);
+		if (i->rtp)
+			tmp->fds[0] = ast_rtp_fd(i->rtp);
 		tmp->type = type;
 		ast_setstate(tmp, state);
 		if (state == AST_STATE_RING)
@@ -556,6 +581,7 @@ static char *get_header(struct mgcp_request *req, char *name)
 	return __get_header(req, name, &start);
 }
 
+#if 0
 static int rtpready(struct ast_rtp *rtp, struct ast_frame *f, void *data)
 {
 	/* Just deliver the audio directly */
@@ -582,6 +608,7 @@ static int rtpready(struct ast_rtp *rtp, struct ast_frame *f, void *data)
 	ast_pthread_mutex_unlock(&p->lock);
 	return 0;
 }
+#endif
 
 static struct mgcp_endpoint *find_endpoint(char *name, int msgid, struct sockaddr_in *sin)
 {
@@ -1081,9 +1108,13 @@ static void start_rtp(struct mgcp_endpoint *p)
 {
 		ast_pthread_mutex_lock(&p->lock);
 		/* Allocate the RTP now */
-		p->rtp = ast_rtp_new(sched, io);
+		p->rtp = ast_rtp_new(NULL, NULL);
+		if (p->rtp && p->owner)
+			p->owner->fds[0] = ast_rtp_fd(p->rtp);
+#if 0
 		ast_rtp_set_callback(p->rtp, rtpready);
 		ast_rtp_set_data(p->rtp, p);
+#endif		
 		/* Make a call*ID */
 		snprintf(p->callid, sizeof(p->callid), "%08x%s", rand(), p->txident);
 		/* Transmit the connection create */

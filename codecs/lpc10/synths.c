@@ -1,8 +1,11 @@
 /*
 
 $Log$
-Revision 1.13  2000/01/05 08:20:39  markster
-Version 0.3.0 from FTP
+Revision 1.14  2003/02/12 13:59:15  matteo
+mer feb 12 14:56:57 CET 2003
+
+Revision 1.1.1.1  2003/02/12 13:59:15  matteo
+mer feb 12 14:56:57 CET 2003
 
 Revision 1.2  2000/01/05 08:20:39  markster
 Some OSS fixes and a few lpc changes to make it actually work
@@ -58,9 +61,12 @@ static real c_b2 = .7f;
 /* 	SYNTHS Version 54 */
 
 /* $Log$
- * Revision 1.13  2000/01/05 08:20:39  markster
- * Version 0.3.0 from FTP
+ * Revision 1.14  2003/02/12 13:59:15  matteo
+ * mer feb 12 14:56:57 CET 2003
  *
+/* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
+/* mer feb 12 14:56:57 CET 2003
+/*
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
 /*
@@ -178,9 +184,12 @@ static real c_b2 = .7f;
     real rci[160]	/* was [10][16] */;
 
 /* $Log$
- * Revision 1.13  2000/01/05 08:20:39  markster
- * Version 0.3.0 from FTP
+ * Revision 1.14  2003/02/12 13:59:15  matteo
+ * mer feb 12 14:56:57 CET 2003
  *
+/* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
+/* mer feb 12 14:56:57 CET 2003
+/*
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
 /*
@@ -209,9 +218,12 @@ static real c_b2 = .7f;
 /* Frame size, Prediction order, Pitch period */
 /*       Arguments */
 /* $Log$
- * Revision 1.13  2000/01/05 08:20:39  markster
- * Version 0.3.0 from FTP
+ * Revision 1.14  2003/02/12 13:59:15  matteo
+ * mer feb 12 14:56:57 CET 2003
  *
+/* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
+/* mer feb 12 14:56:57 CET 2003
+/*
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
 /*

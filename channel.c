@@ -376,6 +376,7 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int lock)
 int ast_queue_hangup(struct ast_channel *chan, int lock)
 {
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
+	chan->_softhangup |= AST_SOFTHANGUP_DEV;
 	return ast_queue_frame(chan, &f, lock);
 }
 
@@ -1145,7 +1146,7 @@ static int do_senddigit(struct ast_channel *chan, char digit)
 int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 {
 	int res = -1;
-	struct ast_frame *f;
+	struct ast_frame *f = NULL;
 	/* Stop if we're a zombie or need a soft hangup */
 	if (chan->zombie || ast_check_hangup(chan)) 
 		return -1;
@@ -1180,7 +1181,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	default:
 		if (chan->pvt->write) {
 			if (chan->pvt->writetrans) {
-				f = ast_translate(chan->pvt->writetrans, fr, 1);
+				f = ast_translate(chan->pvt->writetrans, fr, 0);
 			} else
 				f = fr;
 			if (f)	
@@ -1189,6 +1190,8 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 				res = 0;
 		}
 	}
+	if (f && (f != fr))
+		ast_frfree(f);
 	chan->blocking = 0;
 	/* Consider a write failure to force a soft hangup */
 	if (res < 0)

@@ -27,8 +27,6 @@
 
 static char *tdesc = "Save substring digits in a given variable";
 
-extern void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value);
-
 static char *descrip =
 "  StripLSD(variable=string_of_digits|count1|count2): Assigns the substring\n"
 "of string_of_digits to a given variable. Parameter count1 may be positive\n"

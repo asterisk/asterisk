@@ -61,6 +61,10 @@ struct ast_rtp {
 	ast_rtp_callback callback;
 };
 
+int ast_rtp_fd(struct ast_rtp *rtp)
+{
+	return rtp->s;
+}
 
 static int g723_len(unsigned char buf)
 {
@@ -106,7 +110,7 @@ void ast_rtp_set_callback(struct ast_rtp *rtp, ast_rtp_callback callback)
 	rtp->callback = callback;
 }
 
-static void send_dtmf(struct ast_rtp *rtp)
+static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
 {
 	printf("Sending dtmf: %d (%c)\n", rtp->resp, rtp->resp);
 	rtp->f.frametype = AST_FRAME_DTMF;
@@ -116,15 +120,15 @@ static void send_dtmf(struct ast_rtp *rtp)
 	rtp->f.mallocd = 0;
 	rtp->f.src = "RTP";
 	rtp->resp = 0;
-	if (rtp->callback)
-		rtp->callback(rtp, &rtp->f, rtp->data);
+	return &rtp->f;
 	
 }
 
-static void process_rfc2833(struct ast_rtp *rtp, unsigned char *data, int len)
+static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *data, int len)
 {
 	unsigned int event;
 	char resp = 0;
+	struct ast_frame *f = NULL;
 	event = ntohl(*((unsigned int *)(data)));
 	event >>= 24;
 #if 0
@@ -140,16 +144,17 @@ static void process_rfc2833(struct ast_rtp *rtp, unsigned char *data, int len)
 		resp = 'A' + (event - 12);
 	}
 	if (rtp->resp && (rtp->resp != resp)) {
-		send_dtmf(rtp);
+		f = send_dtmf(rtp);
 	}
 	rtp->resp = resp;
 	rtp->dtmfcount = dtmftimeout;
+	return f;
 }
 
-static void process_type121(struct ast_rtp *rtp, unsigned char *data, int len)
+static struct ast_frame *process_type121(struct ast_rtp *rtp, unsigned char *data, int len)
 {
 	char resp = 0;
-	
+	struct ast_frame *f = NULL;
 	unsigned char b0,b1,b2,b3,b4,b5,b6,b7;
 	
 	b0=*(data+0);b1=*(data+1);b2=*(data+2);b3=*(data+3);
@@ -169,7 +174,7 @@ static void process_type121(struct ast_rtp *rtp, unsigned char *data, int len)
 				resp='A'+(b3-12);
 			}
 			rtp->resp=resp;
-			send_dtmf(rtp);
+			f = send_dtmf(rtp);
 		}
 	}
 	if (b2==3) {
@@ -178,11 +183,23 @@ static void process_type121(struct ast_rtp *rtp, unsigned char *data, int len)
 	if (b2==0) {
 //		printf("Stop(0) %d\n",b3);
 	}
+	return f;
 }
 
 static int rtpread(int *id, int fd, short events, void *cbdata)
 {
 	struct ast_rtp *rtp = cbdata;
+	struct ast_frame *f;
+	f = ast_rtp_read(rtp);
+	if (f) {
+		if (rtp->callback)
+			rtp->callback(rtp, f, rtp->data);
+	}
+	return 1;
+}
+
+struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
+{
 	int res;
 	struct sockaddr_in sin;
 	int len;
@@ -191,6 +208,7 @@ static int rtpread(int *id, int fd, short events, void *cbdata)
 	int hdrlen = 12;
 	unsigned int timestamp;
 	unsigned int *rtpheader;
+	static struct ast_frame *f, null_frame = { AST_FRAME_NULL, };
 	
 	len = sizeof(sin);
 	
@@ -202,11 +220,11 @@ static int rtpread(int *id, int fd, short events, void *cbdata)
 		ast_log(LOG_WARNING, "RTP Read error: %s\n", strerror(errno));
 		if (errno == EBADF)
 			CRASH;
-		return 1;
+		return &null_frame;
 	}
 	if (res < hdrlen) {
 		ast_log(LOG_WARNING, "RTP Read too short\n");
-		return 1;
+		return &null_frame;
 	}
 	/* Get fields */
 	seqno = ntohl(rtpheader[0]);
@@ -219,19 +237,23 @@ static int rtpread(int *id, int fd, short events, void *cbdata)
 	rtp->f.frametype = AST_FRAME_VOICE;
 	rtp->f.subclass = rtp2ast(payloadtype);
 	if (rtp->f.subclass < 0) {
+		f = NULL;
 		if (payloadtype == 101) {
 			/* It's special -- rfc2833 process it */
-			process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
+			f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
 		} else if (payloadtype == 121) {
 			/* CISCO proprietary DTMF bridge */
-			process_type121(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
+			f = process_type121(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
 		} else if (payloadtype == 100) {
 			/* CISCO's notso proprietary DTMF bridge */
-			process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
+			f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
 		} else {
 			ast_log(LOG_NOTICE, "Unknown RTP codec %d received\n", payloadtype);
 		}
-		return 1;
+		if (f)
+			return f;
+		else
+			return &null_frame;
 	}
 
 	if (!rtp->lastrxts)
@@ -253,10 +275,8 @@ static int rtpread(int *id, int fd, short events, void *cbdata)
 
 	/* Send any pending DTMF */
 	if (rtp->resp && !rtp->dtmfcount) {
-		send_dtmf(rtp);
-		/* Setup the voice frame again */
-		rtp->f.frametype = AST_FRAME_VOICE;
-		rtp->f.subclass = rtp2ast(payloadtype);
+		printf("Sending pending DTMF\n");
+		return send_dtmf(rtp);
 	}
 	rtp->f.mallocd = 0;
 	rtp->f.datalen = res - hdrlen;
@@ -287,9 +307,7 @@ static int rtpread(int *id, int fd, short events, void *cbdata)
 		break;
 	}
 	rtp->f.src = "RTP";
-	if (rtp->callback)
-		rtp->callback(rtp, &rtp->f, rtp->data);
-	return 1;
+	return &rtp->f;
 }
 
 static struct {
@@ -370,9 +388,12 @@ struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io)
 			return NULL;
 		}
 	}
-	rtp->io = io;
-	rtp->sched = sched;
-	rtp->ioid = ast_io_add(rtp->io, rtp->s, rtpread, AST_IO_IN, rtp);
+	if (io && sched) {
+		/* Operate this one in a callback mode */
+		rtp->sched = sched;
+		rtp->io = io;
+		rtp->ioid = ast_io_add(rtp->io, rtp->s, rtpread, AST_IO_IN, rtp);
+	}
 	return rtp;
 }
 

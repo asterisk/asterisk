@@ -72,8 +72,6 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-extern char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name);
-extern void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value);
 
 #define TONE_BLOCK_SIZE 200
 

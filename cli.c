@@ -198,6 +198,7 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 #define FORMAT_STRING  "%15s  (%-10s %-12s %-4d) %7s %-12s  %-15s\n"
 #define FORMAT_STRING2 "%15s  (%-10s %-12s %-4s) %7s %-12s  %-15s\n"
 	struct ast_channel *c=NULL;
+	int numchans = 0;
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	c = ast_channel_walk(NULL);
@@ -205,8 +206,10 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 	while(c) {
 		ast_cli(fd, FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
 		c->appl ? c->appl : "(None)", c->data ? ( strlen(c->data) ? c->data : "(Empty)" ): "(None)");
+		numchans++;
 		c = ast_channel_walk(c);
 	}
+	ast_cli(fd, "%d active channel(s)\n", numchans);
 	return RESULT_SUCCESS;
 }
 

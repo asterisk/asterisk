@@ -1059,6 +1059,7 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 	char *whole_exten;
 	char *exten, *prior;
 	char *cidmatch, *app, *app_data;
+	char *start, *end;
 
 	/* check for arguments at first */
 	if (argc != 5 && argc != 6) return RESULT_SHOWUSAGE;
@@ -1075,7 +1076,14 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 	}
 	prior       = strsep(&whole_exten,",");
 	app         = strsep(&whole_exten,",");
-	app_data    = whole_exten;
+	if ((start = strchr(app, '(')) && (end = strrchr(app, ')'))) {
+		*start = *end = '\0';
+		app_data = start + 1;
+		for (start = app_data; *start; start++)
+			if (*start == ',')
+				*start = '|';
+	} else
+		app_data    = whole_exten;
 
 	if (!exten || !prior || !app || !app_data) return RESULT_SHOWUSAGE;
 
@@ -1466,6 +1474,7 @@ static int pbx_load_module(void)
 	struct ast_variable *v;
 	char *cxt, *ext, *pri, *appl, *data, *tc, *cidmatch;
 	struct ast_context *con;
+	char *start, *end;
 
 	cfg = ast_load(config);
 	if (cfg) {
@@ -1474,10 +1483,15 @@ static int pbx_load_module(void)
 			"static"));
 		write_protect_config = ast_true(ast_variable_retrieve(cfg, "general",
 			"writeprotect"));
+		v = ast_variable_browse(cfg, "globals");
+		while(v) {
+			pbx_builtin_setvar_helper(NULL, v->name, v->value);
+			v = v->next;
+		}
 		cxt = ast_category_browse(cfg, NULL);
 		while(cxt) {
 			/* All categories but "general" are considered contexts */
-			if (!strcasecmp(cxt, "general")) {
+			if (!strcasecmp(cxt, "general") || !strcasecmp(cxt, "globals")) {
 				cxt = ast_category_browse(cfg, cxt);
 				continue;
 			}
@@ -1495,10 +1509,18 @@ static int pbx_load_module(void)
 							pri = strsep(&stringp, ",");
 							if (!pri)
 								pri="";
-							appl = strsep(&stringp, ",");
+							appl = stringp;
+							if (!(start = strchr(appl, '(')))
+								appl = strsep(&stringp, ",");
 							if (!appl)
 								appl="";
-							if (stringp!=NULL && *stringp=='"') {
+							if (start && (end = strrchr(appl, ')'))) {
+								*start = *end = '\0';
+								data = start + 1;
+								for (start = data; *start; start++)
+									if (*start == ',')
+										*start = '|';
+							} else if (stringp!=NULL && *stringp=='"') {
 								stringp++;
 								data = strsep(&stringp, "\"");
 								stringp++;
@@ -1566,6 +1588,7 @@ int load_module(void)
 int reload(void)
 {
 	ast_context_destroy(NULL, registrar);
+	pbx_builtin_clear_globals();
 	pbx_load_module();
 	return 0;
 }

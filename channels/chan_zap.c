@@ -3320,6 +3320,8 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		/* Assume calls are not idle calls unless we're told differently */
 		i->isidlecall = 0;
 #endif
+		/* Assure there is no confmute on this channel */
+		zt_confmute(i, 0);
 		if (startpbx) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
@@ -5260,6 +5262,7 @@ static void *pri_dchannel(void *vpri)
 							pri->pvt[x]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 				}
 				break;
+			case PRI_EVENT_INFO_RECEIVED:
 			case PRI_EVENT_RING:
 				chan = e->ring.channel;
 				if ((chan < 1) || (chan > pri->channels)) {
@@ -5281,20 +5284,22 @@ static void *pri_dchannel(void *vpri)
 				if (!chan && (e->ring.flexible))
 					chan = pri_find_empty_chan(pri);
 				if (chan) {
-					/* Get caller ID */
-					if (pri->pvt[chan]->use_callerid) {
-						if (strlen(e->ring.callingname)) {
-							snprintf(pri->pvt[chan]->callerid, sizeof(pri->pvt[chan]->callerid), "\"%s\" <%s>", e->ring.callingname, e->ring.callingnum);
+					if (e->e==PRI_EVENT_RING) {
+						/* Get caller ID */
+						if (pri->pvt[chan]->use_callerid) {
+							if (strlen(e->ring.callingname)) {
+								snprintf(pri->pvt[chan]->callerid, sizeof(pri->pvt[chan]->callerid), "\"%s\" <%s>", e->ring.callingname, e->ring.callingnum);
+							} else
+								strncpy(pri->pvt[chan]->callerid, e->ring.callingnum, sizeof(pri->pvt[chan]->callerid)-1);
 						} else
-							strncpy(pri->pvt[chan]->callerid, e->ring.callingnum, sizeof(pri->pvt[chan]->callerid)-1);
-					} else
-						strcpy(pri->pvt[chan]->callerid, "");
+							strcpy(pri->pvt[chan]->callerid, "");
+						strncpy(pri->pvt[chan]->rdnis, e->ring.redirectingnum, sizeof(pri->pvt[chan]->rdnis));
+					}
 					/* Get called number */
 					if (strlen(e->ring.callednum)) {
 						strncpy(pri->pvt[chan]->exten, e->ring.callednum, sizeof(pri->pvt[chan]->exten)-1);
 					} else
 						strcpy(pri->pvt[chan]->exten, "s");
-					strncpy(pri->pvt[chan]->rdnis, e->ring.redirectingnum, sizeof(pri->pvt[chan]->rdnis));
 					/* Make sure extension exists */
 					if (ast_exists_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid)) {
 						/* Setup law */
@@ -5324,10 +5329,15 @@ static void *pri_dchannel(void *vpri)
 							pri->pvt[chan]->call = 0;
 						}
 					} else {
-						if (option_verbose > 2) 
-							ast_verbose(VERBOSE_PREFIX_3 "Extension '%s' in context '%s' from '%s' does not exist.  Rejecting call on channel %d, span %d\n", 
-								pri->pvt[chan]->exten, pri->pvt[chan]->context, pri->pvt[chan]->callerid, chan, pri->span);
-						pri_release(pri->pri, e->ring.call, PRI_CAUSE_UNALLOCATED);
+						if (ast_matchmore_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid))
+						{
+							if (e->e==PRI_EVENT_RING) pri_need_more_info(pri->pri, e->ring.call, chan, 1);
+						} else {
+							if (option_verbose > 2)
+								ast_verbose(VERBOSE_PREFIX_3 "Extension '%s' in context '%s' from '%s' does not exist.  Rejecting call on channel %d, span %d\n",
+							pri->pvt[chan]->exten, pri->pvt[chan]->context, pri->pvt[chan]->callerid, chan, pri->span);
+							pri_release(pri->pri, e->ring.call, PRI_CAUSE_UNALLOCATED);
+						}
 					}
 				} else 
 					pri_release(pri->pri, e->ring.call, PRI_CAUSE_REQUESTED_CHAN_UNAVAIL);

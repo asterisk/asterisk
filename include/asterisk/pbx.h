@@ -435,6 +435,10 @@ struct ast_ignorepat *ast_walk_context_ignorepats(struct ast_context *con,
 	struct ast_ignorepat *ip);
 struct ast_sw *ast_walk_context_switches(struct ast_context *con, struct ast_sw *sw);
 
+extern char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name);
+extern void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value);
+extern void pbx_builtin_clear_globals(void);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
