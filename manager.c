@@ -39,6 +39,21 @@
 #include <asterisk/md5.h>
 #include <asterisk/acl.h>
 
+struct fast_originate_helper
+{
+	char tech[256];
+	char data[256];
+	int timeout;
+	char app[256];
+	char appdata[256];
+	char callerid[256];
+	char variable[256];
+	char account[256];
+	char context[256];
+	char exten[256];
+	int priority;
+};
+
 static int enabled = 0;
 static int portno = DEFAULT_MANAGER_PORT;
 static int asock = -1;
@@ -481,6 +496,20 @@ static int action_command(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static void *fast_originate(void *data)
+{
+	struct fast_originate_helper *in = data;
+	int res;
+	int reason = 0;
+	if (strlen(in->app)) {
+		res = ast_pbx_outgoing_app(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->app, in->appdata, &reason, 1, strlen(in->callerid) ? in->callerid : NULL, in->variable, in->account);
+	} else {
+		res = ast_pbx_outgoing_exten(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, strlen(in->callerid) ? in->callerid : NULL, in->variable, in->account);
+	}   
+	free(in);
+	return NULL;
+}
+
 static int action_originate(struct mansession *s, struct message *m)
 {
 	char *name = astman_get_header(m, "Channel");
@@ -493,12 +522,15 @@ static int action_originate(struct mansession *s, struct message *m)
     	char *account = astman_get_header(m, "Account");
 	char *app = astman_get_header(m, "Application");
 	char *appdata = astman_get_header(m, "Data");
+	char *async = astman_get_header(m, "Async");
 	char *tech, *data;
 	int pi = 0;
 	int res;
 	int to = 30000;
 	int reason = 0;
 	char tmp[256];
+	pthread_t th;
+	pthread_attr_t attr;
 	if (!name) {
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
@@ -520,7 +552,39 @@ static int action_originate(struct mansession *s, struct message *m)
 	}
 	*data = '\0';
 	data++;
-	if (strlen(app)) {
+	if (ast_true(async))
+	{
+		struct fast_originate_helper *fast = malloc(sizeof(struct fast_originate_helper));
+		if (!fast)
+		{
+			res = -1;
+		}
+		else
+		{
+			memset(fast, 0, sizeof(struct fast_originate_helper));
+			strncpy(fast->tech, tech, sizeof(fast->tech) - 1);
+   			strncpy(fast->data, data, sizeof(fast->data) - 1);
+			strncpy(fast->app, app, sizeof(fast->app) - 1);
+			strncpy(fast->appdata, appdata, sizeof(fast->appdata) - 1);
+			strncpy(fast->callerid, callerid, sizeof(fast->callerid) - 1);
+			strncpy(fast->variable, variable, sizeof(fast->variable) - 1);
+			strncpy(fast->account, account, sizeof(fast->account) - 1);
+			strncpy(fast->context, context, sizeof(fast->context) - 1);
+			strncpy(fast->exten, exten, sizeof(fast->exten) - 1);
+			fast->timeout = to;
+			fast->priority = pi;
+			pthread_attr_init(&attr);
+			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+			if (pthread_create(&th, &attr, fast_originate, fast))
+			{
+				res = -1;
+			}
+			else
+			{
+				res = 0;
+			}
+		}
+	} else if (strlen(app)) {
         	res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 0, strlen(callerid) ? callerid : NULL, variable, account);
     	} else {
 		if (exten && context && pi)

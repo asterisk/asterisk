@@ -71,7 +71,7 @@ Parameters: Mailbox, ActionID
 
 Command: Originate
 Parameters: Channel, Exten, Context, Priority, Timeout, 
-CallerID, Variable, Account, Application, Data
+CallerID, Variable, Account, Application, Data, Async
 
 Command: Ping
 Parameters: None
@@ -97,6 +97,15 @@ Originate - Originate a call from a channel to an extension.
    Channel: sip/12345
    Exten: 1234
    Context: default
+
+Originate - Originate a call from a channel to an extension without waiting
+for call to complete.
+
+   Action: Originate
+   Channel: sip/12345
+   Exten: 1234
+   Context: default
+   Async: yes
 
 
 Redirect with ExtraChannel:
