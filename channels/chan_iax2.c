@@ -3829,13 +3829,27 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					ast_log(LOG_DEBUG, "Ooh, voice format changed to %d\n", f.subclass);
 					if (iaxs[fr.callno]->owner) {
 						int orignative;
-						ast_pthread_mutex_lock(&iaxs[fr.callno]->owner->lock);
-						orignative = iaxs[fr.callno]->owner->nativeformats;
-						iaxs[fr.callno]->owner->nativeformats = f.subclass;
-						if (iaxs[fr.callno]->owner->readformat)
-							ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat);
-						iaxs[fr.callno]->owner->nativeformats = orignative;
-						ast_pthread_mutex_unlock(&iaxs[fr.callno]->owner->lock);
+retryowner:
+						if (pthread_mutex_trylock(&iaxs[fr.callno]->owner->lock)) {
+							ast_pthread_mutex_unlock(&iaxsl[fr.callno]);
+							usleep(1);
+							ast_pthread_mutex_lock(&iaxsl[fr.callno]);
+							if (iaxs[fr.callno] && iaxs[fr.callno]->owner) goto retryowner;
+						}
+						if (iaxs[fr.callno]) {
+							if (iaxs[fr.callno]->owner) {
+								orignative = iaxs[fr.callno]->owner->nativeformats;
+								iaxs[fr.callno]->owner->nativeformats = f.subclass;
+								if (iaxs[fr.callno]->owner->readformat)
+									ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat);
+								iaxs[fr.callno]->owner->nativeformats = orignative;
+								ast_pthread_mutex_unlock(&iaxs[fr.callno]->owner->lock);
+							}
+						} else {
+							ast_log(LOG_DEBUG, "Neat, somebody took away the channel at a magical time but i found it!\n");
+							ast_pthread_mutex_unlock(&iaxsl[fr.callno]);
+							return 1;
+						}
 					}
 			}
 		}
