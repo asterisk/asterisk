@@ -15,6 +15,8 @@
 #include <asterisk/manager.h>
 #include <asterisk/cli.h>
 #include <asterisk/monitor.h>
+#include <asterisk/app.h>
+#include <asterisk/utils.h>
 #include "../asterisk.h"
 #include "../astconf.h"
 
@@ -27,13 +29,21 @@ static unsigned long seq = 0;
 static char *monitor_synopsis = "Monitor a channel";
 
 static char *monitor_descrip = "Monitor([file_format|[fname_base]|[options]]):\n"
-	"Used to start monitoring a channel. The channel's input and output\n"
-	"voice packets are logged to files until the channel hangs up or\n"
-	"monitoring is stopped by the StopMonitor application.\n"
-	"	file_format -- optional, if not set, defaults to \"wav\"\n"
-	"	fname_base -- if set, changes the filename used to the one specified.\n"
-	"	options:\n"
-	"		'm' - when the recording ends mix the two leg files into one using 'soxmix' utility which has to be installed on the system.\n";
+"Used to start monitoring a channel. The channel's input and output\n"
+"voice packets are logged to files until the channel hangs up or\n"
+"monitoring is stopped by the StopMonitor application.\n"
+"      file_format -- optional, if not set, defaults to \"wav\"\n"
+"      fname_base -- if set, changes the filename used to the one specified.\n"
+"      options:\n"
+"              'm' - when the recording ends mix the two leg files into one and\n"
+"                    delete the two leg files.  If MONITOR_EXEC is set, the\n"
+"                    application refernced in it will be executed instead of\n"
+"                    soxmix and the raw leg files will NOT be deleted automatically.\n"
+"                    soxmix or MONITOR_EXEC is handed 3 arguments, the two leg files\n"
+"                    and a target mixed file name which is the same as the leg file names\n"
+"                    only without the in/out designator.\n\n"
+"                    Both MONITOR_EXEC and the Mix flag can be set from the\n"
+"                    administrator interface\n";
 
 static char *stopmonitor_synopsis = "Stop monitoring a channel";
 
@@ -161,6 +171,8 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 /* Stop monitoring a channel */
 int ast_monitor_stop( struct ast_channel *chan, int need_lock )
 {
+  char *execute=NULL;
+  int soxmix =0;
 	if(need_lock) {
 		if(ast_mutex_lock(&chan->lock)) {
 			ast_log(LOG_WARNING, "Unable to lock channel\n");
@@ -205,19 +217,29 @@ int ast_monitor_stop( struct ast_channel *chan, int need_lock )
 							chan->monitor->write_filename );
 			}
 		}
-		if (chan->monitor->joinfiles && strlen(chan->monitor->filename_base)) {
+
+		if (chan->monitor->joinfiles && !ast_strlen_zero(execute) && strlen(chan->monitor->filename_base)) {
 			char tmp[1024];
+			char tmp2[1024];
 			char *format = !strcasecmp(chan->monitor->format,"wav49") ? "WAV" : chan->monitor->format;
 			char *name = chan->monitor->filename_base;
 			int directory = strchr(name, '/') ? 1 : 0;
 			char *dir = directory ? "" : AST_MONITOR_DIR;
-			snprintf(tmp, sizeof(tmp), "nice -n 19 soxmix %s/%s-in.%s %s/%s-out.%s %s/%s.%s && rm -rf %s/%s-* &", dir, name, format, dir, name, format, dir, name, format, dir, name);
-#if 0
-			ast_verbose("executing %s\n",tmp);
-#endif
-			if (system(tmp) == -1)
-				ast_log(LOG_WARNING, "You might not have the soxmix installed and available in the path, please check.\n");
+
+		        /* Set the execute application */
+		        execute=pbx_builtin_getvar_helper(chan,"MONITOR_EXEC");
+		        if (!execute || ast_strlen_zero(execute)) { 
+			  execute = "nice -n 19 soxmix"; 
+			  soxmix = 1;
+			}			
+			snprintf(tmp, sizeof(tmp), "%s %s/%s-in.%s %s/%s-out.%s %s/%s.%s &", execute, dir, name, format, dir, name, format, dir, name, format);
+			if (soxmix) 
+			  snprintf(tmp2,sizeof(tmp2), "%s& rm -f %s/%s-* &",tmp, dir ,name); /* remove legs when done mixing */
+			ast_verbose("monitor executing %s\n",tmp);
+			if (ast_safe_system(tmp) == -1)
+			  ast_log(LOG_WARNING, "Execute of %s failed.\n",tmp);
 		}
+		
 		free( chan->monitor->format );
 		free( chan->monitor );
 		chan->monitor = NULL;
@@ -329,6 +351,7 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 	char *name = astman_get_header(m, "Channel");
 	char *fname = astman_get_header(m, "File");
 	char *format = astman_get_header(m, "Format");
+	char *mix = astman_get_header(m, "Mix");
 	char *d;
 	
 	if((!name)||(!strlen(name))) {
@@ -363,6 +386,11 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 			return 0;
 		}
 	}
+
+	if(ast_true(mix)) {
+	  ast_monitor_setjoinfiles( c, 1);
+	}
+
 	ast_mutex_unlock(&c->lock);
 	astman_send_ack(s, m, "Started monitoring channel");
 	return 0;

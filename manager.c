@@ -475,6 +475,81 @@ static int action_hangup(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static int action_setvar(struct mansession *s, struct message *m)
+{
+        struct ast_channel *c = NULL;
+        char *name = astman_get_header(m, "Channel");
+        char *varname = astman_get_header(m, "Variable");
+        char *varval = astman_get_header(m, "Value");
+	
+	if (!strlen(name)) {
+		astman_send_error(s, m, "No channel specified");
+		return 0;
+	}
+	if (!strlen(varname)) {
+		astman_send_error(s, m, "No variable specified");
+		return 0;
+	}
+
+	c = ast_channel_walk_locked(NULL);
+	while(c) {
+		if (!strcasecmp(c->name, name)) {
+			break;
+		}
+		ast_mutex_unlock(&c->lock);
+		c = ast_channel_walk_locked(c);
+	}
+	if (!c) {
+		astman_send_error(s, m, "No such channel");
+		return 0;
+	}
+	
+	pbx_builtin_setvar_helper(c,varname,varval);
+	  
+	ast_mutex_unlock(&c->lock);
+	astman_send_ack(s, m, "Variable Set");
+	return 0;
+}
+
+static int action_getvar(struct mansession *s, struct message *m)
+{
+        struct ast_channel *c = NULL;
+        char *name = astman_get_header(m, "Channel");
+        char *varname = astman_get_header(m, "Variable");
+	char *varval;
+
+	if (!strlen(name)) {
+		astman_send_error(s, m, "No channel specified");
+		return 0;
+	}
+	if (!strlen(varname)) {
+		astman_send_error(s, m, "No variable specified");
+		return 0;
+	}
+
+	c = ast_channel_walk_locked(NULL);
+	while(c) {
+		if (!strcasecmp(c->name, name)) {
+			break;
+		}
+		ast_mutex_unlock(&c->lock);
+		c = ast_channel_walk_locked(c);
+	}
+	if (!c) {
+		astman_send_error(s, m, "No such channel");
+		return 0;
+	}
+	
+	varval=pbx_builtin_getvar_helper(c,varname);
+	  
+	ast_mutex_unlock(&c->lock);
+	ast_cli(s->fd, "Response: Success\r\n"
+		"%s: %s",varname,varval);
+
+	return 0;
+}
+
+
 static int action_status(struct mansession *s, struct message *m)
 {
 	char *id = astman_get_header(m,"ActionID");
@@ -1157,6 +1232,8 @@ int init_manager(void)
 		ast_manager_register( "Logoff", 0, action_logoff, "Logoff Manager" );
 		ast_manager_register( "Hangup", EVENT_FLAG_CALL, action_hangup, "Hangup Channel" );
 		ast_manager_register( "Status", EVENT_FLAG_CALL, action_status, "Status" );
+		ast_manager_register( "Setvar", EVENT_FLAG_CALL, action_setvar, "Set Channel Variable" );
+		ast_manager_register( "Getvar", EVENT_FLAG_CALL, action_getvar, "Gets a Channel Variable" );
 		ast_manager_register( "Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect" );
 		ast_manager_register2("Originate", EVENT_FLAG_CALL, action_originate, "Originate Call", mandescr_originate);
 		ast_manager_register( "MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox" );
