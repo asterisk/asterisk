@@ -65,7 +65,7 @@ int fully_booted = 0;
 
 static int ast_socket = -1;		/* UNIX Socket for allowing remote control */
 static int ast_consock = -1;		/* UNIX Socket for controlling another asterisk */
-static int mainpid;
+int ast_mainpid;
 struct console {
 	int fd;					/* File descriptor */
 	int p[2];				/* Pipe */
@@ -196,7 +196,7 @@ static void *netconsole(void *vconsole)
 	
 	if (gethostname(hostname, sizeof(hostname)))
 		strncpy(hostname, "<Unknown>", sizeof(hostname)-1);
-	snprintf(tmp, sizeof(tmp), "%s/%d/%s\n", hostname, mainpid, ASTERISK_VERSION);
+	snprintf(tmp, sizeof(tmp), "%s/%d/%s\n", hostname, ast_mainpid, ASTERISK_VERSION);
 	fdprint(con->fd, tmp);
 	for(;;) {
 		FD_ZERO(&rfds);	
@@ -1271,7 +1271,7 @@ int main(int argc, char *argv[])
 	}
 	if (gethostname(hostname, sizeof(hostname)))
 		strncpy(hostname, "<Unknown>", sizeof(hostname)-1);
-	mainpid = getpid();
+	ast_mainpid = getpid();
 	ast_ulaw_init();
 	ast_alaw_init();
 	callerid_init();
@@ -1500,7 +1500,7 @@ int main(int argc, char *argv[])
 		/* Register our quit function */
 		char title[256];
 		set_icon("Asterisk");
-		snprintf(title, sizeof(title), "Asterisk Console on '%s' (pid %d)", hostname, mainpid);
+		snprintf(title, sizeof(title), "Asterisk Console on '%s' (pid %d)", hostname, ast_mainpid);
 		set_title(title);
 	    ast_cli_register(&quit);
 	    ast_cli_register(&astexit);
