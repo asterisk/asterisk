@@ -3130,6 +3130,7 @@ static int complete_transfer(int callno, struct iax_ies *ies)
 	/* Reset sequence numbers */
 	pvt->oseqno = 0;
 	pvt->iseqno = 0;
+	pvt->aseqno = 0;
 	pvt->peercallno = peercallno;
 	pvt->transferring = TRANSFER_NONE;
 	pvt->svoiceformat = -1;
