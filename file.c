@@ -172,9 +172,14 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Tried to write non-voice frame\n");
 		return -1;
 	}
-	if ((fs->fmt->format & f->subclass) == f->subclass)
-		return fs->fmt->write(fs, f);
-	else {
+	if ((fs->fmt->format & f->subclass) == f->subclass) {
+		res =  fs->fmt->write(fs, f);
+		if (res < 0) 
+			ast_log(LOG_WARNING, "Natural write failed\n");
+		if (res > 0)
+			ast_log(LOG_WARNING, "Huh??\n");
+		return res;
+	} else {
 		/* XXX If they try to send us a type of frame that isn't the normal frame, and isn't
 		       the one we've setup a translator for, we do the "wrong thing" XXX */
 		if (!fs->trans) 
@@ -182,13 +187,14 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 		if (!fs->trans)
 			ast_log(LOG_WARNING, "Unable to translate to format %s, source format %d\n", fs->fmt->name, f->subclass);
 		else {
+			res = 0;
 			/* Build a chain of translated frames */
 			fc = ast_translate(fs->trans, f);
 			f2 = fc;
 			while(f2) {
 				res = fs->fmt->write(fs, f2->fr);
 				if (res) {
-					ast_log(LOG_WARNING, "Frame write failed\n");
+					ast_log(LOG_WARNING, "Translated frame write failed\n");
 					break;
 				}
 				f2 = f2->next;
@@ -341,12 +347,11 @@ int ast_streamfile(struct ast_channel *chan, char *filename)
 	   1) Find which file handlers produce our type of format.
 	   2) Look for a filename which it can handle.
 	   3) If we find one, then great.  
-	   *4) If not, see what files are there
-	   *5) See what we can actually support
-	   *6) Choose the one with the least costly translator path and
+	   4) If not, see what files are there
+	   5) See what we can actually support
+	   6) Choose the one with the least costly translator path and
 	       set it up.
 		   
-		XXX * = unimplemented XXX
 	*/
 	int fd = -1;
 	struct ast_channel *trans;
