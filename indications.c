@@ -235,7 +235,8 @@ int ast_set_indication_country(const char *country)
 	if (country) {
 		struct tone_zone *z = ast_get_indication_zone(country);
 		if (z) {
-			ast_verbose(VERBOSE_PREFIX_3 "Setting default indication country to '%s'\n",country);
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Setting default indication country to '%s'\n",country);
 			current_tonezone = z;
 			return 0;
 		}
@@ -359,7 +360,8 @@ int ast_register_indication_country(struct tone_zone *zone)
 		tone_zones = zone;
 	ast_mutex_unlock(&tzlock);
 
-	ast_verbose(VERBOSE_PREFIX_3 "Registered indication country '%s'\n",zone->country);
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_3 "Registered indication country '%s'\n",zone->country);
 	return 0;
 }
 
@@ -390,7 +392,8 @@ int ast_unregister_indication_country(const char *country)
 				ast_log(LOG_NOTICE,"Removed default indication country '%s'\n",tz->country);
 				current_tonezone = NULL;
 			}
-			ast_verbose(VERBOSE_PREFIX_3 "Unregistered indication country '%s'\n",tz->country);
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Unregistered indication country '%s'\n",tz->country);
 			free_zone(tz);
 			tz = tmp;
 			res = 0;

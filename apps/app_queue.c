@@ -1131,8 +1131,9 @@ static int queue_exec(struct ast_channel *chan, void *data)
 			}
 		}
 	}
-	printf("queue: %s, options: %s, url: %s, announce: %s\n",
-		queuename, options, url, announceoverride);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "queue: %s, options: %s, url: %s, announce: %s\n",
+					queuename, options, url, announceoverride);
 	/* Setup our queue entry */
 	memset(&qe, 0, sizeof(qe));
 	qe.chan = chan;

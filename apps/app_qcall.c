@@ -338,7 +338,7 @@ time_t	t;
 					strcpy(channel->exten,extstr);
 					strcpy(channel->context,context);
 					channel->priority = 1;
-					printf("Caller ID is %s\n", channel->callerid);
+					if(debug) printf("Caller ID is %s\n", channel->callerid);
 					ast_pbx_run(channel);
 					pthread_exit(NULL);
 				}

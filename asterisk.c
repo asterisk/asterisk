@@ -1232,7 +1232,7 @@ static void ast_readconfig(void) {
 
 int main(int argc, char *argv[])
 {
-	char c;
+	int c;
 	char filename[80] = "";
 	char hostname[256];
 	char tmp[80];
@@ -1269,7 +1269,7 @@ int main(int argc, char *argv[])
 	}
 	*/
 	/* Check for options */
-	while((c=getopt(argc, argv, "hfdvqprgcinx:C:")) != EOF) {
+	while((c=getopt(argc, argv, "hfdvqprgcinx:C:")) != -1) {
 		switch(c) {
 		case 'd':
 			option_debug++;

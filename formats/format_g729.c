@@ -150,12 +150,12 @@ static int g729_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-G729 frame (%d)!\n", f->subclass);
 		return -1;
 	}
-	if (f->datalen % 20) {
-		ast_log(LOG_WARNING, "Invalid data length, %d, should be multiple of 20\n", f->datalen);
+	if (f->datalen % 10) {
+		ast_log(LOG_WARNING, "Invalid data length, %d, should be multiple of 10\n", f->datalen);
 		return -1;
 	}
 	if ((res = write(fs->fd, f->data, f->datalen)) != f->datalen) {
-			ast_log(LOG_WARNING, "Bad write (%d/20): %s\n", res, strerror(errno));
+			ast_log(LOG_WARNING, "Bad write (%d/10): %s\n", res, strerror(errno));
 			return -1;
 	}
 	return 0;

@@ -24,6 +24,7 @@
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
 #include <asterisk/translate.h>
+#include <asterisk/options.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -62,7 +63,8 @@ static void *autodial(void *ignore)
 	int flags = fcntl(fd, F_GETFL);
 	fd_set fds;
 	fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
-	ast_log(LOG_DEBUG, "Entered Wil-Calu fd=%d\n",fd);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Entered Wil-Calu fd=%d\n",fd);
 	if(fd<0) {
 		ast_log(LOG_WARNING, "Autodial: Unable to open file\n");
 		pthread_exit(NULL);

@@ -339,8 +339,7 @@ int load_module(void)
 	pthread_t thread;
 	pthread_attr_t attr;
 	snprintf((char *)qdir,sizeof(qdir)-1,"%s/%s",(char *)ast_config_AST_SPOOL_DIR,"outgoing");
-printf("%s\n",qdir);
-    	if (mkdir(qdir, 0700) && (errno != EEXIST)) {
+	if (mkdir(qdir, 0700) && (errno != EEXIST)) {
 		ast_log(LOG_WARNING, "Unable to create queue directory %s -- outgoing spool disabled\n", qdir);
 		return 0;
 	}
