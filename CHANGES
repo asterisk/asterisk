@@ -1,3 +1,35 @@
+Asterisk 0.1.12
+ -- Fix for Big Endian machines
+ -- MySQL CDR Engine
+ -- Various SIP fixes and enhancements
+ -- Add "zapateller application and arbitrary tone pairs
+ -- Don't always start at "s"
+ -- Separate linear mode for pseudo and real
+ -- Add initial RTP and SIP support (no jitter buffer yet, unknown stability)
+ -- Add 'h' extension, executed on hangup
+ -- Add duration timer to message info
+ -- Add web based voicemail checking ("make webvmail")
+ -- Add ast_queue_frame function and eliminate frame pipes in most drivers
+ -- Centralize host access (and possibly future ACL's)
+ -- Add Caller*ID on PhoneJack (Thanks Nathan)
+ -- Add "safe_asterisk" wrapper script to auto-restart Asterisk
+ -- Indicate ringback on chan_phone
+ -- Add answer confirmation (press '#' to confirm answer)
+ -- Add distinctive ring support (e.g. Dial,Zap/4r2)
+ -- Add ANSI/vt100 color support
+ -- Make parking configurable through parking.conf
+ -- Fix the empty voicemail problem
+ -- Add Music On Hold
+ -- Add ADSI Compiler (app_adsiprog)
+ -- Extensive DISA re-work to improve tone generation
+ -- Reset all idle channels every 10 minutes on a PRI
+ -- Reset channels which are hungup with "channel in use"
+ -- Implement VNAK support in chan_iax
+ -- Fix chan_oss to support proper hangups and autoanswer
+ -- Make shutdown properly hangup channels
+ -- Add idling capability to chan_zap for idle-net
+ -- Add "MeetMe" conferencing app (app_meetme)
+ -- Add timing information to include
 Asterisk 0.1.11
  -- Add ISDN RAS capability
  -- Add stutter dialtone to Chan Zap
