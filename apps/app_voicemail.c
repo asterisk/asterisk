@@ -3517,6 +3517,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	struct ast_vm_user *vmu = NULL, vmus;
 	char *context=NULL;
 	int silentexit = 0;
+	char cid[256]="";
 
 	LOCAL_USER_ADD(u);
 	memset(&vms, 0, sizeof(vms));
@@ -3576,10 +3577,21 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			goto out;
 		}
 		if (ast_strlen_zero(vms.username)) {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Username not entered\n");
-			res = 0;
-			goto out;
+				char *callerid=NULL, *name=NULL;
+				if(chan->callerid != NULL) {
+					strncpy(cid, chan->callerid, sizeof(cid) - 1);
+					ast_callerid_parse(cid, &name, &callerid);
+				}
+				if(callerid != NULL) {			
+					if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "No username but # key pressed. Using CID '%s'\n",callerid);
+					strncpy(vms.username, callerid, sizeof(vms.username) - 1);
+				} else {
+					if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Username not entered\n");	
+					res = 0;
+					goto out;
+				}
 		}
 		if (useadsi)
 			adsi_password(chan);
