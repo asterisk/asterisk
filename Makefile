@@ -540,16 +540,18 @@ webvmail:
 mailbox:
 	./contrib/scripts/addmailbox 
 
+spec: 
+	sed "s/^Version:.*/Version: $(RPMVERSION)/g" redhat/asterisk.spec > asterisk.spec ; \
+
 rpm: __rpm
 
-__rpm: _version
+__rpm: _version spec
 	rm -rf /tmp/asterisk ; \
 	mkdir -p /tmp/asterisk/redhat/RPMS/i386 ; \
 	$(MAKE) DESTDIR=/tmp/asterisk install ; \
 	$(MAKE) DESTDIR=/tmp/asterisk samples ; \
 	mkdir -p /tmp/asterisk/etc/rc.d/init.d ; \
 	cp -f redhat/asterisk /tmp/asterisk/etc/rc.d/init.d/ ; \
-	sed "s/^Version:.*/Version: $(RPMVERSION)/g" redhat/asterisk.spec > asterisk.spec ; \
 	rpmbuild --rcfile /usr/lib/rpm/rpmrc:redhat/rpmrc -bb asterisk.spec
 
 progdocs:
