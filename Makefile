@@ -331,6 +331,11 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/firmware
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/firmware/iax
 	install -m 644 keys/iaxtel.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
+	if [ -d contrib/firmware/iax ]; then \
+		install -m 644 contrib/firmware/iax/iaxy.bin $(DESTDIR)$(ASTVARLIBDIR)/firmware/iax/iaxy.conf ; \
+	else \
+		echo "You need to do cvs update -d not just cvs update" ; \
+	fi 
 	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/vm . )
 	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/voicemail . )
 	@echo " +---- Asterisk Installation Complete -------+"  
