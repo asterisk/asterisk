@@ -113,7 +113,7 @@ static int ices_exec(struct ast_channel *chan, void *data)
 	}
 
 	oreadformat = chan->readformat;
-	res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
+	res = ast_set_read_format(chan, AST_FORMAT_SLINEAR, 0);
 	if (res < 0) {
 		close(fds[0]);
 		close(fds[1]);
@@ -164,7 +164,7 @@ static int ices_exec(struct ast_channel *chan, void *data)
 	if (pid > -1)
 		kill(pid, SIGKILL);
 	if (!res && oreadformat)
-		ast_set_read_format(chan, oreadformat);
+		ast_set_read_format(chan, oreadformat, 0);
 	return res;
 }
 

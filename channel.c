@@ -1505,7 +1505,8 @@ int ast_set_write_format(struct ast_channel *chan, int fmts, int needlock)
 	int native;
 	int res;
 	
-	ast_mutex_lock(&chan->lock);
+	if (needlock)
+		ast_mutex_lock(&chan->lock);
 	native = chan->nativeformats;
 	fmt = fmts;
 	
@@ -1513,7 +1514,8 @@ int ast_set_write_format(struct ast_channel *chan, int fmts, int needlock)
 	if (res < 0) {
 		ast_log(LOG_NOTICE, "Unable to find a path from %s to %s\n",
 			ast_getformatname(fmts), ast_getformatname(chan->nativeformats));
-		ast_mutex_unlock(&chan->lock);
+		if (needlock)
+			ast_mutex_unlock(&chan->lock);
 		return -1;
 	}
 	
@@ -1528,7 +1530,8 @@ int ast_set_write_format(struct ast_channel *chan, int fmts, int needlock)
 	chan->pvt->writetrans = ast_translator_build_path(chan->pvt->rawwriteformat, chan->writeformat);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Set channel %s to write format %s\n", chan->name, ast_getformatname(chan->writeformat));
-	ast_mutex_unlock(&chan->lock);
+	if (needlock)
+		ast_mutex_unlock(&chan->lock);
 	return 0;
 }
 
@@ -1547,7 +1550,8 @@ int ast_set_read_format(struct ast_channel *chan, int fmts, int needlock)
 	if (res < 0) {
 		ast_log(LOG_NOTICE, "Unable to find a path from %s to %s\n",
 			ast_getformatname(chan->nativeformats), ast_getformatname(fmts));
-		ast_mutex_unlock(&chan->lock);
+		if (needlock)
+			ast_mutex_unlock(&chan->lock);
 		return -1;
 	}
 	
@@ -1563,7 +1567,8 @@ int ast_set_read_format(struct ast_channel *chan, int fmts, int needlock)
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Set channel %s to read format %s\n", 
 			chan->name, ast_getformatname(chan->readformat));
-	ast_mutex_unlock(&chan->lock);
+	if (needlock)
+		ast_mutex_unlock(&chan->lock);
 	return 0;
 }
 
