@@ -59,7 +59,7 @@
 #include <mysql/mysql.h>
 #endif
 
-#define VIDEO_CODEC_MASK        0x1fc0000 // Video codecs from H.261 thru AST_FORMAT_MAX_VIDEO
+#define VIDEO_CODEC_MASK        0x1fc0000 /* Video codecs from H.261 thru AST_FORMAT_MAX_VIDEO */
 #ifndef IPTOS_MINCOST
 #define IPTOS_MINCOST 0x02
 #endif
@@ -445,10 +445,10 @@ static int transmit_message_with_text(struct sip_pvt *p, char *text);
 static int transmit_refer(struct sip_pvt *p, char *dest);
 static struct sip_peer *temp_peer(char *name);
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, char *msg, int init);
-// static char *getsipuri(char *header);
+/* static char *getsipuri(char *header); */
 static void free_old_route(struct sip_route *route);
 static int build_reply_digest(struct sip_pvt *p, char *orig_header, char *digest, int digest_len);
-static int find_user(struct sip_pvt *fup, int event);
+static int update_user_counter(struct sip_pvt *fup, int event);
 static void prune_peers(void);
 static int sip_do_reload(void);
 
@@ -805,6 +805,65 @@ static struct sip_peer *mysql_peer(char *peer, struct sockaddr_in *sin)
 }
 #endif /* MYSQL_FRIENDS */
 
+static void update_peer(struct sip_peer *p, int expiry)
+{
+#ifdef MYSQL_FRIENDS
+	if (p->temponly)
+		mysql_update_peer(p->name, &p->addr, p->username, expiry);
+#endif
+	return;
+}
+
+static struct sip_peer *find_peer(char *peer, struct sockaddr_in *sin)
+{
+	struct sip_peer *p = NULL;
+
+	p = peerl.peers;
+	if (peer) {
+		/* Find by peer name */
+		while(p) {
+			if (!strcasecmp(p->name, peer)) {
+				break;
+			}
+			p = p->next;
+		}	
+	}
+	else {
+		/* Find by sin */
+		while(p) {
+			if (!inaddrcmp(&p->addr, sin) || 
+					(p->insecure &&
+					(p->addr.sin_addr.s_addr == sin->sin_addr.s_addr))) {
+				break;
+			}
+			p = p->next;
+		}
+	}
+
+#ifdef MYSQL_FRIENDS
+	if (!p) {
+		p = mysql_peer(peer, sin);
+	}
+#endif
+
+	return(p);
+}
+
+static struct sip_user *find_user(char *name)
+{
+	struct sip_user *u = NULL;
+
+	u = userl.users;
+	while(u) {
+		if (!strcasecmp(u->name, name)) {
+			break;
+		}
+		u = u->next;
+	}
+
+	return(u);
+}
+
 static int create_addr(struct sip_pvt *r, char *peer)
 {
 	struct hostent *hp;
@@ -817,16 +876,7 @@ static int create_addr(struct sip_pvt *r, char *peer)
 
 	r->sa.sin_family = AF_INET;
 	ast_mutex_lock(&peerl.lock);
-	p = peerl.peers;
-	while(p) {
-		if (!strcasecmp(p->name, peer)) 
-			break;
-		p = p->next;
-	}
-#ifdef MYSQL_FRIENDS
-	if (!p)
-		p = mysql_peer(peer, NULL);
-#endif		
+	p = find_peer(peer, NULL);
 
 	if (p) {
 			found++;
@@ -879,8 +929,12 @@ static int create_addr(struct sip_pvt *r, char *peer)
 				}
 				memcpy(&r->recv, &r->sa, sizeof(r->recv));
 			} else {
-				if (p->temponly)
+				if (p->temponly) {
+					if (p->ha) {
+						ast_free_ha(p->ha);
+					}
 					free(p);
+				}
 				p = NULL;
 			}
 	}
@@ -920,8 +974,12 @@ static int create_addr(struct sip_pvt *r, char *peer)
 	} else if (!p)
 		return -1;
 	else {
-		if (p->temponly)
+		if (p->temponly) {
+			if (p->ha) {
+				ast_free_ha(p->ha);
+			}
 			free(p);
+		}
 		return 0;
 	}
 }
@@ -1039,7 +1097,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	res = 0;
 	p->outgoing = 1;
 	ast_log(LOG_DEBUG, "Outgoing Call for %s\n", p->username);
-	res = find_user(p,INC_OUT_USE);
+	res = update_user_counter(p,INC_OUT_USE);
 	if ( res != -1 ) {
 		p->restrictcid = ast->restrictcid;
 		p->jointcapability = p->capability;
@@ -1123,19 +1181,13 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	}
 }
 
-static int find_user(struct sip_pvt *fup, int event)
+static int update_user_counter(struct sip_pvt *fup, int event)
 {
 	char name[256] = "";
 	struct sip_user *u;
 	strncpy(name, fup->username, sizeof(name) - 1);
 	ast_mutex_lock(&userl.lock);
-	u = userl.users;
-	while(u) {
-		if (!strcasecmp(u->name, name)) {
-			break;
-		}
-		u = u->next;
-	}
+	u = find_user(name);
 	if (!u) {
 		ast_log(LOG_DEBUG, "%s is not a local user\n", name);
 		ast_mutex_unlock(&userl.lock);
@@ -1156,11 +1208,11 @@ static int find_user(struct sip_pvt *fup, int event)
 			if (u->incominglimit > 0 ) {
 				if (u->inUse >= u->incominglimit) {
 					ast_log(LOG_ERROR, "Call from user '%s' rejected due to usage limit of %d\n", u->name, u->incominglimit);
-					ast_mutex_unlock(&userl.lock);
 					/* inc inUse as well */
 					if ( event == INC_OUT_USE ) {
 						u->inUse++;
 					}
+					ast_mutex_unlock(&userl.lock);
 					return -1; 
 				}
 			}
@@ -1187,7 +1239,7 @@ static int find_user(struct sip_pvt *fup, int event)
 			break;
 		*/
 		default:
-			ast_log(LOG_ERROR, "find_user(%s,%d) called with no event!\n",u->name,event);
+			ast_log(LOG_ERROR, "update_user_counter(%s,%d) called with no event!\n",u->name,event);
 	}
 	ast_mutex_unlock(&userl.lock);
 	return 0;
@@ -1241,11 +1293,11 @@ static int sip_hangup(struct ast_channel *ast)
 	}
 	ast_mutex_lock(&p->lock);
 	if ( p->outgoing ) {
-		ast_log(LOG_DEBUG, "find_user(%s) - decrement outUse counter\n", p->username);
-		find_user(p, DEC_OUT_USE);
+		ast_log(LOG_DEBUG, "update_user_counter(%s) - decrement outUse counter\n", p->username);
+		update_user_counter(p, DEC_OUT_USE);
 	} else {
-		ast_log(LOG_DEBUG, "find_user(%s) - decrement inUse counter\n", p->username);
-		find_user(p, DEC_IN_USE);
+		ast_log(LOG_DEBUG, "update_user_counter(%s) - decrement inUse counter\n", p->username);
+		update_user_counter(p, DEC_IN_USE);
 	}
 	/* Determine how to disconnect */
 	if (p->owner != ast) {
@@ -1282,10 +1334,10 @@ static int sip_hangup(struct ast_channel *ast)
 					/* channel still up - reverse dec of inUse counter
 					   only if the channel is not auto-congested */
 					if ( p->outgoing ) {
-						find_user(p, INC_OUT_USE);
+						update_user_counter(p, INC_OUT_USE);
 					}
 					else {
-						find_user(p, INC_IN_USE);
+						update_user_counter(p, INC_IN_USE);
 					}
 				}
 			} else {
@@ -2057,7 +2109,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	while ((m = get_sdp_iterate(&iterator, req, "m"))[0] != '\0') {
 		if ((sscanf(m, "audio %d RTP/AVP %n", &x, &len) == 1)) {
 			portno = x;
-			// Scan through the RTP payload types specified in a "m=" line:
+			/* Scan through the RTP payload types specified in a "m=" line: */
 			ast_rtp_pt_clear(p->rtp);
 			codecs = m + len;
 			while(strlen(codecs)) {
@@ -2074,11 +2126,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			}
 		}
 		if (p->vrtp)
-			ast_rtp_pt_clear(p->vrtp);  // Must be cleared in case no m=video line exists
+			ast_rtp_pt_clear(p->vrtp);  /* Must be cleared in case no m=video line exists */
 
 		if (p->vrtp && (sscanf(m, "video %d RTP/AVP %n", &x, &len) == 1)) {
 			vportno = x;
-			// Scan through the RTP payload types specified in a "m=" line:
+			/* Scan through the RTP payload types specified in a "m=" line: */
 			codecs = m + len;
 			while(strlen(codecs)) {
 				if (sscanf(codecs, "%d%n", &codec, &len) != 1) {
@@ -2107,11 +2159,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 #if 0
 	printf("Peer RTP is at port %s:%d\n", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 #endif	
-	// Next, scan through each "a=rtpmap:" line, noting each
-	// specified RTP payload type (with corresponding MIME subtype):
+	/* Next, scan through each "a=rtpmap:" line, noting each
+	 * specified RTP payload type (with corresponding MIME subtype):
+	 */
 	sdpLineNum_iterator_init(&iterator);
 	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
-      char* mimeSubtype = ast_strdupa(a); // ensures we have enough space
+      char* mimeSubtype = ast_strdupa(a); /* ensures we have enough space */
 	  if (!strcasecmp(a, "sendonly")) {
 	  	sendonly=1;
 		continue;
@@ -2122,13 +2175,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	  if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2) continue;
 	  if (sipdebug)
 		ast_verbose("Found description format %s\n", mimeSubtype);
-	  // Note: should really look at the 'freq' and '#chans' params too
+	  /* Note: should really look at the 'freq' and '#chans' params too */
 	  ast_rtp_set_rtpmap_type(p->rtp, codec, "audio", mimeSubtype);
 	  if (p->vrtp)
 		  ast_rtp_set_rtpmap_type(p->vrtp, codec, "video", mimeSubtype);
 	}
 
-	// Now gather all of the codecs that were asked for:
+	/* Now gather all of the codecs that were asked for: */
 	ast_rtp_get_current_formats(p->rtp,
 				&peercapability, &peernoncodeccapability);
 	if (p->vrtp)
@@ -2799,7 +2852,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	if ((sizeof(m) <= strlen(m) - 2) || (sizeof(m2) <= strlen(m2) - 2) || (sizeof(a) == strlen(a)) || (sizeof(a2) == strlen(a2)))
 		ast_log(LOG_WARNING, "SIP SDP may be truncated due to undersized buffer!!\n");
 	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m) + strlen(a);
-	if ((p->vrtp) && (p->jointcapability & VIDEO_CODEC_MASK)) // only if video response is appropriate
+	if ((p->vrtp) && (p->jointcapability & VIDEO_CODEC_MASK)) /* only if video response is appropriate */
 		len += strlen(m2) + strlen(a2);
 	snprintf(costr, sizeof(costr), "%d", len);
 	add_header(resp, "Content-Type", "application/sdp");
@@ -2811,7 +2864,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	add_line(resp, t);
 	add_line(resp, m);
 	add_line(resp, a);
-	if ((p->vrtp) && (p->jointcapability & VIDEO_CODEC_MASK)) { // only if video response is appropriate
+	if ((p->vrtp) && (p->jointcapability & VIDEO_CODEC_MASK)) { /* only if video response is appropriate */
 		add_line(resp, m2);
 		add_line(resp, a2);
 	}
@@ -3854,17 +3907,18 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	strncpy(p->exten, name, sizeof(p->exten) - 1);
 	build_contact(p);
 	ast_mutex_lock(&peerl.lock);
-	peer = peerl.peers;
-	while(peer) {
-		if (!strcasecmp(peer->name, name) && ast_apply_ha(peer->ha,sin)) 
-			break;
-		peer = peer->next;
+	peer = find_peer(name, NULL);
+	if (!(peer && ast_apply_ha(peer->ha, sin))) {
+		if (peer && peer->temponly) {
+			if (peer->ha) {
+				ast_free_ha(peer->ha);
+			}
+			free(peer);
+		}
+		peer = NULL;
 	}
 	ast_mutex_unlock(&peerl.lock);
-#ifdef MYSQL_FRIENDS
-	if (!peer) 
-		peer = mysql_peer(name, NULL);
-#endif
+
 	if (peer) {
 			if (!peer->dynamic) {
 				ast_log(LOG_NOTICE, "Peer '%s' is trying to register, but not configured as host=dynamic\n", peer->name);
@@ -3876,10 +3930,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 					if (parse_contact(p, peer, req)) {
 						ast_log(LOG_WARNING, "Failed to parse contact info\n");
 					} else {
-#ifdef MYSQL_FRIENDS
-					if (peer->temponly)
-						mysql_update_peer(peer->name, &peer->addr, peer->username, p->expiry);
-#endif							
+					update_peer(peer, p->expiry);
 					/* Say OK and ask subsystem to retransmit msg counter */
 						transmit_response_with_date(p, "200 OK", req);
 						peer->lastmsgssent = -1;
@@ -3911,8 +3962,12 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	}
 	if (res < 0)
 		transmit_response(p, "401 Unauthorized", &p->initreq);
-	if (peer && peer->temponly)
+	if (peer && peer->temponly) {
+		if (peer->ha) {
+			ast_free_ha(peer->ha);
+		}
 		free(peer);
+	}
 	return res;
 }
 
@@ -4293,65 +4348,54 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 	if (!strlen(of))
 			return 0;
 	ast_mutex_lock(&userl.lock);
-	user = userl.users;
-	while(user) {
-		if (!strcasecmp(user->name, of) && ast_apply_ha(user->ha,sin)) {
-			p->nat = user->nat;
-			if (p->rtp) {
-				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", p->nat);
-				ast_rtp_setnat(p->rtp, p->nat);
-			}
-			if (p->vrtp) {
-				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", p->nat);
-				ast_rtp_setnat(p->vrtp, p->nat);
-			}
-			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, cmd, uri, reliable, ignore))) {
-				sip_cancel_destroy(p);
-				if (strlen(user->context))
-					strncpy(p->context, user->context, sizeof(p->context) - 1);
-				if (strlen(user->callerid) && strlen(p->callerid)) 
-					strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
-				strncpy(p->username, user->name, sizeof(p->username) - 1);
-				strncpy(p->peersecret, user->secret, sizeof(p->peersecret) - 1);
-				strncpy(p->peermd5secret, user->md5secret, sizeof(p->peermd5secret) - 1);
-				strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)  -1);
-				strncpy(p->language, user->language, sizeof(p->language)  -1);
-				p->canreinvite = user->canreinvite;
-				p->amaflags = user->amaflags;
-				p->callgroup = user->callgroup;
-				p->pickupgroup = user->pickupgroup;
-				p->restrictcid = user->restrictcid;
-				p->capability = user->capability;
-				p->jointcapability = user->capability;
-				if (user->dtmfmode) {
-					p->dtmfmode = user->dtmfmode;
-					if (p->dtmfmode & SIP_DTMF_RFC2833)
-						p->noncodeccapability |= AST_RTP_DTMF;
-					else
-						p->noncodeccapability &= ~AST_RTP_DTMF;
-				}
-			}
-			break;
+	user = find_user(of);
+	if (user && ast_apply_ha(user->ha, sin)) {
+		p->nat = user->nat;
+		if (p->rtp) {
+			ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", p->nat);
+			ast_rtp_setnat(p->rtp, p->nat);
 		}
-		user = user->next;
+		if (p->vrtp) {
+			ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", p->nat);
+			ast_rtp_setnat(p->vrtp, p->nat);
+		}
+		if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, cmd, uri, reliable, ignore))) {
+			sip_cancel_destroy(p);
+			if (strlen(user->context))
+				strncpy(p->context, user->context, sizeof(p->context) - 1);
+			if (strlen(user->callerid) && strlen(p->callerid)) 
+				strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
+			strncpy(p->username, user->name, sizeof(p->username) - 1);
+			strncpy(p->peersecret, user->secret, sizeof(p->peersecret) - 1);
+			strncpy(p->peermd5secret, user->md5secret, sizeof(p->peermd5secret) - 1);
+			strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)  -1);
+			strncpy(p->language, user->language, sizeof(p->language)  -1);
+			p->canreinvite = user->canreinvite;
+			p->amaflags = user->amaflags;
+			p->callgroup = user->callgroup;
+			p->pickupgroup = user->pickupgroup;
+			p->restrictcid = user->restrictcid;
+			p->capability = user->capability;
+			p->jointcapability = user->capability;
+			if (user->dtmfmode) {
+				p->dtmfmode = user->dtmfmode;
+				if (p->dtmfmode & SIP_DTMF_RFC2833)
+					p->noncodeccapability |= AST_RTP_DTMF;
+				else
+					p->noncodeccapability &= ~AST_RTP_DTMF;
+			}
+		}
 	}
 	ast_mutex_unlock(&userl.lock);
 	if (!user) {
 	/* If we didn't find a user match, check for peers */
 		ast_mutex_lock(&peerl.lock);
-		peer = peerl.peers;
-		while(peer) {
-			if (!inaddrcmp(&peer->addr, &p->recv) || 
-				(peer->insecure && (peer->addr.sin_addr.s_addr == p->recv.sin_addr.s_addr))) {
-				break;
-			}
-			peer = peer->next;
-		}
+		/* which should be used? non-mysql code uses "p->recv", but
+		 * mysql code used "sin"
+		 */
+		peer = find_peer(NULL, &p->recv);
+		/* peer = find_peer(NULL, sin); */
 		ast_mutex_unlock(&peerl.lock);
-#ifdef MYSQL_FRIENDS
-		if (!peer) 
-			peer = mysql_peer(NULL, sin);
-#endif
 		if (peer) {
 				/* Take the peer */
 				p->nat = peer->nat;
@@ -4382,8 +4426,12 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 					else
 						p->noncodeccapability &= ~AST_RTP_DTMF;
 				}
-			if (peer->temponly)
+			if (peer->temponly) {
+				if (peer->ha) {
+					ast_free_ha(peer->ha);
+				}
 				free(peer);
+			}
 		}
 	}
 	return res;
@@ -5205,10 +5253,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				case 487:
 					/* channel now destroyed - dec the inUse counter */
 					if ( p->outgoing ) {
-						find_user(p, DEC_OUT_USE);
+						update_user_counter(p, DEC_OUT_USE);
 					}
 					else {
-						find_user(p, DEC_IN_USE);
+						update_user_counter(p, DEC_IN_USE);
 					}
 					break;
 				case 486: /* Busy here */
@@ -5442,7 +5490,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				strncpy(p->context, context, sizeof(p->context) - 1);
 			/* Check number of concurrent calls -vs- incoming limit HERE */
 			ast_log(LOG_DEBUG, "Check for res for %s\n", p->username);
-			res = find_user(p,INC_IN_USE);
+			res = update_user_counter(p,INC_IN_USE);
 			if (res) {
 				if (res < 0) {
 					ast_log(LOG_DEBUG, "Failed to place call for user %s, too many calls\n", p->username);
@@ -5459,10 +5507,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			if (gotdest) {
 				if (gotdest < 0) {
 					transmit_response(p, "404 Not Found", req);
-					find_user(p,DEC_IN_USE);
+					update_user_counter(p,DEC_IN_USE);
 				} else {
 					transmit_response(p, "484 Address Incomplete", req);
-					find_user(p,DEC_IN_USE);
+					update_user_counter(p,DEC_IN_USE);
 				}
 				p->needdestroy = 1;
 			} else {
@@ -5699,7 +5747,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			p->needdestroy = 1;
 			return 0;
 		    }
-		    // The next line can be removed if the SNOM200 Expires bug is fixed
+		    /* The next line can be removed if the SNOM200 Expires bug is fixed */
 		    if (p->subscribed == 1) {  
 			if (p->expiry>max_expiry)
 			    p->expiry = max_expiry;
@@ -5916,6 +5964,7 @@ restartsearch:
 		ast_mutex_lock(&monlock);
 		if (res >= 0) 
 			ast_sched_runq(sched);
+		/* needs work to send mwi to mysql peers */
 		ast_mutex_lock(&peerl.lock);
 		peer = peerl.peers;
 		time(&t);
@@ -6068,19 +6117,15 @@ static int sip_devicestate(void *data)
 	}
 
 	ast_mutex_lock(&peerl.lock);
-	p = peerl.peers;
-	while (p) {
-		if (!strcasecmp(p->name, host)) {
-			found++;
-			res = AST_DEVICE_UNAVAILABLE;
-			if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
-				(!p->maxms || ((p->lastms > -1)  && (p->lastms <= p->maxms)))) {
-				/* peer found and valid */
-				res = AST_DEVICE_UNKNOWN;
-				break;
-			}
+	p = find_peer(host, NULL);
+	if (p) {
+		found++;
+		res = AST_DEVICE_UNAVAILABLE;
+		if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
+			(!p->maxms || ((p->lastms > -1)  && (p->lastms <= p->maxms)))) {
+			/* peer found and valid */
+			res = AST_DEVICE_UNKNOWN;
 		}
-		p = p->next;
 	}
 	ast_mutex_unlock(&peerl.lock);
 	if (!p && !found) {
@@ -6251,8 +6296,10 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 				user->insecure = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "restrictcid")) {
 				user->restrictcid = ast_true(v->value);
-			} //else if (strcasecmp(v->name,"type"))
-			//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
+			}
+			/*else if (strcasecmp(v->name,"type"))
+			 *	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
+			 */
 			v = v->next;
 		}
 	}
@@ -6444,8 +6491,10 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 					ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", peer->name, v->lineno);
 					peer->maxms = 0;
 				}
-			} //else if (strcasecmp(v->name,"type"))
-			//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
+			}
+			/* else if (strcasecmp(v->name,"type"))
+			 *	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
+			 */
 			v=v->next;
 		}
 		if (!strlen(peer->methods))
@@ -6619,8 +6668,10 @@ static int reload_config(void)
 		} else if (!strcasecmp(v->name, "dbname")) {
 			strncpy(mydbname, v->value, sizeof(mydbname) - 1);
 #endif
-		} //else if (strcasecmp(v->name,"type"))
-		//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
+		}
+		/* else if (strcasecmp(v->name,"type"))
+		 *	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
+		 */
 		 v = v->next;
 	}
 	
@@ -6678,7 +6729,7 @@ static int reload_config(void)
 		if (sipsock < 0) {
 			ast_log(LOG_WARNING, "Unable to create SIP socket: %s\n", strerror(errno));
 		} else {
-		        // Allow SIP clients on the same host to access us:
+		        /* Allow SIP clients on the same host to access us: */
 		        const int reuseFlag = 1;
 			setsockopt(sipsock, SOL_SOCKET, SO_REUSEADDR,
 				   (const char*)&reuseFlag,
@@ -7070,7 +7121,8 @@ char *description()
 }
 
 #if 0
-// XXX What is this?
+/* XXX What is this?
+ */
 static char *getsipuri(char *header)
 {
 	char *c, *d, *retval;
