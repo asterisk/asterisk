@@ -142,7 +142,10 @@ static void swap_subs(struct feature_pvt *p, int a, int b)
 	}
 	if (p->subs[b].owner) {
 		for (x=0;x<AST_MAX_FDS;x++)
-			p->subs[b].owner->fds[x] = p->subchan->fds[x];
+			if (b)
+				p->subs[b].owner->fds[x] = -1;
+			else
+				p->subs[b].owner->fds[x] = p->subchan->fds[x];
 	}
 	wakeup_sub(p, a);
 	wakeup_sub(p, b);
