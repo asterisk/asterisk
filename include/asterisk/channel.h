@@ -169,8 +169,8 @@ struct ast_channel {
 	char *dnid;				
 	/*! Malloc'd Caller ID */
 	char *callerid;				
-	/*! Malloc'd Hidden Caller*ID */
-	char *hidden_callerid;			
+	/*! Malloc'd ANI */
+	char *ani;			
 
 	
 	/*! Current extension context */
@@ -203,6 +203,8 @@ struct ast_channel {
 	struct ast_cdr *cdr;			
 	/*! Whether or not ADSI is detected on CPE */
 	int	adsicpe;
+	/*! Where to forward to if asked to dial on this interface */
+	char call_forward[AST_MAX_EXTENSION];
 	/*! For easy linking */
 	struct ast_channel *next;		
 
@@ -445,7 +447,7 @@ char ast_waitfordigit(struct ast_channel *c, int ms);
 /*! 
  * \param c channel to read from
  * \param s string to read in to.  Must be at least the size of your length
- * \param len how many digits to read
+ * \param len how many digits to read (maximum)
  * \param timeout how long to timeout between digits
  * \param rtimeout timeout to wait on the first digit
  * \param enders digits to end the string

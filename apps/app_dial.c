@@ -313,15 +313,34 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			cur = rest;
 			continue;
 		}
+		if (strlen(tmp->chan->call_forward)) {
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Forwarding call to '%s@%s'\n", tmp->chan->call_forward, tmp->chan->context);
+			/* Setup parameters */
+			strncpy(chan->exten, tmp->chan->call_forward, sizeof(chan->exten));
+			strncpy(chan->context, tmp->chan->context, sizeof(chan->context));
+			chan->priority = 0;
+			to = 0;
+			ast_hangup(tmp->chan);
+			free(tmp);
+			cur = rest;
+			break;
+		}
 		tmp->chan->appl = "AppDial";
 		tmp->chan->data = "(Outgoing Line)";
 		tmp->chan->whentohangup = 0;
 		if (tmp->chan->callerid)
 			free(tmp->chan->callerid);
+		if (tmp->chan->ani)
+			free(tmp->chan->ani);
 		if (chan->callerid)
 			tmp->chan->callerid = strdup(chan->callerid);
 		else
 			tmp->chan->callerid = NULL;
+		if (chan->ani)
+			tmp->chan->ani = strdup(chan->ani);
+		else
+			tmp->chan->ani = NULL;
 		/* Presense of ADSI CPE on outgoing channel follows ours */
 		tmp->chan->adsicpe = chan->adsicpe;
 		/* Place the call, but don't wait on the answer */
