@@ -3926,6 +3926,7 @@ static int reload_config(void)
 		return 0;
 	}
 	memset(&bindaddr, 0, sizeof(bindaddr));
+	dtmfmode = 0;
 	v = ast_variable_browse(cfg, "general");
 	while(v) {
 		/* Create the interface list */
