@@ -414,6 +414,17 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 	return f;
 }
 
+static int agent_sendhtml(struct ast_channel *ast, int subclass, char *data, int datalen)
+{
+	struct agent_pvt *p = ast->pvt->pvt;
+	int res = -1;
+	ast_mutex_lock(&p->lock);
+	if (p->chan) 
+		res = ast_channel_sendhtml(p->chan, subclass, data, datalen);
+	ast_mutex_unlock(&p->lock);
+	return res;
+}
+
 static int agent_write(struct ast_channel *ast, struct ast_frame *f)
 {
 	struct agent_pvt *p = ast->pvt->pvt;
@@ -816,6 +827,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 		tmp->pvt->answer = agent_answer;
 		tmp->pvt->read = agent_read;
 		tmp->pvt->write = agent_write;
+		tmp->pvt->send_html = agent_sendhtml;
 		tmp->pvt->exception = agent_read;
 		tmp->pvt->indicate = agent_indicate;
 		tmp->pvt->fixup = agent_fixup;
