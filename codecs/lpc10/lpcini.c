@@ -1,11 +1,14 @@
 /*
 
 $Log$
-Revision 1.17  2003/10/21 02:57:29  markster
-FreeBSD patch, take 2
+Revision 1.18  2003/10/21 18:08:11  markster
+Fix include order
 
-Revision 1.16  2003/10/18 00:26:43  tholo
-Revert the previous patch since it's braking compilation
+Revision 1.5  2003/10/21 18:08:11  markster
+Fix include order
+
+Revision 1.4  2003/10/21 02:57:29  markster
+FreeBSD patch, take 2
 
 Revision 1.3  2003/10/16 21:11:30  martinp
 Revert the previous patch since it's braking compilation
@@ -38,9 +41,8 @@ extern int lpcini_(void);
 	-lf2c -lm   (in that order)
 */
 
-#include "f2c.h"
-
 #include <stdlib.h>
+#include "f2c.h"
 
 /* Common Block Declarations */
 
@@ -54,11 +56,14 @@ struct {
 /* ***************************************************************** */
 
 /* $Log$
- * Revision 1.17  2003/10/21 02:57:29  markster
- * FreeBSD patch, take 2
+ * Revision 1.18  2003/10/21 18:08:11  markster
+ * Fix include order
  *
-/* Revision 1.16  2003/10/18 00:26:43  tholo
-/* Revert the previous patch since it's braking compilation
+/* Revision 1.5  2003/10/21 18:08:11  markster
+/* Fix include order
+/*
+/* Revision 1.4  2003/10/21 02:57:29  markster
+/* FreeBSD patch, take 2
 /*
 /* Revision 1.3  2003/10/16 21:11:30  martinp
 /* Revert the previous patch since it's braking compilation
@@ -89,11 +94,14 @@ struct {
 {
 
 /* $Log$
- * Revision 1.17  2003/10/21 02:57:29  markster
- * FreeBSD patch, take 2
+ * Revision 1.18  2003/10/21 18:08:11  markster
+ * Fix include order
  *
-/* Revision 1.16  2003/10/18 00:26:43  tholo
-/* Revert the previous patch since it's braking compilation
+/* Revision 1.5  2003/10/21 18:08:11  markster
+/* Fix include order
+/*
+/* Revision 1.4  2003/10/21 02:57:29  markster
+/* FreeBSD patch, take 2
 /*
 /* Revision 1.3  2003/10/16 21:11:30  martinp
 /* Revert the previous patch since it's braking compilation
@@ -124,11 +132,14 @@ struct {
 /*   LPC Configuration parameters: */
 /* Frame size, Prediction order, Pitch period */
 /* $Log$
- * Revision 1.17  2003/10/21 02:57:29  markster
- * FreeBSD patch, take 2
+ * Revision 1.18  2003/10/21 18:08:11  markster
+ * Fix include order
  *
-/* Revision 1.16  2003/10/18 00:26:43  tholo
-/* Revert the previous patch since it's braking compilation
+/* Revision 1.5  2003/10/21 18:08:11  markster
+/* Fix include order
+/*
+/* Revision 1.4  2003/10/21 02:57:29  markster
+/* FreeBSD patch, take 2
 /*
 /* Revision 1.3  2003/10/16 21:11:30  martinp
 /* Revert the previous patch since it's braking compilation
