@@ -1163,6 +1163,8 @@ int ast_pbx_run(struct ast_channel *c)
 				if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F')) ||
 					(res == '*') || (res == '#')) {
 					ast_log(LOG_DEBUG, "Oooh, got something to jump out with ('%c')!\n", res);
+					memset(exten, 0, sizeof(exten));
+					pos = 0;
 					exten[pos++] = digit = res;
 					break;
 				}
