@@ -1346,7 +1346,7 @@ static void reload_queues(void)
 
 static int __queues_show(int fd, int argc, char **argv, int queue_show)
 {
-	struct ast_call_queue *q, tmpq;
+	struct ast_call_queue *q;
 	struct queue_ent *qe;
 	struct member *mem;
 	int pos;
