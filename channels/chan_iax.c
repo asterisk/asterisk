@@ -127,6 +127,15 @@ struct iax_peer {
 	struct sockaddr_in addr;
 	int formats;
 	struct in_addr mask;
+
+	/* Dynamic Registration fields */
+	int dynamic;
+	struct sockaddr_in defaddr;
+	char regsecret[80];
+	char methods[80];
+	struct timeval nexpire;
+	int expire;
+	struct iax_ha *ha;
 	struct iax_peer *next;
 };
 	
@@ -2038,16 +2047,23 @@ static struct iax_peer *build_peer(char *name, struct ast_variable *v)
 			if (!strcasecmp(v->name, "secret")) 
 				strncpy(peer->secret, v->value, sizeof(peer->secret));
 			else if (!strcasecmp(v->name, "host")) {
-				hp = gethostbyname(v->value);
-				if (hp) {
-					memcpy(&peer->addr.sin_addr, hp->h_addr, sizeof(peer->addr.sin_addr));
+				if (!strcasecmp(v->value, "dynamic")) {
+					/* They'll register with us */
+					peer->dynamic = 1;
+					memset(&peer->addr.sin_addr, 0, 4);
 				} else {
-					ast_log(LOG_WARNING, "Unable to lookup '%s'\n", v->value);
-					free(peer);
-					return NULL;
+					peer->dynamic = 0;
+					hp = gethostbyname(v->value);
+					if (hp) {
+						memcpy(&peer->addr.sin_addr, hp->h_addr, sizeof(peer->addr.sin_addr));
+					} else {
+						ast_log(LOG_WARNING, "Unable to lookup '%s'\n", v->value);
+						free(peer);
+						return NULL;
+					}
+					if (!maskfound)
+						inet_aton("255.255.255.255", &peer->mask);
 				}
-				if (!maskfound)
-					inet_aton("255.255.255.255", &peer->mask);
 			}
 			else if (!strcasecmp(v->name, "mask")) {
 				maskfound++;

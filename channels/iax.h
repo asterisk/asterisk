@@ -38,6 +38,10 @@
 #define AST_IAX_COMMAND_INVAL	10
 #define AST_IAX_COMMAND_LAGRQ	11
 #define AST_IAX_COMMAND_LAGRP	12
+#define AST_IAX_COMMAND_REGRQ	13
+#define AST_IAX_COMMAND_REGRP	14
+
+#define AST_DEFAULT_REG_EXPIRE  60	/* By default require re-registration once per minute */
 
 #define AST_DEFAULT_IAX_PORTNO	5036
 

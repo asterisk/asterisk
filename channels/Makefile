@@ -12,7 +12,8 @@
 #
 
 CHANNEL_LIBS=chan_vofr.so chan_modem.so \
-	     chan_modem_aopen.so chan_iax.so chan_oss.so
+	     chan_modem_aopen.so chan_iax.so chan_oss.so \
+             chan_modem_i4l.so
 
 CHANNEL_LIBS+=$(shell [ -f /usr/include/linux/ixjuser.h ] && echo chan_phone.so)
 
