@@ -891,7 +891,7 @@ zapretry:
 								default:
 									menu_active = 0;
 									/* Play an error message! */
-									if (!ast_streamfile(chan, "errormenu", chan->language))
+									if (!ast_streamfile(chan, "conf-errormenu", chan->language))
 										ast_waitstream(chan, "");
 									break;
 							}
