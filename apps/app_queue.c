@@ -746,35 +746,33 @@ static int update_dial_status(struct ast_call_queue *q, struct member *member, i
 	return update_status(q, member, status);
 }
 
-static int compare_weight(struct ast_call_queue *req_q, struct localuser *req_user, char *qname) 
+static int compare_weight(struct ast_call_queue *rq, struct member *member)
 {
 /* traverse all defined queues which have calls waiting and contain this member
    return 0 if no other queue has precedence (higher weight) or 1 if found  */
 	struct ast_call_queue *q;
 	struct member *mem;
-	int found = 0, weight = 0, calls = 0;
-	char name[80] = "";
+	int found = 0;
 	
-	strncpy(name, req_q->name, sizeof(name) - 1);
-	weight = req_q->weight;
-	calls = req_q->count;
-	
+	/* avoid deadlock which can occur under specific condition.
+	 * another queue-walking func may be waiting for rq->lock, which
+	 * was set by try_calling, but won't unlock til this finishes,
+	 * yet we're waiting for &qlock.  happy fun times! */
+	ast_mutex_unlock(&rq->lock);
 	ast_mutex_lock(&qlock);
-	for (q = queues; q; q = q->next) { /* spin queues */
-		ast_mutex_lock(&q->lock);
-		if (!strcasecmp(q->name, name)) { /* don't check myself */
-			ast_mutex_unlock(&q->lock);
+	ast_mutex_lock(&rq->lock);
+	for (q = queues; q; q = q->next) {
+		if (q == rq) /* don't check myself */
 			continue; 
-		}
-		if (q->count && q->members) { /* check only if calls waiting and has members */
-			for (mem = q->members; mem; mem = mem->next) {  /* spin members */
-				if (!strcasecmp(mem->interface, req_user->interface)) {
+		ast_mutex_lock(&q->lock);
+		if (q->count && q->members) {
+			for (mem = q->members; mem; mem = mem->next) {
+				if (mem == member) {
 					ast_log(LOG_DEBUG, "Found matching member %s in queue '%s'\n", mem->interface, q->name);
-					if (q->weight > weight) {
-						ast_log(LOG_DEBUG, "Queue '%s' (weight %d, calls %d) is preferred over '%s' (weight %d, calls %d)\n", q->name, q->weight, q->count, name, weight, calls);
+					if (q->weight > rq->weight) {
+						ast_log(LOG_DEBUG, "Queue '%s' (weight %d, calls %d) is preferred over '%s' (weight %d, calls %d)\n", q->name, q->weight, q->count, rq->name, rq->weight, rq->count);
 						found = 1;
-						strncpy(qname, q->name, sizeof(qname) - 1);
-						break;  /* stop looking for more members */
+						break;
 					}
 				}
 			}
@@ -795,18 +793,7 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp, int *busies)
 	int status;
 	char tech[256];
 	char *location;
-	char qname[80] = "";
 
-	if (use_weight) { /* fast path */
-		if (compare_weight(qe->parent,tmp,qname)) {
-			ast_verbose(VERBOSE_PREFIX_3 "Attempt (%s: %s) delayed by higher priority queue (%s).\n", qe->parent->name, tmp->interface, qname);
-			if (qe->chan->cdr)
-				ast_cdr_busy(qe->chan->cdr);
-			tmp->stillgoing = 0;
-			(*busies)++;
-			return 0;
-		}
-	}
 	if (qe->parent->wrapuptime && (time(NULL) - tmp->lastcall < qe->parent->wrapuptime)) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Wrapuptime not yet expired for %s\n", tmp->interface);
@@ -823,6 +810,14 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp, int *busies)
 		if (qe->chan->cdr)
 			ast_cdr_busy(qe->chan->cdr);
 		tmp->stillgoing = 0;
+		return 0;
+	}
+	if (use_weight && compare_weight(qe->parent,tmp->member)) {
+		ast_log(LOG_DEBUG, "Priority queue delaying call to %s:%s\n", qe->parent->name, tmp->interface);
+		if (qe->chan->cdr)
+			ast_cdr_busy(qe->chan->cdr);
+		tmp->stillgoing = 0;
+		(*busies)++;
 		return 0;
 	}
 
