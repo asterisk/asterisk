@@ -39,13 +39,18 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <errno.h>
-#if defined(__NetBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
+#include <sys/types.h>
 #include <netinet/in_systm.h>
 #endif
 #include <netinet/ip.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <net/if.h>
+#if defined(__FreeBSD__)
+#include <net/if_dl.h>
+#include <ifaddrs.h>
+#endif
 #include <zlib.h>
 
 #define MAX_RESULTS	64
@@ -354,7 +359,7 @@ static void dundi_reject(struct dundi_hdr *h, struct sockaddr_in *sin)
 
 static void reset_global_eid(void)
 {
-#if !defined(__NetBSD__)
+#if defined(SIOCGIFHWADDR)
 	int x,s;
 	char eid_str[20];
 	struct ifreq ifr;
@@ -372,6 +377,27 @@ static void reset_global_eid(void)
 			}
         }
 	}
+#else
+#if defined(ifa_broadaddr)
+	char eid_str[20];
+	struct ifaddrs *ifap;
+	
+	if (getifaddrs(&ifap) == 0) {
+		struct ifaddrs *p;
+		for (p = ifap; p; p = p->ifa_next) {
+			if (p->ifa_addr->sa_family == AF_LINK) {
+				struct sockaddr_dl* sdp = (struct sockaddr_dl*) p->ifa_addr;
+				memcpy(
+					&(global_eid.eid),
+					sdp->sdl_data + sdp->sdl_nlen, 6);
+				ast_log(LOG_DEBUG, "Seeding global EID '%s' from '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid), ifap->ifa_name);
+				freeifaddrs(ifap);
+				return;
+			}
+		}
+		freeifaddrs(ifap);
+	}
+#endif
 #endif
 	ast_log(LOG_NOTICE, "No ethernet interface found for seeding global EID  You will have to set it manually.\n");
 }
