@@ -79,6 +79,9 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; Other options: 
 				; info : SIP INFO messages
 				; inband : Inband audio
+
+;compactheaders = yes		; send compact sip headers.
+
 ;
 ; If regcontext is specified, Asterisk will dynamically 
 ; create and destroy a NoOp priority 1 extension for a given

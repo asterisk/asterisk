@@ -193,6 +193,8 @@ static int tos = 0;
 
 static int videosupport = 0;
 
+static int compactheaders = 0; 						/* send compact sip headers */
+
 static int global_dtmfmode = SIP_DTMF_RFC2833;		/* DTMF mode default */
 static int recordhistory = 0;
 static int global_promiscredir;				/* Support of 302 REDIR - Default off */
@@ -2813,6 +2815,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 /*--- add_header: Add header to SIP message */
 static int add_header(struct sip_request *req, char *var, char *value)
 {
+	int x = 0;
+	char *shortname = "";
 	if (req->len >= sizeof(req->data) - 4) {
 		ast_log(LOG_WARNING, "Out of space, can't add anymore (%s:%s)\n", var, value);
 		return -1;
@@ -2821,8 +2825,18 @@ static int add_header(struct sip_request *req, char *var, char *value)
 		ast_log(LOG_WARNING, "Can't add more headers when lines have been added\n");
 		return -1;
 	}
+
 	req->header[req->headers] = req->data + req->len;
-	snprintf(req->header[req->headers], sizeof(req->data) - req->len - 4, "%s: %s\r\n", var, value);
+	if (compactheaders) {
+		for (x=0;x<sizeof(aliases) / sizeof(aliases[0]); x++)
+			if (!strcasecmp(aliases[x].fullname, var))
+				shortname = aliases[x].shortname;
+	}
+	if(!ast_strlen_zero(shortname)) {
+		snprintf(req->header[req->headers], sizeof(req->data) - req->len - 4, "%s: %s\r\n", shortname, value);
+	} else {
+		snprintf(req->header[req->headers], sizeof(req->data) - req->len - 4, "%s: %s\r\n", var, value);
+	}
 	req->len += strlen(req->header[req->headers]);
 	if (req->headers < SIP_MAX_HEADERS)
 		req->headers++;
@@ -8631,6 +8645,7 @@ static int reload_config(void)
 	strncpy(default_callerid, DEFAULT_CALLERID, sizeof(default_callerid) - 1);
 	global_canreinvite = REINVITE_INVITE;
 	videosupport = 0;
+	compactheaders = 0;
 	relaxdtmf = 0;
 	ourport = DEFAULT_SIP_PORT;
 	global_rtptimeout = 0;
@@ -8696,6 +8711,8 @@ static int reload_config(void)
 			}
 		} else if (!strcasecmp(v->name, "videosupport")) {
 			videosupport = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "compactheaders")) {
+			compactheaders = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "notifymimetype")) {
 			strncpy(default_notifymime, v->value, sizeof(default_notifymime) - 1);
 		} else if (!strcasecmp(v->name, "musicclass")) {
