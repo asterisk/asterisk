@@ -73,20 +73,15 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 	int res=0;
 	struct localuser *u;
 	int fds[2];
-	int rfds[1 + AST_MAX_FDS];
 	int ms = -1;
 	int pid = -1;
-	int us;
-	int exception;
 	int owriteformat;
-	struct timeval tv;
 	struct timeval last;
 	struct ast_frame *f;
-	int x;
 	struct myframe {
 		struct ast_frame f;
 		char offset[AST_FRIENDLY_OFFSET];
-		char frdata[160];
+		short frdata[160];
 	} myf;
 	last.tv_usec = 0;
 	last.tv_sec = 0;
@@ -109,29 +104,20 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 	}
 	
 	res = mp3play((char *)data, fds[1]);
+	/* Wait 1000 ms first */
+	ms = 1000;
 	if (res >= 0) {
 		pid = res;
 		/* Order is important -- there's almost always going to be mp3...  we want to prioritize the
 		   user */
-		rfds[AST_MAX_FDS] = fds[0];
 		for (;;) {
-			CHECK_BLOCKING(chan);
-			for (x=0;x<AST_MAX_FDS;x++) 
-				rfds[x] = chan->fds[x];
-			res = ast_waitfor_n_fd(rfds, AST_MAX_FDS+1, &ms, &exception);
-			chan->blocking = 0;
-			if (res < 1) {
+			ms = ast_waitfor(chan, ms);
+			if (ms < 0) {
 				ast_log(LOG_DEBUG, "Hangup detected\n");
 				res = -1;
 				break;
 			}
-			for(x=0;x<AST_MAX_FDS;x++) 
-				if (res == chan->fds[x])
-					break;
-
-			if (x < AST_MAX_FDS) {
-				if (exception)
-					chan->exception = 1;
+			if (ms) {
 				f = ast_read(chan);
 				if (!f) {
 					ast_log(LOG_DEBUG, "Null frame == hangup() detected\n");
@@ -145,20 +131,7 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 					break;
 				}
 				ast_frfree(f);
-			} else if (res == fds[0]) {
-				gettimeofday(&tv, NULL);
-				if (last.tv_sec || last.tv_usec) {
-					/* We should wait at least a frame length */
-					us = sizeof(myf.frdata) / 16 * 1000;
-					/* Subtract 1,000,000 us for each second late we've passed */
-					us -= (tv.tv_sec - last.tv_sec) * 1000000;
-					/* And one for each us late we've passed */
-					us -= (tv.tv_usec - last.tv_usec);
-					/* Sleep that long if needed */
-					if (us > 0)
-						usleep(us);
-				}
-				last = tv;
+			} else  {
 				res = read(fds[0], myf.frdata, sizeof(myf.frdata));
 				if (res > 0) {
 					myf.f.frametype = AST_FRAME_VOICE;
@@ -176,11 +149,9 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 				} else {
 					ast_log(LOG_DEBUG, "No more mp3\n");
 					res = 0;
+					break;
 				}
-			} else {
-				ast_log(LOG_DEBUG, "HuhHHH?\n");
-				res = -1;
-				break;
+				ms = res / 16;
 			}
 		}
 	}
