@@ -2362,7 +2362,6 @@ int load_module()
 					error = -1;
 					goto done;
 				}
-				callerid = NULL;
 			} else if (strcasecmp(v->name, "language") == 0) {
 				strncpy(language, v->value, sizeof(language)-1);
 			} else if (strcasecmp(v->name, "callerid") == 0) {
