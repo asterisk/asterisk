@@ -4031,8 +4031,11 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 		if (!auth) {
 			ast_log(LOG_WARNING, "Already have a call??\n");
 			return 0;
-		} else
+		} else {
 			p = r->call;
+			p->tag = rand();	/* create a new local tag for every register attempt */
+			p->theirtag[0]='\0';	/* forget their old tag, so we don't match tags when getting response */
+		}
 	} else {
 		if (!r->callid_valid) {
 			build_callid(r->callid, sizeof(r->callid), __ourip, default_fromdomain);
