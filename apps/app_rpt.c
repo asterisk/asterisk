@@ -3,7 +3,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Radio Repeater / Remote Base program 
- *  version 0.7 6/25/04
+ *  version 0.8 6/26/04
  * 
  * Copyright (C) 2002-2004, Jim Dixon, WB6NIL
  *
@@ -29,7 +29,23 @@
  *
  *  To send an asterisk (*) while dialing or talking on phone,
  *  use the autopatch acess code.
- */
+ *
+ *
+ * Remote cmds:
+ *
+ *  *0 - Recall Memory MM  (*000-*099) (Gets memory from rpt.conf)
+ *  *1 - Set VFO MMMMM*KKK*O   (Mhz digits, Khz digits, Offset)
+ *  *2 - Set Rx PL Tone HHH*D*
+ *  *3 - Set Tx PL Tone HHH*D*
+ *  *40 - RX PL off (Default)
+ *  *41 - RX PL On
+ *  *42 - TX PL Off (Default)
+ *  *43 - TX PL On
+ *  *44 - Low Power
+ *  *45 - Med Power
+ *  *46 - Hi Power
+ *
+*/
  
 /* number of digits for function after *. Must be at least 1 */
 #define	FUNCTION_LEN 4
@@ -43,7 +59,12 @@
 #define	MAXDTMF 10
 #define	DTMF_TIMEOUT 3
 
+#define	MAXREMSTR 15
+
 #define	NODES "nodes"
+#define MEMORY "memory"
+
+#define	DEFAULT_IOBASE 0x378
 
 #define	MAXCONNECTTIME 5000
 
@@ -53,6 +74,10 @@ enum {REM_OFF,REM_MONITOR,REM_TX};
 
 enum{ID,PROC,TERM,COMPLETE,UNKEY,REMDISC,REMALREADY,REMNOTFOUND,REMGO,
 	CONNECTED,CONNFAIL,STATUS,TIMEOUT};
+
+enum {REM_SIMPLEX,REM_MINUS,REM_PLUS};
+
+enum {REM_LOWPWR,REM_MEDPWR,REM_HIPWR};
 
 #include <asterisk/lock.h>
 #include <asterisk/file.h>
@@ -80,11 +105,12 @@ enum{ID,PROC,TERM,COMPLETE,UNKEY,REMDISC,REMALREADY,REMNOTFOUND,REMGO,
 #include <sys/time.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
+#include <sys/io.h>
 #include <math.h>
 #include <tonezone.h>
 #include <linux/zaptel.h>
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.7  06/25/2004";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.8  06/26/2004";
 static char *app = "Rpt";
 
 static char *synopsis = "Radio Repeater/Remote Base Control System";
@@ -168,11 +194,17 @@ static struct rpt
 	struct ast_channel *pchannel,*txpchannel;
 	struct rpt_tele tele;
 	pthread_t rpt_call_thread,rpt_thread;
-	time_t rem_dtmf_time;
+	time_t rem_dtmf_time,dtmf_time_rem;
 	int tailtimer,totimer,idtimer,txconf,conf,callmode,cidx;
 	int dtmfidx,rem_dtmfidx;
 	char mydtmf;
+	int iobase;
 	char exten[AST_MAX_EXTENSION];
+	char freq[MAXREMSTR],rxpl[MAXREMSTR],txpl[MAXREMSTR];
+	char offset;
+	char powerlevel;
+	char txplon;
+	char rxplon;
 } rpt_vars[MAXRPTS];		
 
 static void *rpt_tele_thread(void *this)
@@ -466,6 +498,32 @@ pthread_attr_t attr;
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	pthread_create(&tele->threadid,&attr,rpt_tele_thread,(void *) tele);
 	return;
+}
+
+static int sayfile(struct ast_channel *mychannel,char *fname)
+{
+int	res;
+
+	res = ast_streamfile(mychannel, fname, mychannel->language);
+	if (!res) 
+		res = ast_waitstream(mychannel, "");
+	else
+		 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+	ast_stopstream(mychannel);
+	return res;
+}
+
+static int saycharstr(struct ast_channel *mychannel,char *str)
+{
+int	res;
+
+	res = ast_say_character_str(mychannel,str,NULL,mychannel->language);
+	if (!res) 
+		res = ast_waitstream(mychannel, "");
+	else
+		 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+	ast_stopstream(mychannel);
+	return res;
 }
 
 static void *rpt_call(void *this)
@@ -1155,27 +1213,564 @@ struct	ast_frame wf;
 	return;
 }
 
-static void handle_remote_data(struct rpt *myrpt, char *str)
+/* Doug Hall RBI-1 serial data definitions:
+ *
+ * Byte 0: Expansion external outputs 
+ * Byte 1: 
+ *	Bits 0-3 are BAND as follows:
+ *	Bits 4-5 are POWER bits as follows:
+ *		00 - Low Power
+ *		01 - Hi Power
+ *		02 - Med Power
+ *	Bits 6-7 are always set
+ * Byte 2:
+ *	Bits 0-3 MHZ in BCD format
+ *	Bits 4-5 are offset as follows:
+ *		00 - minus
+ *		01 - plus
+ *		02 - simplex
+ *		03 - minus minus (whatever that is)
+ *	Bit 6 is the 0/5 KHZ bit
+ *	Bit 7 is always set
+ * Byte 3:
+ *	Bits 0-3 are 10 KHZ in BCD format
+ *	Bits 4-7 are 100 KHZ in BCD format
+ * Byte 4: PL Tone code and encode/decode enable bits
+ *	Bits 0-5 are PL tone code (comspec binary codes)
+ *	Bit 6 is encode enable/disable
+ *	Bit 7 is decode enable/disable
+ */
+
+/* take the frequency from the 10 mhz digits (and up) and convert it
+   to a band number */
+
+static int rbi_mhztoband(char *str)
+{
+int	i;
+
+	i = atoi(str) / 10; /* get the 10's of mhz */
+	switch(i)
+	{
+	    case 2:
+		return 10;
+	    case 5:
+		return 11;
+	    case 14:
+		return 2;
+	    case 22:
+		return 3;
+	    case 44:
+		return 4;
+	    case 124:
+		return 0;
+	    case 125:
+		return 1;
+	    case 126:
+		return 8;
+	    case 127:
+		return 5;
+	    case 128:
+		return 6;
+	    case 129:
+		return 7;
+	    default:
+		break;
+	}
+	return -1;
+}
+
+/* take a PL frequency and turn it into a code */
+static int rbi_pltocode(char *str)
+{
+int i;
+char *s;
+
+	s = strchr(str,'.');
+	i = 0;
+	if (s) i = atoi(s + 1);
+	i += atoi(str) * 10;
+	switch(i)
+	{
+	    case 670:
+		return 0;
+	    case 719:
+		return 1;
+	    case 744:
+		return 2;
+	    case 770:
+		return 3;
+	    case 797:
+		return 4;
+	    case 825:
+		return 5;
+	    case 854:
+		return 6;
+	    case 885:
+		return 7;
+	    case 915:
+		return 8;
+	    case 948:
+		return 9;
+	    case 974:
+		return 10;
+	    case 1000:
+		return 11;
+	    case 1035:
+		return 12;
+	    case 1072:
+		return 13;
+	    case 1109:
+		return 14;
+	    case 1148:
+		return 15;
+	    case 1188:
+		return 16;
+	    case 1230:
+		return 17;
+	    case 1273:
+		return 18;
+	    case 1318:
+		return 19;
+	    case 1365:
+		return 20;
+	    case 1413:
+		return 21;
+	    case 1462:
+		return 22;
+	    case 1514:
+		return 23;
+	    case 1567:
+		return 24;
+	    case 1622:
+		return 25;
+	    case 1679:
+		return 26;
+	    case 1738:
+		return 27;
+	    case 1799:
+		return 28;
+	    case 1862:
+		return 29;
+	    case 1928:
+		return 30;
+	    case 2035:
+		return 31;
+	    case 2107:
+		return 32;
+	    case 2181:
+		return 33;
+	    case 2257:
+		return 34;
+	    case 2336:
+		return 35;
+	    case 2418:
+		return 36;
+	    case 2503:
+		return 37;
+	}
+	return -1;
+}
+
+/*
+* Shift out a formatted serial bit stream
+*/
+
+static void rbi_out(struct rpt *myrpt,unsigned char *data)
+    {
+    int i,j;
+    unsigned char od,d;
+    static volatile long long delayvar;
+
+    for(i = 0 ; i < 5 ; i++){
+        od = *data++; 
+        for(j = 0 ; j < 8 ; j++){
+            d = od & 1;
+            outb(d,myrpt->iobase);
+	    /* >= 15 us */
+	    for(delayvar = 1; delayvar < 15000; delayvar++); 
+            od >>= 1;
+            outb(d | 2,myrpt->iobase);
+	    /* >= 30 us */
+	    for(delayvar = 1; delayvar < 30000; delayvar++); 
+            outb(d,myrpt->iobase);
+	    /* >= 10 us */
+	    for(delayvar = 1; delayvar < 10000; delayvar++); 
+            }
+        }
+	/* >= 50 us */
+        for(delayvar = 1; delayvar < 50000; delayvar++); 
+    }
+
+static int setrbi(struct rpt *myrpt)
+{
+char tmp[MAXREMSTR],rbicmd[5],*s;
+int	band,txoffset = 0,txpower = 0,rxpl;
+
+	
+	strcpy(tmp,myrpt->freq);
+	s = strchr(tmp,'.');
+	/* if no decimal, is invalid */
+	if (s == NULL) return -1;
+	*s++ = 0;
+	if (strlen(tmp) < 2) return -1;
+	if (strlen(s) < 3) return -1;
+	if ((s[2] != '0') && (s[2] != '5')) return -1;
+	band = rbi_mhztoband(tmp);
+	if (band == -1) return -1;
+	rxpl = rbi_pltocode(myrpt->rxpl);
+	if (rxpl == -1) return -1;
+	switch(myrpt->offset)
+	{
+	    case REM_MINUS:
+		txoffset = 0;
+		break;
+	    case REM_PLUS:
+		txoffset = 0x10;
+		break;
+	    case REM_SIMPLEX:
+		txoffset = 0x20;
+		break;
+	}
+	switch(myrpt->powerlevel)
+	{
+	    case REM_LOWPWR:
+		txpower = 0;
+		break;
+	    case REM_MEDPWR:
+		txpower = 0x20;
+		break;
+	    case REM_HIPWR:
+		txpower = 0x10;
+		break;
+	}
+	rbicmd[0] = 0;
+	rbicmd[1] = band | txpower | 0xc0;
+	rbicmd[2] = (*(s - 2) - '0') | txoffset | 0x80;
+	if (s[2] == '5') rbicmd[2] |= 0x40;
+	rbicmd[3] = ((*s - '0') << 4) + (s[1] - '0');
+	rbicmd[4] = rxpl;
+	if (myrpt->txplon) rbicmd[4] |= 0x40;
+	if (myrpt->rxplon) rbicmd[4] |= 0x80;
+	rbi_out(myrpt,rbicmd);
+	return 0;
+}
+
+static int remote_function(struct rpt *myrpt,char *cmd, struct ast_channel *mychannel)
+{
+char	*s,*s1,tmp[300],oc,savestr[MAXREMSTR],*val;
+
+	switch(cmd[0])
+	{
+	    case '0':  /* retrieve memory */
+		val = ast_variable_retrieve(cfg,MEMORY,cmd + 1);
+		if (!val)
+		{
+			if (ast_safe_sleep(mychannel,1000) == -1) return -1;
+			return(sayfile(mychannel,"rpt/memory_notfound"));
+		}			
+		strncpy(tmp,val,sizeof(tmp) - 1);
+		s = strchr(tmp,',');
+		if (!s) return 0;
+		*s++ = 0;
+		s1 = strchr(s,',');
+		if (!s1) return 0;
+		*s1++ = 0;
+		strcpy(myrpt->freq,tmp);
+		strcpy(myrpt->rxpl,s);
+		myrpt->offset = REM_SIMPLEX;
+		myrpt->powerlevel = REM_MEDPWR;
+		myrpt->rxplon = 0;
+		myrpt->txplon = 0;
+		while(*s1)
+		{
+			switch(*s1++)
+			{
+			    case 'L':
+			    case 'l':
+				myrpt->powerlevel = REM_LOWPWR;
+				break;
+			    case 'H':
+			    case 'h':
+				myrpt->powerlevel = REM_HIPWR;
+				break;
+			    case 'M':
+			    case 'm':
+				myrpt->powerlevel = REM_MEDPWR;
+				break;
+			    case '-':
+				myrpt->offset = REM_MINUS;
+				break;
+			    case '+':
+				myrpt->offset = REM_PLUS;
+				break;
+			    case 'S':
+			    case 's':
+				myrpt->offset = REM_SIMPLEX;
+				break;
+			    case 'T':
+			    case 't':
+				myrpt->txplon = 1;
+				break;
+			    case 'R':
+			    case 'r':
+				myrpt->rxplon = 1;
+				break;
+			}
+		}
+		if (setrbi(myrpt) == -1) return 0;
+		break;		
+	    case '1':  /* set freq + offset */
+		strncpy(tmp,cmd,sizeof(tmp) - 1);
+		s1 = NULL;
+		oc = 0;
+		/* see if we have at least 1 */
+		s = strchr(tmp,'*');
+		if (s)
+		{
+			*s++ = 0;
+			s1 = strchr(s,'*');
+			if (s1)
+			{
+				*s1++ = 0;
+				oc = *s1;
+			}
+			if (strlen(s) > 3) return 0;
+			if (strlen(s) < 3) memset(s + strlen(s),'0',3 - strlen(s));
+			s[3] = 0;
+		} else strcat(tmp,".000");
+		if (oc)
+		{
+			switch(oc)
+			{
+			    case '1':
+				myrpt->offset = REM_MINUS;
+				break;
+			    case '2':
+				myrpt->offset = REM_SIMPLEX;
+				break;
+			    case '3':
+				myrpt->offset = REM_PLUS;
+				break;
+			    default:
+				return 0;
+			} 
+		} else myrpt->offset = REM_SIMPLEX;
+		if(s) *--s = '.';
+		strcpy(savestr,myrpt->freq);
+		strcpy(myrpt->freq,tmp + 1);
+		if (setrbi(myrpt) == -1)
+		{
+			strcpy(myrpt->freq,savestr);
+			return 0;
+		}
+		break;
+	    case '2': /* set rx PL tone */
+		strncpy(tmp,cmd,sizeof(tmp) - 1);
+		/* see if we have at least 1 */
+		s = strchr(tmp,'*');
+		if (s)
+		{
+			*s++ = '.';
+			if (strlen(s + 1) > 1) return 0;
+		} else strcat(tmp,".0");
+		strcpy(savestr,myrpt->rxpl);
+		strcpy(myrpt->rxpl,tmp + 1);
+		if (setrbi(myrpt) == -1)
+		{
+			strcpy(myrpt->rxpl,savestr);
+			return 0;
+		}
+		break;
+	    case '4': /* other stuff */
+		if (strlen(cmd) > 2) return 0;
+		switch(cmd[1])
+		{
+		    case '0': /* RX PL Off */
+			myrpt->rxplon = 0;
+			break;
+		    case '1': /* RX PL On */
+			myrpt->rxplon = 1;
+			break;
+		    case '2': /* TX PL Off */
+			myrpt->txplon = 0;
+			break;
+		    case '3': /* TX PL On */
+			myrpt->txplon = 1;
+			break;
+		    case '4': /* Low Power */
+			myrpt->powerlevel = REM_LOWPWR;
+			break;
+		    case '5': /* Medium Power */
+			myrpt->powerlevel = REM_MEDPWR;
+			break;
+		    case '6': /* Hi Power */
+			myrpt->powerlevel = REM_HIPWR;
+			break;
+		    default:
+			return 0;
+		}
+		if (setrbi(myrpt) == -1) return 0;
+		break;
+	    default:
+		return 0;
+	}
+	return 1;
+}
+
+static int handle_dtmf_digit(struct rpt *myrpt,char c, struct ast_channel *mychannel)
+{
+char str[MAXDTMF],*s,*s1;
+time_t	now;
+
+	time(&now);
+	/* if timed-out */
+	if ((myrpt->dtmf_time_rem + DTMF_TIMEOUT) < now)
+	{
+		strcpy(str,myrpt->dtmfbuf);
+		myrpt->dtmfidx = -1;
+		myrpt->dtmfbuf[0] = 0;
+		myrpt->dtmf_time_rem = 0;
+	}
+	/* if decode not active */
+	if (myrpt->dtmfidx == -1)
+	{
+		/* if not lead-in digit, dont worry */
+		if (c != '*') return 0;
+		myrpt->dtmfidx = 0;
+		myrpt->dtmfbuf[0] = 0;
+		myrpt->dtmf_time_rem = now;
+		return 0;
+	}
+	/* if too many in buffer, start over */
+	if (myrpt->dtmfidx >= MAXDTMF)
+	{
+		myrpt->dtmfidx = 0;
+		myrpt->dtmfbuf[0] = 0;
+		myrpt->dtmf_time_rem = now;
+	}
+	if (c == '*')
+	{
+		/* if star at beginning, or 2 together, erase buffer */
+		if ((myrpt->dtmfidx < 1) || 
+			(myrpt->dtmfbuf[myrpt->dtmfidx - 1] == '*'))
+		{
+			myrpt->dtmfidx = 0;
+			myrpt->dtmfbuf[0] = 0;
+			myrpt->dtmf_time_rem = now;
+			return 0;
+		}
+	}
+	myrpt->dtmfbuf[myrpt->dtmfidx++] = c;
+	myrpt->dtmfbuf[myrpt->dtmfidx] = 0;
+	myrpt->dtmf_time_rem = now;
+	switch(myrpt->dtmfbuf[0])
+	{
+	    case '4': /* wait for 1 more digit */
+		/* if we are at end, process it */
+		if (myrpt->dtmfidx >= 2) break;
+		return 0;
+	    case '0': /* wait for 2 more digits */
+		/* if we are at end, process it */
+		if (myrpt->dtmfidx >= 3) break;
+		return 0;
+	    case '2':
+	    case '3': /* go until 1 digit after * */
+		s = strchr(myrpt->dtmfbuf,'*');
+		/* if we dont have a star, dont worry yet */
+		if (s == NULL) return 0;			
+		/* if nothing after star yet */
+		if (!s[1]) return 0;
+		/* okay, we got it */
+		break;
+	    case '1': /* go until 1 digit after second * */
+		s = strchr(myrpt->dtmfbuf,'*');
+		/* if we dont have a star, dont worry yet */
+		if (s == NULL) return 0;			
+		/* if nothing after star yet */
+		if (!s[1]) return 0;
+		s1 = strchr(s + 1,'*');
+		/* if we dont have a 2nd star, dont worry yet */
+		if (s1 == NULL) return 0;
+		/* if nothing after 2nd * yet */
+		if (!s1[1]) return 0;
+		/* okay, we got it */
+		break;
+	    case '5': /* status, just deux it here */
+		if (sayfile(mychannel,"rpt/node") == -1) return -1;
+		if (saycharstr(mychannel,myrpt->name) == -1) return -1;
+		if (sayfile(mychannel,"rpt/frequency") == -1) return -1;
+		if (saycharstr(mychannel,myrpt->freq) == -1) return -1;
+		switch(myrpt->offset)
+		{
+		    case REM_MINUS:
+			if (sayfile(mychannel,"rpt/minus") == -1) return -1;
+			break;
+		    case REM_SIMPLEX:
+			if (sayfile(mychannel,"rpt/simplex") == -1) return -1;
+			break;
+		    case REM_PLUS:
+			if (sayfile(mychannel,"rpt/plus") == -1) return -1;
+			break;
+		}
+		switch(myrpt->powerlevel)
+		{
+		    case REM_LOWPWR:
+			if (sayfile(mychannel,"rpt/lopwr") == -1) return -1;
+			break;
+		    case REM_MEDPWR:
+			if (sayfile(mychannel,"rpt/medpwr") == -1) return -1;
+			break;
+		    case REM_HIPWR:
+			if (sayfile(mychannel,"rpt/hipwr") == -1) return -1;
+			break;
+		}
+		if (sayfile(mychannel,"rpt/rxpl") == -1) return -1;
+		if (sayfile(mychannel,"rpt/frequency") == -1) return -1;
+		if (saycharstr(mychannel,myrpt->rxpl) == -1) return -1;
+		if (sayfile(mychannel,"rpt/txpl") == -1) return -1;
+		if (sayfile(mychannel,((myrpt->txplon) ? "rpt/on" : "rpt/off")) == -1) return -1;
+		if (sayfile(mychannel,"rpt/rxpl") == -1) return -1;
+		if (sayfile(mychannel,((myrpt->rxplon) ? "rpt/on" : "rpt/off")) == -1) return -1;
+		myrpt->dtmfidx = -1;
+		myrpt->dtmfbuf[0] = 0;
+		myrpt->dtmf_time_rem = 0;
+		return 1;
+	    default:
+		myrpt->dtmfidx = -1;
+		myrpt->dtmfbuf[0] = 0;
+		myrpt->dtmf_time_rem = 0;
+		return 0;
+	}
+	strcpy(str,myrpt->dtmfbuf);
+	myrpt->dtmfidx = -1;
+	myrpt->dtmfbuf[0] = 0;
+	myrpt->dtmf_time_rem = 0;
+	return(remote_function(myrpt,str,mychannel));
+}
+
+static int handle_remote_data(struct rpt *myrpt, char *str, struct ast_channel *mychannel)
 {
 char	tmp[300],cmd[300],dest[300],src[300],c;
-int	seq;
+int	seq,res;
 
  	/* put string in our buffer */
 	strncpy(tmp,str,sizeof(tmp) - 1);
 	if (sscanf(tmp,"%s %s %s %d %c",cmd,dest,src,&seq,&c) != 5)
 	{
 		ast_log(LOG_WARNING, "Unable to parse link string %s\n",str);
-		return;
+		return 0;
 	}
 	if (strcmp(cmd,"D"))
 	{
 		ast_log(LOG_WARNING, "Unable to parse link string %s\n",str);
-		return;
+		return 0;
 	}
 	/* if not for me, ignore */
-	if (strcmp(dest,myrpt->name)) return;
-	printf("Remote %s got DTMF %c\n",myrpt->name,c);
-	return;
+	if (strcmp(dest,myrpt->name)) return 0;
+	res = handle_dtmf_digit(myrpt,c,mychannel);
+	if (res != 1) return res;
+	if (ast_safe_sleep(mychannel,1000) == -1) return -1;
+	return(sayfile(mychannel,"rpt/functioncomplete"));
 }
 
 /* single thread with one file (request) to dial */
@@ -1848,6 +2443,7 @@ int	i,n;
 	while((this = ast_category_browse(cfg,this)) != NULL)
 	{
 		if (!strcmp(this,NODES)) continue;
+		if (!strcmp(this,MEMORY)) continue;
 		ast_log(LOG_DEBUG,"Loading config for repeater %s\n",this);
 		ast_mutex_init(&rpt_vars[n].lock);
 		rpt_vars[n].tele.next = &rpt_vars[n].tele;
@@ -1876,6 +2472,9 @@ int	i,n;
 		if (val) rpt_vars[n].remote = ast_true(val); 
 			else rpt_vars[n].remote = 0;
 		rpt_vars[n].tonezone = ast_variable_retrieve(cfg,this,"tonezone");
+		val = ast_variable_retrieve(cfg,this,"iobase");
+		if (val) rpt_vars[n].iobase = atoi(val);
+		else rpt_vars[n].iobase = DEFAULT_IOBASE;
 		n++;
 	}
 	nrpts = n;
@@ -1889,7 +2488,14 @@ int	i,n;
 			pthread_exit(NULL);
 		}
 		/* if is a remote, dont start one for it */
-		if (rpt_vars[i].remote) continue;
+		if (rpt_vars[i].remote)
+		{
+			strcpy(rpt_vars[i].freq,"146.460");
+			strcpy(rpt_vars[i].rxpl,"100.0");
+			rpt_vars[i].offset = REM_SIMPLEX;
+			rpt_vars[i].powerlevel = REM_MEDPWR;
+			continue;
+		}
 		if (!rpt_vars[i].ident)
 		{
 			ast_log(LOG_WARNING,"Did not specify ident for node %s\n",rpt_vars[i].name);
@@ -2031,6 +2637,12 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Trying to use busy link on %s\n",tmp);
 		return -1;
 	}
+	if (ioperm(myrpt->iobase,1,1) == -1)
+	{
+		ast_mutex_unlock(&myrpt->lock);
+		ast_log(LOG_WARNING, "Cant get io permission on IO port %x hex\n",myrpt->iobase);
+		return -1;
+	}
 	LOCAL_USER_ADD(u);
 	tele = strchr(myrpt->rxchanname,'/');
 	if (!tele)
@@ -2103,7 +2715,11 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	myrpt->remoterx = 0;
 	myrpt->remotetx = 0;
 	myrpt->remoteon = 1;
+	myrpt->dtmfidx = -1;
+	myrpt->dtmfbuf[0] = 0;
+	myrpt->dtmf_time_rem = 0;
 	ast_mutex_unlock(&myrpt->lock);
+	setrbi(myrpt);
 	ast_set_write_format(chan, AST_FORMAT_SLINEAR);
 	ast_set_read_format(chan, AST_FORMAT_SLINEAR);
 	/* if we are on 2w loop and are a remote, turn EC on */
@@ -2154,7 +2770,12 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			}
 			else if (f->frametype == AST_FRAME_TEXT)
 			{
-				handle_remote_data(myrpt,f->data);
+				if (handle_remote_data(myrpt,f->data,chan) == -1)
+				{
+					if (debug) printf("@@@@ rpt:Hung Up\n");
+					ast_frfree(f);
+					break;
+				}
 			}
 			else if (f->frametype == AST_FRAME_CONTROL)
 			{

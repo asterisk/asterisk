@@ -44,3 +44,18 @@
 ; specify the rxchannel and the txchannel will be assumed from the rxchannel
 ;txchannel = Zap/6			; Tx audio/signalling channel
 ;remote = yes
+;iobase = 0x378				; Specify IO port for parallel port (optional)
+
+[nodes]
+
+000 = context_A@1.2.3.4/1234
+001 = context_B@5.6.7.8/4321
+
+[memory]
+
+; this example gives you 146.460, simplex, 100.0 HZ PL, hi-power, transmit PL
+00 = 146.460,100.0,sht
+; this example gives you 146.940, minus offset, 100.0 HZ PL, low-power, no PL
+01 = 146.940,100.0,-l
+
+
