@@ -4248,7 +4248,11 @@ static int handle_init_event(struct zt_pvt *i, int event)
 				chan = zt_new(i, AST_STATE_DOWN, 0, SUB_REAL, 0);
 				if (chan) {
 					if (has_voicemail(i))
+#ifdef ZT_TONE_STUTTER
+						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_STUTTER);
+#else
 						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_DIALRECALL);
+#endif
 					else
 						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_DIALTONE);
 					if (res < 0) 
