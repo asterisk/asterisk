@@ -58,6 +58,7 @@
 #define MGCPDUMPER
 #define DEFAULT_EXPIREY 120
 #define MAX_EXPIREY     3600
+#define CANREINVITE	1
 
 static char *desc = "Media Gateway Control Protocol (MGCP)";
 static char *type = "MGCP";
@@ -127,6 +128,8 @@ static int threewaycalling = 0;
 static int transfer = 0;
 
 static int cancallforward = 0;
+
+static int canreinvite = CANREINVITE;
 
 /*static int busycount = 3;*/
 
@@ -266,6 +269,7 @@ struct mgcp_endpoint {
     int transfer;
     int threewaycalling;
 	int cancallforward;
+	int canreinvite;
 	int callreturn;
 	int dnd; /* How does this affect callwait?  Do we just deny a mgcp_request if we're dnd? */
 	int hascallerid;
@@ -2191,6 +2195,9 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
                 /* Thanks to point on IRC for pointing this out */
                 return -1;
             }
+ 	    /* do not let * confrnce two down channels */  
+	    if( sub->owner && sub->owner->_state == AST_STATE_DOWN && !sub->next->owner) return -1;
+
             if (p->callwaiting || p->transfer || p->threewaycalling) {
                 if (option_verbose > 2) {
                     ast_verbose(VERBOSE_PREFIX_3 "Swapping %d for %d on %s@%s\n", p->sub->id, p->sub->next->id, p->name, p->parent->name);
@@ -2622,7 +2629,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
     struct mgcp_subchannel *sub;
     /*char txident[80];*/
     int i=0, y=0;
-
+	canreinvite = CANREINVITE;
 	gw = malloc(sizeof(struct mgcp_gateway));
 	if (gw) {
 		memset(gw, 0, sizeof(struct mgcp_gateway));
@@ -2692,6 +2699,8 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
                 immediate = ast_true(v->value);
             } else if (!strcasecmp(v->name, "cancallforward")) {
                 cancallforward = ast_true(v->value);
+            } else if (!strcasecmp(v->name, "canreinvite")) {
+                canreinvite = ast_true(v->value);
             } else if (!strcasecmp(v->name, "mailbox")) {
                 strncpy(mailbox, v->value, sizeof(mailbox) -1);
             } else if (!strcasecmp(v->name, "adsi")) {
@@ -2737,6 +2746,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
                     e->pickupgroup=cur_pickupgroup;
                     e->callreturn = callreturn;
                     e->cancallforward = cancallforward;
+                    e->canreinvite = canreinvite;
                     e->callwaiting = callwaiting;
                     e->transfer = transfer;
                     e->threewaycalling = threewaycalling;
@@ -2802,7 +2812,7 @@ static struct ast_rtp *mgcp_get_rtp_peer(struct ast_channel *chan)
 {
 	struct mgcp_subchannel *sub;
 	sub = chan->pvt->pvt;
-	if (sub && sub->rtp)
+	if (sub && sub->rtp && sub->parent->canreinvite)
 		return sub->rtp;
 	return NULL;
 }
