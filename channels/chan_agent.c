@@ -381,10 +381,10 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 	if (!f) {
 		/* If there's a channel, hang it up  (if it's on a callback) make it NULL */
 		if (p->chan) {
+			p->chan->_bridge = NULL;
 			/* Note that we don't hangup if it's not a callback because Asterisk will do it
 			   for us when the PBX instance that called login finishes */
 			if (!ast_strlen_zero(p->loginchan)) {
-				p->chan->_bridge = NULL;
 				if (p->chan)
 					ast_log(LOG_DEBUG, "Bridge on '%s' being cleared (2)\n", p->chan->name);
 				ast_hangup(p->chan);
@@ -639,6 +639,7 @@ static int agent_hangup(struct ast_channel *ast)
 	} else
 		p->start = 0; 
 	if (p->chan) {
+		p->chan->_bridge = NULL;
 		/* If they're dead, go ahead and hang up on the agent now */
 		if (!ast_strlen_zero(p->loginchan)) {
 			/* Store last disconnect time */
@@ -2119,7 +2120,7 @@ int load_module()
 	ast_register_application(app2, callback_exec, synopsis2, descrip2);
 	ast_register_application(app3, agentmonitoroutgoing_exec, synopsis3, descrip3);
 	/* Manager command */
-	ast_manager_register2("Agents", 0, action_agents, "Lists agents and their status", mandescr_agents);
+	ast_manager_register2("Agents", EVENT_FLAG_AGENT, action_agents, "Lists agents and their status", mandescr_agents);
 	/* CLI Application */
 	ast_cli_register(&cli_show_agents);
 	ast_cli_register(&cli_agent_logoff);
