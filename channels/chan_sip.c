@@ -4473,6 +4473,10 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 		}
 	} else {
 		ast_log(LOG_NOTICE, "Transfer attempted with no bridged calls to transfer\n");
+		if (p1->owner)
+			ast_softhangup(p1->owner, AST_SOFTHANGUP_DEV);
+		if (p2->owner)
+			ast_softhangup(p2->owner, AST_SOFTHANGUP_DEV);
 		return -1;
 	}
 	return 0;
