@@ -16,6 +16,8 @@ CHANNEL_LIBS=chan_vofr.so chan_modem.so \
 
 CHANNEL_LIBS+=$(shell [ -f /usr/include/linux/ixjuser.h ] && echo chan_phone.so)
 
+CFLAGS+=-Wno-missing-prototypes -Wno-missing-declarations
+
 CFLAGS+=#-DVOFRDUMPER
 
 all: $(CHANNEL_LIBS)

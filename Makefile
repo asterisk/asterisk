@@ -25,6 +25,7 @@ DEBUG=-g #-pg
 INCLUDE=-Iinclude -I../include
 CFLAGS=-pipe -Wall -Werror -Wmissing-prototypes -Wmissing-declarations -O6 $(DEBUG) $(INCLUDE) -D_REENTRANT
 CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
+CFLAGS+=$(shell [ ! -f /usr/include/linux/if_wanpipe.h ] && echo " -DOLD_SANGOMA_API")
 SUBDIRS=channels pbx apps codecs formats
 LIBS=-ldl -lpthread -lreadline #-lefence
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o translate.o file.o say.o pbx.o cli.o md5.o asterisk.o
@@ -70,6 +71,7 @@ install: all
 	rm -f /var/lib/asterisk/sounds/vm
 	mkdir -p /var/spool/asterisk/vm
 	rm -f /usr/lib/asterisk/modules/chan_ixj.so
+	mkdir -p /var/lib/asterisk/sounds
 	( cd /var/lib/asterisk/sounds  ; ln -s ../../../spool/asterisk/vm . )
 	@echo " +---- Asterisk Installation Complete -------+"  
 	@echo " + Asterisk has successfully been installed. +"  
@@ -92,7 +94,7 @@ samples: all datafiles
 	for x in sounds/demo-*; do \
 		install $$x /var/lib/asterisk/sounds; \
 	done
-	mkdir -p /var/lib/asterisk/sounds/vm/1234
+	mkdir -p /var/spool/asterisk/vm/1234/INBOX
 	:> /var/lib/asterisk/sounds/vm/1234/unavail.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isunavail; do \
 		cat /var/lib/asterisk/sounds/$$x.gsm >> /var/lib/asterisk/sounds/vm/1234/unavail.gsm ; \

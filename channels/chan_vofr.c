@@ -28,8 +28,14 @@
 #include <arpa/inet.h>
 #include <linux/if_packet.h>
 #include <linux/if_ether.h>
+#ifndef OLD_SANGOMA_API
+#include <linux/if_wanpipe.h>
+#include <linux/wanpipe.h>
+#endif
 #include <sys/signal.h>
 #include "adtranvofr.h"
+
+/* #define VOFRDUMPER */
 
 #define G723_MAX_BUF 2048
 
@@ -41,6 +47,8 @@ static char *tdesc = "Voice over Frame Relay/Adtran style";
 static char *config = "adtranvofr.conf";
 
 static char context[AST_MAX_EXTENSION] = "default";
+
+static char language[MAX_LANGUAGE] = "";
 
 static int usecnt =0;
 static pthread_mutex_t usecnt_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -63,7 +71,11 @@ static int restart_monitor(void);
    
 static struct vofr_pvt {
 	int s;							/* Raw socket for this DLCI */
+#ifdef OLD_SANGOMA_API
 	struct sockaddr_pkt sa;			/* Sockaddr needed for sending, also has iface name */
+#else
+	struct wan_sockaddr_ll sa;		/* Wanpipe sockaddr */
+#endif
 	struct ast_channel *owner;		/* Channel we belong to, possibly NULL */
 	int outgoing;					/* Does this channel support outgoing calls? */
 	struct vofr_pvt *next;			/* Next channel in list */
@@ -75,6 +87,8 @@ static struct vofr_pvt {
 	char buf[G723_MAX_BUF];					/* Static buffer for reading frames */
 	char obuf[G723_MAX_BUF];				/* Output buffer */
 	char context[AST_MAX_EXTENSION];
+	char language[MAX_LANGUAGE];
+	int ringgothangup;				/* Have we received exactly one hangup after a ring */
 } *iflist = NULL;
 
 #ifdef VOFRDUMPER
@@ -241,7 +255,11 @@ static void vofr_dump_packet(struct vofr_hdr *vh, int len)
 static int vofr_xmit(struct vofr_pvt *p, char *data, int len)
 {
 	int res;
+#ifdef OLD_SANGOMA_API
     res=sendto(p->s, data, len, 0, (struct sockaddr *)&p->sa, sizeof(struct sockaddr_pkt));
+#else
+    res=sendto(p->s, data, len, 0, (struct sockaddr *)&p->sa, sizeof(struct wan_sockaddr_ll));
+#endif
 	if (res != len) {
 		ast_log(LOG_WARNING, "vofr_xmit returned %d\n", res);
 	}
@@ -434,6 +452,7 @@ static int vofr_hangup(struct ast_channel *ast)
 	}
 	ast->state = AST_STATE_DOWN;
 	((struct vofr_pvt *)(ast->pvt->pvt))->owner = NULL;
+	((struct vofr_pvt *)(ast->pvt->pvt))->ringgothangup = 0;
 	pthread_mutex_lock(&usecnt_lock);
 	usecnt--;
 	if (usecnt < 0) 
@@ -465,6 +484,9 @@ static int vofr_answer(struct ast_channel *ast)
 		cnt = ast_waitfor(ast, cnt);
 		if (cnt > 0) {
 			res = read(ast->fd, buf, sizeof(buf));
+#ifdef VOFRDUMPER
+				vofr_dump_packet((void *)(buf +FR_API_MESS), res - FR_API_MESS);
+#endif
 			res -= FR_API_MESS;
 			if (res < 0)
 				ast_log(LOG_WARNING, "Warning:  read failed (%s) on %s\n", strerror(errno), ast->name);
@@ -531,6 +553,9 @@ static struct ast_frame  *vofr_read(struct ast_channel *ast)
 	CHECK_BLOCKING(ast);
 	res = read(p->s, ((char *)vh)  - FR_API_MESS, 
 				G723_MAX_BUF - AST_FRIENDLY_OFFSET - sizeof(struct ast_frame) + sizeof(struct vofr_hdr) + FR_API_MESS);
+#ifdef VOFRDUMPER
+	vofr_dump_packet((void *)(vh), res);
+#endif
 	ast->blocking = 0;
 	res -= FR_API_MESS;		
 	if (res < sizeof(struct vofr_hdr *)) {
@@ -552,15 +577,17 @@ static struct ast_frame  *vofr_read(struct ast_channel *ast)
 		switch(vh->data[0]) {
 		case VOFR_SIGNAL_ON_HOOK:
 			/* Hang up this line */
-			if (ast->state == AST_STATE_UP)
+			if ((ast->state == AST_STATE_UP) || (p->ringgothangup)) {
 				return NULL;
-			else {
+			} else {
 				fr->frametype = AST_FRAME_NULL;
 				fr->subclass = 0;
-				break;
+				p->ringgothangup=1;
 			}
+			break;
 		case VOFR_SIGNAL_RING:
 			ast->rings++;
+			p->ringgothangup = 0;
 			break;
 		case VOFR_SIGNAL_UNKNOWN:
 			switch(vh->data[1]) {
@@ -745,7 +772,11 @@ static struct ast_channel *vofr_new(struct vofr_pvt *i, int state)
 	struct ast_channel *tmp;
 	tmp = ast_channel_alloc();
 	if (tmp) {
+#ifdef OLD_SANGOMA_API
 		snprintf(tmp->name, sizeof(tmp->name), "AdtranVoFR/%s", i->sa.spkt_device);
+#else
+		snprintf(tmp->name, sizeof(tmp->name), "AdtranVoFR/%s", i->sa.sll_device);
+#endif
 		tmp->type = type;
 		tmp->fd = i->s;
 		/* Adtran VoFR supports only G723.1 format data.  G711 (ulaw) would be nice too */
@@ -760,6 +791,8 @@ static struct ast_channel *vofr_new(struct vofr_pvt *i, int state)
 		tmp->pvt->answer = vofr_answer;
 		tmp->pvt->read = vofr_read;
 		tmp->pvt->write = vofr_write;
+		if (strlen(i->language))
+			strncpy(tmp->language, i->language, sizeof(tmp->language));
 		i->owner = tmp;
 		pthread_mutex_lock(&usecnt_lock);
 		usecnt++;
@@ -788,9 +821,10 @@ static int vofr_mini_packet(struct vofr_pvt *i, struct vofr_hdr *pkt, int len)
 		switch(pkt->data[0]) {
 		case VOFR_SIGNAL_RING:
 			/* If we get a RING, we definitely want to start a new thread */
-			if (!i->owner)
+			if (!i->owner) {
+				i->ringgothangup = 0;
 				vofr_new(i, AST_STATE_RING);
-			else
+			} else
 				ast_log(LOG_WARNING, "Got a ring, but there's an owner?\n");
 			break;
 		case VOFR_SIGNAL_OFF_HOOK:
@@ -867,7 +901,11 @@ static void *do_monitor(void *data)
 		i = iflist;
 		while(i) {
 			if (FD_ISSET(i->s, &rfds)) 
+#ifdef OLD_SANGOMA_API
 				ast_log(LOG_WARNING, "Descriptor %d appears twice (%s)?\n", i->s, i->sa.spkt_device);
+#else
+				ast_log(LOG_WARNING, "Descriptor %d appears twice (%s)?\n", i->s, i->sa.sll_device);
+#endif
 			if (!i->owner) {
 				/* This needs to be watched, as it lacks an owner */
 				FD_SET(i->s, &rfds);
@@ -901,7 +939,11 @@ static void *do_monitor(void *data)
 		while(i) {
 			if (FD_ISSET(i->s, &rfds)) {
 				if (i->owner) {
+#ifdef OLD_SANGOMA_API
 					ast_log(LOG_WARNING, "Whoa....  I'm owned but found (%d, %s)...\n", i->s, i->sa.spkt_device);
+#else
+					ast_log(LOG_WARNING, "Whoa....  I'm owned but found (%d, %s)...\n", i->s, i->sa.sll_device);
+#endif
 					continue;
 				}
 				res = read(i->s, i->buf, sizeof(i->buf));
@@ -964,22 +1006,44 @@ static struct vofr_pvt *mkif(char *type, char *iface)
 	if (tmp) {
 
 		/* Allocate a packet socket */
+#ifdef OLD_SANGOMA_API
 		tmp->s = socket(AF_INET, SOCK_PACKET, htons(ETH_P_ALL));
+#else
+		/* Why the HELL does Sangoma change their API every damn time
+		   they make a new driver release?!?!?!  Leave it the hell
+		   alone this time.  */
+		tmp->s = socket(AF_WANPIPE, SOCK_RAW, 0);
+#endif		
+
 		if (tmp->s < 0) {
 			ast_log(LOG_ERROR, "Unable to create socket: %s\n", strerror(errno));
 			free(tmp);
 			return NULL;
 		}
 
+#ifdef OLD_SANGOMA_API
 		/* Prepare sockaddr for binding */
 		memset(&tmp->sa, 0, sizeof(tmp->sa));
 		strncpy(tmp->sa.spkt_device, iface, sizeof(tmp->sa.spkt_device));
 		tmp->sa.spkt_protocol = htons(0x16);
 		tmp->sa.spkt_family = AF_PACKET;
-		
-		/* Bind socket to specific interface */
 		if (bind(tmp->s, (struct sockaddr *)&tmp->sa, sizeof(struct sockaddr))) {
+#else
+		/* Prepare sockaddr for binding */
+		memset(&tmp->sa, 0, sizeof(tmp->sa));
+		tmp->sa.sll_family = AF_WANPIPE;
+		tmp->sa.sll_protocol = htons(ETH_P_IP);
+		strncpy(tmp->sa.sll_device, iface, sizeof(tmp->sa.sll_device));
+		strncpy(tmp->sa.sll_card, "wanpipe1", sizeof(tmp->sa.sll_card));
+		tmp->sa.sll_ifindex = 0;
+		if (bind(tmp->s, (struct sockaddr *)&tmp->sa, sizeof(struct wan_sockaddr_ll))) {
+#endif		
+		/* Bind socket to specific interface */
+#ifdef OLD_SANGOMA_API
 			ast_log(LOG_ERROR, "Unable to bind to '%s': %s\n", tmp->sa.spkt_device, 
+#else
+			ast_log(LOG_ERROR, "Unable to bind to '%s': %s\n", tmp->sa.sll_device, 
+#endif
 										strerror(errno));
 			free(tmp);
 			return NULL;
@@ -997,6 +1061,8 @@ static struct vofr_pvt *mkif(char *type, char *iface)
 		tmp->dlcil = 0;
 		tmp->dlcih = 0;
 		tmp->cid = 1;
+		tmp->ringgothangup = 0;
+		strncpy(tmp->language, language, sizeof(tmp->language));
 		strncpy(tmp->context, context, sizeof(tmp->context));
 		/* User terminations are game for outgoing connections */
 		if (!strcasecmp(type, "user")) 
@@ -1078,6 +1144,8 @@ int load_module()
 				}
 		} else if (!strcasecmp(v->name, "context")) {
 			strncpy(context, v->value, sizeof(context));
+		} else if (!strcasecmp(v->name, "language")) {
+			strncpy(language, v->value, sizeof(language));
 		}
 		v = v->next;
 	}
