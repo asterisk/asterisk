@@ -62,56 +62,93 @@ struct ast_modem_driver {
 #define MODEM_MODE_WAIT_RING		1
 #define MODEM_MODE_WAIT_ANSWER		2
 
+//! Private data that needs to be filled by modem driver
 struct ast_modem_pvt {
-	int fd;							/* Raw file descriptor for this device */
-	FILE *f;						/* FILE * representation of device */
-	struct ast_channel *owner;		/* Channel we belong to, possibly NULL */
-	char dev[256];					/* Device name */
-	struct ast_frame fr;			/* Frame */
+	/*! Raw file descriptor for this device */
+	int fd;							
+	/*! FILE * representation of device */
+	FILE *f;						
+	/*! Channel we belong to, possibly NULL */
+	struct ast_channel *owner;		
+	/* Device name */
+	char dev[256];					
+	/*! Frame */
+	struct ast_frame fr;			
+	
 	char offset[AST_FRIENDLY_OFFSET];
-	char obuf[MODEM_MAX_BUF];		/* Outgoing buffer */
+	/*! Outgoing buffer */
+	char obuf[MODEM_MAX_BUF];		
+	
 	int tail;
-	char dialtype;					/* Pulse or tone dialling */
-	char dialtimeout;				/* Time to wait for dial timeout */
+	/*! Pulse or tone dialling */
+	char dialtype;					
+	/*! Time to wait for dial timeout */
+	char dialtimeout;				
+	
 	int obuflen;
-	int mode;						/* Immediate, or wait for an answer */
-	int ministate;					/* State of modem in miniature */
-	int stripmsd;					/* Digits to strip on outgoing numbers */
-	int escape;					/* Is the last thing we saw an escape */
-	int gotclid;				/* flag to say if has caller*id yet*/
-	int ringt;				/* ringer timeout */
-	time_t lastring;			/* actual time of last ring */
-	char dtmfrx;				/* dtmf receive state/data */
+	/*! Immediate, or wait for an answer */
+	int mode;						
+	/*! State of modem in miniature */
+	int ministate;					
+	/*! Digits to strip on outgoing numbers */
+	int stripmsd;					
+	/*! Is the last thing we saw an escape */
+	int escape;					
+	/*! flag to say if has caller*id yet*/
+	int gotclid;				
+	/*! ringer timeout */
+	int ringt;				
+	/*! actual time of last ring */
+	time_t lastring;			
+	/*! dtmf receive state/data */
+	char dtmfrx;				
+	
 	char context[AST_MAX_EXTENSION];
-	char msn[AST_MAX_EXTENSION];	/* Multiple Subscriber Number */
-	char cid[AST_MAX_EXTENSION];	/* Caller ID if available */
-	char dnid[AST_MAX_EXTENSION];	/* Dialed Number if available */
-	char initstr[AST_MAX_INIT_STR];	/* Modem initialization String */
-	char language[MAX_LANGUAGE];	/* default language */
-	char response[256];				/* Static response buffer */
-	struct ast_modem_driver *mc;	/* Modem Capability */
-	struct ast_modem_pvt *next;			/* Next channel in list */
+	/*! Multiple Subscriber Number */
+	char msn[AST_MAX_EXTENSION];	
+	/*! Caller ID if available */
+	char cid[AST_MAX_EXTENSION];	
+	/*! Dialed Number if available */
+	char dnid[AST_MAX_EXTENSION];	
+	/*! Modem initialization String */
+	char initstr[AST_MAX_INIT_STR];	
+	/*! default language */
+	char language[MAX_LANGUAGE];	
+	/*! Static response buffer */
+	char response[256];				
+	/*! Modem Capability */
+	struct ast_modem_driver *mc;	
+	/*! Next channel in list */
+	struct ast_modem_pvt *next;			
 };
 
-/* Register a driver */
+
+//! Register a modem driver
+/*! Register a driver */
 extern int ast_register_modem_driver(struct ast_modem_driver *mc);
 
-/* Unregister a driver */
+//! Unregisters a modem driver
+/*! Unregister a driver */
 extern int ast_unregister_modem_driver(struct ast_modem_driver *mc);
 
-/* Send the command cmd (length len, or 0 if pure ascii) on modem */
+//! Sends command
+/*! Send the command cmd (length len, or 0 if pure ascii) on modem */
 extern int ast_modem_send(struct ast_modem_pvt *p, char *cmd, int len);
 
-/* Wait for result to occur.  Return non-zero if times out or error, last
+//! Waits for result
+/*! Wait for result to occur.  Return non-zero if times out or error, last
    response is stored in p->response  */
 extern int ast_modem_expect(struct ast_modem_pvt *p,  char *result, int timeout);
 
-/* Wait for result to occur.    response is stored in p->response  */
+//! Waits for result
+/*! Wait for result to occur.    response is stored in p->response  */
 extern int ast_modem_read_response(struct ast_modem_pvt *p,  int timeout);
 
-/* Used by modem drivers to start up the PBX on a RING */
+//! Used to start up the PBX on a RING
+/*! Used by modem drivers to start up the PBX on a RING */
 extern struct ast_channel *ast_modem_new(struct ast_modem_pvt *i, int state);
 
-/* Trim off trailing mess */
+//! Trim string of trailing stuff
+/*! Trim off trailing mess */
 extern void ast_modem_trim(char *s);
 #endif
