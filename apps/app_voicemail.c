@@ -2423,6 +2423,8 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 #endif
 	if (the_zone)
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, the_zone->msg_format, the_zone->timezone);
+	else if(!strcasecmp(chan->language,"de"))	/* GERMAN syntax */
+		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' Q 'digits/at' HM", NULL);
 	else if (!strcasecmp(chan->language,"nl"))	/* DUTCH syntax */
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' q 'digits/nl-om' HM", NULL);
  	else if (!strcasecmp(chan->language,"it"))      /* ITALIAN syntax */

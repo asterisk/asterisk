@@ -46,7 +46,7 @@ struct ast_format {
 	/* Open an input stream, and start playback */
 	struct ast_filestream * (*open)(int fd);
 	/* Open an output stream, of a given file descriptor and comment it appropriately if applicable */
-	struct ast_filestream * (*rewrite)(int fd, char *comment);
+	struct ast_filestream * (*rewrite)(int fd, const char *comment);
 	/* Write a frame to a channel */
 	int (*write)(struct ast_filestream *, struct ast_frame *);
 	/* seek num samples into file, whence(think normal seek) */
@@ -87,9 +87,9 @@ AST_MUTEX_DEFINE_STATIC(formatlock);
 
 static struct ast_format *formats = NULL;
 
-int ast_format_register(char *name, char *exts, int format,
+int ast_format_register(const char *name, const char *exts, int format,
 						struct ast_filestream * (*open)(int fd),
-						struct ast_filestream * (*rewrite)(int fd, char *comment),
+						struct ast_filestream * (*rewrite)(int fd, const char *comment),
 						int (*write)(struct ast_filestream *, struct ast_frame *),
 						int (*seek)(struct ast_filestream *, long sample_offset, int whence),
 						int (*trunc)(struct ast_filestream *),
@@ -138,7 +138,7 @@ int ast_format_register(char *name, char *exts, int format,
 	return 0;
 }
 
-int ast_format_unregister(char *name)
+int ast_format_unregister(const char *name)
 {
 	struct ast_format *tmp, *tmpl = NULL;
 	if (ast_mutex_lock(&formatlock)) {
@@ -188,7 +188,7 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 			/* This is the audio portion.  Call the video one... */
 			if (!fs->vfs && fs->filename) {
 				/* XXX Support other video formats XXX */
-				char *type = "h263";
+				const char *type = "h263";
 				fs->vfs = ast_writefile(fs->filename, type, NULL, fs->flags, 0, fs->mode);
 				ast_log(LOG_DEBUG, "Opened video output file\n");
 			}
@@ -238,7 +238,7 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 	}
 }
 
-static int copy(char *infile, char *outfile)
+static int copy(const char *infile, const char *outfile)
 {
 	int ifd;
 	int ofd;
@@ -278,7 +278,7 @@ static int copy(char *infile, char *outfile)
 	return 0;
 }
 
-static char *build_filename(char *filename, char *ext)
+static char *build_filename(const const char *filename, const char *ext)
 {
 	char *fn;
 	int fnsize = 0;
@@ -297,7 +297,7 @@ static char *build_filename(char *filename, char *ext)
 	
 }
 
-static int exts_compare(char *exts, char *type)
+static int exts_compare(const char *exts, const const char *type)
 {
 	char *stringp = NULL, *ext;
 	char tmp[256];
@@ -319,7 +319,7 @@ static int exts_compare(char *exts, char *type)
 #define ACTION_OPEN   4
 #define ACTION_COPY   5
 
-static int ast_filehelper(char *filename, char *filename2, char *fmt, int action)
+static int ast_filehelper(const char *filename, const char *filename2, const char *fmt, int action)
 {
 	struct stat st;
 	struct ast_format *f;
@@ -432,7 +432,7 @@ static int ast_filehelper(char *filename, char *filename2, char *fmt, int action
 	return res;
 }
 
-struct ast_filestream *ast_openstream(struct ast_channel *chan, char *filename, char *preflang)
+struct ast_filestream *ast_openstream(struct ast_channel *chan, const char *filename, const char *preflang)
 {
 	/* This is a fairly complex routine.  Essentially we should do 
 	   the following:
@@ -485,7 +485,7 @@ struct ast_filestream *ast_openstream(struct ast_channel *chan, char *filename, 
 	return NULL;
 }
 
-struct ast_filestream *ast_openvstream(struct ast_channel *chan, char *filename, char *preflang)
+struct ast_filestream *ast_openvstream(struct ast_channel *chan, const char *filename, const char *preflang)
 {
 	/* This is a fairly complex routine.  Essentially we should do 
 	   the following:
@@ -697,7 +697,7 @@ int ast_closestream(struct ast_filestream *f)
 }
 
 
-int ast_fileexists(char *filename, char *fmt, char *preflang)
+int ast_fileexists(const char *filename, const char *fmt, const char *preflang)
 {
 	char filename2[256];
 	char tmp[256];
@@ -737,22 +737,22 @@ int ast_fileexists(char *filename, char *fmt, char *preflang)
 	return res;
 }
 
-int ast_filedelete(char *filename, char *fmt)
+int ast_filedelete(const char *filename, const char *fmt)
 {
 	return ast_filehelper(filename, NULL, fmt, ACTION_DELETE);
 }
 
-int ast_filerename(char *filename, char *filename2, char *fmt)
+int ast_filerename(const char *filename, const char *filename2, const char *fmt)
 {
 	return ast_filehelper(filename, filename2, fmt, ACTION_RENAME);
 }
 
-int ast_filecopy(char *filename, char *filename2, char *fmt)
+int ast_filecopy(const char *filename, const char *filename2, const char *fmt)
 {
 	return ast_filehelper(filename, filename2, fmt, ACTION_COPY);
 }
 
-int ast_streamfile(struct ast_channel *chan, char *filename, char *preflang)
+int ast_streamfile(struct ast_channel *chan, const char *filename, const char *preflang)
 {
 	struct ast_filestream *fs;
 	struct ast_filestream *vfs;
@@ -780,7 +780,7 @@ int ast_streamfile(struct ast_channel *chan, char *filename, char *preflang)
 	return -1;
 }
 
-struct ast_filestream *ast_readfile(char *filename, char *type, char *comment, int flags, int check, mode_t mode)
+struct ast_filestream *ast_readfile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode)
 {
 	int fd,myflags = 0;
 	struct ast_format *f;
@@ -829,7 +829,7 @@ struct ast_filestream *ast_readfile(char *filename, char *type, char *comment, i
 	return fs;
 }
 
-struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, int flags, int check, mode_t mode)
+struct ast_filestream *ast_writefile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode)
 {
 	int fd,myflags = 0;
 	struct ast_format *f;
@@ -920,7 +920,7 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 	return fs;
 }
 
-char ast_waitstream(struct ast_channel *c, char *breakon)
+char ast_waitstream(struct ast_channel *c, const char *breakon)
 {
 	/* XXX Maybe I should just front-end ast_waitstream_full ? XXX */
 	int res;
@@ -976,7 +976,7 @@ char ast_waitstream(struct ast_channel *c, char *breakon)
 	return (c->_softhangup ? -1 : 0);
 }
 
-char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char *rewind, int ms)
+char ast_waitstream_fr(struct ast_channel *c, const char *breakon, const char *forward, const char *rewind, int ms)
 {
 	int res;
 	struct ast_frame *fr;
@@ -1037,7 +1037,7 @@ char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char
 	return (c->_softhangup ? -1 : 0);
 }
 
-char ast_waitstream_full(struct ast_channel *c, char *breakon, int audiofd, int cmdfd)
+char ast_waitstream_full(struct ast_channel *c, const char *breakon, int audiofd, int cmdfd)
 {
 	int res;
 	int ms;

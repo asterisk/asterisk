@@ -3511,7 +3511,7 @@ static int __send_command(struct chan_iax2_pvt *i, char type, int command, unsig
 	f.samples = 0;
 	f.mallocd = 0;
 	f.offset = 0;
-	f.src = __FUNCTION__;
+	f.src = (char *)__FUNCTION__;
 	f.data = data;
 	return iax2_send(i, &f, ts, seqno, now, transfer, final);
 }

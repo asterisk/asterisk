@@ -350,7 +350,7 @@ static struct ast_filestream *wav_open(int fd)
 	return tmp;
 }
 
-static struct ast_filestream *wav_rewrite(int fd, char *comment)
+static struct ast_filestream *wav_rewrite(int fd, const char *comment)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
