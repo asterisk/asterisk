@@ -6463,8 +6463,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 							contact = __get_header(req, "Contact", &start);
 							/* this loop ensures we get a contact header about our register request */
 							if(!ast_strlen_zero(contact)) {
-								if(strstr(contact, p->our_contact))
+								if( (tmptmp=strstr(contact, p->our_contact))) {
+									contact=tmptmp;
 									break;
+								}
 							} else
 								break;
 						}
@@ -6483,6 +6485,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					else
 						expires_ms -= EXPIRY_GUARD_SECS * 1000;
 
+					r->refresh= (int) expires_ms / 1000;
 					r->expire=ast_sched_add(sched, expires_ms, sip_reregister, r); 
 				} else
 					ast_log(LOG_WARNING, "Got 200 OK on REGISTER that isn't a register\n");
