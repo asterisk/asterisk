@@ -2868,9 +2868,12 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 				* next multiple of frame size (so our
 				* silent periods are multiples of
 				* frame size too) */
-				int diff = ms % (f->samples / 8);
-				if(diff)
-				    ms += f->samples/8 - diff;
+				if (f->samples / 8) /* check to make sure we dont core dump */
+				{
+					int diff = ms % (f->samples / 8);
+					if (diff)
+					    ms += f->samples/8 - diff;
+				}
 
 				p->nextpred = ms;
 				p->notsilenttx = 1;
