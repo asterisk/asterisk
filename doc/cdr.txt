@@ -1,0 +1,171 @@
+Call data records can be stored in many different databases or even CSV text.
+
+MSSQL:		Asterisk can currently store CDRs into an MSSQL database in
+		two different ways:  cdr_odbc.c or cdr_tds.c
+		
+		Call Data Records can be stored using unixODBC (which requires
+		the FreeTDS package) [cdr_odbc.c] or directly by using just the
+		FreeTDS package [cdr_tds.c]  The following provide some
+		examples known to get asterisk working with mssql.
+		NOTE:  Only choose one db connector.
+
+	ODBC [cdr_odbc.c]:
+		Compile, configure, and install the latest unixODBC package:
+		   tar -zxvf unixODBC-2.2.9.tar.gz &&
+		   cd unixODBC-2.2.9 &&
+		   ./configure --sysconfdir=/etc --prefix=/usr --disable-gui &&
+		   make &&
+		   make install
+
+		Compile, configure, and install the latest FreeTDS package:
+		   tar -zxvf freetds-0.62.4.tar.gz &&
+		   cd freetds-0.62.4 &&
+		   ./configure --prefix=/usr --with -tdsver=7.0 \
+                        --with-unixodbc=/usr/lib &&
+		   make &&
+		   make install
+
+		Compile, or recompile, asterisk so that it will now add support
+		for cdr_odbc.c
+
+		   make clean &&
+		   make update &&
+		   make &&
+		   make install
+
+		Setup odbc configuration files.  These are working examples
+		from my system.  You will need to modify for your setup.
+		You are not required to store usernames or passwords here.
+
+		/etc/odbcinst.ini
+		   [FreeTDS]
+		   Description    = FreeTDS ODBC driver for MSSQL
+		   Driver         = /usr/lib/libtdsodbc.so
+		   Setup          = /usr/lib/libtdsS.so
+		   FileUsage      = 1
+
+		/etc/odbc.ini
+		   [MSSQL-asterisk]
+		   description         = Asterisk ODBC for MSSQL
+		   driver              = FreeTDS
+		   server              = 192.168.1.25
+		   port                = 1433
+		   database            = voipdb
+		   tds_version         = 7.0
+		   language            = us_english
+
+		Only install one database connector.  Do not confuse asterisk
+		by using both ODBC (cdr_odbc.c) and FreeTDS (cdr_tds.c).
+		This command will erase the contents of cdr_tds.conf 
+
+		[ -f /etc/asterisk/cdr_tds.conf ] > /etc/asterisk/cdr_tds.conf
+
+		NOTE:  unixODBC requires the freeTDS package, but asterisk does
+		not call freeTDS directly.
+
+		Setup cdr_odbc configuration files.  These are working samples
+		from my system.  You will need to modify for your setup. Define
+		your usernames and passwords here, secure file as well.
+
+		/etc/asterisk/cdr_odbc.conf
+		   [global]
+		   dsn=MSSQL-asterisk
+		   username=voipdbuser
+		   password=voipdbpass
+		   loguniqueid=yes
+
+		And finally, create the 'cdr' table in your mssql database.
+
+		CREATE TABLE cdr ( 
+		        [calldate]      [datetime]              NOT NULL ,
+		        [clid]          [varchar] (80)          NOT NULL ,
+		        [src]           [varchar] (80)          NOT NULL ,
+		        [dst]           [varchar] (80)          NOT NULL ,
+		        [dcontext]      [varchar] (80)          NOT NULL ,
+		        [channel]       [varchar] (80)          NOT NULL ,
+		        [dstchannel]    [varchar] (80)          NOT NULL ,
+		        [lastapp]       [varchar] (80)          NOT NULL ,
+		        [lastdata]      [varchar] (80)          NOT NULL ,
+		        [duration]      [int]                   NOT NULL ,
+		        [billsec]       [int]                   NOT NULL ,
+		        [disposition]   [varchar] (45)          NOT NULL ,
+		        [amaflags]      [int]                   NOT NULL ,
+		        [accountcode]   [varchar] (20)          NOT NULL ,
+		        [uniqueid]      [varchar] (32)          NOT NULL ,
+		        [userfield]     [varchar] (255)         NOT NULL
+		)
+
+		Start asterisk in verbose mode, you should see that asterisk
+		logs a connection to the database and will now record every
+		call to the database when it's complete.
+
+	TDS [cdr_tds.c]:
+		Compile, configure, and install the latest FreeTDS package:
+		   tar -zxvf freetds-0.62.4.tar.gz &&
+		   cd freetds-0.62.4 &&
+		   ./configure --prefix=/usr --with-tdsver=7.0
+		   make &&
+		   make install
+
+                Compile, or recompile, asterisk so that it will now add support
+                for cdr_tds.c  (Currently only asterisk CVS supports cdr_tds.c)
+
+                   make clean &&
+                   make update &&
+                   make &&
+                   make install
+
+                Only install one database connector.  Do not confuse asterisk
+                by using both ODBC (cdr_odbc.c) and FreeTDS (cdr_tds.c).
+                This command will erase the contents of cdr_odbc.conf
+
+		[ -f /etc/asterisk/cdr_odbc.conf ] > /etc/asterisk/cdr_odbc.conf
+
+                Setup cdr_tds configuration files.  These are working samples
+                from my system.  You will need to modify for your setup. Define
+                your usernames and passwords here, secure file as well.
+
+                /etc/asterisk/cdr_tds.conf
+		   [global]
+		   hostname=192.168.1.25
+		   port=1433
+		   dbname=voipdb
+		   user=voipdbuser
+		   password=voipdpass
+		   charset=BIG5
+
+                And finally, create the 'cdr' table in your mssql database.
+
+		CREATE TABLE cdr (
+		        [accountcode]   [varchar] (20)          NULL ,
+		        [src]           [varchar] (80)          NULL ,
+		        [dst]           [varchar] (80)          NULL ,
+		        [dcontext]      [varchar] (80)          NULL ,
+		        [clid]          [varchar] (80)          NULL ,
+		        [channel]       [varchar] (80)          NULL ,
+		        [dstchannel]    [varchar] (80)          NULL ,
+		        [lastapp]       [varchar] (80)          NULL ,
+		        [lastdata]      [varchar] (80)          NULL ,
+		        [start]         [datetime]              NULL ,
+		        [answer]        [datetime]              NULL ,
+		        [end]           [datetime]              NULL ,
+		        [duration]      [int]                   NULL ,
+		        [billsec]       [int]                   NULL ,
+		        [disposition]   [varchar] (20)          NULL ,
+		        [amaflags]      [varchar] (16)          NULL ,
+		        [uniqueid]      [varchar] (32)          NULL
+		)
+
+                Start asterisk in verbose mode, you should see that asterisk
+                logs a connection to the database and will now record every
+                call to the database when it's complete.
+
+MYSQL:
+
+PGSQL:
+
+SQLLITE:
+
+-------------------------------------------------------------------------------
+
+08/02/2004 : Duane Cox <dcox@illicom.net> - added mssql information
