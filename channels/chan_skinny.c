@@ -708,8 +708,6 @@ static struct skinny_subchannel *find_subchannel_by_name(char *dest)
 	char *at;
 	char *device;
 	
-	printf("dest: %s\n", dest);
-
 	strncpy(line, dest, sizeof(line) - 1);
 	at = strchr(line, '@');
 	if (!at) {
@@ -719,10 +717,6 @@ static struct skinny_subchannel *find_subchannel_by_name(char *dest)
 	*at = '\0';
 	at++;
 	device = at;
-
-	printf("line: %s\n", line);
-	printf("device: %s\n", device);
-	
 	ast_mutex_lock(&devicelock);
 	d = devices;
 	while(d) {
@@ -736,16 +730,11 @@ static struct skinny_subchannel *find_subchannel_by_name(char *dest)
 				/* Search for the right line */
 				if (!strcasecmp(l->name, line)) {
 					ast_mutex_unlock(&devicelock);
-					if (skinnydebug) {
-						printf("Found line: %s\n", l->name);
-					}
 					return l->sub;
 				}
-				printf("line cycle\n");
 				l = l->next;
 			}
 		}
-		printf("device cycle\n");
 		d = d->next;
 	}
 	/* Device not found*/
