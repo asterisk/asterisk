@@ -3567,13 +3567,19 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			if (prefix)
 				strncpy(vms.username, empty, sizeof(vms.username) -1);
 		}
-		if (!valid) {
-			if (useadsi)
-				adsi_login(chan);
-			if (ast_streamfile(chan, "vm-incorrect", chan->language))
-				break;
-		}
 		logretries++;
+		if (!valid) {
+			if (skipuser || logretries >= maxlogins) {
+				if (ast_streamfile(chan, "vm-incorrect", chan->language))
+					break;
+			} else {
+				if (useadsi)
+					adsi_login(chan);
+				if (ast_streamfile(chan, "vm-incorrect-mailbox", chan->language))
+					break;
+			}
+			ast_waitstream(chan, "");
+		}
 	}
 	if (!valid && (logretries >= maxlogins)) {
 		ast_stopstream(chan);

@@ -128,7 +128,9 @@
 
 %vm-INBOX.gsm%new
 
-%vm-incorrect.gsm%Login incorrect.  Mailbox?
+%vm-incorrect-mailbox.gsm%Login incorrect.  Mailbox?
+
+%vm-incorrect.gsm%Login incorrect.
 
 %vm-instructions.gsm%To look into your messages press 1 now.  You may quit voicemail at any time by pressing the pound key.
 
