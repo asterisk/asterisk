@@ -417,11 +417,12 @@ void ast_log(int level, const char *file, int line, const char *function, const 
     /* begin critical section */
     ast_mutex_lock(&loglock);
 
+    time(&t);
+    localtime_r(&t, &tm);
+    strftime(date, sizeof(date), "%b %e %T", &tm);
+
+
     if (level == __LOG_EVENT) {
-	    time(&t);
-	    localtime_r(&t,&tm);
-	    /* Log events into the event log file, with a different format */
-	    strftime(date, sizeof(date), "%b %e %T", &tm);
 	    va_start(ap, fmt);
 
 	    fprintf(eventlog, "%s asterisk[%d]: ", date, getpid());
@@ -440,14 +441,9 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		va_start(ap, fmt);
 		ast_log_vsyslog(level, file, line, function, fmt, ap);
 		va_end(ap);
-	    } else if ((chan->logmask & (1 << level)) && (chan->console || chan->fileptr)) {
+	    } else if ((chan->logmask & (1 << level)) && (chan->console)) {
 		char linestr[128];
 		char tmp1[80], tmp2[80], tmp3[80], tmp4[80];
-
-		time(&t);
-		localtime_r(&t, &tm);
-
-		strftime(date, sizeof(date), "%b %e %T", &tm);
 
 		sprintf(linestr, "%d", line);
 		snprintf(buf, sizeof(buf), "%s %s[%ld]: %s:%s %s: ",
@@ -458,21 +454,31 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 			 term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
 			 term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
 
-		if (chan->console)
-			ast_console_puts(buf);
-		else
-			fprintf(chan->fileptr, buf);
+		ast_console_puts(buf);
 		va_start(ap, fmt);
 		vsnprintf(buf, sizeof(buf), fmt, ap);
 		va_end(ap);
-		if (chan->console)
-			ast_console_puts(buf);
-		else
-			fprintf(chan->fileptr, buf);
-
+		ast_console_puts(buf);
+	    } else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
+		    snprintf(buf, sizeof(buf), "%s %s[%ld]: ", date,
+			     levels[level], (long)pthread_self());
+		    fprintf(chan->fileptr, buf);
+		    va_start(ap, fmt);
+		    vsnprintf(buf, sizeof(buf), fmt, ap);
+		    va_end(ap);
+		    fprintf(chan->fileptr, buf);
 	    }
 	    chan = chan->next;
 	}
+    } else {
+	    /* 
+	     * we don't have the logger chain configured yet,
+	     * so just log to stdout 
+	     */
+	    va_start(ap, fmt);
+	    vsnprintf(buf, sizeof(buf), fmt, ap);
+	    va_end(ap);
+	    fprintf(stdout, buf);
     }
 
     ast_mutex_unlock(&loglock);
