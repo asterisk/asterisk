@@ -1035,6 +1035,13 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 			break;
 		}
 		return -1;
+	case AST_CONTROL_PROGRESS:
+		if ((ast->_state != AST_STATE_UP) && !p->progress && !p->outgoing) {
+			transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, 0);
+			p->progress = 1;
+			break;
+		}
+		return -1;
 	case -1:
 		return -1;
 	default:
@@ -2633,8 +2640,32 @@ static int transmit_message_with_text(struct sip_pvt *p, char *text)
 static int transmit_refer(struct sip_pvt *p, char *dest)
 {
 	struct sip_request req;
+	char from[256];
+	char *of, *c;
+	char referto[256];
+	if (p->outgoing) 
+		of = get_header(&p->initreq, "To");
+	else
+		of = get_header(&p->initreq, "From");
+	strncpy(from, of, sizeof(from) - 1);
+	of = ditch_braces(from);
+	if (strncmp(of, "sip:", 4)) {
+		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
+	} else
+		of += 4;
+	/* Get just the username part */
+	if ((c = strchr(of, '@'))) {
+		*c = '\0';
+		c++;
+	}
+	if (c) {
+		snprintf(referto, sizeof(referto), "<sip:%s@%s>", dest, c);
+	} else {
+		snprintf(referto, sizeof(referto), "<sip:%s>", dest);
+	}
+
 	reqprep(&req, p, "REFER", 0);
-	add_header(&req, "Refer-To", dest);
+	add_header(&req, "Refer-To", referto);
 	add_header(&req, "Referred-By", callerid);
 	return send_request(p, &req, 1, p->ocseq);
 }
@@ -3906,17 +3937,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		switch(resp) {
 		case 100:
 			break;
-		case 183:	/* We don't really need this since we pass in-band audio anyway */
-			{
-				/* Send back an empty audio frame to get things moving, (like in the case of 
-				   back-to-back 183's, getting audio */
-				if (strlen(get_header(req, "Content-Type")))
-					process_sdp(p, req);
-				if (p->owner && p->owner->pvt) {
-					struct ast_frame af = { AST_FRAME_VOICE, };
-					af.subclass = p->owner->pvt->rawreadformat;
-					ast_queue_frame(p->owner, &af, 0);
-				}
+		case 183:	
+			if (p->owner) {
+				/* Queue a progress frame */
+				ast_queue_control(p->owner, AST_CONTROL_PROGRESS, 0);
 			}
 			break;
 		case 180:

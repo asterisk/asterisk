@@ -1148,8 +1148,9 @@ int ast_indicate(struct ast_channel *chan, int condition)
 			if (ts && ts->data[0]) {
 				ast_log(LOG_DEBUG, "Driver for channel '%s' does not support indication %d, emulating it\n", chan->name, condition);
 				ast_playtones_start(chan,0,ts->data, 1);
-			}
-			else  {
+			} else if (condition == AST_CONTROL_PROGRESS) {
+				/* ast_playtones_stop(chan); */
+			} else {
 				/* not handled */
 				ast_log(LOG_WARNING, "Unable to handle indication %d for '%s'\n", condition, chan->name);
 				return -1;
