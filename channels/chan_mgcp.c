@@ -109,6 +109,9 @@ static char *type = "MGCP";
 static char *tdesc = "Media Gateway Control Protocol (MGCP)";
 static char *config = "mgcp.conf";
 
+#define MGCP_DTMF_RFC2833	(1 << 0)
+#define MGCP_DTMF_INBAND		(1 << 1)
+
 #define DEFAULT_MGCP_GW_PORT	2427/* From RFC 2705 */
 #define DEFAULT_MGCP_CA_PORT	2727/* From RFC 2705 */
 #define MGCP_MAX_PACKET	1500		/* Also from RFC 2543, should sub headers tho */
@@ -149,7 +152,7 @@ static char language[MAX_LANGUAGE] = "";
 static char musicclass[MAX_LANGUAGE] = "";
 static char callerid[AST_MAX_EXTENSION] = "";
 
-static int inbanddtmf = 0;
+static int dtmfmode = 0;
 static int nat = 0;
 
 /* Not used. Dosn't hurt for us to always send cid  */
@@ -163,7 +166,7 @@ static unsigned int cur_pickupgroup = 0;
 
 /* XXX Is this needed? */
 /*     Doesn't look like the dsp stuff for */
-/*     inbanddtmf is actually hooked up.   */
+/*     dtmfmode is actually hooked up.   */
 /* static int relaxdtmf = 0; */
 
 static int tos = 0;
@@ -368,7 +371,7 @@ struct mgcp_endpoint {
 	int dnd; /* How does this affect callwait?  Do we just deny a mgcp_request if we're dnd? */
 	int hascallerid;
 	int hidecallerid;
-	int dtmfinband;
+	int dtmfmode;
 	int amaflags;
 	int type;
 	int slowsequence;				  /* MS: Sequence the endpoint as a whole */
@@ -870,7 +873,7 @@ static int mgcp_hangup(struct ast_channel *ast)
         ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_hangup(%s) on %s@%s\n", ast->name, p->name, p->parent->name);
     }
 
-	if ((p->dtmfinband) && (p->dsp != NULL)){
+	if ((p->dtmfmode & MGCP_DTMF_INBAND) && (p->dsp != NULL)){
         /* SC: check whether other channel is active. */
         if (!sub->next->owner)
         {
@@ -1083,7 +1086,7 @@ static struct ast_frame *mgcp_rtp_read(struct mgcp_subchannel *sub)
 				ast_set_write_format(sub->owner, sub->owner->writeformat);
 			}
             /* Courtesy fearnor aka alex@pilosoft.com */
-            if (sub->parent->dtmfinband) {
+            if (sub->parent->dtmfmode & MGCP_DTMF_INBAND) {
 #if 0
                 ast_log(LOG_NOTICE, "MGCP ast_dsp_process\n");
 #endif
@@ -1099,8 +1102,14 @@ static struct ast_frame  *mgcp_read(struct ast_channel *ast)
 {
 	struct ast_frame *fr;
 	struct mgcp_subchannel *sub = ast->pvt->pvt;
+	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 	ast_mutex_lock(&sub->lock);
 	fr = mgcp_rtp_read(sub);
+	if (!(sub->parent->dtmfmode & MGCP_DTMF_RFC2833)) {
+		if (fr && (fr->frametype == AST_FRAME_DTMF)) {
+			fr = &null_frame;
+		}
+	}
 	ast_mutex_unlock(&sub->lock);
 	return fr;
 }
@@ -1234,7 +1243,7 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		if (sub->rtp)
 			tmp->fds[0] = ast_rtp_fd(sub->rtp);
 		tmp->type = type;
-		if (i->dtmfinband) {
+		if (i->dtmfmode & MGCP_DTMF_INBAND) {
 		    i->dsp = ast_dsp_new();
 		    ast_dsp_set_features(i->dsp,DSP_FEATURE_DTMF_DETECT);
             /* SC: this is to prevent clipping of dtmf tones during dsp processing */
@@ -2286,7 +2295,7 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
     if (resp) {
         if (req->cmd == MGCP_CMD_CRCX) {
             if ((c = get_header(resp, "I"))) {
-                if (strlen(c)) {
+                if (strlen(c) && sub) {
                     /* SC: if we are hanging up do not process this conn. */
                     if (sub->owner) {
                         if (strlen(sub->cxident)) {
@@ -3448,8 +3457,15 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 				gw->addr.sin_port = htons(atoi(v->value));
 			} else if (!strcasecmp(v->name, "context")) {
 				strncpy(context, v->value, sizeof(context) - 1);
-			} else if (!strcasecmp(v->name, "inbanddtmf")) {
-				inbanddtmf = atoi(v->value);
+			} else if (!strcasecmp(v->name, "dtmfmode")) {
+				if (!strcasecmp(v->value, "inband"))
+					dtmfmode = MGCP_DTMF_INBAND;
+				else if (!strcasecmp(v->value, "rfc2833")) 
+					dtmfmode = MGCP_DTMF_RFC2833;
+				else if (!strcasecmp(v->value, "none")) 
+					dtmfmode = 0;
+				else
+					ast_log(LOG_WARNING, "'%s' is not a valid DTMF mode at line %d\n", v->value, v->lineno);
 			} else if (!strcasecmp(v->name, "nat")) {
 				nat = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "callerid")) {
@@ -3535,7 +3551,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
             		e->msgstate = -1;
 					e->capability = capability;
 					e->parent = gw;
-					e->dtmfinband = inbanddtmf;
+					e->dtmfmode = dtmfmode;
 					e->adsi = adsi;
 					e->type = TYPE_LINE;
             		e->immediate = immediate;
@@ -3629,7 +3645,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
                         e->parent = gw;
                     }
 					e->capability = capability;
-					e->dtmfinband = inbanddtmf;
+					e->dtmfmode = dtmfmode;
 					e->adsi = adsi;
 					if (!strcasecmp(v->name, "trunk"))
 						e->type = TYPE_TRUNK;

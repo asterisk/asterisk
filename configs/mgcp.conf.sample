@@ -45,6 +45,7 @@
 ;
 ;context=local
 ;host=dynamic
+;dtmfmode=none		; DTMF Mode can be 'none', 'rfc2833', or 'inband'.  Default is none.
 ;slowsequence=yes	; The DPH100M does not follow MGCP standards for sequencing
 ;line => aaln/1
 
