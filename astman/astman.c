@@ -25,17 +25,12 @@
 #define MAX_HEADERS 80
 #define MAX_LEN 256
 
-static struct mansession {
+static struct ast_mansession {
 	struct sockaddr_in sin;
 	int fd;
 	char inbuf[MAX_LEN];
 	int inlen;
 } session;
-
-struct message {
-	int hdrcount;
-	char headers[MAX_HEADERS][MAX_LEN];
-} message;
 
 static struct ast_chan {
 	char name[80];
@@ -105,7 +100,7 @@ static char *get_header(struct message *m, char *var)
 	return "";
 }
 
-static int event_newstate(struct mansession *s, struct message *m)
+static int event_newstate(struct ast_mansession *s, struct message *m)
 {
 	struct ast_chan *chan;
 	chan = find_chan(get_header(m, "Channel"));
@@ -113,7 +108,7 @@ static int event_newstate(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static int event_newexten(struct mansession *s, struct message *m)
+static int event_newexten(struct ast_mansession *s, struct message *m)
 {
 	struct ast_chan *chan;
 	chan = find_chan(get_header(m, "Channel"));
@@ -123,7 +118,7 @@ static int event_newexten(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static int event_newchannel(struct mansession *s, struct message *m)
+static int event_newchannel(struct ast_mansession *s, struct message *m)
 {
 	struct ast_chan *chan;
 	chan = find_chan(get_header(m, "Channel"));
@@ -132,7 +127,7 @@ static int event_newchannel(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static int event_status(struct mansession *s, struct message *m)
+static int event_status(struct ast_mansession *s, struct message *m)
 {
 	struct ast_chan *chan;
 	chan = find_chan(get_header(m, "Channel"));
@@ -144,18 +139,18 @@ static int event_status(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static int event_hangup(struct mansession *s, struct message *m)
+static int event_hangup(struct ast_mansession *s, struct message *m)
 {
 	del_chan(get_header(m, "Channel"));
 	return 0;
 }
 
-static int event_ignore(struct mansession *s, struct message *m)
+static int event_ignore(struct ast_mansession *s, struct message *m)
 {
 	return 0;
 }
 
-static int event_rename(struct mansession *s, struct message *m)
+static int event_rename(struct ast_mansession *s, struct message *m)
 {
 	struct ast_chan *chan;
 	chan = find_chan(get_header(m, "Oldname"));
@@ -164,7 +159,7 @@ static int event_rename(struct mansession *s, struct message *m)
 }
 static struct event {
 	char *event;
-	int (*func)(struct mansession *s, struct message *m);
+	int (*func)(struct ast_mansession *s, struct message *m);
 } events[] = {
 	{ "Newstate", event_newstate },
 	{ "Newchannel", event_newchannel },
@@ -176,7 +171,7 @@ static struct event {
 	{ "Unlink", event_ignore },
 };
 
-static int process_message(struct mansession *s, struct message *m)
+static int process_message(struct ast_mansession *s, struct message *m)
 {
 	int x;
 	char event[80];
@@ -230,7 +225,7 @@ static void rebuild_channels(newtComponent c)
 	newtListboxSetCurrentByKey(c, prev);
 }
 
-static int has_input(struct mansession *s)
+static int has_input(struct ast_mansession *s)
 {
 	int x;
 	for (x=1;x<s->inlen;x++) 
@@ -239,7 +234,7 @@ static int has_input(struct mansession *s)
 	return 0;
 }
 
-static int get_input(struct mansession *s, char *output)
+static int get_input(struct ast_mansession *s, char *output)
 {
 	/* output must have at least sizeof(s->inbuf) space */
 	int res;
@@ -279,7 +274,7 @@ static int get_input(struct mansession *s, char *output)
 	return 0;
 }
 
-static int input_check(struct mansession *s, struct message **mout)
+static int input_check(struct ast_mansession *s, struct message **mout)
 {
 	static struct message m;
 	int res;
@@ -340,7 +335,7 @@ static struct message *wait_for_response(int timeout)
 
 static int manager_action(char *action, char *fmt, ...)
 {
-	struct mansession *s;
+	struct ast_mansession *s;
 	char tmp[4096];
 	va_list ap;
 
