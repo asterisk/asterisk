@@ -1870,13 +1870,16 @@ static int ast_do_masquerade(struct ast_channel *original)
 	   channel's backend.   I'm not sure we're going to keep this function, because 
 	   while the features are nice, the cost is very high in terms of pure nastiness. XXX */
 
+	/* We need the clone's lock, too */
+	ast_pthread_mutex_lock(&clone->lock);
+
+	ast_log(LOG_DEBUG, "Got clone lock on '%s'\n", clone->name);
+
 	/* Having remembered the original read/write formats, we turn off any translation on either
 	   one */
 	free_translation(clone);
 	free_translation(original);
 
-	/* We need the clone's lock, too */
-	ast_pthread_mutex_lock(&clone->lock);
 
 	/* Unlink the masquerade */
 	original->masq = NULL;
@@ -1980,10 +1983,12 @@ static int ast_do_masquerade(struct ast_channel *original)
 	   a zombie so nothing tries to touch it.  If it's already been marked as a
 	   zombie, then free it now (since it already is considered invalid). */
 	if (clone->zombie) {
+		ast_log(LOG_DEBUG, "Destroying clone '%s'\n", clone->name);
 		pthread_mutex_unlock(&clone->lock);
 		ast_channel_free(clone);
 		manager_event(EVENT_FLAG_CALL, "Hangup", "Channel: %s\r\n", zombn);
 	} else {
+		ast_log(LOG_DEBUG, "Released clone lock on '%s'\n", clone->name);
 		clone->zombie=1;
 		pthread_mutex_unlock(&clone->lock);
 	}
