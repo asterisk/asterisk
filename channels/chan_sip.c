@@ -5663,7 +5663,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	strncpy(name, peer->name, sizeof(name) - 1);
 	peer->lastmsgssent = ((newmsgs << 8) | (oldmsgs));
 	ast_mutex_unlock(&peerl.lock);
-	if (create_addr(p, name)) {
+	if (create_addr(p, name) || !p->sa.sin_addr.s_addr || !p->sa.sin_port) {
 		/* Maybe they're not registered, etc. */
 		sip_destroy(p);
 		return 0;
