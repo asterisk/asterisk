@@ -139,6 +139,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 			ast_moh_start(in, NULL);
 		} else if (outgoing->ringbackonly) {
 			ast_indicate(in, AST_CONTROL_RINGING);
+			sentringing++;
 		}
 	}
 	
@@ -172,7 +173,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 			/* if no one available we'd better stop MOH/ringing to */
 			if (moh) {
 				ast_moh_stop(in);
-			} else if (ringind) {
+			} else if (sentringing) {
 				ast_indicate(in, -1);
 			}
 			return NULL;
@@ -281,7 +282,6 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							if (!sentringing && !moh) {
 								ast_indicate(in, AST_CONTROL_RINGING);
 								sentringing++;
-								ringind++;
 							}
 							break;
 						case AST_CONTROL_PROGRESS:
@@ -293,9 +293,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							/* Ignore going off hook */
 							break;
 						case -1:
-							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "%s stopped sounds\n", o->chan->name);
-							ast_indicate(in, -1);
+							if (!ringind && !moh) {
+								if (option_verbose > 2)
+									ast_verbose( VERBOSE_PREFIX_3 "%s stopped sounds\n", o->chan->name);
+								ast_indicate(in, -1);
+								sentringing = 0;
+							}
 							break;
 						default:
 							ast_log(LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
@@ -350,7 +353,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 	}
 	if (moh) {
 		ast_moh_stop(in);
-	} else if (ringind) {
+	} else if (sentringing) {
 		ast_indicate(in, -1);
 	}
 
