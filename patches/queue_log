@@ -1,10 +1,38 @@
+? .txt
+? DDR.MOV
+? FuzzyMath.mp3
+? config-mark.c
+? dont_panic.mp3
+? gmon.out
+? manpage.links
+? manpage.refs
+? markdiff.txt
+? mydiff.txt
+? newqueuelog
+? resume-ken-long.pdf
+? root.xwd
+? rtp-timestamp.diff.txt
+? stereo-1.0
+? test.call
+? test1.call
+? test2.call
+? test_js.txt
+? tmp1.gsm
+? tmp2.gsm
+? tmp3.gsm
+? tmp4.gsm
+? apps/app_read_broken.c
+? astman/.depend
+? astman/astman
+? cdr/cdr_csv2.c
+? channels/chan_sip_broken.c
 Index: logger.c
 ===================================================================
 RCS file: /usr/cvsroot/asterisk/logger.c,v
-retrieving revision 1.55
-diff -u -r1.55 logger.c
---- logger.c	25 Jan 2005 06:10:19 -0000	1.55
-+++ logger.c	9 Mar 2005 21:25:25 -0000
+retrieving revision 1.57
+diff -u -r1.57 logger.c
+--- logger.c	11 Mar 2005 07:24:10 -0000	1.57
++++ logger.c	11 Mar 2005 08:27:54 -0000
 @@ -61,6 +61,11 @@
  static int pending_logger_reload = 0;
  static int global_logmask = -1;
@@ -145,7 +173,7 @@ diff -u -r1.55 logger.c
  	return -1;
  }
  
-@@ -572,7 +591,7 @@
+@@ -576,7 +595,7 @@
  	localtime_r(&t, &tm);
  	strftime(date, sizeof(date), dateformat, &tm);
  
@@ -160,7 +188,7 @@ RCS file: /usr/cvsroot/asterisk/configs/logger.conf.sample,v
 retrieving revision 1.9
 diff -u -r1.9 logger.conf.sample
 --- configs/logger.conf.sample	5 Sep 2004 03:48:05 -0000	1.9
-+++ configs/logger.conf.sample	9 Mar 2005 21:25:25 -0000
++++ configs/logger.conf.sample	11 Mar 2005 08:27:55 -0000
 @@ -13,6 +13,12 @@
  ; This appends the hostname to the name of the log files.
  ;appendhostname = yes
