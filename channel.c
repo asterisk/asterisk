@@ -279,8 +279,8 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 		return NULL;
 	PTHREAD_MUTEX_LOCK(&chlock);
 	tmp = malloc(sizeof(struct ast_channel));
-	memset(tmp, 0, sizeof(struct ast_channel));
 	if (tmp) {
+		memset(tmp, 0, sizeof(struct ast_channel));
 		pvt = malloc(sizeof(struct ast_channel_pvt));
 		if (pvt) {
 			memset(pvt, 0, sizeof(struct ast_channel_pvt));
