@@ -2421,7 +2421,7 @@ static int sip_register(char *value, int lineno)
 		reg->expire = -1;
 		reg->timeout =  -1;
 		reg->refresh = default_expiry;
-		reg->portno = htons(atoi(porta));
+		reg->portno = porta ? htons(atoi(porta)) : 0;
 		reg->callid_valid = 0;
 		reg->ocseq = 101;
 		ast_mutex_lock(&regl.lock);
