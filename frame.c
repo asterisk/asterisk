@@ -11,6 +11,7 @@
  * the GNU General Public License
  */
 
+#include <asterisk/lock.h>
 #include <asterisk/frame.h>
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
@@ -34,12 +35,18 @@ struct ast_smoother {
 	int size;
 	int format;
 	int readdata;
-	float timeperbyte;
+	float samplesperbyte;
 	struct ast_frame f;
 	char data[SMOOTHER_SIZE];
 	char framedata[SMOOTHER_SIZE + AST_FRIENDLY_OFFSET];
 	int len;
 };
+
+void ast_smoother_reset(struct ast_smoother *s, int size)
+{
+	memset(s, 0, sizeof(struct ast_smoother));
+	s->size = size;
+}
 
 struct ast_smoother *ast_smoother_new(int size)
 {
@@ -47,10 +54,8 @@ struct ast_smoother *ast_smoother_new(int size)
 	if (size < 1)
 		return NULL;
 	s = malloc(sizeof(struct ast_smoother));
-	if (s) {
-		memset(s, 0, sizeof(struct ast_smoother));
-		s->size = size;
-	}
+	if (s)
+		ast_smoother_reset(s, size);
 	return s;
 }
 
@@ -62,7 +67,7 @@ int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f)
 	}
 	if (!s->format) {
 		s->format = f->subclass;
-		s->timeperbyte = (float)f->timelen / (float)f->datalen;
+		s->samplesperbyte = (float)f->samples / (float)f->datalen;
 	} else if (s->format != f->subclass) {
 		ast_log(LOG_WARNING, "Smoother was working on %d format frames, now trying to feed %d?\n", s->format, f->subclass);
 		return -1;
@@ -88,7 +93,7 @@ struct ast_frame *ast_smoother_read(struct ast_smoother *s)
 	s->f.data = s->framedata + AST_FRIENDLY_OFFSET;
 	s->f.offset = AST_FRIENDLY_OFFSET;
 	s->f.datalen = s->size;
-	s->f.timelen = s->size * s->timeperbyte;
+	s->f.samples = s->size * s->samplesperbyte;
 	/* Fill Data */
 	memcpy(s->f.data, s->data, s->size);
 	s->len -= s->size;
@@ -169,7 +174,7 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 		out->frametype = fr->frametype;
 		out->subclass = fr->subclass;
 		out->datalen = 0;
-		out->timelen = fr->timelen;
+		out->samples = fr->samples;
 		out->offset = 0;
 		out->src = NULL;
 		out->data = NULL;
@@ -299,6 +304,8 @@ int ast_getformatbyname(char *name)
 		return AST_FORMAT_LPC10;
 	else if (!strcasecmp(name, "adpcm"))
 		return AST_FORMAT_ADPCM;
+	else if (!strcasecmp(name, "g729"))
+		return AST_FORMAT_G729A;
 	else if (!strcasecmp(name, "speex"))
 		return AST_FORMAT_SPEEX;
 	else if (!strcasecmp(name, "all"))

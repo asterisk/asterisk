@@ -31,6 +31,11 @@
 #include <asterisk/options.h>
 #include <asterisk/channel.h>
 
+#define TYPE_SILENCE	 0x2
+#define TYPE_HIGH	 0x0
+#define TYPE_LOW	 0x1
+#define TYPE_MASK	 0x3
+
 static int dtmftimeout = 300;	/* 300 samples */
 
 struct ast_rtp {
@@ -41,6 +46,7 @@ struct ast_rtp {
 	unsigned int ssrc;
 	unsigned int lastts;
 	unsigned int lastrxts;
+	int lasttxformat;
 	int dtmfcount;
 	struct sockaddr_in us;
 	struct sockaddr_in them;
@@ -55,6 +61,40 @@ struct ast_rtp {
 	ast_rtp_callback callback;
 };
 
+
+static int g723_len(unsigned char buf)
+{
+	switch(buf & TYPE_MASK) {
+	case TYPE_MASK:
+	case TYPE_SILENCE:
+		return 4;
+		break;
+	case TYPE_HIGH:
+		return 24;
+		break;
+	case TYPE_LOW:
+		return 20;
+		break;
+	default:
+		ast_log(LOG_WARNING, "Badly encoded frame (%d)\n", buf & TYPE_MASK);
+	}
+	return -1;
+}
+
+static int g723_samples(unsigned char *buf, int maxlen)
+{
+	int pos = 0;
+	int samples = 0;
+	int res;
+	while(pos < maxlen) {
+		res = g723_len(buf[pos]);
+		if (res < 0)
+			break;
+		samples += 240;
+		pos += res;
+	}
+	return samples;
+}
 
 void ast_rtp_set_data(struct ast_rtp *rtp, void *data)
 {
@@ -72,7 +112,7 @@ static void send_dtmf(struct ast_rtp *rtp)
 	rtp->f.frametype = AST_FRAME_DTMF;
 	rtp->f.subclass = rtp->resp;
 	rtp->f.datalen = 0;
-	rtp->f.timelen = 0;
+	rtp->f.samples = 0;
 	rtp->f.mallocd = 0;
 	rtp->f.src = "RTP";
 	rtp->resp = 0;
@@ -185,6 +225,9 @@ static int rtpread(int *id, int fd, short events, void *cbdata)
 		} else if (payloadtype == 121) {
 			/* CISCO proprietary DTMF bridge */
 			process_type121(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
+		} else if (payloadtype == 100) {
+			/* CISCO's notso proprietary DTMF bridge */
+			process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
 		} else {
 			ast_log(LOG_NOTICE, "Unknown RTP codec %d received\n", payloadtype);
 		}
@@ -222,22 +265,25 @@ static int rtpread(int *id, int fd, short events, void *cbdata)
 	switch(rtp->f.subclass) {
 	case AST_FORMAT_ULAW:
 	case AST_FORMAT_ALAW:
-		rtp->f.timelen = rtp->f.datalen / 8;
+		rtp->f.samples = rtp->f.datalen;
 		break;
 	case AST_FORMAT_SLINEAR:
-		rtp->f.timelen = rtp->f.datalen / 16;
+		rtp->f.samples = rtp->f.datalen / 2;
 		break;
 	case AST_FORMAT_GSM:
-		rtp->f.timelen = 20 * (rtp->f.datalen / 33);
+		rtp->f.samples = 160 * (rtp->f.datalen / 33);
 		break;
 	case AST_FORMAT_ADPCM:
-		rtp->f.timelen = rtp->f.datalen / 4;
+		rtp->f.samples = rtp->f.datalen * 2;
 		break;
 	case AST_FORMAT_G729A:
-		rtp->f.timelen = rtp->f.datalen;
+		rtp->f.samples = rtp->f.datalen * 8;
+		break;
+	case AST_FORMAT_G723_1:
+		rtp->f.samples = g723_samples(rtp->f.data, rtp->f.datalen);
 		break;
 	default:
-		ast_log(LOG_NOTICE, "Unable to calculate timelen for format %d\n", rtp->f.subclass);
+		ast_log(LOG_NOTICE, "Unable to calculate samples for format %d\n", rtp->f.subclass);
 		break;
 	}
 	rtp->f.src = "RTP";
@@ -330,10 +376,25 @@ struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io)
 	return rtp;
 }
 
+int ast_rtp_settos(struct ast_rtp *rtp, int tos)
+{
+	int res;
+	if ((res = setsockopt(rtp->s, SOL_IP, IP_TOS, &tos, sizeof(tos)))) 
+		ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
+	return res;
+}
+
 void ast_rtp_set_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
 {
 	rtp->them.sin_port = them->sin_port;
 	rtp->them.sin_addr = them->sin_addr;
+}
+
+void ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
+{
+	them->sin_family = AF_INET;
+	them->sin_port = rtp->them.sin_port;
+	them->sin_addr = rtp->them.sin_addr;
 }
 
 void ast_rtp_get_us(struct ast_rtp *rtp, struct sockaddr_in *us)
@@ -365,6 +426,67 @@ static unsigned int calc_txstamp(struct ast_rtp *rtp)
 	return ms;
 }
 
+int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
+{
+	unsigned int *rtpheader;
+	int hdrlen = 12;
+	int res;
+	int ms;
+	int pred;
+	int x;
+	char data[256];
+
+	if ((digit <= '9') && (digit >= '0'))
+		digit -= '0';
+	else if (digit == '*')
+		digit = 10;
+	else if (digit == '#')
+		digit = 11;
+	else if ((digit >= 'A') && (digit <= 'D')) 
+		digit = digit - 'A' + 12;
+	else if ((digit >= 'a') && (digit <= 'd')) 
+		digit = digit - 'a' + 12;
+	else {
+		ast_log(LOG_WARNING, "Don't know how to represent '%c'\n", digit);
+		return -1;
+	}
+	
+
+	/* If we have no peer, return immediately */	
+	if (!rtp->them.sin_addr.s_addr)
+		return 0;
+
+	ms = calc_txstamp(rtp);
+	/* Default prediction */
+	pred = ms * 8;
+	
+	/* Get a pointer to the header */
+	rtpheader = (unsigned int *)data;
+	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (101 << 16) | (rtp->seqno++));
+	rtpheader[1] = htonl(rtp->lastts);
+	rtpheader[2] = htonl(rtp->ssrc); 
+	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
+	for (x=0;x<4;x++) {
+		if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
+			res = sendto(rtp->s, (void *)rtpheader, hdrlen + 4, 0, &rtp->them, sizeof(rtp->them));
+			if (res <0) 
+				ast_log(LOG_NOTICE, "RTP Transmission error to %s:%d: %s\n", inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
+	#if 0
+		printf("Sent %d bytes of RTP data to %s:%d\n", res, inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
+	#endif		
+		}
+		if (x ==0) {
+			/* Clear marker bit and increment seqno */
+			rtpheader[0] = htonl((2 << 30)  | (101 << 16) | (rtp->seqno++));
+			/* Make duration 240 */
+			rtpheader[3] |= htonl((240));
+			/* Set the End bit for the last 3 */
+			rtpheader[3] |= htonl((1 << 23));
+		}
+	}
+	return 0;
+}
+
 static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec)
 {
 	unsigned int *rtpheader;
@@ -386,6 +508,12 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		break;
 	case AST_FORMAT_G729A:
 		pred = rtp->lastts + f->datalen * 8;
+		break;
+	case AST_FORMAT_GSM:
+		pred = rtp->lastts + f->datalen * 20 / 33;
+		break;
+	case AST_FORMAT_G723_1:
+		pred = rtp->lastts + g723_samples(f->data, f->datalen);
 		break;
 	default:
 		ast_log(LOG_WARNING, "Not sure about timestamp format for codec format %d\n", f->subclass);
@@ -423,8 +551,12 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 	int codec;
 	int hdrlen = 12;
 	
-	/* Make sure we have enough space for RTP header */
+
+	/* If we have no peer, return immediately */	
+	if (!rtp->them.sin_addr.s_addr)
+		return 0;
 	
+	/* Make sure we have enough space for RTP header */
 	if (_f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "RTP can only send voice\n");
 		return -1;
@@ -434,6 +566,15 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 	if (codec < 0) {
 		ast_log(LOG_WARNING, "Don't know how to send format %d packets with RTP\n", _f->subclass);
 		return -1;
+	}
+
+	if (rtp->lasttxformat !=  _f->subclass) {
+		/* New format, reset the smoother */
+		ast_log(LOG_DEBUG, "Ooh, format changed from %d to %d\n", rtp->lasttxformat, _f->subclass);
+		rtp->lasttxformat = _f->subclass;
+		if (rtp->smoother)
+			ast_smoother_free(rtp->smoother);
+		rtp->smoother = NULL;
 	}
 
 
@@ -465,7 +606,18 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		while((f = ast_smoother_read(rtp->smoother)))
 			ast_rtp_raw_write(rtp, f, codec);
 		break;
-		
+	case AST_FORMAT_GSM:
+		if (!rtp->smoother) {
+			rtp->smoother = ast_smoother_new(33);
+		}
+		if (!rtp->smoother) {
+			ast_log(LOG_WARNING, "Unable to create GSM smoother :(\n");
+			return -1;
+		}
+		ast_smoother_feed(rtp->smoother, _f);
+		while((f = ast_smoother_read(rtp->smoother)))
+			ast_rtp_raw_write(rtp, f, codec);
+		break;
 	default:	
 		ast_log(LOG_WARNING, "Not sure about sending format %d packets\n", _f->subclass);
 		if (_f->offset < hdrlen) {

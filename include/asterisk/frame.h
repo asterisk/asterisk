@@ -33,8 +33,8 @@ struct ast_frame {
 	int subclass;				
 	/*! Length of data */
 	int datalen;				
-	/*! Amount of time associated with this frame */
-	int timelen;				
+	/*! Number of 8khz samples in this frame */
+	int samples;				
 	/*! Was the data malloc'd?  i.e. should we free it when we discard the frame? */
 	int mallocd;				
 	/*! How far into "data" the data really starts */
@@ -165,6 +165,10 @@ struct ast_frame_chain {
 #define AST_CONTROL_WINK		10
 /*! Set a low-level option */
 #define AST_CONTROL_OPTION		11
+/*! Key Radio */
+#define	AST_CONTROL_RADIO_KEY		12
+/*! Un-Key Radio */
+#define	AST_CONTROL_RADIO_UNKEY		13
 
 /* Option identifiers and flags */
 #define AST_OPTION_FLAG_REQUEST		0
@@ -180,6 +184,9 @@ struct ast_frame_chain {
 
 /* Put a compatible channel into TDD (TTY for the hearing-impared) mode */
 #define	AST_OPTION_TDD			2
+
+/* Relax the parameters for DTMF reception (mainly for radio use) */
+#define	AST_OPTION_RELAXDTMF		3
 
 struct ast_option_header {
 	/* Always keep in network byte order */
@@ -280,6 +287,7 @@ struct ast_smoother;
 
 extern struct ast_smoother *ast_smoother_new(int bytes);
 extern void ast_smoother_free(struct ast_smoother *s);
+extern void ast_smoother_reset(struct ast_smoother *s, int bytes);
 extern int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f);
 extern struct ast_frame *ast_smoother_read(struct ast_smoother *s);
 
