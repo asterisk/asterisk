@@ -819,18 +819,18 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			mac++; /* Leave the "m" in the string */
 			while (*mac && (*mac != ')'))
 				*(mac++) = 'X';
-			if (*mac)
+			if (*mac) {
 				*mac = 'X';
-			else {
+				mac = strchr(mohclass, ')');
+				if (mac)
+					*mac = '\0';
+				else {
+					ast_log(LOG_WARNING, "Music on hold class specified without trailing ')'\n");
+					mohclass = NULL;
+				}
+			} else {
 				ast_log(LOG_WARNING, "Could not find music on hold class to use, assuming default.\n");
 				mohclass=NULL;
-			}
-			mac = strchr(macroname, ')');
-			if (mac)
-				*mac = '\0';
-			else {
-				ast_log(LOG_WARNING, "Music on hold class specified without trailing ')'\n");
-				mohclass = NULL;
 			}
 		}
 		/* Extract privacy info from transfer */

@@ -1501,7 +1501,7 @@ static int load_config(void)
 				} else
 					transferdigittimeout = transferdigittimeout * 1000;
 			} else if (!strcasecmp(var->name, "featuredigittimeout")) {
-				if ((sscanf(var->value, "%d", &featuredigittimeout) != 1) || (transferdigittimeout < 1)) {
+				if ((sscanf(var->value, "%d", &featuredigittimeout) != 1) || (featuredigittimeout < 1)) {
 					ast_log(LOG_WARNING, "%s is not a valid featuredigittimeout\n", var->value);
 					featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
 				}
