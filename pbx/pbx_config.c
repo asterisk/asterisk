@@ -1538,7 +1538,7 @@ static int pbx_load_module(void)
 	char *cxt, *ext, *pri, *appl, *data, *tc, *cidmatch;
 	struct ast_context *con;
 	char *start, *end;
-	char realvalue[256] = "";
+	char realvalue[256];
 
 	cfg = ast_load(config);
 	if (cfg) {
@@ -1549,6 +1549,7 @@ static int pbx_load_module(void)
 			"writeprotect"));
 		v = ast_variable_browse(cfg, "globals");
 		while(v) {
+			memset(realvalue, 0, sizeof(realvalue));
 			pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 			pbx_builtin_setvar_helper(NULL, v->name, realvalue);
 			v = v->next;
@@ -1622,15 +1623,18 @@ static int pbx_load_module(void)
 							free(tc);
 						} else fprintf(stderr,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
 					} else if(!strcasecmp(v->name, "include")) {
+						memset(realvalue, 0, sizeof(realvalue));
 						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 						if (ast_context_add_include2(con, realvalue, registrar))
 							ast_log(LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
 					} else if(!strcasecmp(v->name, "ignorepat")) {
+						memset(realvalue, 0, sizeof(realvalue));
 						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 						if (ast_context_add_ignorepat2(con, realvalue, registrar))
 							ast_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
 					} else if (!strcasecmp(v->name, "switch")) {
 						char *stringp=NULL;
+						memset(realvalue, 0, sizeof(realvalue));
 						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 						tc = realvalue;
 						stringp=tc;
