@@ -74,6 +74,15 @@ ${TIMESTAMP}	Current date time in the format: YYYYMMDD-HHMMSS
 ${TXTCIDNAME}	Result of application TXTCIDName
 ${UNIQUEID}	Current call unique identifier
 
+The dial() application sets the following variables:
+
+${DIALEDPEERNAME} Dialed peer name
+${DIALEDPEERNUMBER} Dialed peer number
+${DIALEDTIME}   Time for the call (seconds)
+${ANSWEREDTIME} Time from dial to answer (seconds)
+${DIALSTATUS}   Status of the call, one of:
+                CHANUNAVAIL | CONGESTION | BUSY | NOANSWER | ANSWER | CANCEL
+
 There are two reference modes - reference by value and reference by name. 
 To refer to a variable with its name (as an argument to a function that 
 requires a variable), just write the name. To refer to the variable's value, 
