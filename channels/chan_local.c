@@ -71,11 +71,14 @@ static struct local_pvt {
 
 static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_frame *f)
 {
-	struct ast_channel *other;
-	if (isoutbound)
+	struct ast_channel *other, *us;
+	if (isoutbound) {
+		us = p->chan;
 		other = p->owner;
-	else
+	} else {
+		us = p->owner;
 		other = p->chan;
+	}
 	if (!other)
 		return 0;
 	p->glaredetect = 1;
@@ -90,8 +93,11 @@ retrylock:
 	if (pthread_mutex_trylock(&other->lock)) {
 		/* Failed to lock.  Release main lock and try again */
 		ast_pthread_mutex_unlock(&p->lock);
+		ast_pthread_mutex_unlock(&us->lock);
 		/* Wait just a bit */
 		usleep(1);
+		/* Only we can destroy ourselves, so we can't disappear here */
+		ast_pthread_mutex_lock(&us->lock);
 		ast_pthread_mutex_lock(&p->lock);
 		goto retrylock;
 	}

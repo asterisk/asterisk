@@ -560,6 +560,8 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 				tmp->pvt->pvt = NULL;
 				p->app_sleep_cond = 1;
 				ast_channel_free( tmp );
+				ast_pthread_mutex_unlock(&p->lock);	/* For other thread to read the condition. */
+				ast_pthread_mutex_unlock(&p->app_lock);
 				return NULL;
 			}
 		}
