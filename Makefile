@@ -58,7 +58,7 @@ INSTALL_PREFIX=
 # Original busydetect routine
 BUSYDETECT = -DBUSYDETECT
 
-# Improved busydetect routine
+# Improved busydetect routine, comment the previous one if you use this one
 BUSYDETECT+= #-DBUSYDETECT_MARTIN 
 # Detect the busy signal looking only at tone lengths
 # For example if you have 3 beeps 100ms tone, 100ms silence separated by 500 ms of silence
