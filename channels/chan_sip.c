@@ -3699,12 +3699,9 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 	struct sip_route *thishop, *head, *tail;
 	int start = 0;
 	int len;
+	int firstpass = 1;
 	char *rr, *contact, *c;
 
-	if (p->route) {
-		free_old_route(p->route);
-		p->route = NULL;
-	}
 	/* We build up head, then assign it to p->route when we're done */
 	head = NULL;  tail = head;
 	/* 1st we pass through all the hops in any Record-Route headers */
@@ -3712,6 +3709,13 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 		/* Each Record-Route header */
 		rr = __get_header(req, "Record-Route", &start);
 		if (*rr == '\0') break;
+		if (firstpass) {
+			if (p->route) {
+				free_old_route(p->route);
+				p->route = NULL;
+			}
+			firstpass = 0;
+		}
 		for (;;) {
 			/* Each route entry */
 			/* Find < */
