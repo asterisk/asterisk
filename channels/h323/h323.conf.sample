@@ -20,10 +20,10 @@ bindaddr = 0.0.0.0
 ; You can fine tune codecs here using "allow" and "disallow" clauses
 ; with specific codecs.  Use "all" to represent all formats.
 ;
+disallow=all
 ;allow=all		; turns on all installed codecs
-;disallow=g723.1		; Hm...  Proprietary, don't use it...
-;allow=gsm		; Always allow GSM, it's cool :)
-;allow=ulaw
+;disallow=g723.1	; Hm...  Proprietary, don't use it...
+allow=gsm		; Always allow GSM, it's cool :)
 ;
 ; User-Input Mode (DTMF)
 ;
