@@ -1954,7 +1954,7 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 
 	/* Can't think of how other diffs might be helpful, but I'm sure somebody will think of something. */
 #endif
-	if (! the_zone)
+	if (the_zone)
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, the_zone->msg_format, the_zone->timezone);
 	else
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' q 'digits/at' IMp", NULL);
