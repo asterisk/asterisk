@@ -312,7 +312,7 @@ static struct sip_pvt {
 	char callerid[256];			/* Caller*ID */
 	int restrictcid;			/* hide presentation from remote user */
 	char via[256];
-	char fullcontact[80];		/* Extra parameters to go in the "To" header */
+	char fullcontact[128];		/* Extra parameters to go in the "To" header */
 	char accountcode[20];			/* Account code */
 	char our_contact[256];			/* Our contact header */
 	char realm[256];			/* Authorization realm */
@@ -424,7 +424,7 @@ struct sip_peer {
 	char tohost[80];
 	char fromuser[80];
 	char fromdomain[80];
-	char fullcontact[80];
+	char fullcontact[128];
 	char mailbox[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
 	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
@@ -1291,6 +1291,7 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 			strncpy(r->peermd5secret, p->md5secret, sizeof(r->peermd5secret)-1);
 			strncpy(r->username, p->username, sizeof(r->username)-1);
 			strncpy(r->tohost, p->tohost, sizeof(r->tohost)-1);
+			strncpy(r->fullcontact, p->fullcontact, sizeof(r->fullcontact)-1);
 			if (ast_strlen_zero(r->tohost)) {
 				if (p->addr.sin_addr.s_addr)
 					ast_inet_ntoa(r->tohost, sizeof(r->tohost), p->addr.sin_addr);
@@ -3639,7 +3640,7 @@ static void build_contact(struct sip_pvt *p)
 /*--- initreqprep: Initiate SIP request to peer/user ---*/
 static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, char *vxml_url)
 {
-	char invite[256];
+	char invite[256]="";
 	char from[256];
 	char to[256];
 	char tmp[80];
