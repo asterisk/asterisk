@@ -293,9 +293,13 @@ static struct ast_frame *process_rfc3389(struct ast_rtp *rtp, unsigned char *dat
 	if (!len)
 		return NULL;
 	if (len < 24) {
+		rtp->f.data = rtp->rawdata + AST_FRIENDLY_OFFSET;
 		rtp->f.datalen = len - 1;
+		rtp->f.offset = AST_FRIENDLY_OFFSET;
 		memcpy(rtp->f.data, data + 1, len - 1);
 	} else {
+		rtp->f.data = NULL;
+		rtp->f.offset = 0;
 		rtp->f.datalen = 0;
 	}
 	rtp->f.frametype = AST_FRAME_CNG;
