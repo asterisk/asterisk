@@ -1716,7 +1716,7 @@ static void add_route(struct sip_request *req, struct sip_route *route)
 
 static void set_destination(struct sip_pvt *p, char *uri)
 {
-	char *h, *maddr, hostname[256];
+	char *h, *maddr, hostname[256] = "";
 	int port, hn;
 	struct hostent *hp;
 
@@ -1733,7 +1733,6 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	}
 	++h;
 	hn = strcspn(h, ":;>");
-	hostname[255] = '\0';
 	strncpy(hostname, h, (hn>255)?255:hn);
 	h+=hn;
 	/* Is "port" present? if not default to 5060 */
@@ -1755,7 +1754,7 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	
 	hp = gethostbyname(hostname);
 	if (hp == NULL)  {
-		ast_log(LOG_WARNING, "Can't find address for host '%s'\n", h);
+		ast_log(LOG_WARNING, "Can't find address for host '%s'\n", hostname);
 		return;
 	}
 	p->sa.sin_family = AF_INET;
