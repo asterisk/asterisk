@@ -5043,6 +5043,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			}
 		} else if (p->owner)
 			ast_queue_hangup(p->owner, 0);
+		else
+			p->needdestroy = 1;
 		transmit_response(p, "200 OK", req);
 	} else if (!strcasecmp(cmd, "MESSAGE")) {
 		if (sipdebug)
