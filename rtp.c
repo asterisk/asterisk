@@ -616,6 +616,7 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
   [16] = {1, AST_FORMAT_ADPCM}, /* 11.025 kHz */
   [17] = {1, AST_FORMAT_ADPCM}, /* 22.050 kHz */
   [18] = {1, AST_FORMAT_G729A},
+  [19] = {0, AST_RTP_CN},		/* Also used for CN */
   [26] = {1, AST_FORMAT_JPEG},
   [31] = {1, AST_FORMAT_H261},
   [34] = {1, AST_FORMAT_H263},

@@ -1413,7 +1413,13 @@ static void ast_remotecontrol(char * data)
 #endif	
 	if (option_exec && data) {  /* hack to print output then exit if asterisk -rx is used */
 		char tempchar;
-		ast_el_read_char(el, &tempchar);
+		struct pollfd fds[0];
+		fds[0].fd = ast_consock;
+		fds[0].events = POLLIN;
+		fds[0].revents = 0;
+		while(poll(fds, 1, 100) > 0) {
+			ast_el_read_char(el, &tempchar);
+		}
 		return;
 	}
 	for(;;) {
