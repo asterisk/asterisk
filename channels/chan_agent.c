@@ -354,6 +354,10 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 			p->acknowledged = 0;
 		}
 	}
+#if 0
+	/* I don't know what this code does and was unable to get a hold of Jim to
+	   find out, but it causes chan_agent to crash (see bug #3043) at
+	   http://bugs.digium.com */
 	if ((!strncmp(p->chan->name,"Zap",3)) && (!p->ackcall) && (!p->acknowledged))
         {
 
@@ -362,6 +366,7 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
                 if (p->chan)
                         p->chan->_bridge = ast;
         }
+#endif		
 	if (f && (f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_ANSWER)) {
 /* TC */
 		if (p->ackcall) {
