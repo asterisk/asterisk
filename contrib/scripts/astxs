@@ -131,14 +131,14 @@ if($ext eq "so") {
 
 my $bad=0;
 
-$bad = esystem("$vars{CC} $vars{CFLAGS} -c ${base}.c -o ${base}.o") unless($args{linkonly} or $args{installonly});
+$bad = esystem("$vars{CC} -I/usr/src/asterisk -I/usr/src/asterisk/include $vars{CFLAGS} -c ${base}.c -o ${base}.o") unless($args{linkonly} or $args{installonly});
 exit -1 if($bad);
 exit if($args{nolink});
 
 
 
 $vars{MAINOBJ} ||= "$base.o";
-$bad = esystem("$vars{CC} $vars{SOLINK} -o $vars{LDFLAGS} ${base}.so $vars{MAINOBJ} $vars{EXTOBJ}") if(!$bad and !$args{installonly});
+$bad = esystem("$vars{CC} $vars{SOLINK} -o ${base}.so $vars{LDFLAGS} $vars{MAINOBJ} $vars{EXTOBJ}") if(!$bad and !$args{installonly});
 exit -1 if($bad);
 
 if(($args{install} or $args{installonly}) and $vars{MODULES_DIR}) {
