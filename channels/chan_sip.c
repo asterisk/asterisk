@@ -6423,7 +6423,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 						struct ast_frame af = { AST_FRAME_NULL, };
 						ast_queue_frame(p->owner, &af);
 					}
-				}
+				} else /* It's possible we're getting an ACK after we've tried to disconnect
+						  by sending CANCEL */
+					p->pendingbye = 1;
 				p->authtries = 0;
 				/* If I understand this right, the branch is different for a non-200 ACK only */
 				transmit_request(p, "ACK", seqno, 0, 1);
