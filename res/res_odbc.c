@@ -281,8 +281,8 @@ void destroy_obdc_obj(odbc_obj **obj) {
 }
 
 odbc_status odbc_obj_disconnect(odbc_obj *obj) {
-  ast_mutex_lock(&obj->lock);
   int res;
+  ast_mutex_lock(&obj->lock);
 
   if(obj->up)
     res = SQLDisconnect(obj->con);
