@@ -424,16 +424,17 @@ int ast_context_verify_includes(struct ast_context *con);
  * \param context context to which to add the switch
  * \param sw switch to add
  * \param data data to pass to switch
+ * \param eval whether to evaluate variables when running switch
  * \param registrar whoever registered the switch
  * This function registers a switch with the asterisk switch architecture
  * It returns 0 on success, -1 on failure
  */
-int ast_context_add_switch(const char *context, const char *sw, const char *data, const char *registrar);
+int ast_context_add_switch(const char *context, const char *sw, const char *data, int eval, const char *registrar);
 //! Adds a switch (first param is a ast_context)
 /*!
  * See ast_context_add_switch()
  */
-int ast_context_add_switch2(struct ast_context *con, const char *sw, const char *data, const char *registrar);
+int ast_context_add_switch2(struct ast_context *con, const char *sw, const char *data, int eval, const char *registrar);
 
 //! Remove a switch
 /*!

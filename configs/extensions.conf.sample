@@ -254,6 +254,12 @@ include => iaxprovider
 ; be substituted in the switch routine itself)
 ;
 ; lswitch => Loopback/12${EXTEN}@othercontext
+;
+; An "eswitch" is like a switch but the evaluation of
+; variable substitution is performed at runtime before
+; being passed to the switch routine.
+;
+; eswitch => IAX2/context@${CURSERVER}
 
 [macro-stdexten];
 ;

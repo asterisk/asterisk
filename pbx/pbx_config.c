@@ -1754,7 +1754,7 @@ static int pbx_load_module(void)
 						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 						if (ast_context_add_ignorepat2(con, realvalue, registrar))
 							ast_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
-					} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch")) {
+					} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
 						char *stringp=NULL;
 						memset(realvalue, 0, sizeof(realvalue));
 						if (!strcasecmp(v->name, "switch"))
@@ -1767,7 +1767,7 @@ static int pbx_load_module(void)
 						data = strsep(&stringp, "");
 						if (!data)
 							data = "";
-						if (ast_context_add_switch2(con, appl, data, registrar))
+						if (ast_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar))
 							ast_log(LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
 					}
 					v = v->next;

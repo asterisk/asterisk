@@ -56,6 +56,9 @@
 #define EXT_DATA_SIZE 8192
 #endif
 
+#define SWITCH_DATA_LENGTH 256
+
+
 #define	VAR_NORMAL		1
 #define	VAR_SOFTTRAN	2
 #define	VAR_HARDTRAN	3
@@ -95,7 +98,9 @@ struct ast_sw {
 	char *name;
 	const char *registrar;			/* Registrar */
 	char *data;		/* Data load */
+	int eval;
 	struct ast_sw *next;			/* Link them together */
+	char *tmpdata;
 	char stuff[0];
 };
 
@@ -758,16 +763,19 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, struct ast
 			sw = tmp->alts;
 			while(sw) {
 				if ((asw = pbx_findswitch(sw->name))) {
+					/* Substitute variables now */
+					if (sw->eval) 
+						pbx_substitute_variables_helper(chan, sw->data, sw->tmpdata, SWITCH_DATA_LENGTH - 1);
 					if (action == HELPER_CANMATCH)
-						res = asw->canmatch ? asw->canmatch(chan, context, exten, priority, callerid, sw->data) : 0;
+						res = asw->canmatch ? asw->canmatch(chan, context, exten, priority, callerid, sw->eval ? sw->tmpdata : sw->data) : 0;
 					else if (action == HELPER_MATCHMORE)
-						res = asw->matchmore ? asw->matchmore(chan, context, exten, priority, callerid, sw->data) : 0;
+						res = asw->matchmore ? asw->matchmore(chan, context, exten, priority, callerid, sw->eval ? sw->tmpdata : sw->data) : 0;
 					else
-						res = asw->exists ? asw->exists(chan, context, exten, priority, callerid, sw->data) : 0;
+						res = asw->exists ? asw->exists(chan, context, exten, priority, callerid, sw->eval ? sw->tmpdata : sw->data) : 0;
 					if (res) {
 						/* Got a match */
 						*swo = asw;
-						*data = sw->data;
+						*data = sw->eval ? sw->tmpdata : sw->data;
 						*foundcontext = context;
 						return NULL;
 					}
@@ -3612,7 +3620,7 @@ int ast_context_add_include2(struct ast_context *con, const char *value,
  *  EBUSY  - can't lock
  *  ENOENT - no existence of context
  */
-int ast_context_add_switch(const char *context, const char *sw, const char *data, const char *registrar)
+int ast_context_add_switch(const char *context, const char *sw, const char *data, int eval, const char *registrar)
 {
 	struct ast_context *c;
 
@@ -3626,7 +3634,7 @@ int ast_context_add_switch(const char *context, const char *sw, const char *data
 	while (c) {
 		/* ... search for the right one ... */
 		if (!strcmp(ast_get_context_name(c), context)) {
-			int ret = ast_context_add_switch2(c, sw, data, registrar);
+			int ret = ast_context_add_switch2(c, sw, data, eval, registrar);
 			/* ... unlock contexts list and return */
 			ast_unlock_contexts();
 			return ret;
@@ -3648,7 +3656,7 @@ int ast_context_add_switch(const char *context, const char *sw, const char *data
  *  EINVAL - there is no existence of context for inclusion
  */
 int ast_context_add_switch2(struct ast_context *con, const char *value,
-	const char *data, const char *registrar)
+	const char *data, int eval, const char *registrar)
 {
 	struct ast_sw *new_sw;
 	struct ast_sw *i, *il = NULL; /* sw, sw_last */
@@ -3660,6 +3668,11 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
 	if (data)
 		length += strlen(data);
 	length++;
+	if (eval) {
+		/* Create buffer for evaluation of variables */
+		length += SWITCH_DATA_LENGTH;
+		length++;
+	}
 
 	/* allocate new sw structure ... */
 	if (!(new_sw = malloc(length))) {
@@ -3675,11 +3688,17 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
 	strcpy(new_sw->name, value);
 	p += strlen(value) + 1;
 	new_sw->data = p;
-	if (data)
+	if (data) {
 		strcpy(new_sw->data, data);
-	else
+		p += strlen(data) + 1;
+	} else {
 		strcpy(new_sw->data, "");
+		p++;
+	}
+	if (eval) 
+		new_sw->tmpdata = p;
 	new_sw->next      = NULL;
+	new_sw->eval	  = eval;
 	new_sw->registrar = registrar;
 
 	/* ... try to lock this context ... */
