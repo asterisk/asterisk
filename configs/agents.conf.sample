@@ -32,7 +32,7 @@
 ;
 ;updatecdr=no
 ;
-; Group memberships for agents (may change in mid-file just)
+; Group memberships for agents (may change in mid-file)
 ; 
 ;group=3
 ;group=1,2
