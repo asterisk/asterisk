@@ -342,6 +342,7 @@ int ast_sched_runq(struct sched_context *con)
 	struct sched *current;
 	struct timeval tv;
 	int x=0;
+	int res;
 	DEBUG(ast_log(LOG_DEBUG, "ast_sched_runq()\n"));
 		
 	ast_mutex_lock(&con->lock);
@@ -370,7 +371,12 @@ int ast_sched_runq(struct sched_context *con)
 			 * the schedule queue.  If that's what it wants to do, it 
 			 * should return 0.
 			 */
-			if (current->callback(current->data)) {
+			
+			ast_mutex_unlock(&con->lock);
+			res = current->callback(current->data);
+			ast_mutex_lock(&con->lock);
+			
+			if (res) {
 			 	/*
 				 * If they return non-zero, we should schedule them to be
 				 * run again.
