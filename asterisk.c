@@ -31,6 +31,7 @@
 #include <asterisk/rtp.h>
 #include <asterisk/app.h>
 #include <asterisk/lock.h>
+#include <asterisk/utils.h>
 #include <sys/resource.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -546,7 +547,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 	if (option_console || option_remote) {
 		if (getenv("HOME")) 
 			snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
-		if (strlen(filename))
+		if (!ast_strlen_zero(filename))
 			ast_el_write_history(filename);
 		if (el != NULL)
 			el_end(el);
@@ -640,7 +641,7 @@ static void consolehandler(char *s)
 	printf(term_end());
 	fflush(stdout);
 	/* Called when readline data is available */
-	if (s && strlen(s))
+	if (s && !ast_strlen_zero(s))
 		ast_el_add_history(s);
 	/* Give the console access to the shell */
 	if (s) {
@@ -660,7 +661,7 @@ static int remoteconsolehandler(char *s)
 {
 	int ret = 0;
 	/* Called when readline data is available */
-	if (s && strlen(s))
+	if (s && !ast_strlen_zero(s))
 		ast_el_add_history(s);
 	/* Give the console access to the shell */
 	if (s) {
@@ -1334,7 +1335,7 @@ static void ast_remotecontrol(char * data)
 
 	el_set(el, EL_GETCFN, ast_el_read_char);
 
-	if (strlen(filename))
+	if (!ast_strlen_zero(filename))
 		ast_el_read_history(filename);
 
 	ast_cli_register(&quit);
@@ -1350,7 +1351,7 @@ static void ast_remotecontrol(char * data)
 	for(;;) {
 		ebuf = (char *)el_gets(el, &num);
 
-		if (ebuf && strlen(ebuf)) {
+		if (ebuf && !ast_strlen_zero(ebuf)) {
 			if (ebuf[strlen(ebuf)-1] == '\n')
 				ebuf[strlen(ebuf)-1] = '\0';
 			if (!remoteconsolehandler(ebuf)) {
@@ -1555,7 +1556,7 @@ int main(int argc, char *argv[])
                 if (el_hist == NULL || el == NULL)
                         ast_el_initialize();
 
-                if (strlen(filename))
+                if (!ast_strlen_zero(filename))
                         ast_el_read_history(filename);
 	}
 

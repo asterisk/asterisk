@@ -20,6 +20,7 @@
 #include <asterisk/config.h>
 #include <asterisk/options.h>
 #include <asterisk/logger.h>
+#include <asterisk/utils.h>
 #include "asterisk.h"
 #include "astconf.h"
 
@@ -57,7 +58,7 @@ static char *strip(char *buf)
 {
 	char *start;
 	/* Strip off trailing whitespace, returns, etc */
-	while(strlen(buf) && (buf[strlen(buf)-1]<33))
+	while(!ast_strlen_zero(buf) && (buf[strlen(buf)-1]<33))
 		buf[strlen(buf)-1] = '\0';
 	start = buf;
 	/* Strip off leading whitespace, returns, etc */
@@ -469,7 +470,7 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 #endif			
 	}
 	cur = strip(buf);
-	if (strlen(cur)) {
+	if (!ast_strlen_zero(cur)) {
 		/* Actually parse the entry */
 		if (cur[0] == '[') {
 			/* A category header */
@@ -525,7 +526,7 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 					while((*c == '<') || (*c == '>') || (*c == '\"')) c++;
 					/* Get rid of leading mess */
 					cur = c;
-					while(strlen(cur)) {
+					while(!ast_strlen_zero(cur)) {
 						c = cur + strlen(cur) - 1;
 						if ((*c == '>') || (*c == '<') || (*c == '\"'))
 							*c = '\0';

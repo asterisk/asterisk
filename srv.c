@@ -27,6 +27,7 @@
 #include <asterisk/srv.h>
 #include <asterisk/dns.h>
 #include <asterisk/options.h>
+#include <asterisk/utils.h>
 
 #ifdef __APPLE__
 #undef T_SRV
@@ -84,7 +85,7 @@ static int srv_callback(void *context, u_char *answer, int len, u_char *fullansw
 		return -1;
 	}
 
-	if (strlen(c->host))
+	if (!ast_strlen_zero(c->host))
 		return 1;
 
     return 0;

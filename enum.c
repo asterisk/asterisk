@@ -32,6 +32,7 @@
 #include <asterisk/dns.h>
 #include <asterisk/channel.h>
 #include <asterisk/config.h>
+#include <asterisk/utils.h>
 
 #ifdef __APPLE__
 #undef T_NAPTR
@@ -237,7 +238,7 @@ static int enum_callback(void *context, u_char *answer, int len, u_char *fullans
 		return -1;
 	}
 
-	if (strlen(c->dst))
+	if (!ast_strlen_zero(c->dst))
 		return 1;
 
 	return 0;

@@ -23,6 +23,7 @@
 #include <asterisk/say.h>
 #include <asterisk/lock.h>
 #include <asterisk/localtime.h>
+#include <asterisk/utils.h>
 #include "asterisk.h"
 #include <stdio.h>
 
@@ -50,7 +51,7 @@ int ast_say_digit_str(struct ast_channel *chan, char *fn2, char *ints, char *lan
 					snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
 				}
 		}
-		if(strlen(fn)){ /* if length == 0, then skip this digit as it is invalid */
+		if(!ast_strlen_zero(fn)){ /* if length == 0, then skip this digit as it is invalid */
 			res = ast_streamfile(chan, fn, lang);
 			if (!res)
 				res = ast_waitstream(chan, ints);
@@ -121,7 +122,7 @@ int ast_say_character_str(struct ast_channel *chan, char *fn2, char *ints, char 
  				if ('A' <= ltr && ltr <= 'Z') ltr += 'a' - 'A';		/* file names are all lower-case */
  				snprintf(fn, sizeof(fn), "letters/%c", ltr);
   		}
-		if(strlen(fn)){ /* if length == 0, then skip this digit as it is invalid */
+		if(!ast_strlen_zero(fn)) { /* if length == 0, then skip this digit as it is invalid */
 			res = ast_streamfile(chan, fn, lang);
 			if (!res) 
 				res = ast_waitstream(chan, ints);
@@ -192,7 +193,7 @@ int ast_say_phonetic_str(struct ast_channel *chan, char *fn2, char *ints, char *
 			case ('%'):
 				play=0;
 				/* check if we have 2 chars after the % */
-				if (strlen(fn2)>num+2)
+				if (strlen(fn2) > num+2)
 				{
 				    hex[0]=fn2[num+1];
 				    hex[1]=fn2[num+2];
