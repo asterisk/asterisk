@@ -9,7 +9,8 @@
 ; mode = fxo|immediate|dialtone -- for type of line and line handling
 ; context = starting context
 ; echocancel = on|off (on by default of v4pci, off by default for others)
-; callerid = on|off (to collect caller ID if available between 1st/2nd rings)
+; callerid = on|off|v23|bell (on => to collect caller ID if available between 1st/2nd rings using vpb functions)
+;                            (v23|bell => collect caller ID using asterisk functions)
 ; UseLoopDrop = 0|1 (enables the use of Loop Drop detection, on by default in
 ;                    some cases spurious loop-drops can cause unexpected 
 ;                    hangup detection)
