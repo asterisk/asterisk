@@ -259,7 +259,7 @@ int ast_stream_rewind(struct ast_filestream *fs, long ms);
  */
 long ast_tellstream(struct ast_filestream *fs);
 
-#define AST_RESERVED_POINTERS 12
+#define AST_RESERVED_POINTERS 20
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

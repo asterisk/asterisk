@@ -938,13 +938,19 @@ char ast_waitfordigit(struct ast_channel *c, int ms)
 	return result;
 }
 
-int ast_settimeout(struct ast_channel *c, int ms)
+int ast_settimeout(struct ast_channel *c, int samples, int (*func)(void *data), void *data)
 {
 	int res = -1;
 #ifdef ZAPTEL_OPTIMIZATIONS
 	if (c->timingfd > -1) {
-		ms *= 8;
-		res = ioctl(c->timingfd, ZT_TIMERCONFIG, &ms);
+		if (!func) {
+			samples = 0;
+			data = 0;
+		}
+		ast_log(LOG_DEBUG, "Scheduling timer at %d sample intervals\n", samples);
+		res = ioctl(c->timingfd, ZT_TIMERCONFIG, &samples);
+		c->timingfunc = func;
+		c->timingdata = data;
 	}
 #endif	
 	return res;
@@ -983,6 +989,10 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 {
 	struct ast_frame *f = NULL;
 	int blah;
+#ifdef ZAPTEL_OPTIMIZATIONS
+	int (*func)(void *);
+	void *data;
+#endif
 	static struct ast_frame null_frame = 
 	{
 		AST_FRAME_NULL,
@@ -1027,10 +1037,18 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		chan->exception = 0;
 		blah = -1;
 		ioctl(chan->timingfd, ZT_TIMERACK, &blah);
-		blah = 0;
-		ioctl(chan->timingfd, ZT_TIMERCONFIG, &blah);
-		f =  &null_frame;
+		func = chan->timingfunc;
+		data = chan->timingdata;
 		pthread_mutex_unlock(&chan->lock);
+		if (func) {
+			func(data);
+		} else {
+			blah = 0;
+			pthread_mutex_lock(&chan->lock);
+			ioctl(chan->timingfd, ZT_TIMERCONFIG, &blah);
+			pthread_mutex_unlock(&chan->lock);
+		}
+		f =  &null_frame;
 		return f;
 	}
 #endif

@@ -48,7 +48,6 @@ struct ast_filestream {
 };
 
 
-static struct ast_filestream *glist = NULL;
 static pthread_mutex_t vox_lock = AST_MUTEX_INITIALIZER;
 static int glistcnt = 0;
 

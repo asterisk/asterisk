@@ -91,7 +91,7 @@ ifeq (${OSARCH},OpenBSD)
 CFLAGS+=-pthread
 endif
 
-#CFLAGS+=$(shell if [ -f /usr/include/linux/zaptel.h ]; then echo "-DZAPTEL_OPTIMIZATIONS"; fi)
+CFLAGS+=$(shell if [ -f /usr/include/linux/zaptel.h ]; then echo "-DZAPTEL_OPTIMIZATIONS"; fi)
 
 LIBEDIT=editline/libedit.a
 
