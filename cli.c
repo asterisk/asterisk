@@ -36,10 +36,10 @@
 	
 void ast_cli(int fd, char *fmt, ...)
 {
-	char stuff[4096];
+	char *stuff;
 	va_list ap;
 	va_start(ap, fmt);
-	vsnprintf(stuff, sizeof(stuff), fmt, ap);
+	vasprintf(&stuff, fmt, ap);
 	va_end(ap);
 	write(fd, stuff, strlen(stuff));
 }
