@@ -4906,7 +4906,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 {
 #define FORMAT3 "%-15.15s  %-10.10s  %-21.21s  %-15.15s\n"
 #define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s   %s\n"
-#define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-5.5dms  %-4.4dms  %-6.6s%s\n"
+#define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-6.6s%s\n"
 	struct sip_pvt *cur;
 	int numchans = 0;
 	if (argc != 3)
