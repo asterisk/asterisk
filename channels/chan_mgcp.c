@@ -2905,7 +2905,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
             ast_verbose(VERBOSE_PREFIX_3 "Endpoint '%s@%s-%d' observed '%s'\n", p->name, p->parent->name, sub->id, ev);
         }
 		/* Keep looking for events unless this was a hangup */
-		if (strcasecmp(ev, "hu") && strcasecmp(ev, "hd")) {
+		if (strcasecmp(ev, "hu") && strcasecmp(ev, "hd") && strcasecmp(ev, "ping")) {
 			transmit_notify_request(sub, p->curtone);
         }
 		if (!strcasecmp(ev, "hd")) {
@@ -3556,6 +3556,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					strncpy(e->language, language, sizeof(e->language) - 1);
             		strncpy(e->musicclass, musicclass, sizeof(e->musicclass)-1);
             		strncpy(e->mailbox, mailbox, sizeof(e->mailbox)-1);
+					snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08x", rand());
             		e->msgstate = -1;
 					e->capability = capability;
 					e->parent = gw;
