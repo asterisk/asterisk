@@ -36,11 +36,16 @@ static int debug = 0;
 static int stepsize = 3;
 static int mixchan = SOUND_MIXER_VOLUME;
 
+struct subchannel {
+	char *name;
+	struct subchannel *next;
+};
+
 static struct channel {
 	char *tech;
 	char *location;
 	struct channel *next;
-	int offhook;
+	struct subchannel *subs;
 } *channels;
 
 static void add_channel(char *tech, char *location)
@@ -370,7 +375,7 @@ static void check_mute(void)
 	struct channel *chan;
 	chan = channels;
 	while(chan) {
-		if (chan->offhook) {
+		if (chan->subs) {
 			offhook++;
 			break;
 		}
@@ -382,12 +387,50 @@ static void check_mute(void)
 		unmute();
 }
 
+static void delete_sub(struct channel *chan, char *name)
+{
+	struct subchannel *sub, *prev;
+	prev = NULL;
+	sub = chan->subs;
+	while(sub) {
+		if (!strcasecmp(sub->name, name)) {
+			if (prev)
+				prev->next = sub->next;
+			else
+				chan->subs = sub->next;
+			free(sub->name);
+			free(sub);
+			return;
+		}
+		prev = sub;
+		sub = sub->next;
+	}
+}
+
+static void append_sub(struct channel *chan, char *name)
+{
+	struct subchannel *sub;
+	sub = chan->subs;
+	while(sub) {
+		if (!strcasecmp(sub->name, name)) 
+			return;
+		sub = sub->next;
+	}
+	sub = malloc(sizeof(struct subchannel));
+	if (sub) {
+		memset(sub, 0, sizeof(struct subchannel));
+		sub->name = strdup(name);
+		sub->next = chan->subs;
+		chan->subs = sub;
+	}
+}
+
 static void hangup_chan(char *channel)
 {
 	struct channel *chan;
 	chan = find_channel(channel);
 	if (chan)
-		chan->offhook = 0;
+		delete_sub(chan, channel);
 	check_mute();
 }
 
@@ -396,7 +439,7 @@ static void offhook_chan(char *channel)
 	struct channel *chan;
 	chan = find_channel(channel);
 	if (chan)
-		chan->offhook = 1;
+		append_sub(chan, channel);
 	check_mute();
 }
 
