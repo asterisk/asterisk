@@ -70,7 +70,9 @@
 ;announce-frequency = 90 
 ;
 ; Should we include estimated hold time in position announcements?
-; Either yes, no, or only once; hold time will not be announced if <1 minute
+; Either yes, no, or only once.
+; Hold time will be announced as the estimated time, 
+; or "less than 2 minutes" when appropriate.
 ;
 ;announce-holdtime = yes|no|once
 
