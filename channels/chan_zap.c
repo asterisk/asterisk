@@ -7334,9 +7334,9 @@ static int action_zapdialoffhook(struct mansession *s, struct message *m)
 static int __unload_module(void)
 {
 	int x = 0;
-	int i;
 	struct zt_pvt *p, *pl;
 #ifdef ZAPATA_PRI
+	int i;
 	for(i=0;i<NUM_SPANS;i++) {
 		pthread_cancel(pris[i].master);
 	}
