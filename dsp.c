@@ -45,7 +45,7 @@
 
 /* Number of goertzels for progress detect */
 #define GSAMP_SIZE_NA 183			/* North America - 350, 440, 480, 620, 950, 1400, 1800 Hz */
-#define GSAMP_SIZE_CR 188			/* Costa Rica - Only care about 425 Hz */
+#define GSAMP_SIZE_CR 188			/* Costa Rica, Brazil - Only care about 425 Hz */
 
 #define PROG_MODE_NA		0
 #define PROG_MODE_CR		1	
@@ -59,7 +59,7 @@
 #define HZ_1400 5
 #define HZ_1800 6
 
-/* For CR modes */
+/* For CR/BR modes */
 #define HZ_425	0
 
 static struct progalias {
@@ -69,6 +69,7 @@ static struct progalias {
 	{ "us", PROG_MODE_NA },
 	{ "ca", PROG_MODE_NA },
 	{ "cr", PROG_MODE_CR },
+	{ "br", PROG_MODE_CR },
 };
 
 static struct progress {
