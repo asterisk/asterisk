@@ -2484,7 +2484,7 @@ static void reload_queues(void)
 					ast_mutex_lock(&q->lock);
 				/* Re-initialize the queue */
 				ast_clear_flag(q, QUEUE_FLAG_DEAD);
-				q->retry = 0;
+				q->retry = DEFAULT_RETRY;
 				q->timeout = -1;
 				q->maxlen = 0;
 				q->announcefrequency = 0;
@@ -2612,7 +2612,7 @@ static void reload_queues(void)
 					}
 					var = var->next;
 				}
-				if (q->retry < 1)
+				if (q->retry < 0)
 					q->retry = DEFAULT_RETRY;
 				if (q->timeout < 0)
 					q->timeout = DEFAULT_TIMEOUT;
