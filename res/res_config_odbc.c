@@ -96,7 +96,7 @@ static struct ast_config *config_odbc (char *file, struct ast_config *new_config
 	SQLBindCol (stmt, 7, SQL_C_CHAR, &var_name, sizeof (var_name), &err);
 	SQLBindCol (stmt, 8, SQL_C_CHAR, &var_val, sizeof (var_val), &err);
 
-	snprintf(sql, sizeof(sql), "select * from %s where filename='%s' and commented=0 order by filename,cat_metric desc,var_metric asc,id", table, file);
+	snprintf(sql, sizeof(sql), "select * from %s where filename='%s' and commented=0 order by filename,cat_metric desc,var_metric asc,category,var_name,var_val,id", table, file);
 	res = SQLExecDirect (stmt, sql, SQL_NTS);
 
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
