@@ -59,9 +59,10 @@ static int substring_exec(struct ast_channel *chan, void *data)
   char newexten[AST_MAX_EXTENSION] = "";
   char *count1, *count2;
   char *first, *second, *stringp;
+
   stringp=alloca(strlen(data)+1);
   ast_log(LOG_WARNING, "The use of Substring application is deprecated. Please use ${variable:a:b} instead\n");
-  strncpy(stringp,data,strlen(data)+1);
+  strncpy(stringp,data,strlen(data));
   if (strchr(stringp,'|')&&strchr(stringp,'=')) {
     int icount1,icount2;
     first=strsep(&stringp,"=");

@@ -1048,7 +1048,7 @@ pthread_attr_t attr;
 		}
 	}
 	else if (mode == ARB_ALPHA){
-		strncpy(tele->param, (char *) data, TELEPARAMSIZE);
+		strncpy(tele->param, (char *) data, TELEPARAMSIZE - 1);
 		tele->param[TELEPARAMSIZE - 1] = 0;
 	}
 	insque((struct qelem *)tele,(struct qelem *)myrpt->tele.next); 
@@ -1202,10 +1202,10 @@ struct ast_channel *mychannel,*genchannel;
 		if (mychannel->callerid) free(mychannel->callerid);
 		mychannel->callerid = strdup(myrpt->ourcallerid);
 	}
-	strcpy(mychannel->exten,myrpt->exten);
-	strcpy(mychannel->context,myrpt->ourcontext);
+	strncpy(mychannel->exten, myrpt->exten, sizeof(mychannel->exten) - 1);
+	strncpy(mychannel->context, myrpt->ourcontext, sizeof(mychannel->context) - 1);
 	if (myrpt->acctcode)
-		strcpy(mychannel->accountcode,myrpt->acctcode);
+		strncpy(mychannel->accountcode, myrpt->acctcode, sizeof(mychannel->accountcode) - 1);
 	mychannel->priority = 1;
 	ast_channel_undefer_dtmf(mychannel);
 	if (ast_pbx_start(mychannel) < 0)
@@ -1264,7 +1264,7 @@ char	str[300];
 struct	ast_frame wf;
 struct	rpt_link *l;
 
-	sprintf(str,"D %s %s %d %c",myrpt->cmdnode,myrpt->name,++(myrpt->dtmfidx),c);
+	snprintf(str, sizeof(str), "D %s %s %d %c", myrpt->cmdnode, myrpt->name, ++(myrpt->dtmfidx), c);
 	wf.frametype = AST_FRAME_TEXT;
 	wf.subclass = 0;
 	wf.offset = 0;
@@ -1303,7 +1303,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int co
 {
 
 	char *val, *s, *s1, *tele;
-	char tmp[300], deststr[300];
+	char tmp[300], deststr[300] = "";
 	struct rpt_link *l;
 	ZT_CONFINFO ci;  /* conference info */
 
@@ -1387,7 +1387,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int co
 			}
 			/* zero the silly thing */
 			memset((char *)l,0,sizeof(struct rpt_link));
-			sprintf(deststr,"IAX2/%s",s1);
+			snprintf(deststr, sizeof(deststr), "IAX2/%s", s1);
 			tele = strchr(deststr,'/');
 			if (!tele){
 				fprintf(stderr,"link2:Dial number (%s) must be in format tech/number\n",deststr);
@@ -1482,7 +1482,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int co
 			l->mode = 1;
 			strncpy(l->name, digitbuf, MAXNODESTR - 1);
 			l->isremote = (s && ast_true(s));
-			sprintf(deststr, "IAX2/%s", s1);
+			snprintf(deststr, sizeof(deststr), "IAX2/%s", s1);
 			tele = strchr(deststr, '/');
 			if (!tele){
 				fprintf(stderr,"link3:Dial number (%s) must be in format tech/number\n",deststr);
@@ -1554,7 +1554,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int co
 			
 			}
 			ast_mutex_lock(&myrpt->lock);
-			strcpy(myrpt->cmdnode, digitbuf);
+			strncpy(myrpt->cmdnode, digitbuf, sizeof(myrpt->cmdnode) - 1);
 			ast_mutex_unlock(&myrpt->lock);
 			rpt_telemetry(myrpt, REMGO, NULL);	
 			return DC_COMPLETE;
@@ -1712,7 +1712,7 @@ static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int c
 	char *s,*s1,*s2,*val;
 	int i,j,k,l,res,offset,offsave;
 	char oc;
-	char tmp[20], freq[20], savestr[20];
+	char tmp[20], freq[20] = "", savestr[20] = "";
 	struct ast_channel *mychannel;
 
 	if((!param) || (command_source != SOURCE_RMT))
@@ -1748,8 +1748,8 @@ static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int c
 			if (!s1)
 				return DC_ERROR;
 			*s1++ = 0;
-			strcpy(myrpt->freq,tmp);
-			strcpy(myrpt->rxpl,s);
+			strncpy(myrpt->freq, tmp, sizeof(myrpt->freq) - 1);
+			strncpy(myrpt->rxpl, s, sizeof(myrpt->rxpl) - 1);
 			myrpt->offset = REM_SIMPLEX;
 			myrpt->powerlevel = REM_MEDPWR;
 			myrpt->rxplon = 0;
@@ -1860,7 +1860,7 @@ static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int c
 				
 					
 			
-			sprintf(freq,"%s.%03d", s1, k);
+			snprintf(freq, sizeof(freq), "%s.%03d", s1, k);
 			
 			offset = REM_SIMPLEX;
 			
@@ -1886,19 +1886,19 @@ static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int c
 			} 
 			
 			offsave = myrpt->offset;
-			strcpy(savestr,myrpt->freq);
-			strcpy(myrpt->freq, freq);
+			strncpy(savestr, myrpt->freq, sizeof(savestr) - 1);
+			strncpy(myrpt->freq, freq, sizeof(myrpt->freq) - 1);
 			
 			if(debug)
 				printf("@@@@ Frequency entered: %s\n", myrpt->freq);
 	
 			
-			strcpy(myrpt->freq, freq);
+			strncpy(myrpt->freq, freq, sizeof(myrpt->freq) - 1);
 			myrpt->offset = offset;
 	
 			if (setrbi(myrpt) == -1){
 				myrpt->offset = offsave;
-				strcpy(myrpt->freq,savestr);
+				strncpy(myrpt->freq, savestr, sizeof(myrpt->freq) - 1);
 				return DC_ERROR;
 			}
 
@@ -1933,11 +1933,11 @@ static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int c
 			s = strchr(tmp,'*');
 			if(s)
 				*s = '.';
-			strcpy(savestr,myrpt->rxpl);
-			strcpy(myrpt->rxpl,tmp);
+			strncpy(savestr, myrpt->rxpl, sizeof(savestr) - 1);
+			strncpy(myrpt->rxpl, tmp, sizeof(myrpt->rxpl) - 1);
 			
 			if (setrbi(myrpt) == -1){
-				strcpy(myrpt->rxpl,savestr);
+				strncpy(myrpt->rxpl, savestr, sizeof(myrpt->rxpl) - 1);
 				return DC_ERROR;
 			}
 		
@@ -2077,7 +2077,7 @@ static int collect_function_digits(struct rpt *myrpt, char *digits, int command_
 {
 	int i;
 	char *stringp,*action,*param,*functiondigits;
-	char function_table_name[30];
+	char function_table_name[30] = "";
 	char workstring[80];
 	
 	struct ast_variable *vp;
@@ -2086,9 +2086,9 @@ static int collect_function_digits(struct rpt *myrpt, char *digits, int command_
 		printf("@@@@ Digits collected: %s, source: %d\n", digits, command_source);
 	
 	if (command_source == SOURCE_LNK)
-		strncpy(function_table_name, myrpt->link_functions, 30);
+		strncpy(function_table_name, myrpt->link_functions, sizeof(function_table_name) - 1);
 	else
-		strncpy(function_table_name, myrpt->functions, 30);
+		strncpy(function_table_name, myrpt->functions, sizeof(function_table_name) - 1);
 	vp = ast_variable_browse(cfg, function_table_name);
 	while(vp) {
 		if(!strncasecmp(vp->name, digits, strlen(vp->name)))
@@ -2134,7 +2134,7 @@ static int collect_function_digits(struct rpt *myrpt, char *digits, int command_
 static void handle_link_data(struct rpt *myrpt, struct rpt_link *mylink,
 	char *str)
 {
-char	tmp[300],cmd[300],dest[300],src[300],c;
+char	tmp[300],cmd[300] = "",dest[300],src[300],c;
 int	seq, res;
 struct rpt_link *l;
 struct	ast_frame wf;
@@ -2240,7 +2240,7 @@ struct	ast_frame wf;
 			myrpt->rem_dtmfbuf[myrpt->rem_dtmfidx] = 0;
 			
 			ast_mutex_unlock(&myrpt->lock);
-			strcpy(cmd, myrpt->rem_dtmfbuf);
+			strncpy(cmd, myrpt->rem_dtmfbuf, sizeof(cmd) - 1);
 			res = collect_function_digits(myrpt, cmd, SOURCE_LNK);
 			ast_mutex_lock(&myrpt->lock);
 			
@@ -2465,11 +2465,11 @@ static void rbi_out(struct rpt *myrpt,unsigned char *data)
 
 static int setrbi(struct rpt *myrpt)
 {
-char tmp[MAXREMSTR],rbicmd[5],*s;
+char tmp[MAXREMSTR] = "",rbicmd[5],*s;
 int	band,txoffset = 0,txpower = 0,rxpl;
 
 	
-	strcpy(tmp,myrpt->freq);
+	strncpy(tmp, myrpt->freq, sizeof(tmp) - 1);
 	s = strchr(tmp,'.');
 	/* if no decimal, is invalid */
 	
@@ -2682,7 +2682,7 @@ time_t	dtmf_time,t;
 struct rpt_link *l,*m;
 struct rpt_tele *telem;
 pthread_attr_t attr;
-char cmd[MAXDTMF+1];
+char cmd[MAXDTMF+1] = "";
 
 
 	ast_mutex_lock(&myrpt->lock);
@@ -3090,7 +3090,7 @@ char cmd[MAXDTMF+1];
 							myrpt->dtmfbuf[myrpt->dtmfidx++] = c;
 							myrpt->dtmfbuf[myrpt->dtmfidx] = 0;
 							
-							strcpy(cmd, myrpt->dtmfbuf);
+							strncpy(cmd, myrpt->dtmfbuf, sizeof(cmd) - 1);
 							ast_mutex_unlock(&myrpt->lock);
 							
 							res = collect_function_digits(myrpt, cmd, SOURCE_RPT);
@@ -3528,8 +3528,8 @@ int	i,j,n,longestnode;
 		/* if is a remote, dont start one for it */
 		if (rpt_vars[i].remote)
 		{
-			strcpy(rpt_vars[i].freq,"146.460");
-			strcpy(rpt_vars[i].rxpl,"100.0");
+			strncpy(rpt_vars[i].freq, "146.460", sizeof(rpt_vars[i].freq) - 1);
+			strncpy(rpt_vars[i].rxpl, "100.0", sizeof(rpt_vars[i].rxpl) - 1);
 			rpt_vars[i].offset = REM_SIMPLEX;
 			rpt_vars[i].powerlevel = REM_MEDPWR;
 			continue;

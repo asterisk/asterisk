@@ -365,7 +365,7 @@ static void apply_options(struct ast_vm_user *vmu, char *options)
 #ifdef USEPOSTGRESVM
 
 PGconn *dbhandler;
-char	dboption[256];
+char	dboption[256] = "";
 AST_MUTEX_DEFINE_STATIC(postgreslock);
 
 static int sql_init(void)
@@ -407,17 +407,17 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, cha
 		memset(retval, 0, sizeof(struct ast_vm_user));
 		retval->alloced=1;
 		if (mailbox) {
-			strcpy(retval->mailbox, mailbox);
+			strncpy(retval->mailbox, mailbox, sizeof(retval->mailbox) - 1);
 		}
 		if (context) {
-			strcpy(retval->context, context);
+			strncpy(retval->context, context, sizeof(retval->context) - 1);
 		}
 		else
 		{
-			strcpy(retval->context, "default");
+			strncpy(retval->context, "default", sizeof(retval->context) - 1);
 		}
 		populate_defaults(retval);
-		sprintf(query, "SELECT password,fullname,email,pager,options FROM voicemail WHERE context='%s' AND mailbox='%s'", retval->context, mailbox);
+		snprintf(query, sizeof(query), "SELECT password,fullname,email,pager,options FROM voicemail WHERE context='%s' AND mailbox='%s'", retval->context, mailbox);
 		
 /*	fprintf(stderr,"postgres find_user: query = %s\n",query); */
 		ast_mutex_lock(&postgreslock);
@@ -480,14 +480,14 @@ static void vm_change_password(struct ast_vm_user *vmu, char *password)
 	char query[400];
 
 	if (*vmu->context) {
-		sprintf(query, "UPDATE voicemail SET password='%s' WHERE context='%s' AND mailbox='%s' AND (password='%s' OR password IS NULL)", password, vmu->context, vmu->mailbox, vmu->password);
+		snprintf(query, sizeof(query), "UPDATE voicemail SET password='%s' WHERE context='%s' AND mailbox='%s' AND (password='%s' OR password IS NULL)", password, vmu->context, vmu->mailbox, vmu->password);
 	} else {
-		sprintf(query, "UPDATE voicemail SET password='%s' WHERE mailbox='%s' AND (password='%s' OR password IS NULL)", password, vmu->mailbox, vmu->password);
+		snprintf(query, sizeof(query), "UPDATE voicemail SET password='%s' WHERE mailbox='%s' AND (password='%s' OR password IS NULL)", password, vmu->mailbox, vmu->password);
 	}
 /*	fprintf(stderr,"postgres change_password: query = %s\n",query); */
 	ast_mutex_lock(&postgreslock);
 	PQexec(dbhandler, query);
-	strcpy(vmu->password, password);
+	strncpy(vmu->password, password, sizeof(vmu->password) - 1);
 	ast_mutex_unlock(&postgreslock);
 }
 
@@ -496,9 +496,9 @@ static void reset_user_pw(char *context, char *mailbox, char *password)
 	char query[320];
 
 	if (context) {
-		sprintf(query, "UPDATE voicemail SET password='%s' WHERE context='%s' AND mailbox='%s'", password, context, mailbox);
+		snprintf(query, sizeof(query), "UPDATE voicemail SET password='%s' WHERE context='%s' AND mailbox='%s'", password, context, mailbox);
 	} else {
-		sprintf(query, "UPDATE voicemail SET password='%s' WHERE mailbox='%s'", password, mailbox);
+		snprintf(query, sizeof(query),  "UPDATE voicemail SET password='%s' WHERE mailbox='%s'", password, mailbox);
 	}
 	ast_mutex_lock(&postgreslock);
 /*	fprintf(stderr,"postgres reset_user_pw: query = %s\n",query); */
@@ -807,12 +807,12 @@ static int base_encode(char *filename, FILE *so)
 	return 1;
 }
 
-static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu, int msgnum, char *mailbox, char *callerid, char *dur, char *date, char *passdata)
+static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu, int msgnum, char *mailbox, char *callerid, char *dur, char *date, char *passdata, size_t passdatasize)
 {
 	/* Prepare variables for substition in email body and subject */
 	pbx_builtin_setvar_helper(ast, "VM_NAME", vmu->fullname);
 	pbx_builtin_setvar_helper(ast, "VM_DUR", dur);
-	sprintf(passdata,"%d",msgnum);
+	snprintf(passdata, passdatasize, "%d", msgnum);
 	pbx_builtin_setvar_helper(ast, "VM_MSGNUM", passdata);
 	pbx_builtin_setvar_helper(ast, "VM_MAILBOX", mailbox);
 	pbx_builtin_setvar_helper(ast, "VM_CALLERID", (callerid ? callerid : "an unknown caller"));
@@ -889,7 +889,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 				int vmlen = strlen(fromstring)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
 					memset(passdata, 0, vmlen);
-					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,callerid,dur,date,passdata);
+					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,callerid,dur,date,passdata, vmlen);
 					pbx_substitute_variables_helper(ast,fromstring,passdata,vmlen);
 					fprintf(p, "From: %s <%s>\n",passdata,who);
 				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
@@ -906,7 +906,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 				int vmlen = strlen(emailsubject)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
 					memset(passdata, 0, vmlen);
-					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,callerid,dur,date,passdata);
+					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,callerid,dur,date,passdata, vmlen);
 					pbx_substitute_variables_helper(ast,emailsubject,passdata,vmlen);
 					fprintf(p, "Subject: %s\n",passdata);
 				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
@@ -942,7 +942,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 				int vmlen = strlen(emailbody)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
 					memset(passdata, 0, vmlen);
-					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,callerid,dur,date,passdata);
+					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,callerid,dur,date,passdata, vmlen);
 					pbx_substitute_variables_helper(ast,emailbody,passdata,vmlen);
 					fprintf(p, "%s\n",passdata);
 				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
@@ -1139,7 +1139,7 @@ static int play_and_prepend(struct ast_channel *chan, char *playfile, char *reco
 			return -1;
 	}
 	strncpy(prependfile, recordfile, sizeof(prependfile) -1);	
-	strcat(prependfile, "-prepend");
+	strncat(prependfile, "-prepend", sizeof(prependfile) - strlen(prependfile) - 1);
 			
 	fmts = ast_strdupa(fmt);
 	
@@ -1740,16 +1740,16 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 
 		/* Check current or macro-calling context for special extensions */
 		if (ast_exists_extension(chan, chan->context, "o", 1, chan->callerid))
-			strcat(ecodes, "0");
+			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 		else if (!ast_strlen_zero(chan->macrocontext) && ast_exists_extension(chan, chan->macrocontext, "o", 1, chan->callerid)) {
-			strcat(ecodes, "0");
+			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 			ousemacro = 1;
 		}
 
 		if (ast_exists_extension(chan, chan->context, "a", 1, chan->callerid))
-			strcat(ecodes, "*");
+			strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
 		else if (!ast_strlen_zero(chan->macrocontext) && ast_exists_extension(chan, chan->macrocontext, "a", 1, chan->callerid)) {
-			strcat(ecodes, "*");
+			strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
 			ausemacro = 1;
 		}
 
@@ -2333,7 +2333,7 @@ static void adsi_delete(struct ast_channel *chan, struct vm_state *vms)
 
 static void adsi_status(struct ast_channel *chan, struct vm_state *vms)
 {
-	char buf[256], buf1[256], buf2[256];
+	char buf[256] = "", buf1[256] = "", buf2[256] = "";
 	int bytes=0;
 	unsigned char keys[8];
 	int x;
@@ -2345,7 +2345,7 @@ static void adsi_status(struct ast_channel *chan, struct vm_state *vms)
 	if (vms->newmessages) {
 		snprintf(buf1, sizeof(buf1), "You have %d new", vms->newmessages);
 		if (vms->oldmessages) {
-			strcat(buf1, " and");
+			strncat(buf1, " and", sizeof(buf1) - strlen(buf1) - 1);
 			snprintf(buf2, sizeof(buf2), "%d old %s.", vms->oldmessages, oldm);
 		} else {
 			snprintf(buf2, sizeof(buf2), "%s.", newm);
@@ -2354,8 +2354,9 @@ static void adsi_status(struct ast_channel *chan, struct vm_state *vms)
 		snprintf(buf1, sizeof(buf1), "You have %d old", vms->oldmessages);
 		snprintf(buf2, sizeof(buf2), "%s.", oldm);
 	} else {
-		strcpy(buf1, "You have no messages.");
-		strcpy(buf2, " ");
+		strncpy(buf1, "You have no messages.", sizeof(buf1) - 1);
+		buf2[0] = ' ';
+		buf2[1] = '\0';
 	}
  	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 1, ADSI_JUST_LEFT, 0, buf1, "");
 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 2, ADSI_JUST_LEFT, 0, buf2, "");
@@ -2378,7 +2379,7 @@ static void adsi_status(struct ast_channel *chan, struct vm_state *vms)
 
 static void adsi_status2(struct ast_channel *chan, struct vm_state *vms)
 {
-	char buf[256], buf1[256], buf2[256];
+	char buf[256] = "", buf1[256] = "", buf2[256] = "";
 	int bytes=0;
 	unsigned char keys[8];
 	int x;
@@ -2404,7 +2405,7 @@ static void adsi_status2(struct ast_channel *chan, struct vm_state *vms)
 	if (vms->lastmsg + 1)
 		snprintf(buf2, sizeof(buf2), "%d %s.", vms->lastmsg + 1, mess);
 	else
-		strcpy(buf2, "no messages.");
+		strncpy(buf2, "no messages.", sizeof(buf2) - 1);
  	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 1, ADSI_JUST_LEFT, 0, buf1, "");
 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 2, ADSI_JUST_LEFT, 0, buf2, "");
 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_LEFT, 0, "", "");
@@ -2784,9 +2785,9 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 
 	/* Day difference */
 	if (time_now.tm_year == time_then.tm_year)
-		sprintf(temp,"%d",time_now.tm_yday);
+		snprintf(temp,sizeof(temp),"%d",time_now.tm_yday);
 	else
-		sprintf(temp,"%d",(time_now.tm_year - time_then.tm_year) * 365 + (time_now.tm_yday - time_then.tm_yday));
+		snprintf(temp,sizeof(temp),"%d",(time_now.tm_year - time_then.tm_year) * 365 + (time_now.tm_yday - time_then.tm_yday));
 	pbx_builtin_setvar_helper(chan, "DIFF_DAY", temp);
 
 	/* Can't think of how other diffs might be helpful, but I'm sure somebody will think of something. */
@@ -4278,7 +4279,7 @@ static int load_config(void)
 					q = strsep(&stringp,",");
 					while ((*q == ' ')||(*q == '\t')) /* Eat white space between contexts */
 						q++;
-					strcpy(cidinternalcontexts[x],q);
+					strncpy(cidinternalcontexts[x], q, sizeof(cidinternalcontexts[x]) - 1);
 					ast_log(LOG_DEBUG,"VM_CID Internal context %d: %s\n", x, cidinternalcontexts[x]);
 				} else {
 					cidinternalcontexts[x][0] = '\0';
@@ -4342,32 +4343,32 @@ static int load_config(void)
 
 #ifdef USEMYSQLVM
 		if (!(s=ast_variable_retrieve(cfg, "general", "dbuser"))) {
-			strcpy(dbuser, "test");
+			strncpy(dbuser, "test", sizeof(dbuser) - 1);
 		} else {
-			strcpy(dbuser, s);
+			strncpy(dbuser, s, sizeof(dbuser) - 1);
 		}
 		if (!(s=ast_variable_retrieve(cfg, "general", "dbpass"))) {
-			strcpy(dbpass, "test");
+			strncpy(dbpass, "test", sizeof(dbpass) - 1);
 		} else {
-			strcpy(dbpass, s);
+			strncpy(dbpass, s, sizeof(dbpass) - 1);
 		}
 		if (!(s=ast_variable_retrieve(cfg, "general", "dbhost"))) {
-			strcpy(dbhost, "");
+			dbhost[0] = '\0';
 		} else {
-			strcpy(dbhost, s);
+			strncpy(dbhost, s, sizeof(dbhost) - 1);
 		}
 		if (!(s=ast_variable_retrieve(cfg, "general", "dbname"))) {
-			strcpy(dbname, "vmdb");
+			strncpy(dbname, "vmdb", sizeof(dbname) - 1);
 		} else {
-			strcpy(dbname, s);
+			strncpy(dbname, s, sizeof(dbname) - 1);
 		}
 #endif
 
 #ifdef USEPOSTGRESVM
 		if (!(s=ast_variable_retrieve(cfg, "general", "dboption"))) {
-			strcpy(dboption, "dboption not-specified in voicemail.conf");
+			strncpy(dboption, "dboption not-specified in voicemail.conf", sizeof(dboption) - 1);
 		} else {
-			strcpy(dboption, s);
+			strncpy(dboption, s, sizeof(dboption) - 1);
 		}
 #endif
 		cat = ast_category_browse(cfg, NULL);
@@ -4916,9 +4917,14 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 static int vm_delete(char *file)
 {
 	char *txt;
-	txt = (char *)alloca((strlen(file) + 5)*sizeof(char));
-	/* Sprintf here is safe because we alloca'd exactly the right length */
-	sprintf(txt, "%s.txt", file);
+	int txtsize = 0;
+
+	txtsize = (strlen(file) + 5)*sizeof(char);
+	txt = (char *)alloca(txtsize);
+	/* Sprintf here would safe because we alloca'd exactly the right length,
+	 * but trying to eliminate all sprintf's anyhow
+	 */
+	snprintf(txt, txtsize, "%s.txt", file);
 	unlink(txt);
 	return ast_filedelete(file, NULL);
 }

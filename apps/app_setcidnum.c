@@ -73,7 +73,7 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 			strncpy(newcid, n, sizeof(newcid) - 1);
 		}
 	} else
-		strncpy(newcid, tmp, sizeof(newcid));
+		strncpy(newcid, tmp, sizeof(newcid) - 1);
 	ast_set_callerid(chan, !ast_strlen_zero(newcid) ? newcid : NULL, anitoo);
 	LOCAL_USER_REMOVE(u);
 	return res;

@@ -320,7 +320,7 @@ sms_log (sms_t * h, char status)
 	{
 	  char line[1000], *p;
 	  unsigned char n;
-	  sprintf (line, "%s %c %s %s %s ", isodate (time (0)), status, h->queue, *h->oa ? h->oa : "-",
+	  snprintf(line, sizeof(line), "%s %c %s %s %s ", isodate(time(0)), status, h->queue, *h->oa ? h->oa : "-",
 		   *h->da ? h->da : "-");
 	  p = line + strlen (line);
 	  for (n = 0; n < h->udl; n++)
@@ -513,70 +513,72 @@ sms_readfile (sms_t * h, char *fn)
 static void
 sms_writefile (sms_t * h)
 {
-  char fn[200], fn2[200];
-  FILE *o;
-  strcpy (fn, "/var/spool/asterisk/sms");
-  mkdir (fn, 0777);		/* ensure it exists */
-  sprintf (fn + strlen (fn), "/%s.%s", h->smsc ? "me-sc" : "sc-me", h->queue);
-  mkdir (fn, 0777);		/* ensure it exists */
-  strcpy (fn2, fn);
-  strftime (fn2 + strlen (fn2), 30, "/%Y-%m-%d_%H:%M:%S", localtime (&h->scts));
-  sprintf (fn2 + strlen (fn2), "-%02X", h->mr);
-  sprintf (fn + strlen (fn), "/.%s", fn2 + strlen (fn) + 1);
-  o = fopen (fn, "w");
-  if (o)
-    {
-      fprintf (o, "mr=%d\n", h->mr);
-      if (*h->oa)
-	fprintf (o, "oa=%s\n", h->oa);
-      if (*h->da)
-	fprintf (o, "da=%s\n", h->da);
-      if (h->pid)
-	fprintf (o, "pid=%d\n", h->pid);
-      if (h->dcs != 0xF1)
-	fprintf (o, "dcs=%d\n", h->dcs);
-      if (h->vp)
-	fprintf (o, "srr=%d\n", h->vp);
-      if (h->srr)
-	fprintf (o, "srr=1\n");
-      if (h->rp)
-	fprintf (o, "rp=1\n");
-      if (h->scts)
-	fprintf (o, "scts=%s\n", isodate (h->scts));
-      if (h->udl)
+	char fn[200] = "";
+	char fn2[200] = "";
+	FILE *o;
+
+	strncpy(fn, "/var/spool/asterisk/sms", sizeof(fn) - 1);
+	mkdir (fn, 0777);		/* ensure it exists */
+	snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/%s.%s", h->smsc ? "me-sc" : "sc-me", h->queue);
+	mkdir (fn, 0777);		/* ensure it exists */
+	strncpy(fn2, fn, sizeof(fn2) - 1);
+	strftime(fn2 + strlen(fn2), sizeof(fn2) - strlen(fn2), "/%Y-%m-%d_%H:%M:%S", localtime(&h->scts));
+	snprintf(fn2 + strlen(fn2), sizeof(fn2) - strlen(fn2), "-%02X", h->mr);
+	snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/.%s", fn2 + strlen(fn) + 1);
+	o = fopen (fn, "w");
+	if (o)
 	{
-	  unsigned int p;
-	  for (p = 0; p < h->udl && ((h->ud[p] >= 32 && h->ud[p] != 127) || h->ud[p] == '\n' || h->ud[p] == '\r'); p++);
-	  if (p < h->udl)
-	    {			// use a hex format as unprintable characters
-	      fprintf (o, "ud#");
-	      for (p = 0; p < h->udl; p++)
-		fprintf (o, "%02X", h->ud[p]);
-	      fprintf (o, "\n;");
-	      /* followed by commented line using printable characters */
-	    }
-	  fprintf (o, "ud=");
-	  for (p = 0; p < h->udl; p++)
-	    {
-	      if (h->ud[p] == '\\')
-		fprintf (o, "\\\\");
-	      else if (h->ud[p] == '\r')
-		fprintf (o, "\\r");
-	      else if (h->ud[p] == '\n')
-		fprintf (o, "\\n");
-	      else if (h->ud[p] < 32 || h->ud[p] == 127)
-		fputc (191, o);
-	      else
-		fputc (h->ud[p], o);
-	    }
-	  fprintf (o, "\n");
+		fprintf (o, "mr=%d\n", h->mr);
+		if (*h->oa)
+			fprintf (o, "oa=%s\n", h->oa);
+		if (*h->da)
+			fprintf (o, "da=%s\n", h->da);
+		if (h->pid)
+			fprintf (o, "pid=%d\n", h->pid);
+		if (h->dcs != 0xF1)
+			fprintf (o, "dcs=%d\n", h->dcs);
+		if (h->vp)
+			fprintf (o, "srr=%d\n", h->vp);
+		if (h->srr)
+			fprintf (o, "srr=1\n");
+		if (h->rp)
+			fprintf (o, "rp=1\n");
+		if (h->scts)
+			fprintf (o, "scts=%s\n", isodate (h->scts));
+		if (h->udl)
+		{
+			unsigned int p;
+			for (p = 0; p < h->udl && ((h->ud[p] >= 32 && h->ud[p] != 127) || h->ud[p] == '\n' || h->ud[p] == '\r'); p++);
+			if (p < h->udl)
+			{			// use a hex format as unprintable characters
+				fprintf (o, "ud#");
+				for (p = 0; p < h->udl; p++)
+					fprintf (o, "%02X", h->ud[p]);
+				fprintf (o, "\n;");
+				/* followed by commented line using printable characters */
+			}
+			fprintf (o, "ud=");
+			for (p = 0; p < h->udl; p++)
+			{
+				if (h->ud[p] == '\\')
+					fprintf (o, "\\\\");
+				else if (h->ud[p] == '\r')
+					fprintf (o, "\\r");
+				else if (h->ud[p] == '\n')
+					fprintf (o, "\\n");
+				else if (h->ud[p] < 32 || h->ud[p] == 127)
+					fputc (191, o);
+				else
+					fputc (h->ud[p], o);
+			}
+			fprintf (o, "\n");
+		}
+		fclose (o);
+		if (rename (fn, fn2))
+			unlink (fn);
+		else
+			ast_log (LOG_EVENT, "Received to %s\n", fn2);
 	}
-      fclose (o);
-      if (rename (fn, fn2))
-	unlink (fn);
-      else
-	ast_log (LOG_EVENT, "Received to %s\n", fn2);
-    }
 }
 
 /* read dir skipping dot files... */
@@ -604,7 +606,7 @@ sms_handleincoming (sms_t * h)
 	  h->vp = 0;
 	  h->srr = ((h->imsg[2] & 0x20) ? 1 : 0);
 	  h->rp = ((h->imsg[2] & 0x80) ? 1 : 0);
-	  strcpy (h->oa, h->cli);
+	  strncpy (h->oa, h->cli, sizeof(h->oa) - 1);
 	  h->scts = time (0);
 	  h->mr = h->imsg[p++];
 	  p += unpackaddress (h->da, h->imsg + p);
@@ -683,12 +685,13 @@ sms_handleincoming (sms_t * h)
 static void
 sms_nextoutgoing (sms_t * h)
 {				/* find and fill in next message, or send a REL if none waiting */
-  char fn[100 + NAME_MAX];
+  char fn[100 + NAME_MAX] = "";
   DIR *d;
   char more = 0;
-  strcpy (fn, "/var/spool/asterisk/sms");
-  mkdir (fn, 0777);		/* ensure it exists */
-  sprintf (fn + strlen (fn), "/%s.%s", h->smsc ? "sc-me" : "me-sc", h->queue);
+
+  strncpy(fn, "/var/spool/asterisk/sms", sizeof(fn) - 1);
+  mkdir(fn, 0777);		/* ensure it exists */
+  snprintf(fn + strlen (fn), sizeof(fn) - strlen(fn), "/%s.%s", h->smsc ? "sc-me" : "me-sc", h->queue);
   mkdir (fn, 0777);		/* ensure it exists */
   d = opendir (fn);
   if (d)
@@ -696,7 +699,7 @@ sms_nextoutgoing (sms_t * h)
       struct dirent *f = readdirdot (d);
       if (f)
 	{
-	  sprintf (fn + strlen (fn), "/%s", f->d_name);
+	  snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/%s", f->d_name);
 	  sms_readfile (h, fn);
 	  if (readdirdot (d))
 	    more = 1;		/* more to send */
@@ -1033,160 +1036,155 @@ generate:sms_generate,
 };
 
 static int
-sms_exec (struct ast_channel *chan, void *data)
+sms_exec(struct ast_channel *chan, void *data)
 {
-  int res = -1;
-  struct localuser *u;
-  struct ast_frame *f;
-  sms_t h = { 0 };
-  h.ipc0 = h.ipc1 = 20;		/* phase for cosine */
-  h.dcs = 0xF1;			/* default */
-  if (!data)
-    {
-      ast_log (LOG_ERROR, "Requires queue name at least\n");
-      return -1;
-    }
+	int res = -1;
+	struct localuser *u;
+	struct ast_frame *f;
+	sms_t h = { 0 };
 
-  if (chan->callerid)
-    {				/* get caller ID. Used as originating address on sc side receives */
-      char temp[256], *name, *num;
-      strncpy (temp, chan->callerid, sizeof (temp));
-      ast_callerid_parse (temp, &name, &num);
-      if (!num)
-	num = temp;
-      ast_shrink_phone_number (num);
-      if (strlen (num) < sizeof (h.cli))
-	strcpy (h.cli, num);
-    }
-
-  {
-    char *d = data, *p, answer = 0;
-    if (!*d || *d == '|')
-      {
-	ast_log (LOG_ERROR, "Requires queue name\n");
-	return -1;
-      }
-    for (p = d; *p && *p != '|'; p++);
-    if (p - d >= sizeof (h.queue))
-      {
-	ast_log (LOG_ERROR, "Queue name too long\n");
-	return -1;
-      }
-    strncpy (h.queue, d, p - d);
-    if (*p == '|')
-      p++;
-    d = p;
-    for (p = h.queue; *p; p++)
-      if (!isalnum (*p))
-	*p = '-';		/* make very safe for filenames */
-    while (*d && *d != '|')
-      {
-	switch (*d)
-	  {
-	  case 'a':		/* we have to send the initial FSK sequence */
-	    answer = 1;
-	    break;
-	  case 's':		/* we are acting as a service centre talking to a phone */
-	    h.smsc = 1;
-	    break;
-	    /* the following apply if there is an arg3/4 and apply to the created message file */
-	  case 'r':
-	    h.srr = 1;
-	    break;
-	  case 'o':
-	    h.dcs |= 4;		/* octets */
-	    break;
-	  case '1':
-	  case '2':
-	  case '3':
-	  case '4':
-	  case '5':
-	  case '6':
-	  case '7':		/* set the pid for saved local message */
-	    h.pid = 0x40 + (*d & 0xF);
-	    break;
-	  }
-	d++;
-      }
-    if (*d == '|')
-      {				/* submitting a message, not taking call. */
-	d++;
-	h.scts = time (0);
-	for (p = d; *p && *p != '|'; p++);
-	if (*p)
-	  *p++ = 0;
-	if (strlen (d) >= sizeof (h.oa))
-	  {
-	    ast_log (LOG_ERROR, "Address too long %s\n", d);
-	    return 0;
-	  }
-	strcpy (h.smsc ? h.oa : h.da, d);
-	if (!h.smsc)
-	  strcpy (h.oa, h.cli);
-	d = p;
-	if (!(h.dcs & 4) && check7 (h.udl, h.ud))
-	  ast_log (LOG_WARNING, "Invalid GSM characters in %.*s\n", h.udl, h.ud);
-	if (strlen (d) > ((h.dcs & 4) ? 140 : 160))
-	  {
-	    ast_log (LOG_ERROR, "Message too long %s\n", d);
-	    h.udl = ((h.dcs & 4) ? 140 : 160);
-	  }
-	else
-	  h.udl = strlen (d);
-	if (h.udl)
-	  memcpy (h.ud, d, h.udl);
-	h.smsc = !h.smsc;	/* file woul go in wrong directory otherwise... */
-	sms_writefile (&h);
-	return 0;
-      }
-
-    if (answer)
-      {				/* set up SMS_EST initial message */
-	h.omsg[0] = 0x93;
-	h.omsg[1] = 0;
-	sms_messagetx (&h);
-      }
-  }
-
-  LOCAL_USER_ADD (u);
-  if (chan->_state != AST_STATE_UP)
-    ast_answer (chan);
-
-  res = ast_set_write_format (chan, AST_FORMAT_SLINEAR);
-  if (res >= 0)
-    res = ast_set_read_format (chan, AST_FORMAT_SLINEAR);
-  if (res < 0)
-    {
-      LOCAL_USER_REMOVE (u);
-      ast_log (LOG_ERROR, "Unable to set to linear mode, giving up\n");
-      return -1;
-    }
-
-  if (ast_activate_generator (chan, &smsgen, &h) < 0)
-    {
-      LOCAL_USER_REMOVE (u);
-      ast_log (LOG_ERROR, "Failed to activate generator on '%s'\n", chan->name);
-      return -1;
-    }
-
-  /* Do our thing here */
-  while (ast_waitfor (chan, -1) > -1 && !h.hangup)
-    {
-      f = ast_read (chan);
-      if (!f)
-	break;
-      if (f->frametype == AST_FRAME_VOICE)
-	{
-	  sms_process (&h, f->samples, f->data);
+	h.ipc0 = h.ipc1 = 20;		/* phase for cosine */
+	h.dcs = 0xF1;			/* default */
+	if (!data) {
+		ast_log (LOG_ERROR, "Requires queue name at least\n");
+		return -1;
 	}
 
-      ast_frfree (f);
-    }
+	if (chan->callerid) {
+		/* get caller ID. Used as originating address on sc side receives */
+		char temp[256], *name, *num;
+		strncpy (temp, chan->callerid, sizeof(temp) - 1);
+		ast_callerid_parse (temp, &name, &num);
+		if (!num)
+			num = temp;
+		ast_shrink_phone_number (num);
+		if (strlen (num) < sizeof (h.cli))
+			strncpy(h.cli, num, sizeof(h.cli) - 1);
+	}
 
-  sms_log (&h, '?');		/* log incomplete message */
+	{
+		char *d = data, *p, answer = 0;
+		if (!*d || *d == '|') {
+			ast_log (LOG_ERROR, "Requires queue name\n");
+			return -1;
+		}
+		for (p = d; *p && *p != '|'; p++);
+		if (p - d >= sizeof (h.queue)) {
+			ast_log (LOG_ERROR, "Queue name too long\n");
+			return -1;
+		}
+		strncpy(h.queue, d, p - d - 1);
+		if (*p == '|')
+			p++;
+		d = p;
+		for (p = h.queue; *p; p++)
+		if (!isalnum (*p))
+			*p = '-';		/* make very safe for filenames */
+		while (*d && *d != '|') {
+			switch (*d) {
+				case 'a':		/* we have to send the initial FSK sequence */
+					answer = 1;
+					break;
+				case 's':		/* we are acting as a service centre talking to a phone */
+					h.smsc = 1;
+					break;
+				/* the following apply if there is an arg3/4 and apply to the created message file */
+				case 'r':
+					h.srr = 1;
+					break;
+				case 'o':
+					h.dcs |= 4;		/* octets */
+					break;
+				case '1':
+				case '2':
+				case '3':
+				case '4':
+				case '5':
+				case '6':
+				case '7':		/* set the pid for saved local message */
+					h.pid = 0x40 + (*d & 0xF);
+					break;
+			}
+			d++;
+		}
+		if (*d == '|') {
+			/* submitting a message, not taking call. */
+			d++;
+			h.scts = time (0);
+			for (p = d; *p && *p != '|'; p++);
+			if (*p)
+				*p++ = 0;
+			if (strlen (d) >= sizeof (h.oa)) {
+				ast_log (LOG_ERROR, "Address too long %s\n", d);
+				return 0;
+			}
+			if (h.smsc) {
+				strncpy(h.oa, d, sizeof(h.oa) - 1);
+			}
+			else {
+				strncpy(h.da, d, sizeof(h.da) - 1);
+			}
+			if (!h.smsc)
+				strncpy(h.oa, h.cli, sizeof(h.oa) - 1);
+			d = p;
+			if (!(h.dcs & 4) && check7 (h.udl, h.ud))
+				ast_log (LOG_WARNING, "Invalid GSM characters in %.*s\n", h.udl, h.ud);
+			if (strlen (d) > ((h.dcs & 4) ? 140 : 160)) {
+				ast_log (LOG_ERROR, "Message too long %s\n", d);
+				h.udl = ((h.dcs & 4) ? 140 : 160);
+			}
+			else
+				h.udl = strlen (d);
+			if (h.udl)
+				memcpy (h.ud, d, h.udl);
+			h.smsc = !h.smsc;	/* file woul go in wrong directory otherwise... */
+			sms_writefile (&h);
+			return 0;
+		}
 
-  LOCAL_USER_REMOVE (u);
-  return h.hangup;
+		if (answer) {
+			/* set up SMS_EST initial message */
+			h.omsg[0] = 0x93;
+			h.omsg[1] = 0;
+			sms_messagetx (&h);
+		}
+	}
+
+	LOCAL_USER_ADD (u);
+	if (chan->_state != AST_STATE_UP)
+		ast_answer (chan);
+
+	res = ast_set_write_format (chan, AST_FORMAT_SLINEAR);
+	if (res >= 0)
+		res = ast_set_read_format (chan, AST_FORMAT_SLINEAR);
+	if (res < 0) {
+		LOCAL_USER_REMOVE (u);
+		ast_log (LOG_ERROR, "Unable to set to linear mode, giving up\n");
+		return -1;
+	}
+
+	if (ast_activate_generator (chan, &smsgen, &h) < 0) {
+		LOCAL_USER_REMOVE (u);
+		ast_log (LOG_ERROR, "Failed to activate generator on '%s'\n", chan->name);
+		return -1;
+	}
+
+	/* Do our thing here */
+	while (ast_waitfor (chan, -1) > -1 && !h.hangup) {
+		f = ast_read (chan);
+		if (!f)
+			break;
+		if (f->frametype == AST_FRAME_VOICE) {
+			sms_process (&h, f->samples, f->data);
+		}
+
+		ast_frfree (f);
+	}
+
+	sms_log (&h, '?');		/* log incomplete message */
+
+	LOCAL_USER_REMOVE (u);
+	return(h.hangup);
 }
 
 int

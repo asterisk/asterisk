@@ -45,16 +45,27 @@ LOCAL_USER_DECL;
 
 static int striplsd_exec(struct ast_channel *chan, void *data)
 {
-  char newexten[AST_MAX_EXTENSION] = "";
-  if (!data || !atoi(data)) {
-    ast_log(LOG_DEBUG, "Ignoring, since number of digits to strip is 0\n");
-    return 0;
-  }
-  if (strlen(chan->exten) > atoi(data)) {
-    strncpy(newexten, chan->exten, strlen(chan->exten)-atoi(data));
-  }
-  strncpy(chan->exten, newexten, sizeof(chan->exten)-1);
-  return 0;
+	char newexten[AST_MAX_EXTENSION] = "";
+	int maxbytes = 0;
+	int stripcount = 0;
+	int extlen = strlen(chan->exten);
+
+	maxbytes = sizeof(newexten) - 1;
+	if (data) {
+		stripcount = atoi(data);
+	}
+	if (!stripcount) {
+		ast_log(LOG_DEBUG, "Ignoring, since number of digits to strip is 0\n");
+		return 0;
+	}
+	if (extlen > stripcount) {
+		if (extlen - stripcount <= maxbytes) {
+			maxbytes = extlen - stripcount;
+		}
+		strncpy(newexten, chan->exten, maxbytes);
+	}
+	strncpy(chan->exten, newexten, sizeof(chan->exten)-1);
+	return 0;
 }
 
 int unload_module(void)

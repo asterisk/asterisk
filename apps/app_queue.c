@@ -302,9 +302,9 @@ static int join_queue(char *queuename, struct queue_ent *qe)
 				/* No luck, join at the end of the queue */
 				if (!inserted)
 					insert_entry(q, prev, qe, &pos);
-				strncpy(qe->moh, q->moh, sizeof(qe->moh));
-				strncpy(qe->announce, q->announce, sizeof(qe->announce));
-				strncpy(qe->context, q->context, sizeof(qe->context));
+				strncpy(qe->moh, q->moh, sizeof(qe->moh) - 1);
+				strncpy(qe->announce, q->announce, sizeof(qe->announce) - 1);
+				strncpy(qe->context, q->context, sizeof(qe->context) - 1);
 				q->count++;
 				res = 0;
 				manager_event(EVENT_FLAG_CALL, "Join", 
@@ -1220,7 +1220,7 @@ static struct member * interface_exists( struct ast_call_queue * q, char * inter
 		mem = q->members ;
 
 		while( mem != NULL ) {
-			sprintf( buf, "%s/%s", mem->tech, mem->loc);
+			snprintf( buf, sizeof(buf), "%s/%s", mem->tech, mem->loc);
 
 			if( strcmp( buf, interface ) == 0 ) {
 				ret = mem ;
@@ -1710,7 +1710,7 @@ static void reload_queues(void)
 					/* Initialize it */
 					memset(q, 0, sizeof(struct ast_call_queue));
 					ast_mutex_init(&q->lock);
-					strncpy(q->name, cat, sizeof(q->name));
+					strncpy(q->name, cat, sizeof(q->name) - 1);
 					new = 1;
 				} else new = 0;
 			} else
@@ -1733,17 +1733,17 @@ static void reload_queues(void)
 				q->servicelevel = 0;
 				q->wrapuptime = 0;
 				free_members(q, 0);
-				strcpy(q->moh, "");
-				strcpy(q->announce, "");
-				strcpy(q->context, "");
-				strcpy(q->monfmt, "");
-				strcpy(q->sound_next, "queue-youarenext");
-				strcpy(q->sound_thereare, "queue-thereare");
-				strcpy(q->sound_calls, "queue-callswaiting");
-				strcpy(q->sound_holdtime, "queue-holdtime");
-				strcpy(q->sound_minutes, "queue-minutes");
-				strcpy(q->sound_seconds, "queue-seconds");
-				strcpy(q->sound_thanks, "queue-thankyou");
+				q->moh[0] = '\0';
+				q->announce[0] = '\0';
+				q->context[0] = '\0';
+				q->monfmt[0] = '\0';
+				strncpy(q->sound_next, "queue-youarenext", sizeof(q->sound_next) - 1);
+				strncpy(q->sound_thereare, "queue-thereare", sizeof(q->sound_thereare) - 1);
+				strncpy(q->sound_calls, "queue-callswaiting", sizeof(q->sound_calls) - 1);
+				strncpy(q->sound_holdtime, "queue-holdtime", sizeof(q->sound_holdtime) - 1);
+				strncpy(q->sound_minutes, "queue-minutes", sizeof(q->sound_minutes) - 1);
+				strncpy(q->sound_seconds, "queue-seconds", sizeof(q->sound_seconds) - 1);
+				strncpy(q->sound_thanks, "queue-thankyou", sizeof(q->sound_thanks) - 1);
 				prev = q->members;
 				if (prev) {
 					/* find the end of any dynamic members */
@@ -1879,8 +1879,8 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 	struct member *mem;
 	int pos;
 	time_t now;
-	char max[80];
-	char calls[80];
+	char max[80] = "";
+	char calls[80] = "";
 	float sl = 0;
 
 	time(&now);
@@ -1912,7 +1912,7 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 		if (q->maxlen)
 			snprintf(max, sizeof(max), "%d", q->maxlen);
 		else
-			strcpy(max, "unlimited");
+			strncpy(max, "unlimited", sizeof(max) - 1);
 		sl = 0;
 		if(q->callscompleted > 0)
 			sl = 100*((float)q->callscompletedinsl/(float)q->callscompleted);
@@ -1924,14 +1924,14 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 				if (mem->penalty)
 					snprintf(max, sizeof(max) - 20, " with penalty %d", mem->penalty);
 				else
-					strcpy(max, "");
+					max[0] = '\0';
 				if (mem->dynamic)
-					strcat(max, " (dynamic)");
+					strncat(max, " (dynamic)", sizeof(max) - strlen(max) - 1);
 				if (mem->calls) {
 					snprintf(calls, sizeof(calls), " has taken %d calls (last was %ld secs ago)",
 							mem->calls, (long)(time(NULL) - mem->lastcall));
 				} else
-					strcpy(calls, " has taken no calls yet");
+					strncpy(calls, " has taken no calls yet", sizeof(calls) - 1);
 				ast_cli(fd, "      %s/%s%s%s\n", mem->tech, mem->loc, max, calls);
 			}
 		} else

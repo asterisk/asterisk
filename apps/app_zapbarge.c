@@ -249,7 +249,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	int retrycnt = 0;
 	int confflags = 0;
 	int confno = 0;
-	char confstr[80];
+	char confstr[80] = "";
 
 	if (data && !ast_strlen_zero(data)) {
 		if ((sscanf(data, "Zap/%d", &confno) != 1) &&
@@ -264,7 +264,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 
 	while(!confno && (++retrycnt < 4)) {
 		/* Prompt user for conference number */
-		strcpy(confstr, "");
+		confstr[0] = '\0';
 		res = ast_app_getdata(chan, "conf-getchannel",confstr, sizeof(confstr) - 1, 0);
 		if (res <0) goto out;
 		if (sscanf(confstr, "%d", &confno) != 1)

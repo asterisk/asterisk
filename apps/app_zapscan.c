@@ -284,7 +284,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
         struct localuser *u;
         int confflags = 0;
         int confno = 0;
-        char confstr[80], *tmp;
+        char confstr[80] = "", *tmp;
         struct ast_channel *tempchan = NULL, *lastchan = NULL,*ichan = NULL;
 		struct ast_frame *f;
 		int input=0;
@@ -319,7 +319,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 				break;
 			if ( tempchan && tempchan->type && (!strcmp(tempchan->type, "Zap")) && (tempchan != chan) ) {
 				ast_verbose(VERBOSE_PREFIX_3 "Zap channel %s is in-use, monitoring...\n", tempchan->name);
-				strcpy(confstr, tempchan->name);
+				strncpy(confstr, tempchan->name, sizeof(confstr) - 1);
 				ast_mutex_unlock(&tempchan->lock);
 				if ((tmp = strchr(confstr,'-'))) {
 					*tmp = '\0';

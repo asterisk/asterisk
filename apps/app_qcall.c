@@ -122,7 +122,7 @@ pthread_attr_t attr;
 		while((dp = readdir(dirp)) != NULL)
 		   {
 			if (dp->d_name[0] == '.') continue;
-			sprintf(fname,"%s/%s",qdir,dp->d_name);
+			snprintf(fname, sizeof(fname), "%s/%s", qdir, dp->d_name);
 			if (stat(fname,&mystat) == -1)
 			   {
 				perror("app_qcall:stat");
@@ -171,15 +171,20 @@ pthread_attr_t attr;
 /* single thread with one file (request) to dial */
 static void *qcall_do(void *arg)
 {
-char fname[300],dialstr[300],extstr[300],ident[300],reqinp[300],buf[300];
-char clid[300],*tele,*context;
-FILE *fp;
-int ms = MAXWAITFORANSWER,maxsecs;
-struct ast_channel *channel;
-time_t	t;
+	char fname[300] = "";
+	char dialstr[300];
+	char extstr[300];
+	char ident[300] = "";
+	char reqinp[300] = "";
+	char buf[300];
+	char clid[300],*tele,*context;
+	FILE *fp;
+	int ms = MAXWAITFORANSWER,maxsecs;
+	struct ast_channel *channel;
+	time_t	t;
 
 	  /* get the filename from the arg */
-	strcpy(fname,(char *)arg);
+	strncpy(fname,(char *)arg, sizeof(fname) - 1);
 	free(arg);
 	time(&t);
 	fp = fopen(fname,"r");
@@ -197,8 +202,11 @@ time_t	t;
 		fprintf(stderr,"%s\n",fname);
 		pthread_exit(NULL);
 	   }
-	strcpy(reqinp,"1");  /* default required input for acknowledgement */
-	strcpy(ident, "");	/* default no ident */
+	/* default required input for acknowledgement */
+	reqinp[0] = '1';
+	reqinp[1] = '\0';
+	/* default no ident */
+	ident[0] = '\0';  /* default no ident */
 	if (fscanf(fp,"%s %s %s %d %s %s",dialstr,clid,
 		extstr,&maxsecs,ident,reqinp) < 4)
 	   {
@@ -307,7 +315,7 @@ time_t	t;
 						ast_verbose(VERBOSE_PREFIX_3 "Qcall got accept, now putting through to %s@%s on %s\n",
 							extstr,context,channel->name);
 					if (strlen(ident)) {
-						strcat(ident,"-ok");
+						strncat(ident,"-ok", sizeof(ident) - strlen(ident) - 1);
 						/* if file existant, play it */
 						if (!ast_streamfile(channel,ident,0))
 						{
@@ -325,7 +333,7 @@ time_t	t;
 					channel->amaflags = AMAFLAGS;
 #endif
 #ifdef	ACCTCODE
-					strcpy(channel->accountcode,ACCTCODE);
+					strncpy(channel->accountcode, ACCTCODE, sizeof(chan->accountcode) - 1);
 #else
 					channel->accountcode[0] = 0;
 #endif
@@ -334,8 +342,8 @@ time_t	t;
 						time(&channel->whentohangup);
 						channel->whentohangup += maxsecs;
 					   }
-					strcpy(channel->exten,extstr);
-					strcpy(channel->context,context);
+					strncpy(channel->exten, extstr, sizeof(channel->exten) - 1);
+					strncpy(channel->context, context, sizeof(channel->context) - 1);
 					channel->priority = 1;
 					if(debug) printf("Caller ID is %s\n", channel->callerid);
 					ast_pbx_run(channel);
@@ -361,7 +369,7 @@ int unload_module(void)
 
 int load_module(void)
 {
-	snprintf((char *)qdir,sizeof(qdir)-1,"%s/%s",(char *)ast_config_AST_SPOOL_DIR,"qcall");
+	snprintf(qdir, sizeof(qdir), "%s/%s", ast_config_AST_SPOOL_DIR, "qcall");
 	mkdir(qdir,0760);
 	pthread_create(&qcall_thread,NULL,qcall,NULL);
 	return 0;

@@ -210,8 +210,8 @@ static int del_identifier(int identifier,int identifier_type) {
 
 static int aPGSQL_connect(struct ast_channel *chan, void *data) {
 	
-	char *s1,*s4;
-	char s[100];
+	char *s1;
+	char s[100] = "";
 	char *optionstring;
 	char *var;
 	int l;
@@ -224,7 +224,7 @@ static int aPGSQL_connect(struct ast_channel *chan, void *data) {
 	res=0;
 	l=strlen(data)+2;
 	s1=malloc(l);
-	strncpy(s1,data,l);
+	strncpy(s1, data, l -1);
 	stringp=s1;
 	strsep(&stringp," "); // eat the first token, we already know it :P 
 	var=strsep(&stringp," ");
@@ -238,8 +238,7 @@ static int aPGSQL_connect(struct ast_channel *chan, void *data) {
         } else {
         	ast_log(LOG_WARNING,"adding identifier\n");
 		id=add_identifier(AST_PGSQL_ID_CONNID,karoto);
-		s4=&s[0];
-		sprintf(s4,"%d",id);
+		snprintf(s, sizeof(s), "%d", id);
 		pbx_builtin_setvar_helper(chan,var,s);
 	}
  	
@@ -250,8 +249,8 @@ static int aPGSQL_connect(struct ast_channel *chan, void *data) {
 static int aPGSQL_query(struct ast_channel *chan, void *data) {
 	
 
-	char *s1,*s2,*s3,*s4,*s5;
-	char s[100];
+	char *s1,*s2,*s3,*s4;
+	char s[100] = "";
 	char *querystring;
 	char *var;
 	int l;
@@ -266,7 +265,7 @@ static int aPGSQL_query(struct ast_channel *chan, void *data) {
 	l=strlen(data)+2;
 	s1=malloc(l);
 	s2=malloc(l);
-	strcpy(s1,data);
+	strncpy(s1, data, l - 1);
 	stringp=s1;
 	strsep(&stringp," "); // eat the first token, we already know it :P 
 	s3=strsep(&stringp," ");
@@ -295,8 +294,7 @@ static int aPGSQL_query(struct ast_channel *chan, void *data) {
 		}
 		nres=PQnfields(PGSQLres); 
 		id1=add_identifier(AST_PGSQL_ID_RESID,PGSQLres);
-		s5=&s[0];
-		sprintf(s5,"%d",id1);
+		snprintf(s, sizeof(s), "%d", id1);
 		pbx_builtin_setvar_helper(chan,var,s);
 	 	break;
 	}
@@ -330,7 +328,7 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
 	s7=NULL;
 	s1=malloc(l);
 	s2=malloc(l);
-	strcpy(s1,data);
+	strncpy(s1, data, l - 1);
 	stringp=s1;
 	strsep(&stringp," "); // eat the first token, we already know it :P 
 	fetchid_var=strsep(&stringp," ");
@@ -391,8 +389,7 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
 	    ast_log(LOG_WARNING,"ast_PGSQL_fetch : EOF\n");
 	    id1 = 0; // no more rows
 		}
-		s5=&s[0];
-		sprintf(s5,"%d",id1);
+		snprintf(s, sizeof(s), "%d", id1);
 	  ast_log(LOG_WARNING,"Setting var '%s' to value '%s'\n",fetchid_var,s);
 	  pbx_builtin_setvar_helper(chan,fetchid_var,s);
 	 	break;
@@ -414,7 +411,7 @@ static int aPGSQL_reset(struct ast_channel *chan, void *data) {
 	
 	l=strlen(data)+2;
 	s1=malloc(l);
-	strcpy(s1,data);
+	strncpy(s1, data, l - 1);
 	stringp=s1;
 	strsep(&stringp," "); // eat the first token, we already know it :P 
 	s3=strsep(&stringp," ");
@@ -440,7 +437,7 @@ static int aPGSQL_clear(struct ast_channel *chan, void *data) {
 	
 	l=strlen(data)+2;
 	s1=malloc(l);
-	strcpy(s1,data);
+	strncpy(s1, data, l - 1);
 	stringp=s1;
 	strsep(&stringp," "); // eat the first token, we already know it :P 
 	s3=strsep(&stringp," ");
@@ -470,7 +467,7 @@ static int aPGSQL_disconnect(struct ast_channel *chan, void *data) {
 	
 	l=strlen(data)+2;
 	s1=malloc(l);
-	strcpy(s1,data);
+	strncpy(s1, data, l - 1);
 	stringp=s1;
 	strsep(&stringp," "); // eat the first token, we already know it :P 
 	s3=strsep(&stringp," ");

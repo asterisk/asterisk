@@ -156,7 +156,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	  create a new file with the inputed name scheme */
 	if (percentflag) {
 		do {
-			snprintf(tmp, sizeof(tmp)-1, fil, count);
+			snprintf(tmp, sizeof(tmp), fil, count);
 			count++;
 		} while ( ast_fileexists(tmp, ext, chan->language) != -1 );
 		pbx_builtin_setvar_helper(chan, "RECORDED_FILE", tmp);
