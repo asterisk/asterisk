@@ -172,6 +172,8 @@ static float txgain = 0.0;
 
 static int echocancel;
 
+static int echotraining;
+
 static int echocanbridged = 0;
 
 static int busydetect = 0;
@@ -403,6 +405,7 @@ static struct zt_pvt {
 	int callwaitcas;
 	int callwaitrings;
 	int echocancel;
+	int echotraining;
 	int echocanbridged;
 	int echocanon;
 	int permcallwaiting;
@@ -1062,6 +1065,22 @@ static void zt_enable_ec(struct zt_pvt *p)
 		}
 	} else
 		ast_log(LOG_DEBUG, "No echocancellation requested\n");
+}
+
+static void zt_train_ec(struct zt_pvt *p)
+{
+	int x;
+	int res;
+	if (p && p->echocancel && p->echotraining) {
+		x = 400;
+		res = ioctl(p->subs[SUB_REAL].zfd, ZT_ECHOTRAIN, &x);
+		if (res) 
+			ast_log(LOG_WARNING, "Unable to request echo training on channel %d\n", p->channel);
+		else {
+			ast_log(LOG_DEBUG, "Engaged echo training on channel %d\n", p->channel);
+		}
+	} else
+		ast_log(LOG_DEBUG, "No echo training requested\n");
 }
 
 static void zt_disable_ec(struct zt_pvt *p)
@@ -2814,6 +2833,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				switch(ast->_state) {
 				case AST_STATE_RINGING:
 					zt_enable_ec(p);
+					zt_train_ec(p);
 					p->subs[index].f.frametype = AST_FRAME_CONTROL;
 					p->subs[index].f.subclass = AST_CONTROL_ANSWER;
 					/* Make sure it stops ringing */
@@ -5149,6 +5169,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		tmp->permhidecallerid = hidecallerid;
 		tmp->callreturn = callreturn;
 		tmp->echocancel = echocancel;
+		tmp->echotraining = echotraining;
 		tmp->echocanbridged = echocanbridged;
 		tmp->busydetect = busydetect;
 		tmp->busycount = busycount;
@@ -6773,6 +6794,8 @@ int load_module()
 				if (echocancel)
 					echocancel=128;
 			}
+		} else if (!strcasecmp(v->name, "echotraining")) {
+			echotraining = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "hidecallerid")) {
 			hidecallerid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "callreturn")) {
