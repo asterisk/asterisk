@@ -8292,9 +8292,9 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v)
 					user->amaflags = format;
 				}
 			} else if (!strcasecmp(v->name, "allow")) {
-				ast_parse_allow_deny(&user->prefs, &user->capability, v->value, 1);
+				ast_parse_allow_disallow(&user->prefs, &user->capability, v->value, 1);
 			} else if (!strcasecmp(v->name, "disallow")) {
-				ast_parse_allow_deny(&user->prefs, &user->capability, v->value, 0);
+				ast_parse_allow_disallow(&user->prefs, &user->capability, v->value, 0);
 			} else if (!strcasecmp(v->name, "insecure")) {
 				user->insecure = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "callingpres")) {
@@ -8550,9 +8550,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			} else if (!strcasecmp(v->name, "pickupgroup")) {
 				peer->pickupgroup = ast_get_group(v->value);
 			} else if (!strcasecmp(v->name, "allow")) {
-				ast_parse_allow_deny(&peer->prefs, &peer->capability, v->value, 1);
+				ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, 1);
 			} else if (!strcasecmp(v->name, "disallow")) {
-				ast_parse_allow_deny(&peer->prefs, &peer->capability, v->value, 0);
+				ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, 0);
 			} else if (!strcasecmp(v->name, "insecure")) {
 				if (!strcasecmp(v->value, "very")) {
 					peer->insecure = 2;
@@ -8826,9 +8826,9 @@ static int reload_config(void)
 			else
 				memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
 		} else if (!strcasecmp(v->name, "allow")) {
-			ast_parse_allow_deny(&prefs, &global_capability, v->value, 1);
+			ast_parse_allow_disallow(&prefs, &global_capability, v->value, 1);
 		} else if (!strcasecmp(v->name, "disallow")) {
-			ast_parse_allow_deny(&prefs, &global_capability, v->value, 0);
+			ast_parse_allow_disallow(&prefs, &global_capability, v->value, 0);
 		} else if (!strcasecmp(v->name, "register")) {
 			sip_register(v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "recordhistory")) {

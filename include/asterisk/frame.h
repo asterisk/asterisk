@@ -3,9 +3,9 @@
  *
  * Asterisk internal frame definitions.
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU Lesser General Public License.  Other components of
@@ -398,7 +398,7 @@ extern int ast_codec_pref_append(struct ast_codec_pref *pref, int format);
 extern int ast_codec_choose(struct ast_codec_pref *pref, int formats, int find_best);
 
 /* Parse an "allow" or "deny" line and update the mask and pref if provided */
-extern void ast_parse_allow_deny(struct ast_codec_pref *pref, int *mask, char *list, int allowing);
+extern void ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, char *list, int allowing);
 
 /* Dump codec preference list into a string */
 extern int ast_codec_pref_string(struct ast_codec_pref *pref, char *buf, size_t size);

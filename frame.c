@@ -3,9 +3,9 @@
  *
  * Frame manipulation routines
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -958,7 +958,7 @@ int ast_codec_choose(struct ast_codec_pref *pref, int formats, int find_best)
    	return find_best ? ast_best_codec(formats) : 0;
 }
 
-void ast_parse_allow_deny(struct ast_codec_pref *pref, int *mask, char *list, int allowing) 
+void ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, char *list, int allowing) 
 {
 	int format_i = 0;
 	char *next_format = NULL, *last_format = NULL;
