@@ -4565,14 +4565,6 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 								f.src = "IAX2";
 								f.mallocd = 0;
 								f.offset = 0;
-								f.delivery.tv_sec = peer->rxtrunktime.tv_sec;
-								f.delivery.tv_usec = peer->rxtrunktime.tv_usec;
-								f.delivery.tv_sec += ts / 1000;
-								f.delivery.tv_usec += ts % 1000;
-								if (f.delivery.tv_usec >= 1000000) {
-									f.delivery.tv_usec -= 1000000;
-									f.delivery.tv_sec += 1;
-								}
 								if (f.datalen && (f.frametype == AST_FRAME_VOICE)) 
 									f.samples = get_samples(&f);
 								else
