@@ -7933,6 +7933,7 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 		user->capability = global_capability;
 		user->canreinvite = global_canreinvite;
 		user->trustrpid = global_trustrpid;
+		user->dtmfmode = global_dtmfmode;
 		user->progressinband = global_progressinband;
 #ifdef OSP_SUPPORT
 		user->ospauth = global_ospauth;
@@ -8136,7 +8137,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 		peer->canreinvite = global_canreinvite;
 		peer->rtptimeout = global_rtptimeout;
 		peer->rtpholdtimeout = global_rtpholdtimeout;
-		peer->dtmfmode = 0;
+		peer->dtmfmode = global_dtmfmode;
 		peer->promiscredir = global_promiscredir;
 		peer->trustrpid = global_trustrpid;
 		peer->progressinband = global_progressinband;
