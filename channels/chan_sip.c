@@ -262,6 +262,7 @@ static struct sip_pvt {
 	int alreadygone;			/* Whether or not we've already been destroyed by or peer */
 	int needdestroy;			/* if we need to be destroyed */
 	int capability;				/* Special capability (codec) */
+	int novideo;				/* Didn't get video in invite, don't offer */
 	int jointcapability;			/* Supported capability at both ends (codecs ) */
 	int prefcodec;				/* Preferred codec (outbound only) */
 	int noncodeccapability;
@@ -2639,6 +2640,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		return -1;
 	}
 	sdpLineNum_iterator_init(&iterator);
+	p->novideo = 1;
 	while ((m = get_sdp_iterate(&iterator, req, "m"))[0] != '\0') {
 		if ((sscanf(m, "audio %d RTP/AVP %n", &x, &len) == 1)) {
 			portno = x;
@@ -2662,6 +2664,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			ast_rtp_pt_clear(p->vrtp);  /* Must be cleared in case no m=video line exists */
 
 		if (p->vrtp && (sscanf(m, "video %d RTP/AVP %n", &x, &len) == 1)) {
+			p->novideo = 0;
 			vportno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
 			codecs = m + len;
@@ -3450,7 +3453,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	if ((sizeof(m) <= strlen(m) - 2) || (sizeof(m2) <= strlen(m2) - 2) || (sizeof(a) == strlen(a)) || (sizeof(a2) == strlen(a2)))
 		ast_log(LOG_WARNING, "SIP SDP may be truncated due to undersized buffer!!\n");
 	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m) + strlen(a);
-	if ((p->vrtp) && (capability & VIDEO_CODEC_MASK)) /* only if video response is appropriate */
+	if ((p->vrtp) && (!p->novideo) && (capability & VIDEO_CODEC_MASK)) /* only if video response is appropriate */
 		len += strlen(m2) + strlen(a2);
 	snprintf(costr, sizeof(costr), "%d", len);
 	add_header(resp, "Content-Type", "application/sdp");
@@ -3462,7 +3465,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	add_line(resp, t);
 	add_line(resp, m);
 	add_line(resp, a);
-	if ((p->vrtp) && (capability & VIDEO_CODEC_MASK)) { /* only if video response is appropriate */
+	if ((p->vrtp) && (!p->novideo) && (capability & VIDEO_CODEC_MASK)) { /* only if video response is appropriate */
 		add_line(resp, m2);
 		add_line(resp, a2);
 	}
