@@ -3,9 +3,9 @@
  *
  * Block all calls without Caller*ID, require phone # to be entered
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -62,7 +62,7 @@ privacy_exec (struct ast_channel *chan, void *data)
 	struct ast_config *cfg;
 
 	LOCAL_USER_ADD (u);
-	if (chan->callerid)
+	if (chan->cid.cid_num)
 	{
 		if (option_verbose > 2)
 			ast_verbose (VERBOSE_PREFIX_3 "CallerID Present: Skipping\n");
@@ -118,13 +118,12 @@ privacy_exec (struct ast_channel *chan, void *data)
 			res = ast_streamfile(chan, "privacy-thankyou", chan->language);
 			if (!res)
 				res = ast_waitstream(chan, "");
-			snprintf (new_cid, sizeof (new_cid), "\"%s\" <%s>", "Privacy Manager", phone);
-			ast_set_callerid (chan, new_cid, 0);
+			ast_set_callerid (chan, phone, "Privacy Manager", NULL);
 			if (option_verbose > 2)
 				ast_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID to %s\n",new_cid);
 		} else {
 			/*Send the call to n+101 priority, where n is the current priority*/
-			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
+			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
 				chan->priority+=100;
 		}
 		if (cfg) 

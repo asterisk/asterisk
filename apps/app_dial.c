@@ -186,7 +186,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				else if (numnochan)
 					strncpy(status, "CHANUNAVAIL", statussize - 1);
 				/* See if there is a special busy message */
-				if (ast_exists_extension(in, in->context, in->exten, in->priority + 101, in->callerid)) 
+				if (ast_exists_extension(in, in->context, in->exten, in->priority + 101, in->cid.cid_num)) 
 					in->priority+=100;
 			} else {
 				if (option_verbose > 2)
@@ -233,10 +233,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						o->stillgoing = 0;
 						numnochan++;
 					} else {
-						if (o->chan->callerid)
-							free(o->chan->callerid);
-
-						o->chan->callerid = NULL;
+						if (o->chan->cid.cid_num)
+							free(o->chan->cid.cid_num);
+						o->chan->cid.cid_num = NULL;
+						if (o->chan->cid.cid_name)
+							free(o->chan->cid.cid_name);
+						o->chan->cid.cid_name = NULL;
 
 						if (o->forcecallerid) {
 							char *newcid = NULL;
@@ -245,36 +247,41 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 								newcid = in->macroexten;
 							else
 								newcid = in->exten;
-							o->chan->callerid = strdup(newcid);
+							o->chan->cid.cid_num = strdup(newcid);
 							strncpy(o->chan->accountcode, winner->accountcode, sizeof(o->chan->accountcode) - 1);
 							o->chan->cdrflags = winner->cdrflags;
-							if (!o->chan->callerid)
+							if (!o->chan->cid.cid_num)
 								ast_log(LOG_WARNING, "Out of memory\n");
 						} else {
-							if (in->callerid) {
-								o->chan->callerid = strdup(in->callerid);
-								if (!o->chan->callerid)
+							if (in->cid.cid_num) {
+								o->chan->cid.cid_num = strdup(in->cid.cid_num);
+								if (!o->chan->cid.cid_num)
+									ast_log(LOG_WARNING, "Out of memory\n");	
+							}
+							if (in->cid.cid_name) {
+								o->chan->cid.cid_name = strdup(in->cid.cid_name);
+								if (!o->chan->cid.cid_name)
 									ast_log(LOG_WARNING, "Out of memory\n");	
 							}
 							strncpy(o->chan->accountcode, in->accountcode, sizeof(o->chan->accountcode) - 1);
 							o->chan->cdrflags = in->cdrflags;
 						}
 
-						if (in->ani) {
-							if (o->chan->ani)
-								free(o->chan->ani);
-							o->chan->ani = malloc(strlen(in->ani) + 1);
-							if (o->chan->ani)
-								strncpy(o->chan->ani, in->ani, strlen(in->ani));
+						if (in->cid.cid_ani) {
+							if (o->chan->cid.cid_ani)
+								free(o->chan->cid.cid_ani);
+							o->chan->cid.cid_ani = malloc(strlen(in->cid.cid_ani) + 1);
+							if (o->chan->cid.cid_ani)
+								strncpy(o->chan->cid.cid_ani, in->cid.cid_ani, strlen(in->cid.cid_ani) + 1);
 							else
 								ast_log(LOG_WARNING, "Out of memory\n");
 						}
-						if (o->chan->rdnis) 
-							free(o->chan->rdnis);
+						if (o->chan->cid.cid_rdnis) 
+							free(o->chan->cid.cid_rdnis);
 						if (!ast_strlen_zero(in->macroexten))
-							o->chan->rdnis = strdup(in->macroexten);
+							o->chan->cid.cid_rdnis = strdup(in->macroexten);
 						else
-							o->chan->rdnis = strdup(in->exten);
+							o->chan->cid.cid_rdnis = strdup(in->exten);
 						if (ast_call(o->chan, tmpchan, 0)) {
 							ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
 							o->stillgoing = 0;
@@ -429,7 +436,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	char restofit[AST_MAX_EXTENSION];
 	char *transfer = NULL;
 	char *newnum;
-	char callerid[256] = "", *l, *n;
+	char *l;
 	char *url=NULL; /* JDG */
 	struct ast_var_t *current;
 	struct varshead *headp, *newheadp;
@@ -668,14 +675,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		strncpy(privdb, chan->exten, sizeof(privdb) - 1);
 	}
 	if (privacy) {
-		if (chan->callerid)
-			strncpy(callerid, chan->callerid, sizeof(callerid) - 1);
-		else
-			callerid[0] = '\0';
-		ast_callerid_parse(callerid, &n, &l);
-		if (l) {
-			ast_shrink_phone_number(l);
-		} else
+		l = chan->cid.cid_num;
+		if (!l)
 			l = "";
 		ast_log(LOG_NOTICE, "Privacy DB is '%s', privacy is %d, clid is '%s'\n", privdb, privacy, l);
 	}
@@ -797,28 +798,31 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		tmp->chan->appl = "AppDial";
 		tmp->chan->data = "(Outgoing Line)";
 		tmp->chan->whentohangup = 0;
-		if (tmp->chan->callerid)
-			free(tmp->chan->callerid);
-		if (tmp->chan->ani)
-			free(tmp->chan->ani);
-		if (chan->callerid)
-			tmp->chan->callerid = strdup(chan->callerid);
-		else
-			tmp->chan->callerid = NULL;
+		if (tmp->chan->cid.cid_num)
+			free(tmp->chan->cid.cid_num);
+		tmp->chan->cid.cid_num = NULL;
+		if (tmp->chan->cid.cid_name)
+			free(tmp->chan->cid.cid_name);
+		tmp->chan->cid.cid_name = NULL;
+		if (tmp->chan->cid.cid_ani)
+			free(tmp->chan->cid.cid_ani);
+		tmp->chan->cid.cid_ani = NULL;
+
+		if (chan->cid.cid_num) 
+			tmp->chan->cid.cid_num = strdup(chan->cid.cid_num);
+		if (chan->cid.cid_name) 
+			tmp->chan->cid.cid_name = strdup(chan->cid.cid_name);
+		if (chan->cid.cid_ani) 
+			tmp->chan->cid.cid_ani = strdup(chan->cid.cid_ani);
+		
 		/* Copy language from incoming to outgoing */
 		strncpy(tmp->chan->language, chan->language, sizeof(tmp->chan->language) - 1);
 		strncpy(tmp->chan->accountcode, chan->accountcode, sizeof(tmp->chan->accountcode) - 1);
 		tmp->chan->cdrflags = chan->cdrflags;
 		if (ast_strlen_zero(tmp->chan->musicclass))
 			strncpy(tmp->chan->musicclass, chan->musicclass, sizeof(tmp->chan->musicclass) - 1);
-		if (chan->ani)
-			tmp->chan->ani = strdup(chan->ani);
-		else
-			tmp->chan->ani = NULL;
-		/* Pass hidecallerid setting */
-		tmp->chan->restrictcid = chan->restrictcid;
 		/* Pass callingpres setting */
-		tmp->chan->callingpres = chan->callingpres;
+		tmp->chan->cid.cid_pres = chan->cid.cid_pres;
 		/* Presense of ADSI CPE on outgoing channel follows ours */
 		tmp->chan->adsicpe = chan->adsicpe;
 		/* pass the digital flag */

@@ -251,23 +251,28 @@ void ast_cdr_setapp(struct ast_cdr *cdr, char *app, char *data)
 int ast_cdr_setcid(struct ast_cdr *cdr, struct ast_channel *c)
 {
 	char tmp[AST_MAX_EXTENSION] = "";
-	char *num, *name;
+	char *num;
 	while (cdr) {
 		if(!ast_cdr_has_flag(cdr,AST_CDR_FLAG_LOCKED)) {
 			/* Grab source from ANI or normal Caller*ID */
-			if (c->ani)
-				strncpy(tmp, c->ani, sizeof(tmp) - 1);
-			else if (c->callerid)
-				strncpy(tmp, c->callerid, sizeof(tmp) - 1);
-			if (c->callerid)
-				strncpy(cdr->clid, c->callerid, sizeof(cdr->clid) - 1);
-			name = NULL;
-			num = NULL;
-			ast_callerid_parse(tmp, &name, &num);
-			if (num) {
-				ast_shrink_phone_number(num);
+			if (c->cid.cid_ani)
+				num = c->cid.cid_ani;
+			else
+				num = c->cid.cid_num;
+			
+			if (c->cid.cid_name && num)
+				snprintf(tmp, sizeof(tmp), "\"%s\" <%s>", c->cid.cid_name, num);
+			else if (c->cid.cid_name)
+				strncpy(tmp, c->cid.cid_name, sizeof(tmp) - 1);
+			else if (num)
+				strncpy(tmp, num, sizeof(tmp) - 1);
+			else
+				strcpy(tmp, "");
+			strncpy(cdr->clid, tmp, sizeof(cdr->clid) - 1);
+			if (num)
 				strncpy(cdr->src, num, sizeof(cdr->src) - 1);
-			}
+			else
+				strcpy(cdr->src, "");
 		}
 		cdr = cdr->next;
 	}
@@ -277,7 +282,7 @@ int ast_cdr_setcid(struct ast_cdr *cdr, struct ast_channel *c)
 int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 {
 	char *chan;
-	char *num, *name;
+	char *num;
 	char tmp[AST_MAX_EXTENSION] = "";
 	while (cdr) {
 		if(!ast_cdr_has_flag(cdr,AST_CDR_FLAG_LOCKED)) {
@@ -286,20 +291,25 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 				ast_log(LOG_WARNING, "CDR already initialized on '%s'\n", chan); 
 			strncpy(cdr->channel, c->name, sizeof(cdr->channel) - 1);
 			/* Grab source from ANI or normal Caller*ID */
-			if (c->ani)
-				strncpy(tmp, c->ani, sizeof(tmp) - 1);
-			else if (c->callerid)
-				strncpy(tmp, c->callerid, sizeof(tmp) - 1);
-			if (c->callerid)
-				strncpy(cdr->clid, c->callerid, sizeof(cdr->clid) - 1);
-			name = NULL;
-			num = NULL;
-			ast_callerid_parse(tmp, &name, &num);
-			if (num) {
-				ast_shrink_phone_number(num);
-				strncpy(cdr->src, num, sizeof(cdr->src) - 1);
-			}
+			if (c->cid.cid_ani)
+				num = c->cid.cid_ani;
+			else
+				num = c->cid.cid_num;
 			
+			if (c->cid.cid_name && num)
+				snprintf(tmp, sizeof(tmp), "\"%s\" <%s>", c->cid.cid_name, num);
+			else if (c->cid.cid_name)
+				strncpy(tmp, c->cid.cid_name, sizeof(tmp) - 1);
+			else if (num)
+				strncpy(tmp, num, sizeof(tmp) - 1);
+			else
+				strcpy(tmp, "");
+			strncpy(cdr->clid, tmp, sizeof(cdr->clid) - 1);
+			if (num)
+				strncpy(cdr->src, num, sizeof(cdr->src) - 1);
+			else
+				strcpy(cdr->src, "");
+
 			if (c->_state == AST_STATE_UP)
 				cdr->disposition = AST_CDR_ANSWERED;
 			else
@@ -419,26 +429,31 @@ int ast_cdr_appenduserfield(struct ast_channel *chan, char *userfield)
 int ast_cdr_update(struct ast_channel *c)
 {
 	struct ast_cdr *cdr = c->cdr;
-	char *name, *num;
+	char *num;
 	char tmp[AST_MAX_EXTENSION] = "";
 	/* Grab source from ANI or normal Caller*ID */
 	while (cdr) {
 		if(!ast_cdr_has_flag(cdr,AST_CDR_FLAG_LOCKED)) {
-			if (c->ani)
-				strncpy(tmp, c->ani, sizeof(tmp) - 1);
-			else if (c->callerid && !ast_strlen_zero(c->callerid))
-				strncpy(tmp, c->callerid, sizeof(tmp) - 1);
-			if (c->callerid && !ast_strlen_zero(c->callerid))
-				strncpy(cdr->clid, c->callerid, sizeof(cdr->clid) - 1);
+			/* Grab source from ANI or normal Caller*ID */
+			if (c->cid.cid_ani)
+				num = c->cid.cid_ani;
 			else
-				cdr->clid[0] = '\0';
-			name = NULL;
-			num = NULL;
-			ast_callerid_parse(tmp, &name, &num);
-			if (num) {
-				ast_shrink_phone_number(num);
+				num = c->cid.cid_num;
+			
+			if (c->cid.cid_name && num)
+				snprintf(tmp, sizeof(tmp), "\"%s\" <%s>", c->cid.cid_name, num);
+			else if (c->cid.cid_name)
+				strncpy(tmp, c->cid.cid_name, sizeof(tmp) - 1);
+			else if (num)
+				strncpy(tmp, num, sizeof(tmp) - 1);
+			else
+				strcpy(tmp, "");
+			strncpy(cdr->clid, tmp, sizeof(cdr->clid) - 1);
+			if (num)
 				strncpy(cdr->src, num, sizeof(cdr->src) - 1);
-			}
+			else
+				strcpy(cdr->src, "");
+
 			/* Copy account code et-al */	
 			strncpy(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode) - 1);
 			/* Destination information */

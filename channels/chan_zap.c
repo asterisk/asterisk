@@ -154,7 +154,8 @@ static char *config = "zapata.conf";
 #define DCHAN_AVAILABLE	(DCHAN_PROVISIONED | DCHAN_NOTINALARM | DCHAN_UP)
 
 static char context[AST_MAX_EXTENSION] = "default";
-static char callerid[256] = "";
+static char cid_num[256] = "";
+static char cid_name[256] = "";
 
 static char language[MAX_LANGUAGE] = "";
 static char musicclass[MAX_LANGUAGE] = "";
@@ -455,10 +456,14 @@ static struct zt_pvt {
 	char exten[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
 	char musicclass[MAX_LANGUAGE];
-	char callerid[AST_MAX_EXTENSION];
-	char lastcallerid[AST_MAX_EXTENSION];
-	char *origcallerid;			/* malloced original callerid */
-	char callwaitcid[AST_MAX_EXTENSION];
+	char cid_num[AST_MAX_EXTENSION];
+	char cid_name[AST_MAX_EXTENSION];
+	char lastcid_num[AST_MAX_EXTENSION];
+	char lastcid_name[AST_MAX_EXTENSION];
+	char *origcid_num;			/* malloced original callerid */
+	char *origcid_name;			/* malloced original callerid */
+	char callwait_num[AST_MAX_EXTENSION];
+	char callwait_name[AST_MAX_EXTENSION];
 	char rdnis[AST_MAX_EXTENSION];
 	char dnid[AST_MAX_EXTENSION];
 	unsigned int group;
@@ -1383,13 +1388,13 @@ int send_cwcidspill(struct zt_pvt *p)
 	p->cidspill = malloc(MAX_CALLERID_SIZE);
 	if (p->cidspill) {
 		memset(p->cidspill, 0x7f, MAX_CALLERID_SIZE);
-		p->cidlen = ast_callerid_callwaiting_generate(p->cidspill, p->callwaitcid, AST_LAW(p));
+		p->cidlen = ast_callerid_callwaiting_generate(p->cidspill, p->callwait_name, p->callwait_num, AST_LAW(p));
 		/* Make sure we account for the end */
 		p->cidlen += READ_SIZE * 4;
 		p->cidpos = 0;
 		send_callerid(p);
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "CPE supports Call Waiting Caller*ID.  Sending '%s'\n", p->callwaitcid);
+			ast_verbose(VERBOSE_PREFIX_3 "CPE supports Call Waiting Caller*ID.  Sending '%s/%s'\n", p->callwait_name, p->callwait_num);
 	} else return -1;
 	return 0;
 }
@@ -1472,7 +1477,6 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 #ifdef ZAPATA_PRI
 	char *s=NULL;
 #endif
-	char callerid[256];
 	char dest[256]; /* must be same length as p->dialdest */
 	ast_mutex_lock(&p->lock);
 	strncpy(dest, rdest, sizeof(dest) - 1);
@@ -1521,7 +1525,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 				p->cidspill = malloc(MAX_CALLERID_SIZE);
 				p->callwaitcas = 0;
 				if (p->cidspill) {
-					p->cidlen = ast_callerid_generate(p->cidspill, ast->callerid, AST_LAW(p));
+					p->cidlen = ast_callerid_generate(p->cidspill, ast->cid.cid_name, ast->cid.cid_num, AST_LAW(p));
 					p->cidpos = 0;
 					send_callerid(p);
 				} else
@@ -1564,10 +1568,14 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		} else {
 			/* Call waiting call */
 			p->callwaitrings = 0;
-			if (ast->callerid)
-				strncpy(p->callwaitcid, ast->callerid, sizeof(p->callwaitcid)-1);
+			if (ast->cid.cid_num)
+				strncpy(p->callwait_num, ast->cid.cid_num, sizeof(p->callwait_num)-1);
 			else
-				p->callwaitcid[0] = '\0';
+				p->callwait_num[0] = '\0';
+			if (ast->cid.cid_name)
+				strncpy(p->callwait_name, ast->cid.cid_name, sizeof(p->callwait_name)-1);
+			else
+				p->callwait_name[0] = '\0';
 			/* Call waiting tone instead */
 			if (zt_callwait(ast)) {
 				ast_mutex_unlock(&p->lock);
@@ -1578,20 +1586,16 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 				ast_log(LOG_WARNING, "Unable to generate call-wait ring-back on channel %s\n", ast->name);
 				
 		}
-		if (ast->callerid) 
-			strncpy(callerid, ast->callerid, sizeof(callerid)-1);
-		else
-			callerid[0] = '\0';
-		ast_callerid_parse(callerid, &n, &l);
-		if (l) {
-			ast_shrink_phone_number(l);
-			if (!ast_isphonenumber(l))
-				l = NULL;
-		}
+		n = ast->cid.cid_name;
+		l = ast->cid.cid_num;
 		if (l)
-			strncpy(p->lastcallerid, l, sizeof(p->lastcallerid) - 1);
+			strncpy(p->lastcid_num, l, sizeof(p->lastcid_num) - 1);
 		else
-			p->lastcallerid[0] = '\0';
+			p->lastcid_num[0] = '\0';
+		if (n)
+			strncpy(p->lastcid_name, n, sizeof(p->lastcid_name) - 1);
+		else
+			p->lastcid_name[0] = '\0';
 		ast_setstate(ast, AST_STATE_RINGING);
 		index = zt_get_index(ast, p, 0);
 		if (index > -1) {
@@ -1642,32 +1646,14 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		ast_log(LOG_DEBUG, "Dialing '%s'\n", c);
 		p->dop.op = ZT_DIAL_OP_REPLACE;
 		if (p->sig == SIG_FEATD) {
-			if (ast->callerid) {
-				strncpy(callerid, ast->callerid, sizeof(callerid)-1);
-				ast_callerid_parse(callerid, &n, &l);
-				if (l) {
-					ast_shrink_phone_number(l);
-					if (!ast_isphonenumber(l))
-						l = NULL;
-				}
-			} else
-				l = NULL;
+			l = ast->cid.cid_num;
 			if (l) 
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T*%s*%s*", l, c + p->stripmsd);
 			else
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T**%s*", c + p->stripmsd);
 		} else 
 		if (p->sig == SIG_FEATDMF) {
-			if (ast->callerid) {
-				strncpy(callerid, ast->callerid, sizeof(callerid)-1);
-				ast_callerid_parse(callerid, &n, &l);
-				if (l) {
-					ast_shrink_phone_number(l);
-					if (!ast_isphonenumber(l))
-						l = NULL;
-				}
-			} else
-				l = NULL;
+			l = ast->cid.cid_num;
 			if (l) 
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*00%s#*%s#", l, c + p->stripmsd);
 			else
@@ -1726,16 +1712,13 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			c++;
 		else
 			c = dest;
-		if (ast->callerid && !p->hidecallerid) {
-			strncpy(callerid, ast->callerid, sizeof(callerid)-1);
-			ast_callerid_parse(callerid, &n, &l);
-			if (l) {
-				ast_shrink_phone_number(l);
-				if (!ast_isphonenumber(l))
-					l = NULL;
-			}
-		} else
+		if (!p->hidecallerid) {
+			l = ast->cid.cid_num;
+			n = ast->cid.cid_name;
+		} else {
 			l = NULL;
+			n = NULL;
+		}
 		if (strlen(c) < p->stripmsd) {
 			ast_log(LOG_WARNING, "Number '%s' is shorter than stripmsd (%d)\n", c, p->stripmsd);
 			ast_mutex_unlock(&p->lock);
@@ -1786,8 +1769,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 						((p->law == ZT_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW)));
 		pri_sr_set_called(sr, c + p->stripmsd, p->pri->dialplan - 1,  s ? 1 : 0);
 		pri_sr_set_caller(sr, l, n, p->pri->localdialplan - 1, 
-					l ? (ast->restrictcid ? PRES_PROHIB_USER_NUMBER_PASSED_SCREEN : 
-						(p->use_callingpres ? ast->callingpres : PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN)) : 
+					l ? (p->use_callingpres ? ast->cid.cid_pres : PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN) : 
 						 PRES_NUMBER_NOT_AVAILABLE);
 		if (pri_setup(p->pri->pri, p->call,  sr)) {
 			ast_log(LOG_WARNING, "Unable to setup call to %s\n", c + p->stripmsd);
@@ -1965,10 +1947,15 @@ static int zt_hangup(struct ast_channel *ast)
 	x = 0;
 	zt_confmute(p, 0);
 	restore_gains(p);
-	if (p->origcallerid) {
-		strncpy(p->callerid, p->origcallerid, sizeof(p->callerid) - 1);
-		free(p->origcallerid);
-		p->origcallerid = NULL;
+	if (p->origcid_num) {
+		strncpy(p->cid_num, p->origcid_num, sizeof(p->cid_num) - 1);
+		free(p->origcid_num);
+		p->origcid_num = NULL;
+	}	
+	if (p->origcid_name) {
+		strncpy(p->cid_name, p->origcid_name, sizeof(p->cid_name) - 1);
+		free(p->origcid_name);
+		p->origcid_name = NULL;
 	}	
 	if (p->dsp)
 		ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
@@ -3462,10 +3449,15 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						if (p->subs[SUB_REAL].owner->bridge)
 								ast_moh_stop(p->subs[SUB_REAL].owner->bridge);
 					} else if (!p->subs[SUB_THREEWAY].owner) {
-						char callerid[256];
+						char cid_num[256]="";
+						char cid_name[256]="";
 						if (p->threewaycalling && !check_for_conference(p)) {
-							if (p->zaptrcallerid && p->owner && p->owner->callerid)
-								strncpy(callerid, p->owner->callerid, sizeof(callerid) - 1);
+							if (p->zaptrcallerid && p->owner) {
+								if (p->owner->cid.cid_num)
+									strncpy(cid_num, p->owner->cid.cid_num, sizeof(cid_num) - 1);
+								if (p->owner->cid.cid_name)
+									strncpy(cid_name, p->owner->cid.cid_name, sizeof(cid_name) - 1);
+							}
 							/* XXX This section needs much more error checking!!! XXX */
 							/* Start a 3-way call if feasible */
 							if ((ast->pbx) ||
@@ -3475,13 +3467,20 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 									/* Make new channel */
 									chan = zt_new(p, AST_STATE_RESERVED, 0, SUB_THREEWAY, 0, 0);
 									if (p->zaptrcallerid) {
-										if (!p->origcallerid) {
-											p->origcallerid = malloc(strlen(p->callerid) + 1);
-											strncpy(p->origcallerid, p->callerid, strlen(p->callerid)); /* safe */
+										if (!p->origcid_num) {
+											p->origcid_num = malloc(strlen(p->origcid_num) + 1);
+											strncpy(p->origcid_num, p->cid_num, strlen(p->cid_num)); /* safe */
 											/* make sure p->origcallerid is terminated */
-											p->origcallerid[strlen(p->callerid)] = '\0';
+											p->origcid_num[strlen(p->cid_num)] = '\0';
 										}
-										strncpy(p->callerid, callerid, sizeof(p->callerid) -1);
+										if (!p->origcid_name) {
+											p->origcid_name = malloc(strlen(p->origcid_name) + 1);
+											strncpy(p->origcid_name, p->cid_name, strlen(p->cid_name)); /* safe */
+											/* make sure p->origcallerid is terminated */
+											p->origcid_name[strlen(p->cid_name)] = '\0';
+										}
+										strncpy(p->cid_num, cid_num, sizeof(p->cid_num) -1);
+										strncpy(p->cid_name, cid_name, sizeof(p->cid_name) -1);
 									}
 									/* Swap things around between the three-way and real call */
 									swap_subs(p, SUB_THREEWAY, SUB_REAL);
@@ -3853,7 +3852,10 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	}
 
 	if (p->subs[index].needcallerid) {
-		ast_set_callerid(ast, !ast_strlen_zero(p->lastcallerid) ? p->lastcallerid : NULL, 1);
+		ast_set_callerid(ast, !ast_strlen_zero(p->lastcid_num) ? p->lastcid_num : NULL, 
+							!ast_strlen_zero(p->lastcid_name) ? p->lastcid_name : NULL,
+							!ast_strlen_zero(p->lastcid_num) ? p->lastcid_num : NULL
+							);
 		p->subs[index].needcallerid = 0;
 	}
 	
@@ -4033,7 +4035,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 			if (!p->faxhandled) {
 				p->faxhandled++;
 				if (strcmp(ast->exten, "fax")) {
-					if (ast_exists_extension(ast, ast->context, "fax", 1, ast->callerid)) {
+					if (ast_exists_extension(ast, ast->context, "fax", 1, ast->cid.cid_num)) {
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", ast->name);
 						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
@@ -4441,15 +4443,17 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		if (!ast_strlen_zero(i->exten))
 			strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);
 		if (!ast_strlen_zero(i->rdnis))
-			tmp->rdnis = strdup(i->rdnis);
+			tmp->cid.cid_rdnis = strdup(i->rdnis);
 		if (!ast_strlen_zero(i->dnid))
-			tmp->dnid = strdup(i->dnid);
-		if (!ast_strlen_zero(i->callerid)) {
-			tmp->callerid = strdup(i->callerid);
-			tmp->ani = strdup(i->callerid);
+			tmp->cid.cid_dnid = strdup(i->dnid);
+		if (!ast_strlen_zero(i->cid_num)) {
+			tmp->cid.cid_num = strdup(i->cid_num);
+			tmp->cid.cid_ani = strdup(i->cid_num);
 		}
-		tmp->restrictcid = i->restrictcid;
-		tmp->callingpres = i->callingpres;
+		if (!ast_strlen_zero(i->cid_name)) {
+			tmp->cid.cid_name = strdup(i->cid_name);
+		}
+		tmp->cid.cid_pres = i->callingpres;
 #ifdef ZAPATA_PRI
 		set_calltype(tmp, ctype);
 		/* Assume calls are not idle calls unless we're told differently */
@@ -4548,7 +4552,6 @@ static void *ss_thread(void *data)
 	char exten[AST_MAX_EXTENSION]="";
 	char exten2[AST_MAX_EXTENSION]="";
 	unsigned char buf[256];
-	char cid[256];
 	char dtmfcid[300];
 	char dtmfbuf[300];
 	struct callerid_state *cs;
@@ -4584,12 +4587,12 @@ static void *ss_thread(void *data)
 		strncpy(exten, p->exten, sizeof(exten) - 1);
 		len = strlen(exten);
 		res = 0;
-		while((len < AST_MAX_EXTENSION-1) && ast_matchmore_extension(chan, chan->context, exten, 1, p->callerid)) {
+		while((len < AST_MAX_EXTENSION-1) && ast_matchmore_extension(chan, chan->context, exten, 1, p->cid_num)) {
 			if (len && !ast_ignore_pattern(chan->context, exten))
 				tone_zone_play_tone(p->subs[index].zfd, -1);
 			else
 				tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALTONE);
-			if (ast_exists_extension(chan, chan->context, exten, 1, p->callerid))
+			if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num))
 				timeout = matchdigittimeout;
 			else
 				timeout = gendigittimeout;
@@ -4604,7 +4607,7 @@ static void *ss_thread(void *data)
 				break;
 		}
 		tone_zone_play_tone(p->subs[index].zfd, -1);
-		if (ast_exists_extension(chan, chan->context, exten, 1, p->callerid)) {
+		if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num)) {
 			/* Start the real PBX */
 			strncpy(chan->exten, exten, sizeof(chan->exten) - 1);
 			ast_dsp_digitreset(p->dsp);
@@ -4710,12 +4713,12 @@ static void *ss_thread(void *data)
 				s1 = strsep(&stringp, "*");
 				s2 = strsep(&stringp, "*");
 				if (s2) {
-					if (!ast_strlen_zero(p->callerid))
-						chan->callerid = strdup(p->callerid);
+					if (!ast_strlen_zero(p->cid_num))
+						chan->cid.cid_num = strdup(p->cid_num);
 					else
-						chan->callerid = strdup(s1);
-					if (chan->callerid)
-						chan->ani = strdup(chan->callerid);
+						chan->cid.cid_num = strdup(s1);
+					if (chan->cid.cid_num)
+						chan->cid.cid_ani = strdup(chan->cid.cid_num);
 					strncpy(exten, s2, sizeof(exten)-1);
 				} else
 					strncpy(exten, s1, sizeof(exten)-1);
@@ -4731,12 +4734,12 @@ static void *ss_thread(void *data)
 				s1 = strsep(&stringp, "#");
 				s2 = strsep(&stringp, "#");
 				if (s2) {
-					if (!ast_strlen_zero(p->callerid))
-						chan->callerid = strdup(p->callerid);
+					if (!ast_strlen_zero(p->cid_num))
+						chan->cid.cid_num = strdup(p->cid_num);
 					else
-						if (*(s1 + 2)) chan->callerid = strdup(s1 + 2);
-					if (chan->callerid)
-						chan->ani = strdup(chan->callerid);
+						if (*(s1 + 2)) chan->cid.cid_num = strdup(s1 + 2);
+					if (chan->cid.cid_num)
+						chan->cid.cid_ani = strdup(chan->cid.cid_num);
 					strncpy(exten, s2 + 1, sizeof(exten)-1);
 				} else
 					strncpy(exten, s1 + 2, sizeof(exten)-1);
@@ -4752,13 +4755,13 @@ static void *ss_thread(void *data)
 				s1 = strsep(&stringp, "#");
 				s2 = strsep(&stringp, "#");
 				if (s2 && (*(s2 + 1) == '0')) {
-					if (*(s2 + 2)) chan->callerid = strdup(s2 + 2);
-					if (chan->callerid)
-						chan->ani = strdup(chan->callerid);
+					if (*(s2 + 2)) chan->cid.cid_num = strdup(s2 + 2);
+					if (chan->cid.cid_num)
+						chan->cid.cid_ani = strdup(chan->cid.cid_num);
 					}
 				if (s1)	strncpy(exten, s1, sizeof(exten)-1);
 				else strncpy(exten, "911", sizeof(exten) - 1);
-				printf("E911: exten: %s, ANI: %s\n",exten,chan->ani);
+				printf("E911: exten: %s, ANI: %s\n",exten, chan->cid.cid_ani);
 			} else
 				ast_log(LOG_WARNING, "Got a non-E911 input on channel %d.  Assuming E&M Wink instead\n", p->channel);
 		}
@@ -4779,7 +4782,7 @@ static void *ss_thread(void *data)
 		zt_enable_ec(p);
 		if ((p->sig == SIG_FEATDMF) || (p->sig == SIG_E911) || (p->sig == SIG_FEATB)) 
 			ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax); 
-		if (ast_exists_extension(chan, chan->context, exten, 1, chan->callerid)) {
+		if (ast_exists_extension(chan, chan->context, exten, 1, chan->cid.cid_num)) {
 			strncpy(chan->exten, exten, sizeof(chan->exten)-1);
 			ast_dsp_digitreset(p->dsp);
 			res = ast_pbx_run(chan);
@@ -4835,8 +4838,8 @@ static void *ss_thread(void *data)
 				tone_zone_play_tone(p->subs[index].zfd, -1);
 			else
 				tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALTONE);
-			if (ast_exists_extension(chan, chan->context, exten, 1, p->callerid) && strcmp(exten, ast_parking_ext())) {
-				if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, p->callerid)) {
+			if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num) && strcmp(exten, ast_parking_ext())) {
+				if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, p->cid_num)) {
 					if (getforward) {
 						/* Record this as the forwarding extension */
 						strncpy(p->call_forward, exten, sizeof(p->call_forward) - 1); 
@@ -4855,10 +4858,14 @@ static void *ss_thread(void *data)
 					} else  {
 						res = tone_zone_play_tone(p->subs[index].zfd, -1);
 						strncpy(chan->exten, exten, sizeof(chan->exten)-1);
-						if (!ast_strlen_zero(p->callerid)) {
+						if (!ast_strlen_zero(p->cid_num)) {
 							if (!p->hidecallerid)
-								chan->callerid = strdup(p->callerid);
-							chan->ani = strdup(p->callerid);
+								chan->cid.cid_num = strdup(p->cid_num);
+							chan->cid.cid_ani = strdup(p->cid_num);
+						}
+						if (!ast_strlen_zero(p->cid_name)) {
+							if (!p->hidecallerid)
+								chan->cid.cid_name = strdup(p->cid_name);
 						}
 						ast_setstate(chan, AST_STATE_RING);
 						zt_enable_ec(p);
@@ -4928,9 +4935,12 @@ static void *ss_thread(void *data)
 					ast_verbose(VERBOSE_PREFIX_3 "Disabling Caller*ID on %s\n", chan->name);
 				/* Disable Caller*ID if enabled */
 				p->hidecallerid = 1;
-				if (chan->callerid)
-					free(chan->callerid);
-				chan->callerid = NULL;
+				if (chan->cid.cid_num)
+					free(chan->cid.cid_num);
+				chan->cid.cid_num = NULL;
+				if (chan->cid.cid_name)
+					free(chan->cid.cid_name);
+				chan->cid.cid_name = NULL;
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
 				if (res) {
 					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n", 
@@ -4941,8 +4951,8 @@ static void *ss_thread(void *data)
 				timeout = firstdigittimeout;
 			} else if (p->callreturn && !strcmp(exten, "*69")) {
 				res = 0;
-				if (!ast_strlen_zero(p->lastcallerid)) {
-					res = ast_say_digit_str(chan, p->lastcallerid, "", chan->language);
+				if (!ast_strlen_zero(p->lastcid_num)) {
+					res = ast_say_digit_str(chan, p->lastcid_num, "", chan->language);
 				}
 				if (!res)
 					res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
@@ -4987,10 +4997,10 @@ static void *ss_thread(void *data)
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Parking call to '%s'\n", chan->name);
 				break;
-			} else if (!ast_strlen_zero(p->lastcallerid) && !strcmp(exten, "*60")) {
+			} else if (!ast_strlen_zero(p->lastcid_num) && !strcmp(exten, "*60")) {
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Blacklisting number %s\n", p->lastcallerid);
-				res = ast_db_put("blacklist", p->lastcallerid, "1");
+					ast_verbose(VERBOSE_PREFIX_3 "Blacklisting number %s\n", p->lastcid_num);
+				res = ast_db_put("blacklist", p->lastcid_num, "1");
 				if (!res) {
 					res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
 					memset(exten, 0, sizeof(exten));
@@ -5001,10 +5011,16 @@ static void *ss_thread(void *data)
 					ast_verbose(VERBOSE_PREFIX_3 "Enabling Caller*ID on %s\n", chan->name);
 				/* Enable Caller*ID if enabled */
 				p->hidecallerid = 0;
-				if (chan->callerid)
-					free(chan->callerid);
-				if (!ast_strlen_zero(p->callerid))
-					chan->callerid = strdup(p->callerid);
+				if (chan->cid.cid_num)
+					free(chan->cid.cid_num);
+				chan->cid.cid_num = NULL;
+				if (chan->cid.cid_name)
+					free(chan->cid.cid_name);
+				chan->cid.cid_name = NULL;
+				if (!ast_strlen_zero(p->cid_num))
+					chan->cid.cid_num = strdup(p->cid_num);
+				if (!ast_strlen_zero(p->cid_name))
+					chan->cid.cid_name = strdup(p->cid_name);
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
 				if (res) {
 					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n", 
@@ -5047,10 +5063,10 @@ static void *ss_thread(void *data)
 					ast_hangup(chan);
 					return NULL;
 				}					
-			} else if (!ast_canmatch_extension(chan, chan->context, exten, 1, chan->callerid) &&
+			} else if (!ast_canmatch_extension(chan, chan->context, exten, 1, chan->cid.cid_num) &&
 							((exten[0] != '*') || (strlen(exten) > 2))) {
 				if (option_debug)
-					ast_log(LOG_DEBUG, "Can't match %s from '%s' in context %s\n", exten, chan->callerid ? chan->callerid : "<Unknown Caller>", chan->context);
+					ast_log(LOG_DEBUG, "Can't match %s from '%s' in context %s\n", exten, chan->cid.cid_num ? chan->cid.cid_num : "<Unknown Caller>", chan->context);
 				break;
 			}
 			if (!timeout)
@@ -5415,21 +5431,23 @@ static void *ss_thread(void *data)
 		}
 		else
 			cs = NULL;
-		if (name && number) {
-			snprintf(cid, sizeof(cid), "\"%s\" <%s>", name, number);
-		} else if (name) {
-			snprintf(cid, sizeof(cid), "\"%s\"", name);
-		} else if (number) {
-			snprintf(cid, sizeof(cid), "%s", number);
-		} else {
-			cid[0] = '\0';
+		if (chan->cid.cid_num) {
+			free(chan->cid.cid_num);
+			chan->cid.cid_num = NULL;
 		}
+		if (chan->cid.cid_name) {
+			free(chan->cid.cid_name);
+			chan->cid.cid_name = NULL;
+		}
+		if (number && !ast_strlen_zero(number)) {
+			chan->cid.cid_num = strdup(number);
+			chan->cid.cid_ani = strdup(number);
+		}
+		if (name && !ast_strlen_zero(name))
+			chan->cid.cid_name = strdup(name);
+
 		if (cs)
 			callerid_free(cs);
-		if (!ast_strlen_zero(cid)) {
-			chan->callerid = strdup(cid);
-			chan->ani = strdup(cid);
-		}
 		ast_setstate(chan, AST_STATE_RING);
 		chan->rings = 1;
 		p->ringt = RINGT;
@@ -6458,7 +6476,8 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		strncpy(tmp->language, language, sizeof(tmp->language)-1);
 		strncpy(tmp->musicclass, musicclass, sizeof(tmp->musicclass)-1);
 		strncpy(tmp->context, context, sizeof(tmp->context)-1);
-		strncpy(tmp->callerid, callerid, sizeof(tmp->callerid)-1);
+		strncpy(tmp->cid_num, cid_num, sizeof(tmp->cid_num)-1);
+		strncpy(tmp->cid_name, cid_name, sizeof(tmp->cid_name)-1);
 		strncpy(tmp->mailbox, mailbox, sizeof(tmp->mailbox)-1);
 		tmp->msgstate = -1;
 		tmp->group = cur_group;
@@ -7552,12 +7571,12 @@ static void *pri_dchannel(void *vpri)
 					pri->pvts[chanpos]->call = e->ring.call;
 					/* Get caller ID */
 					if (pri->pvts[chanpos]->use_callerid) {
-						if (!ast_strlen_zero(e->ring.callingname)) {
-							snprintf(pri->pvts[chanpos]->callerid, sizeof(pri->pvts[chanpos]->callerid), "\"%s\" <%s>", e->ring.callingname, e->ring.callingnum);
-						} else
-							strncpy(pri->pvts[chanpos]->callerid, e->ring.callingnum, sizeof(pri->pvts[chanpos]->callerid)-1);
-					} else
-						pri->pvts[chanpos]->callerid[0] = '\0';
+						strncpy(pri->pvts[chanpos]->cid_num, e->ring.callingnum, sizeof(pri->pvts[chanpos]->cid_num)-1);
+						strncpy(pri->pvts[chanpos]->cid_name, e->ring.callingname, sizeof(pri->pvts[chanpos]->cid_name)-1);
+					} else {
+						pri->pvts[chanpos]->cid_num[0] = '\0';
+						pri->pvts[chanpos]->cid_name[0] = '\0';
+					}
 					strncpy(pri->pvts[chanpos]->rdnis, e->ring.redirectingnum, sizeof(pri->pvts[chanpos]->rdnis) - 1);
 					/* If immediate=yes go to s|1 */
 					if (pri->pvts[chanpos]->immediate) {
@@ -7580,8 +7599,8 @@ static void *pri_dchannel(void *vpri)
 						pri->pvts[chanpos]->exten[1] = '\0';
 					}
 					/* Make sure extension exists (or in overlap dial mode, can exist) */
-					if ((pri->overlapdial && ast_canmatch_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->callerid)) ||
-						ast_exists_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->callerid)) {
+					if ((pri->overlapdial && ast_canmatch_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->cid_num)) ||
+						ast_exists_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->cid_num)) {
 						/* Setup law */
 						int law;
 						if (pri->switchtype != PRI_SWITCH_GR303_TMC) {
@@ -7612,7 +7631,7 @@ static void *pri_dchannel(void *vpri)
 						/* Get the use_callingpres state */
 						pri->pvts[chanpos]->callingpres = e->ring.callingpres;
 						/* Start PBX */
-						if (pri->overlapdial && ast_matchmore_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->callerid)) {
+						if (pri->overlapdial && ast_matchmore_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->cid_num)) {
 							/* Release the PRI lock while we create the channel */
 							ast_mutex_unlock(&pri->lock);
 							if (crv) {
@@ -7664,7 +7683,7 @@ static void *pri_dchannel(void *vpri)
 					} else {
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "Extension '%s' in context '%s' from '%s' does not exist.  Rejecting call on channel %d/%d, span %d\n",
-								pri->pvts[chanpos]->exten, pri->pvts[chanpos]->context, pri->pvts[chanpos]->callerid, pri->pvts[chanpos]->logicalspan, 
+								pri->pvts[chanpos]->exten, pri->pvts[chanpos]->context, pri->pvts[chanpos]->cid_num, pri->pvts[chanpos]->logicalspan, 
 									pri->pvts[chanpos]->prioffset, pri->span);
 						pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_UNALLOCATED);
 						pri->pvts[chanpos]->call = NULL;
@@ -7748,7 +7767,8 @@ static void *pri_dchannel(void *vpri)
 					} else {
 						/* Re-use *69 field for PRI */
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
-						snprintf(pri->pvts[chanpos]->lastcallerid, sizeof(pri->pvts[chanpos]->lastcallerid), "\"%s\" <%s>", e->facname.callingname, e->facname.callingnum);
+						strncpy(pri->pvts[chanpos]->lastcid_num, e->facname.callingnum, sizeof(pri->pvts[chanpos]->lastcid_num) - 1);
+						strncpy(pri->pvts[chanpos]->lastcid_name, e->facname.callingname, sizeof(pri->pvts[chanpos]->lastcid_name) - 1);
 						pri->pvts[chanpos]->subs[SUB_REAL].needcallerid =1;
 						zt_enable_ec(pri->pvts[chanpos]);
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
@@ -8497,7 +8517,8 @@ static int zap_show_channel(int fd, int argc, char **argv)
 			ast_cli(fd, "Extension: %s\n", tmp->exten);
 			ast_cli(fd, "Dialing: %s\n", tmp->dialing ? "yes" : "no");
 			ast_cli(fd, "Context: %s\n", tmp->context);
-			ast_cli(fd, "Caller ID string: %s\n", tmp->callerid);
+			ast_cli(fd, "Caller ID: %s\n", tmp->cid_num);
+			ast_cli(fd, "Caller ID name: %s\n", tmp->cid_name);
 			ast_cli(fd, "Destroy: %d\n", tmp->destroy);
 			ast_cli(fd, "InAlarm: %d\n", tmp->inalarm);
 			ast_cli(fd, "Signalling Type: %s\n", sig2str(tmp->sig));
@@ -8639,7 +8660,7 @@ static int change_callingpres(struct ast_channel *chan, void *data)
 	int mode = 0;
 	if (data) {
 		mode = atoi((char *)data);
-		chan->callingpres = mode;
+		chan->cid.cid_pres = mode;
 	} else
 		ast_log(LOG_NOTICE, "Application %s requres an argument: %s(number)\n", app_callingpres,app_callingpres);
 	return 0;
@@ -9253,10 +9274,12 @@ static int setup_zap(void)
 				ast_log(LOG_WARNING, "Invalid tonezone: %s\n", v->value);
 			}
 		} else if (!strcasecmp(v->name, "callerid")) {
-			if (!strcasecmp(v->value, "asreceived"))
-				callerid[0] = '\0';
-			else
-				strncpy(callerid, v->value, sizeof(callerid)-1);
+			if (!strcasecmp(v->value, "asreceived")) {
+				cid_num[0] = '\0';
+				cid_name[0] = '\0';
+			} else {
+				ast_callerid_split(v->value, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
+			}
 		} else if (!strcasecmp(v->name, "useincomingcalleridonzaptransfer")) {
 			zaptrcallerid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "restrictcid")) {

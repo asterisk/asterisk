@@ -318,8 +318,8 @@ static int write_metadata( FILE *logfile, char *signalling_type, struct ast_chan
 	char timestamp[80];
 	
 	/* Extract the caller ID location */
-	
-	strncpy(workstring, chan->callerid, sizeof(workstring) - 1);
+	if (chan->cid.cid_num)
+		strncpy(workstring, chan->cid.cid_num, sizeof(workstring) - 1);
 	workstring[sizeof(workstring) - 1] = '\0';
 	
 	ast_callerid_parse(workstring, &cn, &cl);

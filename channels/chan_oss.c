@@ -7,9 +7,9 @@
  * VERY BADLY WRITTEN DRIVER so please don't use it as a model for
  * writing a driver.
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -941,7 +941,7 @@ static int console_transfer(int fd, int argc, char *argv[])
 			context++;
 		} else
 			context = oss.owner->context;
-		if (ast_exists_extension(oss.owner->bridge, context, tmp, 1, oss.owner->bridge->callerid)) {
+		if (ast_exists_extension(oss.owner->bridge, context, tmp, 1, oss.owner->bridge->cid.cid_num)) {
 			ast_cli(fd, "Whee, transferring %s to %s@%s.\n", 
 					oss.owner->bridge->name, tmp, context);
 			if (ast_async_goto(oss.owner->bridge, context, tmp, 1))

@@ -3,9 +3,9 @@
  *
  * Provide a directory of extensions
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -176,7 +176,7 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dia
 				case '1':
 					/* Name selected */
 					loop = 0;
-					if (ast_exists_extension(chan,dialcontext,ext,1,chan->callerid)) {
+					if (ast_exists_extension(chan,dialcontext,ext,1,chan->cid.cid_num)) {
 						strncpy(chan->exten, ext, sizeof(chan->exten)-1);
 						chan->priority = 0;
 						strncpy(chan->context, dialcontext, sizeof(chan->context)-1);

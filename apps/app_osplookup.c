@@ -1,11 +1,11 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Time of day - Report the time of day
+ * Open Settlement Protocol Lookup
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -110,7 +110,7 @@ static int osplookup_exec(struct ast_channel *chan, void *data)
 	}
 	LOCAL_USER_ADD(u);
 	ast_log(LOG_DEBUG, "Whoo hoo, looking up OSP on '%s' via '%s'\n", temp, provider ? provider : "<default>");
-	if ((res = ast_osp_lookup(chan, provider, temp, chan->callerid, &result)) > 0) {
+	if ((res = ast_osp_lookup(chan, provider, temp, chan->cid.cid_num, &result)) > 0) {
 		char tmp[80];
 		snprintf(tmp, sizeof(tmp), "%d", result.handle);
 		pbx_builtin_setvar_helper(chan, "OSPHANDLE", tmp);
@@ -127,7 +127,7 @@ static int osplookup_exec(struct ast_channel *chan, void *data)
 	}
 	if (!res) {
 		/* Look for a "busy" place */
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
 			chan->priority += 100;
 	} else if (res > 0)
 		res = 0;
@@ -171,7 +171,7 @@ static int ospnext_exec(struct ast_channel *chan, void *data)
 	}
 	if (!res) {
 		/* Look for a "busy" place */
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
 			chan->priority += 100;
 	} else if (res > 0)
 		res = 0;
@@ -218,7 +218,7 @@ static int ospfinished_exec(struct ast_channel *chan, void *data)
 	}
 	if (!res) {
 		/* Look for a "busy" place */
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
 			chan->priority += 100;
 	} else if (res > 0)
 		res = 0;

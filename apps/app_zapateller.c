@@ -3,9 +3,9 @@
  *
  * Playback the special information tone to get rid of telemarketers
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -70,7 +70,7 @@ static int zapateller_exec(struct ast_channel *chan, void *data)
 			res = ast_safe_sleep(chan, 500);
 		}
 	}
-	if (chan->callerid && nocallerid) {
+	if (chan->cid.cid_num && nocallerid) {
 		LOCAL_USER_REMOVE(u);
 		return res;
 	} 

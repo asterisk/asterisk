@@ -3,9 +3,9 @@
  *
  * True call queues with optional send URL on answer
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * 2004-06-04: Priorities in queues added by inAccess Networks (work funded by Hellas On Line (HOL) www.hol.gr).
  *
@@ -318,8 +318,11 @@ static int join_queue(char *queuename, struct queue_ent *qe)
 				q->count++;
 				res = 0;
 				manager_event(EVENT_FLAG_CALL, "Join", 
-					"Channel: %s\r\nCallerID: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
-					qe->chan->name, (qe->chan->callerid ? qe->chan->callerid : "unknown"), q->name, qe->pos, q->count );
+					"Channel: %s\r\nCallerID: %s\r\nCallerIDName: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
+					qe->chan->name, 
+					qe->chan->cid.cid_num ? qe->chan->cid.cid_num : "unknown",
+					qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown",
+					q->name, qe->pos, q->count );
 #if 0
 ast_log(LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
 #endif
@@ -569,18 +572,21 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 	tmp->chan->appl = "AppQueue";
 	tmp->chan->data = "(Outgoing Line)";
 	tmp->chan->whentohangup = 0;
-	if (tmp->chan->callerid)
-		free(tmp->chan->callerid);
-	if (tmp->chan->ani)
-		free(tmp->chan->ani);
-	if (qe->chan->callerid)
-		tmp->chan->callerid = strdup(qe->chan->callerid);
-	else
-		tmp->chan->callerid = NULL;
-	if (qe->chan->ani)
-		tmp->chan->ani = strdup(qe->chan->ani);
-	else
-		tmp->chan->ani = NULL;
+	if (tmp->chan->cid.cid_num)
+		free(tmp->chan->cid.cid_num);
+	tmp->chan->cid.cid_num = NULL;
+	if (tmp->chan->cid.cid_name)
+		free(tmp->chan->cid.cid_name);
+	tmp->chan->cid.cid_name = NULL;
+	if (tmp->chan->cid.cid_ani)
+		free(tmp->chan->cid.cid_ani);
+	tmp->chan->cid.cid_ani = NULL;
+	if (qe->chan->cid.cid_num)
+		tmp->chan->cid.cid_num = strdup(qe->chan->cid.cid_num);
+	if (qe->chan->cid.cid_name)
+		tmp->chan->cid.cid_name = strdup(qe->chan->cid.cid_name);
+	if (qe->chan->cid.cid_ani)
+		tmp->chan->cid.cid_ani = strdup(qe->chan->cid.cid_ani);
 	/* Presense of ADSI CPE on outgoing channel follows ours */
 	tmp->chan->adsicpe = qe->chan->adsicpe;
 	/* Place the call, but don't wait on the answer */
@@ -601,11 +607,13 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 						"AgentCalled: %s/%s\r\n"
 						"ChannelCalling: %s\r\n"
 						"CallerID: %s\r\n"
+						"CallerIDName: %s\r\n"
 						"Context: %s\r\n"
 						"Extension: %s\r\n"
 						"Priority: %d\r\n",
 						tmp->tech, tmp->numsubst, qe->chan->name,
-						tmp->chan->callerid ? tmp->chan->callerid : "unknown <>",
+						tmp->chan->cid.cid_num ? tmp->chan->cid.cid_num : "unknown",
+						tmp->chan->cid.cid_name ? tmp->chan->cid.cid_name : "unknown",
 						qe->chan->context, qe->chan->exten, qe->chan->priority);
 		}
 		if (option_verbose > 2)
@@ -700,7 +708,7 @@ static int valid_exit(struct queue_ent *qe, char digit)
 		return 0;
 	tmp[0] = digit;
 	tmp[1] = '\0';
-	if (ast_exists_extension(qe->chan, qe->context, tmp, 1, qe->chan->callerid)) {
+	if (ast_exists_extension(qe->chan, qe->context, tmp, 1, qe->chan->cid.cid_num)) {
 		strncpy(qe->chan->context, qe->context, sizeof(qe->chan->context) - 1);
 		strncpy(qe->chan->exten, tmp, sizeof(qe->chan->exten) - 1);
 		qe->chan->priority = 0;
@@ -1410,7 +1418,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 		break;
 	case RES_EXISTS:
 		ast_log(LOG_WARNING, "Unable to remove interface '%s' from queue '%s': Not there\n", interface, queuename);
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid)) {
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
 			chan->priority += 100;
 		}
 		res = 0;
@@ -1487,7 +1495,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 		break;
 	case RES_EXISTS:
 		ast_log(LOG_WARNING, "Unable to add interface '%s' to queue '%s': Already there\n", interface, queuename);
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid)) {
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
 			chan->priority += 100;
 		}
 		res = 0;
@@ -1598,7 +1606,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	qe.last_pos_said = 0;
 	qe.last_pos = 0;
 	if (!join_queue(queuename, &qe)) {
-		ast_queue_log(queuename, chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", url ? url : "", chan->callerid ? chan->callerid : "");
+		ast_queue_log(queuename, chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", url ? url : "", chan->cid.cid_num ? chan->cid.cid_num : "");
 		/* Start music on hold */
 check_turns:
 		if (ringing) {
@@ -2108,10 +2116,14 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 				"Position: %d\r\n"
 				"Channel: %s\r\n"
 				"CallerID: %s\r\n"
+				"CallerIDName: %s\r\n"
 				"Wait: %ld\r\n"
 				"%s"
 				"\r\n", 
-					q->name, pos++, qe->chan->name, (qe->chan->callerid ? qe->chan->callerid : ""), (long)(now - qe->start), idText);
+					q->name, pos++, qe->chan->name, 
+					qe->chan->cid.cid_num ? qe->chan->cid.cid_num : "unknown",
+					qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown",
+					(long)(now - qe->start), idText);
 		ast_mutex_unlock(&s->lock);
 		ast_mutex_unlock(&q->lock);
 	}

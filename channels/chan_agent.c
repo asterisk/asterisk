@@ -457,12 +457,18 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		/* Call on this agent */
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "outgoing agentcall, to agent '%s', on '%s'\n", p->agent, p->chan->name);
-		if (p->chan->callerid)
-			free(p->chan->callerid);
-		if (ast->callerid)
-			p->chan->callerid = strdup(ast->callerid);
+		if (p->chan->cid.cid_num)
+			free(p->chan->cid.cid_num);
+		if (ast->cid.cid_num)
+			p->chan->cid.cid_num = strdup(ast->cid.cid_num);
 		else
-			p->chan->callerid = NULL;
+			p->chan->cid.cid_num = NULL;
+		if (p->chan->cid.cid_name)
+			free(p->chan->cid.cid_name);
+		if (ast->cid.cid_name)
+			p->chan->cid.cid_name = strdup(ast->cid.cid_name);
+		else
+			p->chan->cid.cid_name = NULL;
 		res = ast_call(p->chan, p->loginchan, 0);
 		CLEANUP(ast,p);
 		ast_mutex_unlock(&p->lock);
@@ -1290,9 +1296,9 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 									filename = "agent-loggedoff";
 								p->acknowledged = 0;
 								/* store/clear the global variable that stores agentid based on the callerid */
-								if (chan->callerid) {
+								if (chan->cid.cid_num) {
 									char agentvar[AST_MAX_BUF];
-									snprintf(agentvar, sizeof(agentvar), "%s_%s",GETAGENTBYCALLERID, chan->callerid);
+									snprintf(agentvar, sizeof(agentvar), "%s_%s",GETAGENTBYCALLERID, chan->cid.cid_num);
 									if (ast_strlen_zero(p->loginchan))
 										pbx_builtin_setvar_helper(NULL, agentvar, NULL);
 									else
@@ -1516,9 +1522,9 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 		if (strchr(data, 'n'))
 			nowarnings = 1;
 	}
-	if (chan->callerid) {
+	if (chan->cid.cid_num) {
 		char agentvar[AST_MAX_BUF];
-		snprintf(agentvar, sizeof(agentvar), "%s_%s", GETAGENTBYCALLERID, chan->callerid);
+		snprintf(agentvar, sizeof(agentvar), "%s_%s", GETAGENTBYCALLERID, chan->cid.cid_num);
 		if ((tmp = pbx_builtin_getvar_helper(NULL, agentvar))) {
 			struct agent_pvt *p = agents;
 			strncpy(agent, tmp, sizeof(agent) - 1);
@@ -1544,7 +1550,7 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 	}
 	/* check if there is n + 101 priority */
 	if (res) {
-	       if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid)) {
+	       if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
 			chan->priority+=100;
 			ast_verbose(VERBOSE_PREFIX_3 "Going to %d priority because there is no callerid or the agentid cannot be found.\n",chan->priority);
 	       }

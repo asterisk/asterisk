@@ -24,6 +24,7 @@
 #include <asterisk/ulaw.h>
 #include <asterisk/alaw.h>
 #include <asterisk/frame.h>
+#include <asterisk/channel.h>
 #include <asterisk/callerid.h>
 #include <asterisk/logger.h>
 #include <asterisk/fskmodem.h>
@@ -638,30 +639,53 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 	return -1;
 }
 
-static int __ast_callerid_generate(unsigned char *buf, char *callerid, int callwaiting, int codec)
+static int __ast_callerid_generate(unsigned char *buf, char *name, char *number, int callwaiting, int codec)
 {
-	char tmp[256];
-	char *n, *l;
-	if (!callerid)
-		return callerid_generate(buf, NULL, NULL, 0, callwaiting, codec);
-	strncpy(tmp, callerid, sizeof(tmp)-1);
-	if (ast_callerid_parse(tmp, &n, &l)) {
-		ast_log(LOG_WARNING, "Unable to parse '%s' into CallerID name & number\n", callerid);
-		return callerid_generate(buf, NULL, NULL, 0, callwaiting, codec);
+	if (name && ast_strlen_zero(name))
+		name = NULL;
+	if (number && ast_strlen_zero(number))
+		number = NULL;
+	return callerid_generate(buf, number, name, 0, callwaiting, codec);
+}
+
+int ast_callerid_generate(unsigned char *buf, char *name, char *number, int codec)
+{
+	return __ast_callerid_generate(buf, name, number, 0, codec);
+}
+
+int ast_callerid_callwaiting_generate(unsigned char *buf, char *name, char *number, int codec)
+{
+	return __ast_callerid_generate(buf, name, number, 1, codec);
+}
+
+char *ast_callerid_merge(char *buf, int bufsiz, const char *name, const char *num)
+{
+	if (name && num)
+		snprintf(buf, bufsiz, "\"%s\" <%s>", name, num);
+	else if (name) 
+		strncpy(buf, name, bufsiz - 1);
+	else if (num)
+		strncpy(buf, num, bufsiz - 1);
+	else
+		strncpy(buf, "<unknown>", bufsiz - 1);
+	return buf;
+}
+int ast_callerid_split(const char *buf, char *name, int namelen, char *num, int numlen)
+{
+	char *tmp;
+	char *l = NULL, *n = NULL;
+	tmp = ast_strdupa(buf);
+	if (!tmp) {
+		name[0] = '\0';
+		num[0] = '\0';
+		return -1;
 	}
-	if (l)
+	ast_callerid_parse(tmp, &n, &l);
+	if (n)
+		strncpy(name, n, namelen - 1);
+	if (l) {
 		ast_shrink_phone_number(l);
-	if (!ast_isphonenumber(l))
-		return callerid_generate(buf, NULL, n, 0, callwaiting, codec);
-	return callerid_generate(buf, l, n, 0, callwaiting, codec);
-}
-
-int ast_callerid_generate(unsigned char *buf, char *callerid, int codec)
-{
-	return __ast_callerid_generate(buf, callerid, 0, codec);
-}
-
-int ast_callerid_callwaiting_generate(unsigned char *buf, char *callerid, int codec)
-{
-	return __ast_callerid_generate(buf, callerid, 1, codec);
+		strncpy(num, l, numlen - 1);
+	}
+	return 0;
 }

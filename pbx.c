@@ -3,7 +3,7 @@
  *
  * Core PBX routines.
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -696,9 +696,7 @@ struct ast_context *ast_context_find(char *name)
 
 static int matchcid(char *cidpattern, char *callerid)
 {
-	char tmp[AST_MAX_EXTENSION];
 	int failresult;
-	char *name, *num;
 	
 	/* If the Caller*ID pattern is empty, then we're matching NO Caller*ID, so
 	   failing to get a number should count as a match, otherwise not */
@@ -712,15 +710,7 @@ static int matchcid(char *cidpattern, char *callerid)
 	if (!callerid)
 		return failresult;
 
-	/* Copy original Caller*ID */
-	strncpy(tmp, callerid, sizeof(tmp)-1);
-	/* Parse Number */
-	if (ast_callerid_parse(tmp, &name, &num)) 
-		return failresult;
-	if (!num)
-		return failresult;
-	ast_shrink_phone_number(num);
-	return ast_extension_match(cidpattern, num);
+	return ast_extension_match(cidpattern, callerid);
 }
 
 static struct ast_exten *pbx_find_extension(struct ast_channel *chan, char *context, char *exten, int priority, char *callerid, int action, char *incstack[], int *stacklen, int *status, struct ast_switch **swo, char **data)
@@ -824,7 +814,6 @@ static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var
 	struct tm brokentime;
 	int offset,offset2;
 	struct ast_var_t *variables;
-	char *name, *num; /* for callerid name + num variables */
 	struct varshead *headp=NULL;
 
 	if (c) 
@@ -876,31 +865,39 @@ static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var
 			*ret+=strlen(*ret)+offset;
 		(*ret)[offset2] = '\0';
 	} else if (c && !strcmp(var, "CALLERIDNUM")) {
-		if (c->callerid)
-			strncpy(workspace, c->callerid, workspacelen - 1);
-		ast_callerid_parse(workspace, &name, &num);
-		if (num) {
-			ast_shrink_phone_number(num);
-			*ret = num;
+		if (c->cid.cid_num) {
+			strncpy(workspace, c->cid.cid_num, workspacelen - 1);
+			*ret = workspace;
 		} else
+			*ret = NULL;
+	} else if (c && !strcmp(var, "CALLERANI")) {
+		if (c->cid.cid_ani) {
+			strncpy(workspace, c->cid.cid_ani, workspacelen - 1);
 			*ret = workspace;
+		} else
+			*ret = NULL;
 	} else if (c && !strcmp(var, "CALLERIDNAME")) {
-		if (c->callerid)
-			strncpy(workspace, c->callerid, workspacelen - 1);
-		ast_callerid_parse(workspace, &name, &num);
-		if (name)
-			*ret = name;
-		else
+		if (c->cid.cid_name) {
+			strncpy(workspace, c->cid.cid_name, workspacelen - 1);
 			*ret = workspace;
+		} else
+			*ret = NULL;
 	} else if (c && !strcmp(var, "CALLERID")) {
-		if (c->callerid) {
-			strncpy(workspace, c->callerid, workspacelen - 1);
+		if (c->cid.cid_num) {
+			if (c->cid.cid_name) {
+				snprintf(workspace, workspacelen, "\"%s\" <%s>", c->cid.cid_name, c->cid.cid_num);
+			} else {
+				strncpy(workspace, c->cid.cid_num, workspacelen - 1);
+			}
 			*ret = workspace;
-		} else 
+		} else if (c->cid.cid_name) {
+			strncpy(workspace, c->cid.cid_name, workspacelen - 1);
+			*ret = workspace;
+		} else
 			*ret = NULL;
 	} else if (c && !strcmp(var, "DNID")) {
-		if (c->dnid) {
-			strncpy(workspace, c->dnid, workspacelen - 1);
+		if (c->cid.cid_dnid) {
+			strncpy(workspace, c->cid.cid_dnid, workspacelen - 1);
 			*ret = workspace;
 		} else
 			*ret = NULL;
@@ -923,8 +920,8 @@ static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var
 		*ret = workspace;
 		ast_log(LOG_WARNING, "The use of 'EXTEN-foo' has been deprecated in favor of 'EXTEN:foo'\n");
 	} else if (c && !strcmp(var, "RDNIS")) {
-		if (c->rdnis) {
-			strncpy(workspace, c->rdnis, workspacelen - 1);
+		if (c->cid.cid_rdnis) {
+			strncpy(workspace, c->cid.cid_rdnis, workspacelen - 1);
 			*ret = workspace;
 		} else
 			*ret = NULL;
@@ -935,7 +932,16 @@ static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var
 		snprintf(workspace, workspacelen, "%d", c->priority);
 		*ret = workspace;
 	} else if (c && !strcmp(var, "CALLINGPRES")) {
-		snprintf(workspace, workspacelen, "%d", c->callingpres);
+		snprintf(workspace, workspacelen, "%d", c->cid.cid_pres);
+		*ret = workspace;
+	} else if (c && !strcmp(var, "CALLINGANI2")) {
+		snprintf(workspace, workspacelen, "%d", c->cid.cid_ani2);
+		*ret = workspace;
+	} else if (c && !strcmp(var, "CALLINGTON")) {
+		snprintf(workspace, workspacelen, "%d", c->cid.cid_ton);
+		*ret = workspace;
+	} else if (c && !strcmp(var, "CALLINGTNS")) {
+		snprintf(workspace, workspacelen, "%d", c->cid.cid_tns);
 		*ret = workspace;
 	} else if (c && !strcmp(var, "CHANNEL")) {
 		strncpy(workspace, c->name, workspacelen - 1);
@@ -1793,12 +1799,12 @@ int ast_pbx_run(struct ast_channel *c)
 	c->pbx->dtimeout = 5;
 
 	/* Start by trying whatever the channel is set to */
-	if (!ast_exists_extension(c, c->context, c->exten, c->priority, c->callerid)) {
+	if (!ast_exists_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)) {
 		/* JK02: If not successfull fall back to 's' */
 		if (option_verbose > 1)
 			ast_verbose( VERBOSE_PREFIX_2 "Starting %s at %s,%s,%d failed so falling back to exten 's'\n", c->name, c->context, c->exten, c->priority);
 		strncpy(c->exten, "s", sizeof(c->exten)-1);
-		if (!ast_exists_extension(c, c->context, c->exten, c->priority, c->callerid)) {
+		if (!ast_exists_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)) {
 			/* JK02: And finally back to default if everything else failed */
 			if (option_verbose > 1)
 				ast_verbose( VERBOSE_PREFIX_2 "Starting %s at %s,%s,%d still failed so falling back to context 'default'\n", c->name, c->context, c->exten, c->priority);
@@ -1811,9 +1817,9 @@ int ast_pbx_run(struct ast_channel *c)
 	for(;;) {
 		pos = 0;
 		digit = 0;
-		while(ast_exists_extension(c, c->context, c->exten, c->priority, c->callerid)) {
+		while(ast_exists_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)) {
 			memset(exten, 0, sizeof(exten));
-			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->callerid))) {
+			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num))) {
 				/* Something bad happened, or a hangup has been requested. */
 				if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F')) ||
 					(res == '*') || (res == '#')) {
@@ -1851,7 +1857,7 @@ int ast_pbx_run(struct ast_channel *c)
 					goto out;
 				}
 			}
-			if ((c->_softhangup == AST_SOFTHANGUP_TIMEOUT) && (ast_exists_extension(c,c->context,"T",1,c->callerid))) {
+			if ((c->_softhangup == AST_SOFTHANGUP_TIMEOUT) && (ast_exists_extension(c,c->context,"T",1,c->cid.cid_num))) {
 				strncpy(c->exten,"T",sizeof(c->exten) - 1);
 				/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
 				c->whentohangup = 0;
@@ -1865,9 +1871,9 @@ int ast_pbx_run(struct ast_channel *c)
 			firstpass = 0;
 			c->priority++;
 		}
-		if (!ast_exists_extension(c, c->context, c->exten, 1, c->callerid)) {
+		if (!ast_exists_extension(c, c->context, c->exten, 1, c->cid.cid_num)) {
 			/* It's not a valid extension anymore */
-			if (ast_exists_extension(c, c->context, "i", 1, c->callerid)) {
+			if (ast_exists_extension(c, c->context, "i", 1, c->cid.cid_num)) {
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Sent into invalid extension '%s' in context '%s' on %s\n", c->exten, c->context, c->name);
 				pbx_builtin_setvar_helper(c, "INVALID_EXTEN", c->exten);
@@ -1887,7 +1893,7 @@ int ast_pbx_run(struct ast_channel *c)
 				waittime = c->pbx->dtimeout;
 			else
 				waittime = c->pbx->rtimeout;
-			while (ast_matchmore_extension(c, c->context, exten, 1, c->callerid)) {
+			while (ast_matchmore_extension(c, c->context, exten, 1, c->cid.cid_num)) {
 				/* As long as we're willing to wait, and as long as it's not defined, 
 				   keep reading digits until we can't possibly get a right answer anymore.  */
 				digit = ast_waitfordigit(c, waittime * 1000);
@@ -1904,7 +1910,7 @@ int ast_pbx_run(struct ast_channel *c)
 					waittime = c->pbx->dtimeout;
 				}
 			}
-			if (ast_exists_extension(c, c->context, exten, 1, c->callerid)) {
+			if (ast_exists_extension(c, c->context, exten, 1, c->cid.cid_num)) {
 				/* Prepare the next cycle */
 				strncpy(c->exten, exten, sizeof(c->exten)-1);
 				c->priority = 1;
@@ -1912,7 +1918,7 @@ int ast_pbx_run(struct ast_channel *c)
 				/* No such extension */
 				if (!ast_strlen_zero(exten)) {
 					/* An invalid extension */
-					if (ast_exists_extension(c, c->context, "i", 1, c->callerid)) {
+					if (ast_exists_extension(c, c->context, "i", 1, c->cid.cid_num)) {
 						if (option_verbose > 2)
 							ast_verbose( VERBOSE_PREFIX_3 "Invalid extension '%s' in context '%s' on %s\n", exten, c->context, c->name);
 						pbx_builtin_setvar_helper(c, "INVALID_EXTEN", exten);
@@ -1924,7 +1930,7 @@ int ast_pbx_run(struct ast_channel *c)
 					}
 				} else {
 					/* A simple timeout */
-					if (ast_exists_extension(c, c->context, "t", 1, c->callerid)) {
+					if (ast_exists_extension(c, c->context, "t", 1, c->cid.cid_num)) {
 						if (option_verbose > 2)
 							ast_verbose( VERBOSE_PREFIX_3 "Timeout on %s\n", c->name);
 						strncpy(c->exten, "t", sizeof(c->exten)-1);
@@ -1945,12 +1951,12 @@ int ast_pbx_run(struct ast_channel *c)
 	if (firstpass) 
 		ast_log(LOG_WARNING, "Don't know what to do with '%s'\n", c->name);
 out:
-	if ((res != AST_PBX_KEEPALIVE) && ast_exists_extension(c, c->context, "h", 1, c->callerid)) {
+	if ((res != AST_PBX_KEEPALIVE) && ast_exists_extension(c, c->context, "h", 1, c->cid.cid_num)) {
 		c->exten[0] = 'h';
 		c->exten[1] = '\0';
 		c->priority = 1;
-		while(ast_exists_extension(c, c->context, c->exten, c->priority, c->callerid)) {
-			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->callerid))) {
+		while(ast_exists_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)) {
+			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num))) {
 				/* Something bad happened, or a hangup has been requested. */
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
@@ -4033,7 +4039,7 @@ static void *async_wait(void *data)
 	return NULL;
 }
 
-int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char *context, char *exten, int priority, int *reason, int sync, char *callerid, char *variable, char *account)
+int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char *context, char *exten, int priority, int *reason, int sync, char *cid_num, char *cid_name, char *variable, char *account)
 {
 	struct ast_channel *chan;
 	struct async_stat *as;
@@ -4044,7 +4050,7 @@ int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char
 		
 	if (sync) {
 		LOAD_OH(oh);
-		chan = __ast_request_and_dial(type, format, data, timeout, reason, callerid, &oh);
+		chan = __ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name, &oh);
 		if (chan) {
 			pbx_builtin_setaccount(chan, account);
 			if (chan->_state == AST_STATE_UP) {
@@ -4099,7 +4105,7 @@ int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char
 		if (!as)
 			return -1;
 		memset(as, 0, sizeof(struct async_stat));
-		chan = ast_request_and_dial(type, format, data, timeout, reason, callerid);
+		chan = ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name);
 		if (!chan) {
 			free(as);
 			return -1;
@@ -4151,7 +4157,7 @@ static void *ast_pbx_run_app(void *data)
 	return NULL;
 }
 
-int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *app, char *appdata, int *reason, int sync, char *callerid, char *variable, char *account)
+int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *app, char *appdata, int *reason, int sync, char *cid_num, char *cid_name, char *variable, char *account)
 {
 	struct ast_channel *chan;
 	struct async_stat *as;
@@ -4163,7 +4169,7 @@ int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *
 	if (!app || ast_strlen_zero(app))
 		return -1;
 	if (sync) {
-		chan = ast_request_and_dial(type, format, data, timeout, reason, callerid);
+		chan = ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name);
 		if (chan) {
 			pbx_builtin_setaccount(chan, account);
 			if (variable) {
@@ -4209,7 +4215,7 @@ int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *
 		if (!as)
 			return -1;
 		memset(as, 0, sizeof(struct async_stat));
-		chan = ast_request_and_dial(type, format, data, timeout, reason, callerid);
+		chan = ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name);
 		if (!chan) {
 			free(as);
 			return -1;

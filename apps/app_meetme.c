@@ -821,7 +821,7 @@ zapretry:
 					char tmp[2];
 					tmp[0] = f->subclass;
 					tmp[1] = '\0';
-					if (ast_exists_extension(chan, exitcontext, tmp, 1, chan->callerid)) {
+					if (ast_exists_extension(chan, exitcontext, tmp, 1, chan->cid.cid_num)) {
 						strncpy(chan->context, exitcontext, sizeof(chan->context) - 1);
 						strncpy(chan->exten, tmp, sizeof(chan->exten) - 1);
 						chan->priority = 0;

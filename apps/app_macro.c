@@ -3,7 +3,7 @@
  *
  * Macro Implementation
  * 
- * Copyright (C) 2003, Digium
+ * Copyright (C) 2003-2004, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -85,7 +85,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	return 0;
   }
   snprintf(fullmacro, sizeof(fullmacro), "macro-%s", macro);
-  if (!ast_exists_extension(chan, fullmacro, "s", 1, chan->callerid)) {
+  if (!ast_exists_extension(chan, fullmacro, "s", 1, chan->cid.cid_num)) {
   	if (!ast_context_find(fullmacro)) 
 		ast_log(LOG_WARNING, "No such context '%s' for macro '%s'\n", fullmacro, macro);
 	else
@@ -137,8 +137,8 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	pbx_builtin_setvar_helper(chan, varname, cur);
 	argc++;
   }
-  while(ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->callerid)) {
-	if ((res = ast_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->callerid))) {
+  while(ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
+	if ((res = ast_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num))) {
 		/* Something bad happened, or a hangup has been requested. */
 		if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F'))) {
 			/* Just return result as to the previous application as if it had been dialed */
@@ -210,7 +210,7 @@ out:
 			/* Handle macro offset if it's set by checking the availability of step n + offset + 1, otherwise continue
 			   normally if there is any problem */
 			if (sscanf(offsets, "%d", &offset) == 1) {
-				if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + offset + 1, chan->callerid)) {
+				if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + offset + 1, chan->cid.cid_num)) {
 					chan->priority += offset;
 				}
 			}

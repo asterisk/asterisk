@@ -201,13 +201,14 @@ static struct ast_frame *bestdata_handle_escape(struct ast_modem_pvt *p, char es
 		p->gotclid = 1;
 		if ((!strcmp(name,"O")) || (!strcmp(name,"P"))) name[0] = 0;
 		if ((!strcmp(nmbr,"O")) || (!strcmp(nmbr,"P"))) nmbr[0] = 0;
-		if ((name[0]) && (nmbr[0])) snprintf(p->cid,sizeof(p->cid),
-			"\"%s\" <%s>",name,nmbr);
-		else if (name[0]) snprintf(p->cid,sizeof(p->cid),
-			"\"%s\"",name);
-		else if (nmbr[0]) snprintf(p->cid,sizeof(p->cid),
-			"%s",nmbr);
-		if (p->owner) p->owner->callerid = strdup(p->cid);
+		if (name[0])
+			strncpy(p->cid_name, name, sizeof(p->cid_name) - 1);
+		if (nmbr[0])
+			strncpy(p->cid_num, nmbr, sizeof(p->cid_num) - 1);
+		if (p->owner) {
+			p->owner->cid.cid_num = strdup(p->cid_num);
+			p->owner->cid.cid_name = strdup(p->cid_name);
+		}
 		return &p->fr;
 	case '@': /* response from "OK" in command mode */
 		if (p->owner)

@@ -3,9 +3,9 @@
  *
  * CallerID (and other GR30) Generation support 
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License.
@@ -118,16 +118,16 @@ extern void callerid_free(struct callerid_state *cid);
  *
  * Acts like callerid_generate except uses an asterisk format callerid string.
  */
-extern int ast_callerid_generate(unsigned char *buf, char *astcid, int codec);
+extern int ast_callerid_generate(unsigned char *buf, char *name, char *number, int codec);
 
 //! Generate message waiting indicator 
 extern int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec);
 
-//! Generate Caller-ID spill from the "callerid" field of asterisk (in e-mail address like format) but in a format suitable for Call Waiting(tm)'s Caller*ID(tm)
+//! Generate Caller-ID spill but in a format suitable for Call Waiting(tm)'s Caller*ID(tm)
 /*!
  * See ast_callerid_generate for other details
  */
-extern int ast_callerid_callwaiting_generate(unsigned char *buf, char *astcid, int codec);
+extern int ast_callerid_callwaiting_generate(unsigned char *buf, char *name, char *number, int codec);
 
 //! Destructively parse inbuf into name and location (or number)
 /*!
@@ -163,6 +163,9 @@ extern void ast_shrink_phone_number(char *n);
  */
 extern int ast_isphonenumber(char *n);
 
+extern int ast_callerid_split(const char *src, char *name, int namelen, char *num, int numlen);
+
+extern char *ast_callerid_merge(char *buf, int bufsiz, const char *name, const char *num);
 
 /*
  * Caller*ID and other GR-30 compatible generation

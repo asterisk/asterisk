@@ -3,7 +3,7 @@
  *
  * Full-featured outgoing call spool support
  * 
- * Copyright (C) 2002, Digium
+ * Copyright (C) 2002-2004, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -15,6 +15,7 @@
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
+#include <asterisk/callerid.h>
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
 #include <asterisk/options.h>
@@ -67,7 +68,8 @@ struct outgoing {
 	int priority;
 
 	/* CallerID Information */
-	char callerid[256];
+	char cid_num[256];
+	char cid_name[256];
 
 	/* Channel variables */
 	char variable[10*256];
@@ -132,7 +134,7 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 							o->tech[0] = '\0';
 						}
 					} else if (!strcasecmp(buf, "callerid")) {
-						strncpy(o->callerid, c, sizeof(o->callerid) - 1);
+						ast_callerid_split(c, o->cid_name, sizeof(o->cid_name), o->cid_num, sizeof(o->cid_num));
 					} else if (!strcasecmp(buf, "application")) {
 						strncpy(o->app, c, sizeof(o->app) - 1);
 					} else if (!strcasecmp(buf, "data")) {
@@ -222,11 +224,11 @@ static void *attempt_thread(void *data)
 	if (!ast_strlen_zero(o->app)) {
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Attempting call on %s/%s for application %s(%s) (Retry %d)\n", o->tech, o->dest, o->app, o->data, o->retries);
-		res = ast_pbx_outgoing_app(o->tech, AST_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->app, o->data, &reason, 2 /* wait to finish */, o->callerid, o->variable, o->account);
+		res = ast_pbx_outgoing_app(o->tech, AST_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->app, o->data, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->variable, o->account);
 	} else {
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Attempting call on %s/%s for %s@%s:%d (Retry %d)\n", o->tech, o->dest, o->exten, o->context,o->priority, o->retries);
-		res = ast_pbx_outgoing_exten(o->tech, AST_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->context, o->exten, o->priority, &reason, 2 /* wait to finish */, o->callerid, o->variable, o->account);
+		res = ast_pbx_outgoing_exten(o->tech, AST_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->context, o->exten, o->priority, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->variable, o->account);
 	}
 	if (res) {
 		ast_log(LOG_NOTICE, "Call failed to go through, reason %d\n", reason);

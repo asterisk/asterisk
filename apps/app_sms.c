@@ -1050,17 +1050,8 @@ sms_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	if (chan->callerid) {
-		/* get caller ID. Used as originating address on sc side receives */
-		char temp[256], *name, *num;
-		strncpy (temp, chan->callerid, sizeof(temp) - 1);
-		ast_callerid_parse (temp, &name, &num);
-		if (!num)
-			num = temp;
-		ast_shrink_phone_number (num);
-		if (strlen (num) < sizeof (h.cli))
-			strncpy(h.cli, num, sizeof(h.cli) - 1);
-	}
+	if (chan->cid.cid_num) 
+		strncpy(h.cli, chan->cid.cid_num, sizeof(h.cli) - 1);
 
 	{
 		char *d = data, *p, answer = 0;

@@ -3,9 +3,9 @@
  *
  * App to set callerid
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  * Oliver Daudey <traveler@xs4all.nl>
  *
  * This program is free software, distributed under the terms of
@@ -44,12 +44,10 @@ LOCAL_USER_DECL;
 static int setcallerid_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	char tmp[256] = "";
-	char oldcid[256] = "", *l, *n;
-	char newcid[256] = "";
 	struct localuser *u;
 	char *opt;
 	int anitoo = 0;
+	char tmp[256];
 	if (data)
 		strncpy(tmp, (char *)data, sizeof(tmp) - 1);
 	opt = strchr(tmp, '|');
@@ -60,21 +58,7 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 			anitoo = 1;
 	}
 	LOCAL_USER_ADD(u);
-	if (chan->callerid) {
-		strncpy(oldcid, chan->callerid, sizeof(oldcid) - 1);
-		ast_callerid_parse(oldcid, &n, &l);
-		l = tmp;
-		if (!ast_strlen_zero(l)) {
-			if (n && !ast_strlen_zero(n))
-				snprintf(newcid, sizeof(newcid), "\"%s\" <%s>", n, l);
-			else
-				strncpy(newcid, tmp, sizeof(newcid) - 1);
-		} else if (n && !ast_strlen_zero(n)) {
-			strncpy(newcid, n, sizeof(newcid) - 1);
-		}
-	} else
-		strncpy(newcid, tmp, sizeof(newcid) - 1);
-	ast_set_callerid(chan, !ast_strlen_zero(newcid) ? newcid : NULL, anitoo);
+	ast_set_callerid(chan, tmp, NULL, anitoo ? tmp : NULL);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }

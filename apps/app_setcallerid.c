@@ -89,7 +89,7 @@ static int setcallerid_pres_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	LOCAL_USER_ADD(u);
-	chan->callingpres = pres;
+	chan->cid.cid_pres = pres;
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
@@ -110,6 +110,8 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	char tmp[256] = "";
+	char name[256];
+	char num[256];
 	struct localuser *u;
 	char *opt;
 	int anitoo = 0;
@@ -123,7 +125,8 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 			anitoo = 1;
 	}
 	LOCAL_USER_ADD(u);
-	ast_set_callerid(chan, strlen(tmp) ? tmp : NULL, anitoo);
+	ast_callerid_split(tmp, name, sizeof(name), num, sizeof(num));
+	ast_set_callerid(chan, num, name, anitoo ? num : NULL);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }

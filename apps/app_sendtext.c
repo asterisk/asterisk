@@ -3,9 +3,9 @@
  *
  * App to transmit a text message
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -54,7 +54,7 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 	if (!chan->pvt->send_text) {
 		ast_mutex_unlock(&chan->lock);
 		/* Does not support transport */
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
 			chan->priority += 100;
 		LOCAL_USER_REMOVE(u);
 		return 0;

@@ -3,7 +3,7 @@
  *
  * Check if Channel is Available
  * 
- * Copyright (C) 2003, Digium
+ * Copyright (C) 2003-2004, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  * James Golovich <james@gnuinter.net>
@@ -97,7 +97,7 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 	if (res < 1) {
 		pbx_builtin_setvar_helper(chan, "AVAILCHAN", "");
 		pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", "");
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
 			chan->priority+=100;
 		else
 			return -1;

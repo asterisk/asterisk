@@ -558,6 +558,20 @@ int ast_safe_sleep(struct ast_channel *chan, int ms)
 	return 0;
 }
 
+static void free_cid(struct ast_callerid *cid)
+{
+	if (cid->cid_dnid)
+		free(cid->cid_dnid);
+	if (cid->cid_num)
+		free(cid->cid_num);	
+	if (cid->cid_name)
+		free(cid->cid_name);	
+	if (cid->cid_ani)
+		free(cid->cid_ani);
+	if (cid->cid_rdnis)
+		free(cid->cid_rdnis);
+}
+
 void ast_channel_free(struct ast_channel *chan)
 {
 	struct ast_channel *last=NULL, *cur;
@@ -607,14 +621,7 @@ void ast_channel_free(struct ast_channel *chan)
 		ast_translator_free_path(chan->pvt->writetrans);
 	if (chan->pbx) 
 		ast_log(LOG_WARNING, "PBX may not have been terminated properly on '%s'\n", chan->name);
-	if (chan->dnid)
-		free(chan->dnid);
-	if (chan->callerid)
-		free(chan->callerid);	
-	if (chan->ani)
-		free(chan->ani);
-	if (chan->rdnis)
-		free(chan->rdnis);
+	free_cid(&chan->cid);
 	ast_mutex_destroy(&chan->lock);
 	/* Close pipes if appropriate */
 	if ((fd = chan->pvt->alertpipe[0]) > -1)
@@ -1743,7 +1750,7 @@ int ast_set_read_format(struct ast_channel *chan, int fmts)
 	return 0;
 }
 
-struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, int timeout, int *outstate, char *callerid, struct outgoing_helper *oh)
+struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, int timeout, int *outstate, char *cid_num, char *cid_name, struct outgoing_helper *oh)
 {
 	int state = 0;
 	struct ast_channel *chan;
@@ -1764,13 +1771,11 @@ struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, i
 			while( (var = strtok_r(NULL, "|", &tmp)) ) {
 				pbx_builtin_setvar( chan, var );
 			} /* /JDG */
-			if (oh->callerid && *oh->callerid)
-				ast_set_callerid(chan, oh->callerid, 1);
+			ast_set_callerid(chan, oh->cid_num, oh->cid_name, oh->cid_num);
 			if (oh->account && *oh->account)
 				ast_cdr_setaccount(chan, oh->account);
 		}
-		if (callerid && !ast_strlen_zero(callerid))
-			ast_set_callerid(chan, callerid, 1);
+		ast_set_callerid(chan, cid_num, cid_name, cid_num);
 
 		if (!ast_call(chan, data, 0)) {
 			while(timeout && (chan->_state != AST_STATE_UP)) {
@@ -1853,9 +1858,9 @@ struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, i
 	return chan;
 }
 
-struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int timeout, int *outstate, char *callerid)
+struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int timeout, int *outstate, char *cidnum, char *cidname)
 {
-	return __ast_request_and_dial(type, format, data, timeout, outstate, callerid, NULL);
+	return __ast_request_and_dial(type, format, data, timeout, outstate, cidnum, cidname, NULL);
 }
 
 struct ast_channel *ast_request(char *type, int format, void *data)
@@ -1889,8 +1894,9 @@ struct ast_channel *ast_request(char *type, int format, void *data)
 					"Channel: %s\r\n"
 					"State: %s\r\n"
 					"Callerid: %s\r\n"
+					"CalleridName: %s\r\n"
 					"Uniqueid: %s\r\n",
-					c->name, ast_state2str(c->_state), c->callerid ? c->callerid : "<unknown>", c->uniqueid);
+					c->name, ast_state2str(c->_state), c->cid.cid_num ? c->cid.cid_num : "<unknown>", c->cid.cid_name ? c->cid.cid_name : "<unknown>",c->uniqueid);
 				}
 			}
 			return c;
@@ -2194,10 +2200,10 @@ int ast_do_masquerade(struct ast_channel *original)
 	int x,i;
 	int res=0;
 	int origstate;
-	char *tmp;
 	struct ast_var_t *varptr;
 	struct ast_frame *cur, *prev;
 	struct ast_channel_pvt *p;
+	struct ast_callerid tmpcid;
 	struct ast_channel *clone = original->masq;
 	int rformat = original->readformat;
 	int wformat = original->writeformat;
@@ -2336,16 +2342,11 @@ int ast_do_masquerade(struct ast_channel *original)
 	/* Stream stuff stays the same */
 	/* Keep the original state.  The fixup code will need to work with it most likely */
 
-	/* dnid and callerid change to become the new, HOWEVER, we also link the original's
-	   fields back into the defunct 'clone' so that they will be freed when
-	   ast_frfree is eventually called */
-	tmp = original->dnid;
-	original->dnid = clone->dnid;
-	clone->dnid = tmp;
-	
-	tmp = original->callerid;
-	original->callerid = clone->callerid;
-	clone->callerid = tmp;
+	/* Just swap the whole structures, nevermind the allocations, they'll work themselves
+	   out. */
+	tmpcid = original->cid;
+	original->cid = clone->cid;
+	clone->cid = tmpcid;
 	
 	/* Restore original timing file descriptor */
 	original->fds[AST_MAX_FDS - 2] = original->timingfd;
@@ -2400,29 +2401,43 @@ int ast_do_masquerade(struct ast_channel *original)
 	return 0;
 }
 
-void ast_set_callerid(struct ast_channel *chan, char *callerid, int anitoo)
+void ast_set_callerid(struct ast_channel *chan, char *callerid, char *calleridname, char *ani)
 {
-	if (chan->callerid)
-		free(chan->callerid);
-	if (anitoo && chan->ani)
-		free(chan->ani);
 	if (callerid) {
-		chan->callerid = strdup(callerid);
-		if (anitoo)
-			chan->ani = strdup(callerid);
-	} else {
-		chan->callerid = NULL;
-		if (anitoo)
-			chan->ani = NULL;
+		if (chan->cid.cid_num)
+			free(chan->cid.cid_num);
+		if (ast_strlen_zero(callerid))
+			chan->cid.cid_num = NULL;
+		else
+			chan->cid.cid_num = strdup(callerid);
+	}
+	if (calleridname) {
+		if (chan->cid.cid_name)
+			free(chan->cid.cid_name);
+		if (ast_strlen_zero(calleridname))
+			chan->cid.cid_name = NULL;
+		else
+			chan->cid.cid_name = strdup(calleridname);
+	}
+	if (ani) {
+		if (chan->cid.cid_ani)
+			free(chan->cid.cid_ani);
+		if (ast_strlen_zero(ani))
+			chan->cid.cid_ani = NULL;
+		else
+			chan->cid.cid_ani = strdup(ani);
 	}
 	if (chan->cdr)
 		ast_cdr_setcid(chan->cdr, chan);
 	manager_event(EVENT_FLAG_CALL, "Newcallerid", 
 				"Channel: %s\r\n"
 				"Callerid: %s\r\n"
+				"CalleridName: %s\r\n"
 				"Uniqueid: %s\r\n",
-				chan->name, chan->callerid ? 
-				chan->callerid : "<Unknown>",
+				chan->name, chan->cid.cid_num ? 
+				chan->cid.cid_num : "<Unknown>",
+				chan->cid.cid_name ? 
+				chan->cid.cid_name : "<Unknown>",
 				chan->uniqueid);
 }
 
@@ -2437,15 +2452,23 @@ int ast_setstate(struct ast_channel *chan, int state)
 			"Channel: %s\r\n"
 			"State: %s\r\n"
 			"Callerid: %s\r\n"
+			"CalleridName: %s\r\n"
 			"Uniqueid: %s\r\n",
-			chan->name, ast_state2str(chan->_state), chan->callerid ? chan->callerid : "<unknown>", chan->uniqueid);
+			chan->name, ast_state2str(chan->_state), 
+			chan->cid.cid_num ? chan->cid.cid_num : "<unknown>", 
+			chan->cid.cid_name ? chan->cid.cid_name : "<unknown>", 
+			chan->uniqueid);
 		} else {
 			manager_event(EVENT_FLAG_CALL, "Newstate", 
 				"Channel: %s\r\n"
 				"State: %s\r\n"
 				"Callerid: %s\r\n"
+				"CalleridName: %s\r\n"
 				"Uniqueid: %s\r\n",
-				chan->name, ast_state2str(chan->_state), chan->callerid ? chan->callerid : "<unknown>", chan->uniqueid);
+				chan->name, ast_state2str(chan->_state), 
+				chan->cid.cid_num ? chan->cid.cid_num : "<unknown>", 
+				chan->cid.cid_name ? chan->cid.cid_name : "<unknown>", 
+				chan->uniqueid);
 		}
 	}
 	return 0;

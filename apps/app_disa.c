@@ -3,7 +3,7 @@
  *
  * DISA -- Direct Inward System Access Application  6/20/2001
  * 
- * Copyright (C) 2001, Linux Support Services, Inc.
+ * Copyright (C) 2001-2004, Digium, Inc.
  *
  * Jim Dixon <jim@lambdatel.com>
  *
@@ -293,20 +293,20 @@ static int disa_exec(struct ast_channel *chan, void *data)
 				}
 
 			  /* if can do some more, do it */
-			if (!ast_matchmore_extension(chan,ourcontext,exten,1, chan->callerid)) {
+			if (!ast_matchmore_extension(chan,ourcontext,exten,1, chan->cid.cid_num)) {
 				break;
 			}
 		}
 	}
 
-	if (k && ast_exists_extension(chan,ourcontext,exten,1, chan->callerid))
+	if (k && ast_exists_extension(chan,ourcontext,exten,1, chan->cid.cid_num))
 	{
 		ast_playtones_stop(chan);
 		/* We're authenticated and have a valid extension */
 		if (ourcallerid && *ourcallerid)
 		{
-			if (chan->callerid) free(chan->callerid);
-			chan->callerid = strdup(ourcallerid);
+			if (chan->cid.cid_num) free(chan->cid.cid_num);
+			chan->cid.cid_num = strdup(ourcallerid);
 		}
 		strncpy(chan->exten, exten, sizeof(chan->exten) - 1);
 		strncpy(chan->context, ourcontext, sizeof(chan->context) - 1);

@@ -174,7 +174,7 @@ static int group_check_exec(struct ast_channel *chan, void *data)
 			
 			count = group_get_count(pbx_builtin_getvar_helper(chan, ret), ret);
 			if (count > max) {
-				if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
+				if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
 					chan->priority += 100;
 				else
 					res = -1;

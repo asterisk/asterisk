@@ -3,10 +3,10 @@
  *
  * Database access functions
  *
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  * Copyright (C) 2003, Jefferson Noxon
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  * Jefferson Noxon <jeff@debian.org>
  *
  * This program is free software, distributed under the terms of
@@ -200,7 +200,7 @@ static int get_exec (struct ast_channel *chan, void *data)
 			if (option_verbose > 2)
 			ast_verbose (VERBOSE_PREFIX_3 "DBget: Value not found in database.\n");
 			/* Send the call to n+101 priority, where n is the current priority */
-			if (ast_exists_extension (chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
+			if (ast_exists_extension (chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
 				chan->priority += 100;
 		}
 

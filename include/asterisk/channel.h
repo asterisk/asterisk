@@ -48,6 +48,27 @@ struct ast_generator {
 	int (*generate)(struct ast_channel *chan, void *data, int len, int samples);
 };
 
+struct ast_callerid {
+	/*! Malloc'd Dialed Number Identifier */
+	char *cid_dnid;				
+	/*! Malloc'd Caller Number */
+	char *cid_num;
+	/*! Malloc'd Caller Name */
+	char *cid_name;
+	/*! Malloc'd ANI */
+	char *cid_ani;			
+	/*! Malloc'd RDNIS */
+	char *cid_rdnis;
+	/*! Callerid presentation/screening */
+	int cid_pres;
+	/*! Callerid ANI 2 (Info digits) */
+	int cid_ani2;
+	/*! Callerid Type of Number */
+	int cid_ton;
+	/*! Callerid Transit Network Select */
+	int cid_tns;
+};
+
 //! Main Channel structure associated with a channel.
 /*! 
  * This is the side of it mostly used by the pbx and call management.
@@ -144,21 +165,8 @@ struct ast_channel {
 	/*! Requested write format */
 	int writeformat;			
 
-	
-	/*! Malloc'd Dialed Number Identifier */
-	char *dnid;				
-	/*! Malloc'd Caller ID */
-	char *callerid;
-	/*! Malloc'd ANI */
-	char *ani;			
-	/*! Malloc'd RDNIS */
-	char *rdnis;
-	/*! Hide callerid from user */
-	int restrictcid;
-	/*! Callerid presentation/screening */
-	int callingpres;
-
-	
+	struct ast_callerid cid;
+		
 	/*! Current extension context */
 	char context[AST_MAX_EXTENSION];	
 	/*! Current non-macro context */
@@ -288,7 +296,8 @@ struct chanmon;
 	oh.context = context; \
 	oh.exten = exten; \
 	oh.priority = priority; \
-	oh.callerid = callerid; \
+	oh.cid_num = cid_num; \
+	oh.cid_name = cid_name; \
 	oh.variable = variable; \
 	oh.account = account; \
 } 
@@ -297,7 +306,8 @@ struct outgoing_helper {
 	char *context;
 	char *exten;
 	int priority;
-	char *callerid;
+	char *cid_num;
+	char *cid_name;
 	char *variable;
 	char *account;
 };
@@ -401,9 +411,9 @@ int ast_device_state(char *device);
  * Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
  * to know if the call was answered or not.
  */
-struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int timeout, int *reason, char *callerid);
+struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int timeout, int *reason, char *cidnum, char *cidname);
 
-struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, int timeout, int *reason, char *callerid, struct outgoing_helper *oh);
+struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, int timeout, int *reason, char *cidnum, char *cidname, struct outgoing_helper *oh);
 
 //! Registers a channel
 /*! 
@@ -780,7 +790,7 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 /*! Deactive an active generator */
 void ast_deactivate_generator(struct ast_channel *chan);
 
-void ast_set_callerid(struct ast_channel *chan, char *callerid, int  anitoo);
+void ast_set_callerid(struct ast_channel *chan, char *cidnum, char *cidname, char *ani);
 
 /*! Start a tone going */
 int ast_tonepair_start(struct ast_channel *chan, int freq1, int freq2, int duration, int vol);

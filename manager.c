@@ -29,6 +29,7 @@
 #include <asterisk/file.h>
 #include <asterisk/manager.h>
 #include <asterisk/config.h>
+#include <asterisk/callerid.h>
 #include <asterisk/lock.h>
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
@@ -46,7 +47,8 @@ struct fast_originate_helper
 	int timeout;
 	char app[256];
 	char appdata[256];
-	char callerid[256];
+	char cid_name[256];
+	char cid_num[256];
 	char variable[256];
 	char account[256];
 	char context[256];
@@ -693,6 +695,7 @@ static int action_status(struct mansession *s, struct message *m)
 			"Event: Status\r\n"
 			"Channel: %s\r\n"
 			"CallerID: %s\r\n"
+			"CallerIDName: %s\r\n"
 			"Account: %s\r\n"
 			"State: %s\r\n"
 			"Context: %s\r\n"
@@ -703,7 +706,9 @@ static int action_status(struct mansession *s, struct message *m)
 			"Uniqueid: %s\r\n"
 			"%s"
 			"\r\n",
-			c->name, c->callerid ? c->callerid : "<unknown>", 
+			c->name, 
+			c->cid.cid_num ? c->cid.cid_num : "<unknown>", 
+			c->cid.cid_name ? c->cid.cid_name : "<unknown>", 
 			c->accountcode,
 			ast_state2str(c->_state), c->context,
 			c->exten, c->priority, (long)elapsed_seconds, bridge, c->uniqueid, idText);
@@ -712,13 +717,16 @@ static int action_status(struct mansession *s, struct message *m)
 			"Event: Status\r\n"
 			"Channel: %s\r\n"
 			"CallerID: %s\r\n"
+			"CallerIDName: %s\r\n"
 			"Account: %s\r\n"
 			"State: %s\r\n"
 			"%s"
 			"Uniqueid: %s\r\n"
 			"%s"
 			"\r\n",
-			c->name, c->callerid ? c->callerid : "<unknown>", 
+			c->name, 
+			c->cid.cid_num ? c->cid.cid_num : "<unknown>", 
+			c->cid.cid_name ? c->cid.cid_name : "<unknown>", 
 			c->accountcode,
 			ast_state2str(c->_state), bridge, c->uniqueid, idText);
 		}
@@ -810,9 +818,15 @@ static void *fast_originate(void *data)
 	int res;
 	int reason = 0;
 	if (!ast_strlen_zero(in->app)) {
-		res = ast_pbx_outgoing_app(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->app, in->appdata, &reason, 1, !ast_strlen_zero(in->callerid) ? in->callerid : NULL, in->variable, in->account);
+		res = ast_pbx_outgoing_app(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->app, in->appdata, &reason, 1, 
+			!ast_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
+			!ast_strlen_zero(in->cid_name) ? in->cid_name : NULL,
+			in->variable, in->account);
 	} else {
-		res = ast_pbx_outgoing_exten(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, !ast_strlen_zero(in->callerid) ? in->callerid : NULL, in->variable, in->account);
+		res = ast_pbx_outgoing_exten(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, 
+			!ast_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
+			!ast_strlen_zero(in->cid_name) ? in->cid_name : NULL,
+			in->variable, in->account);
 	}   
 	if (!res)
 		manager_event(EVENT_FLAG_CALL,
@@ -859,18 +873,21 @@ static int action_originate(struct mansession *s, struct message *m)
 	char *priority = astman_get_header(m, "Priority");
 	char *timeout = astman_get_header(m, "Timeout");
 	char *callerid = astman_get_header(m, "CallerID");
-    	char *variable = astman_get_header(m, "Variable");
-    	char *account = astman_get_header(m, "Account");
+    char *variable = astman_get_header(m, "Variable");
+    char *account = astman_get_header(m, "Account");
 	char *app = astman_get_header(m, "Application");
 	char *appdata = astman_get_header(m, "Data");
 	char *async = astman_get_header(m, "Async");
 	char *id = astman_get_header(m, "ActionID");
 	char *tech, *data;
+	char *l=NULL, *n=NULL;
 	int pi = 0;
 	int res;
 	int to = 30000;
 	int reason = 0;
 	char tmp[256];
+	char tmp2[256]="";
+	
 	pthread_t th;
 	pthread_attr_t attr;
 	if (!name) {
@@ -894,6 +911,17 @@ static int action_originate(struct mansession *s, struct message *m)
 	}
 	*data = '\0';
 	data++;
+	strncpy(tmp2, callerid, sizeof(tmp2) - 1);
+	ast_callerid_parse(tmp2, &n, &l);
+	if (n) {
+		if (ast_strlen_zero(n))
+			n = NULL;
+	}
+	if (l) {
+		ast_shrink_phone_number(l);
+		if (ast_strlen_zero(l))
+			l = NULL;
+	}
 	if (ast_true(async)) {
 		struct fast_originate_helper *fast = malloc(sizeof(struct fast_originate_helper));
 		if (!fast) {
@@ -906,7 +934,10 @@ static int action_originate(struct mansession *s, struct message *m)
    			strncpy(fast->data, data, sizeof(fast->data) - 1);
 			strncpy(fast->app, app, sizeof(fast->app) - 1);
 			strncpy(fast->appdata, appdata, sizeof(fast->appdata) - 1);
-			strncpy(fast->callerid, callerid, sizeof(fast->callerid) - 1);
+			if (l)
+				strncpy(fast->cid_num, l, sizeof(fast->cid_num) - 1);
+			if (n)
+				strncpy(fast->cid_name, n, sizeof(fast->cid_name) - 1);
 			strncpy(fast->variable, variable, sizeof(fast->variable) - 1);
 			strncpy(fast->account, account, sizeof(fast->account) - 1);
 			strncpy(fast->context, context, sizeof(fast->context) - 1);
@@ -922,10 +953,10 @@ static int action_originate(struct mansession *s, struct message *m)
 			}
 		}
 	} else if (!ast_strlen_zero(app)) {
-        	res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 0, !ast_strlen_zero(callerid) ? callerid : NULL, variable, account);
+        	res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 0, l, n, variable, account);
     	} else {
 		if (exten && context && pi)
-	        	res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 0, !ast_strlen_zero(callerid) ? callerid : NULL, variable, account);
+	        	res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 0, l, n, variable, account);
 		else {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
 			return 0;

@@ -830,19 +830,22 @@ static int base_encode(char *filename, FILE *so)
 	return 1;
 }
 
-static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu, int msgnum, char *mailbox, char *callerid, char *dur, char *date, char *passdata, size_t passdatasize)
+static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu, int msgnum, char *mailbox, char *cidnum, char *cidname, char *dur, char *date, char *passdata, size_t passdatasize)
 {
+	char callerid[256];
 	/* Prepare variables for substition in email body and subject */
 	pbx_builtin_setvar_helper(ast, "VM_NAME", vmu->fullname);
 	pbx_builtin_setvar_helper(ast, "VM_DUR", dur);
 	snprintf(passdata, passdatasize, "%d", msgnum);
 	pbx_builtin_setvar_helper(ast, "VM_MSGNUM", passdata);
 	pbx_builtin_setvar_helper(ast, "VM_MAILBOX", mailbox);
-	pbx_builtin_setvar_helper(ast, "VM_CALLERID", (callerid ? callerid : "an unknown caller"));
+	pbx_builtin_setvar_helper(ast, "VM_CALLERID", ast_callerid_merge(callerid, sizeof(callerid), cidname, cidnum));
+	pbx_builtin_setvar_helper(ast, "VM_CIDNAME", (cidname ? cidname : "an unknown caller"));
+	pbx_builtin_setvar_helper(ast, "VM_CIDNUM", (cidnum ? cidnum : "an unknown caller"));
 	pbx_builtin_setvar_helper(ast, "VM_DATE", date);
 }
 
-static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *mailbox, char *callerid, char *attach, char *format, int duration, int attach_user_voicemail)
+static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail)
 {
 	FILE *p=NULL;
 	int pfd;
@@ -912,7 +915,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 				int vmlen = strlen(fromstring)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
 					memset(passdata, 0, vmlen);
-					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,callerid,dur,date,passdata, vmlen);
+					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
 					pbx_substitute_variables_helper(ast,fromstring,passdata,vmlen);
 					fprintf(p, "From: %s <%s>\n",passdata,who);
 				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
@@ -929,7 +932,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 				int vmlen = strlen(emailsubject)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
 					memset(passdata, 0, vmlen);
-					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,callerid,dur,date,passdata, vmlen);
+					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
 					pbx_substitute_variables_helper(ast,emailsubject,passdata,vmlen);
 					fprintf(p, "Subject: %s\n",passdata);
 				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
@@ -965,7 +968,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 				int vmlen = strlen(emailbody)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
 					memset(passdata, 0, vmlen);
-					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,callerid,dur,date,passdata, vmlen);
+					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
 					pbx_substitute_variables_helper(ast,emailbody,passdata,vmlen);
 					fprintf(p, "%s\n",passdata);
 				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
@@ -976,7 +979,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 
 			"in mailbox %s from %s, on %s so you might\n"
 			"want to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n\n", vmu->fullname, 
-			dur, msgnum + 1, mailbox, (callerid ? callerid : "an unknown caller"), date);
+			dur, msgnum + 1, mailbox, (cidname ? cidname : (cidnum ? cidnum : "an unknown caller")), date);
 		}
 		if (attach_user_voicemail) {
 			fprintf(p, "--%s\n", bound);
@@ -1000,7 +1003,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 	return 0;
 }
 
-static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char *callerid, int duration, struct ast_vm_user *vmu)
+static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char *cidnum, char *cidname, int duration, struct ast_vm_user *vmu)
 {
 	FILE *p=NULL;
 	int pfd;
@@ -1062,7 +1065,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char
 				int vmlen = strlen(fromstring)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
 					memset(passdata, 0, vmlen);
-					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,callerid,dur,date,passdata, vmlen);
+					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
 					pbx_substitute_variables_helper(ast,pagerfromstring,passdata,vmlen);
 					fprintf(p, "From: %s <%s>\n",passdata,who);
 				} else 
@@ -1075,7 +1078,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char
 		fprintf(p, "Subject: New VM\n\n");
 		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
 		fprintf(p, "New %s long msg in box %s\n"
-		           "from %s, on %s", dur, mailbox, (callerid ? callerid : "unknown"), date);
+		           "from %s, on %s", dur, mailbox, (cidname ? cidname : (cidnum ? cidnum : "unknown")), date);
 		fclose(p);
 		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
 		ast_safe_system(tmp2);
@@ -1218,7 +1221,7 @@ static int copy(char *infile, char *outfile)
 #endif
 }
 
-static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, int msgnum, long duration, char *fmt, char *callerid);
+static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, int msgnum, long duration, char *fmt, char *cidnum, char *cidname);
 
 static void copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt)
 {
@@ -1259,7 +1262,7 @@ static void copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int 
 		ast_log(LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
 	}
 
-	notify_new_message(chan, recip, recipmsgnum, duration, fmt, chan->callerid);
+	notify_new_message(chan, recip, recipmsgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
 }
 
 static void run_externnotify(char *context, char *extension)
@@ -1282,6 +1285,7 @@ static void run_externnotify(char *context, char *extension)
 static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int busy, int unavail)
 {
 	char txtfile[256];
+	char callerid[256];
 	FILE *txt;
 	int res = 0;
 	int msgnum;
@@ -1341,21 +1345,21 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 
 		/* Check current or macro-calling context for special extensions */
 		if (!ast_strlen_zero(vmu->exit)) {
-			if (ast_exists_extension(chan, vmu->exit, "o", 1, chan->callerid))
+			if (ast_exists_extension(chan, vmu->exit, "o", 1, chan->cid.cid_num))
 				strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
-		} else if (ast_exists_extension(chan, chan->context, "o", 1, chan->callerid))
+		} else if (ast_exists_extension(chan, chan->context, "o", 1, chan->cid.cid_num))
 			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
-		else if (!ast_strlen_zero(chan->macrocontext) && ast_exists_extension(chan, chan->macrocontext, "o", 1, chan->callerid)) {
+		else if (!ast_strlen_zero(chan->macrocontext) && ast_exists_extension(chan, chan->macrocontext, "o", 1, chan->cid.cid_num)) {
 			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 			ousemacro = 1;
 		}
 
 		if (!ast_strlen_zero(vmu->exit)) {
-			if (ast_exists_extension(chan, vmu->exit, "a", 1, chan->callerid))
+			if (ast_exists_extension(chan, vmu->exit, "a", 1, chan->cid.cid_num))
 				strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
-		} else if (ast_exists_extension(chan, chan->context, "a", 1, chan->callerid))
+		} else if (ast_exists_extension(chan, chan->context, "a", 1, chan->cid.cid_num))
 			strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
-		else if (!ast_strlen_zero(chan->macrocontext) && ast_exists_extension(chan, chan->macrocontext, "a", 1, chan->callerid)) {
+		else if (!ast_strlen_zero(chan->macrocontext) && ast_exists_extension(chan, chan->macrocontext, "a", 1, chan->cid.cid_num)) {
 			strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
 			ausemacro = 1;
 		}
@@ -1463,7 +1467,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	chan->exten,
 	chan->priority,
 	chan->name,
-	chan->callerid ? chan->callerid : "Unknown",
+	ast_callerid_merge(callerid, sizeof(callerid), chan->cid.cid_name, chan->cid.cid_num),
 	date, (long)time(NULL));
 					fclose(txt);
 				} else
@@ -1505,7 +1509,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 						free_user(recip);
 					}
 				}
-				notify_new_message(chan, vmu, msgnum, duration, fmt, chan->callerid);
+				notify_new_message(chan, vmu, msgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
 			} else {
 				res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
 				if (!res)
@@ -1519,7 +1523,7 @@ leave_vm_out:
 	} else {
 		ast_log(LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
 		/*Send the call to n+101 priority, where n is the current priority*/
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
 			chan->priority+=100;
 	}
 
@@ -2158,7 +2162,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 	return cmd;
 }
 
-static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, int msgnum, long duration, char *fmt, char *callerid)
+static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, int msgnum, long duration, char *fmt, char *cidnum, char *cidname)
 {
 	char todir[256], fn[256], ext_context[256], *stringp;
 
@@ -2179,14 +2183,14 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 				attach_user_voicemail = vmu->attach;
 			if (!ast_strlen_zero(vmu->serveremail))
 				myserveremail = vmu->serveremail;
-			sendmail(myserveremail, vmu, msgnum, vmu->mailbox, callerid, fn, fmt, duration, attach_user_voicemail);
+			sendmail(myserveremail, vmu, msgnum, vmu->mailbox, cidnum, cidname, fn, fmt, duration, attach_user_voicemail);
 		}
 
 		if (!ast_strlen_zero(vmu->pager)) {
 			char *myserveremail = serveremail;
 			if (!ast_strlen_zero(vmu->serveremail))
 				myserveremail = vmu->serveremail;
-			sendpage(myserveremail, vmu->pager, msgnum, vmu->mailbox, callerid, duration, vmu);
+			sendpage(myserveremail, vmu->pager, msgnum, vmu->mailbox, cidnum, cidname, duration, vmu);
 		}
 	} else {
 		ast_log(LOG_ERROR, "Out of memory\n");
@@ -2312,14 +2316,14 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 							attach_user_voicemail = vmtmp->attach;
 						if (!ast_strlen_zero(vmtmp->serveremail))
 							myserveremail = vmtmp->serveremail;
-						sendmail(myserveremail, vmtmp, todircount, vmtmp->mailbox, callerid, fn, tmp, duration, attach_user_voicemail);
+						sendmail(myserveremail, vmtmp, todircount, vmtmp->mailbox, chan->cid.cid_num, chan->cid.cid_name, fn, tmp, duration, attach_user_voicemail);
 					}
 			     
 					if (!ast_strlen_zero(vmtmp->pager)) {
 						char *myserveremail = serveremail;
 						if (!ast_strlen_zero(vmtmp->serveremail))
 							myserveremail = vmtmp->serveremail;
-						sendpage(myserveremail, vmtmp->pager, todircount, vmtmp->mailbox, callerid, duration, vmtmp);
+						sendpage(myserveremail, vmtmp->pager, todircount, vmtmp->mailbox, chan->cid.cid_num, chan->cid.cid_name, duration, vmtmp);
 					}
 				  
 					ast_destroy(mif); /* or here */
@@ -3177,7 +3181,6 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	struct ast_vm_user *vmu = NULL, vmus;
 	char *context=NULL;
 	int silentexit = 0;
-	char cid[256]="";
 	char *passptr;
 
 	LOCAL_USER_ADD(u);
@@ -3239,21 +3242,14 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			goto out;
 		}
 		if (ast_strlen_zero(vms.username)) {
-				char *callerid=NULL, *name=NULL;
-				if(chan->callerid != NULL) {
-					strncpy(cid, chan->callerid, sizeof(cid) - 1);
-					ast_callerid_parse(cid, &name, &callerid);
-				}
-				if(callerid != NULL) {			
-					if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "No username but # key pressed. Using CID '%s'\n",callerid);
-					strncpy(vms.username, callerid, sizeof(vms.username) - 1);
-				} else {
-					if (option_verbose > 2)
+			if (chan->cid.cid_num) {
+				strncpy(vms.username, chan->cid.cid_num, sizeof(vms.username) - 1);
+			} else {
+				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Username not entered\n");	
-					res = 0;
-					goto out;
-				}
+				res = 0;
+				goto out;
+			}
 		}
 		if (useadsi)
 			adsi_password(chan);
@@ -3746,7 +3742,7 @@ static int vm_box_exists(struct ast_channel *chan, void *data) {
 	}
 
 	if (find_user(&svm, context, box)) {
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid)) {
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
 			chan->priority += 100;
 		} else
 			ast_log(LOG_WARNING, "VM box %s@%s exists, but extension %s, priority %d doesn't exist\n", box, context, chan->exten, chan->priority + 101);

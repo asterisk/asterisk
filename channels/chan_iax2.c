@@ -207,7 +207,8 @@ struct iax2_user {
 	int temponly;
 	int capability;
 	int trunk;
-	char callerid[AST_MAX_EXTENSION];
+	char cid_num[AST_MAX_EXTENSION];
+	char cid_name[AST_MAX_EXTENSION];
 	struct ast_ha *ha;
 	struct iax2_context *contexts;
 	struct iax2_user *next;
@@ -220,7 +221,7 @@ struct iax2_peer {
 	char username[80];		
 	char secret[80];
 	char outkey[80];		/* What key we use to talk to this peer */
-	char context[AST_MAX_EXTENSION];	/* Default context (for transfer really) */
+	char context[AST_MAX_EXTENSION];	/* For transfers only */
 	char regexten[AST_MAX_EXTENSION];	/* Extension to register (if regcontext is used) */
 	char peercontext[AST_MAX_EXTENSION];	/* Context to pass to peer */
 	char mailbox[AST_MAX_EXTENSION];	/* Mailbox */
@@ -236,7 +237,8 @@ struct iax2_peer {
 
 	int hascallerid;
 	/* Suggested caller id if registering */
-	char callerid[AST_MAX_EXTENSION];
+	char cid_num[AST_MAX_EXTENSION];	/* Default context (for transfer really) */
+	char cid_name[AST_MAX_EXTENSION];	/* Default context (for transfer really) */
 	/* Whether or not to send ANI */
 	int sendani;
 	int expire;						/* Schedule entry for expirey */
@@ -410,7 +412,8 @@ struct chan_iax2_pvt {
 	/* Default Context */
 	char context[80];
 	/* Caller ID if available */
-	char callerid[80];
+	char cid_num[80];
+	char cid_name[80];
 	/* Hidden Caller ID (i.e. ANI) if appropriate */
 	char ani[80];
 	/* Whether or not ani should be transmitted in addition to Caller*ID */
@@ -2253,7 +2256,6 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	char *username;
 	char *secret = NULL;
 	char *hname;
-	char cid[256] = "";
 	char *l=NULL, *n=NULL;
 	struct iax_ie_data ied;
 	char myrdest [5] = "s";
@@ -2314,12 +2316,8 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	if (portno) {
 		sin.sin_port = htons(atoi(portno));
 	}
-	if (c->callerid) {
-		strncpy(cid, c->callerid, sizeof(cid) - 1);
-		ast_callerid_parse(cid, &n, &l);
-		if (l)
-			ast_shrink_phone_number(l);
-	}
+	l = c->cid.cid_num;
+	n = c->cid.cid_name;
 	/* Now build request */	
 	memset(&ied, 0, sizeof(ied));
 	/* On new call, first IE MUST be IAX version of caller */
@@ -2333,19 +2331,13 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		iax_ie_append_str(&ied, IAX_IE_CALLING_NUMBER, l);
 	if (n)
 		iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, n);
-	if (iaxs[callno]->sendani && c->ani) {
-		l = n = NULL;
-		strncpy(cid, c->ani, sizeof(cid) - 1);
-		ast_callerid_parse(cid, &n, &l);
-		if (l) {
-			ast_shrink_phone_number(l);
-			iax_ie_append_str(&ied, IAX_IE_CALLING_ANI, l);
-		}
+	if (iaxs[callno]->sendani && c->cid.cid_ani) {
+		iax_ie_append_str(&ied, IAX_IE_CALLING_ANI, c->cid.cid_ani);
 	}
 	if (c->language && !ast_strlen_zero(c->language))
 		iax_ie_append_str(&ied, IAX_IE_LANGUAGE, c->language);
-	if (c->dnid && !ast_strlen_zero(c->dnid))
-		iax_ie_append_str(&ied, IAX_IE_DNID, c->dnid);
+	if (c->cid.cid_dnid && !ast_strlen_zero(c->cid.cid_dnid))
+		iax_ie_append_str(&ied, IAX_IE_DNID, c->cid.cid_dnid);
 	if (rcontext)
 		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, rcontext);
 	else if (strlen(peercontext))
@@ -2727,14 +2719,16 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 		tmp->pvt->setoption = iax2_setoption;
 		tmp->pvt->bridge = iax2_bridge;
 		tmp->pvt->transfer = iax2_transfer;
-		if (!ast_strlen_zero(i->callerid))
-			tmp->callerid = strdup(i->callerid);
+		if (!ast_strlen_zero(i->cid_num))
+			tmp->cid.cid_num = strdup(i->cid_num);
+		if (!ast_strlen_zero(i->cid_name))
+			tmp->cid.cid_name = strdup(i->cid_name);
 		if (!ast_strlen_zero(i->ani))
-			tmp->ani = strdup(i->ani);
+			tmp->cid.cid_ani = strdup(i->ani);
 		if (!ast_strlen_zero(i->language))
 			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
 		if (!ast_strlen_zero(i->dnid))
-			tmp->dnid = strdup(i->dnid);
+			tmp->cid.cid_dnid = strdup(i->dnid);
 		if (!ast_strlen_zero(i->accountcode))
 			strncpy(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode)-1);
 		if (i->amaflags)
@@ -3599,13 +3593,10 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		return res;
 	if (ies->called_number)
 		strncpy(iaxs[callno]->exten, ies->called_number, sizeof(iaxs[callno]->exten) - 1);
-	if (ies->calling_number) {
-		if (ies->calling_name)
-			snprintf(iaxs[callno]->callerid, sizeof(iaxs[callno]->callerid), "\"%s\" <%s>", ies->calling_name, ies->calling_number);
-		else
-			strncpy(iaxs[callno]->callerid, ies->calling_number, sizeof(iaxs[callno]->callerid) - 1);
-	} else if (ies->calling_name)
-		strncpy(iaxs[callno]->callerid, ies->calling_name, sizeof(iaxs[callno]->callerid) - 1);
+	if (ies->calling_number) 
+		strncpy(iaxs[callno]->cid_num, ies->calling_number, sizeof(iaxs[callno]->cid_num) - 1);
+	if (ies->calling_name)
+		strncpy(iaxs[callno]->cid_name, ies->calling_name, sizeof(iaxs[callno]->cid_name) - 1);
 	if (ies->calling_ani)
 		strncpy(iaxs[callno]->ani, ies->calling_ani, sizeof(iaxs[callno]->ani) - 1);
 	if (ies->dnid)
@@ -3716,10 +3707,12 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		/* And the permitted authentication methods */
 		iaxs[callno]->authmethods = user->authmethods;
 		/* If they have callerid, override the given caller id.  Always store the ANI */
-		if (!ast_strlen_zero(iaxs[callno]->callerid)) {
-			if (user->hascallerid)
-				strncpy(iaxs[callno]->callerid, user->callerid, sizeof(iaxs[callno]->callerid)-1);
-			strncpy(iaxs[callno]->ani, user->callerid, sizeof(iaxs[callno]->ani)-1);
+		if (!ast_strlen_zero(iaxs[callno]->cid_num) || !ast_strlen_zero(iaxs[callno]->cid_name)) {
+			if (user->hascallerid) {
+				strncpy(iaxs[callno]->cid_num, user->cid_num, sizeof(iaxs[callno]->cid_num)-1);
+				strncpy(iaxs[callno]->cid_name, user->cid_name, sizeof(iaxs[callno]->cid_name)-1);
+			}
+			strncpy(iaxs[callno]->ani, user->cid_num, sizeof(iaxs[callno]->ani)-1);
 		}
 		if (!ast_strlen_zero(user->accountcode))
 			strncpy(iaxs[callno]->accountcode, user->accountcode, sizeof(iaxs[callno]->accountcode)-1);
@@ -4464,8 +4457,10 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 				}
 				iax_ie_append_short(&ied, IAX_IE_MSGCOUNT, msgcount);
 			}
-			if (p->hascallerid)
-				iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, p->callerid);
+			if (p->hascallerid) {
+				iax_ie_append_str(&ied, IAX_IE_CALLING_NUMBER, p->cid_num);
+				iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, p->cid_name);
+			}
 		}
 		version = iax_check_version(devtype);
 		if (version) 
@@ -5399,7 +5394,7 @@ retryowner:
 				/* This might re-enter the IAX code and need the lock */
 				if (strcasecmp(iaxs[fr.callno]->exten, "TBD")) {
 					ast_mutex_unlock(&iaxsl[fr.callno]);
-					exists = ast_exists_extension(NULL, iaxs[fr.callno]->context, iaxs[fr.callno]->exten, 1, iaxs[fr.callno]->callerid);
+					exists = ast_exists_extension(NULL, iaxs[fr.callno]->context, iaxs[fr.callno]->exten, 1, iaxs[fr.callno]->cid_num);
 					ast_mutex_lock(&iaxsl[fr.callno]);
 				} else
 					exists = 0;
@@ -5467,10 +5462,10 @@ retryowner:
 					!(iaxs[fr.callno]->state & IAX_STATE_STARTED) && ies.called_number) {
 					if (iaxcompat) {
 						/* Spawn a thread for the lookup */
-						spawn_dp_lookup(fr.callno, iaxs[fr.callno]->context, ies.called_number, iaxs[fr.callno]->callerid);
+						spawn_dp_lookup(fr.callno, iaxs[fr.callno]->context, ies.called_number, iaxs[fr.callno]->cid_num);
 					} else {
 						/* Just look it up */
-						dp_lookup(fr.callno, iaxs[fr.callno]->context, ies.called_number, iaxs[fr.callno]->callerid, 1);
+						dp_lookup(fr.callno, iaxs[fr.callno]->context, ies.called_number, iaxs[fr.callno]->cid_num, 1);
 					}
 				}
 				break;
@@ -5695,7 +5690,7 @@ retryowner2:
 				}
 				if (strcasecmp(iaxs[fr.callno]->exten, "TBD")) {
 					/* This might re-enter the IAX code and need the lock */
-					exists = ast_exists_extension(NULL, iaxs[fr.callno]->context, iaxs[fr.callno]->exten, 1, iaxs[fr.callno]->callerid);
+					exists = ast_exists_extension(NULL, iaxs[fr.callno]->context, iaxs[fr.callno]->exten, 1, iaxs[fr.callno]->cid_num);
 				} else
 					exists = 0;
 				if (strcmp(iaxs[fr.callno]->exten, "TBD") && !exists) {
@@ -5755,7 +5750,7 @@ retryowner2:
 				if (iaxs[fr.callno]->state & IAX_STATE_TBD) {
 					iaxs[fr.callno]->state &= ~IAX_STATE_TBD;
 					strncpy(iaxs[fr.callno]->exten, ies.called_number ? ies.called_number : "s", sizeof(iaxs[fr.callno]->exten)-1);	
-					if (!ast_exists_extension(NULL, iaxs[fr.callno]->context, iaxs[fr.callno]->exten, 1, iaxs[fr.callno]->callerid)) {
+					if (!ast_exists_extension(NULL, iaxs[fr.callno]->context, iaxs[fr.callno]->exten, 1, iaxs[fr.callno]->cid_num)) {
 						if (authdebug)
 							ast_log(LOG_NOTICE, "Rejected dial attempt from %s, request '%s@%s' does not exist\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->exten, iaxs[fr.callno]->context);
 						memset(&ied0, 0, sizeof(ied0));
@@ -6486,7 +6481,8 @@ static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
 				else
 					peer->capability &= ~format;
 			} else if (!strcasecmp(v->name, "callerid")) {
-				strncpy(peer->callerid, v->value, sizeof(peer->callerid)-1);
+				ast_callerid_split(v->value, peer->cid_name, sizeof(peer->cid_name),
+									peer->cid_num, sizeof(peer->cid_num));
 				peer->hascallerid=1;
 			} else if (!strcasecmp(v->name, "sendani")) {
 				peer->sendani = ast_true(v->value);
@@ -6604,7 +6600,7 @@ static struct iax2_user *build_user(char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "secret")) {
 				strncpy(user->secret, v->value, sizeof(user->secret)-1);
 			} else if (!strcasecmp(v->name, "callerid")) {
-				strncpy(user->callerid, v->value, sizeof(user->callerid)-1);
+				ast_callerid_split(v->value, user->cid_name, sizeof(user->cid_name), user->cid_num, sizeof(user->cid_num));
 				user->hascallerid=1;
 			} else if (!strcasecmp(v->name, "accountcode")) {
 				strncpy(user->accountcode, v->value, sizeof(user->accountcode)-1);

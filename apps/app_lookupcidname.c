@@ -3,9 +3,9 @@
  *
  * App to set callerid name from database, based on directory number
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -46,32 +46,19 @@ LOCAL_USER_DECL;
 static int
 lookupcidname_exec (struct ast_channel *chan, void *data)
 {
-  char old_cid[144] = "", *num, *name;
-  char new_cid[144];
   char dbname[64];
   char shrunknum[64] = "";
   struct localuser *u;
 
   LOCAL_USER_ADD (u);
-  if (chan->callerid)
-    {
-      strncpy (old_cid, chan->callerid, sizeof (old_cid) - 1);
-      ast_callerid_parse (old_cid, &name, &num);	/* this destroys the original string */
-      if (num)			/* It's possible to get an empty number */
-	strncpy (shrunknum, num, sizeof (shrunknum) - 1);
-      else
-	num = shrunknum;
-      ast_shrink_phone_number (shrunknum);
-      if (!ast_db_get ("cidname", shrunknum, dbname, sizeof (dbname)))
-	{
-	  snprintf (new_cid, sizeof (new_cid), "\"%s\" <%s>", dbname, num);
-	  ast_set_callerid (chan, new_cid, 0);
-	  if (option_verbose > 2)
-	    ast_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID to %s\n",
-			 new_cid);
+  if (chan->cid.cid_num) {
+	if (!ast_db_get ("cidname", shrunknum, dbname, sizeof (dbname))) {
+		ast_set_callerid (chan, NULL, dbname, NULL);
+		  if (option_verbose > 2)
+		    ast_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID name to %s\n",
+				 dbname);
 	}
-
-    }
+  }
   LOCAL_USER_REMOVE (u);
   return 0;
 }

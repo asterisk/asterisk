@@ -210,9 +210,11 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
                                 "From: %s\r\n"
                                 "Timeout: %ld\r\n"
                                 "CallerID: %s\r\n"
+                                "CallerIDName: %s\r\n\r\n"
                                 ,pu->parkingnum, pu->chan->name, peer->name
                                 ,(long)pu->start.tv_sec + (long)(pu->parkingtime/1000) - (long)time(NULL)
-                                ,(pu->chan->callerid ? pu->chan->callerid : "")
+                                ,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "")
+                                ,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "")
                                 );
 
 			if (peer) {
@@ -450,7 +452,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 						break;
 					*(ptr++) = res;
 					if (!ast_matchmore_extension(transferer, transferer_real_context
-								, newext, 1, transferer->callerid)) {
+								, newext, 1, transferer->cid.cid_num)) {
 						break;
 					}
 				}
@@ -479,7 +481,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 						ast_log(LOG_WARNING, "Unable to park call %s\n", transferee->name);
 					}
 					/* XXX Maybe we should have another message here instead of invalid extension XXX */
-				} else if (ast_exists_extension(transferee, transferer_real_context, newext, 1, transferer->callerid)) {
+				} else if (ast_exists_extension(transferee, transferer_real_context, newext, 1, transferer->cid.cid_num)) {
 					ast_moh_stop(transferee);
 					res=ast_autoservice_stop(transferee);
 					if (!transferee->pbx) {
@@ -842,11 +844,13 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 			"Channel: %s\r\n"
 			"Timeout: %ld\r\n"
 			"CallerID: %s\r\n"
+			"CallerIDName: %s\r\n"
 			"%s"
 			"\r\n"
                         ,cur->parkingnum, cur->chan->name
                         ,(long)cur->start.tv_sec + (long)(cur->parkingtime/1000) - (long)time(NULL)
-			,(cur->chan->callerid ? cur->chan->callerid : "")
+			,(cur->chan->cid.cid_num ? cur->chan->cid.cid_num : "")
+			,(cur->chan->cid.cid_name ? cur->chan->cid.cid_name : "")
 			,idText);
 			ast_mutex_unlock(&s->lock);
 

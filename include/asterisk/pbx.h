@@ -487,11 +487,11 @@ int ast_async_goto_by_name(char *chan, char *context, char *exten, int priority)
 
 /* Synchronously or asynchronously make an outbound call and send it to a
    particular extension */
-int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char *context, char *exten, int priority, int *reason, int sync, char *callerid, char *variable, char *account );
+int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char *context, char *exten, int priority, int *reason, int sync, char *cid_num, char *cid_name, char *variable, char *account );
 
 /* Synchronously or asynchronously make an outbound call and send it to a
    particular application with given extension */
-int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *app, char *appdata, int *reason, int sync, char *callerid, char *variable, char *account);
+int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *app, char *appdata, int *reason, int sync, char *cid_num, char *cid_name, char *variable, char *account);
 
 /* Functions for returning values from structures */
 char *ast_get_context_name(struct ast_context *con);

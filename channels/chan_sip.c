@@ -269,6 +269,7 @@ static struct sip_pvt {
 	int peercapability;			/* Supported peer capability */
 	int prefcodec;				/* Preferred codec (outbound only) */
 	int noncodeccapability;
+	int callingpres;			/* Calling presentation */
 	int outgoing;				/* Outgoing or incoming call? */
 	int authtries;				/* Times we've tried to authenticate */
 	int insecure;				/* Don't check source port/ip */
@@ -311,8 +312,8 @@ static struct sip_pvt {
 	char uri[256];				/* Original requested URI */
 	char peersecret[256];
 	char peermd5secret[256];
-	char callerid[256];			/* Caller*ID */
-	int restrictcid;			/* hide presentation from remote user */
+	char cid_num[256];			/* Caller*ID */
+	char cid_name[256];			/* Caller*ID */
 	char via[256];
 	char fullcontact[128];		/* Extra parameters to go in the "To" header */
 	char accountcode[20];			/* Account code */
@@ -384,7 +385,8 @@ struct sip_user {
 	char secret[80];
         char md5secret[80];
 	char context[80];
-	char callerid[80];
+	char cid_num[80];
+	char cid_name[80];
 	char accountcode[20];
 	char language[MAX_LANGUAGE];
 	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
@@ -394,6 +396,7 @@ struct sip_user {
 	int nat;
 	int hascallerid;
 	int amaflags;
+	int callingpres;
 	int insecure;
 	int canreinvite;
 	int capability;
@@ -406,7 +409,6 @@ struct sip_user {
 	int outUse;
 	int outgoinglimit;
 	int promiscredir;
-	int restrictcid;
 	int trustrpid;
 	int progressinband;
 	struct ast_ha *ha;
@@ -1034,7 +1036,7 @@ static struct sip_user *mysql_user(char *user)
 			mysql_real_escape_string(mysql, name, user, strlen(user));
 		}
 
-		snprintf(query, sizeof(query), "SELECT name, secret, context, username, ipaddr, port, regseconds, callerid, restrictcid FROM sipfriends WHERE name=\"%s\"", name);
+		snprintf(query, sizeof(query), "SELECT name, secret, context, username, ipaddr, port, regseconds, callerid, callingpres FROM sipfriends WHERE name=\"%s\"", name);
 
 		ast_mutex_lock(&mysqllock);
 		mysql_query(mysql, query);
@@ -1057,8 +1059,8 @@ static struct sip_user *mysql_user(char *user)
 						} else if (!strcasecmp(fields[x].name, "regseconds")) {
 							if (sscanf(rowval[x], "%li", &regseconds) != 1)
 								regseconds = 0;
-						} else if (!strcasecmp(fields[x].name, "restrictcid")) {
-							u->restrictcid = 1;
+						} else if (!strcasecmp(fields[x].name, "callingpres")) {
+							u->callingpres = atoi(rowval[x]);
 						} else if (!strcasecmp(fields[x].name, "callerid")) {
 							strncpy(u->callerid, rowval[x], sizeof(u->callerid) - 1);
 							u->hascallerid=1;
@@ -1536,7 +1538,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	ast_log(LOG_DEBUG, "Outgoing Call for %s\n", p->username);
 	res = update_user_counter(p,INC_OUT_USE);
 	if ( res != -1 ) {
-		p->restrictcid = ast->restrictcid;
+		p->callingpres = ast->cid.cid_pres;
 		p->jointcapability = p->capability;
 		transmit_invite(p, "INVITE", 1, NULL, NULL, vxml_url,distinctive_ring, osptoken, 1);
 		if (p->maxtime) {
@@ -2073,7 +2075,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
-		tmp->restrictcid = i->restrictcid;
+		tmp->cid.cid_pres = i->callingpres;
                 if (!ast_strlen_zero(i->accountcode))
                         strncpy(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode)-1);
                 if (i->amaflags)
@@ -2088,12 +2090,14 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		ast_mutex_unlock(&usecnt_lock);
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);
-		if (!ast_strlen_zero(i->callerid))
-			tmp->callerid = strdup(i->callerid);
+		if (!ast_strlen_zero(i->cid_num))
+			tmp->cid.cid_num = strdup(i->cid_num);
+		if (!ast_strlen_zero(i->cid_name))
+			tmp->cid.cid_name = strdup(i->cid_name);
 		if (!ast_strlen_zero(i->rdnis))
-			tmp->rdnis = strdup(i->rdnis);
+			tmp->cid.cid_rdnis = strdup(i->rdnis);
 		if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s"))
-			tmp->dnid = strdup(i->exten);
+			tmp->cid.cid_dnid = strdup(i->exten);
 		tmp->priority = 1;
 		if (!ast_strlen_zero(i->domain)) {
 			pbx_builtin_setvar_helper(tmp, "SIPDOMAIN", i->domain);
@@ -3686,22 +3690,16 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	char to[256];
 	char tmp[80];
 	char iabuf[INET_ADDRSTRLEN];
-	char cid[256];
 	char *l = default_callerid, *n=NULL;
 
 	snprintf(p->lastmsg, sizeof(p->lastmsg), "Init: %s", cmd);
 
-	if (p->owner && p->owner->callerid) {
-		strncpy(cid, p->owner->callerid, sizeof(cid) - 1);
-		cid[sizeof(cid) - 1] = '\0';
-		ast_callerid_parse(cid, &n, &l);
-		if (l) 
-			ast_shrink_phone_number(l);
-		if (!l || !ast_isphonenumber(l))
-				l = default_callerid;
-	}
+	l = p->owner->cid.cid_num;
+	n = p->owner->cid.cid_name;
+	if (!l || !ast_isphonenumber(l))
+			l = default_callerid;
 	/* if user want's his callerid restricted */
-	if (p->restrictcid) {
+	if (p->callingpres & AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED) {
 		l = CALLERID_UNKNOWN;
 		n = l;
 	}
@@ -4684,7 +4682,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 		if (!strlen(osptoken))
 			return -1;
 		/* Validate token */
-		if (ast_osp_validate(NULL, osptoken, &p->osphandle, &osptimelimit, p->callerid, p->sa.sin_addr, p->exten) < 1)
+		if (ast_osp_validate(NULL, osptoken, &p->osphandle, &osptimelimit, p->cid_num, p->sa.sin_addr, p->exten) < 1)
 			return -1;
 		
 		snprintf(tmp, sizeof(tmp), "%d", p->osphandle);
@@ -5305,7 +5303,7 @@ static int get_rpid_num(char *input,char *output, int maxlen)
 		*end = '\0';
 
 	if(strstr(input,"privacy=full") || strstr(input,"privacy=uri"))
-		return 1;
+		return AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
 
 	return 0;
 }
@@ -5337,7 +5335,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 	rpid = get_header(req, "Remote-Party-ID");
 	memset(rpid_num,0,sizeof(rpid_num));
 	if(!ast_strlen_zero(rpid)) 
-	  p->restrictcid = get_rpid_num(rpid,rpid_num, sizeof(rpid_num));
+	  p->callingpres = get_rpid_num(rpid,rpid_num, sizeof(rpid_num));
 
 	of = ditch_braces(from);
 	if (ast_strlen_zero(p->exten)) {
@@ -5360,10 +5358,9 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 		*c = '\0';
 	if ((c = strchr(of, ':')))
 		*c = '\0';
+	strncpy(p->cid_num, of, sizeof(p->cid_num) - 1);
 	if (*calleridname)
-		snprintf(p->callerid,sizeof(p->callerid),"\"%s\" <%s>",calleridname,of);
-	else
-		strncpy(p->callerid, of, sizeof(p->callerid) - 1);
+		strncpy(p->cid_name, calleridname, sizeof(p->cid_name) - 1);
 	if (ast_strlen_zero(of))
 			return 0;
 	ast_mutex_lock(&userl.lock);
@@ -5379,9 +5376,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 		/* replace callerid if rpid found, and not restricted */
 		if(!ast_strlen_zero(rpid_num) && p->trustrpid) {
 		  if (*calleridname)
-		    snprintf(p->callerid, sizeof(p->callerid), "\"%s\" <%s>",calleridname,rpid_num);
-		  else
-		    strncpy(p->callerid, rpid_num, sizeof(p->callerid) - 1);
+		  	strncpy(p->cid_name, calleridname, sizeof(p->cid_name) - 1);
+		  strncpy(p->cid_num, rpid_num, sizeof(p->cid_num) - 1);
 		}
 
 		if (p->rtp) {
@@ -5396,8 +5392,10 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			sip_cancel_destroy(p);
 			if (!ast_strlen_zero(user->context))
 				strncpy(p->context, user->context, sizeof(p->context) - 1);
-			if (!ast_strlen_zero(user->callerid) && !ast_strlen_zero(p->callerid)) 
-				strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
+			if (!ast_strlen_zero(user->cid_num) && !ast_strlen_zero(p->cid_num)) 
+				strncpy(p->cid_num, user->cid_num, sizeof(p->cid_num) - 1);
+			if (!ast_strlen_zero(user->cid_name) && !ast_strlen_zero(p->cid_name)) 
+				strncpy(p->cid_num, user->cid_name, sizeof(p->cid_name) - 1);
 			strncpy(p->username, user->name, sizeof(p->username) - 1);
 			strncpy(p->peersecret, user->secret, sizeof(p->peersecret) - 1);
 			strncpy(p->peermd5secret, user->md5secret, sizeof(p->peermd5secret) - 1);
@@ -5408,7 +5406,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			p->amaflags = user->amaflags;
 			p->callgroup = user->callgroup;
 			p->pickupgroup = user->pickupgroup;
-			p->restrictcid = user->restrictcid;
+			p->callingpres = user->callingpres;
 			p->capability = user->capability;
 			p->jointcapability = user->capability;
 			if (p->peercapability)
@@ -5452,9 +5450,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			/* replace callerid if rpid found, and not restricted */
 			if(!ast_strlen_zero(rpid_num) && p->trustrpid) {
 			  if (*calleridname)
-			    snprintf(p->callerid,sizeof(p->callerid),"\"%s\" <%s>",calleridname,rpid_num);
-			  else
-			    strncpy(p->callerid, rpid_num, sizeof(p->callerid) - 1);
+			  	strncpy(p->cid_name, calleridname, sizeof(p->cid_name) - 1);
+			  strncpy(p->cid_num, rpid_num, sizeof(p->cid_num) - 1);
 			}
 #ifdef OSP_SUPPORT
 			p->ospauth = peer->ospauth;
@@ -5891,7 +5888,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 	while (cur) {
 		if (!cur->subscribed && !subscriptions) {
 		   ast_cli(fd, FORMAT, ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr), 
-			ast_strlen_zero(cur->username) ? ( ast_strlen_zero(cur->callerid) ? "(None)" : cur->callerid ) : cur->username, 
+			ast_strlen_zero(cur->username) ? ( ast_strlen_zero(cur->cid_num) ? "(None)" : cur->cid_num ) : cur->username, 
 			cur->callid, 
 			cur->ocseq, cur->icseq, 
 			ast_getformatname(cur->owner ? cur->owner->nativeformats : 0), cur->needdestroy ? "(d)" : "" );
@@ -5899,7 +5896,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 		}
 		if (cur->subscribed && subscriptions) {
                    ast_cli(fd, FORMAT3, ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr),
-			ast_strlen_zero(cur->username) ? ( ast_strlen_zero(cur->callerid) ? "(None)" : cur->callerid ) : cur->username, 
+			ast_strlen_zero(cur->username) ? ( ast_strlen_zero(cur->cid_num) ? "(None)" : cur->cid_num ) : cur->username, 
                         cur->callid, cur->uri);
 
                 }
@@ -5976,8 +5973,8 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			   ast_cli(fd, "  Peername:               %s\n", cur->peername);
 			if (!ast_strlen_zero(cur->uri))
 			   ast_cli(fd, "  Original uri:           %s\n", cur->uri);
-			if (!ast_strlen_zero(cur->callerid))
-			   ast_cli(fd, "  Caller-ID:              %s\n", cur->callerid);
+			if (!ast_strlen_zero(cur->cid_num))
+			   ast_cli(fd, "  Caller-ID:              %s\n", cur->cid_num);
 			ast_cli(fd, "  Need Destroy:           %d\n", cur->needdestroy);
 			ast_cli(fd, "  Last Message:           %s\n", cur->lastmsg);
 			ast_cli(fd, "  Promiscuous Redir:      %s\n", cur->promiscredir ? "Yes" : "No");
@@ -8106,7 +8103,7 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 				else
 					user->nat = SIP_NAT_RFC3581;
 			} else if (!strcasecmp(v->name, "callerid")) {
-				strncpy(user->callerid, v->value, sizeof(user->callerid)-1);
+				ast_callerid_split(v->value, user->cid_name, sizeof(user->cid_name), user->cid_num, sizeof(user->cid_num));
 				user->hascallerid=1;
 			} else if (!strcasecmp(v->name, "callgroup")) {
 				user->callgroup = ast_get_group(v->value);
@@ -8147,8 +8144,8 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 					user->capability &= ~format;
 			} else if (!strcasecmp(v->name, "insecure")) {
 				user->insecure = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "restrictcid")) {
-				user->restrictcid = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "callingpres")) {
+				user->callingpres = atoi(v->value);
 			} else if (!strcasecmp(v->name, "trustrpid")) {
 				user->trustrpid = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "progressinband")) {

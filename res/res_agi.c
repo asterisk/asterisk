@@ -23,6 +23,7 @@
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
 #include <asterisk/astdb.h>
+#include <asterisk/callerid.h>
 #include <math.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -296,9 +297,10 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 	fdprintf(fd, "agi_uniqueid: %s\n", chan->uniqueid);
 
 	/* ANI/DNIS */
-	fdprintf(fd, "agi_callerid: %s\n", chan->callerid ? chan->callerid : "unknown");
-	fdprintf(fd, "agi_dnid: %s\n", chan->dnid ? chan->dnid : "unknown");
-	fdprintf(fd, "agi_rdnis: %s\n", chan->rdnis ? chan->rdnis : "unknown");
+	fdprintf(fd, "agi_callerid: %s\n", chan->cid.cid_num ? chan->cid.cid_num : "unknown");
+	fdprintf(fd, "agi_calleridname: %s\n", chan->cid.cid_name ? chan->cid.cid_name : "unknown");
+	fdprintf(fd, "agi_dnid: %s\n", chan->cid.cid_dnid ? chan->cid.cid_dnid : "unknown");
+	fdprintf(fd, "agi_rdnis: %s\n", chan->cid.cid_rdnis ? chan->cid.cid_rdnis : "unknown");
 
 	/* Context information */
 	fdprintf(fd, "agi_context: %s\n", chan->context);
@@ -837,8 +839,19 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, char **argv
 
 static int handle_setcallerid(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
-	if (argv[2])
-		ast_set_callerid(chan, argv[2], 0);
+	char tmp[256]="";
+	char *l = NULL, *n = NULL;
+	if (argv[2]) {
+		strncpy(tmp, argv[2], sizeof(tmp) - 1);
+		ast_callerid_parse(tmp, &n, &l);
+		if (l)
+			ast_shrink_phone_number(l);
+		else
+			l = "";
+		if (!n)
+			n = "";
+		ast_set_callerid(chan, l, n, NULL);
+	}
 
 	fdprintf(agi->fd, "200 result=1\n");
 	return RESULT_SUCCESS;

@@ -3,9 +3,9 @@
  *
  * Generic Linux Telephony Interface driver
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -119,10 +119,12 @@ static struct phone_pvt {
 	char obuf[PHONE_MAX_BUF * 2];
 	char ext[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
-	char callerid[AST_MAX_EXTENSION];
+	char cid_num[AST_MAX_EXTENSION];
+	char cid_name[AST_MAX_EXTENSION];
 } *iflist = NULL;
 
-static char callerid[AST_MAX_EXTENSION];
+static char cid_num[AST_MAX_EXTENSION];
+static char cid_name[AST_MAX_EXTENSION];
 
 static int phone_digit(struct ast_channel *ast, char digit)
 {
@@ -185,24 +187,13 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 		snprintf(cid.min, sizeof(cid.min),     "%02d", tm.tm_min);
 	}
 	/* the standard format of ast->callerid is:  "name" <number>, but not always complete */
-	if (!ast->callerid || ast_strlen_zero(ast->callerid)){
+	if (!ast->cid.cid_name || ast_strlen_zero(ast->cid.cid_name))
 		strncpy(cid.name, DEFAULT_CALLER_ID, sizeof(cid.name) - 1);
-		cid.number[0]='\0';
-	} else {
-		char *n, *l;
-		char callerid[256] = "";
-		strncpy(callerid, ast->callerid, sizeof(callerid) - 1);
-		ast_callerid_parse(callerid, &n, &l);
-		if (l) {
-			ast_shrink_phone_number(l);
-			if (!ast_isphonenumber(l))
-				l = NULL;
-		}
-		if (l)
-			strncpy(cid.number, l, sizeof(cid.number) - 1);
-		if (n)
-			strncpy(cid.name, n, sizeof(cid.name) - 1);
-	}
+	else
+		strncpy(cid.name, ast->cid.cid_name, sizeof(cid.name) - 1);
+
+	if (ast->cid.cid_num) 
+		strncpy(cid.number, ast->cid.cid_num, sizeof(cid.number) - 1);
 
 	p = ast->pvt->pvt;
 
@@ -683,8 +674,10 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 			strncpy(tmp->exten, "s",  sizeof(tmp->exten) - 1);
 		if (strlen(i->language))
 			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
-		if (strlen(i->callerid))
-			tmp->callerid = strdup(i->callerid);
+		if (!ast_strlen_zero(i->cid_num))
+			tmp->cid.cid_num = strdup(i->cid_num);
+		if (!ast_strlen_zero(i->cid_name))
+			tmp->cid.cid_name = strdup(i->cid_name);
 		i->owner = tmp;
 		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
@@ -736,7 +729,7 @@ static void phone_check_exception(struct phone_pvt *i)
 			i->dialtone = 0;
 			if (strlen(i->ext) < AST_MAX_EXTENSION - 1)
 				strncat(i->ext, digit, sizeof(i->ext) - strlen(i->ext) - 1);
-			if (ast_exists_extension(NULL, i->context, i->ext, 1, i->callerid)) {
+			if (ast_exists_extension(NULL, i->context, i->ext, 1, i->cid_num)) {
 				/* It's a valid extension in its context, get moving! */
 				phone_new(i, AST_STATE_RING, i->context);
 				/* No need to restart monitor, we are the monitor */
@@ -746,10 +739,10 @@ static void phone_check_exception(struct phone_pvt *i)
 					ast_mutex_unlock(&usecnt_lock);
 					ast_update_use_count();
 				}
-			} else if (!ast_canmatch_extension(NULL, i->context, i->ext, 1, i->callerid)) {
+			} else if (!ast_canmatch_extension(NULL, i->context, i->ext, 1, i->cid_num)) {
 				/* There is nothing in the specified extension that can match anymore.
 				   Try the default */
-				if (ast_exists_extension(NULL, "default", i->ext, 1, i->callerid)) {
+				if (ast_exists_extension(NULL, "default", i->ext, 1, i->cid_num)) {
 					/* Check the default, too... */
 					phone_new(i, AST_STATE_RING, "default");
 					if (i->owner) {
@@ -759,7 +752,7 @@ static void phone_check_exception(struct phone_pvt *i)
 						ast_update_use_count();
 					}
 					/* XXX This should probably be justified better XXX */
-				}  else if (!ast_canmatch_extension(NULL, "default", i->ext, 1, i->callerid)) {
+				}  else if (!ast_canmatch_extension(NULL, "default", i->ext, 1, i->cid_num)) {
 					/* It's not a valid extension, give a busy signal */
 					if (option_debug)
 						ast_log(LOG_DEBUG, "%s can't match anything in %s or default\n", i->ext, i->context);
@@ -1020,7 +1013,8 @@ static struct phone_pvt *mkif(char *iface, int mode, int txgain, int rxgain)
 		tmp->obuflen = 0;
 		tmp->dialtone = 0;
 		tmp->cpt = 0;
-		strncpy(tmp->callerid, callerid, sizeof(tmp->callerid)-1);
+		strncpy(tmp->cid_num, cid_num, sizeof(tmp->cid_num)-1);
+		strncpy(tmp->cid_name, cid_name, sizeof(tmp->cid_name)-1);
 		tmp->txgain = txgain;
 		ioctl(tmp->fd, PHONE_PLAY_VOLUME, tmp->txgain);
 		tmp->rxgain = rxgain;
@@ -1183,7 +1177,7 @@ int load_module()
 		} else if (!strcasecmp(v->name, "language")) {
 			strncpy(language, v->value, sizeof(language)-1);
 		} else if (!strcasecmp(v->name, "callerid")) {
-			strncpy(callerid, v->value, sizeof(callerid)-1);
+			ast_callerid_split(v->value, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
 		} else if (!strcasecmp(v->name, "mode")) {
 			if (!strncasecmp(v->value, "di", 2)) 
 				mode = MODE_DIALTONE;

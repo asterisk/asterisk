@@ -345,7 +345,7 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 				return i4l_handle_escape(p, 'b');
 			} else
 			if (!strncasecmp(result, "CALLER NUMBER: ", 15 )) {
-				strncpy(p->cid, result + 15, sizeof(p->cid)-1);
+				strncpy(p->cid_num, result + 15, sizeof(p->cid_num)-1);
 				return i4l_handle_escape(p, 0);
 			} else
 			if (!strcasecmp(result, "RINGING")) {
@@ -584,30 +584,22 @@ static int i4l_dialdigit(struct ast_modem_pvt *p, char digit)
 static int i4l_dial(struct ast_modem_pvt *p, char *stuff)
 {
 	char cmd[80];
-	char tmp[255];
 	char tmpmsn[255];
-	char *name, *num;
 	struct ast_channel *c = p->owner;
 
 	// Find callerid number first, to set the correct A number
-	if (c && c->callerid && ! c->restrictcid) {
-	  ast_log(LOG_DEBUG, "Finding callerid from %s...\n",c->callerid);
-	  strncpy(tmp, c->callerid, sizeof(tmp) - 1);
-	  ast_callerid_parse(tmp, &name, &num);
-	  if (num) {
-	    ast_shrink_phone_number(num);
-	    snprintf(tmpmsn, sizeof(tmpmsn), ",%s,", num);
+	if (c && c->cid.cid_num && !(c->cid.cid_pres & 0x20)) {
+	    snprintf(tmpmsn, sizeof(tmpmsn), ",%s,", c->cid.cid_num);
 	    if(strlen(p->outgoingmsn) && strstr(p->outgoingmsn,tmpmsn) != NULL) {
 	      // Tell ISDN4Linux to use this as A number
-	      snprintf(cmd, sizeof(cmd), "AT&E%s\n", num);
+	      snprintf(cmd, sizeof(cmd), "AT&E%s\n", c->cid.cid_num);
 	      if (ast_modem_send(p, cmd, strlen(cmd))) {
-		ast_log(LOG_WARNING, "Unable to set A number to %s\n",num);
+		ast_log(LOG_WARNING, "Unable to set A number to %s\n", c->cid.cid_num);
 	      }
 
 	    } else {
-	      ast_log(LOG_WARNING, "Outgoing MSN %s not allowed (see outgoingmsn=%s in modem.conf)\n",num,p->outgoingmsn);
+	      ast_log(LOG_WARNING, "Outgoing MSN %s not allowed (see outgoingmsn=%s in modem.conf)\n",c->cid.cid_num,p->outgoingmsn);
 	    }
-	  }
 	}
 
 	snprintf(cmd, sizeof(cmd), "ATD%c %s\n", p->dialtype,stuff);

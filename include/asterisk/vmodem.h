@@ -3,7 +3,7 @@
  *
  * Voice Modem Definitions
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -118,7 +118,9 @@ struct ast_modem_pvt {
 	/*! Group(s) we belong to if available */
 	unsigned int group;
 	/*! Caller ID if available */
-	char cid[AST_MAX_EXTENSION];	
+	char cid_name[AST_MAX_EXTENSION];	
+	/*! Caller ID if available */
+	char cid_num[AST_MAX_EXTENSION];	
 	/*! DTMF-detection mode (i4l/asterisk) */
 	int dtmfmode;
 	/*! DTMF-generation mode (i4l (outband) / asterisk (inband) */

@@ -150,7 +150,8 @@ static char context[AST_MAX_EXTENSION] = "default";
 
 static char language[MAX_LANGUAGE] = "";
 static char musicclass[MAX_LANGUAGE] = "";
-static char callerid[AST_MAX_EXTENSION] = "";
+static char cid_num[AST_MAX_EXTENSION] = "";
+static char cid_name[AST_MAX_EXTENSION] = "";
 
 static int dtmfmode = 0;
 static int nat = 0;
@@ -356,7 +357,8 @@ struct mgcp_endpoint {
 	char exten[AST_MAX_EXTENSION];		/* Extention where to start */
 	char context[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
-	char callerid[AST_MAX_EXTENSION];	/* Caller*ID */
+	char cid_num[AST_MAX_EXTENSION];	/* Caller*ID */
+	char cid_name[AST_MAX_EXTENSION];	/* Caller*ID */
 	char lastcallerid[AST_MAX_EXTENSION];	/* Last Caller*ID */
 	char call_forward[AST_MAX_EXTENSION];	/* Last Caller*ID */
     char mailbox[AST_MAX_EXTENSION];
@@ -445,7 +447,7 @@ static struct ast_frame  *mgcp_read(struct ast_channel *ast);
 static int transmit_response(struct mgcp_subchannel *sub, char *msg, struct mgcp_request *req, char *msgrest);
 static int transmit_notify_request(struct mgcp_subchannel *sub, char *tone);
 static int transmit_modify_request(struct mgcp_subchannel *sub);
-static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, char *tone, char *callerid);
+static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, char *tone, char *callernum, char *callername);
 static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp *rtp, int codecs);
 static int transmit_connection_del(struct mgcp_subchannel *sub);
 static int transmit_audit_endpoint(struct mgcp_endpoint *p);
@@ -840,7 +842,7 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
             transmit_modify_request(sub->next);
         }
 
-		transmit_notify_request_with_callerid(sub, tone, ast->callerid);
+		transmit_notify_request_with_callerid(sub, tone, ast->cid.cid_num, ast->cid.cid_name);
 		ast_setstate(ast, AST_STATE_RINGING);
 		ast_queue_control(ast, AST_CONTROL_RINGING);
 
@@ -897,7 +899,7 @@ static int mgcp_hangup(struct ast_channel *ast)
     if ((sub == p->sub) && sub->next->owner) {
         if (p->hookstate == MGCP_OFFHOOK) {
             if (sub->next->owner && sub->next->owner->bridge) {
-                transmit_notify_request_with_callerid(p->sub, "L/wt", sub->next->owner->bridge->callerid);
+                transmit_notify_request_with_callerid(p->sub, "L/wt", sub->next->owner->bridge->cid.cid_num, sub->next->owner->bridge->cid.cid_name);
             }
         } else {
             /* set our other connection as the primary and swith over to it */
@@ -905,7 +907,7 @@ static int mgcp_hangup(struct ast_channel *ast)
             p->sub->cxmode = MGCP_CX_RECVONLY;
             transmit_modify_request(p->sub);
             if (sub->next->owner && sub->next->owner->bridge) {
-                transmit_notify_request_with_callerid(p->sub, "L/rg", sub->next->owner->callerid);
+                transmit_notify_request_with_callerid(p->sub, "L/rg", sub->next->owner->bridge->cid.cid_num, sub->next->owner->bridge->cid.cid_name);
             }
         }
 
@@ -1291,8 +1293,10 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		strncpy(tmp->call_forward, i->call_forward, sizeof(tmp->call_forward) - 1);
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);
-		if (strlen(i->callerid))
-			tmp->callerid = strdup(i->callerid);
+		if (!ast_strlen_zero(i->cid_num))
+			tmp->cid.cid_num = strdup(i->cid_num);
+		if (!ast_strlen_zero(i->cid_name))
+			tmp->cid.cid_name = strdup(i->cid_name);
 		if (!i->adsi)
 			tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 		tmp->priority = 1;
@@ -2018,10 +2022,9 @@ static int transmit_notify_request(struct mgcp_subchannel *sub, char *tone)
 	return send_request(p, NULL, &resp, oseq); /* SC */
 }
 
-static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, char *tone, char *callerid)
+static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, char *tone, char *callernum, char *callername)
 {
 	struct mgcp_request resp;
-	char cid[256];
 	char tone2[256];
 	char *l, *n;
 	time_t t;
@@ -2030,18 +2033,8 @@ static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, ch
 	
 	time(&t);
 	localtime_r(&t,&tm);
-	if (callerid)
-		strncpy(cid, callerid, sizeof(cid) - 1);
-	else
-		cid[0] = '\0';
-	ast_callerid_parse(cid, &n, &l);
-	if (l) {
-		ast_shrink_phone_number(l);
-		if (!ast_isphonenumber(l)) {
-			n = l;
-			l = "";
-		}
-	} 
+	n = callername;
+	l = callernum;
 	if (!n)
 		n = "";
 	if (!l)
@@ -2458,8 +2451,8 @@ static void *mgcp_ss(void *data)
             /*tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALTONE);*/
             transmit_notify_request(sub, "L/dl");
         }
-        if (ast_exists_extension(chan, chan->context, exten, 1, p->callerid)) {
-            if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, p->callerid)) {
+        if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num)) {
+            if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, p->cid_num)) {
                 if (getforward) {
                     /* Record this as the forwarding extension */
                     strncpy(p->call_forward, exten, sizeof(p->call_forward) - 1); 
@@ -2484,16 +2477,20 @@ static void *mgcp_ss(void *data)
                     /*res = tone_zone_play_tone(p->subs[index].zfd, -1);*/
                     ast_indicate(chan, -1);
                     strncpy(chan->exten, exten, sizeof(chan->exten)-1);
-                    if (strlen(p->callerid)) {
+                    if (!ast_strlen_zero(p->cid_num)) {
                         if (!p->hidecallerid) {
                             /* SC: free existing chan->callerid */
-                            if (chan->callerid)
-                                free(chan->callerid);
-                            chan->callerid = strdup(p->callerid);
+                            if (chan->cid.cid_num)
+                                free(chan->cid.cid_num);
+                            chan->cid.cid_num = strdup(p->cid_num);
+                            /* SC: free existing chan->callerid */
+                            if (chan->cid.cid_name)
+                                free(chan->cid.cid_name);
+                            chan->cid.cid_name = strdup(p->cid_name);
                         }
-                        if (chan->ani)
-                            free(chan->ani);
-                        chan->ani = strdup(p->callerid);
+                        if (chan->cid.cid_ani)
+                            free(chan->cid.cid_ani);
+                        chan->cid.cid_ani = strdup(p->cid_num);
                     }
                     ast_setstate(chan, AST_STATE_RING);
                     /*zt_enable_ec(p);*/
@@ -2549,9 +2546,12 @@ static void *mgcp_ss(void *data)
             }
             /* Disable Caller*ID if enabled */
             p->hidecallerid = 1;
-            if (chan->callerid)
-                free(chan->callerid);
-            chan->callerid = NULL;
+            if (chan->cid.cid_num)
+                free(chan->cid.cid_num);
+            chan->cid.cid_num = NULL;
+            if (chan->cid.cid_name)
+                free(chan->cid.cid_name);
+            chan->cid.cid_name = NULL;
             /*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
             transmit_notify_request(sub, "L/sl");
             len = 0;
@@ -2631,19 +2631,23 @@ static void *mgcp_ss(void *data)
             }
             /* Enable Caller*ID if enabled */
             p->hidecallerid = 0;
-            if (chan->callerid)
-                free(chan->callerid);
-            if (strlen(p->callerid))
-                chan->callerid = strdup(p->callerid);
+            if (chan->cid.cid_num)
+                free(chan->cid.cid_num);
+            if (!ast_strlen_zero(p->cid_num))
+                chan->cid.cid_num = strdup(p->cid_num);
+            if (chan->cid.cid_name)
+                free(chan->cid.cid_name);
+            if (!ast_strlen_zero(p->cid_name))
+                chan->cid.cid_name = strdup(p->cid_name);
             /*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
             transmit_notify_request(sub, "L/sl");
             len = 0;
             memset(exten, 0, sizeof(exten));
             timeout = firstdigittimeout;
-        } else if (!ast_canmatch_extension(chan, chan->context, exten, 1, chan->callerid) &&
+        } else if (!ast_canmatch_extension(chan, chan->context, exten, 1, chan->cid.cid_num) &&
                         ((exten[0] != '*') || (strlen(exten) > 2))) {
             if (option_debug)
-                ast_log(LOG_DEBUG, "Can't match %s from '%s' in context %s\n", exten, chan->callerid ? chan->callerid : "<Unknown Caller>", chan->context);
+                ast_log(LOG_DEBUG, "Can't match %s from '%s' in context %s\n", exten, chan->cid.cid_num ? chan->cid.cid_num : "<Unknown Caller>", chan->context);
             break;
         }
         if (!timeout)
@@ -3481,10 +3485,12 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "nat")) {
 				nat = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "callerid")) {
-				if (!strcasecmp(v->value, "asreceived"))
-					callerid[0] = '\0';
-				else
-					strncpy(callerid, v->value, sizeof(callerid) - 1);
+				if (!strcasecmp(v->value, "asreceived")) {
+					cid_num[0] = '\0';
+					cid_name[0] = '\0';
+				} else {
+					ast_callerid_split(v->value, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
+				}
 			} else if (!strcasecmp(v->name, "language")) {
 				strncpy(language, v->value, sizeof(language)-1);
             } else if (!strcasecmp(v->name, "accountcode")) {
@@ -3558,7 +3564,8 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					//strncpy(e->name, "aaln/*", sizeof(e->name) - 1);
 					/* XXX Should we really check for uniqueness?? XXX */
 					strncpy(e->context, context, sizeof(e->context) - 1);
-					strncpy(e->callerid, callerid, sizeof(e->callerid) - 1);
+					strncpy(e->cid_num, cid_num, sizeof(e->cid_num) - 1);
+					strncpy(e->cid_name, cid_name, sizeof(e->cid_name) - 1);
 					strncpy(e->language, language, sizeof(e->language) - 1);
             		strncpy(e->musicclass, musicclass, sizeof(e->musicclass)-1);
             		strncpy(e->mailbox, mailbox, sizeof(e->mailbox)-1);
@@ -3650,7 +3657,8 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
                     }
 					/* XXX Should we really check for uniqueness?? XXX */
 					strncpy(e->context, context, sizeof(e->context) - 1);
-					strncpy(e->callerid, callerid, sizeof(e->callerid) - 1);
+					strncpy(e->cid_num, cid_num, sizeof(e->cid_num) - 1);
+					strncpy(e->cid_name, cid_name, sizeof(e->cid_name) - 1);
 					strncpy(e->language, language, sizeof(e->language) - 1);
                     strncpy(e->musicclass, musicclass, sizeof(e->musicclass)-1);
                     strncpy(e->mailbox, mailbox, sizeof(e->mailbox)-1);

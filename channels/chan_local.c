@@ -239,18 +239,26 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	int res;
 	
 	ast_mutex_lock(&p->lock);
-	if (p->owner->callerid)
-		p->chan->callerid = strdup(p->owner->callerid);
+	if (p->owner->cid.cid_num)
+		p->chan->cid.cid_num = strdup(p->owner->cid.cid_num);
+	else 
+		p->chan->cid.cid_num = NULL;
+
+	if (p->owner->cid.cid_name)
+		p->chan->cid.cid_name = strdup(p->owner->cid.cid_name);
+	else 
+		p->chan->cid.cid_name = NULL;
+
+	if (p->owner->cid.cid_rdnis)
+		p->chan->cid.cid_rdnis = strdup(p->owner->cid.cid_rdnis);
 	else
-		p->chan->callerid = NULL;
-	if (p->owner->rdnis)
-		p->chan->rdnis = strdup(p->owner->rdnis);
+		p->chan->cid.cid_rdnis = NULL;
+
+	if (p->owner->cid.cid_ani)
+		p->chan->cid.cid_ani = strdup(p->owner->cid.cid_ani);
 	else
-		p->chan->rdnis = NULL;
-	if (p->owner->ani)
-		p->chan->ani = strdup(p->owner->ani);
-	else
-		p->chan->ani = NULL;
+		p->chan->cid.cid_ani = NULL;
+
 	strncpy(p->chan->language, p->owner->language, sizeof(p->chan->language) - 1);
 	strncpy(p->chan->accountcode, p->owner->accountcode, sizeof(p->chan->accountcode) - 1);
 	p->chan->cdrflags = p->owner->cdrflags;

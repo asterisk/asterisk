@@ -488,7 +488,8 @@ static pthread_t accept_t;
 static char context[AST_MAX_EXTENSION] = "default";
 static char language[MAX_LANGUAGE] = "";
 static char musicclass[MAX_LANGUAGE] = "";
-static char callerid[AST_MAX_EXTENSION] = "";
+static char cid_num[AST_MAX_EXTENSION] = "";
+static char cid_name[AST_MAX_EXTENSION] = "";
 static char linelabel[AST_MAX_EXTENSION] ="";
 static int nat = 0;
 static unsigned int cur_callergroup = 0;
@@ -634,7 +635,8 @@ struct skinny_line {
 	char exten[AST_MAX_EXTENSION];			/* Extention where to start */
 	char context[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
-	char callerid[AST_MAX_EXTENSION];		/* Caller*ID */
+	char cid_num[AST_MAX_EXTENSION];		/* Caller*ID */
+	char cid_name[AST_MAX_EXTENSION];		/* Caller*ID */
 	char lastcallerid[AST_MAX_EXTENSION];		/* Last Caller*ID */
 	char call_forward[AST_MAX_EXTENSION];	
 	char mailbox[AST_MAX_EXTENSION];
@@ -1060,9 +1062,10 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
 				nat = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "callerid")) {
 				if (!strcasecmp(v->value, "asreceived")) {
-					callerid[0] = '\0';
+					cid_num[0] = '\0';
+					cid_name[0] = '\0';
 				} else {
-					strncpy(callerid, v->value, sizeof(callerid) - 1);
+					ast_callerid_split(v->value, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
 				}
 			} else if (!strcasecmp(v->name, "language")) {
 				strncpy(language, v->value, sizeof(language)-1);
@@ -1109,7 +1112,8 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
 					/* XXX Should we check for uniqueness?? XXX */
 					
 					strncpy(l->context, context, sizeof(l->context) - 1);
-					strncpy(l->callerid, callerid, sizeof(l->callerid) - 1);
+					strncpy(l->cid_num, cid_num, sizeof(l->cid_num) - 1);
+					strncpy(l->cid_name, cid_name, sizeof(l->cid_name) - 1);
 					strncpy(l->label, linelabel, sizeof(l->label) - 1);
 					strncpy(l->language, language, sizeof(l->language) - 1);
         				strncpy(l->musicclass, musicclass, sizeof(l->musicclass)-1);
@@ -1272,8 +1276,8 @@ static void *skinny_ss(void *data)
         if (!ast_ignore_pattern(chan->context, exten)) {
 			transmit_tone(s, SKINNY_SILENCE);
         } 
-        if (ast_exists_extension(chan, chan->context, exten, 1, l->callerid)) {
-            if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, l->callerid)) {
+        if (ast_exists_extension(chan, chan->context, exten, 1, l->cid_num)) {
+            if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, l->cid_num)) {
                 if (getforward) {
                     /* Record this as the forwarding extension */
                     strncpy(l->call_forward, exten, sizeof(l->call_forward) - 1); 
@@ -1294,10 +1298,10 @@ static void *skinny_ss(void *data)
                     getforward = 0;
                 } else  {
                     strncpy(chan->exten, exten, sizeof(chan->exten)-1);
-                    if (!ast_strlen_zero(l->callerid)) {
+                    if (!ast_strlen_zero(l->cid_num)) {
                         if (!l->hidecallerid)
-                            chan->callerid = strdup(l->callerid);
-                        chan->ani = strdup(l->callerid);
+                            chan->cid.cid_num = strdup(l->cid_num);
+                        chan->cid.cid_ani = strdup(l->cid_num);
                     }
                     ast_setstate(chan, AST_STATE_RING);
                     res = ast_pbx_run(chan);
@@ -1346,9 +1350,14 @@ static void *skinny_ss(void *data)
             }
             /* Disable Caller*ID if enabled */
             l->hidecallerid = 1;
-            if (chan->callerid)
-                free(chan->callerid);
-            chan->callerid = NULL;
+            if (chan->cid.cid_num)
+                free(chan->cid.cid_num);
+            chan->cid.cid_num = NULL;
+            
+			if (chan->cid.cid_name)
+                free(chan->cid.cid_name);
+            chan->cid.cid_name = NULL;
+			
             transmit_tone(s, SKINNY_DIALTONE);
             len = 0;
             memset(exten, 0, sizeof(exten));
@@ -1422,17 +1431,23 @@ static void *skinny_ss(void *data)
             }
             /* Enable Caller*ID if enabled */
             l->hidecallerid = 0;
-            if (chan->callerid)
-                free(chan->callerid);
-            if (!ast_strlen_zero(l->callerid))
-                chan->callerid = strdup(l->callerid);
+            if (chan->cid.cid_num)
+                free(chan->cid.cid_num);
+            if (!ast_strlen_zero(l->cid_num))
+                chan->cid.cid_num = strdup(l->cid_num);
+
+            if (chan->cid.cid_name)
+                free(chan->cid.cid_name);
+            if (!ast_strlen_zero(l->cid_name))
+                chan->cid.cid_name = strdup(l->cid_name);
+
             transmit_tone(s, SKINNY_DIALTONE);
             len = 0;
             memset(exten, 0, sizeof(exten));
             timeout = firstdigittimeout;
-        } else if (!ast_canmatch_extension(chan, chan->context, exten, 1, chan->callerid) &&
+        } else if (!ast_canmatch_extension(chan, chan->context, exten, 1, chan->cid.cid_num) &&
                         ((exten[0] != '*') || (!ast_strlen_zero(exten) > 2))) {
-            ast_log(LOG_WARNING, "Can't match [%s] from '%s' in context %s\n", exten, chan->callerid ? chan->callerid : "<Unknown Caller>", chan->context);
+            ast_log(LOG_WARNING, "Can't match [%s] from '%s' in context %s\n", exten, chan->cid.cid_num ? chan->cid.cid_num : "<Unknown Caller>", chan->context);
             transmit_tone(s, SKINNY_REORDER); 
 			sleep(3); // hang out for 3 seconds to let congestion play
 			break;
@@ -1795,8 +1810,11 @@ static struct ast_channel *skinny_new(struct skinny_subchannel *sub, int state)
 		strncpy(tmp->call_forward, l->call_forward, sizeof(tmp->call_forward) - 1);
 		strncpy(tmp->context, l->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten,l->exten, sizeof(tmp->exten)-1);
-		if (!ast_strlen_zero(l->callerid)) {
-			tmp->callerid = strdup(l->callerid);
+		if (!ast_strlen_zero(l->cid_num)) {
+			tmp->cid.cid_num = strdup(l->cid_num);
+		}
+		if (!ast_strlen_zero(l->cid_name)) {
+			tmp->cid.cid_name = strdup(l->cid_name);
 		}
 		tmp->priority = 1;
 		if (state != AST_STATE_DOWN) {

@@ -370,7 +370,7 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 		if(concise)
 			ast_cli(fd, CONCISE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
 					c->appl ? c->appl : "(None)", c->data ? ( !ast_strlen_zero(c->data) ? c->data : "" ): "",
-					(c->callerid && !ast_strlen_zero(c->callerid)) ? c->callerid : "",
+					(c->cid.cid_num && !ast_strlen_zero(c->cid.cid_num)) ? c->cid.cid_num : "",
 					(c->accountcode && !ast_strlen_zero(c->accountcode)) ? c->accountcode : "",c->amaflags);
 		else
 			ast_cli(fd, FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
@@ -590,6 +590,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	"           Type: %s\n"
 	"       UniqueID: %s\n"
 	"      Caller ID: %s\n"
+	" Caller ID Name: %s\n"
 	"    DNID Digits: %s\n"
 	"          State: %s (%d)\n"
 	"          Rings: %d\n"
@@ -612,8 +613,9 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	"          Stack: %d\n"
 	"    Blocking in: %s\n",
 	c->name, c->type, c->uniqueid,
-	(c->callerid ? c->callerid : "(N/A)"),
-	(c->dnid ? c->dnid : "(N/A)" ), ast_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
+	(c->cid.cid_num ? c->cid.cid_num : "(N/A)"),
+	(c->cid.cid_name ? c->cid.cid_name : "(N/A)"),
+	(c->cid.cid_dnid ? c->cid.cid_dnid : "(N/A)" ), ast_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
 	c->fds[0], c->fin & 0x7fffffff, (c->fin & 0x80000000) ? " (DEBUGGED)" : "",
 	c->fout & 0x7fffffff, (c->fout & 0x80000000) ? " (DEBUGGED)" : "", (long)c->whentohangup,
 	hour, min, sec, 

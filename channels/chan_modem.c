@@ -3,9 +3,9 @@
  *
  * A/Open ITU-56/2 Voice Modem Driver (Rockwell, IS-101, and others)
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -429,7 +429,8 @@ static int modem_hangup(struct ast_channel *ast)
 	if (p->mc->init)
 		p->mc->init(p);
 	ast_setstate(ast, AST_STATE_DOWN);
-	memset(p->cid, 0, sizeof(p->cid));
+	memset(p->cid_num, 0, sizeof(p->cid_num));
+	memset(p->cid_name, 0, sizeof(p->cid_name));
 	memset(p->dnid, 0, sizeof(p->dnid));
 	((struct ast_modem_pvt *)(ast->pvt->pvt))->owner = NULL;
 	ast_mutex_lock(&usecnt_lock);
@@ -529,8 +530,12 @@ struct ast_channel *ast_modem_new(struct ast_modem_pvt *i, int state)
 		tmp->pvt->read = modem_read;
 		tmp->pvt->write = modem_write;
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
-		if (strlen(i->cid))
-			tmp->callerid = strdup(i->cid);
+
+		if (!ast_strlen_zero(i->cid_num))
+			tmp->cid.cid_num = strdup(i->cid_num);
+		if (!ast_strlen_zero(i->cid_name))
+			tmp->cid.cid_name = strdup(i->cid_name);
+
 		if (strlen(i->language))
 			strncpy(tmp->language,i->language, sizeof(tmp->language)-1);
 		if (strlen(i->dnid))
@@ -739,7 +744,8 @@ static struct ast_modem_pvt *mkif(char *iface)
 		tmp->dialtype = dialtype;
 		tmp->mode = gmode;
 		tmp->group = cur_group;
-		memset(tmp->cid, 0, sizeof(tmp->cid));
+		memset(tmp->cid_num, 0, sizeof(tmp->cid_num));
+		memset(tmp->cid_name, 0, sizeof(tmp->cid_name));
 		strncpy(tmp->context, context, sizeof(tmp->context)-1);
 		strncpy(tmp->initstr, initstr, sizeof(tmp->initstr)-1);
 		tmp->next = NULL;

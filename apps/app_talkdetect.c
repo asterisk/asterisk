@@ -124,7 +124,7 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 						char t[2];
 						t[0] = fr->subclass;
 						t[1] = '\0';
-						if (ast_canmatch_extension(chan, chan->context, t, 1, chan->callerid)) {
+						if (ast_canmatch_extension(chan, chan->context, t, 1, chan->cid.cid_num)) {
 							/* They entered a valid  extension, or might be anyhow */
 							res = fr->subclass;
 							ast_frfree(fr);
@@ -146,7 +146,7 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 									ms = 0;
 								if ((ms > min) && ((max < 0) || (ms < max))) {
 									ast_log(LOG_DEBUG, "Found qualified token of %d ms\n", ms);
-									if (ast_exists_extension(chan, chan->context, "talk", 1, chan->callerid)) {
+									if (ast_exists_extension(chan, chan->context, "talk", 1, chan->cid.cid_num)) {
 										strncpy(chan->exten, "talk", sizeof(chan->exten) -1 );
 										chan->priority = 0;
 									}
