@@ -2566,8 +2566,12 @@ static struct iax2_peer *realtime_peer(const char *peername)
 				peerl.peers = peer;
 				ast_mutex_unlock(&peerl.lock);
 				ast_copy_flags(peer, &globalflags, IAX_RTAUTOCLEAR|IAX_RTCACHEFRIENDS);
-				if (ast_test_flag(peer, IAX_RTAUTOCLEAR))
+				if (ast_test_flag(peer, IAX_RTAUTOCLEAR)) {
+					if (peer->expire > -1) {
+						ast_sched_del(sched, peer->expire);
+					}
 					peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_registry, (void *)peer);
+				}
 			} else {
 		    		ast_set_flag(peer, IAX_TEMPONLY);	
 			}

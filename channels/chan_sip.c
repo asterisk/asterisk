@@ -1292,6 +1292,9 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 			if(ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
 				ast_copy_flags((&peer->flags_page2),(&global_flags_page2), SIP_PAGE2_RTAUTOCLEAR|SIP_PAGE2_RTCACHEFRIENDS);
 				if(ast_test_flag((&global_flags_page2), SIP_PAGE2_RTAUTOCLEAR)) {
+					if (peer->expire > -1) {
+						ast_sched_del(sched, peer->expire);
+					}
 					peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_register, (void *)peer);
 				}
 				ASTOBJ_CONTAINER_LINK(&peerl,peer);
