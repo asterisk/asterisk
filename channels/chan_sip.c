@@ -3322,7 +3322,30 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 	}
 	return 0;
 }
-
+static char *get_calleridname(char *input,char *output)
+{
+	char *end = strchr(input,'<');
+	char *tmp = strchr(input,'\"');
+	if (!end) return NULL;
+	/* move away from "<" */
+	end--;
+	/* we found "name" */
+	if (tmp && tmp < end) {
+		end = strchr(tmp+1,'\"');
+		if (!end) return NULL;
+		strncpy(output,tmp+1,(int)(end-tmp-1));
+	} else {
+		/* we didn't find "name" */
+		/* clear the empty characters in the begining*/
+		while(*input && (*input < 33))
+			input++;
+		/* clear the empty characters in the end */
+		while(*end && (*end < 33) && end > input)
+			end--;
+		strncpy(output,input,(int)(end-input));
+	}
+	return output;
+}
 static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, char *uri, int reliable)
 {
 	struct sip_user *user;
@@ -3330,6 +3353,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 	char *of, from[256] = "", *c;
 	int res = 0;
 	char *t;
+	char calleridname[50];
 	/* Terminate URI */
 	t = uri;
 	while(*t && (*t > 32) && (*t != ';'))
@@ -3337,6 +3361,8 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 	*t = '\0';
 	of = get_header(req, "From");
 	strncpy(from, of, sizeof(from) - 1);
+	memset(calleridname,0,sizeof(calleridname));
+	get_calleridname(from,calleridname);
 	of = ditch_braces(from);
 	if (strncmp(of, "sip:", 4)) {
 		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
@@ -3347,7 +3373,10 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 		*c = '\0';
 	if ((c = strchr(of, ':')))
 		*c = '\0';
-	strncpy(p->callerid, of, sizeof(p->callerid) - 1);
+	if (*calleridname)
+		sprintf(p->callerid,"\"%s\" <%s>",calleridname,of);
+	else
+		strncpy(p->callerid, of, sizeof(p->callerid) - 1);
 	if (!strlen(of))
 			return 0;
 	ast_pthread_mutex_lock(&userl.lock);
