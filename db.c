@@ -294,13 +294,81 @@ static int database_show(int fd, int argc, char *argv[])
 			values = data.data;
 			values[data.size - 1]='\0';
 		} else
-			values = "<vad value>";
+			values = "<bad value>";
 		if (keymatch(keys, prefix)) {
 				ast_cli(fd, "%-50s: %-25s\n", keys, values);
 		}
 	}
 	ast_pthread_mutex_unlock(&dblock);
 	return RESULT_SUCCESS;	
+}
+
+struct ast_db_entry *ast_db_gettree(const char *family, const char *keytree)
+{
+	char prefix[256];
+	DBT key, data;
+	char *keys, *values;
+	int res;
+	int pass;
+	struct ast_db_entry *last = NULL;
+	struct ast_db_entry *cur, *ret=NULL;
+
+	if (family && strlen(family)) {
+		if (keytree && strlen(keytree))
+			/* Family and key tree */
+			snprintf(prefix, sizeof(prefix), "/%s/%s", family, prefix);
+		else
+			/* Family only */
+			snprintf(prefix, sizeof(prefix), "/%s", family);
+	} else
+		strcpy(prefix, "");
+	ast_pthread_mutex_lock(&dblock);
+	if (dbinit()) {
+		ast_pthread_mutex_unlock(&dblock);
+		ast_log(LOG_WARNING, "Database unavailable\n");
+		return NULL;	
+	}
+	memset(&key, 0, sizeof(key));
+	memset(&data, 0, sizeof(data));
+	pass = 0;
+	while(!(res = astdb->seq(astdb, &key, &data, pass++ ? R_NEXT : R_FIRST))) {
+		if (key.size) {
+			keys = key.data;
+			keys[key.size - 1] = '\0';
+		} else
+			keys = "<bad key>";
+		if (data.size) {
+			values = data.data;
+			values[data.size - 1]='\0';
+		} else
+			values = "<bad value>";
+		if (keymatch(keys, prefix)) {
+				cur = malloc(sizeof(struct ast_db_entry) + strlen(keys) + strlen(values) + 2);
+				if (cur) {
+					cur->next = NULL;
+					cur->key = cur->data + strlen(values) + 1;
+					strcpy(cur->data, values);
+					strcpy(cur->key, keys);
+					if (last)
+						last->next = cur;
+					else
+						ret = cur;
+					last = cur;
+				}
+		}
+	}
+	ast_pthread_mutex_unlock(&dblock);
+	return ret;	
+}
+
+void ast_db_freetree(struct ast_db_entry *dbe)
+{
+	struct ast_db_entry *last;
+	while(dbe) {
+		last = dbe;
+		dbe = dbe->next;
+		free(last);
+	}
 }
 
 static char database_show_usage[] =
