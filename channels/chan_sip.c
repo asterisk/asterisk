@@ -4922,9 +4922,13 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		case 100:
 			break;
 		case 183:	
-			if (p->owner) {
-				/* Queue a progress frame */
-				ast_queue_control(p->owner, AST_CONTROL_PROGRESS, 0);
+			if (!strcasecmp(msg, "INVITE")) {
+				if (strlen(get_header(req, "Content-Type")))
+					process_sdp(p, req);
+				if (p->owner) {
+					/* Queue a progress frame */
+					ast_queue_control(p->owner, AST_CONTROL_PROGRESS, 0);
+				}
 			}
 			break;
 		case 180:
