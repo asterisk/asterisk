@@ -1356,7 +1356,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			c++;
 		else
 			c = dest;
-		if (ast->callerid) {
+		if (ast->callerid && !p->hidecallerid) {
 			strncpy(callerid, ast->callerid, sizeof(callerid)-1);
 			ast_callerid_parse(callerid, &n, &l);
 			if (l) {
@@ -2013,7 +2013,7 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	p1 = c1->pvt->pvt;
 	/* cant do pseudo-channels here */
 	if ((!p0->sig) || (!p1->sig)) return -2;
-
+		
 	ast_pthread_mutex_lock(&c0->lock);
 	ast_pthread_mutex_lock(&c1->lock);
 	op0 = p0 = c0->pvt->pvt;
