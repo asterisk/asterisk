@@ -128,21 +128,13 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 	int ms = -1;
 	int pid = -1;
 	int needed = 0;
-	int us;
-	int exception;
 	int owriteformat;
-	struct timeval tv;
-	struct timeval last;
 	struct ast_frame *f;
-	int x;
-	struct ast_frame *winner;
 	struct myframe {
 		struct ast_frame f;
 		char offset[AST_FRIENDLY_OFFSET];
 		char frdata[2048];
 	} myf;
-	last.tv_usec = 0;
-	last.tv_sec = 0;
 	
         if (pipe(fds)) {
                  ast_log(LOG_WARNING, "Unable to create pipe\n");
@@ -184,7 +176,7 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 			}
 			if (f->frametype == AST_FRAME_VOICE) {
 				/* Treat as a generator */
-				needed = f->sample * 2;
+				needed = f->samples * 2;
 				if (needed > sizeof(myf.frdata)) {
 					ast_log(LOG_WARNING, "Only able to deliver %d of %d requested samples\n",
 						sizeof(myf.frdata) / 2, needed/2);
