@@ -124,21 +124,32 @@ the scope of your function try ast_strdupa() or declare struts static
 and pass them as a pointer with &.
 
 If you are going to reuse a computable value, save it in a variable
-instead of recomputing it over and over.
+instead of recomputing it over and over.  This can prevent you from 
+making a mistake in subsequent computations, make it easier to correct
+if the formula has an error and may or may not help optimization but 
+will at least help readability.
 
-Just an Example:
+Just an example, so don't over analyze it, that'd be a shame:
 
- if (strlen(name)) {
-  newname = alloca(strlen(name));
-  strncpy(newname, name, strlen(name);
- }
-  
+
+const char *prefix = "pre";	
+const char *postfix = "post";
+char *newname = NULL;
+char *name = "data";
+
+if (name && (newname = (char *) alloca(strlen(name) + strlen(prefix) + strlen(postfix) + 3)))
+	snprintf(newname, strlen(name) + strlen(prefix) + strlen(postfix) + 3, "%s/%s/%s", prefix, name, postfix);
+
 vs
 
- if((len = strlen(name))) {
-  newname = alloca(len);
-  strncpy(newname, name, len);
- }
+const char *prefix = "pre";
+const char *postfix = "post";
+char *newname = NULL;
+char *name = "data";
+int len = 0;
+
+if (name && (len = strlen(name) + strlen(prefix) + strlen(postfix) + 3) && (newname = (char *) alloca(len)))
+	snprintf(newname, len, "%s/%s/%s", prefix, name, postfix);
 
 
 Use const on pointers which your function will not be modifying, as this 
