@@ -1141,8 +1141,22 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 			} else {
 				if (digit) {
 					/* Thought we saw one last time.  Pretty sure we really have now */
-					if (dsp->thinkdigit) 
+					if (dsp->thinkdigit) {
+						if (dsp->thinkdigit != 'x') {
+							/* If we found a digit, and we're changing digits, go
+							   ahead and send this one, but DON'T stop confmute because
+							   we're detecting something else, too... */
+							memset(&dsp->f, 0, sizeof(dsp->f));
+							dsp->f.frametype = AST_FRAME_DTMF;
+							dsp->f.subclass = dsp->thinkdigit;
+							FIX_INF(af);
+							if (chan)
+								ast_queue_frame(chan, af, needlock);
+							ast_frfree(af);
+						}
 						dsp->thinkdigit = digit;
+						return &dsp->f;
+					}
 				} else {
 					if (dsp->thinkdigit) {
 						memset(&dsp->f, 0, sizeof(dsp->f));
