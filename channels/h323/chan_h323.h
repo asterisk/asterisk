@@ -8,7 +8,7 @@
  * This code has been derived from code created by 
  *		Michael Manousos and Mark Spencer
  *
- * This file is part of the chan_oh323 driver for Asterisk
+ * This file is part of the chan_h323 driver for Asterisk
  *
  * chan_h323 is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +27,8 @@
  */
 
 #include <arpa/inet.h>
+
+static struct sockaddr_in bindaddr;
 
 /* structure to hold the valid asterisk users */
 struct oh323_user {
