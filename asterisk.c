@@ -425,7 +425,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		close(ast_consock);
 	if (ast_socket > -1)
 		unlink((char *)ast_config_AST_SOCKET);
-	unlink((char *)ast_config_AST_PID);
+	if (!option_remote) unlink((char *)ast_config_AST_PID);
 	printf(term_quit());
 	if (restart) {
 		if (option_verbose || option_console)
