@@ -1228,6 +1228,9 @@ static int __ast_dsp_silence(struct ast_dsp *dsp, short *s, int len, int *totals
 	int accum;
 	int x;
 	int res = 0;
+
+	if (!len)
+		return 0;
 	
 	accum = 0;
 	for (x=0;x<len; x++) 
