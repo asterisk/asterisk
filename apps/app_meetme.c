@@ -1059,10 +1059,10 @@ zapretry:
 								chan->name, chan->uniqueid, conf->confno, user->user_no);
 						}
 					}
-                                	if (using_pseudo) {
-                                                /* Carefully write */
-                                                careful_write(fd, f->data, f->datalen);
-                                	}
+					if (using_pseudo) {
+						/* Carefully write */
+						careful_write(fd, f->data, f->datalen);
+					}
 				} else if ((f->frametype == AST_FRAME_DTMF) && (confflags & CONFFLAG_EXIT_CONTEXT)) {
 					char tmp[2];
 					tmp[0] = f->subclass;
