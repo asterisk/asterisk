@@ -31,8 +31,8 @@ static char *app = "Echo";
 static char *synopsis = "Echo audio read back to the user";
 
 static char *descrip = 
-"  Echo():  Echo audio read from channel back to the channel.  Returns 0\n"
-"  if the user exits with the '#' key, or -1 if the user hangs up.\n";
+"  Echo():  Echo audio read from channel back to the channel. Returns 0\n"
+"if the user exits with the '#' key, or -1 if the user hangs up.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -57,6 +57,7 @@ static int echo_exec(struct ast_channel *chan, void *data)
 				if (ast_write(chan, f))
 					break;
 		}
+		ast_frfree(f);
 	}
 	LOCAL_USER_REMOVE(u);
 	return res;

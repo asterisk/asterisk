@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <asterisk/sched.h>
 #include <asterisk/logger.h>
+#include <asterisk/channel.h>
 
 /* Determine if a is sooner than b */
 #define SOONER(a,b) (((b).tv_sec > (a).tv_sec) || \
@@ -243,8 +244,8 @@ int ast_sched_del(struct sched_context *con, int id)
 		s = s->next;
 	}
 	ast_log(LOG_NOTICE, "Attempted to delete non-existant schedule entry %d!\n", id);
-#ifdef FORCE_CRASH
-	crash();
+#ifdef DO_CRASH
+	CRASH;
 #endif
 	return -1;
 }
