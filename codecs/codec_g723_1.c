@@ -115,7 +115,7 @@ static struct ast_frame *lintog723_sample(void)
 	f.subclass = AST_FORMAT_SLINEAR;
 	f.datalen = sizeof(slin_g723_ex);
 	/* Assume 8000 Hz */
-	f.samples = sizeof(slin_g723_ex)/16;
+	f.samples = sizeof(slin_g723_ex)/2;
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
@@ -130,7 +130,7 @@ static struct ast_frame *g723tolin_sample(void)
 	f.subclass = AST_FORMAT_G723_1;
 	f.datalen = sizeof(g723_slin_ex);
 	/* All frames are 30 ms long */
-	f.samples = 30;
+	f.samples = 240;
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
@@ -167,7 +167,7 @@ static struct ast_frame *g723tolin_frameout(struct ast_translator_pvt *pvt)
 	tmp->f.subclass = AST_FORMAT_SLINEAR;
 	tmp->f.datalen = tmp->tail * 2;
 	/* Assume 8000 Hz */
-	tmp->f.samples = tmp->tail / 8;
+	tmp->f.samples = tmp->tail;
 	tmp->f.mallocd = 0;
 	tmp->f.offset = AST_FRIENDLY_OFFSET;
 	tmp->f.src = __PRETTY_FUNCTION__;
@@ -296,9 +296,8 @@ static struct ast_frame *lintog723_frameout(struct ast_translator_pvt *pvt)
 		Coder(&tmp->cod, tmp->buf, tmp->outbuf + cnt);
 #endif
 		/* Assume 8000 Hz */
-		tmp->f.samples += 30;
-		/* FIXME:SLD: Shouldn't the [0] be [cnt]?? */
-		cnt += g723_len(tmp->outbuf[0]);
+		tmp->f.samples += 240;
+		cnt += g723_len(tmp->outbuf[cnt]);
 		tmp->tail -= Frame;
 		/* Move the data at the end of the buffer to the front */
 		if (tmp->tail)
