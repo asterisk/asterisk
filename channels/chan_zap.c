@@ -2626,6 +2626,11 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	int oi1, oi2, i1 = -1, i2 = -1, t1, t2;
 	int os1 = -1, os2 = -1;
 	struct ast_channel *oc1, *oc2;
+#ifdef PRI_2BCT
+	int triedtopribridge = 0;
+	q931_call *q931c0 = NULL, *q931c1 = NULL;
+#endif
+
 
 	/* if need DTMF, cant native bridge */
 	if (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))
@@ -2793,6 +2798,15 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 		ast_mutex_lock(&c1->lock);
 		p0 = c0->pvt->pvt;
 		p1 = c1->pvt->pvt;
+
+#ifdef PRI_2BCT
+		q931c0 = p0->call;
+		q931c1 = p1->call;
+		if (q931c0 && q931c1 && !triedtopribridge) {
+			pri_channel_bridge(q931c0, q931c1);
+			triedtopribridge = 1;
+		}
+#endif
 		if (op0 == p0)
 			i1 = zt_get_index(c0, p0, 1);
 		if (op1 == p1)
