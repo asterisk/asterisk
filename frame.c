@@ -80,7 +80,7 @@ int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Out of smoother space\n");
 		return -1;
 	}
-	if ((f->datalen == s->size) && !s->opt) {
+	if ((f->datalen == s->size) && !s->opt && (f->offset >= AST_MIN_OFFSET)) {
 		if (!s->len) {
 			/* Optimize by sending the frame we just got
 			   on the next read, thus eliminating the douple
