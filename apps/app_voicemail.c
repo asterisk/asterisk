@@ -4461,7 +4461,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 				return -1;
 			}
 		}
-		if (prefix) {
+		if (prefix && !ast_strlen_zero(prefix)) {
 			char fullusername[80] = "";
 			strncpy(fullusername, prefix, sizeof(fullusername) - 1);
 			strncat(fullusername, mailbox, sizeof(fullusername) - 1 - strlen(fullusername));
@@ -4476,7 +4476,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 		else {
 			if (option_verbose > 2)
 				ast_verbose( VERBOSE_PREFIX_3 "Incorrect password '%s' for user '%s' (context = %s)\n", password, mailbox, context ? context : "<any>");
-			if (prefix)
+			if (prefix && !ast_strlen_zero(prefix))
 				strncpy(mailbox, "", mailbox_size -1);
 		}
 		logretries++;
