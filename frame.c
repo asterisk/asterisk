@@ -982,7 +982,8 @@ void ast_parse_allow_deny(struct ast_codec_pref *pref, int *mask, char *list, in
 					ast_codec_pref_append(pref, format_i);
 				else
 					ast_codec_pref_remove(pref, format_i);
-			}
+			} else if(!allowing) /* disallow all must clear your prefs or it makes no sense */
+				memset(pref, 0, sizeof(struct ast_codec_pref));
 		} else
 			ast_log(LOG_WARNING, "Cannot %s unknown format '%s'\n", allowing ? "allow" : "disallow", last_format);
 
