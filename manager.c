@@ -424,8 +424,10 @@ static int action_mailboxstatus(struct mansession *s, struct message *m)
 		astman_send_error(s, "Mailbox not specified");
 		return 0;
 	}
-	astman_send_ack(s, "Mailbox status will follow");
-	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", mailbox, ast_app_has_voicemail(mailbox));
+	ast_cli(s->fd, "Response: Success\r\n"
+				   "Message: Mailbox Status\r\n"
+				   "Mailbox: %s\r\n"
+		 		   "Waiting: %d\r\n\r\n", mailbox, ast_app_has_voicemail(mailbox));
 	return 0;
 }
 
@@ -433,6 +435,7 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 {
 	char *exten = astman_get_header(m, "Exten");
 	char *context = astman_get_header(m, "Context");
+	char hint[256] = "";
 	int status;
 	if (!exten || !strlen(exten)) {
 		astman_send_error(s, "Extension not specified");
@@ -440,9 +443,14 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 	}
 	if (!context || !strlen(context))
 		context = "default";
-	astman_send_ack(s, "Extension status will follow");
 	status = ast_extension_state(NULL, context, exten);
-	manager_event(EVENT_FLAG_CALL, "ExtensionStatus", "Exten: %s\r\nContext: %s\r\nStatus: %d\r\n", exten, context, status);
+	ast_get_hint(hint, sizeof(hint) - 1, NULL, context, exten);
+	ast_cli(s->fd, "Response: Success\r\n"
+				   "Message: Extension Status\r\n"
+				   "Exten: %s\r\n"
+				   "Context: %s\r\n"
+				   "Hint: %s\r\n"
+		 		   "Status: %d\r\n\r\n", exten, context, hint, status);
 	return 0;
 }
 

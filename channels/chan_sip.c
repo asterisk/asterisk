@@ -2409,7 +2409,7 @@ static int transmit_notify(struct sip_pvt *p, int newmsgs, int oldmsgs)
 		parse(&p->initreq);
 	}
 
-	return send_request(p, &req, 0, p->ocseq);
+	return send_request(p, &req, 1, p->ocseq);
 }
 
 static int transmit_register(struct sip_registry *r, char *cmd, char *auth);
