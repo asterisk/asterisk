@@ -984,6 +984,14 @@ char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char
 {
 	int res;
 	struct ast_frame *fr;
+
+	if (!breakon)
+			breakon = "";
+	if (!forward)
+			forward = "";
+	if (!rewind)
+			rewind = "";
+	
 	while(c->stream) {
 		res = ast_sched_wait(c->sched);
 		if ((res < 0) && !c->timingfunc) {
@@ -1048,6 +1056,9 @@ char ast_waitstream_full(struct ast_channel *c, char *breakon, int audiofd, int 
 	int outfd;
 	struct ast_frame *fr;
 	struct ast_channel *rchan;
+
+	if (!breakon)
+		breakon = "";
 	
 	while(c->stream) {
 		ms = ast_sched_wait(c->sched);
