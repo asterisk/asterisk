@@ -3617,13 +3617,20 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		}
 		if (useadsi)
 			adsi_password(chan);
-		if (ast_streamfile(chan, "vm-password", chan->language)) {
-			ast_log(LOG_WARNING, "Unable to stream password file\n");
-			goto out;
-		}
-		if (ast_readstring(chan, password, sizeof(password) - 1, 2000, 10000, "#") < 0) {
-			ast_log(LOG_WARNING, "Unable to read password\n");
-			goto out;
+		if (!skipuser)
+			vmu = find_user(&vmus, context, vms.username);
+		if (vmu && vmu->password[0] == '\0') {
+			/* saved password is blank, so don't bother asking */
+			password[0] = '\0';
+		} else {
+			if (ast_streamfile(chan, "vm-password", chan->language)) {
+				ast_log(LOG_WARNING, "Unable to stream password file\n");
+				goto out;
+			}
+			if (ast_readstring(chan, password, sizeof(password) - 1, 2000, 10000, "#") < 0) {
+				ast_log(LOG_WARNING, "Unable to read password\n");
+				goto out;
+			}
 		}
 		if (prefix) {
 			char fullusername[80] = "";
@@ -3631,8 +3638,6 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			strncat(fullusername, vms.username, sizeof(fullusername) - 1);
 			strncpy(vms.username, fullusername, sizeof(vms.username) - 1);
 		}
-		if (!skipuser) 
-			vmu = find_user(&vmus, context, vms.username);
 		if (vmu && !strcmp(vmu->password, password)) 
 			valid++;
 		else {
