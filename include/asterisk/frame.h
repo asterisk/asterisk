@@ -36,6 +36,10 @@ extern "C" {
 #define __BYTE_ORDER __LITTLE_ENDIAN
 #endif /* __LITTLE_ENDIAN */
 
+#if (defined(i386))
+#define __BYTE_ORDER __LITTLE_ENDIAN
+#endif /* defined i386 */
+
 #if (defined(sun) && defined(unix) && defined(sparc))
 #define __BYTE_ORDER __BIG_ENDIAN
 #endif /* sun unix sparc */
