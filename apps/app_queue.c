@@ -820,7 +820,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing)
 	return res;
 }
 
-static int update_queue(struct ast_call_queue *q, struct localuser *user)
+static int update_queue(struct ast_call_queue *q, struct member *member)
 {
 	struct member *cur;
 	/* Since a reload could have taken place, we have to traverse the list to
@@ -828,7 +828,7 @@ static int update_queue(struct ast_call_queue *q, struct localuser *user)
 	ast_mutex_lock(&q->lock);
 	cur = q->members;
 	while(cur) {
-		if (user->member == cur) {
+		if (member == cur) {
 			time(&cur->lastcall);
 			cur->calls++;
 			break;
@@ -1026,7 +1026,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		}
 		/* Update parameters for the queue */
 		recalc_holdtime(qe);
-		update_queue(qe->parent, lpeer);
+		update_queue(qe->parent, lpeer->member);
 		hanguptree(outgoing, peer);
 		outgoing = NULL;
 		if (announce) {
