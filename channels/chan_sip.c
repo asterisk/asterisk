@@ -281,11 +281,14 @@ static struct sip_pvt {
 	struct sip_pvt *next;
 } *iflist = NULL;
 
+#define FLAG_RESPONSE (1 << 0)
+#define FLAG_FATAL (1 << 1)
+
 struct sip_pkt {
 	struct sip_pkt *next;				/* Next packet */
 	int retrans;						/* Retransmission number */
 	int seqno;							/* Sequence number */
-	int resp;							/* non-zero if this is a response packet (e.g. 200 OK) */
+	int flags;							/* non-zero if this is a response packet (e.g. 200 OK) */
 	struct sip_pvt *owner;				/* Owner call */
 	int retransid;						/* Retransmission ID */
 	int packetlen;						/* Length of packet */
@@ -494,20 +497,25 @@ static int retrans_pkt(void *data)
 		__sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
 		res = 1;
 	} else {
-		ast_log(LOG_WARNING, "Maximum retries exceeded on call %s for seqno %d (%s)\n", pkt->owner->callid, pkt->seqno, pkt->resp ? "Response" : "Request");
+		ast_log(LOG_WARNING, "Maximum retries exceeded on call %s for seqno %d (%s %s)\n", pkt->owner->callid, pkt->seqno, (pkt->flags & FLAG_FATAL) ? "Critical" : "Non-critical", (pkt->flags & FLAG_RESPONSE) ? "Response" : "Request");
 		pkt->retransid = -1;
-		while(pkt->owner->owner && ast_mutex_trylock(&pkt->owner->owner->lock)) {
-			ast_mutex_unlock(&pkt->owner->lock);
-			usleep(1);
-			ast_mutex_lock(&pkt->owner->lock);
-		}
-		if (pkt->owner->owner) {
-			/* XXX Potential deadlocK?? XXX */
-			ast_queue_hangup(pkt->owner->owner, 0);
-			ast_mutex_unlock(&pkt->owner->owner->lock);
+		if (pkt->flags & FLAG_FATAL) {
+			while(pkt->owner->owner && ast_mutex_trylock(&pkt->owner->owner->lock)) {
+				ast_mutex_unlock(&pkt->owner->lock);
+				usleep(1);
+				ast_mutex_lock(&pkt->owner->lock);
+			}
+			if (pkt->owner->owner) {
+				/* XXX Potential deadlocK?? XXX */
+				ast_queue_hangup(pkt->owner->owner, 0);
+				ast_mutex_unlock(&pkt->owner->owner->lock);
+			} else {
+				/* If no owner, destroy now */
+				pkt->owner->needdestroy = 1;
+			}
 		} else {
-			/* If no owner, destroy now */
-			pkt->owner->needdestroy = 1;
+			/* Okay, it's not fatal, just continue.  XXX If we were nice, we'd free it now, rather than wait for the
+			   end of the call XXX */
 		}
 	}
 	if (pkt)
@@ -515,7 +523,7 @@ static int retrans_pkt(void *data)
 	return res;
 }
 
-static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *data, int len)
+static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *data, int len, int fatal)
 {
 	struct sip_pkt *pkt;
 	pkt = malloc(sizeof(struct sip_pkt) + len);
@@ -527,7 +535,9 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
 	pkt->next = p->packets;
 	pkt->owner = p;
 	pkt->seqno = seqno;
-	pkt->resp = resp;
+	pkt->flags = resp;
+	if (fatal)
+		pkt->flags |= FLAG_FATAL;
 	/* Schedule retransmission */
 	pkt->retransid = ast_sched_add(sched, DEFAULT_RETRANS, retrans_pkt, pkt);
 	pkt->next = p->packets;
@@ -577,7 +587,7 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp)
 	int resetinvite = 0;
 	cur = p->packets;
 	while(cur) {
-		if ((cur->seqno == seqno) && (cur->resp == resp)) {
+		if ((cur->seqno == seqno) && ((cur->flags & FLAG_RESPONSE) == resp)) {
 			if (!resp && (seqno == p->pendinginvite)) {
 				ast_log(LOG_DEBUG, "Acked pending invite %d\n", p->pendinginvite);
 				p->pendinginvite = 0;
@@ -607,7 +617,7 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp)
 	int res = -1;
 	cur = p->packets;
 	while(cur) {
-		if ((cur->seqno == seqno) && (cur->resp == resp)) {
+		if ((cur->seqno == seqno) && ((cur->flags & FLAG_RESPONSE) == resp)) {
 			/* this is our baby */
 			if (cur->retransid > -1)
 				ast_sched_del(sched, cur->retransid);
@@ -631,7 +641,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 			ast_verbose("%sTransmitting (no NAT):\n%s\n to %s:%d\n", reliable ? "Reliably " : "", req->data, inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
 	}
 	if (reliable)
-		res = __sip_reliable_xmit(p, seqno, 1, req->data, req->len);
+		res = __sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable > 1));
 	else
 		res = __sip_xmit(p, req->data, req->len);
 	if (res > 0)
@@ -649,7 +659,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 			ast_verbose("%sTransmitting:\n%s (no NAT) to %s:%d\n", reliable ? "Reliably " : "", req->data, inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
 	}
 	if (reliable)
-		res = __sip_reliable_xmit(p, seqno, 0, req->data, req->len);
+		res = __sip_reliable_xmit(p, seqno, 0, req->data, req->len, (reliable > 1));
 	else
 		res = __sip_xmit(p, req->data, req->len);
 	return res;
@@ -1184,7 +1194,7 @@ static void sip_destroy(struct sip_pvt *p)
 	ast_mutex_unlock(&iflock);
 }
 
-static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req);
+static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req, int fatal);
 
 static int hangup_sip2cause(int cause)
 {
@@ -1275,9 +1285,9 @@ static int sip_hangup(struct ast_channel *ast)
 			} else {
 				char *res;
 				if (ast->hangupcause && ((res = hangup_cause2sip(ast->hangupcause)))) {
-					transmit_response_reliable(p, res, &p->initreq);
+					transmit_response_reliable(p, res, &p->initreq, 1);
 				} else 
-					transmit_response_reliable(p, "403 Forbidden", &p->initreq);
+					transmit_response_reliable(p, "403 Forbidden", &p->initreq, 1);
 			}
 		} else {
 			if (!p->pendinginvite) {
@@ -2526,9 +2536,9 @@ static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *r
 {
 	return __transmit_response(p, msg, req, 0);
 }
-static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req)
+static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req, int fatal)
 {
-	return __transmit_response(p, msg, req, 1);
+	return __transmit_response(p, msg, req, fatal ? 2 : 1);
 }
 
 static void append_date(struct sip_request *req)
@@ -3029,7 +3039,7 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 		determine_firstline_parts(&p->initreq);
 	}
 	p->lastinvite = p->ocseq;
-	return send_request(p, &req, 1, p->ocseq);
+	return send_request(p, &req, init ? 2 : 1, p->ocseq);
 }
 
 static int transmit_state_notify(struct sip_pvt *p, int state, int full)
@@ -3296,7 +3306,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	parse(&p->initreq);
 	determine_firstline_parts(&p->initreq);
 	r->regstate=auth?REG_STATE_AUTHSENT:REG_STATE_REGSENT;
-	return send_request(p, &req, 1, p->ocseq);
+	return send_request(p, &req, 2, p->ocseq);
 }
 
 static int transmit_message_with_text(struct sip_pvt *p, char *text)
@@ -5411,14 +5421,14 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 						ast_mutex_unlock(&p->lock);
 						ast_hangup(c);
 						ast_mutex_lock(&p->lock);
-						transmit_response_reliable(p, "503 Unavailable", req);
+						transmit_response_reliable(p, "503 Unavailable", req, 1);
 						c = NULL;
 					}
 				} else {
 					ast_mutex_unlock(&c->lock);
 					if (ast_pickup_call(c)) {
 						ast_log(LOG_NOTICE, "Nothing to pick up\n");
-						transmit_response_reliable(p, "503 Unavailable", req);
+						transmit_response_reliable(p, "503 Unavailable", req, 1);
 						p->alreadygone = 1;
 						/* Unlock locks so ast_hangup can do its magic */
 						ast_mutex_unlock(&p->lock);
@@ -5450,7 +5460,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		} else {
 			if (p && !p->needdestroy) {
 				ast_log(LOG_NOTICE, "Unable to create/find channel\n");
-				transmit_response_reliable(p, "503 Unavailable", req);
+				transmit_response_reliable(p, "503 Unavailable", req, 1);
 				p->needdestroy = 1;
 			}
 		}
@@ -5505,10 +5515,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		else
 			p->needdestroy = 1;
 		if (p->initreq.len > 0) {
-			transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
+			transmit_response_reliable(p, "487 Request Terminated", &p->initreq, 1);
 			transmit_response(p, "200 OK", req);
 		} else {
-			transmit_response_reliable(p, "481 Call Leg Does Not Exist", req);
+			transmit_response_reliable(p, "481 Call Leg Does Not Exist", req, 1);
 		}
 	} else if (!strcasecmp(cmd, "BYE")) {
 		copy_request(&p->initreq, req);
@@ -5638,7 +5648,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		/* Uhm, I haven't figured out the point of the ACK yet.  Are we
 		   supposed to retransmit responses until we get an ack? 
 		   Make sure this is on a valid call */
-		__sip_ack(p, seqno, 1);
+		__sip_ack(p, seqno, FLAG_RESPONSE);
 		if (strlen(get_header(req, "Content-Type"))) {
 			if (process_sdp(p, req))
 				return -1;
