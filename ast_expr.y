@@ -341,9 +341,18 @@ ast_yylex (YYSTYPE *lvalp, YYLTYPE *yylloc, struct parser_control *karoto)
 	}
 	else if( *t1 == 0 )
 	{
-		/* we are done. That was quick */
-		p = karoto->ptrptr;
-		yylloc->last_column = t1 - karoto->argv;
+		if( t1 != karoto->ptrptr )
+		{
+			/* this is the last token */
+			p = karoto->ptrptr;
+			karoto->ptrptr = t1;
+		}
+		else
+		{
+			/* we are done. That was quick */
+			p = karoto->ptrptr;
+			yylloc->last_column = t1 - karoto->argv;
+		}
 	}
 	if( *p == 0 )
 		p = 0;
