@@ -9050,14 +9050,16 @@ int load_module(void)
 		}
 	}
 	
+	res = start_network_thread();
 	if (!res) {
-		res = start_network_thread();
 		if (option_verbose > 1) 
-			ast_verbose(VERBOSE_PREFIX_2 "IAX Ready and Listening on %s port %d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+			ast_verbose(VERBOSE_PREFIX_2 "IAX Ready and Listening on %s port %d\n",
+				    ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 	} else {
 		ast_log(LOG_ERROR, "Unable to start network thread\n");
 		ast_netsock_release(&netsock);
 	}
+
 	for (reg = registrations; reg; reg = reg->next)
 		iax2_do_register(reg);
 	ast_mutex_lock(&peerl.lock);
