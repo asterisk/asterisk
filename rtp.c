@@ -404,9 +404,9 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
   [26] = {1, AST_FORMAT_JPEG},
   [31] = {1, AST_FORMAT_H261},
   [34] = {1, AST_FORMAT_H263},
+  [97] = {1, AST_FORMAT_ILBC},
   [101] = {0, AST_RTP_DTMF},
   [110] = {1, AST_FORMAT_SPEEX},
-  [120] = {1, AST_FORMAT_ILBC},
 };
 
 void ast_rtp_pt_clear(struct ast_rtp* rtp) 
