@@ -6631,28 +6631,36 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 struct sip_dual {
 	struct ast_channel *chan1;
 	struct ast_channel *chan2;
+	struct sip_request req;
 };
 
 static void *sip_park_thread(void *stuff)
 {
 	struct ast_channel *chan1, *chan2;
 	struct sip_dual *d;
+	struct sip_pvt *p;
+	struct sip_request req;
 	int ext;
 	int res;
 	d = stuff;
 	chan1 = d->chan1;
 	chan2 = d->chan2;
+	copy_request(&req, &d->req);
 	free(d);
 	ast_mutex_lock(&chan1->lock);
 	ast_do_masquerade(chan1);
 	ast_mutex_unlock(&chan1->lock);
 	res = ast_park_call(chan1, chan2, 0, &ext);
+	/* Finally send the accepted */
+	p = chan2->pvt->pvt;
+	transmit_response(p, "202 Accepted", &req);
+	/* Then hangup */
 	ast_hangup(chan2);
 	ast_log(LOG_DEBUG, "Parked on extension '%d'\n", ext);
 	return NULL;
 }
 
-static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2)
+static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct sip_request *req)
 {
 	struct sip_dual *d;
 	struct ast_channel *chan1m, *chan2m;
@@ -6699,6 +6707,8 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2)
 	d = malloc(sizeof(struct sip_dual));
 	if (d) {
 		memset(d, 0, sizeof(*d));
+		/* Save original request for followup */
+		copy_request(&d->req, req);
 		d->chan1 = chan1m;
 		d->chan2 = chan2m;
 		if (!pthread_create(&th, NULL, sip_park_thread, d))
@@ -7033,7 +7043,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			transmit_response_with_allow(p, "484 Address Incomplete", req, 1);
 		else {
 			int nobye = 0;
-			transmit_response(p, "202 Accepted", req);
 			if (!ignore) {
 				if (p->refer_call) {
 					ast_log(LOG_DEBUG,"202 Accepted (supervised)\n");
@@ -7051,11 +7060,13 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 						if (transfer_to) {
 							ast_moh_stop(transfer_to);
 							if (!strcmp(p->refer_to, ast_parking_ext())) {
+								/* We send a 100 Trying */
+								transmit_response(p, "100 Trying", req);
 								/* Must release c's lock now, because it will not longer
 								    be accessible after the transfer! */
 								*nounlock = 1;
 								ast_mutex_unlock(&c->lock);
-								sip_park(transfer_to, c);
+								sip_park(transfer_to, c, req);
 								nobye = 1;
 							} else {
 								/* Must release c's lock now, because it will not longer
@@ -7072,6 +7083,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				}
 				/* Always increment on a BYE */
 				if (!nobye) {
+					transmit_response(p, "202 Accepted", req);
 					transmit_request_with_auth(p, "BYE", 0, 1, 1);
 					p->alreadygone = 1;
 				}
