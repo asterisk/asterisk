@@ -109,7 +109,8 @@ int ast_true(char *s)
 	    !strcasecmp(s, "true") ||
 		!strcasecmp(s, "y") ||
 		!strcasecmp(s, "t") ||
-		!strcasecmp(s, "1"))
+		!strcasecmp(s, "1") ||
+		!strcasecmp(s, "on"))
 			return -1;
 	return 0;
 }
@@ -123,7 +124,8 @@ int ast_false(char *s)
 	    !strcasecmp(s, "false") ||
 		!strcasecmp(s, "n") ||
 		!strcasecmp(s, "f") ||
-		!strcasecmp(s, "0"))
+		!strcasecmp(s, "0") ||
+		!strcasecmp(s, "off"))
 			return -1;
 	return 0;
 }
