@@ -365,9 +365,19 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 
 static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
 {
-	char *touch_monitor = NULL, *chan_id = NULL, *peer_id = NULL, *args = NULL;
+	char *touch_monitor = NULL, *caller_chan_id = NULL, *callee_chan_id = NULL, *args = NULL;
 	int x = 0;
 	size_t len;
+	struct ast_channel *caller_chan = NULL, *callee_chan = NULL;
+
+
+	if(sense == 2) {
+		caller_chan = peer;
+		callee_chan = chan;
+	} else {
+		callee_chan = peer;
+		caller_chan = chan;
+	}
 	
 	if (!monitor_ok) {
 		ast_log(LOG_ERROR,"Cannot record the call. The monitor application is disabled.\n");
@@ -382,41 +392,41 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 		}
 	}
 	if (!ast_strlen_zero(courtesytone)) {
-		if (ast_autoservice_start(peer))
+		if (ast_autoservice_start(callee_chan))
 			return -1;
-		if (!ast_streamfile(chan, courtesytone, chan->language)) {
-			if (ast_waitstream(chan, "") < 0) {
+		if (!ast_streamfile(caller_chan, courtesytone, caller_chan->language)) {
+			if (ast_waitstream(caller_chan, "") < 0) {
 				ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
-				ast_autoservice_stop(peer);
+				ast_autoservice_stop(callee_chan);
 				return -1;
 			}
 		}
-		if (ast_autoservice_stop(peer))
+		if (ast_autoservice_stop(callee_chan))
 			return -1;
 	}
 	
-	if (peer->monitor) {
+	if (callee_chan->monitor) {
 		if (option_verbose > 3)
 			ast_verbose(VERBOSE_PREFIX_3 "User hit '%s' to stop recording call.\n", code);
-		ast_monitor_stop(peer, 1);
+		ast_monitor_stop(callee_chan, 1);
 		return FEATURE_RETURN_SUCCESS;
 	}
 
-	if (chan && peer) {
-		touch_monitor = pbx_builtin_getvar_helper(chan, "TOUCH_MONITOR");
+	if (caller_chan && callee_chan) {
+		touch_monitor = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR");
 		if (!touch_monitor)
-			touch_monitor = pbx_builtin_getvar_helper(peer, "TOUCH_MONITOR");
+			touch_monitor = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MONITOR");
 		
 		if (touch_monitor) {
 			len = strlen(touch_monitor) + 50;
 			args = alloca(len);
 			snprintf(args, len, "WAV|auto-%ld-%s|m", time(NULL), touch_monitor);
 		} else {
-			chan_id = ast_strdupa(chan->cid.cid_num ? chan->cid.cid_num : chan->name);
-			peer_id = ast_strdupa(peer->cid.cid_num ? peer->cid.cid_num : peer->name);
-			len = strlen(chan_id) + strlen(peer_id) + 50;
+			caller_chan_id = ast_strdupa(caller_chan->cid.cid_num ? caller_chan->cid.cid_num : caller_chan->name);
+			callee_chan_id = ast_strdupa(callee_chan->cid.cid_num ? callee_chan->cid.cid_num : callee_chan->name);
+			len = strlen(caller_chan_id) + strlen(callee_chan_id) + 50;
 			args = alloca(len);
-			snprintf(args, len, "WAV|auto-%ld-%s-%s|m", time(NULL), chan_id, peer_id);
+			snprintf(args, len, "WAV|auto-%ld-%s-%s|m", time(NULL), caller_chan_id, callee_chan_id);
 		}
 
 		for( x = 0; x < strlen(args); x++)
@@ -426,7 +436,7 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 		if (option_verbose > 3)
 			ast_verbose(VERBOSE_PREFIX_3 "User hit '%s' to record call. filename: %s\n", code, args);
 
-		pbx_exec(peer, monitor_app, args, 1);
+		pbx_exec(callee_chan, monitor_app, args, 1);
 		
 		return FEATURE_RETURN_SUCCESS;
 	}
