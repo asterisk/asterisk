@@ -7142,7 +7142,7 @@ static void *pri_dchannel(void *vpri)
 					} else if (ast_strlen_zero(pri->pvts[chanpos]->dop.dialstr)) {
 						zt_enable_ec(pri->pvts[chanpos]);
 						pri->pvts[chanpos]->subs[SUB_REAL].needringing =1;
-						pri->pvts[chanpos]->proceeding=1;
+						pri->pvts[chanpos]->proceeding=2;
 					} else
 						ast_log(LOG_DEBUG, "Deferring ringing notification because of extra digits to dial...\n");
 				}
@@ -7169,7 +7169,7 @@ static void *pri_dchannel(void *vpri)
 							zap_queue_frame(pri->pvts[chanpos], &f);
 							f.subclass = AST_CONTROL_PROCEEDING;
 							zap_queue_frame(pri->pvts[chanpos], &f);
-							pri->pvts[chanpos]->proceeding=1;
+							pri->pvts[chanpos]->proceeding=2;
 					}
 				}
 				break;
