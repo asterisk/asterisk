@@ -871,6 +871,7 @@ char ast_waitstream(struct ast_channel *c, char *breakon)
 	/* XXX Maybe I should just front-end ast_waitstream_full ? XXX */
 	int res;
 	struct ast_frame *fr;
+	if (!breakon) breakon = "";
 	while(c->stream) {
 		res = ast_sched_wait(c->sched);
 		if ((res < 0) && !c->timingfunc) {
