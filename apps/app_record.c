@@ -19,6 +19,7 @@
 #include <asterisk/module.h>
 #include <asterisk/translate.h>
 #include <asterisk/dsp.h>
+#include <asterisk/utils.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -29,15 +30,19 @@ static char *app = "Record";
 static char *synopsis = "Record to a file";
 
 static char *descrip = 
-"  Record(filename:format|silence[|maxduration][|option])\n\n"
+"  Record(filename.format|silence[|maxduration][|options])\n\n"
 "Records from the channel into a given filename. If the file exists it will\n"
 "be overwritten.\n"
 "- 'format' is the format of the file type to be recorded (wav, gsm, etc).\n"
 "- 'silence' is the number of seconds of silence to allow before returning.\n"
 "- 'maxduration' is the maximum recording duration in seconds. If missing\n"
 "or 0 there is no maximum.\n"
-"- 'option' may be 'skip' to return immediately if the line is not up,\n"
-"or 'noanswer' to attempt to record even if the line is not up.\n\n"
+"- 'options' may contain any of the following letters:\n"
+"     's' : skip recording if the line is not yet answered\n"
+"     'n' : do not answer, but record anyway if line not yet answered\n"
+"     'a' : append to existing recording rather than replacing\n"
+"     't' : use alternate '*' terminator key instead of default '#'\n"
+"\n"
 "If filename contains '%d', these characters will be replaced with a number\n"
 "incremented by one each time the file is recorded. \n\n"
 "Formats: g723, g729, gsm, h263, ulaw, alaw, vox, wav, WAV\n\n"
@@ -53,12 +58,10 @@ static int record_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	int count = 0;
 	int percentflag = 0;
-	char fil[256];
-	char tmp[256];
-	char ext[10];
-	char *vdata;
+	char *filename, *ext = NULL, *silstr, *maxstr, *options;
+	char *vdata, *p;
 	int i = 0;
-	int j = 0;
+	char tmp[256];
 
 	struct ast_filestream *s = '\0';
 	struct localuser *u;
@@ -69,18 +72,16 @@ static int record_exec(struct ast_channel *chan, void *data)
 	int dspsilence = 0;
 	int silence = 0;		/* amount of silence to allow */
 	int gotsilence = 0;		/* did we timeout for silence? */
-	char silencestr[5];
-	char durationstr[8];
 	int maxduration = 0;		/* max duration of recording */
 	int gottimeout = 0;		/* did we timeout for maxduration exceeded? */
 	time_t timeout = 0;
-	char option[16];
 	int option_skip = 0;
 	int option_noanswer = 0;
+	int option_append = 0;
+	int terminator = '#';
 	int rfmt = 0;
 	int flags;
-	char *end=NULL;
-	char *p=NULL;
+	
 
 
 
@@ -89,96 +90,66 @@ static int record_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Record requires an argument (filename)\n");
 		return -1;
 	}
+	/* Yay for strsep being easy */
 	vdata = ast_strdupa(data);
-	
 	p = vdata;
-	while(p && (p=strchr(p,':'))) {
-		end=p;
-		if(!strcasecmp(end,":end")) {
-			*end='\0';
-			end++;
-			break;
-		}
-		p++;
-		end=NULL;
+	
+	filename = strsep(&p, "|");
+	silstr = strsep(&p, "|");
+	maxstr = strsep(&p, "|");	
+	options = strsep(&p, "|");
+	
+	if (filename) {
+		if (strstr(filename, "%d"))
+			percentflag = 1;
+		ext = strchr(filename, '.');
+		if (!ext)
+			ext = strchr(filename, ':');
+	}
+
+	if (silstr) {
+		if ((sscanf(silstr, "%d", &i) == 1) && (i > -1))
+			silence = i;
+		else if (!ast_strlen_zero(silstr))
+			ast_log(LOG_WARNING, "'%s' is not a valid silence duration\n", silstr);
 	}
 	
-
-	for (; vdata[i] && (vdata[i] != ':') && (vdata[i] != '|'); i++ ) {
-		if ((vdata[i] == '%') && (vdata[i+1] == 'd')) {
-			percentflag = 1;                      /* the wildcard is used */
+	if (maxstr) {
+		if ((sscanf(maxstr, "%d", &i) == 1) && (i > -1))
+			maxduration = i;
+		else if (!ast_strlen_zero(maxstr))
+			ast_log(LOG_WARNING, "'%s' is not a valid maximum duration\n", maxstr);
+	}
+	if (options) {
+		/* Retain backwards compatibility with old style options */
+		if (!strcasecmp(options, "skip"))
+			option_skip = 1;
+		else if (!strcasecmp(options, "noanswer"))
+			option_noanswer = 1;
+		else {
+			if (strchr(options, 's'))
+				option_skip = 1;
+			if (strchr(options, 'n'))
+				option_noanswer = 1;
+			if (strchr(options, 'a'))
+				option_append = 1;
+			if (strchr(options, 't'))
+				terminator = '*';
 		}
-		if (j < sizeof(fil) - 1)
-			fil[j++] = vdata[i];
 	}
-	fil[j] = '\0';
-
-	if (vdata[i] != ':') {
-		ast_log(LOG_WARNING, "No extension found\n");
-		return -1;
-	}
-	i++;
-
-	j = 0;
-	for (; vdata[i] && (vdata[i] != '|'); i++)
-		if (j < sizeof(ext) - 1)
-			ext[j++] = vdata[i];
-	ext[j] = '\0';
-
-	if (vdata[i] == '|')
-		i++;
-
-	j = 0;
-	for (; vdata[i] && (vdata[i] != '|'); i++)
-		if (j < sizeof(silencestr) - 1)
-			silencestr[j++] = vdata[i];
-	silencestr[j] = '\0';
-
-	if (j > 0) {
-		silence = atoi(silencestr);
-		if (silence > 0)
-			silence *= 1000;
-	}
-
-	if (vdata[i] == '|')
-		i++;
-
-	j = 0;
-	for (; vdata[i] && (vdata[i] != '|'); i++)
-		if (j < sizeof(durationstr) - 1)
-			durationstr[j++] = vdata[i];
-	durationstr[j] = '\0';
-
-	if (j > 0)
-		maxduration = atoi(durationstr);
-
-	if (vdata[i] == '|')
-		i++;
-
-	j = 0;
-	for (; vdata[i] && (vdata[i] != '|'); i++)
-		if (j < sizeof(option) - 1)
-			option[j++] = vdata[i];
-	option[j] = '\0';
-
-	if (!strcasecmp(option, "skip"))
-		option_skip = 1;
-	if (!strcasecmp(option, "noanswer"))
-		option_noanswer = 1;
 
 	/* done parsing */
-
 	
 	/* these are to allow the use of the %d in the config file for a wild card of sort to
 	  create a new file with the inputed name scheme */
 	if (percentflag) {
 		do {
-			snprintf(tmp, sizeof(tmp), fil, count);
+			snprintf(tmp, sizeof(tmp), filename, count);
 			count++;
 		} while ( ast_fileexists(tmp, ext, chan->language) != -1 );
 		pbx_builtin_setvar_helper(chan, "RECORDED_FILE", tmp);
 	} else
-		strncpy(tmp, fil, sizeof(tmp)-1);
+		strncpy(tmp, filename, sizeof(tmp)-1);
 	/* end of routine mentioned */
 
 	LOCAL_USER_ADD(u);
@@ -223,7 +194,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 		}
 
 
-		flags = end ? O_CREAT|O_APPEND|O_WRONLY : O_CREAT|O_TRUNC|O_WRONLY;
+		flags = option_append ? O_CREAT|O_APPEND|O_WRONLY : O_CREAT|O_TRUNC|O_WRONLY;
 		s = ast_writefile( tmp, ext, NULL, flags , 0, 0644);
 
 
@@ -275,7 +246,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 					}
 				}
 				if ((f->frametype == AST_FRAME_DTMF) &&
-					(f->subclass == '#')) {
+					(f->subclass == terminator)) {
 					ast_frfree(f);
 					break;
 				}
@@ -296,7 +267,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 			}
 			ast_closestream(s);
 		} else			
-			ast_log(LOG_WARNING, "Could not create file %s\n", fil);
+			ast_log(LOG_WARNING, "Could not create file %s\n", filename);
 	} else
 		ast_log(LOG_WARNING, "Could not answer channel '%s'\n", chan->name);
 
