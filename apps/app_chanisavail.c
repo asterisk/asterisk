@@ -42,7 +42,7 @@ static char *descrip =
 "be n+101 (unless such a priority does not exist, in which case\n"
 "ChanIsAvail will return -1.  If any of the requested channels\n"
 "are available, the next priority will be n+1, the channel variable\n"
-"${CHANAVAIL} will be set to the name of the available channel and\n"
+"${AVAILCHAN} will be set to the name of the available channel and\n"
 "the ChanIsAvail app will return 0.\n";
 
 STANDARD_LOCAL_USER;
