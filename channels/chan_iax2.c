@@ -3566,6 +3566,10 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 {
 	regex_t regexbuf;
 	int havepattern = 0;
+	int total_peers = 0;
+	int online_peers = 0;
+	int offline_peers = 0;
+	int unmonitored_peers = 0;
 
 #define FORMAT2 "%-15.15s  %-15.15s %s  %-15.15s  %-8s  %s %-10s\n"
 #define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-5d%s  %s %-10s\n"
@@ -3612,6 +3616,7 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 		char nm[20];
 		char status[20] = "";
 		char srch[2000] = "";
+		total_peers++;
 
 		if (registeredonly && !peer->addr.sin_addr.s_addr)
 			continue;
@@ -3623,16 +3628,26 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 		else
 			strncpy(name, peer->name, sizeof(name) - 1);
 		if (peer->maxms) {
-			if (peer->lastms < 0)
+			if (peer->lastms < 0) {
 				strncpy(status, "UNREACHABLE", sizeof(status) - 1);
-			else if (peer->lastms > peer->maxms) 
+				offline_peers++;
+			}
+			else if (peer->lastms > peer->maxms)  {
 				snprintf(status, sizeof(status), "LAGGED (%d ms)", peer->lastms);
-			else if (peer->lastms) 
+				offline_peers++;
+			}
+			else if (peer->lastms)  {
 				snprintf(status, sizeof(status), "OK (%d ms)", peer->lastms);
-			else 
+				online_peers++;
+			}
+			else  {
 				strncpy(status, "UNKNOWN", sizeof(status) - 1);
-		} else 
+				offline_peers++;
+			}
+		} else {
 			strncpy(status, "Unmonitored", sizeof(status) - 1);
+			unmonitored_peers++;
+		}
 		strncpy(nm, ast_inet_ntoa(iabuf, sizeof(iabuf), peer->mask), sizeof(nm)-1);
 
 		snprintf(srch, sizeof(srch), FORMAT, name, 
@@ -3650,6 +3665,8 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 					peer->encmethods ? "(E)" : "   ", status);
 	}
 	ast_mutex_unlock(&peerl.lock);
+
+	ast_cli(fd,"%d iax2 peers [%d online, %d offline, %d unmonitored]\n", total_peers, online_peers, offline_peers, unmonitored_peers);
 
 	if (havepattern)
 		regfree(&regexbuf);
@@ -4719,7 +4736,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 		else if (reg->messages > -1)
 			snprintf(msgstatus, sizeof(msgstatus), " with no messages waiting\n");
 		snprintf(ourip, sizeof(ourip), "%s:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), reg->us.sin_addr), ntohs(reg->us.sin_port));
-		ast_verbose(VERBOSE_PREFIX_3 "Registered to '%s', who sees us as %s%s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ourip, msgstatus);
+		ast_verbose(VERBOSE_PREFIX_3 "Registered IAX2 to '%s', who sees us as %s%s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ourip, msgstatus);
 		manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: IAX2\r\nDomain: %s\r\nStatus: Registered\r\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 	}
 	reg->regstate = REG_STATE_REGISTERED;
@@ -4878,13 +4895,13 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 			if (!ast_test_flag(p, IAX_TEMPONLY) && sin->sin_addr.s_addr) {
 				ast_db_put("IAX/Registry", p->name, data);
 				if  (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Registered '%s' (%s) at %s:%d\n", p->name, 
+				ast_verbose(VERBOSE_PREFIX_3 "Registered IAX2 '%s' (%s) at %s:%d\n", p->name, 
 					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
 				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Registered\r\n", p->name);+                               manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Registered\r\n", p->name);
 				register_peer_exten(p, 1);
 			} else if (!ast_test_flag(p, IAX_TEMPONLY)) {
 				if  (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Unregistered '%s' (%s)\n", p->name, 
+				ast_verbose(VERBOSE_PREFIX_3 "Unregistered IAX2 '%s' (%s)\n", p->name, 
 					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED");
 				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unregistered\r\n", p->name);
 				register_peer_exten(p, 0);
