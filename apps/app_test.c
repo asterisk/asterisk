@@ -88,6 +88,10 @@ static int measurenoise(struct ast_channel *chan, int ms, char *who)
 	}
 	if (res < 0)
 		return res;
+	if (!samples) {
+		ast_log(LOG_NOTICE, "No samples were received from the other side!\n");
+		return -1;
+	}
 	ast_log(LOG_DEBUG, "%s: Noise: %d, samples: %d, avg: %d\n", who, noise, samples, noise / samples);
 	return (noise / samples);
 }
