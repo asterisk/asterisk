@@ -16,6 +16,7 @@
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
 #include <asterisk/cli.h>
+#include <asterisk/channel.h>
 #include <stdio.h>
 #include <signal.h>
 #include <sched.h>
@@ -31,6 +32,8 @@ int option_quiet=0;
 int option_console=0;
 int option_highpriority=0;
 int fully_booted = 0;
+
+char defaultlanguage[MAX_LANGUAGE] = DEFAULT_LANGUAGE;
 
 #define HIGH_PRIORITY 1
 #define HIGH_PRIORITY_SCHED SCHED_RR

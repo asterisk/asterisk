@@ -79,6 +79,7 @@ struct ast_modem_pvt {
 	char context[AST_MAX_EXTENSION];
 	char cid[AST_MAX_EXTENSION];	/* Caller ID if available */
 	char initstr[AST_MAX_INIT_STR];	/* Modem initialization String */
+	char language[MAX_LANGUAGE];	/* default language */
 	char response[256];				/* Static response buffer */
 	struct ast_modem_driver *mc;	/* Modem Capability */
 	struct ast_modem_pvt *next;			/* Next channel in list */

@@ -13,6 +13,10 @@ context=remote
 ;
 driver=aopen
 ;
+; Default language
+;
+;language=en
+;
 ; We can optionally override the auto detection.  This is necessary
 ; particularly if asterisk does not know about our kind of modem.
 ;

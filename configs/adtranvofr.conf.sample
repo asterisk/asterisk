@@ -2,8 +2,12 @@
 ; Voice over Frame Relay (Adtran style)
 ;
 ; Configuration file
-;
+
 [interfaces]
+;
+; Default language
+;
+;language=en
 ;
 ; Lines for which we are the user termination.  They accept incoming
 ; and outgoing calls.  We use the default context on the first 8 lines

@@ -24,6 +24,7 @@ extern int option_nofork;
 extern int option_quiet;
 extern int option_console;
 extern int fully_booted;
+extern char defaultlanguage[];
 
 #define VERBOSE_PREFIX_1 " "
 #define VERBOSE_PREFIX_2 "  == "

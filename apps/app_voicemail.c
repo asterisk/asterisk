@@ -81,15 +81,15 @@ static int announce_message(struct ast_channel *chan, char *dir, int msgcnt)
 {
 	char *fn;
 	int res;
-	res = ast_streamfile(chan, "vm-message");
+	res = ast_streamfile(chan, "vm-message", chan->language);
 	if (!res) {
 		res = ast_waitstream(chan, AST_DIGIT_ANY);
 		if (!res) {
-			res = ast_say_number(chan, msgcnt+1);
+			res = ast_say_number(chan, msgcnt+1, chan->language);
 			if (!res) {
 				fn = get_fn(dir, msgcnt);
 				if (fn) {
-					res = ast_streamfile(chan, fn);
+					res = ast_streamfile(chan, fn, chan->language);
 					free(fn);
 				}
 			}
@@ -167,7 +167,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent)
 		if (mkdir(dir, 0700) && (errno != EEXIST))
 			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
 		/* Stream an info message */
-		if (silent || !ast_streamfile(chan, INTRO)) {
+		if (silent || !ast_streamfile(chan, INTRO, chan->language)) {
 			/* Wait for the message to finish */
 			if (silent || !ast_waitstream(chan, "")) {
 				fmt = ast_variable_retrieve(cfg, "general", "format");
@@ -182,7 +182,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent)
 						snprintf(comment, sizeof(comment), "Voicemail from %s to %s (%s) on %s\n",
 											(chan->callerid ? chan->callerid : "Unknown"), 
 											name, ext, chan->name);
-						if (ast_fileexists(fn, NULL) > 0) {
+						if (ast_fileexists(fn, NULL, chan->language) > 0) {
 							msgnum++;
 							continue;
 						}
@@ -268,7 +268,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent)
 						if (outmsg) {
 							if (outmsg > 1) {
 								/* Let them know it worked */
-								ast_streamfile(chan, "vm-msgsaved");
+								ast_streamfile(chan, "vm-msgsaved", chan->language);
 								ast_waitstream(chan, "");
 							}
 							/* Send e-mail if applicable */
@@ -323,7 +323,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "No voicemail configuration\n");
 		goto out;
 	}
-	if (ast_streamfile(chan, "vm-login")) {
+	if (ast_streamfile(chan, "vm-login", chan->language)) {
 		ast_log(LOG_WARNING, "Couldn't stream login file\n");
 		goto out;
 	}
@@ -339,7 +339,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			res = 0;
 			goto out;
 		}
-		if (ast_streamfile(chan, "vm-password")) {
+		if (ast_streamfile(chan, "vm-password", chan->language)) {
 			ast_log(LOG_WARNING, "Unable to stream password file\n");
 			goto out;
 		}
@@ -359,7 +359,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		} else if (option_verbose > 2)
 			ast_verbose( VERBOSE_PREFIX_3 "No such user '%s' in config file\n", username);
 		if (!valid) {
-			if (ast_streamfile(chan, "vm-incorrect"))
+			if (ast_streamfile(chan, "vm-incorrect", chan->language))
 				break;
 			if (ast_waitstream(chan, ""))
 				break;
@@ -375,13 +375,13 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		   not deleted. */
 		do {
 			fn = get_fn(dir, maxmsg);
-			if ((res = ast_fileexists(fn, NULL))>0) {
+			if ((res = ast_fileexists(fn, NULL, chan->language))>0) {
 				maxmsg++;
 				deleted[maxmsg] = 0;
 			}
 			free(fn);
 		} while(res > 0);
-		if (ast_streamfile(chan, "vm-youhave"))
+		if (ast_streamfile(chan, "vm-youhave", chan->language))
 			goto out;
 		if ((d=ast_waitstream(chan, AST_DIGIT_ANY)) < 0)
 			goto out;
@@ -389,10 +389,10 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		if (!d) {
 			/* If they haven't interrupted us, play the message count */
 			if (maxmsg > 0) {
-				if ((d = ast_say_number(chan, maxmsg)) < 0)
+				if ((d = ast_say_number(chan, maxmsg, chan->language)) < 0)
 					goto out;
 			} else {
-				if (ast_streamfile(chan, "vm-no"))
+				if (ast_streamfile(chan, "vm-no", chan->language))
 					goto out;
 				if ((d=ast_waitstream(chan, AST_DIGIT_ANY)) < 0)
 					goto out;
@@ -400,7 +400,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			}
 			if (!d) {
 				/* And if they still haven't, give them the last word */
-				if (ast_streamfile(chan, ((maxmsg == 1) ? "vm-message" : "vm-messages")))
+				if (ast_streamfile(chan, ((maxmsg == 1) ? "vm-message" : "vm-messages"), chan->language))
 					goto out;
 				if (ast_waitstream(chan, AST_DIGIT_ANY) < 0)
 					goto out;
@@ -416,7 +416,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		ast_log(LOG_EVENT, "User '%s' logged in on channel '%s' with %d message(s).\n", username, chan->name, maxmsg);
 		if (option_verbose > 2)
 			ast_verbose( VERBOSE_PREFIX_3 "User '%s' logged in on channel %s with %d messages\n", username, chan->name, maxmsg);
-		if (!ast_streamfile(chan, "vm-instructions")) {
+		if (!ast_streamfile(chan, "vm-instructions", chan->language)) {
 			for(;;) {
 				if (chan->stream || (chan->trans && chan->trans->stream)) {
 					d = ast_waitstream(chan, AST_DIGIT_ANY);
@@ -424,7 +424,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 					if (!d && (state == STATE_MESSAGE_PLAYING)) {
 						state  = STATE_MESSAGE;
 						/* If it runs out playing a message, then give directions */
-						if (!(d = ast_streamfile(chan, "vm-msginstruct")))
+						if (!(d = ast_streamfile(chan, "vm-msginstruct", chan->language)))
 							d = ast_waitstream(chan, AST_DIGIT_ANY);
 						ast_stopstream(chan);
 					}
@@ -440,12 +440,12 @@ restart:
 					   best based up on where they are.  Ditto if they press the '*' key. */
 					switch(state) {
 					case STATE_STARTING:
-						if (ast_streamfile(chan, "vm-instructions"))
+						if (ast_streamfile(chan, "vm-instructions", chan->language))
 							goto out;
 						break;
 					case STATE_MESSAGE:
 					case STATE_MESSAGE_PLAYING:
-						if (ast_streamfile(chan, "vm-msginstruct"))
+						if (ast_streamfile(chan, "vm-msginstruct", chan->language))
 							goto out;
 						break;
 					default:
@@ -460,14 +460,14 @@ restart:
 						if (curmsg < maxmsg) {
 							deleted[curmsg] = !deleted[curmsg];
 							if (deleted[curmsg]) {
-								if (ast_streamfile(chan, "vm-deleted"))
+								if (ast_streamfile(chan, "vm-deleted", chan->language))
 									goto out;
 							} else {
-								if (ast_streamfile(chan, "vm-undeleted"))
+								if (ast_streamfile(chan, "vm-undeleted", chan->language))
 									goto out;
 							}
 						} else {
-							if (ast_streamfile(chan, "vm-nomore"))
+							if (ast_streamfile(chan, "vm-nomore", chan->language))
 								goto out;
 						}
 						break;
@@ -480,7 +480,7 @@ restart:
 							else if (d < 0)
 								goto out;
 						} else {
-							if (ast_streamfile(chan, "vm-nomore"))
+							if (ast_streamfile(chan, "vm-nomore", chan->language))
 								goto out;
 						}
 						state = STATE_MESSAGE_PLAYING;
@@ -510,7 +510,7 @@ restart:
 							else if (d < 0)
 								goto out;
 						} else {
-							if (ast_streamfile(chan, "vm-nomore"))
+							if (ast_streamfile(chan, "vm-nomore", chan->language))
 								goto out;
 						}
 						state = STATE_MESSAGE_PLAYING;
@@ -518,7 +518,7 @@ restart:
 					/* XXX Message compose? It's easy!  Just read their # and, assuming it's in the config, 
 					       call the routine as if it were called from the PBX proper XXX */
 					case '#':
-						if (ast_streamfile(chan, "vm-goodbye"))
+						if (ast_streamfile(chan, "vm-goodbye", chan->language))
 							goto out;
 						if (ast_waitstream(chan, ""))
 							goto out;

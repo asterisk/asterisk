@@ -21,9 +21,9 @@
 extern "C" {
 #endif
 
-int ast_say_number(struct ast_channel *chan, int num);
-int ast_say_digits(struct ast_channel *chan, int num);
-int ast_say_digit_str(struct ast_channel *chan, char *num);
+int ast_say_number(struct ast_channel *chan, int num, char *lang);
+int ast_say_digits(struct ast_channel *chan, int num, char *lang);
+int ast_say_digit_str(struct ast_channel *chan, char *num, char *lang);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

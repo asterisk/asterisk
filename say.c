@@ -17,14 +17,14 @@
 #include <asterisk/say.h>
 #include <stdio.h>
 
-int ast_say_digit_str(struct ast_channel *chan, char *fn2)
+int ast_say_digit_str(struct ast_channel *chan, char *fn2, char *lang)
 {
 	char fn[256] = "";
 	int num = 0;
 	int res = 0;
 	while(fn2[num] && !res) {
 		snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
-		res = ast_streamfile(chan, fn);
+		res = ast_streamfile(chan, fn, lang);
 		if (!res) 
 			res = ast_waitstream(chan, AST_DIGIT_ANY);
 		ast_stopstream(chan);
@@ -33,45 +33,51 @@ int ast_say_digit_str(struct ast_channel *chan, char *fn2)
 	return res;
 }
 
-int ast_say_digits(struct ast_channel *chan, int num)
+int ast_say_digits(struct ast_channel *chan, int num, char *lang)
 {
 	char fn2[256];
 	snprintf(fn2, sizeof(fn2), "%d", num);
-	return ast_say_digit_str(chan, fn2);
+	return ast_say_digit_str(chan, fn2, lang);
 }
-int ast_say_number(struct ast_channel *chan, int num)
+int ast_say_number(struct ast_channel *chan, int num, char *language)
 {
 	int res = 0;
 	int playh = 0;
 	char fn[256] = "";
-	while(num && !res) {
-		if (playh) {
-			snprintf(fn, sizeof(fn), "digits/hundred");
-			playh = 0;
-		} else
-		if (num < 20) {
-			snprintf(fn, sizeof(fn), "digits/%d", num);
-			num = 0;
-		} else
-		if (num < 100) {
-			snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
-			num -= ((num / 10) * 10);
-		} else {
-			if (num < 1000){
-				snprintf(fn, sizeof(fn), "digits/%d", (num/100));
-				playh++;
+	if (0) {
+	/* XXX Only works for english XXX */
+	} else {
+		/* Use english numbers */
+		language = "en";
+		while(num && !res) {
+			if (playh) {
+				snprintf(fn, sizeof(fn), "digits/hundred");
+				playh = 0;
+			} else
+			if (num < 20) {
+				snprintf(fn, sizeof(fn), "digits/%d", num);
+				num = 0;
+			} else
+			if (num < 100) {
+				snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
+				num -= ((num / 10) * 10);
 			} else {
-				ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
-				res = -1;
+				if (num < 1000){
+					snprintf(fn, sizeof(fn), "digits/%d", (num/100));
+					playh++;
+				} else {
+					ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+					res = -1;
+				}
 			}
+			if (!res) {
+				res = ast_streamfile(chan, fn, language);
+				if (!res) 
+					res = ast_waitstream(chan, AST_DIGIT_ANY);
+				ast_stopstream(chan);
+			}
+			
 		}
-		if (!res) {
-			res = ast_streamfile(chan, fn);
-			if (!res) 
-				res = ast_waitstream(chan, AST_DIGIT_ANY);
-			ast_stopstream(chan);
-		}
-		
 	}
 	return res;
 }

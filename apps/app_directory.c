@@ -156,17 +156,17 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 			if (v) {
 				/* We have a match -- play a greeting if they have it */
 				snprintf(fn, sizeof(fn), "%s/vm/%s/greet", AST_SPOOL_DIR, v->name);
-				if (ast_fileexists(fn, NULL)) {
-					res = ast_streamfile(chan, fn);
+				if (ast_fileexists(fn, NULL, chan->language)) {
+					res = ast_streamfile(chan, fn, chan->language);
 					if (!res)
 						res = ast_waitstream(chan, AST_DIGIT_ANY);
 					ast_stopstream(chan);
 				} else {
-					res = ast_say_digit_str(chan, v->name);
+					res = ast_say_digit_str(chan, v->name, chan->language);
 				}
 ahem:
 				if (!res)
-					res = ast_streamfile(chan, "dir-instr");
+					res = ast_streamfile(chan, "dir-instr", chan->language);
 				if (!res)
 					res = ast_waitstream(chan, AST_DIGIT_ANY);
 				if (!res)
@@ -189,9 +189,9 @@ ahem:
 				}
 			} else {
 				if (found) 
-					res = ast_streamfile(chan, "dir-nomore");
+					res = ast_streamfile(chan, "dir-nomore", chan->language);
 				else
-					res = ast_streamfile(chan, "dir-nomatch");
+					res = ast_streamfile(chan, "dir-nomatch", chan->language);
 				if (!res)
 					res = 1;
 				return res;
@@ -219,7 +219,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 top:
 	if (!res)
-		res = ast_streamfile(chan, "dir-intro");
+		res = ast_streamfile(chan, "dir-intro", chan->language);
 	if (!res)
 		res = ast_waitstream(chan, AST_DIGIT_ANY);
 	ast_stopstream(chan);

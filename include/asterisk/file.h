@@ -43,14 +43,14 @@ int ast_format_register(char *name, char *exts, int format,
 	
 int ast_format_unregister(char *name);
 
-/* Start streaming a file */
-int ast_streamfile(struct ast_channel *c, char *filename);
+/* Start streaming a file, in the preferred language if possible */
+int ast_streamfile(struct ast_channel *c, char *filename, char *preflang);
 
 /* Stop playback of a stream */
 int ast_stopstream(struct ast_channel *c);
 
 /* See if a given file exists in a given format.  If fmt is NULL,  any format is accepted.*/
-int ast_fileexists(char *filename, char *fmt);
+int ast_fileexists(char *filename, char *fmt, char *preflang);
 
 /* Rename a given file in a given format, or if fmt is NULL, then do so for all */
 int ast_filerename(char *oldname, char *newname, char *fmt);
