@@ -108,6 +108,7 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 				if (!tmp->state) {
 					free(tmp);
 					tmp = NULL;
+					return NULL;
 				}
 				/* Set the root, if it doesn't exist yet... */
 				if (!tmpr)
