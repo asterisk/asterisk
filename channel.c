@@ -38,6 +38,9 @@
 #ifdef ZAPTEL_OPTIMIZATIONS
 #include <sys/ioctl.h>
 #include <linux/zaptel.h>
+#ifndef ZT_TIMERPING
+#error "You need newer zaptel!  Please cvs update zaptel"
+#endif
 #endif
 
 /* uncomment if you have problems with 'monitoring' synchronized files */
@@ -284,6 +287,18 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 			if (tmp->sched) {
 				for (x=0;x<AST_MAX_FDS - 1;x++)
 					tmp->fds[x] = -1;
+#ifdef ZAPTEL_OPTIMIZATIONS
+				tmp->timingfd = open("/dev/zap/timer", O_RDWR);
+				if (tmp->timingfd > -1) {
+					/* Check if timing interface supports new
+					   ping/pong scheme */
+					flags = 1;
+					if (!ioctl(tmp->timingfd, ZT_TIMERPONG, &flags))
+						needqueue = 0;
+				}
+#else
+				tmp->timingfd = -1;					
+#endif					
 				if (needqueue &&  
 					pipe(pvt->alertpipe)) {
 					ast_log(LOG_WARNING, "Alert pipe creation failed!\n");
@@ -292,19 +307,14 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 					tmp = NULL;
 					pvt = NULL;
 				} else {
-					/* Make sure we've got it done right if they don't */
 					if (needqueue) {
 						flags = fcntl(pvt->alertpipe[0], F_GETFL);
 						fcntl(pvt->alertpipe[0], F_SETFL, flags | O_NONBLOCK);
 						flags = fcntl(pvt->alertpipe[1], F_GETFL);
 						fcntl(pvt->alertpipe[1], F_SETFL, flags | O_NONBLOCK);
-					} else
+					} else 
+					/* Make sure we've got it done right if they don't */
 						pvt->alertpipe[0] = pvt->alertpipe[1] = -1;
-#ifdef ZAPTEL_OPTIMIZATIONS
-					tmp->timingfd = open("/dev/zap/timer", O_RDWR);
-#else
-					tmp->timingfd = -1;					
-#endif
 					/* Always watch the alertpipe */
 					tmp->fds[AST_MAX_FDS-1] = pvt->alertpipe[0];
 					/* And timing pipe */
@@ -392,6 +402,10 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int lock)
 		if (write(chan->pvt->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah))
 			ast_log(LOG_WARNING, "Unable to write to alert pipe on %s, frametype/subclass %d/%d (qlen = %d): %s!\n",
 				chan->name, f->frametype, f->subclass, qlen, strerror(errno));
+#ifdef ZAPTEL_OPTIMIZATIONS
+	} else if (chan->timingfd > -1) {
+		ioctl(chan->timingfd, ZT_TIMERPING, &blah);
+#endif				
 	} else if (chan->blocking) {
 		pthread_kill(chan->blocker, SIGURG);
 	}
@@ -1023,6 +1037,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 #ifdef ZAPTEL_OPTIMIZATIONS
 	int (*func)(void *);
 	void *data;
+	int res;
 #endif
 	static struct ast_frame null_frame = 
 	{
@@ -1067,24 +1082,45 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 	if ((chan->timingfd > -1) && (chan->fdno == AST_MAX_FDS - 2) && chan->exception) {
 		chan->exception = 0;
 		blah = -1;
-		ioctl(chan->timingfd, ZT_TIMERACK, &blah);
-		func = chan->timingfunc;
-		data = chan->timingdata;
-		ast_mutex_unlock(&chan->lock);
-		if (func) {
+		/* IF we can't get event, assume it's an expired as-per the old interface */
+		res = ioctl(chan->timingfd, ZT_GETEVENT, &blah);
+		if (res) 
+			blah = ZT_EVENT_TIMER_EXPIRED;
+
+		if (blah == ZT_EVENT_TIMER_PING) {
 #if 0
-			ast_log(LOG_DEBUG, "Calling private function\n");
+			ast_log(LOG_NOTICE, "Oooh, there's a PING!\n");
 #endif			
-			func(data);
-		} else {
-			blah = 0;
-			ast_mutex_lock(&chan->lock);
-			ioctl(chan->timingfd, ZT_TIMERCONFIG, &blah);
-			chan->timingdata = NULL;
+			if (!chan->pvt->readq || !chan->pvt->readq->next) {
+				/* Acknowledge PONG unless we need it again */
+#if 0
+				ast_log(LOG_NOTICE, "Sending a PONG!\n");
+#endif				
+				if (ioctl(chan->timingfd, ZT_TIMERPONG, &blah)) {
+					ast_log(LOG_WARNING, "Failed to pong timer on '%s': %s\n", chan->name, strerror(errno));
+				}
+			}
+		} else if (blah == ZT_EVENT_TIMER_EXPIRED) {
+			ioctl(chan->timingfd, ZT_TIMERACK, &blah);
+			func = chan->timingfunc;
+			data = chan->timingdata;
 			ast_mutex_unlock(&chan->lock);
-		}
-		f =  &null_frame;
-		return f;
+			if (func) {
+#if 0
+				ast_log(LOG_DEBUG, "Calling private function\n");
+#endif			
+				func(data);
+			} else {
+				blah = 0;
+				ast_mutex_lock(&chan->lock);
+				ioctl(chan->timingfd, ZT_TIMERCONFIG, &blah);
+				chan->timingdata = NULL;
+				ast_mutex_unlock(&chan->lock);
+			}
+			f =  &null_frame;
+			return f;
+		} else
+			ast_log(LOG_NOTICE, "No/unknown event '%d' on timer for '%s'?\n", blah, chan->name);
 	}
 #endif
 	/* Check for pending read queue */
