@@ -806,6 +806,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 				newlyavailable->acknowledged = 1;
 				ast_setstate(parent, AST_STATE_UP);
 				ast_setstate(chan, AST_STATE_UP);
+				strncpy(parent->context, chan->context, sizeof(parent->context) - 1);
 				/* Go ahead and mark the channel as a zombie so that masquerade will
 				   destroy it for us, and we need not call ast_hangup */
 				ast_mutex_lock(&parent->lock);
