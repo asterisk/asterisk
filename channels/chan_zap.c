@@ -6431,7 +6431,7 @@ static void *pri_dchannel(void *vpri)
                                 if ((chan >= 1) && (chan <= pri->channels)) 
 	                                        if (pri->pvt[chan] && pri->overlapdial && !pri->pvt[chan]->proceeding) {
 							struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
-							ast_log(LOG_DEBUG, "queling frame from PRI_EVENT_PROCEEDING on channel %d span %d\n",chan,pri->pvt[chan]->span);
+							ast_log(LOG_DEBUG, "Queuing frame from PRI_EVENT_PROCEEDING on channel %d span %d\n",chan,pri->pvt[chan]->span);
 							ast_queue_frame(pri->pvt[chan]->owner, &f, 0);
 
 							pri->pvt[chan]->proceeding=1;
