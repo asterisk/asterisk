@@ -69,7 +69,7 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 	stringp = info;
 	strsep(&stringp, "|");
 	options = strsep(&stringp, "|");
-	if (options && *options == 's');
+	if (options && *options == 's')
 		option_state = 1;
 	peers = info;
 	if (peers) {
