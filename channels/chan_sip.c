@@ -4164,13 +4164,15 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				if (strcmp(p->exten, ast_pickup_ext())) {
 					if (ast_pbx_start(c)) {
 						ast_log(LOG_WARNING, "Failed to start PBX :(\n");
-						sip_hangup(c);
+						ast_pthread_mutex_unlock(&c->lock);
+						ast_hangup(c);
 						transmit_response_reliable(p, "503 Unavailable", req);
 						c = NULL;
 					}
 				} else if (ast_pickup_call(c)) {
 					ast_log(LOG_WARNING, "Nothing to pick up\n");
-					sip_hangup(c);
+					ast_pthread_mutex_unlock(&c->lock);
+					ast_hangup(c);
 					transmit_response_reliable(p, "503 Unavailable", req);
 				} else {
 					ast_pthread_mutex_unlock(&c->lock);
