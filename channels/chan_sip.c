@@ -49,15 +49,15 @@
 /* #define VOCAL_DATA_HACK */
 
 #define SIPDUMPER
-#define DEFAULT_DEFAULT_EXPIREY 120
-#define DEFAULT_MAX_EXPIREY     3600
+#define DEFAULT_DEFAULT_EXPIRY  120
+#define DEFAULT_MAX_EXPIRY      3600
 
 #define SIP_DTMF_RFC2833	(1 << 0)
 #define SIP_DTMF_INBAND		(1 << 1)
 #define SIP_DTMF_INFO		(1 << 2)
 
-static int max_expirey = DEFAULT_MAX_EXPIREY;
-static int default_expirey = DEFAULT_DEFAULT_EXPIREY;
+static int max_expiry = DEFAULT_MAX_EXPIRY;
+static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 
 #define DEFAULT_MAXMS		2000		/* Must be faster than 2 seconds by default */
 
@@ -117,7 +117,7 @@ static int tos = 0;
 static int globaldtmfmode = SIP_DTMF_RFC2833;
 
 /* Expire slowly */
-static int expirey = 900;
+static int expiry = 900;
 
 static struct sched_context *sched;
 static struct io_context *io;
@@ -163,7 +163,7 @@ static struct sip_pvt {
 	int noncodeccapability;
 	int outgoing;						/* Outgoing or incoming call? */
 	int insecure;						/* Don't check source port/ip */
-	int expirey;						/* How long we take to expire */
+	int expiry;						/* How long we take to expire */
 	int branch;							/* One random number */
 	int canreinvite;					/* Do we support reinvite */
 	int progress;						/* Have sent 183 message progress */
@@ -190,6 +190,7 @@ static struct sip_pvt {
 	char callerid[256];					/* Caller*ID */
 	char via[256];
 	char accountcode[256];				/* Account code */
+	char contact[256];				/* contact header */
 	char realm[256];				/* Authorization realm */
 	char nonce[256];				/* Authorization nonce */
 	int amaflags;						/* AMA Flags */
@@ -256,7 +257,7 @@ struct sip_peer {
 	time_t	lastmsgcheck;
 	int dynamic;
 	int expire;
-	int expirey;
+	int expiry;
 	int capability;
 	int insecure;
 	int nat;
@@ -1417,7 +1418,7 @@ static int sip_register(char *value, int lineno)
 		if (secret)
 			strncpy(reg->secret, secret, sizeof(reg->secret)-1);
 		reg->expire = -1;
-		reg->refresh = default_expirey;
+		reg->refresh = default_expiry;
 		reg->addr.sin_family = AF_INET;
 		memcpy(&reg->addr.sin_addr, hp->h_addr, sizeof(&reg->addr.sin_addr));
 		reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(DEFAULT_SIP_PORT);
@@ -1854,25 +1855,6 @@ static int init_req(struct sip_request *req, char *resp, char *recip)
 	return 0;
 }
 
-static void append_contact(struct sip_request *req, struct sip_pvt *p)
-{
-	/* Add contact header */
-	char contact2[256] ="", *c, *c2, contact[256];
-	char *from;
-	if (p->outgoing)
-		from = get_header(req, "From");
-	else
-		from = get_header(req, "To");
-	strncpy(contact2, from, sizeof(contact2)-1);
-	if (strlen(contact2)) {
-		c = ditch_braces(contact2);
-		c2 = strchr(c, ';');
-		if (c2) *c2 = '\0';
-		snprintf(contact, sizeof(contact), "<%s>", c);
-		add_header(req, "Contact", contact);
-	}
-}
-
 static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, struct sip_request *req)
 {
 	char newto[256] = "", *ot;
@@ -1897,33 +1879,17 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	copy_header(resp, req, "Call-ID");
 	copy_header(resp, req, "CSeq");
 	add_header(resp, "User-Agent", "Asterisk PBX");
-	if (p->expirey) {
-		/* For registration responses, we also need expirey and
+	if (p->expiry) {
+		/* For registration responses, we also need expiry and
 		   contact info */
-		char tmp[80];
 		char contact[256];
-		char *c;
-		if ((c=getsipuri(ot))) {
-			snprintf(contact, sizeof(contact), "<%s@%s:%d>;expires=%d", c, inet_ntoa(p->ourip), ourport, p->expirey);
-			free(c);
-		} else {
-			snprintf(contact, sizeof(contact), "<%s:%d>;expires=%d", inet_ntoa(p->ourip), ourport, p->expirey);
-		}
-		snprintf(tmp, sizeof(tmp), "%d", p->expirey);
+		char tmp[256];
+		snprintf(contact, sizeof(contact), "%s;expires=%d", p->contact, p->expiry);
+		snprintf(tmp, sizeof(tmp), "%d", p->expiry);
 		add_header(resp, "Expires", tmp);
 		add_header(resp, "Contact", contact);
 	} else {
-		char contact[256];
-		/* XXX This isn't exactly right and it's implemented
-		       very stupidly *sigh* XXX */
-		char *c;
-		if ((c=getsipuri(ot))) {
-			snprintf(contact, sizeof(contact), "<%s@%s:%d>", c, inet_ntoa(p->ourip), ourport);
-			free(c);
-		} else {
-			snprintf(contact, sizeof(contact), "<%s:%d>", inet_ntoa(p->ourip), ourport);
-		}
-		add_header(resp, "Contact", contact);
+		add_header(resp, "Contact", p->contact);
 	}
 	return 0;
 }
@@ -1995,7 +1961,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int se
 		add_header(req, "From", ot);
 		add_header(req, "To", of);
 	}
-	append_contact(req, p);
+	add_header(req, "Contact", p->contact);
 	copy_header(req, orig, "Call-ID");
 	add_header(req, "CSeq", tmp);
 
@@ -2299,15 +2265,13 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	/* SLD: FIXME?: do Route: here too?  I think not cos this is the first request.
 	 * OTOH, then we won't have anything in p->route anyway */
 	add_header(req, "From", from);
-	{
-		char contact2[256] ="", *c, contact[256];
-		/* XXX This isn't exactly right and it's implemented
-		       very stupidly *sigh* XXX */
-		strncpy(contact2, from, sizeof(contact2)-1);
-		c = ditch_braces(contact2);
-		snprintf(contact, sizeof(contact), "<%s>", c);
-		add_header(req, "Contact", contact);
-	}
+	/* XXX This isn't exactly right and it's implemented
+	       very stupidly *sigh* XXX */
+	if (ourport != 5060)
+		snprintf(p->contact, sizeof(p->contact), "<sip:%s@%s:%d>", l, inet_ntoa(p->ourip), ourport);
+	else
+		snprintf(p->contact, sizeof(p->contact), "<sip:%s@%s>", l, inet_ntoa(p->ourip));
+	add_header(req, "Contact", p->contact);
 	add_header(req, "To", to);
 	add_header(req, "Call-ID", p->callid);
 	add_header(req, "CSeq", tmp);
@@ -2543,7 +2507,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 	if (auth) 
 		add_header(&req, "Authorization", auth);
 
-	snprintf(tmp, sizeof(tmp), "%d", default_expirey);
+	snprintf(tmp, sizeof(tmp), "%d", default_expiry);
 	add_header(&req, "Expires", tmp);
 	add_header(&req, "Event", "registration");
 	add_header(&req, "Content-length", "0");
@@ -2610,7 +2574,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 {
 	char contact[80]= ""; 
 	char *expires = get_header(req, "Expires");
-	int expirey = atoi(expires);
+	int expiry = atoi(expires);
 	char *c, *n, *pt;
 	int port;
 	struct hostent *hp;
@@ -2618,8 +2582,8 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	if (!strlen(expires)) {
 		expires = strstr(get_header(req, "Contact"), "expires=");
 		if (expires) 
-			if (sscanf(expires + 8, "%d;", &expirey) != 1)
-				expirey = 0;
+			if (sscanf(expires + 8, "%d;", &expiry) != 1)
+				expiry = 0;
 	}
 	/* Look for brackets */
 	strncpy(contact, get_header(req, "Contact"), sizeof(contact) - 1);
@@ -2632,7 +2596,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		if (n) 
 			*n = '\0';
 	}
-	if (!strcasecmp(c, "*") || !expirey) {
+	if (!strcasecmp(c, "*") || !expiry) {
 		/* This means remove all registrations and return OK */
 		memset(&p->addr, 0, sizeof(p->addr));
 		if (p->expire > -1)
@@ -2689,14 +2653,14 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		strcpy(p->username, "");
 	if (p->expire > -1)
 		ast_sched_del(sched, p->expire);
-	if ((expirey < 1) || (expirey > max_expirey))
-		expirey = max_expirey;
-	p->expire = ast_sched_add(sched, (expirey + 10) * 1000, expire_register, p);
-	pvt->expirey = expirey;
+	if ((expiry < 1) || (expiry > max_expiry))
+		expiry = max_expiry;
+	p->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, p);
+	pvt->expiry = expiry;
 	if (memcmp(&p->addr, &oldsin, sizeof(oldsin))) {
 		sip_poke_peer(p);
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", p->username, inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), expirey);
+			ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", p->username, inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
 	}
 	return 0;
 }
@@ -3825,7 +3789,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				if (r->expire != -1)
 					ast_sched_del(sched, r->expire);
 				expires=atoi(get_header(req, "expires"));
-				if (!expires) expires=default_expirey;
+				if (!expires) expires=default_expiry;
 					r->expire=ast_sched_add(sched, (expires-2)*1000, sip_reregister, r); 
 
 			}
@@ -4131,6 +4095,11 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				/* If no extension was specified, use the s one */
 				if (!strlen(p->exten))
 					strncpy(p->exten, "s", sizeof(p->exten) - 1);
+				/* Construct Contact: header */
+				if (ourport != 5060)
+					snprintf(p->contact, sizeof(p->contact), "<sip:%s@%s:%d>", p->exten, inet_ntoa(p->ourip), ourport);
+				else
+					snprintf(p->contact, sizeof(p->contact), "<sip:%s@%s>", p->exten, inet_ntoa(p->ourip));
 				/* Initialize tag */	
 				p->tag = rand();
 				/* First invitation */
@@ -4270,7 +4239,11 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			} else {
 				/* Initialize tag */	
 				p->tag = rand();
-
+				/* Construct Contact: header */
+				if (ourport != 5060)
+					snprintf(p->contact, sizeof(p->contact), "<sip:%s@%s:%d>", p->exten, inet_ntoa(p->ourip), ourport);
+				else
+					snprintf(p->contact, sizeof(p->contact), "<sip:%s@%s>", p->exten, inet_ntoa(p->ourip));
 				if (!strcmp(get_header(req, "Accept"), "application/dialog-info+xml"))
 				    p->subscribed = 2;
 				else
@@ -4285,18 +4258,18 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		if (!ignore && p)
 			p->lastinvite = seqno;
 		if (p) {
-		    if (!(p->expirey = atoi(get_header(req, "Expires")))) {
+		    if (!(p->expiry = atoi(get_header(req, "Expires")))) {
 			transmit_response(p, "200 OK", req);
 			sip_destroy(p);	
 			return 0;
 		    }
 		    // The next line can be removed if the SNOM200 Expires bug is fixed
 		    if (p->subscribed == 1) {  
-			if (p->expirey>max_expirey)
-			    p->expirey = max_expirey;
+			if (p->expiry>max_expiry)
+			    p->expiry = max_expiry;
 		    }
 		    transmit_response(p, "200 OK", req);
-		    sip_scheddestroy(p, (p->expirey+10)*1000);
+		    sip_scheddestroy(p, (p->expiry+10)*1000);
 		    transmit_state_notify(p, ast_extension_state(NULL, p->context, p->exten),1);
 		}
 	} else if (!strcasecmp(cmd, "INFO")) {
@@ -4793,7 +4766,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 			strncpy(peer->name, name, sizeof(peer->name)-1);
 			strncpy(peer->context, context, sizeof(peer->context)-1);
 			peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
-			peer->expirey = expirey;
+			peer->expiry = expiry;
 		}
 		peer->capability = capability;
 		/* Assume can reinvite */
@@ -4966,14 +4939,14 @@ static int reload_config(void)
 			strncpy(fromdomain, v->value, sizeof(fromdomain)-1);
 		} else if (!strcasecmp(v->name, "nat")) {
 			globalnat = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "maxexpirey")) {
-			max_expirey = atoi(v->value);
-			if (max_expirey < 1)
-				max_expirey = DEFAULT_MAX_EXPIREY;
-		} else if (!strcasecmp(v->name, "defaultexpirey")) {
-			default_expirey = atoi(v->value);
-			if (default_expirey < 1)
-				default_expirey = DEFAULT_DEFAULT_EXPIREY;
+		} else if (!strcasecmp(v->name, "maxexpirey") || !strcasecmp(v->name, "maxexpiry")) {
+			max_expiry = atoi(v->value);
+			if (max_expiry < 1)
+				max_expiry = DEFAULT_MAX_EXPIRY;
+		} else if (!strcasecmp(v->name, "defaultexpiry")) {
+			default_expiry = atoi(v->value);
+			if (default_expiry < 1)
+				default_expiry = DEFAULT_DEFAULT_EXPIRY;
 		} else if (!strcasecmp(v->name, "bindaddr")) {
 			if (!(hp = gethostbyname(v->value))) {
 				ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
