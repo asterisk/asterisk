@@ -108,11 +108,11 @@ static char *typecompat = "Tor";	/* Retain compatibility with chan_tor */
 static char *config = "zapata.conf";
 
 #define SIG_EM		ZT_SIG_EM
-#define SIG_EMWINK 	(0x10000 | ZT_SIG_EM)
-#define SIG_FEATD	(0x20000 | ZT_SIG_EM)
-#define	SIG_FEATDMF	(0x40000 | ZT_SIG_EM)
-#define	SIG_FEATB	(0x80000 | ZT_SIG_EM)
-#define	SIG_E911	(0x100000 | ZT_SIG_EM)
+#define SIG_EMWINK 	(0x100000 | ZT_SIG_EM)
+#define SIG_FEATD	(0x200000 | ZT_SIG_EM)
+#define	SIG_FEATDMF	(0x400000 | ZT_SIG_EM)
+#define	SIG_FEATB	(0x800000 | ZT_SIG_EM)
+#define	SIG_E911	(0x1000000 | ZT_SIG_EM)
 #define SIG_FXSLS	ZT_SIG_FXSLS
 #define SIG_FXSGS	ZT_SIG_FXSGS
 #define SIG_FXSKS	ZT_SIG_FXSKS
@@ -122,10 +122,11 @@ static char *config = "zapata.conf";
 #define SIG_PRI		ZT_SIG_CLEAR
 #define SIG_R2		ZT_SIG_CAS
 #define	SIG_SF		ZT_SIG_SF
-#define SIG_SFWINK 	(0x10000 | ZT_SIG_SF)
-#define SIG_SF_FEATD	(0x20000 | ZT_SIG_SF)
-#define	SIG_SF_FEATDMF	(0x40000 | ZT_SIG_SF)
-#define	SIG_SF_FEATB	(0x80000 | ZT_SIG_SF)
+#define SIG_SFWINK 	(0x100000 | ZT_SIG_SF)
+#define SIG_SF_FEATD	(0x200000 | ZT_SIG_SF)
+#define	SIG_SF_FEATDMF	(0x400000 | ZT_SIG_SF)
+#define	SIG_SF_FEATB	(0x800000 | ZT_SIG_SF)
+#define SIG_EM_E1	ZT_SIG_EM_E1
 
 #define NUM_SPANS 	32
 #define RESET_INTERVAL	3600	/* How often (in seconds) to reset unused channels */
@@ -560,8 +561,8 @@ static int cidrings[NUM_CADENCE_MAX] = {
 #define ISTRUNK(p) ((p->sig == SIG_FXSLS) || (p->sig == SIG_FXSKS) || \
 			(p->sig == SIG_FXSGS) || (p->sig == SIG_PRI))
 
-#define CANBUSYDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
-#define CANPROGRESSDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
+#define CANBUSYDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_EM_E1 | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
+#define CANPROGRESSDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_EM_E1 | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
 
 #ifdef ZAPATA_PRI
 /* translate between PRI causes and asterisk's */
@@ -884,6 +885,8 @@ static char *sig2str(int sig)
 		return "E & M Immediate";
 	case SIG_EMWINK:
 		return "E & M Wink";
+	case SIG_EM_E1:
+		return "E & M E1";
 	case SIG_FEATD:
 		return "Feature Group D (DTMF)";
 	case SIG_FEATDMF:
@@ -1492,6 +1495,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 	case SIG_FXSKS:
 	case SIG_EMWINK:
 	case SIG_EM:
+	case SIG_EM_E1:
 	case SIG_FEATD:
 	case SIG_FEATDMF:
 	case SIG_E911:
@@ -2013,6 +2017,7 @@ static int zt_answer(struct ast_channel *ast)
 		p->ringt = 0;
 		/* Fall through */
 	case SIG_EM:
+	case SIG_EM_E1:
 	case SIG_EMWINK:
 	case SIG_FEATD:
 	case SIG_FEATDMF:
@@ -2852,7 +2857,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					if (ast->_state == AST_STATE_DIALING) {
 						if (p->callprogress && CANPROGRESSDETECT(p) && p->dsp && p->outgoing) {
 							ast_log(LOG_DEBUG, "Done dialing, but waiting for progress detection before doing more...\n");
-						} else if (p->confirmanswer || (!p->dialednone && ((p->sig == SIG_EM) || (p->sig == SIG_EMWINK) || (p->sig == SIG_FEATD) || (p->sig == SIG_FEATDMF) || (p->sig == SIG_E911) || (p->sig == SIG_FEATB) || (p->sig == SIG_SF) || (p->sig == SIG_SFWINK) || (p->sig == SIG_SF_FEATD) || (p->sig == SIG_SF_FEATDMF) || (p->sig == SIG_SF_FEATB)))) {
+						} else if (p->confirmanswer || (!p->dialednone && ((p->sig == SIG_EM) || (p->sig == SIG_EM_E1) ||  (p->sig == SIG_EMWINK) || (p->sig == SIG_FEATD) || (p->sig == SIG_FEATDMF) || (p->sig == SIG_E911) || (p->sig == SIG_FEATB) || (p->sig == SIG_SF) || (p->sig == SIG_SFWINK) || (p->sig == SIG_SF_FEATD) || (p->sig == SIG_SF_FEATDMF) || (p->sig == SIG_SF_FEATB)))) {
 							ast_setstate(ast, AST_STATE_RINGING);
 						} else {
 							ast_setstate(ast, AST_STATE_UP);
@@ -3064,6 +3069,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				}
 				/* Fall through */
 			case SIG_EM:
+			case SIG_EM_E1:
 			case SIG_EMWINK:
 			case SIG_FEATD:
 			case SIG_FEATDMF:
@@ -3254,6 +3260,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				update_conf(p);
 				break;
 			case SIG_EM:
+			case SIG_EM_E1:
 			case SIG_EMWINK:
 			case SIG_FEATD:
 			case SIG_SF:
@@ -3294,6 +3301,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			case SIG_FXSGS:
 			case SIG_FXSKS:
 			case SIG_EM:
+			case SIG_EM_E1:
 			case SIG_EMWINK:
 			case SIG_FEATD:
 			case SIG_SF:
@@ -4212,6 +4220,7 @@ static void *ss_thread(void *data)
 			return NULL;
 		/* Fall through */
 	case SIG_EM:
+	case SIG_EM_E1:
 	case SIG_SF:
 		res = tone_zone_play_tone(p->subs[index].zfd, -1);
 		if (p->dsp)
@@ -4912,6 +4921,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_E911:
 		case SIG_FEATB:
 		case SIG_EM:
+		case SIG_EM_E1:
 		case SIG_SFWINK:
 		case SIG_SF_FEATD:
 		case SIG_SF_FEATDMF:
@@ -4959,6 +4969,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_E911:
 		case SIG_FEATB:
 		case SIG_EM:
+		case SIG_EM_E1:
 		case SIG_EMWINK:
 		case SIG_SF_FEATD:
 		case SIG_SF_FEATDMF:
@@ -5368,7 +5379,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 				free(tmp);
 				return NULL;
 			}
-			if (p.sigtype != (signalling & 0xffff)) {
+			if (p.sigtype != (signalling & 0x3ffff)) {
 				ast_log(LOG_ERROR, "Signalling requested is %s but line is in %s signalling\n", sig2str(signalling), sig2str(p.sigtype));
 				free(tmp);
 				tmp = NULL;
@@ -5501,7 +5512,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 #endif
 		/* Adjust starttime on loopstart and kewlstart trunks to reasonable values */
 		if ((signalling == SIG_FXSKS) || (signalling == SIG_FXSLS) ||
-		    (signalling == SIG_EM) || (signalling == SIG_EMWINK) ||
+		    (signalling == SIG_EM) || (signalling == SIG_EM_E1) ||  (signalling == SIG_EMWINK) ||
 			(signalling == SIG_FEATD) || (signalling == SIG_FEATDMF) ||
 			  (signalling == SIG_FEATB) || (signalling == SIG_E911) ||
 		    (signalling == SIG_SF) || (signalling == SIG_SFWINK) ||
@@ -7610,6 +7621,8 @@ static int setup_zap(void)
 		} else if (!strcasecmp(v->name, "signalling")) {
 			if (!strcasecmp(v->value, "em")) {
 				cur_signalling = SIG_EM;
+			} else if (!strcasecmp(v->value, "em_e1")) {
+				cur_signalling = SIG_EM_E1;
 			} else if (!strcasecmp(v->value, "em_w")) {
 				cur_signalling = SIG_EMWINK;
 				cur_radio = 0;
