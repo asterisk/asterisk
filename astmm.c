@@ -80,8 +80,10 @@ static inline void *__ast_alloc_region(size_t size, int which, const char *file,
 	pthread_mutex_unlock(&reglock);
 	if (!reg) {
 		fprintf(stderr, "Out of memory :(\n");
-		if (mmlog)
-			fprintf(stderr, "%ld - Out of memory\n", time(NULL));
+		if (mmlog) {
+			fprintf(mmlog, "%ld - Out of memory\n", time(NULL));
+			fflush(mmlog);
+		}
 	}
 	return ptr;
 }
@@ -129,9 +131,11 @@ static void __ast_free_region(void *ptr, const char *file, int lineno, const cha
 	} else {
 		fprintf(stderr, "WARNING: Freeing unused memory at %p, in %s of %s, line %d\n",
 			ptr, func, file, lineno);
-		if (mmlog)
+		if (mmlog) {
 			fprintf(mmlog, "%ld - WARNING: Freeing unused memory at %p, in %s of %s, line %d\n", time(NULL),
 			ptr, func, file, lineno);
+			fflush(mmlog);
+		}
 	}
 }
 
@@ -163,9 +167,11 @@ void *__ast_realloc(void *ptr, size_t size, const char *file, int lineno, const 
 		if (!len) {
 			fprintf(stderr, "WARNING: Realloc of unalloced memory at %p, in %s of %s, line %d\n",
 				ptr, func, file, lineno);
-			if (mmlog)
+			if (mmlog) {
 				fprintf(mmlog, "%ld - WARNING: Realloc of unalloced memory at %p, in %s of %s, line %d\n",
 					time(NULL), ptr, func, file, lineno);
+				fflush(mmlog);
+			}
 			return NULL;
 		}
 	}
@@ -331,8 +337,10 @@ void __ast_mm_init(void)
 	mmlog = fopen("/var/log/asterisk/mmlog", "a+");
 	if (option_verbose)
 		ast_verbose("Asterisk Malloc Debugger Started (see /var/log/mmlog)\n");
-	if (mmlog)
+	if (mmlog) {
 		fprintf(mmlog, "%ld - New session\n", time(NULL));
+		fflush(mmlog);
+	}
 }
 
 #endif
