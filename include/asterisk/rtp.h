@@ -95,6 +95,8 @@ int ast_rtp_proto_register(struct ast_rtp_protocol *proto);
 
 void ast_rtp_proto_unregister(struct ast_rtp_protocol *proto);
 
+void ast_rtp_stop(struct ast_rtp *rtp);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

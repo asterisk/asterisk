@@ -3117,7 +3117,6 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 {
 	char *to;
 	char *msg, *c;
-	struct ast_rtp *rtp;
 	struct ast_channel *owner;
 	struct sip_peer *peer;
 	int pingtime;
@@ -3267,9 +3266,8 @@ retrylock:
 					ast_verbose(VERBOSE_PREFIX_3 "Got SIP response %d \"%s\" back from %s\n", resp, rest, inet_ntoa(p->sa.sin_addr));
 				p->alreadygone = 1;
 				if (p->rtp) {
-					struct sockaddr_in sin = { AF_INET, };
-					/* Immediately stop RTP by setting transmit to 0 */
-					ast_rtp_setpeer(p->rtp, &sin);
+					/* Immediately stop RTP */
+					ast_rtp_stop(p->rtp);
 				}
 				/* XXX Locking issues?? XXX */
 				switch(resp) {
@@ -3608,8 +3606,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		p->alreadygone = 1;
 		if (p->rtp) {
 			/* Immediately stop RTP */
-			ast_rtp_destroy(p->rtp);
-			p->rtp = NULL;
+			ast_rtp_stop(p->rtp);
 		}
 		if (p->owner)
 			ast_queue_hangup(p->owner, 1);

@@ -586,6 +586,12 @@ void ast_rtp_get_us(struct ast_rtp *rtp, struct sockaddr_in *us)
 	memcpy(us, &rtp->us, sizeof(rtp->us));
 }
 
+void ast_rtp_stop(struct ast_rtp *rtp)
+{
+	memset(&rtp->them.sin_addr, 0, sizeof(rtp->them.sin_addr));
+	memset(&rtp->them.sin_port, 0, sizeof(rtp->them.sin_port));
+}
+
 void ast_rtp_destroy(struct ast_rtp *rtp)
 {
 	if (rtp->smoother)
