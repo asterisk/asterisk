@@ -45,7 +45,12 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/signal.h>
+#include <netinet/in_systm.h>
 #include <netinet/ip.h>
+
+#ifndef IPTOS_MINCOST
+#define IPTOS_MINCOST 0x02
+#endif
 
 /* #define VOCAL_DATA_HACK */
 

@@ -34,6 +34,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/time.h>
 #include <sys/signal.h>
@@ -51,6 +52,10 @@
 
 #include "iax2.h"
 #include "iax2-parser.h"
+
+#ifndef IPTOS_MINCOST
+#define IPTOS_MINCOST 0x02
+#endif
 
 /*
  * Uncomment to try experimental IAX bridge optimization,
