@@ -13,7 +13,7 @@
 
 OSARCH=$(shell uname -s)
 
-USE_MYSQL_FRIENDS=1
+USE_MYSQL_FRIENDS=0
 
 CHANNEL_LIBS=chan_modem.so chan_iax.so chan_sip.so \
 	     chan_modem_aopen.so \
