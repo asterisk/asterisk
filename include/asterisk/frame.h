@@ -323,6 +323,14 @@ extern char* ast_getformatname(int format);
  */
 extern int ast_getformatbyname(char *name);
 
+//! Get a name from a format
+/*!
+ * \param codec codec number (1,2,4,8,16,etc.)
+ * Gets a name from a format
+ * This returns a static string identifying the format on success, 0 on error.
+ */
+extern char *ast_codec2str(int codec);
+
 //! Pick the best codec 
 /* Choose the best codec...  Uhhh...   Yah. */
 extern int ast_best_codec(int fmts);

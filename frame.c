@@ -411,6 +411,112 @@ int ast_getformatbyname(char *name)
 	return 0;
 }
 
+char *ast_codec2str(int codec) {
+	static char codecs[25][30] = {
+		/* Audio formats */
+		"G.723.1",                    /*  0 */
+		"GSM",                        /*  1 */
+		"G.711 u-law",                /*  2 */
+		"G.711 A-law",                /*  3 */
+		"MPEG-2 layer 3",             /*  4 */
+		"ADPCM",                      /*  5 */
+		"16 bit Signed Linear PCM",   /*  6 */
+		"LPC10",                      /*  7 */
+		"G.729A audio",               /*  8 */
+		"SpeeX",                      /*  9 */
+		"iLBC",                       /* 10 */
+		"undefined",                  /* 11 */
+		"undefined",                  /* 12 */
+		"undefined",                  /* 13 */
+		"undefined",                  /* 14 */
+		"Maximum audio format",       /* 15 */
+        /* Image formats */
+		"JPEG image",                 /* 16 */
+		"PNG image",                  /* 17 */
+		"H.261 Video",                /* 18 */
+		"H.263 Video",                /* 19 */
+		"undefined",                  /* 20 */
+		"undefined",                  /* 21 */
+		"undefined",                  /* 22 */
+		"undefined",                  /* 23 */
+        "Maximum video format",       /* 24 */
+		};
+	return codecs[codec];
+}
+
+static int show_codecs(int fd, int argc, char *argv[])
+{
+	int i, found=0;
+
+	if ((argc < 2) || (argc > 3))
+		return RESULT_SHOWUSAGE;
+
+	if ((argc == 2) || (!strcasecmp(argv[1],"audio"))) {
+		found = 1;
+		for (i=0;i<11;i++)
+			ast_cli(fd, "%8d (1 << %2d)  %s\n",1 << i,i,ast_codec2str(i));
+	}
+
+	if ((argc == 2) || (!strcasecmp(argv[1],"image"))) {
+		found = 1;
+		for (i=16;i<18;i++)
+			ast_cli(fd, "%8d (1 << %2d)  %s\n",1 << i,i,ast_codec2str(i));
+	}
+
+	if ((argc == 2) || (!strcasecmp(argv[1],"video"))) {
+		found = 1;
+		for (i=18;i<20;i++)
+			ast_cli(fd, "%8d (1 << %2d)  %s\n",1 << i,i,ast_codec2str(i));
+	}
+
+	if (! found)
+		return RESULT_SHOWUSAGE;
+	else
+		return RESULT_SUCCESS;
+}
+
+static char frame_show_codecs_usage[] =
+"Usage: show [audio|video|image] codecs\n"
+"       Displays codec mapping\n";
+
+struct ast_cli_entry cli_show_codecs =
+{ { "show", "codecs", NULL }, show_codecs, "Shows codecs", frame_show_codecs_usage };
+struct ast_cli_entry cli_show_codecs_audio =
+{ { "show", "audio", "codecs", NULL }, show_codecs, "Shows audio codecs", frame_show_codecs_usage };
+struct ast_cli_entry cli_show_codecs_video =
+{ { "show", "video", "codecs", NULL }, show_codecs, "Shows video codecs", frame_show_codecs_usage };
+struct ast_cli_entry cli_show_codecs_image =
+{ { "show", "image", "codecs", NULL }, show_codecs, "Shows image codecs", frame_show_codecs_usage };
+
+static int show_codec_n(int fd, int argc, char *argv[])
+{
+	int codec, i, found=0;
+
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+
+	if (sscanf(argv[2],"%d",&codec) != 1)
+		return RESULT_SHOWUSAGE;
+
+	for (i=0;i<32;i++)
+		if (codec == (1 << i)) {
+			found = 1;
+			ast_cli(fd, "%d (1 << %d)  %s\n",1 << i,i,ast_codec2str(i));
+		}
+
+	if (! found)
+		ast_cli(fd, "Codec %d not found\n", codec);
+
+	return RESULT_SUCCESS;
+}
+
+static char frame_show_codec_n_usage[] =
+"Usage: show codec <number>\n"
+"       Displays codec mapping\n";
+
+struct ast_cli_entry cli_show_codec_n =
+{ { "show", "codec", NULL }, show_codec_n, "Shows a specific codec", frame_show_codec_n_usage };
+
 void ast_frame_dump(char *name, struct ast_frame *f, char *prefix)
 {
 	char *n = "unknown";
@@ -598,5 +704,10 @@ int init_framer(void)
 #ifdef TRACE_FRAMES
 	ast_cli_register(&cli_frame_stats);
 #endif
+	ast_cli_register(&cli_show_codecs);
+	ast_cli_register(&cli_show_codecs_audio);
+	ast_cli_register(&cli_show_codecs_video);
+	ast_cli_register(&cli_show_codecs_image);
+	ast_cli_register(&cli_show_codec_n);
 	return 0;	
 }

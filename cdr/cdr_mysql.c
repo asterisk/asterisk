@@ -37,8 +37,9 @@
 static char *desc = "MySQL CDR Backend";
 static char *name = "mysql";
 static char *config = "cdr_mysql.conf";
-static char *hostname = NULL, *dbname = NULL, *dbuser = NULL, *password = NULL;
-static int hostname_alloc = 0, dbname_alloc = 0, dbuser_alloc = 0, password_alloc = 0;
+static char *hostname = NULL, *dbname = NULL, *dbuser = NULL, *password = NULL, *dbsock = NULL;
+static int hostname_alloc = 0, dbname_alloc = 0, dbuser_alloc = 0, password_alloc = 0, dbsock_alloc = 0;
+static int dbport = 0;
 static int connected = 0;
 
 static ast_mutex_t mysql_lock = AST_MUTEX_INITIALIZER;
@@ -61,10 +62,10 @@ static int mysql_log(struct ast_cdr *cdr)
 	localtime_r(&t,&tm);
 	strftime(timestr,128,DATE_FORMAT,&tm);
 
-	if ((!connected) && hostname && dbuser && password && dbname) {
+	if ((!connected) && (hostname || dbsock) && dbuser && password && dbname) {
 		/* Attempt to connect */
 		mysql_init(&mysql);
-		if (mysql_real_connect(&mysql, hostname, dbuser, password, dbname, 0, NULL, 0)) {
+		if (mysql_real_connect(&mysql, hostname, dbuser, password, dbname, dbport, dbsock, 0)) {
 			connected = 1;
 		} else {
 			ast_log(LOG_ERROR, "cdr_mysql: cannot connect to database server %s.  Call will not be logged\n", hostname);
@@ -129,11 +130,17 @@ int unload_module(void)
 		dbuser = NULL;
 		dbuser_alloc = 0;
 	}
+	if (dbsock && dbsock_alloc) {
+		free(dbsock);
+		dbsock = NULL;
+		dbsock_alloc = 0;
+	}
 	if (password && password_alloc) {
 		free(password);
 		password = NULL;
 		password_alloc = 0;
 	}
+	dbport = 0;
 	ast_cdr_unregister(name);
 	return 0;
 }
@@ -202,6 +209,21 @@ int load_module(void)
 		dbuser = "root";
 	}
 
+	tmp = ast_variable_retrieve(cfg,"global","sock");
+	if (tmp) {
+		dbsock = malloc(strlen(tmp) + 1);
+		if (dbsock != NULL) {
+			dbsock_alloc = 1;
+			strcpy(dbsock,tmp);
+		} else {
+			ast_log(LOG_ERROR,"Out of memory error.\n");
+			return -1;
+		}
+	} else {
+		ast_log(LOG_WARNING,"MySQL database sock file not specified.  Assuming default\n");
+		dbsock = NULL;
+	}
+
 	tmp = ast_variable_retrieve(cfg,"global","password");
 	if (tmp) {
 		password = malloc(strlen(tmp) + 1);
@@ -217,9 +239,20 @@ int load_module(void)
 		password = "";
 	}
 
+	tmp = ast_variable_retrieve(cfg,"global","port");
+	if (tmp) {
+		if (sscanf(tmp,"%d",&dbport) < 1) {
+			ast_log(LOG_WARNING,"Invalid MySQL port number.  Using default\n");
+			dbport = 0;
+		}
+	}
+
 	ast_destroy(cfg);
 
 	ast_log(LOG_DEBUG,"cdr_mysql: got hostname of %s\n",hostname);
+	ast_log(LOG_DEBUG,"cdr_mysql: got port of %d\n",dbport);
+	if (dbsock)
+		ast_log(LOG_DEBUG,"cdr_mysql: got sock file of %s\n",dbsock);
 	ast_log(LOG_DEBUG,"cdr_mysql: got user of %s\n",dbuser);
 	ast_log(LOG_DEBUG,"cdr_mysql: got dbname of %s\n",dbname);
 	ast_log(LOG_DEBUG,"cdr_mysql: got password of %s\n",password);
