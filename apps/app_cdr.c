@@ -31,7 +31,7 @@ LOCAL_USER_DECL;
 static int nocdr_exec(struct ast_channel *chan, void *data)
 {
 	if (chan->cdr) {
-		free(chan->cdr);
+		ast_cdr_free(chan->cdr);
 		chan->cdr = NULL;
 	}
 	return 0;
