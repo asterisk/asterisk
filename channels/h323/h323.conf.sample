@@ -52,6 +52,13 @@ allow=gsm		; Always allow GSM, it's cool :)
 ; use user authentication at all.
 ;
 ;context=default
+;noFastStart = no
+;noH245Tunneling = no
+;noSilenceSuppression = yes
+;progress_setup = 3
+;progress_alert = 8
+;progress_audio = yes
+
 ;
 ; H.323 Alias definitions
 ;
