@@ -42,20 +42,25 @@ static char *synopsis = "Place an call and connect to the current channel";
 static char *registrar = "app_dial";
 
 static char *descrip =
-"  Dial(Technology/resource[&Technology2/resource2...][|timeout][|transfer]): Requests one or more channels\n"
-"  and places specified outgoing calls on them.  As soon as a channel answers, the Dial app\n"
-"  will answer the originating channel (if it needs to be answered) and will bridge a call\n"
-"  with the channel which first answered.  All other calls placed by the Dial app will be\n"
-"  hung up.  If a timeout is not specified, the Dial application will wait indefinitely until\n"
-"  either one of the called channels answers, the user hangs up, or all channels return busy or\n"
-"  error.  In general, the dialler will return 0 if it was unable to place the call, or the\n"
-"  timeout expired.  However, if all channels were busy, and there exists an extension with\n"
-"  priority n+101 (where n is the priority of the dialler instance), then it will be the\n"
-"  next executed extension (this allows you to setup different behavior on busy from no-answer)\n."
-"  This application returns -1 if the originating channel hangs up, or if the call is bridged and\n"
-"  either of the parties in the bridge terminate the call.  The transfer string may contain a\n"
-"  't' to allow the called user transfer a call or 'T' to allow the calling user to transfer the call.\n"
-"  In addition to transferring the call, a call may be parked and then picked up by another user.\n";
+"  Dial(Technology/resource[&Technology2/resource2...][|timeout][|transfer]):\n"
+"Requests  one  or more channels and places specified outgoing calls on them.\n"
+"As soon as a  channel  answers, the  Dial  app  will  answer the originating\n"
+"channel (if it needs to be answered) and will bridge a call with the channel\n"
+"which first answered. All other calls placed by the Dial app will be hunp up\n"
+"If a timeout is not specified, the Dial  application  will wait indefinitely\n"
+"until either one of the  called channels  answers, the user hangs up, or all\n"
+"channels return busy or  error. In general,  the dialler will return 0 if it\n"
+"was  unable  to  place  the  call, or the timeout expired.  However, if  all\n"
+"channels were busy, and there exists an extension with priority n+101 (where\n"
+"n is the priority of  the  dialler  instance), then  it  will  be  the  next\n"
+"executed extension (this allows you to setup different behavior on busy from\n"
+"no-answer).\n"
+"  This application returns -1 if the originating channel hangs up, or if the\n"
+"call is bridged and  either of the parties in the bridge terminate the call.\n"
+"The transfer string may contain  a  't' to  allow the called user transfer a\n"
+"call or 'T' to allow the calling user to transfer the call.\n"
+"  In addition to transferring the call, a call may be parked and then picked\n"
+"up by another user.\n";
 
 /* No more than 45 seconds parked before you do something with them */
 static int parkingtime = 45000;
@@ -309,7 +314,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				if (option_verbose > 2)
 					ast_verbose( VERBOSE_PREFIX_2 "Everyone is busy at this time\n");
 				/* See if there is a special busy message */
-				if (ast_exists_extension(in, in->context, in->exten, in->priority + 101)) 
+				if (ast_exists_extension(in, in->context, in->exten, in->priority + 101, in->callerid)) 
 					in->priority+=100;
 			} else {
 				if (option_verbose > 2)
@@ -341,6 +346,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							o->stillgoing = 0;
 							numbusies++;
 							break;
+						case AST_CONTROL_CONGESTION:
+							if (option_verbose > 2)
+								ast_verbose( VERBOSE_PREFIX_3 "%s is circuit-busy\n", o->chan->name);
+							o->stillgoing = 0;
+							numbusies++;
+							break;
 						case AST_CONTROL_RINGING:
 							if (option_verbose > 2)
 								ast_verbose( VERBOSE_PREFIX_3 "%s is ringing\n", o->chan->name);
@@ -358,6 +369,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					} else if (single && (f->frametype == AST_FRAME_VOICE)) {
 						if (ast_write(in, f)) 
 							ast_log(LOG_WARNING, "Unable to forward frame\n");
+					} else if (single && (f->frametype == AST_FRAME_IMAGE)) {
+						if (ast_write(in, f))
+							ast_log(LOG_WARNING, "Unable to forward image\n");
 					}
 					ast_frfree(f);
 				} else {
@@ -371,8 +385,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 #if 0
 			if (f && (f->frametype != AST_FRAME_VOICE))
 					printf("Frame type: %d, %d\n", f->frametype, f->subclass);
+			else if (!f || (f->frametype != AST_FRAME_VOICE))
+				printf("Hangup received on %s\n", in->name);
 #endif
-			if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass = AST_CONTROL_HANGUP))) {
+			if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP))) {
 				/* Got hung up */
 				*to=-1;
 				return NULL;
@@ -396,13 +412,14 @@ static int bridge_call(struct ast_channel *chan, struct ast_channel *peer, int a
 	int res;
 	struct ast_option_header *aoh;
 	/* Answer if need be */
-	if (chan->state != AST_STATE_UP)
+	if (chan->state != AST_STATE_UP) {
 		if (ast_answer(chan))
 			return -1;
+	}
 	peer->appl = "Bridged Call";
 	peer->data = chan->name;
 	for (;;) {
-		res = ast_channel_bridge(chan, peer, AST_BRIDGE_DTMF_CHANNEL_1, &f, &who);
+		res = ast_channel_bridge(chan, peer, allowredirect ? AST_BRIDGE_DTMF_CHANNEL_1 : 0, &f, &who);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Bridge failed on channels %s and %s\n", chan->name, peer->name);
 			return -1;
@@ -433,9 +450,6 @@ static int bridge_call(struct ast_channel *chan, struct ast_channel *peer, int a
 		     (f->subclass == '#')) {
 				memset(newext, 0, sizeof(newext));
 				ptr = newext;
-				len = ast_pbx_longest_extension(chan->context) + 1;
-				if (len < ast_pbx_longest_extension("default") + 1)
-					len = ast_pbx_longest_extension("default") + 1;
 					/* Transfer */
 				if ((res=ast_streamfile(peer, "pbx-transfer", chan->language)))
 					break;
@@ -448,7 +462,18 @@ static int bridge_call(struct ast_channel *chan, struct ast_channel *peer, int a
 					ptr++;
 					len --;
 				}
-				res = ast_readstring(peer, ptr, len, 3000, 2000, "#");
+				res = 0;
+				while(strlen(newext) < sizeof(newext - 1)) {
+					res = ast_waitfordigit(peer, 3000);
+					if (res < 1)
+						break;
+					*(ptr++) = res;
+					if (!ast_canmatch_extension(peer, peer->context, newext, 1, peer->callerid) ||
+						ast_exists_extension(peer, peer->context, newext, 1, peer->callerid)) {
+						res = 0;
+						break;
+					}
+				}
 				if (res)
 					break;
 				if (!strcmp(newext, parking_ext)) {
@@ -462,7 +487,7 @@ static int bridge_call(struct ast_channel *chan, struct ast_channel *peer, int a
 						ast_log(LOG_WARNING, "Unable to park call %s\n", chan->name);
 					}
 					/* XXX Maybe we should have another message here instead of invalid extension XXX */
-				} else if (ast_exists_extension(chan, peer->context, newext, 1)) {
+				} else if (ast_exists_extension(chan, peer->context, newext, 1, peer->callerid)) {
 					/* Set the channel's new extension, since it exists, using peer context */
 					strncpy(chan->exten, newext, sizeof(chan->exten));
 					strncpy(chan->context, peer->context, sizeof(chan->context));
@@ -472,6 +497,9 @@ static int bridge_call(struct ast_channel *chan, struct ast_channel *peer, int a
 						ast_verbose(VERBOSE_PREFIX_3 "Transferring %s to '%s' (context %s) priority 1\n", chan->name, chan->exten, chan->context);
 					res=0;
 					break;
+				} else {
+					if (option_verbose > 2)	
+						ast_verbose(VERBOSE_PREFIX_3 "Unable to find extension '%s' in context %s\n", newext, peer->context);
 				}
 				res = ast_streamfile(peer, "pbx-invalid", chan->language);
 				if (res)
@@ -694,6 +722,14 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			ast_hangup(peer);
 			return -1;
 		}
+		if (!strcmp(chan->type,"Zap")) {
+			int x = 2;
+			ast_channel_setoption(chan,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
+		}			
+		if (!strcmp(peer->type,"Zap")) {
+			int x = 2;
+			ast_channel_setoption(peer,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
+		}			
 		res = bridge_call(chan, peer, allowredir);
 		ast_hangup(peer);
 	}	
@@ -726,7 +762,7 @@ int load_module(void)
 	}
 	for(x=parking_start; x<=parking_stop;x++) {
 		snprintf(exten, sizeof(exten), "%d", x);
-		ast_add_extension2(con, 1, exten, 1, parkedcall, strdup(exten), free, registrar);
+		ast_add_extension2(con, 1, exten, 1, NULL, parkedcall, strdup(exten), free, registrar);
 	}
 	pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
 	res = ast_register_application(parkedcall, park_exec, synopsis, descrip);
