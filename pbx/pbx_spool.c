@@ -97,7 +97,7 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 	while(!feof(f)) {
 		fgets(buf, sizeof(buf), f);
 		lineno++;
-		if (!feof(f)) {
+		if (!ast_strlen_zero(buf)) {
 			/* Trim comments */
 			c = buf;
 			while ((c = strchr(c, '#'))) {
