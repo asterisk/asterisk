@@ -150,7 +150,7 @@ static int maxlogins;
 
 static char *emailbody = NULL;
 static int pbxskip = 0;
-static char fromstring[15];
+static char fromstring[40];
 static char emailtitle[100];
 
 STANDARD_LOCAL_USER;
