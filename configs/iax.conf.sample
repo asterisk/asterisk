@@ -65,6 +65,12 @@ jitterbuffer=no
 ;
 ;register => marko:[torkey]@tormenta.linux-support.net
 ;
+;
+; You can disable authentication debugging to reduce the amount of 
+; debugging traffic.
+;
+;authdebug=no
+;
 ; Finally, you can set values for your TOS bits to help improve 
 ; performance.  Valid values are:
 ;   lowdelay		-- Minimize delay

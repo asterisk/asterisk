@@ -105,6 +105,7 @@ static int maxtrunkcall = TRUNK_CALL_START;
 static int maxnontrunkcall = 1;
 static int maxjitterbuffer=3000;
 static int trunkfreq = 20;
+static int authdebug = 1;
 
 static int iaxdefaultdpcache=10 * 60;	/* Cache dialplan entries for 10 minutes by default */
 
@@ -3040,19 +3041,22 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 #endif
 
 	if (!p) {
-		ast_log(LOG_NOTICE, "No registration for peer '%s' (from %s)\n", peer, inet_ntoa(sin->sin_addr));
+		if (authdebug)
+			ast_log(LOG_NOTICE, "No registration for peer '%s' (from %s)\n", peer, inet_ntoa(sin->sin_addr));
 		return -1;
 	}
 
 	if (!p->dynamic) {
-		ast_log(LOG_NOTICE, "Peer '%s' is not dynamic (from %s)\n", peer, inet_ntoa(sin->sin_addr));
+		if (authdebug)
+			ast_log(LOG_NOTICE, "Peer '%s' is not dynamic (from %s)\n", peer, inet_ntoa(sin->sin_addr));
 		if (p->delme)
 			free(p);
 		return -1;
 	}
 
 	if (!ast_apply_ha(p->ha, sin)) {
-		ast_log(LOG_NOTICE, "Host %s denied access to register peer '%s'\n", inet_ntoa(sin->sin_addr), p->name);
+		if (authdebug)
+			ast_log(LOG_NOTICE, "Host %s denied access to register peer '%s'\n", inet_ntoa(sin->sin_addr), p->name);
 		if (p->delme)
 			free(p);
 		return -1;
@@ -3077,13 +3081,15 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 				keyn = strsep(&stringp, ":");
 			}
 			if (!keyn) {
-				ast_log(LOG_NOTICE, "Host %s failed RSA authentication with inkeys '%s'\n", peer, p->inkeys);
+				if (authdebug)
+					ast_log(LOG_NOTICE, "Host %s failed RSA authentication with inkeys '%s'\n", peer, p->inkeys);
 				if (p->delme)
 					free(p);
 				return -1;
 			}
 		} else {
-			ast_log(LOG_NOTICE, "Host '%s' trying to do RSA authentication, but we have no inkeys\n", peer);
+			if (authdebug)
+				ast_log(LOG_NOTICE, "Host '%s' trying to do RSA authentication, but we have no inkeys\n", peer);
 			if (p->delme)
 				free(p);
 			return -1;
@@ -3091,7 +3097,8 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	} else if (strlen(secret) && (p->authmethods & IAX_AUTH_PLAINTEXT)) {
 		/* They've provided a plain text password and we support that */
 		if (strcmp(secret, p->secret)) {
-			ast_log(LOG_NOTICE, "Host %s did not provide proper plaintext password for '%s'\n", inet_ntoa(sin->sin_addr), p->name);
+			if (authdebug)
+				ast_log(LOG_NOTICE, "Host %s did not provide proper plaintext password for '%s'\n", inet_ntoa(sin->sin_addr), p->name);
 			if (p->delme)
 				free(p);
 			return -1;
@@ -3107,14 +3114,16 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		for (x=0;x<16;x++)
 			sprintf(requeststr + (x << 1), "%2.2x", digest[x]);
 		if (strcasecmp(requeststr, md5secret)) {
-			ast_log(LOG_NOTICE, "Host %s failed MD5 authentication for '%s' (%s != %s)\n", inet_ntoa(sin->sin_addr), p->name, requeststr, md5secret);
+			if (authdebug)
+				ast_log(LOG_NOTICE, "Host %s failed MD5 authentication for '%s' (%s != %s)\n", inet_ntoa(sin->sin_addr), p->name, requeststr, md5secret);
 			if (p->delme)
 				free(p);
 			return -1;
 		} else
 			iaxs[callno]->state |= IAX_STATE_AUTHENTICATED;
 	} else if (strlen(md5secret) || strlen(secret)) {
-		ast_log(LOG_NOTICE, "Inappropriate authentication received\n");
+		if (authdebug)
+			ast_log(LOG_NOTICE, "Inappropriate authentication received\n");
 		if (p->delme)
 			free(p);
 		return -1;
@@ -5423,6 +5432,8 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 			inet_aton(v->value, &sin->sin_addr);
 		else if (!strcasecmp(v->name, "jitterbuffer"))
 			use_jitterbuffer = ast_true(v->value);
+		else if (!strcasecmp(v->name, "authdebug"))
+			authdebug = ast_true(v->value);
 		else if (!strcasecmp(v->name, "trunkfreq")) {
 			trunkfreq = atoi(v->value);
 			if (trunkfreq < 10)
