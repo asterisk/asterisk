@@ -51,29 +51,31 @@ static struct permalias {
 	{ -1, "all" },
 };
 
-#define MAX_HEADERS 80
-#define MAX_LEN 256
+static struct mansession *sessions = NULL;
+static struct manager_action *first_action = NULL;
+static pthread_mutex_t actionlock = AST_MUTEX_INITIALIZER;
 
-static struct mansession {
-	pthread_t t;
-	pthread_mutex_t lock;
-	struct sockaddr_in sin;
-	int fd;
-	char username[80];
-	int authenticated;
-	int readperm;
-	int writeperm;
-	char inbuf[MAX_LEN];
-	int inlen;
-	
-	struct mansession *next;
-} *sessions = NULL;
+static int handle_showmancmds(int fd, int argc, char *argv[])
+{
+	struct manager_action *cur = first_action;
 
+	ast_pthread_mutex_lock(&actionlock);
+	while(cur) { /* Walk the list of actions */
+		ast_cli(fd, "\t%s  %s\r\n",cur->action, cur->synopsis);
+		cur = cur->next;
+	}
 
-struct message {
-	int hdrcount;
-	char headers[MAX_HEADERS][MAX_LEN];
-};
+	ast_pthread_mutex_unlock(&actionlock);
+	return RESULT_SUCCESS;
+}
+
+static char showmancmds_help[] = 
+"Usage: show manager commands\n"
+"	Prints a listing of all the available manager commands.\n";
+
+static struct ast_cli_entry show_mancmds_cli =
+	{ { "show", "manager", "commands", NULL },
+	handle_showmancmds, "Show manager commands", showmancmds_help };
 
 static void destroy_session(struct mansession *s)
 {
@@ -141,14 +143,18 @@ static int get_perm(char *instr)
 	char *c;
 	int x;
 	int ret = 0;
+	char *stringp=NULL;
+	if (!instr)
+		return 0;
 	strncpy(tmp, instr, sizeof(tmp) - 1);
-	c = strtok(tmp, ",");
+	stringp=tmp;
+	c = strsep(&stringp, ",");
 	while(c) {
 		for (x=0;x<sizeof(perms) / sizeof(perms[0]);x++) {
 			if (!strcasecmp(perms[x].label, c)) 
 				ret |= perms[x].num;
 		}
-		c = strtok(NULL, ",");
+		c = strsep(&stringp, ",");
 	}
 	return ret;
 }
@@ -300,6 +306,21 @@ static int action_redirect(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static int action_command(struct mansession *s, struct message *m)
+{
+	char *cmd = get_header(m, "Command");
+	ast_pthread_mutex_lock(&s->lock);
+	s->blocking = 1;
+	ast_pthread_mutex_unlock(&s->lock);
+	ast_cli(s->fd, "Response: Follows\r\n");
+	ast_cli_command(s->fd, cmd);
+	ast_cli(s->fd, "--END COMMAND--\r\n\r\n");
+	ast_pthread_mutex_lock(&s->lock);
+	s->blocking = 0;
+	ast_pthread_mutex_unlock(&s->lock);
+	return 0;
+}
+
 static int action_originate(struct mansession *s, struct message *m)
 {
 	char *name = get_header(m, "Channel");
@@ -307,6 +328,7 @@ static int action_originate(struct mansession *s, struct message *m)
 	char *context = get_header(m, "Context");
 	char *priority = get_header(m, "Priority");
 	char *timeout = get_header(m, "Timeout");
+	char *callerid = get_header(m, "CallerID");
 	char *tech, *data;
 	int pi = 0;
 	int res;
@@ -321,7 +343,7 @@ static int action_originate(struct mansession *s, struct message *m)
 		send_error(s, "Invalid priority\n");
 		return 0;
 	}
-	if (strlen(timeout) && (sscanf(priority, "%d", &to) != 1)) {
+	if (strlen(timeout) && (sscanf(timeout, "%d", &to) != 1)) {
 		send_error(s, "Invalid timeout\n");
 		return 0;
 	}
@@ -334,7 +356,7 @@ static int action_originate(struct mansession *s, struct message *m)
 	}
 	*data = '\0';
 	data++;
-	res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 0);
+	res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 0, strlen(callerid) ? callerid : NULL, NULL );
 	if (!res)
 		send_ack(s, "Originate successfully queued");
 	else
@@ -342,24 +364,13 @@ static int action_originate(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static struct action {
-	char *action;
-	int authority;
-	int (*func)(struct mansession *s, struct message *m);
-} actions[] = {
-	{ "Ping", 0, action_ping },
-	{ "Logoff", 0, action_logoff },
-	{ "Hangup", EVENT_FLAG_CALL, action_hangup },
-	{ "Status", EVENT_FLAG_CALL, action_status },
-	{ "Redirect", EVENT_FLAG_CALL, action_redirect },
-	{ "Originate", EVENT_FLAG_CALL, action_originate },
-};
-
 static int process_message(struct mansession *s, struct message *m)
 {
-	int x;
 	char action[80];
+	struct manager_action *tmp = first_action;
+
 	strncpy(action, get_header(m, "Action"), sizeof(action));
+
 	if (!strlen(action)) {
 		send_error(s, "Missing action in request");
 		return 0;
@@ -374,31 +385,26 @@ static int process_message(struct mansession *s, struct message *m)
 				s->authenticated = 1;
 				if (option_verbose > 1) 
 					ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged on from %s\n", s->username, inet_ntoa(s->sin.sin_addr));
-				ast_log(LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, inet_ntoa(s->sin.sin_addr));
+				ast_log(LOG_EVENT, "Manager '%s' logged on from %s\n", s->username, inet_ntoa(s->sin.sin_addr));
 				send_ack(s, "Authentication accepted");
 			}
 		} else 
 			send_error(s, "Authentication Required");
 	} else {
-		for (x=0;x<sizeof(actions) / sizeof(actions[0]);x++) {
-			if (!strcasecmp(action, actions[x].action)) {
-				if ((s->writeperm & actions[x].authority) == actions[x].authority) {
-					if (actions[x].func(s, m))
+		while( tmp ) { 		
+			if (!strcasecmp(action, tmp->action)) {
+				if ((s->writeperm & tmp->authority) == tmp->authority) {
+					if (tmp->func(s, m))
 						return -1;
 				} else {
 					send_error(s, "Permission denied");
 				}
-				break;
+				return 0;
 			}
+			tmp = tmp->next;
 		}
-		if (x >= sizeof(actions) / sizeof(actions[0]))
-			send_error(s, "Invalid/unknown command");
+		send_error(s, "Invalid/unknown command");
 	}
-#if 0
-	for (x=0;x<m->hdrcount;x++) {
-		printf("Header: %s\n", m->headers[x]);
-	}
-#endif	
 	return 0;
 }
 
@@ -509,7 +515,7 @@ static void *accept_thread(void *ignore)
 		if (pthread_create(&t, NULL, session_do, s))
 			destroy_session(s);
 	}
-		
+	return NULL;
 }
 
 int manager_event(int category, char *event, char *fmt, ...)
@@ -523,12 +529,14 @@ int manager_event(int category, char *event, char *fmt, ...)
 	while(s) {
 		if ((s->readperm & category) == category) {
 			ast_pthread_mutex_lock(&s->lock);
-			ast_cli(s->fd, "Event: %s\r\n", event);
-			va_start(ap, fmt);
-			vsnprintf(tmp, sizeof(tmp), fmt, ap);
-			va_end(ap);
-			write(s->fd, tmp, strlen(tmp));
-			ast_cli(s->fd, "\r\n");
+			if (!s->blocking) {
+				ast_cli(s->fd, "Event: %s\r\n", event);
+				va_start(ap, fmt);
+				vsnprintf(tmp, sizeof(tmp), fmt, ap);
+				va_end(ap);
+				write(s->fd, tmp, strlen(tmp));
+				ast_cli(s->fd, "\r\n");
+			}
 			ast_pthread_mutex_unlock(&s->lock);
 		}
 		s = s->next;
@@ -537,6 +545,59 @@ int manager_event(int category, char *event, char *fmt, ...)
 	return 0;
 }
 
+int ast_manager_unregister( char *action ) {
+	struct manager_action *cur = first_action, *prev = first_action;
+
+	ast_pthread_mutex_lock(&actionlock);
+	while( cur ) { 		
+		if (!strcasecmp(action, cur->action)) {
+			prev->next = cur->next;
+			free(cur);
+			if (option_verbose > 1) 
+				ast_verbose(VERBOSE_PREFIX_2 "Manager unregistered action %s\n", action);
+			ast_pthread_mutex_unlock(&actionlock);
+			return 0;
+		}
+		prev = cur;
+		cur = cur->next;
+	}
+	ast_pthread_mutex_unlock(&actionlock);
+	return 0;
+}
+
+int ast_manager_register( char *action, int auth, 
+	int (*func)(struct mansession *s, struct message *m), char *synopsis)
+{
+	struct manager_action *cur = first_action, *prev = NULL;
+
+	ast_pthread_mutex_lock(&actionlock);
+	while(cur) { /* Walk the list of actions */
+		prev = cur; 
+		cur = cur->next;
+	}
+	cur = malloc( sizeof(struct manager_action) );
+	if( !cur ) {
+		ast_log(LOG_WARNING, "Manager: out of memory trying to register action\n");
+		ast_pthread_mutex_unlock(&actionlock);
+		return -1;
+	}
+	strncpy( cur->action, action, 255 );
+	cur->authority = auth;
+	cur->func = func;
+	cur->synopsis = synopsis;
+	cur->next = NULL;
+
+	if( prev ) prev->next = cur;
+	else first_action = cur;
+
+	if (option_verbose > 1) 
+		ast_verbose(VERBOSE_PREFIX_2 "Manager registered action %s\n", action);
+	ast_pthread_mutex_unlock(&actionlock);
+	return 0;
+}
+
+static int registered = 0;
+
 int init_manager(void)
 {
 	struct ast_config *cfg;
@@ -544,7 +605,19 @@ int init_manager(void)
 	int oldportno = portno;
 	static struct sockaddr_in ba;
 	int x = 1;
+	if (!registered) {
+		/* Register default actions */
+		ast_manager_register( "Ping", 0, action_ping, "Ping" );
+		ast_manager_register( "Logoff", 0, action_logoff, "Logoff Manager" );
+		ast_manager_register( "Hangup", EVENT_FLAG_CALL, action_hangup, "Hangup Channel" );
+		ast_manager_register( "Status", EVENT_FLAG_CALL, action_status, "Status" );
+		ast_manager_register( "Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect" );
+		ast_manager_register( "Originate", EVENT_FLAG_CALL, action_originate, "Originate Call" );
+		ast_manager_register( "Command", EVENT_FLAG_COMMAND, action_command, "Execute Command" );
 
+		ast_cli_register(&show_mancmds_cli);
+		registered = 1;
+	}
 	portno = DEFAULT_MANAGER_PORT;
 	cfg = ast_load("manager.conf");
 	if (!cfg) {
