@@ -4710,7 +4710,7 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *heade
 	char digest[1024];
 	p->authtries++;
 	memset(digest,0,sizeof(digest));
-	if (reply_digest(p,req, "Proxy-Authenticate", msg, digest, sizeof(digest) )) {
+	if (reply_digest(p,req, header, msg, digest, sizeof(digest) )) {
 		/* No way to authenticate */
 		return -1;
 	}
