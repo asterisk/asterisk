@@ -8258,6 +8258,10 @@ static void *pri_dchannel(void *vpri)
 							pri_reset(pri->pri, PVT_TO_CHANNEL(pri->pvts[chanpos]));
 							pri->pvts[chanpos]->resetting = 1;
 						}
+						if (e->hangup.aoc_units > -1)
+							if (option_verbose > 2)
+								ast_verbose(VERBOSE_PREFIX_3 "Channel %d/%d, span %d received AOC-E charging %i unit%s\n",
+									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span, (int)e->hangup.aoc_units, (e->hangup.aoc_units == 1) ? "" : "s");
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					} else {
 						ast_log(LOG_WARNING, "Hangup on bad channel %d/%d on span %d\n", 
@@ -8299,7 +8303,11 @@ static void *pri_dchannel(void *vpri)
 								pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							}
 							if (option_verbose > 2) 
-								ast_verbose(VERBOSE_PREFIX_3 "Channel %d/%d, span %d got hangup\n", PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span);
+								ast_verbose(VERBOSE_PREFIX_3 "Channel %d/%d, span %d got hangup request\n", PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span);
+							if (e->hangup.aoc_units > -1)
+								if (option_verbose > 2)
+									ast_verbose(VERBOSE_PREFIX_3 "Channel %d/%d, span %d received AOC-E charging %i unit%s\n",
+										pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span, (int)e->hangup.aoc_units, (e->hangup.aoc_units == 1) ? "" : "s");
 						} else {
 							pri_hangup(pri->pri, pri->pvts[chanpos]->call, e->hangup.cause);
 							pri->pvts[chanpos]->call = NULL;
