@@ -23,6 +23,7 @@ struct ast_config;
 struct ast_variable {
 	char *name;
 	char *value;
+	int lineno;
 	struct ast_variable *next;
 };
 
@@ -38,6 +39,8 @@ struct ast_variable *ast_variable_browse(struct ast_config *config, char *catego
 char *ast_variable_retrieve(struct ast_config *config, char *category, char *value);
 /* Determine affermativeness of a boolean value */
 int ast_true(char *val);
+/* Browse config structure and check for category duplicity Return non-zero if found */
+int ast_category_exist(struct ast_config *config, char *category_name);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

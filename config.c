@@ -123,6 +123,21 @@ char *ast_variable_retrieve(struct ast_config *config, char *category, char *val
 	return NULL;
 }
 
+int ast_category_exist(struct ast_config *config, char *category_name)
+{
+	struct ast_category *category = NULL;
+
+	category = config->root;
+
+	while(category) {
+		if (!strcasecmp(category->name,category_name)) 
+			return 1;
+		category = category->next;
+	} 
+
+	return 0;
+}
+
 struct ast_config *ast_load(char *configfile)
 {
 	char fn[256];
@@ -133,6 +148,7 @@ struct ast_config *ast_load(char *configfile)
 	FILE *f;
 	char *c, *cur;
 	int lineno=0;
+
 	if (configfile[0] == '/') {
 		strncpy(fn, configfile, sizeof(fn));
 	} else {
@@ -167,10 +183,23 @@ struct ast_config *ast_load(char *configfile)
 					/* Actually parse the entry */
 					if (cur[0] == '[') {
 						/* A category header */
-						/* XXX Don't let them use the same category twice XXX */
 						c = strchr(cur, ']');
 						if (c) {
 							*c = 0;
+							/* 
+							 * Check category duplicity before structure
+							 * allocation
+							 */
+							if (ast_category_exist(tmp,cur+1)) {
+								ast_destroy(tmp);
+								ast_log(LOG_WARNING,
+									"Found duplicit category [%s] in "
+									"file %s line %d\n",
+									cur+1,configfile,lineno);
+								fclose(f);
+								return NULL; 
+							}
+						
 							tmpc = malloc(sizeof(struct ast_category));
 							if (!tmpc) {
 								ast_destroy(tmp);
@@ -204,11 +233,15 @@ struct ast_config *ast_load(char *configfile)
 						if (c) {
 							*c = 0;
 							c++;
+							/* Ignore > in => */
+							if (*c== '>')
+								c++;
 							v = malloc(sizeof(struct ast_variable));
 							if (v) {
 								v->next = NULL;
 								v->name = strdup(strip(cur));
 								v->value = strdup(strip(c));
+								v->lineno = lineno;
 								if (last)  
 									last->next = v;
 								else

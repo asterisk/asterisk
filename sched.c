@@ -62,8 +62,10 @@ struct sched_context *sched_context_create(void)
 		tmp->eventcnt = 1;
 		tmp->schedcnt = 0;
 		tmp->schedq = NULL;
+#ifdef SCHED_MAX_CACHE
 		tmp->schedc = NULL;
 		tmp->schedccnt = 0;
+#endif
 	}
 	return tmp;
 }
@@ -71,6 +73,7 @@ struct sched_context *sched_context_create(void)
 void sched_context_destroy(struct sched_context *con)
 {
 	struct sched *s, *sl;
+#ifdef SCHED_MAX_CACHE
 	/* Eliminate the cache */
 	s = con->schedc;
 	while(s) {
@@ -78,6 +81,7 @@ void sched_context_destroy(struct sched_context *con)
 		s = s->next;
 		free(sl);
 	}
+#endif
 	/* And the queue */
 	s = con->schedq;
 	while(s) {
@@ -255,8 +259,14 @@ void ast_sched_dump(struct sched_context *con)
 	struct timeval tv;
 	time_t s, ms;
 	gettimeofday(&tv, NULL);
-	ast_log(LOG_DEBUG, "Cheops Schedule Dump (%d in Q, %d Total, %d Cache)\n", 
-							 con-> schedcnt, con->eventcnt - 1, con->schedccnt);
+#ifdef SCHED_MAX_CACHE
+	ast_log(LOG_DEBUG, "Asterisk Schedule Dump (%d in Q, %d Total, %d Cache)\n", 
+							con-> schedcnt, con->eventcnt - 1, con->schedccnt);
+#else
+	ast_log(LOG_DEBUG, "Asterisk Schedule Dump (%d in Q, %d Total)\n",
+							con-> schedcnt, con->eventcnt - 1);
+#endif
+
 	ast_log(LOG_DEBUG, "=================================================\n");
 	ast_log(LOG_DEBUG, "|ID    Callback    Data        Time  (sec:ms)   |\n");
 	ast_log(LOG_DEBUG, "+-----+-----------+-----------+-----------------+\n");

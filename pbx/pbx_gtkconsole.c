@@ -124,10 +124,10 @@ static void __verboser(char *stuff, int opos, int replacelast, int complete)
 
 static void verboser(char *stuff, int opos, int replacelast, int complete) 
 {
-	pthread_mutex_lock(&verb_lock);
+	ast_pthread_mutex_lock(&verb_lock);
 	/* Lock appropriately if we're really being called in verbose mode */
 	__verboser(stuff, opos, replacelast, complete);
-	pthread_mutex_unlock(&verb_lock);
+	ast_pthread_mutex_unlock(&verb_lock);
 }
 
 static void cliinput(void *data, int source, GdkInputCondition ic)
@@ -297,7 +297,7 @@ static void exit_now(GtkWidget *widget, gpointer data)
 	ast_unload_resource("pbx_gtkconsole", 0);
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "GTK Console Monitor Exiting\n");
-		
+	/* XXX Trying to quit after calling this makes asterisk segfault XXX */
 }
 
 static void exit_completely(GtkWidget *widget, gpointer data)
@@ -467,8 +467,6 @@ int load_module(void)
 	}
 	g_thread_init(NULL);
 	if (gtk_init_check(NULL, NULL))  {
-		/* XXX Do we need to call this twice? XXX */
-		gtk_init(NULL, NULL);
 		if (!show_console()) {
 			inuse++;
 			ast_update_use_count();
