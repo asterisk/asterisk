@@ -74,6 +74,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;promiscredir = no      	; If yes, allows 302 or REDIR to non-local SIP address
 	                       	; Note that promiscredir when redirects are made to the
        	                	; local system will cause loops since SIP is incapable
+;usereqphone = no		; If yes, ";user=phone" is added to uri that contains
+				; a valid phone number
        	                	; of performing a "hairpin" call.
 ;dtmfmode = rfc2833		; Set default dtmfmode for sending DTMF. Default: rfc2833
 				; Other options: 
@@ -189,6 +191,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;username=yourusername		; Authentication user for outbound proxies
 ;fromuser=yourusername		; Many SIP providers require this!
 ;host=box.provider.com
+;usereqphone=yes		; This provider requires ";user=phone" on URI
 
 ;[grandstream1]
 ;type=friend 			; either "friend" (peer+user), "peer" or "user"

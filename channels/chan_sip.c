@@ -42,6 +42,7 @@
 #include <asterisk/astdb.h>
 #include <asterisk/causes.h>
 #include <asterisk/utils.h>
+#include <asterisk/file.h>
 #ifdef OSP_SUPPORT
 #include <asterisk/astosp.h>
 #endif
@@ -197,8 +198,9 @@ static int videosupport = 0;
 static int compactheaders = 0; 						/* send compact sip headers */
 
 static int global_dtmfmode = SIP_DTMF_RFC2833;		/* DTMF mode default */
-static int recordhistory = 0;
+static int recordhistory = 0;				/* Record SIP history. Off by default */
 static int global_promiscredir;				/* Support of 302 REDIR - Default off */
+static int global_usereqphone;				/* User=phone support, default 0 */
 
 static char global_musicclass[MAX_LANGUAGE] = "";	/* Global music on hold class */
 static char global_realm[AST_MAX_EXTENSION] = "asterisk"; 	/* Default realm */
@@ -346,6 +348,7 @@ static struct sip_pvt {
     	int stateid;
 	int dialogver;
 	int promiscredir;			/* Promiscuous redirection */
+	int usereqphone;			/* Add user=phone to numeric URI. Default off */
 	
 	int trustrpid;				/* Trust RPID headers? */
 	int progressinband;
@@ -458,6 +461,7 @@ struct sip_peer {
 	int trustrpid;			/* Trust Remote Party ID headers? */
 	int useclientcode;		/* SNOM clientcode support */
 	int progressinband;
+	int usereqphone;		/* Add user=phone to URI. Default off */
 	struct sockaddr_in addr;	/* IP address of peer */
 	struct in_addr mask;
 
@@ -1292,6 +1296,7 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 					r->noncodeccapability &= ~AST_RTP_DTMF;
 			}
 			r->promiscredir = p->promiscredir;
+			r->usereqphone = p->usereqphone;
 			strncpy(r->context, p->context,sizeof(r->context)-1);
 			if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
 				(!p->maxms || ((p->lastms >= 0)  && (p->lastms <= p->maxms)))) {
@@ -3623,6 +3628,34 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	char tmp[80];
 	char iabuf[INET_ADDRSTRLEN];
 	char *l = default_callerid, *n=NULL;
+	int x;
+	char urioptions[256]="";
+
+	if (p->usereqphone) {
+        	char onlydigits = 1;
+        	x=0;
+
+        	/* Test p->username against allowed characters in AST_DIGIT_ANY
+        	If it matches the allowed characters list, then sipuser = ";user=phone"
+
+        	If not, then sipuser = ""
+        	*/
+        	/* + is allowed in first position in a tel: uri */
+        	if (p->username && p->username[0] == '+')
+                	x=1;
+
+        	for (;x<strlen(p->username);x++) {
+                	if (!strchr(AST_DIGIT_ANY, p->username[x])) {
+                        	onlydigits = 0;
+                        	break;
+                	}
+        	}
+
+        	/* If we have only digits, add ;user=phone to the uri */
+        	if (onlydigits)
+                	strcpy(urioptions, ";user=phone");
+	}
+
 
 	snprintf(p->lastmsg, sizeof(p->lastmsg), "Init: %s", cmd);
 
@@ -3655,14 +3688,14 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	/* Otherwise, use the username while waiting for registration */
 	} else if (!ast_strlen_zero(p->username)) {
 		if (ntohs(p->sa.sin_port) != DEFAULT_SIP_PORT) {
-			snprintf(invite, sizeof(invite), "sip:%s@%s:%d",p->username, p->tohost, ntohs(p->sa.sin_port));
+			snprintf(invite, sizeof(invite), "sip:%s@%s:%d%s",p->username, p->tohost, ntohs(p->sa.sin_port), urioptions);
 		} else {
-			snprintf(invite, sizeof(invite), "sip:%s@%s",p->username, p->tohost);
+			snprintf(invite, sizeof(invite), "sip:%s@%s%s",p->username, p->tohost, urioptions);
 		}
 	} else if (ntohs(p->sa.sin_port) != DEFAULT_SIP_PORT) {
-		snprintf(invite, sizeof(invite), "sip:%s:%d", p->tohost, ntohs(p->sa.sin_port));
+		snprintf(invite, sizeof(invite), "sip:%s:%d%s", p->tohost, ntohs(p->sa.sin_port), urioptions);
 	} else {
-		snprintf(invite, sizeof(invite), "sip:%s", p->tohost);
+		snprintf(invite, sizeof(invite), "sip:%s%s", p->tohost, urioptions);
 	}
 	strncpy(p->uri, invite, sizeof(p->uri) - 1);
 	/* If there is a VXML URL append it to the SIP URL */
@@ -5742,6 +5775,7 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 		ast_cli(fd, "  ACL          : %s\n", (peer->ha?"Yes":"No"));
 		ast_cli(fd, "  CanReinvite  : %s\n", (peer->canreinvite?"Yes":"No"));
 		ast_cli(fd, "  PromiscRedir : %s\n", (peer->promiscredir?"Yes":"No"));
+		ast_cli(fd, "  User=Phone   : %s\n", (peer->usereqphone?"Yes":"No"));
 
 		/* - is enumerated */
 		ast_cli(fd, "  DTMFmode     : ");
@@ -8271,6 +8305,7 @@ static struct sip_peer *temp_peer(char *name)
 	peer->canreinvite = global_canreinvite;
 	peer->dtmfmode = global_dtmfmode;
 	peer->promiscredir = global_promiscredir;
+	peer->usereqphone = global_usereqphone;
 	peer->nat = global_nat;
 	peer->rtptimeout = global_rtptimeout;
 	peer->rtpholdtimeout = global_rtpholdtimeout;
@@ -8338,6 +8373,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			peer->addr.sin_family = AF_INET;
 			peer->defaddr.sin_family = AF_INET;
 			peer->expiry = expiry;
+			peer->usereqphone = global_usereqphone;
 		}
 		peer->prefs = prefs;
 		oldha = peer->ha;
@@ -8380,6 +8416,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 				strncpy(peer->context, v->value, sizeof(peer->context)-1);
 			else if (!strcasecmp(v->name, "fromdomain"))
 				strncpy(peer->fromdomain, v->value, sizeof(peer->fromdomain)-1);
+			else if (!strcasecmp(v->name, "usereqphone"))
+				peer->usereqphone = ast_true(v->value);
 			else if (!strcasecmp(v->name, "promiscredir"))
 				peer->promiscredir = ast_true(v->value);
 			else if (!strcasecmp(v->name, "fromuser"))
@@ -8603,6 +8641,8 @@ static int reload_config(void)
 			strncpy(default_useragent, v->value, sizeof(default_useragent)-1);
 			ast_log(LOG_DEBUG, "Setting User Agent Name to %s\n",
 				default_useragent);
+		} else if (!strcasecmp(v->name, "usereqphone")) {
+			global_usereqphone = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "relaxdtmf")) {
 			relaxdtmf = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "promiscredir")) {
