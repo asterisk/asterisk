@@ -1606,7 +1606,7 @@ static void ast_dsp_prog_reset(struct ast_dsp *dsp)
 	for (x=0;x<sizeof(modes[dsp->progmode].freqs) / sizeof(modes[dsp->progmode].freqs[0]);x++) {
 		if (modes[dsp->progmode].freqs[x]) {
 			goertzel_init(&dsp->freqs[x], (float)modes[dsp->progmode].freqs[x], dsp->gsamp_size);
-			max = x;
+			max = x + 1;
 		}
 	}
 	dsp->freqcount = max;
