@@ -1487,6 +1487,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		}
 		ast_rtp_set_m_type(p->rtp, codec);
 		codecs += len;
+		/* Fix going to: a=rtpmap:0 PCMU/8000 line */
+		if ( (int)(strlen(m)-(int)(codecs-m)) < 0 ) break;
 	}
 
 	// Next, scan through each "a=rtpmap:" line, noting each
