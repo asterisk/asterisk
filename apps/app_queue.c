@@ -1067,7 +1067,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 					if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
 					peer = o;
-					ast_copy_flags(flags, o, QUEUE_FLAG_REDIR_IN & QUEUE_FLAG_REDIR_OUT & QUEUE_FLAG_DISCON_IN & QUEUE_FLAG_DISCON_OUT);
+					ast_copy_flags(flags, o, QUEUE_FLAG_REDIR_IN | QUEUE_FLAG_REDIR_OUT | QUEUE_FLAG_DISCON_IN | QUEUE_FLAG_DISCON_OUT);
 				}
 			} else if (o->chan && (o->chan == winner)) {
 				if (!ast_strlen_zero(o->chan->call_forward)) {
@@ -1367,7 +1367,7 @@ static int calc_metric(struct ast_call_queue *q, struct member *mem, int pos, st
 	return 0;
 }
 
-static int try_calling(struct queue_ent *qe, char *options, char *announceoverride, char *url, int *go_on)
+static int try_calling(struct queue_ent *qe, char *ooptions, char *announceoverride, char *url, int *go_on)
 {
 	struct member *cur;
 	struct localuser *outgoing=NULL, *tmp = NULL;
@@ -1378,6 +1378,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	char oldcontext[AST_MAX_EXTENSION]="";
 	char queuename[256]="";
 	char *newnum;
+	char *options;
 	char *monitorfilename;
 	struct ast_channel *peer;
 	struct ast_channel *which;
@@ -1414,6 +1415,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		}
 		memset(tmp, 0, sizeof(struct localuser));
 		tmp->stillgoing = -1;
+		options = ooptions;
 		for (; options && *options; options++)
 			switch (*options) {
 			case 't':
@@ -1621,6 +1623,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		time(&callstart);
 
 		memset(&config,0,sizeof(struct ast_bridge_config));
+		
 		if (ast_test_flag(&flags, QUEUE_FLAG_REDIR_IN))
 			ast_set_flag(&(config.features_callee), AST_FEATURE_REDIRECT);
 		if (ast_test_flag(&flags, QUEUE_FLAG_REDIR_OUT))
