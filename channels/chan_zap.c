@@ -3432,13 +3432,14 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 			ast_log(LOG_DEBUG,"Received AST_CONTROL_PROGRESS on %s\n",chan->name);
 #ifdef ZAPATA_PRI
 #ifdef PRI_EVENT_PROCEEDING
-			if (!p->proceeding && (!p->pri || p->pri->overlapdial) && p->sig==SIG_PRI) {
-				if (p->pri && p->pri->pri) {		
-					if (!pri_grab(p, p->pri))
+			if (!p->proceeding && p->sig==SIG_PRI && p->pri && p->pri->overlapdial) {
+				if (p->pri->pri) {		
+					if (!pri_grab(p, p->pri)) {
 						pri_acknowledge(p->pri->pri,p->call, p->prioffset, 1);
+						pri_rel(p->pri);
+					}
 					else
 						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
-					pri_rel(p->pri);
 				}
 				p->proceeding=1;
 			}
