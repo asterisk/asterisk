@@ -77,7 +77,7 @@
 #define ADSI_SWITCH_TO_DATA2	0x92	/* Switch CPE to data mode */
 #define ADSI_SWITCH_TO_VOICE2	0x93	/* Switch CPE to voice mode */
 #define ADSI_DISP_CALL_BUF	0x94	/* Display specified call buffer */
-#define ADSI_CLEAR_CALL_BUF	0x95	/* Clear specified call buffer */
+#define ADSI_CLEAR_CALL_B	0x95	/* Clear specified call buffer */
 
 #ifdef __ADSI_CPE
 /* These messages are reserved for the ADSI CPE only */

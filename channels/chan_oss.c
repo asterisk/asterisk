@@ -476,8 +476,14 @@ static int oss_hangup(struct ast_channel *c)
 	needhangup = 0;
 	needanswer = 0;
 	if (hookstate) {
-		res = 2;
-		write(sndcmd[1], &res, sizeof(res));
+		if (autoanswer) {
+			/* Assume auto-hangup too */
+			hookstate = 0;
+		} else {
+			/* Make congestion noise */
+			res = 2;
+			write(sndcmd[1], &res, sizeof(res));
+		}
 	}
 	return 0;
 }
