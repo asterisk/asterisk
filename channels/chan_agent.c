@@ -111,6 +111,23 @@ static struct agent_pvt {
 	struct agent_pvt *next;				/* Agent */
 } *agents = NULL;
 
+#define CHECK_FORMATS(ast, p) do { \
+	if (p->chan) {\
+		if (ast->nativeformats != p->chan->nativeformats) { \
+			ast_log(LOG_DEBUG, "Native formats changing from %d to %d\n", ast->nativeformats, p->chan->nativeformats); \
+			/* Native formats changed, reset things */ \
+			ast->nativeformats = p->chan->nativeformats; \
+			ast_log(LOG_DEBUG, "Resetting read to %d and write to %d\n", ast->readformat, ast->writeformat);\
+			ast_set_read_format(ast, ast->readformat); \
+			ast_set_write_format(ast, ast->writeformat); \
+		} \
+		if (p->chan->readformat != ast->pvt->rawreadformat)  \
+			ast_set_read_format(p->chan, ast->pvt->rawreadformat); \
+		if (p->chan->writeformat != ast->pvt->rawwriteformat) \
+			ast_set_write_format(p->chan, ast->pvt->rawwriteformat); \
+	} \
+} while(0)
+
 #define CLEANUP(ast, p) do { \
 	int x; \
 	if (p->chan) { \
@@ -227,8 +244,8 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 	static struct ast_frame answer_frame = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
 	ast_mutex_lock(&p->lock); 
+	CHECK_FORMATS(ast, p);
 	if (p->chan) {
-		p->chan->pvt->rawreadformat = ast->pvt->rawreadformat;
 		f = ast_read(p->chan);
 	} else
 		f = &null_frame;
@@ -243,16 +260,16 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 	}
 	if (f && (f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_ANSWER)) {
 /* TC */
-	if (p->ackcall) {
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "%s answered, waiting for '#' to acknowledge\n", p->chan->name);
-		/* Don't pass answer along */
-		ast_frfree(f);
-		f = &null_frame;
-        }
+		if (p->ackcall) {
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "%s answered, waiting for '#' to acknowledge\n", p->chan->name);
+			/* Don't pass answer along */
+			ast_frfree(f);
+			f = &null_frame;
+	        }
         else {
-		p->acknowledged = 1;
-		f = &answer_frame;
+			p->acknowledged = 1;
+			f = &answer_frame;
         }
 	}
 	if (f && (f->frametype == AST_FRAME_DTMF) && (f->subclass == '#')) {
@@ -278,10 +295,16 @@ static int agent_write(struct ast_channel *ast, struct ast_frame *f)
 {
 	struct agent_pvt *p = ast->pvt->pvt;
 	int res = -1;
+	CHECK_FORMATS(ast, p);
 	ast_mutex_lock(&p->lock);
 	if (p->chan) {
-		p->chan->pvt->rawwriteformat = ast->pvt->rawwriteformat;
-		res = ast_write(p->chan, f);
+		if ((f->frametype != AST_FRAME_VOICE) ||
+			(f->subclass == p->chan->writeformat)) {
+			res = ast_write(p->chan, f);
+		} else {
+			ast_log(LOG_DEBUG, "Dropping one incompatible voice frame on '%s' to '%s'\n", ast->name, p->chan->name);
+			res = 0;
+		}
 	} else
 		res = 0;
 	CLEANUP(ast, p);

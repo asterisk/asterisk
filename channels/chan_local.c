@@ -91,8 +91,13 @@ retrylock:
 	if (ast_mutex_trylock(&other->lock)) {
 		/* Failed to lock.  Release main lock and try again */
 		ast_mutex_unlock(&p->lock);
-		if (us)
-			ast_mutex_unlock(&us->lock);
+		if (us) {
+			if (ast_mutex_unlock(&us->lock)) {
+				ast_log(LOG_WARNING, "%s wasn't locked while sending %d/%d\n",
+					us->name, f->frametype, f->subclass);
+				us = NULL;
+			}
+		}
 		/* Wait just a bit */
 		usleep(1);
 		/* Only we can destroy ourselves, so we can't disappear here */
