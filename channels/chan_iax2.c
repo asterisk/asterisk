@@ -814,7 +814,6 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			return -1;
 		}
 		iaxs[x] = new_iax(sin, lockpeer);
-		ast_mutex_unlock(&iaxsl[x]);
 		update_max_nontrunk();
 		if (iaxs[x]) {
 			if (option_debug)
@@ -833,8 +832,10 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			strncpy(iaxs[x]->accountcode, accountcode, sizeof(iaxs[x]->accountcode)-1);
 		} else {
 			ast_log(LOG_WARNING, "Out of resources\n");
+			ast_mutex_unlock(&iaxsl[x]);
 			return 0;
 		}
+		ast_mutex_unlock(&iaxsl[x]);
 		res = x;
 	}
 	return res;
