@@ -2468,7 +2468,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 	long elapsed_ms=0, time_left_ms=0;
 	int playit=0, playitagain=1, first_time=1;
 
-	flags = (config->allowdisconnect||config->allowredirect_out ? AST_BRIDGE_DTMF_CHANNEL_0 : 0) + (config->allowredirect_in ? AST_BRIDGE_DTMF_CHANNEL_1 : 0);
+	flags = (config->allowdisconnect_out||config->allowredirect_out ? AST_BRIDGE_DTMF_CHANNEL_0 : 0) + (config->allowdisconnect_in||config->allowredirect_in ? AST_BRIDGE_DTMF_CHANNEL_1 : 0);
 
 	/* timestamp */
 	gettimeofday(&start_time,NULL);
