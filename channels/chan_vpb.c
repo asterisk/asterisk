@@ -270,7 +270,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 	  break;
 
      case VPB_TONEDETECT:
-	  if (e->data == VPB_BUSY || e->data == VPB_BUSY_308)
+	  if (e->data == VPB_BUSY || e->data == VPB_BUSY_308 || e->data == VPB_BUSY_AUST)
 	       f.subclass = AST_CONTROL_BUSY;
 	  else if (e->data == VPB_GRUNT) {
 	       p->lastgrunt = tcounter;
