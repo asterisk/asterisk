@@ -2825,20 +2825,18 @@ static char *regstate2str(int regstate)
 
 static int sip_show_registry(int fd, int argc, char *argv[])
 {
-#define FORMAT2 "%-20.20s  %-10.10s  %-20.20s %8.8s  %s\n"
-#define FORMAT "%-20.20s  %-10.10s  %-20.20s %8d  %s\n"
+#define FORMAT2 "%-20.20s  %-10.10s  %8.8s %-20.20s\n"
+#define FORMAT "%-20.20s  %-10.10s  %8d %-20.20s\n"
 	struct sip_registry *reg;
 	char host[80];
-	char state[20];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_pthread_mutex_lock(&peerl.lock);
 	ast_cli(fd, FORMAT2, "Host", "Username", "Refresh", "State");
 	for (reg = registrations;reg;reg = reg->next) {
 		snprintf(host, sizeof(host), "%s:%d", inet_ntoa(reg->addr.sin_addr), ntohs(reg->addr.sin_port));
-		snprintf(state, sizeof(state), "%s", regstate2str(reg->regstate));
-		ast_cli(fd, FORMAT, host, 
-					reg->username, state, reg->refresh, regstate2str(reg->regstate));
+		ast_cli(fd, FORMAT, host,
+					reg->username, reg->refresh, regstate2str(reg->regstate));
 	}
 	ast_pthread_mutex_unlock(&peerl.lock);
 	return RESULT_SUCCESS;
