@@ -1536,6 +1536,7 @@ static struct member * create_queue_node( char * interface, int penalty )
 			strncpy(cur->loc, tmp, sizeof(cur->loc) - 1);
 		} else
 			ast_log(LOG_WARNING, "No location at interface '%s'\n", interface);
+		cur->status = ast_device_state(interface);
 	}
 
 	return( cur ) ;
@@ -1564,6 +1565,10 @@ static int remove_from_queue(char *queuename, char *interface)
 						}
 					}
 				}
+				manager_event(EVENT_FLAG_AGENT, "QueueMemberRemoved",
+						"Queue: %s\r\n"
+						"Location: %s/%s\r\n",
+					q->name, last_member->tech, last_member->loc);
 				free(last_member);
 				res = RES_OKAY;
 			} else {
@@ -1595,6 +1600,16 @@ static int add_to_queue(char *queuename, char *interface, int penalty)
 					new_member->dynamic = 1;
 					new_member->next = q->members;
 					q->members = new_member;
+					manager_event(EVENT_FLAG_AGENT, "QueueMemberAdded",
+						"Queue: %s\r\n"
+						"Location: %s/%s\r\n"
+						"Membership: %s\r\n"
+						"Penalty: %d\r\n"
+						"CallsTaken: %d\r\n"
+						"LastCall: %ld\r\n"
+						"Status: %d\r\n",
+					q->name, new_member->tech, new_member->loc, new_member->dynamic ? "dynamic" : "static",
+					new_member->penalty, new_member->calls, new_member->lastcall, new_member->status);
 					res = RES_OKAY;
 				} else {
 					res = RES_OUTOFMEMORY;
