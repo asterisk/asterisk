@@ -7898,7 +7898,7 @@ static int sip_devicestate(void *data)
 			res = AST_DEVICE_UNKNOWN;
 	}
 
-	if (p && p->dynamic) {
+	if (p && p->temponly) {
 		destroy_peer(p);
 	}
 	return res;
