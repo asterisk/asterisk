@@ -7063,7 +7063,7 @@ static int iax2_exists(struct ast_channel *chan, char *context, char *exten, int
 #if 0
 	ast_log(LOG_NOTICE, "iax2_exists: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
 #endif
-	if (priority != 1)
+	if ((priority != 1) && (priority != 2))
 		return 0;
 	ast_mutex_lock(&dpcache_lock);
 	dp = find_cache(chan, data, context, exten, priority);
@@ -7085,7 +7085,7 @@ static int iax2_canmatch(struct ast_channel *chan, char *context, char *exten, i
 #if 0
 	ast_log(LOG_NOTICE, "iax2_canmatch: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
 #endif
-	if (priority != 1)
+	if ((priority != 1) && (priority != 2))
 		return 0;
 	ast_mutex_lock(&dpcache_lock);
 	dp = find_cache(chan, data, context, exten, priority);
@@ -7107,7 +7107,7 @@ static int iax2_matchmore(struct ast_channel *chan, char *context, char *exten, 
 #if 0
 	ast_log(LOG_NOTICE, "iax2_matchmore: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
 #endif
-	if (priority != 1)
+	if ((priority != 1) && (priority != 2))
 		return 0;
 	ast_mutex_lock(&dpcache_lock);
 	dp = find_cache(chan, data, context, exten, priority);
@@ -7127,12 +7127,22 @@ static int iax2_exec(struct ast_channel *chan, char *context, char *exten, int p
 	char odata[256];
 	char req[256];
 	char *ncontext;
+	char *dialstatus;
 	struct iax2_dpcache *dp;
 	struct ast_app *dial;
 #if 0
 	ast_log(LOG_NOTICE, "iax2_exec: con: %s, exten: %s, pri: %d, cid: %s, data: %s, newstack: %d\n", context, exten, priority, callerid ? callerid : "<unknown>", data, newstack);
 #endif
-	if (priority != 1)
+	if (priority == 2) {
+		/* Indicate status, can be overridden in dialplan */
+		dialstatus = pbx_builtin_getvar_helper(chan, "DIALSTATUS");
+		if (dialstatus) {
+			dial = pbx_findapp(dialstatus);
+			if (dial) 
+				pbx_exec(chan, dial, "", newstack);
+		}
+		return -1;
+	} else if (priority != 1)
 		return -1;
 	ast_mutex_lock(&dpcache_lock);
 	dp = find_cache(chan, data, context, exten, priority);
