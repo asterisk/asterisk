@@ -186,6 +186,14 @@
 
 %priv-instruct.gsm%Press 1 to accept this call.  Press 2 to not accept this call.  Press 3 to always accept calls from this number.  Press 4 to never accept calls from this number.  Press 5 to reject calls from this number and request that they add you to their do not call list.
 
+%privacy-unident.gsm%The party you are trying to reach does not accept unidentified calls.
+
+%privacy-prompt.gsm%Please enter your 10 digit phone number, starting with the area code.
+
+%privacy-incorrect.gsm%I'm sorry, that number is not valid.
+
+%privacy-thankyou.gsm%Thank you.
+
 %tt-allbusy.gsm%All representatives of the household are currently assisting other telemarketers.  Please hold and your call will be answered in the order it was received.
 
 ;digits directory  - File Name Sound File Script
@@ -299,4 +307,12 @@
 %p-m.gsm%P.M.
 
 %thousand.gsm%thousand
+
+%privacy-incorrect.gsm%will_be_added_later
+
+%privacy-prompt.gsm%will_be_added_later
+
+%privacy-thankyou.gsm%will_be_added_later
+
+%privacy-unident.gsm%will_be_added_later
 

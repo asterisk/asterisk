@@ -19,7 +19,7 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_intercom.
      app_queue.so app_senddtmf.so app_parkandannounce.so app_striplsd.so \
      app_setcidname.so app_lookupcidname.so app_substring.so app_macro.so \
      app_authenticate.so app_softhangup.so app_lookupblacklist.so \
-     app_waitforring.so
+     app_waitforring.so app_privacy.so
 
 #APPS+=app_sql_postgres.so
 #APPS+=app_sql_odbc.so

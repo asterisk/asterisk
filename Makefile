@@ -144,7 +144,7 @@ datafiles: all
 			exit 1; \
 		fi; \
 	done
-	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-* sounds/agent-* sounds/invalid* sounds/tt-* sounds/auth-*; do \
+	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-* sounds/agent-* sounds/invalid* sounds/tt-* sounds/auth-* sounds/privacy-*; do \
 		if grep -q "^%`basename $$x`%" sounds.txt; then \
 			install $$x $(ASTVARLIBDIR)/sounds ; \
 		else \
