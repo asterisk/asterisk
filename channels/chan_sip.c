@@ -193,6 +193,8 @@ static struct sip_pvt {
 	char realm[256];				/* Authorization realm */
 	char nonce[256];				/* Authorization nonce */
 	int amaflags;						/* AMA Flags */
+	int pendinginvite;					/* Any pending invite */
+	int pendingbye;						/* Need to send bye after we ack? */
 	struct sip_request initreq;			/* Initial request */
 	
 	int maxtime;						/* Max time for first response */
@@ -420,6 +422,10 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
 	pkt->next = p->packets;
 	p->packets = pkt;
 	__sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
+	if (!strncasecmp(pkt->data, "INVITE", 6)) {
+		/* Note this is a pending invite */
+		p->pendinginvite = seqno;
+	}
 	return 0;
 }
 
@@ -457,9 +463,15 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp)
 {
 	struct sip_pkt *cur, *prev = NULL;
 	int res = -1;
+	int resetinvite = 0;
 	cur = p->packets;
 	while(cur) {
 		if ((cur->seqno == seqno) && (cur->resp == resp)) {
+			if (!resp && (seqno == p->pendinginvite)) {
+				ast_log(LOG_DEBUG, "Acked pending invite %d\n", p->pendinginvite);
+				p->pendinginvite = 0;
+				resetinvite = 1;
+			}
 			/* this is our baby */
 			if (prev)
 				prev->next = cur->next;
@@ -905,7 +917,7 @@ static int sip_hangup(struct ast_channel *ast)
 	if (!p->alreadygone && strlen(p->initreq.data)) {
 		if (needcancel) {
 			if (p->outgoing) {
-				transmit_request_with_auth(p, "CANCEL", 0, 1);
+				transmit_request_with_auth(p, "CANCEL", p->ocseq, 1);
 				/* Actually don't destroy us yet, wait for the 487 on our original 
 				   INVITE, but do set an autodestruct just in case. */
 				p->needdestroy = 0;
@@ -913,8 +925,13 @@ static int sip_hangup(struct ast_channel *ast)
 			} else
 				transmit_response_reliable(p, "403 Forbidden", &p->initreq);
 		} else {
-			/* Send a hangup */
-			transmit_request_with_auth(p, "BYE", 1, 1);
+			if (!p->pendinginvite) {
+				/* Send a hangup */
+				transmit_request_with_auth(p, "BYE", 0, 1);
+			} else {
+				/* Note we will need a BYE when this all settles out */
+				p->pendingbye = 1;
+			}
 		}
 	}
 	ast_pthread_mutex_unlock(&p->lock);
@@ -1838,7 +1855,7 @@ static int init_req(struct sip_request *req, char *resp, char *recip)
 static void append_contact(struct sip_request *req, struct sip_pvt *p)
 {
 	/* Add contact header */
-	char contact2[256] ="", *c, contact[256];
+	char contact2[256] ="", *c, *c2, contact[256];
 	char *from;
 	if (p->outgoing)
 		from = get_header(req, "From");
@@ -1847,6 +1864,8 @@ static void append_contact(struct sip_request *req, struct sip_pvt *p)
 	strncpy(contact2, from, sizeof(contact2)-1);
 	if (strlen(contact2)) {
 		c = ditch_braces(contact2);
+		c2 = strchr(c, ';');
+		if (c2) *c2 = '\0';
 		snprintf(contact, sizeof(contact), "<%s>", c);
 		add_header(req, "Contact", contact);
 	}
@@ -1864,10 +1883,10 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	if (!strstr(ot, "tag=")) {
 		/* Add the proper tag if we don't have it already.  If they have specified
 		   their tag, use it.  Otherwise, use our own tag */
-		if (strlen(p->theirtag))
+		if (strlen(p->theirtag) && p->outgoing)
 			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->theirtag);
-		else if (p->tag)
-			snprintf(newto, sizeof(newto), "%s;tag=%08x", ot, p->tag);
+		else if (p->tag && !p->outgoing)
+			snprintf(newto, sizeof(newto), "%s;tag=as%08x", ot, p->tag);
 		else
 			strncpy(newto, ot, sizeof(newto) - 1);
 		ot = newto;
@@ -1907,7 +1926,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	return 0;
 }
 
-static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int inc)
+static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int seqno)
 {
 	struct sip_request *orig = &p->initreq;
 	char stripped[80] ="";
@@ -1918,8 +1937,10 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int in
 
 	memset(req, 0, sizeof(struct sip_request));
 	
-	if (inc)
+	if (!seqno) {
 		p->ocseq++;
+		seqno = p->ocseq;
+	}
 
 	if (p->outgoing)
 		strncpy(stripped, get_header(orig, "To"), sizeof(stripped) - 1);
@@ -1934,10 +1955,13 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int in
 	n = strchr(c, '>');
 	if (n)
 		*n = '\0';
+	n = strchr(c, ';');
+	if (n)
+		*n = '\0';
 	
 	init_req(req, msg, c);
 
-	snprintf(tmp, sizeof(tmp), "%d %s", p->ocseq, msg);
+	snprintf(tmp, sizeof(tmp), "%d %s", seqno, msg);
 
 	add_header(req, "Via", p->via);
 	if (p->route) {
@@ -1956,7 +1980,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int in
 		if (p->outgoing && strlen(p->theirtag))
 			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->theirtag);
 		else if (!p->outgoing)
-			snprintf(newto, sizeof(newto), "%s;tag=%08x", ot, p->tag);
+			snprintf(newto, sizeof(newto), "%s;tag=as%08x", ot, p->tag);
 		else
 			snprintf(newto, sizeof(newto), "%s", ot);
 		ot = newto;
@@ -2208,13 +2232,18 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 
 static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp)
 {
-	struct sip_request resp;
+	struct sip_request req;
 	if (p->canreinvite == REINVITE_UPDATE)
-		reqprep(&resp, p, "UPDATE", 1);
+		reqprep(&req, p, "UPDATE", 0);
 	else
-		reqprep(&resp, p, "INVITE", 1);
-	add_sdp(&resp, p, rtp);
-	return send_request(p, &resp, 1, p->ocseq);
+		reqprep(&req, p, "INVITE", 0);
+	add_sdp(&req, p, rtp);
+	/* Use this as the basis */
+	copy_request(&p->initreq, &req);
+	parse(&p->initreq);
+	p->lastinvite = p->ocseq;
+	p->outgoing = 1;
+	return send_request(p, &req, 1, p->ocseq);
 }
 
 static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, char *vxml_url)
@@ -2236,9 +2265,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	if (!n)
 		n = l;
 	if (ourport != 5060)
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%08x", n, l, strlen(p->fromdomain) ? p->fromdomain : inet_ntoa(p->ourip), ourport, p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=as%08x", n, l, strlen(p->fromdomain) ? p->fromdomain : inet_ntoa(p->ourip), ourport, p->tag);
 	else
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%08x", n, l, strlen(p->fromdomain) ? p->fromdomain : inet_ntoa(p->ourip), p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=as%08x", n, l, strlen(p->fromdomain) ? p->fromdomain : inet_ntoa(p->ourip), p->tag);
 
 	if (strlen(p->username)) {
 		if (ntohs(p->sa.sin_port) != DEFAULT_SIP_PORT) {
@@ -2325,7 +2354,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 	}
 	mfrom = c;
 		
-	reqprep(&req, p, "NOTIFY", 1);
+	reqprep(&req, p, "NOTIFY", 0);
 
 	if (p->subscribed == 1) {
     	    strncpy(to, get_header(&p->initreq, "To"), sizeof(to)-1);
@@ -2487,8 +2516,8 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 		ast_log(LOG_NOTICE, "Scheduled a timeout # %d\n", r->timeout);
 	}
 
-	snprintf(from, sizeof(from), "<sip:%s@%s>;tag=%08x", r->username, inet_ntoa(r->addr.sin_addr), p->tag);
-	snprintf(to, sizeof(to),     "<sip:%s@%s>;tag=%08x", r->username, inet_ntoa(r->addr.sin_addr), p->tag);
+	snprintf(from, sizeof(from), "<sip:%s@%s>;tag=as%08x", r->username, inet_ntoa(r->addr.sin_addr), p->tag);
+	snprintf(to, sizeof(to),     "<sip:%s@%s>;tag=as%08x", r->username, inet_ntoa(r->addr.sin_addr), p->tag);
 	
 	snprintf(addr, sizeof(addr), "sip:%s", inet_ntoa(r->addr.sin_addr));
 
@@ -2525,7 +2554,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 static int transmit_message_with_text(struct sip_pvt *p, char *text)
 {
 	struct sip_request req;
-	reqprep(&req, p, "MESSAGE", 1);
+	reqprep(&req, p, "MESSAGE", 0);
 	add_text(&req, text);
 	return send_request(p, &req, 1, p->ocseq);
 }
@@ -2533,24 +2562,24 @@ static int transmit_message_with_text(struct sip_pvt *p, char *text)
 static int transmit_info_with_digit(struct sip_pvt *p, char digit)
 {
 	struct sip_request req;
-	reqprep(&req, p, "INFO", 1);
+	reqprep(&req, p, "INFO", 0);
 	add_digit(&req, digit);
 	return send_request(p, &req, 1, p->ocseq);
 }
 
-static int transmit_request(struct sip_pvt *p, char *msg, int inc, int reliable)
+static int transmit_request(struct sip_pvt *p, char *msg, int seqno, int reliable)
 {
 	struct sip_request resp;
-	reqprep(&resp, p, msg, inc);
+	reqprep(&resp, p, msg, seqno);
 	add_header(&resp, "Content-Length", "0");
 	add_blank_header(&resp);
-	return send_request(p, &resp, reliable, p->ocseq);
+	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);
 }
 
-static int transmit_request_with_auth(struct sip_pvt *p, char *msg, int inc, int reliable)
+static int transmit_request_with_auth(struct sip_pvt *p, char *msg, int seqno, int reliable)
 {
 	struct sip_request resp;
-	reqprep(&resp, p, msg, inc);
+	reqprep(&resp, p, msg, seqno);
 	if (*p->realm)
 	{
 		char digest[256];
@@ -2561,7 +2590,7 @@ static int transmit_request_with_auth(struct sip_pvt *p, char *msg, int inc, int
 
 	add_header(&resp, "Content-Length", "0");
 	add_blank_header(&resp);
-	return send_request(p, &resp, reliable, p->ocseq);	
+	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);	
 }
 
 static int expire_register(void *data)
@@ -3705,7 +3734,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			if (peer->pokeexpire > -1)
 				ast_sched_del(sched, peer->pokeexpire);
 			if (!strcasecmp(msg, "INVITE"))
-				transmit_request(p, "ACK", 0, 0);
+				transmit_request(p, "ACK", seqno, 0);
 			p->needdestroy = 1;
 			/* Try again eventually */
 			if ((peer->lastms < 0)  || (peer->lastms > peer->maxms))
@@ -3772,7 +3801,12 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 						ast_queue_control(p->owner, AST_CONTROL_ANSWER, 0);
 					}
 				}
-				transmit_request(p, "ACK", 0, 0);
+				transmit_request(p, "ACK", seqno, 0);
+				/* Go ahead and send bye at this point */
+				if (p->pendingbye) {
+					transmit_request(p, "BYE", 0, 1);
+					p->needdestroy = 1;
+				}
 			} else if (!strcasecmp(msg, "REGISTER")) {
 				/* char *exp; */
 				int expires;
@@ -3795,30 +3829,13 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			}
 			break;
 		case 401: /* Not authorized on REGISTER */
-			/* XXX: Do I need to ACK the 401? 
-			transmit_request(p, "ACK", 0);
-			*/
 			do_register_auth(p, req);
 			break;
 		case 407:
 			/* First we ACK */
-			transmit_request(p, "ACK", 0, 0);
+			transmit_request(p, "ACK", seqno, 0);
 			/* Then we AUTH */
 			do_proxy_auth(p, req);
-			/* This is just a hack to kill the channel while testing */
-			/* 
-			p->alreadygone = 1;
-			if (p->rtp) {
-				rtp = p->rtp;
-				p->rtp = NULL;
-				ast_rtp_destroy(rtp);
-			}
-			if (p->owner)
-				ast_queue_hangup(p->owner,0);
-			transmit_request(p,"ACK",0);
-			sip_destroy(p);
-			p = NULL;
-			*/
 			break;
 		default:
 			if ((resp >= 300) && (resp < 700)) {
@@ -3855,7 +3872,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 						ast_queue_hangup(p->owner, 0);
 					break;
 				}
-				transmit_request(p, "ACK", 0, 0);
+				transmit_request(p, "ACK", seqno, 0);
 				p->alreadygone = 1;
 				if (!p->owner)
 					p->needdestroy = 1;
@@ -3872,7 +3889,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			switch(resp) {
 			case 200:
 				if (!strcasecmp(msg, "INVITE") || !strcasecmp(msg, "REGISTER") )
-					transmit_request(p, "ACK", 0, 0);
+					transmit_request(p, "ACK", seqno, 0);
 				break;
 			}
 		}
@@ -4187,7 +4204,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				}
 			}
 			/* Always increment on a BYE */
-			transmit_request_with_auth(p, "BYE", 1, 1);
+			transmit_request_with_auth(p, "BYE", 0, 1);
 			p->alreadygone = 1;
 		}
 	} else if (!strcasecmp(cmd, "CANCEL")) {
