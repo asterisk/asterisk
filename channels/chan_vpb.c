@@ -520,11 +520,11 @@ static void get_callerid(struct vpb_pvt *p)
 		vpb_record_buf_start(p->handle, VPB_LINEAR);
 		rc = vpb_record_buf_sync(p->handle, (char*)buf, sizeof(buf));
 		vpb_record_buf_finish(p->handle);
-/*
+#ifdef ANALYSE_CID
 		vpb_wave_open_write(&ws, file, VPB_LINEAR);
 		vpb_wave_write(ws,(char*)buf,sizeof(buf));
 		vpb_wave_close_write(ws);
-*/
+#endif
 
 		if (option_verbose>3) 
 			ast_verbose(VERBOSE_PREFIX_4 "CID record - recorded %fms between rings\n", 
@@ -610,27 +610,27 @@ static void get_callerid_ast(struct vpb_pvt *p)
 /*	vpb_record_get_gain(p->handle, &old_gain); */
 	cs = callerid_new(which_cid);
 	if (cs){
-/*
+#ifdef ANALYSE_CID
 		vpb_wave_open_write(&ws, file, VPB_MULAW); 
 		vpb_record_set_gain(p->handle, 3.0); 
 		vpb_record_set_hw_gain(p->handle,12.0); 
-*/
+#endif
 		vpb_record_buf_start(p->handle, VPB_MULAW);
 		while((rc == 0)&&(sam_count<8000*3)){
 			vrc = vpb_record_buf_sync(p->handle, (char*)buf, sizeof(buf));
 			if (vrc != VPB_OK)
 				ast_log(LOG_ERROR, "%s: Caller ID couldnt read audio buffer!\n",p->dev);
 			rc = callerid_feed(cs,(unsigned char *)buf,sizeof(buf),AST_FORMAT_ULAW);
-/*
+#ifdef ANALYSE_CID
 			vpb_wave_write(ws,(char*)buf,sizeof(buf)); 
-*/
+#endif
 			sam_count+=sizeof(buf);
 			if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collecting Caller ID samples [%d][%d]...\n",sam_count,rc);
 		}
 		vpb_record_buf_finish(p->handle);
-/*
+#ifdef ANALYSE_CID
 		vpb_wave_close_write(ws); 
-*/
+#endif
 		if (rc == 1){
 			callerid_get(cs, &name, &number, &flags);
 			if (option_verbose>0) 
