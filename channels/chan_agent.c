@@ -246,6 +246,8 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 	ast_mutex_lock(&p->lock); 
 	CHECK_FORMATS(ast, p);
 	if (p->chan) {
+		p->chan->exception = ast->exception;
+		p->chan->fdno = ast->fdno;
 		f = ast_read(p->chan);
 	} else
 		f = &null_frame;
