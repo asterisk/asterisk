@@ -255,7 +255,9 @@ _all: all
 	@echo " +               $(MAKE) install                +"  
 	@echo " +-------------------------------------------+"  
 
-all: depend asterisk subdirs 
+all: cleantest depend asterisk subdirs 
+
+noclean: depend asterisk subdirs
 
 editline/config.h:
 	cd editline && unset CFLAGS LIBS && ./configure ; \
@@ -330,6 +332,7 @@ clean:
 	rm -f *.o *.so asterisk .depend
 	rm -f build.h 
 	rm -f ast_expr.c
+	rm -f .version
 	@if [ -f editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
 	@if [ -d mpg123-0.59r ]; then make -C mpg123-0.59r clean; fi
 	$(MAKE) -C db1-ast clean
@@ -580,3 +583,14 @@ FORCE:
 
 env:
 	env
+
+# If the cleancount has been changed, force a make clean.
+# .cleancount is the global clean count, and .lastclean is the 
+# 	last clean count # we had
+# We can avoid this by making noclean
+
+cleantest:
+	if ! cmp -s .cleancount .lastclean ; then \
+		make clean; cp -f .cleancount .lastclean;\
+	fi
+		

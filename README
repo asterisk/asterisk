@@ -71,6 +71,12 @@ So let's proceed:
 1) Run "make"
 2) Run "make install"
 
+Each time you update or checkout from CVS, you are strongly encouraged 
+to ensure all previous object files are removed to avoid internal 
+inconsistency in Asterisk. Normally, this is automatically done with 
+the presence of the file .cleancount, which increments each time a 'make clean'
+is required, and the file .lastclean, which contains the last .cleancount used. 
+
 If this is your first time working with Asterisk, you may wish to install
 the sample PBX, with demonstration extensions, etc.  If so, run:
 
