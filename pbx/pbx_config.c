@@ -903,8 +903,6 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 {
 	char filename[256];
 	struct ast_context *c;
-	struct ast_config *cfg;
-	struct ast_variable *var;
 	int context_header_written;
 	int incomplete = 0; /* incomplete config write? */
 	FILE *output;
@@ -923,9 +921,6 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 			"Failed to lock dialplan saving (another proccess saving?)\n");
 		return RESULT_FAILURE;
 	}
-
-	/* Load old file first */
-	cfg = ast_load(config);
 
 	/* have config path? */
 	if (argc == 3) {
@@ -951,8 +946,6 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 	if (ast_lock_contexts()) {
 		ast_cli(fd, "Failed to lock contexts list\n");
 		ast_mutex_unlock(&save_dialplan_lock);
-		if (cfg)
-			ast_destroy(cfg);
 		return RESULT_FAILURE;
 	}
 
@@ -962,8 +955,6 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 			filename);
 		ast_unlock_contexts();
 		ast_mutex_unlock(&save_dialplan_lock);
-		if (cfg)
-			ast_destroy(cfg);
 		return RESULT_FAILURE;
 	}
 
@@ -971,15 +962,6 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 	fprintf(output, "[general]\nstatic=%s\nwriteprotect=%s\n\n",
 		static_config ? "yes" : "no",
 		write_protect_config ? "yes" : "no");
-
-	var = ast_variable_walk(cfg, "globals");
-	if (var) {
-		fprintf(output, "[globals]\n");
-		while(var) {
-			fprintf(output, "%s => %s", var->name, var->value);
-			var = var->next;
-		}
-	}	
 
 	/* walk all contexts */
 	c = ast_walk_contexts(NULL);
@@ -1097,8 +1079,6 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 	ast_unlock_contexts();
 	ast_mutex_unlock(&save_dialplan_lock);
 	fclose(output);
-	if (cfg)
-		ast_destroy(cfg);
 
 	if (incomplete) {
 		ast_cli(fd, "Saved dialplan is incomplete\n");
