@@ -102,6 +102,24 @@ extern int ast_sched_runq(struct sched_context *con);
  */
 extern void ast_sched_dump(struct sched_context *con);
 
+/*
+ *! Convenience macro for objects and reference (add)
+ *
+ */
+#define ast_sched_add_object(obj,con,when,callback) ast_sched_add((con),(when),(callback), ASTOBJ_REF((obj)))
+
+/*
+ *! Convenience macro for objects and reference (del)
+ *
+ */
+#define ast_sched_del_object(obj,destructor,con,id) do { \
+	if ((id) > -1) { \
+		ast_sched_del((con),(id)); \
+		(id) = -1; \
+		ASTOBJ_UNREF((obj),(destructor)); \
+	} \
+} while(0)
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

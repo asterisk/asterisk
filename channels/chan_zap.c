@@ -1029,6 +1029,7 @@ static char *event2str(int event)
         return buf;
 }
 
+#ifdef ZAPATA_PRI
 static char *dialplan2str(int dialplan)
 {
 	if (dialplan == -1) {
@@ -1036,6 +1037,7 @@ static char *dialplan2str(int dialplan)
 	}
 	return(pri_plan2str(dialplan));
 }
+#endif
 
 #ifdef ZAPATA_R2
 static int str2r2prot(char *swtype)
