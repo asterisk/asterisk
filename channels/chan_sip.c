@@ -8080,6 +8080,7 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 		user->trustrpid = global_trustrpid;
 		user->dtmfmode = global_dtmfmode;
 		user->progressinband = global_progressinband;
+		user->nat = global_nat;	
 		user->prefs = prefs;
 #ifdef OSP_SUPPORT
 		user->ospauth = global_ospauth;
