@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * CallerID Generation support 
+ * CallerID (and other GR30) Generation support 
  * 
  * Copyright (C) 1999, Mark Spencer
  *
@@ -27,47 +27,172 @@
 struct callerid_state;
 typedef struct callerid_state CIDSTATE;
 
-/* CallerID Initialization */
+//! CallerID Initialization
+/*!
+ * Initializes the callerid system.  Mostly stuff for inverse FFT
+ */
 extern void callerid_init(void);
 
-/* Generates a CallerID FSK stream in ulaw
-   format suitable for transmission.  Assumes 8000 Hz.  Use NULL
-   for no number or "P" for "private".  If "buf" is supplied it will
-   use that buffer instead of allocating its own.  "buf" must be
-   at least 32000 bytes in size if you want to be sure you dont
-   have an overrun however.  Returns # of bytes written to buffer.
-   Use "O" or "P" in name */
+//! Generates a CallerID FSK stream in ulaw format suitable for transmission.
+/*!
+ * \param buf Buffer to use. If "buf" is supplied, it will use that buffer instead of allocating its own.  "buf" must be at least 32000 bytes in size of you want to be sure you don't have an overrun.
+ * \param number Use NULL for no number or "P" for "private"
+ * \param name name to be used
+ * \param callwaiting callwaiting flag
+ * This function creates a stream of callerid (a callerid spill) data in ulaw format. It returns the size
+ * (in bytes) of the data (if it returns a size of 0, there is probably an error)
+*/
 extern int callerid_generate(unsigned char *buf, char *number, char *name, int flags, int callwaiting);
 
-/* Create a callerID state machine */
+//! Create a callerID state machine
+/*!
+ * This function returns a malloc'd instance of the callerid_state data structure.
+ * Returns a pointer to a malloc'd callerid_state structure, or NULL on error.
+ */
 extern struct callerid_state *callerid_new(void);
 
-/* Read samples into the state machine.  Returns -1 on error, 0 for "needs more samples", and 1 for
-   callerID stuff complete */
-extern int callerid_feed(struct callerid_state *cid, unsigned char *buf, int samples);
+//! Read samples into the state machine.
+/*!
+ * \param cid Which state machine to act upon
+ * \param buffer containing your samples
+ * \param samples number of samples contained within the buffer.
+ *
+ * Send received audio to the Caller*ID demodulator.
+ * Returns -1 on error, 0 for "needs more samples", 
+ * and 1 if the CallerID spill reception is complete.
+ */
+extern int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int samples);
 
-/* Extract info out of callerID state machine.  Flags are listed above */
+//! Extract info out of callerID state machine.  Flags are listed above
+/*!
+ * \param cid Callerid state machine to act upon
+ * \param number Pass the address of a pointer-to-char (will contain the phone number)
+ * \param name Pass the address of a pointer-to-char (will contain the name)
+ * \param flags Pass the address of an int variable(will contain the various callerid flags)
+ *
+ * This function extracts a callerid string out of a callerid_state state machine.
+ * If no number is found, *number will be set to NULL.  Likewise for the name.
+ * Flags can contain any of the following:
+ * 
+ * Returns nothing.
+ */
 void callerid_get(struct callerid_state *cid, char **number, char **name, int *flags);
 
-/* Free a callerID state */
+//! Free a callerID state
+/*!
+ * \param cid This is the callerid_state state machine to free
+ * This function frees callerid_state cid.
+ */
 extern void callerid_free(struct callerid_state *cid);
 
-/* Generate Caller-ID spill from the "callerid" field of asterisk (in e-mail address like format) */
+//! Generate Caller-ID spill from the "callerid" field of asterisk (in e-mail address like format)
+/*!
+ * \param buf buffer for output samples. See callerid_generate() for details regarding buffer.
+ * \param astcid Asterisk format callerid string, taken from the callerid field of asterisk.
+ *
+ * Acts like callerid_generate except uses an asterisk format callerid string.
+ */
 extern int ast_callerid_generate(unsigned char *buf, char *astcid);
 
-/* Generate Caller-ID spill from the "callerid" field of asterisk (in e-mail address like format) 
-   but in a format suitable for Call Waiting(tm) Caller*ID(tm) */
+//! Generate Caller-ID spill from the "callerid" field of asterisk (in e-mail address like format) but in a format suitable for Call Waiting(tm)'s Caller*ID(tm)
+/*!
+ * See ast_callerid_generate for other details
+ */
 extern int ast_callerid_callwaiting_generate(unsigned char *buf, char *astcid);
 
-/* Destructively parse inbuf into name and location (or number) */
-extern int ast_callerid_parse(char *inbuf, char **name, char **location);
+//! Destructively parse inbuf into name and location (or number)
+/*!
+ * \param inbuf buffer of callerid stream (in audio form) to be parsed. Warning, data in buffer is changed.
+ * \param name address of a pointer-to-char for the name value of the stream.
+ * \param location address of a pointer-to-char for the phone number value of the stream.
+ * Parses callerid stream from inbuf and changes into useable form, outputed in name and location.
+ * Returns 0 on success, -1 on failure.
+ */
+extern int ast_callerid_parse(char *instr, char **name, char **location);
 
-/* Generate a CAS (CPE Alert Signal) tone for 'n' samples */
-extern int ast_callerid_gen_cas(unsigned char *outbuf, int len);
+//! Generate a CAS (CPE Alert Signal) tone for 'n' samples
+/*!
+ * \param outbuf Allocated buffer for data.  Must be at least 2400 bytes unless no SAS is desired
+ * \param sas Non-zero if CAS should be preceeded by SAS
+ * \param len How many samples to generate.
+ * Returns -1 on error (if len is less than 2400), 0 on success.
+ */
+extern int ast_gen_cas(unsigned char *outbuf, int sas, int len);
 
-/* Shrink a phone number in place to just digits (more accurately it just removes ()'s, .'s, and -'s...  */
+//! Shrink a phone number in place to just digits (more accurately it just removes ()'s, .'s, and -'s...
+/*!
+ * \param n The number to be stripped/shrunk
+ * Returns nothing important
+ */
 extern void ast_shrink_phone_number(char *n);
 
-/* Check if a string consists only of digits.  Returns non-zero if so */
+//! Check if a string consists only of digits.  Returns non-zero if so
+/*!
+ * \param n number to be checked.
+ * Returns 0 if n is a number, 1 if it's not.
+ */
 extern int ast_isphonenumber(char *n);
+
+
+/*
+ * Caller*ID and other GR-30 compatible generation
+ * routines (used by ADSI for example)
+ */
+
+extern float dr[4];
+extern float di[4];
+extern float clidsb;
+
+static inline float callerid_getcarrier(float *cr, float *ci, int bit)
+{
+	/* Move along.  There's nothing to see here... */
+	float t;
+	t = *cr * dr[bit] - *ci * di[bit];
+	*ci = *cr * di[bit] + *ci * dr[bit];
+	*cr = t;
+	
+	t = 2.0 - (*cr * *cr + *ci * *ci);
+	*cr *= t;
+	*ci *= t;
+	return *cr;
+}	
+
+#define PUT_BYTE(a) do { \
+	*(buf++) = (a); \
+	bytes++; \
+} while(0)
+
+#define PUT_AUDIO_SAMPLE(y) do { \
+	int index = (short)(rint(8192.0 * (y))); \
+	*(buf++) = AST_LIN2MU(index); \
+	bytes++; \
+} while(0)
+	
+#define PUT_CLID_MARKMS do { \
+	int x; \
+	for (x=0;x<8;x++) \
+		PUT_AUDIO_SAMPLE(callerid_getcarrier(&cr, &ci, 1)); \
+} while(0)
+
+#define PUT_CLID_BAUD(bit) do { \
+	while(scont < clidsb) { \
+		PUT_AUDIO_SAMPLE(callerid_getcarrier(&cr, &ci, bit)); \
+		scont += 1.0; \
+	} \
+	scont -= clidsb; \
+} while(0)
+
+
+#define PUT_CLID(byte) do { \
+	int z; \
+	unsigned char b = (byte); \
+	PUT_CLID_BAUD(0); 	/* Start bit */ \
+	for (z=0;z<8;z++) { \
+		PUT_CLID_BAUD(b & 1); \
+		b >>= 1; \
+	} \
+	PUT_CLID_BAUD(1);	/* Stop bit */ \
+} while(0);	
+
+
 #endif

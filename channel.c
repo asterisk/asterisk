@@ -19,6 +19,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <unistd.h>
+#include <asterisk/frame.h>
 #include <asterisk/sched.h>
 #include <asterisk/options.h>
 #include <asterisk/channel.h>
@@ -63,6 +64,30 @@ struct ast_channel *channels = NULL;
    
 static pthread_mutex_t chlock = PTHREAD_MUTEX_INITIALIZER;
 
+int ast_check_hangup(struct ast_channel *chan)
+{
+time_t	myt;
+
+	  /* if soft hangup flag, return true */
+	if (chan->softhangup) return 1;
+	  /* if no hangup scheduled, just return here */
+	if (!chan->whentohangup) return 0;
+	time(&myt); /* get current time */
+	  /* return, if not yet */
+	if (chan->whentohangup > myt) return 0;
+	chan->softhangup = 1;
+	return 1;
+}
+
+void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset)
+{
+time_t	myt;
+
+	time(&myt);
+	chan->whentohangup = myt + offset;
+	return;
+}
+
 int ast_channel_register(char *type, char *description, int capabilities,
 		struct ast_channel *(*requester)(char *type, int format, void *data))
 {
@@ -87,8 +112,8 @@ int ast_channel_register(char *type, char *description, int capabilities,
 		PTHREAD_MUTEX_UNLOCK(&chlock);
 		return -1;
 	}
-	strncpy(chan->type, type, sizeof(chan->type));
-	strncpy(chan->description, description, sizeof(chan->description));
+	strncpy(chan->type, type, sizeof(chan->type)-1);
+	strncpy(chan->description, description, sizeof(chan->description)-1);
 	chan->capabilities = capabilities;
 	chan->requester = requester;
 	chan->next = NULL;
@@ -180,7 +205,7 @@ struct ast_channel *ast_channel_alloc(void)
 			if (tmp->sched) {
 				for (x=0;x<AST_MAX_FDS;x++)
 					tmp->fds[x] = -1;
-				strncpy(tmp->name, "**Unknown**", sizeof(tmp->name));
+				strncpy(tmp->name, "**Unknown**", sizeof(tmp->name)-1);
 				tmp->pvt = pvt;
 				tmp->state = AST_STATE_DOWN;
 				tmp->stack = -1;
@@ -188,10 +213,12 @@ struct ast_channel *ast_channel_alloc(void)
 				tmp->appl = NULL;
 				tmp->data = NULL;
 				pthread_mutex_init(&tmp->lock, NULL);
-				strncpy(tmp->context, "default", sizeof(tmp->context));
-				strncpy(tmp->language, defaultlanguage, sizeof(tmp->language));
-				strncpy(tmp->exten, "s", sizeof(tmp->exten));
+				strncpy(tmp->context, "default", sizeof(tmp->context)-1);
+				strncpy(tmp->language, defaultlanguage, sizeof(tmp->language)-1);
+				strncpy(tmp->exten, "s", sizeof(tmp->exten)-1);
 				tmp->priority=1;
+				tmp->amaflags = ast_default_amaflags;
+				strncpy(tmp->accountcode, ast_default_accountcode, sizeof(tmp->accountcode)-1);
 				tmp->next = channels;
 				channels= tmp;
 			} else {
@@ -276,6 +303,8 @@ void ast_channel_free(struct ast_channel *chan)
 		free(chan->dnid);
 	if (chan->callerid)
 		free(chan->callerid);	
+	if (chan->hidden_callerid)
+		free(chan->hidden_callerid);
 	pthread_mutex_destroy(&chan->lock);
 	free(chan->pvt);
 	free(chan);
@@ -330,6 +359,13 @@ int ast_hangup(struct ast_channel *chan)
 		ast_stopstream(chan);
 	if (chan->sched)
 		sched_context_destroy(chan->sched);
+	if (chan->cdr) {
+		/* End the CDR if it hasn't already */
+		ast_cdr_end(chan->cdr);
+		/* Post and Free the CDR */
+		ast_cdr_post(chan->cdr);
+		ast_cdr_free(chan->cdr);
+	}
 	if (chan->blocking) {
 		ast_log(LOG_WARNING, "Hard hangup called by thread %ld on %s, while fd "
 					"is blocked by thread %ld in procedure %s!  Expect a failure\n",
@@ -380,7 +416,7 @@ int ast_answer(struct ast_channel *chan)
 {
 	int res = 0;
 	/* Stop if we're a zombie or need a soft hangup */
-	if (chan->zombie || chan->softhangup) 
+	if (chan->zombie || ast_check_hangup(chan)) 
 		return -1;
 	switch(chan->state) {
 	case AST_STATE_RINGING:
@@ -388,6 +424,8 @@ int ast_answer(struct ast_channel *chan)
 		if (chan->pvt->answer)
 			res = chan->pvt->answer(chan);
 		chan->state = AST_STATE_UP;
+		if (chan->cdr)
+			ast_cdr_answer(chan->cdr);
 		return res;
 		break;
 	case AST_STATE_UP:
@@ -557,7 +595,7 @@ char ast_waitfordigit(struct ast_channel *c, int ms)
 	struct ast_frame *f;
 	char result = 0;
 	/* Stop if we're a zombie or need a soft hangup */
-	if (c->zombie || c->softhangup) 
+	if (c->zombie || ast_check_hangup(c)) 
 		return -1;
 	/* Wait for a digit, no more than ms milliseconds total. */
 	while(ms && !result) {
@@ -598,7 +636,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 	}
 
 	/* Stop if we're a zombie or need a soft hangup */
-	if (chan->zombie || chan->softhangup) {
+	if (chan->zombie || ast_check_hangup(chan)) {
 		pthread_mutex_unlock(&chan->lock);
 		return NULL;
 	}
@@ -634,14 +672,20 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		}
 	}
 	/* Make sure we always return NULL in the future */
-	if (!f)
+	if (!f) {
 		chan->softhangup = 1;
-	else if (chan->deferdtmf && f->frametype == AST_FRAME_DTMF) {
+		/* End the CDR if appropriate */
+		if (chan->cdr)
+			ast_cdr_end(chan->cdr);
+	} else if (chan->deferdtmf && f->frametype == AST_FRAME_DTMF) {
 		if (strlen(chan->dtmfq) < sizeof(chan->dtmfq) - 2)
 			chan->dtmfq[strlen(chan->dtmfq)] = f->subclass;
 		else
 			ast_log(LOG_WARNING, "Dropping deferred DTMF digits on %s\n", chan->name);
 		f = &null_frame;
+	} else if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_ANSWER)) {
+		/* Answer the CDR */
+		ast_cdr_answer(chan->cdr);
 	}
 	pthread_mutex_unlock(&chan->lock);
 
@@ -652,7 +696,7 @@ int ast_indicate(struct ast_channel *chan, int condition)
 {
 	int res = -1;
 	/* Stop if we're a zombie or need a soft hangup */
-	if (chan->zombie || chan->softhangup) 
+	if (chan->zombie || ast_check_hangup(chan)) 
 		return -1;
 	if (chan->pvt->indicate) {
 		res = chan->pvt->indicate(chan, condition);
@@ -663,11 +707,40 @@ int ast_indicate(struct ast_channel *chan, int condition)
 	return res;
 }
 
+int ast_recvchar(struct ast_channel *chan, int timeout)
+{
+	int res,ourto,c;
+	struct ast_frame *f;
+	
+	ourto = timeout;
+	for(;;)
+	   {
+		if (ast_check_hangup(chan)) return -1;
+		res = ast_waitfor(chan,ourto);
+		if (res <= 0) /* if timeout */
+		   {
+			return 0;
+		   }
+		ourto = res;
+		f = ast_read(chan);
+		if (f == NULL) return -1; /* if hangup */
+		if ((f->frametype == AST_FRAME_CONTROL) &&
+		    (f->subclass == AST_CONTROL_HANGUP)) return -1; /* if hangup */
+		if (f->frametype == AST_FRAME_TEXT)  /* if a text frame */
+		   {
+			c = *((char *)f->data);  /* get the data */
+			ast_frfree(f);
+			return(c);
+		   }
+		ast_frfree(f);
+	}
+}
+
 int ast_sendtext(struct ast_channel *chan, char *text)
 {
 	int res = 0;
 	/* Stop if we're a zombie or need a soft hangup */
-	if (chan->zombie || chan->softhangup) 
+	if (chan->zombie || ast_check_hangup(chan)) 
 		return -1;
 	CHECK_BLOCKING(chan);
 	if (chan->pvt->send_text)
@@ -681,7 +754,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	int res = -1;
 	struct ast_frame *f;
 	/* Stop if we're a zombie or need a soft hangup */
-	if (chan->zombie || chan->softhangup) 
+	if (chan->zombie || ast_check_hangup(chan)) 
 		return -1;
 	/* Handle any pending masquerades */
 	if (chan->masq) {
@@ -699,9 +772,12 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		ast_log(LOG_WARNING, "Don't know how to handle control frames yet\n");
 		break;
 	case AST_FRAME_DTMF:
-		
 		if (chan->pvt->send_digit)
 			res = chan->pvt->send_digit(chan, fr->subclass);
+		break;
+	case AST_FRAME_TEXT:
+		if (chan->pvt->send_text)
+			res = chan->pvt->send_text(chan, (char *) fr->data);
 		break;
 	default:
 		if (chan->pvt->write) {
@@ -744,7 +820,7 @@ int ast_set_write_format(struct ast_channel *chan, int fmts)
 	/* Build a translation path from the user write format to the raw writing format */
 	chan->pvt->writetrans = ast_translator_build_path(chan->pvt->rawwriteformat, chan->writeformat);
 	if (option_debug)
-		ast_log(LOG_DEBUG, "Set channel %s to format %d\n", chan->name, chan->writeformat);
+		ast_log(LOG_DEBUG, "Set channel %s to write format %d\n", chan->name, chan->writeformat);
 	return 0;
 }
 
@@ -772,6 +848,8 @@ int ast_set_read_format(struct ast_channel *chan, int fmts)
 		ast_translator_free_path(chan->pvt->readtrans);
 	/* Build a translation path from the raw read format to the user reading format */
 	chan->pvt->readtrans = ast_translator_build_path(chan->readformat, chan->pvt->rawreadformat);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Set channel %s to read format %d\n", chan->name, chan->readformat);
 	return 0;
 }
 
@@ -818,7 +896,7 @@ int ast_call(struct ast_channel *chan, char *addr, int timeout)
 	int res = -1;
 	/* Stop if we're a zombie or need a soft hangup */
 	pthread_mutex_lock(&chan->lock);
-	if (!chan->zombie && !chan->softhangup) 
+	if (!chan->zombie && !ast_check_hangup(chan)) 
 		if (chan->pvt->call)
 			res = chan->pvt->call(chan, addr, timeout);
 	pthread_mutex_unlock(&chan->lock);
@@ -831,7 +909,7 @@ int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int fti
 	int to = ftimeout;
 	char d;
 	/* Stop if we're a zombie or need a soft hangup */
-	if (c->zombie || c->softhangup) 
+	if (c->zombie || ast_check_hangup(c)) 
 		return -1;
 	if (!len)
 		return -1;
@@ -982,7 +1060,7 @@ static int ast_do_masquerade(struct ast_channel *original)
 	clone->masqr = NULL;
 		
 	/* Copy the name from the clone channel */
-	strncpy(original->name, clone->name, sizeof(original->name));
+	strncpy(original->name, clone->name, sizeof(original->name)-1);
 
 	/* Mangle the name of the clone channel */
 	strncat(clone->name, "<MASQ>", sizeof(clone->name));
@@ -1019,6 +1097,8 @@ static int ast_do_masquerade(struct ast_channel *original)
 	/* Copy the FD's */
 	for (x=0;x<AST_MAX_FDS;x++)
 		original->fds[x] = clone->fds[x];
+	/* Presense of ADSI capable CPE follows clone */
+	original->adsicpe = clone->adsicpe;
 	/* Bridge remains the same */
 	/* CDR fields remain the same */
 	/* XXX What about blocking, softhangup, blocker, and lock and blockproc? XXX */
@@ -1096,7 +1176,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 	int res;
 	int nativefailed=0;
 	/* Stop if we're a zombie or need a soft hangup */
-	if (c0->zombie || c0->softhangup || c1->zombie || c1->softhangup) 
+	if (c0->zombie || ast_check_hangup(c0) || c1->zombie || ast_check_hangup(c1)) 
 		return -1;
 	if (c0->bridge) {
 		ast_log(LOG_WARNING, "%s is already in a bridge with %s\n", 
@@ -1116,7 +1196,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 	cs[1] = c1;
 	for (/* ever */;;) {
 		/* Stop if we're a zombie or need a soft hangup */
-		if (c0->zombie || c0->softhangup || c1->zombie || c1->softhangup) {
+		if (c0->zombie || ast_check_hangup(c0) || c1->zombie || ast_check_hangup(c1)) {
 			*fo = NULL;
 			if (who) *rc = who;
 			res = 0;
@@ -1233,3 +1313,4 @@ int ast_channel_setoption(struct ast_channel *chan, int option, void *data, int 
 	}
 	return 0;
 }
+

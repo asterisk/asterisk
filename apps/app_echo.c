@@ -44,6 +44,8 @@ static int echo_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	struct ast_frame *f;
 	LOCAL_USER_ADD(u);
+	ast_set_write_format(chan, ast_best_codec(chan->nativeformats));
+	ast_set_read_format(chan, ast_best_codec(chan->nativeformats));
 	/* Do our thing here */
 	while((f = ast_read(chan))) {
 		if (f->frametype == AST_FRAME_VOICE) {

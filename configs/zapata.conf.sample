@@ -19,6 +19,7 @@ context=default
 ; dms100:	  Nortel DMS100
 ; 4ess:           AT&T 4ESS
 ; 5ess:	          Lucent 5ESS
+; euroisdn:       EuroISDN
 ;
 switchtype=national
 ;
@@ -99,6 +100,21 @@ immediate=no
 ;
 ;callerid=2564286000
 ;
+; AMA flags affects the recording of Call Detail Records.  If specified
+; it may be 'default', 'omit', 'billing', or 'documentation'.
+;
+;amaflags=default
+;
+; Channels may be associated with an account code to ease
+; billing
+;
+;accountcode=lss0101
+;
+; ADSI (Analog Display Services Interface) can be enabled on a per-channel
+; basis if you have (or may have) ADSI compatible CPE equipment
+;
+;adsi=yes
+;
 ; Each channel consists of the channel number or range.  It
 ; inherits the parameters that were specified above its declaration
 ;
@@ -156,6 +172,6 @@ stripmsd=1
 ; you will want to create a single "group" for all channels of the PRI.
 ;
 ; switchtype = national
-; sig = pri_cpe
+; signalling = pri_cpe
 ; group = 2
 ; channel => 1-23

@@ -19,6 +19,7 @@
 #include <asterisk/module.h>
 #include <asterisk/translate.h>
 #include <asterisk/say.h>
+#include <asterisk/parking.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -31,15 +32,11 @@
 
 #include <pthread.h>
 
-static char *tdesc = "Dialing/Parking Application";
+static char *tdesc = "Dialing Application";
 
 static char *app = "Dial";
 
-static char *parkedcall = "ParkedCall";
-
 static char *synopsis = "Place an call and connect to the current channel";
-
-static char *registrar = "app_dial";
 
 static char *descrip =
 "  Dial(Technology/resource[&Technology2/resource2...][|timeout][|transfer]):\n"
@@ -62,21 +59,6 @@ static char *descrip =
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n";
 
-/* No more than 45 seconds parked before you do something with them */
-static int parkingtime = 45000;
-
-/* Context for which parking is made accessible */
-static char parking_con[AST_MAX_EXTENSION] = "parkedcalls";
-
-/* Extension you type to park the call */
-static char parking_ext[AST_MAX_EXTENSION] = "700";
-
-/* First available extension for parking */
-static int parking_start = 701;
-
-/* Last available extension for parking */
-static int parking_stop = 750;
-
 /* We define a customer "local user" structure because we
    use it not only for keeping track of what is in use but
    also for keeping track of who we're dialing. */
@@ -88,173 +70,7 @@ struct localuser {
 	struct localuser *next;
 };
 
-struct parkeduser {
-	struct ast_channel *chan;
-	struct timeval start;
-	int parkingnum;
-	/* Where to go if our parking time expires */
-	char context[AST_MAX_EXTENSION];
-	char exten[AST_MAX_EXTENSION];
-	int priority;
-	struct parkeduser *next;
-};
-
-static struct parkeduser *parkinglot;
-
-static pthread_mutex_t parking_lock = PTHREAD_MUTEX_INITIALIZER;
-
-static pthread_t parking_thread;
-
 LOCAL_USER_DECL;
-
-static int bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allowredirect);
-
-
-static int park_call(struct ast_channel *chan, struct ast_channel *peer)
-{
-	/* We put the user in the parking list, then wake up the parking thread to be sure it looks
-	   after these channels too */
-	struct parkeduser *pu, *cur;
-	int x;
-	pu = malloc(sizeof(struct parkeduser));
-	if (pu) {
-		ast_pthread_mutex_lock(&parking_lock);
-		for (x=parking_start;x<=parking_stop;x++) {
-			cur = parkinglot;
-			while(cur) {
-				if (cur->parkingnum == x) 
-					break;
-				cur = cur->next;
-			}
-			if (!cur)
-				break;
-		}
-		if (x <= parking_stop) {
-			pu->chan = chan;
-			gettimeofday(&pu->start, NULL);
-			pu->parkingnum = x;
-			/* Remember what had been dialed, so that if the parking
-			   expires, we try to come back to the same place */
-			strncpy(pu->context, chan->context, sizeof(pu->context));
-			strncpy(pu->exten, chan->exten, sizeof(pu->exten));
-			pu->priority = chan->priority;
-			pu->next = parkinglot;
-			parkinglot = pu;
-			ast_pthread_mutex_unlock(&parking_lock);
-			/* Wake up the (presumably select()ing) thread */
-			pthread_kill(parking_thread, SIGURG);
-			if (option_verbose > 1) 
-				ast_verbose(VERBOSE_PREFIX_2 "Parked %s on %d\n", pu->chan->name, pu->parkingnum);
-			ast_say_digits(peer, pu->parkingnum, peer->language);
-			return 0;
-		} else {
-			ast_log(LOG_WARNING, "No more parking spaces\n");
-			free(pu);
-			ast_pthread_mutex_unlock(&parking_lock);
-			return -1;
-		}
-	} else {
-		ast_log(LOG_WARNING, "Out of memory\n");
-		return -1;
-	}
-	return 0;
-}
-
-static void *do_parking_thread(void *ignore)
-{
-	int ms, tms, max;
-	struct parkeduser *pu, *pl, *pt = NULL;
-	struct timeval tv;
-	struct ast_frame *f;
-	int x;
-	fd_set rfds, efds;
-	fd_set nrfds, nefds;
-	FD_ZERO(&rfds);
-	FD_ZERO(&efds);
-	for (;;) {
-		ms = -1;
-		max = -1;
-		ast_pthread_mutex_lock(&parking_lock);
-		pl = NULL;
-		pu = parkinglot;
-		gettimeofday(&tv, NULL);
-		FD_ZERO(&nrfds);
-		FD_ZERO(&nefds);
-		while(pu) {
-			tms = (tv.tv_sec - pu->start.tv_sec) * 1000 + (tv.tv_usec - pu->start.tv_usec) / 1000;
-			if (tms > parkingtime) {
-				/* They've been waiting too long, send them back to where they came.  Theoretically they
-				   should have their original extensions and such, but we copy to be on the safe side */
-				strncpy(pu->chan->exten, pu->exten, sizeof(pu->chan->exten));
-				strncpy(pu->chan->context, pu->context, sizeof(pu->chan->context));
-				pu->chan->priority = pu->priority;
-				/* Start up the PBX, or hang them up */
-				if (ast_pbx_start(pu->chan))  {
-					ast_log(LOG_WARNING, "Unable to restart the PBX for user on '%s', hanging them up...\n", pu->chan->name);
-					ast_hangup(pu->chan);
-				}
-				/* And take them out of the parking lot */
-				if (pl) 
-					pl->next = pu->next;
-				else
-					parkinglot = pu->next;
-				pt = pu;
-				pu = pu->next;
-				free(pt);
-			} else {
-				for (x=0;x<AST_MAX_FDS;x++) {
-					if ((pu->chan->fds[x] > -1) && (FD_ISSET(pu->chan->fds[x], &rfds) || FD_ISSET(pu->chan->fds[x], &efds))) {
-							if (FD_ISSET(pu->chan->fds[x], &efds))
-								pu->chan->exception = 1;
-							pu->chan->fdno = x;
-							/* See if they need servicing */
-							f = ast_read(pu->chan);
-							if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass ==  AST_CONTROL_HANGUP))) {
-							/* There's a problem, hang them up*/
-							if (option_verbose > 1) 
-								ast_verbose(VERBOSE_PREFIX_2 "%s got tired of being parked\n", pu->chan->name);
-							ast_hangup(pu->chan);
-							/* And take them out of the parking lot */
-							if (pl) 
-								pl->next = pu->next;
-							else
-								parkinglot = pu->next;
-							pt = pu;
-							pu = pu->next;
-							free(pt);
-							break;
-						} else {
-							/* XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
-							ast_frfree(f);
-							goto std;	/* XXX Ick: jumping into an else statement??? XXX */
-						}
-					}
-				}
-				if (x >= AST_MAX_FDS) {
-					/* Keep this one for next one */
-std:				FD_SET(pu->chan->fds[x], &nrfds);
-					FD_SET(pu->chan->fds[x], &nefds);
-					/* Keep track of our longest wait */
-					if ((tms < ms) || (ms < 0))
-						ms = tms;
-					if (pu->chan->fds[x] > max)
-						max = pu->chan->fds[x];
-					pl = pu;
-					pu = pu->next;
-				}
-			}
-		}
-		ast_pthread_mutex_unlock(&parking_lock);
-		rfds = nrfds;
-		efds = nefds;
-		tv.tv_sec = ms / 1000;
-		tv.tv_usec = (ms % 1000) * 1000;
-		/* Wait for something to happen */
-		select(max + 1, &rfds, NULL, &efds, (ms > -1) ? &tv : NULL);
-		pthread_testcancel();
-	}
-	return NULL;	/* Never reached */
-}
 
 static void hanguptree(struct localuser *outgoing, struct ast_channel *exception)
 {
@@ -344,12 +160,16 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							if (option_verbose > 2)
 								ast_verbose( VERBOSE_PREFIX_3 "%s is busy\n", o->chan->name);
 							o->stillgoing = 0;
+							if (in->cdr)
+								ast_cdr_busy(in->cdr);
 							numbusies++;
 							break;
 						case AST_CONTROL_CONGESTION:
 							if (option_verbose > 2)
 								ast_verbose( VERBOSE_PREFIX_3 "%s is circuit-busy\n", o->chan->name);
 							o->stillgoing = 0;
+							if (in->cdr)
+								ast_cdr_busy(in->cdr);
 							numbusies++;
 							break;
 						case AST_CONTROL_RINGING:
@@ -401,177 +221,6 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 	
 }
 
-static int bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allowredirect)
-{
-	/* Copy voice back and forth between the two channels.  Give the peer
-	   the ability to transfer calls with '#<extension' syntax. */
-	int len;
-	struct ast_frame *f;
-	struct ast_channel *who;
-	char newext[256], *ptr;
-	int res;
-	struct ast_option_header *aoh;
-	/* Answer if need be */
-	if (chan->state != AST_STATE_UP) {
-		if (ast_answer(chan))
-			return -1;
-	}
-	peer->appl = "Bridged Call";
-	peer->data = chan->name;
-	for (;;) {
-		res = ast_channel_bridge(chan, peer, allowredirect ? AST_BRIDGE_DTMF_CHANNEL_1 : 0, &f, &who);
-		if (res < 0) {
-			ast_log(LOG_WARNING, "Bridge failed on channels %s and %s\n", chan->name, peer->name);
-			return -1;
-		}
-		
-		if (!f || ((f->frametype == AST_FRAME_CONTROL) && ((f->subclass == AST_CONTROL_HANGUP) || (f->subclass == AST_CONTROL_BUSY) || 
-			(f->subclass == AST_CONTROL_CONGESTION)))) {
-				res = -1;
-				break;
-		}
-		if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_RINGING)) {
-			if (who == chan)
-				ast_indicate(peer, AST_CONTROL_RINGING);
-			else
-				ast_indicate(chan, AST_CONTROL_RINGING);
-		}
-		if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_OPTION)) {
-			aoh = f->data;
-			/* Forward option Requests */
-			if (aoh && (aoh->flag == AST_OPTION_FLAG_REQUEST)) {
-				if (who == chan)
-					ast_channel_setoption(peer, ntohs(aoh->option), aoh->data, f->datalen - sizeof(struct ast_option_header), 0);
-				else
-					ast_channel_setoption(chan, ntohs(aoh->option), aoh->data, f->datalen - sizeof(struct ast_option_header), 0);
-			}
-		}
-		if ((f->frametype == AST_FRAME_DTMF) && (who == peer) && allowredirect &&
-		     (f->subclass == '#')) {
-				memset(newext, 0, sizeof(newext));
-				ptr = newext;
-					/* Transfer */
-				if ((res=ast_streamfile(peer, "pbx-transfer", chan->language)))
-					break;
-				if ((res=ast_waitstream(peer, AST_DIGIT_ANY)) < 0)
-					break;
-				ast_stopstream(peer);
-				if (res > 0) {
-					/* If they've typed a digit already, handle it */
-					newext[0] = res;
-					ptr++;
-					len --;
-				}
-				res = 0;
-				while(strlen(newext) < sizeof(newext - 1)) {
-					res = ast_waitfordigit(peer, 3000);
-					if (res < 1)
-						break;
-					*(ptr++) = res;
-					if (!ast_canmatch_extension(peer, peer->context, newext, 1, peer->callerid) ||
-						ast_exists_extension(peer, peer->context, newext, 1, peer->callerid)) {
-						res = 0;
-						break;
-					}
-				}
-				if (res)
-					break;
-				if (!strcmp(newext, parking_ext)) {
-					if (!park_call(chan, peer)) {
-						/* We return non-zero, but tell the PBX not to hang the channel when
-						   the thread dies -- We have to be careful now though.  We are responsible for 
-						   hanging up the channel, else it will never be hung up! */
-						res=AST_PBX_KEEPALIVE;
-						break;
-					} else {
-						ast_log(LOG_WARNING, "Unable to park call %s\n", chan->name);
-					}
-					/* XXX Maybe we should have another message here instead of invalid extension XXX */
-				} else if (ast_exists_extension(chan, peer->context, newext, 1, peer->callerid)) {
-					/* Set the channel's new extension, since it exists, using peer context */
-					strncpy(chan->exten, newext, sizeof(chan->exten));
-					strncpy(chan->context, peer->context, sizeof(chan->context));
-					chan->priority = 0;
-					ast_frfree(f);
-					if (option_verbose > 2) 
-						ast_verbose(VERBOSE_PREFIX_3 "Transferring %s to '%s' (context %s) priority 1\n", chan->name, chan->exten, chan->context);
-					res=0;
-					break;
-				} else {
-					if (option_verbose > 2)	
-						ast_verbose(VERBOSE_PREFIX_3 "Unable to find extension '%s' in context %s\n", newext, peer->context);
-				}
-				res = ast_streamfile(peer, "pbx-invalid", chan->language);
-				if (res)
-					break;
-				res = ast_waitstream(peer, AST_DIGIT_ANY);
-				ast_stopstream(peer);
-				res = 0;
-			} else {
-#if 1
-				ast_log(LOG_DEBUG, "Read from %s (%d,%d)\n", who->name, f->frametype, f->subclass);
-#endif
-			}
-	}
-	return res;
-}
-
-static int park_exec(struct ast_channel *chan, void *data)
-{
-	int res=0;
-	struct localuser *u;
-	struct ast_channel *peer=NULL;
-	struct parkeduser *pu, *pl=NULL;
-	int park;
-	if (!data) {
-		ast_log(LOG_WARNING, "Park requires an argument (extension number)\n");
-		return -1;
-	}
-	LOCAL_USER_ADD(u);
-	park = atoi((char *)data);
-	ast_pthread_mutex_lock(&parking_lock);
-	pu = parkinglot;
-	while(pu) {
-		if (pu->parkingnum == park) {
-			if (pl)
-				pl->next = pu->next;
-			else
-				parkinglot = pu->next;
-			break;
-		}
-		pu = pu->next;
-	}
-	ast_pthread_mutex_unlock(&parking_lock);
-	if (pu) {
-		peer = pu->chan;
-		free(pu);
-	}
-	if (peer) {
-		res = ast_channel_make_compatible(chan, peer);
-		if (res < 0) {
-			ast_log(LOG_WARNING, "Could not make channels %s and %s compatible for bridge\n", chan->name, peer->name);
-			ast_hangup(peer);
-			return -1;
-		}
-		/* This runs sorta backwards, since we give the incoming channel control, as if it
-		   were the person called. */
-		if (option_verbose > 2) 
-			ast_verbose(VERBOSE_PREFIX_3 "Channel %s connected to parked call %d\n", chan->name, park);
-		res = bridge_call(peer, chan, 1);
-		/* Simulate the PBX hanging up */
-		if (res != AST_PBX_KEEPALIVE)
-			ast_hangup(peer);
-		return -1;
-	} else {
-		/* XXX Play a message XXX */
-		if (option_verbose > 2) 
-			ast_verbose(VERBOSE_PREFIX_3 "Channel %s tried to talk to non-existant parked call %d\n", chan->name, park);
-		res = -1;
-	}
-	LOCAL_USER_REMOVE(u);
-	return res;
-}
-
 static int dial_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
@@ -599,7 +248,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Out of memory\n");
 		return -1;
 	}
-	strncpy(info, (char *)data, strlen((char *)data) + AST_MAX_EXTENSION);
+	strncpy(info, (char *)data, strlen((char *)data) + AST_MAX_EXTENSION-1);
 	peers = info;
 	if (peers) {
 		timeout = strchr(info, '|');
@@ -645,10 +294,10 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			tmp->allowredirect = 1;
 		else
 			tmp->allowredirect = 0;
-		strncpy(numsubst, number, sizeof(numsubst));
+		strncpy(numsubst, number, sizeof(numsubst)-1);
 		/* If we're dialing by extension, look at the extension to know what to dial */
 		if ((newnum = strstr(numsubst, "BYEXTENSION"))) {
-			strncpy(restofit, newnum + strlen("BYEXTENSION"), sizeof(restofit));
+			strncpy(restofit, newnum + strlen("BYEXTENSION"), sizeof(restofit)-1);
 			snprintf(newnum, sizeof(numsubst) - (newnum - numsubst), "%s%s", chan->exten,restofit);
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Dialing by extension %s\n", numsubst);
@@ -657,19 +306,24 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		tmp->chan = ast_request(tech, chan->nativeformats, numsubst);
 		if (!tmp->chan) {
 			/* If we can't, just go on to the next call */
-			ast_log(LOG_WARNING, "Unable to create channel of type '%s'\n", tech);
+			ast_log(LOG_NOTICE, "Unable to create channel of type '%s'\n", tech);
+			if (chan->cdr)
+				ast_cdr_busy(chan->cdr);
 			free(tmp);
 			cur = rest;
 			continue;
 		}
 		tmp->chan->appl = "AppDial";
 		tmp->chan->data = "(Outgoing Line)";
+		tmp->chan->whentohangup = 0;
 		if (tmp->chan->callerid)
 			free(tmp->chan->callerid);
 		if (chan->callerid)
 			tmp->chan->callerid = strdup(chan->callerid);
 		else
 			tmp->chan->callerid = NULL;
+		/* Presense of ADSI CPE on outgoing channel follows ours */
+		tmp->chan->adsicpe = chan->adsicpe;
 		/* Place the call, but don't wait on the answer */
 		res = ast_call(tmp->chan, numsubst, 0);
 		if (res) {
@@ -715,6 +369,9 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		   conversation.  */
 		hanguptree(outgoing, peer);
 		outgoing = NULL;
+		/* If appropriate, log that we have a destination channel */
+		if (chan->cdr)
+			ast_cdr_setdestchan(chan->cdr, peer->name);
 		/* Make sure channels are compatible */
 		res = ast_channel_make_compatible(chan, peer);
 		if (res < 0) {
@@ -730,7 +387,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			int x = 2;
 			ast_channel_setoption(peer,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
 		}			
-		res = bridge_call(chan, peer, allowredir);
+		res = ast_bridge_call(chan, peer, allowredir);
 		ast_hangup(peer);
 	}	
 out:
@@ -749,25 +406,7 @@ int unload_module(void)
 int load_module(void)
 {
 	int res;
-	int x;
-	struct ast_context *con;
-	char exten[AST_MAX_EXTENSION];
-	con = ast_context_find(parking_con);
-	if (!con) {
-		con = ast_context_create(parking_con, registrar);
-		if (!con) {
-			ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
-			return -1;
-		}
-	}
-	for(x=parking_start; x<=parking_stop;x++) {
-		snprintf(exten, sizeof(exten), "%d", x);
-		ast_add_extension2(con, 1, exten, 1, NULL, parkedcall, strdup(exten), free, registrar);
-	}
-	pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
-	res = ast_register_application(parkedcall, park_exec, synopsis, descrip);
-	if (!res)
-		res = ast_register_application(app, dial_exec, synopsis, descrip);
+	res = ast_register_application(app, dial_exec, synopsis, descrip);
 	return res;
 }
 

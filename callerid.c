@@ -43,8 +43,8 @@ struct callerid_state {
 	int len;
 };
 
-static float dr[4], di[4];
-static float clidsb = 8000.0 / 1200.0;
+float dr[4], di[4];
+float clidsb = 8000.0 / 1200.0;
 
 #define CALLERID_SPACE	2200.0		/* 2200 hz for "0" */
 #define CALLERID_MARK	1200.0		/* 1200 hz for "1" */
@@ -98,21 +98,23 @@ void callerid_get(struct callerid_state *cid, char **name, char **number, int *f
 		*number = cid->number;
 }
 
-int ast_callerid_gen_cas(unsigned char *outbuf, int len)
+int ast_gen_cas(unsigned char *outbuf, int sendsas, int len)
 {
 	int pos = 0;
 	int cnt;
 	int saslen=2400;
-	if (len < saslen)
-		return -1;
-	while(saslen) {
-		cnt = saslen;
-		if (cnt > sizeof(sas))
-			cnt = sizeof(sas);
-		memcpy(outbuf + pos, sas, cnt);
-		pos += cnt;
-		len -= cnt;
-		saslen -= cnt;
+	if (sendsas) {
+		if (len < saslen)
+			return -1;
+		while(saslen) {
+			cnt = saslen;
+			if (cnt > sizeof(sas))
+				cnt = sizeof(sas);
+			memcpy(outbuf + pos, sas, cnt);
+			pos += cnt;
+			len -= cnt;
+			saslen -= cnt;
+		}
 	}
 	while(len) {
 		cnt = len;
@@ -142,7 +144,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len)
 	memcpy(buf, cid->oldstuff, cid->oldlen);
 	mylen += cid->oldlen/2;
 	for (x=0;x<len;x++) 
-		buf[x+cid->oldlen/2] = ast_mulaw[ubuf[x]];
+		buf[x+cid->oldlen/2] = AST_MULAW(ubuf[x]);
 	while(mylen >= 80) {
 		olen = mylen;
 		res = fsk_serie(&cid->fskd, buf, &mylen, &b);
@@ -239,7 +241,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len)
 					}
 				} else {
 					/* SDMF */
-					strncpy(cid->number, cid->rawdata + 8, sizeof(cid->number));
+					strncpy(cid->number, cid->rawdata + 8, sizeof(cid->number)-1);
 				}
 				/* Update flags */
 				cid->flags = 0;
@@ -346,57 +348,6 @@ static void callerid_genmsg(char *msg, int size, char *number, char *name, int f
 	
 }
 
-static inline float callerid_getcarrier(float *cr, float *ci, int bit)
-{
-	/* Move along.  There's nothing to see here... */
-	float t;
-	t = *cr * dr[bit] - *ci * di[bit];
-	*ci = *cr * di[bit] + *ci * dr[bit];
-	*cr = t;
-	
-	t = 2.0 - (*cr * *cr + *ci * *ci);
-	*cr *= t;
-	*ci *= t;
-	return *cr;
-}	
-
-#define PUT_BYTE(a) do { \
-	*(buf++) = (a); \
-	bytes++; \
-} while(0)
-
-#define PUT_AUDIO_SAMPLE(y) do { \
-	int index = (short)(rint(8192.0 * (y))); \
-	*(buf++) = ast_lin2mu[index + 32768]; \
-	bytes++; \
-} while(0)
-	
-#define PUT_CLID_MARKMS do { \
-	int x; \
-	for (x=0;x<8;x++) \
-		PUT_AUDIO_SAMPLE(callerid_getcarrier(&cr, &ci, 1)); \
-} while(0)
-
-#define PUT_CLID_BAUD(bit) do { \
-	while(scont < clidsb) { \
-		PUT_AUDIO_SAMPLE(callerid_getcarrier(&cr, &ci, bit)); \
-		scont += 1.0; \
-	} \
-	scont -= clidsb; \
-} while(0)
-
-
-#define PUT_CLID(byte) do { \
-	int z; \
-	unsigned char b = (byte); \
-	PUT_CLID_BAUD(0); 	/* Start bit */ \
-	for (z=0;z<8;z++) { \
-		PUT_CLID_BAUD(b & 1); \
-		b >>= 1; \
-	} \
-	PUT_CLID_BAUD(1);	/* Stop bit */ \
-} while(0);	
-
 int callerid_generate(unsigned char *buf, char *number, char *name, int flags, int callwaiting)
 {
 	int bytes=0;
@@ -486,7 +437,7 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 			return 0;
 		}
 	} else {
-		strncpy(tmp, instr, sizeof(tmp));
+		strncpy(tmp, instr, sizeof(tmp)-1);
 		ast_shrink_phone_number(tmp);
 		if (ast_isphonenumber(tmp)) {
 			/* Assume it's just a location */
@@ -508,7 +459,7 @@ static int __ast_callerid_generate(unsigned char *buf, char *callerid, int callw
 	char *n, *l;
 	if (!callerid)
 		return callerid_generate(buf, NULL, NULL, 0, callwaiting);
-	strncpy(tmp, callerid, sizeof(tmp));
+	strncpy(tmp, callerid, sizeof(tmp)-1);
 	if (ast_callerid_parse(tmp, &n, &l)) {
 		ast_log(LOG_WARNING, "Unable to parse '%s' into CallerID name & number\n", callerid);
 		return callerid_generate(buf, NULL, NULL, 0, callwaiting);
