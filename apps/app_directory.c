@@ -130,6 +130,10 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 	int found=0;
 	char *start, *pos, *conv,*stringp=NULL;
 	char fn[256];
+	if (!context || !strlen(context)) {
+		ast_log(LOG_WARNING, "Directory must be called with an argument (context in which to interpret extensions)\n");
+		return -1;
+	}
 	memset(ext, 0, sizeof(ext));
 	ext[0] = digit;
 	res = 0;

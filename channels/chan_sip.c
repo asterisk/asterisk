@@ -232,7 +232,6 @@ struct sip_peer {
 	int expire;
 	int expirey;
 	int capability;
-	int nonCodecCapability;
 	int insecure;
 	int nat;
 	int canreinvite;
@@ -397,7 +396,6 @@ static int create_addr(struct sip_pvt *r, char *peer)
 		if (!strcasecmp(p->name, peer)) {
 			found++;
 			r->capability = p->capability;
-			r->nonCodecCapability = p->nonCodecCapability;
 			r->nat = p->nat;
 			if (r->rtp) {
 				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", r->nat);
