@@ -329,7 +329,11 @@ static int setformat(void)
 		return -1;
 	}
 	res = ioctl(fd, SNDCTL_DSP_SETDUPLEX, 0);
-	if (res >= 0) {
+	
+	/* Check to see if duplex set (FreeBSD Bug)*/
+	res = ioctl(fd, SNDCTL_DSP_GETCAPS, &fmt);
+	
+	if ((fmt & DSP_CAP_DUPLEX) && !res) {
 		if (option_verbose > 1) 
 			ast_verbose(VERBOSE_PREFIX_2 "Console is full duplex\n");
 		full_duplex = -1;
