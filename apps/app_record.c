@@ -183,6 +183,14 @@ static int record_exec(struct ast_channel *chan, void *data)
 	                     	        	}
 					}
 				}
+				if (f->frametype == AST_FRAME_VIDEO) {
+					res = ast_writestream(s, f);
+					
+					if (res) {
+						ast_log(LOG_WARNING, "Problem writing frame\n");
+						break;
+					}
+				}
 				if ((f->frametype == AST_FRAME_DTMF) &&
 					(f->subclass == '#')) {
 					ast_frfree(f);

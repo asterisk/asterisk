@@ -65,6 +65,11 @@ struct ast_format {
 struct ast_filestream {
 	/* Everybody reserves a block of AST_RESERVED_POINTERS pointers for us */
 	struct ast_format *fmt;
+	int flags;
+	mode_t mode;
+	char *filename;
+	/* Video file stream */
+	struct ast_filestream *vfs;
 	/* Transparently translate from another format -- just once */
 	struct ast_trans_pvt *trans;
 	struct ast_tranlator_pvt *tr;
@@ -157,11 +162,13 @@ int ast_format_unregister(char *name)
 int ast_stopstream(struct ast_channel *tmp)
 {
 	/* Stop a running stream if there is one */
-	if (!tmp->stream) 
-		return 0;
-	ast_closestream(tmp->stream);
-	if (tmp->oldwriteformat && ast_set_write_format(tmp, tmp->oldwriteformat))
-		ast_log(LOG_WARNING, "Unable to restore format back to %d\n", tmp->oldwriteformat);
+	if (tmp->vstream)
+		ast_closestream(tmp->vstream);
+	if (tmp->stream) {
+		ast_closestream(tmp->stream);
+		if (tmp->oldwriteformat && ast_set_write_format(tmp, tmp->oldwriteformat))
+			ast_log(LOG_WARNING, "Unable to restore format back to %d\n", tmp->oldwriteformat);
+	}
 	return 0;
 }
 
@@ -169,11 +176,29 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 {
 	struct ast_frame *trf;
 	int res = -1;
-	if (f->frametype != AST_FRAME_VOICE) {
+	int alt=0;
+	if (f->frametype == AST_FRAME_VIDEO) {
+		if (fs->fmt->format < AST_FORMAT_MAX_AUDIO) {
+			/* This is the audio portion.  Call the video one... */
+			if (!fs->vfs && fs->filename) {
+				/* XXX Support other video formats XXX */
+				char *type = "h263";
+				fs->vfs = ast_writefile(fs->filename, type, NULL, fs->flags, 0, fs->mode);
+				ast_log(LOG_DEBUG, "Opened video output file\n");
+			}
+			if (fs->vfs)
+				return ast_writestream(fs->vfs, f);
+			/* Ignore */
+			return 0;				
+		} else {
+			/* Might / might not have mark set */
+			alt = 1;
+		}
+	} else if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Tried to write non-voice frame\n");
 		return -1;
 	}
-	if ((fs->fmt->format & f->subclass) == f->subclass) {
+	if (((fs->fmt->format | alt) & f->subclass) == f->subclass) {
 		res =  fs->fmt->write(fs, f);
 		if (res < 0) 
 			ast_log(LOG_WARNING, "Natural write failed\n");
@@ -335,7 +360,8 @@ static int ast_filehelper(char *filename, char *filename2, char *fmt, int action
 								ast_log(LOG_WARNING, "Out of memory\n");
 							break;
 						case ACTION_OPEN:
-							if ((ret < 0) && ((chan->writeformat & f->format))) {
+							if ((ret < 0) && ((chan->writeformat & f->format) ||
+										((f->format >= AST_FORMAT_MAX_AUDIO) && fmt))) {
 								ret = open(fn, O_RDONLY);
 								if (ret >= 0) {
 									s = f->open(ret);
@@ -343,7 +369,11 @@ static int ast_filehelper(char *filename, char *filename2, char *fmt, int action
 										s->lasttimeout = -1;
 										s->fmt = f;
 										s->trans = NULL;
-										chan->stream = s;
+										s->filename = NULL;
+										if (s->fmt->format < AST_FORMAT_MAX_AUDIO)
+											chan->stream = s;
+										else
+											chan->vstream = s;
 									} else {
 										close(ret);
 										ast_log(LOG_WARNING, "Unable to open fd on %s\n", filename);
@@ -397,11 +427,11 @@ struct ast_filestream *ast_openstream(struct ast_channel *chan, char *filename, 
 	if (chan->generator)
 		ast_deactivate_generator(chan);
 	if (preflang && strlen(preflang)) {
-		snprintf(filename2, sizeof(filename2), "%s-%s", filename, preflang);
+		snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
 		fmts = ast_fileexists(filename2, NULL, NULL);
 		if (fmts < 1) {
 			strncpy(lang2, preflang, sizeof(lang2)-1);
-			snprintf(filename2, sizeof(filename2), "%s-%s", filename, lang2);
+			snprintf(filename2, sizeof(filename2), "%s/%s", lang2, filename);
 			fmts = ast_fileexists(filename2, NULL, NULL);
 		}
 	}
@@ -420,6 +450,49 @@ struct ast_filestream *ast_openstream(struct ast_channel *chan, char *filename, 
  	fd = ast_filehelper(filename2, (char *)chan, NULL, ACTION_OPEN);
 	if(fd >= 0)
 		return chan->stream;
+	return NULL;
+}
+
+struct ast_filestream *ast_openvstream(struct ast_channel *chan, char *filename, char *preflang)
+{
+	/* This is a fairly complex routine.  Essentially we should do 
+	   the following:
+	   
+	   1) Find which file handlers produce our type of format.
+	   2) Look for a filename which it can handle.
+	   3) If we find one, then great.  
+	   4) If not, see what files are there
+	   5) See what we can actually support
+	   6) Choose the one with the least costly translator path and
+	       set it up.
+		   
+	*/
+	int fd = -1;
+	int fmts = -1;
+	char filename2[256];
+	char lang2[MAX_LANGUAGE];
+	/* XXX H.263 only XXX */
+	char *fmt = "h263";
+	if (preflang && strlen(preflang)) {
+		snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
+		fmts = ast_fileexists(filename2, fmt, NULL);
+		if (fmts < 1) {
+			strncpy(lang2, preflang, sizeof(lang2)-1);
+			snprintf(filename2, sizeof(filename2), "%s/%s", lang2, filename);
+			fmts = ast_fileexists(filename2, fmt, NULL);
+		}
+	}
+	if (fmts < 1) {
+		strncpy(filename2, filename, sizeof(filename2)-1);
+		fmts = ast_fileexists(filename2, fmt, NULL);
+	}
+	if (fmts < 1) {
+		return NULL;
+	}
+ 	fd = ast_filehelper(filename2, (char *)chan, fmt, ACTION_OPEN);
+	if(fd >= 0)
+		return chan->vstream;
+	ast_log(LOG_WARNING, "File %s has video but couldn't be opened\n", filename);
 	return NULL;
 }
 
@@ -451,6 +524,34 @@ static int ast_readaudio_callback(void *data)
 	return 1;
 }
 
+static int ast_readvideo_callback(void *data)
+{
+	struct ast_filestream *s = data;
+	struct ast_frame *fr;
+	int whennext = 0;
+
+	while(!whennext) {
+		fr = s->fmt->read(s, &whennext);
+		if (fr) {
+			if (ast_write(s->owner, fr)) {
+				ast_log(LOG_WARNING, "Failed to write frame\n");
+				s->owner->vstreamid = -1;
+				return 0;
+			}
+		} else {
+			/* Stream has finished */
+			s->owner->vstreamid = -1;
+			return 0;
+		}
+	}
+	if (whennext != s->lasttimeout) {
+		s->owner->vstreamid = ast_sched_add(s->owner->sched, whennext/8, ast_readvideo_callback, s);
+		s->lasttimeout = whennext;
+		return 0;
+	}
+	return 1;
+}
+
 int ast_applystream(struct ast_channel *chan, struct ast_filestream *s)
 {
 	s->owner = chan;
@@ -459,7 +560,10 @@ int ast_applystream(struct ast_channel *chan, struct ast_filestream *s)
 
 int ast_playstream(struct ast_filestream *s)
 {
-	ast_readaudio_callback(s);
+	if (s->fmt->format < AST_FORMAT_MAX_AUDIO)
+		ast_readaudio_callback(s);
+	else
+		ast_readvideo_callback(s);
 	return 0;
 }
 
@@ -498,10 +602,19 @@ int ast_closestream(struct ast_filestream *f)
 	/* Stop a running stream if there is one */
 	if (f->owner) {
 		f->owner->stream = NULL;
-		if (f->owner->streamid > -1)
-			ast_sched_del(f->owner->sched, f->owner->streamid);
-		f->owner->streamid = -1;
+		if (f->fmt->format < AST_FORMAT_MAX_AUDIO) {
+			if (f->owner->streamid > -1)
+				ast_sched_del(f->owner->sched, f->owner->streamid);
+			f->owner->streamid = -1;
+		} else {
+			if (f->owner->vstreamid > -1)
+				ast_sched_del(f->owner->sched, f->owner->vstreamid);
+			f->owner->vstreamid = -1;
+		}
 	}
+	if (f->filename)
+		free(f->filename);
+	f->filename = NULL;
 	f->fmt->close(f);
 	return 0;
 }
@@ -565,12 +678,22 @@ int ast_filecopy(char *filename, char *filename2, char *fmt)
 int ast_streamfile(struct ast_channel *chan, char *filename, char *preflang)
 {
 	struct ast_filestream *fs;
+	struct ast_filestream *vfs;
 
 	fs = ast_openstream(chan, filename, preflang);
+	vfs = ast_openvstream(chan, filename, preflang);
+	if (vfs)
+		ast_log(LOG_DEBUG, "Ooh, found a video stream, too\n");
+	else
+		ast_log(LOG_DEBUG, "Waaah, '%s' has no video stream :(\n", filename);
 	if(fs){
 		if(ast_applystream(chan, fs))
 			return -1;
+		if(vfs && ast_applystream(chan, vfs))
+			return -1;
 		if(ast_playstream(fs))
+			return -1;
+		if(vfs && ast_playstream(vfs))
 			return -1;
 #if 1
 		if (option_verbose > 2)
@@ -612,6 +735,10 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 				if ((fs = f->rewrite(fd, comment))) {
 					fs->trans = NULL;
 					fs->fmt = f;
+					fs->flags = flags;
+					fs->mode = mode;
+					fs->filename = strdup(filename);
+					fs->vfs = NULL;
 				} else {
 					ast_log(LOG_WARNING, "Unable to rewrite %s\n", fn);
 					close(fd);

@@ -460,6 +460,8 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		}
 	} else {
 		/* Video -- samples is # of samples vs. 90000 */
+		if (!rtp->lastividtimestamp)
+			rtp->lastividtimestamp = timestamp;
 		rtp->f.samples = timestamp - rtp->lastividtimestamp;
 		rtp->lastividtimestamp = timestamp;
 		if (mark)

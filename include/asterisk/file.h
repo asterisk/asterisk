@@ -171,7 +171,7 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f);
  */
 int ast_closestream(struct ast_filestream *f);
 
-//! Opens stream for use in seeking, playing, and writing
+//! Opens stream for use in seeking, playing
 /*!
  * \param chan channel to work with
  * \param filename to use
@@ -179,6 +179,15 @@ int ast_closestream(struct ast_filestream *f);
  * Returns a ast_filestream pointer if it opens the file, NULL on error
  */
 struct ast_filestream *ast_openstream(struct ast_channel *chan, char *filename, char *preflang);
+
+//! Opens stream for use in seeking, playing
+/*!
+ * \param chan channel to work with
+ * \param filename to use
+ * \param preflang prefered language to use
+ * Returns a ast_filestream pointer if it opens the file, NULL on error
+ */
+struct ast_filestream *ast_openvstream(struct ast_channel *chan, char *filename, char *preflang);
 
 //! Applys a open stream to a channel.
 /*!

@@ -116,6 +116,10 @@ struct ast_channel {
 	int streamid;				
 	/*! Stream itself. */
 	struct ast_filestream *stream;		
+	/*! For streaming playback, the schedule ID */
+	int vstreamid;				
+	/*! Stream itself. */
+	struct ast_filestream *vstream;		
 	/*! Original writer format */
 	int oldwriteformat;			
 	
