@@ -550,6 +550,8 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 		if (!fs) {
 			res = -1;
 			fdprintf(agi->fd, "200 result=%d (writefile)\n", res);
+			if (sildet)
+				ast_dsp_free(sildet);
 			return RESULT_FAILURE;
 		}
 		
@@ -566,12 +568,16 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 			if (res < 0) {
 				ast_closestream(fs);
 				fdprintf(agi->fd, "200 result=%d (waitfor) endpos=%ld\n", res,sample_offset);
+				if (sildet)
+					ast_dsp_free(sildet);
 				return RESULT_FAILURE;
 			}
 			f = ast_read(chan);
 			if (!f) {
 				fdprintf(agi->fd, "200 result=%d (hangup) endpos=%ld\n", 0, sample_offset);
 				ast_closestream(fs);
+				if (sildet)
+					ast_dsp_free(sildet);
 				return RESULT_FAILURE;
 			}
 			switch(f->frametype) {
@@ -582,6 +588,8 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 					fdprintf(agi->fd, "200 result=%d (dtmf) endpos=%ld\n", f->subclass, sample_offset);
 					ast_closestream(fs);
 					ast_frfree(f);
+					if (sildet)
+						ast_dsp_free(sildet);
 					return RESULT_SUCCESS;
 				}
 				break;
