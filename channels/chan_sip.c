@@ -351,6 +351,8 @@ static struct sip_registry *registrations;
 
 static int sipsock  = -1;
 static int globalnat = 0;
+static int globalcanreinvite = REINVITE_INVITE;
+
 
 static struct sockaddr_in bindaddr;
 
@@ -1288,7 +1290,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	else
 		strncpy(p->callid, callid, sizeof(p->callid) - 1);
 	/* Assume reinvite OK and via INVITE */
-	p->canreinvite = REINVITE_INVITE;
+	p->canreinvite = globalcanreinvite;
 	p->dtmfmode = globaldtmfmode;
 	if (p->dtmfmode & SIP_DTMF_RFC2833)
 		p->noncodeccapability |= AST_RTP_DTMF;
@@ -5059,6 +5061,7 @@ static int reload_config(void)
 	strncpy(context, "default", sizeof(context) - 1);
 	strcpy(language, "");
 	strcpy(fromdomain, "");
+	globalcanreinvite = REINVITE_INVITE;
 	v = ast_variable_browse(cfg, "general");
 	while(v) {
 		/* Create the interface list */
@@ -5085,6 +5088,11 @@ static int reload_config(void)
 			strncpy(fromdomain, v->value, sizeof(fromdomain)-1);
 		} else if (!strcasecmp(v->name, "nat")) {
 			globalnat = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "canreinvite")) {
+			if (!strcasecmp(v->value, "update"))
+				globalcanreinvite = REINVITE_UPDATE;
+			else
+				globalcanreinvite = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "maxexpirey") || !strcasecmp(v->name, "maxexpiry")) {
 			max_expiry = atoi(v->value);
 			if (max_expiry < 1)
