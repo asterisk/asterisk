@@ -1975,7 +1975,6 @@ static struct ast_channel *ast_iax2_new(struct chan_iax2_pvt *i, int state, int 
 			strncpy(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode)-1);
 		if (i->amaflags)
 			tmp->amaflags = i->amaflags;
-		((struct chan_iax2_pvt *)tmp->pvt->pvt)->notransfer = i->notransfer;
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);
 		tmp->adsicpe = i->peeradsicpe;
