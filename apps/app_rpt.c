@@ -3,7 +3,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Radio Repeater / Remote Base program 
- *  version 0.9 6/26/04
+ *  version 0.10 6/26/04
  * 
  * Copyright (C) 2002-2004, Jim Dixon, WB6NIL
  *
@@ -110,7 +110,7 @@ enum {REM_LOWPWR,REM_MEDPWR,REM_HIPWR};
 #include <tonezone.h>
 #include <linux/zaptel.h>
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.9  06/26/2004";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.10  06/26/2004";
 static char *app = "Rpt";
 
 static char *synopsis = "Radio Repeater/Remote Base Control System";
@@ -1104,8 +1104,6 @@ int	seq;
 struct rpt_link *l;
 struct	ast_frame wf;
 
-	/* if we are a remote, we dont want to do this */
-	if (myrpt->remote) return;
 	wf.frametype = AST_FRAME_TEXT;
 	wf.subclass = 0;
 	wf.offset = 0;
@@ -1169,6 +1167,27 @@ struct	ast_frame wf;
 		return;
 	}
 	ast_mutex_lock(&myrpt->lock);
+	if (myrpt->callmode == 1)
+	{
+		myrpt->exten[myrpt->cidx++] = c;
+		myrpt->exten[myrpt->cidx] = 0;
+		/* if this exists */
+		if (ast_exists_extension(myrpt->pchannel,myrpt->ourcontext,myrpt->exten,1,NULL))
+		{
+			myrpt->callmode = 2;
+			rpt_telemetry(myrpt,PROC,NULL);
+		}
+		/* if can continue, do so */
+		if (!ast_canmatch_extension(myrpt->pchannel,myrpt->ourcontext,myrpt->exten,1,NULL)) 
+		{
+			/* call has failed, inform user */
+			myrpt->callmode = 4;
+		}
+	}
+	if ((myrpt->callmode == 2) || (myrpt->callmode == 3))
+	{
+		myrpt->mydtmf = c;
+	}
 	if (c == '*')
 	{
 		myrpt->rem_dtmfidx = 0;
