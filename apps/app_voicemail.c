@@ -3167,6 +3167,7 @@ static int load_config(void)
 	while(cur) {
 		l = cur;
 		cur = cur->next;
+		l->alloced = 1;
 		free_user(l);
 	}
 	zcur = zones;

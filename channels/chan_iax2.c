@@ -5210,6 +5210,7 @@ static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
 {
 	struct iax2_peer *peer;
 	struct iax2_peer *prev;
+	struct ast_ha *oldha = NULL;
 	int maskfound=0;
 	int format;
 	int found=0;
@@ -5225,6 +5226,8 @@ static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
 	}
 	if (peer) {
 		found++;
+		oldha = peer->ha;
+		peer->ha = NULL;
 		/* Already in the list, remove it and it will be added back (or FREE'd) */
 		if (prev) {
 			prev->next = peer->next;
@@ -5351,6 +5354,8 @@ static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
 		if (!found && peer->dynamic)
 			reg_source_db(peer);
 	}
+	if (oldha)
+		ast_free_ha(oldha);
 	return peer;
 }
 
@@ -5358,6 +5363,8 @@ static struct iax2_user *build_user(char *name, struct ast_variable *v)
 {
 	struct iax2_user *prev, *user;
 	struct iax2_context *con, *conl = NULL;
+	struct ast_ha *oldha = NULL;
+	struct iax2_context *oldcon = NULL;
 	int format;
 	int found;
 	
@@ -5373,6 +5380,10 @@ static struct iax2_user *build_user(char *name, struct ast_variable *v)
 	}
 	if (user) {
 		found++;
+		oldha = user->ha;
+		oldcon = user->contexts;
+		user->ha = NULL;
+		user->contexts = NULL;
 		/* Already in the list, remove it and it will be added back (or FREE'd) */
 		if (prev) {
 			prev->next = user->next;
@@ -5458,6 +5469,10 @@ static struct iax2_user *build_user(char *name, struct ast_variable *v)
 		}
 		user->delme = 0;
 	}
+	if (oldha)
+		ast_free_ha(oldha);
+	if (oldcon)
+		free_context(oldcon);
 	return user;
 }
 
@@ -5520,6 +5535,7 @@ static void prune_peers(void){
 	for (peer=peerl.peers;peer;) {
 		peernext = peer->next;
 		if (peer->delme) {
+			ast_free_ha(peer->ha);
 			for (x=0;x<IAX_MAX_CALLS;x++) {
 				ast_mutex_lock(&iaxsl[x]);
 				if (iaxs[x] && (iaxs[x]->peerpoke == peer)) {

@@ -4066,6 +4066,7 @@ void __ast_context_destroy(struct ast_context *con, char *registrar, int lock)
 	struct ast_include *tmpi, *tmpil= NULL;
 	struct ast_sw *sw, *swl= NULL;
 	struct ast_exten *e, *el, *en;
+	struct ast_ignorepat *ipi, *ipl = NULL;
 	if (lock)
 		ast_mutex_lock(&conlock);
 	tmp = contexts;
@@ -4090,7 +4091,12 @@ void __ast_context_destroy(struct ast_context *con, char *registrar, int lock)
 				tmpil = tmpi;
 				tmpi = tmpi->next;
 				free(tmpil);
-				tmpil = tmpi;
+			}
+			for (ipi = tmp->ignorepats; ipi; ) {
+				/* Free includes */
+				ipl = ipi;
+				ipi = ipi->next;
+				free(ipl);
 			}
 			for (sw = tmp->alts; sw; ) {
 				swl = sw;
