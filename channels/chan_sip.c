@@ -6592,7 +6592,7 @@ int unload_module()
 		iflist = NULL;
 		ast_mutex_unlock(&iflock);
 	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
+		ast_log(LOG_WARNING, "Unable to lock the interface list\n");
 		return -1;
 	}
 	if (!ast_mutex_lock(&monlock)) {
@@ -6620,7 +6620,7 @@ int unload_module()
 		iflist = NULL;
 		ast_mutex_unlock(&iflock);
 	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
+		ast_log(LOG_WARNING, "Unable to lock the interface list\n");
 		return -1;
 	}
 		
