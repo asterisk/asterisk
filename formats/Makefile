@@ -19,7 +19,7 @@ FORMAT_LIBS+=format_jpeg.so
 #
 # G723 simple frame is depricated
 #
-#FORMAT_LIBS+=format_g723.so
+FORMAT_LIBS+=format_g723.so
 
 GSMLIB=../codecs/gsm/lib/libgsm.a
 
