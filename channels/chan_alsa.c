@@ -1006,7 +1006,7 @@ int load_module()
 	int res;
 	int x;
 	int flags;
-	struct ast_config *cfg = ast_load(config);
+	struct ast_config *cfg;
 	struct ast_variable *v;
 	res = pipe(cmd);
 	res = pipe(sndcmd);
@@ -1039,7 +1039,7 @@ int load_module()
 	}
 	for (x=0;x<sizeof(myclis)/sizeof(struct ast_cli_entry); x++)
 		ast_cli_register(myclis + x);
-	if (cfg) {
+	if ((cfg = ast_load(config)) {
 		v = ast_variable_browse(cfg, "general");
 		while(v) {
 			if (!strcasecmp(v->name, "autoanswer"))
