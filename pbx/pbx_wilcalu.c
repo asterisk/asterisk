@@ -58,7 +58,9 @@ static void *autodial(void *ignore)
 {
 	pthread_t dialstring_thread;
 	char * sendbufptr=sendbuf;
-	int fd=open(dialfile,O_RDONLY);
+	int fd=open(dialfile,O_RDONLY|O_NONBLOCK);
+	int flags = fcntl(fd, F_GETFL);
+	fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 	printf("Entered Wil-Calu fd=%d\n",fd);
 	if(fd<0) {
 		printf("Autodial: Unable to open file\n");
@@ -75,7 +77,7 @@ static void *autodial(void *ignore)
 		bytes=read(fd,buf,256);
 		buf[(int)bytes]=0;
 
-		if(bytes){
+		if(bytes>0){
 			int x;
 			printf("WilCalu : Read Buf %s\n",buf);
 			sendbufptr=sendbuf;
