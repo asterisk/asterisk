@@ -1464,14 +1464,17 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 		command = strsep(&params, "|");
 		caller = strsep(&params, "|");
 		
-		ast_mutex_lock(&conflock);
+		if (!command) {
+			ast_log(LOG_WARNING, "MeetmeAdmin requires a command!\n");
+			ast_mutex_unlock(&conflock);
+			return -1;
+		}
 		cnf = confs;
 		while (cnf) {
 			if (strcmp(cnf->confno, conf) == 0) 
 				break;
 			cnf = cnf->next;
 		}
-		ast_mutex_unlock(&conflock);
 		
 		if (caller)
 			user = find_user(cnf, caller);
