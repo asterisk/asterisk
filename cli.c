@@ -19,6 +19,7 @@
 #include <asterisk/module.h>
 #include <asterisk/channel.h>
 #include <asterisk/channel_pvt.h>
+#include <asterisk/manager.h>
 #include <asterisk/utils.h>
 #include <asterisk/lock.h>
 #include <sys/signal.h>
@@ -42,7 +43,7 @@ void ast_cli(int fd, char *fmt, ...)
 	va_start(ap, fmt);
 	vasprintf(&stuff, fmt, ap);
 	va_end(ap);
-	write(fd, stuff, strlen(stuff));
+	ast_carefulwrite(fd, stuff, strlen(stuff), 100);
 	free(stuff);
 }
 
