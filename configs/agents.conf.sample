@@ -3,6 +3,10 @@
 ;
 ;
 [agents]
+; Define the default musiconhold for agents
+; musiconhold => music_class
+;
+;musiconhold => default
 ;
 ; This section contains the agent definitions, in the form:
 ;
