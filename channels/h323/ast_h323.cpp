@@ -908,6 +908,9 @@ int h323_set_capability(int cap, int dtmfMode)
 		g711aCap->SetTxFramesInPacket(g711Frames);
 	} 
 
+	if (h323debug) {
+		cout <<  "Allowed Codecs:\n\t" << setprecision(2) << endPoint->GetCapabilities() << endl;
+	}
 	return 0;
 }
 
