@@ -6109,33 +6109,6 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 		ast_log(LOG_WARNING, "Channel requested with no data\n");
 		return NULL;
 	}
-#ifdef ZAPATA_PRI
-	if (dest[0] == 'c') {
-		/* This is requesting a specific CRV.  The format after the C is trunkgroup:CRV, so grab them */
-		/* Retrieve the group number */
-		char *stringp=NULL;
-		stringp=dest + 1;
-		s = strsep(&stringp, "/");
-		if (((res = sscanf(s, "%d:%d%c%d", &trunkgroup, &crv, &opt, &y)) < 2) || (trunkgroup < 1) || (crv < 1)) {
-			ast_log(LOG_WARNING, "Unable to determine trunk group and CRV for data %s\n", (char *)data);
-			return NULL;
-		}
-		res--;
-		for (x=0;x<NUM_SPANS;x++) {
-			if (pris[x].trunkgroup == trunkgroup) {
-				pri = pris + x;
-				lock = &pri->lock;
-				break;
-			}
-		}
-		if (!pri) {
-			ast_log(LOG_WARNING, "Unable to find trunk group %d\n", trunkgroup);
-			return NULL;
-		}
-		channelmatch = crv;
-		p = pris[x].crvs;
-	} else
-#endif	
 	if (toupper(dest[0]) == 'G' || toupper(dest[0])=='R') {
 		/* Retrieve the group number */
 		char *stringp=NULL;
@@ -6172,7 +6145,30 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 		if (!strcasecmp(s, "pseudo")) {
 			/* Special case for pseudo */
 			x = CHAN_PSEUDO;
-		} else if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1) {
+		} 
+#ifdef ZAPATA_PRI
+		else if ((res = sscanf(s, "%d:%d%c%d", &trunkgroup, &crv, &opt, &y)) > 1) {
+			if ((trunkgroup < 1) || (crv < 1)) {
+				ast_log(LOG_WARNING, "Unable to determine trunk group and CRV for data %s\n", (char *)data);
+				return NULL;
+			}
+			res--;
+			for (x=0;x<NUM_SPANS;x++) {
+				if (pris[x].trunkgroup == trunkgroup) {
+					pri = pris + x;
+					lock = &pri->lock;
+					break;
+				}
+			}
+			if (!pri) {
+				ast_log(LOG_WARNING, "Unable to find trunk group %d\n", trunkgroup);
+				return NULL;
+			}
+			channelmatch = crv;
+			p = pris[x].crvs;
+		}
+#endif	
+		else if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1) {
 			ast_log(LOG_WARNING, "Unable to determine channel for data %s\n", (char *)data);
 			return NULL;
 		}
