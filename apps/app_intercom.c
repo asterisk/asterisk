@@ -35,7 +35,11 @@
 #endif
 #include <netinet/in.h>
 
+#ifdef __OpenBSD__
+#define DEV_DSP "/dev/audio"
+#else
 #define DEV_DSP "/dev/dsp"
+#endif
 
 /* Number of 32 byte buffers -- each buffer is 2 ms */
 #define BUFFER_SIZE 32

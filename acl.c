@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <asterisk/acl.h>
 #include <asterisk/logger.h>
+#include <asterisk/channel.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -28,6 +29,11 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/ioctl.h>
+#ifdef __OpenBSD__
+#include <net/route.h>
+
+static ast_mutex_t routeseq_lock = AST_MUTEX_INITIALIZER;
+#endif
 
 #define AST_SENSE_DENY			0
 #define AST_SENSE_ALLOW			1
@@ -158,6 +164,87 @@ int ast_lookup_iface(char *iface, struct in_addr *address) {
 
 int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 {
+#ifdef __OpenBSD__
+	struct sockaddr_in *sin;
+	struct sockaddr *sa;
+	struct {
+		struct	rt_msghdr m_rtm;
+		char	m_space[512];
+	} m_rtmsg;
+	char *cp, *p = ast_strdupa(inet_ntoa(*them));
+	int i, l, s, seq;
+	pid_t pid = getpid();
+	static int routeseq;	/* Protected by "routeseq_lock" mutex */
+
+	memset(us, 0, sizeof(struct in_addr));
+
+	memset(&m_rtmsg, 0, sizeof(m_rtmsg));
+	m_rtmsg.m_rtm.rtm_type = RTM_GET;
+	m_rtmsg.m_rtm.rtm_flags = RTF_UP | RTF_HOST;
+	m_rtmsg.m_rtm.rtm_version = RTM_VERSION;
+	ast_mutex_lock(&routeseq_lock);
+	seq = ++routeseq;
+	ast_mutex_unlock(&routeseq_lock);
+	m_rtmsg.m_rtm.rtm_seq = seq;
+	m_rtmsg.m_rtm.rtm_addrs = RTA_IFA | RTA_DST;
+	m_rtmsg.m_rtm.rtm_msglen = sizeof(struct rt_msghdr) + sizeof(struct sockaddr_in);
+	sin = (struct sockaddr_in *)m_rtmsg.m_space;
+	sin->sin_family = AF_INET;
+	sin->sin_len = sizeof(struct sockaddr_in);
+	sin->sin_addr = *them;
+
+	if ((s = socket(PF_ROUTE, SOCK_RAW, 0)) < 0) {
+		ast_log(LOG_ERROR, "Error opening routing socket\n");
+		return -1;
+	}
+	if (write(s, (char *)&m_rtmsg, m_rtmsg.m_rtm.rtm_msglen) < 0) {
+		ast_log(LOG_ERROR, "Error writing to routing socket: %s\n", strerror(errno));
+		close(s);
+		return -1;
+	}
+	do {
+		l = read(s, (char *)&m_rtmsg, sizeof(m_rtmsg));
+	} while (l > 0 && (m_rtmsg.m_rtm.rtm_seq != 1 || m_rtmsg.m_rtm.rtm_pid != pid));
+	close(s);
+	if (l < 0) {
+		ast_log(LOG_ERROR, "Error reading from routing socket\n");
+		return -1;
+	}
+
+	if (m_rtmsg.m_rtm.rtm_version != RTM_VERSION) {
+		ast_log(LOG_ERROR, "Unsupported route socket protocol version\n");
+		return -1;
+	}
+
+	if (m_rtmsg.m_rtm.rtm_msglen != l)
+		ast_log(LOG_WARNING, "Message length mismatch, in packet %d, returned %d\n",
+				m_rtmsg.m_rtm.rtm_msglen, l);
+
+	if (m_rtmsg.m_rtm.rtm_errno) {
+		ast_log(LOG_ERROR, "RTM_GET got %s (%d)\n",
+				strerror(m_rtmsg.m_rtm.rtm_errno), m_rtmsg.m_rtm.rtm_errno);
+		return -1;
+	}
+
+	cp = (char *)m_rtmsg.m_space;
+	if (m_rtmsg.m_rtm.rtm_addrs)
+		for (i = 1; i; i <<= 1)
+			if (m_rtmsg.m_rtm.rtm_addrs & i) {
+				sa = (struct sockaddr *)cp;
+				if (i == RTA_IFA && sa->sa_family == AF_INET) {
+					sin = (struct sockaddr_in *)sa;
+					*us = sin->sin_addr;
+					ast_log(LOG_DEBUG, "Found route to %s, output from our address %s.\n", p, inet_ntoa(*us));
+					return 0;
+				}
+				cp += sa->sa_len > 0 ?
+					  (1 + ((sa->sa_len - 1) | (sizeof(long) - 1))) :
+					  sizeof(long);
+			}
+
+	ast_log(LOG_DEBUG, "No route found for address %s!\n", p);
+	return -1;
+#else
 	FILE *PROC;
 	unsigned int remote_ip;
 	int res = 1;
@@ -221,6 +308,5 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 		return -1;
  	}
 	return 0;
+#endif
 }
-
-

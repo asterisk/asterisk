@@ -46,7 +46,11 @@
 #include "answer.h"
 
 /* Which device to use */
+#ifdef __OpenBSD__
+#define DEV_DSP "/dev/audio"
+#else
 #define DEV_DSP "/dev/dsp"
+#endif
 
 /* Lets use 160 sample frames, just like GSM.  */
 #define FRAME_SIZE 160
