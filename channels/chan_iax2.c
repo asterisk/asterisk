@@ -3665,15 +3665,15 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		/* If they have callerid, override the given caller id.  Always store the ANI */
 		if (!ast_strlen_zero(iaxs[callno]->cid_num) || !ast_strlen_zero(iaxs[callno]->cid_name)) {
 			if (user->hascallerid) {
+				iaxs[callno]->calling_tns = 0;
+				iaxs[callno]->calling_ton = 0;
 				strncpy(iaxs[callno]->cid_num, user->cid_num, sizeof(iaxs[callno]->cid_num)-1);
 				strncpy(iaxs[callno]->cid_name, user->cid_name, sizeof(iaxs[callno]->cid_name)-1);
 				iaxs[callno]->calling_pres = 0;
-			} else {
-				iaxs[callno]->calling_pres = AST_PRES_NUMBER_NOT_AVAILABLE;
 			}
-			iaxs[callno]->calling_tns = 0;
-			iaxs[callno]->calling_ton = 0;
 			strncpy(iaxs[callno]->ani, user->cid_num, sizeof(iaxs[callno]->ani)-1);
+		} else {
+			iaxs[callno]->calling_pres = AST_PRES_NUMBER_NOT_AVAILABLE;
 		}
 		if (!ast_strlen_zero(user->accountcode))
 			strncpy(iaxs[callno]->accountcode, user->accountcode, sizeof(iaxs[callno]->accountcode)-1);
