@@ -1,10 +1,26 @@
 ; V6PCI/V12PCI config file for VoiceTronix Hardware
 ; Options
+; cards = number of cards
 ; board = board_number (1, 2, 3, ...)
 ; channel = channel_number (1,2,3...)
 ; mode = fxo|immediate|dialtone -- for type of line and line handling
 ; context = starting context
+; type = v12pci|v6pci|v4pci
+; echocancel = on|off (on by default of v4pci, off by default for others)
+; callerid = on|off (to collect caller ID if available between 1st/2nd rings)
 ; 
+; Gain settings
+; txgain  => Transmit Software Gain (-12 => 12)
+; rxgain  => Receive Software Gain (-12 => 12)
+; txhwgain => Transmit hardware gain (-12 => 12)
+; rxhwgain => Receive Hardware gain (-12 => 12)
+;
+; These are advanced settings and only mentioned for fullnes.
+; bal1  => Hybrid balance codec register 1
+; bal2  => Hybrid balance codec register 2
+; bal3  => Hybrid balance codec register 3
+;
+
 [general]
 type = v12pci
 ;type = v6pci
