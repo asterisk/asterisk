@@ -37,8 +37,8 @@ static char *synopsis = "Play an MP3 file or stream";
 
 static char *descrip = 
 "  MP3Player(location) Executes mpg123 to play the given location\n"
-"  which typically would be a filename or a URL.  Returns -1 on\n"
-"  hangup or 0 otherwise.  User can exit by pressing any key\n.";
+"which typically would be a  filename  or  a URL. Returns  -1  on\n"
+"hangup or 0 otherwise. User can exit by pressing any key\n.";
 
 STANDARD_LOCAL_USER;
 
@@ -47,12 +47,17 @@ LOCAL_USER_DECL;
 static int mp3play(char *filename, int fd)
 {
 	int res;
+	int x;
 	res = fork();
 	if (res < 0) 
 		ast_log(LOG_WARNING, "Fork failed\n");
 	if (res)
 		return res;
 	dup2(fd, STDOUT_FILENO);
+	for (x=0;x<256;x++) {
+		if (x != STDOUT_FILENO)
+			close(x);
+	}
 	/* Execute mpg123, but buffer if it's a net connection */
 	if (strncmp(filename, "http://", 7)) 
 	    execl(MPG_123, MPG_123, "-q", "-s", "-b", "1024", "--mono", "-r", "8000", filename, NULL);
@@ -69,7 +74,7 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 	int fds[2];
 	int rfds[1 + AST_MAX_FDS];
 	int ms = -1;
-	int pid;
+	int pid = -1;
 	int us;
 	int exception;
 	int owriteformat;
@@ -107,11 +112,11 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 		pid = res;
 		/* Order is important -- there's almost always going to be mp3...  we want to prioritize the
 		   user */
-		for (x=0;x<AST_MAX_FDS;x++) 
-			rfds[x] = chan->fds[x];
-		rfds[x] = fds[0];
+		rfds[AST_MAX_FDS] = fds[0];
 		for (;;) {
 			CHECK_BLOCKING(chan);
+			for (x=0;x<AST_MAX_FDS;x++) 
+				rfds[x] = chan->fds[x];
 			res = ast_waitfor_n_fd(rfds, AST_MAX_FDS+1, &ms, &exception);
 			chan->blocking = 0;
 			if (res < 1) {
@@ -177,12 +182,13 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 				break;
 			}
 		}
-		kill(pid, SIGTERM);
 	}
 	close(fds[0]);
 	close(fds[1]);
 	LOCAL_USER_REMOVE(u);
-	if (!res)
+	if (pid > -1)
+		kill(pid, SIGKILL);
+	if (!res && owriteformat)
 		ast_set_write_format(chan, owriteformat);
 	return res;
 }
