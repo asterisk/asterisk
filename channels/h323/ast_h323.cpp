@@ -858,7 +858,8 @@ int h323_set_capability(int cap, int dtmfMode)
 		return 1;
 	}
 
-//	endPoint->RemoveCapabilities("ALL");
+	/* clean up old capabilities list before changing */
+	endPoint->RemoveCapabilities(PStringArray("All"));
 
 	mode = dtmfMode;
 	if (dtmfMode == H323_DTMF_INBAND) {
