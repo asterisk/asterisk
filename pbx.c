@@ -2933,12 +2933,12 @@ static void get_timerange(struct ast_include *i, char *times)
 #if 1
 	s1 = s1 * 30 + s2/2;
 	if ((s1 < 0) || (s1 >= 24*30)) {
-		ast_log(LOG_WARNING, "%s isn't a valid star time. Assuming no time.\n", times);
+		ast_log(LOG_WARNING, "%s isn't a valid start time. Assuming no time.\n", times);
 		return;
 	}
 	e1 = e1 * 30 + e2/2;
-	if ((e1 < 0) || (e2 >= 24*30)) {
-		ast_log(LOG_WARNING, "%s isn't a valid start time. Assuming no time.\n", times);
+	if ((e1 < 0) || (e1 >= 24*30)) {
+		ast_log(LOG_WARNING, "%s isn't a valid end time. Assuming no time.\n", e);
 		return;
 	}
 	/* Go through the time and enable each appropriate bit */
