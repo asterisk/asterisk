@@ -259,11 +259,13 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	sin.sin_addr = *them;
 	if (connect(s, (struct sockaddr *)&sin, sizeof(sin))) {
 		ast_log(LOG_WARNING, "Cannot connect\n");
+		close(s);
 		return -1;
 	}
 	slen = sizeof(sin);
 	if (getsockname(s, (struct sockaddr *)&sin, &slen)) {
 		ast_log(LOG_WARNING, "Cannot get socket name\n");
+		close(s);
 		return -1;
 	}
 	close(s);
