@@ -62,8 +62,6 @@ static char *descrip =
 "      'T' -- to allow the calling user to transfer the call.\n"
 "      'r' -- indicate ringing to the calling party, pass no audio until answered.\n"
 "      'm' -- provide hold music to the calling party until answered.\n"
-"      'd' -- data-quality (modem) call (minimum delay).\n"
-"      'c' -- clear-channel data call (PRI-PRI only).\n"
 "      'H' -- allow caller to hang up by hitting *.\n"
 "      'C' -- reset call detail record for this call.\n"
 "      'P[(x)]' -- privacy mode, using 'x' as database if provided.\n"
@@ -85,7 +83,6 @@ struct localuser {
 	int allowredirect_out;
 	int ringbackonly;
 	int musiconhold;
-	int dataquality;
 	int allowdisconnect;
 	struct localuser *next;
 };
@@ -350,7 +347,6 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	int privacy=0;
 	int announce=0;
 	int resetcdr=0;
-	int clearchannel=0;
 	int cnt=0;
 	char numsubst[AST_MAX_EXTENSION];
 	char restofit[AST_MAX_EXTENSION];
@@ -490,16 +486,9 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			if (strchr(transfer, 'm'))
 				tmp->musiconhold = 1;
                         else    tmp->musiconhold = 0;
-			if (strchr(transfer, 'd'))
-				tmp->dataquality = 1;
-                        else    tmp->dataquality = 0;
 			if (strchr(transfer, 'H'))
 				allowdisconnect = tmp->allowdisconnect = 1;
                         else    allowdisconnect = tmp->allowdisconnect = 0;
-			if (strchr(transfer, 'c'))
-				clearchannel = 1;
-            else    
-				clearchannel = 0;
 			if(strchr(transfer, 'g'))
 				go_on=1;
 		}
@@ -647,18 +636,6 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the 
 		   conversation.  */
-		if (!strcmp(chan->type,"Zap"))
-		{
-			int x = 2;
-			if (tmp->dataquality || clearchannel) x = 0;
-			ast_channel_setoption(chan,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
-		}			
-		if (!strcmp(peer->type,"Zap"))
-		{
-			int x = 2;
-			if (tmp->dataquality || clearchannel) x = 0;
-			ast_channel_setoption(peer,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
-		}			
 		hanguptree(outgoing, peer);
 		outgoing = NULL;
 		/* If appropriate, log that we have a destination channel */
@@ -680,12 +657,6 @@ static int dial_exec(struct ast_channel *chan, void *data)
  			ast_log(LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
  			ast_channel_sendurl( peer, url );
  		} /* /JDG */
-		if (clearchannel)
-		{
-			int x = 0;
-			ast_channel_setoption(chan,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
-			ast_channel_setoption(peer,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
-		}
 		if (announce && announcemsg)
 		{
 			int res2;
@@ -699,13 +670,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			// Ok, done. stop autoservice
 			res2 = ast_autoservice_stop(chan);
 		}
-		res = ast_bridge_call(chan, peer, allowredir_in, allowredir_out, allowdisconnect | clearchannel);
-		if (clearchannel)
-		{
-			int x = 1;
-			ast_channel_setoption(chan,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
-			ast_channel_setoption(peer,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
-		}
+		res = ast_bridge_call(chan, peer, allowredir_in, allowredir_out, allowdisconnect);
 
 		if (res != AST_PBX_NO_HANGUP_PEER)
 			ast_hangup(peer);
