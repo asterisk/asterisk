@@ -336,6 +336,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							ast_hangup(o->chan);
 							o->chan = NULL;
 							numnochan++;
+						} else {
+							/* After calling, set callerid to extension */
+							ast_set_callerid(o->chan, ast_strlen_zero(in->macroexten) ? in->exten : in->macroexten, NULL, NULL);
 						}
 					}
 					/* Hangup the original channel now, in case we needed it */
@@ -912,9 +915,11 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			tmp->chan = NULL;
 			cur = rest;
 			continue;
-		} else
+		} else {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Called %s\n", numsubst);
+			ast_set_callerid(tmp->chan, ast_strlen_zero(chan->macroexten) ? chan->exten : chan->macroexten, NULL, NULL);
+		}
 		/* Put them in the list of outgoing thingies...  We're ready now. 
 		   XXX If we're forcibly removed, these outgoing calls won't get
 		   hung up XXX */
