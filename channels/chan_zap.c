@@ -244,7 +244,9 @@ static char idleext[AST_MAX_EXTENSION];
 static char idledial[AST_MAX_EXTENSION];
 static int overlapdial = 0;
 static struct ast_channel inuse = { "GR-303InUse" };
+#ifdef PRI_GETSET_TIMERS
 static int pritimers[PRI_MAX_TIMERS];
+#endif
 #endif
 
 /* Wait up to 16 seconds for first digit (FXO logic) */
