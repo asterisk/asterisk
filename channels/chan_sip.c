@@ -1900,13 +1900,16 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 	switch(condition) {
 	case AST_CONTROL_RINGING:
 		if (ast->_state == AST_STATE_RING) {
+			/* Send 180 ringing no matter what */
+			transmit_response(p, "180 Ringing", &p->initreq);
 			if (!p->progress) {
-				transmit_response(p, "180 Ringing", &p->initreq);
 				p->ringing = 1;
 				if (!p->progressinband)
 					break;
 			} else {
-				/* Oops, we've sent progress tones.  Let Asterisk do it instead */
+				/* Oops, we've sent progress tones.  Some devices don't seem to
+				   handle a 180 after a 183, so we'll go ahead and send the
+				   ringback in-band, too. */
 			}
 		}
 		return -1;
