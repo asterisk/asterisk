@@ -1,14 +1,14 @@
+; indications.conf
+; Configuration file for location specific tone indications
+; used by the pbx_indications module.
 ;
-; Static indications configuration files, used by
-; the pbx_indications module.
+; The [general] category is for certain global variables.
+; All other categories are interpreted as location specific indications
 ;
-; The "general" category is for certain variables.  All other categories
-; are interpreted as indication countries
-;
-; Please note that there are NOT spaces allowed in lists!
 ;
 [general]
-country=us
+country=us		; default location
+
 
 ; [example]
 ; description = string
@@ -23,28 +23,36 @@ country=us
 ; busy = tonelist
 ;      Set of tones played when the receiving end is busy.
 ; congestion = tonelist
-;      Set of tones played when the is some congestion (on the network?)
+;      Set of tones played when there is some congestion (on the network?)
 ; callwaiting = tonelist
-;      Set of tones played when there is a callwaiting in the background.
+;      Set of tones played when there is a call waiting in the background.
 ; dialrecall = tonelist
-;      Set of tones played when there is somebody ???
+;      Not well defined, many phone systems play a recall dial tone after hook flash
 ; record = tonelist
-;      Set of tones played whenver we feel like it ???
+;      Set of tones played when call recording is in progress
 ; info = tonelist
-;      Set of tones played when information is to be tranfered?
-; every other variable will be available as a shortcut for the "PlayList" command
-; but will not automaticly be used by Asterisk.
+;      Set of tones played with special information messages (e.g., "number is out of service")
+; 'name' = tonelist
+;	Every other variable will be available as a shortcut for the "PlayList" command
+;	but will not automaticly be used by Asterisk.
 ;
-; The tonelist itself is defined by a sequence of elements, seperated by ,'s.
-; Each element consist of a frequency (f) with a possible frequency attached
-; (f1+f2) to it. Behind the frequency there is an optional duration, in
-; milliseconds. If the element starts with a !, that element is NOT repeat,
-; so only if all elements start with !, the tonelist is time-limited, all
-; others will repeat indefinitly.
 ;
-; In tech-talk:
+; The tonelist itself is defined by a comma-separated sequence of elements.
+; Each element consist of a frequency (f) with an optional duration (in ms)
+; attached to it (f/duration). The frequency component may be a mixture of two
+; frequencies (f1+f2) or a frequency modulated by another frequency (f1*f2).
+; The implicit modulation depth is fixed at 90%, though.
+; If the list element starts with a !, that element is NOT repeated,
+; therefore, only if all elements start with !, the tonelist is time-limited,
+; all others will repeat indefinitely.
+;
+; concisely:
+;   element = [!]freq[+|*freq2][/duration]
 ;   tonelist = element[,element]*
-;   element = [!]freq[+freq2][/duration]
+;
+; Please note that SPACES ARE NOT ALLOWED in tone lists!
+;
+
 
 ; Tone definitions for Chile
 ; According to specs from Telefonica CTC Chile
@@ -61,7 +69,6 @@ record = 1400/500,0/15000
 info = 950/333,1400/333,1800/333,0/1000
 
 [tw]
-; 參考資料 :
 ; http://nemesis.lonestar.org/reference/telecom/signaling/dialtone.html
 ; http://nemesis.lonestar.org/reference/telecom/signaling/busy.html
 ; http://www.iproducts.com.tw/ee/kylink/06ky-1000a.htm
@@ -69,14 +76,11 @@ info = 950/333,1400/333,1800/333,0/1000
 ; http://www.nettwerked.net/tones.txt
 ; http://www.cisco.com/univercd/cc/td/doc/product/tel_pswt/vco_prod/taiw_sup/taiw2.htm
 ;
-; 詢問中華電信後得到的回覆 :
-; dial tone 350+440Hz continuous
 ; busy tone 480+620Hz 0.5 sec. on ,0.5 sec. off
 ; reorder tone 480+620Hz 0.25 sec. on,0.25 sec. off
 ; ringing tone 440+480Hz 1 sec. on ,2 sec. off
 ;
 description = Taiwan
-alias = tw
 ringcadance = 1000,4000
 dial = 350+440
 busy = 480+620/500,0/500
@@ -318,15 +322,26 @@ dialrecall = !400/100!0/100,!400/100,!0/100,!400/100,!0/100,400
 record = 1400/425,0/15000
 info = 400/750,0/100,400/750,0/100,400/750,0/100,400/750,0/400
 
-; Tones for Singapore
+; Singapore
+; Reference: http://www.ida.gov.sg/idaweb/doc/download/I397/ida_ts_pstn1_i4r2.pdf 
+; Frequency specs are:   425 Hz +/- 20Hz; 24 Hz +/- 2Hz; modulation depth 100%; SIT +/- 50Hz
 [sg]
 description = Singapore
 ringcadence = 400,200,400,2000
-dial = 425
-busy = 425/750,0/750
-ring = 400+450/400,0/200,400+450/400,0/2000
+dial       = 425
+ring       = 425*24/400,0/200,425*24/400,0/2000	; modulation should be 100%, not 90%
+busy       = 425/750,0/750
 congestion = 425/250,0/250
-callwaiting = !425/200,!0/600,!425/200,!0/3000,!425/200,!0/600,!425/200
-dialrecall = 400+450/500,0/500,425/500,0/2500
-record = 1400/500,0/15000
-info = 950/330,1400/330,1800/330,0/1000
+callwaiting= 425*24/300,0/200,425*24/300,0/3200
+stutter    = !425/200,!0/200,!425/600,!0/200,!425/200,!0/200,!425/600,!0/200,!425/200,!0/200,!425/600,!0/200,!425/200,!0/200,!425/600,!0/200,425
+info       = 950/330,1400/330,1800/330,0/1000	; not currently in use acc. to reference
+dialrecall = 425*24/500,0/500,425/500,0/2500	; unspecified in IDA reference, use repeating Holding Tone A,B
+record     = 1400/500,0/15000			; unspecified in IDA reference, use 0.5s tone every 15s
+; additionally defined in reference
+nutone     = 425/2500,0/500
+intrusion  = 425/250,0/2000
+warning    = 425/624,0/4376			; end of period tone, warning
+acceptance = 425/125,0/125
+holdinga   = !425*24/500,!0/500			; followed by holdingb
+holdingb   = !425/500,!0/2500
+
