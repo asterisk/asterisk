@@ -3942,7 +3942,9 @@ int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char
 					ast_verbose(VERBOSE_PREFIX_4 "Channel %s was never answered.\n", chan->name);
 				ast_hangup(chan);
 			}
-		} else {
+		}
+
+		if(res < 0) { /* the call failed for some reason */
 			/* create a fake channel and execute the "failed" extension (if it exists) within the requested context */
 			/* check if "failed" exists */
 			if (ast_exists_extension(chan, context, "failed", 1, NULL)) {
