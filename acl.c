@@ -93,11 +93,12 @@ struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original)
 {
 	struct ast_ha *start=original;
 	struct ast_ha *ret = NULL;
-	struct ast_ha *link,*prev;
+	struct ast_ha *link,*prev=NULL;
 
 	while(start) {
 		link = ast_duplicate_ha(start);  /* Create copy of this object */
-		prev->next = link;		/* Link previous to this object */
+		if (prev)
+			prev->next = link;		/* Link previous to this object */
 
 		if (!ret) 
 			ret = link;		/* Save starting point */
@@ -112,7 +113,7 @@ struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original)
 struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 {
 	struct ast_ha *ha = malloc(sizeof(struct ast_ha));
-	char *nm;
+	char *nm="255.255.255.255";
 	char tmp[256] = "";
 	struct ast_ha *prev = NULL;
 	struct ast_ha *ret;
