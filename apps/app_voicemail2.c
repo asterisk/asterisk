@@ -2926,9 +2926,10 @@ int load_module(void)
 		return(res);
 	}
 
+	if ((res = sql_init())) {
 		ast_log(LOG_WARNING, "SQL init\n");
-	if ((res = sql_init()))
 		return res;
+	}
 	return res;
 }
 
