@@ -132,7 +132,7 @@ persistentmembers = yes
 ; joinempty = yes
 ;
 ; If you wish to remove callers from the queue when new callers cannot join, set this setting
-; to one of the same choices for 'joinwhenempty'
+; to one of the same choices for 'joinempty'
 ;
 ; leavewhenempty = yes
 ;
