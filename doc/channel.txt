@@ -1,0 +1,40 @@
+Implementing a Channel
+======================
+
+* What is a channel?
+
+A channel is a unit which brings in a call to the Asterisk PBX.  A channel
+could be connected to a real telephone (like the Internet Phone Jack) or
+to a logical call (like an Internet phone call).  Asterisk makes no
+distinction between "FXO" and "FXS" style channels (that is, it doesn't
+distinguish between telephone lines and telephones).
+
+Every call is placed or received on a distinct channel.  Asterisk uses a
+channel driver (typically named chan_xxx.so) to support each type of
+hardware.
+
+* What do I need to create a channel?
+
+In order to support a new piece of hardware you need to write a channel
+driver.  The easiest way to do so is to look at an existing channel driver
+and model your own code after it.  
+
+* What's the general architecture?
+
+Typically, a channel reads a configuration file on startup which tells it
+something about the hardware it's going to be servicing.  Then, it
+launches a thread which monitors all the idle channels (See the chan_modem
+or the chan_ixj for an example of this).  When a "RING" or equivalent is
+detected, the monitoring thread should allocate a channel structure and
+assign all the callbacks to it (see ixj_new, for example), and then call
+ast_pbx_start on that channel.  ast_pbx_start will launch a new thread to
+handle the channel as long as the call is up, so once pbx_start has
+successfully been run, the monitor should no longer monitor that channel.
+The PBX thread will use the channel, reading, writing, calling, etc., and
+multiplexing that channel with others using select() on the channel's
+file descriptor (if your channel doesn't have an associated file
+descriptor, you'll need to emulate one somehow, perhaps along the lines of
+what the translator API does with its channel.  
+
+When the PBX is finished with the line, it will hang up the line, at which
+point it the hardware should again be monitored by the monitoring thread.

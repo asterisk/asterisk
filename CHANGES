@@ -1,0 +1,12 @@
+* Asterisk 0.1.1
+ -- Revised translator, fixed some general race conditions throughout *
+ -- Made dialer somewhat more aware of incompatible voice channels
+ -- Added Voice Modem driver and A/Open Modem Driver stub
+ -- Added MP3 decoder channel
+ -- Added Microsoft WAV49 support
+ -- Revised License -- Pure GPL, nothing else
+ -- Modified Copyright statement since code is still currently owned by author
+ -- Added RAW GSM headerless data format
+ -- Innumerable bug fixes
+* Asterisk 0.1.0
+ -- Initial Release
