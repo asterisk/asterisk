@@ -1147,9 +1147,10 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 				if (f) {
 					if (f->frametype == AST_FRAME_CONTROL) {
 						switch(f->subclass) {
-		    				case AST_CONTROL_ANSWER:
+		    			case AST_CONTROL_ANSWER:
 							/* This is our guy if someone answered. */
 							if (!peer) {
+								ast_copy_flags(flags, o, QUEUE_FLAG_REDIR_IN | QUEUE_FLAG_REDIR_OUT | QUEUE_FLAG_DISCON_IN | QUEUE_FLAG_DISCON_OUT);
 								if (option_verbose > 2)
 									ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
 								peer = o;
