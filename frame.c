@@ -418,7 +418,7 @@ char *ast_codec2str(int codec) {
 		"GSM",                        /*  1 */
 		"G.711 u-law",                /*  2 */
 		"G.711 A-law",                /*  3 */
-		"MPEG-2 layer 3",             /*  4 */
+		"G.726",                      /*  4 */
 		"ADPCM",                      /*  5 */
 		"16 bit Signed Linear PCM",   /*  6 */
 		"LPC10",                      /*  7 */
