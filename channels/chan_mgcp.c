@@ -3154,7 +3154,7 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 	req.data[res] = '\0';
 	req.len = res;
 	if (mgcpdebug) {
-		ast_verbose("MGCP read: \n%s\nfrom %s:%d", req.data, ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+		ast_verbose("MGCP read: \n%s\nfrom %s:%d\n", req.data, ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
     }
 	parse(&req);
 	if (req.headers < 1) {
