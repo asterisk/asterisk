@@ -114,12 +114,12 @@ static int record_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "No extension specified to filename!\n");
 		return -1;
 	}
-
 	if (silstr) {
-		if ((sscanf(silstr, "%d", &i) == 1) && (i > -1))
-			silence = i;
-		else if (!ast_strlen_zero(silstr))
+		if ((sscanf(silstr, "%d", &i) == 1) && (i > -1)) {
+			silence = i * 1000;
+		} else if (!ast_strlen_zero(silstr)) {
 			ast_log(LOG_WARNING, "'%s' is not a valid silence duration\n", silstr);
+		}
 	}
 	
 	if (maxstr) {
@@ -145,7 +145,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 				terminator = '*';
 		}
 	}
-
+	
 	/* done parsing */
 	
 	/* these are to allow the use of the %d in the config file for a wild card of sort to
@@ -159,9 +159,9 @@ static int record_exec(struct ast_channel *chan, void *data)
 	} else
 		strncpy(tmp, filename, sizeof(tmp)-1);
 	/* end of routine mentioned */
-
+	
 	LOCAL_USER_ADD(u);
-
+	
 	if (chan->_state != AST_STATE_UP) {
 		if (option_skip) {
 			/* At the user's option, skip if the line is not up */
@@ -182,40 +182,39 @@ static int record_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", chan->name);
 		}
 		ast_stopstream(chan);
-
+		
 		/* The end of beep code.  Now the recording starts */
-
-
+		
 		if (silence > 0) {
-	        	rfmt = chan->readformat;
-        		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
-        		if (res < 0) {
-                		ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
-        		        return -1;
-        		}
+			rfmt = chan->readformat;
+			res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
+			if (res < 0) {
+				ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+				return -1;
+			}
 			sildet = ast_dsp_new();
-        		if (!sildet) {
-                		ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
-                		return -1;
-		       	}
+			if (!sildet) {
+				ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
+				return -1;
+			}
 			ast_dsp_set_threshold(sildet, 256);
-		}
-
-
+		} 
+		
+		
 		flags = option_append ? O_CREAT|O_APPEND|O_WRONLY : O_CREAT|O_TRUNC|O_WRONLY;
 		s = ast_writefile( tmp, ext, NULL, flags , 0, 0644);
-
-
+		
+		
 		if (s) {
 			if (maxduration > 0)
 				timeout = time(NULL) + (time_t)maxduration;
-
+			
 			while (ast_waitfor(chan, -1) > -1) {
 				if (maxduration > 0 && time(NULL) > timeout) {
 					gottimeout = 1;
 					break;
 				}
-
+				
 				f = ast_read(chan);
 				if (!f) {
 					res = -1;
@@ -228,7 +227,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 						ast_log(LOG_WARNING, "Problem writing frame\n");
 						break;
 					}
-
+					
 					if (silence > 0) {
 						dspsilence = 0;
 						ast_dsp_silence(sildet, f, &dspsilence);
@@ -237,12 +236,12 @@ static int record_exec(struct ast_channel *chan, void *data)
 						} else {
 							totalsilence = 0;
 						}
-	                                	if (totalsilence > silence) {
-        	                        	        /* Ended happily with silence */
+						if (totalsilence > silence) {
+							/* Ended happily with silence */
 							ast_frfree(f);
 							gotsilence = 1;
-                	                	        break;
-	                     	        	}
+							break;
+						}
 					}
 				}
 				if (f->frametype == AST_FRAME_VIDEO) {
@@ -261,10 +260,10 @@ static int record_exec(struct ast_channel *chan, void *data)
 				ast_frfree(f);
 			}
 			if (!f) {
-					ast_log(LOG_DEBUG, "Got hangup\n");
-					res = -1;
+				ast_log(LOG_DEBUG, "Got hangup\n");
+				res = -1;
 			}
-
+			
 			if (gotsilence) {
 				ast_stream_rewind(s, silence-1000);
 				ast_truncstream(s);
@@ -278,12 +277,12 @@ static int record_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "Could not create file %s\n", filename);
 	} else
 		ast_log(LOG_WARNING, "Could not answer channel '%s'\n", chan->name);
-
+	
 	LOCAL_USER_REMOVE(u);
 	if ((silence > 0) && rfmt) {
-	        res = ast_set_read_format(chan, rfmt);
-        	if (res)
-        	        ast_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
+		res = ast_set_read_format(chan, rfmt);
+		if (res)
+			ast_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
 		if (sildet)
 			ast_dsp_free(sildet);
 	}
