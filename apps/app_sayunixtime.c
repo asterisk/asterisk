@@ -7,7 +7,7 @@
  *
  * Tilghman Lesher <app_sayunixtime__200309@the-tilghman.com>
  *
- * This code is in the public domain.
+ * This code is released by the author with no restrictions on usage.
  *
  */
 
