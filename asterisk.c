@@ -1486,6 +1486,8 @@ static void ast_readconfig(void) {
 
 	if (option_overrideconfig == 1) {
 	    cfg = ast_load((char *)ast_config_AST_CONFIG_FILE);
+		if (!cfg)
+			ast_log(LOG_WARNING, "Unable to open specified master config file '%s', using builtin defaults\n", ast_config_AST_CONFIG_FILE);
 	} else {
 	    cfg = ast_load(config);
 	}
