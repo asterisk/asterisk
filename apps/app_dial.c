@@ -914,7 +914,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		/* Presense of ADSI CPE on outgoing channel follows ours */
 		tmp->chan->adsicpe = chan->adsicpe;
 		/* pass the digital flag */
-		ast_dup_flag(tmp->chan, chan, AST_FLAG_DIGITAL);
+		ast_copy_flags(tmp->chan, chan, AST_FLAG_DIGITAL);
 
 		/* If we have an outbound group, set this peer channel to it */
 		if (outbound_group)

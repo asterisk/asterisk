@@ -26,6 +26,7 @@
 #include <asterisk/channel.h>
 #include <asterisk/logger.h>
 #include <asterisk/lock.h>
+#include <asterisk/utils.h>
 
 struct playtones_item {
 	int freq1;

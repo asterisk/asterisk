@@ -17,6 +17,17 @@
 #include <pthread.h>
 #include <asterisk/lock.h>
 
+#define ast_test_flag(p,flag) 		((p)->flags & (flag))
+
+#define ast_set_flag(p,flag)		((p)->flags |= (flag))
+
+#define ast_clear_flag(p,flag)		((p)->flags &= ~(flag))
+
+#define ast_copy_flags(dest,src,flagz)	do { dest->flags &= ~(flagz); \
+					dest->flags |= (src->flags & flagz); } while(0)
+
+#define ast_set2_flag(p,value,flag)	((value) ? ast_set_flag(p,flag) : ast_clear_flag(p,flag))	
+
 static inline int ast_strlen_zero(const char *s)
 {
 	return (*s == '\0');

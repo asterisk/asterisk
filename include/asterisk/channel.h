@@ -231,43 +231,6 @@ struct ast_channel {
 #define AST_FLAG_ZOMBIE		(1 << 4)	/* if we are a zombie */
 #define AST_FLAG_EXCEPTION	(1 << 5)	/* if there is a pending exception */
 
-static inline int ast_test_flag(struct ast_channel *chan, int mode)
-{
-	return chan->flags & mode;
-}
-
-static inline void ast_set_flag(struct ast_channel *chan, int mode)
-{
-	chan->flags |= mode;
-}
-
-static inline void ast_clear_flag(struct ast_channel *chan, int mode)
-{
-	chan->flags &= ~mode;
-}
-
-static inline void ast_copy_flags(struct ast_channel *dest, struct ast_channel *src, int flags)
-{
-	dest->flags &= ~flags;
-	dest->flags |= (src->flags & flags);
-}
-
-static inline void ast_set2_flag(struct ast_channel *chan, int value, int mode)
-{
-	if (value)
-		ast_set_flag(chan, mode);
-	else
-		ast_clear_flag(chan, mode);
-}
-
-static inline void ast_dup_flag(struct ast_channel *dstchan, struct ast_channel *srcchan, int mode)
-{
-	if (ast_test_flag(srcchan, mode))
-		ast_set_flag(dstchan, mode);
-	else
-		ast_clear_flag(dstchan, mode);
-}	
-
 struct ast_bridge_config {
 	int play_to_caller;
 	int play_to_callee;
