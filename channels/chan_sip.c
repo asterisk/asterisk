@@ -835,11 +835,24 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp)
 	return res;
 }
 
+static void parse(struct sip_request *req);
+static char *get_header(struct sip_request *req, char *name);
+static void copy_request(struct sip_request *dst,struct sip_request *src);
+
+static void parse_copy(struct sip_request *dst, struct sip_request *src)
+{
+	memset(dst, 0, sizeof(*dst));
+	memcpy(dst->data, src->data, sizeof(dst->data));
+	dst->len = src->len;
+	parse(dst);
+}
 /*--- send_response: Transmit response on SIP request---*/
 static int send_response(struct sip_pvt *p, struct sip_request *req, int reliable, int seqno)
 {
 	int res;
 	char iabuf[INET_ADDRSTRLEN];
+	struct sip_request tmp;
+	char tmpmsg[80];
 	if (sip_debug_test_pvt(p)) {
 		if (p->nat == SIP_NAT_ALWAYS)
 			ast_verbose("%sTransmitting (NAT):\n%s\n to %s:%d\n", reliable ? "Reliably " : "", req->data, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
@@ -847,10 +860,18 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 			ast_verbose("%sTransmitting (no NAT):\n%s\n to %s:%d\n", reliable ? "Reliably " : "", req->data, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port));
 	}
 	if (reliable) {
-		append_history(p, "TxRespRel", req->data);
+		if (recordhistory) {
+			parse_copy(&tmp, req);
+			snprintf(tmpmsg, sizeof(tmpmsg), "%s / %s", tmp.data, get_header(&tmp, "CSeq"));
+			append_history(p, "TxRespRel", tmpmsg);
+		}
 		res = __sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable > 1));
 	} else {
-		append_history(p, "TxResp", req->data);
+		if (recordhistory) {
+			parse_copy(&tmp, req);
+			snprintf(tmpmsg, sizeof(tmpmsg), "%s / %s", tmp.data, get_header(&tmp, "CSeq"));
+			append_history(p, "TxResp", tmpmsg);
+		}
 		res = __sip_xmit(p, req->data, req->len);
 	}
 	if (res > 0)
@@ -863,6 +884,8 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 {
 	int res;
 	char iabuf[INET_ADDRSTRLEN];
+	struct sip_request tmp;
+	char tmpmsg[80];
 	if (sip_debug_test_pvt(p)) {
 		if (p->nat == SIP_NAT_ALWAYS)
 			ast_verbose("%sTransmitting:\n%s (NAT) to %s:%d\n", reliable ? "Reliably " : "", req->data, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
@@ -870,10 +893,18 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 			ast_verbose("%sTransmitting:\n%s (no NAT) to %s:%d\n", reliable ? "Reliably " : "", req->data, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port));
 	}
 	if (reliable) {
-		append_history(p, "TxReqRel", req->data);
+		if (recordhistory) {
+			parse_copy(&tmp, req);
+			snprintf(tmpmsg, sizeof(tmpmsg), "%s / %s", tmp.data, get_header(&tmp, "CSeq"));
+			append_history(p, "TxReqRel", tmpmsg);
+		}
 		res = __sip_reliable_xmit(p, seqno, 0, req->data, req->len, (reliable > 1));
 	} else {
-		append_history(p, "TxReq", req->data);
+		if (recordhistory) {
+			parse_copy(&tmp, req);
+			snprintf(tmpmsg, sizeof(tmpmsg), "%s / %s", tmp.data, get_header(&tmp, "CSeq"));
+			append_history(p, "TxReq", tmpmsg);
+		}
 		res = __sip_xmit(p, req->data, req->len);
 	}
 	return res;
@@ -7348,7 +7379,12 @@ retrylock:
 			goto retrylock;
 		}
 		memcpy(&p->recv, &sin, sizeof(p->recv));
-		append_history(p, "Rx", req.data);
+		if (recordhistory) {
+			char tmp[80] = "";
+			/* This is a response, note what it was for */
+			snprintf(tmp, sizeof(tmp), "%s / %s", req.data, get_header(&req, "CSeq"));
+			append_history(p, "Rx", tmp);
+		}
 		nounlock = 0;
 		handle_request(p, &req, &sin, &recount, &nounlock);
 		if (p->owner && !nounlock)
