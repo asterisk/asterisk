@@ -85,16 +85,22 @@ will ensure a sane build.
 Dialing an H.323 channel
 ------------------------
 Without a gatekeeper:
-
 exten => _1NXXNXXXXXX,1,Dial,H323/${EXTEN}@peer
 or
 exten => _1NXXNXXXXXX,1,Dial,H323/${EXTEN}@ip.or.hostname
 
-Using a gatekeeper:
+'peer' is defined in h323.conf as:
 
+[peer]
+type=peer
+host=1.2.3.4
+disallow=all
+allow=ulaw
+
+Using a gatekeeper:
 exten => _1NXXNXXXXXX,1,Dial,H323/${EXTEN}
 
-Notice: When using a gatekeeper you cannot utilize the type=peer features,
+When using a gatekeeper you cannot utilize the type=peer features,
 since the H.323 spec states that when a Gatekeeper is part of an H.323 network, 
 the Gatekeeper shall be used for all communication. 
 
