@@ -104,6 +104,7 @@ switchtype=national
 ; PRI resetinterval: sets the time in seconds between restart of unused channels, defaults to 3600
 ; minimum 60 seconds
 ; some PBXs don't like channel restarts. so set the interval to a very long interval e.g. 100000000
+; or 'never' to disable *entirely*.
 ;
 ;resetinterval = 3600 
 ;

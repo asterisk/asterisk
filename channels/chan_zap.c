@@ -7525,7 +7525,7 @@ static void *pri_dchannel(void *vpri)
 		numdchans = i;
 		time(&t);
 		ast_mutex_lock(&pri->lock);
-		if (pri->switchtype != PRI_SWITCH_GR303_TMC) {
+		if (pri->switchtype != PRI_SWITCH_GR303_TMC && (pri->resetinterval > 0)) {
 			if (pri->resetting && pri_is_up(pri)) {
 				if (pri->resetpos < 0)
 					pri_check_restart(pri);
@@ -7703,8 +7703,10 @@ static void *pri_dchannel(void *vpri)
 				time(&pri->lastreset);
 
 				/* Restart in 5 seconds */
-				pri->lastreset -= pri->resetinterval;
-				pri->lastreset += 5;
+				if (pri->resetinterval > -1) {
+					pri->lastreset -= pri->resetinterval;
+					pri->lastreset += 5;
+				}
 				pri->resetting = 0;
 				/* Take the channels from inalarm condition */
 				for (i=0; i<pri->numchans; i++)
@@ -9942,10 +9944,12 @@ static int setup_zap(int reload)
 			} else if (!strcasecmp(v->name, "unknownprefix")) {
 				strncpy(unknownprefix, v->value, sizeof(unknownprefix)-1);
 			} else if (!strcasecmp(v->name, "resetinterval")) {
-				if( atoi(v->value) >= 60 )
+				if (!strcasecmp(v->value, "never"))
+					resetinterval = -1;
+				else if( atoi(v->value) >= 60 )
 					resetinterval = atoi(v->value);
 				else
-					ast_log(LOG_WARNING, "'%s' is not a valid reset interval, should be >= 60 seconds at line %d\n",
+					ast_log(LOG_WARNING, "'%s' is not a valid reset interval, should be >= 60 seconds or 'never' at line %d\n",
 						v->value, v->lineno);
 			} else if (!strcasecmp(v->name, "minunused")) {
 				minunused = atoi(v->value);
