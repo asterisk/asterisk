@@ -25,6 +25,7 @@
 #include <asterisk/musiconhold.h>
 #include <asterisk/config.h>
 #include <asterisk/cli.h>
+#include <asterisk/manager.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -156,6 +157,19 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 			pthread_kill(parking_thread, SIGURG);
 			if (option_verbose > 1) 
 				ast_verbose(VERBOSE_PREFIX_2 "Parked %s on %d\n", pu->chan->name, pu->parkingnum);
+
+			manager_event(EVENT_FLAG_CALL, "ParkedCall",
+                                "Exten: %d\r\n"
+                                "Channel: %s\r\n"
+                                "From: %s\r\n"
+                                "Timeout: %d\r\n"
+                                "CallerID: %s\r\n"
+                                "\r\n"
+                                ,pu->parkingnum, pu->chan->name, peer->name
+                                ,pu->start.tv_sec + (pu->parkingtime/1000) - time(NULL)
+                                ,(pu->chan->callerid ? pu->chan->callerid : "")
+                                );
+
 			if (peer)
 				ast_say_digits(peer, pu->parkingnum, "", peer->language);
 			return 0;
@@ -601,6 +615,36 @@ static char showparked_help[] =
 
 static struct ast_cli_entry showparked =
 { { "show", "parkedcalls", NULL }, handle_parkedcalls, "Lists parked calls", showparked_help };
+/* Dump lot status */
+static int manager_parking_status( struct mansession *s, struct message *m )
+{
+	struct parkeduser *cur;
+
+	astman_send_ack(s, "Parked calls will follow");
+
+        ast_mutex_lock(&parking_lock);
+
+        cur=parkinglot;
+        while(cur) {
+                ast_cli(s->fd, "Event: ParkedCall\r\n"
+			"Exten: %d\r\n"
+			"Channel: %s\r\n"
+			"Timeout: %d\r\n"
+			"CallerID: %s\r\n"
+			"\r\n"
+                        ,cur->parkingnum, cur->chan->name
+                        ,cur->start.tv_sec + (cur->parkingtime/1000) - time(NULL)
+			,(cur->chan->callerid ? cur->chan->callerid : "")
+			);
+
+                cur = cur->next;
+        }
+
+        ast_mutex_unlock(&parking_lock);
+
+        return RESULT_SUCCESS;
+}
+
 
 
 int load_module(void)
@@ -654,6 +698,9 @@ int load_module(void)
 		ast_add_extension2(con, 1, exten, 1, NULL, parkedcall, strdup(exten), free, registrar);
 	}
 	pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
+	if (!res) {
+		ast_manager_register( "ParkedCalls", 0, manager_parking_status, "List parked calls" );
+	}
 	res = ast_register_application(parkedcall, park_exec, synopsis, descrip);
 	return res;
 }
@@ -728,6 +775,7 @@ int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
 
+	ast_manager_unregister( "ParkedCalls" );
 	ast_cli_unregister(&showparked);
 
 	return ast_unregister_application(parkedcall);
