@@ -4835,6 +4835,13 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 				ast_cdr_start(chan->cdr);
 			}
 
+			if (variable) {
+				tmp = ast_strdupa(variable);
+				for (var = strtok_r(tmp, "|", &tmp); var; var = strtok_r(NULL, "|", &tmp)) {
+					pbx_builtin_setvar( chan, var );
+				}
+			}
+
 			if (chan->_state == AST_STATE_UP) {
 					res = 0;
 				if (option_verbose > 3)
