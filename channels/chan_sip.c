@@ -1557,7 +1557,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 			tmp->fds[2] = ast_rtp_fd(i->vrtp);
 			tmp->fds[3] = ast_rtcp_fd(i->vrtp);
 		}
-		ast_setstate(tmp, state);
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
 		tmp->adsicpe = AST_ADSI_UNAVAILABLE;
@@ -1605,7 +1604,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		if (strlen(i->domain)) {
 			pbx_builtin_setvar_helper(tmp, "SIPDOMAIN", i->domain);
 		}
-						
+		ast_setstate(tmp, state);
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);

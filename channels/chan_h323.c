@@ -656,7 +656,6 @@ static struct ast_channel *oh323_new(struct oh323_pvt *i, int state, const char 
 		fmt = ast_best_codec(ch->nativeformats);
 		ch->type = type;
 		ch->fds[0] = ast_rtp_fd(i->rtp);
-		ast_setstate(ch, state);
 		
 		if (state == AST_STATE_RING)
 			ch->rings = 1;
@@ -700,6 +699,7 @@ static struct ast_channel *oh323_new(struct oh323_pvt *i, int state, const char 
 			strncpy(ch->accountcode, i->accountcode, sizeof(ch->accountcode)-1);
 		if (i->amaflags)
 			ch->amaflags = i->amaflags;
+		ast_setstate(ch, state);
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(ch)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ch->name);
