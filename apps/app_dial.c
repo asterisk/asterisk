@@ -774,7 +774,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		tmp->chan = ast_request(tech, chan->nativeformats, numsubst, &cause);
 		if (!tmp->chan) {
 			/* If we can't, just go on to the next call */
-			ast_log(LOG_NOTICE, "Unable to create channel of type '%s'\n", tech);
+			ast_log(LOG_NOTICE, "Unable to create channel of type '%s' (cause %d)\n", tech, cause);
 			HANDLE_CAUSE(cause, chan);
 			cur = rest;
 			continue;
@@ -800,7 +800,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			ast_hangup(tmp->chan);
 			tmp->chan = ast_request(tech, chan->nativeformats, stuff, &cause);
 			if (!tmp->chan) {
-				ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s'\n", tech, stuff);
+				ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause %d)\n", tech, stuff, cause);
 				HANDLE_CAUSE(cause, chan);
 				cur = rest;
 				continue;
