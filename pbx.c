@@ -2810,49 +2810,31 @@ static char *complete_show_dialplan_context(char *line, char *word, int pos,
 	return NULL;
 }
 
-static int handle_show_dialplan(int fd, int argc, char *argv[])
+struct dialplan_counters {
+	int total_context;
+	int total_exten;
+	int total_prio;
+	int context_existence;
+	int extension_existence;
+};
+
+static int show_dialplan_helper(int fd, char *context, char *exten, struct dialplan_counters *dpc, struct ast_include *rinclude)
 {
 	struct ast_context *c;
-	char *exten = NULL, *context = NULL;
-	int context_existence = 0, extension_existence = 0;
-	/* Variables used for different counters */
-	int total_context = 0, total_exten = 0, total_prio = 0;
-	
-	if (argc != 3 && argc != 2) return -1;
-
-	/* we obtain [exten@]context? if yes, split them ... */
-	if (argc == 3) {
-		char *splitter = argv[2];
-		/* is there a '@' character? */
-		if (strchr(argv[2], '@')) {
-			/* yes, split into exten & context ... */
-			exten   = strsep(&splitter, "@");
-			context = splitter;
-
-			/* check for length and change to NULL if ast_strlen_zero() */
-			if (ast_strlen_zero(exten))   exten = NULL;
-			if (ast_strlen_zero(context)) context = NULL;
-		} else
-		{
-			/* no '@' char, only context given */
-			context = argv[2];
-			if (ast_strlen_zero(context)) context = NULL;
-		}
-	}
+	int res=0, old_total_exten = dpc->total_exten;
 
 	/* try to lock contexts */
 	if (ast_lock_contexts()) {
 		ast_log(LOG_WARNING, "Failed to lock contexts list\n");
-		return RESULT_FAILURE;
+		return -1;
 	}
 
 	/* walk all contexts ... */
-	c = ast_walk_contexts(NULL);
-	while (c) {
+	for (c = ast_walk_contexts(NULL); c ; c = ast_walk_contexts(c)) {
 		/* show this context? */
 		if (!context ||
 			!strcmp(ast_get_context_name(c), context)) {
-			context_existence = 1;
+			dpc->context_existence = 1;
 
 			/* try to lock context before walking in ... */
 			if (!ast_lock_context(c)) {
@@ -2867,39 +2849,44 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 				 * if we our extension only
 				 */
 				if (!exten) {
-					total_context++;
+					dpc->total_context++;
 					ast_cli(fd, "[ Context '%s' created by '%s' ]\n",
 						ast_get_context_name(c), ast_get_context_registrar(c));
 					context_info_printed = 1;
 				}
 
 				/* walk extensions ... */
-				e = ast_walk_context_extensions(c, NULL);
-				while (e) {
+				for (e = ast_walk_context_extensions(c, NULL); e; e = ast_walk_context_extensions(c, e)) {
 					struct ast_exten *p;
 					int prio;
 
 					/* looking for extension? is this our extension? */
 					if (exten &&
-						strcmp(ast_get_extension_name(e), exten))
+						!ast_extension_match(ast_get_extension_name(e), exten))
 					{
 						/* we are looking for extension and it's not our
  						 * extension, so skip to next extension */
-						e = ast_walk_context_extensions(c, e);
 						continue;
 					}
 
-					extension_existence = 1;
+					dpc->extension_existence = 1;
 
 					/* may we print context info? */	
 					if (!context_info_printed) {
-						total_context++;
-						ast_cli(fd, "[ Context '%s' created by '%s' ]\n",
-							ast_get_context_name(c),
-							ast_get_context_registrar(c));
+						dpc->total_context++;
+						if (rinclude) {
+							/* TODO Print more info about rinclude */
+							ast_cli(fd, "[ Included context '%s' created by '%s' ]\n",
+								ast_get_context_name(c),
+								ast_get_context_registrar(c));
+						} else {
+							ast_cli(fd, "[ Context '%s' created by '%s' ]\n",
+								ast_get_context_name(c),
+								ast_get_context_registrar(c));
+						}
 						context_info_printed = 1;
 					}
-					total_prio++;
+					dpc->total_prio++;
 
 					/* write extension name and first peer */	
 					bzero(buf, sizeof(buf));		
@@ -2922,11 +2909,10 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 					ast_cli(fd, "  %-17s %-45s [%s]\n", buf, buf2,
 						ast_get_extension_registrar(e));
 
-					total_exten++;
+					dpc->total_exten++;
 					/* walk next extension peers */
-					p = ast_walk_extension_priorities(e, e);
-					while (p) {
-						total_prio++;
+					for (p=ast_walk_extension_priorities(e, e); p; p=ast_walk_extension_priorities(e, p)) {
+						dpc->total_prio++;
 						bzero((void *)buf2, sizeof(buf2));
 						bzero((void *)buf, sizeof(buf));
 						if (ast_get_extension_label(p))
@@ -2946,71 +2932,102 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 
 						ast_cli(fd,"  %-17s %-45s [%s]\n",
 							buf, buf2,
-							ast_get_extension_registrar(p));	
-
-						p = ast_walk_extension_priorities(e, p);
+							ast_get_extension_registrar(p));
 					}
-					e = ast_walk_context_extensions(c, e);
 				}
 
-				/* include & ignorepat we all printing if we are not
-				 * looking for exact extension
-				 */
-				if (!exten) {
-					if (ast_walk_context_extensions(c, NULL))
-						ast_cli(fd, "\n");
-
-					/* walk included and write info ... */
-					i = ast_walk_context_includes(c, NULL);
-					while (i) {
-						bzero(buf, sizeof(buf));
-						snprintf(buf, sizeof(buf), "'%s'",
-							ast_get_include_name(i));
+				/* walk included and write info ... */
+				for (i = ast_walk_context_includes(c, NULL); i; i = ast_walk_context_includes(c, i)) {
+					bzero(buf, sizeof(buf));
+					snprintf(buf, sizeof(buf), "'%s'",
+						ast_get_include_name(i));
+					if (exten) {
+						/* Check all includes for the requested extension */
+						show_dialplan_helper(fd, (char *)ast_get_include_name(i), exten, dpc, i);
+					} else {
 						ast_cli(fd, "  Include =>        %-45s [%s]\n",
 							buf, ast_get_include_registrar(i));
-						i = ast_walk_context_includes(c, i);
 					}
+				}
 
-					/* walk ignore patterns and write info ... */
-					ip = ast_walk_context_ignorepats(c, NULL);
-					while (ip) {
-						bzero(buf, sizeof(buf));
-						snprintf(buf, sizeof(buf), "'%s'",
-							ast_get_ignorepat_name(ip));
+				/* walk ignore patterns and write info ... */
+				for (ip=ast_walk_context_ignorepats(c, NULL); ip; ip=ast_walk_context_ignorepats(c, ip)) {
+					const char *ipname = ast_get_ignorepat_name(ip);
+					char ignorepat[AST_MAX_EXTENSION];
+					snprintf(buf, sizeof(buf), "'%s'", ipname);
+					snprintf(ignorepat, sizeof(ignorepat), "_%s.", ipname);
+					if ((!exten) || ast_extension_match(ignorepat, exten)) {
 						ast_cli(fd, "  Ignore pattern => %-45s [%s]\n",
-							buf, ast_get_ignorepat_registrar(ip));	
-						ip = ast_walk_context_ignorepats(c, ip);
+							buf, ast_get_ignorepat_registrar(ip));
 					}
-					sw = ast_walk_context_switches(c, NULL);
-					while(sw) {
-						bzero(buf, sizeof(buf));
+				}
+				if (!rinclude) {
+					for (sw = ast_walk_context_switches(c, NULL); sw; sw = ast_walk_context_switches(c, sw)) {
 						snprintf(buf, sizeof(buf), "'%s/%s'",
 							ast_get_switch_name(sw),
 							ast_get_switch_data(sw));
 						ast_cli(fd, "  Alt. Switch =>    %-45s [%s]\n",
 							buf, ast_get_switch_registrar(sw));	
-						sw = ast_walk_context_switches(c, sw);
 					}
 				}
 	
 				ast_unlock_context(c);
 
 				/* if we print something in context, make an empty line */
-				if (context_info_printed) ast_cli(fd, "\n");
+				if (context_info_printed) ast_cli(fd, "\r\n");
 			}
 		}
-		c = ast_walk_contexts(c);
 	}
 	ast_unlock_contexts();
 
+	if (dpc->total_exten == old_total_exten) {
+		/* Nothing new under the sun */
+		return -1;
+	} else {
+		return res;
+	}
+}
+
+static int handle_show_dialplan(int fd, int argc, char *argv[])
+{
+	char *exten = NULL, *context = NULL;
+	/* Variables used for different counters */
+	struct dialplan_counters counters;
+
+	memset(&counters, 0, sizeof(counters));
+
+	if (argc != 2 && argc != 3) return -1;
+
+	/* we obtain [exten@]context? if yes, split them ... */
+	if (argc == 3) {
+		char *splitter = ast_strdupa(argv[2]);
+		/* is there a '@' character? */
+		if (splitter && strchr(argv[2], '@')) {
+			/* yes, split into exten & context ... */
+			exten   = strsep(&splitter, "@");
+			context = splitter;
+
+			/* check for length and change to NULL if ast_strlen_zero() */
+			if (ast_strlen_zero(exten))   exten = NULL;
+			if (ast_strlen_zero(context)) context = NULL;
+			show_dialplan_helper(fd, context, exten, &counters, NULL);
+		} else {
+			/* no '@' char, only context given */
+			context = argv[2];
+			if (ast_strlen_zero(context)) context = NULL;
+			show_dialplan_helper(fd, context, exten, &counters, NULL);
+		}
+	} else {
+		return RESULT_SHOWUSAGE;
+	}
+
 	/* check for input failure and throw some error messages */
-	if (context && !context_existence) {
-		ast_cli(fd, "There is no existence of '%s' context\n",
-			context);
+	if (context && !counters.context_existence) {
+		ast_cli(fd, "There is no existence of '%s' context\n", context);
 		return RESULT_FAILURE;
 	}
 
-	if (exten && !extension_existence) {
+	if (exten && !counters.extension_existence) {
 		if (context)
 			ast_cli(fd, "There is no existence of %s@%s extension\n",
 				exten, context);
@@ -3020,8 +3037,10 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 				exten);
 		return RESULT_FAILURE;
 	}
-	ast_cli(fd,"-= %d extensions (%d priorities) in %d contexts. =-\n",total_exten, total_prio, total_context);
-	
+
+	ast_cli(fd,"-= %d extensions (%d priorities) in %d contexts. =-\n",
+				counters.total_exten, counters.total_prio, counters.total_context);
+
 	/* everything ok */
 	return RESULT_SUCCESS;
 }
