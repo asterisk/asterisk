@@ -27,6 +27,8 @@
        a new line, it would not be processed
     -- Fixed the logger so that color escape sequences wouldn't be sent to the logs
     -- Fixed a logic error when setting the "rtpchecksums" option
+    -- A lot of changes were made to correctly handle signed linear format on
+       big endian machines
 
 Asterisk 1.0.7
 
