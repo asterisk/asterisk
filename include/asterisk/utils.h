@@ -23,8 +23,8 @@
 
 #define ast_clear_flag(p,flag)		((p)->flags &= ~(flag))
 
-#define ast_copy_flags(dest,src,flagz)	do { dest->flags &= ~(flagz); \
-					dest->flags |= (src->flags & flagz); } while(0)
+#define ast_copy_flags(dest,src,flagz)	do { (dest)->flags &= ~(flagz); \
+					(dest)->flags |= ((src)->flags & (flagz)); } while(0)
 
 #define ast_set2_flag(p,value,flag)	((value) ? ast_set_flag(p,flag) : ast_clear_flag(p,flag))	
 
@@ -38,6 +38,9 @@ struct ast_hostent {
 	char buf[1024];
 };
 
+struct ast_flags {
+	int flags;
+};
 
 extern char *ast_strip(char *buf);
 extern struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp);
