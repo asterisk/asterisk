@@ -141,7 +141,7 @@ struct ast_state_cb {
     struct ast_state_cb *next;
 };
 	    
-/* ast_state_cb: An extension state notify */
+/* ast_devstate_cb: An extension state notify */
 struct ast_devstate_cb {
     void *data;
     ast_devstate_cb_type callback;
@@ -150,11 +150,12 @@ struct ast_devstate_cb {
 
 static struct ast_devstate_cb *devcbs;
 
+/* Hints are pointers from an extension in the dialplan to one or more devices (tech/name) */
 struct ast_hint {
-    struct ast_exten *exten;
-    int laststate; 
-    struct ast_state_cb *callbacks;
-    struct ast_hint *next;
+    struct ast_exten *exten;		/* Extension */
+    int laststate; 			/* Last known state */
+    struct ast_state_cb *callbacks;	/* Callback list for this extension */
+    struct ast_hint *next;		/* Pointer to next hint in list */
 };
 
 int ast_pbx_outgoing_cdr_failed(void);
@@ -464,13 +465,13 @@ static struct pbx_builtin {
 
 };
 
-AST_MUTEX_DEFINE_STATIC(applock); 		/* Lock for the application list */
 static struct ast_context *contexts = NULL;
 AST_MUTEX_DEFINE_STATIC(conlock); 		/* Lock for the ast_context list */
 static struct ast_app *apps = NULL;
+AST_MUTEX_DEFINE_STATIC(applock); 		/* Lock for the application list */
 
-AST_MUTEX_DEFINE_STATIC(switchlock);		/* Lock for switches */
 struct ast_switch *switches = NULL;
+AST_MUTEX_DEFINE_STATIC(switchlock);		/* Lock for switches */
 
 AST_MUTEX_DEFINE_STATIC(hintlock);		/* Lock for extension state notifys */
 static int stateid = 1;
@@ -1673,6 +1674,7 @@ static struct ast_exten *ast_hint_extension(struct ast_channel *c, const char *c
 	return e;
 }
 
+/*--- ast_extensions_state2: Check state of extension by using hints */
 static int ast_extension_state2(struct ast_exten *e)
 {
 	char hint[AST_MAX_EXTENSION] = "";    
@@ -1681,9 +1683,12 @@ static int ast_extension_state2(struct ast_exten *e)
 	int allunavailable = 1, allbusy = 1, allfree = 1;
 	int busy = 0;
 
+	if (!e)
+		return -1;
+
 	strncpy(hint, ast_get_extension_app(e), sizeof(hint)-1);
     
-	cur = hint;    
+	cur = hint;    	/* On or more devices separated with a & character */
 	do {
 		rest = strchr(cur, '&');
 		if (rest) {
@@ -1717,9 +1722,9 @@ static int ast_extension_state2(struct ast_exten *e)
        		cur = rest;
 	} while (cur);
 
-	if (allfree)
+	if (allfree)			
 		return AST_EXTENSION_NOT_INUSE;
-	if (allbusy)
+	if (allbusy)		
 		return AST_EXTENSION_BUSY;
 	if (allunavailable)
 		return AST_EXTENSION_UNAVAILABLE;
@@ -1730,17 +1735,19 @@ static int ast_extension_state2(struct ast_exten *e)
 }
 
 
+/*--- ast_extension_state: Check extension state for an extension by using hint */
 int ast_extension_state(struct ast_channel *c, char *context, char *exten)
 {
 	struct ast_exten *e;
 
-	e = ast_hint_extension(c, context, exten);    
+	e = ast_hint_extension(c, context, exten);	/* Do we have a hint for this extension ? */ 
 	if (!e) 
-		return -1;
+		return -1;				/* No hint, return -1 */
 
-	return ast_extension_state2(e);    
+	return ast_extension_state2(e);    		/* Check all devices in the hint */
 }
 
+/*--- ast_device_state_changed: If device state in cblist is changed  - then notify callback function */
 int ast_device_state_changed(const char *fmt, ...) 
 {
 	struct ast_hint *list;
@@ -1748,6 +1755,7 @@ int ast_device_state_changed(const char *fmt, ...)
 	struct ast_devstate_cb *devcb;
 	char hint[AST_MAX_EXTENSION] = "";
 	char device[AST_MAX_EXTENSION];
+
 	char *cur, *rest;
 	int state;
 
@@ -1762,16 +1770,24 @@ int ast_device_state_changed(const char *fmt, ...)
 		*rest = 0;
 	}
 
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG, "Changing state for %s\n", device);
+	
+ 		
+
 	state = ast_device_state(device);
 
 	ast_mutex_lock(&hintlock);
 
+	/* First check device callbacks */
 	devcb = devcbs;
 	while(devcb) {
 		if (devcb->callback)
 			devcb->callback(device, state, devcb->data);
 		devcb = devcb->next;
 	}
+
+	/* Then check callbacks in hints */
 	list = hints;
 
 	while (list) {
@@ -1785,10 +1801,14 @@ int ast_device_state_changed(const char *fmt, ...)
 				rest++;
 			}
 			
-			if (!strcmp(cur, device)) {
-				/* Found extension execute callbacks  */
+			if (!strcmp(cur, device)) {	/* Is this device referred to in this hint? */
+
+				/* Get device state for this hint */
 				state = ast_extension_state2(list->exten);
+
 				if ((state != -1) && (state != list->laststate)) {
+					/* Device state changed since last check - notify the watcher */
+
 					/* For general callbacks */
 					cblist = statecbs;
 					while (cblist) {
@@ -1815,6 +1835,7 @@ int ast_device_state_changed(const char *fmt, ...)
 	return 1;
 }
 			
+/*--- ast_devstate_add: Add device state watcher */
 int ast_devstate_add(ast_devstate_cb_type callback, void *data)
 {
 	struct ast_devstate_cb *devcb;
@@ -1831,6 +1852,7 @@ int ast_devstate_add(ast_devstate_cb_type callback, void *data)
 	return 0;
 }
 
+/*--- ast_devstate_del: Remove device state watcher */
 void ast_devstate_del(ast_devstate_cb_type callback, void *data)
 {
 	struct ast_devstate_cb *devcb, *prev = NULL, *next;
@@ -1851,6 +1873,7 @@ void ast_devstate_del(ast_devstate_cb_type callback, void *data)
 	ast_mutex_unlock(&hintlock);
 }
 
+/*--- ast_extension_state_add: Add watcher for extension states */
 int ast_extension_state_add(const char *context, const char *exten, 
 			    ast_state_cb_type callback, void *data)
 {
@@ -1858,7 +1881,7 @@ int ast_extension_state_add(const char *context, const char *exten,
 	struct ast_state_cb *cblist;
 	struct ast_exten *e;
 
-	/* No context and extension add callback to statecbs list */
+	/* If there's no context and extension:  add callback to statecbs list */
 	if (!context && !exten) {
 		ast_mutex_lock(&hintlock);
 
@@ -1892,12 +1915,13 @@ int ast_extension_state_add(const char *context, const char *exten,
 	if (!context || !exten)
 		return -1;
 
-	/* This callback type is for only one hint */
+	/* This callback type is for only one hint, so get the hint */
 	e = ast_hint_extension(NULL, context, exten);    
 	if (!e) {
 		return -1;
 	}
     
+	/* Find the hint in the list of hints */
 	ast_mutex_lock(&hintlock);
 	list = hints;        
     
@@ -1908,20 +1932,21 @@ int ast_extension_state_add(const char *context, const char *exten,
 	}
 
 	if (!list) {
+		/* We have no hint, sorry */
 		ast_mutex_unlock(&hintlock);
 		return -1;
 	}
 
-	/* Now inserts the callback */
+	/* Now insert the callback in the callback list  */
 	cblist = malloc(sizeof(struct ast_state_cb));
 	if (!cblist) {
 		ast_mutex_unlock(&hintlock);
 		return -1;
 	}
 	memset(cblist, 0, sizeof(struct ast_state_cb));
-	cblist->id = stateid++;
-	cblist->callback = callback;
-	cblist->data = data;
+	cblist->id = stateid++;		/* Unique ID for this callback */
+	cblist->callback = callback;	/* Pointer to callback routine */
+	cblist->data = data;		/* Data for the callback */
 
 	cblist->next = list->callbacks;
 	list->callbacks = cblist;
@@ -1930,6 +1955,7 @@ int ast_extension_state_add(const char *context, const char *exten,
 	return cblist->id;
 }
 
+/*--- ast_extension_state_del: Remove a watcher from the callback list */
 int ast_extension_state_del(int id, ast_state_cb_type callback)
 {
 	struct ast_hint *list;
@@ -1965,6 +1991,7 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 	}
 
 	/* id greater than zero is a callback with extension */
+	/* Find the callback based on ID */
 	list = hints;
 	while (list) {
 		cblist = list->callbacks;
