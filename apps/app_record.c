@@ -105,6 +105,10 @@ static int record_exec(struct ast_channel *chan, void *data)
 		ext = strchr(filename, '.');
 		if (!ext)
 			ext = strchr(filename, ':');
+		if (ext) {
+			*ext = '\0';
+			ext++;
+		}
 	}
 	if (!ext) {
 		ast_log(LOG_WARNING, "No extension specified to filename!\n");
