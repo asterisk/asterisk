@@ -15,19 +15,6 @@ MODS=cdr_csv.so
 
 CFLAGS+=-fPIC
 
-#
-# MySQL stuff...  Autoconf anyone??
-#
-MODS+=$(shell if [ -d /usr/local/mysql/include ] || [ -d /usr/include/mysql ] || [ -d /usr/local/include/mysql ] || [ -d /opt/mysql/include ]; then echo "cdr_mysql.so"; fi)
-CFLAGS+=$(shell if [ -d /usr/local/mysql/include ]; then echo "-I/usr/local/mysql/include"; fi)
-CFLAGS+=$(shell if [ -d /usr/include/mysql ]; then echo "-I/usr/include/mysql"; fi)
-CFLAGS+=$(shell if [ -d /usr/local/include/mysql ]; then echo "-I/usr/local/include/mysql"; fi)
-CFLAGS+=$(shell if [ -d /opt/mysql/include/mysql ]; then echo "-I/opt/mysql/include/mysql"; fi)
-MLFLAGS=
-MLFLAGS+=$(shell if [ -d /usr/lib/mysql ]; then echo "-L/usr/lib/mysql"; fi)
-MLFLAGS+=$(shell if [ -d /usr/local/mysql/lib ]; then echo "-L/usr/local/mysql/lib"; fi)
-MLFLAGS+=$(shell if [ -d /usr/local/lib/mysql ]; then echo "-L/usr/local/lib/mysql"; fi)
-MLFLAGS+=$(shell if [ -d /opt/mysql/lib/mysql ]; then echo "-L/opt/mysql/lib/mysql"; fi)
 
 all: depend $(MODS)
 
@@ -43,9 +30,6 @@ clean:
 ifneq ($(wildcard .depend),)
 include .depend
 endif
-
-cdr_mysql.so: cdr_mysql.o
-	$(CC) -shared -Xlinker -x -o $@ $< -lmysqlclient -lz $(MLFLAGS)
 
 depend: .depend
 

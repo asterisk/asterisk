@@ -13,18 +13,6 @@
 
 USE_MYSQL_VM_INTERFACE=0
 
-MLFLAGS=
-ifeq ($(USE_MYSQL_VM_INTERFACE),1)
-CFLAGS+=-DUSEMYSQLVM
-CFLAGS+=$(shell if [ -d /usr/local/mysql/include ]; then echo "-I/usr/local/mysql/include"; fi)
-CFLAGS+=$(shell if [ -d /usr/include/mysql ]; then echo "-I/usr/include/mysql"; fi)
-CFLAGS+=$(shell if [ -d /usr/local/include/mysql ]; then echo "-I/usr/local/include/mysql"; fi)
-CFLAGS+=$(shell if [ -d /opt/mysql/include/mysql ]; then echo "-I/opt/mysql/include/mysql"; fi)
-MLFLAGS+=$(shell if [ -d /usr/lib/mysql ]; then echo "-L/usr/lib/mysql"; fi)
-MLFLAGS+=$(shell if [ -d /usr/local/mysql/lib ]; then echo "-L/usr/local/mysql/lib"; fi)
-MLFLAGS+=$(shell if [ -d /usr/local/lib/mysql ]; then echo "-L/usr/local/lib/mysql"; fi)
-MLFLAGS+=$(shell if [ -d /opt/mysql/lib/mysql ]; then echo "-L/opt/mysql/lib/mysql"; fi)
-endif
 
 #APPS=app_dial.so app_playback.so app_directory.so app_intercom.so app_mp3.so 
 APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_intercom.so app_mp3.so \

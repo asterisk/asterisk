@@ -36,6 +36,10 @@
 #include <time.h>
 #ifdef USEMYSQLVM
 #include <mysql.h>
+#include "mysql-vm-routines.h"
+#else
+static inline int sql_init(void) { return 0; }
+static inline void sql_close(void) { }
 #endif
 
 #include <pthread.h>
@@ -181,135 +185,7 @@ static void apply_options(struct ast_vm_user *vmu, char *options)
 	
 }
 
-#ifdef USEMYSQLVM
-MYSQL *dbhandler=NULL;
-ast_mutex_t mysqllock;
-char dbuser[80];
-char dbpass[80];
-char dbhost[80];
-char dbname[80];
-
-static int mysql_login(void)
-{
-	ast_verbose( VERBOSE_PREFIX_3 "Logging into database with user %s, password %s, and database %s\n", dbuser, dbpass, dbname);
-
-	dbhandler=mysql_init(NULL);
-	if (!mysql_real_connect(dbhandler, dbhost[0] ? dbhost : NULL, dbuser, dbpass, dbname, 0, NULL, 0)) {
-		ast_log(LOG_WARNING, "Error Logging into database\n");
-		return(-1);
-	}
-	ast_mutex_init(&mysqllock);
-	return(0);
-}
-
-static void mysql_logout(void)
-{
-	mysql_close(dbhandler);
-}
-
-static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, char *mailbox)
-{
-	MYSQL_RES *result;
-	MYSQL_ROW rowval;
-	MYSQL_FIELD *fields;
-	int numFields, i;
-	char query[240];
-	char options[160] = "";
-	struct ast_vm_user *retval;
-
-	retval=malloc(sizeof(struct ast_vm_user));
-
-	if (retval) {
-		*retval->mailbox='\0';
-		*retval->context='\0';
-		*retval->password='\0';
-		*retval->fullname='\0';
-		*retval->email='\0';
-		*retval->pager='\0';
-		*retval->serveremail='\0';
-		retval->attach=-1;
-		retval->alloced=1;
-		retval->next=NULL;
-		if (mailbox) {
-			strcpy(retval->mailbox, mailbox);
-		}
-		if (context) {
-			strcpy(retval->context, context);
-		}
-
-		if (*retval->context) {
-			sprintf(query, "SELECT password,fullname,email,pager,options FROM users WHERE context='%s' AND mailbox='%s'", context, mailbox);
-		} else {
-			sprintf(query, "SELECT password,fullname,email,pager,options FROM users WHERE mailbox='%s'", mailbox);
-		}
-		ast_mutex_lock(&mysqllock);
-		mysql_query(dbhandler, query);
-		if ((result=mysql_store_result(dbhandler))!=NULL) {
-			if ((rowval=mysql_fetch_row(result))!=NULL) {
-				numFields=mysql_num_fields(result);
-				fields=mysql_fetch_fields(result);
-				for (i=0; i<numFields; i++) {
-					if (rowval[i]) {
-						if (!strcmp(fields[i].name, "password")) {
-							strcpy(retval->password, rowval[i]);
-						} else if (!strcmp(fields[i].name, "fullname")) {
-							strcpy(retval->fullname, rowval[i]);
-						} else if (!strcmp(fields[i].name, "email")) {
-							strcpy(retval->email, rowval[i]);
-						} else if (!strcmp(fields[i].name, "pager")) {
-							strcpy(retval->pager, rowval[i]);
-						} else if (!strcmp(fields[i].name, "options")) {
-							strncpy(options, rowval[i], sizeof(options) - 1);
-							apply_options(retval, options);
-						}
-					}
-				}
-				mysql_free_result(result);
-				ast_mutex_unlock(&mysqllock);
-				return(retval);
-			} else {
-				mysql_free_result(result);
-				ast_mutex_unlock(&mysqllock);
-				free(retval);
-				return(NULL);
-			}
-		}
-		ast_mutex_unlock(&mysqllock);
-		free(retval);
-	}
-	return(NULL);
-}
-
-static void vm_change_password(struct ast_vm_user *vmu, char *password)
-{
-	char query[400];
-
-	if (*vmu->context) {
-		sprintf(query, "UPDATE users SET password='%s' WHERE context='%s' AND mailbox='%s' AND password='%s'", password, vmu->context, vmu->mailbox, vmu->password);
-	} else {
-		sprintf(query, "UPDATE users SET password='%s' WHERE mailbox='%s' AND password='%s'", password, vmu->mailbox, vmu->password);
-	}
-	ast_mutex_lock(&mysqllock);
-	mysql_query(dbhandler, query);
-	strcpy(vmu->password, password);
-	ast_mutex_unlock(&mysqllock);
-}
-
-static void reset_user_pw(char *context, char *mailbox, char *password)
-{
-	char query[320];
-
-	if (context) {
-		sprintf(query, "UPDATE users SET password='%s' WHERE context='%s' AND mailbox='%s'", password, context, mailbox);
-	} else {
-		sprintf(query, "UPDATE users SET password='%s' WHERE mailbox='%s'", password, mailbox);
-	}
-	ast_mutex_lock(&mysqllock);
-	mysql_query(dbhandler, query);
-	ast_mutex_unlock(&mysqllock);
-}
-#else
-
+#ifndef USEMYSQLVM
 static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, char *mailbox)
 {
 	/* This function could be made to generate one from a database, too */
@@ -2818,9 +2694,7 @@ int unload_module(void)
 	STANDARD_HANGUP_LOCALUSERS;
 	res = ast_unregister_application(app);
 	res |= ast_unregister_application(app2);
-#ifdef USEMYSQLVM
-	mysql_logout();
-#endif
+	sql_close();
 	return res;
 }
 
@@ -2835,11 +2709,8 @@ int load_module(void)
 	if ((res=load_config())) {
 		return(res);
 	}
-#ifdef USEMYSQLVM
-	if ((res=mysql_login())) {
-		return(res);
-	}
-#endif
+	if ((res = sql_init()))
+		return res;
 	return res;
 }
 
