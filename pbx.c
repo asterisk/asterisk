@@ -4333,8 +4333,8 @@ static int pbx_builtin_saynumber(struct ast_channel *chan, void *data)
 static int pbx_builtin_saydigits(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	if (data && atoi((char *)data))
-		res = ast_say_digits(chan, atoi((char *)data), "", chan->language);
+	if (data)
+		res = ast_say_digit_str(chan, (char *)data, "", chan->language);
 	return res;
 }
 	

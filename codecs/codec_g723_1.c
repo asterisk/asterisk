@@ -21,6 +21,7 @@
 #define TYPE_DONTSEND	 0x3
 #define TYPE_MASK	 0x3
 
+#include <sys/types.h>
 #include <asterisk/translate.h>
 #include <asterisk/module.h>
 #include <asterisk/logger.h>
