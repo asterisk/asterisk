@@ -62,8 +62,10 @@ cd /path/to/pwlib
 make clean opt
 cd /path/to/openh323
 make clean opt 
-cd asterisk/channels/h323
-make clean install   
+cd /path/to/asterisk/channels/h323
+make  
+cd /path/to/asterisk
+make install 
 
 (Note: Open H.323 or PWLib never get a 'make install' so don't do it)
  
