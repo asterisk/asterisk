@@ -1215,7 +1215,7 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 
 	if (!app_data)
 		app_data="";
-	if (ast_add_extension(argv[4], argc == 6 ? 1 : 0, exten, iprior, cidmatch, app,
+	if (ast_add_extension(argv[4], argc == 6 ? 1 : 0, exten, iprior, NULL, cidmatch, app,
 		(void *)strdup(app_data), free, registrar)) {
 		switch (errno) {
 			case ENOMEM:
@@ -1617,6 +1617,7 @@ static int pbx_load_module(void)
 	char *cxt, *ext, *pri, *appl, *data, *tc, *cidmatch;
 	struct ast_context *con;
 	char *start, *end;
+	char *label;
 	char realvalue[256];
 	int lastpri = -2;
 
@@ -1657,6 +1658,16 @@ static int pbx_load_module(void)
 							pri = strsep(&stringp, ",");
 							if (!pri)
 								pri="";
+							label = strchr(pri, '(');
+							if (label) {
+								*label = '\0';
+								label++;
+								end = strchr(label, ')');
+								if (end)
+									*end = '\0';
+								else
+									ast_log(LOG_WARNING, "Label missing trailing ')' at line %d\n", v->lineno);
+							}
 							if (!strcmp(pri,"hint"))
 								ipri=PRIORITY_HINT;
 							else if (!strcmp(pri, "next") || !strcmp(pri, "n")) {
@@ -1712,7 +1723,7 @@ static int pbx_load_module(void)
 							pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext) - 1);
 							if (ipri) {
 								lastpri = ipri;
-								if (ast_add_extension2(con, 0, realext, ipri, cidmatch, appl, strdup(data), FREE, registrar)) {
+								if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), FREE, registrar)) {
 									ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
 								}
 							}

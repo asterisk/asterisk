@@ -79,7 +79,7 @@ struct ast_channel {
 	/*! Language requested */
 	char language[MAX_LANGUAGE];		
 	/*! Type of channel */
-	char *type;				
+	const char *type;				
 	/*! File descriptor for channel -- Drivers will poll on these file descriptors, so at least one must be non -1.  */
 	int fds[AST_MAX_FDS];			
 
@@ -303,13 +303,13 @@ struct chanmon;
 } 
 
 struct outgoing_helper {
-	char *context;
-	char *exten;
+	const char *context;
+	const char *exten;
 	int priority;
-	char *cid_num;
-	char *cid_name;
-	char *variable;
-	char *account;
+	const char *cid_num;
+	const char *cid_name;
+	const char *variable;
+	const char *account;
 };
 
 #define AST_CDR_TRANSFER	(1 << 0)
@@ -377,7 +377,7 @@ struct outgoing_helper {
  * by the low level module
  * Returns an ast_channel on success, NULL on failure.
  */
-struct ast_channel *ast_request(char *type, int format, void *data);
+struct ast_channel *ast_request(const char *type, int format, void *data);
 
 //! Search the Channels by Name
 /*!
@@ -411,9 +411,9 @@ int ast_device_state(char *device);
  * Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
  * to know if the call was answered or not.
  */
-struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int timeout, int *reason, char *cidnum, char *cidname);
+struct ast_channel *ast_request_and_dial(const char *type, int format, void *data, int timeout, int *reason, const char *cidnum, const char *cidname);
 
-struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, int timeout, int *reason, char *cidnum, char *cidname, struct outgoing_helper *oh);
+struct ast_channel *__ast_request_and_dial(const char *type, int format, void *data, int timeout, int *reason, const char *cidnum, const char *cidname, struct outgoing_helper *oh);
 
 //! Registers a channel
 /*! 
@@ -426,12 +426,12 @@ struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, i
  * routine that creates a channel
  * Returns 0 on success, -1 on failure.
  */
-int ast_channel_register(char *type, char *description, int capabilities, 
-			struct ast_channel* (*requester)(char *type, int format, void *data));
+int ast_channel_register(const char *type, const char *description, int capabilities, 
+			struct ast_channel* (*requester)(const char *type, int format, void *data));
 
 /* Same like the upper function but with support for devicestate */
-int ast_channel_register_ex(char *type, char *description, int capabilities,
-		struct ast_channel *(*requester)(char *type, int format, void *data),
+int ast_channel_register_ex(const char *type, const char *description, int capabilities,
+		struct ast_channel *(*requester)(const char *type, int format, void *data),
 		int (*devicestate)(void *data));
 
 //! Unregister a channel class
@@ -440,7 +440,7 @@ int ast_channel_register_ex(char *type, char *description, int capabilities,
  * Basically just unregisters the channel with the asterisk channel system
  * No return value.
  */
-void ast_channel_unregister(char *type);
+void ast_channel_unregister(const char *type);
 
 //! Hang up a channel 
 /*! 
@@ -790,7 +790,7 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 /*! Deactive an active generator */
 void ast_deactivate_generator(struct ast_channel *chan);
 
-void ast_set_callerid(struct ast_channel *chan, char *cidnum, char *cidname, char *ani);
+void ast_set_callerid(struct ast_channel *chan, const char *cidnum, const char *cidname, const char *ani);
 
 /*! Start a tone going */
 int ast_tonepair_start(struct ast_channel *chan, int freq1, int freq2, int duration, int vol);

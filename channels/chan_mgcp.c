@@ -3345,7 +3345,7 @@ static int restart_monitor(void)
 	return 0;
 }
 
-static struct ast_channel *mgcp_request(char *type, int format, void *data)
+static struct ast_channel *mgcp_request(const char *type, int format, void *data)
 {
 	int oldformat;
 	struct mgcp_subchannel *sub;

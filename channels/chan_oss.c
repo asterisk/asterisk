@@ -745,7 +745,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *p, int state)
 	return tmp;
 }
 
-static struct ast_channel *oss_request(char *type, int format, void *data)
+static struct ast_channel *oss_request(const char *type, int format, void *data)
 {
 	int oldformat = format;
 	struct ast_channel *tmp;

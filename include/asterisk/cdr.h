@@ -3,9 +3,9 @@
  *
  * Call Detail Record API 
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License.
@@ -207,7 +207,7 @@ extern void ast_cdr_setapp(struct ast_cdr *cdr, char *app, char *data);
  * Converts the string form of the flag to the binary form.
  * Returns the binary form of the flag
  */
-extern int ast_cdr_amaflags2int(char *flag);
+extern int ast_cdr_amaflags2int(const char *flag);
 
 //! Disposition to a string
 /*!
@@ -233,12 +233,12 @@ extern void ast_cdr_reset(struct ast_cdr *cdr, int flags);
  */
 extern char *ast_cdr_flags2str(int flags);
 
-extern int ast_cdr_setaccount(struct ast_channel *chan, char *account);
-extern int ast_cdr_setamaflags(struct ast_channel *chan, char *account);
+extern int ast_cdr_setaccount(struct ast_channel *chan, const char *account);
+extern int ast_cdr_setamaflags(struct ast_channel *chan, const char *amaflags);
 
 
-extern int ast_cdr_setuserfield(struct ast_channel *chan, char *userfield);
-extern int ast_cdr_appenduserfield(struct ast_channel *chan, char *userfield);
+extern int ast_cdr_setuserfield(struct ast_channel *chan, const char *userfield);
+extern int ast_cdr_appenduserfield(struct ast_channel *chan, const char *userfield);
 
 
 /* Update CDR on a channel */

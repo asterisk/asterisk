@@ -906,7 +906,7 @@ static int create_addr(struct oh323_pvt *r, char *opeer)
 	}	
 
 }
-static struct ast_channel *oh323_request(char *type, int format, void *data)
+static struct ast_channel *oh323_request(const char *type, int format, void *data)
 {
 	int oldformat;
 	struct oh323_pvt *p;

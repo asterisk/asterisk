@@ -374,7 +374,7 @@ char *ast_cdr_flags2str(int flag)
 	return "Unknown";
 }
 
-int ast_cdr_setaccount(struct ast_channel *chan, char *account)
+int ast_cdr_setaccount(struct ast_channel *chan, const char *account)
 {
 	struct ast_cdr *cdr = chan->cdr;
 
@@ -387,7 +387,7 @@ int ast_cdr_setaccount(struct ast_channel *chan, char *account)
 	return 0;
 }
 
-int ast_cdr_setamaflags(struct ast_channel *chan, char *flag)
+int ast_cdr_setamaflags(struct ast_channel *chan, const char *flag)
 {
 	struct ast_cdr *cdr = chan->cdr;
 	int newflag;
@@ -399,7 +399,7 @@ int ast_cdr_setamaflags(struct ast_channel *chan, char *flag)
 	return 0;
 }
 
-int ast_cdr_setuserfield(struct ast_channel *chan, char *userfield)
+int ast_cdr_setuserfield(struct ast_channel *chan, const char *userfield)
 {
 	struct ast_cdr *cdr = chan->cdr;
 
@@ -411,7 +411,7 @@ int ast_cdr_setuserfield(struct ast_channel *chan, char *userfield)
 	return 0;
 }
 
-int ast_cdr_appenduserfield(struct ast_channel *chan, char *userfield)
+int ast_cdr_appenduserfield(struct ast_channel *chan, const char *userfield)
 {
 	struct ast_cdr *cdr = chan->cdr;
 
@@ -472,7 +472,7 @@ int ast_cdr_update(struct ast_channel *c)
 	return 0;
 }
 
-int ast_cdr_amaflags2int(char *flag)
+int ast_cdr_amaflags2int(const char *flag)
 {
 	if (!strcasecmp(flag, "default"))
 		return 0;

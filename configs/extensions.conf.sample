@@ -62,7 +62,13 @@ TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 ; preceeded by a one.
 ;
 ; Each step of an extension is ordered by priority, which must
-; always start with 1 to be considered a valid extension.
+; always start with 1 to be considered a valid extension.  The priority
+; "next" or "n" means the previous priority plus one, regardless of whether
+; the previous priority was associated with the current extension or not.
+; The priority "same" or "s" means the same as the previously specified
+; priority, again regardless of whether the previous entry was for the
+; same extension.  Priorities may also have an alias, or label, in 
+; parenthesis after their name which can be used in goto situations
 ;
 ; Contexts contain several lines, one for each step of each
 ; extension, which can take one of two forms as listed below,
@@ -113,34 +119,34 @@ exten => _91700XXXXXXX,1,Dial(IAX2/${IAXINFO}@iaxtel.com/${EXTEN:1}@iaxtel)
 ; International long distance through trunk
 ;
 exten => _9011.,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
-exten => _9011.,2,Congestion
+exten => _9011.,n,Congestion
 
 [trunkld]
 ;
 ; Long distance context accessed through trunk
 ;
 exten => _91NXXNXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
-exten => _91NXXNXXXXXX,2,Congestion
+exten => _91NXXNXXXXXX,n,Congestion
 
 [trunklocal]
 ;
 ; Local seven-digit dialing accessed through trunk interface
 ;
 exten => _9NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
-exten => _9NXXXXXX,2,Congestion
+exten => _9NXXXXXX,n,Congestion
 
 [trunktollfree]
 ;
 ; Long distance context accessed through trunk interface
 ;
 exten => _91800NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
-exten => _91800NXXXXXX,2,Congestion
+exten => _91800NXXXXXX,n,Congestion
 exten => _91888NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
-exten => _91888NXXXXXX,2,Congestion
+exten => _91888NXXXXXX,n,Congestion
 exten => _91877NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
-exten => _91877NXXXXXX,2,Congestion
+exten => _91877NXXXXXX,n,Congestion
 exten => _91866NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
-exten => _91866NXXXXXX,2,Congestion
+exten => _91866NXXXXXX,n,Congestion
 
 [international]
 ;
@@ -201,17 +207,17 @@ exten => a,1,VoicemailMain(${ARG1})				; If they press *, send the user into Voi
 ; We start with what to do when a call first comes in.
 ;
 exten => s,1,Wait,1			; Wait a second, just for fun
-exten => s,2,Answer			; Answer the line
-exten => s,3,DigitTimeout,5		; Set Digit Timeout to 5 seconds
-exten => s,4,ResponseTimeout,10		; Set Response Timeout to 10 seconds
-exten => s,5,BackGround(demo-congrats)	; Play a congratulatory message
-exten => s,6,BackGround(demo-instruct)	; Play some instructions
+exten => s,n,Answer			; Answer the line
+exten => s,n,DigitTimeout,5		; Set Digit Timeout to 5 seconds
+exten => s,n,ResponseTimeout,10		; Set Response Timeout to 10 seconds
+exten => s,n(restart),BackGround(demo-congrats)	; Play a congratulatory message
+exten => s,n(instruct),BackGround(demo-instruct)	; Play some instructions
 
 exten => 2,1,BackGround(demo-moreinfo)	; Give some more information.
-exten => 2,2,Goto(s,6)
+exten => 2,n,Goto(s,instruct)
 
 exten => 3,1,SetLanguage(fr)		; Set language to french
-exten => 3,2,Goto(s,5)			; Start with the congratulations
+exten => 3,n,Goto(s,restart)			; Start with the congratulations
 
 exten => 1000,1,Goto(default,s,1)
 ;
@@ -220,18 +226,18 @@ exten => 1000,1,Goto(default,s,1)
 ;
 exten => 1234,1,Playback(transfer,skip)		; "Please hold while..." 
 					; (but skip if channel is not up)
-exten => 1234,2,Macro(stdexten,1234,${CONSOLE})
+exten => 1234,n,Macro(stdexten,1234,${CONSOLE})
 
 exten => 1235,1,Voicemail(u1234)		; Right to voicemail
 
 exten => 1236,1,Dial(Console/dsp)		; Ring forever
-exten => 1236,2,Voicemail(u1234)		; Unless busy
+exten => 1236,n,Voicemail(u1234)		; Unless busy
 
 ;
 ; # for when they're done with the demo
 ;
 exten => #,1,Playback(demo-thanks)		; "Thanks for trying the demo"
-exten => #,2,Hangup			; Hang them up.
+exten => #,n,Hangup			; Hang them up.
 
 ;
 ; A timeout and "invalid extension rule"
@@ -244,43 +250,43 @@ exten => i,1,Playback(invalid)		; "That's not valid, try again"
 ; Asterisk demo.
 ;
 exten => 500,1,Playback(demo-abouttotry); Let them know what's going on
-exten => 500,2,Dial(IAX2/guest@misery.digium.com/s@default)	; Call the Asterisk demo
-exten => 500,3,Playback(demo-nogo)	; Couldn't connect to the demo site
-exten => 500,4,Goto(s,6)		; Return to the start over message.
+exten => 500,n,Dial(IAX2/guest@misery.digium.com/s@default)	; Call the Asterisk demo
+exten => 500,n,Playback(demo-nogo)	; Couldn't connect to the demo site
+exten => 500,n,Goto(s,6)		; Return to the start over message.
 
 ;
 ; Create an extension, 600, for evaulating echo latency.
 ;
 exten => 600,1,Playback(demo-echotest)	; Let them know what's going on
-exten => 600,2,Echo			; Do the echo test
-exten => 600,3,Playback(demo-echodone)	; Let them know it's over
-exten => 600,4,Goto(s,6)		; Start over
+exten => 600,n,Echo			; Do the echo test
+exten => 600,n,Playback(demo-echodone)	; Let them know it's over
+exten => 600,n,Goto(s,6)		; Start over
 
 ;
 ; Give voicemail at extension 8500
 ;
 exten => 8500,1,VoicemailMain
-exten => 8500,2,Goto(s,6)
+exten => 8500,n,Goto(s,6)
 ;
 ; Here's what a phone entry would look like (IXJ for example)
 ;
 ;exten => 1265,1,Dial(Phone/phone0,15)
-;exten => 1265,2,Goto(s,5)
+;exten => 1265,n,Goto(s,5)
 
 ;[mainmenu]
 ;
 ; Example "main menu" context with submenu
 ;
 ;exten => s,1,Answer
-;exten => s,2,Background(thanks)		; "Thanks for calling press 1 for sales, 2 for support, ..."
+;exten => s,n,Background(thanks)		; "Thanks for calling press 1 for sales, 2 for support, ..."
 ;exten => 1,1,Goto(submenu,s,1)
 ;exten => 2,1,Hangup
 ;include => default
 ;
 ;[submenu]
 ;exten => s,1,Ringing					; Make them comfortable with 2 seconds of ringback
-;exten => s,2,Wait,2
-;exten => s,3,Background(submenuopts)	; "Thanks for calling the sales department.  Press 1 for steve, 2 for..."
+;exten => s,n,Wait,2
+;exten => s,n,Background(submenuopts)	; "Thanks for calling the sales department.  Press 1 for steve, 2 for..."
 ;exten => 1,1,Goto(default,steve,1)
 ;exten => 2,1,Goto(default,mark,2)
 
@@ -321,7 +327,7 @@ include => demo
 ; voicemailmain
 ;
 ;exten => 8500,1,VoicemailMain
-;exten => 8500,2,Hangup
+;exten => 8500,n,Hangup
 ;
 ; Or a conference room (you'll need to edit meetme.conf to enable this room)
 ;

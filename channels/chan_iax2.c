@@ -4341,7 +4341,7 @@ static void register_peer_exten(struct iax2_peer *peer, int onoff)
 		stringp = multi;
 		while((ext = strsep(&stringp, "&"))) {
 			if (onoff)
-				ast_add_extension(regcontext, 1, ext, 1, NULL, "Noop", strdup(peer->name), free, type);
+				ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", strdup(peer->name), free, type);
 			else
 				ast_context_remove_extension(regcontext, ext, 1, NULL);
 		}
@@ -6205,7 +6205,7 @@ static void free_context(struct iax2_context *con)
 	}
 }
 
-static struct ast_channel *iax2_request(char *type, int format, void *data)
+static struct ast_channel *iax2_request(const char *type, int format, void *data)
 {
 	int callno;
 	int res;
@@ -6993,7 +6993,7 @@ int reload(void)
 	return reload_config();
 }
 
-static int cache_get_callno_locked(char *data)
+static int cache_get_callno_locked(const char *data)
 {
 	struct sockaddr_in sin;
 	int x;
@@ -7075,7 +7075,7 @@ static int cache_get_callno_locked(char *data)
 	return callno;
 }
 
-static struct iax2_dpcache *find_cache(struct ast_channel *chan, char *data, char *context, char *exten, int priority)
+static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *data, const char *context, const char *exten, int priority)
 {
 	struct iax2_dpcache *dp, *prev = NULL, *next;
 	struct timeval tv;
@@ -7225,7 +7225,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, char *data, cha
 	return dp;	
 }
 
-static int iax2_exists(struct ast_channel *chan, char *context, char *exten, int priority, char *callerid, char *data)
+static int iax2_exists(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	struct iax2_dpcache *dp;
 	int res = 0;
@@ -7247,7 +7247,7 @@ static int iax2_exists(struct ast_channel *chan, char *context, char *exten, int
 	return res;
 }
 
-static int iax2_canmatch(struct ast_channel *chan, char *context, char *exten, int priority, char *callerid, char *data)
+static int iax2_canmatch(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	int res = 0;
 	struct iax2_dpcache *dp;
@@ -7269,7 +7269,7 @@ static int iax2_canmatch(struct ast_channel *chan, char *context, char *exten, i
 	return res;
 }
 
-static int iax2_matchmore(struct ast_channel *chan, char *context, char *exten, int priority, char *callerid, char *data)
+static int iax2_matchmore(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	int res = 0;
 	struct iax2_dpcache *dp;
@@ -7291,7 +7291,7 @@ static int iax2_matchmore(struct ast_channel *chan, char *context, char *exten, 
 	return res;
 }
 
-static int iax2_exec(struct ast_channel *chan, char *context, char *exten, int priority, char *callerid, int newstack, char *data)
+static int iax2_exec(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data)
 {
 	char odata[256];
 	char req[256];

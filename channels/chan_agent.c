@@ -1001,7 +1001,7 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 	return res;
 }
 
-static struct ast_channel *agent_request(char *type, int format, void *data)
+static struct ast_channel *agent_request(const char *type, int format, void *data)
 {
 	struct agent_pvt *p;
 	struct ast_channel *chan = NULL;

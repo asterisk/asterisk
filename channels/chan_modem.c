@@ -760,7 +760,7 @@ static struct ast_modem_pvt *mkif(char *iface)
 	return tmp;
 }
 
-static struct ast_channel *modem_request(char *type, int format, void *data)
+static struct ast_channel *modem_request(const char *type, int format, void *data)
 {
 	int oldformat;
 	struct ast_modem_pvt *p;

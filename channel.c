@@ -65,7 +65,7 @@ struct chanlist {
 	char type[80];
 	char description[80];
 	int capabilities;
-	struct ast_channel * (*requester)(char *type, int format, void *data);
+	struct ast_channel * (*requester)(const char *type, int format, void *data);
 	int (*devicestate)(void *data);
 	struct chanlist *next;
 } *backends = NULL;
@@ -153,14 +153,14 @@ void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset)
 	return;
 }
 
-int ast_channel_register(char *type, char *description, int capabilities,
-		struct ast_channel *(*requester)(char *type, int format, void *data))
+int ast_channel_register(const char *type, const char *description, int capabilities,
+		struct ast_channel *(*requester)(const char *type, int format, void *data))
 {
 	return ast_channel_register_ex(type, description, capabilities, requester, NULL);
 }
 
-int ast_channel_register_ex(char *type, char *description, int capabilities,
-		struct ast_channel *(*requester)(char *type, int format, void *data),
+int ast_channel_register_ex(const char *type, const char *description, int capabilities,
+		struct ast_channel *(*requester)(const char *type, int format, void *data),
 		int (*devicestate)(void *data))
 {
 	struct chanlist *chan, *last=NULL;
@@ -760,7 +760,7 @@ int ast_hangup(struct ast_channel *chan)
 	return res;
 }
 
-void ast_channel_unregister(char *type)
+void ast_channel_unregister(const char *type)
 {
 	struct chanlist *chan, *last=NULL;
 	if (option_debug)
@@ -1750,7 +1750,7 @@ int ast_set_read_format(struct ast_channel *chan, int fmts)
 	return 0;
 }
 
-struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, int timeout, int *outstate, char *cid_num, char *cid_name, struct outgoing_helper *oh)
+struct ast_channel *__ast_request_and_dial(const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name, struct outgoing_helper *oh)
 {
 	int state = 0;
 	struct ast_channel *chan;
@@ -1858,12 +1858,12 @@ struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, i
 	return chan;
 }
 
-struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int timeout, int *outstate, char *cidnum, char *cidname)
+struct ast_channel *ast_request_and_dial(const char *type, int format, void *data, int timeout, int *outstate, const char *cidnum, const char *cidname)
 {
 	return __ast_request_and_dial(type, format, data, timeout, outstate, cidnum, cidname, NULL);
 }
 
-struct ast_channel *ast_request(char *type, int format, void *data)
+struct ast_channel *ast_request(const char *type, int format, void *data)
 {
 	struct chanlist *chan;
 	struct ast_channel *c = NULL;
@@ -2401,7 +2401,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	return 0;
 }
 
-void ast_set_callerid(struct ast_channel *chan, char *callerid, char *calleridname, char *ani)
+void ast_set_callerid(struct ast_channel *chan, const char *callerid, const char *calleridname, const char *ani)
 {
 	if (callerid) {
 		if (chan->cid.cid_num)

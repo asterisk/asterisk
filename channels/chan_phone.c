@@ -1023,7 +1023,7 @@ static struct phone_pvt *mkif(char *iface, int mode, int txgain, int rxgain)
 	return tmp;
 }
 
-static struct ast_channel *phone_request(char *type, int format, void *data)
+static struct ast_channel *phone_request(const char *type, int format, void *data)
 {
 	int oldformat;
 	struct phone_pvt *p;

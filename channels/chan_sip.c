@@ -4293,7 +4293,7 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 		stringp = multi;
 		while((ext = strsep(&stringp, "&"))) {
 			if (onoff)
-				ast_add_extension(regcontext, 1, ext, 1, NULL, "Noop", strdup(peer->name), free, type);
+				ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", strdup(peer->name), free, type);
 			else
 				ast_context_remove_extension(regcontext, ext, 1, NULL);
 		}
@@ -7966,7 +7966,7 @@ static int sip_devicestate(void *data)
 
 /*--- sip_request: PBX interface function -build SIP pvt structure ---*/
 /* SIP calls initiated by the PBX arrive here */
-static struct ast_channel *sip_request(char *type, int format, void *data)
+static struct ast_channel *sip_request(const char *type, int format, void *data)
 {
 	int oldformat;
 	struct sip_pvt *p;

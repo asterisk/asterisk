@@ -753,7 +753,7 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 	return tmp;
 }
 
-static struct ast_channel *alsa_request(char *type, int format, void *data)
+static struct ast_channel *alsa_request(const char *type, int format, void *data)
 {
 	int oldformat = format;
 	struct ast_channel *tmp=NULL;

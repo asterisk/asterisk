@@ -114,7 +114,6 @@ static char *tdesc = "Zapata Telephony Driver"
 ;
 
 static char *type = "Zap";
-static char *typecompat = "Tor";	/* Retain compatibility with chan_tor */
 static char *config = "zapata.conf";
 
 #define SIG_EM		ZT_SIG_EM
@@ -6730,7 +6729,7 @@ static int pri_find_empty_chan(struct zt_pri *pri, int backwards)
 }
 #endif
 
-static struct ast_channel *zt_request(char *type, int format, void *data)
+static struct ast_channel *zt_request(const char *type, int format, void *data)
 {
 	int oldformat;
 	int groupmatch = 0;
@@ -8882,7 +8881,6 @@ static int __unload_module(void)
 	ast_manager_unregister( "ZapDNDon" );
 	ast_manager_unregister("ZapShowChannels");
 	ast_unregister_application(app_callingpres);
-	ast_channel_unregister(typecompat);
 	ast_channel_unregister(type);
 	if (!ast_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
@@ -9683,11 +9681,6 @@ int load_module(void)
 	}
 	if (ast_channel_register(type, tdesc, AST_FORMAT_SLINEAR |  AST_FORMAT_ULAW, zt_request)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
-		__unload_module();
-		return -1;
-	}
-	if (ast_channel_register(typecompat, tdesc, AST_FORMAT_SLINEAR |  AST_FORMAT_ULAW, zt_request)) {
-		ast_log(LOG_ERROR, "Unable to register channel class %s\n", typecompat);
 		__unload_module();
 		return -1;
 	}

@@ -2489,7 +2489,7 @@ static int restart_monitor(void)
 	return 0;
 }
 
-static struct ast_channel *skinny_request(char *type, int format, void *data)
+static struct ast_channel *skinny_request(const char *type, int format, void *data)
 {
 	int oldformat;
 	struct skinny_subchannel *sub;
