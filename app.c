@@ -27,6 +27,7 @@
 #include <asterisk/dsp.h>
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
+#include <asterisk/utils.h>
 #include "asterisk.h"
 #include "astconf.h"
 
@@ -153,14 +154,14 @@ int ast_app_has_voicemail(const char *mailbox)
 	char *context;
 	int ret;
 	/* If no mailbox, return immediately */
-	if (!strlen(mailbox))
+	if (ast_strlen_zero(mailbox))
 		return 0;
 	if (strchr(mailbox, ',')) {
 		strncpy(tmp, mailbox, sizeof(tmp));
 		mb = tmp;
 		ret = 0;
 		while((cur = strsep(&mb, ","))) {
-			if (strlen(cur)) {
+			if (!ast_strlen_zero(cur)) {
 				if (ast_app_has_voicemail(cur))
 					return 1; 
 			}
@@ -202,7 +203,7 @@ int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	if (oldmsgs)
 		*oldmsgs = 0;
 	/* If no mailbox, return immediately */
-	if (!strlen(mailbox))
+	if (ast_strlen_zero(mailbox))
 		return 0;
 	if (strchr(mailbox, ',')) {
 		int tmpnew, tmpold;
@@ -210,7 +211,7 @@ int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		mb = tmp;
 		ret = 0;
 		while((cur = strsep(&mb, ", "))) {
-			if (strlen(cur)) {
+			if (!ast_strlen_zero(cur)) {
 				if (ast_app_messagecount(cur, newmsgs ? &tmpnew : NULL, oldmsgs ? &tmpold : NULL))
 					return -1;
 				else {
