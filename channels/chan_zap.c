@@ -2158,9 +2158,12 @@ static int zt_hangup(struct ast_channel *ast)
 		case SIG_FXSGS:
 		case SIG_FXSLS:
 		case SIG_FXSKS:
-			/* Make sure we're not made available for at least two seconds */
-			time(&p->guardtime);
-			p->guardtime += 2;
+			/* Make sure we're not made available for at least two seconds assuming
+			   we were actually used for an inbound or outbound call. */
+			if (ast->_state != AST_STATE_RESERVED) {
+				time(&p->guardtime);
+				p->guardtime += 2;
+			}
 			break;
 		default:
 			tone_zone_play_tone(p->subs[SUB_REAL].zfd, -1);
