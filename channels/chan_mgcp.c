@@ -2002,7 +2002,7 @@ static int transmit_notify_request(struct mgcp_subchannel *sub, char *tone)
             add_header(&resp, "R", "L/hd(N)");
             break;
         case MGCP_OFFHOOK:
-            add_header(&resp, "R", "L/hu(N), L/hf(N), D/[0-9#*](N)");
+            add_header(&resp, "R", (p->dtmfmode & MGCP_DTMF_INBAND) ? "L/hu(N),L/hf(N)" : "L/hu(N),L/hf(N),D/[0-9#*](N)");
             break;
     }
     if (strlen(tone)) {
@@ -2056,7 +2056,7 @@ static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, ch
             add_header(&resp, "R", "L/hd(N)");
             break;
         case MGCP_OFFHOOK:
-            add_header(&resp, "R", "L/hu(N),L/hf(N),D/[0-9#*](N)");
+            add_header(&resp, "R",  (p->dtmfmode & MGCP_DTMF_INBAND) ? "L/hu(N),L/hf(N)" : "L/hu(N),L/hf(N),D/[0-9#*](N)");
             break;
     }
     if (strlen(tone2)) {
@@ -2096,7 +2096,7 @@ static int transmit_modify_request(struct mgcp_subchannel *sub)
             add_header(&resp, "R", "L/hd(N)");
             break;
         case MGCP_OFFHOOK:
-            add_header(&resp, "R", "L/hu(N),L/hf(N),D/[0-9#*](N)");
+            add_header(&resp, "R",  (p->dtmfmode & MGCP_DTMF_INBAND) ? "L/hu(N), L/hf(N)" : "L/hu(N),L/hf(N),D/[0-9#*](N)");
             break;
     }
     /* SC: fill in new fields */
