@@ -3828,6 +3828,7 @@ int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char
 		LOAD_OH(oh);
 		chan = __ast_request_and_dial(type, format, data, timeout, reason, callerid, &oh);
 		if (chan) {
+			pbx_builtin_setaccount(chan, account);
 			if (chan->_state == AST_STATE_UP) {
 					res = 0;
 				if (option_verbose > 3)
@@ -3883,6 +3884,7 @@ int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char
 			free(as);
 			return -1;
 		}
+		pbx_builtin_setaccount(chan, account);
 		as->chan = chan;
 		strncpy(as->context, context, sizeof(as->context) - 1);
 		strncpy(as->exten,  exten, sizeof(as->exten) - 1);
@@ -3938,6 +3940,7 @@ int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *
 	if (sync) {
 		chan = ast_request_and_dial(type, format, data, timeout, reason, callerid);
 		if (chan) {
+			pbx_builtin_setaccount(chan, account);
 			if (variable) {
 				vartmp = ast_strdupa(variable);
 				for (var = strtok_r(vartmp, "|", &vartmp); var; var = strtok_r(NULL, "|", &vartmp)) {
@@ -3986,6 +3989,7 @@ int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *
 			free(as);
 			return -1;
 		}
+		pbx_builtin_setaccount(chan, account);
 		as->chan = chan;
 		strncpy(as->app, app, sizeof(as->app) - 1);
 		if (appdata)
@@ -4321,6 +4325,7 @@ static int pbx_builtin_goto(struct ast_channel *chan, void *data)
 		strncpy(chan->context, context, sizeof(chan->context)-1);
 	if (option_verbose > 2)
 		ast_verbose( VERBOSE_PREFIX_3 "Goto (%s,%s,%d)\n", chan->context,chan->exten, chan->priority+1);
+	ast_cdr_update(chan);
 	return 0;
 }
 
