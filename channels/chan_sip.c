@@ -362,14 +362,26 @@ static int retrans_pkt(void *data)
 				ast_queue_hangup(pkt->owner->owner, 1);
 			} else {
 				/* If no owner, destroy now */
+				ast_pthread_mutex_unlock(&pkt->owner->lock);
 				sip_destroy(pkt->owner);
+				pkt = NULL;
 			}
 		}
 	} else {
 		/* Don't bother retransmitting.  It's about to be killed anyway */
 		pkt->retransid = -1;
+		if (pkt->owner->owner) {
+			/* XXX Potential deadlocK?? XXX */
+			ast_queue_hangup(pkt->owner->owner, 1);
+		} else {
+			/* If no owner, destroy now */
+			ast_pthread_mutex_unlock(&pkt->owner->lock);
+			sip_destroy(pkt->owner);
+			pkt=NULL;
+		}
 	}
-	ast_pthread_mutex_unlock(&pkt->owner->lock);
+	if (pkt)
+		ast_pthread_mutex_unlock(&pkt->owner->lock);
 	return res;
 }
 
@@ -2179,7 +2191,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 	char addr[80];
 	struct sip_pvt *p;
 	/* exit if we are already in process with this registrar ?*/
-	if ( (auth==NULL && r->regstate==REG_STATE_REGSENT) || r->regstate==REG_STATE_AUTHSENT) {
+	if ( r == NULL || (auth==NULL && r->regstate==REG_STATE_REGSENT) || r->regstate==REG_STATE_AUTHSENT) {
 		ast_log(LOG_NOTICE, "Strange, trying to register when registration already pending\n");
 		return 0;
 	}
