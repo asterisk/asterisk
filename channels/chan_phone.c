@@ -584,11 +584,9 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 			expected=4;
 		} else {
 			res = phone_write_buf(p, pos, expected, maxfr);
-			if (res > 0)
-				res = 0;
 		}
 		if (res != expected) {
-			if (errno != EAGAIN) {
+			if ((errno != EAGAIN) && (errno != EINTR)) {
 				if (res < 0) 
 					ast_log(LOG_WARNING, "Write returned error (%s)\n", strerror(errno));
 	/*
