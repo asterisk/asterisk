@@ -44,7 +44,9 @@ ifneq (${PROC},ultrasparc)
 ifneq ($(shell uname -m),ppc)
 ifneq ($(shell uname -m),ppc64)
 ifneq ($(shell uname -m),alpha)
+ifneq (${PROC},sparc64)
 OPTIMIZE+=-march=$(PROC)
+endif
 endif
 endif
 endif
