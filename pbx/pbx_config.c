@@ -26,6 +26,15 @@
 #include "../asterisk.h"
 #include "../astconf.h"
 
+#ifdef __AST_DEBUG_MALLOC
+static void FREE(void *ptr)
+{
+	free(ptr);
+}
+#else
+#define FREE free
+#endif
+
 static char *dtext = "Text Extension Configuration";
 static char *config = "extensions.conf";
 static char *registrar = "pbx_config";
@@ -1568,7 +1577,7 @@ static int pbx_load_module(void)
 
 							if (!data)
 								data="";
-							if (ast_add_extension2(con, 0, ext, ipri, cidmatch, appl, strdup(data), free, registrar)) {
+							if (ast_add_extension2(con, 0, ext, ipri, cidmatch, appl, strdup(data), FREE, registrar)) {
 								ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
 							}
 							free(tc);
