@@ -456,8 +456,8 @@ static int handle_getdata(struct ast_channel *chan, AGI *agi, int argc, char *ar
 		return RESULT_SUCCESS;
 	else if (res == 1)
 		fdprintf(agi->fd, "200 result=%s (timeout)\n", data);
-    else if (res < 0 )
-        fdprintf(agi->fd, "200 result=-1\n");
+	else if (res < 0 )
+		fdprintf(agi->fd, "200 result=-1\n");
 	else
 		fdprintf(agi->fd, "200 result=%s\n", data);
 	if (res >= 0)
@@ -741,36 +741,35 @@ static int handle_setcallerid(struct ast_channel *chan, AGI *agi, int argc, char
 	if (argv[2])
 		ast_set_callerid(chan, argv[2], 0);
 
-/*	strncpy(chan->callerid, argv[2], sizeof(chan->callerid)-1);
-*/	fdprintf(agi->fd, "200 result=1\n");
+	fdprintf(agi->fd, "200 result=1\n");
 	return RESULT_SUCCESS;
 }
 
 static int handle_channelstatus(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
-        struct ast_channel *c;
-        if (argc==2) {
-            /* no argument: supply info on the current channel */
-            fdprintf(agi->fd, "200 result=%d\n", chan->_state);
-	    return RESULT_SUCCESS;
-        } else if (argc==3) {
-            /* one argument: look for info on the specified channel */
-            c = ast_channel_walk_locked(NULL);
-            while (c) {
-                if (strcasecmp(argv[2],c->name)==0) {
-                    fdprintf(agi->fd, "200 result=%d\n", c->_state);
-					ast_mutex_unlock(&c->lock);
-                    return RESULT_SUCCESS;
-                }
+	struct ast_channel *c;
+	if (argc==2) {
+		/* no argument: supply info on the current channel */
+		fdprintf(agi->fd, "200 result=%d\n", chan->_state);
+		return RESULT_SUCCESS;
+	} else if (argc==3) {
+		/* one argument: look for info on the specified channel */
+		c = ast_channel_walk_locked(NULL);
+		while (c) {
+			if (strcasecmp(argv[2],c->name)==0) {
+				fdprintf(agi->fd, "200 result=%d\n", c->_state);
 				ast_mutex_unlock(&c->lock);
-                c = ast_channel_walk_locked(c);
-            }
-            /* if we get this far no channel name matched the argument given */
-            fdprintf(agi->fd, "200 result=-1\n");
-            return RESULT_SUCCESS;
-        } else {
-            return RESULT_SHOWUSAGE;
-        }
+				return RESULT_SUCCESS;
+			}
+			ast_mutex_unlock(&c->lock);
+			c = ast_channel_walk_locked(c);
+		}
+		/* if we get this far no channel name matched the argument given */
+		fdprintf(agi->fd, "200 result=-1\n");
+		return RESULT_SUCCESS;
+	} else {
+		return RESULT_SHOWUSAGE;
+	}
 }
 
 static int handle_setvariable(struct ast_channel *chan, AGI *agi, int argc, char **argv)
@@ -786,10 +785,10 @@ static int handle_getvariable(struct ast_channel *chan, AGI *agi, int argc, char
 {
 	char *tempstr;
 
-	if ((tempstr = pbx_builtin_getvar_helper(chan, argv[2])) ) 
-			fdprintf(agi->fd, "200 result=1 (%s)\n", tempstr);
+	if ((tempstr = pbx_builtin_getvar_helper(chan, argv[2]))) 
+		fdprintf(agi->fd, "200 result=1 (%s)\n", tempstr);
 	else
-			fdprintf(agi->fd, "200 result=0\n");
+		fdprintf(agi->fd, "200 result=0\n");
 
 	return RESULT_SUCCESS;
 }
@@ -837,9 +836,9 @@ static int handle_dbget(struct ast_channel *chan, AGI *agi, int argc, char **arg
 		return RESULT_SHOWUSAGE;
 	res = ast_db_get(argv[2], argv[3], tmp, sizeof(tmp));
 	if (res) 
-			fdprintf(agi->fd, "200 result=0\n");
+		fdprintf(agi->fd, "200 result=0\n");
 	else
-			fdprintf(agi->fd, "200 result=1 (%s)\n", tmp);
+		fdprintf(agi->fd, "200 result=1 (%s)\n", tmp);
 
 	return RESULT_SUCCESS;
 }
@@ -851,9 +850,9 @@ static int handle_dbput(struct ast_channel *chan, AGI *agi, int argc, char **arg
 		return RESULT_SHOWUSAGE;
 	res = ast_db_put(argv[2], argv[3], argv[4]);
 	if (res) 
-			fdprintf(agi->fd, "200 result=0\n");
+		fdprintf(agi->fd, "200 result=0\n");
 	else
-			fdprintf(agi->fd, "200 result=1\n");
+		fdprintf(agi->fd, "200 result=1\n");
 
 	return RESULT_SUCCESS;
 }
