@@ -1,5 +1,5 @@
 #!/bin/bash
-
+PPATH=$1
 ## Make sure we were called from Makefile
 
 if [ "x$ASTERISKVERSIONNUM" == "x" ]; then
@@ -9,7 +9,7 @@ fi
 
 ## Create a pkgconfig spec file for 3rd party modules (pkg-config asterisk --cflags)
 
-if [ ! -d /usr/lib/pkgconfig ]; then
+if [ ! -d $PPATH ]; then
   exit
 fi
 
@@ -22,7 +22,7 @@ LOCAL_CFLAGS=$(echo $CFLAGS | sed -e 's/\s*-pipe\s*//g' | sed -e 's/-[Wmp]\S*\s*
   sed -r -e 's/-DAST(ETCDIR|LIBDIR|VARLIBDIR|VARRUNDIR|SPOOLDIR|LOGDIR|CONFPATH|MODDIR|AGIDIR)=\S* //g'
 )
 
-cat <<EOF > /usr/lib/pkgconfig/asterisk.pc
+cat <<EOF > $PPATH/asterisk.pc
 install_prefix=$INSTALL_PREFIX
 version_number=$ASTERISKVERSIONNUM
 etcdir=$ASTETCDIR
