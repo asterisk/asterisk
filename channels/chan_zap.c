@@ -5083,7 +5083,7 @@ static void *do_monitor(void *data)
 								res2 = ioctl(last->subs[SUB_REAL].zfd, ZT_FLUSH, &x);
 								if (res2)
 									ast_log(LOG_WARNING, "Unable to flush input on channel %d\n", last->channel);
-								last->cidspill = malloc(8192);
+								last->cidspill = malloc(MAX_CALLERID_SIZE);
 								if (last->cidspill) {
 									/* Turn on on hook transfer for 4 seconds */
 									x = 4000;
