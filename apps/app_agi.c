@@ -95,7 +95,7 @@ LOCAL_USER_DECL;
 
 #define TONE_BLOCK_SIZE 200
 
-static int launch_script(char *script, char *args, int *fds, int *efd, int *opid)
+static int launch_script(char *script, char *argv[], int *fds, int *efd, int *opid)
 {
 	char tmp[256];
 	int pid;
@@ -159,7 +159,7 @@ static int launch_script(char *script, char *args, int *fds, int *efd, int *opid
 		for (x=STDERR_FILENO + 2;x<1024;x++) 
 			close(x);
 		/* Execute script */
-		execl(script, script, args, (char *)NULL);
+		execv(script, argv);
 		/* Can't use ast_log since FD's are closed */
 		fprintf(stderr, "Failed to execute '%s': %s\n", script, strerror(errno));
 		exit(1);
@@ -1429,12 +1429,13 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 {
 	int res=0;
 	struct localuser *u;
-	char *args,*ringy;
-	char tmp[256];
+	char *argv[MAX_ARGS];
+	char *tmp = (char *)data;
+	int argc = 0;
 	int fds[2];
 	int efd = -1;
 	int pid;
-	char *stringp=tmp;
+        char *stringp;
 	AGI agi;
 	if (!data || !strlen(data)) {
 		ast_log(LOG_WARNING, "AGI requires an argument (script)\n");
@@ -1443,28 +1444,22 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 
 
 	memset(&agi, 0, sizeof(agi));
-	strncpy(tmp, data, sizeof(tmp)-1);
-	strsep(&stringp, "|");
-	args = strsep(&stringp, "|");
-	ringy = strsep(&stringp,"|");
-	if (!args)
-		args = "";
+        while ((stringp = strsep(&tmp, "|"))) {
+		argv[argc++] = stringp;
+        }
+	argv[argc] = NULL;
+
 	LOCAL_USER_ADD(u);
 #if 0
 	 /* Answer if need be */
         if (chan->_state != AST_STATE_UP) {
-		if (ringy) { /* if for ringing first */
-			/* a little ringy-dingy first */
-		        ast_indicate(chan, AST_CONTROL_RINGING);  
-			sleep(3); 
-		}
 		if (ast_answer(chan)) {
 			LOCAL_USER_REMOVE(u);
 			return -1;
 		}
 	}
 #endif
-	res = launch_script(tmp, args, fds, enhanced ? &efd : NULL, &pid);
+	res = launch_script(argv[0], argv, fds, enhanced ? &efd : NULL, &pid);
 	if (!res) {
 		agi.fd = fds[1];
 		agi.ctrl = fds[0];
