@@ -32,6 +32,7 @@
 #include <asterisk/app.h>
 #include <asterisk/lock.h>
 #include <asterisk/utils.h>
+#include <asterisk/file.h>
 #include <sys/resource.h>
 #include <fcntl.h>
 #include <stdio.h>
