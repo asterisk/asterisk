@@ -83,6 +83,8 @@ static char *config = "sip.conf";
 #define DEFAULT_SIP_PORT	5060	/* From RFC 2543 */
 #define SIP_MAX_PACKET	1500		/* Also from RFC 2543, should sub headers tho */
 
+#define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER"
+
 static char context[AST_MAX_EXTENSION] = "default";
 
 static char language[MAX_LANGUAGE] = "";
@@ -94,6 +96,8 @@ static char fromdomain[AST_MAX_EXTENSION] = "";
 static char notifymime[AST_MAX_EXTENSION] = "application/simple-message-summary";
 
 static int srvlookup = 0;
+
+static int pedanticsipchecking = 0;
 
 static int usecnt =0;
 static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
@@ -1459,7 +1463,45 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 {
 	struct sip_pvt *p;
 	char *callid;
+	char tmp[256] = "";
+	char *cmd;
+	char *tag = "", *c;
+	int themisfrom;
 	callid = get_header(req, "Call-ID");
+
+	if (pedanticsipchecking) {
+		/* In principle Call-ID's uniquely identify a call, however some vendors
+		   (i.e. Pingtel) send multiple calls with the same Call-ID and different
+		   tags in order to simplify billing.  The RFC does state that we have to
+		   compare tags in addition to the call-id, but this generate substantially
+		   more overhead which is totally unnecessary for the vast majority of sane
+		   SIP implementations, and thus Asterisk does not enable this behavior
+		   by default. Short version: You'll need this option to support conferencing
+		   on the pingtel */
+		strncpy(tmp, req->header[0], sizeof(tmp) - 1);
+		cmd = tmp;
+		c = strchr(tmp, ' ');
+		if (c)
+			*c = '\0';
+		if (!strcasecmp(cmd, "SIP/2.0")) {
+			themisfrom = 0;
+		} else {
+			themisfrom = 1;
+		}
+		if (themisfrom)
+			strncpy(tmp, get_header(req, "From"), sizeof(tmp) - 1);
+		else
+			strncpy(tmp, get_header(req, "To"), sizeof(tmp) - 1);
+		tag = strstr(tmp, "tag=");
+		if (tag) {
+			tag += 4;
+			c = strchr(tag, ';');
+			if (c)
+				*c = '\0';
+		}
+			
+	}
+		
 	if (!strlen(callid)) {
 		ast_log(LOG_WARNING, "Call missing call ID from '%s'\n", inet_ntoa(sin->sin_addr));
 		return NULL;
@@ -1467,20 +1509,9 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	ast_pthread_mutex_lock(&iflock);
 	p = iflist;
 	while(p) {
-		if (!strcmp(p->callid, callid)) {
+		if (!strcmp(p->callid, callid) && 
+			(!pedanticsipchecking || !strlen(p->theirtag) || !strcmp(p->theirtag, tag))) {
 			/* Found the call */
-#if 0
-			if (!p->insecure && ((p->sa.sin_addr.s_addr != sin->sin_addr.s_addr) ||
-			    (p->sa.sin_port != sin->sin_port))) {
-					char orig[80];
-					char new[80];
-					snprintf(orig, sizeof(orig), "%s:%d", inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
-					snprintf(new, sizeof(new), "%s:%d", inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
-					ast_log(LOG_WARNING, "Looks like %s is trying to steal call '%s' from %s?\n", new, p->callid, orig);
-					ast_pthread_mutex_unlock(&iflock);
-					return NULL;
-			}
-#endif
 			ast_pthread_mutex_lock(&p->lock);
 			ast_pthread_mutex_unlock(&iflock);
 			return p;
@@ -2194,7 +2225,7 @@ static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip
 {
 	struct sip_request resp;
 	respprep(&resp, p, msg, req);
-	add_header(&resp, "Allow", "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER");
+	add_header(&resp, "Allow", ALLOWED_METHODS);
 	add_header(&resp, "Accept", "application/sdp");
 	add_header(&resp, "Content-Length", "0");
 	add_blank_header(&resp);
@@ -2581,6 +2612,7 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 	{
 		add_header(&req, "Alert-info",distinctive_ring);
 	}
+	add_header(&req, "Allow", ALLOWED_METHODS);
 	if (sdp) {
 		add_sdp(&req, p, NULL, NULL);
 	} else {
@@ -5500,6 +5532,7 @@ static int reload_config(void)
 	strcpy(fromdomain, "");
 	globalcanreinvite = REINVITE_INVITE;
 	videosupport = 0;
+	pedanticsipchecking=0;
 	v = ast_variable_browse(cfg, "general");
 	while(v) {
 		/* Create the interface list */
@@ -5530,6 +5563,8 @@ static int reload_config(void)
 			globalnat = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "srvlookup")) {
 			srvlookup = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "pedantic")) {
+			pedanticsipchecking = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "canreinvite")) {
 			if (!strcasecmp(v->value, "update"))
 				globalcanreinvite = REINVITE_UPDATE;
