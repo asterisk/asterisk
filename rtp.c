@@ -37,6 +37,7 @@
 #include <asterisk/config.h>
 #include <asterisk/lock.h>
 #include <asterisk/utils.h>
+#include <asterisk/cli.h>
 
 #define MAX_TIMESTAMP_SKEW	640
 
@@ -52,14 +53,16 @@ static int dtmftimeout = 3000;	/* 3000 samples */
 
 static int rtpstart = 0;
 static int rtpend = 0;
+static int rtpdebug = 0;		/* Are we debugging? */
+static struct sockaddr_in rtpdebugaddr;	/* Debug packets to/from this host */
 #ifdef SO_NO_CHECK
 static int checksums = 1;
 #endif
 
 /* The value of each payload format mapping: */
 struct rtpPayloadType {
-  int isAstFormat; 	/* whether the following code is an AST_FORMAT */
-  int code;
+	int isAstFormat; 	/* whether the following code is an AST_FORMAT */
+	int code;
 };
 
 #define MAX_RTP_PT 256
@@ -96,11 +99,11 @@ struct ast_rtp {
 	struct io_context *io;
 	void *data;
 	ast_rtp_callback callback;
-    struct rtpPayloadType current_RTP_PT[MAX_RTP_PT];
-    int rtp_lookup_code_cache_isAstFormat;	/* a cache for the result of rtp_lookup_code(): */
-    int rtp_lookup_code_cache_code;
-    int rtp_lookup_code_cache_result;
-    int rtp_offered_from_local;
+	struct rtpPayloadType current_RTP_PT[MAX_RTP_PT];
+	int rtp_lookup_code_cache_isAstFormat;	/* a cache for the result of rtp_lookup_code(): */
+	int rtp_lookup_code_cache_code;
+	int rtp_lookup_code_cache_result;
+	int rtp_offered_from_local;
 	struct ast_rtcp *rtcp;
 };
 
@@ -201,6 +204,19 @@ static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
 	
 }
 
+static inline int rtp_debug_test_addr(struct sockaddr_in *addr)
+{
+	if (rtpdebug == 0)
+		return 0;
+	if (rtpdebugaddr.sin_addr.s_addr) {
+		if (((ntohs(rtpdebugaddr.sin_port) != 0)
+			&& (rtpdebugaddr.sin_port != addr->sin_port))
+			|| (rtpdebugaddr.sin_addr.s_addr != addr->sin_addr.s_addr))
+		return 0;
+	}
+	return 1;
+}
+
 static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *data, int len)
 {
 	unsigned int event;
@@ -244,7 +260,7 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	duration &= 0xFFFF;
 #if 0
 	printf("Event: %08x (len = %d)\n", event, len);
-#endif	
+#endif
 	if (event < 10) {
 		resp = '0' + event;
 	} else if (event < 11) {
@@ -465,10 +481,11 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		return &null_frame;
 	}
 
-#if 0
-	printf("Got RTP packet from %s:%d (type %d, seq %d, ts %d, len = %d)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
-#endif	
-	rtpPT = ast_rtp_lookup_pt(rtp, payloadtype);
+	if(rtp_debug_test_addr(&sin))
+	ast_verbose("Got RTP packet from %s:%d (type %d, seq %d, ts %d, len %d)\n"
+			, ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
+
+        rtpPT = ast_rtp_lookup_pt(rtp, payloadtype);
 	if (!rtpPT.isAstFormat) {
 	  /* This is special in-band data that's not one of our codecs */
 	  if (rtpPT.code == AST_RTP_DTMF) {
@@ -1044,9 +1061,10 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 			res = sendto(rtp->s, (void *)rtpheader, hdrlen + 4, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
 			if (res <0) 
 				ast_log(LOG_NOTICE, "RTP Transmission error to %s:%d: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
-	#if 0
-		printf("Sent %d bytes of RTP data to %s:%d\n", res, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port));
-	#endif		
+			if(rtp_debug_test_addr(&rtp->them))
+				ast_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n"
+						, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastts,res - hdrlen);		   
+		   
 		}
 		if (x ==0) {
 			/* Clear marker bit and increment seqno */
@@ -1149,9 +1167,9 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		res = sendto(rtp->s, (void *)rtpheader, f->datalen + hdrlen, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
 		if (res <0) 
 			ast_log(LOG_NOTICE, "RTP Transmission error to %s:%d: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
-#if 0
-		printf("Sent %d bytes of RTP data to %s:%d\n", res, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port));
-#endif		
+		if(rtp_debug_test_addr(&rtp->them))
+			ast_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n"
+					, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), codec, rtp->seqno, rtp->lastts,res - hdrlen);
 	}
 	return 0;
 }
@@ -1536,6 +1554,74 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 	return -1;
 }
 
+static int rtp_do_debug_ip(int fd, int argc, char *argv[])
+{
+	struct hostent *hp;
+	struct ast_hostent ahp;
+	char iabuf[INET_ADDRSTRLEN];
+	int port = 0;
+	char *p, *arg;
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	arg = argv[3];
+	p = strstr(arg, ":");
+	if (p){
+		*p = '\0';
+		p++;
+		port = atoi(p);
+	}
+	hp = ast_gethostbyname(arg, &ahp);
+	if (hp == NULL)
+		return RESULT_SHOWUSAGE;
+	rtpdebugaddr.sin_family = AF_INET;
+	memcpy(&rtpdebugaddr.sin_addr, hp->h_addr, sizeof(rtpdebugaddr.sin_addr));
+	rtpdebugaddr.sin_port = htons(port);
+	if (port == 0)
+		ast_cli(fd, "RTP Debugging Enabled for IP: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtpdebugaddr.sin_addr));
+	else
+		ast_cli(fd, "RTP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtpdebugaddr.sin_addr), port);
+	rtpdebug = 1;
+	return RESULT_SUCCESS;
+}
+
+static int rtp_do_debug(int fd, int argc, char *argv[])
+{
+	if(argc != 2){
+		if(argc != 4)
+			return RESULT_SHOWUSAGE;
+		return rtp_do_debug_ip(fd, argc, argv);
+	}
+	rtpdebug = 1;
+	memset(&rtpdebugaddr,0,sizeof(rtpdebugaddr));
+	ast_cli(fd, "RTP Debugging Enabled\n");
+	return RESULT_SUCCESS;
+}
+   
+static int rtp_no_debug(int fd, int argc, char *argv[])
+{
+	if(argc !=3)
+		return RESULT_SHOWUSAGE;
+	rtpdebug = 0;
+	ast_cli(fd,"RTP Debugging Disabled\n");
+	return RESULT_SUCCESS;
+}
+
+static char debug_usage[] =
+  "Usage: rtp debug [ip host[:port]]\n"
+  "       Enable dumping of all RTP packets to and from host.\n";
+static char no_debug_usage[] =
+  "Usage: rtp no debug\n"
+  "       Disable all RTP debugging\n";
+
+static struct ast_cli_entry  cli_debug_ip =
+{{ "rtp", "debug", "ip", NULL } , rtp_do_debug, "Enable RTP debugging on IP", debug_usage };
+
+static struct ast_cli_entry  cli_debug =
+{{ "rtp", "debug", NULL } , rtp_do_debug, "Enable RTP debugging", debug_usage };
+
+static struct ast_cli_entry  cli_no_debug =
+{{ "rtp", "no", "debug", NULL } , rtp_no_debug, "Disable RTP debugging", no_debug_usage };
+
 void ast_rtp_reload(void)
 {
 	struct ast_config *cfg;
@@ -1581,9 +1667,13 @@ void ast_rtp_reload(void)
 	}
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "RTP Allocating from port range %d -> %d\n", rtpstart, rtpend);
+	
 }
 
 void ast_rtp_init(void)
 {
+	ast_cli_register(&cli_debug);
+	ast_cli_register(&cli_debug_ip);
+	ast_cli_register(&cli_no_debug);
 	ast_rtp_reload();
 }
