@@ -30,6 +30,8 @@ do:
 There are also the following special variables: 
 
 ${CALLERID}	Caller ID
+${CALLERIDNAME}	Caller ID Name only
+${CALLERIDNUM}	Caller ID Number only
 ${EXTEN}	Current extension
 ${CONTEXT}      Current context
 ${PRIORITY}	Current priority
