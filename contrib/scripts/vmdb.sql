@@ -1,2 +1,11 @@
 drop table if exists users;
-create table users (mailbox VARCHAR(80) NOT NULL PRIMARY KEY, context VARCHAR(80), password VARCHAR(80), fullname VARCHAR(80), email VARCHAR(80), pager VARCHAR(80), options VARCHAR(160));
+create table users (
+context VARCHAR(80) NOT NULL,
+mailbox VARCHAR(80) NOT NULL,
+password VARCHAR(80) NOT NULL DEFAULT '',
+fullname VARCHAR(80) NOT NULL DEFAULT '',
+email VARCHAR(80) NOT NULL DEFAULT '',
+pager VARCHAR(80) NOT NULL DEFAULT '',
+options VARCHAR(160) NOT NULL DEFAULT '',
+PRIMARY KEY (context, mailbox)
+);
