@@ -98,10 +98,6 @@ struct ast_channel {
 	/*! Who are we bridged to, if we're bridged  Do not access directly,
 	    use ast_bridged_channel(chan) */
 	struct ast_channel *_bridge;
-	/*! Who did we call? */
-	struct ast_channel *dialed;
-	/*! Who called us? */
-	struct ast_channel *dialing;
 	/*! Channel that will masquerade as us */
 	struct ast_channel *masq;		
 	/*! Who we are masquerading as */
