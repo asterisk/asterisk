@@ -3,9 +3,9 @@
  *
  * Real-time Transport Protocol support
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2005, Digium
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -59,6 +59,8 @@ void ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them);
 void ast_rtp_get_us(struct ast_rtp *rtp, struct sockaddr_in *us);
 
 void ast_rtp_destroy(struct ast_rtp *rtp);
+
+void ast_rtp_reset(struct ast_rtp *rtp);
 
 void ast_rtp_set_callback(struct ast_rtp *rtp, ast_rtp_callback callback);
 

@@ -976,6 +976,24 @@ void ast_rtp_stop(struct ast_rtp *rtp)
 	}
 }
 
+void ast_rtp_reset(struct ast_rtp *rtp)
+{
+	memset(&rtp->rxcore, 0, sizeof(rtp->rxcore));
+	memset(&rtp->txcore, 0, sizeof(rtp->txcore));
+	memset(&rtp->dtmfmute, 0, sizeof(rtp->dtmfmute));
+	rtp->lastts = 0;
+	rtp->lastrxts = 0;
+	rtp->lastividtimestamp = 0;
+	rtp->lastovidtimestamp = 0;
+	rtp->lasteventseqn = 0;
+	rtp->lasttxformat = 0;
+	rtp->lastrxformat = 0;
+	rtp->dtmfcount = 0;
+	rtp->dtmfduration = 0;
+	rtp->seqno = 0;
+	rtp->rxseqno = 0;
+}
+
 void ast_rtp_destroy(struct ast_rtp *rtp)
 {
 	if (rtp->smoother)
