@@ -1466,7 +1466,8 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 	int res=0;
 	struct localuser *u;
 	char *argv[MAX_ARGS];
-	char *tmp = (char *)data;
+	char buf[2048]="";
+	char *tmp = (char *)buf;
 	int argc = 0;
 	int fds[2];
 	int efd = -1;
@@ -1477,7 +1478,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 		ast_log(LOG_WARNING, "AGI requires an argument (script)\n");
 		return -1;
 	}
-
+	strncpy(buf, data, sizeof(buf) - 1);
 
 	memset(&agi, 0, sizeof(agi));
         while ((stringp = strsep(&tmp, "|"))) {
@@ -1500,7 +1501,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 		agi.fd = fds[1];
 		agi.ctrl = fds[0];
 		agi.audio = efd;
-		res = run_agi(chan, tmp, &agi, pid, dead);
+		res = run_agi(chan, argv[0], &agi, pid, dead);
 		close(fds[1]);
 		if (efd > -1)
 			close(efd);
