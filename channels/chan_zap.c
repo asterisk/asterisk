@@ -693,7 +693,30 @@ static char *events[] = {
 		"Bits Changed",
 		"Pulse Start"
 };
- 
+
+static struct {
+	int alarm;
+	char *name;
+} alarms[] = {
+	{ ZT_ALARM_RED, "Red Alarm" },
+	{ ZT_ALARM_YELLOW, "Yellow Alarm" },
+	{ ZT_ALARM_BLUE, "Blue Alarm" },
+	{ ZT_ALARM_RECOVER, "Recovering" },
+	{ ZT_ALARM_LOOPBACK, "Loopback" },
+	{ ZT_ALARM_NOTOPEN, "Not Open" },
+	{ ZT_ALARM_NONE, "None" },
+};
+
+static char *alarm2str(int alarm)
+{
+	int x;
+	for (x=0;x<sizeof(alarms) / sizeof(alarms[0]); x++) {
+		if (alarms[x].alarm & alarm)
+			return alarms[x].name;
+	}
+	return alarm ? "Unknown Alarm" : "No Alarm";
+}
+
 static char *event2str(int event)
 {
         static char buf[256];
@@ -2296,6 +2319,20 @@ static int check_for_conference(struct zt_pvt *p)
 	}
 	return 0;
 }
+
+static int get_alarms(struct zt_pvt *p)
+{
+	int res;
+	ZT_SPANINFO zi;
+	memset(&zi, 0, sizeof(zi));
+	zi.spanno = p->span;
+	res = ioctl(p->subs[SUB_REAL].zfd, ZT_SPANSTAT, &zi);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Unable to determine alarm on channel %d\n", p->channel);
+		return 0;
+	}
+	return zi.alarms;
+}
 			
 static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 {
@@ -2375,7 +2412,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			break;
 		case ZT_EVENT_ALARM:
 			p->inalarm = 1;
-			ast_log(LOG_WARNING, "Detected alarm on channel %d\n", p->channel);
+			res = get_alarms(p);
+			ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", p->channel, alarm2str(res));
 			/* fall through intentionally */
 		case ZT_EVENT_ONHOOK:
 			if (p->radio)
@@ -2543,6 +2581,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			break;
 		case ZT_EVENT_NOALARM:
 			p->inalarm = 0;
+			ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
 			break;
 		case ZT_EVENT_WINKFLASH:
 			if (p->inalarm) break;
@@ -4080,7 +4119,8 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		break;
 	case ZT_EVENT_ALARM:
 		i->inalarm = 1;
-		ast_log(LOG_WARNING, "Alarm detected on channel %d\n", i->channel);
+		res = get_alarms(i);
+		ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", i->channel, alarm2str(res));
 		/* fall thru intentionally */
 	case ZT_EVENT_ONHOOK:
 		/* Back on hook.  Hang up. */
