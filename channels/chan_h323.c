@@ -68,15 +68,15 @@ static char *config = "h323.conf";
 static char default_context[AST_MAX_EXTENSION];
 
 /** H.323 configuration values */
+static struct sockaddr_in bindaddr;
 static char gatekeeper[100];
-static int	gatekeeper_disable = 1;
-static int	gatekeeper_discover = 0;
+static int  gatekeeper_disable = 1;
+static int  gatekeeper_discover = 0;
 static int  usingGk;
-static int	port = 1720;
+static int  port = 1720;
 static int  gkroute = 0;
 
-/* to find user by alias is default, alternative is the incomming call's source IP 
-address*/
+/* to find user by alias is default, alternative is the incomming call's source IP address*/
 static int  userbyalias = 1;
 
 static int  bridge_default = 1;
@@ -1287,9 +1287,9 @@ static int restart_monitor(void)
 
 static int h323_do_trace(int fd, int argc, char *argv[])
 {
-	if (argc != 3)
+	if (argc != 3) {
 		return RESULT_SHOWUSAGE;
-	
+	}
 	h323_debug(1, atoi(argv[2]));
 	ast_cli(fd, "H.323 trace set to level %s\n", argv[2]);
 	return RESULT_SUCCESS;
@@ -1297,9 +1297,9 @@ static int h323_do_trace(int fd, int argc, char *argv[])
 
 static int h323_no_trace(int fd, int argc, char *argv[])
 {
-	if (argc != 3)
+	if (argc != 3) {
 		return RESULT_SHOWUSAGE;
-
+	}
 	h323_debug(0,0);
 	ast_cli(fd, "H.323 trace disabled\n");
 	return RESULT_SUCCESS;
@@ -1307,9 +1307,9 @@ static int h323_no_trace(int fd, int argc, char *argv[])
 
 static int h323_do_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
+	if (argc != 2) {
 		return RESULT_SHOWUSAGE;
-	
+	}
 	h323debug = 1;
 	ast_cli(fd, "H323 debug enabled\n");
 	return RESULT_SUCCESS;
@@ -1317,9 +1317,9 @@ static int h323_do_debug(int fd, int argc, char *argv[])
 
 static int h323_no_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 3)
+	if (argc != 3) {
 		return RESULT_SHOWUSAGE;
-
+	}
 	h323debug = 0;
 	ast_cli(fd, "H323 Debug disabled\n");
 	return RESULT_SUCCESS;
@@ -1327,27 +1327,26 @@ static int h323_no_debug(int fd, int argc, char *argv[])
 
 static int h323_gk_cycle(int fd, int argc, char *argv[])
 {
-	if (argc != 3)
+	if (argc != 3) {
 		return RESULT_SHOWUSAGE;
-		
+	}	
 	h323_gk_urq();
 	
 	/* Possibly register with a GK */
-	if (gatekeeper_disable == 0) {
+	if (!gatekeeper_disable) {
 		if (h323_set_gk(gatekeeper_discover, gatekeeper, secret)) {
 			ast_log(LOG_ERROR, "Gatekeeper registration failed.\n");
-			h323_end_process();
 		}
 	}
-
 	return RESULT_SUCCESS;
 }
 
 static int h323_ep_hangup(int fd, int argc, char *argv[])
 {
 
-        if (argc != 3)
+        if (argc != 3) {
                 return RESULT_SHOWUSAGE;
+	}
 
 	if (h323_soft_hangup(argv[2])) {
 		ast_verbose(VERBOSE_PREFIX_3 "Hangup succeeded on %s\n", argv[2]);
@@ -1361,9 +1360,9 @@ static int h323_ep_hangup(int fd, int argc, char *argv[])
 static int h323_tokens_show(int fd, int argc, char *argv[])
 {
 
-        if (argc != 3)
+        if (argc != 3) {
                 return RESULT_SHOWUSAGE;
-
+	}
 	h323_show_tokens();
 
 	return RESULT_SUCCESS;
@@ -1814,6 +1813,8 @@ int load_module()
 	}
 	return res;
 }
+
+
 int unload_module() 
 {
 	struct oh323_pvt *p, *pl;
@@ -1865,9 +1866,8 @@ int unload_module()
 	/* unregister channel type */
 	ast_channel_unregister(type);
 
-	return 0;
-
-}
+	return 0; 
+} 
 
 int usecount()
 {
