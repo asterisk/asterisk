@@ -544,12 +544,6 @@ extern void ast_verbose(const char *fmt, ...)
 		replacelast = pos = 0;
 	va_end(ap);
 
-	va_start(ap, fmt);
-	if(stuff[strlen(stuff)-1] == '\n')
-	    stuff[strlen(stuff)-1] = '\0';
-	ast_log_vsyslog(0, NULL, 0, NULL, fmt, ap);
-	va_end(ap);
-
 	ast_mutex_unlock(&msglist_lock);
 }
 
