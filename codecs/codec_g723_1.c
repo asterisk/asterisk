@@ -75,7 +75,7 @@ struct g723_encoder_pvt {
 	/* Space to build offset */
 	char offset[AST_FRIENDLY_OFFSET];
 	/* Buffer for our outgoing frame */
-	char outbuf[24];
+	char outbuf[8000];
 	/* Enough to store a full second */
 	short buf[8000];
 	int tail;
@@ -185,27 +185,60 @@ static struct ast_frame *g723tolin_frameout(struct ast_translator_pvt *pvt)
 	return &tmp->f;	
 }
 
+static int g723_len(unsigned char buf)
+{
+	switch(buf & TYPE_MASK) {
+	case TYPE_MASK:
+	case TYPE_SILENCE:
+		return 4;
+		break;
+	case TYPE_HIGH:
+		return 24;
+		break;
+	case TYPE_LOW:
+		return 20;
+		break;
+	default:
+		ast_log(LOG_WARNING, "Badly encoded frame (%d)\n", buf & TYPE_MASK);
+	}
+	return -1;
+}
+
 static int g723tolin_framein(struct ast_translator_pvt *pvt, struct ast_frame *f)
 {
 	struct g723_decoder_pvt *tmp = (struct g723_decoder_pvt *)pvt;
+	int len = 0;
+	int res;
 #ifdef  ANNEX_B
 	FLOAT tmpdata[Frame];
 	int x;
 #endif
-	/* Assuming there's space left, decode into the current buffer at
-	   the tail location */
-	if (tmp->tail + Frame < sizeof(tmp->buf)/2) {	
+	while(len < f->datalen) {
+		/* Assuming there's space left, decode into the current buffer at
+		   the tail location */
+		res = g723_len(((unsigned char *)f->data + len)[0]);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "Invalid data\n");
+			return -1;
+		}
+		if (res + len > f->datalen) {
+			ast_log(LOG_WARNING, "Measured length exceeds frame length\n");
+			return -1;
+		}
+		if (tmp->tail + Frame < sizeof(tmp->buf)/2) {	
 #ifdef ANNEX_B
-		Decod(&tmp->dec, tmpdata, f->data, 0);
-		for (x=0;x<Frame;x++)
-			(tmp->buf + tmp->tail)[x] = (short)(tmpdata[x]); 
+			Decod(&tmp->dec, tmpdata, f->data + len, 0);
+			for (x=0;x<Frame;x++)
+				(tmp->buf + tmp->tail)[x] = (short)(tmpdata[x]); 
 #else
-		Decod(&tmp->dec, tmp->buf + tmp->tail, f->data, 0);
+			Decod(&tmp->dec, tmp->buf + tmp->tail, f->data + len, 0);
 #endif
-		tmp->tail+=Frame;
-	} else {
-		ast_log(LOG_WARNING, "Out of buffer space\n");
-		return -1;
+			tmp->tail+=Frame;
+		} else {
+			ast_log(LOG_WARNING, "Out of buffer space\n");
+			return -1;
+		}
+		len += res;
 	}
 	return 0;
 }
@@ -234,43 +267,39 @@ static struct ast_frame *lintog723_frameout(struct ast_translator_pvt *pvt)
 	int x;
 	FLOAT tmpdata[Frame];
 #endif
+	int cnt=0;
 	/* We can't work on anything less than a frame in size */
 	if (tmp->tail < Frame)
 		return NULL;
-	/* Encode a frame of data */
-#ifdef ANNEX_B
-	for (x=0;x<Frame;x++)
-		tmpdata[x] = tmp->buf[x];
-	Coder(&tmp->cod, tmpdata, tmp->outbuf);
-#else
-	Coder(&tmp->cod, tmp->buf, tmp->outbuf);
-#endif
 	tmp->f.frametype = AST_FRAME_VOICE;
 	tmp->f.subclass = AST_FORMAT_G723_1;
-	/* Assume 8000 Hz */
-	tmp->f.timelen = 30;
-	tmp->f.mallocd = 0;
 	tmp->f.offset = AST_FRIENDLY_OFFSET;
 	tmp->f.src = __PRETTY_FUNCTION__;
-	tmp->f.data = tmp->outbuf;
-	switch(tmp->outbuf[0] & TYPE_MASK) {
-	case TYPE_MASK:
-	case TYPE_SILENCE:
-		tmp->f.datalen = 4;
-		break;
-	case TYPE_HIGH:
-		tmp->f.datalen = 24;
-		break;
-	case TYPE_LOW:
-		tmp->f.datalen = 20;
-		break;
-	default:
-		ast_log(LOG_WARNING, "Badly encoded frame (%d)\n", tmp->outbuf[0] & TYPE_MASK);
+	tmp->f.timelen = 0;
+	tmp->f.mallocd = 0;
+	while(tmp->tail >= Frame) {
+		/* Encode a frame of data */
+		if (cnt + 24 >= sizeof(tmp->outbuf)) {
+			ast_log(LOG_WARNING, "Out of buffer space\n");
+			return NULL;
+		}
+#ifdef ANNEX_B
+		for (x=0;x<Frame;x++)
+			tmpdata[x] = tmp->buf[x];
+		Coder(&tmp->cod, tmpdata, tmp->outbuf + cnt);
+#else
+		Coder(&tmp->cod, tmp->buf, tmp->outbuf + cnt);
+#endif
+		/* Assume 8000 Hz */
+		tmp->f.timelen += 30;
+		cnt += g723_len(tmp->outbuf[0]);
+		tmp->tail -= Frame;
+		/* Move the data at the end of the buffer to the front */
+		if (tmp->tail)
+			memmove(tmp->buf, tmp->buf + Frame, tmp->tail * 2);
 	}
-	tmp->tail -= Frame;
-	/* Move the data at the end of the buffer to the front */
-	if (tmp->tail)
-		memmove(tmp->buf, tmp->buf + Frame, tmp->tail * 2);
+	tmp->f.datalen = cnt;
+	tmp->f.data = tmp->outbuf;
 #if 0
 	/* Save to a g723 sample output file... */
 	{ 
@@ -359,4 +388,9 @@ int usecount(void)
 	int res;
 	STANDARD_USECOUNT(res);
 	return res;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
 }
