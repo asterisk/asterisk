@@ -1,0 +1,70 @@
+
+Mathematical functions application
+
+Yeah, I thought it was a little insane too.. 
+
+adds:
+
+Sum, Multiply, Divide, Subtract, Modulus, GT, LT, GTE, LTE, EQ functions to asterisk
+
+All functions follow the same basic pattern for parameters:
+
+parameter 1 = the name of the return variable
+parameter 2 = the first number
+parameter 3 = the second number
+
+Each action is perfromed as
+
+ Action param1 on param2
+
+eg: 
+
+ Action = Divide
+ Param1 = 10
+ Param2 = 2
+
+Results in 
+
+ Divide 10 by 2
+
+
+Example dialplan:
+
+exten => 11099,1,SUM(RV,1,20)
+exten => 11099,2,NOOP(${RV})
+exten => 11099,3,MULTIPLY(RV,10,2)
+exten => 11099,4,NOOP(${RV})
+exten => 11099,5,DIVIDE(RV,10,2)
+exten => 11099,6,NOOP(${RV})
+exten => 11099,7,SUBTRACT(RV,10,2)
+exten => 11099,8,NOOP(${RV})
+exten => 11099,9,MODULUS(RV,2,10)
+exten => 11099,10,NOOP(${RV})
+exten => 11099,11,DIVIDE(RV,10,0)
+exten => 11099,12,NOOP(${RV})
+exten => 11099,13,SUBTRACT(RV,10,200)
+exten => 11099,14,NOOP(${RV})
+exten => 11099,15,DIVIDE(RV,1,20)
+exten => 11099,16,NOOP(${RV})
+exten => 11099,17,LT(RV,1,20)
+exten => 11099,18,NOOP(${RV})
+exten => 11099,19,GTE(RV,1,20)
+exten => 11099,20,NOOP(${RV})
+exten => 11099,21,GT(RV,101,20)
+exten => 11099,22,NOOP(${RV})
+exten => 11099,23,EQ(RV,1,20)
+exten => 11099,24,NOOP(${RV})
+exten => 11099,25,LTE(RV,20,20)
+exten => 11099,26,NOOP(${RV})
+
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Makefile stuff:
+
+
+APPS+=app_math.so
+
+
+app_math.so: app_math.c
+	$(CC) -D_GNU_SOURCE -shared -Xlinker -x -o $@ $< -lz -L/usr/lib
+									
