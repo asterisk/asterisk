@@ -36,8 +36,8 @@ static char *descrip =
 "specified, the application will return immediately should the channel not be\n"
 "off hook.  Otherwise, unless 'noanswer' is specified, the channel channel will\n"
 "be answered before the sound is played. Not all channels support playing\n"
-"messages while still hook. Returns -1 if the channel was hung up, or if the\n"
-"file does not exist. Returns 0 otherwise.\n";
+"messages while still hook. Returns -1 if the channel was hung up.  If the\n"
+"file does not exist, will jump to priority n+101 if present.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -81,6 +81,8 @@ static int playback_exec(struct ast_channel *chan, void *data)
 			res = ast_waitstream(chan, "");
 		else {
 			ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char *)data);
+			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
+				chan->priority+=100;
 			res = 0;
 		}
 		ast_stopstream(chan);

@@ -35,7 +35,7 @@ static char *descrip =
 "  be included following a pipe symbol.  You can use * and # to rewind and\n"
 "  fast forward the playback specified. If 'stopchar' is added the file will\n"
 "  terminate playback when 'stopchar' is pressed. Returns -1 if the channel\n"
-"  was hung up, or if the file does not exist. Returns 0 otherwise.\n\n"
+"  was hung up. if the file does not exist jumps to n+101 if it present.\n\n"
 "  Example:  exten => 1234,1,ControlPlayback(file|4000|*|#|1|0)\n\n";
 
 STANDARD_LOCAL_USER;
@@ -54,6 +54,7 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	char tmp[256];
 	char *skip = NULL, *fwd = NULL, *rev = NULL, *stop = NULL, *pause = NULL, *file = NULL;
+	
 
 	if (!data || ast_strlen_zero((char *)data)) {
 		ast_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
@@ -110,7 +111,12 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 	/* If we stopped on one of our stop keys, return 0  */
 	if(stop && strchr(stop, res)) 
 		res = 0;
-	
+
+	if(res < 0) {
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
+            chan->priority+=100;
+		res = 0;
+	}
 	return res;
 }
 
