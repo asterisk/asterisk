@@ -5,6 +5,9 @@
  * 
  * James Sharp <jsharp@psychoses.org>
  *
+ * Modified August 2003
+ * Tilghman Lesher <asterisk__cdr__cdr_mysql__200308@the-tilghman.com>
+ *
  * This program is free software, distributed under the terms of
  * the GNU General Public License.
  *
@@ -35,6 +38,7 @@ static char *desc = "MySQL CDR Backend";
 static char *name = "mysql";
 static char *config = "cdr_mysql.conf";
 static char *hostname = NULL, *dbname = NULL, *dbuser = NULL, *password = NULL;
+static int hostname_alloc = 0, dbname_alloc = 0, dbuser_alloc = 0, password_alloc = 0;
 static int connected = 0;
 
 static ast_mutex_t mysql_lock = AST_MUTEX_INITIALIZER;
@@ -63,7 +67,7 @@ static int mysql_log(struct ast_cdr *cdr)
 		if (mysql_real_connect(&mysql, hostname, dbuser, password, dbname, 0, NULL, 0)) {
 			connected = 1;
 		} else {
-			ast_log(LOG_ERROR, "cdr_mysql: cannot connect to database %s.  Call will not be logged\n", hostname);
+			ast_log(LOG_ERROR, "cdr_mysql: cannot connect to database server %s.  Call will not be logged\n", hostname);
 		}
 	} else {
 		/* Long connection - ping the server */
@@ -110,21 +114,25 @@ int unload_module(void)
 		mysql_close(&mysql);
 		connected = 0;
 	}
-	if (hostname) {
+	if (hostname && hostname_alloc) {
 		free(hostname);
 		hostname = NULL;
+		hostname_alloc = 0;
 	}
-	if (dbname) {
+	if (dbname && dbname_alloc) {
 		free(dbname);
 		dbname = NULL;
+		dbname_alloc = 0;
 	}
-	if (dbuser) {
+	if (dbuser && dbuser_alloc) {
 		free(dbuser);
 		dbuser = NULL;
+		dbuser_alloc = 0;
 	}
-	if (password) {
+	if (password && password_alloc) {
 		free(password);
 		password = NULL;
+		password_alloc = 0;
 	}
 	ast_cdr_unregister(name);
 	return 0;
@@ -150,51 +158,63 @@ int load_module(void)
 	}
 
 	tmp = ast_variable_retrieve(cfg,"global","hostname");
-	hostname = malloc(strlen(tmp) + 1);
-	if ((tmp != NULL) && (hostname != NULL)) {
-		strcpy(hostname,tmp);
-	} else if (tmp == NULL) {
-		ast_log(LOG_ERROR,"Database server hostname not specified.\n");
-		return -1;
+	if (tmp) {
+		hostname = malloc(strlen(tmp) + 1);
+		if (hostname != NULL) {
+			hostname_alloc = 1;
+			strcpy(hostname,tmp);
+		} else {
+			ast_log(LOG_ERROR,"Out of memory error.\n");
+			return -1;
+		}
 	} else {
-		ast_log(LOG_ERROR,"Out of memory error.\n");
-		return -1;
+		ast_log(LOG_WARNING,"MySQL server hostname not specified.  Assuming localhost");
+		hostname = "localhost";
 	}
 
 	tmp = ast_variable_retrieve(cfg,"global","dbname");
-	dbname = malloc(strlen(tmp) + 1);
-	if ((tmp != NULL) && (dbname != NULL)) {
-		strcpy(dbname,tmp);
-	} else if (tmp == NULL) {
-		ast_log(LOG_ERROR,"Database dbname not specified.\n");
-		return -1;
+	if (tmp) {
+		dbname = malloc(strlen(tmp) + 1);
+		if (dbname != NULL) {
+			dbname_alloc = 1;
+			strcpy(dbname,tmp);
+		} else {
+			ast_log(LOG_ERROR,"Out of memory error.\n");
+			return -1;
+		}
 	} else {
-		ast_log(LOG_ERROR,"Out of memory error.\n");
-		return -1;
+		ast_log(LOG_WARNING,"MySQL database not specified.  Assuming asteriskcdrdb\n");
+		dbname = "asteriskcdrdb";
 	}
 
 	tmp = ast_variable_retrieve(cfg,"global","user");
-	dbuser = malloc(strlen(tmp) + 1);
-	if ((tmp != NULL) && (dbuser != NULL)) {
-		strcpy(dbuser,tmp);
-	} else if (tmp == NULL) {
-		ast_log(LOG_ERROR,"Database dbuser not specified.\n");
-		return -1;
+	if (tmp) {
+		dbuser = malloc(strlen(tmp) + 1);
+		if (dbuser != NULL) {
+			dbuser_alloc = 1;
+			strcpy(dbuser,tmp);
+		} else {
+			ast_log(LOG_ERROR,"Out of memory error.\n");
+			return -1;
+		}
 	} else {
-		ast_log(LOG_ERROR,"Out of memory error.\n");
-		return -1;
+		ast_log(LOG_WARNING,"MySQL database user not specified.  Assuming root\n");
+		dbuser = "root";
 	}
 
 	tmp = ast_variable_retrieve(cfg,"global","password");
-	password = malloc(strlen(tmp) + 1);
-	if ((tmp != NULL) && (password != NULL)) {
-		strcpy(password,tmp);
-	} else if (tmp == NULL) {
-		ast_log(LOG_ERROR,"Database password not specified.\n");
-		return -1;
+	if (tmp) {
+		password = malloc(strlen(tmp) + 1);
+		if (password != NULL) {
+			password_alloc = 1;
+			strcpy(password,tmp);
+		} else {
+			ast_log(LOG_ERROR,"Out of memory error.\n");
+			return -1;
+		}
 	} else {
-		ast_log(LOG_ERROR,"Out of memory error.\n");
-		return -1;
+		ast_log(LOG_WARNING,"MySQL database password not specified.  Assuming blank\n");
+		password = "";
 	}
 
 	ast_destroy(cfg);
