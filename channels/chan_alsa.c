@@ -423,7 +423,7 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	}
 #endif
 
-	err = snd_pcm_sw_params_set_silence_threshold(handle, swparams, buffer_size);
+	err = snd_pcm_sw_params_set_silence_threshold(handle, swparams, silencethreshold);
 	if (err < 0) {
 		ast_log(LOG_ERROR, "Unable to set silence threshold: %s\n", snd_strerror(err));
 	}
