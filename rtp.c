@@ -918,7 +918,6 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	int hdrlen = 12;
 	int res;
 	int ms;
-	int pred;
 	int x;
 	char data[256];
 
@@ -951,7 +950,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 
 	ms = calc_txstamp(rtp, NULL);
 	/* Default prediction */
-	pred = rtp->lastts + ms * 8;
+	rtp->lastts = rtp->lastts + ms * 8;
 	
 	/* Get a pointer to the header */
 	rtpheader = (unsigned int *)data;
