@@ -564,7 +564,7 @@ static int handle_saynumber(struct ast_channel *chan, AGI *agi, int argc, char *
 	int num;
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[2], "%i", &num) != 1)
+	if (sscanf(argv[2], "%d", &num) != 1)
 		return RESULT_SHOWUSAGE;
 	res = ast_say_number_full(chan, num, argv[3], chan->language, (char *) NULL, agi->audio, agi->ctrl);
 	if (res == 1)
