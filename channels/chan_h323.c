@@ -998,7 +998,6 @@ struct rtp_info *create_connection(unsigned call_reference)
 	struct sockaddr_in us;
 	struct sockaddr_in them;
 	struct rtp_info *info;
-	char iabuf[80];
 	/* XXX This is sooooo bugus.  inet_ntoa is not reentrant
 	   but this function wants to return a static variable so
 	   the only way to do this will be to declare iabuf within
