@@ -49,7 +49,7 @@ TRACE_FRAMES = #-DTRACE_FRAMES
 #   *CLI> show memory allocations [filename]
 #   *CLI> show memory summary [filename]
 #
-MALLOC_DEBUG = -include $(PWD)/include/asterisk/astmm.h
+MALLOC_DEBUG = #-include $(PWD)/include/asterisk/astmm.h
 
 # Where to install asterisk after compiling
 # Default -> leave empty
