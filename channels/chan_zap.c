@@ -439,6 +439,7 @@ static struct zt_pvt {
 #ifdef PRI_EVENT_PROCEEDING
 	int proceeding;
 #endif
+	int setup_ack;		/* wheter we received SETUP_ACKNOWLEDGE or not */
 #endif	
 #ifdef ZAPATA_R2
 	int r2prot;
@@ -669,10 +670,14 @@ static int zt_digit(struct ast_channel *ast, char digit)
 	index = zt_get_index(ast, p, 0);
 	if (index == SUB_REAL) {
 #ifdef ZAPATA_PRI
+#ifdef PRI_EVENT_SETUP_ACK
+		if (p->sig == SIG_PRI && ast->_state == AST_STATE_DIALING && p->setup_ack && !p->proceeding) {
+#else
 #ifdef PRI_EVENT_PROCEEDING
 		if (p->sig == SIG_PRI && ast->_state == AST_STATE_DIALING && !p->proceeding) {
 #else
 		if (p->sig == SIG_PRI && ast->_state == AST_STATE_DIALING) {
+#endif
 #endif
 			if (!pri_grab(p, p->pri))
 				pri_information(p->pri->pri,p->call,digit);
@@ -1591,6 +1596,9 @@ static int zt_hangup(struct ast_channel *ast)
 		p->onhooktime = time(NULL);
 #ifdef PRI_EVENT_PROCEEDING
 		p->proceeding = 0;
+#endif
+#ifdef PRI_EVENT_SETUP_ACK
+		p->setup_ack = 0;
 #endif
 		if (p->dsp) {
 			ast_dsp_free(p->dsp);
@@ -5861,6 +5869,18 @@ static void *pri_dchannel(void *vpri)
 					}
 				}
 				break;
+#ifdef PRI_EVENT_SETUP_ACK
+			case PRI_EVENT_SETUP_ACK:
+				chan = e->setup_ack.channel;
+				if ((chan < 1) || (chan > pri->channels)) {
+					ast_log(LOG_WARNING, "Received SETUP_ACKNOWLEDGE on strange channel %d span %d\n", chan, pri->span);
+				} else if (!pri->pvt[chan]) {
+					ast_log(LOG_WARNING, "Received SETUP_ACKNOWLEDGE on unconfigured channel %d span %d\n", chan, pri->span);
+				} else {
+					pri->pvt[chan]->setup_ack = 1;
+				}
+				break;
+#endif
 			default:
 				ast_log(LOG_DEBUG, "Event: %d\n", e->e);
 			}
