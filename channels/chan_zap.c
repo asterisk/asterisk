@@ -2882,8 +2882,8 @@ static int attempt_transfer(struct zt_pvt *p)
 					p->subs[SUB_THREEWAY].owner->bridge->name, p->subs[SUB_REAL].owner->name);
 			return -1;
 		}
-		swap_subs(p, SUB_THREEWAY, SUB_REAL);
 		ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+		swap_subs(p, SUB_THREEWAY, SUB_REAL);
 		unalloc_sub(p, SUB_THREEWAY);
 		/* Tell the caller not to hangup */
 		return 1;
