@@ -37,7 +37,7 @@
 ;
 ttl=32
 ;
-; If we don't get ACK to our DPREQUEST within 2000ms, and autokill is set
+; If we don't get ACK to our DPDISCOVER within 2000ms, and autokill is set
 ; to yes, then we cancel the whole thing (that's enough time for one 
 ; retransmission only).  This is used to keep things from stalling for a long
 ; time for a host that is not available, but would be ill advised for bad 
