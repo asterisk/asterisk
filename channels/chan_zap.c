@@ -6853,10 +6853,6 @@ static int action_transfer(struct mansession *s, struct message *m)
 		return 0;
 	}
 	p = find_channel(atoi(channel));
-	if (p->owner && p->owner->_state != AST_STATE_UP) {
-		astman_send_error(s, m, "Channel is on hook");
-		return 0;
-	}
 	if (!p) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
@@ -6875,10 +6871,6 @@ static int action_transferhangup(struct mansession *s, struct message *m)
 		return 0;
 	}
 	p = find_channel(atoi(channel));
-	if (p->owner && p->owner->_state != AST_STATE_UP) {
-		astman_send_error(s, m, "Channel is on hook");
-		return 0;
-	}
 	if (!p) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
@@ -6903,12 +6895,7 @@ static int action_zapdialoffhook(struct mansession *s, struct message *m)
 		return 0;
 	}
 	p = find_channel(atoi(channel));
-	if (p->owner) {
-		if (p->owner->_state != AST_STATE_UP) {
-			astman_send_error(s, m, "Channel is on hook");
-			return 0;
-		}
-	} else {
+	if (!p->owner) {
 		astman_send_error(s, m, "Channel does not have it's owner");
 		return 0;
 	}
