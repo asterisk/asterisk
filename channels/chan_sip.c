@@ -1257,13 +1257,13 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 	struct sip_peer *peer=NULL;
 	struct ast_variable *var;
 	struct ast_variable *tmp;
+	char *newpeername = (char *) peername;
+	char iabuf[80] = "";
 
 	/* First check on peer name */
-	if (peername) 
+	if (newpeername) 
 		var = ast_load_realtime("sippeers", "name", peername, NULL);
 	else if (sin) {	/* Then check on IP address */
-		char iabuf[80];
-
 		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr);
 		var = ast_load_realtime("sippeers", "ipaddr", iabuf, NULL);
 	} else
@@ -1279,23 +1279,30 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 		    !strcasecmp(tmp->value, "user")) {
 			ast_variables_destroy(var);
 			return NULL;
+		} else if(!newpeername && !strcasecmp(tmp->name, "name")) {
+			newpeername = tmp->value;
 		}
 		tmp = tmp->next;
 	}
+	
+	if (newpeername) {
+		peer = build_peer(newpeername, var, ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS) ? 0 : 1);
 
-	peer = build_peer(peername, var, ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS) ? 0 : 1);
-
-	if (peer) {
-		if(ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
-			ast_copy_flags((&peer->flags_page2),(&global_flags_page2), SIP_PAGE2_RTAUTOCLEAR|SIP_PAGE2_RTCACHEFRIENDS);
-			if(ast_test_flag((&global_flags_page2), SIP_PAGE2_RTAUTOCLEAR)) {
-				peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_register, (void *)peer);
+		if (peer) {
+			if(ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
+				ast_copy_flags((&peer->flags_page2),(&global_flags_page2), SIP_PAGE2_RTAUTOCLEAR|SIP_PAGE2_RTCACHEFRIENDS);
+				if(ast_test_flag((&global_flags_page2), SIP_PAGE2_RTAUTOCLEAR)) {
+					peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_register, (void *)peer);
+				}
+				ASTOBJ_CONTAINER_LINK(&peerl,peer);
+			} else {
+				ast_set_flag(peer, SIP_REALTIME);
 			}
-			ASTOBJ_CONTAINER_LINK(&peerl,peer);
-		} else {
-			ast_set_flag(peer, SIP_REALTIME);
 		}
+	} else {
+		ast_log(LOG_WARNING, "Cannot Determine peer name ip=%s\n", iabuf);
 	}
+	
 	ast_variables_destroy(var);
 	return peer;
 }
