@@ -1635,7 +1635,6 @@ static int zt_hangup(struct ast_channel *ast)
 	p->callwaitingrepeat = 0;
 	p->cidcwexpire = 0;
 	ast->pvt->pvt = NULL;
-	ast_setstate(ast, AST_STATE_DOWN);
 	ast_pthread_mutex_unlock(&p->lock);
 	ast_pthread_mutex_lock(&usecnt_lock);
 	usecnt--;
