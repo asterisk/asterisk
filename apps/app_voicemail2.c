@@ -573,7 +573,7 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 	int totalsilence = 0;
 	int dspsilence = 0;
 	int gotsilence = 0;		/* did we timeout for silence? */
-	
+	int rfmt=0;	
 	
 	ast_log(LOG_DEBUG,"play_and_record: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
 	snprintf(comment,sizeof(comment),"Playing %s, Recording to: %s on %s\n", playfile ? playfile : "<None>", recordfile, chan->name);
@@ -622,7 +622,7 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 	ast_dsp_set_threshold(sildet, 50);
 	
 	if (maxsilence > 0) {
-		//rfmt = chan->readformat;
+		rfmt = chan->readformat;
 		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
@@ -717,12 +717,17 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 	for (x=0;x<fmtcnt;x++) {
 		if (!others[x])
 			break;
-		if (gotsilence)
-			ast_stream_rewind(others[x], totalsilence-1000);
+		if (totalsilence)
+			ast_stream_rewind(others[x], totalsilence+200);
 		else
 			ast_stream_rewind(others[x], 1000);
 		ast_truncstream(others[x]);
 		ast_closestream(others[x]);
+	}
+	if (rfmt) {
+		if (ast_set_read_format(chan, rfmt)) {
+			ast_log(LOG_WARNING, "Unable to restore format %d to channel '%s'\n", rfmt, chan->name);
+		}
 	}
 	if (outmsg) {
 		if (outmsg > 1) {
