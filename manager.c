@@ -820,6 +820,11 @@ int ast_manager_register( char *action, int auth,
 
 	ast_mutex_lock(&actionlock);
 	while(cur) { /* Walk the list of actions */
+		if (!strcasecmp(cur->action, action)) {
+			ast_log(LOG_WARNING, "Manager: Action '%s' already registered\n", action);
+			ast_mutex_unlock(&actionlock);
+			return -1;
+		}
 		prev = cur; 
 		cur = cur->next;
 	}
