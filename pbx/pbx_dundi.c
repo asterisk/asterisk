@@ -3183,22 +3183,50 @@ static int dundi_query(struct dundi_transaction *trans)
 static int discover_transactions(struct dundi_request *dr)
 {
 	struct dundi_transaction *trans;
+	ast_mutex_lock(&peerlock);
 	trans = dr->trans;
 	while(trans) {
 		dundi_discover(trans);
 		trans = trans->next;
 	}
+	ast_mutex_unlock(&peerlock);
 	return 0;
 }
 
 static int precache_transactions(struct dundi_request *dr, struct dundi_mapping *maps, int mapcount, int *expiration, int *foundanswers)
 {
-	struct dundi_transaction *trans;
+	struct dundi_transaction *trans, *transn;
+	/* Mark all as "in thread" so they don't disappear */
+	ast_mutex_lock(&peerlock);
 	trans = dr->trans;
 	while(trans) {
-		precache_trans(trans, maps, mapcount, expiration, foundanswers);
+		if (trans->thread)
+			ast_log(LOG_WARNING, "This shouldn't happen, really...\n");
+		trans->thread = 1;
 		trans = trans->next;
 	}
+	ast_mutex_unlock(&peerlock);
+
+	trans = dr->trans;
+	while(trans) {
+		if (!(trans->flags & FLAG_DEAD))
+			precache_trans(trans, maps, mapcount, expiration, foundanswers);
+		trans = trans->next;
+	}
+
+	/* Cleanup any that got destroyed in the mean time */
+	ast_mutex_lock(&peerlock);
+	trans = dr->trans;
+	while(trans) {
+		transn = trans->next;
+		trans->thread = 0;
+		if (trans->flags & FLAG_DEAD) {
+			ast_log(LOG_DEBUG, "Our transaction went away!\n");
+			destroy_trans(trans, 0);
+		}
+		trans = transn;
+	}
+	ast_mutex_unlock(&peerlock);
 	return 0;
 }
 
