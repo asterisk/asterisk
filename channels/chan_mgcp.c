@@ -44,6 +44,9 @@
    -- enhance retransmit mechanism (RTO calc. etc.)
    -- embedded command support
 */
+/* FS: Changes
+ * -- fixed reload_config() / do_monitor to stay responsive during reloads
+ */
 
 #include <stdio.h>
 #include <pthread.h>
@@ -3116,6 +3119,8 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 	return 1;
 }
 
+static int *mgcpsock_read_id = NULL;
+
 static void *do_monitor(void *data)
 {
 	int res;
@@ -3126,7 +3131,7 @@ static void *do_monitor(void *data)
 
 	/* Add an I/O event to our UDP socket */
 	if (mgcpsock > -1) 
-		ast_io_add(io, mgcpsock, mgcpsock_read, AST_IO_IN, NULL);
+		mgcpsock_read_id = ast_io_add(io, mgcpsock, mgcpsock_read, AST_IO_IN, NULL);
 	
 	/* This thread monitors all the frame relay interfaces which are not yet in use
 	   (and thus do not have a separate thread) indefinitely */
@@ -3865,22 +3870,28 @@ static int reload_config(void)
 	cat = ast_category_browse(cfg, NULL);
 	while(cat) {
 		if (strcasecmp(cat, "general")) {
-            ast_mutex_lock(&gatelock);
+	    	ast_mutex_lock(&gatelock);
 			g = build_gateway(cat, ast_variable_browse(cfg, cat));
 			if (g) {
 				if (option_verbose > 2) {
 					ast_verbose(VERBOSE_PREFIX_3 "Added gateway '%s'\n", g->name);
-                }
-                g->next = gateways;
-                gateways = g;
+				}
+				g->next = gateways;
+				gateways = g;
 			}
-            ast_mutex_unlock(&gatelock);
+	    	ast_mutex_unlock(&gatelock);
+
+			/* FS: process queue and IO */
+			if (monitor_thread == pthread_self()) {
+				if (sched) ast_sched_runq(sched);
+				if (io) ast_io_wait(io, 10);
+			}
 		}
 		cat = ast_category_browse(cfg, cat);
 	}
 
-    /* SC: prune deleted entries etc. */
-    prune_gateways();
+    	/* SC: prune deleted entries etc. */
+    	prune_gateways();
 
 	if (ntohl(bindaddr.sin_addr.s_addr)) {
 		memcpy(&__ourip, &bindaddr.sin_addr, sizeof(__ourip));
@@ -3899,6 +3910,10 @@ static int reload_config(void)
 	ast_mutex_lock(&netlock);
 	if (mgcpsock > -1)
 		close(mgcpsock);
+
+	if (mgcpsock_read_id != NULL)
+		mgcpsock_read_id = ast_io_remove(io, mgcpsock_read_id);
+
 	mgcpsock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (mgcpsock < 0) {
 		ast_log(LOG_WARNING, "Unable to create MGCP socket: %s\n", strerror(errno));
