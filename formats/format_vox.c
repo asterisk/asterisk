@@ -167,17 +167,36 @@ static char *vox_getcomment(struct ast_filestream *s)
 
 static int vox_seek(struct ast_filestream *fs, long sample_offset, int whence)
 {
-	return -1;
+     off_t offset=0,min,cur,max,distance;
+	
+     min = 0;
+     cur = lseek(fs->fd, 0, SEEK_CUR);
+     max = lseek(fs->fd, 0, SEEK_END);
+     /* have to fudge to frame here, so not fully to sample */
+     distance = sample_offset/2;
+     if(whence == SEEK_SET)
+	  offset = distance;
+     else if(whence == SEEK_CUR || whence == SEEK_FORCECUR)
+	  offset = distance + cur;
+     else if(whence == SEEK_END)
+	  offset = max - distance;
+     if (whence != SEEK_FORCECUR) {
+	  offset = (offset > max)?max:offset;
+	  offset = (offset < min)?min:offset;
+     }
+     return lseek(fs->fd, offset, SEEK_SET);
 }
 
 static int vox_trunc(struct ast_filestream *fs)
 {
-	return -1;
+     return ftruncate(fs->fd, lseek(fs->fd,0,SEEK_CUR));
 }
 
 static long vox_tell(struct ast_filestream *fs)
 {
-	return -1;
+     off_t offset;
+     offset = lseek(fs->fd, 0, SEEK_CUR);
+     return offset; 
 }
 
 int load_module()
