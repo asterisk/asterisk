@@ -6899,9 +6899,10 @@ static int reload_config(void)
 		hp = ast_gethostbyname(ourhost, &ahp);
 		if (!hp) {
 			ast_log(LOG_WARNING, "Unable to get IP address for %s, SIP disabled\n", ourhost);
-			return 0;
-		}
-		memcpy(&__ourip, hp->h_addr, sizeof(__ourip));
+			if (!__ourip.sin_addr.s_addr)
+				return 0;
+		} else
+			memcpy(&__ourip, hp->h_addr, sizeof(__ourip));
 	}
 	if (!ntohs(bindaddr.sin_port))
 		bindaddr.sin_port = ntohs(DEFAULT_SIP_PORT);
