@@ -360,7 +360,8 @@ struct sip_peer {
 	struct sip_peer *next;
 };
 
-ast_mutex_t sip_reload_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t sip_reload_lock = AST_MUTEX_INITIALIZER;
+static int sip_reloading = 0;
 
 #define REG_STATE_UNREGISTERED 0
 #define REG_STATE_REGSENT	   1
@@ -382,7 +383,6 @@ struct sip_registry {
 	int expire;					/* Sched ID of expiration */
 	int timeout; 					/* sched id of sip_reg_timeout */
 	int refresh;					/* How often to refresh */
-	int delme;					/* Need to be deleted? */
 	struct sip_pvt *call;				/* create a sip_pvt structure for each outbound "registration call" in progress */
 	int regstate;
 	int callid_valid;		/* 0 means we haven't chosen callid for this registry yet. */
@@ -442,7 +442,7 @@ static void free_old_route(struct sip_route *route);
 static int build_reply_digest(struct sip_pvt *p, char *orig_header, char *digest, int digest_len);
 static int find_user(struct sip_pvt *fup, int event);
 static void prune_peers(void);
-static void prune_regs(void);
+static int sip_do_reload(void);
 
 static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
@@ -5704,6 +5704,7 @@ static void *do_monitor(void *data)
 	int fastrestart =0;
 	int lastpeernum = -1;
 	int curpeernum;
+	int reloading;
 	/* Add an I/O event to our UDP socket */
 	if (sipsock > -1) 
 		ast_io_add(io, sipsock, sipsock_read, AST_IO_IN, NULL);
@@ -5712,7 +5713,15 @@ static void *do_monitor(void *data)
 	   (and thus do not have a separate thread) indefinitely */
 	/* From here on out, we die whenever asked */
 	for(;;) {
-		prune_regs();
+		/* Check for a reload request */
+		ast_mutex_lock(&sip_reload_lock);
+		reloading = sip_reloading;
+		ast_mutex_unlock(&sip_reload_lock);
+		if (reloading) {
+			if (option_verbose > 0)
+				ast_verbose(VERBOSE_PREFIX_1 "Reloading SIP\n");
+			sip_do_reload();
+		}
 		/* Check for interfaces needing to be killed */
 		ast_mutex_lock(&iflock);
 restartsearch:		
@@ -6630,41 +6639,11 @@ static struct ast_rtp_protocol sip_rtp = {
 	get_codec: sip_get_codec,
 };
 
-static void prune_regs(void)
-{
-	struct sip_registry *reg, *next, *prev = NULL;
-	ast_mutex_lock(&regl.lock);
-	if (!regl.recheck) {
-		ast_mutex_unlock(&regl.lock);
-		return;
-	}
-	for (reg = regl.registrations;reg;) {
-		next = reg->next;
-		if (reg->delme) {
-			/* Really delete */
-			if (reg->call) {
-				/* Clear registry before destroying to ensure
-				   we don't get reentered trying to grab the registry lock */
-				reg->call->registry = NULL;
-				sip_destroy(reg->call);
-			}
-			if (reg->expire > -1)
-				ast_sched_del(sched, reg->expire);
-			if (reg->timeout > -1)
-				ast_sched_del(sched, reg->timeout);
-			free(reg);
-		} else 
-			prev = reg;
-		reg = next;
-	}
-	ast_mutex_unlock(&regl.lock);
-}
-
 static void delete_users(void)
 {
 	struct sip_user *user, *userlast;
 	struct sip_peer *peer;
-	struct sip_registry *reg;
+	struct sip_registry *reg, *regn;
 
 	/* Delete all users */
 	ast_mutex_lock(&userl.lock);
@@ -6679,11 +6658,24 @@ static void delete_users(void)
 
 	ast_mutex_lock(&regl.lock);
 	for (reg = regl.registrations;reg;) {
-		reg->delme = 1;
-		reg = reg->next;
+		regn = reg->next;
+		/* Really delete */
+		if (reg->call) {
+			/* Clear registry before destroying to ensure
+			   we don't get reentered trying to grab the registry lock */
+			reg->call->registry = NULL;
+			sip_destroy(reg->call);
+		}
+		if (reg->expire > -1)
+			ast_sched_del(sched, reg->expire);
+		if (reg->timeout > -1)
+			ast_sched_del(sched, reg->timeout);
+		free(reg);
+		reg = regn;
 	}
 	regl.registrations = NULL;
 	ast_mutex_unlock(&regl.lock);
+	
 	ast_mutex_lock(&peerl.lock);
 	for (peer=peerl.peers;peer;) {
 		/* Assume all will be deleted, and we'll find out for sure later */
@@ -6721,16 +6713,10 @@ static void prune_peers(void)
 	ast_mutex_unlock(&peerl.lock);
 }
 
-static int sip_reload(int fd, int argc, char *argv[])
+static int sip_do_reload(void)
 {
 	struct sip_registry *reg;
 	struct sip_peer *peer;
-
-	if (ast_mutex_trylock(&sip_reload_lock) == EBUSY) {
-		ast_verbose("Previous SIP reload not yet done\n");
-		return -1;
-	}
-
 	delete_users();
 	reload_config();
 
@@ -6745,8 +6731,20 @@ static int sip_reload(int fd, int argc, char *argv[])
 	for (peer = peerl.peers; peer; peer = peer->next)
 		sip_poke_peer(peer);
 	ast_mutex_unlock(&peerl.lock);
-	ast_mutex_unlock(&sip_reload_lock);
 
+	return 0;
+}
+
+static int sip_reload(int fd, int argc, char *argv[])
+{
+
+	ast_mutex_lock(&sip_reload_lock);
+	if (sip_reloading) {
+		ast_verbose("Previous SIP reload not yet done\n");
+	} else
+		sip_reloading = 1;
+	ast_mutex_unlock(&sip_reload_lock);
+	restart_monitor();
 	return 0;
 }
 
