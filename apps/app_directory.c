@@ -30,11 +30,12 @@ static char *app = "Directory";
 
 static char *synopsis = "Provide directory of voicemail extensions";
 static char *descrip =
-"  Directory(context): Presents the user with a directory of extensions from which\n"
-"  they may select by name.  The list of names and extensions is discovered from\n"
-"  voicemail.conf.  The context argument is required, and specifies the context\n"
-"  in which to interpret the extensions\n.  Returns 0 unless the user hangs up.  It\n"
-"  also sets up the channel on exit to enter the extension the user selected.\n";
+"  Directory(context): Presents the user with a directory of extensions from\n"
+"which they  may  select  by name. The  list  of  names  and  extensions  is\n"
+"discovered from  voicemail.conf. The  context  argument  is  required,  and\n"
+"specifies  the  context  in  which to interpret the extensions\n. Returns 0\n"
+"unless the user hangs up. It  also sets up the channel on exit to enter the\n"
+"extension the user selected.\n";
 
 /* For simplicity, I'm keeping the format compatible with the voicemail config,
    but i'm open to suggestions for isolating it */
@@ -129,7 +130,8 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 	char fn[256];
 	memset(ext, 0, sizeof(ext));
 	ext[0] = digit;
-	res = ast_readstring(chan, ext + 1, NUMDIGITS, 3000, 3000, "#");
+	res = 0;
+	if (ast_readstring(chan, ext + 1, NUMDIGITS, 3000, 3000, "#") < 0) res = -1;
 	if (!res) {
 		/* Search for all names which start with those digits */
 		v = ast_variable_browse(cfg, context);
