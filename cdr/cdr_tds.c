@@ -65,6 +65,10 @@ static char *desc = "MSSQL CDR Backend";
 static char *name = "mssql";
 static char *config = "cdr_tds.conf";
 
+static char *hostname = NULL, *dbname = NULL, *dbuser = NULL, *password = NULL, *charset = NULL, *language = NULL;
+
+static int connected = 0;
+
 AST_MUTEX_DEFINE_STATIC(tds_lock);
 
 static TDSSOCKET *tds;
@@ -75,11 +79,15 @@ static char *stristr(const char*, const char*);
 static char *anti_injection(const char *, int);
 static void get_date(char *, struct timeval);
 
+static int mssql_connect(void);
+static int mssql_disconnect(void);
+
 static int tds_log(struct ast_cdr *cdr)
 {
 	char sqlcmd[2048], start[80], answer[80], end[80];
 	char *accountcode, *src, *dst, *dcontext, *clid, *channel, *dstchannel, *lastapp, *lastdata, *uniqueid;
 	int res = 0;
+	int retried = 0;
 #ifdef TDS_PRE_0_62
 	TDS_INT result_type;
 #endif
@@ -164,16 +172,27 @@ static int tds_log(struct ast_cdr *cdr)
 		uniqueid
 	);
 
-#ifdef TDS_PRE_0_62
-	if ((tds_submit_query(tds, sqlcmd) != TDS_SUCCEED) || (tds_process_simple_query(tds, &result_type) != TDS_SUCCEED || result_type != TDS_CMD_SUCCEED))
-#else
-	if ((tds_submit_query(tds, sqlcmd) != TDS_SUCCEED) || (tds_process_simple_query(tds) != TDS_SUCCEED))
-#endif
-	{
-		ast_log(LOG_ERROR, "Failed to insert record into database.\n");
+	do {
+		if (!connected) {
+			if (mssql_connect())
+				ast_log(LOG_ERROR, "Failed to reconnect to SQL database.\n");
+			else
+				ast_log(LOG_WARNING, "Reconnected to SQL database.\n");
 
-		res = -1;
-	}
+			retried = 1;	/* note that we have now tried */
+		}
+
+#ifdef TDS_PRE_0_62
+		if (!connected || (tds_submit_query(tds, sqlcmd) != TDS_SUCCEED) || (tds_process_simple_query(tds, &result_type) != TDS_SUCCEED || result_type != TDS_CMD_SUCCEED))
+#else
+		if (!connected || (tds_submit_query(tds, sqlcmd) != TDS_SUCCEED) || (tds_process_simple_query(tds) != TDS_SUCCEED))
+#endif
+		{
+			ast_log(LOG_ERROR, "Failed to insert Call Data Record into SQL database.\n");
+
+			mssql_disconnect();	/* this is ok even if we are already disconnected */
+		}
+	} while (!connected && !retried);
 
 	free(accountcode);
 	free(src);
@@ -368,32 +387,129 @@ char *description(void)
 	return desc;
 }
 
+static int mssql_disconnect(void)
+{
+	if (tds) {
+		tds_free_socket(tds);
+		tds = NULL;
+	}
+
+	if (context) {
+		tds_free_context(context);
+		context = NULL;
+	}
+
+	if (login) {
+		tds_free_login(login);
+		login = NULL;
+	}
+
+	connected = 0;
+
+	return 0;
+}
+
+static int mssql_connect(void)
+{
+	TDSCONNECTINFO *connection = NULL;
+	char query[128];
+
+	/* Connect to M$SQL Server */
+	if (!(login = tds_alloc_login()))
+	{
+		ast_log(LOG_ERROR, "tds_alloc_login() failed.\n");
+		return -1;
+	}
+	
+	tds_set_server(login, hostname);
+	tds_set_user(login, dbuser);
+	tds_set_passwd(login, password);
+	tds_set_app(login, "TSQL");
+	tds_set_library(login, "TDS-Library");
+#ifndef TDS_PRE_0_62
+	tds_set_client_charset(login, charset);
+#endif
+	tds_set_language(login, language);
+	tds_set_packet(login, 512);
+	tds_set_version(login, 7, 0);
+
+	if (!(context = tds_alloc_context()))
+	{
+		ast_log(LOG_ERROR, "tds_alloc_context() failed.\n");
+		goto connect_fail;
+	}
+
+	if (!(tds = tds_alloc_socket(context, 512))) {
+		ast_log(LOG_ERROR, "tds_alloc_socket() failed.\n");
+		goto connect_fail;
+	}
+
+	tds_set_parent(tds, NULL);
+	connection = tds_read_config_info(tds, login, context->locale);
+	if (!connection)
+	{
+		ast_log(LOG_ERROR, "tds_read_config() failed.\n");
+		goto connect_fail;
+	}
+
+	if (tds_connect(tds, connection) == TDS_FAIL)
+	{
+		ast_log(LOG_ERROR, "Failed to connect to MSSQL server.\n");
+		tds = NULL;	/* freed by tds_connect() on error */
+		tds_free_connect(connection);
+		connection = NULL;
+		goto connect_fail;
+	}
+	tds_free_connect(connection);
+	connection = NULL;
+
+	sprintf(query, "USE %s", dbname);
+#ifdef TDS_PRE_0_62
+	if ((tds_submit_query(tds, query) != TDS_SUCCEED) || (tds_process_simple_query(tds, &result_type) != TDS_SUCCEED || result_type != TDS_CMD_SUCCEED))
+#else
+	if ((tds_submit_query(tds, query) != TDS_SUCCEED) || (tds_process_simple_query(tds) != TDS_SUCCEED))
+#endif
+	{
+		ast_log(LOG_ERROR, "Could not change database (%s)\n", dbname);
+		goto connect_fail;
+	}
+
+	connected = 1;
+	return 0;
+
+connect_fail:
+	mssql_disconnect();
+	return -1;
+}
+
 int unload_module(void)
 {
-	tds_free_socket(tds);
-	tds_free_login(login);
-	tds_free_context(context);
+	mssql_disconnect();
 
 	ast_cdr_unregister(name);
+
+	if (hostname) free(hostname);
+	if (dbname) free(dbname);
+	if (dbuser) free(dbuser);
+	if (password) free(password);
+	if (charset) free(charset);
+	if (language) free(language);
 
 	return 0;
 }
 
 int load_module(void)
 {
-	TDSCONNECTINFO *connection;
 	int res = 0;
 	struct ast_config *cfg;
 	struct ast_variable *var;
-	char query[1024], *ptr = NULL;
-	char *hostname = NULL, *dbname = NULL, *dbuser = NULL, *password = NULL, *charset = NULL, *language = NULL;
+	char *ptr = NULL;
 #ifdef TDS_PRE_0_62
 	TDS_INT result_type;
 #endif
 
 	cfg = ast_config_load(config);
-	if (!cfg)
-	{
+	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to load config for MSSQL CDR's: %s\n", config);
 		return 0;
 	}
@@ -404,133 +520,69 @@ int load_module(void)
 
 	ptr = ast_variable_retrieve(cfg, "global", "hostname");
 	if (ptr)
-	{
-		hostname = strdupa(ptr);
-	}
+		hostname = strdup(ptr);
 	else
-	{
 		ast_log(LOG_ERROR,"Database server hostname not specified.\n");
-	}
 
 	ptr = ast_variable_retrieve(cfg, "global", "dbname");
 	if (ptr)
-	{
-		dbname = strdupa(ptr);
-	}
+		dbname = strdup(ptr);
 	else
-	{
 		ast_log(LOG_ERROR,"Database dbname not specified.\n");
-	}
 
 	ptr = ast_variable_retrieve(cfg, "global", "user");
 	if (ptr)
-	{
-		dbuser = strdupa(ptr);
-	}
+		dbuser = strdup(ptr);
 	else
-	{
 		ast_log(LOG_ERROR,"Database dbuser not specified.\n");
-	}
 
 	ptr = ast_variable_retrieve(cfg, "global", "password");
 	if (ptr)
-	{
-		password = strdupa(ptr);
-	}
+		password = strdup(ptr);
 	else
-	{
 		ast_log(LOG_ERROR,"Database password not specified.\n");
-	}
 
 	ptr = ast_variable_retrieve(cfg, "global", "charset");
 	if (ptr)
-	{
-		charset = strdupa(ptr);
-	}
+		charset = strdup(ptr);
 	else
-	{
-		charset = strdupa("iso_1");
-	}
+		charset = strdup("iso_1");
 
 	ptr = ast_variable_retrieve(cfg, "global", "language");
 	if (ptr)
-	{
-		language = strdupa(ptr);
-	}
+		language = strdup(ptr);
 	else
-	{
-		language = strdupa("us_english");
-	}
+		language = strdup("us_english");
 
 	ast_config_destroy(cfg);
 
-	/* Connect to M$SQL Server */
-	if (!(login = tds_alloc_login()))
+	mssql_connect();
+
+	/* Register MSSQL CDR handler */
+	res = ast_cdr_register(name, desc, tds_log);
+	if (res)
 	{
-		ast_log(LOG_ERROR, "tds_alloc_login() failed.\n");
-		res = -1;
+		ast_log(LOG_ERROR, "Unable to register MSSQL CDR handling\n");
 	}
-	else
-	{
-		tds_set_server(login, hostname);
-		tds_set_user(login, dbuser);
-		tds_set_passwd(login, password);
-		tds_set_app(login, "TSQL");
-		tds_set_library(login, "TDS-Library");
-#ifndef TDS_PRE_0_62
-		tds_set_client_charset(login, charset);
-#endif
-		tds_set_language(login, language);
-		tds_set_packet(login, 512);
-		tds_set_version(login, 7, 0);
 
-		context = tds_alloc_context();
-		tds = tds_alloc_socket(context, 512);
-
-		tds_set_parent(tds, NULL);
-		connection = tds_read_config_info(NULL, login, context->locale);
-		if (!connection || tds_connect(tds, connection) == TDS_FAIL)
-		{
-			ast_log(LOG_ERROR, "Failed to connect to MSSQL server.\n");
-			res = -1;
-		}
-		tds_free_connect(connection);
-
-		if (!res)
-		{
-			memset(query, 0, sizeof(query));
-			sprintf(query, "USE %s", dbname);
-#ifdef TDS_PRE_0_62
-			if ((tds_submit_query(tds, query) != TDS_SUCCEED) || (tds_process_simple_query(tds, &result_type) != TDS_SUCCEED || result_type != TDS_CMD_SUCCEED))
-#else
-			if ((tds_submit_query(tds, query) != TDS_SUCCEED) || (tds_process_simple_query(tds) != TDS_SUCCEED))
-#endif
-			{
-				ast_log(LOG_ERROR, "Could not change database (%s)\n", dbname);
-				res = -1;
-			}
-			else
-			{
-				/* Register MSSQL CDR handler */
-				res = ast_cdr_register(name, desc, tds_log);
-				if (res)
-				{
-					ast_log(LOG_ERROR, "Unable to register MSSQL CDR handling\n");
-				}
-			}
-		}
-	}
 	return res;
 }
 
 int reload(void)
 {
-	return 0;
+	unload_module();
+	return load_module();
 }
 
 int usecount(void)
 {
-	return 0;
+	/* Simplistic use count */
+	if (ast_mutex_trylock(&tds_lock)) {
+		return 1;
+	} else {
+		ast_mutex_unlock(&tds_lock);
+		return 0;
+	}
 }
 
 char *key()
