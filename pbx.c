@@ -98,7 +98,7 @@ struct ast_include {
 struct ast_sw {
 	char *name;
 	const char *registrar;			/* Registrar */
-	char *data;		/* Data load */
+	char *data;				/* Data load */
 	int eval;
 	struct ast_sw *next;			/* Link them together */
 	char *tmpdata;
@@ -336,9 +336,9 @@ static struct pbx_builtin {
 	"Resets the Call Data Record",
 	"  ResetCDR([options]):  Causes the Call Data Record to be reset, optionally\n"
 	"storing the current CDR before zeroing it out\b"
-	"(if 'w' option is specifed) record will be stored.\n"
-	"(if 'a' option is specifed) any stacked records will be stored.\n"
-	"(if 'v' option is specifed) any variables will be saved.\n"
+	" - if 'w' option is specified record will be stored.\n"
+	" - if 'a' option is specified any stacked records will be stored.\n"
+	" - if 'v' option is specified any variables will be saved.\n"
 	"Always returns 0.\n"  
 	},
 
@@ -381,14 +381,14 @@ static struct pbx_builtin {
 
 	{ "SetAccount", pbx_builtin_setaccount,
 	"Sets account code",
-	"  SetAccount([account]):  Set  the  channel account code for billing\n"
-	"purposes. Always returns 0.\n"  
+	"  SetAccount([account]): Set the channel account code for billing\n"
+	"purposes. Always returns 0.\n"
 	},
 
 	{ "SetAMAFlags", pbx_builtin_setamaflags,
 	"Sets AMA Flags",
-	"  SetAMAFlags([flag]):  Set  the  channel AMA Flags for billing\n"
-	"purposes. Always returns 0.\n"  
+	"  SetAMAFlags([flag]): Set the channel AMA Flags for billing\n"
+	"purposes. Always returns 0.\n"
 	},
 
 	{ "SetGlobalVar", pbx_builtin_setglobalvar,
@@ -398,33 +398,36 @@ static struct pbx_builtin {
 	},
 
 	{ "SetLanguage", pbx_builtin_setlanguage,
-	"Sets user language",
-	"  SetLanguage(language):  Set  the  channel  language to 'language'.  This\n"
+	"Sets channel language",
+	"  SetLanguage(language): Set the channel language to 'language'. This\n"
 	"information is used for the syntax in generation of numbers, and to choose\n"
 	"a natural language file when available.\n"
 	"  For example, if language is set to 'fr' and the file 'demo-congrats' is \n"
-	"requested  to  be  played,  if the file 'fr/demo-congrats' exists, then\n"
+	"requested to be played, if the file 'fr/demo-congrats' exists, then\n"
 	"it will play that file, and if not will play the normal 'demo-congrats'.\n"
-	"Always returns 0.\n"  
+	"For some language codes, SetLanguage also changes the syntax of some\n"
+	"Asterisk functions, like SayNumber.\n"
+	"Always returns 0.\n"
 	},
 
 	{ "SetVar", pbx_builtin_setvar,
-	"Set variable to value",
-	"  SetVar(#n1=value|#n2=value|..[|options]) Set a variables to a CDR.\n"
+	"Set channel variable to value",
+	"  SetVar(#n1=value|#n2=value|..[|options]) \n"
 	"You can specify an endless list of name / value pairs to be set as channel variables.\n"
+	"  #n=value: Sets variable n to value. If prefixed with _, single\n"
+	"inheritance assumed. If prefixed with __, infinite inheritance is assumed.\n" 
 	"The last arg (if it doesn't contain an '=' ) is intrepreted as a string of\n"
-	"options.  Valid Options:\n"
+	"options. Valid Options:\n"
 	"  - c - CDR, if set set the var as a CDR variable also.\n"
 	"  - r - Recursive CDR, if there are any stacked CDRs, also apply to all as a cdr var.\n"
 	"  - g - Set a global variable not a channel variable.\n"
-	"  #n=value: Sets variable n to value.  If prefixed with _, single\n"
-	"inheritance assumed.  If prefixed with __, infinite inheritance is assumed.\n" },
+	},
 
 	{ "ImportVar", pbx_builtin_importvar,
 	"Set variable to value",
 	"  ImportVar(#n=channel|variable): Sets variable n to variable as evaluated on\n"
-	"the specified channel (instead of current).  If prefixed with _, single\n"
-	"inheritance assumed.  If prefixed with __, infinite inheritance is assumed.\n" },
+	"the specified channel (instead of current). If prefixed with _, single\n"
+	"inheritance assumed. If prefixed with __, infinite inheritance is assumed.\n" },
 
 	{ "StripMSD", pbx_builtin_stripmsd,
 	"Strip leading digits",
@@ -440,12 +443,12 @@ static struct pbx_builtin {
 
 	{ "Suffix", pbx_builtin_suffix, 
 	"Append trailing digits",
-	"  Suffix(digits): Appends the  digit  string  specified  by  digits to the\n"
-	"channel's associated extension. For example, the number 555 when  suffixed\n"
+	"  Suffix(digits): Appends the digit string specified by digits to the\n"
+	"channel's associated extension. For example, the number 555 when suffixed\n"
 	"with '1212' will become 5551212. This app always returns 0, and the PBX will\n"
 	"continue processing at the next priority for the *new* extension.\n"
-	"  So, for example, if priority  3  of  555 is Suffix 1212, the  next  step\n"
-	"executed will be priority 4 of 5551212. If  you  switch  into an  extension\n"
+	"  So, for example, if priority 3 of 555 is Suffix 1212, the next step\n"
+	"executed will be priority 4 of 5551212. If you switch into an extension\n"
 	"which has no first step, the PBX will treat it as though the user dialed an\n"
 	"invalid extension.\n" 
 	},
@@ -459,7 +462,7 @@ static struct pbx_builtin {
 	{ "WaitExten", pbx_builtin_waitexten, 
 	"Waits for an extension to be entered", 
 	"  WaitExten([seconds]): Waits for the user to enter a new extension for the \n"
-	"specified number of seconds, then returns 0.  Seconds can be passed with\n"
+	"specified number of seconds, then returns 0. Seconds can be passed with\n"
 	"fractions of a seconds (eg: 1.5 = 1.5 seconds) or if unspecified the\n"
 	"default extension timeout will be used.\n" 
 	},
@@ -484,7 +487,7 @@ int pbx_exec(struct ast_channel *c, 		/* Channel */
 		void *data,			/* Data for execution */
 		int newstack)			/* Force stack increment */
 {
-	/* This function is special.  It saves the stack so that no matter
+	/* This function is special. It saves the stack so that no matter
 	   how many times it is called, it returns to the same place */
 	int res;
 	
@@ -740,7 +743,7 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, struct ast
 		return NULL;
 	}
 	/* Check first to see if we've already been checked */
-	for (x=0;x<*stacklen;x++) {
+	for (x=0; x<*stacklen; x++) {
 		if (!strcasecmp(incstack[x], context))
 			return NULL;
 	}
@@ -1779,12 +1782,10 @@ int ast_device_state_changed(const char *fmt, ...)
 		*rest = 0;
 	}
 
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "Changing state for %s\n", device);
-	
- 		
 
 	state = ast_device_state(device);
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG, "Changing state for %s - state %d\n", device, state);
 
 	ast_mutex_lock(&hintlock);
 
@@ -3390,7 +3391,8 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 
 	memset(&counters, 0, sizeof(counters));
 
-	if (argc != 2 && argc != 3) return RESULT_SHOWUSAGE;
+	if (argc != 2 && argc != 3) 
+		return RESULT_SHOWUSAGE;
 
 	/* we obtain [exten@]context? if yes, split them ... */
 	if (argc == 3) {
@@ -3402,16 +3404,20 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 			context = splitter;
 
 			/* check for length and change to NULL if ast_strlen_zero() */
-			if (ast_strlen_zero(exten))   exten = NULL;
-			if (ast_strlen_zero(context)) context = NULL;
+			if (ast_strlen_zero(exten))
+				exten = NULL;
+			if (ast_strlen_zero(context))
+				context = NULL;
 			show_dialplan_helper(fd, context, exten, &counters, NULL);
 		} else {
 			/* no '@' char, only context given */
 			context = argv[2];
-			if (ast_strlen_zero(context)) context = NULL;
+			if (ast_strlen_zero(context))
+				context = NULL;
 			show_dialplan_helper(fd, context, exten, &counters, NULL);
 		}
 	} else {
+		/* Show complete dial plan */
 		show_dialplan_helper(fd, NULL, NULL, &counters, NULL);
 	}
 
@@ -3460,25 +3466,25 @@ static struct ast_custom_function_obj isnull_function = {
 
 static struct ast_custom_function_obj exists_function = {
 	.name = "exists",
-	.desc = "Existance Test: Returns 1 if exists, 0 otherwise",
+	.desc = "Existence Test: Returns 1 if exists, 0 otherwise",
 	.syntax = "exists(<data>)",
 	.read = builtin_function_exists,
 	.write = NULL,
 };
 
 static struct ast_custom_function_obj if_function = {
-    .name = "if",
-    .desc = "Conditional: Returns the data following '?' if true else the data following ':'",
-    .syntax = "if(<expr>?<true>:<false>)",
-    .read = builtin_function_if,
+	.name = "if",
+	.desc = "Conditional: Returns the data following '?' if true else the data following ':'",
+	.syntax = "if(<expr>?<true>:<false>)",
+	.read = builtin_function_if,
 	.write = NULL,
 };
 
 static struct ast_custom_function_obj env_function = {
-    .name = "ENV",
-    .desc = "Gets or sets the environment variable specified",
-    .syntax = "ENV(<envname>)",
-    .read = builtin_function_env_read,
+	.name = "ENV",
+	.desc = "Gets or sets the environment variable specified",
+	.syntax = "ENV(<envname>)",
+	.read = builtin_function_env_read,
 	.write = builtin_function_env_write,
 };
 
@@ -3504,17 +3510,17 @@ static struct ast_custom_function_obj cdr_function = {
  */
 static struct ast_cli_entry show_applications_cli = 
 	{ { "show", "applications", NULL }, 
-	handle_show_applications, "Shows registered applications",
+	handle_show_applications, "Shows registered dialplan applications",
 	show_applications_help, complete_show_applications };
 
 static struct ast_cli_entry show_functions_cli = 
 	{ { "show", "functions", NULL }, 
-	handle_show_functions, "Shows registered functions",
+	handle_show_functions, "Shows registered dialplan functions",
 	show_functions_help};
 
 static struct ast_cli_entry show_application_cli =
 	{ { "show", "application", NULL }, 
-	handle_show_application, "Describe a specific application",
+	handle_show_application, "Describe a specific dialplan application",
 	show_application_help, complete_show_application };
 
 static struct ast_cli_entry show_dialplan_cli =
@@ -3529,7 +3535,7 @@ static struct ast_cli_entry show_switches_cli =
 
 static struct ast_cli_entry show_hints_cli =
 	{ { "show", "hints", NULL },
-		handle_show_hints, "Show dial plan hints",
+		handle_show_hints, "Show dialplan hints",
 		show_hints_help, NULL };
 
 
@@ -3687,7 +3693,7 @@ static void get_timerange(struct ast_timing *i, char *times)
 	
 	/* Star is all times */
 	if (ast_strlen_zero(times) || !strcmp(times, "*")) {
-		for (x=0;x<24;x++)
+		for (x=0; x<24; x++)
 			i->minmask[x] = (1 << 30) - 1;
 		return;
 	}
@@ -3699,7 +3705,8 @@ static void get_timerange(struct ast_timing *i, char *times)
 	}
 	*e = '\0';
 	e++;
-	while(*e && !isdigit(*e)) e++;
+	while(*e && !isdigit(*e)) 
+		e++;
 	if (!*e) {
 		ast_log(LOG_WARNING, "Invalid time range.  Assuming no restrictions based on time.\n");
 		return;
@@ -3768,6 +3775,7 @@ static char *days[] =
 	"sat",
 };
 
+/*--- get_dow: Get day of week */
 static unsigned int get_dow(char *dow)
 {
 	char *c;
@@ -4031,7 +4039,8 @@ int ast_context_add_include2(struct ast_context *con, const char *value,
 	strcpy(new_include->rname, value);
 	c = new_include->rname;
 	/* Strip off timing info */
-	while(*c && (*c != '|')) c++; 
+	while(*c && (*c != '|')) 
+		c++; 
 	/* Process if it's there */
 	if (*c) {
 	        new_include->hastime = ast_build_timing(&(new_include->timing), c+1);
