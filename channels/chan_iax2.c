@@ -101,7 +101,7 @@
 
 static char *desc = "Inter Asterisk eXchange (Ver 2)";
 static char *tdesc = "Inter Asterisk eXchange Driver (Ver 2)";
-static char *type = "IAX2";
+static char *channeltype = "IAX2";
 
 static char context[80] = "default";
 
@@ -2493,16 +2493,16 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 	cs[1] = c1;
 	for (/* ever */;;) {
 		/* Check in case we got masqueraded into */
-		if ((c0->type != type) || (c1->type != type)) {
+		if ((c0->type != channeltype) || (c1->type != channeltype)) {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Can't masquerade, we're different...\n");
 			/* Remove from native mode */
-			if (c0->type == type) {
+			if (c0->type == channeltype) {
 				ast_mutex_lock(&iaxsl[callno0]);
 				iaxs[callno0]->bridgecallno = 0;
 				ast_mutex_unlock(&iaxsl[callno0]);
 			}
-			if (c1->type == type) {
+			if (c1->type == channeltype) {
 				ast_mutex_lock(&iaxsl[callno1]);
 				iaxs[callno1]->bridgecallno = 0;
 				ast_mutex_unlock(&iaxsl[callno1]);
@@ -2694,7 +2694,7 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 			snprintf(tmp->name, sizeof(tmp->name), "IAX2/%s@%s/%d", i->username, i->host, i->callno);
 		else
 			snprintf(tmp->name, sizeof(tmp->name), "IAX2/%s/%d", i->host, i->callno);
-		tmp->type = type;
+		tmp->type = channeltype;
 		/* We can support any format by default, until we get restricted */
 		tmp->nativeformats = capability;
 		tmp->readformat = ast_best_codec(capability);
@@ -4374,7 +4374,7 @@ static void register_peer_exten(struct iax2_peer *peer, int onoff)
 		while((ext = strsep(&stringp, "&"))) {
 			if (onoff) {
 				if (!ast_exists_extension(NULL, regcontext, ext, 1, NULL))
-					ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", strdup(peer->name), free, type);
+					ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", strdup(peer->name), free, channeltype);
 			} else
 				ast_context_remove_extension(regcontext, ext, 1, NULL);
 		}
@@ -6174,7 +6174,7 @@ static int iax2_prov_app(struct ast_channel *chan, void *data)
 	if (opts)
 		*opts='\0';
 
-	if (chan->type != type) {
+	if (chan->type != channeltype) {
 		ast_log(LOG_NOTICE, "Can't provision a non-IAX device!\n");
 		return -1;
 	} 
@@ -7011,7 +7011,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 			strncpy(regcontext, v->value, sizeof(regcontext) - 1);
 			/* Create context if it doesn't exist already */
 			if (!ast_context_find(regcontext))
-				ast_context_create(NULL, regcontext, type);
+				ast_context_create(NULL, regcontext, channeltype);
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (sscanf(v->value, "%i", &format) == 1)
 				tos = format & 0xff;
@@ -7503,7 +7503,7 @@ static int __unload_module(void)
 	ast_cli_unregister(&cli_show_stats);
 	ast_cli_unregister(&cli_show_cache);
 	ast_unregister_switch(&iax2_switch);
-	ast_channel_unregister(type);
+	ast_channel_unregister(channeltype);
 	delete_users();
 	iax_provision_unload();
 	return 0;
@@ -7587,8 +7587,8 @@ int load_module(void)
 
 	set_config(config,&sin);
 
-	if (ast_channel_register(type, tdesc, iax2_capability, iax2_request)) {
-		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+	if (ast_channel_register(channeltype, tdesc, iax2_capability, iax2_request)) {
+		ast_log(LOG_ERROR, "Unable to register channel class %s\n", channeltype);
 		__unload_module();
 		return -1;
 	}
