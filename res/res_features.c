@@ -224,12 +224,6 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 				if (adsipark && adsi_available(peer)) {
 					adsi_unload_session(peer);
 				}
-				if (pu->notquiteyet) {
-					/* Wake up parking thread if we're really done */
-					ast_moh_start(pu->chan, NULL);
-					pu->notquiteyet = 0;
-					pthread_kill(parking_thread, SIGURG);
-				}
 			}
 			con = ast_context_find(parking_con);
 			if (!con) {
@@ -242,6 +236,13 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 				snprintf(exten, sizeof(exten), "%d", x);
 				ast_add_extension2(con, 1, exten, 1, NULL, parkedcall, strdup(exten), free, registrar);
 			}
+			if (pu->notquiteyet) {
+				/* Wake up parking thread if we're really done */
+				ast_moh_start(pu->chan, NULL);
+				pu->notquiteyet = 0;
+				pthread_kill(parking_thread, SIGURG);
+			}
+
 			return 0;
 		} else {
 			ast_log(LOG_WARNING, "No more parking spaces\n");
@@ -551,7 +552,6 @@ static void *do_parking_thread(void *ignore)
 	char exten[AST_MAX_EXTENSION];
 	struct ast_context *con;
 	int x;
-	int gc=0;
 	fd_set rfds, efds;
 	fd_set nrfds, nefds;
 	FD_ZERO(&rfds);
@@ -571,10 +571,6 @@ static void *do_parking_thread(void *ignore)
 				pl = pu;
 				pu = pu->next;
 				continue;
-			}
-			if (gc < 5 && !pu->chan->generator) {
-				gc++;
-				ast_moh_start(pu->chan,NULL);
 			}
 			tms = (tv.tv_sec - pu->start.tv_sec) * 1000 + (tv.tv_usec - pu->start.tv_usec) / 1000;
 			if (tms > pu->parkingtime) {
