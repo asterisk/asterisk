@@ -155,10 +155,11 @@ all: depend asterisk subdirs
 editline/config.h:
 	cd editline && unset CFLAGS LIBS && ./configure ; \
 
-editline/libedit.a:
+editline/libedit.a: FORCE
+	cd editline && unset CFLAGS LIBS && test -f config.h || ./configure
 	$(MAKE) -C editline libedit.a
 
-db1-ast/libdb1.a: 
+db1-ast/libdb1.a: FORCE
 	@if [ -d db1-ast ]; then \
 		$(MAKE) -C db1-ast libdb1.a ; \
 	else \
@@ -194,7 +195,7 @@ build.h:
 	./make_build_h
 endif
 
-stdtime/libtime.a:
+stdtime/libtime.a: FORCE
 	@if [ -d stdtime ]; then \
 		$(MAKE) -C stdtime libtime.a ; \
 	else \
@@ -415,3 +416,4 @@ depend: .depend
 .depend:
 	./mkdep ${CFLAGS} `ls *.c`
 
+FORCE:
