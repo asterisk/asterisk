@@ -86,11 +86,43 @@ static int mysql_log(struct ast_cdr *cdr)
 	}
 
 	if (connected) {
-		ast_log(LOG_DEBUG,"cdr_mysql: inserting a CDR record.\n");
+		char *clid=NULL, *dcontext=NULL, *channel=NULL, *dstchannel=NULL, *lastapp=NULL, *lastdata=NULL, *uniqueid=NULL;
+
+		/* Maximum space needed would be if all characters needed to be escaped, plus a trailing NULL */
+		if (clid = alloca(strlen(cdr->clid) * 2 + 1))
+			mysql_real_escape_string(&mysql, clid, cdr->clid, strlen(cdr->clid));
+		if (dcontext = alloca(strlen(cdr->dcontext) * 2 + 1))
+			mysql_real_escape_string(&mysql, dcontext, cdr->dcontext, strlen(cdr->dcontext));
+		if (channel = alloca(strlen(cdr->channel) * 2 + 1))
+			mysql_real_escape_string(&mysql, channel, cdr->channel, strlen(cdr->channel));
+		if (dstchannel = alloca(strlen(cdr->dstchannel) * 2 + 1))
+			mysql_real_escape_string(&mysql, dstchannel, cdr->dstchannel, strlen(cdr->dstchannel));
+		if (lastapp = alloca(strlen(cdr->lastapp) * 2 + 1))
+			mysql_real_escape_string(&mysql, lastapp, cdr->lastapp, strlen(cdr->lastapp));
+		if (lastdata = alloca(strlen(cdr->lastdata) * 2 + 1))
+			mysql_real_escape_string(&mysql, lastdata, cdr->lastdata, strlen(cdr->lastdata));
 #ifdef MYSQL_LOGUNIQUEID
-		sprintf(sqlcmd,"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,'%s',%i,'%s','%s')",timestr,cdr->clid,cdr->src, cdr->dst, cdr->dcontext,cdr->channel, cdr->dstchannel, cdr->lastapp, cdr->lastdata,cdr->duration,cdr->billsec,ast_cdr_disp2str(cdr->disposition),cdr->amaflags, cdr->accountcode, cdr->uniqueid);
+		if (uniqueid = alloca(strlen(cdr->uniqueid) * 2 + 1))
+			mysql_real_escape_string(&mysql, uniqueid, cdr->uniqueid, strlen(cdr->uniqueid));
+#endif
+
+		/* Check for all alloca failures above at once */
+#ifdef MYSQL_LOGUNIQUEID
+		if ((!clid) || (!dcontext) || (!channel) || (!dstchannel) || (!lastapp) || (!lastdata) || (!uniqueid)) {
 #else
-		sprintf(sqlcmd,"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,'%s',%i,'%s')",timestr,cdr->clid,cdr->src, cdr->dst, cdr->dcontext,cdr->channel, cdr->dstchannel, cdr->lastapp, cdr->lastdata,cdr->duration,cdr->billsec,ast_cdr_disp2str(cdr->disposition),cdr->amaflags, cdr->accountcode);
+		if ((!clid) || (!dcontext) || (!channel) || (!dstchannel) || (!lastapp) || (!lastdata)) {
+#endif
+			ast_log(LOG_ERROR, "cdr_mysql:  Out of memory error (insert fails)\n");
+			ast_mutex_unlock(&mysql_lock);
+			return -1;
+		}
+
+		ast_log(LOG_DEBUG,"cdr_mysql: inserting a CDR record.\n");
+
+#ifdef MYSQL_LOGUNIQUEID
+		sprintf(sqlcmd,"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,'%s',%i,'%s','%s')",timestr,clid,cdr->src, cdr->dst, dcontext,channel, dstchannel, lastapp, lastdata,cdr->duration,cdr->billsec,ast_cdr_disp2str(cdr->disposition),cdr->amaflags, cdr->accountcode, uniqueid);
+#else
+		sprintf(sqlcmd,"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,'%s',%i,'%s')",timestr,clid,cdr->src, cdr->dst, dcontext,channel, dstchannel, lastapp, lastdata,cdr->duration,cdr->billsec,ast_cdr_disp2str(cdr->disposition),cdr->amaflags, cdr->accountcode);
 #endif  
 		ast_log(LOG_DEBUG,"cdr_mysql: SQL command as follows:  %s\n",sqlcmd);
 	
@@ -175,7 +207,7 @@ int load_module(void)
 			return -1;
 		}
 	} else {
-		ast_log(LOG_WARNING,"MySQL server hostname not specified.  Assuming localhost");
+		ast_log(LOG_WARNING,"MySQL server hostname not specified.  Assuming localhost\n");
 		hostname = "localhost";
 	}
 
@@ -220,7 +252,7 @@ int load_module(void)
 			return -1;
 		}
 	} else {
-		ast_log(LOG_WARNING,"MySQL database sock file not specified.  Assuming default\n");
+		ast_log(LOG_WARNING,"MySQL database sock file not specified.  Using default\n");
 		dbsock = NULL;
 	}
 
