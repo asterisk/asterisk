@@ -1949,9 +1949,9 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int in
 	if (!strstr(ot, "tag=") && strcasecmp(msg, "CANCEL")) {
 		/* Add the proper tag if we don't have it already.  If they have specified
 		   their tag, use it.  Otherwise, use our own tag */
-		if (!p->outgoing && strlen(p->theirtag))
+		if (p->outgoing && strlen(p->theirtag))
 			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->theirtag);
-		else if (p->outgoing)
+		else if (!p->outgoing)
 			snprintf(newto, sizeof(newto), "%s;tag=%08x", ot, p->tag);
 		else
 			snprintf(newto, sizeof(newto), "%s", ot);
