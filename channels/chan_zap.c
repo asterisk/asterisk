@@ -2960,14 +2960,21 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 #ifdef ZAPATA_PRI
 			if (p->call) {
 				if (p->pri && p->pri->pri) {
-					pri_hangup(p->pri->pri, p->call, -1);
-					pri_destroycall(p->pri->pri, p->call);
+					if (!pri_grab(p, p->pri)) {
+						pri_hangup(p->pri->pri, p->call, -1);
+						pri_destroycall(p->pri->pri, p->call);
+						pri_rel(p->pri);
+					} else
+						ast_log(LOG_WARNING, "Failed to grab PRI!\n");
 				} else
 					ast_log(LOG_WARNING, "The PRI Call have not been destroyed\n");
 			}
 			if (p->owner)
 				p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 			p->call = NULL;
+			if (p->bearer)
+				p->bearer->inalarm = 1;
+			else
 #endif
 			p->inalarm = 1;
 			res = get_alarms(p);
@@ -3211,6 +3218,11 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			break;
 		case ZT_EVENT_NOALARM:
 			p->inalarm = 0;
+#ifdef ZAPATA_PRI
+			/* Extremely unlikely but just in case */
+			if (p->bearer)
+				p->bearer->inalarm = 1;
+#endif				
 			ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
 			manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
 								"Channel: %d\r\n", p->channel);
@@ -5134,6 +5146,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 			res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, -1);
 			zt_set_hook(i->subs[SUB_REAL].zfd, ZT_ONHOOK);
 			break;
+		case SIG_GR303FXOKS:
 		case SIG_FXOKS:
 			zt_disable_ec(i);
 			/* Diddle the battery for the zhone */
@@ -5202,11 +5215,7 @@ static void *do_monitor(void *data)
 		count = 0;
 		i = iflist;
 		while(i) {
-			if ((i->subs[SUB_REAL].zfd > -1) && i->sig && (!i->radio) 
-#ifdef ZAPATA_PRI
-				&& !i->pri
-#endif
-				) {
+			if ((i->subs[SUB_REAL].zfd > -1) && i->sig && (!i->radio)) {
 				if (!i->owner && !i->subs[SUB_REAL].owner) {
 					/* This needs to be watched, as it lacks an owner */
 					pfds[count].fd = i->subs[SUB_REAL].zfd;
@@ -5292,7 +5301,10 @@ static void *do_monitor(void *data)
 				pollres = ast_fdisset(pfds, i->subs[SUB_REAL].zfd, count, &spoint);
 				if (pollres & POLLIN) {
 					if (i->owner || i->subs[SUB_REAL].owner) {
-						ast_log(LOG_WARNING, "Whoa....  I'm owned but found (%d) in read...\n", i->subs[SUB_REAL].zfd);
+#ifdef ZAPATA_PRI
+						if (!i->pri)
+#endif						
+							ast_log(LOG_WARNING, "Whoa....  I'm owned but found (%d) in read...\n", i->subs[SUB_REAL].zfd);
 						i = i->next;
 						continue;
 					}
@@ -5349,7 +5361,10 @@ static void *do_monitor(void *data)
 #endif				
 				{
 					if (i->owner || i->subs[SUB_REAL].owner) {
-						ast_log(LOG_WARNING, "Whoa....  I'm owned but found (%d)...\n", i->subs[SUB_REAL].zfd);
+#ifdef ZAPATA_PRI
+						if (!i->pri)
+#endif						
+							ast_log(LOG_WARNING, "Whoa....  I'm owned but found (%d)...\n", i->subs[SUB_REAL].zfd);
 						i = i->next;
 						continue;
 					}
@@ -6073,6 +6088,33 @@ static struct zt_pvt *chandup(struct zt_pvt *src)
 }
 	
 
+#ifdef ZAPATA_PRI
+static int pri_find_empty_chan(struct zt_pri *pri, int backwards)
+{
+	int x;
+	if (backwards)
+		x = pri->numchans;
+	else
+		x = 0;
+	for (;;) {
+		if (backwards && (x < 0))
+			break;
+		if (!backwards && (x >= pri->numchans))
+			break;
+		if (pri->pvts[x] && !pri->pvts[x]->inalarm && !pri->pvts[x]->owner) {
+			ast_log(LOG_DEBUG, "Found empty available channel %d/%d\n", 
+				pri->pvts[x]->logicalspan, pri->pvts[x]->prioffset);
+			return x;
+		}
+		if (backwards)
+			x--;
+		else
+			x++;
+	}
+	return -1;
+}
+#endif
+
 static struct ast_channel *zt_request(char *type, int format, void *data)
 {
 	int oldformat;
@@ -6203,12 +6245,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 			if (pri && (p->subs[SUB_REAL].zfd < 0)) {
 				/* Gotta find an actual channel to use for this
 				   CRV if this isn't a callwait */
-				for (x=0;x<pri->numchans;x++) {
-					if (!pri->pvts[x]->owner) {
-						bearer = x;
-						break;
-					}
-				}
+				bearer = pri_find_empty_chan(pri, 0);
 				if (bearer < 0) {
 					ast_log(LOG_NOTICE, "Out of bearer channels on span %d for call to CRV %d:%d\n", pri->span, trunkgroup, crv);
 					break;
@@ -6291,16 +6328,6 @@ static struct zt_pvt *pri_find_crv(struct zt_pri *pri, int crv)
 	}
 }
 
-
-static int pri_find_empty_chan(struct zt_pri *pri)
-{
-	int x;
-	for (x=pri->numchans;x>=0;x--) {
-		if (pri->pvts[x] && !pri->pvts[x]->owner)
-			return x;
-	}
-	return 0;
-}
 
 static int pri_find_principle(struct zt_pri *pri, int channel)
 {
@@ -6757,7 +6784,7 @@ static void *pri_dchannel(void *vpri)
 			case PRI_EVENT_RING:
 				crv = NULL;
 				if (e->ring.channel == -1)
-					chanpos = pri_find_empty_chan(pri);
+					chanpos = pri_find_empty_chan(pri, 1);
 				else
 					chanpos = pri_find_principle(pri, e->ring.channel);
 				/* if no channel specified find one empty */
@@ -6780,7 +6807,7 @@ static void *pri_dchannel(void *vpri)
 					}
 				}
 				if ((chanpos < 0) && (e->ring.flexible))
-					chanpos = pri_find_empty_chan(pri);
+					chanpos = pri_find_empty_chan(pri, 1);
 				if (chanpos > -1) {
 					if (pri->switchtype == PRI_SWITCH_GR303_TMC) {
 						crv = pri_find_crv(pri, pri_get_crv(pri->pri, e->ring.call, NULL));
