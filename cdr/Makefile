@@ -18,10 +18,7 @@ CFLAGS+=
 #
 # MySQL stuff...  Autoconf anyone??
 #
-MODS+=$(shell if [ -d /usr/lib/mysql ] || \
-	[`ls /usr/lib/libmysqlclient.so* 2>/dev/null | wc -l` -gt 0 ] || \
-	[`ls /usr/local/lib/libmysqlclient.so* 2>/dev/null | wc -l` -gt 0 ] \
-	; then echo "cdr_mysql.so" ; fi)
+MODS+=$(shell if [ -d /usr/include/mysql ] || [ -d /usr/local/include/mysql ]; then echo "cdr_mysql.so"; fi)
 CFLAGS+=$(shell if [ -d /usr/include/mysql ]; then echo "-I/usr/include/mysql"; fi)
 CFLAGS+=$(shell if [ -d /usr/local/include/mysql ]; then echo "-I/usr/local/include/mysql"; fi)
 MLFLAGS=
