@@ -110,6 +110,7 @@ static int phone_digit(struct ast_channel *ast, char digit)
 	struct phone_pvt *p;
 	int outdigit;
 	p = ast->pvt->pvt;
+	ast_log(LOG_NOTICE, "Dialed %c\n", digit);
 	switch(digit) {
 	case '0':
 	case '1':
@@ -121,7 +122,7 @@ static int phone_digit(struct ast_channel *ast, char digit)
 	case '7':
 	case '8':
 	case '9':
-		outdigit = digit - '0' + 1;
+		outdigit = digit - '0';
 		break;
 	case '*':
 		outdigit = 11;
@@ -129,11 +130,19 @@ static int phone_digit(struct ast_channel *ast, char digit)
 	case '#':
 		outdigit = 12;
 		break;
+	case 'f':	//flash
+	case 'F':
+		ioctl(p->fd, IXJCTL_PSTN_SET_STATE, PSTN_ON_HOOK);
+		usleep(320000);
+		ioctl(p->fd, IXJCTL_PSTN_SET_STATE, PSTN_OFF_HOOK);
+		p->lastformat = -1;
+		return 0;
 	default:
 		ast_log(LOG_WARNING, "Unknown digit '%c'\n", digit);
 		return -1;
 	}
-	ioctl(p->fd, PHONE_PLAY_TONE, digit);
+	ast_log(LOG_NOTICE, "Dialed %i\n", outdigit);
+	ioctl(p->fd, PHONE_PLAY_TONE, outdigit);
 	p->lastformat = -1;
 	return 0;
 }
@@ -277,6 +286,9 @@ static int phone_setup(struct ast_channel *ast)
 		ast_log(LOG_WARNING, "Failed to start recording\n");
 		return -1;
 	}
+	//set the DTMF times (the default is too short)
+	ioctl(p->fd, PHONE_SET_TONE_ON_TIME, 300);
+	ioctl(p->fd, PHONE_SET_TONE_OFF_TIME, 200);
 	return 0;
 }
 
