@@ -2546,7 +2546,11 @@ int ast_setstate(struct ast_channel *chan, int state)
 
 static long tvdiff(struct timeval *now, struct timeval *then) 
 {
+#if 0
 	return (((now->tv_sec * 1000) + now->tv_usec / 1000) - ((then->tv_sec * 1000) + then->tv_usec / 1000));
+#else
+	return (now->tv_sec - then->tv_sec) * 1000 + (now->tv_usec - then->tv_usec) / 1000;	
+#endif
 }
 
 struct ast_channel *ast_bridged_channel(struct ast_channel *chan)
