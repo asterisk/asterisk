@@ -93,6 +93,12 @@ cancallforward=yes
 ;
 echocancel=yes
 ;
+; Generally, it is not necessary (and in fact undesirable) to echo cancel
+; when the circuit path is entirely TDM.  You may, however, reverse this
+; behavior by enabling the echo cancel during pure TDM bridging below.
+;
+echocancelwhenbridged=no
+;
 ; You may also set the default receive and transmit gains (in dB)
 ;
 rxgain=0.0
