@@ -12,6 +12,7 @@
 #
 #
 use CGI qw/:standard/;
+use Carp::Heavy;
 use CGI::Carp qw(fatalsToBrowser);
 
 @validfolders = ( "INBOX", "Old", "Work", "Family", "Friends", "Cust1", "Cust2", "Cust3", "Cust4", "Cust5" );
@@ -67,64 +68,115 @@ _EOH
 
 sub check_login()
 {
-	my ($mbox, $context) = split(/\@/, param('mailbox'));
-	my $pass = param('password');
-	my $category = "general";
-	my @fields;
+	local ($filename, $startcat) = @_;
+	local ($mbox, $context) = split(/\@/, param('mailbox'));
+	local $pass = param('password');
+	local $category = $startcat;
+	local @fields;
+	local $tmp;
+	local (*VMAIL);
+	if (!$category) {
+		$category = "general";
+	}
 	if (!$context) {
 		$context = param('context');
 	}
 	if (!$context) {
 		$context = "default";
 	}
-	open(VMAIL, "</etc/asterisk/voicemail.conf") || die("Bleh, no voicemail.conf");
+	if (!$filename) {
+		$filename = "/etc/asterisk/voicemail.conf";
+	}
+#	print header;
+#	print "Including <h2>$filename</h2> while in <h2>$category</h2>...\n";
+	open(VMAIL, "<$filename") || die("Bleh, no $filename");
 	while(<VMAIL>) {
 		chomp;
-		if (/\[(.*)\]/) {
+		if (/include\s\"([^\"]+)\"$/) {
+			($tmp, $category) = &check_login("/etc/asterisk/$1", $category);
+			if (length($tmp)) {
+#				print "Got '$tmp'\n";
+				return ($tmp, $category);
+			}
+		} elsif (/\[(.*)\]/) {
 			$category = $1;
 		} elsif ($category ne "general") {
 			if (/([^\s]+)\s*\=\>?\s*(.*)/) {
 				@fields = split(/\,\s*/, $2);
+#				print "<p>Mailbox is $1\n";
 				if (($mbox eq $1) && ($pass eq $fields[0]) && ($context eq $category)) {
-					return $fields[1] ? $fields[1] : "Extension $mbox in $context";
+					return ($fields[1] ? $fields[1] : "Extension $mbox in $context", $category);
 				}
 			}
 		}
 	}
+	close(VMAIL);
+	return ("", $category);
 }
 
 sub validmailbox()
 {
-	my ($context, $mbox) = @_;
-	my $category = "general";
-	my @fields;
-	open(VMAIL, "</etc/asterisk/voicemail.conf") || die("Bleh, no voicemail.conf");
+	local ($context, $mbox, $filename, $startcat) = @_;
+	local $category = $startcat;
+	local @fields;
+	local (*VMAIL);
+	if (!$context) {
+		$context = param('context');
+	}
+	if (!$context) {
+		$context = "default";
+	}
+	if (!$filename) {
+		$filename = "/etc/asterisk/voicemail.conf";
+	}
+	if (!$category) {
+		$category = "general";
+	}
+	open(VMAIL, "<$filename") || die("Bleh, no $filename");
 	while(<VMAIL>) {
 		chomp;
-		if (/\[(.*)\]/) {
+		if (/include\s\"([^\"]+)\"$/) {
+			($tmp, $category) = &validmailbox($mbox, $context, "/etc/asterisk/$1");
+			if ($tmp) {
+				return ($tmp, $category);
+			}
+		} elsif (/\[(.*)\]/) {
 			$category = $1;
 		} elsif (($category ne "general") && ($category eq $context)) {
 			if (/([^\s]+)\s*\=\>?\s*(.*)/) {
 				@fields = split(/\,\s*/, $2);
-				if ($mbox eq $1) {
-					return $fields[2] ? $fields[2] : "unknown";
+				if (($mbox eq $1) && ($context eq $category)) {
+					return ($fields[2] ? $fields[2] : "unknown", $category);
 				}
 			}
 		}
 	}
+	return ("", $category);
 }
 
-sub mailbox_list()
+sub mailbox_options()
 {
-	my ($name, $context, $current) = @_;
-	my $tmp;
-	my $text;
-	$tmp = "<SELECT name=\"$name\">\n";
-	open(VMAIL, "</etc/asterisk/voicemail.conf") || die("Bleh, no voicemail.conf");
+	local($context, $current, $filename, $category) = @_;
+	local (*VMAIL);
+	local $tmp2;
+	local $tmp;
+	if (!$filename) {
+		$filename = "/etc/asterisk/voicemail.conf";
+	}
+	if (!$category) {
+		$category = "general";
+	}
+#	print header;
+#	print "Including <h2>$filename</h2> while in <h2>$category</h2>...\n";
+	open(VMAIL, "<$filename") || die("Bleh, no voicemail.conf");
 	while(<VMAIL>) {
 		chomp;
 		s/\;.*$//;
-		if (/\[(.*)\]/) {
+		if (/include\s\"([^\"]+)\"$/) {
+			($tmp2, $category) = &mailbox_options($context, $current, "/etc/asterisk/$1", $category);
+#			print "Got '$tmp2'...\n";
+			$tmp .= $tmp2;
+		} elsif (/\[(.*)\]/) {
 			$category = $1;
 		} elsif ($category ne "general") {
 			if (/([^\s]+)\s*\=\>?\s*(.*)/) {
@@ -139,12 +191,26 @@ sub mailbox_list()
 					$tmp .= "<OPTION>$text</OPTION>\n";
 				}
 				
-				if (($mbox eq $1) && ($pass eq $fields[0])) {
-					return $fields[1];
-				}
 			}
 		}
 	}
+	close(VMAIL);
+	return ($tmp, $category);
+}
+
+sub mailbox_list()
+{
+	local ($name, $context, $current) = @_;
+	local $tmp;
+	local $text;
+	local $tmp;
+	local $opts;
+	if (!$context) {
+		$context = "default";
+	}
+	$tmp = "<SELECT name=\"$name\">\n";
+	($opts) = &mailbox_options($context, $current);
+	$tmp .= $opts;
 	$tmp .= "</SELECT>\n";
 	
 }
@@ -811,8 +877,8 @@ if (param()) {
 	@msgs = param('msgselect');
 	@msgs = ($msgid) unless @msgs;
 	{
-		$mailbox = check_login();
-		if ($mailbox) {
+		($mailbox) = &check_login();
+		if (length($mailbox)) {
 			if ($action eq 'login') {
 				&message_index($folder, "Welcome, $mailbox");
 			} elsif (($action eq 'refresh') || ($action eq 'index')) {

@@ -197,6 +197,8 @@ int ast_channel_register_ex(char *type, char *description, int capabilities,
 
 char *ast_state2str(int state)
 {
+	/* XXX Not reentrant XXX */
+	static char localtmp[256];
 	switch(state) {
 	case AST_STATE_DOWN:
 		return "Down";
@@ -215,7 +217,8 @@ char *ast_state2str(int state)
 	case AST_STATE_BUSY:
 		return "Busy";
 	default:
-		return "Unknown";
+		snprintf(localtmp, sizeof(localtmp), "Unknown (%d)\n", state);
+		return localtmp;
 	}
 }
 
