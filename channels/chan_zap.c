@@ -8423,12 +8423,12 @@ static int action_zapdialoffhook(struct mansession *s, struct message *m)
 		return 0;
 	}
 	p = find_channel(atoi(channel));
-	if (!p->owner) {
-		astman_send_error(s, m, "Channel does not have it's owner");
-		return 0;
-	}
 	if (!p) {
 		astman_send_error(s, m, "No such channel");
+		return 0;
+	}
+	if (!p->owner) {
+		astman_send_error(s, m, "Channel does not have it's owner");
 		return 0;
 	}
 	for (i=0; i<strlen(number); i++) {
