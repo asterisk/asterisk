@@ -20,7 +20,7 @@
 
 #include <stdio.h>
 #include <string.h>
-//#include <asterisk/lock.h>
+#include <asterisk/lock.h>
 #include <asterisk/utils.h>
 #include <asterisk/channel.h>
 #include <asterisk/channel_pvt.h>
@@ -475,11 +475,11 @@ static void get_callerid(struct vpb_pvt *p)
 	short buf[CID_MSECS*8]; // 8kHz sampling rate
 	double cid_record_time;
 	int rc;
+	struct ast_channel *owner = p->owner;
 
-	if(strcasecmp(p->callerid, "on")) {
+	if(!strcasecmp(p->callerid, "on")) {
 		if (option_verbose>3) 
 			ast_verbose(VERBOSE_PREFIX_4 "Caller ID disabled\n");
-//		p->owner->callerid = strdup("unknown");
 		return;
 	}
 
@@ -491,13 +491,6 @@ static void get_callerid(struct vpb_pvt *p)
 		if (option_verbose>3) 
 			ast_verbose(VERBOSE_PREFIX_4 "CID record - start\n");
 
-		#ifdef ANALYSE_CID
-		VPB_RECORD record_parms = { "", 8 * 1000 }; // record a couple of rings
-		vpb_record_set(p->handle,&record_parms);
-		ast_verbose(VERBOSE_PREFIX_4 "Recording debug CID sample to /tmp/cid.raw\n");
-		vpb_record_file_sync(p->handle,"/tmp/cid.raw",VPB_LINEAR);
-		rc = 1; // don't try to decode_cid
-		#else	
 		// Skip any trailing ringtone
 		vpb_sleep(RING_SKIP);
 
@@ -510,7 +503,6 @@ static void get_callerid(struct vpb_pvt *p)
 		vpb_record_buf_start(p->handle, VPB_LINEAR);
 		rc = vpb_record_buf_sync(p->handle, (char*)buf, sizeof(buf));
 		vpb_record_buf_finish(p->handle);
-		#endif
 
 		if (option_verbose>3) 
 			ast_verbose(VERBOSE_PREFIX_4 "CID record - recorded %fms between rings\n", 
@@ -523,18 +515,36 @@ static void get_callerid(struct vpb_pvt *p)
 			return;
 		}
 
+		VPB_CID *cli_struct = new VPB_CID;
+		cli_struct->ra_cldn[0]=0;
+		cli_struct->ra_cn[0]=0;
 		// This decodes FSK 1200baud type callerid
-		if ((rc=vpb_cid_decode(callerid, buf, CID_MSECS*8)) == VPB_OK ) {
-			if(!*callerid) 
-				strncpy(callerid,"undisclosed", sizeof(callerid) - 1); // blocked CID (eg caller used 1831)
+		if ((rc=vpb_cid_decode2(cli_struct, buf, CID_MSECS*8)) == VPB_OK ) {
+			if (owner->cid.cid_num)
+				free(owner->cid.cid_num);
+			owner->cid.cid_num=NULL;
+			if (owner->cid.cid_name)
+				free(owner->cid.cid_name);
+			owner->cid.cid_name=NULL;
+			
+			if (cli_struct->ra_cldn[0]=='\0'){
+				owner->cid.cid_num = strdup(cli_struct->cldn);
+				owner->cid.cid_name = strdup(cli_struct->cn);
+				if (option_verbose>3) 
+					ast_verbose(VERBOSE_PREFIX_4 "CID record - got [%s] [%s]\n",owner->cid.cid_num,owner->cid.cid_name );
+			}
+			else {
+				ast_log(LOG_ERROR,"CID record - No caller id avalable on %s \n", p->dev);
+			}
+
 		} else {
-			ast_log(LOG_ERROR, "Failed to decode caller id on %s - %s\n", p->dev, vpb_strerror(rc) );
+			ast_log(LOG_ERROR, "CID record - Failed to decode caller id on %s - %s\n", p->dev, vpb_strerror(rc) );
 			strncpy(callerid,"unknown", sizeof(callerid) - 1);
 		}
-//		p->owner->callerid = strdup(callerid);
+		delete cli_struct;
 
 	} else 
-		ast_log(LOG_ERROR, "Failed to set record mode for caller id on %s\n", p->dev );
+		ast_log(LOG_ERROR, "CID record - Failed to set record mode for caller id on %s\n", p->dev );
 }
 
 // Terminate any tones we are presently playing
