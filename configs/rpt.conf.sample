@@ -7,18 +7,24 @@
 ; Note: if you use a unified interface (tx/rx on one channel), only
 ; specify the rxchannel and the txchannel will be assumed from the rxchannel
 ;txchannel = Zap/2			; Tx audio/signalling channel
+;functions = functions-repeater		; DTMF function list
+;; specify this for a different function list then local when on link
+;;link_functions = functions-different	; DTMF function list for link
 ;tonezone = us				; use US tones (default)
-;simple = no				; Not in "simple" mode
 ;context = default			; dialing context for phone
 ;callerid = "WB6NIL Repeater" <(559) 692-1234>  ; Callerid for phone calls
 ;idrecording = wb6nil			; id recording
 ;accountcode=RADIO			; account code (optional)
+;funcchar = *				; function lead-in character (defaults to '*')
+;endchar = #				; command mode end character (defaults to '#')
 ;hangtime=1000				; squelch tail hang time (in ms) (optional)
 ;totime=100000				; transmit time-out time (in ms) (optional)
 ;idtime=30000				; id interval time (in ms) (optional)
-politeid=30000				; time in milliseconds before ID timer
+;politeid=30000				; time in milliseconds before ID timer
 					; expires to try and ID in the tail.
 					; (optional, default is 30000).
+;idtalkover=|iwb6nil/rpt		; Talkover ID (optional) default is none
+;unlinkedct=ct2				; unlinked courtesy tone (optional) default is none
 
 ; The default values for hangtime, time-out time, and id interval time are
 ; 5 seconds (5000 ms),  3 minutes (180000 ms), and 5 minutes (300000 ms)
@@ -31,14 +37,20 @@ politeid=30000				; time in milliseconds before ID timer
 ; specify the rxchannel and the txchannel will be assumed from the rxchannel
 ;txchannel = Zap/4			; Tx audio/signalling channel
 ;tonezone = us				; use US tones (default)
-;simple = no				; Not in "simple" mode
 ;context = default			; dialing context for phone
 ;callerid = "WB6NIL Repeater" <(559) 692-1234>  ; Callerid for phone calls
 ;idrecording = wb6nil			; id recording
 ;accountcode=RADIO			; account code (optional)
+;funcchar = *				; function lead-in character (defaults to '*')
+;endchar = #				; command mode end character (defaults to '#')
 ;hangtime=1000				; squelch tail hang time (in ms) (optional)
 ;totime=100000				; transmit time-out time (in ms) (optional)
 ;idtime=30000				; id interval time (in ms) (optional)
+;politeid=30000				; time in milliseconds before ID timer
+					; expires to try and ID in the tail.
+					; (optional, default is 30000).
+;idtalkover=|iwb6nil/rpt		; Talkover ID (optional) default is none
+;unlinkedct=ct2				; unlinked courtesy tone (optional) default is none
 
 ;[002]					; Node ID of remote base
 
@@ -46,26 +58,106 @@ politeid=30000				; time in milliseconds before ID timer
 ; Note: if you use a unified interface (tx/rx on one channel), only
 ; specify the rxchannel and the txchannel will be assumed from the rxchannel
 ;txchannel = Zap/6			; Tx audio/signalling channel
+;functions = functions-remote
 ;remote = yes
 ;iobase = 0x378				; Specify IO port for parallel port (optional)
 
-[nodes]
+;[functions-repeater]
+;1=ilink,1				; Specific link disconnect
+;2=ilink,2				; Specific Link connect -  monitor only
+;3=ilink,3				; Specific Link connect - transceive
+;4=ilink,4				; Enter command mode on a specific link
+;7=ilink,5				; Link status
+;;XX=ilink,6				; Disconnect all links (not used here)
 
-000 = context_A@1.2.3.4/1234
-001 = context_B@5.6.7.8/4321
+;80=status,1				; System info
+;81=status,2				; Time
+;82=status,3				; app_rpt.c Version
+
+;6=autopatchup				; Autopatch up
+;0=autopatchdn				; Autopatch down
+
+;90=cop,1				; System warm boot 
+;91=cop,2				; System enable
+;92=cop,3				; System disable
+
+;[functions-remote]
+
+;0=remote,1				; Retrieve Memory
+;1=remote,2				; Set freq.
+;2=remote,3				; Set Rx PL tone.
+;40=remote,100				; Rx PL off
+;41=remote,101				; Rx PL on
+;42=remote,102				; Tx PL off
+;43=remote,103				; Tx PL on
+;44=remote,104				; Low Pwr
+;45=remote,105				; Med Pwr
+;46=remote,106				; Hi Pwr
+;5=remote,5				; Status
+
+;[telemetry]
+
+; Telemetry entries are shared across all repeaters
+; Can be a tone sequence, morse string, or a file
+;
+; |t - Tone escape sequence
+;
+; Tone sequences consist of 1 or more 4-tuple entries (freq1, freq2, duration, amplitude)
+; Single frequencies are created by setting freq1 or freq2 to zero.
+;
+; |m - Morse escape sequence
+; 
+; Sends Morse code at the telemetry amplitude and telemetry frequency as defined in the
+; [morse] section.
+;
+; Follow with an alphanumeric string
+;
+; |i - Morse ID escape sequence
+;
+; Sends Morse code at the ID amplitude and ID frequency as defined in the
+; [morse] section.
+;
+; Follow with an alphanumeric string
+
+
+;ct1=|t(350,0,100,2048)(500,0,100,2048)(660,0,100,2048)
+;ct2=|t(660,880,150,2048)  
+;ct3=|t(440,0,150,2048) 
+;ct4=|t(550,0,150,2048)
+;ct5=|t(660,0,150,2048)
+;ct6=|t(880,0,150,2048)
+;ct7=|t(660,440,150,2048)
+;ct8=|t(700,1100,150,2048)
+;remotetx=|t(2000,0,75,2048)(0,0,75,0)(1600,0,75,2048); 
+;remotemon=|t(1600,0,75,2048) 
+;cmdmode=|t(900,903,200,2048)
+;functcomplete=|t(1000,0,100,2048)(0,0,100,0)(1000,0,100,2048)
+
+
+;[morse]
+
+;speed=20		; Approximate speed in WPM
+;frequency=800		; Morse Telemetry Frequency
+;amplitude=4096		; Morse Telemetry Amplitude
+;idfrequency=330		; Morse ID Frequency	
+;idamplitude=2048	; Morse ID Amplitude
+
+;[nodes]
+
+;000 = context_A@1.2.3.4/1234
+;001 = context_B@5.6.7.8/4321
 
 ;of course, you can also specify these with domain names, but why rely
 ;on DNS working unnecessarily?
 
-[memory]
+;[memory]
 
-; this example gives you 146.460, simplex, 100.0 HZ PL, hi-power, transmit PL
-00 = 146.460,100.0,sht
-; this example gives you 146.940, minus offset, 100.0 HZ PL, low-power, no PL
-01 = 146.940,100.0,-l
+;; this example gives you 146.460, simplex, 100.0 HZ PL, hi-power, transmit PL
+;00 = 146.460,100.0,sht
+;; this example gives you 146.940, minus offset, 100.0 HZ PL, low-power, no PL
+;01 = 146.940,100.0,-l
 
 ; The format for these entries is:  Receive-Freq,Receive-PL,Attrbutes
 ;     Attributes: l=low power, m=medium power, h=high power, -=minus offset,
 ;	s=simplex, +=plus offset, t=tx PL enable, r=rx PL enable
-
 
