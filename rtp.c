@@ -396,6 +396,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	int payloadtype;
 	int hdrlen = 12;
 	int mark;
+	int ext;
 	char iabuf[INET_ADDRSTRLEN];
 	unsigned int timestamp;
 	unsigned int *rtpheader;
@@ -442,8 +443,14 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	seqno = ntohl(rtpheader[0]);
 	payloadtype = (seqno & 0x7f0000) >> 16;
 	mark = seqno & (1 << 23);
+	ext = seqno & (1 << 28);
 	seqno &= 0xffff;
 	timestamp = ntohl(rtpheader[1]);
+	if (ext) {
+		/* RTP Extension present */
+		hdrlen += 4;
+		hdrlen += (rtpheader[3] & 0xffff) << 2;
+	}
 
 #if 0
 	printf("Got RTP packet from %s:%d (type %d, seq %d, ts %d, len = %d)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
