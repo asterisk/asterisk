@@ -579,15 +579,12 @@ static int remoteconsolehandler(char *s)
 				system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
 			ret = 1;
 		}
-		if (!strcasecmp(s, "help")) {
+		if (strncasecmp(s, "help", 4) == 0 && (s[4] == '\0' || isspace(s[4]))) {
 			fprintf(stdout, "          !<command>   Executes a given shell command\n");
 			ret = 0;
 		}
-		if (!strcasecmp(s, "quit")) {
-			quit_handler(0, 0, 0, 0);
-			ret = 1;
-		}
-		if (!strcasecmp(s, "exit")) {
+		if ((strncasecmp(s, "quit", 4) == 0 || strncasecmp(s, "exit", 4) == 0) &&
+		    (s[4] == '\0' || isspace(s[4]))) {
 			quit_handler(0, 0, 0, 0);
 			ret = 1;
 		}
@@ -889,7 +886,7 @@ static char *cli_complete(EditLine *el, int ch)
 
 	LineInfo *lf = (LineInfo *)el_line(el);
 
-	*lf->cursor = '\0';
+	*(char *)lf->cursor = '\0';
 	ptr = (char *)lf->cursor;
 	if (ptr) {
 		while (ptr > lf->buffer) {
