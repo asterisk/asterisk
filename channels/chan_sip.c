@@ -3749,7 +3749,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	/* Save User agent */
 	useragent = get_header(req, "User-Agent");
 	if(useragent && strcasecmp(useragent, p->useragent)) {
-		strncpy(p->useragent, get_header(req, "User-Agent"),sizeof(p->useragent));
+		strncpy(p->useragent, useragent, sizeof(p->useragent));
 		if (option_verbose > 2) {
 			ast_verbose(VERBOSE_PREFIX_3 "Saved useragent \"%s\" for peer %s\n",p->useragent,p->name);  
 		}

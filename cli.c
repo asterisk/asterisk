@@ -770,7 +770,7 @@ static int help_workhorse(int fd, char *match[])
 				continue;
 			}
 		}
-		ast_cli(fd, "%20.20s   %s\n", fullcmd, e->summary);
+		ast_cli(fd, "%25.25s  %s\n", fullcmd, e->summary);
 	}
 	return 0;
 }
