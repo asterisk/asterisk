@@ -54,6 +54,7 @@ struct iax_ies {
 	unsigned char *fwdata;
 	unsigned char fwdatalen;
 	unsigned int provver;
+	unsigned short samprate;
 	int provverpres;
 };
 

@@ -104,7 +104,7 @@
 #define IAX_IE_TRANSFERID			27		/* Transfer Request Identifier -- int */
 #define IAX_IE_RDNIS				28		/* Referring DNIS -- string */
 #define IAX_IE_PROVISIONING			29		/* Provisioning info */
-#define IAX_IE_AESPROVISIONING			30		/* AES Provisioning info */
+#define IAX_IE_AESPROVISIONING		30		/* AES Provisioning info */
 #define IAX_IE_DATETIME				31		/* Date/Time */
 #define IAX_IE_DEVICETYPE			32		/* Device Type -- string */
 #define IAX_IE_SERVICEIDENT			33		/* Service Identifier -- string */
@@ -115,6 +115,7 @@
 #define IAX_IE_CALLINGPRES			38		/* Calling presentation (u8) */
 #define IAX_IE_CALLINGTON			39		/* Calling type of number (u8) */
 #define IAX_IE_CALLINGTNS			40		/* Calling transit network select (u16) */
+#define IAX_IE_SAMPLINGRATE			41		/* Supported sampling rates (u16) */
 
 #define IAX_AUTH_PLAINTEXT			(1 << 0)
 #define IAX_AUTH_MD5				(1 << 1)
@@ -122,6 +123,13 @@
 
 #define IAX_META_TRUNK				1		/* Trunk meta-message */
 #define IAX_META_VIDEO				2		/* Video frame */
+
+#define IAX_RATE_8KHZ				(1 << 0) /* 8khz sampling (default if absent) */
+#define IAX_RATE_11KHZ				(1 << 1) /* 11.025khz sampling */
+#define IAX_RATE_16KHZ				(1 << 2) /* 16khz sampling */
+#define IAX_RATE_22KHZ				(1 << 3) /* 22.05khz sampling */
+#define IAX_RATE_44KHZ				(1 << 4) /* 44.1khz sampling */
+#define IAX_RATE_48KHZ				(1 << 5) /* 48khz sampling */
 
 #define IAX_DPSTATUS_EXISTS			(1 << 0)
 #define IAX_DPSTATUS_CANEXIST		(1 << 1)

@@ -111,6 +111,33 @@ static void dump_prov_flags(char *output, int maxlen, void *value, int len)
 		snprintf(output, maxlen, "Invalid INT");
 }
 
+static void dump_samprate(char *output, int maxlen, void *value, int len)
+{
+	char tmp[256]="";
+	int sr;
+	if (len == (int)sizeof(unsigned short)) {
+		sr = ntohs(*((unsigned short *)value));
+		if (sr & IAX_RATE_8KHZ)
+			strcat(tmp, ",8khz");
+		if (sr & IAX_RATE_11KHZ)
+			strcat(tmp, ",11.025khz");
+		if (sr & IAX_RATE_16KHZ)
+			strcat(tmp, ",16khz");
+		if (sr & IAX_RATE_22KHZ)
+			strcat(tmp, ",22.05khz");
+		if (sr & IAX_RATE_44KHZ)
+			strcat(tmp, ",44.1khz");
+		if (sr & IAX_RATE_48KHZ)
+			strcat(tmp, ",48khz");
+		if (strlen(tmp))
+			strncpy(output, &tmp[1], maxlen - 1);
+		else
+			strncpy(output, "None specified!\n", maxlen - 1);
+	} else
+		snprintf(output, maxlen, "Invalid SHORT");
+
+}
+
 static void dump_prov_ies(char *output, int maxlen, unsigned char *iedata, int len);
 static void dump_prov(char *output, int maxlen, void *value, int len)
 {
@@ -161,6 +188,7 @@ static struct iax2_ie {
 	{ IAX_IE_CALLINGPRES, "CALLING PRESNTN", dump_byte },
 	{ IAX_IE_CALLINGTON, "CALLING TYPEOFNUM", dump_byte },
 	{ IAX_IE_CALLINGTNS, "CALLING TRANSITNET", dump_short },
+	{ IAX_IE_SAMPLINGRATE, "SAMPLINGRATE", dump_samprate },
 };
 
 static struct iax2_ie prov_ies[] = {
@@ -487,6 +515,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 	ies->calling_ton = -1;
 	ies->calling_tns = -1;
 	ies->calling_pres = -1;
+	ies->samprate = IAX_RATE_8KHZ;
 	while(datalen >= 2) {
 		ie = data[0];
 		len = data[1];
@@ -546,6 +575,13 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				errorf(tmp);
 			} else
 				ies->adsicpe = ntohs(*((unsigned short *)(data + 2)));
+			break;
+		case IAX_IE_SAMPLINGRATE:
+			if (len != (int)sizeof(unsigned short)) {
+				snprintf(tmp, (int)sizeof(tmp), "Expecting samplingrate to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
+				errorf(tmp);
+			} else
+				ies->samprate = ntohs(*((unsigned short *)(data + 2)));
 			break;
 		case IAX_IE_DNID:
 			ies->dnid = data + 2;
