@@ -920,9 +920,9 @@ int send_digit(unsigned call_reference, char digit)
 	f.frametype = AST_FRAME_DTMF;
     f.subclass = digit;
     f.datalen = 0;
-    f.samples = 300;
-	f.offset = 0;
-	f.data = NULL;
+    f.samples = 800;
+    f.offset = 0;
+    f.data = NULL;
     f.mallocd = 0;
     f.src = "SEND_DIGIT";
    	
