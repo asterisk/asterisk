@@ -136,8 +136,11 @@ static char default_fromdomain[AST_MAX_EXTENSION] = "";
 #define DEFAULT_NOTIFYMIME "application/simple-message-summary"
 static char default_notifymime[AST_MAX_EXTENSION] = DEFAULT_NOTIFYMIME;
 
+
+static int default_qualify = 0;		/* Default Qualify= setting */
+
 static struct ast_flags global_flags = {0};		/* global SIP_ flags */
-static struct ast_flags global_flags_page2 = {0};		/* more global SIP_ flags */
+static struct ast_flags global_flags_page2 = {0};	/* more global SIP_ flags */
 
 static int srvlookup = 0;		/* SRV Lookup on or off. Default is off, RFC behavior is on */
 
@@ -9205,7 +9208,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		peer->callgroup = 0;
 		peer->pickupgroup = 0;
 		peer->rtpkeepalive = global_rtpkeepalive;
-		peer->maxms = 0;
+		peer->maxms = default_qualify;
 		peer->prefs = prefs;
 		oldha = peer->ha;
 		peer->ha = NULL;
@@ -9431,6 +9434,7 @@ static int reload_config(void)
 	strncpy(default_context, DEFAULT_CONTEXT, sizeof(default_context) - 1);
 	default_language[0] = '\0';
 	default_fromdomain[0] = '\0';
+	default_qualify = 0;
 	externhost[0] = '\0';
 	externexpire = 0;
 	externrefresh = 10;
@@ -9620,6 +9624,15 @@ static int reload_config(void)
 				bindaddr.sin_port = htons(ourport);
 			} else {
 				ast_log(LOG_WARNING, "Invalid port number '%s' at line %d of %s\n", v->value, v->lineno, config);
+			}
+		} else if (!strcasecmp(v->name, "qualify")) {
+			if (!strcasecmp(v->value, "no")) {
+				default_qualify = 0;
+			} else if (!strcasecmp(v->value, "yes")) {
+				default_qualify = DEFAULT_MAXMS;
+			} else if (sscanf(v->value, "%d", &default_qualify) != 1) {
+				ast_log(LOG_WARNING, "Qualification default should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", v->lineno);
+				default_qualify = 0;
 			}
 		} else if (!strcasecmp(v->name, "callevents")) {
 			callevents = ast_true(v->value);
