@@ -142,7 +142,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 	
 	if (single) {
 		/* Turn off hold music, etc */
-		ast_indicate(in, -1);
+		ast_deactivate_generator(in);
 		/* If we are calling a single channel, make them compatible for in-band tone purpose */
 		ast_channel_make_compatible(outgoing->chan, in);
 	}
@@ -853,13 +853,6 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			pbx_builtin_setvar_helper(chan, "DIALEDPEERNAME", peer->name);
 		if (numsubst)
 			pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", numsubst);
-		/* Make sure channels are compatible */
-		res = ast_channel_make_compatible(chan, peer);
-		if (res < 0) {
-			ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", chan->name, peer->name);
-			ast_hangup(peer);
-			return -1;
-		}
  		/* JDG: sendurl */
  		if( url && !ast_strlen_zero(url) && ast_channel_supports_html(peer) ) {
  			ast_log(LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
@@ -912,6 +905,15 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			} else if (sentringing) {
 				sentringing = 0;
 				ast_indicate(chan, -1);
+			}
+			/* Be sure no generators are left on it */
+			ast_deactivate_generator(chan);
+			/* Make sure channels are compatible */
+			res = ast_channel_make_compatible(chan, peer);
+			if (res < 0) {
+				ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", chan->name, peer->name);
+				ast_hangup(peer);
+				return -1;
 			}
 			res = ast_bridge_call(chan,peer,&config);
 		} else 

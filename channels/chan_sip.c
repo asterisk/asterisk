@@ -1799,7 +1799,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 		if (!(frame->subclass & ast->nativeformats)) {
 			ast_log(LOG_WARNING, "Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
 				frame->subclass, ast->nativeformats, ast->readformat, ast->writeformat);
-			return -1;
+			return 0;
 		}
 		if (p) {
 			ast_mutex_lock(&p->lock);
@@ -7864,7 +7864,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 				peer->promiscredir = ast_true(v->value);
 			else if (!strcasecmp(v->name, "fromuser"))
 				strncpy(peer->fromuser, v->value, sizeof(peer->fromuser)-1);
-                       else if (!strcasecmp(v->name, "dtmfmode")) {
+            else if (!strcasecmp(v->name, "dtmfmode")) {
 				if (!strcasecmp(v->value, "inband"))
 					peer->dtmfmode=SIP_DTMF_INBAND;
 				else if (!strcasecmp(v->value, "rfc2833"))
