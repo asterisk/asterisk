@@ -1017,7 +1017,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		time(&answer_time);
 #ifdef OSP_SUPPORT
 		/* Once call is answered, ditch the OSP Handle */
-		pbx_builtin_setvar_helper(chan, "OSPHANDLE", "");
+		pbx_builtin_setvar_helper(chan, "_OSPHANDLE", "");
 #endif		
 		strncpy(status, "ANSWER", sizeof(status) - 1);
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this

@@ -161,6 +161,8 @@ static int rpeerobjs = 0;
 static int apeerobjs = 0;
 static int regobjs = 0;
 
+static int global_allowguest = 0;    /* allow unathuncated peers to connect? */
+
 #define DEFAULT_MWITIME 10
 static int global_mwitime = DEFAULT_MWITIME;	/* Time between MWI checks for peers */
 
@@ -1444,6 +1446,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 #ifdef OSP_SUPPORT
 	if (!osptoken || !osphandle || (sscanf(osphandle, "%i", &p->osphandle) != 1)) {
 		/* Force Disable OSP support */
+		ast_log(LOG_DEBUG, "Disabling OSP support for this call. osptoken = %s, osphandle = %s\n", osptoken, osphandle);
 		osptoken = NULL;
 		osphandle = NULL;
 		p->osphandle = -1;
@@ -3799,8 +3802,13 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 	}
 #ifdef OSP_SUPPORT
 	if (osptoken && !ast_strlen_zero(osptoken)) {
+		ast_log(LOG_DEBUG,"Adding OSP Token: %s\n", osptoken);
 		add_header(&req, "P-OSP-Auth-Token", osptoken);
 	}	
+	else
+	{
+		ast_log(LOG_DEBUG,"NOT Adding OSP Token\n");
+	}
 #endif
 	if (distinctive_ring && !ast_strlen_zero(distinctive_ring))
 	{
@@ -4864,7 +4872,8 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 			return -1;
 		
 		snprintf(tmp, sizeof(tmp), "%d", p->osphandle);
-		pbx_builtin_setvar_helper(p->owner, "OSPHANDLE", tmp);
+		pbx_builtin_setvar_helper(p->owner, "_OSPHANDLE", tmp);
+
 
 		/* If ospauth is 'exclusive' don't require further authentication */
 		if ((ast_test_flag(p, SIP_OSPAUTH) == SIP_OSPAUTH_EXCLUSIVE) ||
@@ -5669,8 +5678,21 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 					p->noncodeccapability &= ~AST_RTP_DTMF;
 			}
 			ASTOBJ_UNREF(peer,sip_destroy_peer);
-		} else if (debug)
-			ast_verbose("Found no matching peer or user for '%s:%d'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
+		} else { 
+			if (debug)
+				ast_verbose("Found no matching peer or user for '%s:%d'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
+
+			/* do we allow guests? */
+			if (!global_allowguest)
+				res = -1;  /* we don't want any guests, authentication will fail */
+#ifdef OSP_SUPPORT			
+			else if (global_allowguest == 2) {
+				ast_copy_flags(p, &global_flags, SIP_OSPAUTH);
+				res = check_auth(p, req, p->randdata, sizeof(p->randdata), "", "", "", cmd, uri, reliable, ignore); 
+			}
+#endif
+		}
+
 	}
 
 	if (user)
@@ -8924,6 +8946,7 @@ static int reload_config(void)
 	regcontext[0] = '\0';
 	tos = 0;
 	expiry = DEFAULT_EXPIRY;
+	global_allowguest = 1;
 
 	/* Read the [general] config section of sip.conf (or from realtime config) */
 	v = ast_variable_browse(cfg, "general");

@@ -113,12 +113,13 @@ static int osplookup_exec(struct ast_channel *chan, void *data)
 	if ((res = ast_osp_lookup(chan, provider, temp, chan->cid.cid_num, &result)) > 0) {
 		char tmp[80];
 		snprintf(tmp, sizeof(tmp), "%d", result.handle);
-		pbx_builtin_setvar_helper(chan, "OSPHANDLE", tmp);
-		pbx_builtin_setvar_helper(chan, "OSPTECH", result.tech);
-		pbx_builtin_setvar_helper(chan, "OSPDEST", result.dest);
-		pbx_builtin_setvar_helper(chan, "OSPTOKEN", result.token);
+		pbx_builtin_setvar_helper(chan, "_OSPHANDLE", tmp);
+		pbx_builtin_setvar_helper(chan, "_OSPTECH", result.tech);
+		pbx_builtin_setvar_helper(chan, "_OSPDEST", result.dest);
+		pbx_builtin_setvar_helper(chan, "_OSPTOKEN", result.token);
 		snprintf(tmp, sizeof(tmp), "%d", result.numresults);
-		pbx_builtin_setvar_helper(chan, "OSPRESULTS", tmp);
+		pbx_builtin_setvar_helper(chan, "_OSPRESULTS", tmp);
+
 	} else {
 		if (!res)
 			ast_log(LOG_NOTICE, "OSP Lookup failed for '%s' (provider '%s')\n", temp, provider ? provider : "<default>");
@@ -153,12 +154,12 @@ static int ospnext_exec(struct ast_channel *chan, void *data)
 		if ((res = ast_osp_next(&result, cause)) > 0) {
 			char tmp[80];
 			snprintf(tmp, sizeof(tmp), "%d", result.handle);
-			pbx_builtin_setvar_helper(chan, "OSPHANDLE", tmp);
-			pbx_builtin_setvar_helper(chan, "OSPTECH", result.tech);
-			pbx_builtin_setvar_helper(chan, "OSPDEST", result.dest);
-			pbx_builtin_setvar_helper(chan, "OSPTOKEN", result.token);
+			pbx_builtin_setvar_helper(chan, "_OSPHANDLE", tmp);
+			pbx_builtin_setvar_helper(chan, "_OSPTECH", result.tech);
+			pbx_builtin_setvar_helper(chan, "_OSPDEST", result.dest);
+			pbx_builtin_setvar_helper(chan, "_OSPTOKEN", result.token);
 			snprintf(tmp, sizeof(tmp), "%d", result.numresults);
-			pbx_builtin_setvar_helper(chan, "OSPRESULTS", tmp);
+			pbx_builtin_setvar_helper(chan, "_OSPRESULTS", tmp);
 		}
 	} else {
 		if (!res) {
@@ -204,7 +205,7 @@ static int ospfinished_exec(struct ast_channel *chan, void *data)
 	result.handle = -1;
 	if (temp && strlen(temp) && (sscanf(temp, "%i", &result.handle) == 1) && (result.handle > -1)) {
 		if (!ast_osp_terminate(result.handle, cause, start, duration)) {
-			pbx_builtin_setvar_helper(chan, "OSPHANDLE", "");
+			pbx_builtin_setvar_helper(chan, "_OSPHANDLE", "");
 			res = 1;
 		}
 	} else {

@@ -22,6 +22,8 @@
 
 [general]
 context=default			; Default context for incoming calls
+;allowguest=no                  ; Allow or reject guest calls (default is yes, this can also be set to 'osp'
+                                ; if asterisk was compiled with OSP support.
 ;recordhistory=yes		; Record SIP history by default 
 				; (see sip history / sip no history)
 ;realm=mydomain.tld		; Realm for digest authentication
