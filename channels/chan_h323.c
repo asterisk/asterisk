@@ -319,7 +319,8 @@ static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
 	struct oh323_peer *prev;
 	struct ast_ha *oldha = NULL;
 	int found=0;
-	
+	int format;	
+
 	prev = NULL;
 	ast_mutex_lock(&peerl.lock);
 	peer = peerl.peers;
@@ -377,10 +378,25 @@ static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
 					ast_log(LOG_WARNING, "Unknown DTMF Mode %s, using RFC2833\n", v->value);
 					peer->dtmfmode = H323_DTMF_RFC2833;
 				}	
+			} else if (!strcasecmp(v->name, "allow")) {
+				format = ast_getformatbyname(v->value);
+				if (format < 1) {
+					ast_log(LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
+				} else {
+					peer->capability |= format;
+				}
+			} else if (!strcasecmp(v->name, "disallow")) {
+				format = ast_getformatbyname(v->value);
+				if (format < 1) {
+					ast_log(LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
+				} else {
+					peer->capability |= ~format;
+				}
 			} else if (!strcasecmp(v->name, "outgoinglimit")) {
 				peer->outgoinglimit = atoi(v->value);
-				if (peer->outgoinglimit > 0)
+				if (peer->outgoinglimit > 0) {
 					peer->outgoinglimit = 0;
+				}
 			} else if (!strcasecmp(v->name, "host")) {
 				if (!strcasecmp(v->value, "dynamic")) {
 					ast_log(LOG_ERROR, "Dynamic host configuration not implemented.\n");
@@ -388,6 +404,7 @@ static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
 					return NULL;
 				}
 				if (ast_get_ip(&peer->addr, v->value)) {
+						ast_log(LOG_ERROR, "Could not determine IP for %s\n", v->value);
 						free(peer);
 						return NULL;
 				}
@@ -425,8 +442,7 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 {
 	int res = 0;
 	struct oh323_pvt *pvt = (struct oh323_pvt *)c->pvt->pvt;
-	char called_addr[256];
-	char iabuf[INET_ADDRSTRLEN];
+	char called_addr[INET_ADDRSTRLEN];
 
 	if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "Line is already in use (%s)\n", c->name);
@@ -441,8 +457,8 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 		pvt->options.noSilenceSuppression = noSilenceSuppression;
 		pvt->options.port = h323_signalling_port;
 	} else {
-		memcpy(called_addr, ast_inet_ntoa(iabuf, sizeof(iabuf), pvt->sa.sin_addr), strlen(called_addr));
-		pvt->options.port = pvt->sa.sin_port;
+		ast_inet_ntoa(called_addr, sizeof(called_addr), pvt->sa.sin_addr);
+		pvt->options.port = htons(pvt->sa.sin_port);
 	}
 	/* indicate that this is an outgoing call */
 	pvt->outgoing = 1;
@@ -822,11 +838,13 @@ struct oh323_user *find_user(const call_details_t cd)
 struct oh323_peer *find_peer(char *peer, struct sockaddr_in *sin)
 {
 	struct oh323_peer *p = NULL;
+       	static char iabuf[INET_ADDRSTRLEN];
 
 	p = peerl.peers;
 	if (peer) {
 		while(p) {
 			if (!strcasecmp(p->name, peer)) {
+				ast_log(LOG_DEBUG, "Found peer %s by name\n", peer);
 				break;
 			}
 			p = p->next;
@@ -836,10 +854,14 @@ struct oh323_peer *find_peer(char *peer, struct sockaddr_in *sin)
 		while (p) {
 			if ((!inaddrcmp(&p->addr, sin)) || 
 				(p->addr.sin_addr.s_addr == sin->sin_addr.s_addr)) {
+				ast_log(LOG_DEBUG, "Found peer %s/%s by addr\n", peer, ast_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr));
 				break;
 			}
 			p = p->next;
 		}
+	}
+	if (!p) {
+		ast_log(LOG_DEBUG, "Could not find peer %s/%s by addr\n", peer, ast_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr));
 	}
 	return p;
 }
@@ -886,7 +908,7 @@ static int create_addr(struct oh323_pvt *pvt, char *opeer)
 		if (p->addr.sin_addr.s_addr) {
 			pvt->sa.sin_addr = p->addr.sin_addr;	
 			pvt->sa.sin_port = p->addr.sin_port;	
-		}
+		} 
 	}
 	ast_mutex_unlock(&peerl.lock);
 	if (!p && !found) {
@@ -935,14 +957,10 @@ static struct ast_channel *oh323_request(const char *type, int format, void *dat
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);
 		return NULL;
 	}
-	/* Assign a default capability */
+	/* Assign default capabilities */
 	pvt->capability = capability;
+	pvt->dtmfmode = H323_DTMF_RFC2833;
 
-	/* pass on our preferred codec to the H.323 stack */
-	ast_mutex_lock(&caplock);
-	h323_set_capability(format, dtmfmode);
-	ast_mutex_unlock(&caplock);
-	
 	strncpy(tmp, dest, sizeof(tmp) - 1);	
 	host = strchr(tmp, '@');
 	if (host) {
@@ -968,6 +986,11 @@ static struct ast_channel *oh323_request(const char *type, int format, void *dat
 			return NULL;
 		}
 	}
+	/* pass on our capabilites to the H.323 stack */
+	ast_mutex_lock(&caplock);
+	h323_set_capability(pvt->capability, pvt->dtmfmode);
+	ast_mutex_unlock(&caplock);
+	
 	ast_mutex_lock(&pvt->lock);
 	tmpc = oh323_new(pvt, AST_STATE_DOWN, host);
 	ast_mutex_unlock(&pvt->lock);
@@ -1046,10 +1069,12 @@ struct rtp_info *external_rtp_create(unsigned call_reference, const char * token
 		ast_log(LOG_ERROR, "Unable to find call %s(%d)\n", token, call_reference);
 		return NULL;
 	}
-	/* figure out our local RTP port and tell the H.323 stack about it*/
+	/* figure out our local RTP port and tell the H.323 stack about it */
 	ast_rtp_get_us(pvt->rtp, &us);
-	info->addr = ast_inet_ntoa(iabuf, sizeof(iabuf), us.sin_addr);
+	/* evil hack, until I (someone?) figures out a better way */
+	info->addr = ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr);
 	info->port = ntohs(us.sin_port);
+	ast_log(LOG_DEBUG, "Sending RTP 'US' %s:%d\n", iabuf, info->port);
 	return info;
 }
 
