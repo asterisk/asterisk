@@ -1116,10 +1116,13 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 	}
 	prior       = strsep(&whole_exten,",");
 	if (prior) {
-    		if (!strcmp(prior, "hint")) {
+    	if (!strcmp(prior, "hint")) {
 			iprior = PRIORITY_HINT;
 		} else {
-			iprior = atoi(prior);
+			if (scanf(prior, "%i", &iprior) != 1) {
+				ast_cli(fd, "'%s' is not a valid priority\n", prior);
+				prior = NULL;
+			}
 		}
 	}
 	app         = strsep(&whole_exten,",");
@@ -1579,8 +1582,12 @@ static int pbx_load_module(void)
 								pri="";
 							if (!strcmp(pri,"hint"))
 								ipri=PRIORITY_HINT;
-							else
-								ipri=atoi(pri);
+							else {
+								if (sscanf(pri, "%i", &ipri) != 1) {
+									ast_log(LOG_WARNING, "Invalid priority '%s' at line %d\n", pri, v->lineno);
+									ipri = 0;
+								}
+							}
 							appl = stringp;
 							if (!appl)
 								appl="";
@@ -1617,8 +1624,10 @@ static int pbx_load_module(void)
 							if (!data)
 								data="";
 							pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext) - 1);
-							if (ast_add_extension2(con, 0, realext, ipri, cidmatch, appl, strdup(data), FREE, registrar)) {
-								ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
+							if (ipri) {
+								if (ast_add_extension2(con, 0, realext, ipri, cidmatch, appl, strdup(data), FREE, registrar)) {
+									ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
+								}
 							}
 							free(tc);
 						} else fprintf(stderr,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
