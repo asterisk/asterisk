@@ -527,9 +527,8 @@ static int ast_readaudio_callback(void *data)
 		if (s->owner->timingfd > -1)
 			ast_settimeout(s->owner, whennext, ast_readaudio_callback, s);
 		else
-#else
-		s->owner->streamid = ast_sched_add(s->owner->sched, whennext/8, ast_readaudio_callback, s);
 #endif		
+			s->owner->streamid = ast_sched_add(s->owner->sched, whennext/8, ast_readaudio_callback, s);
 		s->lasttimeout = whennext;
 		return 0;
 	}
