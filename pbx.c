@@ -2778,6 +2778,12 @@ static void get_timerange(struct ast_include *i, char *times)
 	int x;
 	int s1, s2;
 	int e1, e2;
+
+	//[PHM 07/01/03]
+	//start disabling all times, fill the fields with 0's, as they may contain garbage
+	for(x=0;x<24;x++)
+		i->minmask[x]=0;
+	
 	/* Star is all times */
 	if (!strlen(times) || !strcmp(times, "*")) {
 		for (x=0;x<24;x++)
@@ -4069,6 +4075,8 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
 	/* Separate the Goto path */
 	strsep(&ts,"?");
 
+	// [PHM 07/01/03]
+	// struct ast_include include contained garbage here, fixed by zeroing it on get_timerange
 	build_timing(&include, s);
 	if (include_valid(&include))
 		res = pbx_builtin_goto(chan, (void *)ts);
