@@ -237,6 +237,7 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 			if (strlen(p->loginchan))
 				ast_hangup(p->chan);
 			p->chan = NULL;
+			p->acknowledged = 0;
 		}
 	}
 	if (f && (f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_ANSWER)) {
