@@ -459,7 +459,9 @@ int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char
 				if (chan)
 					ast_stopstream(chan);
 				res = ast_waitfordigit(chan, 1000);
-				if (res == -1 || strchr(pause, res) || (stop && strchr(stop, res)))
+				if(res == 0)
+					continue;
+				else if(res == -1 || strchr(pause, res) || (stop && strchr(stop, res)))
 					break;
 			}
 			if (res == *pause) {
@@ -470,7 +472,7 @@ int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char
 		if (res == -1)
 			break;
 
-		if (stop != NULL && res == *stop) {
+		if (stop && strchr(stop, res)) {
 			res = 0;
 			break;
 		}
