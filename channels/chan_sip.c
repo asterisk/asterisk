@@ -7045,7 +7045,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		if (p->icseq && (p->icseq > seqno)) {
 			ast_log(LOG_DEBUG, "Ignoring too old packet packet %d (expecting >= %d)\n", seqno, p->icseq);
 			return -1;
-		} else if (p->icseq && (p->icseq == seqno)) {
+		} else if (p->icseq && (p->icseq == seqno) && (strcasecmp(cmd, "CANCEL") || p->alreadygone)) {
 			/* ignore means "don't do anything with it" but still have to 
 			   respond appropriately.  We do this if we receive a repeat of
 			   the last sequence number  */
