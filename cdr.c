@@ -539,11 +539,16 @@ void ast_cdr_reset(struct ast_cdr *cdr, int flags)
 	
 }
 
-void ast_cdr_append(struct ast_cdr *cdr, struct ast_cdr *newcdr) {
+struct ast_cdr *ast_cdr_append(struct ast_cdr *cdr, struct ast_cdr *newcdr) 
+{
+	struct ast_cdr *ret;
 	if (cdr) {
+		ret = cdr;
 		while(cdr->next)
 			cdr = cdr->next;
 		cdr->next = newcdr;
-	} else
-		ast_log(LOG_ERROR, "Can't append a CDR to NULL!\n");
+	} else {
+		ret = newcdr;
+	}
+	return ret;
 }

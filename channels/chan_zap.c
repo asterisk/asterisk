@@ -2875,6 +2875,18 @@ static int attempt_transfer(struct zt_pvt *p)
 		if (p->subs[SUB_THREEWAY].owner->_state == AST_STATE_RINGING) {
 			ast_indicate(p->subs[SUB_REAL].owner->bridge, AST_CONTROL_RINGING);
 		}
+		if (p->subs[SUB_REAL].owner->cdr) {
+			/* Move CDR from second channel to current one */
+			p->subs[SUB_THREEWAY].owner->cdr =
+				ast_cdr_append(p->subs[SUB_THREEWAY].owner->cdr, p->subs[SUB_REAL].owner->cdr);
+			p->subs[SUB_REAL].owner->cdr = NULL;
+		}
+		if (p->subs[SUB_REAL].owner->bridge->cdr) {
+			/* Move CDR from second channel's bridge to current one */
+			p->subs[SUB_THREEWAY].owner->cdr =
+				ast_cdr_append(p->subs[SUB_THREEWAY].owner->cdr, p->subs[SUB_REAL].owner->bridge->cdr);
+			p->subs[SUB_REAL].owner->bridge->cdr = NULL;
+		}
 		if (ast_channel_masquerade(p->subs[SUB_THREEWAY].owner, p->subs[SUB_REAL].owner->bridge)) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
 					p->subs[SUB_REAL].owner->bridge->name, p->subs[SUB_THREEWAY].owner->name);
@@ -2888,6 +2900,18 @@ static int attempt_transfer(struct zt_pvt *p)
 			ast_indicate(p->subs[SUB_THREEWAY].owner->bridge, AST_CONTROL_RINGING);
 		}
 		ast_moh_stop(p->subs[SUB_THREEWAY].owner->bridge);
+		if (p->subs[SUB_THREEWAY].owner->cdr) {
+			/* Move CDR from second channel to current one */
+			p->subs[SUB_REAL].owner->cdr = 
+				ast_cdr_append(p->subs[SUB_REAL].owner->cdr, p->subs[SUB_THREEWAY].owner->cdr);
+			p->subs[SUB_THREEWAY].owner->cdr = NULL;
+		}
+		if (p->subs[SUB_THREEWAY].owner->bridge->cdr) {
+			/* Move CDR from second channel's bridge to current one */
+			p->subs[SUB_REAL].owner->cdr = 
+				ast_cdr_append(p->subs[SUB_REAL].owner->cdr, p->subs[SUB_THREEWAY].owner->bridge->cdr);
+			p->subs[SUB_THREEWAY].owner->bridge->cdr = NULL;
+		}
 		if (ast_channel_masquerade(p->subs[SUB_REAL].owner, p->subs[SUB_THREEWAY].owner->bridge)) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
 					p->subs[SUB_THREEWAY].owner->bridge->name, p->subs[SUB_REAL].owner->name);
