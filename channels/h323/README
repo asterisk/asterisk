@@ -40,6 +40,11 @@ IN OTHER WORDS: Run Open H.323 v1.11.7 nothing newer nothing older if u want
 this to work.
 
 
+To compile this code:
+Issue a make in the asterisk/channels/h323 directory, then go back to the Asterisk 
+source top level directory and issue a make install.
+
+
 
 Most common compile error:  
 
@@ -116,5 +121,4 @@ to capture everything is to use the utility called 'script' (man script)
 
 
 Jeremy McNamara
-Chief Cook and Bottle Washer
 The NuFone Network 
