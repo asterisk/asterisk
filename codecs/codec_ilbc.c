@@ -3,11 +3,11 @@
  *
  * Translate between signed linear and Internet Low Bitrate Codec
  *
- * The iLBC code is from The IETF code base and is copyright GlobalSound, AB
+ * The iLBC code is from The IETF code base and is copyright The Internet Society (2004)
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -33,6 +33,8 @@
 #include "ilbc_slin_ex.h"
 
 #define USE_ILBC_ENHANCER	0
+#define ILBC_MS 			30
+/* #define ILBC_MS			20 */
 
 AST_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt=0;
@@ -61,7 +63,7 @@ static struct ast_translator_pvt *lintoilbc_new(void)
 	if (tmp) {
 		/* Shut valgrind up */
 		memset(&tmp->enc, 0, sizeof(tmp->enc));
-		initEncode(&tmp->enc);
+		initEncode(&tmp->enc, ILBC_MS);
 		tmp->tail = 0;
 		localusecnt++;
 	}
@@ -75,7 +77,7 @@ static struct ast_translator_pvt *ilbctolin_new(void)
 	if (tmp) {
 		/* Shut valgrind up */
 		memset(&tmp->dec, 0, sizeof(tmp->dec));
-		initDecode(&tmp->dec, USE_ILBC_ENHANCER);
+		initDecode(&tmp->dec, ILBC_MS, USE_ILBC_ENHANCER);
 		tmp->tail = 0;
 		localusecnt++;
 	}
