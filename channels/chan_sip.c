@@ -1820,7 +1820,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 static int add_header(struct sip_request *req, char *var, char *value)
 {
 	if (req->len >= sizeof(req->data) - 4) {
-		ast_log(LOG_WARNING, "Out of space, can't add anymore\n");
+		ast_log(LOG_WARNING, "Out of space, can't add anymore (%s:%s)\n", var, value);
 		return -1;
 	}
 	if (req->lines) {
@@ -2087,6 +2087,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	copy_header(resp, req, "Call-ID");
 	copy_header(resp, req, "CSeq");
 	add_header(resp, "User-Agent", "Asterisk PBX");
+	add_header(resp, "Allow", ALLOWED_METHODS);
 	if (p->expiry) {
 		/* For registration responses, we also need expiry and
 		   contact info */
@@ -2225,7 +2226,6 @@ static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip
 {
 	struct sip_request resp;
 	respprep(&resp, p, msg, req);
-	add_header(&resp, "Allow", ALLOWED_METHODS);
 	add_header(&resp, "Accept", "application/sdp");
 	add_header(&resp, "Content-Length", "0");
 	add_blank_header(&resp);
@@ -2517,6 +2517,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp, st
 		reqprep(&req, p, "UPDATE", 0);
 	else
 		reqprep(&req, p, "INVITE", 0);
+	add_header(&req, "Allow", ALLOWED_METHODS);
 	add_sdp(&req, p, rtp, vrtp);
 	/* Use this as the basis */
 	copy_request(&p->initreq, &req);
