@@ -34,15 +34,14 @@ the Makefile.
 
 Some chan_h323 users have reported success and others have reported dramatic
 failures when using newer versions of Open H.323. We haven't personally tested
-this and will not be able to assist you if you have 'issues'. Sorry.
+anything newer and will not be able to assist you if you have 'issues'. Sorry. 
 
-IN OTHER WORDS: Run Open H.323 v1.11.7 nothing newer nothing older if u want
-this to work.
 
 
 To compile this code:
 Issue a make in the asterisk/channels/h323 directory, then go back to the Asterisk 
 source top level directory and issue a make install.
+
 
 
 
