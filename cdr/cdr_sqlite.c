@@ -58,7 +58,7 @@ static char sql_create_table[] = "CREATE TABLE cdr ("
 "	amaflags	INTEGER,"
 "	accountcode	VARCHAR(20)"
 #if LOG_UNIQUEID
-"	,uniqueid	VARCHAR(32),"
+"	,uniqueid	VARCHAR(32)"
 #endif
 #if LOG_USERFIELD
 "	,userfield	VARCHAR(255)"
