@@ -1418,6 +1418,9 @@ static int zt_hangup(struct ast_channel *ast)
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
 	}
+	
+	ast_pthread_mutex_lock(&p->lock);
+	
 	index = zt_get_index(ast, p, 1);
 
 	restore_gains(p);
@@ -1577,7 +1580,6 @@ static int zt_hangup(struct ast_channel *ast)
 			res = zt_set_hook(p->subs[SUB_REAL].zfd, ZT_ONHOOK);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to hangup line %s\n", ast->name);
-			return -1;
 		}
 		switch(p->sig) {
 		case SIG_FXOGS:
@@ -1621,6 +1623,7 @@ static int zt_hangup(struct ast_channel *ast)
 	p->cidcwexpire = 0;
 	ast->pvt->pvt = NULL;
 	ast_setstate(ast, AST_STATE_DOWN);
+	ast_pthread_mutex_unlock(&p->lock);
 	ast_pthread_mutex_lock(&usecnt_lock);
 	usecnt--;
 	if (usecnt < 0) 
@@ -5399,16 +5402,22 @@ static void *pri_dchannel(void *vpri)
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "B-channel %d restarted on span %d\n", 
 								chan, pri->span);
+						ast_pthread_mutex_lock(&pri->pvt[chan]->lock);
 						/* Force soft hangup if appropriate */
 						if (pri->pvt[chan]->owner)
 							pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+						ast_pthread_mutex_unlock(&pri->pvt[chan]->lock);
 					}
 				} else {
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_2 "Restart on requested on entire span %d\n", pri->span);
 					for (x=1;x <= pri->channels;x++)
-						if ((x != pri->dchannel) && pri->pvt[x] && (pri->pvt[x]->owner))
-							pri->pvt[x]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+						if ((x != pri->dchannel) && pri->pvt[x]) {
+							ast_pthread_mutex_lock(&pri->pvt[chan]->lock);
+ 							if (pri->pvt[x]->owner)
+								pri->pvt[x]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							ast_pthread_mutex_unlock(&pri->pvt[chan]->lock);
+						}
 				}
 				break;
 			case PRI_EVENT_INFO_RECEIVED:
@@ -5579,6 +5588,7 @@ static void *pri_dchannel(void *vpri)
 				if (chan) {
 					chan = pri_fixup(pri, chan, e->hangup.call);
 					if (chan) {
+						ast_pthread_mutex_lock(&pri->pvt[chan]->lock);
 						if (pri->pvt[chan]->owner) {
 							pri->pvt[chan]->alreadyhungup = 1;
 							pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
@@ -5591,6 +5601,7 @@ static void *pri_dchannel(void *vpri)
 							pri_reset(pri->pri, chan);
 							pri->pvt[chan]->resetting = 1;
 						}
+						ast_pthread_mutex_unlock(&pri->pvt[chan]->lock);
 					} else {
 						ast_log(LOG_WARNING, "Hangup on bad channel %d\n", e->hangup.channel);
 					}
@@ -5608,12 +5619,14 @@ static void *pri_dchannel(void *vpri)
 				if (chan) {
 					chan = pri_fixup(pri, chan, e->hangup.call);
 					if (chan) {
+						ast_pthread_mutex_lock(&pri->pvt[chan]->lock);
 						pri->pvt[chan]->call = NULL;
 						pri->pvt[chan]->resetting = 0;
 						if (pri->pvt[chan]->owner) {
 							if (option_verbose > 2) 
 								ast_verbose(VERBOSE_PREFIX_3 "Channel %d, span %d got hangup ACK\n", chan, pri->span);
 						}
+						ast_pthread_mutex_unlock(&pri->pvt[chan]->lock);
 					}
 				}
 				break;
@@ -5629,14 +5642,16 @@ static void *pri_dchannel(void *vpri)
 					for (x=1;x<=pri->channels;x++) {
 						if (pri->pvt[x] && pri->pvt[x]->resetting) {
 							chan = x;
+							ast_pthread_mutex_lock(&pri->pvt[chan]->lock);
 							ast_log(LOG_DEBUG, "Assuming restart ack is really for channel %d span %d\n", chan, pri->span);
 							if (pri->pvt[chan]->owner) {
-								ast_log(LOG_WARNING, "Got restart ack on channel with owner\n");
+								ast_log(LOG_WARNING, "Got restart ack on channel %d with owner\n", chan);
 								pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							}
 							pri->pvt[chan]->resetting = 0;
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "B-channel %d successfully restarted on span %d\n", chan, pri->span);
+							ast_pthread_mutex_unlock(&pri->pvt[chan]->lock);
 							break;
 						}
 					}
@@ -5648,15 +5663,17 @@ static void *pri_dchannel(void *vpri)
 					ast_log(LOG_WARNING, "Restart ACK requested on unconfigured channel %d span %d\n", chan, pri->span);
 					chan = 0;
 				}
-				if (chan) {
+				if ((chan >= 1) && (chan <= pri->channels)) {
 					if (pri->pvt[chan]) {
+						ast_pthread_mutex_lock(&pri->pvt[chan]->lock);
 						if (pri->pvt[chan]->owner) {
-							ast_log(LOG_WARNING, "Got restart ack on channel with owner\n");
+							ast_log(LOG_WARNING, "Got restart ack on channel %d with owner\n", chan);
 							pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 						}
 						pri->pvt[chan]->resetting = 0;
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "B-channel %d successfully restarted on span %d\n", chan, pri->span);
+						ast_pthread_mutex_unlock(&pri->pvt[chan]->lock);
 					}
 				}
 				break;
