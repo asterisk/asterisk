@@ -76,8 +76,8 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 			tech = cur;
 			number = strchr(tech, '/');
 			if (!number) {
-				ast_log(LOG_WARNING, "ChanIsAvail argument takes format (Zap/[device])\n");
-				continue;
+				ast_log(LOG_WARNING, "ChanIsAvail argument takes format ([technology]/[device])\n");
+				return -1;
 			}
 			*number = '\0';
 			number++;
