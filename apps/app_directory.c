@@ -243,6 +243,8 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	}
 	LOCAL_USER_ADD(u);
 top:
+	if (chan->_state != AST_STATE_UP) 
+		res = ast_answer(chan);
 	if (!res)
 		res = ast_streamfile(chan, "dir-intro", chan->language);
 	if (!res)
