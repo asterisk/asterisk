@@ -29,6 +29,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#define MAX_RECALC 200 /* max sample recalc */
+
 /* This could all be done more efficiently *IF* we chained packets together
    by default, but it would also complicate virtually every application. */
    
@@ -219,7 +221,55 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 	return NULL;
 }
 
-static void rebuild_matrix(void)
+
+static void calc_cost(struct ast_translator *t,int samples)
+{
+	int sofar=0;
+	struct ast_translator_pvt *pvt;
+	struct ast_frame *f, *out;
+	struct timeval start, finish;
+	int cost;
+	if(!samples)
+	  samples = 1;
+	
+	/* If they don't make samples, give them a terrible score */
+	if (!t->sample) {
+		ast_log(LOG_WARNING, "Translator '%s' does not produce sample frames.\n", t->name);
+		t->cost = 99999;
+		return;
+	}
+	pvt = t->new();
+	if (!pvt) {
+		ast_log(LOG_WARNING, "Translator '%s' appears to be broken and will probably fail.\n", t->name);
+		t->cost = 99999;
+		return;
+	}
+	gettimeofday(&start, NULL);
+	/* Call the encoder until we've processed one second of time */
+	while(sofar < samples * 8000) {
+		f = t->sample();
+		if (!f) {
+			ast_log(LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
+			t->destroy(pvt);
+			t->cost = 99999;
+			return;
+		}
+		t->framein(pvt, f);
+		ast_frfree(f);
+		while((out = t->frameout(pvt))) {
+			sofar += out->samples;
+			ast_frfree(out);
+		}
+	}
+	gettimeofday(&finish, NULL);
+	t->destroy(pvt);
+	cost = (finish.tv_sec - start.tv_sec) * 1000 + (finish.tv_usec - start.tv_usec) / 1000;
+	t->cost = cost / samples;
+	if (!t->cost)
+		t->cost = 1;
+}
+
+static void rebuild_matrix(int samples)
 {
 	struct ast_translator *t;
 	int changed;
@@ -230,6 +280,9 @@ static void rebuild_matrix(void)
 	bzero(tr_matrix, sizeof(tr_matrix));
 	t = list;
 	while(t) {
+	  if(samples)
+	    calc_cost(t,samples);
+	  
 		if (!tr_matrix[t->srcfmt][t->dstfmt].step ||
 		     tr_matrix[t->srcfmt][t->dstfmt].cost > t->cost) {
 			tr_matrix[t->srcfmt][t->dstfmt].step = t;
@@ -267,57 +320,35 @@ static void rebuild_matrix(void)
 	} while (changed);
 }
 
-static void calc_cost(struct ast_translator *t)
-{
-	int sofar=0;
-	struct ast_translator_pvt *pvt;
-	struct ast_frame *f, *out;
-	struct timeval start, finish;
-	int cost;
-	/* If they don't make samples, give them a terrible score */
-	if (!t->sample) {
-		ast_log(LOG_WARNING, "Translator '%s' does not produce sample frames.\n", t->name);
-		t->cost = 99999;
-		return;
-	}
-	pvt = t->new();
-	if (!pvt) {
-		ast_log(LOG_WARNING, "Translator '%s' appears to be broken and will probably fail.\n", t->name);
-		t->cost = 99999;
-		return;
-	}
-	gettimeofday(&start, NULL);
-	/* Call the encoder until we've processed one second of time */
-	while(sofar < 8000) {
-		f = t->sample();
-		if (!f) {
-			ast_log(LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
-			t->destroy(pvt);
-			t->cost = 99999;
-			return;
-		}
-		t->framein(pvt, f);
-		ast_frfree(f);
-		while((out = t->frameout(pvt))) {
-			sofar += out->samples;
-			ast_frfree(out);
-		}
-	}
-	gettimeofday(&finish, NULL);
-	t->destroy(pvt);
-	cost = (finish.tv_sec - start.tv_sec) * 1000 + (finish.tv_usec - start.tv_usec) / 1000;
-	t->cost = cost;
-	if (!t->cost)
-		t->cost = 1;
-}
+
+
+
 
 static int show_translation(int fd, int argc, char *argv[])
 {
 #define SHOW_TRANS 11
-	int x,y;
+        int x,y,z;
 	char line[80];
-	if (argc != 2) 
+	if (argc > 4) 
 		return RESULT_SHOWUSAGE;
+
+	if(argv[2] && !strcasecmp(argv[2],"recalc")) {
+	  z = argv[3] ? atoi(argv[3]) : 1;
+
+	  if(z <= 0) {
+	    ast_cli(fd,"         C'mon let's be serious here... defaulting to 1.\n");
+	    z = 1;
+	  }
+	  
+	  if(z > MAX_RECALC) {
+	    ast_cli(fd,"         Maximum limit of recalc exceeded by %d, truncating value to %d\n",z-MAX_RECALC,MAX_RECALC);
+	    z = MAX_RECALC;
+	  }
+	  ast_cli(fd,"         Recalculating Codec Translation (number of sample seconds: %d)\n\n",z);
+	  rebuild_matrix(z);
+
+	}
+
 	ast_cli(fd, "         Translation times between formats (in milliseconds)\n");
 	ast_cli(fd, "          Source Format (Rows) Destination Format(Columns)\n\n");
 	ast_mutex_lock(&list_lock);
@@ -346,9 +377,11 @@ static int show_translation(int fd, int argc, char *argv[])
 static int added_cli = 0;
 
 static char show_trans_usage[] =
-"Usage: show translation\n"
+"Usage: show translation [recalc] [<recalc seconds>]\n"
 "       Displays known codec translators and the cost associated\n"
-"with each conversion.\n";
+"with each conversion.  if the arguement 'recalc' is supplied along\n"
+"with optional number of seconds to test a new test will be performed\n"
+"as the chart is being displayed.\n";
 
 static struct ast_cli_entry show_trans =
 { { "show", "translation", NULL }, show_translation, "Display translation matrix", show_trans_usage };
@@ -362,7 +395,7 @@ int ast_register_translator(struct ast_translator *t)
 		ast_log(LOG_WARNING, "Format %s is larger than MAX_FORMAT\n", ast_getformatname(t->srcfmt));
 		return -1;
 	}
-	calc_cost(t);
+	calc_cost(t,1);
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %s to %s, cost %d\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), ast_getformatname(1 << t->srcfmt), ast_getformatname(1 << t->dstfmt), t->cost);
 	ast_mutex_lock(&list_lock);
@@ -372,7 +405,7 @@ int ast_register_translator(struct ast_translator *t)
 	}
 	t->next = list;
 	list = t;
-	rebuild_matrix();
+	rebuild_matrix(0);
 	ast_mutex_unlock(&list_lock);
 	return 0;
 }
@@ -396,7 +429,7 @@ int ast_unregister_translator(struct ast_translator *t)
 		ul = u;
 		u = u->next;
 	}
-	rebuild_matrix();
+	rebuild_matrix(0);
 	ast_mutex_unlock(&list_lock);
 	return (u ? 0 : -1);
 }
