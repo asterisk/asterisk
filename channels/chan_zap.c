@@ -5213,6 +5213,7 @@ static int pri_check_restart(struct zt_pri *pri)
 		pri_reset(pri->pri, pri->resetchannel);
 	} else {
 		pri->resetting = 0;
+		time(&pri->lastreset);
 	}
 	return 0;
 }
@@ -5265,9 +5266,9 @@ static void *pri_dchannel(void *vpri)
 		ast_pthread_mutex_lock(&pri->lock);
 		if (pri->resetting && pri->up) {
 			if (!pri->resetchannel)
-				pri_check_reset(pri);
+				pri_check_restart(pri);
 		} else {
-			if ((t - pri->lastreset) >= RESET_INTERVAL) {
+			if (!pri->resetting && ((t - pri->lastreset) >= RESET_INTERVAL)) {
 				pri->resetting = 1;
 				pri->resetchannel = 0;
 			}
@@ -5385,14 +5386,21 @@ static void *pri_dchannel(void *vpri)
 				pri_dump_event(pri->pri, e);
 			switch(e->e) {
 			case PRI_EVENT_DCHAN_UP:
+				printf("Up!\n");
 				if (option_verbose > 1) 
 					ast_verbose(VERBOSE_PREFIX_2 "D-Channel on span %d up\n", pri->span);
 				pri->up = 1;
+				time(&pri->lastreset);
+				/* Restart in 5 seconds */
+				pri->lastreset -= RESET_INTERVAL;
+				pri->lastreset += 5;
+				pri->resetting = 0;
 				break;
 			case PRI_EVENT_DCHAN_DOWN:
 				if (option_verbose > 1) 
 					ast_verbose(VERBOSE_PREFIX_2 "D-Channel on span %d down\n", pri->span);
 				pri->up = 0;
+				pri->resetting = 0;
 				break;
 			case PRI_EVENT_RESTART:
 				chan = e->restart.channel;
@@ -5679,6 +5687,8 @@ static void *pri_dchannel(void *vpri)
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "B-channel %d successfully restarted on span %d\n", chan, pri->span);
 						ast_pthread_mutex_unlock(&pri->pvt[chan]->lock);
+						if (pri->resetting)
+							pri_check_restart(pri);
 					}
 				}
 				break;
