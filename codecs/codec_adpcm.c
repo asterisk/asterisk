@@ -25,6 +25,9 @@
 #include <string.h>
 #include <unistd.h>
 
+/* define NOT_BLI to use a faster but not bit-level identical version */
+/* #define NOT_BLI */
+
 #define BUFFER_SIZE   8096	/* size for the translation buffers */
 
 AST_MUTEX_DEFINE_STATIC(localuser_lock);
@@ -41,28 +44,28 @@ static char *tdesc = "Adaptive Differential PCM Coder/Decoder";
  * Step size index shift table 
  */
 
-static short indsft[8] = { -1, -1, -1, -1, 2, 4, 6, 8 };
+static int indsft[8] = { -1, -1, -1, -1, 2, 4, 6, 8 };
 
 /*
  * Step size table, where stpsz[i]=floor[16*(11/10)^i]
  */
 
-static short stpsz[49] = {
+static int stpsz[49] = {
   16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45, 50, 55, 60, 66, 73,
   80, 88, 97, 107, 118, 130, 143, 157, 173, 190, 209, 230, 253, 279,
   307, 337, 371, 408, 449, 494, 544, 598, 658, 724, 796, 876, 963,
   1060, 1166, 1282, 1411, 1552
 };
 
-/* 
- * Nibble to bit map
+/*
+ * Decoder/Encoder state
+ *   States for both encoder and decoder are synchronized
  */
-
-static short nbl2bit[16][4] = {
-  {1, 0, 0, 0}, {1, 0, 0, 1}, {1, 0, 1, 0}, {1, 0, 1, 1},
-  {1, 1, 0, 0}, {1, 1, 0, 1}, {1, 1, 1, 0}, {1, 1, 1, 1},
-  {-1, 0, 0, 0}, {-1, 0, 0, 1}, {-1, 0, 1, 0}, {-1, 0, 1, 1},
-  {-1, 1, 0, 0}, {-1, 1, 0, 1}, {-1, 1, 1, 0}, {-1, 1, 1, 1}
+struct adpcm_state {
+	int ssindex;
+	int signal;
+	int zero_count;
+	int next_flag;
 };
 
 /*
@@ -76,51 +79,64 @@ static short nbl2bit[16][4] = {
  *  Sets the index to the step size table for the next encode.
  */
 
-static inline void 
-decode (unsigned char encoded, short *ssindex, short *signal, unsigned char *rkey, unsigned char *next)
+static inline short
+decode(int encoded, struct adpcm_state* state)
 {
-  short diff, step;
-  step = stpsz[*ssindex];
+	int diff;
+	int step;
+	int sign;
 
-  diff = step * nbl2bit[encoded][1] +
-		(step >> 1) * nbl2bit[encoded][2] +
-		(step >> 2) * nbl2bit[encoded][3] +
-		(step >> 3);
-  if (nbl2bit[encoded][2] && (step & 0x1))
-	diff++;
-  diff *= nbl2bit[encoded][0];
+	step = stpsz[state->ssindex];
 
-  if ( *next & 0x1 )
-        *signal -= 8;
-  else if ( *next & 0x2 )
-        *signal += 8;
+	sign = encoded & 0x08;
+	encoded &= 0x07;
+#ifdef NOT_BLI
+	diff = (((encoded << 1) + 1) * step) >> 3;
+#else /* BLI code */
+	diff = step >> 3;
+	if (encoded & 4) diff += step;
+	if (encoded & 2) diff += step >> 1;
+	if (encoded & 1) diff += step >> 2;
+	if ((encoded >> 1) & step & 0x1)
+		diff++;
+#endif
+	if (sign)
+		diff = -diff;
 
-  *signal += diff;
+	if (state->next_flag & 0x1)
+		state->signal -= 8;
+	else if (state->next_flag & 0x2)
+		state->signal += 8;
 
-  if (*signal > 2047)
-	*signal = 2047;
-  else if (*signal < -2047)
-	*signal = -2047;
+	state->signal += diff;
 
-  *next = 0;
+	if (state->signal > 2047)
+		state->signal = 2047;
+	else if (state->signal < -2047)
+		state->signal = -2047;
+
+	state->next_flag = 0;
 
 #ifdef AUTO_RETURN
-  if( encoded & 0x7 )
-        *rkey = 0;
-  else if ( ++(*rkey) == 24 ) {
-	*rkey = 0;
-	if (*signal > 0)
-		*next = 0x1;
-	else if (*signal < 0)
-		*next = 0x2;
-  }
+	if (encoded)
+		state->zero_count = 0;
+	else if (++(state->zero_count) == 24)
+	{
+		state->zero_count = 0;
+		if (state->signal > 0)
+			state->next_flag = 0x1;
+		else if (state->signal < 0)
+			state->next_flag = 0x2;
+	}
 #endif
 
-  *ssindex = *ssindex + indsft[(encoded & 7)];
-  if (*ssindex < 0)
-    *ssindex = 0;
-  else if (*ssindex > 48)
-    *ssindex = 48;
+	state->ssindex += indsft[encoded];
+	if (state->ssindex < 0)
+		state->ssindex = 0;
+	else if (state->ssindex > 48)
+		state->ssindex = 48;
+
+	return state->signal << 4;
 }
 
 /*
@@ -135,44 +151,63 @@ decode (unsigned char encoded, short *ssindex, short *signal, unsigned char *rke
  *  signal gets updated with each pass.
  */
 
-static inline unsigned char
-adpcm (short csig, short *ssindex, short *signal, unsigned char *rkey, unsigned char *next)
+static inline int
+adpcm(short csig, struct adpcm_state* state)
 {
-  short diff, step;
-  unsigned char encoded;
-  step = stpsz[*ssindex];
-  /* 
-   * Clip csig if too large or too small
-   */
-   
-  csig >>= 4;
+	int diff;
+	int step;
+	int encoded;
 
-  diff = csig - *signal;
-  
-  if (diff < 0)
-    {
-      encoded = 8;
-      diff = -diff;
-    }
-  else
-    encoded = 0;
-  if (diff >= step)
-    {
-      encoded |= 4;
-      diff -= step;
-    }
-  step >>= 1;
-  if (diff >= step)
-    {
-      encoded |= 2;
-      diff -= step;
-    }
-  step >>= 1;
-  if (diff >= step)
-    encoded |= 1;
-    
-  decode (encoded, ssindex, signal, rkey, next);
-  return (encoded);
+	/* 
+	* Clip csig if too large or too small
+	*/
+	csig >>= 4;
+
+	step = stpsz[state->ssindex];
+	diff = csig - state->signal;
+
+#ifdef NOT_BLI
+	if (diff < 0)
+	{
+		encoded = (-diff << 2) / step;
+		if (encoded > 7)
+			encoded = 7;
+		encoded |= 0x08;
+	}
+	else
+	{
+		encoded = (diff << 2) / step;
+		if (encoded > 7)
+			encoded = 7;
+	}
+#else /* BLI code */
+	if (diff < 0)
+	{
+		encoded = 8;
+		diff = -diff;
+	}
+	else
+		encoded = 0;
+	if (diff >= step)
+	{
+		encoded |= 4;
+		diff -= step;
+	}
+	step >>= 1;
+	if (diff >= step)
+	{
+		encoded |= 2;
+		diff -= step;
+	}
+	step >>= 1;
+	if (diff >= step)
+		encoded |= 1;
+#endif /* NOT_BLI */
+
+	/* feedback to state */
+	decode(encoded, state);
+	
+	return encoded;
 }
 
 /*
@@ -185,10 +220,7 @@ struct adpcm_encoder_pvt
   char offset[AST_FRIENDLY_OFFSET];   /* Space to build offset */
   short inbuf[BUFFER_SIZE];           /* Unencoded signed linear values */
   unsigned char outbuf[BUFFER_SIZE];  /* Encoded ADPCM, two nibbles to a word */
-  short ssindex;
-  short signal;
-  unsigned char zero_count;
-  unsigned char next_flag;
+  struct adpcm_state state;
   int tail;
 };
 
@@ -201,10 +233,7 @@ struct adpcm_decoder_pvt
   struct ast_frame f;
   char offset[AST_FRIENDLY_OFFSET];	/* Space to build offset */
   short outbuf[BUFFER_SIZE];	/* Decoded signed linear values */
-  short ssindex;
-  short signal;
-  unsigned char zero_count;
-  unsigned char next_flag;
+  struct adpcm_state state;
   int tail;
 };
 
@@ -287,11 +316,8 @@ adpcmtolin_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
   b = f->data;
 
   for (x=0;x<f->datalen;x++) {
-	decode((b[x] >> 4) & 0xf, &tmp->ssindex, &tmp->signal, &tmp->zero_count, &tmp->next_flag);
-	tmp->outbuf[tmp->tail++] = tmp->signal << 4;
-
-	decode(b[x] & 0x0f, &tmp->ssindex, &tmp->signal, &tmp->zero_count, &tmp->next_flag);
-	tmp->outbuf[tmp->tail++] = tmp->signal << 4;
+	tmp->outbuf[tmp->tail++] = decode((b[x] >> 4) & 0xf, &tmp->state);
+	tmp->outbuf[tmp->tail++] = decode(b[x] & 0x0f, &tmp->state);
   }
 
   return 0;
@@ -374,26 +400,25 @@ static struct ast_frame *
 lintoadpcm_frameout (struct ast_translator_pvt *pvt)
 {
   struct adpcm_encoder_pvt *tmp = (struct adpcm_encoder_pvt *) pvt;
-  unsigned char adpcm0, adpcm1;
   int i_max, i;
   
   if (tmp->tail < 2) return NULL;
 
 
-  i_max = (tmp->tail / 2) * 2;
+  i_max = tmp->tail & ~1; /* atomic size is 2 samples */
 
+  /* What is this, state debugging? should be #ifdef'd then
   tmp->outbuf[0] = tmp->ssindex & 0xff;
   tmp->outbuf[1] = (tmp->signal >> 8) & 0xff;
   tmp->outbuf[2] = (tmp->signal & 0xff);
   tmp->outbuf[3] = tmp->zero_count;
   tmp->outbuf[4] = tmp->next_flag;
-
+  */
   for (i = 0; i < i_max; i+=2)
   {
-    adpcm0 = adpcm (tmp->inbuf[i], &tmp->ssindex, &tmp->signal, &tmp->zero_count, &tmp->next_flag);
-    adpcm1 = adpcm (tmp->inbuf[i+1], &tmp->ssindex, &tmp->signal, &tmp->zero_count, &tmp->next_flag);
-
-    tmp->outbuf[i/2] = (adpcm0 << 4) | adpcm1;
+    tmp->outbuf[i/2] =
+      (adpcm(tmp->inbuf[i  ], &tmp->state) << 4) |
+	  (adpcm(tmp->inbuf[i+1], &tmp->state)     );
   };
 
 

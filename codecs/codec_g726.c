@@ -25,6 +25,22 @@
 #include <string.h>
 #include <unistd.h>
 
+#define WANT_ASM
+#include "log2comp.h"
+
+/* define NOT_BLI to use a faster but not bit-level identical version */
+/* #define NOT_BLI */
+
+#if defined(NOT_BLI)
+#	if defined(_MSC_VER)
+typedef __int64 sint64;
+#	elif defined(__GNUC__)
+typedef long long sint64;
+#	else
+#		error 64-bit integer type is not defined for your compiler/platform
+#	endif
+#endif
+
 #define BUFFER_SIZE   8096	/* size for the translation buffers */
 #define BUF_SHIFT	5
 
@@ -49,96 +65,52 @@ static char *tdesc = "ITU G.726-32kbps G726 Transcoder";
  */
 struct g726_state {
 	long yl;	/* Locked or steady state step size multiplier. */
-	short yu;	/* Unlocked or non-steady state step size multiplier. */
-	short dms;	/* Short term energy estimate. */
-	short dml;	/* Long term energy estimate. */
-	short ap;	/* Linear weighting coefficient of 'yl' and 'yu'. */
+	int yu;		/* Unlocked or non-steady state step size multiplier. */
+	int dms;	/* Short term energy estimate. */
+	int dml;	/* Long term energy estimate. */
+	int ap;		/* Linear weighting coefficient of 'yl' and 'yu'. */
 
-	short a[2];	/* Coefficients of pole portion of prediction filter. */
-	short b[6];	/* Coefficients of zero portion of prediction filter. */
-	short pk[2];	/*
-			 * Signs of previous two samples of a partially
+	int a[2];	/* Coefficients of pole portion of prediction filter.
+				 * stored as fixed-point 1==2^14 */
+	int b[6];	/* Coefficients of zero portion of prediction filter.
+				 * stored as fixed-point 1==2^14 */
+	int pk[2];	/* Signs of previous two samples of a partially
 			 * reconstructed signal.
 			 */
-	short dq[6];	/*
-			 * Previous 6 samples of the quantized difference
-			 * signal represented in an internal floating point
-			 * format.
-			 */
-	short sr[2];	/*
-			 * Previous 2 samples of the quantized difference
-			 * signal represented in an internal floating point
-			 * format.
-			 */
-	char td;	/* delayed tone detect, new in 1988 version */
+	int dq[6];  /* Previous 6 samples of the quantized difference signal
+				 * stored as fixed point 1==2^12,
+				 * or in internal floating point format */
+	int sr[2];	/* Previous 2 samples of the quantized difference signal
+				 * stored as fixed point 1==2^12,
+				 * or in internal floating point format */
+	int td;	/* delayed tone detect, new in 1988 version */
 };
 
 
 
-static short qtab_721[7] = {-124, 80, 178, 246, 300, 349, 400};
+static int qtab_721[7] = {-124, 80, 178, 246, 300, 349, 400};
 /*
  * Maps G.721 code word to reconstructed scale factor normalized log
  * magnitude values.
  */
-static short	_dqlntab[16] = {-2048, 4, 135, 213, 273, 323, 373, 425,
+static int _dqlntab[16] = {-2048, 4, 135, 213, 273, 323, 373, 425,
 				425, 373, 323, 273, 213, 135, 4, -2048};
 
 /* Maps G.721 code word to log of scale factor multiplier. */
-static short	_witab[16] = {-12, 18, 41, 64, 112, 198, 355, 1122,
+static int _witab[16] = {-12, 18, 41, 64, 112, 198, 355, 1122,
 				1122, 355, 198, 112, 64, 41, 18, -12};
 /*
  * Maps G.721 code words to a set of values whose long and short
  * term averages are computed and then compared to give an indication
  * how stationary (steady state) the signal is.
  */
-static short	_fitab[16] = {0, 0, 0, 0x200, 0x200, 0x200, 0x600, 0xE00,
+static int _fitab[16] = {0, 0, 0, 0x200, 0x200, 0x200, 0x600, 0xE00,
 				0xE00, 0x600, 0x200, 0x200, 0x200, 0, 0, 0};
 
-static short power2[15] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80,
+/* Deprecated
+static int power2[15] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80,
 			0x100, 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000};
-
-/*
- * quan()
- *
- * quantizes the input val against the table of size short integers.
- * It returns i if table[i - 1] <= val < table[i].
- *
- * Using linear search for simple coding.
- */
-static int quan(int val, short *table, int size)
-{
-	int		i;
-
-	for (i = 0; i < size; i++)
-		if (val < *table++)
-			break;
-	return (i);
-}
-
-/*
- * fmult()
- *
- * returns the integer product of the 14-bit integer "an" and
- * "floating point" representation (4-bit exponent, 6-bit mantessa) "srn".
- */
-static int fmult(int an, int srn)
-{
-	short		anmag, anexp, anmant;
-	short		wanexp, wanmant;
-	short		retval;
-
-	anmag = (an > 0) ? an : ((-an) & 0x1FFF);
-	anexp = quan(anmag, power2, 15) - 6;
-	anmant = (anmag == 0) ? 32 :
-	    (anexp >= 0) ? anmag >> anexp : anmag << -anexp;
-	wanexp = anexp + ((srn >> 6) & 0xF) - 13;
-
-	wanmant = (anmant * (srn & 077) + 0x30) >> 4;
-	retval = (wanexp >= 0) ? ((wanmant << wanexp) & 0x7FFF) :
-	    (wanmant >> -wanexp);
-
-	return (((an ^ srn) < 0) ? -retval : retval);
-}
+*/
 
 /*
  * g72x_init_state()
@@ -156,17 +128,46 @@ static void g726_init_state(struct g726_state *state_ptr)
 	state_ptr->dms = 0;
 	state_ptr->dml = 0;
 	state_ptr->ap = 0;
-	for (cnta = 0; cnta < 2; cnta++) {
+	for (cnta = 0; cnta < 2; cnta++)
+	{
 		state_ptr->a[cnta] = 0;
 		state_ptr->pk[cnta] = 0;
+#ifdef NOT_BLI
+		state_ptr->sr[cnta] = 1;
+#else
 		state_ptr->sr[cnta] = 32;
+#endif
 	}
-	for (cnta = 0; cnta < 6; cnta++) {
+	for (cnta = 0; cnta < 6; cnta++)
+	{
 		state_ptr->b[cnta] = 0;
+#ifdef NOT_BLI
+		state_ptr->dq[cnta] = 1;
+#else
 		state_ptr->dq[cnta] = 32;
+#endif
 	}
 	state_ptr->td = 0;
 }
+
+/*
+ * quan()
+ *
+ * quantizes the input val against the table of integers.
+ * It returns i if table[i - 1] <= val < table[i].
+ *
+ * Using linear search for simple coding.
+ */
+static int quan(int val, int *table, int size)
+{
+	int		i;
+
+	for (i = 0; i < size && val >= *table; ++i, ++table)
+		;
+	return (i);
+}
+
+#ifdef NOT_BLI /* faster non-identical version */
 
 /*
  * predictor_zero()
@@ -175,15 +176,14 @@ static void g726_init_state(struct g726_state *state_ptr)
  *
  */
 static int predictor_zero(struct g726_state *state_ptr)
-{
-	int		i;
-	int		sezi;
-
-	sezi = fmult(state_ptr->b[0] >> 2, state_ptr->dq[0]);
-	for (i = 1; i < 6; i++)			/* ACCUM */
-		sezi += fmult(state_ptr->b[i] >> 2, state_ptr->dq[i]);
-	return (sezi);
+{	/* divide by 2 is necessary here to handle negative numbers correctly */
+	int i;
+	sint64 sezi;
+	for (sezi = 0, i = 0; i < 6; i++)			/* ACCUM */
+		sezi += (sint64)state_ptr->b[i] * state_ptr->dq[i];
+	return (int)(sezi >> 13) / 2 /* 2^14 */;
 }
+
 /*
  * predictor_pole()
  *
@@ -191,10 +191,53 @@ static int predictor_zero(struct g726_state *state_ptr)
  *
  */
 static int predictor_pole(struct g726_state *state_ptr)
+{	/* divide by 2 is necessary here to handle negative numbers correctly */
+	return (int)(((sint64)state_ptr->a[1] * state_ptr->sr[1] +
+	              (sint64)state_ptr->a[0] * state_ptr->sr[0]) >> 13) / 2 /* 2^14 */;
+}
+
+#else /* NOT_BLI - identical version */
+/*
+ * fmult()
+ *
+ * returns the integer product of the fixed-point number "an" (1==2^12) and
+ * "floating point" representation (4-bit exponent, 6-bit mantessa) "srn".
+ */
+static int fmult(int an, int srn)
+{
+	int		anmag, anexp, anmant;
+	int		wanexp, wanmant;
+	int		retval;
+
+	anmag = (an > 0) ? an : ((-an) & 0x1FFF);
+	anexp = log2(anmag) - 5;
+	anmant = (anmag == 0) ? 32 :
+	    (anexp >= 0) ? anmag >> anexp : anmag << -anexp;
+	wanexp = anexp + ((srn >> 6) & 0xF) - 13;
+
+	wanmant = (anmant * (srn & 077) + 0x30) >> 4;
+	retval = (wanexp >= 0) ? ((wanmant << wanexp) & 0x7FFF) :
+	    (wanmant >> -wanexp);
+
+	return (((an ^ srn) < 0) ? -retval : retval);
+}
+
+static int predictor_zero(struct g726_state *state_ptr)
+{
+	int		i;
+	int		sezi;
+	for (sezi = 0, i = 0; i < 6; i++)			/* ACCUM */
+		sezi += fmult(state_ptr->b[i] >> 2, state_ptr->dq[i]);
+	return sezi;
+}
+
+static int predictor_pole(struct g726_state *state_ptr)
 {
 	return (fmult(state_ptr->a[1] >> 2, state_ptr->sr[1]) +
-	    fmult(state_ptr->a[0] >> 2, state_ptr->sr[0]));
+			fmult(state_ptr->a[0] >> 2, state_ptr->sr[0]));
 }
+
+#endif /* NOT_BLI */
 
 /*
  * step_size()
@@ -234,14 +277,14 @@ static int step_size(struct g726_state *state_ptr)
 static int quantize(
 	int		d,	/* Raw difference signal sample */
 	int		y,	/* Step size multiplier */
-	short		*table,	/* quantization table */
-	int		size)	/* table size of short integers */
+	int		*table,	/* quantization table */
+	int		size)	/* table size of integers */
 {
-	short		dqm;	/* Magnitude of 'd' */
-	short		exp;	/* Integer part of base 2 log of 'd' */
-	short		mant;	/* Fractional part of base 2 log */
-	short		dl;	/* Log of magnitude of 'd' */
-	short		dln;	/* Step size scale factor normalized log */
+	int		dqm;	/* Magnitude of 'd' */
+	int		exp;	/* Integer part of base 2 log of 'd' */
+	int		mant;	/* Fractional part of base 2 log */
+	int		dl;		/* Log of magnitude of 'd' */
+	int		dln;	/* Step size scale factor normalized log */
 	int		i;
 
 	/*
@@ -250,9 +293,11 @@ static int quantize(
 	 * Compute base 2 log of 'd', and store in 'dl'.
 	 */
 	dqm = abs(d);
-	exp = quan(dqm >> 1, power2, 15);
+	exp = log2(dqm);
+	if (exp < 0)
+		exp = 0;
 	mant = ((dqm << 7) >> exp) & 0x7F;	/* Fractional portion. */
-	dl = (exp << 7) + mant;
+	dl = (exp << 7) | mant;
 
 	/*
 	 * SUBTB
@@ -287,20 +332,29 @@ static int reconstruct(
 	int		dqln,	/* G.72x codeword */
 	int		y)	/* Step size multiplier */
 {
-	short		dql;	/* Log of 'dq' magnitude */
-	short		dex;	/* Integer part of log */
-	short		dqt;
-	short		dq;	/* Reconstructed difference signal sample */
+	int		dql;	/* Log of 'dq' magnitude */
+	int		dex;	/* Integer part of log */
+	int		dqt;
+	int		dq;	/* Reconstructed difference signal sample */
 
 	dql = dqln + (y >> 2);	/* ADDA */
 
 	if (dql < 0) {
-		return ((sign) ? -0x8000 : 0);
+#ifdef NOT_BLI
+		return (sign) ? -1 : 1;
+#else
+		return (sign) ? -0x8000 : 0;
+#endif
 	} else {		/* ANTILOG */
 		dex = (dql >> 7) & 15;
 		dqt = 128 + (dql & 127);
+#ifdef NOT_BLI
+		dq = ((dqt << 19) >> (14 - dex));
+		return (sign) ? -dq : dq;
+#else
 		dq = (dqt << 7) >> (14 - dex);
-		return ((sign) ? (dq - 0x8000) : dq);
+		return (sign) ? (dq - 0x8000) : dq;
+#endif
 	}
 }
 
@@ -320,19 +374,26 @@ static void update(
 	struct g726_state *state_ptr)	/* coder state pointer */
 {
 	int		cnt;
-	short		mag, exp;	/* Adaptive predictor, FLOAT A */
-	short		a2p=0;		/* LIMC */
-	short		a1ul;		/* UPA1 */
-	short		pks1;	/* UPA2 */
-	short		fa1;
-	char		tr;		/* tone/transition detector */
-	short		ylint, thr2, dqthr;
-	short  		ylfrac, thr1;
-	short		pk0;
+	int		mag;		/* Adaptive predictor, FLOAT A */
+#ifndef NOT_BLI
+	int		exp;
+#endif
+	int		a2p=0;		/* LIMC */
+	int		a1ul;		/* UPA1 */
+	int		pks1;		/* UPA2 */
+	int		fa1;
+	int		tr;			/* tone/transition detector */
+	int		ylint, thr2, dqthr;
+	int		ylfrac, thr1;
+	int		pk0;
 
 	pk0 = (dqsez < 0) ? 1 : 0;	/* needed in updating predictor poles */
 
+#ifdef NOT_BLI
+	mag = abs(dq / 0x1000); /* prediction difference magnitude */
+#else
 	mag = dq & 0x7FFF;		/* prediction difference magnitude */
+#endif
 	/* TRANS */
 	ylint = state_ptr->yl >> 15;	/* exponent part of yl */
 	ylfrac = (state_ptr->yl >> 10) & 0x1F;	/* fractional part of yl */
@@ -431,7 +492,8 @@ static void update(
 				state_ptr->b[cnt] -= state_ptr->b[cnt] >> 9;
 			else			/* for G.721 and 24Kbps G.723 */
 				state_ptr->b[cnt] -= state_ptr->b[cnt] >> 8;
-			if (dq & 0x7FFF) {			/* XOR */
+			if (mag)
+			{	/* XOR */
 				if ((dq ^ state_ptr->dq[cnt]) >= 0)
 					state_ptr->b[cnt] += 128;
 				else
@@ -442,29 +504,37 @@ static void update(
 
 	for (cnt = 5; cnt > 0; cnt--)
 		state_ptr->dq[cnt] = state_ptr->dq[cnt-1];
+#ifdef NOT_BLI
+	state_ptr->dq[0] = dq;
+#else
 	/* FLOAT A : convert dq[0] to 4-bit exp, 6-bit mantissa f.p. */
 	if (mag == 0) {
-		state_ptr->dq[0] = (dq >= 0) ? 0x20 : 0xFC20;
+		state_ptr->dq[0] = (dq >= 0) ? 0x20 : 0x20 - 0x400;
 	} else {
-		exp = quan(mag, power2, 15);
+		exp = log2(mag) + 1;
 		state_ptr->dq[0] = (dq >= 0) ?
 		    (exp << 6) + ((mag << 6) >> exp) :
 		    (exp << 6) + ((mag << 6) >> exp) - 0x400;
 	}
+#endif
 
 	state_ptr->sr[1] = state_ptr->sr[0];
+#ifdef NOT_BLI
+	state_ptr->sr[0] = sr;
+#else
 	/* FLOAT B : convert sr to 4-bit exp., 6-bit mantissa f.p. */
 	if (sr == 0) {
 		state_ptr->sr[0] = 0x20;
 	} else if (sr > 0) {
-		exp = quan(sr, power2, 15);
+		exp = log2(sr) + 1;
 		state_ptr->sr[0] = (exp << 6) + ((sr << 6) >> exp);
-	} else if (sr > -32768) {
+	} else if (sr > -0x8000) {
 		mag = -sr;
-		exp = quan(mag, power2, 15);
+		exp = log2(mag) + 1;
 		state_ptr->sr[0] =  (exp << 6) + ((mag << 6) >> exp) - 0x400;
 	} else
-		state_ptr->sr[0] = 0xFC20;
+		state_ptr->sr[0] = 0x20 - 0x400;
+#endif
 
 	/* DELAY A */
 	state_ptr->pk[1] = state_ptr->pk[0];
@@ -508,30 +578,44 @@ static void update(
  */
 static int g726_decode(int	i, struct g726_state *state_ptr)
 {
-	short		sezi, sei, sez, se;	/* ACCUM */
-	short		y;			/* MIX */
-	short		sr;			/* ADDB */
-	short		dq;
-	short		dqsez;
+	int		sezi, sez, se;	/* ACCUM */
+	int		y;			/* MIX */
+	int		sr;			/* ADDB */
+	int		dq;
+	int		dqsez;
 
 	i &= 0x0f;			/* mask to get proper bits */
+#ifdef NOT_BLI
+	sezi = predictor_zero(state_ptr);
+	sez = sezi;
+	se = sezi + predictor_pole(state_ptr);	/* estimated signal */
+#else
 	sezi = predictor_zero(state_ptr);
 	sez = sezi >> 1;
-	sei = sezi + predictor_pole(state_ptr);
-	se = sei >> 1;			/* se = estimated signal */
+	se = (sezi + predictor_pole(state_ptr)) >> 1;	/* estimated signal */
+#endif
 
 	y = step_size(state_ptr);	/* dynamic quantizer step size */
 
-	dq = reconstruct(i & 0x08, _dqlntab[i], y); /* quantized diff. */
+	dq = reconstruct(i & 8, _dqlntab[i], y); /* quantized diff. */
 
-	sr = (dq < 0) ? (se - (dq & 0x3FFF)) : se + dq;	/* reconst. signal */
-
-	dqsez = sr - se + sez;			/* pole prediction diff. */
+#ifdef NOT_BLI
+	sr = se + dq;				/* reconst. signal */
+	dqsez = dq + sez;			/* pole prediction diff. */
+#else
+	sr = (dq < 0) ? se - (dq & 0x3FFF) : se + dq;	/* reconst. signal */
+	dqsez = sr - se + sez;		/* pole prediction diff. */
+#endif
 
 	update(4, y, _witab[i] << 5, _fitab[i], dq, sr, dqsez, state_ptr);
 
+#ifdef NOT_BLI
+	return (sr >> 10);	/* sr was 26-bit dynamic range */
+#else
 	return (sr << 2);	/* sr was 14-bit dynamic range */
+#endif
 }
+
 /*
  * g726_encode()
  *
@@ -540,30 +624,45 @@ static int g726_decode(int	i, struct g726_state *state_ptr)
  */
 static int g726_encode(int sl, struct g726_state *state_ptr)
 {
-	short		sezi, se, sez;		/* ACCUM */
-	short		d;			/* SUBTA */
-	short		sr;			/* ADDB */
-	short		y;			/* MIX */
-	short		dqsez;			/* ADDC */
-	short		dq, i;
+	int		sezi, se, sez;		/* ACCUM */
+	int		d;			/* SUBTA */
+	int		sr;			/* ADDB */
+	int		y;			/* MIX */
+	int		dqsez;			/* ADDC */
+	int		dq, i;
 
+#ifdef NOT_BLI
+	sl <<= 10;			/* 26-bit dynamic range */
+
+	sezi = predictor_zero(state_ptr);
+	sez = sezi;
+	se = sezi + predictor_pole(state_ptr);	/* estimated signal */
+#else
 	sl >>= 2;			/* 14-bit dynamic range */
 
 	sezi = predictor_zero(state_ptr);
 	sez = sezi >> 1;
 	se = (sezi + predictor_pole(state_ptr)) >> 1;	/* estimated signal */
+#endif
 
 	d = sl - se;				/* estimation difference */
 
 	/* quantize the prediction difference */
 	y = step_size(state_ptr);		/* quantizer step size */
+#ifdef NOT_BLI
+	d /= 0x1000;
+#endif
 	i = quantize(d, y, qtab_721, 7);	/* i = G726 code */
 
 	dq = reconstruct(i & 8, _dqlntab[i], y);	/* quantized est diff */
 
+#ifdef NOT_BLI
+	sr = se + dq;				/* reconst. signal */
+	dqsez = dq + sez;			/* pole prediction diff. */
+#else
 	sr = (dq < 0) ? se - (dq & 0x3FFF) : se + dq;	/* reconst. signal */
-
-	dqsez = sr + sez - se;			/* pole prediction diff. */
+	dqsez = sr - se + sez;			/* pole prediction diff. */
+#endif
 
 	update(4, y, _witab[i] << 5, _fitab[i], dq, sr, dqsez, state_ptr);
 
