@@ -388,13 +388,6 @@ bininstall: all
 		rm -f $(DESTDIR)$(ASTSPOOLDIR)/vm; \
 	fi
 	ln -s $(ASTSPOOLDIR)/voicemail/default $(DESTDIR)$(ASTSPOOLDIR)/vm
-	rm -f $(DESTDIR)$(MODULES_DIR)/chan_ixj.so
-	rm -f $(DESTDIR)$(MODULES_DIR)/chan_tor.so
-	rm -f $(DESTDIR)$(MODULES_DIR)/cdr_mysql.so
-	rm -f $(DESTDIR)$(MODULES_DIR)/cdr_unixodbc.so
-	rm -f $(DESTDIR)$(MODULES_DIR)/codec_mp3_d.so
-	rm -f $(DESTDIR)$(MODULES_DIR)/format_mp3.so
-	rm -f $(DESTDIR)$(MODULES_DIR)/app_voicemail2.so
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-csv
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/keys
