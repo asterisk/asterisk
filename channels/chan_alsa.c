@@ -13,7 +13,6 @@
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
 #include <asterisk/module.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/options.h>
 #include <asterisk/pbx.h>
 #include <asterisk/config.h>
@@ -76,10 +75,10 @@ static int silencethreshold = 1000;
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 AST_MUTEX_DEFINE_STATIC(alsalock);
 
-static char *type = "Console";
-static char *desc = "ALSA Console Channel Driver";
-static char *tdesc = "ALSA Console Channel Driver";
-static char *config = "alsa.conf";
+static const char type[] = "Console";
+static const char desc[] = "ALSA Console Channel Driver";
+static const char tdesc[] = "ALSA Console Channel Driver";
+static const char config[] = "alsa.conf";
 
 static char context[AST_MAX_EXTENSION] = "default";
 static char language[MAX_LANGUAGE] = "";
@@ -141,6 +140,34 @@ static int sampsent = 0;
 static int silencelen=0;
 static int offset=0;
 static int nosound=0;
+
+/* ZZ */
+static struct ast_channel *alsa_request(const char *type, int format, void *data, int *cause);
+static int alsa_digit(struct ast_channel *c, char digit);
+static int alsa_text(struct ast_channel *c, char *text);
+static int alsa_hangup(struct ast_channel *c);
+static int alsa_answer(struct ast_channel *c);
+static struct ast_frame *alsa_read(struct ast_channel *chan);
+static int alsa_call(struct ast_channel *c, char *dest, int timeout);
+static int alsa_write(struct ast_channel *chan, struct ast_frame *f);
+static int alsa_indicate(struct ast_channel *chan, int cond);
+static int alsa_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
+
+static const struct ast_channel_tech alsa_tech = {
+	.type = type,
+	.description = tdesc,
+	.capabilities = AST_FORMAT_SLINEAR,
+	.requester = alsa_request,
+	.send_digit = alsa_digit,
+	.send_text = alsa_text,
+	.hangup = alsa_hangup,
+	.answer = alsa_answer,
+	.read = alsa_read,
+	.call = alsa_call,
+	.write = alsa_write,
+	.indicate = alsa_indicate,
+	.fixup = alsa_fixup,
+};
 
 static int send_sound(void)
 {
@@ -520,7 +547,7 @@ static int alsa_hangup(struct ast_channel *c)
 	int res;
 	ast_mutex_lock(&alsalock);
 	cursound = -1;
-	c->pvt->pvt = NULL;
+	c->tech_pvt = NULL;
 	alsa.owner = NULL;
 	ast_verbose( " << Hangup on console >> \n");
 	ast_mutex_lock(&usecnt_lock);
@@ -677,7 +704,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 
 static int alsa_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct chan_alsa_pvt *p = newchan->pvt->pvt;
+	struct chan_alsa_pvt *p = newchan->tech_pvt;
 	ast_mutex_lock(&alsalock);
 	p->owner = newchan;
 	ast_mutex_unlock(&alsalock);
@@ -717,22 +744,14 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 	struct ast_channel *tmp;
 	tmp = ast_channel_alloc(1);
 	if (tmp) {
+		tmp->tech = &alsa_tech;
 		snprintf(tmp->name, sizeof(tmp->name), "ALSA/%s", indevname);
 		tmp->type = type;
 		tmp->fds[0] = readdev;
 		tmp->nativeformats = AST_FORMAT_SLINEAR;
 		tmp->readformat = AST_FORMAT_SLINEAR;
 		tmp->writeformat = AST_FORMAT_SLINEAR;
-		tmp->pvt->pvt = p;
-		tmp->pvt->send_digit = alsa_digit;
-		tmp->pvt->send_text = alsa_text;
-		tmp->pvt->hangup = alsa_hangup;
-		tmp->pvt->answer = alsa_answer;
-		tmp->pvt->read = alsa_read;
-		tmp->pvt->call = alsa_call;
-		tmp->pvt->write = alsa_write;
-		tmp->pvt->indicate = alsa_indicate;
-		tmp->pvt->fixup = alsa_fixup;
+		tmp->tech_pvt = p;
 		if (strlen(p->context))
 			strncpy(tmp->context, p->context, sizeof(tmp->context)-1);
 		if (strlen(p->exten))
@@ -1027,7 +1046,7 @@ int load_module()
 		return 0;
 	}
 
-	res = ast_channel_register(type, tdesc, AST_FORMAT_SLINEAR, alsa_request);
+	res = ast_channel_register(&alsa_tech);
 	if (res < 0) {
 		ast_log(LOG_ERROR, "Unable to register channel class '%s'\n", type);
 		return -1;
@@ -1048,6 +1067,8 @@ int load_module()
 int unload_module()
 {
 	int x;
+	
+	ast_channel_unregister(&alsa_tech);
 	for (x=0;x<sizeof(myclis)/sizeof(struct ast_cli_entry); x++)
 		ast_cli_unregister(myclis + x);
 	close(readdev);
@@ -1065,7 +1086,7 @@ int unload_module()
 
 char *description()
 {
-	return desc;
+	return (char *) desc;
 }
 
 int usecount()

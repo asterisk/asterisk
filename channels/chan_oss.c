@@ -20,7 +20,6 @@
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
 #include <asterisk/module.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/options.h>
 #include <asterisk/pbx.h>
 #include <asterisk/config.h>
@@ -75,10 +74,10 @@ static int playbackonly = 0;
 
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
-static char *type = "Console";
-static char *desc = "OSS Console Channel Driver";
-static char *tdesc = "OSS Console Channel Driver";
-static char *config = "oss.conf";
+static const char type[] = "Console";
+static const char desc[] = "OSS Console Channel Driver";
+static const char tdesc[] = "OSS Console Channel Driver";
+static const char config[] = "oss.conf";
 
 static char context[AST_MAX_EXTENSION] = "default";
 static char language[MAX_LANGUAGE] = "";
@@ -115,6 +114,33 @@ static struct chan_oss_pvt {
 	char exten[AST_MAX_EXTENSION];
 	char context[AST_MAX_EXTENSION];
 } oss;
+
+static struct ast_channel *oss_request(const char *type, int format, void *data, int *cause);
+static int oss_digit(struct ast_channel *c, char digit);
+static int oss_text(struct ast_channel *c, char *text);
+static int oss_hangup(struct ast_channel *c);
+static int oss_answer(struct ast_channel *c);
+static struct ast_frame *oss_read(struct ast_channel *chan);
+static int oss_call(struct ast_channel *c, char *dest, int timeout);
+static int oss_write(struct ast_channel *chan, struct ast_frame *f);
+static int oss_indicate(struct ast_channel *chan, int cond);
+static int oss_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
+
+static const struct ast_channel_tech oss_tech = {
+	.type = type,
+	.description = tdesc,
+	.capabilities = AST_FORMAT_SLINEAR,
+	.requester = oss_request,
+	.send_digit = oss_digit,
+	.send_text = oss_text,
+	.hangup = oss_hangup,
+	.answer = oss_answer,
+	.read = oss_read,
+	.call = oss_call,
+	.write = oss_write,
+	.indicate = oss_indicate,
+	.fixup = oss_fixup,
+};
 
 static int time_has_passed(void)
 {
@@ -500,7 +526,7 @@ static int oss_hangup(struct ast_channel *c)
 {
 	int res = 0;
 	cursound = -1;
-	c->pvt->pvt = NULL;
+	c->tech_pvt = NULL;
 	oss.owner = NULL;
 	ast_verbose( " << Hangup on console >> \n");
 	ast_mutex_lock(&usecnt_lock);
@@ -676,7 +702,7 @@ static struct ast_frame *oss_read(struct ast_channel *chan)
 
 static int oss_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct chan_oss_pvt *p = newchan->pvt->pvt;
+	struct chan_oss_pvt *p = newchan->tech_pvt;
 	p->owner = newchan;
 	return 0;
 }
@@ -712,22 +738,14 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *p, int state)
 	struct ast_channel *tmp;
 	tmp = ast_channel_alloc(1);
 	if (tmp) {
+		tmp->tech = &oss_tech;
 		snprintf(tmp->name, sizeof(tmp->name), "OSS/%s", DEV_DSP + 5);
 		tmp->type = type;
 		tmp->fds[0] = sounddev;
 		tmp->nativeformats = AST_FORMAT_SLINEAR;
 		tmp->readformat = AST_FORMAT_SLINEAR;
 		tmp->writeformat = AST_FORMAT_SLINEAR;
-		tmp->pvt->pvt = p;
-		tmp->pvt->send_digit = oss_digit;
-		tmp->pvt->send_text = oss_text;
-		tmp->pvt->hangup = oss_hangup;
-		tmp->pvt->answer = oss_answer;
-		tmp->pvt->read = oss_read;
-		tmp->pvt->call = oss_call;
-		tmp->pvt->write = oss_write;
-		tmp->pvt->indicate = oss_indicate;
-		tmp->pvt->fixup = oss_fixup;
+		tmp->tech_pvt = p;
 		if (strlen(p->context))
 			strncpy(tmp->context, p->context, sizeof(tmp->context)-1);
 		if (strlen(p->exten))
@@ -1019,7 +1037,7 @@ int load_module()
 	}
 	if (!full_duplex)
 		ast_log(LOG_WARNING, "XXX I don't work right with non-full duplex sound cards XXX\n");
-	res = ast_channel_register(type, tdesc, AST_FORMAT_SLINEAR, oss_request);
+	res = ast_channel_register(&oss_tech);
 	if (res < 0) {
 		ast_log(LOG_ERROR, "Unable to register channel class '%s'\n", type);
 		return -1;
@@ -1056,6 +1074,8 @@ int load_module()
 int unload_module()
 {
 	int x;
+
+	ast_channel_unregister(&oss_tech);
 	for (x=0;x<sizeof(myclis)/sizeof(struct ast_cli_entry); x++)
 		ast_cli_unregister(myclis + x);
 	close(sounddev);
@@ -1072,7 +1092,7 @@ int unload_module()
 
 char *description()
 {
-	return desc;
+	return (char *) desc;
 }
 
 int usecount()

@@ -15,7 +15,6 @@
 #include <string.h>
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/config.h>
 #include <asterisk/logger.h>
 #include <asterisk/module.h>
@@ -97,7 +96,7 @@
 
 #define AST_LAW(p) (((p)->law == ZT_LAW_ALAW) ? AST_FORMAT_ALAW : AST_FORMAT_ULAW)
 
-static char *desc = "Zapata Telephony"
+static const char desc[] = "Zapata Telephony"
 #ifdef ZAPATA_PRI
                " w/PRI"
 #endif
@@ -106,7 +105,7 @@ static char *desc = "Zapata Telephony"
 #endif
 ;
 
-static char *tdesc = "Zapata Telephony Driver"
+static const char tdesc[] = "Zapata Telephony Driver"
 #ifdef ZAPATA_PRI
                " w/PRI"
 #endif
@@ -115,8 +114,8 @@ static char *tdesc = "Zapata Telephony Driver"
 #endif
 ;
 
-static char *type = "Zap";
-static char *config = "zapata.conf";
+static const char type[] = "Zap";
+static const char config[] = "zapata.conf";
 
 #define SIG_EM		ZT_SIG_EM
 #define SIG_EMWINK 	(0x100000 | ZT_SIG_EM)
@@ -614,6 +613,39 @@ static struct zt_pvt {
 	int polarity;
 } *iflist = NULL, *ifend = NULL;
 
+static struct ast_channel *zt_request(const char *type, int format, void *data, int *cause);
+static int zt_digit(struct ast_channel *ast, char digit);
+static int zt_sendtext(struct ast_channel *c, char *text);
+static int zt_call(struct ast_channel *ast, char *rdest, int timeout);
+static int zt_hangup(struct ast_channel *ast);
+static int zt_answer(struct ast_channel *ast);
+struct ast_frame *zt_read(struct ast_channel *ast);
+static int zt_write(struct ast_channel *ast, struct ast_frame *frame);
+static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
+struct ast_frame *zt_exception(struct ast_channel *ast);
+static int zt_indicate(struct ast_channel *chan, int condition);
+static int zt_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
+static int zt_setoption(struct ast_channel *chan, int option, void *data, int datalen);
+
+static const struct ast_channel_tech zap_tech = {
+	.type = type,
+	.description = tdesc,
+	.capabilities = AST_FORMAT_SLINEAR | AST_FORMAT_ULAW,
+	.requester = zt_request,
+	.send_digit = zt_digit,
+	.send_text = zt_sendtext,
+	.call = zt_call,
+	.hangup = zt_hangup,
+	.answer = zt_answer,
+	.read = zt_read,
+	.write = zt_write,
+	.bridge = zt_bridge,
+	.exception = zt_exception,
+	.indicate = zt_indicate,
+	.fixup = zt_fixup,
+	.setoption = zt_setoption,
+};
+
 #ifdef ZAPATA_PRI
 #define GET_CHANNEL(p) ((p)->bearer ? (p)->bearer->channel : p->channel)
 #else
@@ -908,7 +940,7 @@ static int zt_digit(struct ast_channel *ast, char digit)
 	struct zt_pvt *p;
 	int res = 0;
 	int index;
-	p = ast->pvt->pvt;
+	p = ast->tech_pvt;
 	ast_mutex_lock(&p->lock);
 	index = zt_get_index(ast, p, 0);
 	if ((index == SUB_REAL) && p->owner) {
@@ -1505,7 +1537,7 @@ static int send_callerid(struct zt_pvt *p)
 
 static int zt_callwait(struct ast_channel *ast)
 {
-	struct zt_pvt *p = ast->pvt->pvt;
+	struct zt_pvt *p = ast->tech_pvt;
 	p->callwaitingrepeat = CALLWAITING_REPEAT_SAMPLES;
 	if (p->cidspill) {
 		ast_log(LOG_WARNING, "Spill already exists?!?\n");
@@ -1536,7 +1568,7 @@ static int zt_callwait(struct ast_channel *ast)
 
 static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 {
-	struct zt_pvt *p = ast->pvt->pvt;
+	struct zt_pvt *p = ast->tech_pvt;
 	int x, res, index;
 	char *c, *n, *l;
 #ifdef ZAPATA_PRI
@@ -2026,14 +2058,14 @@ static int zt_hangup(struct ast_channel *ast)
 	int res;
 	int index,x, law;
 	/*static int restore_gains(struct zt_pvt *p);*/
-	struct zt_pvt *p = ast->pvt->pvt;
+	struct zt_pvt *p = ast->tech_pvt;
 	struct zt_pvt *tmp = NULL;
 	struct zt_pvt *prev = NULL;
 	ZT_PARAMS par;
 
 	if (option_debug)
 		ast_log(LOG_DEBUG, "zt_hangup(%s)\n", ast->name);
-	if (!ast->pvt->pvt) {
+	if (!ast->tech_pvt) {
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
 	}
@@ -2314,7 +2346,7 @@ static int zt_hangup(struct ast_channel *ast)
 
 	p->callwaitingrepeat = 0;
 	p->cidcwexpire = 0;
-	ast->pvt->pvt = NULL;
+	ast->tech_pvt = NULL;
 	ast_mutex_unlock(&p->lock);
 	ast_mutex_lock(&usecnt_lock);
 	usecnt--;
@@ -2345,7 +2377,7 @@ static int zt_hangup(struct ast_channel *ast)
 
 static int zt_answer(struct ast_channel *ast)
 {
-	struct zt_pvt *p = ast->pvt->pvt;
+	struct zt_pvt *p = ast->tech_pvt;
 	int res=0;
 	int index;
 	int oldstate = ast->_state;
@@ -2437,7 +2469,7 @@ static int zt_setoption(struct ast_channel *chan, int option, void *data, int da
 char	*cp;
 int	x;
 
-	struct zt_pvt *p = chan->pvt->pvt;
+	struct zt_pvt *p = chan->tech_pvt;
 
 	
 	if ((option != AST_OPTION_TONE_VERIFY) && (option != AST_OPTION_AUDIO_MODE) &&
@@ -2680,8 +2712,8 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	ast_mutex_lock(&c0->lock);
 	ast_mutex_lock(&c1->lock);
 
-	p0 = c0->pvt->pvt;
-	p1 = c1->pvt->pvt;
+	p0 = c0->tech_pvt;
+	p1 = c1->tech_pvt;
 	/* cant do pseudo-channels here */
 	if (!p0 || (!p0->sig) || !p1 || (!p1->sig)) {
 		ast_mutex_unlock(&c0->lock);
@@ -2689,8 +2721,8 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 		return -2;
 	}
 
-	op0 = p0 = c0->pvt->pvt;
-	op1 = p1 = c1->pvt->pvt;
+	op0 = p0 = c0->tech_pvt;
+	op1 = p1 = c1->tech_pvt;
 	ofd1 = c0->fds[0];
 	ofd2 = c1->fds[0];
 	oi1 = zt_get_index(c0, p0, 0);
@@ -2836,8 +2868,8 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 		   and then balking if anything is wrong */
 		ast_mutex_lock(&c0->lock);
 		ast_mutex_lock(&c1->lock);
-		p0 = c0->pvt->pvt;
-		p1 = c1->pvt->pvt;
+		p0 = c0->tech_pvt;
+		p1 = c1->tech_pvt;
 
 #ifdef PRI_2BCT
 		q931c0 = p0->call;
@@ -2880,14 +2912,14 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 			ast_log(LOG_DEBUG, "Ooh, empty read...\n");
 			continue;
 		}
-		if (who->pvt->pvt == op0) 
+		if (who->tech_pvt == op0) 
 			op0->ignoredtmf = 1;
-		else if (who->pvt->pvt == op1)
+		else if (who->tech_pvt == op1)
 			op1->ignoredtmf = 1;
 		f = ast_read(who);
-		if (who->pvt->pvt == op0) 
+		if (who->tech_pvt == op0) 
 			op0->ignoredtmf = 0;
-		else if (who->pvt->pvt == op1)
+		else if (who->tech_pvt == op1)
 			op1->ignoredtmf = 0;
 		if (!f) {
 			*fo = NULL;
@@ -2930,11 +2962,9 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	}
 }
 
-static int zt_indicate(struct ast_channel *chan, int condition);
-
 static int zt_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct zt_pvt *p = newchan->pvt->pvt;
+	struct zt_pvt *p = newchan->tech_pvt;
 	int x;
 	ast_mutex_lock(&p->lock);
 	ast_log(LOG_DEBUG, "New owner for channel %d is %s\n", p->channel, newchan->name);
@@ -3173,7 +3203,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 	int res,x;
 	int index;
 	char *c;
-	struct zt_pvt *p = ast->pvt->pvt;
+	struct zt_pvt *p = ast->tech_pvt;
 	pthread_t threadid;
 	pthread_attr_t attr;
 	struct ast_channel *chan;
@@ -3852,7 +3882,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 
 static struct ast_frame *__zt_exception(struct ast_channel *ast)
 {
-	struct zt_pvt *p = ast->pvt->pvt;
+	struct zt_pvt *p = ast->tech_pvt;
 	int res;
 	int usedindex=-1;
 	int index;
@@ -3957,7 +3987,7 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 
 struct ast_frame *zt_exception(struct ast_channel *ast)
 {
-	struct zt_pvt *p = ast->pvt->pvt;
+	struct zt_pvt *p = ast->tech_pvt;
 	struct ast_frame *f;
 	ast_mutex_lock(&p->lock);
 	f = __zt_exception(ast);
@@ -3967,7 +3997,7 @@ struct ast_frame *zt_exception(struct ast_channel *ast)
 
 struct ast_frame  *zt_read(struct ast_channel *ast)
 {
-	struct zt_pvt *p = ast->pvt->pvt;
+	struct zt_pvt *p = ast->tech_pvt;
 	int res;
 	int index;
 	void *readbuf;
@@ -4082,15 +4112,15 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		return &p->subs[index].f;
 	}	
 	
-	if (ast->pvt->rawreadformat == AST_FORMAT_SLINEAR) {
+	if (ast->rawreadformat == AST_FORMAT_SLINEAR) {
 		if (!p->subs[index].linear) {
 			p->subs[index].linear = 1;
 			res = zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
 			if (res) 
 				ast_log(LOG_WARNING, "Unable to set channel %d (index %d) to linear mode.\n", p->channel, index);
 		}
-	} else if ((ast->pvt->rawreadformat == AST_FORMAT_ULAW) ||
-		   (ast->pvt->rawreadformat == AST_FORMAT_ALAW)) {
+	} else if ((ast->rawreadformat == AST_FORMAT_ULAW) ||
+		   (ast->rawreadformat == AST_FORMAT_ALAW)) {
 		if (p->subs[index].linear) {
 			p->subs[index].linear = 0;
 			res = zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
@@ -4098,7 +4128,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 				ast_log(LOG_WARNING, "Unable to set channel %d (index %d) to campanded mode.\n", p->channel, index);
 		}
 	} else {
-		ast_log(LOG_WARNING, "Don't know how to read frames in format %s\n", ast_getformatname(ast->pvt->rawreadformat));
+		ast_log(LOG_WARNING, "Don't know how to read frames in format %s\n", ast_getformatname(ast->rawreadformat));
 		ast_mutex_unlock(&p->lock);
 		return NULL;
 	}
@@ -4175,7 +4205,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	}
 
 	p->subs[index].f.frametype = AST_FRAME_VOICE;
-	p->subs[index].f.subclass = ast->pvt->rawreadformat;
+	p->subs[index].f.subclass = ast->rawreadformat;
 	p->subs[index].f.samples = READ_SIZE;
 	p->subs[index].f.mallocd = 0;
 	p->subs[index].f.offset = AST_FRIENDLY_OFFSET;
@@ -4313,7 +4343,7 @@ static int my_zt_write(struct zt_pvt *p, unsigned char *buf, int len, int index,
 
 static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 {
-	struct zt_pvt *p = ast->pvt->pvt;
+	struct zt_pvt *p = ast->tech_pvt;
 	int res;
 	unsigned char outbuf[4096];
 	int index;
@@ -4399,7 +4429,7 @@ static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 
 static int zt_indicate(struct ast_channel *chan, int condition)
 {
-	struct zt_pvt *p = chan->pvt->pvt;
+	struct zt_pvt *p = chan->tech_pvt;
 	int res=-1;
 	int index;
 	int func = ZT_FLASH;
@@ -4606,6 +4636,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	}
 	tmp = ast_channel_alloc(0);
 	if (tmp) {
+		tmp->tech = &zap_tech;
 		ps.channo = i->channel;
 		res = ioctl(i->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &ps);
 		if (res) {
@@ -4643,9 +4674,9 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		tmp->fds[0] = i->subs[index].zfd;
 		tmp->nativeformats = AST_FORMAT_SLINEAR | deflaw;
 		/* Start out assuming ulaw since it's smaller :) */
-		tmp->pvt->rawreadformat = deflaw;
+		tmp->rawreadformat = deflaw;
 		tmp->readformat = deflaw;
-		tmp->pvt->rawwriteformat = deflaw;
+		tmp->rawwriteformat = deflaw;
 		tmp->writeformat = deflaw;
 		i->subs[index].linear = 0;
 		zt_setlinear(i->subs[index].zfd, i->subs[index].linear);
@@ -4689,19 +4720,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
-		tmp->pvt->pvt = i;
-		tmp->pvt->send_digit = zt_digit;
-		tmp->pvt->send_text = zt_sendtext;
-		tmp->pvt->call = zt_call;
-		tmp->pvt->hangup = zt_hangup;
-		tmp->pvt->answer = zt_answer;
-		tmp->pvt->read = zt_read;
-		tmp->pvt->write = zt_write;
-		tmp->pvt->bridge = zt_bridge;
-		tmp->pvt->exception = zt_exception;
-		tmp->pvt->indicate = zt_indicate;
-		tmp->pvt->fixup = zt_fixup;
-		tmp->pvt->setoption = zt_setoption;
+		tmp->tech_pvt = i;
 		if ((i->sig == SIG_FXOKS) || (i->sig == SIG_FXOGS) || (i->sig == SIG_FXOLS)) {
 			/* Only FXO signalled stuff can be picked up */
 			tmp->callgroup = i->callgroup;
@@ -4828,7 +4847,7 @@ static int zt_wink(struct zt_pvt *p, int index)
 static void *ss_thread(void *data)
 {
 	struct ast_channel *chan = data;
-	struct zt_pvt *p = chan->pvt->pvt;
+	struct zt_pvt *p = chan->tech_pvt;
 	char exten[AST_MAX_EXTENSION]="";
 	char exten2[AST_MAX_EXTENSION]="";
 	unsigned char buf[256];
@@ -5310,7 +5329,7 @@ static void *ss_thread(void *data)
 				struct zt_pvt *pbridge = NULL;
 				  /* set up the private struct of the bridged one, if any */
 				if (nbridge && ast_bridged_channel(nbridge)) 
-					pbridge = ast_bridged_channel(nbridge)->pvt->pvt;
+					pbridge = ast_bridged_channel(nbridge)->tech_pvt;
 				if (nbridge && pbridge && 
 				    (!strcmp(nbridge->type,"Zap")) && 
 					(!strcmp(ast_bridged_channel(nbridge)->type, "Zap")) &&
@@ -7286,7 +7305,7 @@ static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 				if (pri->pvts[principle]->owner) {
 					snprintf(pri->pvts[principle]->owner->name, sizeof(pri->pvts[principle]->owner->name), 
 						"Zap/%d:%d-%d", pri->trunkgroup, pri->pvts[principle]->channel, 1);
-					pri->pvts[principle]->owner->pvt->pvt = pri->pvts[principle];
+					pri->pvts[principle]->owner->tech_pvt = pri->pvts[principle];
 					pri->pvts[principle]->owner->fds[0] = pri->pvts[principle]->subs[SUB_REAL].zfd;
 					pri->pvts[principle]->subs[SUB_REAL].owner = pri->pvts[x]->subs[SUB_REAL].owner;
 				} else
@@ -7331,7 +7350,7 @@ static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 static void *do_idle_thread(void *vchan)
 {
 	struct ast_channel *chan = vchan;
-	struct zt_pvt *pvt = chan->pvt->pvt;
+	struct zt_pvt *pvt = chan->tech_pvt;
 	struct ast_frame *f;
 	char ex[80];
 	/* Wait up to 30 seconds for an answer */
@@ -9291,7 +9310,7 @@ static int __unload_module(void)
 	ast_manager_unregister( "ZapDNDon" );
 	ast_manager_unregister("ZapShowChannels");
 	ast_unregister_application(app_callingpres);
-	ast_channel_unregister(type);
+	ast_channel_unregister(&zap_tech);
 	if (!ast_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = iflist;
@@ -10134,7 +10153,7 @@ int load_module(void)
 	if(res) {
 	  return -1;
 	}
-	if (ast_channel_register(type, tdesc, AST_FORMAT_SLINEAR |  AST_FORMAT_ULAW, zt_request)) {
+	if (ast_channel_register(&zap_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
 		__unload_module();
 		return -1;
@@ -10175,7 +10194,7 @@ static int zt_sendtext(struct ast_channel *c, char *text)
 #define	ASCII_BYTES_PER_CHAR 80
 
 	unsigned char *buf,*mybuf;
-	struct zt_pvt *p = c->pvt->pvt;
+	struct zt_pvt *p = c->tech_pvt;
 	struct pollfd fds[1];
 	int size,res,fd,len,x;
 	int bytes=0;
@@ -10289,7 +10308,7 @@ int usecount()
 
 char *description()
 {
-	return desc;
+	return (char *) desc;
 }
 
 char *key()

@@ -15,7 +15,6 @@
 #include <string.h>
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/config.h>
 #include <asterisk/logger.h>
 #include <asterisk/module.h>
@@ -42,11 +41,9 @@
 #include <sys/signal.h>
 
 
-static char *desc = "Feature Proxy Channel";
-static char *type = "Feature";
-static char *tdesc = "Feature Proxy Channel Driver";
-
-static int capability = -1;
+static const char desc[] = "Feature Proxy Channel";
+static const char type[] = "Feature";
+static const char tdesc[] = "Feature Proxy Channel Driver";
 
 static int usecnt =0;
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
@@ -77,6 +74,32 @@ static struct feature_pvt {
 #define SUB_REAL		0			/* Active call */
 #define SUB_CALLWAIT	1			/* Call-Waiting call on hold */
 #define SUB_THREEWAY	2			/* Three-way call */
+
+static struct ast_channel *features_request(const char *type, int format, void *data, int *cause);
+static int features_digit(struct ast_channel *ast, char digit);
+static int features_call(struct ast_channel *ast, char *dest, int timeout);
+static int features_hangup(struct ast_channel *ast);
+static int features_answer(struct ast_channel *ast);
+static struct ast_frame *features_read(struct ast_channel *ast);
+static int features_write(struct ast_channel *ast, struct ast_frame *f);
+static int features_indicate(struct ast_channel *ast, int condition);
+static int features_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
+
+static const struct ast_channel_tech features_tech = {
+	.type = type,
+	.description = tdesc,
+	.capabilities = -1,
+	.requester = features_request,
+	.send_digit = features_digit,
+	.call = features_call,
+	.hangup = features_hangup,
+	.answer = features_answer,
+	.read = features_read,
+	.write = features_write,
+	.exception = features_read,
+	.indicate = features_indicate,
+	.fixup = features_fixup,
+};
 
 static inline void init_sub(struct feature_sub *sub)
 {
@@ -123,8 +146,8 @@ static void restore_channel(struct feature_pvt *p, int index)
 {
 	/* Restore timing/alertpipe */
 	p->subs[index].owner->timingfd = p->subs[index].timingfdbackup;
-	p->subs[index].owner->pvt->alertpipe[0] = p->subs[index].alertpipebackup[0];
-	p->subs[index].owner->pvt->alertpipe[1] = p->subs[index].alertpipebackup[1];
+	p->subs[index].owner->alertpipe[0] = p->subs[index].alertpipebackup[0];
+	p->subs[index].owner->alertpipe[1] = p->subs[index].alertpipebackup[1];
 	p->subs[index].owner->fds[AST_MAX_FDS-1] = p->subs[index].alertpipebackup[0];
 	p->subs[index].owner->fds[AST_MAX_FDS-2] = p->subs[index].timingfdbackup;
 }
@@ -142,8 +165,8 @@ static void update_features(struct feature_pvt *p, int index)
 		if (!index) {
 			/* Copy timings from master channel */
 			p->subs[index].owner->timingfd = p->subchan->timingfd;
-			p->subs[index].owner->pvt->alertpipe[0] = p->subchan->pvt->alertpipe[0];
-			p->subs[index].owner->pvt->alertpipe[1] = p->subchan->pvt->alertpipe[1];
+			p->subs[index].owner->alertpipe[0] = p->subchan->alertpipe[0];
+			p->subs[index].owner->alertpipe[1] = p->subchan->alertpipe[1];
 			if (p->subs[index].owner->nativeformats != p->subchan->readformat) {
 				p->subs[index].owner->nativeformats = p->subchan->readformat;
 				if (p->subs[index].owner->readformat)
@@ -180,7 +203,7 @@ static void swap_subs(struct feature_pvt *p, int a, int b)
 
 static int features_answer(struct ast_channel *ast)
 {
-	struct feature_pvt *p = ast->pvt->pvt;
+	struct feature_pvt *p = ast->tech_pvt;
 	int res = -1;
 	int x;
 	ast_mutex_lock(&p->lock);
@@ -194,7 +217,7 @@ static int features_answer(struct ast_channel *ast)
 static struct ast_frame  *features_read(struct ast_channel *ast)
 {
 	static struct ast_frame null_frame = { AST_FRAME_NULL, };
-	struct feature_pvt *p = ast->pvt->pvt;
+	struct feature_pvt *p = ast->tech_pvt;
 	struct ast_frame *f;
 	int x;
 	
@@ -211,7 +234,7 @@ static struct ast_frame  *features_read(struct ast_channel *ast)
 
 static int features_write(struct ast_channel *ast, struct ast_frame *f)
 {
-	struct feature_pvt *p = ast->pvt->pvt;
+	struct feature_pvt *p = ast->tech_pvt;
 	int res = -1;
 	int x;
 	ast_mutex_lock(&p->lock);
@@ -224,7 +247,7 @@ static int features_write(struct ast_channel *ast, struct ast_frame *f)
 
 static int features_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct feature_pvt *p = newchan->pvt->pvt;
+	struct feature_pvt *p = newchan->tech_pvt;
 	int x;
 	ast_mutex_lock(&p->lock);
 	if (p->owner == oldchan)
@@ -239,7 +262,7 @@ static int features_fixup(struct ast_channel *oldchan, struct ast_channel *newch
 
 static int features_indicate(struct ast_channel *ast, int condition)
 {
-	struct feature_pvt *p = ast->pvt->pvt;
+	struct feature_pvt *p = ast->tech_pvt;
 	int res = -1;
 	int x;
 	/* Queue up a frame representing the indication as a control frame */
@@ -253,7 +276,7 @@ static int features_indicate(struct ast_channel *ast, int condition)
 
 static int features_digit(struct ast_channel *ast, char digit)
 {
-	struct feature_pvt *p = ast->pvt->pvt;
+	struct feature_pvt *p = ast->tech_pvt;
 	int res = -1;
 	int x;
 	/* Queue up a frame representing the indication as a control frame */
@@ -267,7 +290,7 @@ static int features_digit(struct ast_channel *ast, char digit)
 
 static int features_call(struct ast_channel *ast, char *dest, int timeout)
 {
-	struct feature_pvt *p = ast->pvt->pvt;
+	struct feature_pvt *p = ast->tech_pvt;
 	int res = -1;
 	int x;
 	char *dest2;
@@ -311,7 +334,7 @@ static int features_call(struct ast_channel *ast, char *dest, int timeout)
 
 static int features_hangup(struct ast_channel *ast)
 {
-	struct feature_pvt *p = ast->pvt->pvt;
+	struct feature_pvt *p = ast->tech_pvt;
 	struct feature_pvt *cur, *prev=NULL;
 	int x;
 
@@ -322,7 +345,7 @@ static int features_hangup(struct ast_channel *ast)
 		p->subs[x].owner = NULL;
 		/* XXX Re-arrange, unconference, etc XXX */
 	}
-	ast->pvt->pvt = NULL;
+	ast->tech_pvt = NULL;
 	
 	
 	if (!p->subs[SUB_REAL].owner && !p->subs[SUB_CALLWAIT].owner && !p->subs[SUB_THREEWAY].owner) {
@@ -425,6 +448,7 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 	if (!tmp)
 		return NULL;
 	if (tmp) {
+		tmp->tech = &features_tech;
 		for (x=1;x<4;x++) {
 			snprintf(tmp->name, sizeof(tmp->name), "Feature/%s/%s-%d", p->tech, p->dest, x);
 			for (y=0;y<3;y++) {
@@ -438,21 +462,12 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 		}
 		tmp->type = type;
 		ast_setstate(tmp, state);
-		tmp->writeformat = p->subchan->writeformat;;
-		tmp->pvt->rawwriteformat = p->subchan->pvt->rawwriteformat;
+		tmp->writeformat = p->subchan->writeformat;
+		tmp->rawwriteformat = p->subchan->rawwriteformat;
 		tmp->readformat = p->subchan->readformat;
-		tmp->pvt->rawreadformat = p->subchan->pvt->rawreadformat;
+		tmp->rawreadformat = p->subchan->rawreadformat;
 		tmp->nativeformats = p->subchan->readformat;
-		tmp->pvt->pvt = p;
-		tmp->pvt->send_digit = features_digit;
-		tmp->pvt->call = features_call;
-		tmp->pvt->hangup = features_hangup;
-		tmp->pvt->answer = features_answer;
-		tmp->pvt->read = features_read;
-		tmp->pvt->write = features_write;
-		tmp->pvt->exception = features_read;
-		tmp->pvt->indicate = features_indicate;
-		tmp->pvt->fixup = features_fixup;
+		tmp->tech_pvt = p;
 		p->subs[index].owner = tmp;
 		if (!p->owner)
 			p->owner = tmp;
@@ -509,7 +524,7 @@ static struct ast_cli_entry cli_show_features = {
 int load_module()
 {
 	/* Make sure we can register our sip channel type */
-	if (ast_channel_register(type, tdesc, capability, features_request)) {
+	if (ast_channel_register(&features_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
 		return -1;
 	}
@@ -527,7 +542,7 @@ int unload_module()
 	struct feature_pvt *p;
 	/* First, take us out of the channel loop */
 	ast_cli_unregister(&cli_show_features);
-	ast_channel_unregister(type);
+	ast_channel_unregister(&features_tech);
 	if (!ast_mutex_lock(&featurelock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = features;
@@ -561,6 +576,6 @@ char *key()
 
 char *description()
 {
-	return desc;
+	return (char *) desc;
 }
 

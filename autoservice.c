@@ -24,7 +24,6 @@
 #include <asterisk/sched.h>
 #include <asterisk/options.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/logger.h>
 #include <asterisk/file.h>
 #include <asterisk/translate.h>

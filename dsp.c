@@ -31,7 +31,6 @@
 #include <sys/types.h>
 #include <asterisk/frame.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/logger.h>
 #include <asterisk/dsp.h>
 #include <asterisk/ulaw.h>

@@ -18,7 +18,6 @@
 #include <string.h>
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/config.h>
 #include <asterisk/logger.h>
 #include <asterisk/module.h>
@@ -56,10 +55,10 @@
 /************************************************************************************/
 /*                         Skinny/Asterisk Protocol Settings                        */
 /************************************************************************************/
-static char *desc = "Skinny Client Control Protocol (Skinny)";
-static char *tdesc = "Skinny Client Control Protocol (Skinny)";
-static char *type = "Skinny";
-static char *config = "skinny.conf";
+static const char desc[] = "Skinny Client Control Protocol (Skinny)";
+static const char tdesc[] = "Skinny Client Control Protocol (Skinny)";
+static const char type[] = "Skinny";
+static const char config[] = "skinny.conf";
 
 /* Just about everybody seems to support ulaw, so make it a nice default */
 static int capability = AST_FORMAT_ULAW;
@@ -796,6 +795,32 @@ static struct skinnysession {
 	struct skinnysession *next;
 } *sessions = NULL;
 
+static struct ast_channel *skinny_request(const char *type, int format, void *data, int *cause);
+static int skinny_call(struct ast_channel *ast, char *dest, int timeout);
+static int skinny_hangup(struct ast_channel *ast);
+static int skinny_answer(struct ast_channel *ast);
+static struct ast_frame *skinny_read(struct ast_channel *ast);
+static int skinny_write(struct ast_channel *ast, struct ast_frame *frame);
+static int skinny_indicate(struct ast_channel *ast, int ind);
+static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
+static int skinny_senddigit(struct ast_channel *ast, char digit);
+
+static const struct ast_channel_tech skinny_tech = {
+	.type = type,
+	.description = tdesc,
+	.capabilities = AST_FORMAT_ULAW,
+	.requester = skinny_request,
+	.call = skinny_call,
+	.hangup = skinny_hangup,
+	.answer = skinny_answer,
+	.read = skinny_read,
+	.write = skinny_write,
+	.indicate = skinny_indicate,
+	.fixup = skinny_fixup,
+	.send_digit = skinny_senddigit,
+/*	.bridge = ast_rtp_bridge, */
+};
+
 static skinny_req *req_alloc(size_t size)
 {
 	skinny_req *req;
@@ -1103,7 +1128,7 @@ static struct ast_rtp *skinny_get_vrtp_peer(struct ast_channel *chan)
 static struct ast_rtp *skinny_get_rtp_peer(struct ast_channel *chan)
 {
 	struct skinny_subchannel *sub;
-	sub = chan->pvt->pvt;
+	sub = chan->tech_pvt;
 	if (sub && sub->rtp)
 		return sub->rtp;
 	return NULL;
@@ -1112,7 +1137,7 @@ static struct ast_rtp *skinny_get_rtp_peer(struct ast_channel *chan)
 static int skinny_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs)
 {
 	struct skinny_subchannel *sub;
-	sub = chan->pvt->pvt;
+	sub = chan->tech_pvt;
 	if (sub) {
 		/* transmit_modify_with_sdp(sub, rtp); @@FIXME@@ if needed */
 		return 0;
@@ -1121,9 +1146,10 @@ static int skinny_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, st
 }
 
 static struct ast_rtp_protocol skinny_rtp = {
-	get_rtp_info: skinny_get_rtp_peer,
-	get_vrtp_info: skinny_get_vrtp_peer,
-	set_rtp_peer: skinny_set_rtp_peer,
+	.type = type,
+	.get_rtp_info = skinny_get_rtp_peer,
+	.get_vrtp_info =  skinny_get_vrtp_peer,
+	.set_rtp_peer = skinny_set_rtp_peer,
 };
 
 static int skinny_do_debug(int fd, int argc, char *argv[])
@@ -1403,7 +1429,7 @@ static void start_rtp(struct skinny_subchannel *sub)
 static void *skinny_ss(void *data)
 {
 	struct ast_channel *chan = data;
-	struct skinny_subchannel *sub = chan->pvt->pvt;
+	struct skinny_subchannel *sub = chan->tech_pvt;
 	struct skinny_line *l = sub->parent;
 	struct skinnysession *s = l->parent->session;
 	char exten[AST_MAX_EXTENSION] = "";
@@ -1627,7 +1653,7 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
         struct skinny_subchannel *sub;
 	struct skinnysession *session;
 	
-	sub = ast->pvt->pvt;
+	sub = ast->tech_pvt;
         l = sub->parent;
 	session = l->parent->session;
 
@@ -1736,14 +1762,14 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 
 static int skinny_hangup(struct ast_channel *ast)
 {
-    struct skinny_subchannel *sub = ast->pvt->pvt;
+    struct skinny_subchannel *sub = ast->tech_pvt;
     struct skinny_line *l = sub->parent;
     struct skinnysession *s = l->parent->session;
 
     if (skinnydebug) {
         ast_verbose("skinny_hangup(%s) on %s@%s\n", ast->name, l->name, l->parent->name);
     }
-    if (!ast->pvt->pvt) {
+    if (!ast->tech_pvt) {
         ast_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
         return 0;
     }
@@ -1765,7 +1791,7 @@ static int skinny_hangup(struct ast_channel *ast)
     }
     ast_mutex_lock(&sub->lock);
     sub->owner = NULL;
-    ast->pvt->pvt = NULL;
+    ast->tech_pvt = NULL;
     sub->alreadygone = 0;
     sub->outgoing = 0;
     if (sub->rtp) {
@@ -1779,7 +1805,7 @@ static int skinny_hangup(struct ast_channel *ast)
 static int skinny_answer(struct ast_channel *ast)
 {
     int res = 0;
-    struct skinny_subchannel *sub = ast->pvt->pvt;
+    struct skinny_subchannel *sub = ast->tech_pvt;
     struct skinny_line *l = sub->parent;
     sub->cxmode = SKINNY_CX_SENDRECV;
     if (!sub->rtp) {
@@ -1814,7 +1840,7 @@ static struct ast_frame *skinny_rtp_read(struct skinny_subchannel *sub)
 static struct ast_frame  *skinny_read(struct ast_channel *ast)
 {
 	struct ast_frame *fr;
-	struct skinny_subchannel *sub = ast->pvt->pvt;
+	struct skinny_subchannel *sub = ast->tech_pvt;
 	ast_mutex_lock(&sub->lock);
 	fr = skinny_rtp_read(sub);
 	ast_mutex_unlock(&sub->lock);
@@ -1823,7 +1849,7 @@ static struct ast_frame  *skinny_read(struct ast_channel *ast)
 
 static int skinny_write(struct ast_channel *ast, struct ast_frame *frame)
 {
-	struct skinny_subchannel *sub = ast->pvt->pvt;
+	struct skinny_subchannel *sub = ast->tech_pvt;
 	int res = 0;
 	if (frame->frametype != AST_FRAME_VOICE) {
 		if (frame->frametype == AST_FRAME_IMAGE)
@@ -1851,7 +1877,7 @@ static int skinny_write(struct ast_channel *ast, struct ast_frame *frame)
 
 static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct skinny_subchannel *sub = newchan->pvt->pvt;
+	struct skinny_subchannel *sub = newchan->tech_pvt;
     	ast_log(LOG_NOTICE, "skinny_fixup(%s, %s)\n", oldchan->name, newchan->name);
 	if (sub->owner != oldchan) {
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, sub->owner);
@@ -1864,7 +1890,7 @@ static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan
 static int skinny_senddigit(struct ast_channel *ast, char digit)
 {
 #if 0
-	struct skinny_subchannel *sub = ast->pvt->pvt;
+	struct skinny_subchannel *sub = ast->tech_pvt;
 	int tmp;
 	/* not right */
 	sprintf(tmp, "%d", digit);  
@@ -1910,7 +1936,7 @@ static char *control2str(int ind) {
 
 static int skinny_indicate(struct ast_channel *ast, int ind)
 {
-	struct skinny_subchannel *sub = ast->pvt->pvt;
+	struct skinny_subchannel *sub = ast->tech_pvt;
 	struct skinny_line *l = sub->parent;
 	struct skinnysession *s = l->parent->session;
 
@@ -1973,6 +1999,7 @@ static struct ast_channel *skinny_new(struct skinny_subchannel *sub, int state)
 	l = sub->parent;
 	tmp = ast_channel_alloc(1);
 	if (tmp) {
+		tmp->tech = &skinny_tech;
 		tmp->nativeformats = l->capability;
 		if (!tmp->nativeformats)
 			tmp->nativeformats = capability;
@@ -1985,19 +2012,10 @@ static struct ast_channel *skinny_new(struct skinny_subchannel *sub, int state)
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
 		tmp->writeformat = fmt;
-		tmp->pvt->rawwriteformat = fmt;
+		tmp->rawwriteformat = fmt;
 		tmp->readformat = fmt;
-		tmp->pvt->rawreadformat = fmt;
-		tmp->pvt->pvt = sub;
-		tmp->pvt->call = skinny_call;
-		tmp->pvt->hangup = skinny_hangup;
-		tmp->pvt->answer = skinny_answer;
-		tmp->pvt->read = skinny_read;
-		tmp->pvt->write = skinny_write;
-		tmp->pvt->indicate = skinny_indicate;
-		tmp->pvt->fixup = skinny_fixup;
-		tmp->pvt->send_digit = skinny_senddigit;
-/*		tmp->pvt->bridge = ast_rtp_bridge; */
+		tmp->rawreadformat = fmt;
+		tmp->tech_pvt = sub;
 		if (!ast_strlen_zero(l->language))
 			strncpy(tmp->language, l->language, sizeof(tmp->language)-1);
 		if (!ast_strlen_zero(l->accountcode))
@@ -3019,12 +3037,11 @@ int load_module()
 	/* Announce our presence to Asterisk */	
 	if (!res) {
 		/* Make sure we can register our skinny channel type */
-		if (ast_channel_register(type, tdesc, capability, skinny_request)) {
+		if (ast_channel_register(&skinny_tech)) {
 			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
 			return -1;
 		}
 	}
-	skinny_rtp.type = type;
 	ast_rtp_proto_register(&skinny_rtp);
 	ast_cli_register(&cli_show_lines);
 	ast_cli_register(&cli_debug);
@@ -3088,6 +3105,7 @@ int unload_module()
 	}
 
         ast_rtp_proto_register(&skinny_rtp);
+	ast_channel_unregister(&skinny_tech);
         ast_cli_register(&cli_show_lines);
         ast_cli_register(&cli_debug);
         ast_cli_register(&cli_no_debug);
@@ -3113,5 +3131,5 @@ char *key()
 
 char *description()
 {
-	return desc;
+	return (char *) desc;
 }

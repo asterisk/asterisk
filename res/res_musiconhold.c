@@ -21,7 +21,6 @@
 #include <asterisk/module.h>
 #include <asterisk/translate.h>
 #include <asterisk/say.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/config.h>
 #include <asterisk/utils.h>

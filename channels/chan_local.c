@@ -15,7 +15,6 @@
 #include <string.h>
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/config.h>
 #include <asterisk/logger.h>
 #include <asterisk/module.h>
@@ -41,11 +40,9 @@
 #include <arpa/inet.h>
 #include <sys/signal.h>
 
-static char *desc = "Local Proxy Channel";
-static char *type = "Local";
-static char *tdesc = "Local Proxy Channel Driver";
-
-static int capability = -1;
+static const char desc[] = "Local Proxy Channel";
+static const char type[] = "Local";
+static const char tdesc[] = "Local Proxy Channel Driver";
 
 static int usecnt =0;
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
@@ -54,6 +51,34 @@ AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 /* Protect the interface list (of sip_pvt's) */
 AST_MUTEX_DEFINE_STATIC(locallock);
+
+static struct ast_channel *local_request(const char *type, int format, void *data, int *cause);
+static int local_digit(struct ast_channel *ast, char digit);
+static int local_call(struct ast_channel *ast, char *dest, int timeout);
+static int local_hangup(struct ast_channel *ast);
+static int local_answer(struct ast_channel *ast);
+static struct ast_frame *local_read(struct ast_channel *ast);
+static int local_write(struct ast_channel *ast, struct ast_frame *f);
+static int local_indicate(struct ast_channel *ast, int condition);
+static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
+static int local_sendhtml(struct ast_channel *ast, int subclass, char *data, int datalen);
+
+static const struct ast_channel_tech local_tech = {
+	.type = type,
+	.description = tdesc,
+	.capabilities = -1,
+	.requester = local_request,
+	.send_digit = local_digit,
+	.call = local_call,
+	.hangup = local_hangup,
+	.answer = local_answer,
+	.read = local_read,
+	.write = local_write,
+	.exception = local_read,
+	.indicate = local_indicate,
+	.fixup = local_fixup,
+	.send_html = local_sendhtml,
+};
 
 static struct local_pvt {
 	ast_mutex_t lock;				/* Channel private lock */
@@ -120,7 +145,7 @@ retrylock:
 
 static int local_answer(struct ast_channel *ast)
 {
-	struct local_pvt *p = ast->pvt->pvt;
+	struct local_pvt *p = ast->tech_pvt;
 	int isoutbound;
 	int res = -1;
 	ast_mutex_lock(&p->lock);
@@ -139,7 +164,7 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 {
 	if (p->alreadymasqed || p->nooptimization)
 		return;
-	if (isoutbound && p->chan && p->chan->_bridge /* Not ast_bridged_channel!  Only go one step! */ && p->owner && !p->owner->pvt->readq) {
+	if (isoutbound && p->chan && p->chan->_bridge /* Not ast_bridged_channel!  Only go one step! */ && p->owner && !p->owner->readq) {
 		/* Masquerade bridged channel into owner */
 		/* Lock everything we need, one by one, and give up if
 		   we can't get everything.  Remember, we'll get another
@@ -152,7 +177,7 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 			}
 			ast_mutex_unlock(&(p->chan->_bridge)->lock);
 		}
-	} else if (!isoutbound && p->owner && p->owner->_bridge && p->chan && !p->chan->pvt->readq) {
+	} else if (!isoutbound && p->owner && p->owner->_bridge && p->chan && !p->chan->readq) {
 		/* Masquerade bridged channel into chan */
 		if (!ast_mutex_trylock(&(p->owner->_bridge)->lock)) {
 			if (!ast_mutex_trylock(&p->chan->lock)) {
@@ -173,7 +198,7 @@ static struct ast_frame  *local_read(struct ast_channel *ast)
 
 static int local_write(struct ast_channel *ast, struct ast_frame *f)
 {
-	struct local_pvt *p = ast->pvt->pvt;
+	struct local_pvt *p = ast->tech_pvt;
 	int res = -1;
 	int isoutbound;
 
@@ -189,7 +214,7 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f)
 
 static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct local_pvt *p = newchan->pvt->pvt;
+	struct local_pvt *p = newchan->tech_pvt;
 	ast_mutex_lock(&p->lock);
 	if ((p->owner != oldchan) && (p->chan != oldchan)) {
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p/%p\n", oldchan, p->owner, p->chan);
@@ -206,7 +231,7 @@ static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 
 static int local_indicate(struct ast_channel *ast, int condition)
 {
-	struct local_pvt *p = ast->pvt->pvt;
+	struct local_pvt *p = ast->tech_pvt;
 	int res = -1;
 	struct ast_frame f = { AST_FRAME_CONTROL, };
 	int isoutbound;
@@ -221,7 +246,7 @@ static int local_indicate(struct ast_channel *ast, int condition)
 
 static int local_digit(struct ast_channel *ast, char digit)
 {
-	struct local_pvt *p = ast->pvt->pvt;
+	struct local_pvt *p = ast->tech_pvt;
 	int res = -1;
 	struct ast_frame f = { AST_FRAME_DTMF, };
 	int isoutbound;
@@ -235,7 +260,7 @@ static int local_digit(struct ast_channel *ast, char digit)
 
 static int local_sendhtml(struct ast_channel *ast, int subclass, char *data, int datalen)
 {
-	struct local_pvt *p = ast->pvt->pvt;
+	struct local_pvt *p = ast->tech_pvt;
 	int res = -1;
 	struct ast_frame f = { AST_FRAME_HTML, };
 	int isoutbound;
@@ -251,7 +276,7 @@ static int local_sendhtml(struct ast_channel *ast, int subclass, char *data, int
 
 static int local_call(struct ast_channel *ast, char *dest, int timeout)
 {
-	struct local_pvt *p = ast->pvt->pvt;
+	struct local_pvt *p = ast->tech_pvt;
 	int res;
 	
 	ast_mutex_lock(&p->lock);
@@ -313,7 +338,7 @@ static void local_destroy(struct local_pvt *p)
 
 static int local_hangup(struct ast_channel *ast)
 {
-	struct local_pvt *p = ast->pvt->pvt;
+	struct local_pvt *p = ast->tech_pvt;
 	int isoutbound;
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
 	struct local_pvt *cur, *prev=NULL;
@@ -326,7 +351,7 @@ static int local_hangup(struct ast_channel *ast)
 		p->launchedpbx = 0;
 	} else
 		p->owner = NULL;
-	ast->pvt->pvt = NULL;
+	ast->tech_pvt = NULL;
 	
 	ast_mutex_lock(&usecnt_lock);
 	usecnt--;
@@ -432,6 +457,7 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 		tmp = NULL;
 	}
 	if (tmp) {
+		tmp2->tech = tmp->tech = &local_tech;
 		tmp->nativeformats = p->reqformat;
 		tmp2->nativeformats = p->reqformat;
 		snprintf(tmp->name, sizeof(tmp->name), "Local/%s@%s-%04x,1", p->exten, p->context, randnum);
@@ -442,34 +468,14 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 		ast_setstate(tmp2, AST_STATE_RING);
 		tmp->writeformat = p->reqformat;;
 		tmp2->writeformat = p->reqformat;
-		tmp->pvt->rawwriteformat = p->reqformat;
-		tmp2->pvt->rawwriteformat = p->reqformat;
+		tmp->rawwriteformat = p->reqformat;
+		tmp2->rawwriteformat = p->reqformat;
 		tmp->readformat = p->reqformat;
 		tmp2->readformat = p->reqformat;
-		tmp->pvt->rawreadformat = p->reqformat;
-		tmp2->pvt->rawreadformat = p->reqformat;
-		tmp->pvt->pvt = p;
-		tmp2->pvt->pvt = p;
-		tmp->pvt->send_digit = local_digit;
-		tmp2->pvt->send_digit = local_digit;
-		tmp->pvt->send_html = local_sendhtml;
-		tmp2->pvt->send_html = local_sendhtml;
-		tmp->pvt->call = local_call;
-		tmp2->pvt->call = local_call;
-		tmp->pvt->hangup = local_hangup;
-		tmp2->pvt->hangup = local_hangup;
-		tmp->pvt->answer = local_answer;
-		tmp2->pvt->answer = local_answer;
-		tmp->pvt->read = local_read;
-		tmp2->pvt->read = local_read;
-		tmp->pvt->write = local_write;
-		tmp2->pvt->write = local_write;
-		tmp->pvt->exception = local_read;
-		tmp2->pvt->exception = local_read;
-		tmp->pvt->indicate = local_indicate;
-		tmp2->pvt->indicate = local_indicate;
-		tmp->pvt->fixup = local_fixup;
-		tmp2->pvt->fixup = local_fixup;
+		tmp->rawreadformat = p->reqformat;
+		tmp2->rawreadformat = p->reqformat;
+		tmp->tech_pvt = p;
+		tmp2->tech_pvt = p;
 		p->owner = tmp;
 		p->chan = tmp2;
 		ast_mutex_lock(&usecnt_lock);
@@ -528,8 +534,8 @@ static struct ast_cli_entry cli_show_locals = {
 
 int load_module()
 {
-	/* Make sure we can register our sip channel type */
-	if (ast_channel_register(type, tdesc, capability, local_request)) {
+	/* Make sure we can register our channel type */
+	if (ast_channel_register(&local_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
 		return -1;
 	}
@@ -547,7 +553,7 @@ int unload_module()
 	struct local_pvt *p;
 	/* First, take us out of the channel loop */
 	ast_cli_unregister(&cli_show_locals);
-	ast_channel_unregister(type);
+	ast_channel_unregister(&local_tech);
 	if (!ast_mutex_lock(&locallock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = locals;
@@ -581,6 +587,6 @@ char *key()
 
 char *description()
 {
-	return desc;
+	return (char *) desc;
 }
 

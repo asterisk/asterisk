@@ -26,7 +26,6 @@
 #include <asterisk/term.h>
 #include <asterisk/manager.h>
 #include <asterisk/ast_expr.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/linkedlists.h>
 #include <asterisk/say.h>
 #include <asterisk/utils.h>

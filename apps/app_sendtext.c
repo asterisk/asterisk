@@ -15,7 +15,6 @@
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
 #include <asterisk/translate.h>
@@ -51,7 +50,7 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 	}
 	LOCAL_USER_ADD(u);
 	ast_mutex_lock(&chan->lock);
-	if (!chan->pvt->send_text) {
+	if (!chan->tech->send_text) {
 		ast_mutex_unlock(&chan->lock);
 		/* Does not support transport */
 		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))

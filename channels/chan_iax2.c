@@ -14,7 +14,6 @@
 #include <asterisk/lock.h>
 #include <asterisk/frame.h> 
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/logger.h>
 #include <asterisk/module.h>
 #include <asterisk/pbx.h>
@@ -102,9 +101,9 @@
 
 static struct ast_codec_pref prefs;
 
-static char *desc = "Inter Asterisk eXchange (Ver 2)";
-static char *tdesc = "Inter Asterisk eXchange Driver (Ver 2)";
-static char *channeltype = "IAX2";
+static const char desc[] = "Inter Asterisk eXchange (Ver 2)";
+static const char tdesc[] = "Inter Asterisk eXchange Driver (Ver 2)";
+static const char channeltype[] = "IAX2";
 
 static char context[80] = "default";
 
@@ -609,6 +608,45 @@ static void prune_peers(void);
 static int iax2_poke_peer(struct iax2_peer *peer, int heldcall);
 static int iax2_provision(struct sockaddr_in *end, char *dest, const char *template, int force);
 
+static struct ast_channel *iax2_request(const char *type, int format, void *data, int *cause);
+static int iax2_devicestate(void *data);
+static int iax2_digit(struct ast_channel *c, char digit);
+static int iax2_sendtext(struct ast_channel *c, char *text);
+static int iax2_sendimage(struct ast_channel *c, struct ast_frame *img);
+static int iax2_sendhtml(struct ast_channel *c, int subclass, char *data, int datalen);
+static int iax2_call(struct ast_channel *c, char *dest, int timeout);
+static int iax2_hangup(struct ast_channel *c);
+static int iax2_answer(struct ast_channel *c);
+static struct ast_frame *iax2_read(struct ast_channel *c);
+static int iax2_write(struct ast_channel *c, struct ast_frame *f);
+static int iax2_indicate(struct ast_channel *c, int condition);
+static int iax2_setoption(struct ast_channel *c, int option, void *data, int datalen);
+static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
+static int iax2_transfer(struct ast_channel *c, char *dest);
+static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan);
+
+static const struct ast_channel_tech iax2_tech = {
+	.type = channeltype,
+	.description = tdesc,
+	.capabilities = IAX_CAPABILITY_FULLBANDWIDTH,
+	.requester = iax2_request,
+	.devicestate = iax2_devicestate,
+	.send_digit = iax2_digit,
+	.send_text = iax2_sendtext,
+	.send_image = iax2_sendimage,
+	.send_html = iax2_sendhtml,
+	.call = iax2_call,
+	.hangup = iax2_hangup,
+	.answer = iax2_answer,
+	.read = iax2_read,
+	.write = iax2_write,
+	.write_video = iax2_write,
+	.indicate = iax2_indicate,
+	.setoption = iax2_setoption,
+	.bridge = iax2_bridge,
+	.transfer = iax2_transfer,
+	.fixup = iax2_fixup,
+};
 
 static int send_ping(void *data)
 {
@@ -1410,7 +1448,7 @@ static int iax2_predestroy(int callno)
 	c = pvt->owner;
 	if (c) {
 		c->_softhangup |= AST_SOFTHANGUP_DEV;
-		c->pvt->pvt = NULL;
+		c->tech_pvt = NULL;
 		ast_queue_hangup(c);
 		pvt->owner = NULL;
 		ast_mutex_lock(&usecnt_lock);
@@ -2174,29 +2212,29 @@ static int iax2_transmit(struct iax_frame *fr)
 
 static int iax2_digit(struct ast_channel *c, char digit)
 {
-	return send_command_locked(PTR_TO_CALLNO(c->pvt->pvt), AST_FRAME_DTMF, digit, 0, NULL, 0, -1);
+	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_DTMF, digit, 0, NULL, 0, -1);
 }
 
 static int iax2_sendtext(struct ast_channel *c, char *text)
 {
 	
-	return send_command_locked(PTR_TO_CALLNO(c->pvt->pvt), AST_FRAME_TEXT,
+	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_TEXT,
 		0, 0, text, strlen(text) + 1, -1);
 }
 
 static int iax2_sendimage(struct ast_channel *c, struct ast_frame *img)
 {
-	return send_command_locked(PTR_TO_CALLNO(c->pvt->pvt), AST_FRAME_IMAGE, img->subclass, 0, img->data, img->datalen, -1);
+	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_IMAGE, img->subclass, 0, img->data, img->datalen, -1);
 }
 
 static int iax2_sendhtml(struct ast_channel *c, int subclass, char *data, int datalen)
 {
-	return send_command_locked(PTR_TO_CALLNO(c->pvt->pvt), AST_FRAME_HTML, subclass, 0, data, datalen, -1);
+	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_HTML, subclass, 0, data, datalen, -1);
 }
 
 static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan)
 {
-	unsigned short callno = PTR_TO_CALLNO(newchan->pvt->pvt);
+	unsigned short callno = PTR_TO_CALLNO(newchan->tech_pvt);
 	ast_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno])
 		iaxs[callno]->owner = newchan;
@@ -2487,7 +2525,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	char *portno = NULL;
 	char *opts = "";
 	int encmethods=iax2_encryption;
-	unsigned short callno = PTR_TO_CALLNO(c->pvt->pvt);
+	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
 	char *stringp=NULL;
 	char storedusern[80], storedsecret[80];
 	char tz[80] = "";	
@@ -2629,7 +2667,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 
 static int iax2_hangup(struct ast_channel *c) 
 {
-	unsigned short callno = PTR_TO_CALLNO(c->pvt->pvt);
+	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
 	int alreadygone;
  	struct iax_ie_data ied;
  	memset(&ied, 0, sizeof(ied));
@@ -2664,7 +2702,7 @@ static int iax2_setoption(struct ast_channel *c, int option, void *data, int dat
 		h->flag = AST_OPTION_FLAG_REQUEST;
 		h->option = htons(option);
 		memcpy(h->data, data, datalen);
-		res = send_command_locked(PTR_TO_CALLNO(c->pvt->pvt), AST_FRAME_CONTROL,
+		res = send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_CONTROL,
 			AST_CONTROL_OPTION, 0, (char *)h, datalen + sizeof(struct ast_option_header), -1);
 		free(h);
 		return res;
@@ -2731,8 +2769,8 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 	int res = -1;
 	int transferstarted=0;
 	struct ast_frame *f;
-	unsigned short callno0 = PTR_TO_CALLNO(c0->pvt->pvt);
-	unsigned short callno1 = PTR_TO_CALLNO(c1->pvt->pvt);
+	unsigned short callno0 = PTR_TO_CALLNO(c0->tech_pvt);
+	unsigned short callno1 = PTR_TO_CALLNO(c1->tech_pvt);
 	struct timeval waittimer = {0, 0}, tv;
 
 	lock_both(callno0, callno1);
@@ -2884,7 +2922,7 @@ tackygoto:
 
 static int iax2_answer(struct ast_channel *c)
 {
-	unsigned short callno = PTR_TO_CALLNO(c->pvt->pvt);
+	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Answering\n");
 	return send_command_locked(callno, AST_FRAME_CONTROL, AST_CONTROL_ANSWER, 0, NULL, 0, -1);
@@ -2892,7 +2930,7 @@ static int iax2_answer(struct ast_channel *c)
 
 static int iax2_indicate(struct ast_channel *c, int condition)
 {
-	unsigned short callno = PTR_TO_CALLNO(c->pvt->pvt);
+	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Indicating condition %d\n", condition);
 	return send_command_locked(callno, AST_FRAME_CONTROL, condition, 0, NULL, 0, -1);
@@ -2900,7 +2938,7 @@ static int iax2_indicate(struct ast_channel *c, int condition)
 	
 static int iax2_transfer(struct ast_channel *c, char *dest)
 {
-	unsigned short callno = PTR_TO_CALLNO(c->pvt->pvt);
+	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
 	struct iax_ie_data ied;
 	char tmp[256] = "", *context;
 	strncpy(tmp, dest, sizeof(tmp) - 1);
@@ -2952,6 +2990,7 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 	ast_mutex_lock(&iaxsl[callno]);
 	i = iaxs[callno];
 	if (i && tmp) {
+		tmp->tech = &iax2_tech;
 		if (!ast_strlen_zero(i->username))
 			snprintf(tmp->name, sizeof(tmp->name), "IAX2/%s@%s-%d", i->username, i->host, i->callno);
 		else
@@ -2961,21 +3000,8 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 		tmp->nativeformats = capability;
 		tmp->readformat = ast_best_codec(capability);
 		tmp->writeformat = ast_best_codec(capability);
-		tmp->pvt->pvt = CALLNO_TO_PTR(i->callno);
-		tmp->pvt->send_digit = iax2_digit;
-		tmp->pvt->send_text = iax2_sendtext;
-		tmp->pvt->send_image = iax2_sendimage;
-		tmp->pvt->send_html = iax2_sendhtml;
-		tmp->pvt->call = iax2_call;
-		tmp->pvt->hangup = iax2_hangup;
-		tmp->pvt->answer = iax2_answer;
-		tmp->pvt->read = iax2_read;
-		tmp->pvt->write = iax2_write;
-		tmp->pvt->write_video = iax2_write;
-		tmp->pvt->indicate = iax2_indicate;
-		tmp->pvt->setoption = iax2_setoption;
-		tmp->pvt->bridge = iax2_bridge;
-		tmp->pvt->transfer = iax2_transfer;
+		tmp->tech_pvt = CALLNO_TO_PTR(i->callno);
+
 		if (!ast_strlen_zero(i->cid_num))
 			tmp->cid.cid_num = strdup(i->cid_num);
 		if (!ast_strlen_zero(i->cid_name))
@@ -2996,7 +3022,6 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);
 		tmp->adsicpe = i->peeradsicpe;
-		tmp->pvt->fixup = iax2_fixup;
 		i->owner = tmp;
 		i->capability = capability;
 		ast_setstate(tmp, state);
@@ -4065,7 +4090,7 @@ static struct ast_cli_entry  cli_no_debug =
 
 static int iax2_write(struct ast_channel *c, struct ast_frame *f)
 {
-	unsigned short callno = PTR_TO_CALLNO(c->pvt->pvt);
+	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
 	int res = -1;
 	ast_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno]) {
@@ -6999,7 +7024,7 @@ static int iax2_prov_app(struct ast_channel *chan, void *data)
 	char *sdata;
 	char *opts;
 	int force =0;
-	unsigned short callno = PTR_TO_CALLNO(chan->pvt->pvt);
+	unsigned short callno = PTR_TO_CALLNO(chan->tech_pvt);
 	char iabuf[INET_ADDRSTRLEN];
 	if (!data || ast_strlen_zero(data))
 		data = "default";
@@ -8427,7 +8452,7 @@ static int __unload_module(void)
 	ast_cli_unregister(&cli_show_peer);
 	ast_cli_unregister(&cli_prune_realtime);
 	ast_unregister_switch(&iax2_switch);
-	ast_channel_unregister(channeltype);
+	ast_channel_unregister(&iax2_tech);
 	delete_users();
 	iax_provision_unload();
 	return 0;
@@ -8516,7 +8541,7 @@ int load_module(void)
 
 	set_config(config, 0);
 
-	if (ast_channel_register_ex(channeltype, tdesc, iax2_capability, iax2_request, iax2_devicestate)) {
+ 	if (ast_channel_register(&iax2_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", channeltype);
 		__unload_module();
 		return -1;
@@ -8560,7 +8585,7 @@ int load_module(void)
 
 char *description()
 {
-	return desc;
+	return (char *) desc;
 }
 
 int usecount()

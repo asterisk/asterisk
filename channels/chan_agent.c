@@ -15,7 +15,6 @@
 #include <string.h>
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/config.h>
 #include <asterisk/logger.h>
 #include <asterisk/module.h>
@@ -45,20 +44,20 @@
 #include <arpa/inet.h>
 #include <sys/signal.h>
 
-static char *desc = "Agent Proxy Channel";
-static char *channeltype = "Agent";
-static char *tdesc = "Call Agent Proxy Channel";
-static char *config = "agents.conf";
+static const char desc[] = "Agent Proxy Channel";
+static const char channeltype[] = "Agent";
+static const char tdesc[] = "Call Agent Proxy Channel";
+static const char config[] = "agents.conf";
 
-static char *app = "AgentLogin";
-static char *app2 = "AgentCallbackLogin";
-static char *app3 = "AgentMonitorOutgoing";
+static const char app[] = "AgentLogin";
+static const char app2[] = "AgentCallbackLogin";
+static const char app3[] = "AgentMonitorOutgoing";
 
-static char *synopsis = "Call agent login";
-static char *synopsis2 = "Call agent callback login";
-static char *synopsis3 = "Record agent's outgoing call";
+static const char synopsis[] = "Call agent login";
+static const char synopsis2[] = "Call agent callback login";
+static const char synopsis3[] = "Record agent's outgoing call";
 
-static char *descrip =
+static const char descrip[] =
 "  AgentLogin([AgentNo][|options]):\n"
 "Asks the agent to login to the system.  Always returns -1.  While\n"
 "logged in, the agent can receive calls and will hear a 'beep'\n"
@@ -67,17 +66,15 @@ static char *descrip =
 "The option string may contain zero or more of the following characters:\n"
 "      's' -- silent login - do not announce the login ok segment after agent logged in/off\n";
 
-static char *descrip2 =
+static const char descrip2[] =
 "  AgentCallbackLogin([AgentNo][|[options][exten]@context]):\n"
 "Asks the agent to login to the system with callback.\n"
 "The agent's callback extension is called (optionally with the specified\n"
 "context).\n"
 "The option string may contain zero or more of the following characters:\n"
 "      's' -- silent login - do not announce the login ok segment agent logged in/off\n";
- 
 
-
-static char *descrip3 =
+static const char descrip3[] =
 "  AgentMonitorOutgoing([options]):\n"
 "Tries to figure out the id of the agent who is placing outgoing call based on\n"
 "comparision of the callerid of the current interface and the global variable \n"
@@ -95,7 +92,7 @@ static char *descrip3 =
 "	      agentid is not known.\n"
 "             It's handy if you want to have one context for agent and non-agent calls.\n";
 
-static char mandescr_agents[] =
+static const char mandescr_agents[] =
 "Description: Will list info about all possible agents.\n"
 "Variables: NONE\n";
 
@@ -106,14 +103,12 @@ static char moh[80] = "default";
 #define AST_MAX_FILENAME_LEN	256
 
 /* Persistent Agents astdb family */
-static const char *pa_family = "/Agents";
+static const char pa_family[] = "/Agents";
 /* The maximum lengh of each persistent member agent database entry */
 #define PA_MAX_LEN 2048
 /* queues.conf [general] option */
 static int persistent_agents = 0;
 static void dump_agents(void);
-
-static int capability = -1;
 
 static ast_group_t group;
 static int autologoff;
@@ -176,10 +171,10 @@ static struct agent_pvt {
 			ast_set_read_format(ast, ast->readformat); \
 			ast_set_write_format(ast, ast->writeformat); \
 		} \
-		if (p->chan->readformat != ast->pvt->rawreadformat)  \
-			ast_set_read_format(p->chan, ast->pvt->rawreadformat); \
-		if (p->chan->writeformat != ast->pvt->rawwriteformat) \
-			ast_set_write_format(p->chan, ast->pvt->rawwriteformat); \
+		if (p->chan->readformat != ast->rawreadformat)  \
+			ast_set_read_format(p->chan, ast->rawreadformat); \
+		if (p->chan->writeformat != ast->rawwriteformat) \
+			ast_set_write_format(p->chan, ast->rawwriteformat); \
 	} \
 } while(0)
 
@@ -198,7 +193,37 @@ static struct agent_pvt {
 	} \
 } while(0)
 
+static struct ast_channel *agent_request(const char *type, int format, void *data, int *cause);
+static int agent_devicestate(void *data);
+static int agent_digit(struct ast_channel *ast, char digit);
+static int agent_call(struct ast_channel *ast, char *dest, int timeout);
+static int agent_hangup(struct ast_channel *ast);
+static int agent_answer(struct ast_channel *ast);
+static struct ast_frame *agent_read(struct ast_channel *ast);
+static int agent_write(struct ast_channel *ast, struct ast_frame *f);
+static int agent_sendhtml(struct ast_channel *ast, int subclass, char *data, int datalen);
+static int agent_indicate(struct ast_channel *ast, int condition);
+static int agent_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
+static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct ast_channel *bridge);
 
+static const struct ast_channel_tech agent_tech = {
+	.type = channeltype,
+	.description = tdesc,
+	.capabilities = -1,
+	.requester = agent_request,
+	.devicestate = agent_devicestate,
+	.send_digit = agent_digit,
+	.call = agent_call,
+	.hangup = agent_hangup,
+	.answer = agent_answer,
+	.read = agent_read,
+	.write = agent_write,
+	.send_html = agent_sendhtml,
+	.exception = agent_read,
+	.indicate = agent_indicate,
+	.fixup = agent_fixup,
+	.bridged_channel = agent_bridgedchannel,
+};
 
 static void agent_unlink(struct agent_pvt *agent)
 {
@@ -281,7 +306,7 @@ static int agent_cleanup(struct agent_pvt *p)
 {
 	struct ast_channel *chan = p->owner;
 	p->owner = NULL;
-	chan->pvt->pvt = NULL;
+	chan->tech_pvt = NULL;
 	p->app_sleep_cond = 1;
 	/* Release ownership of the agent to other threads (presumably running the login app). */
 	ast_mutex_unlock(&p->app_lock);
@@ -333,12 +358,12 @@ static int __agent_start_monitoring(struct ast_channel *ast, struct agent_pvt *p
 
 static int agent_start_monitoring(struct ast_channel *ast, int needlock)
 {
-	return __agent_start_monitoring(ast, ast->pvt->pvt, needlock);
+	return __agent_start_monitoring(ast, ast->tech_pvt, needlock);
 }
 
 static struct ast_frame *agent_read(struct ast_channel *ast)
 {
-	struct agent_pvt *p = ast->pvt->pvt;
+	struct agent_pvt *p = ast->tech_pvt;
 	struct ast_frame *f = NULL;
 	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 	static struct ast_frame answer_frame = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
@@ -427,7 +452,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 
 static int agent_sendhtml(struct ast_channel *ast, int subclass, char *data, int datalen)
 {
-	struct agent_pvt *p = ast->pvt->pvt;
+	struct agent_pvt *p = ast->tech_pvt;
 	int res = -1;
 	ast_mutex_lock(&p->lock);
 	if (p->chan) 
@@ -438,7 +463,7 @@ static int agent_sendhtml(struct ast_channel *ast, int subclass, char *data, int
 
 static int agent_write(struct ast_channel *ast, struct ast_frame *f)
 {
-	struct agent_pvt *p = ast->pvt->pvt;
+	struct agent_pvt *p = ast->tech_pvt;
 	int res = -1;
 	CHECK_FORMATS(ast, p);
 	ast_mutex_lock(&p->lock);
@@ -459,7 +484,7 @@ static int agent_write(struct ast_channel *ast, struct ast_frame *f)
 
 static int agent_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct agent_pvt *p = newchan->pvt->pvt;
+	struct agent_pvt *p = newchan->tech_pvt;
 	ast_mutex_lock(&p->lock);
 	if (p->owner != oldchan) {
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
@@ -473,7 +498,7 @@ static int agent_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 
 static int agent_indicate(struct ast_channel *ast, int condition)
 {
-	struct agent_pvt *p = ast->pvt->pvt;
+	struct agent_pvt *p = ast->tech_pvt;
 	int res = -1;
 	ast_mutex_lock(&p->lock);
 	if (p->chan)
@@ -486,11 +511,11 @@ static int agent_indicate(struct ast_channel *ast, int condition)
 
 static int agent_digit(struct ast_channel *ast, char digit)
 {
-	struct agent_pvt *p = ast->pvt->pvt;
+	struct agent_pvt *p = ast->tech_pvt;
 	int res = -1;
 	ast_mutex_lock(&p->lock);
 	if (p->chan)
-		res = p->chan->pvt->send_digit(p->chan, digit);
+		res = p->chan->tech->send_digit(p->chan, digit);
 	else
 		res = 0;
 	ast_mutex_unlock(&p->lock);
@@ -499,7 +524,7 @@ static int agent_digit(struct ast_channel *ast, char digit)
 
 static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 {
-	struct agent_pvt *p = ast->pvt->pvt;
+	struct agent_pvt *p = ast->tech_pvt;
 	int res = -1;
 	int newstate=0;
 	ast_mutex_lock(&p->lock);
@@ -586,11 +611,11 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 
 static int agent_hangup(struct ast_channel *ast)
 {
-	struct agent_pvt *p = ast->pvt->pvt;
+	struct agent_pvt *p = ast->tech_pvt;
 	int howlong = 0;
 	ast_mutex_lock(&p->lock);
 	p->owner = NULL;
-	ast->pvt->pvt = NULL;
+	ast->tech_pvt = NULL;
 	p->app_sleep_cond = 1;
 	p->acknowledged = 0;
 
@@ -783,7 +808,7 @@ static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct
 	struct ast_channel *ret=NULL;
 	
 
-	p = bridge->pvt->pvt;
+	p = bridge->tech_pvt;
 	if (chan == p->chan)
 		ret = bridge->_bridge;
 	else if (chan == bridge->_bridge)
@@ -806,21 +831,22 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 #endif	
 	tmp = ast_channel_alloc(0);
 	if (tmp) {
+		tmp->tech = &agent_tech;
 		if (p->chan) {
 			tmp->nativeformats = p->chan->nativeformats;
 			tmp->writeformat = p->chan->writeformat;
-			tmp->pvt->rawwriteformat = p->chan->writeformat;
+			tmp->rawwriteformat = p->chan->writeformat;
 			tmp->readformat = p->chan->readformat;
-			tmp->pvt->rawreadformat = p->chan->readformat;
+			tmp->rawreadformat = p->chan->readformat;
 			strncpy(tmp->language, p->chan->language, sizeof(tmp->language)-1);
 			strncpy(tmp->context, p->chan->context, sizeof(tmp->context)-1);
 			strncpy(tmp->exten, p->chan->exten, sizeof(tmp->exten)-1);
 		} else {
 			tmp->nativeformats = AST_FORMAT_SLINEAR;
 			tmp->writeformat = AST_FORMAT_SLINEAR;
-			tmp->pvt->rawwriteformat = AST_FORMAT_SLINEAR;
+			tmp->rawwriteformat = AST_FORMAT_SLINEAR;
 			tmp->readformat = AST_FORMAT_SLINEAR;
-			tmp->pvt->rawreadformat = AST_FORMAT_SLINEAR;
+			tmp->rawreadformat = AST_FORMAT_SLINEAR;
 		}
 		if (p->pending)
 			snprintf(tmp->name, sizeof(tmp->name), "Agent/P%s-%d", p->agent, rand() & 0xffff);
@@ -829,18 +855,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 		tmp->type = channeltype;
 		/* Safe, agentlock already held */
 		ast_setstate(tmp, state);
-		tmp->pvt->pvt = p;
-		tmp->pvt->send_digit = agent_digit;
-		tmp->pvt->call = agent_call;
-		tmp->pvt->hangup = agent_hangup;
-		tmp->pvt->answer = agent_answer;
-		tmp->pvt->read = agent_read;
-		tmp->pvt->write = agent_write;
-		tmp->pvt->send_html = agent_sendhtml;
-		tmp->pvt->exception = agent_read;
-		tmp->pvt->indicate = agent_indicate;
-		tmp->pvt->fixup = agent_fixup;
-		tmp->pvt->bridged_channel = agent_bridgedchannel;
+		tmp->tech_pvt = p;
 		p->owner = tmp;
 		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
@@ -867,7 +882,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 			{
 				ast_log(LOG_WARNING, "Agent disconnected while we were connecting the call\n");
 				p->owner = NULL;
-				tmp->pvt->pvt = NULL;
+				tmp->tech_pvt = NULL;
 				p->app_sleep_cond = 1;
 				ast_channel_free( tmp );
 				ast_mutex_unlock(&p->lock);	/* For other thread to read the condition. */
@@ -2092,7 +2107,7 @@ static int agent_devicestate(void *data)
 int load_module()
 {
 	/* Make sure we can register our agent channel type */
-	if (ast_channel_register_ex(channeltype, tdesc, capability, agent_request, agent_devicestate)) {
+	if (ast_channel_register(&agent_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", channeltype);
 		return -1;
 	}
@@ -2134,7 +2149,7 @@ int unload_module()
 	/* Unregister manager command */
 	ast_manager_unregister("Agents");
 	/* Unregister channel */
-	ast_channel_unregister(channeltype);
+	ast_channel_unregister(&agent_tech);
 	if (!ast_mutex_lock(&agentlock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = agents;
@@ -2168,6 +2183,6 @@ char *key()
 
 char *description()
 {
-	return desc;
+	return (char *) desc;
 }
 

@@ -16,7 +16,6 @@
 
 #include <asterisk/frame.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 
 #define CHAR_DLE		0x10
 #define CHAR_ETX		0x03

@@ -13,7 +13,6 @@
 
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/logger.h>
 #include <asterisk/translate.h>
 #include <asterisk/options.h>

@@ -18,7 +18,6 @@
 #include <asterisk/module.h>
 #include <asterisk/frame.h>
 #include <asterisk/file.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/cli.h>
 #include <asterisk/lock.h>
 #include <asterisk/md5.h>

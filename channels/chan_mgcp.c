@@ -57,7 +57,6 @@
 #include <string.h>
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/config.h>
 #include <asterisk/logger.h>
 #include <asterisk/module.h>
@@ -114,10 +113,10 @@
 #define INADDR_NONE (in_addr_t)(-1)
 #endif
 
-static char *desc = "Media Gateway Control Protocol (MGCP)";
-static char *type = "MGCP";
-static char *tdesc = "Media Gateway Control Protocol (MGCP)";
-static char *config = "mgcp.conf";
+static const char desc[] = "Media Gateway Control Protocol (MGCP)";
+static const char type[] = "MGCP";
+static const char tdesc[] = "Media Gateway Control Protocol (MGCP)";
+static const char config[] = "mgcp.conf";
 
 #define MGCP_DTMF_RFC2833	(1 << 0)
 #define MGCP_DTMF_INBAND	(1 << 1)
@@ -245,7 +244,6 @@ static pthread_t monitor_thread = AST_PTHREADT_NULL;
 
 static int restart_monitor(void);
 
-/* Just about everybody seems to support ulaw, so make it a nice default */
 static int capability = AST_FORMAT_ULAW;
 static int nonCodecCapability = AST_RTP_DTMF;
 
@@ -466,6 +464,32 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 static void dump_cmd_queues(struct mgcp_endpoint *p, struct mgcp_subchannel *sub);
 static int mgcp_do_reload(void);
 static int mgcp_reload(int fd, int argc, char *argv[]);
+
+static struct ast_channel *mgcp_request(const char *type, int format, void *data, int *cause);
+static int mgcp_call(struct ast_channel *ast, char *dest, int timeout);
+static int mgcp_hangup(struct ast_channel *ast);
+static int mgcp_answer(struct ast_channel *ast);
+static struct ast_frame *mgcp_read(struct ast_channel *ast);
+static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame);
+static int mgcp_indicate(struct ast_channel *ast, int ind);
+static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
+static int mgcp_senddigit(struct ast_channel *ast, char digit);
+
+static const struct ast_channel_tech mgcp_tech = {
+	.type = type,
+	.description = tdesc,
+	.capabilities = AST_FORMAT_ULAW,
+	.requester = mgcp_request,
+	.call = mgcp_call,
+	.hangup = mgcp_hangup,
+	.answer = mgcp_answer,
+	.read = mgcp_read,
+	.write = mgcp_write,
+	.indicate = mgcp_indicate,
+	.fixup = mgcp_fixup,
+	.send_digit = mgcp_senddigit,
+	.bridge = ast_rtp_bridge,
+};
 
 static int has_voicemail(struct mgcp_endpoint *p)
 {
@@ -859,7 +883,7 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 	if (mgcpdebug) {
 		ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_call(%s)\n", ast->name);
 	}
-	sub = ast->pvt->pvt;
+	sub = ast->tech_pvt;
 	p = sub->parent;
 	headp = &ast->varshead;
 	AST_LIST_TRAVERSE(headp,current,entries) {
@@ -941,13 +965,13 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 
 static int mgcp_hangup(struct ast_channel *ast)
 {
-	struct mgcp_subchannel *sub = ast->pvt->pvt;
+	struct mgcp_subchannel *sub = ast->tech_pvt;
 	struct mgcp_endpoint *p = sub->parent;
 
 	if (option_debug) {
 		ast_log(LOG_DEBUG, "mgcp_hangup(%s)\n", ast->name);
 	}
-	if (!ast->pvt->pvt) {
+	if (!ast->tech_pvt) {
 		ast_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
 		return 0;
 	}
@@ -999,7 +1023,7 @@ static int mgcp_hangup(struct ast_channel *ast)
 		transmit_notify_request(sub, "");
 	}
 
-	ast->pvt->pvt = NULL;
+	ast->tech_pvt = NULL;
 	sub->alreadygone = 0;
 	sub->outgoing = 0;
 	sub->cxmode = MGCP_CX_INACTIVE;
@@ -1138,7 +1162,7 @@ static struct ast_cli_entry  cli_audit_endpoint =
 static int mgcp_answer(struct ast_channel *ast)
 {
 	int res = 0;
-	struct mgcp_subchannel *sub = ast->pvt->pvt;
+	struct mgcp_subchannel *sub = ast->tech_pvt;
 	struct mgcp_endpoint *p = sub->parent;
 
 	ast_mutex_lock(&sub->lock);
@@ -1199,7 +1223,7 @@ static struct ast_frame *mgcp_rtp_read(struct mgcp_subchannel *sub)
 static struct ast_frame *mgcp_read(struct ast_channel *ast)
 {
 	struct ast_frame *f;
-	struct mgcp_subchannel *sub = ast->pvt->pvt;
+	struct mgcp_subchannel *sub = ast->tech_pvt;
 	ast_mutex_lock(&sub->lock);
 	f = mgcp_rtp_read(sub);
 	ast_mutex_unlock(&sub->lock);
@@ -1208,7 +1232,7 @@ static struct ast_frame *mgcp_read(struct ast_channel *ast)
 
 static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame)
 {
-	struct mgcp_subchannel *sub = ast->pvt->pvt;
+	struct mgcp_subchannel *sub = ast->tech_pvt;
 	int res = 0;
 	if (frame->frametype != AST_FRAME_VOICE) {
 		if (frame->frametype == AST_FRAME_IMAGE)
@@ -1238,7 +1262,7 @@ static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame)
 
 static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct mgcp_subchannel *sub = newchan->pvt->pvt;
+	struct mgcp_subchannel *sub = newchan->tech_pvt;
 
 	ast_mutex_lock(&sub->lock);
 	ast_log(LOG_NOTICE, "mgcp_fixup(%s, %s)\n", oldchan->name, newchan->name);
@@ -1254,7 +1278,7 @@ static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 
 static int mgcp_senddigit(struct ast_channel *ast, char digit)
 {
-	struct mgcp_subchannel *sub = ast->pvt->pvt;
+	struct mgcp_subchannel *sub = ast->tech_pvt;
 	char tmp[4];
 
 	tmp[0] = 'D';
@@ -1301,7 +1325,7 @@ static char *control2str(int ind) {
 
 static int mgcp_indicate(struct ast_channel *ast, int ind)
 {
-	struct mgcp_subchannel *sub = ast->pvt->pvt;
+	struct mgcp_subchannel *sub = ast->tech_pvt;
 	int res = 0;
 
 	if (mgcpdebug) {
@@ -1343,6 +1367,7 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 	i = sub->parent;
 	tmp = ast_channel_alloc(1);
 	if (tmp) {
+		tmp->tech = &mgcp_tech;
 		tmp->nativeformats = i->capability;
 		if (!tmp->nativeformats)
 			tmp->nativeformats = capability;
@@ -1363,19 +1388,10 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
 		tmp->writeformat = fmt;
-		tmp->pvt->rawwriteformat = fmt;
+		tmp->rawwriteformat = fmt;
 		tmp->readformat = fmt;
-		tmp->pvt->rawreadformat = fmt;
-		tmp->pvt->pvt = sub;
-		tmp->pvt->call = mgcp_call;
-		tmp->pvt->hangup = mgcp_hangup;
-		tmp->pvt->answer = mgcp_answer;
-		tmp->pvt->read = mgcp_read;
-		tmp->pvt->write = mgcp_write;
-		tmp->pvt->indicate = mgcp_indicate;
-		tmp->pvt->fixup = mgcp_fixup;
-		tmp->pvt->send_digit = mgcp_senddigit;
-		tmp->pvt->bridge = ast_rtp_bridge;
+		tmp->rawreadformat = fmt;
+		tmp->tech_pvt = sub;
 		if (strlen(i->language))
 			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
 		if (strlen(i->accountcode))
@@ -2528,7 +2544,7 @@ static void start_rtp(struct mgcp_subchannel *sub)
 static void *mgcp_ss(void *data)
 {
 	struct ast_channel *chan = data;
-	struct mgcp_subchannel *sub = chan->pvt->pvt;
+	struct mgcp_subchannel *sub = chan->tech_pvt;
 	struct mgcp_endpoint *p = sub->parent;
 	char exten[AST_MAX_EXTENSION] = "";
 	int len = 0;
@@ -3881,7 +3897,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 static struct ast_rtp *mgcp_get_rtp_peer(struct ast_channel *chan)
 {
 	struct mgcp_subchannel *sub;
-	sub = chan->pvt->pvt;
+	sub = chan->tech_pvt;
 	if (sub && sub->rtp && sub->parent->canreinvite)
 		return sub->rtp;
 	return NULL;
@@ -3891,7 +3907,7 @@ static int mgcp_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, stru
 {
 	/* XXX Is there such thing as video support with MGCP? XXX */
 	struct mgcp_subchannel *sub;
-	sub = chan->pvt->pvt;
+	sub = chan->tech_pvt;
 	if (sub) {
 		transmit_modify_with_sdp(sub, rtp, codecs);
 		return 0;
@@ -3900,8 +3916,9 @@ static int mgcp_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, stru
 }
 
 static struct ast_rtp_protocol mgcp_rtp = {
-	get_rtp_info: mgcp_get_rtp_peer,
-	set_rtp_peer: mgcp_set_rtp_peer,
+	.type = type,
+	.get_rtp_info = mgcp_get_rtp_peer,
+	.set_rtp_peer = mgcp_set_rtp_peer,
 };
 
 static int mgcp_do_debug(int fd, int argc, char *argv[])
@@ -4226,11 +4243,10 @@ int load_module()
 
 	if (!(res = reload_config())) {
 		/* Make sure we can register our mgcp channel type */
-		if (ast_channel_register(type, tdesc, capability, mgcp_request)) {
+		if (ast_channel_register(&mgcp_tech)) {
 			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
 			return -1;
 		}
-		mgcp_rtp.type = type;
 		ast_rtp_proto_register(&mgcp_rtp);
 		ast_cli_register(&cli_show_endpoints);
 		ast_cli_register(&cli_audit_endpoint);
@@ -4274,7 +4290,7 @@ int unload_module()
 #if 0
 	struct mgcp_endpoint *p, *pl;
 	/* First, take us out of the channel loop */
-	ast_channel_unregister(type);
+	ast_channel_unregister(&mgcp_tech);
 	if (!ast_mutex_lock(&gatelock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = iflist;
@@ -4339,5 +4355,5 @@ char *key()
 
 char *description()
 {
-	return desc;
+	return (char *) desc;
 }

@@ -19,7 +19,6 @@
 #include <asterisk/module.h>
 #include <asterisk/pbx.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/manager.h>
 #include <asterisk/utils.h>
 #include <asterisk/lock.h>

@@ -18,7 +18,6 @@
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
 #include <asterisk/features.h>

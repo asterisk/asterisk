@@ -17,7 +17,6 @@
 #include <string.h>
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/config.h>
 #include <asterisk/logger.h>
 #include <asterisk/module.h>
@@ -110,11 +109,10 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 #define DEBUG_READ	0			/* Recieved data	*/
 #define DEBUG_SEND	1			/* Transmit data	*/
 
-static char *desc = "Session Initiation Protocol (SIP)";
-static char *channeltype = "SIP";
-static char *tdesc = "Session Initiation Protocol (SIP)";
-static char *config = "sip.conf";
-static char *notify_config = "sip_notify.conf";
+static const char desc[] = "Session Initiation Protocol (SIP)";
+static const char channeltype[] = "SIP";
+static const char config[] = "sip.conf";
+static const char notify_config[] = "sip_notify.conf";
 
 #define DEFAULT_SIP_PORT	5060	/* From RFC 2543 */
 #define SIP_MAX_PACKET		4096	/* Also from RFC 2543, should sub headers tho */
@@ -615,6 +613,40 @@ static int sip_do_reload(void);
 static int expire_register(void *data);
 static int callevents = 0;
 
+static struct ast_channel *sip_request(const char *type, int format, void *data, int *cause);
+static int sip_devicestate(void *data);
+static int sip_sendtext(struct ast_channel *ast, char *text);
+static int sip_call(struct ast_channel *ast, char *dest, int timeout);
+static int sip_hangup(struct ast_channel *ast);
+static int sip_answer(struct ast_channel *ast);
+static struct ast_frame *sip_read(struct ast_channel *ast);
+static int sip_write(struct ast_channel *ast, struct ast_frame *frame);
+static int sip_indicate(struct ast_channel *ast, int condition);
+static int sip_transfer(struct ast_channel *ast, char *dest);
+static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
+static int sip_senddigit(struct ast_channel *ast, char digit);
+static int sip_sendtext(struct ast_channel *ast, char *text);
+
+static const struct ast_channel_tech sip_tech = {
+	.type = channeltype,
+	.description = "Session Initiation Protocol (SIP)",
+	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
+	.requester = sip_request,
+	.devicestate = sip_devicestate,
+	.call = sip_call,
+	.hangup = sip_hangup,
+	.answer = sip_answer,
+	.read = sip_read,
+	.write = sip_write,
+	.write_video = sip_write,
+	.indicate = sip_indicate,
+	.transfer = sip_transfer,
+	.fixup = sip_fixup,
+	.send_digit = sip_senddigit,
+	.bridge = ast_rtp_bridge,
+	.send_text = sip_sendtext,
+};
+
 /*--- sip_debug_test_addr: See if we pass debug IP filter */
 static inline int sip_debug_test_addr(struct sockaddr_in *addr) 
 {
@@ -1066,7 +1098,7 @@ static char *ditch_braces(char *tmp)
 /*      Called from PBX core text message functions */
 static int sip_sendtext(struct ast_channel *ast, char *text)
 {
-	struct sip_pvt *p = ast->pvt->pvt;
+	struct sip_pvt *p = ast->tech_pvt;
 	int debug=sip_debug_test_pvt(p);
 
 	if (debug)
@@ -1452,7 +1484,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	struct ast_var_t *current;
 	int addsipheaders = 0;
 	
-	p = ast->pvt->pvt;
+	p = ast->tech_pvt;
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "sip_call called on %s, neither down nor reserved\n", ast->name);
 		return -1;
@@ -1563,7 +1595,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 		if (lockowner)
 			ast_mutex_lock(&p->owner->lock);
 		ast_log(LOG_DEBUG, "Detaching from %s\n", p->owner->name);
-		p->owner->pvt->pvt = NULL;
+		p->owner->tech_pvt = NULL;
 		if (lockowner)
 			ast_mutex_unlock(&p->owner->lock);
 	}
@@ -1757,12 +1789,12 @@ static char *hangup_cause2sip(int cause)
 /* Part of PBX interface */
 static int sip_hangup(struct ast_channel *ast)
 {
-	struct sip_pvt *p = ast->pvt->pvt;
+	struct sip_pvt *p = ast->tech_pvt;
 	int needcancel = 0;
 	struct ast_flags locflags = {0};
 	if (option_debug)
 		ast_log(LOG_DEBUG, "sip_hangup(%s)\n", ast->name);
-	if (!ast->pvt->pvt) {
+	if (!p) {
 		ast_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
 		return 0;
 	}
@@ -1785,15 +1817,15 @@ static int sip_hangup(struct ast_channel *ast)
 		ast_mutex_unlock(&p->lock);
 		return 0;
 	}
-	if (!ast || (ast->_state != AST_STATE_UP))
+	if (ast->_state != AST_STATE_UP)
 		needcancel = 1;
 	/* Disconnect */
-	p = ast->pvt->pvt;
+	p = ast->tech_pvt;
         if (p->vad) {
             ast_dsp_free(p->vad);
         }
 	p->owner = NULL;
-	ast->pvt->pvt = NULL;
+	ast->tech_pvt = NULL;
 
 	ast_mutex_lock(&usecnt_lock);
 	usecnt--;
@@ -1850,7 +1882,7 @@ static int sip_answer(struct ast_channel *ast)
 {
 	int res = 0,fmt;
 	char *codec;
-	struct sip_pvt *p = ast->pvt->pvt;
+	struct sip_pvt *p = ast->tech_pvt;
 
 	ast_mutex_lock(&p->lock);
 	if (ast->_state != AST_STATE_UP) {
@@ -1883,7 +1915,7 @@ static int sip_answer(struct ast_channel *ast)
 /*--- sip_write: Send response, support audio media ---*/
 static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 {
-	struct sip_pvt *p = ast->pvt->pvt;
+	struct sip_pvt *p = ast->tech_pvt;
 	int res = 0;
 	if (frame->frametype == AST_FRAME_VOICE) {
 		if (!(frame->subclass & ast->nativeformats)) {
@@ -1930,7 +1962,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
         Basically update any ->owner links ----*/
 static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct sip_pvt *p = newchan->pvt->pvt;
+	struct sip_pvt *p = newchan->tech_pvt;
 	ast_mutex_lock(&p->lock);
 	if (p->owner != oldchan) {
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
@@ -1946,7 +1978,7 @@ static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 /*    within one call, we're able to transmit in many methods simultaneously */
 static int sip_senddigit(struct ast_channel *ast, char digit)
 {
-	struct sip_pvt *p = ast->pvt->pvt;
+	struct sip_pvt *p = ast->tech_pvt;
 	int res = 0;
 	ast_mutex_lock(&p->lock);
 	switch (ast_test_flag(p, SIP_DTMF)) {
@@ -1969,7 +2001,7 @@ static int sip_senddigit(struct ast_channel *ast, char digit)
 /*--- sip_transfer: Transfer SIP call */
 static int sip_transfer(struct ast_channel *ast, char *dest)
 {
-	struct sip_pvt *p = ast->pvt->pvt;
+	struct sip_pvt *p = ast->tech_pvt;
 	int res;
 
 	ast_mutex_lock(&p->lock);
@@ -1987,7 +2019,7 @@ static int sip_transfer(struct ast_channel *ast, char *dest)
    the indication - busy signal, congestion etc */
 static int sip_indicate(struct ast_channel *ast, int condition)
 {
-	struct sip_pvt *p = ast->pvt->pvt;
+	struct sip_pvt *p = ast->tech_pvt;
 	int res = 0;
 
 	ast_mutex_lock(&p->lock);
@@ -2061,6 +2093,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	tmp = ast_channel_alloc(1);
 	ast_mutex_lock(&i->lock);
 	if (tmp) {
+		tmp->tech = &sip_tech;
 		/* Select our native format based on codec preference until we receive
 		   something from another device to the contrary. */
 		ast_mutex_lock(&i->lock);
@@ -2100,23 +2133,10 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 			tmp->rings = 1;
 		tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 		tmp->writeformat = fmt;
-		tmp->pvt->rawwriteformat = fmt;
+		tmp->rawwriteformat = fmt;
 		tmp->readformat = fmt;
-		tmp->pvt->rawreadformat = fmt;
-		tmp->pvt->pvt = i;
-		tmp->pvt->send_text = sip_sendtext;
-		tmp->pvt->call = sip_call;
-		tmp->pvt->hangup = sip_hangup;
-		tmp->pvt->answer = sip_answer;
-		tmp->pvt->read = sip_read;
-		tmp->pvt->write = sip_write;
-		tmp->pvt->write_video = sip_write;
-		tmp->pvt->indicate = sip_indicate;
-		tmp->pvt->transfer = sip_transfer;
-		tmp->pvt->fixup = sip_fixup;
-		tmp->pvt->send_digit = sip_senddigit;
-
-		tmp->pvt->bridge = ast_rtp_bridge;
+		tmp->rawreadformat = fmt;
+		tmp->tech_pvt = i;
 
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
@@ -2337,7 +2357,7 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 static struct ast_frame *sip_read(struct ast_channel *ast)
 {
 	struct ast_frame *fr;
-	struct sip_pvt *p = ast->pvt->pvt;
+	struct sip_pvt *p = ast->tech_pvt;
 	ast_mutex_lock(&p->lock);
 	fr = sip_rtp_read(ast, p);
 	time(&p->lastrtprx);
@@ -9762,7 +9782,7 @@ static struct ast_rtp *sip_get_rtp_peer(struct ast_channel *chan)
 {
 	struct sip_pvt *p;
 	struct ast_rtp *rtp = NULL;
-	p = chan->pvt->pvt;
+	p = chan->tech_pvt;
 	if (p) {
 		ast_mutex_lock(&p->lock);
 		if (p->rtp && ast_test_flag(p, SIP_CAN_REINVITE))
@@ -9776,7 +9796,7 @@ static struct ast_rtp *sip_get_vrtp_peer(struct ast_channel *chan)
 {
 	struct sip_pvt *p;
 	struct ast_rtp *rtp = NULL;
-	p = chan->pvt->pvt;
+	p = chan->tech_pvt;
 	if (p) {
 		ast_mutex_lock(&p->lock);
 		if (p->vrtp && ast_test_flag(p, SIP_CAN_REINVITE))
@@ -9790,7 +9810,7 @@ static struct ast_rtp *sip_get_vrtp_peer(struct ast_channel *chan)
 static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs)
 {
 	struct sip_pvt *p;
-	p = chan->pvt->pvt;
+	p = chan->tech_pvt;
 	if (p) {
 		ast_mutex_lock(&p->lock);
 		if (rtp)
@@ -9861,7 +9881,7 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 		ast_mutex_unlock(&chan->lock);
 		return 0;
 	}
-	p = chan->pvt->pvt;
+	p = chan->tech_pvt;
 	if (p) {
 		ast_mutex_lock(&p->lock);
 		if (!strcasecmp(mode,"info")) {
@@ -9966,7 +9986,7 @@ static int sip_getheader(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
-	p = chan->pvt->pvt;
+	p = chan->tech_pvt;
 	content = get_header(&p->initreq, header);	/* Get the header */
 	if (!ast_strlen_zero(content)) {
 		pbx_builtin_setvar_helper(chan, varname, content);
@@ -10064,12 +10084,13 @@ static int sip_sipredirect(struct sip_pvt *p, char *dest)
 /*--- sip_get_codec: Return peers codec ---*/
 static int sip_get_codec(struct ast_channel *chan)
 {
-	struct sip_pvt *p = chan->pvt->pvt;
+	struct sip_pvt *p = chan->tech_pvt;
 	return p->peercapability;	
 }
 
 /*--- sip_rtp: Interface structure with callbacks used to connect to rtp module --*/
 static struct ast_rtp_protocol sip_rtp = {
+	type: channeltype,
 	get_rtp_info: sip_get_rtp_peer,
 	get_vrtp_info: sip_get_vrtp_peer,
 	set_rtp_peer: sip_set_rtp_peer,
@@ -10170,7 +10191,7 @@ int load_module()
 	res = reload_config();
 	if (!res) {
 		/* Make sure we can register our sip channel type */
-		if (ast_channel_register_ex(channeltype, tdesc, ((AST_FORMAT_MAX_AUDIO << 1) - 1), sip_request, sip_devicestate)) {
+		if (ast_channel_register(&sip_tech)) {
 			ast_log(LOG_ERROR, "Unable to register channel class %s\n", channeltype);
 			return -1;
 		}
@@ -10194,7 +10215,6 @@ int load_module()
 		ast_cli_register(&cli_no_history);
 		ast_cli_register(&cli_sip_reload);
 		ast_cli_register(&cli_inuse_show);
-		sip_rtp.type = channeltype;
 		ast_rtp_proto_register(&sip_rtp);
 		ast_register_application(app_dtmfmode, sip_dtmfmode, synopsis_dtmfmode, descrip_dtmfmode);
 		ast_register_application(app_sipaddheader, sip_addheader, synopsis_sipaddheader, descrip_sipaddheader);
@@ -10237,7 +10257,7 @@ int unload_module()
 	ast_cli_unregister(&cli_sip_reload);
 	ast_cli_unregister(&cli_inuse_show);
 	ast_rtp_proto_unregister(&sip_rtp);
-	ast_channel_unregister(channeltype);
+	ast_channel_unregister(&sip_tech);
 	if (!ast_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = iflist;
@@ -10310,7 +10330,7 @@ char *key()
 
 char *description()
 {
-	return desc;
+	return (char *) desc;
 }
 
 

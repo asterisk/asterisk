@@ -17,6 +17,7 @@
 #include <asterisk/frame.h>
 #include <asterisk/sched.h>
 #include <asterisk/chanvars.h>
+
 #include <unistd.h>
 #include <setjmp.h>
 #if defined(__APPLE__)
@@ -75,6 +76,75 @@ struct ast_callerid {
 	int cid_tns;
 };
 
+/*! Structure to describe a channel "technology" */
+
+struct ast_channel_tech {
+	const char * const type;
+	const char * const description;
+
+	int capabilities;
+
+	struct ast_channel *(* const requester)(const char *type, int format, void *data, int *cause);
+
+	int (* const devicestate)(void *data);
+
+	/*! Send a literal DTMF digit */
+	int (* const send_digit)(struct ast_channel *chan, char digit);
+
+	/*! Call a given phone number (address, etc), but don't
+	   take longer than timeout seconds to do so.  */
+	int (* const call)(struct ast_channel *chan, char *addr, int timeout);
+
+	/*! Hangup (and possibly destroy) the channel */
+	int (* const hangup)(struct ast_channel *chan);
+
+	/*! Answer the line */
+	int (* const answer)(struct ast_channel *chan);
+
+	/*! Read a frame, in standard format */
+	struct ast_frame * (* const read)(struct ast_channel *chan);
+
+	/*! Write a frame, in standard format */
+	int (* const write)(struct ast_channel *chan, struct ast_frame *frame);
+
+	/*! Display or transmit text */
+	int (* const send_text)(struct ast_channel *chan, char *text);
+
+	/*! Display or send an image */
+	int (* const send_image)(struct ast_channel *chan, struct ast_frame *frame);
+
+	/*! Send HTML data */
+	int (* const send_html)(struct ast_channel *chan, int subclass, char *data, int len);
+
+	/*! Handle an exception, reading a frame */
+	struct ast_frame * (* const exception)(struct ast_channel *chan);
+
+	/*! Bridge two channels of the same type together */
+	int (* const bridge)(struct ast_channel *c0, struct ast_channel *c1, int flags,
+			     struct ast_frame **fo, struct ast_channel **rc);
+
+	/*! Indicate a particular condition (e.g. AST_CONTROL_BUSY or AST_CONTROL_RINGING or AST_CONTROL_CONGESTION */
+	int (* const indicate)(struct ast_channel *c, int condition);
+
+	/*! Fix up a channel:  If a channel is consumed, this is called.  Basically update any ->owner links */
+	int (* const fixup)(struct ast_channel *oldchan, struct ast_channel *newchan);
+
+	/*! Set a given option */
+	int (* const setoption)(struct ast_channel *chan, int option, void *data, int datalen);
+
+	/*! Query a given option */
+	int (* const queryoption)(struct ast_channel *chan, int option, void *data, int *datalen);
+
+	/*! Blind transfer other side */
+	int (* const transfer)(struct ast_channel *chan, char *newdest);
+
+	/*! Write a frame, in standard format */
+	int (* const write_video)(struct ast_channel *chan, struct ast_frame *frame);
+
+	/*! Find bridged channel */
+	struct ast_channel *(* const bridged_channel)(struct ast_channel *chan, struct ast_channel *bridge);
+};
+
 /*! Main Channel structure associated with a channel. */
 /*! 
  * This is the side of it mostly used by the pbx and call management.
@@ -82,6 +152,12 @@ struct ast_callerid {
 struct ast_channel {
 	/*! ASCII Description of channel name */
 	char name[AST_CHANNEL_NAME];		
+
+	/*! Technology */
+	const struct ast_channel_tech *tech;
+	/*! Private data used by the technology driver */
+	void *tech_pvt;
+
 	/*! Language requested */
 	char language[MAX_LANGUAGE];		
 	/*! Type of channel */
@@ -219,6 +295,17 @@ struct ast_channel {
 	/*! channel flags of AST_FLAG_ type */
 	unsigned int flags;
 	
+	struct ast_frame *readq;
+	int alertpipe[2];
+	/*! Write translation path */
+	struct ast_trans_pvt *writetrans;
+	/*! Read translation path */
+	struct ast_trans_pvt *readtrans;
+	/*! Raw read format */
+	int rawreadformat;
+	/*! Raw write format */
+	int rawwriteformat;
+
 	/*! For easy linking */
 	struct ast_channel *next;
 
@@ -331,6 +418,25 @@ struct outgoing_helper {
 /*! Device is unavailable */
 #define AST_DEVICE_UNAVAILABLE	5
 
+/*! Create a channel structure */
+/*! Returns NULL on failure to allocate */
+struct ast_channel *ast_channel_alloc(int needalertpipe);
+
+/*! Queue an outgoing frame */
+int ast_queue_frame(struct ast_channel *chan, struct ast_frame *f);
+
+int ast_queue_hangup(struct ast_channel *chan);
+
+int ast_queue_control(struct ast_channel *chan, int control);
+
+/*! Change the state of a channel */
+int ast_setstate(struct ast_channel *chan, int state);
+
+void ast_change_name(struct ast_channel *chan, char *newname);
+
+/*! Free a channel structure */
+void  ast_channel_free(struct ast_channel *);
+
 /*! Requests a channel */
 /*! 
  * \param type type of channel to request
@@ -378,32 +484,20 @@ struct ast_channel *ast_request_and_dial(const char *type, int format, void *dat
 
 struct ast_channel *__ast_request_and_dial(const char *type, int format, void *data, int timeout, int *reason, const char *cidnum, const char *cidname, struct outgoing_helper *oh);
 
-/*! Registers a channel */
+/*! Register a channel technology */
 /*! 
- * \param type type of channel you are registering
- * \param description short description of the channel
- * \param capabilities a bit mask of the capabilities of the channel
- * \param requester a function pointer that properly responds to a call.  See one of the channel drivers for details.
+ * \param tech Structure defining channel technology or "type"
  * Called by a channel module to register the kind of channels it supports.
- * It supplies a brief type, a longer, but still short description, and a
- * routine that creates a channel
  * Returns 0 on success, -1 on failure.
  */
-int ast_channel_register(const char *type, const char *description, int capabilities, 
-			struct ast_channel* (*requester)(const char *type, int format, void *data, int *cause));
+int ast_channel_register(const struct ast_channel_tech *tech);
 
-/* Same like the upper function but with support for devicestate */
-int ast_channel_register_ex(const char *type, const char *description, int capabilities,
-		struct ast_channel *(*requester)(const char *type, int format, void *data, int *cause),
-		int (*devicestate)(void *data));
-
-/*! Unregister a channel class */
+/*! Unregister a channel technology */
 /*
- * \param type the character string that corresponds to the channel you wish to unregister
- * Basically just unregisters the channel with the asterisk channel system
+ * \param tech Structure defining channel technology or "type" that was previously registered
  * No return value.
  */
-void ast_channel_unregister(const char *type);
+void ast_channel_unregister(const struct ast_channel_tech *tech);
 
 /*! Hang up a channel  */
 /*! 
@@ -897,6 +991,5 @@ extern char *ast_print_group(char *buf, int buflen, ast_group_t group);
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
-
 
 #endif

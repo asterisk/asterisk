@@ -22,7 +22,6 @@
 #include <asterisk/sched.h>
 #include <asterisk/options.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/logger.h>
 #include <asterisk/file.h>
 #include <asterisk/image.h>
@@ -69,9 +68,9 @@ void ast_image_unregister(struct ast_imager *img)
 
 int ast_supports_images(struct ast_channel *chan)
 {
-	if (!chan || !chan->pvt)
+	if (!chan || !chan->tech)
 		return 0;
-	if (!chan->pvt->send_image)
+	if (!chan->tech->send_image)
 		return 0;
 	return 1;
 }
@@ -162,10 +161,10 @@ int ast_send_image(struct ast_channel *chan, char *filename)
 {
 	struct ast_frame *f;
 	int res = -1;
-	if (chan->pvt->send_image) {
+	if (chan->tech->send_image) {
 		f = ast_read_image(filename, chan->language, -1);
 		if (f) {
-			res = chan->pvt->send_image(chan, f);
+			res = chan->tech->send_image(chan, f);
 			ast_frfree(f);
 		}
 	}

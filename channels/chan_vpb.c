@@ -25,7 +25,6 @@ extern "C" {
 #include <asterisk/lock.h>
 #include <asterisk/utils.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/config.h>
 #include <asterisk/logger.h>
 #include <asterisk/module.h>
@@ -76,10 +75,10 @@ extern "C" {
 #endif
 /**/
 
-static char *desc = "VoiceTronix V6PCI/V12PCI/V4PCI  API Support";
-static char *type = "vpb";
-static char *tdesc = "Standard VoiceTronix API Driver";
-static char *config = "vpb.conf";
+static const char desc[] = "VoiceTronix V6PCI/V12PCI/V4PCI  API Support";
+static const char type[] = "vpb";
+static const char tdesc[] = "Standard VoiceTronix API Driver";
+static const char config[] = "vpb.conf";
 
 /* Default context for dialtone mode */
 static char context[AST_MAX_EXTENSION] = "default";
@@ -311,6 +310,33 @@ static struct vpb_pvt {
 static struct ast_channel *vpb_new(struct vpb_pvt *i, int state, char *context);
 static void *do_chanreads(void *pvt);
 
+static struct ast_channel *vpb_request(const char *type, int format, void *data, int *cause);
+static int vpb_digit(struct ast_channel *ast, char digit);
+static int vpb_call(struct ast_channel *ast, char *dest, int timeout);
+static int vpb_hangup(struct ast_channel *ast);
+static int vpb_answer(struct ast_channel *ast);
+static struct ast_frame *vpb_read(struct ast_channel *ast);
+static int vpb_write(struct ast_channel *ast, struct ast_frame *frame);
+static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
+static int vpb_indicate(struct ast_channel *ast, int condition);
+static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
+
+static const struct ast_channel_tech vpb_tech = {
+	.type = type,
+	.description = tdesc,
+	.capabilities = AST_FORMAT_SLINEAR,
+	.requester = vpb_request,
+	.send_digit = vpb_digit,
+	.call = vpb_call,
+	.hangup = vpb_hangup,
+	.answer = vpb_answer,
+	.read = vpb_read,
+	.write = vpb_write,
+	.bridge = vpb_bridge,
+	.indicate = vpb_indicate,
+	.fixup = vpb_fixup,
+};
+
 /* Can't get vpb_bridge() working on v4pci without either a horrible 
 *  high pitched feedback noise or bad hiss noise depending on gain settings
 *  Get asterisk to do the bridging
@@ -325,8 +351,8 @@ static void *do_chanreads(void *pvt);
 /* This is the Native bridge code, which Asterisk will try before using its own bridging code */
 static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
 {
-	struct vpb_pvt *p0 = (struct vpb_pvt *)c0->pvt->pvt;
-	struct vpb_pvt *p1 = (struct vpb_pvt *)c1->pvt->pvt;
+	struct vpb_pvt *p0 = (struct vpb_pvt *)c0->tech_pvt;
+	struct vpb_pvt *p1 = (struct vpb_pvt *)c1->tech_pvt;
 	int i, res;
 
 	struct ast_channel *cs[3];
@@ -449,11 +475,11 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 				*rc = who;
 				ast_log(LOG_DEBUG, "%s: vpb_bridge: Got a [%s]\n",p0->dev, f ? "digit" : "hangup");
 /*
-				if ((c0->pvt->pvt == pvt0) && (!c0->_softhangup)) {
+				if ((c0->tech_pvt == pvt0) && (!c0->_softhangup)) {
 					if (pr0->set_rtp_peer(c0, NULL, NULL, 0)) 
 						ast_log(LOG_WARNING, "Channel '%s' failed to revert\n", c0->name);
 				}
-				if ((c1->pvt->pvt == pvt1) && (!c1->_softhangup)) {
+				if ((c1->tech_pvt == pvt1) && (!c1->_softhangup)) {
 					if (pr1->set_rtp_peer(c1, NULL, NULL, 0)) 
 						ast_log(LOG_WARNING, "Channel '%s' failed to revert back\n", c1->name);
 				}
@@ -1556,9 +1582,12 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, int gains, float t
 
 static int vpb_indicate(struct ast_channel *ast, int condition)
 {
-	struct vpb_pvt *p = (struct vpb_pvt *)ast->pvt->pvt;
+	struct vpb_pvt *p = (struct vpb_pvt *)ast->tech_pvt;
 	int res = 0;
 	int tmp = 0;
+
+	if (!use_ast_ind)
+		return 0;
 
 	if (option_verbose > 3)
 		ast_verbose(VERBOSE_PREFIX_4 "%s: vpb_indicate [%d] state[%d]\n", p->dev, condition,ast->_state);
@@ -1623,7 +1652,7 @@ static int vpb_indicate(struct ast_channel *ast, int condition)
 
 static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct vpb_pvt *p = (struct vpb_pvt *)newchan->pvt->pvt;
+	struct vpb_pvt *p = (struct vpb_pvt *)newchan->tech_pvt;
 	int res = 0;
 
 /*
@@ -1653,9 +1682,12 @@ static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 
 static int vpb_digit(struct ast_channel *ast, char digit)
 {
-	struct vpb_pvt *p = (struct vpb_pvt *)ast->pvt->pvt;
+	struct vpb_pvt *p = (struct vpb_pvt *)ast->tech_pvt;
 	char s[2];
 	int res = 0;
+
+	if (!use_ast_dtmf)
+		return 0;
 
 /*
 	if (option_verbose > 3) ast_verbose("%s: LOCKING in digit \n", p->dev);
@@ -1684,7 +1716,7 @@ static int vpb_digit(struct ast_channel *ast, char digit)
 /* Places a call out of a VPB channel */
 static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 {
-	struct vpb_pvt *p = (struct vpb_pvt *)ast->pvt->pvt;
+	struct vpb_pvt *p = (struct vpb_pvt *)ast->tech_pvt;
 	int res = 0,i;
 	char *s = strrchr(dest, '/');
 	char dialstring[254] = "";
@@ -1798,7 +1830,7 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 
 static int vpb_hangup(struct ast_channel *ast)
 {
-	struct vpb_pvt *p = (struct vpb_pvt *)ast->pvt->pvt;
+	struct vpb_pvt *p = (struct vpb_pvt *)ast->tech_pvt;
 	VPB_EVENT je;
 	char str[VPB_MAX_STR];
 	int res =0 ;
@@ -1812,8 +1844,7 @@ static int vpb_hangup(struct ast_channel *ast)
 	if (option_verbose > 1) 
 		ast_verbose(VERBOSE_PREFIX_2 "%s: Hangup requested\n", ast->name);
 
-
-	if (!ast->pvt || !ast->pvt->pvt) {
+	if (!ast->tech || !ast->tech_pvt) {
 		ast_log(LOG_WARNING, "%s: channel not connected?\n", ast->name);
 		res = ast_mutex_unlock(&p->lock);
 /*
@@ -1894,7 +1925,7 @@ static int vpb_hangup(struct ast_channel *ast)
 	p->dialtone = 0;
 
 	p->owner = NULL;
-	ast->pvt->pvt=NULL;
+	ast->tech_pvt=NULL;
 
 	/* Free up ast dsp if we have one */
 	if ((use_ast_dtmfdet)&&(p->vad)) {
@@ -1924,7 +1955,7 @@ static int vpb_hangup(struct ast_channel *ast)
 
 static int vpb_answer(struct ast_channel *ast)
 {
-	struct vpb_pvt *p = (struct vpb_pvt *)ast->pvt->pvt;
+	struct vpb_pvt *p = (struct vpb_pvt *)ast->tech_pvt;
 	VPB_EVENT je;
 	int ret;
 	int res = 0;
@@ -1998,7 +2029,7 @@ static int vpb_answer(struct ast_channel *ast)
 
 static struct ast_frame  *vpb_read(struct ast_channel *ast)
 {
-	struct vpb_pvt *p = (struct vpb_pvt *)ast->pvt->pvt; 
+	struct vpb_pvt *p = (struct vpb_pvt *)ast->tech_pvt; 
 	static struct ast_frame f = {AST_FRAME_NULL}; 
 
 	f.src = type;
@@ -2073,7 +2104,7 @@ int a_gain_vector(float g, short *v, int n)
 /* Writes a frame of voice data to a VPB channel */
 static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 {
-	struct vpb_pvt *p = (struct vpb_pvt *)ast->pvt->pvt; 
+	struct vpb_pvt *p = (struct vpb_pvt *)ast->tech_pvt; 
 	int res = 0, fmt = 0;
 	struct timeval play_buf_time_start,play_buf_time_finish;
 /*	ast_mutex_lock(&p->lock); */
@@ -2279,9 +2310,9 @@ static void *do_chanreads(void *pvt)
 		}
 		ast_mutex_unlock(&p->play_dtmf_lock);
 
-/*		afmt = (p->owner) ? p->owner->pvt->rawreadformat : AST_FORMAT_SLINEAR; */
+/*		afmt = (p->owner) ? p->owner->rawreadformat : AST_FORMAT_SLINEAR; */
 		if (p->owner){
-			afmt = p->owner->pvt->rawreadformat;
+			afmt = p->owner->rawreadformat;
 /*			ast_log(LOG_DEBUG,"%s: Record using owner format [%s]\n", p->dev, ast2vpbformatname(afmt)); */
 		}
 		else {
@@ -2437,6 +2468,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, int state, char *context)
 	    
 	tmp = ast_channel_alloc(1);
 	if (tmp) {
+		tmp->tech = &vpb_tech;
 		strncpy(tmp->name, me->dev, sizeof(tmp->name) - 1);
 		tmp->type = type;
 	       
@@ -2445,8 +2477,8 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, int state, char *context)
 		 * linear since we can then adjust volume in this modules.
 		 */
 		tmp->nativeformats = prefformat;
-		tmp->pvt->rawreadformat = AST_FORMAT_SLINEAR;
-		tmp->pvt->rawwriteformat =  AST_FORMAT_SLINEAR;
+		tmp->rawreadformat = AST_FORMAT_SLINEAR;
+		tmp->rawwriteformat =  AST_FORMAT_SLINEAR;
 		ast_setstate(tmp, state);
 		if (state == AST_STATE_RING) {
 			tmp->rings = 1;
@@ -2455,19 +2487,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, int state, char *context)
 			ast_callerid_split(me->callerid, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
 			ast_set_callerid(tmp, cid_num, cid_name, cid_num);
 		}
-		tmp->pvt->pvt = me;
-		/* set call backs */
-		if (use_ast_dtmf == 0)
-			tmp->pvt->send_digit = vpb_digit;
-		tmp->pvt->call = vpb_call;
-		tmp->pvt->hangup = vpb_hangup;
-		tmp->pvt->answer = vpb_answer;
-		tmp->pvt->read = vpb_read;
-		tmp->pvt->write = vpb_write;
-		tmp->pvt->bridge = vpb_bridge;
-		if (use_ast_ind == 0)
-			tmp->pvt->indicate = vpb_indicate;
-		tmp->pvt->fixup = vpb_fixup;
+		tmp->tech_pvt = me;
 		
 		strncpy(tmp->context, context, sizeof(tmp->context)-1);
 		if (strlen(me->ext))
@@ -2741,7 +2761,7 @@ int load_module()
 
 	ast_config_destroy(cfg);
 
-	if (!error && ast_channel_register(type, tdesc, prefformat, vpb_request) != 0) {
+	if (!error && ast_channel_register(&vpb_tech) != 0) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
 		error = -1;
 	}
@@ -2760,7 +2780,7 @@ int unload_module()
 {
 	struct vpb_pvt *p;
 	/* First, take us out of the channel loop */
-	ast_channel_unregister(type);
+	ast_channel_unregister(&vpb_tech);
 
 	ast_mutex_lock(&iflock); {
 		/* Hangup all interfaces if they have an owner */
@@ -2827,7 +2847,7 @@ int usecount()
 
 char *description()
 {
-	return desc;
+	return (char *) desc;
 }
 
 char *key()

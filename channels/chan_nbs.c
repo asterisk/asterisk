@@ -15,7 +15,6 @@
 #include <string.h>
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/config.h>
 #include <asterisk/logger.h>
 #include <asterisk/module.h>
@@ -31,9 +30,9 @@
 #include <sys/ioctl.h>
 #include <nbs.h>
 
-static char *desc = "Network Broadcast Sound Support";
-static char *type = "NBS";
-static char *tdesc = "Network Broadcast Sound Driver";
+static const char desc[] = "Network Broadcast Sound Support";
+static const char type[] = "NBS";
+static const char tdesc[] = "Network Broadcast Sound Driver";
 
 static int usecnt =0;
 
@@ -54,11 +53,28 @@ struct nbs_pvt {
 	struct ast_frame fr;			/* "null" frame */
 };
 
+static struct ast_channel *nbs_request(const char *type, int format, void *data, int *cause);
+static int nbs_call(struct ast_channel *ast, char *dest, int timeout);
+static int nbs_hangup(struct ast_channel *ast);
+static struct ast_frame *nbs_xread(struct ast_channel *ast);
+static int nbs_xwrite(struct ast_channel *ast, struct ast_frame *frame);
+
+static const struct ast_channel_tech nbs_tech = {
+	.type = type,
+	.description = tdesc,
+	.capabilities = AST_FORMAT_SLINEAR,
+	.requester = nbs_request,
+	.call = nbs_call,
+	.hangup = nbs_hangup,
+	.read = nbs_xread,
+	.write = nbs_xwrite,
+};
+
 static int nbs_call(struct ast_channel *ast, char *dest, int timeout)
 {
 	struct nbs_pvt *p;
 
-	p = ast->pvt->pvt;
+	p = ast->tech_pvt;
 
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "nbs_call called on %s, neither down nor reserved\n", ast->name);
@@ -135,22 +151,22 @@ static struct nbs_pvt *nbs_alloc(void *data)
 static int nbs_hangup(struct ast_channel *ast)
 {
 	struct nbs_pvt *p;
-	p = ast->pvt->pvt;
+	p = ast->tech_pvt;
 	if (option_debug)
 		ast_log(LOG_DEBUG, "nbs_hangup(%s)\n", ast->name);
-	if (!ast->pvt->pvt) {
+	if (!ast->tech_pvt) {
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
 	}
 	nbs_destroy(p);
-	ast->pvt->pvt = NULL;
+	ast->tech_pvt = NULL;
 	ast_setstate(ast, AST_STATE_DOWN);
 	return 0;
 }
 
 static struct ast_frame  *nbs_xread(struct ast_channel *ast)
 {
-	struct nbs_pvt *p = ast->pvt->pvt;
+	struct nbs_pvt *p = ast->tech_pvt;
 	
 
 	/* Some nice norms */
@@ -170,7 +186,7 @@ static struct ast_frame  *nbs_xread(struct ast_channel *ast)
 
 static int nbs_xwrite(struct ast_channel *ast, struct ast_frame *frame)
 {
-	struct nbs_pvt *p = ast->pvt->pvt;
+	struct nbs_pvt *p = ast->tech_pvt;
 	/* Write a frame of (presumably voice) data */
 	if (frame->frametype != AST_FRAME_VOICE) {
 		if (frame->frametype != AST_FRAME_IMAGE)
@@ -196,22 +212,19 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state)
 	struct ast_channel *tmp;
 	tmp = ast_channel_alloc(1);
 	if (tmp) {
+		tmp->tech = &nbs_tech;
 		snprintf(tmp->name, sizeof(tmp->name), "NBS/%s", i->stream);
 		tmp->type = type;
 		tmp->fds[0] = nbs_fd(i->nbs);
 		tmp->nativeformats = prefformat;
-		tmp->pvt->rawreadformat = prefformat;
-		tmp->pvt->rawwriteformat = prefformat;
+		tmp->rawreadformat = prefformat;
+		tmp->rawwriteformat = prefformat;
 		tmp->writeformat = prefformat;
 		tmp->readformat = prefformat;
 		ast_setstate(tmp, state);
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
-		tmp->pvt->pvt = i;
-		tmp->pvt->call = nbs_call;
-		tmp->pvt->hangup = nbs_hangup;
-		tmp->pvt->read = nbs_xread;
-		tmp->pvt->write = nbs_xwrite;
+		tmp->tech_pvt = i;
 		strncpy(tmp->context, context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, "s",  sizeof(tmp->exten) - 1);
 		tmp->language[0] = '\0';
@@ -256,7 +269,7 @@ static struct ast_channel *nbs_request(const char *type, int format, void *data,
 static int __unload_module(void)
 {
 	/* First, take us out of the channel loop */
-	ast_channel_unregister(type);
+	ast_channel_unregister(&nbs_tech);
 	return 0;
 }
 
@@ -267,9 +280,8 @@ int unload_module(void)
 
 int load_module()
 {
-	/* Make sure we can register our Adtranphone channel type */
-	if (ast_channel_register(type, tdesc, 
-			 AST_FORMAT_SLINEAR, nbs_request)) {
+	/* Make sure we can register our channel type */
+	if (ast_channel_register(&nbs_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
 		__unload_module();
 		return -1;
@@ -288,7 +300,7 @@ int usecount()
 
 char *description()
 {
-	return desc;
+	return (char *) desc;
 }
 
 char *key()

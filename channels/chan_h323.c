@@ -52,7 +52,6 @@ extern "C" {
 #include <asterisk/lock.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/config.h>
 #include <asterisk/module.h>
 #include <asterisk/pbx.h>
@@ -88,10 +87,10 @@ rfc2833_cb on_set_rfc2833_payload;
 int h323debug;
 
 /** Variables required by Asterisk */
-static char *type = "H323";
-static char *desc = "The NuFone Network's Open H.323 Channel Driver";
-static char *tdesc = "The NuFone Network's Open H.323 Channel Driver";
-static char *config = "h323.conf";
+static const char type[] = "H323";
+static const char desc[] = "The NuFone Network's Open H.323 Channel Driver";
+static const char tdesc[] = "The NuFone Network's Open H.323 Channel Driver";
+static const char config[] = "h323.conf";
 static char default_context[AST_MAX_EXTENSION] = "default";
 static struct sockaddr_in bindaddr;
 
@@ -184,6 +183,35 @@ static pthread_t monitor_thread = AST_PTHREADT_NULL;
 static int restart_monitor(void);
 static int h323_do_reload(void);
 
+static struct ast_channel *oh323_request(const char *type, int format, void *data, int *cause);
+static int oh323_digit(struct ast_channel *c, char digit);
+static int oh323_call(struct ast_channel *c, char *dest, int timeout);
+static int oh323_hangup(struct ast_channel *c);
+static int oh323_answer(struct ast_channel *c);
+static struct ast_frame *oh323_read(struct ast_channel *c);
+static int oh323_write(struct ast_channel *c, struct ast_frame *frame);
+static int oh323_indicate(struct ast_channel *c, int condition);
+static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
+
+static const struct ast_channel_tech oh323_tech = {
+	.type = type,
+	.description = tdesc,
+	.capabilities = AST_FORMAT_ULAW,
+	.requester = oh323_request,
+	.send_digit = oh323_digit,
+	.call = oh323_call,
+	.hangup = oh323_hangup,
+	.answer = oh323_answer,
+	.read = oh323_read,
+	.write = oh323_write,
+	.indicate = oh323_indicate,
+	.fixup = oh323_fixup,
+	/* disable, for now */
+#if 0
+	.bridge = ast_rtp_bridge,
+#endif
+};
+
 static void __oh323_destroy(struct oh323_pvt *p)
 {
 	struct oh323_pvt *cur, *prev = NULL;
@@ -196,7 +224,7 @@ static void __oh323_destroy(struct oh323_pvt *p)
 	if (p->owner) {
 		ast_mutex_lock(&p->owner->lock);
 		ast_log(LOG_DEBUG, "Detaching from %s\n", p->owner->name);
-		p->owner->pvt->pvt = NULL;
+		p->owner->tech_pvt = NULL;
 		ast_mutex_unlock(&p->owner->lock);
 	}
 	cur = iflist;
@@ -464,7 +492,7 @@ static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
  */
 static int oh323_digit(struct ast_channel *c, char digit)
 {
-	struct oh323_pvt *p = (struct oh323_pvt *) c->pvt->pvt;
+	struct oh323_pvt *p = (struct oh323_pvt *) c->tech_pvt;
 	if (p && p->rtp && (p->dtmfmode & H323_DTMF_RFC2833)) {
 		ast_rtp_senddigit(p->rtp, digit);
 	}
@@ -483,7 +511,7 @@ static int oh323_digit(struct ast_channel *c, char digit)
 static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 {  
         int res = 0;
-        struct oh323_pvt *pvt = (struct oh323_pvt *)c->pvt->pvt;
+        struct oh323_pvt *pvt = (struct oh323_pvt *)c->tech_pvt;
         char addr[INET_ADDRSTRLEN];
         char called_addr[1024];
   
@@ -528,7 +556,7 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 static int oh323_answer(struct ast_channel *c)
 {
 	int res;
-	struct oh323_pvt *pvt = (struct oh323_pvt *) c->pvt->pvt;
+	struct oh323_pvt *pvt = (struct oh323_pvt *) c->tech_pvt;
 
 	res = h323_answering_call(pvt->cd.call_token, 0);
 	
@@ -540,11 +568,11 @@ static int oh323_answer(struct ast_channel *c)
 
 static int oh323_hangup(struct ast_channel *c)
 {
-	struct oh323_pvt *pvt = (struct oh323_pvt *) c->pvt->pvt;
+	struct oh323_pvt *pvt = (struct oh323_pvt *) c->tech_pvt;
 	int needcancel = 0;
 	int q931cause = AST_CAUSE_NORMAL_CLEARING;
 
-	if (!c->pvt->pvt) {
+	if (!c->tech_pvt) {
 		ast_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
 		return 0;
 	}
@@ -558,14 +586,14 @@ static int oh323_hangup(struct ast_channel *c)
 	if (!c || (c->_state != AST_STATE_UP)) {
 		needcancel = 1;
 	}
-	pvt = (struct oh323_pvt *)c->pvt->pvt;
+	pvt = (struct oh323_pvt *)c->tech_pvt;
 	
 	/* Free dsp used for in-band DTMF detection */
 	if (pvt->vad) {
 		ast_dsp_free(pvt->vad);
 	}
 	pvt->owner = NULL;
-	c->pvt->pvt = NULL;
+	c->tech_pvt = NULL;
 
 	if (c->hangupcause) {
 		q931cause = c->hangupcause;
@@ -648,7 +676,7 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *pvt)
 static struct ast_frame  *oh323_read(struct ast_channel *c)
 {
 	struct ast_frame *fr;
-	struct oh323_pvt *pvt = (struct oh323_pvt *)c->pvt->pvt;
+	struct oh323_pvt *pvt = (struct oh323_pvt *)c->tech_pvt;
 	ast_mutex_lock(&pvt->lock);
 	fr = oh323_rtp_read(pvt);
 	ast_mutex_unlock(&pvt->lock);
@@ -657,7 +685,7 @@ static struct ast_frame  *oh323_read(struct ast_channel *c)
 
 static int oh323_write(struct ast_channel *c, struct ast_frame *frame)
 {
-	struct oh323_pvt *pvt = (struct oh323_pvt *) c->pvt->pvt;
+	struct oh323_pvt *pvt = (struct oh323_pvt *) c->tech_pvt;
 	int res = 0;
 	if (frame->frametype != AST_FRAME_VOICE) {
 		if (frame->frametype == AST_FRAME_IMAGE) {
@@ -686,7 +714,7 @@ static int oh323_write(struct ast_channel *c, struct ast_frame *frame)
 static int oh323_indicate(struct ast_channel *c, int condition)
 {
 
-	struct oh323_pvt *pvt = (struct oh323_pvt *) c->pvt->pvt;
+	struct oh323_pvt *pvt = (struct oh323_pvt *) c->tech_pvt;
 
 	ast_log(LOG_DEBUG, "OH323: Indicating %d on %s\n", condition, pvt->cd.call_token);
 
@@ -733,7 +761,7 @@ static int oh323_indicate(struct ast_channel *c, int condition)
 
 static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct oh323_pvt *pvt = (struct oh323_pvt *) newchan->pvt->pvt;
+	struct oh323_pvt *pvt = (struct oh323_pvt *) newchan->tech_pvt;
 
 	ast_mutex_lock(&pvt->lock);
 	if (pvt->owner != oldchan) {
@@ -760,6 +788,7 @@ static struct ast_channel *oh323_new(struct oh323_pvt *pvt, int state, const cha
 	ast_update_use_count();
 	ast_mutex_lock(&pvt->lock);
 	if (ch) {
+		tmp->tech = &oh323_tech;
 		snprintf(ch->name, sizeof(ch->name), "H323/%s", host);
 		ch->nativeformats = pvt->capability;
 		if (!ch->nativeformats) {
@@ -772,28 +801,16 @@ static struct ast_channel *oh323_new(struct oh323_pvt *pvt, int state, const cha
 			ch->rings = 1;
 		}
 		ch->writeformat = fmt;
-		ch->pvt->rawwriteformat = fmt;
+		ch->rawwriteformat = fmt;
 		ch->readformat = fmt;
-		ch->pvt->rawreadformat = fmt;
+		ch->rawreadformat = fmt;
 		/* Allocate dsp for in-band DTMF support */
 		if (pvt->dtmfmode & H323_DTMF_INBAND) {
 			pvt->vad = ast_dsp_new();
 			ast_dsp_set_features(pvt->vad, DSP_FEATURE_DTMF_DETECT);
         	}
 		/* Register channel functions. */
-		ch->pvt->pvt = pvt;
-		ch->pvt->send_digit = oh323_digit;
-		ch->pvt->call = oh323_call;
-		ch->pvt->hangup = oh323_hangup;
-		ch->pvt->answer = oh323_answer;
-		ch->pvt->read = oh323_read;
-		ch->pvt->write = oh323_write;
-		ch->pvt->indicate = oh323_indicate;
-		ch->pvt->fixup = oh323_fixup;
-	     	/* disable, for now */
-#if 0
-		ch->pvt->bridge = ast_rtp_bridge;
-#endif
+		ch->tech_pvt = pvt;
 		/*  Set the owner of this channel */
 		pvt->owner = ch;
 		
@@ -1990,7 +2007,7 @@ static struct ast_cli_entry  cli_h323_reload =
 static struct ast_rtp *oh323_get_rtp_peer(struct ast_channel *chan)
 {
 	struct oh323_pvt *p;
-	p = (struct oh323_pvt *) chan->pvt->pvt;
+	p = (struct oh323_pvt *) chan->tech_pvt;
 	if (p && p->rtp && p->bridge) {
 		return p->rtp;
 	}
@@ -2041,7 +2058,7 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, str
 	}
 
 	mode = convertcap(chan->writeformat); 
-	p = (struct oh323_pvt *) chan->pvt->pvt;
+	p = (struct oh323_pvt *) chan->tech_pvt;
 	if (!p) {
 		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");
 		return -1;
@@ -2053,9 +2070,10 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, str
 }
 
 static struct ast_rtp_protocol oh323_rtp = {
-	get_rtp_info: oh323_get_rtp_peer,
-	get_vrtp_info: oh323_get_vrtp_peer,
-	set_rtp_peer: oh323_set_rtp_peer,
+	.type = type,
+	.get_rtp_info = oh323_get_rtp_peer,
+	.get_vrtp_info = oh323_get_vrtp_peer,
+	.set_rtp_peer=  oh323_set_rtp_peer,
 };
 
 int load_module()
@@ -2077,7 +2095,7 @@ int load_module()
 		return 0;
 	} else {
 		/* Make sure we can register our channel type */
-		if (ast_channel_register(type, tdesc, capability, oh323_request)) {
+		if (ast_channel_register(&oh323_tech)) {
 			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
 			h323_end_process();
 			return -1;
@@ -2092,7 +2110,6 @@ int load_module()
 		ast_cli_register(&cli_show_tokens);
 		ast_cli_register(&cli_h323_reload);
 
-		oh323_rtp.type = type;
 		ast_rtp_proto_register(&oh323_rtp);
 
 		/* Register our callback functions */
@@ -2140,7 +2157,7 @@ int unload_module()
         ast_cli_unregister(&cli_show_tokens);
         ast_cli_unregister(&cli_h323_reload);
 	ast_rtp_proto_unregister(&oh323_rtp);
-	ast_channel_unregister(type);
+	ast_channel_unregister(&oh323_tech);
 		
 	if (!ast_mutex_lock(&iflock)) {
 		/* hangup all interfaces if they have an owner */

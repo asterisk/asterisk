@@ -33,7 +33,6 @@
 #include <asterisk/channel.h>
 #include <asterisk/acl.h>
 #include <asterisk/channel.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/config.h>
 #include <asterisk/lock.h>
 #include <asterisk/utils.h>
@@ -1509,8 +1508,8 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		ast_mutex_unlock(&c1->lock);
 		return -1;
 	}
-	pvt0 = c0->pvt->pvt;
-	pvt1 = c1->pvt->pvt;
+	pvt0 = c0->tech_pvt;
+	pvt1 = c1->tech_pvt;
 	p0 = pr0->get_rtp_info(c0);
 	if (pr0->get_vrtp_info)
 		vp0 = pr0->get_vrtp_info(c0);
@@ -1568,15 +1567,15 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 	oldcodec0 = codec0;
 	oldcodec1 = codec1;
 	for (;;) {
-		if ((c0->pvt->pvt != pvt0)  ||
-			(c1->pvt->pvt != pvt1) ||
+		if ((c0->tech_pvt != pvt0)  ||
+			(c1->tech_pvt != pvt1) ||
 			(c0->masq || c0->masqr || c1->masq || c1->masqr)) {
 				ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
-				if (c0->pvt->pvt == pvt0) {
+				if (c0->tech_pvt == pvt0) {
 					if (pr0->set_rtp_peer(c0, NULL, NULL, 0)) 
 						ast_log(LOG_WARNING, "Channel '%s' failed to revert\n", c0->name);
 				}
-				if (c1->pvt->pvt == pvt1) {
+				if (c1->tech_pvt == pvt1) {
 					if (pr1->set_rtp_peer(c1, NULL, NULL, 0)) 
 						ast_log(LOG_WARNING, "Channel '%s' failed to revert back\n", c1->name);
 				}
@@ -1641,11 +1640,11 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 			*rc = who;
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Oooh, got a %s\n", f ? "digit" : "hangup");
-			if ((c0->pvt->pvt == pvt0) && (!c0->_softhangup)) {
+			if ((c0->tech_pvt == pvt0) && (!c0->_softhangup)) {
 				if (pr0->set_rtp_peer(c0, NULL, NULL, 0)) 
 					ast_log(LOG_WARNING, "Channel '%s' failed to revert\n", c0->name);
 			}
-			if ((c1->pvt->pvt == pvt1) && (!c1->_softhangup)) {
+			if ((c1->tech_pvt == pvt1) && (!c1->_softhangup)) {
 				if (pr1->set_rtp_peer(c1, NULL, NULL, 0)) 
 					ast_log(LOG_WARNING, "Channel '%s' failed to revert back\n", c1->name);
 			}
