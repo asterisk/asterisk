@@ -817,6 +817,9 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, char *cont
 	return NULL;
 }
 
+/*--- pbx_retrieve_variable: Support for Asterisk built-in variables and
+      functions in the dialplan
+  ---*/
 static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen)
 {
 	char *first,*second;
@@ -832,7 +835,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var
 		headp=&c->varshead;
 	*ret=NULL;
 	/* Now we have the variable name on cp3 */
-	if (!strncasecmp(var,"LEN(",4)) {
+	if (!strncasecmp(var,"LEN(",4)) {	/* ${LEN(<string>)} */
 		int len=strlen(var);
 		int len_len=4;
 		if (strrchr(var,')')) {
@@ -845,37 +848,45 @@ static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var
 			/* length is zero */
 			*ret = "0";
 		}
-	} else if ((first=strchr(var,':'))) {
+	} else if ((first=strchr(var,':'))) {	/* : Remove characters counting from end or start of string */
 		strncpy(tmpvar, var, sizeof(tmpvar) - 1);
 		first = strchr(tmpvar, ':');
 		if (!first)
 			first = tmpvar + strlen(tmpvar);
 		*first='\0';
 		pbx_substitute_variables_temp(c,tmpvar,ret,workspace,workspacelen - 1);
-		if (!(*ret)) return;
-		offset=atoi(first+1);
-	 	if ((second=strchr(first+1,':'))) {
+		if (!(*ret)) 
+			return;
+		offset=atoi(first+1);	/* The number of characters, 
+					   positive: remove # of chars from start
+					   negative: keep # of chars from end */
+						
+	 	if ((second=strchr(first+1,':'))) {	
 			*second='\0';
-			offset2=atoi(second+1);
-		} else
-			offset2=strlen(*ret)-offset;
-		if (abs(offset)>strlen(*ret)) {
-			if (offset>=0) 
+			offset2 = atoi(second+1);		/* Number of chars to copy */
+		} else if (offset >= 0) {
+			offset2 = strlen(*ret)-offset;	/* Rest of string */
+		} else {
+			offset2 = abs(offset);
+		}
+
+		if (abs(offset) > strlen(*ret)) {	/* Offset beyond string */
+			if (offset >= 0) 
 				offset=strlen(*ret);
 			else 
 				offset=-strlen(*ret);
 		}
-		if ((offset<0 && offset2>-offset) || (offset>=0 && offset+offset2>strlen(*ret))) {
-			if (offset>=0) 
+		if ((offset < 0 && offset2 > -offset) || (offset >= 0 && offset+offset2 > strlen(*ret))) {
+			if (offset >= 0) 
 				offset2=strlen(*ret)-offset;
 			else 
 				offset2=strlen(*ret)+offset;
 		}
-		if (offset>=0)
-			*ret+=offset;
+		if (offset >= 0)
+			*ret += offset;
 		else
-			*ret+=strlen(*ret)+offset;
-		(*ret)[offset2] = '\0';
+			*ret += strlen(*ret)+offset;
+			(*ret)[offset2] = '\0';		/* Cut at offset2 position */
 	} else if (c && !strcmp(var, "CALLERIDNUM")) {
 		if (c->callerid)
 			strncpy(workspace, c->callerid, workspacelen - 1);
