@@ -14,11 +14,10 @@
 #ifndef _ASTERISK_DSP_H
 #define _ASTERISK_DSP_H
 
-#define DSP_FEATURE_SILENCE_SUPPRESS (1 << 0)
-#define DSP_FEATURE_BUSY_DETECT      (1 << 1)
-#define DSP_FEATURE_CALL_PROGRESS    (1 << 2)
-#define DSP_FEATURE_DTMF_DETECT		 (1 << 3)
-#define DSP_FEATURE_FAX_DETECT		 (1 << 4)
+#define DSP_FEATURE_SILENCE_SUPPRESS	(1 << 0)
+#define DSP_FEATURE_BUSY_DETECT		(1 << 1)
+#define DSP_FEATURE_DTMF_DETECT		(1 << 3)
+#define DSP_FEATURE_FAX_DETECT		(1 << 4)
 
 #define	DSP_DIGITMODE_DTMF			0				/* Detect DTMF digits */
 #define DSP_DIGITMODE_MF			1				/* Detect MF digits */
@@ -27,6 +26,12 @@
 #define DSP_DIGITMODE_MUTECONF		(1 << 9)		/* Mute conference */
 #define DSP_DIGITMODE_MUTEMAX		(1 << 10)		/* Delay audio by a frame to try to extra quelch */
 #define DSP_DIGITMODE_RELAXDTMF		(1 << 11)		/* "Radio" mode (relaxed DTMF) */
+
+#define DSP_PROGRESS_TALK		(1 << 16)		/* Enable talk detection */
+#define DSP_PROGRESS_RINGING		(1 << 17)		/* Enable calling tone detection */
+#define DSP_PROGRESS_BUSY		(1 << 18)		/* Enable busy tone detection */
+#define DSP_PROGRESS_CONGESTION		(1 << 19)		/* Enable congestion tone detection */
+#define DSP_FEATURE_CALL_PROGRESS	(DSP_PROGRESS_TALK | DSP_PROGRESS_RINGING | DSP_PROGRESS_BUSY | DSP_PROGRESS_CONGESTION)
 
 struct ast_dsp;
 

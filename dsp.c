@@ -1174,15 +1174,15 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 			if (newstate == dsp->tstate) {
 				dsp->tcount++;
 				if (dsp->tcount == COUNT_THRESH) {
-					if (dsp->tstate == TONE_STATE_BUSY) {
+					if ((dsp->features & DSP_PROGRESS_BUSY) && dsp->tstate == TONE_STATE_BUSY) {
 						res = AST_CONTROL_BUSY;
 						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-					} else if (dsp->tstate == TONE_STATE_TALKING) {
+					} else if ((dsp->features & DSP_PROGRESS_TALK) && dsp->tstate == TONE_STATE_TALKING) {
 						res = AST_CONTROL_ANSWER;
 						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-					} else if (dsp->tstate == TONE_STATE_RINGING)
+					} else if ((dsp->features & DSP_PROGRESS_RINGING) && dsp->tstate == TONE_STATE_RINGING)
 						res = AST_CONTROL_RINGING;
-					else if (dsp->tstate == TONE_STATE_SPECIAL3) {
+					else if ((dsp->features & DSP_PROGRESS_CONGESTION) && dsp->tstate == TONE_STATE_SPECIAL3) {
 						res = AST_CONTROL_CONGESTION;
 						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
 					}
@@ -1576,15 +1576,16 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 	}
 	if ((dsp->features & DSP_FEATURE_CALL_PROGRESS)) {
 		res = __ast_dsp_call_progress(dsp, shortdata, len);
-		memset(&dsp->f, 0, sizeof(dsp->f));
-		dsp->f.frametype = AST_FRAME_CONTROL;
 		if (res) {
 			switch(res) {
 			case AST_CONTROL_ANSWER:
 			case AST_CONTROL_BUSY:
 			case AST_CONTROL_RINGING:
 			case AST_CONTROL_CONGESTION:
+				memset(&dsp->f, 0, sizeof(dsp->f));
+				dsp->f.frametype = AST_FRAME_CONTROL;
 				dsp->f.subclass = res;
+				dsp->f.src = "dsp_progress";
 				if (chan) 
 					ast_queue_frame(chan, &dsp->f);
 				break;
