@@ -34,6 +34,7 @@
 #include <asterisk/image.h>
 #include <asterisk/say.h>
 #include <asterisk/app.h>
+#include <asterisk/dsp.h>
 #include "../asterisk.h"
 #include "../astconf.h"
 
@@ -444,20 +445,66 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	int res = 0;
 	int ms;
 
+        struct ast_dsp *sildet;         /* silence detector dsp */
+        int totalsilence = 0;
+        int dspsilence = 0;
+        int silence = 0;                /* amount of silence to allow */
+        int gotsilence = 0;             /* did we timeout for silence? */
+        char *silencestr;
+        int rfmt;
+
+
 	/* XXX EAGI FIXME XXX */
 
 	if (argc < 6)
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[5], "%i", &ms) != 1)
 		return RESULT_SHOWUSAGE;
+
+	if (argc > 6)
+		silencestr = strchr(argv[6],'s');
+	if ((argc > 7) && (!silencestr))
+		silencestr = strchr(argv[7],'s');
+	if ((argc > 8) && (!silencestr))
+		silencestr = strchr(argv[8],'s');
+
+	if (silencestr) {
+		if (strlen(silencestr) > 2) {
+			if ((silencestr[0] == 's') && (silencestr[1] == '=')) {
+				silencestr++;
+				silencestr++;
+				if (silencestr)
+	                		silence = atoi(silencestr);
+        			if (silence > 0)
+	                		silence *= 1000;
+        		}
+		}
+	}
+
+        if (silence > 0) {
+        	rfmt = chan->readformat;
+                res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
+                if (res < 0) {
+                	ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+                        return -1;
+                }
+               	sildet = ast_dsp_new();
+                if (!sildet) {
+                	ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
+                        return -1;
+                }
+               	ast_dsp_set_threshold(sildet, 256);
+      	}
+
 	/* backward compatibility, if no offset given, arg[6] would have been
 	 * caught below and taken to be a beep, else if it is a digit then it is a
 	 * offset */
-	if ((argc >6) && (sscanf(argv[6], "%ld", &sample_offset) != 1))
+	if ((argc >6) && (sscanf(argv[6], "%ld", &sample_offset) != 1) && (!strchr(argv[6], '=')))
 		res = ast_streamfile(chan, "beep", chan->language);
 
-	if (argc > 7)
+	if ((argc > 7) && (!strchr(argv[7], '=')))
 		res = ast_streamfile(chan, "beep", chan->language);
+
 	if (!res)
 		res = ast_waitstream(chan, argv[4]);
 	if (!res) {
@@ -506,15 +553,44 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 				 * is valid after a write, and it will then have our current
 				 * location */
 				sample_offset = ast_tellstream(fs);
+                                if (silence > 0) {
+                                	dspsilence = 0;
+                                        ast_dsp_silence(sildet, f, &dspsilence);
+                                        if (dspsilence) {
+                                       		totalsilence = dspsilence;
+                                        } else {
+                                              	totalsilence = 0;
+                                        }
+                                        if (totalsilence > silence) {
+                                             /* Ended happily with silence */
+                                        	ast_frfree(f);
+                                                gotsilence = 1;
+                                                break;
+                                        }
+                            	}
 				break;
 			}
 			ast_frfree(f);
-		    gettimeofday(&tv, NULL);
+		    	gettimeofday(&tv, NULL);
+			if (gotsilence)
+				break;
         }
+
+              	if (gotsilence) {
+                     	ast_stream_rewind(fs, silence-1000);
+                	ast_truncstream(fs);
+		}		
 		fdprintf(agi->fd, "200 result=%d (timeout) endpos=%ld\n", res, sample_offset);
 		ast_closestream(fs);
 	} else
 		fdprintf(agi->fd, "200 result=%d (randomerror) endpos=%ld\n", res, sample_offset);
+
+        if (silence > 0) {
+                res = ast_set_read_format(chan, rfmt);
+                if (res)
+                        ast_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
+                ast_dsp_free(sildet);
+        }
 	return RESULT_SUCCESS;
 }
 
@@ -897,12 +973,16 @@ static char usage_setpriority[] =
 "	 Changes the priority for continuation upon exiting the application.\n";
 
 static char usage_recordfile[] =
-" Usage: RECORD FILE <filename> <format> <escape digits> <timeout> [offset samples] [BEEP]\n"
+" Usage: RECORD FILE <filename> <format> <escape digits> <timeout> [offset samples] [BEEP] [s=silence]\n"
 "        Record to a file until a given dtmf digit in the sequence is received\n"
 " Returns -1 on hangup or error.  The format will specify what kind of file\n"
 " will be recorded.  The timeout is the maximum record time in milliseconds, or\n"
 " -1 for no timeout. Offset samples is optional, and if provided will seek to\n"
-" the offset without exceeding the end of the file\n";
+" the offset without exceeding the end of the file.  \"silence\" is the number\n"
+" of seconds of silence allowed before the function returns despite the\n"
+" lack of dtmf digits or reaching timeout.  Silence value must be\n"
+" preceeded by \"s=\" and is optional.\n";
+
 
 static char usage_autohangup[] =
 " Usage: SET AUTOHANGUP <time>\n"
