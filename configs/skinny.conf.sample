@@ -14,13 +14,15 @@ keepAlive = 120
 ; Typical config for 12SP+
 ;[florian]
 ;device=SEP00D0BA847E6B
+;version=P002G204 	; Thanks critch
 ;context=did
-;line => 120		; Dial(Skinny/1@florian)
+;line => 120		; Dial(Skinny/120@florian)
 
 
 ; Typical config for a 7910
-;[jeremy]  		; Device name
+;[duba]  		; Device name
 ;device=SEP0007EB463101	; Offical identifier
+;version=P002F202	; Firmware version identifier
 ;host=192.168.1.144	; 
 ;permit=192.168.0/24	; Optional, used for authentication
 ;nat=0
@@ -30,7 +32,7 @@ keepAlive = 120
 ;transfer=1
 ;threewaycalling=1
 ;context=default
-;line => 500
+;line => 500		; Dial(Skinny/500@duba)
 
 ; Typical config for a 7940 / ATA
 ;[support]
