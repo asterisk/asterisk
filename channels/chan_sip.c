@@ -3707,10 +3707,10 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	}
 	if (sipdebug)
 		ast_verbose("Looking for %s in %s\n", c, p->context);
-	if (!oreq || !strlen(p->exten))
-		strncpy(p->exten, c, sizeof(p->exten) - 1);
 	if (ast_exists_extension(NULL, p->context, c, 1, fr) ||
 		!strcmp(c, ast_pickup_ext())) {
+		if (!oreq)
+			strncpy(p->exten, c, sizeof(p->exten) - 1);
 		return 0;
 	}
 
@@ -5057,8 +5057,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				ast_queue_frame(p->owner, &af, 0);
 		} else if (sipdebug)
 			ast_verbose("Ignoring this request\n");
-		if (!strlen(p->our_contact))
-			build_contact(p);
 		if (!p->lastinvite) {
 			/* Handle authentication if this is our first invite */
 			res = check_user(p, req, cmd, e, 1, sin);
@@ -5277,9 +5275,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			check_via(p, req);
 		} else if (sipdebug)
 			ast_verbose("Ignoring this request\n");
-		
-		if (!strlen(p->our_contact))
-			build_contact(p);
+
 		if (!p->lastinvite) {
 			/* Handle authentication if this is our first subscribe */
 			res = check_user(p, req, cmd, e, 0, sin);
