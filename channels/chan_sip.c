@@ -170,6 +170,7 @@ static int global_ospauth = 0;
 static int usecnt =0;
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
+
 /* Protect the interface list (of sip_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
 
@@ -224,10 +225,8 @@ static struct io_context *io;
 #define DEC_OUT_USE	2
 #define INC_OUT_USE	3
 
-static struct sip_codec_pref {
-	int codec;
-	struct sip_codec_pref *next;
-} *prefs;
+static struct ast_codec_pref prefs;
+
 
 /* sip_request: The data grabbed from the UDP socket */
 struct sip_request {
@@ -258,6 +257,7 @@ static struct sip_pvt {
 	ast_mutex_t lock;			/* Channel private lock */
 	char callid[80];			/* Global CallID */
 	char randdata[80];			/* Random data */
+	struct ast_codec_pref prefs; /* codec prefs */
 	unsigned int ocseq;			/* Current outgoing seqno */
 	unsigned int icseq;			/* Current incoming seqno */
 	unsigned int callgroup;			/* Call group */
@@ -393,6 +393,7 @@ struct sip_user {
 	char useragent[256];		/* User agent in SIP request */
 	unsigned int callgroup;
 	unsigned int pickupgroup;
+	struct ast_codec_pref prefs; 	/* codec prefs */
 	int nat;
 	int hascallerid;
 	int amaflags;
@@ -434,6 +435,7 @@ struct sip_peer {
 	char language[MAX_LANGUAGE];
 	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
 	char useragent[256];		/* User agent in SIP request */
+	struct ast_codec_pref prefs; 	/* codec prefs */	
 	int lastmsgssent;
 	time_t	lastmsgcheck;
 	int dynamic;
@@ -1417,71 +1419,8 @@ static int auto_congest(void *nothing)
 	return 0;
 }
 
-/*--- sip_prefs_free: Free codec list in preference structure ---*/
-static void sip_prefs_free(void)
-{
-	struct sip_codec_pref *cur, *next;
-	cur = prefs;
-	while(cur) {
-		next = cur->next;
-		free(cur);
-		cur = next;
-	}
-	prefs = NULL;
-}
 
-/*--- sip_pref_remove: Remove codec from pref list ---*/
-static void sip_pref_remove(int format)
-{
-	struct sip_codec_pref *cur, *prev=NULL;
-	cur = prefs;
-	while(cur) {
-		if (cur->codec == format) {
-			if (prev)
-				prev->next = cur->next;
-			else
-				prefs = cur->next;
-			free(cur);
-			return;
-		}
-		prev = cur;
-		cur = cur->next;
-	}
-}
 
-/*--- sip_pref_append: Append codec to list ---*/
-static int sip_pref_append(int format)
-{
-	struct sip_codec_pref *cur, *tmp;
-	sip_pref_remove(format);
-	tmp = (struct sip_codec_pref *)malloc(sizeof(struct sip_codec_pref));
-	if (!tmp)
-		return -1;
-	memset(tmp, 0, sizeof(struct sip_codec_pref));
-	tmp->codec = format;
-	if (prefs) {
-		cur = prefs;
-		while(cur->next)
-			cur = cur->next;
-		cur->next = tmp;
-	} else
-		prefs = tmp;
-	return 0;
-}
-
-/*--- sip_codec_choose: Pick a codec ---*/
-static int sip_codec_choose(int formats)
-{
-	struct sip_codec_pref *cur;
-	formats &= ((AST_FORMAT_MAX_AUDIO << 1) - 1);
-	cur = prefs;
-	while(cur) {
-		if (formats & cur->codec)
-			return cur->codec;
-		cur = cur->next;
-	}
-	return ast_best_codec(formats);
-}
 
 /*--- sip_call: Initiate SIP call from PBX ---*/
 /*      used from the dial() application      */
@@ -2026,12 +1965,14 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	if (tmp) {
 		/* Select our native format based on codec preference until we receive
 		   something from another device to the contrary. */
+		ast_mutex_lock(&i->lock);
 		if (i->jointcapability)
-			tmp->nativeformats = sip_codec_choose(i->jointcapability);
+			tmp->nativeformats = ast_codec_choose(&i->prefs, i->jointcapability, 1);
 		else if (i->capability)
-			tmp->nativeformats = sip_codec_choose(i->capability);
+			tmp->nativeformats = ast_codec_choose(&i->prefs, i->capability, 1);
 		else
-			tmp->nativeformats = sip_codec_choose(global_capability);
+			tmp->nativeformats = ast_codec_choose(&i->prefs, global_capability, 1);
+		ast_mutex_unlock(&i->lock);
 		fmt = ast_best_codec(tmp->nativeformats);
 		if (title)
 			snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%04x", title, rand() & 0xffff);
@@ -2328,9 +2269,11 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	/* Keep track of stuff */
 	memset(p, 0, sizeof(struct sip_pvt));
         ast_mutex_init(&p->lock);
+
 	p->initid = -1;
 	p->autokillid = -1;
 	p->stateid = -1;
+	p->prefs = prefs;
 #ifdef OSP_SUPPORT
 	p->osphandle = -1;
 #endif	
@@ -2802,7 +2745,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	p->noncodeccapability = noncodeccapability & peernoncodeccapability;
 	
 	if (debug) {
-		const unsigned slen=80;
+		/* shame on whoever coded this.... */
+		const unsigned slen=512;
 		char s1[slen], s2[slen], s3[slen], s4[slen];
 
 		ast_verbose("Capabilities: us - %s, peer - audio=%s/video=%s, combined - %s\n",
@@ -2822,12 +2766,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	}
 	if (p->owner) {
 		if (!(p->owner->nativeformats & p->jointcapability)) {
-			const unsigned slen=80;
+			const unsigned slen=512;
 			char s1[slen], s2[slen];
 			ast_log(LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %s and not %s\n", 
 					ast_getformatname_multiple(s1, slen, p->jointcapability),
 					ast_getformatname_multiple(s2, slen, p->owner->nativeformats));
-			p->owner->nativeformats = sip_codec_choose(p->jointcapability);
+			p->owner->nativeformats = ast_codec_choose(&p->prefs, p->jointcapability, 1);
 			ast_set_read_format(p->owner, p->owner->readformat);
 			ast_set_write_format(p->owner, p->owner->writeformat);
 		}
@@ -3356,13 +3300,13 @@ static int add_digit(struct sip_request *req, char digit)
 /*--- add_sdp: Add Session Description Protocol message ---*/
 static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 {
-	int len;
-	int codec;
+	int len = 0;
+	int codec = 0;
+	int pref_codec = 0;
 	int alreadysent = 0;
 	char costr[80];
 	struct sockaddr_in sin;
 	struct sockaddr_in vsin;
-	struct sip_codec_pref *cur;
 	char v[256] = "";
 	char s[256] = "";
 	char o[256] = "";
@@ -3373,11 +3317,13 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	char a[1024] = "";
 	char a2[1024] = "";
 	char iabuf[INET_ADDRSTRLEN];
-	int x;
-	int capability;
+	int x = 0;
+	int capability = 0 ;
 	struct sockaddr_in dest;
 	struct sockaddr_in vdest = { 0, };
-	int debug=sip_debug_test_pvt(p);
+	int debug=0;
+	
+	debug = sip_debug_test_pvt(p);
 
 	/* XXX We break with the "recommendation" and send our IP, in order that our
 	       peer doesn't have to ast_gethostbyname() us XXX */
@@ -3429,6 +3375,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	snprintf(t, sizeof(t), "t=0 0\r\n");
 	snprintf(m, sizeof(m), "m=audio %d RTP/AVP", ntohs(dest.sin_port));
 	snprintf(m2, sizeof(m2), "m=video %d RTP/AVP", ntohs(vdest.sin_port));
+	/* Prefer the codec we were requested to use, first, no matter what */
 	if (capability & p->prefcodec) {
 		if (debug)
 			ast_verbose("Answering/Requesting with root capability %d\n", p->prefcodec);
@@ -3448,33 +3395,34 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		alreadysent |= p->prefcodec;
 	}
 	/* Start by sending our preferred codecs */
-	cur = prefs;
-	while(cur) {
-		if ((capability & cur->codec) && !(alreadysent & cur->codec)) {
+	for (x = 0 ; x < 32 ; x++) {
+		if(!(pref_codec = ast_codec_pref_index(&p->prefs,x)))
+			break; 
+		if ((capability & pref_codec) && !(alreadysent & pref_codec)) {
 			if (debug)
-				ast_verbose("Answering with preferred capability 0x%x(%s)\n", cur->codec, ast_getformatname(cur->codec));
-			codec = ast_rtp_lookup_code(p->rtp, 1, cur->codec);
+				ast_verbose("Answering with preferred capability 0x%x (%s)\n", pref_codec, ast_getformatname(pref_codec));
+			codec = ast_rtp_lookup_code(p->rtp, 1, pref_codec);
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
-				if (cur->codec <= AST_FORMAT_MAX_AUDIO) {
+				if (pref_codec <= AST_FORMAT_MAX_AUDIO) {
 					strncat(m, costr, sizeof(m) - strlen(m) - 1);
-					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, cur->codec));
+					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, pref_codec));
 					strncat(a, costr, sizeof(a) - strlen(a) - 1);
 				} else {
 					strncat(m2, costr, sizeof(m2) - strlen(m2) - 1);
-					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/90000\r\n", codec, ast_rtp_lookup_mime_subtype(1, cur->codec));
+					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/90000\r\n", codec, ast_rtp_lookup_mime_subtype(1, pref_codec));
 					strncat(a2, costr, sizeof(a2) - strlen(a) - 1);
 				}
 			}
 		}
-		alreadysent |= cur->codec;
-		cur = cur->next;
+		alreadysent |= pref_codec;
 	}
+
 	/* Now send any other common codecs, and non-codec formats: */
 	for (x = 1; x <= ((videosupport && p->vrtp) ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO); x <<= 1) {
 		if ((capability & x) && !(alreadysent & x)) {
 			if (debug)
-				ast_verbose("Answering with capability 0x%x(%s)\n", x, ast_getformatname(x));
+				ast_verbose("Answering with capability 0x%x (%s)\n", x, ast_getformatname(x));
 			codec = ast_rtp_lookup_code(p->rtp, 1, x);
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
@@ -3493,7 +3441,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	for (x = 1; x <= AST_RTP_MAX; x <<= 1) {
 		if (p->noncodeccapability & x) {
 			if (debug)
-				ast_verbose("Answering with non-codec capability 0x%x(%s)\n", x, ast_getformatname(x));
+				ast_verbose("Answering with non-codec capability 0x%x (%s)\n", x, ast_rtp_lookup_mime_subtype(0, x));
 			codec = ast_rtp_lookup_code(p->rtp, 0, x);
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
@@ -5382,6 +5330,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 	user = find_user(of);
 	/* Find user based on user name in the from header */
 	if (user && ast_apply_ha(user->ha, sin)) {
+		p->prefs = user->prefs;	
 		p->nat = user->nat;
 #ifdef OSP_SUPPORT
 		p->ospauth = user->ospauth;
@@ -5750,6 +5699,9 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 	char status[30] = "";
 	char iabuf[INET_ADDRSTRLEN];
 	struct sip_peer *peer;
+	char codec_buf[512];
+	struct ast_codec_pref *pref;
+	int x = 0, codec = 0;
 
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
@@ -5794,38 +5746,23 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 		ast_cli(fd, "  Defaddr->IP  : %s Port %d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
 		ast_cli(fd, "  Username     : %s\n", peer->username);
 		ast_cli(fd, "  Codecs       : ");
-		/* This should really be a function in frame.c */
-		if (peer->capability & AST_FORMAT_G723_1)
-               		ast_cli(fd, "G723 ");
-		if (peer->capability & AST_FORMAT_GSM)
-			ast_cli(fd, "GSM ");
-		if (peer->capability & AST_FORMAT_ULAW)
-			ast_cli(fd, "ULAW ");
-		if (peer->capability & AST_FORMAT_ALAW)
-			ast_cli(fd, "ALAW ");
-		if (peer->capability & AST_FORMAT_G726)
-			ast_cli(fd, "G.726 ");
-		if (peer->capability & AST_FORMAT_SLINEAR)
-			ast_cli(fd, "SLINR ");
-		if (peer->capability & AST_FORMAT_LPC10)
-			ast_cli(fd, "LPC10 ");
-		if (peer->capability & AST_FORMAT_ADPCM)
-			ast_cli(fd, "ADPCM ");
-		if (peer->capability & AST_FORMAT_G729A)
-			ast_cli(fd, "G.729A ");
-		if (peer->capability & AST_FORMAT_SPEEX)
-			ast_cli(fd, "SPEEX ");
-		if (peer->capability & AST_FORMAT_ILBC)
-			ast_cli(fd, "ILBC ");
-		if (peer->capability & AST_FORMAT_JPEG)
-			ast_cli(fd, "JPEG ");
-		if (peer->capability & AST_FORMAT_PNG)
-			ast_cli(fd, "PNG ");
-		if (peer->capability & AST_FORMAT_H261)
-			ast_cli(fd, "H.261 ");
-		if (peer->capability & AST_FORMAT_H263)   
-			ast_cli(fd, "H.263 ");
-		ast_cli(fd, "\n");
+		ast_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, peer->capability);
+		ast_cli(fd, "%s\n", codec_buf);
+		ast_cli(fd, "  Codec Order  : (");
+		pref = &peer->prefs;
+		for(x = 0; x < 32 ; x++) {
+			codec = ast_codec_pref_index(pref,x);
+			if(!codec)
+				break;
+			ast_cli(fd, "%s", ast_getformatname(codec));
+			if(x < 31 && ast_codec_pref_index(pref,x+1))
+				ast_cli(fd, "|");
+		}
+
+		if (!x)
+			ast_cli(fd, "none");
+		ast_cli(fd, ")\n");
+
 		ast_cli(fd, "  Status       : ");
 		if (peer->lastms < 0)
 			strncpy(status, "UNREACHABLE", sizeof(status) - 1);
@@ -8134,6 +8071,7 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 		user->trustrpid = global_trustrpid;
 		user->dtmfmode = global_dtmfmode;
 		user->progressinband = global_progressinband;
+		user->prefs = prefs;
 #ifdef OSP_SUPPORT
 		user->ospauth = global_ospauth;
 #endif
@@ -8207,17 +8145,9 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 					user->amaflags = format;
 				}
 			} else if (!strcasecmp(v->name, "allow")) {
-				format = ast_getformatbyname(v->value);
-				if (format < 1) 
-					ast_log(LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
-				else
-					user->capability |= format;
+				ast_parse_allow_disallow(&user->prefs, &user->capability, v->value, 1);
 			} else if (!strcasecmp(v->name, "disallow")) {
-				format = ast_getformatbyname(v->value);
-				if (format < 1) 
-					ast_log(LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
-				else
-					user->capability &= ~format;
+				ast_parse_allow_disallow(&user->prefs, &user->capability, v->value, 0);
 			} else if (!strcasecmp(v->name, "insecure")) {
 				user->insecure = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "restrictcid")) {
@@ -8254,6 +8184,7 @@ static struct sip_peer *temp_peer(char *name)
 	peer = malloc(sizeof(struct sip_peer));
 	if (!peer)
 		return NULL;
+
 	memset(peer, 0, sizeof(struct sip_peer));
 	peer->expire = -1;
 	peer->pokeexpire = -1;
@@ -8276,6 +8207,7 @@ static struct sip_peer *temp_peer(char *name)
 	peer->dynamic = 1;
 	peer->trustrpid = global_trustrpid;
 	peer->progressinband = global_progressinband;
+	peer->prefs = prefs;
 #ifdef OSP_SUPPORT
 	peer->ospauth = global_ospauth;
 #endif
@@ -8290,7 +8222,6 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 	struct sip_peer *prev;
 	struct ast_ha *oldha = NULL;
 	int maskfound=0;
-	int format;
 	int found=0;
 	prev = NULL;
 	ast_mutex_lock(&peerl.lock);
@@ -8332,6 +8263,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 			peer->defaddr.sin_family = AF_INET;
 			peer->expiry = expiry;
 		}
+		peer->prefs = prefs;
 		oldha = peer->ha;
 		peer->ha = NULL;
 		peer->addr.sin_family = AF_INET;
@@ -8444,17 +8376,9 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "pickupgroup")) {
 				peer->pickupgroup = ast_get_group(v->value);
 			} else if (!strcasecmp(v->name, "allow")) {
-				format = ast_getformatbyname(v->value);
-				if (format < 1) 
-					ast_log(LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
-				else
-					peer->capability |= format;
+				ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, 1);
 			} else if (!strcasecmp(v->name, "disallow")) {
-				format = ast_getformatbyname(v->value);
-				if (format < 1) 
-					ast_log(LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
-				else
-					peer->capability &= ~format;
+				ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, 0);
 			} else if (!strcasecmp(v->name, "insecure")) {
 				if (!strcasecmp(v->value, "very")) {
 					peer->insecure = 2;
@@ -8518,7 +8442,7 @@ static int reload_config(void)
 	struct sip_user *user;
 	struct ast_hostent ahp;
 	char *cat;
-    char *utype;
+	char *utype;
 	struct hostent *hp;
 	int format;
 	int oldport = ntohs(bindaddr.sin_port);
@@ -8541,11 +8465,10 @@ static int reload_config(void)
 	
 	global_nat = SIP_NAT_RFC3581;
 	
-	sip_prefs_free();
-	
 	memset(&bindaddr, 0, sizeof(bindaddr));
 	memset(&localaddr, 0, sizeof(localaddr));
 	memset(&externip, 0, sizeof(externip));
+	memset(&prefs, 0 , sizeof(struct ast_codec_pref));
 
 	/* Initialize some reasonable defaults */
 	strncpy(default_context, "default", sizeof(default_context) - 1);
@@ -8676,21 +8599,9 @@ static int reload_config(void)
 			else
 				memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
 		} else if (!strcasecmp(v->name, "allow")) {
-			format = ast_getformatbyname(v->value);
-			if (format < 1) 
-				ast_log(LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
-			else {
-				global_capability |= format;
-				sip_pref_append(format);
-			}
+			ast_parse_allow_disallow(&prefs, &global_capability, v->value, 1);
 		} else if (!strcasecmp(v->name, "disallow")) {
-			format = ast_getformatbyname(v->value);
-			if (format < 1) 
-				ast_log(LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
-			else {
-				global_capability &= ~format;
-				sip_pref_remove(format);
-			}
+			ast_parse_allow_disallow(&prefs, &global_capability, v->value, 0);
 		} else if (!strcasecmp(v->name, "register")) {
 			sip_register(v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "recordhistory")) {
@@ -9040,7 +8951,6 @@ static int sip_do_reload(void)
 	struct sip_peer *peer;
 	delete_users();
 	reload_config();
-
 	prune_peers();
 	/* And start the monitor for the first time */
 	ast_mutex_lock(&regl.lock);
@@ -9084,9 +8994,9 @@ int load_module()
 	struct sip_peer *peer;
 	struct sip_registry *reg;
 
-        ast_mutex_init(&userl.lock);
-        ast_mutex_init(&peerl.lock);
-        ast_mutex_init(&regl.lock);
+	ast_mutex_init(&userl.lock);
+	ast_mutex_init(&peerl.lock);
+	ast_mutex_init(&regl.lock);
 	sched = sched_context_create();
 	if (!sched) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
@@ -9095,7 +9005,8 @@ int load_module()
 	if (!io) {
 		ast_log(LOG_WARNING, "Unable to create I/O context\n");
 	}
-	
+
+
 	res = reload_config();
 	if (!res) {
 		/* Make sure we can register our sip channel type */

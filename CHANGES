@@ -1,10 +1,12 @@
+Asterisk 1.0.3
  -- chan_zap
-    -- seg fault fix
+    -- fix seg fault when doing *0 to flash a trunk
  -- rtp
     -- seg fault fix
  -- chan_sip
     -- fix to prevent seg fault when attempting a transfer
     -- fix bug with supervised transfers
+    -- fix codec preferences
  -- chan_h323
     -- fix compilation problem
  -- chan_iax2
