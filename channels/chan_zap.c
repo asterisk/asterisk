@@ -3267,7 +3267,8 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 					free(p->cidspill);
 				send_cwcidspill(p);
 			}
-			p->callwaitcas = 0;
+			if ((f->subclass != 'm') && (f->subclass != 'u')) 
+				p->callwaitcas = 0;
 			p->subs[index].f.frametype = AST_FRAME_NULL;
 			p->subs[index].f.subclass = 0;
 			f = &p->subs[index].f;
