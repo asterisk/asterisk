@@ -1,9 +1,8 @@
- -- say.c
-    -- fix numbers for portuguese
  -- chan_sip
     -- fix to prevent seg fault when attempting a transfer
  -- chan_h323
     -- fix compilation problem
+ -- Numerous other minor bug fixes
 Asterisk 1.0.2
  -- Major bugfix release
 Asterisk 1.0.1
