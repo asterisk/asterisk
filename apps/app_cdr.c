@@ -5,7 +5,7 @@
  * 
  * Copyright (C) 2003, Digium
  *
- * Martin Pycko <martinp@digium.com
+ * Martin Pycko <martinp@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
