@@ -19,8 +19,13 @@ CHANNEL_LIBS+=$(shell [ -f /usr/include/linux/ixjuser.h ] && echo chan_phone.so)
 
 CFLAGS+=-Wno-missing-prototypes -Wno-missing-declarations
 CFLAGS+=$(shell [ ! -f /usr/include/linux/if_wanpipe.h ] && echo " -DOLD_SANGOMA_API")
+CHANNEL_LIBS+=$(shell [ -f /usr/include/alsa/asoundlib.h ] && echo "chan_alsa.so")
 CFLAGS+=$(shell [ -f /usr/lib/libpri.so.1 ] && echo " -DZAPATA_PRI")
+CFLAGS+=$(shell [ -f alsa-monitor.h ] && echo " -DALSA_MONITOR")
 ZAPPRI=$(shell [ -f /usr/lib/libpri.so.1 ] && echo "-lpri")
+
+ALSA_SRC=chan_alsa.c
+ALSA_SRC+=$(shell [ -f alsa-monitor.h ] && echo "alsa-monitor.h")
 
 CFLAGS+=-DCRYPTO
 
@@ -57,6 +62,11 @@ chan_oss.o: chan_oss.c  busy.h ringtone.h
 
 chan_zap.so: chan_zap.o
 	$(CC) -shared -Xlinker -x -o $@ $<  $(ZAPPRI) -lzap -ltonezone
+
+chan_alsa.o: $(ALSA_SRC)
+
+chan_alsa.so: chan_alsa.o
+	$(CC) -shared -Xlinker -x -o $@ $< -lasound -lm -ldl
 
 #chan_modem.so : chan_modem.o
 #	$(CC) -rdynamic -shared -Xlinker -x -o $@ $<
