@@ -43,10 +43,6 @@ struct ast_format {
 	struct ast_filestream * (*open)(int fd);
 	/* Open an output stream, of a given file descriptor and comment it appropriately if applicable */
 	struct ast_filestream * (*rewrite)(int fd, char *comment);
-	/* Apply a reading filestream to a channel */
-	int (*apply)(struct ast_channel *, struct ast_filestream *);
-	/* play filestream on a channel */
-	int (*play)(struct ast_filestream *);
 	/* Write a frame to a channel */
 	int (*write)(struct ast_filestream *, struct ast_frame *);
 	/* seek num samples into file, whence(think normal seek) */
@@ -55,8 +51,9 @@ struct ast_format {
 	int (*trunc)(struct ast_filestream *fs);
 	/* tell current position */
 	long (*tell)(struct ast_filestream *fs);
-	/* Read the next frame from the filestream (if available) */
-	struct ast_frame * (*read)(struct ast_filestream *);
+	/* Read the next frame from the filestream (if available) and report when to get next one
+		(in samples) */
+	struct ast_frame * (*read)(struct ast_filestream *, int *whennext);
 	/* Close file, and destroy filestream structure */
 	void (*close)(struct ast_filestream *);
 	/* Retrieve file comment */
@@ -72,6 +69,8 @@ struct ast_filestream {
 	struct ast_trans_pvt *trans;
 	struct ast_tranlator_pvt *tr;
 	int lastwriteformat;
+	int lasttimeout;
+	struct ast_channel *owner;
 };
 
 static pthread_mutex_t formatlock = AST_MUTEX_INITIALIZER;
@@ -81,13 +80,11 @@ static struct ast_format *formats = NULL;
 int ast_format_register(char *name, char *exts, int format,
 						struct ast_filestream * (*open)(int fd),
 						struct ast_filestream * (*rewrite)(int fd, char *comment),
-						int (*apply)(struct ast_channel *, struct ast_filestream *),
-						int (*play)(struct ast_filestream *),
 						int (*write)(struct ast_filestream *, struct ast_frame *),
 						int (*seek)(struct ast_filestream *, long sample_offset, int whence),
 						int (*trunc)(struct ast_filestream *),
 						long (*tell)(struct ast_filestream *),
-						struct ast_frame * (*read)(struct ast_filestream *),
+						struct ast_frame * (*read)(struct ast_filestream *, int *whennext),
 						void (*close)(struct ast_filestream *),
 						char * (*getcomment)(struct ast_filestream *))
 {
@@ -115,8 +112,6 @@ int ast_format_register(char *name, char *exts, int format,
 	strncpy(tmp->exts, exts, sizeof(tmp->exts)-1);
 	tmp->open = open;
 	tmp->rewrite = rewrite;
-	tmp->apply = apply;
-	tmp->play = play;
 	tmp->read = read;
 	tmp->write = write;
 	tmp->seek = seek;
@@ -164,7 +159,7 @@ int ast_stopstream(struct ast_channel *tmp)
 	/* Stop a running stream if there is one */
 	if (!tmp->stream) 
 		return 0;
-	tmp->stream->fmt->close(tmp->stream);
+	ast_closestream(tmp->stream);
 	if (tmp->oldwriteformat && ast_set_write_format(tmp, tmp->oldwriteformat))
 		ast_log(LOG_WARNING, "Unable to restore format back to %d\n", tmp->oldwriteformat);
 	return 0;
@@ -255,7 +250,7 @@ static char *build_filename(char *filename, char *ext)
 {
 	char *fn;
 	char tmp[AST_CONFIG_MAX_PATH];
-	snprintf((char *)tmp,sizeof(tmp)-1,"%s/%s",(char *)ast_config_AST_VAR_DIR,"sounds");
+	snprintf(tmp,sizeof(tmp)-1,"%s/%s",(char *)ast_config_AST_VAR_DIR,"sounds");
 	fn = malloc(strlen(tmp) + strlen(filename) + strlen(ext) + 10);
 	if (fn) {
 		if (filename[0] == '/') 
@@ -345,6 +340,7 @@ static int ast_filehelper(char *filename, char *filename2, char *fmt, int action
 								if (ret >= 0) {
 									s = f->open(ret);
 									if (s) {
+										s->lasttimeout = -1;
 										s->fmt = f;
 										s->trans = NULL;
 										chan->stream = s;
@@ -427,24 +423,43 @@ struct ast_filestream *ast_openstream(struct ast_channel *chan, char *filename, 
 	return NULL;
 }
 
+static int ast_readaudio_callback(void *data)
+{
+	struct ast_filestream *s = data;
+	struct ast_frame *fr;
+	int whennext = 0;
+
+	while(!whennext) {
+		fr = s->fmt->read(s, &whennext);
+		if (fr) {
+			if (ast_write(s->owner, fr)) {
+				ast_log(LOG_WARNING, "Failed to write frame\n");
+				s->owner->streamid = -1;
+				return 0;
+			}
+		} else {
+			/* Stream has finished */
+			s->owner->streamid = -1;
+			return 0;
+		}
+	}
+	if (whennext != s->lasttimeout) {
+		s->owner->streamid = ast_sched_add(s->owner->sched, whennext/8, ast_readaudio_callback, s);
+		s->lasttimeout = whennext;
+		return 0;
+	}
+	return 1;
+}
+
 int ast_applystream(struct ast_channel *chan, struct ast_filestream *s)
 {
-	if(chan->stream->fmt->apply(chan,s)){
-		chan->stream->fmt->close(s);
-		chan->stream = NULL;
-		ast_log(LOG_WARNING, "Unable to apply stream to channel %s\n", chan->name);
-		return -1;
-	}
+	s->owner = chan;
 	return 0;
 }
 
 int ast_playstream(struct ast_filestream *s)
 {
-	if(s->fmt->play(s)){
-		ast_closestream(s);
-		ast_log(LOG_WARNING, "Unable to start playing stream\n");
-		return -1;
-	}
+	ast_readaudio_callback(s);
 	return 0;
 }
 
@@ -481,6 +496,12 @@ int ast_stream_rewind(struct ast_filestream *fs, long ms)
 int ast_closestream(struct ast_filestream *f)
 {
 	/* Stop a running stream if there is one */
+	if (f->owner) {
+		f->owner->stream = NULL;
+		if (f->owner->streamid > -1)
+			ast_sched_del(f->owner->sched, f->owner->streamid);
+		f->owner->streamid = -1;
+	}
 	f->fmt->close(f);
 	return 0;
 }

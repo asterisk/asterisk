@@ -35,8 +35,6 @@ struct ast_filestream {
 	void *reserved[AST_RESERVED_POINTERS];
 	/* This is what a filestream means to us */
 	int fd; /* Descriptor */
-	u_int32_t lasttimeout;	/* Last amount of timeout */
-	struct ast_channel *owner;
 	struct ast_filestream *next;
 	struct ast_frame *fr;	/* Frame representation of buf */
 	struct timeval orig;	/* Original frame time */
@@ -44,7 +42,6 @@ struct ast_filestream {
 };
 
 
-static struct ast_filestream *glist = NULL;
 static pthread_mutex_t g723_lock = AST_MUTEX_INITIALIZER;
 static int glistcnt = 0;
 
@@ -64,10 +61,7 @@ static struct ast_filestream *g723_open(int fd)
 			free(tmp);
 			return NULL;
 		}
-		tmp->next = glist;
-		glist = tmp;
 		tmp->fd = fd;
-		tmp->owner = NULL;
 		tmp->fr = (struct ast_frame *)tmp->buf;
 		tmp->fr->data = tmp->buf + sizeof(struct ast_frame);
 		tmp->fr->frametype = AST_FRAME_VOICE;
@@ -97,8 +91,6 @@ static struct ast_filestream *g723_rewrite(int fd, char *comment)
 			free(tmp);
 			return NULL;
 		}
-		tmp->next = glist;
-		glist = tmp;
 		tmp->fd = fd;
 		tmp->owner = NULL;
 		tmp->fr = NULL;

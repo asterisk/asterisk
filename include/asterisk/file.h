@@ -39,13 +39,11 @@ struct ast_filestream;
 int ast_format_register(char *name, char *exts, int format,
 						struct ast_filestream * (*open)(int fd),
 						struct ast_filestream * (*rewrite)(int fd, char *comment),
-						int (*apply)(struct ast_channel *, struct ast_filestream *),
-						int (*play)(struct ast_filestream *),
 						int (*write)(struct ast_filestream *, struct ast_frame *),
 						int (*seek)(struct ast_filestream *, long offset, int whence),
 						int (*trunc)(struct ast_filestream *),
 						long (*tell)(struct ast_filestream *),
-						struct ast_frame * (*read)(struct ast_filestream *),
+						struct ast_frame * (*read)(struct ast_filestream *, int *timetonext),
 						void (*close)(struct ast_filestream *),
 						char * (*getcomment)(struct ast_filestream *));
 	
@@ -252,7 +250,7 @@ int ast_stream_rewind(struct ast_filestream *fs, long ms);
  */
 long ast_tellstream(struct ast_filestream *fs);
 
-#define AST_RESERVED_POINTERS 4
+#define AST_RESERVED_POINTERS 12
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

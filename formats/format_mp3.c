@@ -34,14 +34,10 @@ struct ast_filestream {
 	void *reserved[AST_RESERVED_POINTERS];
 	/* This is what a filestream means to us */
 	int fd; /* Descriptor */
-	struct ast_channel *owner;
-	struct ast_filestream *next;
 	struct ast_frame fr;	/* Frame representation of buf */
 	char offset[AST_FRIENDLY_OFFSET];
 	unsigned char buf[MAX_FRAME_SIZE * 2];
-	int lasttimeout;
 	int pos;
-	int adj;
 	struct timeval last;
 };
 
@@ -68,14 +64,9 @@ static struct ast_filestream *mp3_open(int fd)
 			free(tmp);
 			return NULL;
 		}
-		tmp->next = glist;
-		glist = tmp;
 		tmp->fd = fd;
-		tmp->owner = NULL;
-		tmp->lasttimeout = -1;
 		tmp->last.tv_usec = 0;
 		tmp->last.tv_sec = 0;
-		tmp->adj = 0;
 		glistcnt++;
 		ast_pthread_mutex_unlock(&mp3_lock);
 		ast_update_use_count();
@@ -95,10 +86,7 @@ static struct ast_filestream *mp3_rewrite(int fd, char *comment)
 			free(tmp);
 			return NULL;
 		}
-		tmp->next = glist;
-		glist = tmp;
 		tmp->fd = fd;
-		tmp->owner = NULL;
 		glistcnt++;
 		ast_pthread_mutex_unlock(&mp3_lock);
 		ast_update_use_count();
@@ -107,71 +95,40 @@ static struct ast_filestream *mp3_rewrite(int fd, char *comment)
 	return tmp;
 }
 
-static struct ast_frame *mp3_read(struct ast_filestream *s)
-{
-	return NULL;
-}
-
 static void mp3_close(struct ast_filestream *s)
 {
-	struct ast_filestream *tmp, *tmpl = NULL;
 	if (ast_pthread_mutex_lock(&mp3_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock mp3 list\n");
 		return;
 	}
-	tmp = glist;
-	while(tmp) {
-		if (tmp == s) {
-			if (tmpl)
-				tmpl->next = tmp->next;
-			else
-				glist = tmp->next;
-			break;
-		}
-		tmpl = tmp;
-		tmp = tmp->next;
-	}
 	glistcnt--;
-	if (s->owner) {
-		s->owner->stream = NULL;
-		if (s->owner->streamid > -1)
-			ast_sched_del(s->owner->sched, s->owner->streamid);
-		s->owner->streamid = -1;
-	}
 	ast_pthread_mutex_unlock(&mp3_lock);
 	ast_update_use_count();
-	if (!tmp) 
-		ast_log(LOG_WARNING, "Freeing a filestream we don't seem to own\n");
 	close(s->fd);
 	free(s);
 }
 
-static int ast_read_callback(void *data)
+static struct ast_frame *mp3_read(struct ast_filestream *s, int *whennext)
 {
 	/* XXX Don't assume frames are this size XXX */
 	u_int32_t delay = -1;
 	int res;
-	struct ast_filestream *s = data;
 	int size;
-	int ms=0;
-	struct timeval tv;
 	if ((res = read(s->fd, s->buf , 4)) != 4) {
 		ast_log(LOG_WARNING, "Short read (%d of 4 bytes) (%s)!\n", res, strerror(errno));
-		s->owner->streamid = -1;
-		return 0;
+		return NULL;
 	}
 	if (mp3_badheader(s->buf)) {
 		ast_log(LOG_WARNING, "Bad mp3 header\n");
-		return 0;
+		return NULL;
 	}
 	if ((size = mp3_framelen(s->buf)) < 0) {
 		ast_log(LOG_WARNING, "Unable to calculate frame size\n");
-		return 0;
+		return NULL;
 	}
 	if ((res = read(s->fd, s->buf + 4 , size - 4)) != size - 4) {
 		ast_log(LOG_WARNING, "Short read (%d of %d bytes) (%s)!\n", res, size - 4, strerror(errno));
-		s->owner->streamid = -1;
-		return 0;
+		return NULL;
 	}
 	/* Send a frame from the file to the appropriate channel */
 	/* Read the data into the buffer */
@@ -183,48 +140,15 @@ static int ast_read_callback(void *data)
 	s->fr.datalen = size;
 	s->fr.data = s->buf;
 	delay = mp3_samples(s->buf) * 1000 / mp3_samplerate(s->buf);
-	if (s->last.tv_sec || s->last.tv_usec) {
-		/* To keep things running smoothly, we watch how close we're coming */
-		gettimeofday(&tv, NULL);
-		ms = ((tv.tv_usec - s->last.tv_usec) / 1000 + (tv.tv_sec - s->last.tv_sec) * 1000);
-		/* If we're within 2 milliseconds, that's close enough */
-		if ((ms - delay) > 0 )
-			s->adj -= (ms - delay);
-		s->adj -= 2;
-	}
 	s->fr.samples = delay * 8;
 #if 0
 	ast_log(LOG_DEBUG, "delay is %d, adjusting by %d, as last was %d\n", delay, s->adj, ms);
 #endif
-	delay += s->adj;
+	delay *= 8;
 	if (delay < 1)
 		delay = 1;
-	/* Lastly, process the frame */
-	if (ast_write(s->owner, &s->fr)) {
-		ast_log(LOG_WARNING, "Failed to write frame\n");
-		s->owner->streamid = -1;
-		return 0;
-	}
-	gettimeofday(&s->last, NULL);
-	if (s->lasttimeout != delay) {
-		s->owner->streamid = ast_sched_add(s->owner->sched, delay, ast_read_callback, s);
-		s->lasttimeout = delay;
-		return 0;
-	}
-	return -1;
-}
-
-static int mp3_apply(struct ast_channel *c, struct ast_filestream *s)
-{
-	/* Select our owner for this stream, and get the ball rolling. */
-	s->owner = c;
-	return 0;
-}
-
-static int mp3_play(struct ast_filestream *s)
-{
-	ast_read_callback(s);
-	return 0;
+	*whennext = delay;
+	return &s->fr;
 }
 
 static int mp3_write(struct ast_filestream *fs, struct ast_frame *f)
@@ -270,8 +194,6 @@ int load_module()
 	return ast_format_register(name, exts, AST_FORMAT_MP3,
 								mp3_open,
 								mp3_rewrite,
-								mp3_apply,
-								mp3_play,
 								mp3_write,
 								mp3_seek,
 								mp3_trunc,
@@ -285,20 +207,6 @@ int load_module()
 
 int unload_module()
 {
-	struct ast_filestream *tmp, *tmpl;
-	if (ast_pthread_mutex_lock(&mp3_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock mp3 list\n");
-		return -1;
-	}
-	tmp = glist;
-	while(tmp) {
-		if (tmp->owner)
-			ast_softhangup(tmp->owner, AST_SOFTHANGUP_APPUNLOAD);
-		tmpl = tmp;
-		tmp = tmp->next;
-		free(tmpl);
-	}
-	ast_pthread_mutex_unlock(&mp3_lock);
 	return ast_format_unregister(name);
 }	
 

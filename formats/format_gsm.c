@@ -43,19 +43,13 @@ struct ast_filestream {
 	   weird MS format */
 	/* This is what a filestream means to us */
 	int fd; /* Descriptor */
-	struct ast_channel *owner;
 	struct ast_frame fr;				/* Frame information */
 	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
 	char empty;							/* Empty character */
 	unsigned char gsm[66];				/* Two Real GSM Frames */
-	int lasttimeout;
-	struct timeval last;
-	int adj;
-	struct ast_filestream *next;
 };
 
 
-static struct ast_filestream *glist = NULL;
 static pthread_mutex_t gsm_lock = AST_MUTEX_INITIALIZER;
 static int glistcnt = 0;
 
@@ -76,17 +70,13 @@ static struct ast_filestream *gsm_open(int fd)
 			free(tmp);
 			return NULL;
 		}
-		tmp->next = glist;
-		glist = tmp;
 		tmp->fd = fd;
-		tmp->owner = NULL;
 		tmp->fr.data = tmp->gsm;
 		tmp->fr.frametype = AST_FRAME_VOICE;
 		tmp->fr.subclass = AST_FORMAT_GSM;
 		/* datalen will vary for each frame */
 		tmp->fr.src = name;
 		tmp->fr.mallocd = 0;
-		tmp->lasttimeout = -1;
 		glistcnt++;
 		ast_pthread_mutex_unlock(&gsm_lock);
 		ast_update_use_count();
@@ -107,11 +97,7 @@ static struct ast_filestream *gsm_rewrite(int fd, char *comment)
 			free(tmp);
 			return NULL;
 		}
-		tmp->next = glist;
-		glist = tmp;
 		tmp->fd = fd;
-		tmp->owner = NULL;
-		tmp->lasttimeout = -1;
 		glistcnt++;
 		ast_pthread_mutex_unlock(&gsm_lock);
 		ast_update_use_count();
@@ -120,55 +106,22 @@ static struct ast_filestream *gsm_rewrite(int fd, char *comment)
 	return tmp;
 }
 
-static struct ast_frame *gsm_read(struct ast_filestream *s)
-{
-	return NULL;
-}
-
 static void gsm_close(struct ast_filestream *s)
 {
-	struct ast_filestream *tmp, *tmpl = NULL;
 	if (ast_pthread_mutex_lock(&gsm_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock gsm list\n");
 		return;
 	}
-	tmp = glist;
-	while(tmp) {
-		if (tmp == s) {
-			if (tmpl)
-				tmpl->next = tmp->next;
-			else
-				glist = tmp->next;
-			break;
-		}
-		tmpl = tmp;
-		tmp = tmp->next;
-	}
 	glistcnt--;
-	if (s->owner) {
-		s->owner->stream = NULL;
-		if (s->owner->streamid > -1)
-			ast_sched_del(s->owner->sched, s->owner->streamid);
-		s->owner->streamid = -1;
-	}
 	ast_pthread_mutex_unlock(&gsm_lock);
 	ast_update_use_count();
-	if (!tmp) 
-		ast_log(LOG_WARNING, "Freeing a filestream we don't seem to own\n");
 	close(s->fd);
 	free(s);
-	s = NULL;
 }
 
-static int ast_read_callback(void *data)
+static struct ast_frame *gsm_read(struct ast_filestream *s, int *whennext)
 {
-	int retval = 0;
 	int res;
-	int delay = 20;
-	struct ast_filestream *s = data;
-	struct timeval tv;
-	/* Send a frame from the file to the appropriate channel */
-
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_GSM;
 	s->fr.offset = AST_FRIENDLY_OFFSET;
@@ -179,57 +132,10 @@ static int ast_read_callback(void *data)
 	if ((res = read(s->fd, s->gsm, 33)) != 33) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
-		s->owner->streamid = -1;
-		return 0;
+		return NULL;
 	}
-	/* Lastly, process the frame */
-	if (ast_write(s->owner, &s->fr)) {
-		ast_log(LOG_WARNING, "Failed to write frame\n");
-		s->owner->streamid = -1;
-		return 0;
-	}
-	if (s->last.tv_usec || s->last.tv_usec) {
-		int ms;
-		gettimeofday(&tv, NULL);
-		ms = 1000 * (tv.tv_sec - s->last.tv_sec) + 
-			(tv.tv_usec - s->last.tv_usec) / 1000;
-		s->last.tv_sec = tv.tv_sec;
-		s->last.tv_usec = tv.tv_usec;
-		if ((ms - delay) * (ms - delay) > 4) {
-			/* Compensate if we're more than 2 ms off */
-			s->adj -= (ms - delay);
-		}
-#if 0
-		fprintf(stdout, "Delay is %d, adjustment is %d, last was %d\n", delay, s->adj, ms);
-#endif
-		delay += s->adj;
-		if (delay < 1)
-			delay = 1;
-	} else
-		gettimeofday(&s->last, NULL);
-	if (s->lasttimeout != delay) {
-		/* We'll install the next timeout now. */
-		s->owner->streamid = ast_sched_add(s->owner->sched,
-				delay, ast_read_callback, s); 
-		s->lasttimeout = delay;
-	} else {
-		/* Just come back again at the same time */
-		retval = -1;
-	}
-	return retval;
-}
-
-static int gsm_apply(struct ast_channel *c, struct ast_filestream *s)
-{
-	/* Select our owner for this stream, and get the ball rolling. */
-	s->owner = c;
-	return 0;
-}
-
-static int gsm_play(struct ast_filestream *s)
-{
-	ast_read_callback(s);
-	return 0;
+	*whennext = 160;
+	return &s->fr;
 }
 
 static int gsm_write(struct ast_filestream *fs, struct ast_frame *f)
@@ -310,8 +216,6 @@ int load_module()
 	return ast_format_register(name, exts, AST_FORMAT_GSM,
 								gsm_open,
 								gsm_rewrite,
-								gsm_apply,
-								gsm_play,
 								gsm_write,
 								gsm_seek,
 								gsm_trunc,
@@ -325,20 +229,6 @@ int load_module()
 
 int unload_module()
 {
-	struct ast_filestream *tmp, *tmpl;
-	if (ast_pthread_mutex_lock(&gsm_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock gsm list\n");
-		return -1;
-	}
-	tmp = glist;
-	while(tmp) {
-		if (tmp->owner)
-			ast_softhangup(tmp->owner, AST_SOFTHANGUP_APPUNLOAD);
-		tmpl = tmp;
-		tmp = tmp->next;
-		free(tmpl);
-	}
-	ast_pthread_mutex_unlock(&gsm_lock);
 	return ast_format_unregister(name);
 }	
 

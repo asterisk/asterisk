@@ -41,7 +41,6 @@ struct ast_filestream {
 	int fd; /* Descriptor */
 	int bytes;
 	int needsgain;
-	struct ast_channel *owner;
 	struct ast_frame fr;				/* Frame information */
 	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
 	char empty;							/* Empty character */
@@ -50,12 +49,9 @@ struct ast_filestream {
 	int lasttimeout;
 	int maxlen;
 	struct timeval last;
-	int adj;
-	struct ast_filestream *next;
 };
 
 
-static struct ast_filestream *glist = NULL;
 static pthread_mutex_t wav_lock = AST_MUTEX_INITIALIZER;
 static int glistcnt = 0;
 
@@ -321,10 +317,7 @@ static struct ast_filestream *wav_open(int fd)
 			free(tmp);
 			return NULL;
 		}
-		tmp->next = glist;
-		glist = tmp;
 		tmp->fd = fd;
-		tmp->owner = NULL;
 		tmp->needsgain = 1;
 		tmp->fr.data = tmp->buf;
 		tmp->fr.frametype = AST_FRAME_VOICE;
@@ -332,7 +325,6 @@ static struct ast_filestream *wav_open(int fd)
 		/* datalen will vary for each frame */
 		tmp->fr.src = name;
 		tmp->fr.mallocd = 0;
-		tmp->lasttimeout = -1;
 		tmp->bytes = 0;
 		glistcnt++;
 		ast_pthread_mutex_unlock(&wav_lock);
@@ -358,11 +350,7 @@ static struct ast_filestream *wav_rewrite(int fd, char *comment)
 			free(tmp);
 			return NULL;
 		}
-		tmp->next = glist;
-		glist = tmp;
 		tmp->fd = fd;
-		tmp->owner = NULL;
-		tmp->lasttimeout = -1;
 		glistcnt++;
 		ast_pthread_mutex_unlock(&wav_lock);
 		ast_update_use_count();
@@ -371,60 +359,29 @@ static struct ast_filestream *wav_rewrite(int fd, char *comment)
 	return tmp;
 }
 
-static struct ast_frame *wav_read(struct ast_filestream *s)
-{
-	return NULL;
-}
-
 static void wav_close(struct ast_filestream *s)
 {
-	struct ast_filestream *tmp, *tmpl = NULL;
 	char zero = 0;
 	if (ast_pthread_mutex_lock(&wav_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock wav list\n");
 		return;
 	}
-	tmp = glist;
-	while(tmp) {
-		if (tmp == s) {
-			if (tmpl)
-				tmpl->next = tmp->next;
-			else
-				glist = tmp->next;
-			break;
-		}
-		tmpl = tmp;
-		tmp = tmp->next;
-	}
 	glistcnt--;
-	if (s->owner) {
-		s->owner->stream = NULL;
-		if (s->owner->streamid > -1)
-			ast_sched_del(s->owner->sched, s->owner->streamid);
-		s->owner->streamid = -1;
-	}
 	ast_pthread_mutex_unlock(&wav_lock);
 	ast_update_use_count();
-	if (!tmp) 
-		ast_log(LOG_WARNING, "Freeing a filestream we don't seem to own\n");
 	/* Pad to even length */
 	if (s->bytes & 0x1)
 		write(s->fd, &zero, 1);
 	close(s->fd);
 	free(s);
 	s = NULL;
-#if 0
-	printf("bytes = %d\n", s->bytes);
-#endif
 }
 
-static int ast_read_callback(void *data)
+static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 {
-	int retval = 0;
 	int res;
 	int delay;
 	int x;
-	struct ast_filestream *s = data;
 	short tmp[sizeof(s->buf) / 2];
 	int bytes = sizeof(tmp);
 	off_t here;
@@ -440,8 +397,7 @@ static int ast_read_callback(void *data)
 		if (res) {
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		}
-		s->owner->streamid = -1;
-		return 0;
+		return NULL;
 	}
 
 #if __BYTE_ORDER == __BIG_ENDIAN
@@ -472,36 +428,8 @@ static int ast_read_callback(void *data)
 	s->fr.data = s->buf;
 	s->fr.mallocd = 0;
 	s->fr.samples = delay;
-	delay /= 8;
-	/* Lastly, process the frame */	
-	if (delay != s->lasttimeout) {
-		s->owner->streamid = ast_sched_add(s->owner->sched, delay, ast_read_callback, s);
-		s->lasttimeout = delay;
-	} else {
-		retval = -1;
-	}
-	
-	
-	if (ast_write(s->owner, &s->fr)) {
-		ast_log(LOG_WARNING, "Failed to write frame\n");
-		s->owner->streamid = -1;
-		return 0;
-	}
-	
-	return retval;
-}
-
-static int wav_apply(struct ast_channel *c, struct ast_filestream *s)
-{
-	/* Select our owner for this stream, and get the ball rolling. */
-	s->owner = c;
-	return 0;
-}
-
-static int wav_play(struct ast_filestream *s)
-{
-	ast_read_callback(s);
-	return 0;
+	*whennext = delay;
+	return &s->fr;
 }
 
 static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
@@ -607,8 +535,6 @@ int load_module()
 	return ast_format_register(name, exts, AST_FORMAT_SLINEAR,
 								wav_open,
 								wav_rewrite,
-								wav_apply,
-								wav_play,
 								wav_write,
 								wav_seek,
 								wav_trunc,
@@ -622,20 +548,6 @@ int load_module()
 
 int unload_module()
 {
-	struct ast_filestream *tmp, *tmpl;
-	if (ast_pthread_mutex_lock(&wav_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock wav list\n");
-		return -1;
-	}
-	tmp = glist;
-	while(tmp) {
-		if (tmp->owner)
-			ast_softhangup(tmp->owner, AST_SOFTHANGUP_APPUNLOAD);
-		tmpl = tmp;
-		tmp = tmp->next;
-		free(tmpl);
-	}
-	ast_pthread_mutex_unlock(&wav_lock);
 	return ast_format_unregister(name);
 }	
 
