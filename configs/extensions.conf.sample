@@ -244,3 +244,8 @@ include => parkedcalls
 ;exten => 100,1,Playback,digits/6
 ;exten => 100,2,Playback,digits/5
 ;exten => 100,3,Goto,default|s|4
+
+;[outboundpri]
+;exten => _91NXXNXXXXXX,1,StripMSD,1
+;exten => _1NXXNXXXXXX,2,Dial,Zap/g2/BYEXTENSION
+;ignorepat => 9
