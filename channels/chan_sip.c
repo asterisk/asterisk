@@ -283,7 +283,6 @@ static struct sip_pvt {
 	struct sip_pvt *refer_call;		/* Call we are referring */
 	struct sip_route *route;		/* Head of linked list of routing steps (fm Record-Route) */
 	int route_persistant;			/* Is this the "real" route? */
-	char remote_party_id[256];
 	char from[256];				/* The From: header */
 	char useragent[256];			/* User agent in SIP request */
 	char context[AST_MAX_EXTENSION];	/* Context for this call */
@@ -4607,7 +4606,6 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 		strncpy(p->refer_to, "", sizeof(p->refer_to) - 1);
 		strncpy(p->referred_by, "", sizeof(p->referred_by) - 1);
 		strncpy(p->refer_contact, "", sizeof(p->refer_contact) - 1);
-		strncpy(p->remote_party_id, "", sizeof(p->remote_party_id) - 1);
 		p->refer_call = NULL;
 		ast_mutex_lock(&iflock);
 		/* Search interfaces and find the match */
@@ -4640,11 +4638,9 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 		ast_log(LOG_DEBUG,"Assigning Extension %s to REFER-TO\n", c);
 		ast_log(LOG_DEBUG,"Assigning Extension %s to REFERRED-BY\n", c2);
 		ast_log(LOG_DEBUG,"Assigning Contact Info %s to REFER_CONTACT\n", tmp3);
-		ast_log(LOG_DEBUG,"Assigning Remote-Party-ID Info %s to REMOTE_PARTY_ID\n",tmp4);
 		strncpy(p->refer_to, c, sizeof(p->refer_to) - 1);
 		strncpy(p->referred_by, c2, sizeof(p->referred_by) - 1);
 		strncpy(p->refer_contact, tmp3, sizeof(p->refer_contact) - 1);
-		strncpy(p->remote_party_id, tmp4, sizeof(p->remote_party_id) - 1);
 		p->refer_call = NULL;
 		return 0;
 	} else if (ast_canmatch_extension(NULL, p->context, c, 1, NULL)) {
@@ -4687,7 +4683,6 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 		strncpy(p->refer_to, c, sizeof(p->refer_to) - 1);
 		strncpy(p->referred_by, "", sizeof(p->referred_by) - 1);
 		strncpy(p->refer_contact, "", sizeof(p->refer_contact) - 1);
-		strncpy(p->remote_party_id, "", sizeof(p->remote_party_id) - 1);
 		p->refer_call = NULL;
 		return 0;
 	} else if (ast_canmatch_extension(NULL, p->context, c, 1, NULL)) {
@@ -4832,7 +4827,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 	rpid = get_header(req, "Remote-Party-ID");
 	memset(rpid_num,0,sizeof(rpid_num));
 	if(!ast_strlen_zero(rpid)) 
-	  p->restrictcid = get_rpid_num(p->remote_party_id,rpid_num, sizeof(rpid_num));
+	  p->restrictcid = get_rpid_num(rpid,rpid_num, sizeof(rpid_num));
 
 	of = ditch_braces(from);
 	if (ast_strlen_zero(p->exten)) {
