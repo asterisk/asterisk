@@ -135,10 +135,10 @@ static int odbc_log(struct ast_cdr *cdr)
 	SQLBindParameter(ODBC_stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->dstchannel, 0, NULL);
 	SQLBindParameter(ODBC_stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->lastapp, 0, NULL);
 	SQLBindParameter(ODBC_stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->lastdata, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 10, SQL_PARAM_INPUT, SQL_C_SSHORT, SQL_INTEGER, 0, 0, &cdr->duration, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 11, SQL_PARAM_INPUT, SQL_C_SSHORT, SQL_INTEGER, 0, 0, &cdr->billsec, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 12, SQL_PARAM_INPUT, SQL_C_SSHORT, SQL_INTEGER, 0, 0, &cdr->disposition, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 13, SQL_PARAM_INPUT, SQL_C_SSHORT, SQL_INTEGER, 0, 0, &cdr->amaflags, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 10, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->duration, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 11, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->billsec, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 12, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->disposition, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 13, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->amaflags, 0, NULL);
 	SQLBindParameter(ODBC_stmt, 14, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, 0, 0, cdr->accountcode, 0, NULL);
 
 	if((loguniqueid != NULL) && ((strcmp(loguniqueid, "1") == 0) || (strcmp(loguniqueid, "yes") == 0)))
