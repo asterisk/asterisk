@@ -3,9 +3,9 @@
  *
  * Call Detail Record API 
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License.
@@ -442,8 +442,14 @@ int ast_cdr_update(struct ast_channel *c)
 			/* Copy account code et-al */	
 			strncpy(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode) - 1);
 			/* Destination information */
-			strncpy(cdr->dst, c->exten, sizeof(cdr->dst) - 1);
-			strncpy(cdr->dcontext, c->context, sizeof(cdr->dcontext) - 1);
+			if (ast_strlen_zero(c->macroexten))
+				strncpy(cdr->dst, c->exten, sizeof(cdr->dst) - 1);
+			else
+				strncpy(cdr->dst, c->macroexten, sizeof(cdr->dst) - 1);
+			if (ast_strlen_zero(c->macrocontext))
+				strncpy(cdr->dcontext, c->context, sizeof(cdr->dcontext) - 1);
+			else
+				strncpy(cdr->dcontext, c->macrocontext, sizeof(cdr->dcontext) - 1);
 		}
 		cdr = cdr->next;
 	}
