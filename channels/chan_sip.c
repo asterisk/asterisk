@@ -3674,13 +3674,14 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	msg = strchr(c, ' ');
 	if (!msg) msg = ""; else msg++;
 	owner = p->owner;
+	/* Acknowledge whatever it is destined for */
+	__sip_ack(p, seqno, 0);
 	if (p->peerpoke) {
 		/* We don't really care what the response is, just that it replied back. 
 		   Well, as long as it's not a 100 response...  since we might
 		   need to hang around for something more "difinitive" */
 		if (resp != 100) {
 			int statechanged = 0;
-			__sip_ack(p, seqno, 0);
 			peer = p->peerpoke;
 			gettimeofday(&tv, NULL);
 			pingtime = (tv.tv_sec - peer->ps.tv_sec) * 1000 +
@@ -3718,7 +3719,6 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		}
 	} else if (p->outgoing) {
 		/* Acknowledge sequence number */
-		__sip_ack(p, seqno, 0);
 		if (p->initid > -1) {
 			/* Don't auto congest anymore since we've gotten something useful back */
 			ast_sched_del(sched, p->initid);
