@@ -3,9 +3,9 @@
  *
  * Module Loader
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -147,7 +147,7 @@ int ast_unload_resource(char *resource_name, int force)
 	return res;
 }
 
-void ast_module_reload(void)
+void ast_module_reload(const char *name)
 {
 	struct module *m;
 
@@ -166,10 +166,12 @@ void ast_module_reload(void)
 	ast_mutex_lock(&modlock);
 	m = module_list;
 	while(m) {
-		if (m->reload) {
-			if (option_verbose > 2) 
-				ast_verbose(VERBOSE_PREFIX_3 "Reloading module '%s' (%s)\n", m->resource, m->description());
-			m->reload();
+		if (!name || !strcasecmp(name, m->resource)) {
+			if (m->reload) {
+				if (option_verbose > 2) 
+					ast_verbose(VERBOSE_PREFIX_3 "Reloading module '%s' (%s)\n", m->resource, m->description());
+				m->reload();
+			}
 		}
 		m = m->next;
 	}

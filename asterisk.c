@@ -446,7 +446,7 @@ static void hup_handler(int num)
 	if (restartnow)
 		execvp(_argv[0], _argv);
 	/* XXX This could deadlock XXX */
-	ast_module_reload();
+	ast_module_reload(NULL);
 }
 
 static void child_handler(int sig)

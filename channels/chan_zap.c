@@ -6291,6 +6291,8 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 #endif
 		if (!p->radio)
 		{
+			if (!p->sig || (p->sig == SIG_FXSLS))
+				return 1;
 			/* Check hook state */
 			if (p->subs[SUB_REAL].zfd > -1)
 				res = ioctl(p->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &par);
@@ -6301,10 +6303,12 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 			}
 			if (res) {
 				ast_log(LOG_WARNING, "Unable to check hook state on channel %d\n", p->channel);
-			} else if ((p->sig == SIG_FXSKS) || (p->sig == SIG_FXSLS) ||
-				(p->sig == SIG_FXSGS) || !p->sig) {
+			} else if ((p->sig == SIG_FXSKS) || (p->sig == SIG_FXSGS)) {
 				/* When "onhook" that means no battery on the line, and thus
-				  it is out of service... */
+				  it is out of service..., if it's on a TDM card... If it's a channel
+				  bank, there is no telling... */
+				if (par.rxbits > -1)
+					return 1;
 				if (par.rxisoffhook)
 					return 1;
 				else

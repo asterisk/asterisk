@@ -109,9 +109,14 @@ static int handle_load(int fd, int argc, char *argv[])
 
 static int handle_reload(int fd, int argc, char *argv[])
 {
-	if (argc != 1)
+	int x;
+	if (argc < 1)
 		return RESULT_SHOWUSAGE;
-	ast_module_reload();
+	if (argc > 1) { 
+		for (x=1;x<argc;x++) 
+			ast_module_reload(argv[x]);
+	} else
+		ast_module_reload(NULL);
 	return RESULT_SUCCESS;
 }
 
