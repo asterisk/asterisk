@@ -175,6 +175,8 @@ static void *do_parking_thread(void *ignore)
 				pu = pu->next;
 				free(pt);
 			} else if (FD_ISSET(pu->chan->fd, &rfds) || FD_ISSET(pu->chan->fd, &efds)) {
+				if (FD_ISSET(pu->chan->fd, &efds))
+					pu->chan->exception = 1;
 				/* See if they need servicing */
 				f = ast_read(pu->chan);
 				if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass ==  AST_CONTROL_HANGUP))) {
@@ -306,6 +308,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 			if (o->stillgoing) {
 				o->chan->blocking = 0;
 				if (FD_ISSET(o->chan->fd, &rfds) || FD_ISSET(o->chan->fd, &efds)) {
+					if (FD_ISSET(o->chan->fd, &efds))
+						o->chan->exception = 1;
 					f = ast_read(o->chan);
 					if (f) {
 						if (f->frametype == AST_FRAME_CONTROL) {
@@ -347,6 +351,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 		}
 		if (FD_ISSET(in->fd, &rfds) || FD_ISSET(in->fd, &efds)) {
 			/* After unblocking the entirity of the list, check for the main channel */
+			if (FD_ISSET(in->fd, &efds))
+				in->exception = 1;
 			f = ast_read(in);
 #if 0
 			if (f && (f->frametype != AST_FRAME_VOICE))
@@ -370,8 +376,7 @@ static int bridge_call(struct ast_channel *chan, struct ast_channel *peer, int a
 {
 	/* Copy voice back and forth between the two channels.  Give the peer
 	   the ability to transfer calls with '#<extension' syntax. */
-	struct ast_channel *cs[3];
-	int to = -1, len;
+	int len;
 	struct ast_frame *f;
 	struct ast_channel *who;
 	char newext[256], *ptr;
@@ -382,98 +387,79 @@ static int bridge_call(struct ast_channel *chan, struct ast_channel *peer, int a
 			return -1;
 	peer->appl = "Bridged Call";
 	peer->data = chan->name;
-	cs[0] = chan;
-	cs[1] = peer;
-	for (/* ever */;;) {
-		who = ast_waitfor_n(cs, 2, &to);
-		if (!who) {
-			ast_log(LOG_WARNING, "Nobody there??\n");
-			continue;
-		}
-		f = ast_read(who);
-		if (!f || ((f->frametype == AST_FRAME_CONTROL) && 
-					((f->subclass == AST_CONTROL_HANGUP) ||
-					 (f->subclass == AST_CONTROL_BUSY)))) 
+	for (;;) {
+		res = ast_channel_bridge(chan, peer, AST_BRIDGE_DTMF_CHANNEL_1, &f, &who);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "Bridge failed on channels %s and %s\n", chan->name, peer->name);
 			return -1;
-		if ((f->frametype == AST_FRAME_VOICE) ||
-		    (f->frametype == AST_FRAME_DTMF) ||
-			(f->frametype == AST_FRAME_TEXT)) {
-			if ((f->frametype == AST_FRAME_DTMF) && (who == peer) && allowredirect &&
-			     (f->subclass == '#')) {
-				if (f->subclass == '#') {
-					memset(newext, 0, sizeof(newext));
-					ptr = newext;
-					len = ast_pbx_longest_extension(chan->context) + 1;
-					if (len < ast_pbx_longest_extension("default") + 1)
-						len = ast_pbx_longest_extension("default") + 1;
-
+		}
+		
+		if (!f || ((f->frametype == AST_FRAME_CONTROL) && ((f->subclass == AST_CONTROL_HANGUP) || (f->subclass == AST_CONTROL_BUSY) || 
+			(f->subclass == AST_CONTROL_CONGESTION)))) {
+				res = -1;
+				break;
+		}
+		if ((f->frametype == AST_FRAME_DTMF) && (who == peer) && allowredirect &&
+		     (f->subclass == '#')) {
+				memset(newext, 0, sizeof(newext));
+				ptr = newext;
+				len = ast_pbx_longest_extension(chan->context) + 1;
+				if (len < ast_pbx_longest_extension("default") + 1)
+					len = ast_pbx_longest_extension("default") + 1;
 					/* Transfer */
-					if ((res=ast_streamfile(peer, "pbx-transfer", chan->language)))
-						break;
-					if ((res=ast_waitstream(peer, AST_DIGIT_ANY)) < 0)
-						break;
-					ast_stopstream(peer);
-					if (res > 0) {
-						/* If they've typed a digit already, handle it */
-						newext[0] = res;
-						ptr++;
-						len --;
-					}
-					res = ast_readstring(peer, ptr, len, 3000, 2000, "#");
-					if (res)
-						break;
-					if (!strcmp(newext, parking_ext)) {
-						if (!park_call(chan, peer)) {
-							/* We return non-zero, but tell the PBX not to hang the channel when
-							   the thread dies -- We have to be careful now though.  We are responsible for 
-							   hanging up the channel, else it will never be hung up! */
-							res=AST_PBX_KEEPALIVE;
-							break;
-						} else {
-							ast_log(LOG_WARNING, "Unable to park call %s\n", chan->name);
-						}
-						/* XXX Maybe we should have another message here instead of invalid extension XXX */
-					} else if (ast_exists_extension(chan, peer->context, newext, 1)) {
-						/* Set the channel's new extension, since it exists, using peer context */
-						strncpy(chan->exten, newext, sizeof(chan->exten));
-						strncpy(chan->context, peer->context, sizeof(chan->context));
-						chan->priority = 0;
-						ast_frfree(f);
-						res=0;
-						break;
-					} else if (ast_exists_extension(chan, "default", newext, 1)) {
-						/* Set the channel's new extension, since it exists, using peer context */
-						strncpy(chan->exten, newext, sizeof(chan->exten));
-						strncpy(chan->context, "default", sizeof(chan->context));
-						chan->priority = 0;
-						ast_frfree(f);
-						res=0;
-						break;
-					}
-					res = ast_streamfile(peer, "pbx-invalid", chan->language);
-					if (res)
-						break;
-					res = ast_waitstream(peer, AST_DIGIT_ANY);
-					ast_stopstream(peer);
-					res = 0;
+				if ((res=ast_streamfile(peer, "pbx-transfer", chan->language)))
+					break;
+				if ((res=ast_waitstream(peer, AST_DIGIT_ANY)) < 0)
+					break;
+				ast_stopstream(peer);
+				if (res > 0) {
+					/* If they've typed a digit already, handle it */
+					newext[0] = res;
+					ptr++;
+					len --;
 				}
+				res = ast_readstring(peer, ptr, len, 3000, 2000, "#");
+				if (res)
+					break;
+				if (!strcmp(newext, parking_ext)) {
+					if (!park_call(chan, peer)) {
+						/* We return non-zero, but tell the PBX not to hang the channel when
+						   the thread dies -- We have to be careful now though.  We are responsible for 
+						   hanging up the channel, else it will never be hung up! */
+						res=AST_PBX_KEEPALIVE;
+						break;
+					} else {
+						ast_log(LOG_WARNING, "Unable to park call %s\n", chan->name);
+					}
+					/* XXX Maybe we should have another message here instead of invalid extension XXX */
+				} else if (ast_exists_extension(chan, peer->context, newext, 1)) {
+					/* Set the channel's new extension, since it exists, using peer context */
+					strncpy(chan->exten, newext, sizeof(chan->exten));
+					strncpy(chan->context, peer->context, sizeof(chan->context));
+					chan->priority = 0;
+					ast_frfree(f);
+					res=0;
+					break;
+				} else if (ast_exists_extension(chan, "default", newext, 1)) {
+					/* Set the channel's new extension, since it exists, using peer context */
+					strncpy(chan->exten, newext, sizeof(chan->exten));
+					strncpy(chan->context, "default", sizeof(chan->context));
+					chan->priority = 0;
+					ast_frfree(f);
+					res=0;
+					break;
+				}
+				res = ast_streamfile(peer, "pbx-invalid", chan->language);
+				if (res)
+					break;
+				res = ast_waitstream(peer, AST_DIGIT_ANY);
+				ast_stopstream(peer);
+				res = 0;
 			} else {
-#if 0
-				ast_log(LOG_DEBUG, "Read from %s\n", who->name);
+#if 1
+				ast_log(LOG_DEBUG, "Read from %s (%d,%d)\n", who->name, f->frametype, f->subclass);
 #endif
-				if (who == chan) 
-					ast_write(peer, f);
-				else 
-					ast_write(chan, f);
 			}
-			ast_frfree(f);
-			
-		} else
-			ast_frfree(f);
-		/* Swap who gets priority */
-		cs[2] = cs[0];
-		cs[0] = cs[1];
-		cs[1] = cs[2];
 	}
 	return res;
 }
@@ -482,7 +468,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
-	struct ast_channel *peer=NULL, *nchan;
+	struct ast_channel *peer=NULL;
 	struct parkeduser *pu, *pl=NULL;
 	int park;
 	if (!data) {
@@ -509,13 +495,9 @@ static int park_exec(struct ast_channel *chan, void *data)
 		free(pu);
 	}
 	if (peer) {
-		/* Build a translator if necessary */
-		if (peer->format & chan->format) 
-			nchan = chan;
-		else
-			nchan = ast_translator_create(chan, peer->format, AST_DIRECTION_BOTH);
-		if (!nchan) {
-			ast_log(LOG_WARNING, "Had to drop call because there was no translator for %s to %s.\n", chan->name, peer->name);
+		res = ast_channel_make_compatible(chan, peer);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "Could not make channels %s and %s compatible for bridge\n", chan->name, peer->name);
 			ast_hangup(peer);
 			return -1;
 		}
@@ -523,9 +505,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 		   were the person called. */
 		if (option_verbose > 2) 
 			ast_verbose(VERBOSE_PREFIX_3 "Channel %s connected to parked call %d\n", chan->name, park);
-		res = bridge_call(peer, nchan, 1);
-		if (nchan != chan)
-			ast_translator_destroy(nchan);
+		res = bridge_call(peer, chan, 1);
 		/* Simulate the PBX hanging up */
 		if (res != AST_PBX_KEEPALIVE)
 			ast_hangup(peer);
@@ -546,7 +526,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	char *info, *peers, *timeout, *tech, *number, *rest, *cur;
 	struct localuser *outgoing=NULL, *tmp;
-	struct ast_channel *peer, *npeer;
+	struct ast_channel *peer;
 	int to;
 	int allowredir=0;
 	char numsubst[AST_MAX_EXTENSION];
@@ -562,25 +542,42 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	
 	/* Parse our arguments XXX Check for failure XXX */
 	info = malloc(strlen((char *)data) + AST_MAX_EXTENSION);
+	if (!info) {
+		ast_log(LOG_WARNING, "Out of memory\n");
+		return -1;
+	}
 	strncpy(info, (char *)data, strlen((char *)data) + AST_MAX_EXTENSION);
-	peers = strtok(info, "|");
-	if (!peers) {
+	peers = info;
+	if (peers) {
+		timeout = strchr(info, '|');
+		if (timeout) {
+			*timeout = '\0';
+			timeout++;
+		}
+	} else
+		timeout = NULL;
+	if (!peers || !strlen(peers)) {
 		ast_log(LOG_WARNING, "Dial argument takes format (technology1/number1&technology2/number2...|optional timeout)\n");
 		goto out;
 	}
-	timeout = strtok(NULL, "|");
-	rest = peers;
+	
+	cur = peers;
 	do {
-		cur = strtok(rest, "&");
 		/* Remember where to start next time */
-		rest = strtok(NULL, "\128");
+		rest = strchr(cur, '&');
+		if (rest) {
+			*rest = 0;
+			rest++;
+		}
 		/* Get a technology/[device:]number pair */
-		tech = strtok(cur, "/");
-		number = strtok(NULL, "&");
+		tech = cur;
+		number = strchr(tech, '/');
 		if (!number) {
 			ast_log(LOG_WARNING, "Dial argument takes format (technology1/[device:]number1&technology2/[device:]number2...|optional timeout)\n");
 			goto out;
 		}
+		*number = '\0';
+		number++;
 		tmp = malloc(sizeof(struct localuser));
 		if (!tmp) {
 			ast_log(LOG_WARNING, "Out of memory\n");
@@ -598,15 +595,18 @@ static int dial_exec(struct ast_channel *chan, void *data)
 				ast_log(LOG_DEBUG, "Dialing by extension %s\n", numsubst);
 		}
 		/* Request the peer */
-		tmp->chan = ast_request(tech, chan->format, numsubst);
+		tmp->chan = ast_request(tech, chan->nativeformats, numsubst);
 		if (!tmp->chan) {
 			/* If we can't, just go on to the next call */
 			ast_log(LOG_WARNING, "Unable to create channel of type '%s'\n", tech);
 			free(tmp);
+			cur = rest;
 			continue;
 		}
 		tmp->chan->appl = "AppDial";
 		tmp->chan->data = "(Outgoing Line)";
+		if (chan->callerid)
+			tmp->chan->callerid = strdup(chan->callerid);
 		/* Place the call, but don't wait on the answer */
 		res = ast_call(tmp->chan, numsubst, 0);
 		if (res) {
@@ -627,7 +627,9 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		tmp->stillgoing = -1;
 		tmp->next = outgoing;
 		outgoing = tmp;
-	} while(rest);
+		cur = rest;
+	} while(cur);
+	
 	if (timeout)
 		to = atoi(timeout) * 1000;
 	else
@@ -649,21 +651,15 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		   conversation.  */
 		hanguptree(outgoing, peer);
 		outgoing = NULL;
-		/* Build a translator if necessary */
-		if (peer->format & chan->format) 
-			npeer = peer;
-		else
-			npeer = ast_translator_create(peer, chan->format, AST_DIRECTION_BOTH);
-		if (!npeer) {
-			ast_log(LOG_WARNING, "Had to drop call because there was no translator for %s to %s.\n", chan->name, peer->name);
+		/* Make sure channels are compatible */
+		res = ast_channel_make_compatible(chan, peer);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", chan->name, peer->name);
 			ast_hangup(peer);
-			res = -1;
-		} else {
-			res = bridge_call(chan, npeer, allowredir);
-			if (npeer != peer)
-				ast_translator_destroy(npeer);
-			ast_hangup(peer);
+			return -1;
 		}
+		res = bridge_call(chan, peer, allowredir);
+		ast_hangup(peer);
 	}	
 out:
 	hanguptree(outgoing, NULL);
@@ -710,4 +706,9 @@ int usecount(void)
 	int res;
 	STANDARD_USECOUNT(res);
 	return res;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
 }

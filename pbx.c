@@ -61,6 +61,11 @@ struct ast_exten {
 	struct ast_exten *next;
 };
 
+struct ast_include {
+	char name[AST_MAX_EXTENSION];
+	struct ast_include *next;
+};
+
 /* An extension context */
 struct ast_context {
 	/* Name of the context */
@@ -71,6 +76,8 @@ struct ast_context {
 	struct ast_exten *root;
 	/* Link them together */
 	struct ast_context *next;
+	/* Include other contexts */
+	struct ast_include *includes;
 };
 
 
@@ -158,6 +165,9 @@ static int pbx_exec(struct ast_channel *c, /* Channel */
 }
 
 
+/* Go no deeper than this through includes (not counting loops) */
+#define AST_PBX_MAX_STACK	64
+
 #define HELPER_EXISTS 0
 #define HELPER_SPAWN 1
 #define HELPER_EXEC 2
@@ -185,7 +195,7 @@ static void pbx_destroy(struct ast_pbx *p)
 	free(p);
 }
 
-static int extension_match(char *pattern, char *data)
+static inline int extension_match(char *pattern, char *data)
 {
 	int match;
 	/* If they're the same return */
@@ -271,13 +281,82 @@ struct ast_context *ast_context_find(char *name)
 	return tmp;
 }
 
+#define STATUS_NO_CONTEXT   1
+#define STATUS_NO_EXTENSION 2
+#define STATUS_NO_PRIORITY  3
+#define STATUS_SUCCESS	    4
+
+static struct ast_exten *pbx_find_extension(char *context, char *exten, int priority, int action, char *incstack[], int *stacklen, int *status)
+{
+	int x;
+	struct ast_context *tmp;
+	struct ast_exten *e, *eroot;
+	struct ast_include *i;
+	/* Initialize status if appropriate */
+	if (!*stacklen)
+		*status = STATUS_NO_CONTEXT;
+	/* Check for stack overflow */
+	if (*stacklen >= AST_PBX_MAX_STACK) {
+		ast_log(LOG_WARNING, "Maximum PBX stack exceeded\n");
+		return NULL;
+	}
+	/* Check first to see if we've already been checked */
+	for (x=0;x<*stacklen;x++) {
+		if (!strcasecmp(incstack[x], context))
+			return NULL;
+	}
+	tmp = contexts;
+	while(tmp) {
+		/* Match context */
+		if (!strcasecmp(tmp->name, context)) {
+			if (*status < STATUS_NO_EXTENSION)
+				*status = STATUS_NO_EXTENSION;
+			eroot = tmp->root;
+			while(eroot) {
+				/* Match extension */
+				if (extension_match(eroot->exten, exten) ||
+						((action == HELPER_CANMATCH) && (extension_close(eroot->exten, exten)))) {
+						e = eroot;
+						if (*status < STATUS_NO_PRIORITY)
+							*status = STATUS_NO_PRIORITY;
+						while(e) {
+							/* Match priority */
+							if (e->priority == priority) {
+								*status = STATUS_SUCCESS;
+								return e;
+							}
+							e = e->peer;
+						}
+				}
+				eroot = eroot->next;
+			}
+			/* Setup the stack */
+			incstack[*stacklen] = tmp->name;
+			(*stacklen)++;
+			/* Now try any includes we have in this context */
+			i = tmp->includes;
+			while(i) {
+				if ((e = pbx_find_extension(i->name, exten, priority, action, incstack, stacklen, status))) 
+					return e;
+				i = i->next;
+			}
+		}
+		tmp = tmp->next;
+	}
+	return NULL;
+}
+
 static int pbx_extension_helper(struct ast_channel *c, char *context, char *exten, int priority, int action) 
 {
-	struct ast_context *tmp;
-	struct ast_exten *e, *reale;
+	struct ast_exten *e;
 	struct ast_app *app;
 	int newstack = 0;
 	int res;
+	int status = 0;
+	char *incstack[AST_PBX_MAX_STACK];
+	int stacklen = 0;
+
+
 	if (pthread_mutex_lock(&conlock)) {
 		ast_log(LOG_WARNING, "Unable to obtain lock\n");
 		if ((action == HELPER_EXISTS) || (action == HELPER_CANMATCH))
@@ -285,6 +364,70 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 		else
 			return -1;
 	}
+	e = pbx_find_extension(context, exten, priority, action, incstack, &stacklen, &status);
+	if (e) {
+		switch(action) {
+		case HELPER_CANMATCH:
+			pthread_mutex_unlock(&conlock);
+			return -1;
+		case HELPER_EXISTS:
+			pthread_mutex_unlock(&conlock);
+			return -1;
+		case HELPER_SPAWN:
+			newstack++;
+			/* Fall through */
+		case HELPER_EXEC:
+			app = pbx_findapp(e->app);
+			pthread_mutex_unlock(&conlock);
+			if (app) {
+				strncpy(c->context, context, sizeof(c->context));
+				strncpy(c->exten, exten, sizeof(c->exten));
+				c->priority = priority;
+				if (option_debug)
+						ast_log(LOG_DEBUG, "Launching '%s'\n", app->name);
+				else if (option_verbose > 2)
+						ast_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\") %s\n", 
+								app->name, c->name, (e->data ? (char *)e->data : NULL), (newstack ? "in new stack" : "in same stack"));
+				c->appl = app->name;
+				c->data = e->data;		
+				res = pbx_exec(c, app->execute, e->data, newstack);
+				c->appl = NULL;
+				c->data = NULL;
+				pthread_mutex_unlock(&conlock);
+				return res;
+			} else {
+				ast_log(LOG_WARNING, "No application '%s' for extension (%s, %s, %d)\n", e->app, context, exten, priority);
+				return -1;
+			}
+		default:
+			ast_log(LOG_WARNING, "Huh (%d)?\n", action);
+			return -1;
+		}
+	} else {
+		pthread_mutex_unlock(&conlock);
+		switch(status) {
+		case STATUS_NO_CONTEXT:
+			if (action != HELPER_EXISTS)
+				ast_log(LOG_NOTICE, "Cannot find extension context '%s'\n", context);
+			break;
+		case STATUS_NO_EXTENSION:
+			if ((action != HELPER_EXISTS) && (action !=  HELPER_CANMATCH))
+				ast_log(LOG_NOTICE, "Cannot find extension '%s' in context '%s'\n", exten, context);
+			break;
+		case STATUS_NO_PRIORITY:
+			if ((action != HELPER_EXISTS) && (action !=  HELPER_CANMATCH))
+				ast_log(LOG_NOTICE, "No such priority %d in extension '%s' in context '%s'\n", priority, exten, context);
+			break;
+		default:
+			ast_log(LOG_DEBUG, "Shouldn't happen!\n");
+		}
+		if ((action != HELPER_EXISTS) && (action != HELPER_CANMATCH))
+			return -1;
+		else
+			return 0;
+	}
+
+#if 0		
 	tmp = contexts;
 	while(tmp) {
 		if (!strcasecmp(tmp->name, context)) {
@@ -370,9 +513,12 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 		return -1;
 	} else
 		return 0;
+#endif
 }
+
 int ast_pbx_longest_extension(char *context) 
 {
+	/* XXX Not include-aware XXX */
 	struct ast_context *tmp;
 	struct ast_exten *e;
 	int len = 0;
@@ -418,24 +564,36 @@ int ast_spawn_extension(struct ast_channel *c, char *context, char *exten, int p
 	return pbx_extension_helper(c, context, exten, priority, HELPER_SPAWN);
 }
 
-static void *pbx_thread(void *data)
+int ast_pbx_run(struct ast_channel *c)
 {
-	/* Oh joyeous kernel, we're a new thread, with nothing to do but
-	   answer this channel and get it going.  The setjmp stuff is fairly
-	   confusing, but necessary to get smooth transitions between
-	   the execution of different applications (without the use of
-	   additional threads) */
-	struct ast_channel *c = data;
 	int firstpass = 1;
 	char digit;
 	char exten[256];
 	int pos;
 	int waittime;
 	int res=0;
+
+	/* A little initial setup here */
+	if (c->pbx)
+		ast_log(LOG_WARNING, "%s already has PBX structure??\n");
+	c->pbx = malloc(sizeof(struct ast_pbx));
+	if (!c->pbx) {
+		ast_log(LOG_WARNING, "Out of memory\n");
+		return -1;
+	}
+	memset(c->pbx, 0, sizeof(struct ast_pbx));
+	/* Set reasonable defaults */
+	c->pbx->rtimeout = 10;
+	c->pbx->dtimeout = 5;
+
 	if (option_debug)
 		ast_log(LOG_DEBUG, "PBX_THREAD(%s)\n", c->name);
-	else if (option_verbose > 1)
-		ast_verbose( VERBOSE_PREFIX_2 "Accepting call on '%s'\n", c->name);
+	else if (option_verbose > 1) {
+		if (c->callerid)
+			ast_verbose( VERBOSE_PREFIX_2 "Accepting call on '%s' (%s)\n", c->name, c->callerid);
+		else
+			ast_verbose( VERBOSE_PREFIX_2 "Accepting call on '%s'\n", c->name);
+	}
 		
 	
 	/* Start by trying whatever the channel is set to */
@@ -467,7 +625,7 @@ static void *pbx_thread(void *data)
 				goto out;
 			}
 			/* If we're playing something in the background, wait for it to finish or for a digit */
-			if (c->stream || (c->trans && c->trans->stream)) {
+			if (c->stream) {
 				digit = ast_waitstream(c, AST_DIGIT_ANY);
 				ast_stopstream(c);
 				/* Hang up if something goes wrong */
@@ -541,8 +699,20 @@ out:
 	c->pbx = NULL;
 	if (res != AST_PBX_KEEPALIVE)
 		ast_hangup(c);
+	return 0;
+}
+
+static void *pbx_thread(void *data)
+{
+	/* Oh joyeous kernel, we're a new thread, with nothing to do but
+	   answer this channel and get it going.  The setjmp stuff is fairly
+	   confusing, but necessary to get smooth transitions between
+	   the execution of different applications (without the use of
+	   additional threads) */
+	struct ast_channel *c = data;
+	ast_pbx_run(c);
 	pthread_exit(NULL);
-	
+	return NULL;
 }
 
 int ast_pbx_start(struct ast_channel *c)
@@ -552,17 +722,6 @@ int ast_pbx_start(struct ast_channel *c)
 		ast_log(LOG_WARNING, "Asked to start thread on NULL channel?\n");
 		return -1;
 	}
-	if (c->pbx)
-		ast_log(LOG_WARNING, "%s already has PBX structure??\n");
-	c->pbx = malloc(sizeof(struct ast_pbx));
-	if (!c->pbx) {
-		ast_log(LOG_WARNING, "Out of memory\n");
-		return -1;
-	}
-	memset(c->pbx, 0, sizeof(struct ast_pbx));
-	/* Set reasonable defaults */
-	c->pbx->rtimeout = 10;
-	c->pbx->dtimeout = 5;
 	/* Start a new thread, and get something handling this channel. */
 	if (pthread_create(&t, NULL, pbx_thread, c)) {
 		ast_log(LOG_WARNING, "Failed to create new channel thread\n");
@@ -655,6 +814,7 @@ struct ast_context *ast_context_create(char *name)
 		strncpy(tmp->name, name, sizeof(tmp->name));
 		tmp->root = NULL;
 		tmp->next = contexts;
+		tmp->includes = NULL;
 		contexts = tmp;
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Registered context '%s'\n", tmp->name);
@@ -665,6 +825,36 @@ struct ast_context *ast_context_create(char *name)
 	
 	pthread_mutex_unlock(&conlock);
 	return tmp;
+}
+
+int ast_context_add_include2(struct ast_context *con, char *value)
+{
+	struct ast_include *inc, *incc, *incl = NULL;
+	inc = malloc(sizeof(struct ast_include));
+	if (!inc) {
+		ast_log(LOG_WARNING, "Out of memory\n");
+		return -1;
+	}
+	strncpy(inc->name, value, sizeof(inc->name));
+	inc->next = NULL;
+	pthread_mutex_lock(&con->lock);
+	incc = con->includes;
+	while(incc) {
+		incl = incc;
+		if (!strcasecmp(incc->name, value)) {
+			/* Already there */
+			pthread_mutex_unlock(&con->lock);
+			return 0;
+		}
+		incc = incc->next;
+	}
+	if (incl) 
+		incl->next = inc;
+	else
+		con->includes = inc;
+	pthread_mutex_unlock(&con->lock);
+	return 0;
+	
 }
 
 int ast_add_extension2(struct ast_context *con,
@@ -815,6 +1005,7 @@ int ast_add_extension2(struct ast_context *con,
 void ast_context_destroy(struct ast_context *con)
 {
 	struct ast_context *tmp, *tmpl=NULL;
+	struct ast_include *tmpi, *tmpil= NULL;
 	pthread_mutex_lock(&conlock);
 	tmp = contexts;
 	while(tmp) {
@@ -832,6 +1023,13 @@ void ast_context_destroy(struct ast_context *con)
 			/* Okay, now we're safe to let it go -- in a sense, we were
 			   ready to let it go as soon as we locked it. */
 			pthread_mutex_unlock(&tmp->lock);
+			for (tmpi = tmp->includes; tmpi; ) {
+				/* Free includes */
+				tmpil = tmpi;
+				tmpi = tmpi->next;
+				free(tmpil);
+				tmpil = tmpi;
+			}
 			free(tmp);
 			pthread_mutex_unlock(&conlock);
 			return;
