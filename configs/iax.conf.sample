@@ -141,7 +141,7 @@ permit=216.207.245.47/255.255.255.255
 ;
 [demo]
 type=peer
-username=asteisk
+username=asterisk
 secret=supersecret
 host=216.207.245.47
 ;sendani=no
