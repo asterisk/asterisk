@@ -1,3 +1,7 @@
+ -- Added Open Settlement Protocol (OSP) support
+ -- Added Non-facility Associated Signalling (NFAS) Support
+ -- Added alarm Monitoring support
+ -- Added new MeetMe options
  -- Added GR-303 Support
  -- Added trunk groups
  -- ADPCM Standardization
