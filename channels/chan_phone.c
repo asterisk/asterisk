@@ -37,6 +37,23 @@
 #include <linux/ixjuser.h>
 #include "DialTone.h"
 
+#ifdef QTI_PHONEJACK_TJ_PCI	/* check for the newer quicknet driver v.3.1.0 which has this symbol */
+#define QNDRV_VER 310
+#else
+#define QNDRV_VER 100
+#endif
+
+#if QNDRV_VER > 100
+#ifdef __linux__
+#define IXJ_PHONE_RING_START(x)	ioctl(p->fd, PHONE_RING_START, &x);
+#else /* FreeBSD and others */
+#define IXJ_PHONE_RING_START(x)	ioctl(p->fd, PHONE_RING_START, x);
+#endif /* __linux__ */
+#else	/* older driver */
+#define IXJ_PHONE_RING_START(x)	ioctl(p->fd, PHONE_RING_START, &x);
+#endif
+
+
 #define DEFAULT_CALLER_ID "Unknown"
 #define PHONE_MAX_BUF 480
 #define DEFAULT_GAIN 0x100
@@ -158,36 +175,33 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 	time_t UtcTime;
 	struct tm tm;
 
-	/* display caller id if present */
-	if (ast->callerid) {
-		time(&UtcTime);
-		localtime_r(&UtcTime,&tm);
+	time(&UtcTime);
+	localtime_r(&UtcTime,&tm);
 
-		if(&tm != NULL) {
-			sprintf(cid.month, "%02d",(tm.tm_mon + 1));
-			sprintf(cid.day,   "%02d", tm.tm_mday);
-			sprintf(cid.hour,  "%02d", tm.tm_hour);
-			sprintf(cid.min,   "%02d", tm.tm_min);
+	if(&tm != NULL) {
+		sprintf(cid.month, "%02d",(tm.tm_mon + 1));
+		sprintf(cid.day,   "%02d", tm.tm_mday);
+		sprintf(cid.hour,  "%02d", tm.tm_hour);
+		sprintf(cid.min,   "%02d", tm.tm_min);
+	}
+	/* the standard format of ast->callerid is:  "name" <number>, but not always complete */
+	if (!ast->callerid || ast_strlen_zero(ast->callerid)){
+		strcpy(cid.name, DEFAULT_CALLER_ID);
+		cid.number[0]='\0';
+	} else {
+		char *n, *l;
+		char callerid[256] = "";
+		strncpy(callerid, ast->callerid, sizeof(callerid) - 1);
+		ast_callerid_parse(callerid, &n, &l);
+		if (l) {
+			ast_shrink_phone_number(l);
+			if (!ast_isphonenumber(l))
+				l = NULL;
 		}
-		/* the format of ast->callerid is always:  "name" <number> */
-		if(!ast->callerid || ast_strlen_zero(ast->callerid)){
-			strcpy(cid.name,DEFAULT_CALLER_ID);
-			cid.number[0]='\0';
-		} else {
-			char *n, *l;
-			char callerid[256] = "";
-			strncpy(callerid, ast->callerid, sizeof(callerid) - 1);
-			ast_callerid_parse(ast->callerid, &n, &l);
-			if (l) {
-				ast_shrink_phone_number(l);
-				if (!ast_isphonenumber(l))
-					l = NULL;
-			}
-			if (l)
-				strncpy(cid.number, l, sizeof(cid.number) - 1);
-			if (n)
-				strncpy(cid.name, n, sizeof(cid.name) - 1);
-		}
+		if (l)
+			strncpy(cid.number, l, sizeof(cid.number));
+		if (n)
+			strncpy(cid.name, n, sizeof(cid.name));
 	}
 
 	p = ast->pvt->pvt;
@@ -196,12 +210,10 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_log(LOG_WARNING, "phone_call called on %s, neither down nor reserved\n", ast->name);
 		return -1;
 	}
-	/* When we call, it just works, really, there's no destination...  Just
-	   ring the phone and wait for someone to answer */
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Ringing %s on %s (%d)\n", dest, ast->name, ast->fds[0]);
 
-	ioctl(p->fd, PHONE_RING_START,&cid);
+	IXJ_PHONE_RING_START(cid);
 	ast_setstate(ast, AST_STATE_RINGING);
 	ast_queue_control(ast, AST_CONTROL_RINGING);
 	return 0;
