@@ -209,7 +209,8 @@ static int update_header(int fd)
 	
 	cur = lseek(fd, 0, SEEK_CUR);
 	end = lseek(fd, 0, SEEK_END);
-	bytes = end - 52;
+	/* in a gsm WAV, data starts 60 bytes in */
+	bytes = end - 60;
 	datalen = htoll(bytes);
 	filelen = htoll(52 + ((bytes + 1) & ~0x1));
 	if (cur < 0) {
