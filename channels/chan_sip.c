@@ -747,9 +747,9 @@ static struct sip_peer *mysql_peer(char *peer, struct sockaddr_in *sin)
 			mysql_real_escape_string(mysql, name, peer, strlen(peer));
 		}
 		if (sin)
-			snprintf(query, sizeof(query), "SELECT * FROM sipfriends WHERE ipaddr=\"%s\" AND port=\"%d\"", inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+			snprintf(query, sizeof(query), "SELECT name, secret, context, username, ipaddr, port, regseconds FROM sipfriends WHERE ipaddr=\"%s\" AND port=\"%d\"", inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 		else
-			snprintf(query, sizeof(query), "SELECT * FROM sipfriends WHERE name=\"%s\"", name);
+			snprintf(query, sizeof(query), "SELECT name, secret, context, username, ipaddr, port, regseconds FROM sipfriends WHERE name=\"%s\"", name);
 		ast_mutex_lock(&mysqllock);
 		mysql_query(mysql, query);
 		if ((result = mysql_store_result(mysql))) {
