@@ -122,6 +122,8 @@
 
 %vm-no.gsm%no
 
+%vm-nobodyavail.gsm%Nobody is available to take your call at the moment
+
 %vm-nomore.gsm%No more messages.
 
 %vm-Old.gsm%old
@@ -195,6 +197,14 @@
 %privacy-thankyou.gsm%Thank you.
 
 %tt-allbusy.gsm%All representatives of the household are currently assisting other telemarketers.  Please hold and your call will be answered in the order it was received.
+
+%tt-monkeysintro.gsm%They have been carried away by monkeys
+
+%tt-monkeys.gsm%[sound of monkeys screaming]
+
+%tt-somethingwrong.gsm%Something is terribly wrong
+
+%tt-weasels.gsm%Weasels have eaten our phone system
 
 ;digits directory  - File Name Sound File Script
 
