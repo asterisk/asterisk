@@ -31,6 +31,7 @@
 #include <asterisk/options.h>
 #include <asterisk/channel.h>
 #include <asterisk/acl.h>
+#include <asterisk/channel.h>
 #include <asterisk/channel_pvt.h>
 #include <asterisk/config.h>
 
@@ -1264,6 +1265,9 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
 			ast_log(LOG_DEBUG, "Ooh, empty read...\n");
+			/* check for hagnup / whentohangup */
+			if (ast_check_hangup(c0) || ast_check_hangup(c1))
+				break;
 			continue;
 		}
 		f = ast_read(who);
