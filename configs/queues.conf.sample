@@ -71,12 +71,12 @@
 ; Use these sound files in making position/holdtime announcements.  The
 ; defaults are as listed below -- change only if you need to.
 ;
-;queue-youarenext = queue-youarenext		("You are now first in line.")
-;queue-thereare	= queue-thereare		("There are")
-;queue-callswaiting = queue-callswaiting	("calls waiting.")
-;queue-holdtime = queue-holdtime		("The current est. holdtime is")
-;queue-minutes = queue-minutes			("minutes.")
-;queue-thankyou = queue-thankyou		("Thank you for your patience.")
+;queue-youarenext = queue-youarenext		;	("You are now first in line.")
+;queue-thereare	= queue-thereare		;	("There are")
+;queue-callswaiting = queue-callswaiting	;	("calls waiting.")
+;queue-holdtime = queue-holdtime		;	("The current est. holdtime is")
+;queue-minutes = queue-minutes			;	("minutes.")
+;queue-thankyou = queue-thankyou		;	("Thank you for your patience.")
 ;
 ; Calls may be recorded using Asterisk's monitor resource
 ; This can be enabled from within the Queue application, starting recording
