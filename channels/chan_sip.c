@@ -190,7 +190,7 @@ static struct sip_pvt {
 	char callerid[256];					/* Caller*ID */
 	char via[256];
 	char accountcode[256];				/* Account code */
-	char contact[256];				/* contact header */
+	char our_contact[256];				/* Our contact header */
 	char realm[256];				/* Authorization realm */
 	char nonce[256];				/* Authorization nonce */
 	int amaflags;						/* AMA Flags */
@@ -1884,12 +1884,12 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 		   contact info */
 		char contact[256];
 		char tmp[256];
-		snprintf(contact, sizeof(contact), "%s;expires=%d", p->contact, p->expiry);
+		snprintf(contact, sizeof(contact), "%s;expires=%d", p->our_contact, p->expiry);
 		snprintf(tmp, sizeof(tmp), "%d", p->expiry);
 		add_header(resp, "Expires", tmp);
 		add_header(resp, "Contact", contact);
 	} else {
-		add_header(resp, "Contact", p->contact);
+		add_header(resp, "Contact", p->our_contact);
 	}
 	return 0;
 }
@@ -1961,7 +1961,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int se
 		add_header(req, "From", ot);
 		add_header(req, "To", of);
 	}
-	add_header(req, "Contact", p->contact);
+	add_header(req, "Contact", p->our_contact);
 	copy_header(req, orig, "Call-ID");
 	add_header(req, "CSeq", tmp);
 
@@ -2214,6 +2214,15 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp)
 	return send_request(p, &req, 1, p->ocseq);
 }
 
+static void build_contact(struct sip_pvt *p)
+{
+	/* Construct Contact: header */
+	if (ourport != 5060)
+		snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s@%s:%d>", p->exten, inet_ntoa(p->ourip), ourport);
+	else
+		snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s@%s>", p->exten, inet_ntoa(p->ourip));
+}
+
 static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, char *vxml_url)
 {
 	char invite[256];
@@ -2265,13 +2274,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	/* SLD: FIXME?: do Route: here too?  I think not cos this is the first request.
 	 * OTOH, then we won't have anything in p->route anyway */
 	add_header(req, "From", from);
-	/* XXX This isn't exactly right and it's implemented
-	       very stupidly *sigh* XXX */
-	if (ourport != 5060)
-		snprintf(p->contact, sizeof(p->contact), "<sip:%s@%s:%d>", l, inet_ntoa(p->ourip), ourport);
-	else
-		snprintf(p->contact, sizeof(p->contact), "<sip:%s@%s>", l, inet_ntoa(p->ourip));
-	add_header(req, "Contact", p->contact);
+	strncpy(p->exten, l, sizeof(p->exten) - 1);
+	build_contact(p);
+	add_header(req, "Contact", p->our_contact);
 	add_header(req, "To", to);
 	add_header(req, "Call-ID", p->callid);
 	add_header(req, "CSeq", tmp);
@@ -2914,6 +2919,8 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	c = strchr(name, '@');
 	if (c) 
 		*c = '\0';
+	strncpy(p->exten, name, sizeof(p->exten) - 1);
+	build_contact(p);
 	ast_pthread_mutex_lock(&peerl.lock);
 	peer = peerl.peers;
 	while(peer) {
@@ -3972,6 +3979,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	int ignore=0;
 	int respid;
 	int res;
+	int gotdest;
 	/* Clear out potential response */
 	memset(&resp, 0, sizeof(resp));
 	/* Get Method and Cseq */
@@ -4037,9 +4045,11 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 
 	/* Initialize the context if it hasn't been already */
 	if (!strcasecmp(cmd, "OPTIONS")) {
+		res = get_destination(p, req);
+		build_contact(p);
+		/* XXX Should we authenticate OPTIONS? XXX */
 		if (!strlen(p->context))
 			strncpy(p->context, context, sizeof(p->context) - 1);
-		res = get_destination(p, req);
 		if (res < 0)
 			transmit_response_with_allow(p, "404 Not Found", req);
 		else if (res > 0)
@@ -4074,6 +4084,9 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		} else if (sipdebug)
 			ast_verbose("Ignoring this request\n");
 		if (!p->lastinvite) {
+			/* Get destination right away */
+			gotdest = get_destination(p, NULL);
+			build_contact(p);
 			/* Handle authentication if this is our first invite */
 			res = check_user(p, req, cmd, e, 1);
 			if (res) {
@@ -4086,8 +4099,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			/* Initialize the context if it hasn't been already */
 			if (!strlen(p->context))
 				strncpy(p->context, context, sizeof(p->context) - 1);
-			if ((res = get_destination(p, NULL))) {
-				if (res < 0)
+			if (gotdest) {
+				if (gotdest < 0)
 					transmit_response(p, "404 Not Found", req);
 				else
 					transmit_response(p, "484 Address Incomplete", req);
@@ -4096,11 +4109,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				/* If no extension was specified, use the s one */
 				if (!strlen(p->exten))
 					strncpy(p->exten, "s", sizeof(p->exten) - 1);
-				/* Construct Contact: header */
-				if (ourport != 5060)
-					snprintf(p->contact, sizeof(p->contact), "<sip:%s@%s:%d>", p->exten, inet_ntoa(p->ourip), ourport);
-				else
-					snprintf(p->contact, sizeof(p->contact), "<sip:%s@%s>", p->exten, inet_ntoa(p->ourip));
 				/* Initialize tag */	
 				p->tag = rand();
 				/* First invitation */
@@ -4217,6 +4225,9 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ast_verbose("Ignoring this request\n");
 			
 		if (!p->lastinvite) {
+			/* Get destination right away */
+			gotdest = get_destination(p, NULL);
+			build_contact(p);
 			/* Handle authentication if this is our first subscribe */
 			res = check_user(p, req, cmd, e, 0);
 			if (res) {
@@ -4229,8 +4240,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			/* Initialize the context if it hasn't been already */
 			if (!strlen(p->context))
 				strncpy(p->context, context, sizeof(p->context) - 1);
-			if ((res = get_destination(p, NULL))) {
-				if (res < 0)
+			if (gotdest) {
+				if (gotdest < 0)
 					transmit_response(p, "404 Not Found", req);
 				else
 					transmit_response(p, "484 Address Incomplete", req);
@@ -4240,11 +4251,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			} else {
 				/* Initialize tag */	
 				p->tag = rand();
-				/* Construct Contact: header */
-				if (ourport != 5060)
-					snprintf(p->contact, sizeof(p->contact), "<sip:%s@%s:%d>", p->exten, inet_ntoa(p->ourip), ourport);
-				else
-					snprintf(p->contact, sizeof(p->contact), "<sip:%s@%s>", p->exten, inet_ntoa(p->ourip));
 				if (!strcmp(get_header(req, "Accept"), "application/dialog-info+xml"))
 				    p->subscribed = 2;
 				else
