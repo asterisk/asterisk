@@ -874,6 +874,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	char digit = 0;
 	time_t callstart;
 	time_t now;
+	struct ast_bridge_config config;
 	/* Hold the lock while we setup the outgoing calls */
 	ast_mutex_lock(&qe->parent->lock);
 	strncpy(queuename, qe->parent->name, sizeof(queuename) - 1);
@@ -1030,7 +1031,13 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		strncpy(oldcontext, qe->chan->context, sizeof(oldcontext) - 1);
 		strncpy(oldexten, qe->chan->exten, sizeof(oldexten) - 1);
 		time(&callstart);
-		bridge = ast_bridge_call(qe->chan, peer, allowredir_in, allowredir_out, allowdisconnect);
+
+		memset(&config,0,sizeof(struct ast_bridge_config));
+        config.allowredirect_in = allowredir_in;
+        config.allowredirect_out = allowredir_out;
+        config.allowdisconnect = allowdisconnect;
+        bridge = ast_bridge_call(qe->chan,peer,&config);
+
 		if (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten)) {
 			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "TRANSFER", "%s|%s", qe->chan->exten, qe->chan->context);
 		} else if (qe->chan->_softhangup) {

@@ -267,6 +267,22 @@ static inline void ast_dup_flag(struct ast_channel *dstchan, struct ast_channel 
 		ast_clear_flag(dstchan, mode);
 }	
 
+
+struct ast_bridge_config {
+	int play_to_caller;
+	int play_to_callee;
+	int allowredirect_in;
+	int allowredirect_out;
+	int allowdisconnect;
+    long timelimit;
+    long play_warning;
+	long warning_freq;
+    char *warning_sound;
+    char *end_sound;
+    char *start_sound;
+};
+
+
 struct chanmon;
 
 #define LOAD_OH(oh) {	\
@@ -666,7 +682,9 @@ int ast_channel_make_compatible(struct ast_channel *c0, struct ast_channel *c1);
  * \param rc destination channel(?)
  * Bridge two channels (c0 and c1) together.  If an important frame occurs, we return that frame in
    *rf (remember, it could be NULL) and which channel (0 or 1) in rc */
-int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
+//int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
+int ast_channel_bridge(struct ast_channel *c0,struct ast_channel *c1,struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc);
+
 
 //! Weird function made for call transfers
 /*! 

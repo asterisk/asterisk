@@ -44,9 +44,13 @@ extern int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *hos
 extern char *ast_parking_ext(void);
 extern char *ast_pickup_ext(void);
 
+
+
 //! Bridge a call, optionally allowing redirection
 
-extern int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allowredirect_in, int allowredirect_out, int allowdisconnect);
+extern int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,struct ast_bridge_config *config);
+
+
 
 extern int ast_pickup_call(struct ast_channel *chan);
 

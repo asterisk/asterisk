@@ -214,11 +214,13 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 	return 0;
 }
 
-int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allowredirect_in, int allowredirect_out, int allowdisconnect)
+
+int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast_bridge_config *config)
 {
 	/* Copy voice back and forth between the two channels.  Give the peer
 	   the ability to transfer calls with '#<extension' syntax. */
-	int len;
+
+        int len;
 	struct ast_frame *f;
 	struct ast_channel *who;
 	char newext[256], *ptr;
@@ -226,7 +228,12 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allo
 	struct ast_option_header *aoh;
 	struct ast_channel *transferer;
 	struct ast_channel *transferee;
-  char *transferer_real_context;
+        char *transferer_real_context;
+        int allowdisconnect,allowredirect_in,allowredirect_out;
+
+	allowdisconnect = config->allowdisconnect;
+	allowredirect_in = config->allowredirect_in;
+	allowredirect_out = config->allowredirect_out;
 
 	/* Answer if need be */
 	if (ast_answer(chan))
@@ -246,7 +253,7 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allo
 		peer->cdr = NULL;
 	}
 	for (;;) {
-		res = ast_channel_bridge(chan, peer, (allowdisconnect||allowredirect_out ? AST_BRIDGE_DTMF_CHANNEL_0 : 0) + (allowredirect_in ? AST_BRIDGE_DTMF_CHANNEL_1 : 0), &f, &who);
+	  res = ast_channel_bridge(chan,peer,config,&f, &who);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Bridge failed on channels %s and %s\n", chan->name, peer->name);
 			return -1;
@@ -534,6 +541,8 @@ static int park_exec(struct ast_channel *chan, void *data)
 	struct parkeduser *pu, *pl=NULL;
 	int park;
 	int dres;
+	struct ast_bridge_config config;
+
 	if (!data) {
 		ast_log(LOG_WARNING, "Park requires an argument (extension number)\n");
 		return -1;
@@ -575,7 +584,17 @@ static int park_exec(struct ast_channel *chan, void *data)
 		   were the person called. */
 		if (option_verbose > 2) 
 			ast_verbose(VERBOSE_PREFIX_3 "Channel %s connected to parked call %d\n", chan->name, park);
-		res = ast_bridge_call(chan, peer, 1, 1, 0);
+
+		memset(&config,0,sizeof(struct ast_bridge_config));
+                config.allowredirect_in = 1;
+                config.allowredirect_out = 1;
+                config.allowdisconnect = 0;
+                config.timelimit = 0;
+                config.play_warning = 0;
+                config.warning_freq = 0;
+                config.warning_sound=NULL;
+                res = ast_bridge_call(chan,peer,&config);
+
 		/* Simulate the PBX hanging up */
 		if (res != AST_PBX_NO_HANGUP_PEER)
 			ast_hangup(peer);
