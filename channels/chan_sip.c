@@ -6420,6 +6420,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			if (res) {
 				if (res < 0) {
 					ast_log(LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
+					if (ignore)
+						transmit_response(p, "403 Forbidden", req);
+					else
+						transmit_response_reliable(p, "403 Forbidden", req, 1);
 					p->needdestroy = 1;
 				}
 				return 0;
