@@ -323,7 +323,7 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 	ast_mutex_lock(&p->lock); 
 	CHECK_FORMATS(ast, p);
 	if (p->chan) {
-		p->chan->exception = ast->exception;
+		ast_copy_flags(p->chan, ast, AST_FLAG_EXCEPTION);
 		if (ast->fdno == AST_MAX_FDS - 3)
 			p->chan->fdno = AST_MAX_FDS - 2;
 		else
@@ -819,7 +819,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 		p->owning_app = pthread_self();
 		/* After the above step, there should not be any blockers. */
 		if (p->chan) {
-			if (p->chan->blocking) {
+			if (ast_test_flag(p->chan, AST_FLAG_BLOCKING)) {
 				ast_log( LOG_ERROR, "A blocker exists after agent channel ownership acquired\n" );
 				CRASH;
 			}
@@ -1003,7 +1003,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 				/* Go ahead and mark the channel as a zombie so that masquerade will
 				   destroy it for us, and we need not call ast_hangup */
 				ast_mutex_lock(&parent->lock);
-				chan->zombie = 1;
+				ast_set_flag(chan, AST_FLAG_ZOMBIE);
 				ast_channel_masquerade(parent, chan);
 				ast_mutex_unlock(&parent->lock);
 				p->abouttograb = 0;

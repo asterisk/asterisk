@@ -434,7 +434,7 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 	/* Try to read some data... */
 	CHECK_BLOCKING(ast);
 	res = read(p->fd, p->buf, PHONE_MAX_BUF);
-	ast->blocking = 0;
+	ast_clear_flag(ast, AST_FLAG_BLOCKING);
 	if (res < 0) {
 #if 0
 		if (errno == EAGAIN) {

@@ -460,29 +460,9 @@ int pbx_exec(struct ast_channel *c, 		/* Channel */
 	char *saved_c_appl;
 	char *saved_c_data;
 	
-	int stack = c->stack;
 	int (*execute)(struct ast_channel *chan, void *data) = app->execute; 
 
-	if (newstack && stack > AST_CHANNEL_MAX_STACK - 2) {
-		/* Don't allow us to go over the max number of stacks we
-		   permit saving. */
-		ast_log(LOG_WARNING, "Stack overflow, cannot create another stack\n");
-		return -1;
-	}
-	if (newstack && (res = setjmp(c->jmp[++c->stack]))) {
-		/* Okay, here's where it gets weird.  If newstack is non-zero, 
-		   then we increase the stack increment, but setjmp is not going
-		   to return until longjmp is called -- when the application
-		   exec'd is finished running. */
-		if (res == 1)
-			res = 0;
-		if (c->stack != stack + 1) 
-			ast_log(LOG_WARNING, "Stack returned to an unexpected place!\n");
-		else if (c->app[c->stack])
-			ast_log(LOG_WARNING, "Application may have forgotten to free its memory\n");
-		c->stack = stack;
-		return res;
-	} else {
+	if (newstack) {
 		if (c->cdr)
 			ast_cdr_setapp(c->cdr, app->name, data);
 
@@ -496,13 +476,10 @@ int pbx_exec(struct ast_channel *c, 		/* Channel */
 		/* restore channel values */
 		c->appl= saved_c_appl;
 		c->data= saved_c_data;
-
-		/* Any application that returns, we longjmp back, just in case. */
-		if (c->stack != stack + 1)
-			ast_log(LOG_WARNING, "Stack is not at expected value\n");
-		longjmp(c->jmp[stack+1], res);
-		/* Never returns */
-	}
+		return res;
+	} else
+		ast_log(LOG_WARNING, "You really didn't want to call this function with newstack set to 0\n");
+	return -1;
 }
 
 

@@ -364,9 +364,9 @@ static void *linear_alloc(struct ast_channel *chan, void *params)
 	if (params) {
 		ls = params;
 		if (ls->allowoverride)
-			chan->writeinterrupt = 1;
+			ast_set_flag(chan, AST_FLAG_WRITE_INT);
 		else
-			chan->writeinterrupt = 0;
+			ast_clear_flag(chan, AST_FLAG_WRITE_INT);
 		ls->origwfmt = chan->writeformat;
 		if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
 			ast_log(LOG_WARNING, "Unable to set '%s' to linear format (write)\n", chan->name);

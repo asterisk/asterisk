@@ -668,7 +668,6 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	"   Pickup Group: %d\n"
 	"    Application: %s\n"
 	"           Data: %s\n"
-	"          Stack: %d\n"
 	"    Blocking in: %s\n",
 	c->name, c->type, c->uniqueid,
 	(c->cid.cid_num ? c->cid.cid_num : "(N/A)"),
@@ -679,7 +678,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	hour, min, sec, 
 	c->context, c->exten, c->priority, c->callgroup, c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
 	( c-> data ? (!ast_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
-	c->stack, (c->blocking ? c->blockproc : "(Not Blocking)"));
+	(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
 			if(pbx_builtin_serialize_variables(c,buf,sizeof(buf)))
 				ast_cli(fd,"Variables:\n%s\n",buf);
 

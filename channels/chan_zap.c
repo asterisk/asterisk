@@ -3995,7 +3995,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	readbuf = ((unsigned char *)p->subs[index].buffer) + AST_FRIENDLY_OFFSET;
 	CHECK_BLOCKING(ast);
 	res = read(p->subs[index].zfd, readbuf, p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE);
-	ast->blocking = 0;
+	ast_clear_flag(ast, AST_FLAG_BLOCKING);
 	/* Check for hangup */
 	if (res < 0) {
 		f = NULL;
@@ -4172,7 +4172,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 
 	/* If we have a fake_event, trigger exception to handle it */
 	if (p->fake_event)
-		ast->exception = 1;
+		ast_set_flag(ast, AST_FLAG_EXCEPTION);
 
 	ast_mutex_unlock(&p->lock);
 	return f;

@@ -39,7 +39,6 @@ extern "C" {
 
 
 #define AST_CHANNEL_NAME 80
-#define AST_CHANNEL_MAX_STACK 32
 
 #define MAX_LANGUAGE 20
 
@@ -94,8 +93,6 @@ struct ast_channel {
 	void *generatordata;
 	/*! Current active data generator */
 	struct ast_generator *generator;
-	/*! Whether or not the generator should be interrupted by write */
-	int writeinterrupt;
 
 	/*! Who are we bridged to, if we're bridged  Do not access directly,
 	    use ast_bridged_channel(chan) */
@@ -104,21 +101,15 @@ struct ast_channel {
 	struct ast_channel *dialed;
 	/*! Who called us? */
 	struct ast_channel *dialing;
-	/*! Reverse the dialed link (0 false, 1 true) */
-	int reversedialed;
 	/*! Channel that will masquerade as us */
 	struct ast_channel *masq;		
 	/*! Who we are masquerading as */
 	struct ast_channel *masqr;		
 	/*! Call Detail Record Flags */
 	int cdrflags;										   
-	/*! Whether or not we're blocking */
-	int blocking;				
 	/*! Whether or not we have been hung up...  Do not set this value
 	    directly, use ast_softhangup */
 	int _softhangup;				
-	/*! Non-zero if this is a zombie channel */
-	int zombie;					
 	/*! Non-zero, set to actual time when channel is to be hung up */
 	time_t	whentohangup;
 	/*! If anyone is blocking, this is them */
@@ -133,8 +124,6 @@ struct ast_channel {
 	/*! Data passed to current application */
 	char *data;				
 	
-	/*! Has an exception been detected */
-	int exception;				
 	/*! Which fd had an event detected on */
 	int fdno;				
 	/*! Schedule context */
@@ -159,9 +148,6 @@ struct ast_channel {
 	int _state;				
 	/*! Number of rings so far */
 	int rings;				
-	/*! Current level of application */
-	int stack;
-
 
 	/*! Kinds of data this channel can natively handle */
 	int nativeformats;			
@@ -184,21 +170,14 @@ struct ast_channel {
 	char exten[AST_MAX_EXTENSION];		
 	/* Current extension priority */
 	int priority;						
-	/*! Application information -- see assigned numbers */
-	void *app[AST_CHANNEL_MAX_STACK];	
 	/*! Any/all queued DTMF characters */
 	char dtmfq[AST_MAX_EXTENSION];		
-	/*! Are DTMF digits being deferred */
-	int deferdtmf;				
 	/*! DTMF frame */
 	struct ast_frame dtmff;			
 	/*! Private channel implementation details */
 	struct ast_channel_pvt *pvt;
 
-						
-	/*! Jump buffer used for returning from applications */
-	jmp_buf jmp[AST_CHANNEL_MAX_STACK];	
-
+	/*! PBX private structure */
 	struct ast_pbx *pbx;
 	/*! Set BEFORE PBX is started to determine AMA flags */
 	int 	amaflags;			
@@ -238,28 +217,39 @@ struct ast_channel {
 	unsigned int pickupgroup;
 
 	/*! channel flags of AST_FLAG_ type */
-	int flag;
+	int flags;
 	
 	/*! For easy linking */
 	struct ast_channel *next;
 
 };
 
-#define AST_FLAG_DIGITAL	1	/* if the call is a digital ISDN call */
+#define AST_FLAG_DIGITAL	(1 << 0)	/* if the call is a digital ISDN call */
+#define AST_FLAG_DEFER_DTMF	(1 << 1)	/* if dtmf should be deferred */
+#define AST_FLAG_WRITE_INT	(1 << 2)	/* if write should be interrupt generator */
+#define AST_FLAG_BLOCKING	(1 << 3)	/* if we are blocking */
+#define AST_FLAG_ZOMBIE		(1 << 4)	/* if we are a zombie */
+#define AST_FLAG_EXCEPTION	(1 << 5)	/* if there is a pending exception */
 
 static inline int ast_test_flag(struct ast_channel *chan, int mode)
 {
-	return chan->flag & mode;
+	return chan->flags & mode;
 }
 
 static inline void ast_set_flag(struct ast_channel *chan, int mode)
 {
-	chan->flag |= mode;
+	chan->flags |= mode;
 }
 
 static inline void ast_clear_flag(struct ast_channel *chan, int mode)
 {
-	chan->flag &= ~mode;
+	chan->flags &= ~mode;
+}
+
+static inline void ast_copy_flags(struct ast_channel *dest, struct ast_channel *src, int flags)
+{
+	dest->flags &= ~flags;
+	dest->flags |= (src->flags & flags);
 }
 
 static inline void ast_set2_flag(struct ast_channel *chan, int value, int mode)
@@ -894,13 +884,13 @@ static inline int ast_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds,
 #endif
 
 #define CHECK_BLOCKING(c) { 	 \
-							if ((c)->blocking) {\
+							if (ast_test_flag(c, AST_FLAG_BLOCKING)) {\
 								ast_log(LOG_WARNING, "Thread %ld Blocking '%s', already blocked by thread %ld in procedure %s\n", (long) pthread_self(), (c)->name, (long) (c)->blocker, (c)->blockproc); \
 								CRASH; \
 							} else { \
 								(c)->blocker = pthread_self(); \
 								(c)->blockproc = __PRETTY_FUNCTION__; \
-									c->blocking = -1; \
+									ast_set_flag(c, AST_FLAG_BLOCKING); \
 									} }
 
 extern unsigned int ast_get_group(char *s);

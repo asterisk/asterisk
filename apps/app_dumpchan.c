@@ -78,7 +78,6 @@ static int ast_serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			 "PickupGroup=%d\n"
 			 "Application=%s\n"
 			 "Data=%s\n"
-			 "Stack=%d\n"
 			 "Blocking_in=%s\n",
 			 c->name,
 			 c->type,
@@ -104,8 +103,7 @@ static int ast_serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			 c->pickupgroup,
 			 ( c->appl ? c->appl : "(N/A)" ),
 			 ( c-> data ? (!ast_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
-			 c->stack,
-			 (c->blocking ? c->blockproc : "(Not Blocking)"));
+			 (ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
 
 	return 0;
 }

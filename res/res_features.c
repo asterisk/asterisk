@@ -620,7 +620,9 @@ static void *do_parking_thread(void *ignore)
 				for (x=0;x<AST_MAX_FDS;x++) {
 					if ((pu->chan->fds[x] > -1) && (FD_ISSET(pu->chan->fds[x], &rfds) || FD_ISSET(pu->chan->fds[x], &efds))) {
 						if (FD_ISSET(pu->chan->fds[x], &efds))
-							pu->chan->exception = 1;
+							ast_set_flag(pu->chan, AST_FLAG_EXCEPTION);
+						else
+							ast_clear_flag(pu->chan, AST_FLAG_EXCEPTION);
 						pu->chan->fdno = x;
 						/* See if they need servicing */
 						f = ast_read(pu->chan);

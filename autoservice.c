@@ -147,7 +147,7 @@ int ast_autoservice_stop(struct ast_channel *chan)
 		pthread_kill(asthread, SIGURG);
 	ast_mutex_unlock(&autolock);
 	/* Wait for it to un-block */
-	while(chan->blocking)
+	while(ast_test_flag(chan, AST_FLAG_BLOCKING))
 		usleep(1000);
 	return res;
 }
