@@ -408,6 +408,14 @@ static int ast_resource_exists(char *resource)
 		return 0;
 }
 
+static const char *loadorder[] =
+{
+	"res_",
+	"chan_",
+	"pbx_",
+	NULL,
+};
+
 int load_modules()
 {
 	struct ast_config *cfg;
@@ -442,13 +450,14 @@ int load_modules()
 		DIR *mods;
 		struct dirent *d;
 		int x;
-		/* Make two passes.  First, load any resource modules, then load the others. */
-		for (x=0;x<2;x++) {
+		/* Loop through each order */
+		for (x=0;x<sizeof(loadorder) / sizeof(loadorder[0]);x++) {
 			mods = opendir((char *)ast_config_AST_MODULE_DIR);
 			if (mods) {
 				while((d = readdir(mods))) {
 					/* Must end in .so to load it.  */
-					if ((strlen(d->d_name) > 3) && (x || !strncasecmp(d->d_name, "res_", 4)) && 
+					if ((strlen(d->d_name) > 3) && 
+					    (!loadorder[x] || !strncasecmp(d->d_name, loadorder[x], strlen(loadorder[x]))) && 
 					    !strcasecmp(d->d_name + strlen(d->d_name) - 3, ".so") &&
 						!ast_resource_exists(d->d_name)) {
 						/* It's a shared library -- Just be sure we're allowed to load it -- kinda

@@ -135,6 +135,15 @@ struct ast_state_cb {
     struct ast_state_cb *next;
 };
 	    
+/* ast_state_cb: An extension state notify */
+struct ast_devstate_cb {
+    void *data;
+    ast_devstate_cb_type callback;
+    struct ast_devstate_cb *next;
+};
+
+static struct ast_devstate_cb *devcbs;
+
 struct ast_hint {
     struct ast_exten *exten;
     int laststate; 
@@ -1445,6 +1454,7 @@ int ast_device_state_changed(const char *fmt, ...)
 {
 	struct ast_hint *list;
 	struct ast_state_cb *cblist;
+	struct ast_devstate_cb *devcb;
 	char hint[AST_MAX_EXTENSION] = "";
 	char device[AST_MAX_EXTENSION];
 	char *cur, *rest;
@@ -1461,8 +1471,16 @@ int ast_device_state_changed(const char *fmt, ...)
 		*rest = 0;
 	}
 
+	state = ast_device_state(device);
+
 	ast_mutex_lock(&hintlock);
 
+	devcb = devcbs;
+	while(devcb) {
+		if (devcb->callback)
+			devcb->callback(device, state, devcb->data);
+		devcb = devcb->next;
+	}
 	list = hints;
 
 	while (list) {
@@ -1506,6 +1524,42 @@ int ast_device_state_changed(const char *fmt, ...)
 	return 1;
 }
 			
+int ast_devstate_add(ast_devstate_cb_type callback, void *data)
+{
+	struct ast_devstate_cb *devcb;
+	devcb = malloc(sizeof(struct ast_devstate_cb));
+	if (devcb) {
+		memset(devcb, 0, sizeof(struct ast_devstate_cb));
+		ast_mutex_lock(&hintlock);
+		devcb->data = data;
+		devcb->callback = callback;
+		devcb->next = devcbs;
+		devcbs = devcb;
+		ast_mutex_unlock(&hintlock);
+	}
+	return 0;
+}
+
+void ast_devstate_del(ast_devstate_cb_type callback, void *data)
+{
+	struct ast_devstate_cb *devcb, *prev = NULL, *next;
+	ast_mutex_lock(&hintlock);
+	devcb = devcbs;
+	while(devcb) {
+		next = devcb->next;
+		if ((devcb->data == data) && (devcb->callback == callback)) {
+			if (prev)
+				prev->next = next;
+			else
+				devcbs = next;
+			free(devcb);
+		} else
+			prev = devcb;
+		devcb = next;
+	}
+	ast_mutex_unlock(&hintlock);
+}
+
 int ast_extension_state_add(const char *context, const char *exten, 
 			    ast_state_cb_type callback, void *data)
 {

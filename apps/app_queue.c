@@ -303,6 +303,79 @@ static int has_no_members(struct ast_call_queue *q)
 	return empty;
 }
 
+struct statechange {
+	int state;
+	char dev[0];
+};
+
+static void *changethread(void *data)
+{
+	struct ast_call_queue *q;
+	struct statechange *sc = data;
+	struct member *cur;
+	char *loc;
+	loc = strchr(sc->dev, '/');
+	if (loc) {
+		*loc = '\0';
+		loc++;
+	} else {
+		ast_log(LOG_WARNING, "Can't change device with no technology!\n");
+		free(sc);
+		return NULL;
+	}
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d'\n", sc->dev, loc, sc->state);
+	ast_mutex_lock(&qlock);
+	for (q = queues; q; q = q->next) {
+		ast_mutex_lock(&q->lock);
+		cur = q->members;
+		while(cur) {
+			if (!strcasecmp(sc->dev, cur->tech) && !strcmp(loc, cur->loc)) {
+				if (cur->status != sc->state) {
+					cur->status = sc->state;
+					manager_event(EVENT_FLAG_AGENT, "QueueMemberStatus",
+						"Queue: %s\r\n"
+						"Location: %s/%s\r\n"
+						"Membership: %s\r\n"
+						"Penalty: %d\r\n"
+						"CallsTaken: %d\r\n"
+						"LastCall: %ld\r\n"
+						"Status: %d\r\n",
+					q->name, cur->tech, cur->loc, cur->dynamic ? "dynamic" : "static",
+					cur->penalty, cur->calls, cur->lastcall, cur->status);
+				}
+			}
+			cur = cur->next;
+		}
+		ast_mutex_unlock(&q->lock);
+	}
+	ast_mutex_unlock(&qlock);
+	ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d'\n", sc->dev, loc, sc->state);
+	free(sc);
+	return NULL;
+}
+
+static int statechange_queue(const char *dev, int state, void *ign)
+{
+	/* Avoid potential for deadlocks by spawning a new thread to handle
+	   the event */
+	struct statechange *sc;
+	pthread_t t;
+	pthread_attr_t attr;
+	sc = malloc(sizeof(struct statechange) + strlen(dev) + 1);
+	if (sc) {
+		sc->state = state;
+		strcpy(sc->dev, dev);
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+		if (ast_pthread_create(&t, &attr, changethread, sc)) {
+			ast_log(LOG_WARNING, "Failed to create update thread!\n");
+			free(sc);
+		}
+	}
+	return 0;
+}
+
 static int join_queue(char *queuename, struct queue_ent *qe)
 {
 	struct ast_call_queue *q;
@@ -316,7 +389,7 @@ static int join_queue(char *queuename, struct queue_ent *qe)
 		if (!strcasecmp(q->name, queuename)) {
 			/* This is our one */
 			ast_mutex_lock(&q->lock);
-			if ((!has_no_members(q) || q->joinempty || !q->head) && (!q->maxlen || (q->count < q->maxlen))) {
+			if ((!has_no_members(q) || q->joinempty) && (!q->maxlen || (q->count < q->maxlen))) {
 				/* There's space for us, put us at the right position inside
 				 * the queue. 
 				 * Take into account the priority of the calling user */
@@ -591,8 +664,7 @@ static int update_status(struct ast_call_queue *q, struct member *member, int st
 				"Penalty: %d\r\n"
 				"CallsTaken: %d\r\n"
 				"LastCall: %ld\r\n"
-				"Status: %d\r\n"
-				"\r\n",
+				"Status: %d\r\n",
 					q->name, cur->tech, cur->loc, cur->dynamic ? "dynamic" : "static",
 					cur->penalty, cur->calls, cur->lastcall, cur->status);
 			break;
@@ -602,6 +674,19 @@ static int update_status(struct ast_call_queue *q, struct member *member, int st
 	q->callscompleted++;
 	ast_mutex_unlock(&q->lock);
 	return 0;
+}
+
+static int update_dial_status(struct ast_call_queue *q, struct member *member, int status)
+{
+	if (status == AST_CAUSE_BUSY)
+		status = AST_DEVICE_BUSY;
+	else if (status == AST_CAUSE_UNREGISTERED)
+		status = AST_DEVICE_UNAVAILABLE;
+	else if (status == AST_CAUSE_NOSUCHDRIVER)
+		status = AST_DEVICE_INVALID;
+	else
+		status = AST_DEVICE_UNKNOWN;
+	return update_status(q, member, status);
 }
 
 static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
@@ -624,10 +709,10 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 		if (qe->chan->cdr)
 			ast_cdr_busy(qe->chan->cdr);
 		tmp->stillgoing = 0;
-		update_status(qe->parent, tmp->member, status);
+		update_dial_status(qe->parent, tmp->member, status);
 		return 0;
 	} else if (status != tmp->oldstatus) 
-		update_status(qe->parent, tmp->member, status);
+		update_dial_status(qe->parent, tmp->member, status);
 	
 	tmp->chan->appl = "AppQueue";
 	tmp->chan->data = "(Outgoing Line)";
@@ -855,7 +940,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 					/* Setup parameters */
 					o->chan = ast_request(tech, in->nativeformats, stuff, &status);
 					if (status != o->oldstatus) 
-						update_status(qe->parent, o->member, status);						
+						update_dial_status(qe->parent, o->member, status);						
 					if (!o->chan) {
 						ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s'\n", tech, stuff);
 						o->stillgoing = 0;
@@ -2095,8 +2180,16 @@ static void reload_queues(void)
 				free(q);
 			} else
 				ast_log(LOG_WARNING, "XXX Leaking a little memory :( XXX\n");
-		} else
+		} else {
+			char tmp[256];
+			cur = q->members;
+			while(cur) {
+				snprintf(tmp, sizeof(tmp), "%s/%s", cur->tech, cur->loc);
+				cur->status = ast_device_state(tmp);
+				cur = cur->next;
+			}
 			ql = q;
+		}
 		q = qn;
 	}
 	ast_mutex_unlock(&qlock);
@@ -2105,20 +2198,23 @@ static void reload_queues(void)
 static char *status2str(int status, char *buf, int buflen)
 {
 	switch(status) {
-	case AST_CAUSE_BUSY:
+	case AST_DEVICE_UNKNOWN:
+		strncpy(buf, "unknown", buflen - 1);
+		break;
+	case AST_DEVICE_NOT_INUSE:
+		strncpy(buf, "notinuse", buflen - 1);
+		break;
+	case AST_DEVICE_INUSE:
+		strncpy(buf, "inuse", buflen - 1);
+		break;
+	case AST_DEVICE_BUSY:
 		strncpy(buf, "busy", buflen - 1);
 		break;
-	case AST_CAUSE_CONGESTION:
-		strncpy(buf, "congestion", buflen - 1);
+	case AST_DEVICE_INVALID:
+		strncpy(buf, "invalid", buflen - 1);
 		break;
-	case AST_CAUSE_FAILURE:
-		strncpy(buf, "failure", buflen - 1);
-		break;
-	case AST_CAUSE_UNREGISTERED:
-		strncpy(buf, "unregistered", buflen - 1);
-		break;
-	case AST_CAUSE_NOSUCHDRIVER:
-		strncpy(buf, "nosuchdriver", buflen - 1);
+	case AST_DEVICE_UNAVAILABLE:
+		strncpy(buf, "unavailable", buflen - 1);
 		break;
 	default:
 		snprintf(buf, buflen, "unknown status %d", status);
@@ -2593,6 +2689,7 @@ int unload_module(void)
 	ast_manager_unregister("QueueStatus");
 	ast_manager_unregister("QueueAdd");
 	ast_manager_unregister("QueueRemove");
+	ast_devstate_del(statechange_queue, NULL);
 	ast_unregister_application(app_aqm);
 	ast_unregister_application(app_rqm);
 	return ast_unregister_application(app);
@@ -2607,6 +2704,7 @@ int load_module(void)
 		ast_cli_register(&cli_show_queues);
 		ast_cli_register(&cli_add_queue_member);
 		ast_cli_register(&cli_remove_queue_member);
+		ast_devstate_add(statechange_queue, NULL);
 		ast_manager_register( "Queues", 0, manager_queues_show, "Queues" );
 		ast_manager_register( "QueueStatus", 0, manager_queues_status, "Queue Status" );
 		ast_manager_register( "QueueAdd", EVENT_FLAG_AGENT, manager_add_queue_member, "Add interface to queue." );

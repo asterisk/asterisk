@@ -51,6 +51,8 @@ struct ast_sw;
 
 typedef int (*ast_state_cb_type)(char *context, char* id, int state, void *data);
 
+typedef int (*ast_devstate_cb_type)(const char *dev, int state, void *data);
+
 //! Data structure associated with an asterisk switch
 struct ast_switch {
 	/*! NULL */
@@ -261,6 +263,15 @@ int ast_device_state_changed(const char *fmt, ...)
  */ 
 int ast_extension_state_add(const char *context, const char *exten, 
 			    ast_state_cb_type callback, void *data);
+
+//! Registers a device state change callback
+/*!
+ * \param data to pass to callback
+ * The callback is called if the state for extension is changed
+ * Return -1 on failure, ID on success
+ */ 
+int ast_devstate_add(ast_devstate_cb_type callback, void *data);
+void ast_devstate_del(ast_devstate_cb_type callback, void *data);
 
 //! Deletes a registered state change callback by ID
 /*!

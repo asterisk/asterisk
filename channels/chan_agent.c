@@ -591,6 +591,7 @@ static int agent_hangup(struct ast_channel *ast)
 				snprintf(agent, sizeof(agent), "Agent/%s", p->agent);
 				ast_queue_log("NONE", ast->uniqueid, agent, "AGENTCALLBACKLOGOFF", "%s|%ld|%s", p->loginchan, logintime, "Autologoff");
 				p->loginchan[0] = '\0';
+			    ast_device_state_changed("Agent/%s", p->agent);
 			}
 		} else if (p->dead) {
 			ast_mutex_lock(&p->chan->lock);
@@ -1479,6 +1480,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								ast_queue_log("NONE", chan->uniqueid, agent, "AGENTCALLBACKLOGIN", "%s", p->loginchan);
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Callback Agent '%s' logged in on %s\n", p->agent, p->loginchan);
+							    ast_device_state_changed("Agent/%s", p->agent);
 							} else {
 								logintime = time(NULL) - p->loginstart;
 								p->loginstart = 0;
@@ -1491,6 +1493,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								ast_queue_log("NONE", chan->uniqueid, agent, "AGENTCALLBACKLOGOFF", "%s|%ld|", last_loginchan, logintime);
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Callback Agent '%s' logged out\n", p->agent);
+							    ast_device_state_changed("Agent/%s", p->agent);
 							}
 							ast_mutex_unlock(&agentlock);
 							if (!res)
@@ -1525,6 +1528,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								check_availability(p, 0);
 							ast_mutex_unlock(&p->lock);
 							ast_mutex_unlock(&agentlock);
+						    ast_device_state_changed("Agent/%s", p->agent);
 							while (res >= 0) {
 								ast_mutex_lock(&p->lock);
 								if (p->chan != chan)
@@ -1591,6 +1595,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Agent '%s' logged out\n", p->agent);
 							/* If there is no owner, go ahead and kill it now */
+						    ast_device_state_changed("Agent/%s", p->agent);
 							if (p->dead && !p->owner) {
 								ast_mutex_destroy(&p->lock);
 								ast_mutex_destroy(&p->app_lock);
@@ -1745,7 +1750,6 @@ static int agent_devicestate(void *data)
 	while(p) {
 		ast_mutex_lock(&p->lock);
 		if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent))) {
-				res = AST_DEVICE_UNKNOWN;
 			if (p->owner) {
 				if (res != AST_DEVICE_INUSE)
 					res = AST_DEVICE_BUSY;
