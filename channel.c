@@ -2336,7 +2336,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	char orig[100];
 	char masqn[100];
 	char zombn[100];
-	
+
 #if 1
 	ast_log(LOG_DEBUG, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
 		clone->name, clone->_state, original->name, original->_state);
@@ -2477,6 +2477,9 @@ int ast_do_masquerade(struct ast_channel *original)
 
 	/* Set the read format */
 	ast_set_read_format(original, rformat);
+
+	/* Copy the music class */
+	strncpy(original->musicclass, clone->musicclass, sizeof(original->musicclass) - 1);
 
 	ast_log(LOG_DEBUG, "Putting channel %s in %d/%d formats\n", original->name, wformat, rformat);
 
