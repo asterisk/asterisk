@@ -4932,7 +4932,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 	ast_destroy(cfg);
 #ifdef MYSQL_FRIENDS
 	/* Connect to db if appropriate */
-	if (strlen(mydbname)) {
+	if (!mysql && strlen(mydbname)) {
 		mysql = mysql_init(NULL);
 		if (!mysql_real_connect(mysql, mydbhost[0] ? mydbhost : NULL, mydbuser, mydbpass, mydbname, 0, NULL, 0)) {
 			memset(mydbpass, '*', strlen(mydbpass));
