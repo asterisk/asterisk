@@ -673,6 +673,10 @@ H323Channel * MyH323Connection::CreateRealTimeLogicalChannel(const H323Capabilit
 	/* Determine the Local (A side) IP Address and port */
 	info = on_create_connection(GetCallReference()); 
 
+	if (!info) {
+		return NULL;
+	}
+
         GetControlChannel().GetLocalAddress().GetIpAndPort(externalIpAddress, port);
 	externalPort = info->port;
 	
