@@ -3,7 +3,7 @@
  *
  * Zaptel Pseudo TDM interface 
  * 
- * Copyright (C) 2003 Digium
+ * Copyright (C) 2003-2004, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -4632,7 +4632,8 @@ static void *ss_thread(void *data)
 		strncpy(exten, dtmfbuf, sizeof(exten)-1);
 		if (ast_strlen_zero(exten))
 			strncpy(exten, "s", sizeof(exten)-1);
-		if (p->sig == SIG_FEATD) {
+		if (p->sig == SIG_FEATD || p->sig == SIG_EMWINK) {
+			/* Look for Feature Group D on all E&M Wink and Feature Group D trunks */
 			if (exten[0] == '*') {
 				char *stringp=NULL;
 				strncpy(exten2, exten, sizeof(exten2)-1);
@@ -4650,7 +4651,7 @@ static void *ss_thread(void *data)
 					strncpy(exten, s2, sizeof(exten)-1);
 				} else
 					strncpy(exten, s1, sizeof(exten)-1);
-			} else
+			} else if (p->sig == SIG_FEATD)
 				ast_log(LOG_WARNING, "Got a non-Feature Group D input on channel %d.  Assuming E&M Wink instead\n", p->channel);
 		}
 		if (p->sig == SIG_FEATDMF) {
