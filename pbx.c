@@ -504,7 +504,7 @@ int ast_extension_match(char *pattern, char *data)
 {
 	int match;
 	/* If they're the same return */
-	if (!strcasecmp(pattern, data))
+	if (!strcmp(pattern, data))
 		return 1;
 	EXTENSION_MATCH_CORE(data,pattern,match);
 	/* Must be at the end of both */
@@ -611,7 +611,7 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, char *cont
 	tmp = contexts;
 	while(tmp) {
 		/* Match context */
-		if (!strcasecmp(tmp->name, context)) {
+		if (!strcmp(tmp->name, context)) {
 			if (*status < STATUS_NO_EXTENSION)
 				*status = STATUS_NO_EXTENSION;
 			eroot = tmp->root;

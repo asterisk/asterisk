@@ -39,21 +39,18 @@ static MYSQL *mysql;
 static int mysql_log(struct ast_cdr *cdr)
 {
   struct tm *tm;
-  struct timeval *tv;
-  struct timezone *tz;
-  char *sqlcmd, *timestr;
+  struct timeval tv;
+  struct timezone tz;
+  char *sqlcmd, timestr[128];
   time_t t;
 
 
-  tv = (struct timeval *)malloc(sizeof(struct timeval));
-  tz = (struct timezone *)malloc(sizeof(struct timezone));
   sqlcmd = (char *)malloc(2048);
-  timestr = (char*)malloc(128);
   memset(sqlcmd,0,2048);
 
 
-  gettimeofday(tv,tz);
-  t = tv->tv_sec;
+  gettimeofday(&tv,&tz);
+  t = tv.tv_sec;
   tm = localtime(&t);
   strftime(timestr,128,DATE_FORMAT,tm);
   

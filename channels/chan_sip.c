@@ -3189,6 +3189,22 @@ static int sip_poke_peer_s(void *data)
 	return 0;
 }
 
+static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
+{
+	char tmp[256] = "";
+	char *s, *e;
+	strncpy(tmp, get_header(req, "Contact"), sizeof(tmp) - 1);
+	s = tmp;
+	e = strchr(tmp, '@');
+	if (e)
+		*e = '\0';
+	if (!strncasecmp(s, "sip:", 4))
+		s += 4;
+	ast_log(LOG_DEBUG, "Found 302 Redirect to extension '%s'\n", s);
+	if (p->owner)
+		strncpy(p->owner->call_forward, s, sizeof(p->owner->call_forward) - 1);
+}
+
 static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req)
 {
 	char *to;
@@ -3361,6 +3377,11 @@ retrylock:
 				}
 				/* XXX Locking issues?? XXX */
 				switch(resp) {
+				case 302: /* Moved temporarily */
+					parse_moved_contact(p, req);
+					if (p->owner)
+						ast_queue_control(p->owner, AST_CONTROL_BUSY, 0);
+					break;
 				case 486: /* Busy here */
 				case 600: /* Busy everywhere */
 					if (p->owner)
