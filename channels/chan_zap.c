@@ -7048,7 +7048,7 @@ static int __unload_module(void)
 		return -1;
 	}
 	if (!ast_mutex_lock(&monlock)) {
-		if (monitor_thread) {
+		if (monitor_thread && (monitor_thread != -2)) {
 			pthread_cancel(monitor_thread);
 			pthread_kill(monitor_thread, SIGURG);
 			pthread_join(monitor_thread, NULL);
