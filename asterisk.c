@@ -985,6 +985,8 @@ static char **ast_el_strtoarr(char *buf)
         match_list_len = 1;
 	while ( (retstr = strsep(&buf, " ")) != NULL) {
 
+		if (!strcmp(retstr, AST_CLI_COMPLETE_EOF))
+			break;
                 if (matches + 1 >= match_list_len) {
                         match_list_len <<= 1;
                         match_list = realloc(match_list, match_list_len * sizeof(char *));
@@ -1091,12 +1093,32 @@ static char *cli_complete(EditLine *el, int ch)
 		nummatches = atoi(buf);
 
 		if (nummatches > 0) {
+			char *mbuf;
+			int mlen = 0, maxmbuf = 2048;
+			/* Start with a 2048 byte buffer */
+			mbuf = malloc(maxmbuf);
+			if (!mbuf)
+				return (CC_ERROR);
 			snprintf(buf, sizeof(buf),"_COMMAND MATCHESARRAY \"%s\" \"%s\"", lf->buffer, ptr); 
 			fdprint(ast_consock, buf);
-			res = read(ast_consock, buf, sizeof(buf));
-			buf[res] = '\0';
+			res = 0;
+			while (!strstr(mbuf, AST_CLI_COMPLETE_EOF) && res != -1) {
+				if (mlen + 1024 > maxmbuf) {
+					/* Every step increment buffer 1024 bytes */
+					maxmbuf += 1024;
+					mbuf = realloc(mbuf, maxmbuf);
+					if (!mbuf)
+						return (CC_ERROR);
+				}
+				/* Only read 1024 bytes at a time */
+				res = read(ast_consock, mbuf + mlen, 1024);
+				if (res > 0)
+					mlen += res;
+			}
+			mbuf[mlen] = '\0';
 
-			matches = ast_el_strtoarr(buf);
+			matches = ast_el_strtoarr(mbuf);
+			free(mbuf);
 		} else
 			matches = (char **) NULL;
 

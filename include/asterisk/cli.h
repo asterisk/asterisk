@@ -31,6 +31,8 @@ extern void ast_cli(int fd, char *fmt, ...)
 
 #define AST_MAX_ARGS 64
 
+#define AST_CLI_COMPLETE_EOF	"_EOF_"
+
 //! A command line entry */
 struct ast_cli_entry {
 	/*! Null terminated list of the words of the command */

@@ -352,13 +352,17 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock);
 
 static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 {
-	char buf[2048];
+	char *buf;
+	int buflen = 2048;
 	int len = 0;
 	char **matches;
 	int x;
 
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
+	buf = malloc(buflen);
+	if (!buf)
+		return RESULT_FAILURE;
 	buf[len] = '\0';
 	matches = ast_cli_completion_matches(argv[2], argv[3]);
 	if (matches) {
@@ -366,6 +370,10 @@ static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 #if 0
 			printf("command matchesarray for '%s' %s got '%s'\n", argv[2], argv[3], matches[x]);
 #endif
+			if (len + strlen(matches[x]) >= buflen) {
+				buflen += strlen(matches[x]) * 3;
+				buf = realloc(buf, buflen);
+			}
 			len += sprintf( buf + len, "%s ", matches[x]);
 			free(matches[x]);
 			matches[x] = NULL;
@@ -377,7 +385,8 @@ static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 #endif
 	
 	if (buf) {
-		ast_cli(fd, buf);
+		ast_cli(fd, "%s%s",buf, AST_CLI_COMPLETE_EOF);
+		free(buf);
 	} else
 		ast_cli(fd, "NULL\n");
 
