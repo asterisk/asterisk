@@ -3917,6 +3917,8 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 		}
 		mto = c;
 
+		add_header(&req, "Event", "presence");
+		add_header(&req, "Subscription-State", "active");
 		add_header(&req, "Content-Type", "application/xpidf+xml");
 
 		if ((state==AST_EXTENSION_UNAVAILABLE) || (state==AST_EXTENSION_BUSY))
