@@ -87,7 +87,7 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 			nm++;
 		}
 		if (!inet_aton(tmp, &ha->netaddr)) {
-			ast_log(LOG_WARNING, "%s not a valid IP\n", stuff);
+			ast_log(LOG_WARNING, "%s not a valid IP\n", tmp);
 			free(ha);
 			return path;
 		}
