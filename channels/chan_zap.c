@@ -6725,7 +6725,7 @@ static int start_pri(struct zt_pri *pri)
 	if (p.sigtype != ZT_SIG_HDLCFCS) {
 		close(pri->fd);
 		pri->fd = -1;
-		ast_log(LOG_ERROR, "D-channel %d is not in HDLC/FCS mode.  See /etc/tormenta.conf\n", x);
+		ast_log(LOG_ERROR, "D-channel %d is not in HDLC/FCS mode.  See /etc/zaptel.conf\n", x);
 		return -1;
 	}
 	bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
