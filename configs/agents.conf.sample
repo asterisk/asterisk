@@ -1,3 +1,10 @@
+[general]
+;
+; Define whether callbacklogins should be stored in astdb for
+; persistence. Persistent logins will be reloaded after
+; Asterisk restarts.
+;
+persistentagents=yes
 ;
 ; Agent configuration
 ;

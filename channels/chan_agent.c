@@ -35,6 +35,7 @@
 #include <asterisk/features.h>
 #include <asterisk/utils.h>
 #include <asterisk/causes.h>
+#include <asterisk/astdb.h>
 #include <sys/socket.h>
 #include <errno.h>
 #include <unistd.h>
@@ -103,6 +104,14 @@ static char moh[80] = "default";
 #define AST_MAX_AGENT	80		/* Agent ID or Password max length */
 #define AST_MAX_BUF	256
 #define AST_MAX_FILENAME_LEN	256
+
+/* Persistent Agents astdb family */
+static const char *pa_family = "/Agents";
+/* The maximum lengh of each persistent member agent database entry */
+#define PA_MAX_LEN 2048
+/* queues.conf [general] option */
+static int persistent_agents = 0;
+static void dump_agents(void);
 
 static int capability = -1;
 
@@ -188,6 +197,7 @@ static struct agent_pvt {
 		ast->fds[AST_MAX_FDS - 3] = p->chan->fds[AST_MAX_FDS - 2]; \
 	} \
 } while(0)
+
 
 
 static void agent_unlink(struct agent_pvt *agent)
@@ -854,6 +864,7 @@ static int read_agent_config(void)
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	struct agent_pvt *p, *pl, *pn;
+	char *general_val;
 
 	group = 0;
 	autologoff = 0;
@@ -879,6 +890,11 @@ static int read_agent_config(void)
 	urlprefix[0] = '\0';
 	savecallsin[0] = '\0';
 
+	/* Read in [general] section for persistance */
+	if ((general_val = ast_variable_retrieve(cfg, "general", "persistentagents")))
+		persistent_agents = ast_true(general_val);
+
+	/* Read in the [agents] section */
 	v = ast_variable_browse(cfg, "agents");
 	while(v) {
 		/* Create the interface list */
@@ -1599,7 +1615,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								ast_queue_log("NONE", chan->uniqueid, agent, "AGENTCALLBACKLOGIN", "%s", p->loginchan);
 								if (option_verbose > 1)
 									ast_verbose(VERBOSE_PREFIX_2 "Callback Agent '%s' logged in on %s\n", p->agent, p->loginchan);
-							    ast_device_state_changed("Agent/%s", p->agent);
+								ast_device_state_changed("Agent/%s", p->agent);
 							} else {
 								logintime = time(NULL) - p->loginstart;
 								p->loginstart = 0;
@@ -1612,12 +1628,14 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								ast_queue_log("NONE", chan->uniqueid, agent, "AGENTCALLBACKLOGOFF", "%s|%ld|", last_loginchan, logintime);
 								if (option_verbose > 1)
 									ast_verbose(VERBOSE_PREFIX_2 "Callback Agent '%s' logged out\n", p->agent);
-							    ast_device_state_changed("Agent/%s", p->agent);
+								ast_device_state_changed("Agent/%s", p->agent);
 							}
 							ast_mutex_unlock(&agentlock);
 							if (!res)
 								res = ast_safe_sleep(chan, 500);
 							ast_mutex_unlock(&p->lock);
+							if (persistent_agents)
+                                                        	dump_agents();
 						} else if (!res) {
 #ifdef HONOR_MUSIC_CLASS
 							/* check if the moh class was changed with setmusiconhold */
@@ -1851,6 +1869,89 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
+/* Dump AgentCallbackLogin agents to the database for persistence
+ *  (basically copied from dump_queue_members() in apps/app_queue.c)
+ */
+
+static void dump_agents(void)
+{
+	struct agent_pvt *cur_agent = NULL;
+	cur_agent = agents;
+	while (cur_agent) {
+		if (cur_agent->chan != NULL) {
+			cur_agent = cur_agent->next;
+			continue;
+		}
+		if (!ast_strlen_zero(cur_agent->loginchan)) {
+			if (ast_db_put(pa_family, cur_agent->agent, cur_agent->loginchan)) {
+				ast_log(LOG_WARNING, "failed to create persistent entry!\n");
+			} else {
+				if (option_debug) {
+					ast_log(LOG_DEBUG, "Saved Agent: %s on %s\n",
+							cur_agent->agent, cur_agent->loginchan);
+				}
+			}
+			
+		} else {
+			/* Delete -  no agent or there is an error */
+			ast_db_del(pa_family, cur_agent->agent);
+		}
+		cur_agent = cur_agent->next;
+	}
+}
+
+/* Reload the persistent agents from astdb */
+static void reload_agents(void)
+{
+	char *pa_agent_num;
+	struct ast_db_entry *pa_db_tree = NULL;
+	int pa_family_len = 0;
+	struct agent_pvt *cur_agent = NULL;
+	char agent_data[80];
+
+	pa_db_tree = ast_db_gettree(pa_family, NULL);
+
+	pa_family_len = strlen(pa_family);
+	ast_mutex_lock(&agentlock);
+	while (pa_db_tree) {
+		pa_agent_num = pa_db_tree->key + pa_family_len + 2;
+		cur_agent = agents;
+		while (cur_agent) {
+			ast_mutex_lock(&cur_agent->lock);
+
+			if (strcmp(pa_agent_num, cur_agent->agent) == 0)
+				break;
+
+			ast_mutex_unlock(&cur_agent->lock);
+			cur_agent = cur_agent->next;
+		}
+		if (!cur_agent) {
+			ast_db_del(pa_family, pa_agent_num);
+			pa_db_tree = pa_db_tree->next;
+			continue;
+		} else
+			ast_mutex_unlock(&cur_agent->lock);
+		if (!ast_db_get(pa_family, pa_agent_num, agent_data, 80)) {
+			if (option_debug) {
+				ast_log(LOG_DEBUG, "Reload Agent: %s on %s\n",
+						cur_agent->agent, agent_data);
+			}
+			strncpy(cur_agent->loginchan,agent_data,80);
+			if (cur_agent->loginstart == 0)
+				time(&cur_agent->loginstart);
+			ast_device_state_changed("Agent/%s", cur_agent->agent);	
+		}
+		pa_db_tree = pa_db_tree->next;
+	}
+	ast_log(LOG_NOTICE, "Agents sucessfully reloaded from database.\n");
+	ast_mutex_unlock(&agentlock);
+	if (pa_db_tree) {
+		ast_db_freetree(pa_db_tree);
+		pa_db_tree = NULL;
+	}
+}
+
+
 /*--- agent_devicestate: Part of PBX channel interface ---*/
 static int agent_devicestate(void *data)
 {
@@ -1918,12 +2019,16 @@ int load_module()
 	ast_cli_register(&cli_show_agents);
 	/* Read in the config */
 	read_agent_config();
+	if (persistent_agents)
+        	reload_agents();
 	return 0;
 }
 
 int reload()
 {
 	read_agent_config();
+	if (persistent_agents)
+                reload_agents();
 	return 0;
 }
 
