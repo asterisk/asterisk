@@ -67,6 +67,7 @@ static char *descrip =
 "      'P[(x)]' -- privacy mode, using 'x' as database if provided.\n"
 "      'g' -- goes on in context if the destination channel hangs up\n"
 "      'A(x)' -- play an announcement to the called party, using x as file\n"
+"      'S(x)' -- hangup the call after x seconds AFTER called party picked up\n"  	
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n"
 "  The optional URL will be sent to the called party if the channel supports\n"
@@ -377,9 +378,12 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	struct varshead *headp, *newheadp;
 	struct ast_var_t *newvar;
 	int go_on=0;
+	unsigned int calldurationlimit=0;
+	char *cdl;
+	time_t now;
 	
 	if (!data) {
-		ast_log(LOG_WARNING, "Dial requires an argument (technology1/number1&technology2/number2...|optional timeout)\n");
+		ast_log(LOG_WARNING, "Dial requires an argument (technology1/number1&technology2/number2...|optional timeout|options)\n");
 		return -1;
 	}
 	
@@ -388,6 +392,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	strncpy(info, (char *)data, sizeof(info) - 1);
 	peers = info;
 	if (peers) {
+		
 		timeout = strchr(info, '|');
 		if (timeout) {
 			*timeout = '\0';
@@ -416,6 +421,13 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	
 
 	if (transfer) {
+		/* Extract call duration limit */
+		if ((cdl = strstr(transfer, "S("))) {
+			calldurationlimit=atoi(cdl+2);
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %i seconds.\n",calldurationlimit);			
+		} 
+		
 		/* XXX ANNOUNCE SUPPORT */
 		if ((ann = strstr(transfer, "A("))) {
 			announce = 1;
@@ -699,6 +711,10 @@ static int dial_exec(struct ast_channel *chan, void *data)
 				res2 = ast_waitstream(peer,"");
 			// Ok, done. stop autoservice
 			res2 = ast_autoservice_stop(chan);
+		}
+		if (calldurationlimit > 0) {
+			time(&now);
+			chan->whentohangup = now + calldurationlimit;
 		}
 		res = ast_bridge_call(chan, peer, allowredir_in, allowredir_out, allowdisconnect);
 
