@@ -877,6 +877,11 @@ int h323_set_alias(struct oh323_alias *alias)
 void h323_set_id(char *id)
 {
 	PString h323id(id);
+
+	if (h323debug) {
+		cout << "  == Using " << h323id << " as our H.323ID for this call" << endl;
+	}
+
 	/* EVIL HACK */
 	endPoint->SetLocalUserName(h323id);
 }
