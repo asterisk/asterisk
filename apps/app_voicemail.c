@@ -173,6 +173,8 @@ static char *descrip_vm =
 "* 'b' then the the busy message will be played (that is, busy instead of unavail).\n"
 "If the caller presses '0' (zero) during the prompt, the call jumps to\n"
 "priority 'o' in the current context.\n"
+"If the caller presses '*' during the prompt, the call jumps to\n"
+"priority 'a' in the current context.\n"
 "If the requested mailbox does not exist, and there exists a priority\n"
 "n + 101, then that priority will be taken next.\n"
 "Returns -1 on error or mailbox not found, or if the user hangs up.\n"
@@ -1529,7 +1531,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	char ext_context[256] = "";
 	char fmt[80];
 	char *context;
-	char *ecodes = "#";
+	char ecodes[16] = "#";
 	char *stringp;
 	char tmp[256] = "";
 	struct ast_vm_user *vmu;
@@ -1566,12 +1568,14 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		if (mkdir(dir, 0700) && (errno != EEXIST))
 			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
 		if (ast_exists_extension(chan, strlen(chan->macrocontext) ? chan->macrocontext : chan->context, "o", 1, chan->callerid))
-			ecodes = "#0*";
+			strcat(ecodes, "0");
+		if (ast_exists_extension(chan, strlen(chan->macrocontext) ? chan->macrocontext : chan->context, "a", 1, chan->callerid))
+			strcat(ecodes, "*");
 		/* Play the beginning intro if desired */
 		if (strlen(prefile)) {
 			if (ast_fileexists(prefile, NULL, NULL) > 0) {
 				if (ast_streamfile(chan, prefile, chan->language) > -1) 
-				    res = ast_waitstream(chan, "#0*");
+				    res = ast_waitstream(chan, ecodes);
 			} else {
 				ast_log(LOG_DEBUG, "%s doesn't exist, doing what we can\n", prefile);
 				res = invent_message(chan, vmu->context, ext, busy, ecodes);
