@@ -2323,8 +2323,10 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 	
 	manager_event(EVENT_FLAG_CALL, "Link", 
 			"Channel1: %s\r\n"
-			"Channel2: %s\r\n",
-			c0->name, c1->name);
+			"Channel2: %s\r\n"
+			"Uniqueid1: %s\r\n"
+			"Uniqueid2: %s\r\n",
+			c0->name, c1->name, c0->uniqueid, c1->uniqueid);
 
 	for (/* ever */;;) {
 		/* Stop if we're a zombie or need a soft hangup */
@@ -2345,8 +2347,10 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 				c1->bridge = NULL;
 				manager_event(EVENT_FLAG_CALL, "Unlink", 
 					"Channel1: %s\r\n"
-					"Channel2: %s\r\n",
-					c0->name, c1->name);
+					"Channel2: %s\r\n"
+					"Uniqueid1: %s\r\n"
+					"Uniqueid2: %s\r\n",
+					c0->name, c1->name, c0->uniqueid, c1->uniqueid);
 				ast_log(LOG_DEBUG, "Returning from native bridge, channels: %s, %s\n",c0->name ,c1->name);
 				return 0;
 			}
@@ -2364,8 +2368,10 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 				ast_log(LOG_WARNING, "Can't make %s and %s compatible\n", c0->name, c1->name);
 				manager_event(EVENT_FLAG_CALL, "Unlink", 
 					"Channel1: %s\r\n"
-					"Channel2: %s\r\n",
-					c0->name, c1->name);
+					"Channel2: %s\r\n"
+					"Uniqueid1: %s\r\n"
+					"Uniqueid2: %s\r\n",
+					c0->name, c1->name, c0->uniqueid, c1->uniqueid);
 				return -1;
 			}
 		}
@@ -2445,8 +2451,10 @@ tackygoto:
 	c1->bridge = NULL;
 	manager_event(EVENT_FLAG_CALL, "Unlink", 
 					"Channel1: %s\r\n"
-					"Channel2: %s\r\n",
-					c0->name, c1->name);
+					"Channel2: %s\r\n"
+					"Uniqueid1: %s\r\n"
+					"Uniqueid2: %s\r\n",
+					c0->name, c1->name, c0->uniqueid, c1->uniqueid);
 	ast_log(LOG_DEBUG, "Bridge stops bridging channels %s and %s\n",c0->name,c1->name);
 	return res;
 }
