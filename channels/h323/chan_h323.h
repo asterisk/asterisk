@@ -114,7 +114,7 @@ typedef struct rtp_info {
 
 /* This is a callback prototype function, called pass
    DTMF down the RTP. */
-typedef int (*send_digit_cb)(unsigned, char);
+typedef int (*send_digit_cb)(unsigned, char, const char *);
 extern send_digit_cb	on_send_digit; 
 
 /* This is a callback prototype function, called to collect

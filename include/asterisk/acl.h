@@ -35,6 +35,7 @@ extern int ast_get_ip(struct sockaddr_in *sin, char *value);
 extern int ast_ouraddrfor(struct in_addr *them, struct in_addr *us);
 extern int ast_lookup_iface(char *iface, struct in_addr *address);
 extern struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original);
+extern int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr);
 
 //! Compares the source address and port of two sockaddr_in
 static inline int inaddrcmp(struct sockaddr_in *sin1, struct sockaddr_in *sin2)

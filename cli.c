@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>
+#include <ctype.h>
 /* For rl_filename_completion */
 #include "editline/readline/readline.h"
 /* For module directory */
@@ -147,8 +148,8 @@ static int handle_set_verbose(int fd, int argc, char *argv[])
 	if (oldval != option_verbose && option_verbose > 0)
 		ast_cli(fd, "Verbosity was %d and is now %d\n", oldval, option_verbose);
 	else if (oldval > 0 && option_verbose > 0)
-		ast_cli(fd, "Verbosity is atleast %d\n", option_verbose);
-	else if (oldval > 0 && option_debug == 0)
+		ast_cli(fd, "Verbosity is at least %d\n", option_verbose);
+	else if (oldval > 0 && option_verbose == 0)
 		ast_cli(fd, "Verbosity is now OFF\n");
 	return RESULT_SUCCESS;
 }
@@ -157,6 +158,7 @@ static int handle_set_debug(int fd, int argc, char *argv[])
 {
 	int val = 0;
 	int oldval = 0;
+
 	/* Has a hidden 'at least' argument */
 	if ((argc != 3) && (argc != 4))
 		return RESULT_SHOWUSAGE;
@@ -173,7 +175,7 @@ static int handle_set_debug(int fd, int argc, char *argv[])
 	if (oldval != option_debug && option_debug > 0)
 		ast_cli(fd, "Core debug was %d and is now %d\n", oldval, option_debug);
 	else if (oldval > 0 && option_debug > 0)
-		ast_cli(fd, "Core debug is atleast %d\n", option_debug);
+		ast_cli(fd, "Core debug is at least %d\n", option_debug);
 	else if (oldval > 0 && option_debug == 0)
 		ast_cli(fd, "Core debug is now OFF\n");
 	return RESULT_SUCCESS;
@@ -437,11 +439,11 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock);
 
 static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 {
-	char *buf;
+	char *buf, *obuf;
 	int buflen = 2048;
 	int len = 0;
 	char **matches;
-	int x;
+	int x, matchlen;
 
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
@@ -455,11 +457,17 @@ static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 #if 0
 			printf("command matchesarray for '%s' %s got '%s'\n", argv[2], argv[3], matches[x]);
 #endif
-			if (len + strlen(matches[x]) >= buflen) {
-				buflen += strlen(matches[x]) * 3;
-				buf = realloc(buf, buflen);
+			matchlen = strlen(matches[x]) + 1;
+			if (len + matchlen >= buflen) {
+				buflen += matchlen * 3;
+				obuf = buf;
+				buf = realloc(obuf, buflen);
+				if (!buf) 
+					/* Out of memory...  Just free old buffer and be done */
+					free(obuf);
 			}
-			len += sprintf( buf + len, "%s ", matches[x]);
+			if (buf)
+				len += sprintf( buf + len, "%s ", matches[x]);
 			free(matches[x]);
 			matches[x] = NULL;
 		}
@@ -863,10 +871,10 @@ int ast_cli_register(struct ast_cli_entry *e)
 
 static int help_workhorse(int fd, char *match[])
 {
-	char fullcmd1[80];
-	char fullcmd2[80];
+	char fullcmd1[80] = "";
+	char fullcmd2[80] = "";
 	char matchstr[80];
-	char *fullcmd;
+	char *fullcmd = NULL;
 	struct ast_cli_entry *e, *e1, *e2;
 	e1 = builtins;
 	e2 = helpers;
@@ -999,8 +1007,7 @@ normal:
 int ast_cli_generatornummatches(char *text, char *word)
 {
 	int matches = 0, i = 0;
-	char *buf, *oldbuf = NULL;
-
+	char *buf = NULL, *oldbuf = NULL;
 
 	while ( (buf = ast_cli_generator(text, word, i)) ) {
 		if (++i > 1 && strcmp(buf,oldbuf) == 0)  {
@@ -1035,7 +1042,7 @@ char **ast_cli_completion_matches(char *text, char *word)
 	prevstr = match_list[1];
 	max_equal = strlen(prevstr);
 	for (; which <= matches; which++) {
-		for (i = 0; i < max_equal && prevstr[i] == match_list[which][i]; i++)
+		for (i = 0; i < max_equal && toupper(prevstr[i]) == toupper(match_list[which][i]); i++)
 			continue;
 		max_equal = i;
 	}
@@ -1059,10 +1066,10 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 	int x;
 	int matchnum=0;
 	char *dup, *res;
-	char fullcmd1[80];
-	char fullcmd2[80];
+	char fullcmd1[80] = "";
+	char fullcmd2[80] = "";
 	char matchstr[80];
-	char *fullcmd;
+	char *fullcmd = NULL;
 
 	if ((dup = parse_args(text, &x, argv))) {
 		join(matchstr, sizeof(matchstr), argv);

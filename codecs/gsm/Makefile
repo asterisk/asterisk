@@ -42,7 +42,9 @@ ifneq (${PROC},x86_64)
 ifneq (${PROC},ultrasparc)
 ifneq ($(shell uname -m),ppc)
 ifneq ($(shell uname -m),alpha)
+ifneq (${PROC},sparc64)
 OPTIMIZE+=-march=$(PROC)
+endif
 endif
 endif
 endif
@@ -489,7 +491,7 @@ clean:	semi-clean
 		-rm $(RMFLAGS) $(LIBGSM) $(ADDTST)/add		\
 			$(TOAST) $(TCAT) $(UNTOAST)	\
 			$(ROOT)/gsm-1.0.tar.Z
-
+		rm -rf lib
 
 # Two tools that helped me generate gsm_encode.c and gsm_decode.c,
 # but aren't generally needed to port this.

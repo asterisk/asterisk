@@ -127,6 +127,19 @@ static int pgsql_log(struct ast_cdr *cdr)
                         pgerror = PQresultErrorMessage(result);
 			ast_log(LOG_ERROR,"cdr_pgsql: Failed to insert call detail record into database!\n");
                         ast_log(LOG_ERROR,"cdr_pgsql: Reason: %s\n", pgerror);
+			ast_log(LOG_ERROR,"cdr_pgsql: Connection may have been lost... attempting to reconnect.\n");
+			PQreset(conn);
+			if (PQstatus(conn) == CONNECTION_OK) {
+				ast_log(LOG_ERROR, "cdr_pgsql: Connection reestablished.\n");
+				connected = 1;
+				result = PQexec(conn, sqlcmd);
+				if ( PQresultStatus(result) != PGRES_COMMAND_OK)
+				{
+					pgerror = PQresultErrorMessage(result);
+					ast_log(LOG_ERROR,"cdr_pgsql: HARD ERROR!  Attempted reconnection failed.  DROPPING CALL RECORD!\n");
+					ast_log(LOG_ERROR,"cdr_pgsql: Reason: %s\n", pgerror);
+				}
+			}
 			ast_mutex_unlock(&pgsql_lock);
 			return -1;
 		}
@@ -180,20 +193,13 @@ static int my_unload_module(void)
 	return 0;
 }
 
-static int my_load_module(void)
+static int process_my_load_module(struct ast_config *cfg)
 {
 	int res;
-	struct ast_config *cfg;
 	struct ast_variable *var;
         char *pgerror;
 	char *tmp;
 
-	cfg = ast_load(config);
-	if (!cfg) {
-		ast_log(LOG_WARNING, "Unable to load config for PostgreSQL CDR's: %s\n", config);
-		return 0;
-	}
-	
 	var = ast_variable_browse(cfg, "global");
 	if (!var) {
 		/* nothing configured */
@@ -280,8 +286,6 @@ static int my_load_module(void)
 		pgdbport = "5432";
 	}
 
-	ast_destroy(cfg);
-
 	ast_log(LOG_DEBUG,"cdr_pgsql: got hostname of %s\n",pghostname);
 	ast_log(LOG_DEBUG,"cdr_pgsql: got port of %s\n",pgdbport);
 	if (pgdbsock)
@@ -296,7 +300,7 @@ static int my_load_module(void)
 		connected = 1;
 	} else {
                 pgerror = PQerrorMessage(conn);
-		ast_log(LOG_ERROR, "cdr_pgsql: Unable to connect to database server %s.  Calls will not be logged!\n", pghostname);
+		ast_log(LOG_ERROR, "cdr_pgsql: Unable to connect to database server %s.  CALLS WILL NOT BE LOGGED!!\n", pghostname);
                 ast_log(LOG_ERROR, "cdr_pgsql: Reason: %s\n", pgerror);
 		connected = 0;
 	}
@@ -305,6 +309,20 @@ static int my_load_module(void)
 	if (res) {
 		ast_log(LOG_ERROR, "Unable to register PGSQL CDR handling\n");
 	}
+	return res;
+}
+
+static int my_load_module(void)
+{
+	struct ast_config *cfg;
+	int res;
+	cfg = ast_load(config);
+	if (!cfg) {
+		ast_log(LOG_WARNING, "Unable to load config for PostgreSQL CDR's: %s\n", config);
+		return 0;
+	}
+	res = process_my_load_module(cfg);
+	ast_destroy(cfg);
 	return res;
 }
 

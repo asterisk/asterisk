@@ -47,10 +47,10 @@ static char *bestdata_idents[] = {
 	NULL
 };
 
-static int bestdata_startrec(struct ast_modem_pvt *p)
-{
 static int bestdata_break(struct ast_modem_pvt *p);
 
+static int bestdata_startrec(struct ast_modem_pvt *p)
+{
 	if (p->ministate != STATE_COMMAND) bestdata_break(p);
 	if (ast_modem_send(p, "AT+VRX", 0) ||
 	     ast_modem_expect(p, "CONNECT", 5)) {
@@ -63,8 +63,6 @@ static int bestdata_break(struct ast_modem_pvt *p);
 
 static int bestdata_startplay(struct ast_modem_pvt *p)
 {
-static int bestdata_break(struct ast_modem_pvt *p);
-
 	if (p->ministate != STATE_COMMAND) bestdata_break(p);
 	if (ast_modem_send(p, "AT+VTX", 0) ||
 	     ast_modem_expect(p, "CONNECT", 5)) {
