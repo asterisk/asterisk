@@ -1667,8 +1667,6 @@ int main(int argc, char *argv[])
 			} else {
 				if (option_remote)
  					ast_cli(STDOUT_FILENO, "\nUse EXIT or QUIT to exit the asterisk console\n");
-				else
-	 				ast_cli(STDOUT_FILENO, "\nUse STOP NOW to shutdown Asterisk\n");
 			}
 		}
 
