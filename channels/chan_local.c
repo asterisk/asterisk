@@ -236,7 +236,7 @@ static int local_hangup(struct ast_channel *ast)
 		while(cur) {
 			if (cur == p) {
 				if (prev)
-					prev->next == cur->next;
+					prev->next = cur->next;
 				else
 					locals = cur->next;
 				break;
