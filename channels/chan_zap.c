@@ -6965,6 +6965,7 @@ static void *pri_dchannel(void *vpri)
 				} else {
 					chanpos = pri_fixup_principle(pri, chanpos, e->ring.call);
 					if (chanpos > -1) {
+						ast_mutex_lock(&pri->pvts[x]->lock);
 						/* queue DTMF frame if the PBX for this call was already started (we're forwarding INFORMATION further on */
 						if (pri->overlapdial && pri->pvts[chanpos]->call==e->ring.call && pri->pvts[chanpos]->owner) {
 							/* how to do that */
@@ -6979,6 +6980,7 @@ static void *pri_dchannel(void *vpri)
 								}
 							}
 						}
+						ast_mutex_unlock(&pri->pvts[x]->lock);
 					}
 				}
 				break;
