@@ -540,10 +540,8 @@ static void conf_flush(int fd)
 {
 	int x;
 	x = ZT_FLUSH_ALL;
-	if (ioctl(fd, ZT_FLUSH, x)) {
+	if (ioctl(fd, ZT_FLUSH, &x))
 		ast_log(LOG_WARNING, "Error flushing channel\n");
-		close(fd);
-	}
 }
 
 static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags)
@@ -795,7 +793,6 @@ zapretry:
 		ast_mutex_unlock(&conflock);
 		goto outrun;
 	}
-	conf_flush(fd);
 	ast_log(LOG_DEBUG, "Placed channel %s in ZAP conf %d\n", chan->name, conf->zapconf);
 
 	manager_event(EVENT_FLAG_CALL, "MeetmeJoin", 
@@ -810,6 +807,7 @@ zapretry:
 		if (!(confflags & CONFFLAG_QUIET))
 			conf_play(chan, conf, ENTER);
 	}
+	conf_flush(fd);
 	ast_mutex_unlock(&conflock);
 	if (confflags & CONFFLAG_AGI) {
 
