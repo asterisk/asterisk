@@ -1,4 +1,19 @@
+ -- Make PRI Hangup Cause available to the dialplan
+ -- Verify included contexts in extensions.conf
+ -- Add DESTDIR support for building RPMs and packages
+ -- Do route lookups on OpenBSD
+ -- Add support for building on FreeBSD
+ -- Add support for PostgreSQL in Voicemail
+ -- Translate SIP hangup cause to PRI hangup cause where needed
+ -- Better support for MOH in IAX2
+ -- Fix SIP problem where channels were not removed on BYE
+ -- Display codecs by name
  -- Remove MySQL and put PGSql instead for licensing reasons
+ -- Better capability matching in SIP
+ -- Full IBR4 compliance for chan_zap
+ -- More flexible CDR handling
+ -- Distinguish between BUSY and FAILURE on outbound calls
+ -- Add initial support for SCCP via chan_skinny
 Asterisk 0.5.0
  -- Retain IAX2 and SIP registrations past shutdown/crash and restart
  -- True data mode bridging when possible
