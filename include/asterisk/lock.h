@@ -19,17 +19,6 @@
 #define AST_PTHREADT_NULL (pthread_t) -1
 #define AST_PTHREADT_STOP (pthread_t) -2
 
-/* From now on, Asterisk REQUIRES Recursive (not error checking) mutexes
-   and will not run without them. */
-
-#ifdef PTHREAD_MUTEX_RECURSIVE_NP
-#define AST_MUTEX_INITIALIZER      PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
-#define AST_MUTEX_KIND             PTHREAD_MUTEX_RECURSIVE_NP
-#else
-#define AST_MUTEX_INITIALIZER      PTHREAD_MUTEX_INITIALIZER
-#define AST_MUTEX_KIND             PTHREAD_MUTEX_RECURSIVE
-#endif
-
 #ifdef DEBUG_THREADS
 
 #ifdef THREAD_CRASH
@@ -40,6 +29,12 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+
+/* From now on, Asterisk REQUIRES Recursive (not error checking) mutexes
+   and will not run without them. */
+
+#define AST_MUTEX_INITIALIZER      PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+#define AST_MUTEX_KIND             PTHREAD_MUTEX_RECURSIVE_NP
 
 struct ast_mutex_info {
 	pthread_mutex_t mutex;
@@ -159,6 +154,11 @@ static inline int __ast_pthread_mutex_destroy(char *filename, int lineno, char *
 #define pthread_mutex_destroy use_ast_pthread_mutex_destroy_instead_of_pthread_mutex_destroy
 
 #else /* DEBUG_THREADS */
+
+/* From now on, Asterisk REQUIRES Recursive (not error checking) mutexes
+   and will not run without them. */
+#define AST_MUTEX_INITIALIZER      PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+#define AST_MUTEX_KIND             PTHREAD_MUTEX_RECURSIVE_NP
 
 typedef pthread_mutex_t ast_mutex_t;
 
