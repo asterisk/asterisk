@@ -202,7 +202,7 @@ static struct sip_pvt {
 	char peersecret[81];
 	char callerid[256];					/* Caller*ID */
 	char via[256];
-	char accountcode[256];				/* Account code */
+	char accountcode[20];				/* Account code */
 	char our_contact[256];				/* Our contact header */
 	char realm[256];				/* Authorization realm */
 	char nonce[256];				/* Authorization nonce */
@@ -247,7 +247,7 @@ struct sip_user {
 	char context[80];
 	char callerid[80];
 	char methods[80];
-	char accountcode[80];
+	char accountcode[20];
 	unsigned int callgroup;
 	unsigned int pickupgroup;
 	int nat;
@@ -1162,6 +1162,10 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		tmp->pvt->bridge = ast_rtp_bridge;
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
+                if (strlen(i->accountcode))
+                        strncpy(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode)-1);
+                if (i->amaflags)
+                        tmp->amaflags = i->amaflags;
 		if (strlen(i->language))
 			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
 		i->owner = tmp;
