@@ -14,19 +14,27 @@
 #ifndef _ASTERISK_ACL_H
 #define _ASTERISK_ACL_H
 
-#define AST_SENSE_DENY                  0
-#define AST_SENSE_ALLOW                 1
-
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
 #include <netinet/in.h>
+#include <asterisk/io.h>
+#include <asterisk/astobj.h>
+
+#define AST_SENSE_DENY                  0
+#define AST_SENSE_ALLOW                 1
 
 /* Host based access control */
 
 struct ast_ha;
+struct ast_netsock;
+
+struct ast_netsock_list {
+	ASTOBJ_CONTAINER_COMPONENTS(struct ast_netsock);
+	struct io_context *ioc;
+};
 
 extern void ast_free_ha(struct ast_ha *ha);
 extern struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path);
@@ -36,6 +44,12 @@ extern int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const c
 extern int ast_ouraddrfor(struct in_addr *them, struct in_addr *us);
 extern int ast_lookup_iface(char *iface, struct in_addr *address);
 extern struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original);
+extern int ast_netsock_init(struct ast_netsock_list *list);
+extern struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_context *ioc, const char *bindinfo, int defaultport, int tos, ast_io_cb callback, void *data);
+extern struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct io_context *ioc, struct sockaddr_in *bindaddr, int tos, ast_io_cb callback, void *data);
+extern int ast_netsock_free(struct ast_netsock_list *list, struct ast_netsock *netsock);
+extern int ast_netsock_release(struct ast_netsock_list *list);
+extern int ast_netsock_sockfd(struct ast_netsock *ns);
 
 //! Compares the source address and port of two sockaddr_in
 static inline int inaddrcmp(struct sockaddr_in *sin1, struct sockaddr_in *sin2)

@@ -70,6 +70,8 @@ struct iax_frame {
 #ifdef LIBIAX
 	struct iax_session *session;
 	struct iax_event *event;
+#else
+	int sockfd;
 #endif
 
 	/* /Our/ call number */

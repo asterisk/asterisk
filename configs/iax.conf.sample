@@ -7,8 +7,10 @@
 ; local addresses).
 ;
 [general]
-;bindport=4569
-;bindaddr=192.168.0.1
+;bindport=4569			; bindport and bindaddr may be specified
+;bindaddr=192.168.0.1		; more than once to bind to multiple
+;                               ; addresses, but the first will be the 
+;                               ; default
 ;
 ; Set iaxcompat to yes if you plan to use layered 
 ; switches.  It incurs a small performance hit to enable it
