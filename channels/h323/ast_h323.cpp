@@ -193,7 +193,6 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token,
 			cout << " -- Making call to " << fullAddress << " using gatekeeper." << endl;
 	} else {
 			fullAddress = dest; /* host */
-			fullAddress += psprintf(":%i", port); /* host:port */
 			if (h323debug)
 				cout << " -- Making call to " << fullAddress << "." << endl;
 		}
@@ -939,6 +938,8 @@ int h323_make_call(char *host, call_details_t *cd, call_options_t call_options)
 	
 	PString dest = PString(host);
 	
+	cout << "dest: " << dest << endl;
+
 	res = endPoint->MakeCall(dest, token, &cd->call_reference, call_options.port);
 	memcpy((char *)(cd->call_token), (const unsigned char *)token, token.GetLength());
 	

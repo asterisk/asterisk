@@ -382,9 +382,6 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 		ast_log(LOG_WARNING, "Line is already in use (%s)\n", c->name);
 		return -1;
 	}
-
-	/* set the connect port */
-	p->call_opt.port = port;
 	
 	/* outgoing call */
 	p->outgoing = 1;
@@ -748,7 +745,7 @@ static struct ast_channel *oh323_request(char *type, int format, void *data)
 		host = tmp;
 		ext = NULL;
 	}
-	
+
 	p = oh323_alloc(0);
 
 	if (!p) {
