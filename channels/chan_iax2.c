@@ -1901,7 +1901,7 @@ static struct iax2_user *mysql_user(char *user)
 		MYSQL_ROW rowval;
 		name = alloca(strlen(user) * 2 + 1);
 		mysql_real_escape_string(mysql, name, user, strlen(user));
-		snprintf(query, sizeof(query), "SELECT name, secret, context, ipaddr, port, regseconds FROM iaxfriends WHERE name=\"%s\"", name);
+		snprintf(query, sizeof(query), "SELECT name, secret, context, ipaddr, port, regseconds, accountcode FROM iaxfriends WHERE name=\"%s\"", name);
 		ast_mutex_lock(&mysqllock);
 		mysql_query(mysql, query);
 		if ((result = mysql_store_result(mysql))) {
@@ -1915,6 +1915,8 @@ static struct iax2_user *mysql_user(char *user)
 							strncpy(p->secret, rowval[x], sizeof(p->secret));
 						} else if (!strcasecmp(fields[x].name, "context")) {
 							strncpy(p->contexts->context, rowval[x], sizeof(p->contexts->context) - 1);
+						} else if (!strcasecmp(fields[x].name, "accountcode")) {
+							strncpy(p->accountcode, rowval[x], sizeof(p->accountcode));
 						}
 					}
 				}

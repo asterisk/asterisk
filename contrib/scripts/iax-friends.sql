@@ -9,6 +9,7 @@ CREATE TABLE `iaxfriends` (
   `ipaddr` varchar(20) NOT NULL default '',
   `port` int(6) NOT NULL default '0',
   `regseconds` int(11) NOT NULL default '0',
+  `accountcode` varchar(20) NOT NULL default '', 
   PRIMARY KEY  (`name`)
 ) TYPE=MyISAM;
 
