@@ -4842,7 +4842,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				strcpy(p->peersecret, "");
 				strcpy(p->peermd5secret, "");
 			}
-			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, peer->md5secret, cmd, uri, reliable, ignore))) {
+			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, p->peersecret, p->peermd5secret, cmd, uri, reliable, ignore))) {
 				p->canreinvite = peer->canreinvite;
 				strncpy(p->peername, peer->name, sizeof(p->peername) - 1);
 				strncpy(p->authname, peer->name, sizeof(p->authname) - 1);
