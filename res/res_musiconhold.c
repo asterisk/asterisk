@@ -109,7 +109,7 @@ static int spawn_mp3(struct mohclass *class)
 {
 	int fds[2];
 	int files;
-	char fns[80][MAX_MP3S];
+	char fns[MAX_MP3S][80];
 	char *argv[MAX_MP3S + 50];
 	char xargs[256];
 	char *argptr;
@@ -394,7 +394,7 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 	return res;
 }
 
-static int moh_generate(struct ast_channel *chan, void *data, int len)
+static int moh_generate(struct ast_channel *chan, void *data, int len, int samples)
 {
 	struct ast_frame f;
 	struct mohdata *moh = data;
@@ -416,7 +416,7 @@ static int moh_generate(struct ast_channel *chan, void *data, int len)
 		f.subclass = AST_FORMAT_SLINEAR;
 		f.mallocd = 0;
 		f.datalen = res;
-		f.timelen = res / 8;
+		f.samples = res / 2;
 		f.data = buf + AST_FRIENDLY_OFFSET / 2;
 		f.offset = AST_FRIENDLY_OFFSET;
 		if (ast_write(chan, &f)< 0) {
