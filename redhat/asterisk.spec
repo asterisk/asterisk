@@ -1,7 +1,7 @@
 Summary: Asterisk PBX
 Name: asterisk
 Distribution: RedHat
-Version: 
+Version: CVS
 Release: 1
 Copyright: Linux Support Services, inc.
 Group: Utilities/System
@@ -22,7 +22,7 @@ protocol (e.g. gnophone or miniphone).  For more information and a
 current list of supported hardware, see www.asteriskpbx.com.
 
 %post
-ln -s /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
+ln -sf /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 
 %files
 #
@@ -30,6 +30,7 @@ ln -s /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 #
 %attr(0755,root,root) %dir    /etc/asterisk
 %attr(0640,root,root) %config /etc/asterisk/*.conf
+%attr(0640,root,root) %config /etc/asterisk/*.adsi
 
 #
 # RedHat specific init script file
