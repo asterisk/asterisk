@@ -539,7 +539,6 @@ static int agent_cont_sleep( void *data )
 static int agent_ack_sleep( void *data )
 {
 	struct agent_pvt *p;
-	struct timeval tv;
 	int res;
 	int to = 1000;
 
@@ -814,7 +813,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 {
 	struct agent_pvt *p;
-	int res;
+	int res=0;
 	ast_log(LOG_DEBUG, "Checking beep availability of '%s'\n", newlyavailable->agent);
 	if (needlock)
 		ast_mutex_lock(&agentlock);
@@ -836,6 +835,7 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 	if (needlock)
 		ast_mutex_unlock(&agentlock);
 	if (p) {
+		ast_mutex_unlock(&p->lock);
 		ast_log( LOG_DEBUG, "Playing beep, lang '%s'\n", newlyavailable->chan->language);
 		res = ast_streamfile(newlyavailable->chan, "beep", newlyavailable->chan->language);
 		ast_log( LOG_DEBUG, "Played beep, result '%d'\n", res);
@@ -843,6 +843,7 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 			res = ast_waitstream(newlyavailable->chan, "");
 			ast_log( LOG_DEBUG, "Waited for stream, result '%d'\n", res);
 		}
+		ast_mutex_lock(&p->lock);
 	}
 	return res;
 }
