@@ -385,7 +385,7 @@ static int soundcard_writeframe(short *data)
 {	
 	/* Write an exactly FRAME_SIZE sized of frame */
 	static int bufcnt = 0;
-	static char buffer[FRAME_SIZE * 2 * MAX_BUFFER_SIZE * 5];
+	static short buffer[FRAME_SIZE * MAX_BUFFER_SIZE * 5];
 	struct audio_buf_info info;
 	int res;
 	int fd = sounddev;
@@ -407,7 +407,7 @@ static int soundcard_writeframe(short *data)
 	} else {
 		/* Copy the data into our buffer */
 		res = FRAME_SIZE * 2;
-		memcpy(buffer + (bufcnt * FRAME_SIZE * 2), data, FRAME_SIZE * 2);
+		memcpy(buffer + (bufcnt * FRAME_SIZE), data, FRAME_SIZE * 2);
 		bufcnt++;
 		if (bufcnt == buffersize) {
 			res = write(fd, ((void *)buffer), FRAME_SIZE * 2 * buffersize);
@@ -548,7 +548,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *p, int state)
 		snprintf(tmp->name, sizeof(tmp->name), "OSS/%s", DEV_DSP + 5);
 		tmp->type = type;
 		tmp->fd = funnel[0];
-		tmp->format = AST_FORMAT_SLINEAR;
+		tmp->nativeformats = AST_FORMAT_SLINEAR;
 		tmp->pvt->pvt = p;
 		tmp->pvt->send_digit = oss_digit;
 		tmp->pvt->send_text = oss_text;
@@ -840,4 +840,9 @@ int usecount()
 	res = usecnt;
 	pthread_mutex_unlock(&usecnt_lock);
 	return res;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
 }
