@@ -1046,7 +1046,8 @@ static int ast_el_add_history(char *buf)
 
 	if (el_hist == NULL || el == NULL)
 		ast_el_initialize();
-
+	if (strlen(buf) > 256)
+		return 0;
 	return (history(el_hist, &ev, H_ENTER, buf));
 }
 
