@@ -43,6 +43,7 @@ static int portno = DEFAULT_MANAGER_PORT;
 static int asock = -1;
 static pthread_t t;
 static ast_mutex_t sessionlock = AST_MUTEX_INITIALIZER;
+static int block_sockets = 0;
 
 static struct permalias {
 	int num;
@@ -61,6 +62,37 @@ static struct permalias {
 static struct mansession *sessions = NULL;
 static struct manager_action *first_action = NULL;
 static ast_mutex_t actionlock = AST_MUTEX_INITIALIZER;
+
+
+
+
+int ast_carefulwrite(int fd, char *s, int len, int timeoutms) 
+{
+	/* Try to write string, but wait no more than ms milliseconds
+	   before timing out */
+	int res=0;
+	struct timeval tv;
+	fd_set fds;
+	while(len) {
+		res = write(fd, s, len);
+		if ((res < 0) && (errno != EAGAIN)) {
+			return -1;
+		}
+		if (res < 0) res = 0;
+		len -= res;
+		s += res;
+		tv.tv_sec = timeoutms / 1000;
+		tv.tv_usec = timeoutms % 1000;
+		FD_ZERO(&fds);
+		FD_SET(fd, &fds);
+		/* Wait until writable again */
+		res = select(fd + 1, NULL, &fds, NULL, &tv);
+		if (res < 1)
+			return -1;
+	}
+	return res;
+}
+
 
 static int handle_showmancmds(int fd, int argc, char *argv[])
 {
@@ -207,7 +239,9 @@ static int authenticate(struct mansession *s, struct message *m)
 	char *pass = astman_get_header(m, "Secret");
 	char *authtype = astman_get_header(m, "AuthType");
 	char *key = astman_get_header(m, "Key");
-
+	char *events = astman_get_header(m, "Events");
+	int send_events = events ? ast_true(events) : 1;
+	
 	cfg = ast_load("manager.conf");
 	if (!cfg)
 		return -1;
@@ -272,6 +306,7 @@ static int authenticate(struct mansession *s, struct message *m)
 		s->readperm = get_perm(ast_variable_retrieve(cfg, cat, "read"));
 		s->writeperm = get_perm(ast_variable_retrieve(cfg, cat, "write"));
 		ast_destroy(cfg);
+		s->send_events=send_events;
 		return 0;
 	}
 	ast_log(LOG_NOTICE, "%s tried to authenticate with non-existant user '%s'\n", inet_ntoa(s->sin.sin_addr), user);
@@ -284,6 +319,35 @@ static int action_ping(struct mansession *s, struct message *m)
 	astman_send_response(s, m, "Pong", NULL);
 	return 0;
 }
+
+
+static int events_on_off(struct mansession *s,int onoff) {
+	ast_mutex_lock(&s->lock);
+	s->send_events = onoff ? 1 : 0;
+	ast_mutex_unlock(&s->lock);
+	return s->send_events;
+}
+
+
+static int action_events(struct mansession *s, struct message *m)
+{
+	char *mask = astman_get_header(m, "EventMask");
+	char reply[25];
+	int res;
+	int true=0;
+	
+	/* ast_true might wanna learn to include 'on' as a true stmt  */
+	if(!strcasecmp(mask,"on"))
+		true = 1;
+	else 
+		true = ast_true(mask);
+	
+	res = events_on_off(s,true);
+	sprintf(reply,"Events are now %s",res ? "on" : "off");
+	astman_send_response(s, m,reply, NULL);
+	return 0;
+}
+
 
 static int action_logoff(struct mansession *s, struct message *m)
 {
@@ -753,11 +817,15 @@ static void *accept_thread(void *ignore)
 		} 
 		memset(s, 0, sizeof(struct mansession));
 		memcpy(&s->sin, &sin, sizeof(sin));
-		/* For safety, make sure socket is non-blocking */
-		flags = fcntl(as, F_GETFL);
-		fcntl(as, F_SETFL, flags | O_NONBLOCK);
+
+		if(! block_sockets) {
+			/* For safety, make sure socket is non-blocking */
+			flags = fcntl(as, F_GETFL);
+			fcntl(as, F_SETFL, flags | O_NONBLOCK);
+		}
 		ast_mutex_init(&s->lock);
 		s->fd = as;
+		s->send_events = 1;
 		ast_mutex_lock(&sessionlock);
 		s->next = sessions;
 		sessions = s;
@@ -778,14 +846,16 @@ int manager_event(int category, char *event, char *fmt, ...)
 	ast_mutex_lock(&sessionlock);
 	s = sessions;
 	while(s) {
-		if ((s->readperm & category) == category) {
+		if (((s->readperm & category) == category) && s->send_events) {
 			ast_mutex_lock(&s->lock);
 			if (!s->blocking) {
 				ast_cli(s->fd, "Event: %s\r\n", event);
 				va_start(ap, fmt);
 				vsnprintf(tmp, sizeof(tmp), fmt, ap);
 				va_end(ap);
-				write(s->fd, tmp, strlen(tmp));
+
+				ast_carefulwrite(s->fd,tmp,strlen(tmp),100);
+				/*write(s->fd, tmp, strlen(tmp));*/
 				ast_cli(s->fd, "\r\n");
 			}
 			ast_mutex_unlock(&s->lock);
@@ -871,6 +941,7 @@ int init_manager(void)
 	if (!registered) {
 		/* Register default actions */
 		ast_manager_register( "Ping", 0, action_ping, "Ping" );
+		ast_manager_register( "Events", 0, action_events, "Contol Event Flow" );
 		ast_manager_register( "Logoff", 0, action_logoff, "Logoff Manager" );
 		ast_manager_register( "Hangup", EVENT_FLAG_CALL, action_hangup, "Hangup Channel" );
 		ast_manager_register( "Status", EVENT_FLAG_CALL, action_status, "Status" );
@@ -898,6 +969,11 @@ int init_manager(void)
 	if (val)
 		enabled = ast_true(val);
 
+	val = ast_variable_retrieve(cfg, "general", "block-sockets");
+	if(val)
+		block_sockets = ast_true(val);
+	
+
 	if ((val = ast_variable_retrieve(cfg, "general", "portno"))) {
 		if (sscanf(val, "%d", &portno) != 1) {
 			ast_log(LOG_WARNING, "Invalid port number '%s'\n", val);
@@ -915,7 +991,7 @@ int init_manager(void)
 			memset(&ba.sin_addr, 0, sizeof(ba.sin_addr));
 		}
 	}
-
+	
 	if ((asock > -1) && ((portno != oldportno) || !enabled)) {
 #if 0
 		/* Can't be done yet */
