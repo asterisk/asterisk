@@ -3724,8 +3724,10 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 						/* I'm not going to handle 1900 and prior */
 						/* We'll just be silent on the year, instead of bombing out. */
 					} else {
-						res = wait_file(chan,ints, "digits/19",lang);
+						res = wait_file(chan,ints, "digits/thousand",lang);
 						if (!res) {
+							wait_file(chan,ints, "digits/9",lang);
+							wait_file(chan,ints, "digits/hundred",lang);
 							res = ast_say_number(chan, tm.tm_year, ints, lang, (char * ) NULL);
 						}
 					}
