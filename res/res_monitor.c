@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <libgen.h>		//dirname()
 
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>
@@ -48,6 +49,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 						const char *fname_base, int need_lock )
 {
 	int res = 0;
+	char tmp[256];
 
 	if( need_lock ) {
 		if (ast_mutex_lock(&chan->lock)) {
@@ -73,11 +75,19 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 
 		/* Determine file names */
 		if( fname_base && strlen( fname_base ) ) {
+			int directory = strchr(fname_base, '/') ? 1 : 0;
+			/* try creating the directory just in case it doesn't exist */
+			if (directory) {
+				char *name = strdup(fname_base);
+				snprintf(tmp, sizeof(tmp), "mkdir -p %s",dirname(name));
+				free(name);
+				system(tmp);
+			}
 			snprintf(	monitor->read_filename, FILENAME_MAX, "%s/%s-in",
-						AST_MONITOR_DIR, fname_base );
+						directory ? "" : AST_MONITOR_DIR, fname_base );
 			snprintf(	monitor->write_filename, FILENAME_MAX, "%s/%s-out",
-						AST_MONITOR_DIR, fname_base );
-			*monitor->filename_base = 0;
+						directory ? "" : AST_MONITOR_DIR, fname_base );
+			strncpy(monitor->filename_base, fname_base, sizeof(monitor->filename_base) - 1);
 		} else {
 			ast_mutex_lock( &monitorlock );
 			snprintf(	monitor->read_filename, FILENAME_MAX, "%s/audio-in-%ld",
@@ -93,6 +103,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 			}
 			snprintf(	monitor->filename_base, FILENAME_MAX, "%s/%s",
 						AST_MONITOR_DIR, channel_name );
+			monitor->filename_changed = 1;
 			free( channel_name );
 		}
 
@@ -164,7 +175,7 @@ int ast_monitor_stop( struct ast_channel *chan, int need_lock )
 			ast_closestream( chan->monitor->write_stream );
 		}
 
-		if(chan->monitor->filename_base&&strlen(chan->monitor->filename_base)) {
+		if(chan->monitor->filename_changed&&strlen(chan->monitor->filename_base)) {
 			if( ast_fileexists(chan->monitor->read_filename,NULL,NULL) > 0 ) {
 				snprintf(	filename, FILENAME_MAX, "%s-in",
 							chan->monitor->filename_base );
@@ -191,7 +202,19 @@ int ast_monitor_stop( struct ast_channel *chan, int need_lock )
 							chan->monitor->write_filename );
 			}
 		}
-
+		if (chan->monitor->joinfiles && strlen(chan->monitor->filename_base)) {
+			char tmp[255];
+			char *format = !strcasecmp(chan->monitor->format,"wav49") ? "WAV" : chan->monitor->format;
+			char *name = chan->monitor->filename_base;
+			int directory = strchr(name, '/') ? 1 : 0;
+			char *dir = directory ? "" : AST_MONITOR_DIR;
+			snprintf(tmp, sizeof(tmp), "nice -n 19 soxmix %s/%s-in.%s %s/%s-out.%s %s/%s.%s && rm -rf %s/%s-* &", dir, name, format, dir, name, format, dir, name, format, dir, name);
+#if 0
+			ast_verbose("executing %s\n",tmp);
+#endif
+			if (system(tmp) == -1)
+				ast_log(LOG_WARNING, "You might not have the soxmix installed and available in the path, please check.\n");
+		}
 		free( chan->monitor->format );
 		free( chan->monitor );
 		chan->monitor = NULL;
@@ -207,6 +230,7 @@ int ast_monitor_stop( struct ast_channel *chan, int need_lock )
 int ast_monitor_change_fname(	struct ast_channel *chan,
 								const char *fname_base, int need_lock )
 {
+	char tmp[256];
 	if( (!fname_base) || (!strlen(fname_base)) ) {
 		ast_log(	LOG_WARNING,
 					"Cannot change monitor filename of channel %s to null",
@@ -222,8 +246,17 @@ int ast_monitor_change_fname(	struct ast_channel *chan,
 	}
 
 	if( chan->monitor ) {
+		int directory = strchr(fname_base, '/') ? 1 : 0;
+		/* try creating the directory just in case it doesn't exist */
+		if (directory) {
+			char *name = strdup(fname_base);
+			snprintf(tmp, sizeof(tmp), "mkdir -p %s",dirname(name));
+			free(name);
+			system(tmp);
+		}
+
 		snprintf(	chan->monitor->filename_base, FILENAME_MAX, "%s/%s",
-					AST_MONITOR_DIR, fname_base );
+					directory ? "" : AST_MONITOR_DIR, fname_base );
 	} else {
 		ast_log(	LOG_WARNING,
 					"Cannot change monitor filename of channel %s to %s, monitoring not started",
@@ -377,6 +410,12 @@ static int change_monitor_action(struct mansession *s, struct message *m)
 	}
 	astman_send_ack(s, m, "Stopped monitoring channel");
 	return 0;
+}
+
+void ast_monitor_setjoinfiles(struct ast_channel *chan, int turnon)
+{
+	if (chan->monitor)
+		chan->monitor->joinfiles = turnon;
 }
 
 int load_module(void)

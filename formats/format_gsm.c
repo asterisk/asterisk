@@ -33,10 +33,17 @@
 #endif
 #include "msgsm.h"
 
-
 /* Some Ideas for this code came from makegsme.c by Jeffrey Chilton */
 
 /* Portions of the conversion code are by guido@sienanet.it */
+
+/* silent gsm frame */
+/* begin binary data: */
+char gsm_silence[] = /* 33 */
+{0xD8,0x20,0xA2,0xE1,0x5A,0x50,0x00,0x49,0x24,0x92,0x49,0x24,0x50,0x00,0x49
+,0x24,0x92,0x49,0x24,0x50,0x00,0x49,0x24,0x92,0x49,0x24,0x50,0x00,0x49,0x24
+,0x92,0x49,0x24};
+/* end binary data. size = 33 bytes */
 
 struct ast_filestream {
 	void *reserved[AST_RESERVED_POINTERS];
@@ -193,6 +200,12 @@ static int gsm_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	if (whence != SEEK_FORCECUR) {
 		offset = (offset > max)?max:offset;
 		offset = (offset < min)?min:offset;
+	} else if (offset > max) {
+		int i;
+		lseek(fs->fd, 0, SEEK_END);
+		for (i=0; i< (offset - max) / 33; i++) {
+			write(fs->fd, gsm_silence, 33);
+		}
 	}
 	return lseek(fs->fd, offset, SEEK_SET);
 }

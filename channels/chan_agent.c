@@ -72,6 +72,7 @@ static char *descrip2 =
 static char moh[80] = "default";
 
 #define AST_MAX_AGENT	80		/* Agent ID or Password max length */
+#define AST_MAX_BUF	256
 
 static int capability = -1;
 
@@ -85,6 +86,13 @@ static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 /* Protect the interface list (of sip_pvt's) */
 static ast_mutex_t agentlock = AST_MUTEX_INITIALIZER;
+
+int recordagentcalls = 0;
+char recordformat[AST_MAX_BUF];
+char recordformatext[AST_MAX_BUF];
+int createlink = 0;
+char urlprefix[AST_MAX_BUF];
+char savecallsin[AST_MAX_BUF];
 
 static struct agent_pvt {
 	ast_mutex_t lock;				/* Channel private lock */
@@ -164,7 +172,7 @@ static void agent_unlink(struct agent_pvt *agent)
 
 static struct agent_pvt *add_agent(char *agent, int pending)
 {
-	char tmp[256];
+	char tmp[AST_MAX_BUF];
 	char *password=NULL, *name=NULL;
 	struct agent_pvt *p, *prev;
 	
@@ -244,6 +252,33 @@ static int agent_answer(struct ast_channel *ast)
 	return -1;
 }
 
+static int agent_start_monitoring(struct ast_channel *ast, int needlock)
+{
+	struct agent_pvt *p = ast->pvt->pvt;
+	char tmp[AST_MAX_BUF],tmp2[AST_MAX_BUF], *pointer;
+	char filename[AST_MAX_BUF];
+	int res = -1;
+	if (!p)
+		return -1;
+	if (!ast->monitor) {
+		snprintf(filename, sizeof(filename), "agent-%s-%s",p->agent, ast->uniqueid);
+		snprintf(tmp, sizeof(tmp), "%s%s",savecallsin ? savecallsin : "", filename);
+		if ((pointer = strchr(tmp, '.')))
+			*pointer = '-';
+		ast_monitor_start(ast, recordformat, tmp, needlock);
+		ast_monitor_setjoinfiles(ast, 1);
+		snprintf(tmp2, sizeof(tmp2), "%s%s.%s", urlprefix ? urlprefix : "", filename, recordformatext);
+#if 0
+		ast_verbose("name is %s, link is %s\n",tmp, tmp2);
+#endif
+		if (!ast->cdr)
+			ast->cdr = ast_cdr_alloc();
+		ast_cdr_setuserfield(ast, tmp2);
+		res = 0;
+	} else
+		ast_log(LOG_ERROR, "Recording already started on that call.\n");
+	return res;
+}
 static struct ast_frame  *agent_read(struct ast_channel *ast)
 {
 	struct agent_pvt *p = ast->pvt->pvt;
@@ -302,6 +337,8 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 	}
 	CLEANUP(ast,p);
 	ast_mutex_unlock(&p->lock);
+	if (f == &answer_frame)
+		agent_start_monitoring(ast,0);
 	return f;
 }
 
@@ -430,6 +467,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 			ast_setstate(ast, AST_STATE_RINGING);
 		else {
 			ast_setstate(ast, AST_STATE_UP);
+			agent_start_monitoring(ast,0);
 			p->acknowledged = 1;
 		}
 		res = 0;
@@ -703,6 +741,14 @@ static int read_agent_config(void)
 		p = p->next;
 	}
 	strcpy(moh, "default");
+	/* set the default recording values */
+	recordagentcalls = 0;
+	createlink = 0;
+	strcpy(recordformat, "wav");
+	strcpy(recordformatext, "wav");
+	strcpy(urlprefix, "");
+	strcpy(savecallsin, "");
+
 	v = ast_variable_browse(cfg, "agents");
 	while(v) {
 		/* Create the interface list */
@@ -727,6 +773,27 @@ static int read_agent_config(void)
 				wrapuptime = 0;
 		} else if (!strcasecmp(v->name, "musiconhold")) {
 			strncpy(moh, v->value, sizeof(moh) - 1);
+		} else if (!strcasecmp(v->name, "recordagentcalls")) {
+			recordagentcalls = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "createlink")) {
+			createlink = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "recordformat")) {
+			strncpy(recordformat, v->value, sizeof(recordformat) - 1);
+			if (!strcasecmp(v->value, "wav49"))
+				strcpy(recordformatext, "WAV");
+			else
+				strncpy(recordformatext, v->value, sizeof(recordformat) - 1);
+		} else if (!strcasecmp(v->name, "urlprefix")) {
+			strncpy(urlprefix, v->value, sizeof(urlprefix) - 2);
+			if (urlprefix[strlen(urlprefix) - 1] != '/')
+				strcat(urlprefix, "/");
+		} else if (!strcasecmp(v->name, "savecallsin")) {
+			if (v->value[0] == '/')
+				strncpy(savecallsin, v->value, sizeof(savecallsin) - 2);
+			else
+				snprintf(savecallsin, sizeof(savecallsin) - 2, "/%s", v->value);
+			if (savecallsin[strlen(savecallsin) - 1] != '/')
+				strcat(savecallsin, "/");
 		}
 		v = v->next;
 	}
@@ -965,10 +1032,10 @@ static int powerof(unsigned int v)
 static int agents_show(int fd, int argc, char **argv)
 {
 	struct agent_pvt *p;
-	char username[256];
-	char location[256];
-	char talkingto[256];
-	char moh[256];
+	char username[AST_MAX_BUF];
+	char location[AST_MAX_BUF];
+	char talkingto[AST_MAX_BUF];
+	char moh[AST_MAX_BUF];
 
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
@@ -1107,7 +1174,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 				!strcmp(p->password, pass) && !p->pending) {
 					if (!p->chan) {
 						if (callbackmode) {
-							char tmpchan[256] = "";
+							char tmpchan[AST_MAX_BUF] = "";
 							int pos = 0;
 							/* Retrieve login chan */
 							for (;;) {

@@ -234,6 +234,18 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allo
 		return -1;
 	peer->appl = "Bridged Call";
 	peer->data = chan->name;
+	/* copy the userfield from the B-leg to A-leg if applicable */
+	if (chan->cdr && peer->cdr && strlen(peer->cdr->userfield)) {
+		char tmp[256];
+		if (strlen(chan->cdr->userfield)) {
+			snprintf(tmp, sizeof(tmp), "%s;%s",chan->cdr->userfield, peer->cdr->userfield);
+			ast_cdr_appenduserfield(chan, tmp);
+		} else
+			ast_cdr_setuserfield(chan, peer->cdr->userfield);
+		/* free the peer's cdr without ast_cdr_free complaining */
+		free(peer->cdr);
+		peer->cdr = NULL;
+	}
 	for (;;) {
 		res = ast_channel_bridge(chan, peer, (allowdisconnect||allowredirect_out ? AST_BRIDGE_DTMF_CHANNEL_0 : 0) + (allowredirect_in ? AST_BRIDGE_DTMF_CHANNEL_1 : 0), &f, &who);
 		if (res < 0) {
