@@ -709,203 +709,332 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, char *cont
 	return NULL;
 }
 
-static void pbx_substitute_variables_temp(struct ast_channel *c,char *cp3,char **cp4, char *workspace, int workspacelen)
+static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,char **ret, char *workspace, int workspacelen)
 {
 	char *first,*second;
+	char tmpvar[80] = "";
 	int offset,offset2;
 	struct ast_var_t *variables;
 	char *name, *num; /* for callerid name + num variables */
 	struct varshead *headp;
         headp=&c->varshead;
-        *cp4=NULL;
+    *ret=NULL;
         /* Now we have the variable name on cp3 */
-	if ((first=strchr(cp3,':'))) {
+	if ((first=strchr(var,':'))) {
+		strncpy(tmpvar, var, sizeof(tmpvar) - 1);
+		first = strchr(tmpvar, ':');
+		if (!first)
+			first = tmpvar + strlen(tmpvar);
 		*first='\0';
-		pbx_substitute_variables_temp(c,cp3,cp4,workspace,workspacelen);
-		if (!(*cp4)) return;
+		pbx_substitute_variables_temp(c,tmpvar,ret,workspace,sizeof(workspace));
+		if (!(*ret)) return;
 		offset=atoi(first+1);
 	 	if ((second=strchr(first+1,':'))) {
 			*second='\0';
 			offset2=atoi(second+1);
 		} else
-			offset2=strlen(*cp4)-offset;
-		if (abs(offset)>strlen(*cp4)) {
-			if (offset>=0) offset=strlen(*cp4);
-			else offset=-strlen(*cp4);
+			offset2=strlen(*ret)-offset;
+		if (abs(offset)>strlen(*ret)) {
+			if (offset>=0) 
+				offset=strlen(*ret);
+			else 
+				offset=-strlen(*ret);
 		}
-		if ((offset<0 && offset2>-offset) || (offset>=0 && offset+offset2>strlen(*cp4))) {
-			if (offset>=0) offset2=strlen(*cp4)-offset;
-			else offset2=strlen(*cp4)+offset;
+		if ((offset<0 && offset2>-offset) || (offset>=0 && offset+offset2>strlen(*ret))) {
+			if (offset>=0) 
+				offset2=strlen(*ret)-offset;
+			else 
+				offset2=strlen(*ret)+offset;
 		}
 		if (offset>=0)
-			*cp4+=offset;
+			*ret+=offset;
 		else
-			*cp4+=strlen(*cp4)+offset;
-		(*cp4)[offset2] = '\0';
-	} else if (!strcmp(cp3, "CALLERIDNUM")) {
+			*ret+=strlen(*ret)+offset;
+		(*ret)[offset2] = '\0';
+	} else if (!strcmp(var, "CALLERIDNUM")) {
 		if (c->callerid)
 			strncpy(workspace, c->callerid, workspacelen - 1);
 		ast_callerid_parse(workspace, &name, &num);
 		if (num) {
 			ast_shrink_phone_number(num);
-			*cp4 = num;
+			*ret = num;
 		} else
-			*cp4 = "";
-	} else if (!strcmp(cp3, "CALLERIDNAME")) {
+			*ret = "";
+	} else if (!strcmp(var, "CALLERIDNAME")) {
 		if (c->callerid)
 			strncpy(workspace, c->callerid, workspacelen - 1);
 		ast_callerid_parse(workspace, &name, &num);
 		if (name)
-			*cp4 = name;
+			*ret = name;
 		else
-			*cp4 = "";
-	} else if (!strcmp(cp3, "CALLERID")) {
-		*cp4 = c->callerid;
-		if (!(*cp4))
-			*cp4 = "";
-	} else if (!strcmp(cp3, "HINT")) {
+			*ret = "";
+	} else if (!strcmp(var, "CALLERID")) {
+		if (c->callerid) {
+			strncpy(workspace, c->callerid, workspacelen - 1);
+			*ret = workspace;
+		} else 
+			*ret = NULL;
+	} else if (!strcmp(var, "HINT")) {
 		if (!ast_get_hint(workspace, workspacelen - 1, c, c->context, c->exten))
-			*cp4 = "";
+			*ret = NULL;
 		else
-			*cp4 = workspace;
-	} else if (!strcmp(cp3, "EXTEN")) {
-		*cp4 = c->exten;
-	} else if (!strncmp(cp3, "EXTEN-", strlen("EXTEN-")) && 
+			*ret = workspace;
+	} else if (!strcmp(var, "EXTEN")) {
+		strncpy(workspace, c->exten, workspacelen - 1);
+		*ret = workspace;
+	} else if (!strncmp(var, "EXTEN-", strlen("EXTEN-")) && 
 		/* XXX Remove me eventually */
-		(sscanf(cp3 + strlen("EXTEN-"), "%d", &offset) == 1)) {
+		(sscanf(var + strlen("EXTEN-"), "%d", &offset) == 1)) {
 		if (offset < 0)
 			offset=0;
 		if (offset > strlen(c->exten))
 			offset = strlen(c->exten);
-		*cp4 = c->exten + offset;
+		strncpy(workspace, c->exten + offset, workspacelen - 1);
+		*ret = workspace;
 		ast_log(LOG_WARNING, "The use of 'EXTEN-foo' has been derprecated in favor of 'EXTEN:foo'\n");
-#if 0
-	} else if (!strncmp(cp3, "EXTEN:", strlen("EXTEN:")) && 
-		(sscanf(cp3 + strlen("EXTEN:"), "%d", &offset) == 1)) {
-		if (offset < 0)
-			offset=0;
-		if (offset > strlen(c->exten))
-			offset = strlen(c->exten);
-		*cp4 = c->exten + offset;
-#endif
-	} else if (!strcmp(cp3, "RDNIS")) {
-		*cp4 = c->rdnis;
-		if (!(*cp4))
-			*cp4 = "";
-	} else if (!strcmp(cp3, "CONTEXT")) {
-		*cp4 = c->context;
-	} else if (!strcmp(cp3, "PRIORITY")) {
+	} else if (!strcmp(var, "RDNIS")) {
+		if (c->rdnis) {
+			strncpy(workspace, c->rdnis, workspacelen - 1);
+			*ret = workspace;
+		} else
+			*ret = NULL;
+	} else if (!strcmp(var, "CONTEXT")) {
+		strncpy(workspace, c->context, workspacelen - 1);
+		*ret = workspace;
+	} else if (!strcmp(var, "PRIORITY")) {
 		snprintf(workspace, workspacelen, "%d", c->priority);
-		*cp4 = workspace;
-	} else if (!strcmp(cp3, "CHANNEL")) {
-		*cp4 = c->name;
+		*ret = workspace;
+	} else if (!strcmp(var, "CHANNEL")) {
+		strncpy(workspace, c->name, workspacelen - 1);
+		*ret = workspace;
 	} else {
 		AST_LIST_TRAVERSE(headp,variables,entries) {
 #if 0
-			ast_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",cp3,ast_var_name(variables));
+			ast_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",var,ast_var_name(variables));
 #endif
-			if (strcasecmp(ast_var_name(variables),cp3)==0)
-				*cp4=ast_var_value(variables);
+			if (strcasecmp(ast_var_name(variables),var)==0) {
+				*ret=ast_var_value(variables);
+				if (*ret) {
+					strncpy(workspace, *ret, workspacelen - 1);
+					*ret = workspace;
+				}
+			}
 		}
-		if (!(*cp4)) {
+		if (!(*ret)) {
 			/* Try globals */
 			AST_LIST_TRAVERSE(&globals,variables,entries) {
 #if 0
-				ast_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",cp3,ast_var_name(variables));
+				ast_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",var,ast_var_name(variables));
 #endif
-				if (strcasecmp(ast_var_name(variables),cp3)==0)
-					*cp4=ast_var_value(variables);
+				if (strcasecmp(ast_var_name(variables),var)==0) {
+					*ret=ast_var_value(variables);
+					if (*ret) {
+						strncpy(workspace, *ret, workspacelen - 1);
+						*ret = workspace;
+					}
+				}
 			}
 		}
-		if (!(*cp4)) {
-			int len=strlen(cp3);
+		if (!(*ret)) {
+			int len=strlen(var);
 			int len_env=strlen("ENV(");
-			if (len > (len_env+1) && !strncasecmp(cp3,"ENV(",len_env) && !strcmp(cp3+len-1,")")) {
+			if (len > (len_env+1) && !strncasecmp(var,"ENV(",len_env) && !strcmp(var+len-1,")")) {
+				char cp3[80] = "";
+				strncpy(cp3, var, sizeof(cp3) - 1);
 				cp3[len-1]='\0';
-				*cp4=getenv(cp3+len_env);
+				*ret=getenv(cp3+len_env);
+				if (*ret) {
+					strncpy(workspace, *ret, workspacelen - 1);
+					*ret = workspace;
+				}
 			}
 		}
 	}
 }
 
-static void pbx_substitute_variables_helper(struct ast_channel *c,char *cp1,char **ecp2,int count)
+static void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char *cp2,int count)
 {
-	char *cp4,*cp2;
-	char *tmp,*wherearewe,*finish=NULL,*ltmp,*lval,*nextvar;
-	int length,variables=0;
+	char *cp4;
+	const char *tmp, *whereweare;
+	int length;
 	char workspace[256];
+	char ltmp[256], var[256];
+	char *nextpos;
+	char *vars, *vare;
+	int pos, brackets, needsub, len;
 
-	wherearewe=tmp=cp1;
-	cp2=*ecp2;
-	*cp2='\0';
-	do {
-		char *start,*start2;
-		if ((tmp=strstr(wherearewe,"${"))) {
-			variables++;
-			length=(int)(tmp-wherearewe);
-			strncat(cp2,wherearewe,length);
-			wherearewe=tmp;
+	/* Substitutes variables into cp2, based on string cp1, and assuming cp2 to be
+	   zero-filled */
+
+	whereweare=tmp=cp1;
+	while(strlen(whereweare) && count) {
+		/* Assume we're copying the whole remaining string */
+		pos = strlen(whereweare);
+
+		/* Look for a variable */
+		nextpos = strstr(whereweare, "${");
+		
+		/* If there is one, we only go that far */
+		if (nextpos)
+			pos = nextpos - whereweare;
+		
+		/* Can't copy more than 'count' bytes */
+		if (pos > count)
+			pos = count;
+		
+		/* Copy that many bytes */
+		memcpy(cp2, whereweare, pos);
+		
+		count -= pos;
+		cp2 += pos;
+		whereweare += pos;
+		
+		if (nextpos) {
+			/* We have a variable.  Find the start and end, and determine
+			   if we are going to have to recursively call ourselves on the
+			   contents */
+			vars = vare = nextpos + 2;
+			brackets = 1;
+			needsub = 0;
 			
-			ltmp=malloc(sizeof(char)*256);
-			start=start2=tmp+1;
-			do {
-				if (variables==0) {
-					nextvar=strstr(start2,"${");
-					if (nextvar) {
-						if ((int)(finish-nextvar)>0) {
-							variables++;
-							start2=nextvar+1;
-						} else break;
-					} else break;
-				}
-				finish=strchr(start,'}');
-				if (finish) {
-					variables--;
-					start=finish+1;
-				} else {
-					if (variables>0) {
-						ast_log(LOG_NOTICE, "Error in extension logic\n");
-						cp2[0]='\0';
-						return;
-					}
-					break;
-				}
-			} while (1);
+			/* Find the end of it */
+			while(brackets && *vare) {
+				if ((vare[0] == '$') && (vare[1] == '{')) {
+					needsub++;
+					brackets++;
+				} else if (vare[0] == '}') {
+					brackets--;
+				} else if (vare[0] == '[')
+					needsub++;
+				vare++;
+			}
+			if (brackets)
+				ast_log(LOG_NOTICE, "Error in extension logic (missing '}')\n");
+			len = vare - vars - 1;
 			
-			length=(int)(finish-tmp);
-			wherearewe+=length+1;
-			lval=strndup(tmp+2,length-2);
-			pbx_substitute_variables_helper(c,lval,&ltmp,count+1);
-			free(lval);
-			if (ltmp) {
-				length=strlen(ltmp);
-				strncat(cp2,ltmp,length);
+			/* Skip totally over variable name */
+			whereweare += ( len + 3);
+			
+			/* Store variable name (and truncate) */
+			memset(var, 0, sizeof(var));
+			strncpy(var, vars, sizeof(var) - 1);
+			var[len] = '\0';
+			
+			/* Substitute if necessary */
+			if (needsub) {
+				memset(ltmp, 0, sizeof(ltmp));
+				pbx_substitute_variables_helper(c, var, ltmp, sizeof(ltmp) - 1);
+				vars = ltmp;
+			} else {
+				vars = var;
 			}
-		} else {
-			if (wherearewe!=cp1) {
-				if (*wherearewe) {
-					length=strlen(wherearewe);
-					strncat(cp2,wherearewe,length);
-				}
-				strcat(cp2,"\0");
-				
-				cp1=cp2;
+			
+			/* Retrieve variable value */
+			pbx_substitute_variables_temp(c,vars,&cp4, workspace, sizeof(workspace));
+			if (cp4) {
+				length = strlen(cp4);
+				if (length > count)
+					length = count;
+				memcpy(cp2, cp4, length);
+				count -= length;
+				cp2 += length;
 			}
-			if (count) {			
-				pbx_substitute_variables_temp(c,cp1,&cp4, workspace, sizeof(workspace));
-				if (cp4) {
-					/* reset output variable so we could store the result */
-					*cp2='\0';
-					length=strlen(cp4);
-					strncat(cp2,cp4,length);
-				} else
-					cp2[0]='\0';
-			}
+			
+		} else
 			break;
-		}
-	} while(1);
+	}
 }
 
+static void pbx_substitute_variables(char *passdata, int datalen, struct ast_channel *c, struct ast_exten *e) {
+	char *cp1,*cp3,*cp4;
+	char cp2[256] = "";
+	char c1,c2;
+	int m,mve,origlen,quoted,dolsign,docopy;
+	char cp5[256]="";
+        
+	/* No variables or expressions in e->data, so why scan it? */
+	if (!strstr(e->data,"${") && !strstr(e->data,"$[")) {
+		strncpy(passdata, e->data, datalen - 1);
+		passdata[datalen-1] = '\0';
+		return;
+	}
+	
+	pbx_substitute_variables_helper(c,e->data,cp2, sizeof(cp2) - 1);
+
+	/* Second stage, expression evaluation */
+	if ((strstr(cp2,"$[")==NULL)) {
+		strncpy(passdata, cp2, datalen - 1);
+		passdata[datalen-1] = '\0';
+		return;
+	}
+	/* else, do expression evaluation */
+	
+	dolsign=0;
+	docopy=1;
+	origlen=strlen(cp2)+1;
+	
+	cp4=NULL;
+	cp1=cp2;
+	quoted=0;
+	
+	do {
+		c1=*cp1;
+		mve=0;
+	        switch (c1) {
+	        	case '$' : 
+	        		dolsign=1;
+	        		docopy=0;
+	        		break;
+	        	case '[' :
+	        		if (dolsign==0) {
+	        			docopy=1;
+	        			dolsign=0;
+	        			break;
+	        		}
+	        		dolsign=0;
+	        		docopy=0;
+	        		m=0;
+	        		mve=1;
+	        		cp1++;
+	        		
+	        		while (((c2=*(cp1+m))!=']') && (c2!='\0')) {
+	        			m++;
+	        		}
+	        		cp3=malloc(m+2);
+	        		strncpy(cp3,cp1,m);
+	        		cp3[m]='\0';
+	        		cp1+=m;
+	        		/* Now we have the expression to evaluate on cp3 */
+	        		cp4=ast_expr(cp3);
+	        		free(cp3);
+	        		break;
+	        	default :
+	        		if (dolsign==1) {
+	        			strncat((char *)cp5,"$",1);
+	        		}
+	        		dolsign=0;
+	        		docopy=1;
+	        		mve=0;
+	        		break;
+	        }
+	        if (cp1!='\0') {
+	        	if (mve==0) {
+	        		if (docopy==1) {
+		        		strncat((char *)cp5,&c1,1);
+		        	}
+	        	} else {
+	        		if (cp4!=NULL) {
+		        		strncat((char *)cp5,cp4,strlen(cp4));
+		        	} else {
+		        		ast_log(LOG_WARNING,"mve!=0 and cp4=NULL, something gone astray\n");
+		        	}
+	        	}
+	        }
+	                
+	} while (*cp1++!='\0');
+	strncpy(passdata, cp5, datalen - 1);
+}
+#if 0
 static void *pbx_substitute_variables(struct ast_channel *c, struct ast_exten *e) {
 	char *cp1,*cp3,*cp4,*cp5;
 	char *cp2;
@@ -998,7 +1127,7 @@ static void *pbx_substitute_variables(struct ast_channel *c, struct ast_exten *e
 	free(cp2);
 	return(cp5);
 }
-	        		
+#endif	        		
 	        	
 		                                                
 
@@ -1008,11 +1137,11 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 	struct ast_app *app;
 	struct ast_switch *sw;
 	char *data;
-	char *newdata;
 	int newstack = 0;
 	int res;
 	int status = 0;
 	char *incstack[AST_PBX_MAX_STACK];
+	char passdata[256];
 	int stacklen = 0;
 	char tmp[80];
 	char tmp2[80];
@@ -1046,17 +1175,16 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 				strncpy(c->context, context, sizeof(c->context-1));
 				strncpy(c->exten, exten, sizeof(c->exten)-1);
 				c->priority = priority;
-				newdata=pbx_substitute_variables(c,e);
+				pbx_substitute_variables(passdata, sizeof(passdata), c, e);
 				if (option_debug)
 						ast_log(LOG_DEBUG, "Launching '%s'\n", app->name);
 				else if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\") %s\n", 
 								term_color(tmp, app->name, COLOR_BRCYAN, 0, sizeof(tmp)),
 								term_color(tmp2, c->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
-								term_color(tmp3, (newdata ? (char *)newdata : NULL), COLOR_BRMAGENTA, 0, sizeof(tmp3)),
+								term_color(tmp3, (strlen(passdata) ? (char *)passdata : ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)),
 								(newstack ? "in new stack" : "in same stack"));
-				res = pbx_exec(c, app, newdata, newstack);
-				free(newdata);
+				res = pbx_exec(c, app, passdata, newstack);
 				return res;
 			} else {
 				ast_log(LOG_WARNING, "No application '%s' for extension (%s, %s, %d)\n", e->app, context, exten, priority);
