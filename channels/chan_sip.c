@@ -434,7 +434,7 @@ static int retrans_pkt(void *data)
 	} else {
 		ast_log(LOG_WARNING, "Maximum retries exceeded on call %s for seqno %d (%s)\n", pkt->owner->callid, pkt->seqno, pkt->resp ? "Response" : "Request");
 		pkt->retransid = -1;
-		while(pkt->owner->owner && !ast_mutex_lock(&pkt->owner->owner->lock)) {
+		while(pkt->owner->owner && ast_mutex_lock(&pkt->owner->owner->lock)) {
 			ast_mutex_unlock(&pkt->owner->lock);
 			usleep(1);
 			ast_mutex_lock(&pkt->owner->lock);
