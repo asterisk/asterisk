@@ -31,6 +31,12 @@ Zaptel compatible hardware
    * Wildcard S100U - Single FXS interface connects to a standard analog
      telephone.
 
+   * Wildcard TDM400P - Quad Modular FXS interface connects to standard
+     analog telephones.
+
+   * Wildcard TE410P - Quad T1/E1 switchable interface.  Supports PRI and 
+     RBS signalling, as well as PPP, FR, and HDLC data modes.
+
 Non-zaptel compatible hardware
 ==============================
 
