@@ -3392,7 +3392,7 @@ static int transmit_request_with_auth(struct sip_pvt *p, char *msg, int seqno, i
 	reqprep(&resp, p, msg, seqno, newbranch);
 	if (*p->realm)
 	{
-		char digest[256];
+		char digest[1024];
 		memset(digest,0,sizeof(digest));
 		build_reply_digest(p, msg, digest, sizeof(digest));
 		add_header(&resp, "Proxy-Authorization", digest);
