@@ -98,6 +98,8 @@
 
 %transfer.gsm%Please hold while I try that extension.
 
+%vm-forward.gsm%Press 1 to enter an extension, press 2 to use the directory
+
 %vm-Cust1.gsm%folder 5
 
 %vm-Cust2.gsm%folder 6

@@ -46,6 +46,8 @@ maxlogins=3
 ;pbxskip=yes
 ; Change the From: string
 ;fromstring=The Asterisk PBX
+; Permit finding entries for forward/compose from the directory
+;usedirectory=yes
 ;
 ;Change the From: string for pager messages
 ;pagerfromstring=The Asterisk PBX

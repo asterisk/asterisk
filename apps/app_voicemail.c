@@ -290,10 +290,10 @@ static char pagerfromstring[100];
 static char emailtitle[100];
 static char charset[32] = "ISO-8859-1";
 
+static int directory_forward;
 static char adsifdn[4] = "\x00\x00\x00\x0F";
 static char adsisec[4] = "\x9B\xDB\xF7\xAC";
 static int adsiver = 1;
-
 
 STANDARD_LOCAL_USER;
 
@@ -2218,7 +2218,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 
 static int forward_message(struct ast_channel *chan, char *context, char *dir, int curmsg, struct ast_vm_user *sender, char *fmt,int flag)
 {
-	char username[70];
+	char username[70]="";
 	char sys[256];
 	char todir[256];
 	int todircount=0;
@@ -2234,12 +2234,88 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 	char *stringp, *s;
 	int saved_messages = 0, found = 0;
 	int valid_extensions = 0;
+	
 	while (!res && !valid_extensions) {
-		res = ast_streamfile(chan, "vm-extension", chan->language);	/* "extension" */
-		if (res)
-			break;
-		if ((res = ast_readstring(chan, username, sizeof(username) - 1, 2000, 10000, "#") < 0))
-			break;
+		
+		int use_directory = 0;
+		if( directory_forward ) {
+			int done = 0;
+			int retries = 0;
+			cmd=0;
+			while((cmd >= 0) && !done ){
+				if (cmd)
+					retries = 0;
+				switch (cmd) {
+				case '1': 
+					use_directory = 0;
+					done = 1;
+					break;
+				case '2': 
+					use_directory = 1;
+					done=1;
+					break;
+				case '*': 
+					cmd = 't';
+					done = 1;
+					break;
+				default: 
+					/* Press 1 to enter an extension press 2 to use the directory */
+					cmd = ast_play_and_wait(chan,"vm-forward");
+					if (!cmd)
+						cmd = ast_waitfordigit(chan,3000);
+					if (!cmd)
+						retries++;
+					if (retries > 3)
+					{
+						cmd = 't';
+						done = 1;
+					}
+					
+				 }
+			}
+			if( cmd<0 || cmd=='t' )
+				break;
+		}
+		
+		if( use_directory ) {
+			/* use app_directory */
+			
+			char old_context[sizeof(chan->context)];
+			char old_exten[sizeof(chan->exten)];
+			int old_priority;
+			struct ast_app* app;
+
+			
+			app = pbx_findapp("Directory");
+			if (app) {
+				/* make mackup copies */
+				memcpy(old_context, chan->context, sizeof(chan->context));
+				memcpy(old_exten, chan->exten, sizeof(chan->exten));
+				old_priority = chan->priority;
+				
+				/* call the the Directory, changes the channel */
+				res = pbx_exec(chan, app, ((context)?context:chan->context), 1);
+				
+				strncpy(username, chan->exten, sizeof(username)-1);
+				
+				/* restore the old context, exten, and priority */
+				memcpy(chan->context, old_context, sizeof(chan->context));
+				memcpy(chan->exten, old_exten, sizeof(chan->exten));
+				chan->priority = old_priority;
+				
+			} else {
+				ast_log(LOG_WARNING, "Could not find the Directory application, disabling directory_forward\n");
+				directory_forward = 0;
+			}
+		} else 	{
+			/* Ask for an extension */
+			res = ast_streamfile(chan, "vm-extension", chan->language);	/* "extension" */
+			if (res)
+				break;
+			if ((res = ast_readstring(chan, username, sizeof(username) - 1, 2000, 10000, "#") < 0))
+				break;
+		}
+		
 		/* start all over if no username */
 		if (ast_strlen_zero(username))
 			continue;
@@ -4150,6 +4226,7 @@ static int load_config(void)
 	char *astsaydurationinfo;
 	char *astsaydurationminfo;
 	char *silencestr;
+	char *astdirfwd;
 	char *thresholdstr;
 	char *fmt;
 	char *astemail;
@@ -4382,6 +4459,10 @@ static int load_config(void)
 			exitcontext[0] = '\0';
 		}
 
+		directory_forward = 0;
+		if (!(astdirfwd = ast_variable_retrieve(cfg, "general", "usedirectory"))) 
+			astdirfwd = "no";
+		directory_forward = ast_true(astdirfwd);
 
 		cat = ast_category_browse(cfg, NULL);
 		while (cat) {
