@@ -506,7 +506,7 @@ static int modem_write(struct ast_channel *ast, struct ast_frame *frame)
 
 	/* Block again */
 	fcntl(ast->fds[0], F_SETFL, flags);
-	return 0;
+	return res;
 }
 
 struct ast_channel *ast_modem_new(struct ast_modem_pvt *i, int state)
