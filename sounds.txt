@@ -384,3 +384,7 @@
 
 %vm-received.gsm%received
 
+%hours.gsm%hours
+
+%minutes.gsm%minutes
+
