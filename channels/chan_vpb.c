@@ -240,6 +240,7 @@ static struct vpb_pvt {
 	char ext[AST_MAX_EXTENSION];		/* DTMF buffer for the ext[ens] */
 	char language[MAX_LANGUAGE];		/* language being used */
 	char callerid[AST_MAX_EXTENSION];	/* CallerId used for directly connected phone */
+	int  callerid_type;			/* Caller ID type: 0=>none 1=>vpb 2=>AstV23 3=>AstBell */
 
 	int dtmf_caller_pos;			/* DTMF CallerID detection (Brazil)*/
 
@@ -558,6 +559,7 @@ static void get_callerid(struct vpb_pvt *p)
 				ast_set_callerid(owner, cli_struct->cldn, cli_struct->cn, cli_struct->cldn);
 				if (option_verbose>3) 
 					ast_verbose(VERBOSE_PREFIX_4 "CID record - got [%s] [%s]\n",owner->cid.cid_num,owner->cid.cid_name );
+				snprintf(p->callerid,sizeof(p->callerid)-1,"%s %s",cli_struct->cldn,cli_struct->cn);
 			}
 			else {
 				ast_log(LOG_ERROR,"CID record - No caller id avalable on %s \n", p->dev);
@@ -565,7 +567,7 @@ static void get_callerid(struct vpb_pvt *p)
 
 		} else {
 			ast_log(LOG_ERROR, "CID record - Failed to decode caller id on %s - %s\n", p->dev, vpb_strerror(rc) );
-			strncpy(callerid,"unknown", sizeof(callerid) - 1);
+			strncpy(p->callerid,"unknown", sizeof(p->callerid) - 1);
 		}
 		delete cli_struct;
 
@@ -587,24 +589,23 @@ static void get_callerid_ast(struct vpb_pvt *p)
 	void * ws;
 	char * file="cidsams.wav";
 
-	if(!strcasecmp(p->callerid, "on")) {
+	if(p->callerid_type == 1) {
 	if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collected caller ID already\n");
 		return;
 	}
-	else if(!strcasecmp(p->callerid, "v23")) {
+	else if(p->callerid_type == 2 ) {
 		which_cid=CID_SIG_V23;
-	if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collecting Caller ID v23[%s/%d]...\n",p->callerid,which_cid);
+	if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collecting Caller ID v23...\n");
 	}
-	else if(!strcasecmp(p->callerid, "bell")) {
+	else if(p->callerid_type == 3) {
 		which_cid=CID_SIG_BELL;
-	if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collecting Caller ID bell[%s/%d]...\n",p->callerid,which_cid);
+	if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collecting Caller ID bell...\n");
 	}
 	else {
 		if (option_verbose>3) 
 			ast_verbose(VERBOSE_PREFIX_4 "Caller ID disabled\n");
 		return;
 	}
-	if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collecting Caller ID type[%s/%d]...\n",p->callerid,which_cid);
 /*	vpb_sleep(RING_SKIP); */
 /*	vpb_record_get_gain(p->handle, &old_gain); */
 	cs = callerid_new(which_cid);
@@ -657,9 +658,14 @@ static void get_callerid_ast(struct vpb_pvt *p)
 	if (number && !ast_strlen_zero(number)) {
 		owner->cid.cid_num = strdup(number);
 		owner->cid.cid_ani = strdup(number);
+		if (name && !ast_strlen_zero(name)){
+			owner->cid.cid_name = strdup(name);
+			snprintf(p->callerid,(sizeof(p->callerid)-1),"%s %s",number,name);
+		}
+		else {
+			snprintf(p->callerid,(sizeof(p->callerid)-1),"%s",number);
+		}
 	}
-	if (name && !ast_strlen_zero(name))
-		owner->cid.cid_name = strdup(name);
 														     
 	if (cs)
 		callerid_free(cs);
@@ -943,7 +949,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 		case VPB_RING:
 			if (p->mode == MODE_FXO) /* FXO port ring, start * */ {
 				vpb_new(p, AST_STATE_RING, p->context);
-				if(!strcasecmp(p->callerid, "on")) {
+				if(p->callerid_type == 1) {
 					if (option_verbose>3) 
 						ast_verbose(VERBOSE_PREFIX_4 "Using VPB Caller ID\n");
 					get_callerid(p);	/* Australian Caller ID only between 1st and 2nd ring  */
@@ -1320,9 +1326,23 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, float txgain, floa
 	strncpy(tmp->language, language, sizeof(tmp->language) - 1);
 	strncpy(tmp->context, context, sizeof(tmp->context) - 1);
 
+	tmp->callerid_type=0;
 	if(callerid) { 
-		strncpy(tmp->callerid, callerid, sizeof(tmp->callerid) - 1);
-		free(callerid);
+		if (strcasecmp(callerid,"on")==0){
+			tmp->callerid_type =1;
+			strncpy(tmp->callerid, "unknown", sizeof(tmp->callerid) - 1);
+		}
+		else if (strcasecmp(callerid,"v23")==0){
+			tmp->callerid_type =2;
+			strncpy(tmp->callerid, "unknown", sizeof(tmp->callerid) - 1);
+		}
+		else if (strcasecmp(callerid,"bell")==0){
+			tmp->callerid_type =3;
+			strncpy(tmp->callerid, "unknown", sizeof(tmp->callerid) - 1);
+		}
+		else {
+			strncpy(tmp->callerid, callerid, sizeof(tmp->callerid) - 1);
+		}
 	} else {
 		strncpy(tmp->callerid, "unknown", sizeof(tmp->callerid) - 1);
 	}
@@ -2234,6 +2254,8 @@ static void *do_chanreads(void *pvt)
 static struct ast_channel *vpb_new(struct vpb_pvt *me, int state, char *context)
 {
 	struct ast_channel *tmp; 
+	char cid_num[256];
+	char cid_name[256];
 
 	if (me->owner) {
 	    ast_log(LOG_WARNING, "Called vpb_new on owned channel (%s) ?!\n", me->dev);
@@ -2255,8 +2277,13 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, int state, char *context)
 		tmp->pvt->rawreadformat = AST_FORMAT_SLINEAR;
 		tmp->pvt->rawwriteformat =  AST_FORMAT_SLINEAR;
 		ast_setstate(tmp, state);
-		if (state == AST_STATE_RING)
+		if (state == AST_STATE_RING) {
 			tmp->rings = 1;
+			cid_name[0] = '\0';
+			cid_num[0] = '\0';
+			ast_callerid_split(me->callerid, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
+			ast_set_callerid(tmp, cid_num, cid_name, cid_num);
+		}
 		tmp->pvt->pvt = me;
 		/* set call backs */
 		tmp->pvt->send_digit = vpb_digit;
