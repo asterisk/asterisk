@@ -4295,7 +4295,8 @@ static int expire_registry(void *data)
 	p->expire = -1;
 	/* Reset expirey value */
 	p->expirey = expirey;
-	ast_db_del("IAX/Registry", p->name);
+	if (!p->temponly)
+		ast_db_del("IAX/Registry", p->name);
 	register_peer_exten(p, 0);
 	if (iax2_regfunk)
 		iax2_regfunk(p->name, 0);
@@ -4311,7 +4312,7 @@ static void reg_source_db(struct iax2_peer *p)
 	struct in_addr in;
 	char iabuf[INET_ADDRSTRLEN];
 	char *c, *d;
-	if (!ast_db_get("IAX/Registry", p->name, data, sizeof(data))) {
+	if (!p->temponly && (!ast_db_get("IAX/Registry", p->name, data, sizeof(data)))) {
 		c = strchr(data, ':');
 		if (c) {
 			*c = '\0';
@@ -4367,7 +4368,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 			if (iax2_regfunk)
 				iax2_regfunk(p->name, 1);
 			snprintf(data, sizeof(data), "%s:%d:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port), p->expirey);
-			if (sin->sin_addr.s_addr) {
+			if (!p->temponly && sin->sin_addr.s_addr) {
 				ast_db_put("IAX/Registry", p->name, data);
 				if  (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Registered '%s' (%s) at %s:%d\n", p->name, 
