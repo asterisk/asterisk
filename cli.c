@@ -551,7 +551,7 @@ static char *complete_fn(char *line, char *word, int pos, int state)
 static int handle_help(int fd, int argc, char *argv[]);
 
 static struct ast_cli_entry builtins[] = {
-	/* Keep alphabetized */
+	/* Keep alphabetized, with longer matches first (example: abcd before abc */
 	{ { "_command", "complete", NULL }, handle_commandcomplete, "Command complete", commandcomplete_help },
 	{ { "_command", "nummatches", NULL }, handle_commandnummatches, "Returns number of command matches", commandnummatches_help },
 	{ { "_command", "matchesarray", NULL }, handle_commandmatchesarray, "Returns command matches array", commandmatchesarray_help },
@@ -561,8 +561,8 @@ static struct ast_cli_entry builtins[] = {
 	{ { "no", "debug", "channel", NULL }, handle_nodebugchan, "Disable debugging on a channel", nodebugchan_help, complete_ch },
 	{ { "reload", NULL }, handle_reload, "Reload configuration", reload_help },
 	{ { "set", "verbose", NULL }, handle_set_verbose, "Set level of verboseness", set_verbose_help },
-	{ { "show", "channel", NULL }, handle_showchan, "Display information on a specific channel", showchan_help, complete_ch },
 	{ { "show", "channels", NULL }, handle_chanlist, "Display information on channels", chanlist_help },
+	{ { "show", "channel", NULL }, handle_showchan, "Display information on a specific channel", showchan_help, complete_ch },
 	{ { "show", "modules", NULL }, handle_modlist, "List modules and info", modlist_help },
 	{ { "show", "uptime", NULL }, handle_showuptime, "Show uptime information", modlist_help },
 	{ { "show", "version", NULL }, handle_version, "Display version info", version_help },
