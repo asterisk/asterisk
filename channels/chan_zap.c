@@ -590,6 +590,8 @@ static int hangup_cause2pri(int cause)
 	switch(cause) {
 		case AST_CAUSE_BUSY:
 			return PRI_CAUSE_USER_BUSY;
+		case AST_CAUSE_UNALLOCATED:
+			return PRI_CAUSE_UNALLOCATED;
 		case AST_CAUSE_NORMAL:
 		default:
 			return PRI_CAUSE_NORMAL_CLEARING;
@@ -4232,6 +4234,43 @@ static void *ss_thread(void *data)
 	if (p->dsp)
 		ast_dsp_digitreset(p->dsp);
 	switch(p->sig) {
+#ifdef ZAPATA_PRI
+	case SIG_PRI:
+		/* Now loop looking for an extension */
+		strncpy(exten, p->exten, sizeof(exten) - 1);
+		len = strlen(exten);
+		res = 0;
+		while((len < AST_MAX_EXTENSION-1) && ast_matchmore_extension(chan, chan->context, exten, 1, p->callerid)) {
+			if (ast_exists_extension(chan, chan->context, exten, 1, p->callerid))
+				timeout = matchdigittimeout;
+			else
+				timeout = gendigittimeout;
+			res = ast_waitfordigit(chan, timeout);
+			if (res < 0) {
+				ast_log(LOG_DEBUG, "waitfordigit returned < 0...\n");
+				ast_hangup(chan);
+				return NULL;
+			} else if (res) {
+				exten[len++] = res;
+			} else
+				break;
+		}
+		if (ast_exists_extension(chan, chan->context, exten, 1, p->callerid)) {
+			/* Start the real PBX */
+			strncpy(chan->exten, exten, sizeof(chan->exten));
+			ast_dsp_digitreset(p->dsp);
+			res = ast_pbx_run(chan);
+			if (res) {
+				ast_log(LOG_WARNING, "PBX exited non-zero!\n");
+			}
+		} else {
+			ast_log(LOG_DEBUG, "No such possible extension '%s' in context '%s'\n", exten, chan->context);
+			chan->hangupcause = AST_CAUSE_UNALLOCATED;
+			ast_hangup(chan);
+		}
+		return NULL;
+		break;
+#endif
 	case SIG_FEATD:
 	case SIG_FEATDMF:
 	case SIG_E911:
@@ -6112,6 +6151,8 @@ static void *pri_dchannel(void *vpri)
 	pthread_t p;
 	time_t t;
 	int i;
+	pthread_t threadid;
+	pthread_attr_t attr;
 	gettimeofday(&lastidle, NULL);
 	if (strlen(pri->idledial) && strlen(pri->idleext)) {
 		/* Need to do idle dialing, check to be sure though */
@@ -6332,44 +6373,68 @@ static void *pri_dchannel(void *vpri)
 				}
 				break;
 			case PRI_EVENT_INFO_RECEIVED:
-			case PRI_EVENT_RING:
 				chan = e->ring.channel;
-				if (e->e==PRI_EVENT_RING) {
-					/* if no channel specified find one empty */
-					if (chan == -1)
-						chan = pri_find_empty_chan(pri);
-					if ((chan < 1) || (chan > pri->channels)) {
-						ast_log(LOG_WARNING, "Ring requested on odd channel number %d span %d\n", chan, pri->span);
-						chan = 0;
-					} else if (!pri->pvt[chan]) {
-						ast_log(LOG_WARNING, "Ring requested on unconfigured channel %d span %d\n", chan, pri->span);
-						chan = 0;
-					} else if (pri->pvt[chan]->owner) {
-						if (pri->pvt[chan]->call == e->ring.call) {
-							ast_log(LOG_WARNING, "Duplicate setup requested on channel %d already in use on span %d\n", chan, pri->span);
-							break;
-						} else {
-							ast_log(LOG_WARNING, "Ring requested on channel %d already in use on span %d.  Hanging up owner.\n", chan, pri->span);
-							pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
-							chan = 0;
-						}
-					}
-					if (!chan && (e->ring.flexible))
-						chan = pri_find_empty_chan(pri);
+				if ((chan < 1) || (chan > pri->channels)) {
+					ast_log(LOG_WARNING, "INFO received on odd channel number %d span %d\n", chan, pri->span);
+					chan = 0;
+				} else if (!pri->pvt[chan]) {
+					ast_log(LOG_WARNING, "INFO received on unconfigured channel %d span %d\n", chan, pri->span);
+					chan = 0;
 				}
 				if (chan) {
-					if (e->e==PRI_EVENT_RING) {
-						pri->pvt[chan]->call = e->ring.call;
-						/* Get caller ID */
-						if (pri->pvt[chan]->use_callerid) {
-							if (strlen(e->ring.callingname)) {
-								snprintf(pri->pvt[chan]->callerid, sizeof(pri->pvt[chan]->callerid), "\"%s\" <%s>", e->ring.callingname, e->ring.callingnum);
-							} else
-								strncpy(pri->pvt[chan]->callerid, e->ring.callingnum, sizeof(pri->pvt[chan]->callerid)-1);
-						} else
-							strcpy(pri->pvt[chan]->callerid, "");
-						strncpy(pri->pvt[chan]->rdnis, e->ring.redirectingnum, sizeof(pri->pvt[chan]->rdnis));
+					chan = pri_fixup(pri, chan, e->ring.call);
+					if (chan) {
+						/* queue DTMF frame if the PBX for this call was already started (we're forwarding INFORMATION further on */
+						if (pri->overlapdial && pri->pvt[chan]->call==e->ring.call && pri->pvt[chan]->owner) {
+							/* how to do that */
+							int digitlen = strlen(e->ring.callednum);
+							char digit;
+							int i;					
+							for (i=0; i<digitlen; i++) {	
+								digit = e->ring.callednum[i];
+								{
+									struct ast_frame f = { AST_FRAME_DTMF, digit, };
+									ast_queue_frame(pri->pvt[chan]->owner, &f);
+								}
+							}
+						}
 					}
+				}
+				break;
+			case PRI_EVENT_RING:
+				chan = e->ring.channel;
+				/* if no channel specified find one empty */
+				if (chan == -1)
+					chan = pri_find_empty_chan(pri);
+				if ((chan < 1) || (chan > pri->channels)) {
+					ast_log(LOG_WARNING, "Ring requested on odd channel number %d span %d\n", chan, pri->span);
+					chan = 0;
+				} else if (!pri->pvt[chan]) {
+					ast_log(LOG_WARNING, "Ring requested on unconfigured channel %d span %d\n", chan, pri->span);
+					chan = 0;
+				} else if (pri->pvt[chan]->owner) {
+					if (pri->pvt[chan]->call == e->ring.call) {
+						ast_log(LOG_WARNING, "Duplicate setup requested on channel %d already in use on span %d\n", chan, pri->span);
+						break;
+					} else {
+						ast_log(LOG_WARNING, "Ring requested on channel %d already in use on span %d.  Hanging up owner.\n", chan, pri->span);
+						pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+						chan = 0;
+					}
+				}
+				if (!chan && (e->ring.flexible))
+					chan = pri_find_empty_chan(pri);
+				if (chan) {
+					pri->pvt[chan]->call = e->ring.call;
+					/* Get caller ID */
+					if (pri->pvt[chan]->use_callerid) {
+						if (strlen(e->ring.callingname)) {
+							snprintf(pri->pvt[chan]->callerid, sizeof(pri->pvt[chan]->callerid), "\"%s\" <%s>", e->ring.callingname, e->ring.callingnum);
+						} else
+							strncpy(pri->pvt[chan]->callerid, e->ring.callingnum, sizeof(pri->pvt[chan]->callerid)-1);
+					} else
+						strcpy(pri->pvt[chan]->callerid, "");
+					strncpy(pri->pvt[chan]->rdnis, e->ring.redirectingnum, sizeof(pri->pvt[chan]->rdnis));
 					/* If immediate=yes go to s|1 */
 					if (pri->pvt[chan]->immediate) {
 						if (option_verbose > 2)
@@ -6378,20 +6443,9 @@ static void *pri_dchannel(void *vpri)
 					}
 					/* Get called number */
 					else if (strlen(e->ring.callednum)) {
-#ifndef PRI_COPY_DIGITS_CALLED_NUMBER
-#error Please update the libpri package
-#endif
-						if (e->e==PRI_EVENT_RING)
-							strncpy(pri->pvt[chan]->exten, e->ring.callednum, sizeof(pri->pvt[chan]->exten)-1);
-						else
-							strncat(pri->pvt[chan]->exten, e->ring.callednum, sizeof(pri->pvt[chan]->exten)-1);
+						strncpy(pri->pvt[chan]->exten, e->ring.callednum, sizeof(pri->pvt[chan]->exten)-1);
 						strncpy(pri->pvt[chan]->dnid, e->ring.callednum, sizeof(pri->pvt[chan]->dnid));
-					} 
-#if 0
-					else
-						strcpy(pri->pvt[chan]->exten, "s");
-#endif
-					else
+					} else
 						strcpy(pri->pvt[chan]->exten, "");
 					/* No number yet, but received "sending complete"? */
 					if (e->ring.complete && (!strlen(e->ring.callednum))) {
@@ -6399,30 +6453,12 @@ static void *pri_dchannel(void *vpri)
 							ast_verbose(VERBOSE_PREFIX_3 "Going to extension s|1 because of Complete received\n");
 						strcpy(pri->pvt[chan]->exten, "s");
 					}
-					/* queue DTMF frame if the PBX for this call was already started (we're forwarding INFORMATION further on */
-					if (pri->overlapdial && pri->pvt[chan]->call==e->ring.call && pri->pvt[chan]->owner) {
-						/* how to do that */
-						int digitlen = strlen(e->ring.callednum);
-						char digit;
-						int i;
-						/* make sure that we store the right number in CDR */
-						if (pri->pvt[chan]->owner->cdr)
-							strncat(pri->pvt[chan]->owner->cdr->dst,e->ring.callednum,digitlen);
-					
-						for (i=0; i<digitlen; i++) {	
-							digit = e->ring.callednum[i];
-							{
-								struct ast_frame f = { AST_FRAME_DTMF, digit, };
-								ast_queue_frame(pri->pvt[chan]->owner, &f);
-							}
-						}
-					}
-					/* Make sure extension exists */
-					/* If extensions is empty then make sure we send later on SETUP_ACKNOWLEDGE to get digits in overlap mode */
-					else if (strlen(pri->pvt[chan]->exten) && ast_exists_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid)) {
+					/* Make sure extension exists (or in overlap dial mode, can exist) */
+					if ((pri->overlapdial && ast_canmatch_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid)) ||
+						ast_exists_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid)) {
 						/* Setup law */
 						int law;
-						/* Set to audio mode at this poitn mode */
+						/* Set to audio mode at this point */
 						law = 1;
 						if (ioctl(pri->pvt[chan]->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &law) == -1)
 							ast_log(LOG_WARNING, "Unable to set audio mode on channel %d to %d\n", pri->pvt[chan]->channel, law);
@@ -6438,43 +6474,57 @@ static void *pri_dchannel(void *vpri)
 							ast_log(LOG_WARNING, "Unable to set gains on channel %d\n", pri->pvt[chan]->channel);
 						if (e->ring.complete || !pri->overlapdial) {
 							pri_acknowledge(pri->pri, e->ring.call, chan, 1);
-						} else if (e->e==PRI_EVENT_RING) {
-						/* If we got here directly and didn't send the SETUP_ACKNOWLEDGE we need to send it otherwise we don't sent anything */
+						} else  {
 							pri_need_more_info(pri->pri, e->ring.call, chan, 1);
 						}
 						/* Get the use_callingpres state */
 						pri->pvt[chan]->callingpres = e->ring.callingpres;
 						/* Start PBX */
-						c = zt_new(pri->pvt[chan], AST_STATE_RING, 1, SUB_REAL, law, e->ring.ctype);
-						if (c) {
-							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "Accepting call from '%s' to '%s' on channel %d, span %d\n",
-									e->ring.callingnum, pri->pvt[chan]->exten, chan, pri->span);
-							zt_enable_ec(pri->pvt[chan]);
-						} else {
-							ast_log(LOG_WARNING, "Unable to start PBX on channel %d, span %d\n", chan, pri->span);
+						if (pri->overlapdial && ast_matchmore_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid)) {
+							c = zt_new(pri->pvt[chan], AST_STATE_RING, 0, SUB_REAL, law, e->ring.ctype);
+							if (c && !pthread_create(&threadid, &attr, ss_thread, c)) {
+								if (option_verbose > 2)
+									ast_verbose(VERBOSE_PREFIX_3 "Accepting overlap call from '%s' to '%s' on channel %d, span %d\n",
+										e->ring.callingnum, strlen(pri->pvt[chan]->exten) ? pri->pvt[chan]->exten : "<unspecified>", chan, pri->span);
+							} else {
+								ast_log(LOG_WARNING, "Unable to start PBX on channel %d, span %d\n", chan, pri->span);
+								if (c)
+									ast_hangup(c);
+								else {
 #if NEW_PRI_HANGUP
-							pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_SWITCH_CONGESTION);
+									pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_SWITCH_CONGESTION);
 #else
-							pri_release(pri->pri, e->ring.call, PRI_CAUSE_SWITCH_CONGESTION);
+									pri_release(pri->pri, e->ring.call, PRI_CAUSE_SWITCH_CONGESTION);
 #endif
-							pri->pvt[chan]->call = NULL;
+									pri->pvt[chan]->call = NULL;
+								}
+							}
+						} else  {
+							c = zt_new(pri->pvt[chan], AST_STATE_RING, 1, SUB_REAL, law, e->ring.ctype);
+							if (c) {
+								if (option_verbose > 2)
+									ast_verbose(VERBOSE_PREFIX_3 "Accepting call from '%s' to '%s' on channel %d, span %d\n",
+										e->ring.callingnum, pri->pvt[chan]->exten, chan, pri->span);
+								zt_enable_ec(pri->pvt[chan]);
+							} else {
+								ast_log(LOG_WARNING, "Unable to start PBX on channel %d, span %d\n", chan, pri->span);
+#if NEW_PRI_HANGUP
+								pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_SWITCH_CONGESTION);
+#else
+								pri_release(pri->pri, e->ring.call, PRI_CAUSE_SWITCH_CONGESTION);
+#endif
+								pri->pvt[chan]->call = NULL;
+							}
 						}
 					} else {
-						if ((!strlen(pri->pvt[chan]->exten) || ast_matchmore_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid)) && !e->ring.complete)
-						{
-							/* Send SETUP_ACKNOWLEDGE only when we receive SETUP, don't send if we got INFORMATION */
-							if (e->e==PRI_EVENT_RING) pri_need_more_info(pri->pri, e->ring.call, chan, 1);
-						} else {
-							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "Extension '%s' in context '%s' from '%s' does not exist.  Rejecting call on channel %d, span %d\n",pri->pvt[chan]->exten, pri->pvt[chan]->context, pri->pvt[chan]->callerid, chan, pri->span);
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "Extension '%s' in context '%s' from '%s' does not exist.  Rejecting call on channel %d, span %d\n",pri->pvt[chan]->exten, pri->pvt[chan]->context, pri->pvt[chan]->callerid, chan, pri->span);
 #ifdef NEW_PRI_HANGUP
-							pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_UNALLOCATED);
+						pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_UNALLOCATED);
 #else
-							pri_release(pri->pri, e->ring.call, PRI_CAUSE_UNALLOCATED);
+						pri_release(pri->pri, e->ring.call, PRI_CAUSE_UNALLOCATED);
 #endif
-							pri->pvt[chan]->call = NULL;
-						}
+						pri->pvt[chan]->call = NULL;
 					}
 				} else 
 #ifdef NEW_PRI_HANGUP
