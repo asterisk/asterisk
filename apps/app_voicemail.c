@@ -1574,6 +1574,7 @@ leave_vm_out:
 		snprintf(arguments, sizeof(arguments)-1, " %s %s %d&", chan->context, ext, ast_app_has_voicemail(ext));
 		strncat(tmp, arguments, sizeof(tmp) - strlen(arguments));
 		tmp[sizeof(tmp) - 1] = '\0';
+//		ast_verbose(VERBOSE_PREFIX_3,"Executing %s\n", tmp);
 		ast_safe_system(tmp);
 	}
 
@@ -2376,11 +2377,11 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", vmtmp->mailbox, ast_app_has_voicemail(vmtmp->mailbox));
 		if (externnotify[0]) {
 			char arguments[255];
-			ast_log(LOG_DEBUG, "Running external notify program from vm_execmain\n");
 			strncpy(tmp, externnotify, sizeof(tmp));
 			snprintf(arguments, sizeof(arguments)-1, " %s %s %d&", chan->context, vmtmp->mailbox, ast_app_has_voicemail(vmtmp->mailbox));
 			strncat(tmp, arguments, sizeof(tmp) - strlen(arguments));
 			tmp[sizeof(tmp) - 1] = '\0';
+		//	ast_verbose(VERBOSE_PREFIX_3, "executing %s\n", tmp);
 			ast_safe_system(tmp);
 		}
 
@@ -3036,11 +3037,11 @@ out:
 		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", vms.username, ast_app_has_voicemail(vms.username));
 		if (externnotify[0]) {
 			char arguments[255];
-			ast_log(LOG_DEBUG, "Running external notify program from vm_execmain\n");
 			strncpy(tmp, externnotify, sizeof(tmp));
 			snprintf(arguments, sizeof(arguments)-1, " %s %s %d&", chan->context, vms.username, ast_app_has_voicemail(vms.username));
 			strncat(tmp, arguments, sizeof(tmp) - strlen(arguments));
 			tmp[sizeof(tmp) - 1] = '\0';
+		//	ast_verbose(VERBOSE_PREFIX_3, "executing: %s\n");
 			ast_safe_system(tmp);
 		}
 	}
@@ -3350,6 +3351,7 @@ static int load_config(void)
 		
 		if ((notifystr = ast_variable_retrieve(cfg, "general", "externnotify"))) {
 			strncpy(externnotify, notifystr, sizeof(externnotify) - 1);
+			//ast_verbose(VERBOSE_PREFIX_3, "found externnotify: %s\n", externnotify);
 		} else {
 			externnotify[0] = '\0';
 		}
