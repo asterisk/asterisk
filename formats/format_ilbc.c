@@ -157,7 +157,7 @@ static int ilbc_write(struct ast_filestream *fs, struct ast_frame *f)
 		return -1;
 	}
 	if ((res = write(fs->fd, f->data, f->datalen)) != f->datalen) {
-			ast_log(LOG_WARNING, "Bad write (%d/23): %s\n", res, strerror(errno));
+			ast_log(LOG_WARNING, "Bad write (%d/50): %s\n", res, strerror(errno));
 			return -1;
 	}
 	return 0;
@@ -176,7 +176,7 @@ static int ilbc_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	cur = lseek(fs->fd, 0, SEEK_CUR);
 	max = lseek(fs->fd, 0, SEEK_END);
 	
-	bytes = 36 * (sample_offset / 240);
+	bytes = 50 * (sample_offset / 240);
 	if (whence == SEEK_SET)
 		offset = bytes;
 	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
