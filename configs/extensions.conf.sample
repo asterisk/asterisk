@@ -44,6 +44,9 @@ exten=s,6,BackGround,demo-instruct	; Play some instructions
 exten=2,1,BackGround,demo-moreinfo	; Give some more information.
 exten=2,2,Goto,s|6
 
+exten=3,1,SetLanguage,fr		; Set language to french
+exten=3,2,Goto,s|5			; Start with the congratulations
+
 ;
 ; We also create an example user, 1234, who is on the console and has
 ; voicemail, etc.
@@ -53,7 +56,7 @@ exten=1234,2,Dial,Console/dsp|10	; Ring the console, 10 secs max
 exten=1234,3,Playback,vm/1234/unavail	; "I'm not here right now"
 exten=1234,4,Voicemail,1234		; Send to voicemail...
 exten=1234,5,Goto,s|6			; Start over
-exten=1234,103,Playback,vm/4200/busy	; (2 + 101) "I'm on the phone"
+exten=1234,103,Playback,vm/1234/busy	; (2 + 101) "I'm on the phone"
 exten=1234,104,Goto,4			; Go to voicemail, etc.
 
 exten=1235,1,Goto,1234|3		; Right to voicemail
