@@ -21,6 +21,8 @@
  -- res_agi
     -- A fix has been added to prevent calls from being hung up when more than one
        call is executing an AGI script calling the GET DATA command.
+    -- AGI scripts will now continue to run even if a file was not found with the
+       GET DATA command.
  -- app_disa
     -- Fixed the timeout used when no password is set
  -- rtp
