@@ -551,7 +551,7 @@ static char *complete_fn(char *line, char *word, int pos, int state)
 static int handle_help(int fd, int argc, char *argv[]);
 
 static struct ast_cli_entry builtins[] = {
-	/* Keep alphabetized, with longer matches first (example: abcd before abc */
+	/* Keep alphabetized, with longer matches first (example: abcd before abc) */
 	{ { "_command", "complete", NULL }, handle_commandcomplete, "Command complete", commandcomplete_help },
 	{ { "_command", "nummatches", NULL }, handle_commandnummatches, "Returns number of command matches", commandnummatches_help },
 	{ { "_command", "matchesarray", NULL }, handle_commandmatchesarray, "Returns command matches array", commandmatchesarray_help },
