@@ -20,6 +20,7 @@
 #include <asterisk/config.h>
 #include <asterisk/app.h>
 #include <asterisk/musiconhold.h>
+#include <asterisk/manager.h>
 #include <asterisk/options.h>
 #include <asterisk/cli.h>
 #include <asterisk/say.h>
@@ -380,6 +381,14 @@ zapretry:
 		goto outrun;
 	}
 	ast_log(LOG_DEBUG, "Placed channel %s in ZAP conf %d\n", chan->name, conf->zapconf);
+
+	manager_event(EVENT_FLAG_CALL, "MeetmeJoin", 
+			"Channel: %s\r\n"
+			"Uniqueid: %s\r\n"
+			"Meetme: %s\r\n",
+			chan->name, chan->uniqueid, conf->confno);
+
+
 	if (!firstpass && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN)) {
 		firstpass = 1;
 		if (!(confflags & CONFFLAG_QUIET))
@@ -505,6 +514,16 @@ outrun:
 	ast_mutex_lock(&conflock);
 	/* Clean up */
 	conf->users--;
+
+	ast_log(LOG_DEBUG, "Removed channel %s from ZAP conf %d\n", chan->name, conf->zapconf);
+
+	manager_event(EVENT_FLAG_CALL, "MeetmeLeave", 
+			"Channel: %s\r\n"
+			"Uniqueid: %s\r\n"
+			"Meetme: %s\r\n",
+			chan->name, chan->uniqueid, conf->confno);
+
+
 	if (!conf->users) {
 		/* No more users -- close this one out */
 		cur = confs;
