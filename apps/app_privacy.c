@@ -65,7 +65,6 @@ privacy_exec (struct ast_channel *chan, void *data)
 	int x;
 	char *s;
 	char phone[30];
-	char new_cid[144];
 	struct localuser *u;
 	struct ast_config *cfg;
 
@@ -138,7 +137,7 @@ privacy_exec (struct ast_channel *chan, void *data)
 				res = ast_waitstream(chan, "");
 			ast_set_callerid (chan, phone, "Privacy Manager", NULL);
 			if (option_verbose > 2)
-				ast_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID to %s\n",new_cid);
+				ast_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID to %s\n",phone);
 		} else {
 			/*Send the call to n+101 priority, where n is the current priority*/
 			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
