@@ -217,6 +217,7 @@ struct ast_call_queue {
 	int rrpos;			/* Round Robin - position */
 	int wrapped;			/* Round Robin - wrapped around? */
 	int joinempty;			/* Do we care if the queue has no members? */
+	int eventwhencalled;			/* Generate an event when the agent is called (before pickup) */
 
 	struct member *members;		/* Member channels to be tried */
 	struct queue_ent *head;		/* Start of the actual queue */
@@ -585,9 +586,22 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 		tmp->chan = NULL;
 		tmp->stillgoing = 0;
 		return 0;
-	} else
+	} else {
+		if (qe->parent->eventwhencalled) {
+			manager_event(EVENT_FLAG_AGENT, "AgentCalled",
+						"AgentCalled: %s/%s\r\n"
+						"ChannelCalling: %s\r\n"
+						"CallerID: %s\r\n"
+						"Context: %s\r\n"
+						"Extension: %s\r\n"
+						"Priority: %d\r\n",
+						tmp->tech, tmp->numsubst, qe->chan->name,
+						tmp->chan->callerid ? tmp->chan->callerid : "unknown <>",
+						qe->chan->context, qe->chan->exten, qe->chan->priority);
+		}
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Called %s\n", tmp->numsubst);
+			ast_verbose(VERBOSE_PREFIX_3 "Called %s/%s\n", tmp->tech, tmp->numsubst);
+	}
 	return 0;
 }
 
@@ -1833,6 +1847,8 @@ static void reload_queues(void)
 						}
 					} else if (!strcasecmp(var->name, "joinempty")) {
 						q->joinempty = ast_true(var->value);
+					} else if (!strcasecmp(var->name, "eventwhencalled")) {
+						q->eventwhencalled = ast_true(var->value);
 					} else {
 						ast_log(LOG_WARNING, "Unknown keyword in queue '%s': %s at line %d of queue.conf\n", cat, var->name, var->lineno);
 					}

@@ -111,6 +111,11 @@
 ;
 ; joinempty = yes
 ;
+; Asterisk can generate AgentCalled events when an agent is rung, if this is turned on
+; (may generate a LOT of extra manager events)
+;
+; eventwhencalled = yes
+;
 ; Each member of this call queue is listed on a separate line in
 ; the form technology/dialstring.  "member" means a normal member of a
 ; queue.  An optional penalty may be specified after a comma, such that
