@@ -52,6 +52,7 @@ static int dtmftimeout = 3000;	/* 3000 samples */
 
 static int rtpstart = 0;
 static int rtpend = 0;
+static int checksums = 1;
 
 /* The value of each payload format mapping: */
 struct rtpPayloadType {
@@ -765,6 +766,9 @@ static int rtp_socket(void)
 	if (s > -1) {
 		flags = fcntl(s, F_GETFL);
 		fcntl(s, F_SETFL, flags | O_NONBLOCK);
+		if (checksums) {
+			setsockopt(s, SOL_SOCKET, SO_NO_CHECK, &checksums, sizeof(checksums));
+		}
 	}
 	return s;
 }
@@ -1490,6 +1494,7 @@ void ast_rtp_reload(void)
 	char *s;
 	rtpstart = 5000;
 	rtpend = 31000;
+	checksums = 1;
 	cfg = ast_load("rtp.conf");
 	if (cfg) {
 		if ((s = ast_variable_retrieve(cfg, "general", "rtpstart"))) {
@@ -1505,6 +1510,12 @@ void ast_rtp_reload(void)
 				rtpend = 1024;
 			if (rtpend > 65535)
 				rtpend = 65535;
+		}
+		if ((s = ast_variable_retrieve(cfg, "general", "rtpchecksums"))) {
+			if (ast_true(s))
+				checksums = 1;
+			else
+				checksums = 0;
 		}
 		ast_destroy(cfg);
 	}

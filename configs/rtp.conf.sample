@@ -7,3 +7,7 @@
 ;
 rtpstart=10000
 rtpend=20000
+;
+; Whether to enable or disable UDP checksums on RTP traffic
+;
+;rtpchecksums=no
