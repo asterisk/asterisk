@@ -4016,6 +4016,8 @@ static void *ss_thread(void *data)
 			zt_wink(p, index);
 		}
 		zt_enable_ec(p);
+		if ((p->sig == SIG_FEATDMF) || (p->sig == SIG_FEATB)) 
+			ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax); 
 		if (ast_exists_extension(chan, chan->context, exten, 1, chan->callerid)) {
 			strncpy(chan->exten, exten, sizeof(chan->exten)-1);
 			ast_dsp_digitreset(p->dsp);
