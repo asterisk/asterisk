@@ -1367,7 +1367,7 @@ static struct ast_cli_entry  cli_gk_cycle =
 
 
 
-int reload_config()
+int reload_config(void)
 {
 	
 	int format;
