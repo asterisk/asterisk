@@ -5971,7 +5971,8 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
 	char *c;
 	
 	/* Need to check the media/type */
-	if (!strcasecmp(get_header(req, "Content-Type"), "application/dtmf-relay")) {
+	if (!strcasecmp(get_header(req, "Content-Type"), "application/dtmf-relay") ||
+	    !strcasecmp(get_header(req, "Content-Type"), "application/vnd.nortelnetworks.digits")) {
 
 		/* Try getting the "signal=" part */
 		if (ast_strlen_zero(c = get_sdp(req, "Signal")) && ast_strlen_zero(c = get_sdp(req, "d"))) {
