@@ -507,7 +507,7 @@ static int send_command_immediate(struct chan_iax2_pvt *, char, int, unsigned in
 static int send_command_final(struct chan_iax2_pvt *, char, int, unsigned int, char *, int, int);
 static int send_command_transfer(struct chan_iax2_pvt *, char, int, unsigned int, char *, int);
 
-static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts);
+static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, struct timeval *tv);
 
 static int send_ping(void *data)
 {
@@ -1101,7 +1101,7 @@ static int __do_deliver(void *data)
 				iax2_send(iaxs[fr->callno], &fr->af, fr->ts, -1, 0, 0, 0);
 			} else if (fr->af.subclass == IAX_COMMAND_LAGRP) {
 				/* This is a reply we've been given, actually measure the difference */
-				ts = calc_timestamp(iaxs[fr->callno], 0);
+				ts = calc_timestamp(iaxs[fr->callno], 0, NULL);
 				iaxs[fr->callno]->lag = ts - fr->ts;
 			}
 		} else {
@@ -1580,6 +1580,15 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 	   packet we received, which always has a lateness of 1.  Called by
 	   IAX thread, with iaxsl lock held. */
 	ms = calc_rxstamp(iaxs[fr->callno]) - fr->ts;
+
+	fr->af.delivery.tv_sec = iaxs[fr->callno]->rxcore.tv_sec;
+	fr->af.delivery.tv_usec = iaxs[fr->callno]->rxcore.tv_usec;
+	fr->af.delivery.tv_sec += fr->ts / 1000;
+	fr->af.delivery.tv_usec += fr->ts % 1000;
+	if (fr->af.delivery.tv_usec >= 1000000) {
+		fr->af.delivery.tv_usec -= 1000000;
+		fr->af.delivery.tv_sec += 1;
+	}
 
 	if (ms > 32767) {
 		/* What likely happened here is that our counter has circled but we haven't
@@ -2558,7 +2567,7 @@ static unsigned int fix_peerts(struct iax2_peer *peer, int callno, unsigned int 
 	return ms + ts;
 }
 
-static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts)
+static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, struct timeval *delivery)
 {
 	struct timeval tv;
 	unsigned int ms;
@@ -2567,8 +2576,12 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts)
 	/* If the timestamp is specified, just send it as is */
 	if (ts)
 		return ts;
-	gettimeofday(&tv, NULL);
-	ms = (tv.tv_sec - p->offset.tv_sec) * 1000 + (tv.tv_usec - p->offset.tv_usec) / 1000;
+	if (delivery && (delivery->tv_sec || delivery->tv_usec)) {
+		ms = (delivery->tv_sec - p->offset.tv_sec) * 1000 + (delivery->tv_usec - p->offset.tv_usec) / 1000;
+	} else {
+		gettimeofday(&tv, NULL);
+		ms = (tv.tv_sec - p->offset.tv_sec) * 1000 + (tv.tv_usec - p->offset.tv_usec) / 1000;
+	}
 	/* We never send the same timestamp twice, so fudge a little if we must */
 	if (ms <= p->lastsent)
 		ms = p->lastsent + 1;
@@ -2643,7 +2656,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 	lastsent = pvt->lastsent;
 
 	/* Calculate actual timestamp */
-	fts = calc_timestamp(pvt, ts);
+	fts = calc_timestamp(pvt, ts, &f->delivery);
 
 	if ((pvt->trunk || ((fts & 0xFFFF0000L) == (lastsent & 0xFFFF0000L)))
 		/* High two bits are the same on timestamp, or sending on a trunk */ &&
@@ -4968,11 +4981,11 @@ retryowner:
 					forward_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr.ts, NULL, 0, -1);
 				} else {
 					/* Calculate ping time */
-					iaxs[fr.callno]->pingtime =  calc_timestamp(iaxs[fr.callno], 0) - fr.ts;
+					iaxs[fr.callno]->pingtime =  calc_timestamp(iaxs[fr.callno], 0, NULL) - fr.ts;
 				}
 #else
 				/* Calculate ping time */
-				iaxs[fr.callno]->pingtime =  calc_timestamp(iaxs[fr.callno], 0) - fr.ts;
+				iaxs[fr.callno]->pingtime =  calc_timestamp(iaxs[fr.callno], 0, NULL) - fr.ts;
 #endif
 				if (iaxs[fr.callno]->peerpoke) {
 					peer = iaxs[fr.callno]->peerpoke;
