@@ -4847,7 +4847,7 @@ static void reg_source_db(struct iax2_peer *p)
 					p->addr.sin_port = htons(atoi(c));
 					if (p->expire > -1)
 						ast_sched_del(sched, p->expire);
-					p->expire = ast_sched_add(sched, p->expirey * 1000, expire_registry, (void *)p);
+					p->expire = ast_sched_add(sched, (p->expirey + 10) * 1000, expire_registry, (void *)p);
 					if (iax2_regfunk)
 						iax2_regfunk(p->name, 1);
 					register_peer_exten(p, 1);
@@ -4908,7 +4908,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 		if (p->expire > -1)
 			ast_sched_del(sched, p->expire);
 		if (p->expirey && sin->sin_addr.s_addr)
-			p->expire = ast_sched_add(sched, p->expirey * 1000, expire_registry, (void *)p);
+			p->expire = ast_sched_add(sched, (p->expirey + 10) * 1000, expire_registry, (void *)p);
 		iax_ie_append_str(&ied, IAX_IE_USERNAME, p->name);
 		iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime(p->zonetag));
 		if (sin->sin_addr.s_addr) {
