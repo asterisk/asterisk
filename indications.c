@@ -31,6 +31,7 @@ struct playtones_item {
 	int freq1;
 	int freq2;
 	int duration;
+	int modulate;
 };
 
 struct playtones_def {
@@ -103,7 +104,15 @@ static int playtones_generator(struct ast_channel *chan, void *data, int len, in
 
 	pi = &ps->items[ps->npos];
 	for (x=0;x<len/2;x++) {
-		ps->data[x] = ps->vol * (
+		if (pi->modulate)
+		/* Modulate 1st tone with 2nd, to 90% modulation depth */
+		ps->data[x] = ps->vol * 2 * (
+			sin((pi->freq1 * 2.0 * M_PI / 8000.0) * (ps->pos + x)) *
+			(0.9 * fabs(sin((pi->freq2 * 2.0 * M_PI / 8000.0) * (ps->pos + x))) + 0.1)
+			);
+		else
+			/* Add 2 tones together */
+			ps->data[x] = ps->vol * (
 				sin((pi->freq1 * 2.0 * M_PI / 8000.0) * (ps->pos + x)) +
 				sin((pi->freq2 * 2.0 * M_PI / 8000.0) * (ps->pos + x))
 			);
@@ -157,7 +166,7 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 		separator = ",";
 	s = strsep(&stringp,separator);
         while(s && *s) {
-		int freq1, freq2, time;
+		int freq1, freq2, time, modulate=0;
 
 		if (s[0]=='!')
 			s++;
@@ -168,6 +177,13 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 		} else if (sscanf(s, "%d+%d", &freq1, &freq2) == 2) {
 			/* f1+f2 format */
 			time = 0;
+		} else if (sscanf(s, "%d*%d/%d", &freq1, &freq2, &time) == 3) {
+			/* f1*f2/time format */
+			modulate = 1;
+		} else if (sscanf(s, "%d*%d", &freq1, &freq2) == 2) {
+			/* f1*f2 format */
+			time = 0;
+			modulate = 1;
 		} else if (sscanf(s, "%d/%d", &freq1, &time) == 2) {
 			/* f1/time format */
 			freq2 = 0;
@@ -186,6 +202,7 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 		d.items[d.nitems].freq1    = freq1;
 		d.items[d.nitems].freq2    = freq2;
 		d.items[d.nitems].duration = time;
+		d.items[d.nitems].modulate = modulate;
 		d.nitems++;
 
 		s = strsep(&stringp,separator);
