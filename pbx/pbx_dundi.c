@@ -2462,6 +2462,11 @@ static int dundi_show_peers(int fd, int argc, char *argv[])
 	int registeredonly=0;
 	char avgms[20];
 	char eid_str[20];
+	int online_peers = 0;
+	int offline_peers = 0;
+	int unmonitored_peers = 0;
+	int total_peers = 0;
+
 	if ((argc != 3) && (argc != 4) && (argc != 5))
 		return RESULT_SHOWUSAGE;
 	if ((argc == 4)) {
@@ -2476,19 +2481,30 @@ static int dundi_show_peers(int fd, int argc, char *argv[])
 		char status[20] = "";
         int print_line = -1;
 		char srch[2000] = "";
+		total_peers++;
 		if (registeredonly && !peer->addr.sin_addr.s_addr)
 			continue;
 		if (peer->maxms) {
-			if (peer->lastms < 0)
+			if (peer->lastms < 0) {
 				strncpy(status, "UNREACHABLE", sizeof(status) - 1);
-			else if (peer->lastms > peer->maxms) 
+				offline_peers++;
+			}
+			else if (peer->lastms > peer->maxms) {
 				snprintf(status, sizeof(status), "LAGGED (%d ms)", peer->lastms);
-			else if (peer->lastms) 
+				offline_peers++;
+			}
+			else if (peer->lastms) {
 				snprintf(status, sizeof(status), "OK (%d ms)", peer->lastms);
-			else 
+				online_peers++;
+			}
+			else {
 				strncpy(status, "UNKNOWN", sizeof(status) - 1);
-		} else 
+				offline_peers++;
+			}
+		} else {
 			strncpy(status, "Unmonitored", sizeof(status) - 1);
+			unmonitored_peers++;
+		}
 		if (peer->avgms) 
 			snprintf(avgms, sizeof(avgms), "%d ms", peer->avgms);
 		else
@@ -2515,6 +2531,7 @@ static int dundi_show_peers(int fd, int argc, char *argv[])
 					peer->dynamic ? "(D)" : "(S)", model2str(peer->model), avgms, status);
 		}
 	}
+	ast_cli(fd, "%d dundi peers [%d online, %d offline, %d unmonitored]\n", total_peers, online_peers, offline_peers, unmonitored_peers);
 	ast_mutex_unlock(&peerlock);
 	return RESULT_SUCCESS;
 #undef FORMAT
