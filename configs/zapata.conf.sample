@@ -2,6 +2,14 @@
 ; Zapata telephony interface
 ;
 ; Configuration file
+;
+; You need to restart Asterisk to re-configure the Zap channel
+; CLI> reload chan_zap.so 
+;		will reload the configuration file,
+;		but not all configuration options are 
+; 		re-configured during a reload.
+
+
 
 [trunkgroups]
 ;

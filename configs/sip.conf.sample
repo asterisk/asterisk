@@ -19,6 +19,9 @@
 ;
 ;   sip debug			Show all SIP messages
 ;
+;   reload chan_sip.so		Reload configuration file
+;				Active SIP peers will not be reconfigured
+;
 
 [general]
 context=default			; Default context for incoming calls

@@ -1,6 +1,9 @@
 
 ; Inter-Asterisk eXchange driver definition
 ;
+; This configuration is re-read at reload
+; or with the CLI command
+; 	reload chan_iax2.so
 ;
 ; General settings, like port number to bind to, and
 ; an option address (the default is to bind to all

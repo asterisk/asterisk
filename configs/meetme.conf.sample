@@ -2,6 +2,8 @@
 ; Configuration file for MeetMe simple conference rooms
 ; for Asterisk of course.
 ;
+; This configuration file is read every time you call app meetme()
+;
 [rooms]
 ;
 ; Usage is conf => confno[,pin][,adminpin]	

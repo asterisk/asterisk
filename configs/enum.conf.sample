@@ -2,6 +2,7 @@
 ; ENUM Configuration for resolving phone numbers over DNS
 ;
 ; Sample config for Asterisk
+; This file is reloaded at "reload enum" in the CLI
 ;
 [general]
 ;
