@@ -1048,7 +1048,7 @@ static struct mgcp_subchannel *find_subchannel(char *name, int msgid, struct soc
 		if ((!name || !strcasecmp(g->name, at)) && 
 		    (sin || g->addr.sin_addr.s_addr || g->defaddr.sin_addr.s_addr)) {
 			/* Found the gateway.  If it's dynamic, save it's address -- now for the endpoint */
-			if (sin && g->dynamic) {
+			if (sin && g->dynamic && name) {
 				if ((g->addr.sin_addr.s_addr != sin->sin_addr.s_addr) ||
 					(g->addr.sin_port != sin->sin_port)) {
 					memcpy(&g->addr, sin, sizeof(g->addr));
