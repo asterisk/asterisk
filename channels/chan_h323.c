@@ -832,7 +832,6 @@ static struct ast_channel *oh323_new(struct oh323_pvt *pvt, int state, const cha
 	} else  {
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 	}
-	ast_mutex_unlock(&pvt->lock);
 	return ch;
 }
 
@@ -1389,8 +1388,14 @@ static int answer_call(unsigned call_reference, const char *token)
 		ast_log(LOG_ERROR, "Something is wrong: answer_call\n");
 		return 0;
 	}
+	/* Briefly lock call for oh323_new() */
+	ast_mutex_lock(&pvt->lock);
+
 	/* allocate a channel and tell asterisk about it */
 	c = oh323_new(pvt, AST_STATE_RINGING, pvt->cd.call_token);
+
+	/* And release when done */
+	ast_mutex_unlock(&pvt->lock);
 	if (!c) {
 		ast_log(LOG_ERROR, "Couldn't create channel. This is bad\n");
 		return 0;
