@@ -4743,7 +4743,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 	if (strlen(p->tohost))
 		strncpy(p->tohost, peer->tohost, sizeof(p->tohost) - 1);
 	else
-		snprintf(p->tohost, sizeof(p->tohost), "%s", inet_ntoa(p->addr.sin_addr));
+		snprintf(p->tohost, sizeof(p->tohost), "%s", inet_ntoa(peer->addr.sin_addr));
 
 	/* Recalculate our side, and recalculate Call ID */
 	memcpy(&p->ourip, myaddrfor(&p->sa.sin_addr), sizeof(p->ourip));
