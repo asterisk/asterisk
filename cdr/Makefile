@@ -15,6 +15,19 @@ MODS=cdr_csv.so
 
 CFLAGS+=
 
+#
+# MySQL stuff...  Autoconf anyone??
+#
+MODS+=$(shell if [ -d /usr/lib/mysql ] || \
+	[`ls /usr/lib/libmysqlclient.so* 2>/dev/null | wc -l` -gt 0 ] || \
+	[`ls /usr/local/lib/libmysqlclient.so* 2>/dev/null | wc -l` -gt 0 ] \
+	; then echo "cdr_mysql.so" ; fi)
+CFLAGS+=$(shell if [ -d /usr/include/mysql ]; then echo "-I/usr/include/mysql"; fi)
+CFLAGS+=$(shell if [ -d /usr/local/include/mysql ]; then echo "-I/usr/local/include/mysql"; fi)
+MLFLAGS=
+MLFLAGS+=$(shell if [ -d /usr/lib/mysql ]; then echo "-L/usr/lib/mysql"; fi)
+MLFLAGS+=$(shell if [ -d /usr/local/lib/mysql ]; then echo "-L/usr/local/lib/mysql"; fi)
+
 all: $(MODS)
 
 install: all
@@ -25,3 +38,6 @@ clean:
 
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<
+
+cdr_mysql.so: cdr_mysql.o
+	$(CC) -shared -Xlinker -x -o $@ $< -lmysqlclient $(MLFLAGS)
