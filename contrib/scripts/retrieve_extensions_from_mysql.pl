@@ -1,5 +1,6 @@
 #!/usr/bin/perl -Tw
 # Use these commands to create the appropriate tables in MySQL
+# If flags is 1 then this record is not included in the output extensions file
 # 
 #CREATE TABLE extensions (
 #	context CHAR(20) DEFAULT 'default' NOT NULL,
@@ -8,6 +9,7 @@
 #	application CHAR(20) NOT NULL,
 #	args CHAR(50),
 #	descr TEXT,
+#	flags INT(1) DEFAULT '0' NOT NULL,
 #	PRIMARY KEY(context, extension, priority)
 #);
 #
@@ -96,11 +98,13 @@ foreach my $row ( @{ $result } ) {
 	}
 	foreach my $row ( @{ $result } ) {
 		my @result = @{ $row };
-		print EXTEN "exten => $result[1],$result[2],$result[3]";
-		print EXTEN "($result[4])" if defined $result[4];
-		print EXTEN "\t" if not defined $result[4];
-		print EXTEN "\t; $result[5]" if defined $result[5];
-		print EXTEN "\n";
+		if ($result[6] == 0) {
+			print EXTEN "exten => $result[1],$result[2],$result[3]";
+			print EXTEN "($result[4])" if defined $result[4];
+			print EXTEN "\t" if not defined $result[4];
+			print EXTEN "\t; $result[5]" if defined $result[5];
+			print EXTEN "\n";
+		}
 	}                                         	
 	print EXTEN "\n";
 }
