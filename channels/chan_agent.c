@@ -513,6 +513,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 			p->chan->cid.cid_name = strdup(ast->cid.cid_name);
 		else
 			p->chan->cid.cid_name = NULL;
+		ast_channel_inherit_variables(ast, p->chan);
 		res = ast_call(p->chan, p->loginchan, 0);
 		CLEANUP(ast,p);
 		ast_mutex_unlock(&p->lock);
