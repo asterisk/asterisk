@@ -3235,7 +3235,7 @@ static int vm_intro_pt(struct ast_channel *chan,struct vm_state *vms)
 	return res;
 }
 
-static int vm_instructions(struct ast_channel *chan, struct vm_state *vms)
+static int vm_instructions(struct ast_channel *chan, struct vm_state *vms, int skipadvanced)
 {
 	int res = 0;
 	/* Play instructions and wait for new command */
@@ -3260,7 +3260,7 @@ static int vm_instructions(struct ast_channel *chan, struct vm_state *vms)
 		} else {
 			if (vms->curmsg)
 				res = play_and_wait(chan, "vm-prev");
-			if (!res)
+			if (!res && !skipadvanced)
 				res = play_and_wait(chan, "vm-advopts");
 			if (!res)
 				res = play_and_wait(chan, "vm-repeat");
@@ -3810,6 +3810,8 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 					}
 					if (!cmd)
 						cmd = play_and_wait(chan, "vm-opts");
+					if (!cmd)
+						cmd = vm_instructions(chan, &vms, 1);
 				} else
 					cmd = 0;
 				break;
@@ -3819,7 +3821,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 					adsi_status(chan, vms.newmessages, vms.oldmessages, vms.lastmsg);
 				break;
 			default:	/* Nothing */
-				cmd = vm_instructions(chan, &vms);
+				cmd = vm_instructions(chan, &vms, 0);
 				break;
 			}
 		}
