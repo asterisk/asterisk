@@ -32,13 +32,13 @@ static char *app = "Directory";
 
 static char *synopsis = "Provide directory of voicemail extensions";
 static char *descrip =
-"  Directory(context): Presents the user with a directory of extensions from\n"
-"which they  may  select  by name. The  list  of  names  and  extensions  is\n"
-"discovered from  voicemail.conf. The  context  argument  is  required,  and\n"
-"specifies  the  context  in  which to interpret the extensions. Returns 0\n"
-"unless the user hangs up. It  also sets up the channel on exit to enter the\n"
-"extension the user selected.  Please note that the context must be the same\n"
-"as the section in voicemail.conf that the mailbox is processed from as well.\n";
+"  Directory(vm-context[|dial-context]): Presents the user with a directory\n"
+"of extensions from which they  may  select  by name. The  list  of  names \n"
+"and  extensions  is discovered from  voicemail.conf. The  vm-context  argument\n"
+"is required, and specifies  the  context  of voicemail.conf to use.  The\n"
+"dial-context is the context to use for dialing the users, and defaults to\n"
+"the vm-context if unspecified. Returns 0 unless the user hangs up. It  also\n"
+"sets up the channel on exit to enter the extension the user selected.\n";
 
 /* For simplicity, I'm keeping the format compatible with the voicemail config,
    but i'm open to suggestions for isolating it */
@@ -121,7 +121,7 @@ static char *convert(char *lastname)
 	return tmp;
 }
 
-static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *context, char digit)
+static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *context, char *dialcontext, char digit)
 {
 	/* Read in the first three digits..  "digit" is the first digit, already read */
 	char ext[NUMDIGITS + 1];
@@ -200,10 +200,10 @@ ahem:
 				ast_stopstream(chan);
 				if (res > -1) {
 					if (res == '1') {
-						if (ast_exists_extension(chan, context, v->name, 1, chan->callerid)) {
+						if (ast_exists_extension(chan, dialcontext, v->name, 1, chan->callerid)) {
 							strncpy(chan->exten, v->name, sizeof(chan->exten)-1);
 							chan->priority = 0;
-							strncpy(chan->context, context, sizeof(chan->context)-1);
+							strncpy(chan->context, dialcontext, sizeof(chan->context)-1);
 							res = 0;
 						} else {
 							ast_log(LOG_WARNING, "Can't find extension '%s' in context '%s'.  Did you pass the wrong context to Directory?\n", v->name, context);
@@ -238,6 +238,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct localuser *u;
 	struct ast_config *cfg;
+	char *context, *dialcontext;
 	if (!data) {
 		ast_log(LOG_WARNING, "directory requires an argument (context)\n");
 		return -1;
@@ -249,6 +250,13 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	}
 	LOCAL_USER_ADD(u);
 top:
+	context = strdupa(data);
+	dialcontext = strchr(context, '|');
+	if (dialcontext) {
+		*dialcontext = '\0';
+		dialcontext++;
+	} else
+		dialcontext = context;
 	if (chan->_state != AST_STATE_UP) 
 		res = ast_answer(chan);
 	if (!res)
@@ -259,7 +267,7 @@ top:
 	if (!res)
 		res = ast_waitfordigit(chan, 5000);
 	if (res > 0) {
-		res = do_directory(chan, cfg, (char *)data, res);
+		res = do_directory(chan, cfg, context, dialcontext, res);
 		if (res > 0) {
 			res = ast_waitstream(chan, AST_DIGIT_ANY);
 			ast_stopstream(chan);
