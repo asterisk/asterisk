@@ -1009,7 +1009,6 @@ int ast_cli_command(int fd, char *s)
 					ast_cli(fd, e->usage);
 					break;
 				}
-				ast_cli(fd, "\n\n");
 			} else 
 				ast_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(argv));
 			if (e) {
