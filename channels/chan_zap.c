@@ -1827,7 +1827,7 @@ static int zt_hangup(struct ast_channel *ast)
 					if (!p->alreadyhungup) {
 						res = pri_disconnect(p->pri->pri, p->call, PRI_CAUSE_NORMAL_CLEARING);
 					} else {
-						pri(p->pri->pri, p->call, -1);
+						pri_release(p->pri->pri, p->call, -1);
 						p->call = NULL;
 						p->alreadyhungup = 0;
 					}
