@@ -1866,16 +1866,6 @@ static int iax2_show_peer(int fd, int argc, char *argv[])
 			ast_cli(fd, "none");
 		ast_cli(fd, ")\n");
 
-static int iax2_test_losspct(int fd, int argc, char *argv[])
-{
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-
-	test_losspct = atoi(argv[3]);
-
-	return RESULT_SUCCESS;
-}
-
 		ast_cli(fd, "  Status       : ");
 		if (peer->lastms < 0)
 			strncpy(status, "UNREACHABLE", sizeof(status) - 1);
