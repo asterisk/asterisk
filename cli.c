@@ -997,7 +997,7 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 			if (e->generator && !strncasecmp(matchstr, fullcmd, strlen(fullcmd))) {
 				/* We have a command in its entirity within us -- theoretically only one
 				   command can have this occur */
-				fullcmd = e->generator(text, word, (strlen(word) ? (x - 1) : (x)), state);
+				fullcmd = e->generator(text, word, (!ast_strlen_zero(word) ? (x - 1) : (x)), state);
 				if (lock)
 					ast_mutex_unlock(&clilock);
 				free(dup);
