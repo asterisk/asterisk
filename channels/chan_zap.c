@@ -4759,10 +4759,10 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		memset(tmp, 0, sizeof(struct zt_pvt));
 		for (x=0;x<3;x++)
 			tmp->subs[x].zfd = -1;
-		tmp->next = tmp2;
 		if (!ifend) {
 			iflist = tmp;
 			tmp->prev = NULL;
+			tmp->next = NULL;
 		} else {
 			ifend->next = tmp;
 			tmp->prev = ifend;
