@@ -42,7 +42,7 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; excess jitter buffer, which if exceeded, causes the jitter buffer to
 ; slowly shrink in order to improve latency.
 ;
-;jitterbuffer=no
+jitterbuffer=no
 ;dropcount=3
 ;maxjitterbuffer=500
 ;maxexccessbuffer=100
