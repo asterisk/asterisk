@@ -3,9 +3,9 @@
  *
  * Asterisk Gateway Interface
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <sys/poll.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -79,6 +80,90 @@ LOCAL_USER_DECL;
 
 #define TONE_BLOCK_SIZE 200
 
+/* Max time to connect to an AGI remote host */
+#define MAX_AGI_CONNECT 2000
+
+#define AGI_PORT 4573
+
+static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int *opid)
+{
+	int s;
+	int flags;
+	struct pollfd pfds[1];
+	char *host;
+	char *c; int port = AGI_PORT;
+	char *script;
+	struct sockaddr_in sin;
+	struct hostent *hp;
+	struct ast_hostent ahp;
+	ast_log(LOG_DEBUG, "Blah\n");
+	host = ast_strdupa(agiurl + 6);
+	if (!host)
+		return -1;
+	/* Strip off any script name */
+	if ((c = strchr(host, '/'))) {
+		*c = '\0';
+		c++;
+		script = c;
+	}
+	if ((c = strchr(host, ':'))) {
+		*c = '\0';
+		c++;
+		port = atoi(c + 1);
+	}
+	if (efd) {
+		ast_log(LOG_WARNING, "AGI URI's don't support Enhanced AGI yet\n");
+		return -1;
+	}
+	hp = ast_gethostbyname(host, &ahp);
+	if (!hp) {
+		ast_log(LOG_WARNING, "Unable to locate host '%s'\n", host);
+		return -1;
+	}
+	s = socket(AF_INET, SOCK_STREAM, 0);
+	if (s < 0) {
+		ast_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
+		return -1;
+	}
+	flags = fcntl(s, F_GETFL);
+	if (flags < 0) {
+		ast_log(LOG_WARNING, "Fcntl(F_GETFL) failed: %s\n", strerror(errno));
+		close(s);
+		return -1;
+	}
+	if (fcntl(s, F_SETFL, flags | O_NONBLOCK) < 0) {
+		ast_log(LOG_WARNING, "Fnctl(F_SETFL) failed: %s\n", strerror(errno));
+		close(s);
+		return -1;
+	}
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(port);
+	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
+	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) && (errno != EINPROGRESS)) {
+		ast_log(LOG_WARNING, "Connect failed with unexpected error: %s\n", strerror(errno));
+		close(s);
+		return -1;
+	}
+	pfds[0].fd = s;
+	pfds[0].events = POLLOUT;
+	if (poll(pfds, 1, MAX_AGI_CONNECT) != 1) {
+		ast_log(LOG_WARNING, "Connect to '%s' failed!\n", agiurl);
+		close(s);
+		return -1;
+	}
+	if (write(s, "agi_network: yes\n", strlen("agi_network: yes\n")) < 0) {
+		ast_log(LOG_WARNING, "Connect to '%s' failed: %s\n", agiurl, strerror(errno));
+		close(s);
+		return -1;
+	}
+	ast_log(LOG_DEBUG, "Wow, connected!\n");
+	fds[0] = s;
+	fds[1] = s;
+	*opid = -1;
+	return 0;
+}
+
 static int launch_script(char *script, char *argv[], int *fds, int *efd, int *opid)
 {
 	char tmp[256];
@@ -88,6 +173,10 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 	int audio[2];
 	int x;
 	int res;
+	
+	if (!strncasecmp(script, "agi://", 6))
+		return launch_netscript(script, argv, fds, efd, opid);
+	
 	if (script[0] != '/') {
 		snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_AGI_DIR, script);
 		script = tmp;
@@ -1338,7 +1427,8 @@ static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid, i
 
 	if (!(readf = fdopen(agi->ctrl, "r"))) {
 		ast_log(LOG_WARNING, "Unable to fdopen file descriptor\n");
-		kill(pid, SIGHUP);
+		if (pid > -1)
+			kill(pid, SIGHUP);
 		close(agi->ctrl);
 		return -1;
 	}
