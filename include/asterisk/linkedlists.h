@@ -198,9 +198,9 @@ struct {								\
   This macro initializes a list head structure by setting the head
   entry to \a NULL (empty list) and recreating the embedded lock.
 */
-#define AST_LIST_HEAD_INIT(head) {						\
+#define AST_LIST_HEAD_INIT(head) {					\
 	(head)->first = NULL;						\
-	ast_pthread_mutex_init(&(head)->lock,NULL);				\
+	ast_pthread_mutex_init(&(head)->lock,NULL);			\
 }
 
 /*!
@@ -211,9 +211,9 @@ struct {								\
   \param field This is the name of the field (declared using AST_LIST_ENTRY())
   used to link entries of this list together.
  */
-#define AST_LIST_INSERT_AFTER(listelm, elm, field) do {		\
+#define AST_LIST_INSERT_AFTER(listelm, elm, field) do {			\
 	(elm)->field.next = (listelm)->field.next;			\
-	(listelm)->field.next = (elm);				\
+	(listelm)->field.next = (elm);					\
 } while (0)
 
 /*!
@@ -229,22 +229,24 @@ struct {								\
 } while (0)
 
 /*!
-  \brief Inserts a list entry at the tail of a list.
+  \brief Appends a list entry to the tail of a list.
   \param head This is a pointer to the list head structure
-  \param elm This is a pointer to the entry to be inserted.
+  \param elm This is a pointer to the entry to be appended.
   \param field This is the name of the field (declared using AST_LIST_ENTRY())
   used to link entries of this list together.
+
+  Note: The link field in the appended entry is \b not modified, so if it is
+  actually the head of a list itself, the entire list will be appended.
  */
-#define AST_LIST_INSERT_TAIL(head, elm, field) do {		      \
-      typeof(elm) curelm = (head)->first;                             \
-      if (!curelm) {                                                  \
-              AST_LIST_INSERT_HEAD(head, elm, field);                 \
-      } else {                                                        \
-              while (curelm->field.next!=NULL) {                      \
-                      curelm=curelm->field.next;                      \
-              }                                                       \
-              AST_LIST_INSERT_AFTER(curelm, elm, field);              \
-      }                                                               \
+#define AST_LIST_INSERT_TAIL(head, elm, field) do {			\
+      if (!(head)->first) {						\
+              (head)->first = (elm);					\
+      } else {								\
+              typeof(elm) curelm = (head)->first;			\
+              while (curelm->field.next != NULL)			\
+                      curelm = curelm->field.next;			\
+              curelm->field.next = (elm);				\
+      }									\
 } while (0)
 
 /*!
@@ -256,10 +258,10 @@ struct {								\
   Removes the head entry from the list, and returns a pointer to it. The
   forward-link pointer in the returned entry is \b not cleared.
  */
-#define AST_LIST_REMOVE_HEAD(head, field) ({    				\
-		typeof((head)->first) cur = (head)->first;			\
-		(head)->first = (head)->first->field.next;			\
-		cur;								\
+#define AST_LIST_REMOVE_HEAD(head, field) ({				\
+		typeof((head)->first) cur = (head)->first;		\
+		(head)->first = (head)->first->field.next;		\
+		cur;							\
 	})
 
 /*!
@@ -272,14 +274,13 @@ struct {								\
  */
 #define AST_LIST_REMOVE(head, elm, field) do {			        \
 	if ((head)->first == (elm)) {					\
-		AST_LIST_REMOVE_HEAD((head), field);			\
+		(head)->first = (elm)->field.next;			\
 	}								\
 	else {								\
 		typeof(elm) curelm = (head)->first;			\
-		while( curelm->field.next != (elm) )			\
+		while (curelm->field.next != (elm))			\
 			curelm = curelm->field.next;			\
-		curelm->field.next =					\
-		    curelm->field.next->field.next;			\
+		curelm->field.next = (elm)->field.next;			\
 	}								\
 } while (0)
 
