@@ -1,3 +1,4 @@
+Asterisk 1.0-RC2 
  -- Additional CDR backends
  -- Allow muted to reconnect
  -- Call parking improvements (including SIP parking support)
