@@ -131,6 +131,13 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; that we're registered with
 				; You may add multiple local networks.  A reasonable set of defaults
 				; are:
+;externhost=foo.dyndns.net	; Alternatively you can specify an 
+				; external host, and Asterisk will 
+				; perform DNS queries periodically.  Not
+				; recommended for production 
+				; environments!  Use externip instead
+;externrefresh=10		; How often to refresh externhost if 
+				; usedl
 ;localnet=192.168.0.0/255.255.0.0; All RFC 1918 addresses are local networks
 ;localnet=10.0.0.0/255.0.0.0	; Also RFC1918
 ;localnet=172.16.0.0/12		; Another RFC1918 with CIDR notation

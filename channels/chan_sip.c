@@ -564,6 +564,9 @@ static int global_canreinvite = REINVITE_INVITE;
 
 static struct sockaddr_in bindaddr;
 static struct sockaddr_in externip;
+static char externhost[256] = "";
+static time_t externexpire = 0;
+static int externrefresh = 10;
 static struct ast_ha *localaddr;
 
 static struct ast_frame  *sip_read(struct ast_channel *ast);
@@ -636,6 +639,16 @@ static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	 */
 	struct sockaddr_in theirs;
 	theirs.sin_addr = *them;
+	if (externexpire && (time(NULL) >= externexpire)) {
+		struct ast_hostent ahp;
+		struct hostent *hp;
+		time(&externexpire);
+		externexpire += externrefresh;
+		if ((hp = ast_gethostbyname(externhost, &ahp))) {
+			memcpy(&externip, hp->h_addr, sizeof(externip));
+		} else
+			ast_log(LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", externhost);
+	}
 	if (localaddr && externip.sin_addr.s_addr &&
 	   ast_apply_ha(localaddr, &theirs)) {
 		char iabuf[INET_ADDRSTRLEN];
@@ -8837,6 +8850,9 @@ static int reload_config(void)
 	strncpy(default_context, DEFAULT_CONTEXT, sizeof(default_context) - 1);
 	default_language[0] = '\0';
 	default_fromdomain[0] = '\0';
+	externhost[0] = '\0';
+	externexpire = 0;
+	externrefresh = 10;
 	strncpy(default_useragent, DEFAULT_USERAGENT, sizeof(default_useragent) - 1);
 	strncpy(default_notifymime, DEFAULT_NOTIFYMIME, sizeof(default_notifymime) - 1);
 	global_realm[sizeof(global_realm)-1] = '\0';
@@ -9008,6 +9024,19 @@ static int reload_config(void)
 				ast_log(LOG_WARNING, "Invalid address for externip keyword: %s\n", v->value);
 			else
 				memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
+			externexpire = 0;
+		} else if (!strcasecmp(v->name, "externhost")) {
+			strncpy(externhost, v->value, sizeof(externhost) - 1);
+			if (!(hp = ast_gethostbyname(externhost, &ahp))) 
+				ast_log(LOG_WARNING, "Invalid address for externhost keyword: %s\n", externhost);
+			else
+				memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
+			time(&externexpire);
+		} else if (!strcasecmp(v->name, "externrefresh")) {
+			if (sscanf(v->value, "%i", &externrefresh) != 1) {
+				ast_log(LOG_WARNING, "Invalid externrefresh value '%s', must be an integer >0 at line %d\n", v->value, v->lineno);
+				externrefresh = 10;
+			}
 		} else if (!strcasecmp(v->name, "allow")) {
 			ast_parse_allow_disallow(&prefs, &global_capability, v->value, 1);
 		} else if (!strcasecmp(v->name, "disallow")) {
