@@ -3,9 +3,9 @@
  *
  * General Asterisk channel definitions.
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -65,6 +65,7 @@ struct ast_mutex_info {
 	pthread_mutex_t mutex;
 	char *file;
 	int lineno;
+	int reentrancy;
 	char *func;
 	pthread_t thread;
 };
@@ -91,6 +92,7 @@ static inline int __ast_pthread_mutex_init_attr(char *filename, int lineno, char
 	t->lineno = lineno;
 	t->func = func;
 	t->thread  = 0;
+	t->reentrancy = 0;
 	return pthread_mutex_init(&t->mutex, attr);
 }
 
@@ -210,6 +212,7 @@ static inline int __ast_pthread_mutex_lock(char *filename, int lineno, char *fun
 	res = pthread_mutex_lock(&t->mutex);
 #endif /*  DETECT_DEADLOCKS */
 	if (!res) {
+		t->reentrancy++;
 		t->file = filename;
 		t->lineno = lineno;
 		t->func = func;
@@ -241,6 +244,7 @@ static inline int __ast_pthread_mutex_trylock(char *filename, int lineno, char *
 #endif /* definded(AST_MUTEX_INIT_W_CONSTRUCTORS) || defined(AST_MUTEX_INIT_ON_FIRST_USE) */
 	res = pthread_mutex_trylock(&t->mutex);
 	if (!res) {
+		t->reentrancy++;
 		t->file = filename;
 		t->lineno = lineno;
 		t->func = func;
@@ -260,11 +264,18 @@ static inline int __ast_pthread_mutex_unlock(char *filename, int lineno, char *f
 			filename, lineno, func, mutex_name);
 	}
 #endif
-	/* Assumes lock is actually held */
-	t->file = NULL;
-	t->lineno = 0;
-	t->func = NULL;
-	t->thread = 0;
+	--t->reentrancy;
+	if (t->reentrancy < 0) {
+		fprintf(stderr, "%s line %d (%s): Freed more times than we've locked!\n",
+			filename, lineno, func, mutex_name);
+		t->reentrancy = 0;
+	}
+	if (!t->rentrancy) {
+		t->file = NULL;
+		t->lineno = 0;
+		t->func = NULL;
+		t->thread = 0;
+	}
 	res = pthread_mutex_unlock(&t->mutex);
 	if (res) {
 		fprintf(stderr, "%s line %d (%s): Error releasing mutex: %s\n", 
