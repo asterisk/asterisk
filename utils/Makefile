@@ -8,7 +8,7 @@ ifeq ($(findstring BSD,${OSARCH}),BSD)
 CFLAGS+=-I/usr/local/include -L/usr/local/lib
 endif
 
-TARGET=none
+TARGET=stereorize
 
 TARGET+=$(shell if [ -f /usr/include/popt.h ]; then echo "smsq"; else if [ -f /usr/local/include/popt.h ]; then echo "smsq"; fi ; fi)
 TARGET+=$(shell if [ -f /usr/include/newt.h ]; then echo "astman"; else if [ -f /usr/local/include/newt.h ]; then echo "astman"; fi ; fi)
@@ -22,13 +22,14 @@ install:
 		fi; \
 	done 
 
-none:
-
 clean:
 	rm -f *.o astman smsq .depend
 
 astman: astman.o ../md5.o
 	$(CC) $(CFLAGS) -o astman astman.o ../md5.o -lnewt
+
+stereorize: stereorize.o frame.o
+	$(CC) $(CFLAGS) -o stereorize stereorize.o frame.o -lm
 
 smsq: smsq.o
 	$(CC) $(CFLAGS) -o smsq smsq.o -lpopt

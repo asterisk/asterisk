@@ -241,7 +241,7 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 			/* Set the execute application */
 			execute = pbx_builtin_getvar_helper(chan, "MONITOR_EXEC");
 			if (!execute || ast_strlen_zero(execute)) { 
-				execute = "nice -n 19 soxmix"; 
+				execute = "nice -n 19 soxmix";
 				delfiles = 1;
 			} 
 			execute_args = pbx_builtin_getvar_helper(chan, "MONITOR_EXEC_ARGS");
@@ -251,10 +251,10 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 			
 			snprintf(tmp, sizeof(tmp), "%s \"%s/%s-in.%s\" \"%s/%s-out.%s\" \"%s/%s.%s\" %s &", execute, dir, name, format, dir, name, format, dir, name, format,execute_args);
 			if (delfiles) {
-				snprintf(tmp2,sizeof(tmp2), "( %s& rm -f \"%s\"/%s-* ) &",tmp, dir ,name); /* remove legs when done mixing */
+				snprintf(tmp2,sizeof(tmp2), "( %s& rm -f \"%s/%s-*\" ) &",tmp, dir ,name); /* remove legs when done mixing */
 				strncpy(tmp, tmp2, sizeof(tmp) - 1);
 			}
-			ast_verbose("monitor executing %s\n",tmp);
+			ast_log(LOG_DEBUG,"monitor executing %s\n",tmp);
 			if (ast_safe_system(tmp) == -1)
 				ast_log(LOG_WARNING, "Execute of %s failed.\n",tmp);
 		}
