@@ -1493,14 +1493,14 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	ast_rtp_pt_clear(p->rtp);
 	codecs = m + len;
 	while(strlen(codecs)) {
-		if (sscanf(codecs, "%d %n", &codec, &len) != 1) {
+		if (sscanf(codecs, "%d%n", &codec, &len) != 1) {
 			ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 			return -1;
 		}
 		ast_rtp_set_m_type(p->rtp, codec);
 		codecs += len;
-		/* Fix going to: a=rtpmap:0 PCMU/8000 line */
-		if ( (int)(strlen(m)-(int)(codecs-m)) < 0 ) break;
+		/* Skip over any whitespace */
+		while(*codecs && (*codecs < 33)) codecs++;
 	}
 
 	// Next, scan through each "a=rtpmap:" line, noting each
