@@ -2335,7 +2335,7 @@ static long tvdiff(struct timeval *now,struct timeval *then) {
 	return (((now->tv_sec * 1000) + now->tv_usec / 1000) - ((then->tv_sec * 1000) + then->tv_usec / 1000));
 }
 
-static void	 bridge_playfile(struct ast_channel *chan,char *sound,int remain) {
+static void bridge_playfile(struct ast_channel *chan,char *sound,int remain) {
 	int res=0,min=0,sec=0;
 	
 	if(remain > 0) {
@@ -2381,7 +2381,7 @@ int ast_channel_bridge(struct ast_channel *c0,struct ast_channel *c1,struct ast_
 	struct timeval start_time,precise_now;
 	long elapsed_ms=0,time_left_ms=0;
 	int playit=0,playitagain=1,first_time=1;
-	
+
 
 	flags = (config->allowdisconnect||config->allowredirect_out ? AST_BRIDGE_DTMF_CHANNEL_0 : 0) + (config->allowredirect_in ? AST_BRIDGE_DTMF_CHANNEL_1 : 0);
 
@@ -2450,7 +2450,6 @@ int ast_channel_bridge(struct ast_channel *c0,struct ast_channel *c1,struct ast_
 					}
 				}
 			}
-
 			if(time_left_ms <= 0) {
 				if(config->play_to_caller && config->end_sound){
 					bridge_playfile(c0,config->end_sound,0);
@@ -2458,7 +2457,10 @@ int ast_channel_bridge(struct ast_channel *c0,struct ast_channel *c1,struct ast_
 
 				if(config->play_to_callee && config->end_sound){
 					bridge_playfile(c1,config->end_sound,0);
-                }
+				}
+				*fo = NULL;
+				if (who) *rc = who;
+				res = 0;
 				break;
 			}
 

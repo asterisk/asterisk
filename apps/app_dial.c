@@ -518,12 +518,22 @@ static int dial_exec(struct ast_channel *chan, void *data)
                 warning_sound=NULL;
             }
             calldurationlimit=0; /* undo effect of S(x) in case they are both used */
-            if(! play_warning && ! start_sound && ! end_sound && timelimit) { /* more efficient do it like S(x) does since no advanced opts*/
-				calldurationlimit=timelimit/1000;
-				timelimit=play_to_caller=play_to_callee=play_warning=warning_freq=0;
-			}
-			else 
-                ast_verbose(VERBOSE_PREFIX_3"Limit Data: timelimit=%ld\n    -- play_warning=%ld\n    -- play_to_caller=%s\n    -- play_to_callee=%s\n    -- warning_freq=%ld\n    -- warning_sound=%s\n    -- end_sound=%s\n    -- start_sound=%s\n",timelimit,play_warning,play_to_caller ? "yes" : "no",play_to_callee ? "yes" : "no",warning_freq,warning_sound ? warning_sound : "UNDEF",end_sound ? end_sound : "UNDEF",start_sound ? start_sound : "UNDEF");
+	      /* more efficient do it like S(x) does since no advanced opts*/
+            if(! play_warning && ! start_sound && ! end_sound && timelimit) { 
+	      calldurationlimit=timelimit/1000;
+	      timelimit=play_to_caller=play_to_callee=play_warning=warning_freq=0;
+	    }
+	    else {
+	      ast_verbose(VERBOSE_PREFIX_3"Limit Data:\n");
+	      ast_verbose(VERBOSE_PREFIX_3"timelimit=%ld\n",timelimit);
+	      ast_verbose(VERBOSE_PREFIX_3"play_warning=%ld\n",play_warning);
+	      ast_verbose(VERBOSE_PREFIX_3"play_to_caller=%s\n",play_to_caller ? "yes" : "no");
+	      ast_verbose(VERBOSE_PREFIX_3"play_to_callee=%s\n",play_to_callee ? "yes" : "no");
+	      ast_verbose(VERBOSE_PREFIX_3"warning_freq=%ld\n",warning_freq);
+	      ast_verbose(VERBOSE_PREFIX_3"start_sound=%s\n",start_sound ? start_sound : "UNDEF");
+	      ast_verbose(VERBOSE_PREFIX_3"warning_sound=%s\n",warning_sound ? warning_sound : "UNDEF");
+	      ast_verbose(VERBOSE_PREFIX_3"end_sound=%s\n",end_sound ? end_sound : "UNDEF");
+	    }
 				
 		}
 
