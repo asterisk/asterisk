@@ -1426,7 +1426,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 			shortdata[x] = AST_ALAW(odata[x]);
 		break;
 	default:
-		ast_log(LOG_WARNING, "Unable to detect process %d frames\n", af->subclass);
+		ast_log(LOG_WARNING, "Unable to process inband DTMF on %d frames\n", af->subclass);
 		return af;
 	}
 	silence = __ast_dsp_silence(dsp, shortdata, len, NULL);
