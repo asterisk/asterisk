@@ -185,6 +185,7 @@ int ast_safe_system(const char *s)
 					res = WEXITSTATUS(status);
 				else
 					res = -1;
+				break;
 			} else {
 				if (errno != EINTR) 
 					break;
