@@ -1,8 +1,8 @@
 /*
 
 $Log$
-Revision 1.8  2000/01/05 08:20:40  markster
-Version 0.1.9 from FTP
+Revision 1.9  2000/01/05 08:20:40  markster
+Version 0.1.10 from FTP
 
 Revision 1.2  2000/01/05 08:20:40  markster
 Some OSS fixes and a few lpc changes to make it actually work
@@ -30,8 +30,8 @@ extern int tbdm_(real *speech, integer *lpita, integer *tau, integer *ltau, real
 /* 	TBDM Version 49 */
 
 /* $Log$
- * Revision 1.8  2000/01/05 08:20:40  markster
- * Version 0.1.9 from FTP
+ * Revision 1.9  2000/01/05 08:20:40  markster
+ * Version 0.1.10 from FTP
  *
 /* Revision 1.2  2000/01/05 08:20:40  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
