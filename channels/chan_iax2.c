@@ -3695,7 +3695,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		dcallno = ntohs(fh->dcallno) & ~IAX_FLAG_RETRANS;
 		/* Retrieve the type and subclass */
 		f.frametype = fh->type;
-		if (f.frametype == AST_FRAME_VOICE) {
+		if (f.frametype == AST_FRAME_VIDEO) {
 			f.subclass = uncompress_subclass(fh->csub & ~0x40) | ((fh->csub & 0x40) >> 6);
 		} else {
 			f.subclass = uncompress_subclass(fh->csub);
