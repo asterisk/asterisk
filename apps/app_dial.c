@@ -362,7 +362,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 								ast_indicate(in, AST_CONTROL_PROGRESS);
 							break;
 						case AST_CONTROL_OFFHOOK:
-							/* Ignore going off hook */
+						case AST_CONTROL_FLASH:
+							/* Ignore going off hook and flash */
 							break;
 						case -1:
 							if (!outgoing->ringbackonly && !outgoing->musiconhold) {

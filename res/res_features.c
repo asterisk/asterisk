@@ -358,6 +358,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				/* We ran out of time */
 				config->timelimit = 0;
 				who = chan;
+				if (f)
+					ast_frfree(f);
 				f = NULL;
 				res = 0;
 			}
@@ -383,6 +385,12 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				ast_indicate(peer, -1);
 			else
 				ast_indicate(chan, -1);
+		}
+		if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_FLASH)) {
+			if (who == chan)
+				ast_indicate(peer, AST_CONTROL_FLASH);
+			else
+				ast_indicate(chan, AST_CONTROL_FLASH);
 		}
 		if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_OPTION)) {
 			aoh = f->data;

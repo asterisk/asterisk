@@ -421,6 +421,7 @@ struct zt_subchannel {
 	int needcongestion;
 	int needcallerid;
 	int needanswer;
+	int needflash;
 	int linear;
 	int inthreeway;
 	ZT_CONFINFO curconf;
@@ -1982,6 +1983,7 @@ static int zt_hangup(struct ast_channel *ast)
 		/* Real channel, do some fixup */
 		p->subs[index].owner = NULL;
 		p->subs[index].needanswer = 0;
+		p->subs[index].needflash = 0;
 		p->subs[index].needringing = 0;
 		p->subs[index].needbusy = 0;
 		p->subs[index].needcongestion = 0;
@@ -2788,6 +2790,13 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 				zt_enable_ec(p1);
 			return 0;
 		}
+		if (f->frametype == AST_FRAME_CONTROL) {
+			*fo = f;
+			*rc = who;
+			if (slave && master)
+				zt_unlink(slave, master, 1);
+			return 0;
+		}
 		if (f->frametype == AST_FRAME_DTMF) {
 			if (((who == c0) && (flags & AST_BRIDGE_DTMF_CHANNEL_0)) || 
 			    ((who == c1) && (flags & AST_BRIDGE_DTMF_CHANNEL_1))) {
@@ -3548,6 +3557,9 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 									ast_log(LOG_WARNING, "Unable to allocate three-way subchannel\n");
 							} else 
 								ast_log(LOG_DEBUG, "Flash when call not up or ringing\n");
+						} else if (!p->threewaycalling) {
+							/* Just send a flash if no 3-way calling or callwait */
+							p->subs[SUB_REAL].needflash = 1;
 						}
 					} else {
 						/* Already have a 3 way call */
@@ -3908,6 +3920,15 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		return &p->subs[index].f;
 	}	
 	
+	if (p->subs[index].needflash) {
+		/* Send answer frame if requested */
+		p->subs[index].needflash = 0;
+		p->subs[index].f.frametype = AST_FRAME_CONTROL;
+		p->subs[index].f.subclass = AST_CONTROL_FLASH;
+		ast_mutex_unlock(&p->lock);
+		return &p->subs[index].f;
+	}	
+	
 	if (ast->pvt->rawreadformat == AST_FORMAT_SLINEAR) {
 		if (!p->subs[index].linear) {
 			p->subs[index].linear = 1;
@@ -4223,6 +4244,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 	struct zt_pvt *p = chan->pvt->pvt;
 	int res=-1;
 	int index;
+	int func = ZT_FLASH;
 	ast_mutex_lock(&p->lock);
 	index = zt_get_index(chan, p, 0);
 	ast_log(LOG_DEBUG, "Requested indication %d on channel %s\n", condition, chan->name);
@@ -4317,6 +4339,19 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 			if (p->radio)
 			    res =  zt_set_hook(p->subs[index].zfd, ZT_RINGOFF);
 			res = 0;
+			break;
+		case AST_CONTROL_FLASH:
+			/* flash hookswitch */
+			if (ISTRUNK(p) && (p->sig != SIG_PRI)) {
+				/* Clear out the dial buffer */
+				p->dop.dialstr[0] = '\0';
+				if ((ioctl(p->subs[SUB_REAL].zfd,ZT_HOOK,&func) == -1) && (errno != EINPROGRESS)) {
+					ast_log(LOG_WARNING, "Unable to flash external trunk on channel %s: %s\n", 
+						chan->name, strerror(errno));
+				} else
+					res = 0;
+			} else
+				res = 0;
 			break;
 		case -1:
 			res = tone_zone_play_tone(p->subs[index].zfd, -1);

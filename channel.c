@@ -2561,6 +2561,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 
 	flags = (config->allowdisconnect_out||config->allowredirect_out ? AST_BRIDGE_DTMF_CHANNEL_0 : 0) + (config->allowdisconnect_in||config->allowredirect_in ? AST_BRIDGE_DTMF_CHANNEL_1 : 0);
 
+	*fo = NULL;
 	firstpass = config->firstpass;
 	config->firstpass = 0;
 
