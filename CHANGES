@@ -21,6 +21,8 @@ Asterisk 1.0.6
     -- There was a problem incorrectly matching codec availablity when global preferences were 
        different from that of the user.  To fix this, processing of SDP data has been moved 
        to after determining who the call is coming from.
+    -- Asterisk would run out of RTP ports while waiting for SUBSCRIBE's to expire even though
+       an RTP port isn't needed in this case.  This has been fixed by releasing the ports early.
  -- chan_zap:
     -- During a certain scenario when using flash and '#' transfers you would hear the
        other person and the music they were hearing. This has been fixed.
