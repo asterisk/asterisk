@@ -3884,6 +3884,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_BUSY);
 			break;
 		case AST_CONTROL_RINGING:
+#ifdef ZAPATA_PRI
 			if (!p->proceeding && p->sig==SIG_PRI && p->pri && p->pri->overlapdial) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
@@ -3895,6 +3896,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 				}
 				p->proceeding=1;
 			}
+#endif
 			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_RINGTONE);
 			if (chan->_state != AST_STATE_UP) {
 				if ((chan->_state != AST_STATE_RING) ||
