@@ -6798,7 +6798,7 @@ int load_module()
 
 		ast_mutex_lock(&regl.lock);
 		for (reg = regl.registrations; reg; reg = reg->next) 
-			sip_do_register(reg);
+			__sip_do_register(reg);
 		ast_mutex_unlock(&regl.lock);
 		
 		/* And start the monitor for the first time */
