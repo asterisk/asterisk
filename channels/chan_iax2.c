@@ -4396,6 +4396,7 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 	tpeer = tpeers;
 	while(tpeer) {
 		processed++;
+		res = 0;
 		ast_mutex_lock(&tpeer->lock);
 		/* We can drop a single tpeer per pass.  That makes all this logic
 		   substantially easier */
