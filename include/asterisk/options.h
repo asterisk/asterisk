@@ -23,12 +23,14 @@ extern int option_debug;
 extern int option_nofork;
 extern int option_quiet;
 extern int option_console;
+extern int option_initcrypto;
 extern int fully_booted;
 extern char defaultlanguage[];
 
 #define VERBOSE_PREFIX_1 " "
 #define VERBOSE_PREFIX_2 "  == "
 #define VERBOSE_PREFIX_3 "    -- "
+#define VERBOSE_PREFIX_4 "       > "  
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

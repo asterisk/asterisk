@@ -23,6 +23,7 @@
 #define AST_VAR_DIR    "/var/lib/asterisk"
 #define AST_LOG_DIR	   "/var/log/asterisk"
 #define AST_AGI_DIR		"/var/lib/asterisk/agi-bin"
+#define AST_KEY_DIR	"/var/lib/asterisk/keys"
 
 #define AST_CONFIG_FILE "asterisk.conf"
 

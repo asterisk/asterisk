@@ -22,6 +22,8 @@ CFLAGS+=$(shell [ ! -f /usr/include/linux/if_wanpipe.h ] && echo " -DOLD_SANGOMA
 CFLAGS+=$(shell [ -f /usr/lib/libpri.so.1 ] && echo " -DZAPATA_PRI")
 ZAPPRI=$(shell [ -f /usr/lib/libpri.so.1 ] && echo "-lpri")
 
+CFLAGS+=-DCRYPTO
+
 CFLAGS+=#-DVOFRDUMPER
 
 ZAPDIR=/usr/lib
@@ -30,17 +32,20 @@ CHANNEL_LIBS+=$(shell [ -f $(ZAPDIR)/libzap.a ] && echo "chan_zap.so")
 
 CFLAGS+=$(shell [ -f $(ZAPDIR)/libzap.a ] && echo "-I$(ZAPDIR)")
 
-all: $(CHANNEL_LIBS)
+all: $(CHANNEL_LIBS) 
 
 clean:
 	rm -f *.so *.o
-	rm -f busy.h ringtone.h gentone
+	rm -f busy.h ringtone.h gentone gentone-ulaw
 
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<
 
 gentone: gentone.c
 	$(CC) -o gentone gentone.c -lm
+
+gentone-ulaw: gentone-ulaw.c
+	$(CC) -o gentone-ulaw gentone-ulaw.c -lm
 
 busy.h: gentone
 	./gentone busy 480 620

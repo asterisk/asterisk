@@ -15,6 +15,7 @@
 #include <sys/poll.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <termios.h>
 #include <asterisk/io.h>
 #include <asterisk/logger.h>
 
@@ -257,3 +258,42 @@ void ast_io_dump(struct io_context *ioc)
 	}
 	ast_log(LOG_DEBUG, "================================================\n");
 }
+
+/* Unrelated I/O functions */
+
+int ast_hide_password(int fd)
+{
+	struct termios tios;
+	int res;
+	int old;
+	if (!isatty(fd))
+		return -1;
+	res = tcgetattr(fd, &tios);
+	if (res < 0)
+		return -1;
+	old = tios.c_lflag & (ECHO | ECHONL);
+	tios.c_lflag &= ~ECHO;
+	tios.c_lflag |= ECHONL;
+	res = tcsetattr(fd, TCSAFLUSH, &tios);
+	if (res < 0)
+		return -1;
+	return old;
+}
+
+int ast_restore_tty(int fd, int oldstate)
+{
+	int res;
+	struct termios tios;
+	if (oldstate < 0)
+		return 0;
+	res = tcgetattr(fd, &tios);
+	if (res < 0)
+		return -1;
+	tios.c_lflag &= ~(ECHO | ECHONL);
+	tios.c_lflag |= oldstate;
+	res = tcsetattr(fd, TCSAFLUSH, &tios);
+	if (res < 0)
+		return -1;
+	return 0;
+}
+

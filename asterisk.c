@@ -18,13 +18,16 @@
 #include <asterisk/cli.h>
 #include <asterisk/channel.h>
 #include <asterisk/ulaw.h>
+#include <asterisk/alaw.h>
 #include <asterisk/callerid.h>
 #include <asterisk/module.h>
 #include <asterisk/image.h>
+#include <asterisk/tdd.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <signal.h>
 #include <sched.h>
+#include <asterisk/io.h>
 #include <pthread.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -46,6 +49,7 @@ int option_console=0;
 int option_highpriority=0;
 int option_remote=0;
 int option_exec=0;
+int option_initcrypto=0;
 int fully_booted = 0;
 
 static int ast_socket = -1;		/* UNIX Socket for allowing remote control */
@@ -87,7 +91,7 @@ static void *netconsole(void *vconsole)
 	fd_set rfds;
 	
 	if (gethostname(hostname, sizeof(hostname)))
-		strncpy(hostname, "<Unknown>", sizeof(hostname));
+		strncpy(hostname, "<Unknown>", sizeof(hostname)-1);
 	snprintf(tmp, sizeof(tmp), "%s/%d/%s\n", hostname, mainpid, ASTERISK_VERSION);
 	fdprint(con->fd, tmp);
 	for(;;) {
@@ -196,7 +200,7 @@ static int ast_makesocket(void)
 	}		
 	memset(&sun, 0, sizeof(sun));
 	sun.sun_family = AF_LOCAL;
-	strncpy(sun.sun_path, AST_SOCKET, sizeof(sun.sun_path));
+	strncpy(sun.sun_path, AST_SOCKET, sizeof(sun.sun_path)-1);
 	res = bind(ast_socket, (struct sockaddr *)&sun, sizeof(sun));
 	if (res) {
 		ast_log(LOG_WARNING, "Unable to bind socket to %s: %s\n", AST_SOCKET, strerror(errno));
@@ -227,7 +231,7 @@ static int ast_tryconnect(void)
 	}
 	memset(&sun, 0, sizeof(sun));
 	sun.sun_family = AF_LOCAL;
-	strncpy(sun.sun_path, AST_SOCKET, sizeof(sun.sun_path));
+	strncpy(sun.sun_path, AST_SOCKET, sizeof(sun.sun_path)-1);
 	res = connect(ast_consock, (struct sockaddr *)&sun, sizeof(sun));
 	if (res) {
 		close(ast_consock);
@@ -328,7 +332,7 @@ static void console_verboser(char *s, int pos, int replace, int complete)
 	/* Return to the beginning of the line */
 	if (!pos)
 		fprintf(stdout, "\r");
-	fprintf(stdout, s + pos);
+	fputs(s + pos,stdout);
 	fflush(stdout);
 	if (complete)
 	/* Wake up a select()ing console */
@@ -371,7 +375,7 @@ static void remoteconsolehandler(char *s)
 			else
 				system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
 		} else 
-		strncpy(cmd, s, sizeof(cmd));
+		strncpy(cmd, s, sizeof(cmd)-1);
 		if (!strcasecmp(s, "help"))
 			fprintf(stdout, "          !<command>   Executes a given shell command\n");
 		if (!strcasecmp(s, "quit"))
@@ -441,6 +445,8 @@ static void ast_remotecontrol(char * data)
 	char *cpid;
 	char *version;
 	int pid;
+	int lastclear=0;
+	int oldstatus=0;
 	char tmp[80];
 	read(ast_consock, buf, sizeof(buf));
 	if (data) {
@@ -499,6 +505,18 @@ static void ast_remotecontrol(char * data)
 			if (res < 1)
 				break;
 			buf[res] = 0;
+			/* If someone asks for a pass code, hide the password */
+			if (!memcmp(buf, ">>>>", 4)) {
+				printf("Ooh, i should hide password!\n");
+				if (!lastclear) {
+					oldstatus = ast_hide_password(STDIN_FILENO);
+					printf("Oldstatus = %d\n", oldstatus);
+				}
+				lastclear = 1;
+			} else if (lastclear) {
+				ast_restore_tty(STDIN_FILENO, oldstatus);
+				lastclear = 0;
+			}
 			if (!lastpos)
 				write(STDOUT_FILENO, "\r", 2);
 			write(STDOUT_FILENO, buf, res);
@@ -525,10 +543,12 @@ int main(int argc, char *argv[])
 	sigset_t sigs;
 
 	if (gethostname(hostname, sizeof(hostname)))
-		strncpy(hostname, "<Unknown>", sizeof(hostname));
+		strncpy(hostname, "<Unknown>", sizeof(hostname)-1);
 	mainpid = getpid();
 	ast_ulaw_init();
+	ast_alaw_init();
 	callerid_init();
+	tdd_init();
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 	/* Check if we're root */
@@ -537,7 +557,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	/* Check for options */
-	while((c=getopt(argc, argv, "fdvqprcx:")) != EOF) {
+	while((c=getopt(argc, argv, "fdvqprcix:")) != EOF) {
 		switch(c) {
 		case 'd':
 			option_debug++;
@@ -568,6 +588,9 @@ int main(int argc, char *argv[])
 			option_exec++;
 			xarg = optarg;
 			break;
+		case 'i':
+			option_initcrypto++;
+			break;
 		case '?':
 			exit(1);
 		}
@@ -596,7 +619,8 @@ int main(int argc, char *argv[])
 		ast_log(LOG_ERROR, "Unable to connect to remote asterisk\n");
 		exit(1);
 	}
-	if (!option_verbose && !option_console && !option_debug) {
+
+	if (!option_verbose && !option_debug && !option_nofork && !option_console) {
 		pid = fork();
 		if (pid < 0) {
 			ast_log(LOG_ERROR, "Unable to fork(): %s\n", strerror(errno));
@@ -605,6 +629,7 @@ int main(int argc, char *argv[])
 		if (pid) 
 			exit(0);
 	}
+
 	ast_makesocket();
 	sigemptyset(&sigs);
 	sigaddset(&sigs, SIGHUP);
@@ -648,7 +673,7 @@ int main(int argc, char *argv[])
 		ast_verbose( "Asterisk Ready.\n");
 	fully_booted = 1;
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
-    ast_cli_register(&astshutdown);
+	ast_cli_register(&astshutdown);
 	if (option_console) {
 		/* Console stuff now... */
 		/* Register our quit function */
@@ -674,7 +699,7 @@ int main(int argc, char *argv[])
 	
 		}	
 	} else {
-		/* Do nothing */
+ 		/* Do nothing */
 		select(0,NULL,NULL,NULL,NULL);
 	}
 	return 0;
