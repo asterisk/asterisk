@@ -1393,6 +1393,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, 
 
 }
 
+/*--- ast_hint_extension: Find hint for given extension in context */
 static struct ast_exten *ast_hint_extension(struct ast_channel *c, const char *context, const char *exten)
 {
 	struct ast_exten *e;
@@ -1730,6 +1731,7 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 	return -1;
 }
 
+/*--- ast_add_hint: Add hint to hint list, check initial extension state */
 static int ast_add_hint(struct ast_exten *e)
 {
 	struct ast_hint *list;
@@ -1744,17 +1746,24 @@ static int ast_add_hint(struct ast_exten *e)
 	while (list) {
 		if (list->exten == e) {
 			ast_mutex_unlock(&hintlock);
+			if (option_debug > 1)
+				ast_log(LOG_DEBUG, "HINTS: Not re-adding existing hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
 			return -1;
 		}
 		list = list->next;    
     	}
 
+	if (option_debug > 1)
+		ast_log(LOG_DEBUG, "HINTS: Adding hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
+
 	list = malloc(sizeof(struct ast_hint));
 	if (!list) {
 		ast_mutex_unlock(&hintlock);
+		if (option_debug > 1)
+			ast_log(LOG_DEBUG, "HINTS: Out of memory...\n");
 		return -1;
 	}
-	/* Initialize and insert new item */
+	/* Initialize and insert new item at the top */
 	memset(list, 0, sizeof(struct ast_hint));
 	list->exten = e;
 	list->laststate = ast_extension_state2(e);
@@ -1765,6 +1774,7 @@ static int ast_add_hint(struct ast_exten *e)
 	return 0;
 }
 
+/*--- ast_change_hint: Change hint for an extension */
 static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 { 
 	struct ast_hint *list;
@@ -1785,6 +1795,7 @@ static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 	return -1;
 }
 
+/*--- ast_remove_hint: Remove hint from extension */
 static int ast_remove_hint(struct ast_exten *e)
 {
 	/* Cleanup the Notifys if hint is removed */
@@ -1829,6 +1840,7 @@ static int ast_remove_hint(struct ast_exten *e)
 }
 
 
+/*--- ast_get_hint: Get hint for channel */
 int ast_get_hint(char *hint, int hintsize, char *name, int namesize, struct ast_channel *c, const char *context, const char *exten)
 {
 	struct ast_exten *e;
@@ -2567,6 +2579,11 @@ static char show_switches_help[] =
 "Usage: show switches\n"
 "       Show registered switches\n";
 
+static char show_hints_help[] = 
+"Usage: show hints\n"
+"       Show registered hints\n";
+
+
 /*
  * IMPLEMENTATION OF CLI FUNCTIONS IS IN THE SAME ORDER AS COMMANDS HELPS
  *
@@ -2690,6 +2707,35 @@ static int handle_show_application(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+/*--- handle_show_hints: CLI support for listing registred dial plan hints */
+static int handle_show_hints(int fd, int argc, char *argv[])
+{
+	struct ast_hint *hint;
+	int num = 0;
+
+	if (!hints) {
+		ast_cli(fd, "There are no registered dialplan hints\n");
+		return RESULT_SUCCESS;
+	}
+	/* ... we have hints ... */
+	ast_cli(fd, "\n    -= Registered Asterisk Dial Plan Hints =-\n");
+	if (ast_mutex_lock(&hintlock)) {
+		ast_log(LOG_ERROR, "Unable to lock hints\n");
+		return -1;
+	}
+	hint = hints;
+	while (hint) {
+		ast_cli(fd, "   %-20.20s: %-20.20s  State %2d\n", ast_get_extension_name(hint->exten), ast_get_extension_app(hint->exten), hint->laststate );
+		num++;
+		hint = hint->next;
+	}
+	ast_cli(fd, "----------------\n");
+	ast_cli(fd, "- %d hints registred\n", num);
+	ast_mutex_unlock(&hintlock);
+	return RESULT_SUCCESS;
+}
+
+/*--- handle_show_switches: CLI support for listing registred dial plan switches */
 static int handle_show_switches(int fd, int argc, char *argv[])
 {
 	struct ast_switch *sw;
@@ -3117,6 +3163,12 @@ static struct ast_cli_entry show_switches_cli =
 	{ { "show", "switches", NULL },
 		handle_show_switches, "Show alternative switches",
 		show_switches_help, NULL };
+
+static struct ast_cli_entry show_hints_cli =
+	{ { "show", "hints", NULL },
+		handle_show_hints, "Show dial plan hints",
+		show_hints_help, NULL };
+
 
 int ast_unregister_application(const char *app) {
 	struct ast_app *tmp, *tmpl = NULL;
@@ -4220,9 +4272,10 @@ int ast_add_extension2(struct ast_context *con,
 						con->root = tmp;
 					}
 					ast_mutex_unlock(&con->lock);
+
 					/* And immediately return success. */
 					if (tmp->priority == PRIORITY_HINT)
-					    ast_add_hint(tmp);
+						 ast_add_hint(tmp);
 					
 					LOG;
 					return 0;
@@ -5366,6 +5419,7 @@ int load_pbx(void)
 	ast_cli_register(&show_application_cli);
 	ast_cli_register(&show_dialplan_cli);
 	ast_cli_register(&show_switches_cli);
+	ast_cli_register(&show_hints_cli);
 
 	/* Register builtin applications */
 	for (x=0; x<sizeof(builtins) / sizeof(struct pbx_builtin); x++) {
