@@ -5,7 +5,9 @@
 ; cards = number of cards
 ; indication = 1 ( To use Asterisk indication tones)
 ; ecsuppthres = 0|2048|4096 (none,-24db,-18db only for use with OpenLine4)
-; dtmfidd = 3000 (Inter Digit Delay timeout for when collecting DTMF tones for dialling, in ms)
+; dtmfidd = 3000 (Inter Digit Delay timeout for when collecting DTMF tones for dialling from a Station port, in ms)
+; ast-dtmf-det=1 ( To use Asterisk DTMF detection )
+; relaxdtmf=1 ( Used with ast-dtmf-det )
 ;
 ; For [interface] section
 ; board = board_number (1, 2, 3, ...)
@@ -15,6 +17,8 @@
 ; echocancel = on|off (on by default of v4pci, off by default for others)
 ; callerid = on|off|v23|bell (on => to collect caller ID if available between 1st/2nd rings using vpb functions)
 ;                            (v23|bell => collect caller ID using asterisk functions)
+;            Or for use with FXS channels a '"name" <location>' format can be used to set the channels CID
+;
 ; UseLoopDrop = 0|1 (enables the use of Loop Drop detection, on by default in
 ;                    some cases spurious loop-drops can cause unexpected 
 ;                    hangup detection)
