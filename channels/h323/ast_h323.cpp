@@ -25,7 +25,9 @@
  *
  * Version Info: $Id$
  */
+#include <asterisk/logger.h>
 #include "ast_h323.h"
+
 
 /* PWlib Required Components  */
 #define MAJOR_VERSION 1
@@ -63,7 +65,7 @@ MyProcess::MyProcess(): PProcess("The NuFone Network's", "H.323 Channel Driver f
 
 void MyProcess::Main()
 {
-	cout << "  == Creating H.323 Endpoint" << endl;
+	ast_verbose("  == Creating H.323 Endpoint\n");
 	endPoint = new MyH323EndPoint();
 	PTrace::Initialise(0, NULL, PTrace::Timestamp | PTrace::Thread | PTrace::FileAndLine);
 }
@@ -492,7 +494,7 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 {
 	
 	if (h323debug) {
-		cout << "	-- Received SETUP message..." << endl;
+		ast_verbose("	-- Received SETUP message\n");
 	}
 	
 	call_details_t cd;
@@ -948,6 +950,7 @@ int h323_set_gk(int gatekeeper_discover, char *gatekeeper, char *secret)
 {
 	PString gkName = PString(gatekeeper);
 	PString pass   = PString(secret);
+	H323TransportUDP *rasChannel;
 
 	if (!h323_end_point_exist()) {
 		cout << "ERROR: [h323_set_gk] No Endpoint, this is bad!" << endl;
@@ -972,17 +975,13 @@ int h323_set_gk(int gatekeeper_discover, char *gatekeeper, char *secret)
 			return 1;
 		}	
 	} else {
-		/* Gatekeeper operations */
-		if (endPoint->rasChannel) {
-			delete endPoint->rasChannel;
-		}
-		endPoint->rasChannel = new H323TransportUDP(*endPoint);
+		rasChannel = new H323TransportUDP(*endPoint);
 
-		if (!endPoint->rasChannel) {
+		if (!rasChannel) {
 			cout << "  *** No RAS Channel, this is bad" << endl;
 			return 1;
 		}
-		if (endPoint->SetGatekeeper(gkName, endPoint->rasChannel)) {
+		if (endPoint->SetGatekeeper(gkName, rasChannel)) {
 			cout << "  == Using " << (endPoint->GetGatekeeper())->GetName() << " as our Gatekeeper." << endl;
 		} else {
 			cout << "  *** Error registering with gatekeeper \"" << gkName << "\". " << endl;

@@ -1270,7 +1270,7 @@ static int restart_monitor(void)
 		ast_log(LOG_WARNING, "Cannot kill myself\n");
 		return -1;
 	}
-	if (monitor_thread) {
+	if (monitor_thread && (monitor_thread != -2)) {
 		/* Wake up the thread */
 		pthread_kill(monitor_thread, SIGURG);
 	} else {
@@ -1786,11 +1786,12 @@ int load_module()
 		
 		/* Register our callback functions */
 		h323_callback_register(setup_incoming_call, 
-							   setup_outgoing_call,							 
-							   create_connection, 
-							   setup_rtp_connection, 
-							   cleanup_connection, 
-							   connection_made, send_digit);	
+			               setup_outgoing_call,							 
+	 			       create_connection, 
+				       setup_rtp_connection, 
+				       cleanup_connection, 
+				       connection_made, 
+				       send_digit);	
 	
 
 		/* start the h.323 listener */
@@ -1833,6 +1834,19 @@ int unload_module()
 		ast_log(LOG_WARNING, "Unable to lock the interface list\n");
 		return -1;
 	}
+
+	if (!ast_mutex_lock(&monlock)) {
+                if (monitor_thread && (monitor_thread != -2)) {
+                        pthread_cancel(monitor_thread);
+                        pthread_kill(monitor_thread, SIGURG);
+                        pthread_join(monitor_thread, NULL);
+                 }
+                monitor_thread = (pthread_t) -2;
+                ast_mutex_unlock(&monlock);
+        } else {
+                ast_log(LOG_WARNING, "Unable to lock the monitor\n");
+                return -1;
+        }
 		
 	if (!ast_mutex_lock(&iflock)) {
 		/* destroy all the interfaces and free their memory */
@@ -1856,13 +1870,15 @@ int unload_module()
 	ast_rtp_proto_unregister(&oh323_rtp);
 	
 	/* unregister commands */
-	ast_cli_unregister(&cli_debug);
-	ast_cli_unregister(&cli_no_debug);
-	ast_cli_unregister(&cli_trace);
-	ast_cli_unregister(&cli_no_trace);
-	ast_cli_unregister(&cli_show_codecs);
-	ast_cli_unregister(&cli_gk_cycle);
-
+        ast_cli_unregister(&cli_debug);
+        ast_cli_unregister(&cli_no_debug);
+        ast_cli_unregister(&cli_trace);
+        ast_cli_unregister(&cli_no_trace);   
+        ast_cli_unregister(&cli_show_codecs);
+//      ast_cli_unregister(&cli_gk_cycle);
+        ast_cli_unregister(&cli_hangup_call);
+        ast_cli_unregister(&cli_show_tokens);
+                        
 	/* unregister channel type */
 	ast_channel_unregister(type);
 

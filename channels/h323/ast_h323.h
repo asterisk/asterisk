@@ -215,9 +215,6 @@ class MyH323EndPoint : public H323EndPoint {
 	
     	void SetEndpointTypeInfo( H225_EndpointType & info ) const;
     	void SetGateway(void);
-
-	H323TransportUDP *rasChannel;
-
 };
 
 class MyH323Connection : public H323Connection {
