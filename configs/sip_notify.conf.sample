@@ -1,17 +1,22 @@
-[reboot-polycom]
+[polycom-check-cfg]
 Event=>check-sync
 Content-Length=>0
 
 ; Untested
-[reboot-sipura]
+[sipura-check-cfg]
 Event=>resync
 Content-Length=>0
 
 ; Untested
-[reboot-grandstream]
+[grandstream-check-cfg]
 Event=>sys-control
 
 ; Untested
-[reboot-cisco]
+[cisco-check-cfg]
 Event=>check-sync
+Content-Length=>0
+
+; Untested - from Snom docs
+[reboot-snom]
+Event=>reboot
 Content-Length=>0

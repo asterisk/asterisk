@@ -115,6 +115,7 @@ static char *desc = "Session Initiation Protocol (SIP)";
 static char *channeltype = "SIP";
 static char *tdesc = "Session Initiation Protocol (SIP)";
 static char *config = "sip.conf";
+static char *notify_config = "sip_notify.conf";
 
 #define DEFAULT_SIP_PORT	5060	/* From RFC 2543 */
 #define SIP_MAX_PACKET		4096	/* Also from RFC 2543, should sub headers tho */
@@ -555,6 +556,9 @@ static time_t externexpire = 0;
 static int externrefresh = 10;
 static struct ast_ha *localaddr;
 
+/* The list of manual NOTIFY types we know how to send */
+struct ast_config *notify_types;
+
 static struct ast_frame  *sip_read(struct ast_channel *ast);
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
 static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
@@ -613,6 +617,18 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 }
 
 static void sip_destroy(struct sip_pvt *p);
+
+/*--- build_via: Build a Via header for a request ---*/
+static void build_via(struct sip_pvt *p, char *buf, int len)
+{
+	char iabuf[INET_ADDRSTRLEN];
+
+	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
+	if (ast_test_flag(p, SIP_NAT) != SIP_NAT_NEVER)
+		snprintf(buf, len, "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
+	else /* Work around buggy UNIDEN UIP200 firmware */
+		snprintf(buf, len, "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
+}
 
 /*--- ast_sip_ouraddrfor: NAT fix - decide which IP address to use for ASterisk server? ---*/
 /* Only used for outbound registrations */
@@ -2264,7 +2280,6 @@ static void build_callid(char *callid, int len, struct in_addr ourip, char *from
 static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useglobal_nat)
 {
 	struct sip_pvt *p;
-	char iabuf[INET_ADDRSTRLEN];
 
 	p = malloc(sizeof(struct sip_pvt));
 	if (!p)
@@ -2318,11 +2333,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	}
 
 	strncpy(p->fromdomain, default_fromdomain, sizeof(p->fromdomain) - 1);
-	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	if (ast_test_flag(p, SIP_NAT) != SIP_NAT_NEVER)
-		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
-	else
-		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
+	build_via(p, p->via, sizeof(p->via));
 	if (!callid)
 		build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
 	else
@@ -3122,7 +3133,6 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int se
 	char stripped[80] ="";
 	char tmp[80];
 	char newto[256];
-	char iabuf[INET_ADDRSTRLEN];
 	char *c, *n;
 	char *ot, *of;
 
@@ -3137,10 +3147,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int se
 	
 	if (newbranch) {
 		p->branch ^= rand();
-		if (ast_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581)
-			snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
-		else /* Some implementations (e.g. Uniden UIP200) can't handle rport being in the message!! */
-			snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
+		build_via(p, p->via, sizeof(p->via));
 	}
 	if (!strcasecmp(msg, "CANCEL")) {
 		c = p->initreq.rlPart2;	/* Use original URI */
@@ -3772,15 +3779,11 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, char *authheader, char *vxml_url, char *distinctive_ring, char *osptoken, int addsipheaders, int init)
 {
 	struct sip_request req;
-	char iabuf[INET_ADDRSTRLEN];
 	
 	if (init) {
 		/* Bump branch even on initial requests */
 		p->branch ^= rand();
-		if (ast_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581)
-			snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
-		else /* Work around buggy UNIDEN UIP200 firmware */
-			snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
+		build_via(p, p->via, sizeof(p->via));
 		initreqprep(&req, p, cmd, vxml_url);
 	} else
 		reqprep(&req, p, cmd, 0, 1);
@@ -4018,7 +4021,7 @@ static int transmit_sip_request(struct sip_pvt *p,struct sip_request *req)
 		determine_firstline_parts(&p->initreq);
 	}
 
-	return send_request(p, req, 1, p->ocseq);
+	return send_request(p, req, 0, p->ocseq);
 }
 
 /*--- transmit_notify_with_sipfrag: Notify a transferring party of the status of trasnfer ---*/
@@ -4149,7 +4152,6 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	char tmp[80];
 	char via[80];
 	char addr[80];
-	char iabuf[INET_ADDRSTRLEN];
 	struct sip_pvt *p;
 
 	/* exit if we are already in process with this registrar ?*/
@@ -4259,11 +4261,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	snprintf(tmp, sizeof(tmp), "%u %s", ++r->ocseq, cmd);
 	p->ocseq = r->ocseq;
 
-	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	if (ast_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581)
-		snprintf(via, sizeof(via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
-	else /* Work around buggy UNIDEN UIP200 firmware */
-		snprintf(via, sizeof(via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
+	build_via(p, via, sizeof(via));
 	add_header(&req, "Via", via);
 	add_header(&req, "From", from);
 	add_header(&req, "To", to);
@@ -6135,23 +6133,50 @@ static char *complete_sipch(char *line, char *word, int pos, int state)
 	return c;
 }
 
-/*--- complete_sippeer: Support routine for 'sip reboot' CLI ---*/
-static char *complete_sippeer(char *line, char *word, int pos, int state)
+/*--- complete_sipnotify: Support routine for 'sip notify' CLI ---*/
+static char *complete_sipnotify(char *line, char *word, int pos, int state)
 {
-	int which=0;
 	char *c = NULL;
 
-	ASTOBJ_CONTAINER_TRAVERSE(&peerl, !c, do {
-		/* locking of the ASTOBJ is not required because I only compare the name */
-		if (!strncasecmp(word, iterator->name, strlen(word))) {
-			if (++which > state) {
-				c = strdup(iterator->name);
-			}
-		}
-	
-	} while(0) );
+	if (pos == 2) {
+		int which = 0;
+		char *cat;
 
-	return c;
+		/* do completion for notify type */
+
+		if (!notify_types)
+			return NULL;
+		
+		cat = ast_category_browse(notify_types, NULL);
+		while(cat) {
+			if (!strncasecmp(word, cat, strlen(word))) {
+				if (++which > state) {
+					c = strdup(cat);
+					break;
+				}
+			}
+			cat = ast_category_browse(notify_types, cat);
+		}
+		return c;
+	}
+
+	if (pos > 2) {
+		int which = 0;
+
+		/* do completion for peer name */
+
+		ASTOBJ_CONTAINER_TRAVERSE(&peerl, !c, do {
+			/* locking of the ASTOBJ is not required because I only compare the name */
+			if (!strncasecmp(word, iterator->name, strlen(word))) {
+				if (++which > state) {
+					c = strdup(iterator->name);
+				}
+			}
+		} while(0) );
+		return c;
+	}
+
+	return NULL;
 }
 
 /*--- sip_show_channel: Show details of one call ---*/
@@ -6406,72 +6431,57 @@ static int sip_do_debug(int fd, int argc, char *argv[])
 
 static int sip_notify(int fd, int argc, char *argv[])
 {
-	struct sip_pvt *p;
-	struct sip_request req;
-	struct ast_config *cfg;
-	struct ast_variable *var;
-	char *cat;
-	char name[256] = "";
-	char type[256] = "";
-	char iabuf[INET_ADDRSTRLEN];
-	char foundtype = 0;
+	struct ast_variable *varlist;
+	int i;
 
-	if (argc != 4) {
+	if (argc < 4)
 		return RESULT_SHOWUSAGE;
-	} else {
+
+	if (!notify_types) {
+		ast_cli(fd, "No %s file found, or no types listed there\n", notify_config);
+		return RESULT_FAILURE;
+	}
+
+	varlist = ast_variable_browse(notify_types, argv[2]);
+
+	if (!varlist) {
+		ast_cli(fd, "Unable to find notify type '%s'\n", argv[2]);
+		return RESULT_FAILURE;
+	}
+
+	for (i = 3; i < argc; i++) {
+		struct sip_pvt *p;
+		struct sip_request req;
+		struct ast_variable *var;
+
 		p = sip_alloc(NULL, NULL, 0);
 		if (!p) {
-			ast_log(LOG_WARNING, "Unable to build sip pvt data for reboot\n");
-			return -1;
+			ast_log(LOG_WARNING, "Unable to build sip pvt data for notify\n");
+			return RESULT_FAILURE;
 		}
-		strncpy(type,argv[2],sizeof(type) - 1);
-		cfg = ast_load("sip_notify.conf");
 
-		if (!cfg) {
-			ast_log(LOG_WARNING, "No sip_notify.conf file :\n");
-			return RESULT_SUCCESS;
+		if (create_addr(p, argv[i])) {
+			/* Maybe they're not registered, etc. */
+			sip_destroy(p);
+			ast_cli(fd, "Could not create address fo '%s'\n", argv[i]);
+			continue;
 		}
 
 		initreqprep(&req, p, "NOTIFY", NULL);
 
-		cat = ast_category_browse(cfg, NULL);
-		while(cat) {
-			if (!strcasecmp(cat, type)) {
-				foundtype = 1;
+		for (var = varlist; var; var = var->next)
+			add_header(&req, var->name, var->value);
 
-				var = ast_variable_browse(cfg, cat);
-				while (var) {
-					add_header(&req, var->name, var->value);
-					var = var->next;
-				}
-			}
-			cat = ast_category_browse(cfg, cat);
-		}
-		ast_destroy(cfg);
-
-		if (foundtype == 0) {
-			ast_log(LOG_WARNING, "Unable to find notify enter '%s'\n",argv[2]);
-			return RESULT_SUCCESS;
-		}
-
-		strncpy(name, argv[3], sizeof(name) - 1);
-		if (create_addr(p, name)) {
-			/* Maybe they're not registered, etc. */
-			sip_destroy(p);
-			return 0;
-		}
 		/* Recalculate our side, and recalculate Call ID */
-		if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
+		if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
 			memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
-		/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-		if (ast_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581)
-			snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
-		else /* UNIDEN UIP200 bug */
-			snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
+		build_via(p, p->via, sizeof(p->via));
 		build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
-		transmit_sip_request(p,&req);
+		ast_cli(fd, "Sending NOTIFY of type '%s' to '%s'\n", argv[2], argv[i]);
+		transmit_sip_request(p, &req);
 		sip_scheddestroy(p, 15000);
 	}
+
 	return RESULT_SUCCESS;
 }
 /*--- sip_do_history: Enable SIP History logging (CLI) ---*/
@@ -6498,6 +6508,7 @@ static int sip_no_history(int fd, int argc, char *argv[])
 
 /*--- sip_no_debug: Disable SIP Debugging in CLI ---*/
 static int sip_no_debug(int fd, int argc, char *argv[])
+
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -6694,8 +6705,9 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 
 
 static char notify_usage[] =
-"Usage: sip notify <type> <peer>\n"
-"       Send a notify command to a remote SIP peer\n";
+"Usage: sip notify <type> <peer> [<peer>...]\n"
+"       Send a NOTIFY message to a SIP peer or peers\n"
+"       Message types are defined in sip_notify.conf\n";
 
 static char show_users_usage[] = 
 "Usage: sip show users\n"
@@ -6764,7 +6776,7 @@ static char show_objects_usage[] =
 "       Shows status of known SIP objects\n";
 
 static struct ast_cli_entry  cli_notify =
-	{ { "sip", "notify", NULL }, sip_notify, "Send a notify packet to a SIP peer", notify_usage, complete_sippeer };
+	{ { "sip", "notify", NULL }, sip_notify, "Send a notify packet to a SIP peer", notify_usage, complete_sipnotify };
 static struct ast_cli_entry  cli_show_objects = 
 	{ { "sip", "show", "objects", NULL }, sip_show_objects, "Show all SIP object allocations", show_objects_usage };
 static struct ast_cli_entry  cli_show_users = 
@@ -8052,7 +8064,6 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	/* Called with peerl lock, but releases it */
 	struct sip_pvt *p;
 	char name[256] = "";
-	char iabuf[INET_ADDRSTRLEN];
 	int newmsgs, oldmsgs;
 
 	/* Check for messages */
@@ -8080,11 +8091,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	/* Recalculate our side, and recalculate Call ID */
 	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
-	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	if (ast_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581)
-		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
-	else /* UNIDEN UIP200 bug */
-		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
+	build_via(p, p->via, sizeof(p->via));
 	build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
 	/* Send MWI */
 	ast_set_flag(p, SIP_OUTGOING);
@@ -8275,7 +8282,6 @@ static int sip_poke_noanswer(void *data)
 static int sip_poke_peer(struct sip_peer *peer)
 {
 	struct sip_pvt *p;
-	char iabuf[INET_ADDRSTRLEN];
 	if (!peer->maxms || !peer->addr.sin_addr.s_addr) {
 		/* IF we have no IP, or this isn't to be monitored, return
 		  imeediately after clearing things out */
@@ -8311,11 +8317,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 	/* Recalculate our side, and recalculate Call ID */
 	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
-	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	if (ast_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581)
-		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
-	else
-		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
+	build_via(p, p->via, sizeof(p->via));
 	build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
 
 	if (peer->pokeexpire > -1)
@@ -8389,7 +8391,6 @@ static struct ast_channel *sip_request(const char *type, int format, void *data,
 	struct ast_channel *tmpc = NULL;
 	char *ext, *host;
 	char tmp[256] = "";
-	char iabuf[INET_ADDRSTRLEN];
 	char *dest = data;
 
 	oldformat = format;
@@ -8435,11 +8436,7 @@ static struct ast_channel *sip_request(const char *type, int format, void *data,
 	/* Recalculate our side, and recalculate Call ID */
 	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
-	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	if (ast_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581)
-		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
-	else /* UNIDEN bug */
-		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
+	build_via(p, p->via, sizeof(p->via));
 	build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
 	
 	/* We have an extension to call, don't use the full contact here */
@@ -9159,6 +9156,12 @@ static int reload_config(void)
 
 	/* Release configuration from memory */
 	ast_destroy(cfg);
+
+	/* Load the list of manual NOTIFY types to support */
+	if (notify_types)
+		ast_destroy(notify_types);
+	notify_types = ast_load(notify_config);
+
 	return 0;
 }
 
