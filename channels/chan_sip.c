@@ -129,11 +129,11 @@ static char default_fromdomain[AST_MAX_EXTENSION] = "";
 
 static char notifymime[AST_MAX_EXTENSION] = "application/simple-message-summary";
 
-static int srvlookup = 0;
+static int srvlookup = 1;		/* SRV Lookup on or off. Default now on */
 
-static int pedanticsipchecking = 0;
+static int pedanticsipchecking = 0;	/* Extra checking ?  Default off */
 
-static int autocreatepeer = 0;		
+static int autocreatepeer = 0;		/* Auto creation of peers at registration? Default off. */
 
 static int relaxdtmf = 0;
 
@@ -141,13 +141,16 @@ static int global_rtptimeout = 0;
 
 static int global_rtpholdtimeout = 0;
 
-static int global_trustrpid = 0;
+static int global_trustrpid = 0;	/* Trust RPID headers? Default off. */
 
 static int global_progressinband = 0;
 
 #ifdef OSP_SUPPORT
 static int global_ospauth = 0;
 #endif
+
+#define DEFAULT_MWITIME 10
+static int global_mwitime = DEFAULT_MWITIME;	/* Time between MWI checks for peers */
 
 static int usecnt =0;
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
@@ -7808,6 +7811,7 @@ restartsearch:
 		ast_mutex_lock(&monlock);
 		if (res >= 0) 
 			ast_sched_runq(sched);
+
 		/* needs work to send mwi to realtime peers */
 		ast_mutex_lock(&peerl.lock);
 		peer = peerl.peers;
@@ -7815,7 +7819,7 @@ restartsearch:
 		fastrestart = 0;
 		curpeernum = 0;
 		while(peer) {
-			if ((curpeernum > lastpeernum) && !ast_strlen_zero(peer->mailbox) && ((t - peer->lastmsgcheck) > 10)) {
+			if ((curpeernum > lastpeernum) && !ast_strlen_zero(peer->mailbox) && ((t - peer->lastmsgcheck) > global_mwitime)) {
 				sip_send_mwi_to_peer(peer);
 				fastrestart = 1;
 				lastpeernum = curpeernum;
@@ -8568,6 +8572,11 @@ static int reload_config(void)
 			else {
 				ast_log(LOG_WARNING, "Unknown dtmf mode '%s', using rfc2833\n", v->value);
 				global_dtmfmode = SIP_DTMF_RFC2833;
+			}
+		} else if (!strcasecmp(v->name, "checkmwi")) {
+			if ((sscanf(v->value, "%d", &global_mwitime) != 1) || (global_mwitime < 0)) {
+				ast_log(LOG_WARNING, "'%s' is not a valid MWI time setting at line %d.  Using default (10).\n", v->value, v->lineno);
+				global_mwitime = DEFAULT_MWITIME;
 			}
 		} else if (!strcasecmp(v->name, "rtptimeout")) {
 			if ((sscanf(v->value, "%d", &global_rtptimeout) != 1) || (global_rtptimeout < 0)) {
