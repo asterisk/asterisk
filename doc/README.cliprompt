@@ -14,7 +14,11 @@ the current value by Asterisk:
 %#	'#' if Asterisk is run in console mode, '>' if running as remote console
 
 On Linux systems, you may also use
-%l	Load average on your system
+%l1     Load average over past minute
+%l2     Load average over past 5 minutes
+%l3     Load average over past 15 minutes
+%l4     Process fraction (processes running / total processes)
+%l5     The most recently allocated pid
 
 
 -----
