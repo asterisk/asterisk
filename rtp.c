@@ -861,6 +861,7 @@ static unsigned int calc_txstamp(struct ast_rtp *rtp, struct timeval *delivery)
 	unsigned int ms;
 	if (!rtp->txcore.tv_sec && !rtp->txcore.tv_usec) {
 		gettimeofday(&rtp->txcore, NULL);
+		rtp->txcore.tv_usec -= rtp->txcore.tv_usec % 20000;
 	}
 	if (delivery && (delivery->tv_sec || delivery->tv_usec)) {
 		/* Use previous txcore */
