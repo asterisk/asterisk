@@ -45,13 +45,13 @@ $statement = "SELECT * from $global_table_name order by variable";
 my $result = $dbh->selectall_arrayref($statement);
 unless ($result) {
   # check for errors after every single database call
-  print EXTEN "dbh->selectall_arrayref($statement) failed!\n";
-  print EXTEN "DBI::err=[$DBI::err]\n";
-  print EXTEN "DBI::errstr=[$DBI::errstr]\n";
+  print "dbh->selectall_arrayref($statement) failed!\n";
+  print "DBI::err=[$DBI::err]\n";
+  print "DBI::errstr=[$DBI::errstr]\n";
   exit;
 }
 my @resultSet = @{$result};
-if ( $#resultSet > 0 ) {
+if ( $#resultSet > -1 ) {
 	print EXTEN "[globals]\n";
 	foreach $row (@{ $result }) {
 		my @result = @{ $row };
@@ -65,14 +65,14 @@ $statement = "SELECT context from $table_name group by context";
 $result = $dbh->selectall_arrayref($statement);
 unless ($result) {
   # check for errors after every single database call
-  print EXTEN "dbh->selectall_arrayref($statement) failed!\n";
-  print EXTEN "DBI::err=[$DBI::err]\n";
-  print EXTEN "DBI::errstr=[$DBI::errstr]\n";
+  print "dbh->selectall_arrayref($statement) failed!\n";
+  print "DBI::err=[$DBI::err]\n";
+  print "DBI::errstr=[$DBI::errstr]\n";
 }
 
 @resultSet = @{$result};
 if ( $#resultSet == -1 ) {
-  print EXTEN "No extensions defined in $table_name\n";
+  print "No extensions defined in $table_name\n";
   exit;
 }
 
@@ -83,15 +83,15 @@ foreach my $row ( @{ $result } ) {
 	my $result = $dbh->selectall_arrayref($statement);
 	unless ($result) {
 		# check for errors after every single database call
-		print EXTEN "dbh->selectall_arrayref($statement) failed!\n";
-		print EXTEN "DBI::err=[$DBI::err]\n";
-		print EXTEN "DBI::errstr=[$DBI::errstr]\n";
+		print "dbh->selectall_arrayref($statement) failed!\n";
+		print "DBI::err=[$DBI::err]\n";
+		print "DBI::errstr=[$DBI::errstr]\n";
 		exit;
 	}
 
 	my @resSet = @{$result};
 	if ( $#resSet == -1 ) {          
-		print EXTEN "no results\n";
+		print "no results\n";
 		exit;
 	}
 	foreach my $row ( @{ $result } ) {
