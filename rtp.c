@@ -494,6 +494,9 @@ static unsigned int calc_txstamp(struct ast_rtp *rtp)
 	gettimeofday(&now, NULL);
 	ms = (now.tv_sec - rtp->txcore.tv_sec) * 1000;
 	ms += (now.tv_usec - rtp->txcore.tv_usec) / 1000;
+	/* Use what we just got for next time */
+	rtp->txcore.tv_sec = now.tv_sec;
+	rtp->txcore.tv_usec = now.tv_usec;
 	return ms;
 }
 
@@ -529,7 +532,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 
 	ms = calc_txstamp(rtp);
 	/* Default prediction */
-	pred = ms * 8;
+	pred = rtp->lastts + ms * 8;
 	
 	/* Get a pointer to the header */
 	rtpheader = (unsigned int *)data;
@@ -568,7 +571,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 
 	ms = calc_txstamp(rtp);
 	/* Default prediction */
-	pred = ms * 8;
+	pred = rtp->lastts + ms * 8;
 	
 	switch(f->subclass) {
 	case AST_FORMAT_ULAW:
@@ -591,16 +594,12 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	}
 
 	/* Re-calculate last TS */
-	rtp->lastts = ms * 8;
-#if 0	/* XXX Experiment -- Make timestamp always relative XXX */
+	rtp->lastts = rtp->lastts + ms * 8;
 	/* If it's close to ou prediction, go for it */
 	if (abs(rtp->lastts - pred) < 640)
-#endif	
 		rtp->lastts = pred;
-#if 0
 	else
-		printf("Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);
-#endif			
+		ast_log(LOG_DEBUG, "Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);
 	/* Get a pointer to the header */
 	rtpheader = (unsigned int *)(f->data - hdrlen);
 	rtpheader[0] = htonl((2 << 30) | (codec << 16) | (rtp->seqno++));

@@ -2037,10 +2037,9 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	}
 	/* Make sure it's a SIP URL */
 	if (strncasecmp(c, "sip:", 4)) {
-		ast_log(LOG_NOTICE, "'%s' is not a valid SIP contcact\n", c);
-		return -1;
-	}
-	c += 4;
+		ast_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", c);
+	} else
+		c += 4;
 	/* Ditch q */
 	n = strchr(c, ';');
 	if (n) 
@@ -2203,11 +2202,12 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	
 	strncpy(tmp, get_header(req, "To"), sizeof(tmp) - 1);
 	c = ditch_braces(tmp);
-	if (strncmp(c, "sip:", 4)) {
-		ast_log(LOG_NOTICE, "Invalid to address: '%s' from %s\n", tmp, inet_ntoa(sin->sin_addr));
-		return -1;
+	if (!strncmp(c, "sip:", 4)) {
+		name = c + 4;
+	} else {
+		name = c;
+		ast_log(LOG_NOTICE, "Invalid to address: '%s' from %s (missing sip:) trying to use anyway...\n", c, inet_ntoa(sin->sin_addr));
 	}
-	name = c + 4;
 	c = strchr(name, '@');
 	if (c) 
 		*c = '\0';
@@ -2434,9 +2434,9 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 	of = get_header(req, "From");
 	strncpy(from, of, sizeof(from) - 1);
 	of = ditch_braces(from);
-	if (strncmp(of, "sip:", 4))
-		return 0;
-	else
+	if (strncmp(of, "sip:", 4)) {
+		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
+	} else
 		of += 4;
 	/* Get just the username part */
 	if ((c = strchr(of, '@')))
@@ -3299,6 +3299,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				}
 			}
 			transmit_request(p, "BYE", p->outgoing);
+			p->alreadygone = 1;
 		}
 	} else if (!strcasecmp(cmd, "CANCEL") || !strcasecmp(cmd, "BYE")) {
 		copy_request(&p->initreq, req);
