@@ -885,21 +885,32 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	}
 }
 
-static int find_user(struct sip_pvt *p, int event)
+static int find_user(struct sip_pvt *fup, int event)
 {
 	char name[256] = "";
+	int isfound = 1;
 	struct sip_user *u;
-	strncpy(name, p->username, sizeof(name) - 1);
+	strncpy(name, fup->username, sizeof(name) - 1);
 	ast_pthread_mutex_lock(&userl.lock);
 	u = userl.users;
 	while(u) {
 		if (!strcasecmp(u->name, name)) {
+			isfound = 0;
 			break;
 		}
 		u = u->next;
 	}
+	if ( isfound ) {
+		ast_log(LOG_DEBUG, "%s is not a local user\n", name);
+		ast_pthread_mutex_unlock(&userl.lock);
+		return 1;
+	}
 	if(event == 0) {
-		u->inUse--;
+		if ( u->inUse > 0 ) {
+			u->inUse = u->inUse - 1;
+		} else {
+			u->inUse = 0;
+		}
 	} else {
 		if (u->incominglimit > 0 ) {
 			if (u->inUse >= u->incominglimit) {
@@ -937,7 +948,8 @@ static int sip_hangup(struct ast_channel *ast)
 		return 0;
 	}
 	ast_pthread_mutex_lock(&p->lock);
-	/* find_user(p,0); */
+	ast_log(LOG_DEBUG, "find_user(%s)\n", p->username);
+	find_user(p, 0);
 	/* Determine how to disconnect */
 	if (p->owner != ast) {
 		ast_log(LOG_WARNING, "Huh?  We aren't the owner?\n");
@@ -3699,24 +3711,47 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 	}
 }
 
-static int sip_show_users(int fd, int argc, char *argv[])
-{
-#define FORMAT  "%-15.15s  %-10.15s  %-10.10s  %-10.15s  %-5.5s  %-5.15s\n"
-#define FORMAT2 "%-15.15s  %-10.15s  %-10.10s  %-11.15s  %-6.5s  %d/%d\n"
+static int sip_show_inuse(int fd, int argc, char *argv[]) {
+#define FORMAT  "%-15.15s %-15.15s %-15.15s\n"
+#define FORMAT2 "%-15.15s %-15.15s %-15.15s\n"
 	struct sip_user *user;
+	char limits[80];
+	char used[80];
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
 	ast_pthread_mutex_lock(&userl.lock);
-	ast_cli(fd, FORMAT, "Username", "Secret", "Authen", "Def.Context", "A/C", "inUse/Limit");
+	user = userl.users;
+	ast_cli(fd, FORMAT, "Username", "inUse", "Limit");
 	for(user=userl.users;user;user=user->next) {
-		ast_cli(fd, FORMAT2, user->name, user->secret, user->methods, 
-				user->context,user->ha ? "Yes" : "No",
-				user->inUse,user->incominglimit);
+		if (user->incominglimit)
+			snprintf(limits, sizeof(limits), "%d", user->incominglimit);
+		else
+			strcpy(limits, "N/A");
+		snprintf(used, sizeof(used), "%d", user->inUse);
+		ast_cli(fd, FORMAT2, user->name, used, limits);
 	}
 	ast_pthread_mutex_unlock(&userl.lock);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
+}
+
+
+static int sip_show_users(int fd, int argc, char *argv[])
+{
+#define FORMAT  "%-15.15s  %-15.15s  %-15.15s  %-15.15s  %-5.5s\n"
+	struct sip_user *user;
+	if (argc != 3) 
+		return RESULT_SHOWUSAGE;
+	ast_pthread_mutex_lock(&userl.lock);
+	ast_cli(fd, FORMAT, "Username", "Secret", "Authen", "Def.Context", "A/C");
+	for(user=userl.users;user;user=user->next) {
+		ast_cli(fd, FORMAT, user->name, user->secret, user->methods, 
+				user->context,user->ha ? "Yes" : "No");
+	}
+	ast_pthread_mutex_unlock(&userl.lock);
+	return RESULT_SUCCESS;
+#undef FORMAT
 }
 
 static int sip_show_peers(int fd, int argc, char *argv[])
@@ -4060,6 +4095,10 @@ static char show_users_usage[] =
 "Usage: sip show users\n"
 "       Lists all users known to the SIP (Session Initiation Protocol) subsystem.\n";
 
+static char show_inuse_usage[] = 
+"Usage: sip show inuse\n"
+"       List all users known to the SIP (Session Initiation Protocol) subsystem inUse counters and their incominglimit.\n";
+
 static char show_channels_usage[] = 
 "Usage: sip show channels\n"
 "       Lists all currently active SIP channels.\n";
@@ -4092,6 +4131,8 @@ static struct ast_cli_entry  cli_show_channel =
 	{ { "sip", "show", "channel", NULL }, sip_show_channel, "Show detailed SIP channel info", show_channel_usage, complete_sipch  };
 static struct ast_cli_entry  cli_show_peers =
 	{ { "sip", "show", "peers", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage };
+static struct ast_cli_entry  cli_inuse_show =
+	{ { "sip", "show", "inuse", NULL }, sip_show_inuse, "List all inuse/limit", show_inuse_usage };
 static struct ast_cli_entry  cli_show_registry =
 	{ { "sip", "show", "registry", NULL }, sip_show_registry, "Show SIP registration status", show_reg_usage };
 static struct ast_cli_entry  cli_debug =
@@ -4675,7 +4716,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		transmit_response(p, "200 OK", req);
 		transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
 	} else if (!strcasecmp(cmd, "BYE")) {
-		find_user(p,0);
 		copy_request(&p->initreq, req);
 		check_via(p, req);
 		p->alreadygone = 1;
@@ -5696,6 +5736,7 @@ int load_module()
 		ast_cli_register(&cli_show_registry);
 		ast_cli_register(&cli_debug);
 		ast_cli_register(&cli_no_debug);
+		ast_cli_register(&cli_inuse_show);
 		sip_rtp.type = type;
 		ast_rtp_proto_register(&sip_rtp);
 		sched = sched_context_create();
