@@ -125,9 +125,9 @@ static int send_waveform_to_fd(char *waveform, int length, int fd) {
 static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, int length) {
 	int res=0;
 	int fds[2];
-	int rfds[1 + AST_MAX_FDS];
 	int ms = -1;
 	int pid = -1;
+	int needed = 0;
 	int us;
 	int exception;
 	int owriteformat;
@@ -135,10 +135,11 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 	struct timeval last;
 	struct ast_frame *f;
 	int x;
+	struct ast_frame *winner;
 	struct myframe {
 		struct ast_frame f;
 		char offset[AST_FRIENDLY_OFFSET];
-		char frdata[160];
+		char frdata[2048];
 	} myf;
 	last.tv_usec = 0;
 	last.tv_sec = 0;
@@ -162,53 +163,34 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 		pid = res;
 		/* Order is important -- there's almost always going to be mp3...  we want to prioritize the
 		   user */
-		rfds[AST_MAX_FDS] = fds[0];
 		for (;;) {
-			CHECK_BLOCKING(chan);
-			for (x=0;x<AST_MAX_FDS;x++) 
-				rfds[x] = chan->fds[x];
-  			res = ast_waitfor_n_fd(rfds, AST_MAX_FDS+1, &ms, &exception);
-			chan->blocking = 0;
+			ms = 1000;
+			res = ast_waitfor(chan, ms);
 			if (res < 1) {
-				ast_log(LOG_DEBUG, "Hangup detected\n");
 				res = -1;
 				break;
 			}
-			for(x=0;x<AST_MAX_FDS;x++) 
-				if (res == chan->fds[x])
-					break;
-
-			if (x < AST_MAX_FDS) {
-				if (exception)
-					chan->exception = 1;
-				f = ast_read(chan);
-				if (!f) {
-					ast_log(LOG_DEBUG, "Null frame == hangup() detected\n");
-					res = -1;
-					break;
-				}
-				if (f->frametype == AST_FRAME_DTMF) {
-					ast_log(LOG_DEBUG, "User pressed a key\n");
-					ast_frfree(f);
-					res = 0;
-					break;
-				}
+			f = ast_read(chan);
+			if (!f) {
+				ast_log(LOG_DEBUG, "Null frame == hangup() detected\n");
+				res = -1;
+				break;
+			}
+			if (f->frametype == AST_FRAME_DTMF) {
+				ast_log(LOG_DEBUG, "User pressed a key\n");
 				ast_frfree(f);
-			} else if (res == fds[0]) {
-				gettimeofday(&tv, NULL);
-				if (last.tv_sec || last.tv_usec) {
-					/* We should wait at least a frame length */
-					us = sizeof(myf.frdata) / 16 * 1000;
-					/* Subtract 1,000,000 us for each second late we've passed */
-					us -= (tv.tv_sec - last.tv_sec) * 1000000;
-					/* And one for each us late we've passed */
-					us -= (tv.tv_usec - last.tv_usec);
-					/* Sleep that long if needed */
-					if (us > 0)
-						usleep(us);
+				res = 0;
+				break;
+			}
+			if (f->frametype == AST_FRAME_VOICE) {
+				/* Treat as a generator */
+				needed = f->sample * 2;
+				if (needed > sizeof(myf.frdata)) {
+					ast_log(LOG_WARNING, "Only able to deliver %d of %d requested samples\n",
+						sizeof(myf.frdata) / 2, needed/2);
+					needed = sizeof(myf.frdata);
 				}
-				last = tv;
-				res = read(fds[0], myf.frdata, sizeof(myf.frdata));
+				res = read(fds[0], myf.frdata, needed);
 				if (res > 0) {
 					myf.f.frametype = AST_FRAME_VOICE;
 					myf.f.subclass = AST_FORMAT_SLINEAR;
@@ -222,7 +204,7 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 						res = -1;
 						break;
 					}
-					if (res < sizeof(myf.frdata)) { // last frame
+					if (res < needed) { // last frame
 						ast_log(LOG_WARNING, "Last frame\n");
 						res=0;
 						break;
@@ -231,11 +213,8 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 					ast_log(LOG_WARNING, "No more waveform\n");
 					res = 0;
 				}
-			} else {
-				ast_log(LOG_DEBUG, "HuhHHH?\n");
-				res = -1;
-				break;
 			}
+			ast_frfree(f);
 		}
 	}
 	close(fds[0]);
