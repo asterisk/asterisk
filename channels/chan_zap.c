@@ -3867,7 +3867,6 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		p->subs[index].needanswer = 0;
 		p->subs[index].f.frametype = AST_FRAME_CONTROL;
 		p->subs[index].f.subclass = AST_CONTROL_ANSWER;
-		ast_setstate(ast, AST_STATE_UP);
 		ast_mutex_unlock(&p->lock);
 		return &p->subs[index].f;
 	}	
@@ -4019,7 +4018,6 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 			   of a DTMF digit */
 			p->subs[index].f.frametype = AST_FRAME_CONTROL;
 			p->subs[index].f.subclass = AST_CONTROL_ANSWER;
-			ast_setstate(ast, AST_STATE_UP);
 			f = &p->subs[index].f;
 		} else if (p->callwaitcas) {
 			if ((f->subclass == 'A') || (f->subclass == 'D')) {
