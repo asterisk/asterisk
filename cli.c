@@ -983,6 +983,7 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 				fullcmd = e->generator(text, word, (strlen(word) ? (x - 1) : (x)), state);
 				if (lock)
 					ast_mutex_unlock(&clilock);
+				free(dup);
 				return fullcmd;
 			}
 			
