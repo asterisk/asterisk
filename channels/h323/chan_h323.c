@@ -961,8 +961,14 @@ int setup_incoming_call(call_details_t cd)
 		} else {
 			if (user->host) {
 				if (strcasecmp(cd.sourceIp, inet_ntoa(user->addr.sin_addr))){
-					ast_log(LOG_ERROR, "Call from user '%s' rejected due to non-matching IP address of '%s'\n", user->name, cd.sourceIp);
-                	return 0;
+					
+					if(!strlen(default_context)) {
+						ast_log(LOG_ERROR, "Call from user '%s' rejected due to non-matching IP address of '%s'\n", user->name, cd.sourceIp);
+                		return 0;
+					}
+					strncpy(p->context, default_context, sizeof(p->context)-1);
+					sprintf(p->exten,"i");
+					goto exit;					
 				}
 			}
 			if (user->incominglimit > 0) {
@@ -993,7 +999,9 @@ int setup_incoming_call(call_details_t cd)
 			user->inUse++;
 		} 
 	}
-	
+
+/* I know this is horrid, don't kill me saddam */
+exit:
 	/* allocate a channel and tell asterisk about it */
 	c = oh323_new(p, AST_STATE_RINGING, cd.call_token);
 
