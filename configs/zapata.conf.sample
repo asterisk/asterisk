@@ -85,6 +85,7 @@ switchtype=national
 ; pri_cpe: PRI signalling, CPE side
 ; pri_net: PRI signalling, Network side
 ; gr303fxoks_net: GR-303 Signalling, FXO Loopstart, Network side
+; gr303fxsks_cpe: GR-303 Signalling, FXS Loopstart, CPE side
 ; sf:	      SF (Inband Tone) Signalling
 ; sf_w:	      SF Wink
 ; sf_featd:   SF Feature Group D (The fake, Adtran style, DTMF)

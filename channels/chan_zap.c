@@ -131,6 +131,7 @@ static char *config = "zapata.conf";
 #define	SIG_SF_FEATB	(0x800000 | ZT_SIG_SF)
 #define SIG_EM_E1	ZT_SIG_EM_E1
 #define SIG_GR303FXOKS   (0x100000 | ZT_SIG_FXOKS)
+#define SIG_GR303FXSKS   (0x200000 | ZT_SIG_FXSKS)
 
 #define NUM_SPANS 	32
 #define NUM_DCHANS	4		/* No more than 4 d-channels */
@@ -991,6 +992,8 @@ static char *sig2str(int sig)
 		return "SF (Tone) Signalling with Feature Group B (MF)";
 	case SIG_GR303FXOKS:
 		return "GR-303 Signalling with FXOKS";
+	case SIG_GR303FXSKS:
+		return "GR-303 Signalling with FXSKS";
 	case 0:
 		return "Pseudo Signalling";
 	default:
@@ -5289,6 +5292,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_FXSLS:
 		case SIG_FXSGS:
 		case SIG_FXSKS:
+		case SIG_GR303FXSKS:
 			zt_disable_ec(i);
 			res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, -1);
 			zt_set_hook(i->subs[SUB_REAL].zfd, ZT_ONHOOK);
@@ -5815,13 +5819,13 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		} else {
 			if (channel == CHAN_PSEUDO)
 				signalling = 0;
-			else if (signalling != SIG_FXOKS) {
-				ast_log(LOG_ERROR, "CRV's must use FXO Kewl Start (fxo_ks) signalling only.\n");
+			else if ((signalling != SIG_FXOKS) && (signalling != SIG_FXSKS)) {
+				ast_log(LOG_ERROR, "CRV's must use FXO/FXS Kewl Start (fxo_ks/fxs_ks) signalling only.\n");
 				return NULL;
 			}
 		}
 #ifdef ZAPATA_PRI
-		if ((signalling == SIG_PRI) || (signalling == SIG_GR303FXOKS)) {
+		if ((signalling == SIG_PRI) || (signalling == SIG_GR303FXOKS) || (signalling == SIG_GR303FXSKS)) {
 			int offset;
 			int myswitchtype;
 			int matchesdchan;
@@ -8821,6 +8825,10 @@ static int setup_zap(void)
 				cur_signalling = SIG_GR303FXOKS;
 				cur_radio = 0;
 				pritype = PRI_NETWORK;
+			} else if (!strcasecmp(v->value, "gr303fxsks_cpe")) {
+				cur_signalling = SIG_GR303FXSKS;
+				cur_radio = 0;
+				pritype = PRI_CPE;
 #endif
 #ifdef ZAPATA_R2
 			} else if (!strcasecmp(v->value, "r2")) {
