@@ -207,6 +207,7 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 	int waittime;
 	struct ast_frame *f;
 	int rem = 0;
+	int def;
 
 	if (chan->adsicpe == AST_ADSI_UNAVAILABLE) {
 		/* Don't bother if we know they don't support ADSI */
@@ -266,7 +267,7 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 
 		x = 0;
 		pos = 0;
-#if 0
+#if 1
 		def= ast_channel_defer_dtmf(chan);
 #endif
 		while((x < 6) && msg[x]) {
@@ -283,14 +284,17 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 
 
 		rem = 0;
-		if (adsi_careful_send(chan, buf, pos, &rem))
+		res = adsi_careful_send(chan, buf, pos, &rem); 
+		if (!def)
+			ast_channel_undefer_dtmf(chan);
+		if (res)
 			return -1;
 
 		ast_log(LOG_DEBUG, "Sent total spill of %d bytes\n", pos);
 
 		memset(ack, 0, sizeof(ack));
 		/* Get real result */
-		res = ast_readstring(chan, ack, 3, 1000, 1000, "");
+		res = ast_readstring(chan, ack, 2, 1000, 1000, "");
 		/* Check for hangup */
 		if (res < 0)
 			return -1;
@@ -893,6 +897,7 @@ static int str2align(char *s)
 static void init_state(void)
 {
 	int x;
+
 	for (x=0;x<ADSI_MAX_INTRO;x++)
 		aligns[x] = ADSI_JUST_CENT;
 	strcpy(intro[0], "Welcome to the");
