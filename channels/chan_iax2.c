@@ -4994,7 +4994,7 @@ static int expire_registry(void *data)
 	if (iax2_regfunk)
 		iax2_regfunk(p->name, 0);
 
-	if (!ast_test_flag(p, IAX_RTAUTOCLEAR)) {
+	if (ast_test_flag(p, IAX_RTAUTOCLEAR)) {
 		ast_set_flag(p, IAX_DELME);
 		prune_peers();
 	}
