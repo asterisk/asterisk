@@ -94,7 +94,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	}
 	dial=strsep(&s, "|");
 	if(!dial) {
-		ast_log(LOG_WARNING, "PARK: A dial resouce must be specified i.e: Console/dsp or Zap/g1/5551212\n");
+		ast_log(LOG_WARNING, "PARK: A dial resource must be specified i.e: Console/dsp or Zap/g1/5551212\n");
 		free(orig_s);
 		return -1;
 	} else {
