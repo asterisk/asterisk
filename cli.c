@@ -233,11 +233,11 @@ static int handle_help(int fd, int argc, char *argv[]);
 
 static struct ast_cli_entry builtins[] = {
 	/* Keep alphabetized */
-	{ { "show" , "channels", NULL }, handle_chanlist, "Display information on channels", chanlist_help },
 	{ { "help", NULL }, handle_help, "Display help list, or specific help on a command", help_help },
 	{ { "load", NULL }, handle_load, "Load a dynamic module by name", load_help, complete_fn },
-    { { "show", "modules", NULL }, handle_modlist, "List modules and info", modlist_help },
 	{ { "show", "channel", NULL }, handle_showchan, "Display information on a specific channel", showchan_help, complete_ch },
+	{ { "show", "channels", NULL }, handle_chanlist, "Display information on channels", chanlist_help },
+    { { "show", "modules", NULL }, handle_modlist, "List modules and info", modlist_help },
 	{ { "unload", NULL }, handle_unload, "Unload a dynamic module by name", unload_help, complete_fn },
 	{ { NULL }, NULL, NULL, NULL }
 };
@@ -271,7 +271,7 @@ static struct ast_cli_entry *find_cli(char *cmds[], int exact)
 	}
 	for (e=helpers;e;e=e->next) {
 		match = 1;
-		for (y=0;match && e->cmda[y]; y++) {
+		for (y=0;match && cmds[y]; y++) {
 			if (!e->cmda[y] && !exact)
 				break;
 			if (!e->cmda[y] || strcasecmp(e->cmda[y], cmds[y]))
@@ -297,6 +297,16 @@ static void join(char *s, int len, char *w[])
 	}
 }
 
+static void join2(char *s, int len, char *w[])
+{
+	int x;
+	/* Join words into a string */
+	strcpy(s, "");
+	for (x=0;w[x];x++) {
+		strncat(s, w[x], len - strlen(s));
+	}
+}
+
 static char *find_best(char *argv[])
 {
 	static char cmdline[80];
@@ -314,12 +324,35 @@ static char *find_best(char *argv[])
 	return cmdline;
 }
 
+int ast_cli_unregister(struct ast_cli_entry *e)
+{
+	struct ast_cli_entry *cur, *l=NULL;
+	pthread_mutex_lock(&clilock);
+	cur = helpers;
+	while(cur) {
+		if (e == cur) {
+			/* Rewrite */
+			if (l)
+				l->next = e->next;
+			else
+				helpers = e->next;
+			e->next = NULL;
+			break;
+		}
+		l = cur;
+		cur = cur->next;
+	}
+	pthread_mutex_unlock(&clilock);
+	return 0;
+}
+
 int ast_cli_register(struct ast_cli_entry *e)
 {
 	struct ast_cli_entry *cur, *l=NULL;
 	char fulle[80], fulltst[80];
+	static int len;
 	pthread_mutex_lock(&clilock);
-	join(fulle, sizeof(fulle), e->cmda);
+	join2(fulle, sizeof(fulle), e->cmda);
 	if (find_cli(e->cmda, -1)) {
 		ast_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n", fulle);
 		pthread_mutex_unlock(&clilock);
@@ -327,11 +360,18 @@ int ast_cli_register(struct ast_cli_entry *e)
 	}
 	cur = helpers;
 	while(cur) {
-		join(fulltst, sizeof(fulltst), cur->cmda);
-		if (strcmp(fulle, fulltst) > 0) {
-			/* Put it here */
-			e->next = cur->next;
-			cur->next = e;
+		join2(fulltst, sizeof(fulltst), cur->cmda);
+		len = strlen(fulltst);
+		if (strlen(fulle) < len)
+			len = strlen(fulle);
+		if (strncasecmp(fulle, fulltst, len) < 0) {
+			if (l) {
+				e->next = l->next;
+				l->next = e;
+			} else {
+				e->next = helpers;
+				helpers = e;
+			}
 			break;
 		}
 		l = cur;
@@ -364,7 +404,7 @@ static int help_workhorse(int fd, char *match[])
 			join(fullcmd2, sizeof(fullcmd2), e2->cmda);
 		if (e1->cmda[0])
 			join(fullcmd1, sizeof(fullcmd1), e1->cmda);
-		if (!e1->cmda || 
+		if (!e1->cmda[0] || 
 				(e2 && (strcmp(fullcmd2, fullcmd1) < 0))) {
 			/* Use e2 */
 			e = e2;
@@ -382,7 +422,7 @@ static int help_workhorse(int fd, char *match[])
 				continue;
 			}
 		}
-		ast_cli(fd, "%15s   %s\n", fullcmd, e->summary);
+		ast_cli(fd, "%20.20s   %s\n", fullcmd, e->summary);
 	}
 	return 0;
 }
@@ -560,7 +600,7 @@ int ast_cli_command(int fd, char *s)
 				default:
 				}
 			} else 
-				ast_cli(fd, "No such command '%s'\n", find_best(argv));
+				ast_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(argv));
 			pthread_mutex_unlock(&clilock);
 		}
 		free(dup);
