@@ -56,7 +56,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	char fil[256];
 	char tmp[256];
 	char ext[10];
-	char * vdata;  /* Used so I don't have to typecast every use of *data */
+	char *vdata;
 	int i = 0;
 	int j = 0;
 
@@ -78,15 +78,32 @@ static int record_exec(struct ast_channel *chan, void *data)
 	int option_skip = 0;
 	int option_noanswer = 0;
 	int rfmt = 0;
+	int flags;
+	char *end=NULL;
+	char *p=NULL;
 
-	vdata = data; /* explained above */
+
 
 	/* The next few lines of code parse out the filename and header from the input string */
-	if (!vdata) { /* no data implies no filename or anything is present */
+	if (!data) { /* no data implies no filename or anything is present */
 		ast_log(LOG_WARNING, "Record requires an argument (filename)\n");
 		return -1;
 	}
+	vdata = ast_strdupa(data);
 	
+	p = vdata;
+	while(p && (p=strchr(p,':'))) {
+		end=p;
+		if(!strcasecmp(end,":end")) {
+			*end='\0';
+			end++;
+			break;
+		}
+		p++;
+		end=NULL;
+	}
+	
+
 	for (; vdata[i] && (vdata[i] != ':') && (vdata[i] != '|'); i++ ) {
 		if ((vdata[i] == '%') && (vdata[i+1] == 'd')) {
 			percentflag = 1;                      /* the wildcard is used */
@@ -205,8 +222,11 @@ static int record_exec(struct ast_channel *chan, void *data)
 			ast_dsp_set_threshold(sildet, 256);
 		}
 
-		s = ast_writefile( tmp, ext, NULL, O_CREAT|O_TRUNC|O_WRONLY , 0, 0644);
-	
+
+		flags = end ? O_CREAT|O_APPEND|O_WRONLY : O_CREAT|O_TRUNC|O_WRONLY;
+		s = ast_writefile( tmp, ext, NULL, flags , 0, 0644);
+
+
 		if (s) {
 			if (maxduration > 0)
 				timeout = time(NULL) + (time_t)maxduration;

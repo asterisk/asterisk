@@ -437,13 +437,16 @@ int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char
 	if (chan)
 		ast_stopstream(chan);
 
-	if (file) {
-		end = strchr(file,':');
-		if (!strcasecmp(end,":end")) {
-			*end = '\0';
-			end++;
+
+	if(file) {
+        if((end = strchr(file,':'))) {
+			if(!strcasecmp(end,":end")) {
+				*end = '\0';
+				end++;
+			}
 		}
-	}
+    }
+
 	for (;;) {
 		gettimeofday(&started,NULL);
 
