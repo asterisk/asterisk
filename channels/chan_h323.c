@@ -458,7 +458,7 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
                 pvt->options.port = htons(pvt->sa.sin_port);
         }
 	if (pvt->username) {
-	        sprintf(called_addr, "%s:%s", pvt->username, addr);
+	        sprintf(called_addr, "%s@%s", pvt->username, addr);
         } else {
 		memcpy(called_addr, addr, strlen(called_addr));
 	}
