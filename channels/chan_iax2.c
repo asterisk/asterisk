@@ -3604,8 +3604,10 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		return res;
 	if (ies->called_number)
 		strncpy(iaxs[callno]->exten, ies->called_number, sizeof(iaxs[callno]->exten) - 1);
-	if (ies->calling_number) 
+	if (ies->calling_number) {
+		ast_shrink_phone_number(ies->calling_number);
 		strncpy(iaxs[callno]->cid_num, ies->calling_number, sizeof(iaxs[callno]->cid_num) - 1);
+	}
 	if (ies->calling_name)
 		strncpy(iaxs[callno]->cid_name, ies->calling_name, sizeof(iaxs[callno]->cid_name) - 1);
 	if (ies->calling_ani)

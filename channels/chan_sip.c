@@ -2090,7 +2090,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		ast_mutex_unlock(&usecnt_lock);
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);
-		if (!ast_strlen_zero(i->cid_num))
+		if (!ast_strlen_zero(i->cid_num)) 
 			tmp->cid.cid_num = strdup(i->cid_num);
 		if (!ast_strlen_zero(i->cid_name))
 			tmp->cid.cid_name = strdup(i->cid_name);
@@ -5361,6 +5361,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 	if ((c = strchr(of, ':')))
 		*c = '\0';
 	strncpy(p->cid_num, of, sizeof(p->cid_num) - 1);
+	ast_shrink_phone_number(p->cid_num);
 	if (*calleridname)
 		strncpy(p->cid_name, calleridname, sizeof(p->cid_name) - 1);
 	if (ast_strlen_zero(of))
@@ -5380,6 +5381,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 		  if (*calleridname)
 		  	strncpy(p->cid_name, calleridname, sizeof(p->cid_name) - 1);
 		  strncpy(p->cid_num, rpid_num, sizeof(p->cid_num) - 1);
+		  ast_shrink_phone_number(p->cid_num);
 		}
 
 		if (p->rtp) {
@@ -5394,8 +5396,10 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			sip_cancel_destroy(p);
 			if (!ast_strlen_zero(user->context))
 				strncpy(p->context, user->context, sizeof(p->context) - 1);
-			if (!ast_strlen_zero(user->cid_num) && !ast_strlen_zero(p->cid_num)) 
+			if (!ast_strlen_zero(user->cid_num) && !ast_strlen_zero(p->cid_num))  {
 				strncpy(p->cid_num, user->cid_num, sizeof(p->cid_num) - 1);
+				ast_shrink_phone_number(p->cid_num);
+			}
 			if (!ast_strlen_zero(user->cid_name) && !ast_strlen_zero(p->cid_name)) 
 				strncpy(p->cid_name, user->cid_name, sizeof(p->cid_name) - 1);
 			strncpy(p->username, user->name, sizeof(p->username) - 1);
@@ -5454,6 +5458,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			  if (*calleridname)
 			  	strncpy(p->cid_name, calleridname, sizeof(p->cid_name) - 1);
 			  strncpy(p->cid_num, rpid_num, sizeof(p->cid_num) - 1);
+			  ast_shrink_phone_number(p->cid_num);
 			}
 #ifdef OSP_SUPPORT
 			p->ospauth = peer->ospauth;
