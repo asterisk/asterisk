@@ -135,6 +135,8 @@ static char callerid[256] = "";
 static char language[MAX_LANGUAGE] = "";
 static char musicclass[MAX_LANGUAGE] = "";
 
+static int usedistinctiveringdetection = 0;
+
 static int use_callerid = 1;
 static int zaptrcallerid = 0;
 static int cur_signalling = -1;
@@ -321,6 +323,20 @@ static int dialplan = PRI_NATIONAL_ISDN + 1;
 #define SUB_CALLWAIT	1			/* Call-Waiting call on hold */
 #define SUB_THREEWAY	2			/* Three-way call */
 
+
+static struct zt_distRings drings;
+
+struct distRingData {
+	int ring[3];
+};
+struct ringContextData {
+	char contextData[AST_MAX_EXTENSION];
+};
+struct zt_distRings {
+	struct distRingData ringnum[3];
+	struct ringContextData ringContext[3];
+};
+
 static char *subnames[] = {
 	"Real",
 	"Callwait",
@@ -366,7 +382,11 @@ static struct zt_pvt {
 	float txgain;
 	struct zt_pvt *next;			/* Next channel in list */
 	struct zt_pvt *prev;			/* Prev channel in list */
+
+	struct zt_distRings drings;
+
 	char context[AST_MAX_EXTENSION];
+	char defcontext[AST_MAX_EXTENSION];
 	char exten[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
 	char musicclass[MAX_LANGUAGE];
@@ -499,6 +519,9 @@ static struct zt_ring_cadence cadences[] = {
 	{ { 125, 125, 125, 125, 125, 4000 } },	/* Three short bursts */
 	{ { 1000, 500, 2500, 5000 } },	/* Long ring */
 };
+
+int receivedRingT; /* Used to find out what ringtone we are on */
+
 
 static int cidrings[] = {
 	2,										/* Right after first long ring */
@@ -4009,6 +4032,12 @@ static void *ss_thread(void *data)
 	char dtmfbuf[300];
 	struct callerid_state *cs;
 	char *name=NULL, *number=NULL;
+	int distMatches;
+	int curRingData[3];
+	int receivedRingT;
+	int counter1;
+	int counter;
+
 	int flags;
 	int i;
 	int timeout;
@@ -4443,6 +4472,20 @@ static void *ss_thread(void *data)
 				bump_gains(p);
 #endif				
 				len = 0;
+				distMatches = 0;
+				/* Clear the current ring data array so we dont have old data in it. */
+				for (receivedRingT=0; receivedRingT < 3; receivedRingT++) {
+					curRingData[receivedRingT] = 0;
+				}
+				receivedRingT = 0;
+				counter = 0;
+				counter1 = 0;
+				/* Check to see if context is what it should be, if not set to be. */
+				if (strcmp(p->context,p->defcontext) != 0) {
+					strncpy(p->context, p->defcontext, sizeof(p->context)-1);
+					strncpy(chan->context,p->defcontext,sizeof(chan->context)-1);
+				}
+
 				/* Take out of linear mode for Caller*ID processing */
 				zt_setlinear(p->subs[index].zfd, 0);
 				for(;;) {	
@@ -4458,8 +4501,13 @@ static void *ss_thread(void *data)
 						ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
 						res = 0;
 						/* Let us detect callerid when the telco uses distinctive ring */
+
+						curRingData[receivedRingT] = p->ringt;
+
 						if (p->ringt < RINGT/2)
 							break;
+						++receivedRingT; /* Increment the ringT counter so we can match it against
+								values in zapata.conf for distinctive ring */
 					} else if (i & ZT_IOMUX_READ) {
 						res = read(p->subs[index].zfd, buf, sizeof(buf));
 						if (res < 0) {
@@ -4483,6 +4531,31 @@ static void *ss_thread(void *data)
 							break;
 						} else if (res)
 							break;
+					}
+				}
+				if (usedistinctiveringdetection == 1) {
+					if(option_verbose > 2)
+						/* this only shows up if you have n of the dring patterns filled in */
+						ast_verbose( VERBOSE_PREFIX_3 "Detected ring pattern: %d,%d,%d\n",curRingData[0],curRingData[1],curRingData[2]);
+
+					for (counter=0; counter < 3; counter++) {
+						/* Check to see if the rings we received match any of the ones in zapata.conf for this
+						channel */
+						distMatches = 0;
+						for (counter1=0; counter1 < 3; counter1++) {
+							if (curRingData[counter1] <= (p->drings.ringnum[counter].ring[counter1]+10) && curRingData[counter1] >=
+							(p->drings.ringnum[counter].ring[counter1]-10)) {
+								distMatches++;
+							}
+						}
+						if (distMatches == 3) {
+							/* The ring matches, set the context to whatever is for distinctive ring.. */
+							strncpy(p->context, p->drings.ringContext[counter].contextData, sizeof(p->context)-1);
+							strncpy(chan->context, p->drings.ringContext[counter].contextData, sizeof(chan->context)-1);
+							if(option_verbose > 2)
+								ast_verbose( VERBOSE_PREFIX_3 "Distinctive Ring matched context %s\n",p->context);
+							break;
+						}
 					}
 				}
 				if (res == 1) {
@@ -5310,6 +5383,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 			tmp->permcallwaiting = 0;
 		/* Flag to destroy the channel must be cleared on new mkif.  Part of changes for reload to work */
 		tmp->destroy = 0;
+		tmp->drings = drings;
 		tmp->callwaitingcallerid = callwaitingcallerid;
 		tmp->threewaycalling = threewaycalling;
 		tmp->adsi = adsi;
@@ -5339,6 +5413,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		}
 		tmp->transfer = transfer;
 		ast_mutex_init(&tmp->lock);
+		strncpy(tmp->defcontext,context,sizeof(tmp->defcontext)-1);
 		strncpy(tmp->language, language, sizeof(tmp->language)-1);
 		strncpy(tmp->musicclass, musicclass, sizeof(tmp->musicclass)-1);
 		strncpy(tmp->context, context, sizeof(tmp->context)-1);
@@ -7022,6 +7097,7 @@ static int setup_zap(void)
 	struct zt_pvt *tmp;
 	char *chan;
 	char *c;
+	char *ringc;
 	int start, finish,x;
 	int y;
 	int cur_radio = 0;
@@ -7092,6 +7168,23 @@ static int setup_zap(void)
 				}
 				chan = strsep(&c, ",");
 			}
+		} else if (!strcasecmp(v->name, "usedistinctiveringdetection")) {
+			if (!strcasecmp(v->value, "yes")) usedistinctiveringdetection = 1;
+		} else if (!strcasecmp(v->name, "dring1context")) {
+			strncpy(drings.ringContext[0].contextData,v->value,sizeof(drings.ringContext[0].contextData)-1);
+		} else if (!strcasecmp(v->name, "dring2context")) {
+			strncpy(drings.ringContext[1].contextData,v->value,sizeof(drings.ringContext[1].contextData)-1);
+		} else if (!strcasecmp(v->name, "dring3context")) {
+			strncpy(drings.ringContext[2].contextData,v->value,sizeof(drings.ringContext[2].contextData)-1);
+		} else if (!strcasecmp(v->name, "dring1")) {
+			ringc = v->value;
+			sscanf(ringc, "%d,%d,%d", &drings.ringnum[0].ring[0], &drings.ringnum[0].ring[1], &drings.ringnum[0].ring[2]);
+		} else if (!strcasecmp(v->name, "dring2")) {
+			ringc = v->value;
+			sscanf(ringc,"%d,%d,%d", &drings.ringnum[1].ring[0], &drings.ringnum[1].ring[1], &drings.ringnum[1].ring[2]);
+		} else if (!strcasecmp(v->name, "dring3")) {
+			ringc = v->value;
+			sscanf(ringc, "%d,%d,%d", &drings.ringnum[2].ring[0], &drings.ringnum[2].ring[1], &drings.ringnum[2].ring[2]);
 		} else if (!strcasecmp(v->name, "usecallerid")) {
 			use_callerid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "threewaycalling")) {
@@ -7429,6 +7522,7 @@ static int reload_zt(void)
 	struct zt_pvt *tmp;
 	struct zt_pvt *prev = NULL;
 	char *chan;
+	char *ringc;
 	int start, finish,x;
 	char *stringp=NULL;
 
@@ -7458,6 +7552,7 @@ static int reload_zt(void)
 	gendigittimeout = 8000;
 	amaflags = 0;
 	adsi = 0;
+	memset(drings,0,sizeof(drings));
 	strncpy(accountcode, "", sizeof(accountcode)-1);
 #ifdef ZAPATA_PRI
 	strncpy(idleext, "", sizeof(idleext) - 1);
@@ -7550,6 +7645,23 @@ static int reload_zt(void)
 				}
 				chan = strsep(&stringp, ",");
 			}
+		} else if (!strcasecmp(v->name, "usedistinctiveringdetection")) {
+			if (!strcasecmp(v->value, "yes")) usedistinctiveringdetection = 1;
+		} else if (!strcasecmp(v->name, "dring1context")) {
+			strncpy(drings.ringContext[0].contextData,v->value,sizeof(drings.ringContext[0].contextData)-1);
+		} else if (!strcasecmp(v->name, "dring2context")) {
+			strncpy(drings.ringContext[1].contextData,v->value,sizeof(drings.ringContext[1].contextData)-1);
+		} else if (!strcasecmp(v->name, "dring3context")) {
+			strncpy(drings.ringContext[2].contextData,v->value,sizeof(drings.ringContext[2].contextData)-1);
+		} else if (!strcasecmp(v->name, "dring1")) {
+			ringc = v->value;
+			sscanf(ringc, "%d,%d,%d", &drings.ringnum[0].ring[0], &drings.ringnum[0].ring[1], &drings.ringnum[0].ring[2]);
+		} else if (!strcasecmp(v->name, "dring2")) {
+			ringc = v->value;
+			sscanf(ringc,"%d,%d,%d", &drings.ringnum[1].ring[0], &drings.ringnum[1].ring[1], &drings.ringnum[1].ring[2]);
+		} else if (!strcasecmp(v->name, "dring3")) {
+			ringc = v->value;
+			sscanf(ringc, "%d,%d,%d", &drings.ringnum[2].ring[0], &drings.ringnum[2].ring[1], &drings.ringnum[2].ring[2]);
 		} else if (!strcasecmp(v->name, "usecallerid")) {
 			use_callerid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "threewaycalling")) {

@@ -86,6 +86,11 @@ signalling=fxo_ls
 ;
 rxwink=300		; Atlas seems to use long (250ms) winks
 ;
+; Whether or not to do distinctive ring detection on FXO lines
+;
+;usedistinctiveringdetection=yes
+
+;
 ; Whether or not to use caller ID
 ;
 usecallerid=yes
@@ -306,4 +311,17 @@ immediate=no
 ; signalling = pri_cpe
 ; group = 2
 ; channel => 1-23
+
+;
+;  Used for distintive ring support for x100p.
+;  You can see the dringX patterns is to set any one of the dringXcontext fields
+;  and they will be printed on the console when an inbound call comes in.
+;
+;dring1=95,0,0 
+;dring1context=internal1 
+;dring2=325,95,0 
+;dring2context=internal2 
+; If no pattern is matched here is where we go.
+;context=default
+;channel => 1 
 
