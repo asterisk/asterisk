@@ -146,6 +146,7 @@ static int iaxtrunkdebug = 0;
 
 static char accountcode[20];
 static int amaflags = 0;
+static int notransfer = 0;
 
 static pthread_t netthreadid;
 
@@ -171,6 +172,7 @@ struct iax2_user {
 	struct ast_ha *ha;
 	struct iax2_context *contexts;
 	struct iax2_user *next;
+	int notransfer;
 };
 
 struct iax2_peer {
@@ -214,6 +216,7 @@ struct iax2_peer {
 	
 	struct ast_ha *ha;
 	struct iax2_peer *next;
+	int notransfer;
 };
 
 #define REG_STATE_UNREGISTERED 0
@@ -381,6 +384,7 @@ struct chan_iax2_pvt {
 	unsigned int trunkdatalen;
 	int trunkerror;
 	struct iax2_dpcache *dpentries;
+	int notransfer;		/* do we want native bridging */
 };
 
 static struct ast_iax2_queue {
@@ -745,6 +749,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			iaxs[x]->pingid = ast_sched_add(sched, ping_time * 1000, send_ping, (void *)x);
 			iaxs[x]->lagid = ast_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)x);
 			iaxs[x]->amaflags = amaflags;
+			iaxs[x]->notransfer = notransfer;
 			strncpy(iaxs[x]->accountcode, accountcode, sizeof(iaxs[x]->accountcode)-1);
 		} else {
 			ast_log(LOG_WARNING, "Out of resources\n");
@@ -1461,7 +1466,7 @@ static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newcha
 	return 0;
 }
 
-static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context, int *trunk)
+static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context, int *trunk, int *notransfer)
 {
 	struct hostent *hp;
 	struct iax2_peer *p;
@@ -1497,6 +1502,8 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 					sin->sin_addr = p->defaddr.sin_addr;
 					sin->sin_port = p->defaddr.sin_port;
 				}
+				if (notransfer)
+					*notransfer=p->notransfer;
 				break;
 			}
 		}
@@ -1592,7 +1599,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		strsep(&stringp, ":");
 		portno = strsep(&stringp, ":");
 	}
-	if (create_addr(&sin, NULL, NULL, NULL, hname, context, NULL)) {
+	if (create_addr(&sin, NULL, NULL, NULL, hname, context, NULL, NULL)) {
 		ast_log(LOG_WARNING, "No address associated with '%s'\n", hname);
 		return -1;
 	}
@@ -1758,7 +1765,7 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 	struct chan_iax2_pvt *p0 = c0->pvt->pvt;
 	struct chan_iax2_pvt *p1 = c1->pvt->pvt;
 	struct timeval waittimer = {0, 0}, tv;
-
+	
 	/* Put them in native bridge mode */
 	p0->bridgecallno = p1->callno;
 	p1->bridgecallno = p0->callno;
@@ -1777,7 +1784,8 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 			ast_verbose(VERBOSE_PREFIX_3 "Operating with different codecs, can't native bridge...\n");
 			return -2;
 		}
-		if (!transferstarted) {
+		/* check if transfered and if we really want native bridging */
+		if (!transferstarted && !p0->notransfer && !p1->notransfer) {
 			/* Try the transfer */
 			if (iax2_start_transfer(c0, c1))
 				ast_log(LOG_WARNING, "Unable to start the transfer\n");
@@ -1967,6 +1975,7 @@ static struct ast_channel *ast_iax2_new(struct chan_iax2_pvt *i, int state, int 
 			strncpy(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode)-1);
 		if (i->amaflags)
 			tmp->amaflags = i->amaflags;
+		((struct chan_iax2_pvt *)tmp->pvt->pvt)->notransfer = i->notransfer;
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);
 		tmp->adsicpe = i->peeradsicpe;
@@ -2606,6 +2615,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 				strncpy(iaxs[callno]->accountcode, user->accountcode, sizeof(iaxs[callno]->accountcode)-1);
 			if (user->amaflags)
 				iaxs[callno]->amaflags = user->amaflags;
+			iaxs[callno]->notransfer = user->notransfer;
 			res = 0;
 			break;
 		}
@@ -4465,6 +4475,7 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 	char *stringp=NULL;
 	int capability = iax2_capability;
 	int trunk;
+	int notransfer = 0;
 	strncpy(s, (char *)data, sizeof(s)-1);
 	/* FIXME The next two lines seem useless */
 	stringp=s;
@@ -4476,7 +4487,7 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 	if (!st)
 		st = s;
 	/* Populate our address from the given */
-	if (create_addr(&sin, &capability, &sendani, &maxtime, st, NULL, &trunk)) {
+	if (create_addr(&sin, &capability, &sendani, &maxtime, st, NULL, &trunk, &notransfer)) {
 		return NULL;
 	}
 	callno = find_callno(0, 0, &sin, NEW_FORCE);
@@ -4492,6 +4503,7 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 	/* Keep track of sendani flag */
 	iaxs[callno]->sendani = sendani;
 	iaxs[callno]->maxtime = maxtime;
+	iaxs[callno]->notransfer = notransfer;
 	c = ast_iax2_new(iaxs[callno], AST_STATE_DOWN, capability);
 	ast_pthread_mutex_unlock(&iaxsl[callno]);
 	if (c) {
@@ -4651,6 +4663,8 @@ static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
 				}
 			} else if (!strcasecmp(v->name, "auth")) {
 				peer->authmethods = get_auth_methods(v->value);
+			} else if (!strcasecmp(v->name, "notransfer")) {
+				peer->notransfer = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "host")) {
 				if (!strcasecmp(v->value, "dynamic")) {
 					/* They'll register with us */
@@ -4772,6 +4786,8 @@ static struct iax2_user *build_user(char *name, struct ast_variable *v)
 				}
 			} else if (!strcasecmp(v->name, "auth")) {
 				user->authmethods = get_auth_methods(v->value);
+			} else if (!strcasecmp(v->name, "notransfer")) {
+				user->notransfer = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "secret")) {
 				strncpy(user->secret, v->value, sizeof(user->secret)-1);
 			} else if (!strcasecmp(v->name, "callerid")) {
@@ -5038,6 +5054,7 @@ static int reload_config(void)
 	struct sockaddr_in dead_sin;
 	strncpy(accountcode, "", sizeof(accountcode)-1);
 	amaflags = 0;
+	notransfer = 0;
 	srand(time(NULL));
 	delete_users();
 	set_config(config,&dead_sin);
@@ -5101,7 +5118,7 @@ static int cache_get_callno(char *data)
 		host = st;
 	}
 	/* Populate our address from the given */
-	if (create_addr(&sin, NULL, NULL, NULL, host, NULL, NULL)) {
+	if (create_addr(&sin, NULL, NULL, NULL, host, NULL, NULL, NULL)) {
 		return -1;
 	}
 	ast_log(LOG_DEBUG, "host: %s, user: %s, password: %s, context: %s\n", host, username, password, context);
