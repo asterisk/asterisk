@@ -3233,7 +3233,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		p->subs[index].f.data = NULL;
 		p->subs[index].f.datalen= 0;
 	}
-	if (p->dsp && !p->ignoredtmf && !index) {
+	if (p->dsp && (!p->ignoredtmf || p->callwaitcas || p->busydetect  || p->callprogress) && !index) {
 		/* Perform busy detection. etc on the zap line */
 		f = ast_dsp_process(ast, p->dsp, &p->subs[index].f, 0);
 		if (f) {
