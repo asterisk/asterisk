@@ -386,6 +386,7 @@ bininstall: all
 	fi 
 	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/vm . )
 	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/voicemail . )
+	if [ -d mpg123-0.59r ]; then make -C mpg123-0.59r install; fi
 	@echo " +---- Asterisk Installation Complete -------+"  
 	@echo " +                                           +"
 	@echo " +    YOU MUST READ THE SECURITY DOCUMENT    +"
@@ -493,6 +494,13 @@ __rpm: _version
 
 progdocs:
 	doxygen contrib/asterisk-ng-doxygen
+
+mpg123:
+	@wget -V >/dev/null || (echo "You need wget" ; false )
+	[ -f mpg123-0.59r.tar.gz ] || wget http://www.mpg123.de/mpg123/mpg123-0.59r.tar.gz
+	[ -d mpg123-0.59r ] || tar xfz mpg123-0.59r.tar.gz
+	make -C mpg123-0.59r linux
+	
 
 config:
 	if [ -d /etc/rc.d/init.d ]; then \
