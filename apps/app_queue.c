@@ -2203,7 +2203,7 @@ static void reload_queues(void)
 								q->members = cur;
 							prev = cur;
 						}
-					} else if (!strcasecmp(var->name, "music")) {
+					} else if (!strcasecmp(var->name, "music") || !strcasecmp(var->name, "musiconhold")) {
 						strncpy(q->moh, var->value, sizeof(q->moh) - 1);
 					} else if (!strcasecmp(var->name, "announce")) {
 						strncpy(q->announce, var->value, sizeof(q->announce) - 1);

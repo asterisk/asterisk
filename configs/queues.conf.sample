@@ -23,10 +23,10 @@ persistentmembers = yes
 ;
 ; A sample call queue
 ;
-; Music sets which musiconhold applies for this particular
-; call queue
+; Musiconhold sets which music applies for this particular
+; call queue (configure classes in musiconhold.conf)
 ;
-;music = default
+;musiconhold = default
 ;
 ; An announcement may be specified which is played for the member as
 ; soon as they answer a call, typically to indicate to them which queue
