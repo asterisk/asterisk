@@ -1928,13 +1928,17 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int in
 	ot = get_header(orig, "To");
 	of = get_header(orig, "From");
 
-	if (!strstr(ot, "tag=")) {
+	/* Add tag *unless* this is a CANCEL, in which case we need to send it exactly
+	   as our original request, including tag (or presumably lack thereof) */
+	if (!strstr(ot, "tag=") && strcasecmp(msg, "CANCEL")) {
 		/* Add the proper tag if we don't have it already.  If they have specified
 		   their tag, use it.  Otherwise, use our own tag */
-		if (strlen(p->theirtag))
+		if (!p->outgoing && strlen(p->theirtag))
 			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->theirtag);
-		else
+		else if (p->outgoing)
 			snprintf(newto, sizeof(newto), "%s;tag=%08x", ot, p->tag);
+		else
+			snprintf(newto, sizeof(newto), "%s", ot);
 		ot = newto;
 	}
 
