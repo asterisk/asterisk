@@ -910,6 +910,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 	return res;
 }
 
+/*--- url_decode: Decode SIP URL  ---*/
 static void url_decode(char *s) 
 {
 	char *o = s;
@@ -2452,7 +2453,7 @@ static int sip_register(char *value, int lineno)
 		reg->expire = -1;
 		reg->timeout =  -1;
 		reg->refresh = default_expiry;
-		reg->portno = porta ? htons(atoi(porta)) : 0;
+		reg->portno = porta ? atoi(porta) : 0;
 		reg->callid_valid = 0;
 		reg->ocseq = 101;
 		ast_mutex_lock(&regl.lock);
@@ -3954,7 +3955,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 			return 0;
 		}
 		if (r->portno)
-			p->sa.sin_port = r->portno;
+			p->sa.sin_port = htons(r->portno);
 		p->outgoing = 1;
 		r->call=p;
 		p->registry=r;
@@ -5055,8 +5056,8 @@ static char *get_calleridname(char *input,char *output)
 }
 
 /*--- get_rpid_num: Get caller id number from Remote-Party-ID header field 
- *									Returns true if number should be restricted (privacy setting found)
- *									output is set to NULL if no number found
+ *	Returns true if number should be restricted (privacy setting found)
+ *	output is set to NULL if no number found
  */
 static int get_rpid_num(char *input,char *output, int maxlen)
 {
@@ -5142,6 +5143,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			return 0;
 	ast_mutex_lock(&userl.lock);
 	user = find_user(of);
+	/* Find user based on user name in the from header */
 	if (user && ast_apply_ha(user->ha, sin)) {
 		p->nat = user->nat;
 #ifdef OSP_SUPPORT
@@ -5206,7 +5208,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 #endif	
 	ast_mutex_unlock(&userl.lock);
 	if (!user) {
-	/* If we didn't find a user match, check for peers */
+		/* If we didn't find a user match, check for peers */
 		ast_mutex_lock(&peerl.lock);
 		/* Look for peer based on the IP address we received data from */
 		/* If peer is registred from this IP address or have this as a default
@@ -5610,8 +5612,8 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 /*--- sip_show_registry: Show SIP Registry (registrations with other SIP proxies ---*/
 static int sip_show_registry(int fd, int argc, char *argv[])
 {
-#define FORMAT2 "%-20.20s  %-12.12s  %8.8s %-20.20s\n"
-#define FORMAT  "%-20.20s  %-12.12s  %8d %-20.20s\n"
+#define FORMAT2 "%-30.30s  %-12.12s  %8.8s %-20.20s\n"
+#define FORMAT  "%-30.30s  %-12.12s  %8d %-20.20s\n"
 	struct sip_registry *reg;
 	char host[80];
 	if (argc != 3)
@@ -5619,7 +5621,7 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 	ast_mutex_lock(&regl.lock);
 	ast_cli(fd, FORMAT2, "Host", "Username", "Refresh", "State");
 	for (reg = regl.registrations;reg;reg = reg->next) {
-		snprintf(host, sizeof(host), "%s:%d", reg->hostname, ntohs(reg->portno ? reg->portno : DEFAULT_SIP_PORT));
+		snprintf(host, sizeof(host), "%s:%d", reg->hostname, reg->portno ? reg->portno : DEFAULT_SIP_PORT);
 		ast_cli(fd, FORMAT, host,
 					reg->username, reg->refresh, regstate2str(reg->regstate));
 	}
