@@ -38,6 +38,7 @@
 #include <asterisk/app.h>
 #include <asterisk/dsp.h>
 #include <asterisk/musiconhold.h>
+#include <asterisk/manager.h>
 #include <asterisk/utils.h>
 #include <asterisk/lock.h>
 #include <asterisk/agi.h>
@@ -48,7 +49,7 @@
 #define MAX_COMMANDS 128
 
 /* Recycle some stuff from the CLI interface */
-#define fdprintf ast_cli
+#define fdprintf agi_debug_cli
 
 static char *tdesc = "Asterisk Gateway Interface (AGI)";
 
@@ -74,6 +75,8 @@ static char *descrip =
 "on file descriptor 3\n\n"
 "Use the CLI command 'show agi' to list available agi commands\n";
 
+static int agidebug = 0;
+
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
@@ -85,6 +88,25 @@ LOCAL_USER_DECL;
 #define MAX_AGI_CONNECT 2000
 
 #define AGI_PORT 4573
+
+static void agi_debug_cli(int fd, char *fmt, ...)
+{
+	char *stuff;
+	int res = 0;
+
+	va_list ap;
+	va_start(ap, fmt);
+	res = vasprintf(&stuff, fmt, ap);
+	va_end(ap);
+	if (res == -1) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+	} else {
+		if (agidebug)
+			ast_verbose("AGI Tx >> %s", stuff);
+		ast_carefulwrite(fd, stuff, strlen(stuff), 100);
+		free(stuff);
+	}
+}
 
 static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int *opid)
 {
@@ -961,6 +983,38 @@ static int handle_dbdeltree(struct ast_channel *chan, AGI *agi, int argc, char *
 	return RESULT_SUCCESS;
 }
 
+static char debug_usage[] = 
+"Usage: agi debug\n"
+"       Enables dumping of AGI transactions for debugging purposes\n";
+
+static char no_debug_usage[] = 
+"Usage: agi no debug\n"
+"       Disables dumping of AGI transactions for debugging purposes\n";
+
+static int agi_do_debug(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	agidebug = 1;
+	ast_cli(fd, "AGI Debugging Enabled\n");
+	return RESULT_SUCCESS;
+}
+
+static int agi_no_debug(int fd, int argc, char *argv[])
+{
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	agidebug = 0;
+	ast_cli(fd, "AGI Debugging Disabled\n");
+	return RESULT_SUCCESS;
+}
+
+static struct ast_cli_entry  cli_debug =
+	{ { "agi", "debug", NULL }, agi_do_debug, "Enable AGI debugging", debug_usage };
+
+static struct ast_cli_entry  cli_no_debug =
+	{ { "agi", "no", "debug", NULL }, agi_no_debug, "Disable AGI debugging", no_debug_usage };
+
 static int handle_noop(struct ast_channel *chan, AGI *agi, int arg, char *argv[])
 {
 	fdprintf(agi->fd, "200 result=0\n");
@@ -1469,7 +1523,8 @@ static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid, i
 			  /* get rid of trailing newline, if any */
 			if (*buf && buf[strlen(buf) - 1] == '\n')
 				buf[strlen(buf) - 1] = 0;
-
+			if (agidebug)
+				ast_verbose("AGI Rx << %s\n", buf);
 			returnstatus |= agi_handle_command(chan, agi, buf);
 			/* If the handle_command returns -1, we need to stop */
 			if ((returnstatus < 0) || (returnstatus == AST_PBX_KEEPALIVE)) {
@@ -1672,6 +1727,8 @@ int unload_module(void)
 	STANDARD_HANGUP_LOCALUSERS;
 	ast_cli_unregister(&showagi);
 	ast_cli_unregister(&dumpagihtml);
+	ast_cli_unregister(&cli_debug);
+	ast_cli_unregister(&cli_no_debug);
 	ast_unregister_application(eapp);
 	ast_unregister_application(deadapp);
 	return ast_unregister_application(app);
@@ -1681,6 +1738,8 @@ int load_module(void)
 {
 	ast_cli_register(&showagi);
 	ast_cli_register(&dumpagihtml);
+	ast_cli_register(&cli_debug);
+	ast_cli_register(&cli_no_debug);
 	ast_register_application(deadapp, deadagi_exec, deadsynopsis, descrip);
 	ast_register_application(eapp, eagi_exec, esynopsis, descrip);
 	return ast_register_application(app, agi_exec, synopsis, descrip);

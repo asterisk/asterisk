@@ -208,6 +208,7 @@ struct ast_call_queue {
 	char sound_calls[80];           /* Sound file: "calls waiting to speak to a representative." (def. queue-callswaiting)*/
 	char sound_holdtime[80];        /* Sound file: "The current estimated total holdtime is" (def. queue-holdtime) */
 	char sound_minutes[80];         /* Sound file: "minutes." (def. queue-minutes) */
+	char sound_lessthan[80];        /* Sound file: "less-than" (def. queue-lessthan) */
 	char sound_seconds[80];         /* Sound file: "seconds." (def. queue-seconds) */
 	char sound_thanks[80];          /* Sound file: "Thank you for your patience." (def. queue-thankyou) */
 
@@ -434,7 +435,11 @@ static int say_position(struct queue_ent *qe)
 	if ((avgholdmins+avgholdsecs) > 0 && (qe->parent->announceholdtime) && (!(qe->parent->announceholdtime==1 && qe->last_pos)) ) {
 		res += play_file(qe->chan, qe->parent->sound_holdtime);
 		if(avgholdmins>0) {
-			res += ast_say_number(qe->chan, avgholdmins, AST_DIGIT_ANY, qe->chan->language, (char*) NULL);
+			if (avgholdmins < 2) {
+				res += play_file(qe->chan, qe->parent->sound_lessthan);
+				res += ast_say_number(qe->chan, 2, AST_DIGIT_ANY, qe->chan->language, (char *)NULL);
+			} else 
+				res += ast_say_number(qe->chan, avgholdmins, AST_DIGIT_ANY, qe->chan->language, (char*) NULL);
 			res += play_file(qe->chan, qe->parent->sound_minutes);
 		}
 		if(avgholdsecs>0) {
@@ -1776,6 +1781,7 @@ static void reload_queues(void)
 				strncpy(q->sound_minutes, "queue-minutes", sizeof(q->sound_minutes) - 1);
 				strncpy(q->sound_seconds, "queue-seconds", sizeof(q->sound_seconds) - 1);
 				strncpy(q->sound_thanks, "queue-thankyou", sizeof(q->sound_thanks) - 1);
+				strncpy(q->sound_lessthan, "queue-lessthan", sizeof(q->sound_lessthan) - 1);
 				prev = q->members;
 				if (prev) {
 					/* find the end of any dynamic members */
@@ -1836,6 +1842,8 @@ static void reload_queues(void)
 						strncpy(q->sound_minutes, var->value, sizeof(q->sound_minutes) - 1);
 					} else if (!strcasecmp(var->name, "queue-seconds")) {
 						strncpy(q->sound_seconds, var->value, sizeof(q->sound_seconds) - 1);
+					} else if (!strcasecmp(var->name, "queue-lessthan")) {
+						strncpy(q->sound_lessthan, var->value, sizeof(q->sound_lessthan) - 1);
 					} else if (!strcasecmp(var->name, "queue-thankyou")) {
 						strncpy(q->sound_thanks, var->value, sizeof(q->sound_thanks) - 1);
 					} else if (!strcasecmp(var->name, "announce-frequency")) {
