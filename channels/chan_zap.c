@@ -671,17 +671,20 @@ static int zt_digit(struct ast_channel *ast, char digit)
 	int res = 0;
 	int index;
 	p = ast->pvt->pvt;
-
 	index = zt_get_index(ast, p, 0);
 	if (index == SUB_REAL) {
-		zo.op = ZT_DIAL_OP_APPEND;
-		zo.dialstr[0] = 'T';
-		zo.dialstr[1] = digit;
-		zo.dialstr[2] = 0;
-		if ((res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &zo)))
-			ast_log(LOG_WARNING, "Couldn't dial digit %c\n", digit);
-		else
-			p->dialing = 1;
+		if (p->sig == SIG_PRI && ast->_state == AST_STATE_DIALING) {
+			pri_information(p->pri->pri,p->call,digit);
+		} else {
+			zo.op = ZT_DIAL_OP_APPEND;
+			zo.dialstr[0] = 'T';
+			zo.dialstr[1] = digit;
+			zo.dialstr[2] = 0;
+			if ((res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &zo)))
+				ast_log(LOG_WARNING, "Couldn't dial digit %c\n", digit);
+			else
+				p->dialing = 1;
+		}
 	}
 	
 	return res;
@@ -5473,24 +5476,26 @@ static void *pri_dchannel(void *vpri)
 			case PRI_EVENT_INFO_RECEIVED:
 			case PRI_EVENT_RING:
 				chan = e->ring.channel;
-				if ((chan < 1) || (chan > pri->channels)) {
-					ast_log(LOG_WARNING, "Ring requested on odd channel number %d span %d\n", chan, pri->span);
-					chan = 0;
-				} else if (!pri->pvt[chan]) {
-					ast_log(LOG_WARNING, "Ring requested on unconfigured channel %d span %d\n", chan, pri->span);
-					chan = 0;
-				} else if (pri->pvt[chan]->owner) {
-					if (pri->pvt[chan]->call == e->ring.call) {
-						ast_log(LOG_WARNING, "Duplicate setup requested on channel %d already in use on span %d\n", chan, pri->span);
-						break;
-					} else {
-						ast_log(LOG_WARNING, "Ring requested on channel %d already in use on span %d.  Hanging up owner.\n", chan, pri->span);
-						pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+				if (e->e==PRI_EVENT_RING) {
+					if ((chan < 1) || (chan > pri->channels)) {
+						ast_log(LOG_WARNING, "Ring requested on odd channel number %d span %d\n", chan, pri->span);
 						chan = 0;
+					} else if (!pri->pvt[chan]) {
+						ast_log(LOG_WARNING, "Ring requested on unconfigured channel %d span %d\n", chan, pri->span);
+						chan = 0;
+					} else if (pri->pvt[chan]->owner) {
+						if (pri->pvt[chan]->call == e->ring.call) {
+							ast_log(LOG_WARNING, "Duplicate setup requested on channel %d already in use on span %d\n", chan, pri->span);
+							break;
+						} else {
+							ast_log(LOG_WARNING, "Ring requested on channel %d already in use on span %d.  Hanging up owner.\n", chan, pri->span);
+							pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							chan = 0;
+						}
 					}
+					if (!chan && (e->ring.flexible))
+						chan = pri_find_empty_chan(pri);
 				}
-				if (!chan && (e->ring.flexible))
-					chan = pri_find_empty_chan(pri);
 				if (chan) {
 					if (e->e==PRI_EVENT_RING) {
 						/* Get caller ID */
@@ -5506,10 +5511,15 @@ static void *pri_dchannel(void *vpri)
 					/* Get called number */
 					if (strlen(e->ring.callednum)) {
 						strncpy(pri->pvt[chan]->exten, e->ring.callednum, sizeof(pri->pvt[chan]->exten)-1);
-					} else
+					} 
+#if 0
+					else
 						strcpy(pri->pvt[chan]->exten, "s");
+#endif
+					else
+						strcpy(pri->pvt[chan]->exten, "");
 					/* Make sure extension exists */
-					if (ast_exists_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid)) {
+					if (strlen(pri->pvt[chan]->exten) && ast_exists_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid)) {
 						/* Setup law */
 						int law;
 						if (e->ring.layer1 == PRI_LAYER_1_ALAW)
@@ -5537,7 +5547,7 @@ static void *pri_dchannel(void *vpri)
 							pri->pvt[chan]->call = 0;
 						}
 					} else {
-						if (ast_matchmore_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid))
+						if (!strlen(pri->pvt[chan]->exten) || ast_matchmore_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid))
 						{
 							if (e->e==PRI_EVENT_RING) pri_need_more_info(pri->pri, e->ring.call, chan, 1);
 						} else {
