@@ -82,6 +82,10 @@
 #define IPTOS_MINCOST 0x02
 #endif
 
+#ifdef SO_NO_CHECK
+static int nochecksums = 0;
+#endif
+
 /*
  * Uncomment to try experimental IAX bridge optimization,
  * designed to reduce latency when IAX calls cannot
@@ -3569,6 +3573,9 @@ static struct iax2_trunk_peer *find_tpeer(struct sockaddr_in *sin, int fd)
 			tpeer->next = tpeers;
 			tpeer->sockfd = fd;
 			tpeers = tpeer;
+#ifdef SO_NO_CHECK
+			setsockopt(tpeer->sockfd, SOL_SOCKET, SO_NO_CHECK, &nochecksums, sizeof(nochecksums));
+#endif
 			ast_log(LOG_DEBUG, "Created trunk peer for '%s:%d'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port));
 		}
 	}
@@ -8235,6 +8242,7 @@ static int set_config(char *config_file, int reload)
 	v = ast_variable_browse(cfg, "general");
 	/* Reset Global Flags */
 	memset(&globalflags, 0, sizeof(globalflags));
+	nochecksums = 0;
 
 	while(v) {
 		if (!strcasecmp(v->name, "bindport")){ 
@@ -8244,6 +8252,17 @@ static int set_config(char *config_file, int reload)
 				portno = atoi(v->value);
 		} else if (!strcasecmp(v->name, "pingtime")) 
 			ping_time = atoi(v->value);
+		else if (!strcasecmp(v->name, "nochecksums")) {
+#ifdef SO_NO_CHECK
+			if (ast_true(v->value))
+				nochecksums = 1;
+			else
+				nochecksums = 0;
+#else
+			if (ast_true(v->value))
+				ast_log(LOG_WARNING, "Disabling RTP checksums is not supported on this operating system!\n");
+#endif
+		}
 		else if (!strcasecmp(v->name, "maxjitterbuffer")) 
 			maxjitterbuffer = atoi(v->value);
 		else if (!strcasecmp(v->name, "jittershrinkrate")) 

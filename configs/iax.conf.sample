@@ -23,6 +23,12 @@
 ;
 ;iaxcompat=yes
 ;
+; Disable UDP checksums (if nochecksums is set, then no checkums will
+; be calculated/checked on systems supporting this feature)
+;
+;nochecksums=no
+;
+;
 ; For increased security against brute force password attacks
 ; enable "delayreject" which will delay the sending of authentication
 ; reject for REGREQ or AUTHREP if there is a password.  
