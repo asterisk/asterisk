@@ -125,6 +125,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 {
 	/* Read in the first three digits..  "digit" is the first digit, already read */
 	char ext[NUMDIGITS + 1];
+	char name[80] = "";
 	struct ast_variable *v;
 	int res;
 	int found=0;
@@ -152,6 +153,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 					strsep(&stringp, ",");
 					pos = strsep(&stringp, ",");
 					if (pos) {
+						strncpy(name, pos, sizeof(name) - 1);
 						/* Grab the last name */
 						if (strrchr(pos, ' '))
 							pos = strrchr(pos, ' ') + 1;
@@ -188,7 +190,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 						res = ast_waitstream(chan, AST_DIGIT_ANY);
 					ast_stopstream(chan);
 				} else {
-					res = ast_say_digit_str(chan, v->name, AST_DIGIT_ANY, chan->language);
+					res = ast_say_character_str(chan, strlen(name) ? name : v->name, AST_DIGIT_ANY, chan->language);
 				}
 ahem:
 				if (!res)
