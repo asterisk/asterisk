@@ -3440,7 +3440,11 @@ static int vm_box_exists(struct ast_channel *chan, void *data) {
 		box = context;
 		context = "default";
 	}
-
+	while(*box) {
+		if ((*box != 'u') && (*box != 's') && (*box != 'b'))
+			break;
+		box++;
+	}
 	ast_mutex_lock(&vmlock);
 	user = users;
 	while (user) {
@@ -3448,6 +3452,7 @@ static int vm_box_exists(struct ast_channel *chan, void *data) {
 			branch = 1;
 			break;
 		}
+		user = user->next;
 	}
 	ast_mutex_unlock(&vmlock);
 
