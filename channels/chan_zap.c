@@ -5425,6 +5425,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 	int oldformat;
 	int groupmatch = 0;
 	int channelmatch = -1;
+	int roundrobin = 0;
 	int callwait = 0;
 	struct zt_pvt *p;
 	struct ast_channel *tmp = NULL;
@@ -5476,6 +5477,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 				if (!p)
 					p = iflist;
 			}
+			roundrobin = 1;
 		}
 	} else {
 		char *stringp=NULL;
@@ -5498,7 +5500,8 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 	}
 	exit = p;
 	while(p && !tmp) {
-		round_robin[x] = p;
+		if (roundrobin)
+			round_robin[x] = p;
 #if 0 
 		ast_verbose("name = %s, %d\n",p->owner->name,p->channel);
 #endif
