@@ -202,7 +202,7 @@ out:
   	/* If we're leaving the macro normally, restore original information */
 	chan->priority = oldpriority;
 	strncpy(chan->context, oldcontext, sizeof(chan->context) - 1);
-	if (!chan->_softhangup) {
+	if (!(chan->_softhangup & AST_SOFTHANGUP_ASYNCGOTO)) {
 		/* Copy the extension, so long as we're not in softhangup, where we could be given an asyncgoto */
 		strncpy(chan->exten, oldexten, sizeof(chan->exten) - 1);
 		if ((offsets = pbx_builtin_getvar_helper(chan, "MACRO_OFFSET"))) {

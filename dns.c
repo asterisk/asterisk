@@ -155,13 +155,13 @@ int ast_search_dns(void *context,
 				   const char *dname, int class, int type,
 				   int (*callback)(void *context, u_char *answer, int len, u_char *fullanswer))
 {
-#ifdef __Linux__
+#ifdef linux
 	struct __res_state dnsstate;
 #endif
 	char answer[MAX_SIZE];
 	int res, ret = -1;
 
-#ifdef __Linux__
+#ifdef linux
 	res_ninit(&dnsstate);
 	res = res_nsearch(&dnsstate, dname, class, type, answer, sizeof(answer));
 #else
@@ -180,7 +180,7 @@ int ast_search_dns(void *context,
 		else
 			ret = 1;
 	}
-#if defined(__Linux__)
+#if defined(linux)
 	res_nclose(&dnsstate);
 #else
 #ifndef __APPLE__
