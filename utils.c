@@ -9,6 +9,7 @@
  * the GNU General Public License
  */
 
+#include <ctype.h>
 #include <asterisk/lock.h>
 #include <asterisk/utils.h>
 
@@ -120,8 +121,20 @@ struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
 {
 	int res;
 	int herrno;
+	const char *s;
 	struct hostent *result = NULL;
-
+	/* Although it is perfectly legitimate to lookup a pure integer, for
+	   the sake of the sanity of people who like to name their peers as
+	   integers, we break with tradition and refuse to look up a
+	   pure integer */
+	s = host;
+	while(s && *s) {
+		if (!isdigit(*s))
+			break;
+		s++;
+	}
+	if (!s || !*s)
+		return NULL;
 	res = gethostbyname_r(host, &hp->hp, hp->buf, sizeof(hp->buf), &result, &herrno);
 
 	if (res || !hp->hp.h_addr_list || !hp->hp.h_addr_list[0])
