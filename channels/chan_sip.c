@@ -761,6 +761,8 @@ static struct sip_peer *mysql_peer(char *peer, struct sockaddr_in *sin)
 				if ((nowtime - regseconds) > default_expiry) 
 					memset(&p->addr, 0, sizeof(p->addr));
 			}
+			mysql_free_result(result);
+			result = NULL;
 		}
 		ast_mutex_unlock(&mysqllock);
 	}
