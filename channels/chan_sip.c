@@ -2629,6 +2629,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	int codec;
+	int destiterator = 0;
 	int iterator;
 	int sendonly = 0;
 	int x,y;
@@ -2643,7 +2644,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		return -1;
 	}
 	m = get_sdp(req, "m");
-	c = get_sdp(req, "c");
+	sdpLineNum_iterator_init(&destiterator);
+	c = get_sdp_iterate(&destiterator, req, "c");
 	if (ast_strlen_zero(m) || ast_strlen_zero(c)) {
 		ast_log(LOG_WARNING, "Insufficient information for SDP (m = '%s', c = '%s')\n", m, c);
 		return -1;
@@ -2702,7 +2704,21 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			}
 		}
 	}
-
+	/* Check for Media-description-level-address for audio */
+	if (pedanticsipchecking) {
+		c = get_sdp_iterate(&destiterator, req, "c");
+		if (!ast_strlen_zero(c)) {
+			if (sscanf(c, "IN IP4 %256s", host) != 1) {
+				ast_log(LOG_WARNING, "Invalid secondary host in c= line, '%s'\n", c);
+			} else {
+				/* XXX This could block for a long time, and block the main thread! XXX */
+				hp = ast_gethostbyname(host, &ahp);
+				if (!hp) {
+					ast_log(LOG_WARNING, "Unable to lookup host in secondary c= line, '%s'\n", c);
+				}
+			}
+		}
+	}
 	/* RTP addresses and ports for audio and video */
 	sin.sin_family = AF_INET;
 	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
@@ -2714,6 +2730,21 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		if (debug) {
 			ast_verbose("Peer audio RTP is at port %s:%d\n", ast_inet_ntoa(iabuf,sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 			ast_log(LOG_DEBUG,"Peer audio RTP is at port %s:%d\n",ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+		}
+	}
+	/* Check for Media-description-level-address for video */
+	if (pedanticsipchecking) {
+		c = get_sdp_iterate(&destiterator, req, "c");
+		if (!ast_strlen_zero(c)) {
+			if (sscanf(c, "IN IP4 %256s", host) != 1) {
+				ast_log(LOG_WARNING, "Invalid secondary host in c= line, '%s'\n", c);
+			} else {
+				/* XXX This could block for a long time, and block the main thread! XXX */
+				hp = ast_gethostbyname(host, &ahp);
+				if (!hp) {
+					ast_log(LOG_WARNING, "Unable to lookup host in secondary c= line, '%s'\n", c);
+				}
+			}
 		}
 	}
 	/* Setup video port number */
