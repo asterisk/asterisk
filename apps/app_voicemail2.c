@@ -52,23 +52,17 @@
 #define INTRO "vm-intro"
 
 #define MAXMSG 100
-
 #define MAX_OTHER_FORMATS 10
 
 #define VM_SPOOL_DIR AST_SPOOL_DIR "/vm"
 
 #define BASEMAXINLINE 256
-
 #define BASELINELEN 72
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-
 #define BASEMAXINLINE 256
-#define BASELINELEN 72
 #define eol "\r\n"
 
+#define MAX_DATETIME_FORMAT	512
+#define DIGITS_DIR	AST_SOUNDS "/digits/"
 struct baseio {
 	int iocp;
 	int iolen;
@@ -85,9 +79,17 @@ struct ast_vm_user {
 	char email[80];
 	char pager[80];
 	char serveremail[80];
+	char zonetag[80];
 	int attach;
 	int alloced;
 	struct ast_vm_user *next;
+};
+
+struct vm_zone {
+	char name[80];
+	char timezone[80];
+	char msg_format[512];
+	struct vm_zone *next;
 };
 
 static char *tdesc = "Comedian Mail (Voicemail System)";
@@ -134,6 +136,8 @@ static char *app2 = "VoiceMailMain2";
 static pthread_mutex_t vmlock = AST_MUTEX_INITIALIZER;
 struct ast_vm_user *users;
 struct ast_vm_user *usersl;
+struct vm_zone *zones = NULL;
+struct vm_zone *zonesl = NULL;
 static int attach_voicemail;
 static int maxsilence;
 static int silencethreshold = 128;
@@ -156,7 +160,7 @@ LOCAL_USER_DECL;
 static void apply_options(struct ast_vm_user *vmu, char *options)
 {
 	/* Destructively Parse options and apply */
-	char *stringp = options;
+	char *stringp = strdupa(options);
 	char *s;
 	char *var, *value;
 	while((s = strsep(&stringp, "|"))) {
@@ -169,6 +173,8 @@ static void apply_options(struct ast_vm_user *vmu, char *options)
 					vmu->attach = 0;
 			} else if (!strcasecmp(var, "serveremail")) {
 				strncpy(vmu->serveremail, value, sizeof(vmu->serveremail) - 1);
+			} else if (!strcasecmp(var, "tz")) {
+				strncpy(vmu->zonetag, value, sizeof(vmu->zonetag) - 1);
 			}
 		}
 	}
@@ -212,62 +218,64 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, cha
 
 	retval=malloc(sizeof(struct ast_vm_user));
 
-	*retval->mailbox='\0';
-	*retval->context='\0';
-	*retval->password='\0';
-	*retval->fullname='\0';
-	*retval->email='\0';
-	*retval->pager='\0';
-	*retval->serveremail='\0';
-	retval->attach=-1;
-	retval->alloced=1;
-	retval->next=NULL;
-	if (mailbox) {
-		strcpy(retval->mailbox, mailbox);
-	}
-	if (context) {
-		strcpy(retval->context, context);
-	}
+	if (retval) {
+		*retval->mailbox='\0';
+		*retval->context='\0';
+		*retval->password='\0';
+		*retval->fullname='\0';
+		*retval->email='\0';
+		*retval->pager='\0';
+		*retval->serveremail='\0';
+		retval->attach=-1;
+		retval->alloced=1;
+		retval->next=NULL;
+		if (mailbox) {
+			strcpy(retval->mailbox, mailbox);
+		}
+		if (context) {
+			strcpy(retval->context, context);
+		}
 
-	if (*retval->context) {
-		sprintf(query, "SELECT password,fullname,email,pager,options FROM users WHERE context='%s' AND mailbox='%s'", context, mailbox);
-	} else {
-		sprintf(query, "SELECT password,fullname,email,pager,options FROM users WHERE mailbox='%s'", mailbox);
-	}
-	pthread_mutex_lock(&mysqllock);
-	mysql_query(dbhandler, query);
-	if ((result=mysql_store_result(dbhandler))!=NULL) {
-		if ((rowval=mysql_fetch_row(result))!=NULL) {
-			numFields=mysql_num_fields(result);
-			fields=mysql_fetch_fields(result);
-			for (i=0; i<numFields; i++) {
-				if (rowval[i]) {
-					if (!strcmp(fields[i].name, "password")) {
-						strcpy(retval->password, rowval[i]);
-					} else if (!strcmp(fields[i].name, "fullname")) {
-						strcpy(retval->fullname, rowval[i]);
-					} else if (!strcmp(fields[i].name, "email")) {
-						strcpy(retval->email, rowval[i]);
-					} else if (!strcmp(fields[i].name, "pager")) {
-						strcpy(retval->pager, rowval[i]);
-					} else if (!strcmp(fields[i].name, "options")) {
-						strncpy(options, rowval[i], sizeof(options) - 1);
-						apply_options(retval, options);
+		if (*retval->context) {
+			sprintf(query, "SELECT password,fullname,email,pager,options FROM users WHERE context='%s' AND mailbox='%s'", context, mailbox);
+		} else {
+			sprintf(query, "SELECT password,fullname,email,pager,options FROM users WHERE mailbox='%s'", mailbox);
+		}
+		pthread_mutex_lock(&mysqllock);
+		mysql_query(dbhandler, query);
+		if ((result=mysql_store_result(dbhandler))!=NULL) {
+			if ((rowval=mysql_fetch_row(result))!=NULL) {
+				numFields=mysql_num_fields(result);
+				fields=mysql_fetch_fields(result);
+				for (i=0; i<numFields; i++) {
+					if (rowval[i]) {
+						if (!strcmp(fields[i].name, "password")) {
+							strcpy(retval->password, rowval[i]);
+						} else if (!strcmp(fields[i].name, "fullname")) {
+							strcpy(retval->fullname, rowval[i]);
+						} else if (!strcmp(fields[i].name, "email")) {
+							strcpy(retval->email, rowval[i]);
+						} else if (!strcmp(fields[i].name, "pager")) {
+							strcpy(retval->pager, rowval[i]);
+						} else if (!strcmp(fields[i].name, "options")) {
+							strncpy(options, rowval[i], sizeof(options) - 1);
+							apply_options(retval, options);
+						}
 					}
 				}
+				mysql_free_result(result);
+				pthread_mutex_unlock(&mysqllock);
+				return(retval);
+			} else {
+				mysql_free_result(result);
+				pthread_mutex_unlock(&mysqllock);
+				free(retval);
+				return(NULL);
 			}
-			mysql_free_result(result);
-			pthread_mutex_unlock(&mysqllock);
-			return(retval);
-		} else {
-			mysql_free_result(result);
-			pthread_mutex_unlock(&mysqllock);
-			free(retval);
-			return(NULL);
 		}
+		pthread_mutex_unlock(&mysqllock);
+		free(retval);
 	}
-	pthread_mutex_unlock(&mysqllock);
-	free(retval);
 	return(NULL);
 }
 
@@ -944,6 +952,11 @@ static void free_user(struct ast_vm_user *vmu)
 {
 	if (vmu->alloced)
 		free(vmu);
+}
+
+static void free_zone(struct vm_zone *z)
+{
+	free(z);
 }
 
 static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int busy, int unavail)
@@ -1864,7 +1877,354 @@ static int wait_file(struct ast_channel *chan, struct vm_state *vms, char *file)
 	return res;
 }
 
-static int play_message(struct ast_channel *chan, struct vm_state *vms, int msg)
+static int play_datetime_format(struct ast_channel *chan, time_t time, struct vm_state *vms, struct vm_zone *zone)
+{
+	int d = 0, offset = 0, sndoffset = 0;
+	char sndfile[256], nextmsg[256];
+	struct tm tm;
+	char *tzenv, current_tz[256] = "", *qmark;
+
+	tzenv = getenv("TZ");
+	if (tzenv != NULL)
+		strncpy(current_tz, tzenv, sizeof(current_tz) - 1);
+	if (zone->timezone && strcmp(current_tz,zone->timezone)) {
+		setenv("TZ", zone->timezone, 1);
+		tzset();
+		localtime_r(&time, &tm);
+		if (tzenv != NULL)
+			setenv("TZ", current_tz, 1);
+		else
+			unsetenv("TZ");
+	} else {
+		/* No need to change the timezone */
+		localtime_r(&time, &tm);
+	}
+
+	/* Check for a subexpression */
+	if ((qmark = index(zone->msg_format, '?'))) {
+		/* TODO Allow subexpressions - we probably need to implement a parser here. */
+	}
+
+	for (offset=0 ; zone->msg_format[offset] != '\0' ; offset++) {
+		ast_log(LOG_NOTICE, "Parsing %c in %s\n", zone->msg_format[offset], zone->msg_format);
+		switch (zone->msg_format[offset]) {
+			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
+			case '\'':
+				/* Literal name of a sound file */
+				sndoffset=0;
+				for (sndoffset=0 ; zone->msg_format[++offset] != '\'' ; sndoffset++)
+					sndfile[sndoffset] = zone->msg_format[offset];
+				sndfile[sndoffset] = '\0';
+				snprintf(nextmsg,sizeof(nextmsg), AST_SOUNDS "/%s", sndfile);
+				d = wait_file(chan,vms,nextmsg);
+				break;
+			case '$':
+				/* Ooooh, variables and/or expressions */
+				{
+					struct vm_zone z;
+					memcpy(&z,zone,sizeof(struct vm_zone));
+					pbx_substitute_variables_helper(chan, zone->msg_format + offset, z.msg_format, sizeof(z.msg_format));
+					d = play_datetime_format(chan, time, vms, &z);
+					/* Subtract one, so that when the for loop increments, we point at the nil */
+					offset = strlen(zone->msg_format) - 1;
+				}
+				break;
+			case 'A':
+			case 'a':
+				/* Sunday - Saturday */
+				snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "day-%d", tm.tm_wday);
+				d = wait_file(chan,vms,nextmsg);
+				break;
+			case 'B':
+			case 'b':
+			case 'h':
+				/* January - December */
+				snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "mon-%d", tm.tm_mon);
+				d = wait_file(chan,vms,nextmsg);
+				break;
+			case 'd':
+			case 'e':
+				/* First - Thirtyfirst */
+				if ((tm.tm_mday < 21) || (tm.tm_mday == 30)) {
+					snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "h-%d", tm.tm_mday);
+					d = wait_file(chan,vms,nextmsg);
+				} else if (tm.tm_mday == 31) {
+					/* "Thirty" and "first" */
+					d = wait_file(chan,vms,DIGITS_DIR "30");
+					if (!d) {
+						d = wait_file(chan,vms,DIGITS_DIR "h-1");
+					}
+				} else {
+					/* Between 21 and 29 - two sounds */
+					d = wait_file(chan,vms,DIGITS_DIR "20");
+					if (!d) {
+						snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "h-%d", tm.tm_mday - 20);
+						d = wait_file(chan,vms,nextmsg);
+					}
+				}
+				break;
+			case 'Y':
+				/* Year */
+				if (tm.tm_year > 99) {
+					d = wait_file(chan,vms,DIGITS_DIR "2");
+					if (!d) {
+						d = wait_file(chan,vms,DIGITS_DIR "thousand");
+					}
+					if (tm.tm_year > 100) {
+						if (!d) {
+							/* This works until the end of 2020 */
+							snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_year - 100);
+							d = wait_file(chan,vms,nextmsg);
+						}
+					}
+				} else {
+					if (tm.tm_year < 1) {
+						/* I'm not going to handle 1900 and prior */
+						/* We'll just be silent on the year, instead of bombing out. */
+					} else {
+						d = wait_file(chan,vms,DIGITS_DIR "19");
+						if (!d) {
+							if (tm.tm_year < 20) {
+								/* 1901 - 1920 */
+								snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_year);
+								d = wait_file(chan,vms,nextmsg);
+							} else {
+								/* 1921 - 1999 */
+								int ten, one;
+								ten = tm.tm_year / 10;
+								one = tm.tm_year % 10;
+								snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", ten * 10);
+								d = wait_file(chan,vms,nextmsg);
+								if (!d) {
+									if (one != 0) {
+										snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", one);
+										d = wait_file(chan,vms,nextmsg);
+									}
+								}
+							}
+						}
+					}
+				}
+				break;
+			case 'I':
+			case 'l':
+				/* 12-Hour */
+				if (tm.tm_hour == 0)
+					snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "12");
+				else if (tm.tm_hour > 12)
+					snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_hour - 12);
+				else
+					snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_hour);
+				d = wait_file(chan,vms,nextmsg);
+				break;
+			case 'H':
+			case 'k':
+				/* 24-Hour */
+				if (zone->msg_format[offset] == 'H') {
+					/* e.g. oh-eight */
+					if (tm.tm_hour < 10) {
+						d = wait_file(chan,vms,DIGITS_DIR "oh");
+					}
+				} else {
+					/* e.g. eight */
+					if (tm.tm_hour == 0) {
+						d = wait_file(chan,vms,DIGITS_DIR "oh");
+					}
+				}
+				if (!d) {
+					if (tm.tm_hour != 0) {
+						snprintf(nextmsg,sizeof(nextmsg), AST_SOUNDS "/digits/%d", tm.tm_hour);
+						d = wait_file(chan,vms,nextmsg);
+					}
+				}
+				break;
+			case 'M':
+				/* Minute */
+				if (tm.tm_min == 0) {
+					d = wait_file(chan,vms,DIGITS_DIR "oclock");
+				} else if (tm.tm_min < 10) {
+					d = wait_file(chan,vms,DIGITS_DIR "oh");
+					if (!d) {
+						snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_min);
+						d = wait_file(chan,vms,nextmsg);
+					}
+				} else if ((tm.tm_min < 21) || (tm.tm_min % 10 == 0)) {
+					snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", tm.tm_min);
+					d = wait_file(chan,vms,nextmsg);
+				} else {
+					int ten, one;
+					ten = (tm.tm_min / 10) * 10;
+					one = (tm.tm_min % 10);
+					snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", ten);
+					d = wait_file(chan,vms,nextmsg);
+					if (!d) {
+						/* Fifty, not fifty-zero */
+						if (one != 0) {
+							snprintf(nextmsg,sizeof(nextmsg),DIGITS_DIR "%d", one);
+							d = wait_file(chan,vms,nextmsg);
+						}
+					}
+				}
+				break;
+			case 'P':
+			case 'p':
+				/* AM/PM */
+				if ((tm.tm_hour == 0) || (tm.tm_hour > 12))
+					snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "p-m");
+				else
+					snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "a-m");
+				d = wait_file(chan,vms,nextmsg);
+				break;
+			case 'Q':
+				/* Shorthand for "Today", "Yesterday", or ABdY */
+				{
+					struct timeval now;
+					struct tm tmnow;
+					time_t beg_today;
+
+					gettimeofday(&now,NULL);
+					localtime_r(&now.tv_sec,&tmnow);
+					tmnow.tm_hour = 0;
+					tmnow.tm_min = 0;
+					tmnow.tm_sec = 0;
+					beg_today = mktime(&tmnow);
+					if (beg_today < time) {
+						/* Today */
+						d = wait_file(chan,vms,DIGITS_DIR "today");
+					} else if (beg_today - 86400 < time) {
+						/* Yesterday */
+						d = wait_file(chan,vms,DIGITS_DIR "yesterday");
+					} else {
+						struct vm_zone z;
+						memcpy(&z, zone, sizeof(struct vm_zone));
+						strcpy(z.msg_format, "ABdY");
+						d = play_datetime_format(chan, time, vms, &z);
+					}
+				}
+				break;
+			case 'q':
+				/* Shorthand for "" (today), "Yesterday", A (weekday), or ABdY */
+				{
+					struct timeval now;
+					struct tm tmnow;
+					time_t beg_today;
+
+					gettimeofday(&now,NULL);
+					localtime_r(&now.tv_sec,&tmnow);
+					tmnow.tm_hour = 0;
+					tmnow.tm_min = 0;
+					tmnow.tm_sec = 0;
+					beg_today = mktime(&tmnow);
+					if (beg_today < time) {
+						/* Today */
+					} else if (beg_today - 86400 < time) {
+						/* Yesterday */
+						d = wait_file(chan,vms,DIGITS_DIR "yesterday");
+					} else if (beg_today - 86400 * 6 < time) {
+						/* Within the last week */
+						struct vm_zone z;
+						memcpy(&z, zone, sizeof(struct vm_zone));
+						strcpy(z.msg_format, "A");
+						d = play_datetime_format(chan, time, vms, &z);
+					} else {
+						struct vm_zone z;
+						memcpy(&z, zone, sizeof(struct vm_zone));
+						strcpy(z.msg_format, "ABdY");
+						d = play_datetime_format(chan, time, vms, &z);
+					}
+				}
+				break;
+			case 'R':
+				{
+					struct vm_zone z;
+					memcpy(&z, zone, sizeof(struct vm_zone));
+					strcpy(z.msg_format, "HM");
+					d = play_datetime_format(chan, time, vms, &z);
+				}
+				break;
+			case ' ':
+			case '	':
+				/* Just ignore spaces and tabs */
+				break;
+			default:
+				/* Unknown character */
+				ast_log(LOG_WARNING, "Unknown character in datetime format %s: %c\n", zone->msg_format, zone->msg_format[offset]);
+		}
+		/* Jump out on DTMF */
+		if (d) {
+			break;
+		}
+	}
+	return d;
+}
+
+static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms)
+{
+	int res = 0;
+	char filename[256], *origtime, temp[256];
+	struct vm_zone *the_zone = NULL;
+	struct ast_config *msg_cfg;
+	time_t t;
+	struct timeval tv_now;
+	struct tm time_now, time_then;
+
+	make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg); 
+	snprintf(filename,sizeof(filename), "%s.txt", vms->fn2);
+	msg_cfg = ast_load(filename);
+	if (!msg_cfg) {
+		ast_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
+		return 0;
+	}
+
+	if (!(origtime = ast_variable_retrieve(msg_cfg, "message", "origtime")))
+		return 0;
+	if (sscanf(origtime,"%ld",&t) < 1) {
+		ast_log(LOG_WARNING, "Couldn't find origtime in %s\n", filename);
+		return 0;
+	}
+	ast_destroy(msg_cfg);
+
+	/* Does this user have a timezone specified? */
+	if (strlen(vmu->zonetag)) {
+		/* Find the zone in the list */
+		struct vm_zone *z;
+		z = zones;
+		while (z) {
+			if (!strcmp(z->name, vmu->zonetag)) {
+				the_zone = z;
+				break;
+			}
+			z = z->next;
+		}
+	}
+
+	/* If no zone, use a default */
+	if (!the_zone) {
+		the_zone = alloca(sizeof(struct vm_zone));
+		memset(the_zone,0,sizeof(struct vm_zone));
+		strncpy(the_zone->msg_format, "'vm-received' q 'digits/at' IMp", sizeof(the_zone->msg_format) - 1);
+	}
+
+	/* Set the DIFF_* variables */
+	localtime_r(&t, &time_now);
+	gettimeofday(&tv_now,NULL);
+	localtime_r(&tv_now.tv_sec,&time_then);
+
+	/* Day difference */
+	if (time_now.tm_year == time_then.tm_year)
+		sprintf(temp,"%d",time_now.tm_yday);
+	else
+		sprintf(temp,"%d",(time_now.tm_year - time_then.tm_year) * 365 + (time_now.tm_yday - time_then.tm_yday));
+	pbx_builtin_setvar_helper(chan, "DIFF_DAY", temp);
+
+	/* Can't think of how other diffs might be helpful, but I'm sure somebody will think of something. */
+
+	res = play_datetime_format(chan, t, vms, the_zone);
+	pbx_builtin_setvar_helper(chan, "DIFF_DAY", NULL);
+	return res;
+}
+
+static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int msg)
 {
 	int res = 0;
 	vms->starting = 0; 
@@ -1881,7 +2241,10 @@ static int play_message(struct ast_channel *chan, struct vm_state *vms, int msg)
 				res = ast_say_number(chan, msg + 1, AST_DIGIT_ANY, chan->language);
 		}
 	}
-	
+
+	if (!res)
+		res = play_message_datetime(chan,vmu,vms);
+
 	if (!res) {
 		make_file(vms->fn, sizeof(vms->fn), vms->curdir, msg);
 		vms->heard[msg] = 1;
@@ -2255,7 +2618,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				/* Fall through */
 			case '5':
 				if (vms.lastmsg > -1) {
-					cmd = play_message(chan, &vms, vms.curmsg);
+					cmd = play_message(chan, vmu, &vms, vms.curmsg);
 				} else {
 					cmd = play_and_wait(chan, "vm-youhave");
 					if (!cmd) 
@@ -2291,7 +2654,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			case '4':
 				if (vms.curmsg) {
 					vms.curmsg--;
-					cmd = play_message(chan, &vms, vms.curmsg);
+					cmd = play_message(chan, vmu, &vms, vms.curmsg);
 				} else {
 					cmd = play_and_wait(chan, "vm-nomore");
 				}
@@ -2299,7 +2662,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			case '6':
 				if (vms.curmsg < vms.lastmsg) {
 					vms.curmsg++;
-					cmd = play_message(chan, &vms, vms.curmsg);
+					cmd = play_message(chan, vmu, &vms, vms.curmsg);
 				} else {
 					cmd = play_and_wait(chan, "vm-nomore");
 				}
@@ -2471,6 +2834,7 @@ static int append_mailbox(char *context, char *mbox, char *data)
 static int load_config(void)
 {
 	struct ast_vm_user *cur, *l;
+	struct vm_zone *zcur, *zl;
 	struct ast_config *cfg;
 	char *cat;
 	struct ast_variable *var;
@@ -2490,6 +2854,14 @@ static int load_config(void)
 		cur = cur->next;
 		free_user(l);
 	}
+	zcur = zones;
+	while(zcur) {
+		zl = zcur;
+		zcur = zcur->next;
+		free_zone(zl);
+	}
+	zones = NULL;
+	zonesl = NULL;
 	users = NULL;
 	usersl = NULL;
 	if (cfg) {
@@ -2568,20 +2940,55 @@ static int load_config(void)
 		} else {
 			strcpy(dbname, s);
 		}
-#else
+#endif
 		cat = ast_category_browse(cfg, NULL);
 		while(cat) {
 			if (strcasecmp(cat, "general")) {
-				/* Process mailboxes in this context */
 				var = ast_variable_browse(cfg, cat);
-				while(var) {
-					append_mailbox(cat, var->name, var->value);
-					var = var->next;
+				if (strcasecmp(cat, "zonemessages")) {
+#ifndef USEMYSQLVM
+					/* Process mailboxes in this context */
+					while(var) {
+						append_mailbox(cat, var->name, var->value);
+						var = var->next;
+					}
+#endif
+				} else {
+					/* Timezones in this context */
+					while(var) {
+						struct vm_zone *z;
+						z = malloc(sizeof(struct vm_zone));
+						if (z != NULL) {
+							char *msg_format, *timezone;
+							msg_format = strdupa(var->value);
+							if (msg_format != NULL) {
+								timezone = strsep(&msg_format, "|");
+								strncpy(z->name, var->name, sizeof(z->name) - 1);
+								strncpy(z->timezone, timezone, sizeof(z->timezone) - 1);
+								strncpy(z->msg_format, msg_format, sizeof(z->msg_format) - 1);
+								z->next = NULL;
+								if (zones) {
+									zonesl->next = z;
+									zonesl = z;
+								} else {
+									zones = z;
+									zonesl = z;
+								}
+							} else {
+								ast_log(LOG_WARNING, "Out of memory while reading voicemail config\n");
+								free(z);
+								return -1;
+							}
+						} else {
+							ast_log(LOG_WARNING, "Out of memory while reading voicemail config\n");
+							return -1;
+						}
+						var = var->next;
+					}
 				}
 			}
 			cat = ast_category_browse(cfg, cat);
 		}
-#endif
 		memset(fromstring,0,sizeof(fromstring));
 		memset(emailtitle,0,sizeof(emailtitle));
 		if (emailbody) {
