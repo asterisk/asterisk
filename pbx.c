@@ -5,7 +5,7 @@
  * 
  * Copyright (C) 1999, Mark Spencer
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -57,45 +57,40 @@
 
 struct ast_context;
 
-/* An extension */
+/* ast_exten: An extension */
 struct ast_exten {
-	char exten[AST_MAX_EXTENSION];
-	int matchcid;
-	char cidmatch[AST_MAX_EXTENSION];
-	int priority;
-	/* An extension */
-	struct ast_context *parent;
-	/* Application to execute */
-	char app[AST_MAX_EXTENSION];
-	/* Data to use */
-	void *data;
-	/* Data destructor */
-	void (*datad)(void *);
-	/* Next higher priority with our extension */
-	struct ast_exten *peer;
-	/* Registrar */
-	char *registrar;
-	/* Extension with a greater ID */
-	struct ast_exten *next;
+	char exten[AST_MAX_EXTENSION];		/* Extension name */
+	int matchcid;				/* Match caller id ? */
+	char cidmatch[AST_MAX_EXTENSION];	/* Caller id to match for this extension */
+	int priority;				/* Priority */
+	struct ast_context *parent;		/* An extension */
+	char app[AST_MAX_EXTENSION]; 		/* Application to execute */
+	void *data;				/* Data to use */
+	void (*datad)(void *);			/* Data destructor */
+	struct ast_exten *peer;			/* Next higher priority with our extension */
+	char *registrar;			/* Registrar */
+	struct ast_exten *next;			/* Extension with a greater ID */
 };
 
+/* ast_include: include= support in extensions.conf */
 struct ast_include {
-	char name[AST_MAX_EXTENSION];
-	char rname[AST_MAX_EXTENSION];
-	char *registrar;
-	int hastime;
-	unsigned int monthmask;
-	unsigned int daymask;
-	unsigned int dowmask;
-	unsigned int minmask[24];
-	struct ast_include *next;
+	char name[AST_MAX_EXTENSION];		
+	char rname[AST_MAX_EXTENSION];		/* Context to include */
+	char *registrar;			/* Registrar */
+	int hastime;				/* If time construct exists */
+	unsigned int monthmask;			/* Mask for month */
+	unsigned int daymask;			/* Mask for date */
+	unsigned int dowmask;			/* Mask for day of week (mon-sun) */
+	unsigned int minmask[24];		/* Mask for minute */
+	struct ast_include *next;		/* Link them together */
 };
 
+/* ast_sw: Switch statement in extensions.conf */
 struct ast_sw {
 	char name[AST_MAX_EXTENSION];
-	char *registrar;
-	char data[AST_MAX_EXTENSION];
-	struct ast_sw *next;
+	char *registrar;			/* Registrar */
+	char data[AST_MAX_EXTENSION];		/* Data load */
+	struct ast_sw *next;			/* Link them together */
 };
 
 struct ast_ignorepat {
@@ -104,38 +99,29 @@ struct ast_ignorepat {
 	struct ast_ignorepat *next;
 };
 
-/* An extension context */
+/* ast_context: An extension context */
 struct ast_context {
-	/* Name of the context */
-	char name[AST_MAX_EXTENSION];
-	/* A lock to prevent multiple threads from clobbering the context */
-	ast_mutex_t lock;
-	/* The root of the list of extensions */
-	struct ast_exten *root;
-	/* Link them together */
-	struct ast_context *next;
-	/* Include other contexts */
-	struct ast_include *includes;
-	/* Patterns for which to continue playing dialtone */
-	struct ast_ignorepat *ignorepats;
-	/* Registrar */
-	char *registrar;
-	/* Alternative switches */
-	struct ast_sw *alts;
+	char name[AST_MAX_EXTENSION];		/* Name of the context */
+	ast_mutex_t lock; 			/* A lock to prevent multiple threads from clobbering the context */
+	struct ast_exten *root;			/* The root of the list of extensions */
+	struct ast_context *next;		/* Link them together */
+	struct ast_include *includes;		/* Include other contexts */
+	struct ast_ignorepat *ignorepats;	/* Patterns for which to continue playing dialtone */
+	char *registrar;			/* Registrar */
+	struct ast_sw *alts;			/* Alternative switches */
 };
 
 
-/* An application */
+/* ast_app: An application */
 struct ast_app {
-	/* Name of the application */
-	char name[AST_MAX_APP];
+	char name[AST_MAX_APP];			/* Name of the application */
 	int (*execute)(struct ast_channel *chan, void *data);
-	char *synopsis;
-	char *description;
-	struct ast_app *next;
+	char *synopsis;				/* Synopsis text for 'show applications' */
+	char *description;			/* Description (help text) for 'show application <name>' */
+	struct ast_app *next;			/* Next app in list */
 };
 
-/* An extension state notify */
+/* ast_state_cb: An extension state notify */
 struct ast_state_cb {
     int id;
     void *data;
@@ -198,209 +184,238 @@ static struct pbx_builtin {
 	    */
 
 	{ "AbsoluteTimeout", pbx_builtin_atimeout,
-"Set absolute maximum time of call",
-"  AbsoluteTimeout(seconds): Set the absolute maximum amount of time permitted\n"
-"for a call.  A setting of 0 disables the timeout.  Always returns 0.\n" },
+	"Set absolute maximum time of call",
+	"  AbsoluteTimeout(seconds): Set the absolute maximum amount of time permitted\n"
+	"for a call.  A setting of 0 disables the timeout.  Always returns 0.\n" 
+	},
 
 	{ "Answer", pbx_builtin_answer, 
-"Answer a channel if ringing", 
-"  Answer(): If the channel is ringing, answer it, otherwise do nothing. \n"
-"Returns 0 unless it tries to answer the channel and fails.\n"   },
+	"Answer a channel if ringing", 
+	"  Answer(): If the channel is ringing, answer it, otherwise do nothing. \n"
+	"Returns 0 unless it tries to answer the channel and fails.\n"   
+	},
 
 	{ "BackGround", pbx_builtin_background,
-"Play a file while awaiting extension",
-"  Background(filename): Plays a given file, while simultaneously waiting for\n"
-"the user to begin typing an extension. The  timeouts  do not count until the\n"
-"last BackGround application as ended. Always returns 0.\n" },
+	"Play a file while awaiting extension",
+	"  Background(filename): Plays a given file, while simultaneously waiting for\n"
+	"the user to begin typing an extension. The  timeouts do not count until the\n"
+	"last BackGround application has ended. Always returns 0.\n" 
+	},
 
 	{ "Busy", pbx_builtin_busy,
-"Indicate busy condition and stop",
-"  Busy([timeout]): Requests that the channel indicate busy condition and\n"
-"then waits for the user to hang up or the optional timeout to expire.\n"
-"Always returns -1." },
+	"Indicate busy condition and stop",
+	"  Busy([timeout]): Requests that the channel indicate busy condition and\n"
+	"then waits for the user to hang up or the optional timeout to expire.\n"
+	"Always returns -1." 
+	},
 
 	{ "Congestion", pbx_builtin_congestion,
-"Indicate congestion and stop",
-"  Congestion([timeout]): Requests that the channel indicate congestion\n"
-"and then waits for the user to hang up or for the optional timeout to\n"
-"expire.  Always returns -1." },
+	"Indicate congestion and stop",
+	"  Congestion([timeout]): Requests that the channel indicate congestion\n"
+	"and then waits for the user to hang up or for the optional timeout to\n"
+	"expire.  Always returns -1." 
+	},
 
 	{ "DigitTimeout", pbx_builtin_dtimeout,
-"Set maximum timeout between digits",
-"  DigitTimeout(seconds): Set the  maximum  amount of time permitted between\n"
-"digits when the user is typing in an extension.  When this timeout expires,\n"
-"after the user has started to  type  in an extension, the extension will be\n"
-"considered  complete, and  will be interpreted.  Note that if an  extension\n"
-"typed in is valid, it will not have to timeout to be tested,  so  typically\n"
-"at  the  expiry of  this timeout, the  extension will be considered invalid\n"
-"(and  thus  control  would be passed to the 'i' extension, or if it doesn't\n"
-"exist the call would be terminated).  Always returns 0.\n" },
+	"Set maximum timeout between digits",
+	"  DigitTimeout(seconds): Set the maximum amount of time permitted between\n"
+	"digits when the user is typing in an extension. When this timeout expires,\n"
+	"after the user has started to type in an extension, the extension will be\n"
+	"considered complete, and will be interpreted. Note that if an extension\n"
+	"typed in is valid, it will not have to timeout to be tested, so typically\n"
+	"at the expiry of this timeout, the extension will be considered invalid\n"
+	"(and thus control would be passed to the 'i' extension, or if it doesn't\n"
+	"exist the call would be terminated). Always returns 0.\n" 
+	},
 
 	{ "Goto", pbx_builtin_goto, 
-"Goto a particular priority, extension, or context",
-"  Goto([[context|]extension|]priority):  Set the  priority to the specified\n"
-"value, optionally setting the extension and optionally the context as well.\n"
-"The extension BYEXTENSION is special in that it uses the current extension,\n"
-"thus  permitting  you  to go to a different  context, without  specifying a\n"
-"specific extension. Always returns 0, even if the given context, extension,\n"
-"or priority is invalid.\n" },
+	"Goto a particular priority, extension, or context",
+	"  Goto([[context|]extension|]priority):  Set the  priority to the specified\n"
+	"value, optionally setting the extension and optionally the context as well.\n"
+	"The extension BYEXTENSION is special in that it uses the current extension,\n"
+	"thus  permitting you to go to a different context, without specifying a\n"
+	"specific extension. Always returns 0, even if the given context, extension,\n"
+	"or priority is invalid.\n" 
+	},
 
 	{ "GotoIf", pbx_builtin_gotoif,
-"Conditional goto",
-"  GotoIf(Condition?label1:label2): Go to label 1 if condition is\n"
-"true, to label2 if condition is false. Either label1 or label2 may be\n"
-"omitted (in that case, we just don't take the particular branch) but not\n"
-"both.  Look for the condition syntax in examples or documentation." },
+	"Conditional goto",
+	"  GotoIf(Condition?label1:label2): Go to label 1 if condition is\n"
+	"true, to label2 if condition is false. Either label1 or label2 may be\n"
+	"omitted (in that case, we just don't take the particular branch) but not\n"
+	"both. Look for the condition syntax in examples or documentation." 
+	},
 
 	{ "GotoIfTime", pbx_builtin_gotoiftime,
-"Conditional goto on current time",
-"  GotoIfTime(<times>|<weekdays>|<mdays>|<months>?[[context|]extension|]pri):\n"
-"If the current time matches the specified time, then branch to the specified\n"
-"extension.  Each of the elements may be specified either as '*' (for always)\n"
-"or as a range.  See the include syntax." },
-
+	"Conditional goto on current time",
+	"  GotoIfTime(<times>|<weekdays>|<mdays>|<months>?[[context|]extension|]pri):\n"
+	"If the current time matches the specified time, then branch to the specified\n"
+	"extension. Each of the elements may be specified either as '*' (for always)\n"
+	"or as a range. See the 'include' syntax for details." 
+	},
+	
 	{ "Hangup", pbx_builtin_hangup,
-"Unconditional hangup",
-"  Hangup(): Unconditionally hangs up a given channel by returning -1 always.\n" },
+	"Unconditional hangup",
+	"  Hangup(): Unconditionally hangs up a given channel by returning -1 always.\n" 
+	},
 
 	{ "NoOp", pbx_builtin_noop,
-"No operation",
-"  NoOp(): No-operation; Does nothing." },
+	"No operation",
+	"  NoOp(): No-operation; Does nothing." 
+	},
 
 	{ "Prefix", pbx_builtin_prefix, 
-"Prepend leading digits",
-"  Prefix(digits): Prepends the  digit  string  specified  by  digits to the\n"
-"channel's associated extension. For example, the number 1212 when  prefixed\n"
-"with '555' will become 5551212. This app always returns 0, and the PBX will\n"
-"continue processing at the next priority for the *new* extension.\n"
-"  So, for example, if priority  3  of 1212 is  Prefix  555, the  next  step\n"
-"executed will be priority 4 of 5551212. If  you  switch  into an  extension\n"
-"which has no first step, the PBX will treat it as though the user dialed an\n"
-"invalid extension.\n" },
+	"Prepend leading digits",
+	"  Prefix(digits): Prepends the digit string specified by digits to the\n"
+	"channel's associated extension. For example, the number 1212 when prefixed\n"
+	"with '555' will become 5551212. This app always returns 0, and the PBX will\n"
+	"continue processing at the next priority for the *new* extension.\n"
+	"  So, for example, if priority  3  of 1212 is  Prefix  555, the next step\n"
+	"executed will be priority 4 of 5551212. If you switch into an extension\n"
+	"which has no first step, the PBX will treat it as though the user dialed an\n"
+	"invalid extension.\n" 
+	},
 
 	{ "Progress", pbx_builtin_progress,
-"Indicate progress",
-"  Progress(): Request that the channel indicate in-band progress is available to the user.\n"
-"Always returns 0.\n" },
+	"Indicate progress",
+	"  Progress(): Request that the channel indicate in-band progress is \n"
+	"available to the user.\nAlways returns 0.\n" 
+	},
 
 	{ "ResetCDR", pbx_builtin_resetcdr,
-"Resets the Call Data Record",
-"  ResetCDR([options]):  Causes the Call Data Record to be reset, optionally\n"
-"storing the current CDR  before zeroing it out (if 'w' option is specifed).\n"
-"record WILL be stored.  Always returns 0.\n"  },
+	"Resets the Call Data Record",
+	"  ResetCDR([options]):  Causes the Call Data Record to be reset, optionally\n"
+	"storing the current CDR before zeroing it out (if 'w' option is specifed).\n"
+	"record WILL be stored.\nAlways returns 0.\n"  
+	},
 
 	{ "ResponseTimeout", pbx_builtin_rtimeout,
-"Set maximum timeout awaiting response",
-"  ResponseTimeout(seconds): Set the maximum amount of time permitted after\n"
-"falling through a series of priorities for a channel in which the user may\n"
-"begin typing an extension.  If the user does not type an extension in this\n"
-"amount of time, control will pass to the 't' extension if  it  exists, and\n"
-"if not the call would be terminated.  Always returns 0.\n"  },
+	"Set maximum timeout awaiting response",
+	"  ResponseTimeout(seconds): Set the maximum amount of time permitted after\n"
+	"falling through a series of priorities for a channel in which the user may\n"
+	"begin typing an extension. If the user does not type an extension in this\n"
+	"amount of time, control will pass to the 't' extension if it exists, and\n"
+	"if not the call would be terminated.\nAlways returns 0.\n"  
+	},
 
 	{ "Ringing", pbx_builtin_ringing,
-"Indicate ringing tone",
-"  Ringing(): Request that the channel indicate ringing tone to the user.\n"
-"Always returns 0.\n" },
+	"Indicate ringing tone",
+	"  Ringing(): Request that the channel indicate ringing tone to the user.\n"
+	"Always returns 0.\n" 
+	},
 
 	{ "SayNumber", pbx_builtin_saynumber,
-"Say Number",
-"  SayNumber(digits[,gender]): Says the passed number\n" },
+	"Say Number",
+	"  SayNumber(digits[,gender]): Says the passed number. SayNumber is using\n" 
+	"the current language setting for the channel. (See app SetLanguage).\n"
+	},
 
 	{ "SayDigits", pbx_builtin_saydigits,
-"Say Digits",
-"  SayDigits(digits): Says the passed digits\n" },
+	"Say Digits",
+	"  SayDigits(digits): Says the passed digits. SayDigits is using the\n" 
+	"current language setting for the channel. (See app setLanguage)\n"
+	},
 
 	{ "SayAlpha", pbx_builtin_saycharacters,
-"Say Alpha",
-"  SayAlpha(string): Spells the passed string\n" },
+	"Say Alpha",
+	"  SayAlpha(string): Spells the passed string\n" 
+	},
 
 	{ "SayPhonetic", pbx_builtin_sayphonetic,
-"Say Phonetic",
-"  SayPhonetic(string): Spells the passed string with phonetic alphabet\n" },
+	"Say Phonetic",
+	"  SayPhonetic(string): Spells the passed string with phonetic alphabet\n" 
+	},
 
 	{ "SetAccount", pbx_builtin_setaccount,
-"Sets account code",
-"  SetAccount([account]):  Set  the  channel account code for billing\n"
-"purposes. Always returns 0.\n"  },
+	"Sets account code",
+	"  SetAccount([account]):  Set  the  channel account code for billing\n"
+	"purposes. Always returns 0.\n"  
+	},
 
 	{ "SetAMAFlags", pbx_builtin_setamaflags,
-"Sets AMA Flags",
-"  SetAMAFlags([flag]):  Set  the  channel AMA Flags for billing\n"
-"purposes. Always returns 0.\n"  },
+	"Sets AMA Flags",
+	"  SetAMAFlags([flag]):  Set  the  channel AMA Flags for billing\n"
+	"purposes. Always returns 0.\n"  
+	},
 
 	{ "SetGlobalVar", pbx_builtin_setglobalvar,
-"Set variable to value",
-"  SetGlobalVar(#n=value): Sets global variable n to value" },
+	"Set global variable to value",
+	"  SetGlobalVar(#n=value): Sets global variable n to value. Global\n" 
+	"variable are available across channels.\n"
+	},
 
 	{ "SetLanguage", pbx_builtin_setlanguage,
-"Sets user language",
-"  SetLanguage(language):  Set  the  channel  language to 'language'.  This\n"
-"information is used for the generation of numbers, and to choose a natural\n"
-"language file when available.  For example, if language is set to 'fr' and\n"
-"the file 'demo-congrats' is requested  to  be  played,  if the file 'fr/demo-\n"
-"congrats' exists, then it will play that file, and if not will play the\n"
-"normal 'demo-congrats'. Always returns 0.\n"  },
+	"Sets user language",
+	"  SetLanguage(language):  Set  the  channel  language to 'language'.  This\n"
+	"information is used for the syntax in generation of numbers, and to choose\n"
+	"a natural language file when available.\n"
+	"  For example, if language is set to 'fr' and the file 'demo-congrats' is \n"
+	"requested  to  be  played,  if the file 'fr/demo-congrats' exists, then\n"
+	"it will play that file, and if not will play the normal 'demo-congrats'.\n"
+	"Always returns 0.\n"  
+	},
 
 	{ "SetVar", pbx_builtin_setvar,
-"Set variable to value",
-"  Setvar(#n=value): Sets variable n to value" },
+	"Set variable to value",
+	"  Setvar(#n=value): Sets channel specific variable n to value" 
+	},
 
 	{ "StripMSD", pbx_builtin_stripmsd,
-"Strip leading digits",
-"  StripMSD(count): Strips the leading  'count'  digits  from  the  channel's\n"
-"associated extension. For example, the  number  5551212 when stripped with a\n"
-"count of 3 would be changed to 1212.  This app always returns 0, and the PBX\n"
-"will continue processing at the next priority for the *new* extension.\n"
-"  So, for  example, if  priority 3 of 5551212  is  StripMSD 3, the next step\n"
-"executed will be priority 4 of 1212.  If you switch into an  extension which\n"
-"has no first step, the PBX will treat it as though the user dialed an\n"
-"invalid extension.\n" },
+	"Strip leading digits",
+	"  StripMSD(count): Strips the leading 'count' digits from the channel's\n"
+	"associated extension. For example, the number 5551212 when stripped with a\n"
+	"count of 3 would be changed to 1212. This app always returns 0, and the PBX\n"
+	"will continue processing at the next priority for the *new* extension.\n"
+	"  So, for example, if priority 3 of 5551212 is StripMSD 3, the next step\n"
+	"executed will be priority 4 of 1212. If you switch into an extension which\n"
+	"has no first step, the PBX will treat it as though the user dialed an\n"
+	"invalid extension.\n" 
+	},
 
 	{ "Suffix", pbx_builtin_suffix, 
-"Append trailing digits",
-"  Suffix(digits): Appends the  digit  string  specified  by  digits to the\n"
-"channel's associated extension. For example, the number 555 when  suffixed\n"
-"with '1212' will become 5551212. This app always returns 0, and the PBX will\n"
-"continue processing at the next priority for the *new* extension.\n"
-"  So, for example, if priority  3  of  555 is Suffix 1212, the  next  step\n"
-"executed will be priority 4 of 5551212. If  you  switch  into an  extension\n"
-"which has no first step, the PBX will treat it as though the user dialed an\n"
-"invalid extension.\n" },
+	"Append trailing digits",
+	"  Suffix(digits): Appends the  digit  string  specified  by  digits to the\n"
+	"channel's associated extension. For example, the number 555 when  suffixed\n"
+	"with '1212' will become 5551212. This app always returns 0, and the PBX will\n"
+	"continue processing at the next priority for the *new* extension.\n"
+	"  So, for example, if priority  3  of  555 is Suffix 1212, the  next  step\n"
+	"executed will be priority 4 of 5551212. If  you  switch  into an  extension\n"
+	"which has no first step, the PBX will treat it as though the user dialed an\n"
+	"invalid extension.\n" 
+	},
 
 	{ "Wait", pbx_builtin_wait, 
-"Waits for some time", 
-"  Wait(seconds): Waits for a specified number of seconds, then returns 0.\n"
-"seconds can be passed with fractions of a second. (eg: 1.5 = 1.5 seconds)\n" },
+	"Waits for some time", 
+	"  Wait(seconds): Waits for a specified number of seconds, then returns 0.\n"
+	"seconds can be passed with fractions of a second. (eg: 1.5 = 1.5 seconds)\n" 
+	},
 
 	{ "WaitExten", pbx_builtin_waitexten, 
-"Waits for some time", 
-"  Wait(seconds): Waits for the user to enter a new extension for the \n"
-"specified number of seconds, then returns 0.  Seconds can be passed with\n"
-"fractions of a second. (eg: 1.5 = 1.5 seconds)\n" },
+	"Waits for some time", 
+	"  Wait(seconds): Waits for the user to enter a new extension for the \n"
+	"specified number of seconds, then returns 0.  Seconds can be passed with\n"
+	"fractions of a second. (eg: 1.5 = 1.5 seconds)\n" 
+	},
 
 };
 
-/* Lock for the application list */
-AST_MUTEX_DEFINE_STATIC(applock);
+AST_MUTEX_DEFINE_STATIC(applock); 		/* Lock for the application list */
 static struct ast_context *contexts = NULL;
-/* Lock for the ast_context list */
-AST_MUTEX_DEFINE_STATIC(conlock);
+AST_MUTEX_DEFINE_STATIC(conlock); 		/* Lock for the ast_context list */
 static struct ast_app *apps = NULL;
 
-/* Lock for switches */
-AST_MUTEX_DEFINE_STATIC(switchlock);
+AST_MUTEX_DEFINE_STATIC(switchlock);		/* Lock for switches */
 struct ast_switch *switches = NULL;
 
-/* Lock for extension state notifys */
-AST_MUTEX_DEFINE_STATIC(hintlock);
+AST_MUTEX_DEFINE_STATIC(hintlock);		/* Lock for extension state notifys */
 static int stateid = 1;
 struct ast_hint *hints = NULL;
 struct ast_state_cb *statecbs = NULL;
 
-int pbx_exec(struct ast_channel *c, /* Channel */
-					struct ast_app *app,
-					void *data,				/* Data for execution */
-					int newstack)			/* Force stack increment */
+int pbx_exec(struct ast_channel *c, 		/* Channel */
+		struct ast_app *app,		/* Application */
+		void *data,			/* Data for execution */
+		int newstack)			/* Force stack increment */
 {
 	/* This function is special.  It saves the stack so that no matter
 	   how many times it is called, it returns to the same place */
@@ -411,6 +426,7 @@ int pbx_exec(struct ast_channel *c, /* Channel */
 	
 	int stack = c->stack;
 	int (*execute)(struct ast_channel *chan, void *data) = app->execute; 
+
 	if (newstack && stack > AST_CHANNEL_MAX_STACK - 2) {
 		/* Don't allow us to go over the max number of stacks we
 		   permit saving. */
@@ -434,14 +450,14 @@ int pbx_exec(struct ast_channel *c, /* Channel */
 		if (c->cdr)
 			ast_cdr_setapp(c->cdr, app->name, data);
 
-		// save channel values
+		/* save channel values */
 		saved_c_appl= c->appl;
 		saved_c_data= c->data;
 
 		c->appl = app->name;
 		c->data = data;		
 		res = execute(c, data);
-		// restore channel values
+		/* restore channel values */
 		c->appl= saved_c_appl;
 		c->data= saved_c_data;
 
@@ -466,6 +482,7 @@ int pbx_exec(struct ast_channel *c, /* Channel */
 struct ast_app *pbx_findapp(char *app) 
 {
 	struct ast_app *tmp;
+
 	if (ast_mutex_lock(&applock)) {
 		ast_log(LOG_WARNING, "Unable to obtain application lock\n");
 		return NULL;
@@ -483,6 +500,7 @@ struct ast_app *pbx_findapp(char *app)
 static struct ast_switch *pbx_findswitch(char *sw)
 {
 	struct ast_switch *asw;
+
 	if (ast_mutex_lock(&switchlock)) {
 		ast_log(LOG_WARNING, "Unable to obtain application lock\n");
 		return NULL;
@@ -501,6 +519,7 @@ static inline int include_valid(struct ast_include *i)
 {
 	struct tm tm;
 	time_t t;
+
 	if (!i->hastime)
 		return 1;
 	time(&t);
@@ -702,6 +721,7 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, char *cont
 	struct ast_include *i;
 	struct ast_sw *sw;
 	struct ast_switch *asw;
+
 	/* Initialize status if appropriate */
 	if (!*stacklen) {
 		*status = STATUS_NO_CONTEXT;
@@ -786,7 +806,7 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, char *cont
 	return NULL;
 }
 
-static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,char **ret, char *workspace, int workspacelen)
+static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen)
 {
 	char *first,*second;
 	char tmpvar[80] = "";
@@ -995,7 +1015,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 	}
 }
 
-void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char *cp2,int count)
+void pbx_substitute_variables_helper(struct ast_channel *c, const char *cp1, char *cp2, int count)
 {
 	char *cp4;
 	const char *tmp, *whereweare;
@@ -1005,7 +1025,7 @@ void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char 
 	char *nextvar, *nextexp;
 	char *vars, *vare;
 	int pos, brackets, needsub, len;
-
+	
 	/* Substitutes variables into cp2, based on string cp1, and assuming cp2 to be
 	   zero-filled */
 	whereweare=tmp=cp1;
@@ -1016,8 +1036,10 @@ void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char 
 		/* Look for a variable */
 		nextvar = strstr(whereweare, "${");
 		
+		/* Look for an expression */
 		nextexp = strstr(whereweare, "$[");
 		
+		/* Pick the first one only */
 		if (nextvar && nextexp) {
 			if (nextvar < nextexp)
 				nextexp = NULL;
@@ -1170,7 +1192,7 @@ static void pbx_substitute_variables(char *passdata, int datalen, struct ast_cha
 		return;
 	}
 	
-	pbx_substitute_variables_helper(c,e->data,passdata, datalen - 1);
+	pbx_substitute_variables_helper(c, e->data, passdata, datalen - 1);
 }		                                                
 
 static int pbx_extension_helper(struct ast_channel *c, char *context, char *exten, int priority, char *callerid, int action) 
@@ -1188,6 +1210,7 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 	char tmp[80];
 	char tmp2[80];
 	char tmp3[EXT_DATA_SIZE];
+
 	if (ast_mutex_lock(&conlock)) {
 		ast_log(LOG_WARNING, "Unable to obtain lock\n");
 		if ((action == HELPER_EXISTS) || (action == HELPER_CANMATCH) || (action == HELPER_MATCHMORE))
@@ -1282,6 +1305,7 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 		default:
 			ast_log(LOG_DEBUG, "Shouldn't happen!\n");
 		}
+		
 		if ((action != HELPER_EXISTS) && (action != HELPER_CANMATCH) && (action != HELPER_MATCHMORE))
 			return -1;
 		else
@@ -1310,58 +1334,58 @@ static struct ast_exten *ast_hint_extension(struct ast_channel *c, char *context
 
 static int ast_extension_state2(struct ast_exten *e)
 {
-    char hint[AST_MAX_EXTENSION] = "";    
-    char *cur, *rest;
-    int res = -1;
-    int allunavailable = 1, allbusy = 1, allfree = 1;
-    int busy = 0;
+	char hint[AST_MAX_EXTENSION] = "";    
+	char *cur, *rest;
+	int res = -1;
+	int allunavailable = 1, allbusy = 1, allfree = 1;
+	int busy = 0;
 
-    strncpy(hint, ast_get_extension_app(e), sizeof(hint)-1);
+	strncpy(hint, ast_get_extension_app(e), sizeof(hint)-1);
     
-    cur = hint;    
-    do {
-	rest = strchr(cur, '&');
-	if (rest) {
-	    *rest = 0;
-	    rest++;
-	}
+	cur = hint;    
+	do {
+		rest = strchr(cur, '&');
+		if (rest) {
+	    		*rest = 0;
+			rest++;
+		}
 	
-	res = ast_device_state(cur);
-	switch (res) {
-    case AST_DEVICE_NOT_INUSE:
-		allunavailable = 0;
-		allbusy = 0;
-		break;
-    case AST_DEVICE_INUSE:
-		return AST_EXTENSION_INUSE;
-    case AST_DEVICE_BUSY:
-		allunavailable = 0;
-		allfree = 0;
-		busy = 1;
-		break;
-    case AST_DEVICE_UNAVAILABLE:
-    case AST_DEVICE_INVALID:
-		allbusy = 0;
-		allfree = 0;
-		break;
-    default:
-		allunavailable = 0;
-		allbusy = 0;
-		allfree = 0;
-	}
-        cur = rest;
-    } while (cur);
+		res = ast_device_state(cur);
+		switch (res) {
+    		case AST_DEVICE_NOT_INUSE:
+			allunavailable = 0;
+			allbusy = 0;
+			break;
+    		case AST_DEVICE_INUSE:
+			return AST_EXTENSION_INUSE;
+    		case AST_DEVICE_BUSY:
+			allunavailable = 0;
+			allfree = 0;
+			busy = 1;
+			break;
+    		case AST_DEVICE_UNAVAILABLE:
+    		case AST_DEVICE_INVALID:
+			allbusy = 0;
+			allfree = 0;
+			break;
+    		default:
+			allunavailable = 0;
+			allbusy = 0;
+			allfree = 0;
+		}
+       		cur = rest;
+	} while (cur);
 
-    if (allfree)
+	if (allfree)
 		return AST_EXTENSION_NOT_INUSE;
-    if (allbusy)
+	if (allbusy)
 		return AST_EXTENSION_BUSY;
-    if (allunavailable)
+	if (allunavailable)
 		return AST_EXTENSION_UNAVAILABLE;
-    if (busy) 
+	if (busy) 
 		return AST_EXTENSION_INUSE;
 	
-    return AST_EXTENSION_NOT_INUSE;
+	return AST_EXTENSION_NOT_INUSE;
 }
 
 
@@ -1412,17 +1436,17 @@ int ast_device_state_changed(const char *fmt, ...)
 			}
 			
 			if (!strcmp(cur, device)) {
-				// Found extension execute callbacks 
+				/* Found extension execute callbacks  */
 				state = ast_extension_state2(list->exten);
 				if ((state != -1) && (state != list->laststate)) {
-					// For general callbacks
+					/* For general callbacks */
 					cblist = statecbs;
 					while (cblist) {
 						cblist->callback(list->exten->parent->name, list->exten->exten, state, cblist->data);
 						cblist = cblist->next;
 					}
 
-					// For extension callbacks
+					/* For extension callbacks */
 					cblist = list->callbacks;
 					while (cblist) {
 						cblist->callback(list->exten->parent->name, list->exten->exten, state, cblist->data);
@@ -1435,10 +1459,8 @@ int ast_device_state_changed(const char *fmt, ...)
 			}
 			cur = rest;
 		} while (cur);
-
 		list = list->next;
 	}
-
 	ast_mutex_unlock(&hintlock);
 	return 1;
 }
@@ -1446,241 +1468,239 @@ int ast_device_state_changed(const char *fmt, ...)
 int ast_extension_state_add(char *context, char *exten, 
 			    ast_state_cb_type callback, void *data)
 {
-    struct ast_hint *list;
-    struct ast_state_cb *cblist;
-    struct ast_exten *e;
+	struct ast_hint *list;
+	struct ast_state_cb *cblist;
+	struct ast_exten *e;
 
-    /* No context and extension add callback to statecbs list */
-    if (!context && !exten) {
-	ast_mutex_lock(&hintlock);
+	/* No context and extension add callback to statecbs list */
+	if (!context && !exten) {
+		ast_mutex_lock(&hintlock);
 
-	cblist = statecbs;
-	while (cblist) {
-	    if (cblist->callback == callback) {
-		cblist->data = data;
-		ast_mutex_unlock(&hintlock);
-	    }
-	    
-	    cblist = cblist->next;
-	}
+		cblist = statecbs;
+		while (cblist) {
+			if (cblist->callback == callback) {
+				cblist->data = data;
+				ast_mutex_unlock(&hintlock);
+			}
+			cblist = cblist->next;
+		}
 	
+		/* Now inserts the callback */
+		cblist = malloc(sizeof(struct ast_state_cb));
+		if (!cblist) {
+			ast_mutex_unlock(&hintlock);
+			return -1;
+		}
+		memset(cblist, 0, sizeof(struct ast_state_cb));
+		cblist->id = 0;
+		cblist->callback = callback;
+		cblist->data = data;
+	
+       		cblist->next = statecbs;
+		statecbs = cblist;
+
+		ast_mutex_unlock(&hintlock);
+		return 0;
+    	}
+
+	if (!context || !exten)
+		return -1;
+
+	/* This callback type is for only one hint */
+	e = ast_hint_extension(NULL, context, exten);    
+	if (!e) {
+		return -1;
+	}
+    
+	ast_mutex_lock(&hintlock);
+	list = hints;        
+    
+	while (list) {
+		if (list->exten == e)
+			break;	    
+		list = list->next;    
+	}
+
+	if (!list) {
+		ast_mutex_unlock(&hintlock);
+		return -1;
+	}
+
 	/* Now inserts the callback */
 	cblist = malloc(sizeof(struct ast_state_cb));
 	if (!cblist) {
-	    ast_mutex_unlock(&hintlock);
-	    return -1;
+		ast_mutex_unlock(&hintlock);
+		return -1;
 	}
 	memset(cblist, 0, sizeof(struct ast_state_cb));
-	cblist->id = 0;
+	cblist->id = stateid++;
 	cblist->callback = callback;
 	cblist->data = data;
 
-        cblist->next = statecbs;
-	statecbs = cblist;
+	cblist->next = list->callbacks;
+	list->callbacks = cblist;
 
 	ast_mutex_unlock(&hintlock);
-	return 0;
-    }
-
-    if (!context || !exten)
-	return -1;
-
-    /* This callback type is for only one hint */
-    e = ast_hint_extension(NULL, context, exten);    
-    if (!e) {
-        return -1;
-    }
-    
-    ast_mutex_lock(&hintlock);
-    list = hints;        
-    
-    while (list) {
-	if (list->exten == e)
-	    break;	    
-	list = list->next;    
-    }
-
-    if (!list) {
-	ast_mutex_unlock(&hintlock);
-	return -1;
-    }
-
-    /* Now inserts the callback */
-    cblist = malloc(sizeof(struct ast_state_cb));
-    if (!cblist) {
-	ast_mutex_unlock(&hintlock);
-	return -1;
-    }
-    memset(cblist, 0, sizeof(struct ast_state_cb));
-    cblist->id = stateid++;
-    cblist->callback = callback;
-    cblist->data = data;
-
-    cblist->next = list->callbacks;
-    list->callbacks = cblist;
-
-    ast_mutex_unlock(&hintlock);
-    return cblist->id;
+	return cblist->id;
 }
 
 int ast_extension_state_del(int id, ast_state_cb_type callback)
 {
-    struct ast_hint *list;
-    struct ast_state_cb *cblist, *cbprev;
+	struct ast_hint *list;
+	struct ast_state_cb *cblist, *cbprev;
     
-    if (!id && !callback)
-	return -1;
+	if (!id && !callback)
+		return -1;
             
-    ast_mutex_lock(&hintlock);
+	ast_mutex_lock(&hintlock);
 
-    /* id is zero is a callback without extension */
-    if (!id) {
-	cbprev = NULL;
-	cblist = statecbs;
-	while (cblist) {
-	    if (cblist->callback == callback) {
-		if (!cbprev)
-		    statecbs = cblist->next;
-		else
-		    cbprev->next = cblist->next;
+	/* id is zero is a callback without extension */
+	if (!id) {
+		cbprev = NULL;
+		cblist = statecbs;
+		while (cblist) {
+	 		if (cblist->callback == callback) {
+				if (!cbprev)
+		    			statecbs = cblist->next;
+				else
+		    			cbprev->next = cblist->next;
 
-		free(cblist);
+				free(cblist);
 
-	        ast_mutex_unlock(&hintlock);
-		return 0;
-	    }
-	    cbprev = cblist;
-	    cblist = cblist->next;
+	        		ast_mutex_unlock(&hintlock);
+				return 0;
+	    		}
+	    		cbprev = cblist;
+	    		cblist = cblist->next;
+		}
+
+    		ast_mutex_lock(&hintlock);
+		return -1;
 	}
 
-        ast_mutex_lock(&hintlock);
-	return -1;
-    }
-
-    /* id greater zero is a callback with extension */
-    list = hints;
-    while (list) {
-	cblist = list->callbacks;
-	cbprev = NULL;
-	while (cblist) {
-	    if (cblist->id==id) {
-		if (!cbprev)
-		    list->callbacks = cblist->next;		
-		else
-		    cbprev->next = cblist->next;
+	/* id greater than zero is a callback with extension */
+	list = hints;
+	while (list) {
+		cblist = list->callbacks;
+		cbprev = NULL;
+		while (cblist) {
+	    		if (cblist->id==id) {
+				if (!cbprev)
+		    			list->callbacks = cblist->next;		
+				else
+		    			cbprev->next = cblist->next;
 		
-		free(cblist);
+				free(cblist);
 		
-		ast_mutex_unlock(&hintlock);
-		return 0;		
-	    }		
-    	    cbprev = cblist;				
-	    cblist = cblist->next;
+				ast_mutex_unlock(&hintlock);
+				return 0;		
+	    		}		
+    	    		cbprev = cblist;				
+	    		cblist = cblist->next;
+		}
+		list = list->next;
 	}
-	list = list->next;
-    }
     
-    ast_mutex_unlock(&hintlock);
-    return -1;
+	ast_mutex_unlock(&hintlock);
+	return -1;
 }
 
 static int ast_add_hint(struct ast_exten *e)
 {
-    struct ast_hint *list;
+	struct ast_hint *list;
 
-    if (!e) return -1;
+	if (!e) 
+		return -1;
     
-    ast_mutex_lock(&hintlock);
-    list = hints;        
+	ast_mutex_lock(&hintlock);
+	list = hints;        
     
-    /* Search if hint exists, do nothing */
-    while (list) {
-	if (list->exten == e) {
-	    ast_mutex_unlock(&hintlock);
-	    return -1;
+	/* Search if hint exists, do nothing */
+	while (list) {
+		if (list->exten == e) {
+			ast_mutex_unlock(&hintlock);
+			return -1;
+		}
+		list = list->next;    
+    	}
+
+	list = malloc(sizeof(struct ast_hint));
+	if (!list) {
+		ast_mutex_unlock(&hintlock);
+		return -1;
 	}
-	list = list->next;    
-    }
+	/* Initialize and insert new item */
+	memset(list, 0, sizeof(struct ast_hint));
+	list->exten = e;
+	list->laststate = ast_extension_state2(e);
+	list->next = hints;
+	hints = list;
 
-    list = malloc(sizeof(struct ast_hint));
-    if (!list) {
 	ast_mutex_unlock(&hintlock);
-	return -1;
-    }
-    /* Initialize and insert new item */
-    memset(list, 0, sizeof(struct ast_hint));
-    list->exten = e;
-    list->laststate = ast_extension_state2(e);
-    list->next = hints;
-    hints = list;
-
-    ast_mutex_unlock(&hintlock);
-    return 0;
+	return 0;
 }
 
 static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 { 
-    struct ast_hint *list;
+	struct ast_hint *list;
 
-    ast_mutex_lock(&hintlock);
+	ast_mutex_lock(&hintlock);
+	list = hints;
     
-    list = hints;
-    
-    while(list) {
-	if (list->exten == oe) {
-	    list->exten = ne;
-	    ast_mutex_unlock(&hintlock);	
-	    return 0;
+	while(list) {
+		if (list->exten == oe) {
+	    		list->exten = ne;
+			ast_mutex_unlock(&hintlock);	
+			return 0;
+		}
+		list = list->next;
 	}
-	list = list->next;
-    }
-    ast_mutex_unlock(&hintlock);
+	ast_mutex_unlock(&hintlock);
 
-    return -1;
+	return -1;
 }
 
 static int ast_remove_hint(struct ast_exten *e)
 {
-    /* Cleanup the Notifys if hint is removed */
-    struct ast_hint *list, *prev = NULL;
-    struct ast_state_cb *cblist, *cbprev;
+	/* Cleanup the Notifys if hint is removed */
+	struct ast_hint *list, *prev = NULL;
+	struct ast_state_cb *cblist, *cbprev;
 
-    if (!e) 
-	return -1;
+	if (!e) 
+		return -1;
 
-    ast_mutex_lock(&hintlock);
+	ast_mutex_lock(&hintlock);
 
-    list = hints;    
-    while(list) {
-	if (list->exten==e) {
-	    cbprev = NULL;
-	    cblist = list->callbacks;
-	    while (cblist) {
-		/* Notify with -1 and remove all callbacks */
-		cbprev = cblist;	    
-		cblist = cblist->next;
-		cbprev->callback(list->exten->parent->name, list->exten->exten, -1, cbprev->data);
-		free(cbprev);
-	    }
-	    list->callbacks = NULL;
+	list = hints;    
+	while(list) {
+		if (list->exten==e) {
+			cbprev = NULL;
+			cblist = list->callbacks;
+			while (cblist) {
+				/* Notify with -1 and remove all callbacks */
+				cbprev = cblist;	    
+				cblist = cblist->next;
+				cbprev->callback(list->exten->parent->name, list->exten->exten, -1, cbprev->data);
+				free(cbprev);
+	    		}
+	    		list->callbacks = NULL;
 
-	    if (!prev)
-		hints = list->next;
-	    else
-		prev->next = list->next;
-
-	    free(list);
+	    		if (!prev)
+				hints = list->next;
+	    		else
+				prev->next = list->next;
+	    		free(list);
 	    
-	    ast_mutex_unlock(&hintlock);
-	    return 0;
-	} else {
-	    prev = list;
-    	    list = list->next;    
-	}
-    }
+			ast_mutex_unlock(&hintlock);
+			return 0;
+		} else {
+			prev = list;
+			list = list->next;    
+		}
+    	}
 
-    ast_mutex_unlock(&hintlock);
-    return -1;
+	ast_mutex_unlock(&hintlock);
+	return -1;
 }
 
 
@@ -1897,9 +1917,9 @@ int ast_pbx_run(struct ast_channel *c)
 				}	
 			}
 			if (c->cdr) {
-			    if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_2 "CDR updated on %s\n",c->name);	
-			    ast_cdr_update(c);
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_2 "CDR updated on %s\n",c->name);	
+				ast_cdr_update(c);
 		    }
 		}
 	}
@@ -1963,7 +1983,7 @@ int ast_pbx_start(struct ast_channel *c)
 }
 
 /*
- * This function locks contexts list by &conlist, search for the rigt context
+ * This function locks contexts list by &conlist, search for the right context
  * structure, leave context list locked and call ast_context_remove_include2
  * which removes include, unlock contexts list and return ...
  */
@@ -2954,10 +2974,9 @@ static void get_timerange(struct ast_include *i, char *times)
 	int x;
 	int s1, s2;
 	int e1, e2;
-//	int cth, ctm;
+	/*	int cth, ctm; */
 
-	//[PHM 07/01/03]
-	//start disabling all times, fill the fields with 0's, as they may contain garbage
+	/* start disabling all times, fill the fields with 0's, as they may contain garbage */
 	memset(i->minmask, 0, sizeof(i->minmask));
 	
 	/* Star is all times */
@@ -3049,6 +3068,7 @@ static unsigned int get_dow(char *dow)
 	/* The following line is coincidence, really! */
 	int s, e, x;
 	unsigned int mask;
+
 	/* Check for all days */
 	if (ast_strlen_zero(dow) || !strcmp(dow, "*"))
 		return (1 << 7) - 1;
@@ -3076,7 +3096,7 @@ static unsigned int get_dow(char *dow)
 	} else
 		e = s;
 	mask = 0;
-	for (x=s;x!=e;x = (x + 1) % 7) {
+	for (x=s; x != e; x = (x + 1) % 7) {
 		mask |= (1 << x);
 	}
 	/* One last one */
@@ -3090,6 +3110,7 @@ static unsigned int get_day(char *day)
 	/* The following line is coincidence, really! */
 	int s, e, x;
 	unsigned int mask;
+
 	/* Check for all days */
 	if (ast_strlen_zero(day) || !strcmp(day, "*")) {
 		mask = (1 << 30)  + ((1 << 30) - 1);
@@ -3153,6 +3174,7 @@ static unsigned int get_month(char *mon)
 	/* The following line is coincidence, really! */
 	int s, e, x;
 	unsigned int mask;
+
 	/* Check for all days */
 	if (ast_strlen_zero(mon) || !strcmp(mon, "*")) 
 		return (1 << 12) - 1;
@@ -3179,7 +3201,7 @@ static unsigned int get_month(char *mon)
 	} else
 		e = s;
 	mask = 0;
-	for (x=s;x!=e;x = (x + 1) % 12) {
+	for (x=s; x!=e; x = (x + 1) % 12) {
 		mask |= (1 << x);
 	}
 	/* One last one */
@@ -3190,6 +3212,7 @@ static unsigned int get_month(char *mon)
 static void build_timing(struct ast_include *i, char *info)
 {
 	char *c;
+
 	/* Check for empty just in case */
 	if (ast_strlen_zero(info))
 		return;
@@ -3476,6 +3499,7 @@ int ast_context_add_ignorepat(char *con, char *value, char *registrar)
 int ast_context_add_ignorepat2(struct ast_context *con, char *value, char *registrar)
 {
 	struct ast_ignorepat *ignorepat, *ignorepatc, *ignorepatl = NULL;
+
 	ignorepat = malloc(sizeof(struct ast_ignorepat));
 	if (!ignorepat) {
 		ast_log(LOG_ERROR, "Out of memory\n");
@@ -3511,6 +3535,7 @@ int ast_ignore_pattern(char *context, char *pattern)
 {
 	struct ast_context *con;
 	struct ast_ignorepat *pat;
+
 	con = ast_context_find(context);
 	if (con) {
 		pat = con->ignorepats;
@@ -3558,6 +3583,7 @@ int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int pri
 {
 	int res = 0;
 	ast_mutex_lock(&chan->lock);
+
 	if (chan->pbx) {
 		/* This channel is currently in the PBX */
 		if (context && !ast_strlen_zero(context))
@@ -3637,11 +3663,12 @@ int ast_async_goto_by_name(char *channame, char *context, char *exten, int prior
 static void ext_strncpy(char *dst, char *src, int len)
 {
 	int count=0;
+
 	while(*src && (count < len - 1)) {
 		switch(*src) {
 		case ' ':
-//otherwise exten => [a-b],1,... doesn't work
-//		case '-':
+			/*	otherwise exten => [a-b],1,... doesn't work */
+			/*		case '-': */
 			/* Ignore */
 			break;
 		default:
@@ -3687,6 +3714,7 @@ int ast_add_extension2(struct ast_context *con,
 	 */
 	struct ast_exten *tmp, *e, *el = NULL, *ep = NULL;
 	int res;
+
 	/* Be optimistic:  Build the extension structure first */
 	tmp = malloc(sizeof(struct ast_exten));
 	if (tmp) {
@@ -3810,7 +3838,7 @@ int ast_add_extension2(struct ast_context *con,
 			ep->peer = tmp;
 			ast_mutex_unlock(&con->lock);
 			if (tmp->priority == PRIORITY_HINT)
-			    ast_add_hint(tmp);
+				ast_add_hint(tmp);
 			
 			/* And immediately return success. */
 			LOG;
@@ -3829,7 +3857,7 @@ int ast_add_extension2(struct ast_context *con,
 			}
 			ast_mutex_unlock(&con->lock);
 			if (tmp->priority == PRIORITY_HINT)
-			    ast_add_hint(tmp);
+				ast_add_hint(tmp);
 
 			/* And immediately return success. */
 			LOG;
@@ -3846,7 +3874,7 @@ int ast_add_extension2(struct ast_context *con,
 		con->root = tmp;
 	ast_mutex_unlock(&con->lock);
 	if (tmp->priority == PRIORITY_HINT)
-	    ast_add_hint(tmp);
+		ast_add_hint(tmp);
 	LOG;
 	return 0;	
 }
@@ -3998,8 +4026,8 @@ int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char
 		as->timeout = timeout;
 		if (variable) {
 			tmp = ast_strdupa(variable);
-				for (var = strtok_r(tmp, "|", &tmp); var; var = strtok_r(NULL, "|", &tmp))
-					pbx_builtin_setvar( chan, var );
+			for (var = strtok_r(tmp, "|", &tmp); var; var = strtok_r(NULL, "|", &tmp))
+				pbx_builtin_setvar( chan, var );
 		}
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -4142,6 +4170,7 @@ void __ast_context_destroy(struct ast_context *con, char *registrar)
 	struct ast_sw *sw, *swl= NULL;
 	struct ast_exten *e, *el, *en;
 	struct ast_ignorepat *ipi, *ipl = NULL;
+
 	ast_mutex_lock(&conlock);
 	tmp = contexts;
 	while(tmp) {
@@ -4309,6 +4338,7 @@ static int pbx_builtin_hangup(struct ast_channel *chan, void *data)
 static int pbx_builtin_stripmsd(struct ast_channel *chan, void *data)
 {
 	char newexten[AST_MAX_EXTENSION] = "";
+
 	if (!data || !atoi(data)) {
 		ast_log(LOG_DEBUG, "Ignoring, since number of digits to strip is 0\n");
 		return 0;
@@ -4323,6 +4353,7 @@ static int pbx_builtin_stripmsd(struct ast_channel *chan, void *data)
 static int pbx_builtin_prefix(struct ast_channel *chan, void *data)
 {
 	char newexten[AST_MAX_EXTENSION] = "";
+
 	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_DEBUG, "Ignoring, since there is no prefix to add\n");
 		return 0;
@@ -4337,6 +4368,7 @@ static int pbx_builtin_prefix(struct ast_channel *chan, void *data)
 static int pbx_builtin_suffix(struct ast_channel *chan, void *data)
 {
 	char newexten[AST_MAX_EXTENSION] = "";
+
 	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_DEBUG, "Ignoring, since there is no suffix to add\n");
 		return 0;
@@ -4365,8 +4397,7 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
 	/* Separate the Goto path */
 	strsep(&ts,"?");
 
-	// [PHM 07/01/03]
-	// struct ast_include include contained garbage here, fixed by zeroing it on get_timerange
+	/* struct ast_include include contained garbage here, fixed by zeroing it on get_timerange */
 	build_timing(&include, s);
 	if (include_valid(&include))
 		res = pbx_builtin_goto(chan, (void *)ts);
@@ -4377,6 +4408,7 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
 static int pbx_builtin_wait(struct ast_channel *chan, void *data)
 {
 	int ms;
+
 	/* Wait for "n" seconds */
 	if (data && atof((char *)data)) {
 		ms = atof((char *)data) * 1000;
@@ -4388,6 +4420,7 @@ static int pbx_builtin_wait(struct ast_channel *chan, void *data)
 static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 {
 	int ms;
+
 	/* Wait for "n" seconds */
 	if (data && atof((char *)data)) {
 		ms = atof((char *)data) * 1000;
@@ -4399,6 +4432,7 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 static int pbx_builtin_background(struct ast_channel *chan, void *data)
 {
 	int res;
+
 	/* Answer if need be */
 	if (chan->_state != AST_STATE_UP)
 		if (ast_answer(chan))
@@ -4417,6 +4451,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 static int pbx_builtin_atimeout(struct ast_channel *chan, void *data)
 {
 	int x = atoi((char *) data);
+
 	/* Set the absolute maximum time how long a call can be connected */
 	ast_channel_setwhentohangup(chan,x);
 	if (option_verbose > 2)
@@ -4447,6 +4482,7 @@ static int pbx_builtin_goto(struct ast_channel *chan, void *data)
 	char *s;
 	char *exten, *pri, *context;
 	char *stringp=NULL;
+
 	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Goto requires an argument (optional context|optional extension|priority)\n");
 		return -1;
@@ -4658,6 +4694,7 @@ static int pbx_builtin_saynumber(struct ast_channel *chan, void *data)
 static int pbx_builtin_saydigits(struct ast_channel *chan, void *data)
 {
 	int res = 0;
+
 	if (data)
 		res = ast_say_digit_str(chan, (char *)data, "", chan->language);
 	return res;
@@ -4666,6 +4703,7 @@ static int pbx_builtin_saydigits(struct ast_channel *chan, void *data)
 static int pbx_builtin_saycharacters(struct ast_channel *chan, void *data)
 {
 	int res = 0;
+
 	if (data)
 		res = ast_say_character_str(chan, (char *)data, "", chan->language);
 	return res;
@@ -4674,6 +4712,7 @@ static int pbx_builtin_saycharacters(struct ast_channel *chan, void *data)
 static int pbx_builtin_sayphonetic(struct ast_channel *chan, void *data)
 {
 	int res = 0;
+
 	if (data)
 		res = ast_say_phonetic_str(chan, (char *)data, "", chan->language);
 	return res;
@@ -4682,6 +4721,7 @@ static int pbx_builtin_sayphonetic(struct ast_channel *chan, void *data)
 int load_pbx(void)
 {
 	int x;
+
 	/* Initialize the PBX */
 	if (option_verbose) {
 		ast_verbose( "Asterisk PBX Core Initializing\n");
@@ -4692,7 +4732,9 @@ int load_pbx(void)
 	ast_cli_register(&show_application_cli);
 	ast_cli_register(&show_dialplan_cli);
 	ast_cli_register(&show_switches_cli);
-	for (x=0;x<sizeof(builtins) / sizeof(struct pbx_builtin); x++) {
+
+	/* Register builtin applications */
+	for (x=0; x<sizeof(builtins) / sizeof(struct pbx_builtin); x++) {
 		if (option_verbose)
 			ast_verbose( VERBOSE_PREFIX_1 "[%s]\n", builtins[x].name);
 		if (ast_register_application(builtins[x].name, builtins[x].execute, builtins[x].synopsis, builtins[x].description)) {
