@@ -936,10 +936,10 @@ int ast_cli_register(struct ast_cli_entry *e)
 
 static int help_workhorse(int fd, char *match[])
 {
-	char fullcmd1[80];
-	char fullcmd2[80];
+	char fullcmd1[80] = "";
+	char fullcmd2[80] = "";
 	char matchstr[80];
-	char *fullcmd;
+	char *fullcmd = NULL;
 	struct ast_cli_entry *e, *e1, *e2;
 	e1 = builtins;
 	e2 = helpers;
@@ -1072,8 +1072,7 @@ normal:
 int ast_cli_generatornummatches(char *text, char *word)
 {
 	int matches = 0, i = 0;
-	char *buf, *oldbuf = NULL;
-
+	char *buf = NULL, *oldbuf = NULL;
 
 	while ( (buf = ast_cli_generator(text, word, i)) ) {
 		if (++i > 1 && strcmp(buf,oldbuf) == 0)  {
@@ -1132,10 +1131,10 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 	int x;
 	int matchnum=0;
 	char *dup, *res;
-	char fullcmd1[80];
-	char fullcmd2[80];
+	char fullcmd1[80] = "";
+	char fullcmd2[80] = "";
 	char matchstr[80];
-	char *fullcmd;
+	char *fullcmd = NULL;
 
 	if ((dup = parse_args(text, &x, argv))) {
 		join(matchstr, sizeof(matchstr), argv);
