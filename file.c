@@ -71,6 +71,7 @@ struct ast_filestream {
 	/* Transparently translate from another format -- just once */
 	struct ast_trans_pvt *trans;
 	struct ast_tranlator_pvt *tr;
+	int lastwriteformat;
 };
 
 static pthread_mutex_t formatlock = AST_MUTEX_INITIALIZER;
@@ -187,11 +188,16 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 	} else {
 		/* XXX If they try to send us a type of frame that isn't the normal frame, and isn't
 		       the one we've setup a translator for, we do the "wrong thing" XXX */
+		if (fs->trans && (f->subclass != fs->lastwriteformat)) {
+			ast_translator_free_path(fs->trans);
+			fs->trans = NULL;
+		}
 		if (!fs->trans) 
 			fs->trans = ast_translator_build_path(fs->fmt->format, f->subclass);
 		if (!fs->trans)
 			ast_log(LOG_WARNING, "Unable to translate to format %s, source format %d\n", fs->fmt->name, f->subclass);
 		else {
+			fs->lastwriteformat = f->subclass;
 			res = 0;
 			/* Get the translated frame but don't consume the original in case they're using it on another stream */
 			trf = ast_translate(fs->trans, f, 0);
