@@ -1968,7 +1968,7 @@ check_turns:
 			}
 		}
 		/* Don't allow return code > 0 */
-		if (res > 0 && res != AST_PBX_KEEPALIVE) {
+		if (res >= 0 && res != AST_PBX_KEEPALIVE) {
 			res = 0;	
 			if (ringing) {
 				ast_indicate(chan, -1);
