@@ -3742,8 +3742,8 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 			if ((a = strchr(tmp5, ';'))) 
 				*a = '\0';
 			/* Skip leading whitespace */
-			while(tmp[0] && (tmp[0] < 33))
-				memmove(tmp, tmp+1, strlen(tmp));
+			while(tmp5[0] && (tmp5[0] < 33))
+				memmove(tmp5, tmp5+1, strlen(tmp5));
 				
 		}
 	}
