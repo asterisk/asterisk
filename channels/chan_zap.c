@@ -6142,9 +6142,11 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 		char *stringp=NULL;
 		stringp=dest;
 		s = strsep(&stringp, "/");
+		p = iflist;
 		if (!strcasecmp(s, "pseudo")) {
 			/* Special case for pseudo */
 			x = CHAN_PSEUDO;
+			channelmatch = x;
 		} 
 #ifdef ZAPATA_PRI
 		else if ((res = sscanf(s, "%d:%d%c%d", &trunkgroup, &crv, &opt, &y)) > 1) {
@@ -6171,9 +6173,9 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 		else if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1) {
 			ast_log(LOG_WARNING, "Unable to determine channel for data %s\n", (char *)data);
 			return NULL;
+		} else {
+			channelmatch = x;
 		}
-		channelmatch = x;
-		p = iflist;
 	}
 	/* Search for an unowned channel */
 	if (ast_mutex_lock(lock)) {
