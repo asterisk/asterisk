@@ -290,8 +290,8 @@ static int has_no_members(struct ast_call_queue *q)
 	member = q->members;
 	while(empty && member) {
 		switch(member->status) {
-		case AST_CAUSE_NOSUCHDRIVER:
-		case AST_CAUSE_UNREGISTERED:
+		case AST_DEVICE_UNAVAILABLE:
+		case AST_DEVICE_INVALID:
 			/* Not logged on, etc */
 			break;
 		default:
