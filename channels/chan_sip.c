@@ -2217,10 +2217,10 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 			}
 		tmp->type = channeltype;
                 if (ast_test_flag(i, SIP_DTMF) ==  SIP_DTMF_INBAND) {
-                    i->vad = ast_dsp_new();
-                    ast_dsp_set_features(i->vad, DSP_FEATURE_DTMF_DETECT);
-		    if (relaxdtmf)
-			ast_dsp_digitmode(i->vad, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+                	i->vad = ast_dsp_new();
+                	ast_dsp_set_features(i->vad, DSP_FEATURE_DTMF_DETECT);
+			if (relaxdtmf)
+				ast_dsp_digitmode(i->vad, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
                 }
 		tmp->fds[0] = ast_rtp_fd(i->rtp);
 		tmp->fds[1] = ast_rtcp_fd(i->rtp);
@@ -2442,11 +2442,11 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 				ast_set_read_format(p->owner, p->owner->readformat);
 				ast_set_write_format(p->owner, p->owner->writeformat);
 			}
-            if ((ast_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && p->vad) {
-                   f = ast_dsp_process(p->owner,p->vad,f);
-		   if (f && (f->frametype == AST_FRAME_DTMF)) 
-			ast_log(LOG_DEBUG, "Detected DTMF '%c'\n", f->subclass);
-            }
+			if ((ast_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && p->vad) {
+				f = ast_dsp_process(p->owner, p->vad, f);
+				if (f && (f->frametype == AST_FRAME_DTMF)) 
+					ast_log(LOG_DEBUG, "* Detected inband DTMF '%c'\n", f->subclass);
+			}
 		}
 	}
 	return f;
