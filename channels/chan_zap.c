@@ -6522,6 +6522,8 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			if (si.alarms) tmp->inalarm = 1;
 		}
 
+		tmp->sendcalleridafter = sendcalleridafter;
+
 	}
 	if (tmp && !here) {
 		/* nothing on the iflist */
