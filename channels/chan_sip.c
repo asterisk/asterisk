@@ -4190,7 +4190,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 		bytes = snprintf(t, maxbytes, "<atom id=\"%s\">\n", p->exten);
 		t += bytes;
 		maxbytes -= bytes;
-		bytes = snprintf(t, maxbytes, "<address uri=\"%s;user=ip\" priority=\"0,800000\">\n", mto);
+		bytes = snprintf(t, maxbytes, "<address uri=\"%s;user=ip\" priority=\"0.800000\">\n", mto);
 		t += bytes;
 		maxbytes -= bytes;
 		bytes = snprintf(t, maxbytes, "<status status=\"%s\" />\n", !state ? "open" : (state==1) ? "inuse" : "closed");
