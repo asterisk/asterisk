@@ -718,7 +718,7 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 		if (!others[x])
 			break;
 		if (totalsilence)
-			ast_stream_rewind(others[x], totalsilence+200);
+			ast_stream_rewind(others[x], totalsilence-200);
 		else
 			ast_stream_rewind(others[x], 1000);
 		ast_truncstream(others[x]);
