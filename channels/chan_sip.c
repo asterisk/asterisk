@@ -3958,11 +3958,15 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 		a++;
 		if (!strncasecmp(a, "REPLACES=", strlen("REPLACES="))) {
 			strncpy(tmp5, a + strlen("REPLACES="), sizeof(tmp5) - 1);
-			if ((a = strchr(tmp5, '%'))) {
+			a = tmp5;
+			while ((a = strchr(a, '%'))) {
 				/* Yuck!  Pingtel converts the '@' to a %40, icky icky!  Convert
 				   back to an '@' */
+				if (strlen(a) < 3)
+					break;
 				*a = hex2int(a[1]) * 16 + hex2int(a[2]);
 				memmove(a + 1, a+3, strlen(a + 3) + 1);
+				a++;
 			}
 			if ((a = strchr(tmp5, '%'))) 
 				*a = '\0';
