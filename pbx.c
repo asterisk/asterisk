@@ -1053,7 +1053,7 @@ void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char 
 			/* Evaluate expression */			
 			cp4 = ast_expr(vars);
 			
-			printf("Expression is '%s'\n", cp4);
+			ast_log(LOG_DEBUG, "Expression is '%s'\n", cp4);
 			
 			if (cp4) {
 				length = strlen(cp4);
