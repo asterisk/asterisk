@@ -25,11 +25,6 @@ bindaddr = 0.0.0.0
 ;allow=gsm		; Always allow GSM, it's cool :)
 ;allow=ulaw
 ;
-; Options for broken H.323 stacks
-;noFastStart = no
-;noH245Tunneling = no
-;noSilenceSuppression = no
-;
 ; User-Input Mode (DTMF)
 ;
 ; valid entries are:   rfc2833, inband
