@@ -3970,7 +3970,7 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
 	struct sip_request req;
 	char tmp[256];
 	char clen[20];
-	initreqprep(&req, p, "NOTIFY", NULL);
+	reqprep(&req, p, "NOTIFY", 0, 1);
 	snprintf(tmp, sizeof(tmp), "refer;id=%d", cseq);
 	add_header(&req, "Event", tmp);
 	add_header(&req, "Subscription-state", "terminated;reason=noresource");
