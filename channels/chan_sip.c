@@ -1767,7 +1767,7 @@ static int update_user_counter(struct sip_pvt *fup, int event)
 					return -1; 
 				}
 			}
-			u->inUse++;
+			(*inuse)++;
 			ast_log(LOG_DEBUG, "Call from %s '%s' is %d out of %d\n", u?"user":"peer", name, *inuse, *incominglimit);
 			break;
 #ifdef DISABLED_CODE
