@@ -190,7 +190,6 @@ static int restart_monitor(void);
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
 static int noncodeccapability = AST_RTP_DTMF;
 
-static char ourhost[256];
 static struct in_addr __ourip;
 static int ourport;
 
@@ -8603,10 +8602,6 @@ static int reload_config(void)
 	global_dtmfmode = SIP_DTMF_RFC2833;
 	global_promiscredir = 0;
 	
-	if (gethostname(ourhost, sizeof(ourhost))) {
-		ast_log(LOG_WARNING, "Unable to get hostname, SIP disabled\n");
-		return 0;
-	}
 	cfg = ast_load(config);
 
 	/* We *must* have a config file otherwise stop immediately */
@@ -8827,19 +8822,11 @@ static int reload_config(void)
 		cat = ast_category_browse(cfg, cat);
 	}
 	
-	if (ntohl(bindaddr.sin_addr.s_addr)) {
-		memcpy(&__ourip, &bindaddr.sin_addr, sizeof(__ourip));
-	} else {
-		hp = ast_gethostbyname(ourhost, &ahp);
-		if (!hp) {
-			ast_log(LOG_WARNING, "Unable to get IP address for %s, SIP disabled\n", ourhost);
-			if (!__ourip.s_addr) {
-				ast_destroy(cfg);
-				return 0;
-			}
-		} else
-			memcpy(&__ourip, hp->h_addr, sizeof(__ourip));
-	}
+	if (ast_find_ourip(&__ourip, bindaddr)) {
+		ast_log(LOG_WARNING, "Unable to get own IP address, SIP disabled\n");
+		return 0;
+ 	}
+
 	if (!ntohs(bindaddr.sin_port))
 		bindaddr.sin_port = ntohs(DEFAULT_SIP_PORT);
 	bindaddr.sin_family = AF_INET;
