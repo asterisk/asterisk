@@ -141,7 +141,6 @@ static int phone_digit(struct ast_channel *ast, char digit)
 static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 {
 	struct phone_pvt *p;
-	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_RINGING };
 
 	// CID stuff for the phonejack...
 
@@ -166,7 +165,7 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 
 	p = ast->pvt->pvt;
 
-	if ((ast->state != AST_STATE_DOWN) && (ast->state != AST_STATE_RESERVED)) {
+	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "phone_call called on %s, neither down nor reserved\n", ast->name);
 		return -1;
 	}
@@ -176,8 +175,8 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_log(LOG_DEBUG, "Ringing %s on %s (%d)\n", dest, ast->name, ast->fds[0]);
 
 	ioctl(p->fd, PHONE_RING_START,&cid);
-	ast_queue_frame(ast, &f, 0);
-	ast->state = AST_STATE_RINGING;
+	ast_setstate(ast, AST_STATE_RINGING);
+	ast_queue_control(ast, AST_CONTROL_RINGING, 0);
 	return 0;
 }
 
@@ -192,7 +191,7 @@ static int phone_hangup(struct ast_channel *ast)
 		return 0;
 	}
 	/* XXX Is there anything we can do to really hang up except stop recording? */
-	ast->state = AST_STATE_DOWN;
+	ast_setstate(ast, AST_STATE_DOWN);
 	if (ioctl(p->fd, PHONE_REC_STOP))
 		ast_log(LOG_WARNING, "Failed to stop recording\n");
 	if (ioctl(p->fd, PHONE_PLAY_STOP))
@@ -231,7 +230,7 @@ static int phone_hangup(struct ast_channel *ast)
 	if (option_verbose > 2) 
 		ast_verbose( VERBOSE_PREFIX_3 "Hungup '%s'\n", ast->name);
 	ast->pvt->pvt = NULL;
-	ast->state = AST_STATE_DOWN;
+	ast_setstate(ast, AST_STATE_DOWN);
 	restart_monitor();
 	return 0;
 }
@@ -296,7 +295,7 @@ static int phone_answer(struct ast_channel *ast)
 	if (option_debug)
 		ast_log(LOG_DEBUG, "phone_answer(%s)\n", ast->name);
 	ast->rings = 0;
-	ast->state = AST_STATE_UP;
+	ast_setstate(ast, AST_STATE_UP);
 	return 0;
 }
 
@@ -348,15 +347,15 @@ static struct ast_frame  *phone_exception(struct ast_channel *ast)
 		if (!res && (p->mode != MODE_FXO))
 			return NULL;
 		else {
-			if (ast->state == AST_STATE_RINGING) {
+			if (ast->_state == AST_STATE_RINGING) {
 				/* They've picked up the phone */
 				p->fr.frametype = AST_FRAME_CONTROL;
 				p->fr.subclass = AST_CONTROL_ANSWER;
 				phone_setup(ast);
-				ast->state = AST_STATE_UP;
+				ast_setstate(ast, AST_STATE_UP);
 				return &p->fr;
 			}  else 
-				ast_log(LOG_WARNING, "Got off hook in weird state %d\n", ast->state);
+				ast_log(LOG_WARNING, "Got off hook in weird state %d\n", ast->_state);
 		}
 	}
 #if 1
@@ -434,24 +433,14 @@ static int phone_write_buf(struct phone_pvt *p, char *buf, int len, int frlen)
 	memcpy(p->obuf + p->obuflen, buf, len);
 	p->obuflen += len;
 	while(p->obuflen > frlen) {
-#if 0
-		res = frlen;
-		ast_log(LOG_DEBUG, "Wrote %d bytes\n", res);
-#else
 		res = write(p->fd, p->obuf, frlen);
-#endif
 		if (res != frlen) {
 			if (res < 1) {
 /*
  * Card is in non-blocking mode now and it works well now, but there are
  * lot of messages like this. So, this message is temporarily disabled.
  */
-#if 0
-				ast_log(LOG_WARNING, "Write failed: %s\n", strerror(errno));
-				return -1;
-#else
 				return 0;
-#endif
 			} else {
 				ast_log(LOG_WARNING, "Only wrote %d of %d bytes\n", res, frlen);
 			}
@@ -485,11 +474,18 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 		ast_log(LOG_WARNING, "Cannot handle frames in %d format\n", frame->subclass);
 		return -1;
 	}
+#if 0
 	/* If we're not in up mode, go into up mode now */
-	if (ast->state != AST_STATE_UP) {
-		ast->state = AST_STATE_UP;
+	if (ast->_state != AST_STATE_UP) {
+		ast_setstate(ast, AST_STATE_UP);
 		phone_setup(ast);
 	}
+#else
+	if (ast->_state != AST_STATE_UP) {
+		/* Don't try tos end audio on-hook */
+		return 0;
+	}
+#endif	
 	if (frame->subclass == AST_FORMAT_G723_1) {
 		if (p->lastformat != AST_FORMAT_G723_1) {
 			ioctl(p->fd, PHONE_PLAY_STOP);
@@ -620,7 +616,7 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 		tmp->nativeformats = prefformat;
 		tmp->pvt->rawreadformat = prefformat;
 		tmp->pvt->rawwriteformat = prefformat;
-		tmp->state = state;
+		ast_setstate(tmp, state);
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
 		tmp->pvt->pvt = i;
@@ -1144,7 +1140,7 @@ int unload_module()
 		p = iflist;
 		while(p) {
 			if (p->owner)
-				ast_softhangup(p->owner);
+				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
 			p = p->next;
 		}
 		iflist = NULL;
