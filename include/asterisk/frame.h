@@ -20,11 +20,29 @@
 extern "C" {
 #endif
 
+/*
+ * Autodetect system endianess
+ */
+#ifndef __BYTE_ORDER
 #ifdef __linux__
 #include <endian.h>
 #else
-#include <machine/endian.h>
-#endif
+#ifdef __LITTLE_ENDIAN__
+#define __BYTE_ORDER __LITTLE_ENDIAN
+#endif /* __LITTLE_ENDIAN */
+
+#if (defined(sun) && defined(unix) && defined(sparc))
+#define __BYTE_ORDER __BIG_ENDIAN
+#endif /* sun unix sparc */
+
+#endif /* linux */
+
+#endif /* __BYTE_ORDER */
+
+#ifndef __BYTE_ORDER
+#error Need to know endianess
+#endif /* __BYTE_ORDER */
+
 #include <sys/types.h>
 
 //! Data structure associated with a single frame of data
