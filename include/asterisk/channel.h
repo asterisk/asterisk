@@ -320,6 +320,8 @@ struct outgoing_helper {
 #define AST_STATE_UP		6		
 /*! Line is busy */
 #define AST_STATE_BUSY  	7		
+/*! Digits (or equivalent) have been dialed while offhook */
+#define AST_STATE_DIALING_OFFHOOK	8
 
 /* Bits 16-32 of state are reserved for flags */
 /*! Do not transmit voice data */

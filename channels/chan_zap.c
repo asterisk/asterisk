@@ -111,6 +111,7 @@ static char *config = "zapata.conf";
 #define SIG_FEATD	(0x20000 | ZT_SIG_EM)
 #define	SIG_FEATDMF	(0x40000 | ZT_SIG_EM)
 #define	SIG_FEATB	(0x80000 | ZT_SIG_EM)
+#define	SIG_E911	(0x100000 | ZT_SIG_EM)
 #define SIG_FXSLS	ZT_SIG_FXSLS
 #define SIG_FXSGS	ZT_SIG_FXSGS
 #define SIG_FXSKS	ZT_SIG_FXSKS
@@ -457,6 +458,7 @@ static struct zt_pvt {
 	int cancallforward;
 	char call_forward[AST_MAX_EXTENSION];
 	char mailbox[AST_MAX_EXTENSION];
+	char dialdest[256];
 	int onhooktime;
 	int msgstate;
 	
@@ -866,6 +868,8 @@ static char *sig2str(int sig)
 		return "Feature Group D (MF)";
 	case SIG_FEATB:
 		return "Feature Group B (MF)";
+	case SIG_E911:
+		return "E911 (MF)";
 	case SIG_FXSLS:
 		return "FXS Loopstart";
 	case SIG_FXSGS:
@@ -889,7 +893,7 @@ static char *sig2str(int sig)
 	case SIG_SF_FEATD:
 		return "SF (Tone) Signalling with Feature Group D (DTMF)";
 	case SIG_SF_FEATDMF:
-		return "SF (Tone) Signallong with Feature Group D (MF)";
+		return "SF (Tone) Signalling with Feature Group D (MF)";
 	case SIG_SF_FEATB:
 		return "SF (Tone) Signalling with Feature Group B (MF)";
 	case 0:
@@ -1347,8 +1351,9 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 	char *s;
 #endif
 	char callerid[256];
-	char dest[256];
+	char dest[256]; /* must be same length as p->dialdest */
 	strncpy(dest, rdest, sizeof(dest) - 1);
+	strncpy(p->dialdest, rdest, sizeof(dest) - 1);
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "zt_call called on %s, neither down nor reserved\n", ast->name);
 		return -1;
@@ -1467,6 +1472,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 	case SIG_EM:
 	case SIG_FEATD:
 	case SIG_FEATDMF:
+	case SIG_E911:
 	case SIG_FEATB:
 	case SIG_SFWINK:
 	case SIG_SF:
@@ -1525,6 +1531,9 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			else
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*02#*%s#", c + p->stripmsd);
 		} else 
+		if (p->sig == SIG_E911) {
+			strcpy(p->dop.dialstr,"M*911#");
+		} else
 		if (p->sig == SIG_FEATB) {
 			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%s#", c + p->stripmsd);
 		} else 
@@ -1979,6 +1988,7 @@ static int zt_answer(struct ast_channel *ast)
 	case SIG_EMWINK:
 	case SIG_FEATD:
 	case SIG_FEATDMF:
+	case SIG_E911:
 	case SIG_FEATB:
 	case SIG_SF:
 	case SIG_SFWINK:
@@ -2704,6 +2714,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 {
 	int res,x;
 	int index;
+	char *c;
 	struct zt_pvt *p = ast->pvt->pvt;
 	pthread_t threadid;
 	pthread_attr_t attr;
@@ -2774,10 +2785,22 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					p->echobreak = 0;
 				} else {
 					p->dialing = 0;
+					if (p->sig == SIG_E911) {
+						/* if thru with dialing after offhook */
+						if (ast->_state == AST_STATE_DIALING_OFFHOOK) {
+							ast_setstate(ast, AST_STATE_UP);
+							p->subs[index].f.frametype = AST_FRAME_CONTROL;
+							p->subs[index].f.subclass = AST_CONTROL_ANSWER;
+							break;
+						} else { /* if to state wait for offhook to dial rest */
+							/* we now wait for off hook */
+							ast_setstate(ast,AST_STATE_DIALING_OFFHOOK);
+						}
+					}
 					if (ast->_state == AST_STATE_DIALING) {
 						if (p->callprogress && CANPROGRESSDETECT(p) && p->dsp && p->outgoing) {
 							ast_log(LOG_DEBUG, "Done dialing, but waiting for progress detection before doing more...\n");
-						} else if (p->confirmanswer || (!p->dialednone && ((p->sig == SIG_EM) || (p->sig == SIG_EMWINK) || (p->sig == SIG_FEATD) || (p->sig == SIG_FEATDMF) || (p->sig == SIG_FEATB) || (p->sig == SIG_SF) || (p->sig == SIG_SFWINK) || (p->sig == SIG_SF_FEATD) || (p->sig == SIG_SF_FEATDMF) || (p->sig == SIG_SF_FEATB)))) {
+						} else if (p->confirmanswer || (!p->dialednone && ((p->sig == SIG_EM) || (p->sig == SIG_EMWINK) || (p->sig == SIG_FEATD) || (p->sig == SIG_FEATDMF) || (p->sig == SIG_E911) || (p->sig == SIG_FEATB) || (p->sig == SIG_SF) || (p->sig == SIG_SFWINK) || (p->sig == SIG_SF_FEATD) || (p->sig == SIG_SF_FEATDMF) || (p->sig == SIG_SF_FEATB)))) {
 							ast_setstate(ast, AST_STATE_RINGING);
 						} else {
 							ast_setstate(ast, AST_STATE_UP);
@@ -2895,6 +2918,32 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				p->subs[index].f.subclass = AST_CONTROL_RADIO_KEY;
 				break;
 			}
+			/* for E911, its supposed to wait for offhook then dial
+			   the second half of the dial string */
+			if ((p->sig == SIG_E911) && (ast->_state == AST_STATE_DIALING_OFFHOOK)) {
+				c = strchr(p->dialdest, '/');
+				if (c)
+					c++;
+				else
+					c = p->dialdest;
+				if (*c) snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*0%s#", c);
+				else strcpy(p->dop.dialstr,"M*2#");
+				if (strlen(p->dop.dialstr) > 4) {
+					strcpy(p->echorest, "w");
+					strcpy(p->echorest + 1, p->dop.dialstr + strlen(p->dop.dialstr) - 2);
+					p->echobreak = 1;
+					p->dop.dialstr[strlen(p->dop.dialstr)-2] = '\0';
+				} else
+					p->echobreak = 0;
+				if (ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop)) {
+					x = ZT_ONHOOK;
+					ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x);
+					ast_log(LOG_WARNING, "Dialing failed on channel %d: %s\n", p->channel, strerror(errno));
+					return NULL;
+					}
+				p->dialing = 1;
+				return &p->subs[index].f;
+			}
 			switch(p->sig) {
 			case SIG_FXOLS:
 			case SIG_FXOGS:
@@ -2966,6 +3015,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			case SIG_EMWINK:
 			case SIG_FEATD:
 			case SIG_FEATDMF:
+			case SIG_E911:
 			case SIG_FEATB:
 			case SIG_SF:
 			case SIG_SFWINK:
@@ -3165,6 +3215,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					ast_log(LOG_DEBUG, "Got wink in weird state %d on channel %d\n", ast->_state, p->channel);
 				break;
 			case SIG_FEATDMF:
+			case SIG_E911:
 			case SIG_FEATB:
 			case SIG_SF_FEATDMF:
 			case SIG_SF_FEATB:
@@ -3208,6 +3259,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				p->dop.op = ZT_DIAL_OP_REPLACE;
 				break;
 			case SIG_FEATDMF:
+			case SIG_E911:
 			case SIG_FEATB:
 			case SIG_SF_FEATDMF:
 			case SIG_SF_FEATB:
@@ -4060,6 +4112,7 @@ static void *ss_thread(void *data)
 	switch(p->sig) {
 	case SIG_FEATD:
 	case SIG_FEATDMF:
+	case SIG_E911:
 	case SIG_FEATB:
 	case SIG_EMWINK:
 	case SIG_SF_FEATD:
@@ -4076,7 +4129,7 @@ static void *ss_thread(void *data)
 			ast_dsp_digitreset(p->dsp);
 		/* set digit mode appropriately */
 		if (p->dsp) {
-			if ((p->sig == SIG_FEATDMF) || (p->sig == SIG_FEATB)) 
+			if ((p->sig == SIG_FEATDMF) || (p->sig == SIG_E911) || (p->sig == SIG_FEATB)) 
 				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_MF | p->dtmfrelax); 
 			else 
 				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
@@ -4100,10 +4153,16 @@ static void *ss_thread(void *data)
 				if (res < 1) ast_dsp_digitreset(p->dsp);
 				break;
 			    case SIG_FEATDMF:
+			    case SIG_E911:
 			    case SIG_SF_FEATDMF:
 				res = my_getsigstr(chan,dtmfbuf + 1,'#',3000);
-				if (res > 0)
+				if (res > 0) {
+					/* if E911, take off hook */
+					if (p->sig == SIG_E911) {
+						zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
+					}
 					res = my_getsigstr(chan,dtmfbuf + strlen(dtmfbuf),'#',3000);
+				}
 				if (res < 1) ast_dsp_digitreset(p->dsp);
 				break;
 			    case SIG_FEATB:
@@ -4171,6 +4230,25 @@ static void *ss_thread(void *data)
 			} else
 				ast_log(LOG_WARNING, "Got a non-Feature Group D input on channel %d.  Assuming E&M Wink instead\n", p->channel);
 		}
+		if (p->sig == SIG_E911) {
+			if (exten[0] == '*') {
+				char *stringp=NULL;
+				strncpy(exten2, exten, sizeof(exten2)-1);
+				/* Parse out extension and callerid */
+				stringp=exten2 +1;
+				s1 = strsep(&stringp, "#");
+				s2 = strsep(&stringp, "#");
+				if (s2 && (*(s2 + 1) == '0')) {
+					if (*(s2 + 2)) chan->callerid = strdup(s2 + 2);
+					if (chan->callerid)
+						chan->ani = strdup(chan->callerid);
+					}
+				if (s1)	strncpy(exten, s1, sizeof(exten)-1);
+				else strcpy(exten,"911");
+				printf("E911: exten: %s, ANI: %s\n",exten,chan->ani);
+			} else
+				ast_log(LOG_WARNING, "Got a non-E911 input on channel %d.  Assuming E&M Wink instead\n", p->channel);
+		}
 		if (p->sig == SIG_FEATB) {
 			if (exten[0] == '*') {
 				char *stringp=NULL;
@@ -4186,7 +4264,7 @@ static void *ss_thread(void *data)
 			zt_wink(p, index);
 		}
 		zt_enable_ec(p);
-		if ((p->sig == SIG_FEATDMF) || (p->sig == SIG_FEATB)) 
+		if ((p->sig == SIG_FEATDMF) || (p->sig == SIG_E911) || (p->sig == SIG_FEATB)) 
 			ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax); 
 		if (ast_exists_extension(chan, chan->context, exten, 1, chan->callerid)) {
 			strncpy(chan->exten, exten, sizeof(chan->exten)-1);
@@ -4742,6 +4820,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_EMWINK:
 		case SIG_FEATD:
 		case SIG_FEATDMF:
+		case SIG_E911:
 		case SIG_FEATB:
 		case SIG_EM:
 		case SIG_SFWINK:
@@ -4788,6 +4867,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_FXOGS:
 		case SIG_FEATD:
 		case SIG_FEATDMF:
+		case SIG_E911:
 		case SIG_FEATB:
 		case SIG_EM:
 		case SIG_EMWINK:
@@ -5334,7 +5414,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		if ((signalling == SIG_FXSKS) || (signalling == SIG_FXSLS) ||
 		    (signalling == SIG_EM) || (signalling == SIG_EMWINK) ||
 			(signalling == SIG_FEATD) || (signalling == SIG_FEATDMF) ||
-			  (signalling == SIG_FEATB) ||
+			  (signalling == SIG_FEATB) || (signalling == SIG_E911) ||
 		    (signalling == SIG_SF) || (signalling == SIG_SFWINK) ||
 			(signalling == SIG_SF_FEATD) || (signalling == SIG_SF_FEATDMF) ||
 			  (signalling == SIG_SF_FEATB)) {
@@ -7388,6 +7468,9 @@ static int setup_zap(void)
 			} else if (!strcasecmp(v->value, "featdmf")) {
 				cur_signalling = SIG_FEATDMF;
 				cur_radio = 0;
+			} else if (!strcasecmp(v->value, "e911")) {
+				cur_signalling = SIG_E911;
+				cur_radio = 0;
 			} else if (!strcasecmp(v->value, "featb")) {
 				cur_signalling = SIG_FEATB;
 				cur_radio = 0;
@@ -7764,6 +7847,8 @@ static int reload_zt(void)
 				cur_signalling = SIG_FEATD;
 			} else if (!strcasecmp(v->value, "featdmf")) {
 				cur_signalling = SIG_FEATDMF;
+			} else if (!strcasecmp(v->value, "e911")) {
+				cur_signalling = SIG_E911;
 			} else if (!strcasecmp(v->value, "featb")) {
 				cur_signalling = SIG_FEATB;
 #ifdef ZAPATA_PRI
