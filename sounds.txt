@@ -426,3 +426,53 @@
  message without prepending
 
 %vm-mailboxfull.gsm%sorry but the users mail box can't accept more messages
+
+%vm-tocancelmsg.gsm%press star to cancel this message
+
+%vm-from.gsm%from
+
+%vm-from-extension.gsm%from extension
+
+%vm-from-phonenumber.gsm%from phone number
+
+%vm-unknown-caller.gsm%from an unknown caller
+
+%vm-advopts.gsm%press 3 for advanced options
+
+%vm-toreply.gsm%press 1 to send a reply
+
+%vm-tocallback.gsm%press 2 to call the person who sent this message
+
+%vm-tohearenv.gsm%press 3 to hear the message envelope
+
+%vm-tomakecall.gsm%press 4 to place an outgoing call
+
+%vm-starmain.gsm%press star to return to the main menu
+
+%vm-dialout.gsm%please wait while i connect your call
+
+%vm-enter-num-to-call.gsm%please enter the number you wish to call
+
+%vm-then-pound.gsm%then press pound
+
+%vm-star-cancel.gsm%press star to cancel
+
+%vm-num-i-have.gsm%the number i have is
+
+%vm-tocallnum.gsm%press 1 to call this number
+
+%vm-calldiffnum.gsm%press 2 to enter a different number
+
+%vm-nonumber.gsm%i'm afraid i don't know who sent this message
+
+%vm-toenternumber.gsm%press 1 to enter a number
+
+%vm-nobox.gsm%you cannot reply to this message because the sender does not have a mailbox
+
+%vm-review.gsm%press 1 to accept this recording press 2 to listen to it press 3 to rerecord your message
+
+%vm-torerecord.gsm%press 3 to rerecord your message
+
+%vm-reachoper.gsm%press 0 to reach an operator
+
+%vm-tooshort.gsm%your message is too short 

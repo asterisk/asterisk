@@ -84,7 +84,11 @@ static inline void sql_close(void) { }
 #define eol "\r\n"
 
 #define MAX_DATETIME_FORMAT	512
+#define MAX_NUM_CID_CONTEXTS 10
+
 #define DIGITS_DIR	AST_SOUNDS "/digits/"
+
+
 struct baseio {
 	int iocp;
 	int iolen;
@@ -104,8 +108,13 @@ struct ast_vm_user {
 	char serveremail[80];
 	char mailcmd[160];	/* Configurable mail command */
 	char zonetag[80];
+	char callback[80];
+	char dialout[80];
 	int attach;
 	int alloced;
+	int saycid;
+	int review;
+	int operator;
 	struct ast_vm_user *next;
 };
 
@@ -132,6 +141,11 @@ struct vm_state {
 	int starting;
 	int repeats;
 };
+static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int msg, int option);
+static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num, char *outgoing_context);
+static int play_record_review(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int outsidecaller, struct ast_vm_user *vmu, int *duration);
+
+
 
 static char *tdesc = "Comedian Mail (Voicemail System)";
 
@@ -209,6 +223,15 @@ static int maxgreet;
 static int skipms;
 static int maxlogins;
 
+static int reviewvm;
+static int calloper;
+static int saycidinfo;
+static char dialcontext[80];
+static char callcontext[80];
+
+static char cidinternalcontexts[MAX_NUM_CID_CONTEXTS][64];
+
+
 static char *emailbody = NULL;
 static int pbxskip = 0;
 static char fromstring[100];
@@ -225,6 +248,16 @@ static void apply_options(struct ast_vm_user *vmu, char *options)
 	char *stringp = ast_strdupa(options);
 	char *s;
 	char *var, *value;
+	if (reviewvm)
+		vmu->review = 1;
+	if (calloper)
+		vmu->operator = 1;
+	if (saycidinfo)
+		vmu->saycid = 1;
+	if (callcontext)
+		strncpy(vmu->callback, callcontext, sizeof(vmu->callback) -1);
+	if (dialcontext)
+		strncpy(vmu->dialout, dialcontext, sizeof(vmu->dialout) -1);
 	while((s = strsep(&stringp, "|"))) {
 		value = s;
 		if ((var = strsep(&value, "=")) && value) {
@@ -237,6 +270,26 @@ static void apply_options(struct ast_vm_user *vmu, char *options)
 				strncpy(vmu->serveremail, value, sizeof(vmu->serveremail) - 1);
 			} else if (!strcasecmp(var, "tz")) {
 				strncpy(vmu->zonetag, value, sizeof(vmu->zonetag) - 1);
+			} else if (!strcasecmp(var, "saycid")){
+				if(ast_true(value))
+					vmu->saycid = 1;
+				else
+					vmu->saycid = 0;
+			} else if (!strcasecmp(var, "review")){
+				if(ast_true(value))
+					vmu->review = 1;
+				else
+					vmu->review = 0;
+			} else if (!strcasecmp(var, "operator")){
+				if(ast_true(value))
+					vmu->operator = 1;
+				else
+					vmu->operator = 0;
+			} else if (!strcasecmp(var, "callback")) {
+				strncpy(vmu->callback, value, sizeof(vmu->callback) -1);
+			} else if (!strcasecmp(var, "dialout")) {
+				strncpy(vmu->dialout, value, sizeof(vmu->dialout) -1);
+
 			}
 		}
 	}
@@ -780,7 +833,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 		fprintf(p, "Message-ID: <Asterisk-%d-%s-%d@%s>\n", msgnum, mailbox, getpid(), host);
 		fprintf(p, "MIME-Version: 1.0\n");
 		if (attach_user_voicemail) {
-			// Something unique.
+			/* Something unique. */
 			snprintf(bound, sizeof(bound), "Boundary=%d%s%d", msgnum, mailbox, getpid());
 
 			fprintf(p, "Content-Type: MULTIPART/MIXED; BOUNDARY=\"%s\"\n\n\n", bound);
@@ -1020,7 +1073,7 @@ static int play_and_prepend(struct ast_channel *chan, char *playfile, char *reco
 		}
 	}
 	
-	sildet = ast_dsp_new(); //Create the silence detector
+	sildet = ast_dsp_new(); /* Create the silence detector */
 	if (!sildet) {
 		ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
 		return -1;
@@ -1190,12 +1243,12 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 	int totalsilence = 0;
 	int dspsilence = 0;
 	int gotsilence = 0;		/* did we timeout for silence? */
-	int rfmt=0;	
-	
+	int rfmt=0;
+
 	ast_log(LOG_DEBUG,"play_and_record: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
 	snprintf(comment,sizeof(comment),"Playing %s, Recording to: %s on %s\n", playfile ? playfile : "<None>", recordfile, chan->name);
 
-	if (playfile) {	
+	if (playfile) {
 		d = play_and_wait(chan, playfile);
 		if (d > -1)
 			d = ast_streamfile(chan, "beep",chan->language);
@@ -1204,14 +1257,14 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 		if (d < 0)
 			return -1;
 	}
-	
+
 	fmts = ast_strdupa(fmt);
-	
+
 	stringp=fmts;
 	strsep(&stringp, "|");
-	ast_log(LOG_DEBUG,"Recording Formats: sfmts=%s\n", fmts);	
+	ast_log(LOG_DEBUG,"Recording Formats: sfmts=%s\n", fmts);
 	sfmt[0] = ast_strdupa(fmts);
-	
+
 	while((fmt = strsep(&stringp, "|"))) {
 		if (fmtcnt > MAX_OTHER_FORMATS - 1) {
 			ast_log(LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app_voicemail.c\n");
@@ -1225,19 +1278,19 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 	for (x=0;x<fmtcnt;x++) {
 		others[x] = ast_writefile(recordfile, sfmt[x], comment, O_TRUNC, 0, 0700);
 		ast_verbose( VERBOSE_PREFIX_3 "x=%i, open writing:  %s format: %s, %p\n", x, recordfile, sfmt[x], others[x]);
-			
+
 		if (!others[x]) {
 			break;
 		}
 	}
-	
-	sildet = ast_dsp_new(); //Create the silence detector
+
+	sildet = ast_dsp_new(); /* Create the silence detector */
 	if (!sildet) {
 		ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
 		return -1;
 	}
 	ast_dsp_set_threshold(sildet, silencethreshold);
-	
+
 	if (maxsilence > 0) {
 		rfmt = chan->readformat;
 		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
@@ -1246,7 +1299,7 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 			return -1;
 		}
 	}
-						
+
 	if (x == fmtcnt) {
 	/* Loop forever, writing the packets we read to the writer(s), until
 	   we read a # or get a hangup */
@@ -1262,7 +1315,7 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 					res = -1;
 				}
 			}
-			
+
 			if (res < 0) {
 				f = NULL;
 				break;
@@ -1275,7 +1328,7 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 				for (x=0;x<fmtcnt;x++) {
 					res = ast_writestream(others[x], f);
 				}
-				
+
 				/* Silence Detection */
 				if (maxsilence > 0) {
 					dspsilence = 0;
@@ -1284,7 +1337,7 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 						totalsilence = dspsilence;
 					else
 						totalsilence = 0;
-					
+
 					if (totalsilence > maxsilence) {
 					/* Ended happily with silence */
 					ast_frfree(f);
@@ -1304,7 +1357,7 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 				ast_writestream(others[0], f);
 			} else if (f->frametype == AST_FRAME_DTMF) {
 				if (f->subclass == '#') {
-					if (option_verbose > 2) 
+					if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "User ended message by pressing %c\n", f->subclass);
 					res = '#';
 					outmsg = 2;
@@ -1312,6 +1365,15 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 					break;
 				}
 			}
+				if (f->subclass == '0') {
+				/* Check for a '0' during message recording also, in case caller wants operator */
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "User cancelled by pressing %c\n", f->subclass);
+					res = '0';
+					outmsg = 0;
+					ast_frfree(f);
+					break;
+				}
 			if (maxtime) {
 				time(&end);
 				if (maxtime < (end - start)) {
@@ -1325,13 +1387,13 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 			ast_frfree(f);
 		}
 		if (!f) {
-			if (option_verbose > 2) 
+			if (option_verbose > 2)
 				ast_verbose( VERBOSE_PREFIX_3 "User hung up\n");
 			res = -1;
 			outmsg=1;
 		}
 	} else {
-		ast_log(LOG_WARNING, "Error creating writestream '%s', format '%s'\n", recordfile, sfmt[x]); 
+		ast_log(LOG_WARNING, "Error creating writestream '%s', format '%s'\n", recordfile, sfmt[x]);
 	}
 
 	for (x=0;x<fmtcnt;x++) {
@@ -1351,13 +1413,12 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 	}
 	if (outmsg) {
 		if (outmsg > 1) {
-		/* Let them know it worked */
-			ast_streamfile(chan, "vm-msgsaved", chan->language);
+		/* Let them know recording is stopped */
+			ast_streamfile(chan, "auth-thankyou", chan->language);
 			ast_waitstream(chan, "");
 		}
-	}	
+	}
 
-	
 	return res;
 }
 
@@ -1384,6 +1445,7 @@ static void run_externnotify(char *context, char *extension, int numvoicemails)
 	}
 }
 
+
 static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int busy, int unavail)
 {
 	char comment[256];
@@ -1392,6 +1454,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	int res = 0;
 	int msgnum;
 	int fd;
+	int duration = 0;
 	char date[256];
 	char dir[256];
 	char fn[256];
@@ -1405,7 +1468,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	char tmp[256] = "";
 	struct ast_vm_user *vmu;
 	struct ast_vm_user svm;
-	
+
+
 	strncpy(tmp, ext, sizeof(tmp) - 1);
 	ext = tmp;
 	context = strchr(tmp, '@');
@@ -1432,12 +1496,12 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		if (mkdir(dir, 0700) && (errno != EEXIST))
 			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
 		if (ast_exists_extension(chan, strlen(chan->macrocontext) ? chan->macrocontext : chan->context, "o", 1, chan->callerid))
-			ecodes = "#0";
+			ecodes = "#0*";
 		/* Play the beginning intro if desired */
 		if (strlen(prefile)) {
 			if (ast_fileexists(prefile, NULL, NULL) > 0) {
 				if (ast_streamfile(chan, prefile, chan->language) > -1) 
-				    res = ast_waitstream(chan, "#0");
+				    res = ast_waitstream(chan, "#0*");
 			} else {
 				ast_log(LOG_DEBUG, "%s doesn't exist, doing what we can\n", prefile);
 				res = invent_message(chan, vmu->context, ext, busy, ecodes);
@@ -1462,8 +1526,19 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 				res = 0;
 			}
 		}
+		/* Check for a '*' here in case the caller wants to escape from voicemail to something
+		other than the operator -- an automated attendant or mailbox login for example */
+		if (res == '*') {
+			strncpy(chan->exten, "a", sizeof(chan->exten) - 1);
+			if (strlen(chan->macrocontext))
+				strncpy(chan->context, chan->macrocontext, sizeof(chan->context) - 1);
+			chan->priority = 0;
+			free_user(vmu);
+			return 0;
+		}
 		/* Check for a '0' here */
 		if (res == '0') {
+		transfer:
 			strncpy(chan->exten, "o", sizeof(chan->exten) - 1);
 			if (strlen(chan->macrocontext))
 				strncpy(chan->context, chan->macrocontext, sizeof(chan->context) - 1);
@@ -1508,6 +1583,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 "[message]\n"
 "origmailbox=%s\n"
 "context=%s\n"
+"macrocontext=%s\n"
 "exten=%s\n"
 "priority=%d\n"
 "callerchan=%s\n"
@@ -1516,6 +1592,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 "origtime=%ld\n",
 	ext,
 	chan->context,
+	chan->macrocontext, 
 	chan->exten,
 	chan->priority,
 	chan->name,
@@ -1524,7 +1601,9 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 					fclose(txt);
 				} else
 					ast_log(LOG_WARNING, "Error opening text file for output\n");
-				res = play_and_record(chan, NULL, fn, vmmaxmessage, fmt);
+				res = play_record_review(chan, NULL, fn, vmmaxmessage, fmt, 1, vmu, &duration);
+				if (res == '0')
+					goto transfer;
 				if (res > 0)
 					res = 0;
 				fd = open(txtfile, O_APPEND | O_WRONLY);
@@ -1532,7 +1611,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 					txt = fdopen(fd, "a");
 					if (txt) {
 						time(&end);
-						fprintf(txt, "duration=%ld\n", (long)(end-start));
+						fprintf(txt, "duration=%ld\n", (long)(duration));
 						fclose(txt);
 					} else
 						close(fd);
@@ -1551,7 +1630,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 						attach_user_voicemail = vmu->attach;
 					if (strlen(vmu->serveremail))
 						myserveremail = vmu->serveremail;
-					sendmail(myserveremail, vmu, msgnum, ext, chan->callerid, fn, fmt, end - start, attach_user_voicemail);
+						sendmail(myserveremail, vmu, msgnum, ext, chan->callerid, fn, fmt, end - start, attach_user_voicemail);
 				}
 				if (strlen(vmu->pager)) {
 					char *myserveremail = serveremail;
@@ -2418,31 +2497,18 @@ static int wait_file(struct ast_channel *chan, struct vm_state *vms, char *file)
 	return res;
 }
 
-static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms)
+static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *vmu, char *origtime, char *filename)
 {
 	int res = 0;
-	char filename[256], *origtime;
 	struct vm_zone *the_zone = NULL;
-	struct ast_config *msg_cfg;
 	time_t t;
 	long tin;
 
-	make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg); 
-	snprintf(filename,sizeof(filename), "%s.txt", vms->fn2);
-	msg_cfg = ast_load(filename);
-	if (!msg_cfg) {
-		ast_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
-		return 0;
-	}
-
-	if (!(origtime = ast_variable_retrieve(msg_cfg, "message", "origtime")))
-		return 0;
 	if (sscanf(origtime,"%ld",&tin) < 1) {
 		ast_log(LOG_WARNING, "Couldn't find origtime in %s\n", filename);
 		return 0;
 	}
 	t = tin;
-	ast_destroy(msg_cfg);
 
 	/* Does this user have a timezone specified? */
 	if (strlen(vmu->zonetag)) {
@@ -2485,9 +2551,78 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 	return res;
 }
 
+
+
+static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms, char *cid, char *context, int callback)
+{
+	int res = 0;
+	int i;
+	char *callerid, *name;
+	char prefile[256]="";
+	
+
+	/* If voicemail cid is not enabled, or we didn't get cid or context from the attribute file, leave now. */
+	/* BB: Still need to change this so that if this function is called by the message envelope (and someone is explicitly requesting to hear the CID), it does not check to see if CID is enabled in the config file */
+	if((cid == NULL)||(context == NULL))
+		return res;
+
+	/* Strip off caller ID number from name */
+	ast_log(LOG_DEBUG, "VM-CID: composite caller ID received: %s, context: %s\n", cid, context);
+	ast_callerid_parse(cid, &name, &callerid);
+	if((callerid != NULL)&&(!res)&&(strlen(callerid))){
+		/* Check for internal contexts and only */
+		/* say extension when the call didn't come from an internal context in the list */
+		for(i = 0 ; i < MAX_NUM_CID_CONTEXTS ; i++){
+			ast_log(LOG_DEBUG, "VM-CID: comparing internalcontext: %s\n", cidinternalcontexts[i]);
+			if((strcmp(cidinternalcontexts[i], context) == 0))
+				break;
+		}
+		if(i != MAX_NUM_CID_CONTEXTS){ /* internal context? */
+			if(!res) {
+				snprintf(prefile, sizeof(prefile), "voicemail/%s/%s/greet", context, callerid);
+				if (strlen(prefile)) {
+				/* See if we can find a recorded name for this person instead of their extension number */
+					if (ast_fileexists(prefile, NULL, NULL) > 0) {
+						ast_verbose(VERBOSE_PREFIX_3 "Playing envelope info: CID number '%s' matches mailbox number, playing recorded name\n", callerid);
+						if (!callback)
+							res = wait_file2(chan, vms, "vm-from");
+						res = ast_streamfile(chan, prefile, chan->language) > -1;
+						res = ast_waitstream(chan, "");
+					} else {
+						ast_verbose(VERBOSE_PREFIX_3 "Playing envelope info: message from '%s'\n", callerid);
+						/* BB: Say "from extension" as one saying to sound smoother */
+						if (!callback)
+							res = wait_file2(chan, vms, "vm-from-extension");
+						res = ast_say_digit_str(chan, callerid, "", chan->language);
+					}
+				}
+			}
+		}
+
+		else if (!res){
+			ast_log(LOG_DEBUG, "VM-CID: Numeric caller id: (%s)\n",callerid);
+			/* BB: Since this is all nicely figured out, why not say "from phone number" in this case" */
+			if (!callback)
+				res = wait_file2(chan, vms, "vm-from-phonenumber");
+			res = ast_say_digit_str(chan, callerid, AST_DIGIT_ANY, chan->language);
+		}
+	}
+	else{
+		/* Number unknown */
+		ast_log(LOG_DEBUG, "VM-CID: From an unknown number");
+		if(!res)
+			/* BB: Say "from an unknown caller" as one phrase - it is already recorded by "the voice" anyhow */
+			res = wait_file2(chan, vms, "vm-unknown-caller");
+	}
+	return res;                                                               
+}
+
 static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int msg)
 {
 	int res = 0;
+	char filename[256],*origtime, *cid, *context;
+	struct ast_config *msg_cfg;
+
 	vms->starting = 0; 
 	make_file(vms->fn, sizeof(vms->fn), vms->curdir, msg);
 	adsi_message(chan, vms->curbox, msg, vms->lastmsg, vms->deleted[msg], vms->fn);
@@ -2503,8 +2638,32 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 		}
 	}
 
+	/* Retrieve info from VM attribute file */
+
+        make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg);
+        snprintf(filename,sizeof(filename), "%s.txt", vms->fn2);
+        msg_cfg = ast_load(filename);
+        if (!msg_cfg) {
+                ast_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
+                return 0;
+        }
+                                                                                                                                 
+        if (!(origtime = ast_variable_retrieve(msg_cfg, "message", "origtime")))
+                return 0;
+                                                                                                                                 
+        cid = ast_variable_retrieve(msg_cfg, "message", "callerid");
+
+        context = ast_variable_retrieve(msg_cfg, "message", "context");
+	if(!strncasecmp("macro",context,5)) /* Macro names in contexts are useless for our needs */
+		context = ast_variable_retrieve(msg_cfg, "message","macrocontext");
+
 	if (!res)
-		res = play_message_datetime(chan,vmu,vms);
+		res = play_message_datetime(chan, vmu, origtime, filename);
+
+	if ((!res)&&(vmu->saycid))
+		res = play_message_callerid(chan, vms, cid, context, 0);
+
+	ast_destroy(msg_cfg);
 
 	if (!res) {
 		make_file(vms->fn, sizeof(vms->fn), vms->curdir, msg);
@@ -2623,6 +2782,8 @@ static int vm_instructions(struct ast_channel *chan, struct vm_state *vms)
 			if (vms->curmsg)
 				res = play_and_wait(chan, "vm-prev");
 			if (!res)
+				res = play_and_wait(chan, "vm-advopts");
+			if (!res)
 				res = play_and_wait(chan, "vm-repeat");
 			if (!res && (vms->curmsg != vms->lastmsg))
 				res = play_and_wait(chan, "vm-next");
@@ -2676,15 +2837,15 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 		switch (cmd) {
 		case '1':
 			snprintf(prefile,sizeof(prefile),"voicemail/%s/%s/unavail",vmu->context, vms->username);
-			cmd = play_and_record(chan,"vm-rec-unv",prefile, maxgreet, fmtc);
+			cmd = play_record_review(chan,"vm-rec-unv",prefile, maxgreet, fmtc, 0, vmu, 0);
 			break;
 		case '2': 
 			snprintf(prefile,sizeof(prefile),"voicemail/%s/%s/busy",vmu->context, vms->username);
-			cmd = play_and_record(chan,"vm-rec-busy",prefile, maxgreet, fmtc);
+			cmd = play_record_review(chan,"vm-rec-busy",prefile, maxgreet, fmtc, 0, vmu, 0);
 			break;
 		case '3': 
 			snprintf(prefile,sizeof(prefile),"voicemail/%s/%s/greet",vmu->context, vms->username);
-			cmd = play_and_record(chan,"vm-rec-name",prefile, maxgreet, fmtc);
+			cmd = play_record_review(chan,"vm-rec-name",prefile, maxgreet, fmtc, 0, vmu, 0);
 			break;
 		case '4':
 			newpassword[1] = '\0';
@@ -2751,6 +2912,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	int logretries = 0;
 	struct ast_vm_user *vmu = NULL, vmus;
 	char *context=NULL;
+	int silentexit = 0;
 
 	LOCAL_USER_ADD(u);
 	memset(&vms, 0, sizeof(vms));
@@ -2922,6 +3084,90 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 					cmd = play_and_wait(chan, "vm-messages");
 				vms.starting = 1;
 				break;
+			case '3': /* Advanced options */
+				cmd = 0;
+				vms.repeats = 0;
+				while((cmd > -1) && (cmd != 't') && (cmd != '#')) {
+					switch(cmd) {
+					case '1': /* Reply */
+						if(vms.lastmsg > -1)
+							cmd = advanced_options(chan, vmu, &vms, vms.curmsg, 1);
+						else
+							cmd = play_and_wait(chan, "vm-sorry");
+						cmd = 't';
+						break;
+					case '2': /* Callback */
+						ast_verbose( VERBOSE_PREFIX_3 "Callback Requested\n");
+						if (strlen(vmu->callback) && vms.lastmsg > -1) {
+							cmd = advanced_options(chan, vmu, &vms, vms.curmsg, 2);
+							if (cmd == 9) {
+								silentexit = 1;
+								goto out;
+							}
+						}
+						else 
+							cmd = play_and_wait(chan, "vm-sorry");
+						cmd = 't';
+						break;
+					case '3': /* Envelope */
+						if(vms.lastmsg > -1)
+							cmd = advanced_options(chan, vmu, &vms, vms.curmsg, 3);
+						else
+							cmd = play_and_wait(chan, "vm-sorry");
+						cmd = 't';
+						break;
+					case '4': /* Dialout */
+						if (strlen(vmu->dialout)) {
+							cmd = dialout(chan, vmu, NULL, vmu->dialout);
+							if (cmd == 9) {
+								silentexit = 1;
+								goto out;
+							}
+						}
+						else 
+							cmd = play_and_wait(chan, "vm-sorry");
+						cmd = 't';
+						break;
+
+					case '*': /* Return to main menu */
+						cmd = 't';
+						break;
+
+					default:
+						cmd = 0;
+						if (!vms.starting) {
+							cmd = play_and_wait(chan, "vm-toreply");
+						}
+						if (strlen(vmu->callback) && !vms.starting && !cmd) {
+							cmd = play_and_wait(chan, "vm-tocallback");
+						}
+
+						if (!cmd && !vms.starting) {
+							cmd = play_and_wait(chan, "vm-tohearenv");
+						}
+						if (strlen(vmu->dialout) && !cmd) {
+							cmd = play_and_wait(chan, "vm-tomakecall");
+						}
+						if (!cmd)
+							cmd = play_and_wait(chan, "vm-starmain");
+						if (!cmd)
+							cmd = ast_waitfordigit(chan,6000);
+						if (!cmd)
+							vms.repeats++;
+						if (vms.repeats > 3)
+							cmd = 't';
+					}
+				}
+				if (cmd == 't') {
+					cmd = 0;
+					vms.repeats = 0;
+				}
+				break;
+
+
+
+
+
 			case '4':
 				if (vms.curmsg) {
 					vms.curmsg--;
@@ -3017,7 +3263,10 @@ out:
 		ast_stopstream(chan);
 		adsi_goodbye(chan);
 		if(valid) {
-			res = play_and_wait(chan, "vm-goodbye");
+			if (silentexit)
+				res = play_and_wait(chan, "vm-dialout");
+			else 
+				res = play_and_wait(chan, "vm-goodbye");
 			if (res > 0)
 				res = 0;
 		}
@@ -3286,13 +3535,18 @@ static int load_config(void)
 	struct ast_variable *var;
 	char *notifystr = NULL;
 	char *astattach;
+	char *astsaycid;
+	char *astcallop;
+	char *astreview;
 	char *silencestr;
 	char *thresholdstr;
 	char *fmt;
 	char *astemail;
  	char *astmailcmd = SENDMAIL;
-	char *s;
-
+	char *s,*q,*stringp;
+	char *dialoutcxt = NULL;
+	char *callbackcxt = NULL;	
+	
 	int x;
 
 	cfg = ast_load(VOICEMAIL_CONFIG);
@@ -3401,6 +3655,54 @@ static int load_config(void)
 			}
 		}
 
+		if ((s = ast_variable_retrieve(cfg, "general", "cidinternalcontexts"))){
+			ast_log(LOG_DEBUG,"VM_CID Internal context string: %s\n",s);
+			stringp = ast_strdupa(s);
+			for (x = 0 ; x < MAX_NUM_CID_CONTEXTS ; x++){
+				if ((stringp)&&(strlen(stringp))){
+					q = strsep(&stringp,",");
+					while ((*q == ' ')||(*q == '\t')) /* Eat white space between contexts */
+						q++;
+					strcpy(cidinternalcontexts[x],q);
+					ast_log(LOG_DEBUG,"VM_CID Internal context %d: %s\n", x, cidinternalcontexts[x]);
+				} else {
+					cidinternalcontexts[x][0] = '\0';
+				}
+			}
+		}
+		reviewvm = 0;
+		if (!(astreview = ast_variable_retrieve(cfg, "general", "review"))){
+			ast_log(LOG_DEBUG,"VM Review Option disabled globally\n");
+			astreview = "no";
+		}
+		reviewvm = ast_true(astreview);
+
+		calloper = 0;
+		if (!(astcallop = ast_variable_retrieve(cfg, "general", "operator"))){
+			ast_log(LOG_DEBUG,"VM Operator break disabled globally\n"); 								     	     astcallop = "no";
+		}
+		calloper = ast_true(astcallop);
+
+		saycidinfo = 0;
+		if (!(astsaycid = ast_variable_retrieve(cfg, "general", "saycid"))) {
+			ast_log(LOG_DEBUG,"VM CID Info before msg disabled globally\n");
+			astsaycid = "no";
+		} 
+		saycidinfo = ast_true(astsaycid);
+		
+		if ((dialoutcxt = ast_variable_retrieve(cfg, "general", "dialout"))) {
+                        strncpy(dialcontext, dialoutcxt, sizeof(dialcontext) - 1);
+                        ast_log(LOG_DEBUG, "found dialout context: %s\n", dialcontext);
+                } else {
+                        dialcontext[0] = '\0';
+                }
+	 		
+		if ((callbackcxt = ast_variable_retrieve(cfg, "general", "callback"))) {
+			strncpy(callcontext, callbackcxt, sizeof(callcontext) -1);
+			ast_log(LOG_DEBUG, "found callback context: %s\n", callcontext);
+		} else {
+			callcontext[0] = '\0';
+		}
 #ifdef USEMYSQLVM
 		if (!(s=ast_variable_retrieve(cfg, "general", "dbuser"))) {
 			strcpy(dbuser, "test");
@@ -3582,6 +3884,387 @@ char *description(void)
 	return tdesc;
 }
 
+static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num, char *outgoing_context) 
+{
+	int cmd = 0;
+	char destination[80] = "";
+	int retries = 0;
+
+	if (!num) {
+		ast_verbose( VERBOSE_PREFIX_3 "Destination number will be entered manually\n");
+		while (retries < 3 && cmd != 't') {
+			destination[1] = '\0';
+			destination[0] = cmd = play_and_wait(chan,"vm-enter-num-to-call");
+			if (!cmd)
+				destination[0] = cmd = play_and_wait(chan, "vm-then-pound");
+			if (!cmd)
+				destination[0] = cmd = play_and_wait(chan, "vm-star-cancel");
+			if (!cmd) {
+				cmd = ast_waitfordigit(chan, 6000);
+				if (cmd)
+					destination[0] = cmd;
+			}
+			if (!cmd) {
+				retries++;
+			} else {
+
+				if (cmd < 0)
+					return 0;
+				if (cmd == '*') {
+					ast_verbose( VERBOSE_PREFIX_3 "User hit '*' to cancel outgoing call\n");
+					return 0;
+				}
+				if ((cmd = ast_readstring(chan,destination + strlen(destination),sizeof(destination)-1,6000,10000,"#")) < 0) 
+					retries++;
+				else
+					cmd = 't';
+			}
+		}
+		if (retries >= 3) {
+			return 0;
+		}
+		
+	} else {
+		ast_verbose( VERBOSE_PREFIX_3 "Destination number is CID number '%s'\n", num);
+		strncpy(destination, num, sizeof(destination) -1);
+	}
+
+	if (strlen(destination)) {
+		if (destination[strlen(destination) -1 ] == '*')
+			return 0; 
+		ast_verbose( VERBOSE_PREFIX_3 "Placing outgoing call to extension '%s' in context '%s' from context '%s'\n", destination, outgoing_context, chan->context);
+		strncpy(chan->exten, destination, sizeof(chan->exten) - 1);
+		strncpy(chan->context, outgoing_context, sizeof(chan->context) - 1);
+		chan->priority = 0;
+		return 9;
+	}
+	return 0;
+}
+
+static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int msg, int option)
+{
+	int res = 0;
+	char filename[256],*origtime, *cid, *context, *name, *num;
+	struct ast_config *msg_cfg;
+	int retries = 0;
+
+	vms->starting = 0; 
+	make_file(vms->fn, sizeof(vms->fn), vms->curdir, msg);
+
+	/* Retrieve info from VM attribute file */
+
+        make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg);
+        snprintf(filename,sizeof(filename), "%s.txt", vms->fn2);
+        msg_cfg = ast_load(filename);
+        if (!msg_cfg) {
+                ast_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
+                return 0;
+        }
+                                                                                                                                 
+        if (!(origtime = ast_variable_retrieve(msg_cfg, "message", "origtime")))
+                return 0;
+                                                                                                                                 
+        cid = ast_variable_retrieve(msg_cfg, "message", "callerid");
+
+        context = ast_variable_retrieve(msg_cfg, "message", "context");
+	if(!strncasecmp("macro",context,5)) /* Macro names in contexts are useless for our needs */
+		context = ast_variable_retrieve(msg_cfg, "message","macrocontext");
+
+	if (option == 3) {
+
+		if (!res)
+			res = play_message_datetime(chan, vmu, origtime, filename);
+		if (!res)
+			res = play_message_callerid(chan, vms, cid, context, 0);
+	} else if (option == 2) { /* Call back */
+
+		if (strlen(cid)) {
+			ast_callerid_parse(cid, &name, &num);
+			while ((res > -1) && (res != 't')) {
+				switch(res) {
+					case '1':
+						if (num) {
+							/* Dial the CID number */
+							res = dialout(chan, vmu, num, vmu->callback);
+							if (res)
+								return 9;
+						} else {
+							res = '2';
+						}
+						break;
+
+					case '2':
+						/* Want to enter a different number, can only do this if there's a dialout context for this user */
+						if (strlen(vmu->dialout)) {
+							res = dialout(chan, vmu, NULL, vmu->dialout);
+							if (res)
+								return 9;
+						} else {
+							ast_verbose( VERBOSE_PREFIX_3 "Caller can not specify callback number - no dialout context available\n");
+							res = play_and_wait(chan, "vm-sorry");
+						}
+						return res;
+					case '*':
+						res = 't';
+						break;
+					case '3':
+					case '4':
+					case '5':
+					case '6':
+					case '7':
+					case '8':
+					case '9':
+					case '0':
+
+						res = play_and_wait(chan, "vm-sorry");
+						retries++;
+						break;
+					default:
+						if (num) {
+							ast_verbose( VERBOSE_PREFIX_3 "Confirm CID number '%s' is number to use for callback\n", num);
+							res = play_and_wait(chan, "vm-num-i-have");
+							if (!res)
+								res = play_message_callerid(chan, vms, num, vmu->context, 1);
+							if (!res)
+								res = play_and_wait(chan, "vm-tocallnum");
+							/* Only prompt for a caller-specified number if there is a dialout context specified */
+							if (strlen(vmu->dialout)) {
+								if (!res)
+									res = play_and_wait(chan, "vm-calldiffnum");
+							}
+						} else  {
+							res = play_and_wait(chan, "vm-nonumber");
+							if (strlen(vmu->dialout)) {
+								if (!res)
+									res = play_and_wait(chan, "vm-toenternumber");
+							}
+						}
+						if (!res)
+							res = play_and_wait(chan, "vm-star-cancel");
+						if (!res)
+							res = ast_waitfordigit(chan, 6000);
+						if (!res)
+							retries++;
+						if (retries > 3)
+							res = 't';
+							break; 
+
+						}
+					if (res == 't')
+						res = 0;
+					else if (res == '*')
+						res = -1;
+				}
+			}
+
+	}
+	else if (option == 1) { /* Reply */
+              		/* Send reply directly to sender */
+		if (strlen(cid)) {
+			ast_callerid_parse(cid, &name, &num);
+			if (!num) {
+				ast_verbose(VERBOSE_PREFIX_3 "No CID number available, no reply sent\n");
+				if (!res)
+					res = play_and_wait(chan, "vm-nonumber");
+				return res;
+			} else {
+				if (find_user(NULL, vmu->context, num)) {
+					ast_verbose(VERBOSE_PREFIX_3 "Leaving voicemail for '%s' in context '%s'\n", num, vmu->context);
+					leave_voicemail(chan, num, 1, 0, 1);
+					res = 't';
+					return res;
+				}
+              				else {
+					ast_verbose( VERBOSE_PREFIX_3 "No mailbox number '%s' in context '%s', no reply sent\n", num, vmu->context);
+                      				/* Sender has no mailbox, can't reply */
+                      				play_and_wait(chan, "vm-nobox");
+                      				res = 't';
+					return res;
+				}
+			} 
+			res = 0;
+		}
+	}
+
+	ast_destroy(msg_cfg);
+
+	if (!res) {
+		make_file(vms->fn, sizeof(vms->fn), vms->curdir, msg);
+		vms->heard[msg] = 1;
+		res = wait_file(chan, vms, vms->fn);
+	}
+	return res;
+}
+
+
+
+
+
+
+ 
+ 
+static int play_record_review(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int outsidecaller, struct ast_vm_user *vmu, int *duration)
+{
+	/* Record message & let caller review or re-record it, or set options if applicable */
+ 	int res = 0;
+ 	int cmd = 0;
+ 	int max_attempts = 3;
+ 	int attempts = 0;
+ 	int recorded = 0;
+ 	time_t start = 0;
+ 	time_t end = 0;
+ 	int message_exists = 0;
+ 	/* Note that urgent and private are for flagging messages as such in the future */
+ 
+ 	cmd = '3';	 /* Want to start by recording */
+ 
+        	while((cmd >= 0) && (cmd != 't')) {
+        		switch (cmd) {
+ 	       	case '1':
+ 			if (!message_exists) {
+ 				/* In this case, 1 is to record a message */
+ 				cmd = '3';
+ 				break;
+ 			} else {
+ 				/* Otherwise 1 is to save the existing message */
+ 				ast_verbose(VERBOSE_PREFIX_3 "Saving message as is\n");
+ 				ast_streamfile(chan, "vm-msgsaved", chan->language);
+ 				ast_waitstream(chan, "");
+ 				cmd = 't';
+ 				return res;
+ 			}
+ 		case '2':
+ 			/* Review */
+ 			ast_verbose(VERBOSE_PREFIX_3 "Reviewing the message\n");
+ 			ast_streamfile(chan, recordfile, chan->language);
+ 			cmd = ast_waitstream(chan, AST_DIGIT_ANY);
+ 			break;
+ 		case '3':
+ 			message_exists = 0;
+ 			/* Record */
+ 			ast_verbose(VERBOSE_PREFIX_3 "Re-recording the message\n");
+ 			if (recorded && outsidecaller) {
+ 				cmd = play_and_wait(chan, INTRO);
+ 				cmd = play_and_wait(chan, "beep");
+ 			}
+ 			recorded = 1;
+ 			/* After an attempt has been made to record message, we have to take care of INTRO and beep for incoming messages, but not for greetings */
+			/* twisted says: don't touch the pointer if it's null! */
+			if (duration) *duration = 0;
+ 			time(&start);
+ 			cmd = play_and_record(chan, playfile, recordfile, maxtime, fmt);
+ 			time(&end);
+			/* twisted says: don't touch the pointer if it's null! */
+			if (duration) *duration = end - start;
+ 			if (cmd == -1)
+ 			/* User has hung up, no options to give */
+ 				return res;
+ 			if (cmd == '0') {
+ 				/* Erase the message if 0 pushed during playback */
+ 				play_and_wait(chan, "vm-deleted");
+ 			 	ast_filedelete(recordfile, NULL);
+ 			} else if (cmd == '*') {
+ 				break;
+ 			} 
+#if 0			
+ 			else if (vmu->review && ((int)&end - (int)&start < 5)) {
+ 				/* Message is too short */
+ 				ast_verbose(VERBOSE_PREFIX_3 "Message too short\n");
+				cmd = play_and_wait(chan, "vm-tooshort");
+ 				cmd = ast_filedelete(recordfile, NULL);
+ 				break;
+ 			}
+ 			else if (vmu->review && (cmd == 2 && duration < (maxsilence + 3))) {
+ 				/* Message is all silence */
+ 				ast_verbose(VERBOSE_PREFIX_3 "Nothing recorded\n");
+ 				cmd = ast_filedelete(recordfile, NULL);
+	                        cmd = play_and_wait(chan, "vm-nothingrecorded");
+                                if (!cmd)
+ 					cmd = play_and_wait(chan, "vm-speakup");
+ 				break;
+ 			}
+#endif
+ 			else {
+ 				/* If all is well, a message exists */
+ 				message_exists = 1;
+				cmd = 0;
+ 			}
+ 			break;
+ 		case '4':
+ 		case '5':
+ 		case '6':
+ 		case '7':
+ 		case '8':
+ 		case '9':
+		case '*':
+		case '#':
+ 			cmd = play_and_wait(chan, "vm-sorry");
+ 			break;
+#if 0 
+/*  XXX Commented out for the moment because of the dangers of deleting
+    a message while recording (can put the message numbers out of sync) */
+ 		case '*':
+ 			/* Cancel recording, delete message, offer to take another message*/
+ 			cmd = play_and_wait(chan, "vm-deleted");
+ 			cmd = ast_filedelete(recordfile, NULL);
+ 			if (outsidecaller) {
+ 				res = vm_exec(chan, NULL);
+ 				return res;
+ 			}
+ 			else
+ 				return 1;
+#endif
+ 		case '0':
+ 			if (outsidecaller && vmu->operator) {
+ 				if (message_exists)
+ 					play_and_wait(chan, "vm-msgsaved");
+ 				return cmd;
+ 			} else
+ 				cmd = play_and_wait(chan, "vm-sorry");
+ 			break;
+ 		default:
+			/* If the caller is an ouside caller, and the review option is enabled,
+			   allow them to review the message, but let the owner of the box review
+			   their OGM's */
+			if (outsidecaller && !vmu->review)
+				return cmd;
+ 			if (message_exists) {
+ 				cmd = play_and_wait(chan, "vm-review");
+ 			}
+ 			else {
+ 				cmd = play_and_wait(chan, "vm-torerecord");
+ 				if (!cmd)
+ 					cmd = ast_waitfordigit(chan, 600);
+ 			}
+ 			
+ 			if (!cmd && outsidecaller && vmu->operator) {
+ 				cmd = play_and_wait(chan, "vm-reachoper");
+ 				if (!cmd)
+ 					cmd = ast_waitfordigit(chan, 600);
+ 			}
+#if 0
+			if (!cmd)
+ 				cmd = play_and_wait(chan, "vm-tocancelmsg");
+#endif
+ 			if (!cmd)
+ 				cmd = ast_waitfordigit(chan, 6000);
+ 			if (!cmd) {
+ 				attempts++;
+ 			}
+ 			if (attempts > max_attempts) {
+ 				cmd = 't';
+ 			}
+ 		}
+ 	}
+ 	if (outsidecaller)  
+ 		play_and_wait(chan, "vm-goodbye");
+ 	if (cmd == 't')
+ 		cmd = 0;
+ 	return cmd;
+ }
+ 
+
+
 int usecount(void)
 {
 	int res;
@@ -3593,3 +4276,9 @@ char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
+
+
+
+	
+
+

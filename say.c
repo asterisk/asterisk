@@ -34,6 +34,7 @@ int ast_say_digit_str(struct ast_channel *chan, char *fn2, char *ints, char *lan
 	int num = 0;
 	int res = 0;
 	while(fn2[num] && !res) {
+		fn[0] = '\0';
 		switch (fn2[num]) {
 			case ('*'):
 				snprintf(fn, sizeof(fn), "digits/star");
@@ -42,12 +43,16 @@ int ast_say_digit_str(struct ast_channel *chan, char *fn2, char *ints, char *lan
 				snprintf(fn, sizeof(fn), "digits/pound");
 				break;
 			default:
-				snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
+				if((fn2[num] >= '0') && (fn2[num] <= '9')){ /* Must be in {0-9} */	 
+					snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
+				}
 			}
-		res = ast_streamfile(chan, fn, lang);
-		if (!res) 
-			res = ast_waitstream(chan, ints);
-		ast_stopstream(chan);
+		if(strlen(fn)){ /* if length == 0, then skip this digit as it is invalid */
+			res = ast_streamfile(chan, fn, lang);
+			if (!res) 
+				res = ast_waitstream(chan, ints);
+			ast_stopstream(chan);
+		}
 		num++;
 	}
 	return res;
