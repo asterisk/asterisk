@@ -4792,25 +4792,30 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 	if (!user) {
 	/* If we didn't find a user match, check for peers */
 		ast_mutex_lock(&peerl.lock);
-		/* which should be used? non-mysql code uses "p->recv", but
-		 * mysql code used "sin"
-		 */
+		/* Look for peer based on the IP address we received data from */
+		/* If peer is registred from this IP address or have this as a default
+		   IP address, this call is from the peer 
+ 		*/
 		peer = find_peer(NULL, &p->recv);
-		/* peer = find_peer(NULL, sin); */
-		ast_mutex_unlock(&peerl.lock);
 		if (peer) {
-				if (sip_debug_test_addr(sin))
-					ast_verbose("Found peer '%s'\n", peer->name);
-				/* Take the peer */
-				p->nat = peer->nat;
-				if (p->rtp) {
-					ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", p->nat);
-					ast_rtp_setnat(p->rtp, p->nat);
-				}
-				if (p->vrtp) {
-					ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", p->nat);
-					ast_rtp_setnat(p->vrtp, p->nat);
-				}
+			if (sip_debug_test_addr(sin))
+				ast_verbose("Found peer '%s'\n", peer->name);
+			/* Take the peer */
+			p->nat = peer->nat;
+			if (p->rtp) {
+				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", p->nat);
+				ast_rtp_setnat(p->rtp, p->nat);
+			}
+			if (p->vrtp) {
+				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", p->nat);
+				ast_rtp_setnat(p->vrtp, p->nat);
+			}
+			if (peer->insecure > 1) {
+				/* Pretend there is no required authentication if insecure is "very" */
+				strcpy(p->peersecret, "");
+				strcpy(p->peermd5secret, "");
+			}
+			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, peer->md5secret, cmd, uri, reliable, ignore))) {
 				p->canreinvite = peer->canreinvite;
 				strncpy(p->peername, peer->name, sizeof(p->peername) - 1);
 				strncpy(p->authname, peer->name, sizeof(p->authname) - 1);
@@ -4822,11 +4827,6 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 					strncpy(p->context, peer->context, sizeof(p->context) - 1);
 				strncpy(p->peersecret, peer->secret, sizeof(p->peersecret) - 1);
 				strncpy(p->peermd5secret, peer->md5secret, sizeof(p->peermd5secret) - 1);
-				if (peer->insecure > 1) {
-					/* Pretend there is no required authentication if insecure is "very" */
-					strcpy(p->peersecret, "");
-					strcpy(p->peermd5secret, "");
-				}
 				p->callgroup = peer->callgroup;
 				p->pickupgroup = peer->pickupgroup;
 				p->capability = peer->capability;
@@ -4838,6 +4838,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 					else
 						p->noncodeccapability &= ~AST_RTP_DTMF;
 				}
+			}
 			if (peer->temponly) {
 				if (peer->ha) {
 					ast_free_ha(peer->ha);
@@ -4847,6 +4848,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 		} else
 			if (sip_debug_test_addr(sin))
 				ast_verbose("Found no matching peer or user for '%s:%d'\n", inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
+		ast_mutex_unlock(&peerl.lock);
 
 	}
 	return res;
