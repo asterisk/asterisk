@@ -280,6 +280,16 @@ struct mgcp_message {
 	unsigned char buf[0];
 };
 
+#define RESPONSE_TIMEOUT 30	/* in seconds */
+
+struct mgcp_response {
+	time_t whensent;
+	int len;
+	int seqno;
+	struct mgcp_response *next;
+	unsigned char buf[0];
+};
+
 #define MAX_SUBS 2
 
 #define SUB_REAL 0
@@ -405,6 +415,7 @@ static struct mgcp_gateway {
 	ast_mutex_t msgs_lock;     /* SC: queue lock */  
     int retransid;             /* SC: retrans timer id */
     int delme;                 /* SC: needed for reload */
+	struct mgcp_response *responses;
 	struct mgcp_gateway *next;
 } *gateways;
 
@@ -475,6 +486,19 @@ static int __mgcp_xmit(struct mgcp_gateway *gw, char *data, int len)
 	if (res != len) {
 		ast_log(LOG_WARNING, "mgcp_xmit returned %d: %s\n", res, strerror(errno));
 	}
+	return res;
+}
+
+static int resend_response(struct mgcp_subchannel *sub, struct mgcp_response *resp)
+{
+    struct mgcp_endpoint *p = sub->parent;
+	int res;
+	if (mgcpdebug) {
+		ast_verbose("Retransmitting:\n%s\n to %s:%d\n", resp->buf, inet_ntoa(p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
+    }
+	res = __mgcp_xmit(p->parent, resp->buf, resp->len);
+	if (res > 0)
+		res = 0;
 	return res;
 }
 
@@ -1774,7 +1798,20 @@ static int transmit_response(struct mgcp_subchannel *sub, char *msg, struct mgcp
 {
 	struct mgcp_request resp;
     struct mgcp_endpoint *p = sub->parent;
+	struct mgcp_response *mgr;
 	respprep(&resp, p, msg, req, msgrest);
+	mgr = malloc(sizeof(struct mgcp_response) + resp.len + 1);
+	if (mgr) {
+		/* Store MGCP response in case we have to retransmit */
+		memset(mgr, 0, sizeof(struct mgcp_response));
+		sscanf(req->identifier, "%d", &mgr->seqno);
+		time(&mgr->whensent);
+		mgr->len = resp.len;
+		memcpy(mgr->buf, resp.data, resp.len);
+		mgr->buf[resp.len] = '\0';
+		mgr->next = p->parent->responses;
+		p->parent->responses = mgr->next;
+	}
 	return send_response(sub, &resp);
 }
 
@@ -3036,6 +3073,38 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 	return 0;
 }
 
+static int find_and_retrans(struct mgcp_subchannel *sub, struct mgcp_request *req)
+{
+	int seqno=0;
+	time_t now;
+	struct mgcp_response *prev = NULL, *cur, *next, *answer=NULL;
+	time(&now);
+	if (sscanf(req->identifier, "%d", &seqno) != 1) 
+		seqno = 0;
+	cur = sub->parent->parent->responses;
+	while(cur) {
+		next = cur->next;
+		if (now - cur->whensent > RESPONSE_TIMEOUT) {
+			/* Delete this entry */
+			if (prev)
+				prev->next = next;
+			else
+				sub->parent->parent->responses = next;
+			free(cur);
+		} else {
+			if (seqno == cur->seqno)
+				answer = cur;
+			prev = cur;
+		}
+		cur = next;
+	}
+	if (answer) {
+		resend_response(sub, answer);
+		return 1;
+	}
+	return 0;
+}
+
 static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 {
 	struct mgcp_request req;
@@ -3079,7 +3148,7 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
             ast_mutex_lock(&gw->msgs_lock);
             for (prev = NULL, cur = gw->msgs; cur; prev = cur, cur = cur->next) {
                 if (cur->seqno == ident) {
-                    ast_log(LOG_DEBUG, "Got response back on tansaction %d\n", ident);
+                    ast_log(LOG_DEBUG, "Got response back on transaction %d\n", ident);
                     if (prev)
                         prev->next = cur->next;
                     else 
@@ -3115,8 +3184,10 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 		/* Process request, with iflock held */
 		sub = find_subchannel(req.endpoint, 0, &sin);
 		if (sub) {
-            /* pass the request off to the currently mastering subchannel */
-			handle_request(sub, &req, &sin);
+			/* look first to find a matching response in the queue */
+			if (!find_and_retrans(sub, &req))
+	            /* pass the request off to the currently mastering subchannel */
+				handle_request(sub, &req, &sin);
 		}
 	}
 	return 1;
