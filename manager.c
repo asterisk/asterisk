@@ -727,6 +727,7 @@ static void *accept_thread(void *ignore)
 	struct mansession *s;
 	struct protoent *p;
 	int arg = 1;
+	int flags;
 	pthread_attr_t attr;
 
 	pthread_attr_init(&attr);
@@ -752,6 +753,9 @@ static void *accept_thread(void *ignore)
 		} 
 		memset(s, 0, sizeof(struct mansession));
 		memcpy(&s->sin, &sin, sizeof(sin));
+		/* For safety, make sure socket is non-blocking */
+		flags = fcntl(as, F_GETFL);
+		fcntl(as, F_SETFL, flags | O_NONBLOCK);
 		ast_mutex_init(&s->lock);
 		s->fd = as;
 		ast_mutex_lock(&sessionlock);

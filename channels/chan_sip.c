@@ -3305,6 +3305,7 @@ static int transmit_refer(struct sip_pvt *p, char *dest)
 	add_header(&req, "Refer-To", referto);
 	if (strlen(p->our_contact))
 		add_header(&req, "Referred-By", p->our_contact);
+	add_blank_header(&req);
 	return send_request(p, &req, 1, p->ocseq);
 }
 
@@ -3888,8 +3889,10 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	if ((a = strchr(c, ';'))) {
 		*a = '\0';
 	}
-	if ((a = strchr(fr, '@')) || (a = strchr(fr, ';'))) {
-		*a = '\0';
+	if (fr) {
+		if ((a = strchr(fr, '@')) || (a = strchr(fr, ';'))) {
+			*a = '\0';
+		}
 	}
 	if (sipdebug)
 		ast_verbose("Looking for %s in %s\n", c, p->context);

@@ -397,7 +397,7 @@ samples: all datafiles adsi
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isunavail; do \
 		cat $(DESTDIR)$(ASTVARLIBDIR)/sounds/$$x.gsm >> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/unavail.gsm ; \
 	done
-	:> $(DESTDIR)$(ASTVARLIBDIR)/sounds/voicemail/default/1234/busy.gsm
+	:> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/busy.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isonphone; do \
 		cat $(DESTDIR)$(ASTVARLIBDIR)/sounds/$$x.gsm >> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/busy.gsm ; \
 	done
