@@ -11,7 +11,9 @@
 # the GNU General Public License
 #
 
-MODS=cdr_csv.so cdr_pgsql.so
+#ADD cdr_pgsql.so to MODS= to include PostgreSQL support: REQUIRES PostgreSQL libs
+MODS=cdr_csv.so
+
 
 CFLAGS+=-fPIC
 
