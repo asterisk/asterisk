@@ -5160,7 +5160,9 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			ast_mutex_unlock(&iaxsl[fr.callno]);
 		return 1;
 	}
-	if (!inaddrcmp(&sin, &iaxs[fr.callno]->addr) && !minivid)
+	if (!inaddrcmp(&sin, &iaxs[fr.callno]->addr) && !minivid &&
+		f.subclass != IAX_COMMAND_TXCNT &&		/* for attended transfer */
+		f.subclass != IAX_COMMAND_TXACC)		/* for attended transfer */
 		iaxs[fr.callno]->peercallno = (unsigned short)(ntohs(mh->callno) & ~IAX_FLAG_FULL);
 	if (ntohs(mh->callno) & IAX_FLAG_FULL) {
 		if (option_debug)
@@ -5182,12 +5184,18 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		if ((iaxs[fr.callno]->iseqno != fr.oseqno) &&
 			(iaxs[fr.callno]->iseqno ||
 				((f.subclass != IAX_COMMAND_TXCNT) &&
+				(f.subclass != IAX_COMMAND_TXREADY) &&		/* for attended transfer */
+				(f.subclass != IAX_COMMAND_TXREL) &&		/* for attended transfer */
+				(f.subclass != IAX_COMMAND_UNQUELCH ) &&	/* for attended transfer */
 				(f.subclass != IAX_COMMAND_TXACC)) ||
-				(f.subclass != AST_FRAME_IAX))) {
+				(f.frametype != AST_FRAME_IAX))) {
 			if (
 			 ((f.subclass != IAX_COMMAND_ACK) &&
 			  (f.subclass != IAX_COMMAND_INVAL) &&
 			  (f.subclass != IAX_COMMAND_TXCNT) &&
+			  (f.subclass != IAX_COMMAND_TXREADY) &&		/* for attended transfer */
+			  (f.subclass != IAX_COMMAND_TXREL) &&		/* for attended transfer */
+			  (f.subclass != IAX_COMMAND_UNQUELCH ) &&	/* for attended transfer */
 			  (f.subclass != IAX_COMMAND_TXACC) &&
 			  (f.subclass != IAX_COMMAND_VNAK)) ||
 			  (f.frametype != AST_FRAME_IAX)) {
@@ -5897,6 +5905,7 @@ retryowner2:
 				/* Send ack immediately, rather than waiting until we've changed addresses */
 				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 				complete_transfer(fr.callno, &ies);
+				stop_stuff(fr.callno);	/* for attended transfer to work with libiax */
 				break;	
 			case IAX_COMMAND_DPREP:
 				complete_dpreply(iaxs[fr.callno], &ies);
@@ -5941,7 +5950,7 @@ retryowner2:
 		if (iaxs[fr.callno]->videoformat > 0) 
 			f.subclass = iaxs[fr.callno]->videoformat | (ntohs(vh->ts) & 0x8000 ? 1 : 0);
 		else {
-			ast_log(LOG_WARNING, "Received mini frame before first full voice frame\n ");
+			ast_log(LOG_WARNING, "Received mini frame before first full video frame\n ");
 			iax2_vnak(fr.callno);
 			ast_mutex_unlock(&iaxsl[fr.callno]);
 			return 1;
