@@ -1,13 +1,18 @@
 ; V6PCI/V12PCI config file for VoiceTronix Hardware
 ; Options
+; For [general] section
+; type = v12pci|v6pci|v4pci
 ; cards = number of cards
+; For [interface] section
 ; board = board_number (1, 2, 3, ...)
 ; channel = channel_number (1,2,3...)
 ; mode = fxo|immediate|dialtone -- for type of line and line handling
 ; context = starting context
-; type = v12pci|v6pci|v4pci
 ; echocancel = on|off (on by default of v4pci, off by default for others)
 ; callerid = on|off (to collect caller ID if available between 1st/2nd rings)
+; UseLoopDrop = 0|1 (enables the use of Loop Drop detection, on by default in
+;                    some cases spurious loop-drops can cause unexpected 
+;                    hangup detection)
 ; 
 ; Gain settings
 ; txgain  => Transmit Software Gain (-12 => 12)
@@ -19,6 +24,11 @@
 ; bal1  => Hybrid balance codec register 1
 ; bal2  => Hybrid balance codec register 2
 ; bal3  => Hybrid balance codec register 3
+;
+; Dial translations - if you want a pause or hook-flash in your dial string
+; you can use "w" for pause (wait) or "f" for "hook-flash", eg:
+; exten => _9XXX,1,Dial(vpb/g1/ww${EXTEN:${TRUNKMSD}})
+;
 ;
 
 [general]
