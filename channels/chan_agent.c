@@ -515,6 +515,17 @@ static int agent_hangup(struct ast_channel *ast)
 	if (p->chan) {
 		/* If they're dead, go ahead and hang up on the agent now */
 		if (!ast_strlen_zero(p->loginchan)) {
+			/* Store last disconnect time */
+			if (p->wrapuptime) {
+				gettimeofday(&p->lastdisc, NULL);
+				p->lastdisc.tv_usec += (p->wrapuptime % 1000) * 1000;
+				if (p->lastdisc.tv_usec >= 1000000) {
+					p->lastdisc.tv_usec -= 1000000;
+					p->lastdisc.tv_sec++;
+				}
+				p->lastdisc.tv_sec += (p->wrapuptime / 1000);
+			} else
+				memset(&p->lastdisc, 0, sizeof(p->lastdisc));
 			if (p->chan) {
 				/* Recognize the hangup and pass it along immediately */
 				ast_hangup(p->chan);
@@ -1023,7 +1034,8 @@ static struct ast_channel *agent_request(char *type, int format, void *data)
 			if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent))) {
 				if (p->chan || !ast_strlen_zero(p->loginchan))
 					hasagent++;
-				if (!p->lastdisc.tv_sec) {
+				if (!p->lastdisc.tv_sec || (time(NULL) > p->lastdisc.tv_sec)) {
+					memset(&p->lastdisc, 0, sizeof(p->lastdisc));
 					/* Agent must be registered, but not have any active call, and not be in a waiting state */
 					if (!p->owner && p->chan) {
 						/* Could still get a fixed agent */

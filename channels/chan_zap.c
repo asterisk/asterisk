@@ -1131,6 +1131,7 @@ static int isslavenative(struct zt_pvt *p, struct zt_pvt **out)
 static int reset_conf(struct zt_pvt *p)
 {
 	ZT_CONFINFO zi;
+	memset(&zi, 0, sizeof(zi));
 	p->confno = -1;
 	if (p->subs[SUB_REAL].zfd > -1) {
 		if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETCONF, &zi))
