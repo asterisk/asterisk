@@ -57,16 +57,16 @@ struct oh323_user {
 struct oh323_peer {
 	char name[80];
 	char context[80];
-	int	noFastStart;
-	int	noH245Tunneling;
-	int	noSilenceSuppression;
-	int inUse;
-	int outgoinglimit;
-	int bridge;
-	int nat;
-	int dtmfmode;
-	struct sockaddr_in addr;
+	int  noFastStart;
+	int  noH245Tunneling;
+	int  noSilenceSuppression;
+	int  inUse;
+	int  outgoinglimit;
+	int  bridge;
+	int  nat;
+	int  dtmfmode;
 	int delme;
+	struct sockaddr_in addr;
 	struct oh323_peer *next;
 };
 
@@ -88,7 +88,7 @@ typedef struct call_options {
 	char		*callerid;
 	char		*callername;
 	int	  	noFastStart;
-	int		noH245Tunnelling;
+	int		noH245Tunneling;
 	int		noSilenceSuppression;
 	unsigned int	port;
 } call_options_t;
@@ -98,7 +98,6 @@ typedef struct call_options {
 	asterisk channels to acutal h.323 connections */
 typedef struct call_details {	
 	unsigned int call_reference;
-
 	const char *call_token;				
 	const char *call_source_aliases;
 	const char *call_dest_alias;
@@ -167,7 +166,7 @@ extern "C" {
 #endif   
     
 	void h323_gk_urq(void);
-	void h323_end_point_create(void);
+	void h323_end_point_create(int, int);
 	void h323_end_process(void);
 	int  h323_end_point_exist(void);
     

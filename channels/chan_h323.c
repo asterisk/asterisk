@@ -100,6 +100,9 @@ static int  usingGk;
 static int  port = 1720;
 static int  gkroute = 0;
 
+static int noFastStart = 1;
+static int noH245Tunneling = 0;
+
 /* to find user by alias is default, alternative is the incomming call's source IP address*/
 static int  userbyalias = 1;
 
@@ -485,6 +488,9 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
                         p->calloptions.callername = NULL;
                 }
         }
+
+	p->calloptions.noFastStart = noFastStart;
+	p->calloptions.noH245Tunneling = noH245Tunneling;
 
 	res = h323_make_call(called_addr, &(p->cd), p->calloptions);
 
@@ -1141,6 +1147,7 @@ int setup_incoming_call(call_details_t cd)
 				strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)-1);
 			} 
 
+			
 			/* Increment the usage counter */
 			user->inUse++;
 		} 
@@ -1566,7 +1573,7 @@ int reload_config(void)
 	
        /* fire up the H.323 Endpoint */       
 	if (!h323_end_point_exist()) {
-	       h323_end_point_create();        
+	       h323_end_point_create(noFastStart,noH245Tunneling);        
 	}
 	h323debug=0;
 	dtmfmode = H323_DTMF_RFC2833;
@@ -1644,7 +1651,11 @@ int reload_config(void)
                         userbyalias = ast_true(v->value);
                 } else if (!strcasecmp(v->name, "bridge")) {
                         bridge_default = ast_true(v->value);
-                }
+                } else if (!strcasecmp(v->name, "noFastStart")) {
+                                noFastStart = ast_true(v->value);
+                } else if (!strcasecmp(v->name, "noH245Tunneling")) {
+                                noH245Tunneling = ast_true(v->value);
+		}
 		v = v->next;	
 	}
 	

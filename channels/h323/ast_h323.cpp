@@ -62,7 +62,7 @@ int mode = H323_DTMF_RFC2833;
 
 /** Options for connections creation */
 BOOL	noFastStart = TRUE;
-BOOL	noH245Tunnelling;
+BOOL	noH245Tunneling;
 BOOL	noSilenceSuppression;
 
 /**
@@ -479,7 +479,7 @@ H323Connection * MyH323EndPoint::CreateConnection(unsigned callReference, void *
 	if (noFastStart)
 		options |= H323Connection::FastStartOptionDisable;
 
-	if (noH245Tunnelling)
+	if (noH245Tunneling)
 		options |= H323Connection::H245TunnelingOptionDisable;
 
 	return new MyH323Connection(*this, callReference, options);
@@ -816,9 +816,13 @@ int h323_end_point_exist(void)
 	return 1;
 }
     
-void h323_end_point_create(void)
+void h323_end_point_create(int no_fast_start, int no_h245_tunneling)
 {
 	channelsOpen = 0;
+	
+	noFastStart = (BOOL)no_fast_start;
+	noH245Tunneling = (BOOL)no_h245_tunneling;
+
 	localProcess = new MyProcess();	
 	localProcess->Main();
 }
@@ -1103,12 +1107,14 @@ int h323_make_call(char *host, call_details_t *cd, call_options_t call_options)
 {
 	int res;
 	PString	token;
+	PString dest(host);
 
 	if (!h323_end_point_exist()) {
 		return 1;
 	}
 	
-	PString dest(host);
+	noFastStart = 	call_options.noFastStart;
+	noH245Tunneling = call_options.noH245Tunneling;
 
 	res = endPoint->MakeCall(dest, token, &cd->call_reference, call_options.port, call_options.callerid, call_options.callername);
 	memcpy((char *)(cd->call_token), (const unsigned char *)token, token.GetLength());
