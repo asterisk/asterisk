@@ -379,7 +379,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 	} else
 		f = &null_frame;
 	if (!f) {
-		/* If there's a channel, hang it up  (if it's on a callback) make it NULL */
+		/* If there's a channel, hang it up (if it's on a callback) make it NULL */
 		if (p->chan) {
 			p->chan->_bridge = NULL;
 			/* Note that we don't hangup if it's not a callback because Asterisk will do it
@@ -401,41 +401,48 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 			p->chan = NULL;
 			p->acknowledged = 0;
 		}
-	}
-	if (p->chan && f && (f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_ANSWER)) {
-/* TC */
-		ast_log(LOG_DEBUG, "Got answer on %s\n", p->chan->name);
-		if (p->ackcall) {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "%s answered, waiting for '#' to acknowledge\n", p->chan->name);
-			/* Don't pass answer along */
-			ast_frfree(f);
-			f = &null_frame;
-		} else {
-			p->acknowledged = 1;
-			ast_frfree(f);
-			f = &answer_frame;
-        }
-	}
-	if (f && (f->frametype == AST_FRAME_DTMF) && (f->subclass == '#')) {
-		if (!p->acknowledged) {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "%s acknowledged\n", p->chan->name);
-			p->acknowledged = 1;
-			ast_frfree(f);
-			f = &answer_frame;
-		}
-	}
-	if (f && (f->frametype == AST_FRAME_DTMF) && (f->subclass == '*')) {
-		/* * terminates call */
-		ast_frfree(f);
-		f = NULL;
-	}
-	if (f && (f->frametype == AST_FRAME_VOICE) && !p->acknowledged) {
-		/* Don't pass along agent audio until call is acknowledged */
-		ast_frfree(f);
-		f = &null_frame;
-	}
+ 	} else {
+ 		/* if acknowledgement is not required, and the channel is up, we may have missed
+ 		   an AST_CONTROL_ANSWER (if there was one), so mark the call acknowledged anyway */
+ 		if (!p->ackcall && !p->acknowledged && p->chan->_state == AST_STATE_UP)
+  			p->acknowledged = 1;
+ 		switch (f->frametype) {
+ 		case AST_FRAME_CONTROL:
+ 			if (f->subclass == AST_CONTROL_ANSWER) {
+ 				if (p->ackcall) {
+ 					if (option_verbose > 2)
+ 						ast_verbose(VERBOSE_PREFIX_3 "%s answered, waiting for '#' to acknowledge\n", p->chan->name);
+ 					/* Don't pass answer along */
+ 					ast_frfree(f);
+ 					f = &null_frame;
+ 				} else {
+ 					p->acknowledged = 1;
+ 				}
+ 			}
+ 			break;
+ 		case AST_FRAME_DTMF:
+ 			if (!p->acknowledged && (f->subclass == '#')) {
+ 				if (option_verbose > 2)
+ 					ast_verbose(VERBOSE_PREFIX_3 "%s acknowledged\n", p->chan->name);
+ 				p->acknowledged = 1;
+ 				ast_frfree(f);
+ 				f = &answer_frame;
+ 			} else if (f->subclass == '*') {
+ 				/* terminates call */
+ 				ast_frfree(f);
+ 				f = NULL;
+ 			}
+ 			break;
+ 		case AST_FRAME_VOICE:
+ 			/* don't pass voice until the call is acknowledged */
+ 			if (!p->acknowledged) {
+ 				ast_frfree(f);
+ 				f = &null_frame;
+ 			}
+ 			break;
+  		}
+  	}
+
 	CLEANUP(ast,p);
 	if (p->chan && !p->chan->_bridge) {
 		if (strcasecmp(p->chan->type, "Local")) {
