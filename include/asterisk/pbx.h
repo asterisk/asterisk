@@ -376,6 +376,13 @@ int ast_context_remove_include(char *context, char *include, char *registrar);
  */
 int ast_context_remove_include2(struct ast_context *con, char *include, char *registrar);
 
+//! Verifies includes in an ast_contect structure
+/*!
+ * \param con context in which to verify the includes
+ * Returns 0 if no problems found, -1 if there were any missing context
+ */
+int ast_context_verify_includes(struct ast_context *con);
+	  
 //! Add a switch
 /*!
  * \param context context to which to add the switch

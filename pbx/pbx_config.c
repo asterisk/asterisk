@@ -1653,6 +1653,10 @@ static int pbx_load_module(void)
 		ast_destroy(cfg);
 	}
 	ast_merge_contexts_and_delete(&local_contexts,registrar);
+
+	for (con = ast_walk_contexts(NULL); con; con = ast_walk_contexts(con))
+		ast_context_verify_includes(con);
+
 	return 0;
 }
 
