@@ -5189,7 +5189,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 		return NULL;
 	}
 	if (data) {
-		dest = strdupa((char *)data);
+		dest = ast_strdupa((char *)data);
 	} else {
 		ast_log(LOG_WARNING, "Channel requested with no data\n");
 		return NULL;

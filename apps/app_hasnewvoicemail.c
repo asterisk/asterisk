@@ -28,6 +28,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/types.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -37,7 +38,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include <dirent.h>
 
 #include <pthread.h>
@@ -70,7 +70,7 @@ static int hasnewvoicemail_exec(struct ast_channel *chan, void *data)
 	}
 	LOCAL_USER_ADD(u);
 
-	input = strdupa((char *)data);
+	input = ast_strdupa((char *)data);
 	if (input) {
 		if ((vmbox = strsep(&input,"|")))
 			varname = input;

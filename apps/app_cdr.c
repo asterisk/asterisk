@@ -11,6 +11,7 @@
  * the GNU General Public License
  */
 
+#include <sys/types.h>
 #include <asterisk/channel.h>
 #include <asterisk/module.h>
 #include <asterisk/pbx.h>
