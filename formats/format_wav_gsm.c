@@ -390,6 +390,11 @@ static struct ast_filestream *wav_rewrite(int fd, char *comment)
 static void wav_close(struct ast_filestream *s)
 {
 	char zero = 0;
+	if (ast_mutex_lock(&wav_lock)) {
+		ast_log(LOG_WARNING, "Unable to lock wav list\n");
+		return;
+	}
+	glistcnt--;
 	ast_mutex_unlock(&wav_lock);
 	ast_update_use_count();
 	/* Pad to even length */
