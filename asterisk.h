@@ -38,4 +38,6 @@ extern int load_pbx(void);
 extern int init_logger(void);
 /* Provided by frame.c */
 extern int init_framer(void);
+/* Provided by logger.c */
+extern int reload_logger(void);
 #endif

@@ -1,0 +1,16 @@
+;
+; Logging Configuration
+;
+[logfiles]
+;
+; Format is "filename" and then "levels" of debugging to be included:
+;    debug
+;    notice
+;    warning
+;    error
+;
+; Special filename "console" represents the system console
+;
+;debug => debug
+console => notice,warning,error
+messages => notice,warning,error

@@ -135,6 +135,10 @@ int ast_unload_resource(char *resource_name, int force)
 void ast_module_reload(void)
 {
 	struct module *m;
+
+	/* We'll do the logger the favor of calling its reload here first */
+	
+
 	ast_pthread_mutex_lock(&modlock);
 	m = module_list;
 	while(m) {
