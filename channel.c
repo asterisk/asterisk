@@ -916,7 +916,7 @@ int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 	
 	pfds = alloca(sizeof(struct pollfd) * n);
 	if (!pfds) {
-		ast_log(LOG_WARNING, "alloca failed!  bad things will happen.\n");
+		ast_log(LOG_ERROR, "Out of memory\n");
 		return -1;
 	}
 	if (*ms > 0)
@@ -981,7 +981,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 
 	pfds = alloca(sizeof(struct pollfd) * (n * AST_MAX_FDS + nfds));
 	if (!pfds) {
-		ast_log(LOG_WARNING, "alloca failed!  bad things will happen.\n");
+		ast_log(LOG_ERROR, "Out of memory\n");
 		*outfd = -1;
 		return NULL;
 	}

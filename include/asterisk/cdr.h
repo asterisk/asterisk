@@ -41,7 +41,7 @@ struct ast_channel;
 /*! Responsible for call detail data */
 struct ast_cdr {
 	/*! Caller*ID with text */
-	char clid[AST_MAX_EXTENSION];		
+	char clid[AST_MAX_EXTENSION];
 	/*! Caller*ID number */
 	char src[AST_MAX_EXTENSION];		
 	/*! Destination extension */

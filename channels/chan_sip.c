@@ -5779,8 +5779,8 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 /*--- sip_show_inuse: CLI Command to show calls within limits set by 
       outgoinglimit and incominglimit ---*/
 static int sip_show_inuse(int fd, int argc, char *argv[]) {
-#define FORMAT  "%-15.15s %-15.15s %-15.15s %-15.15s %-15.15s\n"
-#define FORMAT2 "%-15.15s %-15.15s %-15.15s %-15.15s %-15.15s\n"
+#define FORMAT  "%-25.25s %-15.15s %-15.15s %-15.15s %-15.15s\n"
+#define FORMAT2 "%-25.25s %-15.15s %-15.15s %-15.15s %-15.15s\n"
 	char ilimits[40] = "";
 	char olimits[40] = "";
 	char iused[40];
@@ -5831,7 +5831,7 @@ static int sip_show_users(int fd, int argc, char *argv[])
 	regex_t regexbuf;
 	int havepattern = 0;
 
-#define FORMAT  "%-15.15s  %-15.15s  %-15.15s %-15.15s %-5.5s%-5.5s\n"
+#define FORMAT  "%-25.25s  %-15.15s  %-15.15s  %-15.15s  %-5.5s%-5.5s\n"
 
 	if (argc > 4)
 		return RESULT_SHOWUSAGE;
@@ -5875,8 +5875,8 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 	regex_t regexbuf;
 	int havepattern = 0;
 
-#define FORMAT2 "%-15.15s  %-15.15s %s %s %s %-15.15s  %-8s %-10s\n"
-#define FORMAT  "%-15.15s  %-15.15s %s %s %s %-15.15s  %-8d %-10s\n"
+#define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-15.15s  %-8s %-10s\n"
+#define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-15.15s  %-8d %-10s\n"
 
 	char name[256] = "";
 	char iabuf[INET_ADDRSTRLEN];
@@ -6409,24 +6409,24 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
 					event = 11;
 				else
 					event = atoi(buf);
-                        	if (event < 10) {
-                                	resp = '0' + event;
-                        	} else if (event < 11) {
-                                	resp = '*';
-                        	} else if (event < 12) {
-                                	resp = '#';
-                        	} else if (event < 16) {
-                                	resp = 'A' + (event - 12);
-                        	}
+				if (event < 10) {
+					resp = '0' + event;
+				} else if (event < 11) {
+					resp = '*';
+				} else if (event < 12) {
+					resp = '#';
+				} else if (event < 16) {
+					resp = 'A' + (event - 12);
+				}
 				/* Build DTMF frame and deliver to PBX for transmission to other call leg*/
-                        	memset(&f, 0, sizeof(f));
-                        	f.frametype = AST_FRAME_DTMF;
-                        	f.subclass = resp;
-                        	f.offset = 0;
-                        	f.data = NULL;
-                        	f.datalen = 0;
-                        	ast_queue_frame(p->owner, &f);
-		   	}
+				memset(&f, 0, sizeof(f));
+				f.frametype = AST_FRAME_DTMF;
+				f.subclass = resp;
+				f.offset = 0;
+				f.data = NULL;
+				f.datalen = 0;
+				ast_queue_frame(p->owner, &f);
+			}
 		   	transmit_response(p, "200 OK", req);
 		   	return;
 		} else {
@@ -9271,8 +9271,8 @@ static int reload_config(void)
 		if (sipsock < 0) {
 			ast_log(LOG_WARNING, "Unable to create SIP socket: %s\n", strerror(errno));
 		} else {
-		        /* Allow SIP clients on the same host to access us: */
-		        const int reuseFlag = 1;
+			/* Allow SIP clients on the same host to access us: */
+			const int reuseFlag = 1;
 			setsockopt(sipsock, SOL_SOCKET, SO_REUSEADDR,
 				   (const char*)&reuseFlag,
 				   sizeof reuseFlag);

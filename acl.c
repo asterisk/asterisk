@@ -154,12 +154,12 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 				ha->netmask.s_addr = htonl(y);
 			}
 		} else if (!inet_aton(nm, &ha->netmask)) {
-			ast_log(LOG_WARNING, "%s not a valid netmask\n", nm);
+			ast_log(LOG_WARNING, "%s is not a valid netmask\n", nm);
 			free(ha);
 			return path;
 		}
 		if (!inet_aton(tmp, &ha->netaddr)) {
-			ast_log(LOG_WARNING, "%s not a valid IP\n", tmp);
+			ast_log(LOG_WARNING, "%s is not a valid IP\n", tmp);
 			free(ha);
 			return path;
 		}
