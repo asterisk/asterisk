@@ -421,34 +421,28 @@ static int retrans_pkt(void *data)
 	struct sip_pkt *pkt=data;
 	int res = 0;
 	ast_mutex_lock(&pkt->owner->lock);
-	if (1 /* !p->owner->needdestroy */) {
-		if (pkt->retrans < MAX_RETRANS) {
-			pkt->retrans++;
-			if (sipdebug) {
-				if (pkt->owner->nat)
-					ast_verbose("Retransmitting #%d (NAT):\n%s\n to %s:%d\n", pkt->retrans, pkt->data, inet_ntoa(pkt->owner->recv.sin_addr), ntohs(pkt->owner->recv.sin_port));
-				else
-					ast_verbose("Retransmitting #%d (no NAT):\n%s\n to %s:%d\n", pkt->retrans, pkt->data, inet_ntoa(pkt->owner->sa.sin_addr), ntohs(pkt->owner->sa.sin_port));
-			}
-			__sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
-			res = 1;
-		} else {
-			ast_log(LOG_WARNING, "Maximum retries exceeded on call %s for seqno %d (%s)\n", pkt->owner->callid, pkt->seqno, pkt->resp ? "Response" : "Request");
-			pkt->retransid = -1;
-			if (pkt->owner->owner) {
-				/* XXX Potential deadlocK?? XXX */
-				ast_queue_hangup(pkt->owner->owner, 1);
-			} else {
-				/* If no owner, destroy now */
-				pkt->owner->needdestroy = 1;
-			}
+	if (pkt->retrans < MAX_RETRANS) {
+		pkt->retrans++;
+		if (sipdebug) {
+			if (pkt->owner->nat)
+				ast_verbose("Retransmitting #%d (NAT):\n%s\n to %s:%d\n", pkt->retrans, pkt->data, inet_ntoa(pkt->owner->recv.sin_addr), ntohs(pkt->owner->recv.sin_port));
+			else
+				ast_verbose("Retransmitting #%d (no NAT):\n%s\n to %s:%d\n", pkt->retrans, pkt->data, inet_ntoa(pkt->owner->sa.sin_addr), ntohs(pkt->owner->sa.sin_port));
 		}
+		__sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
+		res = 1;
 	} else {
-		/* Don't bother retransmitting.  It's about to be killed anyway */
+		ast_log(LOG_WARNING, "Maximum retries exceeded on call %s for seqno %d (%s)\n", pkt->owner->callid, pkt->seqno, pkt->resp ? "Response" : "Request");
 		pkt->retransid = -1;
+		while(pkt->owner->owner && !ast_mutex_lock(&pkt->owner->owner->lock)) {
+			ast_mutex_unlock(&pkt->owner->lock);
+			usleep(1);
+			ast_mutex_lock(&pkt->owner->lock);
+		}
 		if (pkt->owner->owner) {
 			/* XXX Potential deadlocK?? XXX */
-			ast_queue_hangup(pkt->owner->owner, 1);
+			ast_queue_hangup(pkt->owner->owner, 0);
+			ast_mutex_unlock(&pkt->owner->owner->lock);
 		} else {
 			/* If no owner, destroy now */
 			pkt->owner->needdestroy = 1;
