@@ -60,12 +60,12 @@ extern "C" {
 	ASTOBJ_COMPONENTS_NOLOCK_FULL(type,ASTOBJ_DEFAULT_NAMELEN,1)
 
 #define ASTOBJ_COMPONENTS(type) \
-	ast_mutex_t _lock; \
-	ASTOBJ_COMPONENTS_NOLOCK(type)
+	ASTOBJ_COMPONENTS_NOLOCK(type); \
+	ast_mutex_t _lock; 
 	
 #define ASTOBJ_COMPONENTS_FULL(type,namelen,hashes) \
-	ast_mutex_t _lock; \
-	ASTOBJ_COMPONENTS_NOLOCK_FULL(type,namelen,hashes)
+	ASTOBJ_COMPONENTS_NOLOCK_FULL(type,namelen,hashes); \
+	ast_mutex_t _lock; 
 
 #define ASTOBJ_REF(object) \
 	({ \
