@@ -32,6 +32,9 @@ is no requirement that you provide the same exemption in your GPL'd
 products (although if you've written a module for Asterisk we would
 strongly encourage you to make the same excemption that we do).
 
+  Specific permission is also granted to OpenSSL and OpenH323 to link to
+Asterisk.
+
   If you have any questions, whatsoever, regarding our licensing policy,
 please contact us.
   
