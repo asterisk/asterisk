@@ -2522,7 +2522,7 @@ unsigned int ast_get_group(char *s)
 		}
 		for (x=start;x<=finish;x++) {
 			if ((x > 31) || (x < 0)) {
-				ast_log(LOG_WARNING, "Ignoring invalid group %d\n", x);
+				ast_log(LOG_WARNING, "Ignoring invalid group %d (maximum group is 31)\n", x);
 			} else
 				group |= (1 << x);
 		}
