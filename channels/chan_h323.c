@@ -1089,6 +1089,61 @@ if (!p) {
 }
 #endif
 
+
+/* Call-back function that gets called on transfer
+ *
+ * Returns 1 on success
+ */
+int setup_transfer_call(unsigned call_reference, const char *extension)
+{
+ 	struct oh323_pvt *p;
+ 	struct ast_channel *c = NULL;
+ 	char exten[AST_MAX_EXTENSION];
+ 	char *context;
+ 
+ 	p = find_call(call_reference);
+ 
+ 	if (!p) {
+ 		ast_log(LOG_WARNING, "No such call %d.\n", call_reference);
+ 		return -1;
+ 	}
+ 
+ 	if (!p->owner) {
+ 		ast_log(LOG_WARNING, "Call %d has no owner.\n", call_reference);
+ 		return -1;
+ 	}
+ 	
+ 	memcpy(exten, extension, sizeof(exten));
+ 
+ 	c = p->owner;
+ 	if (c && c->bridge) {
+ 		strncpy(exten, extension, sizeof(exten) - 1);
+ 		context = strchr(exten, '@');
+ 		if (context) {
+ 			*context = '\0';
+ 			context++;
+ 		} else
+ 			context = c->context;
+ 		if (!strlen(context))
+ 			context = c->bridge->context;
+ 		if (ast_exists_extension(c->bridge, context, exten, 1, c->bridge->callerid)) {
+ 			
+ 			ast_log(LOG_NOTICE, "Transfering call %s to %s@%s.\n", c->bridge->name, exten, context);
+ 			
+ 			if (!ast_async_goto(c->bridge, context, exten, 1, 1))
+ 				return 1;
+ 
+ 			ast_log(LOG_WARNING, "Failed to transfer.\n");
+ 		} else {
+ 			ast_log(LOG_WARNING, "No such extension '%s' exists.\n", exten);
+ 		}
+ 	} else {
+ 		ast_log(LOG_WARNING, "There is no call to transfer\n");
+ 	}
+ 	return 0;
+}
+
+
 /**
   * Call-back function that gets called for each rtp channel opened 
   *
@@ -1714,11 +1769,13 @@ int load_module()
 		/* Register our callback functions */
 		h323_callback_register(setup_incoming_call, 
 							   setup_outgoing_call, 
+							   setup_transfer_call,
 							   create_connection, 
 							   setup_rtp_connection, 
 							   cleanup_connection, 
 							   connection_made, send_digit);	
 	
+
 		/* start the h.323 listener */
 		if (h323_start_listener(port, bindaddr)) {
 			ast_log(LOG_ERROR, "Unable to create H323 listener.\n");

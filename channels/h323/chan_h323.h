@@ -131,6 +131,11 @@ setup_incoming_cb		on_incoming_call;
 typedef int (*setup_outbound_cb)(call_details_t);
 setup_outbound_cb	on_outgoing_call; 
 
+/* This is a callback prototype function, called upon
+    a transfer. */
+typedef int (*setup_transfer_cb)(unsigned int, const char *);
+setup_transfer_cb	on_transfer_call;
+
 /* This is a callback prototype function, called when the openh323 
    OnStartLogicalChannel is invoked. */
 typedef void (*start_logchan_cb)(unsigned int, const char *, int);
@@ -164,7 +169,15 @@ extern "C" {
 	void h323_debug(int, unsigned);
 
 	/* callback function handler*/
-	void h323_callback_register(setup_incoming_cb, setup_outbound_cb, on_connection_cb, start_logchan_cb, clear_con_cb, con_established_cb, send_digit_cb);
+	void h323_callback_register(setup_incoming_cb,
+ 								setup_outbound_cb,
+ 								setup_transfer_cb,
+ 								on_connection_cb,
+ 								start_logchan_cb,
+ 								clear_con_cb,
+ 								con_established_cb,
+ 								send_digit_cb);
+
 
 	int h323_set_capability(int, int);
 	int h323_set_alias(struct oh323_alias *);

@@ -269,6 +269,24 @@ void MyH323EndPoint::OnClosedLogicalChannel(H323Connection & connection, const H
 	H323EndPoint::OnClosedLogicalChannel(connection, channel);
 }
 
+BOOL MyH323EndPoint::OnConnectionForwarded(H323Connection & connection,
+ 		const PString & forwardParty,
+ 		const H323SignalPDU & pdu)
+ {
+ 	if (h323debug)
+ 	cout << "       -- Call Forwarded to " << forwardParty << endl;
+ 	return FALSE;
+ }
+ 
+BOOL MyH323EndPoint::ForwardConnection(H323Connection & connection,
+ 		const PString & forwardParty,
+ 		const H323SignalPDU & pdu)
+{
+ 	if (h323debug)
+ 		cout << "       -- Forwarding call to " << forwardParty << endl;
+ 	return H323EndPoint::ForwardConnection(connection, forwardParty, pdu);
+}
+
 void MyH323EndPoint::OnConnectionEstablished(H323Connection & connection, const PString & estCallToken)
 {
 	if (h323debug)
@@ -389,6 +407,48 @@ H323Connection * MyH323EndPoint::CreateConnection(unsigned callReference, void *
 	return new MyH323Connection(*this, callReference, options);
 }
 
+H323Connection * MyH323EndPoint::SetupTransfer(const PString & token,
+ 											   const PString & callIdentity,
+ 											   const PString & remoteParty,
+ 											   PString & newToken,
+											   void * userData)
+{
+ 	PString alias;
+ 	H323TransportAddress address;
+ 	
+ 	H323Connection * connection; 
+ 
+ 	if (h323debug) {
+ 		cout << " -- Setup transfer of  " << callIdentity << ":" << endl;
+ 		cout << "	-- Call from    " << token << endl;
+ 		cout << "	-- Remote Party " << remoteParty << endl;
+ 	}
+ 
+ 	connection = FindConnectionWithLock(token);
+ 
+ 	if (connection != NULL) {
+ 		unsigned int old_call_reference = connection->GetCallReference();
+ 
+ 		if (h323debug)
+ 			cout << " -- Old call reference " << old_call_reference << endl;
+ 		connection->Unlock();
+ 
+ 		if (on_transfer_call(old_call_reference, remoteParty)) {
+ 			if (h323debug)
+ 				cout << "	-- Transfer succeded " << endl;
+ 			if (connection->ClearCall(H323Connection::EndedByCallForwarded))
+ 					return NULL;
+ 			return NULL;
+ 		}
+ 	}
+ 	if (h323debug)
+ 		cout << "	-- Transfer failed " << endl;
+ 
+ 	if (connection != NULL) {
+ 		return connection;
+ 	}
+ 	return NULL;
+}
 
 /* MyH323Connection */    
 MyH323Connection::MyH323Connection(MyH323EndPoint & ep,
@@ -734,16 +794,18 @@ void h323_debug(int flag, unsigned level)
 }
 	
 /** Installs the callback functions on behalf of the PBX application  */
-void h323_callback_register(setup_incoming_cb  ifunc, 
+void h323_callback_register(setup_incoming_cb  ifunc,
 							setup_outbound_cb  sfunc,
+							setup_transfer_cb  tfunc,
 							on_connection_cb   confunc,
 							start_logchan_cb   lfunc,
-							clear_con_cb	   clfunc,
-							con_established_cb efunc,
-							send_digit_cb	   dfunc)
+ 							clear_con_cb	   clfunc,
+ 							con_established_cb efunc,
+ 							send_digit_cb	   dfunc)
 {
 	on_incoming_call = ifunc;
 	on_outgoing_call = sfunc;
+	on_transfer_call = tfunc;
 	on_create_connection = confunc;
 	on_start_logical_channel = lfunc;
 	on_connection_cleared = clfunc;
