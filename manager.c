@@ -59,6 +59,8 @@ struct fast_originate_helper
 static int enabled = 0;
 static int portno = DEFAULT_MANAGER_PORT;
 static int asock = -1;
+static int displayconnects = 1;
+
 static pthread_t t;
 AST_MUTEX_DEFINE_STATIC(sessionlock);
 static int block_sockets = 0;
@@ -413,8 +415,9 @@ static int authenticate(struct mansession *s, struct message *m)
 						password = v->value;
 					} else if (!strcasecmp(v->name, "permit") ||
 						   !strcasecmp(v->name, "deny")) {
-							ha = ast_append_ha(v->name, v->value, ha);
-					}						
+						ha = ast_append_ha(v->name, v->value, ha);
+					}	
+				    		
 					v = v->next;
 				}
 				if (ha && !ast_apply_ha(ha, &(s->sin))) {
@@ -1131,8 +1134,11 @@ static int process_message(struct mansession *s, struct message *m)
 				return -1;
 			} else {
 				s->authenticated = 1;
-				if (option_verbose > 1) 
-					ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged on from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+				if (option_verbose > 1) {
+					if ( displayconnects ) {
+						ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged on from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+					}
+				}
 				ast_log(LOG_EVENT, "Manager '%s' logged on from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 				astman_send_ack(s, m, "Authentication accepted");
 			}
@@ -1227,12 +1233,16 @@ static void *session_do(void *data)
 			break;
 	}
 	if (s->authenticated) {
-		if (option_verbose > 1) 
-			ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+		if (option_verbose > 1) {
+			if (displayconnects) 
+				ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));    
+		}
 		ast_log(LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 	} else {
-		if (option_verbose > 1)
-			ast_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+		if (option_verbose > 1) {
+			if ( displayconnects )
+				ast_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
+		}
 		ast_log(LOG_EVENT, "Failed attempt from %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 	}
 	destroy_session(s);
@@ -1444,6 +1454,7 @@ int init_manager(void)
 		registered = 1;
 	}
 	portno = DEFAULT_MANAGER_PORT;
+	displayconnects = 1;
 	cfg = ast_load("manager.conf");
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to open management configuration manager.conf.  Call management disabled.\n");
@@ -1470,6 +1481,11 @@ int init_manager(void)
 		}
 		ast_log(LOG_NOTICE, "Use of portno in manager.conf deprecated.  Please use 'port=%s' instead.\n", val);
 	}
+	/* Parsing the displayconnects */
+	if ((val = ast_variable_retrieve(cfg, "general", "displayconnects"))) {
+			displayconnects = ast_true(val);;
+	}
+				
 	
 	ba.sin_family = AF_INET;
 	ba.sin_port = htons(portno);
