@@ -410,7 +410,7 @@ static struct {
   {{1, AST_FORMAT_SPEEX}, "audio", "SPEEX"},
   {{1, AST_FORMAT_ILBC}, "audio", "iLBC"},
   {{0, AST_RTP_DTMF}, "audio", "telephone-event"},
-  {{0, AST_RTP_CISCO_DTMF}, "audio", "bastard-telephone-event"},
+  {{0, AST_RTP_CISCO_DTMF}, "audio", "cisco-telephone-event"},
   {{0, AST_RTP_CN}, "audio", "CN"},
   {{1, AST_FORMAT_JPEG}, "video", "JPEG"},
   {{1, AST_FORMAT_PNG}, "video", "PNG"},

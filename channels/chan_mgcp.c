@@ -240,7 +240,7 @@ struct mgcp_subchannel {
 struct mgcp_endpoint {
 	pthread_mutex_t lock;
 	char name[80];
-    struct mgcp_subchannel *sub;        /* pointer to our current connection, channel and shit */
+    struct mgcp_subchannel *sub;        /* pointer to our current connection, channel and stuff */
 	char accountcode[80];
 	char exten[AST_MAX_EXTENSION];		/* Extention where to start */
 	char context[AST_MAX_EXTENSION];
@@ -707,7 +707,9 @@ static struct ast_frame *mgcp_rtp_read(struct mgcp_subchannel *sub)
 			}
             /* Courtesy fearnor aka alex@pilosoft.com */
             if (sub->parent->dtmfinband) {
+#if 0
                 ast_log(LOG_NOTICE, "MGCP ast_dsp_process\n");
+#endif
                 f = ast_dsp_process(sub->owner, sub->parent->dsp, f, 0);
             }
 		}
