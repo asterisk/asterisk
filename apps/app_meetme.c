@@ -5,7 +5,7 @@
  * 
  * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -511,6 +511,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	char *agifiledefault = "conf-background.agi";
 	char meetmesecs[30] = "";
 	char exitcontext[AST_MAX_EXTENSION] = "";
+	int dtmf;
 
 	ZT_BUFFERINFO bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
@@ -840,10 +841,14 @@ zapretry:
 							menu_active = 1;
 							/* Record this sound! */
 							if (!ast_streamfile(chan, "conf-adminmenu", chan->language))
-								ast_waitstream(chan, "");
-						} else {
-							switch(f->subclass - 48) {
-								case 1: /* Un/Mute */
+								dtmf = ast_waitstream(chan, AST_DIGIT_ANY);
+							else
+								dtmf = 0;
+						} else 
+							dtmf = f->subclass;
+						if (dtmf) {
+							switch(dtmf) {
+								case '1': /* Un/Mute */
 									menu_active = 0;
 		 							if (ztc.confmode & ZT_CONF_TALKER) {
 	 						       		ztc.confmode = ZT_CONF_CONF | ZT_CONF_LISTENER;
@@ -865,7 +870,7 @@ zapretry:
 											ast_waitstream(chan, "");
 									}
 									break;
-								case 2: /* Un/Lock the Conference */
+								case '2': /* Un/Lock the Conference */
 									menu_active = 0;
 									if (conf->locked) {
 										conf->locked = 0;
@@ -891,10 +896,14 @@ zapretry:
 							menu_active = 1;
 							/* Record this sound! */
 							if (!ast_streamfile(chan, "conf-usermenu", chan->language))
-								ast_waitstream(chan, "");
-						} else {
-							switch(f->subclass - 48) {
-								case 1: /* Un/Mute */
+								dtmf = ast_waitstream(chan, AST_DIGIT_ANY);
+							else
+								dtmf = 0;
+						} else 
+							dtmf = f->subclass;
+						if (dtmf) {
+							switch(dtmf) {
+								case '1': /* Un/Mute */
 									menu_active = 0;
 		 							if (ztc.confmode & ZT_CONF_TALKER) {
 	 						       		ztc.confmode = ZT_CONF_CONF | ZT_CONF_LISTENER;

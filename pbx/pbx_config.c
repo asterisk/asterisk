@@ -1195,13 +1195,21 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 			}
 		}
 	}
-	app = strsep(&whole_exten, ",");
+	app = whole_exten;
 	if (app && (start = strchr(app, '(')) && (end = strrchr(app, ')'))) {
 		*start = *end = '\0';
 		app_data = start + 1;
 		process_quotes_and_slashes(app_data, ',', '|');
-	} else
-		app_data = whole_exten;
+	} else {
+		if (app) {
+			app_data = strchr(app, ',');
+			if (app_data) {
+				*app_data = '\0';
+				app_data++;
+			}
+		} else	
+			app_data = NULL;
+	}
 
 	if (!exten || !prior || !app || (!app_data && iprior != PRIORITY_HINT)) return RESULT_SHOWUSAGE;
 
