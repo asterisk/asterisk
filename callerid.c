@@ -574,9 +574,26 @@ int callerid_generate(unsigned char *buf, char *number, char *name, int flags, i
 void ast_shrink_phone_number(char *n)
 {
 	int x,y=0;
-	for (x=0;n[x];x++)
-		if (!strchr("( )-.", n[x]))
+	int bracketed=0;
+	for (x=0;n[x];x++) {
+		switch(n[x]) {
+		case '[':
+			bracketed++;
 			n[y++] = n[x];
+			break;
+		case ']':
+			bracketed--;
+			n[y++] = n[x];
+			break;
+		case '-':
+			if (bracketed)
+				n[y++] = n[x];
+			break;
+		default:
+			if (!strchr("( ).", n[x]))
+				n[y++] = n[x];
+		}
+	}
 	n[y] = '\0';
 }
 
