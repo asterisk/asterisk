@@ -686,14 +686,14 @@ static int ast_el_read_char(EditLine *el, char *cp)
 
 static char *cli_prompt(EditLine *el)
 {
-	char prompt[80];
+	static char prompt[80];
 
 	if (remotehostname)
 		snprintf(prompt, sizeof(prompt), ASTERISK_PROMPT2, remotehostname);
 	else
 		snprintf(prompt, sizeof(prompt), ASTERISK_PROMPT);
 
-	return strdup(prompt);
+	return(prompt);	
 }
 
 static char **ast_el_strtoarr(char *buf)
@@ -839,7 +839,7 @@ static char *cli_complete(EditLine *el, int ch)
 
 		if (nummatches == 1) {
 			/* Found an exact match */
-			el_insertstr(el, strdup(" "));
+			el_insertstr(el, " ");
 			retval = CC_REFRESH;
 		} else {
 			/* Must be more than one match */
@@ -854,11 +854,11 @@ static char *cli_complete(EditLine *el, int ch)
 				ast_cli_display_match_list(matches, nummatches, maxlen);
 				retval = CC_REDISPLAY;
 			} else { 
-				el_insertstr(el,strdup(" "));
+				el_insertstr(el," ");
 				retval = CC_REFRESH;
 			}
 		}
-
+	free(matches);
 	}
 
 	return (char *)retval;

@@ -278,7 +278,10 @@ static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 			printf("command matchesarray for '%s' %s got '%s'\n", argv[2], argv[3], matches[x]);
 #endif
 			len += sprintf( buf + len, "%s ", matches[x]);
+			free(matches[x]);
+			matches[x] = NULL;
 		}
+		free(matches);
 	}
 #if 0
 	printf("array for '%s' %s got '%s'\n", argv[2], argv[3], buf);
@@ -765,12 +768,16 @@ normal:
 int ast_cli_generatornummatches(char *text, char *word)
 {
 	int matches = 0, i = 0;
-	char *buf, *oldbuf;
+	char *buf, *oldbuf = NULL;
 
 
 	while ( (buf = ast_cli_generator(text, word, i)) ) {
-		if (++i > 1 && strcmp(buf,oldbuf) == 0)  
+		if (++i > 1 && strcmp(buf,oldbuf) == 0)  {
+				free(buf);
 				continue;
+		}
+		if (oldbuf)
+			free(oldbuf);
 		oldbuf = buf;
 		matches++;
 	}
@@ -866,6 +873,7 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 					if (res) {
 						if (lock)
 							ast_pthread_mutex_unlock(&clilock);
+						free(dup);
 						return res ? strdup(res) : NULL;
 					}
 				}
