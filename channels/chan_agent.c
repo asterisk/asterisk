@@ -828,7 +828,7 @@ static struct ast_channel *agent_request(char *type, int format, void *data)
 				ast_log(LOG_WARNING, "Weird...  Fix this to drop the unused pending agent\n");
 			}
 		} else
-			ast_log(LOG_DEBUG, "Not creating place holder for '%s' since nobody logged in\n");
+			ast_log(LOG_DEBUG, "Not creating place holder for '%s' since nobody logged in\n", s);
 	}
 	ast_mutex_unlock(&agentlock);
 	return chan;
