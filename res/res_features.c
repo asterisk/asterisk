@@ -911,6 +911,8 @@ int load_module(void)
 					transferdigittimeout = transferdigittimeout * 1000;
 			} else if (!strcasecmp(var->name, "courtesytone")) {
 				strncpy(courtesytone, var->value, sizeof(courtesytone) - 1);
+			} else if (!strcasecmp(var->name, "pickupexten")) {
+				strncpy(pickup_ext, var->value, sizeof(pickup_ext) - 1);
 			}
 			var = var->next;
 		}
