@@ -22,6 +22,8 @@ extern int option_verbose;
 extern int option_debug;
 extern int option_nofork;
 extern int option_quiet;
+extern int option_console;
+extern int fully_booted;
 
 #define VERBOSE_PREFIX_1 " "
 #define VERBOSE_PREFIX_2 "  == "
