@@ -1853,7 +1853,11 @@ static int sip_answer(struct ast_channel *ast)
 			fmt=ast_getformatbyname(codec);
 			if (fmt) {
 				ast_log(LOG_NOTICE, "Changing codec to '%s' for this call because of ${SIP_CODEC) variable\n",codec);
-				p->jointcapability=fmt;
+				if (p->jointcapability & fmt) {
+					p->jointcapability &= fmt;
+					p->capability &= fmt;
+				} else
+					ast_log(LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because it is not shared by both ends.\n");
 			} else ast_log(LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because of unrecognized/not configured codec (check allow/disallow in sip.conf): %s\n",codec);
 		}
 
