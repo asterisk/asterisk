@@ -981,7 +981,7 @@ static int action_mailboxstatus(struct mansession *s, struct message *m)
 	}
         if (id && !ast_strlen_zero(id))
                 snprintf(idText,256,"ActionID: %s\r\n",id);
-	ret = ast_app_has_voicemail(mailbox);
+	ret = ast_app_has_voicemail(mailbox, NULL);
 	ast_mutex_lock(&s->lock);
 	ast_cli(s->fd, "Response: Success\r\n"
 				   "%s"

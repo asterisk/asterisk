@@ -1404,7 +1404,7 @@ int send_cwcidspill(struct zt_pvt *p)
 static int has_voicemail(struct zt_pvt *p)
 {
 
-	return ast_app_has_voicemail(p->mailbox);
+	return ast_app_has_voicemail(p->mailbox, NULL);
 }
 
 static int send_callerid(struct zt_pvt *p)
@@ -5831,7 +5831,7 @@ static void *do_monitor(void *data)
 #if 0
 							printf("Channel %d has mailbox %s\n", last->channel, last->mailbox);
 #endif							
-							res = ast_app_has_voicemail(last->mailbox);
+							res = ast_app_has_voicemail(last->mailbox, NULL);
 							if (last->msgstate != res) {
 								int x;
 								ast_log(LOG_DEBUG, "Message status for %s changed from %d to %d on %d\n", last->mailbox, last->msgstate, res, last->channel);

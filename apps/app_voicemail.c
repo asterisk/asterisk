@@ -2217,7 +2217,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	}
 
 	/* Leave voicemail for someone */
-	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s@%s\r\nWaiting: %d\r\n", vmu->mailbox, vmu->context, ast_app_has_voicemail(ext_context));
+	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s@%s\r\nWaiting: %d\r\n", vmu->mailbox, vmu->context, ast_app_has_voicemail(ext_context, NULL));
 	run_externnotify(chan->context, ext_context);
 	return 0;
 }
@@ -2343,7 +2343,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 					ast_destroy(mif); /* or here */
 				}
 				/* Leave voicemail for someone */
-				manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, ast_app_has_voicemail(ext_context));
+				manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, ast_app_has_voicemail(ext_context, NULL));
 				run_externnotify(chan->context, ext_context);
 	
 				saved_messages++;
@@ -3730,7 +3730,7 @@ out:
 		close_mailbox(&vms, vmu);
 	if (valid) {
 		snprintf(ext_context, sizeof(ext_context), "%s@%s", vms.username, vmu->context);
-		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, ast_app_has_voicemail(ext_context));
+		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, ast_app_has_voicemail(ext_context, NULL));
 		run_externnotify(chan->context, ext_context);
 	}
 	if (vmu)

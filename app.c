@@ -150,7 +150,7 @@ int ast_app_getvoice(struct ast_channel *c, char *dest, char *dstfmt, char *prom
 	return 0;
 }
 
-int ast_app_has_voicemail(const char *mailbox)
+int ast_app_has_voicemail(const char *mailbox, const char *folder)
 {
 	DIR *dir;
 	struct dirent *de;
@@ -159,6 +159,8 @@ int ast_app_has_voicemail(const char *mailbox)
 	char *mb, *cur;
 	char *context;
 	int ret;
+	if (!folder)
+		folder = "INBOX";
 	/* If no mailbox, return immediately */
 	if (ast_strlen_zero(mailbox))
 		return 0;
@@ -168,7 +170,7 @@ int ast_app_has_voicemail(const char *mailbox)
 		ret = 0;
 		while((cur = strsep(&mb, ","))) {
 			if (!ast_strlen_zero(cur)) {
-				if (ast_app_has_voicemail(cur))
+				if (ast_app_has_voicemail(cur, folder))
 					return 1; 
 			}
 		}
@@ -181,7 +183,7 @@ int ast_app_has_voicemail(const char *mailbox)
 		context++;
 	} else
 		context = "default";
-	snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/INBOX", (char *)ast_config_AST_SPOOL_DIR, context, tmp);
+	snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/%s", (char *)ast_config_AST_SPOOL_DIR, context, tmp, folder);
 	dir = opendir(fn);
 	if (!dir)
 		return 0;

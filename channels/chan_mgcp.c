@@ -460,7 +460,7 @@ static int mgcp_reload(int fd, int argc, char *argv[]);
 
 static int has_voicemail(struct mgcp_endpoint *p)
 {
-	return ast_app_has_voicemail(p->mailbox);
+	return ast_app_has_voicemail(p->mailbox, NULL);
 }
 
 static int unalloc_sub(struct mgcp_subchannel *sub)

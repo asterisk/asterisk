@@ -1197,7 +1197,7 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
 
 static int has_voicemail(struct skinny_line *l)
 {
-	return ast_app_has_voicemail(l->mailbox);
+	return ast_app_has_voicemail(l->mailbox, NULL);
 }
 
 static int skinny_register(skinny_req *req, struct skinnysession *s)

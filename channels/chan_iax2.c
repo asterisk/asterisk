@@ -4475,7 +4475,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 						old = 255;
 					msgcount = (old << 8) | new;
 				} else {
-					msgcount = ast_app_has_voicemail(p->mailbox);
+					msgcount = ast_app_has_voicemail(p->mailbox, NULL);
 					if (msgcount)
 						msgcount = 65535;
 				}
