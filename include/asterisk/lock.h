@@ -17,8 +17,10 @@
 #include <pthread.h>
 
 #ifdef DEBUG_THREADS
+#ifdef THREAD_CRASH
+#define DO_THREAD_CRASH do { *((int *)(0)) = 1; } while(0)
+#endif
 
-#define TRIES 50
 
 #include <errno.h>
 #include <string.h>
@@ -93,6 +95,9 @@ static inline int __ast_pthread_mutex_lock(char *filename, int lineno, char *fun
 	} else {
 		fprintf(stderr, "%s line %d (%s): Error obtaining mutex: %s\n",
 			filename, lineno, func, strerror(errno));
+#ifdef THREAD_CRASH
+		DO_THREAD_CRASH;
+#endif
 	}
 	return res;
 }
@@ -121,9 +126,13 @@ static inline int __ast_pthread_mutex_unlock(char *filename, int lineno, char *f
 	t->func = NULL;
 	t->thread = 0;
 	res = pthread_mutex_unlock(&t->mutex);
-	if (res) 
+	if (res) {
 		fprintf(stderr, "%s line %d (%s): Error releasing mutex: %s\n", 
 				filename, lineno, func, strerror(res));
+#ifdef THREAD_CRASH
+		DO_THREAD_CRASH;
+#endif
+	}
 	return res;
 }
 
