@@ -30,7 +30,7 @@ PWD=$(shell pwd)
 ######### Uncomment to enable MMXTM optimizations for x86 architecture CPU's
 ######### which support MMX instructions.  This should be newer pentiums,
 ######### ppro's, etc, as well as the AMD K6 and K7.  
-K6OPT  = -DK6OPT
+#K6OPT  = -DK6OPT
 
 #Tell gcc to optimize the asterisk's code
 OPTIMIZE=-O6
