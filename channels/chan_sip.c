@@ -7255,7 +7255,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				ast_queue_frame(p->owner, &af);
 		} else if (debug)
 			ast_verbose("Ignoring this request\n");
-		if (!p->lastinvite && !p->owner) {
+		if (!p->lastinvite && !ignore && !p->owner) {
 			/* Handle authentication if this is our first invite */
 			res = check_user(p, req, cmd, e, 1, sin, ignore);
 			if (res) {
