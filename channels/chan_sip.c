@@ -387,6 +387,11 @@ static int create_addr(struct sip_pvt *r, char *peer)
 		if (!strcasecmp(p->name, peer)) {
 			found++;
 			r->capability = p->capability;
+			r->nat = p->nat;
+			if (r->rtp) {
+				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", r->nat);
+				ast_rtp_setnat(r->rtp, r->nat);
+			}
 			strncpy(r->peername, p->username, sizeof(r->peername)-1);
 			strncpy(r->peersecret, p->secret, sizeof(r->peersecret)-1);
 			strncpy(r->username, p->username, sizeof(r->username)-1);
@@ -2550,8 +2555,10 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 	while(user) {
 		if (!strcasecmp(user->name, of)) {
 			p->nat = user->nat;
-			if (p->rtp)
+			if (p->rtp) {
+				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", p->nat);
 				ast_rtp_setnat(p->rtp, p->nat);
+			}
 			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, cmd, uri))) {
 				strncpy(p->context, user->context, sizeof(p->context) - 1);
 				if (strlen(user->callerid) && strlen(p->callerid)) 
@@ -3766,6 +3773,7 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 		user->canreinvite = 1;
 		/* JK02: set default context */
 		strcpy(user->context, context);
+		user->dtmfmode = SIP_DTMF_RFC2833;
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
 				strncpy(user->context, v->value, sizeof(user->context));

@@ -282,7 +282,11 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	}
 	if (rtp->nat) {
 		/* Send to whoever sent to us */
-		memcpy(&rtp->them, &sin, sizeof(rtp->them));
+		if ((rtp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
+		    (rtp->them.sin_port != sin.sin_port)) {
+			memcpy(&rtp->them, &sin, sizeof(rtp->them));
+			ast_log(LOG_DEBUG, "RTP NAT: Using address %s:%d\n", inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
+		}
 	}
 	/* Get fields */
 	seqno = ntohl(rtpheader[0]);

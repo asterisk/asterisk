@@ -830,7 +830,7 @@ static int match(struct sockaddr_in *sin, unsigned short callno, unsigned short 
 
 static int find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new)
 {
-	int res = -1;
+	int res = 0;
 	int x;
 	int start;
 	if (new <= NEW_ALLOW) {
@@ -852,7 +852,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 		for (x = ((nextcallno + 1) % (AST_IAX2_MAX_CALLS - 1)) + 1; iaxs[x] && (x != start); x = (x + 1) % AST_IAX2_MAX_CALLS)
 		if (x == start) {
 			ast_log(LOG_WARNING, "Unable to accept more calls\n");
-			return -1;
+			return 0;
 		}
 		ast_pthread_mutex_lock(&iaxsl[x]);
 		iaxs[x] = new_iax();
@@ -873,7 +873,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			strncpy(iaxs[x]->accountcode, accountcode, sizeof(iaxs[x]->accountcode)-1);
 		} else {
 			ast_log(LOG_WARNING, "Out of resources\n");
-			return -1;
+			return 0;
 		}
 		res = x;
 		nextcallno = x;
@@ -4270,7 +4270,7 @@ static int iax2_do_register(struct iax2_registry *reg)
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Allocate call number\n");
 		reg->callno = find_callno(0, 0, &reg->addr, NEW_FORCE);
-		if (reg->callno < 0) {
+		if (reg->callno < 1) {
 			ast_log(LOG_WARNING, "Unable to create call for registration\n");
 			return -1;
 		} else if (option_debug)
@@ -4322,7 +4322,7 @@ static int iax2_poke_peer(struct iax2_peer *peer)
 		iax2_destroy(peer->callno);
 	}
 	peer->callno = find_callno(0, 0, &peer->addr, NEW_FORCE);
-	if (peer->callno < 0) {
+	if (peer->callno < 1) {
 		ast_log(LOG_WARNING, "Unable to allocate call for poking peer '%s'\n", peer->name);
 		return -1;
 	}
@@ -4374,7 +4374,7 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 		return NULL;
 	}
 	callno = find_callno(0, 0, &sin, NEW_FORCE);
-	if (callno < 0) {
+	if (callno < 1) {
 		ast_log(LOG_WARNING, "Unable to create call\n");
 		return NULL;
 	}

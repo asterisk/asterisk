@@ -75,6 +75,8 @@ static char ourhost[256];
 static struct in_addr __ourip;
 static int ourport;
 
+static int mgcpdebug = 0;
+
 static struct sched_context *sched;
 static struct io_context *io;
 /* The private structures of the  mgcp channels are linked for
@@ -141,7 +143,10 @@ struct mgcp_gateway {
 	/* A gateway containing one or more endpoints */
 	char name[80];
 	struct sockaddr_in addr;
+	struct sockaddr_in defaddr;
 	struct in_addr ourip;
+	int dynamic;
+	int expire;		/* XXX Should we ever expire dynamic registrations? XXX */
 	struct mgcp_endpoint *endpoints;
 	struct ast_ha *ha;
 	struct mgcp_gateway *next;
@@ -162,7 +167,10 @@ static int transmit_notify_request_with_callerid(struct mgcp_endpoint *p, char *
 static int __mgcp_xmit(struct mgcp_endpoint *p, char *data, int len)
 {
 	int res;
-    res=sendto(mgcpsock, data, len, 0, (struct sockaddr *)&p->parent->addr, sizeof(struct sockaddr_in));
+	if (p->parent->addr.sin_addr.s_addr)
+	    res=sendto(mgcpsock, data, len, 0, (struct sockaddr *)&p->parent->addr, sizeof(struct sockaddr_in));
+	else 
+	    res=sendto(mgcpsock, data, len, 0, (struct sockaddr *)&p->parent->defaddr, sizeof(struct sockaddr_in));
 	if (res != len) {
 		ast_log(LOG_WARNING, "mgcp_xmit returned %d: %s\n", res, strerror(errno));
 	}
@@ -172,7 +180,8 @@ static int __mgcp_xmit(struct mgcp_endpoint *p, char *data, int len)
 static int send_response(struct mgcp_endpoint *p, struct mgcp_request *req)
 {
 	int res;
-	printf("Transmitting:\n%s\n to %s:%d\n", req->data, inet_ntoa(p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
+	if (mgcpdebug)
+		ast_verbose("Transmitting:\n%s\n to %s:%d\n", req->data, inet_ntoa(p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
 	res = __mgcp_xmit(p, req->data, req->len);
 	if (res > 0)
 		res = 0;
@@ -182,7 +191,8 @@ static int send_response(struct mgcp_endpoint *p, struct mgcp_request *req)
 static int send_request(struct mgcp_endpoint *p, struct mgcp_request *req)
 {
 	int res;
-	printf("XXX Need to handle Retransmitting XXX:\n%s to %s:%d\n", req->data, inet_ntoa(p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
+	if (mgcpdebug)
+		ast_verbose("XXX Need to handle Retransmitting XXX:\n%s to %s:%d\n", req->data, inet_ntoa(p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
 	res = __mgcp_xmit(p, req->data, req->len);
 	return res;
 }
@@ -291,9 +301,11 @@ static struct in_addr *myaddrfor(struct in_addr *them)
 #endif		
 		if (((remote_ip & mask) ^ dest) == 0) {
 
-			printf("Interface is %s\n",iface);
+			if (mgcpdebug)
+					ast_verbose("Interface is %s\n",iface);
 			temp = lookup_iface(iface);
-			printf("IP Address is %s\n",inet_ntoa(*temp));
+			if (mgcpdebug)
+				ast_verbose("IP Address is %s\n",inet_ntoa(*temp));
 			break;
 		}
 	}
@@ -349,7 +361,7 @@ static int mgcp_show_endpoints(int fd, int argc, char *argv[])
 	g = gateways;
 	while(g) {
 		e = g->endpoints;
-		ast_cli(fd, "Gateway '%s' at %s\n", g->name, inet_ntoa(g->addr.sin_addr));
+		ast_cli(fd, "Gateway '%s' at %s (%s)\n", g->name, g->addr.sin_addr.s_addr ? inet_ntoa(g->addr.sin_addr) : inet_ntoa(g->defaddr.sin_addr), g->dynamic ? "Dynamic" : "Static");
 		while(e) {
 			ast_cli(fd, "   -- '%s@%s in '%s' is %s\n", e->name, g->name, e->context, e->owner ? "active" : "idle");
 			hasendpoints = 1;
@@ -634,8 +646,18 @@ static struct mgcp_endpoint *find_endpoint(char *name, int msgid, struct sockadd
 	ast_pthread_mutex_lock(&gatelock);
 	g = gateways;
 	while(g) {
-		if (!name || !strcasecmp(g->name, at)) {
-			/* Found the gateway -- now for the endpoint */
+		if ((!name || !strcasecmp(g->name, at)) && 
+		    (sin || g->addr.sin_addr.s_addr || g->defaddr.sin_addr.s_addr)) {
+			/* Found the gateway.  If it's dynamic, save it's address -- now for the endpoint */
+			if (sin && g->dynamic) {
+				if ((g->addr.sin_addr.s_addr != sin->sin_addr.s_addr) ||
+					(g->addr.sin_port != sin->sin_port)) {
+					memcpy(&g->addr, sin, sizeof(g->addr));
+					memcpy(&g->ourip, myaddrfor(&g->addr.sin_addr), sizeof(g->ourip));
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "Registered MGCP gateway '%s' at %s port %d\n", g->name, inet_ntoa(g->addr.sin_addr), ntohs(g->addr.sin_port));
+				}
+			}
 			p = g->endpoints;
 			while(p) {
 				if ((name && !strcasecmp(p->name, tmp)) ||
@@ -753,9 +775,11 @@ static void parse(struct mgcp_request *req)
 		}
 	}
 		
-	printf("Verb: '%s', Identifier: '%s', Endpoint: '%s', Version: '%s'\n",
+	if (mgcpdebug) {
+		ast_verbose("Verb: '%s', Identifier: '%s', Endpoint: '%s', Version: '%s'\n",
 		req->verb, req->identifier, req->endpoint, req->version);
-	printf("%d headers, %d lines\n", req->headers, req->lines);
+		ast_verbose("%d headers, %d lines\n", req->headers, req->lines);
+	}
 	if (*c) 
 		ast_log(LOG_WARNING, "Odd content, extra stuff left over ('%s')\n", c);
 }
@@ -817,7 +841,8 @@ static int process_sdp(struct mgcp_endpoint *p, struct mgcp_request *req)
 		codecs += len;
 	}
 	p->capability = capability & peercapability;
-	printf("Capabilities: us - %d, them - %d, combined - %d\n",
+	if (mgcpdebug)
+		ast_verbose("Capabilities: us - %d, them - %d, combined - %d\n",
 		capability, peercapability, p->capability);
 	if (!p->capability) {
 		ast_log(LOG_WARNING, "No compatible codecs!\n");
@@ -966,7 +991,8 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_endpoint *p, struct as
 			dest.sin_port = sin.sin_port;
 		}
 	}
-	printf("We're at %s port %d\n", inet_ntoa(p->parent->ourip), ntohs(sin.sin_port));	
+	if (mgcpdebug)
+		ast_verbose("We're at %s port %d\n", inet_ntoa(p->parent->ourip), ntohs(sin.sin_port));	
 	snprintf(v, sizeof(v), "v=0\r\n");
 	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s\r\n", getpid(), getpid(), inet_ntoa(dest.sin_addr));
 	snprintf(s, sizeof(s), "s=session\r\n");
@@ -975,7 +1001,8 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_endpoint *p, struct as
 	snprintf(m, sizeof(m), "m=audio %d RTP/AVP", ntohs(dest.sin_port));
 	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
 		if (p->capability & x) {
-			printf("Answering with capability %d\n", x);
+			if (mgcpdebug)
+				ast_verbose("Answering with capability %d\n", x);
 			if ((codec = ast2rtp(x)) > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
 				strcat(m, costr);
@@ -1192,7 +1219,8 @@ static int handle_request(struct mgcp_endpoint *p, struct mgcp_request *req, str
 	struct ast_channel *c;
 	pthread_t t;
 	struct ast_frame f = { 0, };
-	printf("Handling request '%s' on %s@%s\n", req->verb, p->name, p->parent->name);
+	if (mgcpdebug)
+		ast_verbose("Handling request '%s' on %s@%s\n", req->verb, p->name, p->parent->name);
 	/* Clear out potential response */
 	if (!strcasecmp(req->verb, "RSIP")) {
 		if (option_verbose > 2)
@@ -1282,7 +1310,8 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 	}
 	req.data[res] = '\0';
 	req.len = res;
-	printf("MGCP read: \n%s\n", req.data);
+	if (mgcpdebug)
+		ast_verbose("MGCP read: \n%s\nfrom %s:%d", req.data, inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 	parse(&req);
 	if (req.headers < 1) {
 		/* Must have at least one header */
@@ -1431,6 +1460,7 @@ static struct ast_channel *mgcp_request(char *type, int format, void *data)
 		ast_log(LOG_WARNING, "Unable to find MGCP endpoint '%s'\n", tmp);
 		return NULL;
 	}
+	
 	/* Must be busy */
 	if (p->owner)
 		return NULL;
@@ -1453,10 +1483,32 @@ struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 	gw = malloc(sizeof(struct mgcp_gateway));
 	if (gw) {
 		memset(gw, 0, sizeof(struct mgcp_gateway));
+		gw->expire = -1;
 		strncpy(gw->name, cat, sizeof(gw->name) - 1);
 		while(v) {
 			if (!strcasecmp(v->name, "host")) {
-				if (ast_get_ip(&gw->addr, v->value)) {
+				if (!strcasecmp(v->value, "dynamic")) {
+					/* They'll register with us */
+					gw->dynamic = 1;
+					memset(&gw->addr.sin_addr, 0, 4);
+					if (gw->addr.sin_port) {
+						/* If we've already got a port, make it the default rather than absolute */
+						gw->defaddr.sin_port = gw->addr.sin_port;
+						gw->addr.sin_port = 0;
+					}
+				} else {
+					/* Non-dynamic.  Make sure we become that way if we're not */
+					if (gw->expire > -1)
+						ast_sched_del(sched, gw->expire);
+					gw->expire = -1;
+					gw->dynamic = 0;
+					if (ast_get_ip(&gw->addr, v->value)) {
+						free(gw);
+						return NULL;
+					}
+				}
+			} else if (!strcasecmp(v->name, "defaultip")) {
+				if (ast_get_ip(&gw->defaddr, v->value)) {
 					free(gw);
 					return NULL;
 				}
@@ -1503,14 +1555,17 @@ struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 		}
 		
 	}
-	if (!ntohl(gw->addr.sin_addr.s_addr)) {
-		ast_log(LOG_WARNING, "Gateway '%s' lacks IP address\n", gw->name);
+	if (!ntohl(gw->addr.sin_addr.s_addr) && !gw->dynamic) {
+		ast_log(LOG_WARNING, "Gateway '%s' lacks IP address and isn't dynamic\n", gw->name);
 		free(gw);
-		gw = NULL;
-	} else if (!ntohs(gw->addr.sin_port)) {
-		gw->addr.sin_port = htons(DEFAULT_MGCP_PORT);
-		memcpy(&gw->ourip, myaddrfor(&gw->addr.sin_addr), sizeof(gw->ourip));
+		return NULL;
 	}
+	if (gw->defaddr.sin_addr.s_addr && !ntohs(gw->defaddr.sin_port)) 
+		gw->defaddr.sin_port = htons(DEFAULT_MGCP_PORT);
+	if (gw->addr.sin_addr.s_addr && !ntohs(gw->addr.sin_port))
+		gw->addr.sin_port = htons(DEFAULT_MGCP_PORT);
+	if (gw->addr.sin_addr.s_addr)
+		memcpy(&gw->ourip, myaddrfor(&gw->addr.sin_addr), sizeof(gw->ourip));
 	return gw;
 }
 
@@ -1538,6 +1593,38 @@ static struct ast_rtp_protocol mgcp_rtp = {
 	get_rtp_info: mgcp_get_rtp_peer,
 	set_rtp_peer: mgcp_set_rtp_peer,
 };
+
+static int mgcp_do_debug(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	mgcpdebug = 1;
+	ast_cli(fd, "MGCP Debugging Enabled\n");
+	return RESULT_SUCCESS;
+}
+
+static int mgcp_no_debug(int fd, int argc, char *argv[])
+{
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	mgcpdebug = 0;
+	ast_cli(fd, "MGCP Debugging Disabled\n");
+	return RESULT_SUCCESS;
+}
+
+static char debug_usage[] = 
+"Usage: mgcp debug\n"
+"       Enables dumping of MGCP packets for debugging purposes\n";
+
+static char no_debug_usage[] = 
+"Usage: mgcp no debug\n"
+"       Disables dumping of MGCP packets for debugging purposes\n";
+
+static struct ast_cli_entry  cli_debug =
+	{ { "mgcp", "debug", NULL }, mgcp_do_debug, "Enable MGCP debugging", debug_usage };
+static struct ast_cli_entry  cli_no_debug =
+	{ { "mgcp", "no", "debug", NULL }, mgcp_no_debug, "Disable MGCP debugging", no_debug_usage };
+
 
 int load_module()
 {
@@ -1649,6 +1736,8 @@ int load_module()
 	mgcp_rtp.type = type;
 	ast_rtp_proto_register(&mgcp_rtp);
 	ast_cli_register(&cli_show_endpoints);
+	ast_cli_register(&cli_debug);
+	ast_cli_register(&cli_no_debug);
 	/* And start the monitor for the first time */
 	restart_monitor();
 	return 0;

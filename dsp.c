@@ -519,6 +519,7 @@ static int dtmf_detect (dtmf_detect_state_t *s,
 				} /* Don't reset fax hits counter */
 		} else {
 			if (s->fax_hits > 5) {
+				 hit = 'f';
 				 s->mhit = 'f';
 	             s->detected_digits++;
 	             if (s->current_digits < MAX_DTMF_DIGITS)

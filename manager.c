@@ -733,5 +733,6 @@ int init_manager(void)
 
 int reload_manager(void)
 {
+	manager_event(EVENT_FLAG_SYSTEM, "Reload", NULL);
 	return init_manager();
 }

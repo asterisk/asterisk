@@ -30,6 +30,7 @@ struct ast_variable {
 	char *value;
 	int lineno;
 	int object;		/* 0 for variable, 1 for object */
+	int blanklines; 	/* Number of blanklines following entry */
 	struct ast_comment *precomments;
 	struct ast_comment *sameline;
 	struct ast_variable *next;

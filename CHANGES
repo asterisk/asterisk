@@ -1,3 +1,4 @@
+ -- Add NAT and dynamic support to MGCP
  -- Allow selection of in-band, out-of-band, or INFO based DTMF
  -- Add contributed "*80" support to blacklist numbers (Thanks James!)
  -- Add "NAT" option to sip user, peer, friend
