@@ -867,7 +867,7 @@ static int console_sendtext(int fd, int argc, char *argv[])
 		struct ast_frame f = { AST_FRAME_TEXT, 0 };
 		char text2send[256] = "";
 		text2send[0] = '\0';
-		while(tmparg <= argc) {
+		while(tmparg < argc) {
 			strncat(text2send, argv[tmparg++], sizeof(text2send) - strlen(text2send) - 1);
 			strncat(text2send, " ", sizeof(text2send) - strlen(text2send) - 1);
 		}
