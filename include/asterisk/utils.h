@@ -160,7 +160,7 @@ struct ast_realloca {
 #endif
 #define inet_ntoa __dont__use__inet_ntoa__use__ast_inet_ntoa__instead__
 
-#define AST_STACKSIZE 128 * 1024
+#define AST_STACKSIZE 256 * 1024
 #define ast_pthread_create(a,b,c,d) ast_pthread_create_stack(a,b,c,d,0)
 #ifdef __linux__
 #define ast_strcasestr strcasestr
