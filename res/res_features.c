@@ -262,9 +262,11 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	struct ast_channel *who;
 	char newext[256], *ptr;
 	int res;
+	int diff;
 	struct ast_option_header *aoh;
 	struct ast_channel *transferer;
 	struct ast_channel *transferee;
+	struct timeval start, end;
 	char *transferer_real_context;
 	int allowdisconnect_in,allowdisconnect_out,allowredirect_in,allowredirect_out;
 
@@ -291,7 +293,23 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		peer->cdr = NULL;
 	}
 	for (;;) {
-	  res = ast_channel_bridge(chan,peer,config,&f, &who);
+		if (config->timelimit)
+			gettimeofday(&start, NULL);
+		res = ast_channel_bridge(chan,peer,config,&f, &who);
+		if (config->timelimit) {
+			/* Update time limit for next pass */
+			gettimeofday(&end, NULL);
+			diff = (end.tv_sec - start.tv_sec) * 1000;
+			diff += (end.tv_usec - start.tv_usec) / 1000;
+			config->timelimit -= diff;
+			if (config->timelimit <=0) {
+				/* We ran out of time */
+				config->timelimit = 0;
+				who = chan;
+				f = NULL;
+				res = 0;
+			}
+		}
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Bridge failed on channels %s and %s\n", chan->name, peer->name);
 			return -1;
