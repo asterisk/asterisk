@@ -133,18 +133,18 @@ struct ast_app {
 };
 
 /* An extension state notify */
-struct ast_notify_cb {
+struct ast_state_cb {
     int id;
     void *data;
-    ast_notify_cb_type callback;
-    struct ast_notify_cb *next;
+    ast_state_cb_type callback;
+    struct ast_state_cb *next;
 };
 	    
-struct ast_notify {
+struct ast_hint {
     struct ast_exten *exten;
     int laststate; 
-    struct ast_notify_cb *callbacks;
-    struct ast_notify *next;
+    struct ast_state_cb *callbacks;
+    struct ast_hint *next;
 };
 
 
@@ -311,9 +311,10 @@ static pthread_mutex_t switchlock = AST_MUTEX_INITIALIZER;
 struct ast_switch *switches = NULL;
 
 /* Lock for extension state notifys */
-static pthread_mutex_t notifylock = AST_MUTEX_INITIALIZER;
-static int notifycnt = 0;
-struct ast_notify *notifys = NULL;
+static pthread_mutex_t hintlock = AST_MUTEX_INITIALIZER;
+static int stateid = 1;
+struct ast_hint *hints = NULL;
+struct ast_state_cb *statecbs = NULL;
 
 int pbx_exec(struct ast_channel *c, /* Channel */
 					struct ast_app *app,
@@ -1192,17 +1193,24 @@ int ast_extension_state(struct ast_channel *c, char *context, char *exten)
     return ast_extension_state2(e);    
 }
 
-int ast_device_state_changed(char *device) 
+int ast_device_state_changed(const char *fmt, ...) 
 {
-    struct ast_notify *list;
-    struct ast_notify_cb *cblist;
+    struct ast_hint *list;
+    struct ast_state_cb *cblist;
     char hint[AST_MAX_EXTENSION];
+    char device[AST_MAX_EXTENSION];
     char *cur, *rest;
     int state;
-        
-    pthread_mutex_lock(&notifylock);
+    
+    va_list ap;
 
-    list = notifys;
+    va_start(ap, fmt);
+    vsnprintf(device, sizeof(device)-1, fmt, ap);
+    va_end(ap);
+        
+    pthread_mutex_lock(&hintlock);
+
+    list = hints;
     
     while (list) {
 	
@@ -1219,11 +1227,20 @@ int ast_device_state_changed(char *device)
 	    // Found extension execute callbacks 
 		state = ast_extension_state2(list->exten);
 		if ((state != -1) && (state != list->laststate)) {
+		    // For general callbacks
+		    cblist = statecbs;
+		    while (cblist) {
+			cblist->callback(list->exten->parent->name, list->exten->exten, state, cblist->data);
+			cblist = cblist->next;
+		    }
+		    
+		    // For extension callbacks
     		    cblist = list->callbacks;
 		    while (cblist) {
 			cblist->callback(list->exten->parent->name, list->exten->exten, state, cblist->data);
 			cblist = cblist->next;
 		    }
+		    
 		    list->laststate = state;
 		}
 		break;
@@ -1234,24 +1251,60 @@ int ast_device_state_changed(char *device)
 	list = list->next;
     }
 
-    pthread_mutex_unlock(&notifylock);
+    pthread_mutex_unlock(&hintlock);
     return 1;
 }
 			
 int ast_extension_state_add(char *context, char *exten, 
-			    ast_notify_cb_type callback, void *data)
+			    ast_state_cb_type callback, void *data)
 {
-    struct ast_notify *list;
-    struct ast_notify_cb *cblist;
+    struct ast_hint *list;
+    struct ast_state_cb *cblist;
     struct ast_exten *e;
 
+    /* No context and extension add callback to statecbs list */
+    if (!context && !exten) {
+	pthread_mutex_lock(&hintlock);
+
+	cblist = statecbs;
+	while (cblist) {
+	    if (cblist->callback == callback) {
+		cblist->data = data;
+		pthread_mutex_unlock(&hintlock);
+	    }
+	    
+	    cblist = cblist->next;
+	}
+	
+	/* Now inserts the callback */
+	cblist = malloc(sizeof(struct ast_state_cb));
+	if (!cblist) {
+	    pthread_mutex_unlock(&hintlock);
+	    return -1;
+	}
+	memset(cblist, 0, sizeof(struct ast_state_cb));
+	cblist->id = 0;
+	cblist->callback = callback;
+	cblist->data = data;
+
+        cblist->next = statecbs;
+	statecbs = cblist;
+
+	pthread_mutex_unlock(&hintlock);
+	return 0;
+    }
+
+    if (!context || !exten)
+	return -1;
+
+    /* This callback type is for only one hint */
     e = ast_hint_extension(NULL, context, exten);    
     if (!e) {
         return -1;
     }
     
-    pthread_mutex_lock(&notifylock);
-    list = notifys;        
+    pthread_mutex_lock(&hintlock);
+    list = hints;        
     
     while (list) {
 	if (list->exten == e)
@@ -1260,135 +1313,188 @@ int ast_extension_state_add(char *context, char *exten,
     }
 
     if (!list) {
-	if (!e) {
-	    pthread_mutex_unlock(&notifylock);
-	    return -1;
-	}
-	list = malloc(sizeof(struct ast_notify));
-	if (!list) {
-	    pthread_mutex_unlock(&notifylock);
-	    return -1;
-	}
-	/* Initialize and insert new item */
-	memset(list, 0, sizeof(struct ast_notify));
-	list->exten = e;
-	list->laststate = ast_extension_state2(e);
-	list->next = notifys;
-	notifys = list;
-    }
-    
-    /* Now inserts the callback */
-    cblist = malloc(sizeof(struct ast_notify_cb));
-    if (!cblist) {
-	pthread_mutex_unlock(&notifylock);
+	pthread_mutex_unlock(&hintlock);
 	return -1;
     }
-    memset(cblist, 0, sizeof(struct ast_notify_cb));
-    cblist->id = notifycnt++;
+
+    /* Now inserts the callback */
+    cblist = malloc(sizeof(struct ast_state_cb));
+    if (!cblist) {
+	pthread_mutex_unlock(&hintlock);
+	return -1;
+    }
+    memset(cblist, 0, sizeof(struct ast_state_cb));
+    cblist->id = stateid++;
     cblist->callback = callback;
     cblist->data = data;
 
     cblist->next = list->callbacks;
     list->callbacks = cblist;
 
-    pthread_mutex_unlock(&notifylock);
+    pthread_mutex_unlock(&hintlock);
     return cblist->id;
 }
 
-static int ast_extension_state_clean(struct ast_exten *e)
+int ast_extension_state_del(int id, ast_state_cb_type callback)
+{
+    struct ast_hint *list;
+    struct ast_state_cb *cblist, *cbprev;
+    
+    if (!id && !callback)
+	return -1;
+            
+    pthread_mutex_lock(&hintlock);
+
+    /* id is zero is a callback without extension */
+    if (!id) {
+	cbprev = NULL;
+	cblist = statecbs;
+	while (cblist) {
+	    if (cblist->callback == callback) {
+		if (!cbprev)
+		    statecbs = cblist->next;
+		else
+		    cbprev->next = cblist->next;
+
+		free(cblist);
+
+	        pthread_mutex_unlock(&hintlock);
+		return 0;
+	    }
+	    cbprev = cblist;
+	    cblist = cblist->next;
+	}
+
+        pthread_mutex_lock(&hintlock);
+	return -1;
+    }
+
+    /* id greater zero is a callback with extension */
+    list = hints;
+    while (list) {
+	cblist = list->callbacks;
+	cbprev = NULL;
+	while (cblist) {
+	    if (cblist->id==id) {
+		if (!cbprev)
+		    list->callbacks = cblist->next;		
+		else
+		    cbprev->next = cblist->next;
+		
+		free(cblist);
+		
+		pthread_mutex_unlock(&hintlock);
+		return 0;		
+	    }		
+    	    cbprev = cblist;				
+	    cblist = cblist->next;
+	}
+	list = list->next;
+    }
+    
+    pthread_mutex_unlock(&hintlock);
+    return -1;
+}
+
+static int ast_add_hint(struct ast_exten *e)
+{
+    struct ast_hint *list;
+
+    if (!e) return -1;
+    
+    pthread_mutex_lock(&hintlock);
+    list = hints;        
+    
+    /* Search if hint exists, do nothing */
+    while (list) {
+	if (list->exten == e) {
+	    pthread_mutex_unlock(&hintlock);
+	    return -1;
+	}
+	list = list->next;    
+    }
+
+    list = malloc(sizeof(struct ast_hint));
+    if (!list) {
+	pthread_mutex_unlock(&hintlock);
+	return -1;
+    }
+    /* Initialize and insert new item */
+    memset(list, 0, sizeof(struct ast_hint));
+    list->exten = e;
+    list->laststate = ast_extension_state2(e);
+    list->next = hints;
+    hints = list;
+
+    pthread_mutex_unlock(&hintlock);
+    return 0;
+}
+
+static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
+{ 
+    struct ast_hint *list;
+
+    pthread_mutex_lock(&hintlock);
+    
+    list = hints;
+    
+    while(list) {
+	if (list->exten == oe) {
+	    list->exten = ne;
+	    pthread_mutex_unlock(&hintlock);	
+	    return 0;
+	}
+	list = list->next;
+    }
+    pthread_mutex_unlock(&hintlock);
+
+    return -1;
+}
+
+static int ast_remove_hint(struct ast_exten *e)
 {
     /* Cleanup the Notifys if hint is removed */
-    struct ast_notify *list, *prev = NULL;
-    struct ast_notify_cb *cblist, *cbprev;
+    struct ast_hint *list, *prev = NULL;
+    struct ast_state_cb *cblist, *cbprev;
 
-    pthread_mutex_lock(&notifylock);
+    if (!e) 
+	return -1;
 
-    list = notifys;    
+    pthread_mutex_lock(&hintlock);
+
+    list = hints;    
     while(list) {
 	if (list->exten==e) {
 	    cbprev = NULL;
 	    cblist = list->callbacks;
-	    while (cblist) {	    
+	    while (cblist) {
+		/* Notify with -1 and remove all callbacks */
 		cbprev = cblist;	    
 		cblist = cblist->next;
-		cblist->callback(list->exten->parent->name, list->exten->exten, -1, cblist->data);
+		cbprev->callback(list->exten->parent->name, list->exten->exten, -1, cbprev->data);
 		free(cbprev);
 	    }
 	    list->callbacks = NULL;
 
-	    if (!prev) {
-		notifys = list->next;
-		free(list);
-		list = notifys;
-	    } else {
+	    if (!prev)
+		hints = list->next;
+	    else
 		prev->next = list->next;
-		free(list);
-		list = prev->next;
-	    }
+
+	    free(list);
+	    
+	    pthread_mutex_unlock(&hintlock);
+	    return 0;
 	} else {
 	    prev = list;
     	    list = list->next;    
 	}
     }
 
-    pthread_mutex_unlock(&notifylock);
-    return 1;
+    pthread_mutex_unlock(&hintlock);
+    return -1;
 }
 
-int ast_extension_state_del(int id)
-{
-    struct ast_notify *list, *prev = NULL;
-    struct ast_notify_cb *cblist, *cbprev;
-    int res = -1;
-            
-    pthread_mutex_lock(&notifylock);
-
-    list = notifys;
-    while (list) {
-	cblist = list->callbacks;
-	cbprev = NULL;
-	while (cblist) {
-	    if (cblist->id==id) {
-		if (!cbprev) {
-		    list->callbacks = cblist->next;		
-		    free(cblist);
-		    cblist = list->callbacks;
-		} else {
-		    cbprev->next = cblist->next;
-		    free(cblist);
-		    cblist = cbprev->next;
-		}
-		
-		if (!list->callbacks) {
-		    if (!prev) {
-			notifys = list->next;
-			free(list);
-			list = notifys;
-		    } else {
-			prev->next = list->next;
-			free(list);
-			list = prev->next;
-		    }
-		}
-		res = 0;
-		break;
-	    } else {
-    		cbprev = cblist;				
-		cblist = cblist->next;
-	    }
-	}
-
-	// we can have only one item
-	if (cblist || !list)
-	    break;	    
-	    
-	prev = list;
-	list = list->next;
-    }
-    
-    pthread_mutex_unlock(&notifylock);
-    return res;
-}
 
 int ast_get_hint(char *hint, int maxlen, struct ast_channel *c, char *context, char *exten)
 {
@@ -1867,7 +1973,7 @@ int ast_context_remove_extension2(struct ast_context *con, char *extension, int 
 					exten = peer->peer;
 					
 					if (!peer->priority==PRIORITY_HINT) 
-					    ast_extension_state_clean(peer);
+					    ast_remove_hint(peer);
 
 					peer->datad(peer->data);
 					free(peer);
@@ -1914,7 +2020,7 @@ int ast_context_remove_extension2(struct ast_context *con, char *extension, int 
 
 						/* now, free whole priority extension */
 						if (peer->priority==PRIORITY_HINT)
-						    ast_extension_state_clean(peer);
+						    ast_remove_hint(peer);
 						peer->datad(peer->data);
 						free(peer);
 
@@ -3337,10 +3443,14 @@ int ast_add_extension2(struct ast_context *con,
 							tmp->next = e->next;
 							tmp->peer = e->peer;
 						}
+						if (tmp->priority == PRIORITY_HINT)
+						    ast_change_hint(e,tmp);
 						/* Destroy the old one */
 						e->datad(e->data);
 						free(e);
 						ast_pthread_mutex_unlock(&con->lock);
+						if (tmp->priority == PRIORITY_HINT)
+						    ast_change_hint(e, tmp);
 						/* And immediately return success. */
 						LOG;
 						return 0;
@@ -3373,6 +3483,9 @@ int ast_add_extension2(struct ast_context *con,
 					}
 					ast_pthread_mutex_unlock(&con->lock);
 					/* And immediately return success. */
+					if (tmp->priority == PRIORITY_HINT)
+					    ast_add_hint(tmp);
+					
 					LOG;
 					return 0;
 				}
@@ -3383,6 +3496,9 @@ int ast_add_extension2(struct ast_context *con,
 			   ep *must* be defined or we couldn't have gotten here. */
 			ep->peer = tmp;
 			ast_pthread_mutex_unlock(&con->lock);
+			if (tmp->priority == PRIORITY_HINT)
+			    ast_add_hint(tmp);
+			
 			/* And immediately return success. */
 			LOG;
 			return 0;
@@ -3399,6 +3515,9 @@ int ast_add_extension2(struct ast_context *con,
 				con->root = tmp;
 			}
 			ast_pthread_mutex_unlock(&con->lock);
+			if (tmp->priority == PRIORITY_HINT)
+			    ast_add_hint(tmp);
+
 			/* And immediately return success. */
 			LOG;
 			return 0;
@@ -3413,6 +3532,8 @@ int ast_add_extension2(struct ast_context *con,
 	else
 		con->root = tmp;
 	ast_pthread_mutex_unlock(&con->lock);
+	if (tmp->priority == PRIORITY_HINT)
+	    ast_add_hint(tmp);
 	LOG;
 	return 0;	
 }
@@ -3647,11 +3768,19 @@ int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *
 	return res;
 }
 
+static void destroy_exten(struct ast_exten *e)
+{
+	if (e->datad)
+		e->datad(e->data);
+	free(e);
+}
+
 void ast_context_destroy(struct ast_context *con, char *registrar)
 {
 	struct ast_context *tmp, *tmpl=NULL;
 	struct ast_include *tmpi, *tmpil= NULL;
 	struct ast_sw *sw, *swl= NULL;
+	struct ast_exten *e, *el, *en;
 	ast_pthread_mutex_lock(&conlock);
 	tmp = contexts;
 	while(tmp) {
@@ -3682,6 +3811,21 @@ void ast_context_destroy(struct ast_context *con, char *registrar)
 				sw = sw->next;
 				free(swl);
 				swl = sw;
+			}
+			for (e = tmp->root; e; ) {
+			    if (e->priority == PRIORITY_HINT)
+				ast_remove_hint(e);
+			    e = e->next;
+			}
+			for (e = tmp->root; e;) {
+				for (en = e->peer; en;) {
+					el = en;
+					en = en->peer;
+					destroy_exten(el);
+				}
+				el = e;
+				e = e->next;
+				destroy_exten(el);
 			}
 			free(tmp);
 			if (!con) {

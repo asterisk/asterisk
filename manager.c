@@ -425,7 +425,24 @@ static int action_mailboxstatus(struct mansession *s, struct message *m)
 		return 0;
 	}
 	astman_send_ack(s, "Mailbox status will follow");
-	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting:%d\r\n", mailbox, ast_app_has_voicemail(mailbox));
+	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", mailbox, ast_app_has_voicemail(mailbox));
+	return 0;
+}
+
+static int action_extensionstate(struct mansession *s, struct message *m)
+{
+	char *exten = astman_get_header(m, "Exten");
+	char *context = astman_get_header(m, "Context");
+	int status;
+	if (!exten || !strlen(exten)) {
+		astman_send_error(s, "Extension not specified");
+		return 0;
+	}
+	if (!context || !strlen(context))
+		context = "default";
+	astman_send_ack(s, "Extension status will follow");
+	status = ast_extension_state(NULL, context, exten);
+	manager_event(EVENT_FLAG_CALL, "ExtensionStatus", "Exten: %s\r\nContext: %s\r\nStatus: %d\r\n", exten, context, status);
 	return 0;
 }
 
@@ -710,6 +727,7 @@ int init_manager(void)
 		ast_manager_register( "Originate", EVENT_FLAG_CALL, action_originate, "Originate Call" );
 		ast_manager_register( "MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox" );
 		ast_manager_register( "Command", EVENT_FLAG_COMMAND, action_command, "Execute Command" );
+		ast_manager_register( "ExtensionState", EVENT_FLAG_CALL, action_extensionstate, "Check Extension Status" );
 
 		ast_cli_register(&show_mancmds_cli);
 		ast_cli_register(&show_manconn_cli);

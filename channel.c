@@ -1496,8 +1496,6 @@ int ast_device_state(char *device)
 		}
 		chanls = chanls->next;
 	}
-	if (!chanls)
-		ast_log(LOG_WARNING, "No channel type registered for '%s'\n", tech);
 	PTHREAD_MUTEX_UNLOCK(&chlock);
 	return AST_DEVICE_INVALID;
 }

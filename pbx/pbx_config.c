@@ -1084,13 +1084,15 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 		cidmatch = NULL;
 	}
 	prior       = strsep(&whole_exten,",");
-	if (!strcmp(prior, "hint")) {
-	    iprior = PRIORITY_HINT;
-	} else {
-	    iprior = atoi(prior);
+	if (prior) {
+    		if (!strcmp(prior, "hint")) {
+			iprior = PRIORITY_HINT;
+		} else {
+			iprior = atoi(prior);
+		}
 	}
 	app         = strsep(&whole_exten,",");
-	if ((start = strchr(app, '(')) && (end = strrchr(app, ')'))) {
+	if (app && (start = strchr(app, '(')) && (end = strrchr(app, ')'))) {
 		*start = *end = '\0';
 		app_data = start + 1;
 		for (start = app_data; *start; start++)

@@ -24,6 +24,7 @@ PhoneJack and Linejack card to the project.  (http://www.quicknet.net)
 === MISCELLANEOUS PATCHES ===
 James Golovich - Innumerable contributions
        You can find him and asterisk-perl at http://asterisk.gnuinter.net
+Andre Bierwirth - Extension hints and status
 Oliver Daudey - ISDN4Linux fixes
 Pauline Middelink - ISDN4Linux patches and some general patches.
        She can be found at http://www.polyware.nl/~middelink/En/
