@@ -212,6 +212,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, int make, int 
 			memset(cnf, 0, sizeof(struct ast_conference));
 			strncpy(cnf->confno, confno, sizeof(cnf->confno) - 1);
 			strncpy(cnf->pin, pin, sizeof(cnf->pin) - 1);
+			cnf->markedusers = -1;
 			cnf->chan = ast_request("zap", AST_FORMAT_ULAW, "pseudo");
 			if (cnf->chan) {
 				cnf->fd = cnf->chan->fds[0];	/* for use by conf_play() */
@@ -279,8 +280,8 @@ static int conf_cmd(int fd, int argc, char **argv) {
 	int hr, min, sec;
 	int i = 0, total = 0;
 	time_t now;
-	char *header_format = "%-14s %-14s %-8s  %-8s\n";
-	char *data_format = "%-12.12s   %4.4d	   %02d:%02d:%02d  %-8s\n";
+	char *header_format = "%-14s %-14s %-10s %-8s  %-8s\n";
+	char *data_format = "%-12.12s   %4.4d	      %4.4s       %02d:%02d:%02d  %-8s\n";
 	char cmdline[1024] = "";
 
 	if (argc > 8)
@@ -298,16 +299,17 @@ static int conf_cmd(int fd, int argc, char **argv) {
 		ast_cli(fd, "No active MeetMe conferences.\n");
 		return RESULT_SUCCESS;
 	}
-	ast_cli(fd, header_format, "Conf Num", "Parties", "Activity", "Creation");
+	ast_cli(fd, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation");
 		while(cnf) {
+			if (cnf->markedusers < 0)
+				strcpy(cmdline, "N/A ");
+			else 
+				snprintf(cmdline, sizeof(cmdline), "%4.4d", cnf->markedusers);
 			hr = (now - cnf->start) / 3600;
 			min = ((now - cnf->start) % 3600) / 60;
 			sec = (now - cnf->start) % 60;
 
-			if (cnf->isdynamic)
-				ast_cli(fd, data_format, cnf->confno, cnf->users, hr, min, sec, "Dynamic");
-			else
-				ast_cli(fd, data_format, cnf->confno, cnf->users, hr, min, sec, "Static");
+			ast_cli(fd, data_format, cnf->confno, cnf->users, cmdline, hr, min, sec, cnf->isdynamic ? "Dynamic" : "Static");
 
 			total += cnf->users; 	
 			cnf = cnf->next;
@@ -705,8 +707,8 @@ zapretry:
 			}
 			
 			/* Leave if the last marked user left */
-			if ((confflags & CONFFLAG_ADMINEXIT) && (conf->markedusers == 0)) {
-				ret = 0;
+			if (conf->markedusers == 0) {
+				ret = -1;
 				break;
 			}
 	
@@ -915,6 +917,8 @@ outrun:
 			chan->name, chan->uniqueid, conf->confno);
 		prev = NULL;
 		conf->users--;
+		if (confflags & CONFFLAG_ADMINEXIT) 
+			conf->markedusers--;
 		cur = confs;
 		if (!conf->users) {
 			/* No more users -- close this one out */
