@@ -3669,7 +3669,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 		ast_callerid_parse(cid, &n, &l);
 		if (l) 
 			ast_shrink_phone_number(l);
-		if (!l || !ast_isphonenumber(l))
+		if ((!l || !ast_isphonenumber(l)) && default_callerid[0])
 				l = default_callerid;
 	}
 	/* if user want's his callerid restricted */
