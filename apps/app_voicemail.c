@@ -11,6 +11,7 @@
  * the GNU General Public License
  */
 
+#include <asterisk/lock.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -267,7 +268,7 @@ static int base_encode(char *filename, FILE *so)
 	return 1;
 }
 
-static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *mailbox, char *callerid, char *attach, char *format)
+static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *mailbox, char *callerid, char *attach, char *format, long duration)
 {
 	FILE *p;
 	char date[256];
@@ -275,6 +276,7 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 	char who[256];
 	char bound[256];
 	char fname[256];
+	char dur[256];
 	time_t t;
 	struct tm *tm;
 	p = popen(SENDMAIL, "w");
@@ -286,6 +288,7 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 			gethostname(host, sizeof(host));
 			snprintf(who, sizeof(who), "%s@%s", srcemail, host);
 		}
+		snprintf(dur, sizeof(dur), "%ld:%02ld", duration, duration % 60);
 		time(&t);
 		tm = localtime(&t);
 		strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", tm);
@@ -304,14 +307,14 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 		fprintf(p, "--%s\n", bound);
 		fprintf(p, "Content-Type: TEXT/PLAIN; charset=US-ASCII\n\n");
 		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", tm);
-		fprintf(p, "Dear %s:\n\n\tJust wanted to let you know you were just left a message (number %d)\n"
+		fprintf(p, "Dear %s:\n\n\tJust wanted to let you know you were just left a %s long message (number %d)\n"
 
 		           "in mailbox %s from %s, on %s so you might\n"
 				   "want to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n\n", name, 
-			msgnum, mailbox, (callerid ? callerid : "an unknown caller"), date);
+			dur, msgnum, mailbox, (callerid ? callerid : "an unknown caller"), date);
 
 		fprintf(p, "--%s\n", bound);
-		fprintf(p, "Content-Type: TEXT/PLAIN; charset=US-ASCII; name=\"msg%04d\"\n", msgnum);
+		fprintf(p, "Content-Type: audio/x-wav; name=\"msg%04d\"\n", msgnum);
 		fprintf(p, "Content-Transfer-Encoding: BASE64\n");
 		fprintf(p, "Content-Description: Voicemail sound attachment.\n");
 		fprintf(p, "Content-Disposition: attachment; filename=\"msg%04d.%s\"\n\n", msgnum, format);
@@ -339,15 +342,26 @@ static int get_date(char *s, int len)
 static int invent_message(struct ast_channel *chan, char *ext, int busy)
 {
 	int res;
-	res = ast_streamfile(chan, "vm-theperson", chan->language);
-	if (res)
-		return -1;
-	res = ast_waitstream(chan, "#");
-	if (res)
-		return res;
-	res = ast_say_digit_str(chan, ext, "#", chan->language);
-	if (res)
-		return res;
+	char fn[256];
+	snprintf(fn, sizeof(fn), "vm/%s/greet", ext);
+	if (ast_fileexists(fn, NULL, NULL) > 0) {
+		res = ast_streamfile(chan, fn, chan->language);
+		if (res)
+			return -1;
+		res = ast_waitstream(chan, "#");
+		if (res)
+			return res;
+	} else {
+		res = ast_streamfile(chan, "vm-theperson", chan->language);
+		if (res)
+			return -1;
+		res = ast_waitstream(chan, "#");
+		if (res)
+			return res;
+		res = ast_say_digit_str(chan, ext, "#", chan->language);
+		if (res)
+			return res;
+	}
 	if (busy)
 		res = ast_streamfile(chan, "vm-isonphone", chan->language);
 	else
@@ -377,6 +391,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	char fn[256];
 	char prefile[256]="";
 	char *astemail;
+	time_t start;
+	time_t end;
 
 	cfg = ast_load(VOICEMAIL_CONFIG);
 	if (!cfg) {
@@ -422,7 +438,11 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		if (silent == '#') {
 			if (!ast_streamfile(chan, "beep", chan->language) < 0)
 				silent = 1;
-			ast_waitstream(chan, "");
+			if (ast_waitstream(chan, "") <0) {
+				ast_log(LOG_DEBUG, "Hangup during beep\n");
+				free(copy);
+				return -1;
+			}
 		}
 		/* Stream an info message */
 		if (silent || !ast_streamfile(chan, INTRO, chan->language)) {
@@ -450,9 +470,10 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 					if (writer) {
 						/* Store information */
 						snprintf(txtfile, sizeof(txtfile), "%s.txt", fn);
-						txt = fopen(txtfile, "w+");
+ 						txt = fopen(txtfile, "w+");
 						if (txt) {
 							get_date(date, sizeof(date));
+							time(&start);
 							fprintf(txt, 
 "#\n"
 "# Message Information file\n"
@@ -572,8 +593,14 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 								ast_streamfile(chan, "vm-msgsaved", chan->language);
 								ast_waitstream(chan, "");
 							}
+							txt = fopen(txtfile, "a");
+							if (txt) {
+								time(&end);
+								fprintf(txt, "duration=%ld\n", end-start);
+								fclose(txt);
+							}
 							/* Send e-mail if applicable */
-								sendmail(astemail, email, name, msgnum, ext, chan->callerid, fn, wavother ? "wav" : fmts);
+								sendmail(astemail, email, name, msgnum, ext, chan->callerid, fn, wavother ? "wav" : fmts, end - start);
 						}
 					} else {
 						if (msgnum < MAXMSG)
@@ -873,12 +900,12 @@ static void adsi_login(struct ast_channel *chan)
 {
 	char buf[256];
 	int bytes=0;
-	unsigned char keys[6];
+	unsigned char keys[8];
 	int x;
 	if (!adsi_available(chan))
 		return;
 
-	for (x=0;x<6;x++)
+	for (x=0;x<8;x++)
 		keys[x] = 0;
 	/* Set one key for next */
 	keys[3] = ADSI_KEY_APPS + 3;
@@ -899,12 +926,12 @@ static void adsi_password(struct ast_channel *chan)
 {
 	char buf[256];
 	int bytes=0;
-	unsigned char keys[6];
+	unsigned char keys[8];
 	int x;
 	if (!adsi_available(chan))
 		return;
 
-	for (x=0;x<6;x++)
+	for (x=0;x<8;x++)
 		keys[x] = 0;
 	/* Set one key for next */
 	keys[3] = ADSI_KEY_APPS + 3;
@@ -920,7 +947,7 @@ static void adsi_folders(struct ast_channel *chan, int start, char *label)
 {
 	char buf[256];
 	int bytes=0;
-	unsigned char keys[6];
+	unsigned char keys[8];
 	int x,y;
 
 	if (!adsi_available(chan))
@@ -933,6 +960,8 @@ static void adsi_folders(struct ast_channel *chan, int start, char *label)
 		keys[x] = ADSI_KEY_SKT | y;
 	}
 	keys[5] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 17);
+	keys[6] = 0;
+	keys[7] = 0;
 
 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 1, ADSI_JUST_CENT, 0, label, "");
 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 2, ADSI_JUST_CENT, 0, " ", "");
@@ -952,7 +981,7 @@ static void adsi_message(struct ast_channel *chan, char *folder, int msg, int la
 	char datetime[21]="";
 	FILE *f;
 
-	unsigned char keys[6];
+	unsigned char keys[8];
 
 	int x;
 
@@ -981,6 +1010,8 @@ static void adsi_message(struct ast_channel *chan, char *folder, int msg, int la
 	/* New meaning for keys */
 	for (x=0;x<5;x++)
 		keys[x] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 6 + x);
+	keys[6] = 0x0;
+	keys[7] = 0x0;
 
 	if (!msg) {
 		/* No prev key, provide "Folder" instead */
@@ -1027,7 +1058,7 @@ static void adsi_delete(struct ast_channel *chan, int msg, int last, int deleted
 {
 	int bytes=0;
 	char buf[256];
-	unsigned char keys[6];
+	unsigned char keys[8];
 
 	int x;
 
@@ -1037,6 +1068,9 @@ static void adsi_delete(struct ast_channel *chan, int msg, int last, int deleted
 	/* New meaning for keys */
 	for (x=0;x<5;x++)
 		keys[x] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 6 + x);
+
+	keys[6] = 0x0;
+	keys[7] = 0x0;
 
 	if (!msg) {
 		/* No prev key, provide "Folder" instead */
@@ -1067,7 +1101,7 @@ static void adsi_status(struct ast_channel *chan, int new, int old, int lastmsg)
 {
 	char buf[256], buf1[256], buf2[256];
 	int bytes=0;
-	unsigned char keys[6];
+	unsigned char keys[8];
 	int x;
 
 	char *newm = (new == 1) ? "message" : "messages";
@@ -1095,6 +1129,8 @@ static void adsi_status(struct ast_channel *chan, int new, int old, int lastmsg)
 
 	for (x=0;x<6;x++)
 		keys[x] = ADSI_KEY_SKT | (ADSI_KEY_APPS + x);
+	keys[6] = 0;
+	keys[7] = 0;
 
 	/* Don't let them listen if there are none */
 	if (lastmsg < 0)
@@ -1108,7 +1144,7 @@ static void adsi_status2(struct ast_channel *chan, char *folder, int messages)
 {
 	char buf[256], buf1[256], buf2[256];
 	int bytes=0;
-	unsigned char keys[6];
+	unsigned char keys[8];
 	int x;
 
 	char *mess = (messages == 1) ? "message" : "messages";
@@ -1119,6 +1155,9 @@ static void adsi_status2(struct ast_channel *chan, char *folder, int messages)
 	/* Original command keys */
 	for (x=0;x<6;x++)
 		keys[x] = ADSI_KEY_SKT | (ADSI_KEY_APPS + x);
+
+	keys[6] = 0;
+	keys[7] = 0;
 
 	if (messages < 1)
 		keys[0] = 0;
@@ -1321,6 +1360,131 @@ forward_message(struct ast_channel *chan, struct ast_config *cfg, char *dir, int
 	snprintf(vmbox, sizeof(vmbox), "vm-%s", curbox); \
 } while (0)
 
+static int play_and_record(struct ast_channel *chan, char *playfile, char *recordfile)
+{
+	char d, *fmt, *fmts;
+	char comment[256];
+	int x,y, fmtcnt=1, res=-1,outmsg=0, wavother=0;
+	struct ast_frame *f;
+	struct ast_config *cfg;
+	struct ast_filestream *writer=NULL, *others[MAX_OTHER_FORMATS];
+	char *sfmt[MAX_OTHER_FORMATS];
+	
+	ast_log(LOG_DEBUG,"play_and_record: %s, %s\n", playfile, recordfile);
+	snprintf(comment,sizeof(comment),"Playing %s, Recording to: %s on %s\n", playfile, recordfile, chan->name);
+	
+	d = play_and_wait(chan, playfile);
+	if (d < 0)
+		return -1;
+	ast_streamfile(chan, "beep",chan->language);
+	ast_waitstream(chan,"");
+	cfg = ast_load(VOICEMAIL_CONFIG);
+	
+	fmt = ast_variable_retrieve(cfg, "general", "format");
+	ast_log(LOG_DEBUG,"Recording Formats: fmt=%s\n", fmt);	
+	
+	fmts = strdup(fmt);
+	
+	ast_destroy(cfg);
+
+	strtok(fmts, "|");
+	ast_log(LOG_DEBUG,"Recording Formats: sfmts=%s\n", fmts);	
+	sfmt[0] = strdup(fmts);
+	
+	while((fmt = strtok(NULL, "|"))) {
+		if (fmtcnt > MAX_OTHER_FORMATS - 1) {
+			ast_log(LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app_voicemail.c\n");
+			break;
+			}
+		sfmt[fmtcnt++] = strdup(fmt);
+		}
+
+	for (x=0;x<fmtcnt;x++) {
+		others[x] = ast_writefile(recordfile, sfmt[x], comment, 0, 0, 0700);
+		ast_verbose( VERBOSE_PREFIX_3 "x=%i, open writing:  %s format: %s\n", x, recordfile, sfmt[x]);
+			
+		if (!others[x]) {
+		/* Ick, the other format didn't work, but be sure not
+		   to leak memory here */
+			int y;
+			for(y=x+1;y < fmtcnt;y++)
+			free(sfmt[y]);
+			break;
+			}
+ 		if(!strcasecmp(sfmt[x], "wav"))
+			wavother++;
+			free(sfmt[x]);
+			}
+		if (x == fmtcnt) {
+		/* Loop forever, writing the packets we read to the writer(s), until
+		   we read a # or get a hangup */
+			f = NULL;
+			for(;;) {
+			 	res = ast_waitfor(chan, 2000);
+				if (!res) {
+					ast_log(LOG_WARNING, "No audio available on %s??\n", chan->name);
+					res = -1;
+					}
+				
+				if (res < 0) {
+					f = NULL;
+					break;
+					}
+
+				f = ast_read(chan);
+				if (!f)
+					break;
+				if (f->frametype == AST_FRAME_VOICE) {
+					/* write each format */
+					for (x=0;x<fmtcnt;x++) {
+						res = ast_writestream(others[x], f);
+						}
+					ast_frfree(f);
+					/* Exit on any error */
+					if (res) {
+						ast_log(LOG_WARNING, "Error writing frame\n");
+						break;
+						}
+					}
+				if (f->frametype == AST_FRAME_DTMF) {
+					if (f->subclass == '#') {
+						if (option_verbose > 2) 
+							ast_verbose( VERBOSE_PREFIX_3 "User ended message by pressing %c\n", f->subclass);
+						outmsg=2;
+						break;
+						}
+					}
+				}
+			if (!f) {
+				if (option_verbose > 2) 
+					ast_verbose( VERBOSE_PREFIX_3 "User hung up\n");
+				res = -1;
+				outmsg=1;
+				}
+			} else {
+				ast_log(LOG_WARNING, "Error creating writestream '%s', format '%s'\n", recordfile, sfmt[x]); 
+				free(sfmt[x]);
+				}
+
+			for (x=0;x<fmtcnt;x++) {
+				if (!others[x])
+					break;
+				ast_closestream(others[x]);
+				}
+			if (outmsg) {
+				if (outmsg > 1) {
+				/* Let them know it worked */
+					ast_streamfile(chan, "vm-msgsaved", chan->language);
+					ast_waitstream(chan, "");
+				}
+		}	
+
+	
+	return 0;
+}
+
+
+
 
 static int vm_execmain(struct ast_channel *chan, void *data)
 {
@@ -1338,6 +1502,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	char vmbox[256];
 	char fn[256];
 	char fn2[256];
+	char prefile[256]="";
 	int x;
 	char ntxt[256];
 	char txt[256];
@@ -1608,6 +1773,10 @@ cmd:
 			play_and_wait(chan, "vm-goodbye");
 			res = 0;
 			goto out2;
+
+		case '0':
+			goto vm_options;
+
 		default:
 			goto instructions;
 		}
@@ -1621,9 +1790,37 @@ out2:
 		ast_destroy(cfg);
 	if (useadsi)
 		adsi_unload_session(chan);
-	adsi_channel_init(chan);
 	LOCAL_USER_REMOVE(u);
 	return res;
+
+vm_options:
+	d = play_and_wait(chan,"vm-options");
+	if (!d)
+		d = ast_waitfordigit(chan,6000);
+	if (d < 0)
+		goto out;
+	switch (d) {
+		
+		case '1':
+			snprintf(prefile,sizeof(prefile),"vm/%s/unavail",username);
+			play_and_record(chan,"vm-rec-unv",prefile);
+			break;
+		case '2': 
+			snprintf(prefile,sizeof(prefile),"vm/%s/busy",username);
+			play_and_record(chan,"vm-rec-busy",prefile);
+			break;
+		case '3': 
+			snprintf(prefile,sizeof(prefile),"vm/%s/name",username);
+			play_and_record(chan,"vm-rec-name",prefile);
+			break;
+		
+		case '*': 
+			goto instructions;
+
+		default: 
+			goto vm_options;
+		 }
+	goto vm_options;
 }
 
 static int vm_exec(struct ast_channel *chan, void *data)
