@@ -47,12 +47,11 @@ static int
 lookupcidname_exec (struct ast_channel *chan, void *data)
 {
   char dbname[64];
-  char shrunknum[64] = "";
   struct localuser *u;
 
   LOCAL_USER_ADD (u);
   if (chan->cid.cid_num) {
-	if (!ast_db_get ("cidname", shrunknum, dbname, sizeof (dbname))) {
+	if (!ast_db_get ("cidname", chan->cid.cid_num, dbname, sizeof (dbname))) {
 		ast_set_callerid (chan, NULL, dbname, NULL);
 		  if (option_verbose > 2)
 		    ast_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID name to %s\n",
