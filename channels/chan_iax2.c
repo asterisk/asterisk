@@ -360,6 +360,8 @@ struct chan_iax2_pvt {
 	unsigned int lastsent;
 	/* Next outgoing timestamp if everything is good */
 	unsigned int nextpred;
+	/* True if the last voice we transmitted was not silence/CNG */
+	int notsilenttx;
 	/* Ping time */
 	unsigned int pingtime;
 	/* Max time for initial response */
@@ -2805,6 +2807,18 @@ static unsigned int fix_peerts(struct timeval *tv, int callno, unsigned int ts)
 	return ms + ts;
 }
 
+static void add_ms(struct timeval *tv, int ms) {
+  tv->tv_usec += ms * 1000;
+  if(tv->tv_usec > 1000000) {
+      tv->tv_usec -= 1000000;
+      tv->tv_sec++;
+  }
+  if(tv->tv_usec < 0) {
+      tv->tv_usec += 1000000;
+      tv->tv_sec--;
+  }
+}
+
 static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, struct ast_frame *f)
 {
 	struct timeval tv;
@@ -2825,6 +2839,8 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 			delivery = &f->delivery;
 		} else if (f->frametype == AST_FRAME_IAX) {
 			genuine = 1;
+		} else if (f->frametype == AST_FRAME_CNG) {
+			p->notsilenttx = 0;	
 		}
 	}
 	if (!p->offset.tv_sec && !p->offset.tv_usec) {
@@ -2849,15 +2865,33 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 			ms = 0;
 		if (voice) {
 			/* On a voice frame, use predicted values if appropriate */
-			if (abs(ms - p->nextpred) <= MAX_TIMESTAMP_SKEW) {
+			if (p->notsilenttx && abs(ms - p->nextpred) <= MAX_TIMESTAMP_SKEW) {
+				/* Adjust our txcore, keeping voice and 
+					non-voice synchronized */
+				add_ms(&p->offset, (int)(ms - p->nextpred)/10);
+
 				if (!p->nextpred) {
 					p->nextpred = ms; /*f->samples / 8;*/
 					if (p->nextpred <= p->lastsent)
 						p->nextpred = p->lastsent + 3;
 				}
 				ms = p->nextpred;
-			} else
+			} else {
+			       /* in this case, just use the actual
+				* time, since we're either way off
+				* (shouldn't happen), or we're  ending a
+				* silent period -- and seed the next
+				* predicted time.  Also, round ms to the
+				* next multiple of frame size (so our
+				* silent periods are multiples of
+				* frame size too) */
+				int diff = ms % (f->samples / 8);
+				if(diff)
+				    ms += f->samples/8 - diff;
+
 				p->nextpred = ms;
+				p->notsilenttx = 1;
+			}
 		} else {
 			/* On a dataframe, use last value + 3 (to accomodate jitter buffer shrinking) if appropriate unless
 			   it's a genuine frame */
