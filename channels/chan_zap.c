@@ -6874,10 +6874,11 @@ static int pri_check_restart(struct zt_pri *pri)
 	return 0;
 }
 
-static int pri_hangup_all(struct zt_pvt *p)
+static int pri_hangup_all(struct zt_pvt *p, struct zt_pri *pri)
 {
 	int x;
 	int redo;
+	ast_mutex_unlock(&pri->lock);
 	ast_mutex_lock(&p->lock);
 	do {
 		redo = 0;
@@ -6895,6 +6896,7 @@ static int pri_hangup_all(struct zt_pvt *p)
 		}
 	} while (redo);
 	ast_mutex_unlock(&p->lock);
+	ast_mutex_lock(&pri->lock);
 	return 0;
 }
 
@@ -7160,7 +7162,7 @@ static void *pri_dchannel(void *vpri)
 									ast_log(LOG_WARNING, "The PRI Call have not been destroyed\n");
 							}
 							if (p->master) {
-								pri_hangup_all(p->master);
+								pri_hangup_all(p->master, pri);
 							} else if (p->owner)
 								p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							p->inalarm = 1;
@@ -7185,7 +7187,7 @@ static void *pri_dchannel(void *vpri)
 						}
 						/* Force soft hangup if appropriate */
 						if (pri->pvts[chanpos]->master) 
-							pri_hangup_all(pri->pvts[chanpos]->master);
+							pri_hangup_all(pri->pvts[chanpos]->master, pri);
 						else if (pri->pvts[chanpos]->owner)
 							pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
@@ -7201,7 +7203,7 @@ static void *pri_dchannel(void *vpri)
 								pri->pvts[x]->call = NULL;
 							}
 							if (pri->pvts[chanpos]->master) 
-								pri_hangup_all(pri->pvts[chanpos]->master);
+								pri_hangup_all(pri->pvts[chanpos]->master, pri);
  							else if (pri->pvts[x]->owner)
 								pri->pvts[x]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							ast_mutex_unlock(&pri->pvts[x]->lock);
@@ -7256,7 +7258,7 @@ static void *pri_dchannel(void *vpri)
 							ast_log(LOG_WARNING, "Ring requested on channel %d/%d already in use on span %d.  Hanging up owner.\n", 
 							PRI_SPAN(e->ring.channel), PRI_CHANNEL(e->ring.channel), pri->span);
 							if (pri->pvts[chanpos]->master) 
-								pri_hangup_all(pri->pvts[chanpos]->master);
+								pri_hangup_all(pri->pvts[chanpos]->master, pri);
 							else
 								pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							ast_mutex_unlock(&pri->pvts[chanpos]->lock);
@@ -7556,7 +7558,7 @@ static void *pri_dchannel(void *vpri)
 							/* we're calling here zt_hangup so once we get there we need to clear p->call after calling pri_hangup */
 							pri->pvts[chanpos]->alreadyhungup = 1;
 							if (pri->pvts[chanpos]->master) 
-								pri_hangup_all(pri->pvts[chanpos]->master);
+								pri_hangup_all(pri->pvts[chanpos]->master, pri);
 							else if (pri->pvts[chanpos]->owner) {
 								/* Queue a BUSY instead of a hangup if our cause is appropriate */
 								pri->pvts[chanpos]->owner->hangupcause = e->hangup.cause;
@@ -7612,7 +7614,7 @@ static void *pri_dchannel(void *vpri)
 					if (chanpos > -1) {
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						if (pri->pvts[chanpos]->master) 
-							pri_hangup_all(pri->pvts[chanpos]->master);
+							pri_hangup_all(pri->pvts[chanpos]->master, pri);
 						else if (pri->pvts[chanpos]->owner) {
 							pri->pvts[chanpos]->owner->hangupcause = e->hangup.cause;
 							switch(e->hangup.cause) {
@@ -7686,7 +7688,7 @@ static void *pri_dchannel(void *vpri)
 							ast_log(LOG_DEBUG, "Assuming restart ack is really for channel %d/%d span %d\n", pri->pvts[chanpos]->logicalspan, 
 									pri->pvts[chanpos]->prioffset, pri->span);
 							if (pri->pvts[chanpos]->master) 
-								pri_hangup_all(pri->pvts[chanpos]->master);
+								pri_hangup_all(pri->pvts[chanpos]->master, pri);
 							else if (pri->pvts[chanpos]->owner) {
 								ast_log(LOG_WARNING, "Got restart ack on channel %d/%d with owner on span %d\n", pri->pvts[chanpos]->logicalspan, 
 									pri->pvts[chanpos]->prioffset, pri->span);
@@ -7712,7 +7714,7 @@ static void *pri_dchannel(void *vpri)
 					if (pri->pvts[chanpos]) {
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						if (pri->pvts[chanpos]->master) 
-							pri_hangup_all(pri->pvts[chanpos]->master);
+							pri_hangup_all(pri->pvts[chanpos]->master, pri);
 						else if (pri->pvts[chanpos]->owner) {
 							ast_log(LOG_WARNING, "Got restart ack on channel %d/%d span %d with owner\n",
 								PRI_SPAN(e->restartack.channel), PRI_CHANNEL(e->restartack.channel), pri->span);
