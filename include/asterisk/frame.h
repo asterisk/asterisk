@@ -362,13 +362,13 @@ extern void ast_smoother_free(struct ast_smoother *s);
 extern void ast_smoother_reset(struct ast_smoother *s, int bytes);
 extern int __ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f, int swap);
 extern struct ast_frame *ast_smoother_read(struct ast_smoother *s);
-#define ast_smoother_feed(s,f) do { __ast_smoother_feed(s, f, 0); } while(0)
+#define ast_smoother_feed(s,f) __ast_smoother_feed(s, f, 0)
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-#define ast_smoother_feed_be(s,f) do { __ast_smoother_feed(s, f, 1); } while(0)
-#define ast_smoother_feed_le(s,f) do { __ast_smoother_feed(s, f, 0); } while(0)
+#define ast_smoother_feed_be(s,f) __ast_smoother_feed(s, f, 1)
+#define ast_smoother_feed_le(s,f) __ast_smoother_feed(s, f, 0)
 #else
-#define ast_smoother_feed_be(s,f) do { __ast_smoother_feed(s, f, 0); } while(0)
-#define ast_smoother_feed_le(s,f) do { __ast_smoother_feed(s, f, 1); } while(0)
+#define ast_smoother_feed_be(s,f) __ast_smoother_feed(s, f, 0)
+#define ast_smoother_feed_le(s,f) __ast_smoother_feed(s, f, 1)
 #endif
 
 extern void ast_frame_dump(char *name, struct ast_frame *f, char *prefix);
