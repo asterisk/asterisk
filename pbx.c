@@ -160,6 +160,7 @@ static int pbx_builtin_rtimeout(struct ast_channel *, void *);
 static int pbx_builtin_atimeout(struct ast_channel *, void *);
 static int pbx_builtin_wait(struct ast_channel *, void *);
 static int pbx_builtin_setlanguage(struct ast_channel *, void *);
+static int pbx_builtin_setaccount(struct ast_channel *, void *);
 static int pbx_builtin_ringing(struct ast_channel *, void *);
 static int pbx_builtin_congestion(struct ast_channel *, void *);
 static int pbx_builtin_busy(struct ast_channel *, void *);
@@ -182,24 +183,35 @@ static struct pbx_builtin {
 } builtins[] = 
 {
 	/* These applications are built into the PBX core and do not
-	   need separate modules */
+	   need separate modules
+	   
+	    */
+
+	{ "AbsoluteTimeout", pbx_builtin_atimeout,
+"Set absolute maximum time of call",
+"  AbsoluteTimeout(seconds): Set the absolute maximum amount of time permitted\n"
+"for a call.  A setting of 0 disables the timeout.  Always returns 0.\n" },
+
 	{ "Answer", pbx_builtin_answer, 
 "Answer a channel if ringing", 
 "  Answer(): If the channel is ringing, answer it, otherwise do nothing. \n"
 "Returns 0 unless it tries to answer the channel and fails.\n"   },
 
-	{ "Goto", pbx_builtin_goto, 
-"Goto a particular priority, extension, or context",
-"  Goto([[context|]extension|]priority):  Set the  priority to the specified\n"
-"value, optionally setting the extension and optionally the context as well.\n"
-"The extension BYEXTENSION is special in that it uses the current extension,\n"
-"thus  permitting  you  to go to a different  context, without  specifying a\n"
-"specific extension. Always returns 0, even if the given context, extension,\n"
-"or priority is invalid.\n" },
+	{ "BackGround", pbx_builtin_background,
+"Play a file while awaiting extension",
+"  Background(filename): Plays a given file, while simultaneously waiting for\n"
+"the user to begin typing an extension. The  timeouts  do not count until the\n"
+"last BackGround application as ended. Always returns 0.\n" },
 
-	{ "Hangup", pbx_builtin_hangup,
-"Unconditional hangup",
-"  Hangup(): Unconditionally hangs up a given channel by returning -1 always.\n" },
+	{ "Busy", pbx_builtin_busy,
+"Indicate busy condition and stop",
+"  Busy(): Requests that the channel indicate busy condition and then waits\n"
+"for the user to hang up.  Always returns -1." },
+
+	{ "Congestion", pbx_builtin_congestion,
+"Indicate congestion and stop",
+"  Congestion(): Requests that the channel indicate congestion and then\n"
+"waits for the user to hang up.  Always returns -1." },
 
 	{ "DigitTimeout", pbx_builtin_dtimeout,
 "Set maximum timeout between digits",
@@ -212,39 +224,29 @@ static struct pbx_builtin {
 "(and  thus  control  would be passed to the 'i' extension, or if it doesn't\n"
 "exist the call would be terminated).  Always returns 0.\n" },
 
-	{ "ResponseTimeout", pbx_builtin_rtimeout,
-"Set maximum timeout awaiting response",
-"  ResponseTimeout(seconds): Set the maximum amount of time permitted after\n"
-"falling through a series of priorities for a channel in which the user may\n"
-"begin typing an extension.  If the user does not type an extension in this\n"
-"amount of time, control will pass to the 't' extension if  it  exists, and\n"
-"if not the call would be terminated.  Always returns 0.\n"  },
+	{ "Goto", pbx_builtin_goto, 
+"Goto a particular priority, extension, or context",
+"  Goto([[context|]extension|]priority):  Set the  priority to the specified\n"
+"value, optionally setting the extension and optionally the context as well.\n"
+"The extension BYEXTENSION is special in that it uses the current extension,\n"
+"thus  permitting  you  to go to a different  context, without  specifying a\n"
+"specific extension. Always returns 0, even if the given context, extension,\n"
+"or priority is invalid.\n" },
 
-	{ "AbsoluteTimeout", pbx_builtin_atimeout,
-"Set absolute maximum time of call",
-"  AbsoluteTimeout(seconds): Set the absolute maximum amount of time permitted\n"
-"for a call.  A setting of 0 disables the timeout.  Always returns 0.\n" },
+	{ "GotoIf", pbx_builtin_gotoif,
+"Conditional goto",
+"  GotoIf(Condition?label1:label2): Go to label 1 if condition is\n"
+"true, to label2 if condition is false. Either label1 or label2 may be\n"
+"omitted (in that case, we just don't take the particular branch) but not\n"
+"both.  Look for the condition syntax in examples or documentation." },
 
-	{ "BackGround", pbx_builtin_background,
-"Play a file while awaiting extension",
-"  Background(filename): Plays a given file, while simultaneously waiting for\n"
-"the user to begin typing an extension. The  timeouts  do not count until the\n"
-"last BackGround application as ended. Always returns 0.\n" },
+	{ "Hangup", pbx_builtin_hangup,
+"Unconditional hangup",
+"  Hangup(): Unconditionally hangs up a given channel by returning -1 always.\n" },
 
-	{ "Wait", pbx_builtin_wait, 
-"Waits for some time", 
-"  Wait(seconds): Waits for a specified number of seconds, then returns 0.\n" },
-
-	{ "StripMSD", pbx_builtin_stripmsd,
-"Strip leading digits",
-"  StripMSD(count): Strips the leading  'count'  digits  from  the  channel's\n"
-"associated extension. For example, the  number  5551212 when stripped with a\n"
-"count of 3 would be changed to 1212.  This app always returns 0, and the PBX\n"
-"will continue processing at the next priority for the *new* extension.\n"
-"  So, for  example, if  priority 3 of 5551212  is  StripMSD 3, the next step\n"
-"executed will be priority 4 of 1212.  If you switch into an  extension which\n"
-"has no first step, the PBX will treat it as though the user dialed an\n"
-"invalid extension.\n" },
+	{ "NoOp", pbx_builtin_noop,
+"No operation",
+"  NoOp(): No-operation; Does nothing." },
 
 	{ "Prefix", pbx_builtin_prefix, 
 "Prepend leading digits",
@@ -257,6 +259,36 @@ static struct pbx_builtin {
 "which has no first step, the PBX will treat it as though the user dialed an\n"
 "invalid extension.\n" },
 
+	{ "ResponseTimeout", pbx_builtin_rtimeout,
+"Set maximum timeout awaiting response",
+"  ResponseTimeout(seconds): Set the maximum amount of time permitted after\n"
+"falling through a series of priorities for a channel in which the user may\n"
+"begin typing an extension.  If the user does not type an extension in this\n"
+"amount of time, control will pass to the 't' extension if  it  exists, and\n"
+"if not the call would be terminated.  Always returns 0.\n"  },
+
+	{ "Ringing", pbx_builtin_ringing,
+"Indicate ringing tone",
+"  Ringing(): Request that the channel indicate ringing tone to the user.\n"
+"Always returns 0.\n" },
+
+	{ "SayNumber", pbx_builtin_saynumber,
+"Say Number",
+"  SayNumber(digits): Says the passed number\n" },
+
+	{ "SayDigits", pbx_builtin_saydigits,
+"Say Digits",
+"  SayDigits(digits): Says the passed digits\n" },
+
+	{ "SetAccount", pbx_builtin_setaccount,
+"Sets user language",
+"  SetAccount([account]):  Set  the  channel account code for billing\n"
+"purposes. Always returns 0.\n"  },
+
+	{ "SetGlobalVar", pbx_builtin_setglobalvar,
+"Set variable to value",
+"  Setvar(#n=value): Sets global variable n to value" },
+
 	{ "SetLanguage", pbx_builtin_setlanguage,
 "Sets user language",
 "  SetLanguage(language):  Set  the  channel  language to 'language'.  This\n"
@@ -266,47 +298,24 @@ static struct pbx_builtin {
 "congrats-fr' exists, then it will play that file, and if not will play the\n"
 "normal 'demo-congrats'. Always returns 0.\n"  },
 
-	{ "Ringing", pbx_builtin_ringing,
-"Indicate ringing tone",
-"  Ringing(): Request that the channel indicate ringing tone to the user.\n"
-"Always returns 0.\n" },
-
-	{ "Congestion", pbx_builtin_congestion,
-"Indicate congestion and stop",
-"  Congestion(): Requests that the channel indicate congestion and then\n"
-"waits for the user to hang up.  Always returns -1." },
-
-	{ "Busy", pbx_builtin_busy,
-"Indicate busy condition and stop",
-"  Busy(): Requests that the channel indicate busy condition and then waits\n"
-"for the user to hang up.  Always returns -1." },
-
 	{ "SetVar", pbx_builtin_setvar,
 "Set variable to value",
 "  Setvar(#n=value): Sets variable n to value" },
 
-	{ "SetGlobalVar", pbx_builtin_setglobalvar,
-"Set variable to value",
-"  Setvar(#n=value): Sets global variable n to value" },
+	{ "StripMSD", pbx_builtin_stripmsd,
+"Strip leading digits",
+"  StripMSD(count): Strips the leading  'count'  digits  from  the  channel's\n"
+"associated extension. For example, the  number  5551212 when stripped with a\n"
+"count of 3 would be changed to 1212.  This app always returns 0, and the PBX\n"
+"will continue processing at the next priority for the *new* extension.\n"
+"  So, for  example, if  priority 3 of 5551212  is  StripMSD 3, the next step\n"
+"executed will be priority 4 of 1212.  If you switch into an  extension which\n"
+"has no first step, the PBX will treat it as though the user dialed an\n"
+"invalid extension.\n" },
 
-	{ "NoOp", pbx_builtin_noop,
-"No operation",
-"  NoOp(): No-operation; Does nothing." },
-
-	{ "GotoIf", pbx_builtin_gotoif,
-"Conditional goto",
-"  GotoIf(Condition?label1:label2): Go to label 1 if condition is\n"
-"true, to label2 if condition is false. Either label1 or label2 may be\n"
-"omitted (in that case, we just don't take the particular branch) but not\n"
-"both.  Look for the condition syntax in examples or documentation." },
-
-	{ "SayNumber", pbx_builtin_saynumber,
-"Say Number",
-"  SayNumber(digits): Says the passed number\n" },
-
-	{ "SayDigits", pbx_builtin_saydigits,
-"Say Digits",
-"  SayDigits(digits): Says the passed digits\n" },
+	{ "Wait", pbx_builtin_wait, 
+"Waits for some time", 
+"  Wait(seconds): Waits for a specified number of seconds, then returns 0.\n" },
 
 };
 
@@ -2105,7 +2114,7 @@ int ast_context_remove_extension2(struct ast_context *con, char *extension, int 
 
 int ast_register_application(char *app, int (*execute)(struct ast_channel *, void *), char *synopsis, char *description)
 {
-	struct ast_app *tmp;
+	struct ast_app *tmp, *prev, *cur;
 	char tmps[80];
 	if (ast_pthread_mutex_lock(&applock)) {
 		ast_log(LOG_ERROR, "Unable to lock application list\n");
@@ -2127,8 +2136,22 @@ int ast_register_application(char *app, int (*execute)(struct ast_channel *, voi
 		tmp->execute = execute;
 		tmp->synopsis = synopsis;
 		tmp->description = description;
-		tmp->next = apps;
-		apps = tmp;
+		/* Store in alphabetical order */
+		cur = apps;
+		prev = NULL;
+		while(cur) {
+			if (strcasecmp(tmp->name, cur->name) < 0)
+				break;
+			prev = cur;
+			cur = cur->next;
+		}
+		if (prev) {
+			tmp->next = prev->next;
+			prev->next = tmp;
+		} else {
+			tmp->next = apps;
+			apps = tmp;
+		}
 	} else {
 		ast_log(LOG_WARNING, "Out of memory\n");
 		ast_pthread_mutex_unlock(&applock);
@@ -3940,6 +3963,16 @@ static int pbx_builtin_setlanguage(struct ast_channel *chan, void *data)
 {
 	/* Copy the language as specified */
 	strncpy(chan->language, (char *)data, sizeof(chan->language)-1);
+	return 0;
+}
+
+static int pbx_builtin_setaccount(struct ast_channel *chan, void *data)
+{
+	/* Copy the language as specified */
+	if (data)
+		ast_cdr_setaccount(chan, (char *)data);
+	else
+		ast_cdr_setaccount(chan, "");
 	return 0;
 }
 
