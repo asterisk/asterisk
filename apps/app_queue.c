@@ -183,7 +183,7 @@ struct localuser {
 	int stillgoing;
 	int metric;
 	int oldstatus;
-	int flags;			/* flag bits */
+	unsigned int flags;		/* flag bits */
 	time_t lastcall;
 	struct member *member;
 	struct localuser *next;
@@ -224,7 +224,7 @@ struct ast_call_queue {
 	char moh[80];			/* Name of musiconhold to be used */
 	char announce[80];		/* Announcement to play when call is answered */
 	char context[80];		/* Context for this queue */
-	int flags;			/* flag bits */
+	unsigned int flags;		/* flag bits */
 	int strategy;			/* Queueing strategy */
 	int announcefrequency;          /* How often to announce their position */
 	int roundingseconds;            /* How many seconds do we round to? */

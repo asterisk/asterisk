@@ -18,18 +18,75 @@
 #include <asterisk/lock.h>
 #include <limits.h>
 
-#define ast_test_flag(p,flag) 		((p)->flags & (flag))
+/* Note:
+   It is very important to use only unsigned variables to hold
+   bit flags, as otherwise you can fall prey to the compiler's
+   sign-extension antics if you try to use the top two bits in
+   your variable.
 
-#define ast_set_flag(p,flag)		((p)->flags |= (flag))
+   The flag macros below use a set of compiler tricks to verify
+   that the caller is using an "unsigned int" variable to hold
+   the flags, and nothing else. If the caller uses any other
+   type of variable, a warning message similar to this:
 
-#define ast_clear_flag(p,flag)		((p)->flags &= ~(flag))
+   warning: comparison of distinct pointer types lacks cast
 
-#define ast_copy_flags(dest,src,flagz)	do { (dest)->flags &= ~(flagz); \
-					(dest)->flags |= ((src)->flags & (flagz)); } while(0)
+   will be generated.
 
-#define ast_set2_flag(p,value,flag)	((value) ? ast_set_flag(p,flag) : ast_clear_flag(p,flag))	
+   The "dummy" variable below is used to make these comparisons.
+
+   Also note that at -O2 or above, this type-safety checking
+   does _not_ produce any additional object code at all.
+*/
+
+extern unsigned int __unsigned_int_flags_dummy;
+
+#define ast_test_flag(p,flag) 		({ \
+					typeof ((p)->flags) __p = (p)->flags; \
+					typeof (__unsigned_int_flags_dummy) __x = 0; \
+					(void) (&__p == &__x); \
+					((p)->flags & (flag)); \
+					})
+
+#define ast_set_flag(p,flag) 		do { \
+					typeof ((p)->flags) __p = (p)->flags; \
+					typeof (__unsigned_int_flags_dummy) __x = 0; \
+					(void) (&__p == &__x); \
+					((p)->flags |= (flag)); \
+					} while(0)
+
+#define ast_clear_flag(p,flag) 		do { \
+					typeof ((p)->flags) __p = (p)->flags; \
+					typeof (__unsigned_int_flags_dummy) __x = 0; \
+					(void) (&__p == &__x); \
+					((p)->flags &= ~(flag)); \
+					} while(0)
+
+#define ast_copy_flags(dest,src,flagz)	do { \
+					typeof ((dest)->flags) __d = (dest)->flags; \
+					typeof ((src)->flags) __s = (src)->flags; \
+					typeof (__unsigned_int_flags_dummy) __x = 0; \
+					(void) (&__d == &__x); \
+					(void) (&__s == &__x); \
+					(dest)->flags &= ~(flagz); \
+					(dest)->flags |= ((src)->flags & (flagz)); \
+					} while (0)
+
+#define ast_set2_flag(p,value,flag)	do { \
+					typeof ((p)->flags) __p = (p)->flags; \
+					typeof (__unsigned_int_flags_dummy) __x = 0; \
+					(void) (&__p == &__x); \
+					if (value) \
+						(p)->flags |= (flag); \
+					else \
+						(p)->flags &= ~(flag); \
+					} while (0)
 
 #define AST_FLAGS_ALL UINT_MAX
+
+struct ast_flags {
+	unsigned int flags;
+};
 
 static inline int ast_strlen_zero(const char *s)
 {
@@ -39,10 +96,6 @@ static inline int ast_strlen_zero(const char *s)
 struct ast_hostent {
 	struct hostent hp;
 	char buf[1024];
-};
-
-struct ast_flags {
-	unsigned int flags;
 };
 
 extern char *ast_strip(char *buf);

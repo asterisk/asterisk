@@ -157,7 +157,7 @@ struct ast_vm_user {
 	char dialout[80];
 	char uniqueid[20];		/* Unique integer identifier */
 	char exit[80];
-	int flags;			/* VM_ flags */	
+	unsigned int flags;		/* VM_ flags */	
 	int saydurationm;
 	struct ast_vm_user *next;
 };

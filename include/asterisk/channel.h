@@ -218,7 +218,7 @@ struct ast_channel {
 	unsigned int pickupgroup;
 
 	/*! channel flags of AST_FLAG_ type */
-	int flags;
+	unsigned int flags;
 	
 	/*! For easy linking */
 	struct ast_channel *next;
@@ -251,7 +251,7 @@ struct ast_bridge_config {
 	char *end_sound;
 	char *start_sound;
 	int firstpass;
-	int flags;
+	unsigned int flags;
 };
 
 struct chanmon;
