@@ -18,6 +18,7 @@
  * Patch Version 1.07 2003-12-24 01
  *
  * Added servicelevel statistic by Michiel Betel <michiel@betel.nl>
+ * Added Priority jumping code for adding and removing queue members by Jonathan Stanton <asterisk@doilooklikeicare.com>
  *
  * Fixed ot work with CVS as of 2004-02-25 and released as 1.07a
  * by Matthew Enger <m.enger@xi.com.au>
@@ -106,7 +107,9 @@ static char *app_aqm = "AddQueueMember" ;
 static char *app_aqm_synopsis = "Dynamically adds queue members" ;
 static char *app_aqm_descrip =
 "   AddQueueMember(queuename[|interface]):\n"
-"Dynamically adds interface to an existing queue\n"
+"Dynamically adds interface to an existing queue.\n"
+"If the interface is already in the queue and there exists an n+101 priority\n"
+"then it will then jump to this priority.  Otherwise it will return an error\n"
 "Returns -1 if there is an error.\n"
 "Example: AddQueueMember(techsupport|SIP/3000)\n"
 "";
@@ -116,6 +119,8 @@ static char *app_rqm_synopsis = "Dynamically removes queue members" ;
 static char *app_rqm_descrip =
 "   RemoveQueueMember(queuename[|interface]):\n"
 "Dynamically removes interface to an existing queue\n"
+"If the interface is NOT in the queue and there exists an n+101 priority\n"
+"then it will then jump to this priority.  Otherwise it will return an error\n"
 "Returns -1 if there is an error.\n"
 "Example: RemoveQueueMember(techsupport|SIP/3000)\n"
 "";
@@ -1179,8 +1184,15 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 					res = 0 ;
 				}
 				else
+				{
 					ast_log(LOG_WARNING, "Unable to remove interface '%s' from queue '%s': "
 						"Not there\n", interface, queuename);
+	                                if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
+						{
+						chan->priority += 100;
+						res = 0 ;
+						}
+				}
 			}
 
 			ast_mutex_unlock(&q->lock);
@@ -1259,8 +1271,15 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 					res = 0 ;
 				}
 				else
+				{
 					ast_log(LOG_WARNING, "Unable to add interface '%s' to queue '%s': "
 						"Already there\n", interface, queuename);
+			                if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
+                                        {
+                                                chan->priority += 100;
+                                                res = 0 ;
+                                        }
+				}
 			}
 
 			ast_mutex_unlock(&q->lock);
