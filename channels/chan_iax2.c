@@ -4526,6 +4526,7 @@ static int registry_rerequest(struct iax_ies *ies, int callno, struct sockaddr_i
 		strncpy(challenge, ies->challenge, sizeof(challenge) - 1);
 	memset(&ied, 0, sizeof(ied));
 	reg = iaxs[callno]->reg;
+	if (reg) {
 			if (inaddrcmp(&reg->addr, sin)) {
 				ast_log(LOG_WARNING, "Received unsolicited registry authenticate request from '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 				return -1;
@@ -4549,7 +4550,9 @@ static int registry_rerequest(struct iax_ies *ies, int callno, struct sockaddr_i
 				return send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGREQ, 0, ied.buf, ied.pos, -1);
 			} else
 				return -1;
-	ast_log(LOG_WARNING, "Registry acknowledge on unknown registery '%s'\n", peer);
+			ast_log(LOG_WARNING, "Registry acknowledge on unknown registery '%s'\n", peer);
+	} else	
+		ast_log(LOG_NOTICE, "Can't reregister without a reg\n");
 	return -1;
 }
 
