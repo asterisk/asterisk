@@ -359,6 +359,7 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/firmware
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/firmware/iax
 	install -m 644 keys/iaxtel.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
+	install -m 644 keys/freeworlddialup.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
 	if [ -d contrib/firmware/iax ]; then \
 		install -m 644 contrib/firmware/iax/iaxy.bin $(DESTDIR)$(ASTVARLIBDIR)/firmware/iax/iaxy.bin; \
 	else \

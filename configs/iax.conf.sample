@@ -78,6 +78,25 @@ jitterbuffer=no
 ;
 ;register => marko:[torkey]@tormenta.linux-support.net
 ;
+; Sample Registration for iaxtel
+;
+; Visit http://www.iaxtel.com to register with iaxtel.  Replace "user"
+; and "pass" with your username and password for iaxtel.  Incoming 
+; calls arrive at the "s" extension of "default" context.
+;
+;register => user:pass@iaxtel.com
+;
+; Sample Registration for IAX + FWD
+;
+; To register using IAX with FWD, it must be enabled by visiting the URL
+; http://www.fwdnet.net/index.php?section_id=112
+;
+; Note that you need an extension in you default context which matches
+; your free world dialup number.  Please replace "FWDNumber" with your
+; FWD number and "passwd" with your password.
+;
+;register => FWDNumber:passwd@iax.fwdnet.net
+;
 ;
 ; You can disable authentication debugging to reduce the amount of 
 ; debugging traffic.
@@ -111,14 +130,14 @@ context=default
 auth=rsa
 inkeys=iaxtel
 
-[iaxtel2]
 ;
-; Backwards compatible entry for IAXtel pre-RSA
+; Trust Caller*ID Coming from iax.fwdnet.net
 ;
+[iaxfwd]
 type=user
 context=default
-deny=0.0.0.0/0.0.0.0
-permit=216.207.245.47/255.255.255.255
+auth=rsa
+inkeys=freeworlddialup
 
 ;
 ; Further user sections may be added, specifying a context and a
