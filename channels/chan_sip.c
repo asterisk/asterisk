@@ -1934,7 +1934,7 @@ static int sip_register(char *value, int lineno)
 static void parse(struct sip_request *req)
 {
 	/* Divide fields by NULL's */
-	char *c;
+	char *c, *last = NULL;
 	int f = 0;
 	c = req->data;
 
@@ -1955,9 +1955,18 @@ static void parse(struct sip_request *req)
 			}
 			if (f >= SIP_MAX_HEADERS - 1) {
 				ast_log(LOG_WARNING, "Too many SIP headers...\n");
-			} else
-				f++;
-			req->header[f] = c + 1;
+			} else {
+				if ((c[1] == ' ') || (c[1] == '\t')) {
+					/* Continuation of previous header */
+					if (last) {
+						while(last < c)
+							*(last++) = ' ';
+					}
+				} else {
+					f++;
+					req->header[f] = c + 1;
+				}
+			}
 		} else if (*c == '\r') {
 			/* Ignore but eliminate \r's */
 			*c = 0;
