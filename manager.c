@@ -79,6 +79,7 @@ static struct permalias {
 	{ EVENT_FLAG_AGENT, "agent" },
 	{ EVENT_FLAG_USER, "user" },
 	{ -1, "all" },
+	{ 0, "none" },
 };
 
 static struct mansession *sessions = NULL;
@@ -109,6 +110,7 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 	return res;
 }
 
+/*--- authority_to_str: Convert authority code to string with serveral options */
 static char *authority_to_str(int authority, char *res, int reslen)
 {
 	int running_total = 0, i;
@@ -171,14 +173,17 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+/*--- handle_showmancmds: CLI command */
+/* Should change to "manager show commands" */
 static int handle_showmancmds(int fd, int argc, char *argv[])
 {
 	struct manager_action *cur = first_action;
 	char authority[80];
-	char *format = "  %-15.15s  %-10.10s  %-45.45s\n";
+	char *format = "  %-15.15s  %-15.15s  %-55.55s\n";
 
 	ast_mutex_lock(&actionlock);
 	ast_cli(fd, format, "Action", "Privilege", "Synopsis");
+	ast_cli(fd, format, "------", "---------", "--------");
 	while (cur) { /* Walk the list of actions */
 		ast_cli(fd, format, cur->action, authority_to_str(cur->authority, authority, sizeof(authority) -1), cur->synopsis);
 		cur = cur->next;
@@ -188,6 +193,8 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+/*--- handle_showmanconn: CLI command show manager connected */
+/* Should change to "manager show connected" */
 static int handle_showmanconn(int fd, int argc, char *argv[])
 {
 	struct mansession *s;
@@ -497,6 +504,7 @@ static int action_listcommands(struct mansession *s, struct message *m)
 {
 	struct manager_action *cur = first_action;
 	char idText[256] = "";
+	char temp[BUFSIZ];
 	char *id = astman_get_header(m,"ActionID");
 
 	if (id && !ast_strlen_zero(id))
@@ -506,7 +514,7 @@ static int action_listcommands(struct mansession *s, struct message *m)
 	ast_mutex_lock(&actionlock);
 	while (cur) { /* Walk the list of actions */
 		if ((s->writeperm & cur->authority) == cur->authority)
-			ast_cli(s->fd, "%s: %s\r\n", cur->action, cur->synopsis);
+			ast_cli(s->fd, "%s: %s (Priv: %s)\r\n", cur->action, cur->synopsis, authority_to_str(cur->authority, temp, sizeof(temp)) );
 		cur = cur->next;
 	}
 	ast_mutex_unlock(&actionlock);
@@ -718,6 +726,7 @@ static int action_status(struct mansession *s, struct message *m)
 			}
 			ast_cli(s->fd,
 			"Event: Status\r\n"
+			"Privilege: Call\r\n"
 			"Channel: %s\r\n"
 			"CallerID: %s\r\n"
 			"CallerIDName: %s\r\n"
@@ -740,6 +749,7 @@ static int action_status(struct mansession *s, struct message *m)
 		} else {
 			ast_cli(s->fd,
 			"Event: Status\r\n"
+			"Privilege: Call\r\n"
 			"Channel: %s\r\n"
 			"CallerID: %s\r\n"
 			"CallerIDName: %s\r\n"
@@ -830,7 +840,7 @@ static int action_command(struct mansession *s, struct message *m)
 	ast_mutex_lock(&s->lock);
 	s->blocking = 1;
 	ast_mutex_unlock(&s->lock);
-	ast_cli(s->fd, "Response: Follows\r\n");
+	ast_cli(s->fd, "Response: Follows\r\nPrivilege: Command\r\n");
 	if (id && !ast_strlen_zero(id))
 		ast_cli(s->fd, "ActionID: %s\r\n", id);
 	/* FIXME: Wedge a ActionID response in here, waiting for later changes */
@@ -1375,6 +1385,7 @@ static void *accept_thread(void *ignore)
 	return NULL;
 }
 
+/*--- manager_event: Send AMI event to client */
 int manager_event(int category, char *event, char *fmt, ...)
 {
 	struct mansession *s;
@@ -1388,6 +1399,7 @@ int manager_event(int category, char *event, char *fmt, ...)
 			ast_mutex_lock(&s->lock);
 			if (!s->blocking) {
 				ast_cli(s->fd, "Event: %s\r\n", event);
+				ast_cli(s->fd, "Privilege: %s\r\n", authority_to_str(category, tmp, sizeof(tmp)));
 				va_start(ap, fmt);
 				vsnprintf(tmp, sizeof(tmp), fmt, ap);
 				va_end(ap);
@@ -1503,16 +1515,16 @@ int init_manager(void)
 	int x = 1;
 	if (!registered) {
 		/* Register default actions */
-		ast_manager_register2("Ping", 0, action_ping, "Ping", mandescr_ping);
-		ast_manager_register2("Events", 0, action_events, "Contol Event Flow", mandescr_events);
+		ast_manager_register2("Ping", 0, action_ping, "Keepalive command", mandescr_ping);
+		ast_manager_register2("Events", 0, action_events, "Control Event Flow", mandescr_events);
 		ast_manager_register2("Logoff", 0, action_logoff, "Logoff Manager", mandescr_logoff);
 		ast_manager_register2("Hangup", EVENT_FLAG_CALL, action_hangup, "Hangup Channel", mandescr_hangup);
-		ast_manager_register( "Status", EVENT_FLAG_CALL, action_status, "Status" );
+		ast_manager_register( "Status", EVENT_FLAG_CALL, action_status, "Lists channel status" );
 		ast_manager_register2( "Setvar", EVENT_FLAG_CALL, action_setvar, "Set Channel Variable", mandescr_setvar );
 		ast_manager_register2( "Getvar", EVENT_FLAG_CALL, action_getvar, "Gets a Channel Variable", mandescr_getvar );
-		ast_manager_register( "Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect" );
+		ast_manager_register( "Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect (transfer) a call" );
 		ast_manager_register2("Originate", EVENT_FLAG_CALL, action_originate, "Originate Call", mandescr_originate);
-		ast_manager_register2( "Command", EVENT_FLAG_COMMAND, action_command, "Execute Command", mandescr_command );
+		ast_manager_register2( "Command", EVENT_FLAG_COMMAND, action_command, "Execute Asterisk CLI Command", mandescr_command );
 		ast_manager_register2( "ExtensionState", EVENT_FLAG_CALL, action_extensionstate, "Check Extension Status", mandescr_extensionstate );
 		ast_manager_register2( "AbsoluteTimeout", EVENT_FLAG_CALL, action_timeout, "Set Absolute Timeout", mandescr_timeout );
 		ast_manager_register2( "MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox", mandescr_mailboxstatus );
