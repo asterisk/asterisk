@@ -103,6 +103,7 @@ static struct io_context *io;
 static struct sched_context *sched;
 static int netsocket = -1;
 static pthread_t netthreadid = AST_PTHREADT_NULL;
+static pthread_t precachethreadid = AST_PTHREADT_NULL;
 static int tos = 0;
 static int dundidebug = 0;
 static int authdebug = 0;
@@ -143,6 +144,13 @@ struct dundi_packet {
 struct dundi_hint_metadata {
 	unsigned short flags;
 	char exten[AST_MAX_EXTENSION];
+};
+
+struct dundi_precache_queue {
+	struct dundi_precache_queue *next;
+	char *context;
+	time_t expiration;
+	char number[0];
 };
 
 struct dundi_request;
@@ -244,7 +252,10 @@ static struct dundi_peer {
 	struct dundi_peer *next;
 } *peers;
 
+static struct dundi_precache_queue *pcq;
+
 AST_MUTEX_DEFINE_STATIC(peerlock);
+AST_MUTEX_DEFINE_STATIC(pclock);
 
 static int dundi_xmit(struct dundi_packet *pack);
 
@@ -648,7 +659,6 @@ static void *dundi_precache_thread(void *data)
 	dundi_precache_internal(st->called_context, st->called_number, st->ttl, st->eids);
 
 	ast_mutex_lock(&peerlock);
-	ast_log(LOG_WARNING, "XXX We should schedule retransmission here XXX\n");
 	/* Truncate if "don't ask" isn't present */
 	if (!(hmd.flags & DUNDI_HINT_DONT_ASK))
 		hmd.exten[0] = '\0';
@@ -822,7 +832,7 @@ static int cache_save_hint(dundi_eid *eidpeer, struct dundi_request *req, struct
 	return 0;
 }
 
-static int cache_save(dundi_eid *eidpeer, struct dundi_request *req, int start, int unaffected, int expiration)
+static int cache_save(dundi_eid *eidpeer, struct dundi_request *req, int start, int unaffected, int expiration, int push)
 {
 	int x;
 	char key1[256];
@@ -834,6 +844,14 @@ static int cache_save(dundi_eid *eidpeer, struct dundi_request *req, int start, 
 
 	if (expiration < 1)	
 		expiration = DUNDI_DEFAULT_CACHE_TIME;
+
+	/* Keep pushes a little longer, cut pulls a little short */
+	if (push)
+		expiration += 10;
+	else
+		expiration -= 10;
+	if (expiration < 1)
+		expiration = 1;
 	dundi_eid_to_str_short(eidpeer_str, sizeof(eidpeer_str), eidpeer);
 	dundi_eid_to_str_short(eidroot_str, sizeof(eidroot_str), &req->root_eid);
 	snprintf(key1, sizeof(key1), "%s/%s/%s/e%08lx", eidpeer_str, req->number, req->dcontext, unaffected ? 0 : req->crc32);
@@ -853,16 +871,6 @@ static int cache_save(dundi_eid *eidpeer, struct dundi_request *req, int start, 
 	ast_db_put("dundi/cache", key1, data);
 	ast_db_put("dundi/cache", key2, data);
 	return 0;
-}
-
-static void dundi_precache_full(void)
-{
-	struct dundi_mapping *cur;
-	cur = mappings;
-	while(cur) {
-		ast_log(LOG_NOTICE, "Should precache context '%s'\n", cur->dcontext);
-		cur = cur->next;
-	}
 }
 
 static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies *ies, char *ccontext)
@@ -935,7 +943,7 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 
 	}
 	/* Save all the results (if any) we had.  Even if no results, still cache lookup. */
-	cache_save(&trans->them_eid, trans->parent, 0, 0, ies->expiration);
+	cache_save(&trans->them_eid, trans->parent, 0, 0, ies->expiration, 1);
 	if (ies->hint)
 		cache_save_hint(&trans->them_eid, trans->parent, ies->hint, ies->expiration);
 
@@ -1670,7 +1678,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 					/* Save all the results (if any) we had.  Even if no results, still cache lookup.  Let
 					   the cache know if this request was unaffected by our entity list. */
 					cache_save(&trans->them_eid, trans->parent, y, 
-							ies.hint ? ntohs(ies.hint->flags) & DUNDI_HINT_UNAFFECTED : 0, ies.expiration);
+							ies.hint ? ntohs(ies.hint->flags) & DUNDI_HINT_UNAFFECTED : 0, ies.expiration, 0);
 					if (ies.hint) {
 						cache_save_hint(&trans->them_eid, trans->parent, ies.hint, ies.expiration);
 						if (ntohs(ies.hint->flags) & DUNDI_HINT_TTL_EXPIRED)
@@ -2091,9 +2099,45 @@ static void *network_thread(void *ignore)
 	return NULL;
 }
 
+static void *process_precache(void *ign)
+{
+	struct dundi_precache_queue *qe;
+	time_t now;
+	char context[256]="";
+	char number[256]="";
+	int run;
+	for (;;) {
+		time(&now);
+		run = 0;
+		ast_mutex_lock(&pclock);
+		if (pcq) {
+			if (!pcq->expiration) {
+				/* Gone...  Remove... */
+				qe = pcq;
+				pcq = pcq->next;
+				free(qe);
+			} else if (pcq->expiration < now) {
+				/* Process this entry */
+				pcq->expiration = 0;
+				strncpy(context, pcq->context, sizeof(context) - 1);
+				strncpy(number, pcq->number, sizeof(number) - 1);
+				run = 1;
+			}
+		}
+		ast_mutex_unlock(&pclock);
+		if (run) {
+			dundi_precache(context, number);
+		} else
+			sleep(1);
+	}
+	return NULL;
+}
+
 static int start_network_thread(void)
 {
-	return ast_pthread_create(&netthreadid, NULL, network_thread, NULL);
+	ast_pthread_create(&netthreadid, NULL, network_thread, NULL);
+	ast_pthread_create(&precachethreadid, NULL, process_precache, NULL);
+	return 0;
 }
 
 static int dundi_do_debug(int fd, int argc, char *argv[])
@@ -2551,6 +2595,33 @@ static int dundi_show_mappings(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
+static int dundi_show_precache(int fd, int argc, char *argv[])
+{
+#define FORMAT2 "%-12.12s %-12.12s %-10.10s\n"
+#define FORMAT "%-12.12s %-12.12s %02d:%02d:%02d\n"
+	struct dundi_precache_queue *qe;
+	int h,m,s;
+	time_t now;
+	
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	time(&now);
+	ast_mutex_lock(&pclock);
+	ast_cli(fd, FORMAT2, "Number", "Context", "Expiration");
+	for (qe = pcq;qe;qe = qe->next) {
+		s = qe->expiration - now;
+		h = s / 3600;
+		s = s % 3600;
+		m = s / 60;
+		s = s % 60;
+		ast_cli(fd, FORMAT, qe->number, qe->context, h,m,s);
+	}
+	ast_mutex_unlock(&pclock);
+	return RESULT_SUCCESS;
+#undef FORMAT
+#undef FORMAT2
+}
+
 static char debug_usage[] = 
 "Usage: dundi debug\n"
 "       Enables dumping of DUNDi packets for debugging purposes\n";
@@ -2580,6 +2651,10 @@ static char show_trans_usage[] =
 static char show_mappings_usage[] = 
 "Usage: dundi show mappings\n"
 "       Lists all known DUNDi mappings.\n";
+
+static char show_precache_usage[] = 
+"Usage: dundi show precache\n"
+"       Lists all known DUNDi scheduled precache updates.\n";
 
 static char show_entityid_usage[] = 
 "Usage: dundi show entityid\n"
@@ -2643,6 +2718,9 @@ static struct ast_cli_entry  cli_show_entityid =
 
 static struct ast_cli_entry  cli_show_mappings =
 	{ { "dundi", "show", "mappings", NULL }, dundi_show_mappings, "Show DUNDi mappings", show_mappings_usage };
+
+static struct ast_cli_entry  cli_show_precache =
+	{ { "dundi", "show", "precache", NULL }, dundi_show_precache, "Show DUNDi precache", show_precache_usage };
 
 static struct ast_cli_entry  cli_show_requests =
 	{ { "dundi", "show", "requests", NULL }, dundi_show_requests, "Show DUNDi requests", show_requests_usage };
@@ -3013,7 +3091,7 @@ static int dundi_discover(struct dundi_transaction *trans)
 	return dundi_send(trans, DUNDI_COMMAND_DPDISCOVER, 0, 0, &ied);
 }
 
-static int precache_trans(struct dundi_transaction *trans, struct dundi_mapping *maps, int mapcount)
+static int precache_trans(struct dundi_transaction *trans, struct dundi_mapping *maps, int mapcount, int *minexp, int *foundanswers)
 {
 	struct dundi_ie_data ied;
 	int x, res;
@@ -3048,26 +3126,35 @@ static int precache_trans(struct dundi_transaction *trans, struct dundi_mapping 
 		}
 	}
 	
-	memset(&ied, 0, sizeof(ied));
-	dundi_ie_append_short(&ied, DUNDI_IE_VERSION, DUNDI_DEFAULT_VERSION);
-	if (!dundi_eid_zero(&trans->us_eid))
-		dundi_ie_append_eid(&ied, DUNDI_IE_EID, &trans->us_eid);
-	for (x=0;x<trans->eidcount;x++)
-		dundi_ie_append_eid(&ied, DUNDI_IE_EID, &trans->eids[x]);
-	dundi_ie_append_str(&ied, DUNDI_IE_CALLED_NUMBER, trans->parent->number);
-	dundi_ie_append_str(&ied, DUNDI_IE_CALLED_CONTEXT, trans->parent->dcontext);
-	dundi_ie_append_short(&ied, DUNDI_IE_TTL, trans->ttl);
-	for (x=0;x<ouranswers;x++) {
-		/* Add answers */
-		if (dr[x].expiration && (expiration > dr[x].expiration))
-			expiration = dr[x].expiration;
-		dundi_ie_append_answer(&ied, DUNDI_IE_ANSWER, &dr[x].eid, dr[x].techint, dr[x].flags, dr[x].weight, dr[x].dest);
+	if (ouranswers > 0) {
+		*foundanswers += ouranswers;
+		memset(&ied, 0, sizeof(ied));
+		dundi_ie_append_short(&ied, DUNDI_IE_VERSION, DUNDI_DEFAULT_VERSION);
+		if (!dundi_eid_zero(&trans->us_eid))
+			dundi_ie_append_eid(&ied, DUNDI_IE_EID, &trans->us_eid);
+		for (x=0;x<trans->eidcount;x++)
+			dundi_ie_append_eid(&ied, DUNDI_IE_EID, &trans->eids[x]);
+		dundi_ie_append_str(&ied, DUNDI_IE_CALLED_NUMBER, trans->parent->number);
+		dundi_ie_append_str(&ied, DUNDI_IE_CALLED_CONTEXT, trans->parent->dcontext);
+		dundi_ie_append_short(&ied, DUNDI_IE_TTL, trans->ttl);
+		for (x=0;x<ouranswers;x++) {
+			/* Add answers */
+			if (dr[x].expiration && (expiration > dr[x].expiration))
+				expiration = dr[x].expiration;
+			dundi_ie_append_answer(&ied, DUNDI_IE_ANSWER, &dr[x].eid, dr[x].techint, dr[x].flags, dr[x].weight, dr[x].dest);
+		}
+		dundi_ie_append_hint(&ied, DUNDI_IE_HINT, hmd.flags, hmd.exten);
+		dundi_ie_append_short(&ied, DUNDI_IE_EXPIRATION, expiration);
+		if (trans->autokilltimeout)
+			trans->autokillid = ast_sched_add(sched, trans->autokilltimeout, do_autokill, trans);
+		if (expiration < *minexp)
+			*minexp = expiration;
+		return dundi_send(trans, DUNDI_COMMAND_PRECACHERQ, 0, 0, &ied);
+	} else {
+		/* Oops, nothing to send... */
+		destroy_trans(trans, 0);
+		return 0;
 	}
-	dundi_ie_append_hint(&ied, DUNDI_IE_HINT, hmd.flags, hmd.exten);
-	dundi_ie_append_short(&ied, DUNDI_IE_EXPIRATION, expiration);
-	if (trans->autokilltimeout)
-		trans->autokillid = ast_sched_add(sched, trans->autokilltimeout, do_autokill, trans);
-	return dundi_send(trans, DUNDI_COMMAND_PRECACHERQ, 0, 0, &ied);
 }
 
 static int dundi_query(struct dundi_transaction *trans)
@@ -3103,12 +3190,12 @@ static int discover_transactions(struct dundi_request *dr)
 	return 0;
 }
 
-static int precache_transactions(struct dundi_request *dr, struct dundi_mapping *maps, int mapcount)
+static int precache_transactions(struct dundi_request *dr, struct dundi_mapping *maps, int mapcount, int *expiration, int *foundanswers)
 {
 	struct dundi_transaction *trans;
 	trans = dr->trans;
 	while(trans) {
-		precache_trans(trans, maps, mapcount);
+		precache_trans(trans, maps, mapcount, expiration, foundanswers);
 		trans = trans->next;
 	}
 	return 0;
@@ -3497,6 +3584,78 @@ int dundi_lookup(struct dundi_result *result, int maxret, struct ast_channel *ch
 	return dundi_lookup_internal(result, maxret, chan, dcontext, number, dundi_ttl, 0, &hmd, &expiration, cbypass, 0, NULL, avoid, direct);
 }
 
+static void reschedule_precache(const char *number, const char *context, int expiration)
+{
+	int len;
+	struct dundi_precache_queue *qe, *prev=NULL;
+	ast_mutex_lock(&pclock);
+	qe = pcq;
+	while(qe) {
+		if (!strcmp(number, qe->number) && !strcasecmp(context, qe->context)) {
+			if (prev)
+				prev->next = qe->next;
+			else
+				pcq = qe->next;
+			qe->next = NULL;
+			break;
+		}
+		prev = qe;
+		qe = qe->next;
+	};
+	if (!qe) {
+		len = sizeof(struct dundi_precache_queue);
+		len += strlen(number + 1);
+		len += strlen(context + 1);
+		qe = malloc(len);
+		if (qe) {
+			memset(qe, 0, len);
+			strcpy(qe->number, number);
+			qe->context = qe->number + strlen(number) + 1;
+			strcpy(qe->context, context);
+		}
+	}
+	time(&qe->expiration);
+	qe->expiration += expiration;
+	prev = pcq;
+	if (prev) {
+		while(prev->next && (prev->next->expiration <= qe->expiration))
+			prev = prev->next;
+		qe->next = prev->next;
+		prev->next = qe;
+	} else
+		pcq = qe;
+	ast_mutex_unlock(&pclock);
+	
+}
+
+static void dundi_precache_full(void)
+{
+	struct dundi_mapping *cur;
+	struct ast_context *con;
+	struct ast_exten *e;
+	cur = mappings;
+	while(cur) {
+		ast_log(LOG_NOTICE, "Should precache context '%s'\n", cur->dcontext);
+		ast_lock_contexts();
+		con = ast_walk_contexts(NULL);
+		while(con) {
+			if (!strcasecmp(cur->lcontext, ast_get_context_name(con))) {
+				/* Found the match, now queue them all up */
+				ast_lock_context(con);
+				e = ast_walk_context_extensions(con, NULL);
+				while(e) {
+					reschedule_precache(ast_get_extension_name(e), cur->dcontext, 0);
+					e = ast_walk_context_extensions(con, e);
+				}
+				ast_unlock_context(con);
+			}
+			con = ast_walk_contexts(con);
+		}
+		ast_unlock_contexts();
+		cur = cur->next;
+	}
+}
+
 static int dundi_precache_internal(const char *context, const char *number, int ttl, dundi_eid *avoids[])
 {
 	struct dundi_request dr;
@@ -3505,6 +3664,7 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 	struct timeval start;
 	struct dundi_mapping *maps=NULL, *cur;
 	int nummaps;
+	int foundanswers;
 	int foundcache, skipped, ttlms, ms;
 	if (!context)
 		context = "e164";
@@ -3547,7 +3707,14 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 	dr.pfds[0] = dr.pfds[1] = -1;
 	build_transactions(&dr, ttl, 0, &foundcache, &skipped, 0, 1, 1, NULL, avoids, NULL);
 	optimize_transactions(&dr, 0);
-	precache_transactions(&dr, maps, nummaps);
+	foundanswers = 0;
+	precache_transactions(&dr, maps, nummaps, &dr.expiration, &foundanswers);
+	if (foundanswers) {
+		if (dr.expiration > 0) 
+			reschedule_precache(dr.number, dr.dcontext, dr.expiration);
+		else
+			ast_log(LOG_NOTICE, "Weird, expiration = %d, but need to precache for %s@%s?!\n", dr.expiration, dr.number, dr.dcontext);
+	}
 	gettimeofday(&start, NULL);
 	while(dr.trans && (calc_ms(&start) < ttlms)) {
 		if (dr.pfds[0] > -1) {
@@ -4081,11 +4248,11 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v)
 			ast_log(LOG_WARNING, "Peer '%s' may not be both outbound/symmetric model and inbound/symmetric precache model, discarding!\n", 
 				dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 			peer->dead = 1;
-		} else if (peer->include && !(peer->model & DUNDI_MODEL_OUTBOUND)) {
-			ast_log(LOG_WARNING, "Peer '%s' is supposed to be included in outbound searches but isn't an outbound peer!\n", 
+		} else if (peer->include && !(peer->model & DUNDI_MODEL_OUTBOUND) && !(peer->pcmodel & DUNDI_MODEL_INBOUND)) {
+			ast_log(LOG_WARNING, "Peer '%s' is supposed to be included in outbound searches but isn't an outbound peer or inbound precache!\n", 
 				dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
-		} else if (peer->permit && !(peer->model & DUNDI_MODEL_INBOUND)) {
-			ast_log(LOG_WARNING, "Peer '%s' is supposed to have permission for some inbound searches but isn't an inbound peer!\n", 
+		} else if (peer->permit && !(peer->model & DUNDI_MODEL_INBOUND) && !(peer->pcmodel & DUNDI_MODEL_OUTBOUND)) {
+			ast_log(LOG_WARNING, "Peer '%s' is supposed to have permission for some inbound searches but isn't an inbound peer or outbound precache!\n", 
 				dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 		} else { 
 			if (needregister) {
@@ -4353,6 +4520,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 	prune_peers();
 	ast_destroy(cfg);
 	load_password();
+	dundi_precache_full();
 	return 0;
 }
 
@@ -4370,6 +4538,7 @@ int unload_module(void)
 	ast_cli_unregister(&cli_show_trans);
 	ast_cli_unregister(&cli_show_requests);
 	ast_cli_unregister(&cli_show_mappings);
+	ast_cli_unregister(&cli_show_precache);
 	ast_cli_unregister(&cli_show_peer);
 	ast_cli_unregister(&cli_lookup);
 	ast_cli_unregister(&cli_precache);
@@ -4421,6 +4590,7 @@ int load_module(void)
 	ast_cli_register(&cli_show_trans);
 	ast_cli_register(&cli_show_requests);
 	ast_cli_register(&cli_show_mappings);
+	ast_cli_register(&cli_show_precache);
 	ast_cli_register(&cli_show_peer);
 	ast_cli_register(&cli_lookup);
 	ast_cli_register(&cli_precache);
