@@ -2386,14 +2386,14 @@ static int reload_config()
 	
 	if (gethostname(ourhost, sizeof(ourhost))) {
 		ast_log(LOG_WARNING, "Unable to get hostname, Skinny disabled\n");
-		return 1;
+		return 0;
 	}
 	cfg = ast_load(config);
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to load config %s, Skinny disabled\n", config);
-		return 1;
+		return 0;
 	}
 
 	/* load the general section */
