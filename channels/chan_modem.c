@@ -712,8 +712,8 @@ static struct ast_modem_pvt *mkif(char *iface)
 #endif
 	
 	tmp = malloc(sizeof(struct ast_modem_pvt));
-	memset(tmp, 0, sizeof(struct ast_modem_pvt));
 	if (tmp) {
+		memset(tmp, 0, sizeof(struct ast_modem_pvt));
 		tmp->fd = open(iface, O_RDWR | O_NONBLOCK);
 		if (tmp->fd < 0) {
 			ast_log(LOG_WARNING, "Unable to open '%s'\n", iface);
