@@ -604,50 +604,6 @@ static int cidrings[NUM_CADENCE_MAX] = {
 #define CANBUSYDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_EM_E1 | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
 #define CANPROGRESSDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_EM_E1 | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
 
-#ifdef ZAPATA_PRI
-/* translate between PRI causes and asterisk's */
-static int hangup_pri2cause(int cause)
-{
-	switch(cause) {
-		case PRI_CAUSE_USER_BUSY:
-			return AST_CAUSE_BUSY;
-		case PRI_CAUSE_NORMAL_CLEARING:
-			return AST_CAUSE_NORMAL;
-		case PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION:
-		case PRI_CAUSE_REQUESTED_CHAN_UNAVAIL:
-			return AST_CAUSE_CONGESTION;
-		case PRI_CAUSE_UNALLOCATED:
-		case PRI_CAUSE_NUMBER_CHANGED:
-			return AST_CAUSE_UNALLOCATED;
-		case PRI_CAUSE_NO_USER_RESPONSE:
-		case PRI_CAUSE_NO_ANSWER:
-			return AST_CAUSE_NOANSWER;
-		default:
-			return AST_CAUSE_FAILURE;
-	}
-	/* never reached */
-	return 0;
-}
-
-/* translate between ast cause and PRI */
-static int hangup_cause2pri(int cause)
-{
-	switch(cause) {
-		case AST_CAUSE_BUSY:
-			return PRI_CAUSE_USER_BUSY;
-		case AST_CAUSE_UNALLOCATED:
-			return PRI_CAUSE_UNALLOCATED;
-		case AST_CAUSE_CONGESTION:
-			return PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION;
-		case AST_CAUSE_NORMAL:
-		default:
-			return PRI_CAUSE_NORMAL_CLEARING;
-	}
-	/* never reached */
-	return 0;
-}
-#endif
-
 static int zt_get_index(struct ast_channel *ast, struct zt_pvt *p, int nullok)
 {
 	int res;
@@ -2106,7 +2062,7 @@ static int zt_hangup(struct ast_channel *ast)
 							p->bearer->call = NULL;
 					} else {
 						char *cause = pbx_builtin_getvar_helper(ast,"PRI_CAUSE");
-						int icause = ast->hangupcause ? hangup_cause2pri(ast->hangupcause) : -1;
+						int icause = ast->hangupcause ? ast->hangupcause : -1;
 						ast_log(LOG_DEBUG, "Not yet hungup...  Calling hangup once with icause, and clearing call\n");
 						p->alreadyhungup = 1;
 						if (p->bearer)
@@ -7510,7 +7466,7 @@ static void *pri_dchannel(void *vpri)
 								pri_hangup_all(pri->pvts[chanpos]->master);
 							else if (pri->pvts[chanpos]->owner) {
 								/* Queue a BUSY instead of a hangup if our cause is appropriate */
-								pri->pvts[chanpos]->owner->hangupcause = hangup_pri2cause(e->hangup.cause);
+								pri->pvts[chanpos]->owner->hangupcause = e->hangup.cause;
 								switch(e->hangup.cause) {
 								case PRI_CAUSE_USER_BUSY:
 									pri->pvts[chanpos]->subs[SUB_REAL].needbusy =1;
@@ -7565,7 +7521,7 @@ static void *pri_dchannel(void *vpri)
 						if (pri->pvts[chanpos]->master) 
 							pri_hangup_all(pri->pvts[chanpos]->master);
 						else if (pri->pvts[chanpos]->owner) {
-							pri->pvts[chanpos]->owner->hangupcause = hangup_pri2cause(e->hangup.cause);
+							pri->pvts[chanpos]->owner->hangupcause = e->hangup.cause;
 							switch(e->hangup.cause) {
 							case PRI_CAUSE_USER_BUSY:
 								pri->pvts[chanpos]->subs[SUB_REAL].needbusy =1;
