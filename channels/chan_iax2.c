@@ -8131,8 +8131,11 @@ int load_module(void)
 	for (reg = registrations; reg; reg = reg->next)
 		iax2_do_register(reg);
 	ast_mutex_lock(&peerl.lock);
-	for (peer = peerl.peers; peer; peer = peer->next)
+	for (peer = peerl.peers; peer; peer = peer->next) {
+		if (peer->sockfd < 0)
+			peer->sockfd = defaultsockfd;
 		iax2_poke_peer(peer, 0);
+	}
 	ast_mutex_unlock(&peerl.lock);
 	reload_firmware();
 	iax_provision_reload();
