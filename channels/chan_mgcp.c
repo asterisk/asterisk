@@ -763,128 +763,132 @@ static int mgcp_postrequest(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 static int send_request(struct mgcp_endpoint *p, struct mgcp_subchannel *sub, 
                         struct mgcp_request *req, unsigned int seqno)
 {
-    int res = 0;
-    struct mgcp_request **queue, *q, *r, *t;
+	int res = 0;
+	struct mgcp_request **queue, *q, *r, *t;
 	char iabuf[INET_ADDRSTRLEN];
-    ast_mutex_t *l;
+	ast_mutex_t *l;
 
 	ast_log(LOG_DEBUG, "Slow sequence is %d\n", p->slowsequence);
 	if (p->slowsequence) {
 		queue = &p->cmd_queue;
 		l = &p->cmd_queue_lock;
 		ast_mutex_lock(l);
-	} else
-    switch (req->cmd) {
-        case MGCP_CMD_DLCX:
-            queue = &sub->cx_queue;
-            l = &sub->cx_queue_lock;
-            ast_mutex_lock(l);
-            q = sub->cx_queue;
-            /* delete pending cx cmds */
-            while (q) {
-                r = q->next;
-                free(q);
-                q = r;
-            }
-            *queue = NULL;
-            break;
+	} else {
+		switch (req->cmd) {
+		case MGCP_CMD_DLCX:
+			queue = &sub->cx_queue;
+			l = &sub->cx_queue_lock;
+			ast_mutex_lock(l);
+			q = sub->cx_queue;
+			/* delete pending cx cmds */
+			while (q) {
+				r = q->next;
+				free(q);
+				q = r;
+			}
+			*queue = NULL;
+			break;
 
-        case MGCP_CMD_CRCX:
-        case MGCP_CMD_MDCX:
-            queue = &sub->cx_queue;
-            l = &sub->cx_queue_lock;
-            ast_mutex_lock(l);
-            break;
+		case MGCP_CMD_CRCX:
+		case MGCP_CMD_MDCX:
+			queue = &sub->cx_queue;
+			l = &sub->cx_queue_lock;
+			ast_mutex_lock(l);
+			break;
 
-        case MGCP_CMD_RQNT:
-            queue = &p->rqnt_queue;
-            l = &p->rqnt_queue_lock;
-            ast_mutex_lock(l);
-            break;
+		case MGCP_CMD_RQNT:
+			queue = &p->rqnt_queue;
+			l = &p->rqnt_queue_lock;
+			ast_mutex_lock(l);
+			break;
 
-        default:
-            queue = &p->cmd_queue;
-            l = &p->cmd_queue_lock;
-            ast_mutex_lock(l);
-            break;
-    }
+		default:
+			queue = &p->cmd_queue;
+			l = &p->cmd_queue_lock;
+			ast_mutex_lock(l);
+			break;
+		}
+	}
 
-    r = (struct mgcp_request *) malloc (sizeof(struct mgcp_request));
-    if (!r) {
-        ast_log(LOG_WARNING, "Cannot post MGCP request: insufficient memory\n");
-        ast_mutex_unlock(l);
-        return -1;
-    }
-    memcpy(r, req, sizeof(struct mgcp_request));
+	r = (struct mgcp_request *) malloc (sizeof(struct mgcp_request));
+	if (!r) {
+		ast_log(LOG_WARNING, "Cannot post MGCP request: insufficient memory\n");
+		ast_mutex_unlock(l);
+		return -1;
+	}
+	memcpy(r, req, sizeof(struct mgcp_request));
 
-    if (!(*queue)) {
-        if (mgcpdebug) {
-            ast_verbose("Posting Request:\n%s to %s:%d\n", req->data, 
-                        ast_inet_ntoa(iabuf, sizeof(iabuf), p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
-        }
+	if (!(*queue)) {
+		if (mgcpdebug) {
+			ast_verbose("Posting Request:\n%s to %s:%d\n", req->data, 
+				ast_inet_ntoa(iabuf, sizeof(iabuf), p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
+		}
 
-        res = mgcp_postrequest(p, sub, req->data, req->len, seqno);
-    }
-    else {
-        if (mgcpdebug) {
-            ast_verbose("Queueing Request:\n%s to %s:%d\n", req->data, 
-                        ast_inet_ntoa(iabuf, sizeof(iabuf), p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
-        }
-    }
+		res = mgcp_postrequest(p, sub, req->data, req->len, seqno);
+	} else {
+		if (mgcpdebug) {
+			ast_verbose("Queueing Request:\n%s to %s:%d\n", req->data, 
+				ast_inet_ntoa(iabuf, sizeof(iabuf), p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
+		}
+	}
 
-    /* XXX SC: find tail. We could also keep tail in the data struct for faster access */
-    for (t = *queue; t && t->next; t = t->next);
+	/* XXX SC: find tail. We could also keep tail in the data struct for faster access */
+	for (t = *queue; t && t->next; t = t->next);
 
-    r->next = NULL;
-    if (t)
-        t->next = r;
-    else
-        *queue = r;
+	r->next = NULL;
+	if (t)
+		t->next = r;
+	else
+		*queue = r;
 
-    ast_mutex_unlock(l);
+	ast_mutex_unlock(l);
 
-    return res;
+	return res;
 }
 
 static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 {
-    int res;
-    struct mgcp_endpoint *p;
-    struct mgcp_subchannel *sub;
-    char tone[50]="";
-    char *distinctive_ring = NULL;
-    struct varshead *headp;
-    struct ast_var_t *current;
+	int res;
+	struct mgcp_endpoint *p;
+	struct mgcp_subchannel *sub;
+	char tone[50] = "";
+	char *distinctive_ring = NULL;
+	struct varshead *headp;
+	struct ast_var_t *current;
 
-    if (mgcpdebug) {
-        ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_call(%s)\n", ast->name);
-    }
-    sub = ast->pvt->pvt;
-    p = sub->parent;
-    headp=&ast->varshead;
-    AST_LIST_TRAVERSE(headp,current,entries) {
-        /* Check whether there is a ALERT_INFO variable */
-        if (strcasecmp(ast_var_name(current),"ALERT_INFO")==0) {
-            distinctive_ring = ast_var_value(current);
-        }
-    }
-			    +
-    ast_mutex_lock(&sub->lock);
-    switch (p->hookstate) {
-        case MGCP_OFFHOOK:
-		    snprintf(tone, sizeof(tone), "L/wt");
-            break;
-        case MGCP_ONHOOK:
-        default:
-            if (distinctive_ring && !ast_strlen_zero(distinctive_ring)) {
-                snprintf(tone, sizeof(tone), "L/r%s", distinctive_ring);
-                ast_verbose(VERBOSE_PREFIX_2 "MGCP distinctive ring %s\n", tone);
-            } else {
-                snprintf(tone, sizeof(tone), "L/rg");
-                ast_verbose(VERBOSE_PREFIX_2 "MGCP default ring\n");
-            }
-            break;
-    }
+	if (mgcpdebug) {
+		ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_call(%s)\n", ast->name);
+	}
+	sub = ast->pvt->pvt;
+	p = sub->parent;
+	headp = &ast->varshead;
+	AST_LIST_TRAVERSE(headp,current,entries) {
+		/* Check whether there is an ALERT_INFO variable */
+		if (strcasecmp(ast_var_name(current),"ALERT_INFO") == 0) {
+			distinctive_ring = ast_var_value(current);
+		}
+	}
+
+	ast_mutex_lock(&sub->lock);
+	switch (p->hookstate) {
+	case MGCP_OFFHOOK:
+		snprintf(tone, sizeof(tone), "L/wt");
+		break;
+	case MGCP_ONHOOK:
+	default:
+		if (distinctive_ring && !ast_strlen_zero(distinctive_ring)) {
+			snprintf(tone, sizeof(tone), "L/r%s", distinctive_ring);
+			if (mgcpdebug) {
+				ast_verbose(VERBOSE_PREFIX_3 "MGCP distinctive ring %s\n", tone);
+			}
+		} else {
+			snprintf(tone, sizeof(tone), "L/rg");
+			if (mgcpdebug) {
+				ast_verbose(VERBOSE_PREFIX_3 "MGCP default ring\n");
+			}
+		}
+		break;
+	}
 
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "mgcp_call called on %s, neither down nor reserved\n", ast->name);
@@ -3143,15 +3147,13 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 				} else {
 					/* SC: verbose level check */
 					if (option_verbose > 2) {
-						if (option_verbose > 2) {
-							ast_verbose(VERBOSE_PREFIX_3 "MGCP handle_request(%s@%s-%d) ast_channel already destroyed, resending DLCX.\n",
-								p->name, p->parent->name, sub->id);
-						}
-						/* Instruct the other side to remove the connection since it apparently *
-						 * still thinks the channel is active. *
-						 * For Cisco IAD2421 /BAK/ */
-						transmit_connection_del(sub);
+						ast_verbose(VERBOSE_PREFIX_3 "MGCP handle_request(%s@%s-%d) ast_channel already destroyed, resending DLCX.\n",
+							p->name, p->parent->name, sub->id);
 					}
+					/* Instruct the other side to remove the connection since it apparently *
+					 * still thinks the channel is active. *
+					 * For Cisco IAD2421 /BAK/ */
+					transmit_connection_del(sub);
 				}
 			}
 			if ((p->hookstate == MGCP_ONHOOK) && (!sub->rtp) && (!sub->next->rtp)) {
