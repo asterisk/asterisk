@@ -5101,7 +5101,7 @@ static int reload_config(void)
 			max_expiry = atoi(v->value);
 			if (max_expiry < 1)
 				max_expiry = DEFAULT_MAX_EXPIRY;
-		} else if (!strcasecmp(v->name, "defaultexpiry")) {
+		} else if (!strcasecmp(v->name, "defaultexpiry") || !strcasecmp(v->name, "defaultexpirey")) {
 			default_expiry = atoi(v->value);
 			if (default_expiry < 1)
 				default_expiry = DEFAULT_DEFAULT_EXPIRY;
