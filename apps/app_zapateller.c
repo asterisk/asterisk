@@ -31,8 +31,10 @@ static char *synopsis = "Block telemarketers with SIT";
 static char *descrip = 
 "  Zapateller(options):  Generates special information tone to block telemarketers\n"
 "from calling you.  Returns 0 normally or -1 on hangup.  Options is a pipe-delimited\n"
-"list of options.  The only supported option is 'answer' which will cause the line to\n"
-"be answered before playing the tone";
+"list of options.  The following options are available: 'answer' causes the line to\n"
+"be answered before playing the tone, 'nocallerid' causes Zapateller to only play\n"
+"the tone if there is no callerid information available.  Options should be\n"
+"seperated by | characters.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -42,22 +44,44 @@ static int zapateller_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
+	int answer = 0, nocallerid = 0;
+	char *c;
+	char *stringp=NULL;
 	
 	LOCAL_USER_ADD(u);
+
+	stringp=data;
+        c = strsep(&stringp, "|");
+        while(c && strlen(c)) {
+		if (!strcasecmp(c, "answer"))
+			answer = 1;
+		else if (!strcasecmp(c, "nocallerid"))
+			nocallerid = 1;
+
+                c = strsep(&stringp, "|");
+        }
+
 	ast_stopstream(chan);
 	if (chan->_state != AST_STATE_UP) {
-		if (data && !strcasecmp(data, "answer")) 
+
+		if (answer) 
 			res = ast_answer(chan);
 		if (!res) {
 			res = ast_safe_sleep(chan, 500);
 		}
 	}
+	if (chan->callerid && nocallerid) {
+		LOCAL_USER_REMOVE(u);
+		return res;
+	} 
 	if (!res) 
 		res = ast_tonepair(chan, 950, 0, 330, 0);
 	if (!res) 
 		res = ast_tonepair(chan, 1400, 0, 330, 0);
 	if (!res) 
 		res = ast_tonepair(chan, 1800, 0, 330, 0);
+	if (!res) 
+		res = ast_tonepair(chan, 0, 0, 1000, 0);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
