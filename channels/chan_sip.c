@@ -889,7 +889,14 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 		p->route = NULL;
 	}
 	if (p->registry) {
-		p->registry->call=NULL;
+		/* Carefully unlink from registry */
+		struct sip_registry *reg;
+		reg = registrations;
+		while(reg) {
+			if ((reg == p->registry) && (p->registry->call == p))
+				p->registry->call=NULL;
+			reg = reg->next;
+		}
 	}
 	/* Unlink us from the owner if we have one */
 	if (p->owner) {
