@@ -447,7 +447,7 @@ static int process_message(struct mansession *s, struct message *m)
 					snprintf(s->challenge, sizeof(s->challenge), "%d", rand());
 					ast_pthread_mutex_unlock(&s->lock);
 				}
-				ast_cli(s->fd, "Challenge: %s\r\n\r\n", s->challenge);
+				ast_cli(s->fd, "Response: Success\r\nChallenge: %s\r\n\r\n", s->challenge);
 				return 0;
 			} else {
 				send_error(s, "Must specify AuthType");

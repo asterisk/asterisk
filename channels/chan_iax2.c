@@ -73,7 +73,7 @@ static char context[80] = "default";
 static int max_retries = 4;
 static int ping_time = 20;
 static int lagrq_time = 10;
-static int nextcallno = 0;
+static int nextcallno = 1;
 static int maxjitterbuffer=3000;
 
 static int iaxdefaultdpcache=10 * 60;	/* Cache dialplan entries for 10 minutes by default */
@@ -846,7 +846,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			ast_pthread_mutex_unlock(&iaxsl[x]);
 		}
 	}
-	if ((res < 0) && (new >= NEW_ALLOW)) {
+	if ((res < 1) && (new >= NEW_ALLOW)) {
 		/* Create a new one */
 		start = nextcallno;
 		for (x = ((nextcallno + 1) % (AST_IAX2_MAX_CALLS - 1)) + 1; iaxs[x] && (x != start); x = (x + 1) % AST_IAX2_MAX_CALLS)
