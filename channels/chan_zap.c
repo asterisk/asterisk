@@ -468,6 +468,8 @@ static struct zt_pvt {
 #endif	
 } *iflist = NULL, *ifend = NULL;
 
+struct zt_pvt *round_robin[32];
+
 #ifdef ZAPATA_PRI
 static inline int pri_grab(struct zt_pvt *pvt, struct zt_pri *pri)
 {
@@ -4974,15 +4976,48 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		memset(tmp, 0, sizeof(struct zt_pvt));
 		for (x=0;x<3;x++)
 			tmp->subs[x].zfd = -1;
-		if (!ifend) {
+		tmp->channel = channel;
+		/* nothing on the iflist */
+		if (!iflist) {
 			iflist = tmp;
 			tmp->prev = NULL;
 			tmp->next = NULL;
+			ifend = tmp;
 		} else {
-			ifend->next = tmp;
-			tmp->prev = ifend;
+			/* at least one member on the iflist */
+			struct zt_pvt *working = iflist;
+
+			/* check if we maybe have to put it on the begining */
+			if (working->channel > tmp->channel) {
+				tmp->next = iflist;
+				tmp->prev = NULL;
+				iflist = tmp;
+			} else {
+			/* go through all the members and put the member in the right place */
+				while (working) {
+					/* in the middle */
+					if (working->next) {
+						if (working->channel < tmp->channel && working->next->channel > tmp->channel) {
+							tmp->next = working->next;
+							tmp->prev = working;
+							working->next->prev = tmp;
+							working->next = tmp;
+							break;
+						}
+					} else {
+					/* the last */
+						if (working->channel < tmp->channel) {
+							working->next = tmp;
+							tmp->next = NULL;
+							tmp->prev = working;
+							ifend = tmp;
+							break;
+						}
+					}
+					working = working->next;
+				}
+			}
 		}
-		ifend = tmp;
 	}
 
 	if (tmp) {
@@ -5386,6 +5421,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 	char opt=0;
 	int res=0, y=0;
 	int backwards = 0;
+	struct zt_pvt *exit;
 	
 	/* We do signed linear */
 	oldformat = format;
@@ -5400,7 +5436,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 		ast_log(LOG_WARNING, "Channel requested with no data\n");
 		return NULL;
 	}
-	if (toupper(dest[0]) == 'G') {
+	if (toupper(dest[0]) == 'G' || toupper(dest[0])=='R') {
 		/* Retrieve the group number */
 		char *stringp=NULL;
 		stringp=dest + 1;
@@ -5410,8 +5446,24 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 			return NULL;
 		}
 		groupmatch = 1 << x;
-		if (dest[0] == 'G')
-			backwards = 1;
+		if (toupper(dest[0]) == 'G') {
+			if (dest[0] == 'G') {
+				backwards = 1;
+				p = ifend;
+			} else
+				p = iflist;
+		} else {
+			if (dest[0] == 'R') {
+				backwards = 1;
+				p = round_robin[x]?round_robin[x]->prev:ifend;
+				if (!p)
+					p = ifend;
+			} else {
+				p = round_robin[x]?round_robin[x]->next:iflist;
+				if (!p)
+					p = iflist;
+			}
+		}
 	} else {
 		char *stringp=NULL;
 		stringp=dest;
@@ -5424,24 +5476,25 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 			return NULL;
 		}
 		channelmatch = x;
+		p = iflist;
 	}
 	/* Search for an unowned channel */
 	if (ast_mutex_lock(&iflock)) {
 		ast_log(LOG_ERROR, "Unable to lock interface list???\n");
 		return NULL;
 	}
-	if (backwards)
-		p = ifend;
-	else
-		p = iflist;
+	exit = p;
 	while(p && !tmp) {
-		if (available(p, channelmatch, groupmatch)) {
+		round_robin[x] = p;
+#if 0 
+		ast_verbose("name = %s, %d\n",p->owner->name,p->channel);
+#endif
+		if (p && available(p, channelmatch, groupmatch)) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Using channel %d\n", p->channel);
-				if (p->inalarm) {
-					p = p->next;
-					continue;
-				}
+				if (p->inalarm)
+					goto next;
+
 			callwait = (p->owner != NULL);
 			if (p->channel == CHAN_PSEUDO) {
 				p = chandup(p);
@@ -5480,10 +5533,19 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 				tmp->cdrflags |= AST_CDR_CALLWAIT;
 			break;
 		}
-		if (backwards)
+next:
+		if (backwards) {
 			p = p->prev;
-		else
+			if (!p)
+				p = ifend;
+		} else {
 			p = p->next;
+			if (!p)
+				p = iflist;
+		}
+		/* stop when you roll to the one that we started from */
+		if (p == exit)
+			break;
 	}
 	ast_mutex_unlock(&iflock);
 	restart_monitor();
@@ -6662,8 +6724,6 @@ static int zap_show_channel(int fd, int argc, char **argv)
 	return RESULT_FAILURE;
 }
 
-			
-
 static char show_channels_usage[] =
 	"Usage: zap show channels\n"
 	"	Shows a list of available channels\n";
@@ -7082,6 +7142,7 @@ int load_module()
 	ast_cli_register(&cli_show_channel);
 	ast_cli_register(&cli_destroy_channel);
 	ast_register_application(app_callingpres, change_callingpres, synopsis_callingpres, descrip_callingpres);
+	memset(round_robin, 0, sizeof(round_robin));
 	/* And start the monitor for the first time */
 	restart_monitor();
 	return 0;
