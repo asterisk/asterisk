@@ -402,6 +402,8 @@ static int handle_getdata(struct ast_channel *chan, AGI *agi, int argc, char *ar
 		return RESULT_SUCCESS;
 	else if (res == 1)
 		fdprintf(agi->fd, "200 result=%s (timeout)\n", data);
+    else if (res < 0 )
+        fdprintf(agi->fd, "200 result=-1\n");
 	else
 		fdprintf(agi->fd, "200 result=%s\n", data);
 	if (res >= 0)
