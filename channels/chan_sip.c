@@ -4616,6 +4616,7 @@ static void *do_monitor(void *data)
 	struct sip_pvt *sip;
 	struct sip_peer *peer;
 	time_t t;
+	int fastrestart =0;
 	/* Add an I/O event to our UDP socket */
 	if (sipsock > -1) 
 		ast_io_add(io, sipsock, sipsock_read, AST_IO_IN, NULL);
@@ -4653,6 +4654,9 @@ restartsearch:
 		res = ast_sched_wait(sched);
 		if ((res < 0) || (res > 1000))
 			res = 1000;
+		/* If we might need to send more mailboxes, don't wait long at all.*/
+		if (fastrestart)
+			res = 1;
 		res = ast_io_wait(io, res);
 		ast_pthread_mutex_lock(&monlock);
 		if (res >= 0) 
@@ -4660,9 +4664,11 @@ restartsearch:
 		ast_pthread_mutex_lock(&peerl.lock);
 		peer = peerl.peers;
 		time(&t);
+		fastrestart = 0;
 		while(peer) {
 			if (strlen(peer->mailbox) && ((t - peer->lastmsgcheck) > 10)) {
 				sip_send_mwi_to_peer(peer);
+				fastrestart = 1;
 				break;
 			}
 			peer = peer->next;
