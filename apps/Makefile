@@ -14,9 +14,10 @@
 #APPS=app_dial.so app_playback.so app_directory.so app_intercom.so app_mp3.so 
 APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_intercom.so app_mp3.so \
      app_system.so app_echo.so app_record.so app_image.so app_url.so app_disa.so \
-     app_agi.so app_qcall.so 
+     app_agi.so app_qcall.so app_adsiprog.so app_getcpeid.so app_milliwatt.so \
+     app_zapateller.so
 
-APPS+=$(shell if [ -f /usr/include/zap.h ]; then echo "app_zapras.so" ; fi)
+APPS+=$(shell if [ -f /usr/include/zap.h ]; then echo "app_zapras.so app_meetme.so" ; fi)
 
 CFLAGS+=
 

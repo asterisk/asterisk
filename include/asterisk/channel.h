@@ -23,61 +23,7 @@
 extern "C" {
 #endif
 
-#include <pthread.h>
-
-#ifdef DEBUG_THREADS
-
-#define TRIES 50
-
-#include <errno.h>
-#include <string.h>
-#include <stdio.h>
-#include <unistd.h>
-
-struct mutex_info {
-	pthread_mutex_t *mutex;
-	char *file;
-	int lineno;
-	char *func;
-	struct mutex_info *next;
-};
-
-static inline int __ast_pthread_mutex_lock(char *filename, int lineno, char *func, pthread_mutex_t *t) {
-	int res;
-	int tries = TRIES;
-	do {
-		res = pthread_mutex_trylock(t);
-		/* If we can't run, yield */
-		if (res) {
-			sched_yield();
-			usleep(1);
-		}
-	} while(res && tries--);
-	if (res) {
-		fprintf(stderr, "%s line %d (%s): Error obtaining mutex: %s\n", 
-				filename, lineno, func, strerror(res));
-		res = pthread_mutex_lock(t);
-		fprintf(stderr, "%s line %d (%s): Got it eventually...\n",
-				filename, lineno, func);
-	}
-	return res;
-}
-
-#define ast_pthread_mutex_lock(a) __ast_pthread_mutex_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, a)
-
-static inline int __ast_pthread_mutex_unlock(char *filename, int lineno, char *func, pthread_mutex_t *t) {
-	int res;
-	res = pthread_mutex_unlock(t);
-	if (res) 
-		fprintf(stderr, "%s line %d (%s): Error releasing mutex: %s\n", 
-				filename, lineno, func, strerror(res));
-	return res;
-}
-#define ast_pthread_mutex_unlock(a) __ast_pthread_mutex_unlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, a)
-#else
-#define ast_pthread_mutex_lock pthread_mutex_lock
-#define ast_pthread_mutex_unlock pthread_mutex_unlock
-#endif
+#include <asterisk/lock.h>
 
 //! Max length of an extension
 #define AST_MAX_EXTENSION 80
@@ -93,6 +39,12 @@ static inline int __ast_pthread_mutex_unlock(char *filename, int lineno, char *f
 
 #define AST_MAX_FDS 4
 
+struct ast_generator {
+	void *(*alloc)(struct ast_channel *chan, void *params);
+	void (*release)(struct ast_channel *chan, void *data);
+	int (*generate)(struct ast_channel *chan, void *data, int len);
+};
+
 //! Main Channel structure associated with a channel.
 /*! 
  * This is the side of it mostly used by the pbx and call management.
@@ -106,7 +58,17 @@ struct ast_channel {
 	char *type;				
 	/*! File descriptor for channel -- Drivers will poll on these file descriptors, so at least one must be non -1.  */
 	int fds[AST_MAX_FDS];			
-						   
+
+	/*! Default music class */
+	char musicclass[MAX_LANGUAGE];
+
+	/*! Current generator data if there is any */
+	void *generatordata;
+	/*! Current active data generator */
+	struct ast_generator *generator;
+	/*! Whether or not the generator should be interrupted by write */
+	int writeinterrupt;
+
 	/*! Who are we bridged to, if we're bridged */
 	struct ast_channel *bridge;		
 	/*! Channel that will masquerade as us */
@@ -350,6 +312,15 @@ int ast_indicate(struct ast_channel *chan, int condition);
   Returns < 0 on  failure, 0 if nothing ever arrived, and the # of ms remaining otherwise */
 int ast_waitfor(struct ast_channel *chan, int ms);
 
+//! Wait for a specied amount of time, looking for hangups
+/*!
+ * \param chan channel to wait for
+ * \param ms length of time in milliseconds to sleep
+ * Waits for a specified amount of time, servicing the channel as required.
+ * returns -1 on hangup, otherwise 0.
+ */
+int ast_safe_sleep(struct ast_channel *chan, int ms);
+
 //! Waits for activity on a group of channels
 /*! 
  * \param chan an array of pointers to channels
@@ -554,6 +525,33 @@ int ast_channel_defer_dtmf(struct ast_channel *chan);
 //! Undeos a defer
 /*! Undo defer.  ast_read will return any dtmf characters that were queued */
 void ast_channel_undefer_dtmf(struct ast_channel *chan);
+
+/*! Initiate system shutdown -- prevents new channels from being allocated.
+    If "hangup" is non-zero, all existing channels will receive soft
+     hangups */
+void ast_begin_shutdown(int hangup);
+
+/*! Cancels an existing shutdown and returns to normal operation */
+void ast_cancel_shutdown(void);
+
+/*! Returns number of active/allocated channels */
+int ast_active_channels(void);
+
+/*! Returns non-zero if Asterisk is being shut down */
+int ast_shutting_down(void);
+
+/*! Activate a given generator */
+int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, void *params);
+
+/*! Deactive an active generator */
+void ast_deactivate_generator(struct ast_channel *chan);
+
+/*! Start a tone going */
+int ast_tonepair_start(struct ast_channel *chan, int freq1, int freq2, int duration, int vol);
+/*! Stop a tone from playing */
+void ast_tonepair_stop(struct ast_channel *chan);
+/*! Play a tone pair for a given amount of time */
+int ast_tonepair(struct ast_channel *chan, int freq1, int freq2, int duration, int vol);
 
 #ifdef DO_CRASH
 #define CRASH do { *((int *)0) = 0; } while(0)
