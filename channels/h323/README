@@ -5,22 +5,17 @@
 	     First public release on November 10th, 2002
 
 
-	Developed using:	RedHat 7.2/7.3/8.0
-				Open H.323 v1.11.7		
-				PWLib      v1.4.11
-				GCC   2.96/3.1/3.2
-
-	Dependancies:  		openssl-0.9.6b
+	Dependancies at least:	openssl-0.9.6b
 				openssl-devel-0.9.6b
-		       		expat-1.95
-		       		expat-dev-1.95
+	       			expat-1.95
+	       			expat-dev-1.95
 
-	Currently recomended versions: 	Open H.323 v1.12.2
-					PWLib v1.5.2
-				
+This code runs on Open H.323 v1.13.5 and PWLib v1.6.6. If you use different
+versions, you are on your own.
 
 chan_h323 has been implemented using Asterisk's RTP stack insted of trying
-to implement a pseudo sound card driver. 
+to implement a pseudo sound card driver. I feel this is more effiecent,
+due to the Asterisk.
 
 NOTICE: Whatever you do, DO NOT USE distrubution specific installs
 of Open H.323 and PWLib. In fact you should check to make sure 
@@ -31,12 +26,9 @@ you are on your own, sorry.
 
 
 To compile this code:
-You first need Open H.323 v1.12.2 and PWLib v1.5.2 from http://www.openh323.org/bin/. Make sure you
-follow the build instructions EXPLICTLY at http://www.openh323.org/build.html.
-
-Once PWLib and Open H.323 have been compiled, issue a make in the asterisk/channels/h323 
-directory, then go back to the Asterisk source top level directory and issue a make install.
-
+Once PWLib and Open H.323 have been compiled per their specific build instructions, issue 
+a make in the asterisk/channels/h323 directory, then go back to the Asterisk source 
+top level directory and issue a make install.
 
 
 Most common compile error:  
@@ -84,7 +76,6 @@ We recomend puting the above directives into your /etc/profile so
 you do not have to remember to export those values every time you 
 want to recompile.
 
-
 If you still have trouble please contact 'JerJer' in #Asterisk on 
 irc.freenode.net or send and email to jj@nufone.net
 
@@ -108,12 +99,14 @@ core.1976
 
 Send whatever shows up right after the 'bt'
 
-
 Also, a full debug screen output is almost needed. Make sure you are 
-in the full console mode (-c) and turn on 'h.323  debug'. A nice way 
-to capture everything is with script (man script) 
+in the full console mode (-c) and turn on 'h.323 debug' or worst case
+senerio 'h.323 trace 4'. 
 
+If you are motivated to make debug show up on a remote (-r) console, 
+please submit a patch to the Asterisk bug tracker: http://bugs.digium.com/
 
+A nice way to capture debug is with script (man script) 
 
 Jeremy McNamara
 The NuFone Network 

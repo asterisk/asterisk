@@ -30,15 +30,8 @@ OSARCH=$(shell uname -s)
 CFLAGS += -DNDEBUG -DDO_CRASH -DDEBUG_THREADS
 CFLAGS += -pipe -Wall -fPIC -Wmissing-prototypes -Wmissing-declarations 
 CFLAGS += -D_REENTRANT -D_GNU_SOURCE
-ifeq (${OSARCH},OpenBSD)
-CFLAGS += -DP_OPENBSD=200311
-else
-CFLAGS += -DP_LINUX
-endif
-CFLAGS += -DP_HAS_SEMAPHORES -DP_SSL -DP_PTHREADS
-CFLAGS += -DPHAS_TEMPLATES -DPTRACING -DP_USE_PRAGMA
 CFLAGS += -I../../include
-CFLAGS += -I$(PWLIBDIR)/include/ptlib/unix -I$(PWLIBDIR)/include 
+CFLAGS += -I$(PWLIBDIR)/include 
 CFLAGS += -I$(OPENH323DIR)/include -Wno-missing-prototypes -Wno-missing-declarations
 
 
@@ -52,7 +45,7 @@ samples:
  
 
 ast_h323.o:	ast_h323.cpp
-	g++ -g -c -o $@ $(CFLAGS) $<
+	g++ -g -c -fno-rtti -o $@ $(CFLAGS) $<
 
 libchanh323.a:	ast_h323.o
 	ar cr libchanh323.a ast_h323.o
