@@ -109,6 +109,7 @@ CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null
 CFLAGS+=$(shell if uname -m | grep -q ppc; then echo "-fsigned-char"; fi)
 ifeq (${OSARCH},FreeBSD)
 CFLAGS+=-pthread
+INCLUDE+=-I/usr/local/include
 endif
 ifeq (${OSARCH},OpenBSD)
 CFLAGS+=-pthread
