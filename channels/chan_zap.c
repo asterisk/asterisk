@@ -2442,7 +2442,7 @@ static int zt_answer(struct ast_channel *ast)
 		/* Send a pri acknowledge */
 		if (!pri_grab(p, p->pri)) {
 			p->proceeding = 2;
-			res = pri_answer(p->pri->pri, p->call, 0, 1);
+			res = pri_answer(p->pri->pri, p->call, 0, !p->digital);
 			pri_rel(p->pri);
 		} else {
 			ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
@@ -4360,12 +4360,13 @@ static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 		return -1;
 	}
 
+#if 0
 #ifdef ZAPATA_PRI
 	ast_mutex_lock(&p->lock);
 	if (!p->proceeding && p->sig==SIG_PRI && p->pri && !p->outgoing) {
 		if (p->pri->pri) {		
 			if (!pri_grab(p, p->pri)) {
-					pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
+					pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), !p->digital);
 					pri_rel(p->pri);
 			} else
 					ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
@@ -4373,6 +4374,7 @@ static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 		p->proceeding=1;
 	}
 	ast_mutex_unlock(&p->lock);
+#endif
 #endif
 	/* Write a frame of (presumably voice) data */
 	if (frame->frametype != AST_FRAME_VOICE) {
@@ -4471,7 +4473,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 			if ((p->proceeding < 2) && p->sig==SIG_PRI && p->pri && !p->outgoing) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
-						pri_acknowledge(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
+						pri_acknowledge(p->pri->pri,p->call, PVT_TO_CHANNEL(p), !p->digital);
 						pri_rel(p->pri);
 					}
 					else
@@ -4495,7 +4497,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 			if ((p->proceeding < 2) && p->sig==SIG_PRI && p->pri && !p->outgoing) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
-						pri_proceeding(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
+						pri_proceeding(p->pri->pri,p->call, PVT_TO_CHANNEL(p), !p->digital);
 						pri_rel(p->pri);
 					}
 					else
@@ -4510,6 +4512,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 		case AST_CONTROL_PROGRESS:
 			ast_log(LOG_DEBUG,"Received AST_CONTROL_PROGRESS on %s\n",chan->name);
 #ifdef ZAPATA_PRI
+			p->digital = 0;	/* Digital-only calls isn't allows any inband progress messages */
 			if (!p->proceeding && p->sig==SIG_PRI && p->pri && !p->outgoing) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
@@ -8096,7 +8099,11 @@ static void *pri_dchannel(void *vpri)
 				/* Get chan value if e->e is not PRI_EVNT_RINGING */
 				chanpos = pri_find_principle(pri, e->proceeding.channel);
 				if (chanpos > -1) {
-					if (pri->overlapdial && !pri->pvts[chanpos]->proceeding) {
+#ifdef PRI_PROGRESS_MASK
+					if ((pri->overlapdial && !pri->pvts[chanpos]->proceeding) || (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE)) {
+#else
+					if ((pri->overlapdial && !pri->pvts[chanpos]->proceeding) || (e->proceeding.progress == 8)) {
+#endif
 						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
 						
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
@@ -8122,15 +8129,12 @@ static void *pri_dchannel(void *vpri)
 				chanpos = pri_find_principle(pri, e->proceeding.channel);
 				if (chanpos > -1) {
 					if (pri->overlapdial && !pri->pvts[chanpos]->proceeding) {
-						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
+						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROCEEDING, };
 						
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						ast_log(LOG_DEBUG, "Queuing frame from PRI_EVENT_PROCEEDING on channel %d/%d span %d\n",
 								pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
 						zap_queue_frame(pri->pvts[chanpos], &f, pri);
-						f.subclass = AST_CONTROL_PROCEEDING;
-						zap_queue_frame(pri->pvts[chanpos], &f, pri);
-						pri->pvts[chanpos]->proceeding=2;
 #ifdef PRI_PROGRESS_MASK
 						if (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE) {
 #else
@@ -8141,6 +8145,9 @@ static void *pri_dchannel(void *vpri)
 								ast_dsp_set_features(pri->pvts[chanpos]->dsp, pri->pvts[chanpos]->dsp_features);
 								pri->pvts[chanpos]->dsp_features = 0;
 							}
+							/* Bring voice path up */
+							f.subclass = AST_CONTROL_PROGRESS;
+							zap_queue_frame(pri->pvts[chanpos], &f, pri);
 						}
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
