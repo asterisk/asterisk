@@ -2925,6 +2925,9 @@ struct ast_frame *zt_exception(struct ast_channel *ast)
 	int res;
 	int usedindex=-1;
 	int index;
+	struct ast_frame *f;
+
+	ast_pthread_mutex_lock(&p->lock);
 
 	index = zt_get_index(ast, p, 1);
 	
@@ -3001,15 +3004,21 @@ struct ast_frame *zt_exception(struct ast_channel *ast)
 		default:
 			ast_log(LOG_WARNING, "Don't know how to absorb event %s\n", event2str(res));
 		}
-		return &p->subs[index].f;
+		f = &p->subs[index].f;
+		ast_pthread_mutex_unlock(&p->lock);
+		return f;
 	}
 	if (!p->radio) ast_log(LOG_DEBUG, "Exception on %d, channel %d\n", ast->fds[0],p->channel);
 	/* If it's not us, return NULL immediately */
 	if (ast != p->owner) {
 		ast_log(LOG_WARNING, "We're %s, not %s\n", ast->name, p->owner->name);
-		return &p->subs[index].f;
+		f = &p->subs[index].f;
+		ast_pthread_mutex_unlock(&p->lock);
+		return f;
 	}
-	return zt_handle_event(ast);
+	f = zt_handle_event(ast);
+	ast_pthread_mutex_unlock(&p->lock);
+	return f;
 }
 
 struct ast_frame  *zt_read(struct ast_channel *ast)
@@ -3133,8 +3142,9 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	}
 	if (res != (p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE)) {
 		ast_log(LOG_DEBUG, "Short read (%d/%d), must be an event...\n", res, p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE);
+		f = zt_handle_event(ast);
 		pthread_mutex_unlock(&p->lock);
-		return zt_handle_event(ast);
+		return f;
 	}
 	if (p->tdd) { /* if in TDD mode, see if we receive that */
 		int c;
