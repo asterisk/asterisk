@@ -1260,8 +1260,8 @@ call_options_t *setup_incoming_call(call_details_t cd)
 
 /* I know this is horrid, don't kill me saddam */
 exit:
-	if(strlen(p->cd.call_redir_e164))
-		strncpy(p->rdnis, cd.call_redir_e164, sizeof(p->rdnis)-1);
+//	if(strlen(p->cd.call_redir_e164))
+//		strncpy(p->rdnis, cd.call_redir_e164, sizeof(p->rdnis)-1);
 	/* allocate a channel and tell asterisk about it */
 	c = oh323_new(p, AST_STATE_RINGING, cd.call_token);
 	if (!c) {
