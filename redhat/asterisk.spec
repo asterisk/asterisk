@@ -53,6 +53,8 @@ ln -s /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 # Asterisk
 #
 %attr(0755,root,root)      /usr/sbin/asterisk
+%attr(0755,root,root)      /usr/sbin/safe_asterisk
+%attr(0755,root,root)      /usr/sbin/astgenkey
 
 #
 # Sound files
@@ -64,6 +66,10 @@ ln -s /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 %attr(0644,root,root)      /var/lib/asterisk/sounds/digits/*.gsm
 %attr(0755,root,root) %dir /var/lib/asterisk/images
 %attr(0644,root,root)      /var/lib/asterisk/images/*
+%attr(0755,root,root) %dir /var/lib/asterisk/keys
+%attr(0644,root,root)      /var/lib/asterisk/keys/*
+%attr(0755,root,root) %dir /var/lib/asterisk/agi-bin
+%attr(0755,root,root) %dir /var/lib/asterisk/agi-bin/*
 
 #
 # Example voicemail files
