@@ -180,6 +180,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num, char *outgoing_context);
 static int play_record_review(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int outsidecaller, struct ast_vm_user *vmu, int *duration);
 static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc);
+static int vm_play_folder_name(struct ast_channel *chan, char *mbox);
 
 #ifdef USE_ODBC_STORAGE
 static char odbc_database[80];
@@ -2759,23 +2760,10 @@ static int get_folder(struct ast_channel *chan, int start)
 		d = ast_play_and_wait(chan, "vm-for");	/* "for" */
 		if (d)
 			return d;
-		if (!strcasecmp(chan->language, "it") || !strcasecmp(chan->language, "es") || !strcasecmp(chan->language, "fr") || !strcasecmp(chan->language, "pt")) { /* Italian, Spanish, French or Portuguese syntax */
-			d = ast_play_and_wait(chan, "vm-messages"); /* "messages */
-			if (d)
-				return d;
-			snprintf(fn, sizeof(fn), "vm-%s", mbox(x));	/* Folder name */
-			d = ast_play_and_wait(chan, fn);
-			if (d)
-				return d;
-		} else {  /* Default English */
-			snprintf(fn, sizeof(fn), "vm-%s", mbox(x));	/* Folder name */
-			d = ast_play_and_wait(chan, fn);
-			if (d)
-				return d;
-			d = ast_play_and_wait(chan, "vm-messages"); /* "messages */
-			if (d)
-				return d;
-		}
+		snprintf(fn, sizeof(fn), "vm-%s", mbox(x));	/* Folder name */
+		d = vm_play_folder_name(chan, fn);
+		if (d)
+			return d;
 		d = ast_waitfordigit(chan, 500);
 		if (d)
 			return d;
@@ -3389,8 +3377,25 @@ static void close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 	memset(vms->heard, 0, sizeof(vms->heard)); 
 }
 
+static int vm_play_folder_name(struct ast_channel *chan, char *mbox)
+{
+	int cmd;
+
+	if (!strcasecmp(chan->language, "it") || !strcasecmp(chan->language, "es") || !strcasecmp(chan->language, "fr") || !strcasecmp(chan->language, "pt")) { /* Italian, Spanish, French or Portuguese syntax */
+		cmd = ast_play_and_wait(chan, "vm-messages"); /* "messages */
+		if (cmd)
+			return cmd;
+		return ast_play_and_wait(chan, mbox);
+	} else {  /* Default English */
+		cmd = ast_play_and_wait(chan, mbox);
+		if (cmd)
+			return cmd;
+		return ast_play_and_wait(chan, "vm-messages"); /* "messages */
+	}
+}
+
 /* Default English syntax */
-static int vm_intro(struct ast_channel *chan,struct vm_state *vms)
+static int vm_intro_en(struct ast_channel *chan,struct vm_state *vms)
 {
 	/* Introduce messages they have */
 	int res;
@@ -3806,6 +3811,28 @@ static int vm_intro_cz(struct ast_channel *chan,struct vm_state *vms)
 	return res;
 }
 
+static int vm_intro(struct ast_channel *chan,struct vm_state *vms)
+{
+	/* Play voicemail intro - syntax is different for different languages */
+	if (!strcasecmp(chan->language, "de")) {	/* GERMAN syntax */
+		return vm_intro_de(chan, vms);
+	} else if (!strcasecmp(chan->language, "es")) { /* SPANISH syntax */
+		return vm_intro_es(chan, vms);
+	} else if (!strcasecmp(chan->language, "it")) { /* ITALIAN syntax */
+		return vm_intro_it(chan, vms);
+	} else if (!strcasecmp(chan->language, "fr")) {	/* FRENCH syntax */
+		return vm_intro_fr(chan, vms);
+	} else if (!strcasecmp(chan->language, "nl")) {	/* DUTCH syntax */
+		return vm_intro_nl(chan, vms);
+	} else if (!strcasecmp(chan->language, "pt")) {	/* PORTUGUESE syntax */
+		return vm_intro_pt(chan, vms);
+	} else if (!strcasecmp(chan->language, "cz")) { /* CZECH syntax */
+		return vm_intro_cz(chan, vms);
+	} else {	/* Default to ENGLISH */
+		return vm_intro_en(chan, vms);
+	}
+}
+
 static int vm_instructions(struct ast_channel *chan, struct vm_state *vms, int skipadvanced)
 {
 	int res = 0;
@@ -3814,17 +3841,8 @@ static int vm_instructions(struct ast_channel *chan, struct vm_state *vms, int s
 		if (vms->starting) {
 			if (vms->lastmsg > -1) {
 				res = ast_play_and_wait(chan, "vm-onefor");
-				if (!strcasecmp(chan->language, "it") || !strcasecmp(chan->language, "es") || !strcasecmp(chan->language, "fr") || !strcasecmp(chan->language, "pt")) { /* Italian, Spanish, French & Portuguese Syntax */
-					if (!res)
-						res = ast_play_and_wait(chan, "vm-messages");
-					if (!res)
-						res = ast_play_and_wait(chan, vms->vmbox);
-				} else {	/* Default English syntax */
-					if (!res)
-						res = ast_play_and_wait(chan, vms->vmbox);
-					if (!res)
-						res = ast_play_and_wait(chan, "vm-messages");
-				}
+				if (!res)
+					res = vm_play_folder_name(chan, vms->vmbox);
 			}
 			if (!res)
 				res = ast_play_and_wait(chan, "vm-opts");
@@ -4079,7 +4097,7 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 }
 
 /* Default English syntax */
-static int vm_browse_messages(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
+static int vm_browse_messages_en(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int cmd=0;
 
@@ -4154,6 +4172,19 @@ static int vm_browse_messages_pt(struct ast_channel *chan, struct vm_state *vms,
 			cmd = ast_play_and_wait(chan, "vm-messages");
 	}
 	return cmd;
+}
+
+static int vm_browse_messages(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
+{
+	if (!strcasecmp(chan->language, "es")) {	/* SPANISH */
+		return vm_browse_messages_es(chan, vms, vmu);
+	} else if (!strcasecmp(chan->language, "it")) { /* ITALIAN */
+		return vm_browse_messages_it(chan, vms, vmu);
+	} else if (!strcasecmp(chan->language, "pt")) {	/* PORTUGUESE */
+		return vm_browse_messages_pt(chan, vms, vmu);
+	} else {	/* Default to English syntax */
+		return vm_browse_messages_en(chan, vms, vmu);
+	}
 }
 
 static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_size, struct ast_vm_user *res_vmu, const char *context, const char *prefix, int skipuser, int maxlogins)
@@ -4367,24 +4398,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			}
 		}
 
-		/* Play voicemail intro - syntax is different for different languages */
-		if (!strcasecmp(chan->language, "de")) {	/* GERMAN syntax */
-			cmd = vm_intro_de(chan, &vms);
-		} else if (!strcasecmp(chan->language, "es")) { /* SPANISH syntax */
-			cmd = vm_intro_es(chan, &vms);
-		} else if (!strcasecmp(chan->language, "it")) { /* ITALIAN syntax */
-			cmd = vm_intro_it(chan, &vms);
-		} else if (!strcasecmp(chan->language, "fr")) {	/* FRENCH syntax */
-			cmd = vm_intro_fr(chan, &vms);
-		} else if (!strcasecmp(chan->language, "nl")) {	/* DUTCH syntax */
-			cmd = vm_intro_nl(chan, &vms);
-		} else if (!strcasecmp(chan->language, "pt")) {	/* PORTUGUESE syntax */
-			cmd = vm_intro_pt(chan, &vms);
-		} else if (!strcasecmp(chan->language, "cz")) { /* CZECH syntax */
-			cmd = vm_intro_cz(chan, &vms);
-		} else {	/* Default to ENGLISH */
-			cmd = vm_intro(chan, &vms);
-		}
+		cmd = vm_intro(chan, &vms);
 
 		vms.repeats = 0;
 		vms.starting = 1;
@@ -4395,15 +4409,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				vms.curmsg = 0;
 				/* Fall through */
 			case '5':
-				if (!strcasecmp(chan->language, "es")) {	/* SPANISH */
-					cmd = vm_browse_messages_es(chan, &vms, vmu);
-				} else if (!strcasecmp(chan->language, "it")) { /* ITALIAN */
-					cmd = vm_browse_messages_it(chan, &vms, vmu);
-				} else if (!strcasecmp(chan->language, "pt")) {	/* PORTUGUESE */
-					cmd = vm_browse_messages_pt(chan, &vms, vmu);
-				} else {	/* Default to English syntax */
-					cmd = vm_browse_messages(chan, &vms, vmu);
-				}
+				cmd = vm_browse_messages(chan, &vms, vmu);
 				break;
 			case '2': /* Change folders */
 				if (useadsi)
@@ -4419,17 +4425,10 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				}
 				if (useadsi)
 					adsi_status2(chan, &vms);
-				if (!strcasecmp(chan->language, "it") || !strcasecmp(chan->language, "es") || !strcasecmp(chan->language, "pt")) {	/* ITALIAN or SPANISH or PORTUGUESE */
-					if (!cmd)
-						cmd = ast_play_and_wait(chan, "vm-messages");
-					if (!cmd)
-						cmd = ast_play_and_wait(chan, vms.vmbox);
-				} else {	/* Default to English syntax */
-					if (!cmd)
-						cmd = ast_play_and_wait(chan, vms.vmbox);
-					if (!cmd)
-						cmd = ast_play_and_wait(chan, "vm-messages");
-				}
+				
+				if (!cmd)
+					cmd = vm_play_folder_name(chan, vms.vmbox);
+
 				vms.starting = 1;
 				break;
 			case '3': /* Advanced options */
@@ -4588,21 +4587,9 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 					cmd = say_and_wait(chan, vms.curmsg + 1, chan->language);
 				if (!cmd)
 					cmd = ast_play_and_wait(chan, "vm-savedto");
-				if (!strcasecmp(chan->language, "it") || !strcasecmp(chan->language, "es") || !strcasecmp(chan->language, "pt")) {	/* ITALIAN or SPANISH or PORTUGUESE */
-					if (!cmd)
-						cmd = ast_play_and_wait(chan, "vm-messages");
-					if (!cmd) {
-						snprintf(vms.fn, sizeof(vms.fn), "vm-%s", mbox(box));
-						cmd = ast_play_and_wait(chan, vms.fn);
-					}
-				} else {	/* Default to English */
-					if (!cmd) {
-						snprintf(vms.fn, sizeof(vms.fn), "vm-%s", mbox(box));
-						cmd = ast_play_and_wait(chan, vms.fn);
-					}
-					if (!cmd)
-						cmd = ast_play_and_wait(chan, "vm-messages");
-				}
+				snprintf(vms.fn, sizeof(vms.fn), "vm-%s", mbox(box));
+				if (!cmd)
+					cmd = vm_play_folder_name(chan, vms.fn);
 				if (skipaftercmd) {
 					if (vms.curmsg < vms.lastmsg) {
 						vms.curmsg++;
@@ -4616,17 +4603,8 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			case '*':
 				if (!vms.starting) {
 					cmd = ast_play_and_wait(chan, "vm-onefor");
-					if (!strcasecmp(chan->language, "it") || !strcasecmp(chan->language, "es") || !strcasecmp(chan->language, "pt")) {	/* Italian or Spanish or Portuguese syntax */
-						if (!cmd)
-							cmd = ast_play_and_wait(chan, "vm-messages");
-						if (!cmd)
-							cmd = ast_play_and_wait(chan, vms.vmbox);
-					} else {
-						if (!cmd)
-							cmd = ast_play_and_wait(chan, vms.vmbox);
-						if (!cmd)
-							cmd = ast_play_and_wait(chan, "vm-messages");
-					}
+					if (!cmd)
+						cmd = vm_play_folder_name(chan, vms.vmbox);
 					if (!cmd)
 						cmd = ast_play_and_wait(chan, "vm-opts");
 					if (!cmd)
