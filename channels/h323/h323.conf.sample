@@ -31,6 +31,13 @@ allow=gsm		; Always allow GSM, it's cool :)
 ; default is rfc2833
 ;dtmfmode=rfc2833
 ;
+; Default RTP Payload to send RFC2833 DTMF on.  This is used to
+; interoperate with broken gateways which cannot successfully
+; negotiate a RFC2833 payload type in the TerminalCapabilitySet.
+;
+; You may also specify on either a per-peer or per-user basis below.
+;dtmfcodec=101
+;
 ; Set the gatekeeper 
 ; DISCOVER			- Find the Gk address using multicast
 ; DISABLE			- Disable the use of a GK

@@ -237,16 +237,15 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token, unsigned int
 		return 1;
 	}
 	*callReference = connection->GetCallReference();	
+
+	if (opts->cid_num) {
+		connection->ast_cid_num = PString(opts->cid_num);
+	}
 	if (opts->cid_name) {
-                localAliasNames.RemoveAll();
-		connection->SetLocalPartyName(PString(opts->cid_name));
-	        if (opts->cid_num) {
-                	localAliasNames.AppendString(PString(opts->cid_num));
-		}
-        } else if (opts->cid_num) {
-                localAliasNames.RemoveAll();
-                connection->SetLocalPartyName(PString(opts->cid_num));
-        }
+		connection->ast_cid_name = PString(opts->cid_name);
+		connection->SetLocalPartyName(connection->ast_cid_name);
+	}
+
 	connection->dtmfCodec = (RTP_DataFrame::PayloadTypes)opts->dtmfcodec;
 
 	if (h323debug) {
@@ -700,6 +699,15 @@ BOOL MyH323Connection::OnSendSignalSetup(H323SignalPDU & setupPDU)
 	if (h323debug) { 
 		cout << "	-- Sending SETUP message" << endl;
 	}
+
+	if (!ast_cid_num.IsEmpty()) {
+		setupPDU.GetQ931().SetCallingPartyNumber(ast_cid_num);
+	}
+
+	if (!ast_cid_name.IsEmpty()) {
+		setupPDU.GetQ931().SetDisplayName(ast_cid_name);
+	}
+
 	sourceAliases = setupPDU.GetSourceAliases();
 	destAliases = setupPDU.GetDestinationAlias();
 

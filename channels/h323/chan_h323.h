@@ -31,8 +31,8 @@
 /** call_option struct holds various bits
  *         of information for each call */
 typedef struct call_options {
-	char            *cid_num;
-	char            *cid_name;
+	char            cid_num[80];
+	char            cid_name[80];
 	int             noFastStart;
 	int             noH245Tunneling;
 	int             noSilenceSuppression;

@@ -37,11 +37,11 @@ endif
 #
 OSARCH=$(shell uname -s)
 CFLAGS += -DNDEBUG -DDO_CRASH -DDEBUG_THREADS
-CFLAGS += -pipe -Wall -fPIC -Wmissing-prototypes -Wmissing-declarations 
+CFLAGS += -pipe -Wall -fPIC -Wmissing-prototypes
 CFLAGS += -D_REENTRANT -D_GNU_SOURCE
 CFLAGS += -I../../include
 CFLAGS += -I$(PWLIBDIR)/include 
-CFLAGS += -I$(OPENH323DIR)/include -Wno-missing-prototypes -Wno-missing-declarations
+CFLAGS += -I$(OPENH323DIR)/include -Wno-missing-prototypes
 
 all:	depend libchanh323.a
 
@@ -54,6 +54,7 @@ samples:
 
 libchanh323.a:	ast_h323.o
 	ar cr libchanh323.a ast_h323.o
+	touch ../chan_h323.c
 
 ast_h323.o:	ast_h323.cpp
 	$(CXX) -g -c -o $@ $(CFLAGS) $<

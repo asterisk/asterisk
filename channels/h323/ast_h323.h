@@ -188,6 +188,9 @@ class MyH323Connection : public H323Connection {
 	unsigned progressAlert;
 
 	RTP_DataFrame::PayloadTypes dtmfCodec;
+
+	PString ast_cid_num;
+	PString ast_cid_name;
 };
 
 class MyH323_ExternalRTPChannel : public H323_ExternalRTPChannel {

@@ -131,9 +131,9 @@ struct oh323_pvt {
 	char exten[AST_MAX_EXTENSION];				/* Requested extension */
 	char context[AST_MAX_EXTENSION];			/* Context where to start */
 	char accountcode[256];					/* Account code */
-	char cid_num[256];					/* Caller*id number, if available */
-	char cid_name[256];					/* Caller*id name, if available */
-	char rdnis[256];					/* Referring DNIS, if available */
+	char cid_num[80];					/* Caller*id number, if available */
+	char cid_name[80];					/* Caller*id name, if available */
+	char rdnis[80];						/* Referring DNIS, if available */
 	int amaflags;						/* AMA Flags */
 	struct ast_rtp *rtp;					/* RTP Session */
 	int dtmfmode;						/* What DTMF Mode is being used */
@@ -499,7 +499,15 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
         } else {
                 ast_inet_ntoa(addr, sizeof(addr), pvt->sa.sin_addr);
                 pvt->options.port = htons(pvt->sa.sin_port);
-	}       
+	}
+
+	if (c->cid.cid_num) {
+		strncpy(pvt->options.cid_num, c->cid.cid_num, sizeof(pvt->options.cid_num));
+	}
+	if (c->cid.cid_name) {
+		strncpy(pvt->options.cid_name, c->cid.cid_name, sizeof(pvt->options.cid_name));
+	}
+
 	/* indicate that this is an outgoing call */
 	pvt->outgoing = 1;
 
