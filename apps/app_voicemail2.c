@@ -1466,6 +1466,7 @@ static int adsi_load_vmail(struct ast_channel *chan, int *useadsi)
 	}
 	bytes = 0;
 	bytes += adsi_download_disconnect(buf + bytes);
+	bytes += adsi_voice_mode(buf + bytes, 0);
  	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD);
 
 	ast_log(LOG_DEBUG, "Done downloading scripts...\n");
@@ -1503,8 +1504,6 @@ static void adsi_begin(struct ast_channel *chan, int *useadsi)
 			ast_log(LOG_WARNING, "Unable to upload voicemail scripts\n");
 			return;
 		}
-      bytes += adsi_voice_mode(buf + bytes, 0);
-
 	} else
 		*useadsi = 1;
 }
