@@ -711,19 +711,19 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 			return -1;
 	}
 	
-	fmts = strdupa(fmt);
+	fmts = ast_strdupa(fmt);
 	
 	stringp=fmts;
 	strsep(&stringp, "|");
 	ast_log(LOG_DEBUG,"Recording Formats: sfmts=%s\n", fmts);	
-	sfmt[0] = strdupa(fmts);
+	sfmt[0] = ast_strdupa(fmts);
 	
 	while((fmt = strsep(&stringp, "|"))) {
 		if (fmtcnt > MAX_OTHER_FORMATS - 1) {
 			ast_log(LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app_voicemail.c\n");
 			break;
 		}
-		sfmt[fmtcnt++] = strdupa(fmt);
+		sfmt[fmtcnt++] = ast_strdupa(fmt);
 	}
 
 	if (maxtime)
