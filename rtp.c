@@ -452,6 +452,11 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		hdrlen += (rtpheader[3] & 0xffff) << 2;
 	}
 
+	if (res < hdrlen) {
+		ast_log(LOG_WARNING, "RTP Read too short (%d, expecting %d)\n", res, hdrlen);
+		return &null_frame;
+	}
+
 #if 0
 	printf("Got RTP packet from %s:%d (type %d, seq %d, ts %d, len = %d)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
 #endif	
