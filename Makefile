@@ -283,6 +283,7 @@ clean:
 	rm -f build.h 
 	rm -f ast_expr.c
 	@if [ -e editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
+	@if [ -d mpg123-0.59r ]; then make -C mpg123-0.59r clean; fi
 	$(MAKE) -C db1-ast clean
 	$(MAKE) -C stdtime clean
 
