@@ -1035,6 +1035,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		while((f = ast_smoother_read(rtp->smoother)))
 			ast_rtp_raw_write(rtp, f, codec);
 		break;
+	case AST_FORMAT_ADPCM:
 	case AST_FORMAT_G726:
 		if (!rtp->smoother) {
 			rtp->smoother = ast_smoother_new(80);
