@@ -58,7 +58,7 @@ int ast_cust_config_register(struct ast_config_reg *new);
 int ast_cust_config_deregister(struct ast_config_reg *new);
 int register_config_cli(void);
 int read_ast_cust_config(void);
-
+struct ast_config *ast_internal_load(const char *configfile, struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, int includelevel);
 
 
 

@@ -230,7 +230,7 @@ static struct ast_config_reg *get_config_registrations(void)
 }
 
 
-static struct ast_config *__ast_load(const char *configfile, struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, int includelevel);
+
 
 static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, char *buf, int lineno, const char *configfile, int includelevel )
 {
@@ -306,7 +306,7 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 						if(arg && cur) {
 							ast_log(LOG_WARNING, "Including files with explicit config engine no longer permitted.  Please use extconfig.conf to specify all mappings\n");
 						} else {
-							if (!__ast_load(cur, tmp, _tmpc, _last, includelevel + 1))
+							if (!ast_internal_load(cur, tmp, _tmpc, _last, includelevel + 1))
 								return -1;
 						}
 					} else
@@ -469,7 +469,7 @@ int ast_update_realtime(const char *family, const char *keyfield, const char *lo
 	return res;
 }
 
-static struct ast_config *__ast_load(const char *configfile, struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, int includelevel)
+struct ast_config *ast_internal_load(const char *configfile, struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, int includelevel)
 {
 	char fn[256];
 	char buf[8192];
@@ -676,7 +676,7 @@ struct ast_config *ast_load(char *configfile)
 	struct ast_category *tmpc=NULL;
 	struct ast_variable *last = NULL;
 
-	return __ast_load(configfile, NULL, &tmpc, &last, 0);
+	return ast_internal_load(configfile, NULL, &tmpc, &last, 0);
 }
 
 void ast_category_append(struct ast_config *config, struct ast_category *cat)
