@@ -2317,7 +2317,8 @@ static void clone_variables(struct ast_channel *original, struct ast_channel *cl
 
 	/* Append variables from clone channel into original channel */
 	/* XXX Is this always correct?  We have to in order to keep MACROS working XXX */
-	AST_LIST_INSERT_TAIL(&original->varshead, AST_LIST_FIRST(&clone->varshead), entries);
+	if (AST_LIST_FIRST(&clone->varshead))
+		AST_LIST_INSERT_TAIL(&original->varshead, AST_LIST_FIRST(&clone->varshead), entries);
 }
 
 /* Assumes channel will be locked when called */
