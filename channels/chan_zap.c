@@ -40,7 +40,6 @@
 #include <asterisk/causes.h>
 #include <asterisk/term.h>
 #include <sys/signal.h>
-#include <sys/select.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -232,6 +231,8 @@ static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 /* Protect the interface list (of zt_pvt's) */
 static ast_mutex_t iflock = AST_MUTEX_INITIALIZER;
+
+static int ifcount = 0;
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
@@ -528,7 +529,7 @@ static inline int pri_grab(struct zt_pvt *pvt, struct zt_pri *pri)
 			ast_mutex_lock(&pvt->lock);
 		}
 	} while(res);
-	/* Then break the select */
+	/* Then break the poll */
 	pthread_kill(pri->master, SIGURG);
 	return 0;
 }
@@ -1437,7 +1438,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 				} else
 					ast_log(LOG_WARNING, "Unable to generate CallerID spill\n");
 			}
-			/* Select proper cadence */
+			/* Choose proper cadence */
 			if ((p->distinctivering > 0) && (p->distinctivering <= num_cadence)) {
 				if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETCADENCE, &cadences[p->distinctivering-1]))
 					ast_log(LOG_WARNING, "Unable to set distinctive ring cadence %d on '%s'\n", p->distinctivering, ast->name);
@@ -2151,7 +2152,7 @@ int	x;
 			unsigned char mybuf[41000],*buf;
 			int size,res,fd,len;
 			int index;
-			fd_set wfds,efds;
+			struct pollfd fds[1];
 			buf = mybuf;
 			memset(buf,0x7f,sizeof(mybuf)); /* set to silence */
 			ast_tdd_gen_ecdisa(buf + 16000,16000);  /* put in tone */
@@ -2167,18 +2168,16 @@ int	x;
 				size = len;
 				if (size > READ_SIZE)
 					size = READ_SIZE;
-				FD_ZERO(&wfds);
-				FD_ZERO(&efds);
-				FD_SET(fd,&wfds);
-				FD_SET(fd,&efds);			
-				res = ast_select(fd + 1,NULL,&wfds,&efds,NULL);
+				fds[0].fd = fd;
+				fds[0].events = POLLPRI | POLLOUT;
+				res = poll(fds, 1, -1);
 				if (!res) {
-					ast_log(LOG_DEBUG, "select (for write) ret. 0 on channel %d\n", p->channel);
+					ast_log(LOG_DEBUG, "poll (for write) ret. 0 on channel %d\n", p->channel);
 					continue;
 				}
 				  /* if got exception */
-				if (FD_ISSET(fd,&efds)) return -1;
-				if (!FD_ISSET(fd,&wfds)) {
+				if (fds[0].revents & POLLPRI) return -1;
+				if (!(fds[0].revents & POLLOUT)) {
 					ast_log(LOG_DEBUG, "write fd not ready on channel %d\n", p->channel);
 					continue;
 				}
@@ -3037,7 +3036,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					p->dialing = 0;
 					p->callwaitcas = 0;
 					if (p->confirmanswer) {
-						/* Ignore answer if "confirm answer" is selected */
+						/* Ignore answer if "confirm answer" is enabled */
 						p->subs[index].f.frametype = AST_FRAME_NULL;
 						p->subs[index].f.subclass = 0;
 					} else if (strlen(p->dop.dialstr)) {
@@ -5024,15 +5023,14 @@ static int handle_init_event(struct zt_pvt *i, int event)
 
 static void *do_monitor(void *data)
 {
-	fd_set efds;
-	fd_set rfds;
-	int n, res, res2;
+	int count, res, res2, spoint, pollres;
 	struct zt_pvt *i;
 	struct zt_pvt *last = NULL;
-	struct timeval tv;
 	time_t thispass = 0, lastpass = 0;
 	int found;
 	char buf[1024];
+	struct pollfd *pfds=NULL;
+	int lastalloc = -1;
 	/* This thread monitors all the frame relay interfaces which are not yet in use
 	   (and thus do not have a separate thread) indefinitely */
 	/* From here on out, we die whenever asked */
@@ -5049,28 +5047,35 @@ static void *do_monitor(void *data)
 			ast_log(LOG_ERROR, "Unable to grab interface lock\n");
 			return NULL;
 		}
-		/* Build the stuff we're going to select on, that is the socket of every
+		if (!pfds || (lastalloc != ifcount)) {
+			if (pfds)
+				free(pfds);
+			pfds = malloc(ifcount * sizeof(struct pollfd));
+			if (!pfds) {
+				ast_log(LOG_WARNING, "Critical memory error.  Zap dies.\n");
+				ast_mutex_unlock(&iflock);
+				return NULL;
+			}
+			lastalloc = ifcount;
+		}
+		/* Build the stuff we're going to poll on, that is the socket of every
 		   zt_pvt that does not have an associated owner channel */
-		n = -1;
-		FD_ZERO(&efds);
-		FD_ZERO(&rfds);
+		count = 0;
 		i = iflist;
 		while(i) {
 			if ((i->subs[SUB_REAL].zfd > -1) && i->sig && (!i->radio)) {
-				if (FD_ISSET(i->subs[SUB_REAL].zfd, &efds)) 
-					ast_log(LOG_WARNING, "Descriptor %d appears twice?\n", i->subs[SUB_REAL].zfd);
 				if (!i->owner && !i->subs[SUB_REAL].owner) {
 					/* This needs to be watched, as it lacks an owner */
-					FD_SET(i->subs[SUB_REAL].zfd, &efds);
+					pfds[count].fd = i->subs[SUB_REAL].zfd;
+					pfds[count].events = POLLPRI;
 					/* Message waiting or r2 channels also get watched for reading */
 #ifdef ZAPATA_R2
 					if (i->cidspill || i->r2)
 #else					
 					if (i->cidspill)
 #endif					
-						FD_SET(i->subs[SUB_REAL].zfd, &rfds);
-					if (i->subs[SUB_REAL].zfd > n)
-						n = i->subs[SUB_REAL].zfd;
+						pfds[count].events |= POLLIN;
+					count++;
 				}
 			}
 			i = i->next;
@@ -5080,14 +5085,12 @@ static void *do_monitor(void *data)
 		
 		pthread_testcancel();
 		/* Wait at least a second for something to happen */
-		tv.tv_sec = 1;
-		tv.tv_usec = 0;
-		res = ast_select(n + 1, &rfds, NULL, &efds, &tv);
+		res = poll(pfds, count, 1000);
 		pthread_testcancel();
-		/* Okay, select has finished.  Let's see what happened.  */
+		/* Okay, poll has finished.  Let's see what happened.  */
 		if (res < 0) {
 			if ((errno != EAGAIN) && (errno != EINTR))
-				ast_log(LOG_WARNING, "select return %d: %s\n", res, strerror(errno));
+				ast_log(LOG_WARNING, "poll return %d: %s\n", res, strerror(errno));
 			continue;
 		}
 		/* Alright, lock the interface list again, and let's look and see what has
@@ -5097,6 +5100,7 @@ static void *do_monitor(void *data)
 			continue;
 		}
 		found = 0;
+		spoint = 0;
 		lastpass = thispass;
 		thispass = time(NULL);
 		i = iflist;
@@ -5142,7 +5146,8 @@ static void *do_monitor(void *data)
 				}
 			}
 			if ((i->subs[SUB_REAL].zfd > -1) && i->sig && (!i->radio)) {
-				if (FD_ISSET(i->subs[SUB_REAL].zfd, &rfds)) {
+				pollres = ast_fdisset(pfds, i->subs[SUB_REAL].zfd, count, &spoint);
+				if (pollres & POLLIN) {
 					if (i->owner || i->subs[SUB_REAL].owner) {
 						ast_log(LOG_WARNING, "Whoa....  I'm owned but found (%d) in read...\n", i->subs[SUB_REAL].zfd);
 						i = i->next;
@@ -5195,9 +5200,9 @@ static void *do_monitor(void *data)
 					handle_init_event(i, res);
 				}
 #ifdef ZAPATA_R2
-				if (FD_ISSET(i->subs[SUB_REAL].zfd, &efds) || (i->r2 && !i->sigchecked)) 
+				if ((pollres & POLLPRI) || (i->r2 && !i->sigchecked)) 
 #else				
-				if (FD_ISSET(i->subs[SUB_REAL].zfd, &efds)) 
+				if (pollres & POLLPRI) 
 #endif				
 				{
 					if (i->owner || i->subs[SUB_REAL].owner) {
@@ -5329,6 +5334,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 			return NULL;
 		}
 		memset(tmp, 0, sizeof(struct zt_pvt));
+		ifcount++;
 		for (x=0;x<3;x++)
 			tmp->subs[x].zfd = -1;
 		tmp->channel = channel;
@@ -6078,8 +6084,7 @@ static void *pri_dchannel(void *vpri)
 {
 	struct zt_pri *pri = vpri;
 	pri_event *e;
-	fd_set efds;
-	fd_set rfds;
+	struct pollfd fds[1];
 	int res;
 	int chan = 0;
 	int x;
@@ -6115,10 +6120,8 @@ static void *pri_dchannel(void *vpri)
 			ast_log(LOG_WARNING, "Idle dial string '%s' lacks '@context'\n", pri->idleext);
 	}
 	for(;;) {
-		FD_ZERO(&rfds);
-		FD_ZERO(&efds);
-		FD_SET(pri->fd, &rfds);
-		FD_SET(pri->fd, &efds);
+		fds[0].fd = pri->fd;
+		fds[0].events = POLLIN | POLLPRI;
 		time(&t);
 		ast_mutex_lock(&pri->lock);
 		if (pri->resetting && pri->up) {
@@ -6227,7 +6230,7 @@ static void *pri_dchannel(void *vpri)
 		ast_mutex_unlock(&pri->lock);
 
 		e = NULL;
-		res = ast_select(pri->fd + 1, &rfds, NULL, &efds, &tv);
+		res = poll(fds, 1, tv.tv_sec * 1000 + tv.tv_usec / 1000);
 
 		ast_mutex_lock(&pri->lock);
 		if (!res) {
@@ -7419,6 +7422,7 @@ static int __unload_module(void)
 			ast_verbose(VERBOSE_PREFIX_3 "Unregistered channel %d\n", x);
 		}
 		iflist = NULL;
+		ifcount = 0;
 		ast_mutex_unlock(&iflock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
@@ -8298,7 +8302,7 @@ static int zt_sendtext(struct ast_channel *c, char *text)
 
 	unsigned char *buf,*mybuf;
 	struct zt_pvt *p = c->pvt->pvt;
-	fd_set wfds,efds;
+	struct pollfd fds[1];
 	int size,res,fd,len,x;
 	int bytes=0;
 	/* Initial carrier (imaginary) */
@@ -8357,18 +8361,16 @@ static int zt_sendtext(struct ast_channel *c, char *text)
 		size = len;
 		if (size > READ_SIZE)
 			size = READ_SIZE;
-		FD_ZERO(&wfds);
-		FD_ZERO(&efds);
-		FD_SET(fd,&wfds);
-		FD_SET(fd,&efds);			
-		res = ast_select(fd + 1,NULL,&wfds,&efds,NULL);
+		fds[0].fd = fd;
+		fds[0].events = POLLOUT | POLLPRI;
+		res = poll(fds, 1, -1);
 		if (!res) {
-			ast_log(LOG_DEBUG, "select (for write) ret. 0 on channel %d\n", p->channel);
+			ast_log(LOG_DEBUG, "poll (for write) ret. 0 on channel %d\n", p->channel);
 			continue;
 		}
 		  /* if got exception */
-		if (FD_ISSET(fd,&efds)) return -1;
-		if (!FD_ISSET(fd,&wfds)) {
+		if (fds[0].revents & POLLPRI) return -1;
+		if (!(fds[0].revents & POLLOUT)) {
 			ast_log(LOG_DEBUG, "write fd not ready on channel %d\n", p->channel);
 			continue;
 		}
