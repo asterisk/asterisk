@@ -17,6 +17,7 @@
 #include <asterisk/monitor.h>
 #include <asterisk/app.h>
 #include <asterisk/utils.h>
+#include <asterisk/config.h>
 #include "../asterisk.h"
 #include "../astconf.h"
 
