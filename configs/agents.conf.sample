@@ -11,7 +11,7 @@
 ;autologoff=15
 ;
 ; Define ackcall to require an acknowledgement by '#' when
-; an agent logs in over agentcallpark.  Default is "yes".
+; an agent logs in using agentcallbacklogin.  Default is "yes".
 ;
 ;ackcall=yes
 ;
