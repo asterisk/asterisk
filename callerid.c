@@ -274,6 +274,8 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 							memcpy(cid->name, cid->rawdata + x + 1, res);
 							cid->name[res] = '\0';
 							break;
+						case 22: /* Something French */
+							break;
 						default:
 							ast_log(LOG_NOTICE, "Unknown IE %d\n", cid->rawdata[x-1]);
 						}
