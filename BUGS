@@ -9,3 +9,36 @@
 * When you flip to call waiting on a tormenta channel while you have a
   three way call up, the parties in the three way cannot hear one another
   in the general case.
+
+======================================================================
+Short report on the voicemail system
+======================================================================
+Stuff We Need:
+
+-Date/Time (conversion on the fly for different locales)
+-A more fleshed/emphasized Main Menu
+-Mailbox Options
+	-useful for allowing user to set certain options
+-Notification of new vs. old messages
+-Notification of first and last messages (old and new)
+	and a return to the Main Menu @ the end
+**-Better handling of lack of user input, specifically...
+	infinite loops...
+	currently found in:  vm-instructions
+			     vm-msginstruct
+	System MUST disconnect user for inactivity
+-Mid message menu w/
+	pause/unpause
+	seeking
+	callback option
+	option to get caller's number if available
+	option to leave message directly on caller's voicemail
+		if he/she has account on system
+-Also redesign the End Of Message Menu
+-Efficienty Question...
+	Better to always rename msgs to being @ 0001
+	or...
+	Better to append new msgs numerically @ the
+	end and use software to traverse them in 
+	order...saving cpu cycles on renaming files
+	..could get messy w/ lots of users
