@@ -29,7 +29,7 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_mp3.so\
      app_nbscat.so app_sendtext.so app_exec.so app_sms.so \
      app_groupcount.so app_txtcidname.so app_controlplayback.so \
      app_talkdetect.so app_alarmreceiver.so app_userevent.so app_verbose.so \
-     app_test.so app_forkcdr.so app_math.so
+     app_test.so app_forkcdr.so app_math.so app_realtime.so
 
 ifneq (${OSARCH},Darwin)
 APPS+=app_intercom.so

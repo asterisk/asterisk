@@ -2404,7 +2404,7 @@ static void start_rtp(struct mgcp_subchannel *sub)
             sub->rtp = NULL;
         }
 		/* Allocate the RTP now */
-		sub->rtp = ast_rtp_new(sched, io, 1, 0);
+		sub->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
 		if (sub->rtp && sub->owner)
 			sub->owner->fds[0] = ast_rtp_fd(sub->rtp);
 		if (sub->rtp)
