@@ -446,6 +446,9 @@ static struct zt_pvt {
 	int resetting;
 	int prioffset;
 	int alreadyhungup;
+#ifdef PRI_EVENT_PROCEEDING
+	int proceeding;
+#endif
 #endif	
 #ifdef ZAPATA_R2
 	int r2prot;
@@ -656,7 +659,11 @@ static int zt_digit(struct ast_channel *ast, char digit)
 	index = zt_get_index(ast, p, 0);
 	if (index == SUB_REAL) {
 #ifdef ZAPATA_PRI
+#ifdef PRI_EVENT_PROCEEDING
+		if (p->sig == SIG_PRI && ast->_state == AST_STATE_DIALING && !p->proceeding) {
+#else
 		if (p->sig == SIG_PRI && ast->_state == AST_STATE_DIALING) {
+#endif
 			pri_information(p->pri->pri,p->call,digit);
 		} else {
 #else
@@ -1556,6 +1563,7 @@ static int zt_hangup(struct ast_channel *ast)
 		p->faxhandled = 0;
 		p->pulsedial = 0;
 		p->onhooktime = time(NULL);
+		p->proceeding = 0;
 		if (p->dsp) {
 			ast_dsp_free(p->dsp);
 			p->dsp = NULL;
@@ -5721,6 +5729,14 @@ static void *pri_dchannel(void *vpri)
 					}
 				}
 				break;
+#ifdef PRI_EVENT_PROCEEDING
+			case PRI_EVENT_PROCEEDING:
+				chan = e->proceeding.channel;
+                                if ((chan >= 1) && (chan <= pri->channels))
+	                                        if (pri->pvt[chan])
+							pri->pvt[chan]->proceeding=1;
+				break;
+#endif	
 			default:
 				ast_log(LOG_DEBUG, "Event: %d\n", e->e);
 			}
