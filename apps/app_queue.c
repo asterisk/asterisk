@@ -180,7 +180,7 @@ static int join_queue(char *queuename, struct queue_ent *qe)
 				res = 0;
 				manager_event(EVENT_FLAG_CALL, "Join", 
         	                                               	"Channel: %s\r\nCallerID:%s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
-	                                                       	qe->chan->name, qe->chan->callerid ? qe->chan->callerid : "", q->name, qe->pos, q->count );
+	                                                       	qe->chan->name, (qe->chan->callerid ? qe->chan->callerid : ""), q->name, qe->pos, q->count );
 #if 0
 ast_log(LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
 #endif
@@ -590,6 +590,14 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the 
 		   conversation.  */
+		if (!strcmp(qe->chan->type,"Zap")) {
+			if (tmp->dataquality) zapx = 0;
+			ast_channel_setoption(qe->chan,AST_OPTION_TONE_VERIFY,&zapx,sizeof(char),0);
+		}			
+		if (!strcmp(peer->type,"Zap")) {
+			if (tmp->dataquality) zapx = 0;
+			ast_channel_setoption(peer,AST_OPTION_TONE_VERIFY,&zapx,sizeof(char),0);
+		}
 		hanguptree(outgoing, peer);
 		/* Stop music on hold */
 		ast_moh_stop(qe->chan);
@@ -618,14 +626,6 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 			ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", qe->chan->name, peer->name);
 			ast_hangup(peer);
 			return -1;
-		}
-		if (!strcmp(qe->chan->type,"Zap")) {
-			if (tmp->dataquality) zapx = 0;
-			ast_channel_setoption(qe->chan,AST_OPTION_TONE_VERIFY,&zapx,sizeof(char),0);
-		}			
-		if (!strcmp(peer->type,"Zap")) {
-			if (tmp->dataquality) zapx = 0;
-			ast_channel_setoption(peer,AST_OPTION_TONE_VERIFY,&zapx,sizeof(char),0);
 		}
 		/* Drop out of the queue at this point, to prepare for next caller */
 		leave_queue(qe);			
