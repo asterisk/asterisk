@@ -123,11 +123,12 @@ static int spawn_mp3(struct mohclass *class)
 	argv[5] = "8000";
 	argv[6] = "-b";
 	argv[7] = "2048";
-	argc = 8;
+	argv[8] = "-f";
+	argc = 9;
 	if (class->quiet) {
-		argv[argc++] = "-f";
+		argv[argc++] = "4096";
+	} else
 		argv[argc++] = "8192";
-	}
 
 	/* Look for extra arguments and add them to the list */
 	strncpy(xargs, class->miscargs, sizeof(xargs) - 1);
