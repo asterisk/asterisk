@@ -97,10 +97,9 @@ static int restart_monitor(void);
 #define MODE_FXO	3
 
 
-static VPB_TONE Dialtone     = {440, 440, 440, -10,  -100, -100, 5000, 0   };
-static VPB_TONE Busytone     = {440,   0,   0, -10,  -100, -100,   500,  500};
-static VPB_TONE Ringbacktone = {440,   0,   0, -10,  -100, -100,  100, 100};
-
+static VPB_TONE Dialtone     = {440, 440, 440, 0,  0, 0, 5000, 0   };
+static VPB_TONE Busytone     = {440,   0,   0, 0,  -100, -100,   500, 500};
+static VPB_TONE Ringbacktone = {440,   0,   0, 0,  -100, -100,  100, 100};
 
 
 #define VPB_MAX_BRIDGES 128 
@@ -390,14 +389,21 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 	  break;
 
      case VPB_STATION_ONHOOK: /*, clear ext */
-	  vpb_tone_terminate(p->handle);
+           while (vpb_playtone_state(p->handle) != 0){
+                 vpb_tone_terminate(p->handle);
+                 vpb_sleep(10);
+             }
 	  p->wantdtmf = 1;
 	  p->ext[0] = 0;
 	  break;
 
      case VPB_DTMF:
 	  if (p->wantdtmf == 1) {
-	       vpb_tone_terminate(p->handle);
+           while (vpb_playtone_state(p->handle) != 0){
+                 vpb_tone_terminate(p->handle);
+                 vpb_sleep(10);
+             }
+
 	       p->wantdtmf = 0;
 	  }
 	  s[0] = e->data;
@@ -609,16 +615,32 @@ static int vpb_indicate(struct ast_channel *ast, int condition)
     switch(condition) {
 	case AST_CONTROL_BUSY:
 	case AST_CONTROL_CONGESTION:
+          while (vpb_playtone_state(p->handle) != 0){
+                res = vpb_tone_terminate(p->handle);
+                vpb_sleep(10);
+            }
 	    res = vpb_playtone_async(p->handle, &Busytone);
 	    break;
 	case AST_CONTROL_RINGING:
+          while (vpb_playtone_state(p->handle) != 0){
+                res = vpb_tone_terminate(p->handle);
+                vpb_sleep(10);
+            }
 	    res = vpb_playtone_async(p->handle, &Ringbacktone);
 	    break;	    
 	case AST_CONTROL_ANSWER:
 	case -1: /* -1 means stop playing? */
-	    res = vpb_tone_terminate(p->handle);
+           while (vpb_playtone_state(p->handle) != 0){
+                 res = vpb_tone_terminate(p->handle);
+                 vpb_sleep(10);
+	   }
+
 	    break;
 	case AST_CONTROL_HANGUP:
+          while (vpb_playtone_state(p->handle) != 0){
+                res = vpb_tone_terminate(p->handle);
+                vpb_sleep(10);
+            }
 	    res = vpb_playtone_async(p->handle, &Busytone);
 	    break;
 	    
