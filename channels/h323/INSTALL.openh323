@@ -10,7 +10,7 @@ Here are some basic instructions how to download and compile the code from openh
 > ldconfig
 > cd /usr/src/asterisk/channels/h323
 > make install
-> cp h323.sample.conf /etc/asterisk/h323.conf
+> make samples
 
 Now you have to edit the /etc/asterisk/h323.conf config file.
 

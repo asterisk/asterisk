@@ -12,6 +12,9 @@ ifndef ASTERISKDIR
 ASTERISKDIR= /usr/lib/asterisk/modules
 endif
 
+ifndef ASTETCDIR
+ASTETCDIR=/etc/asterisk
+endif
 
 CFLAGS += -DNDEBUG -DDO_CRASH -DDEBUG_THREADS
 CFLAGS  = -pipe -Wall -fPIC -Wmissing-prototypes -Wmissing-declarations 
@@ -33,6 +36,24 @@ debug:	chan_h323_d.so
 
 install: all
 	install -m 755 chan_h323.so $(ASTERISKDIR)
+	@echo " +----- chan_h323 Installation Complete ----- +"
+	@echo " +                                            +"
+	@echo " + chan_h323 has successfully been installed. +"
+	@echo " + If you would like to install the sample    +"
+	@echo " + configuration file (overwriting existing   +"
+	@echo " + config file), run:                         +"
+	@echo " +                                            +"
+	@echo " +               make samples                 +"
+	@echo " +                                            +"
+	@echo " +                                            +"
+ 
+
+samples: 
+	if [ -f $(ASTETCDIR)/h323.conf ]; then \
+		mv -f $(ASTETCDIR)/h323.conf $(ASTETCDIR)/h323.conf.old ; \
+	fi ; 
+	install h323.conf.sample $(ASTETCDIR)/h323.conf
+ 
 
 chan_h323.o:	chan_h323.c
 	$(CC) -g -c -o $@ $(CFLAGS) $<
