@@ -30,22 +30,11 @@
 #include <stdio.h>
 #include <unistd.h>
 
-// #define AST_MUTEX_INITIALIZER      PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
-// #define AST_MUTEX_KIND             PTHREAD_MUTEX_RECURSIVE_NP
-#ifdef PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
-#define AST_MUTEX_INITIALIZER         { PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP, NULL, 0, NULL, 0 }
-#else
-#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-#define AST_MUTEX_INITIALIZER         { PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP, NULL, 0, NULL, 0 }
-#else
-#define AST_MUTEX_INITIALIZER         { PTHREAD_MUTEX_INITIALIZER, NULL, 0, NULL, 0 }
-#endif
-#endif
-#ifdef PTHREAD_MUTEX_ERRORCHECK_NP
-#define AST_MUTEX_KIND                PTHREAD_MUTEX_ERRORCHECK_NP
-#else
-#define AST_MUTEX_KIND                PTHREAD_MUTEX_ERRORCHECK
-#endif
+/* From now on, Asterisk REQUIRES Recursive (not error checking) mutexes
+   and will not run without them. */
+
+#define AST_MUTEX_INITIALIZER      PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+#define AST_MUTEX_KIND             PTHREAD_MUTEX_RECURSIVE_NP
 
 struct ast_mutex_info {
 	pthread_mutex_t mutex;
