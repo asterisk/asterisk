@@ -111,6 +111,7 @@
 #define IAX_IE_FIRMWAREVER			34		/* Firmware revision -- u16 */
 #define IAX_IE_FWBLOCKDESC			35		/* Firmware block description -- u32 */
 #define IAX_IE_FWBLOCKDATA			36		/* Firmware block of data -- raw */
+#define IAX_IE_PROVVER				37		/* Provisioning Version (u32) */
 
 #define IAX_AUTH_PLAINTEXT			(1 << 0)
 #define IAX_AUTH_MD5				(1 << 1)

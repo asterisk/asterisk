@@ -118,13 +118,14 @@ static struct iax2_ie {
 	{ IAX_IE_TRANSFERID, "TRANSFER ID", dump_int },
 	{ IAX_IE_RDNIS, "REFERRING DNIS", dump_string },
 	{ IAX_IE_PROVISIONING, "PROVISIONING" },
-	{ IAX_IE_AESPROVISIONING, "AES PROVISIONING" },
+	{ IAX_IE_AESPROVISIONING, "AES PROVISIONG" },
 	{ IAX_IE_DATETIME, "DATE TIME", dump_int },
 	{ IAX_IE_DEVICETYPE, "DEVICE TYPE", dump_string },
 	{ IAX_IE_SERVICEIDENT, "SERVICE IDENT", dump_string },
 	{ IAX_IE_FIRMWAREVER, "FIRMWARE VER", dump_short },
 	{ IAX_IE_FWBLOCKDESC, "FW BLOCK DESC", dump_int },
 	{ IAX_IE_FWBLOCKDATA, "FW BLOCK DATA" },
+	{ IAX_IE_PROVVER, "PROVISIONG VER", dump_int },
 };
 
 const char *iax_ie2str(int ie)
@@ -542,6 +543,13 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 		case IAX_IE_FWBLOCKDATA:
 			ies->fwdata = data + 2;
 			ies->fwdatalen = len;
+			break;
+		case IAX_IE_PROVVER:
+			if (len != sizeof(unsigned int)) {
+				snprintf(tmp, sizeof(tmp), "Expected provisioning version to be %d bytes long but was %d\n", sizeof(unsigned int), len);
+				errorf(tmp);
+			} else
+				ies->provver = ntohl(*((unsigned int *)(data + 2)));
 			break;
 		default:
 			snprintf(tmp, sizeof(tmp), "Ignoring unknown information element '%s' (%d) of length %d\n", iax_ie2str(ie), ie, len);
