@@ -4597,13 +4597,8 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 			tmp->cid.cid_rdnis = strdup(i->rdnis);
 		if (!ast_strlen_zero(i->dnid))
 			tmp->cid.cid_dnid = strdup(i->dnid);
-		if (!ast_strlen_zero(i->cid_num)) {
-			tmp->cid.cid_num = strdup(i->cid_num);
-			tmp->cid.cid_ani = strdup(i->cid_num);
-		}
-		if (!ast_strlen_zero(i->cid_name)) {
-			tmp->cid.cid_name = strdup(i->cid_name);
-		}
+
+		ast_set_callerid(tmp, i->cid_num, i->cid_name, i->cid_num);
 		tmp->cid.cid_pres = i->callingpres;
 #ifdef ZAPATA_PRI
 		set_calltype(tmp, ctype);
@@ -4866,11 +4861,9 @@ static void *ss_thread(void *data)
 				s2 = strsep(&stringp, "*");
 				if (s2) {
 					if (!ast_strlen_zero(p->cid_num))
-						chan->cid.cid_num = strdup(p->cid_num);
+						ast_set_callerid(chan, p->cid_num, NULL, p->cid_num);
 					else
-						chan->cid.cid_num = strdup(s1);
-					if (chan->cid.cid_num)
-						chan->cid.cid_ani = strdup(chan->cid.cid_num);
+						ast_set_callerid(chan, s1, NULL, s1);
 					strncpy(exten, s2, sizeof(exten)-1);
 				} else
 					strncpy(exten, s1, sizeof(exten)-1);
@@ -4887,11 +4880,10 @@ static void *ss_thread(void *data)
 				s2 = strsep(&stringp, "#");
 				if (s2) {
 					if (!ast_strlen_zero(p->cid_num))
-						chan->cid.cid_num = strdup(p->cid_num);
+						ast_set_callerid(chan, p->cid_num, NULL, p->cid_num);
 					else
-						if (*(s1 + 2)) chan->cid.cid_num = strdup(s1 + 2);
-					if (chan->cid.cid_num)
-						chan->cid.cid_ani = strdup(chan->cid.cid_num);
+						if(*(s1 + 2))
+							ast_set_callerid(chan, s1 + 2, NULL, s1 + 2);
 					strncpy(exten, s2 + 1, sizeof(exten)-1);
 				} else
 					strncpy(exten, s1 + 2, sizeof(exten)-1);
@@ -4907,10 +4899,9 @@ static void *ss_thread(void *data)
 				s1 = strsep(&stringp, "#");
 				s2 = strsep(&stringp, "#");
 				if (s2 && (*(s2 + 1) == '0')) {
-					if (*(s2 + 2)) chan->cid.cid_num = strdup(s2 + 2);
-					if (chan->cid.cid_num)
-						chan->cid.cid_ani = strdup(chan->cid.cid_num);
-					}
+					if(*(s2 + 2))
+						ast_set_callerid(chan, s2 + 2, NULL, s2 + 2);
+				}
 				if (s1)	strncpy(exten, s1, sizeof(exten)-1);
 				else strncpy(exten, "911", sizeof(exten) - 1);
 				printf("E911: exten: %s, ANI: %s\n",exten, chan->cid.cid_ani);
@@ -5012,12 +5003,13 @@ static void *ss_thread(void *data)
 						strncpy(chan->exten, exten, sizeof(chan->exten)-1);
 						if (!ast_strlen_zero(p->cid_num)) {
 							if (!p->hidecallerid)
-								chan->cid.cid_num = strdup(p->cid_num);
-							chan->cid.cid_ani = strdup(p->cid_num);
+								ast_set_callerid(chan, p->cid_num, NULL, p->cid_num); 
+							else
+								ast_set_callerid(chan, NULL, NULL, p->cid_num); 
 						}
 						if (!ast_strlen_zero(p->cid_name)) {
 							if (!p->hidecallerid)
-								chan->cid.cid_name = strdup(p->cid_name);
+								ast_set_callerid(chan, NULL, p->cid_name, NULL);
 						}
 						ast_setstate(chan, AST_STATE_RING);
 						zt_enable_ec(p);
@@ -5169,10 +5161,7 @@ static void *ss_thread(void *data)
 				if (chan->cid.cid_name)
 					free(chan->cid.cid_name);
 				chan->cid.cid_name = NULL;
-				if (!ast_strlen_zero(p->cid_num))
-					chan->cid.cid_num = strdup(p->cid_num);
-				if (!ast_strlen_zero(p->cid_name))
-					chan->cid.cid_name = strdup(p->cid_name);
+				ast_set_callerid(chan, p->cid_num, p->cid_name, NULL);
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
 				if (res) {
 					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n", 
@@ -5604,12 +5593,8 @@ static void *ss_thread(void *data)
 		}
 		if (number)
 			ast_shrink_phone_number(number);
-		if (number && !ast_strlen_zero(number)) {
-			chan->cid.cid_num = strdup(number);
-			chan->cid.cid_ani = strdup(number);
-		}
-		if (name && !ast_strlen_zero(name))
-			chan->cid.cid_name = strdup(name);
+
+		ast_set_callerid(chan, number, name, number);
 
 		if (cs)
 			callerid_free(cs);
