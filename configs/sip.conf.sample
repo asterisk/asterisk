@@ -193,9 +193,9 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; progressinband              progressinband
 ; promiscredir                promiscredir
 ; useclientcode               useclientcode
-; setvar
+; accountcode                 accountcode
+; setvar                      setvar
 ; callerid
-; accountcode
 ; amaflags
 ; incominglimit
 ; restrictcid
