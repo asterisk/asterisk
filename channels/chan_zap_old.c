@@ -1,11 +1,11 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Tormenta T1 Card (via Zapata library) support 
+ * Zaptel Pseudo TDM interface 
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 2003 Digium
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -34,6 +34,8 @@
 #include <asterisk/tdd.h>
 #include <asterisk/app.h>
 #include <asterisk/dsp.h>
+#include <asterisk/astdb.h>
+#include <asterisk/manager.h>
 #include <sys/signal.h>
 #include <sys/select.h>
 #include <errno.h>
@@ -42,9 +44,9 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <linux/zaptel.h>
-#include <zap.h>
 #include <math.h>
 #include <tonezone.h>
+#include <ctype.h>
 #ifdef ZAPATA_PRI
 #include <libpri.h>
 #endif
@@ -60,7 +62,6 @@
    XXX  
  */
 
-#define RINGT 274
 
 /*
  * Define ZHONE_HACK to cause us to go off hook and then back on hook when
@@ -73,6 +74,9 @@
  */
 
 /* #define ZHONE_HACK */
+
+/* Typically, how many rings before we should send Caller*ID */
+#define DEFAULT_CIDRINGS 1
 
 #define CHANNEL_PSEUDO -12
 
@@ -113,6 +117,11 @@ static char *config = "zapata.conf";
 #define SIG_FXOKS	ZT_SIG_FXOKS
 #define SIG_PRI		ZT_SIG_CLEAR
 #define SIG_R2		ZT_SIG_CAS
+#define	SIG_SF		ZT_SIG_SF
+#define SIG_SFWINK 	(0x10000 | ZT_SIG_SF)
+#define SIG_SF_FEATD	(0x20000 | ZT_SIG_SF)
+#define	SIG_SF_FEATDMF	(0x40000 | ZT_SIG_SF)
+#define	SIG_SF_FEATB	(0x80000 | ZT_SIG_SF)
 
 #define NUM_SPANS 	32
 #define RESET_INTERVAL	3600	/* How often (in seconds) to reset unused channels */
@@ -129,9 +138,10 @@ static int use_callerid = 1;
 
 static int cur_signalling = -1;
 
-static int cur_group = 0;
-static int cur_callergroup = 0;
-static int cur_pickupgroup = 0;
+static unsigned int cur_group = 0;
+static unsigned int cur_callergroup = 0;
+static unsigned int cur_pickupgroup = 0;
+static int relaxdtmf = 0;
 
 static int immediate = 0;
 
@@ -161,6 +171,8 @@ static int echocanbridged = 0;
 
 static int busydetect = 0;
 
+static int busycount = 3;
+
 static int callprogress = 0;
 
 static char accountcode[20] = "";
@@ -176,6 +188,7 @@ static int minunused = 2;
 static int minidle = 0;
 static char idleext[AST_MAX_EXTENSION];
 static char idledial[AST_MAX_EXTENSION];
+static int overlapdial = 0;
 #endif
 
 /* Wait up to 16 seconds for first digit (FXO logic) */
@@ -225,14 +238,17 @@ static inline int zt_wait_event(int fd)
 	return j;
 }
 
-/* Chunk size to read -- we use the same size as the chunks that the zapata library uses.  */   
-#define READ_SIZE 204
+/* Chunk size to read -- we use 20ms chunks to make things happy.  */   
+#define READ_SIZE 160
 
 #define MASK_AVAIL		(1 << 0)		/* Channel available for PRI use */
 #define MASK_INUSE		(1 << 1)		/* Channel currently in use */
 
 #define CALLWAITING_SILENT_SAMPLES	( (300 * 8) / READ_SIZE) /* 300 ms */
 #define CALLWAITING_REPEAT_SAMPLES	( (10000 * 8) / READ_SIZE) /* 300 ms */
+#define CIDCW_EXPIRE_SAMPLES		( (500 * 8) / READ_SIZE) /* 500 ms */
+#define MIN_MS_SINCE_FLASH			( (2000) )	/* 2000 ms */
+#define RINGT 						( (8000 * 8) / READ_SIZE)
 
 struct zt_pvt;
 
@@ -256,6 +272,7 @@ struct zt_pri {
 	int dialplan;			/* Dialing plan */
 	int dchannel;			/* What channel the dchannel is on */
 	int channels;			/* Num of chans in span (31 or 24) */
+	int overlapdial;		/* In overlap dialing mode */
 	struct pri *pri;
 	int debug;
 	int fd;
@@ -281,18 +298,6 @@ static int pritype = PRI_CPE;
 #define DEFAULT_PRI_DEBUG 0
 #endif
 
-static inline int pri_grab(struct zt_pri *pri)
-{
-	int res;
-	/* Grab the lock first */
-    res = ast_mutex_lock(&pri->lock);
-	if (res)
-		return res;
-	/* Then break the select */
-	pthread_kill(pri->master, SIGURG);
-	return 0;
-}
-
 static inline void pri_rel(struct zt_pri *pri)
 {
 	ast_mutex_unlock(&pri->lock);
@@ -314,7 +319,7 @@ static char *subnames[] = {
 };
 
 struct zt_subchannel {
-	ZAP *z;
+	int zfd;
 	struct ast_channel *owner;
 	int chan;
 	short buffer[AST_FRIENDLY_OFFSET/2 + READ_SIZE];
@@ -325,7 +330,6 @@ struct zt_subchannel {
 	int linear;
 	int inthreeway;
 	int curconfno;			/* What conference we're currently in */
-	char dtmfq[AST_MAX_EXTENSION];
 };
 
 #define CONF_USER_REAL		(1 << 0)
@@ -352,6 +356,7 @@ static struct zt_pvt {
 	float rxgain;
 	float txgain;
 	struct zt_pvt *next;			/* Next channel in list */
+	struct zt_pvt *prev;			/* Prev channel in list */
 	char context[AST_MAX_EXTENSION];
 	char exten[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
@@ -360,13 +365,13 @@ static struct zt_pvt {
 	char lastcallerid[AST_MAX_EXTENSION];
 	char callwaitcid[AST_MAX_EXTENSION];
 	char rdnis[AST_MAX_EXTENSION];
-	int group;
+	unsigned int group;
 	int law;
 	int confno;					/* Our conference */
 	int confusers;				/* Who is using our conference */
 	int propconfno;				/* Propagated conference number */
-	int callgroup;
-	int pickupgroup;
+	unsigned int callgroup;
+	unsigned int pickupgroup;
 	int immediate;				/* Answer before getting digits? */
 	int channel;				/* Channel Number */
 	int span;					/* Span number */
@@ -377,6 +382,7 @@ static struct zt_pvt {
 	int callreturn;
 	int permhidecallerid;		/* Whether to hide our outgoing caller ID or not */
 	int callwaitingrepeat;		/* How many samples to wait before repeating call waiting */
+	int cidcwexpire;			/* When to expire our muting for CID/CW */
 	unsigned char *cidspill;
 	int cidpos;
 	int cidlen;
@@ -387,6 +393,7 @@ static struct zt_pvt {
 	int callwaitrings;
 	int echocancel;
 	int echocanbridged;
+	int echocanon;
 	int permcallwaiting;
 	int callwaitingcallerid;
 	int threewaycalling;
@@ -395,7 +402,9 @@ static struct zt_pvt {
 	int outgoing;
 	int dnd;
 	int busydetect;
+	int busycount;
 	int callprogress;
+	struct timeval flashtime;	/* Last flash-hook time */
 	struct ast_dsp *dsp;
 	int cref;					/* Call reference number */
 	ZT_DIAL_OPERATION dop;
@@ -421,6 +430,7 @@ static struct zt_pvt {
 	
 	char mate;			/* flag to say its in MATE mode */
 	int pulsedial;		/* whether a pulse dial phone is detected */
+	int dtmfrelax;		/* whether to run in relaxed DTMF mode */
 #ifdef ZAPATA_PRI
 	struct zt_pri *pri;
 	q931_call *call;
@@ -428,6 +438,10 @@ static struct zt_pvt {
 	int resetting;
 	int prioffset;
 	int alreadyhungup;
+#ifdef PRI_EVENT_PROCEEDING
+	int proceeding;
+#endif
+	int setup_ack;		/* wheter we received SETUP_ACKNOWLEDGE or not */
 #endif	
 #ifdef ZAPATA_R2
 	int r2prot;
@@ -436,7 +450,27 @@ static struct zt_pvt {
 	int r2blocked;
 	int sigchecked;
 #endif	
-} *iflist = NULL;
+} *iflist = NULL, *ifend = NULL;
+
+#ifdef ZAPATA_PRI
+static inline int pri_grab(struct zt_pvt *pvt, struct zt_pri *pri)
+{
+	int res;
+	/* Grab the lock first */
+	do {
+	    res = ast_mutex_trylock(&pri->lock);
+		if (res) {
+			ast_mutex_unlock(&pvt->lock);
+			/* Release the lock and try again */
+			usleep(1);
+			ast_mutex_lock(&pvt->lock);
+		}
+	} while(res);
+	/* Then break the select */
+	pthread_kill(pri->master, SIGURG);
+	return 0;
+}
+#endif
 
 static struct zt_ring_cadence cadences[] = {
 	{ { 125, 125, 2000, 4000 } },			/* Quick chirp followed by normal ring */
@@ -455,36 +489,10 @@ static int cidrings[] = {
 #define NUM_CADENCE (sizeof(cadences) / sizeof(cadences[0]))
 
 #define ISTRUNK(p) ((p->sig == SIG_FXSLS) || (p->sig == SIG_FXSKS) || \
-			(p->sig == SIG_FXSGS))
+			(p->sig == SIG_FXSGS) || (p->sig == SIG_PRI))
 
-#define CANBUSYDETECT(p) (ISTRUNK(p) || (p->sig & SIG_EM) /* || (p->sig & __ZT_SIG_FXO) */)
-#define CANPROGRESSDETECT(p) (ISTRUNK(p) || (p->sig & SIG_EM) /* || (p->sig & __ZT_SIG_FXO) */)
-
-#if 0
-/* return non-zero if clear dtmf is appropriate */
-static int CLEARDTMF(struct ast_channel *chan) {
-struct zt_pvt *p = chan->pvt->pvt,*themp;
-struct ast_channel *them;
-	if (!p)
-		return 0;
-	  /* if not in a 3 way, we should be okay */
-	if (p->thirdcallindex == -1) return 1;
-	  /* get the other side of the call's channel pointer */
-	if (p->owners[p->normalindex] == chan)
-		them = p->owners[p->thirdcallindex];
-	else
-		them = p->owners[p->normalindex];
-	if (!them)
-		return 0;
-	if (!them->bridge) return 1;
-	  /* get their private structure, too */
-	themp = them->pvt->pvt;
-	  /* if does not use zt bridge code, return 0 */
-	if (them->pvt->bridge != zt_bridge) return 0;
-	if (them->bridge->pvt->bridge != zt_bridge) return 0;
-	return 1; /* okay, I guess we are okay to be clear */
-}
-#endif
+#define CANBUSYDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
+#define CANPROGRESSDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
 
 static int zt_get_index(struct ast_channel *ast, struct zt_pvt *p, int nullok)
 {
@@ -508,6 +516,7 @@ static void swap_subs(struct zt_pvt *p, int a, int b)
 	int tchan;
 	int tinthreeway;
 	struct ast_channel *towner;
+	struct ast_frame null = { AST_FRAME_NULL, };
 
 	ast_log(LOG_DEBUG, "Swapping %d and %d\n", a, b);
 
@@ -523,39 +532,108 @@ static void swap_subs(struct zt_pvt *p, int a, int b)
 	p->subs[b].owner = towner;
 	p->subs[b].inthreeway = tinthreeway;
 
-	if (p->subs[a].owner)
-		p->subs[a].owner->fds[0] = zap_fd(p->subs[a].z);
-	if (p->subs[b].owner)
-		p->subs[b].owner->fds[0] = zap_fd(p->subs[b].z);
+	if (p->subs[a].owner) {
+		p->subs[a].owner->fds[0] = p->subs[a].zfd;
+		ast_queue_frame(p->subs[a].owner, &null, 0);
+	}
+	if (p->subs[b].owner) {
+		p->subs[b].owner->fds[0] = p->subs[b].zfd;
+		ast_queue_frame(p->subs[b].owner, &null, 0);
+	}
 	
+}
+
+static int zt_open(char *fn)
+{
+	int fd;
+	int isnum;
+	int chan = 0;
+	int bs;
+	int x;
+	isnum = 1;
+	for (x=0;x<strlen(fn);x++) {
+		if (!isdigit(fn[x])) {
+			isnum = 0;
+			break;
+		}
+	}
+	if (isnum) {
+		chan = atoi(fn);
+		if (chan < 1) {
+			ast_log(LOG_WARNING, "Invalid channel number '%s'\n", fn);
+			return -1;
+		}
+		fn = "/dev/zap/channel";
+	}
+	fd = open(fn, O_RDWR | O_NONBLOCK);
+	if (fd < 0) {
+		ast_log(LOG_WARNING, "Unable to open '%s': %s\n", fn, strerror(errno));
+		return -1;
+	}
+	if (chan) {
+		if (ioctl(fd, ZT_SPECIFY, &chan)) {
+			x = errno;
+			close(fd);
+			errno = x;
+			ast_log(LOG_WARNING, "Unable to specify channel %d: %s\n", chan, strerror(errno));
+			return -1;
+		}
+	}
+	bs = READ_SIZE;
+	if (ioctl(fd, ZT_SET_BLOCKSIZE, &bs) == -1) return -1;
+	return fd;
+}
+
+static void zt_close(int fd)
+{
+	close(fd);
+}
+
+int zt_setlinear(int zfd, int linear)
+{
+	int res;
+	res = ioctl(zfd, ZT_SETLINEAR, &linear);
+	if (res)
+		return res;
+	return 0;
+}
+
+
+int zt_setlaw(int zfd, int law)
+{
+	int res;
+	res = ioctl(zfd, ZT_SETLAW, &law);
+	if (res)
+		return res;
+	return 0;
 }
 
 static int alloc_sub(struct zt_pvt *p, int x)
 {
 	ZT_BUFFERINFO bi;
 	int res;
-	if (!p->subs[x].z) {
-		p->subs[x].z = zap_open("/dev/zap/pseudo", 1);
-		if (p->subs[x].z) {
-			res = ioctl(zap_fd(p->subs[x].z), ZT_GET_BUFINFO, &bi);
+	if (p->subs[x].zfd < 0) {
+		p->subs[x].zfd = zt_open("/dev/zap/pseudo");
+		if (p->subs[x].zfd > -1) {
+			res = ioctl(p->subs[x].zfd, ZT_GET_BUFINFO, &bi);
 			if (!res) {
 				bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
 				bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
 				bi.numbufs = 4;
-				res = ioctl(zap_fd(p->subs[x].z), ZT_SET_BUFINFO, &bi);
+				res = ioctl(p->subs[x].zfd, ZT_SET_BUFINFO, &bi);
 				if (res < 0) {
 					ast_log(LOG_WARNING, "Unable to set buffer policy on channel %d\n", x);
 				}
 			} else 
 				ast_log(LOG_WARNING, "Unable to check buffer policy on channel %d\n", x);
-			if (ioctl(zap_fd(p->subs[x].z), ZT_CHANNO, &p->subs[x].chan) == 1) {
-				ast_log(LOG_WARNING,"Unable to get channel number for pseudo channel on FD %d\n",zap_fd(p->subs[x].z));
-				zap_close(p->subs[x].z);
-				p->subs[x].z = NULL;
+			if (ioctl(p->subs[x].zfd, ZT_CHANNO, &p->subs[x].chan) == 1) {
+				ast_log(LOG_WARNING,"Unable to get channel number for pseudo channel on FD %d\n",p->subs[x].zfd);
+				zt_close(p->subs[x].zfd);
+				p->subs[x].zfd = -1;
 				return -1;
 			}
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Allocated %s subchannel on FD %d channel %d\n", subnames[x], zap_fd(p->subs[x].z), p->subs[x].chan);
+				ast_log(LOG_DEBUG, "Allocated %s subchannel on FD %d channel %d\n", subnames[x], p->subs[x].zfd, p->subs[x].chan);
 			return 0;
 		} else
 			ast_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
@@ -572,10 +650,10 @@ static int unalloc_sub(struct zt_pvt *p, int x)
 		return -1;
 	}
 	ast_log(LOG_DEBUG, "Released sub %d of channel %d\n", x, p->channel);
-	if (p->subs[x].z) {
-		zap_close(p->subs[x].z);
+	if (p->subs[x].zfd > -1) {
+		zt_close(p->subs[x].zfd);
 	}
-	p->subs[x].z = NULL;
+	p->subs[x].zfd = -1;
 	p->subs[x].linear = 0;
 	p->subs[x].chan = 0;
 	p->subs[x].owner = NULL;
@@ -591,17 +669,36 @@ static int zt_digit(struct ast_channel *ast, char digit)
 	int res = 0;
 	int index;
 	p = ast->pvt->pvt;
-
 	index = zt_get_index(ast, p, 0);
 	if (index == SUB_REAL) {
-		zo.op = ZT_DIAL_OP_APPEND;
-		zo.dialstr[0] = 'T';
-		zo.dialstr[1] = digit;
-		zo.dialstr[2] = 0;
-		if ((res = ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_DIAL, &zo)))
-			ast_log(LOG_WARNING, "Couldn't dial digit %c\n", digit);
-		else
-			p->dialing = 1;
+#ifdef ZAPATA_PRI
+#ifdef PRI_EVENT_SETUP_ACK
+		if (p->sig == SIG_PRI && ast->_state == AST_STATE_DIALING && p->setup_ack && !p->proceeding) {
+#else
+#ifdef PRI_EVENT_PROCEEDING
+		if (p->sig == SIG_PRI && ast->_state == AST_STATE_DIALING && !p->proceeding) {
+#else
+		if (p->sig == SIG_PRI && ast->_state == AST_STATE_DIALING) {
+#endif
+#endif
+			if (!pri_grab(p, p->pri))
+				pri_information(p->pri->pri,p->call,digit);
+			else
+				ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+			pri_rel(p->pri);
+		} else {
+#else
+		{
+#endif
+			zo.op = ZT_DIAL_OP_APPEND;
+			zo.dialstr[0] = 'T';
+			zo.dialstr[1] = digit;
+			zo.dialstr[2] = 0;
+			if ((res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &zo)))
+				ast_log(LOG_WARNING, "Couldn't dial digit %c\n", digit);
+			else
+				p->dialing = 1;
+		}
 	}
 	
 	return res;
@@ -624,7 +721,30 @@ static char *events[] = {
 		"Bits Changed",
 		"Pulse Start"
 };
- 
+
+static struct {
+	int alarm;
+	char *name;
+} alarms[] = {
+	{ ZT_ALARM_RED, "Red Alarm" },
+	{ ZT_ALARM_YELLOW, "Yellow Alarm" },
+	{ ZT_ALARM_BLUE, "Blue Alarm" },
+	{ ZT_ALARM_RECOVER, "Recovering" },
+	{ ZT_ALARM_LOOPBACK, "Loopback" },
+	{ ZT_ALARM_NOTOPEN, "Not Open" },
+	{ ZT_ALARM_NONE, "None" },
+};
+
+static char *alarm2str(int alarm)
+{
+	int x;
+	for (x=0;x<sizeof(alarms) / sizeof(alarms[0]); x++) {
+		if (alarms[x].alarm & alarm)
+			return alarms[x].name;
+	}
+	return alarm ? "Unknown Alarm" : "No Alarm";
+}
+
 static char *event2str(int event)
 {
         static char buf[256];
@@ -680,6 +800,16 @@ static char *sig2str(int sig)
 		return "PRI Signalling";
 	case SIG_R2:
 		return "R2 Signalling";
+	case SIG_SF:
+		return "SF (Tone) Signalling Immediate";
+	case SIG_SFWINK:
+		return "SF (Tone) Signalling Wink";
+	case SIG_SF_FEATD:
+		return "SF (Tone) Signalling with Feature Group D (DTMF)";
+	case SIG_SF_FEATDMF:
+		return "SF (Tone) Signallong with Feature Group D (MF)";
+	case SIG_SF_FEATB:
+		return "SF (Tone) Signalling with Feature Group B (MF)";
 	case 0:
 		return "Pseudo Signalling";
 	default:
@@ -696,9 +826,9 @@ static int conf_add(int *confno, struct zt_subchannel *c, int index)
 	if ((*confno > 0) && (c->curconfno == *confno))
 		return 0; 
 	if (c->curconfno > 0) {
-		ast_log(LOG_WARNING, "Subchannel %d is already in conference %d, moving to %d\n", zap_fd(c->z), c->curconfno, *confno);
+		ast_log(LOG_WARNING, "Subchannel %d is already in conference %d, moving to %d\n", c->zfd, c->curconfno, *confno);
 	}
-	if (!c->z)
+	if (c->zfd < 0)
 		return 0;
 	memset(&zi, 0, sizeof(zi));
 	zi.chan = 0;
@@ -709,13 +839,13 @@ static int conf_add(int *confno, struct zt_subchannel *c, int index)
 							ZT_CONF_PSEUDO_TALKER | ZT_CONF_PSEUDO_LISTENER;
 	} else
 		zi.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
-	if (ioctl(zap_fd(c->z), ZT_SETCONF, &zi)) {
-		ast_log(LOG_WARNING, "Failed to add %d to conference %d\n", zap_fd(c->z), *confno);
+	if (ioctl(c->zfd, ZT_SETCONF, &zi)) {
+		ast_log(LOG_WARNING, "Failed to add %d to conference %d\n", c->zfd, *confno);
 		return -1;
 	}
 	c->curconfno = zi.confno;
 	*confno = zi.confno;
-	ast_log(LOG_DEBUG, "Added %d to conference %d\n", zap_fd(c->z), *confno);
+	ast_log(LOG_DEBUG, "Added %d to conference %d\n", c->zfd, *confno);
 	return 0;
 }
 
@@ -724,8 +854,8 @@ static int conf_del(int *confno, struct zt_subchannel *c, int index)
 	ZT_CONFINFO zi;
 		/* Can't delete from this conference if it's not 0 */
 	if ((*confno < 1) ||
-		/* Can't delete if there's no z */
-		(!c->z) ||
+		/* Can't delete if there's no zfd */
+		(c->zfd < 0) ||
 		/* Don't delete from the conference if it's not our conference */
 		(*confno != c->curconfno) 
 		/* Don't delete if we don't think it's conferenced at all (implied) */
@@ -734,12 +864,12 @@ static int conf_del(int *confno, struct zt_subchannel *c, int index)
 	zi.chan = 0;
 	zi.confno = 0;
 	zi.confmode = 0;
-	if (ioctl(zap_fd(c->z), ZT_SETCONF, &zi)) {
-		ast_log(LOG_WARNING, "Failed to drop %d from conference %d\n", zap_fd(c->z), *confno);
+	if (ioctl(c->zfd, ZT_SETCONF, &zi)) {
+		ast_log(LOG_WARNING, "Failed to drop %d from conference %d\n", c->zfd, *confno);
 		return -1;
 	}
 	c->curconfno = -1;
-	ast_log(LOG_DEBUG, "Removed %d from conference %d\n", zap_fd(c->z), *confno);
+	ast_log(LOG_DEBUG, "Removed %d from conference %d\n", c->zfd, *confno);
 	return 0;
 }
 
@@ -750,7 +880,7 @@ static int update_conf(struct zt_pvt *p)
 	/* Update conference state in a stateless fashion */
 	/* Start with the obvious, general stuff */
 	for (x=0;x<3;x++) {
-		if (p->subs[x].z && p->subs[x].inthreeway) {
+		if ((p->subs[x].zfd > -1) && p->subs[x].inthreeway) {
 			conf_add(&p->confno, &p->subs[x], x);
 			needconf++;
 		} else {
@@ -785,13 +915,25 @@ static void zt_enable_ec(struct zt_pvt *p)
 {
 	int x;
 	int res;
+	if (p->echocanon) {
+		ast_log(LOG_DEBUG, "Echo cancellation already on\n");
+		return;
+	}
 	if (p && p->echocancel) {
+		if (p->sig == SIG_PRI) {
+			x = 1;
+			res = ioctl(p->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &x);
+			if (res)
+				ast_log(LOG_WARNING, "Unable to enable echo cancellation on channel %d\n", p->channel);
+		}
 		x = p->echocancel;
-		res = ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_ECHOCANCEL, &x);
+		res = ioctl(p->subs[SUB_REAL].zfd, ZT_ECHOCANCEL, &x);
 		if (res) 
 			ast_log(LOG_WARNING, "Unable to enable echo cancellation on channel %d\n", p->channel);
-		else
+		else {
+			p->echocanon = 1;
 			ast_log(LOG_DEBUG, "Enabled echo cancellation on channel %d\n", p->channel);
+		}
 	} else
 		ast_log(LOG_DEBUG, "No echocancellation requested\n");
 }
@@ -802,12 +944,13 @@ static void zt_disable_ec(struct zt_pvt *p)
 	int res;
 	if (p->echocancel) {
 		x = 0;
-		res = ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_ECHOCANCEL, &x);
+		res = ioctl(p->subs[SUB_REAL].zfd, ZT_ECHOCANCEL, &x);
 		if (res) 
 			ast_log(LOG_WARNING, "Unable to disable echo cancellation on channel %d\n", p->channel);
 		else
 			ast_log(LOG_DEBUG, "disabled echo cancellation on channel %d\n", p->channel);
 	}
+	p->echocanon = 0;
 }
 
 int set_actual_gain(int fd, int chan, float rxgain, float txgain, int law)
@@ -862,7 +1005,26 @@ static inline int zt_set_hook(int fd, int hs)
 	x = hs;
 	res = ioctl(fd, ZT_HOOK, &x);
 	if (res < 0) 
+	{
+		if (errno == EINPROGRESS) return 0;
 		ast_log(LOG_WARNING, "zt hook failed: %s\n", strerror(errno));
+	}
+	return res;
+}
+
+static inline int zt_confmute(struct zt_pvt *p, int muted)
+{
+	int x, y, res;
+	x = muted;
+	if (p->sig == SIG_PRI) {
+		y = 1;
+		res = ioctl(p->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &y);
+		if (res)
+			ast_log(LOG_WARNING, "Unable to set audio mode on '%d'\n", p->channel);
+	}
+	res = ioctl(p->subs[SUB_REAL].zfd, ZT_CONFMUTE, &x);
+	if (res < 0) 
+		ast_log(LOG_WARNING, "zt confmute(%d) failed on channel %d: %s\n", muted, p->channel, strerror(errno));
 	return res;
 }
 
@@ -875,7 +1037,7 @@ static int save_conference(struct zt_pvt *p)
 		return -1;
 	}
 	p->saveconf.chan = 0;
-	res = ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_GETCONF, &p->saveconf);
+	res = ioctl(p->subs[SUB_REAL].zfd, ZT_GETCONF, &p->saveconf);
 	if (res) {
 		ast_log(LOG_WARNING, "Unable to get conference info: %s\n", strerror(errno));
 		p->saveconf.confmode = 0;
@@ -884,7 +1046,7 @@ static int save_conference(struct zt_pvt *p)
 	c.chan = 0;
 	c.confno = 0;
 	c.confmode = ZT_CONF_NORMAL;
-	res = ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_SETCONF, &c);
+	res = ioctl(p->subs[SUB_REAL].zfd, ZT_SETCONF, &c);
 	if (res) {
 		ast_log(LOG_WARNING, "Unable to set conference info: %s\n", strerror(errno));
 		return -1;
@@ -898,7 +1060,7 @@ static int restore_conference(struct zt_pvt *p)
 {
 	int res;
 	if (p->saveconf.confmode) {
-		res = ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_SETCONF, &p->saveconf);
+		res = ioctl(p->subs[SUB_REAL].zfd, ZT_SETCONF, &p->saveconf);
 		p->saveconf.confmode = 0;
 		if (res) {
 			ast_log(LOG_WARNING, "Unable to restore conference info: %s\n", strerror(errno));
@@ -915,6 +1077,7 @@ static int send_callerid(struct zt_pvt *p);
 int send_cwcidspill(struct zt_pvt *p)
 {
 	p->callwaitcas = 0;
+	p->cidcwexpire = 0;
 	p->cidspill = malloc(MAX_CALLERID_SIZE);
 	if (p->cidspill) {
 		memset(p->cidspill, 0x7f, MAX_CALLERID_SIZE);
@@ -942,10 +1105,10 @@ static int send_callerid(struct zt_pvt *p)
 	/* Take out of linear mode if necessary */
 	if (p->subs[SUB_REAL].linear) {
 		p->subs[SUB_REAL].linear = 0;
-		zap_setlinear(p->subs[SUB_REAL].z, 0);
+		zt_setlinear(p->subs[SUB_REAL].zfd, 0);
 	}
 	while(p->cidpos < p->cidlen) {
-		res = write(zap_fd(p->subs[SUB_REAL].z), p->cidspill + p->cidpos, p->cidlen - p->cidpos);
+		res = write(p->subs[SUB_REAL].zfd, p->cidspill + p->cidpos, p->cidlen - p->cidpos);
 		if (res < 0) {
 			if (errno == EAGAIN)
 				return 0;
@@ -961,21 +1124,8 @@ static int send_callerid(struct zt_pvt *p)
 	free(p->cidspill);
 	p->cidspill = NULL;
 	if (p->callwaitcas) {
-		zap_clrdtmfn(p->subs[SUB_REAL].z);
-		/* Check for a the ack on the CAS (up to 500 ms) */
-		res = zap_getdtmf(p->subs[SUB_REAL].z, 1, NULL, 0, 500, 500, ZAP_HOOKEXIT | ZAP_TIMEOUTOK);
-		if (res > 0) {
-			char tmp[2];
-			strncpy(tmp, zap_dtmfbuf(p->subs[SUB_REAL].z), sizeof(tmp)-1);
-			zap_clrdtmfn(p->subs[SUB_REAL].z);
-			if ((tmp[0] == 'A') || (tmp[0] == 'D')) {
-				send_cwcidspill(p);
-			}
-		} else {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "CPE does not support Call Waiting Caller*ID.\n");
-			restore_conference(p);
-		}
+		/* Wait for CID/CW to expire */
+		p->cidcwexpire = CIDCW_EXPIRE_SAMPLES;
 	} else
 		restore_conference(p);
 	return 0;
@@ -1033,7 +1183,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		return 0;
 	}
 	x = ZT_FLUSH_READ | ZT_FLUSH_WRITE;
-	res = ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_FLUSH, &x);
+	res = ioctl(p->subs[SUB_REAL].zfd, ZT_FLUSH, &x);
 	if (res)
 		ast_log(LOG_WARNING, "Unable to flush input on channel %d\n", p->channel);
 	p->outgoing = 1;
@@ -1064,16 +1214,33 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			}
 			/* Select proper cadence */
 			if ((p->distinctivering > 0) && (p->distinctivering <= NUM_CADENCE)) {
-				if (ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_SETCADENCE, &cadences[p->distinctivering-1]))
+				if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETCADENCE, &cadences[p->distinctivering-1]))
 					ast_log(LOG_WARNING, "Unable to set distinctive ring cadence %d on '%s'\n", p->distinctivering, ast->name);
 				p->cidrings = cidrings[p->distinctivering - 1];
 			} else {
-				if (ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_SETCADENCE, NULL))
+				if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETCADENCE, NULL))
 					ast_log(LOG_WARNING, "Unable to reset default ring on '%s'\n", ast->name);
-				p->cidrings = 1;
+				p->cidrings = DEFAULT_CIDRINGS;
+			}
+
+
+			/* nick@dccinc.com 4/3/03 mods to allow for deferred dialing */
+			c = strchr(dest, '/');
+			if (c)
+			  c++;
+			if (c && (strlen(c) < p->stripmsd)) {
+			  ast_log(LOG_WARNING, "Number '%s' is shorter than stripmsd (%d)\n", c, p->stripmsd);
+			  c = NULL;
+			}
+			if (c) {
+				p->dop.op = ZT_DIAL_OP_REPLACE;
+				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "Tw%s", c);
+				ast_log(LOG_DEBUG, "FXO: setup deferred dialstring: %s\n", c);
+			} else {
+				strcpy(p->dop.dialstr, "");
 			}
 			x = ZT_RING;
-			if (ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_HOOK, &x) && (errno != EINPROGRESS)) {
+			if (ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x) && (errno != EINPROGRESS)) {
 				ast_log(LOG_WARNING, "Unable to ring phone: %s\n", strerror(errno));
 				return -1;
 			}
@@ -1089,7 +1256,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			if (zt_callwait(ast))
 				return -1;
 			/* Make ring-back */
-			if (tone_zone_play_tone(zap_fd(p->subs[SUB_CALLWAIT].z), ZT_TONE_RINGTONE))
+			if (tone_zone_play_tone(p->subs[SUB_CALLWAIT].zfd, ZT_TONE_RINGTONE))
 				ast_log(LOG_WARNING, "Unable to generate call-wait ring-back on channel %s\n", ast->name);
 				
 		}
@@ -1121,6 +1288,11 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 	case SIG_FEATD:
 	case SIG_FEATDMF:
 	case SIG_FEATB:
+	case SIG_SFWINK:
+	case SIG_SF:
+	case SIG_SF_FEATD:
+	case SIG_SF_FEATDMF:
+	case SIG_SF_FEATB:
 		c = strchr(dest, '/');
 		if (c)
 			c++;
@@ -1132,7 +1304,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		}
 		x = ZT_START;
 		/* Start the trunk */
-		res = ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_HOOK, &x);
+		res = ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x);
 		if (res < 0) {
 			if (errno != EINPROGRESS) {
 				ast_log(LOG_WARNING, "Unable to start channel: %s\n", strerror(errno));
@@ -1178,9 +1350,9 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		} else 
 			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%s", c + p->stripmsd);
 		if (!res) {
-			if (ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_DIAL, &p->dop)) {
+			if (ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop)) {
 				x = ZT_ONHOOK;
-				ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_HOOK, &x);
+				ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x);
 				ast_log(LOG_WARNING, "Dialing failed on channel %d: %s\n", p->channel, strerror(errno));
 				return -1;
 			}
@@ -1197,7 +1369,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			c++;
 		else
 			c = dest;
-		if (ast->callerid) {
+		if (ast->callerid && !p->hidecallerid) {
 			strncpy(callerid, ast->callerid, sizeof(callerid)-1);
 			ast_callerid_parse(callerid, &n, &l);
 			if (l) {
@@ -1218,6 +1390,10 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			*s = '\0';
 		} else {
 			strcpy(p->dop.dialstr, "");
+		}
+		if (!(p->call = pri_new_call(p->pri->pri))) {
+			ast_log(LOG_WARNING, "Unable to create call on channel %d\n", p->channel);
+			return -1;
 		}
 		if (pri_call(p->pri->pri, p->call, p->digital ? PRI_TRANS_CAP_DIGITAL : PRI_TRANS_CAP_SPEECH, 
 			p->prioffset, p->pri->nodetype == PRI_NETWORK ? 0 : 1, 1, l, p->pri->dialplan - 1, n,
@@ -1245,7 +1421,6 @@ static int destroy_channel(struct zt_pvt *prev, struct zt_pvt *cur, int now)
 {
 	int owned = 0;
 	int i = 0;
-	int res = 0;
 
 	if (!now) {
 		if (cur->owner) {
@@ -1260,28 +1435,38 @@ static int destroy_channel(struct zt_pvt *prev, struct zt_pvt *cur, int now)
 		if (!owned) {
 			if (prev) {
 				prev->next = cur->next;
+				if (prev->next)
+					prev->next->prev = prev;
+				else
+					ifend = prev;
 			} else {
 				iflist = cur->next;
+				if (iflist)
+					iflist->prev = NULL;
+				else
+					ifend = NULL;
 			}
-			res = zap_close(cur->subs[SUB_REAL].z);
-			if (res) {
-				ast_log(LOG_ERROR, "Unable to close device on channel %d\n", cur->channel);
-				free(cur);
-				return -1;
+			if (cur->subs[SUB_REAL].zfd > -1) {
+				zt_close(cur->subs[SUB_REAL].zfd);
 			}
 			free(cur);
 		}
 	} else {
 		if (prev) {
 			prev->next = cur->next;
+			if (prev->next)
+				prev->next->prev = prev;
+			else
+				ifend = prev;
 		} else {
 			iflist = cur->next;
+			if (iflist)
+				iflist->prev = NULL;
+			else
+				ifend = NULL;
 		}
-		res = zap_close(cur->subs[SUB_REAL].z);
-		if (res) {
-			ast_log(LOG_ERROR, "Unable to close device on channel %d\n", cur->channel);
-			free(cur);
-			return -1;
+		if (cur->subs[SUB_REAL].zfd > -1) {
+			zt_close(cur->subs[SUB_REAL].zfd);
 		}
 		free(cur);
 	}
@@ -1305,13 +1490,26 @@ static int zt_hangup(struct ast_channel *ast)
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
 	}
+	
+	ast_mutex_lock(&p->lock);
+	
 	index = zt_get_index(ast, p, 1);
 
-	restore_gains(p);
-	zap_digitmode(p->subs[SUB_REAL].z,0);
+	if (p->sig == SIG_PRI) {
+		x = 1;
+		ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+	}
 
-	ast_log(LOG_DEBUG, "Hangup: channel: %d index = %d, normal = %p, callwait = %p, thirdcall = %p\n",
-		p->channel, index, p->subs[SUB_REAL].z, p->subs[SUB_CALLWAIT].z, p->subs[SUB_THREEWAY].z);
+	x = 0;
+	zt_confmute(p, 0);
+	restore_gains(p);
+	
+	if (p->dsp)
+		ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
+
+
+	ast_log(LOG_DEBUG, "Hangup: channel: %d index = %d, normal = %d, callwait = %d, thirdcall = %d\n",
+		p->channel, index, p->subs[SUB_REAL].zfd, p->subs[SUB_CALLWAIT].zfd, p->subs[SUB_THREEWAY].zfd);
 	p->ignoredtmf = 0;
 	
 	if (index > -1) {
@@ -1321,9 +1519,9 @@ static int zt_hangup(struct ast_channel *ast)
 		p->subs[index].needringing = 0;
 		p->subs[index].linear = 0;
 		p->subs[index].needcallerid = 0;
-		zap_setlinear(p->subs[index].z, 0);
+		zt_setlinear(p->subs[index].zfd, 0);
 		if (index == SUB_REAL) {
-			if (p->subs[SUB_CALLWAIT].z && p->subs[SUB_THREEWAY].z) {
+			if ((p->subs[SUB_CALLWAIT].zfd > -1) && (p->subs[SUB_THREEWAY].zfd > -1)) {
 				ast_log(LOG_DEBUG, "Normal call hung up with both three way call and a call waiting call in place?\n");
 				if (p->subs[SUB_CALLWAIT].inthreeway) {
 					/* We had flipped over to answer a callwait and now it's gone */
@@ -1349,14 +1547,14 @@ static int zt_hangup(struct ast_channel *ast)
 					}
 					p->subs[SUB_REAL].inthreeway = 0;
 				}
-			} else if (p->subs[SUB_CALLWAIT].z) {
+			} else if (p->subs[SUB_CALLWAIT].zfd > -1) {
 				/* Move to the call-wait and switch back to them. */
 				swap_subs(p, SUB_CALLWAIT, SUB_REAL);
 				unalloc_sub(p, SUB_CALLWAIT);
 				p->owner = p->subs[SUB_REAL].owner;
 				if (p->subs[SUB_REAL].owner->bridge)
 					ast_moh_stop(p->subs[SUB_REAL].owner->bridge);
-			} else if (p->subs[SUB_THREEWAY].z) {
+			} else if (p->subs[SUB_THREEWAY].zfd > -1) {
 				swap_subs(p, SUB_THREEWAY, SUB_REAL);
 				unalloc_sub(p, SUB_THREEWAY);
 				if (p->subs[SUB_REAL].inthreeway) {
@@ -1414,24 +1612,46 @@ static int zt_hangup(struct ast_channel *ast)
 		p->faxhandled = 0;
 		p->pulsedial = 0;
 		p->onhooktime = time(NULL);
+#ifdef PRI_EVENT_PROCEEDING
+		p->proceeding = 0;
+#endif
+#ifdef PRI_EVENT_SETUP_ACK
+		p->setup_ack = 0;
+#endif
 		if (p->dsp) {
 			ast_dsp_free(p->dsp);
 			p->dsp = NULL;
 		}
+
 		law = ZT_LAW_DEFAULT;
-		res = ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_SETLAW, &law);
+		res = ioctl(p->subs[SUB_REAL].zfd, ZT_SETLAW, &law);
 		if (res < 0) 
 			ast_log(LOG_WARNING, "Unable to set law on channel %d to default\n", p->channel);
 		/* Perform low level hangup if no owner left */
 #ifdef ZAPATA_PRI
 		if (p->sig == SIG_PRI) {
 			if (p->call) {
-				if (!pri_grab(p->pri)) {
-					res = pri_disconnect(p->pri->pri, p->call, PRI_CAUSE_NORMAL_CLEARING);
-					if (p->alreadyhungup) {
+				if (!pri_grab(p, p->pri)) {
+#ifndef NEW_PRI_HANGUP
+					if (!p->alreadyhungup) {
+						res = pri_disconnect(p->pri->pri, p->call, PRI_CAUSE_NORMAL_CLEARING);
+					} else {
+						pri_release(p->pri->pri, p->call, -1);
 						p->call = NULL;
 						p->alreadyhungup = 0;
 					}
+#else
+#ifndef PRI_HANGUP
+#error Please update libpri. The new hangup routines were implemented. You can debug then using "pri debug span <span_no>". If you dont want to update libpri code simply comment out OPTIONS += -DNEW_PRI_HANGUP in asterisk/Makefile
+#endif
+					if (p->alreadyhungup) {
+						pri_hangup(p->pri->pri, p->call, -1);
+						p->call = NULL;
+					} else {
+						p->alreadyhungup = 1;
+						pri_hangup(p->pri->pri, p->call, -1);
+					}
+#endif
 					if (res < 0) 
 						ast_log(LOG_WARNING, "pri_disconnect failed\n");
 					pri_rel(p->pri);			
@@ -1456,29 +1676,28 @@ static int zt_hangup(struct ast_channel *ast)
 		} else 
 #endif
 		if (p->sig)
-			res = zt_set_hook(zap_fd(p->subs[SUB_REAL].z), ZT_ONHOOK);
+			res = zt_set_hook(p->subs[SUB_REAL].zfd, ZT_ONHOOK);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to hangup line %s\n", ast->name);
-			return -1;
 		}
 		switch(p->sig) {
 		case SIG_FXOGS:
 		case SIG_FXOLS:
 		case SIG_FXOKS:
-			res = ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_GET_PARAMS, &par);
+			res = ioctl(p->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &par);
 			if (!res) {
 #if 0
 				ast_log(LOG_DEBUG, "Hanging up channel %d, offhook = %d\n", p->channel, par.rxisoffhook);
 #endif
 				/* If they're off hook, try playing congestion */
 				if (par.rxisoffhook)
-					tone_zone_play_tone(zap_fd(p->subs[SUB_REAL].z), ZT_TONE_CONGESTION);
+					tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 				else
-					tone_zone_play_tone(zap_fd(p->subs[SUB_REAL].z), -1);
+					tone_zone_play_tone(p->subs[SUB_REAL].zfd, -1);
 			}
 			break;
 		default:
-			tone_zone_play_tone(zap_fd(p->subs[SUB_REAL].z), -1);
+			tone_zone_play_tone(p->subs[SUB_REAL].zfd, -1);
 		}
 		if (p->cidspill)
 			free(p->cidspill);
@@ -1495,13 +1714,20 @@ static int zt_hangup(struct ast_channel *ast)
 		p->dialing = 0;
 		strcpy(p->rdnis, "");
 		update_conf(p);
+		/* Restore data mode */
+		if (p->sig == SIG_PRI) {
+			x = 0;
+			ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+		}
+
 		restart_monitor();
 	}
 
 
 	p->callwaitingrepeat = 0;
+	p->cidcwexpire = 0;
 	ast->pvt->pvt = NULL;
-	ast_setstate(ast, AST_STATE_DOWN);
+	ast_mutex_unlock(&p->lock);
 	ast_mutex_lock(&usecnt_lock);
 	usecnt--;
 	if (usecnt < 0) 
@@ -1536,12 +1762,15 @@ static int zt_answer(struct ast_channel *ast)
 	int index;
 	int oldstate = ast->_state;
 	ast_setstate(ast, AST_STATE_UP);
+	ast_mutex_lock(&p->lock);
 	index = zt_get_index(ast, p, 0);
 	if (index < 0)
 		index = SUB_REAL;
 	/* nothing to do if a radio channel */
-	if (p->radio)
+	if (p->radio) {
+		ast_mutex_unlock(&p->lock);
 		return 0;
+	}
 	switch(p->sig) {
 	case SIG_FXSLS:
 	case SIG_FXSGS:
@@ -1553,18 +1782,23 @@ static int zt_answer(struct ast_channel *ast)
 	case SIG_FEATD:
 	case SIG_FEATDMF:
 	case SIG_FEATB:
+	case SIG_SF:
+	case SIG_SFWINK:
+	case SIG_SF_FEATD:
+	case SIG_SF_FEATDMF:
+	case SIG_SF_FEATB:
 	case SIG_FXOLS:
 	case SIG_FXOGS:
 	case SIG_FXOKS:
 		/* Pick up the line */
 		ast_log(LOG_DEBUG, "Took %s off hook\n", ast->name);
-		res =  zt_set_hook(zap_fd(p->subs[SUB_REAL].z), ZT_OFFHOOK);
-		tone_zone_play_tone(zap_fd(p->subs[index].z), -1);
+		res =  zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
+		tone_zone_play_tone(p->subs[index].zfd, -1);
 		p->dialing = 0;
 		if ((index == SUB_REAL) && p->subs[SUB_THREEWAY].inthreeway) {
 			if (oldstate == AST_STATE_RINGING) {
 				ast_log(LOG_DEBUG, "Finally swapping real and threeway\n");
-				tone_zone_play_tone(zap_fd(p->subs[SUB_THREEWAY].z), -1);
+				tone_zone_play_tone(p->subs[SUB_THREEWAY].zfd, -1);
 				swap_subs(p, SUB_THREEWAY, SUB_REAL);
 				p->owner = p->subs[SUB_REAL].owner;
 			}
@@ -1573,7 +1807,7 @@ static int zt_answer(struct ast_channel *ast)
 #ifdef ZAPATA_PRI
 	case SIG_PRI:
 		/* Send a pri acknowledge */
-		if (!pri_grab(p->pri)) {
+		if (!pri_grab(p, p->pri)) {
 			res = pri_answer(p->pri->pri, p->call, 0, 1);
 			pri_rel(p->pri);
 		} else {
@@ -1590,11 +1824,13 @@ static int zt_answer(struct ast_channel *ast)
 		break;
 #endif			
 	case 0:
+		ast_mutex_unlock(&p->lock);
 		return 0;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to answer signalling %d (channel %d)\n", p->sig, p->channel);
-		return -1;
+		res = -1;
 	}
+	ast_mutex_unlock(&p->lock);
 	return res;
 }
 
@@ -1606,7 +1842,7 @@ int	x;
 	struct zt_pvt *p = chan->pvt->pvt;
 
 	
-	if ((option != AST_OPTION_TONE_VERIFY) &&
+	if ((option != AST_OPTION_TONE_VERIFY) && (option != AST_OPTION_AUDIO_MODE) &&
 		(option != AST_OPTION_TDD) && (option != AST_OPTION_RELAXDTMF))
 	   {
 		errno = ENOSYS;
@@ -1620,18 +1856,20 @@ int	x;
 	   }
 	switch(option) {
 	    case AST_OPTION_TONE_VERIFY:
+		if (!p->dsp)
+			break;
 		switch(*cp) {
 		    case 1:
-			ast_log(LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF(1) on %s\n",chan->name);
-			zap_digitmode(p->subs[SUB_REAL].z,ZAP_MUTECONF);  /* set mute mode if desired */
+				ast_log(LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF(1) on %s\n",chan->name);
+				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_MUTECONF | p->dtmfrelax);  /* set mute mode if desired */
 			break;
 		    case 2:
-			ast_log(LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF/MAX(2) on %s\n",chan->name);
-			zap_digitmode(p->subs[SUB_REAL].z,ZAP_MUTECONF | ZAP_MUTEMAX);  /* set mute mode if desired */
+				ast_log(LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF/MAX(2) on %s\n",chan->name);
+				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX | p->dtmfrelax);  /* set mute mode if desired */
 			break;
 		    default:
-			ast_log(LOG_DEBUG, "Set option TONE VERIFY, mode: OFF(0) on %s\n",chan->name);
-			zap_digitmode(p->subs[SUB_REAL].z,0);  /* set mute mode if desired */
+				ast_log(LOG_DEBUG, "Set option TONE VERIFY, mode: OFF(0) on %s\n",chan->name);
+				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);  /* set mute mode if desired */
 			break;
 		}
 		break;
@@ -1663,7 +1901,7 @@ int	x;
 				ast_log(LOG_WARNING, "No index in TDD?\n");
 				return -1;
 			}
-			fd = zap_fd(p->subs[index].z);
+			fd = p->subs[index].zfd;
 			while(len) {
 				if (ast_check_hangup(chan)) return -1;
 				size = len;
@@ -1716,7 +1954,22 @@ int	x;
 			ast_log(LOG_DEBUG, "Set option RELAX DTMF, value: ON(1) on %s\n",chan->name);
 			x = 1;
 		}
-		zap_setradio(p->subs[SUB_REAL].z,x);
+		ast_dsp_digitmode(p->dsp,x ? DSP_DIGITMODE_RELAXDTMF : DSP_DIGITMODE_DTMF | p->dtmfrelax);
+		break;
+	    case AST_OPTION_AUDIO_MODE:  /* Set AUDIO mode (or not) */
+		if (!*cp)
+		{		
+			ast_log(LOG_DEBUG, "Set option AUDIO MODE, value: OFF(0) on %s\n",chan->name);
+			x = 0;
+			zt_disable_ec(p);
+		}
+		else
+		{		
+			ast_log(LOG_DEBUG, "Set option AUDIO MODE, value: ON(1) on %s\n",chan->name);
+			x = 1;
+		}
+		if (ioctl(p->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &x) == -1)
+			ast_log(LOG_WARNING, "Unable to set audio mode on channel %d to %d\n", p->channel, x);
 		break;
 	}
 	errno = 0;
@@ -1784,7 +2037,7 @@ static void zt_link(struct zt_pvt *slave, struct zt_pvt *master) {
 		ast_log(LOG_WARNING, "Replacing master %d with new master, %d\n", slave->master->channel, master->channel);
 	slave->master = master;
 	
-	ast_log(LOG_DEBUG, "Making %d slave to master %d\n", slave->channel, master->channel);
+	ast_log(LOG_DEBUG, "Making %d slave to master %d at %d\n", slave->channel, master->channel, x);
 }
 
 static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
@@ -1808,7 +2061,7 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	p1 = c1->pvt->pvt;
 	/* cant do pseudo-channels here */
 	if ((!p0->sig) || (!p1->sig)) return -2;
-
+		
 	ast_mutex_lock(&c0->lock);
 	ast_mutex_lock(&c1->lock);
 	op0 = p0 = c0->pvt->pvt;
@@ -1849,8 +2102,8 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 				inconf = 1;
 			} else {
 				ast_log(LOG_WARNING, "Huh?  Both calls are callwaits or 3-ways?  That's clever...?\n");
-				ast_log(LOG_WARNING, "p0: chan %d/%d/CW%d/3W%d, p1: chan %d/%d/CW%d/3W%d\n", p0->channel, oi1, p0->subs[SUB_CALLWAIT].z ? 1 : 0, p0->subs[SUB_REAL].inthreeway,
-						p0->channel, oi1, p1->subs[SUB_CALLWAIT].z ? 1 : 0, p1->subs[SUB_REAL].inthreeway);
+				ast_log(LOG_WARNING, "p0: chan %d/%d/CW%d/3W%d, p1: chan %d/%d/CW%d/3W%d\n", p0->channel, oi1, (p0->subs[SUB_CALLWAIT].zfd > -1) ? 1 : 0, p0->subs[SUB_REAL].inthreeway,
+						p0->channel, oi1, (p1->subs[SUB_CALLWAIT].zfd > -1) ? 1 : 0, p1->subs[SUB_REAL].inthreeway);
 			}
 		}
 	} else if ((oi1 == SUB_REAL) && (oi2 == SUB_THREEWAY)) {
@@ -1885,6 +2138,8 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 			nothingok = 1;
 		}
 	}
+	ast_log(LOG_DEBUG, "master: %d, slave: %d, nothingok: %d\n",
+		master ? master->channel : 0, slave ? slave->channel : 0, nothingok);
 	if (master && slave) {
 		/* Stop any tones, or play ringtone as appropriate.  If they're bridged
 		   in an active threeway call with a channel that is ringing, we should
@@ -1895,11 +2150,11 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 			p1->subs[SUB_REAL].inthreeway && 
 			(p1->subs[SUB_REAL].owner->_state == AST_STATE_RINGING)) {
 				ast_log(LOG_DEBUG, "Playing ringback on %s since %s is in a ringing three-way\n", c0->name, c1->name);
-				tone_zone_play_tone(zap_fd(p0->subs[oi1].z), ZT_TONE_RINGTONE);
+				tone_zone_play_tone(p0->subs[oi1].zfd, ZT_TONE_RINGTONE);
 				os2 = p1->subs[SUB_REAL].owner->_state;
 		} else {
 				ast_log(LOG_DEBUG, "Stoping tones on %d/%d talking to %d/%d\n", p0->channel, oi1, p1->channel, oi2);
-				tone_zone_play_tone(zap_fd(p0->subs[oi1].z), -1);
+				tone_zone_play_tone(p0->subs[oi1].zfd, -1);
 		}
 		if ((oi1 == SUB_THREEWAY) && 
 			p0->subs[SUB_THREEWAY].inthreeway && 
@@ -1907,11 +2162,18 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 			p0->subs[SUB_REAL].inthreeway && 
 			(p0->subs[SUB_REAL].owner->_state == AST_STATE_RINGING)) {
 				ast_log(LOG_DEBUG, "Playing ringback on %s since %s is in a ringing three-way\n", c1->name, c0->name);
-				tone_zone_play_tone(zap_fd(p1->subs[oi2].z), ZT_TONE_RINGTONE);
+				tone_zone_play_tone(p1->subs[oi2].zfd, ZT_TONE_RINGTONE);
 				os1 = p0->subs[SUB_REAL].owner->_state;
 		} else {
 				ast_log(LOG_DEBUG, "Stoping tones on %d/%d talking to %d/%d\n", p1->channel, oi2, p0->channel, oi1);
-				tone_zone_play_tone(zap_fd(p1->subs[oi1].z), -1);
+				tone_zone_play_tone(p1->subs[oi1].zfd, -1);
+		}
+		if ((oi1 == SUB_REAL) && (oi2 == SUB_REAL)) {
+			if (!p0->echocanbridged || !p1->echocanbridged) {
+				/* Disable echo cancellation if appropriate */
+				zt_disable_ec(p0);
+				zt_disable_ec(p1);
+			}
 		}
 		zt_link(slave, master);
 		master->inconference = inconf;
@@ -1930,8 +2192,13 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	ast_mutex_unlock(&c1->lock);
 
 	/* Native bridge failed */
-	if ((!master || !slave) && !nothingok)
+	if ((!master || !slave) && !nothingok) {
+		if (op0 == p0)
+			zt_enable_ec(p0);
+		if (op1 == p1)
+			zt_enable_ec(p1);
 		return -1;
+	}
 	
 	cs[0] = c0;
 	cs[1] = c1;
@@ -1964,6 +2231,10 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 				zt_unlink(slave, master);
 			ast_log(LOG_DEBUG, "Something changed out on %d/%d to %d/%d, returning -3 to restart\n",
 									op0->channel, oi1, op1->channel, oi2);
+			if (op0 == p0)
+				zt_enable_ec(p0);
+			if (op1 == p1)
+				zt_enable_ec(p1);
 			return -3;
 		}
 		to = -1;
@@ -1986,6 +2257,10 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 			*rc = who;
 			if (slave && master)
 				zt_unlink(slave, master);
+			if (op0 == p0)
+				zt_enable_ec(p0);
+			if (op1 == p1)
+				zt_enable_ec(p1);
 			return 0;
 		}
 		if (f->frametype == AST_FRAME_DTMF) {
@@ -2039,10 +2314,10 @@ static int zt_ring_phone(struct zt_pvt *p)
 	/* Make sure our transmit state is on hook */
 	x = 0;
 	x = ZT_ONHOOK;
-	res = ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_HOOK, &x);
+	res = ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x);
 	do {
 		x = ZT_RING;
-		res = ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_HOOK, &x);
+		res = ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x);
 #if 0
 		printf("Res: %d, error: %s\n", res, strerror(errno));
 #endif						
@@ -2169,7 +2444,7 @@ static mfcr2_event_t *r2_get_event_bits(struct zt_pvt *p)
 	int x;
 	int res;
 	mfcr2_event_t *e;
-	res = ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_GETRXBITS, &x);
+	res = ioctl(p->subs[SUB_REAL].zfd, ZT_GETRXBITS, &x);
 	if (res) {
 		ast_log(LOG_WARNING, "Unable to check received bits\n");
 		return NULL;
@@ -2183,6 +2458,42 @@ static mfcr2_event_t *r2_get_event_bits(struct zt_pvt *p)
 }
 #endif
 
+static int check_for_conference(struct zt_pvt *p)
+{
+	ZT_CONFINFO ci;
+	/* Fine if we already have a master, etc */
+	if (p->master || (p->confno > -1))
+		return 0;
+	memset(&ci, 0, sizeof(ci));
+	if (ioctl(p->subs[SUB_REAL].zfd, ZT_GETCONF, &ci)) {
+		ast_log(LOG_WARNING, "Failed to get conference info on channel %d\n", p->channel);
+		return 0;
+	}
+	/* If we have no master and don't have a confno, then 
+	   if we're in a conference, it's probably a MeetMe room or
+	   some such, so don't let us 3-way out! */
+	if (ci.confno) {
+		if (option_verbose > 2)	
+			ast_verbose(VERBOSE_PREFIX_3 "Avoiding 3-way call when in an external conference\n");
+		return 1;
+	}
+	return 0;
+}
+
+static int get_alarms(struct zt_pvt *p)
+{
+	int res;
+	ZT_SPANINFO zi;
+	memset(&zi, 0, sizeof(zi));
+	zi.spanno = p->span;
+	res = ioctl(p->subs[SUB_REAL].zfd, ZT_SPANSTAT, &zi);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Unable to determine alarm on channel %d\n", p->channel);
+		return 0;
+	}
+	return zi.alarms;
+}
+			
 static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 {
 	int res,x;
@@ -2203,21 +2514,17 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 	p->subs[index].f.data = NULL;
 	if (index < 0)
 		return &p->subs[index].f;
-	res = zt_get_event(zap_fd(p->subs[index].z));
+	res = zt_get_event(p->subs[index].zfd);
 	ast_log(LOG_DEBUG, "Got event %s(%d) on channel %d (index %d)\n", event2str(res), res, p->channel, index);
 	if (res & (ZT_EVENT_PULSEDIGIT | ZT_EVENT_DTMFDIGIT)) {
-		int len = strlen(p->subs[index].dtmfq);
 		if (res & ZT_EVENT_PULSEDIGIT)
 			p->pulsedial = 1;
 		else
 			p->pulsedial = 0;
-		if (len < sizeof(p->subs[index].dtmfq) - 2) {
-			ast_log(LOG_DEBUG, "Pulse dial '%c'\n", res & 0xff);
-			p->subs[index].dtmfq[len++] = res & 0xff;
-			p->subs[index].dtmfq[len] = 0;
-		} else
-			ast_log(LOG_WARNING, "Dropping excessive pulse/dtmf digit '%d'\n", res & 0xff);
-		/* We'll let the DTMF get captured on the next read */
+		ast_log(LOG_DEBUG, "Pulse dial '%c'\n", res & 0xff);
+		p->subs[index].f.frametype = AST_FRAME_DTMF;
+		p->subs[index].f.subclass = res & 0xff;
+		/* Return the captured digit */
 		return &p->subs[index].f;
 	}
 	switch(res) {
@@ -2238,12 +2545,12 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 		case ZT_EVENT_PULSE_START:
 			/* Stop tone if there's a pulse start and the PBX isn't started */
 			if (!ast->pbx)
-				tone_zone_play_tone(zap_fd(p->subs[index].z), -1);
+				tone_zone_play_tone(p->subs[index].zfd, -1);
 			break;	
 		case ZT_EVENT_DIALCOMPLETE:
 			if (p->inalarm) break;
 			if (p->radio) break;
-			if (ioctl(zap_fd(p->subs[index].z),ZT_DIALING,&x) == -1) {
+			if (ioctl(p->subs[index].zfd,ZT_DIALING,&x) == -1) {
 				ast_log(LOG_DEBUG, "ZT_DIALING ioctl failed on %s\n",ast->name);
 				return NULL;
 			}
@@ -2253,7 +2560,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				if (ast->_state == AST_STATE_DIALING) {
 					if (p->callprogress && CANPROGRESSDETECT(p) && p->dsp) {
 						ast_log(LOG_DEBUG, "Done dialing, but waiting for progress detection before doing more...\n");
-					} else if (p->confirmanswer || (!p->dialednone && ((p->sig == SIG_EM) || (p->sig == SIG_EMWINK) || (p->sig == SIG_FEATD) || (p->sig == SIG_FEATDMF) || (p->sig == SIG_FEATB)))) {
+					} else if (p->confirmanswer || (!p->dialednone && ((p->sig == SIG_EM) || (p->sig == SIG_EMWINK) || (p->sig == SIG_FEATD) || (p->sig == SIG_FEATDMF) || (p->sig == SIG_FEATB) || (p->sig == SIG_SF) || (p->sig == SIG_SFWINK) || (p->sig == SIG_SF_FEATD) || (p->sig == SIG_SF_FEATDMF) || (p->sig == SIG_SF_FEATB)))) {
 						ast_setstate(ast, AST_STATE_RINGING);
 					} else {
 						ast_setstate(ast, AST_STATE_UP);
@@ -2264,7 +2571,24 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			}
 			break;
 		case ZT_EVENT_ALARM:
+#ifdef ZAPATA_PRI
+#ifdef PRI_DESTROYCALL
+			if (p->call && p->pri && p->pri->pri)
+				pri_destroycall(p->pri->pri, p->call);
+			else
+				ast_log(LOG_WARNING, "The PRI Call have not been destroyed\n");
+			p->call = NULL;
+#else
+#error Please "cvs update" and recompile libpri
+#endif
+#endif
 			p->inalarm = 1;
+			res = get_alarms(p);
+			ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", p->channel, alarm2str(res));
+			manager_event(EVENT_FLAG_SYSTEM, "Alarm",
+								"Alarm: %s\r\n"
+								"Channel: %d\r\n",
+								alarm2str(res), p->channel);
 			/* fall through intentionally */
 		case ZT_EVENT_ONHOOK:
 			if (p->radio)
@@ -2293,10 +2617,23 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						p->subs[index].needringing = 0;
 #endif						
 						p->callwaitingrepeat = 0;
+						p->cidcwexpire = 0;
 						p->owner = NULL;
 						zt_ring_phone(p);
 					} else if (p->subs[SUB_THREEWAY].owner) {
-						if ((ast->pbx) ||
+						struct timeval tv;
+						unsigned int mssinceflash;
+						gettimeofday(&tv, NULL);
+						mssinceflash = (tv.tv_sec - p->flashtime.tv_sec) * 1000 + (tv.tv_usec - p->flashtime.tv_usec) / 1000;
+						ast_log(LOG_DEBUG, "Last flash was %d ms ago\n", mssinceflash);
+						if (mssinceflash < MIN_MS_SINCE_FLASH) {
+							/* It hasn't been long enough since the last flashook.  This is probably a bounce on 
+							   hanging up.  Hangup both channels now */
+							if (p->subs[SUB_THREEWAY].owner)
+								ast_queue_hangup(p->subs[SUB_THREEWAY].owner, 0);
+							p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							ast_log(LOG_DEBUG, "Looks like a bounced flash, hanging up both calls on %d\n", p->channel);
+						} else if ((ast->pbx) ||
 							(ast->_state == AST_STATE_UP)) {
 							if (p->transfer) {
 								/* In any case this isn't a threeway call anymore */
@@ -2345,7 +2682,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					p->subs[index].f.frametype = AST_FRAME_CONTROL;
 					p->subs[index].f.subclass = AST_CONTROL_ANSWER;
 					/* Make sure it stops ringing */
-					zt_set_hook(zap_fd(p->subs[index].z), ZT_OFFHOOK);
+					zt_set_hook(p->subs[index].zfd, ZT_OFFHOOK);
 					ast_log(LOG_DEBUG, "channel %d answered\n", p->channel);
 					if (p->cidspill) {
 						/* Cancel any running CallerID spill */
@@ -2358,8 +2695,23 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						/* Ignore answer if "confirm answer" is selected */
 						p->subs[index].f.frametype = AST_FRAME_NULL;
 						p->subs[index].f.subclass = 0;
-					} else 
-						ast_setstate(ast, AST_STATE_UP);
+					} else if (strlen(p->dop.dialstr)) {
+						/* nick@dccinc.com 4/3/03 - fxo should be able to do deferred dialing */
+						res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop);
+						if (res < 0) {
+						  ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
+						  p->dop.dialstr[0] = '\0';
+						  return NULL;
+						} else {
+						  ast_log(LOG_DEBUG, "Sent FXO deferred digit string: %s\n", p->dop.dialstr);
+						  p->subs[index].f.frametype = AST_FRAME_NULL;
+						  p->subs[index].f.subclass = 0;
+						  p->dialing = 1;
+						}
+						p->dop.dialstr[0] = '\0';
+					   ast_setstate(ast, AST_STATE_DIALING);
+					} else
+					   ast_setstate(ast, AST_STATE_UP);
 					return &p->subs[index].f;
 				case AST_STATE_DOWN:
 					ast_setstate(ast, AST_STATE_RING);
@@ -2370,7 +2722,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					return &p->subs[index].f;
 				case AST_STATE_UP:
 					/* Make sure it stops ringing */
-					zt_set_hook(zap_fd(p->subs[index].z), ZT_OFFHOOK);
+					zt_set_hook(p->subs[index].zfd, ZT_OFFHOOK);
 					/* Okay -- probably call waiting*/
 					if (p->owner->bridge)
 							ast_moh_stop(p->owner->bridge);
@@ -2391,12 +2743,17 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			case SIG_FEATD:
 			case SIG_FEATDMF:
 			case SIG_FEATB:
-				if (ast->_state == AST_STATE_DOWN) {
+			case SIG_SF:
+			case SIG_SFWINK:
+			case SIG_SF_FEATD:
+			case SIG_SF_FEATDMF:
+			case SIG_SF_FEATB:
+				if ((ast->_state == AST_STATE_DOWN) || (ast->_state == AST_STATE_RING)) {
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Ring detected\n");
 					p->subs[index].f.frametype = AST_FRAME_CONTROL;
 					p->subs[index].f.subclass = AST_CONTROL_RING;
-				} else if (ast->_state == AST_STATE_RINGING) {
+				} else if (p->outgoing && ((ast->_state == AST_STATE_RINGING) || (ast->_state == AST_STATE_DIALING))) {
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Line answered\n");
 					if (p->confirmanswer) {
@@ -2431,22 +2788,27 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			break;
 		case ZT_EVENT_NOALARM:
 			p->inalarm = 0;
+			ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
+			manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
+								"Channel: %d\r\n", p->channel);
 			break;
 		case ZT_EVENT_WINKFLASH:
 			if (p->inalarm) break;
 			if (p->radio) break;
+			/* Remember last time we got a flash-hook */
+			gettimeofday(&p->flashtime, NULL);
 			switch(p->sig) {
 			case SIG_FXOLS:
 			case SIG_FXOGS:
 			case SIG_FXOKS:
-				ast_log(LOG_DEBUG, "Winkflash, index: %d, normal: %p, callwait: %p, thirdcall: %p\n",
-					index, p->subs[SUB_REAL].z, p->subs[SUB_CALLWAIT].z, p->subs[SUB_THREEWAY].z);
+				ast_log(LOG_DEBUG, "Winkflash, index: %d, normal: %d, callwait: %d, thirdcall: %d\n",
+					index, p->subs[SUB_REAL].zfd, p->subs[SUB_CALLWAIT].zfd, p->subs[SUB_THREEWAY].zfd);
 				p->callwaitcas = 0;
 				if (index == SUB_REAL) {
 					if (p->subs[SUB_CALLWAIT].owner) {
 						/* Swap to call-wait */
 						swap_subs(p, SUB_REAL, SUB_CALLWAIT);
-						tone_zone_play_tone(zap_fd(p->subs[SUB_REAL].z), -1);
+						tone_zone_play_tone(p->subs[SUB_REAL].zfd, -1);
 						p->owner = p->subs[SUB_REAL].owner;
 						ast_log(LOG_DEBUG, "Making %s the new owner\n", p->owner->name);
 						if (p->owner->_state == AST_STATE_RINGING) {
@@ -2454,13 +2816,14 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 							p->subs[SUB_REAL].needanswer = 1;
 						}
 						p->callwaitingrepeat = 0;
+						p->cidcwexpire = 0;
 						/* Start music on hold if appropriate */
 						if (!p->subs[SUB_CALLWAIT].inthreeway && p->subs[SUB_CALLWAIT].owner->bridge)
 								ast_moh_start(p->subs[SUB_CALLWAIT].owner->bridge, NULL);
 						if (p->subs[SUB_REAL].owner->bridge)
 								ast_moh_stop(p->subs[SUB_REAL].owner->bridge);
 					} else if (!p->subs[SUB_THREEWAY].owner) {
-						if (p->threewaycalling) {
+						if (p->threewaycalling && !check_for_conference(p)) {
 							/* XXX This section needs much more error checking!!! XXX */
 							/* Start a 3-way call if feasible */
 							if ((ast->pbx) ||
@@ -2473,13 +2836,13 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 									swap_subs(p, SUB_THREEWAY, SUB_REAL);
 									/* Disable echo canceller for better dialing */
 									zt_disable_ec(p);
-									res = tone_zone_play_tone(zap_fd(p->subs[SUB_REAL].z), ZT_TONE_DIALRECALL);
+									res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_DIALRECALL);
 									if (res)
 										ast_log(LOG_WARNING, "Unable to start dial recall tone on channel %d\n", p->channel);
 									p->owner = chan;
 									if (pthread_create(&threadid, &attr, ss_thread, chan)) {
 										ast_log(LOG_WARNING, "Unable to start simple switch on channel %d\n", p->channel);
-										res = tone_zone_play_tone(zap_fd(p->subs[SUB_REAL].z), ZT_TONE_CONGESTION);
+										res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 										zt_enable_ec(p);
 										ast_hangup(chan);
 									} else {
@@ -2531,8 +2894,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 								p->owner = p->subs[SUB_REAL].owner;
 								if (ast->_state == AST_STATE_RINGING) {
 									ast_log(LOG_DEBUG, "Enabling ringtone on real and threeway\n");
-									res = tone_zone_play_tone(zap_fd(p->subs[SUB_REAL].z), ZT_TONE_RINGTONE);
-									res = tone_zone_play_tone(zap_fd(p->subs[SUB_THREEWAY].z), ZT_TONE_RINGTONE);
+									res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_RINGTONE);
+									res = tone_zone_play_tone(p->subs[SUB_THREEWAY].zfd, ZT_TONE_RINGTONE);
 								}
 							} else {
 								if (option_verbose > 2)
@@ -2542,6 +2905,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 								p->owner = p->subs[SUB_REAL].owner;
 								if (p->subs[SUB_REAL].owner && p->subs[SUB_REAL].owner->bridge)
 									ast_moh_stop(p->subs[SUB_REAL].owner->bridge);
+								zt_enable_ec(p);
 							}
 							
 						}
@@ -2554,6 +2918,9 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			case SIG_EM:
 			case SIG_EMWINK:
 			case SIG_FEATD:
+			case SIG_SF:
+			case SIG_SFWINK:
+			case SIG_SF_FEATD:
 			case SIG_FXSLS:
 			case SIG_FXSGS:
 				if (p->dialing)
@@ -2563,9 +2930,12 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				break;
 			case SIG_FEATDMF:
 			case SIG_FEATB:
+			case SIG_SF_FEATDMF:
+			case SIG_SF_FEATB:
 				/* FGD MF *Must* wait for wink */
-				res = ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_DIAL, &p->dop);
-				if (res < 0) {
+				if (strlen(p->dop.dialstr))
+					res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop);
+				else if (res < 0) {
 					ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
 					p->dop.dialstr[0] = '\0';
 					return NULL;
@@ -2587,17 +2957,24 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			case SIG_EM:
 			case SIG_EMWINK:
 			case SIG_FEATD:
-				res = ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_DIAL, &p->dop);
-				if (res < 0) {
+			case SIG_SF:
+			case SIG_SFWINK:
+			case SIG_SF_FEATD:
+				if (strlen(p->dop.dialstr)) 
+					res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop);
+				else if (res < 0) {
 					ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
 					p->dop.dialstr[0] = '\0';
 					return NULL;
 				} else 
 					ast_log(LOG_DEBUG, "Sent deferred digit string: %s\n", p->dop.dialstr);
 				p->dop.dialstr[0] = '\0';
+				p->dop.op = ZT_DIAL_OP_REPLACE;
 				break;
 			case SIG_FEATDMF:
 			case SIG_FEATB:
+			case SIG_SF_FEATDMF:
+			case SIG_SF_FEATB:
 				ast_log(LOG_DEBUG, "Got hook complete in MF FGD, waiting for wink now on channel %d\n",p->channel);
 				break;
 			default:
@@ -2616,6 +2993,9 @@ struct ast_frame *zt_exception(struct ast_channel *ast)
 	int res;
 	int usedindex=-1;
 	int index;
+	struct ast_frame *f;
+
+	ast_mutex_lock(&p->lock);
 
 	index = zt_get_index(ast, p, 1);
 	
@@ -2635,7 +3015,7 @@ struct ast_frame *zt_exception(struct ast_channel *ast)
 		   other end hangs up our channel so that it no longer exists, but we
 		   have neither FLASH'd nor ONHOOK'd to signify our desire to
 		   change to the other channel. */
-		res = zt_get_event(zap_fd(p->subs[SUB_REAL].z));
+		res = zt_get_event(p->subs[SUB_REAL].zfd);
 		/* Switch to real if there is one and this isn't something really silly... */
 		if ((res != ZT_EVENT_RINGEROFF) && (res != ZT_EVENT_RINGERON) &&
 			(res != ZT_EVENT_HOOKCOMPLETE)) {
@@ -2652,12 +3032,13 @@ struct ast_frame *zt_exception(struct ast_channel *ast)
 					ast_verbose(VERBOSE_PREFIX_3 "Channel %s still has call, ringing phone\n", p->owner->name);
 				zt_ring_phone(p);
 				p->callwaitingrepeat = 0;
+				p->cidcwexpire = 0;
 			} else
 				ast_log(LOG_WARNING, "Absorbed on hook, but nobody is left!?!?\n");
 			update_conf(p);
 			break;
 		case ZT_EVENT_RINGOFFHOOK:
-			zt_set_hook(zap_fd(p->subs[SUB_REAL].z), ZT_OFFHOOK);
+			zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
 			if (p->owner && (p->owner->_state == AST_STATE_RINGING)) {
 				p->subs[SUB_REAL].needanswer = 1;
 			}
@@ -2668,6 +3049,7 @@ struct ast_frame *zt_exception(struct ast_channel *ast)
 			/* Do nothing */
 			break;
 		case ZT_EVENT_WINKFLASH:
+			gettimeofday(&p->flashtime, NULL);
 			if (p->owner) {
 				if (option_verbose > 2) 
 					ast_verbose(VERBOSE_PREFIX_3 "Channel %d flashed to other channel %s\n", p->channel, p->owner->name);
@@ -2680,6 +3062,7 @@ struct ast_frame *zt_exception(struct ast_channel *ast)
 					ast_setstate(p->owner, AST_STATE_UP);
 				}
 				p->callwaitingrepeat = 0;
+				p->cidcwexpire = 0;
 				if (p->owner->bridge)
 					ast_moh_stop(p->owner->bridge);
 			} else
@@ -2689,15 +3072,21 @@ struct ast_frame *zt_exception(struct ast_channel *ast)
 		default:
 			ast_log(LOG_WARNING, "Don't know how to absorb event %s\n", event2str(res));
 		}
-		return &p->subs[index].f;
+		f = &p->subs[index].f;
+		ast_mutex_unlock(&p->lock);
+		return f;
 	}
 	if (!p->radio) ast_log(LOG_DEBUG, "Exception on %d, channel %d\n", ast->fds[0],p->channel);
 	/* If it's not us, return NULL immediately */
 	if (ast != p->owner) {
 		ast_log(LOG_WARNING, "We're %s, not %s\n", ast->name, p->owner->name);
-		return &p->subs[index].f;
+		f = &p->subs[index].f;
+		ast_mutex_unlock(&p->lock);
+		return f;
 	}
-	return zt_handle_event(ast);
+	f = zt_handle_event(ast);
+	ast_mutex_unlock(&p->lock);
+	return f;
 }
 
 struct ast_frame  *zt_read(struct ast_channel *ast)
@@ -2735,7 +3124,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		ZT_PARAMS ps;
 
 		ps.channo = p->channel;
-		if (ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_GET_PARAMS, &ps) < 0)
+		if (ioctl(p->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &ps) < 0)
 			return NULL;
 		p->firstradio = 1;
 		p->subs[index].f.frametype = AST_FRAME_CONTROL;
@@ -2782,54 +3171,10 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		return &p->subs[index].f;
 	}	
 	
-	/* Check first for any outstanding DTMF characters */
-	if (strlen(p->subs[index].dtmfq)) {
-		p->subs[index].f.subclass = p->subs[index].dtmfq[0];
-		memmove(p->subs[index].dtmfq, p->subs[index].dtmfq + 1, sizeof(p->subs[index].dtmfq) - 1);
-		p->subs[index].f.frametype = AST_FRAME_DTMF;
-		if (p->subs[index].f.subclass == 'f') {
-			/* Fax tone -- Handle and return NULL */
-			if (!p->faxhandled) {
-				p->faxhandled++;
-				if (strncasecmp(ast->exten, "fax", 3)) {
-					char tmpfax[256];
-					snprintf(tmpfax, sizeof(tmpfax), "fax%s", ast->exten);
-					if (ast_exists_extension(ast, ast->context, tmpfax, 1, ast->callerid)) {
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "Redirecting %s to specific fax extension %s\n", ast->name, tmpfax);
-						if (ast_async_goto(ast, ast->context, tmpfax, 1, 0))
-							ast_log(LOG_WARNING, "Failed to async goto '%s' into '%s' of '%s'\n", ast->name, tmpfax, ast->context);
-					} else if (ast_exists_extension(ast, ast->context, "fax", 1, ast->callerid)) {
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", ast->name);
-						if (ast_async_goto(ast, ast->context, "fax", 1, 0))
-							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, ast->context);
-					} else
-						ast_log(LOG_NOTICE, "Fax detected, but no fax extension\n");
-				} else
-					ast_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
-			} else
-					ast_log(LOG_DEBUG, "Fax already handled\n");
-			p->subs[index].f.frametype = AST_FRAME_NULL;
-			p->subs[index].f.subclass = 0;
-			return &p->subs[index].f;
-		}
-		if (p->confirmanswer) {
-			printf("Confirm answer!\n");
-			/* Upon receiving a DTMF digit, consider this an answer confirmation instead
-			   of a DTMF digit */
-			p->subs[index].f.frametype = AST_FRAME_CONTROL;
-			p->subs[index].f.subclass = AST_CONTROL_ANSWER;
-			ast_setstate(ast, AST_STATE_UP);
-		}
-		ast_mutex_unlock(&p->lock);
-		return &p->subs[index].f;
-	}
-	
 	if (ast->pvt->rawreadformat == AST_FORMAT_SLINEAR) {
 		if (!p->subs[index].linear) {
 			p->subs[index].linear = 1;
-			res = zap_setlinear(p->subs[index].z, p->subs[index].linear);
+			res = zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
 			if (res) 
 				ast_log(LOG_WARNING, "Unable to set channel %d (index %d) to linear mode.\n", p->channel, index);
 		}
@@ -2837,7 +3182,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		   (ast->pvt->rawreadformat == AST_FORMAT_ALAW)) {
 		if (p->subs[index].linear) {
 			p->subs[index].linear = 0;
-			res = zap_setlinear(p->subs[index].z, p->subs[index].linear);
+			res = zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
 			if (res) 
 				ast_log(LOG_WARNING, "Unable to set channel %d (index %d) to campanded mode.\n", p->channel, index);
 		}
@@ -2848,81 +3193,26 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	}
 	readbuf = ((unsigned char *)p->subs[index].buffer) + AST_FRIENDLY_OFFSET;
 	CHECK_BLOCKING(ast);
-	res = zap_recchunk(p->subs[index].z, readbuf, READ_SIZE, ((p->ignoredtmf) ? 0 : ZAP_DTMFINT));
+	res = read(p->subs[index].zfd, readbuf, p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE);
 	ast->blocking = 0;
 	/* Check for hangup */
 	if (res < 0) {
-		if (res == -1) 
-			ast_log(LOG_WARNING, "zt_rec: %s\n", strerror(errno));
+		if (res == -1)  {
+			if (errno == EAGAIN) {
+				/* Return "NULL" frame if there is nobody there */
+				ast_mutex_unlock(&p->lock);
+				return &p->subs[index].f;
+			} else
+				ast_log(LOG_WARNING, "zt_rec: %s\n", strerror(errno));
+		}
 		ast_mutex_unlock(&p->lock);
 		return NULL;
 	}
-	if (res != READ_SIZE) {
-		ast_log(LOG_DEBUG, "Short read, must be DTMF or something...\n");
-		/* XXX UGLY!!  Zapata's DTMF handling is a bit ugly XXX */
-		if (zap_dtmfwaiting(p->subs[index].z) && !strlen(zap_dtmfbuf(p->subs[index].z))) {
-			zap_getdtmf(p->subs[index].z, 1, NULL, 0, 1, 1, 0);
-			p->pulsedial = 0;
-		}
-		if (strlen(zap_dtmfbuf(p->subs[index].z))) {
-			if (p->confirmanswer) {
-				printf("Confirm answer!\n");
-				/* Upon receiving a DTMF digit, consider this an answer confirmation instead
-				   of a DTMF digit */
-				p->subs[index].f.frametype = AST_FRAME_CONTROL;
-				p->subs[index].f.subclass = AST_CONTROL_ANSWER;
-				ast_setstate(ast, AST_STATE_UP);
-			} else {
-				ast_log(LOG_DEBUG, "Got some dtmf ('%s')... on channel %s\n", zap_dtmfbuf(p->subs[index].z), ast->name);
-				/* DTMF tone detected.  Queue and erturn */
-				if (p->callwaitcas) {
-					if (!strcmp(zap_dtmfbuf(p->subs[index].z), "A") || !strcmp(zap_dtmfbuf(p->subs[index].z), "D")) {
-						ast_log(LOG_DEBUG, "Got some DTMF, but it's for the CAS\n");
-						if (p->cidspill)
-							free(p->cidspill);
-						send_cwcidspill(p);
-					}
-					p->callwaitcas = 0;
-					/* Return NULL */
-					ast_mutex_unlock(&p->lock);
-					return &p->subs[index].f;
-				} else {
-					strncpy(p->subs[index].dtmfq + strlen(p->subs[index].dtmfq), zap_dtmfbuf(p->subs[index].z), sizeof(p->subs[index].dtmfq) - strlen(p->subs[index].dtmfq)-1);
-					zap_clrdtmfn(p->subs[index].z);
-				}
-			}
-		} else {
-			ast_mutex_unlock(&p->lock);
-			return zt_handle_event(ast);
-		}
-		if (strlen(p->subs[index].dtmfq)) {
-			p->subs[index].f.subclass = p->subs[index].dtmfq[0];
-			memmove(p->subs[index].dtmfq, p->subs[index].dtmfq + 1, sizeof(p->subs[index].dtmfq) - 1);
-			if (p->subs[index].f.subclass == 'f') {
-				/* Fax tone -- Handle and return NULL */
-				if (!p->faxhandled) {
-					p->faxhandled++;
-					if (strcmp(ast->exten, "fax")) {
-						if (ast_exists_extension(ast, ast->context, "fax", 1, ast->callerid)) {
-							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", ast->name);
-							if (ast_async_goto(ast, ast->context, "fax", 1, 0))
-								ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, ast->context);
-						} else
-							ast_log(LOG_NOTICE, "Fax detected, but no fax extension\n");
-					} else
-						ast_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
-				} else
-						ast_log(LOG_DEBUG, "Fax already handled\n");
-				p->subs[index].f.frametype = AST_FRAME_NULL;
-				p->subs[index].f.subclass = 0;
-				ast_mutex_unlock(&p->lock);
-				return &p->subs[index].f;
-			}
-			p->subs[index].f.frametype = AST_FRAME_DTMF;
-		}
+	if (res != (p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE)) {
+		ast_log(LOG_DEBUG, "Short read (%d/%d), must be an event...\n", res, p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE);
+		f = zt_handle_event(ast);
 		ast_mutex_unlock(&p->lock);
-		return &p->subs[index].f;
+		return f;
 	}
 	if (p->tdd) { /* if in TDD mode, see if we receive that */
 		int c;
@@ -2946,12 +3236,20 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	}
 	if (p->callwaitingrepeat)
 		p->callwaitingrepeat--;
+	if (p->cidcwexpire)
+		p->cidcwexpire--;
 	/* Repeat callwaiting */
 	if (p->callwaitingrepeat == 1) {
 		p->callwaitrings++;
 		zt_callwait(ast);
 	}
-	if (ast->pvt->rawreadformat == AST_FORMAT_SLINEAR) {
+	/* Expire CID/CW */
+	if (p->cidcwexpire == 1) {
+		if (option_verbose > 2)
+			ast_verbose(VERBOSE_PREFIX_3 "CPE does not support Call Waiting Caller*ID.\n");
+		restore_conference(p);
+	}
+	if (p->subs[index].linear) {
 		p->subs[index].f.datalen = READ_SIZE * 2;
 	} else 
 		p->subs[index].f.datalen = READ_SIZE;
@@ -2984,8 +3282,8 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		p->subs[index].f.data = NULL;
 		p->subs[index].f.datalen= 0;
 	}
-	if (p->dsp) {
-		/* Perform busy detection on the zap line */
+	if (p->dsp && (!p->ignoredtmf || p->callwaitcas || p->busydetect  || p->callprogress) && !index) {
+		/* Perform busy detection. etc on the zap line */
 		f = ast_dsp_process(ast, p->dsp, &p->subs[index].f, 0);
 		if (f) {
 			if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_BUSY)) {
@@ -2994,25 +3292,94 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 					   a busy  */
 					f = NULL;
 				}
+			} else if (f->frametype == AST_FRAME_DTMF) {
+				/* DSP clears us of being pulse */
+				p->pulsedial = 0;
 			}
 		}
 	} else 
 		f = &p->subs[index].f; 
+	if (f && (f->frametype == AST_FRAME_DTMF)) {
+		ast_log(LOG_DEBUG, "DTMF digit: %c on %s\n", f->subclass, ast->name);
+		if (p->confirmanswer) {
+			ast_log(LOG_DEBUG, "Confirm answer on %s!\n", ast->name);
+			/* Upon receiving a DTMF digit, consider this an answer confirmation instead
+			   of a DTMF digit */
+			p->subs[index].f.frametype = AST_FRAME_CONTROL;
+			p->subs[index].f.subclass = AST_CONTROL_ANSWER;
+			ast_setstate(ast, AST_STATE_UP);
+			f = &p->subs[index].f;
+		} else if (p->callwaitcas) {
+			if ((f->subclass == 'A') || (f->subclass == 'D')) {
+				ast_log(LOG_DEBUG, "Got some DTMF, but it's for the CAS\n");
+				if (p->cidspill)
+					free(p->cidspill);
+				send_cwcidspill(p);
+			}
+			if ((f->subclass != 'm') && (f->subclass != 'u')) 
+				p->callwaitcas = 0;
+			p->subs[index].f.frametype = AST_FRAME_NULL;
+			p->subs[index].f.subclass = 0;
+			f = &p->subs[index].f;
+		} else if (f->subclass == 'f') {
+			/* Fax tone -- Handle and return NULL */
+			if (!p->faxhandled) {
+				p->faxhandled++;
+				if (strcmp(ast->exten, "fax")) {
+					if (ast_exists_extension(ast, ast->context, "fax", 1, ast->callerid)) {
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", ast->name);
+						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
+						pbx_builtin_setvar_helper(ast,"FAXEXTEN",ast->exten);
+						if (ast_async_goto(ast, ast->context, "fax", 1, 0))
+							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, ast->context);
+					} else
+						ast_log(LOG_NOTICE, "Fax detected, but no fax extension\n");
+				} else
+					ast_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
+			} else
+					ast_log(LOG_DEBUG, "Fax already handled\n");
+			zt_confmute(p, 0);
+			p->subs[index].f.frametype = AST_FRAME_NULL;
+			p->subs[index].f.subclass = 0;
+			f = &p->subs[index].f;
+		} else if (f->subclass == 'm') {
+			/* Confmute request */
+			zt_confmute(p, 1);
+			p->subs[index].f.frametype = AST_FRAME_NULL;
+			p->subs[index].f.subclass = 0;
+			f = &p->subs[index].f;		
+		} else if (f->subclass == 'u') {
+			/* Unmute */
+			zt_confmute(p, 0);
+			p->subs[index].f.frametype = AST_FRAME_NULL;
+			p->subs[index].f.subclass = 0;
+			f = &p->subs[index].f;		
+		} else
+			zt_confmute(p, 0);
+	}
+#if 0
+	if (f->frametype == AST_FRAME_VOICE && (ast->_state == AST_STATE_UP)) {
+		p->subs[index].f.frametype = AST_FRAME_NULL;
+		p->subs[index].f.subclass = 0;
+		f = &p->subs[index].f;
+	}
+#endif	
 	ast_mutex_unlock(&p->lock);
 	return f;
 }
 
-static int my_zt_write(struct zt_pvt *p, unsigned char *buf, int len, int index)
+static int my_zt_write(struct zt_pvt *p, unsigned char *buf, int len, int index, int linear)
 {
 	int sent=0;
 	int size;
 	int res;
 	int fd;
-	fd = zap_fd(p->subs[index].z);
+	fd = p->subs[index].zfd;
 	while(len) {
 		size = len;
-		if (size > READ_SIZE)
-			size = READ_SIZE;
+		if (size > (linear ? READ_SIZE * 2 : READ_SIZE))
+			size = (linear ? READ_SIZE * 2 : READ_SIZE);
 		res = write(fd, buf, size);
 		if (res != size) {
 			if (option_debug)
@@ -3071,20 +3438,20 @@ static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 	if (frame->subclass == AST_FORMAT_SLINEAR) {
 		if (!p->subs[index].linear) {
 			p->subs[index].linear = 1;
-			res = zap_setlinear(p->subs[index].z, p->subs[index].linear);
+			res = zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
 			if (res)
 				ast_log(LOG_WARNING, "Unable to set linear mode on channel %d\n", p->channel);
 		}
-		res = my_zt_write(p, (unsigned char *)frame->data, frame->datalen, index);
+		res = my_zt_write(p, (unsigned char *)frame->data, frame->datalen, index, 1);
 	} else {
 		/* x-law already */
 		if (p->subs[index].linear) {
 			p->subs[index].linear = 0;
-			res = zap_setlinear(p->subs[index].z, p->subs[index].linear);
+			res = zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
 			if (res)
 				ast_log(LOG_WARNING, "Unable to set companded mode on channel %d\n", p->channel);
 		}
-		res = my_zt_write(p, (unsigned char *)frame->data, frame->datalen, index);
+		res = my_zt_write(p, (unsigned char *)frame->data, frame->datalen, index, 0);
 	}
 	if (res < 0) {
 		ast_log(LOG_WARNING, "write failed: %s\n", strerror(errno));
@@ -3101,10 +3468,10 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 	if (index == SUB_REAL) {
 		switch(condition) {
 		case AST_CONTROL_BUSY:
-			res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_BUSY);
+			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_BUSY);
 			break;
 		case AST_CONTROL_RINGING:
-			res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_RINGTONE);
+			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_RINGTONE);
 			if (chan->_state != AST_STATE_UP) {
 				if ((chan->_state != AST_STATE_RING) ||
 					((p->sig != SIG_FXSKS) &&
@@ -3112,22 +3479,47 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 					 (p->sig != SIG_FXSGS)))
 					ast_setstate(chan, AST_STATE_RINGING);
 			}
+#if 0
+                        break;
+#endif
+		/* Fall through */
+		case AST_CONTROL_PROGRESS:
+			ast_log(LOG_DEBUG,"Received AST_CONTROL_PROGRESS on %s\n",chan->name);
+#ifdef ZAPATA_PRI
+#ifdef PRI_EVENT_PROCEEDING
+			if (!p->proceeding && p->sig==SIG_PRI && p->pri && p->pri->overlapdial) {
+				if (p->pri->pri) {		
+					if (!pri_grab(p, p->pri)) {
+						pri_acknowledge(p->pri->pri,p->call, p->prioffset, 1);
+						pri_rel(p->pri);
+					}
+					else
+						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+				}
+				p->proceeding=1;
+			}
+#else
+			ast_log(LOG_WARNING, "Please update your libpri package if you want to use overlap sending\n");
+#endif
+#endif
+			/* don't continue in ast_indicate */
+			res = 0;
 			break;
 		case AST_CONTROL_CONGESTION:
-			res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_CONGESTION);
+			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
 			break;
 		case AST_CONTROL_RADIO_KEY:
 			if (p->radio) 
-			    res =  zt_set_hook(zap_fd(p->subs[index].z), ZT_OFFHOOK);
+			    res =  zt_set_hook(p->subs[index].zfd, ZT_OFFHOOK);
 			res = 0;
 			break;
 		case AST_CONTROL_RADIO_UNKEY:
 			if (p->radio)
-			    res =  zt_set_hook(zap_fd(p->subs[index].z), ZT_RINGOFF);
+			    res =  zt_set_hook(p->subs[index].zfd, ZT_RINGOFF);
 			res = 0;
 			break;
 		case -1:
-			res = tone_zone_play_tone(zap_fd(p->subs[index].z), -1);
+			res = tone_zone_play_tone(p->subs[index].zfd, -1);
 			break;
 		default:
 			ast_log(LOG_WARNING, "Don't know how to set condition %d on channel %s\n", condition, chan->name);
@@ -3148,7 +3540,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	tmp = ast_channel_alloc(0);
 	if (tmp) {
 		ps.channo = i->channel;
-		res = ioctl(zap_fd(i->subs[SUB_REAL].z), ZT_GET_PARAMS, &ps);
+		res = ioctl(i->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &ps);
 		if (res) {
 			ast_log(LOG_WARNING, "Unable to get parameters, assuming MULAW\n");
 			ps.curlaw = ZT_LAW_MULAW;
@@ -3173,25 +3565,15 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 			y++;
 		} while (x < 3);
 		tmp->type = type;
-		tmp->fds[0] = zap_fd(i->subs[index].z);
-		if ((i->busydetect && CANBUSYDETECT(i)) ||
-		    (i->callprogress && CANPROGRESSDETECT(i))) {
-			tmp->nativeformats = AST_FORMAT_SLINEAR;
-			tmp->pvt->rawreadformat = AST_FORMAT_SLINEAR;
-			tmp->readformat = AST_FORMAT_SLINEAR;
-			tmp->pvt->rawwriteformat = AST_FORMAT_SLINEAR;
-			tmp->writeformat = AST_FORMAT_SLINEAR;
-			i->subs[index].linear = 1;
-		} else {
-			tmp->nativeformats = AST_FORMAT_SLINEAR | deflaw;
-			/* Start out assuming ulaw since it's smaller :) */
-			tmp->pvt->rawreadformat = deflaw;
-			tmp->readformat = deflaw;
-			tmp->pvt->rawwriteformat = deflaw;
-			tmp->writeformat = deflaw;
-			i->subs[index].linear = 0;
-		}
-		zap_setlinear(i->subs[index].z, i->subs[index].linear);
+		tmp->fds[0] = i->subs[index].zfd;
+		tmp->nativeformats = AST_FORMAT_SLINEAR | deflaw;
+		/* Start out assuming ulaw since it's smaller :) */
+		tmp->pvt->rawreadformat = deflaw;
+		tmp->readformat = deflaw;
+		tmp->pvt->rawwriteformat = deflaw;
+		tmp->writeformat = deflaw;
+		i->subs[index].linear = 0;
+		zt_setlinear(i->subs[index].zfd, i->subs[index].linear);
 		features = 0;
 		if (i->busydetect && CANBUSYDETECT(i)) {
 			features |= DSP_FEATURE_BUSY_DETECT;
@@ -3199,14 +3581,19 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		if (i->callprogress && CANPROGRESSDETECT(i)) {
 			features |= DSP_FEATURE_CALL_PROGRESS;
 		}
+		features |= DSP_FEATURE_DTMF_DETECT;
 		if (features) {
 			if (i->dsp) {
-				ast_log(LOG_WARNING, "Already have a dsp on %s?\n", tmp->name);
-				ast_dsp_free(i->dsp);
-			}
-			i->dsp = ast_dsp_new();
-			if (i->dsp) {
-				ast_dsp_set_features(i->dsp, features);
+				ast_log(LOG_DEBUG, "Already have a dsp on %s?\n", tmp->name);
+			} else {
+				i->dsp = ast_dsp_new();
+				if (i->dsp) {
+					ast_dsp_set_features(i->dsp, features);
+					ast_dsp_digitmode(i->dsp, DSP_DIGITMODE_DTMF | i->dtmfrelax);
+					if (i->busydetect && CANBUSYDETECT(i)) {
+						ast_dsp_set_busy_count(i->dsp, i->busycount);
+						}
+				}
 			}
 		}
 		
@@ -3225,6 +3612,11 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		tmp->pvt->indicate = zt_indicate;
 		tmp->pvt->fixup = zt_fixup;
 		tmp->pvt->setoption = zt_setoption;
+		if ((i->sig == SIG_FXOKS) || (i->sig == SIG_FXOGS) || (i->sig == SIG_FXOLS)) {
+			/* Only FXO signalled stuff can be picked up */
+			tmp->callgroup = i->callgroup;
+			tmp->pickupgroup = i->pickupgroup;
+		}
 		if (strlen(i->language))
 			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
 		if (strlen(i->musicclass))
@@ -3261,7 +3653,10 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 #ifdef ZAPATA_PRI
 		/* Assume calls are not idle calls unless we're told differently */
 		i->isidlecall = 0;
+		i->alreadyhungup = 0;
 #endif
+		/* Assure there is no confmute on this channel */
+		zt_confmute(i, 0);
 		if (startpbx) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
@@ -3279,7 +3674,7 @@ static int bump_gains(struct zt_pvt *p)
 {
 	int res;
 	/* Bump receive gain by 9.0db */
-	res = set_actual_gain(zap_fd(p->subs[SUB_REAL].z), 0, p->rxgain + 5.0, p->txgain, p->law);
+	res = set_actual_gain(p->subs[SUB_REAL].zfd, 0, p->rxgain + 5.0, p->txgain, p->law);
 	if (res) {
 		ast_log(LOG_WARNING, "Unable to bump gain\n");
 		return -1;
@@ -3291,11 +3686,46 @@ static int restore_gains(struct zt_pvt *p)
 {
 	int res;
 	/* Bump receive gain by 9.0db */
-	res = set_actual_gain(zap_fd(p->subs[SUB_REAL].z), 0, p->rxgain, p->txgain, p->law);
+	res = set_actual_gain(p->subs[SUB_REAL].zfd, 0, p->rxgain, p->txgain, p->law);
 	if (res) {
 		ast_log(LOG_WARNING, "Unable to restore gains: %s\n", strerror(errno));
 		return -1;
 	}
+	return 0;
+}
+
+static int my_getsigstr(struct ast_channel *chan, char *str, char term, int ms)
+{
+char c;
+
+	*str = 0; /* start with empty output buffer */
+	for(;;)
+	{
+		/* Wait for the first digit (up to specified ms). */
+		c = ast_waitfordigit(chan,ms);
+		/* if timeout, hangup or error, return as such */
+		if (c < 1) return(c);
+		*str++ = c;
+		*str = 0;
+		if (c == term) return(1);
+	}
+}
+
+static int zt_wink(struct zt_pvt *p, int index)
+{
+	int j;
+	zt_set_hook(p->subs[index].zfd, ZT_WINK);
+	for(;;)
+	{
+		   /* set bits of interest */
+		j = ZT_IOMUX_SIGEVENT;
+		    /* wait for some happening */
+		if (ioctl(p->subs[index].zfd,ZT_IOMUX,&j) == -1) return(-1);
+		   /* exit loop if we have it */
+		if (j & ZT_IOMUX_SIGEVENT) break;
+	}
+	  /* get the event info */
+	if (ioctl(p->subs[index].zfd,ZT_GETEVENT,&j) == -1) return(-1);
 	return 0;
 }
 
@@ -3307,6 +3737,7 @@ static void *ss_thread(void *data)
 	char exten2[AST_MAX_EXTENSION];
 	unsigned char buf[256];
 	char cid[256];
+	char dtmfbuf[300];
 	struct callerid_state *cs;
 	char *name=NULL, *number=NULL;
 	int flags;
@@ -3325,46 +3756,65 @@ static void *ss_thread(void *data)
 		ast_hangup(chan);
 		return NULL;
 	}
-	zap_clrdtmf(p->subs[index].z);
+	if (p->dsp)
+		ast_dsp_digitreset(p->dsp);
 	switch(p->sig) {
 	case SIG_FEATD:
 	case SIG_FEATDMF:
 	case SIG_FEATB:
 	case SIG_EMWINK:
-		zap_wink(p->subs[index].z);
+	case SIG_SF_FEATD:
+	case SIG_SF_FEATDMF:
+	case SIG_SF_FEATB:
+	case SIG_SFWINK:
+		if (zt_wink(p, index))	
+			return NULL;
 		/* Fall through */
 	case SIG_EM:
-		res = tone_zone_play_tone(zap_fd(p->subs[index].z), -1);
-		zap_clrdtmf(p->subs[index].z);
+	case SIG_SF:
+		res = tone_zone_play_tone(p->subs[index].zfd, -1);
+		if (p->dsp)
+			ast_dsp_digitreset(p->dsp);
 		/* set digit mode appropriately */
-		if ((p->sig == SIG_FEATDMF) || (p->sig == SIG_FEATB)) zap_digitmode(p->subs[index].z,ZAP_MF); 
-		else zap_digitmode(p->subs[index].z,ZAP_DTMF);
-		/* Wait for the first digit (up to 5 seconds). */
-		res = zap_getdtmf(p->subs[index].z, 1, NULL, 0, 5000, 5000, ZAP_TIMEOUTOK | ZAP_HOOKEXIT);
-
-		if (res == 1) {
+		if (p->dsp) {
+			if ((p->sig == SIG_FEATDMF) || (p->sig == SIG_FEATB)) 
+				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_MF | p->dtmfrelax); 
+			else 
+				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
+		}
+		dtmfbuf[0] = 0;
+		/* Wait for the first digit only if immediate=no */
+		if (!p->immediate)
+			/* Wait for the first digit (up to 5 seconds). */
+			res = ast_waitfordigit(chan,5000);
+		else res = 0;
+		if (res > 0) {
+			/* save first char */
+			dtmfbuf[0] = res;
 			switch(p->sig)
 			{
 			    case SIG_FEATD:
-				res = zap_getdtmf(p->subs[index].z, 50, "*", 0, 3000, 15000, ZAP_HOOKEXIT);
+			    case SIG_SF_FEATD:
+				res = my_getsigstr(chan,dtmfbuf + 1,'*',3000);
 				if (res > 0)
-					res = zap_getdtmf(p->subs[index].z, 50, "*", 0, 3000, 15000, ZAP_HOOKEXIT);
-				if (res < 1) zap_clrdtmf(p->subs[index].z);
+					res = my_getsigstr(chan,dtmfbuf + strlen(dtmfbuf),'*',3000);
+				if (res < 1) ast_dsp_digitreset(p->dsp);
 				break;
 			    case SIG_FEATDMF:
-				res = zap_getdtmf(p->subs[index].z, 50, "#", 0, 3000, 15000, ZAP_HOOKEXIT);
-				if (res > 0) {
-					res = zap_getdtmf(p->subs[index].z, 50, "#", 0, 3000, 15000, ZAP_HOOKEXIT);
-				}
-				if (res < 1) zap_clrdtmf(p->subs[index].z);
+			    case SIG_SF_FEATDMF:
+				res = my_getsigstr(chan,dtmfbuf + 1,'#',3000);
+				if (res > 0)
+					res = my_getsigstr(chan,dtmfbuf + strlen(dtmfbuf),'#',3000);
+				if (res < 1) ast_dsp_digitreset(p->dsp);
 				break;
 			    case SIG_FEATB:
-				res = zap_getdtmf(p->subs[index].z, 50, "#", 0, 3000, 15000, ZAP_HOOKEXIT);
-				if (res < 1) zap_clrdtmf(p->subs[index].z);
+			    case SIG_SF_FEATB:
+				res = my_getsigstr(chan,dtmfbuf + 1,'#',3000);
+				if (res < 1) ast_dsp_digitreset(p->dsp);
 				break;
 			    default:
 				/* If we got it, get the rest */
-				res = zap_getdtmf(p->subs[index].z, 50, NULL, 0, 250, 15000, ZAP_TIMEOUTOK | ZAP_HOOKEXIT);
+				res = my_getsigstr(chan,dtmfbuf + 1,' ',250);
 				break;
 			}
 		}
@@ -3377,7 +3827,7 @@ static void *ss_thread(void *data)
 			ast_hangup(chan);
 			return NULL;
 		}
-		strncpy(exten, zap_dtmfbuf(p->subs[index].z), sizeof(exten)-1);
+		strncpy(exten, dtmfbuf, sizeof(exten)-1);
 		if (!strlen(exten))
 			strncpy(exten, "s", sizeof(exten)-1);
 		if (p->sig == SIG_FEATD) {
@@ -3433,21 +3883,24 @@ static void *ss_thread(void *data)
 			} else
 				ast_log(LOG_WARNING, "Got a non-Feature Group B input on channel %d.  Assuming E&M Wink instead\n", p->channel);
 		}
+		if (p->sig == SIG_FEATDMF) {
+			zt_wink(p, index);
+		}
 		zt_enable_ec(p);
 		if (ast_exists_extension(chan, chan->context, exten, 1, chan->callerid)) {
 			strncpy(chan->exten, exten, sizeof(chan->exten)-1);
-			zap_clrdtmf(p->subs[index].z);
+			ast_dsp_digitreset(p->dsp);
 			res = ast_pbx_run(chan);
 			if (res) {
 				ast_log(LOG_WARNING, "PBX exited non-zero\n");
-				res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_CONGESTION);
+				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
 			}
 			return NULL;
 		} else {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_2 "Unknown extension '%s' in context '%s' requested\n", exten, chan->context);
 			sleep(2);
-			res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_INFO);
+			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_INFO);
 			if (res < 0)
 				ast_log(LOG_WARNING, "Unable to start special tone on %d\n", p->channel);
 			else
@@ -3455,7 +3908,7 @@ static void *ss_thread(void *data)
 			res = ast_streamfile(chan, "ss-noservice", chan->language);
 			if (res >= 0)
 				ast_waitstream(chan, "");
-			res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_CONGESTION);
+			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
 			ast_hangup(chan);
 			return NULL;
 		}
@@ -3465,22 +3918,26 @@ static void *ss_thread(void *data)
 	case SIG_FXOKS:
 		/* Read the first digit */
 		timeout = firstdigittimeout;
+		/* If starting a threeway call, never timeout on the first digit so someone
+		   can use flash-hook as a "hold" feature */
+		if (p->subs[SUB_THREEWAY].owner) 
+			timeout = 999999;
 		while(len < AST_MAX_EXTENSION-1) {
 			res = ast_waitfordigit(chan, timeout);
 			timeout = 0;
 			if (res < 0) {
 				ast_log(LOG_DEBUG, "waitfordigit returned < 0...\n");
-				res = tone_zone_play_tone(zap_fd(p->subs[index].z), -1);
+				res = tone_zone_play_tone(p->subs[index].zfd, -1);
 				ast_hangup(chan);
 				return NULL;
 			} else if (res)  {
 				exten[len++]=res;
-            			exten[len] = '\0';
+            	exten[len] = '\0';
 			}
 			if (!ast_ignore_pattern(chan->context, exten))
-				tone_zone_play_tone(zap_fd(p->subs[index].z), -1);
+				tone_zone_play_tone(p->subs[index].zfd, -1);
 			else
-				tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_DIALTONE);
+				tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALTONE);
 			if (ast_exists_extension(chan, chan->context, exten, 1, p->callerid)) {
 				if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, p->callerid)) {
 					if (getforward) {
@@ -3488,18 +3945,18 @@ static void *ss_thread(void *data)
 						strncpy(p->call_forward, exten, sizeof(p->call_forward)); 
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "Setting call forward to '%s' on channel %d\n", p->call_forward, p->channel);
-						res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_DIALRECALL);
+						res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
 						if (res)
 							break;
 						usleep(500000);
-						res = tone_zone_play_tone(zap_fd(p->subs[index].z), -1);
+						res = tone_zone_play_tone(p->subs[index].zfd, -1);
 						sleep(1);
 						memset(exten, 0, sizeof(exten));
-						res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_DIALTONE);
+						res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALTONE);
 						len = 0;
 						getforward = 0;
 					} else  {
-						res = tone_zone_play_tone(zap_fd(p->subs[index].z), -1);
+						res = tone_zone_play_tone(p->subs[index].zfd, -1);
 						strncpy(chan->exten, exten, sizeof(chan->exten)-1);
 						if (strlen(p->callerid)) {
 							if (!p->hidecallerid)
@@ -3511,7 +3968,7 @@ static void *ss_thread(void *data)
 						res = ast_pbx_run(chan);
 						if (res) {
 							ast_log(LOG_WARNING, "PBX exited non-zero\n");
-							res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_CONGESTION);
+							res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
 						}
 						return NULL;
 					}
@@ -3522,8 +3979,8 @@ static void *ss_thread(void *data)
 				}
 			} else if (res == 0) {
 				ast_log(LOG_DEBUG, "not enough digits (and no ambiguous match)...\n");
-				res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_CONGESTION);
-				zt_wait_event(zap_fd(p->subs[index].z));
+				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
+				zt_wait_event(p->subs[index].zfd);
 				ast_hangup(chan);
 				return NULL;
 			} else if (p->callwaiting && !strcmp(exten, "*70")) {
@@ -3531,56 +3988,44 @@ static void *ss_thread(void *data)
 					ast_verbose(VERBOSE_PREFIX_3 "Disabling call waiting on %s\n", chan->name);
 				/* Disable call waiting if enabled */
 				p->callwaiting = 0;
-				res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
 				if (res) {
 					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n", 
 						chan->name, strerror(errno));
 				}
 				len = 0;
-				ioctl(zap_fd(p->subs[index].z),ZT_CONFDIAG,&len);
+				ioctl(p->subs[index].zfd,ZT_CONFDIAG,&len);
 				memset(exten, 0, sizeof(exten));
 				timeout = firstdigittimeout;
 					
-			} else if (!strcmp(exten,"*8#")){
+			} else if (!strcmp(exten,ast_pickup_ext())) {
 				/* Scan all channels and see if any there
 				 * ringing channqels with that have call groups
 				 * that equal this channels pickup group  
 				 */
-				struct zt_pvt *chan_pvt=iflist;
-				while(chan_pvt!=NULL){
-					if((p!=chan_pvt) &&
-					  (p->pickupgroup & chan_pvt->callgroup) &&
-					  (chan_pvt->owner && (chan_pvt->owner->_state==AST_STATE_RING || chan_pvt->owner->_state == AST_STATE_RINGING)) &&
-					  chan_pvt->dialing
-					  ){
-					  	if (index == SUB_REAL) {
-						  	if (p->subs[SUB_THREEWAY].owner) {
-								/* If you make a threeway call and the *8# a call, it should actually 
-								   look like a callwait */
-								alloc_sub(p, SUB_CALLWAIT);
-							  	swap_subs(p, SUB_CALLWAIT, SUB_THREEWAY);
-								unalloc_sub(p, SUB_THREEWAY);
-							}
-							/* Switch us from Third call to Call Wait */
-							ast_log(LOG_DEBUG, "Call pickup on chan %s\n",chan_pvt->owner->name);
-							p->subs[index].needanswer=1;
-							zt_enable_ec(p);
-							if(ast_channel_masquerade(chan_pvt->owner,p->owner))
-								printf("Error Masquerade failed on call-pickup\n");
-							ast_hangup(p->owner);
-						} else {
-							ast_log(LOG_WARNING, "Huh?  Got *8# on call not on real\n");
-							ast_hangup(p->owner);
-						}
-						return NULL;
+			  	if (index == SUB_REAL) {
+					/* Switch us from Third call to Call Wait */
+				  	if (p->subs[SUB_THREEWAY].owner) {
+						/* If you make a threeway call and the *8# a call, it should actually 
+						   look like a callwait */
+						alloc_sub(p, SUB_CALLWAIT);	
+					  	swap_subs(p, SUB_CALLWAIT, SUB_THREEWAY);
+						unalloc_sub(p, SUB_THREEWAY);
 					}
-					chan_pvt=chan_pvt->next;
+					zt_enable_ec(p);
+					if (ast_pickup_call(chan)) {
+						ast_log(LOG_DEBUG, "No call pickup possible...\n");
+						res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
+						zt_wait_event(p->subs[index].zfd);
+					}
+					ast_hangup(chan);
+					return NULL;
+				} else {
+					ast_log(LOG_WARNING, "Huh?  Got *8# on call not on real\n");
+					ast_hangup(chan);
+					return NULL;
 				}
-				ast_log(LOG_DEBUG, "No call pickup possible...\n");
-				res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_CONGESTION);
-				zt_wait_event(zap_fd(p->subs[index].z));
-				ast_hangup(chan);
-				return NULL;
+				
 			} else if (!p->hidecallerid && !strcmp(exten, "*67")) {
 				if (option_verbose > 2) 
 					ast_verbose(VERBOSE_PREFIX_3 "Disabling Caller*ID on %s\n", chan->name);
@@ -3589,7 +4034,7 @@ static void *ss_thread(void *data)
 				if (chan->callerid)
 					free(chan->callerid);
 				chan->callerid = NULL;
-				res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
 				if (res) {
 					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n", 
 						chan->name, strerror(errno));
@@ -3603,13 +4048,13 @@ static void *ss_thread(void *data)
 					res = ast_say_digit_str(chan, p->lastcallerid, "", chan->language);
 				}
 				if (!res)
-					res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_DIALRECALL);
+					res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
 				break;
 			} else if (!strcmp(exten, "*78")) {
 				/* Do not disturb */
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Enabled DND on channel %d\n", p->channel);
-				res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
 				p->dnd = 1;
 				getforward = 0;
 				memset(exten, 0, sizeof(exten));
@@ -3618,20 +4063,20 @@ static void *ss_thread(void *data)
 				/* Do not disturb */
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Disabled DND on channel %d\n", p->channel);
-				res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
 				p->dnd = 0;
 				getforward = 0;
 				memset(exten, 0, sizeof(exten));
 				len = 0;
 			} else if (p->cancallforward && !strcmp(exten, "*72")) {
-				res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
 				getforward = 1;
 				memset(exten, 0, sizeof(exten));
 				len = 0;
 			} else if (p->cancallforward && !strcmp(exten, "*73")) {
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Cancelling call forwarding on channel %d\n", p->channel);
-				res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
 				memset(p->call_forward, 0, sizeof(p->call_forward));
 				getforward = 0;
 				memset(exten, 0, sizeof(exten));
@@ -3645,6 +4090,15 @@ static void *ss_thread(void *data)
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Parking call to '%s'\n", chan->name);
 				break;
+			} else if (strlen(p->lastcallerid) && !strcmp(exten, "*80")) {
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Blacklisting number %s\n", p->lastcallerid);
+				res = ast_db_put("blacklist", p->lastcallerid, "1");
+				if (!res) {
+					res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
+					memset(exten, 0, sizeof(exten));
+					len = 0;
+				}
 			} else if (p->hidecallerid && !strcmp(exten, "*82")) {
 				if (option_verbose > 2) 
 					ast_verbose(VERBOSE_PREFIX_3 "Enabling Caller*ID on %s\n", chan->name);
@@ -3654,7 +4108,7 @@ static void *ss_thread(void *data)
 					free(chan->callerid);
 				if (strlen(p->callerid))
 					chan->callerid = strdup(p->callerid);
-				res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_DIALRECALL);
+				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
 				if (res) {
 					ast_log(LOG_WARNING, "Unable to do dial recall on channel %s: %s\n", 
 						chan->name, strerror(errno));
@@ -3672,8 +4126,10 @@ static void *ss_thread(void *data)
 				    (!strcmp(nbridge->type,"Zap")) &&
 				    ISTRUNK(pbridge)) {
 					int func = ZT_FLASH;
+					/* Clear out the dial buffer */
+					p->dop.dialstr[0] = '\0';
 					/* flash hookswitch */
-					if ((ioctl(zap_fd(pbridge->subs[SUB_REAL].z),ZT_HOOK,&func) == -1) && (errno != EINPROGRESS)) {
+					if ((ioctl(pbridge->subs[SUB_REAL].zfd,ZT_HOOK,&func) == -1) && (errno != EINPROGRESS)) {
 						ast_log(LOG_WARNING, "Unable to flash external trunk on channel %s: %s\n", 
 							nbridge->name, strerror(errno));
 					}
@@ -3683,9 +4139,9 @@ static void *ss_thread(void *data)
 					ast_hangup(chan);
 					return NULL;
 				} else {
-					tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_CONGESTION);
-					zt_wait_event(zap_fd(p->subs[index].z));
-					tone_zone_play_tone(zap_fd(p->subs[index].z), -1);
+					tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
+					zt_wait_event(p->subs[index].zfd);
+					tone_zone_play_tone(p->subs[index].zfd, -1);
 					swap_subs(p, SUB_REAL, SUB_THREEWAY);
 					unalloc_sub(p, SUB_THREEWAY);
 					p->owner = p->subs[SUB_REAL].owner;
@@ -3701,7 +4157,7 @@ static void *ss_thread(void *data)
 			if (!timeout)
 				timeout = gendigittimeout;
 			if (len && !ast_ignore_pattern(chan->context, exten))
-				tone_zone_play_tone(zap_fd(p->subs[index].z), -1);
+				tone_zone_play_tone(p->subs[index].zfd, -1);
 		}
 		break;
 	case SIG_FXSLS:
@@ -3715,22 +4171,22 @@ static void *ss_thread(void *data)
 #endif				
 				len = 0;
 				/* Take out of linear mode for Caller*ID processing */
-				zap_setlinear(p->subs[index].z, 0);
+				zt_setlinear(p->subs[index].zfd, 0);
 				for(;;) {	
 					i = ZT_IOMUX_READ | ZT_IOMUX_SIGEVENT;
-					if ((res = ioctl(zap_fd(p->subs[index].z), ZT_IOMUX, &i)))	{
+					if ((res = ioctl(p->subs[index].zfd, ZT_IOMUX, &i)))	{
 						ast_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
 						callerid_free(cs);
 						ast_hangup(chan);
 						return NULL;
 					}
 					if (i & ZT_IOMUX_SIGEVENT) {
-						res = zt_get_event(zap_fd(p->subs[index].z));
+						res = zt_get_event(p->subs[index].zfd);
 						ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
 						res = 0;
 						break;
 					} else if (i & ZT_IOMUX_READ) {
-						res = read(zap_fd(p->subs[index].z), buf, sizeof(buf));
+						res = read(p->subs[index].zfd, buf, sizeof(buf));
 						if (res < 0) {
 							if (errno != ELAST) {
 								ast_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
@@ -3760,7 +4216,7 @@ static void *ss_thread(void *data)
 						ast_log(LOG_DEBUG, "CallerID number: %s, name: %s, flags=%d\n", number, name, flags);
 				}
 				/* Restore linear mode (if appropriate) for Caller*ID processing */
-				zap_setlinear(p->subs[index].z, p->subs[index].linear);
+				zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
 #if 1
 				restore_gains(p);
 #endif				
@@ -3795,11 +4251,11 @@ static void *ss_thread(void *data)
 		return NULL;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to handle simple switch with signalling %s on channel %d\n", sig2str(p->sig), p->channel);
-		res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_CONGESTION);
+		res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
 		if (res < 0)
 				ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", p->channel);
 	}
-	res = tone_zone_play_tone(zap_fd(p->subs[index].z), ZT_TONE_CONGESTION);
+	res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
 	if (res < 0)
 			ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", p->channel);
 	ast_hangup(chan);
@@ -3889,27 +4345,31 @@ static int handle_init_event(struct zt_pvt *i, int event)
 			if (i->immediate) {
 				zt_enable_ec(i);
 				/* The channel is immediately up.  Start right away */
-				res = tone_zone_play_tone(zap_fd(i->subs[SUB_REAL].z), ZT_TONE_RINGTONE);
+				res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_RINGTONE);
 				chan = zt_new(i, AST_STATE_RING, 1, SUB_REAL, 0);
 				if (!chan) {
 					ast_log(LOG_WARNING, "Unable to start PBX on channel %d\n", i->channel);
-					res = tone_zone_play_tone(zap_fd(i->subs[SUB_REAL].z), ZT_TONE_CONGESTION);
+					res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 					if (res < 0)
 						ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", i->channel);
 				}
 			} else {
 				/* Check for callerid, digits, etc */
-				chan = zt_new(i, AST_STATE_DOWN, 0, SUB_REAL, 0);
+				chan = zt_new(i, AST_STATE_RESERVED, 0, SUB_REAL, 0);
 				if (chan) {
 					if (has_voicemail(i))
-						res = tone_zone_play_tone(zap_fd(i->subs[SUB_REAL].z), ZT_TONE_DIALRECALL);
+#ifdef ZT_TONE_STUTTER
+						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_STUTTER);
+#else
+						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_DIALRECALL);
+#endif
 					else
-						res = tone_zone_play_tone(zap_fd(i->subs[SUB_REAL].z), ZT_TONE_DIALTONE);
+						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_DIALTONE);
 					if (res < 0) 
 						ast_log(LOG_WARNING, "Unable to play dialtone on channel %d\n", i->channel);
 					if (pthread_create(&threadid, &attr, ss_thread, chan)) {
 						ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
-						res = tone_zone_play_tone(zap_fd(i->subs[SUB_REAL].z), ZT_TONE_CONGESTION);
+						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 						if (res < 0)
 							ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", i->channel);
 						ast_hangup(chan);
@@ -3931,11 +4391,16 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_FEATDMF:
 		case SIG_FEATB:
 		case SIG_EM:
+		case SIG_SFWINK:
+		case SIG_SF_FEATD:
+		case SIG_SF_FEATDMF:
+		case SIG_SF_FEATB:
+		case SIG_SF:
 				/* Check for callerid, digits, etc */
 				chan = zt_new(i, AST_STATE_RING, 0, SUB_REAL, 0);
 				if (pthread_create(&threadid, &attr, ss_thread, chan)) {
 					ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
-					res = tone_zone_play_tone(zap_fd(i->subs[SUB_REAL].z), ZT_TONE_CONGESTION);
+					res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 					if (res < 0)
 						ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", i->channel);
 					ast_hangup(chan);
@@ -3946,7 +4411,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 				break;
 		default:
 			ast_log(LOG_WARNING, "Don't know how to handle ring/answer with signalling %s on channel %d\n", sig2str(i->sig), i->channel);
-			res = tone_zone_play_tone(zap_fd(i->subs[SUB_REAL].z), ZT_TONE_CONGESTION);
+			res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 			if (res < 0)
 					ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", i->channel);
 			return -1;
@@ -3954,9 +4419,12 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		break;
 	case ZT_EVENT_NOALARM:
 		i->inalarm = 0;
+		ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", i->channel);
 		break;
 	case ZT_EVENT_ALARM:
 		i->inalarm = 1;
+		res = get_alarms(i);
+		ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", i->channel, alarm2str(res));
 		/* fall thru intentionally */
 	case ZT_EVENT_ONHOOK:
 		/* Back on hook.  Hang up. */
@@ -3968,26 +4436,35 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_FEATB:
 		case SIG_EM:
 		case SIG_EMWINK:
+		case SIG_SF_FEATD:
+		case SIG_SF_FEATDMF:
+		case SIG_SF_FEATB:
+		case SIG_SF:
+		case SIG_SFWINK:
 		case SIG_FXSLS:
 		case SIG_FXSGS:
 		case SIG_FXSKS:
 			zt_disable_ec(i);
-			res = tone_zone_play_tone(zap_fd(i->subs[SUB_REAL].z), -1);
-			zt_set_hook(zap_fd(i->subs[SUB_REAL].z), ZT_ONHOOK);
+			res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, -1);
+			zt_set_hook(i->subs[SUB_REAL].zfd, ZT_ONHOOK);
 			break;
 		case SIG_FXOKS:
 			zt_disable_ec(i);
 			/* Diddle the battery for the zhone */
 #ifdef ZHONE_HACK
-			zt_set_hook(zap_fd(i->subs[SUB_REAL].z), ZT_OFFHOOK);
+			zt_set_hook(i->subs[SUB_REAL].zfd, ZT_OFFHOOK);
 			usleep(1);
 #endif			
-			res = tone_zone_play_tone(zap_fd(i->subs[SUB_REAL].z), -1);
-			zt_set_hook(zap_fd(i->subs[SUB_REAL].z), ZT_ONHOOK);
+			res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, -1);
+			zt_set_hook(i->subs[SUB_REAL].zfd, ZT_ONHOOK);
+			break;
+		case SIG_PRI:
+			zt_disable_ec(i);
+			res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, -1);
 			break;
 		default:
 			ast_log(LOG_WARNING, "Don't know how to handle on hook with signalling %s on channel %d\n", sig2str(i->sig), i->channel);
-			res = tone_zone_play_tone(zap_fd(i->subs[SUB_REAL].z), -1);
+			res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, -1);
 			return -1;
 		}
 		break;
@@ -4029,21 +4506,21 @@ static void *do_monitor(void *data)
 		FD_ZERO(&rfds);
 		i = iflist;
 		while(i) {
-			if (i->subs[SUB_REAL].z && i->sig && (!i->radio)) {
-				if (FD_ISSET(zap_fd(i->subs[SUB_REAL].z), &efds)) 
-					ast_log(LOG_WARNING, "Descriptor %d appears twice?\n", zap_fd(i->subs[SUB_REAL].z));
+			if ((i->subs[SUB_REAL].zfd > -1) && i->sig && (!i->radio)) {
+				if (FD_ISSET(i->subs[SUB_REAL].zfd, &efds)) 
+					ast_log(LOG_WARNING, "Descriptor %d appears twice?\n", i->subs[SUB_REAL].zfd);
 				if (!i->owner && !i->subs[SUB_REAL].owner) {
 					/* This needs to be watched, as it lacks an owner */
-					FD_SET(zap_fd(i->subs[SUB_REAL].z), &efds);
+					FD_SET(i->subs[SUB_REAL].zfd, &efds);
 					/* Message waiting or r2 channels also get watched for reading */
 #ifdef ZAPATA_R2
 					if (i->cidspill || i->r2)
 #else					
 					if (i->cidspill)
 #endif					
-						FD_SET(zap_fd(i->subs[SUB_REAL].z), &rfds);
-					if (zap_fd(i->subs[SUB_REAL].z) > n)
-						n = zap_fd(i->subs[SUB_REAL].z);
+						FD_SET(i->subs[SUB_REAL].zfd, &rfds);
+					if (i->subs[SUB_REAL].zfd > n)
+						n = i->subs[SUB_REAL].zfd;
 				}
 			}
 			i = i->next;
@@ -4090,8 +4567,8 @@ static void *do_monitor(void *data)
 							if (last->msgstate != res) {
 								int x;
 								ast_log(LOG_DEBUG, "Message status for %s changed from %d to %d on %d\n", last->mailbox, last->msgstate, res, last->channel);
-								x = ZT_FLUSH_WRITE;
-								res2 = ioctl(zap_fd(last->subs[SUB_REAL].z), ZT_FLUSH, &x);
+								x = ZT_FLUSH_BOTH;
+								res2 = ioctl(last->subs[SUB_REAL].zfd, ZT_FLUSH, &x);
 								if (res2)
 									ast_log(LOG_WARNING, "Unable to flush input on channel %d\n", last->channel);
 								last->cidspill = malloc(8192);
@@ -4111,10 +4588,10 @@ static void *do_monitor(void *data)
 					}
 				}
 			}
-			if (i->subs[SUB_REAL].z && i->sig && (!i->radio)) {
-				if (FD_ISSET(zap_fd(i->subs[SUB_REAL].z), &rfds)) {
+			if ((i->subs[SUB_REAL].zfd > -1) && i->sig && (!i->radio)) {
+				if (FD_ISSET(i->subs[SUB_REAL].zfd, &rfds)) {
 					if (i->owner || i->subs[SUB_REAL].owner) {
-						ast_log(LOG_WARNING, "Whoa....  I'm owned but found (%d) in read...\n", zap_fd(i->subs[SUB_REAL].z));
+						ast_log(LOG_WARNING, "Whoa....  I'm owned but found (%d) in read...\n", i->subs[SUB_REAL].zfd);
 						i = i->next;
 						continue;
 					}
@@ -4135,16 +4612,16 @@ static void *do_monitor(void *data)
 					}
 #endif
 					if (!i->cidspill) {
-						ast_log(LOG_WARNING, "Whoa....  I'm reading but have no cidspill (%d)...\n", zap_fd(i->subs[SUB_REAL].z));
+						ast_log(LOG_WARNING, "Whoa....  I'm reading but have no cidspill (%d)...\n", i->subs[SUB_REAL].zfd);
 						i = i->next;
 						continue;
 					}
-					res = read(zap_fd(i->subs[SUB_REAL].z), buf, sizeof(buf));
+					res = read(i->subs[SUB_REAL].zfd, buf, sizeof(buf));
 					if (res > 0) {
 						/* We read some number of bytes.  Write an equal amount of data */
 						if (res > i->cidlen - i->cidpos) 
 							res = i->cidlen - i->cidpos;
-						res2 = write(zap_fd(i->subs[SUB_REAL].z), i->cidspill + i->cidpos, res);
+						res2 = write(i->subs[SUB_REAL].zfd, i->cidspill + i->cidpos, res);
 						if (res2 > 0) {
 							i->cidpos += res2;
 							if (i->cidpos >= i->cidlen) {
@@ -4165,17 +4642,17 @@ static void *do_monitor(void *data)
 					handle_init_event(i, res);
 				}
 #ifdef ZAPATA_R2
-				if (FD_ISSET(zap_fd(i->subs[SUB_REAL].z), &efds) || (i->r2 && !i->sigchecked)) 
+				if (FD_ISSET(i->subs[SUB_REAL].zfd, &efds) || (i->r2 && !i->sigchecked)) 
 #else				
-				if (FD_ISSET(zap_fd(i->subs[SUB_REAL].z), &efds)) 
+				if (FD_ISSET(i->subs[SUB_REAL].zfd, &efds)) 
 #endif				
 				{
 					if (i->owner || i->subs[SUB_REAL].owner) {
-						ast_log(LOG_WARNING, "Whoa....  I'm owned but found (%d)...\n", zap_fd(i->subs[SUB_REAL].z));
+						ast_log(LOG_WARNING, "Whoa....  I'm owned but found (%d)...\n", i->subs[SUB_REAL].zfd);
 						i = i->next;
 						continue;
 					}
-					res = zt_get_event(zap_fd(i->subs[SUB_REAL].z));
+					res = zt_get_event(i->subs[SUB_REAL].zfd);
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Monitor doohicky got event %s on channel %d\n", event2str(res), i->channel);
 					handle_init_event(i, res);
@@ -4249,7 +4726,7 @@ static int reset_channel(struct zt_pvt *p)
 		}
 	}
 	if (ioctlflag) {
-		res = zt_set_hook(zap_fd(p->subs[SUB_REAL].z), ZT_ONHOOK);
+		res = zt_set_hook(p->subs[SUB_REAL].zfd, ZT_ONHOOK);
 		if (res < 0) {
 			ast_log(LOG_ERROR, "Unable to hangup chan_zap channel %d (ioctl)\n", p->channel);
 			return -1;
@@ -4272,8 +4749,9 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 	int res;
 	int span=0;
 	int here = 0;
+	int x;
 	ZT_PARAMS p;
-	memset(&si,0,sizeof(si));
+
 	tmp2 = iflist;
 	prev = NULL;
 
@@ -4297,12 +4775,17 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 			return NULL;
 		}
 		memset(tmp, 0, sizeof(struct zt_pvt));
-		tmp->next = tmp2;
-		if (!prev) {
+		for (x=0;x<3;x++)
+			tmp->subs[x].zfd = -1;
+		if (!ifend) {
 			iflist = tmp;
+			tmp->prev = NULL;
+			tmp->next = NULL;
 		} else {
-			prev->next = tmp;
+			ifend->next = tmp;
+			tmp->prev = ifend;
 		}
+		ifend = tmp;
 	}
 
 	if (tmp) {
@@ -4310,15 +4793,15 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 			snprintf(fn, sizeof(fn), "%d", channel);
 			/* Open non-blocking */
 			if (!here)
-				tmp->subs[SUB_REAL].z = zap_open(fn, 1);
+				tmp->subs[SUB_REAL].zfd = zt_open(fn);
 			/* Allocate a zapata structure */
-			if (!tmp->subs[SUB_REAL].z) {
+			if (tmp->subs[SUB_REAL].zfd < 0) {
 				ast_log(LOG_ERROR, "Unable to open channel %d: %s\nhere = %d, tmp->channel = %d, channel = %d\n", channel, strerror(errno), here, tmp->channel, channel);
 				free(tmp);
 				return NULL;
 			}
 			memset(&p, 0, sizeof(p));
-			res = ioctl(zap_fd(tmp->subs[SUB_REAL].z), ZT_GET_PARAMS, &p);
+			res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &p);
 			if (res < 0) {
 				ast_log(LOG_ERROR, "Unable to get parameters\n");
 				free(tmp);
@@ -4348,9 +4831,9 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 			int offset;
 			int numchans;
 			int dchannel;
-			offset = 1;
-			if (ioctl(zap_fd(tmp->subs[SUB_REAL].z), ZT_AUDIOMODE, &offset)) {
-				ast_log(LOG_ERROR, "Unable to set audio mode on clear channel %d of span %d: %s\n", channel, p.spanno, strerror(errno));
+			offset = 0;
+			if (ioctl(tmp->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &offset)) {
+				ast_log(LOG_ERROR, "Unable to set clear mode on clear channel %d of span %d: %s\n", channel, p.spanno, strerror(errno));
 				return NULL;
 			}
 			if (span >= NUM_SPANS) {
@@ -4359,7 +4842,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 				return NULL;
 			} else {
 				si.spanno = 0;
-				if (ioctl(zap_fd(tmp->subs[SUB_REAL].z),ZT_SPANSTAT,&si) == -1) {
+				if (ioctl(tmp->subs[SUB_REAL].zfd,ZT_SPANSTAT,&si) == -1) {
 					ast_log(LOG_ERROR, "Unable to get span status: %s\n", strerror(errno));
 					free(tmp);
 					return NULL;
@@ -4417,6 +4900,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 					pris[span].dchannel = dchannel;
 					pris[span].minunused = minunused;
 					pris[span].minidle = minidle;
+					pris[span].overlapdial = overlapdial;
 					strncpy(pris[span].idledial, idledial, sizeof(pris[span].idledial) - 1);
 					strncpy(pris[span].idleext, idleext, sizeof(pris[span].idleext) - 1);
 					
@@ -4440,10 +4924,10 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 				tmp->r2prot = MFCR2_PROT_CHINA;
 			} else
 				tmp->r2prot = r2prot;
-			tmp->r2 = mfcr2_new(zap_fd(tmp->subs[SUB_REAL].z), tmp->r2prot, 1);
+			tmp->r2 = mfcr2_new(tmp->subs[SUB_REAL].zfd, tmp->r2prot, 1);
 			if (!tmp->r2) {
 				ast_log(LOG_WARNING, "Unable to create r2 call :(\n");
-				zap_close(tmp->subs[SUB_REAL].z);
+				zt_close(tmp->subs[SUB_REAL].zfd);
 				free(tmp);
 				return NULL;
 			}
@@ -4457,9 +4941,12 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		if ((signalling == SIG_FXSKS) || (signalling == SIG_FXSLS) ||
 		    (signalling == SIG_EM) || (signalling == SIG_EMWINK) ||
 			(signalling == SIG_FEATD) || (signalling == SIG_FEATDMF) ||
-			  (signalling == SIG_FEATB)) {
+			  (signalling == SIG_FEATB) ||
+		    (signalling == SIG_SF) || (signalling == SIG_SFWINK) ||
+			(signalling == SIG_SF_FEATD) || (signalling == SIG_SF_FEATDMF) ||
+			  (signalling == SIG_SF_FEATB)) {
 			p.starttime = 250;
-			res = ioctl(zap_fd(tmp->subs[SUB_REAL].z), ZT_SET_PARAMS, &p);
+			res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_SET_PARAMS, &p);
 			if (res < 0) {
 				ast_log(LOG_ERROR, "Unable to set parameters\n");
 				free(tmp);
@@ -4473,7 +4960,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 			p.rxflashtime = 1;
 			p.starttime = 1;
 			p.debouncetime = 5;
-			res = ioctl(zap_fd(tmp->subs[SUB_REAL].z), ZT_SET_PARAMS, &p);
+			res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_SET_PARAMS, &p);
 			if (res < 0) {
 				ast_log(LOG_ERROR, "Unable to set parameters\n");
 				free(tmp);
@@ -4481,14 +4968,14 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 			}
 		}
 #if 1
-		if (!here && tmp->subs[SUB_REAL].z) {
+		if (!here && (tmp->subs[SUB_REAL].zfd > -1)) {
 			memset(&bi, 0, sizeof(bi));
-			res = ioctl(zap_fd(tmp->subs[SUB_REAL].z), ZT_GET_BUFINFO, &bi);
+			res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_GET_BUFINFO, &bi);
 			if (!res) {
 				bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
 				bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
 				bi.numbufs = 4;
-				res = ioctl(zap_fd(tmp->subs[SUB_REAL].z), ZT_SET_BUFINFO, &bi);
+				res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_SET_BUFINFO, &bi);
 				if (res < 0) {
 					ast_log(LOG_WARNING, "Unable to set buffer policy on channel %d\n", channel);
 				}
@@ -4514,8 +5001,10 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		tmp->echocancel = echocancel;
 		tmp->echocanbridged = echocanbridged;
 		tmp->busydetect = busydetect;
+		tmp->busycount = busycount;
 		tmp->callprogress = callprogress;
 		tmp->cancallforward = cancallforward;
+		tmp->dtmfrelax = relaxdtmf;
 		tmp->callwaiting = tmp->permcallwaiting;
 		tmp->hidecallerid = tmp->permhidecallerid;
 		tmp->channel = channel;
@@ -4528,7 +5017,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 			tmp->propconfno = -1;
 		}
 		tmp->transfer = transfer;
-		ast_pthread_mutex_init(&tmp->lock);
+		ast_mutex_init(&tmp->lock);
 		strncpy(tmp->language, language, sizeof(tmp->language)-1);
 		strncpy(tmp->musicclass, musicclass, sizeof(tmp->musicclass)-1);
 		strncpy(tmp->context, context, sizeof(tmp->context)-1);
@@ -4541,18 +5030,19 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		tmp->rxgain = rxgain;
 		tmp->txgain = txgain;
 		tmp->onhooktime = time(NULL);
-		if (tmp->subs[SUB_REAL].z) {
-			set_actual_gain(zap_fd(tmp->subs[SUB_REAL].z), 0, tmp->rxgain, tmp->txgain, tmp->law);
-			zap_digitmode(tmp->subs[SUB_REAL].z, ZAP_DTMF /* | ZAP_MUTECONF */);
+		if (tmp->subs[SUB_REAL].zfd > -1) {
+			set_actual_gain(tmp->subs[SUB_REAL].zfd, 0, tmp->rxgain, tmp->txgain, tmp->law);
+			if (tmp->dsp)
+				ast_dsp_digitmode(tmp->dsp, DSP_DIGITMODE_DTMF | tmp->dtmfrelax);
 			update_conf(tmp);
 			if (!here) {
 				if ((signalling != SIG_PRI) && (signalling != SIG_R2))
 					/* Hang it up to be sure it's good */
-					zt_set_hook(zap_fd(tmp->subs[SUB_REAL].z), ZT_ONHOOK);
+					zt_set_hook(tmp->subs[SUB_REAL].zfd, ZT_ONHOOK);
 			}
 			tmp->inalarm = 0;
 			memset(&si, 0, sizeof(si));
-			if (ioctl(zap_fd(tmp->subs[SUB_REAL].z),ZT_SPANSTAT,&si) == -1) {
+			if (ioctl(tmp->subs[SUB_REAL].zfd,ZT_SPANSTAT,&si) == -1) {
 				ast_log(LOG_ERROR, "Unable to get span status: %s\n", strerror(errno));
 				free(tmp);
 				return NULL;
@@ -4603,7 +5093,7 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch)
 		if (!p->radio)
 		{
 			/* Check hook state */
-			res = ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_GET_PARAMS, &par);
+			res = ioctl(p->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &par);
 			if (res) {
 				ast_log(LOG_WARNING, "Unable to check hook state on channel %d\n", p->channel);
 			} else if (par.rxisoffhook) {
@@ -4624,7 +5114,7 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch)
 		return 0;
 	}
 
-	if (p->subs[SUB_CALLWAIT].z) {
+	if (p->subs[SUB_CALLWAIT].zfd > -1) {
 		/* If there is already a call waiting call, then we can't take a second one */
 		return 0;
 	}
@@ -4650,19 +5140,19 @@ static struct zt_pvt *chandup(struct zt_pvt *src)
 	p = malloc(sizeof(struct zt_pvt));
 	if (p) {
 		memcpy(p, src, sizeof(struct zt_pvt));
-		p->subs[SUB_REAL].z = zap_open("/dev/zap/pseudo", 1);
+		p->subs[SUB_REAL].zfd = zt_open("/dev/zap/pseudo");
 		/* Allocate a zapata structure */
-		if (!p->subs[SUB_REAL].z) {
+		if (p->subs[SUB_REAL].zfd < 0) {
 			ast_log(LOG_ERROR, "Unable to dup channel: %s\n",  strerror(errno));
 			free(p);
 			return NULL;
 		}
-		res = ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_GET_BUFINFO, &bi);
+		res = ioctl(p->subs[SUB_REAL].zfd, ZT_GET_BUFINFO, &bi);
 		if (!res) {
 			bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
 			bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
 			bi.numbufs = 4;
-			res = ioctl(zap_fd(p->subs[SUB_REAL].z), ZT_SET_BUFINFO, &bi);
+			res = ioctl(p->subs[SUB_REAL].zfd, ZT_SET_BUFINFO, &bi);
 			if (res < 0) {
 				ast_log(LOG_WARNING, "Unable to set buffer policy on dup channel\n");
 			}
@@ -4689,6 +5179,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 	char *s;
 	char opt=0;
 	int res=0, y=0;
+	int backwards = 0;
 	
 	/* We do signed linear */
 	oldformat = format;
@@ -4698,22 +5189,23 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 		return NULL;
 	}
 	if (data) {
-		dest = strdup((char *)data);
+		dest = strdupa((char *)data);
 	} else {
 		ast_log(LOG_WARNING, "Channel requested with no data\n");
 		return NULL;
 	}
-	if (dest[0] == 'g') {
+	if (toupper(dest[0]) == 'G') {
 		/* Retrieve the group number */
 		char *stringp=NULL;
 		stringp=dest + 1;
 		s = strsep(&stringp, "/");
 		if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1) {
 			ast_log(LOG_WARNING, "Unable to determine group for data %s\n", (char *)data);
-			free(dest);
 			return NULL;
 		}
 		groupmatch = 1 << x;
+		if (dest[0] == 'G')
+			backwards = 1;
 	} else {
 		char *stringp=NULL;
 		stringp=dest;
@@ -4723,7 +5215,6 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 			x = CHAN_PSEUDO;
 		} else if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1) {
 			ast_log(LOG_WARNING, "Unable to determine channel for data %s\n", (char *)data);
-			free(dest);
 			return NULL;
 		}
 		channelmatch = x;
@@ -4733,7 +5224,10 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 		ast_log(LOG_ERROR, "Unable to lock interface list???\n");
 		return NULL;
 	}
-	p = iflist;
+	if (backwards)
+		p = ifend;
+	else
+		p = iflist;
 	while(p && !tmp) {
 		if (available(p, channelmatch, groupmatch)) {
 			if (option_debug)
@@ -4742,13 +5236,6 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 					p = p->next;
 					continue;
 				}
-#ifdef ZAPATA_PRI
-			if (p->pri) 
-				if (!(p->call = pri_new_call(p->pri->pri))) {
-					ast_log(LOG_WARNING, "Unable to create call on channel %d\n", p->channel);
-					break;
-				}
-#endif
 			callwait = (p->owner != NULL);
 			if (p->channel == CHAN_PSEUDO) {
 				p = chandup(p);
@@ -4762,6 +5249,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 					break;
 				}
 			}
+			p->outgoing = 1;
 			tmp = zt_new(p, AST_STATE_RESERVED, 0, p->owner ? SUB_CALLWAIT : SUB_REAL, 0);
 			/* Make special notes */
 			if (res > 1) {
@@ -4786,49 +5274,16 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 				tmp->cdrflags |= AST_CDR_CALLWAIT;
 			break;
 		}
-		p = p->next;
+		if (backwards)
+			p = p->prev;
+		else
+			p = p->next;
 	}
 	ast_mutex_unlock(&iflock);
 	restart_monitor();
 	return tmp;
 }
 
-
-static int get_group(char *s)
-{
-	char *copy;
-	char *piece;
-	char *c=NULL;
-	int start=0, finish=0,x;
-	int group = 0;
-	copy = strdup(s);
-	if (!copy) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return 0;
-	}
-	c = copy;
-	piece = strsep(&c, ",");
-	while(piece) {
-		if (sscanf(piece, "%d-%d", &start, &finish) == 2) {
-			/* Range */
-		} else if (sscanf(piece, "%d", &start)) {
-			/* Just one */
-			finish = start;
-		} else {
-			ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'.  Using '0'\n", s,piece);
-			return 0;
-		}
-		piece = strsep(&c, ",");
-		for (x=start;x<=finish;x++) {
-			if ((x > 31) || (x < 0)) {
-				ast_log(LOG_WARNING, "Ignoring invalid group %d\n", x);
-			} else
-				group |= (1 << x);
-		}
-	}
-	free(copy);
-	return group;
-}
 
 #ifdef ZAPATA_PRI
 
@@ -4867,7 +5322,7 @@ static int pri_fixup(struct zt_pri *pri, int channel, q931_call *c)
 				pri->pvt[channel]->owner = pri->pvt[x]->owner;
 				if (pri->pvt[channel]->owner) {
 					pri->pvt[channel]->owner->pvt->pvt = pri->pvt[channel];
-					pri->pvt[channel]->owner->fds[0] = zap_fd(pri->pvt[channel]->subs[SUB_REAL].z);
+					pri->pvt[channel]->owner->fds[0] = pri->pvt[channel]->subs[SUB_REAL].zfd;
 				} else
 					ast_log(LOG_WARNING, "Whoa, there's no  owner, and we're having to fix up channel %d to channel %d\n", x, channel);
 				pri->pvt[channel]->call = pri->pvt[x]->call;
@@ -4947,6 +5402,25 @@ static void zt_pri_error(char *s)
 	ast_log(LOG_WARNING, "PRI: %s", s);
 }
 
+static int pri_check_restart(struct zt_pri *pri)
+{
+	do {
+		pri->resetchannel++;
+	} while((pri->resetchannel <= pri->channels) &&
+		 (!pri->pvt[pri->resetchannel] ||
+		  pri->pvt[pri->resetchannel]->call ||
+		  pri->pvt[pri->resetchannel]->resetting));
+	if (pri->resetchannel <= pri->channels) {
+		/* Mark the channel as resetting and restart it */
+		pri->pvt[pri->resetchannel]->resetting = 1;
+		pri_reset(pri->pri, pri->resetchannel);
+	} else {
+		pri->resetting = 0;
+		time(&pri->lastreset);
+	}
+	return 0;
+}
+
 static void *pri_dchannel(void *vpri)
 {
 	struct zt_pri *pri = vpri;
@@ -4954,7 +5428,7 @@ static void *pri_dchannel(void *vpri)
 	fd_set efds;
 	fd_set rfds;
 	int res;
-	int chan;
+	int chan = 0;
 	int x;
 	int haveidles;
 	int activeidles;
@@ -4994,25 +5468,10 @@ static void *pri_dchannel(void *vpri)
 		time(&t);
 		ast_mutex_lock(&pri->lock);
 		if (pri->resetting && pri->up) {
-			/* Look for a resetable channel and go */
-			if ((t - pri->lastreset) > 0) {
-				pri->lastreset = t;
-				do {
-					pri->resetchannel++;
-				} while((pri->resetchannel <= pri->channels) &&
-					(!pri->pvt[pri->resetchannel] ||
-					pri->pvt[pri->resetchannel]->call ||
-					 pri->pvt[pri->resetchannel]->resetting));
-				if (pri->resetchannel <= pri->channels) {
-					/* Mark the channel as resetting and restart it */
-					pri->pvt[pri->resetchannel]->resetting = 1;
-					pri_reset(pri->pri, pri->resetchannel);
-				} else {
-					pri->resetting = 0;
-				}
-			}
+			if (!pri->resetchannel)
+				pri_check_restart(pri);
 		} else {
-			if ((t - pri->lastreset) >= RESET_INTERVAL) {
+			if (!pri->resetting && ((t - pri->lastreset) >= RESET_INTERVAL)) {
 				pri->resetting = 1;
 				pri->resetchannel = 0;
 			}
@@ -5133,11 +5592,17 @@ static void *pri_dchannel(void *vpri)
 				if (option_verbose > 1) 
 					ast_verbose(VERBOSE_PREFIX_2 "D-Channel on span %d up\n", pri->span);
 				pri->up = 1;
+				time(&pri->lastreset);
+				/* Restart in 5 seconds */
+				pri->lastreset -= RESET_INTERVAL;
+				pri->lastreset += 5;
+				pri->resetting = 0;
 				break;
 			case PRI_EVENT_DCHAN_DOWN:
 				if (option_verbose > 1) 
 					ast_verbose(VERBOSE_PREFIX_2 "D-Channel on span %d down\n", pri->span);
 				pri->up = 0;
+				pri->resetting = 0;
 				break;
 			case PRI_EVENT_RESTART:
 				chan = e->restart.channel;
@@ -5150,39 +5615,47 @@ static void *pri_dchannel(void *vpri)
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "B-channel %d restarted on span %d\n", 
 								chan, pri->span);
+						ast_mutex_lock(&pri->pvt[chan]->lock);
 						/* Force soft hangup if appropriate */
 						if (pri->pvt[chan]->owner)
 							pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+						ast_mutex_unlock(&pri->pvt[chan]->lock);
 					}
 				} else {
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_2 "Restart on requested on entire span %d\n", pri->span);
 					for (x=1;x <= pri->channels;x++)
-						if ((x != pri->dchannel) && pri->pvt[x] && (pri->pvt[x]->owner))
-							pri->pvt[x]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+						if ((x != pri->dchannel) && pri->pvt[x]) {
+							ast_mutex_lock(&pri->pvt[x]->lock);
+ 							if (pri->pvt[x]->owner)
+								pri->pvt[x]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							ast_mutex_unlock(&pri->pvt[x]->lock);
+						}
 				}
 				break;
 			case PRI_EVENT_INFO_RECEIVED:
 			case PRI_EVENT_RING:
 				chan = e->ring.channel;
-				if ((chan < 1) || (chan > pri->channels)) {
-					ast_log(LOG_WARNING, "Ring requested on odd channel number %d span %d\n", chan, pri->span);
-					chan = 0;
-				} else if (!pri->pvt[chan]) {
-					ast_log(LOG_WARNING, "Ring requested on unconfigured channel %d span %d\n", chan, pri->span);
-					chan = 0;
-				} else if (pri->pvt[chan]->owner) {
-					if (pri->pvt[chan]->call == e->ring.call) {
-						ast_log(LOG_WARNING, "Duplicate setup requested on channel %d already in use on span %d\n", chan, pri->span);
-						break;
-					} else {
-						ast_log(LOG_WARNING, "Ring requested on channel %d already in use on span %d.  Hanging up owner.\n", chan, pri->span);
-						pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+				if (e->e==PRI_EVENT_RING) {
+					if ((chan < 1) || (chan > pri->channels)) {
+						ast_log(LOG_WARNING, "Ring requested on odd channel number %d span %d\n", chan, pri->span);
 						chan = 0;
+					} else if (!pri->pvt[chan]) {
+						ast_log(LOG_WARNING, "Ring requested on unconfigured channel %d span %d\n", chan, pri->span);
+						chan = 0;
+					} else if (pri->pvt[chan]->owner) {
+						if (pri->pvt[chan]->call == e->ring.call) {
+							ast_log(LOG_WARNING, "Duplicate setup requested on channel %d already in use on span %d\n", chan, pri->span);
+							break;
+						} else {
+							ast_log(LOG_WARNING, "Ring requested on channel %d already in use on span %d.  Hanging up owner.\n", chan, pri->span);
+							pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							chan = 0;
+						}
 					}
+					if (!chan && (e->ring.flexible))
+						chan = pri_find_empty_chan(pri);
 				}
-				if (!chan && (e->ring.flexible))
-					chan = pri_find_empty_chan(pri);
 				if (chan) {
 					if (e->e==PRI_EVENT_RING) {
 						/* Get caller ID */
@@ -5195,23 +5668,63 @@ static void *pri_dchannel(void *vpri)
 							strcpy(pri->pvt[chan]->callerid, "");
 						strncpy(pri->pvt[chan]->rdnis, e->ring.redirectingnum, sizeof(pri->pvt[chan]->rdnis));
 					}
-					/* Get called number */
-					if (strlen(e->ring.callednum)) {
-						strncpy(pri->pvt[chan]->exten, e->ring.callednum, sizeof(pri->pvt[chan]->exten)-1);
-					} else
+					/* If immediate=yes go to s|1 */
+					if (pri->pvt[chan]->immediate) {
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "Going to extension s|1 because of immediate=yes\n");
 						strcpy(pri->pvt[chan]->exten, "s");
+					}
+					/* Get called number */
+					else if (strlen(e->ring.callednum)) {
+#ifndef PRI_COPY_DIGITS_CALLED_NUMBER
+#error Please update the libpri package
+#endif
+						if (e->e==PRI_EVENT_RING)
+							strncpy(pri->pvt[chan]->exten, e->ring.callednum, sizeof(pri->pvt[chan]->exten)-1);
+						else
+							strncat(pri->pvt[chan]->exten, e->ring.callednum, sizeof(pri->pvt[chan]->exten)-1);
+					} 
+#if 0
+					else
+						strcpy(pri->pvt[chan]->exten, "s");
+#endif
+					else
+						strcpy(pri->pvt[chan]->exten, "");
+					/* queue DTMF frame if the PBX for this call was already started (we're forwarding INFORMATION further on */
+					if (pri->overlapdial && pri->pvt[chan]->call==e->ring.call && pri->pvt[chan]->owner) {
+						/* how to do that */
+						int digitlen = strlen(e->ring.callednum);
+						char digit;
+						int i;
+						/* make sure that we store the right number in CDR */
+						if (pri->pvt[chan]->owner->cdr)
+							strncat(pri->pvt[chan]->owner->cdr->dst,e->ring.callednum,digitlen);
+					
+						for (i=0; i<digitlen; i++) {	
+							digit = e->ring.callednum[i];
+							{
+								struct ast_frame f = { AST_FRAME_DTMF, digit, };
+								ast_queue_frame(pri->pvt[chan]->owner, &f, 0);
+							}
+						}
+					}
 					/* Make sure extension exists */
-					if (ast_exists_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid)) {
+					/* If extensions is empty then make sure we send later on SETUP_ACKNOWLEDGE to get digits in overlap mode */
+					else if (strlen(pri->pvt[chan]->exten) && ast_exists_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid)) {
 						/* Setup law */
 						int law;
+						/* Set to audio mode at this poitn mode */
+						law = 1;
+						if (ioctl(pri->pvt[chan]->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &law) == -1)
+							ast_log(LOG_WARNING, "Unable to set audio mode on channel %d to %d\n", pri->pvt[chan]->channel, law);
 						if (e->ring.layer1 == PRI_LAYER_1_ALAW)
 							law = ZT_LAW_ALAW;
 						else
 							law = ZT_LAW_MULAW;
-						res = zap_setlaw(pri->pvt[chan]->subs[SUB_REAL].z, law);
+						res = zt_setlaw(pri->pvt[chan]->subs[SUB_REAL].zfd, law);
 						if (res < 0) 
 							ast_log(LOG_WARNING, "Unable to set law on channel %d\n", pri->pvt[chan]->channel);
-						res = set_actual_gain(zap_fd(pri->pvt[chan]->subs[SUB_REAL].z), 0, pri->pvt[chan]->rxgain, pri->pvt[chan]->txgain, law);
+						res = set_actual_gain(pri->pvt[chan]->subs[SUB_REAL].zfd, 0, pri->pvt[chan]->rxgain, pri->pvt[chan]->txgain, law);
 						if (res < 0)
 							ast_log(LOG_WARNING, "Unable to set gains on channel %d\n", pri->pvt[chan]->channel);
 						/* Start PBX */
@@ -5221,26 +5734,44 @@ static void *pri_dchannel(void *vpri)
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Accepting call from '%s' to '%s' on channel %d, span %d\n",
 									e->ring.callingnum, pri->pvt[chan]->exten, chan, pri->span);
-							pri_acknowledge(pri->pri, e->ring.call, chan, 1);
+							if (!pri->overlapdial) {
+								pri_acknowledge(pri->pri, e->ring.call, chan, 1);
+							}
+							/* If we got here directly and didn't send the SETUP_ACKNOWLEDGE we need to send it otherwise we don't sent anything */
+							else if (e->e==PRI_EVENT_RING) {
+								pri_need_more_info(pri->pri, e->ring.call, chan, 1);
+							}
 							zt_enable_ec(pri->pvt[chan]);
 						} else {
 							ast_log(LOG_WARNING, "Unable to start PBX on channel %d, span %d\n", chan, pri->span);
+#if NEW_PRI_HANGUP
+							pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_SWITCH_CONGESTION);
+#else
 							pri_release(pri->pri, e->ring.call, PRI_CAUSE_SWITCH_CONGESTION);
+#endif
 							pri->pvt[chan]->call = 0;
 						}
 					} else {
-						if (ast_matchmore_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid))
+						if (!strlen(pri->pvt[chan]->exten) || ast_matchmore_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid))
 						{
+							/* Send SETUP_ACKNOWLEDGE only when we receive SETUP, don't send if we got INFORMATION */
 							if (e->e==PRI_EVENT_RING) pri_need_more_info(pri->pri, e->ring.call, chan, 1);
 						} else {
 							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "Extension '%s' in context '%s' from '%s' does not exist.  Rejecting call on channel %d, span %d\n",
-							pri->pvt[chan]->exten, pri->pvt[chan]->context, pri->pvt[chan]->callerid, chan, pri->span);
+								ast_verbose(VERBOSE_PREFIX_3 "Extension '%s' in context '%s' from '%s' does not exist.  Rejecting call on channel %d, span %d\n",pri->pvt[chan]->exten, pri->pvt[chan]->context, pri->pvt[chan]->callerid, chan, pri->span);
+#ifdef NEW_PRI_HANGUP
+							pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_UNALLOCATED);
+#else
 							pri_release(pri->pri, e->ring.call, PRI_CAUSE_UNALLOCATED);
+#endif
 						}
 					}
 				} else 
+#ifdef NEW_PRI_HANGUP
+					pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_REQUESTED_CHAN_UNAVAIL);
+#else
 					pri_release(pri->pri, e->ring.call, PRI_CAUSE_REQUESTED_CHAN_UNAVAIL);
+#endif
 				break;
 			case PRI_EVENT_RINGING:
 				chan = e->ringing.channel;
@@ -5257,12 +5788,36 @@ static void *pri_dchannel(void *vpri)
 						ast_log(LOG_WARNING, "Ringing requested on channel %d not in use on span %d\n", e->ringing.channel, pri->span);
 						chan = 0;
 					} else if (!strlen(pri->pvt[chan]->dop.dialstr)) {
+						zt_enable_ec(pri->pvt[chan]);
 						pri->pvt[chan]->subs[SUB_REAL].needringing =1;
+#ifdef PRI_EVENT_PROCEEDING
+						pri->pvt[chan]->proceeding=1;
+#endif
 					} else
 						ast_log(LOG_DEBUG, "Deferring ringing notification because of extra digits to dial...\n");
 				}
-				zt_enable_ec(pri->pvt[chan]);
+#ifndef PRI_EVENT_PROCEEDING
 				break;				
+#else
+				/* Fall through */
+				if (!chan) break;
+#endif
+#ifdef PRI_EVENT_PROCEEDING
+			case PRI_EVENT_PROCEEDING:
+				/* Get chan value if e->e is not PRI_EVNT_RINGING */
+				if (e->e == PRI_EVENT_PROCEEDING) 
+					chan = e->proceeding.channel;
+                                if ((chan >= 1) && (chan <= pri->channels)) 
+	                                        if (pri->pvt[chan] && pri->overlapdial && !pri->pvt[chan]->proceeding) {
+							struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
+							ast_log(LOG_DEBUG, "queling frame from PRI_EVENT_PROCEEDING on channel %d span %d\n",chan,pri->pvt[chan]->span);
+							ast_queue_frame(pri->pvt[chan]->owner, &f, 0);
+
+							pri->pvt[chan]->proceeding=1;
+						}
+							
+				break;
+#endif	
 			case PRI_EVENT_FACNAME:
 				chan = e->facname.channel;
 				if ((chan < 1) || (chan > pri->channels)) {
@@ -5281,9 +5836,9 @@ static void *pri_dchannel(void *vpri)
 						/* Re-use *69 field for PRI */
 						snprintf(pri->pvt[chan]->lastcallerid, sizeof(pri->pvt[chan]->lastcallerid), "\"%s\" <%s>", e->facname.callingname, e->facname.callingnum);
 						pri->pvt[chan]->subs[SUB_REAL].needcallerid =1;
+						zt_enable_ec(pri->pvt[chan]);
 					}
 				}
-				zt_enable_ec(pri->pvt[chan]);
 				break;				
 			case PRI_EVENT_ANSWER:
 				chan = e->answer.channel;
@@ -5303,7 +5858,7 @@ static void *pri_dchannel(void *vpri)
 						if (strlen(pri->pvt[chan]->dop.dialstr)) {
 							pri->pvt[chan]->dialing = 1;
 							/* Send any "w" waited stuff */
-							res = ioctl(zap_fd(pri->pvt[chan]->subs[SUB_REAL].z), ZT_DIAL, &pri->pvt[chan]->dop);
+							res = ioctl(pri->pvt[chan]->subs[SUB_REAL].zfd, ZT_DIAL, &pri->pvt[chan]->dop);
 							if (res < 0) {
 								ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", pri->pvt[chan]->channel);
 								pri->pvt[chan]->dop.dialstr[0] = '\0';
@@ -5313,6 +5868,8 @@ static void *pri_dchannel(void *vpri)
 							pri->pvt[chan]->dop.dialstr[0] = '\0';
 						} else
 							pri->pvt[chan]->subs[SUB_REAL].needanswer =1;
+						/* Enable echo cancellation if it's not on already */
+						zt_enable_ec(pri->pvt[chan]);
 					}
 				}
 				break;				
@@ -5328,8 +5885,47 @@ static void *pri_dchannel(void *vpri)
 				if (chan) {
 					chan = pri_fixup(pri, chan, e->hangup.call);
 					if (chan) {
-						if (pri->pvt[chan]->owner) {
+						ast_mutex_lock(&pri->pvt[chan]->lock);
+						if (!pri->pvt[chan]->alreadyhungup) {
+							/* we're calling here zt_hangup so once we get there we need to clear p->call after calling pri_hangup */
 							pri->pvt[chan]->alreadyhungup = 1;
+							if (pri->pvt[chan]->owner)
+								pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							if (option_verbose > 2) 
+								ast_verbose(VERBOSE_PREFIX_3 "Channel %d, span %d got hangup\n", chan, pri->span);
+						} else {
+							pri_hangup(pri->pri, pri->pvt[chan]->call, e->hangup.cause);
+							pri->pvt[chan]->call = NULL;
+						}
+						if (e->hangup.cause == PRI_CAUSE_REQUESTED_CHAN_UNAVAIL) {
+							if (option_verbose > 2)
+								ast_verbose(VERBOSE_PREFIX_3 "Forcing restart of channel %d since channel reported in use\n", chan);
+							pri_reset(pri->pri, chan);
+							pri->pvt[chan]->resetting = 1;
+						}
+						ast_mutex_unlock(&pri->pvt[chan]->lock);
+					} else {
+						ast_log(LOG_WARNING, "Hangup on bad channel %d\n", e->hangup.channel);
+					}
+				} 
+				break;
+#ifndef PRI_EVENT_HANGUP_REQ
+#error please update libpri
+#endif
+			case PRI_EVENT_HANGUP_REQ:
+				chan = e->hangup.channel;
+				if ((chan < 1) || (chan > pri->channels)) {
+					ast_log(LOG_WARNING, "Hangup REQ requested on odd channel number %d span %d\n", chan, pri->span);
+					chan = 0;
+				} else if (!pri->pvt[chan]) {
+					ast_log(LOG_WARNING, "Hangup REQ requested on unconfigured channel %d span %d\n", chan, pri->span);
+					chan = 0;
+				}
+				if (chan) {
+					chan = pri_fixup(pri, chan, e->hangup.call);
+					if (chan) {
+						ast_mutex_lock(&pri->pvt[chan]->lock);
+						if (pri->pvt[chan]->owner) {
 							pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							if (option_verbose > 2) 
 								ast_verbose(VERBOSE_PREFIX_3 "Channel %d, span %d got hangup\n", chan, pri->span);
@@ -5340,8 +5936,9 @@ static void *pri_dchannel(void *vpri)
 							pri_reset(pri->pri, chan);
 							pri->pvt[chan]->resetting = 1;
 						}
+						ast_mutex_unlock(&pri->pvt[chan]->lock);
 					} else {
-						ast_log(LOG_WARNING, "Hangup on bad channel %d\n", e->hangup.channel);
+						ast_log(LOG_WARNING, "Hangup REQ on bad channel %d\n", e->hangup.channel);
 					}
 				} 
 				break;
@@ -5357,12 +5954,14 @@ static void *pri_dchannel(void *vpri)
 				if (chan) {
 					chan = pri_fixup(pri, chan, e->hangup.call);
 					if (chan) {
+						ast_mutex_lock(&pri->pvt[chan]->lock);
 						pri->pvt[chan]->call = NULL;
 						pri->pvt[chan]->resetting = 0;
 						if (pri->pvt[chan]->owner) {
 							if (option_verbose > 2) 
 								ast_verbose(VERBOSE_PREFIX_3 "Channel %d, span %d got hangup ACK\n", chan, pri->span);
 						}
+						ast_mutex_unlock(&pri->pvt[chan]->lock);
 					}
 				}
 				break;
@@ -5378,14 +5977,18 @@ static void *pri_dchannel(void *vpri)
 					for (x=1;x<=pri->channels;x++) {
 						if (pri->pvt[x] && pri->pvt[x]->resetting) {
 							chan = x;
+							ast_mutex_lock(&pri->pvt[chan]->lock);
 							ast_log(LOG_DEBUG, "Assuming restart ack is really for channel %d span %d\n", chan, pri->span);
 							if (pri->pvt[chan]->owner) {
-								ast_log(LOG_WARNING, "Got restart ack on channel with owner\n");
+								ast_log(LOG_WARNING, "Got restart ack on channel %d with owner\n", chan);
 								pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							}
 							pri->pvt[chan]->resetting = 0;
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "B-channel %d successfully restarted on span %d\n", chan, pri->span);
+							ast_mutex_unlock(&pri->pvt[chan]->lock);
+							if (pri->resetting)
+								pri_check_restart(pri);
 							break;
 						}
 					}
@@ -5397,18 +6000,34 @@ static void *pri_dchannel(void *vpri)
 					ast_log(LOG_WARNING, "Restart ACK requested on unconfigured channel %d span %d\n", chan, pri->span);
 					chan = 0;
 				}
-				if (chan) {
+				if ((chan >= 1) && (chan <= pri->channels)) {
 					if (pri->pvt[chan]) {
+						ast_mutex_lock(&pri->pvt[chan]->lock);
 						if (pri->pvt[chan]->owner) {
-							ast_log(LOG_WARNING, "Got restart ack on channel with owner\n");
+							ast_log(LOG_WARNING, "Got restart ack on channel %d with owner\n", chan);
 							pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 						}
 						pri->pvt[chan]->resetting = 0;
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "B-channel %d successfully restarted on span %d\n", chan, pri->span);
+						ast_mutex_unlock(&pri->pvt[chan]->lock);
+						if (pri->resetting)
+							pri_check_restart(pri);
 					}
 				}
 				break;
+#ifdef PRI_EVENT_SETUP_ACK
+			case PRI_EVENT_SETUP_ACK:
+				chan = e->setup_ack.channel;
+				if ((chan < 1) || (chan > pri->channels)) {
+					ast_log(LOG_WARNING, "Received SETUP_ACKNOWLEDGE on strange channel %d span %d\n", chan, pri->span);
+				} else if (!pri->pvt[chan]) {
+					ast_log(LOG_WARNING, "Received SETUP_ACKNOWLEDGE on unconfigured channel %d span %d\n", chan, pri->span);
+				} else {
+					pri->pvt[chan]->setup_ack = 1;
+				}
+				break;
+#endif
 			default:
 				ast_log(LOG_DEBUG, "Event: %d\n", e->e);
 			}
@@ -5453,7 +6072,6 @@ static int start_pri(struct zt_pri *pri)
 		ast_log(LOG_ERROR, "D-channel %x is not in HDLC/FCS mode.  See /etc/tormenta.conf\n", x);
 		return -1;
 	}
-	memset(&bi,0,sizeof(bi));
 	bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
 	bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
 	bi.numbufs = 8;
@@ -5471,6 +6089,9 @@ static int start_pri(struct zt_pri *pri)
 		ast_log(LOG_ERROR, "Unable to create PRI structure\n");
 		return -1;
 	}
+#ifdef PRI_SET_OVERLAPDIAL
+	pri_set_overlapdial(pri->pri,pri->overlapdial);
+#endif
 	pri_set_debug(pri->pri, DEFAULT_PRI_DEBUG);
 	if (pthread_create(&pri->master, NULL, pri_dchannel, pri)) {
 		close(pri->fd);
@@ -5708,6 +6329,7 @@ static int zap_show_channel(int fd, int argc, char **argv)
 {
 	int channel;
 	struct zt_pvt *tmp = NULL;
+	ZT_CONFINFO ci;
 	int x;
 
 	if (argc != 4)
@@ -5719,7 +6341,7 @@ static int zap_show_channel(int fd, int argc, char **argv)
 	while (tmp) {
 		if (tmp->channel == channel) {
 			ast_cli(fd, "Channel: %d\n", tmp->channel);
-			ast_cli(fd, "File Descriptor: %d\n", zap_fd(tmp->subs[SUB_REAL].z));
+			ast_cli(fd, "File Descriptor: %d\n", tmp->subs[SUB_REAL].zfd);
 			ast_cli(fd, "Span: %d\n", tmp->span);
 			ast_cli(fd, "Extension: %s\n", tmp->exten);
 			ast_cli(fd, "Context: %s\n", tmp->context);
@@ -5727,17 +6349,19 @@ static int zap_show_channel(int fd, int argc, char **argv)
 			ast_cli(fd, "Destroy: %d\n", tmp->destroy);
 			ast_cli(fd, "Signalling Type: %s\n", sig2str(tmp->sig));
 			ast_cli(fd, "Owner: %s\n", tmp->owner ? tmp->owner->name : "<None>");
-			ast_cli(fd, "Real: %s%s\n", tmp->subs[SUB_REAL].owner ? tmp->subs[SUB_REAL].owner->name : "<None>", tmp->subs[SUB_REAL].inthreeway ? " (Confed)" : "");
-			ast_cli(fd, "Callwait: %s%s\n", tmp->subs[SUB_CALLWAIT].owner ? tmp->subs[SUB_CALLWAIT].owner->name : "<None>", tmp->subs[SUB_CALLWAIT].inthreeway ? " (Confed)" : "");
-			ast_cli(fd, "Threeway: %s%s\n", tmp->subs[SUB_THREEWAY].owner ? tmp->subs[SUB_THREEWAY].owner->name : "<None>", tmp->subs[SUB_THREEWAY].inthreeway ? " (Confed)" : "");
+			ast_cli(fd, "Real: %s%s%s\n", tmp->subs[SUB_REAL].owner ? tmp->subs[SUB_REAL].owner->name : "<None>", tmp->subs[SUB_REAL].inthreeway ? " (Confed)" : "", tmp->subs[SUB_REAL].linear ? " (Linear)" : "");
+			ast_cli(fd, "Callwait: %s%s%s\n", tmp->subs[SUB_CALLWAIT].owner ? tmp->subs[SUB_CALLWAIT].owner->name : "<None>", tmp->subs[SUB_CALLWAIT].inthreeway ? " (Confed)" : "", tmp->subs[SUB_CALLWAIT].linear ? " (Linear)" : "");
+			ast_cli(fd, "Threeway: %s%s%s\n", tmp->subs[SUB_THREEWAY].owner ? tmp->subs[SUB_THREEWAY].owner->name : "<None>", tmp->subs[SUB_THREEWAY].inthreeway ? " (Confed)" : "", tmp->subs[SUB_THREEWAY].linear ? " (Linear)" : "");
 			ast_cli(fd, "Confno: %d\n", tmp->confno);
 			ast_cli(fd, "Propagated Conference: %d\n", tmp->propconfno);
 			ast_cli(fd, "Real in conference: %d\n", tmp->inconference);
 			ast_cli(fd, "DSP: %s\n", tmp->dsp ? "yes" : "no");
+			ast_cli(fd, "Relax DTMF: %s\n", tmp->dtmfrelax ? "yes" : "no");
 			ast_cli(fd, "Dialing/CallwaitCAS: %d/%d\n", tmp->dialing, tmp->callwaitcas);
 			ast_cli(fd, "Default law: %s\n", tmp->law == ZT_LAW_MULAW ? "ulaw" : tmp->law == ZT_LAW_ALAW ? "alaw" : "unknown");
 			ast_cli(fd, "Fax Handled: %s\n", tmp->faxhandled ? "yes" : "no");
 			ast_cli(fd, "Pulse phone: %s\n", tmp->pulsedial ? "yes" : "no");
+			ast_cli(fd, "Echo Cancellation: %d taps%s, currently %s\n", tmp->echocancel, tmp->echocanbridged ? "" : " unless TDM bridged", tmp->echocanon ? "ON" : "OFF");
 			if (tmp->master)
 				ast_cli(fd, "Master Channel: %d\n", tmp->master->channel);
 			for (x=0;x<MAX_SLAVES;x++) {
@@ -5762,6 +6386,19 @@ static int zap_show_channel(int fd, int argc, char **argv)
 				if (tmp->hasr2call)
 					ast_cli(fd, "Call ");
 				ast_cli(fd, "\n");
+			}
+#endif
+			memset(&ci, 0, sizeof(ci));
+			if (ioctl(tmp->subs[SUB_REAL].zfd, ZT_GETCONF, &ci)) {
+				ast_log(LOG_WARNING, "Failed to get conference info on channel %d\n", tmp->channel);
+			} else {
+				ast_cli(fd, "Actual Confinfo: Num/%d, Mode/0x%04x\n", ci.confno, ci.confmode);
+			}
+#ifdef ZT_GETCONFMUTE
+			if (ioctl(tmp->subs[SUB_REAL].zfd, ZT_GETCONFMUTE, &x)) {
+				ast_log(LOG_WARNING, "Failed to get confmute info on channel %d\n", tmp->channel);
+			} else {
+				ast_cli(fd, "Actual Confmute: %s\n", x ? "Yes" : "No");
 			}
 #endif
 			ast_mutex_unlock(&iflock);
@@ -5889,6 +6526,11 @@ int load_module()
 			threewaycalling = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "cancallforward")) {
 			cancallforward = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "relaxdtmf")) {
+			if (ast_true(v->value)) 
+				relaxdtmf = DSP_DIGITMODE_RELAXDTMF;
+			else
+				relaxdtmf = 0;
 		} else if (!strcasecmp(v->name, "mailbox")) {
 			strncpy(mailbox, v->value, sizeof(mailbox) -1);
 		} else if (!strcasecmp(v->name, "adsi")) {
@@ -5899,17 +6541,22 @@ int load_module()
 			echocanbridged = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "busydetect")) {
 			busydetect = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "busycount")) {
+			busycount = atoi(v->value);
 		} else if (!strcasecmp(v->name, "callprogress")) {
 			callprogress = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "echocancel")) {
-			if (v->value && strlen(v->value))
+			if (v->value && strlen(v->value)) {
 				y = atoi(v->value);
-			else
+			} else
 				y = 0;
 			if ((y == 32) || (y == 64) || (y == 128) || (y == 256))
 				echocancel = y;
-			else
+			else {
 				echocancel = ast_true(v->value);
+				if (echocancel)
+					echocancel=128;
+			}
 		} else if (!strcasecmp(v->name, "hidecallerid")) {
 			hidecallerid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "callreturn")) {
@@ -5927,11 +6574,11 @@ int load_module()
 		} else if (!strcasecmp(v->name, "stripmsd")) {
 			stripmsd = atoi(v->value);
 		} else if (!strcasecmp(v->name, "group")) {
-			cur_group = get_group(v->value);
+			cur_group = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "callgroup")) {
-			cur_callergroup = get_group(v->value);
+			cur_callergroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "pickupgroup")) {
-			cur_pickupgroup = get_group(v->value);
+			cur_pickupgroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "immediate")) {
 			immediate = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "rxgain")) {
@@ -6003,6 +6650,36 @@ int load_module()
 			} else if (!strcasecmp(v->value, "em_txrx")) {
 				cur_signalling = SIG_EM;
 				cur_radio = 2;
+			} else if (!strcasecmp(v->value, "sf")) {
+				cur_signalling = SIG_SF;
+				cur_radio = 0;
+			} else if (!strcasecmp(v->value, "sf_w")) {
+				cur_signalling = SIG_SFWINK;
+				cur_radio = 0;
+			} else if (!strcasecmp(v->value, "sf_featd")) {
+				cur_signalling = SIG_FEATD;
+				cur_radio = 0;
+			} else if (!strcasecmp(v->value, "sf_featdmf")) {
+				cur_signalling = SIG_FEATDMF;
+				cur_radio = 0;
+			} else if (!strcasecmp(v->value, "sf_featb")) {
+				cur_signalling = SIG_SF_FEATB;
+				cur_radio = 0;
+			} else if (!strcasecmp(v->value, "sf")) {
+				cur_signalling = SIG_SF;
+				cur_radio = 0;
+			} else if (!strcasecmp(v->value, "sf_rx")) {
+				cur_signalling = SIG_SF;
+				cur_radio = 1;
+			} else if (!strcasecmp(v->value, "sf_tx")) {
+				cur_signalling = SIG_SF;
+				cur_radio = 1;
+			} else if (!strcasecmp(v->value, "sf_rxtx")) {
+				cur_signalling = SIG_SF;
+				cur_radio = 2;
+			} else if (!strcasecmp(v->value, "sf_txrx")) {
+				cur_signalling = SIG_SF;
+				cur_radio = 2;
 			} else if (!strcasecmp(v->value, "featd")) {
 				cur_signalling = SIG_FEATD;
 				cur_radio = 0;
@@ -6055,6 +6732,10 @@ int load_module()
 		} else if (!strcasecmp(v->name, "switchtype")) {
 			if (!strcasecmp(v->value, "national")) 
 				switchtype = PRI_SWITCH_NI2;
+#ifdef PRI_SWITCH_NI1
+			else if (!strcasecmp(v->value, "ni1"))
+				switchtype = PRI_SWITCH_NI1;
+#endif
 			else if (!strcasecmp(v->value, "dms100"))
 				switchtype = PRI_SWITCH_DMS100;
 			else if (!strcasecmp(v->value, "4ess"))
@@ -6076,9 +6757,11 @@ int load_module()
 			strncpy(idleext, v->value, sizeof(idleext) - 1);
 		} else if (!strcasecmp(v->name, "idledial")) {
 			strncpy(idledial, v->value, sizeof(idledial) - 1);
+		} else if (!strcasecmp(v->name, "overlapdial")) {
+			overlapdial = ast_true(v->value);
 #endif		
 		} else
-			ast_log(LOG_DEBUG, "Ignoring %s\n", v->name);
+			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 		v = v->next;
 	}
 	ast_mutex_unlock(&iflock);
@@ -6175,8 +6858,8 @@ int unload_module()
 			if (p->cidspill)
 				free(p->cidspill);
 			/* Close the zapata thingy */
-			if (p->subs[SUB_REAL].z)
-				zap_close(p->subs[SUB_REAL].z);
+			if (p->subs[SUB_REAL].zfd > -1)
+				zt_close(p->subs[SUB_REAL].zfd);
 			pl = p;
 			p = p->next;
 			/* Free associated memory */
@@ -6217,6 +6900,7 @@ static int reload_zt(void)
 	stripmsd = 0;
 	callwaiting = 0;
 	busydetect = 0;
+	busycount = 3;
 	callprogress = 0;
 	callwaitingcallerid = 0;
 	hidecallerid = 0;
@@ -6329,6 +7013,8 @@ static int reload_zt(void)
 			transfer = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "busydetect")) {
 			busydetect = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "busycount")) {
+			busycount = atoi(v->value);
 		} else if (!strcasecmp(v->name, "callprogress")) {
 			callprogress = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "hidecallerid")) {
@@ -6428,7 +7114,7 @@ static int reload_zt(void)
 			strncpy(idledial, v->value, sizeof(idledial) - 1);
 #endif
 		} else
-			ast_log(LOG_DEBUG, "Ignoring %s\n", v->name);
+			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 		v = v->next;
 	}
 
@@ -6537,7 +7223,7 @@ static int zt_sendtext(struct ast_channel *c, char *text)
 	}
 	memset(buf + len,0x7f,END_SILENCE_LEN);
 	len += END_SILENCE_LEN;
-	fd = zap_fd(p->subs[index].z);
+	fd = p->subs[index].zfd;
 	while(len) {
 		if (ast_check_hangup(c)) {
 			free(mybuf);
