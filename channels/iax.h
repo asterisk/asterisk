@@ -55,6 +55,7 @@
 #define AST_IAX_COMMAND_TXREJ	27	/* Transfer reject */
 #define AST_IAX_COMMAND_QUELCH	28	/* Stop audio/video transmission */
 #define AST_IAX_COMMAND_UNQUELCH 29	/* Resume audio/video transmission */
+#define AST_IAX_COMMAND_POKE    30  /* Like ping, but does not require an open connection */
 
 #define AST_DEFAULT_REG_EXPIRE  60	/* By default require re-registration once per minute */
 
