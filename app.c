@@ -390,7 +390,7 @@ int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, in
 	return res;
 }
 
-int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char *rev, char *stop, char *pause, int skipms) 
+int ast_control_streamfile(struct ast_channel *chan, const char *file, const char *fwd, const char *rev, const char *stop, const char *pause, int skipms) 
 {
 	struct timeval started, ended;
 	long elapsed = 0,last_elapsed =0;
@@ -483,7 +483,7 @@ int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char
 	return res;
 }
 
-int ast_play_and_wait(struct ast_channel *chan, char *fn)
+int ast_play_and_wait(struct ast_channel *chan, const char *fn)
 {
 	int d;
 	d = ast_streamfile(chan, fn, chan->language);

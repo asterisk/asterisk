@@ -82,6 +82,33 @@ extern unsigned int __unsigned_int_flags_dummy;
 						(p)->flags &= ~(flag); \
 					} while (0)
 
+/* Non-type checking variations for non-unsigned int flags.  You
+   should only use non-unsigned int flags where required by 
+   protocol etc and if you know what you're doing :)  */
+#define ast_test_flag_nonstd(p,flag) 		({ \
+					((p)->flags & (flag)); \
+					})
+
+#define ast_set_flag_nonstd(p,flag) 		do { \
+					((p)->flags |= (flag)); \
+					} while(0)
+
+#define ast_clear_flag_nonstd(p,flag) 		do { \
+					((p)->flags &= ~(flag)); \
+					} while(0)
+
+#define ast_copy_flags_nonstd(dest,src,flagz)	do { \
+					(dest)->flags &= ~(flagz); \
+					(dest)->flags |= ((src)->flags & (flagz)); \
+					} while (0)
+
+#define ast_set2_flag_nonstd(p,value,flag)	do { \
+					if (value) \
+						(p)->flags |= (flag); \
+					else \
+						(p)->flags &= ~(flag); \
+					} while (0)
+
 #define AST_FLAGS_ALL UINT_MAX
 
 struct ast_flags {

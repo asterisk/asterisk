@@ -36,6 +36,7 @@ extern "C" {
 
 #include <asterisk/cdr.h>
 #include <asterisk/monitor.h>
+#include <asterisk/utils.h>
 
 
 #define AST_CHANNEL_NAME 80
@@ -238,8 +239,8 @@ struct ast_channel {
 #define AST_FEATURE_FLAG_NEEDSDTMF		(1 << 0)
 
 struct ast_bridge_config {
-	unsigned int features_caller;
-	unsigned int features_callee;
+	struct ast_flags features_caller;
+	struct ast_flags features_callee;
 	long timelimit;
 	long play_warning;
 	long warning_freq;

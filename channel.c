@@ -2675,9 +2675,9 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 	gettimeofday(&start_time,NULL);
 	time_left_ms = config->timelimit;
 
-	if ((config->features_caller & AST_FEATURE_PLAY_WARNING) && config->start_sound && firstpass)
+	if ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) && config->start_sound && firstpass)
 		bridge_playfile(c0,c1,config->start_sound,time_left_ms / 1000);
-	if ((config->features_callee & AST_FEATURE_PLAY_WARNING) && config->start_sound && firstpass)
+	if ((ast_test_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING)) && config->start_sound && firstpass)
 		bridge_playfile(c1,c0,config->start_sound,time_left_ms / 1000);
 
 	/* Stop if we're a zombie or need a soft hangup */
@@ -2715,7 +2715,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 			elapsed_ms = tvdiff(&precise_now,&start_time);
 			time_left_ms = config->timelimit - elapsed_ms;
 
-			if (playitagain && ((config->features_caller & AST_FEATURE_PLAY_WARNING) || (config->features_callee & AST_FEATURE_PLAY_WARNING)) && (config->play_warning && time_left_ms <= config->play_warning)) { 
+			if (playitagain && ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) || (ast_test_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING))) && (config->play_warning && time_left_ms <= config->play_warning)) { 
 				/* narrowing down to the end */
 				if (config->warning_freq == 0) {
 					playit = 1;
@@ -2731,9 +2731,9 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 				}
 			}
 			if (time_left_ms <= 0) {
-				if ((config->features_caller & AST_FEATURE_PLAY_WARNING) && config->end_sound)
+				if ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) && config->end_sound)
 					bridge_playfile(c0,c1,config->end_sound,0);
-				if ((config->features_callee & AST_FEATURE_PLAY_WARNING) && config->end_sound)
+				if ((ast_test_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING)) && config->end_sound)
 					bridge_playfile(c1,c0,config->end_sound,0);
 				*fo = NULL;
 				if (who) *rc = who;
@@ -2741,9 +2741,9 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 				break;
 			}
 			if (time_left_ms >= 5000 && playit) {
-				if ((config->features_caller & AST_FEATURE_PLAY_WARNING) && config->warning_sound && config->play_warning)
+				if ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) && config->warning_sound && config->play_warning)
 					bridge_playfile(c0,c1,config->warning_sound,time_left_ms / 1000);
-				if ((config->features_callee & AST_FEATURE_PLAY_WARNING) && config->warning_sound && config->play_warning)
+				if ((ast_test_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING)) && config->warning_sound && config->play_warning)
 					bridge_playfile(c1,c0,config->warning_sound,time_left_ms / 1000);
 				playit = 0;
 			}

@@ -164,7 +164,7 @@ struct dundi_transaction {
 	dundi_eid them_eid;			/* Their EID, to us */
 	aes_encrypt_ctx	ecx;		/* AES 128 Encryption context */
 	aes_decrypt_ctx	dcx;		/* AES 128 Decryption context */
-	int flags;					/* Has final packet been sent */
+	unsigned int flags;				/* Has final packet been sent */
 	int ttl;					/* Remaining TTL for queries on this one */
 	int thread;					/* We have a calling thread */
 	int retranstimer;			/* How long to wait before retransmissions */
@@ -461,7 +461,7 @@ static int reset_transaction(struct dundi_transaction *trans)
 	trans->oiseqno = 0;
 	trans->oseqno = 0;
 	trans->aseqno = 0;
-	trans->flags &= ~FLAG_FINAL;
+	ast_clear_flag(trans, FLAG_FINAL);	
 	return 0;
 }
 
@@ -507,39 +507,38 @@ struct dundi_query_state {
 
 static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map, char *called_number, dundi_eid *us_eid, int anscnt, struct dundi_hint_metadata *hmd)
 {
-	int flags;
+	struct ast_flags flags = {0};
 	int x;
 	if (!ast_strlen_zero(map->lcontext)) {
-		flags = 0;
 		if (ast_exists_extension(NULL, map->lcontext, called_number, 1, NULL))
-			flags |= DUNDI_FLAG_EXISTS;
+			ast_set_flag(&flags, DUNDI_FLAG_EXISTS);
 		if (ast_canmatch_extension(NULL, map->lcontext, called_number, 1, NULL))
-			flags |= DUNDI_FLAG_CANMATCH;
+			ast_set_flag(&flags, DUNDI_FLAG_CANMATCH);
 		if (ast_matchmore_extension(NULL, map->lcontext, called_number, 1, NULL))
-			flags |= DUNDI_FLAG_MATCHMORE;
+			ast_set_flag(&flags, DUNDI_FLAG_MATCHMORE);
 		if (ast_ignore_pattern(map->lcontext, called_number))
-			flags |= DUNDI_FLAG_IGNOREPAT;
+			ast_set_flag(&flags, DUNDI_FLAG_IGNOREPAT);
 
 		/* Clearly we can't say 'don't ask' anymore if we found anything... */
-		if (flags) 
-			hmd->flags &= ~DUNDI_HINT_DONT_ASK;
+		if (ast_test_flag(&flags, AST_FLAGS_ALL)) 
+			ast_clear_flag_nonstd(hmd, DUNDI_HINT_DONT_ASK);
 
 		if (map->options & DUNDI_FLAG_INTERNAL_NOPARTIAL) {
 			/* Skip partial answers */
-			flags &= ~(DUNDI_FLAG_MATCHMORE|DUNDI_FLAG_CANMATCH);
+			ast_clear_flag(&flags, DUNDI_FLAG_MATCHMORE|DUNDI_FLAG_CANMATCH);
 		}
-		if (flags) {
+		if (ast_test_flag(&flags, AST_FLAGS_ALL)) {
 			struct varshead headp;
 			struct ast_var_t *newvariable;
-			flags |= map->options & 0xffff;
-			dr[anscnt].flags = flags;
+			ast_set_flag(&flags, map->options & 0xffff);
+			ast_copy_flags(dr + anscnt, &flags, AST_FLAGS_ALL);
 			dr[anscnt].techint = map->tech;
 			dr[anscnt].weight = map->weight;
 			dr[anscnt].expiration = DUNDI_DEFAULT_CACHE_TIME;
 			strncpy(dr[anscnt].tech, tech2str(map->tech), sizeof(dr[anscnt].tech));
 			dr[anscnt].eid = *us_eid;
 			dundi_eid_to_str(dr[anscnt].eid_str, sizeof(dr[anscnt].eid_str), &dr[anscnt].eid);
-			if (flags & DUNDI_FLAG_EXISTS) {
+			if (ast_test_flag(&flags, DUNDI_FLAG_EXISTS)) {
 				AST_LIST_HEAD_INIT(&headp);
 				newvariable = ast_var_assign("NUMBER", called_number);
 				AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
@@ -622,9 +621,9 @@ static void *dundi_lookup_thread(void *data)
 	}
 	ast_mutex_lock(&peerlock);
 	/* Truncate if "don't ask" isn't present */
-	if (!(hmd.flags & DUNDI_HINT_DONT_ASK))
+	if (!ast_test_flag_nonstd(&hmd, DUNDI_HINT_DONT_ASK))
 		hmd.exten[0] = '\0';
-	if (st->trans->flags & FLAG_DEAD) {
+	if (ast_test_flag(st->trans, FLAG_DEAD)) {
 		ast_log(LOG_DEBUG, "Our transaction went away!\n");
 		st->trans->thread = 0;
 		destroy_trans(st->trans, 0);
@@ -661,9 +660,9 @@ static void *dundi_precache_thread(void *data)
 
 	ast_mutex_lock(&peerlock);
 	/* Truncate if "don't ask" isn't present */
-	if (!(hmd.flags & DUNDI_HINT_DONT_ASK))
+	if (!ast_test_flag_nonstd(&hmd, DUNDI_HINT_DONT_ASK))
 		hmd.exten[0] = '\0';
-	if (st->trans->flags & FLAG_DEAD) {
+	if (ast_test_flag(st->trans, FLAG_DEAD)) {
 		ast_log(LOG_DEBUG, "Our transaction went away!\n");
 		st->trans->thread = 0;
 		destroy_trans(st->trans, 0);
@@ -714,7 +713,7 @@ static void *dundi_query_thread(void *data)
 		res = dundi_query_eid_internal(&dei, st->called_context, &st->reqeid, &hmd, st->ttl, 1, st->eids);
 	}
 	ast_mutex_lock(&peerlock);
-	if (st->trans->flags & FLAG_DEAD) {
+	if (ast_test_flag(st->trans, FLAG_DEAD)) {
 		ast_log(LOG_DEBUG, "Our transaction went away!\n");
 		st->trans->thread = 0;
 		destroy_trans(st->trans, 0);
@@ -812,10 +811,10 @@ static int cache_save_hint(dundi_eid *eidpeer, struct dundi_request *req, struct
 		expiration = DUNDI_DEFAULT_CACHE_TIME;
 
 	/* Only cache hint if "don't ask" is there... */
-	if (!(ntohs(hint->flags)& DUNDI_HINT_DONT_ASK))
+	if (!ast_test_flag_nonstd(hint, htons(DUNDI_HINT_DONT_ASK)))	
 		return 0;
 
-	unaffected = ntohs(hint->flags) & DUNDI_HINT_UNAFFECTED;
+	unaffected = ast_test_flag_nonstd(hint, htons(DUNDI_HINT_UNAFFECTED));
 
 	dundi_eid_to_str_short(eidpeer_str, sizeof(eidpeer_str), eidpeer);
 	dundi_eid_to_str_short(eidroot_str, sizeof(eidroot_str), &req->root_eid);
@@ -933,7 +932,7 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 					strncpy(trans->parent->dr[trans->parent->respcount].tech, tech2str(ies->answers[x]->protocol),
 					sizeof(trans->parent->dr[trans->parent->respcount].tech));
 				trans->parent->respcount++;
-				trans->parent->hmd->flags &= ~DUNDI_HINT_DONT_ASK;
+				ast_clear_flag_nonstd(trans->parent->hmd, DUNDI_HINT_DONT_ASK);	
 			} else if (trans->parent->dr[z].weight > ies->answers[x]->weight) {
 				/* Update weight if appropriate */
 				trans->parent->dr[z].weight = ies->answers[x]->weight;
@@ -1126,7 +1125,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 	char data[1024]="";
 	char *ptr, *term, *src;
 	int tech;
-	int flags;
+	struct ast_flags flags;
 	int weight;
 	int length;
 	int z;
@@ -1141,7 +1140,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 			if (expiration > 0) {
 				ast_log(LOG_DEBUG, "Found cache expiring in %d seconds!\n", (int)(timeout - now));
 				ptr += length;
-				while((sscanf(ptr, "%d/%d/%d/%n", &flags, &weight, &tech, &length) == 3)) {
+				while((sscanf(ptr, "%d/%d/%d/%n", &(flags.flags), &weight, &tech, &length) == 3)) {
 					ptr += length;
 					term = strchr(ptr, '|');
 					if (term) {
@@ -1153,7 +1152,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 						} else
 							src = "";
 						ast_log(LOG_DEBUG, "Found cached answer '%s/%s' originally from '%s' with flags '%s' on behalf of '%s'\n", 
-							tech2str(tech), ptr, src, dundi_flags2str(fs, sizeof(fs), flags), eid_str_full);
+							tech2str(tech), ptr, src, dundi_flags2str(fs, sizeof(fs), flags.flags), eid_str_full);
 						/* Make sure it's not already there */
 						for (z=0;z<req->respcount;z++) {
 							if ((req->dr[z].techint == tech) &&
@@ -1162,7 +1161,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 						}
 						if (z == req->respcount) {
 							/* Copy into parent responses */
-							req->dr[req->respcount].flags = flags;
+							ast_copy_flags(&(req->dr[req->respcount]), &flags, AST_FLAGS_ALL);	
 							req->dr[req->respcount].weight = weight;
 							req->dr[req->respcount].techint = tech;
 							req->dr[req->respcount].expiration = expiration;
@@ -1174,7 +1173,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 							strncpy(req->dr[req->respcount].tech, tech2str(tech),
 								sizeof(req->dr[req->respcount].tech));
 							req->respcount++;
-							req->hmd->flags &= ~DUNDI_HINT_DONT_ASK;
+							ast_clear_flag_nonstd(req->hmd, DUNDI_HINT_DONT_ASK);	
 						} else if (req->dr[z].weight > weight)
 							req->dr[z].weight = weight;
 						ptr = term + 1;
@@ -1253,7 +1252,7 @@ static void apply_peer(struct dundi_transaction *trans, struct dundi_peer *p)
 	trans->them_eid = p->eid;
 	/* Enable encryption if appropriate */
 	if (!ast_strlen_zero(p->inkey))
-		trans->flags |= FLAG_ENCRYPT;
+		ast_set_flag(trans, FLAG_ENCRYPT);	
 	if (p->maxms) {
 		trans->autokilltimeout = p->maxms;
 		trans->retranstimer = DUNDI_DEFAULT_RETRANS_TIMER;
@@ -1406,10 +1405,10 @@ static int dundi_encrypt(struct dundi_transaction *trans, struct dundi_packet *p
 			if (update_key(peer))
 				return -1;
 			if (!peer->sentfullkey)
-				trans->flags |= FLAG_SENDFULLKEY;
+				ast_set_flag(trans, FLAG_SENDFULLKEY);	
 			/* Append key data */
 			dundi_ie_append_eid(&ied, DUNDI_IE_EID, &trans->us_eid);
-			if (trans->flags & FLAG_SENDFULLKEY) {
+			if (ast_test_flag(trans, FLAG_SENDFULLKEY)) {
 				dundi_ie_append_raw(&ied, DUNDI_IE_SHAREDKEY, peer->txenckey, 128);
 				dundi_ie_append_raw(&ied, DUNDI_IE_SIGNATURE, peer->txenckey + 128, 128);
 			} else {
@@ -1634,7 +1633,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 		if (ies.cause < 1) {
 			/* Success of some sort */
 			ast_log(LOG_DEBUG, "Looks like success of some sort (%d), %d answers\n", ies.cause, ies.anscount);
-			if (trans->flags & FLAG_ENCRYPT) {
+			if (ast_test_flag(trans, FLAG_ENCRYPT)) {
 				authpass = encrypted;
 			} else 
 				authpass = 1;
@@ -1668,7 +1667,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 								strncpy(trans->parent->dr[trans->parent->respcount].tech, tech2str(ies.answers[x]->protocol),
 									sizeof(trans->parent->dr[trans->parent->respcount].tech));
 								trans->parent->respcount++;
-								trans->parent->hmd->flags &= ~DUNDI_HINT_DONT_ASK;
+								ast_clear_flag_nonstd(trans->parent->hmd, DUNDI_HINT_DONT_ASK);
 							} else if (trans->parent->dr[z].weight > ies.answers[x]->weight) {
 								/* Update weight if appropriate */
 								trans->parent->dr[z].weight = ies.answers[x]->weight;
@@ -1680,18 +1679,18 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 					/* Save all the results (if any) we had.  Even if no results, still cache lookup.  Let
 					   the cache know if this request was unaffected by our entity list. */
 					cache_save(&trans->them_eid, trans->parent, y, 
-							ies.hint ? ntohs(ies.hint->flags) & DUNDI_HINT_UNAFFECTED : 0, ies.expiration, 0);
+							ies.hint ? ast_test_flag_nonstd(ies.hint, htons(DUNDI_HINT_UNAFFECTED)) : 0, ies.expiration, 0);
 					if (ies.hint) {
 						cache_save_hint(&trans->them_eid, trans->parent, ies.hint, ies.expiration);
-						if (ntohs(ies.hint->flags) & DUNDI_HINT_TTL_EXPIRED)
-							trans->parent->hmd->flags |= DUNDI_HINT_TTL_EXPIRED;
-						if (ntohs(ies.hint->flags) & DUNDI_HINT_DONT_ASK) { 
+						if (ast_test_flag_nonstd(ies.hint, htons(DUNDI_HINT_TTL_EXPIRED)))
+							ast_set_flag_nonstd(trans->parent->hmd, DUNDI_HINT_TTL_EXPIRED);
+						if (ast_test_flag_nonstd(ies.hint, htons(DUNDI_HINT_DONT_ASK))) { 
 							if (strlen(ies.hint->data) > strlen(trans->parent->hmd->exten)) {
 								strncpy(trans->parent->hmd->exten, ies.hint->data, 
 									sizeof(trans->parent->hmd->exten) - 1);
 							}
 						} else {
-							trans->parent->hmd->flags &= ~DUNDI_HINT_DONT_ASK;
+							ast_clear_flag_nonstd(trans->parent->hmd, DUNDI_HINT_DONT_ASK);
 						}
 					}
 					if (ies.expiration > 0) {
@@ -1718,7 +1717,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 		if (ies.cause < 1) {
 			/* Success of some sort */
 			ast_log(LOG_DEBUG, "Looks like success of some sort (%d)\n", ies.cause);
-			if (trans->flags & FLAG_ENCRYPT) {
+			if (ast_test_flag(trans, FLAG_ENCRYPT)) {
 				authpass = encrypted;
 			} else 
 				authpass = 1;
@@ -1750,8 +1749,8 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 						}
 					}
 					if (ies.hint) {
-						if (ntohs(ies.hint->flags) & DUNDI_HINT_TTL_EXPIRED)
-							trans->parent->hmd->flags |= DUNDI_HINT_TTL_EXPIRED;
+						if (ast_test_flag_nonstd(ies.hint, htons(DUNDI_HINT_TTL_EXPIRED)))
+							ast_set_flag_nonstd(trans->parent->hmd, DUNDI_HINT_TTL_EXPIRED);
 					}
 				}
 				/* Close connection if not final */
@@ -1772,7 +1771,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 		if (ies.cause < 1) {
 			int hasauth;
 			/* Success of some sort */
-			if (trans->flags & FLAG_ENCRYPT) {
+			if (ast_test_flag(trans, FLAG_ENCRYPT)) {
 				hasauth = encrypted;
 			} else 
 				hasauth = 1;
@@ -1805,13 +1804,13 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 			dundi_send(trans, DUNDI_COMMAND_CANCEL, 0, 1, NULL);
 		break;
 	case DUNDI_COMMAND_ENCREJ:
-		if ((trans->flags & FLAG_SENDFULLKEY) || !trans->lasttrans || !(peer = find_peer(&trans->them_eid))) {
+		if ((ast_test_flag(trans, FLAG_SENDFULLKEY)) || !trans->lasttrans || !(peer = find_peer(&trans->them_eid))) {
 			/* No really, it's over at this point */
 			if (!final) 
 				dundi_send(trans, DUNDI_COMMAND_CANCEL, 0, 1, NULL);
 		} else {
 			/* Send with full key */
-			trans->flags |= FLAG_SENDFULLKEY;
+			ast_set_flag(trans, FLAG_SENDFULLKEY);
 			if (final) {
 				/* Ooops, we got a final message, start by sending ACK... */
 				dundi_ack(trans, hdr->cmdresp & 0x80);
@@ -1853,7 +1852,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 				trans->ecx = peer->them_ecx;
 				trans->dcx = peer->them_dcx;
 			}
-			if ((trans->flags & FLAG_ENCRYPT) && ies.encblock && ies.enclen) {
+			if (ast_test_flag(trans, FLAG_ENCRYPT) && ies.encblock && ies.enclen) {
 				struct dundi_hdr *dhdr;
 				unsigned char decoded[MAX_PACKET_SIZE];
 				int ddatalen;
@@ -1873,7 +1872,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 		}
 		if (!final) {
 			/* Turn off encryption */
-			trans->flags &= ~FLAG_ENCRYPT;
+			ast_clear_flag(trans, FLAG_ENCRYPT);
 			dundi_send(trans, DUNDI_COMMAND_ENCREJ, 0, 1, NULL);
 		}
 		break;
@@ -1936,7 +1935,7 @@ static int handle_frame(struct dundi_hdr *h, struct sockaddr_in *sin, int datale
 	/* Got a transaction, see where this header fits in */
 	if (h->oseqno == trans->iseqno) {
 		/* Just what we were looking for...  Anything but ack increments iseqno */
-		if (ack_trans(trans, h->iseqno) && (trans->flags & FLAG_FINAL)) {
+		if (ack_trans(trans, h->iseqno) && ast_test_flag(trans, FLAG_FINAL)) {
 			/* If final, we're done */
 			destroy_trans(trans, 0);
 			return 0;
@@ -2759,14 +2758,14 @@ static struct dundi_transaction *create_transaction(struct dundi_peer *p)
 		memset(trans, 0, sizeof(struct dundi_transaction));
 		if (global_storehistory) {
 			gettimeofday(&trans->start, NULL);
-			trans->flags |= FLAG_STOREHIST;
+			ast_set_flag(trans, FLAG_STOREHIST);
 		}
 		trans->retranstimer = DUNDI_DEFAULT_RETRANS_TIMER;
 		trans->autokillid = -1;
 		if (p) {
 			apply_peer(trans, p);
 			if (!p->sentfullkey)
-				trans->flags |= FLAG_SENDFULLKEY;
+				ast_set_flag(trans, FLAG_SENDFULLKEY);
 		}
 		trans->strans = tid;
 		trans->allnext = alltrans;
@@ -2829,7 +2828,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 	int x;
 	int cnt;
 	char eid_str[20];
-	if (trans->flags & (FLAG_ISREG | FLAG_ISQUAL | FLAG_STOREHIST)) {
+	if (ast_test_flag(trans, FLAG_ISREG | FLAG_ISQUAL | FLAG_STOREHIST)) {
 		peer = peers;
 		while (peer) {
 			if (peer->regtrans == trans)
@@ -2857,7 +2856,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 				}
 				peer->qualtrans = NULL;
 			}
-			if (trans->flags & FLAG_STOREHIST) {
+			if (ast_test_flag(trans, FLAG_STOREHIST)) {
 				if (trans->parent && !ast_strlen_zero(trans->parent->number)) {
 					if (!dundi_eid_cmp(&trans->them_eid, &peer->eid)) {
 						peer->avgms = 0;
@@ -2932,7 +2931,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 	trans->autokillid = -1;
 	if (trans->thread) {
 		/* If used by a thread, mark as dead and be done */
-		trans->flags |= FLAG_DEAD;
+		ast_set_flag(trans, FLAG_DEAD);
 	} else
 		free(trans);
 }
@@ -2946,7 +2945,7 @@ static int dundi_rexmit(void *data)
 	pack = data;
 	if (pack->retrans < 1) {
 		pack->retransid = -1;
-		if (!(pack->parent->flags & FLAG_ISQUAL))
+		if (!ast_test_flag(pack->parent, FLAG_ISQUAL))
 			ast_log(LOG_NOTICE, "Max retries exceeded to host '%s:%d' msg %d on call %d\n", 
 				ast_inet_ntoa(iabuf, sizeof(iabuf), pack->parent->addr.sin_addr), 
 				ntohs(pack->parent->addr.sin_port), pack->h->oseqno, ntohs(pack->h->strans));
@@ -2970,7 +2969,7 @@ static int dundi_send(struct dundi_transaction *trans, int cmdresp, int flags, i
 	char eid_str[20];
 	len = sizeof(struct dundi_packet) + sizeof(struct dundi_hdr) + (ied ? ied->pos : 0);
 	/* Reserve enough space for encryption */
-	if (trans->flags & FLAG_ENCRYPT)
+	if (ast_test_flag(trans, FLAG_ENCRYPT))
 		len += 384;
 	pack = malloc(len);
 	if (pack) {
@@ -2995,7 +2994,7 @@ static int dundi_send(struct dundi_transaction *trans, int cmdresp, int flags, i
 		} 
 		if (final) {
 			pack->h->cmdresp |= DUNDI_COMMAND_FINAL;
-			trans->flags |= FLAG_FINAL;
+			ast_set_flag(trans, FLAG_FINAL);
 		}
 		pack->h->cmdflags = flags;
 		if (cmdresp != DUNDI_COMMAND_ACK) {
@@ -3004,7 +3003,7 @@ static int dundi_send(struct dundi_transaction *trans, int cmdresp, int flags, i
 		}
 		trans->aseqno = trans->iseqno;
 		/* If we have their public key, encrypt */
-		if (trans->flags & FLAG_ENCRYPT) {
+		if (ast_test_flag(trans, FLAG_ENCRYPT)) {
 			switch(cmdresp) {
 			case DUNDI_COMMAND_REGREQ:
 			case DUNDI_COMMAND_REGRESPONSE:
@@ -3211,7 +3210,7 @@ static int precache_transactions(struct dundi_request *dr, struct dundi_mapping 
 
 	trans = dr->trans;
 	while(trans) {
-		if (!(trans->flags & FLAG_DEAD))
+		if (!ast_test_flag(trans, FLAG_DEAD))
 			precache_trans(trans, maps, mapcount, expiration, foundanswers);
 		trans = trans->next;
 	}
@@ -3222,7 +3221,7 @@ static int precache_transactions(struct dundi_request *dr, struct dundi_mapping 
 	while(trans) {
 		transn = trans->next;
 		trans->thread = 0;
-		if (trans->flags & FLAG_DEAD) {
+		if (ast_test_flag(trans, FLAG_DEAD)) {
 			ast_log(LOG_DEBUG, "Our transaction went away!\n");
 			destroy_trans(trans, 0);
 		}
@@ -3395,7 +3394,7 @@ static void build_transactions(struct dundi_request *dr, int ttl, int order, int
 						if (!dundi_eid_cmp(avoid[x], &p->eid) || !dundi_eid_cmp(avoid[x], &p->us_eid)) {
 							/* If not a direct connection, it affects our answer */
 							if (directs && !directs[x]) 
-								dr->hmd->flags &= ~DUNDI_HINT_UNAFFECTED;
+								ast_clear_flag_nonstd(dr->hmd, DUNDI_HINT_UNAFFECTED);
 							break;
 						}
 					}
@@ -3575,7 +3574,7 @@ static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct
 	   do this earlier because we didn't know if we were going to have transactions
 	   or not. */
 	if (!ttl) {
-		hmd->flags |= DUNDI_HINT_TTL_EXPIRED;
+		ast_set_flag_nonstd(hmd, DUNDI_HINT_TTL_EXPIRED);
 		abort_request(&dr);
 		unregister_request(&dr);
 		close(dr.pfds[0]);
@@ -3799,7 +3798,7 @@ static int dundi_query_eid_internal(struct dundi_entity_info *dei, const char *d
 	   do this earlier because we didn't know if we were going to have transactions
 	   or not. */
 	if (!ttl) {
-		hmd->flags |= DUNDI_HINT_TTL_EXPIRED;
+		ast_set_flag_nonstd(hmd, DUNDI_HINT_TTL_EXPIRED);
 		return 0;
 	}
 		
@@ -3863,7 +3862,7 @@ static int dundi_lookup_exec(struct ast_channel *chan, void *data)
 	if (results > 0) {
         sort_results(dr, results);
         for (x=0;x<results;x++) {
-			if (dr[x].flags & DUNDI_FLAG_EXISTS) {
+			if (ast_test_flag(dr + x, DUNDI_FLAG_EXISTS)) {
 				pbx_builtin_setvar_helper(chan, "DUNDTECH", dr[x].tech);
 				pbx_builtin_setvar_helper(chan, "DUNDDEST", dr[x].dest);
 				break;
@@ -4088,7 +4087,7 @@ static int do_register(void *data)
 		destroy_trans(peer->regtrans, 0);
 	peer->regtrans = create_transaction(peer);
 	if (peer->regtrans) {
-		peer->regtrans->flags |= FLAG_ISREG;
+		ast_set_flag(peer->regtrans, FLAG_ISREG);
 		memset(&ied, 0, sizeof(ied));
 		dundi_ie_append_short(&ied, DUNDI_IE_VERSION, DUNDI_DEFAULT_VERSION);
 		dundi_ie_append_eid(&ied, DUNDI_IE_EID, &peer->regtrans->us_eid);
@@ -4130,7 +4129,7 @@ static void qualify_peer(struct dundi_peer *peer, int schedonly)
 			peer->qualtrans = create_transaction(peer);
 		if (peer->qualtrans) {
 			gettimeofday(&peer->qualtx, NULL);
-			peer->qualtrans->flags |= FLAG_ISQUAL;
+			ast_set_flag(peer->qualtrans, FLAG_ISQUAL);
 			dundi_send(peer->qualtrans, DUNDI_COMMAND_NULL, 0, 1, NULL);
 		}
 	}
@@ -4346,7 +4345,7 @@ static int dundi_helper(struct ast_channel *chan, const char *context, const cha
 	}
 	res = dundi_lookup(results, MAX_RESULTS, chan, data, exten, 0);
 	for (x=0;x<res;x++) {
-		if (results[x].flags & flag)
+		if (ast_test_flag(results + x, flag))
 			found++;
 	}
 	if (found >= priority)
@@ -4399,7 +4398,7 @@ static int dundi_exec(struct ast_channel *chan, const char *context, const char 
 	if (res > 0) {
 		sort_results(results, res);
 		for (x=0;x<res;x++) {
-			if (results[x].flags & DUNDI_FLAG_EXISTS) {
+			if (ast_test_flag(results + x, DUNDI_FLAG_EXISTS)) {
 				if (!--priority)
 					break;
 			}

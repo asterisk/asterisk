@@ -60,10 +60,10 @@ int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, char *di
 int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, int allowoverride);
 
 //! Stream a file with fast forward, pause, reverse.
-int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char *rev, char *stop, char *pause, int skipms);
+int ast_control_streamfile(struct ast_channel *chan, const char *file, const char *fwd, const char *rev, const char *stop, const char *pause, int skipms);
 
 //! Play a stream and wait for a digit, returning the digit that was pressed
-int ast_play_and_wait(struct ast_channel *chan, char *fn);
+int ast_play_and_wait(struct ast_channel *chan, const char *fn);
 
 //! Record a file for a max amount of time (in seconds), in a given list of formats separated by '|', outputting the duration of the recording, and with a maximum
 //  permitted silence time in milliseconds of 'maxsilence' under 'silencethreshold' or use '-1' for either or both parameters for defaults.

@@ -73,7 +73,7 @@ struct ast_cdr {
 	/*! What account number to use */
 	char accountcode[20];			
 	/*! flags */
-	int flags;				
+	unsigned int flags;				
 	/* Unique Channel Identifier */
 	char uniqueid[32];
 	/* User field */
@@ -248,11 +248,6 @@ extern int ast_cdr_update(struct ast_channel *chan);
 extern int ast_default_amaflags;
 
 extern char ast_default_accountcode[20];
-
-#define ast_cdr_compare_flag(flags, flag) (flags & (flag))
-#define ast_cdr_has_flag(cdr, flag) ((cdr)->flags & (flag))
-#define ast_cdr_add_flag(cdr, flag) ((cdr)->flags |= (flag))
-#define ast_cdr_del_flag(cdr, flag) ((cdr)->flags &= ~(flag))
 
 extern struct ast_cdr *ast_cdr_append(struct ast_cdr *cdr, struct ast_cdr *newcdr);
 

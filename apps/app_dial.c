@@ -1085,21 +1085,21 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		if (!res) {
 			memset(&config,0,sizeof(struct ast_bridge_config));
 			if (play_to_caller)
-				config.features_caller |= AST_FEATURE_PLAY_WARNING;
+				ast_set_flag(&(config.features_caller), AST_FEATURE_PLAY_WARNING);
 			if (play_to_callee)
-				config.features_callee |= AST_FEATURE_PLAY_WARNING;
+				ast_set_flag(&(config.features_callee), AST_FEATURE_PLAY_WARNING);
 			if (ast_test_flag(&peerflags, DIAL_ALLOWREDIRECT_IN))
-				config.features_callee |= AST_FEATURE_REDIRECT;
+				ast_set_flag(&(config.features_callee), AST_FEATURE_REDIRECT);
 			if (ast_test_flag(&peerflags, DIAL_ALLOWREDIRECT_OUT))
-				config.features_caller |= AST_FEATURE_REDIRECT;
+				ast_set_flag(&(config.features_caller), AST_FEATURE_REDIRECT);
 			if (ast_test_flag(&peerflags, DIAL_ALLOWDISCONNECT_IN))
-				config.features_callee |= AST_FEATURE_DISCONNECT;
+				ast_set_flag(&(config.features_callee), AST_FEATURE_DISCONNECT);
 			if (ast_test_flag(&peerflags, DIAL_ALLOWDISCONNECT_OUT))
-				config.features_caller |= AST_FEATURE_DISCONNECT;
+				ast_set_flag(&(config.features_caller), AST_FEATURE_DISCONNECT);
 			if (ast_test_flag(&peerflags, DIAL_MONITOR_IN))
-				config.features_callee |= AST_FEATURE_AUTOMON;
+				ast_set_flag(&(config.features_callee), AST_FEATURE_AUTOMON);
 			if (ast_test_flag(&peerflags, DIAL_MONITOR_OUT))
-				config.features_caller |= AST_FEATURE_AUTOMON;
+				ast_set_flag(&(config.features_caller), AST_FEATURE_AUTOMON);
 			config.timelimit = timelimit;
 			config.play_warning = play_warning;
 			config.warning_freq = warning_freq;

@@ -623,8 +623,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 					return -1;
 				}
 				memset(&bconfig,0,sizeof(struct ast_bridge_config));
-				bconfig.features_caller |= AST_FEATURE_DISCONNECT;
-				bconfig.features_callee |= AST_FEATURE_DISCONNECT;
+				ast_set_flag(&(bconfig.features_caller), AST_FEATURE_DISCONNECT);
+				ast_set_flag(&(bconfig.features_callee), AST_FEATURE_DISCONNECT);
 				res = ast_bridge_call(transferer,newchan,&bconfig);
 				if (newchan->_softhangup || newchan->_state != AST_STATE_UP) {
 					ast_hangup(newchan);
@@ -671,7 +671,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 					ast_channel_masquerade(xferchan, transferee);
 					ast_explicit_goto(xferchan, transferee->context, transferee->exten, transferee->priority);
 					xferchan->_state = AST_STATE_UP;
-					xferchan->flags = 0;
+					ast_clear_flag(xferchan, AST_FLAGS_ALL);	
 					xferchan->_softhangup = 0;
 
 					if ((f = ast_read(xferchan))) {
@@ -685,7 +685,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				}
 
 				newchan->_state = AST_STATE_UP;
-				newchan->flags = 0;
+				ast_clear_flag(newchan, AST_FLAGS_ALL);	
 				newchan->_softhangup = 0;
 
 				tobj = malloc(sizeof(struct ast_bridge_thread_obj));
@@ -789,16 +789,16 @@ static int remap_feature(const char *name, const char *value)
 static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
 {
 	int x;
-	unsigned int features;
+	struct ast_flags features;
 	int res = FEATURE_RETURN_PASSDIGITS;
 
 	if (sense == FEATURE_SENSE_CHAN)
-		features = config->features_caller;
+		ast_copy_flags(&features, &(config->features_caller), AST_FLAGS_ALL);	
 	else
-		features = config->features_callee;
-	ast_log(LOG_DEBUG, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%d\n", chan->name, peer->name, sense, features);
+		ast_copy_flags(&features, &(config->features_callee), AST_FLAGS_ALL);	
+	ast_log(LOG_DEBUG, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%d\n", chan->name, peer->name, sense, features.flags);
 	for (x=0;x<FEATURES_COUNT;x++) {
-		if ((features & builtin_features[x].feature_mask) &&
+		if ((ast_test_flag(&features, builtin_features[x].feature_mask)) &&
 		    !ast_strlen_zero(builtin_features[x].exten)) {
 			/* Feature is up for consideration */
 			if (!strcmp(builtin_features[x].exten, code)) {
@@ -816,14 +816,14 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 static void set_config_flags(struct ast_bridge_config *config)
 {
 	int x;
-	config->flags = 0;
+	ast_clear_flag(config, AST_FLAGS_ALL);	
 	for (x=0;x<FEATURES_COUNT;x++) {
-		if (config->features_caller & builtin_features[x].feature_mask) {
-			if (builtin_features[x].flags & AST_FEATURE_FLAG_NEEDSDTMF)
+		if (ast_test_flag(&(config->features_caller), builtin_features[x].feature_mask)) {
+			if (ast_test_flag(builtin_features + x, AST_FEATURE_FLAG_NEEDSDTMF))
 				ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
 		}
-		if (config->features_callee & builtin_features[x].feature_mask) {
-			if (builtin_features[x].flags & AST_FEATURE_FLAG_NEEDSDTMF)
+		if (ast_test_flag(&(config->features_callee), builtin_features[x].feature_mask)) {
+			if (ast_test_flag(builtin_features + x, AST_FEATURE_FLAG_NEEDSDTMF))
 				ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_1);
 		}
 	}
@@ -866,10 +866,10 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			pbx_exec(peer, monitor_app, monitor_exec, 1);
 	}
 	
-	allowdisconnect_in = (config->features_callee & AST_FEATURE_DISCONNECT);
-	allowdisconnect_out = (config->features_caller & AST_FEATURE_DISCONNECT);
-	allowredirect_in = (config->features_callee & AST_FEATURE_REDIRECT);
-	allowredirect_out = (config->features_caller & AST_FEATURE_REDIRECT);
+	allowdisconnect_in = ast_test_flag(&(config->features_callee), AST_FEATURE_DISCONNECT);
+	allowdisconnect_out = ast_test_flag(&(config->features_caller), AST_FEATURE_DISCONNECT);
+	allowredirect_in = ast_test_flag(&(config->features_callee), AST_FEATURE_REDIRECT);
+	allowredirect_out = ast_test_flag(&(config->features_caller), AST_FEATURE_REDIRECT);
 	set_config_flags(config);
 	config->firstpass = 1;
 
@@ -1030,8 +1030,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 					memcpy(&backup_config, config, sizeof(struct ast_bridge_config));
 					/* Setup temporary config options */
 					config->play_warning = 0;
-					config->features_caller &= ~(AST_FEATURE_PLAY_WARNING);
-					config->features_callee &= ~(AST_FEATURE_PLAY_WARNING);
+					ast_clear_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING);
+					ast_clear_flag(&(config->features_callee),AST_FEATURE_PLAY_WARNING);
 					config->warning_freq = 0;
 					config->warning_sound = NULL;
 					config->end_sound = NULL;
@@ -1301,8 +1301,8 @@ static int park_exec(struct ast_channel *chan, void *data)
 			ast_verbose(VERBOSE_PREFIX_3 "Channel %s connected to parked call %d\n", chan->name, park);
 
 		memset(&config,0,sizeof(struct ast_bridge_config));
-		config.features_callee |= AST_FEATURE_REDIRECT;
-		config.features_caller |= AST_FEATURE_REDIRECT;
+		ast_set_flag(&(config.features_callee), AST_FEATURE_REDIRECT);
+		ast_set_flag(&(config.features_caller), AST_FEATURE_REDIRECT);
 		config.timelimit = 0;
 		config.play_warning = 0;
 		config.warning_freq = 0;
