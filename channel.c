@@ -1834,10 +1834,11 @@ void ast_change_name(struct ast_channel *chan, char *newname)
 
 static int ast_do_masquerade(struct ast_channel *original)
 {
-	int x;
+	int x,i;
 	int res=0;
 	char *tmp;
 	void *tmpv;
+	struct ast_frame *cur, *prev;
 	struct ast_channel_pvt *p;
 	struct ast_channel *clone = original->masq;
 	int rformat = original->readformat;
@@ -1892,7 +1893,28 @@ static int ast_do_masquerade(struct ast_channel *original)
 	p = original->pvt;
 	original->pvt = clone->pvt;
 	clone->pvt = p;
-	
+
+	/* Save any pending frames on both sides.  Start by counting
+	 * how many we're going to need... */
+	prev = NULL;
+	cur = clone->pvt->readq;
+	x = 0;
+	while(cur) {
+		x++;
+		prev = cur;
+		cur = cur->next;
+	}
+	/* If we had any, prepend them to the ones already in the queue, and 
+	 * load up the alertpipe */
+	if (prev) {
+		prev->next = original->pvt->readq;
+		original->pvt->readq = clone->pvt->readq;
+		clone->pvt->readq = NULL;
+		if (original->pvt->alertpipe[1] > -1) {
+			for (i=0;i<x;i++)
+				write(original->pvt->alertpipe[1], &x, sizeof(x));
+		}
+	}
 	clone->_softhangup = AST_SOFTHANGUP_DEV;
 
 
