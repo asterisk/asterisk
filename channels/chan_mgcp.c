@@ -1930,7 +1930,7 @@ static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp 
 	}
 	snprintf(local, sizeof(local), "p:20");
 	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
-		if (capability & x) {
+		if (p->capability & x) {
 			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype(1, x));
 			strncat(local, tmp, sizeof(local) - strlen(local) - 1);
 		}
