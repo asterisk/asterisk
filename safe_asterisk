@@ -16,7 +16,7 @@ if [ "$TTY" != "" ]; then
 		echo "Cannot find your TTY (${TTY})" >&2
 		exit 1
 	fi
-	ASTARGS="${ASTARGS} -vvv"
+	ASTARGS="${ASTARGS} -vvvg"
 	if [ "$CONSOLE" != "no" ]; then
 		ASTARGS="${ASTARGS} -c"
 	fi
