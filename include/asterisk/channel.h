@@ -624,8 +624,9 @@ int ast_recvchar(struct ast_channel *chan, int timeout);
  * \param prev where you want to start in the channel list
  * Browse the channels currently in use 
  * Returns the next channel in the list, NULL on end.
+ * If it returns a channel, that channel *has been locked*!
  */
-struct ast_channel *ast_channel_walk(struct ast_channel *prev);
+struct ast_channel *ast_channel_walk_locked(struct ast_channel *prev);
 
 //! Waits for a digit
 /*! 

@@ -737,7 +737,7 @@ int ast_pickup_call(struct ast_channel *chan)
 {
 	struct ast_channel *cur;
 	int res = -1;
-	cur = ast_channel_walk(NULL);
+	cur = ast_channel_walk_locked(NULL);
 	while(cur) {
 		if (!cur->pbx && 
 			(cur != chan) &&
@@ -746,7 +746,8 @@ int ast_pickup_call(struct ast_channel *chan)
 			 (cur->_state == AST_STATE_RING))) {
 			 	break;
 		}
-		cur = ast_channel_walk(cur);
+		ast_mutex_unlock(&cur->lock);
+		cur = ast_channel_walk_locked(cur);
 	}
 	if (cur) {
 		ast_log(LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n",cur->name, chan->name);
@@ -759,6 +760,7 @@ int ast_pickup_call(struct ast_channel *chan)
 		res = ast_channel_masquerade(cur, chan);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, cur->name);		/* Done */
+		ast_mutex_unlock(&cur->lock);
 	} else	{
 		ast_log(LOG_DEBUG, "No call pickup possible...\n");
 	}

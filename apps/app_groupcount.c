@@ -58,20 +58,17 @@ LOCAL_USER_DECL;
 
 static int group_get_count(char *group)
 {
-	/* XXX ast_channel_walk needs to be modified to
-	       prevent a race in which after we return the channel
-		   is no longer valid (or ast_channel_free can be modified
-		   just as well) XXX */
 	struct ast_channel *chan;
 	int count = 0;
 	char *test;
 	if (group && !ast_strlen_zero(group)) {
-		chan = ast_channel_walk(NULL);
+		chan = ast_channel_walk_locked(NULL);
 		while(chan) {
 			test = pbx_builtin_getvar_helper(chan, "GROUP");
 			if (test && !strcasecmp(test, group))
 				count++;
-			chan = ast_channel_walk(chan);
+			ast_mutex_unlock(&chan->lock);
+			chan = ast_channel_walk_locked(chan);
 		}
 	}
 	return count;

@@ -3592,15 +3592,21 @@ int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int pri
 int ast_async_goto_by_name(char *channame, char *context, char *exten, int priority)
 {
 	struct ast_channel *chan;
-	chan = ast_channel_walk(NULL);
+	int res = -1;
+
+	chan = ast_channel_walk_locked(NULL);
 	while(chan) {
 		if (!strcasecmp(channame, chan->name))
 			break;
-		chan = ast_channel_walk(chan);
+		ast_mutex_unlock(&chan->lock);
+		chan = ast_channel_walk_locked(chan);
 	}
-	if (chan)
-		return ast_async_goto(chan, context, exten, priority);
-	return -1;
+	
+	if (chan) {
+		res = ast_async_goto(chan, context, exten, priority);
+		ast_mutex_unlock(&chan->lock);
+	}
+	return res;
 }
 
 static void ext_strncpy(char *dst, char *src, int len)

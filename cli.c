@@ -291,13 +291,14 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 	int numchans = 0;
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	c = ast_channel_walk(NULL);
+	c = ast_channel_walk_locked(NULL);
 	ast_cli(fd, FORMAT_STRING2, "Channel", "Context", "Extension", "Pri", "State", "Appl.", "Data");
 	while(c) {
 		ast_cli(fd, FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
 		c->appl ? c->appl : "(None)", c->data ? ( !ast_strlen_zero(c->data) ? c->data : "(Empty)" ): "(None)");
 		numchans++;
-		c = ast_channel_walk(c);
+		ast_mutex_unlock(&c->lock);
+		c = ast_channel_walk_locked(c);
 	}
 	ast_cli(fd, "%d active channel(s)\n", numchans);
 	return RESULT_SUCCESS;
@@ -335,14 +336,16 @@ static int handle_softhangup(int fd, int argc, char *argv[])
 	struct ast_channel *c=NULL;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	c = ast_channel_walk(NULL);
+	c = ast_channel_walk_locked(NULL);
 	while(c) {
 		if (!strcasecmp(c->name, argv[2])) {
 			ast_cli(fd, "Requested Hangup on channel '%s'\n", c->name);
 			ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
+			ast_mutex_unlock(&c->lock);
 			break;
 		}
-		c = ast_channel_walk(c);
+		ast_mutex_unlock(&c->lock);
+		c = ast_channel_walk_locked(c);
 	}
 	if (!c) 
 		ast_cli(fd, "%s is not a known channel\n", argv[2]);
@@ -438,17 +441,20 @@ static int handle_debugchan(int fd, int argc, char *argv[])
 	struct ast_channel *c=NULL;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	c = ast_channel_walk(NULL);
+	c = ast_channel_walk_locked(NULL);
 	while(c) {
 		if (!strcasecmp(c->name, argv[2])) {
 			c->fin |= 0x80000000;
 			c->fout |= 0x80000000;
 			break;
 		}
-		c = ast_channel_walk(c);
+		ast_mutex_unlock(&c->lock);
+		c = ast_channel_walk_locked(c);
 	}
-	if (c)
+	if (c) {
 		ast_cli(fd, "Debugging enabled on channel %s\n", c->name);
+		ast_mutex_unlock(&c->lock);
+	}
 	else
 		ast_cli(fd, "No such channel %s\n", argv[2]);
 	return RESULT_SUCCESS;
@@ -459,18 +465,20 @@ static int handle_nodebugchan(int fd, int argc, char *argv[])
 	struct ast_channel *c=NULL;
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	c = ast_channel_walk(NULL);
+	c = ast_channel_walk_locked(NULL);
 	while(c) {
 		if (!strcasecmp(c->name, argv[3])) {
 			c->fin &= 0x7fffffff;
 			c->fout &= 0x7fffffff;
 			break;
 		}
-		c = ast_channel_walk(c);
+		ast_mutex_unlock(&c->lock);
+		c = ast_channel_walk_locked(c);
 	}
-	if (c)
+	if (c) {
 		ast_cli(fd, "Debugging disabled on channel %s\n", c->name);
-	else
+		ast_mutex_unlock(&c->lock);
+	} else
 		ast_cli(fd, "No such channel %s\n", argv[2]);
 	return RESULT_SUCCESS;
 }
@@ -482,7 +490,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	struct ast_channel *c=NULL;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	c = ast_channel_walk(NULL);
+	c = ast_channel_walk_locked(NULL);
 	while(c) {
 		if (!strcasecmp(c->name, argv[2])) {
 			ast_cli(fd, 
@@ -519,10 +527,11 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	c->context, c->exten, c->priority, c->callgroup, c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
 	( c-> data ? (!ast_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
 	c->stack, (c->blocking ? c->blockproc : "(Not Blocking)"));
-	
+		ast_mutex_unlock(&c->lock);
 		break;
 		}
-		c = ast_channel_walk(c);
+		ast_mutex_unlock(&c->lock);
+		c = ast_channel_walk_locked(c);
 	}
 	if (!c) 
 		ast_cli(fd, "%s is not a known channel\n", argv[2]);
@@ -533,15 +542,22 @@ static char *complete_ch(char *line, char *word, int pos, int state)
 {
 	struct ast_channel *c;
 	int which=0;
-	c = ast_channel_walk(NULL);
+	char *ret;
+	c = ast_channel_walk_locked(NULL);
 	while(c) {
 		if (!strncasecmp(word, c->name, strlen(word))) {
 			if (++which > state)
 				break;
 		}
-		c = ast_channel_walk(c);
+		ast_mutex_unlock(&c->lock);
+		c = ast_channel_walk_locked(c);
 	}
-	return c ? strdup(c->name) : NULL;
+	if (c) {
+		ret = strdup(c->name);
+		ast_mutex_unlock(&c->lock);
+	} else
+		ret = NULL;
+	return ret;
 }
 
 static char *complete_fn(char *line, char *word, int pos, int state)

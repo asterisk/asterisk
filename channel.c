@@ -444,12 +444,15 @@ void ast_channel_undefer_dtmf(struct ast_channel *chan)
 		chan->deferdtmf = 0;
 }
 
-struct ast_channel *ast_channel_walk(struct ast_channel *prev)
+struct ast_channel *ast_channel_walk_locked(struct ast_channel *prev)
 {
+	/* Returns next channel (locked) */
 	struct ast_channel *l, *ret=NULL;
 	ast_mutex_lock(&chlock);
 	l = channels;
 	if (!prev) {
+		if (l)
+			ast_mutex_lock(&l->lock);
 		ast_mutex_unlock(&chlock);
 		return l;
 	}
@@ -458,6 +461,8 @@ struct ast_channel *ast_channel_walk(struct ast_channel *prev)
 			ret = l->next;
 		l = l->next;
 	}
+	if (ret)
+		ast_mutex_lock(&ret->lock);
 	ast_mutex_unlock(&chlock);
 	return ret;
 	
@@ -527,6 +532,12 @@ void ast_channel_free(struct ast_channel *chan)
 	}
 	if (!cur)
 		ast_log(LOG_WARNING, "Unable to find channel in list\n");
+	else {
+		/* Lock and unlock the channel just to be sure nobody
+		   has it locked still */
+		ast_mutex_lock(&cur->lock);
+		ast_mutex_unlock(&cur->lock);
+	}
 	if (chan->pvt->pvt)
 		ast_log(LOG_WARNING, "Channel '%s' may not have been hung up properly\n", chan->name);
 
@@ -1798,15 +1809,16 @@ int ast_parse_device_state(char *device)
 	char *cut;
 	struct ast_channel *chan;
 
-	chan = ast_channel_walk(NULL);
+	chan = ast_channel_walk_locked(NULL);
 	while (chan) {
 		strncpy(name, chan->name, sizeof(name)-1);
+		ast_mutex_unlock(&chan->lock);
 		cut = strchr(name,'-');
 		if (cut)
 		        *cut = 0;
 		if (!strcmp(name, device))
 		        return AST_DEVICE_INUSE;
-		chan = ast_channel_walk(chan);
+		chan = ast_channel_walk_locked(chan);
 	}
 	return AST_DEVICE_UNKNOWN;
 }

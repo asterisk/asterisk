@@ -76,11 +76,12 @@ static int action_setcdruserfield(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "No UserField specified");
 		return 0;
 	}
-	c = ast_channel_walk(NULL);
+	c = ast_channel_walk_locked(NULL);
 	while (c) {
 		if (!strcasecmp(c->name, channel))
 			break;
-		c = ast_channel_walk(c);
+		ast_mutex_unlock(&c->lock);
+		c = ast_channel_walk_locked(c);
 	}
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
@@ -90,6 +91,7 @@ static int action_setcdruserfield(struct mansession *s, struct message *m)
 		ast_cdr_appenduserfield(c, userfield);
 	else
 		ast_cdr_setuserfield(c, userfield);
+	ast_mutex_unlock(&c->lock);
 	astman_send_ack(s, m, "CDR Userfield Set");
 	return 0;
 }

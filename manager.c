@@ -376,18 +376,20 @@ static int action_hangup(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	c = ast_channel_walk(NULL);
+	c = ast_channel_walk_locked(NULL);
 	while(c) {
 		if (!strcasecmp(c->name, name)) {
 			break;
 		}
-		c = ast_channel_walk(c);
+		ast_mutex_unlock(&c->lock);
+		c = ast_channel_walk_locked(c);
 	}
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
 	ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
+	ast_mutex_unlock(&c->lock);
 	astman_send_ack(s, m, "Channel Hungup");
 	return 0;
 }
@@ -399,7 +401,7 @@ static int action_status(struct mansession *s, struct message *m)
 	struct ast_channel *c;
 	char bridge[256];
 	astman_send_ack(s, m, "Channel status will follow");
-	c = ast_channel_walk(NULL);
+	c = ast_channel_walk_locked(NULL);
         if (id && strlen(id))
                 snprintf(idText,256,"ActionID: %s\r\n",id);
 	while(c) {
@@ -436,7 +438,8 @@ static int action_status(struct mansession *s, struct message *m)
 			c->name, c->callerid ? c->callerid : "<unknown>", 
 			ast_state2str(c->_state), bridge, c->uniqueid, idText);
 		}
-		c = ast_channel_walk(c);
+		ast_mutex_unlock(&c->lock);
+		c = ast_channel_walk_locked(c);
 	}
 	ast_cli(s->fd,
 	"Event: StatusComplete\r\n"
@@ -688,18 +691,20 @@ static int action_timeout(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "No timeout specified");
 		return 0;
 	}
-	c = ast_channel_walk(NULL);
+	c = ast_channel_walk_locked(NULL);
 	while(c) {
 		if (!strcasecmp(c->name, name)) {
 			break;
 		}
-		c = ast_channel_walk(c);
+		ast_mutex_unlock(&c->lock);
+		c = ast_channel_walk_locked(c);
 	}
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
 	ast_channel_setwhentohangup(c, timeout);
+	ast_mutex_unlock(&c->lock);
 	astman_send_ack(s, m, "Timeout Set");
 	return 0;
 }

@@ -54,17 +54,18 @@ LOCAL_USER_DECL;
 
 #define CONF_SIZE 160
 
-static struct ast_channel *get_zap_channel(int num) {
+static struct ast_channel *get_zap_channel_locked(int num) {
 	struct ast_channel *c=NULL;
 	char name[80];
 
 	snprintf(name,sizeof(name),"Zap/%d-1",num);
-	c = ast_channel_walk(NULL);
+	c = ast_channel_walk_locked(NULL);
 	while(c) {
 		if (!strcasecmp(c->name, name)) {
 			break;
 		}
-		c = ast_channel_walk(c);
+		ast_mutex_unlock(&c->lock);
+		c = ast_channel_walk_locked(c);
 	}
 	if (c)
 		return c;
@@ -293,43 +294,44 @@ static int conf_exec(struct ast_channel *chan, void *data)
                 ast_answer(chan);
 
         for (;;) {
-		if (ast_waitfor(chan, 100) < 0)
-			break;
-		f = ast_read(chan);
-		if (!f)
-			break;
-		if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*')) {
-			ast_frfree(f);
-			break;
-		}
-		ast_frfree(f);
-		ichan = NULL;
-		if(input) {
-			ichan = get_zap_channel(input);
-			input = 0;
-		}
-
-		tempchan = ichan ? ichan : ast_channel_walk(tempchan);
-		
-		
-		if ( !tempchan && !lastchan )
-			break;
-		if ( tempchan && tempchan->type && (!strcmp(tempchan->type, "Zap")) && (tempchan != chan) ) {
-			ast_verbose(VERBOSE_PREFIX_3 "Zap channel %s is in-use, monitoring...\n", tempchan->name);
-			strcpy(confstr, tempchan->name);
-			if ((tmp = strchr(confstr,'-'))) {
-				*tmp = '\0';
+			if (ast_waitfor(chan, 100) < 0)
+				break;
+			
+			f = ast_read(chan);
+			if (!f)
+				break;
+			if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*')) {
+				ast_frfree(f);
+				break;
 			}
-			confno = atoi(strchr(confstr,'/') + 1);
-			ast_stopstream(chan);
-			ast_say_number(chan, confno, AST_DIGIT_ANY, chan->language, (char *) NULL);
-			res = conf_run(chan, confno, confflags);
-			if (res<0) break;
-			input = res;
-		}
-		lastchan = tempchan;
+			ast_frfree(f);
+			ichan = NULL;
+			if(input) {
+				ichan = get_zap_channel_locked(input);
+				input = 0;
+			}
+	
+			tempchan = ichan ? ichan : ast_channel_walk_locked(tempchan);
+			
+			
+			if ( !tempchan && !lastchan )
+				break;
+			if ( tempchan && tempchan->type && (!strcmp(tempchan->type, "Zap")) && (tempchan != chan) ) {
+				ast_verbose(VERBOSE_PREFIX_3 "Zap channel %s is in-use, monitoring...\n", tempchan->name);
+				strcpy(confstr, tempchan->name);
+				ast_mutex_unlock(&tempchan->lock);
+				if ((tmp = strchr(confstr,'-'))) {
+					*tmp = '\0';
+				}
+				confno = atoi(strchr(confstr,'/') + 1);
+				ast_stopstream(chan);
+				ast_say_number(chan, confno, AST_DIGIT_ANY, chan->language, (char *) NULL);
+				res = conf_run(chan, confno, confflags);
+				if (res<0) break;
+				input = res;
+			}
+			lastchan = tempchan;
         }
-
         LOCAL_USER_REMOVE(u);
         return res;
 }

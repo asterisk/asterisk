@@ -47,13 +47,15 @@ static int softhangup_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	LOCAL_USER_ADD(u);
-	c = ast_channel_walk(NULL);
+	c = ast_channel_walk_locked(NULL);
 	while (c) {
 		if (!strcasecmp(c->name, data)) {
 			ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
+			ast_mutex_unlock(&c->lock);
 			break;
 		}
-		c = ast_channel_walk(c);
+		ast_mutex_unlock(&c->lock);
+		c = ast_channel_walk_locked(c);
 	}
 	LOCAL_USER_REMOVE(u);
 

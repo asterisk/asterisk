@@ -1764,6 +1764,8 @@ static int reqprep(struct mgcp_request *req, struct mgcp_endpoint *p, char *verb
 {
 	memset(req, 0, sizeof(struct mgcp_request));
 	oseq++;
+	if (oseq > 999999999)
+		oseq = 1;
 	init_req(p, req, verb);
 	return 0;
 }
