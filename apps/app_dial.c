@@ -548,13 +548,13 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		if (!strcmp(chan->type,"Zap"))
 		{
 			int x = 2;
-			if (tmp->dataquality | tmp->clearchannel) x = 0;
+			if (tmp->dataquality || tmp->clearchannel) x = 0;
 			ast_channel_setoption(chan,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
 		}			
 		if (!strcmp(peer->type,"Zap"))
 		{
 			int x = 2;
-			if (tmp->dataquality) x = 0;
+			if (tmp->dataquality || tmp->clearchannel) x = 0;
 			ast_channel_setoption(peer,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
 		}			
 		hanguptree(outgoing, peer);
