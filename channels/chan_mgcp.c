@@ -3592,17 +3592,19 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 							return NULL;
 						}
  					}
-					/* Make out subs a circular linked list so we can always sping through the whole bunch */
-					sub = e->sub;
-					/* find the end of the list */
-					while(sub->next){
-						sub = sub->next;
- 					}
-					/* set the last sub->next to the first sub */
-					sub->next = e->sub;
+					if (!ep_reload) {
+						/* Make out subs a circular linked list so we can always sping through the whole bunch */
+						sub = e->sub;
+						/* find the end of the list */
+						while(sub->next){
+							sub = sub->next;
+	 					}
+						/* set the last sub->next to the first sub */
+						sub->next = e->sub;
 
-					e->next = gw->endpoints;
-					gw->endpoints = e;
+						e->next = gw->endpoints;
+						gw->endpoints = e;
+					}
 				}
 			} else if (!strcasecmp(v->name, "trunk") ||
 			           !strcasecmp(v->name, "line")) {
