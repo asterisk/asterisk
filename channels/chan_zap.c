@@ -3050,11 +3050,13 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 									if (res)
 										ast_log(LOG_WARNING, "Unable to start dial recall tone on channel %d\n", p->channel);
 									p->owner = chan;
-									if (pthread_create(&threadid, &attr, ss_thread, chan)) {
+									if (chan && pthread_create(&threadid, &attr, ss_thread, chan)) {
 										ast_log(LOG_WARNING, "Unable to start simple switch on channel %d\n", p->channel);
 										res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 										zt_enable_ec(p);
 										ast_hangup(chan);
+									} else if (!chan) {
+										ast_log(LOG_WARNING, "Cannot allocate new structure on channel %d\n", p->channel);
 									} else {
 										if (option_verbose > 2)	
 											ast_verbose(VERBOSE_PREFIX_3 "Started three way call on channel %d\n", p->channel);
@@ -4675,12 +4677,14 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_SF:
 				/* Check for callerid, digits, etc */
 				chan = zt_new(i, AST_STATE_RING, 0, SUB_REAL, 0, 0);
-				if (pthread_create(&threadid, &attr, ss_thread, chan)) {
+				if (chan && pthread_create(&threadid, &attr, ss_thread, chan)) {
 					ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 					res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 					if (res < 0)
 						ast_log(LOG_WARNING, "Unable to play congestion tone on channel %d\n", i->channel);
 					ast_hangup(chan);
+				} else if (!chan) {
+					ast_log(LOG_WARNING, "Cannot allocate new structure on channel %d\n", i->channel);
 				}
 #if 0
 				printf("Created thread %ld detached in switch(2)\n", threadid);
