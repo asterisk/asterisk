@@ -1026,9 +1026,11 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 							ast_mutex_unlock(&p->lock);
 							ast_mutex_unlock(&agentlock);
 						} else if (!res) {
+#ifdef HONOR_MUSIC_CLASS
 							/* check if the moh class was changed with setmusiconhold */
 							if (*(chan->musicclass))
 								strncpy(p->moh, chan->musicclass, sizeof(p->moh) - 1);
+#endif								
 							ast_moh_start(chan, p->moh);
 							manager_event(EVENT_FLAG_AGENT, "Agentlogin",
 								"Agent: %s\r\n"
