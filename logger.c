@@ -171,7 +171,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 		    chan->facility = -1;
 		    cptr = facilitynames;
 		    while (cptr->c_name) {
-			if (!strncasecmp(facility, cptr->c_name, sizeof(cptr->c_name))) {
+			if (!strcasecmp(facility, cptr->c_name)) {
 			    chan->facility = cptr->c_val;
 			    break;
 			}
