@@ -21,6 +21,7 @@
 #include <asterisk/config.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
+#include <asterisk/term.h>
 #include <dlfcn.h>
 #include <asterisk/md5.h>
 #define __USE_GNU
@@ -86,7 +87,7 @@ static struct loadupdate {
 	struct loadupdate *next;
 } *updaters = NULL;
 
-static pthread_mutex_t modlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t modlock = AST_MUTEX_INITIALIZER;
 
 static struct module *module_list=NULL;
 
@@ -158,11 +159,12 @@ int ast_load_resource(char *resource_name)
 	int errors=0;
 	int res;
 	struct module *m;
-	int flags=0;
+	int flags=RTLD_NOW;
 	char *val;
 	char *key;
 	int o;
 	struct ast_config *cfg;
+	char tmp[80];
 	/* Keep the module file parsing silent */
 	o = option_verbose;
 	if (strncasecmp(resource_name, "res_", 4)) {
@@ -176,8 +178,8 @@ int ast_load_resource(char *resource_name)
 			ast_destroy(cfg);
 		}
 	} else {
-		/* Resource modules are always loaded global */
-		flags |= RTLD_GLOBAL;
+		/* Resource modules are always loaded global and lazy */
+		flags = (RTLD_GLOBAL | RTLD_LAZY);
 	}
 	
 	if (ast_pthread_mutex_lock(&modlock))
@@ -203,7 +205,7 @@ int ast_load_resource(char *resource_name)
 	} else {
 		snprintf(fn, sizeof(fn), "%s/%s", AST_MODULE_DIR, resource_name);
 	}
-	m->lib = dlopen(fn, RTLD_NOW | flags);
+	m->lib = dlopen(fn, flags);
 	if (!m->lib) {
 		ast_log(LOG_WARNING, "%s\n", dlerror());
 		free(m);
@@ -254,7 +256,7 @@ int ast_load_resource(char *resource_name)
 	}
 	if (!fully_booted) {
 		if (option_verbose) 
-			ast_verbose( " => (%s)\n", m->description());
+			ast_verbose( " => (%s)\n", term_color(tmp, m->description(), COLOR_BROWN, COLOR_BLACK, sizeof(tmp)));
 		if (option_console && !option_verbose)
 			ast_verbose( ".");
 	} else {
@@ -296,6 +298,7 @@ int load_modules()
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
+	char tmp[80];
 	if (option_verbose) 
 		ast_verbose( "Asterisk Dynamic Loader Starting:\n");
 	cfg = ast_load(AST_MODULE_CONFIG);
@@ -307,7 +310,7 @@ int load_modules()
 				if (option_debug && !option_verbose)
 					ast_log(LOG_DEBUG, "Loading module %s\n", v->value);
 				if (option_verbose) {
-					ast_verbose( " [%s]", v->value);
+					ast_verbose( VERBOSE_PREFIX_1 "[%s]", term_color(tmp, v->value, COLOR_BRWHITE, 0, sizeof(tmp)));
 					fflush(stdout);
 				}
 				if (ast_load_resource(v->value)) {
@@ -356,7 +359,7 @@ int load_modules()
 					    if (option_debug && !option_verbose)
 							ast_log(LOG_DEBUG, "Loading module %s\n", d->d_name);
 						if (option_verbose) {
-							ast_verbose( VERBOSE_PREFIX_1 "[%s]", d->d_name);
+							ast_verbose( VERBOSE_PREFIX_1 "[%s]", term_color(tmp, d->d_name, COLOR_BRWHITE, 0, sizeof(tmp)));
 							fflush(stdout);
 						}
 						if (ast_load_resource(d->d_name)) {
