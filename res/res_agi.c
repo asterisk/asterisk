@@ -11,6 +11,11 @@
  * the GNU General Public License
  */
 
+#include <netdb.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <arpa/inet.h>
 #include <sys/types.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
