@@ -487,7 +487,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 			if (numlines == numbusies) {
 				ast_log(LOG_DEBUG, "Everyone is busy at this time\n");
 			} else {
-				ast_log(LOG_NOTICE, "No one is answered queue %s\n", queue);
+				ast_log(LOG_NOTICE, "No one is answering queue '%s'\n", queue);
 			}
 			*to = 0;
 			return NULL;
