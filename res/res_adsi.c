@@ -99,27 +99,6 @@ static int adsi_generate(unsigned char *buf, int msgtype, char *msg, int msglen,
 
 }
 
-#if 0
-static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int len, int *remainder)
-{
-	int res;
-	fd_set fds;
-	while(len) {
-		FD_ZERO(&fds);
-		FD_SET(chan->fds[0], &fds);
-		select(chan->fds[0] + 1, NULL, &fds, NULL, NULL);
-		res = write(chan->fds[0], buf, len);
-		if (res < 1) {
-			ast_log(LOG_WARNING, "Failed to write: %s\n", strerror(errno));
-			return -1;
-		}
-		buf += res;
-		len -= res;
-	}
-	return 0;
-}
-
-#else
 static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int len, int *remainder)
 {
 	/* Sends carefully on a full duplex channel by using reading for
@@ -190,7 +169,6 @@ static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int l
 	}
 	return 0;
 }
-#endif
 
 static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **msg, int *msglen, int *msgtype)
 {
@@ -305,7 +283,7 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 				break;
 			else {
 				retries++;
-				ast_log(LOG_DEBUG, "Retransmitting (%d), from %d\n", start + 1);
+				ast_log(LOG_DEBUG, "Retransmitting (%d), from %d\n", retries, start + 1);
 			}
 		} else {
 			retries++;
@@ -502,14 +480,15 @@ int adsi_download_connect(unsigned char *buf, unsigned char *service,  unsigned 
 	/* Delimiter */
 	buf[bytes++] = 0xff;
 	
-	for (x=0;x<4;x++)
+	for (x=0;x<4;x++) {
 		buf[bytes++] = fdn[x];
+	}
 	for (x=0;x<4;x++)
 		buf[bytes++] = sec[x];
-	if (ver > -1)
-		buf[bytes++] = ver & 0xff;
+	buf[bytes++] = ver & 0xff;
 
 	buf[1] = bytes - 2;
+
 	return bytes;
 
 }
@@ -529,12 +508,194 @@ int adsi_disconnect_session(unsigned char *buf)
 
 }
 
+int adsi_query_cpeid(unsigned char *buf)
+{
+	int bytes = 0;
+	buf[bytes++] = ADSI_QUERY_CPEID;
+	/* Reserve space for length */
+	bytes++;
+	buf[1] = bytes - 2;
+	return bytes;
+}
+
+int adsi_query_cpeinfo(unsigned char *buf)
+{
+	int bytes = 0;
+	buf[bytes++] = ADSI_QUERY_CONFIG;
+	/* Reserve space for length */
+	bytes++;
+	buf[1] = bytes - 2;
+	return bytes;
+}
+
+int adsi_read_encoded_dtmf(struct ast_channel *chan, unsigned char *buf, int maxlen)
+{
+	int bytes = 0;
+	int res;
+	unsigned char current = 0;
+	int gotstar = 0;
+	int pos = 0;
+	memset(buf, 0, sizeof(buf));
+	while(bytes <= maxlen) {
+		/* Wait up to a second for a digit */
+		res = ast_waitfordigit(chan, 1000);
+		if (!res)
+			break;
+		if (res == '*') {
+			gotstar = 1;	
+			continue;
+		}
+		/* Ignore anything other than a digit */
+		if ((res < '0') || (res > '9'))
+			continue;
+		res -= '0';
+		if (gotstar)
+			res += 9;
+		if (pos)  {
+			pos = 0;
+			buf[bytes++] = (res << 4) | current;
+		} else {
+			pos = 1;
+			current = res;
+		}
+		gotstar = 0;
+	}
+	return bytes;
+}
+
+int adsi_get_cpeid(struct ast_channel *chan, unsigned char *cpeid, int voice)
+{
+	char buf[256];
+	int bytes = 0;
+	int res;
+	bytes += adsi_data_mode(buf);
+	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+
+	bytes = 0;
+	bytes += adsi_query_cpeid(buf);
+	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+
+	/* Get response */
+	memset(buf, 0, sizeof(buf));
+	res = adsi_read_encoded_dtmf(chan, cpeid, 4);
+	if (res != 4) {
+		ast_log(LOG_WARNING, "Got %d bytes back of encoded DTMF, expecting 4\n", res);
+		res = 0;
+	} else {
+		res = 1;
+	}
+
+	if (voice) {
+		bytes = 0;
+		bytes += adsi_voice_mode(buf, 0);
+		adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+		/* Ignore the resulting DTMF B announcing it's in voice mode */
+		ast_waitfordigit(chan, 1000);
+	}
+	return res;
+}
+
+int adsi_get_cpeinfo(struct ast_channel *chan, int *width, int *height, int *buttons, int voice)
+{
+	char buf[256];
+	int bytes = 0;
+	int res;
+	bytes += adsi_data_mode(buf);
+	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+
+	bytes = 0;
+	bytes += adsi_query_cpeinfo(buf);
+	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+
+	/* Get width */
+	memset(buf, 0, sizeof(buf));
+	res = ast_readstring(chan, buf, 2, 1000, 500, "");
+	if (res < 0)
+		return res;
+	if (strlen(buf) != 2) {
+		ast_log(LOG_WARNING, "Got %d bytes of width, expecting 2\n", res);
+		res = 0;
+	} else {
+		res = 1;
+	}
+	if (width)
+		*width = atoi(buf);
+	/* Get height */
+	memset(buf, 0, sizeof(buf));
+	if (res) {
+		res = ast_readstring(chan, buf, 2, 1000, 500, "");
+		if (res < 0)
+			return res;
+		if (strlen(buf) != 2) {
+			ast_log(LOG_WARNING, "Got %d bytes of height, expecting 2\n", res);
+			res = 0;
+		} else {
+			res = 1;
+		}	
+		if (height)
+			*height= atoi(buf);
+	}
+	/* Get buttons */
+	memset(buf, 0, sizeof(buf));
+	if (res) {
+		res = ast_readstring(chan, buf, 1, 1000, 500, "");
+		if (res < 0)
+			return res;
+		if (strlen(buf) != 1) {
+			ast_log(LOG_WARNING, "Got %d bytes of buttons, expecting 1\n", res);
+			res = 0;
+		} else {
+			res = 1;
+		}	
+		if (buttons)
+			*buttons = atoi(buf);
+	}
+	if (voice) {
+		bytes = 0;
+		bytes += adsi_voice_mode(buf, 0);
+		adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+		/* Ignore the resulting DTMF B announcing it's in voice mode */
+		ast_waitfordigit(chan, 1000);
+	}
+	return res;
+}
+
 int adsi_data_mode(unsigned char *buf)
 {
 	int bytes=0;
 
 	/* Message type */
 	buf[bytes++] = ADSI_SWITCH_TO_DATA;
+
+	/* Reserve space for length */
+	bytes++;
+
+	buf[1] = bytes - 2;
+	return bytes;
+
+}
+
+int adsi_clear_soft_keys(unsigned char *buf)
+{
+	int bytes=0;
+
+	/* Message type */
+	buf[bytes++] = ADSI_CLEAR_SOFTKEY;
+
+	/* Reserve space for length */
+	bytes++;
+
+	buf[1] = bytes - 2;
+	return bytes;
+
+}
+
+int adsi_clear_screen(unsigned char *buf)
+{
+	int bytes=0;
+
+	/* Message type */
+	buf[bytes++] = ADSI_CLEAR_SCREEN;
 
 	/* Reserve space for length */
 	bytes++;
@@ -719,86 +880,6 @@ int adsi_set_line(unsigned char *buf, int page, int line)
 static int total = 0;
 static int speeds = 0;
 
-#if 0
-int adsi_channel_init(struct ast_channel *chan)
-{
-	char dsp[256];
-	char keys[256];
-	int bytes;
-	int x;
-	unsigned char *msgs[3];
-	unsigned char keyd[6];
-	int lens[3];
-	int types[3];
-	memset(dsp, 0, sizeof(dsp));
-	memset(keys, 0, sizeof(keys));
-	memset(msgs, 0, sizeof(msgs));
-
-	/* Start with initial display setup */
-	bytes = 0;
-	bytes += adsi_connect_session(dsp, NULL, -1);
-	for (x=0;x<total;x++) {
-		bytes += adsi_display(dsp + bytes, ADSI_INFO_PAGE, x + 1, aligns[x], 0,
-			strlen(intro[x]) ? intro[x] : " ", "");
-	}
-	bytes += adsi_set_line(dsp + bytes, ADSI_INFO_PAGE, 1);
- 	msgs[0] = dsp;
-	lens[0] = bytes;
-	types[0] = ADSI_MSG_DISPLAY;
-
-	/* Prepare key setup messages */
-
-	if (speeds) {
-		bytes = 0;
-		memset(keyd, 0, sizeof(keyd));
-		for (x=0;x<speeds;x++) {
-			bytes += adsi_load_soft_key(keys + bytes, ADSI_SPEED_DIAL + x,
-					speeddial[x][1], speeddial[x][2], speeddial[x][0]);
-			keyd[x] = ADSI_SPEED_DIAL + x;
-		}
-		bytes += adsi_set_keys(keys + bytes, keyd);
-		msgs[1] = keys;
-		lens[1] = bytes;
-		types[1] = ADSI_MSG_DISPLAY;
-	}
-	adsi_transmit_messages(chan, msgs, lens, types);
-	return 0;
-}
-#else
-int adsi_channel_init(struct ast_channel *chan)
-{
-	char dsp[256];
-	int bytes;
-	int x;
-	unsigned char keyd[6];
-
-	memset(dsp, 0, sizeof(dsp));
-
-	/* Start with initial display setup */
-	bytes = 0;
-	bytes += adsi_connect_session(dsp, NULL, -1);
-	for (x=0;x<total;x++) {
-		bytes += adsi_display(dsp + bytes, ADSI_INFO_PAGE, x + 1, aligns[x], 0,
-			strlen(intro[x]) ? intro[x] : " ", "");
-	}
-	bytes += adsi_set_line(dsp + bytes, ADSI_INFO_PAGE, 1);
-
-	/* Prepare key setup messages */
-
-	if (speeds) {
-		memset(keyd, 0, sizeof(keyd));
-		for (x=0;x<speeds;x++) {
-			bytes += adsi_load_soft_key(dsp + bytes, ADSI_SPEED_DIAL + x,
-					speeddial[x][1], speeddial[x][2], speeddial[x][0], 0);
-			keyd[x] = ADSI_SPEED_DIAL + x;
-		}
-		bytes += adsi_set_keys(dsp + bytes, keyd);
-	}
-	adsi_transmit_message(chan, dsp, bytes, ADSI_MSG_DISPLAY);
-	return 0;
-}
-#endif
-
 int adsi_channel_restore(struct ast_channel *chan)
 {
 	char dsp[256];
@@ -826,6 +907,26 @@ int adsi_channel_restore(struct ast_channel *chan)
 
 }
 
+int adsi_print(struct ast_channel *chan, char **lines, int *aligns, int voice)
+{
+	char buf[4096];
+	int bytes=0;
+	int res;
+	int x;
+	for(x=0;lines[x];x++) 
+		bytes += adsi_display(buf + bytes, ADSI_INFO_PAGE, x+1, aligns[x],0, lines[x], "");
+	bytes += adsi_set_line(buf + bytes, ADSI_INFO_PAGE, 1);
+	if (voice) {
+		bytes += adsi_voice_mode(buf + bytes, 0);
+	}
+	res = adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+	if (voice) {
+		/* Ignore the resulting DTMF B announcing it's in voice mode */
+		ast_waitfordigit(chan, 1000);
+	}
+	return res;
+}
+
 int adsi_load_session(struct ast_channel *chan, unsigned char *app, int ver, int data)
 {
 	char dsp[256];
@@ -845,21 +946,24 @@ int adsi_load_session(struct ast_channel *chan, unsigned char *app, int ver, int
 	/* Prepare key setup messages */
 	if (adsi_transmit_message(chan, dsp, bytes, ADSI_MSG_DISPLAY))
 		return -1;
-	res = ast_readstring(chan, resp, 1, 1200, 1200, "");
-	if (res < 0)
-		return -1;
-	if (res) {
-		ast_log(LOG_DEBUG, "No response from CPE about version.  Assuming not there.\n");
-		return 0;
-	}
-	if (!strcmp(resp, "B")) {
-		ast_log(LOG_DEBUG, "CPE has script '%s' version %d already loaded\n", app, ver);
+	if (app) {
+		res = ast_readstring(chan, resp, 1, 1200, 1200, "");
+		if (res < 0)
+			return -1;
+		if (res) {
+			ast_log(LOG_DEBUG, "No response from CPE about version.  Assuming not there.\n");
+			return 0;
+		}
+		if (!strcmp(resp, "B")) {
+			ast_log(LOG_DEBUG, "CPE has script '%s' version %d already loaded\n", app, ver);
+			return 1;
+		} else if (!strcmp(resp, "A")) {
+			ast_log(LOG_DEBUG, "CPE hasn't script '%s' version %d already loaded\n", app, ver);
+		} else {
+			ast_log(LOG_WARNING, "Unexpected CPE response to script query: %s\n", resp);
+		}
+	} else
 		return 1;
-	} else if (!strcmp(resp, "A")) {
-		ast_log(LOG_DEBUG, "CPE hasn't script '%s' version %d already loaded\n", app, ver);
-	} else {
-		ast_log(LOG_WARNING, "Unexpected CPE response to script query: %s\n", resp);
-	}
 	return 0;
 
 }

@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
+#include <asterisk/lock.h>
 #include <asterisk/channel.h>
 #include <asterisk/channel_pvt.h>
 #include <asterisk/config.h>
@@ -55,14 +56,14 @@ static int silencesupression = 0;
 
 static int prefformat = AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW;
 
-static pthread_mutex_t usecnt_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 /* Protect the interface list (of phone_pvt's) */
-static pthread_mutex_t iflock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t iflock = AST_MUTEX_INITIALIZER;
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
-static pthread_mutex_t monlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t monlock = AST_MUTEX_INITIALIZER;
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
@@ -140,7 +141,31 @@ static int phone_digit(struct ast_channel *ast, char digit)
 static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 {
 	struct phone_pvt *p;
+	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_RINGING };
+
+	// CID stuff for the phonejack...
+
+	PHONE_CID cid;
+	time_t UtcTime;
+	struct tm *t;
+
+
+	if (ast->callerid) {
+		time(&UtcTime);
+		t = localtime(&UtcTime);
+
+		if(t != NULL) {
+			sprintf(cid.month, "%02d",(t->tm_mon + 1));
+			sprintf(cid.day, "%02d", t->tm_mday);
+			sprintf(cid.hour, "%02d", t->tm_hour);
+			sprintf(cid.min, "%02d", t->tm_min);
+		}
+		strcpy(cid.name, "Unknown");
+		sprintf(cid.number,"%s",ast->callerid);
+	}
+
 	p = ast->pvt->pvt;
+
 	if ((ast->state != AST_STATE_DOWN) && (ast->state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "phone_call called on %s, neither down nor reserved\n", ast->name);
 		return -1;
@@ -149,7 +174,9 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 	   ring the phone and wait for someone to answer */
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Ringing %s on %s (%d)\n", dest, ast->name, ast->fds[0]);
-	ioctl(p->fd, PHONE_RING_START);
+
+	ioctl(p->fd, PHONE_RING_START,&cid);
+	ast_queue_frame(ast, &f, 0);
 	ast->state = AST_STATE_RINGING;
 	return 0;
 }
@@ -336,7 +363,7 @@ static struct ast_frame  *phone_exception(struct ast_channel *ast)
 	if (phonee.bits.pstn_ring)
 		ast_verbose("Unit is ringing\n");
 	if (phonee.bits.caller_id) {
-		ast_verbose("We have caller ID: %s\n");
+		ast_verbose("We have caller ID\n");
 	}
 	if (phonee.bits.pstn_wink)
 		ast_verbose("Detected Wink\n");
@@ -351,6 +378,7 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 {
 	int res;
 	struct phone_pvt *p = ast->pvt->pvt;
+	
 
 	/* Some nice norms */
 	p->fr.datalen = 0;
@@ -448,14 +476,13 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 	char tmpbuf[4];
 	/* Write a frame of (presumably voice) data */
 	if (frame->frametype != AST_FRAME_VOICE) {
-		ast_log(LOG_WARNING, "Don't know what to do with  frame type '%d'\n", frame->frametype);
-		ast_frfree(frame);
-		return -1;
+		if (frame->frametype != AST_FRAME_IMAGE)
+			ast_log(LOG_WARNING, "Don't know what to do with  frame type '%d'\n", frame->frametype);
+		return 0;
 	}
 	if (!(frame->subclass &
 		(AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW))) {
 		ast_log(LOG_WARNING, "Cannot handle frames in %d format\n", frame->subclass);
-		ast_frfree(frame);
 		return -1;
 	}
 	/* If we're not in up mode, go into up mode now */
@@ -560,17 +587,20 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 			res = phone_write_buf(p, pos, expected, maxfr);
 		}
 		if (res != expected) {
-			if (res < 0) 
-				ast_log(LOG_WARNING, "Write returned error (%s)\n", strerror(errno));
-/*
- * Card is in non-blocking mode now and it works well now, but there are
- * lot of messages like this. So, this message is temporarily disabled.
- */
+			if (errno != EAGAIN) {
+				if (res < 0) 
+					ast_log(LOG_WARNING, "Write returned error (%s)\n", strerror(errno));
+	/*
+	 * Card is in non-blocking mode now and it works well now, but there are
+	 * lot of messages like this. So, this message is temporarily disabled.
+	 */
 #if 0
-			else
-				ast_log(LOG_WARNING, "Only wrote %d of %d bytes\n", res, frame->datalen);
+				else
+					ast_log(LOG_WARNING, "Only wrote %d of %d bytes\n", res, frame->datalen);
 #endif
-			return -1;
+				return -1;
+			} else /* Pretend it worked */
+				res = expected;
 		}
 		sofar += res;
 		pos += res;
@@ -581,7 +611,7 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *context)
 {
 	struct ast_channel *tmp;
-	tmp = ast_channel_alloc();
+	tmp = ast_channel_alloc(1);
 	if (tmp) {
 		snprintf(tmp->name, sizeof(tmp->name), "Phone/%s", i->dev + 5);
 		tmp->type = type;

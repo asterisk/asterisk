@@ -11,6 +11,7 @@
  * the GNU General Public License
  */
  
+#include <asterisk/lock.h>
 #include <asterisk/channel.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
@@ -51,7 +52,7 @@ struct ast_filestream {
 
 
 static struct ast_filestream *glist = NULL;
-static pthread_mutex_t wav_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t wav_lock = AST_MUTEX_INITIALIZER;
 static int glistcnt = 0;
 
 static char *name = "wav";
@@ -167,7 +168,7 @@ static int check_header(int fd)
 		return -1;
 	}
 	if (read(fd, &bisam, 2) != 2) {
-		ast_log(LOG_WARNING, "Read failed (Bits Per Sample): &d\n", ltohs(bisam));
+		ast_log(LOG_WARNING, "Read failed (Bits Per Sample): %d\n", ltohs(bisam));
 		return -1;
 	}
         /* Begin data chunk */

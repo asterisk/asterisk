@@ -11,7 +11,7 @@
  * the GNU General Public License
  */
 
-#include <pthread.h>
+#include <asterisk/lock.h>
 #include <asterisk/cli.h>
 #include <asterisk/pbx.h>
 #include <asterisk/channel.h>
@@ -20,6 +20,7 @@
 #include <asterisk/file.h>
 #include <asterisk/callerid.h>
 #include <asterisk/cdr.h>
+#include <asterisk/term.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -71,7 +72,13 @@ struct ast_exten {
 
 struct ast_include {
 	char name[AST_MAX_EXTENSION];
+	char rname[AST_MAX_EXTENSION];
 	char *registrar;
+	int hastime;
+	unsigned int monthmask;
+	unsigned int daymask;
+	unsigned int dowmask;
+	unsigned int minmask[24];
 	struct ast_include *next;
 };
 
@@ -244,14 +251,14 @@ static struct pbx_builtin {
 };
 
 /* Lock for the application list */
-static pthread_mutex_t applock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t applock = AST_MUTEX_INITIALIZER;
 static struct ast_context *contexts = NULL;
 /* Lock for the ast_context list */
-static pthread_mutex_t conlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t conlock = AST_MUTEX_INITIALIZER;
 static struct ast_app *apps = NULL;
 
 /* Lock for switches */
-static pthread_mutex_t switchlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t switchlock = AST_MUTEX_INITIALIZER;
 struct ast_switch *switches = NULL;
 
 int pbx_exec(struct ast_channel *c, /* Channel */
@@ -340,6 +347,47 @@ static struct ast_switch *pbx_findswitch(char *sw)
 	}
 	ast_pthread_mutex_unlock(&switchlock);
 	return asw;
+}
+
+static inline int include_valid(struct ast_include *i)
+{
+	struct tm *tm;
+	time_t t;
+	if (!i->hastime)
+		return 1;
+	time(&t);
+	tm = localtime(&t);
+	if (!tm) {
+		ast_log(LOG_WARNING, "Failed to get local time\n");
+		return 0;
+	}
+
+	/* If it's not the right month, return */
+	if (!(i->monthmask & (1 << tm->tm_mon))) {
+		return 0;
+	}
+
+	/* If it's not that time of the month.... */
+	if (!(i->daymask & (1 << tm->tm_mday)))
+		return 0;
+
+	/* If it's not the right day of the week */
+	if (!(i->dowmask & (1 << tm->tm_wday)))
+		return 0;
+
+	/* Sanity check the hour just to be safe */
+	if ((tm->tm_hour < 0) || (tm->tm_hour > 23)) {
+		ast_log(LOG_WARNING, "Insane time...\n");
+		return 0;
+	}
+
+	/* Now the tough part, we calculate if it fits
+	   in the right time based on min/hour */
+	if (!(i->minmask[tm->tm_hour] & (1 << (tm->tm_min / 2))))
+		return 0;
+
+	/* If we got this far, then we're good */
+	return 1;
 }
 
 static void pbx_destroy(struct ast_pbx *p)
@@ -561,10 +609,12 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, char *cont
 			/* Now try any includes we have in this context */
 			i = tmp->includes;
 			while(i) {
-				if ((e = pbx_find_extension(chan, i->name, exten, priority, callerid, action, incstack, stacklen, status, swo, data))) 
-					return e;
-				if (*swo) 
-					return NULL;
+				if (include_valid(i)) {
+					if ((e = pbx_find_extension(chan, i->rname, exten, priority, callerid, action, incstack, stacklen, status, swo, data))) 
+						return e;
+					if (*swo) 
+						return NULL;
+				}
 				i = i->next;
 			}
 		}
@@ -584,6 +634,9 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 	int status = 0;
 	char *incstack[AST_PBX_MAX_STACK];
 	int stacklen = 0;
+	char tmp[80];
+	char tmp2[80];
+	char tmp3[256];
 	if (ast_pthread_mutex_lock(&conlock)) {
 		ast_log(LOG_WARNING, "Unable to obtain lock\n");
 		if ((action == HELPER_EXISTS) || (action == HELPER_CANMATCH))
@@ -614,7 +667,10 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 						ast_log(LOG_DEBUG, "Launching '%s'\n", app->name);
 				else if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\") %s\n", 
-								app->name, c->name, (e->data ? (char *)e->data : NULL), (newstack ? "in new stack" : "in same stack"));
+								term_color(tmp, app->name, COLOR_BRCYAN, 0, sizeof(tmp)),
+								term_color(tmp2, c->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
+								term_color(tmp3, (e->data ? (char *)e->data : NULL), COLOR_BRMAGENTA, 0, sizeof(tmp3)),
+								(newstack ? "in new stack" : "in same stack"));
 				res = pbx_exec(c, app, e->data, newstack);
 				return res;
 			} else {
@@ -675,41 +731,6 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 
 }
 
-#if 0
-int ast_pbx_longest_extension(char *context) 
-{
-	/* XXX Not include-aware XXX */
-	struct ast_context *tmp;
-	struct ast_exten *e;
-	int len = 0;
-	if (ast_pthread_mutex_lock(&conlock)) {
-		ast_log(LOG_WARNING, "Unable to obtain lock\n");
-		return -1;
-	}
-	tmp = contexts;
-	while(tmp) {
-		if (!strcasecmp(tmp->name, context)) {
-			/* By locking tmp, not only can the state of its entries not
-			   change, but it cannot be destroyed either. */
-			ast_pthread_mutex_lock(&tmp->lock);
-			/* But we can relieve the conlock, as tmp will not change */
-			ast_pthread_mutex_unlock(&conlock);
-			e = tmp->root;
-			while(e) {
-				if (strlen(e->exten) > len)
-					len = strlen(e->exten);
-				e = e->next;
-			}
-			ast_pthread_mutex_unlock(&tmp->lock);
-			return len;
-		}
-		tmp = tmp->next;
-	}
-	ast_log(LOG_WARNING, "No such context '%s'\n", context);
-	return -1;
-}
-#endif
-
 int ast_exists_extension(struct ast_channel *c, char *context, char *exten, int priority, char *callerid) 
 {
 	return pbx_extension_helper(c, context, exten, priority, callerid, HELPER_EXISTS);
@@ -736,7 +757,7 @@ int ast_pbx_run(struct ast_channel *c)
 
 	/* A little initial setup here */
 	if (c->pbx)
-		ast_log(LOG_WARNING, "%s already has PBX structure??\n");
+		ast_log(LOG_WARNING, "%s already has PBX structure??\n", c->name);
 	c->pbx = malloc(sizeof(struct ast_pbx));
 	if (!c->pbx) {
 		ast_log(LOG_WARNING, "Out of memory\n");
@@ -744,7 +765,7 @@ int ast_pbx_run(struct ast_channel *c)
 	}
 	if (c->amaflags) {
 		if (c->cdr) {
-			ast_log(LOG_WARNING, "%s already has a call record??\n");
+			ast_log(LOG_WARNING, "%s already has a call record??\n", c->name);
 		} else {
 			c->cdr = ast_cdr_alloc();
 			if (!c->cdr) {
@@ -890,6 +911,22 @@ int ast_pbx_run(struct ast_channel *c)
 	if (firstpass) 
 		ast_log(LOG_WARNING, "Don't know what to do with '%s'\n", c->name);
 out:
+	if (ast_exists_extension(c, c->context, "h", 1, c->callerid)) {
+		strcpy(c->exten, "h");
+		c->priority = 1;
+		while(ast_exists_extension(c, c->context, c->exten, c->priority, c->callerid)) {
+			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->callerid))) {
+				/* Something bad happened, or a hangup has been requested. */
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
+				else if (option_verbose > 1)
+					ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
+				break;
+			}
+			c->priority++;
+		}
+	}
+
 	pbx_destroy(c->pbx);
 	c->pbx = NULL;
 	if (res != AST_PBX_KEEPALIVE)
@@ -973,7 +1010,7 @@ int ast_context_remove_include2(struct ast_context *con, char *include, char *re
 {
 	struct ast_include *i, *pi = NULL;
 
-	if (pthread_mutex_lock(&con->lock)) return -1;
+	if (ast_pthread_mutex_lock(&con->lock)) return -1;
 
 	/* walk includes */
 	i = con->includes;
@@ -1045,7 +1082,7 @@ int ast_context_remove_switch2(struct ast_context *con, char *sw, char *data, ch
 {
 	struct ast_sw *i, *pi = NULL;
 
-	if (pthread_mutex_lock(&con->lock)) return -1;
+	if (ast_pthread_mutex_lock(&con->lock)) return -1;
 
 	/* walk switchs */
 	i = con->alts;
@@ -1215,6 +1252,7 @@ int ast_context_remove_extension2(struct ast_context *con, char *extension, int 
 int ast_register_application(char *app, int (*execute)(struct ast_channel *, void *), char *synopsis, char *description)
 {
 	struct ast_app *tmp;
+	char tmps[80];
 	if (ast_pthread_mutex_lock(&applock)) {
 		ast_log(LOG_ERROR, "Unable to lock application list\n");
 		return -1;
@@ -1230,6 +1268,7 @@ int ast_register_application(char *app, int (*execute)(struct ast_channel *, voi
 	}
 	tmp = malloc(sizeof(struct ast_app));
 	if (tmp) {
+		memset(tmp, 0, sizeof(struct ast_app));
 		strncpy(tmp->name, app, sizeof(tmp->name)-1);
 		tmp->execute = execute;
 		tmp->synopsis = synopsis;
@@ -1242,7 +1281,7 @@ int ast_register_application(char *app, int (*execute)(struct ast_channel *, voi
 		return -1;
 	}
 	if (option_verbose > 1)
-		ast_verbose( VERBOSE_PREFIX_2 "Registered application '%s'\n", tmp->name);
+		ast_verbose( VERBOSE_PREFIX_2 "Registered application '%s'\n", term_color(tmps, tmp->name, COLOR_BRCYAN, 0, sizeof(tmps)));
 	ast_pthread_mutex_unlock(&applock);
 	return 0;
 }
@@ -1769,7 +1808,7 @@ struct ast_context *ast_context_create(char *name, char *registrar)
 	tmp = malloc(sizeof(struct ast_context));
 	if (tmp) {
 		memset(tmp, 0, sizeof(struct ast_context));
-		pthread_mutex_init(&tmp->lock, NULL);
+		ast_pthread_mutex_init(&tmp->lock);
 		strncpy(tmp->name, name, sizeof(tmp->name)-1);
 		tmp->root = NULL;
 		tmp->registrar = registrar;
@@ -1821,6 +1860,255 @@ int ast_context_add_include(char *context, char *include, char *registrar)
 	return -1;
 }
 
+#define FIND_NEXT \
+do { \
+	c = info; \
+	while(*c && (*c != '|')) c++; \
+	if (*c) *c = '\0'; else c = NULL; \
+} while(0)
+
+static void get_timerange(struct ast_include *i, char *times)
+{
+	char *e;
+	int x;
+	int s1, s2;
+	int e1, e2;
+	/* Star is all times */
+	if (!strlen(times) || !strcmp(times, "*")) {
+		for (x=0;x<24;x++)
+			i->minmask[x] = (1 << 30) - 1;
+		return;
+	}
+	/* Otherwise expect a range */
+	e = strchr(times, '-');
+	if (!e) {
+		ast_log(LOG_WARNING, "Time range is not valid. Assuming no time.\n");
+		return;
+	}
+	*e = '\0';
+	e++;
+	while(*e && !isdigit(*e)) e++;
+	if (!*e) {
+		ast_log(LOG_WARNING, "Invalid time range.  Assuming no time.\n");
+		return;
+	}
+	if (sscanf(times, "%d:%d", &s1, &s2) != 2) {
+		ast_log(LOG_WARNING, "%s isn't a time.  Assuming no time.\n", times);
+		return;
+	}
+	if (sscanf(e, "%d:%d", &e1, &e2) != 2) {
+		ast_log(LOG_WARNING, "%s isn't a time.  Assuming no time.\n", e);
+		return;
+	}
+	s1 = s1 * 30 + s2/2;
+	if ((s1 < 0) || (s1 >= 24*30)) {
+		ast_log(LOG_WARNING, "%s isn't a valid star time. Assuming no time.\n", times);
+		return;
+	}
+	e1 = e1 * 30 + e2/2;
+	if ((e1 < 0) || (e2 >= 24*30)) {
+		ast_log(LOG_WARNING, "%s isn't a valid start time. Assuming no time.\n", times);
+		return;
+	}
+	/* Go through the time and enable each appropriate bit */
+	for (x=s1;x != e1;x = (x + 1) % (24 * 30)) {
+		i->minmask[x/30] |= (1 << (x % 30));
+	}
+	/* Do the last one */
+	i->minmask[x/30] |= (1 << (x % 30));
+	/* All done */
+}
+
+static char *days[] =
+{
+	"sun",
+	"mon",
+	"tue",
+	"wed",
+	"thu",
+	"fri",
+	"sat",
+};
+
+static unsigned int get_dow(char *dow)
+{
+	char *c;
+	/* The following line is coincidence, really! */
+	int s, e, x;
+	unsigned mask;
+	/* Check for all days */
+	if (!strlen(dow) || !strcmp(dow, "*"))
+		return (1 << 7) - 1;
+	/* Get start and ending days */
+	c = strchr(dow, '-');
+	if (c) {
+		*c = '\0';
+		c++;
+	}
+	/* Find the start */
+	s = 0;
+	while((s < 7) && strcasecmp(dow, days[s])) s++;
+	if (s >= 7) {
+		ast_log(LOG_WARNING, "Invalid day '%s', assuming none\n", dow);
+		return 0;
+	}
+	if (c) {
+		e = 0;
+		while((e < 7) && strcasecmp(dow, days[e])) e++;
+		if (e >= 7) {
+			ast_log(LOG_WARNING, "Invalid day '%s', assuming none\n", c);
+			return 0;
+		}
+	} else
+		e = s;
+	mask = 0;
+	for (x=s;x!=e;x = (x + 1) % 7) {
+		mask |= (1 << x);
+	}
+	/* One last one */
+	mask |= (1 << x);
+	return mask;
+}
+
+static unsigned int get_day(char *day)
+{
+	char *c;
+	/* The following line is coincidence, really! */
+	int s, e, x;
+	unsigned int mask;
+	/* Check for all days */
+	if (!strlen(day) || !strcmp(day, "*")) {
+		mask = (1 << 30)  + ((1 << 30) - 1);
+	}
+	/* Get start and ending days */
+	c = strchr(day, '-');
+	if (c) {
+		*c = '\0';
+		c++;
+	}
+	/* Find the start */
+	if (sscanf(day, "%d", &s) != 1) {
+		ast_log(LOG_WARNING, "Invalid day '%s', assuming none\n", day);
+		return 0;
+	}
+	if ((s < 1) || (s > 31)) {
+		ast_log(LOG_WARNING, "Invalid day '%s', assuming none\n", day);
+		return 0;
+	}
+	s--;
+	if (c) {
+		if (sscanf(c, "%d", &e) != 1) {
+			ast_log(LOG_WARNING, "Invalid day '%s', assuming none\n", c);
+			return 0;
+		}
+		if ((e < 1) || (e > 31)) {
+			ast_log(LOG_WARNING, "Invalid day '%s', assuming none\n", c);
+			return 0;
+		}
+		e--;
+	} else
+		e = s;
+	mask = 0;
+	for (x=s;x!=e;x = (x + 1) % 31) {
+		mask |= (1 << x);
+	}
+	mask |= (1 << x);
+	return mask;
+}
+
+static char *months[] =
+{
+	"jan",
+	"feb",
+	"mar",
+	"apr",
+	"may",
+	"jun",
+	"jul",
+	"aug",
+	"sep",
+	"oct",
+	"nov",
+	"dec",
+};
+
+static unsigned int get_month(char *mon)
+{
+	char *c;
+	/* The following line is coincidence, really! */
+	int s, e, x;
+	unsigned int mask;
+	/* Check for all days */
+	if (!strlen(mon) || !strcmp(mon, "*")) 
+		return (1 << 12) - 1;
+	/* Get start and ending days */
+	c = strchr(mon, '-');
+	if (c) {
+		*c = '\0';
+		c++;
+	}
+	/* Find the start */
+	s = 0;
+	while((s < 12) && strcasecmp(mon, months[s])) s++;
+	if (s >= 12) {
+		ast_log(LOG_WARNING, "Invalid month '%s', assuming none\n", mon);
+		return 0;
+	}
+	if (c) {
+		e = 0;
+		while((e < 12) && strcasecmp(mon, months[e])) e++;
+		if (e >= 12) {
+			ast_log(LOG_WARNING, "Invalid month '%s', assuming none\n", c);
+			return 0;
+		}
+	} else
+		e = s;
+	mask = 0;
+	for (x=s;x!=e;x = (x + 1) % 12) {
+		mask |= (1 << x);
+	}
+	/* One last one */
+	mask |= (1 << x);
+	return mask;
+}
+
+static void build_timing(struct ast_include *i, char *info)
+{
+	char *c;
+	/* Check for empty just in case */
+	if (!strlen(info))
+		return;
+	i->hastime = 1;
+	/* Assume everything except time */
+	i->monthmask = (1 << 12) - 1;
+	i->daymask = (1 << 30) - 1 + (1 << 30);
+	i->dowmask = (1 << 7) - 1;
+	/* Avoid using strtok */
+	FIND_NEXT;
+
+	/* Info has the time range, start with that */
+	get_timerange(i, info);
+	info = c;
+	if (!info)
+		return;
+	FIND_NEXT;
+	/* Now check for day of week */
+	i->dowmask = get_dow(info);
+
+	info = c;
+	if (!info)
+		return;
+	FIND_NEXT;
+	/* Now check for the day of the month */
+	i->daymask = get_day(info);
+	info = c;
+	if (!info)
+		return;
+	FIND_NEXT;
+	/* And finally go for the month */
+	i->monthmask = get_month(info);
+}
+
 /*
  * errno values
  *  ENOMEM - out of memory
@@ -1832,6 +2120,7 @@ int ast_context_add_include2(struct ast_context *con, char *value,
 	char *registrar)
 {
 	struct ast_include *new_include;
+	char *c;
 	struct ast_include *i, *il = NULL; /* include, include_last */
 
 	/* allocate new include structure ... */
@@ -1842,7 +2131,17 @@ int ast_context_add_include2(struct ast_context *con, char *value,
 	}
 	
 	/* ... fill in this structure ... */
+	memset(new_include, 0, sizeof(struct ast_include));
 	strncpy(new_include->name, value, sizeof(new_include->name)-1);
+	strncpy(new_include->rname, value, sizeof(new_include->rname)-1);
+	c = new_include->rname;
+	/* Strip off timing info */
+	while(*c && (*c != '|')) c++; 
+	/* Process if it's there */
+	if (*c) {
+		build_timing(new_include, c+1);
+		*c = '\0';
+	}
 	new_include->next      = NULL;
 	new_include->registrar = registrar;
 
@@ -1932,6 +2231,7 @@ int ast_context_add_switch2(struct ast_context *con, char *value,
 	}
 	
 	/* ... fill in this structure ... */
+	memset(new_sw, 0, sizeof(struct ast_sw));
 	strncpy(new_sw->name, value, sizeof(new_sw->name)-1);
 	if (data)
 		strncpy(new_sw->data, data, sizeof(new_sw->data)-1);
@@ -2068,10 +2368,11 @@ int ast_context_add_ignorepat2(struct ast_context *con, char *value, char *regis
 		errno = ENOMEM;
 		return -1;
 	}
+	memset(ignorepat, 0, sizeof(struct ast_ignorepat));
 	strncpy(ignorepat->pattern, value, sizeof(ignorepat->pattern)-1);
 	ignorepat->next = NULL;
 	ignorepat->registrar = registrar;
-	pthread_mutex_lock(&con->lock);
+	ast_pthread_mutex_lock(&con->lock);
 	ignorepatc = con->ignorepats;
 	while(ignorepatc) {
 		ignorepatl = ignorepatc;
@@ -2194,6 +2495,7 @@ int ast_add_extension2(struct ast_context *con,
 	/* Be optimistic:  Build the extension structure first */
 	tmp = malloc(sizeof(struct ast_exten));
 	if (tmp) {
+		memset(tmp, 0, sizeof(struct ast_exten));
 		ext_strncpy(tmp->exten, extension, sizeof(tmp->exten));
 		tmp->priority = priority;
 		if (callerid) {
@@ -2474,21 +2776,10 @@ static int pbx_builtin_prefix(struct ast_channel *chan, void *data)
 static int pbx_builtin_wait(struct ast_channel *chan, void *data)
 {
 	int ms;
-	struct ast_frame *f;
 	/* Wait for "n" seconds */
 	if (data && atoi((char *)data)) {
 		ms = atoi((char *)data) * 1000;
-		while(ms > 0) {
-			ms = ast_waitfor(chan, ms);
-			if (ms <0)
-				return -1;
-			if (ms > 0) {
-				f = ast_read(chan);
-				if (!f)
-					return -1;
-				ast_frfree(f);
-			}
-		}
+		return ast_safe_sleep(chan, ms);
 	}
 	return 0;
 }

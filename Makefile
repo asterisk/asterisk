@@ -11,7 +11,6 @@
 # the GNU General Public License
 #
 
-
 .EXPORT_ALL_VARIABLES:
 
 INSTALL_PREFIX=
@@ -22,14 +21,20 @@ AGI_DIR=$(INSTALL_PREFIX)/var/lib/asterisk/agi-bin
 # Pentium Pro Optimize
 #PROC=i686
 # Pentium Optimize
-PROC=i586
+#PROC=i586
+#PROC=k6
+#PROC=ppc
+PROC=$(shell uname -m)
 
 DEBUG=-g #-pg
 INCLUDE=-Iinclude -I../include
-CFLAGS=-pipe  -Wall -Wmissing-prototypes -Wmissing-declarations -O6 $(DEBUG) $(INCLUDE) -D_REENTRANT
+CFLAGS=-pipe  -Wall -Wmissing-prototypes -Wmissing-declarations -O6 $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE
 #CFLAGS+=-Werror
 CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
+CFLAGS+=$(shell if uname -m | grep -q ppc; then echo "-fsigned-char"; fi)
+
 ASTERISKVERSION=$(shell if [ -f .version ]; then cat .version; fi)
+HTTPDIR=$(shell if [ -d /var/www ]; then echo "/var/www"; else echo "/home/httpd"; fi)
 RPMVERSION=$(shell sed 's/[-\/:]/_/g' .version)
 CFLAGS+=-DASTERISK_VERSION=\"$(ASTERISKVERSION)\"
 # Optional debugging parameters
@@ -38,11 +43,11 @@ CFLAGS+= -DDO_CRASH -DDEBUG_THREADS
 #CLFAGS+= -DTRACE_FRAMES
 CFLAGS+=# -fomit-frame-pointer 
 SUBDIRS=res channels pbx apps codecs formats agi cdr
-LIBS=-ldl -lpthread -lreadline -lncurses -lm
+LIBS=-ldl -lpthread -lreadline -lncurses -lm #-lnjamd
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
-	translate.o file.o say.o pbx.o cli.o md5.o \
+	translate.o file.o say.o pbx.o cli.o md5.o term.o \
 	ulaw.o alaw.o callerid.o fskmodem.o image.o app.o \
-	cdr.o tdd.o asterisk.o 
+	cdr.o tdd.o acl.o rtp.o asterisk.o 
 CC=gcc
 INSTALL=install
 
@@ -81,9 +86,10 @@ datafiles: all
 	for x in sounds/digits/*; do \
 		install $$x $(INSTALL_PREFIX)/var/lib/asterisk/sounds/digits ; \
 	done
-	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-*; do \
+	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-*; do \
 		install $$x $(INSTALL_PREFIX)/var/lib/asterisk/sounds ; \
 	done
+	mkdir -p $(INSTALL_PREFIX)/var/lib/asterisk/mohmp3
 	mkdir -p $(INSTALL_PREFIX)/var/lib/asterisk/images
 	for x in images/*.jpg; do \
 		install $$x $(INSTALL_PREFIX)/var/lib/asterisk/images ; \
@@ -93,8 +99,10 @@ datafiles: all
 install: all datafiles
 	mkdir -p $(MODULES_DIR)
 	mkdir -p $(INSTALL_PREFIX)/usr/sbin
+	mkdir -p $(INSTALL_PREFIX)/etc/asterisk
 	install -m 755 asterisk $(INSTALL_PREFIX)/usr/sbin/
 	install -m 755 astgenkey $(INSTALL_PREFIX)/usr/sbin/
+	install -m 755 safe_asterisk $(INSTALL_PREFIX)/usr/sbin/
 	for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
 	install -d $(INSTALL_PREFIX)/usr/include/asterisk
 	install include/asterisk/*.h $(INSTALL_PREFIX)/usr/include/asterisk
@@ -128,7 +136,15 @@ install: all datafiles
 	@echo " + **Note** This requires that you have      +"
 	@echo " + doxygen installed on your local system    +"
 	@echo " +-------------------------------------------+"
-samples: all datafiles
+adsi: all
+	mkdir -p /etc/asterisk
+	for x in configs/*.adsi; do \
+		if ! [ -f $(INSTALL_PREFIX)/etc/asterisk/$$x ]; then \
+			install -m 644 $$x $(INSTALL_PREFIX)/etc/asterisk/`basename $$x` ; \
+		fi ; \
+	done
+
+samples: all datafiles adsi
 	mkdir -p $(INSTALL_PREFIX)/etc/asterisk
 	for x in configs/*.sample; do \
 		if [ -f $(INSTALL_PREFIX)/etc/asterisk/`basename $$x .sample` ]; then \
@@ -139,6 +155,9 @@ samples: all datafiles
 	for x in sounds/demo-*; do \
 		install $$x $(INSTALL_PREFIX)/var/lib/asterisk/sounds; \
 	done
+	for x in sounds/*.mp3; do \
+		install $$x $(INSTALL_PREFIX)/var/lib/asterisk/mohmp3 ; \
+	done
 	mkdir -p $(INSTALL_PREFIX)/var/spool/asterisk/vm/1234/INBOX
 	:> $(INSTALL_PREFIX)/var/lib/asterisk/sounds/vm/1234/unavail.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isunavail; do \
@@ -148,6 +167,24 @@ samples: all datafiles
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isonphone; do \
 		cat $(INSTALL_PREFIX)/var/lib/asterisk/sounds/$$x.gsm >> $(INSTALL_PREFIX)/var/lib/asterisk/sounds/vm/1234/busy.gsm ; \
 	done
+
+webvmail:
+	@[ -d $(HTTPDIR) ] || ( echo "No HTTP directory" && exit 1 )
+	@[ -d $(HTTPDIR)/html ] || ( echo "No http directory" && exit 1 )
+	@[ -d $(HTTPDIR)/cgi-bin ] || ( echo "No cgi-bin directory" && exit 1 )
+	install -m 4755 -o root -g root vmail.cgi $(HTTPDIR)/cgi-bin/vmail.cgi
+	mkdir -p $(HTTPDIR)/html/_asterisk
+	for x in images/*.gif; do \
+		install -m 644 $$x $(HTTPDIR)/html/_asterisk/; \
+	done
+	@echo " +--------- Asterisk Web Voicemail ----------+"  
+	@echo " +                                           +"
+	@echo " + Asterisk Web Voicemail is installed in    +"
+	@echo " + your cgi-bin directory.  IT USES A SETUID +"
+	@echo " + ROOT PERL SCRIPT, SO IF YOU DON'T LIKE    +"
+	@echo " + THAT, UNINSTALL IT!                       +"
+	@echo " +                                           +"
+	@echo " +-------------------------------------------+"  
 
 mailbox:
 	./addmailbox 
@@ -171,3 +208,13 @@ __rpm: _version
 
 progdocs:
 	doxygen asterisk-ng-doxygen
+
+config:
+	if [ -d /etc/rc.d/init.d ]; then \
+		install -m 755 init.asterisk /etc/rc.d/init.d/asterisk; \
+		/sbin/chkconfig --add asterisk; \
+	elif [ -d /etc/init.d ]; then \
+		install -m 755 init.asterisk /etc/init.d/asterisk; \
+	fi 
+
+	

@@ -15,10 +15,12 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
+#include <asterisk/lock.h>
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
 #include <asterisk/channel.h>
 #include <asterisk/config.h>
+#include <asterisk/term.h>
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -30,8 +32,8 @@
 
 #define MAX_MSG_QUEUE 200
 
-static pthread_mutex_t msglist_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t loglock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t msglist_lock = AST_MUTEX_INITIALIZER;
+static pthread_mutex_t loglock = AST_MUTEX_INITIALIZER;
 
 static struct msglist {
 	char *msg;
@@ -57,6 +59,14 @@ static char *levels[] = {
 	"NOTICE",
 	"WARNING",
 	"ERROR"
+};
+
+static int colors[] = {
+	COLOR_BRGREEN,
+	COLOR_BRBLUE,
+	COLOR_YELLOW,
+	COLOR_BRRED,
+	COLOR_RED
 };
 
 static int make_components(char *s, int lineno)
@@ -207,14 +217,21 @@ int reload_logger(void)
 extern void ast_log(int level, char *file, int line, char *function, char *fmt, ...)
 {
 	char date[256];
+	char tmp[80];
+	char tmp2[80];
+	char tmp3[80];
+	char tmp4[80];
+	char linestr[80];
 	time_t t;
 	struct tm *tm;
 	struct logfile *f;
 
 	va_list ap;
 	va_start(ap, fmt);
-	if (!option_verbose && !option_debug && (!level))
+	if (!option_verbose && !option_debug && (!level)) {
+		va_end(ap);
 		return;
+	}
 	ast_pthread_mutex_lock(&loglock);
 	if (level == 1 /* Event */) {
 		time(&t);
@@ -226,7 +243,9 @@ extern void ast_log(int level, char *file, int line, char *function, char *fmt, 
 			vfprintf(eventlog, fmt, ap);
 			fflush(eventlog);
 		} else
-			ast_log(LOG_WARNING, "Unable to retrieve local time?\n");
+			/** Cannot use ast_log() from locked section of ast_log()!
+			    ast_log(LOG_WARNING, "Unable to retrieve local time?\n"); **/
+			fprintf(stderr, "ast_log: Unable to retrieve local time for %d?\n", t);
 	} else {
 		if (logfiles) {
 			f = logfiles;
@@ -238,16 +257,26 @@ extern void ast_log(int level, char *file, int line, char *function, char *fmt, 
 						strftime(date, sizeof(date), "%b %e %T", tm);
 						fprintf(f->f, "%s %s[%ld]: File %s, Line %d (%s): ", date, levels[level], pthread_self(), file, line, function);
 					} else {
-						fprintf(f->f, "%s[%ld]: File %s, Line %d (%s): ", levels[level], pthread_self(), file, line, function);
+						sprintf(linestr, "%d", line);
+						fprintf(f->f, "%s[%ld]: File %s, Line %s (%s): ",
+																term_color(tmp, levels[level], colors[level], 0, sizeof(tmp)),
+																pthread_self(),
+																term_color(tmp2, file, COLOR_BRWHITE, 0, sizeof(tmp2)),
+																term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
+																term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
 					}
 					vfprintf(f->f, fmt, ap);
+					va_start(ap, fmt);
 					fflush(f->f);
+					va_end(ap);
 				}
 				f = f->next;
 			}
 		} else {
 			fprintf(stdout, "%s[%ld]: File %s, Line %d (%s): ", levels[level], pthread_self(), file, line, function);
+			va_start(ap, fmt);
 			vfprintf(stdout, fmt, ap);
+			va_end(ap);
 			fflush(stdout);
 		}
 	}

@@ -25,6 +25,8 @@ CFLAGS+=
 LIBG723=g723.1/libg723.a
 LIBG723B=g723.1b/libg723b.a
 LIBGSM=gsm/lib/libgsm.a
+LIBGSM=$(shell if uname -m | grep -q 86; then echo gsm/lib/libgsm.a; else echo "-lgsm" ; fi)
+LIBGSMT=$(shell if uname -m | grep -q 86; then echo gsm/lib/libgsm.a; fi)
 LIBMP3=mp3/libmp3.a
 LIBLPC10=lpc10/liblpc10.a
 
@@ -44,7 +46,7 @@ clean:
 $(LIBG723):
 	make -C g723.1 all
 
-$(LIBGSM):
+gsm/lib/libgsm.a:
 	make -C gsm lib/libgsm.a
 
 $(LIBG723B):
@@ -65,7 +67,7 @@ codec_g723_1b.o : codec_g723_1.c
 codec_g723_1b.so : codec_g723_1b.o $(LIBG723B)
 	$(CC) -shared -Xlinker -x -o $@ $< $(LIBG723B) -lm
 
-codec_gsm.so: codec_gsm.o $(LIBGSM)
+codec_gsm.so: codec_gsm.o $(LIBGSMT) 
 	$(CC) -shared -Xlinker -x -o $@ $< $(LIBGSM)
 
 codec_lpc10.so: codec_lpc10.o $(LIBLPC10)

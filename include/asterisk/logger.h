@@ -37,7 +37,8 @@ extern "C" {
  * ast_log(LOG_WHATEVER, "Problem with the %s Captain.  We should get some more.  Will %d be enough?", "flux capacitor", 10);
  * where WHATEVER is one of ERROR, DEBUG, EVENT, NOTICE, or WARNING depending on which log you wish to output to.
  */
-extern void ast_log(int level, char *file, int line, char *function, char *fmt, ...);
+extern void ast_log(int level, char *file, int line, char *function, char *fmt, ...)
+	__attribute__ ((format (printf, 5, 6)));
 
 //! Send a verbose message (based on verbose level)
 /*!
@@ -47,7 +48,8 @@ extern void ast_log(int level, char *file, int line, char *function, char *fmt, 
  * Note the abscence of a comma after the VERBOSE_PREFIX_3.  This is important.
  * VERBOSE_PREFIX_1 through VERBOSE_PREFIX_3 are defined.
  */
-extern void ast_verbose(char *fmt, ...);
+extern void ast_verbose(char *fmt, ...)
+	__attribute__ ((format (printf, 1, 2)));
 
 extern int ast_register_verbose(void (*verboser)(char *string, int opos, int replacelast, int complete));
 extern int ast_unregister_verbose(void (*verboser)(char *string, int opos, int replacelast, int complete));

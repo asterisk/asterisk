@@ -11,6 +11,7 @@
  * the GNU General Public License
  */
 
+#include <asterisk/lock.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -53,10 +54,10 @@ static int skel_exec(struct ast_channel *chan, void *data)
 	/* Do our thing here */
 	res = system((char *)data);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to execute '%s'\n", data);
+		ast_log(LOG_WARNING, "Unable to execute '%s'\n", (char *)data);
 		res = -1;
 	} else if (res == 127) {
-		ast_log(LOG_WARNING, "Unable to execute '%s'\n", data);
+		ast_log(LOG_WARNING, "Unable to execute '%s'\n", (char *)data);
 		res = -1;
 	} else {
 		if (res && ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid)) 

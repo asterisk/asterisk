@@ -80,7 +80,7 @@ struct vofr_hdr {
 	u_int8_t cid;			/* Channel ID */
 	u_int8_t mod:4;			/* Modulation */
 	u_int8_t remid:4;		/* Remote ID */
-#elif __BYTE__ORDER == __BIG_ENDIAN
+#elif __BYTE_ORDER == __BIG_ENDIAN
 	u_int8_t ctag:4;		/* Connect tag */
 	u_int8_t dtype:4;		/* Data type */
 	u_int8_t vflags:4;		/* Voice Routing Flags */

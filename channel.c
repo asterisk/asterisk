@@ -18,7 +18,9 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <errno.h>
+#include <asterisk/lock.h>
 #include <unistd.h>
+#include <math.h>			/* For PI */
 #include <asterisk/frame.h>
 #include <asterisk/sched.h>
 #include <asterisk/options.h>
@@ -28,6 +30,7 @@
 #include <asterisk/file.h>
 #include <asterisk/translate.h>
 
+static int shutting_down = 0;
 
 /* XXX Lock appropriately in more functions XXX */
 
@@ -62,7 +65,7 @@ struct ast_channel *channels = NULL;
 /* Protect the channel list (highly unlikely that two things would change
    it at the same time, but still! */
    
-static pthread_mutex_t chlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t chlock = AST_MUTEX_INITIALIZER;
 
 int ast_check_hangup(struct ast_channel *chan)
 {
@@ -77,6 +80,45 @@ time_t	myt;
 	if (chan->whentohangup > myt) return 0;
 	chan->softhangup = 1;
 	return 1;
+}
+
+void ast_begin_shutdown(int hangup)
+{
+	struct ast_channel *c;
+	shutting_down = 1;
+	if (hangup) {
+		PTHREAD_MUTEX_LOCK(&chlock);
+		c = channels;
+		while(c) {
+			c->softhangup = 1;
+			c = c->next;
+		}
+		PTHREAD_MUTEX_UNLOCK(&chlock);
+	}
+}
+
+int ast_active_channels(void)
+{
+	struct ast_channel *c;
+	int cnt = 0;
+	PTHREAD_MUTEX_LOCK(&chlock);
+	c = channels;
+	while(c) {
+		cnt++;
+		c = c->next;
+	}
+	PTHREAD_MUTEX_UNLOCK(&chlock);
+	return cnt;
+}
+
+void ast_cancel_shutdown(void)
+{
+	shutting_down = 0;
+}
+
+int ast_shutting_down(void)
+{
+	return shutting_down;
 }
 
 void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset)
@@ -189,11 +231,15 @@ int ast_best_codec(int fmts)
 	return 0;
 }
 
-struct ast_channel *ast_channel_alloc(void)
+struct ast_channel *ast_channel_alloc(int needqueue)
 {
 	struct ast_channel *tmp;
 	struct ast_channel_pvt *pvt;
 	int x;
+	int flags;
+	/* If shutting down, don't allocate any new channels */
+	if (shutting_down)
+		return NULL;
 	PTHREAD_MUTEX_LOCK(&chlock);
 	tmp = malloc(sizeof(struct ast_channel));
 	memset(tmp, 0, sizeof(struct ast_channel));
@@ -203,24 +249,43 @@ struct ast_channel *ast_channel_alloc(void)
 			memset(pvt, 0, sizeof(struct ast_channel_pvt));
 			tmp->sched = sched_context_create();
 			if (tmp->sched) {
-				for (x=0;x<AST_MAX_FDS;x++)
+				for (x=0;x<AST_MAX_FDS - 1;x++)
 					tmp->fds[x] = -1;
-				strncpy(tmp->name, "**Unknown**", sizeof(tmp->name)-1);
-				tmp->pvt = pvt;
-				tmp->state = AST_STATE_DOWN;
-				tmp->stack = -1;
-				tmp->streamid = -1;
-				tmp->appl = NULL;
-				tmp->data = NULL;
-				pthread_mutex_init(&tmp->lock, NULL);
-				strncpy(tmp->context, "default", sizeof(tmp->context)-1);
-				strncpy(tmp->language, defaultlanguage, sizeof(tmp->language)-1);
-				strncpy(tmp->exten, "s", sizeof(tmp->exten)-1);
-				tmp->priority=1;
-				tmp->amaflags = ast_default_amaflags;
-				strncpy(tmp->accountcode, ast_default_accountcode, sizeof(tmp->accountcode)-1);
-				tmp->next = channels;
-				channels= tmp;
+				if (needqueue &&  
+					pipe(pvt->alertpipe)) {
+					ast_log(LOG_WARNING, "Alert pipe creation failed!\n");
+					free(pvt);
+					free(tmp);
+					tmp = NULL;
+					pvt = NULL;
+				} else {
+					/* Make sure we've got it done right if they don't */
+					if (needqueue) {
+						flags = fcntl(pvt->alertpipe[0], F_GETFL);
+						fcntl(pvt->alertpipe[0], F_SETFL, flags | O_NONBLOCK);
+						flags = fcntl(pvt->alertpipe[1], F_GETFL);
+						fcntl(pvt->alertpipe[1], F_SETFL, flags | O_NONBLOCK);
+					} else
+						pvt->alertpipe[0] = pvt->alertpipe[1] = -1;
+					/* Always watch the alertpipe */
+					tmp->fds[AST_MAX_FDS-1] = pvt->alertpipe[0];
+					strncpy(tmp->name, "**Unknown**", sizeof(tmp->name)-1);
+					tmp->pvt = pvt;
+					tmp->state = AST_STATE_DOWN;
+					tmp->stack = -1;
+					tmp->streamid = -1;
+					tmp->appl = NULL;
+					tmp->data = NULL;
+					ast_pthread_mutex_init(&tmp->lock);
+					strncpy(tmp->context, "default", sizeof(tmp->context)-1);
+					strncpy(tmp->language, defaultlanguage, sizeof(tmp->language)-1);
+					strncpy(tmp->exten, "s", sizeof(tmp->exten)-1);
+					tmp->priority=1;
+					tmp->amaflags = ast_default_amaflags;
+					strncpy(tmp->accountcode, ast_default_accountcode, sizeof(tmp->accountcode)-1);
+					tmp->next = channels;
+					channels= tmp;
+				}
 			} else {
 				ast_log(LOG_WARNING, "Unable to create schedule context\n");
 				free(tmp);
@@ -235,6 +300,56 @@ struct ast_channel *ast_channel_alloc(void)
 		ast_log(LOG_WARNING, "Out of memory\n");
 	PTHREAD_MUTEX_UNLOCK(&chlock);
 	return tmp;
+}
+
+int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int lock)
+{
+	struct ast_frame *f;
+	struct ast_frame *prev, *cur;
+	int blah = 1;
+	int qlen = 0;
+	f = ast_frdup(fin);
+	if (!f) {
+		ast_log(LOG_WARNING, "Unable to duplicate frame\n");
+		return -1;
+	}
+	if (lock)
+		ast_pthread_mutex_lock(&chan->lock);
+	prev = NULL;
+	cur = chan->pvt->readq;
+	while(cur) {
+		prev = cur;
+		cur = cur->next;
+		qlen++;
+	}
+	if (prev)
+		prev->next = f;
+	else
+		chan->pvt->readq = f;
+	if (chan->pvt->alertpipe[1] > -1) {
+		if (write(chan->pvt->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah))
+			ast_log(LOG_WARNING, "Unable to write to alert pipe, frametype/subclass %d/%d (qlen = %d): %s!\n",
+				f->frametype, f->subclass, qlen, strerror(errno));
+	}
+	if (qlen  > 128) {
+		ast_log(LOG_WARNING, "Exceptionally long queue length queuing to %s\n", chan->name);
+	}
+	if (lock)
+		ast_pthread_mutex_unlock(&chan->lock);
+	return 0;
+}
+
+int ast_queue_hangup(struct ast_channel *chan, int lock)
+{
+	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
+	return ast_queue_frame(chan, &f, lock);
+}
+
+int ast_queue_control(struct ast_channel *chan, int control, int lock)
+{
+	struct ast_frame f = { AST_FRAME_CONTROL, };
+	f.subclass = control;
+	return ast_queue_frame(chan, &f, lock);
 }
 
 int ast_channel_defer_dtmf(struct ast_channel *chan)
@@ -272,9 +387,28 @@ struct ast_channel *ast_channel_walk(struct ast_channel *prev)
 	
 }
 
+int ast_safe_sleep(struct ast_channel *chan, int ms)
+{
+	struct ast_frame *f;
+	while(ms > 0) {
+		ms = ast_waitfor(chan, ms);
+		if (ms <0)
+			return -1;
+		if (ms > 0) {
+			f = ast_read(chan);
+			if (!f)
+				return -1;
+			ast_frfree(f);
+		}
+	}
+	return 0;
+}
+
 void ast_channel_free(struct ast_channel *chan)
 {
 	struct ast_channel *last=NULL, *cur;
+	int fd;
+	struct ast_frame *f, *fp;
 	PTHREAD_MUTEX_LOCK(&chlock);
 	cur = channels;
 	while(cur) {
@@ -306,6 +440,17 @@ void ast_channel_free(struct ast_channel *chan)
 	if (chan->ani)
 		free(chan->ani);
 	pthread_mutex_destroy(&chan->lock);
+	/* Close pipes if appropriate */
+	if ((fd = chan->pvt->alertpipe[0]) > -1)
+		close(fd);
+	if ((fd = chan->pvt->alertpipe[1]) > -1)
+		close(fd);
+	f = chan->pvt->readq;
+	while(f) {
+		fp = f;
+		f = f->next;
+		ast_frfree(fp);
+	}
 	free(chan->pvt);
 	free(chan);
 	PTHREAD_MUTEX_UNLOCK(&chlock);
@@ -359,6 +504,11 @@ int ast_hangup(struct ast_channel *chan)
 		ast_stopstream(chan);
 	if (chan->sched)
 		sched_context_destroy(chan->sched);
+	/* Clear any tone stuff remaining */
+	if (chan->generatordata)
+		chan->generator->release(chan, chan->generatordata);
+	chan->generatordata = NULL;
+	chan->generator = NULL;
 	if (chan->cdr) {
 		/* End the CDR if it hasn't already */
 		ast_cdr_end(chan->cdr);
@@ -430,6 +580,29 @@ int ast_answer(struct ast_channel *chan)
 		break;
 	case AST_STATE_UP:
 		break;
+	}
+	return 0;
+}
+
+void ast_deactivate_generator(struct ast_channel *chan)
+{
+	if (chan->generatordata) {
+		chan->generator->release(chan, chan->generatordata);
+		chan->generatordata = NULL;
+		chan->writeinterrupt = 0;
+	}
+}
+
+int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, void *params)
+{
+	if (chan->generatordata) {
+		chan->generator->release(chan, chan->generatordata);
+		chan->generatordata = NULL;
+	}
+	if ((chan->generatordata = gen->alloc(chan, params))) {
+		chan->generator = gen;
+	} else {
+		return -1;
 	}
 	return 0;
 }
@@ -511,9 +684,10 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	tv.tv_usec = (*ms % 1000) * 1000;
 	FD_ZERO(&rfds);
 	FD_ZERO(&efds);
+
 	for (x=0;x<n;x++) {
 		for (y=0;y<AST_MAX_FDS;y++) {
-			if (c[x]->fds[y] > 0) {
+			if (c[x]->fds[y] > -1) {
 				FD_SET(c[x]->fds[y], &rfds);
 				FD_SET(c[x]->fds[y], &efds);
 				if (c[x]->fds[y] > max)
@@ -623,12 +797,13 @@ char ast_waitfordigit(struct ast_channel *c, int ms)
 struct ast_frame *ast_read(struct ast_channel *chan)
 {
 	struct ast_frame *f = NULL;
+	int blah;
 	static struct ast_frame null_frame = 
 	{
 		AST_FRAME_NULL,
 	};
 	
-	pthread_mutex_lock(&chan->lock);
+	ast_pthread_mutex_lock(&chan->lock);
 	if (chan->masq) {
 		if (ast_do_masquerade(chan)) {
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
@@ -644,7 +819,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		pthread_mutex_unlock(&chan->lock);
 		return NULL;
 	}
-	
+
 	if (!chan->deferdtmf && strlen(chan->dtmfq)) {
 		/* We have DTMF that has been deferred.  Return it now */
 		chan->dtmff.frametype = AST_FRAME_DTMF;
@@ -655,19 +830,35 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		return &chan->dtmff;
 	}
 	
-	chan->blocker = pthread_self();
-	if (chan->exception) {
-		if (chan->pvt->exception) 
-			f = chan->pvt->exception(chan);
+	/* Read and ignore anything on the alertpipe, but read only
+	   one sizeof(blah) per frame that we send from it */
+	if (chan->pvt->alertpipe[0] > -1) {
+		read(chan->pvt->alertpipe[0], &blah, sizeof(blah));
+	}
+
+	/* Check for pending read queue */
+	if (chan->pvt->readq) {
+		f = chan->pvt->readq;
+		chan->pvt->readq = f->next;
+		/* Interpret hangup and return NULL */
+		if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP))
+			f = NULL;
+	} else {
+		chan->blocker = pthread_self();
+		if (chan->exception) {
+			if (chan->pvt->exception) 
+				f = chan->pvt->exception(chan);
+			else
+				ast_log(LOG_WARNING, "Exception flag set, but no exception handler\n");
+			/* Clear the exception flag */
+			chan->exception = 0;
+		} else
+		if (chan->pvt->read)
+			f = chan->pvt->read(chan);
 		else
-			ast_log(LOG_WARNING, "Exception flag set, but no exception handler\n");
-		/* Clear the exception flag */
-		chan->exception = 0;
-	} else
-	if (chan->pvt->read)
-		f = chan->pvt->read(chan);
-	else
-		ast_log(LOG_WARNING, "No read routine on channel %s\n", chan);
+			ast_log(LOG_WARNING, "No read routine on channel %s\n", chan->name);
+	}
+
 	if (f && (f->frametype == AST_FRAME_VOICE)) {
 		if (chan->pvt->readtrans) {
 			f = ast_translate(chan->pvt->readtrans, f, 1);
@@ -675,6 +866,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 				f = &null_frame;
 		}
 	}
+
 	/* Make sure we always return NULL in the future */
 	if (!f) {
 		chan->softhangup = 1;
@@ -689,9 +881,25 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		f = &null_frame;
 	} else if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_ANSWER)) {
 		/* Answer the CDR */
+		chan->state = AST_STATE_UP;
 		ast_cdr_answer(chan->cdr);
 	}
 	pthread_mutex_unlock(&chan->lock);
+
+	/* Run any generator sitting on the line */
+	if (f && (f->frametype == AST_FRAME_VOICE) && chan->generatordata) {
+		/* Mask generator data temporarily */
+		void *tmp;
+		int res;
+		tmp = chan->generatordata;
+		chan->generatordata = NULL;
+		res = chan->generator->generate(chan, tmp, f->datalen);
+		chan->generatordata = tmp;
+		if (res) {
+			ast_log(LOG_DEBUG, "Auto-deactivating generator\n");
+			ast_deactivate_generator(chan);
+		}
+	}
 
 	return f;
 }
@@ -769,6 +977,12 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	}
 	if (chan->masqr)
 		return 0;
+	if (chan->generatordata) {
+		if (chan->writeinterrupt)
+			ast_deactivate_generator(chan);
+		else
+			return 0;
+	}
 	CHECK_BLOCKING(chan);
 	switch(fr->frametype) {
 	case AST_FRAME_CONTROL:
@@ -796,6 +1010,9 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		}
 	}
 	chan->blocking = 0;
+	/* Consider a write failure to force a soft hangup */
+	if (res < 0)
+		chan->softhangup = 1;
 	return res;
 }
 
@@ -899,7 +1116,7 @@ int ast_call(struct ast_channel *chan, char *addr, int timeout)
 	   return anyway.  */
 	int res = -1;
 	/* Stop if we're a zombie or need a soft hangup */
-	pthread_mutex_lock(&chan->lock);
+	ast_pthread_mutex_lock(&chan->lock);
 	if (!chan->zombie && !ast_check_hangup(chan)) 
 		if (chan->pvt->call)
 			res = chan->pvt->call(chan, addr, timeout);
@@ -975,19 +1192,19 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 	chanf = chan->nativeformats;
 	res = ast_translator_best_choice(&peerf, &chanf);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", chan, chan->nativeformats, peer, peer->nativeformats);
+		ast_log(LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", chan->name, chan->nativeformats, peer->name, peer->nativeformats);
 		return -1;
 	}
 	/* Set read format on channel */
 	res = ast_set_read_format(chan, peerf);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", chan, chanf);
+		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", chan->name, chanf);
 		return -1;
 	}
 	/* Set write format on peer channel */
 	res = ast_set_write_format(peer, peerf);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", peer, peerf);
+		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", peer->name, peerf);
 		return -1;
 	}
 	/* Now we go the other way */
@@ -995,19 +1212,19 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 	chanf = chan->nativeformats;
 	res = ast_translator_best_choice(&chanf, &peerf);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", peer, peer->nativeformats, chan, chan->nativeformats);
+		ast_log(LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", peer->name, peer->nativeformats, chan->name, chan->nativeformats);
 		return -1;
 	}
 	/* Set writeformat on channel */
 	res = ast_set_write_format(chan, chanf);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", chan, chanf);
+		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", chan->name, chanf);
 		return -1;
 	}
 	/* Set read format on peer channel */
 	res = ast_set_read_format(peer, chanf);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", peer, peerf);
+		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", peer->name, peerf);
 		return -1;
 	}
 	return 0;
@@ -1057,7 +1274,7 @@ static int ast_do_masquerade(struct ast_channel *original)
 	free_translation(original);
 
 	/* We need the clone's lock, too */
-	pthread_mutex_lock(&clone->lock);
+	ast_pthread_mutex_lock(&clone->lock);
 
 	/* Unlink the masquerade */
 	original->masq = NULL;
@@ -1224,7 +1441,8 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 		}
 	
 			
-		if ((c0->writeformat != c1->readformat) || (c0->readformat != c1->writeformat)) {
+		if (((c0->writeformat != c1->readformat) || (c0->readformat != c1->writeformat)) &&
+			!(c0->generator || c1->generator))  {
 			if (ast_channel_make_compatible(c0, c1)) {
 				ast_log(LOG_WARNING, "Can't make %s and %s compatible\n", c0->name, c1->name);
 				return -1;
@@ -1282,10 +1500,14 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 				last = who;
 #endif
 tackygoto:
-				if (who == c0) 
-					ast_write(c1, f);
-				else 
-					ast_write(c0, f);
+				/* Don't copy packets if there is a generator on either one, since they're
+				   not supposed to be listening anyway */
+				if (!c0->generator && !c1->generator) {
+					if (who == c0) 
+						ast_write(c1, f);
+					else 
+						ast_write(c0, f);
+				}
 			}
 			ast_frfree(f);
 		} else
@@ -1320,3 +1542,136 @@ int ast_channel_setoption(struct ast_channel *chan, int option, void *data, int 
 	return 0;
 }
 
+struct tonepair_def {
+	int freq1;
+	int freq2;
+	int duration;
+	int vol;
+};
+
+struct tonepair_state {
+	float freq1;
+	float freq2;
+	float vol;
+	int duration;
+	int pos;
+	int origrfmt;
+	int origwfmt;
+	struct ast_frame f;
+	unsigned char offset[AST_FRIENDLY_OFFSET];
+	short data[4000];
+};
+
+static void tonepair_release(struct ast_channel *chan, void *params)
+{
+	struct tonepair_state *ts = params;
+	if (chan) {
+		ast_set_write_format(chan, ts->origwfmt);
+		ast_set_read_format(chan, ts->origrfmt);
+	}
+	free(ts);
+}
+
+static void * tonepair_alloc(struct ast_channel *chan, void *params)
+{
+	struct tonepair_state *ts;
+	struct tonepair_def *td = params;
+	ts = malloc(sizeof(struct tonepair_state));
+	if (!ts)
+		return NULL;
+	memset(ts, 0, sizeof(struct tonepair_state));
+	ts->origrfmt = chan->readformat;
+	ts->origwfmt = chan->writeformat;
+	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
+		ast_log(LOG_WARNING, "Unable to set '%s' to signed linear format (write)\n", chan->name);
+		tonepair_release(NULL, ts);
+		ts = NULL;
+	} else if (ast_set_read_format(chan, AST_FORMAT_SLINEAR)) {
+		ast_log(LOG_WARNING, "Unable to set '%s' to signed linear format (read)\n", chan->name);
+		ast_set_write_format(chan, ts->origwfmt);
+		tonepair_release(NULL, ts);
+		ts = NULL;
+	} else {
+		ts->freq1 = td->freq1;
+		ts->freq2 = td->freq2;
+		ts->duration = td->duration;
+		ts->vol = td->vol;
+	}
+	/* Let interrupts interrupt :) */
+	chan->writeinterrupt = 1;
+	return ts;
+}
+
+static int tonepair_generator(struct ast_channel *chan, void *data, int len)
+{
+	struct tonepair_state *ts = data;
+	int x;
+	if (len > sizeof(ts->data) / 2 - 1) {
+		ast_log(LOG_WARNING, "Can't generate that much data!\n");
+		return -1;
+	}
+	memset(&ts->f, 0, sizeof(ts->f));
+	for (x=0;x<len/2;x++) {
+		ts->data[x] = ts->vol * (
+				sin((ts->freq1 * 2.0 * M_PI / 8000.0) * (ts->pos + x)) +
+				sin((ts->freq2 * 2.0 * M_PI / 8000.0) * (ts->pos + x))
+			);
+	}
+	ts->f.frametype = AST_FRAME_VOICE;
+	ts->f.subclass = AST_FORMAT_SLINEAR;
+	ts->f.datalen = len;
+	ts->f.timelen = len/8;
+	ts->f.offset = AST_FRIENDLY_OFFSET;
+	ts->f.data = ts->data;
+	ast_write(chan, &ts->f);
+	ts->pos += x;
+	if (ts->duration > 0) {
+		if (ts->pos >= ts->duration * 8)
+			return -1;
+	}
+	return 0;
+}
+
+static struct ast_generator tonepair = {
+	alloc: tonepair_alloc,
+	release: tonepair_release,
+	generate: tonepair_generator,
+};
+
+int ast_tonepair_start(struct ast_channel *chan, int freq1, int freq2, int duration, int vol)
+{
+	struct tonepair_def d = { 0, };
+	d.freq1 = freq1;
+	d.freq2 = freq2;
+	d.duration = duration;
+	if (vol < 1)
+		d.vol = 8192;
+	else
+		d.vol = vol;
+	if (ast_activate_generator(chan, &tonepair, &d))
+		return -1;
+	return 0;
+}
+
+void ast_tonepair_stop(struct ast_channel *chan)
+{
+	ast_deactivate_generator(chan);
+}
+
+int ast_tonepair(struct ast_channel *chan, int freq1, int freq2, int duration, int vol)
+{
+	struct ast_frame *f;
+	int res;
+	if ((res = ast_tonepair_start(chan, freq1, freq2, duration, vol)))
+		return res;
+
+	/* Give us some wiggle room */
+	while(chan->generatordata && (ast_waitfor(chan, 100) >= 0)) {
+		f = ast_read(chan);
+		if (f)
+			ast_frfree(f);
+		else
+			return -1;
+	}
+	return 0;
+}

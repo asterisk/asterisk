@@ -80,7 +80,7 @@ static int jpeg_write_image(int fd, struct ast_frame *fr)
 	if (fr->datalen) {
 		res = write(fd, fr->data, fr->datalen);
 		if (res != fr->datalen) {
-			ast_log(LOG_WARNING, "Only wrote %d of %d bytes: %s\n", res, fr->datalen);
+			ast_log(LOG_WARNING, "Only wrote %d of %d bytes: %s\n", res, fr->datalen, strerror(errno));
 			return -1;
 		}
 	}

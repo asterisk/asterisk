@@ -22,7 +22,8 @@ LIB_TARGET_DIR = .
 # 
 
 WARNINGS = -Wall -Wno-comment -Wno-error
-CFLAGS = -O6 -mpentium -I$(LIB_TARGET_DIR) $(WARNINGS)
+CFLAGS = -O6 -I$(LIB_TARGET_DIR) $(WARNINGS)
+CFLAGS+= $(shell if uname -m | grep -q 86; then echo "-mpentium" ; fi)
 
 LIB = $(LIB_TARGET_DIR)/liblpc10.a
 
