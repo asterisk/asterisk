@@ -192,8 +192,13 @@ static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
 		return &null_frame;
 	}
 	ast_log(LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
-	rtp->f.frametype = AST_FRAME_DTMF;
-	rtp->f.subclass = rtp->resp;
+	if (rtp->resp == 'X') {
+		rtp->f.frametype = AST_FRAME_CONTROL;
+		rtp->f.subclass = AST_CONTROL_FLASH;
+	} else {
+		rtp->f.frametype = AST_FRAME_DTMF;
+		rtp->f.subclass = rtp->resp;
+	}
 	rtp->f.datalen = 0;
 	rtp->f.samples = 0;
 	rtp->f.mallocd = 0;
@@ -235,6 +240,8 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 		resp = '#';
 	} else if (event < 16) {
 		resp = 'A' + (event - 12);
+	} else if (event < 17) {
+		resp = 'X';
 	}
 	if (rtp->resp && (rtp->resp != resp)) {
 		f = send_dtmf(rtp);
@@ -269,6 +276,8 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 		resp = '#';
 	} else if (event < 16) {
 		resp = 'A' + (event - 12);
+	} else if (event < 17) {
+		resp = 'X';
 	}
 	if (rtp->resp && (rtp->resp != resp)) {
 		f = send_dtmf(rtp);

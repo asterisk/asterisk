@@ -3442,7 +3442,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(0, x));
 				strncat(a, costr, sizeof(a) - strlen(a) - 1);
 				if (x == AST_RTP_DTMF) {
-				  /* Indicate we support DTMF...  Not sure about 16, but MSN supports it so dang it, we will too... */
+				  /* Indicate we support DTMF and FLASH... */
 				  snprintf(costr, sizeof costr, "a=fmtp:%d 0-16\r\n",
 					   codec);
 				  strncat(a, costr, sizeof(a) - strlen(a) - 1);
