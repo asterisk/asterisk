@@ -287,7 +287,7 @@ int ast_best_codec(int fmts)
 
 static const struct ast_channel_tech null_tech = {
 	.type = "NULL",
-	.description "Null channel (should not see this)",
+	.description = "Null channel (should not see this)",
 };
 
 struct ast_channel *ast_channel_alloc(int needqueue)
