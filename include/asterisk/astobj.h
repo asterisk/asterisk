@@ -161,6 +161,16 @@ extern "C" {
 		ASTOBJ_CONTAINER_UNLOCK(container); \
 	} while(0)
 
+#define ASTOBJ_CONTAINER_FIND(container,namestr) \
+	({ \
+		typeof((container)->head) found = NULL; \
+		ASTOBJ_CONTAINER_TRAVERSE(container, !found, do { \
+			if (!(strcasecmp(iterator->name, (namestr)))) \
+				found = ASTOBJ_REF(iterator); \
+		} while (0)); \
+		found; \
+	})
+
 #define ASTOBJ_CONTAINER_FIND_FULL(container,data,field,hashfunc,hashoffset,comparefunc) \
 	({ \
 		typeof((container)->head) found = NULL; \
@@ -185,6 +195,25 @@ extern "C" {
 		} \
 		ASTOBJ_CONTAINER_UNLOCK(container); \
 	} while(0)
+
+#define ASTOBJ_CONTAINER_FIND_UNLINK(container,namestr) \
+	({ \
+		typeof((container)->head) found = NULL; \
+		typeof((container)->head) prev = NULL; \
+		ASTOBJ_CONTAINER_TRAVERSE(container, !found, do { \
+			if (!(strcasecmp(iterator->name, (namestr)))) { \
+				found = iterator; \
+				ASTOBJ_CONTAINER_WRLOCK(container); \
+				if (prev) \
+					prev->next[0] = next; \
+				else \
+					(container)->head = next; \
+				ASTOBJ_CONTAINER_UNLOCK(container); \
+			} \
+			prev = iterator; \
+		} while (0)); \
+		found; \
+	})
 
 #define ASTOBJ_CONTAINER_FIND_UNLINK_FULL(container,data,field,hashfunc,hashoffset,comparefunc) \
 	({ \
@@ -251,12 +280,6 @@ extern "C" {
 
 #define ASTOBJ_CONTAINER_DESTROY(container) \
 	ASTOBJ_CONTAINER_DESTROY_FULL(container,1,ASTOBJ_DEFAULT_BUCKETS)
-
-#define ASTOBJ_CONTAINER_FIND(container,namestr) \
-	ASTOBJ_CONTAINER_FIND_FULL(container,namestr,name,ASTOBJ_DEFAULT_HASH,0,strcasecmp)
-
-#define ASTOBJ_CONTAINER_FIND_UNLINK(container,namestr) \
-	ASTOBJ_CONTAINER_FIND_UNLINK_FULL(container,namestr,name,ASTOBJ_DEFAULT_HASH,0,strcasecmp)
 
 #define ASTOBJ_CONTAINER_LINK(container,newobj) \
 	ASTOBJ_CONTAINER_LINK_FULL(container,newobj,(newobj)->name,name,ASTOBJ_DEFAULT_HASH,0,strcasecmp)
