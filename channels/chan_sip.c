@@ -4114,7 +4114,11 @@ static int get_msg_text(char *buf, int len, struct sip_request *req)
 		y = 0;
 	for (x=0;x<req->lines;x++) {
 		strncat(buf, req->line[x], y);
-		strcat(buf, "\n");
+		y -= strlen(req->line[x]) + 1;
+		if (y < 0)
+			y = 0;
+		if (y != 0)
+			strcat(buf, "\n");
 	}
 	return 0;
 }
