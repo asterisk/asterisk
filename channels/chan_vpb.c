@@ -8,6 +8,11 @@
  * Copyright (C) 2004, Ben Kramer
  * Ben Kramer <ben@voicetronix.com.au>
  *
+ * Daniel Bichara <daniel@bichara.com.br> - Brazilian CallerID detection (c)2004 
+ *
+ * Welber Silveira - welberms@magiclink.com.br - (c)2004
+ * Copying CLID string to propper structure after detection
+ *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
  */
@@ -101,6 +106,7 @@ static int restart_monitor(void);
 #define MODE_FXO	3
 
 /* Pick a country or add your own! */
+/* These are the tones that are played to the user */
 #define TONES_AU
 #ifdef TONES_AU
 static VPB_TONE Dialtone     = {440,   	440, 	440, 	-10,  	-10, 	-10, 	5000,	0   };
@@ -221,6 +227,8 @@ static struct vpb_pvt {
 	char ext[AST_MAX_EXTENSION];		/* DTMF buffer for the ext[ens] */
 	char language[MAX_LANGUAGE];		/* language being used */
 	char callerid[AST_MAX_EXTENSION];	/* CallerId used for directly connected phone */
+
+	int brcallerpos;			/* Brazilian CallerID detection */
 
 	int lastoutput;				/* Holds the last Audio format output'ed */
 	int lastinput;				/* Holds the last Audio format input'ed */
@@ -548,6 +556,8 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 
 		case VPB_TONEDETECT:
 			if (e->data == VPB_BUSY || e->data == VPB_BUSY_308 || e->data == VPB_BUSY_AUST ) {
+				if (option_verbose > 3) 
+					ast_verbose(VERBOSE_PREFIX_4 "%s: handle_owned: got event: BUSY\n",
 				if (p->owner->_state == AST_STATE_UP) {
 					f.subclass = AST_CONTROL_HANGUP;
 				}
@@ -1500,7 +1510,7 @@ static int vpb_answer(struct ast_channel *ast)
 			ast_verbose(VERBOSE_PREFIX_4 "%s: Answering channel\n",p->dev);
 
 	if (p->mode == MODE_FXO){
-		if (option_verbose > 4)
+		if (option_verbose > 3)
 				ast_verbose("%s: Disabling Loop Drop detection\n",p->dev);
 		vpb_disable_event(p->handle, VPB_MDROP);
 	}
@@ -1543,7 +1553,7 @@ static int vpb_answer(struct ast_channel *ast)
 	}
 	vpb_sleep(500);
 	if (p->mode == MODE_FXO){
-		if (option_verbose > 4)
+		if (option_verbose > 3)
 				ast_verbose("%s: Re-enabling Loop Drop detection\n",p->dev);
 		vpb_enable_event(p->handle,VPB_MDROP);
 	}
@@ -1772,7 +1782,8 @@ static void *do_chanreads(void *pvt)
 			}
 		}
 
-		if ( (p->owner->_state != AST_STATE_UP) || !bridgerec) {
+//		if ( (p->owner->_state != AST_STATE_UP) || !bridgerec) {
+		if ( (p->owner->_state != AST_STATE_UP) ) {
 			if (option_verbose > 4) {
 				if (p->owner->_state != AST_STATE_UP)
 					ast_verbose("%s: chanreads: Im not up[%d]\n", p->dev,p->owner->_state);
