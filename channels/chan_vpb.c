@@ -93,17 +93,19 @@ static int restart_monitor(void);
 
 /* Pick a country or add your own! */
 #define TONES_AU
-//#define TONES_USA
 #ifdef TONES_AU
 static VPB_TONE Dialtone     = {440,   	440, 	440, 	-10,  	-10, 	-10, 	5000,	0   };
 static VPB_TONE Busytone     = {470,   	0,   	0, 	-10,  	-100, 	-100,   5000, 	0 };
 static VPB_TONE Ringbacktone = {400,   	50,   	440, 	-10,  	-10, 	-10,  	1400, 	800 };
 #endif
+/*
+#define TONES_USA
 #ifdef TONES_USA
 static VPB_TONE Dialtone     = {425,   0,   0, -16,  -100, -100, 10000,    0};
 static VPB_TONE Busytone     = {425,   0,   0, -10,  -100, -100,   500,  500};
 static VPB_TONE Ringbacktone = {400,   425,   450, -20,  -20, -20,  1000, 1000};
 #endif
+*/
 
 /* grunt tone defn's */
 static VPB_DETECT toned_grunt = { 3, VPB_GRUNT, 1, 2000, 3000, 0, 0, -40, 0, 0, 0, 40, { { VPB_DELAY, 1000, 0, 0 }, { VPB_RISING, 0, 40, 0 }, { 0, 100, 0, 0 } } };
@@ -1044,12 +1046,11 @@ static int vpb_indicate(struct ast_channel *ast, int condition)
 	return res;
 }
 
-static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, int needlock)
+static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct vpb_pvt *p = (struct vpb_pvt *)newchan->pvt->pvt;
 
-	if (needlock)
-		ast_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	ast_log(LOG_DEBUG, 
 		"New owner for channel %s is %s\n", p->dev, newchan->name);
 
@@ -1060,8 +1061,7 @@ static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, i
 	if (newchan->_state == AST_STATE_RINGING) 
 		vpb_indicate(newchan, AST_CONTROL_RINGING);
 
-	if (needlock)
-		ast_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return 0;
 }
 
