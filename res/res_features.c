@@ -113,6 +113,7 @@ struct parkeduser {
 	int parkingtime;
 	int notquiteyet;
 	char peername[1024];
+	unsigned char moh_trys;
 	struct parkeduser *next;
 };
 
@@ -1212,6 +1213,11 @@ static void *do_parking_thread(void *ignore)
 						} else {
 							/* XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
 							ast_frfree(f);
+							if (pu->moh_trys < 3 && !pu->chan->generatordata) {
+								ast_log(LOG_DEBUG, "MOH on parked call stopped by outside source.  Restarting.\n");
+								ast_moh_start(pu->chan, NULL);
+								pu->moh_trys++;
+							}
 							goto std;	/* XXX Ick: jumping into an else statement??? XXX */
 						}
 					}
