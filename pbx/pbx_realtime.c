@@ -87,9 +87,24 @@ static struct ast_variable *realtime_switch_common(const char *table, const char
 {
 	struct ast_variable *var;
 	char pri[20];
+	char *ematch;
+	char rexten[AST_MAX_EXTENSION + 20]="";
 	snprintf(pri, sizeof(pri), "%d", priority);
-	printf("%s/%s/%s/%s exists\n", table, context, exten, pri);
-	var = ast_load_realtime(table, "context", context, "exten", exten, "priority", pri, NULL);
+	switch(mode) {
+	case MODE_MATCHMORE:
+		ematch = "exten LIKE";
+		snprintf(rexten, sizeof(rexten), "%s_%%", exten);
+		break;
+	case MODE_CANMATCH:
+		ematch = "exten LIKE";
+		snprintf(rexten, sizeof(rexten), "%s%%", exten);
+		break;
+	case MODE_MATCH:
+	default:
+		ematch = "exten";
+		strncpy(rexten, exten, sizeof(rexten) - 1);
+	}
+	var = ast_load_realtime(table, "context", context, ematch, rexten, "priority", pri, NULL);
 	return var;
 }
 
@@ -143,6 +158,8 @@ static int realtime_matchmore(struct ast_channel *chan, const char *context, con
 {
 	REALTIME_COMMON(MODE_MATCHMORE);
 	if (var) ast_destroy_realtime(var);
+	if (var)
+		res = 1;
 	return res > 0 ? res : 0;
 }
 

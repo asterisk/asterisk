@@ -31,19 +31,6 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static void parseop(char *newp, int newplen, char **opo, const char *newparam)
-{
-	char *op;
-	strncpy(newp, newparam, newplen - 1);
-	op = strchr(newp, ' ');
-	if (op) {
-		*op = '\0';
-		op++;
-	} else
-		op = "=";
-	*opo = op;
-}
-
 static struct ast_variable *realtime_odbc(const char *database, const char *table, va_list ap)
 {
 	odbc_obj *obj;
@@ -51,7 +38,6 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 	char sql[1024];
 	char coltitle[256];
 	char rowdata[2048];
-	char newp[256];
 	char *op;
 	const char *newparam, *newval;
 	char *stringp;
@@ -90,15 +76,14 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 		return NULL;
 	}
 	newval = va_arg(aq, const char *);
-	parseop(newp, sizeof(newp), &op, newparam);
-	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s %s ?", table, newp, op);
+	if (!strchr(newparam, ' ')) op = " ="; else op = "";
+	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s ?", table, newparam, op);
 	while((newparam = va_arg(aq, const char *))) {
-		parseop(newp, sizeof(newp), &op, newparam);
-		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s %s ?", newparam, op);
+		if (!strchr(newparam, ' ')) op = " ="; else op = "";
+		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s%s ?", newparam, op);
 		newval = va_arg(aq, const char *);
 	}
 	va_end(aq);
-	
 	res = SQLPrepare(stmt, sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
