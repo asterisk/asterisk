@@ -175,6 +175,7 @@ static int tos = 0;
 static int videosupport = 0;
 
 static int globaldtmfmode = SIP_DTMF_RFC2833;
+static char globalmusicclass[MAX_LANGUAGE] = "";	/* Global music on hold class */
 
 /* Expire slowly */
 static int expiry = 900;
@@ -262,6 +263,7 @@ static struct sip_pvt {
 	char fromuser[AST_MAX_EXTENSION];	/* Domain to show in the user field */
 	char tohost[AST_MAX_EXTENSION];		/* Host we should put in the "to" field */
 	char language[MAX_LANGUAGE];
+	char musicclass[MAX_LANGUAGE];          /* Music on Hold class */
 	char rdnis[256];				/* Referring DNIS */
 	char theirtag[256];				/* Their tag */
 	char username[256];
@@ -330,6 +332,7 @@ struct sip_user {
 	char methods[80];
 	char accountcode[20];
 	char language[MAX_LANGUAGE];
+	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
 	unsigned int callgroup;
 	unsigned int pickupgroup;
 	int nat;
@@ -359,6 +362,8 @@ struct sip_peer {
 	char fromuser[80];
 	char fromdomain[80];
 	char mailbox[AST_MAX_EXTENSION];
+	char language[MAX_LANGUAGE];
+	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
 	int lastmsgssent;
 	time_t	lastmsgcheck;
 	int dynamic;
@@ -1633,6 +1638,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
                         tmp->amaflags = i->amaflags;
 		if (!ast_strlen_zero(i->language))
 			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
+		if (!ast_strlen_zero(i->musicclass))
+			strncpy(tmp->musicclass, i->musicclass, sizeof(tmp->musicclass)-1);
 		i->owner = tmp;
 		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
@@ -1865,6 +1872,8 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 		strncpy(p->callid, callid, sizeof(p->callid) - 1);
 	/* Assume reinvite OK and via INVITE */
 	p->canreinvite = globalcanreinvite;
+	/* Assign default music on hold class */
+        strncpy(p->musicclass, globalmusicclass, sizeof(p->musicclass));
 	p->dtmfmode = globaldtmfmode;
 	p->capability = capability;
 	if (p->dtmfmode & SIP_DTMF_RFC2833)
@@ -4467,6 +4476,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 			strncpy(p->peermd5secret, user->md5secret, sizeof(p->peermd5secret) - 1);
 			strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)  -1);
 			strncpy(p->language, user->language, sizeof(p->language)  -1);
+			strncpy(p->musicclass, user->musicclass, sizeof(p->musicclass)  -1);
 			p->canreinvite = user->canreinvite;
 			p->amaflags = user->amaflags;
 			p->callgroup = user->callgroup;
@@ -5331,6 +5341,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					}
 				}
 			} else if (!strcasecmp(msg, "INVITE")) {
+				sip_cancel_destroy(p);
 				if (!ast_strlen_zero(get_header(req, "Content-Type")))
 					process_sdp(p, req);
 				/* Save Record-Route for any later requests we make on this dialogue */
@@ -6463,9 +6474,10 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 		user->capability = capability;
 
 		user->canreinvite = REINVITE_INVITE;
-		/* JK02: set default context */
-		strcpy(user->context, context);
-		strcpy(user->language, language);
+		/* set default context */
+		strncpy(user->context, context, sizeof(user->context)-1);
+		strncpy(user->language, language, sizeof(user->language)-1);
+		strncpy(user->language, globalmusicclass, sizeof(user->musicclass)-1);
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
 				strncpy(user->context, v->value, sizeof(user->context));
@@ -6505,6 +6517,8 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 				user->pickupgroup = ast_get_group(v->value);
 			} else if (!strcasecmp(v->name, "language")) {
 				strncpy(user->language, v->value, sizeof(user->language)-1);
+			} else if (!strcasecmp(v->name, "musiconhold")) {
+				strncpy(user->musicclass, v->value, sizeof(user->musicclass)-1);
 			} else if (!strcasecmp(v->name, "accountcode")) {
 				strncpy(user->accountcode, v->value, sizeof(user->accountcode)-1);
 			} else if (!strcasecmp(v->name, "incominglimit")) {
@@ -6565,6 +6579,8 @@ static struct sip_peer *temp_peer(char *name)
 	peer->pokeexpire = -1;
 	strncpy(peer->name, name, sizeof(peer->name)-1);
 	strncpy(peer->context, context, sizeof(peer->context)-1);
+	strncpy(peer->language, language, sizeof(peer->language)-1);
+	strncpy(peer->musicclass, globalmusicclass, sizeof(peer->musicclass)-1);
 	peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
 	peer->expiry = expiry;
 	peer->capability = capability;
@@ -6618,6 +6634,8 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 		if (!found) {
 			strncpy(peer->name, name, sizeof(peer->name)-1);
 			strncpy(peer->context, context, sizeof(peer->context)-1);
+			strncpy(peer->language, language, sizeof(peer->language)-1);
+			strncpy(peer->musicclass, globalmusicclass, sizeof(peer->musicclass)-1);
 			peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
 			peer->expiry = expiry;
 		}
@@ -6647,7 +6665,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 				strncpy(peer->fromdomain, v->value, sizeof(peer->fromdomain)-1);
 			else if (!strcasecmp(v->name, "fromuser"))
 				strncpy(peer->fromuser, v->value, sizeof(peer->fromuser)-1);
-            else if (!strcasecmp(v->name, "dtmfmode")) {
+                       else if (!strcasecmp(v->name, "dtmfmode")) {
 				if (!strcasecmp(v->value, "inband"))
 					peer->dtmfmode=SIP_DTMF_INBAND;
 				else if (!strcasecmp(v->value, "rfc2833"))
@@ -6704,6 +6722,10 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 					peer->addr.sin_port = htons(atoi(v->value));
 			} else if (!strcasecmp(v->name, "username")) {
 				strncpy(peer->username, v->value, sizeof(peer->username)-1);
+			} else if (!strcasecmp(v->name, "language")) {
+				strncpy(peer->language, v->value, sizeof(peer->language)-1);
+			} else if (!strcasecmp(v->name, "musiconhold")) {
+				strncpy(peer->musicclass, v->value, sizeof(peer->musicclass)-1);
 			} else if (!strcasecmp(v->name, "mailbox")) {
 				strncpy(peer->mailbox, v->value, sizeof(peer->mailbox)-1);
 			} else if (!strcasecmp(v->name, "callgroup")) {
@@ -6821,6 +6843,8 @@ static int reload_config(void)
 			videosupport = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "notifymimetype")) {
 			strncpy(notifymime, v->value, sizeof(notifymime) - 1);
+		} else if (!strcasecmp(v->name, "musicclass")) {
+			strncpy(globalmusicclass, v->value, sizeof(globalmusicclass) - 1);
 		} else if (!strcasecmp(v->name, "language")) {
 			strncpy(language, v->value, sizeof(language)-1);
 		} else if (!strcasecmp(v->name, "callerid")) {
