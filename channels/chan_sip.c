@@ -3392,7 +3392,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	/* Prefer the codec we were requested to use, first, no matter what */
 	if (capability & p->prefcodec) {
 		if (debug)
-			ast_verbose("Answering/Requesting with root capability %d\n", p->prefcodec);
+			ast_verbose("Answering/Requesting with root capability 0x%x (%s)\n", p->prefcodec, ast_getformatname(p->prefcodec));	
 		codec = ast_rtp_lookup_code(p->rtp, 1, p->prefcodec);
 		if (codec > -1) {
 			snprintf(costr, sizeof(costr), " %d", codec);
