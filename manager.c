@@ -553,6 +553,7 @@ static int action_getvar(struct mansession *s, struct message *m)
 static int action_status(struct mansession *s, struct message *m)
 {
 	char *id = astman_get_header(m,"ActionID");
+    	char *name = astman_get_header(m,"Channel");
 	char idText[256] = "";
 	struct ast_channel *c;
 	char bridge[256];
@@ -560,6 +561,19 @@ static int action_status(struct mansession *s, struct message *m)
 	c = ast_channel_walk_locked(NULL);
         if (id && !ast_strlen_zero(id))
                 snprintf(idText,256,"ActionID: %s\r\n",id);
+	if (name && !ast_strlen_zero(name)) {
+		while (c) {
+			if (!strcasecmp(c->name, name)) {
+				break;
+			}
+			ast_mutex_unlock(&c->lock);
+			c = ast_channel_walk_locked(c);
+		}
+		if (!c) {
+			astman_send_error(s, m, "No such channel");
+			return 0;
+		}
+	}
 	while(c) {
 		if (c->bridge)
 			snprintf(bridge, sizeof(bridge), "Link: %s\r\n", c->bridge->name);
@@ -570,6 +584,7 @@ static int action_status(struct mansession *s, struct message *m)
 			"Event: Status\r\n"
 			"Channel: %s\r\n"
 			"CallerID: %s\r\n"
+			"Account: %s\r\n"
 			"State: %s\r\n"
 			"Context: %s\r\n"
 			"Extension: %s\r\n"
@@ -579,6 +594,7 @@ static int action_status(struct mansession *s, struct message *m)
 			"%s"
 			"\r\n",
 			c->name, c->callerid ? c->callerid : "<unknown>", 
+			c->accountcode,
 			ast_state2str(c->_state), c->context,
 			c->exten, c->priority, bridge, c->uniqueid, idText);
 		} else {
@@ -586,15 +602,20 @@ static int action_status(struct mansession *s, struct message *m)
 			"Event: Status\r\n"
 			"Channel: %s\r\n"
 			"CallerID: %s\r\n"
+			"Account: %s\r\n"
 			"State: %s\r\n"
 			"%s"
 			"Uniqueid: %s\r\n"
 			"%s"
 			"\r\n",
 			c->name, c->callerid ? c->callerid : "<unknown>", 
+			c->accountcode,
 			ast_state2str(c->_state), bridge, c->uniqueid, idText);
 		}
 		ast_mutex_unlock(&c->lock);
+		if (name && !ast_strlen_zero(name)) {
+			break;
+		}
 		c = ast_channel_walk_locked(c);
 	}
 	ast_cli(s->fd,

@@ -8188,6 +8188,42 @@ static struct zt_pvt *find_channel(int channel)
 	return p;
 }
 
+static int action_zapdndon(struct mansession *s, struct message *m)
+{
+    struct zt_pvt *p = NULL;
+    char *channel = astman_get_header(m, "ZapChannel");
+    if (ast_strlen_zero(channel)) {
+        astman_send_error(s, m, "No channel specified");
+        return 0;
+    }
+    p = find_channel(atoi(channel));
+    if (!p) {
+        astman_send_error(s, m, "No such channel");
+        return 0;
+    }
+    p->dnd = 1;
+    astman_send_ack(s, m, "DND Enabled");
+    return 0;
+}
+
+static int action_zapdndoff(struct mansession *s, struct message *m)
+{
+    struct zt_pvt *p = NULL;
+    char *channel = astman_get_header(m, "ZapChannel");
+    if (ast_strlen_zero(channel)) {
+        astman_send_error(s, m, "No channel specified");
+        return 0;
+    }
+    p = find_channel(atoi(channel));
+    if (!p) {
+        astman_send_error(s, m, "No such channel");
+        return 0;
+    }
+    p->dnd = 0;
+    astman_send_ack(s, m, "DND Disabled");
+    return 0;
+}
+
 static int action_transfer(struct mansession *s, struct message *m)
 {
 	struct zt_pvt *p = NULL;
@@ -9038,6 +9074,8 @@ int load_module(void)
 	ast_manager_register( "ZapTransfer", 0, action_transfer, "Transfer Zap Channel" );
 	ast_manager_register( "ZapHangup", 0, action_transferhangup, "Hangup Zap Channel" );
 	ast_manager_register( "ZapDialOffhook", 0, action_zapdialoffhook, "Dial over Zap channel while offhook" );
+    ast_manager_register( "ZapDNDon", 0, action_zapdndon, "Toggle Zap channel Do Not Disturb status ON" );
+    ast_manager_register( "ZapDNDoff", 0, action_zapdndoff, "Toggle Zap channel Do Not Disturb status OFF" );
 
 	return res;
 }
