@@ -526,17 +526,15 @@ static char *complete_context_remove_extension(char *line, char *word, int pos,
 						 (exten && !strncmp(ast_get_extension_name(e), exten,
 						                    strlen(exten))) ) { /* if input, compare ... */
 						if (++which > state) {
-							/* is there some context input? if not, throw back
-							 * exten@context, if yes throw back only context ...
+							/* If there is an extension then return
+							 * exten@context.
 							 */
-							if (!context) {
+							if (exten) {
 								ret = malloc(strlen(ast_get_extension_name(e)) +
 									strlen(ast_get_context_name(c)) + 2);
 								if (ret)
 									sprintf(ret, "%s@%s", ast_get_extension_name(e),
 										ast_get_context_name(c));
-							} else {
-								ret = strdup(ast_get_context_name(c));
 							}
 							free(exten); free(context);
 
