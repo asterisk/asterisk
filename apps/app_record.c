@@ -37,6 +37,7 @@ static char *descrip =
 "If filename contains '%d', these characters will be replaced with a number\n"
 "incremented by one each time the file is recorded. \n\n"
 "Formats: g723, g729, gsm, h263, ulaw, alaw, vox, wav, WAV\n\n"
+"User can press '#' to terminate the recording and continue to the next priority.\n\n"
 "Returns -1 when the user hangs up.\n";
 
 STANDARD_LOCAL_USER;
