@@ -58,6 +58,10 @@
 #define AST_MAX_CONNECTS 128
 #define NUM_MSGS 64
 
+#define WELCOME_MESSAGE ast_verbose( "Asterisk " ASTERISK_VERSION ", Copyright (C) 1999-2004 Digium.\n"); \
+		ast_verbose( "Written by Mark Spencer <markster@digium.com>\n"); \
+		ast_verbose( "=========================================================================\n")
+
 int option_verbose=0;
 int option_debug=0;
 int option_nofork=0;
@@ -876,15 +880,13 @@ static int ast_el_read_char(EditLine *el, char *cp)
 					quit_handler(0, 0, 0, 0);
 				} else {
 					int tries;
-					int reconnects_per_second = 10;
-					fprintf(stderr, "\nAttempting to reconnect for 30 seconds\n");
+					int reconnects_per_second = 20;
+					fprintf(stderr, "Attempting to reconnect for 30 seconds\n");
 					for (tries=0;tries<30 * reconnects_per_second;tries++) {
 						if (ast_tryconnect()) {
+							fprintf(stderr, "Reconnect succeeded after %.3f seconds\n", 1.0 / reconnects_per_second * tries);
 							printf(term_quit());
-							ast_register_verbose(console_verboser);
-							ast_verbose( "Asterisk " ASTERISK_VERSION ", Copyright (C) 1999-2004 Digium.\n");
-							ast_verbose( "Written by Mark Spencer <markster@digium.com>\n");
-							ast_verbose( "=========================================================================\n");
+							WELCOME_MESSAGE;
 							break;
 						} else {
 							usleep(1000000 / reconnects_per_second);
@@ -1626,9 +1628,7 @@ int main(int argc, char *argv[])
 			}
 			printf(term_quit());
 			ast_register_verbose(console_verboser);
-			ast_verbose( "Asterisk " ASTERISK_VERSION ", Copyright (C) 1999-2004 Digium.\n");
-			ast_verbose( "Written by Mark Spencer <markster@digium.com>\n");
-			ast_verbose( "=========================================================================\n");
+			WELCOME_MESSAGE;
 			ast_remotecontrol(NULL);
 			quit_handler(0, 0, 0, 0);
 			exit(0);
@@ -1675,9 +1675,7 @@ int main(int argc, char *argv[])
 		ast_register_verbose(console_verboser);
 	/* Print a welcome message if desired */
 	if (option_verbose || option_console) {
-		ast_verbose( "Asterisk " ASTERISK_VERSION ", Copyright (C) 1999-2004 Digium.\n");
-		ast_verbose( "Written by Mark Spencer <markster@digium.com>\n");
-		ast_verbose( "=========================================================================\n");
+		WELCOME_MESSAGE;
 	}
 	if (option_console && !option_verbose) 
 		ast_verbose("[ Booting...");
