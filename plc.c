@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <stdint.h>
 #include <limits.h>
 
 #include <asterisk/plc.h>
@@ -123,7 +124,6 @@ static int __inline__ amdf_pitch(int min_pitch, int max_pitch, int16_t amp[], in
 int plc_rx(plc_state_t *s, int16_t amp[], int len)
 {
     int i;
-    int overlap_len;
     int pitch_overlap;
     float old_step;
     float new_step;
@@ -167,7 +167,6 @@ int plc_rx(plc_state_t *s, int16_t amp[], int len)
 
 int plc_fillin(plc_state_t *s, int16_t amp[], int len)
 {
-    int16_t tmp[PLC_PITCH_OVERLAP_MAX];
     int i;
     int pitch_overlap;
     float old_step;
