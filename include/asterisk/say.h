@@ -17,6 +17,8 @@
 #include <asterisk/channel.h>
 #include <asterisk/file.h>
 
+#include <time.h>
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -53,6 +55,14 @@ int ast_say_digits(struct ast_channel *chan, int num, char *ints, char *lang);
  * Returns 0 on success, dtmf if interrupted, -1 on failure
  */
 int ast_say_digit_str(struct ast_channel *chan, char *num, char *ints, char *lang);
+
+int ast_say_datetime(struct ast_channel *chan, time_t t, char *ints, char *lang);
+
+int ast_say_time(struct ast_channel *chan, time_t t, char *ints, char *lang);
+
+int ast_say_date(struct ast_channel *chan, time_t t, char *ints, char *lang);
+
+int ast_say_datetime_from_now(struct ast_channel *chan, time_t t, char *ints, char *lang);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
