@@ -333,8 +333,9 @@ static void urg_handler(int num)
 {
 	/* Called by soft_hangup to interrupt the select, read, or other
 	   system call.  We don't actually need to do anything though.  */
+	/* Cannot EVER ast_log from within a signal handler */
 	if (option_debug) 
-		ast_log(LOG_DEBUG, "Urgent handler\n");
+		printf("Urgent handler\n");
 	signal(num, urg_handler);
 	return;
 }
@@ -342,12 +343,14 @@ static void urg_handler(int num)
 static void hup_handler(int num)
 {
 	if (option_verbose > 1) 
-		ast_verbose(VERBOSE_PREFIX_2 "Received HUP signal -- Reloading configs\n");
+		printf("Received HUP signal -- Reloading configs\n");
+	/* XXX This could deadlock XXX */
 	ast_module_reload();
 }
 
 static void child_handler(int sig)
 {
+	/* Must not ever ast_log or ast_verbose within signal handler */
 	int n, status;
 
 	/*
@@ -356,7 +359,7 @@ static void child_handler(int sig)
 	for (n = 0; wait4(-1, &status, WNOHANG, NULL) > 0; n++)
 		;
 	if (n == 0 && option_debug)	
-		ast_log(LOG_DEBUG, "Huh?  Child handler, but nobody there?\n");
+		printf("Huh?  Child handler, but nobody there?\n");
 }
 
 static void set_title(char *text)

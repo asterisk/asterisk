@@ -859,6 +859,19 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 		   brokentime.tm_sec
 		   );
 	  *ret = workspace;
+	} else if (c && !strcmp(var, "TIMESTAMP")) {
+	  thistime=time(NULL);
+	  localtime_r(&thistime, &brokentime);
+		/* 20031130-150612 */
+	  snprintf(workspace, workspacelen -1, "%04d%02d%02d-%02d%02d%02d",
+		   brokentime.tm_year+1900,
+		   brokentime.tm_mon+1,
+		   brokentime.tm_mday,
+		   brokentime.tm_hour,
+		   brokentime.tm_min,
+		   brokentime.tm_sec
+		   );
+	  *ret = workspace;
 	} else if (c && !strcmp(var, "UNIQUEID")) {
 	  snprintf(workspace, workspacelen -1, "%s", c->uniqueid);
 	  *ret = workspace;
