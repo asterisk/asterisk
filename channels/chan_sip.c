@@ -6179,9 +6179,9 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 	md5_hash(resp_hash,resp);
 	/* XXX We hard code our qop to "auth" for now.  XXX */
 	if (!ast_strlen_zero(p->qop))
-		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=\"%s\", cnonce=\"%s\", nc=%s",p->authname,p->realm,uri,p->nonce,resp_hash, p->opaque, "auth", cnonce, "00000001");
+		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=\"%s\", cnonce=\"%s\", nc=%s",p->authname,p->realm,uri,p->nonce,resp_hash, p->opaque, "auth", cnonce, "00000001");
 	else
-		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"",p->authname,p->realm,uri,p->nonce,resp_hash, p->opaque);
+		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"",p->authname,p->realm,uri,p->nonce,resp_hash, p->opaque);
 
 	return 0;
 }
@@ -6864,12 +6864,13 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	
 	if (strcasecmp(cmd, "SIP/2.0")) {
 		/* Request coming in */			
-		if (p->icseq && (p->icseq < seqno)) {
-			ast_log(LOG_DEBUG, "Ignoring out of order packet %d (expecting %d)\n", seqno, p->icseq);
+		if (p->icseq && (p->icseq > seqno)) {
+			ast_log(LOG_DEBUG, "Ignoring too old packet packet %d (expecting >= %d)\n", seqno, p->icseq);
 			return -1;
-		} else if (p->icseq && (p->icseq != seqno)) {
+		} else if (p->icseq && (p->icseq == seqno)) {
 			/* ignore means "don't do anything with it" but still have to 
-			   respond appropriately  */
+			   respond appropriately.  We do this if we receive a repeat of
+			   the last sequence number  */
 			ignore=1;
 		}
 		if (ast_strlen_zero(p->theirtag)) {
@@ -6901,8 +6902,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	}
 	
 	if (strcmp(cmd, "SIP/2.0") && (seqno >= p->icseq))
-		/* Next should follow monotonically increasing */
-		p->icseq = seqno + 1;
+		/* Next should follow monotonically (but not necessarily 
+		   incrementally -- thanks again to the genius authors of SIP --
+		   increasing */
+		p->icseq = seqno;
 
 	/* Initialize the context if it hasn't been already */
 	if (!strcasecmp(cmd, "OPTIONS")) {
