@@ -6239,14 +6239,17 @@ int load_module()
 		} else if (!strcasecmp(v->name, "callprogress")) {
 			callprogress = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "echocancel")) {
-			if (v->value && strlen(v->value))
+			if (v->value && strlen(v->value)) {
 				y = atoi(v->value);
-			else
+			} else
 				y = 0;
 			if ((y == 32) || (y == 64) || (y == 128) || (y == 256))
 				echocancel = y;
-			else
+			else {
 				echocancel = ast_true(v->value);
+				if (echocancel)
+					echocancel=128;
+			}
 		} else if (!strcasecmp(v->name, "hidecallerid")) {
 			hidecallerid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "callreturn")) {
