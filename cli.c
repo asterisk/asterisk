@@ -19,6 +19,7 @@
 #include <asterisk/module.h>
 #include <asterisk/channel.h>
 #include <asterisk/channel_pvt.h>
+#include <asterisk/utils.h>
 #include <sys/signal.h>
 #include <stdio.h>
 #include <signal.h>
@@ -294,7 +295,7 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 	ast_cli(fd, FORMAT_STRING2, "Channel", "Context", "Extension", "Pri", "State", "Appl.", "Data");
 	while(c) {
 		ast_cli(fd, FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
-		c->appl ? c->appl : "(None)", c->data ? ( strlen(c->data) ? c->data : "(Empty)" ): "(None)");
+		c->appl ? c->appl : "(None)", c->data ? ( !ast_strlen_zero(c->data) ? c->data : "(Empty)" ): "(None)");
 		numchans++;
 		c = ast_channel_walk(c);
 	}
@@ -516,7 +517,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	c->fds[0], c->fin & 0x7fffffff, (c->fin & 0x80000000) ? " (DEBUGGED)" : "",
 	c->fout & 0x7fffffff, (c->fout & 0x80000000) ? " (DEBUGGED)" : "", (long)c->whentohangup,
 	c->context, c->exten, c->priority, c->callgroup, c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
-	( c-> data ? (strlen(c->data) ? c->data : "(Empty)") : "(None)"),
+	( c-> data ? (!ast_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
 	c->stack, (c->blocking ? c->blockproc : "(Not Blocking)"));
 	
 		break;
@@ -964,7 +965,7 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 				matchnum++;
 				if (matchnum > state) {
 					/* Now, what we're supposed to return is the next word... */
-					if (strlen(word) && x>0) {
+					if (!ast_strlen_zero(word) && x>0) {
 						res = e->cmda[x-1];
 					} else {
 						res = e->cmda[x];
