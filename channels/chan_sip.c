@@ -5467,7 +5467,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ast_rtp_stop(p->vrtp);
 		}
 		if (strlen(get_header(req, "Also"))) {
-			ast_log(LOG_NOTICE, "Client '%s' using depreciated BYE/Also transfer method.  Ask vendor to support REFER instead\n",
+			ast_log(LOG_NOTICE, "Client '%s' using deprecated BYE/Also transfer method.  Ask vendor to support REFER instead\n",
 				inet_ntoa(p->recv.sin_addr));
 			if (!strlen(p->context))
 				strncpy(p->context, context, sizeof(p->context) - 1);
