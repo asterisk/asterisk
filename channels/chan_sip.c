@@ -6573,7 +6573,6 @@ int unload_module()
 	struct sip_pvt *p, *pl;
 	
 	/* First, take us out of the channel loop */
-	ast_channel_unregister(type);
 	ast_unregister_application(app_dtmfmode);
 	ast_cli_unregister(&cli_show_users);
 	ast_cli_unregister(&cli_show_channels);
@@ -6584,6 +6583,7 @@ int unload_module()
 	ast_cli_unregister(&cli_no_debug);
 	ast_cli_unregister(&cli_inuse_show);
 	ast_rtp_proto_unregister(&sip_rtp);
+	ast_channel_unregister(type);
 	if (!ast_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = iflist;
