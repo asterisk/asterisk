@@ -94,7 +94,7 @@ TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 ; up, please go to www.gnophone.com or www.iaxtel.com
 ;
 [iaxtel700]
-exten => _91700NXXXXXX,1,Dial(IAX2/${IAXINFO}@iaxtel.com/${EXTEN:1}@iaxtel)
+exten => _91700XXXXXXX,1,Dial(IAX2/${IAXINFO}@iaxtel.com/${EXTEN:1}@iaxtel)
 
 [iaxprovider]
 ;switch => IAX2/user:[key]@myserver/mycontext
