@@ -1440,8 +1440,10 @@ static int zt_hangup(struct ast_channel *ast)
 	
 	index = zt_get_index(ast, p, 1);
 
-	x = 1;
-	ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+	if (p->sig == SIG_PRI) {
+		x = 1;
+		ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+	}
 
 	restore_gains(p);
 	
