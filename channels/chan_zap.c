@@ -3279,6 +3279,8 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 					if (ast_exists_extension(ast, ast->context, "fax", 1, ast->callerid)) {
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", ast->name);
+						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
+						pbx_builtin_setvar_helper(ast,"FAXEXTEN",ast->exten);
 						if (ast_async_goto(ast, ast->context, "fax", 1, 0))
 							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, ast->context);
 					} else
