@@ -4502,6 +4502,11 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 					strncpy(p->context, peer->context, sizeof(p->context) - 1);
 				strncpy(p->peersecret, peer->secret, sizeof(p->peersecret) - 1);
 				strncpy(p->peermd5secret, peer->md5secret, sizeof(p->peermd5secret) - 1);
+				if (peer->insecure > 1) {
+					/* Pretend there is no required authentication if insecure is "very" */
+					strcpy(p->peersecret, "");
+					strcpy(p->peermd5secret, "");
+				}
 				p->callgroup = peer->callgroup;
 				p->pickupgroup = peer->pickupgroup;
 				p->capability = peer->capability;
@@ -6704,7 +6709,12 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 				else
 					peer->capability &= ~format;
 			} else if (!strcasecmp(v->name, "insecure")) {
-				peer->insecure = ast_true(v->value);
+				if (!strcasecmp(v->value, "very")) {
+					peer->insecure = 2;
+				} else if (ast_true(v->value))
+					peer->insecure = 1;
+				else
+					peer->insecure = 0;
 			} else if (!strcasecmp(v->name, "qualify")) {
 				if (!strcasecmp(v->value, "no")) {
 					peer->maxms = 0;

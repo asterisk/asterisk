@@ -81,6 +81,8 @@ context = default		; Default context for incoming calls
 ;defaultip=192.168.0.59
 ;mailbox=1234,2345		; Mailbox for message waiting indicator
 ;restrictcid=yes		; To have the callerid restriced -> sent as ANI
+;insecure=yes			; To match a peer based by IP address only and not peer
+;insecure=very			; To allow registered hosts to call without re-authenticating
 
 ;[pingtel]
 ;type=friend
