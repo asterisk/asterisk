@@ -842,10 +842,21 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 			ast_localtime(&t,&tm,NULL);
 		strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", &tm);
 		fprintf(p, "Date: %s\n", date);
-		
-		if (*fromstring)
-			fprintf(p, "From: %s <%s>\n", fromstring, who);
-		else
+
+		if (*fromstring) {
+			struct ast_channel *ast = ast_channel_alloc(0);
+			if (ast) {
+				char *passdata;
+				int vmlen = strlen(fromstring)*3 + 200;
+				if ((passdata = alloca(vmlen))) {
+					memset(passdata, 0, vmlen);
+					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,callerid,dur,date,passdata);
+					pbx_substitute_variables_helper(ast,fromstring,passdata,vmlen);
+					fprintf(p, "From: %s <%s>\n",passdata,who);
+				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+				ast_channel_free(ast);
+			} else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+		} else
 			fprintf(p, "From: Asterisk PBX <%s>\n", who);
 		fprintf(p, "To: %s <%s>\n", vmu->fullname, vmu->email);
 
