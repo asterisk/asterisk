@@ -695,6 +695,18 @@ static int digitdirect(char *buf, char *name, int id, char *args, struct adsi_sc
 	return 2;
 }
 
+static int clearcbone(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
+{
+	char *tok;
+	tok = get_token(&args, script, lineno);
+	if (tok)
+		ast_log(LOG_WARNING, "CLEARCB1 requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
+
+	buf[0] = id;
+	buf[1] = 0;
+	return 2;
+}
+
 static int digitcollect(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
 {
 	char *tok;
@@ -831,6 +843,7 @@ static struct adsi_key_cmd kcmds[] = {
 	{ "VOICEMODE", 0x93 },
 	/* Display call buffer 'n' */
 	/* Clear call buffer 'n' */
+	{ "CLEARCB1", 0x95, clearcbone },
 	{ "DIGITCOLLECT", 0x96, digitcollect },
 	{ "DIGITDIRECT", 0x96, digitdirect },
 	{ "CLEAR", 0x97 },
