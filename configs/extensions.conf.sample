@@ -31,6 +31,7 @@ CONSOLE=Console/dsp				; Console interface for demo
 IAXINFO=guest					; IAXtel username/password
 ;IAXINFO=myuser:mypass
 TRUNK=Zap/g2					; Trunk interface
+TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 ;TRUNK=IAX2/user:pass@provider
 
 ;
@@ -93,34 +94,34 @@ exten => _91700NXXXXXX,1,Dial(IAX2/${IAXINFO}@iaxtel.com/${EXTEN:1}@iaxtel)
 ;
 ; International long distance through trunk
 ;
-exten => _9011.,1,Dial(${TRUNK}/${EXTEN:1})
+exten => _9011.,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
 exten => _9011.,2,Congestion
 
 [trunkld]
 ;
 ; Long distance context accessed through trunk
 ;
-exten => _91NXXNXXXXXX,1,Dial(${TRUNK}/${EXTEN:1})
+exten => _91NXXNXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
 exten => _91NXXNXXXXXX,2,Congestion
 
 [trunklocal]
 ;
 ; Local seven-digit dialing accessed through trunk interface
 ;
-exten => _9NXXXXXX,1,Dial(${TRUNK}/${EXTEN:1})
+exten => _9NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
 exten => _9NXXXXXX,2,Congestion
 
 [trunktollfree]
 ;
 ; Long distance context accessed through trunk interface
 ;
-exten => _91800NXXXXXX,1,Dial(${TRUNK}/${EXTEN:1})
+exten => _91800NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
 exten => _91800NXXXXXX,2,Congestion
-exten => _91888NXXXXXX,1,Dial(${TRUNK}/${EXTEN:1})
+exten => _91888NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
 exten => _91888NXXXXXX,2,Congestion
-exten => _91877NXXXXXX,1,Dial(${TRUNK}/${EXTEN:1})
+exten => _91877NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
 exten => _91877NXXXXXX,2,Congestion
-exten => _91866NXXXXXX,1,Dial(${TRUNK}/${EXTEN:1})
+exten => _91866NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
 exten => _91866NXXXXXX,2,Congestion
 
 [international]
@@ -287,6 +288,10 @@ include => demo
 ; Or a conference room (you'll need to edit meetme.conf to enable this room)
 ;
 ;exten => 8600,1,Meetme,1234
+;
+; Or playing an announce to the called party, as soon it answers
+;
+;exten = 8700,1,Dial(${MARK},30,A(/path/to/my/announcemsg))
 ;
 ; For more information on applications, just type "show applications" at your
 ; friendly Asterisk CLI prompt.
