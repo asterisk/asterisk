@@ -3707,10 +3707,10 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	}
 	if (sipdebug)
 		ast_verbose("Looking for %s in %s\n", c, p->context);
+	if (!oreq || !strlen(p->exten))
+		strncpy(p->exten, c, sizeof(p->exten) - 1);
 	if (ast_exists_extension(NULL, p->context, c, 1, fr) ||
 		!strcmp(c, ast_pickup_ext())) {
-		if (!oreq)
-			strncpy(p->exten, c, sizeof(p->exten) - 1);
 		return 0;
 	}
 
