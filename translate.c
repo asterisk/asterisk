@@ -16,6 +16,9 @@
 #include <asterisk/logger.h>
 #include <asterisk/translate.h>
 #include <asterisk/options.h>
+#include <asterisk/frame.h>
+#include <asterisk/sched.h>
+#include <asterisk/cli.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <unistd.h>
@@ -24,6 +27,16 @@
 #include <string.h>
 #include <stdio.h>
 
+/* Uncomment the EXPERIMENTAL_TRANSLATION to enable a more complicated, but probably more
+   correct way of handling full duplex translation */
+
+/*
+#define EXPERIMENTAL_TRANSLATION
+*/
+
+/* This could all be done more efficiently *IF* we chained packets together
+   by default, but it would also complicate virtually every application. */
+   
 static char *type = "Trans";
 
 static pthread_mutex_t list_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -32,6 +45,15 @@ static struct ast_translator *list = NULL;
 struct ast_translator_dir {
 	struct ast_translator *step;	/* Next step translator */
 	int cost;						/* Complete cost to destination */
+};
+
+struct ast_frame_delivery {
+	struct ast_frame *f;
+	struct ast_channel *chan;
+	int fd;
+	struct translator_pvt *owner;
+	struct ast_frame_delivery *prev;
+	struct ast_frame_delivery *next;
 };
 
 static struct ast_translator_dir tr_matrix[MAX_FORMAT][MAX_FORMAT];
@@ -59,9 +81,69 @@ struct translator_pvt {
 	struct ast_trans_pvt *system;
 	struct ast_trans_pvt *rsystem;
 	struct timeval lastpass;
+#ifdef EXPERIMENTAL_TRANSLATION
+	struct ast_frame_delivery *head;
+	struct ast_frame_delivery *tail;
+	struct sched_context *sched;
+#endif
 	pthread_t	threadid;
 };
 
+
+#ifdef EXPERIMENTAL_TRANSLATION
+static int deliver(void *data)
+{
+	struct ast_frame_delivery *del = data;
+	ast_log(LOG_DEBUG, "Delivering a packet\n");
+	if (del->f) {
+		if (del->chan)
+			ast_write(del->chan, del->f);
+		else
+			ast_fr_fdwrite(del->fd, del->f);
+		ast_frfree(del->f);
+	}
+	/* Take us out of the list */
+	if (del->prev) 
+		del->prev->next = del->next;
+	else
+		del->owner->head = del->next;
+	if (del->next)
+		del->next->prev = del->prev;
+	else
+		del->owner->tail = del->prev;
+	/* Free used memory */
+	free(del);
+	/* Never run again */
+	return 0;
+}
+
+/* Schedule the delivery of a packet in the near future, using the given context */
+static int schedule_delivery(struct sched_context *sched, struct translator_pvt *p, struct ast_channel *c, 
+							int fd, struct ast_frame *f, int ms)
+{
+	struct ast_frame_delivery *del;
+	ast_log(LOG_DEBUG, "Scheduling a packet delivery\n");
+	del = malloc(sizeof(struct ast_frame_delivery));
+	if (del) {
+		del->f = ast_frdup(f);
+		del->chan = c;
+		del->fd = fd;
+		del->owner = p;
+		if (p->tail) {
+			del->prev = p->tail;
+			p->tail = del;
+			del->next = NULL;
+		} else {
+			p->head = p->tail = del;
+			del->next = NULL;
+			del->prev = NULL;
+		}
+		ast_sched_add(sched, ms, deliver, del);
+		return 0;	
+	} else
+		return -1;
+}
+#endif
 static int translator_hangup(struct ast_channel *chan)
 {
 	ast_log(LOG_WARNING, "Explicit hangup on '%s' not recommended!  Call translator_destroy() instead.\n", chan->name);
@@ -107,6 +189,18 @@ void ast_translator_free_path(struct ast_trans_pvt *p)
 
 static void ast_translator_free(struct translator_pvt *pvt)
 {
+#ifdef EXPERIMENTAL_TRANSLATION
+	struct ast_frame_delivery *d, *dl;
+	if (pvt->sched)
+		sched_context_destroy(pvt->sched);
+	d = pvt->head;
+	while(d) {
+		dl = d;
+		d = d->next;
+		ast_frfree(dl->f);
+		free(dl);
+	}
+#endif
 	ast_translator_free_path(pvt->system);
 	ast_translator_free_path(pvt->rsystem);
 	if (pvt->comm[0] > -1)
@@ -150,71 +244,23 @@ struct ast_trans_pvt *ast_translator_build_path(int source, int dest)
 				ast_log(LOG_WARNING, "Out of memory\n");
 				return NULL;
 			}
+		} else {
+			/* We shouldn't have allocated any memory */
+			ast_log(LOG_WARNING, "No translator path from %d to %d\n", source, dest);
+			return NULL;
 		}
 	}
 	return tmpr;
 }
 
-static struct ast_frame *fd_read(int fd)
-{
-	char buf[4096];
-	int res;
-	struct ast_frame *f = (struct ast_frame *)buf;
-	/* Read a frame directly from there.  They're always in the
-	   right format. */
-	
-	if (read(fd, buf, sizeof(struct ast_frame)) 
-						== sizeof(struct ast_frame)) {
-		/* read the frame header */
-		f->mallocd = 0;
-		/* Re-write data position */
-		f->data = buf + sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET;
-		f->offset = AST_FRIENDLY_OFFSET;
-		/* Forget about being mallocd */
-		f->mallocd = 0;
-		/* Re-write the source */
-		f->src = __FUNCTION__;
-		if (f->datalen > sizeof(buf) - sizeof(struct ast_frame) - AST_FRIENDLY_OFFSET) {
-			/* Really bad read */
-			ast_log(LOG_WARNING, "Strange read (%d bytes)\n", f->datalen);
-			return NULL;
-		}
-		if (f->datalen) {
-			if ((res = read(fd, f->data, f->datalen)) != f->datalen) {
-				/* Bad read */
-				ast_log(LOG_WARNING, "How very strange, expected %d, got %d\n", f->datalen, res);
-				return NULL;
-			}
-		}
-		return ast_frisolate(f);
-	} else if (option_debug)
-		ast_log(LOG_DEBUG, "NULL or invalid header\n");
-	/* Null if there was an error */
-	return NULL;
-}
-
 static struct ast_frame *translator_read(struct ast_channel *chan)
 {
-	return fd_read(chan->fd);
-}
-
-static int fd_write(int fd, struct ast_frame *frame)
-{
-	/* Write the frame exactly */
-	if (write(fd, frame, sizeof(struct ast_frame)) != sizeof(struct ast_frame)) {
-		ast_log(LOG_WARNING, "Write error\n");
-		return -1;
-	}
-	if (write(fd, frame->data, frame->datalen) != frame->datalen) {
-		ast_log(LOG_WARNING, "Write error\n");
-		return -1;
-	}
-	return 0;
+	return ast_fr_fdread(chan->fd);
 }
 
 static int translator_write(struct ast_channel *chan, struct ast_frame *frame)
 {
-	return fd_write(chan->fd, frame);
+	return ast_fr_fdwrite(chan->fd, frame);
 }
 
 struct ast_frame_chain *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f)
@@ -256,9 +302,9 @@ struct ast_frame_chain *ast_translate(struct ast_trans_pvt *path, struct ast_fra
 	return outc;
 }
 
-#define FUDGE 2
+#define FUDGE 0
 
-static void translator_apply(struct ast_trans_pvt *path, struct ast_frame *f, int fd, struct ast_channel *c, struct timeval *last)
+static void translator_apply(struct translator_pvt *pvt, struct ast_trans_pvt *path, struct ast_frame *f, int fd, struct ast_channel *c, struct timeval *last)
 {
 	struct ast_trans_pvt *p;
 	struct ast_frame *out;
@@ -279,15 +325,33 @@ static void translator_apply(struct ast_trans_pvt *path, struct ast_frame *f, in
 					gettimeofday(&tv, NULL);
 					ms = 1000 * (tv.tv_sec - last->tv_sec) +
 						(tv.tv_usec - last->tv_usec) / 1000;
+#ifdef EXPERIMENTAL_TRANSLATION
+					if (ms + FUDGE < out->timelen) 
+						schedule_delivery(pvt->sched, pvt, 
+											c, fd, out, ms);
+					else {
+						if (c)
+							ast_write(c, out);
+						else
+							ast_fr_fdwrite(fd, out);
+					}
+					last->tv_sec = tv.tv_sec;
+					last->tv_usec = tv.tv_usec;
+					/* Schedule this packet to be delivered at the
+					   right time */
+				} else
+#else
+					/* XXX Not correct in the full duplex case XXX */
 					if (ms + FUDGE < out->timelen) 
 						usleep((out->timelen - ms - FUDGE) * 1000);
 					last->tv_sec = tv.tv_sec;
 					last->tv_usec = tv.tv_usec;
 				}
+#endif
 				if (c)
 					ast_write(c, out);
 				else
-					fd_write(fd, out);
+					ast_fr_fdwrite(fd, out);
 			}
 			ast_frfree(out);
 		}
@@ -331,14 +395,14 @@ static void *translator_thread(void *data)
 				}
 				if (f->frametype ==  AST_FRAME_VOICE) {
 					if (pvt->system)
-						translator_apply(pvt->system, f, fd, NULL, &pvt->lastpass);
+						translator_apply(pvt, pvt->system, f, fd, NULL, &pvt->lastpass);
 				} else {
 					/* If it's not voice, just pass it along */
-					fd_write(fd, f);
+					ast_fr_fdwrite(fd, f);
 				}
 				ast_frfree(f);
 			} else {
-				f = fd_read(res);
+				f = ast_fr_fdread(res);
 				if (!f) {
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Empty (hangup) frame\n");
@@ -347,7 +411,7 @@ static void *translator_thread(void *data)
 				
 				if (f->frametype == AST_FRAME_VOICE) {
 					if (pvt->rsystem)
-						translator_apply(pvt->rsystem, f, -1, real, &pvt->lastpass);
+						translator_apply(pvt, pvt->rsystem, f, -1, real, &pvt->lastpass);
 				} else {
 					ast_write(real, f);
 				}
@@ -384,9 +448,21 @@ struct ast_channel *ast_translator_create(struct ast_channel *real, int format, 
 	pvt->comm[1] = -1;
 	pvt->lastpass.tv_usec = 0;
 	pvt->lastpass.tv_sec = 0;
+
+#ifdef EXPERIMENTAL_TRANSLATION	
+	pvt->head = NULL;
+	pvt->tail = NULL;
+	pvt->sched = sched_context_create();
+	if (!pvt->sched) {
+		ast_log(LOG_WARNING, "Out of memory\n");
+		ast_translator_free(pvt);
+		return NULL;
+	}
+#endif
 	if (socketpair(AF_UNIX, SOCK_DGRAM, 0, pvt->comm)) {
 		ast_log(LOG_WARNING, "Unable to create UNIX domain socket on '%s'\n", real->name);
 		ast_translator_free(pvt);
+		return NULL;
 	}
 	/* In to the system */
 	if (direction & AST_DIRECTION_IN)
@@ -534,6 +610,46 @@ static void calc_cost(struct ast_translator *t)
 	t->cost = cost;
 }
 
+static int show_translation(int fd, int argc, char *argv[])
+{
+#define SHOW_TRANS 14
+	int x,y;
+	char line[80];
+	if (argc != 2) 
+		return RESULT_SHOWUSAGE;
+	ast_cli(fd, "                        Translation times between formats (in milliseconds)\n");
+	ast_cli(fd, "                                 Destination Format\n");
+	pthread_mutex_lock(&list_lock);
+	for (x=0;x<SHOW_TRANS; x++) {
+		if (x == 1) 
+			strcpy(line, "  Src  ");
+		else if (x == 2)
+			strcpy(line, "  Fmt  ");
+		else
+			strcpy(line, "       ");
+		for (y=0;y<SHOW_TRANS;y++) {
+			if (tr_matrix[x][y].step)
+				snprintf(line + strlen(line), sizeof(line) - strlen(line), " %4d", tr_matrix[x][y].cost);
+			else
+				snprintf(line + strlen(line), sizeof(line) - strlen(line), "  n/a");
+		}
+		snprintf(line + strlen(line), sizeof(line) - strlen(line), "\n");
+		ast_cli(fd, line);			
+	}
+	pthread_mutex_unlock(&list_lock);
+	return RESULT_SUCCESS;
+}
+
+static int added_cli = 0;
+
+static char show_trans_usage[] =
+"Usage: show translation\n"
+"       Displays known codec translators and the cost associated\n"
+"with each conversion.\n";
+
+static struct ast_cli_entry show_trans =
+{ { "show", "translation", NULL }, show_translation, "Display translation matrix", show_trans_usage };
+
 int ast_register_translator(struct ast_translator *t)
 {
 	t->srcfmt = powerof(t->srcfmt);
@@ -546,6 +662,10 @@ int ast_register_translator(struct ast_translator *t)
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %d to %d, cost %d\n", t->name, t->srcfmt, t->dstfmt, t->cost);
 	pthread_mutex_lock(&list_lock);
+	if (!added_cli) {
+		ast_cli_register(&show_trans);
+		added_cli++;
+	}
 	t->next = list;
 	list = t;
 	rebuild_matrix();
@@ -566,6 +686,7 @@ int ast_unregister_translator(struct ast_translator *t)
 				list = u->next;
 			break;
 		}
+		ul = u;
 		u = u->next;
 	}
 	rebuild_matrix();
@@ -599,20 +720,23 @@ void ast_translator_destroy(struct ast_channel *trans)
 int ast_translator_best_choice(int dst, int srcs)
 {
 	/* Calculate our best source format, given costs, and a desired destination */
-	int x;
+	int x,y;
 	int best=-1;
+	int cur = 1;
 	int besttime=999999999;
-	dst = powerof(dst);
 	pthread_mutex_lock(&list_lock);
-	for (x=0;x<MAX_FORMAT;x++) {
-		if (tr_matrix[x][dst].step &&	/* There's a step */
-		    (tr_matrix[x][dst].cost < besttime) && /* We're better than what exists now */
-			(srcs & (1 << x)))			/* x is a valid source format */
-			{
-				best = 1 << x;
-				besttime = tr_matrix[x][dst].cost;
+	for (y=0;y<MAX_FORMAT;y++) {
+		if (cur & dst)
+			for (x=0;x<MAX_FORMAT;x++) {
+				if (tr_matrix[x][y].step &&	/* There's a step */
+			   	 (tr_matrix[x][y].cost < besttime) && /* We're better than what exists now */
+					(srcs & (1 << x)))			/* x is a valid source format */
+					{
+						best = 1 << x;
+						besttime = tr_matrix[x][dst].cost;
+					}
 			}
-				
+		cur = cur << 1;
 	}
 	pthread_mutex_unlock(&list_lock);
 	return best;
