@@ -1112,12 +1112,15 @@ static int sip_hangup(struct ast_channel *ast)
 				   INVITE, but do set an autodestruct just in case. */
 				needdestroy = 0;
 				sip_scheddestroy(p, 15000);
-				/* channel still up - reverse dec of inUse counter */
-				if ( p->outgoing ) {
-					find_user(p, INC_OUT_USE);
-				}
-				else {
-					find_user(p, INC_IN_USE);
+				if ( p->initid != -1 ) {
+					/* channel still up - reverse dec of inUse counter
+					   only if the channel is not auto-congested */
+					if ( p->outgoing ) {
+						find_user(p, INC_OUT_USE);
+					}
+					else {
+						find_user(p, INC_IN_USE);
+					}
 				}
 			} else {
 				char *res;
