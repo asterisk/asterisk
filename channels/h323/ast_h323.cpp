@@ -205,7 +205,7 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token,
 	
 	*callReference = connection->GetCallReference();
 	
-	if (strlen(callerid))
+	if (callerid)
 		connection->SetLocalPartyName(PString(callerid));
 
 	connection->Unlock(); 	
