@@ -1836,8 +1836,7 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, char *int
 				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
 					sndfile[sndoffset] = format[offset];
 				sndfile[sndoffset] = '\0';
-				snprintf(nextmsg,sizeof(nextmsg), AST_SOUNDS "/%s", sndfile);
-				res = wait_file(chan,ints,nextmsg,lang);
+				res = wait_file(chan,ints,sndfile,lang);
 				break;
 			case 'A':
 			case 'a':
@@ -2118,8 +2117,7 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, char *int
 				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
 					sndfile[sndoffset] = format[offset];
 				sndfile[sndoffset] = '\0';
-				snprintf(nextmsg,sizeof(nextmsg), AST_SOUNDS "/%s", sndfile);
-				res = wait_file(chan,ints,nextmsg,lang);
+				res = wait_file(chan,ints,sndfile,lang);
 				break;
 			case 'A':
 			case 'a':
@@ -2584,8 +2582,7 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, char *int
 				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
 					sndfile[sndoffset] = format[offset];
 				sndfile[sndoffset] = '\0';
-				snprintf(nextmsg,sizeof(nextmsg), AST_SOUNDS "/%s", sndfile);
-				res = wait_file(chan,ints,nextmsg,lang);
+				res = wait_file(chan,ints,sndfile,lang);
 				break;
 			case 'A':
 			case 'a':
@@ -3012,8 +3009,7 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, char *int
 				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
 					sndfile[sndoffset] = format[offset];
 				sndfile[sndoffset] = '\0';
-				snprintf(nextmsg,sizeof(nextmsg), AST_SOUNDS "/%s", sndfile);
-				res = wait_file(chan,ints,nextmsg,lang);
+				res = wait_file(chan,ints,sndfile,lang);
 				break;
 			case 'A':
 			case 'a':
