@@ -220,6 +220,7 @@ static int local_hangup(struct ast_channel *ast)
 	struct local_pvt *p = ast->pvt->pvt;
 	int isoutbound = IS_OUTBOUND(ast, p);
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
+	struct local_pvt *cur, *prev=NULL;
 	ast_pthread_mutex_lock(&p->lock);
 	if (isoutbound)
 		p->chan = NULL;
@@ -229,6 +230,22 @@ static int local_hangup(struct ast_channel *ast)
 	if (!p->owner && !p->chan) {
 		/* Okay, done with the private part now, too. */
 		ast_pthread_mutex_unlock(&p->lock);
+		/* Remove from list */
+		ast_pthread_mutex_lock(&locallock);
+		cur = locals;
+		while(cur) {
+			if (cur == p) {
+				if (prev)
+					prev->next == cur->next;
+				else
+					locals = cur->next;
+				break;
+			}
+			prev = cur;
+			cur = cur->next;
+		}
+		ast_pthread_mutex_unlock(&locallock);
+		/* And destroy */
 		free(p);
 		return 0;
 	}
