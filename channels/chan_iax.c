@@ -659,6 +659,9 @@ static int get_samples(struct ast_frame *f)
 	case AST_FORMAT_ADPCM:
 		samples = f->datalen *2;
 		break;
+	case AST_FORMAT_SPEEX:
+		samples = (f->datalen/39)*160;
+		break;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to calculate samples on %d packets\n", f->subclass);
 	}
