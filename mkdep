@@ -1,4 +1,4 @@
-#!/bin/bash -
+#!/bin/sh -
 #
 #	$OpenBSD: mkdep.gcc.sh,v 1.8 1998/09/02 06:40:07 deraadt Exp $
 #	$NetBSD: mkdep.gcc.sh,v 1.9 1994/12/23 07:34:59 jtc Exp $
@@ -73,7 +73,8 @@ TMP=$DTMP/mkdep
 
 um=`umask`
 umask 022
-if ! mkdir $DTMP ; then
+mkdir $DTMP
+if [ $? != 0 ] ; then
 	echo failed to create tmp dir $DTMP
 	exit 1
 fi
