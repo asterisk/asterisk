@@ -203,11 +203,15 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						o->stillgoing = 0;
 						numbusies++;
 					} else {
-						if (in->callerid && !o->chan->callerid) {
+						if (in->callerid) {
+							if (o->chan->callerid)
+								free(o->chan->callerid);
 							o->chan->callerid = malloc(strlen(in->callerid) + 1);
 							strncpy(o->chan->callerid, in->callerid, strlen(in->callerid) + 1);
 						}
-						if (in->ani && !o->chan->ani) {
+						if (in->ani) {
+							if (o->chan->ani)
+								free(o->chan->ani);
 							o->chan->ani = malloc(strlen(in->ani) + 1);
 							strncpy(o->chan->ani, in->ani, strlen(in->ani) + 1);
 						}
