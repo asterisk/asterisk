@@ -3127,20 +3127,7 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 			case 'H':
 			case 'k':
 				/* 24-Hour */
-				res = ast_say_number(chan, -tm.tm_hour, ints, lang, NULL);
-				if (!res) {
-					if (tm.tm_hour != 0) {
-						int remainder = tm.tm_hour;
-						if (tm.tm_hour > 20) {
-							res = wait_file(chan,ints, "digits/20",lang);
-							remainder -= 20;
-						}
-						if (!res) {
-							snprintf(nextmsg,sizeof(nextmsg), "digits/%d", remainder);
-							res = wait_file(chan,ints,nextmsg,lang);
-						}
-					}
-				}
+				res = ast_say_number(chan, tm.tm_hour, ints, lang, NULL);
 				break;
 			case 'M':
 				/* Minute */
