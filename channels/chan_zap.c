@@ -5532,7 +5532,8 @@ static void *pri_dchannel(void *vpri)
 						int law;
 						/* Set to audio mode at this poitn mode */
 						law = 1;
-						ast_channel_setoption(tmp,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+						if (ioctl(pri->pvt[chan]->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &law) == -1)
+							ast_log(LOG_WARNING, "Unable to set audio mode on channel %d to %d\n", pri->pvt[chan]->channel, law);
 						if (e->ring.layer1 == PRI_LAYER_1_ALAW)
 							law = ZT_LAW_ALAW;
 						else
