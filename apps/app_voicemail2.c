@@ -2603,9 +2603,11 @@ out:
 	if (res > -1) {
 		ast_stopstream(chan);
 		adsi_goodbye(chan);
-		res = play_and_wait(chan, "vm-goodbye");
-		if (res > 0)
-			res = 0;
+		if(valid) {
+			res = play_and_wait(chan, "vm-goodbye");
+			if (res > 0)
+				res = 0;
+		}
 		if (useadsi)
 			adsi_unload_session(chan);
 	}
