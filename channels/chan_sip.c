@@ -4475,9 +4475,11 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 					ast_rtp_setnat(p->vrtp, p->nat);
 				}
 				p->canreinvite = peer->canreinvite;
-				if (strlen(peer->username))
-					strncpy(p->username, peer->username, sizeof(p->username) - 1);
 				strncpy(p->peername, peer->name, sizeof(p->peername) - 1);
+				if (strlen(peer->username)) {
+					strncpy(p->username, peer->username, sizeof(p->username) - 1);
+					strncpy(p->peername, peer->username, sizeof(p->peername) - 1);
+				}
 				if (strlen(peer->context))
 					strncpy(p->context, peer->context, sizeof(p->context) - 1);
 				strncpy(p->peersecret, peer->secret, sizeof(p->peersecret) - 1);
