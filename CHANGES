@@ -19,6 +19,8 @@
     -- A line was missing for the autosupport script that caused "make rpm" to fail
     -- Fixed a problem with wav formatting that prevented files from being played
        in some media players
+    -- Fixed if the last line of text in a file for the call spool did not contain
+       a new line, it would not be processed
 
 Asterisk 1.0.7
 
