@@ -62,9 +62,9 @@ static void *autodial(void *ignore)
 	int flags = fcntl(fd, F_GETFL);
 	fd_set fds;
 	fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
-	printf("Entered Wil-Calu fd=%d\n",fd);
+	ast_log(LOG_DEBUG, "Entered Wil-Calu fd=%d\n",fd);
 	if(fd<0) {
-		printf("Autodial: Unable to open file\n");
+		ast_log(LOG_WARNING, "Autodial: Unable to open file\n");
 		pthread_exit(NULL);
 	}
 	memset(buf,0,257);
@@ -83,7 +83,7 @@ static void *autodial(void *ignore)
 
 		if(bytes>0){
 			int x;
-			printf("WilCalu : Read Buf %s\n",buf);
+			ast_log(LOG_DEBUG, "WilCalu : Read Buf %s\n",buf);
 			sendbufptr=sendbuf;
 			for(x=0;lastbuf[x]!=0 && x<257;x++);
 			if(x) {
@@ -136,7 +136,7 @@ static void *snooze_alarm(void *pass){
 static void  set_snooze_alarm(char *dialstr,int snooze_len){
 	pthread_t snooze_alarm_thread;
 	struct alarm_data *pass;
-	printf("Answered: Snooze Requested\n");
+	ast_log(LOG_DEBUG, "Answered: Snooze Requested\n");
 	if(NULL==(pass=malloc(sizeof(struct alarm_data)))){
 		perror("snooze_alarm: data");
 		pthread_exit(NULL);
@@ -176,38 +176,36 @@ static void *dialstring(void *string){
 		bufptr++;
 	} 
 	*destptr=0;
-	printf("Printing string arg: ");
-	printf((char *)string);
-	printf(" Eos\n");
+	ast_log(LOG_DEBUG, "Printing string arg: %s Eos\n", (char *)string);
 	if(strlen(tech)+strlen(tele)+strlen(filename)>256){
-		printf("Autodial:Error string too long\n");
+		ast_log(LOG_ERROR, "Autodial:Error string too long\n");
 		free(string);
 		pthread_exit(NULL);
 	}
-	printf("Autodial Tech %s(%d) Tele %s(%d) Filename %s(%d)\n",tech,strlen(tech),tele,strlen(tele),filename,strlen(filename));
+	ast_log(LOG_DEBUG, "Autodial Tech %s(%d) Tele %s(%d) Filename %s(%d)\n",tech,strlen(tech),tele,strlen(tele),filename,strlen(filename));
 
 	channel=ast_request(tech,AST_FORMAT_SLINEAR,tele);
 	if(channel!=NULL){
 		ast_call(channel,tele,10000);
 	}
 	else {
-		printf("Autodial:Sorry unable to obtain channel\n");
+		ast_log(LOG_ERROR, "Autodial:Sorry unable to obtain channel\n");
 		free(string);
 		pthread_exit(NULL);
 	}
 	if(channel->_state==AST_STATE_UP)
-		printf("Autodial:Line is Up\n");
+		ast_log(LOG_DEBUG, "Autodial:Line is Up\n");
 	while(ms>0){
 		struct ast_frame *f;
 		ms=ast_waitfor(channel,ms);
 		f=ast_read(channel);
 		if(!f){
-			printf("Autodial:Hung Up\n");
+			ast_log(LOG_DEBUG, "Autodial:Hung Up\n");
 			break;
 		}
 		if(f->frametype==AST_FRAME_CONTROL){
 			if(f->subclass==AST_CONTROL_ANSWER){
-				printf("Autodial:Phone Answered\n");
+				ast_log(LOG_DEBUG, "Autodial:Phone Answered\n");
 				if(channel->_state==AST_STATE_UP){
 					char res;
 					ast_streamfile(channel,filename,0);
@@ -229,7 +227,7 @@ static void *dialstring(void *string){
 				}
 			}
 			else if(f->subclass==AST_CONTROL_RINGING)
-				printf("Autodial:Phone Ringing end\n");
+				ast_log(LOG_DEBUG, "Autodial:Phone Ringing end\n");
 		}
 		ast_frfree(f);
 	}
@@ -237,7 +235,7 @@ static void *dialstring(void *string){
 		set_snooze_alarm((char *)string,5);
 	free(string);
 	ast_hangup(channel);
-	printf("Autodial:Hung up channel\n");
+	ast_log(LOG_DEBUG, "Autodial:Hung up channel\n");
 	pthread_exit(NULL);
 	return NULL;
 }
@@ -254,7 +252,7 @@ int load_module(void)
 	snprintf((char *)dialfile,sizeof(dialfile)-1,"%s/%s",(char *)ast_config_AST_RUN_DIR,"autodial.ctl");
 	if((val=mkfifo(dialfile, 0700))){
 		if(errno!=EEXIST){
-			printf("Error:%d Creating Autodial FIFO\n",errno);
+			ast_log(LOG_ERROR, "Error:%d Creating Autodial FIFO\n",errno);
 			return 0;
 		}
 	}
