@@ -67,7 +67,8 @@ static char *descrip =
 "             don't allow callerids from other extensions then the ones\n"
 "             that are assigned to you.\n"
 "      'r' -- indicate ringing to the calling party, pass no audio until answered.\n"
-"      'm' -- provide hold music to the calling party until answered.\n"
+"      'm[(class)]' -- provide hold music to the calling party until answered (optionally\n"
+"                      with the specified class.\n"
 "      'M(x[^arg]) -- Executes the macro (x with ^ delim arg list) upon connect of the call.\n"
 "                     Also, the macro can set the MACRO_RESULT variable to do the following:\n"
 "                     -- ABORT - Hangup both legs of the call.\n"
@@ -514,6 +515,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	int play_to_caller=0,play_to_callee=0;
 	int playargs=0, sentringing=0, moh=0;
 	char *varname;
+	char *mohclass = NULL;
 	int vartype;
 	char *outbound_group = NULL;
 	char *macro_result = NULL, *macro_transfer_dest = NULL;
@@ -701,6 +703,26 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			else {
 				ast_log(LOG_WARNING, "Macro flag set without trailing ')'\n");
 				hasmacro = 0;
+			}
+		}
+		/* Get music on hold class */
+		if ((mac = strstr(transfer, "m("))) {
+			mohclass = ast_strdupa(mac + 2);
+			mac++; /* Leave the "m" in the string */
+			while (*mac && (*mac != ')'))
+				*(mac++) = 'X';
+			if (*mac)
+				*mac = 'X';
+			else {
+				ast_log(LOG_WARNING, "Could not find music on hold class to use, assuming default.\n");
+				mohclass=NULL;
+			}
+			mac = strchr(macroname, ')');
+			if (mac)
+				*mac = '\0';
+			else {
+				ast_log(LOG_WARNING, "Music on hold class specified without trailing ')'\n");
+				mohclass = NULL;
 			}
 		}
 		/* Extract privacy info from transfer */
@@ -970,7 +992,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		strncpy(status, "NOANSWER", sizeof(status) - 1);
 		if (outgoing->musiconhold) {
 			moh=1;
-			ast_moh_start(chan, NULL);
+			ast_moh_start(chan, mohclass);
 		} else if (outgoing->ringbackonly) {
 			ast_indicate(chan, AST_CONTROL_RINGING);
 			sentringing++;
