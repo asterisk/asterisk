@@ -625,6 +625,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
               	if (gotsilence) {
                      	ast_stream_rewind(fs, silence-1000);
                 	ast_truncstream(fs);
+			sample_offset = ast_tellstream(fs);
 		}		
 		fdprintf(agi->fd, "200 result=%d (timeout) endpos=%ld\n", res, sample_offset);
 		ast_closestream(fs);
