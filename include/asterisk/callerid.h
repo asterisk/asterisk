@@ -24,6 +24,10 @@
 #define CID_UNKNOWN_NAME		(1 << 2)
 #define CID_UNKNOWN_NUMBER		(1 << 3)
 
+#define AST_LIN2X(a) ((codec == AST_FORMAT_ALAW) ? (AST_LIN2A(a)) : (AST_LIN2MU(a)))
+#define AST_XLAW(a) ((codec == AST_FORMAT_ALAW) ? (AST_ALAW(a)) : (AST_MULAW(a)))
+
+
 struct callerid_state;
 typedef struct callerid_state CIDSTATE;
 
@@ -39,10 +43,11 @@ extern void callerid_init(void);
  * \param number Use NULL for no number or "P" for "private"
  * \param name name to be used
  * \param callwaiting callwaiting flag
+ * \param codec -- either AST_FORMAT_ULAW or AST_FORMAT_ALAW
  * This function creates a stream of callerid (a callerid spill) data in ulaw format. It returns the size
  * (in bytes) of the data (if it returns a size of 0, there is probably an error)
 */
-extern int callerid_generate(unsigned char *buf, char *number, char *name, int flags, int callwaiting);
+extern int callerid_generate(unsigned char *buf, char *number, char *name, int flags, int callwaiting, int codec);
 
 //! Create a callerID state machine
 /*!
@@ -56,12 +61,13 @@ extern struct callerid_state *callerid_new(void);
  * \param cid Which state machine to act upon
  * \param buffer containing your samples
  * \param samples number of samples contained within the buffer.
+ * \param codec which codec (AST_FORMAT_ALAW or AST_FORMAT_ULAW)
  *
  * Send received audio to the Caller*ID demodulator.
  * Returns -1 on error, 0 for "needs more samples", 
  * and 1 if the CallerID spill reception is complete.
  */
-extern int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int samples);
+extern int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int samples, int codec);
 
 //! Extract info out of callerID state machine.  Flags are listed above
 /*!
@@ -89,16 +95,20 @@ extern void callerid_free(struct callerid_state *cid);
 /*!
  * \param buf buffer for output samples. See callerid_generate() for details regarding buffer.
  * \param astcid Asterisk format callerid string, taken from the callerid field of asterisk.
+ * \param codec Asterisk codec (either AST_FORMAT_ALAW or AST_FORMAT_ULAW)
  *
  * Acts like callerid_generate except uses an asterisk format callerid string.
  */
-extern int ast_callerid_generate(unsigned char *buf, char *astcid);
+extern int ast_callerid_generate(unsigned char *buf, char *astcid, int codec);
+
+//! Generate message waiting indicator 
+extern int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec);
 
 //! Generate Caller-ID spill from the "callerid" field of asterisk (in e-mail address like format) but in a format suitable for Call Waiting(tm)'s Caller*ID(tm)
 /*!
  * See ast_callerid_generate for other details
  */
-extern int ast_callerid_callwaiting_generate(unsigned char *buf, char *astcid);
+extern int ast_callerid_callwaiting_generate(unsigned char *buf, char *astcid, int codec);
 
 //! Destructively parse inbuf into name and location (or number)
 /*!
@@ -115,9 +125,10 @@ extern int ast_callerid_parse(char *instr, char **name, char **location);
  * \param outbuf Allocated buffer for data.  Must be at least 2400 bytes unless no SAS is desired
  * \param sas Non-zero if CAS should be preceeded by SAS
  * \param len How many samples to generate.
+ * \param codec Which codec (AST_FORMAT_ALAW or AST_FORMAT_ULAW)
  * Returns -1 on error (if len is less than 2400), 0 on success.
  */
-extern int ast_gen_cas(unsigned char *outbuf, int sas, int len);
+extern int ast_gen_cas(unsigned char *outbuf, int sas, int len, int codec);
 
 //! Shrink a phone number in place to just digits (more accurately it just removes ()'s, .'s, and -'s...
 /*!
@@ -164,7 +175,7 @@ static inline float callerid_getcarrier(float *cr, float *ci, int bit)
 
 #define PUT_AUDIO_SAMPLE(y) do { \
 	int index = (short)(rint(8192.0 * (y))); \
-	*(buf++) = AST_LIN2MU(index); \
+	*(buf++) = AST_LIN2X(index); \
 	bytes++; \
 } while(0)
 	
