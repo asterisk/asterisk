@@ -3,7 +3,7 @@
  *
  * Core PBX routines.
  * 
- * Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+ * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include <setjmp.h>
 #include <ctype.h>
-
+#include "asterisk.h"
 
 /*
  * I M P O R T A N T :
@@ -178,7 +178,7 @@ static void pbx_destroy(struct ast_pbx *p)
 	free(p);
 }
 
-int extension_match(char *pattern, char *data)
+static int extension_match(char *pattern, char *data)
 {
 	int match;
 	/* If they're the same return */
@@ -219,6 +219,7 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 	struct ast_exten *e;
 	struct ast_app *app;
 	int newstack = 0;
+	int res;
 	if (pthread_mutex_lock(&conlock)) {
 		ast_log(LOG_WARNING, "Unable to obtain lock\n");
 		if (action == HELPER_EXISTS)
@@ -259,7 +260,12 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 									else if (option_verbose > 2)
 										ast_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\") %s\n", 
 												app->name, c->name, (e->data ? (char *)e->data : NULL), (newstack ? "in new stack" : "in same stack"));
-									return pbx_exec(c, app->execute, e->data, newstack);
+									c->appl = app->name;
+									c->data = e->data;		
+									res = pbx_exec(c, app->execute, e->data, newstack);
+									c->appl = NULL;
+									c->data = NULL;
+									return res;
 								} else {
 									ast_log(LOG_WARNING, "No application '%s' for extension (%s, %s, %d)\n", e->app, context, exten, priority);
 									return -1;
@@ -466,6 +472,9 @@ int ast_pbx_start(struct ast_channel *c)
 		return -1;
 	}
 	memset(c->pbx, 0, sizeof(struct ast_pbx));
+	/* Set reasonable defaults */
+	c->pbx->rtimeout = 10;
+	c->pbx->dtimeout = 5;
 	/* Start a new thread, and get something handling this channel. */
 	if (pthread_create(&t, NULL, pbx_thread, c)) {
 		ast_log(LOG_WARNING, "Failed to create new channel thread\n");
@@ -748,7 +757,8 @@ void ast_context_destroy(struct ast_context *con)
 int pbx_builtin_answer(struct ast_channel *chan, void *data)
 {
 	if (chan->state != AST_STATE_RING) {
-		ast_log(LOG_WARNING, "Ignoring answer request since line is not ringing\n");
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Ignoring answer request since line is not ringing\n");
 		return 0;
 	} else
 		return ast_answer(chan);
@@ -836,7 +846,6 @@ int pbx_builtin_goto(struct ast_channel *chan, void *data)
 		ast_verbose( VERBOSE_PREFIX_3 "Goto (%s,%s,%d)\n", chan->context,chan->exten, chan->priority+1);
 	return 0;
 }
-
 int load_pbx(void)
 {
 	int x;

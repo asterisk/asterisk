@@ -3,7 +3,7 @@
  *
  * Voicemail System (did you ever think it could be so easy?)
  * 
- * Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+ * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -153,7 +153,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent)
 		ast_log(LOG_WARNING, "No such configuration file %s\n", VOICEMAIL_CONFIG);
 		return -1;
 	}
-	if ((copy = ast_variable_retrieve(cfg, chan->context, ext))) {
+	if ((copy = ast_variable_retrieve(cfg, NULL, ext))) {
 		/* Make sure they have an entry in the config */
 		copy = strdup(copy);
 		passwd = strtok(copy, ",");
@@ -320,11 +320,15 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		/* Prompt for, and read in the username */
 		if (ast_readstring(chan, username, sizeof(username), 2000, 5000, "#"))
 			goto out;
+		if (!strlen(username)) {
+			res = 0;
+			goto out;
+		}
 		if (ast_streamfile(chan, "vm-password"))
 			goto out;
 		if (ast_readstring(chan, password, sizeof(password), 2000, 5000, "#"))
 			goto out;
-		copy = ast_variable_retrieve(cfg, chan->context, username);
+		copy = ast_variable_retrieve(cfg, NULL, username);
 		if (copy) {
 			copy = strdup(copy);
 			strtok(copy, ",");

@@ -3,7 +3,7 @@
  *
  * Trivial application to dial a channel
  * 
- * Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+ * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -17,6 +17,7 @@
 #include <asterisk/pbx.h>
 #include <asterisk/options.h>
 #include <asterisk/module.h>
+#include <asterisk/translate.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -205,6 +206,8 @@ static int bridge_call(struct ast_channel *chan, struct ast_channel *peer, int a
 	if (chan->state != AST_STATE_UP)
 		if (ast_answer(chan))
 			return -1;
+	peer->appl = "Bridged Call";
+	peer->data = chan->name;
 	cs[0] = chan;
 	cs[1] = peer;
 	for (/* ever */;;) {
@@ -214,7 +217,9 @@ static int bridge_call(struct ast_channel *chan, struct ast_channel *peer, int a
 			continue;
 		}
 		f = ast_read(who);
-		if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP))) 
+		if (!f || ((f->frametype == AST_FRAME_CONTROL) && 
+					((f->subclass == AST_CONTROL_HANGUP) ||
+					 (f->subclass == AST_CONTROL_BUSY)))) 
 			return -1;
 		if ((f->frametype == AST_FRAME_VOICE) ||
 		    (f->frametype == AST_FRAME_DTMF)) {
@@ -281,9 +286,11 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	char *info, *peers, *timeout, *tech, *number, *rest, *cur;
 	struct localuser *outgoing=NULL, *tmp;
-	struct ast_channel *peer;
+	struct ast_channel *peer, *npeer;
 	int to;
 	int allowredir=0;
+	char numsubst[AST_MAX_EXTENSION];
+	char *newnum;
 	
 	if (!data) {
 		ast_log(LOG_WARNING, "Dial requires an argument (technology1/number1&technology2/number2...|optional timeout)\n");
@@ -292,8 +299,9 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	
 	LOCAL_USER_ADD(u);
 	
-	/* Parse our arguments */
-	info = strdup((char *)data);
+	/* Parse our arguments XXX Check for failure XXX */
+	info = malloc(strlen((char *)data) + AST_MAX_EXTENSION);
+	strncpy(info, (char *)data, strlen((char *)data) + AST_MAX_EXTENSION);
 	peers = strtok(info, "|");
 	if (!peers) {
 		ast_log(LOG_WARNING, "Dial argument takes format (technology1/number1&technology2/number2...|optional timeout)\n");
@@ -305,11 +313,11 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		cur = strtok(rest, "&");
 		/* Remember where to start next time */
 		rest = strtok(NULL, "\128");
-		/* Get a technology/number pair */
+		/* Get a technology/[device:]number pair */
 		tech = strtok(cur, "/");
 		number = strtok(NULL, "&");
 		if (!number) {
-			ast_log(LOG_WARNING, "Dial argument takes format (technology1/number1&technology2/number2...|optional timeout)\n");
+			ast_log(LOG_WARNING, "Dial argument takes format (technology1/[device:]number1&technology2/[device:]number2...|optional timeout)\n");
 			goto out;
 		}
 		tmp = malloc(sizeof(struct localuser));
@@ -318,36 +326,39 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			goto out;
 		}
 		tmp->allowredirect = 1;
+		strncpy(numsubst, number, sizeof(numsubst));
 		/* If we're dialing by extension, look at the extension to know what to dial */
-		if (!strcasecmp(number, "BYEXTENSION")) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Dialing by extension %s\n", chan->exten);
-			number = chan->exten;
+		if ((newnum = strstr(numsubst, "BYEXTENSION"))) {
+			snprintf(newnum, sizeof(numsubst) - (newnum - numsubst), "%s", chan->exten);
 			/* By default, if we're dialing by extension, don't permit redirecting */
 			tmp->allowredirect = 0;
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Dialing by extension %s\n", numsubst);
 		}
 		/* Request the peer */
-		tmp->chan = ast_request(tech, chan->format, number);
+		tmp->chan = ast_request(tech, chan->format, numsubst);
 		if (!tmp->chan) {
 			/* If we can't, just go on to the next call */
 			ast_log(LOG_WARNING, "Unable to create channel of type '%s'\n", tech);
 			free(tmp);
 			continue;
 		}
+		tmp->chan->appl = "AppDial";
+		tmp->chan->data = "(Outgoing Line)";
 		/* Place the call, but don't wait on the answer */
-		res = ast_call(tmp->chan, number, 0);
+		res = ast_call(tmp->chan, numsubst, 0);
 		if (res) {
 			/* Again, keep going even if there's an error */
 			if (option_debug)
 				ast_log(LOG_DEBUG, "ast call on peer returned %d\n", res);
 			else if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", number);
+				ast_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", numsubst);
 			ast_hangup(tmp->chan);
 			free(tmp);
 			continue;
 		} else
 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Called %s\n", number);
+				ast_verbose(VERBOSE_PREFIX_3 "Called %s\n", numsubst);
 		/* Put them in the list of outgoing thingies...  We're ready now. 
 		   XXX If we're forcibly removed, these outgoing calls won't get
 		   hung up XXX */
@@ -376,7 +387,14 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		   conversation.  */
 		hanguptree(outgoing, peer);
 		outgoing = NULL;
-		res = bridge_call(chan, peer, allowredir);
+		/* Build a translator if necessary */
+		if (peer->format & chan->format) 
+			npeer = peer;
+		else
+			npeer = ast_translator_create(peer, chan->format, AST_DIRECTION_BOTH);
+		res = bridge_call(chan, npeer, allowredir);
+		if (npeer != peer)
+			ast_translator_destroy(npeer);
 		ast_hangup(peer);
 	}	
 out:

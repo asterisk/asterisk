@@ -3,7 +3,7 @@
  *
  * Channel Management
  * 
- * Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+ * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -24,6 +24,7 @@
 #include <asterisk/channel_pvt.h>
 #include <asterisk/logger.h>
 #include <asterisk/file.h>
+#include <asterisk/translate.h>
 
 struct chanlist {
 	char type[80];
@@ -32,6 +33,8 @@ struct chanlist {
 	struct ast_channel * (*requester)(char *type, int format, void *data);
 	struct chanlist *next;
 } *backends = NULL;
+
+struct ast_channel *channels = NULL;
 
 /* Protect the channel list (highly unlikely that two things would change
    it at the same time, but still! */
@@ -83,6 +86,7 @@ struct ast_channel *ast_channel_alloc(void)
 {
 	struct ast_channel *tmp;
 	struct ast_channel_pvt *pvt;
+	pthread_mutex_lock(&chlock);
 	tmp = malloc(sizeof(struct ast_channel));
 	memset(tmp, 0, sizeof(struct ast_channel));
 	if (tmp) {
@@ -97,9 +101,14 @@ struct ast_channel *ast_channel_alloc(void)
 				tmp->state = AST_STATE_DOWN;
 				tmp->stack = -1;
 				tmp->streamid = -1;
+				tmp->appl = NULL;
+				tmp->data = NULL;
+				pthread_mutex_init(&tmp->lock, NULL);
 				strncpy(tmp->context, "default", sizeof(tmp->context));
 				strncpy(tmp->exten, "s", sizeof(tmp->exten));
 				tmp->priority=1;
+				tmp->next = channels;
+				channels= tmp;
 			} else {
 				ast_log(LOG_WARNING, "Unable to create schedule context\n");
 				free(tmp);
@@ -112,7 +121,60 @@ struct ast_channel *ast_channel_alloc(void)
 		}
 	} else 
 		ast_log(LOG_WARNING, "Out of memory\n");
+	pthread_mutex_unlock(&chlock);
 	return tmp;
+}
+
+struct ast_channel *ast_channel_walk(struct ast_channel *prev)
+{
+	struct ast_channel *l, *ret=NULL;
+	pthread_mutex_lock(&chlock);
+	l = channels;
+	if (!prev) {
+		pthread_mutex_unlock(&chlock);
+		return l;
+	}
+	while(l) {
+		if (l == prev)
+			ret = l->next;
+		l = l->next;
+	}
+	pthread_mutex_unlock(&chlock);
+	return ret;
+	
+}
+
+void ast_channel_free(struct ast_channel *chan)
+{
+	struct ast_channel *last=NULL, *cur;
+	pthread_mutex_lock(&chlock);
+	cur = channels;
+	while(cur) {
+		if (cur == chan) {
+			if (last)
+				last->next = cur->next;
+			else
+				channels = cur->next;
+			break;
+		}
+		last = cur;
+		cur = cur->next;
+	}
+	if (!cur)
+		ast_log(LOG_WARNING, "Unable to find channel in list\n");
+	if (chan->pvt->pvt)
+		ast_log(LOG_WARNING, "Channel '%s' may not have been hung up properly\n", chan->name);
+	if (chan->trans)
+		ast_log(LOG_WARNING, "Hard hangup called on '%s' while a translator is in place!  Expect a failure.\n", chan->name);
+	if (chan->pbx) 
+		ast_log(LOG_WARNING, "PBX may not have been terminated properly on '%s'\n", chan->name);
+	if (chan->dnid)
+		free(chan->dnid);
+	if (chan->callerid)
+		free(chan->callerid);	
+	pthread_mutex_destroy(&chan->lock);
+	free(chan);
+	pthread_mutex_unlock(&chlock);
 }
 
 int ast_softhangup(struct ast_channel *chan)
@@ -149,18 +211,7 @@ int ast_hangup(struct ast_channel *chan)
 		ast_log(LOG_DEBUG, "Hanging up channel '%s'\n", chan->name);
 	if (chan->pvt->hangup)
 		res = chan->pvt->hangup(chan);
-	if (chan->pvt->pvt)
-		ast_log(LOG_WARNING, "Channel '%s' may not have been hung up properly\n", chan->name);
-	if (chan->trans)
-		ast_log(LOG_WARNING, "Hard hangup called on '%s' while a translator is in place!  Expect a failure.\n", chan->name);
-	if (chan->pbx) 
-		ast_log(LOG_WARNING, "PBX may not have been terminated properly on '%s'\n", chan->name);
-	if (chan->dnid)
-		free(chan->dnid);
-	if (chan->callerid)
-		free(chan->callerid);	
-	free(chan->pvt);
-	free(chan);
+	ast_channel_free(chan);
 	return res;
 }
 
@@ -348,6 +399,9 @@ struct ast_channel *ast_request(char *type, int format, void *data)
 	chan = backends;
 	while(chan) {
 		if (!strcasecmp(type, chan->type)) {
+			if (!(chan->capabilities & format)) {
+				format = ast_translator_best_choice(format, chan->capabilities);
+			}
 			if (chan->requester)
 				c = chan->requester(type, format, data);
 			pthread_mutex_unlock(&chlock);
