@@ -969,7 +969,7 @@ static int console_dial(int fd, int argc, char *argv[])
 
 static char dial_usage[] =
 "Usage: dial [extension[@context]]\n"
-"       Dials a given extensison (";
+"       Dials a given extension (and context if specified)\n";
 
 
 static struct ast_cli_entry myclis[] = {

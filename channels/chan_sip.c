@@ -716,7 +716,7 @@ static int retrans_pkt(void *data)
 static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *data, int len, int fatal)
 {
 	struct sip_pkt *pkt;
-	pkt = malloc(sizeof(struct sip_pkt) + len);
+	pkt = malloc(sizeof(struct sip_pkt) + len + 1);
 	if (!pkt)
 		return -1;
 	memset(pkt, 0, sizeof(struct sip_pkt));
@@ -726,6 +726,7 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
 	pkt->owner = p;
 	pkt->seqno = seqno;
 	pkt->flags = resp;
+	pkt->data[len] = '\0';
 	if (fatal)
 		pkt->flags |= FLAG_FATAL;
 	/* Schedule retransmission */

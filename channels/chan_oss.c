@@ -925,7 +925,7 @@ static int console_dial(int fd, int argc, char *argv[])
 
 static char dial_usage[] =
 "Usage: dial [extension[@context]]\n"
-"       Dials a given extensison (";
+"       Dials a given extensison (and context if specified)\n";
 
 static int console_transfer(int fd, int argc, char *argv[])
 {
