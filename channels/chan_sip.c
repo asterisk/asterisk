@@ -4808,7 +4808,7 @@ static int get_rpid_num(char *input,char *output, int maxlen)
 
 
 /*--- check_user: Check if matching user or peer is defined ---*/
-static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, char *uri, int reliable, struct sockaddr_in *sin, int ignore)
+static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd, char *uri, int reliable, struct sockaddr_in *sin, int ignore, char *mailbox, int mailboxlen)
 {
 	struct sip_user *user;
 	struct sip_peer *peer;
@@ -4942,6 +4942,8 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				p->canreinvite = peer->canreinvite;
 				strncpy(p->peername, peer->name, sizeof(p->peername) - 1);
 				strncpy(p->authname, peer->name, sizeof(p->authname) - 1);
+				if (mailbox)
+					snprintf(mailbox, mailboxlen, ",%s,", peer->mailbox);
 				if (!ast_strlen_zero(peer->username)) {
 					strncpy(p->username, peer->username, sizeof(p->username) - 1);
 					strncpy(p->authname, peer->username, sizeof(p->authname) - 1);
@@ -4988,7 +4990,10 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 
 	return res;
 }
-
+static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, char *uri, int reliable, struct sockaddr_in *sin, int ignore)
+{
+	return check_user_full(p, req, cmd, uri, reliable, sin, ignore, NULL, 0);
+}
 /*--- get_msg_text: Get text out of a SIP MESSAGE ---*/
 static int get_msg_text(char *buf, int len, struct sip_request *req)
 {
@@ -6766,8 +6771,11 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ast_verbose("Ignoring this request\n");
 
 		if (!p->lastinvite) {
+			char mailbox[256]="";
+			char rbox[256];
+			int found = 0;
 			/* Handle authentication if this is our first subscribe */
-			res = check_user(p, req, cmd, e, 0, sin, ignore);
+			res = check_user_full(p, req, cmd, e, 0, sin, ignore, mailbox, sizeof(mailbox));
 			if (res) {
 				if (res < 0) {
 					ast_log(LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
@@ -6792,10 +6800,25 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				p->tag = rand();
 				if (!strcmp(get_header(req, "Accept"), "application/dialog-info+xml"))
 				    p->subscribed = 2;
-				else
+				else if (!strcmp(get_header(req, "Accept"), "application/simple-message-summary")) {
+					/* Looks like they actually want a mailbox */
+					snprintf(rbox, sizeof(rbox), ",%s@%s,", p->exten, p->context);
+					if (strstr(mailbox, rbox))
+						found++;
+					if (!found) {
+						snprintf(rbox, sizeof(rbox), ",%s,", p->exten);
+						if (strstr(mailbox, rbox))
+							found++;
+					}
+					if (found)
+						transmit_response(p, "200 OK", req);
+					else
+						transmit_response(p, "403 Permission Denied", req);
+					
+				} else
 				    p->subscribed = 1;
-				
-				p->stateid = ast_extension_state_add(p->context, p->exten, cb_extensionstate, p);
+				if (p->subscribed)
+					p->stateid = ast_extension_state_add(p->context, p->exten, cb_extensionstate, p);
 			}
 			
 		} else 
