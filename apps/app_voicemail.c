@@ -1665,12 +1665,11 @@ static void run_externnotify(char *context, char *extension)
 	char arguments[255];
 	int newvoicemails = 0, oldvoicemails = 0;
 
-	if(externnotify[0]) {
+	if(!ast_strlen_zero(externnotify)) {
 		if (ast_app_messagecount(extension, &newvoicemails, &oldvoicemails)) {
 			ast_log(LOG_ERROR, "Problem in calculating number of voicemail messages available for extension %s\n", extension);
 		} else {
-			strncpy(arguments, externnotify, sizeof(arguments));
-			snprintf(arguments, sizeof(arguments)-1, "%s %s %s %d&", externnotify, context, extension, newvoicemails);
+			snprintf(arguments, sizeof(arguments), "%s %s %s %d&", externnotify, context, extension, newvoicemails);
 			ast_log(LOG_DEBUG,"Executing %s\n", arguments);
 	  		ast_safe_system(arguments);
 		}
