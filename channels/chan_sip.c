@@ -1008,7 +1008,7 @@ static int sip_hangup(struct ast_channel *ast)
 		} else {
 			if (!p->pendinginvite) {
 				/* Send a hangup */
-				transmit_request_with_auth(p, "BYE", 0, 1);
+				transmit_request_with_auth(p, "BYE", 0, 0);
 			} else {
 				/* Note we will need a BYE when this all settles out
 				   but we can't send one while we have "INVITE" outstanding. */
@@ -4361,7 +4361,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				transmit_request(p, "ACK", seqno, 0);
 				/* Go ahead and send bye at this point */
 				if (p->pendingbye) {
-					transmit_request_with_auth(p, "BYE", 0, 1);
+					transmit_request_with_auth(p, "BYE", 0, 0);
 					p->needdestroy = 1;
 				}
 			} else if (!strcasecmp(msg, "REGISTER")) {
@@ -4794,7 +4794,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				}
 			}
 			/* Always increment on a BYE */
-			transmit_request_with_auth(p, "BYE", 0, 1);
+			transmit_request_with_auth(p, "BYE", 0, 0);
 			p->alreadygone = 1;
 		}
 	} else if (!strcasecmp(cmd, "CANCEL")) {
