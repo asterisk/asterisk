@@ -6913,8 +6913,74 @@ static int action_zapdialoffhook(struct mansession *s, struct message *m)
 	astman_send_ack(s, m, "ZapDialOffhook");
 	return 0;
 }
+
+static int zt_unload(void)
+{
+	struct zt_pvt *p, *pl;
+	/* First, take us out of the channel loop */
+	ast_channel_unregister(type);
+	ast_channel_unregister(typecompat);
+	ast_cli_unregister(&cli_show_channels);
+	ast_cli_unregister(&cli_show_channel);
+	ast_cli_unregister(&cli_destroy_channel);
+	if (!ast_mutex_lock(&iflock)) {
+		/* Hangup all interfaces if they have an owner */
+		p = iflist;
+		while(p) {
+			if (p->owner)
+				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
+			p = p->next;
+		}
+		iflist = NULL;
+		ast_mutex_unlock(&iflock);
+	} else {
+		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
+		return -1;
+	}
+	if (!ast_mutex_lock(&monlock)) {
+		if (monitor_thread) {
+			pthread_cancel(monitor_thread);
+			pthread_kill(monitor_thread, SIGURG);
+			pthread_join(monitor_thread, NULL);
+		}
+		monitor_thread = -2;
+		ast_mutex_unlock(&monlock);
+	} else {
+		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
+		return -1;
+	}
+
+	if (!ast_mutex_lock(&iflock)) {
+		/* Destroy all the interfaces and free their memory */
+		p = iflist;
+		while(p) {
+			/* Free any callerid */
+			if (p->cidspill)
+				free(p->cidspill);
+			/* Close the zapata thingy */
+			if (p->subs[SUB_REAL].zfd > -1)
+				zt_close(p->subs[SUB_REAL].zfd);
+			pl = p;
+			p = p->next;
+			/* Free associated memory */
+			free(pl);
+		}
+		iflist = NULL;
+		ast_mutex_unlock(&iflock);
+	} else {
+		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
+		return -1;
+	}
 		
-int load_module()
+	return 0;
+}
+
+int unload_module()
+{
+	return zt_unload();
+}
+		
+static int setup_zap(void)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
@@ -6924,19 +6990,10 @@ int load_module()
 	int start, finish,x;
 	int y;
 	int cur_radio = 0;
-
 #ifdef ZAPATA_PRI
 	int offset;
-
-	memset(pris, 0, sizeof(pris));
-	for (y=0;y<NUM_SPANS;y++) {
-		pris[y].offset = -1;
-		pris[y].fd = -1;
-	}
-	pri_set_error(zt_pri_error);
-	pri_set_message(zt_pri_message);
 #endif
-	
+
 	cfg = ast_load(config);
 
 	/* We *must* have a config file otherwise stop immediately */
@@ -6959,7 +7016,7 @@ int load_module()
 				ast_log(LOG_ERROR, "Signalling must be specified before any channels are.\n");
 				ast_destroy(cfg);
 				ast_mutex_unlock(&iflock);
-				unload_module();
+				zt_unload();
 				return -1;
 			}
 			c = v->value;
@@ -6976,7 +7033,7 @@ int load_module()
 					ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'\n", v->value, chan);
 					ast_destroy(cfg);
 					ast_mutex_unlock(&iflock);
-					unload_module();
+					zt_unload();
 					return -1;
 				}
 				if (finish < start) {
@@ -6994,7 +7051,7 @@ int load_module()
 						ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
 						ast_destroy(cfg);
 						ast_mutex_unlock(&iflock);
-						unload_module();
+						zt_unload();
 						return -1;
 					}
 				}
@@ -7236,7 +7293,7 @@ int load_module()
 				ast_log(LOG_ERROR, "Unknown switchtype '%s'\n", v->value);
 				ast_destroy(cfg);
 				ast_mutex_unlock(&iflock);
-				unload_module();
+				zt_unload();
 				return -1;
 			}
 		} else if (!strcasecmp(v->name, "minunused")) {
@@ -7253,19 +7310,6 @@ int load_module()
 		v = v->next;
 	}
 	ast_mutex_unlock(&iflock);
-	/* Make sure we can register our Zap channel type */
-	if (ast_channel_register(type, tdesc, AST_FORMAT_SLINEAR |  AST_FORMAT_ULAW, zt_request)) {
-		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
-		ast_destroy(cfg);
-		unload_module();
-		return -1;
-	}
-	if (ast_channel_register(typecompat, tdesc, AST_FORMAT_SLINEAR |  AST_FORMAT_ULAW, zt_request)) {
-		ast_log(LOG_ERROR, "Unable to register channel class %s\n", typecompat);
-		ast_destroy(cfg);
-		unload_module();
-		return -1;
-	}
 	ast_destroy(cfg);
 #ifdef ZAPATA_PRI
 	for (x=0;x<NUM_SPANS;x++) {
@@ -7286,6 +7330,39 @@ int load_module()
 			}
 		}
 	}
+#endif
+	/* And start the monitor for the first time */
+	restart_monitor();
+	return 0;
+}
+
+int load_module(void)
+{
+	int res;
+
+#ifdef ZAPATA_PRI
+	int y;
+	memset(pris, 0, sizeof(pris));
+	for (y=0;y<NUM_SPANS;y++) {
+		pris[y].offset = -1;
+		pris[y].fd = -1;
+	}
+	pri_set_error(zt_pri_error);
+	pri_set_message(zt_pri_message);
+#endif
+	res = setup_zap();
+	/* Make sure we can register our Zap channel type */
+	if (ast_channel_register(type, tdesc, AST_FORMAT_SLINEAR |  AST_FORMAT_ULAW, zt_request)) {
+		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+		zt_unload();
+		return -1;
+	}
+	if (ast_channel_register(typecompat, tdesc, AST_FORMAT_SLINEAR |  AST_FORMAT_ULAW, zt_request)) {
+		ast_log(LOG_ERROR, "Unable to register channel class %s\n", typecompat);
+		zt_unload();
+		return -1;
+	}
+#ifdef ZAPATA_PRI
 	ast_cli_register(&pri_debug);
 	ast_cli_register(&pri_no_debug);
 	ast_cli_register(&pri_really_debug);
@@ -7302,70 +7379,8 @@ int load_module()
 	ast_manager_register( "ZapTransfer", 0, action_transfer, "Transfer Zap Channel" );
 	ast_manager_register( "ZapHangup", 0, action_transferhangup, "Hangup Zap Channel" );
 	ast_manager_register( "ZapDialOffhook", 0, action_zapdialoffhook, "Dial over Zap channel while offhook" );
-	/* And start the monitor for the first time */
-	restart_monitor();
-	return 0;
-}
 
-int unload_module()
-{
-	struct zt_pvt *p, *pl;
-	/* First, take us out of the channel loop */
-	ast_channel_unregister(type);
-	ast_channel_unregister(typecompat);
-	ast_cli_unregister(&cli_show_channels);
-	ast_cli_unregister(&cli_show_channel);
-	ast_cli_unregister(&cli_destroy_channel);
-	if (!ast_mutex_lock(&iflock)) {
-		/* Hangup all interfaces if they have an owner */
-		p = iflist;
-		while(p) {
-			if (p->owner)
-				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
-			p = p->next;
-		}
-		iflist = NULL;
-		ast_mutex_unlock(&iflock);
-	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-		return -1;
-	}
-	if (!ast_mutex_lock(&monlock)) {
-		if (monitor_thread) {
-			pthread_cancel(monitor_thread);
-			pthread_kill(monitor_thread, SIGURG);
-			pthread_join(monitor_thread, NULL);
-		}
-		monitor_thread = -2;
-		ast_mutex_unlock(&monlock);
-	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-		return -1;
-	}
-
-	if (!ast_mutex_lock(&iflock)) {
-		/* Destroy all the interfaces and free their memory */
-		p = iflist;
-		while(p) {
-			/* Free any callerid */
-			if (p->cidspill)
-				free(p->cidspill);
-			/* Close the zapata thingy */
-			if (p->subs[SUB_REAL].zfd > -1)
-				zt_close(p->subs[SUB_REAL].zfd);
-			pl = p;
-			p = p->next;
-			/* Free associated memory */
-			free(pl);
-		}
-		iflist = NULL;
-		ast_mutex_unlock(&iflock);
-	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-		return -1;
-	}
-		
-	return 0;
+	return res;
 }
 
 #if 0
