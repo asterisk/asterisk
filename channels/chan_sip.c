@@ -8500,7 +8500,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 	if (peer) {
 		peer->lastmsgssent = -1;
 		if (!found) {
-			strncpy(peer->name, name, sizeof(peer->name)-1);
+			if (name)
+				strncpy(peer->name, name, sizeof(peer->name)-1);
 			strncpy(peer->context, default_context, sizeof(peer->context)-1);
 			strncpy(peer->language, default_language, sizeof(peer->language)-1);
 			strncpy(peer->musicclass, global_musicclass, sizeof(peer->musicclass)-1);
@@ -8527,7 +8528,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		peer->ospauth = global_ospauth;
 #endif
 		while(v) {
-			if (!strcasecmp(v->name, "secret")) 
+			if (!strcasecmp(v->name, "name"))
+				strncpy(peer->name, v->value, sizeof(peer->name)-1);
+			else if (!strcasecmp(v->name, "secret")) 
 				strncpy(peer->secret, v->value, sizeof(peer->secret)-1);
 			else if (!strcasecmp(v->name, "md5secret")) 
 				strncpy(peer->md5secret, v->value, sizeof(peer->md5secret)-1);
