@@ -180,7 +180,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 
 	if (!strcasecmp(tmp, "no-password"))
 	{;
-		k = 1;
+		k |= 1; /* We have the password */
 		ast_log(LOG_DEBUG, "DISA no-password login success\n");
 	}
 	gettimeofday(&lastdigittime,NULL);
@@ -192,10 +192,10 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		gettimeofday(&now,NULL);
 		  /* if outa time, give em reorder */
 		if (ms_diff(&now,&lastdigittime) > 
-		    ((k) ? digittimeout : firstdigittimeout))
+		    ((k&2) ? digittimeout : firstdigittimeout))
 		{
 			ast_log(LOG_DEBUG,"DISA %s entry timeout on chan %s\n",
-				((k) ? "extension" : "password"),chan->name);
+				((k&1) ? "extension" : "password"),chan->name);
 			break;
 		}
 		if ((res = ast_waitfor(chan, -1) < 0)) {
@@ -230,13 +230,15 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		j = f->subclass;  /* save digit */
 		ast_frfree(f);
 		if (i == 0) 
+		{
+			k|=2; /* We have the first digit */ 
 			ast_playtones_stop(chan);
-
+		}
 		gettimeofday(&lastdigittime,NULL);
 		  /* got a DTMF tone */
 		if (i < AST_MAX_EXTENSION) /* if still valid number of digits */
 		{
-			if (!k) /* if in password state */
+			if (!(k&1)) /* if in password state */
 			{
 				if (j == '#') /* end of password */
 				{
@@ -287,7 +289,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 					ast_log(LOG_DEBUG,"DISA on chan %s password is good\n",chan->name);
 					play_dialtone(chan, mailbox);
 
-					k = 1;
+					k|=1; /* In number mode */
 					i = 0;  /* re-set buffer pointer */
 					exten[sizeof(acctcode)] = 0;
 					strncpy(acctcode,exten, sizeof(acctcode) - 1);
@@ -299,7 +301,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 
 			exten[i++] = j;  /* save digit */
 			exten[i] = 0;
-			if (!k) continue; /* if getting password, continue doing it */
+			if (!(k&1)) continue; /* if getting password, continue doing it */
 			  /* if this exists */
 
 			if (ast_ignore_pattern(ourcontext, exten)) {
@@ -318,7 +320,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	if (k && ast_exists_extension(chan,ourcontext,exten,1, chan->cid.cid_num))
+	if (k==3 && ast_exists_extension(chan,ourcontext,exten,1, chan->cid.cid_num))
 	{
 		ast_playtones_stop(chan);
 		/* We're authenticated and have a valid extension */
