@@ -2911,8 +2911,9 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			case SIG_SF:
 			case SIG_SFWINK:
 			case SIG_SF_FEATD:
-				res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop);
-				if (res < 0) {
+				if (strlen(p->dop.dialstr)) 
+					res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop);
+				else if (res < 0) {
 					ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
 					p->dop.dialstr[0] = '\0';
 					return NULL;
