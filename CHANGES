@@ -1,3 +1,5 @@
+ -- rtp
+    -- fix for a seg fault
  -- chan_sip
     -- fix to prevent seg fault when attempting a transfer
     -- fix bug with supervised transfers
