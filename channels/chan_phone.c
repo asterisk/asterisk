@@ -23,6 +23,7 @@
 #include <asterisk/pbx.h>
 #include <asterisk/options.h>
 #include <asterisk/utils.h>
+#include <asterisk/callerid.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <errno.h>
@@ -156,7 +157,6 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 	PHONE_CID cid;
 	time_t UtcTime;
 	struct tm tm;
-	char *s;
 
 	/* display caller id if present */
 	if (ast->callerid) {
@@ -170,14 +170,23 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 			sprintf(cid.min,   "%02d", tm.tm_min);
 		}
 		/* the format of ast->callerid is always:  "name" <number> */
-		if(ast_strlen_zero(ast->callerid)){
+		if(!ast->callerid || ast_strlen_zero(ast->callerid)){
 			strcpy(cid.name,DEFAULT_CALLER_ID);
 			cid.number[0]='\0';
 		} else {
-			s=strncpy(cid.name,ast->callerid+1,sizeof(cid.name));
-			(void)strsep(&s,"\"");
-			s=strncpy(cid.number,strrchr(ast->callerid,'<')+1,sizeof(cid.number));
-			(void)strsep(&s,">");
+			char *n, *l;
+			char callerid[256] = "";
+			strncpy(callerid, ast->callerid, sizeof(callerid) - 1);
+			ast_callerid_parse(ast->callerid, &n, &l);
+			if (l) {
+				ast_shrink_phone_number(l);
+				if (!ast_isphonenumber(l))
+					l = NULL;
+			}
+			if (l)
+				strncpy(cid.number, l, sizeof(cid.number) - 1);
+			if (n)
+				strncpy(cid.name, n, sizeof(cid.name) - 1);
 		}
 	}
 
