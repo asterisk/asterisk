@@ -2570,12 +2570,14 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			}
 			break;
 		case ZT_EVENT_ALARM:
+#ifdef ZAPATA_PRI
 #ifdef PRI_DESTROYCALL
-			pri_destroycall(p->pri->pri, p->call);
+			if (p->call && p->pri->pri)
+				pri_destroycall(p->pri->pri, p->call);
 			p->call = NULL;
-			p->owner = NULL;
 #else
 #error Please "cvs update" and recompile libpri
+#endif
 #endif
 			p->inalarm = 1;
 			res = get_alarms(p);
