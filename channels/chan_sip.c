@@ -4188,6 +4188,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			transmit_response_with_allow(p, "484 Address Incomplete", req);
 		else 
 			transmit_response_with_allow(p, "200 OK", req);
+		/* Destroy if this OPTIONS was the opening request, but not if
+		   it's in the middle of a normal call flow. */
+		if (!p->lastinvite)
+			p->needdestroy = 1;
 	} else if (!strcasecmp(cmd, "INVITE")) {
 		if (p->outgoing && p->owner && (p->owner->_state != AST_STATE_UP)) {
 			/* This is a call to ourself.  Send ourselves an error code and stop
