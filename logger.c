@@ -166,6 +166,7 @@ static void init_logger_chain(void)
 		/* Gotta have at least one.  We'll make a NULL one */
 		logfiles = make_logfile("ignore", "", -1);
 	}
+	ast_destroy(cfg);
 	ast_pthread_mutex_unlock(&loglock);
 	
 
@@ -227,9 +228,7 @@ extern void ast_log(int level, char *file, int line, char *function, char *fmt, 
 	struct logfile *f;
 
 	va_list ap;
-	va_start(ap, fmt);
 	if (!option_verbose && !option_debug && (!level)) {
-		va_end(ap);
 		return;
 	}
 	ast_pthread_mutex_lock(&loglock);
@@ -240,12 +239,14 @@ extern void ast_log(int level, char *file, int line, char *function, char *fmt, 
 			/* Log events into the event log file, with a different format */
 			strftime(date, sizeof(date), "%b %e %T", tm);
 			fprintf(eventlog, "%s asterisk[%d]: ", date, getpid());
+			va_start(ap, fmt);
 			vfprintf(eventlog, fmt, ap);
+			va_end(ap);
 			fflush(eventlog);
 		} else
 			/** Cannot use ast_log() from locked section of ast_log()!
 			    ast_log(LOG_WARNING, "Unable to retrieve local time?\n"); **/
-			fprintf(stderr, "ast_log: Unable to retrieve local time for %d?\n", t);
+			fprintf(stderr, "ast_log: Unable to retrieve local time for %ld?\n", t);
 	} else {
 		if (logfiles) {
 			f = logfiles;
@@ -265,10 +266,10 @@ extern void ast_log(int level, char *file, int line, char *function, char *fmt, 
 																term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
 																term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
 					}
-					vfprintf(f->f, fmt, ap);
 					va_start(ap, fmt);
-					fflush(f->f);
+					vfprintf(f->f, fmt, ap);
 					va_end(ap);
+					fflush(f->f);
 				}
 				f = f->next;
 			}
@@ -281,7 +282,6 @@ extern void ast_log(int level, char *file, int line, char *function, char *fmt, 
 		}
 	}
 	ast_pthread_mutex_unlock(&loglock);
-	va_end(ap);
 }
 
 extern void ast_verbose(char *fmt, ...)

@@ -193,7 +193,7 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 {
 	char *chan;
 	char *num, *name;
-	char tmp[AST_MAX_EXTENSION];
+	char tmp[AST_MAX_EXTENSION] = "";
 	if (cdr) {
 		chan = strlen(cdr->channel) ? cdr->channel : "<unknown>";
 		if (strlen(cdr->channel)) 
@@ -214,7 +214,7 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 			strncpy(cdr->src, num, sizeof(cdr->src) - 1);
 		}
 		
-		if (c->state == AST_STATE_UP)
+		if (c->_state == AST_STATE_UP)
 			cdr->disposition = AST_CDR_ANSWERED;
 		else
 			cdr->disposition = AST_CDR_NOANSWER;
@@ -269,6 +269,16 @@ char *ast_cdr_flags2str(int flag)
 		return "DOCUMENTATION";
 	}
 	return "Unknown";
+}
+
+int ast_cdr_setaccount(struct ast_channel *chan, char *account)
+{
+	struct ast_cdr *cdr = chan->cdr;
+
+	strncpy(chan->accountcode, account, sizeof(chan->accountcode) - 1);
+	if (cdr)
+		strncpy(cdr->accountcode, chan->accountcode, sizeof(cdr->accountcode) - 1);
+	return 0;
 }
 
 int ast_cdr_amaflags2int(char *flag)
