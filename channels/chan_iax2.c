@@ -508,7 +508,8 @@ static ast_mutex_t dpcache_lock;
 
 static void iax_debug_output(const char *data)
 {
-	ast_verbose(data);
+	if (iaxdebug)
+		ast_verbose(data);
 }
 
 static void iax_error_output(const char *data)

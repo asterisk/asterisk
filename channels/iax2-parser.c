@@ -553,7 +553,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			break;
 		default:
 			snprintf(tmp, sizeof(tmp), "Ignoring unknown information element '%s' (%d) of length %d\n", iax_ie2str(ie), ie, len);
-			errorf(tmp);
+			outputf(tmp);
 		}
 		/* Overwrite information element with 0, to null terminate previous portion */
 		data[0] = 0;
