@@ -204,7 +204,7 @@ void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *wor
 	}
 }
 
-int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, char *value, int recur) 
+int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int recur) 
 {
 	struct ast_var_t *newvariable;
     struct varshead *headp;

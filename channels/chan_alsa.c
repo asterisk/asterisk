@@ -150,7 +150,7 @@ static int nosound=0;
 /* ZZ */
 static struct ast_channel *alsa_request(const char *type, int format, void *data, int *cause);
 static int alsa_digit(struct ast_channel *c, char digit);
-static int alsa_text(struct ast_channel *c, char *text);
+static int alsa_text(struct ast_channel *c, const char *text);
 static int alsa_hangup(struct ast_channel *c);
 static int alsa_answer(struct ast_channel *c);
 static struct ast_frame *alsa_read(struct ast_channel *chan);
@@ -479,7 +479,7 @@ static int alsa_digit(struct ast_channel *c, char digit)
 	return 0;
 }
 
-static int alsa_text(struct ast_channel *c, char *text)
+static int alsa_text(struct ast_channel *c, const char *text)
 {
 	ast_mutex_lock(&alsalock);
 	ast_verbose( " << Console Received text %s >> \n", text);

@@ -89,7 +89,7 @@ struct ast_cdr {
 };
 
 extern void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int recur);
-extern int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, char *value, int recur);
+extern int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int recur);
 extern int ast_cdr_serialize_variables(struct ast_cdr *cdr, char *buf, size_t size, char delim, char sep, int recur);
 extern void ast_cdr_free_vars(struct ast_cdr *cdr, int recur);
 extern int ast_cdr_copy_vars(struct ast_cdr *to_cdr, struct ast_cdr *from_cdr);

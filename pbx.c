@@ -89,7 +89,7 @@ struct ast_include {
 	char *rname;		/* Context to include */
 	const char *registrar;			/* Registrar */
 	int hastime;				/* If time construct exists */
-        struct ast_timing timing;               /* time construct */
+	struct ast_timing timing;               /* time construct */
 	struct ast_include *next;		/* Link them together */
 	char stuff[0];
 };
@@ -191,8 +191,8 @@ static int pbx_builtin_saycharacters(struct ast_channel *, void *);
 static int pbx_builtin_sayphonetic(struct ast_channel *, void *);
 int pbx_builtin_setvar(struct ast_channel *, void *);
 static int pbx_builtin_importvar(struct ast_channel *, void *);
-void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value);
-char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name);
+static char *ast_func_read(struct ast_channel *chan, const char *in, char *workspace, size_t len);
+static void ast_func_write(struct ast_channel *chan, const char *in, const char *value);
 
 static struct varshead globals;
 
@@ -843,30 +843,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 	if (c) 
 		headp=&c->varshead;
 	*ret=NULL;
-	if (c && c->cdr && !strncasecmp(var, "CDR(", 4)) { /* ${CDR(NEET)}  */
-		char *vtmp, *nt; 
-
-		if ((vtmp = ast_strdupa((char *) var + 4)) && (nt = strchr(vtmp, ')'))) {
-			*nt = '\0';
-			ast_cdr_getvar(c->cdr, vtmp, ret, workspace, workspacelen, 1);
-		} else
-			ast_log(LOG_WARNING, "Invalid CDR variable.\n");
-		return;
-	} else if (!strncasecmp(var,"LEN(",4)) {	/* ${LEN(<string>)} */
-		/* Now we have the variable name on cp3 */
-		int len=strlen(var);
-		int len_len=4;
-		if (strrchr(var,')')) {
-			char cp3[80];
-			strncpy(cp3, var, sizeof(cp3) - 1);
-			cp3[len-len_len-1]='\0';
-			sprintf(workspace,"%d",(int)strlen(cp3));
-			*ret = workspace;
-		} else {
-			/* length is zero */
-			*ret = "0";
-		}
-	} else if ((first=strchr(var,':'))) {	/* : Remove characters counting from end or start of string */
+	if ((first=strchr(var,':'))) {	/* : Remove characters counting from end or start of string */
 		strncpy(tmpvar, var, sizeof(tmpvar) - 1);
 		first = strchr(tmpvar, ':');
 		if (!first)
@@ -1072,20 +1049,6 @@ icky:
 				}
 			}
 		}
-		if (!(*ret)) {
-			int len=strlen(var);
-			int len_env=strlen("ENV(");
-			if (len > (len_env+1) && !strncasecmp(var,"ENV(",len_env) && !strcmp(var+len-1,")")) {
-				char cp3[80] = "";
-				strncpy(cp3, var, sizeof(cp3) - 1);
-				cp3[len-1]='\0';
-				*ret=getenv(cp3+len_env);
-				if (*ret) {
-					strncpy(workspace, *ret, workspacelen - 1);
-					*ret = workspace;
-				}
-			}
-		}
 	}
 }
 
@@ -1155,33 +1118,86 @@ int ast_custom_function_register(struct ast_custom_function_obj *acf)
 	return -1;
 }
 
-static char *ast_func(struct ast_channel *chan, char *in, char *workspace, size_t len) {
-	char *out = NULL;
-	static char *ret = "0";
+char *ast_func_read(struct ast_channel *chan, const char *in, char *workspace, size_t len)
+{
+	char *args = NULL, *function, *p;
+	char *ret = "0";
 	struct ast_custom_function_obj *acfptr;
 
-	if ((out = strchr(in, ' '))) {
-		*out = '\0';
-		out++;
-
-		if((acfptr = ast_custom_function_find_obj(in))) {
-			/* run the custom function */
-			return acfptr->function(chan, in, out, workspace, len);
+	function = ast_strdupa(in);
+	if (function) {
+		if ((args = strchr(function, '('))) {
+			*args = '\0';
+			args++;
+			if ((p = strrchr(args, ')'))) {
+				*p = '\0';
+			} else {
+				ast_log(LOG_WARNING, "Can't find trailing parenthesis?\n");
+			}
+		} else {
+			ast_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
 		}
+
+		if ((acfptr = ast_custom_function_find_obj(function))) {
+			/* run the custom function */
+			if (acfptr->read) {
+				return acfptr->read(chan, function, args, workspace, len);
+			} else {
+				ast_log(LOG_ERROR, "Function %s cannot be read\n", function);
+			}
+		} else {
+			ast_log(LOG_ERROR, "Function %s not registered\n", function);
+		}
+	} else {
+		ast_log(LOG_ERROR, "Out of memory\n");
 	}
-	return strdup(ret);
+	return ret;
+}
+
+static void ast_func_write(struct ast_channel *chan, const char *in, const char *value)
+{
+	char *args = NULL, *function, *p;
+	struct ast_custom_function_obj *acfptr;
+
+	function = ast_strdupa(in);
+	if (function) {
+		if ((args = strchr(function, '('))) {
+			*args = '\0';
+			args++;
+			if ((p = strrchr(args, ')'))) {
+				*p = '\0';
+			} else {
+				ast_log(LOG_WARNING, "Can't find trailing parenthesis?\n");
+			}
+		} else {
+			ast_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
+		}
+
+		if ((acfptr = ast_custom_function_find_obj(function))) {
+			/* run the custom function */
+			if (acfptr->write) {
+				acfptr->write(chan, function, args, value);
+			} else {
+				ast_log(LOG_ERROR, "Function %s cannot be written to\n", function);
+			}
+		} else {
+			ast_log(LOG_ERROR, "Function %s not registered\n", function);
+		}
+	} else {
+		ast_log(LOG_ERROR, "Out of memory\n");
+	}
 }
 
 static char *builtin_function_isnull(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-	  char *ret_true = "1", *ret_false = "0";
-	  return cmd ? ret_false : ret_true;
+	char *ret_true = "1", *ret_false = "0";
+	return data && *data ? ret_false : ret_true;
 }
 
 static char *builtin_function_exists(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-  	char *ret_true = "1", *ret_false = "0";
-	return cmd ? ret_true : ret_false;
+	char *ret_true = "1", *ret_false = "0";
+	return data && *data ? ret_true : ret_false;
 }
 
 static char *builtin_function_if(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
@@ -1219,35 +1235,88 @@ static char *builtin_function_if(struct ast_channel *chan, char *cmd, char *data
 	return ret;
 }
 
+static char *builtin_function_env_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+{
+	char *ret = "";
+	if (data) {
+		ret = getenv(data);
+		if (!ret)
+			ret = "";
+	}
+	strncpy(buf, ret, len);
+	buf[len - 1] = '\0';
+	return buf;
+}
+
+static void builtin_function_env_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
+{
+	if (data && !ast_strlen_zero(data)) {
+		if (value && !ast_strlen_zero(value)) {
+			setenv(data, value, 1);
+		} else {
+			unsetenv(data);
+		}
+	}
+}
+
+static char *builtin_function_len(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+{
+	int length = 0;
+	if (data) {
+		length = strlen(data);
+	}
+	snprintf(buf, len, "%d", length);
+	return buf;
+}
+
+static char *builtin_function_cdr_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+{
+	char *ret;
+	if (chan && chan->cdr && data) {
+		ast_cdr_getvar(chan->cdr, data, &ret, buf, len, 1);
+	}
+	return ret;
+}
+
+static void builtin_function_cdr_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
+{
+	if (chan && chan->cdr && data) {
+		ast_cdr_setvar(chan->cdr, data, value, 1);
+	}
+}
+
 static char *builtin_function_regex(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	char *ret_true = "1", *ret_false = "0", *ret;
-	char *arg, *tmp;
+	char *arg, *earg, *tmp, errstr[256] = "";
+	int errcode;
 	regex_t regexbuf;
 
 	ret = ret_false; /* convince me otherwise */
-	if ((tmp = ast_strdupa(data)) && (arg = strchr(tmp, '"')) && (data = strchr(arg+1, '"'))) {
-		arg++;
-		*data = '\0';
-		data++;
-		
-		if(data[0] == ' ') {
-			data++;
+	tmp = ast_strdupa(data);
+	if (tmp) {
+		/* Regex in quotes */
+		arg = strchr(tmp, '"');
+		if (arg) {
+			arg++;
+			earg = strrchr(arg, '"');
+			if (earg) {
+				*earg = '\0';
+			}
 		} else {
-			ast_log(LOG_WARNING, "Malformed input missing space in %s\n", cmd);
-			ret = ret_false;
+			arg = tmp;
 		}
-		
-		if (regcomp(&regexbuf, arg, REG_EXTENDED | REG_NOSUB)) {
-			ast_log(LOG_WARNING, "Malformed regex input %s\n", cmd);
+
+		if ((errcode = regcomp(&regexbuf, arg, REG_EXTENDED | REG_NOSUB))) {
+			regerror(errcode, &regexbuf, errstr, sizeof(errstr));
+			ast_log(LOG_WARNING, "Malformed input %s(%s): %s\n", cmd, data, errstr);
 			ret = NULL;
+		} else {
+			ret = regexec(&regexbuf, data, 0, NULL, 0) ? ret_false : ret_true;
 		}
-		ret = regexec(&regexbuf, data, 0, NULL, 0) ? ret_false : ret_true;
 		regfree(&regexbuf);
-		
-				
 	} else {
-		ast_log(LOG_WARNING, "Malformed input %s\n", cmd);
+		ast_log(LOG_ERROR, "Out of memory in %s(%s)\n", cmd, data);
 	}
 
 	return ret;
@@ -1260,9 +1329,9 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 	int length;
 	char workspace[4096];
 	char ltmp[4096], var[4096];
-	char *nextvar, *nextexp, *nextfunc, *nextthing;
+	char *nextvar, *nextexp, *nextthing;
 	char *vars, *vare;
-	int pos, brackets, needsub, len, needfunc;
+	int pos, brackets, needsub, len;
 	
 	/* Substitutes variables into cp2, based on string cp1, and assuming cp2 to be
 	   zero-filled */
@@ -1272,7 +1341,6 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 		pos = strlen(whereweare);
 		nextvar = NULL;
 		nextexp = NULL;
-		nextfunc = NULL;
 		nextthing = strchr(whereweare, '$');
 		if (nextthing) {
 			switch(nextthing[1]) {
@@ -1282,9 +1350,6 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 			case '[':
 				nextexp = nextthing;
 				break;
-			case '(':
-				nextfunc = nextthing;
-				break;
 			}
 		}
 		/* If there is one, we only go that far */
@@ -1292,16 +1357,14 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 			pos = nextvar - whereweare;
 		else if (nextexp)
 			pos = nextexp - whereweare;
-		else if (nextfunc) {
-			pos = nextfunc - whereweare;
-		}
+
 		/* Can't copy more than 'count' bytes */
 		if (pos > count)
 			pos = count;
-		
+
 		/* Copy that many bytes */
 		memcpy(cp2, whereweare, pos);
-		
+
 		count -= pos;
 		cp2 += pos;
 		whereweare += pos;
@@ -1313,7 +1376,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 			vars = vare = nextvar + 2;
 			brackets = 1;
 			needsub = 0;
-			
+
 			/* Find the end of it */
 			while(brackets && *vare) {
 				if ((vare[0] == '$') && (vare[1] == '{')) {
@@ -1328,15 +1391,15 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 			if (brackets)
 				ast_log(LOG_NOTICE, "Error in extension logic (missing '}')\n");
 			len = vare - vars - 1;
-			
+
 			/* Skip totally over variable name */
 			whereweare += ( len + 3);
-			
+
 			/* Store variable name (and truncate) */
 			memset(var, 0, sizeof(var));
 			strncpy(var, vars, sizeof(var) - 1);
 			var[len] = '\0';
-			
+
 			/* Substitute if necessary */
 			if (needsub) {
 				memset(ltmp, 0, sizeof(ltmp));
@@ -1345,10 +1408,18 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 			} else {
 				vars = var;
 			}
-			
-			/* Retrieve variable value */
+
 			workspace[0] = '\0';
-			pbx_retrieve_variable(c,vars,&cp4, workspace, sizeof(workspace), headp);
+
+			if (var[len - 1] == ')') {
+				/* Evaluate function */
+				cp4 = ast_func_read(c, vars, workspace, sizeof(workspace));
+
+				ast_log(LOG_DEBUG, "Function result is '%s'\n", cp4);
+			} else {
+				/* Retrieve variable value */
+				pbx_retrieve_variable(c, vars, &cp4, workspace, sizeof(workspace), headp);
+			}
 			if (cp4) {
 				length = strlen(cp4);
 				if (length > count)
@@ -1357,7 +1428,6 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 				count -= length;
 				cp2 += length;
 			}
-			
 		} else if (nextexp) {
 			/* We have an expression.  Find the start and end, and determine
 			   if we are going to have to recursively call ourselves on the
@@ -1365,7 +1435,6 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 			vars = vare = nextexp + 2;
 			brackets = 1;
 			needsub = 0;
-			needfunc = 0;
 
 			/* Find the end of it */
 			while(brackets && *vare) {
@@ -1379,9 +1448,6 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 					brackets--;
 				} else if ((vare[0] == '$') && (vare[1] == '{')) {
 					needsub++;
-					vare++;
-				} else if ((vare[0] == '$') && (vare[1] == '(')) {
-					needfunc++;
 					vare++;
 				}
 				vare++;
@@ -1399,7 +1465,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 			var[len] = '\0';
 			
 			/* Substitute if necessary */
-			if (needsub || needfunc) {
+			if (needsub) {
 				memset(ltmp, 0, sizeof(ltmp));
 				pbx_substitute_variables_helper(c, var, ltmp, sizeof(ltmp) - 1);
 				vars = ltmp;
@@ -1421,64 +1487,6 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 				cp2 += length;
 				free(cp4);
 			}
-		} else if (nextfunc) {
-			/* We have a function.  Find the start and end */
-			vars = vare = nextfunc + 2;
-			brackets = 1;
-			needsub = 0;
-			
-			/* Find the end of it */
-			while(brackets && *vare) {
-				if ((vare[0] == '$') && (vare[1] == '(')) {
-					needsub++;
-					brackets++;
-					vare++;
-				} else if (vare[0] == '(') {
-					brackets++;
-				} else if (vare[0] == ')') {
-					brackets--;
-				} else if ((vare[0] == '$') && (vare[1] == '{')) {
-					needsub++;
-					vare++;
-				}
-				vare++;
-			}
-			if (brackets)
-				ast_log(LOG_NOTICE, "Error in extension logic (missing ')')\n");
-			len = vare - vars - 1;
-			
-			/* Skip totally over variable name */
-			whereweare += ( len + 3);
-			
-			/* Store variable name (and truncate) */
-			memset(var, 0, sizeof(var));
-			strncpy(var, vars, sizeof(var) - 1);
-			var[len] = '\0';
-			
-			/* Substitute if necessary */
-			if (needsub) {
-				memset(ltmp, 0, sizeof(ltmp));
-				pbx_substitute_variables_helper(c, var, ltmp, sizeof(ltmp) - 1);
-				vars = ltmp;
-			} else {
-				vars = var;
-			}
-			
-			/* Evaluate expression */			
-			cp4 = ast_func(c, vars, workspace, sizeof(workspace));
-			
-			ast_log(LOG_DEBUG, "Expression is '%s'\n", cp4);
-			
-			if (cp4) {
-				length = strlen(cp4);
-				if (length > count)
-					length = count;
-				memcpy(cp2, cp4, length);
-				count -= length;
-				cp2 += length;
-				free(cp4);
-			}
-			
 		} else
 			break;
 	}
@@ -1494,8 +1502,8 @@ void pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, 
 	pbx_substitute_variables_helper_full(NULL, cp1, cp2, count, headp);
 }
 
-static void pbx_substitute_variables(char *passdata, int datalen, struct ast_channel *c, struct ast_exten *e) {
-        
+static void pbx_substitute_variables(char *passdata, int datalen, struct ast_channel *c, struct ast_exten *e)
+{
 	memset(passdata, 0, datalen);
 		
 	/* No variables or expressions in e->data, so why scan it? */
@@ -1687,7 +1695,7 @@ static int ast_extension_state2(struct ast_exten *e)
 		return -1;
 
 	strncpy(hint, ast_get_extension_app(e), sizeof(hint)-1);
-    
+
 	cur = hint;    	/* On or more devices separated with a & character */
 	do {
 		rest = strchr(cur, '&');
@@ -1698,28 +1706,28 @@ static int ast_extension_state2(struct ast_exten *e)
 	
 		res = ast_device_state(cur);
 		switch (res) {
-    		case AST_DEVICE_NOT_INUSE:
+		case AST_DEVICE_NOT_INUSE:
 			allunavailable = 0;
 			allbusy = 0;
 			break;
-    		case AST_DEVICE_INUSE:
+		case AST_DEVICE_INUSE:
 			return AST_EXTENSION_INUSE;
-    		case AST_DEVICE_BUSY:
+		case AST_DEVICE_BUSY:
 			allunavailable = 0;
 			allfree = 0;
 			busy = 1;
 			break;
-    		case AST_DEVICE_UNAVAILABLE:
-    		case AST_DEVICE_INVALID:
+		case AST_DEVICE_UNAVAILABLE:
+		case AST_DEVICE_INVALID:
 			allbusy = 0;
 			allfree = 0;
 			break;
-    		default:
+		default:
 			allunavailable = 0;
 			allbusy = 0;
 			allfree = 0;
 		}
-       		cur = rest;
+		cur = rest;
 	} while (cur);
 
 	if (allfree)			
@@ -1905,12 +1913,12 @@ int ast_extension_state_add(const char *context, const char *exten,
 		cblist->callback = callback;
 		cblist->data = data;
 	
-       		cblist->next = statecbs;
+		cblist->next = statecbs;
 		statecbs = cblist;
 
 		ast_mutex_unlock(&hintlock);
 		return 0;
-    	}
+	}
 
 	if (!context || !exten)
 		return -1;
@@ -1920,11 +1928,11 @@ int ast_extension_state_add(const char *context, const char *exten,
 	if (!e) {
 		return -1;
 	}
-    
+
 	/* Find the hint in the list of hints */
 	ast_mutex_lock(&hintlock);
 	list = hints;        
-    
+
 	while (list) {
 		if (list->exten == e)
 			break;	    
@@ -1960,10 +1968,10 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 {
 	struct ast_hint *list;
 	struct ast_state_cb *cblist, *cbprev;
-    
+
 	if (!id && !callback)
 		return -1;
-            
+
 	ast_mutex_lock(&hintlock);
 
 	/* id is zero is a callback without extension */
@@ -1986,7 +1994,7 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 	    		cblist = cblist->next;
 		}
 
-    		ast_mutex_lock(&hintlock);
+		ast_mutex_lock(&hintlock);
 		return -1;
 	}
 
@@ -2008,12 +2016,12 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 				ast_mutex_unlock(&hintlock);
 				return 0;		
 	    		}		
-    	    		cbprev = cblist;				
+	    		cbprev = cblist;				
 	    		cblist = cblist->next;
 		}
 		list = list->next;
 	}
-    
+
 	ast_mutex_unlock(&hintlock);
 	return -1;
 }
@@ -2025,10 +2033,10 @@ static int ast_add_hint(struct ast_exten *e)
 
 	if (!e) 
 		return -1;
-    
+
 	ast_mutex_lock(&hintlock);
 	list = hints;        
-    
+
 	/* Search if hint exists, do nothing */
 	while (list) {
 		if (list->exten == e) {
@@ -2038,7 +2046,7 @@ static int ast_add_hint(struct ast_exten *e)
 			return -1;
 		}
 		list = list->next;    
-    	}
+	}
 
 	if (option_debug > 1)
 		ast_log(LOG_DEBUG, "HINTS: Adding hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
@@ -2068,7 +2076,7 @@ static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 
 	ast_mutex_lock(&hintlock);
 	list = hints;
-    
+
 	while(list) {
 		if (list->exten == oe) {
 	    		list->exten = ne;
@@ -3115,7 +3123,7 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 			ast_cli(fd,"  %20s: %s\n", a->name, a->synopsis ? a->synopsis : "<Synopsis not available>");
 		}
 	}
-        if ((!like) && (!describing)) {
+	if ((!like) && (!describing)) {
 		ast_cli(fd, "    -= %d Applications Registered =-\n",total_apps);
 	} else {
 		ast_cli(fd, "    -= %d Applications Matching =-\n",total_match);
@@ -3434,31 +3442,59 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 /* custom commands */
 
 static struct ast_custom_function_obj regex_function = {
-    .name = "regex",
-    .desc = "Regular Expression: Returns 1 if data matches regular expression.",
-    .syntax = "$(regex \"<regular expression>\" <data>)",
-    .function = builtin_function_regex,
+	.name = "regex",
+	.desc = "Regular Expression: Returns 1 if data matches regular expression.",
+	.syntax = "regex(\"<regular expression>\" <data>)",
+	.read = builtin_function_regex,
+	.write = NULL,
 };
 
 static struct ast_custom_function_obj isnull_function = {
-    .name = "isnull",
-    .desc = "NULL Test: Returns 1 if NULL or 0 otherwise",
-    .syntax = "$(isnull <data>)",
-    .function = builtin_function_isnull,
+	.name = "isnull",
+	.desc = "NULL Test: Returns 1 if NULL or 0 otherwise",
+	.syntax = "isnull(<data>)",
+	.read = builtin_function_isnull,
+	.write = NULL,
 };
 
 static struct ast_custom_function_obj exists_function = {
-    .name = "exists",
-    .desc = "Existance Test: Returns 1 if exists, 0 otherwise",
-    .syntax = "$(exists <data>)",
-    .function = builtin_function_exists,
+	.name = "exists",
+	.desc = "Existance Test: Returns 1 if exists, 0 otherwise",
+	.syntax = "exists(<data>)",
+	.read = builtin_function_exists,
+	.write = NULL,
 };
 
 static struct ast_custom_function_obj if_function = {
     .name = "if",
     .desc = "Conditional: Returns the data following '?' if true else the data following ':'",
-    .syntax = "$(if <expr>?<true>:<false>)",
-    .function = builtin_function_if,
+    .syntax = "if(<expr>?<true>:<false>)",
+    .read = builtin_function_if,
+	.write = NULL,
+};
+
+static struct ast_custom_function_obj env_function = {
+    .name = "ENV",
+    .desc = "Gets or sets the environment variable specified",
+    .syntax = "ENV(<envname>)",
+    .read = builtin_function_env_read,
+	.write = builtin_function_env_write,
+};
+
+static struct ast_custom_function_obj len_function = {
+	.name = "LEN",
+	.desc = "Returns the length of the arguments given",
+	.syntax = "LEN(<string>)",
+	.read = builtin_function_len,
+	.write = NULL,
+};
+
+static struct ast_custom_function_obj cdr_function = {
+	.name = "CDR",
+	.desc = "Gets or sets the CDR variable specified",
+	.syntax = "CDR(<cdrvarname>)",
+	.read = builtin_function_cdr_read,
+	.write = builtin_function_cdr_write,
 };
 
 
@@ -3880,8 +3916,8 @@ static unsigned int get_month(char *mon)
 
 int ast_build_timing(struct ast_timing *i, char *info_in)
 {
-        char info_save[256];
-        char *info;
+	char info_save[256];
+	char *info;
 	char *c;
 
 	/* Check for empty just in case */
@@ -5126,7 +5162,7 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 				e = e->next;
 				destroy_exten(el);
 			}
-                        ast_mutex_destroy(&tmp->lock);
+			ast_mutex_destroy(&tmp->lock);
 			free(tmp);
 			if (!con) {
 				/* Might need to get another one -- restart */
@@ -5542,7 +5578,7 @@ int pbx_builtin_serialize_variables(struct ast_channel *chan, char *buf, size_t 
 	return total;
 }
 
-char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name) 
+char *pbx_builtin_getvar_helper(struct ast_channel *chan, const char *name) 
 {
 	struct ast_var_t *variables;
 	struct varshead *headp;
@@ -5569,11 +5605,14 @@ char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name)
 	return NULL;
 }
 
-void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value)
+void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const char *value)
 {
 	struct ast_var_t *newvariable;
 	struct varshead *headp;
 
+
+	if (name[strlen(name)-1] == ')')
+		return ast_func_write(chan, name, value);
 
 	if (chan) {
 		headp = &chan->varshead;
@@ -5773,18 +5812,18 @@ static int pbx_builtin_saynumber(struct ast_channel *chan, void *data)
 
 	
 	if (!data || ast_strlen_zero((char *)data)) {
-                ast_log(LOG_WARNING, "SayNumber requires an argument (number)\n");
-                return -1;
-        }
-        strncpy(tmp, (char *)data, sizeof(tmp)-1);
-        number=tmp;
-        strsep(&number, "|");
-        options = strsep(&number, "|");
-        if (options) { 
+		ast_log(LOG_WARNING, "SayNumber requires an argument (number)\n");
+		return -1;
+	}
+	strncpy(tmp, (char *)data, sizeof(tmp)-1);
+	number=tmp;
+	strsep(&number, "|");
+	options = strsep(&number, "|");
+	if (options) { 
 		if ( strcasecmp(options, "f") && strcasecmp(options,"m") && 
 			strcasecmp(options, "c") && strcasecmp(options, "n") ) {
-                   ast_log(LOG_WARNING, "SayNumber gender option is either 'f', 'm', 'c' or 'n'\n");
-                   return -1;
+			ast_log(LOG_WARNING, "SayNumber gender option is either 'f', 'm', 'c' or 'n'\n");
+			return -1;
 		}
 	}
 	return res = ast_say_number(chan, atoi((char *) tmp), "", chan->language, options);
@@ -5826,7 +5865,7 @@ int load_pbx(void)
 		ast_verbose( "Asterisk PBX Core Initializing\n");
 		ast_verbose( "Registering builtin applications:\n");
 	}
-        AST_LIST_HEAD_INIT(&globals);
+	AST_LIST_HEAD_INIT(&globals);
 	ast_cli_register(&show_applications_cli);
 	ast_cli_register(&show_functions_cli);
 	ast_cli_register(&show_application_cli);
@@ -5837,6 +5876,9 @@ int load_pbx(void)
 	ast_custom_function_register(&isnull_function);
 	ast_custom_function_register(&exists_function);
 	ast_custom_function_register(&if_function);
+	ast_custom_function_register(&env_function);
+	ast_custom_function_register(&len_function);
+	ast_custom_function_register(&cdr_function);
 
 	/* Register builtin applications */
 	for (x=0; x<sizeof(builtins) / sizeof(struct pbx_builtin); x++) {

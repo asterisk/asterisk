@@ -3711,7 +3711,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					e->capability = capability;
 					e->parent = gw;
 					e->dtmfmode = dtmfmode;
-					if (!ep_reload && e->sub->rtp)
+					if (!ep_reload && e->sub && e->sub->rtp)
 						e->dtmfmode |= MGCP_DTMF_INBAND;
 					e->adsi = adsi;
 					e->type = TYPE_LINE;
