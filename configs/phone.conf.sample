@@ -35,4 +35,13 @@ echocancel=medium
 ; List all devices we can use.  Contexts may also be specified
 ;
 ;context=local
+;
+; You can set txgain and rxgain for each device in the same way as context.
+; If you want to change default gain value (1.0 =~ 100%) for device, simple
+; add txgain or rxgain line before device line. But rememeber, if you change
+; volume all cards listed below will be affected by these values. You can
+; use float values (1.0, 0.5, 2.0) or percentage values (100%, 150%, 50%).
+;
+;txgain=100%
+;rxgain=1.0
 ;device => /dev/phone0
