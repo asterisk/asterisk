@@ -3915,6 +3915,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					if (p->owner->_state != AST_STATE_UP) {
 						ast_setstate(p->owner, AST_STATE_UP);
 						ast_queue_control(p->owner, AST_CONTROL_ANSWER, 0);
+					} else {
+						struct ast_frame af = { AST_FRAME_NULL, };
+						ast_queue_frame(p->owner, &af, 0);
 					}
 				}
 				transmit_request(p, "ACK", seqno, 0);
@@ -4136,6 +4139,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	int respid;
 	int res;
 	int gotdest;
+	struct ast_frame af = { AST_FRAME_NULL, };
 	/* Clear out potential response */
 	memset(&resp, 0, sizeof(resp));
 	/* Get Method and Cseq */
@@ -4237,6 +4241,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				p->capability = capability;
 				ast_log(LOG_DEBUG, "Hm....  No sdp for the moemnt\n");
 			}
+			/* Queue NULL frame to prod ast_rtp_bridge if appropriate */
+			ast_queue_frame(p->owner, &af, 0);
 		} else if (sipdebug)
 			ast_verbose("Ignoring this request\n");
 		if (!p->lastinvite) {
