@@ -164,7 +164,7 @@ extern int adsi_unload_session(struct ast_channel *chan);
 /* ADSI Layer 2 transmission functions */
 extern int adsi_transmit_messages(struct ast_channel *chan, unsigned char **msg, int *msglen, int *msgtype);
 extern int adsi_transmit_message(struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype);
-
+extern int adsi_transmit_message_full(struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype, int dowait);
 /*! Read some encoded DTMF data.   */
 /*!
  * Returns number of bytes received
