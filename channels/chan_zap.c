@@ -1143,7 +1143,7 @@ static int update_conf(struct zt_pvt *p)
 	for (x=0;x<MAX_SLAVES;x++) {
 		if (p->slaves[x]) {
 			if (useslavenative)
-				conf_add(p, &p->slaves[x]->subs[SUB_REAL], SUB_REAL, p->channel);
+				conf_add(p, &p->slaves[x]->subs[SUB_REAL], SUB_REAL, p->bearer ? p->bearer->channel : p->channel);
 			else {
 				conf_add(p, &p->slaves[x]->subs[SUB_REAL], SUB_REAL, 0);
 				needconf++;
@@ -1153,7 +1153,7 @@ static int update_conf(struct zt_pvt *p)
 	/* If we're supposed to be in there, do so now */
 	if (p->inconference && !p->subs[SUB_REAL].inthreeway) {
 		if (useslavenative)
-			conf_add(p, &p->subs[SUB_REAL], SUB_REAL, slave->channel);
+			conf_add(p, &p->subs[SUB_REAL], SUB_REAL, slave->bearer ? slave->bearer->channel : slave->channel);
 		else {
 			conf_add(p, &p->subs[SUB_REAL], SUB_REAL, 0);
 			needconf++;
@@ -1162,7 +1162,7 @@ static int update_conf(struct zt_pvt *p)
 	/* If we have a master, add ourselves to his conference */
 	if (p->master) {
 		if (isslavenative(p->master, NULL)) {
-			conf_add(p->master, &p->subs[SUB_REAL], SUB_REAL, p->master->channel);
+			conf_add(p->master, &p->subs[SUB_REAL], SUB_REAL, p->master->bearer ? p->master->bearer->channel : p->master->channel);
 		} else {
 			conf_add(p->master, &p->subs[SUB_REAL], SUB_REAL, 0);
 		}
