@@ -19,6 +19,7 @@
 #include <asterisk/app.h>
 #include <asterisk/utils.h>
 #include <asterisk/say.h>
+#include <asterisk/channel_pvt.h>
 #include <asterisk/pbx.h>
 #include <asterisk/translate.h>
 #include <asterisk/module.h>
@@ -183,7 +184,6 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 	f0 = spy_queue_shift(csth->spy, 0);
 	f1 = spy_queue_shift(csth->spy, 1);
 	ast_mutex_unlock(&csth->spy->lock);
-
 
 	if (f0 && f1) {
 		if (!csth->trans0) {
@@ -507,11 +507,18 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 						
 					if (peer && (!bronly || ast_bridged_channel(peer)) &&
 						!ast_check_hangup(peer) && !ast_test_flag(peer, AST_FLAG_SPYING)) {
+						int x = 0;
+
 						strncpy(peer_name, peer->name, AST_NAME_STRLEN);
 						ptr = strchr(peer_name, '/');
 						*ptr = '\0';
 						ptr++;
-						peer_name[0] = tolower(peer_name[0]);
+						for (x = 0 ; x < strlen(peer_name) ; x++) {
+							if(peer_name[x] == '/') {
+								break;
+							}
+							peer_name[x] = tolower(peer_name[x]);
+						}
 
 						if (!silent) {
 							if (ast_fileexists(peer_name, NULL, NULL) != -1) {
