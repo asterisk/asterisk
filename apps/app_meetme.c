@@ -92,6 +92,8 @@ static char *descrip3 =
 "      'l' -- Unlock conference\n"
 "      'M' -- Mute conference\n"
 "      'm' -- Unmute conference\n"
+"      'N' -- Mute entire conference (except admin)\n"
+"      'n' -- Unmute entire conference (except admin)\n"
 "";
 
 STANDARD_LOCAL_USER;
@@ -340,12 +342,20 @@ static int conf_cmd(int fd, int argc, char **argv) {
 			return RESULT_SHOWUSAGE;
 		if (strcmp(argv[1], "mute") == 0) {
 			/* Mute */
-			strncat(cmdline, "|M|", sizeof(cmdline) - strlen(cmdline) - 1);	
-			strncat(cmdline, argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
+			if (strcmp(argv[3], "all") == 0) {
+				 strncat(cmdline, "|N", sizeof(cmdline) - strlen(cmdline) - 1);
+			} else {
+				strncat(cmdline, "|M|", sizeof(cmdline) - strlen(cmdline) - 1);	
+				strncat(cmdline, argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
+			}
 		} else {
 			/* Unmute */
-			strncat(cmdline, "|m|", sizeof(cmdline) - strlen(cmdline) - 1);
-			strncat(cmdline, argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
+			if (strcmp(argv[3], "all") == 0) {
+				 strncat(cmdline, "|n", sizeof(cmdline) - strlen(cmdline) - 1);
+			} else {
+				strncat(cmdline, "|m|", sizeof(cmdline) - strlen(cmdline) - 1);
+				strncat(cmdline, argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
+			}
 		}
 	} else if (strcmp(argv[1], "kick") == 0) {
 		if (argc < 4)
@@ -379,7 +389,7 @@ static int conf_cmd(int fd, int argc, char **argv) {
 		/* Show all the users */
 		user = cnf->firstuser;
 		while(user) {
-			ast_cli(fd, "User #: %i  Channel: %s %s %s\n", user->user_no, user->chan->name, (user->userflags & CONFFLAG_ADMIN) ? "(Admin)" : "", (user->userflags & CONFFLAG_MONITOR) ? "(Listen only)" : "" );
+			ast_cli(fd, "User #: %i  Channel: %s %s %s %s\n", user->user_no, user->chan->name, (user->userflags & CONFFLAG_ADMIN) ? "(Admin)" : "", (user->userflags & CONFFLAG_MONITOR) ? "(Listen only)" : "", (user->adminflags & ADMINFLAG_MUTED) ? "(Admn Muted)" : "" );
 			user = user->nextuser;
 		}
 		return RESULT_SUCCESS;
@@ -425,7 +435,7 @@ static char *complete_confcmd(char *line, char *word, int pos, int state) {
 	} else if (pos == 3) {
 		/* User Number || Conf Command option*/
 		if (strstr(line, "mute") || strstr(line, "kick")) {
-			if ((state == 0) && (strstr(line, "kick")) && !(strncasecmp(word, "all", strlen(word)))) {
+			if ((state == 0) && (strstr(line, "kick") || strstr(line,"mute")) && !(strncasecmp(word, "all", strlen(word)))) {
 				return strdup("all");
 			}
 			which++;
@@ -1492,11 +1502,36 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 						ast_log(LOG_NOTICE, "Specified User not found!");
 					}
 					break;
+				case 78: /* N: Mute all users */
+					user = cnf->firstuser;
+					while(user) {
+						if (user && !(user->userflags & CONFFLAG_ADMIN))
+							user->adminflags |= ADMINFLAG_MUTED;
+						if (user->nextuser) {
+							user = user->nextuser;
+						} else {
+							break;
+						}
+					}
+					break;					
 				case 109: /* m: Unmute */ 
 					if (user && (user->adminflags & ADMINFLAG_MUTED)) {
 						user->adminflags ^= ADMINFLAG_MUTED;
 					} else {
 						ast_log(LOG_NOTICE, "Specified User not found or he muted himself!");
+					}
+					break;
+				case  110: /* n: Unmute all users */
+					user = cnf->firstuser;
+					while(user) {
+						if (user && (user-> adminflags & ADMINFLAG_MUTED)) {
+							user->adminflags ^= ADMINFLAG_MUTED;
+						}
+						if (user->nextuser) {
+							user = user->nextuser;
+						} else {
+							break;
+						}
 					}
 					break;
 				case 107: /* k: Kick user */ 
