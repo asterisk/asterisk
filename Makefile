@@ -132,7 +132,7 @@ CFLAGS+= $(OPTIONS)
 CFLAGS+=# -fomit-frame-pointer 
 SUBDIRS=res channels pbx apps codecs formats agi cdr astman
 ifeq (${OSARCH},Linux)
-LIBS=-ldl
+LIBS=-ldl -lpthread
 endif
 ifeq (${OSARCH},OpenBSD)
 LIBS=-pthread
