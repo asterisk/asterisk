@@ -282,13 +282,15 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 struct ast_frame *ast_frdup(struct ast_frame *f)
 {
 	struct ast_frame *out;
-	int len;
+	int len, srclen = 0;
 	void *buf;
 	/* Start with standard stuff */
 	len = sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET + f->datalen;
 	/* If we have a source, add space for it */
-	if (f->src && strlen(f->src))
-		len += strlen(f->src) + 1;
+	if (f->src)
+		srclen = strlen(f->src);
+	if (srclen > 0)
+		len += srclen + 1;
 	buf = malloc(len);
 	if (!buf)
 		return NULL;
@@ -303,7 +305,7 @@ struct ast_frame *ast_frdup(struct ast_frame *f)
 	out->mallocd = AST_MALLOCD_HDR;
 	out->offset = AST_FRIENDLY_OFFSET;
 	out->data = buf + sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET;
-	if (f->src && strlen(f->src)) {
+	if (srclen > 0) {
 		out->src = out->data + f->datalen;
 		/* Must have space since we allocated for it */
 		strcpy(out->src, f->src);
