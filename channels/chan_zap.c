@@ -3854,7 +3854,7 @@ static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 		if (p->pri->pri) {		
 			if (!pri_grab(p, p->pri)) {
 #ifdef PRI_PROGRESS
-					pri_progress(p->pri->pri,p->call);
+					pri_progress(p->pri->pri,p->call, 1);
 #else						
 					pri_acknowledge(p->pri->pri,p->call, p->prioffset, 1);
 #endif						
@@ -3968,7 +3968,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
 #ifdef PRI_PROGRESS
-						pri_progress(p->pri->pri,p->call);
+						pri_progress(p->pri->pri,p->call, 1);
 #else						
 						pri_acknowledge(p->pri->pri,p->call, p->prioffset, 1);
 #endif						
