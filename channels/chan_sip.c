@@ -7412,7 +7412,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	int len;
 	int nounlock;
 	int recount = 0;
-	int debug=sip_debug_test_addr(&sin);
+	int debug;
 
 	len = sizeof(sin);
 	memset(&req, 0, sizeof(req));
@@ -7426,6 +7426,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	}
 	req.data[res] = '\0';
 	req.len = res;
+	debug = sip_debug_test_addr(&sin);
 	if (debug)
 		ast_verbose("\n\nSip read: \n%s\n", req.data);
 	if (pedanticsipchecking)
