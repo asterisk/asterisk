@@ -1715,7 +1715,7 @@ static int skinny_indicate(struct ast_channel *ast, int ind)
     	}
 	switch(ind) {
 	case AST_CONTROL_RINGING:
-		if (ast->_state == AST_STATE_RINGING) {
+		if (ast->_state != AST_STATE_UP) {
 			if (!sub->progress) {		
 				transmit_tone(s, SKINNY_ALERT);
 				transmit_callstate(s, l->instance, SKINNY_RINGOUT, sub->callid);
