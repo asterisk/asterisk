@@ -6498,6 +6498,9 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 	char *s, *e;
 	strncpy(tmp, get_header(req, "Contact"), sizeof(tmp) - 1);
 	s = ditch_braces(tmp);
+	e = strchr(s, ';');
+	if (e)
+		*e = '\0';
 	if (p->promiscredir) {
 		if (!strncasecmp(s, "sip:", 4))
 			s += 4;
