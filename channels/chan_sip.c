@@ -3790,7 +3790,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 #endif
 	if (peer) {
 			if (!peer->dynamic) {
-				ast_log(LOG_NOTICE, "Peer '%s' isn't dynamic\n", peer->name);
+				ast_log(LOG_NOTICE, "Peer '%s' is trying to register, but not configured as host=dynamic\n", peer->name);
 			} else {
 				p->nat = peer->nat;
 				transmit_response(p, "100 Trying", req);
