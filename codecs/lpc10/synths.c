@@ -1,8 +1,11 @@
 /*
 
 $Log$
-Revision 1.14  2003/02/12 13:59:15  matteo
-mer feb 12 14:56:57 CET 2003
+Revision 1.15  2003/09/27 02:45:37  markster
+Fix various compiler warnings (bug #322)
+
+Revision 1.2  2003/09/27 02:45:37  markster
+Fix various compiler warnings (bug #322)
 
 Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 mer feb 12 14:56:57 CET 2003
@@ -61,9 +64,12 @@ static real c_b2 = .7f;
 /* 	SYNTHS Version 54 */
 
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:15  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2003/09/27 02:45:37  markster
+ * Fix various compiler warnings (bug #322)
  *
+/* Revision 1.2  2003/09/27 02:45:37  markster
+/* Fix various compiler warnings (bug #322)
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*
@@ -173,7 +179,7 @@ static real c_b2 = .7f;
     extern /* Subroutine */ int deemp_(real *, integer *, struct lpc10_decoder_state *);
     real ratio;
     integer ipiti[16];
-    extern /* Subroutine */ bsynz_(real *, integer *, 
+    extern /* Subroutine */ void bsynz_(real *, integer *, 
 	    integer *, real *, real *, real *, real *, struct lpc10_decoder_state *), irc2pc_(real *, real *
 	    , integer *, real *, real *);
     real g2pass;
@@ -184,9 +190,12 @@ static real c_b2 = .7f;
     real rci[160]	/* was [10][16] */;
 
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:15  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2003/09/27 02:45:37  markster
+ * Fix various compiler warnings (bug #322)
  *
+/* Revision 1.2  2003/09/27 02:45:37  markster
+/* Fix various compiler warnings (bug #322)
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*
@@ -218,9 +227,12 @@ static real c_b2 = .7f;
 /* Frame size, Prediction order, Pitch period */
 /*       Arguments */
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:15  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2003/09/27 02:45:37  markster
+ * Fix various compiler warnings (bug #322)
  *
+/* Revision 1.2  2003/09/27 02:45:37  markster
+/* Fix various compiler warnings (bug #322)
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*

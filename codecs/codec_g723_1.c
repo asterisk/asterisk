@@ -94,7 +94,7 @@ struct g723_decoder_pvt {
 	int tail;
 };
 
-static struct ast_translator_pvt *g723tolin_new()
+static struct ast_translator_pvt *g723tolin_new(void)
 {
 	struct g723_decoder_pvt *tmp;
 	tmp = malloc(sizeof(struct g723_decoder_pvt));
@@ -108,7 +108,7 @@ static struct ast_translator_pvt *g723tolin_new()
 	return (struct ast_translator_pvt *)tmp;
 }
 
-static struct ast_frame *lintog723_sample()
+static struct ast_frame *lintog723_sample(void)
 {
 	static struct ast_frame f;
 	f.frametype = AST_FRAME_VOICE;
@@ -123,7 +123,7 @@ static struct ast_frame *lintog723_sample()
 	return &f;
 }
 
-static struct ast_frame *g723tolin_sample()
+static struct ast_frame *g723tolin_sample(void)
 {
 	static struct ast_frame f;
 	f.frametype = AST_FRAME_VOICE;
@@ -138,7 +138,7 @@ static struct ast_frame *g723tolin_sample()
 	return &f;
 }
 
-static struct ast_translator_pvt *lintog723_new()
+static struct ast_translator_pvt *lintog723_new(void)
 {
 	struct g723_encoder_pvt *tmp;
 	tmp = malloc(sizeof(struct g723_encoder_pvt));
@@ -396,7 +396,7 @@ int usecount(void)
 	return res;
 }
 
-char *key()
+char *key(void)
 {
 	return ASTERISK_GPL_KEY;
 }

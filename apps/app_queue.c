@@ -1384,7 +1384,7 @@ static int queues_show(int fd, int argc, char **argv)
 			ast_cli(fd, "   Callers: \n");
 			for (qe = q->head; qe; qe = qe->next) 
 				ast_cli(fd, "      %d. %s (wait: %ld:%2.2ld)\n", pos++, qe->chan->name,
-								(now - qe->start) / 60, (now - qe->start) % 60);
+								(long)(now - qe->start) / 60, (long)(now - qe->start) % 60);
 		} else
 			ast_cli(fd, "   No Callers\n");
 		ast_cli(fd, "\n");

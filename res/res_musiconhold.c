@@ -40,7 +40,6 @@
 #endif
 #include <unistd.h>
 #include <sys/ioctl.h>
-#include <sys/wait.h>
 
 #include <pthread.h>
 

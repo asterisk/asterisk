@@ -25,11 +25,12 @@
 #define TZ_STRLEN_MAX	255
 /* #define DEBUG */
 #include <asterisk/lock.h>
+#include <asterisk/localtime.h>
 
 
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] = "@(#)localtime.c	7.57";
+static const char	elsieid[] = "@(#)localtime.c	7.57";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
@@ -45,7 +46,7 @@ static char	elsieid[] = "@(#)localtime.c	7.57";
 #include <sys/stat.h>
 #include "private.h"
 #include "tzfile.h"
-#include "fcntl.h"
+#include <fcntl.h>
 #ifdef DEBUG
 #include <stdio.h>
 #endif
@@ -929,7 +930,7 @@ ast_tzset P((const char *name))
 		cur_state->ttis[0].tt_gmtoff = 0;
 		cur_state->ttis[0].tt_abbrind = 0;
 		(void) strcpy(cur_state->chars, gmt);
-	} else if (tzload(name, cur_state) != 0)
+	} else if (tzload(name, cur_state) != 0) {
 		if (name[0] == ':') {
 			(void) gmtload(cur_state);
 		} else if (tzparse(name, cur_state, FALSE) != 0) {
@@ -938,6 +939,7 @@ ast_tzset P((const char *name))
 				/* Last ditch, get GMT */
 				(void) gmtload(cur_state);
 		}
+	}
 	strncpy(cur_state->name,name,sizeof(cur_state->name));
 	if (last_lclptr)
 		last_lclptr->next = cur_state;

@@ -6372,7 +6372,7 @@ static int handle_r2_no_debug(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	chan = atoi(argv[4]);
 	if ((chan < 1) || (chan > NUM_SPANS)) {
-		ast_cli(fd, "Invalid channel %s.  Should be a number greater than 0\n");
+		ast_cli(fd, "Invalid channel %s.  Should be a number greater than 0\n", argv[4]);
 		return RESULT_SUCCESS;
 	}
 	tmp = iflist;
@@ -6403,7 +6403,7 @@ static int handle_r2_debug(int fd, int argc, char *argv[])
 	}
 	chan = atoi(argv[3]);
 	if ((chan < 1) || (chan > NUM_SPANS)) {
-		ast_cli(fd, "Invalid channel %s.  Should be a number greater than 0\n");
+		ast_cli(fd, "Invalid channel %s.  Should be a number greater than 0\n", argv[3]);
 		return RESULT_SUCCESS;
 	}
 	tmp = iflist;
