@@ -3,7 +3,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Radio Repeater / Remote Base program 
- *  version 0.19 01/14/05
+ *  version 0.20 01/14/05
  * 
  * See http://www.zapatatelephony.org/app_rpt.html
  *
@@ -150,7 +150,7 @@ enum {DLY_TELEM, DLY_ID, DLY_UNKEY, DLY_CALLTERM};
 #include <tonezone.h>
 #include <linux/zaptel.h>
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.19  01/14/2005";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.20  01/14/2005";
 static char *app = "Rpt";
 
 static char *synopsis = "Radio Repeater/Remote Base Control System";
@@ -4082,7 +4082,21 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		/* if found */
 		if (l != &myrpt->links) 
 		{
-			if (l->chan) ast_softhangup(l->chan,AST_SOFTHANGUP_DEV);
+                        l->disctime = DISC_TIME;
+                        if (l->chan)
+                        {
+                                ast_softhangup(l->chan,AST_SOFTHANGUP_DEV);
+                                l->chan = 0;
+                        }
+                        else
+                        {
+                                remque((struct qelem *) l);
+                                if (!strcmp(myrpt->cmdnode,l->name))
+                                        myrpt->cmdnode[0] = 0;
+                                ast_hangup(l->pchan);
+                                free(l);
+                        }
+                        ast_mutex_unlock(&myrpt->lock);
 			usleep(500000);	
 		} else 
 			ast_mutex_unlock(&myrpt->lock);
