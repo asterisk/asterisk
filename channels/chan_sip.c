@@ -5057,7 +5057,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				ast_queue_frame(p->owner, &af, 0);
 		} else if (sipdebug)
 			ast_verbose("Ignoring this request\n");
-		strncpy(p->our_contact, get_header(req, "Contact"), sizeof(p->our_contact) - 1);
+		if (!strlen(p->our_contact))
+			build_contact(p);
 		if (!p->lastinvite) {
 			/* Handle authentication if this is our first invite */
 			res = check_user(p, req, cmd, e, 1, sin);
@@ -5276,8 +5277,9 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			check_via(p, req);
 		} else if (sipdebug)
 			ast_verbose("Ignoring this request\n");
-			
-		strncpy(p->our_contact, get_header(req, "Contact"), sizeof(p->our_contact) - 1);
+		
+		if (!strlen(p->our_contact))
+			build_contact(p);
 		if (!p->lastinvite) {
 			/* Handle authentication if this is our first subscribe */
 			res = check_user(p, req, cmd, e, 0, sin);
