@@ -3,7 +3,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Radio Repeater / Remote Base program 
- *  version 0.17 9/13/04
+ *  version 0.18 11/16/04
  * 
  * See http://www.zapatatelephony.org/app_rpt.html
  *
@@ -137,7 +137,7 @@ enum {DLY_TELEM, DLY_ID, DLY_UNKEY, DLY_CALLTERM};
 #include <tonezone.h>
 #include <linux/zaptel.h>
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.17  09/13/2004";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.18  11/16/2004";
 static char *app = "Rpt";
 
 static char *synopsis = "Radio Repeater/Remote Base Control System";
@@ -327,7 +327,29 @@ int	ret;
 
 static int play_tone_pair(struct ast_channel *chan, int f1, int f2, int duration, int amplitude)
 {
-	return ast_tonepair(chan, f1, f2, duration, amplitude);	
+	int flags = ZT_IOMUX_WRITEEMPTY;
+	int res;
+	struct ast_frame *f;	
+
+        if ((res = ast_tonepair_start(chan, f1, f2, duration, amplitude)))
+                return res;
+                                                                                                                                            
+        while(chan->generatordata) {
+                f = ast_read(chan);
+                if (f)
+                        ast_frfree(f);
+                else
+                        return -1;
+        }
+
+	/*
+	* Wait for the zaptel driver to physically write the tone blocks to the hardware
+	*/
+
+	res = ioctl(chan->fds[0], ZT_IOMUX, &flags);
+	if (res < 0)
+		return -1;
+        return 0;
 }
 
 static int play_tone(struct ast_channel *chan, int freq, int duration, int amplitude)
@@ -731,8 +753,9 @@ static void wait_interval(struct rpt *myrpt, int type)
 static void *rpt_tele_thread(void *this)
 {
 ZT_CONFINFO ci;  /* conference info */
-int	res = 0,hastx,imdone = 0;
+int	res = 0,hastx,imdone = 0, unkeys_queued;
 struct	rpt_tele *mytele = (struct rpt_tele *)this;
+struct  rpt_tele *tlist;
 struct	rpt *myrpt;
 struct	rpt_link *l,*m,linkbase;
 struct	ast_channel *mychannel;
@@ -753,7 +776,7 @@ struct tm localtm;
 	
 	
 	/* allocate a pseudo-channel thru asterisk */
-	mychannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo");
+	mychannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
 	if (!mychannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
@@ -820,6 +843,27 @@ struct tm localtm;
 		res = telem_lookup(mychannel, myrpt->name, "functcomplete");
 		break;
 	    case UNKEY:
+
+		/*
+		* if there's one already queued, don't do another
+		*/
+
+		tlist = myrpt->tele.next;
+		unkeys_queued = 0;
+                if (tlist != &myrpt->tele)
+                {
+                        ast_mutex_lock(&myrpt->lock);
+                        while(tlist != &myrpt->tele){
+                                if (tlist->mode == UNKEY) unkeys_queued++;
+                                tlist = tlist->next;
+                        }
+                        ast_mutex_unlock(&myrpt->lock);
+		}
+		if( unkeys_queued > 1){
+			imdone = 1;
+			break;
+		}
+
 		/* wait a little bit */
 		wait_interval(myrpt, DLY_UNKEY);
 		hastx = 0;
@@ -1147,7 +1191,7 @@ struct ast_channel *mychannel,*genchannel;
 
 	myrpt->mydtmf = 0;
 	/* allocate a pseudo-channel thru asterisk */
-	mychannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo");
+	mychannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
 	if (!mychannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
@@ -1166,7 +1210,7 @@ struct ast_channel *mychannel,*genchannel;
 		pthread_exit(NULL);
 	}
 	/* allocate a pseudo-channel thru asterisk */
-	genchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo");
+	genchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
 	if (!genchannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
@@ -1274,11 +1318,26 @@ struct ast_channel *mychannel,*genchannel;
 		ast_mutex_unlock(&myrpt->lock);
 		pthread_exit(NULL);			
 	}
-	if (myrpt->ourcallerid && *myrpt->ourcallerid)
-	{
-		if (mychannel->callerid) free(mychannel->callerid);
-		mychannel->callerid = strdup(myrpt->ourcallerid);
+
+	if (myrpt->ourcallerid && *myrpt->ourcallerid){
+		char *name, *loc, *instr;
+		instr = strdup(myrpt->ourcallerid);
+		if(instr){
+			ast_callerid_parse(instr, &name, &loc);
+			if(loc){
+				if(mychannel->cid.cid_num)
+					free(mychannel->cid.cid_num);
+				mychannel->cid.cid_num = strdup(loc);
+			}
+			if(name){
+				if(mychannel->cid.cid_name)
+					free(mychannel->cid.cid_name);
+				mychannel->cid.cid_name = strdup(name);
+			}
+			free(instr);
+		}
 	}
+
 	strncpy(mychannel->exten, myrpt->exten, sizeof(mychannel->exten) - 1);
 	strncpy(mychannel->context, myrpt->ourcontext, sizeof(mychannel->context) - 1);
 	if (myrpt->acctcode)
@@ -1473,7 +1532,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int co
 			*tele++ = 0;
 			l->isremote = (s && ast_true(s));
 			strncpy(l->name, digitbuf, MAXNODESTR - 1);
-			l->chan = ast_request(deststr,AST_FORMAT_SLINEAR,tele);
+			l->chan = ast_request(deststr,AST_FORMAT_SLINEAR,tele,NULL);
 			if (l->chan){
 				ast_set_read_format(l->chan,AST_FORMAT_SLINEAR);
 				ast_set_write_format(l->chan,AST_FORMAT_SLINEAR);
@@ -1483,7 +1542,9 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int co
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "rpt (remote) initiating call to %s/%s on %s\n",
 						deststr,tele,l->chan->name);
-				l->chan->callerid = strdup(myrpt->name);
+				if(l->chan->cid.cid_num)
+					free(l->chan->cid.cid_num);
+				l->chan->cid.cid_num = strdup(myrpt->name);
 				ast_call(l->chan,tele,0);
 			}
 			else
@@ -1495,7 +1556,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int co
 				return DC_ERROR;
 			}
 			/* allocate a pseudo-channel thru asterisk */
-			l->pchan = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo");
+			l->pchan = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
 			if (!l->pchan){
 				fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
 				pthread_exit(NULL);
@@ -1566,7 +1627,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int co
 				pthread_exit(NULL);
 			}
 			*tele++ = 0;
-			l->chan = ast_request(deststr, AST_FORMAT_SLINEAR, tele);
+			l->chan = ast_request(deststr, AST_FORMAT_SLINEAR, tele,NULL);
 			if (l->chan){
 				ast_set_read_format(l->chan, AST_FORMAT_SLINEAR);
 				ast_set_write_format(l->chan, AST_FORMAT_SLINEAR);
@@ -1576,7 +1637,9 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int co
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "rpt (remote) initiating call to %s/%s on %s\n",
 						deststr, tele, l->chan->name);
-				l->chan->callerid = strdup(myrpt->name);
+				if(l->chan->cid.cid_num)
+					free(l->chan->cid.cid_num);
+				l->chan->cid.cid_num = strdup(myrpt->name);
 				ast_call(l->chan,tele,999);
 			}
 			else{
@@ -1587,7 +1650,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int co
 				return DC_ERROR;
 			}
 			/* allocate a pseudo-channel thru asterisk */
-			l->pchan = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo");
+			l->pchan = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
 			if (!l->pchan){
 				fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
 				pthread_exit(NULL);
@@ -2777,7 +2840,7 @@ char cmd[MAXDTMF+1] = "";
 		pthread_exit(NULL);
 	}
 	*tele++ = 0;
-	myrpt->rxchannel = ast_request(tmpstr,AST_FORMAT_SLINEAR,tele);
+	myrpt->rxchannel = ast_request(tmpstr,AST_FORMAT_SLINEAR,tele,NULL);
 	if (myrpt->rxchannel)
 	{
 		if (myrpt->rxchannel->_state == AST_STATE_BUSY)
@@ -2824,7 +2887,7 @@ char cmd[MAXDTMF+1] = "";
 			pthread_exit(NULL);
 		}
 		*tele++ = 0;
-		myrpt->txchannel = ast_request(tmpstr,AST_FORMAT_SLINEAR,tele);
+		myrpt->txchannel = ast_request(tmpstr,AST_FORMAT_SLINEAR,tele,NULL);
 		if (myrpt->txchannel)
 		{
 			if (myrpt->txchannel->_state == AST_STATE_BUSY)
@@ -2868,7 +2931,7 @@ char cmd[MAXDTMF+1] = "";
 		myrpt->txchannel = myrpt->rxchannel;
 	}
 	/* allocate a pseudo-channel thru asterisk */
-	myrpt->pchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo");
+	myrpt->pchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
 	if (!myrpt->pchannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
@@ -2916,7 +2979,7 @@ char cmd[MAXDTMF+1] = "";
 	/* save pseudo channel conference number */
 	myrpt->conf = ci.confno;
 	/* allocate a pseudo-channel thru asterisk */
-	myrpt->txpchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo");
+	myrpt->txpchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
 	if (!myrpt->txpchannel)
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
@@ -3758,15 +3821,17 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	/* if is not a remote */
 	if (!myrpt->remote)
 	{
+
 		char *b,*b1;
 
 		/* look at callerid to see what node this comes from */
-		if (!chan->callerid) /* if doesnt have callerid */
+		if (!chan->cid.cid_num) /* if doesn't have caller id */
 		{
 			ast_log(LOG_WARNING, "Doesnt have callerid on %s\n",tmp);
 			return -1;
 		}
-		ast_callerid_parse(chan->callerid,&b,&b1);
+
+		ast_callerid_parse(chan->cid.cid_num,&b,&b1);
 		ast_shrink_phone_number(b1);
 		if (!strcmp(myrpt->name,b1))
 		{
@@ -3812,7 +3877,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		ast_set_read_format(l->chan,AST_FORMAT_SLINEAR);
 		ast_set_write_format(l->chan,AST_FORMAT_SLINEAR);
 		/* allocate a pseudo-channel thru asterisk */
-		l->pchan = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo");
+		l->pchan = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
 		if (!l->pchan)
 		{
 			fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
@@ -3868,7 +3933,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		pthread_exit(NULL);
 	}
 	*tele++ = 0;
-	myrpt->rxchannel = ast_request(myrpt->rxchanname,AST_FORMAT_SLINEAR,tele);
+	myrpt->rxchannel = ast_request(myrpt->rxchanname,AST_FORMAT_SLINEAR,tele,NULL);
 	if (myrpt->rxchannel)
 	{
 		ast_set_read_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
@@ -3900,7 +3965,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			pthread_exit(NULL);
 		}
 		*tele++ = 0;
-		myrpt->txchannel = ast_request(myrpt->txchanname,AST_FORMAT_SLINEAR,tele);
+		myrpt->txchannel = ast_request(myrpt->txchanname,AST_FORMAT_SLINEAR,tele,NULL);
 		if (myrpt->txchannel)
 		{
 			ast_set_read_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
