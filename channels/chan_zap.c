@@ -55,7 +55,7 @@
 #include <ctype.h>
 #ifdef ZAPATA_PRI
 #include <libpri.h>
-#ifndef PRI_SETUP_CALL
+#ifndef PRI_RECEIVE_SUBADDR
 #error "You need newer libpri"
 #endif
 #endif
@@ -7164,6 +7164,9 @@ static void *pri_dchannel(void *vpri)
 								ast_log(LOG_DEBUG, "Started up crv %d:%d on bearer channel %d\n", pri->trunkgroup, crv->channel, crv->bearer->channel);
 							} else {
 								c = zt_new(pri->pvts[chanpos], AST_STATE_RESERVED, 0, SUB_REAL, law, e->ring.ctype);
+							}
+							if(!ast_strlen_zero(e->ring.callingsubaddr)) {
+								pbx_builtin_setvar_helper(c, "CALLINGSUBADDR", e->ring.callingsubaddr);
 							}
 							ast_mutex_lock(&pri->lock);
 							if (c && !pthread_create(&threadid, &attr, ss_thread, c)) {

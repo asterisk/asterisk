@@ -1106,7 +1106,7 @@ void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char 
 					brackets--;
 				} else if ((vare[0] == '$') && (vare[1] == '{')) {
 					needsub++;
-					vare++
+					vare++;
 				}
 				vare++;
 			}
