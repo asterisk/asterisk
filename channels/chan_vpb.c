@@ -32,6 +32,7 @@ extern "C" {
 #include <asterisk/pbx.h>
 #include <asterisk/options.h>
 #include <asterisk/callerid.h>
+#include <asterisk/dsp.h>
 
 }
 
@@ -144,6 +145,14 @@ static int UseNativeBridge=1;
 
 /* Use Asterisk Indication or VPB */
 static int use_ast_ind=0;
+
+/* Use Asterisk DTMF detection or VPB */
+static int use_ast_dtmfdet=0;
+
+static int relaxdtmf=0;
+
+/* Use Asterisk DTMF play back or VPB */
+static int use_ast_dtmf=0;
 
 /* Set EC suppression threshold */
 static int ec_supp_threshold=-1;
@@ -270,6 +279,8 @@ static struct vpb_pvt {
 
 	void *dtmfidd_timer;			/* Void pointer for DTMF IDD vpb_timer */
 	int dtmfidd_timer_id;			/* unique timer ID for DTMF IDD timer */
+
+	struct ast_dsp *vad;			/* AST  Voice Activation Detection dsp */
 
 	double lastgrunt;			/* time stamp (secs since epoc) of last grunt event */
 
@@ -721,8 +732,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 	int res=0;
 
 	if (option_verbose > 3) 
-		ast_verbose(VERBOSE_PREFIX_4 "%s: handle_owned: got event: [%d=>%d]\n",
-			p->dev, e->type, e->data);
+		ast_verbose(VERBOSE_PREFIX_4 "%s: handle_owned: got event: [%d=>%d]\n", p->dev, e->type, e->data);
 
 	f.src = type;
 	switch (e->type) {
@@ -767,8 +777,11 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 			}
 			break;
 
+		case VPB_DTMF_DOWN:
 		case VPB_DTMF:
-			if (p->owner->_state == AST_STATE_UP) {
+			if (use_ast_dtmfdet){
+				f.frametype = -1;
+			} else if (p->owner->_state == AST_STATE_UP) {
 					f.frametype = AST_FRAME_DTMF;
 					f.subclass = e->data;
 			} else
@@ -1471,14 +1484,32 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, int gains, float t
 	vpb_timer_open(&tmp->dtmfidd_timer, tmp->handle, tmp->dtmfidd_timer_id, dtmf_idd);
 	      
 	if (mode == MODE_FXO){
-		vpb_set_event_mask(tmp->handle, VPB_EVENTS_ALL );
+		if (use_ast_dtmfdet)
+			vpb_set_event_mask(tmp->handle, VPB_EVENTS_NODTMF );
+		else
+			vpb_set_event_mask(tmp->handle, VPB_EVENTS_ALL );
 	}
 	else {
-		vpb_set_event_mask(tmp->handle, VPB_EVENTS_STAT );
+/*
+		if (use_ast_dtmfdet)
+			vpb_set_event_mask(tmp->handle, VPB_EVENTS_NODTMF );
+		else
+*/
+			vpb_set_event_mask(tmp->handle, VPB_EVENTS_STAT );
 	}
 
 	if ((tmp->vpb_model == vpb_model_v12pci) && (echo_cancel)){
 		vpb_hostecho_on(tmp->handle);
+	}
+	if (use_ast_dtmfdet) {
+		tmp->vad = ast_dsp_new();
+		ast_dsp_set_features(tmp->vad, DSP_FEATURE_DTMF_DETECT);
+		ast_dsp_digitmode(tmp->vad, DSP_DIGITMODE_DTMF );
+		if (relaxdtmf)
+			ast_dsp_digitmode(tmp->vad, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+	}
+	else {
+		tmp->vad = NULL;
 	}
 
 	/* define grunt tone */
@@ -1689,7 +1720,7 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 					ast->name, call.tone_map[j].tone_id, call.tone_map[j].call_id); 
 		}
 
-		if (option_verbose > 4)
+		if (option_verbose > 3)
 				ast_verbose("%s: Disabling Loop Drop detection\n",p->dev);
 		vpb_disable_event(p->handle, VPB_MDROP);
 		vpb_sethook_sync(p->handle,VPB_OFFHOOK);
@@ -1697,13 +1728,13 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 
 		#ifndef DIAL_WITH_CALL_PROGRESS
 		vpb_sleep(300);
-		if (option_verbose > 4)
-				ast_verbose("%s: Disabling Loop Drop detection\n",p->dev);
+		if (option_verbose > 3)
+				ast_verbose("%s: Enabling Loop Drop detection\n",p->dev);
 		vpb_enable_event(p->handle, VPB_MDROP);
 		res = vpb_dial_async(p->handle, dialstring);
 		#else
-		if (option_verbose > 4)
-				ast_verbose("%s: Disabling Loop Drop detection\n",p->dev);
+		if (option_verbose > 3)
+				ast_verbose("%s: Enabling Loop Drop detection\n",p->dev);
 		vpb_enable_event(p->handle, VPB_MDROP);
 		res = vpb_call_async(p->handle, dialstring);
 		#endif
@@ -1749,12 +1780,18 @@ static int vpb_hangup(struct ast_channel *ast)
 	if (option_verbose > 1) 
 		ast_verbose(VERBOSE_PREFIX_2 "%s: Hangup requested\n", ast->name);
 
+
 	if (!ast->pvt || !ast->pvt->pvt) {
 		ast_log(LOG_WARNING, "%s: channel not connected?\n", ast->name);
 		res = ast_mutex_unlock(&p->lock);
 /*
 		if (option_verbose > 3) ast_verbose("%s: unLOCKING in hangup [%d]\n", p->dev,res);
 */
+		/* Free up ast dsp if we have one */
+		if ((use_ast_dtmfdet)&&(p->vad)) {
+			ast_dsp_free(p->vad);
+			p->vad = NULL;
+		}
 		return 0;
 	}
 
@@ -1765,13 +1802,13 @@ static int vpb_hangup(struct ast_channel *ast)
 	if( p->readthread ){
 		pthread_join(p->readthread, NULL); 
 		if(option_verbose>3) 
-			ast_verbose( VERBOSE_PREFIX_4 "%s: stopped record thread on %s\n",ast->name,p->dev);
+			ast_verbose( VERBOSE_PREFIX_4 "%s: stopped record thread \n",ast->name);
 	}
 
 	/* Stop play */
 	if (p->lastoutput != -1) {
 		if(option_verbose>1) 
-			ast_verbose( VERBOSE_PREFIX_2 "%s: Ending play mode on %s\n",ast->name,p->dev);
+			ast_verbose( VERBOSE_PREFIX_2 "%s: Ending play mode \n",ast->name);
 		vpb_play_terminate(p->handle);
 		ast_mutex_lock(&p->play_lock); {
 			vpb_play_buf_finish(p->handle);
@@ -1790,7 +1827,7 @@ static int vpb_hangup(struct ast_channel *ast)
 */
 	ast_mutex_lock(&p->lock);
 
-	if (p->mode != MODE_FXO) { 
+	if (p->mode != MODE_FXO) {
 		/* station port. */
 		vpb_ring_station_async(p->handle, VPB_RING_STATION_OFF,0);	
 		if(p->state!=VPB_STATE_ONHOOK){
@@ -1826,6 +1863,12 @@ static int vpb_hangup(struct ast_channel *ast)
 
 	p->owner = NULL;
 	ast->pvt->pvt=NULL;
+
+	/* Free up ast dsp if we have one */
+	if ((use_ast_dtmfdet)&&(p->vad)) {
+		ast_dsp_free(p->vad);
+		p->vad = NULL;
+	}
 
 	ast_mutex_lock(&usecnt_lock); {
 		usecnt--;
@@ -2166,7 +2209,7 @@ static void *do_chanreads(void *pvt)
 		if( getdtmf_var && ( strcasecmp( getdtmf_var, "yes" ) == 0 ) )
 			ignore_dtmf = 0;
 
-		if( ignore_dtmf != p->last_ignore_dtmf ) {
+		if(( ignore_dtmf != p->last_ignore_dtmf ) &&(!use_ast_dtmfdet)){
 			if(option_verbose>1) 
 				ast_verbose( VERBOSE_PREFIX_2 "%s:Now %s DTMF \n",
 					p->dev, ignore_dtmf ? "ignoring" : "listening for");
@@ -2251,7 +2294,13 @@ static void *do_chanreads(void *pvt)
 			fr->subclass = afmt;
 			fr->data = readbuf;
 			fr->datalen = readlen;
+			fr->frametype = AST_FRAME_VOICE;
 
+			if ((use_ast_dtmfdet)&&(p->vad)){
+				fr = ast_dsp_process(p->owner,p->vad,fr);
+				if (fr && (fr->frametype == AST_FRAME_DTMF))
+					ast_log(LOG_DEBUG, "%s: chanreads: Detected DTMF '%c'\n",p->dev, fr->subclass);
+			}
 			/* Using trylock here to prevent deadlock when channel is hungup
 			 * (ast_hangup() immediately gets lock)
 			 */
@@ -2364,7 +2413,8 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, int state, char *context)
 		}
 		tmp->pvt->pvt = me;
 		/* set call backs */
-		tmp->pvt->send_digit = vpb_digit;
+		if (use_ast_dtmf == 0)
+			tmp->pvt->send_digit = vpb_digit;
 		tmp->pvt->call = vpb_call;
 		tmp->pvt->hangup = vpb_hangup;
 		tmp->pvt->answer = vpb_answer;
@@ -2526,6 +2576,18 @@ int load_module()
 			else if (strcasecmp(v->name, "indication") == 0) {
 				use_ast_ind = 1;
 				ast_log(LOG_NOTICE,"VPB driver using Asterisk Indication functions!\n");
+			}
+			else if (strcasecmp(v->name, "ast-dtmf") == 0) {
+				use_ast_dtmf = 1;
+				ast_log(LOG_NOTICE,"VPB driver using Asterisk DTMF play functions!\n");
+			}
+			else if (strcasecmp(v->name, "ast-dtmf-det") == 0) {
+				use_ast_dtmfdet = 1;
+				ast_log(LOG_NOTICE,"VPB driver using Asterisk DTMF detection functions!\n");
+			}
+			else if (strcasecmp(v->name, "relaxdtmf") == 0) {
+				relaxdtmf = 1;
+				ast_log(LOG_NOTICE,"VPB driver using Relaxed DTMF with Asterisk DTMF detections functions!\n");
 			}
 			else if (strcasecmp(v->name, "ecsuppthres") ==0) {
 				ec_supp_threshold = atoi(v->value);
