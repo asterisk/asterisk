@@ -444,6 +444,7 @@ void close_logger(void)
 		m = tmp;
 	}
 	list = last = NULL;
+	msgcnt = 0;
 	ast_mutex_unlock(&msglist_lock);
 	return;
 }
