@@ -821,7 +821,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 
 		if( *emailtitle)
 		{
-			fprintf(p, emailtitle, msgnum, mailbox) ;
+			fprintf(p, emailtitle, msgnum + 1, mailbox) ;
 			fprintf(p,"\n") ;
 		}
 		else
