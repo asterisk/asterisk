@@ -167,6 +167,7 @@ static void *netconsole(void *vconsole)
 	int res;
 	int max;
 	fd_set rfds;
+	struct timeval tv;
 	
 	if (gethostname(hostname, sizeof(hostname)))
 		strncpy(hostname, "<Unknown>", sizeof(hostname)-1);
@@ -179,10 +180,16 @@ static void *netconsole(void *vconsole)
 		max = con->fd;
 		if (con->p[0] > max)
 			max = con->p[0];
-		res = ast_select(max + 1, &rfds, NULL, NULL, NULL);
+		tv.tv_sec = 4;	/* Wait max 4 sec for fds to become active */
+		tv.tv_usec = 0;
+		res = ast_select(max + 1, &rfds, NULL, NULL, &tv);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "select returned < 0: %s\n", strerror(errno));
 			continue;
+		}
+		if (res == 0) {
+			ast_log(LOG_WARNING, "Timeout on select.\n");
+			break;
 		}
 		if (FD_ISSET(con->fd, &rfds)) {
 			res = read(con->fd, tmp, sizeof(tmp));
@@ -794,7 +801,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 			if (!option_exec && !lastpos)
 				write(STDOUT_FILENO, "\r", 1);
 			write(STDOUT_FILENO, buf, res);
-			if ((buf[res-1] == '\n') || (buf[res-2] == '\n')) {
+			if ((buf[res-1] == '\n') && (buf[res-2] == '\n')) {
 				*cp = CC_REFRESH;
 				return(1);
 			} else {
