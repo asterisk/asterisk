@@ -48,6 +48,9 @@
 #define EVENT_FLAG_COMMAND		(1 << 4) /* Ability to read/set commands */
 #define EVENT_FLAG_AGENT		(1 << 5) /* Ability to read/set agent info */
 #define EVENT_FLAG_USER                 (1 << 6) /* Ability to read/set user info */
+#define EVENT_FLAG_CUSTOM1                 (1 << 7) /* Ability to read/set user info */
+#define EVENT_FLAG_CUSTOM2                 (1 << 8) /* Ability to read/set user info */
+#define EVENT_FLAG_CUSTOM3                 (1 << 9) /* Ability to read/set user info */
 
 /* Export manager structures */
 #define MAX_HEADERS 80
