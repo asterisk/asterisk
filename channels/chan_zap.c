@@ -1393,10 +1393,12 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 #endif
 	char callerid[256];
 	char dest[256]; /* must be same length as p->dialdest */
+	ast_mutex_lock(&p->lock);
 	strncpy(dest, rdest, sizeof(dest) - 1);
 	strncpy(p->dialdest, rdest, sizeof(dest) - 1);
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "zt_call called on %s, neither down nor reserved\n", ast->name);
+		ast_mutex_unlock(&p->lock);
 		return -1;
 	}
 	p->dialednone = 0;
@@ -1404,6 +1406,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 	{
 		/* Special pseudo -- automatically up */
 		ast_setstate(ast, AST_STATE_UP); 
+		ast_mutex_unlock(&p->lock);
 		return 0;
 	}
 	x = ZT_FLUSH_READ | ZT_FLUSH_WRITE;
@@ -1468,6 +1471,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			x = ZT_RING;
 			if (ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x) && (errno != EINPROGRESS)) {
 				ast_log(LOG_WARNING, "Unable to ring phone: %s\n", strerror(errno));
+				ast_mutex_unlock(&p->lock);
 				return -1;
 			}
 			p->dialing = 1;
@@ -1479,8 +1483,10 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			else
 				strcpy(p->callwaitcid, "");
 			/* Call waiting tone instead */
-			if (zt_callwait(ast))
+			if (zt_callwait(ast)) {
+				ast_mutex_unlock(&p->lock);
 				return -1;
+			}
 			/* Make ring-back */
 			if (tone_zone_play_tone(p->subs[SUB_CALLWAIT].zfd, ZT_TONE_RINGTONE))
 				ast_log(LOG_WARNING, "Unable to generate call-wait ring-back on channel %s\n", ast->name);
@@ -1528,6 +1534,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			c = "";
 		if (strlen(c) < p->stripmsd) {
 			ast_log(LOG_WARNING, "Number '%s' is shorter than stripmsd (%d)\n", c, p->stripmsd);
+			ast_mutex_unlock(&p->lock);
 			return -1;
 		}
 		x = ZT_START;
@@ -1536,6 +1543,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		if (res < 0) {
 			if (errno != EINPROGRESS) {
 				ast_log(LOG_WARNING, "Unable to start channel: %s\n", strerror(errno));
+				ast_mutex_unlock(&p->lock);
 				return -1;
 			}
 		}
@@ -1592,6 +1600,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 				x = ZT_ONHOOK;
 				ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x);
 				ast_log(LOG_WARNING, "Dialing failed on channel %d: %s\n", p->channel, strerror(errno));
+				ast_mutex_unlock(&p->lock);
 				return -1;
 			}
 		} else
@@ -1619,6 +1628,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			l = NULL;
 		if (strlen(c) < p->stripmsd) {
 			ast_log(LOG_WARNING, "Number '%s' is shorter than stripmsd (%d)\n", c, p->stripmsd);
+			ast_mutex_unlock(&p->lock);
 			return -1;
 		}
 		p->dop.op = ZT_DIAL_OP_REPLACE;
@@ -1629,8 +1639,14 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		} else {
 			strcpy(p->dop.dialstr, "");
 		}
+		if (pri_grab(p, p->pri)) {
+			ast_log(LOG_WARNING, "Failed to grab PRI!\n");
+			return -1;
+		}
 		if (!(p->call = pri_new_call(p->pri->pri))) {
 			ast_log(LOG_WARNING, "Unable to create call on channel %d\n", p->channel);
+			pri_rel(p->pri);
+			ast_mutex_unlock(&p->lock);
 			return -1;
 		}
 		p->digital = ast_test_flag(ast,AST_FLAG_DIGITAL);
@@ -1641,9 +1657,12 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			(p->digital ? -1 : 
 			((p->law == ZT_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW)))) {
 			ast_log(LOG_WARNING, "Unable to setup call to %s\n", c + p->stripmsd);
+			pri_rel(p->pri);
+			ast_mutex_unlock(&p->lock);
 			return -1;
 		}
 		ast_setstate(ast, AST_STATE_DIALING);
+		pri_rel(p->pri);
 		break;
 #endif		
 	case 0:
@@ -1652,8 +1671,10 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		break;		
 	default:
 		ast_log(LOG_DEBUG, "not yet implemented\n");
+		ast_mutex_unlock(&p->lock);
 		return -1;
 	}
+	ast_mutex_unlock(&p->lock);
 	return 0;
 }
 
