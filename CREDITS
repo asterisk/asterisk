@@ -26,6 +26,8 @@ Wasim - Hangup detect
 PhoneJack and Linejack card to the project.  (http://www.quicknet.net)
 
 === MISCELLANEOUS PATCHES ===
+Russell Bryant - Asterisk 1.0 maintainer and misc. enhancements
+       russelb@clemson.edu
 Anthony Minessale - Countless big and small fixes, and relentless forward push
        anthmct@yahoo.com              http://www.asterlink.com
 James Golovich - Innumerable contributions
