@@ -429,6 +429,7 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp)
 		prev = cur;
 		cur = cur->next;
 	}
+	ast_log(LOG_DEBUG, "Stopping retransmission on '%s' of %s %d: %s\n", p->callid, resp ? "Response" : "Request", seqno, res ? "Not Found" : "Found");
 	return res;
 }
 
@@ -990,77 +991,6 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 }
 
 
-#if 0
-static int sip_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
-{
-	struct sip_pvt *p0, *p1;
-	struct ast_frame *f;
-	struct ast_channel *who, *cs[3];
-	int to;
-
-	/* if need DTMF, cant native bridge */
-	if (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))
-		return -2;
-	ast_pthread_mutex_lock(&c0->lock);
-	ast_pthread_mutex_lock(&c1->lock);
-	p0 = c0->pvt->pvt;
-	p1 = c1->pvt->pvt;
-	ast_log(LOG_DEBUG, "Reinvite? %s: %s, %s: %s\n", c0->name, p0->canreinvite ? "yes" : "no", c1->name, p1->canreinvite ? "yes" : "no");
-	if (!p0->canreinvite || !p1->canreinvite) {
-		/* Not gonna support reinvite */
-		ast_pthread_mutex_unlock(&c0->lock);
-		ast_pthread_mutex_unlock(&c1->lock);
-		return -2;
-	}
-	transmit_reinvite_with_sdp(p0, p1->rtp);
-	transmit_reinvite_with_sdp(p1, p0->rtp);
-	ast_pthread_mutex_unlock(&c0->lock);
-	ast_pthread_mutex_unlock(&c1->lock);
-	cs[0] = c0;
-	cs[1] = c1;
-	cs[2] = NULL;
-	for (;;) {
-		if ((c0->pvt->pvt != p0)  ||
-			(c1->pvt->pvt != p1) ||
-			(c0->masq || c0->masqr || c1->masq || c1->masqr)) {
-				ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
-				if (c0->pvt->pvt == p0)
-					transmit_reinvite_with_sdp(p0, NULL);
-				if (c1->pvt->pvt == p1)
-					transmit_reinvite_with_sdp(p1, NULL);
-				/* Tell it to try again later */
-				return -3;
-		}
-		to = -1;
-		who = ast_waitfor_n(cs, 2, &to);
-		if (!who) {
-			ast_log(LOG_DEBUG, "Ooh, empty read...\n");
-			continue;
-		}
-		f = ast_read(who);
-		if (!f || ((f->frametype == AST_FRAME_DTMF) &&
-				   (((who == c0) && (flags & AST_BRIDGE_DTMF_CHANNEL_0)) || 
-			       ((who == c1) && (flags & AST_BRIDGE_DTMF_CHANNEL_1))))) {
-			*fo = f;
-			*rc = who;
-			ast_log(LOG_DEBUG, "Oooh, got a %s\n", f ? "digit" : "hangup");
-			if (c0->pvt->pvt == p0 && !c0->_softhangup)
-				transmit_reinvite_with_sdp(p0, NULL);
-			if (c1->pvt->pvt == p1 && !c1->_softhangup)
-				transmit_reinvite_with_sdp(p1, NULL);
-			/* That's all we needed */
-			return 0;
-		} else 
-			ast_frfree(f);
-		/* Swap priority not that it's a big deal at this point */
-		cs[2] = cs[0];
-		cs[0] = cs[1];
-		cs[1] = cs[2];
-		
-	}
-	return -1;
-}
-#endif
 
 static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 {
@@ -2078,7 +2008,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp)
 	struct sip_request resp;
 	reqprep(&resp, p, "INVITE", 1);
 	add_sdp(&resp, p, rtp);
-	return send_response(p, &resp, 1, p->ocseq);
+	return send_request(p, &resp, 1, p->ocseq);
 }
 
 static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, char *vxml_url)
@@ -4518,6 +4448,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp)
 	struct sip_pvt *p;
 	p = chan->pvt->pvt;
 	if (p) {
+		p->outgoing = 1;
 		transmit_reinvite_with_sdp(p, rtp);
 		return 0;
 	}
