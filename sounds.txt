@@ -688,6 +688,8 @@
 
 %iax.gsm%IAX
 
+%iax2.gsm%IAX (note: does not say "2")
+
 %mgcp.gsm%MGCP
 
 %sip.gsm%SIP
