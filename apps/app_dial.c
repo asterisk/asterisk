@@ -89,6 +89,7 @@ static char *descrip =
 "      'C' -- reset call detail record for this call.\n"
 "      'P[(x)]' -- privacy mode, using 'x' as database if provided.\n"
 "      'g' -- goes on in context if the destination channel hangs up\n"
+"      'G(context^exten^pri)' -- If the call is answered transfer both parties to the specified exten.\n"
 "      'A(x)' -- play an announcement to the called party, using x as file\n"
 "      'S(x)' -- hangup the call after x seconds AFTER called party picked up\n"  	
 "      'D([digits])'  -- Send DTMF digit string *after* called party has answered\n"
@@ -638,7 +639,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	int digit = 0, result = 0;
 	time_t start_time, answer_time, end_time;
 	struct ast_app *app = NULL;
-	
+	char *dblgoto = NULL;
+
 	if (!data) {
 		ast_log(LOG_WARNING, "Dial requires an argument (technology1/number1&technology2/number2...|optional timeout|options)\n");
 		return -1;
@@ -800,7 +802,29 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				announce = 0;
 			}
 		}
-		
+
+		/* Get the goto from the dial option string */
+		if ((mac = strstr(transfer, "G("))) {
+
+
+			dblgoto = ast_strdupa(mac + 2);
+			while (*mac && (*mac != ')'))
+				*(mac++) = 'X';
+			if (*mac)
+				*mac = 'X';
+			else {
+				ast_log(LOG_WARNING, "Could not find exten to which we should jump.\n");
+				dblgoto = NULL;
+			}
+			mac = strchr(dblgoto, ')');
+			if (mac)
+				*mac = '\0';
+			else {
+				ast_log(LOG_WARNING, "Goto flag set without trailing ')'\n");
+				dblgoto = NULL;
+			}
+		}
+
 		/* Get the macroname from the dial option string */
 		if ((mac = strstr(transfer, "M("))) {
 			hasmacro = 1;
@@ -1142,6 +1166,21 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 		} else
 			res = 0;
+
+		if (chan && peer && dblgoto) {
+			for (mac=dblgoto; *mac; mac++) {
+				if(*mac == '^') {
+					*mac = '|';
+				}
+			}
+			ast_parseable_goto(chan, dblgoto);
+			ast_parseable_goto(peer, dblgoto);
+			peer->priority++;
+			ast_pbx_start(peer);
+			hanguptree(outgoing, NULL);
+			LOCAL_USER_REMOVE(u);
+			return 0;
+		}
 
 		if (hasmacro && macroname) {
 			res = ast_autoservice_start(chan);
