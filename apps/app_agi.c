@@ -169,7 +169,7 @@ static int launch_script(char *script, char *args, int *fds, int *efd, int *opid
 	close(fromast[0]);
 
 	// [PHM 12/18/03]
-	close(audio[0])
+	close(audio[0]);
 
 	*opid = pid;
 	return 0;

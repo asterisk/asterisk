@@ -614,7 +614,8 @@ static void *do_monitor(void *data)
 		pthread_testcancel();
 		/* Okay, select has finished.  Let's see what happened.  */
 		if (res < 1) {
-			ast_log(LOG_WARNING, "select return %d: %s\n", res, strerror(errno));
+			if ((errno != EINTR) && (errno != EAGAIN))
+				ast_log(LOG_WARNING, "select return %d: %s\n", res, strerror(errno));
 			continue;
 		}
 		/* Alright, lock the interface list again, and let's look and see what has
