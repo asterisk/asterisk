@@ -964,7 +964,7 @@ zapretry:
 			}
 
 			/* trying to add moh for single person conf */
-			if (confflags & CONFFLAG_MOH)  {
+			if ((confflags & CONFFLAG_MOH) && !(confflags & CONFFLAG_WAITMARKED)) {
 				if (conf->users == 1) {
 					if (musiconhold == 0) {
 						ast_moh_start(chan, NULL);
