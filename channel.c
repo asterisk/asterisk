@@ -2018,7 +2018,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 						*fo = f;
 						/* Take out of conference mode */
 						res = 0;
-						ast_lop(LOG_DEBUG, "Got AST_BRIDGE_DTMF_CHANNEL_0 on c0 (%s)\n",c0->name);
+						ast_log(LOG_DEBUG, "Got AST_BRIDGE_DTMF_CHANNEL_0 on c0 (%s)\n",c0->name);
 						break;
 					} else 
 						goto tackygoto;
@@ -2028,7 +2028,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 						*rc = c1;
 						*fo = f;
 						res =  0;
-						ast_lop(LOG_DEBUG, "Got AST_BRIDGE_DTMF_CHANNEL_1 on c1 (%s)\n",c1->name);
+						ast_log(LOG_DEBUG, "Got AST_BRIDGE_DTMF_CHANNEL_1 on c1 (%s)\n",c1->name);
 						break;
 					} else
 						goto tackygoto;
