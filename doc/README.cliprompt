@@ -1,0 +1,21 @@
+* Changing the CLI Prompt
+-------------------------
+
+The CLI prompt is set with the ASTERISK_PROMPT UNIX environment variable that
+you set from the Unix shell before starting Asterisk
+
+You may include the following variables, that will be replaced by
+the current value by Asterisk:
+
+%d	Date (year-month-date)
+%h	Hostname
+%t	Time
+%%	Percent sign
+%#	'#' if Asterisk is run in console mode, '>' if running as remote console
+
+On Linux systems, you may also use
+%l	Load average on your system
+
+
+-----
+04-03-26
