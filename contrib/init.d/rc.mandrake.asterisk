@@ -1,0 +1,203 @@
+#!/bin/sh
+# 
+# asterisk:		Starts the asterisk service
+# 
+# Version:		@(#) /etc/rc.d/init.d/zaptel 1.0
+# 
+# chkconfig: 2345 95 10
+# description:	Starts the asterisk service
+# 
+# processname:	asterisk
+# 
+
+TTY=9			# TTY (if you want one) for Asterisk to run on
+CONSOLE=yes		# Whether or not you want a console
+NOTIFY=root		# Who to notify about crashes
+DUMPDROP=/tmp
+HOSTNAME=`hostname`
+
+# Setup environment
+cd /usr/src
+OPENH323DIR=/usr/src/openh323
+PWLIBDIR=/usr/src/pwlib
+LD_LIBRARY_PATH=$OPENH323DIR/lib:$PWLIBDIR/lib
+export OPENH323DIR PWLIBDIR LD_LIBRARY_PATH
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+#
+# Don't fork when running "safely"
+#
+ASTARGS="-p"
+if [ "$TTY" != "" ]; then
+	if [ -c /dev/tty${TTY} ]; then
+		TTY=tty${TTY}
+	elif [ -c /dev/vc/${TTY} ]; then
+		TTY=vc/${TTY}
+	else
+		echo "Cannot find your TTY (${TTY})" >&2
+		exit 1
+	fi
+	ASTARGS="${ASTARGS} -vvv"
+	if [ "$CONSOLE" != "no" ]; then
+		ASTARGS="${ASTARGS} -c"
+	fi
+fi
+if [ ! -w ${DUMPDROP} ]; then	
+	echo "Cannot write to ${DUMPDROP}" >&2
+	exit 1
+fi
+
+#
+# Let Asterisk dump core
+#
+ulimit -c unlimited
+
+#launch_asterisk()
+#{
+#}
+
+run_asterisk()
+{
+	while :; do 
+
+		if [ "$TTY" != "" ]; then
+			cd /tmp
+			stty sane < /dev/${TTY}
+			asterisk ${ASTARGS} > /dev/${TTY} 2>&1 < /dev/${TTY}
+		else
+			cd /tmp
+			asterisk ${ASTARGS}
+		fi
+		EXITSTATUS=$?
+		echo "Asterisk ended with exit status $EXITSTATUS"
+		if [ "$EXITSTATUS" = "0" ]; then
+			# Properly shutdown....
+			echo "Asterisk shutdown normally."
+			exit 0
+		elif [ $EXITSTATUS -gt 128 ]; then
+			if [ "$EXITSTATUS" = "129" ]; then
+				EXITSIGNAL=1
+				EXITMSG="Hangup"
+			elif [ "$EXITSTATUS" = "130" ]; then
+				EXITSIGNAL=2
+				EXITMSG="Interrupt"
+			elif [ "$EXITSTATUS" = "131" ]; then
+				EXITSIGNAL=3
+				EXITMSG="Quit"
+			elif [ "$EXITSTATUS" = "132" ]; then
+				EXITSIGNAL=4
+				EXITMSG="Illegal instruction"
+			elif [ "$EXITSTATUS" = "133" ]; then
+				EXITSIGNAL=5
+				EXITMSG="Trace trap"
+			elif [ "$EXITSTATUS" = "134" ]; then
+				EXITSIGNAL=6
+				EXITMSG="IOT Trap"
+			elif [ "$EXITSTATUS" = "135" ]; then
+				EXITSIGNAL=7
+				EXITMSG="Bus Error"
+			elif [ "$EXITSTATUS" = "136" ]; then
+				EXITSIGNAL=8
+				EXITMSG="Floating-point exception"
+			elif [ "$EXITSTATUS" = "137" ]; then
+				EXITSIGNAL=9
+				EXITMSG="Killed"
+			elif [ "$EXITSTATUS" = "138" ]; then
+				EXITSIGNAL=10
+				EXITMSG="User-defined signal 1"
+			elif [ "$EXITSTATUS" = "139" ]; then
+				EXITSIGNAL=11
+				EXITMSG="Segmentation violation"
+			elif [ "$EXITSTATUS" = "140" ]; then
+				EXITSIGNAL=12
+				EXITMSG="User-defined signal 2"
+			elif [ "$EXITSTATUS" = "141" ]; then
+				EXITSIGNAL=13
+				EXITMSG="Broken pipe"
+			elif [ "$EXITSTATUS" = "142" ]; then
+				EXITSIGNAL=14
+				EXITMSG="Alarm clock"
+			elif [ "$EXITSTATUS" = "143" ]; then
+				EXITSIGNAL=15
+				EXITMSG="Termination"
+			elif [ "$EXITSTATUS" = "144" ]; then
+				EXITSIGNAL=16
+				EXITMSG="Stack fault"
+			fi
+			echo "Asterisk exited on signal $EXITSIGNAL - $EXITMSG."
+			if [ "$NOTIFY" != "" ]; then
+				echo "Asterisk exited on signal $EXITSIGNAL - $EXITMSG.  Might want to take a peek." | \
+				mail -s "Asterisk Died ($HOSTNAME)" $NOTIFY
+			fi
+			if [ -f /tmp/core ]; then
+				mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
+			fi
+		else
+			echo "Asterisk died with code $EXITSTATUS.  Aborting."
+			if [ -f /tmp/core ]; then
+				mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
+			fi
+			exit 0
+		fi
+		echo "Automatically restarting Asterisk."
+	done
+}
+
+case "$1" in
+	start)
+		gprintf "Starting asterisk: "
+		run_asterisk >/dev/null 2>&1 &
+		sleep 2	# Give it time to die
+		succeeded=`pidof asterisk|awk '{print NF}'`
+		if [ $succeeded = "0" ]; then
+			failure
+		else
+			success
+		fi
+		echo
+		;;
+	stop)
+		gprintf "Stopping asterisk: "
+		asterisk -r -x "stop gracefully" >/dev/null 2>&1
+		killall -9 mpg123 2>/dev/null
+		success
+		echo
+		;;
+	restart)
+		$0 stop
+		usleep 100000
+		$0 start
+		;;
+	reload)
+		gprintf "Reloading asterisk: "
+		asterisk -r -x "reload" >/dev/null 2>&1
+		success
+		echo
+		;;
+	stopnow)
+		gprintf "Stopping asterisk: "
+		asterisk -r -x "stop now" >/dev/null 2>&1
+		success
+		echo
+		;;
+	restartnow)
+		$0 stopnow
+		$0 start
+		;;
+	status)
+		succeeded=`pidof asterisk|awk '{print NF}'`
+		if [ $succeeded = "0" ]; then
+			echo "Asterisk is not running"
+		else
+			echo "Asterisk is currently running with $succeeded threads"
+		fi
+		;;
+	*)
+		gprintf "*** Usage: $0 {start|stop|reload|restart|stopnow|restartnow|status}\n"
+		exit 1
+esac
+
+exit 0
+
