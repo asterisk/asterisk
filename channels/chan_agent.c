@@ -835,7 +835,7 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 	if (needlock)
 		ast_mutex_unlock(&agentlock);
 	if (p) {
-		ast_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&newlyavailable->lock);
 		ast_log( LOG_DEBUG, "Playing beep, lang '%s'\n", newlyavailable->chan->language);
 		res = ast_streamfile(newlyavailable->chan, "beep", newlyavailable->chan->language);
 		ast_log( LOG_DEBUG, "Played beep, result '%d'\n", res);
@@ -843,7 +843,7 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 			res = ast_waitstream(newlyavailable->chan, "");
 			ast_log( LOG_DEBUG, "Waited for stream, result '%d'\n", res);
 		}
-		ast_mutex_lock(&p->lock);
+		ast_mutex_lock(&newlyavailable->lock);
 	}
 	return res;
 }
