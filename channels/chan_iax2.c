@@ -267,7 +267,6 @@ static struct iax2_trunk_peer {
 	struct iax2_trunk_peer *next;
 	int trunkerror;
 	int calls;
-	int firstcallno;
 } *tpeers = NULL;
 
 static ast_mutex_t tpeerlock = AST_MUTEX_INITIALIZER;
@@ -1175,6 +1174,20 @@ static int handle_error(void)
 	}
 #endif
 	return 0;
+}
+
+static int transmit_trunk(struct iax_frame *f, struct sockaddr_in *sin)
+{
+	int res;
+		res = sendto(netsocket, f->data, f->datalen, 0,(struct sockaddr *)sin,
+					sizeof(*sin));
+	if (res < 0) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Received error: %s\n", strerror(errno));
+		handle_error();
+	} else
+		res = 0;
+	return res;
 }
 
 static int send_packet(struct iax_frame *f)
@@ -2764,8 +2777,6 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct ast_frame *f)
 		/* Copy actual trunk data */
 		memcpy(ptr, f->data, f->datalen);
 		tpeer->trunkdatalen += f->datalen;
-		if (!tpeer->firstcallno)
-			tpeer->firstcallno = pvt->callno;
 		tpeer->calls++;
 		ast_mutex_unlock(&tpeer->lock);
 	}
@@ -4332,18 +4343,16 @@ static int send_trunk(struct iax2_trunk_peer *tpeer, struct timeval *now)
 		fr->retrans = -1;
 		fr->transfer = 0;
 		/* Any appropriate call will do */
-		fr->callno = tpeer->firstcallno;
 		fr->data = fr->afdata;
 		fr->datalen = tpeer->trunkdatalen + sizeof(struct ast_iax2_meta_hdr) + sizeof(struct ast_iax2_meta_trunk_hdr);
 #if 0
 		ast_log(LOG_DEBUG, "Trunking %d calls in %d bytes, ts=%d\n", calls, fr->datalen, ntohl(mth->ts));
 #endif		
-		res = send_packet(fr);
+		res = transmit_trunk(fr, &tpeer->addr);
 		calls = tpeer->calls;
 		/* Reset transmit trunk side data */
 		tpeer->trunkdatalen = 0;
 		tpeer->calls = 0;
-		tpeer->firstcallno = 0;
 	}
 	if (res < 0)
 		return res;
