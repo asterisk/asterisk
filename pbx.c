@@ -3538,12 +3538,13 @@ int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int pri
 				tmpchan->priority = priority;
 			else
 				tmpchan->priority = chan->priority;
-			if (needlock)
-				ast_mutex_unlock(&chan->lock);
 			
 			/* Masquerade into temp channel */
 			ast_channel_masquerade(tmpchan, chan);
-			
+		
+			if (needlock)
+				ast_mutex_unlock(&chan->lock);
+
 			/* Make the masquerade happen by reading a frame from the tmp channel */
 			f = ast_read(tmpchan);
 			if (f)
