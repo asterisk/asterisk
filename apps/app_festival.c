@@ -164,7 +164,7 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 			}
 			f = ast_read(chan);
 			if (!f) {
-				ast_log(LOG_DEBUG, "Null frame == hangup() detected\n");
+				ast_log(LOG_WARNING, "Null frame == hangup() detected\n");
 				res = -1;
 				break;
 			}
@@ -199,12 +199,12 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 						break;
 					}
 					if (res < needed) { // last frame
-						ast_log(LOG_WARNING, "Last frame\n");
+						ast_log(LOG_DEBUG, "Last frame\n");
 						res=0;
 						break;
 					}
 				} else {
-					ast_log(LOG_WARNING, "No more waveform\n");
+					ast_log(LOG_DEBUG, "No more waveform\n");
 					res = 0;
 				}
 			}
@@ -301,7 +301,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 			intstr = AST_DIGIT_ANY;
 	}
 	LOCAL_USER_ADD(u);
-	ast_log(LOG_WARNING, "Text passed to festival server : %s\n",(char *)data);
+	ast_log(LOG_DEBUG, "Text passed to festival server : %s\n",(char *)data);
 	/* Connect to local festival server */
 	
     	fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -350,17 +350,17 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
     			if (fdesc!=-1) {
     				writecache=1;
     				strln=strlen((char *)data);
-    				ast_log(LOG_WARNING,"line length : %d\n",strln);
+    				ast_log(LOG_DEBUG,"line length : %d\n",strln);
     				write(fdesc,&strln,sizeof(int));
     				write(fdesc,data,strln);
 				seekpos=lseek(fdesc,0,SEEK_CUR);
-				ast_log(LOG_WARNING,"Seek position : %d\n",seekpos);
+				ast_log(LOG_DEBUG,"Seek position : %d\n",seekpos);
     			}
     		} else {
     			read(fdesc,&strln,sizeof(int));
-    			ast_log(LOG_WARNING,"Cache file exists, strln=%d, strlen=%d\n",strln,strlen((char *)data));
+    			ast_log(LOG_DEBUG,"Cache file exists, strln=%d, strlen=%d\n",strln,strlen((char *)data));
     			if (strlen((char *)data)==strln) {
-    				ast_log(LOG_WARNING,"Size OK\n");
+    				ast_log(LOG_DEBUG,"Size OK\n");
     				read(fdesc,&bigstring,strln);
 	    			if (strcmp(bigstring,data)==0) { 
 	    				readcache=1;
@@ -376,9 +376,9 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	if (readcache==1) {
 		close(fd);
 		fd=fdesc;
-		ast_log(LOG_WARNING,"Reading from cache...\n");
+		ast_log(LOG_DEBUG,"Reading from cache...\n");
 	} else {
-		ast_log(LOG_WARNING,"Passing text to festival...\n");
+		ast_log(LOG_DEBUG,"Passing text to festival...\n");
     		fs=fdopen(dup(fd),"wb");
 		fprintf(fs,festivalcommand,(char *)data);
 		fflush(fs);
@@ -387,7 +387,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	
 	/* Write to cache and then pass it down */
 	if (writecache==1) {
-		ast_log(LOG_WARNING,"Writing result to cache...\n");
+		ast_log(LOG_DEBUG,"Writing result to cache...\n");
 		while ((strln=read(fd,buffer,16384))!=0) {
 			write(fdesc,buffer,strln);
 		}
@@ -397,7 +397,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 		lseek(fd,seekpos,SEEK_SET);
 	}
 	
-	ast_log(LOG_WARNING,"Passing data to channel...\n");
+	ast_log(LOG_DEBUG,"Passing data to channel...\n");
 	
 	/* Read back info from server */
 	/* This assumes only one waveform will come back, also LP is unlikely */
@@ -407,14 +407,14 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 			n += read(fd,ack+n,3-n);
 		ack[3] = '\0';
 		if (strcmp(ack,"WV\n") == 0) {         /* receive a waveform */
-			ast_log(LOG_WARNING,"Festival WV command");
+			ast_log(LOG_DEBUG,"Festival WV command\n");
 			waveform = socket_receive_file_to_buff(fd,&filesize);
 			res = send_waveform_to_channel(chan,waveform,filesize, intstr);
 			free(waveform);
 			break;
 		}
 		else if (strcmp(ack,"LP\n") == 0) {   /* receive an s-expr */
-			ast_log(LOG_WARNING,"Festival LP command");
+			ast_log(LOG_DEBUG,"Festival LP command\n");
 			waveform = socket_receive_file_to_buff(fd,&filesize);
 			waveform[filesize]='\0';
 			ast_log(LOG_WARNING,"Festival returned LP : %s\n",waveform);
