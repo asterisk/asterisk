@@ -352,6 +352,8 @@ struct zt_subchannel {
 	short buffer[AST_FRIENDLY_OFFSET/2 + READ_SIZE];
 	struct ast_frame f;		/* One frame for each channel.  How did this ever work before? */
 	int needringing;
+	int needbusy;
+	int needcongestion;
 	int needcallerid;
 	int needanswer;
 	int linear;
@@ -1718,6 +1720,8 @@ static int zt_hangup(struct ast_channel *ast)
 		p->subs[index].owner = NULL;
 		p->subs[index].needanswer = 0;
 		p->subs[index].needringing = 0;
+		p->subs[index].needbusy = 0;
+		p->subs[index].needcongestion = 0;
 		p->subs[index].linear = 0;
 		p->subs[index].needcallerid = 0;
 		zt_setlinear(p->subs[index].zfd, 0);
@@ -3456,6 +3460,24 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		p->subs[index].f.frametype = AST_FRAME_CONTROL;
 		p->subs[index].f.subclass = AST_CONTROL_RINGING;
 		ast_setstate(ast, AST_STATE_RINGING);
+		ast_mutex_unlock(&p->lock);
+		return &p->subs[index].f;
+	}
+
+	if (p->subs[index].needbusy) {
+		/* Send ringing frame if requested */
+		p->subs[index].needbusy = 0;
+		p->subs[index].f.frametype = AST_FRAME_CONTROL;
+		p->subs[index].f.subclass = AST_CONTROL_BUSY;
+		ast_mutex_unlock(&p->lock);
+		return &p->subs[index].f;
+	}
+
+	if (p->subs[index].needcongestion) {
+		/* Send ringing frame if requested */
+		p->subs[index].needcongestion = 0;
+		p->subs[index].f.frametype = AST_FRAME_CONTROL;
+		p->subs[index].f.subclass = AST_CONTROL_CONGESTION;
 		ast_mutex_unlock(&p->lock);
 		return &p->subs[index].f;
 	}
@@ -6450,8 +6472,24 @@ static void *pri_dchannel(void *vpri)
 						if (!pri->pvt[chan]->alreadyhungup) {
 							/* we're calling here zt_hangup so once we get there we need to clear p->call after calling pri_hangup */
 							pri->pvt[chan]->alreadyhungup = 1;
-							if (pri->pvt[chan]->owner)
-								pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							/* Queue a BUSY instead of a hangup if our cause is appropriate */
+							if (pri->pvt[chan]->owner) {
+								switch(e->hangup.cause) {
+								case PRI_CAUSE_USER_BUSY:
+									pri->pvt[chan]->subs[SUB_REAL].needbusy =1;
+									break;
+								case PRI_CAUSE_CALL_REJECTED:
+								case PRI_CAUSE_NETWORK_OUT_OF_ORDER:
+								case PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION:
+								case PRI_CAUSE_SWITCH_CONGESTION:
+								case PRI_CAUSE_DESTINATION_OUT_OF_ORDER:
+								case PRI_CAUSE_NORMAL_TEMPORARY_FAILURE:
+									pri->pvt[chan]->subs[SUB_REAL].needcongestion =1;
+									break;
+								default:
+									pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+								}
+							}
 							if (option_verbose > 2) 
 								ast_verbose(VERBOSE_PREFIX_3 "Channel %d, span %d got hangup\n", chan, pri->span);
 						} else {
