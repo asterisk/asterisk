@@ -143,13 +143,16 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 		if (bleh->cdr) \
 			ast_cdr_busy(bleh->cdr); \
 		numbusy++; \
+		break; \
 	case AST_CAUSE_CONGESTION: \
 	case AST_CAUSE_UNREGISTERED: \
 		if (bleh->cdr) \
 			ast_cdr_busy(bleh->cdr); \
 		numcongestion++; \
+		break; \
 	default: \
 		numnochan++; \
+		break; \
 	} \
 } while(0)
 
@@ -162,6 +165,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 	int numbusy = busystart;
 	int numcongestion = congestionstart;
 	int numnochan = nochanstart;
+	int prestart = busystart + congestionstart + nochanstart;
 	int cause;
 	int orig = *to;
 	struct ast_frame *f;
@@ -185,7 +189,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 		o = outgoing;
 		found = -1;
 		pos = 1;
-		numlines = 0;
+		numlines = prestart;
 		watchers[0] = in;
 		while(o) {
 			/* Keep track of important channels */
@@ -211,7 +215,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					in->priority+=100;
 			} else {
 				if (option_verbose > 2)
-					ast_verbose( VERBOSE_PREFIX_2 "No one is available to answer at this time\n");
+					ast_verbose( VERBOSE_PREFIX_2 "No one is available to answer at this time (%d, %d/%d/%d)\n", numlines, numbusy, numcongestion, numnochan);
 			}
 			*to = 0;
 			return NULL;
