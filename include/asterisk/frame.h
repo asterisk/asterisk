@@ -20,6 +20,9 @@
 extern "C" {
 #endif
 
+#include <endian.h>
+#include <sys/types.h>
+
 /* A frame of data read used to communicate between 
    between channels and applications */
 struct ast_frame {
@@ -84,6 +87,37 @@ struct ast_frame_chain {
 #define AST_CONTROL_TAKEOFFHOOK 6			/* Make it go off hook */
 #define AST_CONTROL_OFFHOOK		7			/* Line is off hook */
 #define AST_CONTROL_CONGESTION	8			/* Congestion (circuits busy) */
+#define AST_CONTROL_FLASH		9			/* Flash hook */
+#define AST_CONTROL_WINK		10			/* Wink */
+#define AST_CONTROL_OPTION		11			/* Set a low-level option */
+
+/* Option identifiers and flags */
+#define AST_OPTION_FLAG_REQUEST		0
+#define AST_OPTION_FLAG_ACCEPT		1
+#define AST_OPTION_FLAG_REJECT		2
+#define AST_OPTION_FLAG_QUERY		4
+#define AST_OPTION_FLAG_ANSWER		5
+#define AST_OPTION_FLAG_WTF			6
+
+#define AST_OPTION_TONE_VERIFY		1		/* Verify touchtones by muting audio
+											   transmission (and reception) and
+											   verify the tone is still present */
+
+struct ast_option_header {
+	/* Always keep in network byte order */
+#if __BYTE_ORDER == __BIG_ENDIAN
+        u_int16_t flag:3;
+        u_int16_t option:13;
+#else
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+        u_int16_t option:13;
+        u_int16_t flag:3;
+#else
+#error Byte order not defined
+#endif
+#endif
+		u_int8_t data[0];
+};
 
 /* Request a frame be allocated.  source is an optional source of the frame, 
    len is the requested length, or "0" if the caller will supply the buffer */
@@ -109,6 +143,9 @@ struct ast_frame *ast_fr_fdread(int fd);
 
 /* Write a frame to an fd */
 int ast_fr_fdwrite(int fd, struct ast_frame *frame);
+
+/* Send a hangup (NULL equivalent) on an fd */
+int ast_fr_fdhangup(int fd);
 
 /* Get a format by its name */
 extern int ast_getformatbyname(char *name);
