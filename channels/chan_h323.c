@@ -1437,7 +1437,7 @@ int reload_config(void)
 	struct oh323_peer *peer   = NULL;
 	struct oh323_user *user   = NULL;
 	struct oh323_alias *alias = NULL;
-	struct hostent *hp;
+	struct ast_hostent ahp; struct hostent *hp;
 	char *cat;
     	char *utype;
 	
@@ -1464,7 +1464,7 @@ int reload_config(void)
 		if (!strcasecmp(v->name, "port")) {
 			port = (int)strtol(v->value, NULL, 10);
 		} else if (!strcasecmp(v->name, "bindaddr")) {
-			if (!(hp = gethostbyname(v->value))) {
+			if (!(hp = ast_gethostbyname(v->value, &ahp))) {
 				ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
 			} else {
 				memcpy(&bindaddr.sin_addr, hp->h_addr, sizeof(bindaddr.sin_addr));

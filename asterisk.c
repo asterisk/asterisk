@@ -46,6 +46,7 @@
 #include "editline/histedit.h"
 #include "asterisk.h"
 #include <asterisk/config.h>
+#include <asterisk/lock.h>
 
 #define AST_MAX_CONNECTS 128
 #define NUM_MSGS 64
@@ -1674,4 +1675,16 @@ int main(int argc, char *argv[])
 		ast_select(0,NULL,NULL,NULL,NULL);
 	}
 	return 0;
+}
+
+struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
+{
+	int res;
+	int h_errno;
+	struct hostent *result = NULL;
+	/* XXX Does BSD do this differently? XXX */
+	res = gethostbyname_r(host, &hp->hp, hp->buf, sizeof(hp->buf), &result, &h_errno);
+	if (res)
+		return NULL;
+	return &hp->hp;
 }

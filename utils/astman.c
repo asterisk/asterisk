@@ -23,6 +23,8 @@
 #include <asterisk/md5.h>
 #include <asterisk/manager.h>
 
+#undef gethostbyname
+
 #define MAX_HEADERS 80
 #define MAX_LEN 256
 

@@ -1663,7 +1663,7 @@ static struct iax_user *mysql_user(char *user)
 
 static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context)
 {
-	struct hostent *hp;
+	struct ast_hostent ahp; struct hostent *hp;
 	struct iax_peer *p;
 	int found=0;
 	if (sendani)
@@ -1710,7 +1710,7 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 	}
 	ast_mutex_unlock(&peerl.lock);
 	if (!p && !found) {
-		hp = gethostbyname(peer);
+		hp = ast_gethostbyname(peer, &ahp);
 		if (hp) {
 			memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
 			sin->sin_port = htons(AST_DEFAULT_IAX_PORTNO);
@@ -3358,7 +3358,7 @@ static int iax_register(char *value, int lineno)
 	char *porta;
 	char *stringp=NULL;
 	
-	struct hostent *hp;
+	struct ast_hostent ahp; struct hostent *hp;
 	if (!value)
 		return -1;
 	strncpy(copy, value, sizeof(copy)-1);
@@ -3380,7 +3380,7 @@ static int iax_register(char *value, int lineno)
 		ast_log(LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
 		return -1;
 	}
-	hp = gethostbyname(hostname);
+	hp = ast_gethostbyname(hostname, &ahp);
 	if (!hp) {
 		ast_log(LOG_WARNING, "Host '%s' not found at line %d\n", hostname, lineno);
 		return -1;

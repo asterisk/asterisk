@@ -139,7 +139,8 @@ int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin)
 int ast_get_ip(struct sockaddr_in *sin, char *value)
 {
 	struct hostent *hp;
-	hp = gethostbyname(value);
+	struct ast_hostent ahp;
+	hp = ast_gethostbyname(value, &ahp);
 	if (hp) {
 		memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
 	} else {

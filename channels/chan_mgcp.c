@@ -1573,7 +1573,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	int peercapability, peerNonCodecCapability;
 	struct sockaddr_in sin;
 	char *codecs;
-	struct hostent *hp;
+	struct ast_hostent ahp; struct hostent *hp;
 	int codec;
 	int iterator;
     struct mgcp_endpoint *p = sub->parent;
@@ -1590,7 +1590,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 		return -1;
 	}
 	/* XXX This could block for a long time, and block the main thread! XXX */
-	hp = gethostbyname(host);
+	hp = ast_gethostbyname(host, &ahp);
 	if (!hp) {
 		ast_log(LOG_WARNING, "Unable to lookup host in c= line, '%s'\n", c);
 		return -1;
@@ -1772,7 +1772,7 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 	struct sockaddr_in dest;
     struct mgcp_endpoint *p = sub->parent;
 	/* XXX We break with the "recommendation" and send our IP, in order that our
-	       peer doesn't have to gethostbyname() us XXX */
+	       peer doesn't have to ast_gethostbyname() us XXX */
 	len = 0;
 	if (!sub->rtp) {
 		ast_log(LOG_WARNING, "No way to add SDP without an RTP structure\n");
@@ -3651,7 +3651,7 @@ static int reload_config(void)
 	struct mgcp_gateway *g;
 	struct mgcp_endpoint *e;
 	char *cat;
-	struct hostent *hp;
+	struct ast_hostent ahp; struct hostent *hp;
 	int format;
 	
 	if (gethostname(ourhost, sizeof(ourhost))) {
@@ -3670,7 +3670,7 @@ static int reload_config(void)
 	while(v) {
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "bindaddr")) {
-			if (!(hp = gethostbyname(v->value))) {
+			if (!(hp = ast_gethostbyname(v->value, &ahp))) {
 				ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
 			} else {
 				memcpy(&bindaddr.sin_addr, hp->h_addr, sizeof(bindaddr.sin_addr));
@@ -3749,7 +3749,7 @@ static int reload_config(void)
 	if (ntohl(bindaddr.sin_addr.s_addr)) {
 		memcpy(&__ourip, &bindaddr.sin_addr, sizeof(__ourip));
 	} else {
-		hp = gethostbyname(ourhost);
+		hp = ast_gethostbyname(ourhost, &ahp);
 		if (!hp) {
 			ast_log(LOG_WARNING, "Unable to get our IP address, MGCP disabled\n");
             ast_destroy(cfg);

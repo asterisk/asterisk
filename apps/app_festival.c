@@ -250,6 +250,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	struct localuser *u;
  	struct sockaddr_in serv_addr;
 	struct hostent *serverhost;
+	struct ast_hostent ahp;
 	int fd;
 	FILE *fs;
 	char *host;
@@ -330,7 +331,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
         memset(&serv_addr, 0, sizeof(serv_addr));
         if ((serv_addr.sin_addr.s_addr = inet_addr(host)) == -1) {
 	        /* its a name rather than an ipnum */
-	        serverhost = gethostbyname(host);
+	        serverhost = ast_gethostbyname(host, &ahp);
 	        if (serverhost == (struct hostent *)0) {
         	    	ast_log(LOG_WARNING,"festival_client: gethostbyname failed\n");
 	            	return -1;

@@ -808,6 +808,7 @@ static struct sip_peer *mysql_peer(char *peer, struct sockaddr_in *sin)
 static int create_addr(struct sip_pvt *r, char *peer)
 {
 	struct hostent *hp;
+	struct ast_hostent ahp;
 	struct sip_peer *p;
 	int found=0;
 	char *port;
@@ -905,7 +906,7 @@ static int create_addr(struct sip_pvt *r, char *peer)
 				portno = tportno;
 			}
 		}
-		hp = gethostbyname(hostn);
+		hp = ast_gethostbyname(hostn, &ahp);
 		if (hp) {
 			strncpy(r->tohost, peer, sizeof(r->tohost) - 1);
 			memcpy(&r->sa.sin_addr, hp->h_addr, sizeof(r->sa.sin_addr));
@@ -1858,6 +1859,7 @@ static int sip_register(char *value, int lineno)
 	char *stringp=NULL;
 	
 	struct hostent *hp;
+	struct ast_hostent ahp;
 	if (!value)
 		return -1;
 	strncpy(copy, value, sizeof(copy)-1);
@@ -1893,7 +1895,7 @@ static int sip_register(char *value, int lineno)
 		ast_log(LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
 		return -1;
 	}
-	hp = gethostbyname(hostname);
+	hp = ast_gethostbyname(hostname, &ahp);
 	if (!hp) {
 		ast_log(LOG_WARNING, "Host '%s' not found at line %d\n", hostname, lineno);
 		return -1;
@@ -2011,6 +2013,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	struct sockaddr_in sin;
 	char *codecs;
 	struct hostent *hp;
+	struct ast_hostent ahp;
 	int codec;
 	int iterator;
 	int sendonly = 0;
@@ -2032,7 +2035,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		return -1;
 	}
 	/* XXX This could block for a long time, and block the main thread! XXX */
-	hp = gethostbyname(host);
+	hp = ast_gethostbyname(host, &ahp);
 	if (!hp) {
 		ast_log(LOG_WARNING, "Unable to lookup host in c= line, '%s'\n", c);
 		return -1;
@@ -2315,6 +2318,7 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	char *h, *maddr, hostname[256];
 	int port, hn;
 	struct hostent *hp;
+	struct ast_hostent ahp;
 
 	/* Parse uri to h (host) and port - uri is already just the part inside the <> */
 	/* general form we are expecting is sip[s]:username[:password]@host[:port][;...] */
@@ -2356,7 +2360,7 @@ static void set_destination(struct sip_pvt *p, char *uri)
 		strncpy(hostname, maddr, hn);  hostname[hn] = '\0';
 	}
 	
-	hp = gethostbyname(hostname);
+	hp = ast_gethostbyname(hostname, &ahp);
 	if (hp == NULL)  {
 		ast_log(LOG_WARNING, "Can't find address for host '%s'\n", hostname);
 		return;
@@ -2646,7 +2650,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	struct sockaddr_in dest;
 	struct sockaddr_in vdest = { 0, };
 	/* XXX We break with the "recommendation" and send our IP, in order that our
-	       peer doesn't have to gethostbyname() us XXX */
+	       peer doesn't have to ast_gethostbyname() us XXX */
 	len = 0;
 	if (!p->rtp) {
 		ast_log(LOG_WARNING, "No way to add SDP without an RTP structure\n");
@@ -3220,6 +3224,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	char via[80];
 	char addr[80];
 	struct sip_pvt *p;
+	struct ast_hostent ahp;
 	struct hostent *hp;
 
 	/* exit if we are already in process with this registrar ?*/
@@ -3261,7 +3266,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 		  based on whether the remote host is on the external or
 		  internal network so we can register through nat
 		 */
-		if ((hp = gethostbyname(r->hostname))) {
+		if ((hp = ast_gethostbyname(r->hostname, &ahp))) {
 			if (ast_sip_ouraddrfor((struct in_addr *)hp->h_addr, &p->ourip))
 				memcpy(&p->ourip, &bindaddr.sin_addr, sizeof(p->ourip));
 		}
@@ -3468,6 +3473,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	char *c, *n, *pt;
 	int port;
 	struct hostent *hp;
+	struct ast_hostent ahp;
 	struct sockaddr_in oldsin;
 	if (!strlen(expires)) {
 		expires = strstr(get_header(req, "Contact"), "expires=");
@@ -3529,7 +3535,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	memcpy(&oldsin, &p->addr, sizeof(oldsin));
 	if (!p->nat) {
 		/* XXX This could block for a long time XXX */
-		hp = gethostbyname(n);
+		hp = ast_gethostbyname(n, &ahp);
 		if (!hp)  {
 			ast_log(LOG_WARNING, "Invalid host '%s'\n", n);
 			return -1;
@@ -4162,6 +4168,7 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 	char via[256] = "";
 	char *c, *pt;
 	struct hostent *hp;
+	struct ast_hostent ahp;
 
 	memset(via, 0, sizeof(via));
 	strncpy(via, get_header(req, "Via"), sizeof(via) - 1);
@@ -4183,7 +4190,7 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 			*pt = '\0';
 			pt++;
 		}
-		hp = gethostbyname(c);
+		hp = ast_gethostbyname(c, &ahp);
 		if (!hp) {
 			ast_log(LOG_WARNING, "'%s' is not a valid host\n", c);
 			return -1;
@@ -6025,6 +6032,7 @@ static int sip_devicestate(void *data)
 	char *dest = data;
 
 	struct hostent *hp;
+	struct ast_hostent ahp;
 	struct sip_peer *p;
 	int found = 0;
 
@@ -6058,7 +6066,7 @@ static int sip_devicestate(void *data)
 	}
 	ast_mutex_unlock(&peerl.lock);
 	if (!p && !found) {
-		hp = gethostbyname(host);
+		hp = ast_gethostbyname(host, &ahp);
 		if (hp)
 			res = AST_DEVICE_UNKNOWN;
 	}
@@ -6439,6 +6447,7 @@ static int reload_config(void)
 	struct ast_variable *v;
 	struct sip_peer *peer;
 	struct sip_user *user;
+	struct ast_hostent ahp;
 	char *cat;
     char *utype;
 	struct hostent *hp;
@@ -6523,23 +6532,23 @@ static int reload_config(void)
 			if (default_expiry < 1)
 				default_expiry = DEFAULT_DEFAULT_EXPIRY;
 		} else if (!strcasecmp(v->name, "bindaddr")) {
-			if (!(hp = gethostbyname(v->value))) {
+			if (!(hp = ast_gethostbyname(v->value, &ahp))) {
 				ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
 			} else {
 				memcpy(&bindaddr.sin_addr, hp->h_addr, sizeof(bindaddr.sin_addr));
 			}
 		} else if (!strcasecmp(v->name, "localnet")) {
-			if (!(hp = gethostbyname(v->value)))
+			if (!(hp = ast_gethostbyname(v->value, &ahp)))
 				ast_log(LOG_WARNING, "Invalid localnet keyword: %s\n", v->value);
 			else 
 				memcpy(&localnet.sin_addr, hp->h_addr, sizeof(localnet.sin_addr));
 		} else if (!strcasecmp(v->name, "localmask")) {
-			if (!(hp = gethostbyname(v->value)))
+			if (!(hp = ast_gethostbyname(v->value, &ahp)))
 				ast_log(LOG_WARNING, "Invalid localmask keyword: %s\n", v->value);
 			else
 				memcpy(&localmask.sin_addr, hp->h_addr, sizeof(localmask.sin_addr));
 		} else if (!strcasecmp(v->name, "externip")) {
-			if (!(hp = gethostbyname(v->value))) 
+			if (!(hp = ast_gethostbyname(v->value, &ahp))) 
 				ast_log(LOG_WARNING, "Invalid address for externip keyword: %s\n", v->value);
 			else
 				memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
@@ -6631,7 +6640,7 @@ static int reload_config(void)
 	if (ntohl(bindaddr.sin_addr.s_addr)) {
 		memcpy(&__ourip, &bindaddr.sin_addr, sizeof(__ourip));
 	} else {
-		hp = gethostbyname(ourhost);
+		hp = ast_gethostbyname(ourhost, &ahp);
 		if (!hp) {
 			ast_log(LOG_WARNING, "Unable to get IP address for %s, SIP disabled\n", ourhost);
 			return 0;

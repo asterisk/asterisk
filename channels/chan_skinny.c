@@ -482,7 +482,7 @@ static struct sockaddr_in bindaddr;
 static char ourhost[256];
 static int ourport;
 static struct in_addr __ourip;
-struct hostent *hp;
+struct ast_hostent ahp; struct hostent *hp;
 static int skinnysock  = -1;
 static pthread_t tcp_thread;
 static pthread_t accept_t;
@@ -2511,7 +2511,7 @@ static int reload_config(void)
 	while(v) {
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "bindaddr")) {
-			if (!(hp = gethostbyname(v->value))) {
+			if (!(hp = ast_gethostbyname(v->value, &ahp))) {
 				ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
 			} else {
 				memcpy(&bindaddr.sin_addr, hp->h_addr, sizeof(bindaddr.sin_addr));
@@ -2545,7 +2545,7 @@ static int reload_config(void)
 	if (ntohl(bindaddr.sin_addr.s_addr)) {
 		memcpy(&__ourip, &bindaddr.sin_addr, sizeof(__ourip));
 	} else {
-		hp = gethostbyname(ourhost);
+		hp = ast_gethostbyname(ourhost, &ahp);
 		if (!hp) {
 			ast_log(LOG_WARNING, "Unable to get our IP address, Skinny disabled\n");
 			return 0;
