@@ -56,7 +56,7 @@ struct oh323_user {
    All peers are registered to a GK if there is one */
 struct oh323_peer {
 	char name[80];
-	char mailbox[AST_MAX_EXTENSION];
+	char mailbox[80];
 	int capability;
 	int noFastStart;
 	int noH245Tunneling;
@@ -83,9 +83,8 @@ struct oh323_alias {
 	struct oh323_alias *next;	
 };
 
-/** call_option struct is filled from the 
-	PBX application and passed through make_call 
-	function*/
+/** call_option struct holds various bits 
+	of information for each call */
 typedef struct call_options {
 	char		*callerid;
 	char		*callername;
@@ -168,7 +167,7 @@ extern "C" {
 #endif   
     
 	void h323_gk_urq(void);
-	void h323_end_point_create(int, int);
+	void h323_end_point_create(void);
 	void h323_end_process(void);
 	int  h323_end_point_exist(void);
     
@@ -204,7 +203,6 @@ extern "C" {
 	/* H323 create and destroy sessions */
 	int h323_make_call(char *host, call_details_t *cd, call_options_t);
 	int h323_clear_call(const char *);
-	void h323_set_options(int nofs, int noh245tun);	
 	
 	/* H.323 alerting and progress */
 	int h323_send_alerting(const char *token);

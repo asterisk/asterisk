@@ -262,8 +262,9 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token, unsigned int
 	if (callername) {
                 localAliasNames.RemoveAll();
 		connection->SetLocalPartyName(PString(callername));
-	        if (callerid)
-                  localAliasNames.AppendString(PString(callerid));
+	        if (callerid) {
+                	localAliasNames.AppendString(PString(callerid));
+		}
         } else if (callerid) {
                 localAliasNames.RemoveAll();
                 connection->SetLocalPartyName(PString(callerid));
@@ -469,20 +470,28 @@ void MyH323EndPoint::OnConnectionCleared(H323Connection & connection, const PStr
 }
 
 
-H323Connection * MyH323EndPoint::CreateConnection(unsigned callReference, void *outbound)
+H323Connection * MyH323EndPoint::CreateConnection(unsigned callReference, void *o)
 {
 	unsigned options = 0;
+	call_options_t *opts = (call_options_t *)o;
 
-	if (noFastStart)
+	if (opts->noFastStart) {
 		options |= H323Connection::FastStartOptionDisable;
-	else
+	} else {
 		options |= H323Connection::FastStartOptionEnable;
-
-	if (noH245Tunneling)
+	}
+	if (opts->noH245Tunneling) {
 		options |= H323Connection::H245TunnelingOptionDisable;
-	else
+	} else {
 		options |= H323Connection::H245TunnelingOptionEnable;
-
+	}
+#if 0
+	if (opts->noSilenceSuppression) {
+		options |= H323Connection::SilenceSuppresionOptionDisable;
+	} else {
+		options |= H323Connection::SilenceSUppressionOptionEnable;
+	}
+#endif
 	return new MyH323Connection(*this, callReference, options);
 }
 
@@ -515,9 +524,9 @@ H323Connection::AnswerCallResponse MyH323Connection::OnAnswerCall(const PString 
        if (h323debug)
                cout << "\t=-= In OnAnswerCall for call " << GetCallReference() << endl;
 	
-	if (!on_answer_call(GetCallReference(), (const char *)GetCallToken()))
+	if (!on_answer_call(GetCallReference(), (const char *)GetCallToken())) {
 		return H323Connection::AnswerCallDenied;
-
+	}
 	/* The call will be answered later with "AnsweringCall()" function.
 	 */ 
 	return H323Connection::AnswerCallDeferred;
@@ -716,7 +725,7 @@ void MyH323Connection::SendUserInputTone(char tone, unsigned duration)
 	if (h323debug) {
 		cout << "	-- Sending user input tone (" << tone << ") to remote" << endl;
 	}
-	on_send_digit(GetCallReference(), tone);	
+	on_send_digit(GetCallReference(), tone, (const char *)GetCallToken());	
 	H323Connection::SendUserInputTone(tone, duration);
 }
 
@@ -726,7 +735,7 @@ void MyH323Connection::OnUserInputTone(char tone, unsigned duration, unsigned lo
 		if (h323debug) {
 			cout << "	-- Received user input tone (" << tone << ") from remote" << endl;
 		}
-		on_send_digit(GetCallReference(), tone);
+		on_send_digit(GetCallReference(), tone, (const char *)GetCallToken());
 	}
 	H323Connection::OnUserInputTone(tone, duration, logicalChannel, rtpTimestamp);
 }
@@ -737,7 +746,7 @@ void MyH323Connection::OnUserInputString(const PString &value)
 		if (h323debug) {
 			cout <<  "	-- Received user input string (" << value << ") from remote." << endl;
 		}
-		on_send_digit(GetCallReference(), value[0]);
+		on_send_digit(GetCallReference(), value[0], (const char *)GetCallToken());
 	}	
 }
 
@@ -901,13 +910,9 @@ int h323_end_point_exist(void)
 	return 1;
 }
     
-void h323_end_point_create(int no_fast_start, int no_h245_tunneling)
+void h323_end_point_create(void)
 {
 	channelsOpen = 0;
-	
-	noFastStart = (BOOL)no_fast_start;
-	noH245Tunneling = (BOOL)no_h245_tunneling;
-
 	localProcess = new MyProcess();	
 	localProcess->Main();
 }
@@ -968,7 +973,7 @@ int h323_set_capability(int cap, int dtmfMode)
 	H323Capabilities oldcaps;
 	PStringArray codecs;
 	int g711Frames = 30;
-	int gsmFrames  = 4;
+//	int gsmFrames  = 4;
 
 	if (!h323_end_point_exist()) {
 		cout << " ERROR: [h323_set_capablity] No Endpoint, this is bad" << endl;
@@ -1318,13 +1323,6 @@ void h323_native_bridge(const char *token, const char *them, char *capability)
 	connection->Unlock();
 	return;
 
-}
-
-/* set defalt h323 options */
-void h323_set_options(int nofs, int noh245tun) {
-       noFastStart = nofs;
-       noH245Tunneling = noh245tun;
-       return;
 }
 
 } /* extern "C" */
