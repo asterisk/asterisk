@@ -60,6 +60,10 @@
 #include <mysql/mysql.h>
 #endif
 
+#ifndef DEFAULT_USERAGENT
+#define DEFAULT_USERAGENT "Asterisk PBX"
+#endif
+ 
 #define VIDEO_CODEC_MASK        0x1fc0000 /* Video codecs from H.261 thru AST_FORMAT_MAX_VIDEO */
 #ifndef IPTOS_MINCOST
 #define IPTOS_MINCOST 0x02
@@ -125,6 +129,8 @@ static char *config = "sip.conf";
 #define SIP_MAX_PACKET	1500		/* Also from RFC 2543, should sub headers tho */
 
 #define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER"
+
+static char useragent[AST_MAX_EXTENSION] = DEFAULT_USERAGENT;
 
 static char context[AST_MAX_EXTENSION] = "default";
 
@@ -2787,7 +2793,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	add_header(resp, "To", ot);
 	copy_header(resp, req, "Call-ID");
 	copy_header(resp, req, "CSeq");
-	add_header(resp, "User-Agent", "Asterisk PBX");
+	add_header(resp, "User-Agent", useragent);
 	add_header(resp, "Allow", ALLOWED_METHODS);
 	if (p->expiry) {
 		/* For registration responses, we also need expiry and
@@ -2885,7 +2891,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int se
 	copy_header(req, orig, "Call-ID");
 	add_header(req, "CSeq", tmp);
 
-	add_header(req, "User-Agent", "Asterisk PBX");
+	add_header(req, "User-Agent", useragent);
 	return 0;
 }
 
@@ -3389,7 +3395,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	add_header(req, "Contact", p->our_contact);
 	add_header(req, "Call-ID", p->callid);
 	add_header(req, "CSeq", tmp);
-	add_header(req, "User-Agent", "Asterisk PBX");
+	add_header(req, "User-Agent", useragent);
 }
 
         
@@ -3708,7 +3714,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	add_header(&req, "To", to);
 	add_header(&req, "Call-ID", p->callid);
 	add_header(&req, "CSeq", tmp);
-	add_header(&req, "User-Agent", "Asterisk PBX");
+	add_header(&req, "User-Agent", useragent);
 	if (auth) 
 		add_header(&req, authheader, auth);
 
@@ -7468,6 +7474,9 @@ static int reload_config(void)
 			strncpy(context, v->value, sizeof(context)-1);
 		} else if (!strcasecmp(v->name, "realm")) {
 			strncpy(global_realm, v->value, sizeof(global_realm)-1);
+		} else if (!strcasecmp(v->name, "useragent")) {
+			strncpy(useragent, v->value, sizeof(useragent)-1);
+			ast_log(LOG_DEBUG, "Setting User Agent Name to %s\n", useragent);
 		} else if (!strcasecmp(v->name, "relaxdtmf")) {
 			relaxdtmf = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "dtmfmode")) {
