@@ -1,0 +1,9 @@
+;
+; Configuration file for MeetMe simple conference rooms
+; for Asterisk of course.
+;
+[rooms]
+;
+; Usage is conf => confno
+;
+;conf => 1234 
