@@ -364,6 +364,9 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 		return RESULT_FAILURE;
 }
 
+/*--- handle_saynumber: Say number in various language syntaxes ---*/
+/* Need to add option for gender here as well. Coders wanted */
+/* While waiting, we're sending a (char *) NULL.  */
 static int handle_saynumber(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	int res;
@@ -372,7 +375,7 @@ static int handle_saynumber(struct ast_channel *chan, AGI *agi, int argc, char *
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[2], "%i", &num) != 1)
 		return RESULT_SHOWUSAGE;
-	res = ast_say_number_full(chan, num, argv[3], chan->language, agi->audio, agi->ctrl);
+	res = ast_say_number_full(chan, num, argv[3], chan->language, (char *) NULL, agi->audio, agi->ctrl);
 	if (res == 1)
 		return RESULT_SUCCESS;
 	fdprintf(agi->fd, "200 result=%d\n", res);

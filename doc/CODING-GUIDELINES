@@ -6,6 +6,11 @@ see http://bugs.digium.com
 
 Patches should be in the form of a unified (-u) diff.
 
+All code, filenames, function names and comments must be in ENGLISH.
+
+Do not declare variables mid-function (e.g. like GNU lets you) since it is
+harder to read and not portable to GCC 2.95 and others.
+
 Don't annotate your changes with comments like "/* JMG 4/20/04 */";
 Comments should explain what the code does, not when something was changed
 or who changed it.

@@ -36,7 +36,7 @@ extern "C" {
 int ast_say_number(struct ast_channel *chan, int num, char *ints, char *lang, char *options);
 
 /* Same as above with audiofd for received audio and returns 1 on ctrlfd being readable */
-int ast_say_number_full(struct ast_channel *chan, int num, char *ints, char *lang, int audiofd, int ctrlfd);
+int ast_say_number_full(struct ast_channel *chan, int num, char *ints, char *lang, char *options, int audiofd, int ctrlfd);
 
 //! says digits
 /*!
