@@ -120,7 +120,7 @@ sub check_login()
 
                                 # db variables are present.  Use db for authentication.
                                 my $dbh = DBI->connect("DBI:mysql:$dbname:$dbhost",$dbuser,$dbpass);
-                                my $sth = $dbh->prepare(qq{select fullname,context from users where mailbox='$mbox' and password='$pass' and context='$context'});
+                                my $sth = $dbh->prepare(qq{select fullname,context from voicemail where mailbox='$mbox' and password='$pass' and context='$context'});
                                 $sth->execute();
                                 if (($fullname, $category) = $sth->fetchrow_array()) {;
                                         return ($fullname ? $fullname : "Extension $mbox in $context",$category);
@@ -184,7 +184,7 @@ sub validmailbox()
 
                                 # db variables are present.  Use db for authentication.
                                 my $dbh = DBI->connect("DBI:mysql:$dbname:$dbhost",$dbuser,$dbpass);
-                                my $sth = $dbh->prepare(qq{select fullname,context from users where mailbox='$mbox' and password='$pass' and context='$context'});
+                                my $sth = $dbh->prepare(qq{select fullname,context from voicemail where mailbox='$mbox' and password='$pass' and context='$context'});
                                 $sth->execute();
 				if (($fullname, $category) = $sth->fetchrow_array()) {;
                                         return ($fullname ? $fullname : "unknown", $category);
@@ -242,7 +242,7 @@ sub mailbox_options()
 
                                 # db variables are present.  Use db for authentication.
                                 my $dbh = DBI->connect("DBI:mysql:$dbname:$dbhost",$dbuser,$dbpass);
-                                my $sth = $dbh->prepare(qq{select mailbox,fullname,context from users where context='$context' order by mailbox});
+                                my $sth = $dbh->prepare(qq{select mailbox,fullname,context from voicemail where context='$context' order by mailbox});
                                 $sth->execute();
                                 while (($mailbox, $fullname, $category) = $sth->fetchrow_array()) {
                                         $text = $mailbox;
@@ -719,6 +719,8 @@ sub message_rename()
 	}
 	
 	my $path = "/var/spool/asterisk/voicemail/$context/$mbox/$newfolder";
+	$path =~ /^(.*)$/;
+	$path = $1;
 	mkdir $path, 0770;
 	my $path = "/var/spool/asterisk/voicemail/$context/$mbox/$oldfolder";
 	opendir(DIR, $path) || die("Unable to open directory\n");
@@ -742,6 +744,10 @@ sub file_copy()
 	my ($orig, $new) = @_;
 	my $res;
 	my $data;
+	$orig =~ /^(.*)$/;
+	$orig = $1;
+	$new =~ /^(.*)$/;
+	$new = $1;
 	open(IN, "<$orig") || die("Unable to open '$orig'\n");
 	open(OUT, ">$new") || DIE("Unable to open '$new'\n");
 	while(($res = sysread(IN, $data, 4096)) > 0) {
@@ -788,8 +794,12 @@ sub message_copy()
 	}
 	
 	my $path = "/var/spool/asterisk/voicemail/$context/$newmbox";
+	$path =~ /^(.*)$/;
+	$path = $1;
 	mkdir $path, 0770;
 	my $path = "/var/spool/asterisk/voicemail/$context/$newmbox/INBOX";
+	$path =~ /^(.*)$/;
+	$path = $1;
 	mkdir $path, 0770;
 	my $path = "/var/spool/asterisk/voicemail/$context/$mbox/$oldfolder";
 	opendir(DIR, $path) || die("Unable to open directory\n");
