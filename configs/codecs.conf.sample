@@ -1,0 +1,19 @@
+[speex]
+;0-10
+quality => 3
+;0-10
+complexity => 4
+; true / false
+enhancement => true
+; true / false
+vad => false
+; true / false
+vbr => false
+;0-10
+abr_quality => 5
+; true / false
+abr => false
+;0-10
+vbr_quality => 5
+; true / false
+dtx => false

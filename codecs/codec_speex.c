@@ -11,7 +11,20 @@
  * the GNU General Public License
  *
  * This work was motivated by Jeremy McNamara 
+ * hacked to be configurable by anthm and bkw 9/28/2004
  */
+
+static int quality = 8;
+static int complexity = 2;
+static int enhancement = 0;
+static int vad = 0;
+static int vbr = 0;
+static int vbr_quality = 0;
+static int abr = 0;
+static int abr_quality = 0;
+static int dtx = 0;
+
+
 
 #define TYPE_SILENCE	 0x2
 #define TYPE_HIGH	 0x0
@@ -21,6 +34,8 @@
 #include <asterisk/lock.h>
 #include <asterisk/translate.h>
 #include <asterisk/module.h>
+#include <asterisk/config.h>
+#include <asterisk/options.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
 #include <fcntl.h>
@@ -69,6 +84,22 @@ static struct ast_translator_pvt *lintospeex_new(void)
 			speex_bits_init(&tmp->bits);
 			speex_bits_reset(&tmp->bits);
 			speex_encoder_ctl(tmp->speex, SPEEX_GET_FRAME_SIZE, &tmp->framesize);
+			speex_encoder_ctl(tmp->speex, SPEEX_SET_QUALITY, &quality);
+			speex_encoder_ctl(tmp->speex, SPEEX_SET_COMPLEXITY, &complexity);
+
+			if(vad)
+				speex_encoder_ctl(tmp->speex, SPEEX_SET_VAD, &vad);
+			if(dtx)
+				speex_encoder_ctl(tmp->speex, SPEEX_SET_DTX, &vad);
+			if(vbr) {
+				speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR, &vbr);
+				speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR_QUALITY, &vbr_quality);
+			}
+			if(abr) {
+				speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR, &abr);
+				speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR_QUALITY, &abr_quality);
+			}
+
 			tmp->tail = 0;
 		}
 		localusecnt++;
@@ -87,6 +118,8 @@ static struct ast_translator_pvt *speextolin_new(void)
 		} else {
 			speex_bits_init(&tmp->bits);
 			speex_decoder_ctl(tmp->speex, SPEEX_GET_FRAME_SIZE, &tmp->framesize);
+			if(enhancement)
+				speex_decoder_ctl(tmp->speex, SPEEX_SET_ENH, &enhancement);
 			tmp->tail = 0;
 		}
 		localusecnt++;
@@ -269,7 +302,95 @@ static struct ast_translator lintospeex =
 	   lintospeex_frameout,
 	   lintospeex_destroy,
 	   lintospeex_sample
-	   };
+	};
+
+
+static void parse_config(void) {
+	struct ast_config *cfg;
+	struct ast_variable *var;
+	int res;
+	if ((cfg = ast_load("codecs.conf"))) {
+		if ((var = ast_variable_browse(cfg, "speex"))) {
+			while (var) {
+				if (!strcasecmp(var->name, "quality")) {
+					res = abs(atoi(var->value));
+					if(res > -1 && res < 11) {
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting Quality to %d\n",res);
+						ast_mutex_lock(&localuser_lock);
+						quality = res;
+						ast_mutex_unlock(&localuser_lock);
+					} else ast_log(LOG_ERROR,"Error Quality must be 0-10\n");
+
+				} else if (!strcasecmp(var->name, "complexity")) {
+					res = abs(atoi(var->value));
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting Complexity to %d\n",res);
+					if(res > -1 && res < 11) {
+						ast_mutex_lock(&localuser_lock);
+						complexity = res;
+						ast_mutex_unlock(&localuser_lock);
+					} else ast_log(LOG_ERROR,"Error! Complexity must be 0-10\n");
+				} else if (!strcasecmp(var->name, "vbr_quality")) {
+					res = abs(atoi(var->value));
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting VBR Quality to %d\n",res);
+					if(res > -1 && res < 11) {
+						ast_mutex_lock(&localuser_lock);
+						vbr_quality = res;
+						ast_mutex_unlock(&localuser_lock);
+					} else ast_log(LOG_ERROR,"Error! VBR Quality must be 0-10\n");
+				} else if (!strcasecmp(var->name, "abr_quality")) {
+					res = abs(atoi(var->value));
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting ABR Quality to %d\n",res);
+					if(res > -1 && res < 11) {
+						ast_mutex_lock(&localuser_lock);
+						abr_quality = res;
+						ast_mutex_unlock(&localuser_lock);
+					} else ast_log(LOG_ERROR,"Error! ABR Quality must be 0-10\n");
+					
+				} else if (!strcasecmp(var->name, "enhancement")) {
+					ast_mutex_lock(&localuser_lock);
+					enhancement = ast_true(var->value) ? 1 : 0;
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Perceptual Enhancement Mode. [%s]\n",enhancement ? "on" : "off");
+					ast_mutex_unlock(&localuser_lock);
+				} else if (!strcasecmp(var->name, "vbr")) {
+					ast_mutex_lock(&localuser_lock);
+					vbr = ast_true(var->value) ? 1 : 0;
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: VBR Mode. [%s]\n",vbr ? "on" : "off");
+					ast_mutex_unlock(&localuser_lock);
+				} else if (!strcasecmp(var->name, "abr")) {
+					ast_mutex_lock(&localuser_lock);
+					abr = ast_true(var->value) ? 1 : 0;
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: ABR Mode. [%s]\n",vbr ? "on" : "off");
+					ast_mutex_unlock(&localuser_lock);
+				} else if (!strcasecmp(var->name, "vad")) {
+					ast_mutex_lock(&localuser_lock);
+					vad = ast_true(var->value) ? 1 : 0;
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: VAD Mode. [%s]\n",vbr ? "on" : "off");
+					ast_mutex_unlock(&localuser_lock);
+				} else if (!strcasecmp(var->name, "dtx")) {
+					ast_mutex_lock(&localuser_lock);
+					dtx = ast_true(var->value) ? 1 : 0;
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: DTX Mode. [%s]\n",dtx ? "on" : "off");
+					ast_mutex_unlock(&localuser_lock);
+				}
+				var = var->next;
+			}
+		}
+	}
+}
+
+int reload(void) {
+	parse_config();
+	return 0;
+}
 
 int unload_module(void)
 {
@@ -287,6 +408,7 @@ int unload_module(void)
 int load_module(void)
 {
 	int res;
+	parse_config();
 	res=ast_register_translator(&speextolin);
 	if (!res) 
 		res=ast_register_translator(&lintospeex);
