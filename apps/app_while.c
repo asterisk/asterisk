@@ -46,7 +46,7 @@ static char *stop_desc = "  EndWhile()\n"
 
 static char *stop_synopsis = "End A While Loop";
 
-static char *tdesc = "";
+static char *tdesc = "While Loops and Conditional Execution";
 
 
 
