@@ -82,7 +82,7 @@ static ast_mutex_t monlock = AST_MUTEX_INITIALIZER;
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
-static ast_mutex_t monitor_thread;
+static pthread_t monitor_thread;
 
 static int mthreadactive = -1; /* Flag for monitoring monitorthread.*/
 
