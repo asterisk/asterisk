@@ -40,6 +40,7 @@ struct ast_smoother {
 	int optimizablestream;
 	float samplesperbyte;
 	struct ast_frame f;
+	struct timeval delivery;
 	char data[SMOOTHER_SIZE];
 	char framedata[SMOOTHER_SIZE + AST_FRIENDLY_OFFSET];
 	struct ast_frame *opt;
@@ -103,6 +104,9 @@ int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f)
 	} else 
 		s->optimizablestream = 0;
 	memcpy(s->data + s->len, f->data, f->datalen);
+	/* If we're empty, reset delivery time */
+	if (!s->len)
+		s->delivery = f->delivery;
 	s->len += f->datalen;
 	return 0;
 }
@@ -129,12 +133,20 @@ struct ast_frame *ast_smoother_read(struct ast_smoother *s)
 	s->f.offset = AST_FRIENDLY_OFFSET;
 	s->f.datalen = s->size;
 	s->f.samples = s->size * s->samplesperbyte;
+	s->f.delivery = s->delivery;
 	/* Fill Data */
 	memcpy(s->f.data, s->data, s->size);
 	s->len -= s->size;
 	/* Move remaining data to the front if applicable */
-	if (s->len) 
+	if (s->len) {
 		memmove(s->data, s->data + s->size, s->len);
+		s->delivery.tv_sec += (s->size * s->samplesperbyte) / 8000.0;
+		s->delivery.tv_usec += (((int)(s->size * s->samplesperbyte)) % 8000) * 125;
+		if (s->delivery.tv_usec > 1000000) {
+			s->delivery.tv_usec -= 1000000;
+			s->delivery.tv_sec += 1;
+		}
+	}
 	/* Return frame */
 	return &s->f;
 }
@@ -257,6 +269,7 @@ struct ast_frame *ast_frdup(struct ast_frame *f)
 	out->subclass = f->subclass;
 	out->datalen = f->datalen;
 	out->samples = f->samples;
+	out->delivery = f->delivery;
 	out->mallocd = AST_MALLOCD_HDR;
 	out->offset = AST_FRIENDLY_OFFSET;
 	out->data = buf + sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET;

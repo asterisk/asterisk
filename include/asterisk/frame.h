@@ -21,6 +21,7 @@ extern "C" {
 #endif
 
 #include <sys/types.h>
+#include <sys/time.h>
 	
 /*
  * Autodetect system endianess
@@ -73,7 +74,9 @@ struct ast_frame {
 	/*! Optional source of frame for debugging */
 	char *src;				
 	/*! Pointer to actual data */
-	void *data;				
+	void *data;		
+	/*! Global delivery time */		
+	struct timeval delivery;
 	/*! Next/Prev for linking stand alone frames */
 	struct ast_frame *prev;			
 	/*! Next/Prev for linking stand alone frames */

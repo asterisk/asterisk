@@ -349,6 +349,26 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 	return &null_frame;
 }
 
+static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int timestamp)
+{
+	if (!rtp->rxcore.tv_sec && !rtp->rxcore.tv_usec) {
+		gettimeofday(&rtp->rxcore, NULL);
+		rtp->rxcore.tv_usec -= timestamp / 8000;
+		rtp->rxcore.tv_usec -= (timestamp % 8000) * 125;
+		if (rtp->rxcore.tv_usec < 0) {
+			/* Adjust appropriately if necessary */
+			rtp->rxcore.tv_usec += 1000000;
+			rtp->rxcore.tv_sec -= 1;
+		}
+	}
+	tv->tv_sec = rtp->rxcore.tv_sec + timestamp / 8000;
+	tv->tv_usec = rtp->rxcore.tv_usec + (timestamp % 8000) * 125;
+	if (tv->tv_usec >= 1000000) {
+		tv->tv_usec -= 1000000;
+		tv->tv_sec += 1;
+	}
+}
+
 struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 {
 	int res;
@@ -485,6 +505,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			ast_log(LOG_NOTICE, "Unable to calculate samples for format %s\n", ast_getformatname(rtp->f.subclass));
 			break;
 		}
+		calc_rxstamp(&rtp->f.delivery, rtp, timestamp);
 	} else {
 		/* Video -- samples is # of samples vs. 90000 */
 		if (!rtp->lastividtimestamp)
@@ -817,19 +838,27 @@ void ast_rtp_destroy(struct ast_rtp *rtp)
 	free(rtp);
 }
 
-static unsigned int calc_txstamp(struct ast_rtp *rtp)
+static unsigned int calc_txstamp(struct ast_rtp *rtp, struct timeval *delivery)
 {
 	struct timeval now;
 	unsigned int ms;
 	if (!rtp->txcore.tv_sec && !rtp->txcore.tv_usec) {
 		gettimeofday(&rtp->txcore, NULL);
 	}
-	gettimeofday(&now, NULL);
-	ms = (now.tv_sec - rtp->txcore.tv_sec) * 1000;
-	ms += (now.tv_usec - rtp->txcore.tv_usec) / 1000;
-	/* Use what we just got for next time */
-	rtp->txcore.tv_sec = now.tv_sec;
-	rtp->txcore.tv_usec = now.tv_usec;
+	if (delivery && (delivery->tv_sec || delivery->tv_usec)) {
+		/* Use previous txcore */
+		ms = (delivery->tv_sec - rtp->txcore.tv_usec) * 1000;
+		ms += (delivery->tv_usec - rtp->txcore.tv_usec) / 1000;
+		rtp->txcore.tv_sec = delivery->tv_sec;
+		rtp->txcore.tv_usec = delivery->tv_usec;
+	} else {
+		gettimeofday(&now, NULL);
+		ms = (now.tv_sec - rtp->txcore.tv_sec) * 1000;
+		ms += (now.tv_usec - rtp->txcore.tv_usec) / 1000;
+		/* Use what we just got for next time */
+		rtp->txcore.tv_sec = now.tv_sec;
+		rtp->txcore.tv_usec = now.tv_usec;
+	}
 	return ms;
 }
 
@@ -863,7 +892,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	if (!rtp->them.sin_addr.s_addr)
 		return 0;
 
-	ms = calc_txstamp(rtp);
+	ms = calc_txstamp(rtp, NULL);
 	/* Default prediction */
 	pred = rtp->lastts + ms * 8;
 	
@@ -903,7 +932,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	int pred;
 	int mark = 0;
 
-	ms = calc_txstamp(rtp);
+	ms = calc_txstamp(rtp, &f->delivery);
 	/* Default prediction */
 	if (f->subclass < AST_FORMAT_MAX_AUDIO) {
 		pred = rtp->lastts + ms * 8;
@@ -934,7 +963,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 			pred = rtp->lastts + g723_samples(f->data, f->datalen);
 			break;
 		case AST_FORMAT_SPEEX:
-		        pred = rtp->lastts + 160;
+		    pred = rtp->lastts + 160;
 			// assumes that the RTP packet contains one Speex frame
 			break;
 		default:
