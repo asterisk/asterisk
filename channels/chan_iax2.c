@@ -4574,7 +4574,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		fr.oseqno = fh->oseqno;
 		fr.iseqno = fh->iseqno;
 		fr.ts = ntohl(fh->ts);
-		if (ntohs(fh->dcallno) & IAX_FLAG_RETRANS)
+		if ((ntohs(fh->dcallno) & IAX_FLAG_RETRANS) || (f.frametype != AST_FRAME_VOICE))
 			updatehistory = 0;
 		if ((iaxs[fr.callno]->iseqno != fr.oseqno) &&
 			(iaxs[fr.callno]->iseqno ||
