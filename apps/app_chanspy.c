@@ -31,13 +31,11 @@
 AST_MUTEX_DEFINE_STATIC(modlock);
 
 #define ast_fit_in_short(in) (in < -32768 ? -32768 : in > 32767 ? 32767 : in)
-#define find_smallest_of_three(a, b, c) ((a < b && a < c) ? a : (b < a && b < c) ? b : c)
 #define AST_NAME_STRLEN 256
 #define ALL_DONE(u, ret) LOCAL_USER_REMOVE(u); return ret;
 #define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
 #define minmax(x,y) x ? (x > y) ? y : ((x < (y * -1)) ? (y * -1) : x) : 0
-#define CS_BUFLEN 640
-
+#define CS_BUFLEN 1024
 
 static char *synopsis = "Tap into any type of asterisk channel and listen to audio";
 static char *app = "ChanSpy";
@@ -69,14 +67,28 @@ AST_DECLARE_OPTIONS(chanspy_opts,{
 });
 
 STANDARD_LOCAL_USER;
-
 LOCAL_USER_DECL;
 
 struct chanspy_translation_helper {
+	/* spy data */
+	struct ast_channel_spy spy;
+
+	/* read frame */
+	int fmt0;
+	short buf0[CS_BUFLEN];
 	struct ast_trans_pvt *trans0;
+
+	/* write frame */
+	int fmt1;
 	struct ast_trans_pvt *trans1;
+	short buf1[CS_BUFLEN];
+	
+	/* muxed frame */
+	struct ast_frame frame;
+	short buf[CS_BUFLEN];
+
 	int volfactor;
-	struct ast_channel_spy *spy;
+
 };
 
 /* Prototypes */
@@ -192,95 +204,122 @@ static void ast_flush_spy_queue(struct ast_channel_spy *spy)
 
 static int spy_generate(struct ast_channel *chan, void *data, int len, int samples) 
 {
-	struct ast_frame *f0, *f1, write_frame, *f;
-	int x=0, framelen_a = 0, framelen_b = 0, size = 0;
-	short buf[CS_BUFLEN], buf0[CS_BUFLEN], buf1[CS_BUFLEN];
+	struct ast_frame *f, *f0, *f1;
+	int x = 0, vf = 0;
+
 	struct chanspy_translation_helper *csth = data;
-	int nc = 0, vf;
+
+	ast_mutex_lock(&csth->spy.lock);
+	f0 = spy_queue_shift(&csth->spy, 0);
+	f1 = spy_queue_shift(&csth->spy, 1);
+	ast_mutex_unlock(&csth->spy.lock);
 	
-	ast_mutex_lock(&csth->spy->lock);
-	f0 = spy_queue_shift(csth->spy, 0);
-	f1 = spy_queue_shift(csth->spy, 1);
-	ast_mutex_unlock(&csth->spy->lock);
+	if (!f0 && !f1) {
+		return 0;
+	}
 
-	if (f0 && f1) {
-		if (!csth->trans0) {
-			if (f0->subclass != AST_FORMAT_SLINEAR && (csth->trans0 = ast_translator_build_path(AST_FORMAT_SLINEAR, f0->subclass)) == NULL) {
-				ast_log(LOG_WARNING, "Cannot build a path from %s to slin\n", ast_getformatname(f0->subclass));
-				return -1;
-			}
-			if (!csth->trans1) {
-				if (f1->subclass == f0->subclass) {
-					csth->trans1 = csth->trans0;
-				} else if (f1->subclass != AST_FORMAT_SLINEAR && (csth->trans1 = ast_translator_build_path(AST_FORMAT_SLINEAR, f1->subclass)) == NULL) {
-					ast_log(LOG_WARNING, "Cannot build a path from %s to slin\n", ast_getformatname(f1->subclass));
-					return -1;
-				}
-				
-			}
-		}
+	if (f0 && csth->fmt0 && csth->fmt0 != f0->subclass) {
+		ast_translator_free_path(csth->trans0);
+        csth->trans0 = NULL;
+		csth->fmt0 = csth->fmt0;
+	}
 
-		memset(buf, 0, sizeof(buf));
-		memset(buf0, 0, sizeof(buf0));
-		memset(buf1, 0, sizeof(buf1));
-		if (csth->trans0) {
-			if ((f = ast_translate(csth->trans0, f0, 0))) {
-				framelen_a = f->datalen * sizeof(short);
-				memcpy(buf0, f->data, framelen_a);
-				ast_frfree(f);
-			} else 
-				return 0;
-		} else {
-			framelen_a = f0->datalen * sizeof(short);
-			memcpy(buf0, f0->data, framelen_a);
-		}
-		if (csth->trans1) {
-			if ((f = ast_translate(csth->trans1, f1, 0))) {
-				framelen_b = f->datalen * sizeof(short);
-				memcpy(buf1, f->data, framelen_b);
-				ast_frfree(f);
-			} else 
-				return 0;
-		} else {
-			framelen_b = f1->datalen * sizeof(short);
-			memcpy(buf1, f1->data, framelen_b);
-		}
-		size = find_smallest_of_three(len, framelen_a, framelen_b);
+	if (f1 && csth->fmt1 && csth->fmt1 != f1->subclass) {
+		ast_translator_free_path(csth->trans1);
+        csth->trans1 = NULL;
+		csth->fmt1 = csth->fmt1;
+	}
+	
+	if (!csth->fmt0 && f0) {
+		csth->fmt0 = f0->subclass;
+	}
 
-		vf = get_volfactor(csth->volfactor);
-		vf = minmax(vf, 16);
-		for(x=0; x < size; x++) {
-			if (vf < 0) {
-				buf0[x] /= abs(vf);
-				buf1[x] /= abs(vf);
-			} else if (vf > 0) {
-				buf0[x] *= vf;
-				buf1[x] *= vf;
-			}
-			buf[x] = ast_fit_in_short(buf0[x] + buf1[x]);
-		}
-		memset(&write_frame, 0, sizeof(write_frame));
-		write_frame.frametype = AST_FRAME_VOICE;
-		write_frame.subclass = AST_FORMAT_SLINEAR;
-		write_frame.datalen = size;
-		write_frame.samples = size;
-		write_frame.data = buf;
-		write_frame.offset = 0;
-		ast_write(chan, &write_frame);
-	} else {
-		nc++;
-		if(nc > 1) {
+	if (!csth->fmt1 && f1) {
+		csth->fmt1 = f1->subclass;
+	}
+
+	if (csth->fmt0 && csth->fmt0 != AST_FORMAT_SLINEAR && !csth->trans0) {
+		if (csth->fmt0 == csth->fmt1 && csth->trans1) {
+			csth->trans0 = csth->trans1;
+		} else if ((csth->trans0 = ast_translator_build_path(AST_FORMAT_SLINEAR, csth->fmt0)) == NULL) {
+			ast_log(LOG_WARNING, "Cannot build a path from %s to slin\n", ast_getformatname(csth->fmt0));
 			return -1;
 		}
 	}
 	
-	if (f0)
+	if (csth->fmt1 && csth->fmt1 != AST_FORMAT_SLINEAR && !csth->trans1) {
+		if (csth->fmt1 == csth->fmt0 && csth->trans0) {
+			csth->trans1 = csth->trans0;
+		} else if ((csth->trans1 = ast_translator_build_path(AST_FORMAT_SLINEAR, csth->fmt1)) == NULL) {
+			ast_log(LOG_WARNING, "Cannot build a path from %s to slin\n", ast_getformatname(csth->fmt1));
+			return -1;
+		}
+	}
+	
+	if (f0) {
+		if (csth->trans0) {
+			if ((f = ast_translate(csth->trans0, f0, 0))) {
+				memcpy(csth->buf0, f->data, f->datalen * sizeof(short));
+				ast_frfree(f);
+			} else {
+				return 0;
+			}
+		} else {
+			memcpy(csth->buf0, f0->data, f0->datalen * sizeof(short));
+		}
+	}
+	
+	if (f1) {
+		if (csth->trans1) {
+			if ((f = ast_translate(csth->trans1, f1, 0))) {
+				memcpy(csth->buf1, f->data, f->datalen * sizeof(short));
+				ast_frfree(f);
+			} else {
+				return 0;
+			}
+		} else {
+			memcpy(csth->buf1, f1->data, f1->datalen * sizeof(short));
+		}
+	}
+
+	vf = get_volfactor(csth->volfactor);
+	vf = minmax(vf, 16);
+	for(x=0; x < len; x++) {
+		if (vf < 0) {
+			if (f0) {
+				csth->buf0[x] /= abs(vf);
+			}
+			if (f1) {
+				csth->buf1[x] /= abs(vf);
+			}
+		} else if (vf > 0) {
+			if (f0) {
+				csth->buf0[x] *= vf;
+			}
+			if (f1) {
+				csth->buf1[x] *= vf;
+			}
+		}
+		if (f0 && f1) {
+			csth->buf[x] = ast_fit_in_short(csth->buf0[x] + csth->buf1[x]);
+		} else if (f0) {
+			csth->buf[x] = csth->buf0[x];
+		} else if (f1) {
+			csth->buf[x] = csth->buf1[x];
+		}
+	}
+
+	csth->frame.data = csth->buf;
+	ast_write(chan, &csth->frame);
+	
+	if (f0) {
 		ast_frfree(f0);
-	if (f1) 
+	}
+	if (f1) {
 		ast_frfree(f1);
+	}
 
 	return 0;
-
 }
 
 static struct ast_generator spygen = {
@@ -356,25 +395,25 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 	int running = 1, res = 0, x = 0;
 	char inp[24];
 	char *name=NULL;
-	struct ast_channel_spy spy;
 
 	if (chan && !ast_check_hangup(chan) && spyee && !ast_check_hangup(spyee)) {
 		memset(inp, 0, sizeof(inp));
 		name = ast_strdupa(spyee->name);
 		if (option_verbose >= 2)
 			ast_verbose(VERBOSE_PREFIX_2 "Spying on channel %s\n", name);
-		
-		memset(&spy, 0, sizeof(struct ast_channel_spy));
-		spy.status = CHANSPY_RUNNING;
-		ast_mutex_init(&spy.lock);
-		start_spying(spyee, chan, &spy);
-		
+
 		memset(&csth, 0, sizeof(csth));
+		csth.spy.status = CHANSPY_RUNNING;
+		ast_mutex_init(&csth.spy.lock);
 		csth.volfactor = *volfactor;
-		csth.spy = &spy;
+		csth.frame.frametype = AST_FRAME_VOICE;
+		csth.frame.subclass = AST_FORMAT_SLINEAR;
+		csth.frame.datalen = 320;
+		csth.frame.samples = 160;
+		start_spying(spyee, chan, &csth.spy);
 		ast_activate_generator(chan, &spygen, &csth);
 
-		while(spy.status == CHANSPY_RUNNING && chan && !ast_check_hangup(chan) && spyee && !ast_check_hangup(spyee) && running == 1) {
+		while(csth.spy.status == CHANSPY_RUNNING && chan && !ast_check_hangup(chan) && spyee && !ast_check_hangup(spyee) && running == 1) {
 			res = ast_waitfordigit(chan, 100);
 
 			if (x == sizeof(inp)) {
@@ -406,16 +445,16 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 			}
 		}
 		ast_deactivate_generator(chan);
-		stop_spying(spyee, &spy);
+		stop_spying(spyee, &csth.spy);
 
-		if (option_verbose >= 2)
+		if (option_verbose >= 2) {
 			ast_verbose(VERBOSE_PREFIX_2 "Done Spying on channel %s\n", name);
-
-		ast_flush_spy_queue(&spy);
+		}
+		ast_flush_spy_queue(&csth.spy);
 	} else {
 		running = 0;
 	}
-	ast_mutex_destroy(&spy.lock);
+	ast_mutex_destroy(&csth.spy.lock);
 	return running;
 }
 
@@ -423,23 +462,27 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 
 static int chanspy_exec(struct ast_channel *chan, void *data)
 {
-	int res=-1;
 	struct localuser *u;
 	struct ast_channel *peer=NULL, *prev=NULL;
-	char *ptr=NULL;
-	char name[AST_NAME_STRLEN], peer_name[AST_NAME_STRLEN];
-	int count=0, waitms=100, num=0;
-	char *args;
+	char name[AST_NAME_STRLEN],
+		peer_name[AST_NAME_STRLEN],
+		*args,
+		*ptr = NULL,
+		*options = NULL,
+		*spec = NULL,
+		*argv[5],
+		*mygroup = NULL;
+	int res = -1,
+		volfactor = 0,
+		silent = 0,
+		argc = 0,
+		bronly = 0,
+		chosen = 0,
+		count=0,
+		waitms = 100,
+		num = 0;
 	struct ast_flags flags;
-	char *options=NULL;
-	char *spec = NULL;
-	int volfactor=0;
-	int silent=0;
-	int argc = 0;
-	char *argv[5];
-	char *mygroup = NULL;
-	int bronly = 0;
-	int chosen = 0;
+
 
 	if (!(args = ast_strdupa((char *)data))) {
 		ast_log(LOG_ERROR, "Out of memory!\n");
@@ -450,6 +493,7 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_ERROR, "Could Not Set Read Format.\n");
 		return -1;
 	}
+	
 	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
 		return -1;
