@@ -608,7 +608,7 @@ static void strip_coloring(char *str)
 {
 	char *src, *dest, *end;
 	
-	if (!src)
+	if (!str)
 		return;
 
 	/* find the first potential escape sequence in the string */
