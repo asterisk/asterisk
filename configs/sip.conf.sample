@@ -60,6 +60,10 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;trustrpid = no			; If Remote-Party-ID should be trusted
 ;progressinband=no		; If we should generate in-band ringing always
 ;useragent=Asterisk PBX		; Allows you to change the user agent string
+;nat=no				; NAT settings 
+                                ; yes = Always ignore info and assume NAT
+                                ; no = Use NAT mode only according to RFC3581 
+                                ; never = Never attempt NAT mode or RFC3581 support
 ;promiscredir = no      ; If yes, allows 302 or REDIR to non-local SIP address
 ; Asterisk can register as a SIP user agent to a SIP proxy (provider)
 ; Format for the register statement is:

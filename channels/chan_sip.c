@@ -475,6 +475,10 @@ static int sip_reloading = 0;
 #define REG_STATE_TIMEOUT	   5
 #define REG_STATE_NOAUTH	   6
 
+#define SIP_NAT_NEVER		0
+#define SIP_NAT_RFC3581		1
+#define SIP_NAT_ALWAYS		2
+
 /* sip_registry: Registrations with other SIP proxies */
 struct sip_registry {
 	struct sockaddr_in addr;	/* Who we connect to for registration purposes */
@@ -523,7 +527,7 @@ static struct ast_register_list {
 static int __sip_do_register(struct sip_registry *r);
 
 static int sipsock  = -1;
-static int globalnat = 0;
+static int globalnat = SIP_NAT_RFC3581;
 static int globalcanreinvite = REINVITE_INVITE;
 
 
@@ -569,7 +573,7 @@ static inline int sip_debug_test_pvt(struct sip_pvt *p)
 {
 	if (sipdebug == 0)
 		return 0;
-	return sip_debug_test_addr((p->nat ? &p->recv : &p->sa));
+	return sip_debug_test_addr(((p->nat == SIP_NAT_ALWAYS) ? &p->recv : &p->sa));
 }
 
 
@@ -577,7 +581,7 @@ static inline int sip_debug_test_pvt(struct sip_pvt *p)
 static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
 	int res;
-	if (p->nat)
+	if (p->nat == SIP_NAT_ALWAYS)
 	    res=sendto(sipsock, data, len, 0, (struct sockaddr *)&p->recv, sizeof(struct sockaddr_in));
 	else
 	    res=sendto(sipsock, data, len, 0, (struct sockaddr *)&p->sa, sizeof(struct sockaddr_in));
@@ -655,7 +659,7 @@ static int retrans_pkt(void *data)
 	if (pkt->retrans < MAX_RETRANS) {
 		pkt->retrans++;
 		if (sip_debug_test_pvt(pkt->owner)) {
-			if (pkt->owner->nat)
+			if (pkt->owner->nat == SIP_NAT_ALWAYS)
 				ast_verbose("Retransmitting #%d (NAT):\n%s\n to %s:%d\n", pkt->retrans, pkt->data, inet_ntoa(pkt->owner->recv.sin_addr), ntohs(pkt->owner->recv.sin_port));
 			else
 				ast_verbose("Retransmitting #%d (no NAT):\n%s\n to %s:%d\n", pkt->retrans, pkt->data, inet_ntoa(pkt->owner->sa.sin_addr), ntohs(pkt->owner->sa.sin_port));
@@ -834,7 +838,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 {
 	int res;
 	if (sip_debug_test_pvt(p)) {
-		if (p->nat)
+		if (p->nat == SIP_NAT_ALWAYS)
 			ast_verbose("%sTransmitting (NAT):\n%s\n to %s:%d\n", reliable ? "Reliably " : "", req->data, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 		else
 			ast_verbose("%sTransmitting (no NAT):\n%s\n to %s:%d\n", reliable ? "Reliably " : "", req->data, inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
@@ -856,7 +860,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 {
 	int res;
 	if (sip_debug_test_pvt(p)) {
-		if (p->nat)
+		if (p->nat == SIP_NAT_ALWAYS)
 			ast_verbose("%sTransmitting:\n%s (NAT) to %s:%d\n", reliable ? "Reliably " : "", req->data, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 		else
 			ast_verbose("%sTransmitting:\n%s (no NAT) to %s:%d\n", reliable ? "Reliably " : "", req->data, inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
@@ -1208,12 +1212,12 @@ static int create_addr(struct sip_pvt *r, char *peer)
 			r->capability = p->capability;
 			r->nat = p->nat;
 			if (r->rtp) {
-				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", r->nat);
-				ast_rtp_setnat(r->rtp, r->nat);
+				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (r->nat == SIP_NAT_ALWAYS));
+				ast_rtp_setnat(r->rtp, (r->nat == SIP_NAT_ALWAYS));
 			}
 			if (r->vrtp) {
-				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", r->nat);
-				ast_rtp_setnat(r->vrtp, r->nat);
+				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (r->nat == SIP_NAT_ALWAYS));
+				ast_rtp_setnat(r->vrtp, (r->nat == SIP_NAT_ALWAYS));
 			}
 			strncpy(r->peername, p->username, sizeof(r->peername)-1);
 			strncpy(r->authname, p->username, sizeof(r->authname)-1);
@@ -2232,9 +2236,9 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 		/* Setup NAT structure according to global settings if we have an address */
 		p->nat = globalnat;
 		memcpy(&p->recv, sin, sizeof(p->recv));
-		ast_rtp_setnat(p->rtp, p->nat);
+		ast_rtp_setnat(p->rtp, (p->nat == SIP_NAT_ALWAYS));
 		if (p->vrtp)
-			ast_rtp_setnat(p->vrtp, p->nat);
+			ast_rtp_setnat(p->vrtp, (p->nat == SIP_NAT_ALWAYS));
 	}
 
 	if (sin) {
@@ -2245,7 +2249,10 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	}
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
+	if (p->nat != SIP_NAT_NEVER)
+		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", inet_ntoa(p->ourip), ourport, p->branch);
+	else
+		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	if (!callid)
 		build_callid(p->callid, sizeof(p->callid), p->ourip);
 	else
@@ -2831,19 +2838,10 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
 	for (;;) {
 		tmp = __get_header(orig, field, &start);
 		if (!ast_strlen_zero(tmp)) {
-			if (!copied && p->nat) {
+			if (!copied && (p->nat == SIP_NAT_ALWAYS)) {
 				/* Whoo hoo!  Now we can indicate port address translation too!  Just
 				   another RFC (RFC3581). I'll leave the original comments in for
 				   posterity.  */
-#ifdef THE_SIP_AUTHORS_CAN_SUCK_MY_GONADS
-				/* SLD: FIXME: Nice try, but the received= should not have a port */
-				/* SLD: FIXME: See RFC2543 BNF in Section 6.40.5 */
-				/* MAS: Yup, RFC says you can't do it.  No way to indicate PAT...
-				   good job fellas. */
-				if (ntohs(p->recv.sin_port) != DEFAULT_SIP_PORT)
-					snprintf(new, sizeof(new), "%s;received=%s:%d", tmp, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
-				else
-#endif				
 				snprintf(new, sizeof(new), "%s;received=%s;rport=%d", tmp, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 				add_header(req, field, new);
 			} else {
@@ -3045,7 +3043,10 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int se
 	
 	if (newbranch) {
 		p->branch ^= rand();
-		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", inet_ntoa(p->ourip), ourport, p->branch);
+		if (p->nat != SIP_NAT_NEVER)
+			snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", inet_ntoa(p->ourip), ourport, p->branch);
+		else /* Some implementations (e.g. Uniden UIP200) can't handle rport being in the message!! */
+			snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	}
 
 	if (!ast_strlen_zero(p->uri)) {
@@ -3628,7 +3629,10 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 	if (init) {
 		/* Bump branch even on initial requests */
 		p->branch ^= rand();
-		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", inet_ntoa(p->ourip), ourport, p->branch);
+		if (p->nat != SIP_NAT_NEVER)
+			snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", inet_ntoa(p->ourip), ourport, p->branch);
+		else /* Work around buggy UNIDEN UIP200 firmware */
+			snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 		initreqprep(&req, p, cmd, vxml_url);
 	} else
 		reqprep(&req, p, cmd, 0, 1);
@@ -3933,7 +3937,10 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	p->ocseq = r->ocseq;
 
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	snprintf(via, sizeof(via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", inet_ntoa(p->ourip), ourport, p->branch);
+	if (p->nat != SIP_NAT_NEVER)
+		snprintf(via, sizeof(via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", inet_ntoa(p->ourip), ourport, p->branch);
+	else /* Work around buggy UNIDEN UIP200 firmware */
+		snprintf(via, sizeof(via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	add_header(&req, "Via", via);
 	add_header(&req, "From", from);
 	add_header(&req, "To", to);
@@ -4177,7 +4184,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	} else
 		port = DEFAULT_SIP_PORT;
 	memcpy(&oldsin, &p->addr, sizeof(oldsin));
-	if (!p->nat) {
+	if (p->nat != SIP_NAT_ALWAYS) {
 		/* XXX This could block for a long time XXX */
 		hp = ast_gethostbyname(n, &ahp);
 		if (!hp)  {
@@ -4925,9 +4932,9 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 		p->sa.sin_port = htons(pt ? atoi(pt) : DEFAULT_SIP_PORT);
 		c = strstr(via, ";rport");
 		if (c && (c[6] != '='))
-			p->nat = 1;
+			p->nat = SIP_NAT_ALWAYS;
 		if (sip_debug_test_pvt(p)) {
-			if (p->nat)
+			if (p->nat == SIP_NAT_ALWAYS)
 				ast_verbose("Sending to %s : %d (NAT)\n", inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
 			else
 				ast_verbose("Sending to %s : %d (non-NAT)\n", inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
@@ -5068,12 +5075,12 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 		}
 
 		if (p->rtp) {
-			ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", p->nat);
-			ast_rtp_setnat(p->rtp, p->nat);
+			ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (p->nat == SIP_NAT_ALWAYS));
+			ast_rtp_setnat(p->rtp, (p->nat == SIP_NAT_ALWAYS));
 		}
 		if (p->vrtp) {
-			ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", p->nat);
-			ast_rtp_setnat(p->vrtp, p->nat);
+			ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (p->nat == SIP_NAT_ALWAYS));
+			ast_rtp_setnat(p->vrtp, (p->nat == SIP_NAT_ALWAYS));
 		}
 		if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, cmd, uri, reliable, ignore))) {
 			sip_cancel_destroy(p);
@@ -5141,12 +5148,12 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			p->ospauth = peer->ospauth;
 #endif
 			if (p->rtp) {
-				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", p->nat);
-				ast_rtp_setnat(p->rtp, p->nat);
+				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (p->nat == SIP_NAT_ALWAYS));
+				ast_rtp_setnat(p->rtp, (p->nat == SIP_NAT_ALWAYS));
 			}
 			if (p->vrtp) {
-				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", p->nat);
-				ast_rtp_setnat(p->vrtp, p->nat);
+				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (p->nat == SIP_NAT_ALWAYS));
+				ast_rtp_setnat(p->vrtp, (p->nat == SIP_NAT_ALWAYS));
 			}
 			strcpy(p->peersecret, peer->secret);
 			strcpy(p->peermd5secret, peer->md5secret);
@@ -5294,7 +5301,7 @@ static int sip_show_users(int fd, int argc, char *argv[])
 				user->accountcode,
 				user->context,
 				user->ha ? "Yes" : "No",
-				user->nat ? "Yes" : "No");
+				user->nat ? ((user->nat == SIP_NAT_ALWAYS) ? "Yes" : "RFC3581" ): "No");
 	}
 	ast_mutex_unlock(&userl.lock);
 	return RESULT_SUCCESS;
@@ -5336,7 +5343,7 @@ static int sip_show_peers(int fd, int argc, char *argv[])
                 sprintf(srch, FORMAT, name,
                         peer->addr.sin_addr.s_addr ? inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
                         peer->dynamic ? " D " : "   ", 	/* Dynamic or not? */
-                        peer->nat ? " N " : "   ",	/* NAT=yes? */
+                        (peer->nat == SIP_NAT_ALWAYS) ? " N " : "   ",	/* NAT=yes? */
                         peer->ha ? " A " : "   ", 	/* permit/deny */
                         nm,
                         ntohs(peer->addr.sin_port), status);
@@ -5357,7 +5364,7 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 		    ast_cli(fd, FORMAT, name, 
 			peer->addr.sin_addr.s_addr ? inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
                         peer->dynamic ? " D " : "   ",  /* Dynamic or not? */
-                        peer->nat ? " N " : "   ",	/* NAT=yes? */
+                        (peer->nat == SIP_NAT_ALWAYS) ? " N " : "   ",	/* NAT=yes? */
                         peer->ha ? " A " : "   ",       /* permit/deny */
 			nm,
 			ntohs(peer->addr.sin_port), status);
@@ -5439,7 +5446,7 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 		ast_cli(fd, "  Expire       : %d\n", peer->expire);
 		ast_cli(fd, "  Expiry       : %d\n", peer->expiry);
 		ast_cli(fd, "  Insecure     : %s\n", (peer->insecure?((peer->insecure == 2)?"Very":"Yes"):"No") );
-		ast_cli(fd, "  Nat          : %s\n", (peer->nat?"Yes":"No"));
+		ast_cli(fd, "  Nat          : %s\n", (peer->nat?((peer->nat == SIP_NAT_ALWAYS) ? "Yes" : "RFC3581"):"No"));
 		ast_cli(fd, "  ACL          : %s\n", (peer->ha?"Yes":"No"));
 		ast_cli(fd, "  CanReinvite  : %s\n", (peer->canreinvite?"Yes":"No"));
 		ast_cli(fd, "  PromiscRedir : %s\n", (peer->promiscredir?"Yes":"No"));
@@ -5639,7 +5646,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "  Format                  %s\n", ast_getformatname(cur->owner ? cur->owner->nativeformats : 0) );
 			ast_cli(fd, "  Theoretical Address:    %s:%d\n", inet_ntoa(cur->sa.sin_addr), ntohs(cur->sa.sin_port));
 			ast_cli(fd, "  Received Address:       %s:%d\n", inet_ntoa(cur->recv.sin_addr), ntohs(cur->recv.sin_port));
-			ast_cli(fd, "  NAT Support:            %s\n", cur->nat ? "Yes" : "No");
+			ast_cli(fd, "  NAT Support:            %s\n", cur->nat ? ((cur->nat == SIP_NAT_ALWAYS) ? "Yes" : "RFC3581"): "No");
 			ast_cli(fd, "  Our Tag:                %08d\n", cur->tag);
 			ast_cli(fd, "  Their Tag:              %s\n", cur->theirtag);
 			ast_cli(fd, "  SIP User agent:         %s\n", cur->useragent);
@@ -7208,7 +7215,10 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", inet_ntoa(p->ourip), ourport, p->branch);
+	if (p->nat != SIP_NAT_NEVER)
+		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", inet_ntoa(p->ourip), ourport, p->branch);
+	else /* UNIDEN UIP200 bug */
+		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	build_callid(p->callid, sizeof(p->callid), p->ourip);
 	/* Send MWI */
 	p->outgoing = 1;
@@ -7420,7 +7430,10 @@ static int sip_poke_peer(struct sip_peer *peer)
 	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
+	if (p->nat != SIP_NAT_NEVER)
+		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", inet_ntoa(p->ourip), ourport, p->branch);
+	else
+		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	build_callid(p->callid, sizeof(p->callid), p->ourip);
 
 	if (peer->pokeexpire > -1)
@@ -7538,7 +7551,10 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
+	if (p->nat != SIP_NAT_NEVER)
+		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", inet_ntoa(p->ourip), ourport, p->branch);
+	else /* UNIDEN bug */
+		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	build_callid(p->callid, sizeof(p->callid), p->ourip);
 	if (ext)
 		strncpy(p->username, ext, sizeof(p->username) - 1);
@@ -7612,7 +7628,12 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 				else
 					user->canreinvite = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "nat")) {
-				user->nat = ast_true(v->value);
+				if (!strcasecmp(v->value, "never"))
+					user->nat = SIP_NAT_NEVER;
+				else if (ast_true(v->value))
+					user->nat = SIP_NAT_ALWAYS;
+				else
+					user->nat = SIP_NAT_RFC3581;
 			} else if (!strcasecmp(v->name, "callerid")) {
 				strncpy(user->callerid, v->value, sizeof(user->callerid)-1);
 				user->hascallerid=1;
@@ -7787,9 +7808,14 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 					peer->canreinvite = REINVITE_UPDATE;
 				else
 					peer->canreinvite = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "nat")) 
-				peer->nat = ast_true(v->value);
-			else if (!strcasecmp(v->name, "context"))
+			} else if (!strcasecmp(v->name, "nat")) {
+				if (!strcasecmp(v->value, "rfc3581"))
+					peer->nat = SIP_NAT_RFC3581;
+				else if (ast_true(v->value))
+					peer->nat = SIP_NAT_ALWAYS;
+				else
+					peer->nat = SIP_NAT_NEVER;
+			} else if (!strcasecmp(v->name, "context"))
 				strncpy(peer->context, v->value, sizeof(peer->context)-1);
 			else if (!strcasecmp(v->name, "fromdomain"))
 				strncpy(peer->fromdomain, v->value, sizeof(peer->fromdomain)-1);
@@ -7959,7 +7985,7 @@ static int reload_config(void)
 		return 0;
 	}
 	
-	globalnat = 0;
+	globalnat = SIP_NAT_RFC3581;
 	
 	sip_prefs_free();
 	
@@ -8026,7 +8052,12 @@ static int reload_config(void)
 		} else if (!strcasecmp(v->name, "fromdomain")) {
 			strncpy(fromdomain, v->value, sizeof(fromdomain)-1);
 		} else if (!strcasecmp(v->name, "nat")) {
-			globalnat = ast_true(v->value);
+			if (!strcasecmp(v->value, "rfc3581"))
+				globalnat = SIP_NAT_RFC3581;
+			else if (ast_true(v->value))
+				globalnat = SIP_NAT_ALWAYS;
+			else
+				globalnat = SIP_NAT_NEVER;
 		} else if (!strcasecmp(v->name, "autocreatepeer")) {
 			autocreatepeer = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "srvlookup")) {
