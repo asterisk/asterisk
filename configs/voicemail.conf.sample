@@ -16,6 +16,10 @@ attach=yes
 ;maxgreet=60
 ; How many miliseconds to skip forward/back when rew/ff in message playback
 skipms=3000
+; How many seconds of silence before we end the recording
+maxsilence=10
+; Silence threshold (what we consider silence, the lower, the more sensitive)
+silencethreshold=128
 
 ;
 ; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>,<pager_email>

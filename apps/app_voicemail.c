@@ -23,6 +23,7 @@
 #include <asterisk/adsi.h>
 #include <asterisk/app.h>
 #include <asterisk/manager.h>
+#include <asterisk/dsp.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -496,12 +497,29 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	char *s;
 	time_t start;
 	time_t end;
+	struct ast_dsp *sildet;   	/* silence detector dsp */
+	int totalsilence = 0;
+	int dspsilence = 0;
+	int silence = 0;		/* amount of silence to allow */
+	int gotsilence = 0;		/* did we timeout for silence? */
+	char *silencestr;
+	char *thresholdstr;
+	int rfmt;
+	int threshold = 128;
 
 	cfg = ast_load(VOICEMAIL_CONFIG);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "No such configuration file %s\n", VOICEMAIL_CONFIG);
 		return -1;
 	}
+	if ((silencestr = ast_variable_retrieve(cfg, "general", "maxsilence"))) {
+		silence = atoi(silencestr);
+		if (silence > 0)
+			silence *= 1000;
+	}
+	if ((thresholdstr = ast_variable_retrieve(cfg, "general", "silencethreshold")))
+		threshold = atoi(thresholdstr);
+		
 	if (!(astemail = ast_variable_retrieve(cfg, "general", "serveremail"))) 
 		astemail = ASTERISK_USERNAME;
 	if ((s = ast_variable_retrieve(cfg, "general", "maxmessage"))) {
@@ -657,6 +675,22 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 								wavother++;
 							free(sfmt[x]);
 						}
+						
+						if (silence > 0) {
+								rfmt = chan->readformat;
+								res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
+								if (res < 0) {
+										ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+										return -1;
+								}
+							sildet = ast_dsp_new();
+								if (!sildet) {
+										ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
+										return -1;
+								}
+							ast_dsp_set_threshold(sildet, 50);
+						}
+						
 						if (x == fmtcnt) {
 							/* Loop forever, writing the packets we read to the writer(s), until
 							   we read a # or get a hangup */
@@ -700,6 +734,25 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 										ast_frfree(f);
 										break;
 									}
+									/* Silence Detection */
+									if (silence > 0) {
+										dspsilence = 0;
+										ast_dsp_silence(sildet, f, &dspsilence);
+										if (dspsilence) {
+											totalsilence = dspsilence;
+										} else {
+											totalsilence = 0;
+										}
+										if (totalsilence > silence) {
+										/* Ended happily with silence */
+										outmsg=2;
+										ast_frfree(f);
+										gotsilence = 1;
+										res = 0;
+										break;
+										}
+									}
+									
 								} else if (f->frametype == AST_FRAME_DTMF) {
 									if (f->subclass == '#') {
 										if (option_verbose > 2) 
@@ -725,6 +778,16 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 									ast_verbose( VERBOSE_PREFIX_3 "User hung up\n");
 								res = -1;
 								outmsg=1;
+							}
+							if (gotsilence) {
+								ast_stream_rewind(writer, silence-1000);
+								ast_truncstream(writer);
+							
+								/* And each of the others */
+								for (x=0;x<fmtcnt;x++) {
+									ast_stream_rewind(others[x], silence-1000);
+									ast_truncstream(others[x]);
+								}
 							}
 						} else {
 							ast_log(LOG_WARNING, "Error creating writestream '%s', format '%s'\n", fn, sfmt[x]); 
