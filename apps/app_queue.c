@@ -599,8 +599,15 @@ static int store_next(struct queue_ent *qe, struct localuser *outgoing)
 		qe->parent->rrpos = best->metric % 1000;
 	} else {
 		/* Just increment rrpos */
-		qe->parent->rrpos++;
+		if (!qe->parent->wrapped) {
+			/* No more channels, start over */
+			qe->parent->rrpos = 0;
+		} else {
+			/* Prioritize next entry */
+			qe->parent->rrpos++;
+		}
 	}
+	qe->parent->wrapped = 0;
 	return 0;
 }
 
