@@ -75,6 +75,7 @@ static char *descrip =
 "      'T' -- to allow the calling user to transfer the call.\n"
 "      'd' -- data-quality (modem) call (minimum delay).\n"
 "      'H' -- allow caller to hang up by hitting *.\n"
+"      'n' -- no retries on the timeout; will exit this application and go to the next step.\n"
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n"
 "  The optionnal URL will be sent to the called party if the channel supports\n"
@@ -99,7 +100,8 @@ static char *app_rqm_descrip =
 "Example: RemoveQueueMember(techsupport|SIP/3000)\n"
 "";
 
-
+/* whether to exit Queue application after the timeout hits */
+static int go_on = 0;
 
 
 /* We define a customer "local user" structure because we
@@ -739,6 +741,8 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 				tmp->dataquality = 1;
 			if (strchr(options, 'H'))
 				tmp->allowdisconnect = 1;
+			if (strchr(options, 'n'))
+				go_on = 1;
 		}
 		if (url) {
 			ast_log(LOG_DEBUG, "Queue with URL=%s_\n", url);
@@ -1156,6 +1160,11 @@ static int queue_exec(struct ast_channel *chan, void *data)
 				res = try_calling(&qe, options, announceoverride, url);
 				if (res)
 					break;
+				/* exit after a timeout if 'n' option enabled */
+				if (go_on) {
+					res = 0;
+					break;
+				}
 				res = wait_a_bit(&qe);
 				if (res < 0) {
 					if (option_verbose > 2) {
