@@ -186,6 +186,7 @@ struct dundi_request {
 	int maxcount;
 	int respcount;
 	int expiration;
+	int cbypass;
 	int pfds[2];
 	unsigned long crc32;							/* CRC-32 of all but root EID's in avoid list */
 	struct dundi_transaction *trans;	/* Transactions */
@@ -295,7 +296,7 @@ static int str2tech(char *str)
 		return -1;
 }
 
-static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct ast_channel *chan, const char *dcontext, const char *number, int ttl, int blockempty, struct dundi_hint_metadata *md, int *expiration, dundi_eid *avoid[], int direct[]);
+static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct ast_channel *chan, const char *dcontext, const char *number, int ttl, int blockempty, struct dundi_hint_metadata *md, int *expiration, int cybpass, dundi_eid *avoid[], int direct[]);
 static struct dundi_transaction *create_transaction(struct dundi_peer *p);
 static struct dundi_transaction *find_transaction(struct dundi_hdr *hdr, struct sockaddr_in *sin)
 {
@@ -479,6 +480,7 @@ struct dundi_query_state {
 	char called_number[AST_MAX_EXTENSION];
 	struct dundi_mapping *maps;
 	int nummaps;
+	int nocache;
 	struct dundi_transaction *trans;
 	void *chal;
 	int challen;
@@ -593,7 +595,7 @@ static void *dundi_lookup_thread(void *data)
 		
 	if (max) {
 		/* If we do not have a canonical result, keep looking */
-		res = dundi_lookup_internal(dr + ouranswers, MAX_RESULTS - ouranswers, NULL, st->called_context, st->called_number, st->ttl, 1, &hmd, &expiration, st->eids, st->directs);
+		res = dundi_lookup_internal(dr + ouranswers, MAX_RESULTS - ouranswers, NULL, st->called_context, st->called_number, st->ttl, 1, &hmd, &expiration, st->nocache, st->eids, st->directs);
 		if (res > 0) {
 			/* Append answer in result */
 			ouranswers += res;
@@ -793,6 +795,7 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 		strncpy(st->called_number, ies->called_number, sizeof(st->called_number) - 1);
 		st->trans = trans;
 		st->ttl = ies->ttl - 1;
+		st->nocache = ies->cbypass;
 		if (st->ttl < 0)
 			st->ttl = 0;
 		s = st->fluffy;
@@ -2062,10 +2065,17 @@ static int dundi_do_lookup(int fd, int argc, char *argv[])
 	char fs[80] = "";
 	char *context;
 	int x;
+	int bypass = 0;
 	struct dundi_result dr[MAX_RESULTS];
 	struct timeval start;
-	if ((argc < 3) || (argc > 3))
+	if ((argc < 3) || (argc > 4))
 		return RESULT_SHOWUSAGE;
+	if (argc > 3) {
+		if (!strcasecmp(argv[3], "bypass"))
+			bypass=1;
+		else
+			return RESULT_SHOWUSAGE;
+	}
 	strncpy(tmp, argv[2], sizeof(tmp) - 1);
 	context = strchr(tmp, '@');
 	if (context) {
@@ -2073,7 +2083,7 @@ static int dundi_do_lookup(int fd, int argc, char *argv[])
 		context++;
 	}
 	gettimeofday(&start, NULL);
-	res = dundi_lookup(dr, MAX_RESULTS, NULL, context, tmp);
+	res = dundi_lookup(dr, MAX_RESULTS, NULL, context, tmp, bypass);
 	
 	if (res < 0) 
 		ast_cli(fd, "DUNDi lookup returned error.\n");
@@ -2388,10 +2398,10 @@ static char show_requests_usage[] =
 "       Lists all known pending DUNDi requests.\n";
 
 static char lookup_usage[] =
-"Usage: dundi lookup <number>[@context]\n"
+"Usage: dundi lookup <number>[@context] [bypass]\n"
 "       Lookup the given number within the given DUNDi context\n"
-"(or e164 if none is specified).\n"
-"if specified.\n";
+"(or e164 if none is specified).  Bypasses cache if 'bypass'\n"
+"keyword is specified.\n";
 
 static char query_usage[] =
 "Usage: dundi query <entity>[@context]\n"
@@ -2561,7 +2571,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 				peer->qualtrans = NULL;
 			}
 			if (trans->flags & FLAG_STOREHIST) {
-				if (trans->parent) {
+				if (trans->parent && !ast_strlen_zero(trans->parent->number)) {
 					if (!dundi_eid_cmp(&trans->them_eid, &peer->eid)) {
 						peer->avgms = 0;
 						cnt = 0;
@@ -2787,6 +2797,8 @@ static int dundi_discover(struct dundi_transaction *trans)
 	dundi_ie_append_str(&ied, DUNDI_IE_CALLED_NUMBER, trans->parent->number);
 	dundi_ie_append_str(&ied, DUNDI_IE_CALLED_CONTEXT, trans->parent->dcontext);
 	dundi_ie_append_short(&ied, DUNDI_IE_TTL, trans->ttl);
+	if (trans->parent->cbypass)
+		dundi_ie_append(&ied, DUNDI_IE_CACHEBYPASS);
 	if (trans->autokilltimeout)
 		trans->autokillid = ast_sched_add(sched, trans->autokilltimeout, do_autokill, trans);
 	return dundi_send(trans, DUNDI_COMMAND_DPDISCOVER, 0, 0, &ied);
@@ -2953,7 +2965,7 @@ static void abort_request(struct dundi_request *dr)
 	ast_mutex_unlock(&peerlock);
 }
 
-static void build_transactions(struct dundi_request *dr, int ttl, int order, int *foundcache, int *skipped, int blockempty, dundi_eid *avoid[], int directs[])
+static void build_transactions(struct dundi_request *dr, int ttl, int order, int *foundcache, int *skipped, int blockempty, int nocache, dundi_eid *avoid[], int directs[])
 {
 	struct dundi_peer *p;
 	int x;
@@ -2967,7 +2979,8 @@ static void build_transactions(struct dundi_request *dr, int ttl, int order, int
 				/* Check order first, then check cache, regardless of
 				   omissions, this gets us more likely to not have an
 				   affected answer. */
-				if (!(res = cache_lookup(dr, &p->eid, dr->crc32, &dr->expiration))) {
+				if(nocache || !(res = cache_lookup(dr, &p->eid, dr->crc32, &dr->expiration))) {
+					res = 0;
 					/* Make sure we haven't already seen it and that it won't
 					   affect our answer */
 					for (x=0;avoid[x];x++) {
@@ -3080,7 +3093,7 @@ static unsigned long avoid_crc32(dundi_eid *avoid[])
 	return acrc32;
 }
 
-static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct ast_channel *chan, const char *dcontext, const char *number, int ttl, int blockempty, struct dundi_hint_metadata *hmd, int *expiration, dundi_eid *avoid[], int direct[])
+static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct ast_channel *chan, const char *dcontext, const char *number, int ttl, int blockempty, struct dundi_hint_metadata *hmd, int *expiration, int cbypass, dundi_eid *avoid[], int direct[])
 {
 	int res;
 	struct dundi_request dr, *pending;
@@ -3112,6 +3125,7 @@ static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct
 	dr.hmd = hmd;
 	dr.maxcount = maxret;
 	dr.expiration = *expiration;
+	dr.cbypass = cbypass;
 	dr.crc32 = avoid_crc32(avoid);
 	strncpy(dr.dcontext, dcontext ? dcontext : "e164", sizeof(dr.dcontext) - 1);
 	strncpy(dr.number, number, sizeof(dr.number) - 1);
@@ -3145,7 +3159,7 @@ static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct
 		order = skipped;
 		skipped = 0;
 		foundcache = 0;
-		build_transactions(&dr, ttl, order, &foundcache, &skipped, blockempty, avoid, direct);
+		build_transactions(&dr, ttl, order, &foundcache, &skipped, blockempty, cbypass, avoid, direct);
 	} while (skipped && !foundcache && !dr.trans);
 	/* If no TTL, abort and return 0 now after setting TTL expired hint.  Couldn't
 	   do this earlier because we didn't know if we were going to have transactions
@@ -3180,7 +3194,7 @@ static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct
 	return res;
 }
 
-int dundi_lookup(struct dundi_result *result, int maxret, struct ast_channel *chan, const char *dcontext, const char *number)
+int dundi_lookup(struct dundi_result *result, int maxret, struct ast_channel *chan, const char *dcontext, const char *number, int cbypass)
 {
 	struct dundi_hint_metadata hmd;
 	dundi_eid *avoid[1] = { NULL, };
@@ -3188,7 +3202,7 @@ int dundi_lookup(struct dundi_result *result, int maxret, struct ast_channel *ch
 	int expiration = DUNDI_DEFAULT_CACHE_TIME;
 	memset(&hmd, 0, sizeof(hmd));
 	hmd.flags = DUNDI_HINT_DONT_ASK | DUNDI_HINT_UNAFFECTED;
-	return dundi_lookup_internal(result, maxret, chan, dcontext, number, dundi_ttl, 0, &hmd, &expiration, avoid, direct);
+	return dundi_lookup_internal(result, maxret, chan, dcontext, number, dundi_ttl, 0, &hmd, &expiration, cbypass, avoid, direct);
 }
 
 static int dundi_query_eid_internal(struct dundi_entity_info *dei, const char *dcontext, dundi_eid *eid, struct dundi_hint_metadata *hmd, int ttl, int blockempty, dundi_eid *avoid[])
@@ -3215,7 +3229,7 @@ static int dundi_query_eid_internal(struct dundi_entity_info *dei, const char *d
 	if (rooteid)
 		dr.root_eid = *rooteid;
 	/* Create transactions */
-	build_transactions(&dr, ttl, 9999, &foundcache, &skipped, blockempty, avoid, NULL);
+	build_transactions(&dr, ttl, 9999, &foundcache, &skipped, blockempty, 0, avoid, NULL);
 
 	/* If no TTL, abort and return 0 now after setting TTL expired hint.  Couldn't
 	   do this earlier because we didn't know if we were going to have transactions
@@ -3726,7 +3740,7 @@ static int dundi_helper(struct ast_channel *chan, const char *context, const cha
 		if (!data || ast_strlen_zero(data))
 			data = context;
 	}
-	res = dundi_lookup(results, MAX_RESULTS, chan, data, exten);
+	res = dundi_lookup(results, MAX_RESULTS, chan, data, exten, 0);
 	for (x=0;x<res;x++) {
 		if (results[x].flags & flag)
 			found++;
@@ -3777,7 +3791,7 @@ static int dundi_exec(struct ast_channel *chan, const char *context, const char 
 		if (!data || ast_strlen_zero(data))
 			data = context;
 	}
-	res = dundi_lookup(results, MAX_RESULTS, chan, data, exten);
+	res = dundi_lookup(results, MAX_RESULTS, chan, data, exten, 0);
 	if (res > 0) {
 		sort_results(results, res);
 		for (x=0;x<res;x++) {

@@ -115,6 +115,12 @@ static void dump_string(char *output, int maxlen, void *value, int len)
 	output[maxlen] = '\0';
 }
 
+static void dump_cbypass(char *output, int maxlen, void *value, int len)
+{
+	strncpy(output, "Bypass Caches", maxlen);
+	output[maxlen] = '\0';
+}
+
 static void dump_eid(char *output, int maxlen, void *value, int len)
 {
 	if (len == 6)
@@ -358,6 +364,7 @@ static struct dundi_ie {
 	{ DUNDI_IE_EMAIL, "EMAIL", dump_string },
 	{ DUNDI_IE_PHONE, "PHONE", dump_string },
 	{ DUNDI_IE_IPADDR, "ADDRESS", dump_string },
+	{ DUNDI_IE_CACHEBYPASS, "CBYPASS", dump_cbypass },
 };
 
 const char *dundi_ie2str(int ie)
@@ -380,7 +387,7 @@ static void dump_ies(unsigned char *iedata, int spaces, int len)
 	char tmp[1024];
 	if (len < 2)
 		return;
-	while(len > 2) {
+	while(len >= 2) {
 		ie = iedata[0];
 		ielen = iedata[1];
 		/* Encrypted data is the remainder */
@@ -441,7 +448,8 @@ void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *sin, int
 		"REGRESPONSE ",
 		"CANCEL      ",
 		"ENCRYPT     ",
-		"ENCREJ      " };
+		"ENCREJ      ",
+		"PRECACHE    " };
 	char class2[20];
 	char *class;
 	char subclass2[20];
@@ -783,6 +791,9 @@ int dundi_parse_ies(struct dundi_ies *ies, unsigned char *data, int datalen)
 				snprintf(tmp, (int)sizeof(tmp), "Invalid encrypted signature length %d\n", len);
 				errorf(tmp);
 			}
+			break;
+		case DUNDI_IE_CACHEBYPASS:
+			ies->cbypass = 1;
 			break;
 		default:
 			snprintf(tmp, (int)sizeof(tmp), "Ignoring unknown information element '%s' (%d) of length %d\n", dundi_ie2str(ie), ie, len);

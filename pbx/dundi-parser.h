@@ -48,6 +48,7 @@ struct dundi_ies {
 	unsigned long keycrc32;
 	struct dundi_encblock *encblock;
 	int enclen;
+	int cbypass;
 };
 
 struct dundi_ie_data {

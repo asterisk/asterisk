@@ -141,6 +141,7 @@ struct dundi_cause {
 #define DUNDI_IE_EMAIL				26	/* E-mail addy, for EIDQUERY (string) */
 #define DUNDI_IE_PHONE				27	/* Contact Phone, for EIDQUERY (string) */
 #define DUNDI_IE_IPADDR				28	/* IP Address, for EIDQUERY (string) */
+#define DUNDI_IE_CACHEBYPASS		29	/* Bypass cache (empty) */
 
 #define DUNDI_FLUFF_TIME			2000	/* Amount of time for answer */
 #define DUNDI_TTL_TIME				200		/* Incremental average time */
@@ -180,7 +181,7 @@ struct dundi_entity_info {
 
 /* Lookup the given number in the given dundi context (or e164 if unspecified) using the given callerid (if specified) and return up to maxret results in the array specified.
    returns the number of results found or -1 on a hangup of teh channel. */
-int dundi_lookup(struct dundi_result *result, int maxret, struct ast_channel *chan, const char *dcontext, const char *number);
+int dundi_lookup(struct dundi_result *result, int maxret, struct ast_channel *chan, const char *dcontext, const char *number, int nocache);
 
 /* Retrieve information on a specific EID */
 int dundi_query_eid(struct dundi_entity_info *dei, const char *dcontext, dundi_eid eid);
