@@ -182,7 +182,7 @@ static void *netconsole(void *vconsole)
 			max = con->p[0];
 		tv.tv_sec = 4;	/* Wait max 4 sec for fds to become active */
 		tv.tv_usec = 0;
-		res = ast_select(max + 1, &rfds, NULL, NULL, &tv);
+		res = ast_select(max + 1, &rfds, NULL, NULL, NULL);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "select returned < 0: %s\n", strerror(errno));
 			continue;
