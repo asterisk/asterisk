@@ -17,6 +17,7 @@
  -- Add contributed "*80" support to blacklist numbers (Thanks James!)
  -- Add "NAT" option to sip user, peer, friend
  -- Add experimental "IAX2" protocol
+-- Change special variable "EXTEN-n" to "EXTEN:n" to follow Bash syntax
  -- Add "Enhanced" AGI with audio pass-through (voice recognition anyone?)
  -- Choose best priority from codec from allow/disallow
  -- Reject SIP calls to self
