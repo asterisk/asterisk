@@ -98,13 +98,13 @@ typedef struct call_options {
 	asterisk channels to acutal h.323 connections */
 typedef struct call_details {	
 	unsigned int call_reference;
-	const char *call_token;				
-	const char *call_source_aliases;
-	const char *call_dest_alias;
-	const char *call_source_name;
-	const char *call_source_e164;
-	const char *call_dest_e164;
-	const char *sourceIp;
+	char *call_token;				
+	char *call_source_aliases;
+	char *call_dest_alias;
+	char *call_source_name;
+	char *call_source_e164;
+	char *call_dest_e164;
+	char *sourceIp;
 } call_details_t;
 
 typedef struct rtp_info {
