@@ -71,7 +71,7 @@ static char *descrip =
 "             making/redirecting the outgoing call. For example, some PSTNs\n"
 "             don't allow callerids from other extensions then the ones\n"
 "             that are assigned to you.\n"
-"      'o' -- Original (inbound) Caller*ID should be placed on the outbound leg of the call 
+"      'o' -- Original (inbound) Caller*ID should be placed on the outbound leg of the call\n" 
 "             instead of using the destination extension (old style asterisk behavior)\n"
 "      'r' -- indicate ringing to the calling party, pass no audio until answered.\n"
 "      'm[(class)]' -- provide hold music to the calling party until answered (optionally\n"
