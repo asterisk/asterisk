@@ -212,6 +212,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 				wf.mallocd = 0;
 				wf.data = tone_block.buf;
 				wf.datalen = f->datalen;
+				wf.delivery.tv_sec = wf.delivery.tv_usec = 0;
 				make_tone_block(tone_block.buf, 350, 440, f->datalen, &x);
 				wf.samples = wf.datalen;
 				ast_frfree(f);
