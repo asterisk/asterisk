@@ -305,8 +305,9 @@ include => demo
 ; overlap extensions and menu options without conflict.  You can alias them with
 ; names, too and use global variables
 
+;exten => 6245,hint,SIP/Grandstream1&SIP/Xlite1
 ;exten => 6245,1,Dial(SIP/Grandstream1,20,rt)	; permit transfer
-;exten => 6245,1,Dial(SIP/Grandstream1&SIP/Xlite1,20,rtT)
+;exten => 6245,1,Dial(${HINT},20,rtT)
 ;exten => 6361,1,Dial(IAX2/JaneDoe,,rm)		; ring without time limit
 ;exten => 6389,1,Dial(MGCP/aaln/1@192.168.0.14)
 ;exten => 6394,1,Dial(Local/6275/n)		; this will dial ${MARK}
