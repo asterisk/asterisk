@@ -6272,11 +6272,11 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "This application requires the argument: info, inband, rfc2833\n");
 		return 0;
 	}
-	if (strcasecmp(mode,"info"))
+	if (!strcasecmp(mode,"info"))
 		p->dtmfmode = SIP_DTMF_INFO;
-	else if (strcasecmp(mode,"rfc2833"))
+	else if (!strcasecmp(mode,"rfc2833"))
 		p->dtmfmode = SIP_DTMF_RFC2833;
-	else if (strcasecmp(mode,"inband"))
+	else if (!strcasecmp(mode,"inband"))
 		p->dtmfmode = SIP_DTMF_INBAND;
 	else
 		ast_log(LOG_WARNING, "I don't know about this dtmf mode: %s\n",mode);
