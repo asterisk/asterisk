@@ -1,3 +1,4 @@
+ -- Allow SIP registration to provide an alternative contact
  -- Make HOLD on SIP make use of asterisk MOH
  -- Add supervised transfer (tested with Pingtel only)
  -- Allow maxexpirey and defaultexpirey to be runtime configurable for SIP

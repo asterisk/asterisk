@@ -252,6 +252,7 @@ struct sip_registry {
 	struct sockaddr_in addr;		/* Who we connect to for registration purposes */
 	char username[80];
 	char secret[80];			/* Password or key name in []'s */
+	char contact[80];			/* Contact extension */
 	char random[80];
 	int expire;					/* Sched ID of expiration */
 	int timeout; 					/* sched id of sip_reg_timeout */
@@ -1060,6 +1061,7 @@ static int sip_register(char *value, int lineno)
 	char copy[256] = "";
 	char *username, *hostname, *secret;
 	char *porta;
+	char *contact;
 	char *stringp=NULL;
 	
 	struct hostent *hp;
@@ -1076,9 +1078,14 @@ static int sip_register(char *value, int lineno)
 	stringp=username;
 	username = strsep(&stringp, ":");
 	secret = strsep(&stringp, ":");
+	stringp = hostname;
+	hostname = strsep(&stringp, "/");
+	contact = strsep(&stringp, "/");
+	if (!contact || !strlen(contact))
+		contact = "s";
 	stringp=hostname;
 	hostname = strsep(&stringp, ":");
-	porta = strsep(&stringp, ";");
+	porta = strsep(&stringp, ":");
 	
 	if (porta && !atoi(porta)) {
 		ast_log(LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
@@ -1092,6 +1099,7 @@ static int sip_register(char *value, int lineno)
 	reg = malloc(sizeof(struct sip_registry));
 	if (reg) {
 		memset(reg, 0, sizeof(struct sip_registry));
+		strncpy(reg->contact, contact, sizeof(reg->contact) - 1);
 		strncpy(reg->username, username, sizeof(reg->username)-1);
 		if (secret)
 			strncpy(reg->secret, secret, sizeof(reg->secret)-1);
@@ -1840,7 +1848,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 	add_header(&req, "To", to);
 	{
 		char contact[256];
-		snprintf(contact, sizeof(contact), "<sip:s@%s:%d;transport=udp>", inet_ntoa(p->ourip), ourport);
+		snprintf(contact, sizeof(contact), "<sip:%s@%s:%d;transport=udp>", r->contact, inet_ntoa(p->ourip), ourport);
 		add_header(&req, "Contact", contact);
 	}
 	add_header(&req, "Call-ID", p->callid);
