@@ -451,6 +451,10 @@ samples: all datafiles adsi
 	for x in configs/*.sample; do \
 		if [ -f $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` ]; then \
 			if [ "$(OVERWRITE)" = "y" ]; then \
+				if cmp -s $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` $$x ; then \
+					echo "Config file $$x is unchanged"; \
+					continue; \
+				fi ; \
 				mv -f $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample`.old ; \
 			else \
 				echo "Skipping config file $$x"; \
