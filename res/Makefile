@@ -17,6 +17,7 @@ CRYPTO_LIBS=-lssl -lcrypto
 
 CFLAGS+=
 CFLAGS+=$(shell [ -f /usr/include/linux/zaptel.h ] && echo " -DZAPATA_MOH")
+CFLAGS+=$(shell [ -f /usr/local/include/zaptel.h ] && echo " -DZAPATA_MOH")
 #
 # Work around buggy RedHat 9.0
 #

@@ -127,6 +127,7 @@ endif
 #CFLAGS+=-DOLD_DSP_ROUTINES
 
 CFLAGS+=$(shell if [ -f /usr/include/linux/zaptel.h ]; then echo "-DZAPTEL_OPTIMIZATIONS"; fi)
+CFLAGS+=$(shell if [ -f /usr/local/include/zaptel.h ]; then echo "-DZAPTEL_OPTIMIZATIONS"; fi)
 
 LIBEDIT=editline/libedit.a
 

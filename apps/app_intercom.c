@@ -26,14 +26,15 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <sys/time.h>
-#ifdef __linux__
+#include <netinet/in.h>
+
+#if defined(__linux__)
 #include <linux/soundcard.h>
 #elif defined(__FreeBSD__)
 #include <sys/soundcard.h>
 #else
 #include <soundcard.h>
 #endif
-#include <netinet/in.h>
 
 #ifdef __OpenBSD__
 #define DEV_DSP "/dev/audio"

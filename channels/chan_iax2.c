@@ -57,7 +57,11 @@
 #include <sys/stat.h>
 #ifdef IAX_TRUNKING
 #include <sys/ioctl.h>
+#ifdef __linux__
 #include <linux/zaptel.h>
+#else
+#include <zaptel.h>
+#endif /* __linux__ */
 #endif
 #ifdef MYSQL_FRIENDS
 #include <mysql/mysql.h>

@@ -55,6 +55,7 @@ CHANNEL_LIBS+=chan_oss.so
 endif
 
 CHANNEL_LIBS+=$(shell [ -f /usr/include/linux/ixjuser.h ] && echo chan_phone.so)
+CHANNEL_LIBS+=$(shell [ -f /usr/local/include/ixjuser.h ] && echo chan_phone.so)
 CHANNEL_LIBS+=$(shell [ -f h323/libchanh323.a ] && echo chan_h323.so)
 
 CFLAGS+=-Wno-missing-prototypes -Wno-missing-declarations
@@ -66,7 +67,7 @@ CFLAGS+=$(shell [ -f alsa-monitor.h ] && echo " -DALSA_MONITOR")
 ZAPPRI=$(shell [ -f /usr/lib/libpri.so.1 ] && echo "-lpri")
 ZAPR2=$(shell [ -f /usr/lib/libmfcr2.so.1 ] && echo "-lmfcr2")
 CFLAGS+=$(shell [ -f /usr/include/linux/zaptel.h ] && echo "-DIAX_TRUNKING")
-# xxx CFLAGS+=$(shell [ -f /usr/local/include/zaptel.h ] && echo "-DIAX_TRUNKING")
+CFLAGS+=$(shell [ -f /usr/local/include/zaptel.h ] && echo "-DIAX_TRUNKING")
 CHANNEL_LIBS+=$(shell [ -f /usr/include/vpbapi.h ] && echo "chan_vpb.so" )
 CFLAGS+=$(shell [ -f /usr/include/vpbapi.h ] && echo " -DLINUX")
 
@@ -89,6 +90,7 @@ CFLAGS+=#-DVOFRDUMPER
 ZAPDIR=/usr/lib
 
 CHANNEL_LIBS+=$(shell [ -f /usr/include/linux/zaptel.h ] && echo "chan_zap.so")
+CHANNEL_LIBS+=$(shell [ -f /usr/local/include/zaptel.h ] && echo "chan_zap.so")
 
 CHANNEL_LIBS+=$(shell [ -f /usr/include/nbs.h ] && echo "chan_nbs.so" )
 

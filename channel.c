@@ -40,7 +40,11 @@
 #include <asterisk/utils.h>
 #ifdef ZAPTEL_OPTIMIZATIONS
 #include <sys/ioctl.h>
+#ifdef __linux__
 #include <linux/zaptel.h>
+#else
+#include <zaptel.h>
+#endif /* __linux__ */
 #ifndef ZT_TIMERPING
 #error "You need newer zaptel!  Please cvs update zaptel"
 #endif

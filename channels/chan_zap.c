@@ -46,7 +46,11 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#ifdef __linux__
 #include <linux/zaptel.h>
+#else
+#include <zaptel.h>
+#endif /* __linux__ */
 #include <math.h>
 #include <tonezone.h>
 #include <ctype.h>

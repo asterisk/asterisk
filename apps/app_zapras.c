@@ -33,7 +33,11 @@
 #include <pthread.h>
 
 /* Need some zaptel help here */
+#ifdef __linux__
 #include <linux/zaptel.h>
+#else
+#include <zaptel.h>
+#endif /* __linux__ */
 
 static char *tdesc = "Zap RAS Application";
 

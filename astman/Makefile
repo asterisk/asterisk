@@ -2,7 +2,14 @@
 # Don't use ast mm routines
 #
 CFLAGS+=-DNO_AST_MM
+
+OSARCH=$(shell uname -s)
+ifeq (${OSARCH},FreeBSD)
+CFLAGS+=-I/usr/local/include -L/usr/local/lib
+endif
+
 TARGET=$(shell if [ -f /usr/include/newt.h ]; then echo "astman"; else echo "none" ; fi)
+TARGET=$(shell if [ -f /usr/local/include/newt.h ]; then echo "astman"; else echo "none" ; fi)
 all: depend $(TARGET)
 
 install:
@@ -19,7 +26,7 @@ clean:
 	rm -f *.o astman .depend
 
 astman: astman.o ../md5.o
-	$(CC) -o astman astman.o ../md5.o -lnewt
+	$(CC) $(CFLAGS) -o astman astman.o ../md5.o -lnewt
 
 ifneq ($(wildcard .depend),)
 include .depend

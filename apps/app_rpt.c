@@ -61,7 +61,12 @@ enum {REM_OFF,REM_MONITOR,REM_TX};
 #include <sys/ioctl.h>
 #include <math.h>
 #include <tonezone.h>
+
+#ifdef __linux__
 #include <linux/zaptel.h>
+#else
+#include <zaptel.h>
+#endif /* __linux__ */
 
 static  char *tdesc = "Radio Repeater / Remote Base  version 0.2  05/30/2004";
 static int debug = 0;

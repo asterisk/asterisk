@@ -31,9 +31,13 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
-
 #include <pthread.h>
+
+#ifdef __linux__
 #include <linux/zaptel.h>
+#else
+#include <zaptel.h>
+#endif /* __linux__ */
 
 static char *tdesc = "MeetMe conference bridge";
 

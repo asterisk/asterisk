@@ -37,7 +37,11 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #ifdef ZAPATA_MOH
+#ifdef __linux__
 #include <linux/zaptel.h>
+#else
+#include <zaptel.h>
+#endif /* __linux__ */
 #endif
 #include <unistd.h>
 #include <sys/ioctl.h>
