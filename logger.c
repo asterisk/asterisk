@@ -17,7 +17,6 @@
 #include <unistd.h>
 #include <time.h>
 #include <asterisk/lock.h>
-#include <asterisk/logger.h>
 #include <asterisk/options.h>
 #include <asterisk/channel.h>
 #include <asterisk/config.h>
@@ -28,9 +27,22 @@
 #include <errno.h>
 #include <pthread.h>
 #include <sys/stat.h>
-#include <syslog.h>
 #include "asterisk.h"
 #include "astconf.h"
+
+#define SYSLOG_NAMES /* so we can map syslog facilities names to their numeric values,
+		        from <syslog.h> which is included by logger.h */
+#include <syslog.h>
+static int syslog_level_map[] = {
+	LOG_DEBUG,
+	LOG_INFO,    /* arbitrary equivalent of LOG_EVENT */
+	LOG_NOTICE,
+	LOG_WARNING,
+	LOG_ERR
+};
+#define SYSLOG_NLEVELS 5
+
+#include <asterisk/logger.h>
 
 #define MAX_MSG_QUEUE 200
 
@@ -42,37 +54,37 @@ static struct msglist {
 	struct msglist *next;
 } *list = NULL, *last = NULL;
 
-struct logfile {
-	char fn[256];
-	int logflags;
-	FILE *f;
+struct logchannel {
+        int logmask;
         int facility; /* syslog */
-	struct logfile *next;
+	int syslog; /* syslog flag */
+        int console;  /* console logging */
+	FILE *fileptr; /* logfile logging */
+	char filename[256];
+        struct logchannel *next;
 };
 
-static struct logfile *logfiles = NULL;
+static struct logchannel *logchannels = NULL;
 
 static int msgcnt = 0;
 
 static FILE *eventlog = NULL;
 
 static char *levels[] = {
-	"DEBUG",
-	"EVENT",
-	"NOTICE",
-	"WARNING",
-	"ERROR"
+       "DEBUG",
+       "EVENT",
+       "NOTICE",
+       "WARNING",
+       "ERROR"
 };
 
 static int colors[] = {
-	COLOR_BRGREEN,
-	COLOR_BRBLUE,
-	COLOR_YELLOW,
-	COLOR_BRRED,
-	COLOR_RED
+       COLOR_BRGREEN,
+       COLOR_BRBLUE,
+       COLOR_YELLOW,
+       COLOR_BRRED,
+       COLOR_RED
 };
-
-
 
 static int make_components(char *s, int lineno)
 {
@@ -82,120 +94,141 @@ static int make_components(char *s, int lineno)
 	stringp=s;
 	w = strsep(&stringp, ",");
 	while(w) {
-		while(*w && (*w < 33))
-			w++;
-		if (!strcasecmp(w, "debug"))
-			res |= (1 << 0);
-		else if (!strcasecmp(w, "notice"))
-			res |= (1 << 2);
-		else if (!strcasecmp(w, "warning"))
-			res |= (1 << 3);
-		else if (!strcasecmp(w, "error"))
-			res |= (1 << 4);
-		else {
-			fprintf(stderr, "Logfile Warning: Unknown keyword '%s' at line %d of logger.conf\n", w, lineno);
-		}
-		w = strsep(&stringp, ",");
+	    while(*w && (*w < 33))
+		w++;
+	    if (!strcasecmp(w, "error")) 
+		res |= (1 << __LOG_ERROR);
+	    else if (!strcasecmp(w, "warning"))
+		res |= (1 << __LOG_WARNING);
+	    else if (!strcasecmp(w, "notice"))
+		res |= (1 << __LOG_NOTICE);
+	    else if (!strcasecmp(w, "event"))
+		res |= (1 << __LOG_EVENT);
+	    else if (!strcasecmp(w, "debug"))
+		res |= (1 << __LOG_DEBUG);
+	    else {
+		fprintf(stderr, "Logfile Warning: Unknown keyword '%s' at line %d of logger.conf\n", w, lineno);
+	    }
+	    w = strsep(&stringp, ",");
 	}
 	return res;
 }
 
-static struct logfile *make_logfile(char *fn, char *components, int lineno)
+static struct logchannel *make_logchannel(char *channel, char *components, int lineno)
 {
-	struct logfile *f;
-	char tmp[256];
-	if (!strlen(fn))
+	struct logchannel *chan;
+	char *facility;
+	CODE *cptr;
+
+	if (!strlen(channel))
 		return NULL;
-	f = malloc(sizeof(struct logfile));
-	if (f) {
-		memset(f, 0, sizeof(struct logfile));
-		strncpy(f->fn, fn, sizeof(f->fn) - 1);
-		if (!strcasecmp(fn, "ignore")) {
-			f->f = NULL;
-		} else if (!strcasecmp(fn, "console")) {
-			f->f = stdout;
-		} else if (!strcasecmp(fn, "syslog")) {
-		  f->f = NULL;
-		  f->facility = LOG_LOCAL0;
+	chan = malloc(sizeof(struct logchannel));
+
+	if (chan) {
+		memset(chan, 0, sizeof(chan));
+		if (!strcasecmp(channel, "console")) {
+		    chan->console = 1;
+		} else if (!strncasecmp(channel, "syslog", 6)) {
+		    /*
+		     * syntax is:
+		     *  syslog.facility => level,level,level
+		     */
+		    facility = strchr(channel, '.');
+		    if(!facility++ || !facility) {
+			facility = "local0";
+		    }
+		    /*
+		     * Walk through the list of facilitynames (defined in sys/syslog.h)
+		     * to see if we can find the one we have been given
+		     */
+		    chan->facility = -1;
+		    cptr = facilitynames;
+		    while (cptr->c_name) {
+			if (!strncasecmp(facility, cptr->c_name, sizeof(cptr->c_name))) {
+			    chan->facility = cptr->c_val;
+			    break;
+			}
+			cptr++;
+		    }
+		    if (0 > chan->facility) {
+			fprintf(stderr, "Logger Warning: bad syslog facility in logger.conf\n");
+			free(chan);
+			return NULL;
+		    }
+
+		    chan->syslog = 1;
+		    openlog("asterisk", LOG_PID, chan->facility);
 		} else {
-			if (fn[0] == '/') 
-				strncpy(tmp, fn, sizeof(tmp) - 1);
+			if (channel[0] == '/') 
+				strncpy(chan->filename, channel, sizeof(chan->filename) - 1);
 			else
-				snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_LOG_DIR, fn);
-			f->f = fopen(tmp, "a");
-			if (!f->f) {
+				snprintf(chan->filename, sizeof(chan->filename), "%s/%s", (char *)ast_config_AST_LOG_DIR, channel);
+			chan->fileptr = fopen(chan->filename, "a");
+			if (!chan->fileptr) {
 				/* Can't log here, since we're called with a lock */
-				fprintf(stderr, "Logger Warning: Unable to open log file '%s': %s\n", tmp, strerror(errno));
+				fprintf(stderr, "Logger Warning: Unable to open log file '%s': %s\n", chan->filename, strerror(errno));
 			}
 		}
-		f->logflags = make_components(components, lineno);
-		
+		chan->logmask = make_components(components, lineno);
 	}
-	return f;
+	return chan;
 }
 
 static void init_logger_chain(void)
 {
-	struct logfile *f, *cur;
+	struct logchannel *chan, *cur;
 	struct ast_config *cfg;
 	struct ast_variable *var;
 
+	/* delete our list of log channels */
 	ast_mutex_lock(&loglock);
-
-	/* Free anything that is here */
-	f = logfiles;
-	while(f) {
-		cur = f->next;
-		if (f->f && (f->f != stdout) && (f->f != stderr))
-			fclose(f->f);
-		free(f);
-		f = cur;
+	chan = logchannels;
+	while (chan) {
+	    cur = chan->next;
+	    free(chan);
+	    chan = cur;
 	}
-
-	logfiles = NULL;
-
+	logchannels = NULL;
 	ast_mutex_unlock(&loglock);
+
+	/* close syslog */
+	closelog();
+
 	cfg = ast_load("logger.conf");
-	ast_mutex_lock(&loglock);
 	
 	/* If no config file, we're fine */
-	if (!cfg) {
-		ast_mutex_unlock(&loglock);
-		return;
-	}
+	if (!cfg)
+	    return;
+
+	ast_mutex_lock(&loglock);
 	var = ast_variable_browse(cfg, "logfiles");
 	while(var) {
-		f = make_logfile(var->name, var->value, var->lineno);
-		if (f) {
-			f->next = logfiles;
-			logfiles = f;
+		chan = make_logchannel(var->name, var->value, var->lineno);
+		if (chan) {
+			chan->next = logchannels;
+			logchannels = chan;
 		}
 		var = var->next;
 	}
-	if (!logfiles) {
-		/* Gotta have at least one.  We'll make a NULL one */
-		logfiles = make_logfile("ignore", "", -1);
-	}
+
 	ast_destroy(cfg);
 	ast_mutex_unlock(&loglock);
-	
-
 }
 
 int reload_logger(int rotate)
 {
 	char old[AST_CONFIG_MAX_PATH];
 	char new[AST_CONFIG_MAX_PATH];
-	struct logfile *f;
+	struct logchannel *f;
 	FILE *myf;
 
 	int x;
 
 	ast_mutex_lock(&loglock);
 	if (eventlog) 
-	  fclose(eventlog);
+		fclose(eventlog);
 	else 
-	  rotate = 0;
+		rotate = 0;
 	eventlog = NULL;
 
 
@@ -205,50 +238,46 @@ int reload_logger(int rotate)
 
 	if(rotate) {
 		for(x=0;;x++) {
-		  snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR, EVENTLOG,x);
-		  myf = fopen((char *)new, "r");
-		  if(myf) 
-		    fclose(myf);
-		  else
-		    break;
+			snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR, EVENTLOG,x);
+			myf = fopen((char *)new, "r");
+			if(myf) 
+				fclose(myf);
+			else
+				break;
 		}
 	
-		  /* do it */
+		/* do it */
 		if (rename(old,new))
 			fprintf(stderr, "Unable to rename file '%s' to '%s'\n", old, new);
 	}
 
 	eventlog = fopen(old, "a");
 
-	f = logfiles;
+	f = logchannels;
 	while(f) {
-	  if (f->f && (f->f != stdout) && (f->f != stderr)) {
-	    fclose(f->f);
-		f->f = NULL;
-	    if(rotate) {
-		    snprintf(old, sizeof(old), "%s/%s", (char *)ast_config_AST_LOG_DIR,f->fn);
+		if (f->fileptr && (f->fileptr != stdout) && (f->fileptr != stderr)) {
+			fclose(f->fileptr);
+			f->fileptr = NULL;
+			if(rotate) {
+				strncpy(old, f->filename, sizeof(old));
 	
-		    for(x=0;;x++) {
-		      snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR,f->fn,x);
-		      myf = fopen((char *)new, "r");
-		      if(myf) 
-					fclose(myf);
-		      else
-					break;
-		    }
+				for(x=0;;x++) {
+					snprintf(new, sizeof(new), "%s.%d", f->filename, x);
+					myf = fopen((char *)new, "r");
+					if (myf) {
+						fclose(myf);
+					} else {
+						break;
+					}
+				}
 	    
-		      /* do it */
-		      if (rename(old,new))
-			  	fprintf(stderr, "Unable to rename file '%s' to '%s'\n", old, new);
-		    }
-	    
-
-	  }
-
-
-	  f = f->next;
+				/* do it */
+				if (rename(old,new))
+					fprintf(stderr, "Unable to rename file '%s' to '%s'\n", old, new);
+			}
+		}
+		f = f->next;
 	}
-
 
 	ast_mutex_unlock(&loglock);
 
@@ -275,13 +304,6 @@ static int handle_logger_reload(int fd, int argc, char *argv[])
 		return RESULT_SUCCESS;
 }
 
-
-
-
-
-
-
-
 static int handle_logger_rotate(int fd, int argc, char *argv[])
 {
 	if(reload_logger(1))
@@ -301,41 +323,33 @@ static struct verb {
 
 static char logger_reload_help[] =
 "Usage: logger reload\n"
-"       Reopens the log files.  Use after a rotating the log files\n";
-
+"       Reloads the logger subsystem state.  Use after restarting syslogd(8)\n";
 
 static char logger_rotate_help[] =
 "Usage: logger reload\n"
 "       Rotates and Reopens the log files.\n";
-
 
 static struct ast_cli_entry reload_logger_cli = 
 	{ { "logger", "reload", NULL }, 
 	handle_logger_reload, "Reopens the log files",
 	logger_reload_help };
 
-
 static struct ast_cli_entry rotate_logger_cli = 
 	{ { "logger", "rotate", NULL }, 
 	handle_logger_rotate, "Reopens the log files",
 	logger_rotate_help };
 
-
-
 static int handle_SIGXFSZ(int sig) {
-  reload_logger(1);
-  ast_log(LOG_EVENT,"Rotated Logs Per SIGXFSZ\n");
-  if (option_verbose)
-    ast_verbose("Rotated Logs Per SIGXFSZ\n");
-  
-  return 0;
+    reload_logger(1);
+    ast_log(LOG_EVENT,"Rotated Logs Per SIGXFSZ\n");
+    if (option_verbose)
+	    ast_verbose("Rotated Logs Per SIGXFSZ\n");
+    return 0;
 }
 
 int init_logger(void)
 {
-	char tmp[AST_CONFIG_MAX_PATH];
-
-
+	char tmp[256];
 
 	/* auto rotate if sig SIGXFSZ comes a-knockin */
 	(void) signal(SIGXFSZ,(void *) handle_SIGXFSZ);
@@ -343,7 +357,8 @@ int init_logger(void)
 	/* register the relaod logger cli command */
 	ast_cli_register(&reload_logger_cli);
 	ast_cli_register(&rotate_logger_cli);
-	
+
+	/* create the eventlog */
 	mkdir((char *)ast_config_AST_LOG_DIR, 0755);
 	snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_LOG_DIR, EVENTLOG);
 	eventlog = fopen((char *)tmp, "a");
@@ -355,89 +370,124 @@ int init_logger(void)
 		return 0;
 	} else 
 		ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
+
+	init_logger_chain();
+
+	/* create log channels */
 	init_logger_chain();
 	return -1;
 }
 
+static void ast_log_vsyslog(int level, const char *file, int line, const char *function, const char *fmt, va_list args) {
+    char buf[BUFSIZ];
 
-extern void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
+    if(level >= SYSLOG_NLEVELS) {
+	    /* we are locked here, so cannot ast_log() */
+	    fprintf(stderr, "ast_log_vsyslog called with bogus level: %d\n", level);
+	    return;
+    }
+    if(file && line && function) {
+	snprintf(buf, sizeof(buf), "%s[%ld]: %s:%d in %s: ",
+		 levels[level], (long)pthread_self(), file, line, function);
+    } else {
+	snprintf(buf, sizeof(buf), "VERBOSE[%ld]: ", (long)pthread_self());
+	level = __LOG_DEBUG;
+    }
+    vsnprintf(buf+strlen(buf), sizeof(buf)-strlen(buf), fmt, args);
+    syslog(syslog_level_map[level], buf);
+}
+
+/*
+ * send log messages to syslog and/or the console
+ */
+void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {
-	char date[256];
-	char tmp[80];
-	char tmp2[80];
-	char tmp3[80];
-	char tmp4[80];
-	char linestr[80];
-	time_t t;
-	struct tm tm;
-	struct logfile *f;
+    struct logchannel *chan;
+    char buf[BUFSIZ];
+    time_t t;
+    struct tm tm;
+    char date[256];
 
-	va_list ap;
-	if (!option_verbose && !option_debug && (!level)) {
-		return;
-	}
-	ast_mutex_lock(&loglock);
-	if (level == 1 /* Event */) {
+    va_list ap;
+	
+    if (!option_verbose && !option_debug && (level == __LOG_DEBUG)) {
+	return;
+    }
+
+    /* begin critical section */
+    ast_mutex_lock(&loglock);
+
+    if (level == __LOG_EVENT) {
+	    time(&t);
+	    localtime_r(&t,&tm);
+	    if (&tm) {
+		    /* Log events into the event log file, with a different format */
+		    strftime(date, sizeof(date), "%b %e %T", &tm);
+		    va_start(ap, fmt);
+
+		    fprintf(eventlog, "%s asterisk[%d]: ", date, getpid());
+		    vfprintf(eventlog, fmt, ap);
+		    fflush(eventlog);
+
+		    va_end(ap);
+	    } else
+		    /** Cannot use ast_log() from locked section of ast_log()!
+			ast_log(LOG_WARNING, "Unable to retrieve local time?\n"); **/
+		    fprintf(stderr, "ast_log: Unable to retrieve local time for %ld?\n", (long)t);
+	    ast_mutex_unlock(&loglock);
+	    return;
+    }
+
+    if (logchannels) {
+	chan = logchannels;
+	while(chan) {
+	    if (chan->syslog && (chan->logmask & (1 << level))) {
+		va_start(ap, fmt);
+		ast_log_vsyslog(level, file, line, function, fmt, ap);
+		va_end(ap);
+	    } else if ((chan->logmask & (1 << level)) && (chan->console || chan->fileptr)) {
+		char linestr[128];
+		char tmp1[80], tmp2[80], tmp3[80], tmp4[80];
+
 		time(&t);
-		localtime_r(&t,&tm);
-		if (&tm) {
-			/* Log events into the event log file, with a different format */
-			strftime(date, sizeof(date), "%b %e %T", &tm);
-			fprintf(eventlog, "%s asterisk[%d]: ", date, getpid());
-			va_start(ap, fmt);
-			vfprintf(eventlog, fmt, ap);
-			va_end(ap);
-			fflush(eventlog);
-		} else
-			/** Cannot use ast_log() from locked section of ast_log()!
-			    ast_log(LOG_WARNING, "Unable to retrieve local time?\n"); **/
-			fprintf(stderr, "ast_log: Unable to retrieve local time for %ld?\n", (long)t);
-	} else {
-		if (logfiles) {
-			f = logfiles;
-			while(f) {
-			  if (f->logflags & (1 << level) && f->facility) {
-			    time(&t);
-			    localtime_r(&t,&tm);
-			    strftime(date, sizeof(date), "%b %e %T", &tm);
-			    
-			    openlog("asterisk_pbx",LOG_PID,f->facility);
-			    syslog(LOG_INFO|f->facility,"%s %s[%ld]: File %s, Line %d (%s): ",date, 
-				   levels[level], (long)pthread_self(), file, line, function);
-			    closelog();
-
-			  }
-			  else if (f->logflags & (1 << level) && f->f) {
-					if ((f->f != stdout) && (f->f != stderr)) {
-						time(&t);
-						localtime_r(&t,&tm);
-						strftime(date, sizeof(date), "%b %e %T", &tm);
-						fprintf(f->f, "%s %s[%ld]: File %s, Line %d (%s): ", date, levels[level], (long)pthread_self(), file, line, function);
-					} else {
-						sprintf(linestr, "%d", line);
-						fprintf(f->f, "%s[%ld]: File %s, Line %s (%s): ",
-																term_color(tmp, levels[level], colors[level], 0, sizeof(tmp)),
-																(long)pthread_self(),
-																term_color(tmp2, file, COLOR_BRWHITE, 0, sizeof(tmp2)),
-																term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
-																term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
-					}
-					va_start(ap, fmt);
-					vfprintf(f->f, fmt, ap);
-					va_end(ap);
-					fflush(f->f);
-				}
-				f = f->next;
-			}
-		} else {
-			fprintf(stdout, "%s[%ld]: File %s, Line %d (%s): ", levels[level], (long)pthread_self(), file, line, function);
-			va_start(ap, fmt);
-			vfprintf(stdout, fmt, ap);
-			va_end(ap);
-			fflush(stdout);
+		localtime_r(&t, &tm);
+		if(!&tm) {
+		    /** Cannot use ast_log() from locked section of ast_log()!
+			ast_log(AST_LOG_WARNING, "Unable to retrieve local time?\n"); **/
+		    fprintf(stderr, "ast_log: Unable to retrieve local time for %ld?\n", (long)t);
+		    ast_mutex_unlock(&loglock);
+		    return;
 		}
+		strftime(date, sizeof(date), "%b %e %T", &tm);
+
+		sprintf(linestr, "%d", line);
+		snprintf(buf, sizeof(buf), "%s %s[%ld]: %s:%s %s: ",
+			 date,
+			 term_color(tmp1, levels[level], colors[level], 0, sizeof(tmp1)),
+			 (long)pthread_self(),
+			 term_color(tmp2, file, COLOR_BRWHITE, 0, sizeof(tmp2)),
+			 term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
+			 term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
+
+		if (chan->console)
+			ast_console_puts(buf);
+		else
+			fprintf(chan->fileptr, buf);
+		va_start(ap, fmt);
+		vsnprintf(buf, sizeof(buf), fmt, ap);
+		va_end(ap);
+		if (chan->console)
+			ast_console_puts(buf);
+		else
+			fprintf(chan->fileptr, buf);
+
+	    }
+	    chan = chan->next;
 	}
-	ast_mutex_unlock(&loglock);
+    }
+
+    ast_mutex_unlock(&loglock);
+    /* end critical section */
 }
 
 extern void ast_verbose(const char *fmt, ...)
@@ -498,6 +548,13 @@ extern void ast_verbose(const char *fmt, ...)
 	else 
 		replacelast = pos = 0;
 	va_end(ap);
+
+	va_start(ap, fmt);
+	if(stuff[strlen(stuff)-1] == '\n')
+	    stuff[strlen(stuff)-1] = '\0';
+	ast_log_vsyslog(0, NULL, 0, NULL, fmt, ap);
+	va_end(ap);
+
 	ast_mutex_unlock(&msglist_lock);
 }
 

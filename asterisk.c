@@ -148,13 +148,34 @@ static int fdprint(int fd, const char *s)
 	return write(fd, s, strlen(s) + 1);
 }
 
-static void network_verboser(const char *s, int pos, int replace, int complete)
+/*
+ * write the string to all attached console clients
+ */
+static void ast_network_puts(const char *string)
 {
-	int x;
-	for (x=0;x<AST_MAX_CONNECTS; x++) {
-		if (consoles[x].fd > -1) 
-			fdprint(consoles[x].p[1], s);
-	}
+    int x;
+    for (x=0;x<AST_MAX_CONNECTS; x++) {
+	if (consoles[x].fd > -1) 
+	    fdprint(consoles[x].p[1], string);
+    }
+}
+
+
+/*
+ * write the string to the console, and all attached
+ * console clients
+ */
+void ast_console_puts(const char *string)
+{
+    fputs(string, stdout);
+    fflush(stdout);
+    ast_network_puts(string);
+}
+
+static void network_verboser(const char *s, int pos, int replace, int complete)
+     /* ARGUSED */
+{
+    ast_network_puts(s);
 }
 
 static pthread_t lthread;

@@ -54,13 +54,39 @@ extern void ast_verbose(const char *fmt, ...)
 extern int ast_register_verbose(void (*verboser)(const char *string, int opos, int replacelast, int complete));
 extern int ast_unregister_verbose(void (*verboser)(const char *string, int opos, int replacelast, int complete));
 extern int ast_verbose_dmesg(void (*verboser)(const char *string, int opos, int replacelast, int complete));
+extern void ast_console_puts(const char *string);
+
 #define _A_ __FILE__, __LINE__, __PRETTY_FUNCTION__
 
-#define LOG_DEBUG	0, _A_
-#define LOG_EVENT   1, _A_
-#define LOG_NOTICE  2, _A_
-#define LOG_WARNING 3, _A_
-#define LOG_ERROR	4, _A_
+#ifdef LOG_DEBUG
+#undef LOG_DEBUG
+#endif
+#define __LOG_DEBUG    0
+#define LOG_DEBUG      __LOG_DEBUG, _A_
+
+#ifdef LOG_EVENT
+#undef LOG_EVENT
+#endif
+#define __LOG_EVENT    1
+#define LOG_EVENT      __LOG_EVENT, _A_
+
+#ifdef LOG_NOTICE
+#undef LOG_NOTICE
+#endif
+#define __LOG_NOTICE   2
+#define LOG_NOTICE     __LOG_NOTICE, _A_
+
+#ifdef LOG_WARNING
+#undef LOG_WARNING
+#endif
+#define __LOG_WARNING  3
+#define LOG_WARNING    __LOG_WARNING, _A_
+
+#ifdef LOG_ERROR
+#undef LOG_ERROR
+#endif
+#define __LOG_ERROR    4
+#define LOG_ERROR      __LOG_ERROR, _A_
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
