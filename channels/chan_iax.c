@@ -54,6 +54,10 @@
 #define IPTOS_MINCOST 0x02
 #endif
 
+#define IAX_CONF_FILE	"iax1.conf"
+/* Deprecated old configuration file */
+#define IAX_OLD_CONF_FILE	"iax.conf"
+
 /*
  * Uncomment to try experimental IAX bridge optimization,
  * designed to reduce latency when IAX calls cannot
@@ -4662,7 +4666,7 @@ static struct iax_peer *build_peer(char *name, struct ast_variable *v)
 				} else if (!strcasecmp(v->value, "yes")) {
 					peer->maxms = DEFAULT_MAXMS;
 				} else if (sscanf(v->value, "%d", &peer->maxms) != 1) {
-					ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
+					ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of " IAX_CONF_FILE "\n", peer->name, v->lineno);
 					peer->maxms = 0;
 				}
 			} //else if (strcasecmp(v->name,"type"))
@@ -4963,14 +4967,17 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 
 static int reload_config(void)
 {
-	char *config = "iax.conf";
+	char *config = IAX_CONF_FILE;
 	struct iax_registry *reg;
 	struct sockaddr_in dead_sin;
 	strncpy(accountcode, "", sizeof(accountcode)-1);
 	amaflags = 0;
 	srand(time(NULL));
 	delete_users();
-	set_config(config,&dead_sin);
+	if (set_config(config,&dead_sin) == -1) {
+		config = IAX_OLD_CONF_FILE;
+		set_config(config,&dead_sin);
+	}
 	prune_peers();
 	for (reg = registrations; reg; reg = reg->next)
 		iax_do_register(reg);
@@ -5360,7 +5367,7 @@ int unload_module()
 
 int load_module(void)
 {
-	char *config = "iax.conf";
+	char *config = IAX_CONF_FILE;
 	int res = 0;
 	int x;
 	struct iax_registry *reg;
@@ -5403,7 +5410,10 @@ int load_module(void)
 
 	ast_manager_register( "IAXpeers", 0, manager_iax_show_peers, "List IAX Peers" );
 
-	set_config(config,&sin);
+	if (set_config(config,&sin) == -1) {
+		config = IAX_OLD_CONF_FILE;
+		set_config(config,&sin);
+	}
 
 	/* Make a UDP socket */
 	netsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
