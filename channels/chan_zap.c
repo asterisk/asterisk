@@ -5189,7 +5189,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 		return NULL;
 	}
 	if (data) {
-		dest = strdup((char *)data);
+		dest = strdupa((char *)data);
 	} else {
 		ast_log(LOG_WARNING, "Channel requested with no data\n");
 		return NULL;
@@ -5201,7 +5201,6 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 		s = strsep(&stringp, "/");
 		if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1) {
 			ast_log(LOG_WARNING, "Unable to determine group for data %s\n", (char *)data);
-			free(dest);
 			return NULL;
 		}
 		groupmatch = 1 << x;
@@ -5216,7 +5215,6 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 			x = CHAN_PSEUDO;
 		} else if ((res = sscanf(s, "%d%c%d", &x, &opt, &y)) < 1) {
 			ast_log(LOG_WARNING, "Unable to determine channel for data %s\n", (char *)data);
-			free(dest);
 			return NULL;
 		}
 		channelmatch = x;
