@@ -3124,19 +3124,24 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 			}
 			newpassword[1] = '\0';
 			newpassword[0] = cmd = ast_play_and_wait(chan,"vm-newpassword");
-			if (cmd < 0)
-				break;
-			if ((cmd = ast_readstring(chan,newpassword + strlen(newpassword),sizeof(newpassword)-1,2000,10000,"#")) < 0) {
-				break;
-            }
+			if (cmd == '#')
+				newpassword[0] = '\0';
+			else {
+				if (cmd < 0)
+					break;
+				if ((cmd = ast_readstring(chan,newpassword + strlen(newpassword),sizeof(newpassword)-1,2000,10000,"#")) < 0)
+					break;
+			}
 			newpassword2[1] = '\0';
 			newpassword2[0] = cmd = ast_play_and_wait(chan,"vm-reenterpassword");
-			if (cmd < 0)
-				break;
-
-			if ((cmd = ast_readstring(chan,newpassword2 + strlen(newpassword2),sizeof(newpassword2)-1,2000,10000,"#"))) {
-				break;
-            }
+			if (cmd == '#')
+				newpassword2[0] = '\0';
+			else {
+				if (cmd < 0)
+					break;
+				if ((cmd = ast_readstring(chan,newpassword2 + strlen(newpassword2),sizeof(newpassword2)-1,2000,10000,"#")))
+					break;
+                        }
 			if (strcmp(newpassword, newpassword2)) {
 				ast_log(LOG_NOTICE,"Password mismatch for user %s (%s != %s)\n", vms->username, newpassword, newpassword2);
 				cmd = ast_play_and_wait(chan, "vm-mismatch");
