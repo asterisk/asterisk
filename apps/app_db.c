@@ -30,21 +30,21 @@
 static char *tdesc = "Database access functions for Asterisk extension logic";
 
 static char *g_descrip =
-  "  DBget(varname=family/key): Retrieves a value from the Asterisk\n"
-  "database and stores it in the given variable.  Always returns 0.  If the\n"
-  "requested key is not found, jumps to priority n+101 if available.\n";
+	"  DBget(varname=family/key): Retrieves a value from the Asterisk\n"
+	"database and stores it in the given variable.  Always returns 0.  If the\n"
+	"requested key is not found, jumps to priority n+101 if available.\n";
 
 static char *p_descrip =
-  "  DBput(family/key=value): Stores the given value in the Asterisk\n"
-  "database.  Always returns 0.\n";
+	"  DBput(family/key=value): Stores the given value in the Asterisk\n"
+	"database.  Always returns 0.\n";
 
 static char *d_descrip =
-  "  DBdel(family/key): Deletes a key from the Asterisk database.  Always\n"
-  "returns 0.\n";
+	"  DBdel(family/key): Deletes a key from the Asterisk database.  Always\n"
+	"returns 0.\n";
 
 static char *dt_descrip =
-  "  DBdeltree(family[/keytree]): Deletes a family or keytree from the Asterisk\n"
-  "database.  Always returns 0.\n";
+	"  DBdeltree(family[/keytree]): Deletes a family or keytree from the Asterisk\n"
+	"database.  Always returns 0.\n";
 
 static char *g_app = "DBget";
 static char *p_app = "DBput";
@@ -60,255 +60,196 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-
-static int
-deltree_exec (struct ast_channel *chan, void *data)
+static int deltree_exec (struct ast_channel *chan, void *data)
 {
-  int arglen;
-  char *argv, *family, *keytree;
+	int arglen;
+	char *argv, *family, *keytree;
 
-  arglen = strlen (data);
-  argv = alloca (arglen + 1);
-  if (!argv)			/* Why would this fail? */
-    {
-      ast_log (LOG_DEBUG, "Memory allocation failed\n");
-      return 0;
-    }
-  memcpy (argv, data, arglen + 1);
-
-  if (strchr (argv, '/')) {
-    {
-      family = strsep (&argv, "/");
-      keytree = strsep (&argv, "\0");
-      if (!family || !keytree)
-	{
-	  ast_log (LOG_DEBUG, "Ignoring; Syntax error in argument\n");
-	  return 0;
+	arglen = strlen (data);
+	argv = alloca (arglen + 1);
+	if (!argv) {	/* Why would this fail? */
+		ast_log (LOG_DEBUG, "Memory allocation failed\n");
+		return 0;
 	}
-      if (!strlen (keytree))
-	keytree = 0;
-    }
-  } else
-    {
-      family = argv;
-      keytree = 0;
-    }
+	memcpy (argv, data, arglen + 1);
 
-  if (option_verbose > 2)
-    {
-    if (keytree)
-      ast_verbose (VERBOSE_PREFIX_3 "DBdeltree: family=%s, keytree=%s\n",
-		   family, keytree);
-    else
-      ast_verbose (VERBOSE_PREFIX_3 "DBdeltree: family=%s\n", family);
-    }
-
-  if (ast_db_deltree (family, keytree))
-    {
-      if (option_verbose > 2)
-	ast_verbose (VERBOSE_PREFIX_3
-		     "DBdeltree: Error deleting key from database.\n");
-    }
-
-  return 0;
-}
-
-
-static int
-del_exec (struct ast_channel *chan, void *data)
-{
-  int arglen;
-  char *argv, *family, *key;
-
-  arglen = strlen (data);
-  argv = alloca (arglen + 1);
-  if (!argv)			/* Why would this fail? */
-    {
-      ast_log (LOG_DEBUG, "Memory allocation failed\n");
-      return 0;
-    }
-  memcpy (argv, data, arglen + 1);
-
-  if (strchr (argv, '/'))
-    {
-      family = strsep (&argv, "/");
-      key = strsep (&argv, "\0");
-      if (!family || !key)
-	{
-	  ast_log (LOG_DEBUG, "Ignoring; Syntax error in argument\n");
-	  return 0;
-	}
-      if (option_verbose > 2)
-	ast_verbose (VERBOSE_PREFIX_3
-		     "DBdel: family=%s, key=%s\n", family, key);
-      if (ast_db_del (family, key))
-	{
-	  if (option_verbose > 2)
-	    ast_verbose (VERBOSE_PREFIX_3
-			 "DBdel: Error deleting key from database.\n");
-	}
-    }
-  else
-    {
-      ast_log (LOG_DEBUG, "Ignoring, no parameters\n");
-    }
-
-  return 0;
-}
-
-static int
-put_exec (struct ast_channel *chan, void *data)
-{
-  int arglen;
-  char *argv, *value, *family, *key;
-
-  arglen = strlen (data);
-  argv = alloca (arglen + 1);
-  if (!argv)			/* Why would this fail? */
-    {
-      ast_log (LOG_DEBUG, "Memory allocation failed\n");
-      return 0;
-    }
-  memcpy (argv, data, arglen + 1);
-
-  if (strchr (argv, '/') && strchr (argv, '='))
-    {
-      family = strsep (&argv, "/");
-      key = strsep (&argv, "=");
-      value = strsep (&argv, "\0");
-      if (!value || !family || !key)
-	{
-	  ast_log (LOG_DEBUG, "Ignoring; Syntax error in argument\n");
-	  return 0;
-	}
-      if (option_verbose > 2)
-	ast_verbose (VERBOSE_PREFIX_3
-		     "DBput: family=%s, key=%s, value=%s\n", family, key,
-		     value);
-      if (ast_db_put (family, key, value))
-	{
-	  if (option_verbose > 2)
-	    ast_verbose (VERBOSE_PREFIX_3
-			 "DBput: Error writing value to database.\n");
+	if (strchr (argv, '/')) {
+		family = strsep (&argv, "/");
+		keytree = strsep (&argv, "\0");
+			if (!family || !keytree) {
+				ast_log (LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+				return 0;
+			}
+		if (!strlen (keytree))
+			keytree = 0;
+	} else {
+		family = argv;
+		keytree = 0;
 	}
 
-    }
-  else
-    {
-      ast_log (LOG_DEBUG, "Ignoring, no parameters\n");
-    }
-
-  return 0;
-}
-
-static int
-get_exec (struct ast_channel *chan, void *data)
-{
-  int arglen;
-  char *argv, *varname, *family, *key;
-  char dbresult[256];
-
-  arglen = strlen (data);
-  argv = alloca (arglen + 1);
-  if (!argv)			/* Why would this fail? */
-    {
-      ast_log (LOG_DEBUG, "Memory allocation failed\n");
-      return 0;
-    }
-  memcpy (argv, data, arglen + 1);
-
-  if (strchr (argv, '=') && strchr (argv, '/'))
-    {
-      varname = strsep (&argv, "=");
-      family = strsep (&argv, "/");
-      key = strsep (&argv, "\0");
-      if (!varname || !family || !key)
-	{
-	  ast_log (LOG_DEBUG, "Ignoring; Syntax error in argument\n");
-	  return 0;
-	}
-      if (option_verbose > 2)
-	ast_verbose (VERBOSE_PREFIX_3
-		     "DBget: varname=%s, family=%s, key=%s\n", varname,
-		     family, key);
-      if (!ast_db_get (family, key, dbresult, sizeof (dbresult) - 1))
-	{
-	  pbx_builtin_setvar_helper (chan, varname, dbresult);
-	  if (option_verbose > 2)
-	    ast_verbose (VERBOSE_PREFIX_3
-			 "DBget: set variable %s to %s\n", varname, dbresult);
-	}
-      else
-	{
-	  if (option_verbose > 2)
-	    ast_verbose (VERBOSE_PREFIX_3
-			 "DBget: Value not found in database.\n");
-	  /* Send the call to n+101 priority, where n is the current priority */
-	  if (ast_exists_extension
-	      (chan, chan->context, chan->exten, chan->priority + 101,
-	       chan->callerid))
-	    chan->priority += 100;
+	if (option_verbose > 2)	{
+		if (keytree)
+			ast_verbose (VERBOSE_PREFIX_3 "DBdeltree: family=%s, keytree=%s\n", family, keytree);
+		else
+			ast_verbose (VERBOSE_PREFIX_3 "DBdeltree: family=%s\n", family);
 	}
 
-    }
-  else
-    {
-      ast_log (LOG_DEBUG, "Ignoring, no parameters\n");
-    }
+	if (ast_db_deltree (family, keytree)) {
+		if (option_verbose > 2)
+			ast_verbose (VERBOSE_PREFIX_3 "DBdeltree: Error deleting key from database.\n");
+	}
 
-  return 0;
+	return 0;
 }
 
-int
-unload_module (void)
+static int del_exec (struct ast_channel *chan, void *data)
 {
-  int retval;
+	int arglen;
+	char *argv, *family, *key;
 
-  STANDARD_HANGUP_LOCALUSERS;
-  retval = ast_unregister_application (dt_app);
-  retval |= ast_unregister_application (d_app);
-  retval |= ast_unregister_application (p_app);
-  retval |= ast_unregister_application (g_app);
+	arglen = strlen (data);
+	argv = alloca (arglen + 1);
+	if (!argv) {	/* Why would this fail? */
+		ast_log (LOG_DEBUG, "Memory allocation failed\n");
+		return 0;
+	}
+	memcpy (argv, data, arglen + 1);
 
-  return retval;
+	if (strchr (argv, '/')) {
+		family = strsep (&argv, "/");
+		key = strsep (&argv, "\0");
+		if (!family || !key) {
+			ast_log (LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+			return 0;
+		}
+		if (option_verbose > 2)
+			ast_verbose (VERBOSE_PREFIX_3 "DBdel: family=%s, key=%s\n", family, key);
+		if (ast_db_del (family, key)) {
+			if (option_verbose > 2)
+				ast_verbose (VERBOSE_PREFIX_3 "DBdel: Error deleting key from database.\n");
+		}
+	} else {
+		ast_log (LOG_DEBUG, "Ignoring, no parameters\n");
+	}
+	return 0;
 }
 
-int
-load_module (void)
+static int put_exec (struct ast_channel *chan, void *data)
 {
-  int retval;
+	int arglen;
+	char *argv, *value, *family, *key;
 
-  retval = ast_register_application (g_app, get_exec, g_synopsis, g_descrip);
-  if (!retval)
-    retval =
-      ast_register_application (p_app, put_exec, p_synopsis, p_descrip);
-  if (!retval)
-    retval =
-      ast_register_application (d_app, del_exec, d_synopsis, d_descrip);
-  if (!retval)
-    retval =
-      ast_register_application (dt_app, deltree_exec, dt_synopsis,
-				dt_descrip);
+	arglen = strlen (data);
+	argv = alloca (arglen + 1);
+	if (!argv) {	/* Why would this fail? */
+		ast_log (LOG_DEBUG, "Memory allocation failed\n");
+		return 0;
+	}
+	memcpy (argv, data, arglen + 1);
 
-  return retval;
+	if (strchr (argv, '/') && strchr (argv, '=')) {
+		family = strsep (&argv, "/");
+		key = strsep (&argv, "=");
+		value = strsep (&argv, "\0");
+		if (!value || !family || !key) {
+			ast_log (LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+			return 0;
+		}
+		if (option_verbose > 2)
+			ast_verbose (VERBOSE_PREFIX_3 "DBput: family=%s, key=%s, value=%s\n", family, key, value);
+		if (ast_db_put (family, key, value)) {
+			if (option_verbose > 2)
+				ast_verbose (VERBOSE_PREFIX_3 "DBput: Error writing value to database.\n");
+		}
+
+	} else	{
+		ast_log (LOG_DEBUG, "Ignoring, no parameters\n");
+	}
+	return 0;
 }
 
-char *
-description (void)
+static int get_exec (struct ast_channel *chan, void *data)
 {
-  return tdesc;
+	int arglen;
+	char *argv, *varname, *family, *key;
+	char dbresult[256];
+
+	arglen = strlen (data);
+	argv = alloca (arglen + 1);
+	if (!argv) {	/* Why would this fail? */
+		ast_log (LOG_DEBUG, "Memory allocation failed\n");
+		return 0;
+	}
+	memcpy (argv, data, arglen + 1);
+
+	if (strchr (argv, '=') && strchr (argv, '/')) {
+		varname = strsep (&argv, "=");
+		family = strsep (&argv, "/");
+		key = strsep (&argv, "\0");
+		if (!varname || !family || !key) {
+			ast_log (LOG_DEBUG, "Ignoring; Syntax error in argument\n");
+			return 0;
+		}
+		if (option_verbose > 2)
+			ast_verbose (VERBOSE_PREFIX_3 "DBget: varname=%s, family=%s, key=%s\n", varname, family, key);
+		if (!ast_db_get (family, key, dbresult, sizeof (dbresult) - 1)) {
+			pbx_builtin_setvar_helper (chan, varname, dbresult);
+			if (option_verbose > 2)
+				ast_verbose (VERBOSE_PREFIX_3 "DBget: set variable %s to %s\n", varname, dbresult);
+		} else {
+			if (option_verbose > 2)
+			ast_verbose (VERBOSE_PREFIX_3 "DBget: Value not found in database.\n");
+			/* Send the call to n+101 priority, where n is the current priority */
+			if (ast_exists_extension (chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
+				chan->priority += 100;
+		}
+
+	} else {
+		ast_log (LOG_DEBUG, "Ignoring, no parameters\n");
+	}
+	return 0;
 }
 
-int
-usecount (void)
+int unload_module (void)
 {
-  int res;
-  STANDARD_USECOUNT (res);
-  return res;
+	int retval;
+
+	STANDARD_HANGUP_LOCALUSERS;
+	retval = ast_unregister_application (dt_app);
+	retval |= ast_unregister_application (d_app);
+	retval |= ast_unregister_application (p_app);
+	retval |= ast_unregister_application (g_app);
+
+	return retval;
 }
 
-char *
-key ()
+int load_module (void)
 {
-  return ASTERISK_GPL_KEY;
+	int retval;
+
+	retval = ast_register_application (g_app, get_exec, g_synopsis, g_descrip);
+	if (!retval)
+		retval = ast_register_application (p_app, put_exec, p_synopsis, p_descrip);
+	if (!retval)
+		retval = ast_register_application (d_app, del_exec, d_synopsis, d_descrip);
+	if (!retval)
+		retval = ast_register_application (dt_app, deltree_exec, dt_synopsis, dt_descrip);
+	return retval;
+}
+
+char *description (void)
+{
+	return tdesc;
+}
+
+int usecount (void)
+{
+	int res;
+	STANDARD_USECOUNT (res);
+	return res;
+}
+
+char *key ()
+{
+	return ASTERISK_GPL_KEY;
 }

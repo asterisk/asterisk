@@ -49,18 +49,14 @@ PGresult	*result;
 static int pgsql_log(struct ast_cdr *cdr)
 {
 	struct tm tm;
-	struct timeval tv;
 	char sqlcmd[2048], timestr[128];
-	time_t t;
-        char *pgerror;
+	char *pgerror;
 
 	ast_mutex_lock(&pgsql_lock);
 
 	memset(sqlcmd,0,2048);
 
-	gettimeofday(&tv,NULL);
-	t = tv.tv_sec;
-	localtime_r(&t,&tm);
+	localtime_r(&cdr->start.tv_sec,&tm);
 	strftime(timestr,128,DATE_FORMAT,&tm);
 
 	if ((!connected) && pghostname && pgdbuser && pgpassword && pgdbname) {
