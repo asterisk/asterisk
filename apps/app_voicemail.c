@@ -1928,6 +1928,9 @@ forward_message(struct ast_channel *chan, char *context, char *dir, int curmsg, 
 			strncpy(tmp, fmt, sizeof(tmp));
 			stringp = tmp;
 			while((s = strsep(&stringp, "|"))) {
+				/* XXX This is a hack -- we should use build_filename or similar XXX */
+				if (!strcasecmp(s, "wav49"))
+					s = "WAV";
 				snprintf(sys, sizeof(sys), "cp %s/msg%04d.%s %s/msg%04d.%s\n", dir, curmsg, s, todir, todircount, s);
 				ast_log(LOG_DEBUG, sys);
 				system(sys);
