@@ -377,6 +377,18 @@ int ast_cdr_setaccount(struct ast_channel *chan, char *account)
 	return 0;
 }
 
+int ast_cdr_setamaflags(struct ast_channel *chan, char *flag)
+{
+	struct ast_cdr *cdr = chan->cdr;
+	int newflag;
+
+	newflag = ast_cdr_amaflags2int(flag);
+	if (newflag) {
+		cdr->amaflags = newflag;
+	}
+	return 0;
+}
+
 int ast_cdr_setuserfield(struct ast_channel *chan, char *userfield)
 {
 	struct ast_cdr *cdr = chan->cdr;

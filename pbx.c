@@ -166,6 +166,7 @@ static int pbx_builtin_waitexten(struct ast_channel *, void *);
 static int pbx_builtin_setlanguage(struct ast_channel *, void *);
 static int pbx_builtin_resetcdr(struct ast_channel *, void *);
 static int pbx_builtin_setaccount(struct ast_channel *, void *);
+static int pbx_builtin_setamaflags(struct ast_channel *, void *);
 static int pbx_builtin_ringing(struct ast_channel *, void *);
 static int pbx_builtin_progress(struct ast_channel *, void *);
 static int pbx_builtin_congestion(struct ast_channel *, void *);
@@ -318,6 +319,11 @@ static struct pbx_builtin {
 	{ "SetAccount", pbx_builtin_setaccount,
 "Sets account code",
 "  SetAccount([account]):  Set  the  channel account code for billing\n"
+"purposes. Always returns 0.\n"  },
+
+	{ "SetAMAFlags", pbx_builtin_setamaflags,
+"Sets AMA Flags",
+"  SetAMAFlags([flag]):  Set  the  channel AMA Flags for billing\n"
 "purposes. Always returns 0.\n"  },
 
 	{ "SetGlobalVar", pbx_builtin_setglobalvar,
@@ -4267,11 +4273,21 @@ static int pbx_builtin_resetcdr(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_setaccount(struct ast_channel *chan, void *data)
 {
-	/* Copy the language as specified */
+	/* Copy the account code  as specified */
 	if (data)
 		ast_cdr_setaccount(chan, (char *)data);
 	else
 		ast_cdr_setaccount(chan, "");
+	return 0;
+}
+
+static int pbx_builtin_setamaflags(struct ast_channel *chan, void *data)
+{
+	/* Copy the AMA Flags as specified */
+	if (data)
+		ast_cdr_setamaflags(chan, (char *)data);
+	else
+		ast_cdr_setamaflags(chan, "");
 	return 0;
 }
 
