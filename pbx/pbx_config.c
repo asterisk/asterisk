@@ -462,7 +462,7 @@ static int fix_complete_args(char *line, char **word, int *pos)
 static char *complete_context_remove_extension(char *line, char *word, int pos,
 	int state)
 {
-	char *ret;
+	char *ret = NULL;
 	int which = 0;
 
 #ifdef BROKEN_READLINE
