@@ -31,13 +31,17 @@ static char *app = "Read";
 static char *synopsis = "Read a variable";
 
 static char *descrip = 
-"  Read(variable[|filename][|maxdigits]):  Reads a #-terminated string of digits from\n"
-"the user, optionally playing a given filename first.  Returns -1 on hangup or\n"
-"error and 0 otherwise.\n"
-"  maxdigits   -- maximum acceptable number of digits. Stops reading after maxdigits\n"
-"                 have been entered (without requiring the user press the '#' key).\n"
-"                 Defaults to 0 - no limit - wait for the user press the '#' key.\n"
-"                 Any value below 0 means the same. Max accepted value is 255.\n";	
+"  Read(variable[|filename][|maxdigits][|option])\n\n"
+"Reads a #-terminated string of digits from the user in to the given variable,\n"
+"optionally playing a given filename first.\n"
+"  maxdigits  -- maximum acceptable number of digits. Stops reading after\n"
+"                maxdigits have been entered (without requiring the user to\n"
+"                press the '#' key).\n"
+"                Defaults to 0 - no limit - wait for the user press the '#' key.\n"
+"                Any value below 0 means the same. Max accepted value is 255.\n"
+"  option     -- may be 'skip' to return immediately if the line is not up,\n"
+"                or 'noanswer' to read digits even if the line is not up.\n\n"
+"Returns -1 on hangup or error and 0 otherwise.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -48,21 +52,29 @@ static int read_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct localuser *u;
 	char tmp[256];
+	char argdata[256] = "";
 	char *varname;
 	char *filename;
 	char *stringp;
 	char *maxdigitstr;
+	char *options;
+	int option_skip = 0;
+	int option_noanswer = 0;
 	int maxdigits=255;
 	if (!data || ast_strlen_zero((char *)data)) {
 		ast_log(LOG_WARNING, "Read requires an argument (variable)\n");
 		return -1;
 	}
-	strncpy(tmp, (char *)data, sizeof(tmp)-1);
-	stringp=(char *)calloc(1,strlen(tmp)+1);
-	snprintf(stringp,strlen(tmp)+1,"%s",tmp);
+	strncpy(argdata, (char *)data, sizeof(argdata)-1);
+	stringp=argdata;
 	varname = strsep(&stringp, "|");
 	filename = strsep(&stringp, "|");
 	maxdigitstr = strsep(&stringp,"|");
+	options = strsep(&stringp, "|");
+	if (options && !strcasecmp(options, "skip"))
+		option_skip = 1;
+	if (options && !strcasecmp(options, "noanswer"))
+		option_noanswer = 1;
 	if (!(filename) || ast_strlen_zero(filename)) 
 		filename = NULL;
 	if (maxdigitstr) {
@@ -78,10 +90,16 @@ static int read_exec(struct ast_channel *chan, void *data)
 	}
 	LOCAL_USER_ADD(u);
 	if (chan->_state != AST_STATE_UP) {
-		/* Answer if the line isn't up. */
-		res = ast_answer(chan);
+		if (option_skip) {
+			/* At the user's option, skip if the line is not up */
+			pbx_builtin_setvar_helper(chan, varname, "\0");
+			LOCAL_USER_REMOVE(u);
+			return 0;
+		} else if (!option_noanswer) {
+			/* Otherwise answer unless we're supposed to read while on-hook */
+			res = ast_answer(chan);
+		}
 	}
-	strncpy(tmp, (char *)varname, sizeof(tmp)-1);
 	if (!res) {
 		ast_stopstream(chan);
 		res = ast_app_getdata(chan, filename, tmp, maxdigits, 0);

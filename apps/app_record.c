@@ -29,10 +29,15 @@ static char *app = "Record";
 static char *synopsis = "Record to a file";
 
 static char *descrip = 
-"  Record(filename:format|silence): Records from the channel into a given\n"
-"filename. If the file exists it will be overwritten. \n"
+"  Record(filename:format|silence[|maxduration][|option])\n\n"
+"Records from the channel into a given filename. If the file exists it will\n"
+"be overwritten.\n"
 "- 'format' is the format of the file type to be recorded (wav, gsm, etc).\n"
-"- 'silence' is the number of seconds of silence to allow before returning.\n\n"
+"- 'silence' is the number of seconds of silence to allow before returning.\n"
+"- 'maxduration' is the maximum recording duration in seconds. If missing\n"
+"or 0 there is no maximum.\n"
+"- 'option' may be 'skip' to return immediately if the line is not up,\n"
+"or 'noanswer' to attempt to record even if the line is not up.\n\n"
 "If filename contains '%d', these characters will be replaced with a number\n"
 "incremented by one each time the file is recorded. \n\n"
 "Formats: g723, g729, gsm, h263, ulaw, alaw, vox, wav, WAV\n\n"
@@ -65,7 +70,13 @@ static int record_exec(struct ast_channel *chan, void *data)
 	int silence = 0;		/* amount of silence to allow */
 	int gotsilence = 0;		/* did we timeout for silence? */
 	char silencestr[5];
-	int k = 0;
+	char durationstr[8];
+	int maxduration = 0;		/* max duration of recording */
+	int gottimeout = 0;		/* did we timeout for maxduration exceeded? */
+	time_t timeout = 0;
+	char option[16];
+	int option_skip = 0;
+	int option_noanswer = 0;
 	int rfmt = 0;
 
 	vdata = data; /* explained above */
@@ -80,50 +91,90 @@ static int record_exec(struct ast_channel *chan, void *data)
 		if ((vdata[i] == '%') && (vdata[i+1] == 'd')) {
 			percentflag = 1;                      /* the wildcard is used */
 		}
-		
-		if (i == strlen(vdata) ) {
-			ast_log(LOG_WARNING, "No extension found\n");
-			return -1;
-		}
-		fil[i] = vdata[i];
+		if (j < sizeof(fil) - 1)
+			fil[j++] = vdata[i];
 	}
-	fil[i++] = '\0';
+	fil[j] = '\0';
 
-	for (; j < 10 && i < strlen(data) && (vdata[i] != '|'); i++, j++)
-		ext[j] = vdata[i];
+	if (vdata[i] != ':') {
+		ast_log(LOG_WARNING, "No extension found\n");
+		return -1;
+	}
+	i++;
+
+	j = 0;
+	for (; vdata[i] && (vdata[i] != '|'); i++)
+		if (j < sizeof(ext) - 1)
+			ext[j++] = vdata[i];
 	ext[j] = '\0';
 
-	if (vdata[i] && (vdata[i] == '|')) i++;
-	for (; vdata[i] && (vdata[i] != '|') && (k < 3) && i < strlen(data); i++, k++)
-		silencestr[k] = vdata[i];
-	silencestr[k] = '\0';
+	if (vdata[i] == '|')
+		i++;
 
-	if (silencestr) {
+	j = 0;
+	for (; vdata[i] && (vdata[i] != '|'); i++)
+		if (j < sizeof(silencestr) - 1)
+			silencestr[j++] = vdata[i];
+	silencestr[j] = '\0';
+
+	if (j > 0) {
 		silence = atoi(silencestr);
 		if (silence > 0)
 			silence *= 1000;
 	}
 
+	if (vdata[i] == '|')
+		i++;
+
+	j = 0;
+	for (; vdata[i] && (vdata[i] != '|'); i++)
+		if (j < sizeof(durationstr) - 1)
+			durationstr[j++] = vdata[i];
+	durationstr[j] = '\0';
+
+	if (j > 0)
+		maxduration = atoi(durationstr);
+
+	if (vdata[i] == '|')
+		i++;
+
+	j = 0;
+	for (; vdata[i] && (vdata[i] != '|'); i++)
+		if (j < sizeof(option) - 1)
+			option[j++] = vdata[i];
+	option[j] = '\0';
+
+	if (!strcasecmp(option, "skip"))
+		option_skip = 1;
+	if (!strcasecmp(option, "noanswer"))
+		option_noanswer = 1;
+
 	/* done parsing */
-	
+
 	
 	/* these are to allow the use of the %d in the config file for a wild card of sort to
 	  create a new file with the inputed name scheme */
 	if (percentflag) {
 		do {
-			snprintf(tmp, 256, fil, count);
+			snprintf(tmp, sizeof(tmp)-1, fil, count);
 			count++;
 		} while ( ast_fileexists(tmp, ext, chan->language) != -1 );
 		pbx_builtin_setvar_helper(chan, "RECORDED_FILE", tmp);
 	} else
-		strncpy(tmp, fil, 256-1);
+		strncpy(tmp, fil, sizeof(tmp)-1);
 	/* end of routine mentioned */
 
 	LOCAL_USER_ADD(u);
 
 	if (chan->_state != AST_STATE_UP) {
-		res = ast_answer(chan); /* Shouldn't need this, but checking to see if channel is already answered
-					 * Theoretically asterisk should already have answered before running the app */
+		if (option_skip) {
+			/* At the user's option, skip if the line is not up */
+			LOCAL_USER_REMOVE(u);
+			return 0;
+		} else if (!option_noanswer) {
+			/* Otherwise answer unless we're supposed to record while on-hook */
+			res = ast_answer(chan);
+		}
 	}
 	
 	if (!res) {
@@ -157,7 +208,15 @@ static int record_exec(struct ast_channel *chan, void *data)
 		s = ast_writefile( tmp, ext, NULL, O_CREAT|O_TRUNC|O_WRONLY , 0, 0644);
 	
 		if (s) {
+			if (maxduration > 0)
+				timeout = time(NULL) + (time_t)maxduration;
+
 			while (ast_waitfor(chan, -1) > -1) {
+				if (maxduration > 0 && time(NULL) > timeout) {
+					gottimeout = 1;
+					break;
+				}
+
 				f = ast_read(chan);
 				if (!f) {
 					res = -1;
@@ -210,7 +269,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 			if (gotsilence) {
 				ast_stream_rewind(s, silence-1000);
 				ast_truncstream(s);
-			} else {
+			} else if (!gottimeout) {
 				/* Strip off the last 1/4 second of it */
 				ast_stream_rewind(s, 250);
 				ast_truncstream(s);
