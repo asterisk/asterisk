@@ -1,0 +1,20 @@
+#!/bin/sh
+VMHOME=/var/spool/asterisk/vm
+SNDHOME=/var/lib/asterisk/sounds
+echo -n "Enter mailbox number: "
+read mailbox
+mkdir -p ${VMHOME}/${mailbox}
+mkdir -p ${VMHOME}/${mailbox}/INBOX
+cat ${SNDHOME}/vm-theperson.gsm > ${VMHOME}/${mailbox}/unavail.gsm
+cat ${SNDHOME}/vm-theperson.gsm > ${VMHOME}/${mailbox}/busy.gsm
+cat ${SNDHOME}/vm-extension.gsm > ${VMHOME}/${mailbox}/greet.gsm
+nums=`echo $mailbox | sed 's/./ \0/g'`
+for x in $nums; do
+	cat ${SNDHOME}/digits/${x}.gsm >> ${VMHOME}/${mailbox}/unavail.gsm
+	cat ${SNDHOME}/digits/${x}.gsm >> ${VMHOME}/${mailbox}/busy.gsm
+	cat ${SNDHOME}/digits/${x}.gsm >> ${VMHOME}/${mailbox}/greet.gsm
+done
+
+cat ${SNDHOME}/vm-isunavail.gsm >> ${VMHOME}/${mailbox}/unavail.gsm
+cat ${SNDHOME}/vm-isonphone.gsm >> ${VMHOME}/${mailbox}/busy.gsm
+
