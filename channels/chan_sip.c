@@ -3105,7 +3105,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int se
 		else /* Some implementations (e.g. Uniden UIP200) can't handle rport being in the message!! */
 			snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
 	}
-	if (!strcasecmp(msg, "CANCEL")) {
+	if (!strcasecmp(msg, "CANCEL") || !strcasecmp(msg, "ACK")) {
 		/* MUST use original URI */
 		c = p->initreq.rlPart2;
 	} else if (!ast_strlen_zero(p->uri)) {
