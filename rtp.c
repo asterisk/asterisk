@@ -1327,7 +1327,11 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 	if (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))
 		return -2;
 	ast_mutex_lock(&c0->lock);
-	ast_mutex_lock(&c1->lock);
+	while(ast_mutex_trylock(&c1->lock)) {
+		ast_mutex_unlock(&c0->lock);
+		usleep(1);
+		ast_mutex_lock(&c0->lock);
+	}
 	pr0 = get_proto(c0);
 	pr1 = get_proto(c1);
 	if (!pr0) {
