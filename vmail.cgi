@@ -341,11 +341,12 @@ sub message_audio()
 
 	# Mailbox and folder are already verified
 	if (open(AUDIO, "<$path")) {
+		$size = -s $path;
 		$|=1;
 		if ($forcedownload) {
-			print header(-type=>$formats{$format}->{'mime'}, -attachment => "msg${msgid}.$format");
+			print header(-type=>$formats{$format}->{'mime'}, -Content_length => $size, -attachment => "msg${msgid}.$format");
 		} else {		
-			print header(-type=>$formats{$format}->{'mime'});
+			print header(-type=>$formats{$format}->{'mime'}, -Content_length => $size);
 		}
 		
 		while(($amt = sysread(AUDIO, $data, 4096)) > 0) {

@@ -123,6 +123,10 @@ int ast_filecopy(char *oldname, char *newname, char *fmt);
  */
 char ast_waitstream(struct ast_channel *c, char *breakon);
 
+/* Same as waitstream, but with audio output to fd and monitored fd checking.  Returns
+   1 if monfd is ready for reading */
+char ast_waitstream_full(struct ast_channel *c, char *breakon, int audiofd, int monfd);
+
 //! Starts writing a file
 /*!
  * \param filename the name of the file to write to

@@ -869,6 +869,7 @@ int ast_waitfor(struct ast_channel *c, int ms)
 
 char ast_waitfordigit(struct ast_channel *c, int ms)
 {
+	/* XXX Should I be merged with waitfordigit_full XXX */
 	struct ast_frame *f;
 	char result = 0;
 	/* Stop if we're a zombie or need a soft hangup */
@@ -880,6 +881,36 @@ char ast_waitfordigit(struct ast_channel *c, int ms)
 		if (ms < 0) /* Error */
 			result = -1; 
 		else if (ms > 0) {
+			/* Read something */
+			f = ast_read(c);
+			if (f) {
+				if (f->frametype == AST_FRAME_DTMF) 
+					result = f->subclass;
+				ast_frfree(f);
+			} else
+				result = -1;
+		}
+	}
+	return result;
+}
+
+char ast_waitfordigit_full(struct ast_channel *c, int ms, int audio, int ctrl)
+{
+	struct ast_frame *f;
+	char result = 0;
+	struct ast_channel *rchan;
+	int outfd;
+	/* Stop if we're a zombie or need a soft hangup */
+	if (c->zombie || ast_check_hangup(c)) 
+		return -1;
+	/* Wait for a digit, no more than ms milliseconds total. */
+	while(ms && !result) {
+		rchan = ast_waitfor_nandfds(&c, 1, &audio, (audio > -1) ? 1 : 0, NULL, &outfd, &ms);
+		if ((!rchan) && (outfd < 0) && (ms)) /* Error */
+			result = -1; 
+		else if (outfd > -1) {
+			result = 1;
+		} else if (rchan) {
 			/* Read something */
 			f = ast_read(c);
 			if (f) {
@@ -1383,6 +1414,7 @@ int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int fti
 	int pos=0;
 	int to = ftimeout;
 	char d;
+	/* XXX Merge with full version? XXX */
 	/* Stop if we're a zombie or need a soft hangup */
 	if (c->zombie || ast_check_hangup(c)) 
 		return -1;
@@ -1403,6 +1435,48 @@ int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int fti
 		if (d == 0) {
 			s[pos]='\0';
 			return 1;
+		}
+		if (!strchr(enders, d))
+			s[pos++] = d;
+		if (strchr(enders, d) || (pos >= len)) {
+			s[pos]='\0';
+			return 0;
+		}
+		to = timeout;
+	} while(1);
+	/* Never reached */
+	return 0;
+}
+
+int ast_readstring_full(struct ast_channel *c, char *s, int len, int timeout, int ftimeout, char *enders, int audiofd, int ctrlfd)
+{
+	int pos=0;
+	int to = ftimeout;
+	char d;
+	/* Stop if we're a zombie or need a soft hangup */
+	if (c->zombie || ast_check_hangup(c)) 
+		return -1;
+	if (!len)
+		return -1;
+	do {
+		if (c->streamid > -1) {
+			d = ast_waitstream_full(c, AST_DIGIT_ANY, audiofd, ctrlfd);
+			ast_stopstream(c);
+			usleep(1000);
+			if (!d)
+				d = ast_waitfordigit_full(c, to, audiofd, ctrlfd);
+		} else {
+			d = ast_waitfordigit_full(c, to, audiofd, ctrlfd);
+		}
+		if (d < 0)
+			return -1;
+		if (d == 0) {
+			s[pos]='\0';
+			return 1;
+		}
+		if (d == 1) {
+			s[pos]='\0';
+			return 2;
 		}
 		if (!strchr(enders, d))
 			s[pos++] = d;

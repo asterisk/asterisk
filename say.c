@@ -19,6 +19,7 @@
 
 int ast_say_digit_str(struct ast_channel *chan, char *fn2, char *ints, char *lang)
 {
+	/* XXX Merge with full version? XXX */
 	char fn[256] = "";
 	int num = 0;
 	int res = 0;
@@ -33,14 +34,102 @@ int ast_say_digit_str(struct ast_channel *chan, char *fn2, char *ints, char *lan
 	return res;
 }
 
+int ast_say_digit_str_full(struct ast_channel *chan, char *fn2, char *ints, char *lang, int audiofd, int ctrlfd)
+{
+	char fn[256] = "";
+	int num = 0;
+	int res = 0;
+	while(fn2[num] && !res) {
+		snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
+		res = ast_streamfile(chan, fn, lang);
+		if (!res) 
+			res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+		ast_stopstream(chan);
+		num++;
+	}
+	return res;
+}
+
 int ast_say_digits(struct ast_channel *chan, int num, char *ints, char *lang)
 {
+	/* XXX Should I be merged with say_digits_full XXX */
 	char fn2[256];
 	snprintf(fn2, sizeof(fn2), "%d", num);
 	return ast_say_digit_str(chan, fn2, ints, lang);
 }
+
+int ast_say_digits_full(struct ast_channel *chan, int num, char *ints, char *lang, int audiofd, int ctrlfd)
+{
+	char fn2[256];
+	snprintf(fn2, sizeof(fn2), "%d", num);
+	return ast_say_digit_str_full(chan, fn2, ints, lang, audiofd, ctrlfd);
+}
+
+int ast_say_number_full(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd)
+{
+	int res = 0;
+	int playh = 0;
+	char fn[256] = "";
+	if (!num) 
+		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+	if (0) {
+	/* XXX Only works for english XXX */
+	} else {
+		/* Use english numbers */
+		language = "en";
+		while(!res && (num || playh)) {
+			if (playh) {
+				snprintf(fn, sizeof(fn), "digits/hundred");
+				playh = 0;
+			} else
+			if (num < 20) {
+				snprintf(fn, sizeof(fn), "digits/%d", num);
+				num = 0;
+			} else
+			if (num < 100) {
+				snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
+				num -= ((num / 10) * 10);
+			} else {
+				if (num < 1000){
+					snprintf(fn, sizeof(fn), "digits/%d", (num/100));
+					playh++;
+					num -= ((num / 100) * 100);
+				} else {
+					if (num < 1000000) {
+						res = ast_say_number_full(chan, num / 1000, ints, language, audiofd, ctrlfd);
+						if (res)
+							return res;
+						num = num % 1000;
+						snprintf(fn, sizeof(fn), "digits/thousand");
+					} else {
+						if (num < 1000000000) {
+							res = ast_say_number_full(chan, num / 1000000, ints, language, audiofd, ctrlfd);
+							if (res)
+								return res;
+							num = num % 1000000;
+							snprintf(fn, sizeof(fn), "digits/million");
+						} else {
+							ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+							res = -1;
+						}
+					}
+				}
+			}
+			if (!res) {
+				res = ast_streamfile(chan, fn, language);
+				if (!res) 
+					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+				ast_stopstream(chan);
+			}
+			
+		}
+	}
+	return res;
+}
+
 int ast_say_number(struct ast_channel *chan, int num, char *ints, char *language)
 {
+	/* XXX Should I be merged with ast_say_number_full XXX */
 	int res = 0;
 	int playh = 0;
 	char fn[256] = "";
@@ -100,7 +189,6 @@ int ast_say_number(struct ast_channel *chan, int num, char *ints, char *language
 	}
 	return res;
 }
-
 int ast_say_date(struct ast_channel *chan, time_t t, char *ints, char *lang)
 {
 	struct tm *tm;

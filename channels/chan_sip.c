@@ -698,13 +698,38 @@ static int sip_hangup(struct ast_channel *ast)
 
 static int sip_answer(struct ast_channel *ast)
 {
-	int res = 0;
+	int res = 0,fmt,capability;
+	char *codec;
 	struct sip_pvt *p = ast->pvt->pvt;
+	struct sip_codec_pref *oldpref=NULL;
+
+	
 	if (ast->_state != AST_STATE_UP) {
+	
+	
+	
+		codec=pbx_builtin_getvar_helper(p->owner,"SIP_CODEC");
+		if (codec) {
+			ast_log(LOG_NOTICE, "Changing codec to '%s' for this call because of ${SIP_CODEC) variable\n",codec);
+			fmt=ast_getformatbyname(codec);
+			if (fmt) {
+				oldpref=prefs;
+				prefs=NULL;
+				sip_pref_append(fmt);
+				capability=p->capability;
+				p->capability=fmt;
+			} else ast_log(LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because of unrecognized codec: %s\n",codec);
+		}
+
 		ast_setstate(ast, AST_STATE_UP);
 		if (option_debug)
 			ast_log(LOG_DEBUG, "sip_answer(%s)\n", ast->name);
 		res = transmit_response_with_sdp(p, "200 OK", &p->initreq);
+		sip_prefs_free();
+		if (oldpref) {
+			prefs=oldpref;
+			p->capability=capability;
+		}
 	}
 	return res;
 }
@@ -1676,7 +1701,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 			if ((codec = ast2rtp(cur->codec)) > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
 				strcat(m, costr);
-				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast2rtpn(x));
+				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast2rtpn(rtp2ast(codec)));
 				strcat(a, costr);
 			}
 		}

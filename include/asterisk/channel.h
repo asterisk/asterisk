@@ -465,6 +465,10 @@ struct ast_channel *ast_channel_walk(struct ast_channel *prev);
  * Wait for a digit.  Returns <0 on error, 0 on no entry, and the digit on success. */
 char ast_waitfordigit(struct ast_channel *c, int ms);
 
+/* Same as above with audio fd for outputing read audio and ctrlfd to monitor for
+   reading. Returns 1 if ctrlfd becomes available */
+char ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int ctrlfd);
+
 //! Reads multiple digits
 /*! 
  * \param c channel to read from
@@ -476,8 +480,10 @@ char ast_waitfordigit(struct ast_channel *c, int ms);
  * Read in a digit string "s", max length "len", maximum timeout between 
    digits "timeout" (-1 for none), terminated by anything in "enders".  Give them rtimeout
    for the first digit.  Returns 0 on normal return, or 1 on a timeout.  In the case of
-   a timeout, any digits that were read before the timeout will still be available in s.  */
+   a timeout, any digits that were read before the timeout will still be available in s.  
+   RETURNS 2 in full version when ctrlfd is available, NOT 1*/
 int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int rtimeout, char *enders);
+int ast_readstring_full(struct ast_channel *c, char *s, int len, int timeout, int rtimeout, char *enders, int audiofd, int ctrlfd);
 
 /*! Report DTMF on channel 0 */
 #define AST_BRIDGE_DTMF_CHANNEL_0		(1 << 0)		

@@ -1,3 +1,4 @@
+ -- Add "Enhanced" AGI with audio pass-through (voice recognition anyone?)
  -- Choose best priority from codec from allow/disallow
  -- Reject SIP calls to self
  -- Allow SIP registration to provide an alternative contact

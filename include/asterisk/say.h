@@ -34,6 +34,9 @@ extern "C" {
  */
 int ast_say_number(struct ast_channel *chan, int num, char *ints, char *lang);
 
+/* Same as above with audiofd for received audio and returns 1 on ctrlfd being readable */
+int ast_say_number_full(struct ast_channel *chan, int num, char *ints, char *lang, int audiofd, int ctrlfd);
+
 //! says digits
 /*!
  * \param chan channel to act upon
@@ -44,6 +47,7 @@ int ast_say_number(struct ast_channel *chan, int num, char *ints, char *lang);
  * Returns 0 on success, dtmf if interrupted, -1 on failure
  */
 int ast_say_digits(struct ast_channel *chan, int num, char *ints, char *lang);
+int ast_say_digits_full(struct ast_channel *chan, int num, char *ints, char *lang, int audiofd, int ctrlfd);
 
 //! says digits of a string
 /*! 
@@ -55,6 +59,7 @@ int ast_say_digits(struct ast_channel *chan, int num, char *ints, char *lang);
  * Returns 0 on success, dtmf if interrupted, -1 on failure
  */
 int ast_say_digit_str(struct ast_channel *chan, char *num, char *ints, char *lang);
+int ast_say_digit_str_full(struct ast_channel *chan, char *num, char *ints, char *lang, int audiofd, int ctrlfd);
 
 int ast_say_datetime(struct ast_channel *chan, time_t t, char *ints, char *lang);
 

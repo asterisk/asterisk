@@ -605,6 +605,7 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 
 char ast_waitstream(struct ast_channel *c, char *breakon)
 {
+	/* XXX Maybe I should just front-end ast_waitstream_full ? XXX */
 	int res;
 	struct ast_frame *fr;
 	while(c->stream) {
@@ -658,3 +659,67 @@ char ast_waitstream(struct ast_channel *c, char *breakon)
 	return (c->_softhangup ? -1 : 0);
 }
 
+char ast_waitstream_full(struct ast_channel *c, char *breakon, int audiofd, int cmdfd)
+{
+	int res;
+	int ms;
+	int outfd;
+	struct ast_frame *fr;
+	struct ast_channel *rchan;
+	
+	while(c->stream) {
+		ms = ast_sched_wait(c->sched);
+		if (ms < 0) {
+			ast_closestream(c->stream);
+			break;
+		}
+		rchan = ast_waitfor_nandfds(&c, 1, &cmdfd, (cmdfd > -1) ? 1 : 0, NULL, &outfd, &ms);
+		if (!rchan && (outfd < 0) && (ms)) {
+			ast_log(LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
+			return -1;
+		} else if (outfd > -1) {
+			/* The FD we were watching has something waiting */
+			return 1;
+		} else if (rchan) {
+			fr = ast_read(c);
+			if (!fr) {
+#if 0
+				ast_log(LOG_DEBUG, "Got hung up\n");
+#endif
+				return -1;
+			}
+			
+			switch(fr->frametype) {
+			case AST_FRAME_DTMF:
+				res = fr->subclass;
+				if (strchr(breakon, res)) {
+					ast_frfree(fr);
+					return res;
+				}
+				break;
+			case AST_FRAME_CONTROL:
+				switch(fr->subclass) {
+				case AST_CONTROL_HANGUP:
+					ast_frfree(fr);
+					return -1;
+				case AST_CONTROL_RINGING:
+				case AST_CONTROL_ANSWER:
+					/* Unimportant */
+					break;
+				default:
+					ast_log(LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
+				}
+			case AST_FRAME_VOICE:
+				/* Write audio if appropriate */
+				if (audiofd > -1)
+					write(audiofd, fr->data, fr->datalen);
+			}
+			/* Ignore */
+			ast_frfree(fr);
+		} else
+			ast_sched_runq(c->sched);
+	
+		
+	}
+	return (c->_softhangup ? -1 : 0);
+}
