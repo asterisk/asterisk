@@ -1804,7 +1804,7 @@ static int zt_hangup(struct ast_channel *ast)
 					if (!p->alreadyhungup) {
 						res = pri_disconnect(p->pri->pri, p->call, PRI_CAUSE_NORMAL_CLEARING);
 					} else {
-						pri_release(p->pri->pri, p->call, -1);
+						pri(p->pri->pri, p->call, -1);
 						p->call = NULL;
 						p->alreadyhungup = 0;
 					}
@@ -6148,7 +6148,7 @@ static void *pri_dchannel(void *vpri)
 #else
 							pri_release(pri->pri, e->ring.call, PRI_CAUSE_SWITCH_CONGESTION);
 #endif
-							pri->pvt[chan]->call = 0;
+							pri->pvt[chan]->call = NULL;
 						}
 					} else {
 						if ((!strlen(pri->pvt[chan]->exten) || ast_matchmore_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid)) && !e->ring.complete)
@@ -6163,6 +6163,7 @@ static void *pri_dchannel(void *vpri)
 #else
 							pri_release(pri->pri, e->ring.call, PRI_CAUSE_UNALLOCATED);
 #endif
+							pri->pvt[chan]->call = NULL;
 						}
 					}
 				} else 
