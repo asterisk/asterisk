@@ -86,6 +86,8 @@ static inline void sql_close(void) { }
 #define MAX_DATETIME_FORMAT	512
 #define MAX_NUM_CID_CONTEXTS 10
 
+static int load_config(void);
+
 /* Syntaxes supported, not really language codes.
 	en - English
 	de - German
@@ -178,7 +180,7 @@ static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num,
 static int play_record_review(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int outsidecaller, struct ast_vm_user *vmu, int *duration);
 static int vm_delete(char *file);
 
-
+static char ext_pass_cmd[128];
 
 static char *tdesc = "Comedian Mail (Voicemail System)";
 
@@ -570,6 +572,13 @@ static int reset_user_pw(char *context, char *mailbox, char *newpass)
 	}
 	ast_mutex_unlock(&vmlock);
 	return res;
+}
+
+static void vm_change_password_shell(struct ast_vm_user *vmu, char *newpassword)
+{
+	char buf[255];
+	snprintf(buf,255,"%s %s %s %s",ext_pass_cmd,vmu->context,vmu->mailbox,newpassword);
+	ast_safe_system(buf);
 }
 
 static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
@@ -3418,7 +3427,10 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 				cmd = play_and_wait(chan, "vm-mismatch");
 				break;
 			}
-			vm_change_password(vmu,newpassword);
+			if(ast_strlen_zero(ext_pass_cmd)) 
+				vm_change_password(vmu,newpassword);
+			else 
+				vm_change_password_shell(vmu,newpassword);
 			ast_log(LOG_DEBUG,"User %s set password to %s of length %i\n",vms->username,newpassword,(int)strlen(newpassword));
 			cmd = play_and_wait(chan,"vm-passchanged");
 			break;
@@ -4237,7 +4249,7 @@ static int load_config(void)
 	char *dialoutcxt = NULL;
 	char *callbackcxt = NULL;	
 	char *exitcxt = NULL;	
-	
+	char *extpc;
 	int x;
 
 	cfg = ast_load(VOICEMAIL_CONFIG);
@@ -4259,6 +4271,7 @@ static int load_config(void)
 	zonesl = NULL;
 	users = NULL;
 	usersl = NULL;
+	memset(ext_pass_cmd, 0, sizeof(ext_pass_cmd) - 1);
 	if (cfg) {
 		/* General settings */
 
@@ -4279,7 +4292,12 @@ static int load_config(void)
 			if (maxsilence > 0)
 				maxsilence *= 1000;
 		}
-		
+
+		/* External password changing command */
+		if ((extpc = ast_variable_retrieve(cfg, "general", "externpass"))) {
+			strncpy(ext_pass_cmd,extpc,sizeof(ext_pass_cmd) - 1);
+		}
+
 		/* External voicemail notify application */
 		
 		if ((notifystr = ast_variable_retrieve(cfg, "general", "externnotify"))) {
