@@ -140,11 +140,12 @@ extern int adsi_channel_restore(struct ast_channel *chan);
  * \param chan Channel to display on
  * \param lines NULL-terminated list of things to print (no more than 4 recommended)
  * \param align list of alignments to use (ADSI_JUST_LEFT, ADSI_JUST_RIGHT, ADSI_JUST_CEN, etc..)
+ * \param voice whether to jump into voice mode when finished
  *
  * Return 0 on success (or adsi unavailable) and -1 on hangup
  *
  */
-extern int adsi_print(struct ast_channel *chan, char **lines, int *align);
+extern int adsi_print(struct ast_channel *chan, char **lines, int *align, int voice);
 
 //! Check if scripts for a given app are already loaded.  Version may be -1
 //  if any version is okay, or 0-255 for a specific version.
@@ -164,6 +165,12 @@ extern int adsi_unload_session(struct ast_channel *chan);
 extern int adsi_transmit_messages(struct ast_channel *chan, unsigned char **msg, int *msglen, int *msgtype);
 extern int adsi_transmit_message(struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype);
 
+//! Read some encoded DTMF data.  
+/*!
+ * Returns number of bytes received
+ */
+extern int adsi_read_encoded_dtmf(struct ast_channel *chan, unsigned char *buf, int maxlen);
+
 /* ADSI Layer 3 creation functions */
 
 //! Connects an ADSI Display Session */
@@ -177,6 +184,23 @@ extern int adsi_transmit_message(struct ast_channel *chan, unsigned char *msg, i
  */
 
 extern int adsi_connect_session(unsigned char *buf, unsigned char *fdn, int ver);
+
+//! Build Query CPE ID of equipment */
+/*!
+ *  Returns number of bytes added to message
+ */
+extern int adsi_query_cpeid(unsigned char *buf);
+extern int adsi_query_cpeinfo(unsigned char *buf);
+
+//! Get CPE ID from an attached ADSI compatible CPE.
+/*!
+ * Returns 1 on success, storing 4 bytes of CPE ID at buf
+ * or -1 on hangup, or 0 if there was no hangup but it failed to find the
+ * device ID.  Returns to voice mode if "voice" is non-zero.
+ */
+extern int adsi_get_cpeid(struct ast_channel *chan, unsigned char *cpeid, int voice);
+
+extern int adsi_get_cpeinfo(struct ast_channel *chan, int *width, int *height, int *buttons, int voice);
 
 //! Begin an ADSI script download */
 /*!
@@ -218,6 +242,8 @@ extern int adsi_download_disconnect(unsigned char *buf);
  *
  */
 extern int adsi_data_mode(unsigned char *buf);
+extern int adsi_clear_soft_keys(unsigned char *buf);
+extern int adsi_clear_screen(unsigned char *buf);
 
 //! Puts CPE in voice mode...
 /*!
@@ -281,7 +307,8 @@ extern int adsi_load_soft_key(unsigned char *buf, int key, unsigned char *llabel
 //! Set which soft keys should be displayed
 /*!
  * \param buf Character buffer to create parameter in (must have at least 256 free)
- * \param keys Array of 6 unsigned chars with the key numbers, may be OR'd with ADSI_KEY_HILITE
+ * \param keys Array of 8 unsigned chars with the key numbers, may be OR'd with ADSI_KEY_HILITE
+ *             But remember, the last two keys aren't real keys, they're for scrolling
  *
  * Returns number of bytes added to buffer or -1 on error.
  *
