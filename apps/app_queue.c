@@ -370,7 +370,7 @@ static int say_position(struct queue_ent *qe)
 		goto posout;
 	} else {
 		res += play_file(qe->chan, qe->parent->sound_thereare);
-		res += ast_say_number(qe->chan, qe->pos, AST_DIGIT_ANY, qe->chan->language);
+		res += ast_say_number(qe->chan, qe->pos, AST_DIGIT_ANY, qe->chan->language, (char *) NULL); /* Needs gender */
 		res += play_file(qe->chan, qe->parent->sound_calls);
 	}
 
@@ -383,7 +383,7 @@ static int say_position(struct queue_ent *qe)
 	   supposed to be only once and we have already said it, say it */
 	if (avgholdmins > 1 && (qe->parent->announceholdtime) && (!(qe->parent->announceholdtime==1 && qe->last_pos)) ) {
 		res += play_file(qe->chan, qe->parent->sound_holdtime);
-		res += ast_say_number(qe->chan, avgholdmins, AST_DIGIT_ANY, qe->chan->language);
+		res += ast_say_number(qe->chan, avgholdmins, AST_DIGIT_ANY, qe->chan->language, (char*) NULL);
 		res += play_file(qe->chan, qe->parent->sound_minutes);
 	}
 

@@ -287,7 +287,7 @@ static struct pbx_builtin {
 
 	{ "SayNumber", pbx_builtin_saynumber,
 "Say Number",
-"  SayNumber(digits): Says the passed number\n" },
+"  SayNumber(digits[,gender]): Says the passed number\n" },
 
 	{ "SayDigits", pbx_builtin_saydigits,
 "Say Digits",
@@ -4568,9 +4568,29 @@ static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 static int pbx_builtin_saynumber(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	if (data && atoi((char *)data) )
-		res = ast_say_number(chan, atoi((char *)data), "", chan->language);
-	return res;
+	char tmp[256];
+	char *number = (char *) NULL;
+	char *options = (char *) NULL;
+
+	
+	if (!data || !strlen((char *)data)) {
+                ast_log(LOG_WARNING, "SayNumber requires an argument (number)\n");
+                return -1;
+        }
+        strncpy(tmp, (char *)data, sizeof(tmp)-1);
+        number=tmp;
+        strsep(&number, "|");
+        options = strsep(&number, "|");
+        if (options) { 
+		if ( strcasecmp(options, "f") && strcasecmp(options,"m") && 
+			strcasecmp(options, "c") && strcasecmp(options, "n") ) {
+                   ast_log(LOG_WARNING, "SayNumber gender option is either 'f', 'm', 'c' or 'n'\n");
+                   return -1;
+		}
+	}
+
+
+	return res = ast_say_number(chan, atoi((char *) tmp), "", chan->language, options);
 }
 
 static int pbx_builtin_saydigits(struct ast_channel *chan, void *data)

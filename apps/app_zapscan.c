@@ -322,7 +322,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			}
 			confno = atoi(strchr(confstr,'/') + 1);
 			ast_stopstream(chan);
-			ast_say_number(chan, confno, AST_DIGIT_ANY, chan->language);
+			ast_say_number(chan, confno, AST_DIGIT_ANY, chan->language, (char *) NULL);
 			res = conf_run(chan, confno, confflags);
 			if (res<0) break;
 			input = res;

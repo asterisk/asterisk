@@ -621,7 +621,7 @@ static int count_exec(struct ast_channel *chan, void *data)
 	} else {
 		if (chan->_state != AST_STATE_UP)
 			ast_answer(chan);
-		res = ast_say_number(chan, count, "", chan->language);
+		res = ast_say_number(chan, count, "", chan->language, (char *) NULL); /* Needs gender */
 	}
 	LOCAL_USER_REMOVE(u);
 	return res;

@@ -29,10 +29,11 @@ extern "C" {
  * \param num number to say on the channel
  * \param ints which dtmf to interrupt on
  * \param lang language to speak the number
+ * \param options set to 'f' for female, 'm' for masculine (used in portuguese)
  * Vocally says a number on a given channel
  * Returns 0 on success, DTMF digit on interrupt, -1 on failure
  */
-int ast_say_number(struct ast_channel *chan, int num, char *ints, char *lang);
+int ast_say_number(struct ast_channel *chan, int num, char *ints, char *lang, char *options);
 
 /* Same as above with audiofd for received audio and returns 1 on ctrlfd being readable */
 int ast_say_number_full(struct ast_channel *chan, int num, char *ints, char *lang, int audiofd, int ctrlfd);

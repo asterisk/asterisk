@@ -2350,12 +2350,12 @@ static void bridge_playfile(struct ast_channel *chan,char *sound,int remain) {
 		res=ast_streamfile(chan,"vm-youhave",chan->language);
 		res = ast_waitstream(chan, "");
 		if(min) {
-			res = ast_say_number(chan,min, AST_DIGIT_ANY, chan->language);
+			res = ast_say_number(chan,min, AST_DIGIT_ANY, chan->language, (char *) NULL);
 			res=ast_streamfile(chan,"minutes",chan->language);
 			res = ast_waitstream(chan, "");
 		}
 		if(sec) {
-			res = ast_say_number(chan,sec, AST_DIGIT_ANY, chan->language);
+			res = ast_say_number(chan,sec, AST_DIGIT_ANY, chan->language, (char *) NULL);
 			res=ast_streamfile(chan,"seconds",chan->language);
 			res = ast_waitstream(chan, "");
 		}

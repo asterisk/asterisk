@@ -1706,7 +1706,7 @@ static int count_messages(char *dir)
 static int say_and_wait(struct ast_channel *chan, int num)
 {
 	int d;
-	d = ast_say_number(chan, num, AST_DIGIT_ANY, chan->language);
+	d = ast_say_number(chan, num, AST_DIGIT_ANY, chan->language, (char *) NULL);
 	return d;
 }
 
@@ -2270,7 +2270,7 @@ static int get_folder(struct ast_channel *chan, int start)
 	if (d)
 		return d;
 	for (x = start; x< 5; x++) {
-		if ((d = ast_say_number(chan, x, AST_DIGIT_ANY, chan->language)))
+		if ((d = ast_say_number(chan, x, AST_DIGIT_ANY, chan->language, (char *) NULL)))
 			return d;
 		d = play_and_wait(chan, "vm-for");
 		if (d)
@@ -2634,7 +2634,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 		res = wait_file2(chan, vms, "vm-message");
 		if (msg && (msg != vms->lastmsg)) {
 			if (!res)
-				res = ast_say_number(chan, msg + 1, AST_DIGIT_ANY, chan->language);
+				res = ast_say_number(chan, msg + 1, AST_DIGIT_ANY, chan->language, (char *) NULL);
 		}
 	}
 
