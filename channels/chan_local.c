@@ -242,6 +242,10 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 		p->chan->callerid = strdup(p->owner->callerid);
 	else
 		p->chan->callerid = NULL;
+	if (p->owner->rdnis)
+		p->chan->rdnis = strdup(p->owner->rdnis);
+	else
+		p->chan->rdnis = NULL;
 	if (p->owner->ani)
 		p->chan->ani = strdup(p->owner->ani);
 	else
