@@ -641,8 +641,7 @@ void ast_channel_free(struct ast_channel *chan)
 	/* no need to lock the list, as the channel is already locked */
 	
 	while (!AST_LIST_EMPTY(headp)) {           /* List Deletion. */
-	            vardata = AST_LIST_FIRST(headp);
-	            AST_LIST_REMOVE_HEAD(headp, entries);
+	            vardata = AST_LIST_REMOVE_HEAD(headp, ast_var_t, entries);
 /*	            printf("deleting var %s=%s\n",ast_var_name(vardata),ast_var_value(vardata)); */
 	            ast_var_delete(vardata);
 	}

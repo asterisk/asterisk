@@ -81,8 +81,7 @@ static char *loopback_helper(char *buf, int buflen, const char *exten, const cha
 	pbx_substitute_variables_varshead(&headp, data, buf, buflen);
 	/* Substitute variables */
 	while (!AST_LIST_EMPTY(&headp)) {           /* List Deletion. */
-		newvariable = AST_LIST_FIRST(&headp);
-		AST_LIST_REMOVE_HEAD(&headp, entries);
+		newvariable = AST_LIST_REMOVE_HEAD(&headp, ast_var_t, entries);
 		ast_var_delete(newvariable);
 	}
 	return buf;

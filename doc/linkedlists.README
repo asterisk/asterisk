@@ -48,9 +48,10 @@ AST_LIST_REMOVE removes an arbitrary element from the head:
 
 	AST_LIST_REMOVE(headp,node1,ast_var_t,listpointers);
 
-AST_LIST_REMOVE_HEAD removes the entry at the head of the list: 
+AST_LIST_REMOVE_HEAD removes the entry at the head of the list and
+returns a pointer to the removed entry: 
 
-	AST_LIST_REMOVE(headp,listpointers);
+	AST_LIST_REMOVE_HEAD(headp,node,listpointers);
 
 AST_LIST_FIRST returns a pointer to the first element of the list;
 
@@ -78,8 +79,7 @@ To completely delete a list :
 	struct ast_var_t *vardata;
 
         while (!AST_LIST_EMPTY(headp)) {           /* List Deletion. */
-                    vardata = AST_LIST_FIRST(head);
-                    AST_LIST_REMOVE_HEAD(head, listpointers);
+                    vardata = AST_LIST_REMOVE_HEAD(head, ast_var_t, listpointers);
                     free(vardata->name);
 		    free(vardata->value);
         }

@@ -62,13 +62,15 @@ struct {								\
 } while (0)
 
 
-#define AST_LIST_REMOVE_HEAD(head, field) do {					\
+#define AST_LIST_REMOVE_HEAD(head, type, field) ({				\
+		struct type *cur = (head)->first;				\
 		(head)->first = (head)->first->field.next;			\
-	} while (0)
+		cur;								\
+	})
 
 #define AST_LIST_REMOVE(head, elm, type, field) do {			\
 	if ((head)->first == (elm)) {					\
-		AST_LIST_REMOVE_HEAD((head), field);			\
+		AST_LIST_REMOVE_HEAD((head), type, field);		\
 	}								\
 	else {								\
 		struct type *curelm = (head)->first;			\

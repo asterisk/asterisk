@@ -5123,8 +5123,7 @@ void pbx_builtin_clear_globals(void)
 {
 	struct ast_var_t *vardata;
 	while (!AST_LIST_EMPTY(&globals)) {
-		vardata = AST_LIST_FIRST(&globals);
-		AST_LIST_REMOVE_HEAD(&globals, entries);
+		vardata = AST_LIST_REMOVE_HEAD(&globals, ast_var_t, entries);
 		ast_var_delete(vardata);
 	}
 }
