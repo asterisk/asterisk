@@ -59,8 +59,13 @@ struct ast_ivr_option {
 struct ast_ivr_menu {
 	char *title;		/* Title of menu */
 	unsigned int flags;	/* Flags */
-	struct ast_ivr_option options[];	/* All options */
+	struct ast_ivr_option *options;	/* All options */
 };
+
+#define AST_IVR_DECLARE_MENU(holder,title,flags,foo...) \
+	static struct ast_ivr_option __options_##holder[] = foo;\
+	static struct ast_ivr_menu holder = { title, flags, __options_##holder }
+	
 
 /*! Runs an IVR menu, returns 0 on successful completion, -1 on hangup, or -2 on user error in menu */
 extern int ast_ivr_menu_run(struct ast_channel *c, struct ast_ivr_menu *menu, void *cbdata);
