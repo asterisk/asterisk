@@ -55,7 +55,7 @@
 #include <ctype.h>
 #ifdef ZAPATA_PRI
 #include <libpri.h>
-#ifndef PRI_GR303_SUPPORT
+#ifndef PRI_ENSLAVE_SUPPORT
 #error "You need newer libpri"
 #endif
 #endif
@@ -133,10 +133,17 @@ static char *config = "zapata.conf";
 #define SIG_GR303FXOKS   (0x100000 | ZT_SIG_FXOKS)
 
 #define NUM_SPANS 	32
+#define NUM_DCHANS	4		/* No more than 4 d-channels */
 #define MAX_CHANNELS	672	/* No more than a DS3 per trunk group */
 #define RESET_INTERVAL	3600	/* How often (in seconds) to reset unused channels */
 
 #define CHAN_PSEUDO	-2
+
+#define DCHAN_PROVISIONED (1 << 0)
+#define DCHAN_NOTINALARM  (1 << 1)
+#define DCHAN_UP          (1 << 2)
+
+#define DCHAN_AVAILABLE	(DCHAN_PROVISIONED | DCHAN_NOTINALARM | DCHAN_UP)
 
 static char context[AST_MAX_EXTENSION] = "default";
 static char callerid[256] = "";
@@ -310,16 +317,17 @@ struct zt_pri {
 	int nodetype;				/* Node type */
 	int switchtype;				/* Type of switch to emulate */
 	int dialplan;			/* Dialing plan */
-	int dchannel;			/* What channel the dchannel is on */
+	int dchannels[NUM_DCHANS];	/* What channel are the dchannels on */
 	int trunkgroup;			/* What our trunkgroup is */
 	int mastertrunkgroup;	/* What trunk group is our master */
 	int prilogicalspan;		/* Logical span number within trunk group */
 	int numchans;			/* Num of channels we represent */
 	int overlapdial;		/* In overlap dialing mode */
-	struct pri *pri;
+	struct pri *dchans[NUM_DCHANS];	/* Actual d-channels */
+	int dchanavail[NUM_DCHANS];		/* Whether each channel is available */
+	struct pri *pri;				/* Currently active D-channel */
 	int debug;
-	int fd;
-	int up;
+	int fds[NUM_DCHANS];	/* FD's for d-channels */
 	int offset;
 	int span;
 	int resetting;
@@ -1762,6 +1770,16 @@ static int destroy_channel(struct zt_pvt *prev, struct zt_pvt *cur, int now)
 }
 
 #ifdef ZAPATA_PRI
+int pri_is_up(struct zt_pri *pri)
+{
+	int x;
+	for (x=0;x<NUM_DCHANS;x++) {
+		if (pri->dchanavail[x] == DCHAN_AVAILABLE)
+			return 1;
+	}
+	return 0;
+}
+
 int pri_assign_bearer(struct zt_pvt *crv, struct zt_pri *pri, struct zt_pvt *bearer)
 {
 	bearer->owner = &inuse;
@@ -1770,6 +1788,48 @@ int pri_assign_bearer(struct zt_pvt *crv, struct zt_pri *pri, struct zt_pvt *bea
 	crv->bearer = bearer;
 	crv->call = bearer->call;
 	crv->pri = pri;
+	return 0;
+}
+
+static char *pri_order(int level)
+{
+	switch(level) {
+	case 0:
+		return "Primary";
+	case 1:
+		return "Secondary";
+	case 2:
+		return "Tertiary";
+	case 3:
+		return "Quaternary";
+	default:
+		return "<Unknown>";
+	}		
+}
+
+int pri_find_dchan(struct zt_pri *pri)
+{
+	int oldslot = -1;
+	struct pri *old;
+	int newslot = -1;
+	int x;
+	old = pri->pri;
+	for(x=0;x<NUM_DCHANS;x++) {
+		if ((pri->dchanavail[x] == DCHAN_AVAILABLE) && (newslot < 0))
+			newslot = x;
+		if (pri->dchans[x] == old) {
+			oldslot = x;
+		}
+	}
+	if (newslot < 0) {
+		ast_log(LOG_WARNING, "No D-channels available!  Using Primary on channel anyway %d!\n",
+			pri->dchannels[newslot]);
+		newslot = 0;
+	}
+	if (old && (oldslot != newslot))
+		ast_log(LOG_NOTICE, "Switching from from d-channel %d to channel %d!\n",
+			pri->dchannels[oldslot], pri->dchannels[newslot]);
+	pri->pri = pri->dchans[newslot];
 	return 0;
 }
 #endif
@@ -5478,10 +5538,11 @@ static int pri_resolve_span(int *span, int channel, int offset, struct zt_spanin
 			*span = -1;
 		} else {
 			if (si->totalchans == 31) { /* if it's an E1 */
-				pris[*span].dchannel = 16;
+				pris[*span].dchannels[0] = 16 + offset;
 			} else {
-				pris[*span].dchannel = 24;
+				pris[*span].dchannels[0] = 24 + offset;
 			}
+			pris[*span].dchanavail[0] |= DCHAN_PROVISIONED;
 			pris[*span].offset = offset;
 			pris[*span].span = *span + 1;
 		}
@@ -5489,57 +5550,66 @@ static int pri_resolve_span(int *span, int channel, int offset, struct zt_spanin
 	return 0;
 }
 
-static int pri_create_trunkgroup(int trunkgroup, int channel)
+static int pri_create_trunkgroup(int trunkgroup, int *channels)
 {
 	struct zt_spaninfo si;
 	ZT_PARAMS p;
 	int fd;
 	int span;
-	int x;
+	int ospan=0;
+	int x,y;
 	for (x=0;x<NUM_SPANS;x++) {
 		if (pris[x].trunkgroup == trunkgroup) {
-			ast_log(LOG_WARNING, "Trunk group %d already exists on span %d, channel %d\n", trunkgroup, x + 1, pris[x].dchannel);
+			ast_log(LOG_WARNING, "Trunk group %d already exists on span %d, Primary d-channel %d\n", trunkgroup, x + 1, pris[x].dchannels[0]);
 			return -1;
 		}
 	}
-	memset(&si, 0, sizeof(si));
-	memset(&p, 0, sizeof(p));
-	fd = open("/dev/zap/channel", O_RDWR);
-	if (fd < 0) {
-		ast_log(LOG_WARNING, "Failed to open channel: %s\n", strerror(errno));
-		return -1;
-	}
-	x = channel;
-	if (ioctl(fd, ZT_SPECIFY, &x)) {
-		ast_log(LOG_WARNING, "Failed to specify channel %d: %s\n", channel, strerror(errno));
+	for (y=0;y<NUM_DCHANS;y++) {
+		if (!channels[y])	
+			break;
+		memset(&si, 0, sizeof(si));
+		memset(&p, 0, sizeof(p));
+		fd = open("/dev/zap/channel", O_RDWR);
+		if (fd < 0) {
+			ast_log(LOG_WARNING, "Failed to open channel: %s\n", strerror(errno));
+			return -1;
+		}
+		x = channels[y];
+		if (ioctl(fd, ZT_SPECIFY, &x)) {
+			ast_log(LOG_WARNING, "Failed to specify channel %d: %s\n", channels[y], strerror(errno));
+			close(fd);
+			return -1;
+		}
+		if (ioctl(fd, ZT_GET_PARAMS, &p)) {
+			ast_log(LOG_WARNING, "Failed to get channel parameters for channel %d: %s\n", channels[y], strerror(errno));
+			return -1;
+		}
+		if (ioctl(fd, ZT_SPANSTAT, &si)) {
+			ast_log(LOG_WARNING, "Failed go get span information on channel %d (span %d)\n", channels[y], p.spanno);
+			close(fd);
+			return -1;
+		}
+		span = p.spanno - 1;
+		if (pris[span].trunkgroup) {
+			ast_log(LOG_WARNING, "Span %d is already provisioned for trunk group %d\n", span + 1, pris[span].trunkgroup);
+			close(fd);
+			return -1;
+		}
+		if (pris[span].pvts[0]) {
+			ast_log(LOG_WARNING, "Span %d is already provisioned with channels (implicit PRI maybe?)\n", span + 1);
+			close(fd);
+			return -1;
+		}
+		if (!y) {
+			pris[span].trunkgroup = trunkgroup;
+			pris[span].offset = channels[y] - p.chanpos;
+			ospan = span;
+		}
+		pris[ospan].dchannels[y] = channels[y];
+		pris[ospan].dchanavail[y] |= DCHAN_PROVISIONED;
+		pris[span].span = span + 1;
 		close(fd);
-		return -1;
 	}
-	if (ioctl(fd, ZT_GET_PARAMS, &p)) {
-		ast_log(LOG_WARNING, "Failed to get channel parameters for channel %d: %s\n", channel, strerror(errno));
-		return -1;
-	}
-	if (ioctl(fd, ZT_SPANSTAT, &si)) {
-		ast_log(LOG_WARNING, "Failed go get span information on channel %d (span %d)\n", channel, p.spanno);
-		close(fd);
-		return -1;
-	}
-	span = p.spanno - 1;
-	if (pris[span].trunkgroup) {
-		ast_log(LOG_WARNING, "Span %d is already provisioned for trunk group %d\n", span + 1, pris[span].trunkgroup);
-		close(fd);
-		return -1;
-	}
-	if (pris[span].pvts[0]) {
-		ast_log(LOG_WARNING, "Span %d is already provisioned with channels (implicit PRI maybe?)\n", span + 1);
-		close(fd);
-		return -1;
-	}
-	pris[span].trunkgroup = trunkgroup;
-	pris[span].offset = channel - p.chanpos;
-	pris[span].dchannel = p.chanpos;
-	pris[span].span = span + 1;
-	close(fd);
 	return 0;	
 }
 
@@ -5702,6 +5772,8 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		if ((signalling == SIG_PRI) || (signalling == SIG_GR303FXOKS)) {
 			int offset;
 			int myswitchtype;
+			int matchesdchan;
+			int x,y;
 			offset = 0;
 			if ((signalling == SIG_PRI) && ioctl(tmp->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &offset)) {
 				ast_log(LOG_ERROR, "Unable to set clear mode on clear channel %d of span %d: %s\n", channel, p.spanno, strerror(errno));
@@ -5731,8 +5803,18 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 					myswitchtype = switchtype;
 				else
 					myswitchtype = PRI_SWITCH_GR303_TMC;
+				/* Make sure this isn't a d-channel */
+				matchesdchan=0;
+				for (x=0;x<NUM_SPANS;x++) {
+					for (y=0;y<NUM_DCHANS;y++) {
+						if (pris[x].dchannels[y] == tmp->channel) {
+							matchesdchan = 1;
+							break;
+						}
+					}
+				}
 				offset = p.chanpos;
-				if (offset != pris[span].dchannel) {
+				if (!matchesdchan) {
 					if (pris[span].nodetype && (pris[span].nodetype != pritype)) {
 						ast_log(LOG_ERROR, "Span %d is already a %s node\n", span + 1, pri_node2str(pris[span].nodetype));
 						free(tmp);
@@ -5949,7 +6031,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			ioctl(tmp->subs[SUB_REAL].zfd,ZT_SETTONEZONE,&tmp->tonezone);
 #ifdef ZAPATA_PRI
 			/* the dchannel is down so put the channel in alarm */
-			if (tmp->pri && tmp->pri->up == 0)
+			if (tmp->pri && !pri_is_up(tmp->pri))
 				tmp->inalarm = 1;
 			else
 				tmp->inalarm = 0;
@@ -6506,7 +6588,7 @@ static void *pri_dchannel(void *vpri)
 {
 	struct zt_pri *pri = vpri;
 	pri_event *e;
-	struct pollfd fds[1];
+	struct pollfd fds[NUM_DCHANS];
 	int res;
 	int chanpos = 0;
 	int x;
@@ -6514,7 +6596,7 @@ static void *pri_dchannel(void *vpri)
 	int activeidles;
 	int nextidle = -1;
 	struct ast_channel *c;
-	struct timeval tv, *next;
+	struct timeval tv, lowest, *next;
 	struct timeval lastidle = { 0, 0 };
 	int doidling=0;
 	char *cc;
@@ -6522,7 +6604,8 @@ static void *pri_dchannel(void *vpri)
 	struct ast_channel *idle;
 	pthread_t p;
 	time_t t;
-	int i;
+	int i, which=-1;
+	int numdchans;
 	struct zt_pvt *crv;
 	pthread_t threadid;
 	pthread_attr_t attr;
@@ -6549,12 +6632,17 @@ static void *pri_dchannel(void *vpri)
 			ast_log(LOG_WARNING, "Idle dial string '%s' lacks '@context'\n", pri->idleext);
 	}
 	for(;;) {
-		fds[0].fd = pri->fd;
-		fds[0].events = POLLIN | POLLPRI;
+		for (i=0;i<NUM_DCHANS;i++) {
+			if (!pri->dchannels[i])
+				break;
+			fds[i].fd = pri->fds[i];
+			fds[i].events = POLLIN | POLLPRI;
+		}
+		numdchans = i;
 		time(&t);
 		ast_mutex_lock(&pri->lock);
 		if (pri->switchtype != PRI_SWITCH_GR303_TMC) {
-			if (pri->resetting && pri->up) {
+			if (pri->resetting && pri_is_up(pri)) {
 				if (pri->resetpos < 0)
 					pri_check_restart(pri);
 			} else {
@@ -6565,7 +6653,7 @@ static void *pri_dchannel(void *vpri)
 			}
 		}
 		/* Look for any idle channels if appropriate */
-		if (doidling && pri->up) {
+		if (doidling && pri_is_up(pri)) {
 			nextidle = -1;
 			haveidles = 0;
 			activeidles = 0;
@@ -6624,63 +6712,93 @@ static void *pri_dchannel(void *vpri)
 				}
 			}
 		}
-		if ((next = pri_schedule_next(pri->pri))) {
-			/* We need relative time here */
-			gettimeofday(&tv, NULL);
-			tv.tv_sec = next->tv_sec - tv.tv_sec;
-			tv.tv_usec = next->tv_usec - tv.tv_usec;
-			if (tv.tv_usec < 0) {
-				tv.tv_usec += 1000000;
-				tv.tv_sec -= 1;
-			}
-			if (tv.tv_sec < 0) {
-				tv.tv_sec = 0;
+		/* Start with reasonable max */
+		lowest.tv_sec = 60;
+		lowest.tv_usec = 0;
+		for (i=0; i<NUM_DCHANS; i++) {
+			/* Find lowest available d-channel */
+			if (!pri->dchannels[i])
+				break;
+			if ((next = pri_schedule_next(pri->pri))) {
+				/* We need relative time here */
+				gettimeofday(&tv, NULL);
+				tv.tv_sec = next->tv_sec - tv.tv_sec;
+				tv.tv_usec = next->tv_usec - tv.tv_usec;
+				if (tv.tv_usec < 0) {
+					tv.tv_usec += 1000000;
+					tv.tv_sec -= 1;
+				}
+				if (tv.tv_sec < 0) {
+					tv.tv_sec = 0;
+					tv.tv_usec = 0;
+				}
+				if (doidling || pri->resetting) {
+					if (tv.tv_sec > 1) {
+						tv.tv_sec = 1;
+						tv.tv_usec = 0;
+					}
+				} else {
+					if (tv.tv_sec > 60) {
+						tv.tv_sec = 60;
+						tv.tv_usec = 0;
+					}
+				}
+			} else if (doidling || pri->resetting) {
+				/* Make sure we stop at least once per second if we're
+				   monitoring idle channels */
+				tv.tv_sec = 1;
+				tv.tv_usec = 0;
+			} else {
+				/* Don't poll for more than 60 seconds */
+				tv.tv_sec = 60;
 				tv.tv_usec = 0;
 			}
-			if (doidling || pri->resetting) {
-				if (tv.tv_sec > 1) {
-					tv.tv_sec = 1;
-					tv.tv_usec = 0;
-				}
-			} else {
-				if (tv.tv_sec > 60) {
-					tv.tv_sec = 60;
-					tv.tv_usec = 0;
-				}
+			if (!i || (tv.tv_sec < lowest.tv_sec) || ((tv.tv_sec == lowest.tv_sec) && (tv.tv_usec < lowest.tv_usec))) {
+				lowest.tv_sec = tv.tv_sec;
+				lowest.tv_usec = tv.tv_usec;
 			}
-		} else if (doidling || pri->resetting) {
-			/* Make sure we stop at least once per second if we're
-			   monitoring idle channels */
-			tv.tv_sec = 1;
-			tv.tv_usec = 0;
-		} else {
-			/* Don't poll for more than 60 seconds */
-			tv.tv_sec = 60;
-			tv.tv_usec = 0;
 		}
 		ast_mutex_unlock(&pri->lock);
 
 		e = NULL;
-		res = poll(fds, 1, tv.tv_sec * 1000 + tv.tv_usec / 1000);
+		res = poll(fds, numdchans, lowest.tv_sec * 1000 + lowest.tv_usec / 1000);
 
 		ast_mutex_lock(&pri->lock);
 		if (!res) {
-			/* Just a timeout, run the scheduler */
-			e = pri_schedule_run(pri->pri);
+			for (which=0;which<NUM_DCHANS;which++) {
+				if (!pri->dchans[which])
+					break;
+				/* Just a timeout, run the scheduler */
+				e = pri_schedule_run(pri->dchans[which]);
+				if (e)
+					break;
+			}
 		} else if (res > -1) {
-			e = pri_check_event(pri->pri);
+			for (which=0;which<NUM_DCHANS;which++) {
+				if (!pri->dchans[which])
+					break;
+				if (fds[which].revents & (POLLIN | POLLPRI)) {
+					e = pri_check_event(pri->dchans[which]);
+				}
+				if (e)
+					break;
+			}
 		} else if (errno != EINTR)
 			ast_log(LOG_WARNING, "pri_event returned error %d (%s)\n", errno, strerror(errno));
 
 		if (e) {
 			if (pri->debug)
-				pri_dump_event(pri->pri, e);
+				pri_dump_event(pri->dchans[which], e);
 			switch(e->e) {
 			case PRI_EVENT_DCHAN_UP:
 				if (option_verbose > 1) 
-					ast_verbose(VERBOSE_PREFIX_2 "D-Channel on span %d up\n", pri->span);
-				pri->up = 1;
+					ast_verbose(VERBOSE_PREFIX_2 "%s D-Channel on span %d up\n", pri_order(which), pri->span);
+				pri->dchanavail[which] |= DCHAN_UP;
+				pri_find_dchan(pri);
+
+				/* Note presense of D-channel */
 				time(&pri->lastreset);
+
 				/* Restart in 5 seconds */
 				pri->lastreset -= RESET_INTERVAL;
 				pri->lastreset += 5;
@@ -6693,26 +6811,29 @@ static void *pri_dchannel(void *vpri)
 				break;
 			case PRI_EVENT_DCHAN_DOWN:
 				if (option_verbose > 1) 
-					ast_verbose(VERBOSE_PREFIX_2 "D-Channel on span %d down\n", pri->span);
-				pri->up = 0;
-				pri->resetting = 0;
-				/* Hangup active channels and put them in alarm mode */
-				for (i=0; i<pri->numchans; i++) {
-					struct zt_pvt *p = pri->pvts[i];
-					if (p) {
-						if (p->call) {
-							if (p->pri && p->pri->pri) {
-								pri_hangup(p->pri->pri, p->call, -1);
-								pri_destroycall(p->pri->pri, p->call);
-								p->call = NULL;
-							} else
-								ast_log(LOG_WARNING, "The PRI Call have not been destroyed\n");
+					ast_verbose(VERBOSE_PREFIX_2 "%s D-Channel on span %d down\n", pri_order(which), pri->span);
+				pri->dchanavail[which] &= ~DCHAN_UP;
+				pri_find_dchan(pri);
+				if (!pri_is_up(pri)) {
+					pri->resetting = 0;
+					/* Hangup active channels and put them in alarm mode */
+					for (i=0; i<pri->numchans; i++) {
+						struct zt_pvt *p = pri->pvts[i];
+						if (p) {
+							if (p->call) {
+								if (p->pri && p->pri->pri) {
+									pri_hangup(p->pri->pri, p->call, -1);
+									pri_destroycall(p->pri->pri, p->call);
+									p->call = NULL;
+								} else
+									ast_log(LOG_WARNING, "The PRI Call have not been destroyed\n");
+							}
+							if (p->master) {
+								pri_hangup_all(p->master);
+							} else if (p->owner)
+								p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							p->inalarm = 1;
 						}
-						if (p->master) {
-							pri_hangup_all(p->master);
-						} else if (p->owner)
-							p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
-						p->inalarm = 1;
 					}
 				}
 				break;
@@ -7231,14 +7352,28 @@ static void *pri_dchannel(void *vpri)
 				ast_log(LOG_DEBUG, "Event: %d\n", e->e);
 			}
 		} else {
-			/* Check for an event */
-			x = 0;
-			res = ioctl(pri->fd, ZT_GETEVENT, &x);
-			if (x) 
-				ast_log(LOG_NOTICE, "PRI got event: %d on span %d\n", x, pri->span);
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Got event %s (%d) on D-channel for span %d\n", event2str(x), x, pri->span);
-		}
+			for (i=0;i<NUM_DCHANS;i++) {
+				if (!pri->dchannels[i])
+					break;
+				/* Check for an event */
+				x = 0;
+				res = ioctl(pri->fds[i], ZT_GETEVENT, &x);
+				if (x) 
+					ast_log(LOG_NOTICE, "PRI got event: %d on %s D-channel of span %d\n", x, pri_order(x), pri->span);
+
+				/* Keep track of alarm state */	
+				if (x == ZT_EVENT_ALARM) {
+					pri->dchanavail[i] &= ~(DCHAN_NOTINALARM | DCHAN_UP);
+					pri_find_dchan(pri);
+				} else if (x == ZT_EVENT_NOALARM) {
+					pri->dchanavail[i] |= DCHAN_NOTINALARM;
+					pri_find_dchan(pri);
+				}
+				
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Got event %s (%d) on D-channel for span %d\n", event2str(x), x, pri->span);
+			}
+		}	
 		ast_mutex_unlock(&pri->lock);
 	}
 	/* Never reached */
@@ -7250,53 +7385,78 @@ static int start_pri(struct zt_pri *pri)
 	int res, x;
 	ZT_PARAMS p;
 	ZT_BUFFERINFO bi;
-
-	pri->fd = open("/dev/zap/channel", O_RDWR, 0600);
-	x = pri->offset + pri->dchannel;
-	if ((pri->fd < 0) || (ioctl(pri->fd,ZT_SPECIFY,&x) == -1)) {
-		ast_log(LOG_ERROR, "Unable to open D-channel %d (%d + %d) (%s)\n", x, pri->offset, pri->dchannel, strerror(errno));
-		return -1;
+	struct zt_spaninfo si;
+	int i;
+	
+	for (i=0;i<NUM_DCHANS;i++) {
+		if (!pri->dchannels[i])
+			break;
+		pri->fds[i] = open("/dev/zap/channel", O_RDWR, 0600);
+		x = pri->dchannels[i];
+		if ((pri->fds[i] < 0) || (ioctl(pri->fds[i],ZT_SPECIFY,&x) == -1)) {
+			ast_log(LOG_ERROR, "Unable to open D-channel %d (%s)\n", x, strerror(errno));
+			return -1;
+		}
+		res = ioctl(pri->fds[i], ZT_GET_PARAMS, &p);
+		if (res) {
+			close(pri->fds[i]);
+			pri->fds[i] = -1;
+			ast_log(LOG_ERROR, "Unable to get parameters for D-channel %d (%s)\n", x, strerror(errno));
+			return -1;
+		}
+		if (p.sigtype != ZT_SIG_HDLCFCS) {
+			close(pri->fds[i]);
+			pri->fds[i] = -1;
+			ast_log(LOG_ERROR, "D-channel %d is not in HDLC/FCS mode.  See /etc/zaptel.conf\n", x);
+			return -1;
+		}
+		memset(&si, 0, sizeof(si));
+		res = ioctl(pri->fds[i], ZT_SPANSTAT, &si);
+		if (res) {
+			close(pri->fds[i]);
+			pri->fds[i] = -1;
+			ast_log(LOG_ERROR, "Unable to get span state for D-channel %d (%s)\n", x, strerror(errno));
+		}
+		if (!si.alarms)
+			pri->dchanavail[i] |= DCHAN_NOTINALARM;
+		else
+			pri->dchanavail[i] &= ~DCHAN_NOTINALARM;
+		bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
+		bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
+		bi.numbufs = 16;
+		bi.bufsize = 1024;
+		if (ioctl(pri->fds[i], ZT_SET_BUFINFO, &bi)) {
+			ast_log(LOG_ERROR, "Unable to set appropriate buffering on channel %d\n", x);
+			close(pri->fds[i]);
+			pri->fds[i] = -1;
+			return -1;
+		}
+		pri->dchans[i] = pri_new(pri->fds[i], pri->nodetype, pri->switchtype);
+		/* Force overlap dial if we're doing GR-303! */
+		if (pri->switchtype == PRI_SWITCH_GR303_TMC)
+			pri->overlapdial = 1;
+		pri_set_overlapdial(pri->dchans[i],pri->overlapdial);
+		/* Enslave to master if appropriate */
+		if (i)
+			pri_enslave(pri->dchans[0], pri->dchans[i]);
+		if (!pri->dchans[i]) {
+			close(pri->fds[i]);
+			pri->fds[i] = -1;
+			ast_log(LOG_ERROR, "Unable to create PRI structure\n");
+			return -1;
+		}
+		pri_set_debug(pri->dchans[i], DEFAULT_PRI_DEBUG);
 	}
-
-	res = ioctl(pri->fd, ZT_GET_PARAMS, &p);
-	if (res) {
-		close(pri->fd);
-		pri->fd = -1;
-		ast_log(LOG_ERROR, "Unable to get parameters for D-channel %d (%s)\n", x, strerror(errno));
-		return -1;
-	}
-	if (p.sigtype != ZT_SIG_HDLCFCS) {
-		close(pri->fd);
-		pri->fd = -1;
-		ast_log(LOG_ERROR, "D-channel %d (%d + %d) is not in HDLC/FCS mode.  See /etc/zaptel.conf\n", x, pri->offset, pri->dchannel);
-		return -1;
-	}
-	bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
-	bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
-	bi.numbufs = 16;
-	bi.bufsize = 1024;
-	if (ioctl(pri->fd, ZT_SET_BUFINFO, &bi)) {
-		ast_log(LOG_ERROR, "Unable to set appropriate buffering on channel %d\n", x);
-		close(pri->fd);
-		pri->fd = -1;
-		return -1;
-	}
-	pri->pri = pri_new(pri->fd, pri->nodetype, pri->switchtype);
-	if (!pri->pri) {
-		close(pri->fd);
-		pri->fd = -1;
-		ast_log(LOG_ERROR, "Unable to create PRI structure\n");
-		return -1;
-	}
+	/* Assume primary is the one we use */
+	pri->pri = pri->dchans[0];
 	pri->resetpos = -1;
-	/* Force overlap dial if we're doing GR-303! */
-	if (pri->switchtype == PRI_SWITCH_GR303_TMC)
-		pri->overlapdial = 1;
-	pri_set_overlapdial(pri->pri,pri->overlapdial);
-	pri_set_debug(pri->pri, DEFAULT_PRI_DEBUG);
 	if (pthread_create(&pri->master, NULL, pri_dchannel, pri)) {
-		close(pri->fd);
-		pri->fd = -1;
+		for (i=0;i<NUM_DCHANS;i++) {
+			if (!pri->dchannels[i])
+				break;
+			close(pri->fds[i]);
+			pri->fds[i] = -1;
+		}
 		ast_log(LOG_ERROR, "Unable to spawn D-channel: %s\n", strerror(errno));
 		return -1;
 	}
@@ -7322,6 +7482,7 @@ static char *complete_span(char *line, char *word, int pos, int state)
 static int handle_pri_debug(int fd, int argc, char *argv[])
 {
 	int span;
+	int x;
 	if (argc < 4) {
 		return RESULT_SHOWUSAGE;
 	}
@@ -7334,7 +7495,10 @@ static int handle_pri_debug(int fd, int argc, char *argv[])
 		ast_cli(fd, "No PRI running on span %d\n", span);
 		return RESULT_SUCCESS;
 	}
-	pri_set_debug(pris[span-1].pri, PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q931_STATE);
+	for (x=0;x<NUM_DCHANS;x++) {
+		if (pris[span-1].dchans[x])
+			pri_set_debug(pris[span-1].dchans[x], PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q931_STATE);
+	}
 	ast_cli(fd, "Enabled debugging on span %d\n", span);
 	return RESULT_SUCCESS;
 }
@@ -7344,6 +7508,7 @@ static int handle_pri_debug(int fd, int argc, char *argv[])
 static int handle_pri_no_debug(int fd, int argc, char *argv[])
 {
 	int span;
+	int x;
 	if (argc < 5)
 		return RESULT_SHOWUSAGE;
 	span = atoi(argv[4]);
@@ -7355,7 +7520,10 @@ static int handle_pri_no_debug(int fd, int argc, char *argv[])
 		ast_cli(fd, "No PRI running on span %d\n", span);
 		return RESULT_SUCCESS;
 	}
-	pri_set_debug(pris[span-1].pri, 0);
+	for (x=0;x<NUM_DCHANS;x++) {
+		if (pris[span-1].dchans[x])
+			pri_set_debug(pris[span-1].dchans[x], 0);
+	}
 	ast_cli(fd, "Disabled debugging on span %d\n", span);
 	return RESULT_SUCCESS;
 }
@@ -7363,6 +7531,7 @@ static int handle_pri_no_debug(int fd, int argc, char *argv[])
 static int handle_pri_really_debug(int fd, int argc, char *argv[])
 {
 	int span;
+	int x;
 	if (argc < 5)
 		return RESULT_SHOWUSAGE;
 	span = atoi(argv[4]);
@@ -7374,14 +7543,36 @@ static int handle_pri_really_debug(int fd, int argc, char *argv[])
 		ast_cli(fd, "No PRI running on span %d\n", span);
 		return RESULT_SUCCESS;
 	}
-	pri_set_debug(pris[span-1].pri, (PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q921_DUMP | PRI_DEBUG_Q921_RAW | PRI_DEBUG_Q921_STATE));
+	for (x=0;x<NUM_DCHANS;x++) {
+		if (pris[span-1].dchans[x])
+			pri_set_debug(pris[span-1].dchans[x], (PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q921_DUMP | PRI_DEBUG_Q921_RAW | PRI_DEBUG_Q921_STATE));
+	}
 	ast_cli(fd, "Enabled EXTENSIVE debugging on span %d\n", span);
 	return RESULT_SUCCESS;
+}
+
+static void build_status(char *s, int status, int active)
+{
+	strcpy(s, "");
+	if (status & DCHAN_PROVISIONED)
+		strcat(s, "Provisioned, ");
+	if (!(status & DCHAN_NOTINALARM))
+		strcat(s, "In Alarm, ");
+	if (status & DCHAN_UP)
+		strcat(s, "Up");
+	else
+		strcat(s, "Down");
+	if (active)
+		strcat(s, ", Active");
+	else
+		strcat(s, ", Standby");
 }
 
 static int handle_pri_show_span(int fd, int argc, char *argv[])
 {
 	int span;
+	int x;
+	char status[256];
 	if (argc < 4)
 		return RESULT_SHOWUSAGE;
 	span = atoi(argv[3]);
@@ -7393,7 +7584,15 @@ static int handle_pri_show_span(int fd, int argc, char *argv[])
 		ast_cli(fd, "No PRI running on span %d\n", span);
 		return RESULT_SUCCESS;
 	}
-	pri_dump_info(pris[span-1].pri);
+	for(x=0;x<NUM_DCHANS;x++) {
+		if (pris[span-1].dchannels[x]) {
+			ast_cli(fd, "%s D-channel: %d\n", pri_order(x), pris[span-1].dchannels[x]);
+			build_status(status, pris[span-1].dchanavail[x], pris[span-1].dchans[x] == pris[span-1].pri);
+			ast_cli(fd, "Status: %s\n", status);
+			pri_dump_info(pris[span-1].pri);
+			ast_cli(fd, "\n");
+		}
+	}
 	return RESULT_SUCCESS;
 }
 
@@ -7971,7 +8170,7 @@ static int __unload_module(void)
 #ifdef ZAPATA_PRI		
 	for(i=0;i<NUM_SPANS;i++) {
 		pthread_join(pris[i].master, NULL);
-		zt_close(pris[i].fd);
+		zt_close(pris[i].fds[i]);
 	}
 #endif
 	return 0;
@@ -7996,9 +8195,10 @@ static int setup_zap(void)
 	int cur_radio = 0;
 #ifdef ZAPATA_PRI
 	int spanno;
+	int i;
 	int logicalspan;
 	int trunkgroup;
-	int dchannel;
+	int dchannels[NUM_DCHANS];
 	struct zt_pri *pri;
 #endif
 
@@ -8024,14 +8224,23 @@ static int setup_zap(void)
 			trunkgroup = atoi(v->value);
 			if (trunkgroup > 0) {
 				if ((c = strchr(v->value, ','))) {
-					dchannel = atoi(c + 1);
-					if (dchannel > 0) {
-						if (pri_create_trunkgroup(trunkgroup, dchannel)) {
-							ast_log(LOG_WARNING, "Unable to create trunk group %d with D-channel %d at line %d of zapata.conf\n", trunkgroup, dchannel, v->lineno);
+					i = 0;
+					memset(dchannels, 0, sizeof(dchannels));
+					while(c && (i < NUM_DCHANS)) {
+						dchannels[i] = atoi(c + 1);
+						if (dchannels[i] < 0) {
+							ast_log(LOG_WARNING, "D-channel for trunk group %d must be a postiive number at line %d of zapata.conf\n", trunkgroup, v->lineno);
+						} else
+							i++;
+						c = strchr(c + 1, ',');
+					}
+					if (i) {
+						if (pri_create_trunkgroup(trunkgroup, dchannels)) {
+							ast_log(LOG_WARNING, "Unable to create trunk group %d with Primary D-channel %d at line %d of zapata.conf\n", trunkgroup, dchannels[0], v->lineno);
 						} else if (option_verbose > 1)
-							ast_verbose(VERBOSE_PREFIX_2 "Created trunk group %d with D-channel %d\n", trunkgroup, dchannel);
+							ast_verbose(VERBOSE_PREFIX_2 "Created trunk group %d with Primary D-channel %d and %d backup%s\n", trunkgroup, dchannels[0], i - 1, (i == 1) ? "" : "s");
 					} else
-						ast_log(LOG_WARNING, "D-channel for trunk group %d must be a postiive number at line %d of zapata.conf\n", trunkgroup, v->lineno);
+						ast_log(LOG_WARNING, "Trunk group %d lacks any valid D-channels at line %d of zapata.conf\n", trunkgroup, v->lineno);
 				} else
 					ast_log(LOG_WARNING, "Trunk group %d lacks a primary D-channel at line %d of zapata.conf\n", trunkgroup, v->lineno);
 			} else
@@ -8572,11 +8781,12 @@ int load_module(void)
 	int res;
 
 #ifdef ZAPATA_PRI
-	int y;
+	int y,i;
 	memset(pris, 0, sizeof(pris));
 	for (y=0;y<NUM_SPANS;y++) {
 		pris[y].offset = -1;
-		pris[y].fd = -1;
+		for (i=0;i<NUM_DCHANS;i++)
+			pris[y].fds[i] = -1;
 	}
 	pri_set_error(zt_pri_error);
 	pri_set_message(zt_pri_message);
