@@ -7,11 +7,11 @@
  
 #include <newt.h>
 #include <stdio.h>
-#include <sys/socket.h>
 #include <sys/time.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
 #include <sys/select.h>
 #include <fcntl.h>
 #include <string.h>
