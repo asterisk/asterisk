@@ -8042,6 +8042,13 @@ static int setup_zap(void)
 		v = v->next;
 	}
 	if (!found_pseudo) {
+	
+		/* Make sure pseudo isn't a member of any groups if
+		   we're automatically making it. */	
+		cur_group = 0;
+		cur_callergroup = 0;
+		cur_pickupgroup = 0;
+	
 		tmp = mkintf(CHAN_PSEUDO, cur_signalling, cur_radio);
 
 		if (tmp) {
