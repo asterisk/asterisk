@@ -1009,8 +1009,11 @@ int setup_incoming_call(call_details_t cd)
 			if (strlen(user->callerid)) 
 				strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
 			else
-				sprintf(p->callerid, "%s <%s>", p->cd.call_source_aliases, p->cd.call_source_e164); 
-	
+				if (!strlen(p->cd.call_source_aliases)) 
+					sprintf(p->callerid, "Unknown Name <%s>", p->cd.call_source_e164); 
+				else
+					sprintf(p->callerid, "%s <%s>", p->cd.call_source_aliases, p->cd.call_source_e164); 
+
 			if (strlen(p->cd.call_dest_e164)) {
 				strncpy(p->exten, cd.call_dest_e164, sizeof(p->exten)-1);
 			} else {
