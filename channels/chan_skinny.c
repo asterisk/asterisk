@@ -1995,12 +1995,12 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = sizeof(speed_dial_stat_res_message)+4;
 		req->e = SPEED_DIAL_STAT_RES_MESSAGE;
-	
+#if 0	
 		/* XXX Do this right XXX */	
 		req->data.speeddialreq.speedDialNumber = speedDialNum;
 		sprintf(req->data.speeddial.speedDialDirNumber, "31337");
 		sprintf(req->data.speeddial.speedDialDisplayName, "Asterisk Rules!");
-		
+#endif		
 		transmit_response(s, req);
 		break;
 	case LINE_STATE_REQ_MESSAGE:
