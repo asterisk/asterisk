@@ -40,6 +40,7 @@ static char *config = "cdr_odbc.conf";
 static char *dsn = NULL, *username = NULL, *password = NULL, *loguniqueid = NULL, *table = NULL;
 static int dsn_alloc = 0, username_alloc = 0, password_alloc = 0, loguniqueid_alloc = 0, table_alloc = 0;
 static int connected = 0;
+static int dispositionstring = 0;
 
 AST_MUTEX_DEFINE_STATIC(odbc_lock);
 
@@ -126,7 +127,10 @@ static int odbc_log(struct ast_cdr *cdr)
 	SQLBindParameter(ODBC_stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->lastdata), 0, cdr->lastdata, 0, NULL);
 	SQLBindParameter(ODBC_stmt, 10, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->duration, 0, NULL);
 	SQLBindParameter(ODBC_stmt, 11, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->billsec, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 12, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_CHAR, strlen(ast_cdr_disp2str(cdr->disposition)) + 1, 0, ast_cdr_disp2str(cdr->disposition), 0, NULL);
+	if (dispositionstring)
+		SQLBindParameter(ODBC_stmt, 12, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_CHAR, strlen(ast_cdr_disp2str(cdr->disposition)) + 1, 0, ast_cdr_disp2str(cdr->disposition), 0, NULL);
+	else
+		SQLBindParameter(ODBC_stmt, 12, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->disposition, 0, NULL);
 	SQLBindParameter(ODBC_stmt, 13, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->amaflags, 0, NULL);
 	SQLBindParameter(ODBC_stmt, 14, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->accountcode), 0, cdr->accountcode, 0, NULL);
 
@@ -260,6 +264,10 @@ static int odbc_load_module(void)
 		dsn = "asteriskdb";
 	}
 
+	tmp = ast_variable_retrieve(cfg,"global","dispositionstring");
+	if (tmp) 
+		dispositionstring = ast_true(tmp);
+		
 	tmp = ast_variable_retrieve(cfg,"global","username");
 	if (tmp) {
 		username = malloc(strlen(tmp) + 1);
