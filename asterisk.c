@@ -585,6 +585,10 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		if (option_verbose || option_console)
 			ast_verbose("Restarting Asterisk NOW...\n");
 		restartnow = 1;
+
+		/* close logger */
+		close_logger();
+
 		/* If there is a consolethread running send it a SIGHUP 
 		   so it can execvp, otherwise we can do it ourselves */
 		if (consolethread != AST_PTHREADT_NULL) {
@@ -594,6 +598,9 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		} else
 			execvp(_argv[0], _argv);
 	
+	} else {
+		/* close logger */
+		close_logger();
 	}
 	exit(0);
 }

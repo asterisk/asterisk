@@ -40,6 +40,7 @@ extern int load_modules(void);
 extern int load_pbx(void);
 /* Provided by logger.c */
 extern int init_logger(void);
+extern void close_logger(void);
 /* Provided by frame.c */
 extern int init_framer(void);
 /* Provided by logger.c */

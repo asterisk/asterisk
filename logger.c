@@ -428,6 +428,25 @@ int init_logger(void)
 	return -1;
 }
 
+void close_logger(void)
+{
+	struct msglist *m, *tmp;
+
+	m = list;
+	ast_mutex_lock(&msglist_lock);
+	while(m) {
+		if (m->msg) {
+			free(m->msg);
+		}
+		tmp = m->next;
+		free(m);
+		m = tmp;
+	}
+	list = last = NULL;
+	ast_mutex_unlock(&msglist_lock);
+	return;
+}
+
 static void ast_log_vsyslog(int level, const char *file, int line, const char *function, const char *fmt, va_list args) {
     char buf[BUFSIZ];
 
