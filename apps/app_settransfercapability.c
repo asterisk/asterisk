@@ -19,7 +19,7 @@
 #include <asterisk/transcap.h>
 #include <string.h>
 #include <stdlib.h>
-#include <libpri.h>
+#include <asterisk/transcap.h>
 
 
 static char *app = "SetTransferCapability";
