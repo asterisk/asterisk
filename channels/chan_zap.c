@@ -5199,6 +5199,24 @@ static void zt_pri_error(char *s)
 	ast_log(LOG_WARNING, "PRI: %s", s);
 }
 
+static int pri_check_restart(struct zt_pri *pri)
+{
+	do {
+		pri->resetchannel++;
+	} while((pri->resetchannel <= pri->channels) &&
+		 (!pri->pvt[pri->resetchannel] ||
+		  pri->pvt[pri->resetchannel]->call ||
+		  pri->pvt[pri->resetchannel]->resetting));
+	if (pri->resetchannel <= pri->channels) {
+		/* Mark the channel as resetting and restart it */
+		pri->pvt[pri->resetchannel]->resetting = 1;
+		pri_reset(pri->pri, pri->resetchannel);
+	} else {
+		pri->resetting = 0;
+	}
+	return 0;
+}
+
 static void *pri_dchannel(void *vpri)
 {
 	struct zt_pri *pri = vpri;
@@ -5246,23 +5264,8 @@ static void *pri_dchannel(void *vpri)
 		time(&t);
 		ast_pthread_mutex_lock(&pri->lock);
 		if (pri->resetting && pri->up) {
-			/* Look for a resetable channel and go */
-			if ((t - pri->lastreset) > 0) {
-				pri->lastreset = t;
-				do {
-					pri->resetchannel++;
-				} while((pri->resetchannel <= pri->channels) &&
-					(!pri->pvt[pri->resetchannel] ||
-					pri->pvt[pri->resetchannel]->call ||
-					 pri->pvt[pri->resetchannel]->resetting));
-				if (pri->resetchannel <= pri->channels) {
-					/* Mark the channel as resetting and restart it */
-					pri->pvt[pri->resetchannel]->resetting = 1;
-					pri_reset(pri->pri, pri->resetchannel);
-				} else {
-					pri->resetting = 0;
-				}
-			}
+			if (!pri->resetchannel)
+				pri_check_reset(pri);
 		} else {
 			if ((t - pri->lastreset) >= RESET_INTERVAL) {
 				pri->resetting = 1;
@@ -5652,6 +5655,8 @@ static void *pri_dchannel(void *vpri)
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "B-channel %d successfully restarted on span %d\n", chan, pri->span);
 							ast_pthread_mutex_unlock(&pri->pvt[chan]->lock);
+							if (pri->resetting)
+								pri_check_restart(pri);
 							break;
 						}
 					}
