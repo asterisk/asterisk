@@ -21,6 +21,7 @@ extern "C" {
 #endif
 
 #include <asterisk/frame.h>
+#include <asterisk/plc.h>
 
 /* Declared by individual translators */
 struct ast_translator_pvt;
@@ -102,7 +103,6 @@ extern void ast_translator_free_path(struct ast_trans_pvt *tr);
  * Returns an ast_frame of the new translation format on success, NULL on failure
  */
 extern struct ast_frame *ast_translate(struct ast_trans_pvt *tr, struct ast_frame *f, int consume);
-
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

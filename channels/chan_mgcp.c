@@ -479,6 +479,7 @@ static const struct ast_channel_tech mgcp_tech = {
 	.type = type,
 	.description = tdesc,
 	.capabilities = AST_FORMAT_ULAW,
+	.properties = AST_CHAN_TP_WANTSJITTER,
 	.requester = mgcp_request,
 	.call = mgcp_call,
 	.hangup = mgcp_hangup,

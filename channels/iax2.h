@@ -138,6 +138,9 @@
 #define IAX_META_TRUNK				1		/* Trunk meta-message */
 #define IAX_META_VIDEO				2		/* Video frame */
 
+#define IAX_META_TRUNK_SUPERMINI		0	/* This trunk frame contains classic supermini frames */
+#define IAX_META_TRUNK_MINI			1	/* This trunk frame contains trunked mini frames */
+
 #define IAX_RATE_8KHZ				(1 << 0) /* 8khz sampling (default if absent) */
 #define IAX_RATE_11KHZ				(1 << 1) /* 11.025khz sampling */
 #define IAX_RATE_16KHZ				(1 << 2) /* 16khz sampling */
@@ -207,6 +210,12 @@ struct ast_iax2_meta_trunk_hdr {
 struct ast_iax2_meta_trunk_entry {
 	unsigned short callno;			/* Call number */
 	unsigned short len;				/* Length of data for this callno */
+} __attribute__ ((__packed__));
+
+/* When trunktimestamps are used, we use this format instead */
+struct ast_iax2_meta_trunk_mini {
+	unsigned short len;
+	struct ast_iax2_mini_hdr mini;		/* this is an actual miniframe */
 } __attribute__ ((__packed__));
 
 #define IAX_FIRMWARE_MAGIC 0x69617879

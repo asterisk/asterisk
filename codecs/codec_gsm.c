@@ -21,6 +21,8 @@
 
 #include <asterisk/lock.h>
 #include <asterisk/translate.h>
+#include <asterisk/config.h>
+#include <asterisk/options.h>
 #include <asterisk/module.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -43,6 +45,8 @@ static int localusecnt=0;
 
 static char *tdesc = "GSM/PCM16 (signed linear) Codec Translator";
 
+static int useplc = 0;
+
 struct ast_translator_pvt {
 	gsm gsm;
 	struct ast_frame f;
@@ -53,6 +57,7 @@ struct ast_translator_pvt {
 	/* Enough to store a full second */
 	short buf[8000];
 	int tail;
+	plc_state_t plc;
 };
 
 #define gsm_coder_pvt ast_translator_pvt
@@ -67,6 +72,7 @@ static struct ast_translator_pvt *gsm_new(void)
 			tmp = NULL;
 		}
 		tmp->tail = 0;
+		plc_init(&tmp->plc);
 		localusecnt++;
 	}
 	return tmp;
@@ -131,6 +137,18 @@ static int gsmtolin_framein(struct ast_translator_pvt *tmp, struct ast_frame *f)
 	unsigned char data[66];
 	int msgsm=0;
 	
+	if(f->datalen == 0) { /* perform PLC with nominal framesize of 20ms/160 samples */
+	      if((tmp->tail + 160) > sizeof(tmp->buf) / 2) {
+		  ast_log(LOG_WARNING, "Out of buffer space\n");
+		  return -1;
+	      }
+	      if(useplc) {
+		  plc_fillin(&tmp->plc, tmp->buf+tmp->tail, 160);
+		  tmp->tail += 160;
+	      }
+	      return 0;
+	}
+
 	if ((f->datalen % 33) && (f->datalen % 65)) {
 		ast_log(LOG_WARNING, "Huh?  A GSM frame that isn't a multiple of 33 or 65 bytes long from %s (%d)?\n", f->src, f->datalen);
 		return -1;
@@ -171,6 +189,10 @@ static int gsmtolin_framein(struct ast_translator_pvt *tmp, struct ast_frame *f)
 			}
 		}
 	}
+
+	/* just add the last 20ms frame; there must have been at least one */
+	if(useplc) plc_rx(&tmp->plc, tmp->buf+tmp->tail-160, 160);
+
 	return 0;
 }
 
@@ -249,6 +271,31 @@ static struct ast_translator lintogsm =
 	   lintogsm_sample
 	   };
 
+
+static void parse_config(void)
+{
+	struct ast_config *cfg;
+	struct ast_variable *var;
+	if ((cfg = ast_config_load("codecs.conf"))) {
+		if ((var = ast_variable_browse(cfg, "plc"))) {
+			while (var) {
+			       if (!strcasecmp(var->name, "genericplc")) {
+				       useplc = ast_true(var->value) ? 1 : 0;
+				       if (option_verbose > 2)
+					       ast_verbose(VERBOSE_PREFIX_3 "CODEC ULAW: %susing generic PLC\n", useplc ? "" : "not ");
+			       }
+			       var = var->next;
+			}
+		}
+	}
+}
+
+int reload(void)
+{
+	parse_config();
+	return 0;
+}
+
 int unload_module(void)
 {
 	int res;
@@ -265,6 +312,7 @@ int unload_module(void)
 int load_module(void)
 {
 	int res;
+	parse_config();
 	res=ast_register_translator(&gsmtolin);
 	if (!res) 
 		res=ast_register_translator(&lintogsm);

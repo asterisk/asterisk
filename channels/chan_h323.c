@@ -197,6 +197,7 @@ static const struct ast_channel_tech oh323_tech = {
 	.type = type,
 	.description = tdesc,
 	.capabilities = AST_FORMAT_ULAW,
+	.properties = AST_CHAN_TP_WANTSJITTER,
 	.requester = oh323_request,
 	.send_digit = oh323_digit,
 	.call = oh323_call,

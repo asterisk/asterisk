@@ -82,7 +82,11 @@ struct ast_channel_tech {
 	const char * const type;
 	const char * const description;
 
+	/*! Bitmap of formats this channel can handle */
 	int capabilities;
+
+	/*! Technology Properties */
+	int properties;
 
 	struct ast_channel *(* const requester)(const char *type, int format, void *data, int *cause);
 
@@ -310,6 +314,10 @@ struct ast_channel {
 	struct ast_channel *next;
 
 };
+
+/* Channel tech properties: */
+/* Channels have this property if they can accept input with jitter; i.e. most VoIP channels */
+#define AST_CHAN_TP_WANTSJITTER	(1 << 0)	
 
 #define AST_FLAG_DIGITAL	(1 << 0)	/* if the call is a digital ISDN call */
 #define AST_FLAG_DEFER_DTMF	(1 << 1)	/* if dtmf should be deferred */

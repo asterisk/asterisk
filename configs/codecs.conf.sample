@@ -15,3 +15,9 @@ abr => 0
 vbr_quality => 5
 ; true / false
 dtx => false
+
+[plc]
+; for all codecs which do not support native PLC
+; this determines whether to perform generic PLC
+; there is a minor performance penalty for this
+genericplc => true

@@ -17,6 +17,8 @@
 #include <asterisk/lock.h>
 #include <asterisk/logger.h>
 #include <asterisk/module.h>
+#include <asterisk/config.h>
+#include <asterisk/options.h>
 #include <asterisk/translate.h>
 #include <asterisk/channel.h>
 #include <fcntl.h>
@@ -35,6 +37,8 @@ AST_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt = 0;
 
 static char *tdesc = "Adaptive Differential PCM Coder/Decoder";
+
+static int useplc = 0;
 
 /* Sample frame data */
 
@@ -236,6 +240,7 @@ struct adpcm_decoder_pvt
   short outbuf[BUFFER_SIZE];	/* Decoded signed linear values */
   struct adpcm_state state;
   int tail;
+  plc_state_t plc;
 };
 
 /*
@@ -258,6 +263,7 @@ adpcmtolin_new (void)
     {
 	  memset(tmp, 0, sizeof(*tmp));
       tmp->tail = 0;
+      plc_init(&tmp->plc);
       localusecnt++;
       ast_update_use_count ();
     }
@@ -292,8 +298,8 @@ lintoadpcm_new (void)
 
 /*
  * AdpcmToLin_FrameIn
- *  Fill an input buffer with packed 4-bit ADPCM values if there is room
- *  left.
+ *  Take an input buffer with packed 4-bit ADPCM values and put decoded PCM in outbuf, 
+ *  if there is room left.
  *
  * Results:
  *  Foo
@@ -309,7 +315,19 @@ adpcmtolin_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
   int x;
   unsigned char *b;
 
-  if (f->datalen * 4 > sizeof(tmp->outbuf)) {
+  if(f->datalen == 0) { /* perform PLC with nominal framesize of 20ms/160 samples */
+        if((tmp->tail + 160) > sizeof(tmp->outbuf) / 2) {
+            ast_log(LOG_WARNING, "Out of buffer space\n");
+            return -1;
+        }
+        if(useplc) {
+	  plc_fillin(&tmp->plc, tmp->outbuf+tmp->tail, 160);
+	  tmp->tail += 160;
+	}
+        return 0;
+  }
+
+  if (f->datalen * 4 + tmp->tail * 2 > sizeof(tmp->outbuf)) {
   	ast_log(LOG_WARNING, "Out of buffer space\n");
 	return -1;
   }
@@ -320,6 +338,8 @@ adpcmtolin_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
 	tmp->outbuf[tmp->tail++] = decode((b[x] >> 4) & 0xf, &tmp->state);
 	tmp->outbuf[tmp->tail++] = decode(b[x] & 0x0f, &tmp->state);
   }
+
+  if(useplc) plc_rx(&tmp->plc, tmp->outbuf+tmp->tail-f->datalen*2, f->datalen*2);
 
   return 0;
 }
@@ -538,6 +558,32 @@ static struct ast_translator lintoadpcm = {
   lintoadpcm_sample
 };
 
+static void 
+parse_config(void)
+{
+  struct ast_config *cfg;
+  struct ast_variable *var;
+  if ((cfg = ast_config_load("codecs.conf"))) {
+    if ((var = ast_variable_browse(cfg, "plc"))) {
+      while (var) {
+       if (!strcasecmp(var->name, "genericplc")) {
+         useplc = ast_true(var->value) ? 1 : 0;
+         if (option_verbose > 2)
+           ast_verbose(VERBOSE_PREFIX_3 "CODEC ULAW: %susing generic PLC\n", useplc ? "" : "not ");
+       }
+       var = var->next;
+      }
+    }
+  }
+}
+
+int
+reload(void)
+{
+  parse_config();
+  return 0;
+}
+
 int
 unload_module (void)
 {
@@ -556,6 +602,7 @@ int
 load_module (void)
 {
   int res;
+  parse_config();
   res = ast_register_translator (&adpcmtolin);
   if (!res)
     res = ast_register_translator (&lintoadpcm);

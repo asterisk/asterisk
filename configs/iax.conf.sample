@@ -61,6 +61,12 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; The jitter buffer's function is to compensate for varying
 ; network delay.
 ;
+; There are presently two jitterbuffer implementations available for * and chan_iax2;
+; the classic and the new, channel/application independent implementation.  These
+; are controlled at compile-time.  The new jitterbuffer additionally has support for PLC
+; which greatly improves quality as the jitterbuffer adapts size, and in compensating for lost
+; packets.
+;
 ; All the jitter buffer settings except dropcount are in milliseconds.
 ; The jitter buffer works for INCOMING audio - the outbound audio
 ; will be dejittered by the jitter buffer at the other end.
@@ -68,9 +74,16 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; jitterbuffer=yes|no: global default as to whether you want
 ; the jitter buffer at all.
 ;
+; forcejitterbuffer=yes|no: in the ideal world, when we bridge VoIP channels
+; we don't want to do jitterbuffering on the switch, since the endpoints
+; can each handle this.  However, some endpoints may have poor jitterbuffers 
+; themselves, so this option will force * to always jitterbuffer, even in this case.
+; [This option presently applies only to the new jitterbuffer implementation]
+;
 ; dropcount: the jitter buffer is sized such that no more than "dropcount"
 ; frames would have been "too late" over the last 2 seconds.
 ; Set to a small number.  "3" represents 1.5% of frames dropped
+; [This option is not applicable to, and ignored by the new jitterbuffer implementation]
 ;
 ; maxjitterbuffer: a maximum size for the jitter buffer.
 ; Setting a reasonable maximum here will prevent the call delay
@@ -81,18 +94,22 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; the jitter buffer can end up bigger than necessary.  If it ends up
 ; more than "maxexcessbuffer" bigger than needed, Asterisk will start
 ; gradually decreasing the amount of jitter buffering.
+; [This option is not applicable to, and ignored by the new jitterbuffer implementation]
 ;
 ; minexcessbuffer: Sets a desired mimimum amount of headroom in 
 ; the jitter buffer.  If Asterisk has less headroom than this, then
 ; it will start gradually increasing the amount of jitter buffering.
+; [This option is not applicable to, and ignored by the new jitterbuffer implementation]
 ;
 ; jittershrinkrate: when the jitter buffer is being gradually shrunk 
 ; (or enlarged), how many millisecs shall we take off per 20ms frame
 ; received?  Use a small number, or you will be able to hear it
 ; changing.  An example: if you set this to 2, then the jitter buffer
 ; size will change by 100 millisecs per second.
+; [This option is not applicable to, and ignored by the new jitterbuffer implementation]
 
 jitterbuffer=no
+forcejitterbuffer=no
 ;dropcount=2
 ;maxjitterbuffer=500
 ;maxexcessbuffer=80
@@ -100,6 +117,16 @@ jitterbuffer=no
 ;jittershrinkrate=1
 
 ;trunkfreq=20			; How frequently to send trunk msgs (in ms)
+
+; Should we send timestamps for the individual sub-frames within trunk frames?
+; There is a small bandwidth use for these (less than 1kbps/call), but they ensure
+; that frame timestamps get sent end-to-end properly.  If both ends of all your trunks
+; go directly to TDM, _and_ your trunkfreq equals the frame length for your codecs, you 
+; can probably suppress these.  The receiver must also support this feature, although
+; they do not also need to have it enabled.
+;
+; trunktimestamps=yes
+
 ;
 ;
 ; We can register with another IAX server to let him know where we are

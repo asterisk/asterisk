@@ -631,6 +631,7 @@ static const struct ast_channel_tech sip_tech = {
 	.type = channeltype,
 	.description = "Session Initiation Protocol (SIP)",
 	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
+	.properties = AST_CHAN_TP_WANTSJITTER,
 	.requester = sip_request,
 	.devicestate = sip_devicestate,
 	.call = sip_call,

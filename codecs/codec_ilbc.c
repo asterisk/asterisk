@@ -141,7 +141,19 @@ static int ilbctolin_framein(struct ast_translator_pvt *tmp, struct ast_frame *f
 	   the tail location.  Read in as many frames as there are */
 	int x,i;
 	float tmpf[240];
-	
+
+	if (f->datalen == 0) { /* native PLC */
+		if (tmp->tail + 240 < sizeof(tmp->buf)/2) {	
+			iLBC_decode(tmpf, NULL, &tmp->dec, 0);
+			for (i=0;i<240;i++)
+				tmp->buf[tmp->tail + i] = tmpf[i];
+			tmp->tail+=240;
+		} else {
+			ast_log(LOG_WARNING, "Out of buffer space\n");
+			return -1;
+		}		
+	}
+
 	if (f->datalen % 50) {
 		ast_log(LOG_WARNING, "Huh?  An ilbc frame that isn't a multiple of 50 bytes long from %s (%d)?\n", f->src, f->datalen);
 		return -1;

@@ -16,6 +16,8 @@
 #include <asterisk/lock.h>
 #include <asterisk/logger.h>
 #include <asterisk/module.h>
+#include <asterisk/config.h>
+#include <asterisk/options.h>
 #include <asterisk/translate.h>
 #include <asterisk/channel.h>
 #include <fcntl.h>
@@ -48,6 +50,8 @@ AST_MUTEX_DEFINE_STATIC(localuser_lock);
 static int localusecnt = 0;
 
 static char *tdesc = "ITU G.726-32kbps G726 Transcoder";
+
+static int useplc = 0;
 
 /* Sample frame data */
 
@@ -694,6 +698,7 @@ struct g726_decoder_pvt
   short outbuf[BUFFER_SIZE];	/* Decoded signed linear values */
   struct g726_state g726;
   int tail;
+  plc_state_t plc;
 };
 
 /*
@@ -716,6 +721,7 @@ g726tolin_new (void)
     {
 	  memset(tmp, 0, sizeof(*tmp));
       tmp->tail = 0;
+      plc_init(&tmp->plc);
       localusecnt++;
 	  g726_init_state(&tmp->g726);
       ast_update_use_count ();
@@ -769,6 +775,18 @@ g726tolin_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
   unsigned char *b;
   int x;
 
+  if(f->datalen == 0) { /* perform PLC with nominal framesize of 20ms/160 samples */
+        if((tmp->tail + 160) > BUFFER_SIZE) {
+            ast_log(LOG_WARNING, "Out of buffer space\n");
+            return -1;
+        }
+        if(useplc) {
+	    plc_fillin(&tmp->plc, tmp->outbuf+tmp->tail, 160);
+	    tmp->tail += 160;
+	}
+        return 0;
+  }
+
   b = f->data;
   for (x=0;x<f->datalen;x++) {
   	if (tmp->tail >= BUFFER_SIZE) {
@@ -782,6 +800,8 @@ g726tolin_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
 	}
 	tmp->outbuf[tmp->tail++] = g726_decode(b[x] & 0x0f, &tmp->g726);
   }
+
+  if(useplc) plc_rx(&tmp->plc, tmp->outbuf+tmp->tail-f->datalen*2, f->datalen*2);
 
   return 0;
 }
@@ -974,6 +994,32 @@ static struct ast_translator lintog726 = {
   lintog726_sample
 };
 
+static void 
+parse_config(void)
+{
+  struct ast_config *cfg;
+  struct ast_variable *var;
+  if ((cfg = ast_config_load("codecs.conf"))) {
+    if ((var = ast_variable_browse(cfg, "plc"))) {
+      while (var) {
+       if (!strcasecmp(var->name, "genericplc")) {
+         useplc = ast_true(var->value) ? 1 : 0;
+         if (option_verbose > 2)
+           ast_verbose(VERBOSE_PREFIX_3 "CODEC ULAW: %susing generic PLC\n", useplc ? "" : "not ");
+       }
+       var = var->next;
+      }
+    }
+  }
+}
+
+int
+reload(void)
+{
+  parse_config();
+  return 0;
+}
+
 int
 unload_module (void)
 {
@@ -992,6 +1038,7 @@ int
 load_module (void)
 {
   int res;
+  parse_config();
   res = ast_register_translator (&g726tolin);
   if (!res)
     res = ast_register_translator (&lintog726);

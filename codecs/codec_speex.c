@@ -181,6 +181,21 @@ static int speextolin_framein(struct ast_translator_pvt *tmp, struct ast_frame *
 	int x;
 	int res;
 	float fout[1024];
+
+	if(f->datalen == 0) {  /* Native PLC interpolation */
+		if(tmp->tail + tmp->framesize > sizeof(tmp->buf) / 2) {
+			ast_log(LOG_WARNING, "Out of buffer space\n");
+			return -1;
+		}
+		speex_decode(tmp->speex, NULL, fout);
+		for (x=0;x<tmp->framesize;x++) {
+			tmp->buf[tmp->tail + x] = fout[x];
+		}
+		tmp->tail += tmp->framesize;
+		return 0;
+	}
+
+
 	/* Read in bits */
 	speex_bits_read_from(&tmp->bits, f->data, f->datalen);
 	for(;;) {
@@ -357,11 +372,12 @@ static void parse_config(void)
 					ast_mutex_unlock(&localuser_lock);
 				} else if (!strcasecmp(var->name, "abr")) {
 					res = abs(atoi(var->value));
-					if (option_verbose > 2)
+					if (option_verbose > 2) {
 					      if(res > 0)
 						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting ABR target bitrate to %d\n",res);
 					      else
-						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Disabling ABR\n",res);
+						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Disabling ABR\n");
+					}
 					if (res >= 0) {
 						ast_mutex_lock(&localuser_lock);
 						abr = res;
