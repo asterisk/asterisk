@@ -20,8 +20,10 @@ community on this Wiki:
            http://www.voip-info.org/wiki-Asterisk
 
 * LICENSING
-  Asterisk is distributed under GNU General Public License.  The GPL also
-must apply to all loadable modules as well, except as defined below.
+  Asterisk is distributed under GNU General Public License and is also
+available under alternative licenses negotiated directly with Digium, Inc.
+If you obtained Asterisk under the GPL, then the GPL applies to all
+loadable modules used on your system as well, except as defined below.
 
   Digium, Inc. (formerly Linux Support Services) retains copyright and/or a
 sufficient license to all components of the core Asterisk system, and therefore
@@ -32,9 +34,9 @@ fall under our copyright/license umbrella, or are distributed under more
 flexible licenses than GPL.  
 
   If you wish to use our code in other GPL programs, don't worry -- there
-is no requirement that you provide the same exemption in your GPL'd
+is no requirement that you provide the same exception in your GPL'd
 products (although if you've written a module for Asterisk we would
-strongly encourage you to make the same exemption that we do).
+strongly encourage you to make the same exception that we do).
 
   Specific permission is also granted to OpenSSL and OpenH323 to link with
 Asterisk.
