@@ -3423,7 +3423,8 @@ static int append_mailbox(char *context, char *mbox, char *data)
 
 static int vm_box_exists(struct ast_channel *chan, void *data) {
 	struct localuser *u;
-	struct ast_vm_user *user;
+	struct ast_vm_user *vmu;
+	struct ast_vm_user svm;
 	char *context, *box;
 	int branch=0;
 
@@ -3445,18 +3446,9 @@ static int vm_box_exists(struct ast_channel *chan, void *data) {
 			break;
 		box++;
 	}
-	ast_mutex_lock(&vmlock);
-	user = users;
-	while (user) {
-		if ((!strcmp(box,user->mailbox)) && (!strcmp(context,user->context))) {
-			branch = 1;
-			break;
-		}
-		user = user->next;
-	}
-	ast_mutex_unlock(&vmlock);
+	vmu = find_user(&svm, context, box);
 
-	if (branch) {
+	if (vmu) {
 		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid)) {
 			chan->priority += 100;
 		} else
