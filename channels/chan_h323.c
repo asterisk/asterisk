@@ -533,7 +533,7 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *p)
 		
 			/* Do in-band DTMF detection */
 			if (p->dtmfmode & H323_DTMF_INBAND) {
-                   f = ast_dsp_process(p->owner,p->vad,f,0);
+                   f = ast_dsp_process(p->owner,p->vad,f);
 				   if (f->frametype == AST_FRAME_DTMF)
 					ast_log(LOG_DEBUG, "Got in-band digit %c.\n", f->subclass);
             }
@@ -622,7 +622,7 @@ static int oh323_indicate(struct ast_channel *c, int condition)
 }
 
 // FIXME: WTF is this? Do I need this???
-static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, int needlock)
+static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct oh323_pvt *p = newchan->pvt->pvt;
 

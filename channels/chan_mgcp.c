@@ -1334,7 +1334,7 @@ static int rtpready(struct ast_rtp *rtp, struct ast_frame *f, void *data)
 					ast_set_write_format(p->owner, p->owner->writeformat);
 				}
 				if (p->dtmfinband) {
-				    f = ast_dsp_process(p->owner,p->dsp,f,0);
+				    f = ast_dsp_process(p->owner,p->dsp,f);
 				}
 			}
 			ast_queue_frame(p->owner, f);

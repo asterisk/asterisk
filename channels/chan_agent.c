@@ -380,7 +380,7 @@ static int agent_write(struct ast_channel *ast, struct ast_frame *f)
 	return res;
 }
 
-static int agent_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, int needlock)
+static int agent_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct agent_pvt *p = newchan->pvt->pvt;
 	if (needlock)
