@@ -546,7 +546,6 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
   [31] = {1, AST_FORMAT_H261},
   [34] = {1, AST_FORMAT_H263},
   [97] = {1, AST_FORMAT_ILBC},
-  [100] = {0, AST_RTP_DTMF},
   [101] = {0, AST_RTP_DTMF},
   [110] = {1, AST_FORMAT_SPEEX},
   [121] = {0, AST_RTP_CISCO_DTMF}, // Must be type 121
