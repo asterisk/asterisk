@@ -4,6 +4,8 @@
 ; type = v12pci|v6pci|v4pci
 ; cards = number of cards
 ; indication = 1 ( To use Asterisk indication tones)
+; ecsuppthres = 0|2048|4096 (none,-24db,-18db only for use with OpenLine4)
+;
 ; For [interface] section
 ; board = board_number (1, 2, 3, ...)
 ; channel = channel_number (1,2,3...)

@@ -144,6 +144,9 @@ static int UseNativeBridge=1;
 /* Use Asterisk Indication or VPB */
 static int use_ast_ind=0;
 
+/* Set EC suppression threshold */
+static int ec_supp_threshold=-1;
+
 #define TIMER_PERIOD_RINGBACK 2000
 #define TIMER_PERIOD_BUSY 700
 #define TIMER_PERIOD_RING 4000
@@ -1286,6 +1289,10 @@ static void mkbrd(vpb_model_t model, int echo_cancel)
 		if (model==vpb_model_v4pci) {
 			vpb_echo_canc_enable();
 			ast_log(LOG_NOTICE, "Voicetronix echo cancellation ON\n");
+			if (ec_supp_threshold > -1){
+				vpb_echo_canc_set_sup_thresh((short *)&ec_supp_threshold);
+				ast_log(LOG_NOTICE, "Voicetronix EC Sup Thres set\n");
+			}
 		}
 		else {
 		/* need to it port by port for OpenSwitch*/
@@ -2444,6 +2451,9 @@ int load_module()
 			else if (strcasecmp(v->name, "indication") == 0) {
 				use_ast_ind = 1;
 				ast_log(LOG_NOTICE,"VPB driver using Asterisk Indication functions!\n");
+			}
+			else if (strcasecmp(v->name, "ecsuppthres") ==0) {
+				ec_supp_threshold = atoi(v->value);
 			}
 			v = v->next;
 		}
