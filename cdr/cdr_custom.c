@@ -61,6 +61,8 @@ static int load_config(int reload)
 		while(var) {
 			ast_mutex_lock(&lock);
 			if (!ast_strlen_zero(var->name) && !ast_strlen_zero(var->value)) {
+				if (strlen(var->value) > (sizeof(format) - 2))
+					ast_log(LOG_WARNING, "Format string too long, will be truncated, at line %d\n", var->lineno);
 				strncpy(format, var->value, sizeof(format) - 2);
 				strcat(format,"\n");
 				snprintf(master, sizeof(master),"%s/%s/%s", ast_config_AST_LOG_DIR, name, var->name);
@@ -72,6 +74,11 @@ static int load_config(int reload)
 			var = var->next;
 		}
 		ast_config_destroy(cfg);
+	} else {
+		if (reload)
+			ast_log(LOG_WARNING, "Failed to reload configuration file.\n");
+		else
+			ast_log(LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
 	}
 	
 	return res;
