@@ -88,7 +88,8 @@ struct ast_channel {
 
 	/*! Default music class */
 	char musicclass[MAX_LANGUAGE];
-
+	/*! Music State*/
+	void *music_state;
 	/*! Current generator data if there is any */
 	void *generatordata;
 	/*! Current active data generator */
@@ -230,6 +231,7 @@ struct ast_channel {
 #define AST_FLAG_BLOCKING	(1 << 3)	/* if we are blocking */
 #define AST_FLAG_ZOMBIE		(1 << 4)	/* if we are a zombie */
 #define AST_FLAG_EXCEPTION	(1 << 5)	/* if there is a pending exception */
+#define AST_FLAG_MOH        (1 << 6)    /* XXX anthm promises me this will disappear XXX listening to moh */
 
 struct ast_bridge_config {
 	int play_to_caller;

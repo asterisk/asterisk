@@ -613,6 +613,10 @@ void ast_channel_free(struct ast_channel *chan)
 		chan->monitor->stop( chan, 0 );
 	}
 
+	/* If there is native format music-on-hold state, free it */
+	if(chan->music_state)
+		ast_moh_cleanup(chan);
+
 	/* Free translatosr */
 	if (chan->pvt->readtrans)
 		ast_translator_free_path(chan->pvt->readtrans);
@@ -2960,22 +2964,26 @@ unsigned int ast_get_group(char *s)
 	return group;
 }
 
-
 static int (*ast_moh_start_ptr)(struct ast_channel *, char *) = NULL;
 static void (*ast_moh_stop_ptr)(struct ast_channel *) = NULL;
+static void (*ast_moh_cleanup_ptr)(struct ast_channel *) = NULL;
 
 
 void ast_install_music_functions(int (*start_ptr)(struct ast_channel *, char *),
-								void (*stop_ptr)(struct ast_channel *)) 
+								 void (*stop_ptr)(struct ast_channel *),
+								 void (*cleanup_ptr)(struct ast_channel *)
+								 ) 
 {
 	ast_moh_start_ptr = start_ptr;
 	ast_moh_stop_ptr = stop_ptr;
+	ast_moh_cleanup_ptr = cleanup_ptr;
 }
 
 void ast_uninstall_music_functions(void) 
 {
 	ast_moh_start_ptr = NULL;
 	ast_moh_stop_ptr = NULL;
+	ast_moh_cleanup_ptr = NULL;
 }
 
 /*! Turn on/off music on hold on a given channel */
@@ -2996,3 +3004,10 @@ void ast_moh_stop(struct ast_channel *chan)
 	if(ast_moh_stop_ptr)
 		ast_moh_stop_ptr(chan);
 }
+
+void ast_moh_cleanup(struct ast_channel *chan) 
+{
+	if(ast_moh_cleanup_ptr)
+        ast_moh_cleanup_ptr(chan);
+}
+

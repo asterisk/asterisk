@@ -431,8 +431,12 @@ static int ast_filehelper(const char *filename, const char *filename2, const cha
 		res = ret ? ret : -1;
 	return res;
 }
-
 struct ast_filestream *ast_openstream(struct ast_channel *chan, const char *filename, const char *preflang)
+{
+	return ast_openstream_full(chan, filename, preflang, 0);
+}
+
+struct ast_filestream *ast_openstream_full(struct ast_channel *chan, const char *filename, const char *preflang, int asis)
 {
 	/* This is a fairly complex routine.  Essentially we should do 
 	   the following:
@@ -452,10 +456,13 @@ struct ast_filestream *ast_openstream(struct ast_channel *chan, const char *file
 	char filename3[256]="";
 	char *endpart;
 	int res;
-	ast_stopstream(chan);
-	/* do this first, otherwise we detect the wrong writeformat */
-	if (chan->generator)
-		ast_deactivate_generator(chan);
+
+	if (!asis) {
+		/* do this first, otherwise we detect the wrong writeformat */
+		ast_stopstream(chan);
+		if (chan->generator)
+			ast_deactivate_generator(chan);
+	}
 	if (preflang && !ast_strlen_zero(preflang)) {
 		strncpy(filename3, filename, sizeof(filename3) - 1);
 		endpart = strrchr(filename3, '/');
