@@ -8002,13 +8002,14 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 						found++;
 					}
 
-					if (found)
+					if (found){
 						transmit_response(p, "200 OK", req);
-					else {
+						ast_set_flag(p, SIP_NEEDDESTROY);	
+					} else {
 						transmit_response(p, "403 Forbidden", req);
 						ast_set_flag(p, SIP_NEEDDESTROY);	
 					}
-					
+					return 0;
 				} else
 				    p->subscribed = 1;
 				if (p->subscribed)
@@ -8022,14 +8023,14 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			p->lastinvite = seqno;
 		if (p && !ast_test_flag(p, SIP_NEEDDESTROY)) {
 		    if (!(p->expiry = atoi(get_header(req, "Expires")))) {
-			transmit_response(p, "200 OK", req);
-			ast_set_flag(p, SIP_NEEDDESTROY);	
-			return 0;
+				transmit_response(p, "200 OK", req);
+				ast_set_flag(p, SIP_NEEDDESTROY);	
+				return 0;
 		    }
 		    /* The next line can be removed if the SNOM200 Expires bug is fixed */
 		    if (p->subscribed == 1) {  
-			if (p->expiry>max_expiry)
-			    p->expiry = max_expiry;
+				if (p->expiry>max_expiry)
+					p->expiry = max_expiry;
 		    }
 		    transmit_response(p, "200 OK", req);
 		    sip_scheddestroy(p, (p->expiry+10)*1000);
