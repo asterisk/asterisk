@@ -372,3 +372,20 @@ dialrecall = 425/500,0/50
 ; XXX I'm making up the record tone XXX
 record = 1400/500,0/15000
 info = !950/330,!1400/330,!1800/330,!0/1000,!950/330,!1400/330,!1800/330,!0/1000,!950/330,!1400/330,!1800/330,!0/1000,0
+
+[pl]
+description = Poland
+ringcadence = 1000,4000
+dial = 425
+busy = 425/500,0/500
+ring = 425/1000,0/4000
+congestion = 425/500,0/500
+callwaiting = 425/150,0/150,425/150,0/4000
+; DIALRECALL - not specified
+dialrecall = 425/500,0/50
+; RECORDTONE - not specified
+record = 1400/500,0/15000
+/* 950/1400/1800 3x0.33 on 1.0 off  repeated 3 times */
+info = !950/330,!1400/330,!1800/330,!0/1000,!950/330,!1400/330,!1800/330,!0/1000,!950/330,!1400/330,!1800/330,!0/1000
+
+
