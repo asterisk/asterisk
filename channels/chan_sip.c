@@ -5425,8 +5425,12 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ast_queue_hangup(p->owner, 0);
 		else
 			p->needdestroy = 1;
-		transmit_response(p, "200 OK", req);
-		transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
+		if (p->initreq.len > 0) {
+			transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
+			transmit_response(p, "200 OK", req);
+		} else {
+			transmit_response_reliable(p, "481 Call Leg Does Not Exist", req);
+		}
 	} else if (!strcasecmp(cmd, "BYE")) {
 		copy_request(&p->initreq, req);
 		check_via(p, req);
