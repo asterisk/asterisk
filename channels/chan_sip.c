@@ -3861,8 +3861,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					ast_queue_hangup(p->owner, 0);
 				} else {
 					if (!p->subscribed) {
-					    sip_destroy(p);
-					    p = NULL;
+					    p->needdestroy = 1;
 					}
 				}
 			} else if (!strcasecmp(msg, "INVITE")) {
@@ -3985,10 +3984,6 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		}
 	}
-	if (owner)
-		ast_pthread_mutex_unlock(&owner->lock);
-	if (p)
-		ast_pthread_mutex_unlock(&p->lock);
 }
 
 static int determine_firstline_parts( struct sip_request *req ) {
