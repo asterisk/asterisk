@@ -145,7 +145,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; context                     context
 ; permit                      permit
 ; deny                        deny
-; auth                        auth
 ; secret                      secret
 ; md5secret                   md5secret
 ; dtmfmode                    dtmfmode
