@@ -92,7 +92,7 @@ int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Out of smoother space\n");
 		return -1;
 	}
-	if (((f->datalen == s->size) || ((f->datalen == 2) && (s->flags & AST_SMOOTHER_FLAG_G729)))
+	if (((f->datalen == s->size) || ((f->datalen < 10) && (s->flags & AST_SMOOTHER_FLAG_G729)))
 				 && !s->opt && (f->offset >= AST_MIN_OFFSET)) {
 		if (!s->len) {
 			/* Optimize by sending the frame we just got
