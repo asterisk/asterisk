@@ -83,7 +83,8 @@ static char mydbname[80];
 
 static char *desc = "Inter Asterisk eXchange";
 static char *tdesc = "Inter Asterisk eXchange Drver";
-static char *type = "IAX";
+static char *ctype = "IAX";
+static char *type = "IAX1";
 
 static char context[80] = "default";
 
@@ -5404,15 +5405,6 @@ int load_module(void)
 
 	set_config(config,&sin);
 
-	if (ast_channel_register(type, tdesc, iax_capability, iax_request)) {
-		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
-		__unload_module();
-		return -1;
-	}
-
-	if (ast_register_switch(&iax_switch)) 
-		ast_log(LOG_ERROR, "Unable to register IAX switch\n");
-	
 	/* Make a UDP socket */
 	netsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
 	
@@ -5422,6 +5414,8 @@ int load_module(void)
 	}
 	if (bind(netsocket,(struct sockaddr *)&sin, sizeof(sin))) {
 		ast_log(LOG_ERROR, "Unable to bind to %s port %d: %s\n", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), strerror(errno));
+		close(netsocket);
+		netsocket = -1;
 		return -1;
 	}
 
@@ -5430,6 +5424,21 @@ int load_module(void)
 
 	if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
 		ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
+	
+	if (ast_channel_register(type, tdesc, iax_capability, iax_request)) {
+		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+		__unload_module();
+		return -1;
+	}
+
+	if (ast_channel_register(ctype, tdesc, iax_capability, iax_request)) {
+		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+		__unload_module();
+		return -1;
+	}
+
+	if (ast_register_switch(&iax_switch)) 
+		ast_log(LOG_ERROR, "Unable to register IAX switch\n");
 	
 	if (!res) {
 		res = start_network_thread();
