@@ -175,6 +175,8 @@ int ast_getformatbyname(char *name)
 		return AST_FORMAT_SLINEAR;
 	else if (!strcasecmp(name, "lpc10"))
 		return AST_FORMAT_LPC10;
+	else if (!strcasecmp(name, "adpcm"))
+		return AST_FORMAT_ADPCM;
 	else if (!strcasecmp(name, "all"))
 		return 0x7FFFFFFF;
 	return 0;

@@ -28,7 +28,7 @@ LIBGSM=gsm/lib/libgsm.a
 LIBMP3=mp3/libmp3.a
 LIBLPC10=lpc10/liblpc10.a
 
-CODECS+=$(MODG723) codec_gsm.so codec_mp3_d.so codec_lpc10.so
+CODECS+=$(MODG723) codec_gsm.so codec_mp3_d.so codec_lpc10.so codec_adpcm.so
 
 all: $(CODECS)
 
@@ -71,7 +71,7 @@ codec_lpc10.so: codec_lpc10.o $(LIBLPC10)
 	$(CC) -shared -Xlinker -x -o $@ $< $(LIBLPC10) -lm
 
 codec_mp3_d.so: codec_mp3_d.o $(LIBMP3)
-	$(CC) -shared -Xlinker -x -o $@ $< $(LIBMP3)
+	$(CC) -lm -shared -Xlinker -x -o $@ $< $(LIBMP3)
 
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<

@@ -336,17 +336,23 @@ static int get_timelen(struct ast_frame *f)
 	int timelen=0;
 	switch(f->subclass) {
 	case AST_FORMAT_G723_1:
-		timelen = 30;
+		timelen = 30 /* XXX Not necessarily true XXX */;
 		break;
 	case AST_FORMAT_GSM:
-		timelen = 20;
+		timelen = 20 * (f->datalen / 20);
 		break;
 	case AST_FORMAT_SLINEAR:
-		timelen = f->datalen / 8;
+		timelen = f->datalen / 16;
 		break;
 	case AST_FORMAT_LPC10:
 		timelen = 22;
 		timelen += ((char *)(f->data))[7] & 0x1;
+		break;
+	case AST_FORMAT_ULAW:
+		timelen = f->datalen / 8;
+		break;
+	case AST_FORMAT_ADPCM:
+		timelen = f->datalen / 4;
 		break;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to calculate timelen on %d packets\n", f->subclass);
@@ -953,7 +959,7 @@ static int iax_call(struct ast_channel *c, char *dest, int timeout)
 		MYSNPRINTF "context=%s;", rcontext);
 	if (username)
 		MYSNPRINTF "username=%s;", username);
-	MYSNPRINTF "formats=%d;", c->format);
+	MYSNPRINTF "formats=%d;", c->nativeformats);
 	MYSNPRINTF "version=%d;", AST_IAX_PROTO_VERSION);
 	/* Trim the trailing ";" */
 	if (strlen(requeststr))
@@ -1046,7 +1052,7 @@ static struct ast_channel *ast_iax_new(struct chan_iax_pvt *i, int state)
 		tmp->type = type;
 		tmp->fd = i->pipe[0];
 		/* We can support any format by default, until we get restricted */
-		tmp->format = iax_capability;
+		tmp->nativeformats = iax_capability;
 		tmp->pvt->pvt = i;
 		tmp->pvt->send_digit = iax_digit;
 		tmp->pvt->send_text = iax_sendtext;
@@ -1710,11 +1716,13 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				if (!strlen(iaxs[fr.callno]->secret)) {
 					/* No authentication required, let them in */
 					send_command(iaxs[fr.callno], AST_FRAME_IAX, AST_IAX_COMMAND_ACCEPT, 0, NULL, 0, -1);
+					if (option_verbose > 2) 
+						ast_verbose(VERBOSE_PREFIX_3 "Accepting unauthenticated call from %s, formats = %d\n", inet_ntoa(sin.sin_addr), iaxs[fr.callno]->peerformats);
 					iaxs[fr.callno]->state |= IAX_STATE_STARTED;
 					if(!(c = ast_iax_new(iaxs[fr.callno], AST_STATE_RING)))
 						iax_destroy(fr.callno);
 					else
-						c->format = iaxs[fr.callno]->peerformats;
+						c->nativeformats = iaxs[fr.callno]->peerformats;
 					break;
 				}
 				authenticate_request(iaxs[fr.callno]);
@@ -1745,17 +1753,17 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				iaxs[fr.callno]->state |= IAX_STATE_STARTED;
 				if (iaxs[fr.callno]->owner) {
 					/* Switch us to use a compatible format */
-					iaxs[fr.callno]->owner->format &= iaxs[fr.callno]->peerformats;
+					iaxs[fr.callno]->owner->nativeformats &= iaxs[fr.callno]->peerformats;
 
-					if (!iaxs[fr.callno]->owner->format) 
-						iaxs[fr.callno]->owner->format = iaxs[fr.callno]->peerformats & iax_capability;
-					if (!iaxs[fr.callno]->owner->format) {
+					if (!iaxs[fr.callno]->owner->nativeformats) 
+						iaxs[fr.callno]->owner->nativeformats = iaxs[fr.callno]->peerformats & iax_capability;
+					if (!iaxs[fr.callno]->owner->nativeformats) {
 						ast_log(LOG_WARNING, "Unable to negotiate a common format with the peer.");
 						iaxs[fr.callno]->error = EBADE;
 						iax_destroy(fr.callno);
 					} else {
 						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "Format for call is %d\n", iaxs[fr.callno]->owner->format);
+							ast_verbose(VERBOSE_PREFIX_3 "Format for call is %d\n", iaxs[fr.callno]->owner->nativeformats);
 					}
 						
 				}
@@ -1801,13 +1809,15 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					iax_destroy(fr.callno);
 					break;
 				}
+				if (option_verbose > 2) 
+					ast_verbose(VERBOSE_PREFIX_3 "Accepting AUTHENTICATED call from %s, formats = %dn", inet_ntoa(sin.sin_addr), iaxs[fr.callno]->peerformats);
 				/* Authentication is fine, go ahead */
 				send_command(iaxs[fr.callno], AST_FRAME_IAX, AST_IAX_COMMAND_ACCEPT, 0, NULL, 0, -1);
 				iaxs[fr.callno]->state |= IAX_STATE_STARTED;
 				if(!(c = ast_iax_new(iaxs[fr.callno], AST_STATE_RING)))
 					iax_destroy(fr.callno);
 				else
-					c->format = iaxs[fr.callno]->peerformats;
+					c->nativeformats = iaxs[fr.callno]->peerformats;
 				break;
 			case AST_IAX_COMMAND_INVAL:
 				iaxs[fr.callno]->error = ENOTCONN;
@@ -1865,7 +1875,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		iaxs[fr.callno]->last = fr.ts;
 		fr.outoforder = 0;
 	} else {
-		ast_log(LOG_DEBUG, "Received out of order packet... (type=%d, subclass %d, ts = %d, last = %d)\n", f.frametype, f.subclass, fr.ts, iaxs[fr.callno]->last);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Received out of order packet... (type=%d, subclass %d, ts = %d, last = %d)\n", f.frametype, f.subclass, fr.ts, iaxs[fr.callno]->last);
 		fr.outoforder = -1;
 	}
 	schedule_delivery(iaxfrdup2(&fr, 0));
@@ -1897,6 +1908,8 @@ static void free_context(struct iax_context *con)
 static struct ast_channel *iax_request(char *type, int format, void *data)
 {
 	int callno;
+	int res;
+	int fmt, native;
 	struct sockaddr_in sin;
 	char s[256];
 	char *st;
@@ -1909,7 +1922,7 @@ static struct ast_channel *iax_request(char *type, int format, void *data)
 		st = s;
 	/* Populate our address from the given */
 	if (create_addr(&sin, st)) {
-		ast_log(LOG_WARNING, "Unable to assign address\n");
+		ast_log(LOG_WARNING, "Unable to assign address for %s\n", st);
 		return NULL;
 	}
 	pthread_mutex_lock(&iaxs_lock);
@@ -1921,10 +1934,19 @@ static struct ast_channel *iax_request(char *type, int format, void *data)
 	c = ast_iax_new(iaxs[callno], AST_STATE_DOWN);
 	if (c) {
 		/* Choose a format we can live with */
-		if (c->format & format)
-			c->format &= format;
-		else 
-			c->format = ast_translator_best_choice(format, c->format);
+		if (c->nativeformats & format)
+			c->nativeformats &= format;
+		else {
+			native = c->nativeformats;
+			fmt = format;
+			res = ast_translator_best_choice(&fmt, &native);
+			if (res < 0) {
+				ast_log(LOG_WARNING, "Unable to create translator path for %d to %d on %s\n", c->nativeformats, fmt, c->name);
+				ast_hangup(c);
+				return NULL;
+			}
+			c->nativeformats = native;
+		}
 	}
 	pthread_mutex_unlock(&iaxs_lock);
 	return c;
@@ -2314,3 +2336,7 @@ int usecount()
 	return res;
 }
 
+char *key()
+{
+	return ASTERISK_GPL_KEY;
+}
