@@ -3783,7 +3783,7 @@ static void *async_wait(void *data)
 	return NULL;
 }
 
-int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char *context, char *exten, int priority, int *reason, int sync, char *callerid, char *variable)
+int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char *context, char *exten, int priority, int *reason, int sync, char *callerid, char *variable, char *account)
 {
 	struct ast_channel *chan;
 	struct async_stat *as;
@@ -3888,7 +3888,7 @@ static void *ast_pbx_run_app(void *data)
 	return NULL;
 }
 
-int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *app, char *appdata, int *reason, int sync, char *callerid, char *variable)
+int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *app, char *appdata, int *reason, int sync, char *callerid, char *variable, char *account)
 {
 	struct ast_channel *chan;
 	struct async_stat *as;

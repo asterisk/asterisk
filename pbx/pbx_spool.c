@@ -69,6 +69,8 @@ struct outgoing {
 
 	/* Channel variables */
 	char variable[10*256];
+	/* Account code */
+	char account[256];
 	
 	/* Maximum length of call */
 	int maxlen;
@@ -159,6 +161,8 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 						strncat(o->variable, c, sizeof(o->variable) - strlen(o->variable) - 1);
 						strncat(o->variable, "|", sizeof(o->variable) - strlen(o->variable) - 1);
  
+					} else if (!strcasecmp(buf, "account")) {
+						strncpy(o->account, c, sizeof(o->account) - 1);
 					} else {
 						ast_log(LOG_WARNING, "Unknown keyword '%s' at line %d of %s\n", buf, lineno, fn);
 					}
@@ -185,11 +189,11 @@ static void *attempt_thread(void *data)
 	if (strlen(o->app)) {
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Attempting call on %s/%s for application %s(%s) (Retry %d)\n", o->tech, o->dest, o->app, o->data, o->retries);
-		res = ast_pbx_outgoing_app(o->tech, AST_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->app, o->data, &reason, 2 /* wait to finish */, o->callerid, o->variable);
+		res = ast_pbx_outgoing_app(o->tech, AST_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->app, o->data, &reason, 2 /* wait to finish */, o->callerid, o->variable, o->account);
 	} else {
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Attempting call on %s/%s for %s@%s:%d (Retry %d)\n", o->tech, o->dest, o->exten, o->context,o->priority, o->retries);
-		res = ast_pbx_outgoing_exten(o->tech, AST_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->context, o->exten, o->priority, &reason, 2 /* wait to finish */, o->callerid, o->variable );
+		res = ast_pbx_outgoing_exten(o->tech, AST_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->context, o->exten, o->priority, &reason, 2 /* wait to finish */, o->callerid, o->variable, o->account);
 	}
 	if (res) {
 		ast_log(LOG_NOTICE, "Call failed to go through, reason %d\n", reason);

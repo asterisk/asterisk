@@ -1509,12 +1509,14 @@ struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, i
 			while( (var = strtok_r(NULL, "|", &tmp)) ) {
 				pbx_builtin_setvar( chan, var );
 			} /* /JDG */
-			if (*oh->context)
+			if (oh->context && *oh->context)
 				strncpy(chan->context, oh->context, sizeof(chan->context) - 1);
-			if (*oh->exten)
+			if (oh->exten && *oh->exten)
 				strncpy(chan->exten, oh->exten, sizeof(chan->exten) - 1);
-			if (*oh->callerid)
+			if (oh->callerid && *oh->callerid)
 				ast_set_callerid(chan, oh->callerid, 1);
+			if (oh->account && *oh->account)
+				ast_cdr_setaccount(chan, oh->account);
 			chan->priority = oh->priority;
 		}
 		if (callerid && strlen(callerid))

@@ -238,6 +238,7 @@ struct chanmon;
 	oh.priority = priority; \
 	oh.callerid = callerid; \
 	oh.variable = variable; \
+	oh.account = account; \
 } 
 
 struct outgoing_helper {
@@ -246,6 +247,7 @@ struct outgoing_helper {
 	int priority;
 	char *callerid;
 	char *variable;
+	char *account;
 };
 
 #define AST_CDR_TRANSFER	(1 << 0)
