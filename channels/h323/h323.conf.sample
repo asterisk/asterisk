@@ -49,17 +49,14 @@ allow=gsm		; Always allow GSM, it's cool :)
 ; Default context gets used in siutations where you are using 
 ; the GK routed model or no type=user was found. This gives you 
 ; the ability to either play an invalid message or to simply not 
-; use user authentication at all. Also, if a call is accepted for
-; a prefix or e164 number that cannot be matched to any of the
-; following sections, it will be sent here.
+; use user authentication at all.
 ;
 ;context=default
 ;
 ; H.323 Alias definitions
 ;
 ; Type 'h323' will register aliases to the endpoint
-; and Gatekeeper, if there is one. It will also offer
-; itself as a gateway for prefixes.
+; and Gatekeeper, if there is one.
 ;
 ; Example: if someone calls time@your.asterisk.box.com
 ; Asterisk will send the call to the extension 'time' 
@@ -72,11 +69,6 @@ allow=gsm		; Always allow GSM, it's cool :)
 ; Keyword's 'prefix' and 'e164' are only make sense when
 ; used with a gatekeeper. You can specify either a prefix 
 ; or E.164 this endpoint is responsible for terminating.
-; In the case of a prefix or e164, the context specified
-; in that section will receive the called extension. E164
-; numbers are matched before prefixes, so you can have
-; a prefix covering a general case, and a specific E164 in
-; another context.
 ; 
 ; Example: The H.323 alias 'det-gw' will tell the gatekeeper
 ; to route any call with the prefix 1248 to this alias. Keyword
