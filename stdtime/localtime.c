@@ -21,7 +21,9 @@
  *
  * Don't mess with these unless you're really sure you know what you're doing.
  */
+#ifndef _THREAD_SAFE
 #define _THREAD_SAFE
+#endif
 #define TZ_STRLEN_MAX	255
 /* #define DEBUG */
 #include <asterisk/lock.h>
