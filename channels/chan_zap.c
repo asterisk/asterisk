@@ -7355,7 +7355,7 @@ static void *pri_dchannel(void *vpri)
 					x = 0;
 					res = ioctl(pri->fds[which], ZT_GETEVENT, &x);
 					if (x) 
-						ast_log(LOG_NOTICE, "PRI got event: %d on %s D-channel of span %d\n", x, pri_order(which), pri->span);
+						ast_log(LOG_NOTICE, "PRI got event: %s (%d) on %s D-channel of span %d\n", event2str(x), x, pri_order(which), pri->span);
 					/* Keep track of alarm state */	
 					if (x == ZT_EVENT_ALARM) {
 						pri->dchanavail[which] &= ~(DCHAN_NOTINALARM | DCHAN_UP);
