@@ -5320,7 +5320,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 
 static void *do_monitor(void *data)
 {
-	int count, res, res2, spoint, pollres;
+	int count, res, res2, spoint, pollres=0;
 	struct zt_pvt *i;
 	struct zt_pvt *last = NULL;
 	time_t thispass = 0, lastpass = 0;
