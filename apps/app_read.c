@@ -48,7 +48,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct localuser *u;
 	char tmp[256];
-	char tmp2[256]="";
+	char *varname;
 	char *filename;
 	char *stringp;
 	char *maxdigitstr;
@@ -58,10 +58,12 @@ static int read_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	strncpy(tmp, (char *)data, sizeof(tmp)-1);
-	stringp=tmp;
-	strsep(&stringp, "|");
+	stringp=(char *)calloc(1,strlen(tmp)+1);
+	snprintf(stringp,strlen(tmp)+1,"%s",tmp);
+	varname = strsep(&stringp, "|");
 	filename = strsep(&stringp, "|");
 	maxdigitstr = strsep(&stringp,"|");
+	if (!(filename) || (strlen(filename)==0)) filename = NULL;
 	if (maxdigitstr)
 	{
 	    maxdigits = atoi(maxdigitstr);
@@ -71,7 +73,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 	    else
 		ast_verbose(VERBOSE_PREFIX_3 "Accepting a maximum of %i digits.\n", maxdigits);
 	}	
-	if (!strlen(tmp)) {
+	if (!(varname) || (strlen(varname)==0)) {
 		ast_log(LOG_WARNING, "Read requires an variable name\n");
 		return -1;
 	}
@@ -80,12 +82,13 @@ static int read_exec(struct ast_channel *chan, void *data)
 		/* Answer if the line isn't up. */
 		res = ast_answer(chan);
 	}
+	strncpy(tmp, (char *)varname, sizeof(tmp)-1);
 	if (!res) {
 		ast_stopstream(chan);
-		res = ast_app_getdata(chan, filename, tmp2, maxdigits, 0);
+		res = ast_app_getdata(chan, filename, tmp, maxdigits, 0);
 		if (!res)
-			pbx_builtin_setvar_helper(chan, tmp, tmp2);
-		ast_verbose(VERBOSE_PREFIX_3 "User entered '%s'\n", tmp2);
+			pbx_builtin_setvar_helper(chan, varname, tmp);
+		ast_verbose(VERBOSE_PREFIX_3 "User entered '%s'\n", tmp);
 	}
 	LOCAL_USER_REMOVE(u);
 	return res;
