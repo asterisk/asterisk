@@ -749,12 +749,17 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 	/* If we have no peer, return immediately */	
 	if (!rtp->them.sin_addr.s_addr)
 		return 0;
+
+	/* If there is no data length, return immediately */
+	if (!_f->datalen) 
+		return 0;
 	
 	/* Make sure we have enough space for RTP header */
 	if (_f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "RTP can only send voice\n");
 		return -1;
 	}
+
 
 	codec = ast_rtp_lookup_code(rtp, 1, _f->subclass);
 	if (codec < 0) {
