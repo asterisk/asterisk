@@ -4408,6 +4408,10 @@ static void *ss_thread(void *data)
 		len = strlen(exten);
 		res = 0;
 		while((len < AST_MAX_EXTENSION-1) && ast_matchmore_extension(chan, chan->context, exten, 1, p->callerid)) {
+			if (len && !ast_ignore_pattern(chan->context, exten))
+				tone_zone_play_tone(p->subs[index].zfd, -1);
+			else
+				tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALTONE);
 			if (ast_exists_extension(chan, chan->context, exten, 1, p->callerid))
 				timeout = matchdigittimeout;
 			else
@@ -4422,6 +4426,7 @@ static void *ss_thread(void *data)
 			} else
 				break;
 		}
+		tone_zone_play_tone(p->subs[index].zfd, -1);
 		if (ast_exists_extension(chan, chan->context, exten, 1, p->callerid)) {
 			/* Start the real PBX */
 			strncpy(chan->exten, exten, sizeof(chan->exten));
