@@ -630,6 +630,7 @@ static void wakeup_sub(struct zt_pvt *p, int a)
 			} else {
 				ast_queue_frame(p->subs[a].owner, &null);
 				ast_mutex_unlock(&p->subs[a].owner->lock);
+				break;
 			}
 		} else
 			break;
