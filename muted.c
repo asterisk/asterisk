@@ -428,6 +428,8 @@ static void append_sub(struct channel *chan, char *name)
 static void hangup_chan(char *channel)
 {
 	struct channel *chan;
+	if (debug)
+		printf("Hangup '%s'\n", channel);
 	chan = find_channel(channel);
 	if (chan)
 		delete_sub(chan, channel);
@@ -437,6 +439,8 @@ static void hangup_chan(char *channel)
 static void offhook_chan(char *channel)
 {
 	struct channel *chan;
+	if (debug)
+		printf("Offhook '%s'\n", channel);
 	chan = find_channel(channel);
 	if (chan)
 		append_sub(chan, channel);
@@ -446,8 +450,10 @@ static void offhook_chan(char *channel)
 static int wait_event(void)
 {
 	char *resp;
-	char event[80]="";
-	char channel[80]="";
+	char event[120]="";
+	char channel[120]="";
+	char oldname[120]="";
+	char newname[120]="";
 	resp = get_line();
 	if (!resp) {
 		fprintf(stderr, "disconnected (6)\n");
@@ -459,12 +465,22 @@ static int wait_event(void)
 		while((resp = get_line()) && strlen(resp)) {
 			if (!strncasecmp(resp, "Channel: ", strlen("Channel: ")))
 				strncpy(channel, resp + strlen("Channel: "), sizeof(channel));
+			if (!strncasecmp(resp, "Newname: ", strlen("Newname: ")))
+				strncpy(newname, resp + strlen("Newname: "), sizeof(newname));
+			if (!strncasecmp(resp, "Oldname: ", strlen("Oldname: ")))
+				strncpy(oldname, resp + strlen("Oldname: "), sizeof(oldname));
 		}
 		if (strlen(channel)) {
 			if (!strcasecmp(event, "Hangup")) 
 				hangup_chan(channel);
 			else
 				offhook_chan(channel);
+		}
+		if (strlen(newname) && strlen(oldname)) {
+			if (!strcasecmp(event, "Rename")) {
+				hangup_chan(oldname);
+				offhook_chan(newname);
+			}
 		}
 	} else {
 		/* Consume the rest of the non-event */
