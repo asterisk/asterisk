@@ -12,6 +12,7 @@ Telesthetic - for supporting SIP development
 Christos Ricudis - for substantial code contributions
 
 Paul Bagyenda, Digital Solutions - for initial Voicetronix driver development
+
 === WISHLIST CONTRIBUTERS ===
 Jeremy McNamara - SpeeX support
 Nick Seraphin - RDNIS support
@@ -54,9 +55,11 @@ Thorsten Lockert - OpenBSD, FreeBSD ports, making MacOS X port run on 10.3,
 Brian West - ODBC support and Bug Marshaling  
 William Waites - syslog support, SIP NAT traversal for SIP-UA. ww@styx.org
 
-
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt
+
+=== HOLD MUSIC ===
+Music provided by www.freeplaymusic.com
 
 === OTHER SOURCE CODE IN ASTERISK ===
 
