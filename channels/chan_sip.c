@@ -9787,7 +9787,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			} else if (!strcasecmp(v->name, "mask")) {
 				maskfound++;
 				inet_aton(v->value, &peer->mask);
-			} else if (!strcasecmp(v->name, "port") || !strcasecmp(v->name, "bindport")) {
+			} else if (!strcasecmp(v->name, "port")) {
 				if (!realtime && ast_test_flag(peer, SIP_DYNAMIC))
 					peer->defaddr.sin_port = htons(atoi(v->value));
 				else
@@ -10116,7 +10116,7 @@ static int reload_config(void)
 				tos = 0;
 			else
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
-		} else if (!strcasecmp(v->name, "port")) {
+		} else if (!strcasecmp(v->name, "bindport")) {
 			if (sscanf(v->value, "%i", &ourport) == 1) {
 				bindaddr.sin_port = htons(ourport);
 			} else {

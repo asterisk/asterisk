@@ -11,6 +11,9 @@
 ;
 [general]
 ;bindport=4569			; bindport and bindaddr may be specified
+;                               ; NOTE: bindport must be specified BEFORE bindaddr
+;                               ; or may be specified on a specific bindaddr if followed by
+;                               ; colon and port (e.g. bindaddr=192.168.0.1:4569)
 ;bindaddr=192.168.0.1		; more than once to bind to multiple
 ;                               ; addresses, but the first will be the 
 ;                               ; default
