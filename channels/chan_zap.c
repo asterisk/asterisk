@@ -4087,11 +4087,6 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 			ast_log(LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[index]);
 		}
 		i->subs[index].owner = tmp;
-		ast_setstate(tmp, state);
-		ast_mutex_lock(&usecnt_lock);
-		usecnt++;
-		ast_mutex_unlock(&usecnt_lock);
-		ast_update_use_count();
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		/* Copy call forward info */
 		strncpy(tmp->call_forward, i->call_forward, sizeof(tmp->call_forward));
@@ -4124,6 +4119,11 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		i->fake_event = 0;
 		/* Assure there is no confmute on this channel */
 		zt_confmute(i, 0);
+		ast_setstate(tmp, state);
+		ast_mutex_lock(&usecnt_lock);
+		usecnt++;
+		ast_mutex_unlock(&usecnt_lock);
+		ast_update_use_count();
 		if (startpbx) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
