@@ -74,6 +74,7 @@ struct ast_cdr {
         char uniqueid[32];
 	/* User field */
 	char userfield[AST_MAX_USER_FIELD];
+	struct ast_cdr *next;
 };
 
 typedef int (*ast_cdrbe)(struct ast_cdr *cdr);
