@@ -4035,7 +4035,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	}
 	memcpy(&reg->us, &us, sizeof(reg->us));
 	reg->messages = ies->msgcount;
-	if (refresh && (reg->refresh < refresh)) {
+	if (refresh && (reg->refresh > refresh)) {
 		/* Refresh faster if necessary */
 		reg->refresh = refresh;
 		if (reg->expire > -1)
