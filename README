@@ -37,6 +37,7 @@ the following:
 	* QuickNet Internet PhoneJack
 	* Full Duplex Sound Card supported by Linux
 	* ISDN4Linux compatible ISDN card
+	* Tormenta Dual T1 card (www.bsdtelephony.com.mx)
 
 Assuming you have one of these (most likely the third) you're ready to 
 proceed:
