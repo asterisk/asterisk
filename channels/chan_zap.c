@@ -5439,6 +5439,8 @@ static void *ss_thread(void *data)
 			free(chan->cid.cid_name);
 			chan->cid.cid_name = NULL;
 		}
+		if (number)
+			ast_shrink_phone_number(number);
 		if (number && !ast_strlen_zero(number)) {
 			chan->cid.cid_num = strdup(number);
 			chan->cid.cid_ani = strdup(number);
@@ -7571,6 +7573,7 @@ static void *pri_dchannel(void *vpri)
 					pri->pvts[chanpos]->call = e->ring.call;
 					/* Get caller ID */
 					if (pri->pvts[chanpos]->use_callerid) {
+						ast_shrink_phone_number(e->ring.callingnum);
 						strncpy(pri->pvts[chanpos]->cid_num, e->ring.callingnum, sizeof(pri->pvts[chanpos]->cid_num)-1);
 						strncpy(pri->pvts[chanpos]->cid_name, e->ring.callingname, sizeof(pri->pvts[chanpos]->cid_name)-1);
 					} else {
