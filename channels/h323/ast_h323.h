@@ -330,23 +330,3 @@ class MyProcess : public PProcess {
 };
 
 
-/** 
- * This class handles the termination of a call.
- * Note that OpenH323 Library requires that the termination
- * of a call should be done inside a separate thread of execution.
- */
-class ClearCallThread : public PThread {
-
-	PCLASSINFO(ClearCallThread, PThread);
-
-	public:
-	ClearCallThread(const char *tc);
-	~ClearCallThread();    
-	
-	void Main();
-	
-	protected:
-	PString	token;
-};
-
-

@@ -178,6 +178,7 @@ extern "C" {
 	int h323_set_gk(int, char *, char *);
 
 	void h323_set_id(char *);
+	void h323_show_tokens(void);
 
 	/* H323 listener related funcions */
 	int h323_start_listener(int, struct sockaddr_in);
@@ -191,9 +192,10 @@ extern "C" {
 	int h323_make_call(char *host, call_details_t *cd, call_options_t);
 	int h323_clear_call(const char *);
 	int h323_answering_call(const char *token, int);
+	int h323_soft_hangup(const char *data);
 	
 	int h323_show_codec(int fd, int argc, char *argv[]);
-
+	
 
 #ifdef __cplusplus
 }

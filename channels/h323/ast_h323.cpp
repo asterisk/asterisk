@@ -56,8 +56,6 @@ MyH323EndPoint *endPoint = NULL;
 /** PWLib entry point */
 MyProcess *localProcess = NULL;
 
-/** H.323 listener */
-H323ListenerTCP *tcpListener;
 
 MyProcess::MyProcess(): PProcess("The NuFone Network's", "H.323 Channel Driver for Asterisk",
              MAJOR_VERSION, MINOR_VERSION, BUILD_TYPE, BUILD_NUMBER)
@@ -78,26 +76,6 @@ void MyProcess::Main()
 	endPoint = new MyH323EndPoint();
 	PTrace::Initialise(0, NULL, PTrace::Timestamp | PTrace::Thread | PTrace::FileAndLine);
 }
-
-ClearCallThread::ClearCallThread(const char *tc) : PThread(10000, PThread::NoAutoDeleteThread)
-{ 
-	token = tc;
-	Resume(); 
-}
-
-ClearCallThread::~ClearCallThread()
-{
-	if (h323debug)
-		cout <<  " == ClearCall thread going down." << endl;
-	return;
-}
-    
-void ClearCallThread::Main()
-{
-	endPoint->ClearCall(token);
-	return;
-}
-
 
 #define H323_NAME OPAL_G7231_6k3"{sw}"
 #define H323_G729  OPAL_G729 "{sw}"
@@ -452,8 +430,13 @@ void MyH323EndPoint::OnConnectionCleared(H323Connection & connection, const PStr
 			break;
 		default :
 			if (h323debug)
-				cout << " -- Call with " << remoteName << " completed" << endl;
+				cout << " -- Call with " << remoteName << " completed (" << connection.GetCallEndReason() << ")" << endl;
+
 	}
+	
+	cout << " -- Call with " << remoteName << " completed (" << connection.GetCallEndReason() << ")" << endl;
+
+
 	if(connection.IsEstablished()) 
 		if (h323debug)
 			cout << "	 -- Call duration " << setprecision(0) << setw(5) << (PTime() - connection.GetConnectionStartTime()) << endl;
@@ -920,6 +903,9 @@ int h323_start_listener(int listenPort, struct sockaddr_in bindaddr)
 	if (!listenPort)
 		listenPort = 1720;
 	
+	/** H.323 listener */  
+	H323ListenerTCP *tcpListener;
+
 	tcpListener = new H323ListenerTCP(*endPoint, interfaceAddress, (WORD)listenPort);
 
 	if (!endPoint->StartListener(tcpListener)) {
@@ -983,6 +969,12 @@ void h323_set_id(char *id)
 	/* EVIL HACK */
 	endPoint->SetLocalUserName(h323id);
 }
+
+void h323_show_tokens(void)
+{
+	cout << "Current call tokens: " << setprecision(2) << endPoint->GetAllConnections() << endl;
+}
+
 
 /** Establish Gatekeeper communiations, if so configured, 
   *	register aliases for the H.323 endpoint to respond to.
@@ -1077,9 +1069,8 @@ int h323_clear_call(const char *call_token)
 		return 1;
 	}
 
-	ClearCallThread	*clearCallThread = new ClearCallThread(call_token);
-	clearCallThread->WaitForTermination();
-	
+        endPoint->ClearCall(PString(call_token));
+
 	return 0;
 };
 
@@ -1118,6 +1109,14 @@ int h323_show_codec(int fd, int argc, char *argv[])
 	return 0;
 }
 
+int h323_soft_hangup(const char *data)
+{
+	PString token(data);
+	BOOL result;
+	
+	result = endPoint->ClearCall(token);	
+	return result;
+}
 
 /* alas, this doesn't work :(   */
 void h323_native_bridge(const char *token, char *them, char *capability)
