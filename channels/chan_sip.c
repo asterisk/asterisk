@@ -3015,9 +3015,12 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 {
 	struct sip_request req;
 	
-	if (init)
+	if (init) {
+		/* Bump branch even on initial requests */
+		p->branch ^= rand();
+		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 		initreqprep(&req, p, cmd, vxml_url);
-	else
+	} else
 		reqprep(&req, p, cmd, 0, 1);
 		
 	if (auth)
