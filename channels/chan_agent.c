@@ -1720,10 +1720,60 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
+/*--- sip_devicestate: Part of PBX channel interface ---*/
+static int agent_devicestate(void *data)
+{
+	struct agent_pvt *p;
+	char *s;
+	unsigned int groupmatch;
+	int waitforagent=0;
+	int res = AST_DEVICE_INVALID;
+	
+	s = data;
+	if ((s[0] == '@') && (sscanf(s + 1, "%d", &groupmatch) == 1)) {
+		groupmatch = (1 << groupmatch);
+	} else if ((s[0] == ':') && (sscanf(s + 1, "%d", &groupmatch) == 1)) {
+		groupmatch = (1 << groupmatch);
+		waitforagent = 1;
+	} else {
+		groupmatch = 0;
+	}
+
+	/* Check actual logged in agents first */
+	ast_mutex_lock(&agentlock);
+	p = agents;
+	while(p) {
+		ast_mutex_lock(&p->lock);
+		if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent))) {
+				res = AST_DEVICE_UNKNOWN;
+			if (p->owner) {
+				if (res != AST_DEVICE_INUSE)
+					res = AST_DEVICE_BUSY;
+			} else {
+				if (res == AST_DEVICE_BUSY)
+					res = AST_DEVICE_INUSE;
+				if (p->chan || !ast_strlen_zero(p->loginchan)) {
+					if (res == AST_DEVICE_INVALID)
+						res = AST_DEVICE_UNKNOWN;
+				} else if (res == AST_DEVICE_INVALID)	
+					res = AST_DEVICE_UNAVAILABLE;
+			}
+			if (!strcmp(data, p->agent)) {
+				ast_mutex_unlock(&p->lock);
+				break;
+			}
+		}
+		ast_mutex_unlock(&p->lock);
+		p = p->next;
+	}
+	ast_mutex_unlock(&agentlock);
+	return res;
+}
+
 int load_module()
 {
 	/* Make sure we can register our sip channel type */
-	if (ast_channel_register(type, tdesc, capability, agent_request)) {
+	if (ast_channel_register_ex(type, tdesc, capability, agent_request, agent_devicestate)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
 		return -1;
 	}
