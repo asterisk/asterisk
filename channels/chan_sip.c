@@ -1375,7 +1375,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
 		ast_mutex_unlock(&usecnt_lock);
-		ast_update_use_count();
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);
 		if (strlen(i->callerid))
@@ -4953,7 +4952,7 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 	return 0;
 }
 
-static int handle_request(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin)
+static int handle_request(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int *recount)
 {
 	/* Called with p->lock held, as well as p->owner->lock if appropriate, keeping things
 	   relatively static */
@@ -5128,6 +5127,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				p->tag = rand();
 				/* First invitation */
 				c = sip_new(p, AST_STATE_DOWN, strlen(p->username) ? p->username : NULL);
+				*recount = 1;
 				/* Save Record-Route for any later requests we make on this dialogue */
 				build_route(p, req, 0);
 				if (c) {
@@ -5407,6 +5407,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	struct sip_pvt *p;
 	int res;
 	int len;
+	int recount = 0;
 	len = sizeof(sin);
 	memset(&req, 0, sizeof(req));
 	res = recvfrom(sipsock, req.data, sizeof(req.data) - 1, 0, (struct sockaddr *)&sin, &len);
@@ -5439,12 +5440,15 @@ retrylock:
 			goto retrylock;
 		}
 		memcpy(&p->recv, &sin, sizeof(p->recv));
-		handle_request(p, &req, &sin);
+		handle_request(p, &req, &sin, &recount);
 		if (p->owner)
 			ast_mutex_unlock(&p->owner->lock);
 		ast_mutex_unlock(&p->lock);
 	}
 	ast_mutex_unlock(&netlock);
+	if (recount)
+		ast_update_use_count();
+
 	return 1;
 }
 
@@ -5778,6 +5782,7 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 	tmpc = sip_new(p, AST_STATE_DOWN, host);
 	if (!tmpc)
 		sip_destroy(p);
+	ast_update_use_count();
 	restart_monitor();
 	return tmpc;
 }
