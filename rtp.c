@@ -745,23 +745,32 @@ char* ast_rtp_lookup_mime_subtype(int isAstFormat, int code) {
   return "";
 }
 
+static int rtp_socket(void)
+{
+	int s;
+	long flags;
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s > -1) {
+		flags = fcntl(s, F_GETFL);
+		fcntl(s, F_SETFL, flags | O_NONBLOCK);
+	}
+	return s;
+}
+
 static struct ast_rtcp *ast_rtcp_new(void)
 {
 	struct ast_rtcp *rtcp;
-	long flags;
 	rtcp = malloc(sizeof(struct ast_rtcp));
 	if (!rtcp)
 		return NULL;
 	memset(rtcp, 0, sizeof(struct ast_rtcp));
-	rtcp->s = socket(AF_INET, SOCK_DGRAM, 0);
+	rtcp->s = rtp_socket();
 	rtcp->us.sin_family = AF_INET;
 	if (rtcp->s < 0) {
 		free(rtcp);
 		ast_log(LOG_WARNING, "Unable to allocate socket: %s\n", strerror(errno));
 		return NULL;
 	}
-	flags = fcntl(rtcp->s, F_GETFL);
-	fcntl(rtcp->s, F_SETFL, flags | O_NONBLOCK);
 	return rtcp;
 }
 
@@ -769,7 +778,7 @@ struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, 
 {
 	struct ast_rtp *rtp;
 	int x;
-	int flags;
+	int first;
 	int startplace;
 	rtp = malloc(sizeof(struct ast_rtp));
 	if (!rtp)
@@ -777,7 +786,7 @@ struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, 
 	memset(rtp, 0, sizeof(struct ast_rtp));
 	rtp->them.sin_family = AF_INET;
 	rtp->us.sin_family = AF_INET;
-	rtp->s = socket(AF_INET, SOCK_DGRAM, 0);
+	rtp->s = rtp_socket();
 	rtp->ssrc = rand();
 	rtp->seqno = rand() & 0xffff;
 	if (rtp->s < 0) {
@@ -789,8 +798,6 @@ struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, 
 		rtp->sched = sched;
 		rtp->rtcp = ast_rtcp_new();
 	}
-	flags = fcntl(rtp->s, F_GETFL);
-	fcntl(rtp->s, F_SETFL, flags | O_NONBLOCK);
 	/* Find us a place */
 	x = (rand() % (rtpend-rtpstart)) + rtpstart;
 	x = x & ~1;
@@ -800,9 +807,14 @@ struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, 
 		rtp->us.sin_port = htons(x);
 		if (rtp->rtcp)
 			rtp->rtcp->us.sin_port = htons(x + 1);
-		if (!bind(rtp->s, (struct sockaddr *)&rtp->us, sizeof(rtp->us)) &&
+		if (!(first = bind(rtp->s, (struct sockaddr *)&rtp->us, sizeof(rtp->us))) &&
 			(!rtp->rtcp || !bind(rtp->rtcp->s, (struct sockaddr *)&rtp->rtcp->us, sizeof(rtp->rtcp->us))))
 			break;
+		if (!first) {
+			/* Primary bind succeeded! Gotta recreate it */
+			close(rtp->s);
+			rtp->s = rtp_socket();
+		}
 		if (errno != EADDRINUSE) {
 			ast_log(LOG_WARNING, "Unexpected bind error: %s\n", strerror(errno));
 			close(rtp->s);
