@@ -588,13 +588,13 @@ static int alsa_write(struct ast_channel *chan, struct ast_frame *f)
 		} else {
 			if (res == -ESTRPIPE) {
 				ast_log(LOG_ERROR, "You've got some big problems\n");
-			}
-			if (res > 0)
-				res = 0;
+			} else if (res < 0)
+				ast_log(LOG_NOTICE, "Error %d on write\n", res);
 		}
 	}
 	ast_mutex_unlock(&alsalock);
-
+	if (res > 0)
+		res = 0;
 	return res;
 }
 

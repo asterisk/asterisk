@@ -50,14 +50,11 @@ APPS+=$(shell if [ -f /usr/local/include/zaptel.h ]; then echo "app_zapras.so ap
 APPS+=$(shell if [ -f /usr/include/osp/osp.h ]; then echo "app_osplookup.so" ; fi)
 
 CFLAGS+=-fPIC
-
-ifeq ($(USE_POSTGRES_VM_INTERFACE),1)
-CFLAGS+=-DUSEPOSTGRESVM
-endif
-
-ifeq ($(USE_MYSQL_VM_INTERFACE),1)
-CFLAGS+=-DUSEMYSQLVM
-endif
+#
+# If you have MySQL 4.1 or later you can use ODBC
+# storage
+#
+#CFLAGS+=-DUSE_ODBC_STORAGE
 
 all: $(APPS)
 

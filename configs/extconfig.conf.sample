@@ -30,4 +30,5 @@
 ;iaxfriends => odbc,asterisk
 ;sipfriends => odbc,asterisk
 ;voicemail => odbc,asterisk
+;extensions => odbc,asterisk
 

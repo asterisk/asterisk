@@ -28,6 +28,9 @@
 #include <asterisk/localtime.h>
 #include <asterisk/cli.h>
 #include <asterisk/utils.h>
+#ifdef USE_ODBC_STORAGE
+#include <asterisk/res_odbc.h>
+#endif
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -37,6 +40,7 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <time.h>
 #include <dirent.h>
 
@@ -175,8 +179,26 @@ struct vm_state {
 static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int msg, int option);
 static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num, char *outgoing_context);
 static int play_record_review(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int outsidecaller, struct ast_vm_user *vmu, int *duration);
-static int vm_delete(char *file);
 static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc);
+
+#ifdef USE_ODBC_STORAGE
+static char odbc_database[80];
+#define RETRIEVE(a,b) retrieve_file(a,b)
+#define DISPOSE(a,b) remove_file(a,b)
+#define STORE(a,b) store_file(a,b)
+#define EXISTS(a,b,c,d) (message_exists(a,b))
+#define RENAME(a,b,c,d,e,f) (rename_file(a,b,c,d))
+#define COPY(a,b,c,d,e,f) (copy_file(a,b,c,d))
+#define DELETE(a,b,c) (delete_file(a,b))
+#else
+#define RETRIEVE(a,b)
+#define DISPOSE(a,b)
+#define STORE(a,b)
+#define EXISTS(a,b,c,d) (ast_fileexists(c,NULL,d) > 0)
+#define RENAME(a,b,c,d,e,f) (rename_file(e,f));
+#define COPY(a,b,c,d,e,f) (copy_file(e,f));
+#define DELETE(a,b,c) (vm_delete(c))
+#endif
 
 static char ext_pass_cmd[128];
 
@@ -664,6 +686,699 @@ static int make_file(char *dest, int len, char *dir, int num)
 	return snprintf(dest, len, "%s/msg%04d", dir, num);
 }
 
+
+#ifdef USE_ODBC_STORAGE
+static int retrieve_file(char *dir, int msgnum)
+{
+	int x = 0;
+	int res;
+	int fd=-1;
+	size_t fdlen = 0;
+	void *fdm=NULL;
+	SQLLEN rowcount=0;
+	SQLSMALLINT colcount=0;
+	SQLHSTMT stmt;
+	char sql[256];
+	char rdir[256];
+	char fmt[80]="";
+	char *c;
+	char coltitle[256];
+	SQLSMALLINT collen;
+	SQLSMALLINT datatype;
+	SQLSMALLINT decimaldigits;
+	SQLSMALLINT nullable;
+	SQLULEN colsize;
+	FILE *f=NULL;
+	char rowdata[80];
+	char fn[256];
+	char full_fn[256];
+	char msgnums[80];
+	
+	odbc_obj *obj;
+	obj = fetch_odbc_obj(odbc_database);
+	if (obj) {
+		if (dir[0] != '/') {
+			snprintf(rdir, sizeof(rdir), "%s/%s", ast_config_AST_SPOOL_DIR, dir);
+			dir = rdir;
+		}
+		strncpy(fmt, vmfmts, sizeof(fmt) - 1);
+		c = strchr(fmt, '|');
+		if (c)
+			*c = '\0';
+		if (!strcasecmp(fmt, "wav49"))
+			strncpy(fmt, "WAV", sizeof(fmt));
+		snprintf(msgnums, sizeof(msgnums),"%d", msgnum);
+		if (msgnum > -1)
+			make_file(fn, sizeof(fn), dir, msgnum);
+		else
+			strncpy(fn, dir, sizeof(fn) - 1);
+		snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
+		f = fopen(full_fn, "w+");
+		snprintf(full_fn, sizeof(full_fn), "%s.%s", fn, fmt);
+		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			goto yuck;
+		}
+		snprintf(sql, sizeof(sql), "SELECT * FROM voicemessages WHERE dir=? AND msgnum=?");
+		res = SQLPrepare(stmt, sql, SQL_NTS);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(dir), 0, (void *)dir, 0, NULL);
+		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
+		res = SQLExecute(stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLRowCount(stmt, &rowcount);
+		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO))) {
+			ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		if (rowcount) {
+			fd = open(full_fn, O_RDWR | O_CREAT | O_TRUNC);
+			if (fd < 0) {
+				ast_log(LOG_WARNING, "Failed to write '%s': %s\n", full_fn, strerror(errno));
+				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+				goto yuck;
+			}
+			res = SQLNumResultCols(stmt, &colcount);
+			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {	
+				ast_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", sql);
+				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+				goto yuck;
+			}
+			res = SQLFetch(stmt);
+			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+				ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+				goto yuck;
+			}
+			if (f) 
+				fprintf(f, "[message]\n");
+			for (x=0;x<colcount;x++) {
+				rowdata[0] = '\0';
+				collen = sizeof(coltitle);
+				res = SQLDescribeCol(stmt, x + 1, coltitle, sizeof(coltitle), &collen, 
+							&datatype, &colsize, &decimaldigits, &nullable);
+				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+					ast_log(LOG_WARNING, "SQL Describe Column error!\n[%s]\n\n", sql);
+					SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+					goto yuck;
+				}
+				if (!strcmp(coltitle, "recording")) {
+					fdlen = colsize;
+					fd = open(full_fn, O_RDWR | O_TRUNC | O_CREAT, 0770);
+					if (fd > -1) {
+						/* Ugh, gotta fill it  so we can mmap */
+						char tmp[1024]="";
+						size_t left = 0, bytes = 0;
+						left = fdlen;
+						while(left) {
+							bytes = left;
+							if (bytes > sizeof(tmp))
+								bytes = sizeof(tmp);
+							if (write(fd, tmp, bytes) != bytes) {
+								close(fd); 
+								fd = -1;
+								break;
+							}
+							left -= bytes;
+						}
+						if (fd > -1)
+							fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+					}
+					if (fdm) {
+						memset(fdm, 0, fdlen);
+						res = SQLGetData(stmt, x + 1, SQL_BINARY, fdm, fdlen, &colsize);
+						if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+							ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+							SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+							goto yuck;
+						}
+					}
+				} else {
+					res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+					if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+						ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+						SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+						goto yuck;
+					}
+					printf("Got field '%s'\n", coltitle);
+					if (strcmp(coltitle, "msgnum") && strcmp(coltitle, "dir") && f)
+						fprintf(f, "%s=%s\n", coltitle, rowdata);
+				}
+			}
+		}
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+	} else
+		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+yuck:	
+	if (f)
+		fclose(f);
+	if (fdm)
+		munmap(fdm, fdlen);
+	if (fd > -1)
+		close(fd);
+	return x - 1;
+}
+
+static int remove_file(char *dir, int msgnum)
+{
+	char fn[256];
+	char full_fn[256];
+	char msgnums[80];
+	char rdir[256];
+	
+	if (dir[0] != '/') {
+		snprintf(rdir, sizeof(rdir), "%s/%s", ast_config_AST_SPOOL_DIR, dir);
+		dir = rdir;
+	}
+	if (msgnum > -1) {
+		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
+		make_file(fn, sizeof(fn), dir, msgnum);
+	} else
+		strncpy(fn, dir, sizeof(fn) - 1);
+	ast_filedelete(fn, NULL);	
+	snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
+	unlink(full_fn);
+	return 0;
+}
+
+static int last_message_index(char *dir)
+{
+	int x = 0;
+	int res;
+	SQLLEN rowcount=0;
+	SQLHSTMT stmt;
+	char sql[256];
+	char rdir[256];
+	char rowdata[20];
+	
+	odbc_obj *obj;
+	obj = fetch_odbc_obj(odbc_database);
+	if (obj) {
+		if (dir[0] != '/') {
+			snprintf(rdir, sizeof(rdir), "%s/%s", ast_config_AST_SPOOL_DIR, dir);
+			dir = rdir;
+		}
+		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			goto yuck;
+		}
+		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM voicemessages WHERE dir=?");
+		res = SQLPrepare(stmt, sql, SQL_NTS);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(dir), 0, (void *)dir, 0, NULL);
+		res = SQLExecute(stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLRowCount(stmt, &rowcount);
+		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || (rowcount < 1)) {
+			ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLFetch(stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		if (sscanf(rowdata, "%i", &x) != 1)
+			ast_log(LOG_WARNING, "Failed to read message count!\n");
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+	} else
+		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+yuck:	
+	return x - 1;
+}
+
+static int message_exists(char *dir, int msgnum)
+{
+	int x = 0;
+	int res;
+	SQLLEN rowcount=0;
+	SQLHSTMT stmt;
+	char sql[256];
+	char rdir[256];
+	char rowdata[20];
+	char msgnums[20];
+	
+	odbc_obj *obj;
+	obj = fetch_odbc_obj(odbc_database);
+	if (obj) {
+		if (dir[0] != '/') {
+			snprintf(rdir, sizeof(rdir), "%s/%s", ast_config_AST_SPOOL_DIR, dir);
+			dir = rdir;
+		}
+		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
+		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			goto yuck;
+		}
+		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM voicemessages WHERE dir=? AND msgnum=?");
+		res = SQLPrepare(stmt, sql, SQL_NTS);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(dir), 0, (void *)dir, 0, NULL);
+		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
+		res = SQLExecute(stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLRowCount(stmt, &rowcount);
+		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || (rowcount < 1)) {
+			ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLFetch(stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		if (sscanf(rowdata, "%i", &x) != 1)
+			ast_log(LOG_WARNING, "Failed to read message count!\n");
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+	} else
+		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+yuck:	
+	return x;
+}
+
+static int count_messages(char *dir)
+{
+	return last_message_index(dir) + 1;
+}
+static void delete_file(char *sdir, int smsg)
+{
+	int res;
+	SQLLEN rowcount=0;
+	SQLHSTMT stmt;
+	char sql[256];
+	char msgnums[20];
+	char rdir[256];
+	
+	odbc_obj *obj;
+	obj = fetch_odbc_obj(odbc_database);
+	if (obj) {
+		if (sdir[0] != '/') {
+			snprintf(rdir, sizeof(rdir), "%s/%s", ast_config_AST_SPOOL_DIR, sdir);
+			sdir = rdir;
+		}
+		snprintf(msgnums, sizeof(msgnums), "%d", smsg);
+		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			goto yuck;
+		}
+		snprintf(sql, sizeof(sql), "DELETE FROM voicemessages WHERE dir=? AND msgnum=?");
+		res = SQLPrepare(stmt, sql, SQL_NTS);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(sdir), 0, (void *)sdir, 0, NULL);
+		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
+		res = SQLExecute(stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLRowCount(stmt, &rowcount);
+		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO))) {
+			ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+	} else
+		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+yuck:
+	return;	
+}
+
+static void copy_file(char *sdir, int smsg, char *ddir, int dmsg)
+{
+	int res;
+	SQLLEN rowcount=0;
+	SQLHSTMT stmt;
+	char sql[256];
+	char msgnums[20];
+	char msgnumd[20];
+	char rsdir[256];
+	char rddir[256];
+	odbc_obj *obj;
+
+	delete_file(ddir, dmsg);
+	obj = fetch_odbc_obj(odbc_database);
+	if (obj) {
+		if (ddir[0] != '/') {
+			snprintf(rddir, sizeof(rddir), "%s/%s", ast_config_AST_SPOOL_DIR, ddir);
+			ddir = rddir;
+		}
+		if (sdir[0] != '/') {
+			snprintf(rsdir, sizeof(rsdir), "%s/%s", ast_config_AST_SPOOL_DIR, sdir);
+			sdir = rsdir;
+		}
+		snprintf(msgnums, sizeof(msgnums), "%d", smsg);
+		snprintf(msgnumd, sizeof(msgnumd), "%d", dmsg);
+		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			goto yuck;
+		}
+		snprintf(sql, sizeof(sql), "INSERT INTO voicemessages (dir, msgnum, context, macrocontext, callerid, origtime, duration, recording) SELECT ?,?,context,macrocontext,callerid,origtime,duration,recording FROM voicemessages WHERE dir=? AND msgnum=?");
+		res = SQLPrepare(stmt, sql, SQL_NTS);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(ddir), 0, (void *)ddir, 0, NULL);
+		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnumd), 0, (void *)msgnumd, 0, NULL);
+		SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(sdir), 0, (void *)sdir, 0, NULL);
+		SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
+		res = SQLExecute(stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Execute error!\n[%s] (You probably don't have MySQL 4.1 or later installed)\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLRowCount(stmt, &rowcount);
+		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || (rowcount < 1)) {
+			ast_log(LOG_WARNING, "SQL Row Count error!\n[%s] (You probably don't have MySQL 4.1 or later installed)\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+	} else
+		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+yuck:
+	return;	
+}
+
+static int store_file(char *dir, int msgnum)
+{
+	int x = 0;
+	int res;
+	int fd = -1;
+	void *fdm=NULL;
+	size_t fdlen = -1;
+	SQLLEN rowcount=0;
+	SQLHSTMT stmt;
+	SQLINTEGER len;
+	char sql[256];
+	char rdir[256];
+	char msgnums[20];
+	char fn[256];
+	char full_fn[256];
+	char fmt[80]="";
+	char *c;
+	char *context="", *macrocontext="", *callerid="", *origtime="", *duration="";
+	struct ast_config *cfg=NULL;
+	odbc_obj *obj;
+
+	delete_file(dir, msgnum);
+	obj = fetch_odbc_obj(odbc_database);
+	if (obj) {
+		if (dir[0] != '/') {
+			snprintf(rdir, sizeof(rdir), "%s/%s", ast_config_AST_SPOOL_DIR, dir);
+			dir = rdir;
+		}
+		strncpy(fmt, vmfmts, sizeof(fmt) - 1);
+		c = strchr(fmt, '|');
+		if (c)
+			*c = '\0';
+		if (!strcasecmp(fmt, "wav49"))
+			strncpy(fmt, "WAV", sizeof(fmt));
+		snprintf(msgnums, sizeof(msgnums),"%d", msgnum);
+		if (msgnum > -1)
+			make_file(fn, sizeof(fn), dir, msgnum);
+		else
+			strncpy(fn, dir, sizeof(fn) - 1);
+		snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
+		cfg = ast_load(full_fn);
+		snprintf(full_fn, sizeof(full_fn), "%s.%s", fn, fmt);
+		fd = open(full_fn, O_RDWR);
+		if (fd < 0) {
+			ast_log(LOG_WARNING, "Open of sound file '%s' failed: %s\n", full_fn, strerror(errno));
+			goto yuck;
+		}
+		if (cfg) {
+			context = ast_variable_retrieve(cfg, "message", "context");
+			if (!context) context = "";
+			macrocontext = ast_variable_retrieve(cfg, "message", "macrocontext");
+			if (!macrocontext) macrocontext = "";
+			callerid = ast_variable_retrieve(cfg, "message", "callerid");
+			if (!callerid) callerid = "";
+			origtime = ast_variable_retrieve(cfg, "message", "origtime");
+			if (!origtime) origtime = "";
+			duration = ast_variable_retrieve(cfg, "message", "duration");
+			if (!duration) duration = "";
+		}
+		fdlen = lseek(fd, 0, SEEK_END);
+		lseek(fd, 0, SEEK_SET);
+		printf("Length is %d\n", fdlen);
+		fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED,fd, 0);
+		if (!fdm) {
+			ast_log(LOG_WARNING, "Memory map failed!\n");
+			goto yuck;
+		} 
+		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			goto yuck;
+		}
+		snprintf(sql, sizeof(sql), "INSERT INTO voicemessages (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration) VALUES (?,?,?,?,?,?,?,?)");
+		res = SQLPrepare(stmt, sql, SQL_NTS);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		len = fdlen; /* SQL_LEN_DATA_AT_EXEC(fdlen); */
+		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(dir), 0, (void *)dir, 0, NULL);
+		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
+		SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_BINARY, fdlen, 0, (void *)fdm, fdlen, &len);
+		SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(context), 0, (void *)context, 0, NULL);
+		SQLBindParameter(stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(macrocontext), 0, (void *)macrocontext, 0, NULL);
+		SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(callerid), 0, (void *)callerid, 0, NULL);
+		SQLBindParameter(stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(origtime), 0, (void *)origtime, 0, NULL);
+		SQLBindParameter(stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(duration), 0, (void *)duration, 0, NULL);
+		res = SQLExecute(stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLRowCount(stmt, &rowcount);
+		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || (rowcount < 1)) {
+			ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+	} else
+		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+yuck:	
+	if (cfg)
+		ast_destroy(cfg);
+	if (fdm)
+		munmap(fdm, fdlen);
+	if (fd > -1)
+		close(fd);
+	return x;
+}
+
+static void rename_file(char *sdir, int smsg, char *ddir, int dmsg)
+{
+	int res;
+	SQLLEN rowcount=0;
+	SQLHSTMT stmt;
+	char sql[256];
+	char msgnums[20];
+	char msgnumd[20];
+	char rsdir[256];
+	char rddir[256];
+	odbc_obj *obj;
+
+	delete_file(ddir, dmsg);
+	obj = fetch_odbc_obj(odbc_database);
+	if (obj) {
+		if (ddir[0] != '/') {
+			snprintf(rddir, sizeof(rddir), "%s/%s", ast_config_AST_SPOOL_DIR, ddir);
+			ddir = rddir;
+		}
+		if (sdir[0] != '/') {
+			snprintf(rsdir, sizeof(rsdir), "%s/%s", ast_config_AST_SPOOL_DIR, sdir);
+			sdir = rsdir;
+		}
+		snprintf(msgnums, sizeof(msgnums), "%d", smsg);
+		snprintf(msgnumd, sizeof(msgnumd), "%d", dmsg);
+		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			goto yuck;
+		}
+		snprintf(sql, sizeof(sql), "UPDATE voicemessages SET dir=?, msgnum=? WHERE dir=? AND msgnum=?");
+		res = SQLPrepare(stmt, sql, SQL_NTS);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(ddir), 0, (void *)ddir, 0, NULL);
+		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnumd), 0, (void *)msgnumd, 0, NULL);
+		SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(sdir), 0, (void *)sdir, 0, NULL);
+		SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
+		res = SQLExecute(stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLRowCount(stmt, &rowcount);
+		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || (rowcount < 1)) {
+			ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+	} else
+		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+yuck:
+	return;	
+}
+
+#else
+static int count_messages(char *dir)
+{
+	// Find all .txt files - even if they are not in sequence from 0000
+
+	int vmcount = 0;
+	DIR *vmdir = NULL;
+	struct dirent *vment = NULL;
+
+	if ((vmdir = opendir(dir))) {
+		while ((vment = readdir(vmdir)))
+		{
+			if (strlen(vment->d_name) > 7 && !strncmp(vment->d_name + 7,".txt",4))
+			{
+				vmcount++;
+			}
+		}
+		closedir(vmdir);
+	}
+
+	return vmcount;
+}
+
+static void rename_file(char *sfn, char *dfn)
+{
+	char stxt[256];
+	char dtxt[256];
+	ast_filerename(sfn,dfn,NULL);
+	snprintf(stxt, sizeof(stxt), "%s.txt", sfn);
+	snprintf(dtxt, sizeof(dtxt), "%s.txt", dfn);
+	rename(stxt, dtxt);
+}
+
+static int copy(char *infile, char *outfile)
+{
+	int ifd;
+	int ofd;
+	int res;
+	int len;
+	char buf[4096];
+
+#ifdef HARDLINK_WHEN_POSSIBLE
+	/* Hard link if possible; saves disk space & is faster */
+	if (link(infile, outfile)) {
+#endif
+		if ((ifd = open(infile, O_RDONLY)) < 0) {
+			ast_log(LOG_WARNING, "Unable to open %s in read-only mode\n", infile);
+			return -1;
+		}
+		if ((ofd = open(outfile, O_WRONLY | O_TRUNC | O_CREAT, 0600)) < 0) {
+			ast_log(LOG_WARNING, "Unable to open %s in write-only mode\n", outfile);
+			close(ifd);
+			return -1;
+		}
+		do {
+			len = read(ifd, buf, sizeof(buf));
+			if (len < 0) {
+				ast_log(LOG_WARNING, "Read failed on %s: %s\n", infile, strerror(errno));
+				close(ifd);
+				close(ofd);
+				unlink(outfile);
+			}
+			if (len) {
+				res = write(ofd, buf, len);
+				if (res != len) {
+					ast_log(LOG_WARNING, "Write failed on %s (%d of %d): %s\n", outfile, res, len, strerror(errno));
+					close(ifd);
+					close(ofd);
+					unlink(outfile);
+				}
+			}
+		} while (len);
+		close(ifd);
+		close(ofd);
+		return 0;
+#ifdef HARDLINK_WHEN_POSSIBLE
+	} else {
+		/* Hard link succeeded */
+		return 0;
+	}
+#endif
+}
+
+static void copy_file(char *frompath, char *topath)
+{
+	char frompath2[256],topath2[256];
+	ast_filecopy(frompath, topath, NULL);
+	snprintf(frompath2, sizeof(frompath2), "%s.txt", frompath);
+	snprintf(topath2, sizeof(topath2), "%s.txt", topath);
+	copy(frompath2, topath2);
+}
+
 static int last_message_index(char *dir)
 {
 	int x;
@@ -676,6 +1391,23 @@ static int last_message_index(char *dir)
 	return x-1;
 }
 
+static int vm_delete(char *file)
+{
+	char *txt;
+	int txtsize = 0;
+
+	txtsize = (strlen(file) + 5)*sizeof(char);
+	txt = (char *)alloca(txtsize);
+	/* Sprintf here would safe because we alloca'd exactly the right length,
+	 * but trying to eliminate all sprintf's anyhow
+	 */
+	snprintf(txt, txtsize, "%s.txt", file);
+	unlink(txt);
+	return ast_filedelete(file, NULL);
+}
+
+
+#endif
 static int
 inbuf(struct baseio *bio, FILE *fi)
 {
@@ -1070,14 +1802,21 @@ static int invent_message(struct ast_channel *chan, char *context, char *ext, in
 	int res;
 	char fn[256];
 	snprintf(fn, sizeof(fn), "voicemail/%s/%s/greet", context, ext);
+	RETRIEVE(fn, -1);
 	if (ast_fileexists(fn, NULL, NULL) > 0) {
 		res = ast_streamfile(chan, fn, chan->language);
-		if (res)
+		if (res) {
+			DISPOSE(fn, -1);
 			return -1;
+		}
 		res = ast_waitstream(chan, ecodes);
-		if (res)
+		if (res) {
+			DISPOSE(fn, -1);
 			return res;
+		}
 	} else {
+		/* Dispose just in case */
+		DISPOSE(fn, -1);
 		res = ast_streamfile(chan, "vm-theperson", chan->language);
 		if (res)
 			return -1;
@@ -1137,56 +1876,6 @@ static char *mbox(int id)
 	}
 }
 
-static int copy(char *infile, char *outfile)
-{
-	int ifd;
-	int ofd;
-	int res;
-	int len;
-	char buf[4096];
-
-#ifdef HARDLINK_WHEN_POSSIBLE
-	/* Hard link if possible; saves disk space & is faster */
-	if (link(infile, outfile)) {
-#endif
-		if ((ifd = open(infile, O_RDONLY)) < 0) {
-			ast_log(LOG_WARNING, "Unable to open %s in read-only mode\n", infile);
-			return -1;
-		}
-		if ((ofd = open(outfile, O_WRONLY | O_TRUNC | O_CREAT, 0600)) < 0) {
-			ast_log(LOG_WARNING, "Unable to open %s in write-only mode\n", outfile);
-			close(ifd);
-			return -1;
-		}
-		do {
-			len = read(ifd, buf, sizeof(buf));
-			if (len < 0) {
-				ast_log(LOG_WARNING, "Read failed on %s: %s\n", infile, strerror(errno));
-				close(ifd);
-				close(ofd);
-				unlink(outfile);
-			}
-			if (len) {
-				res = write(ofd, buf, len);
-				if (res != len) {
-					ast_log(LOG_WARNING, "Write failed on %s (%d of %d): %s\n", outfile, res, len, strerror(errno));
-					close(ifd);
-					close(ofd);
-					unlink(outfile);
-				}
-			}
-		} while (len);
-		close(ifd);
-		close(ofd);
-		return 0;
-#ifdef HARDLINK_WHEN_POSSIBLE
-	} else {
-		/* Hard link succeeded */
-		return 0;
-	}
-#endif
-}
-
 static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, int msgnum, long duration, char *fmt, char *cidnum, char *cidname);
 
 static void copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt)
@@ -1214,16 +1903,12 @@ static void copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int 
 	recipmsgnum = 0;
 	do {
 		make_file(topath, sizeof(topath), todir, recipmsgnum);
-		if (ast_fileexists(topath, NULL, chan->language) <= 0) 
+		if (!EXISTS(todir, recipmsgnum, topath, chan->language))
 			break;
 		recipmsgnum++;
 	} while (recipmsgnum < MAXMSG);
 	if (recipmsgnum < MAXMSG) {
-		char frompath2[256],topath2[256];
-		ast_filecopy(frompath, topath, NULL);
-		snprintf(frompath2, sizeof(frompath2), "%s.txt", frompath);
-		snprintf(topath2, sizeof(topath2), "%s.txt", topath);
-		copy(frompath2, topath2);
+		COPY(fromdir, msgnum, todir, recipmsgnum, frompath, topath);
 	} else {
 		ast_log(LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
 	}
@@ -1298,6 +1983,11 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 			snprintf(prefile, sizeof(prefile), "voicemail/%s/%s/busy", vmu->context, ext);
 		else if (unavail)
 			snprintf(prefile, sizeof(prefile), "voicemail/%s/%s/unavail", vmu->context, ext);
+		snprintf(tempfile, sizeof(tempfile), "voicemail/%s/%s/temp", vmu->context, ext);
+		RETRIEVE(tempfile, -1);
+		if (ast_fileexists(tempfile, NULL, NULL) > 0)
+			strncpy(prefile, tempfile, sizeof(prefile) - 1);
+		DISPOSE(tempfile, -1);
 		make_dir(dir, sizeof(dir), vmu->context, "", "");
 		/* It's easier just to try to make it than to check for its existence */
 		if (mkdir(dir, 0700) && (errno != EEXIST))
@@ -1331,12 +2021,10 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 			ausemacro = 1;
 		}
 
-		snprintf(tempfile, sizeof(tempfile), "voicemail/%s/%s/temp", vmu->context, ext);
 
 		/* Play the beginning intro if desired */
 		if (!ast_strlen_zero(prefile)) {
-			if (ast_fileexists(tempfile, NULL, NULL) > 0)
-				strncpy(prefile, tempfile, sizeof(prefile) - 1);
+			RETRIEVE(prefile, -1);
 			if (ast_fileexists(prefile, NULL, NULL) > 0) {
 				if (ast_streamfile(chan, prefile, chan->language) > -1) 
 					res = ast_waitstream(chan, ecodes);
@@ -1344,6 +2032,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 				ast_log(LOG_DEBUG, "%s doesn't exist, doing what we can\n", prefile);
 				res = invent_message(chan, vmu->context, ext, busy, ecodes);
 			}
+			DISPOSE(prefile, -1);
 			if (res < 0) {
 				ast_log(LOG_DEBUG, "Hang up during prefile playback\n");
 				free_user(vmu);
@@ -1408,7 +2097,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 			msgnum = 0;
 			do {
 				make_file(fn, sizeof(fn), dir, msgnum);
-				if (ast_fileexists(fn, NULL, chan->language) <= 0) 
+				if (!EXISTS(dir,msgnum,fn,chan->language))
 					break;
 				msgnum++;
 			} while (msgnum < MAXMSG);
@@ -1466,7 +2155,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 				if (duration < vmminmessage) {
 					if (option_verbose > 2) 
 						ast_verbose( VERBOSE_PREFIX_3 "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, vmminmessage);
-					vm_delete(fn);
+					DELETE(dir,msgnum,fn);
 					/* XXX We should really give a prompt too short/option start again, with leave_vm_out called only after a timeout XXX */
 					goto leave_vm_out;
 				}
@@ -1487,6 +2176,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 					}
 				}
 				notify_new_message(chan, vmu, msgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
+				STORE(dir, msgnum);
+				DISPOSE(dir, msgnum);
 			} else {
 				res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
 				if (!res)
@@ -1507,27 +2198,8 @@ leave_vm_out:
 	return res;
 }
 
-static int count_messages(char *dir)
-{
-	// Find all .txt files - even if they are not in sequence from 0000
-
-	int vmcount = 0;
-	DIR *vmdir = NULL;
-	struct dirent *vment = NULL;
-
-	if ((vmdir = opendir(dir))) {
-		while ((vment = readdir(vmdir)))
-		{
-			if (strlen(vment->d_name) > 7 && !strncmp(vment->d_name + 7,".txt",4))
-			{
-				vmcount++;
-			}
-		}
-		closedir(vmdir);
-	}
-
-	return vmcount;
-}
+#ifdef USE_ODBC_STORAGE
+#endif
 
 static void resequence_mailbox(char * dir)
 {
@@ -1536,20 +2208,14 @@ static void resequence_mailbox(char * dir)
 	int x,dest;
 	char sfn[256];
 	char dfn[256];
-	char stxt[256];
-	char dtxt[256];
 
 	for (x=0,dest=0;x<MAXMSG;x++) {
 		make_file(sfn, sizeof(sfn), dir, x);
-		if (ast_fileexists(sfn, NULL, NULL) > 0) {
+		if (EXISTS(dir, x, sfn, NULL)) {
 
 			if(x != dest) {
 				make_file(dfn, sizeof(dfn), dir, dest);
-				ast_filerename(sfn,dfn,NULL);
-
-				snprintf(stxt, sizeof(stxt), "%s.txt", sfn);
-				snprintf(dtxt, sizeof(dtxt), "%s.txt", dfn);
-				rename(stxt, dtxt);
+				RENAME(dir, x, dir, dest, sfn, dfn);
 			}
 
 			dest++;
@@ -1570,8 +2236,6 @@ static int save_to_folder(char *dir, int msg, char *context, char *username, int
 	char sfn[256];
 	char dfn[256];
 	char ddir[256];
-	char txt[256];
-	char ntxt[256];
 	char *dbox = mbox(box);
 	int x;
 	make_file(sfn, sizeof(sfn), dir, msg);
@@ -1579,16 +2243,13 @@ static int save_to_folder(char *dir, int msg, char *context, char *username, int
 	mkdir(ddir, 0700);
 	for (x=0;x<MAXMSG;x++) {
 		make_file(dfn, sizeof(dfn), ddir, x);
-		if (ast_fileexists(dfn, NULL, NULL) < 0)
+		if (!EXISTS(ddir, x, dfn, NULL))
 			break;
 	}
 	if (x >= MAXMSG)
 		return -1;
-	ast_filecopy(sfn, dfn, NULL);
 	if (strcmp(sfn, dfn)) {
-		snprintf(txt, sizeof(txt), "%s.txt", sfn);
-		snprintf(ntxt, sizeof(ntxt), "%s.txt", dfn);
-		copy(txt, ntxt);
+		COPY(dir, msg, ddir, x, sfn, dfn);
 	}
 	return 0;
 }
@@ -2213,7 +2874,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	}
 
 	if (vmu->delete) {
-		vm_delete(fn);
+		DELETE(todir, msgnum, fn);
 	}
 
 	/* Leave voicemail for someone */
@@ -2630,14 +3291,18 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	/* Retrieve info from VM attribute file */
 	make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg);
 	snprintf(filename,sizeof(filename), "%s.txt", vms->fn2);
+	RETRIEVE(vms->curdir, vms->curmsg);
 	msg_cfg = ast_load(filename);
 	if (!msg_cfg) {
 		ast_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
 		return 0;
 	}
 																									
-	if (!(origtime = ast_variable_retrieve(msg_cfg, "message", "origtime")))
+	if (!(origtime = ast_variable_retrieve(msg_cfg, "message", "origtime"))) {
+		ast_log(LOG_WARNING, "No origtime?!\n");
+		DISPOSE(vms->curdir, vms->curmsg);
 		return 0;
+	}
 
 	cid = ast_variable_retrieve(msg_cfg, "message", "callerid");
 	duration = ast_variable_retrieve(msg_cfg, "message", "duration");
@@ -2660,8 +3325,10 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	if (!res) {
 		make_file(vms->fn, sizeof(vms->fn), vms->curdir, vms->curmsg);
 		vms->heard[vms->curmsg] = 1;
+		printf("yay!\n");
 		res = wait_file(chan, vms, vms->fn);
 	}
+	DISPOSE(vms->curdir, vms->curmsg);
 	return res;
 }
 
@@ -2690,8 +3357,6 @@ static void open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 static void close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int x;
-	char ntxt[256] = "";
-	char txt[256] = "";
 	if (vms->lastmsg > -1) { 
 		/* Get the deleted messages fixed */ 
 		vms->curmsg = -1; 
@@ -2699,15 +3364,12 @@ static void close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 			if (!vms->deleted[x] && (strcasecmp(vms->curbox, "INBOX") || !vms->heard[x])) { 
 				/* Save this message.  It's not in INBOX or hasn't been heard */ 
 				make_file(vms->fn, sizeof(vms->fn), vms->curdir, x); 
-				if (ast_fileexists(vms->fn, NULL, NULL) < 1) 
+				if (!EXISTS(vms->curdir, x, vms->fn, NULL)) 
 					break;
 				vms->curmsg++; 
 				make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg); 
 				if (strcmp(vms->fn, vms->fn2)) { 
-					snprintf(txt, sizeof(txt), "%s.txt", vms->fn); 
-					snprintf(ntxt, sizeof(ntxt), "%s.txt", vms->fn2); 
-					ast_filerename(vms->fn, vms->fn2, NULL); 
-					rename(txt, ntxt); 
+					RENAME(vms->curdir, x, vms->curdir, vms->curmsg, vms->fn, vms->fn2);
 				} 
 			} else if (!strcasecmp(vms->curbox, "INBOX") && vms->heard[x] && !vms->deleted[x]) { 
 				/* Move to old folder before deleting */ 
@@ -2716,9 +3378,9 @@ static void close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 		} 
 		for (x = vms->curmsg + 1; x <= MAXMSG; x++) { 
 			make_file(vms->fn, sizeof(vms->fn), vms->curdir, x); 
-			if (ast_fileexists(vms->fn, NULL, NULL) < 1) 
+			if (!EXISTS(vms->curdir, x, vms->fn, NULL)) 
 				break;
-			vm_delete(vms->fn);
+			DELETE(vms->curdir, x, vms->fn);
 		} 
 	} 
 	memset(vms->deleted, 0, sizeof(vms->deleted)); 
@@ -4335,6 +4997,12 @@ static int load_config(void)
 			astattach = "yes";
 		attach_voicemail = ast_true(astattach);
 
+#ifdef USE_ODBC_STORAGE
+		strncpy(odbc_database, "asterisk", sizeof(odbc_database) - 1);
+		if ((thresholdstr = ast_variable_retrieve(cfg, "general", "odbcstorage"))) {
+			strncpy(odbc_database, thresholdstr, sizeof(odbc_database) - 1);
+		}
+#endif		
 		/* Mail command */
 		strncpy(mailcmd, SENDMAIL, sizeof(mailcmd) - 1); /* Default */
 		if ((astmailcmd = ast_variable_retrieve(cfg, "general", "mailcmd")))
@@ -4947,6 +5615,8 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  				ast_verbose(VERBOSE_PREFIX_3 "Saving message as is\n");
  				ast_streamfile(chan, "vm-msgsaved", chan->language);
  				ast_waitstream(chan, "");
+				STORE(recordfile, -1);
+				DISPOSE(recordfile, -1);
  				cmd = 't';
  				return res;
  			}
@@ -4970,9 +5640,10 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  			recorded = 1;
  			/* After an attempt has been made to record message, we have to take care of INTRO and beep for incoming messages, but not for greetings */
 			cmd = ast_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, silencethreshold, maxsilence);
- 			if (cmd == -1)
+ 			if (cmd == -1) {
  			/* User has hung up, no options to give */
  				return cmd;
+			}
  			if (cmd == '0') {
  				break;
  			} else if (cmd == '*') {
@@ -5029,7 +5700,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  		case '0':
 			if (message_exists || recorded) {
 				ast_play_and_wait(chan, "vm-deleted");
-				vm_delete(recordfile);
+				DELETE(recordfile, -1, recordfile);
 			}
 			return cmd;
  		default:
@@ -5073,21 +5744,6 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  	return cmd;
  }
  
-
-static int vm_delete(char *file)
-{
-	char *txt;
-	int txtsize = 0;
-
-	txtsize = (strlen(file) + 5)*sizeof(char);
-	txt = (char *)alloca(txtsize);
-	/* Sprintf here would safe because we alloca'd exactly the right length,
-	 * but trying to eliminate all sprintf's anyhow
-	 */
-	snprintf(txt, txtsize, "%s.txt", file);
-	unlink(txt);
-	return ast_filedelete(file, NULL);
-}
 
 int usecount(void)
 {

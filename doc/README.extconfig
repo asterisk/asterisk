@@ -58,3 +58,21 @@ A Voicemail table would look more like this:
 The uniqueid should be unique to each voicemail user and can be 
 autoincrement.  It need not have any relation to the mailbox or context.
 
+An extension table would look more like this:
+
++----------+---------+----------+-------+-----------+
+| context  |  exten  | priority |  app  |  appdata  |
++----------+---------+----------+-------+-----------+
+|  default |    1234 |        1 |  Dial |     Zap/1 |
++----------+---------+----------+-------+-----------+
+
+In the dialplan you just use the Realtime switch:
+
+[foo]
+switch => Realtime
+
+or:
+
+[bar]
+switch => Realtime/bar@extensions
+
