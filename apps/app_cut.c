@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2003 Tilghman Lesher.  All rights reserved.
  *
- * Tilghman Lesher <app_cut__v002@the-tilghman.com>
+ * Tilghman Lesher <app_cut__v003@the-tilghman.com>
  *
  * $Id$
  *
@@ -82,16 +82,14 @@ static int cut_exec(struct ast_channel *chan, void *data)
 	if (args_okay) {
 		char d, ds[2];
 		char *tmp = alloca(strlen(varname) + 4);
-		char *tmp2 = alloca(MAXRESULT);
+		char varvalue[MAXRESULT], *tmp2=varvalue;
 		char retstring[MAXRESULT];
 
-		if (tmp2)
-			memset(tmp2, 0, MAXRESULT);
 		memset(retstring, 0, MAXRESULT);
 
-		if (tmp && tmp2) {
+		if (tmp) {
 			snprintf(tmp, strlen(varname) + 4, "${%s}", varname);
-			memset(tmp2, 0, sizeof(tmp2));
+			memset(varvalue, 0, sizeof(varvalue));
 		} else {
 			ast_log(LOG_ERROR, "Out of memory");
 			return -1;
