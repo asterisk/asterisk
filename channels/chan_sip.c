@@ -124,15 +124,18 @@ static char *config = "sip.conf";
 
 static char default_useragent[AST_MAX_EXTENSION] = DEFAULT_USERAGENT;
 
-static char default_context[AST_MAX_EXTENSION] = "default";
+#define DEFAULT_CONTEXT "default"
+static char default_context[AST_MAX_EXTENSION] = DEFAULT_CONTEXT;
 
 static char default_language[MAX_LANGUAGE] = "";
 
-static char default_callerid[AST_MAX_EXTENSION] = "asterisk";
+#define DEFAULT_CALLERID "asterisk"
+static char default_callerid[AST_MAX_EXTENSION] = DEFAULT_CALLERID;
 
 static char default_fromdomain[AST_MAX_EXTENSION] = "";
 
-static char notifymime[AST_MAX_EXTENSION] = "application/simple-message-summary";
+#define DEFAULT_NOTIFYMIME "application/simple-message-summary"
+static char default_notifymime[AST_MAX_EXTENSION] = DEFAULT_NOTIFYMIME;
 
 static int srvlookup = 0;		/* SRV Lookup on or off. Default is off, RFC behavior is on */
 
@@ -199,7 +202,8 @@ static char global_realm[AST_MAX_EXTENSION] = "asterisk"; 	/* Default realm */
 static char regcontext[AST_MAX_EXTENSION] = "";		/* Context for auto-extensions */
 
 /* Expire slowly */
-static int expiry = 900;
+#define DEFAULT_EXPIRY 900
+static int expiry = DEFAULT_EXPIRY;
 
 static struct sched_context *sched;
 static struct io_context *io;
@@ -3901,7 +3905,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs)
 	char clen[20];
 	initreqprep(&req, p, "NOTIFY", NULL);
 	add_header(&req, "Event", "message-summary");
-	add_header(&req, "Content-Type", notifymime);
+	add_header(&req, "Content-Type", default_notifymime);
 
 	snprintf(tmp, sizeof(tmp), "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
 	snprintf(tmp2, sizeof(tmp2), "Voice-Message: %d/%d\r\n", newmsgs, oldmsgs);
@@ -8573,6 +8577,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 }
 
 /*--- reload_config: Re-read SIP.conf config file ---*/
+/*	This function reloads all config data, except for
+	active peers (with registrations). They will only
+	change configuration data at restart, not at reload.
+	SIP debug and recordhistory state will not change
+ */
 static int reload_config(void)
 {
 	struct ast_config *cfg;
@@ -8587,8 +8596,6 @@ static int reload_config(void)
 	int oldport = ntohs(bindaddr.sin_port);
 	char iabuf[INET_ADDRSTRLEN];
 
-	global_dtmfmode = SIP_DTMF_RFC2833;
-	global_promiscredir = 0;
 	
 	if (gethostname(ourhost, sizeof(ourhost))) {
 		ast_log(LOG_WARNING, "Unable to get hostname, SIP disabled\n");
@@ -8602,28 +8609,47 @@ static int reload_config(void)
 		return 0;
 	}
 	
-	global_nat = SIP_NAT_RFC3581;
 	
 	sip_prefs_free();
 	
+	/* Reset IP addresses  */
 	memset(&bindaddr, 0, sizeof(bindaddr));
 	memset(&localaddr, 0, sizeof(localaddr));
 	memset(&externip, 0, sizeof(externip));
 
-	/* Initialize some reasonable defaults */
-	strncpy(default_context, "default", sizeof(default_context) - 1);
+	/* Initialize some reasonable defaults at SIP reload */
+	global_nat = SIP_NAT_RFC3581;
+	strncpy(default_context, DEFAULT_CONTEXT, sizeof(default_context) - 1);
 	default_language[0] = '\0';
 	default_fromdomain[0] = '\0';
 	strncpy(default_useragent, DEFAULT_USERAGENT, sizeof(default_useragent) - 1);
-	strncpy(global_realm, "asterisk", sizeof(global_realm) - 1);
+	strncpy(default_notifymime, DEFAULT_NOTIFYMIME, sizeof(default_notifymime) - 1);
 	global_realm[sizeof(global_realm)-1] = '\0';
+	strncpy(global_musicclass, "default", sizeof(global_musicclass) - 1);
+	strncpy(default_callerid, DEFAULT_CALLERID, sizeof(default_callerid) - 1);
 	global_canreinvite = REINVITE_INVITE;
 	videosupport = 0;
 	relaxdtmf = 0;
 	ourport = DEFAULT_SIP_PORT;
 	global_rtptimeout = 0;
 	global_rtpholdtimeout = 0;
-	pedanticsipchecking=0;
+	pedanticsipchecking = 0;
+	global_dtmfmode = SIP_DTMF_RFC2833;
+	global_promiscredir = 0;
+	global_trustrpid = 0;
+	global_progressinband = 0;
+	global_mwitime = DEFAULT_MWITIME;
+	srvlookup = 0;
+	autocreatepeer = 0;
+	regcontext[0] = '\0';
+	tos = 0;
+	expiry = DEFAULT_EXPIRY;
+
+#ifdef OSP_SUPPORT
+	global_ospauth = 0;		/* OSP = Open Settlement Protocol */
+#endif
+	
+	/* Read the [general] config section of sip.conf (or from realtime config) */
 	v = ast_variable_browse(cfg, "general");
 	while(v) {
 		/* Create the interface list */
@@ -8669,7 +8695,7 @@ static int reload_config(void)
 		} else if (!strcasecmp(v->name, "videosupport")) {
 			videosupport = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "notifymimetype")) {
-			strncpy(notifymime, v->value, sizeof(notifymime) - 1);
+			strncpy(default_notifymime, v->value, sizeof(default_notifymime) - 1);
 		} else if (!strcasecmp(v->name, "musicclass")) {
 			strncpy(global_musicclass, v->value, sizeof(global_musicclass) - 1);
 		} else if (!strcasecmp(v->name, "language")) {
@@ -8796,6 +8822,7 @@ static int reload_config(void)
 		 v = v->next;
 	}
 	
+	/* Load peers, users and friends */
 	cat = ast_category_browse(cfg, NULL);
 	while(cat) {
 		if (strcasecmp(cat, "general")) {
@@ -8827,6 +8854,7 @@ static int reload_config(void)
 		cat = ast_category_browse(cfg, cat);
 	}
 	
+	/* Find our IP address */
 	if (ntohl(bindaddr.sin_addr.s_addr)) {
 		memcpy(&__ourip, &bindaddr.sin_addr, sizeof(__ourip));
 	} else {
@@ -8878,6 +8906,7 @@ static int reload_config(void)
 	}
 	ast_mutex_unlock(&netlock);
 
+	/* Release configuration from memory */
 	ast_destroy(cfg);
 	return 0;
 }
