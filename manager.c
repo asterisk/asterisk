@@ -269,44 +269,97 @@ void astman_send_ack(struct mansession *s, struct message *m, char *msg)
 	astman_send_response(s, m, "Success", msg);
 }
 
+/* Tells you if smallstr exists inside bigstr
+   which is delim by delim and uses no buf or stringsep
+   ast_instring("this|that|more","this",',') == 1;
+
+   feel free to move this to app.c -anthm */
+static int ast_instring(char *bigstr, char *smallstr, char delim) {
+    char *val = bigstr, *next;
+
+    do {
+        if ( ( next = strchr ( val, delim ) ) )
+            if ( ! strncmp ( val , smallstr , ( next - val ) ) )
+                return 1;
+            else
+                continue;
+        else
+            return ! strcmp ( smallstr , val );
+
+    } while ( * ( val = ( next + 1 ) ) ) ;
+
+    return 0;
+}
+
 static int get_perm(char *instr)
 {
-	char tmp[256];
-	char *c;
-	int x;
-	int ret = 0;
-	char *stringp=NULL;
+	int x = 0, ret = 0;
+
 	if (!instr)
 		return 0;
-	strncpy(tmp, instr, sizeof(tmp) - 1);
-	stringp=tmp;
-	c = strsep(&stringp, ",");
-	while(c) {
-		for (x=0;x<sizeof(perms) / sizeof(perms[0]);x++) {
-			if (!strcasecmp(perms[x].label, c)) 
-				ret |= perms[x].num;
-		}
-		c = strsep(&stringp, ",");
-	}
+
+	for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++)
+		if (ast_instring(instr, perms[x].label, ','))
+			ret |= perms[x].num;
+	
 	return ret;
 }
 
+static int ast_is_number(char *string) {
+	int ret = 1, x = 0;
+
+	if(!string)
+		return 0;
+
+	for (x=0; x < strlen(string) ; x++ ) {
+		if (! (string[x] >= 48 && string[x] <= 57)) {
+			ret = 0;
+			break;
+		}
+	}
+	
+	return ret ? atoi(string) : 0;
+}
+
+
+static int ast_strings_to_mask(char *string) {
+	int x = 0, ret = -1;
+	
+	x = ast_is_number(string);
+
+	if(x) 
+		ret = x;
+	else if (! string || ast_strlen_zero(string))
+		ret = -1;
+	else if (!strcasecmp(string, "off") || ast_false(string))
+		ret = 0;
+	else if (!strcasecmp(string, "on") || ast_true(string))
+		ret = -1;
+	else {
+		ret = 0;
+		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++) 
+			if (ast_instring(string, perms[x].label, ',')) 
+				ret |= perms[x].num;		
+	}
+
+	return ret;
+
+}
+
+/* 
+   Rather than braindead on,off this now can also accept a specific int mask value 
+   or a ',' delim list of mask strings (the same as manager.conf) -anthm
+*/
+
 static int set_eventmask(struct mansession *s, char *eventmask)
 {
-	if (!eventmask)
-		return -1;
-	if (!strcasecmp(eventmask, "on") || ast_true(eventmask)) {
-		ast_mutex_lock(&s->lock);
-		s->send_events = 1;
-		ast_mutex_unlock(&s->lock);
-		return 1;
-	} else if (!strcasecmp(eventmask, "off") || ast_false(eventmask)) {
-		ast_mutex_lock(&s->lock);
-		s->send_events = 0;
-		ast_mutex_unlock(&s->lock);
-		return 0;
-	}
-	return -1;
+	int maskint = ast_strings_to_mask(eventmask);
+
+	ast_mutex_lock(&s->lock);
+	s->send_events = maskint;
+	ast_mutex_unlock(&s->lock);
+	
+	return s->send_events;
 }
 
 static int authenticate(struct mansession *s, struct message *m)
@@ -434,7 +487,9 @@ static char mandescr_events[] =
 "Description: Enable/Disable sending of events to this manager\n"
 "  client.\n"
 "Variables:\n"
-"	EventMask: 'on' if events should be sent, 'off' if not\n";
+"	EventMask: 'on' if all events should be sent,\n"
+"   EventMask: 'system,call,log' if events should be sent matching these specific channels,\n" 
+"   EventMask: 'off' if no events should be sent.\n";
 
 static int action_events(struct mansession *s, struct message *m)
 {
@@ -446,8 +501,7 @@ static int action_events(struct mansession *s, struct message *m)
 		astman_send_response(s, m, "Events On", NULL);
 	else if (res == 0)
 		astman_send_response(s, m, "Events Off", NULL);
-	else
-		astman_send_response(s, m, "EventMask parse error", NULL);
+
 	return 0;
 }
 
@@ -1128,7 +1182,7 @@ static void *accept_thread(void *ignore)
 		}
 		ast_mutex_init(&s->lock);
 		s->fd = as;
-		s->send_events = 1;
+		s->send_events = -1;
 		ast_mutex_lock(&sessionlock);
 		s->next = sessions;
 		sessions = s;
@@ -1149,7 +1203,7 @@ int manager_event(int category, char *event, char *fmt, ...)
 	ast_mutex_lock(&sessionlock);
 	s = sessions;
 	while(s) {
-		if (((s->readperm & category) == category) && s->send_events) {
+		if (((s->readperm & category) == category) && ((s->send_events & category) == category) ) {
 			ast_mutex_lock(&s->lock);
 			if (!s->blocking) {
 				ast_cli(s->fd, "Event: %s\r\n", event);
