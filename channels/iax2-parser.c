@@ -365,7 +365,7 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		if (ntohs(fh->dcallno) & IAX_FLAG_RETRANS)
 			strcpy(retries, "Yes");
 		else
-			strcpy(retries, "No");
+			strcpy(retries, " No");
 	}
 	if (!(ntohs(fh->scallno) & IAX_FLAG_FULL)) {
 		/* Don't mess with mini-frames */
