@@ -267,7 +267,7 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 	res = 0;
 	p->outgoing = 1;
 	if (p->type == TYPE_LINE) {
-		transmit_notify_request_with_callerid(p, "rg", 0, ast->callerid);
+		transmit_notify_request_with_callerid(p, "L/rg", 0, ast->callerid);
 		ast_setstate(ast, AST_STATE_RINGING);
 		ast_queue_control(ast, AST_CONTROL_RINGING, 0);
 	} else {
@@ -1243,13 +1243,13 @@ static int transmit_notify_request_with_callerid(struct mgcp_endpoint *p, char *
 		n = "O";
 	if (!l)
 		l = "";
-	snprintf(tone2, sizeof(tone2), "%s, ci(%02d/%02d/%02d/%02d,%s,%s)", tone, 
+	snprintf(tone2, sizeof(tone2), "%s,L/ci(%02d/%02d/%02d/%02d,%s,%s)", tone, 
 			tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, l, n);
 	strncpy(p->curtone, tone, sizeof(p->curtone) - 1);
 	reqprep(&resp, p, "RQNT");
 	add_header(&resp, "X", p->txident);
 	if (offhook)
-		add_header(&resp, "R", "hu(N), hf(N), D/[0-9#*](N)");
+		add_header(&resp, "R", "hu(N),hf(N),D/[0-9#*](N)");
 	else
 		add_header(&resp, "R", "hd(N)");
 	add_header(&resp, "S", tone2);
