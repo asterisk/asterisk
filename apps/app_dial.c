@@ -122,12 +122,14 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 
 #define AST_MAX_WATCHERS 256
 
-static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect, int *sentringing)
+static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect, int *sentringing, char *status)
 {
 	struct localuser *o;
 	int found;
 	int numlines;
-	int numbusies = 0;
+	int numbusy = 0;
+	int numcongestion = 0;
+	int numnochan = 0;
 	int orig = *to;
 	struct ast_frame *f;
 	struct ast_channel *peer = NULL;
@@ -162,9 +164,15 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 			numlines++;
 		}
 		if (found < 0) {
-			if (numlines == numbusies) {
+			if (numlines == (numbusy + numcongestion + numnochan)) {
 				if (option_verbose > 2)
-					ast_verbose( VERBOSE_PREFIX_2 "Everyone is busy at this time\n");
+					ast_verbose( VERBOSE_PREFIX_2 "Everyone is busy/congested at this time\n");
+				if (numbusy)
+					strcpy(status, "BUSY");
+				else if (numcongestion)
+					strcpy(status, "CONGESTION");
+				else if (numnochan)
+					strcpy(status, "CHANUNAVAIL");
 				/* See if there is a special busy message */
 				if (ast_exists_extension(in, in->context, in->exten, in->priority + 101, in->callerid)) 
 					in->priority+=100;
@@ -211,7 +219,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					if (!o->chan) {
 						ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s'\n", tech, stuff);
 						o->stillgoing = 0;
-						numbusies++;
+						numnochan++;
 					} else {
 						if (o->chan->callerid)
 							free(o->chan->callerid);
@@ -255,7 +263,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							o->stillgoing = 0;
 							ast_hangup(o->chan);
 							o->chan = NULL;
-							numbusies++;
+							numnochan++;
 						}
 					}
 					continue;
@@ -284,7 +292,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							o->stillgoing = 0;
 							if (in->cdr)
 								ast_cdr_busy(in->cdr);
-							numbusies++;
+							numbusy++;
 							break;
 						case AST_CONTROL_CONGESTION:
 							if (option_verbose > 2)
@@ -295,7 +303,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							o->stillgoing = 0;
 							if (in->cdr)
 								ast_cdr_busy(in->cdr);
-							numbusies++;
+							numcongestion++;
 							break;
 						case AST_CONTROL_RINGING:
 							if (option_verbose > 2)
@@ -418,6 +426,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	char *sdtmfptr;
 	char sdtmfdata[256] = "";
 	char *stack,*var;
+	char status[256];
 	int play_to_caller=0,play_to_callee=0;
 	int playargs=0, sentringing=0, moh=0;
 	int digit = 0;
@@ -816,6 +825,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		to = -1;
 
 	if (outgoing) {
+		/* Our status will at least be NOANSWER */
+		strcpy(status, "NOANSWER");
 		if (outgoing->musiconhold) {
 			moh=1;
 			ast_moh_start(chan, NULL);
@@ -823,9 +834,10 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			ast_indicate(chan, AST_CONTROL_RINGING);
 			sentringing++;
 		}
-	}
+	} else
+		strcpy(status, "CHANUNAVAIL");
 
-	peer = wait_for_answer(chan, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect, &sentringing);
+	peer = wait_for_answer(chan, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect, &sentringing, status);
 
 	if (!peer) {
 		if (to) 
@@ -838,6 +850,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		goto out;
 	}
 	if (peer) {
+		strcpy(status, "ANSWER");
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the 
 		   conversation.  */
@@ -929,6 +942,8 @@ out:
 		ast_indicate(chan, -1);
 	}
 	hanguptree(outgoing, NULL);
+	pbx_builtin_setvar_helper(chan, "DIALSTATUS", status);
+	
 	LOCAL_USER_REMOVE(u);
 	
 	if((go_on>0) && (!chan->_softhangup))

@@ -1448,6 +1448,14 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 	ast_mutex_lock(&p->lock);
 	strncpy(dest, rdest, sizeof(dest) - 1);
 	strncpy(p->dialdest, rdest, sizeof(dest) - 1);
+	if ((ast->_state == AST_STATE_BUSY)) {
+		struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_BUSY };
+		/* If this is a placeholder frame for a busy channel,
+		   return busy state immediately */
+		zap_queue_frame(p, &f);
+		ast_mutex_unlock(&p->lock);
+		return 0;
+	}
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "zt_call called on %s, neither down nor reserved\n", ast->name);
 		ast_mutex_unlock(&p->lock);
@@ -6136,7 +6144,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 	return tmp;
 }
 
-static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch)
+static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, int *busy)
 {
 	int res;
 	ZT_PARAMS par;
@@ -6146,6 +6154,11 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch)
 	/* Check to see if we have a channel match */
 	if ((channelmatch > 0) && (p->channel != channelmatch))
 		return 0;
+	/* We're at least busy at this point */
+	if ((p->sig == SIG_FXOKS) || (p->sig == SIG_FXOLS) || (p->sig == SIG_FXOGS)) {
+		if (busy)
+			*busy = 1;
+	}
 	/* If do not distrub, definitely not */
 	if (p->dnd)
 		return 0;
@@ -6293,6 +6306,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 	int channelmatch = -1;
 	int roundrobin = 0;
 	int callwait = 0;
+	int busy = 0;
 	struct zt_pvt *p;
 	struct ast_channel *tmp = NULL;
 	char *dest=NULL;
@@ -6405,7 +6419,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 #if 0 
 		ast_verbose("name = %s, %d\n",p->owner->name,p->channel);
 #endif
-		if (p && available(p, channelmatch, groupmatch)) {
+		if (p && available(p, channelmatch, groupmatch, &busy)) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Using channel %d\n", p->channel);
 				if (p->inalarm)
@@ -6483,6 +6497,19 @@ next:
 	}
 	ast_mutex_unlock(lock);
 	restart_monitor();
+	if (!tmp) {
+		if (busy) {
+			tmp = zt_request("Zap", format, "pseudo");
+			if (tmp) {
+				char newname[80];
+				ast_mutex_lock(&tmp->lock);
+				snprintf(newname, sizeof(newname), "Zap/%s-busy-%d", (char *)data, rand());
+				ast_change_name(tmp, newname);
+				ast_setstate(tmp, AST_STATE_BUSY);
+				ast_mutex_unlock(&tmp->lock);
+			}
+		}
+	}
 	return tmp;
 }
 

@@ -181,10 +181,16 @@ include => iaxprovider
 ;   ${ARG2} - Device(s) to ring
 ;
 exten => s,1,Dial(${ARG2},20)					; Ring the interface, 20 seconds maximum
-exten => s,2,Voicemail(u${ARG1})				; If unavailable, send to voicemail w/ unavail announce
-exten => s,3,Goto(default,s,1)					; If they press #, return to start
-exten => s,102,Voicemail(b${ARG1})				; If busy, send to voicemail w/ busy announce
-exten => s,103,Goto(default,s,1)				; If they press #, return to start
+exten => s,2,Goto(s-${DIALSTATUS})				; Jump based on status (NOANSWER,BUSY,CHANUNAVAIL,CONGESTION,ANSWER)
+
+exten => s-NOANSWER,1,Voicemail(u${ARG1})		; If unavailable, send to voicemail w/ unavail announce
+exten => s-NOANSWER,2,Goto(default,s,1)			; If they press #, return to start
+
+exten => s-BUSY,1,Voicemail(b${ARG1})			; If busy, send to voicemail w/ busy announce
+exten => s-BUSY,2,Goto(default,s,1)				; If they press #, return to start
+
+exten => s-.,1,Goto(s-NOANSWER,1)				; Treat anything else as no answer
+
 exten => a,1,VoicemailMain(${ARG1})				; If they press *, send the user into VoicemailMain
 
 [demo]
