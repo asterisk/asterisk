@@ -1264,6 +1264,11 @@ int main(int argc, char *argv[])
 		_argv[x] = argv[x];
 	_argv[x] = NULL;
 
+	/* if the progname is rasterisk consider it a remote console */
+	if ( argv[0] && (strstr(argv[0], "rasterisk")) != NULL)  {
+		option_remote++;
+		option_nofork++;
+	}
 	if (gethostname(hostname, sizeof(hostname)))
 		strncpy(hostname, "<Unknown>", sizeof(hostname)-1);
 	mainpid = getpid();
