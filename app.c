@@ -1489,7 +1489,8 @@ int ast_parseoptions(const struct ast_option *options, struct ast_flags *flags, 
 				ast_log(LOG_WARNING, "Missing closing parenthesis for argument '%c'\n", curarg);
 				res = -1;
 			}
-		}
+		} else if (argloc)
+			args[argloc - 1] = NULL;
 	}
 	return res;
 }
