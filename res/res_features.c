@@ -241,8 +241,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 				pu->parkingtime = parkingtime;
 			if (extout)
 				*extout = x;
-			if (peer)
-			{
+			if (peer) {
 				strncpy(pu->peername,peer->name,sizeof(pu->peername) - 1);
 			}
 			/* Remember what had been dialed, so that if the parking
@@ -290,12 +289,6 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 				if (adsipark && adsi_available(peer)) {
 					adsi_unload_session(peer);
 				}
-				if (pu->notquiteyet) {
-					/* Wake up parking thread if we're really done */
-					ast_moh_start(pu->chan, NULL);
-					pu->notquiteyet = 0;
-					pthread_kill(parking_thread, SIGURG);
-				}
 			}
 			con = ast_context_find(parking_con);
 			if (!con) {
@@ -309,6 +302,12 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 				ast_add_extension2(con, 1, exten, 1, NULL, NULL, parkedcall, strdup(exten), free, registrar);
 			}
 			if (peer) ast_say_digits(peer, pu->parkingnum, "", peer->language);
+			if (pu->notquiteyet) {
+				/* Wake up parking thread if we're really done */
+				ast_moh_start(pu->chan, NULL);
+				pu->notquiteyet = 0;
+				pthread_kill(parking_thread, SIGURG);
+			}
 			return 0;
 		} else {
 			ast_log(LOG_WARNING, "No more parking spaces\n");
@@ -1085,7 +1084,6 @@ static void *do_parking_thread(void *ignore)
 	char *peername,*cp;
 	struct ast_context *con;
 	int x;
-	int gc=0;
 	fd_set rfds, efds;
 	fd_set nrfds, nefds;
 	FD_ZERO(&rfds);
@@ -1105,10 +1103,6 @@ static void *do_parking_thread(void *ignore)
 				pl = pu;
 				pu = pu->next;
 				continue;
-			}
-			if (gc < 5 && !pu->chan->generator) {
-				gc++;
-				ast_moh_start(pu->chan,NULL);
 			}
 			gettimeofday(&tv, NULL);
 			tms = (tv.tv_sec - pu->start.tv_sec) * 1000 + (tv.tv_usec - pu->start.tv_usec) / 1000;
