@@ -29,7 +29,7 @@ static char *app = "Transfer";
 static char *synopsis = "Transfer caller to remote extension";
 
 static char *descrip = 
-"  Transfer(exten):  Requests the remote caller be transferred to\n"
+"  Transfer([Tech/]dest):  Requests the remote caller be transferred\n"
 "a given extension. Returns -1 on hangup, or 0 on completion\n"
 "regardless of whether the transfer was successful.  If the transfer\n"
 "was *not* supported or successful and there exists a priority n + 101,\n"
@@ -42,14 +42,21 @@ LOCAL_USER_DECL;
 static int transfer_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
+	int len;
 	struct localuser *u;
+	char *slash;
 	if (!data || !strlen(data)) {
-		ast_log(LOG_WARNING, "Transfer requires an argument (destination)\n");
+		ast_log(LOG_WARNING, "Transfer requires an argument ([Tech/]destination)\n");
 		res = 1;
+	}
+	if ((slash = strchr((char *)data, '/')) && (len = (slash - (char *)data))) {
+		/* Allow execution only if the Tech/destination agrees with the type of the channel */
+		if (strncasecmp(chan->type, (char *)data, len))
+			return 0;
 	}
 	LOCAL_USER_ADD(u);
 	if (!res) {
-		res = ast_transfer(chan, data);
+		res = ast_transfer(chan, data + strlen(chan->type) + 1);
 	}
 	if (!res) {
 		/* Look for a "busy" place */

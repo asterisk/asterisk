@@ -389,6 +389,7 @@ static struct sip_pvt {
 	struct sip_request initreq;		/* Initial request */
 	
 	int maxtime;				/* Max time for first response */
+	int maxforwards;			/* keep the max-forwards info */
 	int initid;				/* Auto-congest ID if appropriate */
 	int autokillid;				/* Auto-kill ID */
 	time_t lastrtprx;			/* Last RTP received */
@@ -598,6 +599,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
 static int transmit_message_with_text(struct sip_pvt *p, char *text);
 static int transmit_refer(struct sip_pvt *p, char *dest);
+static int sip_sipredirect(struct sip_pvt *p, char *dest);
 static struct sip_peer *temp_peer(char *name);
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, char *msg, int init);
 static void free_old_route(struct sip_route *route);
@@ -1968,6 +1970,10 @@ static int sip_transfer(struct ast_channel *ast, char *dest)
 	int res;
 
 	ast_mutex_lock(&p->lock);
+	if (ast->_state == AST_STATE_RING)
+		res = sip_sipredirect(p, dest);
+	else
+		res = transmit_refer(p, dest);
 	res = transmit_refer(p, dest);
 	ast_mutex_unlock(&p->lock);
 	return res;
@@ -3251,6 +3257,11 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 		add_header(resp, "Contact", contact);
 	} else {
 		add_header(resp, "Contact", p->our_contact);
+	}
+	if (p->maxforwards) {
+		char tmp[256];
+		snprintf(tmp, sizeof(tmp), "%d", p->maxforwards);
+		add_header(resp, "Max-Forwards", tmp);
 	}
 	return 0;
 }
@@ -9786,7 +9797,6 @@ static char *descrip_sipgetheader = ""
 "Skips to priority+101 if header does not exist\n"
 "Otherwise returns 0\n";
 
-
 /*--- sip_dtmfmode: change the DTMFmode for a SIP call (application) ---*/
 static int sip_dtmfmode(struct ast_channel *chan, void *data)
 {
@@ -9921,6 +9931,87 @@ static int sip_getheader(struct ast_channel *chan, void *data)
 	
 	ast_mutex_unlock(&chan->lock);
 	return 0;
+}
+
+#define DEFAULT_MAX_FORWARDS	70
+
+/* This is 302 sipredirect function coded by Martin Pycko (m78pl@yahoo.com) */
+static int sip_sipredirect(struct sip_pvt *p, char *dest)
+{
+	char *cdest;
+	char *extension, *host, *port;
+	char tmp[80];
+	if (!dest || ast_strlen_zero(dest)) {
+		ast_log(LOG_WARNING, "This application requires these arguments: SIPRedirect(extension[@host[:port]])\n");
+		return 0;
+	}
+	cdest = ast_strdupa(dest);
+	if (!cdest) {
+		ast_log(LOG_ERROR, "Problem allocating the memory\n");
+		return 0;
+	}
+	extension = strsep(&cdest, "@");
+	host = strsep(&cdest, ":");
+	port = strsep(&cdest, ":");
+	if (!extension) {
+		ast_log(LOG_ERROR, "Missing mandatory argument: extension\n");
+		return 0;
+	}
+
+	/* we'll issue the redirect message here */
+	if (!host) {
+		char *localtmp;
+		strncpy(tmp, get_header(&p->initreq, "To"), sizeof(tmp) - 1);
+		if (!strlen(tmp)) {
+			ast_log(LOG_ERROR, "Cannot retrieve the 'To' header from the original SIP request!\n");
+			return 0;
+		}
+		if ((localtmp = strstr(tmp, "sip:")) && (localtmp = strchr(localtmp, '@'))) {
+			char lhost[80], lport[80];
+			memset(lhost, 0, sizeof(lhost));
+			memset(lport, 0, sizeof(lport));
+			localtmp++;
+			/* This is okay becuase lhost and lport are as big as tmp */
+			sscanf(localtmp, "%[^<>:; ]:%[^<>:; ]", lhost, lport);
+			if (!strlen(lhost)) {
+				ast_log(LOG_ERROR, "Can't find the host address\n");
+				return 0;
+			}
+			host = ast_strdupa(lhost);
+			if (!host) {
+				ast_log(LOG_ERROR, "Problem allocating the memory\n");
+				return 0;
+			}
+			if (!ast_strlen_zero(lport)) {
+				port = ast_strdupa(lport);
+				if (!port) {
+					ast_log(LOG_ERROR, "Problem allocating the memory\n");
+					return 0;
+				}
+			}
+		}
+	}
+
+	/* make sure the forwarding won't be forever */
+	strncpy(tmp, get_header(&p->initreq, "Max-Forwards"), sizeof(tmp) - 1);
+	if (strlen(tmp) && atoi(tmp)) {
+		/* we found Max-Forwards in the original SIP request */
+		p->maxforwards = atoi(tmp) - 1;
+	} else {
+		/* just send our 302 Moved Temporarily */
+		p->maxforwards = DEFAULT_MAX_FORWARDS - 1;
+	}
+	if (p->maxforwards > -1) {
+		snprintf(p->our_contact, sizeof(p->our_contact), "redirect <sip:%s@%s%s%s>", extension, host, port ? ":" : "", port ? port : "");
+		transmit_response_reliable(p, "302 Moved Temporarily", &p->initreq, 1);
+	} else {
+		transmit_response(p, "483 Too Many Hops", &p->initreq);
+	}
+	/* this is all that we want to send to that SIP device */
+	ast_set_flag(p, SIP_ALREADYGONE);
+
+	/* hangup here */
+	return -1;
 }
 
 /*--- sip_get_codec: Return peers codec ---*/
