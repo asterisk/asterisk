@@ -406,3 +406,13 @@ int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, in
 	}
 	return res;
 }
+
+int ast_control_streamfile(struct ast_channel *chan, char *file,char *f,char *r,int skipms) {
+  int res;
+  if ((res = ast_streamfile(chan, file, chan->language)))
+    ast_log(LOG_WARNING, "Unable to stream file  %s\n", file);
+  if (!res)
+    res = ast_waitstream_fr(chan, AST_DIGIT_ANY,f,r,skipms);
+  return res;
+}
+

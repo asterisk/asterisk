@@ -2549,12 +2549,9 @@ static int wait_file2(struct ast_channel *chan, struct vm_state *vms, char *file
 
 static int wait_file(struct ast_channel *chan, struct vm_state *vms, char *file) 
 {
-	int res;
-	if ((res = ast_streamfile(chan, file, chan->language)))
-		ast_log(LOG_WARNING, "Unable to play message %s\n", file);
-	if (!res)
-		res = ast_waitstream_fr(chan, AST_DIGIT_ANY, "#", "*",skipms);
-	return res;
+
+  return ast_control_streamfile(chan,file,"#","*",skipms);
+
 }
 
 static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *vmu, char *origtime, char *filename)
