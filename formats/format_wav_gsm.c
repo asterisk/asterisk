@@ -501,7 +501,7 @@ static int wav_seek(struct ast_filestream *fs, long sample_offset, int whence)
 		offset = distance + cur;
 	else if(whence == SEEK_END)
 		offset = max - distance;
-	// always protect against seeking past end of header
+	/* always protect against seeking past end of header */
 	offset = (offset < min)?min:offset;
 	if (whence != SEEK_FORCECUR) {
 		offset = (offset > max)?max:offset;

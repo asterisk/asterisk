@@ -6617,8 +6617,8 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 				}
 			} else if (!strcasecmp(v->name, "timezone")) {
 				strncpy(peer->zonetag, v->value, sizeof(peer->zonetag)-1);	
-			}// else if (strcasecmp(v->name,"type"))
-			//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
+			}/* else if (strcasecmp(v->name,"type")) */
+			/*	ast_log(LOG_WARNING, "Ignoring %s\n", v->name); */
 			v=v->next;
 		}
 		if (!peer->authmethods)
@@ -6755,8 +6755,8 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 				}
 			} else if (!strcasecmp(v->name, "inkeys")) {
 				strncpy(user->inkeys, v->value, sizeof(user->inkeys) - 1);
-			}// else if (strcasecmp(v->name,"type"))
-			//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
+			}/* else if (strcasecmp(v->name,"type")) */
+			/*	ast_log(LOG_WARNING, "Ignoring %s\n", v->name); */
 			v = v->next;
 		}
 		if (!user->authmethods) {
@@ -7038,8 +7038,8 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 			}
 		} else if (!strcasecmp(v->name, "language")) {
                         strncpy(language, v->value, sizeof(language) - 1);
-		} //else if (strcasecmp(v->name,"type"))
-		//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
+		} /*else if (strcasecmp(v->name,"type")) */
+		/*	ast_log(LOG_WARNING, "Ignoring %s\n", v->name); */
 		v = v->next;
 	}
 	iax2_capability = capability;

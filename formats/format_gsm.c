@@ -3,9 +3,9 @@
  *
  * Save to raw, headerless GSM data.
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, inc
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -200,7 +200,7 @@ static int gsm_seek(struct ast_filestream *fs, long sample_offset, int whence)
 		offset = distance + cur;
 	else if(whence == SEEK_END)
 		offset = max - distance;
-	// Always protect against seeking past the begining.
+	/* Always protect against seeking past the begining. */
 	offset = (offset < min)?min:offset;
 	if (whence != SEEK_FORCECUR) {
 		offset = (offset > max)?max:offset;

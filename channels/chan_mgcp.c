@@ -1019,7 +1019,7 @@ static int mgcp_show_endpoints(int fd, int argc, char *argv[])
 		e = g->endpoints;
 		ast_cli(fd, "Gateway '%s' at %s (%s)\n", g->name, g->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), g->addr.sin_addr) : ast_inet_ntoa(iabuf, sizeof(iabuf), g->defaddr.sin_addr), g->dynamic ? "Dynamic" : "Static");
 		while(e) {
-			// JS: Don't show wilcard endpoint
+			/* JS: Don't show wilcard endpoint */
 			if (strcmp(e->name, g->wcardep) !=0)
 				ast_cli(fd, "   -- '%s@%s in '%s' is %s\n", e->name, g->name, e->context, e->sub->owner ? "active" : "idle");
 			hasendpoints = 1;
@@ -1721,7 +1721,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 #if 0
 	printf("Peer RTP is at port %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 #endif	
-	// Scan through the RTP payload types specified in a "m=" line:
+	/* Scan through the RTP payload types specified in a "m=" line: */
     ast_rtp_pt_clear(sub->rtp);
 	codecs = m + len;
 	while(strlen(codecs)) {
@@ -1733,18 +1733,18 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 		codecs += len;
 	}
 
-        // Next, scan through each "a=rtpmap:" line, noting each
-        // specified RTP payload type (with corresponding MIME subtype):
+        /* Next, scan through each "a=rtpmap:" line, noting each */
+        /* specified RTP payload type (with corresponding MIME subtype): */
         sdpLineNum_iterator_init(&iterator);
         while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
-          char* mimeSubtype = strdup(a); // ensures we have enough space
+          char* mimeSubtype = strdup(a); /* ensures we have enough space */
           if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2) continue;
-          // Note: should really look at the 'freq' and '#chans' params too
+          /* Note: should really look at the 'freq' and '#chans' params too */
           ast_rtp_set_rtpmap_type(sub->rtp, codec, "audio", mimeSubtype);
 	  free(mimeSubtype);
         }
 
-        // Now gather all of the codecs that were asked for:
+        /* Now gather all of the codecs that were asked for: */
         ast_rtp_get_current_formats(sub->rtp,
                                 &peercapability, &peerNonCodecCapability);
 	p->capability = capability & peercapability;
@@ -2167,7 +2167,7 @@ static int transmit_audit_endpoint(struct mgcp_endpoint *p)
 	struct mgcp_request resp;
 	reqprep(&resp, p, "AUEP");
     /* SC: removed unknown param VS */
-	//add_header(&resp, "F", "A,R,D,S,X,N,I,T,O,ES,E,MD,M");
+	/*add_header(&resp, "F", "A,R,D,S,X,N,I,T,O,ES,E,MD,M"); */
 	add_header(&resp, "F", "A");
     /* SC: fill in new fields */
     resp.cmd = MGCP_CMD_AUEP;
@@ -2923,7 +2923,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 			if (option_verbose > 2 && (strcmp(p->name, p->parent->wcardep) != 0)) {
 					ast_verbose(VERBOSE_PREFIX_3 "Resetting interface %s@%s\n", p->name, p->parent->name);
 			}
-			// JS: For RSIP on wildcard we reset all endpoints
+			/* JS: For RSIP on wildcard we reset all endpoints */
 			if (!strcmp(p->name, p->parent->wcardep)) {
 				/* Reset all endpoints */
 				struct mgcp_endpoint *tmp_ep;
@@ -2931,7 +2931,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 				g = p->parent;
 				tmp_ep = g->endpoints;
 				while (tmp_ep) {
-					//if ((strcmp(tmp_ep->name, "*") != 0) && (strcmp(tmp_ep->name, "aaln/*") != 0)) {
+					/*if ((strcmp(tmp_ep->name, "*") != 0) && (strcmp(tmp_ep->name, "aaln/*") != 0)) { */
 					if (strcmp(tmp_ep->name, g->wcardep) != 0) {
 						struct mgcp_subchannel *tmp_sub, *first_sub;
 						if (option_verbose > 2) {
@@ -3635,7 +3635,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
                         e->needaudit = 1;
                     }
                     strncpy(gw->wcardep, v->value, sizeof(gw->wcardep)-1);
-					//strncpy(e->name, "aaln/*", sizeof(e->name) - 1);
+					/*strncpy(e->name, "aaln/*", sizeof(e->name) - 1); */
 					/* XXX Should we really check for uniqueness?? XXX */
 					strncpy(e->context, context, sizeof(e->context) - 1);
 					strncpy(e->cid_num, cid_num, sizeof(e->cid_num) - 1);

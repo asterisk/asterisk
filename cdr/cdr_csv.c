@@ -3,9 +3,9 @@
  *
  * Comma Separated Value CDR records.
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, inc 
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License.
@@ -39,32 +39,33 @@
 #include <unistd.h>
 #include <time.h>
 
-/* The values are as follows:
+/*----------------------------------------------------
+  The values are as follows:
 
 
-  "accountcode", 	// accountcode is the account name of detail records, Master.csv contains all records
-  			// Detail records are configured on a channel basis, IAX and SIP are determined by user
-			// Zap is determined by channel in zaptel.conf
+  "accountcode", 	accountcode is the account name of detail records, Master.csv contains all records *
+  			Detail records are configured on a channel basis, IAX and SIP are determined by user *
+			Zap is determined by channel in zaptel.conf 
   "source",
   "destination",
   "destination context", 
   "callerid",
   "channel",
   "destination channel",	(if applicable)
-  "last application",	// Last application run on the channel
-  "last app argument",	// argument to the last channel
+  "last application",	Last application run on the channel 
+  "last app argument",	argument to the last channel 
   "start time", 
   "answer time", 
   "end time", 
-  duration,   		// Duration is the whole length that the entire call lasted. ie. call rx'd to hangup 
-  			// "end time" minus "start time"
-  billable seconds, 	// the duration that a call was up after other end answered which will be <= to duration 
-  			// "end time" minus "answer time"
-  "disposition",    	// ANSWERED, NO ANSWER, BUSY
-  "amaflags",       	// DOCUMENTATION, BILL, IGNORE etc, specified on a per channel basis like accountcode.
-  "uniqueid",           // unique call identifier
-  "userfield"		// user field set via SetCDRUserField
-*/
+  duration,   		Duration is the whole length that the entire call lasted. ie. call rx'd to hangup  
+  			"end time" minus "start time" 
+  billable seconds, 	the duration that a call was up after other end answered which will be <= to duration  
+  			"end time" minus "answer time" 
+  "disposition",    	ANSWERED, NO ANSWER, BUSY 
+  "amaflags",       	DOCUMENTATION, BILL, IGNORE etc, specified on a per channel basis like accountcode. 
+  "uniqueid",           unique call identifier 
+  "userfield"		user field set via SetCDRUserField 
+----------------------------------------------------------*/
 
 static char *desc = "Comma Separated Values CDR Backend";
 

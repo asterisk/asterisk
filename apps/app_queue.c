@@ -124,7 +124,7 @@ static char *descrip =
 "  The timeout will cause the queue to fail out after a specified number of\n"
 "seconds, checked between each queues.conf 'timeout' and 'retry' cycle.\n";
 
-// [PHM 06/26/03]
+/* PHM 06/26/03 */
 static char *app_aqm = "AddQueueMember" ;
 static char *app_aqm_synopsis = "Dynamically adds queue members" ;
 static char *app_aqm_descrip =
@@ -1506,7 +1506,7 @@ static int wait_a_bit(struct queue_ent *qe)
 	return ast_waitfordigit(qe->chan, retrywait);
 }
 
-// [PHM 06/26/03]
+/* [PHM 06/26/03] */
 
 static struct member * interface_exists( struct ast_call_queue * q, char * interface )
 {
@@ -1994,7 +1994,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-//	if (option_debug) 
+/*	if (option_debug)  */
 		ast_log(LOG_DEBUG, "queue: %s, options: %s, url: %s, announce: %s, timeout: %d, priority: %d\n",
 				queuename, options, url, announceoverride, qe.queuetimeout, (int)prio);
 

@@ -799,7 +799,7 @@ zapretry:
 					}
 				}
 				if (user->adminflags & ADMINFLAG_KICKME) {
-					//You have been kicked.
+					/* You have been kicked. */
 					if (!ast_streamfile(chan, "conf-kicked", chan->language))
 						ast_waitstream(chan, "");
 					ret = 0;

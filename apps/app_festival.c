@@ -120,7 +120,7 @@ static int send_waveform_to_fd(char *waveform, int length, int fd) {
                 if (x != fd)
                         close(x);
         }
-//IAS
+/*IAS */
 #ifdef __PPC__  
 	for( x=0; x<length; x+=2)
 	{
@@ -216,7 +216,7 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 						res = -1;
 						break;
 					}
-					if (res < needed) { // last frame
+					if (res < needed) { /* last frame */
 						ast_log(LOG_DEBUG, "Last frame\n");
 						res=0;
 						break;
@@ -231,8 +231,9 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 	}
 	close(fds[0]);
 	close(fds[1]);
-//	if (pid > -1)
-//		kill(pid, SIGKILL);
+
+/*	if (pid > -1) */
+/*		kill(pid, SIGKILL); */
 	if (!res && owriteformat)
 		ast_set_write_format(chan, owriteformat);
 	return res;

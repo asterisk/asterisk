@@ -508,7 +508,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		if (res)
 			ast_log(LOG_WARNING, "Unable to set read format to %s\n", ast_getformatname(ast_best_codec(p->chan->nativeformats)));
 	} else {
-		// Agent hung-up
+		/* Agent hung-up */
 		p->chan = NULL;
 	}
 

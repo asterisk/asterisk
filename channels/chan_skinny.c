@@ -3,7 +3,7 @@
  *
  * Implementation of the Skinny protocol
  * 
- * Asterisk is Copyright (C) 1999-2003 Mark Spencer
+ * Copyright (C) 1999-2004 Digium, inc
  *
  * chan_skinny was developed by Jeremy McNamara & Florian Overkamp
  *
@@ -1449,7 +1449,7 @@ static void *skinny_ss(void *data)
                         ((exten[0] != '*') || (!ast_strlen_zero(exten) > 2))) {
             ast_log(LOG_WARNING, "Can't match [%s] from '%s' in context %s\n", exten, chan->cid.cid_num ? chan->cid.cid_num : "<Unknown Caller>", chan->context);
             transmit_tone(s, SKINNY_REORDER); 
-			sleep(3); // hang out for 3 seconds to let congestion play
+			sleep(3); /* hang out for 3 seconds to let congestion play */
 			break;
         }
         if (!timeout)
@@ -2716,7 +2716,7 @@ void delete_devices(void)
 int reload(void)
 {
 #if 0
-// XXX Causes Seg
+/* XXX Causes Seg - needs to be fixed, or? */
 
 	delete_devices();
 	reload_config();

@@ -38,8 +38,8 @@ static char *synopsis = "Play an MP3 file or stream";
 
 static char *descrip = 
 "  MP3Player(location) Executes mpg123 to play the given location\n"
-"which typically would be a  filename  or  a URL. Returns  -1  on\n"
-"hangup or 0 otherwise. User can exit by pressing any key\n.";
+"which typically would be a filename o a URL. User can exit by pressing any key\n."
+"Returns  -1  on hangup or 0 otherwise."; 
 
 STANDARD_LOCAL_USER;
 

@@ -1013,15 +1013,15 @@ static int dial_exec(struct ast_channel *chan, void *data)
  			ast_channel_sendurl( peer, url );
  		} /* /JDG */
 		if (announce && announcemsg) {
-			// Start autoservice on the other chan
+			/* Start autoservice on the other chan */
 			res = ast_autoservice_start(chan);
-			// Now Stream the File
+			/* Now Stream the File */
 			if (!res)
 				res = ast_streamfile(peer,announcemsg,peer->language);
 			if (!res) {
 				digit = ast_waitstream(peer, AST_DIGIT_ANY); 
 			}
-			// Ok, done. stop autoservice
+			/* Ok, done. stop autoservice */
 			res = ast_autoservice_stop(chan);
 			if (digit > 0 && !res)
 				res = ast_senddigit(chan, digit); 

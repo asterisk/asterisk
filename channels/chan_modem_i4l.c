@@ -172,8 +172,8 @@ static int i4l_init(struct ast_modem_pvt *p)
 	if (strlen(p->incomingmsn)) {
 		char *q;
 		snprintf(cmd, sizeof(cmd), "AT&L%s", p->incomingmsn);
-		// translate , into ; since that is the seperator I4L uses, but can't be directly
-		// put in the config file because it will interpret the rest of the line as comment.
+		/* translate , into ; since that is the seperator I4L uses, but can't be directly */
+		/* put in the config file because it will interpret the rest of the line as comment. */
 		q = cmd+4;
 		while (*q) {
 			if (*q == ',') *q = ';';
@@ -319,9 +319,9 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 		/* Read the first two bytes, first, in case it's a control message */
 		res = read(p->fd, result, 2);
 		if (res < 2) {
-			// short read, means there was a hangup?
-			// (or is this also possible without hangup?)
-			// Anyway, reading from unitialized buffers is a bad idea anytime.
+			/* short read, means there was a hangup? */
+			/* (or is this also possible without hangup?) */
+			/* Anyway, reading from unitialized buffers is a bad idea anytime. */
 			if (errno == EAGAIN)
 				return i4l_handle_escape(p, 0);
 			return NULL;
@@ -337,7 +337,7 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 			ast_modem_trim(result);
 			if (!strcasecmp(result, "VCON")) {
 				/* If we're in immediate mode, reply now */
-//				if (p->mode == MODEM_MODE_IMMEDIATE)
+/*				if (p->mode == MODEM_MODE_IMMEDIATE) */
 					return i4l_handle_escape(p, 'X');
 			} else
 			if (!strcasecmp(result, "BUSY")) {
@@ -587,11 +587,11 @@ static int i4l_dial(struct ast_modem_pvt *p, char *stuff)
 	char tmpmsn[255];
 	struct ast_channel *c = p->owner;
 
-	// Find callerid number first, to set the correct A number
+	/* Find callerid number first, to set the correct A number */
 	if (c && c->cid.cid_num && !(c->cid.cid_pres & 0x20)) {
 	    snprintf(tmpmsn, sizeof(tmpmsn), ",%s,", c->cid.cid_num);
 	    if(strlen(p->outgoingmsn) && strstr(p->outgoingmsn,tmpmsn) != NULL) {
-	      // Tell ISDN4Linux to use this as A number
+	      /* Tell ISDN4Linux to use this as A number */
 	      snprintf(cmd, sizeof(cmd), "AT&E%s\n", c->cid.cid_num);
 	      if (ast_modem_send(p, cmd, strlen(cmd))) {
 		ast_log(LOG_WARNING, "Unable to set A number to %s\n", c->cid.cid_num);

@@ -10,8 +10,8 @@
 #include <unistd.h>
 #include <time.h>
 
-// SMS queuing application for use with asterisk app_sms
-// by Adrian Kennard, 2004
+/* SMS queuing application for use with asterisk app_sms */
+/* by Adrian Kennard, 2004 */
 
 /* reads next USC character from null terminated UTF-8 string and advanced pointer */
 /* for non valid UTF-8 sequences, returns character as is */
@@ -65,8 +65,8 @@ static int utf8decode (unsigned char **pp)
    return *p;                   /* not sensible */
 }
 
-// check for any queued messages in specific queue (queue="" means any queue)
-// returns 0 if nothing queued, 1 if queued and outgoing set up OK, 2 of outgoing exists
+/* check for any queued messages in specific queue (queue="" means any queue) */
+/* returns 0 if nothing queued, 1 if queued and outgoing set up OK, 2 of outgoing exists */
 static char txqcheck (char *dir, char *queue, char subaddress, char *channel, char *callerid, int wait, int delay, int retries, int concurrent)
 {
    char ogname[100],
@@ -90,7 +90,7 @@ static char txqcheck (char *dir, char *queue, char subaddress, char *channel, ch
       return 0;
    }
    if (!ql)
-   {                            // not searching any specific queue, so use whatr we found as the queue
+   {                            /* not searching any specific queue, so use whatr we found as the queue */
       queue = fn->d_name;
       ql = p - queue;
    }
@@ -150,18 +150,18 @@ static char txqcheck (char *dir, char *queue, char subaddress, char *channel, ch
          try++;
          snprintf(ogname, sizeof(ogname), "outgoing/smsq.%s.%s.%d", dir, queue, try);
          if (!link (temp, ogname))
-         {                      // queued OK
+         {                      /* queued OK */
             unlink (temp);
             return 1;
          }
       }
    }
-   // failed to create call queue
+   /* failed to create call queue */
    unlink (temp);
    return 2;
 }
 
-// Process received queue entries and run through a process, setting environment variables
+/* Process received queue entries and run through a process, setting environment variables */
 static void rxqcheck (char *dir, char *queue, char *process)
 {
    unsigned char *p;
@@ -186,7 +186,7 @@ static void rxqcheck (char *dir, char *queue, char *process)
          FILE *f;
          snprintf (filename, sizeof(filename), "sms/%s/%s", dir, fn->d_name);
          if (rename (filename, temp))
-            continue;           // cannot access file
+            continue;           /* cannot access file */
          f = fopen (temp, "r");
          unlink (temp);
          if (!f)
@@ -229,7 +229,7 @@ static void rxqcheck (char *dir, char *queue, char *process)
             while (isspace (*p))
                *p++ = 0;
             if (*p == '=')
-            {                   // =
+            {                   /* = */
                *p++ = 0;
                if (!strcmp (line, "oa") || !strcmp (line, "da") || !strcmp (line, "scts") || !strcmp (line, "pid")
                    || !strcmp (line, "dcs") || !strcmp (line, "mr") || !strcmp (line, "vp"))
@@ -237,7 +237,7 @@ static void rxqcheck (char *dir, char *queue, char *process)
                else if ((!strcmp (line, "srr") || !strcmp (line, "rp")) && atoi (p))
                   setenv (line, "", 1);
                else if (!strcmp (line, "ud"))
-               {                // read the user data as UTF-8
+               {                /* read the user data as UTF-8 */
                   long v;
                   udl = 0;
                   while ((v = utf8decode (&p)) && udl < 160)
@@ -248,12 +248,12 @@ static void rxqcheck (char *dir, char *queue, char *process)
             {
                *p++ = 0;
                if (*p == '#')
-               {                // ## 
+               {                /* ##  */
                   p++;
                   if (!strcmp (line, "udh"))
                      setenv (line, p, 1);
                   else if (!strcmp (line, "ud"))
-                  {             // read user data UCS-2
+                  {             /* read user data UCS-2 */
                      udl = 0;
                      while (*p && udl < 160)
                      {
@@ -269,9 +269,9 @@ static void rxqcheck (char *dir, char *queue, char *process)
                      }
                   }
                } else
-               {                // #
+               {                /* # */
                   if (!strcmp (line, "ud"))
-                  {             // read user data UCS-1
+                  {             /* read user data UCS-1 */
                      udl = 0;
                      while (*p && udl < 160)
                      {
@@ -287,7 +287,7 @@ static void rxqcheck (char *dir, char *queue, char *process)
             }
          }
          fclose (f);
-         // set up user data variables
+         /* set up user data variables */
          {
             char temp[481];
             int n,
@@ -367,13 +367,13 @@ static void rxqcheck (char *dir, char *queue, char *process)
             }
             setenv ("ud16", temp, 1);
          }
-         // run the command
+         /* run the command */
          system (process);
       }
    closedir (d);
 }
 
-// Main app
+/* Main app */
 int
 main (int argc, const char *argv[])
 {
@@ -417,7 +417,7 @@ main (int argc, const char *argv[])
       *defaultsubaddress = "9",
       subaddress = 0,
       *scts = 0;
-   poptContext optCon;          // context for parsing command-line options
+   poptContext optCon;          /* context for parsing command-line options */
    const struct poptOption optionsTable[] = {
       {"queue", 'q', POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, &queue, 0, "Queue [inc sub address]", "number[-X]"},
       {"da", 'd', POPT_ARG_STRING, &da, 0, "Destination address", "number"},
@@ -485,7 +485,7 @@ main (int argc, const char *argv[])
       fprintf (stderr, "Command line arguments always treated as UTF-8\n");
       return 1;
    }
-   //  if (!where && poptPeekArg (optCon)) where = (char *) poptGetArg (optCon);
+   /*  if (!where && poptPeekArg (optCon)) where = (char *) poptGetArg (optCon); */
    if (!mt && !mo && process)
       mt = 1;
    if (!mt && !mo && oa)
@@ -585,7 +585,7 @@ main (int argc, const char *argv[])
       return 1;
    }
    if (udfile)
-   {                            // get message from file
+   {                            /* get message from file */
       unsigned char dat[1204],
        *p = dat,
          *e;
@@ -642,14 +642,14 @@ main (int argc, const char *argv[])
    }
 
    if (oa || da)
-   {                            // send message
+   {                            /* send message */
       char temp[100],
         queuename[100],
        *dir = (mo ? rx ? "sms/morx" : "sms/motx" : rx ? "sms/mtrx" : "sms/mttx");
       FILE *f;
       snprintf (temp, sizeof(temp), "sms/.smsq-%d", getpid ());
-      mkdir ("sms", 0777);      // ensure directory exists
-      mkdir (dir, 0777);        // ensure directory exists
+      mkdir ("sms", 0777);      /* ensure directory exists */
+      mkdir (dir, 0777);        /* ensure directory exists */
       snprintf (queuename, sizeof(queuename), "%s/%s.%ld-%d", dir, *queue ? queue : "0", (long)time (0), getpid ());
       f = fopen (temp, "w");
       if (!f)
@@ -713,7 +713,7 @@ main (int argc, const char *argv[])
    }
 
    if (!nodial && tx && !process)
-   {                            // dial to send messages
+   {                            /* dial to send messages */
       char ret=0,
         try = 3;
       if (nowait)
@@ -725,7 +725,7 @@ main (int argc, const char *argv[])
          else
             ret = txqcheck ("mttx", queue, subaddress, mttxchannel, mttxcallerid, mttxwait, mttxdelay, mttxretries, concurrent);
          if (ret < 2)
-            break;              // sent, or queued OK
+            break;              /* sent, or queued OK */
          if (try)
             sleep (1);
       }

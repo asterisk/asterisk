@@ -1,9 +1,9 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Copyright (C) 2002, Linux Support Services
+ * Copyright (C) 2002-2004, Digium, inc
  *
- * By Matthew Fredrickson <creslin@linux-support.net>
+ * By Matthew Fredrickson <creslin@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -61,7 +61,7 @@
 #define MIN_SWITCH_TIME 600
 
 static snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
-//static int block = O_NONBLOCK;
+/* static int block = O_NONBLOCK; */
 static char indevname[50] = ALSA_INDEV;
 static char outdevname[50] = ALSA_OUTDEV;
 
@@ -284,14 +284,14 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	snd_pcm_sw_params_t *swparams = NULL;
 	struct pollfd pfd;
 	snd_pcm_uframes_t period_size = PERIOD_FRAMES * 4;
-	//int period_bytes = 0;
+	/* int period_bytes = 0; */
 	snd_pcm_uframes_t buffer_size = 0;
 
 	unsigned int rate = DESIRED_RATE;
 #if 0
 	unsigned int per_min = 1;
 #endif
-	//unsigned int per_max = 8;
+	/* unsigned int per_max = 8; */
 	snd_pcm_uframes_t start_threshold, stop_threshold;
 
 	err = snd_pcm_open(&handle, dev, stream, O_NONBLOCK);
@@ -334,7 +334,7 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 		ast_log(LOG_DEBUG, "Period size is %d\n", err);
 	}
 
-	buffer_size = 4096 * 2; //period_size * 16;
+	buffer_size = 4096 * 2; /* period_size * 16; */
 	err = snd_pcm_hw_params_set_buffer_size_near(handle, hwparams, &buffer_size);
 	if (err < 0) {
 		ast_log(LOG_WARNING, "Problem setting buffer size of %ld: %s\n", buffer_size, snd_strerror(err));
@@ -542,7 +542,7 @@ static int alsa_write(struct ast_channel *chan, struct ast_frame *f)
 	int len = sizpos;
 	int pos;
 	int res = 0;
-	//size_t frames = 0;
+	/* size_t frames = 0; */
 	snd_pcm_state_t state;
 	/* Immediately return if no sound is enabled */
 	if (nosound)

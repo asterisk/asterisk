@@ -1299,7 +1299,7 @@ yuck:
 #else
 static int count_messages(char *dir)
 {
-	// Find all .txt files - even if they are not in sequence from 0000
+	/* Find all .txt files - even if they are not in sequence from 0000 */
 
 	int vmcount = 0;
 	DIR *vmdir = NULL;
@@ -2214,12 +2214,10 @@ leave_vm_out:
 	return res;
 }
 
-#ifdef USE_ODBC_STORAGE
-#endif
 
 static void resequence_mailbox(char * dir)
 {
-	// we know max messages, so stop process when number is hit
+	/* we know max messages, so stop process when number is hit */
 
 	int x,dest;
 	char sfn[256];
