@@ -415,7 +415,7 @@ static int agent_hangup(struct ast_channel *ast)
 		p->abouttograb = 0;
 	} else if (p->dead) {
 		free(p);
-	} else {
+	} else if (p->chan) {
 		/* Not dead -- check availability now */
 		ast_pthread_mutex_lock(&p->lock);
 		check_availability(p, 1);
