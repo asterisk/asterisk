@@ -34,6 +34,10 @@
 #include "iax2-provision.h"
 #include "iax2-parser.h"
 
+#ifndef IPTOS_MINCOST
+#define IPTOS_MINCOST 0x02
+#endif
+
 static int provinit = 0;
 
 struct iax_template {
