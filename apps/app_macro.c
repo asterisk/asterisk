@@ -164,7 +164,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
 		break;
 	}
 	/* don't stop executing extensions when we're in "h" */
-	if (chan->_softhangup && strcasecmp(chan->exten,"h")) {
+	if (chan->_softhangup && strcasecmp(oldexten,"h")) {
 		ast_log(LOG_DEBUG, "Extension %s, priority %d returned normally even though call was hung up\n",
 			chan->exten, chan->priority);
 		goto out;
