@@ -33,6 +33,7 @@
 #include <asterisk/chanvars.h>
 #include <asterisk/linkedlists.h>
 #include <asterisk/indications.h>
+#include <asterisk/monitor.h>
 
 
 static int shutting_down = 0;
@@ -488,6 +489,10 @@ void ast_channel_free(struct ast_channel *chan)
 		ast_log(LOG_WARNING, "Unable to find channel in list\n");
 	if (chan->pvt->pvt)
 		ast_log(LOG_WARNING, "Channel '%s' may not have been hung up properly\n", chan->name);
+	/* Stop monitoring */
+	if (chan->monitor) {
+		chan->monitor->stop( chan, 0 );
+	}
 	/* Free translatosr */
 	if (chan->pvt->readtrans)
 		ast_translator_free_path(chan->pvt->readtrans);
@@ -1027,6 +1032,10 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		/* Answer the CDR */
 		ast_setstate(chan, AST_STATE_UP);
 		ast_cdr_answer(chan->cdr);
+	} else if( ( f->frametype == AST_FRAME_VOICE ) && chan->monitor && chan->monitor->read_stream ) {
+		if( ast_writestream( chan->monitor->read_stream, f ) < 0 ) {
+			ast_log(LOG_WARNING, "Failed to write data to channel monitor read stream\n");
+		}
 	}
 	pthread_mutex_unlock(&chan->lock);
 
@@ -1225,7 +1234,16 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			} else
 				f = fr;
 			if (f)	
+			{
 				res = chan->pvt->write(chan, f);
+				if( chan->monitor &&
+						chan->monitor->write_stream &&
+						f && ( f->frametype == AST_FRAME_VOICE ) ) {
+					if( ast_writestream( chan->monitor->write_stream, f ) < 0 ) {
+						ast_log(LOG_WARNING, "Failed to write data to channel monitor write stream\n");
+					}
+				}
+			}
 			else
 				res = 0;
 		}
@@ -1856,7 +1874,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 			break;
 		}
 		if (c0->pvt->bridge && 
-			(c0->pvt->bridge == c1->pvt->bridge) && !nativefailed) {
+			(c0->pvt->bridge == c1->pvt->bridge) && !nativefailed && !c0->monitor && !c1->monitor) {
 				/* Looks like they share a bridge code */
 			if (option_verbose > 2) 
 				ast_verbose(VERBOSE_PREFIX_3 "Attempting native bridge of %s and %s\n", c0->name, c1->name);
@@ -2116,3 +2134,5 @@ int ast_tonepair(struct ast_channel *chan, int freq1, int freq2, int duration, i
 	}
 	return 0;
 }
+
+

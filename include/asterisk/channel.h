@@ -30,6 +30,7 @@ extern "C" {
 #define AST_MAX_EXTENSION 80
 
 #include <asterisk/cdr.h>
+#include <asterisk/monitor.h>
 
 
 #define AST_CHANNEL_NAME 80
@@ -174,6 +175,9 @@ struct ast_channel {
 
 	/*! Tone zone */
 	struct tone_zone *zone;
+
+	/* Channel monitoring */
+	struct ast_channel_monitor *monitor;
 
 	/* Frames in/out counters */
 	unsigned int fin;

@@ -35,6 +35,8 @@ Steven Critchfield - Seek and Trunc functions for playback and recording
 Jefferson Noxon - app_lookupcidname, app_db, and various other contributions
 Klaus-Peter Junghanns - in-band DTMF on SIP and MGCP
 Ross Finlayson - Dynamic RTP payload support
+Mahmut Fettahlioglu - Audio recording, music-on-hold changes, alaw file
+		format, and various fixes. Can be contacted at mahmut@oa.com.au
 
 === OTHER SOURCE CODE IN ASTERISK ===
 
