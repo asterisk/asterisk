@@ -275,6 +275,7 @@ static char *emailbody = NULL;
 static int pbxskip = 0;
 static char *emailsubject = NULL;
 static char fromstring[100];
+static char pagerfromstring[100];
 static char emailtitle[100];
 static char charset[32] = "ISO-8859-1";
 
@@ -1031,7 +1032,23 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char
 
 		strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", &tm);
 		fprintf(p, "Date: %s\n", date);
-		fprintf(p, "From: Asterisk PBX <%s>\n", who);
+
+		if (*pagerfromstring) {
+			struct ast_channel *ast = ast_channel_alloc(0);
+			if (ast) {
+				char *passdata;
+				int vmlen = strlen(fromstring)*3 + 200;
+				if ((passdata = alloca(vmlen))) {
+					memset(passdata, 0, vmlen);
+					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,callerid,dur,date,passdata, vmlen);
+					pbx_substitute_variables_helper(ast,pagerfromstring,passdata,vmlen);
+					fprintf(p, "From: %s <%s>\n",passdata,who);
+				} else 
+					ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+				ast_channel_free(ast);
+			} else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+		} else
+			fprintf(p, "From: Asterisk PBX <%s>\n", who);
 		fprintf(p, "To: %s\n", pager);
 		fprintf(p, "Subject: New VM\n\n");
 		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
@@ -4431,6 +4448,7 @@ static int load_config(void)
 			cat = ast_category_browse(cfg, cat);
 		}
 		memset(fromstring,0,sizeof(fromstring));
+		memset(pagerfromstring,0,sizeof(pagerfromstring));
 		memset(emailtitle,0,sizeof(emailtitle));
 		strncpy(charset, "ISO-8859-1", sizeof(charset) - 1);
 		if (emailbody) {
@@ -4445,6 +4463,8 @@ static int load_config(void)
 			pbxskip = ast_true(s);
 		if ((s=ast_variable_retrieve(cfg, "general", "fromstring")))
 			strncpy(fromstring,s,sizeof(fromstring)-1);
+		if ((s=ast_variable_retrieve(cfg, "general", "pagerfromstring")))
+			strncpy(pagerfromstring,s,sizeof(pagerfromstring)-1);	
 		if ((s=ast_variable_retrieve(cfg, "general", "charset")))
 			strncpy(charset,s,sizeof(charset)-1);
 		if ((s=ast_variable_retrieve(cfg, "general", "emailtitle"))) {
