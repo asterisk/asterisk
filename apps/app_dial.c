@@ -3,9 +3,9 @@
  *
  * Trivial application to dial a channel and send an URL on answer
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -411,7 +411,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
 	struct localuser *u;
-	char info[256], *peers, *timeout, *tech, *number, *rest, *cur;
+	char *info, *peers, *timeout, *tech, *number, *rest, *cur;
 	char  privdb[256] = "", *s;
 	char  announcemsg[256] = "", *ann;
 	struct localuser *outgoing=NULL, *tmp;
@@ -462,10 +462,13 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Dial requires an argument (technology1/number1&technology2/number2...|optional timeout|options)\n");
 		return -1;
 	}
-	
+
+	if (!(info = ast_strdupa(data))) {
+		ast_log(LOG_WARNING, "Unable to dupe data :(\n");
+		return -1;
+	}
 	LOCAL_USER_ADD(u);
 	
-	strncpy(info, (char *)data, sizeof(info) - 1);
 	peers = info;
 	if (peers) {
 		
