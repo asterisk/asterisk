@@ -451,14 +451,28 @@ void ast_channel_undefer_dtmf(struct ast_channel *chan)
 struct ast_channel *ast_channel_walk_locked(struct ast_channel *prev)
 {
 	/* Returns next channel (locked) */
-	struct ast_channel *l, *ret=NULL;
+	struct ast_channel *l, *ret;
 	int retries = 0;	
 retry:
+	ret=NULL;
 	ast_mutex_lock(&chlock);
 	l = channels;
 	if (!prev) {
-		if (l)
-			ast_mutex_lock(&l->lock);
+		if (l) {
+			if (ast_mutex_trylock(&l->lock)) {
+				if (retries < 10)
+					ast_log(LOG_DEBUG, "Avoiding initial deadlock for '%s'\n", ret->name);
+				else
+					ast_log(LOG_WARNING, "Avoided initial deadlock for '%s', %d retries!\n", ret->name, retries);
+				ast_mutex_unlock(&chlock);
+				if (retries < 10) {
+					usleep(1);
+					retries++;
+					goto retry;
+				} else
+					return NULL;
+			}
+		}
 		ast_mutex_unlock(&chlock);
 		return l;
 	}
