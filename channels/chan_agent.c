@@ -536,6 +536,46 @@ static int agent_cont_sleep( void *data )
 	return res;
 }
 
+static int agent_ack_sleep( void *data )
+{
+	struct agent_pvt *p;
+	struct timeval tv;
+	int res;
+	int to = 1000;
+
+	/* Wait a second and look for something */
+
+	p = (struct agent_pvt *)data;
+	if (p->chan) {
+		for(;;) {
+			to = ast_waitfor(p->chan, to);
+			if (to < 0) {
+				res = -1;
+				break;
+			}
+			if (!to) {
+				res = 0;
+				break;
+			}
+			ast_mutex_lock(&p->lock);
+			if (p->app_sleep_cond) {
+				ast_mutex_unlock(&p->lock);
+				res = 0;
+				break;
+			} else if (res == '#') {
+				check_availability(p, 0);
+				ast_mutex_unlock(&p->lock);
+				res = 0;
+				break;
+			}
+			ast_mutex_unlock(&p->lock);
+			res = 0;
+		}
+	} else
+		res = -1;
+	return res;
+}
+
 static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 {
 	struct ast_channel *tmp;
@@ -735,12 +775,17 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 	if (needlock)
 		ast_mutex_unlock(&agentlock);
 	if (parent && chan)  {
-		ast_log( LOG_DEBUG, "Playing beep, lang '%s'\n", newlyavailable->chan->language);
-		res = ast_streamfile(newlyavailable->chan, "beep", newlyavailable->chan->language);
-		ast_log( LOG_DEBUG, "Played beep, result '%d'\n", res);
-		if (!res) {
-			res = ast_waitstream(newlyavailable->chan, "");
-			ast_log( LOG_DEBUG, "Waited for stream, result '%d'\n", res);
+		if (p->ackcall > 1) {
+			/* Don't do beep here */
+			res = 0;
+		} else {
+			ast_log( LOG_DEBUG, "Playing beep, lang '%s'\n", newlyavailable->chan->language);
+			res = ast_streamfile(newlyavailable->chan, "beep", newlyavailable->chan->language);
+			ast_log( LOG_DEBUG, "Played beep, result '%d'\n", res);
+			if (!res) {
+				res = ast_waitstream(newlyavailable->chan, "");
+				ast_log( LOG_DEBUG, "Waited for stream, result '%d'\n", res);
+			}
 		}
 		if (!res) {
 			/* Note -- parent may have disappeared */
@@ -764,6 +809,42 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 		}
 	}
 	return 0;
+}
+
+static int check_beep(struct agent_pvt *newlyavailable, int needlock)
+{
+	struct agent_pvt *p;
+	int res;
+	ast_log(LOG_DEBUG, "Checking beep availability of '%s'\n", newlyavailable->agent);
+	if (needlock)
+		ast_mutex_lock(&agentlock);
+	p = agents;
+	while(p) {
+		if (p == newlyavailable) {
+			p = p->next;
+			continue;
+		}
+		ast_mutex_lock(&p->lock);
+		if (!p->abouttograb && p->pending && ((p->group && (newlyavailable->group & p->group)) || !strcmp(p->agent, newlyavailable->agent))) {
+			ast_log(LOG_DEBUG, "Call '%s' looks like a would-be winner for agent '%s'\n", p->owner->name, newlyavailable->agent);
+			ast_mutex_unlock(&p->lock);
+			break;
+		}
+		ast_mutex_unlock(&p->lock);
+		p = p->next;
+	}
+	if (needlock)
+		ast_mutex_unlock(&agentlock);
+	if (p) {
+		ast_log( LOG_DEBUG, "Playing beep, lang '%s'\n", newlyavailable->chan->language);
+		res = ast_streamfile(newlyavailable->chan, "beep", newlyavailable->chan->language);
+		ast_log( LOG_DEBUG, "Played beep, result '%d'\n", res);
+		if (!res) {
+			res = ast_waitstream(newlyavailable->chan, "");
+			ast_log( LOG_DEBUG, "Waited for stream, result '%d'\n", res);
+		}
+	}
+	return res;
 }
 
 static struct ast_channel *agent_request(char *type, int format, void *data)
@@ -1101,7 +1182,10 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 							/* Login this channel and wait for it to
 							   go away */
 							p->chan = chan;
-							check_availability(p, 0);
+							if (p->ackcall > 1)
+								check_beep(p, 0);
+							else
+								check_availability(p, 0);
 							ast_mutex_unlock(&p->lock);
 							ast_mutex_unlock(&agentlock);
 							while (res >= 0) {
@@ -1121,7 +1205,10 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 										(tv.tv_usec - p->lastdisc.tv_usec) / 1000 > p->wrapuptime) {
 											ast_log(LOG_DEBUG, "Wrapup time expired!\n");
 										memset(&p->lastdisc, 0, sizeof(p->lastdisc));
-										check_availability(p, 1);
+										if (p->ackcall > 1)
+											check_beep(p, 0);
+										else
+											check_availability(p, 0);
 									}
 								}
 								ast_mutex_unlock(&p->lock);
@@ -1130,7 +1217,10 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								ast_mutex_lock(&p->lock);
 								p->owning_app = pthread_self();
 								ast_mutex_unlock(&p->lock);
-								res = ast_safe_sleep_conditional( chan, 1000,
+								if (p->ackcall > 1)
+									res = agent_ack_sleep(p);
+								else
+									res = ast_safe_sleep_conditional( chan, 1000,
 														agent_cont_sleep, p );
 								ast_mutex_unlock( &p->app_lock );
 								sched_yield();
