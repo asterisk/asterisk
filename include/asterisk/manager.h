@@ -49,7 +49,7 @@
 #define EVENT_FLAG_AGENT		(1 << 5) /* Ability to read/set agent info */
 #define EVENT_FLAG_USER                 (1 << 6) /* Ability to read/set user info */
 
-/* JDG: export manager structures */
+/* Export manager structures */
 #define MAX_HEADERS 80
 #define MAX_LEN 256
 
@@ -77,20 +77,27 @@ struct message {
 };
 
 struct manager_action {
-	char action[256];
+	/*! Name of the action */
+	char *action;
+	/*! Short description of the action */
 	char *synopsis;
+	/*! Detailed description of the action */
+	char *description;
+	/*! Permission required for action.  EVENT_FLAG_* */
 	int authority;
+	/*! Function to be called */
 	int (*func)(struct mansession *s, struct message *m);
+	/*! For easy linking */
 	struct manager_action *next;
 };
 
 int ast_carefulwrite(int fd, char *s, int len, int timeoutms);
 
 /* External routines may register/unregister manager callbacks this way */
-int ast_manager_register( char *action, int authority, 
-					 int (*func)(struct mansession *s, struct message *m), char *synopsis);
+#define ast_manager_register(a, b, c, d) ast_manager_register2(a, b, c, d, NULL)
+int ast_manager_register2( char *action, int authority, 
+					 int (*func)(struct mansession *s, struct message *m), char *synopsis, char *description);
 int ast_manager_unregister( char *action );
-/* /JDG */
 
 /* External routines may send asterisk manager events this way */
 extern int manager_event(int category, char *event, char *contents, ...)

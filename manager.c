@@ -104,6 +104,47 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 	return res;
 }
 
+static char *complete_show_mancmd(char *line, char *word, int pos, int state)
+{
+	struct manager_action *cur = first_action;
+	int which = 0;
+
+	ast_mutex_lock(&actionlock);
+	while (cur) { /* Walk the list of actions */
+		if (!strncasecmp(word, cur->action, strlen(word))) {
+			if (++which > state) {
+				char *ret = strdup(cur->action);
+				ast_mutex_unlock(&actionlock);
+				return ret;
+			}
+		}
+		cur = cur->next;
+	}
+	ast_mutex_unlock(&actionlock);
+	return NULL;
+}
+
+static int handle_showmancmd(int fd, int argc, char *argv[])
+{
+	struct manager_action *cur = first_action;
+	int num;
+
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	ast_mutex_lock(&actionlock);
+	while (cur) { /* Walk the list of actions */
+		for (num = 3; num < argc; num++) {
+			if (!strcasecmp(cur->action, argv[num])) {
+				ast_cli(fd, "Action: %s\nSynopsis: %s\n%s\n", cur->action, cur->synopsis, cur->description ? cur->description : "");
+			}
+		}
+		cur = cur->next;
+	}
+
+	ast_mutex_unlock(&actionlock);
+	return RESULT_SUCCESS;
+}
+
 static int handle_showmancmds(int fd, int argc, char *argv[])
 {
 	struct manager_action *cur = first_action;
@@ -111,7 +152,7 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 
 	ast_mutex_lock(&actionlock);
 	ast_cli(fd, format, "Action", "Synopsis");
-	while(cur) { /* Walk the list of actions */
+	while (cur) { /* Walk the list of actions */
 		ast_cli(fd, format, cur->action, cur->synopsis);
 		cur = cur->next;
 	}
@@ -127,7 +168,7 @@ static int handle_showmanconn(int fd, int argc, char *argv[])
 	ast_mutex_lock(&sessionlock);
 	s = sessions;
 	ast_cli(fd, format, "Username", "IP Address");
-	while(s) {
+	while (s) {
 		ast_cli(fd, format,s->username, inet_ntoa(s->sin.sin_addr));
 		s = s->next;
 	}
@@ -135,6 +176,10 @@ static int handle_showmanconn(int fd, int argc, char *argv[])
 	ast_mutex_unlock(&sessionlock);
 	return RESULT_SUCCESS;
 }
+
+static char showmancmd_help[] = 
+"Usage: show manager command <actionname>\n"
+"	Shows the detailed description for a specific manager command.\n";
 
 static char showmancmds_help[] = 
 "Usage: show manager commands\n"
@@ -144,6 +189,10 @@ static char showmanconn_help[] =
 "Usage: show manager connected\n"
 "	Prints a listing of the users that are connected to the\n"
 "manager interface.\n";
+
+static struct ast_cli_entry show_mancmd_cli =
+	{ { "show", "manager", "command", NULL },
+	handle_showmancmd, "Show manager command", showmancmd_help, complete_show_mancmd };
 
 static struct ast_cli_entry show_mancmds_cli =
 	{ { "show", "manager", "commands", NULL },
@@ -342,6 +391,11 @@ static int authenticate(struct mansession *s, struct message *m)
 	return -1;
 }
 
+static char mandescr_ping[] = 
+"Description: A 'Ping' action will ellicit a 'Pong' response.  Used to keep the "
+"  manager connection open.\n"
+"Variables: NONE\n";
+
 static int action_ping(struct mansession *s, struct message *m)
 {
 	astman_send_response(s, m, "Pong", NULL);
@@ -528,6 +582,22 @@ static void *fast_originate(void *data)
 	free(in);
 	return NULL;
 }
+
+static char mandescr_originate[] = 
+"Description: Generates an outgoing call to a Extension/Context/Priority or\n"
+"  Application/Data\n"
+"Variables: (Names marked with * are required)\n"
+"	*Channel: Channel name to call\n"
+"	Exten: Extension to use (requires 'Context' and 'Priority')\n"
+"	Context: Context to use (requires 'Exten' and 'Priority')\n"
+"	Priority: Priority to use (requires 'Exten' and 'Context')\n"
+"	Application: Application to use\n"
+"	Data: Data to use (requires 'Application')\n"
+"	Timeout: How long to wait for call to be answered (in ms)\n"
+"	CallerID: Caller ID to be set on the outgoing channel\n"
+"	Variable: Channel variable to set (VAR1=value1|VAR2=value2)\n"
+"	Account: Account code\n"
+"	Async: Set to 'true' for fast origination\n";
 
 static int action_originate(struct mansession *s, struct message *m)
 {
@@ -982,39 +1052,66 @@ static int manager_state_cb(char *context, char *exten, int state, void *data)
 	return 0;
 }
 
-int ast_manager_register( char *action, int auth, 
-	int (*func)(struct mansession *s, struct message *m), char *synopsis)
+static int ast_manager_register_struct(struct manager_action *act)
 {
 	struct manager_action *cur = first_action, *prev = NULL;
+	int ret;
 
 	ast_mutex_lock(&actionlock);
 	while(cur) { /* Walk the list of actions */
-		if (!strcasecmp(cur->action, action)) {
-			ast_log(LOG_WARNING, "Manager: Action '%s' already registered\n", action);
+		ret = strcasecmp(cur->action, act->action);
+		if (ret == 0) {
+			ast_log(LOG_WARNING, "Manager: Action '%s' already registered\n", act->action);
 			ast_mutex_unlock(&actionlock);
 			return -1;
+		} else if (ret > 0) {
+			/* Insert these alphabetically */
+			if (prev) {
+				act->next = prev->next;
+				prev->next = act;
+			} else {
+				act->next = first_action;
+				first_action = act;
+			}
+			break;
 		}
 		prev = cur; 
 		cur = cur->next;
 	}
-	cur = malloc( sizeof(struct manager_action) );
-	if( !cur ) {
+	
+	if (!cur) {
+		if (prev)
+			prev->next = act;
+		else
+			first_action = act;
+		act->next = NULL;
+	}
+
+	if (option_verbose > 1) 
+		ast_verbose(VERBOSE_PREFIX_2 "Manager registered action %s\n", act->action);
+	ast_mutex_unlock(&actionlock);
+	return 0;
+}
+
+int ast_manager_register2(char *action, int auth, int (*func)(struct mansession *s, struct message *m), char *synopsis, char *description)
+{
+	struct manager_action *cur;
+
+	cur = malloc(sizeof(struct manager_action));
+	if (!cur) {
 		ast_log(LOG_WARNING, "Manager: out of memory trying to register action\n");
 		ast_mutex_unlock(&actionlock);
 		return -1;
 	}
-	strncpy( cur->action, action, 255 );
+	cur->action = action;
 	cur->authority = auth;
 	cur->func = func;
 	cur->synopsis = synopsis;
+	cur->description = description;
 	cur->next = NULL;
 
-	if( prev ) prev->next = cur;
-	else first_action = cur;
+	ast_manager_register_struct(cur);
 
-	if (option_verbose > 1) 
-		ast_verbose(VERBOSE_PREFIX_2 "Manager registered action %s\n", action);
-	ast_mutex_unlock(&actionlock);
 	return 0;
 }
 
@@ -1029,19 +1126,20 @@ int init_manager(void)
 	int x = 1;
 	if (!registered) {
 		/* Register default actions */
-		ast_manager_register( "Ping", 0, action_ping, "Ping" );
+		ast_manager_register2("Ping", 0, action_ping, "Ping", mandescr_ping);
 		ast_manager_register( "Events", 0, action_events, "Contol Event Flow" );
 		ast_manager_register( "Logoff", 0, action_logoff, "Logoff Manager" );
 		ast_manager_register( "Hangup", EVENT_FLAG_CALL, action_hangup, "Hangup Channel" );
 		ast_manager_register( "Status", EVENT_FLAG_CALL, action_status, "Status" );
 		ast_manager_register( "Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect" );
-		ast_manager_register( "Originate", EVENT_FLAG_CALL, action_originate, "Originate Call" );
+		ast_manager_register2("Originate", EVENT_FLAG_CALL, action_originate, "Originate Call", mandescr_originate);
 		ast_manager_register( "MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox" );
 		ast_manager_register( "Command", EVENT_FLAG_COMMAND, action_command, "Execute Command" );
 		ast_manager_register( "ExtensionState", EVENT_FLAG_CALL, action_extensionstate, "Check Extension Status" );
 		ast_manager_register( "AbsoluteTimeout", EVENT_FLAG_CALL, action_timeout, "Set Absolute Timeout" );
 		ast_manager_register( "MailboxCount", EVENT_FLAG_CALL, action_mailboxcount, "Check Mailbox Message Count" );
 
+		ast_cli_register(&show_mancmd_cli);
 		ast_cli_register(&show_mancmds_cli);
 		ast_cli_register(&show_manconn_cli);
 		ast_extension_state_add(NULL, NULL, manager_state_cb, NULL);
