@@ -3411,15 +3411,20 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		logretries++;
 		if (!valid) {
 			if (skipuser || logretries >= maxlogins) {
-				if (ast_streamfile(chan, "vm-incorrect", chan->language))
-					break;
+				if (ast_streamfile(chan, "vm-incorrect", chan->language)) {
+					ast_log(LOG_WARNING, "Unable to stream incorrect message\n");
+					return -1;
+				}
 			} else {
 				if (useadsi)
 					adsi_login(chan);
-				if (ast_streamfile(chan, "vm-incorrect-mailbox", chan->language))
-					break;
+				if (ast_streamfile(chan, "vm-incorrect-mailbox", chan->language)) {
+					ast_log(LOG_WARNING, "Unable to stream incorrect mailbox message\n");
+					return -1;
+				}
 			}
-			ast_waitstream(chan, "");
+			if (ast_waitstream(chan, ""))	/* Channel is hung up */
+				return -1;
 		}
 	}
 	if (!valid && (logretries >= maxlogins)) {
