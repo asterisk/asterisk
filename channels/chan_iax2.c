@@ -2562,6 +2562,8 @@ static unsigned int fix_peerts(struct iax2_peer *peer, int callno, unsigned int 
 	if (!iaxs[callno]->rxcore.tv_sec && !iaxs[callno]->rxcore.tv_usec) {
 		/* Initialize rxcore time if appropriate */
 		gettimeofday(&iaxs[callno]->rxcore, NULL);
+		/* Round to nearest 20ms */
+		iaxs[callno]->rxcore.tv_usec -= iaxs[callno]->rxcore.tv_usec % 20000;
 	}
 	/* Calculate difference between trunk and channel */
 	ms = (peer->rxtrunktime.tv_sec - iaxs[callno]->rxcore.tv_sec) * 1000 + 
@@ -2574,8 +2576,11 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 {
 	struct timeval tv;
 	unsigned int ms;
-	if (!p->offset.tv_sec && !p->offset.tv_usec)
+	if (!p->offset.tv_sec && !p->offset.tv_usec) {
 		gettimeofday(&p->offset, NULL);
+		/* Round to nearest 20ms */
+		p->offset.tv_usec -= p->offset.tv_usec % 20000;
+	}
 	/* If the timestamp is specified, just send it as is */
 	if (ts)
 		return ts;
@@ -2586,8 +2591,9 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 		ms = (tv.tv_sec - p->offset.tv_sec) * 1000 + (tv.tv_usec - p->offset.tv_usec) / 1000;
 	}
 	/* We never send the same timestamp twice, so fudge a little if we must */
-	if (ms <= p->lastsent)
+	if (ms <= p->lastsent) {
 		ms = p->lastsent + 1;
+	}
 	p->lastsent = ms;
 	return ms;
 }

@@ -366,6 +366,7 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 		gettimeofday(&rtp->rxcore, NULL);
 		rtp->rxcore.tv_sec -= timestamp / 8000;
 		rtp->rxcore.tv_usec -= (timestamp % 8000) * 125;
+		rtp->rxcore.tv_usec -= rtp->rxcore.tv_usec % 20000;
 		if (rtp->rxcore.tv_usec < 0) {
 			/* Adjust appropriately if necessary */
 			rtp->rxcore.tv_usec += 1000000;
