@@ -322,11 +322,9 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	if (shutting_down)
 		return NULL;
 
-	ast_mutex_lock(&chlock);
 	tmp = malloc(sizeof(struct ast_channel));
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Out of memory\n");
-		ast_mutex_unlock(&chlock);
 		return NULL;
 	}
 
@@ -335,7 +333,6 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	if (!tmp->sched) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
 		free(tmp);
-		ast_mutex_unlock(&chlock);
 		return NULL;
 	}
 	
@@ -359,7 +356,6 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 		if (pipe(tmp->alertpipe)) {
 			ast_log(LOG_WARNING, "Alert pipe creation failed!\n");
 			free(tmp);
-			ast_mutex_unlock(&chlock);
 			return NULL;
 		} else {
 			flags = fcntl(tmp->alertpipe[0], F_GETFL);
@@ -396,6 +392,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 
 	tmp->tech = &null_tech;
 
+	ast_mutex_lock(&chlock);
 	tmp->next = channels;
 	channels = tmp;
 
