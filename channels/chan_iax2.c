@@ -7168,7 +7168,7 @@ static int iax2_exec(struct ast_channel *chan, char *context, char *exten, int p
 	ast_mutex_unlock(&dpcache_lock);
 	dial = pbx_findapp("Dial");
 	if (dial) {
-		pbx_exec(chan, dial, req, newstack);
+		return pbx_exec(chan, dial, req, newstack);
 	} else {
 		ast_log(LOG_WARNING, "No dial application registered\n");
 	}
