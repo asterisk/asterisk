@@ -43,7 +43,7 @@
 #define TYPE_DONTSEND	 0x3
 #define TYPE_MASK	 0x3
 
-static int dtmftimeout = 300;	/* 300 samples */
+static int dtmftimeout = 3000;	/* 3000 samples */
 
 static int rtpstart = 0;
 static int rtpend = 0;
@@ -68,6 +68,7 @@ struct ast_rtp {
 	unsigned int lastrxts;
 	unsigned int lastividtimestamp;
 	unsigned int lastovidtimestamp;
+	unsigned int lasteventseqn;
 	int lasttxformat;
 	int lastrxformat;
 	int dtmfcount;
@@ -449,11 +450,17 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	  // This is special in-band data that's not one of our codecs
 	  if (rtpPT.code == AST_RTP_DTMF) {
 	    /* It's special -- rfc2833 process it */
-	    f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
+	    if (rtp->lasteventseqn <= seqno) {
+	      f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
+	      rtp->lasteventseqn = seqno;
+	    }
 	    if (f) return f; else return &null_frame;
 	  } else if (rtpPT.code == AST_RTP_CISCO_DTMF) {
 	    /* It's really special -- process it the Cisco way */
-	    f = process_cisco_dtmf(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
+	    if (rtp->lasteventseqn <= seqno) {
+	      f = process_cisco_dtmf(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
+	      rtp->lasteventseqn = seqno;
+	    }
 	    if (f) return f; else return &null_frame;
 	  } else if (rtpPT.code == AST_RTP_CN) {
 	    /* Comfort Noise */
