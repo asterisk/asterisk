@@ -231,7 +231,7 @@ void ast_frfree(struct ast_frame *fr)
 	}
 	if (fr->mallocd & AST_MALLOCD_SRC) {
 		if (fr->src)
-			free(fr->src);
+			free((char *)fr->src);
 	}
 	if (fr->mallocd & AST_MALLOCD_HDR) {
 #ifdef TRACE_FRAMES
@@ -319,7 +319,7 @@ struct ast_frame *ast_frdup(struct ast_frame *f)
 	if (srclen > 0) {
 		out->src = out->data + f->datalen;
 		/* Must have space since we allocated for it */
-		strcpy(out->src, f->src);
+		strcpy((char *)out->src, f->src);
 	} else
 		out->src = NULL;
 	out->prev = NULL;

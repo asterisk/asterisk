@@ -84,7 +84,7 @@ struct ast_frame {
 	/*! How far into "data" the data really starts */
 	int offset;				
 	/*! Optional source of frame for debugging */
-	char *src;				
+	const char *src;				
 	/*! Pointer to actual data */
 	void *data;		
 	/*! Global delivery time */		
