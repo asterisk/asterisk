@@ -83,7 +83,8 @@ struct ast_vm_user {
 	char fullname[80];
 	char email[80];
 	char pager[80];
-	char options[160];
+	char serveremail[80];
+	int attach;
 	int alloced;
 	struct ast_vm_user *next;
 };
@@ -146,6 +147,28 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
+static void apply_options(struct ast_vm_user *vmu, char *options)
+{
+	/* Destructively Parse options and apply */
+	char *stringp = options;
+	char *s;
+	char *var, *value;
+	while((s = strsep(&stringp, "|"))) {
+		value = stringp;
+		if ((var = strsep(&value, "=")) && value) {
+			if (!strcasecmp(var, "attach")) {
+				if (ast_true(value))
+					vmu->attach = 1;
+				else
+					vmu->attach = 0;
+			} else if (!strcasecmp(var, "serveremail")) {
+				strncpy(vmu->serveremail, value, sizeof(vmu->serveremail) - 1);
+			}
+		}
+	}
+	
+}
+
 #ifdef USEMYSQLVM
 MYSQL *dbhandler=NULL;
 pthread_mutex_t mysqllock;
@@ -178,6 +201,7 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, cha
 	MYSQL_FIELD *fields;
 	int numFields, i;
 	char query[240];
+	char options[160] = "";
 	struct ast_vm_user *retval;
 
 	retval=malloc(sizeof(struct ast_vm_user));
@@ -188,7 +212,8 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, cha
 	*retval->fullname='\0';
 	*retval->email='\0';
 	*retval->pager='\0';
-	*retval->options='\0';
+	*retval->serveremail='\0';
+	*retval->attach=-1;
 	retval->alloced=1;
 	retval->next=NULL;
 	if (mailbox) {
@@ -220,7 +245,8 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, cha
 					} else if (!strcmp(fields[i].name, "pager")) {
 						strcpy(retval->pager, rowval[i]);
 					} else if (!strcmp(fields[i].name, "options")) {
-						strcpy(retval->options, rowval[i]);
+						strncpy(options, rowval[i], sizeof(options) - 1);
+						apply_options(retval, options);
 					}
 				}
 			}
@@ -530,30 +556,6 @@ static int base_encode(char *filename, FILE *so)
 	fclose(fi);
 
 	return 1;
-}
-
-static int getoptionvalue(char *options, char *optionname, char *value)
-{
-	char *c, *d;
-
-	if (!(c=strstr(options, optionname))) {
-		return 0;
-	}
-	if (c!=options && *(c-1)!='|') {
-		return 0;
-	}
-	if (*(c+strlen(optionname))!='=') {
-		return 0;
-	}
-
-	c+=strlen(optionname)+1;
-	if ((d=strchr(c, '|'))) {
-		strncpy(value, c, d-c);
-		*(value+(d-c))='\0';
-	} else {
-		strcpy(value, c);
-	}
-	return(1);
 }
 
 static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *mailbox, char *callerid, char *attach, char *format, long duration, int attach_user_voicemail)
@@ -1050,15 +1052,20 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 				strsep(&stringp, "|");
 				/* Send e-mail if applicable */
 				if (strlen(vmu->email)) {
-					int attach_user_voicemail=-1;
-					char tmpvalue[160];
-					if (getoptionvalue(vmu->options, "attach", tmpvalue)) {
-						attach_user_voicemail=ast_true(tmpvalue);
-					}
-					sendmail(serveremail, vmu->email, vmu->fullname, msgnum, ext, chan->callerid, fn, fmt, end - start, attach_user_voicemail);
+					int attach_user_voicemail = attach_voicemail;
+					char *myserveremail = serveremail;
+					if (vmu->attach > -1)
+						attach_user_voicemail = vmu->attach;
+					if (strlen(vmu->serveremail))
+						myserveremail = serveremail;
+					sendmail(myserveremail, vmu->email, vmu->fullname, msgnum, ext, chan->callerid, fn, fmt, end - start, attach_user_voicemail);
 				}
-				if (strlen(vmu->pager))
-					sendpage(serveremail, vmu->pager, msgnum, ext, chan->callerid, end - start);
+				if (strlen(vmu->pager)) {
+					char *myserveremail = serveremail;
+					if (strlen(vmu->serveremail))
+						myserveremail = serveremail;
+					sendpage(myserveremail, vmu->pager, msgnum, ext, chan->callerid, end - start);
+				}
 			} else
 				ast_log(LOG_WARNING, "No more messages possible\n");
 		} else
@@ -1741,16 +1748,21 @@ forward_message(struct ast_channel *chan, char *context, char *dir, int curmsg, 
               duration = atol(ast_variable_retrieve(mif, NULL, "duration"));
               		
 	      if (strlen(receiver->email)) {
-		      int attach_user_voicemail=-1;
-		      char tmpvalue[160];
-		      if (getoptionvalue(receiver->options, "attach", tmpvalue)) {
-			      attach_user_voicemail=ast_true(tmpvalue);
-		      }
-		      sendmail(serveremail, receiver->email, receiver->fullname, todircount, username, callerid, fn, tmp, atol(ast_variable_retrieve(mif, NULL, "duration")), attach_user_voicemail);
+				int attach_user_voicemail = attach_voicemail;
+				char *myserveremail = serveremail;
+				if (receiver->attach > -1)
+					attach_user_voicemail = receiver->attach;
+				if (strlen(receiver->serveremail))
+					myserveremail = receiver->serveremail;
+		      sendmail(myserveremail, receiver->email, receiver->fullname, todircount, username, callerid, fn, tmp, atol(ast_variable_retrieve(mif, NULL, "duration")), attach_user_voicemail);
 	      }
 	     
-			  if (strlen(receiver->pager))
-				sendpage(serveremail, receiver->pager, todircount, username, callerid, duration);
+			if (strlen(receiver->pager)) {
+				char *myserveremail = serveremail;
+				if (strlen(receiver->serveremail))
+					myserveremail = receiver->serveremail;
+				sendpage(myserveremail, receiver->pager, todircount, username, callerid, duration);
+			}
 			  
 			  ast_destroy(mif); /* or here */
 			}
@@ -2387,14 +2399,14 @@ static int append_mailbox(char *context, char *mbox, char *data)
 		stringp = tmp;
 		if ((s = strsep(&stringp, ","))) 
 			strncpy(vmu->password, s, sizeof(vmu->password));
-		if ((s = strsep(&stringp, ","))) 
+		if (stringp && (s = strsep(&stringp, ","))) 
 			strncpy(vmu->fullname, s, sizeof(vmu->fullname));
-		if ((s = strsep(&stringp, ","))) 
+		if (stringp && (s = strsep(&stringp, ","))) 
 			strncpy(vmu->email, s, sizeof(vmu->email));
-		if ((s = strsep(&stringp, ","))) 
+		if (stringp && (s = strsep(&stringp, ","))) 
 			strncpy(vmu->pager, s, sizeof(vmu->pager));
-		if ((s = strsep(&stringp, ","))) 
-			strncpy(vmu->options, s, sizeof(vmu->options));
+		if (stringp && (s = strsep(&stringp, ","))) 
+			apply_options(vmu, s);
 		vmu->next = NULL;
 		if (usersl)
 			usersl->next = vmu;

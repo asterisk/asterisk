@@ -24,13 +24,13 @@ silencethreshold=128
 maxlogins=3
 
 ;
-; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>,<pager_email>
+; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>,<pager_email>,<options>
 ; if the e-mail is specified, a message will be sent when a message is
 ; received, to the given mailbox. If pager is specified, a message will be sent there as well.
 ;
 [default]
 1234 => 4242,Example Mailbox,root@localhost
-;4200 => 9855,Mark Spencer,markster@linux-support.net
+;4200 => 9855,Mark Spencer,markster@linux-support.net,mypager@digium.com,attach=no|serveremail=myaddy@digium.com
 ;4300 => 3456,Ben Rigas,ben@american-computer.net
 ;4310 => 5432,Sales,sales@marko.net
 ;4069 => 6522,Matt Brooks,matt@marko.net
