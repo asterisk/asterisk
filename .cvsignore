@@ -2,3 +2,4 @@ asterisk
 build.h
 ast_expr.c
 .version
+.depend
