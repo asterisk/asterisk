@@ -32,6 +32,7 @@ extern "C" {
 #include <asterisk/options.h>
 #include <asterisk/callerid.h>
 #include <asterisk/dsp.h>
+#include <asterisk/features.h>
 
 }
 
@@ -245,6 +246,9 @@ static struct vpb_pvt {
 	int state;				/* used to keep port state (internal to driver) */
 
 	int group;				/* Which group this port belongs to */
+	ast_group_t callgroup;                  /* Call group */
+	ast_group_t pickupgroup;                /* Pickup group */
+
 
 	char dev[256];				/* Device name, eg vpb/1-1 */
 	vpb_model_t vpb_model;			/* card model */
@@ -1032,6 +1036,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 	struct ast_channel *owner = p->owner;
 	char cid_num[256];
 	char cid_name[256];
+	struct ast_channel *c;
 
 	if (option_verbose > 3) {
 		char str[VPB_MAX_STR];
@@ -1164,6 +1169,15 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 			p->state=VPB_STATE_GETDTMF;
 			s[0] = e->data;
 			strncat(p->ext, s, sizeof(p->ext) - strlen(p->ext) - 1);
+			#if 0
+			if (!strcmp(p->ext,ast_pickup_ext())) {
+				/* Call pickup has been dialled! */
+				if (ast_pickup_call(c)) {
+					/* Call pickup wasnt possible */
+				}
+			}
+			else 
+			#endif
 			if (ast_exists_extension(NULL, p->context, p->ext, 1, p->callerid)){
 				if ( ast_canmatch_extension(NULL, p->context, p->ext, 1, p->callerid)){
 					if (option_verbose > 3)
@@ -1419,7 +1433,7 @@ static void mkbrd(vpb_model_t model, int echo_cancel)
 
 static struct vpb_pvt *mkif(int board, int channel, int mode, int gains, float txgain, float rxgain,
 			 float txswgain, float rxswgain, int bal1, int bal2, int bal3,
-			 char * callerid, int echo_cancel, int group )
+			 char * callerid, int echo_cancel, int group, ast_group_t callgroup, ast_group_t pickupgroup )
 {
 	struct vpb_pvt *tmp;
 	char buf[64];
@@ -1443,6 +1457,8 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, int gains, float t
 	tmp->mode = mode;
 
 	tmp->group = group;
+	tmp->callgroup = callgroup;
+	tmp->pickupgroup = pickupgroup;
 
 	/* Initilize dtmf caller ID position variable */
 	tmp->dtmf_caller_pos=0;
@@ -2481,6 +2497,9 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, int state, char *context)
 		tmp->tech = &vpb_tech;
 		strncpy(tmp->name, me->dev, sizeof(tmp->name) - 1);
 		tmp->type = type;
+		
+		tmp->callgroup = me->callgroup;
+		tmp->pickupgroup = me->pickupgroup;
 	       
 		/* Linear is the preferred format. Although Voicetronix supports other formats
 		 * they are all converted to/from linear in the vpb code. Best for us to use
@@ -2620,6 +2639,8 @@ int load_module()
 	struct ast_variable *v;
 	struct vpb_pvt *tmp;
 	int board = 0, group = 0;
+	ast_group_t	callgroup = 0;
+	ast_group_t	pickupgroup = 0;
 	int mode = MODE_IMMEDIATE;
 	float txgain = DEFAULT_GAIN, rxgain = DEFAULT_GAIN; 
 	float txswgain = 0, rxswgain = 0; 
@@ -2690,13 +2711,17 @@ int load_module()
 				board = atoi(v->value);
 			} else  if (strcasecmp(v->name, "group") == 0){
 				group = atoi(v->value);
+			} else  if (strcasecmp(v->name, "callgroup") == 0){
+				callgroup = ast_get_group(v->value);
+			} else  if (strcasecmp(v->name, "pickupgroup") == 0){
+				pickupgroup = ast_get_group(v->value);
 			} else  if (strcasecmp(v->name, "useloopdrop") == 0){
 				UseLoopDrop = atoi(v->value);
 			} else  if (strcasecmp(v->name, "usenativebridge") == 0){
 				UseNativeBridge = atoi(v->value);
 			} else if (strcasecmp(v->name, "channel") == 0) {
 				int channel = atoi(v->value);
-				tmp = mkif(board, channel, mode, got_gain, txgain, rxgain, txswgain, rxswgain, bal1, bal2, bal3, callerid, echo_cancel,group);
+				tmp = mkif(board, channel, mode, got_gain, txgain, rxgain, txswgain, rxswgain, bal1, bal2, bal3, callerid, echo_cancel,group,callgroup,pickupgroup);
 				if (tmp) {
 					if(first_channel) {
 						mkbrd( tmp->vpb_model, echo_cancel );
