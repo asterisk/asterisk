@@ -100,10 +100,6 @@ static char *app_rqm_descrip =
 "Example: RemoveQueueMember(techsupport|SIP/3000)\n"
 "";
 
-/* whether to exit Queue application after the timeout hits */
-static int go_on = 0;
-
-
 /* We define a customer "local user" structure because we
    use it not only for keeping track of what is in use but
    also for keeping track of who we're dialing. */
@@ -694,7 +690,7 @@ static int calc_metric(struct ast_call_queue *q, struct member *mem, int pos, st
 	return 0;
 }
 
-static int try_calling(struct queue_ent *qe, char *options, char *announceoverride, char *url)
+static int try_calling(struct queue_ent *qe, char *options, char *announceoverride, char *url, int *go_on)
 {
 	struct member *cur;
 	struct localuser *outgoing=NULL, *tmp = NULL;
@@ -742,7 +738,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 			if (strchr(options, 'H'))
 				tmp->allowdisconnect = 1;
 			if (strchr(options, 'n'))
-				go_on = 1;
+				*go_on = 1;
 		}
 		if (url) {
 			ast_log(LOG_DEBUG, "Queue with URL=%s_\n", url);
@@ -1100,7 +1096,11 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	char *options = NULL;
 	char *url = NULL;
 	char *announceoverride = NULL;
-	
+	/* whether to exit Queue application after the timeout hits */
+	int go_on = 0;
+
+
+
 	/* Our queue entry */
 	struct queue_ent qe;
 	
@@ -1158,14 +1158,9 @@ static int queue_exec(struct ast_channel *chan, void *data)
 		}
 		if (!res) {
 			for (;;) {
-				res = try_calling(&qe, options, announceoverride, url);
+				res = try_calling(&qe, options, announceoverride, url, &go_on);
 				if (res)
 					break;
-				/* exit after a timeout if 'n' option enabled */
-				if (go_on) {
-					res = 0;
-					break;
-				}
 				res = wait_a_bit(&qe);
 				if (res < 0) {
 					if (option_verbose > 2) {
@@ -1176,6 +1171,12 @@ static int queue_exec(struct ast_channel *chan, void *data)
 				}
 				if (res && valid_exit(&qe, res))
 					break;
+
+				/* exit after a timeout if 'n' option enabled */
+				if (go_on) {
+					res = 0;
+					break;
+				}
 			}
 		}
 		/* Don't allow return code > 0 */
