@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-MODS=cdr_csv.so
+MODS=cdr_csv.so cdr_pgsql.so
 
 CFLAGS+=-fPIC
 
@@ -27,6 +27,7 @@ MODS+=$(shell if [ -f "/usr/local/include/odbcinst.h" ]; then echo "cdr_odbc.so"
 MODS+=$(shell if [ -d /usr/local/pgsql/include ] || [ -d /usr/include/pgsql ] || [ -d /usr/local/include/pgsql ] || [ -d /opt/pgsql/include ] || [ -f /usr/include/libpq-fe.h ] ; then echo "cdr_pgsql.so"; fi)
 CFLAGS+=$(shell if [ -d /usr/local/pgsql/include ]; then echo "-I/usr/local/pgsql/include"; fi)
 CFLAGS+=$(shell if [ -d /usr/include/pgsql ]; then echo "-I/usr/include/pgsql"; fi)
+CFLAGS+=$(shell if [ -d /usr/include/postgresql ]; then echo "-I/usr/include/postgresql"; fi)
 CFLAGS+=$(shell if [ -d /usr/local/include/pgsql ]; then echo "-I/usr/local/include/pgsql"; fi)
 CFLAGS+=$(shell if [ -d /opt/pgsql/include ]; then echo "-I/opt/pgsql/include"; fi)
 CFLAGS+=$(shell if [ -f /usr/include/libpq-fe.h ]; then echo "-I/usr/include"; fi)
