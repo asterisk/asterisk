@@ -575,11 +575,11 @@ static int park_exec(struct ast_channel *chan, void *data)
 		   were the person called. */
 		if (option_verbose > 2) 
 			ast_verbose(VERBOSE_PREFIX_3 "Channel %s connected to parked call %d\n", chan->name, park);
-		res = ast_bridge_call(peer, chan, 1, 1, 0);
+		res = ast_bridge_call(chan, peer, 1, 1, 0);
 		/* Simulate the PBX hanging up */
-		if (res != AST_PBX_KEEPALIVE)
+		if (res != AST_PBX_NO_HANGUP_PEER)
 			ast_hangup(peer);
-		return -1;
+		return res;
 	} else {
 		/* XXX Play a message XXX */
 	  dres = ast_streamfile(chan, "pbx-invalidpark", chan->language);
