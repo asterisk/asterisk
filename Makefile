@@ -203,7 +203,7 @@ stdtime/localtime.o:
 	fi
 
 asterisk: editline/libedit.a db1-ast/libdb1.a stdtime/localtime.o $(OBJS)
-	$(CC) $(DEBUG) -o asterisk -rdynamic $(OBJS) $(LIBS) $(LIBEDIT) db1-ast/libdb1.a stdtime/localtime.o
+	$(CC) $(DEBUG) -o asterisk -Wl,-E $(OBJS) $(LIBS) $(LIBEDIT) db1-ast/libdb1.a stdtime/localtime.o
 
 subdirs: 
 	for x in $(SUBDIRS); do $(MAKE) -C $$x || exit 1 ; done
@@ -412,6 +412,6 @@ valgrind: dont-optimize
 depend: .depend
 	for x in $(SUBDIRS); do $(MAKE) -C $$x depend || exit 1 ; done
 
-.depend:
+.depend: build.h
 	./mkdep ${CFLAGS} `ls *.c`
 
