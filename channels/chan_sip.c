@@ -1947,6 +1947,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 {
 	struct ast_channel *tmp;
 	int fmt;
+
 	ast_mutex_unlock(&i->lock);
 	/* Don't hold a sip pvt lock while we allocate a channel */
 	tmp = ast_channel_alloc(1);
@@ -3650,9 +3651,11 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	else
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=as%08x", n, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, p->tag);
 
+	/* If we're calling a registred SIP peer, use the fullcontact to dial to the peer */
 	if (!ast_strlen_zero(p->fullcontact)) {
 		/* If we have full contact, trust it */
 		strncpy(invite, p->fullcontact, sizeof(invite) - 1);
+	/* Otherwise, use the username while waiting for registration */
 	} else if (!ast_strlen_zero(p->username)) {
 		if (ntohs(p->sa.sin_port) != DEFAULT_SIP_PORT) {
 			snprintf(invite, sizeof(invite), "sip:%s@%s:%d",p->username, p->tohost, ntohs(p->sa.sin_port));
@@ -7984,8 +7987,15 @@ static struct ast_channel *sip_request(const char *type, int format, void *data)
 	else /* UNIDEN bug */
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
 	build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
-	if (ext)
+	
+	/* We have an extension to call, don't use the full contact here */
+	/* This to enable dialling registred peers with extension dialling,
+	   like SIP/peername/extension 	
+	   SIP/peername will still use the full contact */
+	if (ext) {
 		strncpy(p->username, ext, sizeof(p->username) - 1);
+		p->fullcontact[0] = 0;	
+	}
 #if 0
 	printf("Setting up to call extension '%s' at '%s'\n", ext ? ext : "<none>", host);
 #endif
