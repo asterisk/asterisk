@@ -85,7 +85,6 @@ struct ast_rtp {
 	int dtmfcount;
 	unsigned int dtmfduration;
 	int nat;
-	int digitssent;
 	int flags;
 	struct sockaddr_in us;
 	struct sockaddr_in them;
@@ -1011,7 +1010,6 @@ void ast_rtp_reset(struct ast_rtp *rtp)
 	memset(&rtp->dtmfmute, 0, sizeof(rtp->dtmfmute));
 	rtp->lastts = 0;
 	rtp->lastrxts = 0;
-	rtp->digitssent = 0;
 	rtp->lastividtimestamp = 0;
 	rtp->lastovidtimestamp = 0;
 	rtp->lasteventseqn = 0;
@@ -1103,14 +1101,10 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	
 	/* Get a pointer to the header */
 	rtpheader = (unsigned int *)data;
-	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (payload << 16) | rtp->seqno);
-	rtpheader[1] = htonl(rtp->lastts + (rtp->digitssent * 160));
+	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (payload << 16) | (rtp->seqno++));
+	rtpheader[1] = htonl(rtp->lastts);
 	rtpheader[2] = htonl(rtp->ssrc); 
 	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
-
-	rtp->seqno++;
-	rtp->digitssent++;
-
 	for (x=0;x<6;x++) {
 		if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
 			res = sendto(rtp->s, (void *)rtpheader, hdrlen + 4, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
@@ -1278,7 +1272,6 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	put_uint32(rtpheader + 4, htonl(rtp->lastts));
 	put_uint32(rtpheader + 8, htonl(rtp->ssrc)); 
 
-	rtp->digitssent = 0;
 	rtp->seqno++;
 
 	if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
