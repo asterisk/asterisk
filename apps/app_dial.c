@@ -186,6 +186,17 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					*allowdisconnect = o->allowdisconnect;
 				}
 			} else if (o->chan == winner) {
+				if (strlen(o->chan->call_forward)) {
+					/* Before processing channel, go ahead and check for forwarding */
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s@%s' (thanks to %s)\n", in->name, o->chan->call_forward, o->chan->context, o->chan->name);
+					/* Setup parameters */
+					strncpy(in->exten, o->chan->call_forward, sizeof(in->exten));
+					strncpy(in->context, o->chan->context, sizeof(in->context));
+					in->priority = 0;
+					*to = 0;
+					break;
+				}
 				f = ast_read(winner);
 				if (f) {
 					if (f->frametype == AST_FRAME_CONTROL) {
