@@ -11,6 +11,10 @@
  *
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
@@ -18,10 +22,6 @@
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
 #include <asterisk/say.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 
 
 static char *tdesc = "Say time";
@@ -60,7 +60,7 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 
 	if (data) {
 		s = data;
-		s = strdupa(s);
+		s = ast_strdupa(s);
 		if (s) {
 			timec = strsep(&s,"|");
 			if ((timec) && (*timec != '\0')) {
