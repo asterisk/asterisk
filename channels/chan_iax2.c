@@ -1577,6 +1577,22 @@ static int auto_congest(void *nothing)
 	return 0;
 }
 
+static unsigned int iax2_datetime(void)
+{
+	time_t t;
+	struct tm tm;
+	unsigned int tmp;
+	time(&t);
+	localtime_r(&t, &tm);
+	tmp  = (tm.tm_sec >> 1) & 0x1f;	  /* 5 bits of seconds */
+	tmp |= (tm.tm_min & 0x3f) << 5;   /* 6 bits of minutes */
+	tmp |= (tm.tm_hour & 0x1f) << 11;   /* 5 bits of hours */
+	tmp |= (tm.tm_mday & 0x1f) << 16; /* 5 bits of day of month */
+	tmp |= ((tm.tm_mon + 1) & 0xf) << 21; /* 4 bits of month */
+	tmp |= ((tm.tm_year - 100) & 0x7f) << 25; /* 7 bits of year */
+	return tmp;
+}
+
 static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 {
 	struct sockaddr_in sin;
@@ -1697,6 +1713,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	iax_ie_append_int(&ied, IAX_IE_FORMAT, c->nativeformats);
 	iax_ie_append_int(&ied, IAX_IE_CAPABILITY, p->capability);
 	iax_ie_append_short(&ied, IAX_IE_ADSICPE, c->adsicpe);
+	iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime());
 	/* Transmit the string in a "NEW" request */
 #if 0
 	/* XXX We have no equivalent XXX */

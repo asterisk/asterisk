@@ -119,6 +119,7 @@ static struct iax2_ie {
 	{ IAX_IE_RDNIS, "REFERRING DNIS", dump_string },
 	{ IAX_IE_PROVISIONING, "PROVISIONING" },
 	{ IAX_IE_AESPROVISIONING, "AES PROVISIONING" },
+	{ IAX_IE_DATETIME, "DATE TIME", dump_int },
 };
 
 const char *iax_ie2str(int ie)
@@ -498,6 +499,13 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				errorf(tmp);
 			} else
 				ies->transferid = ntohl(*((unsigned int *)(data + 2)));
+			break;
+		case IAX_IE_DATETIME:
+			if (len != sizeof(unsigned int)) {
+				snprintf(tmp, sizeof(tmp), "Expecting date/time to be %d bytes long but was %d\n", sizeof(unsigned int), len);
+				errorf(tmp);
+			} else
+				ies->datetime = ntohl(*((unsigned int *)(data + 2)));
 			break;
 		default:
 			snprintf(tmp, sizeof(tmp), "Ignoring unknown information element '%s' (%d) of length %d\n", iax_ie2str(ie), ie, len);
