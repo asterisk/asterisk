@@ -3662,13 +3662,26 @@ static void md5_hash(char *output, char *input)
 			ptr += sprintf(ptr, "%2.2x", digest[x]);
 }
 
-static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata, int randlen, char *username, char *secret, char *md5secret, char *method, char *uri, int reliable)
+static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata, int randlen, char *username, char *secret, char *md5secret, char *method, char *uri, int reliable, int ignore)
 {
 	int res = -1;
 	/* Always OK if no secret */
 	if (!strlen(secret) && !strlen(md5secret))
 		return 0;
-	if (!strlen(randdata) || !strlen(get_header(req, "Proxy-Authorization"))) {
+	if (ignore) {
+		/* This is a retransmitted invite/register/etc, don't reconstruct authentication
+		   information */
+		if (strlen(randdata)) {
+			if (!reliable) {
+				/* Resend message if this was NOT a reliable delivery.   Otherwise the
+				   retransmission should get it */
+				transmit_response_with_auth(p, "407 Proxy Authentication Required", req, randdata, reliable);
+				/* Schedule auto destroy in 15 seconds */
+				sip_scheddestroy(p, 15000);
+			}
+			res = 1;
+		}
+	} else if (!strlen(randdata) || !strlen(get_header(req, "Proxy-Authorization"))) {
 		snprintf(randdata, randlen, "%08x", rand());
 		transmit_response_with_auth(p, "407 Proxy Authentication Required", req, randdata, reliable);
 		/* Schedule auto destroy in 15 seconds */
@@ -3769,7 +3782,7 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
     return 0;
 }
 
-static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct sip_request *req, char *uri)
+static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct sip_request *req, char *uri, int ignore)
 {
 	int res = -1;
 	struct sip_peer *peer;
@@ -3818,7 +3831,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 			} else {
 				p->nat = peer->nat;
 				transmit_response(p, "100 Trying", req);
-				if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, peer->md5secret, "REGISTER", uri, 0))) {
+				if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, peer->md5secret, "REGISTER", uri, 0, ignore))) {
 					sip_cancel_destroy(p);
 					if (parse_contact(p, peer, req)) {
 						ast_log(LOG_WARNING, "Failed to parse contact info\n");
@@ -4191,7 +4204,7 @@ static char *get_calleridname(char *input,char *output)
 	}
 	return output;
 }
-static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, char *uri, int reliable, struct sockaddr_in *sin)
+static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, char *uri, int reliable, struct sockaddr_in *sin, int ignore)
 {
 	struct sip_user *user;
 	struct sip_peer *peer;
@@ -4248,7 +4261,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", p->nat);
 				ast_rtp_setnat(p->vrtp, p->nat);
 			}
-			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, cmd, uri, reliable))) {
+			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, cmd, uri, reliable, ignore))) {
 				sip_cancel_destroy(p);
 				if (strlen(user->context))
 					strncpy(p->context, user->context, sizeof(p->context) - 1);
@@ -5327,7 +5340,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ast_verbose("Ignoring this request\n");
 		if (!p->lastinvite) {
 			/* Handle authentication if this is our first invite */
-			res = check_user(p, req, cmd, e, 1, sin);
+			res = check_user(p, req, cmd, e, 1, sin, ignore);
 			if (res) {
 				if (res < 0) {
 					ast_log(LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
@@ -5553,7 +5566,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 
 		if (!p->lastinvite) {
 			/* Handle authentication if this is our first subscribe */
-			res = check_user(p, req, cmd, e, 0, sin);
+			res = check_user(p, req, cmd, e, 0, sin, ignore);
 			if (res) {
 				if (res < 0) {
 					ast_log(LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
@@ -5615,7 +5628,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ast_verbose("Using latest request as basis request\n");
 		copy_request(&p->initreq, req);
 		check_via(p, req);
-		if ((res = register_verify(p, sin, req, e)) < 0) 
+		if ((res = register_verify(p, sin, req, e, ignore)) < 0) 
 			ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s'\n", get_header(req, "To"), inet_ntoa(sin->sin_addr));
 		if (res < 1) {
 			p->needdestroy = 1;
