@@ -54,6 +54,7 @@ struct ast_frame_chain {
 #define AST_FRAME_VIDEO		3		/* Video frame, maybe?? :) */
 #define AST_FRAME_CONTROL	4		/* A control frame, subclass is AST_CONTROL_* */
 #define AST_FRAME_NULL		5		/* An empty, useless frame */
+#define AST_FRAME_IAX		6		/* Inter Aterisk Exchange private frame type */
 
 /* Data formats for capabilities and frames alike */
 #define AST_FORMAT_G723_1	(1 << 0)	/* G.723.1 compression */
@@ -61,8 +62,9 @@ struct ast_frame_chain {
 #define AST_FORMAT_ULAW		(1 << 2)	/* Raw mu-law data (G.711) */
 #define AST_FORMAT_ALAW		(1 << 3)	/* Raw A-law data (G.711) */
 #define AST_FORMAT_MP3		(1 << 4)	/* MPEG-2 layer 3 */
-#define AST_FORMAT_ADPCM	(1 << 5)	/* ADPCM */
+#define AST_FORMAT_ADPCM	(1 << 5)	/* ADPCM (whose?) */
 #define AST_FORMAT_SLINEAR	(1 << 6)	/* Raw 16-bit Signed Linear (8000 Hz) PCM */
+#define AST_FORMAT_LPC10	(1 << 7)	/* LPC10, 180 samples/frame */
 #define AST_FORMAT_MAX_AUDIO (1 << 15)	/* Maximum audio format */
 #define AST_FORMAT_JPEG		(1 << 16)	/* JPEG Images */
 #define AST_FORMAT_PNG		(1 << 17)	/* PNG Images */
@@ -91,7 +93,20 @@ void ast_frfree(struct ast_frame *fr);
    you should call this function. */
 struct ast_frame *ast_frisolate(struct ast_frame *fr);
 
+/* Dupliates a frame -- should only rarely be used, typically frisolate is
+   good enough */
+struct ast_frame *ast_frdup(struct ast_frame *fr);
+
 void ast_frchain(struct ast_frame_chain *fc);
+
+/* Read a frame from a stream or packet fd, as written by fd_write */
+struct ast_frame *ast_fr_fdread(int fd);
+
+/* Write a frame to an fd */
+int ast_fr_fdwrite(int fd, struct ast_frame *frame);
+
+/* Get a format by its name */
+extern int ast_getformatbyname(char *name);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
