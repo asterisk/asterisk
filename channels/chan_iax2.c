@@ -2330,8 +2330,13 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		/* Request auto answer */
 		iax_ie_append(&ied, IAX_IE_AUTOANSWER);
 	}
-	if (l)
+	if (l) {
 		iax_ie_append_str(&ied, IAX_IE_CALLING_NUMBER, l);
+		iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES, c->cid.cid_pres);
+	} else
+		iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES, AST_PRES_NUMBER_NOT_AVAILABLE);
+	iax_ie_append_byte(&ied, IAX_IE_CALLINGTON, c->cid.cid_ton);
+	iax_ie_append_short(&ied, IAX_IE_CALLINGTNS, c->cid.cid_tns);
 	if (n)
 		iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, n);
 	if (iaxs[callno]->sendani && c->cid.cid_ani) {
@@ -2732,6 +2737,9 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
 		if (!ast_strlen_zero(i->dnid))
 			tmp->cid.cid_dnid = strdup(i->dnid);
+		tmp->cid.cid_pres = i->calling_pres;
+		tmp->cid.cid_ton = i->calling_ton;
+		tmp->cid.cid_tns = i->calling_tns;
 		if (!ast_strlen_zero(i->accountcode))
 			strncpy(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode)-1);
 		if (i->amaflags)
@@ -3720,7 +3728,12 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			if (user->hascallerid) {
 				strncpy(iaxs[callno]->cid_num, user->cid_num, sizeof(iaxs[callno]->cid_num)-1);
 				strncpy(iaxs[callno]->cid_name, user->cid_name, sizeof(iaxs[callno]->cid_name)-1);
+				iaxs[callno]->calling_pres = 0;
+			} else {
+				iaxs[callno]->calling_pres = AST_PRES_NUMBER_NOT_AVAILABLE;
 			}
+			iaxs[callno]->calling_tns = 0;
+			iaxs[callno]->calling_ton = 0;
 			strncpy(iaxs[callno]->ani, user->cid_num, sizeof(iaxs[callno]->ani)-1);
 		}
 		if (!ast_strlen_zero(user->accountcode))
