@@ -858,6 +858,8 @@ int h323_set_capability(int cap, int dtmfMode)
 		return 1;
 	}
 
+	endPoint->SetCapability(0, 0, 0);
+
 	mode = dtmfMode;
 	if (dtmfMode == H323_DTMF_INBAND) {
 	    endPoint->SetSendUserInputMode(H323Connection::SendUserInputAsTone);
