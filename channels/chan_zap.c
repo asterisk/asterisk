@@ -6535,9 +6535,12 @@ static void *pri_dchannel(void *vpri)
 						if (res < 0)
 							ast_log(LOG_WARNING, "Unable to set gains on channel %d\n", pri->pvt[chan]->channel);
 						if (e->ring.complete || !pri->overlapdial) {
-							/* We don't send acknowledge here because that means ringing, and that
-							   isn't necessarily the case */
-							/* pri_acknowledge(pri->pri, e->ring.call, chan, 1); */
+							/* Just announce proceeding */
+#ifdef PRI_PROCEEDING
+							pri_proceeding(pri->pri, e->ring.call, 0);
+#else
+#warning "You need newer libpri!"
+#endif							
 						} else  {
 							pri_need_more_info(pri->pri, e->ring.call, chan, 1);
 						}
