@@ -63,6 +63,7 @@ static char *descrip =
 "      'r' -- indicate ringing to the calling party, pass no audio until answered.\n"
 "      'm' -- provide hold music to the calling party until answered.\n"
 "      'd' -- data-quality (modem) call (minimum delay).\n"
+"      'c' -- clear-channel data call (PRI-PRI only).\n"
 "      'H' -- allow caller to hang up by hitting *.\n"
 "      'C' -- reset call detail record for this call.\n"
 "      'P[(x)]' -- privacy mode, using 'x' as database if provided.\n"
@@ -82,6 +83,7 @@ struct localuser {
 	int ringbackonly;
 	int musiconhold;
 	int dataquality;
+	int clearchannel;
 	int allowdisconnect;
 	struct localuser *next;
 };
@@ -427,6 +429,9 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			if (strchr(transfer, 'H'))
 				tmp->allowdisconnect = 1;
                         else    tmp->allowdisconnect = 0;
+			if (strchr(transfer, 'c'))
+				tmp->clearchannel = 1;
+                        else    tmp->clearchannel = 0;
 		}
 		strncpy(numsubst, number, sizeof(numsubst)-1);
 		/* If we're dialing by extension, look at the extension to know what to dial */
@@ -543,18 +548,14 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		if (!strcmp(chan->type,"Zap"))
 		{
 			int x = 2;
-			if (tmp->dataquality) x = 0;
+			if (tmp->dataquality | tmp->clearchannel) x = 0;
 			ast_channel_setoption(chan,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
-			x = 0;
-			ast_channel_setoption(chan,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 		}			
 		if (!strcmp(peer->type,"Zap"))
 		{
 			int x = 2;
 			if (tmp->dataquality) x = 0;
 			ast_channel_setoption(peer,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
-			x = 0;
-			ast_channel_setoption(chan,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 		}			
 		hanguptree(outgoing, peer);
 		outgoing = NULL;
@@ -577,7 +578,19 @@ static int dial_exec(struct ast_channel *chan, void *data)
  			ast_log(LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
  			ast_channel_sendurl( peer, url );
  		} /* /JDG */
-		res = ast_bridge_call(chan, peer, allowredir, allowdisconnect | tmp->dataquality);
+		if (tmp->clearchannel)
+		{
+			int x = 0;
+			ast_channel_setoption(chan,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+			ast_channel_setoption(peer,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+		}
+		res = ast_bridge_call(chan, peer, allowredir, allowdisconnect | tmp->clearchannel);
+		if (tmp->clearchannel)
+		{
+			int x = 1;
+			ast_channel_setoption(chan,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+			ast_channel_setoption(peer,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+		}
 		ast_hangup(peer);
 	}	
 out:

@@ -1433,6 +1433,9 @@ static int zt_hangup(struct ast_channel *ast)
 	
 	index = zt_get_index(ast, p, 1);
 
+	x = 1;
+	ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+
 	restore_gains(p);
 	
 	if (p->dsp)
@@ -1617,8 +1620,6 @@ static int zt_hangup(struct ast_channel *ast)
 		x = 0;
 		ast_channel_setoption(ast,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
 		ast_channel_setoption(ast,AST_OPTION_TDD,&x,sizeof(char),0);
-		x = 1;
-		ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 		p->didtdd = 0;
 		p->cidspill = NULL;
 		p->callwaitcas = 0;
@@ -1864,6 +1865,7 @@ int	x;
 		{		
 			ast_log(LOG_DEBUG, "Set option AUDIO MODE, value: OFF(0) on %s\n",chan->name);
 			x = 0;
+			zt_disable_ec(p);
 		}
 		else
 		{		
@@ -5461,10 +5463,10 @@ static void *pri_dchannel(void *vpri)
 						ast_verbose(VERBOSE_PREFIX_2 "Restart on requested on entire span %d\n", pri->span);
 					for (x=1;x <= pri->channels;x++)
 						if ((x != pri->dchannel) && pri->pvt[x]) {
-							ast_pthread_mutex_lock(&pri->pvt[chan]->lock);
+							ast_pthread_mutex_lock(&pri->pvt[x]->lock);
  							if (pri->pvt[x]->owner)
 								pri->pvt[x]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
-							ast_pthread_mutex_unlock(&pri->pvt[chan]->lock);
+							ast_pthread_mutex_unlock(&pri->pvt[x]->lock);
 						}
 				}
 				break;
