@@ -7535,7 +7535,7 @@ restartsearch:
 					}
 				}
 			}
-			if (sip->needdestroy && !sip->packets) {
+			if (sip->needdestroy && !sip->packets && !sip->owner) {
 				ast_mutex_unlock(&sip->lock);
 				__sip_destroy(sip, 1);
 				goto restartsearch;
