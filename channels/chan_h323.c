@@ -75,6 +75,12 @@ static int  usingGk;
 static int	port = 1720;
 static int  gkroute = 0;
 
+/* to find user by alias is default, alternative is the incomming call's source IP 
+address*/
+static int  userbyalias = 1;
+
+static int  bridge_default = 1;
+
 /* Just about everybody seems to support ulaw, so make it a nice default */
 static int capability = AST_FORMAT_ULAW;
 
@@ -227,7 +233,7 @@ static struct oh323_user *build_user(char *name, struct ast_variable *v)
 		/* set the usage flag to a sane starting value*/
 		user->inUse = 0;
 		/* Assume we can native bridge */
-		user->bridge = 1; 
+		user->bridge = bridge_default; 
 
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
@@ -722,7 +728,7 @@ static struct oh323_pvt *oh323_alloc(int callid)
 	ast_mutex_init(&p->lock);
 	
 	p->cd.call_reference = callid;
-	p->bridge = 1;
+	p->bridge = bridge_default;
 	
 	p->dtmfmode = dtmfmode;
 	if (p->dtmfmode & H323_DTMF_RFC2833)
@@ -843,18 +849,28 @@ struct oh323_alias *find_alias(const char *source_aliases)
 	return a;
 }
 
-struct oh323_user *find_user(const char *source_aliases)
+struct oh323_user *find_user(const call_details_t cd)
 {
 	struct oh323_user *u;
 
 	u = userl.users;
-
-	while(u) {
-
-		if (!strcasecmp(u->name, source_aliases)) {
-			break;
+	if(userbyalias == 1){
+		while(u) {
+			if (!strcasecmp(u->name, cd.call_source_aliases)) {
+				break;
+			}
+			u = u->next;
 		}
-		u = u->next;
+
+	} else {
+		while(u) {
+			if (!strcasecmp(cd.sourceIp, inet_ntoa(u->addr.sin_addr))) {
+				break;
+			}
+			u = u->next;
+		}
+
+	
 	}
 	return u;
 
@@ -1008,7 +1024,7 @@ int setup_incoming_call(call_details_t cd)
 		   or we are not allowing gk routed calls */
 		
 
-		user  = find_user(cd.call_source_aliases);
+		user  = find_user(cd);
 
 
 		if (!user) {
@@ -1176,7 +1192,7 @@ void cleanup_connection(call_details_t cd)
 
 	/* Decrement usage counter */
 	if (!p->outgoing) {
-		user = find_user(cd.call_source_aliases);
+		user = find_user(cd);
 		
 		if(user)
 			user->inUse--;
@@ -1187,7 +1203,7 @@ void cleanup_connection(call_details_t cd)
 		peer = find_peer(cd.call_dest_alias);
 		peer->inUse--;
 	} else {
-		user = find_user(cd.call_source_aliases);
+		user = find_user(cd);
 		user->inUse--;
 	}
 #endif
@@ -1466,7 +1482,11 @@ int reload_config(void)
 				ast_log(LOG_WARNING, "Unknown dtmf mode '%s', using rfc2833\n", v->value);
 				dtmfmode = H323_DTMF_RFC2833;
 			}
-		}
+		} else if (!strcasecmp(v->name, "UserByAlias")) {
+                        userbyalias = ast_true(v->value);
+                } else if (!strcasecmp(v->name, "bridge")) {
+                        bridge_default = ast_true(v->value);
+                }
 		v = v->next;	
 	}
 	
