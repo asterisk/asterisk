@@ -172,11 +172,16 @@ AST_MUTEX_DEFINE_STATIC(monlock);
 /* Protect the H.323 capabilities list, to avoid more than one channel to set the capabilities simultaneaously in the h323 stack. */
 AST_MUTEX_DEFINE_STATIC(caplock);
 
+/* Protect the reload process */
+AST_MUTEX_DEFINE_STATIC(h323_reload_lock);
+static int h323_reloading = 0;
+
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
 static pthread_t monitor_thread = AST_PTHREADT_NULL;
 
 static int restart_monitor(void);
+static int h323_do_reload(void);
 
 static void __oh323_destroy(struct oh323_pvt *p)
 {
@@ -1373,9 +1378,21 @@ void cleanup_connection(call_details_t cd)
 static void *do_monitor(void *data)
 {
 	int res;
+	int reloading;
 	struct oh323_pvt *oh323 = NULL;
 	
 		for(;;) {
+		 /* Check for a reload request */
+                ast_mutex_lock(&h323_reload_lock);
+                reloading = h323_reloading;
+                h323_reloading = 0;
+                ast_mutex_unlock(&h323_reload_lock);
+                if (reloading) {
+                        if (option_verbose > 0) {
+                                ast_verbose(VERBOSE_PREFIX_1 "Reloading H.323\n");
+			}
+                        h323_do_reload();
+                }
 		/* Check for interfaces needing to be killed */
 		ast_mutex_lock(&iflock);
 restartsearch:		
@@ -1388,30 +1405,30 @@ restartsearch:
 			oh323 = oh323->next;
 		}
 		ast_mutex_unlock(&iflock);
-
+		pthread_testcancel();
 		/* Wait for sched or io */
 		res = ast_sched_wait(sched);
-		if ((res < 0) || (res > 1000))
+		if ((res < 0) || (res > 1000)) {
 			res = 1000;
+		}
 		res = ast_io_wait(io, res);
-
-		pthread_testcancel();
-
 		ast_mutex_lock(&monlock);
-		if (res >= 0) 
+		if (res >= 0) {
 			ast_sched_runq(sched);
+		}
 		ast_mutex_unlock(&monlock);
 	}
 	/* Never reached */
 	return NULL;
-	
 }
 
 static int restart_monitor(void)
 {
+	pthread_attr_t attr;
 	/* If we're supposed to be stopped -- stay stopped */
-	if (monitor_thread == AST_PTHREADT_STOP)
+	if (monitor_thread == AST_PTHREADT_STOP) {
 		return 0;
+	}
 	if (ast_mutex_lock(&monlock)) {
 		ast_log(LOG_WARNING, "Unable to lock monitor\n");
 		return -1;
@@ -1424,13 +1441,16 @@ static int restart_monitor(void)
 	if (monitor_thread && (monitor_thread != AST_PTHREADT_NULL)) {
 		/* Wake up the thread */
 		pthread_kill(monitor_thread, SIGURG);
-	} else {
-		/* Start a new monitor */
-		if (ast_pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {
-			ast_mutex_unlock(&monlock);
-			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
-			return -1;
-		}
+	} else {	
+	 	pthread_attr_init(&attr);
+                pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+                /* Start a new monitor */
+                if (ast_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {
+                        ast_mutex_unlock(&monlock);
+                        ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
+                        return -1;
+                }
+
 	}
 	ast_mutex_unlock(&monlock);
 	return 0;
@@ -1555,6 +1575,10 @@ static char show_tokens_usage[] =
 "Usage: h.323 show tokens\n"
 "       Print out all active call tokens\n";
 
+static char h323_reload_usage[] =
+"Usage: h323 reload\n"
+"       Reloads H.323 configuration from sip.conf\n";
+
 static struct ast_cli_entry  cli_trace =
 	{ { "h.323", "trace", NULL }, h323_do_trace, "Enable H.323 Stack Tracing", trace_usage };
 static struct ast_cli_entry  cli_no_trace =
@@ -1575,8 +1599,7 @@ static struct ast_cli_entry  cli_show_tokens =
 
 
 int reload_config(void)
-{
-	
+{	
 	int format;
 	struct ast_config *cfg;
 	struct ast_variable *v;
@@ -1801,17 +1824,37 @@ void prune_peers(void)
 	ast_mutex_unlock(&peerl.lock);
 }
 
-int reload(void)
+static int h323_reload(int fd, int argc, char *argv[])
 {
-	delete_users();
-	delete_aliases();
-	prune_peers();
-	reload_config();
-
-	restart_monitor();
-	return 0;
+	ast_mutex_lock(&h323_reload_lock);
+        if (h323_reloading) {
+                ast_verbose("Previous H.323 reload not yet done\n");
+        } else {
+                h323_reloading = 1;
+        }
+	ast_mutex_unlock(&h323_reload_lock);
+        restart_monitor();
+        return 0;
 }
 
+static int h323_do_reload(void)
+{
+	delete_users();
+        delete_aliases();
+        prune_peers();
+        reload_config();
+        restart_monitor();
+        return 0;
+}
+
+int reload(void)
+{
+	return h323_reload(0, 0, NULL);
+}
+
+
+static struct ast_cli_entry  cli_h323_reload =
+        { { "h.323", "reload", NULL }, h323_reload, "Reload H.323 configuration", h323_reload_usage };
 
 static struct ast_rtp *oh323_get_rtp_peer(struct ast_channel *chan)
 {
@@ -1893,13 +1936,19 @@ static struct ast_rtp_protocol oh323_rtp = {
 int load_module()
 {
 	int res;
-
         ast_mutex_init(&userl.lock);
         ast_mutex_init(&peerl.lock);
         ast_mutex_init(&aliasl.lock);
-
+	sched = sched_context_create();
+	if (!sched) {
+		ast_log(LOG_WARNING, "Unable to create schedule context\n");
+	}
+	io = io_context_create();
+	if (!io) {
+		ast_log(LOG_WARNING, "Unable to create I/O context\n");
+	}
+		
 	res = reload_config();
-
 	if (res) {
 		return 0;
 	} else {
@@ -1917,19 +1966,11 @@ int load_module()
 		ast_cli_register(&cli_gk_cycle);
 		ast_cli_register(&cli_hangup_call);
 		ast_cli_register(&cli_show_tokens);
+		ast_cli_register(&cli_h323_reload);
 
 		oh323_rtp.type = type;
 		ast_rtp_proto_register(&oh323_rtp);
 
-		sched = sched_context_create();
-		if (!sched) {
-			ast_log(LOG_WARNING, "Unable to create schedule context\n");
-		}
-		io = io_context_create();
-		if (!io) {
-			ast_log(LOG_WARNING, "Unable to create I/O context\n");
-		}
-		
 		/* Register our callback functions */
 		h323_callback_register(setup_incoming_call, 
 			               setup_outgoing_call,							 
@@ -2024,7 +2065,8 @@ int unload_module()
         ast_cli_unregister(&cli_gk_cycle);
         ast_cli_unregister(&cli_hangup_call);
         ast_cli_unregister(&cli_show_tokens);
-                        
+        ast_cli_unregister(&cli_h323_reload);
+                 
 	/* unregister channel type */
 	ast_channel_unregister(type);
 
