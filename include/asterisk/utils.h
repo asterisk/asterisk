@@ -134,6 +134,24 @@ extern int test_for_thread_safety(void);
 extern const char *ast_inet_ntoa(char *buf, int bufsiz, struct in_addr ia);
 extern int ast_utils_init(void);
 
+/* The realloca lets us ast_restrdupa(), but you can't mix any other ast_strdup calls! */
+
+struct ast_realloca {
+	char *ptr;
+	int alloclen;
+};
+
+#define ast_restrdupa(ra, s) \
+	({ \
+		if ((ra)->ptr && strlen(s) + 1 < (ra)->alloclen) { \
+			strcpy((ra)->ptr, s); \
+		} else { \
+			(ra)->ptr = alloca(strlen(s) + 1 - (ra)->alloclen); \
+			if ((ra)->ptr) (ra)->alloclen = strlen(s) + 1; \
+		} \
+		(ra)->ptr; \
+	})
+
 #ifdef inet_ntoa
 #undef inet_ntoa
 #endif

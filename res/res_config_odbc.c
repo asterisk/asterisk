@@ -186,19 +186,21 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	struct ast_variable *var=NULL, *prev=NULL;
 	struct ast_config *cfg=NULL;
 	struct ast_category *cat=NULL;
+	struct ast_realloca ra;
 	SQLLEN rowcount=0;
 	SQLULEN colsize;
 	SQLSMALLINT colcount=0;
 	SQLSMALLINT datatype;
 	SQLSMALLINT decimaldigits;
 	SQLSMALLINT nullable;
+
 	va_list aq;
-	
 	va_copy(aq, ap);
 	
 	
 	if (!table)
 		return NULL;
+	memset(&ra, 0, sizeof(ra));
 
 	obj = fetch_odbc_obj(database);
 	if (!obj)
@@ -269,6 +271,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	while (rowcount--) {
 		var = NULL;
 		prev = NULL;
+		title = NULL;
 		res = SQLFetch(stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
@@ -297,7 +300,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 				chunk = strsep(&stringp, ";");
 				if (chunk && !ast_strlen_zero(ast_strip(chunk))) {
 					if (initfield && !strcmp(initfield, coltitle) && !title)
-						title = ast_strdupa(chunk);
+						title = ast_restrdupa(&ra, chunk);
 					if (prev) {
 						prev->next = ast_new_variable(coltitle, chunk);
 						if (prev->next)
