@@ -17,6 +17,7 @@
 #include <time.h>
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
+#include <asterisk/channel.h>
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -76,7 +77,9 @@ extern void ast_log(int level, char *file, int line, char *function, char *fmt, 
 
 	va_list ap;
 	va_start(ap, fmt);
-	pthread_mutex_lock(&loglock);
+	if (!option_verbose && !option_debug && (!level))
+		return;
+	ast_pthread_mutex_lock(&loglock);
 	if (level == 1 /* Event */) {
 		time(&t);
 		tm = localtime(&t);
@@ -93,7 +96,7 @@ extern void ast_log(int level, char *file, int line, char *function, char *fmt, 
 		vfprintf(stdout, fmt, ap);
 		fflush(stdout);
 	}
-	pthread_mutex_unlock(&loglock);
+	ast_pthread_mutex_unlock(&loglock);
 	va_end(ap);
 }
 
@@ -106,7 +109,7 @@ extern void ast_verbose(char *fmt, ...)
 	struct verb *v;
 	va_list ap;
 	va_start(ap, fmt);
-	pthread_mutex_lock(&msglist_lock);
+	ast_pthread_mutex_lock(&msglist_lock);
 	vsnprintf(stuff + pos, sizeof(stuff) - pos, fmt, ap);
 	opos = pos;
 	pos = strlen(stuff);
@@ -141,25 +144,36 @@ extern void ast_verbose(char *fmt, ...)
 			}
 		}
 	}
-	pthread_mutex_lock(&loglock);
 	if (verboser) {
 		v = verboser;
 		while(v) {
 			v->verboser(stuff, opos, replacelast, complete);
 			v = v->next;
 		}
-	} else
-		fprintf(stdout, stuff + opos);
+	} /* else
+		fprintf(stdout, stuff + opos); */
 
 	if (fmt[strlen(fmt)-1] != '\n') 
 		replacelast = 1;
 	else 
 		replacelast = pos = 0;
-	pthread_mutex_unlock(&loglock);
 	va_end(ap);
-	pthread_mutex_unlock(&msglist_lock);
+	ast_pthread_mutex_unlock(&msglist_lock);
 }
 
+int ast_verbose_dmesg(void (*v)(char *string, int opos, int replacelast, int complete))
+{
+	struct msglist *m;
+	m = list;
+	ast_pthread_mutex_lock(&msglist_lock);
+	while(m) {
+		/* Send all the existing entries that we have queued (i.e. they're likely to have missed) */
+		v(m->msg, 0, 0, 1);
+		m = m->next;
+	}
+	ast_pthread_mutex_unlock(&msglist_lock);
+	return 0;
+}
 
 int ast_register_verbose(void (*v)(char *string, int opos, int replacelast, int complete)) 
 {
@@ -168,7 +182,7 @@ int ast_register_verbose(void (*v)(char *string, int opos, int replacelast, int 
 	/* XXX Should be more flexible here, taking > 1 verboser XXX */
 	if ((tmp = malloc(sizeof (struct verb)))) {
 		tmp->verboser = v;
-		pthread_mutex_lock(&msglist_lock);
+		ast_pthread_mutex_lock(&msglist_lock);
 		tmp->next = verboser;
 		verboser = tmp;
 		m = list;
@@ -177,7 +191,7 @@ int ast_register_verbose(void (*v)(char *string, int opos, int replacelast, int 
 			v(m->msg, 0, 0, 1);
 			m = m->next;
 		}
-		pthread_mutex_unlock(&msglist_lock);
+		ast_pthread_mutex_unlock(&msglist_lock);
 		return 0;
 	}
 	return -1;
@@ -187,7 +201,7 @@ int ast_unregister_verbose(void (*v)(char *string, int opos, int replacelast, in
 {
 	int res = -1;
 	struct verb *tmp, *tmpl=NULL;
-	pthread_mutex_lock(&msglist_lock);
+	ast_pthread_mutex_lock(&msglist_lock);
 	tmp = verboser;
 	while(tmp) {
 		if (tmp->verboser == v)	{
@@ -195,6 +209,7 @@ int ast_unregister_verbose(void (*v)(char *string, int opos, int replacelast, in
 				tmpl->next = tmp->next;
 			else
 				verboser = tmp->next;
+			free(tmp);
 			break;
 		}
 		tmpl = tmp;
@@ -202,6 +217,6 @@ int ast_unregister_verbose(void (*v)(char *string, int opos, int replacelast, in
 	}
 	if (tmp)
 		res = 0;
-	pthread_mutex_unlock(&msglist_lock);
+	ast_pthread_mutex_unlock(&msglist_lock);
 	return res;
 }
