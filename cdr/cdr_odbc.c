@@ -126,7 +126,7 @@ static int odbc_log(struct ast_cdr *cdr)
 	SQLBindParameter(ODBC_stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->lastdata), 0, cdr->lastdata, 0, NULL);
 	SQLBindParameter(ODBC_stmt, 10, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->duration, 0, NULL);
 	SQLBindParameter(ODBC_stmt, 11, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->billsec, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 12, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->disposition, 0, NULL);
+	SQLBindParameter(ODBC_stmt, 12, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_CHAR, strlen(ast_cdr_disp2str(cdr->disposition)) + 1, 0, ast_cdr_disp2str(cdr->disposition), 0, NULL);
 	SQLBindParameter(ODBC_stmt, 13, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->amaflags, 0, NULL);
 	SQLBindParameter(ODBC_stmt, 14, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->accountcode), 0, cdr->accountcode, 0, NULL);
 
