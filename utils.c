@@ -10,6 +10,7 @@
  */
 
 #include <ctype.h>
+#include <string.h>
 #include <asterisk/lock.h>
 #include <asterisk/utils.h>
 
