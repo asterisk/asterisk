@@ -371,7 +371,6 @@ ast_mutex_t sip_reload_lock = AST_MUTEX_INITIALIZER;
 #define REG_STATE_NOAUTH	   6
 
 struct sip_registry {
-	ast_mutex_t lock;				/* Channel private lock */
 	struct sockaddr_in addr;		/* Who we connect to for registration purposes */
 	char username[80];				/* Who we are registering as */
 	char authuser[80];				/* Who we *authenticate* as */
@@ -383,6 +382,7 @@ struct sip_registry {
 	int expire;					/* Sched ID of expiration */
 	int timeout; 					/* sched id of sip_reg_timeout */
 	int refresh;					/* How often to refresh */
+	int delme;					/* Need to be deleted? */
 	struct sip_pvt *call;				/* create a sip_pvt structure for each outbound "registration call" in progress */
 	int regstate;
 	int callid_valid;		/* 0 means we haven't chosen callid for this registry yet. */
@@ -405,13 +405,14 @@ static struct ast_peer_list {
 static struct ast_register_list {
 	struct sip_registry *registrations;
 	ast_mutex_t lock;
+	int recheck;
 } regl = { NULL, AST_MUTEX_INITIALIZER };
 
 
 #define REINVITE_INVITE		1
 #define REINVITE_UPDATE		2
 
-static int sip_do_register(struct sip_registry *r);
+static int __sip_do_register(struct sip_registry *r);
 
 static int sipsock  = -1;
 static int globalnat = 0;
@@ -441,6 +442,7 @@ static void free_old_route(struct sip_route *route);
 static int build_reply_digest(struct sip_pvt *p, char *orig_header, char *digest, int digest_len);
 static int find_user(struct sip_pvt *fup, int event);
 static void prune_peers(void);
+static void prune_regs(void);
 
 static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
@@ -3113,18 +3115,18 @@ static int sip_reregister(void *data)
 {
 	/* if we are here, we know that we need to reregister. */
 	struct sip_registry *r=(struct sip_registry *)data;
+	ast_mutex_lock(&regl.lock);
 	r->expire = -1;
-	sip_do_register(r);
+	__sip_do_register(r);
+	ast_mutex_unlock(&regl.lock);
 	return 0;
 }
 
 
-static int sip_do_register(struct sip_registry *r)
+static int __sip_do_register(struct sip_registry *r)
 {
 	int res;
-	ast_mutex_lock(&r->lock);
 	res=transmit_register(r, "REGISTER", NULL, NULL);
-	ast_mutex_unlock(&r->lock);
 	return res;
 }
 
@@ -3134,7 +3136,7 @@ static int sip_reg_timeout(void *data)
 	struct sip_registry *r=data;
 	struct sip_pvt *p;
 	int res;
-	ast_mutex_lock(&r->lock);
+	ast_mutex_lock(&regl.lock);
 	ast_log(LOG_NOTICE, "Registration for '%s@%s' timed out, trying again\n", r->username, inet_ntoa(r->addr.sin_addr)); 
 	if (r->call) {
 		/* Unlink us, destroy old call.  Locking is not relevent here because all this happens
@@ -3147,7 +3149,7 @@ static int sip_reg_timeout(void *data)
 	r->regstate=REG_STATE_UNREGISTERED;
 	r->timeout = -1;
 	res=transmit_register(r, "REGISTER", NULL, NULL);
-	ast_mutex_unlock(&r->lock);
+	ast_mutex_unlock(&regl.lock);
 	return 0;
 }
 
@@ -5710,6 +5712,7 @@ static void *do_monitor(void *data)
 	   (and thus do not have a separate thread) indefinitely */
 	/* From here on out, we die whenever asked */
 	for(;;) {
+		prune_regs();
 		/* Check for interfaces needing to be killed */
 		ast_mutex_lock(&iflock);
 restartsearch:		
@@ -6627,11 +6630,41 @@ static struct ast_rtp_protocol sip_rtp = {
 	get_codec: sip_get_codec,
 };
 
+static void prune_regs(void)
+{
+	struct sip_registry *reg, *next, *prev = NULL;
+	ast_mutex_lock(&regl.lock);
+	if (!regl.recheck) {
+		ast_mutex_unlock(&regl.lock);
+		return;
+	}
+	for (reg = regl.registrations;reg;) {
+		next = reg->next;
+		if (reg->delme) {
+			/* Really delete */
+			if (reg->call) {
+				/* Clear registry before destroying to ensure
+				   we don't get reentered trying to grab the registry lock */
+				reg->call->registry = NULL;
+				sip_destroy(reg->call);
+			}
+			if (reg->expire > -1)
+				ast_sched_del(sched, reg->expire);
+			if (reg->timeout > -1)
+				ast_sched_del(sched, reg->timeout);
+			free(reg);
+		} else 
+			prev = reg;
+		reg = next;
+	}
+	ast_mutex_unlock(&regl.lock);
+}
+
 static void delete_users(void)
 {
 	struct sip_user *user, *userlast;
 	struct sip_peer *peer;
-	struct sip_registry *reg, *reglast;
+	struct sip_registry *reg;
 
 	/* Delete all users */
 	ast_mutex_lock(&userl.lock);
@@ -6646,17 +6679,8 @@ static void delete_users(void)
 
 	ast_mutex_lock(&regl.lock);
 	for (reg = regl.registrations;reg;) {
-		reglast = reg;
+		reg->delme = 1;
 		reg = reg->next;
-		if (reglast->call) {
-			/* Clear registry before destroying to ensure
-			   we don't get reentered trying to grab the registry lock */
-			reglast->call->registry = NULL;
-			sip_destroy(reglast->call);
-		}
-		if (reglast->expire > -1)
-			ast_sched_del(sched, reglast->expire);
-		free(reglast);
 	}
 	regl.registrations = NULL;
 	ast_mutex_unlock(&regl.lock);
@@ -6715,7 +6739,7 @@ static int sip_reload(int fd, int argc, char *argv[])
 	restart_monitor();
 	ast_mutex_lock(&regl.lock);
 	for (reg = regl.registrations; reg; reg = reg->next) 
-		sip_do_register(reg);
+		__sip_do_register(reg);
 	ast_mutex_unlock(&regl.lock);
 	ast_mutex_lock(&peerl.lock);
 	for (peer = peerl.peers; peer; peer = peer->next)
