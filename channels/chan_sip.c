@@ -5287,7 +5287,7 @@ restartsearch:
 static int restart_monitor(void)
 {
 	/* If we're supposed to be stopped -- stay stopped */
-	if (monitor_thread == -2)
+	if (monitor_thread == (pthread_t) -2)
 		return 0;
 	if (ast_mutex_lock(&monlock)) {
 		ast_log(LOG_WARNING, "Unable to lock monitor\n");
@@ -6140,7 +6140,7 @@ int unload_module()
 			pthread_kill(monitor_thread, SIGURG);
 			pthread_join(monitor_thread, NULL);
 		}
-		monitor_thread = -2;
+		monitor_thread = (pthread_t) -2;
 		ast_mutex_unlock(&monlock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");

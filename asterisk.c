@@ -505,7 +505,7 @@ static void __quit_handler(int num)
 	quit_handler(num, 0, 1, 0);
 }
 
-static pthread_t consolethread = -1;
+static pthread_t consolethread = (pthread_t) -1;
 
 static const char *fix_header(char *outbuf, int maxout, const char *s, char *cmp)
 {
@@ -538,7 +538,7 @@ static void console_verboser(const char *s, int pos, int replace, int complete)
 	fflush(stdout);
 	if (complete)
 	/* Wake up a select()ing console */
-		if (consolethread > -1)
+		if (consolethread != (pthread_t) -1)
 			pthread_kill(consolethread, SIGURG);
 }
 

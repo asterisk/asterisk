@@ -726,7 +726,7 @@ static void *accept_thread(void *ignore)
 
 	for (;;) {
 		sinlen = sizeof(sin);
-		as = accept(asock, &sin, &sinlen);
+		as = accept(asock, (struct sockaddr *)&sin, &sinlen);
 		if (as < 0) {
 			ast_log(LOG_NOTICE, "Accept returned -1: %s\n", strerror(errno));
 			continue;
@@ -921,7 +921,7 @@ int init_manager(void)
 			return -1;
 		}
 		setsockopt(asock, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
-		if (bind(asock, &ba, sizeof(ba))) {
+		if (bind(asock, (struct sockaddr *)&ba, sizeof(ba))) {
 			ast_log(LOG_WARNING, "Unable to bind socket: %s\n", strerror(errno));
 			close(asock);
 			asock = -1;

@@ -23,7 +23,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <sys/time.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -152,7 +152,7 @@ static int launch_script(char *script, char *args, int *fds, int *efd, int *opid
 		for (x=STDERR_FILENO + 2;x<1024;x++) 
 			close(x);
 		/* Execute script */
-		execl(script, script, args, NULL);
+		execl(script, script, args, (char *)NULL);
 		/* Can't use ast_log since FD's are closed */
 		fprintf(stderr, "Failed to execute '%s': %s\n", script, strerror(errno));
 		exit(1);

@@ -413,7 +413,7 @@ static int mgcp_postrequest(struct mgcp_subchannel *sub, unsigned char *data, in
     time(&t);
     if (sub->messagepending && (sub->lastouttime + 20 < t)) {
         ast_log(LOG_NOTICE, "Timeout waiting for response to message:%d,  lastouttime: %ld, now: %ld.  Dumping pending queue\n",
-                sub->msgs ? sub->msgs->seqno : -1, sub->lastouttime, t);
+                sub->msgs ? sub->msgs->seqno : -1, (long) sub->lastouttime, (long) t);
         dump_queue(sub->parent);
     }
 	msg->seqno = seqno;
@@ -2546,7 +2546,7 @@ static void *do_monitor(void *data)
 static int restart_monitor(void)
 {
 	/* If we're supposed to be stopped -- stay stopped */
-	if (monitor_thread == -2)
+	if (monitor_thread == (pthread_t) -2)
 		return 0;
 	if (ast_mutex_lock(&monlock)) {
 		ast_log(LOG_WARNING, "Unable to lock monitor\n");

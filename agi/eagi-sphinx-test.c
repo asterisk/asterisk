@@ -13,9 +13,9 @@
 #include <string.h>
 #include <sys/select.h>
 #include <fcntl.h>
-#include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 
 #define AUDIO_FILENO (STDERR_FILENO + 1)
@@ -44,7 +44,7 @@ static int connect_sphinx(void)
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(SPHINX_PORT);
 	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
-	if (connect(sphinx_sock, &sin, sizeof(sin))) {
+	if (connect(sphinx_sock, (struct sockaddr *)&sin, sizeof(sin))) {
 		fprintf(stderr, "Unable to connect on socket: %s\n", strerror(errno));
 		close(sphinx_sock);
 		sphinx_sock = -1;

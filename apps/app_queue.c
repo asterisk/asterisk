@@ -1372,7 +1372,7 @@ static int queues_show(int fd, int argc, char **argv)
 					strcat(max, " (dynamic)");
 				if (mem->calls) {
 					snprintf(calls, sizeof(calls), " has taken %d calls (last was %ld secs ago)",
-							mem->calls, time(NULL) - mem->lastcall);
+							mem->calls, (long)(time(NULL) - mem->lastcall));
 				} else
 					strcpy(calls, " has taken no calls yet");
 				ast_cli(fd, "      %s/%s%s%s\n", mem->tech, mem->loc, max, calls);

@@ -243,7 +243,7 @@ static int scan_service(char *fn, time_t now, time_t atime)
 				if (o->retries <= o->maxretries + 1) {
 					/* Add a retry line at the end */
 					fseek(f, 0L, SEEK_END);
-					fprintf(f, "Retry: %d (%ld)\n", o->retries, now);
+					fprintf(f, "Retry: %d (%ld)\n", o->retries, (long) now);
 					fclose(f);
 					now += o->retrytime;
 					launch_service(o);

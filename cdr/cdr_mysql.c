@@ -86,23 +86,26 @@ static int mysql_log(struct ast_cdr *cdr)
 	}
 
 	if (connected) {
-		char *clid=NULL, *dcontext=NULL, *channel=NULL, *dstchannel=NULL, *lastapp=NULL, *lastdata=NULL, *uniqueid=NULL;
+		char *clid=NULL, *dcontext=NULL, *channel=NULL, *dstchannel=NULL, *lastapp=NULL, *lastdata=NULL;
+#ifdef MYSQL_LOGUNIQUEID
+		char *uniqueid=NULL;
+#endif
 
 		/* Maximum space needed would be if all characters needed to be escaped, plus a trailing NULL */
-		if (clid = alloca(strlen(cdr->clid) * 2 + 1))
+		if ((clid = alloca(strlen(cdr->clid) * 2 + 1)) != NULL)
 			mysql_real_escape_string(&mysql, clid, cdr->clid, strlen(cdr->clid));
-		if (dcontext = alloca(strlen(cdr->dcontext) * 2 + 1))
+		if ((dcontext = alloca(strlen(cdr->dcontext) * 2 + 1)) != NULL)
 			mysql_real_escape_string(&mysql, dcontext, cdr->dcontext, strlen(cdr->dcontext));
-		if (channel = alloca(strlen(cdr->channel) * 2 + 1))
+		if ((channel = alloca(strlen(cdr->channel) * 2 + 1)) != NULL)
 			mysql_real_escape_string(&mysql, channel, cdr->channel, strlen(cdr->channel));
-		if (dstchannel = alloca(strlen(cdr->dstchannel) * 2 + 1))
+		if ((dstchannel = alloca(strlen(cdr->dstchannel) * 2 + 1)) != NULL)
 			mysql_real_escape_string(&mysql, dstchannel, cdr->dstchannel, strlen(cdr->dstchannel));
-		if (lastapp = alloca(strlen(cdr->lastapp) * 2 + 1))
+		if ((lastapp = alloca(strlen(cdr->lastapp) * 2 + 1)) != NULL)
 			mysql_real_escape_string(&mysql, lastapp, cdr->lastapp, strlen(cdr->lastapp));
-		if (lastdata = alloca(strlen(cdr->lastdata) * 2 + 1))
+		if ((lastdata = alloca(strlen(cdr->lastdata) * 2 + 1)) != NULL)
 			mysql_real_escape_string(&mysql, lastdata, cdr->lastdata, strlen(cdr->lastdata));
 #ifdef MYSQL_LOGUNIQUEID
-		if (uniqueid = alloca(strlen(cdr->uniqueid) * 2 + 1))
+		if ((uniqueid = alloca(strlen(cdr->uniqueid) * 2 + 1)) != NULL)
 			mysql_real_escape_string(&mysql, uniqueid, cdr->uniqueid, strlen(cdr->uniqueid));
 #endif
 
@@ -141,7 +144,7 @@ char *description(void)
 	return desc;
 }
 
-int my_unload_module(void)
+static int my_unload_module(void)
 { 
 	if (connected) {
 		mysql_close(&mysql);
@@ -177,7 +180,7 @@ int my_unload_module(void)
 	return 0;
 }
 
-int my_load_module(void)
+static int my_load_module(void)
 {
 	int res;
 	struct ast_config *cfg;

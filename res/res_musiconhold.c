@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>
@@ -477,7 +478,9 @@ static struct ast_generator mohgen =
 static int moh_register(char *classname, char *mode, char *param, char *miscargs)
 {
 	struct mohclass *moh;
+#ifdef ZAPATA_MOH
 	int x;
+#endif
 	ast_mutex_lock(&moh_lock);
 	moh = get_mohbyname(classname);
 	ast_mutex_unlock(&moh_lock);

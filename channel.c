@@ -318,7 +318,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 					tmp->data = NULL;
 					tmp->fin = 0;
 					tmp->fout = 0;
-					snprintf(tmp->uniqueid, sizeof(tmp->uniqueid), "%li.%d", time(NULL), uniqueint++);
+					snprintf(tmp->uniqueid, sizeof(tmp->uniqueid), "%li.%d", (long)time(NULL), uniqueint++);
 					headp=&tmp->varshead;
 					ast_mutex_init(&tmp->lock);
 				        AST_LIST_HEAD_INIT(headp);
@@ -653,7 +653,7 @@ int ast_hangup(struct ast_channel *chan)
 	if (chan->blocking) {
 		ast_log(LOG_WARNING, "Hard hangup called by thread %ld on %s, while fd "
 					"is blocked by thread %ld in procedure %s!  Expect a failure\n",
-					pthread_self(), chan->name, chan->blocker, chan->blockproc);
+					(long)pthread_self(), chan->name, (long)chan->blocker, chan->blockproc);
 		CRASH;
 	}
 	if (!chan->zombie) {

@@ -17,6 +17,7 @@
 #include <asterisk/frame.h>
 #include <asterisk/sched.h>
 #include <asterisk/chanvars.h>
+#include <unistd.h>
 #include <setjmp.h>
 #include <pthread.h>
 
@@ -771,7 +772,7 @@ static inline int ast_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds,
 
 #define CHECK_BLOCKING(c) { 	 \
 							if ((c)->blocking) {\
-								ast_log(LOG_WARNING, "Thread %ld Blocking '%s', already blocked by thread %ld in procedure %s\n", pthread_self(), (c)->name, (c)->blocker, (c)->blockproc); \
+								ast_log(LOG_WARNING, "Thread %ld Blocking '%s', already blocked by thread %ld in procedure %s\n", (long) pthread_self(), (c)->name, (long) (c)->blocker, (c)->blockproc); \
 								CRASH; \
 							} else { \
 								(c)->blocker = pthread_self(); \

@@ -61,9 +61,9 @@ static int mp3play(char *filename, int fd)
 	}
 	/* Execute mpg123, but buffer if it's a net connection */
 	if (strncmp(filename, "http://", 7)) 
-	    execl(MPG_123, MPG_123, "-q", "-s", "-b", "1024", "--mono", "-r", "8000", filename, NULL);
+	    execl(MPG_123, MPG_123, "-q", "-s", "-b", "1024", "--mono", "-r", "8000", filename, (char *)NULL);
 	else
-	    execl(MPG_123, MPG_123, "-q", "-s", "--mono", "-r", "8000", filename, NULL);
+	    execl(MPG_123, MPG_123, "-q", "-s", "--mono", "-r", "8000", filename, (char *)NULL);
 	ast_log(LOG_WARNING, "Execute of mpg123 failed\n");
 	return -1;
 }

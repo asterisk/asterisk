@@ -170,7 +170,9 @@ int ast_load_resource(char *resource_name)
 	int res;
 	struct module *m;
 	int flags=RTLD_NOW;
+#ifdef RTLD_GLOBAL
 	char *val;
+#endif
 	char *key;
 	int o;
 	struct ast_config *cfg;

@@ -643,7 +643,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	chan->priority,
 	chan->name,
 	chan->callerid ? chan->callerid : "Unknown",
-	date, time(NULL));
+	date, (long) time(NULL));
 							fclose(txt);
 						} else
 							ast_log(LOG_WARNING, "Error opening text file for output\n");
@@ -809,7 +809,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 							txt = fopen(txtfile, "a");
 							if (txt) {
 								time(&end);
-								fprintf(txt, "duration=%ld\n", end-start);
+								fprintf(txt, "duration=%ld\n", (long)(end-start));
 								fclose(txt);
 							}
 							/* Send e-mail if applicable */

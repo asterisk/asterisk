@@ -250,7 +250,7 @@ extern void ast_log(int level, const char *file, int line, const char *function,
 		} else
 			/** Cannot use ast_log() from locked section of ast_log()!
 			    ast_log(LOG_WARNING, "Unable to retrieve local time?\n"); **/
-			fprintf(stderr, "ast_log: Unable to retrieve local time for %ld?\n", t);
+			fprintf(stderr, "ast_log: Unable to retrieve local time for %ld?\n", (long)t);
 	} else {
 		if (logfiles) {
 			f = logfiles;
@@ -260,12 +260,12 @@ extern void ast_log(int level, const char *file, int line, const char *function,
 						time(&t);
 						localtime_r(&t,&tm);
 						strftime(date, sizeof(date), "%b %e %T", &tm);
-						fprintf(f->f, "%s %s[%ld]: File %s, Line %d (%s): ", date, levels[level], pthread_self(), file, line, function);
+						fprintf(f->f, "%s %s[%ld]: File %s, Line %d (%s): ", date, levels[level], (long)pthread_self(), file, line, function);
 					} else {
 						sprintf(linestr, "%d", line);
 						fprintf(f->f, "%s[%ld]: File %s, Line %s (%s): ",
 																term_color(tmp, levels[level], colors[level], 0, sizeof(tmp)),
-																pthread_self(),
+																(long)pthread_self(),
 																term_color(tmp2, file, COLOR_BRWHITE, 0, sizeof(tmp2)),
 																term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
 																term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
@@ -278,7 +278,7 @@ extern void ast_log(int level, const char *file, int line, const char *function,
 				f = f->next;
 			}
 		} else {
-			fprintf(stdout, "%s[%ld]: File %s, Line %d (%s): ", levels[level], pthread_self(), file, line, function);
+			fprintf(stdout, "%s[%ld]: File %s, Line %d (%s): ", levels[level], (long)pthread_self(), file, line, function);
 			va_start(ap, fmt);
 			vfprintf(stdout, fmt, ap);
 			va_end(ap);

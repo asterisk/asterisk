@@ -32,8 +32,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <signal.h>
 #include <sys/time.h>
-#include <sys/signal.h>
 
 #include <gtk/gtk.h>
 #include <glib.h>

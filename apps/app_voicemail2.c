@@ -1095,7 +1095,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	chan->priority,
 	chan->name,
 	chan->callerid ? chan->callerid : "Unknown",
-	date, time(NULL));
+	date, (long)time(NULL));
 					fclose(txt);
 				} else
 					ast_log(LOG_WARNING, "Error opening text file for output\n");
@@ -1105,7 +1105,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 				txt = fopen(txtfile, "a");
 				if (txt) {
 					time(&end);
-					fprintf(txt, "duration=%ld\n", end-start);
+					fprintf(txt, "duration=%ld\n", (long)(end-start));
 					fclose(txt);
 				}
 				stringp = fmt;
@@ -2100,10 +2100,11 @@ static int play_datetime_format(struct ast_channel *chan, time_t time, struct vm
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tnow;
 
 					gettimeofday(&now,NULL);
-					localtime_r(&now.tv_sec,&tmnow);
+					tnow = now.tv_sec;
+					localtime_r(&tnow,&tmnow);
 					tmnow.tm_hour = 0;
 					tmnow.tm_min = 0;
 					tmnow.tm_sec = 0;
@@ -2127,10 +2128,11 @@ static int play_datetime_format(struct ast_channel *chan, time_t time, struct vm
 				{
 					struct timeval now;
 					struct tm tmnow;
-					time_t beg_today;
+					time_t beg_today, tnow;
 
 					gettimeofday(&now,NULL);
-					localtime_r(&now.tv_sec,&tmnow);
+					tnow = now.tv_sec;
+					localtime_r(&tnow,&tmnow);
 					tmnow.tm_hour = 0;
 					tmnow.tm_min = 0;
 					tmnow.tm_sec = 0;
@@ -2184,9 +2186,10 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 	char filename[256], *origtime, temp[256];
 	struct vm_zone *the_zone = NULL;
 	struct ast_config *msg_cfg;
-	time_t t;
+	time_t t, tnow;
 	struct timeval tv_now;
 	struct tm time_now, time_then;
+	long tin;
 
 	make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg); 
 	snprintf(filename,sizeof(filename), "%s.txt", vms->fn2);
@@ -2198,10 +2201,11 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 
 	if (!(origtime = ast_variable_retrieve(msg_cfg, "message", "origtime")))
 		return 0;
-	if (sscanf(origtime,"%ld",&t) < 1) {
+	if (sscanf(origtime,"%ld",&tin) < 1) {
 		ast_log(LOG_WARNING, "Couldn't find origtime in %s\n", filename);
 		return 0;
 	}
+	t = tin;
 	ast_destroy(msg_cfg);
 
 	/* Does this user have a timezone specified? */
@@ -2228,7 +2232,8 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 	/* Set the DIFF_* variables */
 	localtime_r(&t, &time_now);
 	gettimeofday(&tv_now,NULL);
-	localtime_r(&tv_now.tv_sec,&time_then);
+	tnow = tv_now.tv_sec;
+	localtime_r(&tnow,&time_then);
 
 	/* Day difference */
 	if (time_now.tm_year == time_then.tm_year)

@@ -3576,7 +3576,9 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 	struct iax2_peer *peer;
 	int processed = 0;
 	int totalcalls = 0;
+#ifdef ZT_TIMERACK
 	int x = 1;
+#endif
 	if (iaxtrunkdebug)
 		ast_verbose("Beginning trunk processing\n");
 	if (events & AST_IO_PRI) {
@@ -5116,7 +5118,9 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 	int format;
 	struct iax2_user *user;
 	struct iax2_peer *peer;
+#if 0
 	static unsigned short int last_port=0;
+#endif
 
 	cfg = ast_load(config_file);
 	

@@ -13,7 +13,9 @@
 
 #ifndef _ASTERISK_SRV_H
 #define _ASTERISK_SRV_H
-#include <asterisk/channel.h>
+
+struct ast_channel;
+
 /* Lookup entry in SRV records Returns 1 if found, 0 if not found, -1 on hangup */
 extern int ast_get_srv(struct ast_channel *chan, char *host, int hostlen, int *port, const char *service);
 

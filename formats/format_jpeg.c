@@ -18,6 +18,7 @@
 #include <asterisk/sched.h>
 #include <asterisk/module.h>
 #include <asterisk/image.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <sys/time.h>

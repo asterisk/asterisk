@@ -194,7 +194,7 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 			strncpy(p->agent, tmp, sizeof(p->agent) -1);
 			ast_mutex_init( &p->lock );
 			ast_mutex_init( &p->app_lock );
-			p->owning_app = -1;
+			p->owning_app = (pthread_t) -1;
 			p->app_sleep_cond = 1;
 			p->group = group;
 			p->pending = pending;

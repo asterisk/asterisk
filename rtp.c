@@ -723,8 +723,8 @@ struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, 
 		rtp->us.sin_port = htons(x);
 		if (rtp->rtcp)
 			rtp->rtcp->us.sin_port = htons(x + 1);
-		if (!bind(rtp->s, &rtp->us, sizeof(rtp->us)) &&
-			(!rtp->rtcp || !bind(rtp->rtcp->s, &rtp->rtcp->us, sizeof(rtp->rtcp->us))))
+		if (!bind(rtp->s, (struct sockaddr *)&rtp->us, sizeof(rtp->us)) &&
+			(!rtp->rtcp || !bind(rtp->rtcp->s, (struct sockaddr *)&rtp->rtcp->us, sizeof(rtp->rtcp->us))))
 			break;
 		if (errno != EADDRINUSE) {
 			ast_log(LOG_WARNING, "Unexpected bind error: %s\n", strerror(errno));
@@ -873,7 +873,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
 	for (x=0;x<4;x++) {
 		if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
-			res = sendto(rtp->s, (void *)rtpheader, hdrlen + 4, 0, &rtp->them, sizeof(rtp->them));
+			res = sendto(rtp->s, (void *)rtpheader, hdrlen + 4, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
 			if (res <0) 
 				ast_log(LOG_NOTICE, "RTP Transmission error to %s:%d: %s\n", inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
 	#if 0
@@ -960,7 +960,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	rtpheader[1] = htonl(rtp->lastts);
 	rtpheader[2] = htonl(rtp->ssrc); 
 	if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
-		res = sendto(rtp->s, (void *)rtpheader, f->datalen + hdrlen, 0, &rtp->them, sizeof(rtp->them));
+		res = sendto(rtp->s, (void *)rtpheader, f->datalen + hdrlen, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
 		if (res <0) 
 			ast_log(LOG_NOTICE, "RTP Transmission error to %s:%d: %s\n", inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
 #if 0

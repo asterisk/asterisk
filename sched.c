@@ -309,8 +309,8 @@ void ast_sched_dump(struct sched_context *con)
 				q->id,
 				q->callback,
 				q->data,
-				s,
-				ms);
+				(long)s,
+				(long)ms);
 		q=q->next;
 	}
 	ast_log(LOG_DEBUG, "=================================================\n");

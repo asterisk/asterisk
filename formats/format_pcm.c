@@ -17,6 +17,7 @@
 #include <asterisk/logger.h>
 #include <asterisk/sched.h>
 #include <asterisk/module.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <sys/time.h>
