@@ -564,6 +564,10 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	/* Ignore anything that never gets logged anywhere */
 	if (!(global_logmask & (1 << level)))
 		return;
+	
+	/* Ignore anything other than the currently debugged file if there is one */
+	if ((level == __LOG_DEBUG) && !ast_strlen_zero(debug_filename) && strcasecmp(debug_filename, file))
+		return;
 
 	/* begin critical section */
 	ast_mutex_lock(&loglock);

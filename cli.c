@@ -441,6 +441,11 @@ static char debugchan_help[] =
 "Usage: debug channel <channel>\n"
 "       Enables debugging on a specific channel.\n";
 
+static char debuglevel_help[] = 
+"Usage: debug level <level> [filename]\n"
+"       Set debug to specified level (0 to disable).  If filename\n"
+"is specified, debugging will be limited to just that file.\n";
+
 static char nodebugchan_help[] = 
 "Usage: no debug channel <channel>\n"
 "       Disables debugging on a specific channel.\n";
@@ -568,6 +573,25 @@ static int handle_commandcomplete(int fd, int argc, char *argv[])
 		free(buf);
 	} else
 		ast_cli(fd, "NULL\n");
+	return RESULT_SUCCESS;
+}
+
+static int handle_debuglevel(int fd, int argc, char *argv[])
+{
+	int newlevel;
+	char *filename = "<any>";
+	if ((argc < 3) || (argc > 4))
+		return RESULT_SHOWUSAGE;
+	if (sscanf(argv[2], "%i", &newlevel) != 1)
+		return RESULT_SHOWUSAGE;
+	option_debug = newlevel;
+	if (argc == 4) {
+		filename = argv[3];
+		strncpy(debug_filename, filename, sizeof(debug_filename) - 1);
+	} else {
+		debug_filename[0] = '\0';
+	}
+	ast_cli(fd, "Debugging level set to %d, file '%s'\n", newlevel, filename);
 	return RESULT_SUCCESS;
 }
 
@@ -792,6 +816,7 @@ static struct ast_cli_entry builtins[] = {
 	{ { "_command", "nummatches", NULL }, handle_commandnummatches, "Returns number of command matches", commandnummatches_help },
 	{ { "_command", "matchesarray", NULL }, handle_commandmatchesarray, "Returns command matches array", commandmatchesarray_help },
 	{ { "debug", "channel", NULL }, handle_debugchan, "Enable debugging on a channel", debugchan_help, complete_ch_3 },
+	{ { "debug", "level", NULL }, handle_debuglevel, "Set global debug level", debuglevel_help },
 	{ { "help", NULL }, handle_help, "Display help list, or specific help on a command", help_help },
 	{ { "load", NULL }, handle_load, "Load a dynamic module by name", load_help, complete_fn },
 	{ { "no", "debug", "channel", NULL }, handle_nodebugchan, "Disable debugging on a channel", nodebugchan_help, complete_ch_4 },
