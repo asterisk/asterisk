@@ -2155,7 +2155,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					return -1;
 				}
 				if (sipdebug)
-					ast_verbose("Found audio format %s\n", ast_getformatname(codec));
+					ast_verbose("Found RTP audio format %d\n", codec);
 				ast_rtp_set_m_type(p->rtp, codec);
 				codecs += len;
 				/* Skip over any whitespace */

@@ -56,7 +56,6 @@ static char *hasvoicemail_descrip =
 "  Optionally sets <varname> to the number of messages in that folder."
 "  Assumes folder of INBOX if not specified.\n";
 
-static char *newtdesc = "Indicator for whether there are messages in INBOX.";
 static char *app_hasnewvoicemail = "HasNewVoicemail";
 static char *hasnewvoicemail_synopsis = "Conditionally branches to priority + 101";
 static char *hasnewvoicemail_descrip =
