@@ -3605,8 +3605,8 @@ static void reschedule_precache(const char *number, const char *context, int exp
 	};
 	if (!qe) {
 		len = sizeof(struct dundi_precache_queue);
-		len += strlen(number + 1);
-		len += strlen(context + 1);
+		len += strlen(number) + 1;
+		len += strlen(context) + 1;
 		qe = malloc(len);
 		if (qe) {
 			memset(qe, 0, len);
@@ -4110,7 +4110,7 @@ static void populate_addr(struct dundi_peer *peer, dundi_eid *eid)
 }
 
 
-static void build_peer(dundi_eid *eid, struct ast_variable *v)
+static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode)
 {
 	struct dundi_peer *peer;
 	struct ast_hostent he;
@@ -4237,6 +4237,7 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v)
 			}
 			v = v->next;
 		}
+		(*globalpcmode) |= peer->pcmodel;
 		if (!peer->model && !peer->pcmodel) {
 			ast_log(LOG_WARNING, "Peer '%s' lacks a model or pcmodel, discarding!\n", 
 				dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
@@ -4393,6 +4394,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 	struct hostent *hp;
 	struct sockaddr_in sin2;
 	static int last_port = 0;
+	int globalpcmodel = 0;
 	dundi_eid testeid;
 
 	dundi_ttl = DUNDI_DEFAULT_TTL;
@@ -4512,7 +4514,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 		if (strcasecmp(cat, "general") && strcasecmp(cat, "mappings")) {
 			/* Entries */
 			if (!dundi_str_to_eid(&testeid, cat))
-				build_peer(&testeid, ast_variable_browse(cfg, cat));
+				build_peer(&testeid, ast_variable_browse(cfg, cat), &globalpcmodel);
 			else
 				ast_log(LOG_NOTICE, "Ignoring invalid EID entry '%s'\n", cat);
 		}
@@ -4521,7 +4523,8 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 	prune_peers();
 	ast_destroy(cfg);
 	load_password();
-	dundi_precache_full();
+	if (globalpcmodel & DUNDI_MODEL_OUTBOUND)
+		dundi_precache_full();
 	return 0;
 }
 
