@@ -104,6 +104,8 @@ decode (unsigned char encoded, short *ssindex, short *signal, unsigned char *rke
 	*signal = -2047;
 
   *next = 0;
+
+#ifdef AUTO_RETURN
   if( encoded & 0x7 )
         *rkey = 0;
   else if ( ++(*rkey) == 24 ) {
@@ -113,6 +115,7 @@ decode (unsigned char encoded, short *ssindex, short *signal, unsigned char *rke
 	else if (*signal < 0)
 		*next = 0x2;
   }
+#endif
 
   *ssindex = *ssindex + indsft[(encoded & 7)];
   if (*ssindex < 0)
