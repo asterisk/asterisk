@@ -1,0 +1,72 @@
+#! /bin/sh
+# $Id: asterisk,v 1.2 2004/07/18 20:24:07 Gregory Boehnlein <damin@nacs.net>
+#
+# asterisk	start the asterisk PBX
+#
+# Sun Jul 18 2004 Gregory Boehnlein <damin@nacs.net>
+# - Updated Version to 1.2
+# - Added test for safe_asterisk
+# - Changed "stop gracefully" to "stop now"
+# - Added support for -U and -G command line options
+# - Modified "reload" to call asterisk -rx 'reload' 
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+NAME=asterisk
+DESC="Asterisk PBX"
+# Full path to asterisk binary
+DAEMON=/usr/sbin/asterisk
+
+# Full path to safe_asterisk script
+SAFE_ASTERISK=/usr/sbin/safe_asterisk
+
+# Leave this set unless you know what you are doing.
+export LD_ASSUME_KERNEL=2.4.1
+
+# Uncomment the following and set them to the user/groups that you
+# want to run Asterisk as. NOTE: this requires substantial work to
+# be sure that Asterisk's environment has permission to write the
+# files required  for  its  operation, including logs, its comm
+# socket, the asterisk database, etc.
+#AST_USER="asterisk"
+#AST_GROUP="asterisk"
+
+test -x $DAEMON || exit 0
+
+set -e
+
+case "$1" in
+  start)
+	echo -n "Starting $DESC: "
+	if [ -f $SAFE_ASTERISK ] ; then
+		DAEMON=$SAFE_ASTERISK
+	fi
+        if [ $AST_USER ] ; then
+                ASTARGS="-U $AST_USER"
+        fi
+        if [ $AST_GROUP ] ; then
+                ASTARGS="`echo $ASTARGS` -G $AST_GROUP"
+        fi
+	start-stop-daemon --start --exec $DAEMON -- $ASTARGS
+	echo "$NAME."
+	;;
+  stop)
+	echo -n "Stopping $DESC: "
+	$DAEMON -rx 'stop now' > /dev/null 2> /dev/null && echo -n "$NAME"
+	echo "."
+	exit 0
+	;;
+  reload)
+	echo "Reloading $DESC configuration files."
+	$DAEMON -rx 'reload' > /dev/null 2> /dev/null
+	;;
+  restart|force-reload)
+	$DAEMON -rx 'restart gracefully' > /dev/null 2> /dev/null && echo -n "$NAME"
+	;;
+  *)
+	N=/etc/init.d/$NAME
+	echo "Usage: $N {start|stop|restart|reload|force-reload}" >&2
+	exit 1
+	;;
+esac
+
+exit 0
