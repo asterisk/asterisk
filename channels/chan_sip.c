@@ -300,6 +300,9 @@ struct sip_registry {
 	struct sip_registry *next;
 };
 
+#define REINVITE_INVITE		1
+#define REINVITE_UPDATE		2
+
 static int sip_do_register(struct sip_registry *r);
 struct sip_registry *registrations;
 
@@ -1235,8 +1238,8 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 		build_callid(p->callid, sizeof(p->callid), p->ourip);
 	else
 		strncpy(p->callid, callid, sizeof(p->callid) - 1);
-	/* Assume reinvite OK */
-	p->canreinvite = 1;
+	/* Assume reinvite OK and via INVITE */
+	p->canreinvite = REINVITE_INVITE;
 	p->dtmfmode = globaldtmfmode;
 	if (p->dtmfmode & SIP_DTMF_RFC2833)
 		p->noncodeccapability |= AST_RTP_DTMF;
@@ -2006,7 +2009,10 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp)
 {
 	struct sip_request resp;
-	reqprep(&resp, p, "INVITE", 1);
+	if (p->canreinvite == REINVITE_UPDATE)
+		reqprep(&resp, p, "UPDATE", 1);
+	else
+		reqprep(&resp, p, "INVITE", 1);
 	add_sdp(&resp, p, rtp);
 	return send_request(p, &resp, 1, p->ocseq);
 }
@@ -4034,7 +4040,7 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 	if (user) {
 		memset(user, 0, sizeof(struct sip_user));
 		strncpy(user->name, name, sizeof(user->name)-1);
-		user->canreinvite = 1;
+		user->canreinvite = REINVITE_INVITE;
 		/* JK02: set default context */
 		strcpy(user->context, context);
 		while(v) {
@@ -4059,7 +4065,10 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 					user->dtmfmode = SIP_DTMF_RFC2833;
 				}
 			} else if (!strcasecmp(v->name, "canreinvite")) {
-				user->canreinvite = ast_true(v->value);
+				if (!strcasecmp(v->value, "update"))
+					user->canreinvite = REINVITE_UPDATE;
+				else
+					user->canreinvite = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "nat")) {
 				user->nat = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "callerid")) {
@@ -4131,16 +4140,19 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 		}
 		peer->capability = capability;
 		/* Assume can reinvite */
-		peer->canreinvite = 1;
+		peer->canreinvite = REINVITE_INVITE;
 		peer->dtmfmode = 0;
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) 
 				strncpy(peer->secret, v->value, sizeof(peer->secret)-1);
 			else if (!strcasecmp(v->name, "auth")) 
 				strncpy(peer->methods, v->value, sizeof(peer->methods)-1);
-			else if (!strcasecmp(v->name, "canreinvite")) 
-				peer->canreinvite = ast_true(v->value);
-			else if (!strcasecmp(v->name, "nat")) 
+			else if (!strcasecmp(v->name, "canreinvite")) {
+				if (!strcasecmp(v->value, "update"))
+					peer->canreinvite = REINVITE_UPDATE;
+				else
+					peer->canreinvite = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "nat")) 
 				peer->nat = ast_true(v->value);
 			else if (!strcasecmp(v->name, "context"))
 				strncpy(peer->context, v->value, sizeof(peer->context)-1);
