@@ -3854,13 +3854,13 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 	return send_request(p, &req, 1, p->ocseq);
 }
 
-/*--- transmit_notify: Notify user of messages waiting in voicemail ---*/
+/*--- transmit_notify_with_mwi: Notify user of messages waiting in voicemail ---*/
 /*      Notification only works for registred peers with mailbox= definitions
  *      in sip.conf
  *      We use the SIP Event package message-summary
  *      MIME type defaults to  "application/simple-message-summary";
  */
-static int transmit_notify(struct sip_pvt *p, int newmsgs, int oldmsgs)
+static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs)
 {
 	struct sip_request req;
 	char tmp[256];
@@ -3873,6 +3873,41 @@ static int transmit_notify(struct sip_pvt *p, int newmsgs, int oldmsgs)
 	snprintf(tmp, sizeof(tmp), "Messages-Waiting: %s\n", newmsgs ? "yes" : "no");
 	snprintf(tmp2, sizeof(tmp2), "Voicemail: %d/%d\n", newmsgs, oldmsgs);
 	snprintf(clen, sizeof(clen), "%d", (int)(strlen(tmp) + strlen(tmp2)));
+	add_header(&req, "Content-Length", clen);
+	add_line(&req, tmp);
+	add_line(&req, tmp2);
+
+	if (!p->initreq.headers) {
+		/* Use this as the basis */
+		copy_request(&p->initreq, &req);
+		parse(&p->initreq);
+		if (sip_debug_test_pvt(p))
+			ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
+		determine_firstline_parts(&p->initreq);
+	}
+
+	return send_request(p, &req, 1, p->ocseq);
+}
+
+/*--- transmit_notify_with_sipfrag: Notify a transferring party of the status of trasnfer ---*/
+/*      Apparently the draft SIP REFER structure was too simple, so it was decided that the
+ *      status of transfers also needed to be sent via NOTIFY instead of just the 202 Accepted
+ *      that had worked heretofore.
+ */
+static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
+{
+	struct sip_request req;
+	char tmp[256];
+	char tmp2[256];
+	char clen[20];
+	initreqprep(&req, p, "NOTIFY", NULL);
+	snprintf(tmp, sizeof(tmp), "refer;id=%d", cseq);
+	add_header(&req, "Event", tmp);
+	add_header(&req, "Subscription-state", "terminated;reason=noresource");
+	add_header(&req, "Content-Type", "message/sipfrag;version=2.0");
+
+	strncpy(tmp, "SIP/2.0 200 OK", sizeof(tmp) - 1);
+	snprintf(clen, sizeof(clen), "%d", (int)(strlen(tmp)));
 	add_header(&req, "Content-Length", clen);
 	add_line(&req, tmp);
 	add_line(&req, tmp2);
@@ -6707,7 +6742,6 @@ static void *sip_park_thread(void *stuff)
 {
 	struct ast_channel *chan1, *chan2;
 	struct sip_dual *d;
-	struct sip_pvt *p;
 	struct sip_request req;
 	int ext;
 	int res;
@@ -6720,9 +6754,6 @@ static void *sip_park_thread(void *stuff)
 	ast_do_masquerade(chan1);
 	ast_mutex_unlock(&chan1->lock);
 	res = ast_park_call(chan1, chan2, 0, &ext);
-	/* Finally send the accepted */
-	p = chan2->pvt->pvt;
-	transmit_response(p, "202 Accepted", &req);
 	/* Then hangup */
 	ast_hangup(chan2);
 	ast_log(LOG_DEBUG, "Parked on extension '%d'\n", ext);
@@ -7132,8 +7163,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 						if (transfer_to) {
 							ast_moh_stop(transfer_to);
 							if (!strcmp(p->refer_to, ast_parking_ext())) {
-								/* We send a 100 Trying */
-								transmit_response(p, "100 Trying", req);
 								/* Must release c's lock now, because it will not longer
 								    be accessible after the transfer! */
 								*nounlock = 1;
@@ -7153,9 +7182,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 					}
 					p->gotrefer = 1;
 				}
+				transmit_response(p, "202 Accepted", req);
+				transmit_notify_with_sipfrag(p, seqno);
 				/* Always increment on a BYE */
 				if (!nobye) {
-					transmit_response(p, "202 Accepted", req);
 					transmit_request_with_auth(p, "BYE", 0, 1, 1);
 					p->alreadygone = 1;
 				}
@@ -7485,7 +7515,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	build_callid(p->callid, sizeof(p->callid), p->ourip);
 	/* Send MWI */
 	p->outgoing = 1;
-	transmit_notify(p, newmsgs, oldmsgs);
+	transmit_notify_with_mwi(p, newmsgs, oldmsgs);
 	sip_scheddestroy(p, 15000);
 	return 0;
 }
