@@ -1857,6 +1857,8 @@ static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 static int sip_senddigit(struct ast_channel *ast, char digit)
 {
 	struct sip_pvt *p = ast->pvt->pvt;
+	int res = 0;
+	ast_mutex_lock(&p->lock);
 	if (p && (p->dtmfmode & SIP_DTMF_INFO)) {
 		transmit_info_with_digit(p, digit);
 	}
@@ -1865,8 +1867,9 @@ static int sip_senddigit(struct ast_channel *ast, char digit)
 	}
 	/* If in-band DTMF is desired, send that */
 	if (p->dtmfmode & SIP_DTMF_INBAND)
-		return -1;
-	return 0;
+		res = -1;
+	ast_mutex_unlock(&p->lock);
+	return res;
 }
 
 
@@ -1875,7 +1878,9 @@ static int sip_transfer(struct ast_channel *ast, char *dest)
 {
 	struct sip_pvt *p = ast->pvt->pvt;
 	int res;
+	ast_mutex_lock(&p->lock);
 	res = transmit_refer(p, dest);
+	ast_mutex_unlock(&p->lock);
 	return res;
 }
 
@@ -1885,6 +1890,9 @@ static int sip_transfer(struct ast_channel *ast, char *dest)
 static int sip_indicate(struct ast_channel *ast, int condition)
 {
 	struct sip_pvt *p = ast->pvt->pvt;
+	int res = 0;
+
+	ast_mutex_lock(&p->lock);
 	switch(condition) {
 	case AST_CONTROL_RINGING:
 		if (ast->_state == AST_STATE_RING) {
@@ -1898,7 +1906,8 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 				/* Well, if it's not reasonable, just send in-band */
 			}
 		}
-		return -1;
+		res = -1;
+		break;
 	case AST_CONTROL_BUSY:
 		if (ast->_state != AST_STATE_UP) {
 			transmit_response(p, "486 Busy Here", &p->initreq);
@@ -1906,7 +1915,8 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 			ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
 			break;
 		}
-		return -1;
+		res = -1;
+		break;
 	case AST_CONTROL_CONGESTION:
 		if (ast->_state != AST_STATE_UP) {
 			transmit_response(p, "503 Service Unavailable", &p->initreq);
@@ -1914,7 +1924,8 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 			ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
 			break;
 		}
-		return -1;
+		res = -1;
+		break;
 	case AST_CONTROL_PROGRESS:
 	case AST_CONTROL_PROCEEDING:
 		if ((ast->_state != AST_STATE_UP) && !p->progress && !p->outgoing) {
@@ -1922,14 +1933,18 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 			p->progress = 1;
 			break;
 		}
-		return -1;
+		res = -1;
+		break;
 	case -1:
-		return -1;
+		res = -1;
+		break;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to indicate condition %d\n", condition);
-		return -1;
+		res = -1;
+		break;
 	}
-	return 0;
+	ast_mutex_unlock(&p->lock);
+	return res;
 }
 
 
