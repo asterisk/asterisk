@@ -189,6 +189,15 @@ static int local_digit(struct ast_channel *ast, char digit)
 static int local_call(struct ast_channel *ast, char *dest, int timeout)
 {
 	struct local_pvt *p = ast->pvt->pvt;
+
+	if (p->owner->callerid)
+		p->chan->callerid = strdup(p->owner->callerid);
+	else
+		p->chan->callerid = NULL;
+	if (p->owner->ani)
+		p->chan->ani = strdup(p->owner->ani);
+	else
+		p->chan->ani = NULL;
 	/* Start switch on sub channel */
 	return ast_pbx_start(p->chan);
 }
