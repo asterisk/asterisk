@@ -57,10 +57,7 @@
 #include <ctype.h>
 #ifdef ZAPATA_PRI
 #include <libpri.h>
-#ifndef PRI_NSF_NONE
-#error "You need newer libpri"
-#endif
-#ifndef PRI_SWITCH_QSIG
+#ifndef PRI_REDIRECTING_REASON
 #error "You need newer libpri"
 #endif
 #endif
