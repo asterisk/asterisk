@@ -1353,6 +1353,34 @@ static int park_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+static int handle_showfeatures(int fd, int argc, char *argv[])
+{
+	int i;
+	int fcount;
+	char format[] = "%-25s %-7s %-7s\n";
+
+	ast_cli(fd, format, "Feature", "Default", "Current");
+	ast_cli(fd, format, "-------", "-------", "-------");
+
+	ast_cli(fd, format, "Pickup", "*8", ast_pickup_ext());		/* default hardcoded above, so we'll hardcode it here */
+
+	fcount = sizeof(builtin_features) / sizeof(builtin_features[0]);
+
+	for (i = 0; i < fcount; i++)
+	{
+		ast_cli(fd, format, builtin_features[i].fname, builtin_features[i].default_exten, builtin_features[i].exten);
+	}
+
+	return RESULT_SUCCESS;
+}
+
+static char showfeatures_help[] =
+"Usage: show features\n"
+"       Lists currently configured features.\n";
+
+static struct ast_cli_entry showfeatures =
+{ { "show", "features", NULL }, handle_showfeatures, "Lists configured features", showfeatures_help };
+
 static int handle_parkedcalls(int fd, int argc, char *argv[])
 {
 	struct parkeduser *cur;
@@ -1520,6 +1548,7 @@ int load_module(void)
 	if ((res = load_config()))
 		return res;
 	ast_cli_register(&showparked);
+	ast_cli_register(&showfeatures);
 	ast_pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
 	res = ast_register_application(parkedcall, park_exec, synopsis, descrip);
 	if (!res)
@@ -1571,6 +1600,7 @@ int unload_module(void)
 	STANDARD_HANGUP_LOCALUSERS;
 
 	ast_manager_unregister( "ParkedCalls" );
+	ast_cli_unregister(&showfeatures);
 	ast_cli_unregister(&showparked);
 	ast_unregister_application(parkcall);
 	return ast_unregister_application(parkedcall);
