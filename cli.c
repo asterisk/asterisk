@@ -47,8 +47,7 @@ void ast_cli(int fd, char *fmt, ...)
 	va_end(ap);
 	if (res == -1) {
 		ast_log(LOG_ERROR, "Out of memory\n");
-	}
-	else {
+	} else {
 		ast_carefulwrite(fd, stuff, strlen(stuff), 100);
 		free(stuff);
 	}
