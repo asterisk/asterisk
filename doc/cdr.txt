@@ -20,7 +20,7 @@ MSSQL:		Asterisk can currently store CDRs into an MSSQL database in
 		Compile, configure, and install the latest FreeTDS package:
 		   tar -zxvf freetds-0.62.4.tar.gz &&
 		   cd freetds-0.62.4 &&
-		   ./configure --prefix=/usr --with -tdsver=7.0 \
+		   ./configure --prefix=/usr --with-tdsver=7.0 \
                         --with-unixodbc=/usr/lib &&
 		   make &&
 		   make install
