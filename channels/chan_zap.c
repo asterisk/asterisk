@@ -751,6 +751,8 @@ static void zap_queue_frame(struct zt_pvt *p, struct ast_frame *f, void *pri)
 #endif		
 }
 
+static int restore_gains(struct zt_pvt *p);
+
 static void swap_subs(struct zt_pvt *p, int a, int b)
 {
 	int tchan;
@@ -1983,7 +1985,7 @@ static int zt_hangup(struct ast_channel *ast)
 {
 	int res;
 	int index,x, law;
-	static int restore_gains(struct zt_pvt *p);
+	/*static int restore_gains(struct zt_pvt *p);*/
 	struct zt_pvt *p = ast->pvt->pvt;
 	struct zt_pvt *tmp = NULL;
 	struct zt_pvt *prev = NULL;
