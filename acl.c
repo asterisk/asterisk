@@ -248,14 +248,14 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	seq = ++routeseq;
 	ast_mutex_unlock(&routeseq_lock);
 	m_rtmsg.m_rtm.rtm_seq = seq;
-	m_rtmsg.m_rtm.rtm_addrs = RTA_IFA | RTA_DST;
+	m_rtmsg.m_rtm.rtm_addrs = RTA_DST;
 	m_rtmsg.m_rtm.rtm_msglen = sizeof(struct rt_msghdr) + sizeof(struct sockaddr_in);
 	sin = (struct sockaddr_in *)m_rtmsg.m_space;
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(struct sockaddr_in);
 	sin->sin_addr = *them;
 
-	if ((s = socket(PF_ROUTE, SOCK_RAW, 0)) < 0) {
+	if ((s = socket(PF_ROUTE, SOCK_RAW, AF_UNSPEC)) < 0) {
 		ast_log(LOG_ERROR, "Error opening routing socket\n");
 		return -1;
 	}
