@@ -7149,8 +7149,7 @@ static void *do_idle_thread(void *vchan)
 
 static void zt_pri_message(char *s)
 {
-	if (option_verbose)
-		ast_verbose(s);
+	ast_verbose(s);
 }
 
 static void zt_pri_error(char *s)
