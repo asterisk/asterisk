@@ -492,7 +492,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		make_dir(dir, sizeof(dir), ext, "INBOX");
 		if (mkdir(dir, 0700) && (errno != EEXIST))
 			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
-		if (ast_exists_extension(chan, chan->context, "o", 1, chan->callerid))
+		if (ast_exists_extension(chan, strlen(chan->macrocontext) ? chan->macrocontext : chan->context, "o", 1, chan->callerid))
 			ecodes = "#0";
 		/* Play the beginning intro if desired */
 		if (strlen(prefile)) {
@@ -520,6 +520,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 			}
 		} else if (silent == '0') {
 			strncpy(chan->exten, "o", sizeof(chan->exten) - 1);
+			if (strlen(chan->macrocontext))
+				strncpy(chan->context, chan->macrocontext, sizeof(chan->context) - 1);
 			chan->priority = 0;
 			ast_softhangup(chan, AST_SOFTHANGUP_ASYNCGOTO);
 			free(copy);
