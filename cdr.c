@@ -20,6 +20,7 @@
 #include <asterisk/logger.h>
 #include <asterisk/callerid.h>
 #include <asterisk/causes.h>
+#include <asterisk/options.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -94,6 +95,8 @@ void ast_cdr_unregister(char *name)
 		}
 		i = i->next;
 	}
+	if (option_verbose > 1)
+		ast_verbose(VERBOSE_PREFIX_2 "Unregistered '%s' CDR backend\n", name);
 	ast_mutex_unlock(&cdrlock);
 	if (i) 
 		free(i);
