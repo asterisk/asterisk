@@ -1,3 +1,39 @@
+Asterisk 0.3.0
+ -- Add fastfoward, rewind, seek, and truncate functions to streams
+ -- Support registration
+ -- Add G729 format
+ -- Permit applications to return a digit indicating new extension
+ -- Change "SHUTDOWN" to "STOP" in commands
+ -- SIP "Hold" fixes and VXML URI support
+ -- New chan_zap with 160 sample chunk size
+ -- Add DTMF, MF, and Fax tone detector to dsp routines
+ -- Allow overlap dialing (inbound) on PRI
+ -- Enable tone detection with PRI
+ -- Add special information tone detection
+ -- Add Asterisk DB support
+ -- Add pulse dialing
+ -- Re-record all system prompts
+ -- Change "timelen" to samples for better accuracy
+ -- Move to editline, eliminating readline dependency
+ -- Add peer "poke" support to SIP and IAX
+ -- Add experimental call progress detection
+ -- Add SIP authentication (digest)
+ -- Add RDNIS
+ -- Reroute faxes to "fax" extension
+ -- Create ISDN/modem group concept
+ -- Centralize indication
+ -- Add initial MGCP support
+ -- SIP debugging cleanup
+ -- SIP reload
+ -- SIP commands (show channels, etc)
+ -- Add optional busy detection
+ -- Add Visual Message Waiting Indicator (MDMF and SDMF)
+ -- Add ambiguous extension matching
+ -- Add *69
+ -- Major SIP enhancements from SIPit
+ -- Rewrite of ZAP CLASS features using subchannels
+ -- Enhanced call parking
+ -- Add extended outgoing spool support (pbx_spool)
 Asterisk 0.2.0
  -- Outbound origination API
  -- Call management improvements
