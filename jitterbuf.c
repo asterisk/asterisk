@@ -51,10 +51,6 @@ static void decrement_losspct(jitterbuf *jb)
 	jb->info.losspct = (499 * jb->info.losspct)/500;    
 }
 
-
-static void jb_dbginfo(jitterbuf *jb);
-
-
 void jb_reset(jitterbuf *jb) 
 {
 	memset(jb,0,sizeof(jitterbuf));
@@ -395,6 +391,7 @@ static jb_frame *queue_getall(jitterbuf *jb)
 	return _queue_get(jb,0,1);
 }
 
+#if 0
 /* some diagnostics */
 static void jb_dbginfo(jitterbuf *jb) 
 {
@@ -418,6 +415,7 @@ static void jb_dbginfo(jitterbuf *jb)
 		queue_last(jb) - queue_next(jb),
 		jb->info.last_voice_ms);
 }
+#endif
 
 #ifdef DEEP_DEBUG
 static void jb_chkqueue(jitterbuf *jb) 

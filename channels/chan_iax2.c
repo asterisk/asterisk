@@ -1395,6 +1395,7 @@ static int __do_deliver(void *data)
 	return 0;
 }
 
+#ifndef NEWJB
 static int do_deliver(void *data)
 {
 	/* Locking version of __do_deliver */
@@ -1406,6 +1407,7 @@ static int do_deliver(void *data)
 	ast_mutex_unlock(&iaxsl[callno]);
 	return res;
 }
+#endif /* NEWJB */
 
 static int handle_error(void)
 {
@@ -4138,7 +4140,11 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 static int iax2_show_firmware(int fd, int argc, char *argv[])
 {
 #define FORMAT2 "%-15.15s  %-15.15s %-15.15s\n"
+#if !defined(__FreeBSD__)
 #define FORMAT "%-15.15s  %-15d %-15d\n"
+#else /* __FreeBSD__ */
+#define FORMAT "%-15.15s  %-15d %-15ld\n"
+#endif /* __FreeBSD__ */
 	struct iax_firmware *cur;
 	if ((argc != 3) && (argc != 4))
 		return RESULT_SHOWUSAGE;
@@ -4148,7 +4154,7 @@ static int iax2_show_firmware(int fd, int argc, char *argv[])
 	for (cur = waresl.wares;cur;cur = cur->next) {
 		if ((argc == 3) || (!strcasecmp(argv[3], cur->fwh->devname))) 
 			ast_cli(fd, FORMAT, cur->fwh->devname, ntohs(cur->fwh->version),
-						ntohl(cur->fwh->datalen));
+				ntohl(cur->fwh->datalen));
 	}
 	ast_mutex_unlock(&waresl.lock);
 	return RESULT_SUCCESS;

@@ -24,19 +24,21 @@
 #include <asterisk/ast_expr.h>
 #include <asterisk/logger.h>
 
+#ifndef QUAD_MIN
 #ifdef LONG_LONG_MIN
 #define QUAD_MIN LONG_LONG_MIN
-#endif
+#else /* LONG_LONG_MIN */
+#define QUAD_MIN (-0x7fffffffffffffffL-1)
+#endif /* LONG_LONG_MIN */
+#endif /* QUAD_MIN */
+
+#ifndef QUAD_MAX
 #ifdef LONG_LONG_MAX
 #define QUAD_MAX LONG_LONG_MAX
-#endif
-
-#  if ! defined(QUAD_MIN)
-#   define QUAD_MIN     (-0x7fffffffffffffffL-1)
-#  endif
-#  if ! defined(QUAD_MAX)
-#   define QUAD_MAX     (0x7fffffffffffffffL)
-#  endif
+#else /* LONG_LONG_MAX */
+#define QUAD_MAX (0x7fffffffffffffffL)
+#endif /* LONG_LONG_MAX */
+#endif /* QUAD_MAX */
 
 #define YYPARSE_PARAM kota
 #define YYLEX_PARAM kota
