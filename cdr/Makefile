@@ -12,7 +12,7 @@
 #
 
 #ADD cdr_pgsql.so to MODS= to include PostgreSQL support: REQUIRES PostgreSQL libs
-MODS=cdr_csv.so
+MODS=cdr_csv.so cdr_manager.so
 
 
 CFLAGS+=-fPIC
