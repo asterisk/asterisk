@@ -903,7 +903,7 @@ static int find_user(struct sip_pvt *fup, int event)
 	if ( isfound ) {
 		ast_log(LOG_DEBUG, "%s is not a local user\n", name);
 		ast_pthread_mutex_unlock(&userl.lock);
-		return 1;
+		return 0;
 	}
 	if(event == 0) {
 		if ( u->inUse > 0 ) {
@@ -4572,6 +4572,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			if (!strlen(p->context))
 				strncpy(p->context, context, sizeof(p->context) - 1);
 			/* Check number of concurrent calls -vs- incoming limit HERE */
+			ast_log(LOG_DEBUG, "Check for res\n");
 			res = find_user(p,1);
 			if (res) {
 				if (res < 0) {
