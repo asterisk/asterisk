@@ -577,7 +577,7 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 		time(&start);
 	for (x=0;x<fmtcnt;x++) {
 		others[x] = ast_writefile(recordfile, sfmt[x], comment, O_TRUNC, 0, 0700);
-		ast_verbose( VERBOSE_PREFIX_3 "x=%i, open writing:  %s format: %s\n", x, recordfile, sfmt[x]);
+		ast_verbose( VERBOSE_PREFIX_3 "x=%i, open writing:  %s format: %s, %p\n", x, recordfile, sfmt[x], others[x]);
 			
 		if (!others[x]) {
 			break;
