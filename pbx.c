@@ -2888,7 +2888,7 @@ static void get_timerange(struct ast_include *i, char *times)
 	int x;
 	int s1, s2;
 	int e1, e2;
-	int cth, ctm;
+//	int cth, ctm;
 
 	//[PHM 07/01/03]
 	//start disabling all times, fill the fields with 0's, as they may contain garbage
@@ -2922,7 +2922,7 @@ static void get_timerange(struct ast_include *i, char *times)
 		return;
 	}
 
-#if 0
+#if 1
 	s1 = s1 * 30 + s2/2;
 	if ((s1 < 0) || (s1 >= 24*30)) {
 		ast_log(LOG_WARNING, "%s isn't a valid star time. Assuming no time.\n", times);
