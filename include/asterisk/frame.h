@@ -319,14 +319,24 @@ int ast_fr_fdwrite(int fd, struct ast_frame *frame);
  */
 int ast_fr_fdhangup(int fd);
 
-//! Get a format from a name
+//! Get the name of a format
 /*!
  * \param format id of format
- * Gets the name of a format.
- * This returns the name of the format in a sttring or UNKN if unknown.
+ * \return A static string containing the name of the format or "UNKN" if unknown.
  */
-//! Get the name of a format
 extern char* ast_getformatname(int format);
+
+//! Get the names of a set of formats
+/*!
+ * \param buf a buffer for the output string
+ * \param n size of buf (bytes)
+ * \param format the format (combined IDs of codecs)
+ * Prints a list of readable codec names corresponding to "format".
+ * ex: for format=AST_FORMAT_GSM|AST_FORMAT_SPEEX|AST_FORMAT_ILBC it will return "0x602(GSM|SPEEX|ILBC)"
+ * \return The return value is buf.
+ */
+extern char* ast_getformatname_multiple(char *buf, unsigned n, int format);
+
 
 /*!
  * \param name string of format

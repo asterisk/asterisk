@@ -424,6 +424,33 @@ char* ast_getformatname(int format)
 	return "UNKN";
 }
 
+char* ast_getformatname_multiple(char *buf, unsigned n, int format) {
+	unsigned u=1;
+	unsigned len;
+	char *b = buf;
+	char *start = buf;
+	if (!n) return buf;
+	snprintf(b,n,"0x%x(",format);
+	len = strlen(b);
+	b += len;
+	n -= len;
+	start = b;
+	while (u) {
+		if (u&format) {
+			snprintf(b,n,"%s|",ast_getformatname(u));
+			len = strlen(b);
+			b += len;
+			n -= len;
+		}
+		u *= 2;
+	}
+	if (start==b)
+		snprintf(start,n,"EMPTY)");
+	else if (n>1)
+		b[-1]=')';
+	return buf;
+}
+
 int ast_getformatbyname(char *name)
 {
 	if (!strcasecmp(name, "g723.1")) 

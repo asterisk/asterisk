@@ -2413,6 +2413,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			}
 		}
 	}
+
+	/* RTP addresses and ports for audio and video */
 	sin.sin_family = AF_INET;
 	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
 	/* Setup audio port number */
@@ -2423,9 +2425,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	sin.sin_port = htons(vportno);
 	if (p->vrtp && sin.sin_port)
 		ast_rtp_set_peer(p->vrtp, &sin);
-#if 0
-	printf("Peer RTP is at port %s:%d\n", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
-#endif	
+
+	if (sipdebug)
+		ast_verbose("Peer RTP is at port %s:%d\n", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+
 	/* Next, scan through each "a=rtpmap:" line, noting each
 	 * specified RTP payload type (with corresponding MIME subtype):
 	 */
@@ -2458,11 +2461,19 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	p->noncodeccapability = noncodeccapability & (peernoncodeccapability | vpeernoncodeccapability);
 	
 	if (sip_debug_test_pvt(p)) {
-		ast_verbose("Capabilities: us - %d, them - %d/%d, combined - %d\n",
-			    p->capability, peercapability, vpeercapability, p->jointcapability);
-		ast_verbose("Non-codec capabilities: us - %d, them - %d, combined - %d\n",
-			    noncodeccapability, peernoncodeccapability,
-			    p->noncodeccapability);
+		const unsigned slen=80;
+		char s1[slen], s2[slen], s3[slen], s4[slen];
+
+		ast_verbose("Capabilities: us - %s, peer - audio=%s/video=%s, combined - %s\n",
+			ast_getformatname_multiple(s1, slen, p->capability),
+			ast_getformatname_multiple(s2, slen, peercapability),
+			ast_getformatname_multiple(s3, slen, vpeercapability),
+			ast_getformatname_multiple(s4, slen, p->jointcapability));
+
+		ast_verbose("Non-codec capabilities: us - %s, peer - %s, combined - %s\n",
+			ast_getformatname_multiple(s1, slen, noncodeccapability),
+			ast_getformatname_multiple(s2, slen, peernoncodeccapability),
+			ast_getformatname_multiple(s3, slen, p->noncodeccapability));
 	}
 	if (!p->jointcapability) {
 		ast_log(LOG_WARNING, "No compatible codecs!\n");
@@ -2470,7 +2481,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	}
 	if (p->owner) {
 		if (!(p->owner->nativeformats & p->jointcapability)) {
-			ast_log(LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %d and not %d\n", p->jointcapability, p->owner->nativeformats);
+			const unsigned slen=80;
+			char s1[slen], s2[slen];
+			ast_log(LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %s and not %s\n", 
+					ast_getformatname_multiple(s1, slen, p->jointcapability),
+					ast_getformatname_multiple(s2, slen, p->owner->nativeformats));
 			p->owner->nativeformats = sip_codec_choose(p->jointcapability);
 			ast_set_read_format(p->owner, p->owner->readformat);
 			ast_set_write_format(p->owner, p->owner->writeformat);
@@ -3075,7 +3090,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	while(cur) {
 		if (p->jointcapability & cur->codec) {
 			if (sip_debug_test_pvt(p))
-				ast_verbose("Answering/Requesting with preferred capability %d\n", cur->codec);
+				ast_verbose("Answering with preferred capability 0x%x(%s)\n", cur->codec, ast_getformatname(cur->codec));
 			codec = ast_rtp_lookup_code(p->rtp, 1, cur->codec);
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
@@ -3097,7 +3112,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	for (x = 1; x <= (videosupport ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO); x <<= 1) {
 		if ((p->jointcapability & x) && !(alreadysent & x)) {
 			if (sip_debug_test_pvt(p))
-				ast_verbose("Answering with capability %d\n", x);	
+				ast_verbose("Answering with capability 0x%x(%s)\n", x, ast_getformatname(x));
 			codec = ast_rtp_lookup_code(p->rtp, 1, x);
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
@@ -3116,7 +3131,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	for (x = 1; x <= AST_RTP_MAX; x <<= 1) {
 		if (p->noncodeccapability & x) {
 			if (sip_debug_test_pvt(p))
-				ast_verbose("Answering with non-codec capability %d\n", x);
+				ast_verbose("Answering with non-codec capability 0x%x(%s)\n", x, ast_getformatname(x));
 			codec = ast_rtp_lookup_code(p->rtp, 0, x);
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
