@@ -173,7 +173,7 @@ static int iaxtrunkdebug = 0;
 
 static char accountcode[20];
 static int amaflags = 0;
-static int notransfer = 0;
+static int globalnotransfer = 0;
 
 static pthread_t netthreadid = AST_PTHREADT_NULL;
 
@@ -847,7 +847,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			iaxs[x]->pingid = ast_sched_add(sched, ping_time * 1000, send_ping, (void *)x);
 			iaxs[x]->lagid = ast_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)x);
 			iaxs[x]->amaflags = amaflags;
-			iaxs[x]->notransfer = notransfer;
+			iaxs[x]->notransfer = globalnotransfer;
 			strncpy(iaxs[x]->accountcode, accountcode, sizeof(iaxs[x]->accountcode)-1);
 		} else {
 			ast_log(LOG_WARNING, "Out of resources\n");
@@ -5681,7 +5681,7 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 	char *portno=NULL;
 	int capability = iax2_capability;
 	int trunk;
-	int notransfer = 0;
+	int notransfer = globalnotransfer;
 	strncpy(s, (char *)data, sizeof(s)-1);
 	/* FIXME The next two lines seem useless */
 	stringp=s;
@@ -6265,6 +6265,8 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 			use_jitterbuffer = ast_true(v->value);
 		else if (!strcasecmp(v->name, "authdebug"))
 			authdebug = ast_true(v->value);
+		else if (!strcasecmp(v->name, "notransfer"))
+			globalnotransfer = ast_true(v->value);
 		else if (!strcasecmp(v->name, "trunkfreq")) {
 			trunkfreq = atoi(v->value);
 			if (trunkfreq < 10)
@@ -6394,7 +6396,7 @@ static int reload_config(void)
 	strncpy(accountcode, "", sizeof(accountcode)-1);
 	strncpy(language, "", sizeof(language)-1);
 	amaflags = 0;
-	notransfer = 0;
+	globalnotransfer = 0;
 	srand(time(NULL));
 	delete_users();
 	set_config(config,&dead_sin);
