@@ -1213,6 +1213,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								if (res)
 									break;
 
+								ast_mutex_lock(&agentlock);
 								ast_mutex_lock(&p->lock);
 								if (p->lastdisc.tv_sec) {
 									gettimeofday(&tv, NULL);
@@ -1227,6 +1228,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 									}
 								}
 								ast_mutex_unlock(&p->lock);
+								ast_mutex_unlock(&agentlock);
 								/*	Synchronize channel ownership between call to agent and itself. */
 								ast_mutex_lock( &p->app_lock );
 								ast_mutex_lock(&p->lock);
@@ -1239,9 +1241,11 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 													agent_cont_sleep, p );
 								ast_mutex_unlock( &p->app_lock );
 								if ((p->ackcall > 1)  && (res == 1)) {
+									ast_mutex_lock(&agentlock);
 									ast_mutex_lock(&p->lock);
 									check_availability(p, 0);
 									ast_mutex_unlock(&p->lock);
+									ast_mutex_unlock(&agentlock);
 									res = 0;
 								}
 								sched_yield();
