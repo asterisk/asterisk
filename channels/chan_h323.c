@@ -205,6 +205,8 @@ static struct oh323_alias *build_alias(char *name, struct ast_variable *v)
 				strncpy(alias->context,  v->value, sizeof(alias->context)-1);
 			} else if (!strcasecmp(v->name, "secret")) {
 				strncpy(alias->secret,  v->value, sizeof(alias->secret)-1);
+			} else {
+					ast_log(LOG_WARNING, "Keyword %s does not make sense in type=h323\n", v->value);
 			}
 			v = v->next;
 		}
