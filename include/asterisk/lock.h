@@ -154,6 +154,13 @@ static inline int __ast_pthread_mutex_destroy(char *filename, int lineno, char *
 
 #define ast_mutex_destroy(a) __ast_pthread_mutex_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, a)
 
+#define pthread_mutex_t use_ast_mutex_t_instead_of_pthread_mutex_t
+#define pthread_mutex_lock use_ast_mutex_lock_instead_of_pthread_mutex_lock
+#define pthread_mutex_unlock use_ast_mutex_unlock_instead_of_pthread_mutex_unlock
+#define pthread_mutex_trylock use_ast_mutex_trylock_instead_of_pthread_mutex_trylock
+#define pthread_mutex_init use_ast_pthread_mutex_init_instead_of_pthread_mutex_init
+#define pthread_mutex_destroy use_ast_pthread_mutex_destroy_instead_of_pthread_mutex_destroy
+
 #else
 
 #define AST_MUTEX_INITIALIZER      PTHREAD_MUTEX_INITIALIZER
@@ -165,42 +172,14 @@ static inline int __ast_pthread_mutex_destroy(char *filename, int lineno, char *
 
 typedef pthread_mutex_t ast_mutex_t;
 
-static inline int ast_mutex_lock(ast_mutex_t *t)
-{
-	return pthread_mutex_lock(t);
-}
+#define ast_mutex_lock(t) pthread_mutex_lock(t)
+#define ast_mutex_unlock(t) pthread_mutex_unlock(t)
+#define ast_mutex_trylock(t) pthread_mutex_trylock(t)
+#define ast_mutex_init(t) pthread_mutex_init(t, NULL)
+#define ast_pthread_mutex_init(t,a) pthread_mutex_init(t,a)
+#define ast_mutex_destroy(t) pthread_mutex_destroy(t)
 
-static inline int ast_mutex_unlock(ast_mutex_t *t)
-{
-	return pthread_mutex_unlock(t);
-}
-
-static inline int ast_mutex_trylock(ast_mutex_t *t)
-{
-	return pthread_mutex_trylock(t);
-}
-
-static inline int ast_pthread_mutex_init(ast_mutex_t *t, const pthread_mutexattr_t *mutexattr)
-{
-	return pthread_mutex_init(t, mutexattr);
-}
-
-static inline int ast_mutex_init(ast_mutex_t *t)
-{
-	return pthread_mutex_init(t, NULL);
-}
-
-static inline int ast_mutex_destroy(ast_mutex_t *t)
-{
-	return pthread_mutex_destroy(t);
-}
 #endif
 
-#define pthread_mutex_t use_ast_mutex_t_instead_of_pthread_mutex_t
-#define pthread_mutex_lock use_ast_mutex_lock_instead_of_pthread_mutex_lock
-#define pthread_mutex_unlock use_ast_mutex_unlock_instead_of_pthread_mutex_unlock
-#define pthread_mutex_trylock use_ast_mutex_trylock_instead_of_pthread_mutex_trylock
-#define pthread_mutex_init use_ast_pthread_mutex_init_instead_of_pthread_mutex_init
-#define pthread_mutex_destroy use_ast_pthread_mutex_destroy_instead_of_pthread_mutex_destroy
 
 #endif
