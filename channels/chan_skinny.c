@@ -9,6 +9,7 @@
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
+ *
  */
 
 
@@ -549,6 +550,7 @@ static int callnums = 1;
 #define SKINNY_CX_MUTE     4
 #define SKINNY_CX_INACTIVE 4
 
+#if 0
 static char *skinny_cxmodes[] = {
     "sendonly",
     "recvonly",
@@ -556,6 +558,7 @@ static char *skinny_cxmodes[] = {
     "confrnce",
     "inactive"
 };
+#endif
 
 /* driver scheduler */
 static struct sched_context *sched;
@@ -921,7 +924,7 @@ static int skinny_show_lines(int fd, int argc, char *argv[])
 	d = devices;
 	while(d) {
 		l = d->lines;
-		ast_cli(fd, "Device '%s' at %s\n", d->name, d->addr.sin_addr.s_addr);
+		ast_cli(fd, "Device '%s' at %s\n", d->name, inet_ntoa(d->addr.sin_addr));
 		while(l) {
 			ast_cli(fd, "   -- '%s@%s in '%s' is %s\n", l->name, d->name, l->context, l->sub->owner ? "active" : "idle");
 			haslines = 1;
@@ -2352,19 +2355,6 @@ static struct ast_channel *skinny_request(char *type, int format, void *data)
                     sub->parent->callwaiting, sub->parent->dnd, sub->owner ? 1 : 0, sub->next->owner ? 1: 0);
     }
 	
-	/* Must be busy */
-	if (((sub->parent->callwaiting) && ((sub->owner) && (sub->next->owner))) ||
-        ((!sub->parent->callwaiting) && (sub->owner)) ||
-         (sub->parent->dnd && (!strlen(sub->parent->call_forward)))) {
-         if (sub->parent->hookstate == SKINNY_ONHOOK) {
-             if (has_voicemail(sub->parent)) {
-//                 transmit_notify_request(sub,"vmwi(+)");
-             } else {
-//                 transmit_notify_request(sub,"vmwi(-)");
-             }
-         }
-		return NULL;
-    }
 	tmpc = skinny_new(sub->owner ? sub->next : sub, AST_STATE_DOWN);
 	if (!tmpc)
 		ast_log(LOG_WARNING, "Unable to make channel for '%s'\n", tmp);
@@ -2374,7 +2364,7 @@ static struct ast_channel *skinny_request(char *type, int format, void *data)
 	return tmpc;
 }
 
-static int reload_config()
+static int reload_config(void)
 {
 	int on=1;
 	struct ast_config *cfg;
