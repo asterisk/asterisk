@@ -5,3 +5,7 @@
 * In general Asterisk is a very new program, and there are liable to be
   many bugs yet to be discovered, so if you think you've found one, please
   be sure to report it.
+
+* When you flip to call waiting on a tormenta channel while you have a
+  three way call up, the parties in the three way cannot hear one another
+  in the general case.

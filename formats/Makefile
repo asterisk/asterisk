@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-FORMAT_LIBS=format_g723.so format_wav.so format_mp3.so format_wav_gsm.so format_gsm.so format_vox.so
+FORMAT_LIBS=format_g723.so format_wav.so format_mp3.so format_wav_gsm.so format_gsm.so format_vox.so format_pcm.so
 
 GSMLIB=../codecs/gsm/lib/libgsm.a
 
@@ -24,9 +24,6 @@ clean:
 
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<
-
-format_wav.so : format_wav.o
-	$(CC) -shared -Xlinker -x -o $@ $< -laudiofile
 
 format_mp3.so : format_mp3.o
 	$(CC) -shared -Xlinker -x -o $@ $< -lm
