@@ -615,7 +615,7 @@ static int ast_say_number_full_en(struct ast_channel *chan, int num, const char 
 		}
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd)
+				if ((audiofd  > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else
 					res = ast_waitstream(chan, ints);
