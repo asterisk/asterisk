@@ -153,6 +153,8 @@ static char *config = "zapata.conf";
 
 #define DCHAN_AVAILABLE	(DCHAN_PROVISIONED | DCHAN_NOTINALARM | DCHAN_UP)
 
+#define zt_close(fd) if(fd > 0) close(fd);
+
 static char context[AST_MAX_EXTENSION] = "default";
 static char callerid[256] = "";
 
@@ -261,6 +263,9 @@ AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 AST_MUTEX_DEFINE_STATIC(iflock);
 
 static int ifcount = 0;
+
+/* When to send the CallerID signals (rings) */
+static int sendcalleridafter = DEFAULT_CIDRINGS;
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
@@ -541,6 +546,7 @@ static struct zt_pvt {
 	int dtmfrelax;		/* whether to run in relaxed DTMF mode */
 	int fake_event;
 	int zaptrcallerid;	/* should we use the callerid from incoming call on zap transfer or not */
+	int sendcalleridafter;
 #ifdef ZAPATA_PRI
 	struct zt_pri *pri;
 	struct zt_pvt *bearer;
@@ -758,7 +764,7 @@ static int zt_open(char *fn)
 	if (chan) {
 		if (ioctl(fd, ZT_SPECIFY, &chan)) {
 			x = errno;
-			close(fd);
+			zt_close(fd);
 			errno = x;
 			ast_log(LOG_WARNING, "Unable to specify channel %d: %s\n", chan, strerror(errno));
 			return -1;
@@ -767,11 +773,6 @@ static int zt_open(char *fn)
 	bs = READ_SIZE;
 	if (ioctl(fd, ZT_SET_BLOCKSIZE, &bs) == -1) return -1;
 	return fd;
-}
-
-static void zt_close(int fd)
-{
-	close(fd);
 }
 
 int zt_setlinear(int zfd, int linear)
@@ -1535,7 +1536,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			} else {
 				if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETCADENCE, NULL))
 					ast_log(LOG_WARNING, "Unable to reset default ring on '%s'\n", ast->name);
-				p->cidrings = DEFAULT_CIDRINGS;
+				p->cidrings = p->sendcalleridafter;
 			}
 
 
@@ -2886,6 +2887,18 @@ static int attempt_transfer(struct zt_pvt *p)
 		if (p->subs[SUB_THREEWAY].owner->_state == AST_STATE_RINGING) {
 			ast_indicate(p->subs[SUB_REAL].owner->bridge, AST_CONTROL_RINGING);
 		}
+		if (p->subs[SUB_REAL].owner->cdr) {
+			/* Move CDR from second channel to current one */
+			p->subs[SUB_THREEWAY].owner->cdr =
+				ast_cdr_append(p->subs[SUB_THREEWAY].owner->cdr, p->subs[SUB_REAL].owner->cdr);
+			p->subs[SUB_REAL].owner->cdr = NULL;
+		}
+		if (p->subs[SUB_REAL].owner->bridge->cdr) {
+			/* Move CDR from second channel's bridge to current one */
+			p->subs[SUB_THREEWAY].owner->cdr =
+				ast_cdr_append(p->subs[SUB_THREEWAY].owner->cdr, p->subs[SUB_REAL].owner->bridge->cdr);
+			p->subs[SUB_REAL].owner->bridge->cdr = NULL;
+		}
 		if (ast_channel_masquerade(p->subs[SUB_THREEWAY].owner, p->subs[SUB_REAL].owner->bridge)) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
 					p->subs[SUB_REAL].owner->bridge->name, p->subs[SUB_THREEWAY].owner->name);
@@ -2899,6 +2912,18 @@ static int attempt_transfer(struct zt_pvt *p)
 			ast_indicate(p->subs[SUB_THREEWAY].owner->bridge, AST_CONTROL_RINGING);
 		}
 		ast_moh_stop(p->subs[SUB_THREEWAY].owner->bridge);
+		if (p->subs[SUB_THREEWAY].owner->cdr) {
+			/* Move CDR from second channel to current one */
+			p->subs[SUB_REAL].owner->cdr = 
+				ast_cdr_append(p->subs[SUB_REAL].owner->cdr, p->subs[SUB_THREEWAY].owner->cdr);
+			p->subs[SUB_THREEWAY].owner->cdr = NULL;
+		}
+		if (p->subs[SUB_THREEWAY].owner->bridge->cdr) {
+			/* Move CDR from second channel's bridge to current one */
+			p->subs[SUB_REAL].owner->cdr = 
+				ast_cdr_append(p->subs[SUB_REAL].owner->cdr, p->subs[SUB_THREEWAY].owner->bridge->cdr);
+			p->subs[SUB_THREEWAY].owner->bridge->cdr = NULL;
+		}
 		if (ast_channel_masquerade(p->subs[SUB_REAL].owner, p->subs[SUB_THREEWAY].owner->bridge)) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
 					p->subs[SUB_THREEWAY].owner->bridge->name, p->subs[SUB_REAL].owner->name);
@@ -5018,9 +5043,11 @@ static void *ss_thread(void *data)
 					p->subs[SUB_THREEWAY].owner;
 				struct zt_pvt *pbridge = NULL;
 				  /* set up the private struct of the bridged one, if any */
-				if (nbridge && nbridge->bridge) pbridge = nbridge->bridge->pvt->pvt;
-				if (nbridge && 
-				    (!strcmp(nbridge->type,"Zap")) &&
+				if (nbridge && nbridge->bridge) 
+					pbridge = nbridge->bridge->pvt->pvt;
+				if (nbridge && pbridge && 
+				    (!strcmp(nbridge->type,"Zap")) && 
+					(!strcmp(nbridge->bridge->type, "Zap")) &&
 				    ISTRUNK(pbridge)) {
 					int func = ZT_FLASH;
 					/* Clear out the dial buffer */
@@ -6056,7 +6083,7 @@ static int pri_create_trunkgroup(int trunkgroup, int *channels)
 		x = channels[y];
 		if (ioctl(fd, ZT_SPECIFY, &x)) {
 			ast_log(LOG_WARNING, "Failed to specify channel %d: %s\n", channels[y], strerror(errno));
-			close(fd);
+			zt_close(fd);
 			return -1;
 		}
 		if (ioctl(fd, ZT_GET_PARAMS, &p)) {
@@ -6065,18 +6092,18 @@ static int pri_create_trunkgroup(int trunkgroup, int *channels)
 		}
 		if (ioctl(fd, ZT_SPANSTAT, &si)) {
 			ast_log(LOG_WARNING, "Failed go get span information on channel %d (span %d)\n", channels[y], p.spanno);
-			close(fd);
+			zt_close(fd);
 			return -1;
 		}
 		span = p.spanno - 1;
 		if (pris[span].trunkgroup) {
 			ast_log(LOG_WARNING, "Span %d is already provisioned for trunk group %d\n", span + 1, pris[span].trunkgroup);
-			close(fd);
+			zt_close(fd);
 			return -1;
 		}
 		if (pris[span].pvts[0]) {
 			ast_log(LOG_WARNING, "Span %d is already provisioned with channels (implicit PRI maybe?)\n", span + 1);
-			close(fd);
+			zt_close(fd);
 			return -1;
 		}
 		if (!y) {
@@ -6087,7 +6114,7 @@ static int pri_create_trunkgroup(int trunkgroup, int *channels)
 		pris[ospan].dchannels[y] = channels[y];
 		pris[ospan].dchanavail[y] |= DCHAN_PROVISIONED;
 		pris[span].span = span + 1;
-		close(fd);
+		zt_close(fd);
 	}
 	return 0;	
 }
@@ -6495,6 +6522,8 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			if (si.alarms) tmp->inalarm = 1;
 		}
 
+		tmp->sendcalleridafter = sendcalleridafter;
+
 	}
 	if (tmp && !here) {
 		/* nothing on the iflist */
@@ -6511,6 +6540,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			if (working->channel > tmp->channel) {
 				tmp->next = *wlist;
 				tmp->prev = NULL;
+				(*wlist)->prev = tmp;
 				*wlist = tmp;
 			} else {
 			/* go through all the members and put the member in the right place */
@@ -7012,6 +7042,7 @@ static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 					ast_log(LOG_WARNING, "Whoa, there's no  owner, and we're having to fix up channel %d to channel %d\n", pri->pvts[x]->channel, pri->pvts[principle]->channel);
 				pri->pvts[principle]->call = pri->pvts[x]->call;
 				/* Free up the old channel, now not in use */
+				pri->pvts[x]->subs[SUB_REAL].owner = NULL;
 				pri->pvts[x]->owner = NULL;
 				pri->pvts[x]->call = NULL;
 			}
@@ -7030,7 +7061,7 @@ static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 			else {
 				/* Looks good.  Drop the pseudo channel now, clear up the assignment, and
 				   wakeup the potential sleeper */
-				close(crv->subs[SUB_REAL].zfd);
+				zt_close(crv->subs[SUB_REAL].zfd);
 				pri->pvts[principle]->call = crv->call;
 				pri_assign_bearer(crv, pri, pri->pvts[principle]);
 				ast_log(LOG_DEBUG, "Assigning bearer %d/%d to CRV %d:%d\n",
@@ -7103,8 +7134,7 @@ static void *do_idle_thread(void *vchan)
 
 static void zt_pri_message(char *s)
 {
-	if (option_verbose)
-		ast_verbose(s);
+	ast_verbose("%s", s);
 }
 
 static void zt_pri_error(char *s)
@@ -7355,7 +7385,7 @@ static void *pri_dchannel(void *vpri)
 					x = 0;
 					res = ioctl(pri->fds[which], ZT_GETEVENT, &x);
 					if (x) 
-						ast_log(LOG_NOTICE, "PRI got event: %d on %s D-channel of span %d\n", x, pri_order(which), pri->span);
+						ast_log(LOG_NOTICE, "PRI got event: %s (%d) on %s D-channel of span %d\n", event2str(x), x, pri_order(which), pri->span);	
 					/* Keep track of alarm state */	
 					if (x == ZT_EVENT_ALARM) {
 						pri->dchanavail[which] &= ~(DCHAN_NOTINALARM | DCHAN_UP);
@@ -8033,13 +8063,13 @@ static int start_pri(struct zt_pri *pri)
 		}
 		res = ioctl(pri->fds[i], ZT_GET_PARAMS, &p);
 		if (res) {
-			close(pri->fds[i]);
+			zt_close(pri->fds[i]);
 			pri->fds[i] = -1;
 			ast_log(LOG_ERROR, "Unable to get parameters for D-channel %d (%s)\n", x, strerror(errno));
 			return -1;
 		}
 		if (p.sigtype != ZT_SIG_HDLCFCS) {
-			close(pri->fds[i]);
+			zt_close(pri->fds[i]);
 			pri->fds[i] = -1;
 			ast_log(LOG_ERROR, "D-channel %d is not in HDLC/FCS mode.  See /etc/zaptel.conf\n", x);
 			return -1;
@@ -8047,7 +8077,7 @@ static int start_pri(struct zt_pri *pri)
 		memset(&si, 0, sizeof(si));
 		res = ioctl(pri->fds[i], ZT_SPANSTAT, &si);
 		if (res) {
-			close(pri->fds[i]);
+			zt_close(pri->fds[i]);
 			pri->fds[i] = -1;
 			ast_log(LOG_ERROR, "Unable to get span state for D-channel %d (%s)\n", x, strerror(errno));
 		}
@@ -8061,7 +8091,7 @@ static int start_pri(struct zt_pri *pri)
 		bi.bufsize = 1024;
 		if (ioctl(pri->fds[i], ZT_SET_BUFINFO, &bi)) {
 			ast_log(LOG_ERROR, "Unable to set appropriate buffering on channel %d\n", x);
-			close(pri->fds[i]);
+			zt_close(pri->fds[i]);
 			pri->fds[i] = -1;
 			return -1;
 		}
@@ -8074,7 +8104,7 @@ static int start_pri(struct zt_pri *pri)
 		if (i)
 			pri_enslave(pri->dchans[0], pri->dchans[i]);
 		if (!pri->dchans[i]) {
-			close(pri->fds[i]);
+			zt_close(pri->fds[i]);
 			pri->fds[i] = -1;
 			ast_log(LOG_ERROR, "Unable to create PRI structure\n");
 			return -1;
@@ -8089,7 +8119,7 @@ static int start_pri(struct zt_pri *pri)
 		for (i=0;i<NUM_DCHANS;i++) {
 			if (!pri->dchannels[i])
 				break;
-			close(pri->fds[i]);
+			zt_close(pri->fds[i]);
 			pri->fds[i] = -1;
 		}
 		ast_log(LOG_ERROR, "Unable to spawn D-channel: %s\n", strerror(errno));
@@ -8237,10 +8267,19 @@ static int handle_pri_show_span(int fd, int argc, char *argv[])
 	}
 	for(x=0;x<NUM_DCHANS;x++) {
 		if (pris[span-1].dchannels[x]) {
+			char *info_str = NULL;
 			ast_cli(fd, "%s D-channel: %d\n", pri_order(x), pris[span-1].dchannels[x]);
 			build_status(status, sizeof(status), pris[span-1].dchanavail[x], pris[span-1].dchans[x] == pris[span-1].pri);
 			ast_cli(fd, "Status: %s\n", status);
+#ifdef PRI_DUMP_INFO_STR
+			info_str = pri_dump_info_str(pris[span-1].pri);
+			if (info_str) {
+				ast_cli(fd, "%s", info_str);
+				free(info_str);
+			}
+#else
 			pri_dump_info(pris[span-1].pri);
+#endif
 			ast_cli(fd, "\n");
 		}
 	}
@@ -9563,6 +9602,8 @@ static int setup_zap(void)
 			cur_rxflash = atoi(v->value);
 		} else if (!strcasecmp(v->name, "debounce")) {
 			cur_debounce = atoi(v->value);
+		} else if (!strcasecmp(v->name, "sendcalleridafter")) {
+			sendcalleridafter = atoi(v->value);
 		} else
 			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 		v = v->next;

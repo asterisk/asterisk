@@ -11,6 +11,23 @@ You need :
 1.4.2 RELEASE are included. The patch adds a new command to festival 
 (asterisk_tts). 
 
+It is possible to run Festival without patches in the source-code. Just
+add this to your /etc/festival.scm or /usr/share/festival/festival/scm:
+
+    (define (tts_textasterisk string mode)
+    "(tts_textasterisk STRING MODE)
+    Apply tts to STRING. This function is specifically designed for
+    use in server mode so a single function call may synthesize the string.
+    This function name may be added to the server safe functions."
+    (let ((wholeutt (utt.synth (eval (list 'Utterance 'Text string)))))
+    (utt.wave.resample wholeutt 8000)
+    (utt.wave.rescale wholeutt 5)
+    (utt.send.wave.client wholeutt)))
+
+[See the comment with subject "Using Debian
+ festival >= 1.4.3-15 (no recompiling needed!)" on
+ http://www.voip-info.org/wiki-Asterisk+festival+installation for the
+ original mentioning of it]
 
 2) You may wish to obtain and install the asterisk-perl
 module by James Golovich <james@gnuinter.net>, from 

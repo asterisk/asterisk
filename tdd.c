@@ -77,8 +77,8 @@ struct tdd_state *tdd_new(void)
 {
 	struct tdd_state *tdd;
 	tdd = malloc(sizeof(struct tdd_state));
-	memset(tdd, 0, sizeof(struct tdd_state));
 	if (tdd) {
+		memset(tdd, 0, sizeof(struct tdd_state));
 		tdd->fskd.spb = 176;		/* 45.5 baud */
 		tdd->fskd.hdlc = 0;		/* Async */
 		tdd->fskd.nbit = 5;		/* 5 bits */

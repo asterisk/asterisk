@@ -33,6 +33,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -184,7 +185,7 @@ static int build_csv_record(char *buf, size_t bufsize, struct ast_cdr *cdr)
 
 static int writefile(char *s, char *acc)
 {
-	char tmp[256];
+	char tmp[AST_CONFIG_MAX_PATH];
 	FILE *f;
 	if (strchr(acc, '/') || (acc[0] == '.')) {
 		ast_log(LOG_WARNING, "Account code '%s' insecure for writing file\n", acc);
@@ -195,6 +196,7 @@ static int writefile(char *s, char *acc)
 	if (!f)
 		return -1;
 	fputs(s, f);
+	fflush(f);
 	fclose(f);
 	return 0;
 }
@@ -217,7 +219,7 @@ static int csv_log(struct ast_cdr *cdr)
 		   we open write and close the log file each time */
 		mf = fopen(csvmaster, "a");
 		if (!mf) {
-			ast_log(LOG_ERROR, "Unable to re-open master file %s\n", csvmaster);
+			ast_log(LOG_ERROR, "Unable to re-open master file %s : %s\n", csvmaster, strerror(errno));
 		}
 		if (mf) {
 			fputs(buf, mf);
@@ -227,7 +229,7 @@ static int csv_log(struct ast_cdr *cdr)
 		}
 		if (!ast_strlen_zero(cdr->accountcode)) {
 			if (writefile(buf, cdr->accountcode))
-				ast_log(LOG_WARNING, "Unable to write CSV record to account file '%s'\n", cdr->accountcode);
+				ast_log(LOG_WARNING, "Unable to write CSV record to account file '%s' : %s\n", cdr->accountcode, strerror(errno));
 		}
 	}
 	return 0;
