@@ -25,7 +25,7 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_mp3.so\
      app_waitforring.so app_privacy.so app_db.so app_chanisavail.so \
      app_enumlookup.so app_transfer.so app_setcidnum.so app_cdr.so \
      app_hasnewvoicemail.so app_sayunixtime.so app_cut.so app_read.so \
-     app_setcdruserfield.so app_zapscan.so
+     app_setcdruserfield.so
 
 ifneq (${OSARCH},Darwin)
 APPS+=app_intercom.so
@@ -34,7 +34,7 @@ endif
 #APPS+=app_sql_postgres.so
 #APPS+=app_sql_odbc.so
 
-APPS+=$(shell if [ -f /usr/include/linux/zaptel.h ]; then echo "app_zapras.so app_meetme.so app_flash.so app_zapbarge.so" ; fi)
+APPS+=$(shell if [ -f /usr/include/linux/zaptel.h ]; then echo "app_zapras.so app_meetme.so app_flash.so app_zapbarge.so app_zapscan.so" ; fi)
 #APPS+=$(shell if [ -f /usr/include/zap.h ]; then echo "app_rpt.so" ; fi)
 
 CFLAGS+=-fPIC
