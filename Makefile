@@ -171,6 +171,9 @@ endif
 ifeq (${OSARCH},Darwin)
 LIBS+=-lresolv
 endif
+ifeq (${OSARCH},FreeBSD)
+LIBS+=-lcrypto
+endif
 LIBS+=-lssl
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o say.o pbx.o cli.o md5.o term.o \
