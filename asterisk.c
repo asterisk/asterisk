@@ -263,7 +263,8 @@ static void *listener(void *unused)
 		len = sizeof(sun);
 		s = accept(ast_socket, (struct sockaddr *)&sun, &len);
 		if (s < 0) {
-			ast_log(LOG_WARNING, "Accept retured %d: %s\n", s, strerror(errno));
+			if (errno != EINTR)
+				ast_log(LOG_WARNING, "Accept retured %d: %s\n", s, strerror(errno));
 		} else {
 			for (x=0;x<AST_MAX_CONNECTS;x++) {
 				if (consoles[x].fd < 0) {
