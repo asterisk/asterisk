@@ -936,7 +936,8 @@ static int mgcp_hangup(struct ast_channel *ast)
     /* SC: Decrement use count */
 
     if ((p->hookstate == MGCP_ONHOOK) && (!sub->next->rtp)) {
-        if (has_voicemail(p)) {
+       	p->hidecallerid = 0; 
+	if (has_voicemail(p)) {
             if (mgcpdebug) {
                 ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_hangup(%s) on %s@%s set vmwi(+)\n", ast->name, p->name, p->parent->name);
             }

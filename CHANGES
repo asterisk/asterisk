@@ -14,6 +14,7 @@
     -- We now respond correctly to an invite for T.38 with a "488 Not acceptable here"
  -- chan_mgcp
     -- Fixed setting of accountcode
+    -- Fixed where *67 to block callerid only worked for first call
  -- res_agi
     -- A fix has been added to prevent calls from being hung up when more than one
        call is executing an AGI script calling the GET DATA command.
@@ -26,6 +27,7 @@
        a new line, it would not be processed
     -- Fixed the logger so that color escape sequences wouldn't be sent to the logs
     -- Fixed a logic error when setting the "rtpchecksums" option
+
 Asterisk 1.0.7
 
  -- chan_sip
