@@ -1,0 +1,144 @@
+/*
+ * Asterisk -- A telephony toolkit for Linux.
+ *
+ * Curl - App to load a URL
+ * 
+ * Copyright (C) 2004, Tilghman Lesher
+ *
+ * Tilghman Lesher <curl-20041222@the-tilghman.com>
+ *
+ * app_curl.c is distributed with no restrictions on usage or
+ * redistribution.
+ */
+ 
+#include <asterisk/lock.h>
+#include <asterisk/file.h>
+#include <asterisk/logger.h>
+#include <asterisk/channel.h>
+#include <asterisk/pbx.h>
+#include <asterisk/cli.h>
+#include <asterisk/options.h>
+#include <asterisk/module.h>
+#include <stdlib.h>
+#include <string.h>
+#include <curl/curl.h>
+
+static char *tdesc = "Load external URL";
+
+static char *app = "Curl";
+
+static char *synopsis = "Load an external URL";
+
+static char *descrip = 
+"  Curl(URL): Requests the URL.  Mainly used for signalling external\n"
+"applications of an event.  Returns 0 or -1 on fatal error.  Also sets\n"
+"CURL variable with the resulting page.\n";
+
+STANDARD_LOCAL_USER;
+
+LOCAL_USER_DECL;
+
+extern int errno;
+
+struct MemoryStruct {
+	char *memory;
+	size_t size;
+};
+
+static void *myrealloc(void *ptr, size_t size)
+{
+	/* There might be a realloc() out there that doesn't like reallocing
+	   NULL pointers, so we take care of it here */
+	if (ptr)
+		return realloc(ptr, size);
+	else
+		return malloc(size);
+}
+
+static size_t WriteMemoryCallback(void *ptr, size_t size, size_t nmemb, void *data)
+{
+	register int realsize = size * nmemb;
+	struct MemoryStruct *mem = (struct MemoryStruct *)data;
+
+	mem->memory = (char *)myrealloc(mem->memory, mem->size + realsize + 1);
+	if (mem->memory) {
+		memcpy(&(mem->memory[mem->size]), ptr, realsize);
+		mem->size += realsize;
+		mem->memory[mem->size] = 0;
+	}
+	return realsize;
+}
+
+static int curl_exec(struct ast_channel *chan, void *data)
+{
+	int res = 0;
+	struct localuser *u;
+	CURL *curl;
+
+	if (!data || !strlen((char *)data)) {
+		ast_log(LOG_WARNING, "Curl requires an argument (URL)\n");
+		return -1;
+	}
+
+	LOCAL_USER_ADD(u);
+
+	curl_global_init(CURL_GLOBAL_ALL);
+	curl = curl_easy_init();
+
+	if (curl) {
+		struct MemoryStruct chunk;
+
+		chunk.memory=NULL; /* we expect realloc(NULL, size) to work */
+		chunk.size = 0;    /* no data at this point */
+
+		curl_easy_setopt(curl, CURLOPT_URL, (char *)data);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&chunk);
+		curl_easy_setopt(curl, CURLOPT_USERAGENT, "asterisk-libcurl-agent/1.0");
+
+		curl_easy_perform(curl);
+		curl_easy_cleanup(curl);
+
+		chunk.memory[chunk.size] = '\0';
+		if (chunk.memory[chunk.size - 1] == 10)
+			chunk.memory[chunk.size - 1] = '\0';
+
+		pbx_builtin_setvar_helper(chan, "CURL", chunk.memory);
+
+		free(chunk.memory);
+	} else {
+		ast_log(LOG_ERROR, "Cannot allocate curl structure\n");
+		res = -1;
+	}
+
+	LOCAL_USER_REMOVE(u);
+	return res;
+}
+
+int unload_module(void)
+{
+	STANDARD_HANGUP_LOCALUSERS;
+	return ast_unregister_application(app);
+}
+
+int load_module(void)
+{
+	return ast_register_application(app, curl_exec, synopsis, descrip);
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	int res;
+	STANDARD_USECOUNT(res);
+	return res;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
+}

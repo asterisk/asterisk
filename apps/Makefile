@@ -51,6 +51,11 @@ APPS+=$(shell if [ -f /usr/include/linux/zaptel.h ]; then echo "app_zapras.so ap
 APPS+=$(shell if [ -f /usr/local/include/zaptel.h ]; then echo "app_zapras.so app_meetme.so app_flash.so app_zapbarge.so app_zapscan.so" ; fi)
 APPS+=$(shell if [ -f /usr/include/osp/osp.h ]; then echo "app_osplookup.so" ; fi)
 
+CURLLIBS=$(shell curl-config --libs)
+ifneq (${CURLLIBS},)
+	APPS+=app_curl.so
+endif
+
 CFLAGS+=-fPIC
 #
 # If you have MySQL 4.1 or later you can use ODBC
@@ -73,6 +78,9 @@ install: all
 	for x in $(APPS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 	rm -f $(DESTDIR)$(MODULES_DIR)/app_datetime.so
 	rm -f $(DESTDIR)$(MODULES_DIR)/app_qcall.so
+
+app_curl.so: app_curl.o
+	$(CC) $(SOLINK) -o $@ $< $(CURLLIBS)
 
 app_voicemail.so : app_voicemail.o
 ifeq ($(USE_MYSQL_VM_INTERFACE),1)
