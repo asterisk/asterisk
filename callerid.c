@@ -73,7 +73,7 @@ static inline void gen_tones(unsigned char *buf, int len, int codec, float ddr1,
 		t = 2.0 - (*cr2 * *cr2 + *ci2 * *ci2);
 		*cr2 *= t;
 		*ci2 *= t; 	
-		buf[x] = AST_LIN2X((*cr1 + *cr2) * 8192.0);
+		buf[x] = AST_LIN2X((*cr1 + *cr2) * 2048.0);
 	}
 }
 
