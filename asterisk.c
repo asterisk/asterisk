@@ -884,18 +884,41 @@ static char *cli_prompt(EditLine *el)
 {
 	static char prompt[200];
 	char *pfmt;
+	int color_used=0;
+	char term_code[20];
 
 	if ((pfmt = getenv("ASTERISK_PROMPT"))) {
 		char *t = pfmt, *p = prompt;
 		memset(prompt, 0, sizeof(prompt));
 		while (*t != '\0' && *p < sizeof(prompt)) {
 			if (*t == '%') {
+				char hostname[256];
+				int i;
+				struct timeval tv;
+				struct tm tm;
+				time_t curtime;
+				FILE *LOADAVG;
+				int fgcolor = COLOR_WHITE, bgcolor = COLOR_BLACK;
+
 				t++;
 				switch (*t) {
-					char hostname[256];
-					struct timeval tv;
-					struct tm tm;
-					FILE *LOADAVG;
+					case 'C': /* color */
+						t++;
+						if (sscanf(t, "%d;%d%n", &fgcolor, &bgcolor, &i) == 2) {
+							strncat(p, term_color_code(term_code, fgcolor, bgcolor, sizeof(term_code)),sizeof(prompt) - strlen(prompt));
+							t += i - 1;
+						} else if (sscanf(t, "%d%n", &fgcolor, &i) == 1) {
+							strncat(p, term_color_code(term_code, fgcolor, 0, sizeof(term_code)),sizeof(prompt) - strlen(prompt));
+							t += i - 1;
+						}
+
+						/* If the color has been reset correctly, then there's no need to reset it later */
+						if ((fgcolor == COLOR_WHITE) && (bgcolor == COLOR_BLACK)) {
+							color_used = 0;
+						} else {
+							color_used = 1;
+						}
+						break;
 					case 'd': /* date */
 						memset(&tm, 0, sizeof(struct tm));
 						gettimeofday(&tv, NULL);
@@ -905,6 +928,19 @@ static char *cli_prompt(EditLine *el)
 						break;
 					case 'h': /* hostname */
 						if (!gethostname(hostname, sizeof(hostname) - 1)) {
+							strncat(p, hostname, sizeof(prompt) - strlen(prompt));
+						} else {
+							strncat(p, "localhost", sizeof(prompt) - strlen(prompt));
+						}
+						break;
+					case 'H': /* short hostname */
+						if (!gethostname(hostname, sizeof(hostname) - 1)) {
+							for (i=0;i<sizeof(hostname);i++) {
+								if (hostname[i] == '.') {
+									hostname[i] = '\0';
+									break;
+								}
+							}
 							strncat(p, hostname, sizeof(prompt) - strlen(prompt));
 						} else {
 							strncat(p, "localhost", sizeof(prompt) - strlen(prompt));
@@ -969,6 +1005,15 @@ static char *cli_prompt(EditLine *el)
 				*p = *t;
 				p++;
 				t++;
+			}
+		}
+		if (color_used) {
+			/* Force colors back to normal at end */
+			term_color_code(term_code, COLOR_WHITE, COLOR_BLACK, sizeof(term_code));
+			if (strlen(term_code) > sizeof(prompt) - strlen(prompt)) {
+				strncat(prompt + sizeof(prompt) - strlen(term_code) - 1, term_code, strlen(term_code));
+			} else {
+				strncat(p, term_code, sizeof(term_code));
 			}
 		}
 	} else if (remotehostname)

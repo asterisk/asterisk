@@ -96,6 +96,66 @@ char *term_color(char *outbuf, const char *inbuf, int fgcolor, int bgcolor, int 
 	return outbuf;
 }
 
+char *term_color_code(char *outbuf, int fgcolor, int bgcolor, int maxout)
+{
+	int attr=0;
+	char tmp[40];
+	if ((!vt100compat) || (!fgcolor && !bgcolor)) {
+		*outbuf = '\0';
+		return outbuf;
+	}
+	if ((fgcolor & 128) && (bgcolor & 128)) {
+		/* Can't both be highlighted */
+		*outbuf = '\0';
+		return outbuf;
+	}
+	if (!bgcolor)
+		bgcolor = COLOR_BLACK;
+
+	if (bgcolor) {
+		bgcolor &= ~128;
+		bgcolor += 10;
+	}
+	if (fgcolor & 128) {
+		attr = ATTR_BRIGHT;
+		fgcolor &= ~128;
+	}
+	if (fgcolor && bgcolor) {
+		snprintf(tmp, sizeof(tmp), "%d;%d", fgcolor, bgcolor);
+	} else if (bgcolor) {
+		snprintf(tmp, sizeof(tmp), "%d", bgcolor);
+	} else if (fgcolor) {
+		snprintf(tmp, sizeof(tmp), "%d", fgcolor);
+	}
+	if (attr) {
+		snprintf(outbuf, maxout, "%c[%d;%sm", ESC, attr, tmp);
+	} else {
+		snprintf(outbuf, maxout, "%c[%sm", ESC, tmp);
+	}
+	return outbuf;
+}
+
+char *term_strip(char *outbuf, char *inbuf, int maxout)
+{
+	char *outbuf_ptr = outbuf, *inbuf_ptr = inbuf;
+
+	while (outbuf_ptr < outbuf + maxout) {
+		switch (*inbuf_ptr) {
+			case ESC:
+				while (*inbuf_ptr && (*inbuf_ptr != 'm'))
+					inbuf_ptr++;
+				break;
+			default:
+				*outbuf_ptr = *inbuf_ptr;
+				outbuf_ptr++;
+		}
+		if (! *inbuf_ptr)
+			break;
+		inbuf_ptr++;
+	}
+	return outbuf;
+}
+
 char *term_prompt(char *outbuf, const char *inbuf, int maxout)
 {
 	if (!vt100compat) {
