@@ -55,10 +55,14 @@ struct {								\
 
 #define AST_LIST_INSERT_TAIL(head, elm, type, field) do {             \
       struct type *curelm = (head)->first;                            \
-      while ( curelm->field.next!=NULL ) {                            \
-              curelm=curelm->field.next;                              \
+      if(!curelm) {                                                   \
+              AST_LIST_INSERT_HEAD(head, elm, field);                 \
+      } else {                                                        \
+              while ( curelm->field.next!=NULL ) {                    \
+                      curelm=curelm->field.next;                      \
+              }                                                       \
+              AST_LIST_INSERT_AFTER(curelm,elm,field);                \
       }                                                               \
-      AST_LIST_INSERT_AFTER(curelm,elm,field);                        \
 } while (0)
 
 
