@@ -1598,7 +1598,8 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			p->prioffset, p->pri->nodetype == PRI_NETWORK ? 0 : 1, 1, l, p->pri->dialplan - 1, n,
 			l ? (ast->restrictcid ? PRES_PROHIB_USER_NUMBER_PASSED_SCREEN : (p->use_callingpres ? ast->callingpres : PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN)) : PRES_NUMBER_NOT_AVAILABLE,
 			c + p->stripmsd, p->pri->dialplan - 1, 
-			((p->law == ZT_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW))) {
+			(p->digital ? -1 : 
+			((p->law == ZT_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW)))) {
 			ast_log(LOG_WARNING, "Unable to setup call to %s\n", c + p->stripmsd);
 			return -1;
 		}
