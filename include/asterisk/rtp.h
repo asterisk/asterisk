@@ -17,12 +17,21 @@
 #include <asterisk/frame.h>
 #include <asterisk/io.h>
 #include <asterisk/sched.h>
+#include <asterisk/channel.h>
 
 #include <netinet/in.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
+
+struct ast_rtp_protocol {
+	struct ast_rtp *(*get_rtp_info)(struct ast_channel *chan);				/* Get RTP struct, or NULL if unwilling to transfer */
+	int (*set_rtp_peer)(struct ast_channel *chan, struct ast_rtp *peer);	/* Set RTP peer */
+	int (*get_rtp_willing)(struct ast_channel *chan);		/* Willing to native bridge */
+	char *type;
+	struct ast_rtp_protocol *next;
+};
 
 struct ast_rtp;
 
@@ -57,6 +66,12 @@ int ast2rtp(int id);
 int rtp2ast(int id);
 
 char *ast2rtpn(int id);
+
+int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
+
+int ast_rtp_proto_register(struct ast_rtp_protocol *proto);
+
+void ast_rtp_proto_unregister(struct ast_rtp_protocol *proto);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

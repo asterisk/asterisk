@@ -7,6 +7,8 @@ bindaddr = 0.0.0.0		; Address to bind to
 context = default		; Default for incoming calls
 ;tos=lowdelay
 ;tos=184
+;maxexpirey=3600		; Max length of incoming registration we allow
+;defaultexpirey=120		; Default length of incoming/outoing registration
 
 ;[snomsip]
 ;type=friend

@@ -17,7 +17,8 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_intercom.
      app_agi.so app_qcall.so app_adsiprog.so app_getcpeid.so app_milliwatt.so \
      app_zapateller.so app_datetime.so app_setcallerid.so app_festival.so \
      app_queue.so app_senddtmf.so app_parkandannounce.so app_striplsd.so \
-     app_setcidname.so app_lookupcidname.so app_substring.so app_macro.so
+     app_setcidname.so app_lookupcidname.so app_substring.so app_macro.so \
+     app_authenticate.so
 
 #APPS+=app_sql_postgres.so
 #APPS+=app_sql_odbc.so

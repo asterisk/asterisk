@@ -30,6 +30,7 @@
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
 #include <asterisk/channel.h>
+#include <asterisk/channel_pvt.h>
 
 #define TYPE_SILENCE	 0x2
 #define TYPE_HIGH	 0x0
@@ -47,6 +48,7 @@ struct ast_rtp {
 	unsigned int lastts;
 	unsigned int lastrxts;
 	int lasttxformat;
+	int lastrxformat;
 	int dtmfcount;
 	struct sockaddr_in us;
 	struct sockaddr_in them;
@@ -60,6 +62,8 @@ struct ast_rtp {
 	void *data;
 	ast_rtp_callback callback;
 };
+
+static struct ast_rtp_protocol *protos = NULL;
 
 int ast_rtp_fd(struct ast_rtp *rtp)
 {
@@ -148,6 +152,49 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	}
 	rtp->resp = resp;
 	rtp->dtmfcount = dtmftimeout;
+	return f;
+}
+
+static struct ast_frame *process_rfc3389(struct ast_rtp *rtp, unsigned char *data, int len)
+{
+	struct ast_frame *f = NULL;
+	/* Convert comfort noise into audio with various codecs.  Unfortunately this doesn't
+	   totally help us out becuase we don't have an engine to keep it going and we are not
+	   guaranteed to have it every 20ms or anything */
+#if 0
+	printf("RFC3389: %d bytes, format is %d\n", len, rtp->lastrxformat);
+#endif	
+	ast_log(LOG_NOTICE, "RFC3389 support incomplete.  Turn off on client if possible\n");
+	if (!rtp->lastrxformat)
+		return 	NULL;
+	switch(rtp->lastrxformat) {
+	case AST_FORMAT_ULAW:
+		rtp->f.frametype = AST_FRAME_VOICE;
+		rtp->f.subclass = AST_FORMAT_ULAW;
+		rtp->f.datalen = 160;
+		rtp->f.samples = 160;
+		memset(rtp->f.data, 0x7f, rtp->f.datalen);
+		f = &rtp->f;
+		break;
+	case AST_FORMAT_ALAW:
+		rtp->f.frametype = AST_FRAME_VOICE;
+		rtp->f.subclass = AST_FORMAT_ALAW;
+		rtp->f.datalen = 160;
+		rtp->f.samples = 160;
+		memset(rtp->f.data, 0x7e, rtp->f.datalen); /* XXX Is this right? XXX */
+		f = &rtp->f;
+		break;
+	case AST_FORMAT_SLINEAR:
+		rtp->f.frametype = AST_FRAME_VOICE;
+		rtp->f.subclass = AST_FORMAT_SLINEAR;
+		rtp->f.datalen = 320;
+		rtp->f.samples = 160;
+		memset(rtp->f.data, 0x00, rtp->f.datalen);
+		f = &rtp->f;
+		break;
+	default:
+		ast_log(LOG_NOTICE, "Don't know how to handle RFC3389 for receive codec %d\n", rtp->lastrxformat);
+	}
 	return f;
 }
 
@@ -247,6 +294,8 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		} else if (payloadtype == 100) {
 			/* CISCO's notso proprietary DTMF bridge */
 			f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
+		} else if (payloadtype == 13) {
+			f = process_rfc3389(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
 		} else {
 			ast_log(LOG_NOTICE, "Unknown RTP codec %d received\n", payloadtype);
 		}
@@ -254,7 +303,8 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			return f;
 		else
 			return &null_frame;
-	}
+	} else
+		rtp->lastrxformat = rtp->f.subclass;
 
 	if (!rtp->lastrxts)
 		rtp->lastrxts = timestamp;
@@ -650,4 +700,156 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 	}
 		
 	return 0;
+}
+
+void ast_rtp_proto_unregister(struct ast_rtp_protocol *proto)
+{
+	struct ast_rtp_protocol *cur, *prev;
+	cur = protos;
+	prev = NULL;
+	while(cur) {
+		if (cur == proto) {
+			if (prev)
+				prev->next = proto->next;
+			else
+				protos = proto->next;
+			return;
+		}
+		prev = cur;
+		cur = cur->next;
+	}
+}
+
+int ast_rtp_proto_register(struct ast_rtp_protocol *proto)
+{
+	struct ast_rtp_protocol *cur;
+	cur = protos;
+	while(cur) {
+		if (cur->type == proto->type) {
+			ast_log(LOG_WARNING, "Tried to register same protocol '%s' twice\n", cur->type);
+			return -1;
+		}
+		cur = cur->next;
+	}
+	proto->next = protos;
+	protos = proto;
+	return 0;
+}
+
+static struct ast_rtp_protocol *get_proto(struct ast_channel *chan)
+{
+	struct ast_rtp_protocol *cur;
+	cur = protos;
+	while(cur) {
+		if (cur->type == chan->type) {
+			return cur;
+		}
+		cur = cur->next;
+	}
+	return NULL;
+}
+
+int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
+{
+	struct ast_frame *f;
+	struct ast_channel *who, *cs[3];
+	struct ast_rtp *p0, *p1;
+	struct ast_rtp_protocol *pr0, *pr1;
+	void *pvt0, *pvt1;
+	int to;
+
+	/* XXX Wait a half a second for things to settle up 
+			this really should be fixed XXX */
+	ast_autoservice_start(c0);
+	ast_autoservice_start(c1);
+	usleep(500000);
+	ast_autoservice_stop(c0);
+	ast_autoservice_stop(c1);
+
+	/* if need DTMF, cant native bridge */
+	if (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))
+		return -2;
+	ast_pthread_mutex_lock(&c0->lock);
+	ast_pthread_mutex_lock(&c1->lock);
+	pr0 = get_proto(c0);
+	pr1 = get_proto(c1);
+	if (!pr0) {
+		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c0->name);
+		ast_pthread_mutex_unlock(&c0->lock);
+		ast_pthread_mutex_unlock(&c1->lock);
+		return -1;
+	}
+	if (!pr1) {
+		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c1->name);
+		ast_pthread_mutex_unlock(&c0->lock);
+		ast_pthread_mutex_unlock(&c1->lock);
+		return -1;
+	}
+	pvt0 = c0->pvt->pvt;
+	pvt1 = c1->pvt->pvt;
+	p0 = pr0->get_rtp_info(c0);
+	p1 = pr1->get_rtp_info(c1);
+	if (!p0 || !p1) {
+		/* Somebody doesn't want to play... */
+		ast_pthread_mutex_unlock(&c0->lock);
+		ast_pthread_mutex_unlock(&c1->lock);
+		return -2;
+	}
+	if (pr0->set_rtp_peer(c0, p1)) 
+		ast_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
+	if (pr1->set_rtp_peer(c1, p0)) 
+		ast_log(LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", c1->name, c0->name);
+	ast_pthread_mutex_unlock(&c0->lock);
+	ast_pthread_mutex_unlock(&c1->lock);
+	cs[0] = c0;
+	cs[1] = c1;
+	cs[2] = NULL;
+	for (;;) {
+		if ((c0->pvt->pvt != pvt0)  ||
+			(c1->pvt->pvt != pvt1) ||
+			(c0->masq || c0->masqr || c1->masq || c1->masqr)) {
+				ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
+				if (c0->pvt->pvt == pvt0) {
+					if (pr0->set_rtp_peer(c0, NULL)) 
+						ast_log(LOG_WARNING, "Channel '%s' failed to revert\n", c0->name);
+				}
+				if (c1->pvt->pvt == pvt1) {
+					if (pr1->set_rtp_peer(c1, NULL)) 
+						ast_log(LOG_WARNING, "Channel '%s' failed to revert back\n", c1->name);
+				}
+				/* Tell it to try again later */
+				return -3;
+		}
+		to = -1;
+		who = ast_waitfor_n(cs, 2, &to);
+		if (!who) {
+			ast_log(LOG_DEBUG, "Ooh, empty read...\n");
+			continue;
+		}
+		f = ast_read(who);
+		if (!f || ((f->frametype == AST_FRAME_DTMF) &&
+				   (((who == c0) && (flags & AST_BRIDGE_DTMF_CHANNEL_0)) || 
+			       ((who == c1) && (flags & AST_BRIDGE_DTMF_CHANNEL_1))))) {
+			*fo = f;
+			*rc = who;
+			ast_log(LOG_DEBUG, "Oooh, got a %s\n", f ? "digit" : "hangup");
+			if ((c0->pvt->pvt == pvt0) && (!c0->_softhangup)) {
+				if (pr0->set_rtp_peer(c0, NULL)) 
+					ast_log(LOG_WARNING, "Channel '%s' failed to revert\n", c0->name);
+			}
+			if ((c1->pvt->pvt == pvt1) && (!c1->_softhangup)) {
+				if (pr1->set_rtp_peer(c1, NULL)) 
+					ast_log(LOG_WARNING, "Channel '%s' failed to revert back\n", c1->name);
+			}
+			/* That's all we needed */
+			return 0;
+		} else 
+			ast_frfree(f);
+		/* Swap priority not that it's a big deal at this point */
+		cs[2] = cs[0];
+		cs[0] = cs[1];
+		cs[1] = cs[2];
+		
+	}
+	return -1;
 }

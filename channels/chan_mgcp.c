@@ -131,6 +131,7 @@ struct mgcp_endpoint {
 	int outgoing;
 	struct ast_channel *owner;
 	struct ast_rtp *rtp;
+	struct sockaddr_in tmpdest;
 	struct mgcp_endpoint *next;
 	struct mgcp_gateway *parent;
 };
@@ -317,6 +318,7 @@ static int mgcp_hangup(struct ast_channel *ast)
 	p->owner = NULL;
 	if (strlen(p->cxident))
 		transmit_connection_del(p);
+	strcpy(p->cxident, "");
 	if (!p->alreadygone && (!p->outgoing || (ast->_state == AST_STATE_UP)))
 		transmit_notify_request(p, "ro", 1);
 	else
@@ -324,8 +326,9 @@ static int mgcp_hangup(struct ast_channel *ast)
 	ast->pvt->pvt = NULL;
 	p->alreadygone = 0;
 	p->outgoing = 0;
-	strcpy(p->cxident, "");
 	strcpy(p->callid, "");
+	/* Reset temporary destination */
+	memset(&p->tmpdest, 0, sizeof(p->tmpdest));
 	if (p->rtp) {
 		ast_rtp_destroy(p->rtp);
 		p->rtp = NULL;
@@ -515,6 +518,7 @@ static struct ast_channel *mgcp_new(struct mgcp_endpoint *i, int state)
 		tmp->pvt->indicate = mgcp_indicate;
 		tmp->pvt->fixup = mgcp_fixup;
 		tmp->pvt->send_digit = mgcp_senddigit;
+		tmp->pvt->bridge = ast_rtp_bridge;
 		if (strlen(i->language))
 			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
 		i->owner = tmp;
@@ -951,8 +955,15 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_endpoint *p, struct as
 	if (rtp) {
 		ast_rtp_get_peer(rtp, &dest);
 	} else {
-		dest.sin_addr = p->parent->ourip;
-		dest.sin_port = sin.sin_port;
+		if (p->tmpdest.sin_addr.s_addr) {
+			dest.sin_addr = p->tmpdest.sin_addr;
+			dest.sin_port = p->tmpdest.sin_port;
+			/* Reset temporary destination */
+			memset(&p->tmpdest, 0, sizeof(p->tmpdest));
+		} else {
+			dest.sin_addr = p->parent->ourip;
+			dest.sin_port = sin.sin_port;
+		}
 	}
 	printf("We're at %s port %d\n", inet_ntoa(p->parent->ourip), ntohs(sin.sin_port));	
 	snprintf(v, sizeof(v), "v=0\r\n");
@@ -991,6 +1002,12 @@ static int transmit_modify_with_sdp(struct mgcp_endpoint *p, struct ast_rtp *rtp
 	char local[256];
 	char tmp[80];
 	int x;
+	if (!strlen(p->cxident) && rtp) {
+		/* We don't have a CXident yet, store the destination and
+		   wait a bit */
+		ast_rtp_get_peer(rtp, &p->tmpdest);
+		return 0;
+	}
 	snprintf(local, sizeof(local), "p:20");
 	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
 		if (p->capability & x) {
@@ -1003,6 +1020,7 @@ static int transmit_modify_with_sdp(struct mgcp_endpoint *p, struct ast_rtp *rtp
 	add_header(&resp, "L", local);
 	add_header(&resp, "M", "sendrecv");
 	add_header(&resp, "X", p->txident);
+	add_header(&resp, "I", p->cxident);
 	add_header(&resp, "S", "");
 	add_sdp(&resp, p, rtp);
 	p->lastout = oseq;
@@ -1278,8 +1296,14 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 		p = find_endpoint(NULL, ident, &sin);
 		if (p) {
 			handle_response(p, result, ident);
-			if ((c = get_header(&req, "I")))
-				strncpy(p->cxident, c, sizeof(p->cxident) - 1);
+			if ((c = get_header(&req, "I"))) {
+				if (strlen(c)) {
+					strncpy(p->cxident, c, sizeof(p->cxident) - 1);
+					if (p->tmpdest.sin_addr.s_addr) {
+						transmit_modify_with_sdp(p, NULL);
+					}
+				}
+			}
 			if (req.lines)
 				process_sdp(p, &req);
 		}
@@ -1483,6 +1507,31 @@ struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 	return gw;
 }
 
+static struct ast_rtp *mgcp_get_rtp_peer(struct ast_channel *chan)
+{
+	struct mgcp_endpoint *p;
+	p = chan->pvt->pvt;
+	if (p && p->rtp)
+		return p->rtp;
+	return NULL;
+}
+
+static int mgcp_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp)
+{
+	struct mgcp_endpoint *p;
+	p = chan->pvt->pvt;
+	if (p) {
+		transmit_modify_with_sdp(p, rtp);
+		return 0;
+	}
+	return -1;
+}
+
+static struct ast_rtp_protocol mgcp_rtp = {
+	get_rtp_info: mgcp_get_rtp_peer,
+	set_rtp_peer: mgcp_set_rtp_peer,
+};
+
 int load_module()
 {
 	struct ast_config *cfg;
@@ -1590,6 +1639,8 @@ int load_module()
 		ast_destroy(cfg);
 		return -1;
 	}
+	mgcp_rtp.type = type;
+	ast_rtp_proto_register(&mgcp_rtp);
 	ast_cli_register(&cli_show_endpoints);
 	/* And start the monitor for the first time */
 	restart_monitor();

@@ -35,10 +35,12 @@ struct ast_smoother {
 	int size;
 	int format;
 	int readdata;
+	int optimizablestream;
 	float samplesperbyte;
 	struct ast_frame f;
 	char data[SMOOTHER_SIZE];
 	char framedata[SMOOTHER_SIZE + AST_FRIENDLY_OFFSET];
+	struct ast_frame *opt;
 	int len;
 };
 
@@ -76,6 +78,28 @@ int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Out of smoother space\n");
 		return -1;
 	}
+	if ((f->datalen == s->size) && !s->opt) {
+		if (!s->len) {
+			/* Optimize by sending the frame we just got
+			   on the next read, thus eliminating the douple
+			   copy */
+			s->opt = f;
+			return 0;
+		} else {
+			s->optimizablestream++;
+			if (s->optimizablestream > 10) {
+				/* For the past 10 rounds, we have input and output
+				   frames of the correct size for this smoother, yet
+				   we were unable to optimize because there was still
+				   some cruft left over.  Lets just drop the cruft so
+				   we can move to a fully optimized path */
+				s->len = 0;
+				s->opt = f;
+				return 0;
+			}
+		}
+	} else 
+		s->optimizablestream = 0;
 	memcpy(s->data + s->len, f->data, f->datalen);
 	s->len += f->datalen;
 	return 0;
@@ -83,6 +107,15 @@ int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f)
 
 struct ast_frame *ast_smoother_read(struct ast_smoother *s)
 {
+	struct ast_frame *opt;
+
+	/* IF we have an optimization frame, send it */
+	if (s->opt) {
+		opt = s->opt;
+		s->opt = NULL;
+		return opt;
+	}
+
 	/* Make sure we have enough data */
 	if (s->len < s->size) {
 		return NULL;

@@ -1,3 +1,9 @@
+ -- Make HOLD on SIP make use of asterisk MOH
+ -- Add supervised transfer (tested with Pingtel only)
+ -- Allow maxexpirey and defaultexpirey to be runtime configurable for SIP
+ -- Preliminary codec 13 support (RFC3389)
+ -- Add app_authenticate for general purpose authentication
+ -- Optimize RTP and smoother
  -- Create special variable "EXTEN-n" where it is extension stripped by n MSD
  -- Fix uninitialized frame pointer in channel.c
  -- Add global variables support under [globals] of extensions.conf

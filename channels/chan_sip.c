@@ -32,6 +32,7 @@
 #include <asterisk/cli.h>
 #include <asterisk/md5.h>
 #include <asterisk/app.h>
+#include <asterisk/musiconhold.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -47,8 +48,12 @@
 /* #define VOCAL_DATA_HACK */
 
 #define SIPDUMPER
-#define DEFAULT_EXPIREY 120
-#define MAX_EXPIREY     3600
+#define DEFAULT_DEFAULT_EXPIREY 120
+#define DEFAULT_MAX_EXPIREY     3600
+
+static int max_expirey = DEFAULT_MAX_EXPIREY;
+static int default_expirey = DEFAULT_DEFAULT_EXPIREY;
+
 #define DEFAULT_MAXMS		2000		/* Must be faster than 2 seconds by default */
 
 #define DEFAULT_MAXMS		2000		/* Must be faster than 2 seconds by default */
@@ -142,6 +147,7 @@ static struct sip_pvt {
 	char refer_to[AST_MAX_EXTENSION];	/* Place to store REFER-TO extension */
 	char referred_by[AST_MAX_EXTENSION];/* Place to store REFERRED-BY extension */
 	char refer_contact[AST_MAX_EXTENSION];/* Place to store Contact info from a REFER extension */
+	struct sip_pvt *refer_call;			/* Call we are referring */
 	char record_route[256];
 	char record_route_info[256];
 	char remote_party_id[256];
@@ -728,6 +734,7 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 }
 
 
+#if 0
 static int sip_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
 {
 	struct sip_pvt *p0, *p1;
@@ -742,6 +749,7 @@ static int sip_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 	ast_pthread_mutex_lock(&c1->lock);
 	p0 = c0->pvt->pvt;
 	p1 = c1->pvt->pvt;
+	ast_log(LOG_DEBUG, "Reinvite? %s: %s, %s: %s\n", c0->name, p0->canreinvite ? "yes" : "no", c1->name, p1->canreinvite ? "yes" : "no");
 	if (!p0->canreinvite || !p1->canreinvite) {
 		/* Not gonna support reinvite */
 		ast_pthread_mutex_unlock(&c0->lock);
@@ -796,6 +804,7 @@ static int sip_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 	}
 	return -1;
 }
+#endif
 
 static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 {
@@ -808,7 +817,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 			tmp->nativeformats = capability;
 		fmt = ast_best_codec(tmp->nativeformats);
 		if (title)
-			snprintf(tmp->name, sizeof(tmp->name), "SIP/%s", title);
+			snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%04x", title, rand() & 0xffff);
 		else
 			snprintf(tmp->name, sizeof(tmp->name), "SIP/%s:%d", inet_ntoa(i->sa.sin_addr), ntohs(i->sa.sin_port));
 		tmp->type = type;
@@ -830,7 +839,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		tmp->pvt->indicate = sip_indicate;
 		tmp->pvt->fixup = sip_fixup;
 		tmp->pvt->send_digit = sip_senddigit;
-		tmp->pvt->bridge = sip_bridge;
+		tmp->pvt->bridge = ast_rtp_bridge;
 		if (strlen(i->language))
 			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
 		i->owner = tmp;
@@ -1087,7 +1096,7 @@ static int sip_register(char *value, int lineno)
 		if (secret)
 			strncpy(reg->secret, secret, sizeof(reg->secret)-1);
 		reg->expire = -1;
-		reg->refresh = DEFAULT_EXPIREY;
+		reg->refresh = default_expirey;
 		reg->addr.sin_family = AF_INET;
 		memcpy(&reg->addr.sin_addr, hp->h_addr, sizeof(&reg->addr.sin_addr));
 		reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(DEFAULT_SIP_PORT);
@@ -1237,11 +1246,21 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		ast_log(LOG_WARNING, "No compatible codecs!\n");
 		return -1;
 	}
-	if (p->owner && !(p->owner->nativeformats & p->capability)) {
-		ast_log(LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %d and not %d\n", p->capability, p->owner->nativeformats);
-		p->owner->nativeformats = p->capability;
-		ast_set_read_format(p->owner, p->owner->readformat);
-		ast_set_write_format(p->owner, p->owner->writeformat);
+	if (p->owner) {
+		if (p->owner->nativeformats & p->capability) {
+			ast_log(LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %d and not %d\n", p->capability, p->owner->nativeformats);
+			p->owner->nativeformats = p->capability;
+			ast_set_read_format(p->owner, p->owner->readformat);
+			ast_set_write_format(p->owner, p->owner->writeformat);
+		}
+		if (p->owner->bridge) {
+			/* Turn on/off music on hold if we are holding/unholding */
+			if (sin.sin_addr.s_addr) {
+				ast_moh_stop(p->owner->bridge);
+			} else {
+				ast_moh_start(p->owner->bridge, NULL);
+			}
+		}
 	}
 	return 0;
 	
@@ -1830,7 +1849,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 	if (auth) 
 		add_header(&req, "Authorization", auth);
 
-	snprintf(tmp, sizeof(tmp), "%d", DEFAULT_EXPIREY);
+	snprintf(tmp, sizeof(tmp), "%d", default_expirey);
 	add_header(&req, "Expires", tmp);
 	add_header(&req, "Event", "registration");
 	copy_request(&p->initreq, &req);
@@ -1933,8 +1952,8 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		strcpy(p->username, "");
 	if (p->expire > -1)
 		ast_sched_del(sched, p->expire);
-	if ((expirey < 1) || (expirey > MAX_EXPIREY))
-		expirey = DEFAULT_EXPIREY;
+	if ((expirey < 1) || (expirey > max_expirey))
+		expirey = max_expirey;
 	p->expire = ast_sched_add(sched, expirey * 1000, expire_register, p);
 	pvt->expirey = expirey;
 	if (memcmp(&p->addr, &oldsin, sizeof(oldsin))) {
@@ -2130,7 +2149,9 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 	char tmp2[256] = "", *c2, *a2;
 	char tmp3[256];
 	char tmp4[256];
+	char tmp5[256] = "";		/* CallID to replace */
 	struct sip_request *req;
+	struct sip_pvt *p2;
 	
 	req = oreq;
 	if (!req)
@@ -2151,32 +2172,81 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 	}
 	c += 4;
 	c2 += 4;
-	if ((a = strchr(c, '@')) || (a = strchr(c, ';'))) {
+	if ((a = strchr(c, '?'))) {
+		/* Search for arguemnts */
 		*a = '\0';
+		a++;
+		if (!strncasecmp(a, "REPLACES=", strlen("REPLACES="))) {
+			strncpy(tmp5, a + strlen("REPLACES="), sizeof(tmp5) - 1);
+			if ((a = strchr(tmp5, '%'))) {
+				/* Yuck!  Pingtel converts the '@' to a %40, icky icky!  Convert
+				   back to an '@' */
+				if ((a[1] == '4') && (a[2] == '0')) {
+					*a = '@';
+					memmove(a + 1, a+3, strlen(a + 3));
+				}
+			}
+			if ((a = strchr(tmp5, '%'))) 
+				*a = '\0';
+		}
 	}
-	if ((a2 = strchr(c2, '@')) || (a2 = strchr(c2, ';'))) {	
+	
+	if ((a = strchr(c, '@')))
+		*a = '\0';
+	if ((a = strchr(c, ';'))) 
+		*a = '\0';
+	
+
+	if ((a2 = strchr(c2, '@')))
 		*a2 = '\0';
-	}
+
+	if ((a2 = strchr(c2, ';'))) 
+		*a2 = '\0';
+	
 	
 	if (sipdebug)
 		ast_verbose("Looking for %s in %s\n", c, p->context);
 		ast_verbose("Looking for %s in %s\n", c2, p->context);
-	
-	if (ast_exists_extension(NULL, p->context, c, 1, NULL) && ast_exists_extension(NULL, p->context, c2, 1, NULL)) {
-		if (!oreq)
-			ast_log(LOG_DEBUG,"Something is wrong with this line.\n");	//This line is ignored for some reason....
-			ast_log(LOG_DEBUG,"Assigning Extension %s to REFER-TO\n", c);
-			ast_log(LOG_DEBUG,"Assigning Extension %s to REFERRED-BY\n", c2);
-			ast_log(LOG_DEBUG,"Assigning Contact Info %s to REFER_CONTACT\n", tmp3);
-			ast_log(LOG_DEBUG,"Assigning Remote-Party-ID Info %s to REMOTE_PARTY_ID\n",tmp4);
-			strncpy(p->refer_to, c, sizeof(p->refer_to) - 1);
-			strncpy(p->referred_by, c2, sizeof(p->referred_by) - 1);
-			strncpy(p->refer_contact, tmp3, sizeof(p->refer_contact) - 1);
-			strncpy(p->remote_party_id, tmp4, sizeof(p->remote_party_id) - 1);
+		
+	if (strlen(tmp5)) {	
+		/* This is a supervised transfer */
+		ast_log(LOG_DEBUG,"Assigning Replace-Call-ID Info %s to REPLACE_CALL_ID\n",tmp5);
+		
+		strncpy(p->refer_to, "", sizeof(p->refer_to) - 1);
+		strncpy(p->referred_by, "", sizeof(p->referred_by) - 1);
+		strncpy(p->refer_contact, "", sizeof(p->refer_contact) - 1);
+		strncpy(p->remote_party_id, "", sizeof(p->remote_party_id) - 1);
+		p->refer_call = NULL;
+		ast_pthread_mutex_lock(&iflock);
+		/* Search interfaces and find the match */
+		p2 = iflist;
+		while(p2) {
+			if (!strcmp(p2->callid, tmp5)) {
+				/* Go ahead and lock it before returning */
+				ast_pthread_mutex_lock(&p2->lock);
+				p->refer_call = p2;
+				break;
+			}
+			p2 = p2->next;
+		}
+		ast_pthread_mutex_unlock(&iflock);
+		if (p->refer_call)
 			return 0;
-	}
-
-	if (ast_canmatch_extension(NULL, p->context, c, 1, NULL)) {
+		else
+			ast_log(LOG_NOTICE, "Supervised transfer requested, but unable to find callid '%s'\n", tmp5);
+	} else if (ast_exists_extension(NULL, p->context, c, 1, NULL) && ast_exists_extension(NULL, p->context, c2, 1, NULL)) {
+		/* This is an unsupervised transfer */
+		ast_log(LOG_DEBUG,"Assigning Extension %s to REFER-TO\n", c);
+		ast_log(LOG_DEBUG,"Assigning Extension %s to REFERRED-BY\n", c2);
+		ast_log(LOG_DEBUG,"Assigning Contact Info %s to REFER_CONTACT\n", tmp3);
+		ast_log(LOG_DEBUG,"Assigning Remote-Party-ID Info %s to REMOTE_PARTY_ID\n",tmp4);
+		strncpy(p->refer_to, c, sizeof(p->refer_to) - 1);
+		strncpy(p->referred_by, c2, sizeof(p->referred_by) - 1);
+		strncpy(p->refer_contact, tmp3, sizeof(p->refer_contact) - 1);
+		strncpy(p->remote_party_id, tmp4, sizeof(p->remote_party_id) - 1);
+		p->refer_call = NULL;
+		return 0;
+	} else if (ast_canmatch_extension(NULL, p->context, c, 1, NULL)) {
 		return 1;
 	}
 
@@ -2735,7 +2805,7 @@ retrylock:
 				if (r->expire != -1)
 					ast_sched_del(sched, r->expire);
 				expires=atoi(get_header(req, "expires"));
-				if (!expires) expires=DEFAULT_EXPIREY;
+				if (!expires) expires=default_expirey;
 					r->expire=ast_sched_add(sched, (expires-2)*1000, sip_reregister, r); 
 
 			}
@@ -2877,6 +2947,37 @@ static int determine_firstline_parts( struct sip_request *req ) {
     }
   }
   return 1;
+}
+
+static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
+{
+	if (!p1->owner || !p2->owner) {
+		ast_log(LOG_WARNING, "Transfer attempted without dual ownership?\n");
+		return -1;
+	}
+	if (p1->owner->bridge) {
+		if (p2->owner->bridge)
+			ast_moh_stop(p2->owner->bridge);
+		ast_moh_stop(p1->owner->bridge);
+		ast_moh_stop(p1->owner);
+		ast_moh_stop(p2->owner);
+		if (ast_channel_masquerade(p2->owner, p1->owner->bridge)) {
+			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", p2->owner->name, p1->owner->bridge->name);
+			return -1;
+		}
+	} else if (p2->owner->bridge) {
+		ast_moh_stop(p2->owner->bridge);
+		ast_moh_stop(p2->owner);
+		ast_moh_stop(p1->owner);
+		if (ast_channel_masquerade(p1->owner, p2->owner->bridge)) {
+			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", p1->owner->name, p2->owner->bridge->name);
+			return -1;
+		}
+	} else {
+		ast_log(LOG_NOTICE, "Transfer attempted with no bridged calls to transfer\n");
+		return -1;
+	}
+	return 0;
 }
 
 static int handle_request(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin)
@@ -3048,16 +3149,23 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			transmit_response_with_allow(p, "404 Not Found", req);
 		else if (res > 0)
 			transmit_response_with_allow(p, "484 Address Incomplete", req);
-		else
+		else {
 			transmit_response(p, "202 Accepted", req);
-		ast_log(LOG_DEBUG,"202 Accepted\n");
-		c = p->owner;
-		if (c) {
-			transfer_to = c->bridge;
-			if (transfer_to)
-				ast_async_goto(transfer_to,"", p->refer_to,1, 1);
+			if (p->refer_call) {
+				ast_log(LOG_DEBUG,"202 Accepted (supervised)\n");
+				attempt_transfer(p, p->refer_call);
+				ast_pthread_mutex_unlock(&p->refer_call->lock);
+				p->refer_call = NULL;
+			} else {
+				ast_log(LOG_DEBUG,"202 Accepted (blind)\n");
+				c = p->owner;
+				if (c) {
+					transfer_to = c->bridge;
+					if (transfer_to)
+						ast_async_goto(transfer_to,"", p->refer_to,1, 1);
+				}
+			}
 		}
-			
 	} else if (!strcasecmp(cmd, "CANCEL") || !strcasecmp(cmd, "BYE")) {
 		copy_request(&p->initreq, req);
 		p->alreadygone = 1;
@@ -3140,7 +3248,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 		/* Must have at least two headers */
 		return 1;
 	}
-	/* Process request, with iflock held */
+	/* Process request, with netlock held */
 	ast_pthread_mutex_lock(&netlock);
 	p = find_call(&req, &sin);
 	if (p) {
@@ -3495,6 +3603,8 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 			peer->expirey = expirey;
 		}
 		peer->capability = capability;
+		/* Assume can reinvite */
+		peer->canreinvite = 1;
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) 
 				strncpy(peer->secret, v->value, sizeof(peer->secret)-1);
@@ -3619,6 +3729,14 @@ static int reload_config()
 			strncpy(context, v->value, sizeof(context)-1);
 		} else if (!strcasecmp(v->name, "language")) {
 			strncpy(language, v->value, sizeof(language)-1);
+		} else if (!strcasecmp(v->name, "maxexpirey")) {
+			max_expirey = atoi(v->value);
+			if (max_expirey < 1)
+				max_expirey = DEFAULT_MAX_EXPIREY;
+		} else if (!strcasecmp(v->name, "defaultexpirey")) {
+			default_expirey = atoi(v->value);
+			if (default_expirey < 1)
+				default_expirey = DEFAULT_DEFAULT_EXPIREY;
 		} else if (!strcasecmp(v->name, "bindaddr")) {
 			if (!(hp = gethostbyname(v->value))) {
 				ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
@@ -3743,6 +3861,31 @@ static int reload_config()
 	return 0;
 }
 
+static struct ast_rtp *sip_get_rtp_peer(struct ast_channel *chan)
+{
+	struct sip_pvt *p;
+	p = chan->pvt->pvt;
+	if (p && p->rtp && p->canreinvite)
+		return p->rtp;
+	return NULL;
+}
+
+static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp)
+{
+	struct sip_pvt *p;
+	p = chan->pvt->pvt;
+	if (p) {
+		transmit_reinvite_with_sdp(p, rtp);
+		return 0;
+	}
+	return -1;
+}
+
+static struct ast_rtp_protocol sip_rtp = {
+	get_rtp_info: sip_get_rtp_peer,
+	set_rtp_peer: sip_set_rtp_peer,
+};
+
 int load_module()
 {
 	int res;
@@ -3761,6 +3904,8 @@ int load_module()
 		ast_cli_register(&cli_show_registry);
 		ast_cli_register(&cli_debug);
 		ast_cli_register(&cli_no_debug);
+		sip_rtp.type = type;
+		ast_rtp_proto_register(&sip_rtp);
 		sched = sched_context_create();
 		if (!sched) {
 			ast_log(LOG_WARNING, "Unable to create schedule context\n");
