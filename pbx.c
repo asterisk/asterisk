@@ -1336,6 +1336,7 @@ int ast_extension_state_del(int id)
 {
     struct ast_notify *list, *prev = NULL;
     struct ast_notify_cb *cblist, *cbprev;
+    int res = -1;
             
     pthread_mutex_lock(&notifylock);
 
@@ -1366,6 +1367,7 @@ int ast_extension_state_del(int id)
 			list = prev->next;
 		    }
 		}
+		res = 0;
 		break;
 	    } else {
     		cbprev = cblist;				
@@ -1374,7 +1376,7 @@ int ast_extension_state_del(int id)
 	}
 
 	// we can have only one item
-	if (cblist)
+	if (cblist || !list)
 	    break;	    
 	    
 	prev = list;
@@ -1382,11 +1384,7 @@ int ast_extension_state_del(int id)
     }
     
     pthread_mutex_unlock(&notifylock);
-    if (list) 
-	return 0;
-    else
-	return -1;
-	
+    return res;
 }
 
 int ast_get_hint(char *hint, int maxlen, struct ast_channel *c, char *context, char *exten)
