@@ -2440,9 +2440,11 @@ int ast_do_masquerade(struct ast_channel *original)
 	strncpy(clone->name, zombn, sizeof(clone->name) - 1);
 	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", masqn, zombn, clone->uniqueid);
 
-	/* Keep the same language.  */
 	/* Update the type. */
 	original->type = clone->type;
+	
+	/* Keep the same language.  */
+	strncpy(original->language, clone->language, sizeof(original->language));
 	/* Copy the FD's */
 	for (x=0;x<AST_MAX_FDS;x++) {
 		original->fds[x] = clone->fds[x];
