@@ -1,23 +1,9 @@
 /* MD5 checksum routines used for authentication.  Not covered by GPL, but
    in the public domain as per the copyright below */
 
-#ifdef FREEBSD
-# include <machine/endian.h>
-#elif defined(LINUX)  
-# include <endian.h>
-#elif defined(SOLARIS)
-/* each solaris is different -- this won't work on 2.6 or 2.7 */
-# include <sys/isa_defs.h>
-#endif
-#if defined(__BYTE_ORDER) || defined(BYTE_ORDER)
 # if __BYTE_ORDER == __BIG_ENDIAN || BYTE_ORDER == BIG_ENDIAN
 #  define HIGHFIRST 1
 # endif
-#else /* ! *BYTE_ORDER */
-# if defined(WORDS_BIGENDIAN)
-#  define HIGHFIRST 1
-# endif
-#endif
 
 /*
  * This code implements the MD5 message-digest algorithm.
