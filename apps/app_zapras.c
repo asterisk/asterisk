@@ -26,6 +26,9 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <stdio.h>
+#include <fcntl.h>
 
 #include <pthread.h>
 
@@ -60,6 +63,7 @@ static pid_t spawn_ras(struct ast_channel *chan, char *args)
 
 	char *argv[PPP_MAX_ARGS];
 	int argc = 0;
+	char *stringp=NULL;
 
 	/* Start by forking */
 	pid = fork();
@@ -86,10 +90,11 @@ static pid_t spawn_ras(struct ast_channel *chan, char *args)
 	argv[argc++] = "nodetach";
 
 	/* And all the other arguments */
-	c = strtok(args, "|");
+	stringp=args;
+	c = strsep(&stringp, "|");
 	while(c && strlen(c) && (argc < (PPP_MAX_ARGS - 4))) {
 		argv[argc++] = c;
-		c = strtok(NULL, "|");
+		c = strsep(&stringp, "|");
 	}
 
 	argv[argc++] = "plugin";

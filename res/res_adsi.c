@@ -20,7 +20,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
+#include <errno.h>
 #include <asterisk/ulaw.h>
+#include <asterisk/alaw.h>
 #include <asterisk/callerid.h>
 #include <asterisk/logger.h>
 #include <asterisk/fskmodem.h>
@@ -49,7 +51,7 @@ static char speeddial[ADSI_MAX_SPEED_DIAL][3][20];
 
 static int alignment = 0;
 
-static int adsi_generate(unsigned char *buf, int msgtype, char *msg, int msglen, int msgnum, int last)
+static int adsi_generate(unsigned char *buf, int msgtype, char *msg, int msglen, int msgnum, int last, int codec)
 {
 	int sum;
 	int x;	
@@ -121,7 +123,7 @@ static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int l
 		outf.subclass = AST_FORMAT_ULAW;
 		outf.data = buf;
 		outf.datalen = amt;
-		outf.timelen = amt * 8;
+		outf.samples = amt;
 		if (ast_write(chan, &outf)) {
 			ast_log(LOG_WARNING, "Failed to carefully write frame\n");
 			return -1;
@@ -156,7 +158,7 @@ static int adsi_careful_send(struct ast_channel *chan, unsigned char *buf, int l
 			outf.subclass = AST_FORMAT_ULAW;
 			outf.data = buf;
 			outf.datalen = amt;
-			outf.timelen = amt * 8;
+			outf.samples = amt;
 			if (ast_write(chan, &outf)) {
 				ast_log(LOG_WARNING, "Failed to carefully write frame\n");
 				return -1;
@@ -196,7 +198,7 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 	while(retries < maxretries) {
 		if (!(chan->adsicpe & ADSI_FLAG_DATAMODE)) {
 			/* Generate CAS (no SAS) */
-			ast_gen_cas(buf, 0, 680);
+			ast_gen_cas(buf, 0, 680, AST_FORMAT_ULAW);
 		
 			/* Send CAS */
 			if (adsi_careful_send(chan, buf, 680, NULL)) {
@@ -249,7 +251,7 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 		def= ast_channel_defer_dtmf(chan);
 #endif
 		while((x < 6) && msg[x]) {
-			res = adsi_generate(buf + pos, msgtype[x], msg[x], msglen[x], x+1 - start, (x == 5) || !msg[x+1]);
+			res = adsi_generate(buf + pos, msgtype[x], msg[x], msglen[x], x+1 - start, (x == 5) || !msg[x+1], AST_FORMAT_ULAW);
 			if (res < 0) {
 				ast_log(LOG_WARNING, "Failed to generate ADSI message %d on channel %s\n", x + 1, chan->name);
 				return -1;
@@ -1046,8 +1048,10 @@ static void adsi_load(void)
 			total = x;
 		x = 0;
 		while(v) {
-			name = strtok(v->value, ",");
-			sname = strtok(NULL, ",");
+			char *stringp=NULL;
+			stringp=v->value;
+			name = strsep(&stringp, ",");
+			sname = strsep(&stringp, ",");
 			if (!sname) 
 				sname = name;
 			if (x < ADSI_MAX_SPEED_DIAL) {

@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
 
@@ -40,13 +41,20 @@ static char *synopsis = "Simple MeetMe conference bridge";
 static char *synopsis2 = "MeetMe participant count";
 
 static char *descrip =
-"  MeetMe(confno): Enters the user into a specified MeetMe conference.\n"
+"  MeetMe(confno[|options]): Enters the user into a specified MeetMe conference.\n"
 "If the conference number is omitted, the user will be prompted to enter\n"
 "one.  This application always returns -1. A ZAPTEL INTERFACE MUST BE\n"
-"INSTALLED FOR CONFERENCING FUNCTIONALITY.\n";
+"INSTALLED FOR CONFERENCING FUNCTIONALITY.\n"
+"The option string may contain zero or more of the following characters:\n"
+"      'a' -- set admin mode\n"
+"      'm' -- set monitor only mode\n"
+"      'p' -- allow user to exit the conference by pressing '#'\n"
+"      's' -- send user to admin/user menu if '*' is received\n"
+"      't' -- set talk only mode\n"
+"      'q' -- quiet mode (don't play enter/leave sounds)\n";
 
 static char *descrip2 =
-"  MeetMe2(confno): Plays back the number of users in the specified MeetMe\n"
+"  MeetMeCount(confno): Plays back the number of users in the specified MeetMe\n"
 "conference.  Returns 0 on success or -1 on a hangup.  A ZAPTEL INTERFACE\n"
 "MUST BE INSTALLED FOR CONFERENCING FUNCTIONALITY.\n";
 
@@ -72,6 +80,13 @@ static pthread_mutex_t conflock = AST_MUTEX_INITIALIZER;
 #define LEAVE	1
 
 #define CONF_SIZE 160
+
+#define CONFFLAG_ADMIN	(1 << 1)	/* If set the user has admin access on the conference */
+#define CONFFLAG_MONITOR (1 << 2)	/* If set the user can only receive audio from the conference */
+#define CONFFLAG_POUNDEXIT (1 << 3)	/* If set asterisk will exit conference when '#' is pressed */
+#define CONFFLAG_STARMENU (1 << 4)	/* If set asterisk will provide a menu to the user what '*' is pressed */
+#define CONFFLAG_TALKER (1 << 5)	/* If set the use can only send audio to the conference */
+#define CONFFLAG_QUIET (1 << 6)		/* If set there will be no enter or leave sounds */
 
 static int careful_write(int fd, unsigned char *data, int len)
 {
@@ -153,7 +168,7 @@ static struct conf *build_conf(char *confno, int make)
 			cnf->start = time(NULL);
 			cnf->zapconf = ztc.confno;
 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Crated ZapTel conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
+				ast_verbose(VERBOSE_PREFIX_3 "Created ZapTel conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
 			cnf->next = confs;
 			confs = cnf;
 		} else	
@@ -202,7 +217,7 @@ static struct ast_cli_entry cli_show_confs = {
 	{ "show", "conferences", NULL }, confs_show, 
 	"Show status of conferences", show_confs_usage, NULL };
 
-static void conf_run(struct ast_channel *chan, struct conf *conf)
+static int conf_run(struct ast_channel *chan, struct conf *conf, int confflags)
 {
 	struct conf *prev=NULL, *cur;
 	int fd;
@@ -215,12 +230,20 @@ static void conf_run(struct ast_channel *chan, struct conf *conf)
 	int nfds;
 	int res;
 	int flags;
-	int retryzap=0;
+	int retryzap;
+	int origfd;
+	int firstpass = 0;
+	int ret = -1;
 
 	ZT_BUFFERINFO bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
 
+	if (!(confflags & CONFFLAG_QUIET) && conf->users == 1) {
+		if (!ast_streamfile(chan, "conf-onlyperson", chan->language))
+			ast_waitstream(chan, "");
+	}
+	
 	/* Set it into U-law mode (write) */
 	if (ast_set_write_format(chan, AST_FORMAT_ULAW) < 0) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to write ulaw mode\n", chan->name);
@@ -232,9 +255,11 @@ static void conf_run(struct ast_channel *chan, struct conf *conf)
 		ast_log(LOG_WARNING, "Unable to set '%s' to read ulaw mode\n", chan->name);
 		goto outrun;
 	}
+	ast_indicate(chan, -1);
+	retryzap = strcasecmp(chan->type, "Zap");
 zapretry:
-
-	if (retryzap || strcasecmp(chan->type, "Zap")) {
+	origfd = chan->fds[0];
+	if (retryzap) {
 		fd = open("/dev/zap/pseudo", O_RDWR);
 		if (fd < 0) {
 			ast_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
@@ -289,25 +314,53 @@ zapretry:
 	/* Add us to the conference */
 	ztc.chan = 0;	
 	ztc.confno = conf->zapconf;
-	ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
+	if (confflags & CONFFLAG_MONITOR)
+		ztc.confmode = ZT_CONF_CONFMON | ZT_CONF_LISTENER;
+	else if (confflags & CONFFLAG_TALKER)
+		ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER;
+	else 
+		ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
+
 	if (ioctl(fd, ZT_SETCONF, &ztc)) {
 		ast_log(LOG_WARNING, "Error setting conference\n");
 		close(fd);
 		goto outrun;
 	}
 	ast_log(LOG_DEBUG, "Placed channel %s in ZAP conf %d\n", chan->name, conf->zapconf);
-	/* Run the conference enter tone... */
-	conf_play(conf, ENTER);
+	if (!firstpass && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN)) {
+		firstpass = 1;
+		if (!(confflags & CONFFLAG_QUIET))
+			conf_play(conf, ENTER);
+	}
 
 	for(;;) {
 		outfd = -1;
 		ms = -1;
 		c = ast_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
 		if (c) {
+			if (c->fds[0] != origfd) {
+				if (retryzap) {
+					/* Kill old pseudo */
+					close(fd);
+				}
+				ast_log(LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
+				retryzap = 0;
+				goto zapretry;
+			}
 			f = ast_read(c);
 			if (!f) 
 				break;
-			if (fd != chan->fds[0]) {
+			if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '#') && (confflags & CONFFLAG_POUNDEXIT)) {
+				ret = 0;
+				break;
+			} else if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*') && (confflags & CONFFLAG_STARMENU)) {
+					if ((confflags & CONFFLAG_ADMIN)) {
+					/* Do admin stuff here */
+					} else {
+					/* Do user menu here */
+					}
+
+			} else if (fd != chan->fds[0]) {
 				if (f->frametype == AST_FRAME_VOICE) {
 					if (f->subclass == AST_FORMAT_ULAW) {
 						/* Carefully write */
@@ -324,7 +377,7 @@ zapretry:
 				fr.frametype = AST_FRAME_VOICE;
 				fr.subclass = AST_FORMAT_ULAW;
 				fr.datalen = res;
-				fr.timelen = res / 8;
+				fr.samples = res;
 				fr.data = buf;
 				fr.offset = AST_FRIENDLY_OFFSET;
 				if (ast_write(chan, &fr) < 0) {
@@ -348,7 +401,8 @@ zapretry:
 		}
 	}
 
-	conf_play(conf, LEAVE);
+	if (!(confflags & CONFFLAG_QUIET) && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN))
+		conf_play(conf, LEAVE);
 
 outrun:
 
@@ -375,6 +429,7 @@ outrun:
 		free(conf);
 	}
 	pthread_mutex_unlock(&conflock);
+	return ret;
 }
 
 static struct conf *find_conf(char *confno, int make)
@@ -435,6 +490,8 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	int allowretry = 0;
 	int retrycnt = 0;
 	struct conf *cnf;
+	int confflags = 0;
+	char info[256], *ptr, *inflags, *inpin;
 
 	if (!data || !strlen(data)) {
 		allowretry = 1;
@@ -443,10 +500,41 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
-retry:
-	/* Parse out the stuff */
-	strncpy(confno, data, sizeof(confno) - 1);
 
+	strncpy(info, (char *)data, sizeof(info) - 1);
+	ptr = info;
+
+	if (info) {
+		inflags = strchr(info, '|');
+		if (inflags) {
+			*inflags = '\0';
+			inflags++;
+			if (strchr(inflags, 'a'))
+				confflags |= CONFFLAG_ADMIN;
+			if (strchr(inflags, 'm'))
+				confflags |= CONFFLAG_MONITOR;
+			if (strchr(inflags, 'p'))
+				confflags |= CONFFLAG_POUNDEXIT;
+			if (strchr(inflags, 's'))
+				confflags |= CONFFLAG_STARMENU;
+			if (strchr(inflags, 't'))
+				confflags |= CONFFLAG_TALKER;
+			if (strchr(inflags, 'q'))
+				confflags |= CONFFLAG_QUIET;
+
+			inpin = strchr(inflags, '|');
+			if (inpin) {
+				*inpin = '\0';
+				inpin++;
+				/* XXX Need to do something with pin XXX */
+				ast_log(LOG_WARNING, "MEETME WITH PIN=(%s)\n", inpin);
+			}
+		}
+	}
+
+	/* Parse out the stuff */
+	strncpy(confno, info, sizeof(confno) - 1);
+retry:
 	while(!strlen(confno) && (++retrycnt < 4)) {
 		/* Prompt user for conference number */
 		res = ast_app_getdata(chan, "conf-getconfno",confno, sizeof(confno) - 1, 0);
@@ -467,9 +555,9 @@ retry:
 				goto retry;
 			}
 		} else {
+			/* XXX Should prompt user for pin if pin is required XXX */
 			/* Run the conference */
-			conf_run(chan, cnf);
-			res = -1;
+			res = conf_run(chan, cnf, confflags);
 		}
 	}
 out:

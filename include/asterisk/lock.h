@@ -98,7 +98,7 @@ static inline int __ast_pthread_mutex_unlock(char *filename, int lineno, char *f
 #define AST_MUTEX_INITIALIZER      PTHREAD_MUTEX_INITIALIZER
 #define AST_MUTEX_KIND             PTHREAD_MUTEX_FAST_NP
 
-#define ast_pthread_mutex_initi(mutex,kind) pthread_mutex_init(mutex)
+#define ast_pthread_mutex_init(mutex) pthread_mutex_init(mutex, NULL)
 #define ast_pthread_mutex_lock pthread_mutex_lock
 #define ast_pthread_mutex_unlock pthread_mutex_unlock
 

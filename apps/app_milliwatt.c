@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include <pthread.h>
 
@@ -73,7 +74,7 @@ static int milliwatt_generate(struct ast_channel *chan, void *data, int len)
 	wf.mallocd = 0;
 	wf.data = buf;
 	wf.datalen = len;
-	wf.timelen = wf.datalen / 8;
+	wf.samples = wf.datalen;
 	wf.src = "app_milliwatt";
 	/* create a buffer containing the digital milliwatt pattern */
 	for(i = 0; i < len; i++)

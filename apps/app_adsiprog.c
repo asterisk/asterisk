@@ -24,10 +24,13 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <stdio.h>
+#include <errno.h>
 
 #include <pthread.h>
 
 #include "../asterisk.h"
+#include "../astconf.h"
 
 static char *tdesc = "Asterisk ADSI Programming Application";
 
@@ -1321,7 +1324,7 @@ static struct adsi_script *compile_script(char *script)
 	if (script[0] == '/')
 		strncpy(fn, script, sizeof(fn) - 1);
 	else
-		snprintf(fn, sizeof(fn), "%s/%s", AST_CONFIG_DIR, script);
+		snprintf(fn, sizeof(fn), "%s/%s", (char *)ast_config_AST_CONFIG_DIR, script);
 	f = fopen(fn, "r");
 	if (!f) {
 		ast_log(LOG_WARNING, "Can't open file '%s'\n", fn);

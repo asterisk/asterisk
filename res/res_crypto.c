@@ -28,7 +28,10 @@
 #include <dirent.h>
 #include <string.h>
 #include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include "../asterisk.h"
+#include "../astconf.h"
 
 /*
  * Asterisk uses RSA keys with SHA-1 message digests for its
@@ -460,14 +463,14 @@ static void crypto_load(int ifd, int ofd)
 	}
 	ast_pthread_mutex_unlock(&keylock);
 	/* Load new keys */
-	dir = opendir(AST_KEY_DIR);
+	dir = opendir((char *)ast_config_AST_KEY_DIR);
 	if (dir) {
 		while((ent = readdir(dir))) {
-			try_load_key(AST_KEY_DIR, ent->d_name, ifd, ofd, &note);
+			try_load_key((char *)ast_config_AST_KEY_DIR, ent->d_name, ifd, ofd, &note);
 		}
 		closedir(dir);
 	} else
-		ast_log(LOG_WARNING, "Unable to open key directory '%s'\n", AST_KEY_DIR);
+		ast_log(LOG_WARNING, "Unable to open key directory '%s'\n", (char *)ast_config_AST_KEY_DIR);
 	if (note) {
 		ast_log(LOG_NOTICE, "Please run the command 'init keys' to enter the passcodes for the keys\n");
 	}
@@ -531,9 +534,9 @@ static int init_keys(int fd, int argc, char *argv[])
 	while(key) {
 		/* Reload keys that need pass codes now */
 		if (key->ktype & KEY_NEEDS_PASSCODE) {
-			kn = key->fn + strlen(AST_KEY_DIR) + 1;
+			kn = key->fn + strlen(ast_config_AST_KEY_DIR) + 1;
 			strncpy(tmp, kn, sizeof(tmp));
-			try_load_key(AST_KEY_DIR, tmp, fd, fd, &ign);
+			try_load_key((char *)ast_config_AST_KEY_DIR, tmp, fd, fd, &ign);
 		}
 		key = key->next;
 	}
