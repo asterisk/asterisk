@@ -147,8 +147,6 @@ static int load_config(void)
 	struct ast_config *cfg;
 	char *s;
 
-	ast_log(LOG_WARNING, "reading enum config\n");
-
 	cfg = ast_load(ENUM_CONFIG);
 	if (cfg) {
 		if (!(s=ast_variable_retrieve(cfg, "general", "h323driver"))) {
@@ -159,8 +157,8 @@ static int load_config(void)
 		ast_destroy(cfg);
 		return 0;
 	}
-	ast_log(LOG_WARNING, "Error reading enum config\n");
-	return -1;
+	ast_log(LOG_NOTICE, "No ENUM Config file, using defaults\n");
+	return 0;
 }
 
 

@@ -419,21 +419,24 @@ struct ast_filestream *ast_openstream(struct ast_channel *chan, char *filename, 
 	*/
 	int fd = -1;
 	int fmts = -1;
-	char filename2[256];
-	char lang2[MAX_LANGUAGE];
+	char filename2[256]="";
+	char filename3[256]="";
+	char *endpart;
 	int res;
 	ast_stopstream(chan);
 	/* do this first, otherwise we detect the wrong writeformat */
 	if (chan->generator)
 		ast_deactivate_generator(chan);
 	if (preflang && strlen(preflang)) {
-		snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
+		strncpy(filename3, filename, sizeof(filename3) - 1);
+		endpart = strrchr(filename3, '/');
+		if (endpart) {
+			*endpart = '\0';
+			endpart++;
+			snprintf(filename2, sizeof(filename2), "%s/%s/%s", filename3, preflang, endpart);
+		} else
+			snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
 		fmts = ast_fileexists(filename2, NULL, NULL);
-		if (fmts < 1) {
-			strncpy(lang2, preflang, sizeof(lang2)-1);
-			snprintf(filename2, sizeof(filename2), "%s/%s", lang2, filename);
-			fmts = ast_fileexists(filename2, NULL, NULL);
-		}
 	}
 	if (fmts < 1) {
 		strncpy(filename2, filename, sizeof(filename2)-1);
