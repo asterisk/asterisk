@@ -7108,6 +7108,7 @@ static int __unload_module(void)
 	ast_unregister_switch(&iax2_switch);
 	ast_channel_unregister(type);
 	delete_users();
+	iax_provision_unload();
 	return 0;
 }
 

@@ -455,6 +455,13 @@ static int iax_provision_init(void)
 	return 0;
 }
 
+int iax_provision_unload(void)
+{
+	provinit = 0;
+	ast_cli_unregister(&cli_show_provisioning);
+	return 0;
+}
+
 int iax_provision_reload(void)
 {
 	struct ast_config *cfg;
