@@ -8,6 +8,9 @@
     -- Asterisk will now also look in the regular context for the fax extension while
        executing a macro.  Previously, for this to work, the fax extension would have
        to be included in the macro definition.
+ -- chan_sip
+    -- We no longer send a "to" tag on "100 Trying" messages, as it is inappropriate
+       to do so.
  -- general
     -- A problem has been fixed with saying the date in Spanish.
 
