@@ -171,7 +171,7 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer)
 	return 0;
 }
 
-int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allowredirect)
+int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allowredirect, int allowdisconnect)
 {
 	/* Copy voice back and forth between the two channels.  Give the peer
 	   the ability to transfer calls with '#<extension' syntax. */
@@ -182,14 +182,14 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allo
 	int res;
 	struct ast_option_header *aoh;
 	/* Answer if need be */
-	if (chan->state != AST_STATE_UP) {
+	if (chan->_state != AST_STATE_UP) {
 		if (ast_answer(chan))
 			return -1;
 	}
 	peer->appl = "Bridged Call";
 	peer->data = chan->name;
 	for (;;) {
-		res = ast_channel_bridge(chan, peer, allowredirect ? AST_BRIDGE_DTMF_CHANNEL_1 : 0, &f, &who);
+		res = ast_channel_bridge(chan, peer, (allowdisconnect ? AST_BRIDGE_DTMF_CHANNEL_0 : 0) + (allowredirect ? AST_BRIDGE_DTMF_CHANNEL_1 : 0), &f, &who);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Bridge failed on channels %s and %s\n", chan->name, peer->name);
 			return -1;
@@ -216,6 +216,14 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allo
 					ast_channel_setoption(chan, ntohs(aoh->option), aoh->data, f->datalen - sizeof(struct ast_option_header), 0);
 			}
 		}
+            if (f && (f->frametype == AST_FRAME_DTMF) && (who == chan) && allowdisconnect &&
+		     (f->subclass == '*')) {
+		if (option_verbose > 3)
+			ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
+			res = -1;
+			break;
+
+			}
 		if ((f->frametype == AST_FRAME_DTMF) && (who == peer) && allowredirect &&
 		     (f->subclass == '#')) {
 				memset(newext, 0, sizeof(newext));
@@ -438,7 +446,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 		   were the person called. */
 		if (option_verbose > 2) 
 			ast_verbose(VERBOSE_PREFIX_3 "Channel %s connected to parked call %d\n", chan->name, park);
-		res = ast_bridge_call(peer, chan, 1);
+		res = ast_bridge_call(peer, chan, 1, 0);
 		/* Simulate the PBX hanging up */
 		if (res != AST_PBX_KEEPALIVE)
 			ast_hangup(peer);
