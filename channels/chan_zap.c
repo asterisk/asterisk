@@ -1797,8 +1797,14 @@ static int zt_hangup(struct ast_channel *ast)
 						pri_hangup(p->pri->pri, p->call, -1);
 						p->call = NULL;
 					} else {
+						char *cause = pbx_builtin_getvar_helper(ast,"PRI_CAUSE");
+						int icause = ast->hangupcause ? hangup_cause2pri(ast->hangupcause) : -1;
 						p->alreadyhungup = 1;
-						pri_hangup(p->pri->pri, p->call, ast->hangupcause ? hangup_cause2pri(ast->hangupcause) : -1);
+						if (cause) {
+							if (atoi(cause))
+								icause = atoi(cause);
+						}
+						pri_hangup(p->pri->pri, p->call, icause);
 					}
 #endif
 					if (res < 0) 
