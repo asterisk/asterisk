@@ -132,15 +132,15 @@ static char *config = "sip.conf";
 
 #define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER"
 
-static char useragent[AST_MAX_EXTENSION] = DEFAULT_USERAGENT;
+static char default_useragent[AST_MAX_EXTENSION] = DEFAULT_USERAGENT;
 
-static char context[AST_MAX_EXTENSION] = "default";
+static char default_context[AST_MAX_EXTENSION] = "default";
 
-static char language[MAX_LANGUAGE] = "";
+static char default_language[MAX_LANGUAGE] = "";
 
-static char callerid[AST_MAX_EXTENSION] = "asterisk";
+static char default_callerid[AST_MAX_EXTENSION] = "asterisk";
 
-static char fromdomain[AST_MAX_EXTENSION] = "";
+static char default_fromdomain[AST_MAX_EXTENSION] = "";
 
 static char notifymime[AST_MAX_EXTENSION] = "application/simple-message-summary";
 
@@ -152,16 +152,16 @@ static int autocreatepeer = 0;
 
 static int relaxdtmf = 0;
 
-static int globalrtptimeout = 0;
+static int global_rtptimeout = 0;
 
-static int globalrtpholdtimeout = 0;
+static int global_rtpholdtimeout = 0;
 
-static int globaltrustrpid = 0;
+static int global_trustrpid = 0;
 
-static int globalprogressinband = 0;
+static int global_progressinband = 0;
 
 #ifdef OSP_SUPPORT
-static int globalospauth = 0;
+static int global_ospauth = 0;
 #endif
 
 static int usecnt =0;
@@ -183,7 +183,7 @@ static pthread_t monitor_thread = AST_PTHREADT_NULL;
 static int restart_monitor(void);
 
 /* Codecs that we support by default: */
-static int capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
+static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
 static int noncodeccapability = AST_RTP_DTMF;
 
 static char ourhost[256];
@@ -197,11 +197,11 @@ static int tos = 0;
 
 static int videosupport = 0;
 
-static int globaldtmfmode = SIP_DTMF_RFC2833;		/* DTMF mode default */
+static int global_dtmfmode = SIP_DTMF_RFC2833;		/* DTMF mode default */
 static int recordhistory = 0;
-static int globalpromiscredir;
+static int global_promiscredir;
 
-static char globalmusicclass[MAX_LANGUAGE] = "";	/* Global music on hold class */
+static char global_musicclass[MAX_LANGUAGE] = "";	/* Global music on hold class */
 static char global_realm[AST_MAX_EXTENSION] = "asterisk"; 	/* Default realm */
 
 /* Expire slowly */
@@ -527,8 +527,8 @@ static struct ast_register_list {
 static int __sip_do_register(struct sip_registry *r);
 
 static int sipsock  = -1;
-static int globalnat = SIP_NAT_RFC3581;
-static int globalcanreinvite = REINVITE_INVITE;
+static int global_nat = SIP_NAT_RFC3581;
+static int global_canreinvite = REINVITE_INVITE;
 
 
 static struct sockaddr_in bindaddr;
@@ -607,11 +607,10 @@ static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	theirs.sin_addr = *them;
 	if (localaddr && externip.sin_addr.s_addr &&
 	   ast_apply_ha(localaddr, &theirs)) {
-		char t[256];
 		char iabuf[INET_ADDRSTRLEN];
 		memcpy(us, &externip.sin_addr, sizeof(struct in_addr));
-		strcpy(t, ast_inet_ntoa(iabuf, sizeof(iabuf), *(struct in_addr *)&them->s_addr));
-		ast_log(LOG_DEBUG, "Target address %s is not local, substituting externip\n", t);
+		ast_inet_ntoa(iabuf, sizeof(iabuf), *(struct in_addr *)&them->s_addr);
+		ast_log(LOG_DEBUG, "Target address %s is not local, substituting externip\n", iabuf);
 	}
 	else if (bindaddr.sin_addr.s_addr)
 		memcpy(us, &bindaddr.sin_addr, sizeof(struct in_addr));
@@ -952,73 +951,72 @@ static int sip_sendtext(struct ast_channel *ast, char *text)
 /*--- mysql_host: Get user from database ---*/
 static struct sip_user *mysql_user(char *user)
 {
-        struct sip_user *u;
-        int success = 0;
-        u = malloc(sizeof(struct sip_user));
-        memset(u, 0, sizeof(struct sip_user));
-        if (mysql && (!user || (strlen(user) < 128))) {
-                char query[512];
-                char *name = NULL;
-                int numfields, x;
-                time_t regseconds, nowtime;
-                MYSQL_RES *result;
-                MYSQL_FIELD *fields;
-                MYSQL_ROW rowval;
-                if (user) {
-                        name = alloca(strlen(user) * 2 + 1);
-                        mysql_real_escape_string(mysql, name, user, strlen(user));
-                }
+	struct sip_user *u;
+	int success = 0;
+	u = malloc(sizeof(struct sip_user));
+	memset(u, 0, sizeof(struct sip_user));
+	if (mysql && (!user || (strlen(user) < 128))) {
+		char query[512];
+		char *name = NULL;
+		int numfields, x;
+		time_t regseconds, nowtime;
+		MYSQL_RES *result;
+		MYSQL_FIELD *fields;
+		MYSQL_ROW rowval;
+		if (user) {
+			name = alloca(strlen(user) * 2 + 1);
+			mysql_real_escape_string(mysql, name, user, strlen(user));
+		}
 
-                snprintf(query, sizeof(query), "SELECT name, secret, context, username, ipaddr, port, regseconds, callerid, restrictcid FROM sipfriends WHERE name=\"%s\"", name);
+		snprintf(query, sizeof(query), "SELECT name, secret, context, username, ipaddr, port, regseconds, callerid, restrictcid FROM sipfriends WHERE name=\"%s\"", name);
 
+		ast_mutex_lock(&mysqllock);
+		mysql_query(mysql, query);
+		if ((result = mysql_store_result(mysql))) {
 
-                ast_mutex_lock(&mysqllock);
-                mysql_query(mysql, query);
-                if ((result = mysql_store_result(mysql))) {
-
-                        if ((rowval = mysql_fetch_row(result))) {
-                                numfields = mysql_num_fields(result);
-                                fields = mysql_fetch_fields(result);
-                                success = 1;
-                                for (x=0;x<numfields;x++) {
-                                        if (rowval[x]) {
-                                                if (!strcasecmp(fields[x].name, "secret")) {
-                                                        strncpy(u->secret, rowval[x], sizeof(u->secret));
-                                                } else if (!strcasecmp(fields[x].name, "name")) {
-                                                        strncpy(u->name, rowval[x], sizeof(u->name) - 1);
-                                                } else if (!strcasecmp(fields[x].name, "context")) {
-                                                        strncpy(u->context, rowval[x], sizeof(u->context) - 1);
-                                                } else if (!strcasecmp(fields[x].name, "username")) {
-                                                        strncpy(u->name, rowval[x], sizeof(u->name) - 1);
-                                                } else if (!strcasecmp(fields[x].name, "regseconds")) {
-                                                        if (sscanf(rowval[x], "%li", &regseconds) != 1)
-                                                                regseconds = 0;
-                                                } else if (!strcasecmp(fields[x].name, "restrictcid")) {
-                                                        u->restrictcid = 1;
-                                                } else if (!strcasecmp(fields[x].name, "callerid")) {
-                                                        strncpy(u->callerid, rowval[x], sizeof(u->callerid) - 1);
-                                                        u->hascallerid=1;
-                                                }
-                                        }
-                                }
-                                time(&nowtime);
-                        }
-                        mysql_free_result(result);
-                        result = NULL;
-                }
-                ast_mutex_unlock(&mysqllock);
-        }
-        if (!success) {
-                free(u);
-                u = NULL;
-        } else {
-                u->capability = capability;
-                u->nat = globalnat;
-                u->dtmfmode = globaldtmfmode;
-                u->insecure = 1;
-               u->temponly = 1;
-        }
-        return u;
+			if ((rowval = mysql_fetch_row(result))) {
+				numfields = mysql_num_fields(result);
+				fields = mysql_fetch_fields(result);
+				success = 1;
+				for (x=0;x<numfields;x++) {
+					if (rowval[x]) {
+						if (!strcasecmp(fields[x].name, "secret")) {
+							strncpy(u->secret, rowval[x], sizeof(u->secret));
+						} else if (!strcasecmp(fields[x].name, "name")) {
+							strncpy(u->name, rowval[x], sizeof(u->name) - 1);
+						} else if (!strcasecmp(fields[x].name, "context")) {
+							strncpy(u->context, rowval[x], sizeof(u->context) - 1);
+						} else if (!strcasecmp(fields[x].name, "username")) {
+							strncpy(u->name, rowval[x], sizeof(u->name) - 1);
+						} else if (!strcasecmp(fields[x].name, "regseconds")) {
+							if (sscanf(rowval[x], "%li", &regseconds) != 1)
+								regseconds = 0;
+						} else if (!strcasecmp(fields[x].name, "restrictcid")) {
+							u->restrictcid = 1;
+						} else if (!strcasecmp(fields[x].name, "callerid")) {
+							strncpy(u->callerid, rowval[x], sizeof(u->callerid) - 1);
+							u->hascallerid=1;
+						}
+					}
+				}
+				time(&nowtime);
+			}
+			mysql_free_result(result);
+			result = NULL;
+		}
+		ast_mutex_unlock(&mysqllock);
+	}
+	if (!success) {
+		free(u);
+		u = NULL;
+	} else {
+		u->capability = global_capability;
+		u->nat = global_nat;
+		u->dtmfmode = global_dtmfmode;
+		u->insecure = 1;
+		u->temponly = 1;
+	}
+	return u;
 }
 #endif /* MYSQL_USERS */
 
@@ -1118,10 +1116,10 @@ static struct sip_peer *mysql_peer(char *peer, struct sockaddr_in *sin)
 		p = NULL;
 	} else {
 		p->dynamic = 1;
-		p->capability = capability;
-		p->nat = globalnat;
-		p->dtmfmode = globaldtmfmode;
-		p->promiscredir = globalpromiscredir;
+		p->capability = global_capability;
+		p->nat = global_nat;
+		p->dtmfmode = global_dtmfmode;
+		p->promiscredir = global_promiscredir;
 		p->insecure = 1;
 		p->expire = -1;
 		p->temponly = 1;
@@ -1208,7 +1206,6 @@ static int create_addr(struct sip_pvt *r, char *peer)
 	int found=0;
 	char *port;
 	int portno;
-	char iabuf[INET_ADDRSTRLEN];
 	char host[256], *hostn;
 
 	r->sa.sin_family = AF_INET;
@@ -1235,9 +1232,9 @@ static int create_addr(struct sip_pvt *r, char *peer)
 			strncpy(r->tohost, p->tohost, sizeof(r->tohost)-1);
 			if (ast_strlen_zero(r->tohost)) {
 				if (p->addr.sin_addr.s_addr)
-					snprintf(r->tohost, sizeof(r->tohost), ast_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr));
+					ast_inet_ntoa(r->tohost, sizeof(r->tohost), p->addr.sin_addr);
 				else
-					snprintf(r->tohost, sizeof(r->tohost), ast_inet_ntoa(iabuf, sizeof(iabuf), p->defaddr.sin_addr));
+					ast_inet_ntoa(r->tohost, sizeof(r->tohost), p->defaddr.sin_addr);
 			}
 			if (!ast_strlen_zero(p->fromdomain))
 				strncpy(r->fromdomain, p->fromdomain, sizeof(r->fromdomain)-1);
@@ -1949,7 +1946,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		else if (i->capability)
 			tmp->nativeformats = sip_codec_choose(i->capability);
 		else
-			tmp->nativeformats = sip_codec_choose(capability);
+			tmp->nativeformats = sip_codec_choose(global_capability);
 		fmt = ast_best_codec(tmp->nativeformats);
 		if (title)
 			snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%04x", title, rand() & 0xffff);
@@ -2208,7 +2205,7 @@ static void build_callid(char *callid, int len, struct in_addr ourip)
 }
 
 /*--- sip_alloc: Allocate SIP_PVT structure and set defaults ---*/
-static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useglobalnat)
+static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useglobal_nat)
 {
 	struct sip_pvt *p;
 	char iabuf[INET_ADDRSTRLEN];
@@ -2242,9 +2239,9 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	ast_rtp_settos(p->rtp, tos);
 	if (p->vrtp)
 		ast_rtp_settos(p->vrtp, tos);
-	if (useglobalnat && sin) {
+	if (useglobal_nat && sin) {
 		/* Setup NAT structure according to global settings if we have an address */
-		p->nat = globalnat;
+		p->nat = global_nat;
 		memcpy(&p->recv, sin, sizeof(p->recv));
 		ast_rtp_setnat(p->rtp, (p->nat == SIP_NAT_ALWAYS));
 		if (p->vrtp)
@@ -2268,23 +2265,23 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	else
 		strncpy(p->callid, callid, sizeof(p->callid) - 1);
 	/* Assume reinvite OK and via INVITE */
-	p->canreinvite = globalcanreinvite;
+	p->canreinvite = global_canreinvite;
 	/* Assign default music on hold class */
-        strncpy(p->musicclass, globalmusicclass, sizeof(p->musicclass));
-	p->dtmfmode = globaldtmfmode;
-	p->promiscredir = globalpromiscredir;
-	p->trustrpid = globaltrustrpid;
-	p->progressinband = globalprogressinband;
+        strncpy(p->musicclass, global_musicclass, sizeof(p->musicclass));
+	p->dtmfmode = global_dtmfmode;
+	p->promiscredir = global_promiscredir;
+	p->trustrpid = global_trustrpid;
+	p->progressinband = global_progressinband;
 #ifdef OSP_SUPPORT
-	p->ospauth = globalospauth;
+	p->ospauth = global_ospauth;
 #endif
-	p->rtptimeout = globalrtptimeout;
-	p->rtpholdtimeout = globalrtpholdtimeout;
-	p->capability = capability;
+	p->rtptimeout = global_rtptimeout;
+	p->rtpholdtimeout = global_rtpholdtimeout;
+	p->capability = global_capability;
 	if (p->dtmfmode & SIP_DTMF_RFC2833)
 		p->noncodeccapability |= AST_RTP_DTMF;
-	strncpy(p->context, context, sizeof(p->context) - 1);
-	strncpy(p->fromdomain, fromdomain, sizeof(p->fromdomain) - 1);
+	strncpy(p->context, default_context, sizeof(p->context) - 1);
+	strncpy(p->fromdomain, default_fromdomain, sizeof(p->fromdomain) - 1);
 	/* Add to list */
 	ast_mutex_lock(&iflock);
 	p->next = iflist;
@@ -2899,7 +2896,7 @@ static void add_route(struct sip_request *req, struct sip_route *route)
 			--rem;
 		}
 		*p++ = '<';
-		strcpy(p, route->hop);  p += n;
+		strncpy(p, route->hop, rem);  p += n;
 		*p++ = '>';
 		rem -= (n+2);
 		route = route->next;
@@ -3010,6 +3007,7 @@ static int init_req(struct sip_request *req, char *resp, char *recip)
 static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, struct sip_request *req)
 {
 	char newto[256] = "", *ot;
+
 	memset(resp, 0, sizeof(*resp));
 	init_resp(resp, msg, req);
 	copy_via_headers(p, resp, req, "Via");
@@ -3023,14 +3021,16 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->theirtag);
 		else if (p->tag && !p->outgoing)
 			snprintf(newto, sizeof(newto), "%s;tag=as%08x", ot, p->tag);
-		else
+		else {
 			strncpy(newto, ot, sizeof(newto) - 1);
+			newto[sizeof(newto) - 1] = '\0';
+		}
 		ot = newto;
 	}
 	add_header(resp, "To", ot);
 	copy_header(resp, req, "Call-ID");
 	copy_header(resp, req, "CSeq");
-	add_header(resp, "User-Agent", useragent);
+	add_header(resp, "User-Agent", default_useragent);
 	add_header(resp, "Allow", ALLOWED_METHODS);
 	if (p->expiry) {
 		/* For registration responses, we also need expiry and
@@ -3132,7 +3132,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int se
 	copy_header(req, orig, "Call-ID");
 	add_header(req, "CSeq", tmp);
 
-	add_header(req, "User-Agent", useragent);
+	add_header(req, "User-Agent", default_useragent);
 	return 0;
 }
 
@@ -3326,13 +3326,13 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		if (codec > -1) {
 			snprintf(costr, sizeof(costr), " %d", codec);
 			if (p->prefcodec <= AST_FORMAT_MAX_AUDIO) {
-				strncat(m, costr, sizeof(m) - strlen(m));
+				strncat(m, costr, sizeof(m) - strlen(m) - 1);
 				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, p->prefcodec));
-				strncat(a, costr, sizeof(a));
+				strncpy(a, costr, sizeof(a) - 1);
 			} else {
-				strncat(m2, costr, sizeof(m2) - strlen(m2));
+				strncat(m2, costr, sizeof(m2) - strlen(m2) - 1);
 				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/90000\r\n", codec, ast_rtp_lookup_mime_subtype(1, p->prefcodec));
-				strncat(a2, costr, sizeof(a2));
+				strncpy(a2, costr, sizeof(a2) - 1);
 			}
 		}
 		alreadysent |= p->prefcodec;
@@ -3347,13 +3347,13 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
 				if (cur->codec <= AST_FORMAT_MAX_AUDIO) {
-					strncat(m, costr, sizeof(m) - strlen(m));
+					strncat(m, costr, sizeof(m) - strlen(m) - 1);
 					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, cur->codec));
-					strncat(a, costr, sizeof(a));
+					strncat(a, costr, sizeof(a) - strlen(a) - 1);
 				} else {
-					strncat(m2, costr, sizeof(m2) - strlen(m2));
+					strncat(m2, costr, sizeof(m2) - strlen(m2) - 1);
 					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/90000\r\n", codec, ast_rtp_lookup_mime_subtype(1, cur->codec));
-					strncat(a2, costr, sizeof(a2));
+					strncat(a2, costr, sizeof(a2) - strlen(a) - 1);
 				}
 			}
 		}
@@ -3369,13 +3369,13 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
 				if (x <= AST_FORMAT_MAX_AUDIO) {
-					strncat(m, costr, sizeof(m) - strlen(m));
+					strncat(m, costr, sizeof(m) - strlen(m) - 1);
 					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, x));
-					strncat(a, costr, sizeof(a) - strlen(a));
+					strncat(a, costr, sizeof(a) - strlen(a) - 1);
 				} else {
 					strncat(m2, costr, sizeof(m2) - strlen(m2));
 					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/90000\r\n", codec, ast_rtp_lookup_mime_subtype(1, x));
-					strncat(a2, costr, sizeof(a2) - strlen(a2));
+					strncat(a2, costr, sizeof(a2) - strlen(a2) - 1);
 				}
 			}
 		}
@@ -3387,19 +3387,19 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 			codec = ast_rtp_lookup_code(p->rtp, 0, x);
 			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
-				strncat(m, costr, sizeof(m) - strlen(m));
+				strncat(m, costr, sizeof(m) - strlen(m) - 1);
 				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(0, x));
-				strncat(a, costr, sizeof(a) - strlen(a));
+				strncat(a, costr, sizeof(a) - strlen(a) - 1);
 				if (x == AST_RTP_DTMF) {
 				  /* Indicate we support DTMF...  Not sure about 16, but MSN supports it so dang it, we will too... */
 				  snprintf(costr, sizeof costr, "a=fmtp:%d 0-16\r\n",
 					   codec);
-				  strncat(a, costr, sizeof(a) - strlen(a));
+				  strncat(a, costr, sizeof(a) - strlen(a) - 1);
 				}
 			}
 		}
 	}
-	strncat(a, "a=silenceSupp:off - - - -\r\n", sizeof(a) - strlen(a));
+	strncat(a, "a=silenceSupp:off - - - -\r\n", sizeof(a) - strlen(a) - 1);
 	if (strlen(m) < sizeof(m) - 2)
 		strcat(m, "\r\n");
 	if (strlen(m2) < sizeof(m2) - 2)
@@ -3582,17 +3582,18 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	char tmp[80];
 	char iabuf[INET_ADDRSTRLEN];
 	char cid[256];
-	char *l = callerid, *n=NULL;
+	char *l = default_callerid, *n=NULL;
 
 	snprintf(p->lastmsg, sizeof(p->lastmsg), "Init: %s", cmd);
 
 	if (p->owner && p->owner->callerid) {
-		strcpy(cid, p->owner->callerid);
+		strncpy(cid, p->owner->callerid, sizeof(cid) - 1);
+		cid[sizeof(cid) - 1] = '\0';
 		ast_callerid_parse(cid, &n, &l);
 		if (l) 
 			ast_shrink_phone_number(l);
 		if (!l || !ast_isphonenumber(l))
-				l = callerid;
+				l = default_callerid;
 	}
 	/* if user want's his callerid restricted */
 	if (p->restrictcid) {
@@ -3645,7 +3646,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	add_header(req, "Contact", p->our_contact);
 	add_header(req, "Call-ID", p->callid);
 	add_header(req, "CSeq", tmp);
-	add_header(req, "User-Agent", useragent);
+	add_header(req, "User-Agent", default_useragent);
 }
 
         
@@ -3708,12 +3709,16 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 {
 	char tmp[4000];
+	int maxbytes = 0;
+	int bytes = 0;
 	char from[256], to[256];
 	char *t, *c, *a;
 	char *mfrom, *mto;
 	struct sip_request req;
 	char clen[20];
-	
+
+	memset(from, 0, sizeof(from));
+	memset(to, 0, sizeof(to));
 	strncpy(from, get_header(&p->initreq, "From"), sizeof(from)-1);
 
 	c = ditch_braces(from);
@@ -3725,63 +3730,77 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 		*a = '\0';
 	}
 	mfrom = c;
-		
+
 	reqprep(&req, p, "NOTIFY", 0, 1);
 
 	if (p->subscribed == 1) {
-    	    strncpy(to, get_header(&p->initreq, "To"), sizeof(to)-1);
+		strncpy(to, get_header(&p->initreq, "To"), sizeof(to)-1);
 
-	    c = ditch_braces(to);
-	    if (strncmp(c, "sip:", 4)) {
-		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
-		return -1;
-	    }
-	    if ((a = strchr(c, ';'))) {
-		*a = '\0';
-	    }
-	    mto = c;
+		c = ditch_braces(to);
+		if (strncmp(c, "sip:", 4)) {
+			ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
+			return -1;
+		}
+		if ((a = strchr(c, ';'))) {
+			*a = '\0';
+		}
+		mto = c;
 
-	    add_header(&req, "Content-Type", "application/xpidf+xml");
+		add_header(&req, "Content-Type", "application/xpidf+xml");
 
-	    if ((state==AST_EXTENSION_UNAVAILABLE) || (state==AST_EXTENSION_BUSY))
-		state = 2;
-	    else if (state==AST_EXTENSION_INUSE)
-		state = 1;
-	    else
-		state = 0;
-	    
-	    t = tmp;		
-	    sprintf(t, "<?xml version=\"1.0\"?>\n");
-	    t = tmp + strlen(tmp);
-	    sprintf(t, "<!DOCTYPE presence PUBLIC \"-//IETF//DTD RFCxxxx XPIDF 1.0//EN\" \"xpidf.dtd\">\n");
-	    t = tmp + strlen(tmp);
-	    sprintf(t, "<presence>\n");
-	    t = tmp + strlen(tmp);
-	    snprintf(t, 1000, "<presentity uri=\"%s;method=SUBSCRIBE\" />\n", mfrom);
-	    t = tmp + strlen(tmp);
-	    snprintf(t, 1000, "<atom id=\"%s\">\n", p->exten);
-	    t = tmp + strlen(tmp);
-	    snprintf(t, 1000, "<address uri=\"%s;user=ip\" priority=\"0,800000\">\n", mto);
-	    t = tmp + strlen(tmp);
-	    sprintf(t, "<status status=\"%s\" />\n", !state ? "open" : (state==1) ? "inuse" : "closed");
-	    t = tmp + strlen(tmp);
-	    sprintf(t, "<msnsubstatus substatus=\"%s\" />\n", !state ? "online" : (state==1) ? "onthephone" : "offline");
-	    t = tmp + strlen(tmp);
-	    sprintf(t, "</address>\n</atom>\n</presence>\n");	    	
+		if ((state==AST_EXTENSION_UNAVAILABLE) || (state==AST_EXTENSION_BUSY))
+			state = 2;
+		else if (state==AST_EXTENSION_INUSE)
+			state = 1;
+		else
+			state = 0;
+
+		t = tmp;		
+		maxbytes = sizeof(tmp);
+		bytes = snprintf(t, maxbytes, "<?xml version=\"1.0\"?>\n");
+		t += bytes;
+		maxbytes -= bytes;
+		bytes = snprintf(t, maxbytes, "<!DOCTYPE presence PUBLIC \"-//IETF//DTD RFCxxxx XPIDF 1.0//EN\" \"xpidf.dtd\">\n");
+		t += bytes;
+		maxbytes -= bytes;
+		bytes = snprintf(t, maxbytes, "<presence>\n");
+		t += bytes;
+		maxbytes -= bytes;
+		bytes = snprintf(t, maxbytes, "<presentity uri=\"%s;method=SUBSCRIBE\" />\n", mfrom);
+		t += bytes;
+		maxbytes -= bytes;
+		bytes = snprintf(t, maxbytes, "<atom id=\"%s\">\n", p->exten);
+		t += bytes;
+		maxbytes -= bytes;
+		bytes = snprintf(t, maxbytes, "<address uri=\"%s;user=ip\" priority=\"0,800000\">\n", mto);
+		t += bytes;
+		maxbytes -= bytes;
+		bytes = snprintf(t, maxbytes, "<status status=\"%s\" />\n", !state ? "open" : (state==1) ? "inuse" : "closed");
+		t += bytes;
+		maxbytes -= bytes;
+		bytes = snprintf(t, maxbytes, "<msnsubstatus substatus=\"%s\" />\n", !state ? "online" : (state==1) ? "onthephone" : "offline");
+		t += bytes;
+		maxbytes -= bytes;
+		bytes = snprintf(t, maxbytes, "</address>\n</atom>\n</presence>\n");	    	
 	} else {
-    	    add_header(&req, "Event", "dialog");
-	    add_header(&req, "Content-Type", "application/dialog-info+xml");
-	
-	    t = tmp;		
-	    sprintf(t, "<?xml version=\"1.0\"?>\n");
-	    t = tmp + strlen(tmp);
-	    snprintf(t, 1000, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">\n", p->dialogver++, full ? "full":"partial", mfrom);
-	    t = tmp + strlen(tmp);
-	    snprintf(t, 1000, "<dialog id=\"%s\">\n", p->exten);
-	    t = tmp + strlen(tmp);
-	    sprintf(t, "<state>%s</state>\n", state ? "confirmed" : "terminated");
-	    t = tmp + strlen(tmp);
-	    sprintf(t, "</dialog>\n</dialog-info>\n");	
+		add_header(&req, "Event", "dialog");
+		add_header(&req, "Content-Type", "application/dialog-info+xml");
+
+		t = tmp;		
+		maxbytes = sizeof(tmp);
+		bytes = snprintf(t, maxbytes, "<?xml version=\"1.0\"?>\n");
+		t += bytes;
+		maxbytes -= bytes;
+		bytes = snprintf(t, maxbytes, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">\n", p->dialogver++, full ? "full":"partial", mfrom);
+		t += bytes;
+		maxbytes -= bytes;
+		bytes = snprintf(t, maxbytes, "<dialog id=\"%s\">\n", p->exten);
+		t += bytes;
+		maxbytes -= bytes;
+		bytes = snprintf(t, maxbytes, "<state>%s</state>\n", state ? "confirmed" : "terminated");
+		t += bytes;
+		maxbytes -= bytes;
+		bytes = snprintf(t, maxbytes, "</dialog>\n</dialog-info>\n");	
 	}
 	if (t > tmp + sizeof(tmp))
 		ast_log(LOG_WARNING, "Buffer overflow detected!!  (Please file a bug report)\n");
@@ -3977,7 +3996,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	add_header(&req, "To", to);
 	add_header(&req, "Call-ID", p->callid);
 	add_header(&req, "CSeq", tmp);
-	add_header(&req, "User-Agent", useragent);
+	add_header(&req, "User-Agent", default_useragent);
 	if (auth) 
 		add_header(&req, authheader, auth);
 
@@ -4185,7 +4204,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 			ast_sched_del(sched, p->expire);
 		p->expire = -1;
 		ast_db_del("SIP/Registry", p->name);
-		strcpy(p->useragent, "");
+		p->useragent[0] = '\0';
 		p->lastms = 0;
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", p->name);
@@ -4235,7 +4254,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	if (c)
 		strncpy(p->username, c, sizeof(p->username) - 1);
 	else
-		strcpy(p->username, "");
+		p->username[0] = '\0';
 	if (p->expire > -1)
 		ast_sched_del(sched, p->expire);
 	if ((expiry < 1) || (expiry > max_expiry))
@@ -5018,7 +5037,7 @@ static int get_rpid_num(char *input,char *output, int maxlen)
 
 	start = strchr(input,':');
 	if (!start) {
-		strcpy(output, "");
+		output[0] = '\0';
 		return 0;
 	}
 	start++;
@@ -5088,7 +5107,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 	if ((c = strchr(of, ':')))
 		*c = '\0';
 	if (*calleridname)
-		sprintf(p->callerid,"\"%s\" <%s>",calleridname,of);
+		snprintf(p->callerid,sizeof(p->callerid),"\"%s\" <%s>",calleridname,of);
 	else
 		strncpy(p->callerid, of, sizeof(p->callerid) - 1);
 	if (ast_strlen_zero(of))
@@ -5105,7 +5124,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 		/* replace callerid if rpid found, and not restricted */
 		if(!ast_strlen_zero(rpid_num) && p->trustrpid) {
 		  if (*calleridname)
-		    sprintf(p->callerid,"\"%s\" <%s>",calleridname,rpid_num);
+		    snprintf(p->callerid, sizeof(p->callerid), "\"%s\" <%s>",calleridname,rpid_num);
 		  else
 		    strncpy(p->callerid, rpid_num, sizeof(p->callerid) - 1);
 		}
@@ -5176,7 +5195,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			/* replace callerid if rpid found, and not restricted */
 			if(!ast_strlen_zero(rpid_num) && p->trustrpid) {
 			  if (*calleridname)
-			    sprintf(p->callerid,"\"%s\" <%s>",calleridname,rpid_num);
+			    snprintf(p->callerid,sizeof(p->callerid),"\"%s\" <%s>",calleridname,rpid_num);
 			  else
 			    strncpy(p->callerid, rpid_num, sizeof(p->callerid) - 1);
 			}
@@ -5191,12 +5210,14 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (p->nat == SIP_NAT_ALWAYS));
 				ast_rtp_setnat(p->vrtp, (p->nat == SIP_NAT_ALWAYS));
 			}
-			strcpy(p->peersecret, peer->secret);
-			strcpy(p->peermd5secret, peer->md5secret);
+			strncpy(p->peersecret, peer->secret, sizeof(p->peersecret)-1);
+			p->peersecret[sizeof(p->peersecret)-1] = '\0';
+			strncpy(p->peermd5secret, peer->md5secret, sizeof(p->peermd5secret)-1);
+			p->peermd5secret[sizeof(p->peermd5secret)-1] = '\0';
 			if (peer->insecure > 1) {
 				/* Pretend there is no required authentication if insecure is "very" */
-				strcpy(p->peersecret, "");
-				strcpy(p->peermd5secret, "");
+				p->peersecret[0] = '\0';
+				p->peermd5secret[0] = '\0';
 			}
 			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, p->peersecret, p->peermd5secret, cmd, uri, reliable, ignore))) {
 				p->canreinvite = peer->canreinvite;
@@ -5249,7 +5270,8 @@ static int get_msg_text(char *buf, int len, struct sip_request *req)
 {
 	int x;
 	int y;
-	strcpy(buf, "");
+
+	buf[0] = '\0';
 	y = len - strlen(buf) - 5;
 	if (y < 0)
 		y = 0;
@@ -5361,7 +5383,8 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 		char status[20];
 		int print_line = -1;
 		char srch[2000];
-		strncpy(nm, ast_inet_ntoa(iabuf, sizeof(iabuf), peer->mask), sizeof(nm)-1);
+
+		ast_inet_ntoa(nm, sizeof(nm), peer->mask);
 		if (!ast_strlen_zero(peer->username))
 			snprintf(name, sizeof(name), "%s/%s", peer->name, peer->username);
 		else
@@ -5377,25 +5400,25 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 				strcpy(status, "UNKNOWN");
 		} else 
 			strcpy(status, "Unmonitored");
-                sprintf(srch, FORMAT, name,
-                        peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
-                        peer->dynamic ? " D " : "   ", 	/* Dynamic or not? */
-                        (peer->nat == SIP_NAT_ALWAYS) ? " N " : "   ",	/* NAT=yes? */
-                        peer->ha ? " A " : "   ", 	/* permit/deny */
-                        nm,
-                        ntohs(peer->addr.sin_port), status);
+			snprintf(srch, sizeof(srch), FORMAT, name,
+				peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
+				peer->dynamic ? " D " : "   ", 	/* Dynamic or not? */
+				(peer->nat == SIP_NAT_ALWAYS) ? " N " : "   ",	/* NAT=yes? */
+				peer->ha ? " A " : "   ", 	/* permit/deny */
+				nm,
+				ntohs(peer->addr.sin_port), status);
 
-                if (argc == 5) {
-                  if (!strcasecmp(argv[3],"include") && strstr(srch,argv[4])) {
-                        print_line = -1;
-                   } else if (!strcasecmp(argv[3],"exclude") && !strstr(srch,argv[4])) {
-                        print_line = 1;
-                   } else if (!strcasecmp(argv[3],"begin") && !strncasecmp(srch,argv[4],strlen(argv[4]))) {
-                        print_line = -1;
-                   } else {
-                        print_line = 0;
-                  }
-                }
+			if (argc == 5) {
+				if (!strcasecmp(argv[3],"include") && strstr(srch,argv[4])) {
+					print_line = -1;
+				} else if (!strcasecmp(argv[3],"exclude") && !strstr(srch,argv[4])) {
+					print_line = 1;
+				} else if (!strcasecmp(argv[3],"begin") && !strncasecmp(srch,argv[4],strlen(argv[4]))) {
+					print_line = -1;
+				} else {
+					print_line = 0;
+				}
+			}
 
 		if (print_line) {
 		    ast_cli(fd, FORMAT, name, 
@@ -5703,13 +5726,13 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "  Last Message:           %s\n", cur->lastmsg);
 			ast_cli(fd, "  Promiscuous Redir:      %s\n", cur->promiscredir ? "Yes" : "No");
 			ast_cli(fd, "  Route:                  %s\n", cur->route ? cur->route->hop : "N/A");
-			strcpy(tmp, "");
+			tmp[0] = '\0';
 			if (cur->dtmfmode & SIP_DTMF_RFC2833)
-				strcat(tmp, "rfc2833 ");
+				strncat(tmp, "rfc2833 ", sizeof(tmp) - strlen(tmp) - 1);
 			if (cur->dtmfmode & SIP_DTMF_INFO)
-				strcat(tmp, "info ");
+				strncat(tmp, "info ", sizeof(tmp) - strlen(tmp) - 1);
 			if (cur->dtmfmode & SIP_DTMF_INBAND)
-				strcat(tmp, "inband ");
+				strncat(tmp, "inband ", sizeof(tmp) - strlen(tmp) - 1);
 			ast_cli(fd, "  DTMF Mode:              %s\n\n", tmp);
 			found++;
 		}
@@ -6737,7 +6760,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		build_contact(p);
 		/* XXX Should we authenticate OPTIONS? XXX */
 		if (ast_strlen_zero(p->context))
-			strncpy(p->context, context, sizeof(p->context) - 1);
+			strncpy(p->context, default_context, sizeof(p->context) - 1);
 		if (res < 0)
 			transmit_response_with_allow(p, "404 Not Found", req, 0);
 		else if (res > 0)
@@ -6797,7 +6820,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			}
 			/* Initialize the context if it hasn't been already */
 			if (ast_strlen_zero(p->context))
-				strncpy(p->context, context, sizeof(p->context) - 1);
+				strncpy(p->context, default_context, sizeof(p->context) - 1);
 			/* Check number of concurrent calls -vs- incoming limit HERE */
 			ast_log(LOG_DEBUG, "Check for res for %s\n", p->username);
 			res = update_user_counter(p,INC_IN_USE);
@@ -6918,7 +6941,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	} else if (!strcasecmp(cmd, "REFER")) {
 		ast_log(LOG_DEBUG, "We found a REFER!\n");
 		if (ast_strlen_zero(p->context))
-			strncpy(p->context, context, sizeof(p->context) - 1);
+			strncpy(p->context, default_context, sizeof(p->context) - 1);
 		res = get_refer_info(p, req);
 		if (res < 0)
 			transmit_response_with_allow(p, "404 Not Found", req, 1);
@@ -6992,7 +7015,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ast_log(LOG_NOTICE, "Client '%s' using deprecated BYE/Also transfer method.  Ask vendor to support REFER instead\n",
 				ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr));
 			if (ast_strlen_zero(p->context))
-				strncpy(p->context, context, sizeof(p->context) - 1);
+				strncpy(p->context, default_context, sizeof(p->context) - 1);
 			res = get_also_info(p, req);
 			if (!res) {
 				c = p->owner;
@@ -7048,7 +7071,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			}
 			/* Initialize the context if it hasn't been already */
 			if (ast_strlen_zero(p->context))
-				strncpy(p->context, context, sizeof(p->context) - 1);
+				strncpy(p->context, default_context, sizeof(p->context) - 1);
 			/* Get destination right away */
 			gotdest = get_destination(p, NULL);
 			build_contact(p);
@@ -7474,7 +7497,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 	if (!ast_strlen_zero(p->tohost))
 		strncpy(p->tohost, peer->tohost, sizeof(p->tohost) - 1);
 	else
-		snprintf(p->tohost, sizeof(p->tohost), "%s", ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr));
+		ast_inet_ntoa(p->tohost, sizeof(p->tohost), peer->addr.sin_addr);
 
 	/* Recalculate our side, and recalculate Call ID */
 	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
@@ -7562,7 +7585,7 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 	oldformat = format;
 	format &= ((AST_FORMAT_MAX_AUDIO << 1) - 1);
 	if (!format) {
-		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format %s while capability is %s\n", ast_getformatname(oldformat), ast_getformatname(capability));
+		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format %s while capability is %s\n", ast_getformatname(oldformat), ast_getformatname(global_capability));
 		return NULL;
 	}
 	p = sip_alloc(NULL, NULL, 0);
@@ -7590,7 +7613,7 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 	}
 
 	/* Assign a default capability */
-	p->capability = capability;
+	p->capability = global_capability;
 
 	if (create_addr(p, host)) {
 		sip_destroy(p);
@@ -7638,18 +7661,17 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 		/* set the usage flag to a sane staring value*/
 		user->inUse = 0;
 		user->outUse = 0;
-		user->capability = capability;
-
-		user->canreinvite = globalcanreinvite;
-		user->trustrpid = globaltrustrpid;
-		user->progressinband = globalprogressinband;
+		user->capability = global_capability;
+		user->canreinvite = global_canreinvite;
+		user->trustrpid = global_trustrpid;
+		user->progressinband = global_progressinband;
 #ifdef OSP_SUPPORT
-		user->ospauth = globalospauth;
+		user->ospauth = global_ospauth;
 #endif
 		/* set default context */
-		strncpy(user->context, context, sizeof(user->context)-1);
-		strncpy(user->language, language, sizeof(user->language)-1);
-		strncpy(user->musicclass, globalmusicclass, sizeof(user->musicclass)-1);
+		strncpy(user->context, default_context, sizeof(user->context)-1);
+		strncpy(user->language, default_language, sizeof(user->language)-1);
+		strncpy(user->musicclass, global_musicclass, sizeof(user->musicclass)-1);
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
 				strncpy(user->context, v->value, sizeof(user->context));
@@ -7763,26 +7785,26 @@ static struct sip_peer *temp_peer(char *name)
 	peer->expire = -1;
 	peer->pokeexpire = -1;
 	strncpy(peer->name, name, sizeof(peer->name)-1);
-	strncpy(peer->context, context, sizeof(peer->context)-1);
-	strncpy(peer->language, language, sizeof(peer->language)-1);
-	strncpy(peer->musicclass, globalmusicclass, sizeof(peer->musicclass)-1);
+	strncpy(peer->context, default_context, sizeof(peer->context)-1);
+	strncpy(peer->language, default_language, sizeof(peer->language)-1);
+	strncpy(peer->musicclass, global_musicclass, sizeof(peer->musicclass)-1);
 	peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
 	peer->addr.sin_family = AF_INET;
 	peer->expiry = expiry;
-	peer->capability = capability;
+	peer->capability = global_capability;
 	/* Assume can reinvite */
-	peer->canreinvite = globalcanreinvite;
-	peer->dtmfmode = globaldtmfmode;
-	peer->promiscredir = globalpromiscredir;
-	peer->nat = globalnat;
-	peer->rtptimeout = globalrtptimeout;
-	peer->rtpholdtimeout = globalrtpholdtimeout;
+	peer->canreinvite = global_canreinvite;
+	peer->dtmfmode = global_dtmfmode;
+	peer->promiscredir = global_promiscredir;
+	peer->nat = global_nat;
+	peer->rtptimeout = global_rtptimeout;
+	peer->rtpholdtimeout = global_rtpholdtimeout;
 	peer->selfdestruct = 1;
 	peer->dynamic = 1;
-	peer->trustrpid = globaltrustrpid;
-	peer->progressinband = globalprogressinband;
+	peer->trustrpid = global_trustrpid;
+	peer->progressinband = global_progressinband;
 #ifdef OSP_SUPPORT
-	peer->ospauth = globalospauth;
+	peer->ospauth = global_ospauth;
 #endif
 	reg_source_db(peer);
 	return peer;
@@ -7827,9 +7849,9 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 	if (peer) {
 		if (!found) {
 			strncpy(peer->name, name, sizeof(peer->name)-1);
-			strncpy(peer->context, context, sizeof(peer->context)-1);
-			strncpy(peer->language, language, sizeof(peer->language)-1);
-			strncpy(peer->musicclass, globalmusicclass, sizeof(peer->musicclass)-1);
+			strncpy(peer->context, default_context, sizeof(peer->context)-1);
+			strncpy(peer->language, default_language, sizeof(peer->language)-1);
+			strncpy(peer->musicclass, global_musicclass, sizeof(peer->musicclass)-1);
 			peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
 			peer->addr.sin_family = AF_INET;
 			peer->defaddr.sin_family = AF_INET;
@@ -7837,17 +7859,17 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 		}
 		oldha = peer->ha;
 		peer->ha = NULL;
-		peer->capability = capability;
+		peer->capability = global_capability;
 		/* Assume can reinvite */
-		peer->canreinvite = globalcanreinvite;
-		peer->rtptimeout = globalrtptimeout;
-		peer->rtpholdtimeout = globalrtpholdtimeout;
+		peer->canreinvite = global_canreinvite;
+		peer->rtptimeout = global_rtptimeout;
+		peer->rtpholdtimeout = global_rtpholdtimeout;
 		peer->dtmfmode = 0;
-		peer->promiscredir = globalpromiscredir;
-		peer->trustrpid = globaltrustrpid;
-		peer->progressinband = globalprogressinband;
+		peer->promiscredir = global_promiscredir;
+		peer->trustrpid = global_trustrpid;
+		peer->progressinband = global_progressinband;
 #ifdef OSP_SUPPORT
-		peer->ospauth = globalospauth;
+		peer->ospauth = global_ospauth;
 #endif
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) 
@@ -7963,12 +7985,12 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "rtptimeout")) {
 				if ((sscanf(v->value, "%d", &peer->rtptimeout) != 1) || (peer->rtptimeout < 0)) {
 					ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
-					peer->rtptimeout = globalrtptimeout;
+					peer->rtptimeout = global_rtptimeout;
 				}
 			} else if (!strcasecmp(v->name, "rtpholdtimeout")) {
 				if ((sscanf(v->value, "%d", &peer->rtpholdtimeout) != 1) || (peer->rtpholdtimeout < 0)) {
 					ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
-					peer->rtpholdtimeout = globalrtpholdtimeout;
+					peer->rtpholdtimeout = global_rtpholdtimeout;
 				}
 			} else if (!strcasecmp(v->name, "qualify")) {
 				if (!strcasecmp(v->value, "no")) {
@@ -8022,8 +8044,8 @@ static int reload_config(void)
 	int oldport = ntohs(bindaddr.sin_port);
 	char iabuf[INET_ADDRSTRLEN];
 
-	globaldtmfmode = SIP_DTMF_RFC2833;
-	globalpromiscredir = 0;
+	global_dtmfmode = SIP_DTMF_RFC2833;
+	global_promiscredir = 0;
 	
 	if (gethostname(ourhost, sizeof(ourhost))) {
 		ast_log(LOG_WARNING, "Unable to get hostname, SIP disabled\n");
@@ -8037,7 +8059,7 @@ static int reload_config(void)
 		return 0;
 	}
 	
-	globalnat = SIP_NAT_RFC3581;
+	global_nat = SIP_NAT_RFC3581;
 	
 	sip_prefs_free();
 	
@@ -8046,94 +8068,97 @@ static int reload_config(void)
 	memset(&externip, 0, sizeof(externip));
 
 	/* Initialize some reasonable defaults */
-	strncpy(context, "default", sizeof(context) - 1);
-	strcpy(language, "");
-	strcpy(fromdomain, "");
+	strncpy(default_context, "default", sizeof(default_context) - 1);
+	default_language[0] = '\0';
+	default_fromdomain[0] = '\0';
 	strncpy(global_realm, "asterisk", sizeof(global_realm) - 1);
-	globalcanreinvite = REINVITE_INVITE;
+	global_realm[sizeof(global_realm)-1] = '\0';
+	global_canreinvite = REINVITE_INVITE;
 	videosupport = 0;
 	relaxdtmf = 0;
-	globalrtptimeout = 0;
-	globalrtpholdtimeout = 0;
+	global_rtptimeout = 0;
+	global_rtpholdtimeout = 0;
 	pedanticsipchecking=0;
 	v = ast_variable_browse(cfg, "general");
 	while(v) {
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "context")) {
-			strncpy(context, v->value, sizeof(context)-1);
+			strncpy(default_context, v->value, sizeof(default_context)-1);
 		} else if (!strcasecmp(v->name, "realm")) {
 			strncpy(global_realm, v->value, sizeof(global_realm)-1);
+			global_realm[sizeof(global_realm)-1] = '\0';
 		} else if (!strcasecmp(v->name, "useragent")) {
-			strncpy(useragent, v->value, sizeof(useragent)-1);
-			ast_log(LOG_DEBUG, "Setting User Agent Name to %s\n", useragent);
+			strncpy(default_useragent, v->value, sizeof(default_useragent)-1);
+			ast_log(LOG_DEBUG, "Setting User Agent Name to %s\n",
+				default_useragent);
 		} else if (!strcasecmp(v->name, "relaxdtmf")) {
 			relaxdtmf = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "promiscredir")) {
-			globalpromiscredir = ast_true(v->value);
+			global_promiscredir = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "dtmfmode")) {
 			if (!strcasecmp(v->value, "inband"))
-				globaldtmfmode=SIP_DTMF_INBAND;
+				global_dtmfmode=SIP_DTMF_INBAND;
 			else if (!strcasecmp(v->value, "rfc2833"))
-				globaldtmfmode = SIP_DTMF_RFC2833;
+				global_dtmfmode = SIP_DTMF_RFC2833;
 			else if (!strcasecmp(v->value, "info"))
-				globaldtmfmode = SIP_DTMF_INFO;
+				global_dtmfmode = SIP_DTMF_INFO;
 			else {
 				ast_log(LOG_WARNING, "Unknown dtmf mode '%s', using rfc2833\n", v->value);
-				globaldtmfmode = SIP_DTMF_RFC2833;
+				global_dtmfmode = SIP_DTMF_RFC2833;
 			}
 		} else if (!strcasecmp(v->name, "rtptimeout")) {
-			if ((sscanf(v->value, "%d", &globalrtptimeout) != 1) || (globalrtptimeout < 0)) {
+			if ((sscanf(v->value, "%d", &global_rtptimeout) != 1) || (global_rtptimeout < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
-				globalrtptimeout = 0;
+				global_rtptimeout = 0;
 			}
 		} else if (!strcasecmp(v->name, "rtpholdtimeout")) {
-			if ((sscanf(v->value, "%d", &globalrtpholdtimeout) != 1) || (globalrtpholdtimeout < 0)) {
+			if ((sscanf(v->value, "%d", &global_rtpholdtimeout) != 1) || (global_rtpholdtimeout < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
-				globalrtpholdtimeout = 0;
+				global_rtpholdtimeout = 0;
 			}
 		} else if (!strcasecmp(v->name, "videosupport")) {
 			videosupport = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "notifymimetype")) {
 			strncpy(notifymime, v->value, sizeof(notifymime) - 1);
 		} else if (!strcasecmp(v->name, "musicclass")) {
-			strncpy(globalmusicclass, v->value, sizeof(globalmusicclass) - 1);
+			strncpy(global_musicclass, v->value, sizeof(global_musicclass) - 1);
 		} else if (!strcasecmp(v->name, "language")) {
-			strncpy(language, v->value, sizeof(language)-1);
+			strncpy(default_language, v->value, sizeof(default_language)-1);
 		} else if (!strcasecmp(v->name, "callerid")) {
-			strncpy(callerid, v->value, sizeof(callerid)-1);
+			strncpy(default_callerid, v->value, sizeof(default_callerid)-1);
 		} else if (!strcasecmp(v->name, "fromdomain")) {
-			strncpy(fromdomain, v->value, sizeof(fromdomain)-1);
+			strncpy(default_fromdomain, v->value, sizeof(default_fromdomain)-1);
 		} else if (!strcasecmp(v->name, "nat")) {
 			if (!strcasecmp(v->value, "rfc3581"))
-				globalnat = SIP_NAT_RFC3581;
+				global_nat = SIP_NAT_RFC3581;
 			else if (ast_true(v->value))
-				globalnat = SIP_NAT_ALWAYS;
+				global_nat = SIP_NAT_ALWAYS;
 			else
-				globalnat = SIP_NAT_NEVER;
+				global_nat = SIP_NAT_NEVER;
 		} else if (!strcasecmp(v->name, "autocreatepeer")) {
 			autocreatepeer = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "srvlookup")) {
 			srvlookup = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "trustrpid")) {
-			globaltrustrpid = ast_true(v->value);
+			global_trustrpid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "progressinband")) {
-			globalprogressinband = ast_true(v->value);
+			global_progressinband = ast_true(v->value);
 #ifdef OSP_SUPPORT
 		} else if (!strcasecmp(v->name, "ospauth")) {
 			if (!strcasecmp(v->value, "exclusive")) {
-				globalospauth = 2;
+				global_ospauth = 2;
 			} else if (ast_true(v->value)) {
-				globalospauth = 1;
+				global_ospauth = 1;
 			} else
-				globalospauth = 0;
+				global_ospauth = 0;
 #endif
 		} else if (!strcasecmp(v->name, "pedantic")) {
 			pedanticsipchecking = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "canreinvite")) {
 			if (!strcasecmp(v->value, "update"))
-				globalcanreinvite = REINVITE_UPDATE;
+				global_canreinvite = REINVITE_UPDATE;
 			else
-				globalcanreinvite = ast_true(v->value);
+				global_canreinvite = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "maxexpirey") || !strcasecmp(v->name, "maxexpiry")) {
 			max_expiry = atoi(v->value);
 			if (max_expiry < 1)
@@ -8166,7 +8191,7 @@ static int reload_config(void)
 			if (format < 1) 
 				ast_log(LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
 			else {
-				capability |= format;
+				global_capability |= format;
 				sip_pref_append(format);
 			}
 		} else if (!strcasecmp(v->name, "disallow")) {
@@ -8174,7 +8199,7 @@ static int reload_config(void)
 			if (format < 1) 
 				ast_log(LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
 			else {
-				capability &= ~format;
+				global_capability &= ~format;
 				sip_pref_remove(format);
 			}
 		} else if (!strcasecmp(v->name, "register")) {
