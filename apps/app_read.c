@@ -69,8 +69,8 @@ static int read_exec(struct ast_channel *chan, void *data)
 	int maxdigits=255;
 	int tries = 1;
 	int to = 0;
-	int defined = 0, x = 0;
-	char *argcopy;
+	x = 0;
+	char *argcopy = NULL;
 	char *args[8];
 
 	if (data)
