@@ -128,6 +128,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 	single = (outgoing && !outgoing->next && !outgoing->musiconhold && !outgoing->ringbackonly);
 	
 	if (single) {
+		/* Turn off hold music, etc */
+		ast_indicate(in, -1);
 		/* If we are calling a single channel, make them compatible for in-band tone purpose */
 		ast_channel_make_compatible(outgoing->chan, in);
 	}
