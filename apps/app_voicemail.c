@@ -2930,7 +2930,9 @@ int unload_module(void)
 	int res;
 	STANDARD_HANGUP_LOCALUSERS;
 	res = ast_unregister_application(app);
+	res |= ast_unregister_application(capp);
 	res |= ast_unregister_application(app2);
+	res |= ast_unregister_application(capp2);
 	sql_close();
 	return res;
 }
