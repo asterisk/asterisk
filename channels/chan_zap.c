@@ -2654,11 +2654,14 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 #ifdef ZAPATA_PRI
 #ifdef PRI_DESTROYCALL
 			if (p->call) {
-				if (p->pri && p->pri->pri)
+				if (p->pri && p->pri->pri) {
+					pri_hangup(p->pri->pri, p->call, -1);
 					pri_destroycall(p->pri->pri, p->call);
-				else
+				} else
 					ast_log(LOG_WARNING, "The PRI Call have not been destroyed\n");
 			}
+			if (p->owner)
+				p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 			p->call = NULL;
 #else
 #error Please "cvs update" and recompile libpri
@@ -5699,14 +5702,16 @@ static void *pri_dchannel(void *vpri)
 				for (i=0; i<=pri->channels; i++) {
 					struct zt_pvt *p = pri->pvt[i];
 					if (p) {
-						p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 						if (p->call) {
-							if (p->pri && p->pri->pri)
+							if (p->pri && p->pri->pri) {
+								pri_hangup(p->pri->pri, p->call, -1);
 								pri_destroycall(p->pri->pri, p->call);
-							else
-								ast_log(LOG_WARNING, "The PRI Call have not been destroyed on channel %s\n",p->owner->name);
+								p->call = NULL;
+							} else
+								ast_log(LOG_WARNING, "The PRI Call have not been destroyed\n");
 						}
-						p->call = NULL;
+						if (p->owner)
+							p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 						p->inalarm = 1;
 					}
 				}
