@@ -43,7 +43,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int do_waiting(struct ast_channel *chan, int duration) {
+static int do_waiting(struct ast_channel *chan, int maxsilence) {
 
 	struct ast_frame *f;
 	int totalsilence = 0;
@@ -96,10 +96,10 @@ static int do_waiting(struct ast_channel *chan, int duration) {
 				totalsilence = dspsilence;
 			else
 				totalsilence = 0;
-			/* ast_verbose(VERBOSE_PREFIX_3 "dspsilence: %d, totalsilence: %d\n", dspsilence, totalsilence); */
 
-			if (totalsilence >= duration) {
-				ast_verbose(VERBOSE_PREFIX_3 "exiting with %d silence > %d required\n", totalsilence, duration);
+			if (totalsilence >= maxsilence) {
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Exiting with %dms silence > %dms required\n", totalsilence, maxsilence);
 				/* Ended happily with silence */
 				ast_frfree(f);
 				gotsilence = 1;
@@ -108,29 +108,33 @@ static int do_waiting(struct ast_channel *chan, int duration) {
 		}
 		ast_frfree(f);
 	}
+	if (rfmt && ast_set_read_format(chan, rfmt)) {
+		ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_getformatname(rfmt), chan->name);
+	}
 	ast_dsp_free(sildet);
 	return gotsilence;
 }
 
 static int waitforsilence_exec(struct ast_channel *chan, void *data)
 {
-	int res=1;
+	int res = 1;
 	struct localuser *u;
-	int duration = 1000;
+	int maxsilence = 1000;
 	int iterations = 1, i;
 
 	res = ast_answer(chan); /* Answer the channel */
 
-	if (!data || ((sscanf(data, "%d|%d", &duration, &iterations) != 2) &&
-		(sscanf(data, "%d", &duration) != 1))) {
+	if (!data || ((sscanf(data, "%d|%d", &maxsilence, &iterations) != 2) &&
+		(sscanf(data, "%d", &maxsilence) != 1))) {
 		ast_log(LOG_WARNING, "Using default value of 1000ms, 1 iteration\n");
 	}
 
-	ast_verbose(VERBOSE_PREFIX_3 "Waiting %d time(s) for %d ms silence\n", iterations, duration);
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_3 "Waiting %d time(s) for %d ms silence\n", iterations, maxsilence);
 	LOCAL_USER_ADD(u);
 	res = 1;
-	for ( i=0; (i<iterations) && (res == 1); i++) {
-		res = do_waiting(chan, duration);
+	for (i=0; (i<iterations) && (res == 1); i++) {
+		res = do_waiting(chan, maxsilence);
 	}
 	LOCAL_USER_REMOVE(u);
 	if (res > 0)
