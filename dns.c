@@ -151,24 +151,25 @@ static int dns_parse_answer(void *context,
 	return 0;
 }
 
+#if defined(res_ninit)
+#define HAS_RES_NINIT
+#else
+#warning "Warning, res_ninit is missing...  Could have reentrancy issues"
+#endif
+
 int ast_search_dns(void *context,
 				   const char *dname, int class, int type,
 				   int (*callback)(void *context, u_char *answer, int len, u_char *fullanswer))
 {
-#ifdef linux
+#ifdef HAS_RES_NINIT
 	struct __res_state dnsstate;
 #endif
 	char answer[MAX_SIZE];
 	int res, ret = -1;
 
-#ifdef linux
-	#ifndef __UCLIBC__
-		res_ninit(&dnsstate);
-		res = res_nsearch(&dnsstate, dname, class, type, answer, sizeof(answer));
-	#else
-	        res_init();
-	        res = res_search(dname, class, type, answer, sizeof(answer));
-	#endif
+#ifdef HAS_RES_NINIT
+	res_ninit(&dnsstate);
+	res = res_nsearch(&dnsstate, dname, class, type, answer, sizeof(answer));
 #else
 	res_init();
 	res = res_search(dname, class, type, answer, sizeof(answer));
@@ -185,12 +186,8 @@ int ast_search_dns(void *context,
 		else
 			ret = 1;
 	}
-#if defined(linux)
-	#ifndef __UCLIBC__
-		res_nclose(&dnsstate);
-	#else
-		res_close();
-	#endif
+#ifdef HAS_RES_NINIT
+	res_nclose(&dnsstate);
 #else
 #ifndef __APPLE__
 	res_close();
