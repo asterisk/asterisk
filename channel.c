@@ -2089,19 +2089,6 @@ static int ast_do_masquerade(struct ast_channel *original)
 	/* Context, extension, priority, app data, jump table,  remain the same */
 	/* pvt switches.  pbx stays the same, as does next */
 	
-	/* Now, at this point, the "clone" channel is totally F'd up.  We mark it as
-	   a zombie so nothing tries to touch it.  If it's already been marked as a
-	   zombie, then free it now (since it already is considered invalid). */
-	if (clone->zombie) {
-		ast_log(LOG_DEBUG, "Destroying clone '%s'\n", clone->name);
-		ast_mutex_unlock(&clone->lock);
-		ast_channel_free(clone);
-		manager_event(EVENT_FLAG_CALL, "Hangup", "Channel: %s\r\n", zombn);
-	} else {
-		ast_log(LOG_DEBUG, "Released clone lock on '%s'\n", clone->name);
-		clone->zombie=1;
-		ast_mutex_unlock(&clone->lock);
-	}
 	/* Set the write format */
 	ast_set_write_format(original, wformat);
 
@@ -2122,6 +2109,21 @@ static int ast_do_masquerade(struct ast_channel *original)
 	} else
 		ast_log(LOG_WARNING, "Driver '%s' does not have a fixup routine (for %s)!  Bad things may happen.\n",
 			original->type, original->name);
+	
+	/* Now, at this point, the "clone" channel is totally F'd up.  We mark it as
+	   a zombie so nothing tries to touch it.  If it's already been marked as a
+	   zombie, then free it now (since it already is considered invalid). */
+	if (clone->zombie) {
+		ast_log(LOG_DEBUG, "Destroying clone '%s'\n", clone->name);
+		ast_mutex_unlock(&clone->lock);
+		ast_channel_free(clone);
+		manager_event(EVENT_FLAG_CALL, "Hangup", "Channel: %s\r\n", zombn);
+	} else {
+		ast_log(LOG_DEBUG, "Released clone lock on '%s'\n", clone->name);
+		clone->zombie=1;
+		ast_mutex_unlock(&clone->lock);
+	}
+	
 	/* Signal any blocker */
 	if (original->blocking)
 		pthread_kill(original->blocker, SIGURG);
