@@ -233,6 +233,7 @@ extern void ast_cdr_reset(struct ast_cdr *cdr, int post);
 extern char *ast_cdr_flags2str(int flags);
 
 extern int ast_cdr_setaccount(struct ast_channel *chan, char *account);
+extern int ast_cdr_setamaflags(struct ast_channel *chan, char *account);
 
 
 extern int ast_cdr_setuserfield(struct ast_channel *chan, char *userfield);
