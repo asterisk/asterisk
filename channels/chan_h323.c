@@ -480,7 +480,7 @@ static int oh323_hangup(struct ast_channel *c)
 	/* Free dsp used for in-band DTMF detection */
 	if (p->vad) {
 		ast_dsp_free(p->vad);
-     }
+	}
 
 	p->owner = NULL;
 	c->pvt->pvt = NULL;
@@ -488,12 +488,10 @@ static int oh323_hangup(struct ast_channel *c)
 	/* Start the process if it's not already started */
 	if (!p->alreadygone) {
 		p->needdestroy = 1;
-	}	
-	
-       /* Tell the H.323 stack to cleanly tare down the call */
-       if (h323_clear_call((p->cd).call_token)) {
-               ast_log(LOG_DEBUG, "ClearCall failed.\n");
-       }
+		if (h323_clear_call((p->cd).call_token)) { 
+			ast_log(LOG_DEBUG, "ClearCall failed.\n");
+		}
+	}
 
 	/* Update usage counter */
 	ast_mutex_lock(&usecnt_lock);
@@ -990,6 +988,7 @@ int setup_incoming_call(call_details_t cd)
 
 	if (h323debug) {
 		ast_verbose(VERBOSE_PREFIX_3 "Setting up Call\n");
+		ast_verbose(VERBOSE_PREFIX_3 "	   Call token:  [%s]\n", p->cd.call_token);
 		ast_verbose(VERBOSE_PREFIX_3 "	   Calling party name:  [%s]\n", p->cd.call_source_aliases);
 		ast_verbose(VERBOSE_PREFIX_3 "	   Calling party number:  [%s]\n", p->cd.call_source_e164);
 		ast_verbose(VERBOSE_PREFIX_3 "	   Called  party name:  [%s]\n", p->cd.call_dest_alias);
@@ -1239,15 +1238,13 @@ restartsearch:
 		}
 		ast_mutex_unlock(&iflock);
 
+		pthread_testcancel();
+
 		/* Wait for sched or io */
 		res = ast_sched_wait(sched);
 		if ((res < 0) || (res > 1000))
 			res = 1000;
 		res = ast_io_wait(io, res);
-                
-		/* Check for thread cancellation */
-                pthread_testcancel();
-
 		ast_mutex_lock(&monlock);
 		if (res >= 0) 
 			ast_sched_runq(sched);
@@ -1345,6 +1342,32 @@ static int h323_gk_cycle(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int h323_ep_hangup(int fd, int argc, char *argv[])
+{
+
+        if (argc != 3)
+                return RESULT_SHOWUSAGE;
+
+	if (h323_soft_hangup(argv[2])) {
+		ast_verbose(VERBOSE_PREFIX_3 "Hangup succeeded on %s\n", argv[2]);
+	} else { 
+		ast_verbose(VERBOSE_PREFIX_3 "Hangup failed for %s\n", argv[2]);
+	}
+
+	return RESULT_SUCCESS;
+}
+
+static int h323_tokens_show(int fd, int argc, char *argv[])
+{
+
+        if (argc != 3)
+                return RESULT_SHOWUSAGE;
+
+	h323_show_tokens();
+
+	return RESULT_SUCCESS;
+}
+
 
 static char trace_usage[] = 
 "Usage: h.323 trace <level num>\n"
@@ -1370,6 +1393,13 @@ static char show_cycle_usage[] =
 "Usage: h.323 gk cycle\n"
 "       Manually re-register with the Gatekeper\n";
 
+static char show_hangup_usage[] = 
+"Usage: h.323 hangup <token>\n"
+"       Manually try to hang up call identified by <token>\n";
+
+static char show_tokens_usage[] = 
+"Usage: h.323 show tokens\n"
+"       Print out all active call tokens\n";
 
 static struct ast_cli_entry  cli_trace =
 	{ { "h.323", "trace", NULL }, h323_do_trace, "Enable H.323 Stack Tracing", trace_usage };
@@ -1383,6 +1413,10 @@ static struct ast_cli_entry  cli_show_codecs =
 	{ { "h.323", "show", "codecs", NULL }, h323_show_codec, "Show enabled codecs", show_codec_usage };
 static struct ast_cli_entry  cli_gk_cycle =
 	{ { "h.323", "gk", "cycle", NULL }, h323_gk_cycle, "Manually re-register with the Gatekeper", show_cycle_usage };
+static struct ast_cli_entry  cli_hangup_call =
+	{ { "h.323", "hangup", NULL }, h323_ep_hangup, "Manually try to hang up a call", show_hangup_usage };
+static struct ast_cli_entry  cli_show_tokens =
+	{ { "h.323", "show", "tokens", NULL }, h323_tokens_show, "Manually try to hang up a call", show_tokens_usage };
 
 
 
@@ -1733,6 +1767,8 @@ int load_module()
 		ast_cli_register(&cli_no_trace);
 		ast_cli_register(&cli_show_codecs);
 		ast_cli_register(&cli_gk_cycle);
+		ast_cli_register(&cli_hangup_call);
+		ast_cli_register(&cli_show_tokens);
 
 		oh323_rtp.type = type;
 		ast_rtp_proto_register(&oh323_rtp);
