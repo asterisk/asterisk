@@ -96,8 +96,8 @@
 #define ADSI_INFO_PAGE	0x0
 #define ADSI_COMM_PAGE	0x1
 
-#define ADSI_KEY_APPS	20	/* 16 to 33 reserved for applications */
-				/* Changed to 20 by MDH */
+#define ADSI_KEY_APPS	16	/* 16 to 33 reserved for applications */
+
 /* Justification */
 #define ADSI_JUST_LEFT	0x2
 #define ADSI_JUST_RIGHT 0x1
