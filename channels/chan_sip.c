@@ -5358,135 +5358,171 @@ static int hex2int(char a)
 	return 0;
 }
 
-/*--- get_refer_info: Call transfer support (new standard) ---*/
-static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
+/*--- get_sip_pvt_byid_locked: Lock interface lock and find matching pvt lock  ---*/
+static struct sip_pvt *get_sip_pvt_byid_locked(char *callid) 
 {
-	char tmp[256] = "", *c, *a;
-	char tmp2[256] = "", *c2, *a2;
-	char tmp3[256];
-	char tmp4[256];
-	char tmp5[256] = "";		/* CallID to replace */
-	struct sip_request *req;
-	struct sip_pvt *p2;
+	struct sip_pvt *sip_pvt_ptr = NULL;
+	
+    /* Search interfaces and find the match */
+	ast_mutex_lock(&iflock);
+	sip_pvt_ptr = iflist;
+	while(sip_pvt_ptr) {
+		if (!strcmp(sip_pvt_ptr->callid, callid)) {
+			/* Go ahead and lock it (and its owner) before returning */
+			ast_mutex_lock(&sip_pvt_ptr->lock);
+			if (sip_pvt_ptr->owner) {
+				while(ast_mutex_trylock(&sip_pvt_ptr->owner->lock)) {
+					ast_mutex_unlock(&sip_pvt_ptr->lock);
+					usleep(1);
+					ast_mutex_lock(&sip_pvt_ptr->lock);
+					if (!sip_pvt_ptr->owner)
+						break;
+				}
+			}
+			break;
+		}
+		sip_pvt_ptr = sip_pvt_ptr->next;
+	}
+	ast_mutex_unlock(&iflock);
+	return sip_pvt_ptr;
+}
+
+/*--- sip_unescape_uri: Turn %XX into and ascii char ---*/
+static int sip_unescape_uri(char *uri) 
+{
+	char *ptr = uri;
+	int replaced = 0;
+
+	while ((ptr = strchr(ptr, '%'))) {
+		/* un-escape urlencoded text */
+		if (strlen(ptr) < 3)
+			break;
+		*ptr = hex2int(ptr[1]) * 16 + hex2int(ptr[2]);
+		memmove(ptr+1, ptr+3, strlen(ptr+3) + 1);
+		ptr++;
+		replaced++;
+	}
+
+	return replaced;
+}
+
+
+
+/*--- get_refer_info: Call transfer support (new standard) ---*/
+static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_req)
+{
+
+	char *p_refer_to = NULL, *p_referred_by = NULL, *h_refer_to = NULL, *h_referred_by = NULL, *h_contact = NULL;
+	char *replace_callid = "", *refer_to = NULL, *referred_by = NULL, *ptr = NULL;
+	struct sip_request *req = NULL;
+	struct sip_pvt *sip_pvt_ptr = NULL;
 	struct ast_channel *chan = NULL, *peer = NULL;
 
-	req = oreq;
-	if (!req)
-		req = &p->initreq;
-	strncpy(tmp, get_header(req, "Refer-To"), sizeof(tmp) - 1);
-	strncpy(tmp2, get_header(req, "Referred-By"), sizeof(tmp2) - 1);
-	strncpy(tmp3, get_header(req, "Contact"), sizeof(tmp3) - 1);
-	strncpy(tmp4, get_header(req, "Remote-Party-ID"), sizeof(tmp4) - 1);
+	req = outgoing_req;
+
+	if (!req) {
+		req = &sip_pvt->initreq;
+	}
 	
-	c = ditch_braces(tmp);
-	c2 = ditch_braces(tmp2);
-	
-		
-	if (strncmp(c, "sip:", 4) && strncmp(c2, "sip:", 4)) {
-		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
-		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c2);
+	if(!( (p_refer_to = get_header(req, "Refer-To")) && (h_refer_to = ast_strdupa(p_refer_to)) )) {
+		ast_log(LOG_WARNING, "No Refer-To Header That's illegal\n");
 		return -1;
 	}
-	c += 4;
-	c2 += 4;
-	if ((a = strchr(c, '?'))) {
+
+	refer_to = ditch_braces(h_refer_to);
+
+	if(!( (p_referred_by = get_header(req, "Referred-By")) && (h_referred_by = ast_strdupa(p_referred_by)) )) {
+		ast_log(LOG_WARNING, "No Refer-To Header That's illegal\n");
+		return -1;
+	}
+
+	referred_by = ditch_braces(h_referred_by);
+	h_contact = get_header(req, "Contact");
+	
+	if (strncmp(refer_to, "sip:", 4) && strncmp(referred_by, "sip:", 4)) {
+		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", refer_to);
+		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", referred_by);
+		return -1;
+	}
+	refer_to += 4;
+	referred_by += 4;
+	
+	
+	if ((ptr = strchr(refer_to, '?'))) {
 		/* Search for arguemnts */
-		*a = '\0';
-		a++;
-		if (!strncasecmp(a, "REPLACES=", strlen("REPLACES="))) {
-			strncpy(tmp5, a + strlen("REPLACES="), sizeof(tmp5) - 1);
-			a = tmp5;
-			while ((a = strchr(a, '%'))) {
-				/* Yuck!  Pingtel converts the '@' to a %40, icky icky!  Convert
-				   back to an '@' */
-				if (strlen(a) < 3)
-					break;
-				*a = hex2int(a[1]) * 16 + hex2int(a[2]);
-				memmove(a + 1, a+3, strlen(a + 3) + 1);
-				a++;
-			}
-			if ((a = strchr(tmp5, '%'))) 
-				*a = '\0';
-			if ((a = strchr(tmp5, ';'))) 
-				*a = '\0';
+		*ptr = '\0';
+		ptr++;
+		if (!strncasecmp(ptr, "REPLACES=", 9)) {
+			replace_callid = ast_strdupa(ptr + 9);
+			/* someday soon to support invite/replaces properly!
+			   replaces_header = ast_strdupa(replace_callid); 
+			   -anthm
+			*/
+			sip_unescape_uri(replace_callid);
+			if ((ptr = strchr(replace_callid, '%'))) 
+				*ptr = '\0';
+			if ((ptr = strchr(replace_callid, ';'))) 
+				*ptr = '\0';
 			/* Skip leading whitespace */
-			while(tmp5[0] && (tmp5[0] < 33))
-				memmove(tmp5, tmp5+1, strlen(tmp5));
-				
+			while(replace_callid[0] && (replace_callid[0] < 33))
+				memmove(replace_callid, replace_callid+1, strlen(replace_callid));
 		}
 	}
 	
-	if ((a = strchr(c, '@')))
-		*a = '\0';
-	if ((a = strchr(c, ';'))) 
-		*a = '\0';
+	if ((ptr = strchr(refer_to, '@')))
+		*ptr = '\0';
+	if ((ptr = strchr(refer_to, ';'))) 
+		*ptr = '\0';
 	
-
-	if ((a2 = strchr(c2, '@')))
-		*a2 = '\0';
-
-	if ((a2 = strchr(c2, ';'))) 
-		*a2 = '\0';
+	if ((ptr = strchr(referred_by, '@')))
+		*ptr = '\0';
+	if ((ptr = strchr(referred_by, ';'))) 
+		*ptr = '\0';
 	
-	
-	if (sip_debug_test_pvt(p)) {
-		ast_verbose("Looking for %s in %s\n", c, p->context);
-		ast_verbose("Looking for %s in %s\n", c2, p->context);
+	if (sip_debug_test_pvt(sip_pvt)) {
+		ast_verbose("Looking for %s in %s\n", refer_to, sip_pvt->context);
+		ast_verbose("Looking for %s in %s\n", referred_by, sip_pvt->context);
 	}
-	if (!ast_strlen_zero(tmp5)) {	
+	if (!ast_strlen_zero(replace_callid)) {	
 		/* This is a supervised transfer */
-		ast_log(LOG_DEBUG,"Assigning Replace-Call-ID Info %s to REPLACE_CALL_ID\n",tmp5);
+		ast_log(LOG_DEBUG,"Assigning Replace-Call-ID Info %s to REPLACE_CALL_ID\n",replace_callid);
 		
-		strncpy(p->refer_to, "", sizeof(p->refer_to) - 1);
-		strncpy(p->referred_by, "", sizeof(p->referred_by) - 1);
-		strncpy(p->refer_contact, "", sizeof(p->refer_contact) - 1);
-		p->refer_call = NULL;
-		ast_mutex_lock(&iflock);
-		/* Search interfaces and find the match */
-		p2 = iflist;
-		while(p2) {
-			if (!strcmp(p2->callid, tmp5)) {
-				/* Go ahead and lock it (and its owner) before returning */
-				ast_mutex_lock(&p2->lock);
-				if (p2->owner) {
-					while(ast_mutex_trylock(&p2->owner->lock)) {
-						ast_mutex_unlock(&p2->lock);
-						usleep(1);
-						ast_mutex_lock(&p2->lock);
-						if (!p2->owner)
-							break;
-					}
-				}
-				p->refer_call = p2;
-				break;
-			}
-			p2 = p2->next;
-		}
-		ast_mutex_unlock(&iflock);
-		if (p->refer_call) {
-			if (p->refer_call == p) {
-				ast_log(LOG_NOTICE, "Supervised transfer attempted to transfer into same call id (%s == %s)!\n", tmp5, p->callid);
-				p->refer_call = NULL;
+		strncpy(sip_pvt->refer_to, "", sizeof(sip_pvt->refer_to) - 1);
+		strncpy(sip_pvt->referred_by, "", sizeof(sip_pvt->referred_by) - 1);
+		strncpy(sip_pvt->refer_contact, "", sizeof(sip_pvt->refer_contact) - 1);
+		sip_pvt->refer_call = NULL;
+		if ((sip_pvt_ptr = get_sip_pvt_byid_locked(replace_callid))) {
+			sip_pvt->refer_call = sip_pvt_ptr;
+			if (sip_pvt->refer_call == sip_pvt) {
+				ast_log(LOG_NOTICE, "Supervised transfer attempted to transfer into same call id (%s == %s)!\n", replace_callid, sip_pvt->callid);
+				sip_pvt->refer_call = NULL;
 			} else
 				return 0;
-		} else
-			ast_log(LOG_NOTICE, "Supervised transfer requested, but unable to find callid '%s'\n", tmp5);
-	} else if (ast_exists_extension(NULL, p->context, c, 1, NULL) || !strcmp(c, ast_parking_ext())) {
+		} else {
+			ast_log(LOG_NOTICE, "Supervised transfer requested, but unable to find callid '%s'.  Both legs must reside on Asterisk box to transfer at this time.\n", replace_callid);
+			/* XXX The refer_to could contain a call on an entirely different machine, requiring an 
+	    		  INVITE with a replaces header -anthm XXX */
+
+			
+		}
+	} else if (ast_exists_extension(NULL, sip_pvt->context, refer_to, 1, NULL) || !strcmp(refer_to, ast_parking_ext())) {
 		/* This is an unsupervised transfer */
 		
-		ast_log(LOG_DEBUG,"Assigning Extension %s to REFER-TO\n", c);
-		ast_log(LOG_DEBUG,"Assigning Extension %s to REFERRED-BY\n", c2);
-		ast_log(LOG_DEBUG,"Assigning Contact Info %s to REFER_CONTACT\n", tmp3);
-		strncpy(p->refer_to, c, sizeof(p->refer_to) - 1);
-		strncpy(p->referred_by, c2, sizeof(p->referred_by) - 1);
-		strncpy(p->refer_contact, tmp3, sizeof(p->refer_contact) - 1);
-		p->refer_call = NULL;
-		if((chan = p->owner) && (peer = ast_bridged_channel(p->owner))) {
+		ast_log(LOG_DEBUG,"Assigning Extension %s to REFER-TO\n", refer_to);
+		ast_log(LOG_DEBUG,"Assigning Extension %s to REFERRED-BY\n", referred_by);
+		ast_log(LOG_DEBUG,"Assigning Contact Info %s to REFER_CONTACT\n", h_contact);
+		strncpy(sip_pvt->refer_to, refer_to, sizeof(sip_pvt->refer_to) - 1);
+		strncpy(sip_pvt->referred_by, referred_by, sizeof(sip_pvt->referred_by) - 1);
+		if (h_contact) {
+			strncpy(sip_pvt->refer_contact, h_contact, sizeof(sip_pvt->refer_contact) - 1);
+		}
+		sip_pvt->refer_call = NULL;
+		if((chan = sip_pvt->owner) && (peer = ast_bridged_channel(sip_pvt->owner))) {
 			pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", peer->name);
 			pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", chan->name);
 		}
 		return 0;
-	} else if (ast_canmatch_extension(NULL, p->context, c, 1, NULL)) {
+	} else if (ast_canmatch_extension(NULL, sip_pvt->context, refer_to, 1, NULL)) {
 		return 1;
 	}
 
