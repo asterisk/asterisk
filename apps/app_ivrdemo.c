@@ -1,11 +1,11 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Skeleton application
+ * IVR Demo application
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 2005, Mark Spencer
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
