@@ -294,7 +294,21 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 	strncpy(p->moh, moh, sizeof(p->moh) - 1);
 	p->ackcall = ackcall;
 	p->autologoff = autologoff;
+
+	/* If someone reduces the wrapuptime and reloads, we want it
+	 * to change the wrapuptime immediately on all calls */
+	if (p->wrapuptime > wrapuptime) {
+		struct timeval now;
+		gettimeofday(&now, NULL);
+
+		/* We won't be pedantic and check the tv_usec val */
+		if (p->lastdisc.tv_sec > (now.tv_sec + wrapuptime/1000)) {
+			p->lastdisc.tv_sec = now.tv_sec + wrapuptime/1000;
+			p->lastdisc.tv_usec = now.tv_usec;
+		}
+	}
 	p->wrapuptime = wrapuptime;
+
 	if (pending)
 		p->dead = 1;
 	else
@@ -1724,7 +1738,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								ast_log(LOG_WARNING, "Unable to set read format to %d\n", ast_best_codec(chan->nativeformats));
 						}
 						if (!res) {
-							ast_set_write_format(chan, ast_best_codec(chan->nativeformats));
+							res = ast_set_write_format(chan, ast_best_codec(chan->nativeformats));
 							if (res)
 								ast_log(LOG_WARNING, "Unable to set write format to %d\n", ast_best_codec(chan->nativeformats));
 						}
