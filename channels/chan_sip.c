@@ -1983,12 +1983,56 @@ static int sip_register(char *value, int lineno)
 	return 0;
 }
 
+static int lws2sws(char *msgbuf, int len) 
+{ 
+	int h = 0, t = 0; 
+	int lws = 0; 
+
+	for (; h < len;) { 
+		/* Eliminate all CRs */ 
+		if (msgbuf[h] == '\r') { 
+			h++; 
+			continue; 
+		} 
+		/* Check for end-of-line */ 
+		if (msgbuf[h] == '\n') { 
+		/* Check for end-of-message */ 
+			if (h + 1 == len) 
+			break; 
+		/* Check for a continuation line */ 
+		if (msgbuf[h + 1] == ' ') { 
+		/* Merge continuation line */ 
+			h++; 
+			continue; 
+		} 
+		/* Propagate LF and start new line */ 
+		msgbuf[t++] = msgbuf[h++]; 
+		lws = 0;
+		continue; 
+	} 
+
+	if (msgbuf[h] == ' ' || msgbuf[h] == '\t') { 
+		if (lws) { 
+			h++; 
+			continue; 
+		} 
+		msgbuf[t++] = msgbuf[h++]; 
+		lws = 1; 
+		continue; 
+	} 
+	msgbuf[t++] = msgbuf[h++]; 
+	if (lws) 
+		lws = 0; 
+	} 
+	msgbuf[t] = '\0'; 
+	return t; 
+}
+
 static void parse(struct sip_request *req)
 {
 	/* Divide fields by NULL's */
 	char *c;
 	int f = 0;
-	int lastr = 0;
 	c = req->data;
 
 	/* First header starts immediately */
@@ -2008,25 +2052,13 @@ static void parse(struct sip_request *req)
 			}
 			if (f >= SIP_MAX_HEADERS - 1) {
 				ast_log(LOG_WARNING, "Too many SIP headers...\n");
-			} else {
-				if ((c[1] == ' ') || (c[1] == '\t')) {
-					/* Continuation of previous header */
-					*c = ' ';
-					if (lastr) {
-						*(c-1) = ' ';
-					}
-				} else {
-					f++;
-					req->header[f] = c + 1;
-				}
-			}
-			lastr = 0;
+			} else
+				f++;
+			req->header[f] = c + 1;
 		} else if (*c == '\r') {
 			/* Ignore but eliminate \r's */
 			*c = 0;
-			lastr = 1;
-		} else
-			lastr = 0;
+		}
 		c++;
 	}
 	/* Check for last header */
@@ -5824,6 +5856,8 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	req.len = res;
 	if (sipdebug)
 		ast_verbose("\n\nSip read: \n%s\n", req.data);
+	if (pedanticsipchecking)
+		req.len = lws2sws(req.data, req.len);
 	parse(&req);
 	if (req.headers < 2) {
 		/* Must have at least two headers */

@@ -27,6 +27,8 @@ context = default		; Default context for incoming calls
 ;srvlookup = yes		; Enable DNS SRV lookups on outbound calls
 				; Asterisk only uses the first host in SRV records
 ;pedantic = yes			; Enable slow, pedantic checking for Pingtel
+				; and multiline formatted headers for strict
+				; SIP compatibility
 ;tos=lowdelay			; IP QoS parameter, either keyword or value
 				; like tos=184
 ;maxexpirey=3600		; Max length of incoming registration we allow
