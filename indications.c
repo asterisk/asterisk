@@ -51,6 +51,7 @@ struct playtones_state {
 	int pos;
 	int origwfmt;
 	struct ast_frame f;
+	unsigned char offset[AST_FRIENDLY_OFFSET];
 	short data[4000];
 };
 
