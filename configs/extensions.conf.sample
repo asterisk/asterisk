@@ -96,6 +96,12 @@ TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 [iaxtel700]
 exten => _91700XXXXXXX,1,Dial(IAX2/${IAXINFO}@iaxtel.com/${EXTEN:1}@iaxtel)
 
+;
+; The SWITCH statement permits a server to share the dialplain with
+; another server. Use with care: Reciprocal switch statements are not
+; allowed (e.g. both A -> B and B -> A), and the switched server needs
+; to be on-line or else dialing can be severly delayed.
+;
 [iaxprovider]
 ;switch => IAX2/user:[key]@myserver/mycontext
 
@@ -276,17 +282,29 @@ exten => 8500,2,Goto(s,6)
 ;
 include => demo
 
+;
+; Extensions like the two below can be used for FWD, Nikotel, sipgate etc.
+; Note that you must have a [sipprovider] section in sip.conf whereas
+; the otherprovider.net example does not require such a peer definition
+;
+;exten => _41X.,1,Dial(SIP/${EXTEN:2}@sipprovider,,r)
+;exten => _42X.,1,Dial(SIP/user:passwd@${EXTEN:2}@otherprovider.net,30,rT)
 
-; Real extensions would go here.  Generally you want real extensions to be 4 or 5
+; Real extensions would go here. Generally you want real extensions to be 4 or 5
 ; digits long (although there is no such requirement) and start with a single
 ; digit that is fairly large (like 6 or 7) so that you have plenty of room to
 ; overlap extensions and menu options without conflict.  You can alias them with
 ; names, too and use global variables
 
+;exten => 6245,1,Dial(SIP/Grandstream1,20,rt)	; permit transfer
+;exten => 6245,1,Dial(SIP/Grandstream1&SIP/Xlite1,20,rtT)
+;exten => 6361,1,Dial(IAX2/JaneDoe,,rm)		; ring without time limit
+;exten => 6389,1,Dial(MGCP/aaln/1@192.168.0.14)
+;exten => 6394,1,Dial(Local/6275/n)		; this will dial ${MARK}
 
-;exten => 6275,1,Macro(stdexten,6275,${MARK})			; assuming ${MARK} is something like Zap/2
-;exten => mark,1,Goto(6275|1)						; alias mark to 6275
-;exten => 6236,1,Macro(stdexten,6236,${WIL})			; Ditto for wil
+;exten => 6275,1,Macro(stdexten,6275,${MARK})	; assuming ${MARK} is something like Zap/2
+;exten => mark,1,Goto(6275|1)			; alias mark to 6275
+;exten => 6536,1,Macro(stdexten,6236,${WIL})	; Ditto for wil
 ;exten => wil,1,Goto(6236|1)
 ;
 ; Some other handy things are an extension for checking voicemail via
@@ -297,7 +315,7 @@ include => demo
 ;
 ; Or a conference room (you'll need to edit meetme.conf to enable this room)
 ;
-;exten => 8600,1,Meetme,1234
+;exten => 8600,1,Meetme(1234)
 ;
 ; Or playing an announcement to the called party, as soon it answers
 ;

@@ -21,25 +21,34 @@
 ;
 
 [general]
-port = 5060			; Port to bind to
-bindaddr = 0.0.0.0		; Address to bind SIP channel to
-context = default		; Default context for incoming calls
-;srvlookup = yes		; Enable DNS SRV lookups on outbound calls
-				; Asterisk only uses the first host in SRV records
-;pedantic = yes			; Enable slow, pedantic checking for Pingtel
+context=default			; Default context for incoming calls
+;realm=mydomain.tld		; Realm for digest authentication
+				; defaults to "asterisk"
+				; Realms MUST be globally unique according to RFC 3261
+				; Set this to your host name or domain name
+port=5060			; UDP Port to bind to (SIP standard port is 5060)
+bindaddr=0.0.0.0		; IP address to bind to (0.0.0.0 binds to all)
+;srvlookup=yes			; Enable DNS SRV lookups on outbound calls
+				; Note: Asterisk only uses the first host in SRV records
+;pedantic=yes			; Enable slow, pedantic checking for Pingtel
 				; and multiline formatted headers for strict
 				; SIP compatibility
-;tos=lowdelay			; IP QoS parameter, either keyword or value
-				; like tos=184
+;tos=184                        ; Set IP QoS to either a keyword or numeric val
+;tos=lowdelay                   ; lowdelay,throughput,reliability,mincost,none
 ;maxexpirey=3600		; Max length of incoming registration we allow
-;realm=asterisk			; Our global authentication realm
 ;defaultexpirey=120		; Default length of incoming/outoing registration
 ;notifymimetype=text/plain	; Allow overriding of mime type in NOTIFY
 ;videosupport=yes		; Turn on support for SIP video
 
-;disallow=all			; Disallow all codecs
+;disallow=all			; First disallow all codecs
 ;allow=ulaw			; Allow codecs in order of preference
-;allow=ilbc
+;allow=ilbc			; Note: codec order is respected only in [general]
+;musicclass=default		; Sets the default music on hold class for all SIP calls
+				; This may also be set for individual users/peers
+;language=en			; Default language setting for all users/peers
+				; This may also be set for individual users/peers
+;relaxdtmf=yes			; Relax dtmf handling
+
 
 ; Asterisk can register as a SIP user agent to a SIP proxy (provider)
 ; Format for the register statement is:
@@ -56,14 +65,17 @@ context = default		; Default context for incoming calls
 ;
 ;register => 1234:password@mysipprovider.com	
 ;
-;    Will call to the 's' extension
+;     This will pass incoming calls to the 's' extension
 ;
 ;
-;register => 2345@mysipprovider.com/1234 	
+;register => 2345:password@sip_proxy/1234
 ;
-;    Register 2345 at sip provider.  Calls from this provider connect to local 
+;    Register 2345 at sip provider 'sip_proxy'.  Calls from this provider connect to local 
 ;    extension 1234 in extensions.conf default context, unless you define 
-;    [mysipprovider.com] in a section below, and configure a context
+;    unless you configure a [sip_proxy] section below, and configure a context.
+;	 Tip 1: Avoid assigning hostname to a sip.conf section like [provider.com]
+;        Tip 2: Use separate type=peer and type=user sections for SIP providers
+;                      (instead of type=friend) if you have calls in both directions
   
 
 ;externip = 200.201.202.203	; Address that we're going to put in outbound SIP messages
@@ -76,51 +88,143 @@ context = default		; Default context for incoming calls
 				; are:
 ;localnet=192.168.0.0/255.255.0.0; All RFC 1918 addresses are local networks
 ;localnet=10.0.0.0/255.0.0.0	; Also RFC1918
+;localnet=172.16.0.0/12		; Another RFC1918 with CIDR notation
 ;localnet=169.254.0.0/255.255.0.0 ;Zero conf local network
 
-;[snomsip]
+;-----------------------------------------------------------------------------------
+; Users and peers have different settings available. Friends have all settings,
+; since a friend is both a peer and a user
+;
+; User config options:        Peer configuration:
+; --------------------        -------------------
+; context                     context
+; permit                      permit
+; deny                        deny
+; auth                        auth
+; secret                      secret
+; md5secret                   md5secret
+; dtmfmode                    dtmfmode
+; canreinvite                 canreinvite
+; nat                         nat
+; callgroup                   callgroup
+; pickupgroup                 pickupgroup
+; language                    language
+; allow                       allow
+; disallow                    disallow
+; insecure                    insecure
+; callerid
+; accountcode
+; amaflags
+; incominglimit
+; outgoinglimit
+; restrictcid
+;                             mailbox
+;                             username
+;                             template
+;                             fromdomain
+;                             fromuser
+;                             host
+;                             mask
+;                             port
+;                             qualify
+;                             defaultip
+
+
+;[sip_proxy]
+; For incoming calls only. Example: FWD (Free World Dialup)
+;type=user
+;context=from-fwd
+
+;[sip_proxy-out]
+;type=peer                  ; we only want to call out, not be called
+;secret=guessit
+;username=yourusername
+;fromuser=yourusername         ; Many SIP providers require this!
+;host=box.provider.com
+
+;[grandstream1]
+;type=friend                   ; either "friend" (peer+user), "peer" or "user"
+;context=from-sip
+;username=grandstream1         ; usually matches the [section] title
+;fromuser=grandstream1         ; overrides the callerid, e.g. required by FWD
+;callerid=John Doe <1234>
+;host=192.168.0.23             ; we have a static but private IP address
+;nat=no                        ; there is not NAT between phone and Asterisk
+;canreinvite=yes               ; allow RTP voice traffic to bypass Asterisk
+;dtmfmode=info                 ; either RFC2833 or INFO for the BudgeTone
+;outgoinglimit=1               ; disable callwaiting signal (2nd call to phone)
+;incominglimit=1               ; permit only 1 outgoing call at a time
+;mailbox=1234@default  ; mailbox 1234 in voicemail context "default"
+;disallow=all                  ; need to disallow=all before we can use allow=
+;allow=ulaw                    ; Note: In user sections the order of codecs
+                               ; listed with allow= does NOT matter!
+;allow=alaw
+;allow=g723.1                  ; Asterisk only supports g723.1 pass-thru!
+;allow=g729                    ; Pass-thru only unless g729 license obtained
+
+
+;[xlite1]
+;Turn off silence suppression in X-Lite ("Transmit Silence"=YES)!
+;Note that Xlite sends NAT keep-alive packets, so qualify=yes is not needed
 ;type=friend
-;secret=blah
+;username=xlite1
+;callerid="Jane Smith" <5678>
 ;host=dynamic
+;nat=yes                       ; X-Lite is behind a NAT router
+;canreinvite=no                ; Typically set to NO if behind NAT
+;disallow=all
+;allow=gsm                     ; GSM consumes far less bandwidth than ulaw
+;allow=ulaw
+;allow=alaw
+
+
+;[snom]
+;type=friend			; Friends place calls and receive calls
+;context=from-sip		; Context for incoming calls from this user
+;secret=blah
+;host=dynamic			; This peer register with us
 ;dtmfmode=inband		; Choices are inband, rfc2833, or info
-;defaultip=192.168.0.59
-;mailbox=1234,2345		; Mailbox for message waiting indicator
+;defaultip=192.168.0.59		; IP used until peer registers
+;mailbox=1234,2345		; Mailboxes for message waiting indicator
 ;restrictcid=yes		; To have the callerid restriced -> sent as ANI
-;insecure=yes			; To match a peer based by IP address only and not peer
-;insecure=very			; To allow registered hosts to call without re-authenticating
+;disallow=all
+;allow=ulaw                     ; dtmfmode=inband only works with ulaw or alaw!
+;mailbox=1234@context,2345      ; Mailbox(-es) for message waiting indicator
+
 
 ;[pingtel]
 ;type=friend
 ;username=pingtel
 ;secret=blah
 ;host=dynamic
+;insecure=yes			; To match a peer based by IP address only and not peer
+;insecure=very			; To allow registered hosts to call without re-authenticating
 ;qualify=1000			; Consider it down if it's 1 second to reply
 				; Helps with NAT session
 				; qualify=yes uses default value
+;callgroup=1,3-4		; We are in caller groups 1,3,4
+;pickupgroup=1,3-5		; We can do call pick-p for call group 1,3,4,5
+;defaultip=192.168.0.60		; IP address to use if peer has not registred
 
-;callgroup=1,3-4
-;pickupgroup=1,3-4
-;defaultip=192.168.0.60
-
-;[cisco]
+;[cisco1]
 ;type=friend
-;username=cisco
+;username=cisco1
 ;secret=blah
+;qualify=200			; Qualify peer is no more than 200ms away
 ;nat=yes			; This phone may be natted
-				; Use IP address that packet is received from
-				; instead of trusting SIP headers
-;host=dynamic
+				; Send SIP and RTP to  IP address that packet is 
+				; received from instead of trusting SIP headers 
+;host=dynamic			; This device registers with us
 ;canreinvite=no			; Asterisk by default tries to redirect the
 				; RTP media stream (audio) to go directly from
 				; the caller to the callee.  Some devices do not
 				; support this (especially if one of them is 
 				; behind a NAT).
-;qualify=200			; Qualify peer is no more than 200ms away
 ;defaultip=192.168.0.4
 
-;[cisco1]
+;[cisco2]
 ;type=friend
-;username=cisco1
+;username=cisco2
 ;fromuser=markster		; Specify user to put in "from" instead of callerid
 ;fromdomain=yourdomain.com	; Specify domain to put in "from" instead of callerid
 				; fromuser and fromdomain are used when Asterisk

@@ -1,5 +1,5 @@
 ;
-; Internet Phone Jack
+; isdn4linux
 ;
 ; Configuration file
 ;
@@ -11,7 +11,8 @@ context=remote
 ;
 ; Modem Drivers to load
 ;
-driver=aopen
+driver=aopen	; modem by AOpen
+;driver=i4l	; isdn4linux - an alternative to i4l is to use chan_capi
 ;
 ; Default language
 ;
@@ -26,7 +27,7 @@ driver=aopen
 ; We can strip a given number of digits on outgoing dialing, so, for example
 ; you can have it dial "8871042" when given "98871042".
 ;
-stripmsd=1
+stripmsd=0
 ;
 ; Type of dialing
 ;
@@ -45,7 +46,7 @@ mode=immediate
 ;
 ;device => /dev/ttyS3
 ;
-; ISDN example
+; ISDN example (using i4l)
 ;
 ;msn=39907835
 ;device => /dev/ttyI0
