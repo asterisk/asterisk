@@ -63,6 +63,13 @@ static char msn[AST_MAX_EXTENSION]="";
 /* Default Listen */
 static char incomingmsn[AST_MAX_EXTENSION]="";
 
+/* Default DTMF-detection mode (i4l/asterisk) */
+static int dtmfmode = MODEM_DTMF_AST;
+/* Default DTMF-generation mode (i4l (outband) / asterisk (inband) */
+static int dtmfmodegen = MODEM_DTMF_AST;
+
+struct ast_dsp *dsp = NULL;
+
 /* Default valid outgoing MSN */
 static char outgoingmsn[AST_MAX_EXTENSION]="";
 
@@ -711,6 +718,8 @@ static struct ast_modem_pvt *mkif(char *iface)
 		strncpy(tmp->language, language, sizeof(tmp->language)-1);
 		strncpy(tmp->msn, msn, sizeof(tmp->msn)-1);
 		strncpy(tmp->incomingmsn, incomingmsn, sizeof(tmp->incomingmsn)-1);
+		tmp->dtmfmode = dtmfmode;
+		tmp->dtmfmodegen = dtmfmodegen;
 		snprintf(tmp->outgoingmsn, sizeof(tmp->outgoingmsn), ",%s,", outgoingmsn);
 		strncpy(tmp->dev, iface, sizeof(tmp->dev)-1);
 		/* Maybe in the future we want to allow variable
@@ -972,6 +981,36 @@ int load_module()
 			strncpy(msn, v->value, sizeof(msn)-1);
 		} else if (!strcasecmp(v->name, "incomingmsn")) {
 			strncpy(incomingmsn, v->value, sizeof(incomingmsn)-1);
+		} else if (!strcasecmp(v->name, "dtmfmode")) {
+			char tmp[80];
+			char *alt;
+			strncpy(tmp, v->value, sizeof(tmp) - 1);
+			alt = strchr(tmp, '/');
+			if (!strcasecmp(tmp, "none"))
+				dtmfmode=MODEM_DTMF_NONE;
+			else if (!strcasecmp(tmp, "asterisk"))
+				dtmfmode = MODEM_DTMF_AST;
+			else if (!strcasecmp(tmp, "i4l"))
+				dtmfmode = MODEM_DTMF_I4L;
+			else {
+				ast_log(LOG_WARNING, "Unknown dtmf detection mode '%s', using 'asterisk'\n", v->value);
+				dtmfmode = MODEM_DTMF_AST;
+			}
+			if (alt) {
+				if (!strcasecmp(alt, "none"))
+					dtmfmodegen=MODEM_DTMF_NONE;
+				else if (!strcasecmp(alt, "asterisk"))
+					dtmfmodegen = MODEM_DTMF_AST;
+				else if (!strcasecmp(alt, "i4l"))
+					dtmfmodegen = MODEM_DTMF_I4L;
+				else if (!strcasecmp(alt, "both"))
+					dtmfmodegen = MODEM_DTMF_I4L | MODEM_DTMF_AST;
+				else {
+					ast_log(LOG_WARNING, "Unknown dtmf generation mode '%s', using 'asterisk'\n", v->value);
+					dtmfmodegen = MODEM_DTMF_AST;
+				}
+			} else
+				dtmfmodegen = dtmfmode;
 		} else if (!strcasecmp(v->name, "outgoingmsn")) {
 			strncpy(outgoingmsn, v->value, sizeof(outgoingmsn)-1);
 		} else if (!strcasecmp(v->name, "language")) {

@@ -24,6 +24,8 @@
 #include <asterisk/frame.h>
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
+#include <asterisk/dsp.h>
+#include <asterisk/callerid.h>
 #include "alaw.h"
 
 #define STATE_COMMAND 	0
@@ -94,6 +96,21 @@ static int i4l_startrec(struct ast_modem_pvt *p)
 		return -1;
 	}
 	p->ministate = STATE_VOICE;
+	
+	/*  let ast dsp detect dtmf */
+	if (p->dtmfmode & MODEM_DTMF_AST) {
+		if (p->dsp) {
+			ast_log(LOG_DEBUG, "Already have a dsp on %s?\n", p->dev);
+		} else {
+			p->dsp = ast_dsp_new();
+			if (p->dsp) {
+				ast_log(LOG_DEBUG, "Detecting DTMF inband with sw DSP on %s\n",p->dev);
+				ast_dsp_set_features(p->dsp, DSP_FEATURE_DTMF_DETECT);
+				ast_dsp_digitmode(p->dsp, DSP_DIGITMODE_DTMF | 0);
+			}
+		}
+	}
+
 	return 0;
 }
 
@@ -277,7 +294,7 @@ static struct ast_frame *i4l_handle_escape(struct ast_modem_pvt *p, char esc)
 	case '9':
 	case '*':
 	case '#':
-		ast_log(LOG_DEBUG, "DTMF: '%c' (%d)\n", esc, esc);
+		ast_log(LOG_DEBUG, "Detected outband DTMF digit: '%c' (%d)\n", esc, esc);
 		p->fr.frametype=AST_FRAME_DTMF;
 		p->fr.subclass=esc;
 		return &p->fr;
@@ -409,8 +426,11 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 			if (f)
 				break;
 		}
-		if (f)
+		if (f) {
+			if( ! (!(p->dtmfmode & MODEM_DTMF_I4L) && f->frametype == AST_FRAME_DTMF))
 			return f;
+		}
+
 		/* If we get here, we have a complete voice frame */
 		p->fr.frametype = AST_FRAME_VOICE;
 		p->fr.subclass = AST_FORMAT_SLINEAR;
@@ -421,6 +441,16 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 		p->fr.offset = AST_FRIENDLY_OFFSET;
 		p->fr.src = __FUNCTION__;
 		p->obuflen = 0;
+
+		/* process with dsp */
+		if (p->dsp) {
+			f = ast_dsp_process(p->owner, p->dsp, &p->fr);
+			if (f && (f->frametype == AST_FRAME_DTMF)) {
+				ast_log(LOG_DEBUG, "Detected inband DTMF digit: %c on %s\n", f->subclass, p->dev);
+				return f;
+			}
+		}
+		
 		return &p->fr;
 	}
 	return NULL;
@@ -510,6 +540,21 @@ static int i4l_answer(struct ast_modem_pvt *p)
 		return -1;
 	}
 	p->ministate = STATE_VOICE;
+
+	/*  let ast dsp detect dtmf */
+	if (p->dtmfmode & MODEM_DTMF_AST) {
+		if (p->dsp) {
+			ast_log(LOG_DEBUG, "Already have a dsp on %s?\n", p->dev);
+		} else {
+			p->dsp = ast_dsp_new();
+			if (p->dsp) {
+				ast_log(LOG_DEBUG, "Detecting DTMF inband with sw DSP on %s\n",p->dev);
+				ast_dsp_set_features(p->dsp, DSP_FEATURE_DTMF_DETECT);
+				ast_dsp_digitmode(p->dsp, DSP_DIGITMODE_DTMF | 0);
+			}
+		}
+	}
+
 	return 0;
 }
 
@@ -517,9 +562,16 @@ static int i4l_dialdigit(struct ast_modem_pvt *p, char digit)
 {
 	char c[2];
 	if (p->ministate == STATE_VOICE) {
+		if (p->dtmfmodegen & MODEM_DTMF_I4L) {
 		c[0] = CHAR_DLE;
 		c[1] = digit;
 		write(p->fd, c, 2);
+			ast_log(LOG_DEBUG, "Send ISDN out-of-band DTMF %c\n",digit);
+		}
+		if(p->dtmfmodegen & MODEM_DTMF_AST) {
+			ast_log(LOG_DEBUG, "Generating inband DTMF\n");
+			return -1;
+		}
 	} else
 		ast_log(LOG_DEBUG, "Asked to send digit but call not up on %s\n", p->dev);
 	return 0;
@@ -567,9 +619,14 @@ static int i4l_hangup(struct ast_modem_pvt *p)
 	char dummy[50];
 	int dtr = TIOCM_DTR;
 
+	/* free the memory used by the DSP */
+	if (p->dsp) {
+		ast_dsp_free(p->dsp);
+		p->dsp = NULL;
+	}
+
 	/* down DTR to hangup modem */
 	ioctl(p->fd, TIOCMBIC, &dtr);
-
 	/* Read anything outstanding */
 	while(read(p->fd, dummy, sizeof(dummy)) > 0);
 

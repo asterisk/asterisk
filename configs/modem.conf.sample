@@ -69,7 +69,18 @@ mode=immediate
 ; number.
 ;outgoingmsn=50780023,50780024
 ;
+
+; Set DTMF-detection/generation mode to:
+;  asterisk: Let Asterisk do inband detection (default)
+;  i4l:      Use the inband detection made by ISDN4Linux
+;  none:     Don't detect inband DTMF
+;  both:     Transmit using both in-band and out of band (generation only)
 ;
+; You may specify either one mode, or the detection/generation mode
+; individually separated by a '/'.
+;
+;dtmfmode=asterisk			; Detect using Asterisk
+;dtmfmode=asterisk/both		; Detect using Asterisk, generate w/ both
 ; two other devices, which are in group '1' and are used when an
 ; outgoing dial used: exten => s,1,Dial,Modem/g1:1234|60|r
 ; (we do not need more outgoing devices, since ISDN2 has only 2 channels.)

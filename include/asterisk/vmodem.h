@@ -27,6 +27,10 @@
 #define MODEM_DEV_SPKRPHONE	6
 #define MODEM_DEV_HANDSET	9
 
+#define MODEM_DTMF_NONE	(1 << 0)
+#define MODEM_DTMF_AST	(1 << 1)
+#define MODEM_DTMF_I4L	(1 << 2)
+
 /* Thirty millisecond sections */
 #define MODEM_MAX_LEN 30
 #define MODEM_MAX_BUF MODEM_MAX_LEN * 16
@@ -115,6 +119,12 @@ struct ast_modem_pvt {
 	unsigned int group;
 	/*! Caller ID if available */
 	char cid[AST_MAX_EXTENSION];	
+	/*! DTMF-detection mode (i4l/asterisk) */
+	int dtmfmode;
+	/*! DTMF-generation mode (i4l (outband) / asterisk (inband) */
+	int dtmfmodegen;
+	/*! DSP for DTMF detection */
+	struct ast_dsp *dsp;
 	/*! Dialed Number if available */
 	char dnid[AST_MAX_EXTENSION];	
 	/*! Modem initialization String */
