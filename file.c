@@ -282,19 +282,23 @@ static char *build_filename(const char *filename, const char *ext)
 {
 	char *fn;
 	int fnsize = 0;
-	char tmp[AST_CONFIG_MAX_PATH]="";
 
-	snprintf(tmp, sizeof(tmp), "%s/%s", ast_config_AST_VAR_DIR, "sounds");
-	fnsize = strlen(tmp) + strlen(filename) + strlen(ext) + 10;
-	fn = malloc(fnsize);
-	if (fn) {
-		if (filename[0] == '/') 
+	if (filename[0] == '/') {
+		fnsize = strlen(filename) + strlen(ext) + 2;
+		fn = malloc(fnsize);
+		if (fn)
 			snprintf(fn, fnsize, "%s.%s", filename, ext);
-		else
+	} else {
+		char tmp[AST_CONFIG_MAX_PATH] = "";
+
+		snprintf(tmp, sizeof(tmp), "%s/%s", ast_config_AST_VAR_DIR, "sounds");
+		fnsize = strlen(tmp) + strlen(filename) + strlen(ext) + 3;
+		fn = malloc(fnsize);
+		if (fn)
 			snprintf(fn, fnsize, "%s/%s.%s", tmp, filename, ext);
 	}
+
 	return fn;
-	
 }
 
 static int exts_compare(const char *exts, const char *type)

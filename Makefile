@@ -410,15 +410,7 @@ bininstall: all
 	for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
 	install -d $(DESTDIR)$(ASTHEADERDIR)
 	install -m 644 include/asterisk/*.h $(DESTDIR)$(ASTHEADERDIR)
-	rm -f $(DESTDIR)$(ASTVARLIBDIR)/sounds/vm
 	rm -f $(DESTDIR)$(ASTVARLIBDIR)/sounds/voicemail
-	if [ ! -h $(DESTDIR)$(ASTSPOOLDIR)/vm ] && [ -d $(DESTDIR)$(ASTSPOOLDIR)/vm ]; then \
-		mv $(DESTDIR)$(ASTSPOOLDIR)/vm $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default; \
-	else \
-		mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default; \
-		rm -f $(DESTDIR)$(ASTSPOOLDIR)/vm; \
-	fi
-	ln -s $(ASTSPOOLDIR)/voicemail/default $(DESTDIR)$(ASTSPOOLDIR)/vm
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-csv
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/keys
@@ -433,7 +425,6 @@ bininstall: all
 	else \
 		echo "You need to do cvs update -d not just cvs update" ; \
 	fi 
-	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/vm . )
 	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/voicemail . )
 	if [ -f mpg123-0.59r/mpg123 ]; then make -C mpg123-0.59r install; fi
 	@echo " +---- Asterisk Installation Complete -------+"  

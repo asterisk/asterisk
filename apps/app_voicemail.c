@@ -63,8 +63,6 @@
 
 #define MAXMSG 100
 
-#define VM_SPOOL_DIR AST_SPOOL_DIR "/vm"
-
 #define BASEMAXINLINE 256
 #define BASELINELEN 72
 #define BASEMAXINLINE 256
@@ -209,6 +207,8 @@ static char odbc_database[80];
 #define COPY(a,b,c,d,e,f) (copy_file(e,f));
 #define DELETE(a,b,c) (vm_delete(c))
 #endif
+
+static char VM_SPOOL_DIR[AST_CONFIG_MAX_PATH];
 
 static char ext_pass_cmd[128];
 
@@ -633,7 +633,7 @@ static void vm_change_password_shell(struct ast_vm_user *vmu, char *newpassword)
 
 static int make_dir(char *dest, int len, char *context, char *ext, char *mailbox)
 {
-	return snprintf(dest, len, "%s/voicemail/%s/%s/%s", (char *)ast_config_AST_SPOOL_DIR,context, ext, mailbox);
+	return snprintf(dest, len, "%s%s/%s/%s", VM_SPOOL_DIR, context, ext, mailbox);
 }
 
 static int make_file(char *dest, int len, char *dir, int num)
@@ -654,7 +654,6 @@ static int retrieve_file(char *dir, int msgnum)
 	SQLSMALLINT colcount=0;
 	SQLHSTMT stmt;
 	char sql[256];
-	char rdir[256];
 	char fmt[80]="";
 	char *c;
 	char coltitle[256];
@@ -672,10 +671,6 @@ static int retrieve_file(char *dir, int msgnum)
 	odbc_obj *obj;
 	obj = fetch_odbc_obj(odbc_database);
 	if (obj) {
-		if (dir[0] != '/') {
-			snprintf(rdir, sizeof(rdir), "%s/%s", ast_config_AST_SPOOL_DIR, dir);
-			dir = rdir;
-		}
 		strncpy(fmt, vmfmts, sizeof(fmt) - 1);
 		c = strchr(fmt, '|');
 		if (c)
@@ -809,12 +804,7 @@ static int remove_file(char *dir, int msgnum)
 	char fn[256];
 	char full_fn[256];
 	char msgnums[80];
-	char rdir[256];
 	
-	if (dir[0] != '/') {
-		snprintf(rdir, sizeof(rdir), "%s/%s", ast_config_AST_SPOOL_DIR, dir);
-		dir = rdir;
-	}
 	if (msgnum > -1) {
 		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
 		make_file(fn, sizeof(fn), dir, msgnum);
@@ -833,16 +823,11 @@ static int last_message_index(char *dir)
 	SQLLEN rowcount=0;
 	SQLHSTMT stmt;
 	char sql[256];
-	char rdir[256];
 	char rowdata[20];
 	
 	odbc_obj *obj;
 	obj = fetch_odbc_obj(odbc_database);
 	if (obj) {
-		if (dir[0] != '/') {
-			snprintf(rdir, sizeof(rdir), "%s/%s", ast_config_AST_SPOOL_DIR, dir);
-			dir = rdir;
-		}
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
@@ -896,17 +881,12 @@ static int message_exists(char *dir, int msgnum)
 	SQLLEN rowcount=0;
 	SQLHSTMT stmt;
 	char sql[256];
-	char rdir[256];
 	char rowdata[20];
 	char msgnums[20];
 	
 	odbc_obj *obj;
 	obj = fetch_odbc_obj(odbc_database);
 	if (obj) {
-		if (dir[0] != '/') {
-			snprintf(rdir, sizeof(rdir), "%s/%s", ast_config_AST_SPOOL_DIR, dir);
-			dir = rdir;
-		}
 		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -967,15 +947,10 @@ static void delete_file(char *sdir, int smsg)
 	SQLHSTMT stmt;
 	char sql[256];
 	char msgnums[20];
-	char rdir[256];
 	
 	odbc_obj *obj;
 	obj = fetch_odbc_obj(odbc_database);
 	if (obj) {
-		if (sdir[0] != '/') {
-			snprintf(rdir, sizeof(rdir), "%s/%s", ast_config_AST_SPOOL_DIR, sdir);
-			sdir = rdir;
-		}
 		snprintf(msgnums, sizeof(msgnums), "%d", smsg);
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -1018,21 +993,11 @@ static void copy_file(char *sdir, int smsg, char *ddir, int dmsg)
 	char sql[256];
 	char msgnums[20];
 	char msgnumd[20];
-	char rsdir[256];
-	char rddir[256];
 	odbc_obj *obj;
 
 	delete_file(ddir, dmsg);
 	obj = fetch_odbc_obj(odbc_database);
 	if (obj) {
-		if (ddir[0] != '/') {
-			snprintf(rddir, sizeof(rddir), "%s/%s", ast_config_AST_SPOOL_DIR, ddir);
-			ddir = rddir;
-		}
-		if (sdir[0] != '/') {
-			snprintf(rsdir, sizeof(rsdir), "%s/%s", ast_config_AST_SPOOL_DIR, sdir);
-			sdir = rsdir;
-		}
 		snprintf(msgnums, sizeof(msgnums), "%d", smsg);
 		snprintf(msgnumd, sizeof(msgnumd), "%d", dmsg);
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
@@ -1081,7 +1046,6 @@ static int store_file(char *dir, int msgnum)
 	SQLHSTMT stmt;
 	SQLINTEGER len;
 	char sql[256];
-	char rdir[256];
 	char msgnums[20];
 	char fn[256];
 	char full_fn[256];
@@ -1095,10 +1059,6 @@ static int store_file(char *dir, int msgnum)
 	delete_file(dir, msgnum);
 	obj = fetch_odbc_obj(odbc_database);
 	if (obj) {
-		if (dir[0] != '/') {
-			snprintf(rdir, sizeof(rdir), "%s/%s", ast_config_AST_SPOOL_DIR, dir);
-			dir = rdir;
-		}
 		strncpy(fmt, vmfmts, sizeof(fmt) - 1);
 		c = strchr(fmt, '|');
 		if (c)
@@ -1199,21 +1159,11 @@ static void rename_file(char *sdir, int smsg, char *ddir, int dmsg)
 	char sql[256];
 	char msgnums[20];
 	char msgnumd[20];
-	char rsdir[256];
-	char rddir[256];
 	odbc_obj *obj;
 
 	delete_file(ddir, dmsg);
 	obj = fetch_odbc_obj(odbc_database);
 	if (obj) {
-		if (ddir[0] != '/') {
-			snprintf(rddir, sizeof(rddir), "%s/%s", ast_config_AST_SPOOL_DIR, ddir);
-			ddir = rddir;
-		}
-		if (sdir[0] != '/') {
-			snprintf(rsdir, sizeof(rsdir), "%s/%s", ast_config_AST_SPOOL_DIR, sdir);
-			sdir = rsdir;
-		}
 		snprintf(msgnums, sizeof(msgnums), "%d", smsg);
 		snprintf(msgnumd, sizeof(msgnumd), "%d", dmsg);
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
@@ -1766,7 +1716,7 @@ static int invent_message(struct ast_channel *chan, char *context, char *ext, in
 {
 	int res;
 	char fn[256];
-	snprintf(fn, sizeof(fn), "voicemail/%s/%s/greet", context, ext);
+	snprintf(fn, sizeof(fn), "%s%s/%s/greet", VM_SPOOL_DIR, context, ext);
 	RETRIEVE(fn, -1);
 	if (ast_fileexists(fn, NULL, NULL) > 0) {
 		res = ast_streamfile(chan, fn, chan->language);
@@ -1874,7 +1824,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 		context++;
 	} else
 		context = "default";
-	snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/%s", (char *)ast_config_AST_SPOOL_DIR, context, tmp, folder);
+	snprintf(fn, sizeof(fn), "%s/%s/%s/%s", VM_SPOOL_DIR, context, tmp, folder);
 	dir = opendir(fn);
 	if (!dir)
 		return 0;
@@ -1931,7 +1881,7 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	} else
 		context = "default";
 	if (newmsgs) {
-		snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/INBOX", (char *)ast_config_AST_SPOOL_DIR, context, tmp);
+		snprintf(fn, sizeof(fn), "%s/%s/%s/INBOX", VM_SPOOL_DIR, context, tmp);
 		dir = opendir(fn);
 		if (dir) {
 			while ((de = readdir(dir))) {
@@ -1944,7 +1894,7 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		}
 	}
 	if (oldmsgs) {
-		snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/Old", (char *)ast_config_AST_SPOOL_DIR, context, tmp);
+		snprintf(fn, sizeof(fn), "%s/%s/%s/Old", VM_SPOOL_DIR, context, tmp);
 		dir = opendir(fn);
 		if (dir) {
 			while ((de = readdir(dir))) {
@@ -2066,10 +2016,10 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		else
 			strncpy(ext_context, vmu->context, sizeof(ext_context) - 1);		
 		if (busy)
-			snprintf(prefile, sizeof(prefile), "voicemail/%s/%s/busy", vmu->context, ext);
+			snprintf(prefile, sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, ext);
 		else if (unavail)
-			snprintf(prefile, sizeof(prefile), "voicemail/%s/%s/unavail", vmu->context, ext);
-		snprintf(tempfile, sizeof(tempfile), "voicemail/%s/%s/temp", vmu->context, ext);
+			snprintf(prefile, sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, ext);
+		snprintf(tempfile, sizeof(tempfile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, ext);
 		RETRIEVE(tempfile, -1);
 		if (ast_fileexists(tempfile, NULL, NULL) > 0)
 			strncpy(prefile, tempfile, sizeof(prefile) - 1);
@@ -3105,7 +3055,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 				/* if (ast_play_and_wait(chan, "vm-savedto"))
 					break;
 				*/
-				snprintf(todir, sizeof(todir), "%s/voicemail/%s/%s/INBOX",  (char *)ast_config_AST_SPOOL_DIR, vmtmp->context, vmtmp->mailbox);
+				snprintf(todir, sizeof(todir), "%s%s/%s/INBOX",  VM_SPOOL_DIR, vmtmp->context, vmtmp->mailbox);
 				snprintf(sys, sizeof(sys), "mkdir -p %s\n", todir);
 				snprintf(ext_context, sizeof(ext_context), "%s@%s", vmtmp->mailbox, vmtmp->context);
 				ast_log(LOG_DEBUG, "%s", sys);
@@ -3297,7 +3247,7 @@ static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms,
 		}
 		if (i != MAX_NUM_CID_CONTEXTS){ /* internal context? */
 			if (!res) {
-				snprintf(prefile, sizeof(prefile), "voicemail/%s/%s/greet", context, callerid);
+				snprintf(prefile, sizeof(prefile), "%s%s/%s/greet", VM_SPOOL_DIR, context, callerid);
 				if (!ast_strlen_zero(prefile)) {
 				/* See if we can find a recorded name for this person instead of their extension number */
 					if (ast_fileexists(prefile, NULL, NULL) > 0) {
@@ -4115,7 +4065,7 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 
 	/* If forcename is set, have the user record their name */	
 	if (ast_test_flag(vmu, VM_FORCENAME)) {
-		snprintf(prefile,sizeof(prefile),"voicemail/%s/%s/greet",vmu->context, vms->username);
+		snprintf(prefile,sizeof(prefile), "%s%s/%s/greet", VM_SPOOL_DIR, vmu->context, vms->username);
 		cmd = play_record_review(chan,"vm-rec-name",prefile, maxgreet, fmtc, 0, vmu, &duration);
 		if (cmd < 0 || cmd == 't' || cmd == '#')
 			return cmd;
@@ -4123,11 +4073,11 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 
 	/* If forcegreetings is set, have the user record their greetings */
 	if (ast_test_flag(vmu, VM_FORCEGREET)) {
-		snprintf(prefile,sizeof(prefile),"voicemail/%s/%s/unavail",vmu->context, vms->username);
+		snprintf(prefile,sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, vms->username);
 		cmd = play_record_review(chan,"vm-rec-unv",prefile, maxgreet, fmtc, 0, vmu, &duration);
 		if (cmd < 0 || cmd == 't' || cmd == '#')
 			return cmd;
-		snprintf(prefile,sizeof(prefile),"voicemail/%s/%s/busy",vmu->context, vms->username);
+		snprintf(prefile,sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, vms->username);
 		cmd = play_record_review(chan,"vm-rec-busy",prefile, maxgreet, fmtc, 0, vmu, &duration);
 		if (cmd < 0 || cmd == 't' || cmd == '#')
 			return cmd;
@@ -4161,15 +4111,15 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 			retries = 0;
 		switch (cmd) {
 		case '1':
-			snprintf(prefile,sizeof(prefile),"voicemail/%s/%s/unavail",vmu->context, vms->username);
+			snprintf(prefile,sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, vms->username);
 			cmd = play_record_review(chan,"vm-rec-unv",prefile, maxgreet, fmtc, 0, vmu, &duration);
 			break;
 		case '2': 
-			snprintf(prefile,sizeof(prefile),"voicemail/%s/%s/busy",vmu->context, vms->username);
+			snprintf(prefile,sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, vms->username);
 			cmd = play_record_review(chan,"vm-rec-busy",prefile, maxgreet, fmtc, 0, vmu, &duration);
 			break;
 		case '3': 
-			snprintf(prefile,sizeof(prefile),"voicemail/%s/%s/greet",vmu->context, vms->username);
+			snprintf(prefile,sizeof(prefile), "%s%s/%s/greet", VM_SPOOL_DIR, vmu->context, vms->username);
 			cmd = play_record_review(chan,"vm-rec-name",prefile, maxgreet, fmtc, 0, vmu, &duration);
 			break;
 		case '4': 
@@ -4251,7 +4201,7 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 		bytes += adsi_voice_mode(buf + bytes, 0);
 		adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 	}
-	snprintf(prefile,sizeof(prefile),"voicemail/%s/%s/temp",vmu->context, vms->username);
+	snprintf(prefile,sizeof(prefile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, vms->username);
 	while((cmd >= 0) && (cmd != 't')) {
 		if (cmd)
 			retries = 0;
@@ -4586,9 +4536,9 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		/* Set language from config to override channel language */
 		if (vmu->language && !ast_strlen_zero(vmu->language))
 			strncpy(chan->language, vmu->language, sizeof(chan->language)-1);
-		snprintf(vms.curdir, sizeof(vms.curdir), "%s/voicemail/%s", (char *)ast_config_AST_SPOOL_DIR, vmu->context);
+		snprintf(vms.curdir, sizeof(vms.curdir), "%s/%s", VM_SPOOL_DIR, vmu->context);
 		mkdir(vms.curdir, 0700);
-		snprintf(vms.curdir, sizeof(vms.curdir), "%s/voicemail/%s/%s", (char *)ast_config_AST_SPOOL_DIR, vmu->context, vms.username);
+		snprintf(vms.curdir, sizeof(vms.curdir), "%s/%s/%s", VM_SPOOL_DIR, vmu->context, vms.username);
 		mkdir(vms.curdir, 0700);
 		/* Retrieve old and new message counts */
 		open_mailbox(&vms, vmu, 1);
@@ -5555,6 +5505,9 @@ int load_module(void)
 
 	ast_cli_register(&show_voicemail_users_cli);
 	ast_cli_register(&show_voicemail_zones_cli);
+
+	/* compute the location of the voicemail spool directory */
+	snprintf(VM_SPOOL_DIR, sizeof(VM_SPOOL_DIR), "%s/voicemail/", ast_config_AST_SPOOL_DIR);
 
 	ast_install_vm_functions(has_voicemail, messagecount);
 
