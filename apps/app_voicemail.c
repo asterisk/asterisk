@@ -2269,7 +2269,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 		system(sys);
 
 		todircount = count_messages(todir);
-		strncpy(tmp, fmt, sizeof(tmp));
+		strncpy(tmp, fmt, sizeof(tmp) - 1);
 		stringp = tmp;
 		while((s = strsep(&stringp, "|"))) {
 			/* XXX This is a hack -- we should use build_filename or similar XXX */
@@ -3019,22 +3019,22 @@ static int append_mailbox(char *context, char *mbox, char *data)
 	char *stringp;
 	char *s;
 	struct ast_vm_user *vmu;
-	strncpy(tmp, data, sizeof(tmp));
+	strncpy(tmp, data, sizeof(tmp) - 1);
 	vmu = malloc(sizeof(struct ast_vm_user));
 	if (vmu) {
 		memset(vmu, 0, sizeof(struct ast_vm_user));
-		strncpy(vmu->context, context, sizeof(vmu->context));
-		strncpy(vmu->mailbox, mbox, sizeof(vmu->mailbox));
+		strncpy(vmu->context, context, sizeof(vmu->context) - 1);
+		strncpy(vmu->mailbox, mbox, sizeof(vmu->mailbox) - 1);
 		vmu->attach = -1;
 		stringp = tmp;
 		if ((s = strsep(&stringp, ","))) 
-			strncpy(vmu->password, s, sizeof(vmu->password));
+			strncpy(vmu->password, s, sizeof(vmu->password) - 1);
 		if (stringp && (s = strsep(&stringp, ","))) 
-			strncpy(vmu->fullname, s, sizeof(vmu->fullname));
+			strncpy(vmu->fullname, s, sizeof(vmu->fullname) - 1);
 		if (stringp && (s = strsep(&stringp, ","))) 
-			strncpy(vmu->email, s, sizeof(vmu->email));
+			strncpy(vmu->email, s, sizeof(vmu->email) - 1);
 		if (stringp && (s = strsep(&stringp, ","))) 
-			strncpy(vmu->pager, s, sizeof(vmu->pager));
+			strncpy(vmu->pager, s, sizeof(vmu->pager) - 1);
 		if (stringp && (s = strsep(&stringp, ","))) 
 			apply_options(vmu, s);
 		vmu->next = NULL;
