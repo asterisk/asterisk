@@ -2551,6 +2551,8 @@ static int iax2_write(struct ast_channel *c, struct ast_frame *f)
 	/* If we're quelching voice, don't bother sending it */
 	if ((f->frametype == AST_FRAME_VOICE) && i->quelch)
 		return 0;
+	if (!(i->state & IAX_STATE_STARTED))
+		return 0;
 	/* Simple, just queue for transmission */
 	return iax2_send(i, f, 0, -1, 0, 0, 0);
 }
