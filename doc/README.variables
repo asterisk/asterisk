@@ -56,14 +56,40 @@ requires a variable), just write the name. To refer to the variable's value,
 enclose it inside ${}. For example, SetVar takes as the first argument 
 (before the =) a variable name, so: 
 
-;exten => 1,2,SetVar(koko=lala)
-;exten => 1,3,SetVar(${koko}=blabla)
+	exten => 1,2,SetVar(koko=lala)
+	exten => 1,3,SetVar(${koko}=blabla)
 
 stores to the variable "koko" the value "lala" and to variable "lala" the 
 value "blabla". 
 
 In fact, everything contained ${here} is just replaced with the value of 
 the variable "here". 
+
+_______________________________
+REMOVING CHARACTERS FROM STRING
+-------------------------------
+
+If you want to remove the first N characters from a string, you just
+add a colon and the number of characters, like
+
+	;Remove the first character of extension, save in "number" variable
+	exten => _9X.,1,setvar(number=${EXTEN:1})
+
+A second colon limits the number of characters used from the original
+string. 
+	;Strip five characters from the start of string, use only two 
+	; (character 6 and 7 in the original string)
+	exten => 1000,4,setvar(skrep=${STRING:5:2})
+
+You can also count from the end of the string by giving a negative
+position:
+
+	;Use the two first of the three last characters in the account code
+	exten => 4500,4,setvar(acc=${ACCOUNTCODE:-3:2})
+
+Or 
+	;Use the last three digits of the phone number
+	exten => 6112,4,goto(${EXTEN:-3},1)
 
 ___________________________
 EXPRESSIONS: 

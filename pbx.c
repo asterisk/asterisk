@@ -805,6 +805,9 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, struct ast
 	return NULL;
 }
 
+/*--- pbx_retrieve_variable: Support for Asterisk built-in variables and
+      functions in the dialplan
+  ---*/
 void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp)
 {
 	char *first,*second;
@@ -818,7 +821,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 		headp=&c->varshead;
 	*ret=NULL;
 	/* Now we have the variable name on cp3 */
-	if (!strncasecmp(var,"LEN(",4)) {
+	if (!strncasecmp(var,"LEN(",4)) {	/* ${LEN(<string>)} */
 		int len=strlen(var);
 		int len_len=4;
 		if (strrchr(var,')')) {
@@ -831,42 +834,49 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 			/* length is zero */
 			*ret = "0";
 		}
-	} else if ((first=strchr(var,':'))) {
+	} else if ((first=strchr(var,':'))) {	/* : Remove characters counting from end or start of string */
 		strncpy(tmpvar, var, sizeof(tmpvar) - 1);
 		first = strchr(tmpvar, ':');
 		if (!first)
 			first = tmpvar + strlen(tmpvar);
 		*first='\0';
 		pbx_retrieve_variable(c,tmpvar,ret,workspace,workspacelen - 1, headp);
-		if (!(*ret)) return;
-		offset=atoi(first+1);
-	 	if ((second=strchr(first+1,':'))) {
+		if (!(*ret)) 
+			return;
+		offset=atoi(first+1);	/* The number of characters, 
+					   positive: remove # of chars from start
+					   negative: keep # of chars from end */
+						
+	 	if ((second=strchr(first+1,':'))) {	
 			*second='\0';
-			offset2=atoi(second+1);
-		} else
-			offset2=strlen(*ret)-offset;
-		if (abs(offset)>strlen(*ret)) {
-			if (offset>=0) 
+			offset2 = atoi(second+1);		/* Number of chars to copy */
+		} else if (offset >= 0) {
+			offset2 = strlen(*ret)-offset;	/* Rest of string */
+		} else {
+			offset2 = abs(offset);
+		}
+
+		if (abs(offset) > strlen(*ret)) {	/* Offset beyond string */
+			if (offset >= 0) 
 				offset=strlen(*ret);
 			else 
-				offset=-strlen(*ret);
+				offset=-strlen(*ret);	
 		}
-		if ((offset<0 && offset2>-offset) || (offset>=0 && offset+offset2>strlen(*ret))) {
-			if (offset>=0) 
+		if ((offset < 0 && offset2 > -offset) || (offset >= 0 && offset+offset2 > strlen(*ret))) {
+			if (offset >= 0) 
 				offset2=strlen(*ret)-offset;
 			else 
 				offset2=strlen(*ret)+offset;
 		}
-		if (offset>=0)
-			*ret+=offset;
+		if (offset >= 0)
+			*ret += offset;
 		else
-			*ret+=strlen(*ret)+offset;
-		(*ret)[offset2] = '\0';
+			*ret += strlen(*ret)+offset;
+		(*ret)[offset2] = '\0';		/* Cut at offset2 position */
 	} else if (c && !strncmp(var, "CALL", 4)) {
 		if (!strncmp(var + 4, "ER", 2)) {
 			if (!strncmp(var + 6, "ID", 2)) {
-				if (!var[8]) {
-					/* CALLERID */
+				if (!var[8]) { 			/* CALLERID */
 					if (c->cid.cid_num) {
 						if (c->cid.cid_name) {
 							snprintf(workspace, workspacelen, "\"%s\" <%s>", c->cid.cid_name, c->cid.cid_num);
