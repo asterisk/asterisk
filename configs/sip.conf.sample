@@ -27,6 +27,8 @@ context = default		; Default for incoming calls
 ;secret=blah
 ;host=dynamic
 ;qualify=1000			; Consider it down if it's 1 second to reply
+;callgroup=1,3-4
+;pickupgroup=1,3-4
 ;defaultip=192.168.0.60
 
 ;[cisco]

@@ -186,6 +186,9 @@ struct ast_channel {
 	/* A linked list for variables */
 	struct ast_var_t *vars;	
 	AST_LIST_HEAD(varshead,ast_var_t) varshead;
+
+	unsigned int callgroup;
+	unsigned int pickupgroup;
 	
 	/*! For easy linking */
 	struct ast_channel *next;		

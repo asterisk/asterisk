@@ -1,3 +1,4 @@
+ -- Support call pickup on SIP and compatibly with ZAP
  -- Support 302 Redirect on SIP
  -- Management interface improvements
  -- Add "hint" support

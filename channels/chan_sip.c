@@ -34,6 +34,7 @@
 #include <asterisk/app.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/dsp.h>
+#include <asterisk/parking.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -156,6 +157,8 @@ static struct sip_pvt {
 	char randdata[80];	/* Random data */
 	unsigned int ocseq;					/* Current outgoing seqno */
 	unsigned int icseq;					/* Current incoming seqno */
+	unsigned int callgroup;
+	unsigned int pickupgroup;
 	int lastinvite;						/* Last Cseq of invite */
 	int alreadygone;					/* Whether or not we've already been destroyed by or peer */
 	int needdestroy;					/* if we need to be destroyed */
@@ -235,6 +238,8 @@ struct sip_user {
 	char callerid[80];
 	char methods[80];
 	char accountcode[80];
+	unsigned int callgroup;
+	unsigned int pickupgroup;
 	int nat;
 	int hascallerid;
 	int amaflags;
@@ -262,6 +267,8 @@ struct sip_peer {
 	int insecure;
 	int nat;
 	int canreinvite;
+	unsigned int callgroup;
+	unsigned int pickupgroup;
         int dtmfmode;
 	struct sockaddr_in addr;
 	struct in_addr mask;
@@ -583,6 +590,8 @@ static int create_addr(struct sip_pvt *r, char *peer)
 			r->insecure = p->insecure;
 			r->canreinvite = p->canreinvite;
 			r->maxtime = p->maxms;
+			r->callgroup = p->callgroup;
+			r->pickupgroup = p->pickupgroup;
 			if (p->dtmfmode) {
 				r->dtmfmode = p->dtmfmode;
 				if (r->dtmfmode & SIP_DTMF_RFC2833)
@@ -1109,6 +1118,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		tmp->pvt->fixup = sip_fixup;
 		tmp->pvt->send_digit = sip_senddigit;
 		tmp->pvt->bridge = ast_rtp_bridge;
+		tmp->callgroup = i->callgroup;
+		tmp->pickupgroup = i->pickupgroup;
 		if (strlen(i->language))
 			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
 		i->owner = tmp;
@@ -2971,13 +2982,15 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	}
 	if (sipdebug)
 		ast_verbose("Looking for %s in %s\n", c, p->context);
-	if (ast_exists_extension(NULL, p->context, c, 1, NULL)) {
+	if (ast_exists_extension(NULL, p->context, c, 1, NULL) ||
+		!strcmp(c, ast_pickup_ext())) {
 		if (!oreq)
 			strncpy(p->exten, c, sizeof(p->exten) - 1);
 		return 0;
 	}
 
-	if (ast_canmatch_extension(NULL, p->context, c, 1, NULL)) {
+	if (ast_canmatch_extension(NULL, p->context, c, 1, NULL) ||
+	    !strncmp(c, ast_pickup_ext(),strlen(c))) {
 		return 1;
 	}
 	
@@ -3178,13 +3191,16 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 			}
 			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, cmd, uri, reliable))) {
 				sip_cancel_destroy(p);
-				strncpy(p->context, user->context, sizeof(p->context) - 1);
+				if (strlen(user->context))
+					strncpy(p->context, user->context, sizeof(p->context) - 1);
 				if (strlen(user->callerid) && strlen(p->callerid)) 
 					strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
 				strncpy(p->username, user->name, sizeof(p->username) - 1);
 				strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)  -1);
 				p->canreinvite = user->canreinvite;
 				p->amaflags = user->amaflags;
+				p->callgroup = user->callgroup;
+				p->pickupgroup = user->pickupgroup;
 				if (user->dtmfmode) {
 					p->dtmfmode = user->dtmfmode;
 					if (p->dtmfmode & SIP_DTMF_RFC2833)
@@ -3212,6 +3228,10 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				}
 				p->canreinvite = peer->canreinvite;
 				strncpy(p->username, peer->name, sizeof(p->username) - 1);
+				if (strlen(peer->context))
+					strncpy(p->context, peer->context, sizeof(p->context) - 1);
+				p->callgroup = peer->callgroup;
+				p->pickupgroup = peer->pickupgroup;
 				if (peer->dtmfmode) {
 					p->dtmfmode = peer->dtmfmode;
 					if (p->dtmfmode & SIP_DTMF_RFC2833)
@@ -4138,10 +4158,20 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			case AST_STATE_DOWN:
 				transmit_response(p, "100 Trying", req);
 				ast_setstate(c, AST_STATE_RING);
-				if (ast_pbx_start(c)) {
-					ast_log(LOG_WARNING, "Failed to start PBX :(\n");
+				if (strcmp(p->exten, ast_pickup_ext())) {
+					if (ast_pbx_start(c)) {
+						ast_log(LOG_WARNING, "Failed to start PBX :(\n");
+						sip_hangup(c);
+						transmit_response_reliable(p, "503 Unavailable", req);
+						c = NULL;
+					}
+				} else if (ast_pickup_call(c)) {
+					ast_log(LOG_WARNING, "Nothing to pick up\n");
 					sip_hangup(c);
 					transmit_response_reliable(p, "503 Unavailable", req);
+				} else {
+					ast_pthread_mutex_unlock(&c->lock);
+					ast_hangup(c);
 					c = NULL;
 				}
 				break;
@@ -4719,6 +4749,10 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "callerid")) {
 				strncpy(user->callerid, v->value, sizeof(user->callerid)-1);
 				user->hascallerid=1;
+			} else if (!strcasecmp(v->name, "callgroup")) {
+				user->callgroup = ast_get_group(v->value);
+			} else if (!strcasecmp(v->name, "pickupgroup")) {
+				user->pickupgroup = ast_get_group(v->value);
 			} else if (!strcasecmp(v->name, "accountcode")) {
 				strncpy(user->accountcode, v->value, sizeof(user->accountcode)-1);
 			} else if (!strcasecmp(v->name, "amaflags")) {
@@ -4867,6 +4901,10 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 					ast_log(LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
 				else
 					peer->capability |= format;
+			} else if (!strcasecmp(v->name, "callgroup")) {
+				peer->callgroup = ast_get_group(v->value);
+			} else if (!strcasecmp(v->name, "pickupgroup")) {
+				peer->pickupgroup = ast_get_group(v->value);
 			} else if (!strcasecmp(v->name, "disallow")) {
 				format = ast_getformatbyname(v->value);
 				if (format < 1) 

@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Call Parking API 
+ * Call Parking and Pickup API 
  * 
  * Copyright (C) 1999, Mark Spencer
  *
@@ -42,10 +42,15 @@ extern int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *hos
 /*! Returns the call parking extension for drivers that provide special
     call parking help */
 extern char *ast_parking_ext(void);
+extern char *ast_pickup_ext(void);
 
 //! Bridge a call, optionally allowing redirection
 
 extern int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allowredirect, int allowdisconnect);
+
+extern unsigned int ast_get_group(char *s);
+
+extern int ast_pickup_call(struct ast_channel *chan);
 
 
 #endif /* _PARKING_H */

@@ -405,6 +405,8 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	"        Context: %s\n"
 	"      Extension: %s\n"
 	"       Priority: %d\n"
+	"     Call Group: %d\n"
+	"   Pickup Group: %d\n"
 	"    Application: %s\n"
 	"           Data: %s\n"
 	"          Stack: %d\n"
@@ -414,7 +416,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	(c->dnid ? c->dnid : "(N/A)" ), ast_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
 	c->fds[0], c->fin & 0x7fffffff, (c->fin & 0x80000000) ? " (DEBUGGED)" : "",
 	c->fout & 0x7fffffff, (c->fout & 0x80000000) ? " (DEBUGGED)" : "", c->whentohangup,
-	c->context, c->exten, c->priority, ( c->appl ? c->appl : "(N/A)" ),
+	c->context, c->exten, c->priority, c->callgroup, c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
 	( c-> data ? (strlen(c->data) ? c->data : "(Empty)") : "(None)"),
 	c->stack, (c->blocking ? c->blockproc : "(Not Blocking)"));
 	

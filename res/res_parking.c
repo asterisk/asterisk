@@ -49,6 +49,8 @@ static char parking_con[AST_MAX_EXTENSION] = "parkedcalls";
 /* Extension you type to park the call */
 static char parking_ext[AST_MAX_EXTENSION] = "700";
 
+static char pickup_ext[AST_MAX_EXTENSION] = "*8";
+
 /* First available extension for parking */
 static int parking_start = 701;
 
@@ -91,6 +93,11 @@ LOCAL_USER_DECL;
 char *ast_parking_ext(void)
 {
 	return parking_ext;
+}
+
+char *ast_pickup_ext(void)
+{
+	return pickup_ext;
 }
 
 int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeout, int *extout)
@@ -563,6 +570,72 @@ int load_module(void)
 	pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
 	res = ast_register_application(parkedcall, park_exec, synopsis, descrip);
 	return res;
+}
+
+int ast_pickup_call(struct ast_channel *chan)
+{
+	struct ast_channel *cur;
+	int res = -1;
+	cur = ast_channel_walk(NULL);
+	while(cur) {
+		if (!cur->pbx && 
+			(cur != chan) &&
+			(chan->pickupgroup & cur->callgroup) &&
+			((cur->_state == AST_STATE_RINGING) ||
+			 (cur->_state == AST_STATE_RING))) {
+			 	break;
+		}
+		cur = ast_channel_walk(cur);
+	}
+	if (cur) {
+		ast_log(LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n",cur->name, chan->name);
+		res = ast_answer(chan);
+		if (res)
+			ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
+		res = ast_queue_control(chan, AST_CONTROL_ANSWER, 0);
+		if (res)
+			ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n", chan->name);
+		res = ast_channel_masquerade(cur, chan);
+		if (res)
+			ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, cur->name);		/* Done */
+	} else	{
+		ast_log(LOG_DEBUG, "No call pickup possible...\n");
+	}
+	return res;
+}
+
+unsigned int ast_get_group(char *s)
+{
+	char *copy;
+	char *piece;
+	char *c=NULL;
+	int start=0, finish=0,x;
+	unsigned int group = 0;
+	copy = strdupa(s);
+	if (!copy) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		return 0;
+	}
+	c = copy;
+	
+	while((piece = strsep(&c, ","))) {
+		if (sscanf(piece, "%d-%d", &start, &finish) == 2) {
+			/* Range */
+		} else if (sscanf(piece, "%d", &start)) {
+			/* Just one */
+			finish = start;
+		} else {
+			ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'.  Using '0'\n", s,piece);
+			return 0;
+		}
+		for (x=start;x<=finish;x++) {
+			if ((x > 31) || (x < 0)) {
+				ast_log(LOG_WARNING, "Ignoring invalid group %d\n", x);
+			} else
+				group |= (1 << x);
+		}
+	}
+	return group;
 }
 
 int unload_module(void)

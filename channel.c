@@ -1684,6 +1684,7 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
 	/* XXX can't really hold the lock here, but at the same time, it' s
 	   not really safe not to XXX */
 	ast_queue_frame(original, &null, 0);
+	ast_queue_frame(clone, &null, 0);
 	return 0;
 }
 

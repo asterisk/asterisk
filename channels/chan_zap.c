@@ -134,9 +134,9 @@ static int use_callerid = 1;
 
 static int cur_signalling = -1;
 
-static int cur_group = 0;
-static int cur_callergroup = 0;
-static int cur_pickupgroup = 0;
+static unsigned int cur_group = 0;
+static unsigned int cur_callergroup = 0;
+static unsigned int cur_pickupgroup = 0;
 static int relaxdtmf = 0;
 
 static int immediate = 0;
@@ -370,13 +370,13 @@ static struct zt_pvt {
 	char lastcallerid[AST_MAX_EXTENSION];
 	char callwaitcid[AST_MAX_EXTENSION];
 	char rdnis[AST_MAX_EXTENSION];
-	int group;
+	unsigned int group;
 	int law;
 	int confno;					/* Our conference */
 	int confusers;				/* Who is using our conference */
 	int propconfno;				/* Propagated conference number */
-	int callgroup;
-	int pickupgroup;
+	unsigned int callgroup;
+	unsigned int pickupgroup;
 	int immediate;				/* Answer before getting digits? */
 	int channel;				/* Channel Number */
 	int span;					/* Span number */
@@ -474,32 +474,6 @@ static int cidrings[] = {
 
 #define CANBUSYDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
 #define CANPROGRESSDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
-
-#if 0
-/* return non-zero if clear dtmf is appropriate */
-static int CLEARDTMF(struct ast_channel *chan) {
-struct zt_pvt *p = chan->pvt->pvt,*themp;
-struct ast_channel *them;
-	if (!p)
-		return 0;
-	  /* if not in a 3 way, we should be okay */
-	if (p->thirdcallindex == -1) return 1;
-	  /* get the other side of the call's channel pointer */
-	if (p->owners[p->normalindex] == chan)
-		them = p->owners[p->thirdcallindex];
-	else
-		them = p->owners[p->normalindex];
-	if (!them)
-		return 0;
-	if (!them->bridge) return 1;
-	  /* get their private structure, too */
-	themp = them->pvt->pvt;
-	  /* if does not use zt bridge code, return 0 */
-	if (them->pvt->bridge != zt_bridge) return 0;
-	if (them->bridge->pvt->bridge != zt_bridge) return 0;
-	return 1; /* okay, I guess we are okay to be clear */
-}
-#endif
 
 static int zt_get_index(struct ast_channel *ast, struct zt_pvt *p, int nullok)
 {
@@ -3449,6 +3423,11 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		tmp->pvt->indicate = zt_indicate;
 		tmp->pvt->fixup = zt_fixup;
 		tmp->pvt->setoption = zt_setoption;
+		if ((i->sig == SIG_FXOKS) || (i->sig == SIG_FXOGS) || (i->sig == SIG_FXOLS)) {
+			/* Only FXO signalled stuff can be picked up */
+			tmp->callgroup = i->callgroup;
+			tmp->pickupgroup = i->pickupgroup;
+		}
 		if (strlen(i->language))
 			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
 		if (strlen(i->musicclass))
@@ -3814,46 +3793,34 @@ static void *ss_thread(void *data)
 				memset(exten, 0, sizeof(exten));
 				timeout = firstdigittimeout;
 					
-			} else if (!strcmp(exten,"*8#")){
+			} else if (!strcmp(exten,ast_pickup_ext())) {
 				/* Scan all channels and see if any there
 				 * ringing channqels with that have call groups
 				 * that equal this channels pickup group  
 				 */
-				struct zt_pvt *chan_pvt=iflist;
-				while(chan_pvt!=NULL){
-					if((p!=chan_pvt) &&
-					  (p->pickupgroup & chan_pvt->callgroup) &&
-					  (chan_pvt->owner && (chan_pvt->owner->_state==AST_STATE_RING || chan_pvt->owner->_state == AST_STATE_RINGING)) &&
-					  chan_pvt->dialing
-					  ){
-					  	if (index == SUB_REAL) {
-						  	if (p->subs[SUB_THREEWAY].owner) {
-								/* If you make a threeway call and the *8# a call, it should actually 
-								   look like a callwait */
-								alloc_sub(p, SUB_CALLWAIT);
-							  	swap_subs(p, SUB_CALLWAIT, SUB_THREEWAY);
-								unalloc_sub(p, SUB_THREEWAY);
-							}
-							/* Switch us from Third call to Call Wait */
-							ast_log(LOG_DEBUG, "Call pickup on chan %s\n",chan_pvt->owner->name);
-							p->subs[index].needanswer=1;
-							zt_enable_ec(p);
-							if(ast_channel_masquerade(chan_pvt->owner,p->owner))
-								printf("Error Masquerade failed on call-pickup\n");
-							ast_hangup(p->owner);
-						} else {
-							ast_log(LOG_WARNING, "Huh?  Got *8# on call not on real\n");
-							ast_hangup(p->owner);
-						}
-						return NULL;
+			  	if (index == SUB_REAL) {
+					/* Switch us from Third call to Call Wait */
+				  	if (p->subs[SUB_THREEWAY].owner) {
+						/* If you make a threeway call and the *8# a call, it should actually 
+						   look like a callwait */
+						alloc_sub(p, SUB_CALLWAIT);	
+					  	swap_subs(p, SUB_CALLWAIT, SUB_THREEWAY);
+						unalloc_sub(p, SUB_THREEWAY);
 					}
-					chan_pvt=chan_pvt->next;
+					zt_enable_ec(p);
+					if (ast_pickup_call(chan)) {
+						ast_log(LOG_DEBUG, "No call pickup possible...\n");
+						res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
+						zt_wait_event(p->subs[index].zfd);
+					}
+					ast_hangup(chan);
+					return NULL;
+				} else {
+					ast_log(LOG_WARNING, "Huh?  Got *8# on call not on real\n");
+					ast_hangup(chan);
+					return NULL;
 				}
-				ast_log(LOG_DEBUG, "No call pickup possible...\n");
-				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
-				zt_wait_event(p->subs[index].zfd);
-				ast_hangup(chan);
-				return NULL;
+				
 			} else if (!p->hidecallerid && !strcmp(exten, "*67")) {
 				if (option_verbose > 2) 
 					ast_verbose(VERBOSE_PREFIX_3 "Disabling Caller*ID on %s\n", chan->name);
@@ -5095,42 +5062,6 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 }
 
 
-static int get_group(char *s)
-{
-	char *copy;
-	char *piece;
-	char *c=NULL;
-	int start=0, finish=0,x;
-	int group = 0;
-	copy = strdup(s);
-	if (!copy) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return 0;
-	}
-	c = copy;
-	piece = strsep(&c, ",");
-	while(piece) {
-		if (sscanf(piece, "%d-%d", &start, &finish) == 2) {
-			/* Range */
-		} else if (sscanf(piece, "%d", &start)) {
-			/* Just one */
-			finish = start;
-		} else {
-			ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'.  Using '0'\n", s,piece);
-			return 0;
-		}
-		piece = strsep(&c, ",");
-		for (x=start;x<=finish;x++) {
-			if ((x > 31) || (x < 0)) {
-				ast_log(LOG_WARNING, "Ignoring invalid group %d\n", x);
-			} else
-				group |= (1 << x);
-		}
-	}
-	free(copy);
-	return group;
-}
-
 #ifdef ZAPATA_PRI
 
 static int pri_find_empty_chan(struct zt_pri *pri)
@@ -6283,11 +6214,11 @@ int load_module()
 		} else if (!strcasecmp(v->name, "stripmsd")) {
 			stripmsd = atoi(v->value);
 		} else if (!strcasecmp(v->name, "group")) {
-			cur_group = get_group(v->value);
+			cur_group = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "callgroup")) {
-			cur_callergroup = get_group(v->value);
+			cur_callergroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "pickupgroup")) {
-			cur_pickupgroup = get_group(v->value);
+			cur_pickupgroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "immediate")) {
 			immediate = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "rxgain")) {
