@@ -4,9 +4,9 @@
  * Application convenience functions, designed to give consistent
  * look and feel to asterisk apps.
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -56,6 +56,17 @@ int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, in
 
 //! Stream a file with fast forward, pause, reverse.
 int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char *rev, char *stop, char *pause, int skipms);
+
+//! Play a stream and wait for a digit, returning the digit that was pressed
+int ast_play_and_wait(struct ast_channel *chan, char *fn);
+
+//! Record a file for a max amount of time, in a given list of formats separated by '|', outputting the duration of the recording, and with a maximum
+//  permitted silence time of 'maxsilence' under 'silencethreshold' or use '-1' for either or both parameters for defaults.
+int ast_play_and_record(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int *duration, int silencethreshold, int maxsilence);
+
+//! Record a message and prepend the message to the given record file after playing the optional playfile (or a beep), storing the duration in 'duration' and with a maximum
+//  permitted silence time of 'maxsilence' under 'silencethreshold' or use '-1' for either or both parameters for defaults.
+int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
