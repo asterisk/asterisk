@@ -3429,7 +3429,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 
 	/* Add tag *unless* this is a CANCEL, in which case we need to send it exactly
 	   as our original request, including tag (or presumably lack thereof) */
-	if (!strstr(ot, "tag=") && sipmethod == SIP_CANCEL) {
+	if (!strstr(ot, "tag=") && sipmethod != SIP_CANCEL) {
 		/* Add the proper tag if we don't have it already.  If they have specified
 		   their tag, use it.  Otherwise, use our own tag */
 		if (ast_test_flag(p, SIP_OUTGOING) && !ast_strlen_zero(p->theirtag))
