@@ -28,9 +28,13 @@ static char *app = "Playback";
 static char *synopsis = "Play a file";
 
 static char *descrip = 
-	"Playback(filename): Plays back a given filename (do not put extension).\n"
-	"Returns -1 if the channel was hung up, or if the file does not exist.\n"
-	"Returns 0 otherwise.\n";
+"  Playback(filename[|option]):  Plays  back  a  given  filename (do not put\n"
+"extension). Options may also be  included following a pipe symbol. The only\n"
+"defined option at this time is 'skip',  which  causes  the  playback of the\n"
+"message to  be  skipped  if  the  channel is not in the 'up' state (i.e. it\n"
+"hasn't been  answered  yet. If 'skip' is not specified, the channel will be\n"
+"answered before the sound is played. Returns -1 if the channel was hung up,\n"
+"or if the file does not exist. Returns 0 otherwise.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -40,16 +44,31 @@ static int playback_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
-	if (!data) {
+	char tmp[256];
+	char *options;
+	int option_skip=0;
+	if (!data || !strlen((char *)data)) {
 		ast_log(LOG_WARNING, "Playback requires an argument (filename)\n");
 		return -1;
 	}
+	strncpy(tmp, (char *)data, sizeof(tmp));
+	strtok(tmp, "|");
+	options = strtok(NULL, "|");
+	if (options && !strcasecmp(options, "skip"))
+		option_skip = 1;
 	LOCAL_USER_ADD(u);
-	if (chan->state != AST_STATE_UP)
-		res = ast_answer(chan);
+	if (chan->state != AST_STATE_UP) {
+		if (option_skip) {
+			/* At the user's option, skip if the line is not up */
+			LOCAL_USER_REMOVE(u);
+			return 0;
+		} else
+			/* Otherwise answer */
+			res = ast_answer(chan);
+	}
 	if (!res) {
 		ast_stopstream(chan);
-		res = ast_streamfile(chan, (char *)data, chan->language);
+		res = ast_streamfile(chan, tmp, chan->language);
 		if (!res) 
 			res = ast_waitstream(chan, "");
 		else
