@@ -608,7 +608,7 @@ static void get_callerid_ast(struct vpb_pvt *p)
 			if (vrc != VPB_OK)
 				ast_log(LOG_ERROR, "%s: Caller ID couldnt read audio buffer!\n",p->dev);
 			rc = callerid_feed(cs,(unsigned char *)buf,sizeof(buf),AST_FORMAT_ULAW);
-			vpb_wave_write(ws,(char*)buf,sizeof(buf));
+/*			vpb_wave_write(ws,(char*)buf,sizeof(buf)); */
 			sam_count+=sizeof(buf);
 			if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collecting Caller ID samples [%d][%d]...\n",sam_count,rc);
 		}
