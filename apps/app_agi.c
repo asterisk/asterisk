@@ -193,6 +193,9 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 	fdprintf(fd, "agi_priority: %d\n", chan->priority);
 	fdprintf(fd, "agi_enhanced: %s\n", enhanced ? "1.0" : "0.0");
 
+    /* User information */
+    fdprintf(fd, "agi_accountcode: %s\n", chan->accountcode ? chan->accountcode : "");
+    
 	/* End with empty return */
 	fdprintf(fd, "\n");
 }
