@@ -278,7 +278,7 @@ static int copy(const char *infile, const char *outfile)
 	return 0;
 }
 
-static char *build_filename(const const char *filename, const char *ext)
+static char *build_filename(const char *filename, const char *ext)
 {
 	char *fn;
 	int fnsize = 0;
@@ -297,7 +297,7 @@ static char *build_filename(const const char *filename, const char *ext)
 	
 }
 
-static int exts_compare(const char *exts, const const char *type)
+static int exts_compare(const char *exts, const char *type)
 {
 	char *stringp = NULL, *ext;
 	char tmp[256];
