@@ -216,10 +216,13 @@ static int careful_write(int fd, unsigned char *data, int len)
 	return 0;
 }
 
-static void conf_play(struct ast_conference *conf, int sound)
+static void conf_play(struct ast_channel *chan, struct ast_conference *conf, int sound)
 {
 	unsigned char *data;
 	int len;
+	int res=-1;
+	if (!chan->_softhangup)
+		res = ast_autoservice_start(chan);
 	ast_mutex_lock(&conflock);
 	switch(sound) {
 	case ENTER:
@@ -237,6 +240,8 @@ static void conf_play(struct ast_conference *conf, int sound)
 	if (data) 
 		careful_write(conf->fd, data, len);
 	ast_mutex_unlock(&conflock);
+	if (!res) 
+		ast_autoservice_stop(chan);
 }
 
 static struct ast_conference *build_conf(char *confno, char *pin, int make, int dynamic)
@@ -789,7 +794,7 @@ zapretry:
 	if (!firstpass && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN)) {
 		firstpass = 1;
 		if (!(confflags & CONFFLAG_QUIET))
-			conf_play(conf, ENTER);
+			conf_play(chan, conf, ENTER);
 	}
 	ast_mutex_unlock(&conflock);
 	if (confflags & CONFFLAG_AGI) {
@@ -1105,7 +1110,7 @@ zapretry:
 
 	ast_mutex_lock(&conflock);
 	if (!(confflags & CONFFLAG_QUIET) && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN))
-		conf_play(conf, LEAVE);
+		conf_play(chan, conf, LEAVE);
 
 	if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER)) {
 		if (ast_fileexists(user->namerecloc, NULL, NULL)) {
