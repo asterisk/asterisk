@@ -22,13 +22,13 @@
 struct tdd_state;
 typedef struct tdd_state TDDSTATE;
 
-//! CallerID Initialization
+/*! CallerID Initialization */
 /*!
  * Initializes the TDD system.  Mostly stuff for inverse FFT
  */
 extern void tdd_init(void);
 
-//! Generates a CallerID FSK stream in ulaw format suitable for transmission.
+/*! Generates a CallerID FSK stream in ulaw format suitable for transmission. */
 /*!
  * \param buf Buffer to use. This needs to be large enough to accomodate all the generated samples.
  * \param string This is the string to send.
@@ -37,14 +37,14 @@ extern void tdd_init(void);
 */
 extern int tdd_generate(struct tdd_state *tdd, unsigned char *buf, char *string);
 
-//! Create a TDD state machine
+/*! Create a TDD state machine */
 /*!
  * This function returns a malloc'd instance of the tdd_state data structure.
  * Returns a pointer to a malloc'd tdd_state structure, or NULL on error.
  */
 extern struct tdd_state *tdd_new(void);
 
-//! Read samples into the state machine, and return character (if any).
+/*! Read samples into the state machine, and return character (if any). */
 /*!
  * \param tdd Which state machine to act upon
  * \param buffer containing your samples
@@ -56,14 +56,14 @@ extern struct tdd_state *tdd_new(void);
  */
 extern int tdd_feed(struct tdd_state *tdd, unsigned char *ubuf, int samples);
 
-//! Free a TDD state machine
+/*! Free a TDD state machine */
 /*!
  * \param tdd This is the tdd_state state machine to free
  * This function frees tdd_state tdd.
  */
 extern void tdd_free(struct tdd_state *tdd);
 
-//! Generate Echo Canceller diable tone (2100HZ)
+/*! Generate Echo Canceller diable tone (2100HZ) */
 /*!
  * \param outbuf This is the buffer to receive the tone data
  * \param len This is the length (in samples) of the tone data to generate

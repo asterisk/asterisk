@@ -1221,7 +1221,7 @@ char ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd
 			ast_frfree(f);
 		}
 	}
-	return 0; // Time is up
+	return 0; /* Time is up */
 }
 
 struct ast_frame *ast_read(struct ast_channel *chan)

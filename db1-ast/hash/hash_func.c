@@ -46,9 +46,9 @@ static char sccsid[] = "@(#)hash_func.c	8.2 (Berkeley) 2/21/94";
 #include "extern.h"
 
 /* only one of these can be defined */
-//#define HASH1_EJB 1
-//#define HASH2_PHONG 1
-//#define HASH3_SDBM 1
+/* #define HASH1_EJB 1 */
+/* #define HASH2_PHONG 1 */
+/* #define HASH3_SDBM 1 */
 #define HASH4_TOREK 1
 
 static u_int32_t hashfunc __P((const void *, size_t));

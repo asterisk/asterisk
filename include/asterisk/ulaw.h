@@ -14,18 +14,18 @@
 #ifndef _ASTERISK_ULAW_H
 #define _ASTERISK_ULAW_H
 
-//! Init the ulaw conversion stuff
+/*! Init the ulaw conversion stuff */
 /*!
  * To init the ulaw to slinear conversion stuff, this needs to be run.
  */
 extern void ast_ulaw_init(void);
 
-//! converts signed linear to mulaw
+/*! converts signed linear to mulaw */
 /*!
   */
 extern unsigned char __ast_lin2mu[16384];
 
-//! help
+/*! help */
 extern short __ast_mulaw[256];
 
 #define AST_LIN2MU(a) (__ast_lin2mu[((unsigned short)(a)) >> 2])

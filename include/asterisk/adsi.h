@@ -110,8 +110,8 @@
 #define ADSI_DIR_FROM_LEFT (0)
 #define ADSI_DIR_FROM_RIGHT (1)
 
-//! Perform Asterisk ADSI initialization (for channel drivers that want
-//   to support ADSI when the handset is first lifted) */
+/*! Perform Asterisk ADSI initialization (for channel drivers that want */
+/*    to support ADSI when the handset is first lifted) */ 
 /*! 
  * \param chan Channel to initialize for ADSI (if supported)
  * 
@@ -124,9 +124,9 @@ extern int adsi_begin_download(struct ast_channel *chan, char *service, char *fd
 
 extern int adsi_end_download(struct ast_channel *chan);
 
-//! Restore ADSI initialization (for applications that play with ADSI
-//  and want to restore it to normal.  If you touch "INFO" then you
-//  have to use the adsi_channel_init again instead.
+/*! Restore ADSI initialization (for applications that play with ADSI */
+/*   and want to restore it to normal.  If you touch "INFO" then you */
+/*   have to use the adsi_channel_init again instead. */
 /*!
  * \param chan Channel to restore
  * 
@@ -135,7 +135,7 @@ extern int adsi_end_download(struct ast_channel *chan);
  */
 extern int adsi_channel_restore(struct ast_channel *chan);
 
-//! Display some stuff on the screen
+/*! Display some stuff on the screen */
 /*!
  * \param chan Channel to display on
  * \param lines NULL-terminated list of things to print (no more than 4 recommended)
@@ -147,8 +147,8 @@ extern int adsi_channel_restore(struct ast_channel *chan);
  */
 extern int adsi_print(struct ast_channel *chan, char **lines, int *align, int voice);
 
-//! Check if scripts for a given app are already loaded.  Version may be -1
-//  if any version is okay, or 0-255 for a specific version.
+/*! Check if scripts for a given app are already loaded.  Version may be -1 */
+/*   if any version is okay, or 0-255 for a specific version. */
 /*!
  * \param chan Channel to test for loaded app
  * \param app Four character app name (must be unique to your application)
@@ -165,7 +165,7 @@ extern int adsi_unload_session(struct ast_channel *chan);
 extern int adsi_transmit_messages(struct ast_channel *chan, unsigned char **msg, int *msglen, int *msgtype);
 extern int adsi_transmit_message(struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype);
 
-//! Read some encoded DTMF data.  
+/*! Read some encoded DTMF data.   */
 /*!
  * Returns number of bytes received
  */
@@ -173,7 +173,7 @@ extern int adsi_read_encoded_dtmf(struct ast_channel *chan, unsigned char *buf, 
 
 /* ADSI Layer 3 creation functions */
 
-//! Connects an ADSI Display Session */
+/*! Connects an ADSI Display Session */ 
 /*!
  * \param buf Character buffer to create parameter in (must have at least 256 free)
  * \param fdn Optional 4 byte Feature Download Number (for loading soft keys)
@@ -185,14 +185,14 @@ extern int adsi_read_encoded_dtmf(struct ast_channel *chan, unsigned char *buf, 
 
 extern int adsi_connect_session(unsigned char *buf, unsigned char *fdn, int ver);
 
-//! Build Query CPE ID of equipment */
+/*! Build Query CPE ID of equipment */ 
 /*!
  *  Returns number of bytes added to message
  */
 extern int adsi_query_cpeid(unsigned char *buf);
 extern int adsi_query_cpeinfo(unsigned char *buf);
 
-//! Get CPE ID from an attached ADSI compatible CPE.
+/*! Get CPE ID from an attached ADSI compatible CPE. */
 /*!
  * Returns 1 on success, storing 4 bytes of CPE ID at buf
  * or -1 on hangup, or 0 if there was no hangup but it failed to find the
@@ -202,7 +202,7 @@ extern int adsi_get_cpeid(struct ast_channel *chan, unsigned char *cpeid, int vo
 
 extern int adsi_get_cpeinfo(struct ast_channel *chan, int *width, int *height, int *buttons, int voice);
 
-//! Begin an ADSI script download */
+/*! Begin an ADSI script download */ 
 /*!
  * \param buf Character buffer to create parameter in (must have at least 256 free)
  * \param service, a 1-18 byte name of the feature
@@ -216,7 +216,7 @@ extern int adsi_get_cpeinfo(struct ast_channel *chan, int *width, int *height, i
 
 extern int adsi_download_connect(unsigned char *buf, unsigned char *service, unsigned char *fdn, unsigned char *sec, int ver);
 
-//! Disconnects a running session
+/*! Disconnects a running session */
 /*!
  * \param buf Character buffer to create parameter in (must have at least 256 free)
  *
@@ -225,7 +225,7 @@ extern int adsi_download_connect(unsigned char *buf, unsigned char *service, uns
  */
 extern int adsi_disconnect_session(unsigned char *buf);
 
-//! Disconnects (and hopefully saves) a downloaded script
+/*! Disconnects (and hopefully saves) a downloaded script */
 /*!
  * \param buf Character buffer to create parameter in (must have at least 256 free)
  *
@@ -234,7 +234,7 @@ extern int adsi_disconnect_session(unsigned char *buf);
  */
 extern int adsi_download_disconnect(unsigned char *buf);
 
-//! Puts CPE in data mode...
+/*! Puts CPE in data mode... */
 /*!
  * \param buf Character buffer to create parameter in (must have at least 256 free)
  *
@@ -245,7 +245,7 @@ extern int adsi_data_mode(unsigned char *buf);
 extern int adsi_clear_soft_keys(unsigned char *buf);
 extern int adsi_clear_screen(unsigned char *buf);
 
-//! Puts CPE in voice mode...
+/*! Puts CPE in voice mode... */
 /*!
  * \param buf Character buffer to create parameter in (must have at least 256 free)
  * \param when (a time in seconds) to make the switch
@@ -255,14 +255,14 @@ extern int adsi_clear_screen(unsigned char *buf);
  */
 extern int adsi_voice_mode(unsigned char *buf, int when);
 
-//! Returns non-zero if Channel does or might support ADSI
+/*! Returns non-zero if Channel does or might support ADSI */
 /*!
  * \param chan Channel to check
  *
  */
 extern int adsi_available(struct ast_channel *chan);
 
-//! Loads a line of info into the display */
+/*! Loads a line of info into the display */ 
 /*!
  * \param buf Character buffer to create parameter in (must have at least 256 free)
  * \param page Page to load (ADSI_COMM_PAGE or ADSI_INFO_PAGE)
@@ -278,7 +278,7 @@ extern int adsi_available(struct ast_channel *chan);
 
 extern int adsi_display(unsigned char *buf, int page, int line, int just, int wrap, unsigned char *col1, unsigned char *col2);
 
-//! Sets the current line and page */
+/*! Sets the current line and page */ 
 /*!
  * \param buf Character buffer to create parameter in (must have at least 256 free)
  * \param page Which page (ADSI_COMM_PAGE or ADSI_INFO_PAGE)
@@ -290,7 +290,7 @@ extern int adsi_display(unsigned char *buf, int page, int line, int just, int wr
 
 extern int adsi_set_line(unsigned char *buf, int page, int line);
 
-//! Creates "load soft key" parameters
+/*! Creates "load soft key" parameters */
 /*! 
  * \param buf Character buffer to create parameter in (must have at least 256 free)
  * \param key Key code from 2 to 33, for which key we are loading
@@ -304,7 +304,7 @@ extern int adsi_set_line(unsigned char *buf, int page, int line);
  */
 extern int adsi_load_soft_key(unsigned char *buf, int key, unsigned char *llabel, unsigned char *slabel, unsigned char *ret, int data);
 
-//! Set which soft keys should be displayed
+/*! Set which soft keys should be displayed */
 /*!
  * \param buf Character buffer to create parameter in (must have at least 256 free)
  * \param keys Array of 8 unsigned chars with the key numbers, may be OR'd with ADSI_KEY_HILITE
@@ -315,7 +315,7 @@ extern int adsi_load_soft_key(unsigned char *buf, int key, unsigned char *llabel
  */
 extern int adsi_set_keys(unsigned char *buf, unsigned char *keys);
 
-//! Set input information
+/*! Set input information */
 /*!
  * \param buf Character buffer to create parameter in (must have at least 256 free)
  * \param page Which page to input on (ADSI_COMM_PAGE or ADSI_INFO_PAGE)
@@ -329,7 +329,7 @@ extern int adsi_set_keys(unsigned char *buf, unsigned char *keys);
  */
 extern int adsi_input_control(unsigned char *buf, int page, int line, int display, int format, int just);
 
-//! Set input format
+/*! Set input format */
 /*!
  * \param buf Character buffer to create parameter in (must have at least 256 free)
  * \param num Which format we are setting

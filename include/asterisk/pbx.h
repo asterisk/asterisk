@@ -23,24 +23,24 @@ extern "C" {
 #define AST_PBX_KEEP    0
 #define AST_PBX_REPLACE 1
 
-//! Max length of an application
+/*! Max length of an application */
 #define AST_MAX_APP	32
 
-//! Special return values from applications to the PBX
+/*! Special return values from applications to the PBX */
 #define AST_PBX_KEEPALIVE	10		/* Destroy the thread, but don't hang up the channel */
 #define AST_PBX_NO_HANGUP_PEER       11
 
-//! Special Priority for an hint
+/*! Special Priority for an hint */
 #define PRIORITY_HINT	-1
 
-//! Extension states
-//! No device INUSE or BUSY 
+/*! Extension states */
+/*! No device INUSE or BUSY  */
 #define AST_EXTENSION_NOT_INUSE		0
-//! One or more devices INUSE
+/*! One or more devices INUSE */
 #define AST_EXTENSION_INUSE		1
-//! All devices BUSY
+/*! All devices BUSY */
 #define AST_EXTENSION_BUSY		2
-//! All devices UNAVAILABLE/UNREGISTERED
+/*! All devices UNAVAILABLE/UNREGISTERED */
 #define AST_EXTENSION_UNAVAILABLE 	3
 
 struct ast_context;
@@ -53,7 +53,7 @@ typedef int (*ast_state_cb_type)(char *context, char* id, int state, void *data)
 
 typedef int (*ast_devstate_cb_type)(const char *dev, int state, void *data);
 
-//! Data structure associated with an asterisk switch
+/*! Data structure associated with an asterisk switch */
 struct ast_switch {
 	/*! NULL */
 	struct ast_switch *next;	
@@ -89,7 +89,7 @@ struct ast_pbx {
 };
 
 
-//! Register an alternative switch
+/*! Register an alternative switch */
 /*!
  * \param sw switch to register
  * This function registers a populated ast_switch structure with the
@@ -98,7 +98,7 @@ struct ast_pbx {
  */
 extern int ast_register_switch(struct ast_switch *sw);
 
-//! Unregister an alternative switch
+/*! Unregister an alternative switch */
 /*!
  * \param sw switch to unregister
  * Unregisters a switch from asterisk.
@@ -106,7 +106,7 @@ extern int ast_register_switch(struct ast_switch *sw);
  */
 extern void ast_unregister_switch(struct ast_switch *sw);
 
-//! Look up an application
+/*! Look up an application */
 /*!
  * \param app name of the app
  * This function searches for the ast_app structure within
@@ -116,7 +116,7 @@ extern void ast_unregister_switch(struct ast_switch *sw);
  */
 extern struct ast_app *pbx_findapp(const char *app);
 
-//! executes an application
+/*! executes an application */
 /*!
  * \param c channel to execute on
  * \param app which app to execute
@@ -129,7 +129,7 @@ extern struct ast_app *pbx_findapp(const char *app);
  */
 int pbx_exec(struct ast_channel *c, struct ast_app *app, void *data, int newstack);
 
-//! Register a new context
+/*! Register a new context */
 /*!
  * \param extcontexts pointer to the ast_context structure pointer
  * \param name name of the new context
@@ -141,14 +141,14 @@ int pbx_exec(struct ast_channel *c, struct ast_app *app, void *data, int newstac
  */
 struct ast_context *ast_context_create(struct ast_context **extcontexts, const char *name, const char *registrar);
 
-//! Merge the temporary contexts into a global contexts list and delete from the global list the ones that are being added
+/*! Merge the temporary contexts into a global contexts list and delete from the global list the ones that are being added */
 /*!
  * \param extcontexts pointer to the ast_context structure pointer
  * \param registar of the context; if it's set the routine will delete all contexts that belong to that registrar; if NULL only the contexts that are specified in extcontexts
  */
 void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char *registrar);
 
-//! Destroy a context (matches the specified context (or ANY context if NULL)
+/*! Destroy a context (matches the specified context (or ANY context if NULL) */
 /*!
  * \param con context to destroy
  * \param registrar who registered it
@@ -158,7 +158,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
  */
 void ast_context_destroy(struct ast_context *con, const char *registrar);
 
-//! Find a context
+/*! Find a context */
 /*!
  * \param name name of the context to find
  * Will search for the context with the given name.
@@ -166,7 +166,7 @@ void ast_context_destroy(struct ast_context *con, const char *registrar);
  */
 struct ast_context *ast_context_find(const char *name);
 
-//! Create a new thread and start the PBX (or whatever)
+/*! Create a new thread and start the PBX (or whatever) */
 /*!
  * \param c channel to start the pbx on
  * Starts a pbx thread on a given channel
@@ -174,7 +174,7 @@ struct ast_context *ast_context_find(const char *name);
  */
 int ast_pbx_start(struct ast_channel *c);
 
-//! Execute the PBX in the current thread
+/*! Execute the PBX in the current thread */
 /*!
  * \param c channel to run the pbx on
  * This executes the PBX on a given channel.  It allocates a new
@@ -199,7 +199,7 @@ int ast_pbx_run(struct ast_channel *c);
 int ast_add_extension(const char *context, int replace, const char *extension, int priority, const char *label, const char *callerid,
 	const char *application, void *data, void (*datad)(void *), const char *registrar);
 
-//! Add an extension to an extension context, this time with an ast_context *.  CallerID is a pattern to match on callerid, or NULL to not care about callerid
+/*! Add an extension to an extension context, this time with an ast_context *.  CallerID is a pattern to match on callerid, or NULL to not care about callerid */
 /*! 
  * For details about the arguements, check ast_add_extension()
  */
@@ -208,7 +208,7 @@ int ast_add_extension2(struct ast_context *con,
 					  const char *application, void *data, void (*datad)(void *),
 					  const char *registrar);
 
-//! Add an application.  The function 'execute' should return non-zero if the line needs to be hung up. 
+/*! Add an application.  The function 'execute' should return non-zero if the line needs to be hung up.  */
 /*!
   \param app Short name of the application
   \param execute a function callback to execute the application
@@ -225,7 +225,7 @@ int ast_add_extension2(struct ast_context *con,
 int ast_register_application(const char *app, int (*execute)(struct ast_channel *, void *),
 			     const char *synopsis, const char *description);
 
-//! Remove an application
+/*! Remove an application */
 /*!
  * \param app name of the application (does not have to be the same string as the one that was registered)
  * This unregisters an application from asterisk's internal registration mechanisms.
@@ -233,7 +233,7 @@ int ast_register_application(const char *app, int (*execute)(struct ast_channel 
  */
 int ast_unregister_application(const char *app);
 
-//! Uses hint and devicestate callback to get the state of an extension
+/*! Uses hint and devicestate callback to get the state of an extension */
 /*!
  * \param c this is not important
  * \param context which context to look in
@@ -242,7 +242,7 @@ int ast_unregister_application(const char *app);
  */
 int ast_extension_state(struct ast_channel *c, char *context, char *exten);
 
-//! Tells Asterisk the State for Device is changed
+/*! Tells Asterisk the State for Device is changed */
 /*!
  * \param fmt devicename like a dialstring with format parameters
  * Asterisk polls the new extensionstates and calls the registered
@@ -252,7 +252,7 @@ int ast_extension_state(struct ast_channel *c, char *context, char *exten);
 int ast_device_state_changed(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
-//! Registers a state change callback
+/*! Registers a state change callback */
 /*!
  * \param context which context to look in
  * \param exten which extension to get state
@@ -264,7 +264,7 @@ int ast_device_state_changed(const char *fmt, ...)
 int ast_extension_state_add(const char *context, const char *exten, 
 			    ast_state_cb_type callback, void *data);
 
-//! Registers a device state change callback
+/*! Registers a device state change callback */
 /*!
  * \param data to pass to callback
  * The callback is called if the state for extension is changed
@@ -273,7 +273,7 @@ int ast_extension_state_add(const char *context, const char *exten,
 int ast_devstate_add(ast_devstate_cb_type callback, void *data);
 void ast_devstate_del(ast_devstate_cb_type callback, void *data);
 
-//! Deletes a registered state change callback by ID
+/*! Deletes a registered state change callback by ID */
 /*!
  * \param id of the callback to delete
  * Removes the callback from list of callbacks
@@ -281,7 +281,7 @@ void ast_devstate_del(ast_devstate_cb_type callback, void *data);
  */
 int ast_extension_state_del(int id, ast_state_cb_type callback);
 
-//! If an extension exists, return non-zero
+/*! If an extension exists, return non-zero */
 /*!
  * \param hint buffer for hint
  * \param maxlen size of hint buffer
@@ -294,8 +294,8 @@ int ast_extension_state_del(int id, ast_state_cb_type callback);
  */
 int ast_get_hint(char *hint, int maxlen, struct ast_channel *c, const char *context, const char *exten);
 
-//! If an extension exists, return non-zero
-// work
+/*! If an extension exists, return non-zero */
+/*  work */
 /*!
  * \param c this is not important
  * \param context which context to look in
@@ -307,8 +307,8 @@ int ast_get_hint(char *hint, int maxlen, struct ast_channel *c, const char *cont
  */
 int ast_exists_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid);
 
-//! If an extension exists, return non-zero
-// work
+/*! If an extension exists, return non-zero */
+/*  work */
 /*!
  * \param c this is not important
  * \param context which context to look in
@@ -321,7 +321,7 @@ int ast_findlabel_extension(struct ast_channel *c, const char *context, const ch
 
 int ast_findlabel_extension2(struct ast_channel *c, struct ast_context *con, const char *exten, const char *label, const char *callerid);
 
-//! Looks for a valid matching extension
+/*! Looks for a valid matching extension */
 /*!
   \param c not really important
   \param context context to serach within
@@ -334,7 +334,7 @@ int ast_findlabel_extension2(struct ast_channel *c, struct ast_context *con, con
 */
 int ast_canmatch_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid);
 
-//! Looks to see if adding anything to this extension might match something. (exists ^ canmatch)
+/*! Looks to see if adding anything to this extension might match something. (exists ^ canmatch) */
 /*!
   \param c not really important
   \param context context to serach within
@@ -348,7 +348,7 @@ int ast_canmatch_extension(struct ast_channel *c, const char *context, const cha
 */
 int ast_matchmore_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid);
 
-//! Determine if a given extension matches a given pattern (in NXX format)
+/*! Determine if a given extension matches a given pattern (in NXX format) */
 /*!
  * \param pattern pattern to match
  * \param extension extension to check against the pattern.
@@ -357,7 +357,7 @@ int ast_matchmore_extension(struct ast_channel *c, const char *context, const ch
  */
 int ast_extension_match(const char *pattern, const char *extension);
 int ast_extension_close(const char *pattern, const char *data, int needmore);
-//! Launch a new extension (i.e. new stack)
+/*! Launch a new extension (i.e. new stack) */
 /*!
  * \param c not important
  * \param context which context to generate the extension within
@@ -369,7 +369,7 @@ int ast_extension_close(const char *pattern, const char *data, int needmore);
  */
 int ast_spawn_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid);
 
-//! Execute an extension.
+/*! Execute an extension. */
 /*!
   \param c channel to execute upon
   \param context which context extension is in
@@ -381,7 +381,7 @@ int ast_spawn_extension(struct ast_channel *c, const char *context, const char *
 */
 int ast_exec_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid);
 
-//! Add an include
+/*! Add an include */
 /*!
   \param context context to add include to
   \param include new include to add
@@ -391,7 +391,7 @@ int ast_exec_extension(struct ast_channel *c, const char *context, const char *e
 */
 int ast_context_add_include(const char *context, const char *include, const char *registrar);
 
-//! Add an include
+/*! Add an include */
 /*!
   \param con context to add the include to
   \param include include to add
@@ -401,25 +401,25 @@ int ast_context_add_include(const char *context, const char *include, const char
 */
 int ast_context_add_include2(struct ast_context *con, const char *include, const char *registrar);
 
-//! Removes an include
+/*! Removes an include */
 /*!
  * See add_include
  */
 int ast_context_remove_include(const char *context, const char *include,const  char *registrar);
-//! Removes an include by an ast_context structure
+/*! Removes an include by an ast_context structure */
 /*!
  * See add_include2
  */
 int ast_context_remove_include2(struct ast_context *con, const char *include, const char *registrar);
 
-//! Verifies includes in an ast_contect structure
+/*! Verifies includes in an ast_contect structure */
 /*!
  * \param con context in which to verify the includes
  * Returns 0 if no problems found, -1 if there were any missing context
  */
 int ast_context_verify_includes(struct ast_context *con);
 	  
-//! Add a switch
+/*! Add a switch */
 /*!
  * \param context context to which to add the switch
  * \param sw switch to add
@@ -430,13 +430,13 @@ int ast_context_verify_includes(struct ast_context *con);
  * It returns 0 on success, -1 on failure
  */
 int ast_context_add_switch(const char *context, const char *sw, const char *data, int eval, const char *registrar);
-//! Adds a switch (first param is a ast_context)
+/*! Adds a switch (first param is a ast_context) */
 /*!
  * See ast_context_add_switch()
  */
 int ast_context_add_switch2(struct ast_context *con, const char *sw, const char *data, int eval, const char *registrar);
 
-//! Remove a switch
+/*! Remove a switch */
 /*!
  * Removes a switch with the given parameters
  * Returns 0 on success, -1 on failure
@@ -444,7 +444,7 @@ int ast_context_add_switch2(struct ast_context *con, const char *sw, const char 
 int ast_context_remove_switch(const char *context, const char *sw, const char *data, const char *registrar);
 int ast_context_remove_switch2(struct ast_context *con, const char *sw, const char *data, const char *registrar);
 
-//! Simply remove extension from context
+/*! Simply remove extension from context */
 /*!
  * \param context context to remove extension from
  * \param extension which extension to remove
@@ -458,7 +458,7 @@ int ast_context_remove_extension(const char *context, const char *extension, int
 int ast_context_remove_extension2(struct ast_context *con, const char *extension,
 	int priority, const char *registrar);
 
-//! Add an ignorepat
+/*! Add an ignorepat */
 /*!
  * \param context which context to add the ignorpattern to
  * \param ignorpat ignorepattern to set up for the extension
@@ -480,7 +480,7 @@ int ast_context_add_ignorepat2(struct ast_context *con, const char *ignorepat, c
 int ast_context_remove_ignorepat(const char *context, const char *ignorepat, const char *registrar);
 int ast_context_remove_ignorepat2(struct ast_context *con, const char *ignorepat, const char *registrar);
 
-//! Checks to see if a number should be ignored
+/*! Checks to see if a number should be ignored */
 /*!
  * \param context context to search within
  * \param extension to check whether it should be ignored or not
@@ -490,26 +490,26 @@ int ast_context_remove_ignorepat2(struct ast_context *con, const char *ignorepat
 int ast_ignore_pattern(const char *context, const char *pattern);
 
 /* Locking functions for outer modules, especially for completion functions */
-//! Locks the contexts
+/*! Locks the contexts */
 /*! Locks the context list
  * Returns 0 on success, -1 on error
  */
 int ast_lock_contexts(void);
 
-//! Unlocks contexts
+/*! Unlocks contexts */
 /*!
  * Returns 0 on success, -1 on failure
  */
 int ast_unlock_contexts(void);
 
-//! Locks a given context
+/*! Locks a given context */
 /*!
  * \param con context to lock
  * Locks the context.
  * Returns 0 on success, -1 on failure
  */
 int ast_lock_context(struct ast_context *con);
-//! Unlocks the given context
+/*! Unlocks the given context */
 /*!
  * \param con context to unlock
  * Unlocks the given context

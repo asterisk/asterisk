@@ -26,7 +26,7 @@ extern "C" {
 	a; \
 }
 
-//! Used for sending a log message
+/*! Used for sending a log message */
 /*!
  * \param level don't need to worry about it
  * \param file ditto
@@ -43,7 +43,7 @@ extern void ast_log(int level, const char *file, int line, const char *function,
 extern void ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
 	__attribute__ ((format (printf, 5, 6)));
 
-//! Send a verbose message (based on verbose level)
+/*! Send a verbose message (based on verbose level) */
 /*!
  * This works like ast_log, but prints verbose messages to the console depending on verbosity level set.
  * ast_verbose(VERBOSE_PREFIX_3 "Whatever %s is happening\n", "nothing");

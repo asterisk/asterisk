@@ -157,7 +157,7 @@ static int phone_digit(struct ast_channel *ast, char digit)
 	case '#':
 		outdigit = 12;
 		break;
-	case 'f':	//flash
+	case 'f':	/*flash*/
 	case 'F':
 		ioctl(p->fd, IXJCTL_PSTN_SET_STATE, PSTN_ON_HOOK);
 		usleep(320000);
@@ -337,7 +337,7 @@ static int phone_setup(struct ast_channel *ast)
 		ast_log(LOG_WARNING, "Failed to start recording\n");
 		return -1;
 	}
-	//set the DTMF times (the default is too short)
+	/* set the DTMF times (the default is too short) */
 	ioctl(p->fd, PHONE_SET_TONE_ON_TIME, 300);
 	ioctl(p->fd, PHONE_SET_TONE_OFF_TIME, 200);
 	return 0;

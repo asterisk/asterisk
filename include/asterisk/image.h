@@ -14,7 +14,7 @@
 #ifndef _ASTERISK_IMAGE_H
 #define _ASTERISK_IMAGE_H
 
-//! structure associated with registering an image format
+/*! structure associated with registering an image format */
 struct ast_imager {
 	/*! Name */
 	char *name;						
@@ -34,7 +34,7 @@ struct ast_imager {
 	struct ast_imager *next;
 };
 
-//! Check for image support on a channel
+/*! Check for image support on a channel */
 /*! 
  * \param chan channel to check
  * Checks the channel to see if it supports the transmission of images
@@ -42,7 +42,7 @@ struct ast_imager {
  */
 extern int ast_supports_images(struct ast_channel *chan);
 
-//! Sends an image
+/*! Sends an image */
 /*!
  * \param chan channel to send image on
  * \param filename filename of image to send (minus extension)
@@ -51,7 +51,7 @@ extern int ast_supports_images(struct ast_channel *chan);
  */
 extern int ast_send_image(struct ast_channel *chan, char *filename);
 
-//! Make an image
+/*! Make an image */
 /*! 
  * \param filename filename of image to prepare
  * \param preflang preferred language to get the image...?
@@ -61,7 +61,7 @@ extern int ast_send_image(struct ast_channel *chan, char *filename);
  */
 extern struct ast_frame *ast_read_image(char *filename, char *preflang, int format);
 
-//! Register image format
+/*! Register image format */
 /*! 
  * \param imgdrv Populated ast_imager structure with info to register
  * Registers an image format
@@ -69,7 +69,7 @@ extern struct ast_frame *ast_read_image(char *filename, char *preflang, int form
  */
 extern int ast_image_register(struct ast_imager *imgdrv);
 
-//! Unregister an image format
+/*! Unregister an image format */
 /*!
  * \param imgdrv pointer to the ast_imager structure you wish to unregister
  * Unregisters the image format passed in
@@ -77,7 +77,7 @@ extern int ast_image_register(struct ast_imager *imgdrv);
  */
 extern void ast_image_unregister(struct ast_imager *imgdrv);
 
-//! Initialize image stuff
+/*! Initialize image stuff */
 /*!
  * Initializes all the various image stuff.  Basically just registers the cli stuff
  * Returns 0 all the time

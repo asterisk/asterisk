@@ -39,13 +39,13 @@
 struct callerid_state;
 typedef struct callerid_state CIDSTATE;
 
-//! CallerID Initialization
+/*! CallerID Initialization */
 /*!
  * Initializes the callerid system.  Mostly stuff for inverse FFT
  */
 extern void callerid_init(void);
 
-//! Generates a CallerID FSK stream in ulaw format suitable for transmission.
+/*! Generates a CallerID FSK stream in ulaw format suitable for transmission. */
 /*!
  * \param buf Buffer to use. If "buf" is supplied, it will use that buffer instead of allocating its own.  "buf" must be at least 32000 bytes in size of you want to be sure you don't have an overrun.
  * \param number Use NULL for no number or "P" for "private"
@@ -57,7 +57,7 @@ extern void callerid_init(void);
 */
 extern int callerid_generate(unsigned char *buf, char *number, char *name, int flags, int callwaiting, int codec);
 
-//! Create a callerID state machine
+/*! Create a callerID state machine */
 /*!
  * \param cid_signalling Type of signalling in use
  *
@@ -66,7 +66,7 @@ extern int callerid_generate(unsigned char *buf, char *number, char *name, int f
  */
 extern struct callerid_state *callerid_new(int cid_signalling);
 
-//! Read samples into the state machine.
+/*! Read samples into the state machine. */
 /*!
  * \param cid Which state machine to act upon
  * \param buffer containing your samples
@@ -79,7 +79,7 @@ extern struct callerid_state *callerid_new(int cid_signalling);
  */
 extern int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int samples, int codec);
 
-//! Extract info out of callerID state machine.  Flags are listed above
+/*! Extract info out of callerID state machine.  Flags are listed above */
 /*!
  * \param cid Callerid state machine to act upon
  * \param number Pass the address of a pointer-to-char (will contain the phone number)
@@ -94,7 +94,7 @@ extern int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int sa
  */
 void callerid_get(struct callerid_state *cid, char **number, char **name, int *flags);
 
-//! Get and parse DTMF-based callerid 
+/*! Get and parse DTMF-based callerid  */
 /*!
  * \param cidstring The actual transmitted string.
  * \param number The cid number is returned here.
@@ -103,14 +103,14 @@ void callerid_get(struct callerid_state *cid, char **number, char **name, int *f
  */
 void callerid_get_dtmf(char *cidstring, char *number, int *flags);
 
-//! Free a callerID state
+/*! Free a callerID state */
 /*!
  * \param cid This is the callerid_state state machine to free
  * This function frees callerid_state cid.
  */
 extern void callerid_free(struct callerid_state *cid);
 
-//! Generate Caller-ID spill from the "callerid" field of asterisk (in e-mail address like format)
+/*! Generate Caller-ID spill from the "callerid" field of asterisk (in e-mail address like format) */
 /*!
  * \param buf buffer for output samples. See callerid_generate() for details regarding buffer.
  * \param astcid Asterisk format callerid string, taken from the callerid field of asterisk.
@@ -120,16 +120,16 @@ extern void callerid_free(struct callerid_state *cid);
  */
 extern int ast_callerid_generate(unsigned char *buf, char *name, char *number, int codec);
 
-//! Generate message waiting indicator 
+/*! Generate message waiting indicator  */
 extern int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec);
 
-//! Generate Caller-ID spill but in a format suitable for Call Waiting(tm)'s Caller*ID(tm)
+/*! Generate Caller-ID spill but in a format suitable for Call Waiting(tm)'s Caller*ID(tm) */
 /*!
  * See ast_callerid_generate for other details
  */
 extern int ast_callerid_callwaiting_generate(unsigned char *buf, char *name, char *number, int codec);
 
-//! Destructively parse inbuf into name and location (or number)
+/*! Destructively parse inbuf into name and location (or number) */
 /*!
  * \param inbuf buffer of callerid stream (in audio form) to be parsed. Warning, data in buffer is changed.
  * \param name address of a pointer-to-char for the name value of the stream.
@@ -139,7 +139,7 @@ extern int ast_callerid_callwaiting_generate(unsigned char *buf, char *name, cha
  */
 extern int ast_callerid_parse(char *instr, char **name, char **location);
 
-//! Generate a CAS (CPE Alert Signal) tone for 'n' samples
+/*! Generate a CAS (CPE Alert Signal) tone for 'n' samples */
 /*!
  * \param outbuf Allocated buffer for data.  Must be at least 2400 bytes unless no SAS is desired
  * \param sas Non-zero if CAS should be preceeded by SAS
@@ -149,14 +149,14 @@ extern int ast_callerid_parse(char *instr, char **name, char **location);
  */
 extern int ast_gen_cas(unsigned char *outbuf, int sas, int len, int codec);
 
-//! Shrink a phone number in place to just digits (more accurately it just removes ()'s, .'s, and -'s...
+/*! Shrink a phone number in place to just digits (more accurately it just removes ()'s, .'s, and -'s... */
 /*!
  * \param n The number to be stripped/shrunk
  * Returns nothing important
  */
 extern void ast_shrink_phone_number(char *n);
 
-//! Check if a string consists only of digits.  Returns non-zero if so
+/*! Check if a string consists only of digits.  Returns non-zero if so */
 /*!
  * \param n number to be checked.
  * Returns 0 if n is a number, 1 if it's not.

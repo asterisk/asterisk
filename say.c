@@ -4967,7 +4967,7 @@ static int gr_say_number_female(int num, struct ast_channel *chan, const char *i
 	int res;
 	char fn[256] = "";
 
-	//ast_log(LOG_DEBUG, "\n\n Saying number female %s %d \n\n",lang, num);
+	/* ast_log(LOG_DEBUG, "\n\n Saying number female %s %d \n\n",lang, num); */
 	if (num < 5) {
 		snprintf(fn, sizeof(fn), "digits/female-%d", num);
 		res = wait_file(chan, ints, fn, lang);

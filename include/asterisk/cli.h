@@ -33,7 +33,7 @@ extern void ast_cli(int fd, char *fmt, ...)
 
 #define AST_CLI_COMPLETE_EOF	"_EOF_"
 
-//! A command line entry */
+/*! A command line entry */ 
 struct ast_cli_entry {
 	/*! Null terminated list of the words of the command */
 	char *cmda[AST_MAX_CMD_LEN];
@@ -51,13 +51,13 @@ struct ast_cli_entry {
 	int inuse;
 };
 
-//! Interprets a command
+/*! Interprets a command */
 /*! Interpret a command s, sending output to fd
  * Returns 0 on succes, -1 on failure 
  */
 extern int ast_cli_command(int fd, char *s);
 
-//! Registers a command
+/*! Registers a command */
 /*! 
  * \param fd File descriptor that I/O is done to
  * \param s string given at prompt
@@ -66,7 +66,7 @@ extern int ast_cli_command(int fd, char *s);
  */
 extern int ast_cli_register(struct ast_cli_entry *e);
 
-//! Unregisters a command
+/*! Unregisters a command */
 /*!
  * \param e which cli entry to unregister
  * Unregister your own command.  You must pass a completed ast_cli_entry structur
@@ -74,7 +74,7 @@ extern int ast_cli_register(struct ast_cli_entry *e);
  */
 extern int ast_cli_unregister(struct ast_cli_entry *e);
 
-//! Readline madness
+/*! Readline madness */
 /* Useful for readline, that's about it
  * Returns 0 on success, -1 on failure
  */

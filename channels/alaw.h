@@ -21,7 +21,7 @@
 #define INT2ALAW(x) int2alaw[(x>>4)+4096]         
 
 
-// table to convert unsigned a-law bytes to signed linear integers
+/*  table to convert unsigned a-law bytes to signed linear integers */
 
 static const int alaw2int[256] = {
   -5504,5504,-344,344,-22016,22016,-1376,1376,-2752,2752,-88,88,-11008,11008,
@@ -46,9 +46,9 @@ static const int alaw2int[256] = {
 };
 
 
-// table to convert linear shorts to a-law bytes
-// shift the integer to be 12+1 bit first, then add 4096 to get 
-// the right index 
+/*  table to convert linear shorts to a-law bytes */
+/*  shift the integer to be 12+1 bit first, then add 4096 to get  */
+/*  the right index  */
 
 static const unsigned char int2alaw[8192] = {
   84,84,84,84,84,84,84,84,84,84,84,84,84,84,84,84,

@@ -37,7 +37,7 @@ struct ast_variable {
 	char stuff[0];
 };
 
-//! Load a config file
+/*! Load a config file */
 /*! 
  * \param configfile path of file to open.  If no preceding '/' character, path is considered relative to AST_CONFIG_DIR
  * Create a config structure from a given configuration file.
@@ -45,7 +45,7 @@ struct ast_variable {
  */
 struct ast_config *ast_load(char *configfile);
 
-//! Removes a config
+/*! Removes a config */
 /*!
  * \param config config data structure associated with the config.
  * Free memory associated with a given config
@@ -53,7 +53,7 @@ struct ast_config *ast_load(char *configfile);
  */
 void ast_destroy(struct ast_config *config);
 
-//! Goes through categories
+/*! Goes through categories */
 /*!
  * \param config Which config file you wish to "browse"
  * \param prev A pointer to a previous category.
@@ -62,7 +62,7 @@ void ast_destroy(struct ast_config *config);
  */
 char *ast_category_browse(struct ast_config *config, char *prev);
 
-//! Goes through variables
+/*! Goes through variables */
 /*!
  * Somewhat similar in intent as the ast_category_browse.  The category MUST be an actual pointer to an actual category (such as one obtained by using ast_category_browse()).
  * List variables of config file
@@ -70,7 +70,7 @@ char *ast_category_browse(struct ast_config *config, char *prev);
  */
 struct ast_variable *ast_variable_browse(struct ast_config *config, char *category);
 
-//! Gets a variable
+/*! Gets a variable */
 /*!
  * \param config which (opened) config to use
  * \param category category under which the variable lies (must be a pointer to the category, such as one given by ast_category_browse)
@@ -80,7 +80,7 @@ struct ast_variable *ast_variable_browse(struct ast_config *config, char *catego
  * Retrieve a specific variable */
 char *ast_variable_retrieve(struct ast_config *config, char *category, char *value);
 
-//! Make sure something is true
+/*! Make sure something is true */
 /*!
  * Determine affermativeness of a boolean value.
  * This function checks to see whether a string passed to it is an indication of an affirmitave value.  It checks to see if the string is "yes", "true", "y", "t", and "1".  
@@ -88,7 +88,7 @@ char *ast_variable_retrieve(struct ast_config *config, char *category, char *val
  */
 int ast_true(const char *val);
 
-//! Make sure something is false
+/*! Make sure something is false */
 /*!
  * Determine falseness of a boolean value.
  * This function checks to see whether a string passed to it is an indication of a negatirve value.  It checks to see if the string is "no", "false", "n", "f", and "0".  
@@ -96,7 +96,7 @@ int ast_true(const char *val);
  */
 int ast_false(const char *val);
 
-//! Check for category duplicates
+/*! Check for category duplicates */
 /*!
  * \param config which config to use
  * \param category_name name of the category you're looking for
@@ -104,7 +104,7 @@ int ast_false(const char *val);
  * Browse config structure and check for category duplicity Return non-zero if found */
 int ast_category_exist(struct ast_config *config, char *category_name);
 
-//! Retrieve realtime configuration
+/*! Retrieve realtime configuration */
 /*!
  * \param family which family/config to lookup
  * \param keyfield which field to use as the key
@@ -116,7 +116,7 @@ int ast_category_exist(struct ast_config *config, char *category_name);
  */
 struct ast_variable *ast_load_realtime(const char *family, ...);
 
-//! Retrieve realtime configuration
+/*! Retrieve realtime configuration */
 /*!
  * \param family which family/config to lookup
  * \param keyfield which field to use as the key
@@ -129,7 +129,7 @@ struct ast_variable *ast_load_realtime(const char *family, ...);
  */
 struct ast_config *ast_load_realtime_multientry(const char *family, ...);
 
-//! Update realtime configuration
+/*! Update realtime configuration */
 /*!
  * \param family which family/config to be updated
  * \param keyfield which field to use as the key
@@ -141,7 +141,7 @@ struct ast_config *ast_load_realtime_multientry(const char *family, ...);
  */
 int ast_update_realtime(const char *family, const char *keyfield, const char *lookup, ...);
 
-//! Free realtime configuration
+/*! Free realtime configuration */
 /*!
  * \param var the linked list of variables to free
  * This command free's a list of variables and should ONLY be used

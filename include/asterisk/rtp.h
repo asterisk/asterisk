@@ -82,7 +82,7 @@ int ast_rtp_sendcng(struct ast_rtp *rtp, int level);
 
 int ast_rtp_settos(struct ast_rtp *rtp, int tos);
 
-// Setting RTP payload types from lines in a SDP description:
+/*  Setting RTP payload types from lines in a SDP description: */
 void ast_rtp_pt_clear(struct ast_rtp* rtp);
 /* Set payload types to defaults */
 void ast_rtp_pt_default(struct ast_rtp* rtp);
@@ -90,7 +90,7 @@ void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt);
 void ast_rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,
 			 char* mimeType, char* mimeSubtype);
 
-// Mapping between RTP payload format codes and Asterisk codes:
+/*  Mapping between RTP payload format codes and Asterisk codes: */
 struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt);
 int ast_rtp_lookup_code(struct ast_rtp* rtp, int isAstFormat, int code);
 void ast_rtp_offered_from_local(struct ast_rtp* rtp, int local);
@@ -98,7 +98,7 @@ void ast_rtp_offered_from_local(struct ast_rtp* rtp, int local);
 void ast_rtp_get_current_formats(struct ast_rtp* rtp,
 			     int* astFormats, int* nonAstFormats);
 
-// Mapping an Asterisk code into a MIME subtype (string):
+/*  Mapping an Asterisk code into a MIME subtype (string): */
 char* ast_rtp_lookup_mime_subtype(int isAstFormat, int code);
 
 void ast_rtp_setnat(struct ast_rtp *rtp, int nat);

@@ -67,7 +67,7 @@ struct ast_codec_pref {
 };
 
 
-//! Data structure associated with a single frame of data
+/*! Data structure associated with a single frame of data */
 /* A frame of data read used to communicate between 
    between channels and applications */
 struct ast_frame {
@@ -266,7 +266,7 @@ struct ast_option_header {
 		u_int8_t data[0];
 };
 
-// Requests a frame to be allocated
+/*  Requests a frame to be allocated */
 /* 
  * \param source 
  * Request a frame be allocated.  source is an optional source of the frame, 
@@ -276,7 +276,7 @@ struct ast_option_header {
 struct ast_frame *ast_fralloc(char *source, int len);
 #endif
 
-//! Frees a frame
+/*! Frees a frame */
 /*! 
  * \param fr Frame to free
  * Free a frame, and the memory it used if applicable
@@ -284,7 +284,7 @@ struct ast_frame *ast_fralloc(char *source, int len);
  */
 void ast_frfree(struct ast_frame *fr);
 
-//! Copies a frame
+/*! Copies a frame */
 /*! 
  * \param fr frame to act upon
  * Take a frame, and if it's not been malloc'd, make a malloc'd copy
@@ -295,7 +295,7 @@ void ast_frfree(struct ast_frame *fr);
  */
 struct ast_frame *ast_frisolate(struct ast_frame *fr);
 
-//! Copies a frame
+/*! Copies a frame */
 /*! 
  * \param fr frame to copy
  * Dupliates a frame -- should only rarely be used, typically frisolate is good enough
@@ -303,12 +303,12 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr);
  */
 struct ast_frame *ast_frdup(struct ast_frame *fr);
 
-//! Chains a frame -- unimplemented
+/*! Chains a frame -- unimplemented */
 #if 0 /* unimplemented */
 void ast_frchain(struct ast_frame_chain *fc);
 #endif
 
-//! Reads a frame from an fd
+/*! Reads a frame from an fd */
 /*! 
  * \param fd an opened fd to read from
  * Read a frame from a stream or packet fd, as written by fd_write
@@ -316,7 +316,7 @@ void ast_frchain(struct ast_frame_chain *fc);
  */
 struct ast_frame *ast_fr_fdread(int fd);
 
-//! Writes a frame to an fd
+/*! Writes a frame to an fd */
 /*! 
  * \param fd Which fd to write to
  * \param frame frame to write to the fd
@@ -325,7 +325,7 @@ struct ast_frame *ast_fr_fdread(int fd);
  */
 int ast_fr_fdwrite(int fd, struct ast_frame *frame);
 
-//! Sends a hangup to an fd
+/*! Sends a hangup to an fd */
 /*! 
  * \param fd fd to write to
  * Send a hangup (NULL equivalent) on an fd
@@ -333,14 +333,14 @@ int ast_fr_fdwrite(int fd, struct ast_frame *frame);
  */
 int ast_fr_fdhangup(int fd);
 
-//! Get the name of a format
+/*! Get the name of a format */
 /*!
  * \param format id of format
  * \return A static string containing the name of the format or "UNKN" if unknown.
  */
 extern char* ast_getformatname(int format);
 
-//! Get the names of a set of formats
+/*! Get the names of a set of formats */
 /*!
  * \param buf a buffer for the output string
  * \param n size of buf (bytes)
@@ -358,7 +358,7 @@ extern char* ast_getformatname_multiple(char *buf, size_t size, int format);
  */
 extern int ast_getformatbyname(char *name);
 
-//! Get a name from a format
+/*! Get a name from a format */
 /*!
  * \param codec codec number (1,2,4,8,16,etc.)
  * Gets a name from a format
@@ -366,7 +366,7 @@ extern int ast_getformatbyname(char *name);
  */
 extern char *ast_codec2str(int codec);
 
-//! Pick the best codec 
+/*! Pick the best codec  */
 /* Choose the best codec...  Uhhh...   Yah. */
 extern int ast_best_codec(int fmts);
 

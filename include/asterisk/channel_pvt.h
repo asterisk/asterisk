@@ -73,7 +73,7 @@ struct ast_channel_pvt {
 	struct ast_channel * (*bridged_channel)(struct ast_channel *chan, struct ast_channel *bridge);
 };
 
-//! Create a channel structure
+/*! Create a channel structure */
 /*! Returns NULL on failure to allocate */
 struct ast_channel *ast_channel_alloc(int needalertpipe);
 
@@ -89,7 +89,7 @@ int ast_setstate(struct ast_channel *chan, int state);
 
 void ast_change_name(struct ast_channel *chan, char *newname);
 
-//! Free a channel structure
+/*! Free a channel structure */
 void  ast_channel_free(struct ast_channel *);
 
 #if defined(__cplusplus) || defined(c_plusplus)

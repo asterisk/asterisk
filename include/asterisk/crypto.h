@@ -26,7 +26,7 @@ extern "C" {
 
 struct ast_key;
 
-//! Retrieve a key
+/*! Retrieve a key */
 /*! 
  * \param name of the key we are retrieving
  * \param int type of key (AST_KEY_PUBLIC or AST_KEY_PRIVATE)
@@ -35,14 +35,14 @@ struct ast_key;
  */
 extern struct ast_key *ast_key_get(char *key, int type);
 
-//! Initialize keys (that is, retrieve pass codes for all private keys)
+/*! Initialize keys (that is, retrieve pass codes for all private keys) */
 /*!
  * \param fd a file descriptor for I/O for passwords
  *
  */
 extern int ast_key_init(int fd);
 
-//! Check the authenticity of a message signature using a given public key
+/*! Check the authenticity of a message signature using a given public key */
 /*!
  * \param key a public key to use to verify
  * \param msg the message that has been signed
@@ -53,7 +53,7 @@ extern int ast_key_init(int fd);
  */
 extern int ast_check_signature(struct ast_key *key, char *msg, char *sig);
 
-//! Check the authenticity of a message signature using a given public key
+/*! Check the authenticity of a message signature using a given public key */
 /*!
  * \param key a public key to use to verify
  * \param msg the message that has been signed

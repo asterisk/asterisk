@@ -51,7 +51,7 @@ extern int ast_netsock_free(struct ast_netsock_list *list, struct ast_netsock *n
 extern int ast_netsock_release(struct ast_netsock_list *list);
 extern int ast_netsock_sockfd(struct ast_netsock *ns);
 
-//! Compares the source address and port of two sockaddr_in
+/*! Compares the source address and port of two sockaddr_in */
 static inline int inaddrcmp(struct sockaddr_in *sin1, struct sockaddr_in *sin2)
 {
 	return ((sin1->sin_addr.s_addr != sin2->sin_addr.s_addr ) 

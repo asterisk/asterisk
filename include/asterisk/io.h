@@ -47,7 +47,7 @@ extern "C" {
 
 struct io_context;
 
-//! Creates a context
+/*! Creates a context */
 /*!
  * Create a context for I/O operations
  * Basically mallocs an IO structure and sets up some default values.
@@ -55,7 +55,7 @@ struct io_context;
  */
 extern struct io_context *io_context_create(void);
 
-//! Destroys a context
+/*! Destroys a context */
 /*
  * \param ioc structure to destroy
  * Destroy a context for I/O operations
@@ -66,7 +66,7 @@ extern void io_context_destroy(struct io_context *ioc);
 typedef int (*ast_io_cb)(int *id, int fd, short events, void *cbdata);
 #define AST_IO_CB(a) ((ast_io_cb)(a))
 
-//! Adds an IO context
+/*! Adds an IO context */
 /*! 
  * \param ioc which context to use
  * \param fd which fd to monitor
@@ -78,7 +78,7 @@ typedef int (*ast_io_cb)(int *id, int fd, short events, void *cbdata);
  */
 extern int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events, void *data);
 
-//! Changes an IO handler
+/*! Changes an IO handler */
 /*!
  * \param ioc which context to use
  * \param id
@@ -92,7 +92,7 @@ extern int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short
  */
 extern int *ast_io_change(struct io_context *ioc, int *id, int fd, ast_io_cb callback, short events, void *data);
 
-//! Removes an IO context
+/*! Removes an IO context */
 /*! 
  * \param ioc which io_context to remove it from
  * \param id which ID to remove
@@ -100,7 +100,7 @@ extern int *ast_io_change(struct io_context *ioc, int *id, int fd, ast_io_cb cal
  */
 extern int ast_io_remove(struct io_context *ioc, int *id);
 
-//! Waits for IO
+/*! Waits for IO */
 /*!
  * \param ioc which context to act upon
  * \param howlong how many milliseconds to wait
@@ -111,17 +111,17 @@ extern int ast_io_remove(struct io_context *ioc, int *id);
  */
 extern int ast_io_wait(struct io_context *ioc, int howlong);
 
-//! Dumps the IO array
+/*! Dumps the IO array */
 /*
  * Debugging: Dump everything in the I/O array
  */
 extern void ast_io_dump(struct io_context *ioc);
 
-//! Set fd into non-echoing mode (if fd is a tty)
+/*! Set fd into non-echoing mode (if fd is a tty) */
 
 extern int ast_hide_password(int fd);
 
-//! Restores TTY mode
+/*! Restores TTY mode */
 /*
  * Call with result from previous ast_hide_password
  */

@@ -20,7 +20,7 @@ extern "C" {
 
 /* Every module must provide these functions */
 
-//! Initialize the module
+/*! Initialize the module */
 /*!
  * This function is called at module load time.  Put all code in here
  * that needs to set up your module's hardware, software, registrations,
@@ -28,7 +28,7 @@ extern "C" {
  */
 int load_module(void);
 
-//! Cleanup all module structures, sockets, etc
+/*! Cleanup all module structures, sockets, etc */
 /*!
  * This is called at exit.  Any registrations and memory allocations need
  * to be unregistered and free'd here.  Nothing else will do these for you (until exit).
@@ -36,7 +36,7 @@ int load_module(void);
  */
 int unload_module(void);
 
-//! Provides a usecount
+/*! Provides a usecount */
 /*!
  * This function will be called by various parts of asterisk.  Basically, all it has
  * to do is to return a usecount when called.  You will need to maintain your usecount
@@ -44,13 +44,13 @@ int unload_module(void);
  */
 int usecount(void);			/*! How many channels provided by this module are in use? */
 
-//! Description
+/*! Description */
 /*!
  * Returns a short description of your module.
  */
 char *description(void);		/*! Description of this module */
 
-//! Returns the ASTERISK_GPL_KEY
+/*! Returns the ASTERISK_GPL_KEY */
 /*!
  * This returns the ASTERISK_GPL_KEY, signifiying that you agree to the terms of
  * the GPL stated in the ASTERISK_GPL_KEY.  Your module will not load if it does
@@ -58,7 +58,7 @@ char *description(void);		/*! Description of this module */
  */
 char *key(void);		/*! Return the below mentioned key, unmodified */
 
-//! Reload stuff
+/*! Reload stuff */
 /*!
  * This function is where any reload routines take place.  Re-read config files,
  * change signalling, whatever is appropriate on a reload.
@@ -80,7 +80,7 @@ this paragraph under other terms as well."
 #define AST_FORCE_FIRM 1
 #define AST_FORCE_HARD 2
 
-//! Loads a module
+/*! Loads a module */
 /*! 
  * \param resource_name the filename of the module to load
  * This function is ran by the PBX to load the modules.  It performs
@@ -91,7 +91,7 @@ this paragraph under other terms as well."
  */
 int ast_load_resource(char *resource_name);
 
-//! Unloads a module
+/*! Unloads a module */
 /*! 
  * \param resourcename the name of the module to unload
  * \param force the force flag.  Setting this to non-zero will force the module to be unloaded
@@ -101,14 +101,14 @@ int ast_load_resource(char *resource_name);
  */
 int ast_unload_resource(char *resource_name, int force);
 
-//! Notify when usecount has been changed
+/*! Notify when usecount has been changed */
 /*!
  * This function goes through and calulates use counts.  It also notifies anybody
  * trying to keep track of them.
  */
 void ast_update_use_count(void);
 
-//! Ask for a list of modules, descriptions, and use counts
+/*! Ask for a list of modules, descriptions, and use counts */
 /*!
  * \param modentry a callback to an updater function
  * For each of the modules loaded, modentry will be executed with the resource, description,
@@ -116,7 +116,7 @@ void ast_update_use_count(void);
  */
 int ast_update_module_list(int (*modentry)(char *module, char *description, int usecnt, char *like), char *like);
 
-//! Ask this procedure to be run with modules have been updated
+/*! Ask this procedure to be run with modules have been updated */
 /*!
  * \param updater the function to run when modules have been updated
  * This function adds the given function to a linked list of functions to be run
@@ -125,7 +125,7 @@ int ast_update_module_list(int (*modentry)(char *module, char *description, int 
  */
 int ast_loader_register(int (*updater)(void));
 
-//! No longer run me when modules are updated
+/*! No longer run me when modules are updated */
 /*!
  * \param updater function to unregister
  * This removes the given function from the updater list.
@@ -133,7 +133,7 @@ int ast_loader_register(int (*updater)(void));
  */
 int ast_loader_unregister(int (*updater)(void));
 
-//! Reload all modules
+/*! Reload all modules */
 /*!
  * This reloads all modules set to load in asterisk.  It does NOT run the unload
  * routine and then loads them again, it runs the given reload routine.
