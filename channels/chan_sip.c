@@ -2645,6 +2645,9 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
 		tmp = __get_header(orig, field, &start);
 		if (!ast_strlen_zero(tmp)) {
 			if (!copied && p->nat) {
+				/* Whoo hoo!  Now we can indicate port address translation too!  Just
+				   another RFC (RFC3581). I'll leave the original comments in for
+				   posterity.  */
 #ifdef THE_SIP_AUTHORS_CAN_SUCK_MY_GONADS
 				/* SLD: FIXME: Nice try, but the received= should not have a port */
 				/* SLD: FIXME: See RFC2543 BNF in Section 6.40.5 */
@@ -2654,7 +2657,7 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
 					snprintf(new, sizeof(new), "%s;received=%s:%d", tmp, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 				else
 #endif				
-					snprintf(new, sizeof(new), "%s;received=%s", tmp, inet_ntoa(p->recv.sin_addr));
+				snprintf(new, sizeof(new), "%s;received=%s;rport=%d", tmp, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 				add_header(req, field, new);
 			} else {
 				/* Add what we're responding to */
@@ -2854,7 +2857,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int se
 	
 	if (newbranch) {
 		p->branch ^= rand();
-		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
+		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", inet_ntoa(p->ourip), ourport, p->branch);
 	}
 
 	if (!ast_strlen_zero(p->uri)) {
@@ -3434,7 +3437,7 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 	if (init) {
 		/* Bump branch even on initial requests */
 		p->branch ^= rand();
-		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
+		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", inet_ntoa(p->ourip), ourport, p->branch);
 		initreqprep(&req, p, cmd, vxml_url);
 	} else
 		reqprep(&req, p, cmd, 0, 1);
@@ -3735,7 +3738,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	p->ocseq = r->ocseq;
 
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	snprintf(via, sizeof(via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
+	snprintf(via, sizeof(via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", inet_ntoa(p->ourip), ourport, p->branch);
 	add_header(&req, "Via", via);
 	add_header(&req, "From", from);
 	add_header(&req, "To", to);
@@ -4704,6 +4707,9 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 		p->sa.sin_family = AF_INET;
 		memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
 		p->sa.sin_port = htons(pt ? atoi(pt) : DEFAULT_SIP_PORT);
+		c = strstr(via, ";rport");
+		if (c && (c[6] != '='))
+			p->nat = 1;
 		if (sip_debug_test_pvt(p)) {
 			if (p->nat)
 				ast_verbose("Sending to %s : %d (NAT)\n", inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
@@ -6862,7 +6868,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
+	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", inet_ntoa(p->ourip), ourport, p->branch);
 	build_callid(p->callid, sizeof(p->callid), p->ourip);
 	/* Send MWI */
 	p->outgoing = 1;
