@@ -3830,7 +3830,13 @@ int ast_add_extension2(struct ast_context *con,
 	}
 	e = con->root;
 	while(e) {
-		res= strcmp(e->exten, extension);
+		/* Make sure patterns are always last! */
+		if ((e->exten[0] != '_') && (extension[0] == '_'))
+			res = -1;
+		else if ((e->exten[0] == '_') && (extension[0] != '_'))
+			res = 1;
+		else
+			res= strcmp(e->exten, extension);
 		if (!res) {
 			if (!e->matchcid && !tmp->matchcid)
 				res = 0;
