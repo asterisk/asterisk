@@ -94,7 +94,7 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 	regmatch_t pmatch[9];
 
 
-	strcpy(dst, "");
+	dst[0] = '\0';
 	
 	if (len < sizeof(struct naptr)) {
 		ast_log(LOG_WARNING, "Length too short\n");
@@ -151,7 +151,7 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 	}
 
 	/* DEDBUGGING STUB
-	strcpy(regexp, "!^\\+43(.*)$!\\1@bla.fasel!");
+	strncpy(regexp, "!^\\+43(.*)$!\\1@bla.fasel!", sizeof(regexp) - 1);
 	*/
 
 	regexp_len = strlen(regexp);
@@ -222,7 +222,8 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 		}
 	}
 	*d = 0;
-	strncpy(dst, temp, dstsize);
+	strncpy(dst, temp, dstsize - 1);
+	dst[dstsize - 1] = '\0';
 	return 0;
 }
 
@@ -245,8 +246,8 @@ static int txt_callback(void *context, u_char *answer, int len, u_char *fullansw
 
 	if (answer != NULL) {
 		c->txtlen = strlen(answer);
-		strncpy(c->txt, answer, 255);
-		c->txt[c->txtlen] = 0;
+		strncpy(c->txt, answer, sizeof(c->txt) - 1);
+		c->txt[sizeof(c->txt) - 1] = 0;
 		return 1;
 	} else {
 		c->txt = NULL;
@@ -309,7 +310,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 			s = s->next;
 		}
 		if (s) {
-			strcpy(tmp + newpos, s->toplev);
+			strncpy(tmp + newpos, s->toplev, sizeof(tmp) - newpos - 1);
 		}
 		ast_mutex_unlock(&enumlock);
 		if (!s)
@@ -368,7 +369,7 @@ int ast_get_txt(struct ast_channel *chan, const char *number, char *dst, int dst
 			s = s->next;
 		}
 		if (s) {
-			strcpy(tmp + newpos, s->toplev);
+			strncpy(tmp + newpos, s->toplev, sizeof(tmp) - newpos - 1);
 		}
 		ast_mutex_unlock(&enumlock);
 		if (!s)

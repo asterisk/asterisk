@@ -651,7 +651,7 @@ static int action_status(struct mansession *s, struct message *m)
 		if (c->bridge)
 			snprintf(bridge, sizeof(bridge), "Link: %s\r\n", c->bridge->name);
 		else
-			strcpy(bridge, "");
+			bridge[0] = '\0';
 		if (c->pbx) {
 			ast_cli(s->fd,
 			"Event: Status\r\n"
@@ -992,13 +992,13 @@ static int action_timeout(struct mansession *s, struct message *m)
 
 static int process_message(struct mansession *s, struct message *m)
 {
-	char action[80];
+	char action[80] = "";
 	struct manager_action *tmp = first_action;
 	char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
 	char iabuf[INET_ADDRSTRLEN];
 
-	strncpy(action, astman_get_header(m, "Action"), sizeof(action));
+	strncpy(action, astman_get_header(m, "Action"), sizeof(action) - 1);
 	ast_log( LOG_DEBUG, "Manager received command '%s'\n", action );
 
 	if (ast_strlen_zero(action)) {

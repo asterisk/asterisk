@@ -25,9 +25,9 @@
 
 static char *config = "/etc/muted.conf";
 
-static char host[256];
-static char user[256];
-static char pass[256];
+static char host[256] = "";
+static char user[256] = "";
+static char pass[256] = "";
 static int smoothfade = 0;
 static int mutelevel = 20;
 static int muted = 0;
@@ -98,17 +98,17 @@ static int load_config(void)
 			}
 			if (!strcasecmp(buf, "host")) {
 				if (val && strlen(val))
-					strncpy(host, val, sizeof(host));
+					strncpy(host, val, sizeof(host) - 1);
 				else
 					fprintf(stderr, "host needs an argument (the host) at line %d\n", lineno);
 			} else if (!strcasecmp(buf, "user")) {
 				if (val && strlen(val))
-					strncpy(user, val, sizeof(user));
+					strncpy(user, val, sizeof(user) - 1);
 				else
 					fprintf(stderr, "user needs an argument (the user) at line %d\n", lineno);
 			} else if (!strcasecmp(buf, "pass")) {
 				if (val && strlen(val))
-					strncpy(pass, val, sizeof(pass));
+					strncpy(pass, val, sizeof(pass) - 1);
 				else
 					fprintf(stderr, "pass needs an argument (the password) at line %d\n", lineno);
 			} else if (!strcasecmp(buf, "smoothfade")) {
@@ -264,7 +264,7 @@ static struct channel *find_channel(char *channel)
 	char tmp[256] = "";
 	char *s, *t;
 	struct channel *chan;
-	strncpy(tmp, channel, sizeof(tmp));
+	strncpy(tmp, channel, sizeof(tmp) - 1);
 	s = strchr(tmp, '/');
 	if (s) {
 		*s = '\0';
@@ -460,15 +460,15 @@ static int wait_event(void)
 		return -1;
 	}
 	if (!strncasecmp(resp, "Event: ", strlen("Event: "))) {
-		strncpy(event, resp + strlen("Event: "), sizeof(event));
+		strncpy(event, resp + strlen("Event: "), sizeof(event) - 1);
 		/* Consume the rest of the non-event */
 		while((resp = get_line()) && strlen(resp)) {
 			if (!strncasecmp(resp, "Channel: ", strlen("Channel: ")))
-				strncpy(channel, resp + strlen("Channel: "), sizeof(channel));
+				strncpy(channel, resp + strlen("Channel: "), sizeof(channel) - 1);
 			if (!strncasecmp(resp, "Newname: ", strlen("Newname: ")))
-				strncpy(newname, resp + strlen("Newname: "), sizeof(newname));
+				strncpy(newname, resp + strlen("Newname: "), sizeof(newname) - 1);
 			if (!strncasecmp(resp, "Oldname: ", strlen("Oldname: ")))
-				strncpy(oldname, resp + strlen("Oldname: "), sizeof(oldname));
+				strncpy(oldname, resp + strlen("Oldname: "), sizeof(oldname) - 1);
 		}
 		if (strlen(channel)) {
 			if (!strcasecmp(event, "Hangup")) 

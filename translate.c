@@ -351,7 +351,9 @@ static int show_translation(int fd, int argc, char *argv[])
 	ast_cli(fd, "          Source Format (Rows) Destination Format(Columns)\n\n");
 	ast_mutex_lock(&list_lock);
 	for (x=-1;x<SHOW_TRANS; x++) {
-		strcpy(line, " ");
+		/* next 2 lines run faster than using strcpy() */
+		line[0] = ' ';
+		line[1] = '\0';
 		for (y=-1;y<SHOW_TRANS;y++) {
 			if (x >= 0 && y >= 0 && tr_matrix[x][y].step)
 				snprintf(line + strlen(line), sizeof(line) - strlen(line), " %5d", tr_matrix[x][y].cost >= 99999 ? tr_matrix[x][y].cost-99999 : tr_matrix[x][y].cost);

@@ -39,12 +39,19 @@
 void ast_cli(int fd, char *fmt, ...)
 {
 	char *stuff;
+	int res = 0;
+
 	va_list ap;
 	va_start(ap, fmt);
-	vasprintf(&stuff, fmt, ap);
+	res = vasprintf(&stuff, fmt, ap);
 	va_end(ap);
-	ast_carefulwrite(fd, stuff, strlen(stuff), 100);
-	free(stuff);
+	if (res == -1) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+	}
+	else {
+		ast_carefulwrite(fd, stuff, strlen(stuff), 100);
+		free(stuff);
+	}
 }
 
 AST_MUTEX_DEFINE_STATIC(clilock);
@@ -179,62 +186,76 @@ static char version_help[] =
 static char *format_uptimestr(time_t timeval)
 {
 	int years = 0, weeks = 0, days = 0, hours = 0, mins = 0, secs = 0;
-	char timestr[256];
-	int pos = 0;
+	char timestr[256]="";
+	int bytes = 0;
+	int maxbytes = 0;
+	int offset = 0;
 #define SECOND (1)
 #define MINUTE (SECOND*60)
 #define HOUR (MINUTE*60)
 #define DAY (HOUR*24)
 #define WEEK (DAY*7)
 #define YEAR (DAY*365)
+#define ESS(x) ((x == 1) ? "" : "s")
 
+	maxbytes = sizeof(timestr);
 	if (timeval < 0)
 		return NULL;
 	if (timeval > YEAR) {
 		years = (timeval / YEAR);
 		timeval -= (years * YEAR);
-		if (years > 1)
-			pos += sprintf(timestr + pos, "%d years, ", years);
-		else
-			pos += sprintf(timestr + pos, "1 year, ");
+		if (years > 0) {
+			snprintf(timestr + offset, maxbytes, "%d year%s, ", years, ESS(years));
+			bytes = strlen(timestr + offset);
+			offset += bytes;
+			maxbytes -= bytes;
+		}
 	}
 	if (timeval > WEEK) {
 		weeks = (timeval / WEEK);
 		timeval -= (weeks * WEEK);
-		if (weeks > 1)
-			pos += sprintf(timestr + pos, "%d weeks, ", weeks);
-		else
-			pos += sprintf(timestr + pos, "1 week, ");
+		if (weeks > 0) {
+			snprintf(timestr + offset, maxbytes, "%d week%s, ", weeks, ESS(weeks));
+			bytes = strlen(timestr + offset);
+			offset += bytes;
+			maxbytes -= bytes;
+		}
 	}
 	if (timeval > DAY) {
 		days = (timeval / DAY);
 		timeval -= (days * DAY);
-		if (days > 1)
-			pos += sprintf(timestr + pos, "%d days, ", days);
-		else
-			pos += sprintf(timestr + pos, "1 day, ");
-
+		if (days > 0) {
+			snprintf(timestr + offset, maxbytes, "%d day%s, ", days, ESS(days));
+			bytes = strlen(timestr + offset);
+			offset += bytes;
+			maxbytes -= bytes;
+		}
 	}
 	if (timeval > HOUR) {
 		hours = (timeval / HOUR);
 		timeval -= (hours * HOUR);
-		if (hours > 1)
-			pos += sprintf(timestr + pos, "%d hours, ", hours);
-		else
-			pos += sprintf(timestr + pos, "1 hour, ");
+		if (hours > 0) {
+			snprintf(timestr + offset, maxbytes, "%d hour%s, ", hours, ESS(hours));
+			bytes = strlen(timestr + offset);
+			offset += bytes;
+			maxbytes -= bytes;
+		}
 	}
 	if (timeval > MINUTE) {
 		mins = (timeval / MINUTE);
 		timeval -= (mins * MINUTE);
-		if (mins > 1)
-			pos += sprintf(timestr + pos, "%d minutes, ", mins);
-		else if (mins > 0)
-			pos += sprintf(timestr + pos, "1 minute, ");
+		if (mins > 0) {
+			snprintf(timestr + offset, maxbytes, "%d minute%s, ", mins, ESS(mins));
+			bytes = strlen(timestr + offset);
+			offset += bytes;
+			maxbytes -= bytes;
+		}
 	}
 	secs = timeval;
 
-	if (secs > 0)
-		pos += sprintf(timestr + pos, "%d seconds", secs);
+	if (secs > 0) {
+		snprintf(timestr + offset, maxbytes, "%d second%s", secs, ESS(secs));
+	}
 
 	return timestr ? strdup(timestr) : NULL;
 }
@@ -657,25 +678,31 @@ static struct ast_cli_entry *find_cli(char *cmds[], int exact)
 	return e;
 }
 
-static void join(char *s, int len, char *w[])
+static void join(char *dest, size_t destsize, char *w[])
 {
 	int x;
 	/* Join words into a string */
-	strcpy(s, "");
+	if (!dest || destsize < 1) {
+		return;
+	}
+	dest[0] = '\0';
 	for (x=0;w[x];x++) {
 		if (x)
-			strncat(s, " ", len - strlen(s));
-		strncat(s, w[x], len - strlen(s));
+			strncat(dest, " ", destsize - strlen(dest) - 1);
+		strncat(dest, w[x], destsize - strlen(dest) - 1);
 	}
 }
 
-static void join2(char *s, int len, char *w[])
+static void join2(char *dest, size_t destsize, char *w[])
 {
 	int x;
 	/* Join words into a string */
-	strcpy(s, "");
+	if (!dest || destsize < 1) {
+		return;
+	}
+	dest[0] = '\0';
 	for (x=0;w[x];x++) {
-		strncat(s, w[x], len - strlen(s));
+		strncat(dest, w[x], destsize - strlen(dest) - 1);
 	}
 }
 

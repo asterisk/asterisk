@@ -875,7 +875,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 		} else
 			*ret = NULL;
 	} else if (c && !strcmp(var, "HINT")) {
-		if (!ast_get_hint(workspace, workspacelen - 1, c, c->context, c->exten))
+		if (!ast_get_hint(workspace, workspacelen, c, c->context, c->exten))
 			*ret = NULL;
 		else
 			*ret = workspace;
@@ -908,12 +908,12 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 		strncpy(workspace, c->name, workspacelen - 1);
 		*ret = workspace;
 	} else if (c && !strcmp(var, "EPOCH")) {
-		snprintf(workspace, workspacelen -1, "%u",(int)time(NULL));
+		snprintf(workspace, workspacelen, "%u",(int)time(NULL));
 		*ret = workspace;
 	} else if (c && !strcmp(var, "DATETIME")) {
 		thistime=time(NULL);
 		localtime_r(&thistime, &brokentime);
-		snprintf(workspace, workspacelen -1, "%02d%02d%04d-%02d:%02d:%02d",
+		snprintf(workspace, workspacelen, "%02d%02d%04d-%02d:%02d:%02d",
 			brokentime.tm_mday,
 			brokentime.tm_mon+1,
 			brokentime.tm_year+1900,
@@ -926,7 +926,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 		thistime=time(NULL);
 		localtime_r(&thistime, &brokentime);
 		/* 20031130-150612 */
-		snprintf(workspace, workspacelen -1, "%04d%02d%02d-%02d%02d%02d",
+		snprintf(workspace, workspacelen, "%04d%02d%02d-%02d%02d%02d",
 			brokentime.tm_year+1900,
 			brokentime.tm_mon+1,
 			brokentime.tm_mday,
@@ -936,10 +936,10 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 		);
 		*ret = workspace;
 	} else if (c && !strcmp(var, "UNIQUEID")) {
-		snprintf(workspace, workspacelen -1, "%s", c->uniqueid);
+		snprintf(workspace, workspacelen, "%s", c->uniqueid);
 		*ret = workspace;
 	} else if (c && !strcmp(var, "HANGUPCAUSE")) {
-		snprintf(workspace, workspacelen -1, "%i", c->hangupcause);
+		snprintf(workspace, workspacelen, "%i", c->hangupcause);
 		*ret = workspace;
 	} else if (c && !strcmp(var, "ACCOUNTCODE")) {
 		strncpy(workspace, c->accountcode, workspacelen - 1);
@@ -1083,7 +1083,7 @@ void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char 
 			}
 			
 			/* Retrieve variable value */
-			strcpy(workspace, "");
+			workspace[0] = '\0';
 			pbx_substitute_variables_temp(c,vars,&cp4, workspace, sizeof(workspace));
 			if (cp4) {
 				length = strlen(cp4);
@@ -1378,69 +1378,69 @@ int ast_extension_state(struct ast_channel *c, char *context, char *exten)
 
 int ast_device_state_changed(const char *fmt, ...) 
 {
-    struct ast_hint *list;
-    struct ast_state_cb *cblist;
-    char hint[AST_MAX_EXTENSION];
-    char device[AST_MAX_EXTENSION];
-    char *cur, *rest;
-    int state;
-    
-    va_list ap;
+	struct ast_hint *list;
+	struct ast_state_cb *cblist;
+	char hint[AST_MAX_EXTENSION] = "";
+	char device[AST_MAX_EXTENSION];
+	char *cur, *rest;
+	int state;
 
-    va_start(ap, fmt);
-    vsnprintf(device, sizeof(device)-1, fmt, ap);
-    va_end(ap);
+	va_list ap;
 
-    rest = strchr(device, '-');
-    if (rest) {
-	*rest = 0;
-    }
-        
-    ast_mutex_lock(&hintlock);
+	va_start(ap, fmt);
+	vsnprintf(device, sizeof(device), fmt, ap);
+	va_end(ap);
 
-    list = hints;
-    
-    while (list) {
-	
-	strcpy(hint, ast_get_extension_app(list->exten));
-	cur = hint;
-	do {
-	    rest = strchr(cur, '&');
-	    if (rest) {
+	rest = strchr(device, '-');
+	if (rest) {
 		*rest = 0;
-		rest++;
-	    }
-	    
-	    if (!strcmp(cur, device)) {
-	    // Found extension execute callbacks 
-		state = ast_extension_state2(list->exten);
-		if ((state != -1) && (state != list->laststate)) {
-		    // For general callbacks
-		    cblist = statecbs;
-		    while (cblist) {
-			cblist->callback(list->exten->parent->name, list->exten->exten, state, cblist->data);
-			cblist = cblist->next;
-		    }
-		    
-		    // For extension callbacks
-    		    cblist = list->callbacks;
-		    while (cblist) {
-			cblist->callback(list->exten->parent->name, list->exten->exten, state, cblist->data);
-			cblist = cblist->next;
-		    }
-		    
-		    list->laststate = state;
-		}
-		break;
-	    }
-	    cur = rest;
-	} while (cur);
-	
-	list = list->next;
-    }
+	}
 
-    ast_mutex_unlock(&hintlock);
-    return 1;
+	ast_mutex_lock(&hintlock);
+
+	list = hints;
+
+	while (list) {
+
+		strncpy(hint, ast_get_extension_app(list->exten), sizeof(hint) - 1);
+		cur = hint;
+		do {
+			rest = strchr(cur, '&');
+			if (rest) {
+				*rest = 0;
+				rest++;
+			}
+			
+			if (!strcmp(cur, device)) {
+				// Found extension execute callbacks 
+				state = ast_extension_state2(list->exten);
+				if ((state != -1) && (state != list->laststate)) {
+					// For general callbacks
+					cblist = statecbs;
+					while (cblist) {
+						cblist->callback(list->exten->parent->name, list->exten->exten, state, cblist->data);
+						cblist = cblist->next;
+					}
+
+					// For extension callbacks
+					cblist = list->callbacks;
+					while (cblist) {
+						cblist->callback(list->exten->parent->name, list->exten->exten, state, cblist->data);
+						cblist = cblist->next;
+					}
+			
+					list->laststate = state;
+				}
+				break;
+			}
+			cur = rest;
+		} while (cur);
+
+		list = list->next;
+	}
+
+	ast_mutex_unlock(&hintlock);
+	return 1;
 }
 			
 int ast_extension_state_add(char *context, char *exten, 
@@ -1684,12 +1684,12 @@ static int ast_remove_hint(struct ast_exten *e)
 }
 
 
-int ast_get_hint(char *hint, int maxlen, struct ast_channel *c, char *context, char *exten)
+int ast_get_hint(char *hint, int hintsize, struct ast_channel *c, char *context, char *exten)
 {
 	struct ast_exten *e;
 	e = ast_hint_extension(c, context, exten);
 	if (e) {	
-	    strncpy(hint, ast_get_extension_app(e), maxlen);
+	    strncpy(hint, ast_get_extension_app(e), hintsize - 1);
 	    return -1;
 	}
 	return 0;	
@@ -1907,7 +1907,8 @@ int ast_pbx_run(struct ast_channel *c)
 		ast_log(LOG_WARNING, "Don't know what to do with '%s'\n", c->name);
 out:
 	if ((res != AST_PBX_KEEPALIVE) && ast_exists_extension(c, c->context, "h", 1, c->callerid)) {
-		strcpy(c->exten, "h");
+		c->exten[0] = 'h';
+		c->exten[1] = '\0';
 		c->priority = 1;
 		while(ast_exists_extension(c, c->context, c->exten, c->priority, c->callerid)) {
 			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->callerid))) {
@@ -3696,7 +3697,7 @@ int ast_add_extension2(struct ast_context *con,
 			ext_strncpy(tmp->cidmatch, callerid, sizeof(tmp->cidmatch));
 			tmp->matchcid = 1;
 		} else {
-			strcpy(tmp->cidmatch, "");
+			tmp->cidmatch[0] = '\0';
 			tmp->matchcid = 0;
 		}
 		strncpy(tmp->app, application, sizeof(tmp->app)-1);

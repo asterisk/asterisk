@@ -279,14 +279,17 @@ static int copy(char *infile, char *outfile)
 static char *build_filename(char *filename, char *ext)
 {
 	char *fn;
+	int fnsize = 0;
 	char tmp[AST_CONFIG_MAX_PATH]="";
-	snprintf(tmp,sizeof(tmp)-1,"%s/%s",(char *)ast_config_AST_VAR_DIR,"sounds");
-	fn = malloc(strlen(tmp) + strlen(filename) + strlen(ext) + 10);
+
+	snprintf(tmp, sizeof(tmp), "%s/%s", ast_config_AST_VAR_DIR, "sounds");
+	fnsize = strlen(tmp) + strlen(filename) + strlen(ext) + 10;
+	fn = malloc(fnsize);
 	if (fn) {
 		if (filename[0] == '/') 
-			sprintf(fn, "%s.%s", filename, ext);
+			snprintf(fn, fnsize, "%s.%s", filename, ext);
 		else
-			sprintf(fn, "%s/%s.%s", (char *)tmp, filename, ext);
+			snprintf(fn, fnsize, "%s/%s.%s", tmp, filename, ext);
 	}
 	return fn;
 	

@@ -211,7 +211,7 @@ static void init_logger_chain(void)
 
 	ast_mutex_lock(&loglock);
 	if ((s = ast_variable_retrieve(cfg, "general", "dateformat"))) {
-		(void)strncpy(dateformat,s,sizeof(dateformat));
+		strncpy(dateformat, s, sizeof(dateformat) - 1);
 	}
 	var = ast_variable_browse(cfg, "logfiles");
 	while(var) {
@@ -266,7 +266,7 @@ static void queue_log_init(void)
 
 int reload_logger(int rotate)
 {
-	char old[AST_CONFIG_MAX_PATH];
+	char old[AST_CONFIG_MAX_PATH] = "";
 	char new[AST_CONFIG_MAX_PATH];
 	struct logchannel *f;
 	FILE *myf;
@@ -307,7 +307,7 @@ int reload_logger(int rotate)
 			fclose(f->fileptr);
 			f->fileptr = NULL;
 			if(rotate) {
-				strncpy(old, f->filename, sizeof(old));
+				strncpy(old, f->filename, sizeof(old) - 1);
 	
 				for(x=0;;x++) {
 					snprintf(new, sizeof(new), "%s.%d", f->filename, x);
