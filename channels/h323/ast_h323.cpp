@@ -776,10 +776,12 @@ int h323_set_capability(int cap, int dtmfMode)
 		endPoint->SetCapability(0, 0, new SpeexNarrow6AudioCapability());
 	}
 
+#if WANT_G729
 	if (cap & AST_FORMAT_G729A) {
 		H323_G729ACapability *g729aCap;
 		endPoint->SetCapability(0, 0, g729aCap = new H323_G729ACapability);
 	}
+#endif
 	
 	if (cap & AST_FORMAT_G723_1) {
 		H323_G7231Capability *g7231Cap;

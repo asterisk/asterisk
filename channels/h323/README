@@ -29,7 +29,10 @@ Warning: Older versions than listed will NOT work, but newer  versions
 ~should~ work but are untested and you would be on your own. 
 
 As of June 16th, 2003 the release version of Open H.323 does not compile 
-due to the G729Capability is missing. 
+due to the G729Capability is missing. If you want G.729 support see
+the Makefile.  
+
+
 
 
 Most common compile error:  
