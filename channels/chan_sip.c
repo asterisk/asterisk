@@ -4139,12 +4139,14 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 {
 	struct sip_pvt *cur;
 	char tmp[256];
+	size_t len;
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
+	len = strlen(argv[3]);
 	ast_mutex_lock(&iflock);
 	cur = iflist;
 	while(cur) {
-		if (!strcasecmp(cur->callid, argv[3])) {
+		if (!strncasecmp(cur->callid, argv[3],len)) {
 			ast_cli(fd, "Call-ID: %s\n", cur->callid);
 			ast_cli(fd, "Our Codec Capability: %d\n", cur->capability);
 			ast_cli(fd, "Non-Codec Capability: %d\n", cur->noncodeccapability);
@@ -4162,14 +4164,13 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 				strcat(tmp, "info ");
 			if (cur->dtmfmode & SIP_DTMF_INBAND)
 				strcat(tmp, "inband ");
-			ast_cli(fd, "DTMF Mode: %s\n", tmp);
-			break;
+			ast_cli(fd, "DTMF Mode: %s\n\n", tmp);
 		}
 		cur = cur->next;
 	}
 	ast_mutex_unlock(&iflock);
 	if (!cur) 
-		ast_cli(fd, "No such SIP Call ID '%s'\n", argv[3]);
+		ast_cli(fd, "No such SIP Call ID starting with '%s'\n", argv[3]);
 	return RESULT_SUCCESS;
 }
 
