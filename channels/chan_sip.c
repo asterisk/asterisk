@@ -2017,6 +2017,9 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s"))
 			tmp->cid.cid_dnid = strdup(i->exten);
 		tmp->priority = 1;
+		if (!ast_strlen_zero(i->uri)) {
+			pbx_builtin_setvar_helper(tmp, "SIPURI", i->uri);
+		}
 		if (!ast_strlen_zero(i->domain)) {
 			pbx_builtin_setvar_helper(tmp, "SIPDOMAIN", i->domain);
 		}
