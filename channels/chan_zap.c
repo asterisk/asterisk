@@ -5125,11 +5125,13 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 					/* Hang it up to be sure it's good */
 					zt_set_hook(tmp->subs[SUB_REAL].zfd, ZT_ONHOOK);
 			}
+#ifdef ZAPATA_PRI
 			/* the dchannel is down so put the channel in alarm */
 			if (tmp->pri && tmp->pri->up == 0)
 				tmp->inalarm = 1;
 			else
 				tmp->inalarm = 0;
+#endif				
 			memset(&si, 0, sizeof(si));
 			if (ioctl(tmp->subs[SUB_REAL].zfd,ZT_SPANSTAT,&si) == -1) {
 				ast_log(LOG_ERROR, "Unable to get span status: %s\n", strerror(errno));
@@ -6251,6 +6253,70 @@ static int handle_pri_debug(int fd, int argc, char *argv[])
 }
 
 
+
+static int handle_pri_no_debug(int fd, int argc, char *argv[])
+{
+	int span;
+	if (argc < 5)
+		return RESULT_SHOWUSAGE;
+	span = atoi(argv[4]);
+	if ((span < 1) || (span > NUM_SPANS)) {
+		ast_cli(fd, "Invalid span %s.  Should be a number %d to %d\n", argv[4], 1, NUM_SPANS);
+		return RESULT_SUCCESS;
+	}
+	if (!pris[span-1].pri) {
+		ast_cli(fd, "No PRI running on span %d\n", span);
+		return RESULT_SUCCESS;
+	}
+	pri_set_debug(pris[span-1].pri, 0);
+	ast_cli(fd, "Disabled debugging on span %d\n", span);
+	return RESULT_SUCCESS;
+}
+
+static int handle_pri_really_debug(int fd, int argc, char *argv[])
+{
+	int span;
+	if (argc < 5)
+		return RESULT_SHOWUSAGE;
+	span = atoi(argv[4]);
+	if ((span < 1) || (span > NUM_SPANS)) {
+		ast_cli(fd, "Invalid span %s.  Should be a number %d to %d\n", argv[4], 1, NUM_SPANS);
+		return RESULT_SUCCESS;
+	}
+	if (!pris[span-1].pri) {
+		ast_cli(fd, "No PRI running on span %d\n", span);
+		return RESULT_SUCCESS;
+	}
+	pri_set_debug(pris[span-1].pri, (PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q921_DUMP | PRI_DEBUG_Q921_RAW | PRI_DEBUG_Q921_STATE));
+	ast_cli(fd, "Enabled EXTENSIVE debugging on span %d\n", span);
+	return RESULT_SUCCESS;
+}
+
+static char pri_debug_help[] = 
+	"Usage: pri debug span <span>\n"
+	"       Enables debugging on a given PRI span\n";
+	
+static char pri_no_debug_help[] = 
+	"Usage: pri no debug span <span>\n"
+	"       Disables debugging on a given PRI span\n";
+
+static char pri_really_debug_help[] = 
+	"Usage: pri intensive debug span <span>\n"
+	"       Enables debugging down to the Q.921 level\n";
+
+static struct ast_cli_entry pri_debug = {
+	{ "pri", "debug", "span", NULL }, handle_pri_debug, "Enables PRI debugging on a span", pri_debug_help, complete_span 
+};
+
+static struct ast_cli_entry pri_no_debug = {
+	{ "pri", "no", "debug", "span", NULL }, handle_pri_no_debug, "Disables PRI debugging on a span", pri_no_debug_help, complete_span };
+
+static struct ast_cli_entry pri_really_debug = {
+	{ "pri", "intense", "debug", "span", NULL }, handle_pri_really_debug, "Enables REALLY INTENSE PRI debugging", pri_really_debug_help, complete_span };
+
+#endif /* ZAPATA_PRI */
+
+
 #ifdef ZAPATA_R2
 static int handle_r2_no_debug(int fd, int argc, char *argv[])
 {
@@ -6327,69 +6393,6 @@ static struct ast_cli_entry r2_no_debug = {
 	{ "r2", "no", "debug", "channel", NULL }, handle_r2_no_debug, "Disables R2 debugging on a channel", r2_no_debug_help };
 
 #endif
-
-static int handle_pri_no_debug(int fd, int argc, char *argv[])
-{
-	int span;
-	if (argc < 5)
-		return RESULT_SHOWUSAGE;
-	span = atoi(argv[4]);
-	if ((span < 1) || (span > NUM_SPANS)) {
-		ast_cli(fd, "Invalid span %s.  Should be a number %d to %d\n", argv[4], 1, NUM_SPANS);
-		return RESULT_SUCCESS;
-	}
-	if (!pris[span-1].pri) {
-		ast_cli(fd, "No PRI running on span %d\n", span);
-		return RESULT_SUCCESS;
-	}
-	pri_set_debug(pris[span-1].pri, 0);
-	ast_cli(fd, "Disabled debugging on span %d\n", span);
-	return RESULT_SUCCESS;
-}
-
-static int handle_pri_really_debug(int fd, int argc, char *argv[])
-{
-	int span;
-	if (argc < 5)
-		return RESULT_SHOWUSAGE;
-	span = atoi(argv[4]);
-	if ((span < 1) || (span > NUM_SPANS)) {
-		ast_cli(fd, "Invalid span %s.  Should be a number %d to %d\n", argv[4], 1, NUM_SPANS);
-		return RESULT_SUCCESS;
-	}
-	if (!pris[span-1].pri) {
-		ast_cli(fd, "No PRI running on span %d\n", span);
-		return RESULT_SUCCESS;
-	}
-	pri_set_debug(pris[span-1].pri, (PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q921_DUMP | PRI_DEBUG_Q921_RAW | PRI_DEBUG_Q921_STATE));
-	ast_cli(fd, "Enabled EXTENSIVE debugging on span %d\n", span);
-	return RESULT_SUCCESS;
-}
-
-static char pri_debug_help[] = 
-	"Usage: pri debug span <span>\n"
-	"       Enables debugging on a given PRI span\n";
-	
-static char pri_no_debug_help[] = 
-	"Usage: pri no debug span <span>\n"
-	"       Disables debugging on a given PRI span\n";
-
-static char pri_really_debug_help[] = 
-	"Usage: pri intensive debug span <span>\n"
-	"       Enables debugging down to the Q.921 level\n";
-
-static struct ast_cli_entry pri_debug = {
-	{ "pri", "debug", "span", NULL }, handle_pri_debug, "Enables PRI debugging on a span", pri_debug_help, complete_span 
-};
-
-static struct ast_cli_entry pri_no_debug = {
-	{ "pri", "no", "debug", "span", NULL }, handle_pri_no_debug, "Disables PRI debugging on a span", pri_no_debug_help, complete_span };
-
-static struct ast_cli_entry pri_really_debug = {
-	{ "pri", "intense", "debug", "span", NULL }, handle_pri_really_debug, "Enables REALLY INTENSE PRI debugging", pri_really_debug_help, complete_span };
-
-#endif /* ZAPATA_PRI */
-
 
 static int zap_destroy_channel(int fd, int argc, char **argv)
 {
