@@ -503,6 +503,8 @@ char *ast_get_switch_data(struct ast_sw *sw);
 
 /* Other extension stuff */
 int ast_get_extension_priority(struct ast_exten *exten);
+int ast_get_extension_matchcid(struct ast_exten *e);
+char *ast_get_extension_cidmatch(struct ast_exten *e);
 char *ast_get_extension_app(struct ast_exten *e);
 void *ast_get_extension_app_data(struct ast_exten *e);
 

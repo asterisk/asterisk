@@ -4864,6 +4864,16 @@ char *ast_get_ignorepat_registrar(struct ast_ignorepat *ip)
 	return ip ? ip->registrar : NULL;
 }
 
+int ast_get_extension_matchcid(struct ast_exten *e)
+{
+	return e ? e->matchcid : 0;
+}
+
+char *ast_get_extension_cidmatch(struct ast_exten *e)
+{
+	return e ? e->cidmatch : NULL;
+}
+
 char *ast_get_extension_app(struct ast_exten *e)
 {
 	return e ? e->app : NULL;

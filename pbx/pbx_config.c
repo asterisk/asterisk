@@ -1016,6 +1016,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 			struct ast_exten *e, *last_written_e = NULL;
 			struct ast_include *i;
 			struct ast_ignorepat *ip;
+			struct ast_sw *sw;
 
 			/* registered by this module? */
 			if (!strcmp(ast_get_context_registrar(c), registrar)) {
@@ -1058,11 +1059,19 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 								}
 								tempdata = startdata;
 							}
-							fprintf(output, "exten => %s,%d,%s(%s)\n",
-							    ast_get_extension_name(p),
-							    ast_get_extension_priority(p),
-							    ast_get_extension_app(p),
-							    tempdata);
+							if (ast_get_extension_matchcid(p))
+								fprintf(output, "exten => %s/%s,%d,%s(%s)\n",
+								    ast_get_extension_name(p),
+								    ast_get_extension_cidmatch(p),
+								    ast_get_extension_priority(p),
+								    ast_get_extension_app(p),
+								    tempdata);
+							else
+								fprintf(output, "exten => %s,%d,%s(%s)\n",
+								    ast_get_extension_name(p),
+								    ast_get_extension_priority(p),
+								    ast_get_extension_app(p),
+								    tempdata);
 							if (tempdata)
 								free(tempdata);
 						} else
@@ -1095,6 +1104,24 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 			}
 
 			if (ast_walk_context_includes(c, NULL))
+				fprintf(output, "\n");
+
+			/* walk through switches */
+			sw = ast_walk_context_switches(c, NULL);
+			while (sw) {
+				if (!strcmp(ast_get_switch_registrar(sw), registrar)) {
+					if (!context_header_written) {
+						fprintf(output, "[%s]\n", ast_get_context_name(c));
+						context_header_written = 1;
+					}
+					fprintf(output, "switch => %s/%s\n",
+						ast_get_switch_name(sw),
+						ast_get_switch_data(sw));
+				}
+				sw = ast_walk_context_switches(c, sw);
+			}
+
+			if (ast_walk_context_switches(c, NULL))
 				fprintf(output, "\n");
 
 			/* fireout ignorepats ... */
