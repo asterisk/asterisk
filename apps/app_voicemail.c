@@ -475,7 +475,7 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, const char *contex
 			vmu = malloc(sizeof(struct ast_vm_user));
 		if (vmu) {
 			memcpy(vmu, cur, sizeof(struct ast_vm_user));
-			ast_set2_flag(vmu, ivm, VM_ALLOCED);	
+			ast_set2_flag(vmu, !ivm, VM_ALLOCED);	
 			vmu->next = NULL;
 		}
 	} else
