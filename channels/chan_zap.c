@@ -426,6 +426,7 @@ static struct zt_pvt {
 	int channel;				/* Channel Number */
 	int span;					/* Span number */
 	int dialing;
+	time_t guardtime;			/* Must wait this much time before using for new call */
 	int dialednone;
 	int use_callerid;			/* Whether or not to use caller id on this channel */
 	int hidecallerid;
@@ -1972,6 +1973,13 @@ static int zt_hangup(struct ast_channel *ast)
 				else
 					tone_zone_play_tone(p->subs[SUB_REAL].zfd, -1);
 			}
+			break;
+		case SIG_FXSGS:
+		case SIG_FXSLS:
+		case SIG_FXSKS:
+			/* Make sure we're not made available for at least two seconds */
+			time(&p->guardtime);
+			p->guardtime += 2;
 			break;
 		default:
 			tone_zone_play_tone(p->subs[SUB_REAL].zfd, -1);
@@ -5763,7 +5771,10 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch)
 		return 0;
 	/* If do not distrub, definitely not */
 	if (p->dnd)
-		return 0;	
+		return 0;
+	/* If guard time, definitely not */
+	if (time(NULL) < p->guardtime)
+		return 0;
 		
 	/* If no owner definitely available */
 	if (!p->owner) {
