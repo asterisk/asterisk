@@ -65,6 +65,8 @@ struct ast_channel_pvt {
 	int (*setoption)(struct ast_channel *chan, int option, void *data, int datalen);
 	/*! Query a given option */
 	int (*queryoption)(struct ast_channel *chan, int option, void *data, int *datalen);
+	/*! Blind transfer other side */
+	int (*transfer)(struct ast_channel *chan, char *newdest);
 };
 
 //! Create a channel structure

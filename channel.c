@@ -1568,6 +1568,26 @@ int ast_call(struct ast_channel *chan, char *addr, int timeout)
 	return res;
 }
 
+int ast_transfer(struct ast_channel *chan, char *dest) 
+{
+	/* Place an outgoing call, but don't wait any longer than timeout ms before returning. 
+	   If the remote end does not answer within the timeout, then do NOT hang up, but 
+	   return anyway.  */
+	int res = -1;
+	/* Stop if we're a zombie or need a soft hangup */
+	ast_pthread_mutex_lock(&chan->lock);
+	if (!chan->zombie && !ast_check_hangup(chan)) {
+		if (chan->pvt->transfer) {
+			res = chan->pvt->transfer(chan, dest);
+			if (!res)
+				res = 1;
+		} else
+			res = 0;
+	}
+	pthread_mutex_unlock(&chan->lock);
+	return res;
+}
+
 int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int ftimeout, char *enders)
 {
 	int pos=0;

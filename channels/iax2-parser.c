@@ -116,6 +116,7 @@ static struct iax2_ie {
 	{ IAX_IE_MSGCOUNT, "MESSAGE COUNT", dump_short },
 	{ IAX_IE_AUTOANSWER, "AUTO ANSWER REQ" },
 	{ IAX_IE_TRANSFERID, "TRANSFER ID", dump_int },
+	{ IAX_IE_RDNIS, "REFERRING DNIS", dump_string },
 };
 
 const char *iax_ie2str(int ie)
@@ -217,6 +218,7 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		"PAGE",
 		"MWI",
 		"UNSUPPORTED",
+		"TRANSFER",
 	};
 	char *cmds[] = {
 		"(0?)",
@@ -419,6 +421,9 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			break;
 		case IAX_IE_DNID:
 			ies->dnid = data + 2;
+			break;
+		case IAX_IE_RDNIS:
+			ies->rdnis = data + 2;
 			break;
 		case IAX_IE_AUTHMETHODS:
 			if (len != sizeof(unsigned short))  {

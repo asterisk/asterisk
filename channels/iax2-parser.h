@@ -28,6 +28,7 @@ struct iax_ies {
 	int version;
 	unsigned short adsicpe;
 	char *dnid;
+	char *rdnis;
 	unsigned int authmethods;
 	char *challenge;
 	char *md5_result;

@@ -676,6 +676,10 @@ int ast_autoservice_stop(struct ast_channel *chan);
    timer fd */
 int ast_settimeout(struct ast_channel *c, int ms);
 
+/* Transfer a channel (if supported).  Returns -1 on error, 0 if not supported
+   and 1 if supported and requested */
+int ast_transfer(struct ast_channel *chan, char *dest);
+
 /* Misc. functions below */
 
 //! Waits for activity on a group of channels

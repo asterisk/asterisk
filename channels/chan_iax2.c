@@ -994,7 +994,6 @@ static void iax2_destroy(int callno)
 retry:
 	ast_pthread_mutex_lock(&iaxsl[callno]);
 	pvt = iaxs[callno];
-	iaxs[callno] = NULL;
 	gettimeofday(&lastused[callno], NULL);
 
 	if (pvt)
@@ -1009,6 +1008,7 @@ retry:
 			goto retry;
 		}
 	}
+	iaxs[callno] = NULL;
 	if (pvt) {
 		pvt->owner = NULL;
 		/* No more pings or lagrq's */
@@ -1918,6 +1918,26 @@ static int iax2_indicate(struct ast_channel *c, int condition)
 	return send_command(pvt, AST_FRAME_CONTROL, condition, 0, NULL, 0, -1);
 }
 	
+static int iax2_transfer(struct ast_channel *c, char *dest)
+{
+	struct chan_iax2_pvt *pvt = c->pvt->pvt;
+	struct iax_ie_data ied;
+	char tmp[256] = "", *context;
+	strncpy(tmp, dest, sizeof(tmp) - 1);
+	context = strchr(tmp, '@');
+	if (context) {
+		*context = '\0';
+		context++;
+	}
+	memset(&ied, 0, sizeof(ied));
+	iax_ie_append_str(&ied, IAX_IE_CALLED_NUMBER, tmp);
+	if (context)
+		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, context);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Transferring '%s' to '%s'\n", c->name, dest);
+	return send_command(pvt, AST_FRAME_IAX, IAX_COMMAND_TRANSFER, 0, ied.buf, ied.pos, -1);
+}
+	
 
 static int iax2_write(struct ast_channel *c, struct ast_frame *f);
 
@@ -1966,6 +1986,7 @@ static struct ast_channel *ast_iax2_new(struct chan_iax2_pvt *i, int state, int 
 		tmp->pvt->indicate = iax2_indicate;
 		tmp->pvt->setoption = iax2_setoption;
 		tmp->pvt->bridge = iax2_bridge;
+		tmp->pvt->transfer = iax2_transfer;
 		if (strlen(i->callerid))
 			tmp->callerid = strdup(i->callerid);
 		if (strlen(i->ani))
@@ -3972,6 +3993,17 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				/* Send ack immediately, before we destroy */
 				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 				iax2_destroy_nolock(fr.callno);
+				break;
+			case IAX_COMMAND_TRANSFER:
+				if (iaxs[fr.callno]->owner && iaxs[fr.callno]->owner->bridge && ies.called_number) {
+					if (ast_async_goto(iaxs[fr.callno]->owner->bridge, iaxs[fr.callno]->context, ies.called_number, 1, 1))
+						ast_log(LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", iaxs[fr.callno]->owner->bridge->name, 
+							ies.called_number, iaxs[fr.callno]->context);
+					else
+						ast_log(LOG_DEBUG, "Async goto of '%s' to '%s@%s' started\n", iaxs[fr.callno]->owner->bridge->name, 
+							ies.called_number, iaxs[fr.callno]->context);
+				} else
+						ast_log(LOG_DEBUG, "Async goto not applicable on call %d\n", fr.callno);
 				break;
 			case IAX_COMMAND_ACCEPT:
 				/* Ignore if call is already up or needs authentication or is a TBD */

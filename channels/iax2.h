@@ -63,6 +63,7 @@
 #define IAX_COMMAND_PAGE	31	/* Paging description */
 #define IAX_COMMAND_MWI	32	/* Stand-alone message waiting indicator */
 #define IAX_COMMAND_UNSUPPORT	33	/* Unsupported message received */
+#define IAX_COMMAND_TRANSFER	34	/* Request remote transfer */
 
 #define IAX_DEFAULT_REG_EXPIRE  60	/* By default require re-registration once per minute */
 
@@ -98,6 +99,7 @@
 #define IAX_IE_AUTOANSWER			25		/* Request auto-answering -- none */
 #define IAX_IE_MUSICONHOLD			26		/* Request musiconhold with QUELCH -- none or string */
 #define IAX_IE_TRANSFERID			27		/* Transfer Request Identifier -- int */
+#define IAX_IE_RDNIS				28		/* Referring DNIS -- string */
 
 #define IAX_AUTH_PLAINTEXT			(1 << 0)
 #define IAX_AUTH_MD5				(1 << 1)
