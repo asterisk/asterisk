@@ -28,7 +28,9 @@
 //! AMA Flags
 #define AST_CDR_OMIT				(1)
 #define AST_CDR_BILLING				(2)
-#define AST_CDR_DOCUMENTATION		(3)
+#define AST_CDR_DOCUMENTATION			(3)
+
+#define AST_MAX_USER_FIELD			256
 
 struct ast_channel;
 
@@ -70,6 +72,8 @@ struct ast_cdr {
 	int posted;				
         /* Unique Channel Identifier */
         char uniqueid[32];
+	/* User field */
+	char userfield[AST_MAX_USER_FIELD];
 };
 
 typedef int (*ast_cdrbe)(struct ast_cdr *cdr);
@@ -224,6 +228,12 @@ extern void ast_cdr_reset(struct ast_cdr *cdr, int post);
 extern char *ast_cdr_flags2str(int flags);
 
 extern int ast_cdr_setaccount(struct ast_channel *chan, char *account);
+
+
+extern int ast_cdr_setuserfield(struct ast_channel *chan, char *userfield);
+extern int ast_cdr_appenduserfield(struct ast_channel *chan, char *userfield);
+
+
 /* Update CDR on a channel */
 extern int ast_cdr_update(struct ast_channel *chan);
 

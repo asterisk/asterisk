@@ -345,6 +345,27 @@ int ast_cdr_setaccount(struct ast_channel *chan, char *account)
 	return 0;
 }
 
+int ast_cdr_setuserfield(struct ast_channel *chan, char *userfield)
+{
+	struct ast_cdr *cdr = chan->cdr;
+
+	if (cdr)
+		strncpy(cdr->userfield, userfield, sizeof(cdr->userfield) - 1);
+	return 0;
+}
+
+int ast_cdr_appenduserfield(struct ast_channel *chan, char *userfield)
+{
+	struct ast_cdr *cdr = chan->cdr;
+
+	if (cdr)
+	{
+		int len = strlen(cdr->userfield);
+		strncpy(cdr->userfield+len, userfield, sizeof(cdr->userfield) - len - 1);
+	}
+	return 0;
+}
+
 int ast_cdr_update(struct ast_channel *c)
 {
 	struct ast_cdr *cdr = c->cdr;
