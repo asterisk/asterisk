@@ -71,6 +71,8 @@ static char *descrip =
 "             making/redirecting the outgoing call. For example, some PSTNs\n"
 "             don't allow callerids from other extensions then the ones\n"
 "             that are assigned to you.\n"
+"      'p' -- Preserve the incoming Caller*ID on the outbound leg of the call (old style\n"
+"             asterisk behavior)\n"
 "      'r' -- indicate ringing to the calling party, pass no audio until answered.\n"
 "      'm[(class)]' -- provide hold music to the calling party until answered (optionally\n"
 "                      with the specified class.\n"
@@ -145,6 +147,7 @@ static char *rdescrip =
 #define DIAL_MONITOR_OUT			(1 << 9)
 #define DIAL_GO_ON					(1 << 10)
 #define DIAL_HALT_ON_DTMF 			(1 << 11)
+#define DIAL_PRESERVE_CALLERID		(1 << 12)
 
 struct localuser {
 	struct ast_channel *chan;
@@ -403,7 +406,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							numnochan++;
 						} else {
 							/* After calling, set callerid to extension */
-							ast_set_callerid(o->chan, ast_strlen_zero(in->macroexten) ? in->exten : in->macroexten, get_cid_name(cidname, sizeof(cidname), in), NULL);
+							if (!ast_test_flag(peerflags, DIAL_PRESERVE_CALLERID))
+								ast_set_callerid(o->chan, ast_strlen_zero(in->macroexten) ? in->exten : in->macroexten, get_cid_name(cidname, sizeof(cidname), in), NULL);
 						}
 					}
 					/* Hangup the original channel now, in case we needed it */
@@ -890,6 +894,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			ast_set2_flag(peerflags, strchr(transfer, 'W'), DIAL_MONITOR_OUT);	
 			ast_set2_flag(peerflags, strchr(transfer, 'd'), DIAL_HALT_ON_DTMF);	
 			ast_set2_flag(peerflags, strchr(transfer, 'g'), DIAL_GO_ON);	
+			ast_set2_flag(peerflags, strchr(transfer, 'p'), DIAL_PRESERVE_CALLERID);	
 		}
 		strncpy(numsubst, number, sizeof(numsubst)-1);
 		/* If we're dialing by extension, look at the extension to know what to dial */
@@ -1013,7 +1018,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		} else {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Called %s\n", numsubst);
-			ast_set_callerid(tmp->chan, ast_strlen_zero(chan->macroexten) ? chan->exten : chan->macroexten, get_cid_name(cidname, sizeof(cidname), chan), NULL);
+			if (!ast_test_flag(peerflags, DIAL_PRESERVE_CALLERID))
+				ast_set_callerid(tmp->chan, ast_strlen_zero(chan->macroexten) ? chan->exten : chan->macroexten, get_cid_name(cidname, sizeof(cidname), chan), NULL);
 		}
 		/* Put them in the list of outgoing thingies...  We're ready now. 
 		   XXX If we're forcibly removed, these outgoing calls won't get
