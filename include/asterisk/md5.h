@@ -1,7 +1,7 @@
 #ifndef MD5_H
 #define MD5_H
 
-#include <stdint.h>
+#include <inttypes.h>
 
 struct MD5Context {
 	uint32_t buf[4];
