@@ -28,6 +28,7 @@
 #include <asterisk/linkedlists.h>
 #include <asterisk/say.h>
 #include <asterisk/utils.h>
+#include <asterisk/causes.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -140,6 +141,7 @@ struct ast_hint {
     struct ast_hint *next;
 };
 
+int ast_pbx_outgoing_cdr_failed(void);
 
 static int pbx_builtin_prefix(struct ast_channel *, void *);
 static int pbx_builtin_suffix(struct ast_channel *, void *);
@@ -1819,9 +1821,7 @@ int ast_pbx_run(struct ast_channel *c)
 		return -1;
 	}
 	if (c->amaflags) {
-		if (c->cdr) {
-			ast_log(LOG_WARNING, "%s already has a call record??\n", c->name);
-		} else {
+		if (!c->cdr) {
 			c->cdr = ast_cdr_alloc();
 			if (!c->cdr) {
 				ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
@@ -1850,7 +1850,7 @@ int ast_pbx_run(struct ast_channel *c)
 		}
 		c->priority = 1;
 	}
-	if (c->cdr)
+	if (c->cdr && !c->cdr->start.tv_sec && !c->cdr->start.tv_usec)
 		ast_cdr_start(c->cdr);
 	for(;;) {
 		pos = 0;
@@ -4131,11 +4131,49 @@ static void *async_wait(void *data)
 	return NULL;
 }
 
+/*! Function to update the cdr after a spool call fails.
+ *
+ *  This function updates the cdr for a failed spool call
+ *  and takes the channel of the failed call as an argument.
+ *
+ * \param chan the channel for the failed call.
+ */
+int ast_pbx_outgoing_cdr_failed(void)
+{
+	/* allocate a channel */
+	struct ast_channel *chan = ast_channel_alloc(0);
+	if(!chan) {
+		/* allocation of the channel failed, let some peeps know */
+		ast_log(LOG_WARNING, "Unable to allocate channel structure for CDR record\n");
+		return -1;  /* failure */
+	}
+
+	chan->cdr = ast_cdr_alloc();   /* allocate a cdr for the channel */
+
+	if(!chan->cdr) {
+		/* allocation of the cdr failed */
+		ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
+		ast_channel_free(chan);   /* free the channel */
+		return -1;                /* return failure */
+	}
+	
+	/* allocation of the cdr was successful */
+	ast_cdr_init(chan->cdr, chan);  /* initilize our channel's cdr */
+	ast_cdr_start(chan->cdr);       /* record the start and stop time */
+	ast_cdr_end(chan->cdr);
+	ast_cdr_failed(chan->cdr);      /* set the status to failed */
+	ast_cdr_post(chan->cdr);        /* post the record */
+	ast_cdr_free(chan->cdr);        /* free the cdr */
+	ast_channel_free(chan);         /* free the channel */
+	
+	return 0;  /* success */
+}
+
 int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, const char *variable, const char *account)
 {
 	struct ast_channel *chan;
 	struct async_stat *as;
-	int res = -1;
+	int res = -1, cdr_res = -1;
 	char *var, *tmp;
 	struct outgoing_helper oh;
 	pthread_attr_t attr;
@@ -4144,8 +4182,25 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 		LOAD_OH(oh);
 		chan = __ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name, &oh);
 		if (chan) {
+			
 			if (account)
 				ast_cdr_setaccount(chan, account);
+			
+			if(chan->cdr) { /* check if the channel already has a cdr record, if not give it one */
+				ast_log(LOG_WARNING, "%s already has a call record??\n", chan->name);
+			} else {
+				chan->cdr = ast_cdr_alloc();   /* allocate a cdr for the channel */
+				if(!chan->cdr) {
+					/* allocation of the cdr failed */
+					ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
+					free(chan->pbx);
+					return -1;  /* return failure */
+				}
+				/* allocation of the cdr was successful */
+				ast_cdr_init(chan->cdr, chan);  /* initilize our channel's cdr */
+				ast_cdr_start(chan->cdr);
+			}
+
 			if (chan->_state == AST_STATE_UP) {
 					res = 0;
 				if (option_verbose > 3)
@@ -4167,16 +4222,31 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 			} else {
 				if (option_verbose > 3)
 					ast_verbose(VERBOSE_PREFIX_4 "Channel %s was never answered.\n", chan->name);
+
+				if(chan->cdr) { /* update the cdr */
+					/* here we update the status of the call, which sould be busy.
+					 * if that fails then we set the status to failed */
+					if(ast_cdr_disposition(chan->cdr, chan->hangupcause))
+						ast_cdr_failed(chan->cdr);
+				}
+			
 				ast_hangup(chan);
 			}
 		}
 
 		if(res < 0) { /* the call failed for some reason */
+			if(*reason == 0) { /* if the call failed (not busy or no answer)
+				            * update the cdr with the failed message */
+				cdr_res = ast_pbx_outgoing_cdr_failed();
+				if(cdr_res != 0)
+					return cdr_res;
+			}
+			
 			/* create a fake channel and execute the "failed" extension (if it exists) within the requested context */
 			/* check if "failed" exists */
 			if (ast_exists_extension(chan, context, "failed", 1, NULL)) {
 				chan = ast_channel_alloc(0);
-				if (chan) {
+				if(chan) {
 					strncpy(chan->name, "OutgoingSpoolFailed", sizeof(chan->name) - 1);
 					if (context && !ast_strlen_zero(context))
 						strncpy(chan->context, context, sizeof(chan->context) - 1);
@@ -4189,7 +4259,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 						}
 					}
 					ast_pbx_run(chan);	
-				} else
+				} else 
 					ast_log(LOG_WARNING, "Can't allocate the channel structure, skipping execution of extension 'failed'\n");
 			}
 		}
@@ -4257,7 +4327,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 	struct async_stat *as;
 	struct app_tmp *tmp;
 	char *var, *vartmp;
-	int res = -1;
+	int res = -1, cdr_res = -1;
 	pthread_attr_t attr;
 	
 	if (!app || ast_strlen_zero(app))
@@ -4265,8 +4335,25 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 	if (sync) {
 		chan = ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name);
 		if (chan) {
+			
 			if (account)
 				ast_cdr_setaccount(chan, account);
+			
+			if(chan->cdr) { /* check if the channel already has a cdr record, if not give it one */
+				ast_log(LOG_WARNING, "%s already has a call record??\n", chan->name);
+			} else {
+				chan->cdr = ast_cdr_alloc();   /* allocate a cdr for the channel */
+				if(!chan->cdr) {
+					/* allocation of the cdr failed */
+					ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
+					free(chan->pbx);
+					return -1;  /* return failure */
+				}
+				/* allocation of the cdr was successful */
+				ast_cdr_init(chan->cdr, chan);  /* initilize our channel's cdr */
+				ast_cdr_start(chan->cdr);
+			}
+			
 			if (variable) {
 				vartmp = ast_strdupa(variable);
 				for (var = strtok_r(vartmp, "|", &vartmp); var; var = strtok_r(NULL, "|", &vartmp)) {
@@ -4302,9 +4389,25 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 			} else {
 				if (option_verbose > 3)
 					ast_verbose(VERBOSE_PREFIX_4 "Channel %s was never answered.\n", chan->name);
+				if(chan->cdr) { /* update the cdr */
+					/* here we update the status of the call, which sould be busy.
+					 * if that fails then we set the status to failed */
+					if(ast_cdr_disposition(chan->cdr, chan->hangupcause))
+						ast_cdr_failed(chan->cdr);
+				}
 				ast_hangup(chan);
 			}
 		}
+		
+		if(res < 0) { /* the call failed for some reason */
+			if(*reason == 0) { /* if the call failed (not busy or no answer)
+				            * update the cdr with the failed message */
+				cdr_res = ast_pbx_outgoing_cdr_failed();
+				if(cdr_res != 0)
+					return cdr_res;
+			}
+		}
+
 	} else {
 		as = malloc(sizeof(struct async_stat));
 		if (!as)
