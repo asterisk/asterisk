@@ -29,7 +29,7 @@
 static char *tdesc = "Save substring digits in a given variable";
 
 static char *descrip =
-"  StripLSD(variable=string_of_digits|count1|count2): Assigns the substring\n"
+"  SubString(variable=string_of_digits|count1|count2): Assigns the substring\n"
 "of string_of_digits to a given variable. Parameter count1 may be positive\n"
 "or negative. If it's positive then we skip the first count1 digits from the\n"
 "left. If it's negative, we move count1 digits counting from the end of\n"
