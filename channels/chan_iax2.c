@@ -2947,9 +2947,9 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 	i = iaxs[callno];
 	if (i && tmp) {
 		if (!ast_strlen_zero(i->username))
-			snprintf(tmp->name, sizeof(tmp->name), "IAX2/%s@%s/%d", i->username, i->host, i->callno);
+			snprintf(tmp->name, sizeof(tmp->name), "IAX2/%s@%s-%d", i->username, i->host, i->callno);
 		else
-			snprintf(tmp->name, sizeof(tmp->name), "IAX2/%s/%d", i->host, i->callno);
+			snprintf(tmp->name, sizeof(tmp->name), "IAX2/%s-%d", i->host, i->callno);
 		tmp->type = channeltype;
 		/* We can support any format by default, until we get restricted */
 		tmp->nativeformats = capability;
