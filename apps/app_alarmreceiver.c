@@ -817,7 +817,7 @@ static int load_config(void)
 			strncpy(db_family, p, sizeof(db_family) - 1);
 			db_family[sizeof(db_family) - 1] = '\0';
 		}
-
+		ast_destroy(cfg);
 	}
 	return 0;
 

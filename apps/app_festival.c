@@ -305,6 +305,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	if (!(festivalcommand = ast_variable_retrieve(cfg, "general", "festivalcommand"))) {
 		festivalcommand = "(tts_textasterisk \"%s\" 'file)(quit)\n";
 	}
+	ast_destroy(cfg);
 	if (!vdata || ast_strlen_zero(vdata)) {
 		ast_log(LOG_WARNING, "festival requires an argument (text)\n");
 		return -1;
