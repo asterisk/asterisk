@@ -102,6 +102,7 @@
 #define IAX_IE_TRANSFERID			27		/* Transfer Request Identifier -- int */
 #define IAX_IE_RDNIS				28		/* Referring DNIS -- string */
 #define IAX_IE_PROVISIONING			29		/* Provisioning info */
+#define IAX_IE_AESPROVISIONING			30		/* AES Provisioning info */
 
 #define IAX_AUTH_PLAINTEXT			(1 << 0)
 #define IAX_AUTH_MD5				(1 << 1)

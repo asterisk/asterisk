@@ -118,6 +118,7 @@ static struct iax2_ie {
 	{ IAX_IE_TRANSFERID, "TRANSFER ID", dump_int },
 	{ IAX_IE_RDNIS, "REFERRING DNIS", dump_string },
 	{ IAX_IE_PROVISIONING, "PROVISIONING" },
+	{ IAX_IE_AESPROVISIONING, "AES PROVISIONING" },
 };
 
 const char *iax_ie2str(int ie)
