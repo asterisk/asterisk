@@ -1,5 +1,6 @@
  -- chan_sip
     -- fix to prevent seg fault when attempting a transfer
+    -- fix bug with supervised transfers
  -- chan_h323
     -- fix compilation problem
  -- Numerous other minor bug fixes
