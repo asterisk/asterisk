@@ -96,6 +96,10 @@ static char mydbhost[80];
 static char mydbname[80];
 #endif
 
+							/* SIP Debug		*/
+#define DEBUG_READ	0				/* Recieved data	*/
+#define DEBUG_SEND	1				/* Transmit data	*/
+
 static char *desc = "Session Initiation Protocol (SIP)";
 static char *type = "SIP";
 static char *tdesc = "Session Initiation Protocol (SIP)";
@@ -151,6 +155,7 @@ static struct in_addr __ourip;
 static int ourport;
 
 static int sipdebug = 0;
+static struct sockaddr_in debugaddr;
 
 static int tos = 0;
 
@@ -453,6 +458,8 @@ static int build_reply_digest(struct sip_pvt *p, char *orig_header, char *digest
 static int update_user_counter(struct sip_pvt *fup, int event);
 static void prune_peers(void);
 static int sip_do_reload(void);
+static int sip_debug_test_addr(struct sockaddr_in *addr);
+static int sip_debug_test_pvt(struct sip_pvt *p);
 
 static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
@@ -493,7 +500,7 @@ static int retrans_pkt(void *data)
 	ast_mutex_lock(&pkt->owner->lock);
 	if (pkt->retrans < MAX_RETRANS) {
 		pkt->retrans++;
-		if (sipdebug) {
+		if (sip_debug_test_pvt(pkt->owner)) {
 			if (pkt->owner->nat)
 				ast_verbose("Retransmitting #%d (NAT):\n%s\n to %s:%d\n", pkt->retrans, pkt->data, inet_ntoa(pkt->owner->recv.sin_addr), ntohs(pkt->owner->recv.sin_port));
 			else
@@ -571,7 +578,7 @@ static int __sip_autodestruct(void *data)
 
 static int sip_scheddestroy(struct sip_pvt *p, int ms)
 {
-	if (sipdebug)
+	if (sip_debug_test_pvt(p))
 		ast_verbose("Scheduling destruction of call '%s' in %d ms\n", p->callid, ms);
 	if (p->autokillid > -1)
 		ast_sched_del(sched, p->autokillid);
@@ -641,7 +648,7 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp)
 static int send_response(struct sip_pvt *p, struct sip_request *req, int reliable, int seqno)
 {
 	int res;
-	if (sipdebug) {
+	if (sip_debug_test_pvt(p)) {
 		if (p->nat)
 			ast_verbose("%sTransmitting (NAT):\n%s\n to %s:%d\n", reliable ? "Reliably " : "", req->data, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 		else
@@ -659,7 +666,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable, int seqno)
 {
 	int res;
-	if (sipdebug) {
+	if (sip_debug_test_pvt(p)) {
 		if (p->nat)
 			ast_verbose("%sTransmitting:\n%s (NAT) to %s:%d\n", reliable ? "Reliably " : "", req->data, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 		else
@@ -692,13 +699,13 @@ static char *ditch_braces(char *tmp)
 static int sip_sendtext(struct ast_channel *ast, char *text)
 {
 	struct sip_pvt *p = ast->pvt->pvt;
-	if (sipdebug) 
+	if (sip_debug_test_pvt(p))
 		ast_verbose("Sending text %s on %s\n", text, ast->name);
 	if (!p)
 		return -1;
 	if (!text || !strlen(text))
 		return 0;
-	if (sipdebug)
+	if (sip_debug_test_pvt(p))
 		ast_verbose("Really sending text %s on %s\n", text, ast->name);
 	transmit_message_with_text(p, text);
 	return 0;	
@@ -864,6 +871,22 @@ static struct sip_user *find_user(char *name)
 	}
 
 	return(u);
+}
+
+static int sip_debug_test_addr(struct sockaddr_in *addr) {
+	/* See if we pass debug IP filter */
+	if (sipdebug == 0) return 0;
+	if (debugaddr.sin_addr.s_addr) {
+		if (((ntohs(debugaddr.sin_port) != 0) &&
+		     (debugaddr.sin_port != addr->sin_port)) ||
+		    (debugaddr.sin_addr.s_addr != addr->sin_addr.s_addr))
+			return 0;
+	}
+	return 1;
+}
+
+static int sip_debug_test_pvt(struct sip_pvt *p) {
+	return (sipdebug && sip_debug_test_addr((p->nat ? &p->recv : &p->sa)));
 }
 
 static int create_addr(struct sip_pvt *r, char *peer)
@@ -1116,7 +1139,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 {
 	struct sip_pvt *cur, *prev = NULL;
 	struct sip_pkt *cp;
-	if (sipdebug)
+	if (sip_debug_test_pvt(p))
 		ast_verbose("Destroying call '%s'\n", p->callid);
 	if (p->stateid > -1)
 		ast_extension_state_del(p->stateid, NULL);
@@ -2095,8 +2118,6 @@ static void parse(struct sip_request *req)
 	if (strlen(req->line[f])) 
 		f++;
 	req->lines = f;
-	if (sipdebug)
-		ast_verbose("%d headers, %d lines\n", req->headers, req->lines);
 	if (*c) 
 		ast_log(LOG_WARNING, "Odd content, extra stuff left over ('%s')\n", c);
 }
@@ -2154,7 +2175,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 					return -1;
 				}
-				if (sipdebug)
+				if (sip_debug_test_pvt(p))
 					ast_verbose("Found RTP audio format %d\n", codec);
 				ast_rtp_set_m_type(p->rtp, codec);
 				codecs += len;
@@ -2174,7 +2195,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 					return -1;
 				}
-				if (sipdebug)
+				if (sip_debug_test_pvt(p))
 					ast_verbose("Found video format %s\n", ast_getformatname(codec));
 				ast_rtp_set_m_type(p->vrtp, codec);
 				codecs += len;
@@ -2210,7 +2231,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	  	sendonly=0;
 	  }
 	  if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2) continue;
-	  if (sipdebug)
+	  if (sip_debug_test_pvt(p))
 		ast_verbose("Found description format %s\n", mimeSubtype);
 	  /* Note: should really look at the 'freq' and '#chans' params too */
 	  ast_rtp_set_rtpmap_type(p->rtp, codec, "audio", mimeSubtype);
@@ -2227,7 +2248,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	p->jointcapability = p->capability & (peercapability | vpeercapability);
 	p->noncodeccapability = noncodeccapability & (peernoncodeccapability | vpeernoncodeccapability);
 	
-	if (sipdebug) {
+	if (sip_debug_test_pvt(p)) {
 		ast_verbose("Capabilities: us - %d, them - %d/%d, combined - %d\n",
 			    p->capability, peercapability, vpeercapability, p->jointcapability);
 		ast_verbose("Non-codec capabilities: us - %d, them - %d, combined - %d\n",
@@ -2426,7 +2447,7 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	/* Parse uri to h (host) and port - uri is already just the part inside the <> */
 	/* general form we are expecting is sip[s]:username[:password]@host[:port][;...] */
 
-	if (sipdebug)
+	if (sip_debug_test_pvt(p))
 		ast_verbose("set_destination: Parsing <%s> for address/port to send to\n", uri);
 
 	/* Find and parse hostname */
@@ -2471,7 +2492,7 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	p->sa.sin_family = AF_INET;
 	memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
 	p->sa.sin_port = htons(port);
-	if (sipdebug)
+	if (sip_debug_test_pvt(p))
 		ast_verbose("set_destination: set destination to %s, port %d\n", inet_ntoa(p->sa.sin_addr), port);
 }
 
@@ -2790,9 +2811,9 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 			vdest.sin_port = vsin.sin_port;
 		}
 	}
-	if (sipdebug)
+	if (sip_debug_test_pvt(p))
 		ast_verbose("We're at %s port %d\n", inet_ntoa(p->ourip), ntohs(sin.sin_port));	
-	if (sipdebug && p->vrtp)
+	if (sip_debug_test_pvt(p) && p->vrtp)
 		ast_verbose("Video is at %s port %d\n", inet_ntoa(p->ourip), ntohs(vsin.sin_port));	
 	snprintf(v, sizeof(v), "v=0\r\n");
 	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s\r\n", p->sessionid, p->sessionversion, inet_ntoa(dest.sin_addr));
@@ -2802,7 +2823,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	snprintf(m, sizeof(m), "m=audio %d RTP/AVP", ntohs(dest.sin_port));
 	snprintf(m2, sizeof(m2), "m=video %d RTP/AVP", ntohs(vdest.sin_port));
 	if (p->jointcapability & p->prefcodec) {
-		if (sipdebug)
+		if (sip_debug_test_pvt(p))
 			ast_verbose("Answering/Requesting with root capability %d\n", p->prefcodec);
 		codec = ast_rtp_lookup_code(p->rtp, 1, p->prefcodec);
 		if (codec > -1) {
@@ -2823,7 +2844,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	cur = prefs;
 	while(cur) {
 		if (p->jointcapability & cur->codec) {
-			if (sipdebug)
+			if (sip_debug_test_pvt(p))
 				ast_verbose("Answering/Requesting with preferred capability %d\n", cur->codec);
 			codec = ast_rtp_lookup_code(p->rtp, 1, cur->codec);
 			if (codec > -1) {
@@ -2845,7 +2866,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	/* Now send any other common codecs, and non-codec formats: */
 	for (x = 1; x <= (videosupport ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO); x <<= 1) {
 		if ((p->jointcapability & x) && !(alreadysent & x)) {
-			if (sipdebug)
+			if (sip_debug_test_pvt(p))
 				ast_verbose("Answering with capability %d\n", x);	
 			codec = ast_rtp_lookup_code(p->rtp, 1, x);
 			if (codec > -1) {
@@ -2864,7 +2885,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	}
 	for (x = 1; x <= AST_RTP_MAX; x <<= 1) {
 		if (p->noncodeccapability & x) {
-			if (sipdebug)
+			if (sip_debug_test_pvt(p))
 				ast_verbose("Answering with non-codec capability %d\n", x);
 			codec = ast_rtp_lookup_code(p->rtp, 0, x);
 			if (codec > -1) {
@@ -3007,6 +3028,8 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp, st
 	/* Use this as the basis */
 	copy_request(&p->initreq, &req);
 	parse(&p->initreq);
+	if (sip_debug_test_pvt(p))
+		ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 	determine_firstline_parts(&p->initreq);
 	p->lastinvite = p->ocseq;
 	p->outgoing = 1;
@@ -3153,6 +3176,8 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 		/* Use this as the basis */
 		copy_request(&p->initreq, &req);
 		parse(&p->initreq);
+		if (sip_debug_test_pvt(p))
+			ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 		determine_firstline_parts(&p->initreq);
 	}
 	p->lastinvite = p->ocseq;
@@ -3268,6 +3293,8 @@ static int transmit_notify(struct sip_pvt *p, int newmsgs, int oldmsgs)
 		/* Use this as the basis */
 		copy_request(&p->initreq, &req);
 		parse(&p->initreq);
+		if (sip_debug_test_pvt(p))
+			ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 		determine_firstline_parts(&p->initreq);
 	}
 
@@ -3424,6 +3451,8 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	add_blank_header(&req);
 	copy_request(&p->initreq, &req);
 	parse(&p->initreq);
+	if (sip_debug_test_pvt(p))
+		ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 	determine_firstline_parts(&p->initreq);
 	r->regstate=auth?REG_STATE_AUTHSENT:REG_STATE_REGSENT;
 	return send_request(p, &req, 2, p->ocseq);
@@ -3776,7 +3805,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 	p->route = head;
 
 	/* For debugging dump what we ended up with */
-	if (sipdebug)
+	if (sip_debug_test_pvt(p))
 		list_route(p->route);
 }
 
@@ -4028,7 +4057,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 	if ((a = strchr(c, '@')) || (a = strchr(c, ';'))) {
 		*a = '\0';
 	}
-	if (sipdebug)
+	if (sip_debug_test_pvt(p))
 		ast_verbose("RDNIS is %s\n", c);
 	strncpy(p->rdnis, c, sizeof(p->rdnis) - 1);
 
@@ -4080,7 +4109,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 		} else
 			strncpy(p->fromdomain, fr, sizeof(p->fromdomain) - 1);
 	}
-	if (sipdebug)
+	if (sip_debug_test_pvt(p))
 		ast_verbose("Looking for %s in %s\n", c, p->context);
 	if (ast_exists_extension(NULL, p->context, c, 1, fr) ||
 		!strcmp(c, ast_pickup_ext())) {
@@ -4178,7 +4207,7 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 		*a2 = '\0';
 	
 	
-	if (sipdebug) {
+	if (sip_debug_test_pvt(p)) {
 		ast_verbose("Looking for %s in %s\n", c, p->context);
 		ast_verbose("Looking for %s in %s\n", c2, p->context);
 	}
@@ -4250,7 +4279,7 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 	if ((a = strchr(c, ';'))) 
 		*a = '\0';
 	
-	if (sipdebug) {
+	if (sip_debug_test_pvt(p)) {
 		ast_verbose("Looking for %s in %s\n", c, p->context);
 	}
 	if (ast_exists_extension(NULL, p->context, c, 1, NULL)) {
@@ -4305,7 +4334,7 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 		p->sa.sin_family = AF_INET;
 		memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
 		p->sa.sin_port = htons(pt ? atoi(pt) : DEFAULT_SIP_PORT);
-		if (sipdebug) {
+		if (sip_debug_test_pvt(p)) {
 			if (p->nat)
 				ast_verbose("Sending to %s : %d (NAT)\n", inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
 			else
@@ -4503,7 +4532,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 		return;
 	}
 	if (p->owner) {
-		if (sipdebug)
+		if (sip_debug_test_pvt(p))
 			ast_verbose("Message received: '%s'\n", buf);
 		  memset(&f, 0, sizeof(f));
 		  f.frametype = AST_FRAME_TEXT;
@@ -4758,7 +4787,7 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
 	
 	if (p->owner) {
 		if (strlen(buf)) {
-			if (sipdebug)
+			if (sip_debug_test_pvt(p))
 				ast_verbose("DTMF received: '%c'\n", buf[0]);
 			if (buf[0] == '*')
 				event = 10;
@@ -4786,11 +4815,80 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
 	}
 }
 
+static int sip_do_debug_ip(int fd, int argc, char *argv[])
+{
+	struct hostent *hp;
+	struct ast_hostent ahp;
+	int port = 0;
+	char *p, *arg;
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	arg = argv[3];
+	p = strstr(arg, ":");
+	if (p) {
+		*p = '\0';
+		p++;
+		port = atoi(p);
+	}
+	hp = ast_gethostbyname(arg, &ahp);
+	if (hp == NULL)  {
+		return RESULT_SHOWUSAGE;
+	}
+	debugaddr.sin_family = AF_INET;
+	memcpy(&debugaddr.sin_addr, hp->h_addr, sizeof(debugaddr.sin_addr));
+	debugaddr.sin_port = htons(port);
+	if (port == 0)
+		ast_cli(fd, "SIP Debugging Enabled for IP: %s\n", inet_ntoa(debugaddr.sin_addr));
+	else
+		ast_cli(fd, "SIP Debugging Enabled for IP: %s:%d\n", inet_ntoa(debugaddr.sin_addr), port);
+	sipdebug = 1;
+	return RESULT_SUCCESS;
+}
+
+static int sip_do_debug_peer(int fd, int argc, char *argv[])
+{
+	struct sip_peer *peer;
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	ast_mutex_lock(&peerl.lock);
+	for (peer = peerl.peers;peer;peer = peer->next)
+		if (!strcmp(peer->name, argv[3])) 
+			break;
+	ast_mutex_unlock(&peerl.lock);
+#ifdef MYSQL_FRIENDS
+	if (!peer)
+		peer = mysql_peer(argv[3], NULL);
+#endif		
+	if (peer) {
+		if (peer->addr.sin_addr.s_addr) {
+			debugaddr.sin_family = AF_INET;
+			memcpy(&debugaddr.sin_addr, &peer->addr.sin_addr, sizeof(debugaddr.sin_addr));
+			debugaddr.sin_port = peer->addr.sin_port;
+			ast_cli(fd, "SIP Debugging Enabled for IP: %s:%d\n", inet_ntoa(debugaddr.sin_addr), ntohs(debugaddr.sin_port));
+			sipdebug = 1;
+		} else
+			ast_cli(fd, "Unable to get IP address of peer '%s'\n", argv[3]);
+		if (peer->temponly)
+			free(peer);
+		peer = NULL;
+	} else
+		ast_cli(fd, "No such peer '%s'\n", argv[3]);
+	return RESULT_SUCCESS;
+}
+
 static int sip_do_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
+	if (argc != 2) {
+		if (argc != 4) 
+			return RESULT_SHOWUSAGE;
+		else if (strncmp(argv[2], "ip\0", 3) == 0)
+			return sip_do_debug_ip(fd, argc, argv);
+		else if (strncmp(argv[2], "peer\0", 5) == 0)
+			return sip_do_debug_peer(fd, argc, argv);
+		else return RESULT_SHOWUSAGE;
+	}
 	sipdebug = 1;
+	memset(&debugaddr, 0, sizeof(debugaddr));
 	ast_cli(fd, "SIP Debugging Enabled\n");
 	return RESULT_SUCCESS;
 }
@@ -4998,7 +5096,12 @@ static char show_reg_usage[] =
 
 static char debug_usage[] = 
 "Usage: sip debug\n"
-"       Enables dumping of SIP packets for debugging purposes\n";
+"       Enables dumping of SIP packets for debugging purposes\n\n"
+"       sip debug ip <host[:PORT]>\n"
+"       Enables dumping of SIP packets to and from host.\n\n"
+"       sip debug peer <peername>\n"
+"       Enables dumping of SIP packets to and from host.\n"
+"       Require peer to be registered.\n";
 
 static char no_debug_usage[] = 
 "Usage: sip no debug\n"
@@ -5014,6 +5117,10 @@ static struct ast_cli_entry  cli_show_channels =
 	{ { "sip", "show", "channels", NULL }, sip_show_channels, "Show active SIP channels", show_channels_usage};
 static struct ast_cli_entry  cli_show_channel =
 	{ { "sip", "show", "channel", NULL }, sip_show_channel, "Show detailed SIP channel info", show_channel_usage, complete_sipch  };
+static struct ast_cli_entry  cli_debug_ip =
+	{ { "sip", "debug", "ip", NULL }, sip_do_debug, "Enable SIP debugging on IP", debug_usage };
+static struct ast_cli_entry  cli_debug_peer =
+	{ { "sip", "debug", "peer", NULL }, sip_do_debug, "Enable SIP debugging on Peername", debug_usage };
 static struct ast_cli_entry  cli_show_peers =
 	{ { "sip", "show", "peers", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage };
 static struct ast_cli_entry  cli_inuse_show =
@@ -5326,7 +5433,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				ast_log(LOG_NOTICE, "Dunno anything about a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : inet_ntoa(p->sa.sin_addr));
 		}
 	} else {
-		if (sipdebug)
+		if (sip_debug_test_pvt(p))
 			ast_verbose("Message is %s\n", msg);
 		switch(resp) {
 		case 200:
@@ -5495,7 +5602,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		/* Process the SDP portion */
 		if (!ignore) {
 			/* Use this as the basis */
-			if (sipdebug)
+			if (sip_debug_test_pvt(p))
 				ast_verbose("Using latest request as basis request\n");
 			/* This call is no longer outgoing if it ever was */
 			p->outgoing = 0;
@@ -5511,7 +5618,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			/* Queue NULL frame to prod ast_rtp_bridge if appropriate */
 			if (p->owner)
 				ast_queue_frame(p->owner, &af);
-		} else if (sipdebug)
+		} else if (sip_debug_test_pvt(p))
 			ast_verbose("Ignoring this request\n");
 		if (!p->lastinvite) {
 			/* Handle authentication if this is our first invite */
@@ -5726,7 +5833,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		transmit_response(p, "200 OK", req);
 	} else if (!strcasecmp(cmd, "MESSAGE")) {
 		if (!ignore) {
-			if (sipdebug)
+			if (sip_debug_test_pvt(p))
 				ast_verbose("Receiving message!\n");
 			receive_message(p, req);
 		}
@@ -5734,13 +5841,13 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	} else if (!strcasecmp(cmd, "SUBSCRIBE")) {
 		if (!ignore) {
 			/* Use this as the basis */
-			if (sipdebug)
+			if (sip_debug_test_pvt(p))
 				ast_verbose("Using latest SUBSCRIBE request as basis request\n");
 			/* This call is no longer outgoing if it ever was */
 			p->outgoing = 0;
 			copy_request(&p->initreq, req);
 			check_via(p, req);
-		} else if (sipdebug)
+		} else if (sip_debug_test_pvt(p))
 			ast_verbose("Ignoring this request\n");
 
 		if (!p->lastinvite) {
@@ -5798,14 +5905,14 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		}
 	} else if (!strcasecmp(cmd, "INFO")) {
 		if (!ignore) {
-			if (sipdebug)
+			if (sip_debug_test_pvt(p))
 				ast_verbose("Receiving DTMF!\n");
 			receive_info(p, req);
 		}
 		transmit_response(p, "200 OK", req);
 	} else if (!strcasecmp(cmd, "REGISTER")) {
 		/* Use this as the basis */
-		if (sipdebug)
+		if (sip_debug_test_pvt(p))
 			ast_verbose("Using latest request as basis request\n");
 		copy_request(&p->initreq, req);
 		check_via(p, req);
@@ -5864,11 +5971,13 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	}
 	req.data[res] = '\0';
 	req.len = res;
-	if (sipdebug)
+	if (sip_debug_test_addr(&sin))
 		ast_verbose("\n\nSip read: \n%s\n", req.data);
 	if (pedanticsipchecking)
 		req.len = lws2sws(req.data, req.len);
 	parse(&req);
+	if (sip_debug_test_addr(&sin))
+		ast_verbose("%d headers, %d lines\n", req.headers, req.lines);
 	if (req.headers < 2) {
 		/* Must have at least two headers */
 		return 1;
@@ -7063,6 +7172,8 @@ int load_module()
 		ast_cli_register(&cli_show_peers);
 		ast_cli_register(&cli_show_registry);
 		ast_cli_register(&cli_debug);
+		ast_cli_register(&cli_debug_ip);
+		ast_cli_register(&cli_debug_peer);
 		ast_cli_register(&cli_no_debug);
 		ast_cli_register(&cli_sip_reload);
 		ast_cli_register(&cli_inuse_show);
@@ -7097,6 +7208,8 @@ int unload_module()
 	ast_cli_unregister(&cli_show_peers);
 	ast_cli_unregister(&cli_show_registry);
 	ast_cli_unregister(&cli_debug);
+	ast_cli_unregister(&cli_debug_ip);
+	ast_cli_unregister(&cli_debug_peer);
 	ast_cli_unregister(&cli_no_debug);
 	ast_cli_unregister(&cli_sip_reload);
 	ast_cli_unregister(&cli_inuse_show);
