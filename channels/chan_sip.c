@@ -3877,7 +3877,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs)
 	add_header(&req, "Content-Type", notifymime);
 
 	snprintf(tmp, sizeof(tmp), "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
-	snprintf(tmp2, sizeof(tmp2), "Voicemail: %d/%d\r\n", newmsgs, oldmsgs);
+	snprintf(tmp2, sizeof(tmp2), "Voice-Message: %d/%d\r\n", newmsgs, oldmsgs);
 	snprintf(clen, sizeof(clen), "%d", (int)(strlen(tmp) + strlen(tmp2)));
 	add_header(&req, "Content-Length", clen);
 	add_line(&req, tmp);
