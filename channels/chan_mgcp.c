@@ -2942,7 +2942,7 @@ int load_module()
 	}
 	
 	if (ntohl(bindaddr.sin_addr.s_addr)) {
-		memcpy(&__ourip, &bindaddr, sizeof(__ourip));
+		memcpy(&__ourip, &bindaddr.sin_addr, sizeof(__ourip));
 	} else {
 		hp = gethostbyname(ourhost);
 		if (!hp) {
