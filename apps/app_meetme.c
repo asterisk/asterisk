@@ -904,7 +904,7 @@ zapretry:
 					goto zapretry;
 				}
 				f = ast_read(c);
-				if (!f) 
+				if (!f)
 					break;
 				if ((f->frametype == AST_FRAME_VOICE) && (f->subclass == AST_FORMAT_SLINEAR)) {
 					if (confflags &  CONFFLAG_MONITORTALKER) {
@@ -932,6 +932,10 @@ zapretry:
 								chan->name, chan->uniqueid, conf->confno, user->user_no);
 						}
 					}
+                                	if (using_pseudo) {
+                                                /* Carefully write */
+                                                careful_write(fd, f->data, f->datalen);
+                                	}
 				} else if ((f->frametype == AST_FRAME_DTMF) && (confflags & CONFFLAG_EXIT_CONTEXT)) {
 					char tmp[2];
 					tmp[0] = f->subclass;
@@ -1062,14 +1066,8 @@ zapretry:
 					if (musiconhold) {
 			   			ast_moh_start(chan, NULL);
 					}
-				} else if (using_pseudo) {
-					if (f->frametype == AST_FRAME_VOICE) {
-						if (f->subclass == AST_FORMAT_SLINEAR) {
-							/* Carefully write */
-							careful_write(fd, f->data, f->datalen);
-						} else
-							ast_log(LOG_WARNING, "Huh?  Got a non-linear (%d) frame in the conference\n", f->subclass);
-					}
+				} else if (option_debug) {
+					ast_log(LOG_DEBUG, "Got unrecognized frame on channel %s, f->frametype=%d,f->subclass=%d\n",chan->name,f->frametype,f->subclass);
 				}
 				ast_frfree(f);
 			} else if (outfd > -1) {
