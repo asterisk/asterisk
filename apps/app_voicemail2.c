@@ -1592,7 +1592,6 @@ static void adsi_message(struct ast_channel *chan, char *folder, int msg, int la
 	int bytes=0;
 	char buf[256], buf1[256], buf2[256];
 	char fn2[256];
-      bytes += adsi_voice_mode(buf + bytes, 0);
 
 	char cid[256]="";
 	char *val;
