@@ -1517,6 +1517,8 @@ struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, i
 				ast_set_callerid(chan, oh->callerid, 1);
 			chan->priority = oh->priority;
 		}
+		if (callerid && strlen(callerid))
+			ast_set_callerid(chan, callerid, 1);
 
 		if (!ast_call(chan, data, 0)) {
 			while(timeout && (chan->_state != AST_STATE_UP)) {
