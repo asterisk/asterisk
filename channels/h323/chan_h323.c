@@ -86,7 +86,7 @@ static char secret[50];
 
 /** Private structure of a OpenH323 channel */
 struct oh323_pvt {
-	pthread_mutex_t lock;					/* Channel private lock */
+	ast_mutex_t lock;					/* Channel private lock */
 	call_options_t calloptions;				/* Options to be used during call setup */
 	int	alreadygone;						/* Whether or not we've already been destroyed by or peer */
 	int needdestroy;						/* if we need to be destroyed */
@@ -111,17 +111,17 @@ struct oh323_pvt {
 
 static struct ast_user_list {
 	struct oh323_user *users;
-	pthread_mutex_t lock;
+	ast_mutex_t lock;
 } userl = { NULL, AST_MUTEX_INITIALIZER };
 
 static struct ast_peer_list {
 	struct oh323_peer *peers;
-	pthread_mutex_t lock;
+	ast_mutex_t lock;
 } peerl = { NULL, AST_MUTEX_INITIALIZER };
 
 static struct ast_alias_list {
 	struct oh323_alias *aliases;
-	pthread_mutex_t lock;
+	ast_mutex_t lock;
 } aliasl = { NULL, AST_MUTEX_INITIALIZER };
 
 /** Asterisk RTP stuff*/
@@ -129,15 +129,15 @@ static struct sched_context *sched;
 static struct io_context *io;
 
 /** Protect the interface list (of oh323_pvt's) */
-static pthread_mutex_t iflock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t iflock = AST_MUTEX_INITIALIZER;
 
 /** Usage counter and associated lock */
 static int usecnt =0;
-static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
-static pthread_mutex_t monlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t monlock = AST_MUTEX_INITIALIZER;
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
@@ -155,10 +155,10 @@ static void __oh323_destroy(struct oh323_pvt *p)
 	
 	/* Unlink us from the owner if we have one */
 	if (p->owner) {
-		ast_pthread_mutex_lock(&p->owner->lock);
+		ast_mutex_lock(&p->owner->lock);
 		ast_log(LOG_DEBUG, "Detaching from %s\n", p->owner->name);
 		p->owner->pvt->pvt = NULL;
-		ast_pthread_mutex_unlock(&p->owner->lock);
+		ast_mutex_unlock(&p->owner->lock);
 	}
 	cur = iflist;
 	while(cur) {
@@ -180,9 +180,9 @@ static void __oh323_destroy(struct oh323_pvt *p)
 
 static void oh323_destroy(struct oh323_pvt *p)
 {
-	ast_pthread_mutex_lock(&iflock);
+	ast_mutex_lock(&iflock);
 	__oh323_destroy(p);
-	ast_pthread_mutex_unlock(&iflock);
+	ast_mutex_unlock(&iflock);
 }
 
 static struct oh323_alias *build_alias(char *name, struct ast_variable *v)
@@ -280,7 +280,7 @@ static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
 	int found=0;
 	
 	prev = NULL;
-	ast_pthread_mutex_lock(&peerl.lock);
+	ast_mutex_lock(&peerl.lock);
 	peer = peerl.peers;
 
 	while(peer) {
@@ -299,9 +299,9 @@ static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
 		} else {
 			peerl.peers = peer->next;
 		}
-		ast_pthread_mutex_unlock(&peerl.lock);
+		ast_mutex_unlock(&peerl.lock);
  	} else {
-		ast_pthread_mutex_unlock(&peerl.lock);
+		ast_mutex_unlock(&peerl.lock);
 		peer = malloc(sizeof(struct oh323_peer));
 		memset(peer, 0, sizeof(struct oh323_peer));
 	}
@@ -452,11 +452,11 @@ static int oh323_hangup(struct ast_channel *c)
 		ast_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
 		return 0;
 	}
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	/* Determine how to disconnect */
 	if (p->owner != c) {
 		ast_log(LOG_WARNING, "Huh?  We aren't the owner?\n");
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		return 0;
 	}
 	if (!c || (c->_state != AST_STATE_UP))
@@ -480,14 +480,14 @@ static int oh323_hangup(struct ast_channel *c)
 	}
 
 	/* Update usage counter */
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	usecnt--;
 	if (usecnt < 0)
 		ast_log(LOG_WARNING, "Usecnt < 0\n");
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	ast_update_use_count();
 
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return 0;
 }
 
@@ -528,9 +528,9 @@ static struct ast_frame  *oh323_read(struct ast_channel *c)
 {
 	struct ast_frame *fr;
 	struct oh323_pvt *p = c->pvt->pvt;
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	fr = oh323_rtp_read(p);
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return fr;
 }
 
@@ -553,11 +553,11 @@ static int oh323_write(struct ast_channel *c, struct ast_frame *frame)
 		}
 	}
 	if (p) {
-		ast_pthread_mutex_lock(&p->lock);
+		ast_mutex_lock(&p->lock);
 		if (p->rtp) {
 			res =  ast_rtp_write(p->rtp, frame);
 		}
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 	}
 	return res;
 }
@@ -605,13 +605,13 @@ static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct oh323_pvt *p = newchan->pvt->pvt;
 
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	if (p->owner != oldchan) {
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
 		return -1;
 	}
 	p->owner = newchan;
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return 0;
 }
 
@@ -661,9 +661,9 @@ static struct ast_channel *oh323_new(struct oh323_pvt *i, int state, const char 
 		/*  Set the owner of this channel */
 		i->owner = tmp;
 		
-		ast_pthread_mutex_lock(&usecnt_lock);
+		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
-		ast_pthread_mutex_unlock(&usecnt_lock);
+		ast_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);		
@@ -706,7 +706,7 @@ static struct oh323_pvt *oh323_alloc(int callid)
 		return NULL;
 	}
 	ast_rtp_settos(p->rtp, tos);
-	ast_pthread_mutex_init(&p->lock);
+	ast_mutex_init(&p->lock);
 	
 	p->cd.call_reference = callid;
 	p->bridge = 1;
@@ -716,10 +716,10 @@ static struct oh323_pvt *oh323_alloc(int callid)
 		p->nonCodecCapability |= AST_RTP_DTMF;
 
 	/* Add to interface list */
-	ast_pthread_mutex_lock(&iflock);
+	ast_mutex_lock(&iflock);
 	p->next = iflist;
 	iflist = p;
-	ast_pthread_mutex_unlock(&iflock);
+	ast_mutex_unlock(&iflock);
 	return p;
 }
 
@@ -727,18 +727,18 @@ static struct oh323_pvt *find_call(int call_reference)
 {  
         struct oh323_pvt *p;
 
-		ast_pthread_mutex_lock(&iflock);
+		ast_mutex_lock(&iflock);
         p = iflist; 
 
         while(p) {
                 if (p->cd.call_reference == call_reference) {
                         /* Found the call */						
-						ast_pthread_mutex_unlock(&iflock);
+						ast_mutex_unlock(&iflock);
 						return p;
                 }
                 p = p->next; 
         }
-        ast_pthread_mutex_unlock(&iflock);
+        ast_mutex_unlock(&iflock);
 		return NULL;
         
 }
@@ -1180,7 +1180,7 @@ static void *do_monitor(void *data)
 	
 		for(;;) {
 		/* Check for interfaces needing to be killed */
-		ast_pthread_mutex_lock(&iflock);
+		ast_mutex_lock(&iflock);
 restartsearch:		
 		oh323 = iflist;
 		while(oh323) {
@@ -1190,7 +1190,7 @@ restartsearch:
 			}
 			oh323 = oh323->next;
 		}
-		ast_pthread_mutex_unlock(&iflock);
+		ast_mutex_unlock(&iflock);
 
 		pthread_testcancel();
 
@@ -1199,10 +1199,10 @@ restartsearch:
 		if ((res < 0) || (res > 1000))
 			res = 1000;
 		res = ast_io_wait(io, res);
-		ast_pthread_mutex_lock(&monlock);
+		ast_mutex_lock(&monlock);
 		if (res >= 0) 
 			ast_sched_runq(sched);
-		ast_pthread_mutex_unlock(&monlock);
+		ast_mutex_unlock(&monlock);
 	}
 	/* Never reached */
 	return NULL;
@@ -1214,12 +1214,12 @@ static int restart_monitor(void)
 	/* If we're supposed to be stopped -- stay stopped */
 	if (monitor_thread == -2)
 		return 0;
-	if (ast_pthread_mutex_lock(&monlock)) {
+	if (ast_mutex_lock(&monlock)) {
 		ast_log(LOG_WARNING, "Unable to lock monitor\n");
 		return -1;
 	}
 	if (monitor_thread == pthread_self()) {
-		ast_pthread_mutex_unlock(&monlock);
+		ast_mutex_unlock(&monlock);
 		ast_log(LOG_WARNING, "Cannot kill myself\n");
 		return -1;
 	}
@@ -1229,12 +1229,12 @@ static int restart_monitor(void)
 	} else {
 		/* Start a new monitor */
 		if (pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {
-			ast_pthread_mutex_unlock(&monlock);
+			ast_mutex_unlock(&monlock);
 			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
 			return -1;
 		}
 	}
-	ast_pthread_mutex_unlock(&monlock);
+	ast_mutex_unlock(&monlock);
 	return 0;
 }
 
@@ -1442,26 +1442,26 @@ int reload_config()
 				if (!strcasecmp(utype, "user") || !strcasecmp(utype, "friend")) {
 					user = build_user(cat, ast_variable_browse(cfg, cat));
 					if (user) {
-						ast_pthread_mutex_lock(&userl.lock);
+						ast_mutex_lock(&userl.lock);
 						user->next = userl.users;
 						userl.users = user;
-						ast_pthread_mutex_unlock(&userl.lock);
+						ast_mutex_unlock(&userl.lock);
 					}
 				}  else if (!strcasecmp(utype, "peer") || !strcasecmp(utype, "friend")) {
 					peer = build_peer(cat, ast_variable_browse(cfg, cat));
 					if (peer) {
-						ast_pthread_mutex_lock(&peerl.lock);
+						ast_mutex_lock(&peerl.lock);
 						peer->next = peerl.peers;
 						peerl.peers = peer;
-						ast_pthread_mutex_unlock(&peerl.lock);
+						ast_mutex_unlock(&peerl.lock);
 					}
 				}  else if (!strcasecmp(utype, "h323")) {			
 					alias = build_alias(cat, ast_variable_browse(cfg, cat));
 					if (alias) {
-						ast_pthread_mutex_lock(&aliasl.lock);
+						ast_mutex_lock(&aliasl.lock);
 						alias->next = aliasl.aliases;
 						aliasl.aliases = alias;
-						ast_pthread_mutex_unlock(&aliasl.lock);
+						ast_mutex_unlock(&aliasl.lock);
 					}
 				} else {
 					ast_log(LOG_WARNING, "Unknown type '%s' for '%s' in %s\n", utype, cat, config);
@@ -1497,21 +1497,21 @@ void delete_users(void)
 	struct oh323_peer *peer;
 	
 	/* Delete all users */
-	ast_pthread_mutex_lock(&userl.lock);
+	ast_mutex_lock(&userl.lock);
 	for (user=userl.users;user;) {
 		userlast = user;
 		user=user->next;
 		free(userlast);
 	}
 	userl.users=NULL;
-	ast_pthread_mutex_unlock(&userl.lock);
-	ast_pthread_mutex_lock(&peerl.lock);
+	ast_mutex_unlock(&userl.lock);
+	ast_mutex_lock(&peerl.lock);
 	for (peer=peerl.peers;peer;) {
 		/* Assume all will be deleted, and we'll find out for sure later */
 		peer->delme = 1;
 		peer = peer->next;
 	}
-	ast_pthread_mutex_unlock(&peerl.lock);
+	ast_mutex_unlock(&peerl.lock);
 }
 
 void delete_aliases(void)
@@ -1519,21 +1519,21 @@ void delete_aliases(void)
 	struct oh323_alias *alias, *aliaslast;
 		
 	/* Delete all users */
-	ast_pthread_mutex_lock(&aliasl.lock);
+	ast_mutex_lock(&aliasl.lock);
 	for (alias=aliasl.aliases;alias;) {
 		aliaslast = alias;
 		alias=alias->next;
 		free(aliaslast);
 	}
 	aliasl.aliases=NULL;
-	ast_pthread_mutex_unlock(&aliasl.lock);
+	ast_mutex_unlock(&aliasl.lock);
 }
 
 void prune_peers(void)
 {
 	/* Prune peers who still are supposed to be deleted */
 	struct oh323_peer *peer, *peerlast, *peernext;
-	ast_pthread_mutex_lock(&peerl.lock);
+	ast_mutex_lock(&peerl.lock);
 	peerlast = NULL;
 	for (peer=peerl.peers;peer;) {
 		peernext = peer->next;
@@ -1547,7 +1547,7 @@ void prune_peers(void)
 			peerlast = peer;
 		peer=peernext;
 	}
-	ast_pthread_mutex_unlock(&peerl.lock);
+	ast_mutex_unlock(&peerl.lock);
 }
 
 int reload(void)
@@ -1693,7 +1693,7 @@ int unload_module()
 {
 	struct oh323_pvt *p, *pl;
 		
-	if (!ast_pthread_mutex_lock(&iflock)) {
+	if (!ast_mutex_lock(&iflock)) {
 	/* hangup all interfaces if they have an owner */
 	p = iflist;
 	while(p) {
@@ -1702,13 +1702,13 @@ int unload_module()
 		p = p->next;
 	}
 	iflist = NULL;
-	ast_pthread_mutex_unlock(&iflock);
+	ast_mutex_unlock(&iflock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the interface list\n");
 		return -1;
 	}
 		
-	if (!ast_pthread_mutex_lock(&iflock)) {
+	if (!ast_mutex_lock(&iflock)) {
 		/* destroy all the interfaces and free their memory */
 		p = iflist;
 		while(p) {
@@ -1718,7 +1718,7 @@ int unload_module()
 			free(pl);
 		}
 		iflist = NULL;
-		ast_pthread_mutex_unlock(&iflock);
+		ast_mutex_unlock(&iflock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the interface list\n");
 		return -1;
@@ -1747,9 +1747,9 @@ int unload_module()
 int usecount()
 {
 	int res;
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	res = usecnt;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	return res;
 }
 
