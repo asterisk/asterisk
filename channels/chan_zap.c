@@ -1626,7 +1626,13 @@ static int zt_hangup(struct ast_channel *ast)
 #ifndef PRI_HANGUP
 #error Please update libpri. The new hangup routines were implemented. You can debug then using "pri debug span <span_no>". If you dont want to update libpri code simply comment out OPTIONS += -DNEW_PRI_HANGUP in asterisk/Makefile
 #endif
-					pri_hangup(p->pri->pri, p->call, -1);
+					if (p->alreadyhungup) {
+						pri_hangup(p->pri->pri, p->call, -1);
+						p->call = NULL;
+					} else {
+						p->alreadyhungup = 1;
+						pri_hangup(p->pri->pri, p->call, -1);
+					}
 #endif
 					if (res < 0) 
 						ast_log(LOG_WARNING, "pri_disconnect failed\n");
@@ -3532,6 +3538,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		tmp->pvt->rawwriteformat = deflaw;
 		tmp->writeformat = deflaw;
 		i->subs[index].linear = 0;
+		i->alreadyhungup = 0;
 		zt_setlinear(i->subs[index].zfd, i->subs[index].linear);
 		features = 0;
 		if (i->busydetect && CANBUSYDETECT(i)) {
@@ -5823,6 +5830,7 @@ static void *pri_dchannel(void *vpri)
 				break;				
 			case PRI_EVENT_HANGUP:
 				chan = e->hangup.channel;
+				ast_log(LOG_NOTICE, "channel %d\n",chan);
 				if ((chan < 1) || (chan > pri->channels)) {
 					ast_log(LOG_WARNING, "Hangup requested on odd channel number %d span %d\n", chan, pri->span);
 					chan = 0;
@@ -5834,8 +5842,45 @@ static void *pri_dchannel(void *vpri)
 					chan = pri_fixup(pri, chan, e->hangup.call);
 					if (chan) {
 						ast_pthread_mutex_lock(&pri->pvt[chan]->lock);
-						if (pri->pvt[chan]->owner) {
+						if (!pri->pvt[chan]->alreadyhungup) {
+							/* we're calling here zt_hangup so once we get there we need to clear p->call after calling pri_hangup */
 							pri->pvt[chan]->alreadyhungup = 1;
+							pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							if (option_verbose > 2) 
+								ast_verbose(VERBOSE_PREFIX_3 "Channel %d, span %d got hangup\n", chan, pri->span);
+						} else {
+							pri_hangup(pri->pri, pri->pvt[chan]->call, e->hangup.cause);
+							pri->pvt[chan]->call = NULL;
+						}
+						if (e->hangup.cause == PRI_CAUSE_REQUESTED_CHAN_UNAVAIL) {
+							if (option_verbose > 2)
+								ast_verbose(VERBOSE_PREFIX_3 "Forcing restart of channel %d since channel reported in use\n", chan);
+							pri_reset(pri->pri, chan);
+							pri->pvt[chan]->resetting = 1;
+						}
+						ast_pthread_mutex_unlock(&pri->pvt[chan]->lock);
+					} else {
+						ast_log(LOG_WARNING, "Hangup on bad channel %d\n", e->hangup.channel);
+					}
+				} 
+				break;
+#ifndef PRI_EVENT_HANGUP_REQ
+#error please update libpri
+#endif
+			case PRI_EVENT_HANGUP_REQ:
+				chan = e->hangup.channel;
+				if ((chan < 1) || (chan > pri->channels)) {
+					ast_log(LOG_WARNING, "Hangup REQ requested on odd channel number %d span %d\n", chan, pri->span);
+					chan = 0;
+				} else if (!pri->pvt[chan]) {
+					ast_log(LOG_WARNING, "Hangup REQ requested on unconfigured channel %d span %d\n", chan, pri->span);
+					chan = 0;
+				}
+				if (chan) {
+					chan = pri_fixup(pri, chan, e->hangup.call);
+					if (chan) {
+						ast_pthread_mutex_lock(&pri->pvt[chan]->lock);
+						if (pri->pvt[chan]->owner) {
 							pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							if (option_verbose > 2) 
 								ast_verbose(VERBOSE_PREFIX_3 "Channel %d, span %d got hangup\n", chan, pri->span);
@@ -5848,7 +5893,7 @@ static void *pri_dchannel(void *vpri)
 						}
 						ast_pthread_mutex_unlock(&pri->pvt[chan]->lock);
 					} else {
-						ast_log(LOG_WARNING, "Hangup on bad channel %d\n", e->hangup.channel);
+						ast_log(LOG_WARNING, "Hangup REQ on bad channel %d\n", e->hangup.channel);
 					}
 				} 
 				break;
