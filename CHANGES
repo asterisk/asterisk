@@ -1,3 +1,5 @@
+ -- Merge voicemail enhancements (app_voicemail2)
+ -- Add multiple queueing strategies
  -- Merge support for 'T'
  -- Allow pending agent calling (Agent/:1)
  -- Add groupings to agents.conf

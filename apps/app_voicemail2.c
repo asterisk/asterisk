@@ -1303,7 +1303,7 @@ static int adsi_load_vmail(struct ast_channel *chan, int *useadsi)
 	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 0, "Listen", "Listen", "1", 1);
 	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 1, "Folder", "Folder", "2", 1);
 	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 2, "Advanced", "Advnced", "3", 1);
-	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 3, "Options", "Options", "4", 1);
+	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 3, "Options", "Options", "0", 1);
 	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 4, "Help", "Help", "*", 1);
 	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 5, "Exit", "Exit", "#", 1);
  	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD);
@@ -1446,6 +1446,7 @@ static void adsi_password(struct ast_channel *chan)
 	bytes += adsi_input_format(buf + bytes, 1, ADSI_DIR_FROM_LEFT, 0, "Password: ******", "");
 	bytes += adsi_input_control(buf + bytes, ADSI_COMM_PAGE, 4, 0, 1, ADSI_JUST_LEFT);
 	bytes += adsi_set_keys(buf + bytes, keys);
+	bytes += adsi_voice_mode(buf + bytes, 0);
 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 }
 
@@ -1473,6 +1474,8 @@ static void adsi_folders(struct ast_channel *chan, int start, char *label)
 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 2, ADSI_JUST_CENT, 0, " ", "");
 	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
 	bytes += adsi_set_keys(buf + bytes, keys);
+	bytes += adsi_voice_mode(buf + bytes, 0);
+
 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 }
 
@@ -1559,6 +1562,8 @@ static void adsi_message(struct ast_channel *chan, char *folder, int msg, int la
 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_LEFT, 0, datetime, "");
 	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
 	bytes += adsi_set_keys(buf + bytes, keys);
+	bytes += adsi_voice_mode(buf + bytes, 0);
+
 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 }
 
@@ -1602,6 +1607,8 @@ static void adsi_delete(struct ast_channel *chan, int msg, int last, int deleted
 	/* Except "Exit" */
 	keys[5] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 5);
 	bytes += adsi_set_keys(buf + bytes, keys);
+	bytes += adsi_voice_mode(buf + bytes, 0);
+
 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 }
 
@@ -1645,6 +1652,8 @@ static void adsi_status(struct ast_channel *chan, int new, int old, int lastmsg)
 		keys[0] = 1;
 	bytes += adsi_set_keys(buf + bytes, keys);
 
+	bytes += adsi_voice_mode(buf + bytes, 0);
+
 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 }
 
@@ -1683,6 +1692,8 @@ static void adsi_status2(struct ast_channel *chan, char *folder, int messages)
 	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
 	bytes += adsi_set_keys(buf + bytes, keys);
 
+	bytes += adsi_voice_mode(buf + bytes, 0);
+
 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 	
 }
@@ -1694,6 +1705,8 @@ static void adsi_clear(struct ast_channel *chan)
 	if (!adsi_available(chan))
 		return;
 	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+	bytes += adsi_voice_mode(buf + bytes, 0);
+
 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 }
 
@@ -1708,6 +1721,8 @@ static void adsi_goodbye(struct ast_channel *chan)
 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_LEFT, 0, " ", "");
 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_CENT, 0, "Goodbye", "");
 	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+	bytes += adsi_voice_mode(buf + bytes, 0);
+
 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 }
 
@@ -2399,6 +2414,18 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 	char newpassword[80] = "";
 	char newpassword2[80] = "";
 	char prefile[256]="";
+	char buf[256];
+	int bytes=0;
+
+	if (adsi_available(chan))
+	{
+		bytes += adsi_logo(buf + bytes);
+		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_CENT, 0, "Options Menu", "");
+		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_CENT, 0, "Not Done", "");
+		bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+		bytes += adsi_voice_mode(buf + bytes, 0);
+		adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+	}
 	while((cmd >= 0) && (cmd != 't')) {
 		if (cmd)
 			retries = 0;
@@ -2723,6 +2750,8 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				break;
 			case '0':
 				cmd = vm_options(chan, vmu, &vms, vmfmts);
+				if (useadsi)
+					adsi_status(chan, vms.newmessages, vms.oldmessages, vms.lastmsg);
 				break;
 			default:	/* Nothing */
 				cmd = vm_instructions(chan, &vms);

@@ -111,7 +111,6 @@ struct localuser {
 	char numsubst[256];
 	char tech[40];
 	int stillgoing;
-	int penalty;
 	int metric;
 	int allowredirect_in;
 	int allowredirect_out;
@@ -119,6 +118,7 @@ struct localuser {
 	int musiconhold;
 	int dataquality;
 	int allowdisconnect;
+	struct member *member;
 	struct localuser *next;
 };
 
@@ -139,7 +139,8 @@ struct member {
 	char tech[80];				/* Technology */
 	char loc[256];				/* Location */
 	int penalty;				/* Are we a last resort? */
-	struct timeval lastcall;	/* When last successful call was hungup */
+	int calls;
+	time_t lastcall;	/* When last successful call was hungup */
 	struct member *next;		/* Next member */
 };
 
@@ -429,7 +430,7 @@ static int valid_exit(struct queue_ent *qe, char digit)
 
 #define MAX 256
 
-static struct ast_channel *wait_for_answer(struct queue_ent *qe, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect, char *digit)
+static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect, char *digit)
 {
 	char *queue = qe->parent->name;
 	struct localuser *o;
@@ -439,7 +440,7 @@ static struct ast_channel *wait_for_answer(struct queue_ent *qe, struct localuse
 	int numbusies = 0;
 	int orig = *to;
 	struct ast_frame *f;
-	struct ast_channel *peer = NULL;
+	struct localuser *peer = NULL;
 	struct ast_channel *watchers[MAX];
 	int pos;
 	struct ast_channel *winner;
@@ -476,7 +477,7 @@ static struct ast_channel *wait_for_answer(struct queue_ent *qe, struct localuse
 				if (!peer) {
 					if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
-					peer = o->chan;
+					peer = o;
 					*allowredir_in = o->allowredirect_in;
 					*allowredir_out = o->allowredirect_out;
 					*allowdisconnect = o->allowdisconnect;
@@ -491,7 +492,7 @@ static struct ast_channel *wait_for_answer(struct queue_ent *qe, struct localuse
 							if (!peer) {
 								if (option_verbose > 2)
 									ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
-								peer = o->chan;
+								peer = o;
 								*allowredir_in = o->allowredirect_in;
 								*allowredir_out = o->allowredirect_out;
 								*allowdisconnect = o->allowdisconnect;
@@ -604,7 +605,26 @@ static int wait_our_turn(struct queue_ent *qe)
 	return res;
 }
 
-static int calc_metric(struct ast_call_queue *q, int pos, struct queue_ent *qe, struct localuser *tmp)
+static int update_queue(struct ast_call_queue *q, struct localuser *user)
+{
+	struct member *cur;
+	/* Since a reload could have taken place, we have to traverse the list to
+		be sure it's still valid */
+	ast_pthread_mutex_lock(&q->lock);
+	cur = q->members;
+	while(cur) {
+		if (user->member == cur) {
+			time(&cur->lastcall);
+			cur->calls++;
+			break;
+		}
+		cur = cur->next;
+	}
+	ast_pthread_mutex_unlock(&q->lock);
+	return 0;
+}
+
+static int calc_metric(struct ast_call_queue *q, struct member *mem, int pos, struct queue_ent *qe, struct localuser *tmp)
 {
 	switch (q->strategy) {
 	case QUEUE_STRATEGY_RINGALL:
@@ -626,11 +646,22 @@ static int calc_metric(struct ast_call_queue *q, int pos, struct queue_ent *qe, 
 				q->wrapped = 1;
 			tmp->metric = pos;
 		}
-		tmp->metric += tmp->penalty * 1000000;
+		tmp->metric += mem->penalty * 1000000;
 		break;
 	case QUEUE_STRATEGY_RANDOM:
 		tmp->metric = rand() % 1000;
-		tmp->metric += tmp->penalty * 1000000;
+		tmp->metric += mem->penalty * 1000000;
+		break;
+	case QUEUE_STRATEGY_FEWESTCALLS:
+		tmp->metric = mem->calls;
+		tmp->metric += mem->penalty * 1000000;
+		break;
+	case QUEUE_STRATEGY_LEASTRECENT:
+		if (!mem->lastcall)
+			tmp->metric = 0;
+		else
+			tmp->metric = 1000000 - (time(NULL) - mem->lastcall);
+		tmp->metric += mem->penalty * 1000000;
 		break;
 	default:
 		ast_log(LOG_WARNING, "Can't calculate metric for unknown strategy %d\n", q->strategy);
@@ -650,6 +681,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	char restofit[AST_MAX_EXTENSION];
 	char *newnum;
 	struct ast_channel *peer;
+	struct localuser *lpeer;
 	int res = 0, bridge = 0;
 	int zapx = 2;
 	int x=0;
@@ -690,9 +722,9 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		} else 
 			ast_log(LOG_DEBUG, "Simple queue (no URL)\n");
 
+		tmp->member = cur;		/* Never directly dereference!  Could change on reload */
 		strncpy(tmp->tech, cur->tech, sizeof(tmp->tech)-1);
 		strncpy(tmp->numsubst, cur->loc, sizeof(tmp->numsubst)-1);
-		tmp->penalty = cur->penalty;
 		/* If we're dialing by extension, look at the extension to know what to dial */
 		if ((newnum = strstr(tmp->numsubst, "BYEXTENSION"))) {
 			strncpy(restofit, newnum + strlen("BYEXTENSION"), sizeof(restofit)-1);
@@ -705,7 +737,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		if (!qe->parent->strategy)
 			ring_entry(qe, tmp);
 		else
-			calc_metric(qe->parent, x++, qe, tmp);
+			calc_metric(qe->parent, cur, x++, qe, tmp);
 		/* Put them in the list of outgoing thingies...  We're ready now. 
 		   XXX If we're forcibly removed, these outgoing calls won't get
 		   hung up XXX */
@@ -724,7 +756,11 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	if (qe->parent->strategy)
 		ring_one(qe, outgoing);
 	ast_pthread_mutex_unlock(&qe->parent->lock);
-	peer = wait_for_answer(qe, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect, &digit);
+	lpeer = wait_for_answer(qe, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect, &digit);
+	if (lpeer)
+		peer = lpeer->chan;
+	else
+		peer = NULL;
 	if (!peer) {
 		if (to) {
 			/* Musta gotten hung up */
@@ -750,6 +786,8 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 			if (tmp->dataquality) zapx = 0;
 			ast_channel_setoption(peer,AST_OPTION_TONE_VERIFY,&zapx,sizeof(char),0);
 		}
+		/* Update parameters for the queue */
+		update_queue(qe->parent, lpeer);
 		hanguptree(outgoing, peer);
 		/* Stop music on hold */
 		ast_moh_stop(qe->chan);
@@ -1270,6 +1308,7 @@ static int queues_show(int fd, int argc, char **argv)
 	int pos;
 	time_t now;
 	char max[80];
+	char calls[80];
 	
 	time(&now);
 	if (argc != 2)
@@ -1293,7 +1332,12 @@ static int queues_show(int fd, int argc, char **argv)
 					snprintf(max, sizeof(max), " with penalty %d", mem->penalty);
 				else
 					strcpy(max, "");
-				ast_cli(fd, "      %s/%s%s\n", mem->tech, mem->loc, max);
+				if (mem->calls) {
+					snprintf(calls, sizeof(calls), " has taken %d calls (last was %ld secs ago)",
+							mem->calls, time(NULL) - mem->lastcall);
+				} else
+					strcpy(calls, " has taken no calls yet");
+				ast_cli(fd, "      %s/%s%s%s\n", mem->tech, mem->loc, max, calls);
 			}
 		} else
 			ast_cli(fd, "   No Members\n");
