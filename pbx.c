@@ -3732,9 +3732,9 @@ int ast_add_extension2(struct ast_context *con,
 						tmp->peer = e;
 					} else {
 						/* We're the very first extension altogether */
-						tmp->next = con->root;
+						tmp->next = con->root->next;
 						/* Con->root must always exist or we couldn't get here */
-						tmp->peer = con->root->peer;
+						tmp->peer = con->root;
 						con->root = tmp;
 					}
 					ast_mutex_unlock(&con->lock);
