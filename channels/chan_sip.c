@@ -6532,13 +6532,13 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				pingtime = 1;
 			if ((peer->lastms < 0)  || (peer->lastms > peer->maxms)) {
 				if (pingtime <= peer->maxms) {
-					ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE!\n", peer->name);
+					ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
 					statechanged = 1;
 					newstate = 1;
 				}
 			} else if ((peer->lastms > 0) && (peer->lastms <= peer->maxms)) {
 				if (pingtime > peer->maxms) {
-					ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED!\n", peer->name);
+					ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
 					statechanged = 1;
 					newstate = 2;
 				}
@@ -7808,7 +7808,7 @@ static int sip_poke_noanswer(void *data)
 	
 	peer->pokeexpire = -1;
 	if (peer->lastms > -1) {
-		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE!\n", peer->name);
+		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->lastms);
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, -1);
 	}
 	if (peer->call)

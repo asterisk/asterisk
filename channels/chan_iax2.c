@@ -5634,12 +5634,12 @@ retryowner2:
 					peer = iaxs[fr.callno]->peerpoke;
 					if ((peer->lastms < 0)  || (peer->lastms > peer->maxms)) {
 						if (iaxs[fr.callno]->pingtime <= peer->maxms)
-							ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE!\n", peer->name);
-							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name,iaxs[fr.callno]->pingtime); 
+							ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! Time: %d\n", peer->name, iaxs[fr.callno]->pingtime);
+							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, iaxs[fr.callno]->pingtime); 
 					} else if ((peer->lastms > 0) && (peer->lastms <= peer->maxms)) {
 						if (iaxs[fr.callno]->pingtime > peer->maxms)
 							ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED (%d ms)!\n", peer->name, iaxs[fr.callno]->pingtime);
-							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name,iaxs[fr.callno]->pingtime); 
+							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, iaxs[fr.callno]->pingtime); 
 					}
 					peer->lastms = iaxs[fr.callno]->pingtime;
 					if (peer->pokeexpire > -1)
@@ -6152,8 +6152,8 @@ static int iax2_poke_noanswer(void *data)
 	struct iax2_peer *peer = data;
 	peer->pokeexpire = -1;
 	if (peer->lastms > -1) {
-		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE!\n", peer->name);
-		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name,peer->lastms);
+		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE! Time: %d\n", peer->name, peer->lastms);
+		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, peer->lastms);
 	}
 	if (peer->callno > 0)
 		iax2_destroy(peer->callno);

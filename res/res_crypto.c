@@ -416,7 +416,7 @@ int ast_check_signature_bin(struct ast_key *key, char *msg, int msglen, unsigned
 	res = RSA_verify(NID_sha1, digest, sizeof(digest), dsig, 128, key->rsa);
 	
 	if (!res) {
-		ast_log(LOG_DEBUG, "Key failed verification\n");
+		ast_log(LOG_DEBUG, "Key failed verification: %s\n", key->name);
 		return -1;
 	}
 	/* Pass */
