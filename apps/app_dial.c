@@ -207,8 +207,8 @@ static int ast_onedigit_goto(struct ast_channel *chan, char *context, char exten
 			ast_explicit_goto(chan, chan->context, rexten, pri-1);
 			return 1;
 		} else if (!ast_strlen_zero(chan->macrocontext)) {
-			if (ast_exists_extension(chan, chan->context, rexten, pri, cid)) {
-				ast_explicit_goto(chan, chan->context, rexten, pri-1);
+			if (ast_exists_extension(chan, chan->macrocontext, rexten, pri, cid)) {
+				ast_explicit_goto(chan, chan->macrocontext, rexten, pri-1);
 				return 1;
 			}
 		}
