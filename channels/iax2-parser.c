@@ -64,7 +64,7 @@ static void dump_string(char *output, int maxlen, void *value, int len)
 static void dump_int(char *output, int maxlen, void *value, int len)
 {
 	if (len == sizeof(unsigned int))
-		snprintf(output, maxlen, "%ld", (long)ntohl(*((unsigned int *)value)));
+		snprintf(output, maxlen, "%lu", (unsigned long)ntohl(*((unsigned int *)value)));
 	else
 		snprintf(output, maxlen, "Invalid INT");
 }
