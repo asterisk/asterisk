@@ -2848,12 +2848,6 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 	iax_frame_wrap(fr, f);
 
 	fr->ts = fts;
-	if (!fr->ts) {
-		ast_log(LOG_WARNING, "timestamp is 0?\n");
-		if (!now)
-			iax2_frame_free(fr);
-		return -1;
-	}
 	fr->callno = pvt->callno;
 	fr->transfer = transfer;
 	fr->final = final;
