@@ -13,6 +13,12 @@
 ; This appends the hostname to the name of the log files.
 ;appendhostname = yes
 ;
+; This determines whether or not we log queue events to a file (defaults to yes).
+;queue_log = no
+;
+; This determines whether or not we log generic events to a file (defaults to yes).
+;event_log = no
+;
 ;
 ; For each file, specify what to log.
 ;

@@ -660,7 +660,7 @@ apply:
 unapply: 
 	@if [ -z "$(PATCH)" ]; then \
 		echo "Usage: make PATCH=<patchname> unapply"; \
-	elif !grep -q ^$(PATCH)$$ patches/.applied 2>/dev/null; then \
+	elif ! grep -q ^$(PATCH)$$ patches/.applied 2>/dev/null; then \
 		echo "Patch $(PATCH) is not applied"; \
 	elif [ -f "patches/$(PATCH)" ]; then \
 		echo "Un-applying patch $(PATCH)"; \

@@ -61,6 +61,11 @@ AST_MUTEX_DEFINE_STATIC(loglock);
 static int pending_logger_reload = 0;
 static int global_logmask = -1;
 
+static struct {
+	unsigned int queue_log:1;
+	unsigned int event_log:1;
+} logfiles = { 1, 1 };
+
 static struct msglist {
 	char *msg;
 	struct msglist *next;
@@ -288,6 +293,13 @@ static void init_logger_chain(void)
 		strncpy(dateformat, s, sizeof(dateformat) - 1);
 	} else
 		strncpy(dateformat, "%b %e %T", sizeof(dateformat) - 1);
+	if ((s = ast_variable_retrieve(cfg, "general", "queue_log"))) {
+		logfiles.queue_log = ast_true(s);
+	}
+	if ((s = ast_variable_retrieve(cfg, "general", "event_log"))) {
+		logfiles.event_log = ast_true(s);
+	}
+
 	var = ast_variable_browse(cfg, "logfiles");
 	while(var) {
 		chan = make_logchannel(var->name, var->value, var->lineno);
@@ -332,7 +344,9 @@ static void queue_log_init(void)
 		qlog = NULL;
 	}
 	snprintf(filename, sizeof(filename), "%s/%s", (char *)ast_config_AST_LOG_DIR, "queue_log");
-	qlog = fopen(filename, "a");
+	if (logfiles.queue_log) {
+		qlog = fopen(filename, "a");
+	}
 	ast_mutex_unlock(&qloglock);
 	if (reloaded) 
 		ast_queue_log("NONE", "NONE", "NONE", "CONFIGRELOAD", "%s", "");
@@ -360,22 +374,24 @@ int reload_logger(int rotate)
 	mkdir((char *)ast_config_AST_LOG_DIR, 0755);
 	snprintf(old, sizeof(old), "%s/%s", (char *)ast_config_AST_LOG_DIR, EVENTLOG);
 
-	if(rotate) {
-		for(x=0;;x++) {
-			snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR, EVENTLOG,x);
-			myf = fopen((char *)new, "r");
-			if(myf) 
-				fclose(myf);
-			else
-				break;
-		}
+	if (logfiles.event_log) {
+		if (rotate) {
+			for (x=0;;x++) {
+				snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR, EVENTLOG,x);
+				myf = fopen((char *)new, "r");
+				if (myf) 
+					fclose(myf);
+				else
+					break;
+			}
 	
-		/* do it */
-		if (rename(old,new))
-			fprintf(stderr, "Unable to rename file '%s' to '%s'\n", old, new);
-	}
+			/* do it */
+			if (rename(old,new))
+				fprintf(stderr, "Unable to rename file '%s' to '%s'\n", old, new);
+		}
 
-	eventlog = fopen(old, "a");
+		eventlog = fopen(old, "a");
+	}
 
 	f = logchannels;
 	while(f) {
@@ -406,16 +422,17 @@ int reload_logger(int rotate)
 	ast_mutex_unlock(&loglock);
 
 	queue_log_init();
-
-	if (eventlog) {
-		init_logger_chain();
-		ast_log(LOG_EVENT, "Restarted Asterisk Event Logger\n");
-		if (option_verbose)
-			ast_verbose("Asterisk Event Logger restarted\n");
-		return 0;
-	} else 
-		ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
 	init_logger_chain();
+
+	if (logfiles.event_log) {
+		if (eventlog) {
+			ast_log(LOG_EVENT, "Restarted Asterisk Event Logger\n");
+			if (option_verbose)
+				ast_verbose("Asterisk Event Logger restarted\n");
+			return 0;
+		} else 
+			ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
+	}
 	pending_logger_reload = 0;
 	return -1;
 }
@@ -487,21 +504,23 @@ int init_logger(void)
 	/* initialize queue logger */
 	queue_log_init();
 
-	/* create the eventlog */
-	mkdir((char *)ast_config_AST_LOG_DIR, 0755);
-	snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_LOG_DIR, EVENTLOG);
-	eventlog = fopen((char *)tmp, "a");
-	if (eventlog) {
-		init_logger_chain();
-		ast_log(LOG_EVENT, "Started Asterisk Event Logger\n");
-		if (option_verbose)
-			ast_verbose("Asterisk Event Logger Started %s\n",(char *)tmp);
-		return 0;
-	} else 
-		ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
-
 	/* create log channels */
 	init_logger_chain();
+
+	/* create the eventlog */
+	if (logfiles.event_log) {
+		mkdir((char *)ast_config_AST_LOG_DIR, 0755);
+		snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_LOG_DIR, EVENTLOG);
+		eventlog = fopen((char *)tmp, "a");
+		if (eventlog) {
+			ast_log(LOG_EVENT, "Started Asterisk Event Logger\n");
+			if (option_verbose)
+				ast_verbose("Asterisk Event Logger Started %s\n",(char *)tmp);
+			return 0;
+		} else 
+			ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
+	}
+
 	return -1;
 }
 
@@ -576,7 +595,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	localtime_r(&t, &tm);
 	strftime(date, sizeof(date), dateformat, &tm);
 
-	if (level == __LOG_EVENT) {
+	if (logfiles.event_log && level == __LOG_EVENT) {
 		va_start(ap, fmt);
 
 		fprintf(eventlog, "%s asterisk[%d]: ", date, getpid());
