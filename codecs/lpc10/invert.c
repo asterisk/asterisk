@@ -1,8 +1,8 @@
 /*
 
 $Log$
-Revision 1.4  2000/01/05 08:20:39  markster
-Version 0.1.5 from FTP
+Revision 1.5  2000/01/05 08:20:39  markster
+Version 0.1.6 from FTP
 
 Revision 1.2  2000/01/05 08:20:39  markster
 Some OSS fixes and a few lpc changes to make it actually work
@@ -29,8 +29,8 @@ extern int invert_(integer *order, real *phi, real *psi, real *rc);
 /* 	INVERT Version 45G */
 
 /* $Log$
- * Revision 1.4  2000/01/05 08:20:39  markster
- * Version 0.1.5 from FTP
+ * Revision 1.5  2000/01/05 08:20:39  markster
+ * Version 0.1.6 from FTP
  *
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
@@ -91,8 +91,8 @@ extern int invert_(integer *order, real *phi, real *psi, real *rc);
 
 /*       Arguments */
 /* $Log$
- * Revision 1.4  2000/01/05 08:20:39  markster
- * Version 0.1.5 from FTP
+ * Revision 1.5  2000/01/05 08:20:39  markster
+ * Version 0.1.6 from FTP
  *
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
