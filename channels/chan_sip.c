@@ -315,6 +315,7 @@ static struct sip_pvt {
 	char peername[256];
 	char authname[256];			/* Who we use for authentication */
 	char uri[256];				/* Original requested URI */
+	char okcontacturi[256];			/* URI from the 200 OK on INVITE */
 	char peersecret[256];			/* Password */
 	char peermd5secret[256];
 	char cid_num[256];			/* Caller*ID */
@@ -3133,9 +3134,15 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int se
 		else /* Some implementations (e.g. Uniden UIP200) can't handle rport being in the message!! */
 			snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
 	}
-	if (!strcasecmp(msg, "CANCEL") || !strcasecmp(msg, "ACK")) {
-		/* MUST use original URI */
-		c = p->initreq.rlPart2;
+	if (!strcasecmp(msg, "CANCEL")) {
+		c = p->initreq.rlPart2;	/* Use original URI */
+	} else if (!strcasecmp(msg, "ACK")) {
+		/* Use URI from Contact: in 200 OK (if INVITE) 
+		(we only have the contacturi on INVITEs) */
+		if (!ast_strlen_zero(p->okcontacturi))
+			c = p->okcontacturi;
+		else
+			c = p->initreq.rlPart2;
 	} else if (!ast_strlen_zero(p->uri)) {
 		c = p->uri;
 	} else {
@@ -4436,6 +4443,86 @@ static void reg_source_db(struct sip_peer *p)
 		}
 	}
 }
+
+/*--- parse_ok_contact: Parse contact header for 200 OK on INVITE ---*/
+static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
+{
+	char contact[250]= ""; 
+	char *c, *n, *pt;
+	int port;
+	struct hostent *hp;
+	struct ast_hostent ahp;
+	struct sockaddr_in oldsin;
+
+	/* Look for brackets */
+	strncpy(contact, get_header(req, "Contact"), sizeof(contact) - 1);
+	c = contact;
+	
+	if ((n=strchr(c, '<'))) {
+		c = n + 1;
+		n = strchr(c, '>');
+		/* Lose the part after the > */
+		if (n) 
+			*n = '\0';
+	}
+
+
+	/* Save full contact to call pvt for later bye or re-invite */
+	strncpy(pvt->fullcontact, c, sizeof(pvt->fullcontact) - 1);	
+	snprintf(pvt->our_contact, sizeof(pvt->our_contact) - 1, "<%s>", c);
+
+
+	/* Make sure it's a SIP URL */
+	if (strncasecmp(c, "sip:", 4)) {
+		ast_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", c);
+	} else
+		c += 4;
+
+	strncpy(pvt->okcontacturi, c, sizeof(pvt->okcontacturi) - 1);
+	
+	/* Ditch arguments */
+	n = strchr(c, ';');
+	if (n) 
+		*n = '\0';
+
+	/* Grab host */
+	n = strchr(c, '@');
+	if (!n) {
+		n = c;
+		c = NULL;
+	} else {
+		*n = '\0';
+		n++;
+	}
+	pt = strchr(n, ':');
+	if (pt) {
+		*pt = '\0';
+		pt++;
+		port = atoi(pt);
+	} else
+		port = DEFAULT_SIP_PORT;
+
+	memcpy(&oldsin, &pvt->sa, sizeof(oldsin));
+
+	if (!(pvt->nat & SIP_NAT_ROUTE)) {
+		/* XXX This could block for a long time XXX */
+		/* We should only do this if it's a name, not an IP */
+		hp = ast_gethostbyname(n, &ahp);
+		if (!hp)  {
+			ast_log(LOG_WARNING, "Invalid host '%s'\n", n);
+			return -1;
+		}
+		pvt->sa.sin_family = AF_INET;
+		memcpy(&pvt->sa.sin_addr, hp->h_addr, sizeof(pvt->sa.sin_addr));
+		pvt->sa.sin_port = htons(port);
+	} else {
+		/* Don't trust the contact field.  Just use what they came to us
+		   with. */
+		memcpy(&pvt->sa, &pvt->recv, sizeof(pvt->sa));
+	}
+	return 0;
+}
+
 
 /*--- parse_contact: Parse contact header and save registration ---*/
 static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_request *req)
@@ -6808,6 +6895,11 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				sip_cancel_destroy(p);
 				if (!ast_strlen_zero(get_header(req, "Content-Type")))
 					process_sdp(p, req);
+
+				/* Parse contact header for continued conversation */
+				/* When we get 200 OK, we now which device (and IP) to contact for this call */
+				/* This is important when we have a SIP proxy between us and the phone */
+				parse_ok_contact(p, req);
 				/* Save Record-Route for any later requests we make on this dialogue */
 				build_route(p, req, 1);
 				if (p->owner) {
