@@ -38,7 +38,7 @@ extern "C" {
 struct ast_rtp_protocol {
 	struct ast_rtp *(*get_rtp_info)(struct ast_channel *chan);				/* Get RTP struct, or NULL if unwilling to transfer */
 	struct ast_rtp *(*get_vrtp_info)(struct ast_channel *chan);				/* Get RTP struct, or NULL if unwilling to transfer */
-	int (*set_rtp_peer)(struct ast_channel *chan, struct ast_rtp *peer, struct ast_rtp *vpeer);	/* Set RTP peer */
+	int (*set_rtp_peer)(struct ast_channel *chan, struct ast_rtp *peer, struct ast_rtp *vpeer, int codecs);	/* Set RTP peer */
 	int (*get_codec)(struct ast_channel *chan);
 	char *type;
 	struct ast_rtp_protocol *next;

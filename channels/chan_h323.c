@@ -1776,7 +1776,7 @@ static char *convertcap(int cap)
 
 }
 
-static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp)
+static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs)
 {
 	/* XXX Deal with Video */
 	struct oh323_pvt *p;

@@ -1257,6 +1257,8 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 	
 	void *pvt0, *pvt1;
 	int to;
+	int codec0,codec1, oldcodec0, oldcodec1;
+	
 	memset(&vt0, 0, sizeof(vt0));
 	memset(&vt1, 0, sizeof(vt1));
 	memset(&vac0, 0, sizeof(vac0));
@@ -1307,10 +1309,15 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		ast_mutex_unlock(&c1->lock);
 		return -2;
 	}
-	if (pr0->get_codec && pr1->get_codec) {
-		int codec0,codec1;
+	if (pr0->get_codec)
 		codec0 = pr0->get_codec(c0);
+	else
+		codec0 = 0;
+	if (pr1->get_codec)
 		codec1 = pr1->get_codec(c1);
+	else
+		codec1 = 0;
+	if (pr0->get_codec && pr1->get_codec) {
 		/* Hey, we can't do reinvite if both parties speak diffrent codecs */
 		if (!(codec0 & codec1)) {
 			ast_log(LOG_WARNING, "codec0 = %d is not codec1 = %d, cannot native bridge.\n",codec0,codec1);
@@ -1319,7 +1326,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 			return -2;
 		}
 	}
-	if (pr0->set_rtp_peer(c0, p1, vp1)) 
+	if (pr0->set_rtp_peer(c0, p1, vp1, codec1)) 
 		ast_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
 	else {
 		/* Store RTP peer */
@@ -1327,7 +1334,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		if (vp1)
 			ast_rtp_get_peer(p1, &vac1);
 	}
-	if (pr1->set_rtp_peer(c1, p0, vp0))
+	if (pr1->set_rtp_peer(c1, p0, vp0, codec0))
 		ast_log(LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", c1->name, c0->name);
 	else {
 		/* Store RTP peer */
@@ -1340,17 +1347,19 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 	cs[0] = c0;
 	cs[1] = c1;
 	cs[2] = NULL;
+	oldcodec0 = codec0;
+	oldcodec1 = codec1;
 	for (;;) {
 		if ((c0->pvt->pvt != pvt0)  ||
 			(c1->pvt->pvt != pvt1) ||
 			(c0->masq || c0->masqr || c1->masq || c1->masqr)) {
 				ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
 				if (c0->pvt->pvt == pvt0) {
-					if (pr0->set_rtp_peer(c0, NULL, NULL)) 
+					if (pr0->set_rtp_peer(c0, NULL, NULL, 0)) 
 						ast_log(LOG_WARNING, "Channel '%s' failed to revert\n", c0->name);
 				}
 				if (c1->pvt->pvt == pvt1) {
-					if (pr1->set_rtp_peer(c1, NULL, NULL)) 
+					if (pr1->set_rtp_peer(c1, NULL, NULL, 0)) 
 						ast_log(LOG_WARNING, "Channel '%s' failed to revert back\n", c1->name);
 				}
 				/* Tell it to try again later */
@@ -1359,23 +1368,29 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		to = -1;
 		ast_rtp_get_peer(p1, &t1);
 		ast_rtp_get_peer(p0, &t0);
+		if (pr0->get_codec)
+			codec0 = pr0->get_codec(c0);
+		if (pr1->get_codec)
+			codec1 = pr1->get_codec(c1);
 		if (vp1)
 			ast_rtp_get_peer(vp1, &vt1);
 		if (vp0)
 			ast_rtp_get_peer(vp0, &vt0);
-		if (inaddrcmp(&t1, &ac1) || (vp1 && inaddrcmp(&vt1, &vac1))) {
-			ast_log(LOG_DEBUG, "Oooh, '%s' changed end address\n", c1->name);
-			if (pr0->set_rtp_peer(c0, t1.sin_addr.s_addr ? p1 : NULL, vt1.sin_addr.s_addr ? vp1 : NULL)) 
+		if (inaddrcmp(&t1, &ac1) || (vp1 && inaddrcmp(&vt1, &vac1)) || (codec1 != oldcodec1)) {
+			ast_log(LOG_DEBUG, "Oooh, '%s' changed end address (format %d)\n", c1->name, codec1);
+			if (pr0->set_rtp_peer(c0, t1.sin_addr.s_addr ? p1 : NULL, vt1.sin_addr.s_addr ? vp1 : NULL, codec1)) 
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c0->name, c1->name);
 			memcpy(&ac1, &t1, sizeof(ac1));
 			memcpy(&vac1, &vt1, sizeof(vac1));
+			oldcodec1 = codec1;
 		}
 		if (inaddrcmp(&t0, &ac0) || (vp0 && inaddrcmp(&vt0, &vac0))) {
-			ast_log(LOG_DEBUG, "Oooh, '%s' changed end address\n", c0->name);
-			if (pr1->set_rtp_peer(c1, t0.sin_addr.s_addr ? p0 : NULL, vt0.sin_addr.s_addr ? vp0 : NULL))
+			ast_log(LOG_DEBUG, "Oooh, '%s' changed end address (format %d)\n", c0->name, codec0);
+			if (pr1->set_rtp_peer(c1, t0.sin_addr.s_addr ? p0 : NULL, vt0.sin_addr.s_addr ? vp0 : NULL, codec0))
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);
 			memcpy(&ac0, &t0, sizeof(ac0));
 			memcpy(&vac0, &vt0, sizeof(vac0));
+			oldcodec0 = codec0;
 		}
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
@@ -1393,11 +1408,11 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 			*rc = who;
 			ast_log(LOG_DEBUG, "Oooh, got a %s\n", f ? "digit" : "hangup");
 			if ((c0->pvt->pvt == pvt0) && (!c0->_softhangup)) {
-				if (pr0->set_rtp_peer(c0, NULL, NULL)) 
+				if (pr0->set_rtp_peer(c0, NULL, NULL, 0)) 
 					ast_log(LOG_WARNING, "Channel '%s' failed to revert\n", c0->name);
 			}
 			if ((c1->pvt->pvt == pvt1) && (!c1->_softhangup)) {
-				if (pr1->set_rtp_peer(c1, NULL, NULL)) 
+				if (pr1->set_rtp_peer(c1, NULL, NULL, 0)) 
 					ast_log(LOG_WARNING, "Channel '%s' failed to revert back\n", c1->name);
 			}
 			/* That's all we needed */

@@ -493,7 +493,7 @@ static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_
 static int transmit_request(struct sip_pvt *p, char *msg, int inc, int reliable, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, char *msg, int inc, int reliable, int newbranch);
 static int transmit_invite(struct sip_pvt *p, char *msg, int sendsdp, char *auth, char *authheader, char *vxml_url,char *distinctive_ring, int init);
-static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp, struct ast_rtp *vrtp);
+static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codec);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
 static int transmit_message_with_text(struct sip_pvt *p, char *text);
 static int transmit_refer(struct sip_pvt *p, char *dest);
@@ -3003,7 +3003,7 @@ static int add_digit(struct sip_request *req, char digit)
 }
 
 /*--- add_sdp: Add Session Description Protocol message ---*/
-static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *rtp, struct ast_rtp *vrtp)
+static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs)
 {
 	int len;
 	int codec;
@@ -3022,6 +3022,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	char a[1024] = "";
 	char a2[1024] = "";
 	int x;
+	int capability;
 	struct sockaddr_in dest;
 	struct sockaddr_in vdest = { 0, };
 	/* XXX We break with the "recommendation" and send our IP, in order that our
@@ -3031,6 +3032,10 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 		ast_log(LOG_WARNING, "No way to add SDP without an RTP structure\n");
 		return -1;
 	}
+	capability = p->jointcapability;
+	if (codecs) 
+		capability = codecs & p->jointcapability;
+		
 	if (!p->sessionid) {
 		p->sessionid = getpid();
 		p->sessionversion = p->sessionid;
@@ -3073,7 +3078,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	snprintf(t, sizeof(t), "t=0 0\r\n");
 	snprintf(m, sizeof(m), "m=audio %d RTP/AVP", ntohs(dest.sin_port));
 	snprintf(m2, sizeof(m2), "m=video %d RTP/AVP", ntohs(vdest.sin_port));
-	if (p->jointcapability & p->prefcodec) {
+	if (capability & p->prefcodec) {
 		if (sip_debug_test_pvt(p))
 			ast_verbose("Answering/Requesting with root capability %d\n", p->prefcodec);
 		codec = ast_rtp_lookup_code(p->rtp, 1, p->prefcodec);
@@ -3094,7 +3099,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	/* Start by sending our preferred codecs */
 	cur = prefs;
 	while(cur) {
-		if ((p->jointcapability & cur->codec) && !(alreadysent & cur->codec)) {
+		if ((capability & cur->codec) && !(alreadysent & cur->codec)) {
 			if (sip_debug_test_pvt(p))
 				ast_verbose("Answering with preferred capability 0x%x(%s)\n", cur->codec, ast_getformatname(cur->codec));
 			codec = ast_rtp_lookup_code(p->rtp, 1, cur->codec);
@@ -3116,7 +3121,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	}
 	/* Now send any other common codecs, and non-codec formats: */
 	for (x = 1; x <= (videosupport ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO); x <<= 1) {
-		if ((p->jointcapability & x) && !(alreadysent & x)) {
+		if ((capability & x) && !(alreadysent & x)) {
 			if (sip_debug_test_pvt(p))
 				ast_verbose("Answering with capability 0x%x(%s)\n", x, ast_getformatname(x));
 			codec = ast_rtp_lookup_code(p->rtp, 1, x);
@@ -3161,7 +3166,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	if ((sizeof(m) <= strlen(m) - 2) || (sizeof(m2) <= strlen(m2) - 2) || (sizeof(a) == strlen(a)) || (sizeof(a2) == strlen(a2)))
 		ast_log(LOG_WARNING, "SIP SDP may be truncated due to undersized buffer!!\n");
 	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m) + strlen(a);
-	if ((p->vrtp) && (p->jointcapability & VIDEO_CODEC_MASK)) /* only if video response is appropriate */
+	if ((p->vrtp) && (capability & VIDEO_CODEC_MASK)) /* only if video response is appropriate */
 		len += strlen(m2) + strlen(a2);
 	snprintf(costr, sizeof(costr), "%d", len);
 	add_header(resp, "Content-Type", "application/sdp");
@@ -3173,7 +3178,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	add_line(resp, t);
 	add_line(resp, m);
 	add_line(resp, a);
-	if ((p->vrtp) && (p->jointcapability & VIDEO_CODEC_MASK)) { /* only if video response is appropriate */
+	if ((p->vrtp) && (capability & VIDEO_CODEC_MASK)) { /* only if video response is appropriate */
 		add_line(resp, m2);
 		add_line(resp, a2);
 	}
@@ -3205,7 +3210,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 		return -1;
 	}
 	respprep(&resp, p, msg, req);
-	add_sdp(&resp, p, NULL, NULL);
+	add_sdp(&resp, p, NULL, NULL, 0);
 	return send_response(p, &resp, retrans, seqno);
 }
 
@@ -3272,7 +3277,7 @@ static int determine_firstline_parts( struct sip_request *req ) {
 /* transmit_reinvite_with_sdp: Transmit reinvite with SDP :-) ---*/
 /*   A re-invite is basically a new INVITE with the same CALL-ID and TAG as the
      INVITE that opened the SIP dialogue */
-static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp, struct ast_rtp *vrtp)
+static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codec)
 {
 	struct sip_request req;
 	if (p->canreinvite == REINVITE_UPDATE)
@@ -3281,7 +3286,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp, st
 		reqprep(&req, p, "INVITE", 0, 1);
 	
 	add_header(&req, "Allow", ALLOWED_METHODS);
-	add_sdp(&req, p, rtp, vrtp);
+	add_sdp(&req, p, rtp, vrtp, codec);
 	/* Use this as the basis */
 	copy_request(&p->initreq, &req);
 	parse(&p->initreq);
@@ -3428,7 +3433,7 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 	}
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	if (sdp) {
-		add_sdp(&req, p, NULL, NULL);
+		add_sdp(&req, p, NULL, NULL, 0);
 	} else {
 		add_header(&req, "Content-Length", "0");
 		add_blank_header(&req);
@@ -7725,7 +7730,7 @@ static struct ast_rtp *sip_get_vrtp_peer(struct ast_channel *chan)
 	return NULL;
 }
 
-static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp)
+static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codec)
 {
 	struct sip_pvt *p;
 	p = chan->pvt->pvt;
@@ -7739,7 +7744,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 		else
 			memset(&p->vredirip, 0, sizeof(p->vredirip));
 		if (!p->gotrefer) {
-			transmit_reinvite_with_sdp(p, rtp, vrtp);
+			transmit_reinvite_with_sdp(p, rtp, vrtp, codec);
 			p->outgoing = 1;
 		}
 		return 0;

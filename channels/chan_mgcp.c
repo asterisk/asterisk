@@ -433,7 +433,7 @@ static int transmit_response(struct mgcp_subchannel *sub, char *msg, struct mgcp
 static int transmit_notify_request(struct mgcp_subchannel *sub, char *tone);
 static int transmit_modify_request(struct mgcp_subchannel *sub);
 static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, char *tone, char *callerid);
-static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp *rtp);
+static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp *rtp, int codecs);
 static int transmit_connection_del(struct mgcp_subchannel *sub);
 static int transmit_audit_endpoint(struct mgcp_endpoint *p);
 static void start_rtp(struct mgcp_subchannel *sub);
@@ -1908,13 +1908,17 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 	return 0;
 }
 
-static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp *rtp)
+static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp *rtp, int codecs)
 {
 	struct mgcp_request resp;
 	char local[256];
 	char tmp[80];
 	int x;
+	int capability;
     struct mgcp_endpoint *p = sub->parent;
+	capability = p->capability;
+	if (codecs)
+		capability = codecs;
 	if (!strlen(sub->cxident) && rtp) {
 		/* We don't have a CXident yet, store the destination and
 		   wait a bit */
@@ -1923,7 +1927,7 @@ static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp 
 	}
 	snprintf(local, sizeof(local), "p:20");
 	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
-		if (p->capability & x) {
+		if (capability & x) {
 			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype(1, x));
 			strcat(local, tmp);
 		}
@@ -2298,7 +2302,7 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
                         }
                         strncpy(sub->cxident, c, sizeof(sub->cxident) - 1);
                         if (sub->tmpdest.sin_addr.s_addr) {
-                            transmit_modify_with_sdp(sub, NULL);
+                            transmit_modify_with_sdp(sub, NULL, 0);
                         }
                     }
                     else {
@@ -3710,13 +3714,13 @@ static struct ast_rtp *mgcp_get_rtp_peer(struct ast_channel *chan)
 	return NULL;
 }
 
-static int mgcp_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp)
+static int mgcp_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs)
 {
 	/* XXX Is there such thing as video support with MGCP? XXX */
 	struct mgcp_subchannel *sub;
 	sub = chan->pvt->pvt;
 	if (sub) {
-		transmit_modify_with_sdp(sub, rtp);
+		transmit_modify_with_sdp(sub, rtp, codecs);
 		return 0;
 	}
 	return -1;
