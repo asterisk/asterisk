@@ -263,7 +263,7 @@ datafiles: all
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits
 	for x in sounds/digits/*.gsm; do \
 		if grep -q "^%`basename $$x`%" sounds.txt; then \
-			install $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits ; \
+			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
@@ -271,7 +271,7 @@ datafiles: all
 	done
 	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-* sounds/agent-* sounds/invalid* sounds/tt-* sounds/auth-* sounds/privacy-*; do \
 		if grep -q "^%`basename $$x`%" sounds.txt; then \
-			install $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
+			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
@@ -280,7 +280,7 @@ datafiles: all
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/mohmp3
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/images
 	for x in images/*.jpg; do \
-		install $$x $(DESTDIR)$(ASTVARLIBDIR)/images ; \
+		install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/images ; \
 	done
 	mkdir -p $(DESTDIR)$(AGI_DIR)
 
@@ -308,7 +308,7 @@ bininstall: all
 	fi
 	for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
 	install -d $(DESTDIR)$(ASTHEADERDIR)
-	install include/asterisk/*.h $(DESTDIR)$(ASTHEADERDIR)
+	install -m 644 include/asterisk/*.h $(DESTDIR)$(ASTHEADERDIR)
 	rm -f $(DESTDIR)$(ASTVARLIBDIR)/sounds/vm
 	rm -f $(DESTDIR)$(ASTVARLIBDIR)/sounds/voicemail
 	if [ ! -h $(DESTDIR)$(ASTSPOOLDIR)/vm ] && [ -d $(DESTDIR)$(ASTSPOOLDIR)/vm ]; then \
@@ -371,7 +371,7 @@ samples: all datafiles adsi
 		if [ -f $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` ]; then \
 			mv -f $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample`.old ; \
 		fi ; \
-		install $$x $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` ;\
+		install -m 644 $$x $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` ;\
 	done
 	echo "[directories]" > $(DESTDIR)$(ASTETCDIR)/asterisk.conf
 	echo "astetcdir => $(ASTETCDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf
@@ -383,14 +383,14 @@ samples: all datafiles adsi
 	echo "astlogdir => $(ASTLOGDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf
 	for x in sounds/demo-*; do \
 		if grep -q "^%`basename $$x`%" sounds.txt; then \
-			install $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
+			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
 		fi; \
 	done
 	for x in sounds/*.mp3; do \
-		install $$x $(DESTDIR)$(ASTVARLIBDIR)/mohmp3 ; \
+		install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/mohmp3 ; \
 	done
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/INBOX
 	:> $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/unavail.gsm
