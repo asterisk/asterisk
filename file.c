@@ -480,7 +480,7 @@ struct ast_filestream *ast_openstream(struct ast_channel *chan, char *filename, 
 	res = ast_set_write_format(chan, fmts);
 	
  	fd = ast_filehelper(filename2, (char *)chan, NULL, ACTION_OPEN);
-	if(fd >= 0)
+	if (fd >= 0)
 		return chan->stream;
 	return NULL;
 }
@@ -522,7 +522,7 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan, char *filename,
 		return NULL;
 	}
  	fd = ast_filehelper(filename2, (char *)chan, fmt, ACTION_OPEN);
-	if(fd >= 0)
+	if (fd >= 0)
 		return chan->vstream;
 	ast_log(LOG_WARNING, "File %s has video but couldn't be opened\n", filename);
 	return NULL;
@@ -761,14 +761,14 @@ int ast_streamfile(struct ast_channel *chan, char *filename, char *preflang)
 	vfs = ast_openvstream(chan, filename, preflang);
 	if (vfs)
 		ast_log(LOG_DEBUG, "Ooh, found a video stream, too\n");
-	if(fs){
-		if(ast_applystream(chan, fs))
+	if (fs){
+		if (ast_applystream(chan, fs))
 			return -1;
-		if(vfs && ast_applystream(chan, vfs))
+		if (vfs && ast_applystream(chan, vfs))
 			return -1;
-		if(ast_playstream(fs))
+		if (ast_playstream(fs))
 			return -1;
-		if(vfs && ast_playstream(vfs))
+		if (vfs && ast_playstream(vfs))
 			return -1;
 #if 1
 		if (option_verbose > 2)
@@ -867,14 +867,15 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 				   What we are really doing is writing to record_cache_dir until we are done then we will mv the file into place.
 				*/
 				orig_fn = ast_strdupa(fn); 
-				for (size=0;size<strlen(fn);size++)
+				for (size=0;size<strlen(fn);size++) {
 					if (fn[size] == '/')
 						fn[size] = '_';
+				}
 
 				size += (strlen(record_cache_dir) + 10);
 				buf = alloca(size);
-				memset(buf,0,size);
-				snprintf(buf,size,"%s/%s",record_cache_dir,fn);
+				memset(buf, 0, size);
+				snprintf(buf, size, "%s/%s", record_cache_dir, fn);
 				free(fn);
 				fn=buf;
 				fd = open(fn, flags | myflags, mode);
@@ -889,8 +890,7 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 					if (option_cache_record_files) {
 						fs->realfilename = build_filename(filename, ext);
 						fs->filename = strdup(fn);
-					}
-					else {
+					} else {
 						fs->realfilename = NULL;
 						fs->filename = strdup(filename);
 					}
@@ -904,7 +904,7 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 				}
 			} else if (errno != EEXIST) {
 				ast_log(LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
-				if(orig_fn)
+				if (orig_fn)
 					unlink(orig_fn);
 			}
 			if (!buf) /* if buf != NULL then fn is already free and pointing to it */
