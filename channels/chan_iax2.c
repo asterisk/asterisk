@@ -8958,7 +8958,6 @@ int load_module(void)
 	char *config = "iax.conf";
 	int res = 0;
 	int x;
-	char iabuf[INET_ADDRSTRLEN];
 	struct iax2_registry *reg;
 	struct iax2_peer *peer;
 	
@@ -9053,8 +9052,7 @@ int load_module(void)
 	res = start_network_thread();
 	if (!res) {
 		if (option_verbose > 1) 
-			ast_verbose(VERBOSE_PREFIX_2 "IAX Ready and Listening on %s port %d\n",
-				    ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+			ast_verbose(VERBOSE_PREFIX_2 "IAX Ready and Listening\n");
 	} else {
 		ast_log(LOG_ERROR, "Unable to start network thread\n");
 		ast_netsock_release(&netsock);
