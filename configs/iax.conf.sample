@@ -286,7 +286,8 @@ host=216.207.245.47
 ;host=192.168.0.1
 ;context=*
 ;secret=myscret
-;trunk=yes		; Use IAX2 trunking with this host
+;trunk=yes			; Use IAX2 trunking with this host
+;timezone=America/New_York	; Set a timezone for the date/time IE
 ;
 
 ;

@@ -36,6 +36,7 @@
 #include <asterisk/features.h>
 #include <asterisk/utils.h>
 #include <asterisk/causes.h>
+#include <asterisk/localtime.h>
 #include <sys/mman.h>
 #include <arpa/inet.h>
 #include <dirent.h>
@@ -213,34 +214,35 @@ struct iax2_peer {
 	char username[80];		
 	char secret[80];
 	char dbsecret[80];
-	char outkey[80];		/* What key we use to talk to this peer */
-	char context[AST_MAX_EXTENSION];	/* For transfers only */
-	char regexten[AST_MAX_EXTENSION];	/* Extension to register (if regcontext is used) */
-	char peercontext[AST_MAX_EXTENSION];	/* Context to pass to peer */
-	char mailbox[AST_MAX_EXTENSION];	/* Mailbox */
+	char outkey[80];				/* What key we use to talk to this peer */
+	char context[AST_MAX_EXTENSION];		/* For transfers only */
+	char regexten[AST_MAX_EXTENSION];		/* Extension to register (if regcontext is used) */
+	char peercontext[AST_MAX_EXTENSION];		/* Context to pass to peer */
+	char mailbox[AST_MAX_EXTENSION];		/* Mailbox */
 	struct sockaddr_in addr;
 	int formats;
 	struct in_addr mask;
 
 	/* Dynamic Registration fields */
 	int dynamic;					/* If this is a dynamic peer */
-	struct sockaddr_in defaddr;		/* Default address if there is one */
+	struct sockaddr_in defaddr;			/* Default address if there is one */
 	int authmethods;				/* Authentication methods (IAX_AUTH_*) */
 	char inkeys[80];				/* Key(s) this peer can use to authenticate to us */
 
 	int hascallerid;
 	/* Suggested caller id if registering */
-	char cid_num[AST_MAX_EXTENSION];	/* Default context (for transfer really) */
-	char cid_name[AST_MAX_EXTENSION];	/* Default context (for transfer really) */
+	char cid_num[AST_MAX_EXTENSION];		/* Default context (for transfer really) */
+	char cid_name[AST_MAX_EXTENSION];		/* Default context (for transfer really) */
 	/* Whether or not to send ANI */
 	int sendani;
-	int expire;						/* Schedule entry for expirey */
+	int expire;					/* Schedule entry for expirey */
 	int expirey;					/* How soon to expire */
 	int capability;					/* Capability */
-	int delme;						/* I need to be deleted */
+	int delme;					/* I need to be deleted */
 	int temponly;					/* I'm only a temp */
-	int trunk;						/* Treat as an IAX trunking */
+	int trunk;					/* Treat as an IAX trunking */
 	int messagedetail;				/* Show exact numbers? */
+	char zonetag[80];				/* Time Zone */
 
 	/* Qualification */
 	int callno;					/* Call number of POKE request */
@@ -284,18 +286,18 @@ struct iax_firmware {
 	unsigned char *buf;
 };
 
-#define REG_STATE_UNREGISTERED 0
-#define REG_STATE_REGSENT	   1
-#define REG_STATE_AUTHSENT 	   2
-#define REG_STATE_REGISTERED   3
-#define REG_STATE_REJECTED	   4
-#define REG_STATE_TIMEOUT	   5
-#define REG_STATE_NOAUTH	   6
+#define REG_STATE_UNREGISTERED	0
+#define REG_STATE_REGSENT	1
+#define REG_STATE_AUTHSENT 	2
+#define REG_STATE_REGISTERED 	3
+#define REG_STATE_REJECTED	4
+#define REG_STATE_TIMEOUT	5
+#define REG_STATE_NOAUTH	6
 
-#define TRANSFER_NONE			0
-#define TRANSFER_BEGIN			1
-#define TRANSFER_READY			2
-#define TRANSFER_RELEASED		3
+#define TRANSFER_NONE		0
+#define TRANSFER_BEGIN		1
+#define TRANSFER_READY		2
+#define TRANSFER_RELEASED	3
 #define TRANSFER_PASSTHROUGH	4
 
 struct iax2_registry {
@@ -303,11 +305,11 @@ struct iax2_registry {
 	char username[80];
 	char secret[80];			/* Password or key name in []'s */
 	char random[80];
-	int expire;						/* Sched ID of expiration */
-	int refresh;					/* How often to refresh */
+	int expire;				/* Sched ID of expiration */
+	int refresh;				/* How often to refresh */
 	int regstate;
-	int messages;					/* Message count */
-	int callno;						/* Associated call number if applicable */
+	int messages;				/* Message count */
+	int callno;				/* Associated call number if applicable */
 	struct sockaddr_in us;			/* Who the server thinks we are */
 	struct iax2_registry *next;
 };
@@ -2087,7 +2089,7 @@ static void realtime_update(const char *peername, struct sockaddr_in *sin)
 }
 
 
-static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context, int *trunk, int *notransfer, int *usejitterbuf, char *username, int usernlen, char *secret, int seclen, int *ofound, char *peercontext)
+static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context, int *trunk, int *notransfer, int *usejitterbuf, char *username, int usernlen, char *secret, int seclen, int *ofound, char *peercontext, char *timezone, int tzlen)
 {
 	struct ast_hostent ahp; struct hostent *hp;
 	struct iax2_peer *p;
@@ -2159,6 +2161,8 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 				} else
 					strncpy(secret, p->secret, seclen); /* safe */
 			}
+			if (timezone)
+				snprintf(timezone, tzlen-1, "%s", p->zonetag);
 		} else {
 			if (p->temponly)
 				destroy_peer(p);
@@ -2198,13 +2202,15 @@ static int auto_congest(void *nothing)
 	return 0;
 }
 
-static unsigned int iax2_datetime(void)
+static unsigned int iax2_datetime(char *tz)
 {
 	time_t t;
 	struct tm tm;
 	unsigned int tmp;
 	time(&t);
 	localtime_r(&t, &tm);
+	if (!ast_strlen_zero(tz))
+		ast_localtime(&t, &tm, tz);
 	tmp  = (tm.tm_sec >> 1) & 0x1f;	  /* 5 bits of seconds */
 	tmp |= (tm.tm_min & 0x3f) << 5;   /* 6 bits of minutes */
 	tmp |= (tm.tm_hour & 0x1f) << 11;   /* 5 bits of hours */
@@ -2233,6 +2239,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	unsigned short callno = PTR_TO_CALLNO(c->pvt->pvt);
 	char *stringp=NULL;
 	char storedusern[80], storedsecret[80];
+	char tz[80] = "";	
 	if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "Line is already in use (%s)?\n", c->name);
 		return -1;
@@ -2274,7 +2281,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		strsep(&stringp, ":");
 		portno = strsep(&stringp, ":");
 	}
-	if (create_addr(&sin, NULL, NULL, NULL, hname, context, NULL, NULL, NULL, storedusern, sizeof(storedusern) - 1, storedsecret, sizeof(storedsecret) - 1, NULL, peercontext)) {
+	if (create_addr(&sin, NULL, NULL, NULL, hname, context, NULL, NULL, NULL, storedusern, sizeof(storedusern) - 1, storedsecret, sizeof(storedsecret) - 1, NULL, peercontext, tz, sizeof(tz))) {
 		ast_log(LOG_WARNING, "No address associated with '%s'\n", hname);
 		return -1;
 	}
@@ -2338,7 +2345,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	iax_ie_append_int(&ied, IAX_IE_FORMAT, c->nativeformats);
 	iax_ie_append_int(&ied, IAX_IE_CAPABILITY, iaxs[callno]->capability);
 	iax_ie_append_short(&ied, IAX_IE_ADSICPE, c->adsicpe);
-	iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime());
+	iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime(tz));
 	/* Transmit the string in a "NEW" request */
 #if 0
 	/* XXX We have no equivalent XXX */
@@ -4456,7 +4463,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 		if (p->expirey && sin->sin_addr.s_addr)
 			p->expire = ast_sched_add(sched, p->expirey * 1000, expire_registry, (void *)p);
 		iax_ie_append_str(&ied, IAX_IE_USERNAME, p->name);
-		iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime());
+		iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime(p->zonetag));
 		if (sin->sin_addr.s_addr) {
 			iax_ie_append_short(&ied, IAX_IE_REFRESH, p->expirey);
 			iax_ie_append_addr(&ied, IAX_IE_APPARENT_ADDR, &p->addr);
@@ -6093,7 +6100,7 @@ static int iax2_provision(struct sockaddr_in *end, char *dest, const char *templ
 	if (end)
 		memcpy(&sin, end, sizeof(sin));
 	else {
-		if (create_addr(&sin, NULL, NULL, NULL, dest, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL))
+		if (create_addr(&sin, NULL, NULL, NULL, dest, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL, NULL, 0))
 			return -1;
 	}
 	/* Build the rest of the message */
@@ -6248,7 +6255,7 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	}							
 
 	/* Populate our address from the given */
-	if (create_addr(&sin, &capability, &sendani, &maxtime, hostname, NULL, &trunk, &notransfer, &usejitterbuf, NULL, 0, NULL, 0, &found, NULL)) {
+	if (create_addr(&sin, &capability, &sendani, &maxtime, hostname, NULL, &trunk, &notransfer, &usejitterbuf, NULL, 0, NULL, 0, &found, NULL, NULL, 0)) {
 		*cause = AST_CAUSE_UNREGISTERED;
 		return NULL;
 	}
@@ -6539,6 +6546,8 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 					ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
 					peer->maxms = 0;
 				}
+			} else if (!strcasecmp(v->name, "timezone")) {
+				strncpy(peer->zonetag, v->value, sizeof(peer->zonetag)-1);	
 			}// else if (strcasecmp(v->name,"type"))
 			//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 			v=v->next;
@@ -7066,7 +7075,7 @@ static int cache_get_callno_locked(const char *data)
 		host = st;
 	}
 	/* Populate our address from the given */
-	if (create_addr(&sin, NULL, NULL, NULL, host, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL)) {
+	if (create_addr(&sin, NULL, NULL, NULL, host, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL, NULL, 0)) {
 		return -1;
 	}
 	ast_log(LOG_DEBUG, "host: %s, user: %s, password: %s, context: %s\n", host, username, password, context);
