@@ -2817,7 +2817,7 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 		
 	if (auth)
 		add_header(&req, authheader, auth);
-
+	append_date(&req);
 	if (!strcasecmp(cmd, "REFER")) {
 		if (strlen(p->refer_to))
 			add_header(&req, "Refer-To", p->refer_to);
