@@ -365,6 +365,7 @@ static struct zt_pvt {
 	char lastcallerid[AST_MAX_EXTENSION];
 	char callwaitcid[AST_MAX_EXTENSION];
 	char rdnis[AST_MAX_EXTENSION];
+	char dnid[AST_MAX_EXTENSION];
 	unsigned int group;
 	int law;
 	int confno;					/* Our conference */
@@ -3731,6 +3732,8 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 			strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);
 		if (strlen(i->rdnis))
 			tmp->rdnis = strdup(i->rdnis);
+		if (strlen(i->dnid))
+			tmp->dnid = strdup(i->dnid);
 		if (strlen(i->callerid)) {
 			tmp->callerid = strdup(i->callerid);
 			tmp->ani = strdup(i->callerid);
@@ -5797,6 +5800,7 @@ static void *pri_dchannel(void *vpri)
 							strncpy(pri->pvt[chan]->exten, e->ring.callednum, sizeof(pri->pvt[chan]->exten)-1);
 						else
 							strncat(pri->pvt[chan]->exten, e->ring.callednum, sizeof(pri->pvt[chan]->exten)-1);
+						strncpy(pri->pvt[chan]->dnid, e->ring.callednum, sizeof(pri->pvt[chan]->dnid));
 					} 
 #if 0
 					else
