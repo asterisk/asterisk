@@ -29,6 +29,10 @@
 #include <asterisk/logger.h>
 #include <asterisk/file.h>
 #include <asterisk/translate.h>
+#include <asterisk/manager.h>
+#include <asterisk/chanvars.h>
+#include <asterisk/linkedlists.h>
+
 
 static int shutting_down = 0;
 
@@ -72,13 +76,15 @@ int ast_check_hangup(struct ast_channel *chan)
 time_t	myt;
 
 	  /* if soft hangup flag, return true */
-	if (chan->softhangup) return 1;
+	if (chan->_softhangup) return 1;
+	  /* if no private structure, return true */
+	if (!chan->pvt->pvt) return 1;
 	  /* if no hangup scheduled, just return here */
 	if (!chan->whentohangup) return 0;
 	time(&myt); /* get current time */
 	  /* return, if not yet */
 	if (chan->whentohangup > myt) return 0;
-	chan->softhangup = 1;
+	chan->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
 	return 1;
 }
 
@@ -90,7 +96,7 @@ void ast_begin_shutdown(int hangup)
 		PTHREAD_MUTEX_LOCK(&chlock);
 		c = channels;
 		while(c) {
-			c->softhangup = 1;
+			ast_softhangup(c, AST_SOFTHANGUP_SHUTDOWN);
 			c = c->next;
 		}
 		PTHREAD_MUTEX_UNLOCK(&chlock);
@@ -214,9 +220,13 @@ int ast_best_codec(int fmts)
 		/* Okay, we're down to vocoders now, so pick GSM because it's small and easier to
 		   translate and sounds pretty good */
 		AST_FORMAT_GSM,
+		/* Speex is free, but computationally more expensive than GSM */
+		AST_FORMAT_SPEEX,
 		/* Ick, LPC10 sounds terrible, but at least we have code for it, if you're tacky enough
 		   to use it */
 		AST_FORMAT_LPC10,
+		/* G.729a is faster than 723 and slightly less expensive */
+		AST_FORMAT_G729A,
 		/* Down to G.723.1 which is proprietary but at least designed for voice */
 		AST_FORMAT_G723_1,
 		/* Last and least, MP3 which was of course never designed for real-time voice */
@@ -237,6 +247,9 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	struct ast_channel_pvt *pvt;
 	int x;
 	int flags;
+	struct varshead *headp;        
+	        
+	
 	/* If shutting down, don't allocate any new channels */
 	if (shutting_down)
 		return NULL;
@@ -271,12 +284,17 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 					tmp->fds[AST_MAX_FDS-1] = pvt->alertpipe[0];
 					strncpy(tmp->name, "**Unknown**", sizeof(tmp->name)-1);
 					tmp->pvt = pvt;
-					tmp->state = AST_STATE_DOWN;
+					/* Initial state */
+					tmp->_state = AST_STATE_DOWN;
 					tmp->stack = -1;
 					tmp->streamid = -1;
 					tmp->appl = NULL;
 					tmp->data = NULL;
+					headp=&tmp->varshead;
 					ast_pthread_mutex_init(&tmp->lock);
+				        AST_LIST_HEAD_INIT(headp);
+					tmp->vars=ast_var_assign("tempvar","tempval");
+					AST_LIST_INSERT_HEAD(headp,tmp->vars,entries);
 					strncpy(tmp->context, "default", sizeof(tmp->context)-1);
 					strncpy(tmp->language, defaultlanguage, sizeof(tmp->language)-1);
 					strncpy(tmp->exten, "s", sizeof(tmp->exten)-1);
@@ -328,8 +346,8 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int lock)
 		chan->pvt->readq = f;
 	if (chan->pvt->alertpipe[1] > -1) {
 		if (write(chan->pvt->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah))
-			ast_log(LOG_WARNING, "Unable to write to alert pipe, frametype/subclass %d/%d (qlen = %d): %s!\n",
-				f->frametype, f->subclass, qlen, strerror(errno));
+			ast_log(LOG_WARNING, "Unable to write to alert pipe on %s, frametype/subclass %d/%d (qlen = %d): %s!\n",
+				chan->name, f->frametype, f->subclass, qlen, strerror(errno));
 	}
 	if (qlen  > 128) {
 		ast_log(LOG_WARNING, "Exceptionally long queue length queuing to %s\n", chan->name);
@@ -408,7 +426,12 @@ void ast_channel_free(struct ast_channel *chan)
 {
 	struct ast_channel *last=NULL, *cur;
 	int fd;
+	struct ast_var_t *vardata;
 	struct ast_frame *f, *fp;
+	struct varshead *headp;
+	
+	headp=&chan->varshead;
+	
 	PTHREAD_MUTEX_LOCK(&chlock);
 	cur = channels;
 	while(cur) {
@@ -446,26 +469,50 @@ void ast_channel_free(struct ast_channel *chan)
 	if ((fd = chan->pvt->alertpipe[1]) > -1)
 		close(fd);
 	f = chan->pvt->readq;
+	chan->pvt->readq = NULL;
 	while(f) {
 		fp = f;
 		f = f->next;
 		ast_frfree(fp);
 	}
+	
+	/* loop over the variables list, freeing all data and deleting list items */
+	/* no need to lock the list, as the channel is already locked */
+	
+	while (!AST_LIST_EMPTY(headp)) {           /* List Deletion. */
+	            vardata = AST_LIST_FIRST(headp);
+	            AST_LIST_REMOVE_HEAD(headp, entries);
+//	            printf("deleting var %s=%s\n",ast_var_name(vardata),ast_var_value(vardata));
+	            ast_var_delete(vardata);
+	}
+	                                                 
+
 	free(chan->pvt);
 	free(chan);
 	PTHREAD_MUTEX_UNLOCK(&chlock);
 }
 
-int ast_softhangup(struct ast_channel *chan)
+int ast_softhangup_nolock(struct ast_channel *chan, int cause)
 {
 	int res = 0;
+	struct ast_frame f = { AST_FRAME_NULL };
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Soft-Hanging up channel '%s'\n", chan->name);
 	/* Inform channel driver that we need to be hung up, if it cares */
-	chan->softhangup = 1;		
+	chan->_softhangup |= cause;
+	ast_queue_frame(chan, &f, 0);
 	/* Interrupt any select call or such */
 	if (chan->blocking)
 		pthread_kill(chan->blocker, SIGURG);
+	return res;
+}
+
+int ast_softhangup(struct ast_channel *chan, int cause)
+{
+	int res;
+	ast_pthread_mutex_lock(&chan->lock);
+	res = ast_softhangup_nolock(chan, cause);
+	ast_pthread_mutex_unlock(&chan->lock);
 	return res;
 }
 
@@ -532,6 +579,9 @@ int ast_hangup(struct ast_channel *chan)
 			ast_log(LOG_DEBUG, "Hanging up zombie '%s'\n", chan->name);
 			
 	ast_pthread_mutex_unlock(&chan->lock);
+	manager_event(EVENT_FLAG_CALL, "Hangup", 
+			"Channel: %s\r\n",
+			chan->name);
 	ast_channel_free(chan);
 	return res;
 }
@@ -568,12 +618,12 @@ int ast_answer(struct ast_channel *chan)
 	/* Stop if we're a zombie or need a soft hangup */
 	if (chan->zombie || ast_check_hangup(chan)) 
 		return -1;
-	switch(chan->state) {
+	switch(chan->_state) {
 	case AST_STATE_RINGING:
 	case AST_STATE_RING:
 		if (chan->pvt->answer)
 			res = chan->pvt->answer(chan);
-		chan->state = AST_STATE_UP;
+		ast_setstate(chan, AST_STATE_UP);
 		if (chan->cdr)
 			ast_cdr_answer(chan->cdr);
 		return res;
@@ -589,6 +639,7 @@ void ast_deactivate_generator(struct ast_channel *chan)
 	if (chan->generatordata) {
 		chan->generator->release(chan, chan->generatordata);
 		chan->generatordata = NULL;
+		chan->generator = NULL;
 		chan->writeinterrupt = 0;
 	}
 }
@@ -816,6 +867,8 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 
 	/* Stop if we're a zombie or need a soft hangup */
 	if (chan->zombie || ast_check_hangup(chan)) {
+		if (chan->generator)
+			ast_deactivate_generator(chan);
 		pthread_mutex_unlock(&chan->lock);
 		return NULL;
 	}
@@ -869,7 +922,9 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 
 	/* Make sure we always return NULL in the future */
 	if (!f) {
-		chan->softhangup = 1;
+		chan->_softhangup |= AST_SOFTHANGUP_DEV;
+		if (chan->generator)
+			ast_deactivate_generator(chan);
 		/* End the CDR if appropriate */
 		if (chan->cdr)
 			ast_cdr_end(chan->cdr);
@@ -881,7 +936,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		f = &null_frame;
 	} else if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_ANSWER)) {
 		/* Answer the CDR */
-		chan->state = AST_STATE_UP;
+		ast_setstate(chan, AST_STATE_UP);
 		ast_cdr_answer(chan->cdr);
 	}
 	pthread_mutex_unlock(&chan->lock);
@@ -1012,7 +1067,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	chan->blocking = 0;
 	/* Consider a write failure to force a soft hangup */
 	if (res < 0)
-		chan->softhangup = 1;
+		chan->_softhangup |= AST_SOFTHANGUP_DEV;
 	return res;
 }
 
@@ -1074,6 +1129,65 @@ int ast_set_read_format(struct ast_channel *chan, int fmts)
 	return 0;
 }
 
+struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int timeout, int *outstate)
+{
+	int state = 0;
+	struct ast_channel *chan;
+	struct ast_frame *f;
+	int res;
+	
+	chan = ast_request(type, format, data);
+	if (chan) {
+		if (!ast_call(chan, data, 0)) {
+			while(timeout && (chan->_state != AST_STATE_UP)) {
+				res = ast_waitfor(chan, timeout);
+				if (res < 0) {
+					/* Something not cool, or timed out */
+					ast_hangup(chan);
+					chan = NULL;
+					break;
+				}
+				/* If done, break out */
+				if (!res)
+					break;
+				if (timeout > -1)
+					timeout = res;
+				f = ast_read(chan);
+				if (!f) {
+					state = AST_CONTROL_HANGUP;
+					ast_hangup(chan);
+					chan = NULL;
+					break;
+				}
+				if (f->frametype == AST_FRAME_CONTROL) {
+					if (f->subclass == AST_CONTROL_RINGING)
+						state = AST_CONTROL_RINGING;
+					else if ((f->subclass == AST_CONTROL_BUSY) || (f->subclass == AST_CONTROL_CONGESTION)) {
+						state = f->subclass;
+						break;
+					} else if (f->subclass == AST_CONTROL_ANSWER) {
+						state = f->subclass;
+						break;
+					} else {
+						ast_log(LOG_NOTICE, "Don't know what to do with control frame %d\n", f->subclass);
+					}
+				}
+				ast_frfree(f);
+			}
+		} else {
+			ast_hangup(chan);
+			chan = NULL;
+			ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
+		}
+	} else
+		ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
+	if (chan && (chan->_state == AST_STATE_UP))
+		state = AST_CONTROL_ANSWER;
+	if (outstate)
+		*outstate = state;
+	return chan;
+}
+
 struct ast_channel *ast_request(char *type, int format, void *data)
 {
 	struct chanlist *chan;
@@ -1099,6 +1213,13 @@ struct ast_channel *ast_request(char *type, int format, void *data)
 			PTHREAD_MUTEX_UNLOCK(&chlock);
 			if (chan->requester)
 				c = chan->requester(type, capabilities, data);
+			if (c) {
+				manager_event(EVENT_FLAG_CALL, "Newchannel",
+				"Channel: %s\r\n"
+				"State: %s\r\n"
+				"Callerid: %s\r\n",
+				c->name, ast_state2str(c->_state), c->callerid ? c->callerid : "<unknown>");
+			}
 			return c;
 		}
 		chan = chan->next;
@@ -1258,6 +1379,10 @@ static int ast_do_masquerade(struct ast_channel *original)
 	struct ast_channel *clone = original->masq;
 	int rformat = original->readformat;
 	int wformat = original->writeformat;
+	char newn[100];
+	char orig[100];
+	char masqn[100];
+	char zombn[100];
 	
 #if 0
 	ast_log(LOG_DEBUG, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
@@ -1279,19 +1404,30 @@ static int ast_do_masquerade(struct ast_channel *original)
 	/* Unlink the masquerade */
 	original->masq = NULL;
 	clone->masqr = NULL;
+	
+	/* Save the original name */
+	strncpy(orig, original->name, sizeof(orig) - 1);
+	/* Save the new name */
+	strncpy(newn, clone->name, sizeof(newn) - 1);
+	/* Create the masq name */
+	snprintf(masqn, sizeof(masqn), "%s<MASQ>", newn);
 		
 	/* Copy the name from the clone channel */
-	strncpy(original->name, clone->name, sizeof(original->name)-1);
+	strncpy(original->name, newn, sizeof(original->name)-1);
 
 	/* Mangle the name of the clone channel */
-	strncat(clone->name, "<MASQ>", sizeof(clone->name));
+	strncpy(clone->name, masqn, sizeof(clone->name) - 1);
+	
+	/* Notify any managers of the change, first the masq then the other */
+	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\n", newn, masqn);
+	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\n", orig, newn);
 
 	/* Swap the guts */	
 	p = original->pvt;
 	original->pvt = clone->pvt;
 	clone->pvt = p;
 	
-	clone->softhangup = 1;
+	clone->_softhangup = AST_SOFTHANGUP_DEV;
 
 
 	if (clone->pvt->fixup){
@@ -1309,8 +1445,10 @@ static int ast_do_masquerade(struct ast_channel *original)
 		return -1;
 	}
 	
+	snprintf(zombn, sizeof(zombn), "%s<ZOMBIE>", orig);
 	/* Mangle the name of the clone channel */
-	snprintf(clone->name, sizeof(clone->name), "%s<ZOMBIE>", original->name);
+	strncpy(clone->name, zombn, sizeof(clone->name) - 1);
+	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\n", masqn, zombn);
 
 	/* Keep the same language.  */
 	/* Update the type. */
@@ -1382,7 +1520,44 @@ static int ast_do_masquerade(struct ast_channel *original)
 	if (original->blocking)
 		pthread_kill(original->blocker, SIGURG);
 	ast_log(LOG_DEBUG, "Done Masquerading %s(%d) into the structure of %s(%d)\n",
-		clone->name, clone->state, original->name, original->state);
+		clone->name, clone->_state, original->name, original->_state);
+	return 0;
+}
+
+void ast_set_callerid(struct ast_channel *chan, char *callerid)
+{
+	if (chan->callerid)
+		free(chan->callerid);
+	if (callerid)
+		chan->callerid = strdup(callerid);
+	else
+		chan->callerid = NULL;
+	manager_event(EVENT_FLAG_CALL, "Newcallerid", 
+				"Channel: %s\r\n"
+				"Callerid: %s\r\n",
+				chan->name, chan->callerid ? 
+				chan->callerid : "<Unknown>");
+}
+
+int ast_setstate(struct ast_channel *chan, int state)
+{
+	if (chan->_state != state) {
+		int oldstate = chan->_state;
+		chan->_state = state;
+		if (oldstate == AST_STATE_DOWN) {
+			manager_event(EVENT_FLAG_CALL, "Newchannel",
+			"Channel: %s\r\n"
+			"State: %s\r\n"
+			"Callerid: %s\r\n",
+			chan->name, ast_state2str(chan->_state), chan->callerid ? chan->callerid : "<unknown>");
+		} else {
+			manager_event(EVENT_FLAG_CALL, "Newstate", 
+				"Channel: %s\r\n"
+				"State: %s\r\n"
+				"Callerid: %s\r\n",
+				chan->name, ast_state2str(chan->_state), chan->callerid ? chan->callerid : "<unknown>");
+		}
+	}
 	return 0;
 }
 
@@ -1415,6 +1590,12 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 	c1->bridge = c0;
 	cs[0] = c0;
 	cs[1] = c1;
+	
+	manager_event(EVENT_FLAG_CALL, "Link", 
+			"Channel1: %s\r\n"
+			"Channel2: %s\r\n",
+			c0->name, c1->name);
+
 	for (/* ever */;;) {
 		/* Stop if we're a zombie or need a soft hangup */
 		if (c0->zombie || ast_check_hangup(c0) || c1->zombie || ast_check_hangup(c1)) {
@@ -1431,6 +1612,10 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 			if (!(res = c0->pvt->bridge(c0, c1, flags, fo, rc))) {
 				c0->bridge = NULL;
 				c1->bridge = NULL;
+				manager_event(EVENT_FLAG_CALL, "Unlink", 
+					"Channel1: %s\r\n"
+					"Channel2: %s\r\n",
+					c0->name, c1->name);
 				return 0;
 			}
 			/* If they return non-zero then continue on normally.  Let "-2" mean don't worry about
@@ -1445,6 +1630,10 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 			!(c0->generator || c1->generator))  {
 			if (ast_channel_make_compatible(c0, c1)) {
 				ast_log(LOG_WARNING, "Can't make %s and %s compatible\n", c0->name, c1->name);
+				manager_event(EVENT_FLAG_CALL, "Unlink", 
+					"Channel1: %s\r\n"
+					"Channel2: %s\r\n",
+					c0->name, c1->name);
 				return -1;
 			}
 		}
@@ -1519,6 +1708,10 @@ tackygoto:
 	}
 	c0->bridge = NULL;
 	c1->bridge = NULL;
+	manager_event(EVENT_FLAG_CALL, "Unlink", 
+					"Channel1: %s\r\n"
+					"Channel2: %s\r\n",
+					c0->name, c1->name);
 	return res;
 }
 
