@@ -853,21 +853,35 @@ char* ast_rtp_lookup_mime_subtype(const int isAstFormat, const int code) {
 char *ast_rtp_lookup_mime_multiple(char *buf, int size, const int capability, const int isAstFormat)
 {
 	int format;
+	unsigned len;
+	char *end = buf;
+	char *start = buf;
 
 	if (!buf || !size)
 		return NULL;
 
-	snprintf(buf, size, "0x%x (", capability);
+	snprintf(end, size, "0x%x (", capability);
+
+	len = strlen(end);
+	end += len;
+	size -= len;
+	start = end;
 
 	for (format = 1; format < AST_RTP_MAX; format <<= 1) {
 		if (capability & format) {
 			const char *name = ast_rtp_lookup_mime_subtype(isAstFormat, format);
-			snprintf(buf + strlen(buf), size - strlen(buf), "%s|", name);
+			snprintf(end, size, "%s|", name);
+			len = strlen(end);
+			end += len;
+			size -= len;
 		}
 	}
-	if (!ast_strlen_zero(buf))
-		buf[strlen(buf)] = ')';
 
+	if (start == end)
+		snprintf(start, size, "nothing)"); 
+	else if (size > 1)
+		*(end -1) = ')';
+	
 	return buf;
 }
 
