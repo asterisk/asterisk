@@ -4262,6 +4262,17 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 				chan->hangupcause = AST_CAUSE_USER_BUSY;
 				chan->_softhangup |= AST_SOFTHANGUP_DEV;
 				res = 0;
+			} else if (!p->proceeding && p->sig==SIG_PRI && p->pri && !p->outgoing) {
+				if (p->pri->pri) {		
+					if (!pri_grab(p, p->pri)) {
+						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
+						pri_rel(p->pri);
+					}
+					else
+						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+				}
+				p->proceeding=1;
+				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_BUSY);
 			} else
 #endif
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_BUSY);
@@ -4332,6 +4343,17 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 				chan->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
 				chan->_softhangup |= AST_SOFTHANGUP_DEV;
 				res = 0;
+			} else if (!p->proceeding && p->sig==SIG_PRI && p->pri && !p->outgoing) {
+				if (p->pri->pri) {		
+					if (!pri_grab(p, p->pri)) {
+						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
+						pri_rel(p->pri);
+					}
+					else
+						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+				}
+				p->proceeding=1;
+				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
 			} else
 #endif
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
