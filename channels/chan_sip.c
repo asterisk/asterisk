@@ -1845,6 +1845,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	struct hostent *hp;
 	int codec;
 	int iterator;
+	int sendonly = 0;
 	int x;
 
 	/* Get codec and RTP info from SDP */
@@ -1925,6 +1926,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	sdpLineNum_iterator_init(&iterator);
 	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
       char* mimeSubtype = ast_strdupa(a); // ensures we have enough space
+	  if (!strcasecmp(a, "sendonly")) {
+	  	sendonly=1;
+		continue;
+	  }
+	  if (!strcasecmp(a, "sendrecv")) {
+	  	sendonly=0;
+	  }
 	  if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2) continue;
 	  if (sipdebug)
 		ast_verbose("Found description format %s\n", mimeSubtype);
@@ -1963,7 +1971,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		}
 		if (p->owner->bridge) {
 			/* Turn on/off music on hold if we are holding/unholding */
-			if (sin.sin_addr.s_addr) {
+			if (sin.sin_addr.s_addr && !sendonly) {
 				ast_moh_stop(p->owner->bridge);
 			} else {
 				ast_moh_start(p->owner->bridge, NULL);
