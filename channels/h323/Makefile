@@ -66,12 +66,12 @@ samples:
  
 
 chan_h323.o:	chan_h323.c
-	$(CC) -g -pg -c -o $@ $(CFLAGS) $<
+	$(CC) -g -c -o $@ $(CFLAGS) $<
 ast_h323.o:	ast_h323.cpp
-	g++ -g -pg -c -o $@ $(CFLAGS) $<
+	g++ -g -c -o $@ $(CFLAGS) $<
 
 chan_h323.so:	chan_h323.o ast_h323.o
-	g++  -g -pg -shared -Xlinker -x -o chan_h323.so chan_h323.o ast_h323.o -L$(PWLIBDIR)/lib  -lpt_linux_x86_r -L$(OPENH323DIR)/lib -lh323_linux_x86_r -L/usr/lib -lpthread -ldl -lcrypto -lssl -lexpat
+	g++  -g -shared -Xlinker -x -o chan_h323.so chan_h323.o ast_h323.o -L$(PWLIBDIR)/lib  -lpt_linux_x86_r -L$(OPENH323DIR)/lib -lh323_linux_x86_r -L/usr/lib -lpthread -ldl -lcrypto -lssl -lexpat
 
 chan_h323_d.so:	chan_h323.o ast_h323.o
 	g++  -shared -Xlinker -x -o chan_h323.so chan_h323.o ast_h323.o -L$(PWLIBDIR)/lib  -lpt_linux_x86_d -L$(OPENH323DIR)/lib -lh323_linux_x86_d -L/usr/lib -lpthread -ldl -lcrypto -lssl -lexpat
