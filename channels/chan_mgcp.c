@@ -1160,9 +1160,11 @@ static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 static int mgcp_senddigit(struct ast_channel *ast, char digit)
 {
 	struct mgcp_subchannel *sub = ast->pvt->pvt;
-	char tmp[2];
-	tmp[0] = digit;
-	tmp[1] = '\0';
+	char tmp[4];
+	tmp[0] = 'D';
+	tmp[1] = '/';
+	tmp[2] = digit;
+	tmp[3] = '\0';
 	transmit_notify_request(sub, tmp);
 	return -1;
 }
