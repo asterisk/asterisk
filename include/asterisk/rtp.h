@@ -104,6 +104,9 @@ void ast_rtp_get_current_formats(struct ast_rtp* rtp,
 /*  Mapping an Asterisk code into a MIME subtype (string): */
 char* ast_rtp_lookup_mime_subtype(int isAstFormat, int code);
 
+/* Build a string of MIME subtype names from a capability list */
+char *ast_rtp_lookup_mime_multiple(char *buf, int size, const int capability, const int isAstFormat);
+
 void ast_rtp_setnat(struct ast_rtp *rtp, int nat);
 
 int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);

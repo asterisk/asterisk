@@ -805,7 +805,7 @@ struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt)
 }
 
 /* Looks up an RTP code out of our *static* outbound list */
-int ast_rtp_lookup_code(struct ast_rtp* rtp, int isAstFormat, int code) {
+int ast_rtp_lookup_code(struct ast_rtp* rtp, const int isAstFormat, const int code) {
 
 	int pt;
 
@@ -838,7 +838,7 @@ int ast_rtp_lookup_code(struct ast_rtp* rtp, int isAstFormat, int code) {
 	return -1;
 }
 
-char* ast_rtp_lookup_mime_subtype(int isAstFormat, int code) {
+char* ast_rtp_lookup_mime_subtype(const int isAstFormat, const int code) {
 
 	int i;
 
@@ -848,6 +848,27 @@ char* ast_rtp_lookup_mime_subtype(int isAstFormat, int code) {
 		}
 	}
 	return "";
+}
+
+char *ast_rtp_lookup_mime_multiple(char *buf, int size, const int capability, const int isAstFormat)
+{
+	int format;
+
+	if (!buf || !size)
+		return NULL;
+
+	snprintf(buf, size, "0x%x (", capability);
+
+	for (format = 1; format < AST_RTP_MAX; format <<= 1) {
+		if (capability & format) {
+			const char *name = ast_rtp_lookup_mime_subtype(isAstFormat, format);
+			snprintf(buf + strlen(buf), size - strlen(buf), "%s|", name);
+		}
+	}
+	if (!ast_strlen_zero(buf))
+		buf[strlen(buf)] = ')';
+
+	return buf;
 }
 
 static int rtp_socket(void)
