@@ -90,6 +90,11 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		}
 
 		monitor = malloc(sizeof(struct ast_channel_monitor));
+		if (!monitor) {
+			if (need_lock) 
+				ast_mutex_unlock(&chan->lock);
+			return -1;
+		}
 		memset(monitor, 0, sizeof(struct ast_channel_monitor));
 
 		/* Determine file names */
@@ -391,6 +396,11 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 	if ((!fname) || (ast_strlen_zero(fname))) {
 		// No filename base specified, default to channel name as per CLI
 		fname = malloc (FILENAME_MAX);
+		if (!fname) {
+			astman_send_error(s, m, "Could not start monitoring channel");
+			ast_mutex_unlock(&c->lock);
+			return 0;
+		}
 		memset(fname, 0, FILENAME_MAX);
 		strncpy(fname, c->name, FILENAME_MAX-1);
 		// Channels have the format technology/channel_name - have to replace that / 

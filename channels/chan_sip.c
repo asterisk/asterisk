@@ -8164,6 +8164,8 @@ static struct sip_peer *temp_peer(char *name)
 {
 	struct sip_peer *peer;
 	peer = malloc(sizeof(struct sip_peer));
+	if (!peer)
+		return NULL;
 	memset(peer, 0, sizeof(struct sip_peer));
 	peer->expire = -1;
 	peer->pokeexpire = -1;
@@ -8228,12 +8230,14 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
  	} else {
 		ast_mutex_unlock(&peerl.lock);
 		peer = malloc(sizeof(struct sip_peer));
-		memset(peer, 0, sizeof(struct sip_peer));
-		peer->expire = -1;
-		peer->pokeexpire = -1;
+		if (peer) {
+			memset(peer, 0, sizeof(struct sip_peer));
+			peer->expire = -1;
+			peer->pokeexpire = -1;
+		}
 	}
-	peer->lastmsgssent = -1;
 	if (peer) {
+		peer->lastmsgssent = -1;
 		if (!found) {
 			strncpy(peer->name, name, sizeof(peer->name)-1);
 			strncpy(peer->context, default_context, sizeof(peer->context)-1);

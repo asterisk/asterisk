@@ -6411,9 +6411,11 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
  	} else {
 		ast_mutex_unlock(&peerl.lock);
 		peer = malloc(sizeof(struct iax2_peer));
-		memset(peer, 0, sizeof(struct iax2_peer));
-		peer->expire = -1;
-		peer->pokeexpire = -1;
+		if (peer) {
+			memset(peer, 0, sizeof(struct iax2_peer));
+			peer->expire = -1;
+			peer->pokeexpire = -1;
+		}
 	}
 	if (peer) {
 		peer->messagedetail = globalmessagedetail;
@@ -6589,7 +6591,8 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
  	} else {
 		ast_mutex_unlock(&userl.lock);
 		user = malloc(sizeof(struct iax2_user));
-		memset(user, 0, sizeof(struct iax2_user));
+		if (user)
+			memset(user, 0, sizeof(struct iax2_user));
 	}
 	
 	if (user) {
