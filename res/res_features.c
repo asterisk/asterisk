@@ -303,13 +303,14 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 					transferer = chan;
 					transferee = peer;
 				}
-
-				/* Use the non-macro context to transfer the call */
-				if(strlen(transferer->macrocontext))
-					transferer_real_context=transferer->macrocontext;
-				else
-					transferer_real_context=transferer->context;
-
+				if(!(transferer_real_context=pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT")) &&
+				   !(transferer_real_context=pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT"))) {
+					/* Use the non-macro context to transfer the call */
+					if(strlen(transferer->macrocontext))
+						transferer_real_context=transferer->macrocontext;
+					else
+						transferer_real_context=transferer->context;
+				}
 				/* Start autoservice on chan while we talk
 				   to the originator */
 				ast_autoservice_start(transferee);
