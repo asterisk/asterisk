@@ -192,7 +192,7 @@ static int ast_read_callback(void *data)
 			s->adj -= (ms - delay);
 		s->adj -= 2;
 	}
-	s->fr.timelen = delay;
+	s->fr.samples = delay * 8;
 #if 0
 	ast_log(LOG_DEBUG, "delay is %d, adjusting by %d, as last was %d\n", delay, s->adj, ms);
 #endif
@@ -218,6 +218,11 @@ static int mp3_apply(struct ast_channel *c, struct ast_filestream *s)
 {
 	/* Select our owner for this stream, and get the ball rolling. */
 	s->owner = c;
+	return 0;
+}
+
+static int mp3_play(struct ast_filestream *s)
+{
 	ast_read_callback(s);
 	return 0;
 }
@@ -240,6 +245,21 @@ static int mp3_write(struct ast_filestream *fs, struct ast_frame *f)
 	return 0;
 }
 
+static int mp3_seek(struct ast_filestream *fs, long sample_offset, int whence)
+{
+	return -1;
+}
+
+static int mp3_trunc(struct ast_filestream *fs)
+{
+	return -1;
+}
+
+static long mp3_tell(struct ast_filestream *fs)
+{
+	return -1;
+}
+
 static char *mp3_getcomment(struct ast_filestream *s)
 {
 	return NULL;
@@ -251,7 +271,11 @@ int load_module()
 								mp3_open,
 								mp3_rewrite,
 								mp3_apply,
+								mp3_play,
 								mp3_write,
+								mp3_seek,
+								mp3_trunc,
+								mp3_tell,
 								mp3_read,
 								mp3_close,
 								mp3_getcomment);

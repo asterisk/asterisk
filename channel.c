@@ -18,9 +18,9 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <errno.h>
-#include <asterisk/lock.h>
 #include <unistd.h>
 #include <math.h>			/* For PI */
+#include <asterisk/pbx.h>
 #include <asterisk/frame.h>
 #include <asterisk/sched.h>
 #include <asterisk/options.h>
@@ -32,6 +32,7 @@
 #include <asterisk/manager.h>
 #include <asterisk/chanvars.h>
 #include <asterisk/linkedlists.h>
+#include <asterisk/indications.h>
 
 
 static int shutting_down = 0;
@@ -132,7 +133,10 @@ void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset)
 time_t	myt;
 
 	time(&myt);
-	chan->whentohangup = myt + offset;
+        if (offset)
+	  chan->whentohangup = myt + offset;
+        else
+          chan->whentohangup = 0;
 	return;
 }
 
@@ -290,6 +294,8 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 					tmp->streamid = -1;
 					tmp->appl = NULL;
 					tmp->data = NULL;
+					tmp->fin = 0;
+					tmp->fout = 0;
 					headp=&tmp->varshead;
 					ast_pthread_mutex_init(&tmp->lock);
 				        AST_LIST_HEAD_INIT(headp);
@@ -326,6 +332,7 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int lock)
 	struct ast_frame *prev, *cur;
 	int blah = 1;
 	int qlen = 0;
+	/* Build us a copy and free the original one */
 	f = ast_frdup(fin);
 	if (!f) {
 		ast_log(LOG_WARNING, "Unable to duplicate frame\n");
@@ -340,6 +347,18 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int lock)
 		cur = cur->next;
 		qlen++;
 	}
+	if (qlen  > 128) {
+		if (fin->frametype != AST_FRAME_VOICE) {
+			ast_log(LOG_WARNING, "Exceptionally long queue length queuing to %s\n", chan->name);
+			CRASH;
+		} else {
+			ast_log(LOG_DEBUG, "Dropping voice to exceptionally long queue on %s\n", chan->name);
+			ast_frfree(fin);
+			if (lock)
+				ast_pthread_mutex_unlock(&chan->lock);
+			return 0;
+		}
+	}
 	if (prev)
 		prev->next = f;
 	else
@@ -348,9 +367,6 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int lock)
 		if (write(chan->pvt->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah))
 			ast_log(LOG_WARNING, "Unable to write to alert pipe on %s, frametype/subclass %d/%d (qlen = %d): %s!\n",
 				chan->name, f->frametype, f->subclass, qlen, strerror(errno));
-	}
-	if (qlen  > 128) {
-		ast_log(LOG_WARNING, "Exceptionally long queue length queuing to %s\n", chan->name);
 	}
 	if (lock)
 		ast_pthread_mutex_unlock(&chan->lock);
@@ -403,6 +419,27 @@ struct ast_channel *ast_channel_walk(struct ast_channel *prev)
 	PTHREAD_MUTEX_UNLOCK(&chlock);
 	return ret;
 	
+}
+
+int ast_safe_sleep_conditional(	struct ast_channel *chan, int ms,
+								int (*cond)(void*), void *data )
+{
+	struct ast_frame *f;
+
+	while(ms > 0) {
+		if( cond && ((*cond)(data) == 0 ) )
+			return 0;
+		ms = ast_waitfor(chan, ms);
+		if (ms <0)
+			return -1;
+		if (ms > 0) {
+			f = ast_read(chan);
+			if (!f)
+				return -1;
+			ast_frfree(f);
+		}
+	}
+	return 0;
 }
 
 int ast_safe_sleep(struct ast_channel *chan, int ms)
@@ -462,6 +499,8 @@ void ast_channel_free(struct ast_channel *chan)
 		free(chan->callerid);	
 	if (chan->ani)
 		free(chan->ani);
+	if (chan->rdnis)
+		free(chan->rdnis);
 	pthread_mutex_destroy(&chan->lock);
 	/* Close pipes if appropriate */
 	if ((fd = chan->pvt->alertpipe[0]) > -1)
@@ -488,6 +527,7 @@ void ast_channel_free(struct ast_channel *chan)
 	                                                 
 
 	free(chan->pvt);
+	chan->pvt = NULL;
 	free(chan);
 	PTHREAD_MUTEX_UNLOCK(&chlock);
 }
@@ -516,6 +556,8 @@ int ast_softhangup(struct ast_channel *chan, int cause)
 	return res;
 }
 
+static int ast_do_masquerade(struct ast_channel *original);
+
 static void free_translation(struct ast_channel *clone)
 {
 	if (clone->pvt->writetrans)
@@ -535,7 +577,12 @@ int ast_hangup(struct ast_channel *chan)
 	   if someone is going to masquerade as us */
 	ast_pthread_mutex_lock(&chan->lock);
 	if (chan->masq) {
-		ast_log(LOG_WARNING, "We're getting hung up, but someone is trying to masq into us?!?\n");
+		if (ast_do_masquerade(chan)) 
+			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
+	}
+
+	if (chan->masq) {
+		ast_log(LOG_WARNING, "%s getting hung up, but someone is trying to masq into us?!?\n", chan->name);
 		ast_pthread_mutex_unlock(&chan->lock);
 		return 0;
 	}
@@ -629,6 +676,8 @@ int ast_answer(struct ast_channel *chan)
 		return res;
 		break;
 	case AST_STATE_UP:
+		if (chan->cdr)
+			ast_cdr_answer(chan->cdr);
 		break;
 	}
 	return 0;
@@ -703,8 +752,6 @@ int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 	*ms = tv.tv_sec * 1000 + tv.tv_usec / 1000;
 	return winner;
 }
-
-static int ast_do_masquerade(struct ast_channel *original);
 
 struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds, int nfds, 
 	int *exception, int *outfd, int *ms)
@@ -901,8 +948,10 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		if (chan->exception) {
 			if (chan->pvt->exception) 
 				f = chan->pvt->exception(chan);
-			else
-				ast_log(LOG_WARNING, "Exception flag set, but no exception handler\n");
+			else {
+				ast_log(LOG_WARNING, "Exception flag set on '%s', but no exception handler\n", chan->name);
+				f = &null_frame;
+			}
 			/* Clear the exception flag */
 			chan->exception = 0;
 		} else
@@ -912,8 +961,14 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 			ast_log(LOG_WARNING, "No read routine on channel %s\n", chan->name);
 	}
 
+
 	if (f && (f->frametype == AST_FRAME_VOICE)) {
-		if (chan->pvt->readtrans) {
+		if (!(f->subclass & chan->nativeformats)) {
+			/* This frame can't be from the current native formats -- drop it on the
+			   floor */
+			ast_log(LOG_NOTICE, "Dropping incompatible voice frame on %s since our native format has changed\n", chan->name);
+			f = &null_frame;
+		} else if (chan->pvt->readtrans) {
 			f = ast_translate(chan->pvt->readtrans, f, 1);
 			if (!f)
 				f = &null_frame;
@@ -948,14 +1003,14 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		int res;
 		tmp = chan->generatordata;
 		chan->generatordata = NULL;
-		res = chan->generator->generate(chan, tmp, f->datalen);
+		res = chan->generator->generate(chan, tmp, f->datalen, f->samples);
 		chan->generatordata = tmp;
 		if (res) {
 			ast_log(LOG_DEBUG, "Auto-deactivating generator\n");
 			ast_deactivate_generator(chan);
 		}
 	}
-
+	chan->fin++;
 	return f;
 }
 
@@ -965,13 +1020,39 @@ int ast_indicate(struct ast_channel *chan, int condition)
 	/* Stop if we're a zombie or need a soft hangup */
 	if (chan->zombie || ast_check_hangup(chan)) 
 		return -1;
-	if (chan->pvt->indicate) {
+	if (chan->pvt->indicate)
 		res = chan->pvt->indicate(chan, condition);
-		if (res)
-			ast_log(LOG_WARNING, "Driver for channel '%s' failed to indicate condition %d\n", chan->name, condition);
-	} else
-		ast_log(LOG_WARNING, "Driver for channel '%s' does not support indication\n", chan->name);
-	return res;
+	if (!chan->pvt->indicate || res) {
+		/*
+		 * Device does not support (that) indication, lets fake
+		 * it by doing our own tone generation. (PM2002)
+		 */
+		if (condition >= 0) {
+			const struct tone_zone_sound *ts = NULL;
+			switch (condition) {
+			 case AST_CONTROL_RINGING:
+				ts = ast_get_indication_tone(chan->zone, "ring");
+				break;
+			 case AST_CONTROL_BUSY:
+				ts = ast_get_indication_tone(chan->zone, "busy");
+				break;
+			 case AST_CONTROL_CONGESTION:
+				ts = ast_get_indication_tone(chan->zone, "congestion");
+				break;
+			}
+			if (ts && ts->data[0]) {
+				ast_log(LOG_DEBUG, "Driver for channel '%s' does not support indication %d, emulating it\n", chan->name, condition);
+				ast_playtones_start(chan,0,ts->data);
+			}
+			else  {
+				/* not handled */
+				ast_log(LOG_WARNING, "Unable to handle indication %d for '%s'\n", condition, chan->name);
+				return -1;
+			}
+		}
+		else ast_playtones_stop(chan);
+	}
+	return 0;
 }
 
 int ast_recvchar(struct ast_channel *chan, int timeout)
@@ -1016,6 +1097,51 @@ int ast_sendtext(struct ast_channel *chan, char *text)
 	return res;
 }
 
+static int do_senddigit(struct ast_channel *chan, char digit)
+{
+	int res = -1;
+
+	if (chan->pvt->send_digit)
+		res = chan->pvt->send_digit(chan, digit);
+	if (!chan->pvt->send_digit || res) {
+		/*
+		 * Device does not support DTMF tones, lets fake
+		 * it by doing our own generation. (PM2002)
+		 */
+		static const char* dtmf_tones[] = {
+			"!941+1336/50,!0/50",	/* 0 */
+			"!697+1209/50,!0/50",	/* 1 */
+			"!697+1336/50,!0/50",	/* 2 */
+			"!697+1477/50,!0/50",	/* 3 */
+			"!770+1209/50,!0/50",	/* 4 */
+			"!770+1336/50,!0/50",	/* 5 */
+			"!770+1477/50,!0/50",	/* 6 */
+			"!852+1209/50,!0/50",	/* 7 */
+			"!852+1336/50,!0/50",	/* 8 */
+			"!852+1477/50,!0/50",	/* 9 */
+			"!697+1633/50,!0/50",	/* A */
+			"!770+1633/50,!0/50",	/* B */
+			"!852+1633/50,!0/50",	/* C */
+			"!941+1633/50,!0/50",	/* D */
+			"!941+1209/50,!0/50",	/* * */
+			"!941+1477/50,!0/50" };	/* # */
+		if (digit >= '0' && digit <='9')
+			ast_playtones_start(chan,0,dtmf_tones[digit-'0']);
+		else if (digit >= 'A' && digit <= 'D')
+			ast_playtones_start(chan,0,dtmf_tones[digit-'A'+10]);
+		else if (digit == '*')
+			ast_playtones_start(chan,0,dtmf_tones[14]);
+		else if (digit == '#')
+			ast_playtones_start(chan,0,dtmf_tones[15]);
+		else {
+			/* not handled */
+			ast_log(LOG_WARNING, "Unable to handle DTMF tone '%c' for '%s'\n", digit, chan->name);
+			return -1;
+		}
+	}
+	return 0;
+}
+
 int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 {
 	int res = -1;
@@ -1045,8 +1171,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		ast_log(LOG_WARNING, "Don't know how to handle control frames yet\n");
 		break;
 	case AST_FRAME_DTMF:
-		if (chan->pvt->send_digit)
-			res = chan->pvt->send_digit(chan, fr->subclass);
+		res = do_senddigit(chan,fr->subclass);
 		break;
 	case AST_FRAME_TEXT:
 		if (chan->pvt->send_text)
@@ -1068,6 +1193,8 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	/* Consider a write failure to force a soft hangup */
 	if (res < 0)
 		chan->_softhangup |= AST_SOFTHANGUP_DEV;
+	else
+		chan->fout++;
 	return res;
 }
 
@@ -1129,7 +1256,7 @@ int ast_set_read_format(struct ast_channel *chan, int fmts)
 	return 0;
 }
 
-struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int timeout, int *outstate)
+struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int timeout, int *outstate, char *callerid)
 {
 	int state = 0;
 	struct ast_channel *chan;
@@ -1138,6 +1265,8 @@ struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int
 	
 	chan = ast_request(type, format, data);
 	if (chan) {
+		if (callerid)
+			ast_set_callerid(chan, callerid, 1);
 		if (!ast_call(chan, data, 0)) {
 			while(timeout && (chan->_state != AST_STATE_UP)) {
 				res = ast_waitfor(chan, timeout);
@@ -1370,11 +1499,20 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
 	return 0;
 }
 
+void ast_change_name(struct ast_channel *chan, char *newname)
+{
+	char tmp[256];
+	strncpy(tmp, chan->name, 256);
+	strncpy(chan->name, newname, sizeof(chan->name) - 1);
+	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\n", tmp, chan->name);
+}
+
 static int ast_do_masquerade(struct ast_channel *original)
 {
 	int x;
 	int res=0;
 	char *tmp;
+	void *tmpv;
 	struct ast_channel_pvt *p;
 	struct ast_channel *clone = original->masq;
 	int rformat = original->readformat;
@@ -1384,9 +1522,9 @@ static int ast_do_masquerade(struct ast_channel *original)
 	char masqn[100];
 	char zombn[100];
 	
-#if 0
+#if 1
 	ast_log(LOG_DEBUG, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
-		clone->name, clone->state, original->name, original->state);
+		clone->name, clone->_state, original->name, original->_state);
 #endif
 	/* XXX This is a seriously wacked out operation.  We're essentially putting the guts of
 	   the clone channel into the original channel.  Start by killing off the original
@@ -1456,6 +1594,10 @@ static int ast_do_masquerade(struct ast_channel *original)
 	/* Copy the FD's */
 	for (x=0;x<AST_MAX_FDS;x++)
 		original->fds[x] = clone->fds[x];
+	/* Move the variables */
+	tmpv = original->varshead.first;
+	original->varshead.first = clone->varshead.first;
+	clone->varshead.first = tmpv;
 	/* Presense of ADSI capable CPE follows clone */
 	original->adsicpe = clone->adsicpe;
 	/* Bridge remains the same */
@@ -1482,6 +1624,11 @@ static int ast_do_masquerade(struct ast_channel *original)
 	
 	/* Our native formats are different now */
 	original->nativeformats = clone->nativeformats;
+
+	/* And of course, so does our current state.  Note we need not
+	   call ast_setstate since the event manager doesn't really consider
+	   these separate */
+	original->_state = clone->_state;
 	
 	/* Context, extension, priority, app data, jump table,  remain the same */
 	/* pvt switches.  pbx stays the same, as does next */
@@ -1492,6 +1639,7 @@ static int ast_do_masquerade(struct ast_channel *original)
 	if (clone->zombie) {
 		pthread_mutex_unlock(&clone->lock);
 		ast_channel_free(clone);
+		manager_event(EVENT_FLAG_CALL, "Hangup", "Channel: %s\r\n", zombn);
 	} else {
 		clone->zombie=1;
 		pthread_mutex_unlock(&clone->lock);
@@ -1519,19 +1667,26 @@ static int ast_do_masquerade(struct ast_channel *original)
 	/* Signal any blocker */
 	if (original->blocking)
 		pthread_kill(original->blocker, SIGURG);
-	ast_log(LOG_DEBUG, "Done Masquerading %s(%d) into the structure of %s(%d)\n",
-		clone->name, clone->_state, original->name, original->_state);
 	return 0;
 }
 
-void ast_set_callerid(struct ast_channel *chan, char *callerid)
+void ast_set_callerid(struct ast_channel *chan, char *callerid, int anitoo)
 {
 	if (chan->callerid)
 		free(chan->callerid);
-	if (callerid)
+	if (anitoo && chan->ani)
+		free(chan->ani);
+	if (callerid) {
 		chan->callerid = strdup(callerid);
-	else
+		if (anitoo)
+			chan->ani = strdup(callerid);
+	} else {
 		chan->callerid = NULL;
+		if (anitoo)
+			chan->ani = NULL;
+	}
+	if (chan->cdr)
+		ast_cdr_setcid(chan->cdr, chan);
 	manager_event(EVENT_FLAG_CALL, "Newcallerid", 
 				"Channel: %s\r\n"
 				"Callerid: %s\r\n",
@@ -1571,6 +1726,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 	struct ast_channel *who = NULL;
 	int res;
 	int nativefailed=0;
+
 	/* Stop if we're a zombie or need a soft hangup */
 	if (c0->zombie || ast_check_hangup(c0) || c1->zombie || ast_check_hangup(c1)) 
 		return -1;
@@ -1639,7 +1795,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 		}
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
-			ast_log(LOG_WARNING, "Nobody there??\n"); 
+			ast_log(LOG_DEBUG, "Nobody there, continuing...\n"); 
 			continue;
 		}
 		f = ast_read(who);
@@ -1649,6 +1805,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 			res = 0;
 			break;
 		}
+
 		if ((f->frametype == AST_FRAME_CONTROL) && !(flags & AST_BRIDGE_IGNORE_SIGS)) {
 			*fo = f;
 			*rc = who;
@@ -1748,7 +1905,6 @@ struct tonepair_state {
 	float vol;
 	int duration;
 	int pos;
-	int origrfmt;
 	int origwfmt;
 	struct ast_frame f;
 	unsigned char offset[AST_FRIENDLY_OFFSET];
@@ -1760,7 +1916,6 @@ static void tonepair_release(struct ast_channel *chan, void *params)
 	struct tonepair_state *ts = params;
 	if (chan) {
 		ast_set_write_format(chan, ts->origwfmt);
-		ast_set_read_format(chan, ts->origrfmt);
 	}
 	free(ts);
 }
@@ -1773,15 +1928,9 @@ static void * tonepair_alloc(struct ast_channel *chan, void *params)
 	if (!ts)
 		return NULL;
 	memset(ts, 0, sizeof(struct tonepair_state));
-	ts->origrfmt = chan->readformat;
 	ts->origwfmt = chan->writeformat;
 	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to signed linear format (write)\n", chan->name);
-		tonepair_release(NULL, ts);
-		ts = NULL;
-	} else if (ast_set_read_format(chan, AST_FORMAT_SLINEAR)) {
-		ast_log(LOG_WARNING, "Unable to set '%s' to signed linear format (read)\n", chan->name);
-		ast_set_write_format(chan, ts->origwfmt);
 		tonepair_release(NULL, ts);
 		ts = NULL;
 	} else {
@@ -1795,10 +1944,16 @@ static void * tonepair_alloc(struct ast_channel *chan, void *params)
 	return ts;
 }
 
-static int tonepair_generator(struct ast_channel *chan, void *data, int len)
+static int tonepair_generator(struct ast_channel *chan, void *data, int len, int samples)
 {
 	struct tonepair_state *ts = data;
 	int x;
+
+	/* we need to prepare a frame with 16 * timelen samples as we're 
+	 * generating SLIN audio
+	 */
+	len = samples * 2;
+
 	if (len > sizeof(ts->data) / 2 - 1) {
 		ast_log(LOG_WARNING, "Can't generate that much data!\n");
 		return -1;
@@ -1813,7 +1968,7 @@ static int tonepair_generator(struct ast_channel *chan, void *data, int len)
 	ts->f.frametype = AST_FRAME_VOICE;
 	ts->f.subclass = AST_FORMAT_SLINEAR;
 	ts->f.datalen = len;
-	ts->f.timelen = len/8;
+	ts->f.samples = samples;
 	ts->f.offset = AST_FRIENDLY_OFFSET;
 	ts->f.data = ts->data;
 	ast_write(chan, &ts->f);
