@@ -34,6 +34,10 @@
 #include <string.h>
 #include <errno.h>
 
+#define MODE_MATCH 0
+#define MODE_MATCHMORE 1
+#define MODE_CANMATCH 2
+
 static char *tdesc = "Realtime Switch";
 
 /* Realtime switch looks up extensions in the supplied realtime table.
@@ -79,7 +83,7 @@ static char *tdesc = "Realtime Switch";
 	} else \
 		res = -1; 
 
-static struct ast_variable *realtime_switch_common(const char *table, const char *context, const char *exten, int priority)
+static struct ast_variable *realtime_switch_common(const char *table, const char *context, const char *exten, int priority, int mode)
 {
 	struct ast_variable *var;
 	char pri[20];
@@ -91,7 +95,7 @@ static struct ast_variable *realtime_switch_common(const char *table, const char
 
 static int realtime_exists(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	REALTIME_COMMON;
+	REALTIME_COMMON(MODE_MATCH);
 	if (var) ast_destroy_realtime(var);
 	if (var)
 		res = 1;
@@ -100,7 +104,7 @@ static int realtime_exists(struct ast_channel *chan, const char *context, const 
 
 static int realtime_canmatch(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	REALTIME_COMMON;
+	REALTIME_COMMON(MODE_CANMATCH);
 	if (var) ast_destroy_realtime(var);
 	if (var)
 		res = 1;
@@ -113,7 +117,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 	char *appdata="";
 	struct ast_app *a;
 	struct ast_variable *v;
-	REALTIME_COMMON;
+	REALTIME_COMMON(MODE_MATCH);
 	if (var) {
 		v = var;
 		while(v) {
@@ -137,7 +141,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 
 static int realtime_matchmore(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	REALTIME_COMMON;
+	REALTIME_COMMON(MODE_MATCHMORE);
 	if (var) ast_destroy_realtime(var);
 	return res > 0 ? res : 0;
 }
