@@ -1475,7 +1475,8 @@ static int zt_hangup(struct ast_channel *ast)
 	zt_confmute(p, 0);
 	restore_gains(p);
 	
-	ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
+	if (p->dsp)
+		ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
 
 
 	ast_log(LOG_DEBUG, "Hangup: channel: %d index = %d, normal = %d, callwait = %d, thirdcall = %d\n",
@@ -1589,6 +1590,7 @@ static int zt_hangup(struct ast_channel *ast)
 			ast_dsp_free(p->dsp);
 			p->dsp = NULL;
 		}
+
 		law = ZT_LAW_DEFAULT;
 		res = ioctl(p->subs[SUB_REAL].zfd, ZT_SETLAW, &law);
 		if (res < 0) 
@@ -1671,7 +1673,6 @@ static int zt_hangup(struct ast_channel *ast)
 			ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 		}
 
-	if (p->dsp)
 		restart_monitor();
 	}
 
