@@ -81,6 +81,7 @@ int option_initcrypto=0;
 int option_nocolor;
 int option_dumpcore = 0;
 int option_cache_record_files = 0;
+int option_timestamp = 0;
 int option_overrideconfig = 0;
 int option_reconnect = 0;
 int fully_booted = 0;
@@ -1539,6 +1540,7 @@ static int show_cli_help(void) {
 	printf("   -r              Connect to Asterisk on this machine\n");
 	printf("   -R              Connect to Asterisk, and attempt to reconnect if disconnected\n");
 	printf("   -t              Record soundfiles in /var/tmp and move them where they belong after they are done.\n");
+	printf("   -T              Display the time in [Mmm dd hh:mm:ss] format for each line of output to the CLI.\n");
 	printf("   -v              Increase verbosity (multiple v's = more verbose)\n");
 	printf("   -x <cmd>        Execute command <cmd> (only valid with -r)\n");
 	printf("\n");
@@ -1611,6 +1613,9 @@ static void ast_readconfig(void) {
 		/* verbose level (-v at startup) */
 		if (!strcasecmp(v->name, "verbose")) {
 			option_verbose= atoi(v->value);
+		/* whether or not to force timestamping. (-T at startup) */
+		} else if (!strcasecmp(v->name, "timestamp")) {
+			option_timestamp = ast_true(v->value);
 		/* whether or not to support #exec in config files */
 		} else if (!strcasecmp(v->name, "execincludes")) {
 			option_exec_includes = ast_true(v->value);
@@ -1700,7 +1705,7 @@ int main(int argc, char *argv[])
 	}
 	*/
 	/* Check for options */
-	while((c=getopt(argc, argv, "thfdvVqprRgcinx:U:G:C:")) != -1) {
+	while((c=getopt(argc, argv, "tThfdvVqprRgcinx:U:G:C:")) != -1) {
 		switch(c) {
 		case 'd':
 			option_debug++;
@@ -1737,6 +1742,9 @@ int main(int argc, char *argv[])
 			break;
 		case 't':
 			option_cache_record_files++;
+			break;
+		case 'T':
+			option_timestamp++;
 			break;
 		case 'x':
 			option_exec++;

@@ -601,14 +601,14 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 
 				if (level != __LOG_VERBOSE) {
 					sprintf(linestr, "%d", line);
-					snprintf(buf, sizeof(buf), "%s %s[%ld]: %s:%s %s: ",
+					snprintf(buf, sizeof(buf), option_timestamp ? "[%s] %s[%ld]: %s:%s %s: " : "%s %s[%ld]: %s:%s %s: ",
 						date,
 						term_color(tmp1, levels[level], colors[level], 0, sizeof(tmp1)),
 						(long)GETTID(),
 						term_color(tmp2, file, COLOR_BRWHITE, 0, sizeof(tmp2)),
 						term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
 						term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
-		    
+					
 					ast_console_puts(buf);
 					va_start(ap, fmt);
 					vsnprintf(buf, sizeof(buf), fmt, ap);
@@ -616,7 +616,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 					ast_console_puts(buf);
 				}
 			} else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
-				snprintf(buf, sizeof(buf), "%s %s[%ld]: ", date,
+				snprintf(buf, sizeof(buf), option_timestamp ? "[%s] %s[%ld]: " : "%s %s[%ld]: ", date,
 					levels[level], (long)GETTID());
 				fprintf(chan->fileptr, buf);
 				va_start(ap, fmt);
@@ -657,12 +657,29 @@ extern void ast_verbose(const char *fmt, ...)
 	static int replacelast = 0, complete;
 	struct msglist *m;
 	struct verb *v;
+	time_t t;
+	struct tm tm;
+	char date[40];
+	char *datefmt;
+	
 	va_list ap;
 	va_start(ap, fmt);
 	ast_mutex_lock(&msglist_lock);
+	time(&t);
+	localtime_r(&t, &tm);
+	strftime(date, sizeof(date), dateformat, &tm);
+
+	if (option_timestamp) {
+		datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1);
+		if (datefmt) {
+			sprintf(datefmt, "[%s] %s", date, fmt);
+			fmt = datefmt;
+		}
+	}
 	vsnprintf(stuff + pos, sizeof(stuff) - pos, fmt, ap);
 	opos = pos;
 	pos = strlen(stuff);
+
 
 	if (stuff[strlen(stuff)-1] == '\n') 
 		complete = 1;
@@ -703,7 +720,6 @@ extern void ast_verbose(const char *fmt, ...)
 		}
 	} /* else
 		fprintf(stdout, stuff + opos); */
-
 	ast_log(LOG_VERBOSE, "%s", stuff);
 	if (strlen(stuff)) {
 		if (stuff[strlen(stuff)-1] != '\n') 

@@ -21,7 +21,7 @@
 <refsynopsisdiv>
 	<cmdsynopsis>
 	<command>asterisk</command>
-<arg><option>-hfdvVqpRgcin</option></arg>
+<arg><option>-tThfdvVqpRgcin</option></arg>
 <arg><option>-C </option><replaceable class="parameter">file</replaceable></arg>
 <arg><option>-U </option><replaceable class="parameter">user</replaceable></arg>
 <arg><option>-G </option><replaceable class="parameter">group</replaceable></arg>
@@ -187,6 +187,24 @@
 			to a running Asterisk process and provide a console interface
 			for controlling it. Additionally, if connection to the Asterisk 
 			process is lost, attempt to reconnect for as long as 30 seconds.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-t</term>
+		<listitem>
+			<para>
+			When recording files, write them first into a temporary holding directory, 
+			then move them into the final location when done.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-T</term>
+		<listitem>
+			<para>
+			Add timestamp to all non-command related output going to the console
+			when running with verbose and/or logging to the console.
 			</para>
 		</listitem>
 	</varlistentry>
