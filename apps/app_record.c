@@ -102,7 +102,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	if (filename) {
 		if (strstr(filename, "%d"))
 			percentflag = 1;
-		ext = strchr(filename, '.');
+		ext = strrchr(filename, '.'); /* to support filename with a . in the filename, not format */
 		if (!ext)
 			ext = strchr(filename, ':');
 		if (ext) {
