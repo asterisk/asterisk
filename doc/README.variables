@@ -96,6 +96,10 @@ ${AGENTNUMBER}		Agent number (username) set at login
 ${AGENTSTATUS}		Status of login	( fail | on | off )
 ${AGENTEXTEN}		Extension for logged in agent
 
+The queue() application uses the following variables:
+${MONITOR_FILENAME}	File for monitoring (recording) calls in queue
+${QUEUE_PRIO}		Queue priority
+
 There are two reference modes - reference by value and reference by name. 
 To refer to a variable with its name (as an argument to a function that 
 requires a variable), just write the name. To refer to the variable's value, 

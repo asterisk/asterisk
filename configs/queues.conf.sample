@@ -14,11 +14,6 @@ persistentmembers = yes
 ; Queue(queuename|[options]|[optionalurl]|[announceoverride]|[timeout])
 ; example: Queue(dave|t|||45)
 
-[default]
-;
-; Default settings for queues (currently unused)
-;
-
 ;[markq]
 ;
 ; A sample call queue
@@ -46,6 +41,10 @@ persistentmembers = yes
 ; rrmemory - round robin with memory, remember where we left off last ring pass
 ;
 ;strategy = ringall
+;
+; Second settings for service level (default 0)
+; Used for service level statistics (calls completed within service level time frame)
+;servicelevel = 60
 ;
 ; A context may be specified, in which if the user types a SINGLE
 ; digit extension while they are in the queue, they will be taken out
