@@ -71,6 +71,8 @@ static char *descrip2 = "SetMusicOnHold(class): "
 "music on hold is activated, this class will be used to select which\n"
 "music is played.\n";
 
+static int respawn_time = 20;
+
 struct mohclass {
 	char class[80];
 	char dir[256];
@@ -80,6 +82,7 @@ struct mohclass {
 	int quiet;
 	int single;
 	int custom;
+	time_t start;
 	pthread_t thread;
 	struct mohdata *members;
 	/* Source of audio */
@@ -97,6 +100,7 @@ struct mohdata {
 };
 
 static struct mohclass *mohclasses;
+
 
 AST_MUTEX_DEFINE_STATIC(moh_lock);
 
@@ -116,7 +120,7 @@ static int spawn_mp3(struct mohclass *class)
 	DIR *dir;
 	struct dirent *de;
 	dir = opendir(class->dir);
-	if (!dir) {
+	if (!dir && !strstr(class->dir,"http://") && !strstr(class->dir,"HTTP://")) {
 		ast_log(LOG_WARNING, "%s is not a valid directory\n", class->dir);
 		return -1;
  	}
@@ -167,11 +171,20 @@ static int spawn_mp3(struct mohclass *class)
 	}
 
 	files = 0;
-	while((de = readdir(dir)) && (files < MAX_MP3S)) {
-		if ((strlen(de->d_name) > 3) && !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".mp3")) {
-			strncpy(fns[files], de->d_name, sizeof(fns[files]) - 1);
-			argv[argc++] = fns[files];
-			files++;
+	if (strstr(class->dir,"http://") || strstr(class->dir,"HTTP://"))
+	{
+		strncpy(fns[files], class->dir, sizeof(fns[files]) - 1);
+		argv[argc++] = fns[files];
+		files++;
+	}
+	else
+	{
+		while((de = readdir(dir)) && (files < MAX_MP3S)) {
+			if ((strlen(de->d_name) > 3) && !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".mp3")) {
+				strncpy(fns[files], de->d_name, sizeof(fns[files]) - 1);
+				argv[argc++] = fns[files];
+				files++;
+			}
 		}
 	}
 	argv[argc] = NULL;
@@ -194,6 +207,10 @@ static int spawn_mp3(struct mohclass *class)
 		close(fds[1]);
 		return -1;
 	}
+	if (time(NULL) - class->start < respawn_time) {
+		sleep(respawn_time - (time(NULL) - class->start));
+	}
+	time(&class->start);
 	class->pid = fork();
 	if (class->pid < 0) {
 		close(fds[0]);
@@ -522,7 +539,8 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 	if (!moh)
 		return -1;
 	memset(moh, 0, sizeof(struct mohclass));
-
+	time(&moh->start);
+	moh->start -= respawn_time;
 	strncpy(moh->class, classname, sizeof(moh->class) - 1);
 	if (miscargs)
 		strncpy(moh->miscargs, miscargs, sizeof(moh->miscargs) - 1);
