@@ -53,10 +53,14 @@
 static char *app0 = "MusicOnHold";
 static char *app1 = "WaitMusicOnHold";
 static char *app2 = "SetMusicOnHold";
+static char *app3 = "StartMusicOnHold";
+static char *app4 = "StopMusicOnHold";
 
 static char *synopsis0 = "Play Music On Hold indefinitely";
 static char *synopsis1 = "Wait, playing Music On Hold";
 static char *synopsis2 = "Set default Music On Hold class";
+static char *synopsis3 = "Play Music On Hold";
+static char *synopsis4 = "Stop Playing Music On Hold";
 
 static char *descrip0 = "MusicOnHold(class): "
 "Plays hold music specified by class.  If omitted, the default\n"
@@ -74,6 +78,14 @@ static char *descrip2 = "SetMusicOnHold(class): "
 "Sets the default class for music on hold for a given channel.  When\n"
 "music on hold is activated, this class will be used to select which\n"
 "music is played.\n";
+
+static char *descrip3 = "StartMusicOnHold(class): "
+"Starts playing music on hold, uses default music class for channel.\n"
+"Starts playing music specified by class.  If omitted, the default\n"
+"music source for the channel will be used.  Always returns 0.\n";
+
+static char *descrip4 = "StopMusicOnHold: "
+"Stops playing music on hold.\n";
 
 static int respawn_time = 20;
 
@@ -191,7 +203,8 @@ static int ast_moh_files_next(struct ast_channel *chan)
 }
 
 
-static struct ast_frame *moh_files_readframe(struct ast_channel *chan) {
+static struct ast_frame *moh_files_readframe(struct ast_channel *chan) 
+{
 	struct ast_frame *f = NULL;
 	
 	if (!(chan->stream && (f = ast_readframe(chan->stream)))) {
@@ -545,6 +558,24 @@ static int moh2_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	strncpy(chan->musicclass, data, sizeof(chan->musicclass) - 1);
+	return 0;
+}
+
+static int moh3_exec(struct ast_channel *chan, void *data)
+{
+	char *class = NULL;
+	if (data && strlen(data))
+		class = data;
+	if (ast_moh_start(chan, class)) 
+		ast_log(LOG_NOTICE, "Unable to start music on hold class '%s' on channel %s\n", class ? class : "default", chan->name);
+
+	return 0;
+}
+
+static int moh4_exec(struct ast_channel *chan, void *data)
+{
+	ast_moh_stop(chan);
+
 	return 0;
 }
 
@@ -1008,6 +1039,10 @@ int load_module(void)
 		res = ast_register_application(app1, moh1_exec, synopsis1, descrip1);
 	if (!res)
 		res = ast_register_application(app2, moh2_exec, synopsis2, descrip2);
+	if (!res)
+		res = ast_register_application(app3, moh3_exec, synopsis3, descrip3);
+	if (!res)
+		res = ast_register_application(app4, moh4_exec, synopsis4, descrip4);
 
 	init_classes();
 
