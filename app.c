@@ -1073,15 +1073,15 @@ int ast_app_group_match_get_count(char *groupmatch, char *category)
 
 int ast_seperate_app_args(char *buf, char delim, char **array, int arraylen)
 {
-    int x = 0;
-    memset(array, 0, arraylen * sizeof(char *));
+	int x = 0;
+	memset(array, 0, arraylen * sizeof(char *));
 	if (!buf)
 		return 0;
-    for (array[x] = buf ; x < arraylen && array[x]; x++) {
-        if ((array[x+1] = strchr(array[x], delim))) {
-            *array[x+1] = '\0';
-            array[x+1]++;
-        }
-    }
+	for (array[x] = buf ; x < arraylen && array[x]; x++) {
+		if ((array[x+1] = strchr(array[x], delim))) {
+			*array[x+1] = '\0';
+			array[x+1]++;
+		}
+	}
 	return x;
 }
