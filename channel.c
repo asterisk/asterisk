@@ -39,6 +39,7 @@
 #include <asterisk/causes.h>
 #include <asterisk/utils.h>
 #include <asterisk/lock.h>
+#include <asterisk/app.h>
 #ifdef ZAPTEL_OPTIMIZATIONS
 #include <sys/ioctl.h>
 #ifdef __linux__
@@ -2242,12 +2243,42 @@ void ast_change_name(struct ast_channel *chan, char *newname)
 	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", tmp, chan->name, chan->uniqueid);
 }
 
+/* Clone channel variables from 'clone' channel into 'original' channel
+   All variables except those related to app_groupcount are cloned
+   Variables are actually _removed_ from 'clone' channel, presumably
+   because it will subsequently be destroyed.
+   Assumes locks will be in place on both channels when called.
+*/
+   
+static void clone_variables(struct ast_channel *original, struct ast_channel *clone)
+{
+	struct ast_var_t *varptr;
+
+	/* we need to remove all app_groupcount related variables from the original
+	   channel before merging in the clone's variables; any groups assigned to the
+	   original channel should be released, only those assigned to the clone
+	   should remain
+	*/
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&original->varshead, varptr, entries) {
+		if (!strncmp(ast_var_name(varptr), GROUP_CATEGORY_PREFIX, strlen(GROUP_CATEGORY_PREFIX))) {
+			AST_LIST_REMOVE(&original->varshead, varptr, entries);
+			ast_var_delete(varptr);
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+
+	/* Append variables from clone channel into original channel */
+	/* XXX Is this always correct?  We have to in order to keep MACROS working XXX */
+	AST_LIST_INSERT_TAIL(&original->varshead, AST_LIST_FIRST(&clone->varshead), entries);
+}
+
+/* Assumes channel will be locked when called */
 int ast_do_masquerade(struct ast_channel *original)
 {
 	int x,i;
 	int res=0;
 	int origstate;
-	struct ast_var_t *varptr;
 	struct ast_frame *cur, *prev;
 	struct ast_channel_pvt *p;
 	struct ast_callerid tmpcid;
@@ -2364,17 +2395,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	for (x=0;x<AST_MAX_FDS;x++) {
 		original->fds[x] = clone->fds[x];
 	}
-	/* Append variables from clone channel into original channel */
-	/* XXX Is this always correct?  We have to in order to keep MACROS working XXX */
-	varptr = original->varshead.first;
-	if (varptr) {
-		while(varptr->entries.next) {
-			varptr = varptr->entries.next;
-		}
-		varptr->entries.next = clone->varshead.first;
-	} else {
-		original->varshead.first = clone->varshead.first;
-	}
+	clone_variables(original, clone);
 	clone->varshead.first = NULL;
 	/* Presense of ADSI capable CPE follows clone */
 	original->adsicpe = clone->adsicpe;
