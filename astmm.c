@@ -19,7 +19,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <pthread.h>
+#include <time.h>
 #include <asterisk/cli.h>
+#include <asterisk/logger.h>
+#include <asterisk/options.h>
 
 #define SOME_PRIME 563
 
@@ -36,6 +39,8 @@
 #undef strdup
 #undef strndup
 #undef free
+
+static FILE *mmlog;
 
 static struct ast_region {
 	struct ast_region *next;
@@ -75,6 +80,8 @@ static inline void *__ast_alloc_region(size_t size, int which, const char *file,
 	pthread_mutex_unlock(&reglock);
 	if (!reg) {
 		fprintf(stderr, "Out of memory :(\n");
+		if (mmlog)
+			fprintf(stderr, "%ld - Out of memory\n", time(NULL));
 	}
 	return ptr;
 }
@@ -119,9 +126,13 @@ static void __ast_free_region(void *ptr, const char *file, int lineno, const cha
 	pthread_mutex_unlock(&reglock);
 	if (reg) {
 		free(reg);
-	} else
+	} else {
 		fprintf(stderr, "WARNING: Freeing unused memory at %p, in %s of %s, line %d\n",
 			ptr, func, file, lineno);
+		if (mmlog)
+			fprintf(mmlog, "%ld - WARNING: Freeing unused memory at %p, in %s of %s, line %d\n", time(NULL),
+			ptr, func, file, lineno);
+	}
 }
 
 void *__ast_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func) 
@@ -152,6 +163,9 @@ void *__ast_realloc(void *ptr, size_t size, const char *file, int lineno, const 
 		if (!len) {
 			fprintf(stderr, "WARNING: Realloc of unalloced memory at %p, in %s of %s, line %d\n",
 				ptr, func, file, lineno);
+			if (mmlog)
+				fprintf(mmlog, "%ld - WARNING: Realloc of unalloced memory at %p, in %s of %s, line %d\n",
+					time(NULL), ptr, func, file, lineno);
 			return NULL;
 		}
 	}
@@ -314,6 +328,11 @@ void __ast_mm_init(void)
 {
 	ast_cli_register(&show_memory_allocations_cli);
 	ast_cli_register(&show_memory_summary_cli);
+	mmlog = fopen("/var/log/asterisk/mmlog", "a+");
+	if (option_verbose)
+		ast_verbose("Asterisk Malloc Debugger Started (see /var/log/mmlog)\n");
+	if (mmlog)
+		fprintf(mmlog, "%ld - New session\n", time(NULL));
 }
 
 #endif
