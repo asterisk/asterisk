@@ -48,6 +48,7 @@ struct val {
 struct parser_control {
 	struct val *result;
 	int pipa;
+	char *arg_orig;
 	char *argv;
 	char *ptrptr;
 	int firsttoken;
@@ -78,10 +79,30 @@ static struct val	*op_rem __P((struct val *, struct val *));
 static struct val	*op_times __P((struct val *, struct val *));
 static quad_t		to_integer __P((struct val *));
 static void		to_string __P((struct val *));
-static int		ast_yyerror __P((const char *));
+
+/* uh, if I want to predeclare yylex with a YYLTYPE, I have to predeclare the yyltype... sigh */
+typedef struct yyltype
+{
+  int first_line;
+  int first_column;
+
+  int last_line;
+  int last_column;
+} yyltype;
+
+# define YYLTYPE yyltype
+# define YYLTYPE_IS_TRIVIAL 1
+
+static int		ast_yyerror __P((const char *,YYLTYPE *, struct parser_control *));
+
+#define ast_yyerror(x) ast_yyerror(x,&yyloc,kota)
+
 %}
 
 %pure-parser
+%locations
+/* %debug  for when you are having big problems */
+
 /* %name-prefix="ast_yy" */
 
 %union
@@ -90,7 +111,7 @@ static int		ast_yyerror __P((const char *));
 }
 
 %{
-static int		ast_yylex __P((YYSTYPE *, struct parser_control *));
+static int		ast_yylex __P((YYSTYPE *, YYLTYPE *, struct parser_control *));
 %}
 
 
@@ -110,21 +131,21 @@ start: expr { ((struct parser_control *)kota)->result = $$; }
 	;
 
 expr:	TOKEN
-	| '(' expr ')' { $$ = $2; }
-	| expr '|' expr { $$ = op_or ($1, $3); }
-	| expr '&' expr { $$ = op_and ($1, $3); }
-	| expr '=' expr { $$ = op_eq ($1, $3); }
-	| expr '>' expr { $$ = op_gt ($1, $3); }
-	| expr '<' expr { $$ = op_lt ($1, $3); }
-	| expr GE expr  { $$ = op_ge ($1, $3); }
-	| expr LE expr  { $$ = op_le ($1, $3); }
-	| expr NE expr  { $$ = op_ne ($1, $3); }
-	| expr '+' expr { $$ = op_plus ($1, $3); }
-	| expr '-' expr { $$ = op_minus ($1, $3); }
-	| expr '*' expr { $$ = op_times ($1, $3); }
-	| expr '/' expr { $$ = op_div ($1, $3); }
-	| expr '%' expr { $$ = op_rem ($1, $3); }
-	| expr ':' expr { $$ = op_colon ($1, $3); }
+	| '(' expr ')' { $$ = $2; @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
+	| expr '|' expr { $$ = op_or ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
+	| expr '&' expr { $$ = op_and ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
+	| expr '=' expr { $$ = op_eq ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
+	| expr '>' expr { $$ = op_gt ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
+	| expr '<' expr { $$ = op_lt ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
+	| expr GE expr  { $$ = op_ge ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
+	| expr LE expr  { $$ = op_le ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
+	| expr NE expr  { $$ = op_ne ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
+	| expr '+' expr { $$ = op_plus ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
+	| expr '-' expr { $$ = op_minus ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
+	| expr '*' expr { $$ = op_times ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
+	| expr '/' expr { $$ = op_div ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
+	| expr '%' expr { $$ = op_rem ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
+	| expr ':' expr { $$ = op_colon ($1, $3); @$.first_column = @1.first_column; @$.last_column = @3.last_column; @$.first_line=0; @$.last_line=0;}
 	;
 
 
@@ -250,19 +271,62 @@ struct val *vp;
 	return (vp->type == string);
 }
 
-
 static int
-ast_yylex (YYSTYPE *lvalp, struct parser_control *karoto)
+ast_yylex (YYSTYPE *lvalp, YYLTYPE *yylloc, struct parser_control *karoto)
 {
-	char *p;
+	char *p=0;
+	char *t1=0;
 
 	if (karoto->firsttoken==1) {
-		p=strtok_r(karoto->argv," ",&(karoto->ptrptr));
-		karoto->firsttoken=0;
+		t1 = karoto->argv;
+		karoto->firsttoken = 0;
 	} else {
-		p=strtok_r(NULL," ",&(karoto->ptrptr));
+		t1 = karoto->ptrptr;
 	}
-
+	
+	while(*t1 && *t1 == ' ' )  /* we can remove worries about leading/multiple spaces being present */
+		t1++;
+	karoto->ptrptr = t1;
+	yylloc->first_column = t1 - karoto->argv;
+	
+	while( *t1 && *t1 != ' ' && *t1 != '"') /* find the next space or quote */
+		t1++;
+	if( *t1 == ' ' )
+	{
+		*t1 = 0;
+		p = karoto->ptrptr;
+		karoto->ptrptr = t1+1;
+		yylloc->last_column = t1 - karoto->argv;
+	}
+	else if (*t1 == '"' )
+	{
+		/* opening quote. find the closing quote */
+		char *t2=t1+1;
+		while( *t2 && *t2 != '"')
+			t2++;
+		if( *t2 == '"' )
+		{
+			*t2 = 0;
+			karoto->ptrptr = t2+1;
+			p = t1+1;
+		}
+		else
+		{
+			/* NOT GOOD -- no closing quote! */
+			p = t1;
+			karoto->ptrptr = t2;
+		}
+		yylloc->last_column = t2 - karoto->argv;
+	}
+	else if( *t1 == 0 )
+	{
+		/* we are done. That was quick */
+		p = karoto->ptrptr;
+		yylloc->last_column = t1 - karoto->argv;
+	}
+	if( *p == 0 )
+		p = 0;
+	
 	if (p==NULL) {
 		return (0);
 	}
@@ -306,7 +370,9 @@ char *ast_expr (char *arg)
 	karoto.result = NULL;
 	karoto.firsttoken=1;
 	karoto.argv=kota;
-
+	karoto.arg_orig = arg;
+	/* ast_yydebug = 1; */
+	
 	ast_yyparse ((void *)&karoto);
 
 	free(kota);
@@ -339,11 +405,31 @@ int main(int argc,char **argv) {
 
 #endif
 
+#undef ast_yyerror
+#define ast_yyerror(x) ast_yyerror(x, YYLTYPE *yylloc, struct parser_control *karoto)
+
 static int
-ast_yyerror (s)
-const char *s;
+ast_yyerror (const char *s)
 {	
-	ast_log(LOG_WARNING,"ast_yyerror(): syntax error: %s\n",s);
+	char spacebuf[8000]; /* best safe than sorry */
+	char spacebuf2[8000]; /* best safe than sorry */
+	int i=0;
+	spacebuf[0] = 0;
+	
+	if( yylloc->first_column > 7990 ) /* if things get out of whack, why crash? */
+		yylloc->first_column = 7990;
+	if( yylloc->last_column > 7990 )
+		yylloc->last_column = 7990;
+	for(i=0;i<yylloc->first_column;i++) spacebuf[i] = ' ';
+	for(   ;i<yylloc->last_column;i++) spacebuf[i] = '^';
+	spacebuf[i] = 0;
+
+	for(i=0;i<karoto->ptrptr-karoto->argv;i++) spacebuf2[i] = ' ';
+	spacebuf2[i++]='^';
+	spacebuf2[i]= 0;
+
+	ast_log(LOG_WARNING,"ast_yyerror(): syntax error: %s; Input:\n%s\n%s\n%s\n",s, 
+			karoto->arg_orig,spacebuf,spacebuf2);
 	return(0);
 }
 
