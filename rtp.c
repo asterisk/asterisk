@@ -1324,7 +1324,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		/* Store RTP peer */
 		ast_rtp_get_peer(p1, &ac1);
 		if (vp1)
-			ast_rtp_get_peer(p1, &vac1);
+			ast_rtp_get_peer(vp1, &vac1);
 	}
 	if (pr1->set_rtp_peer(c1, p0, vp0, codec0))
 		ast_log(LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", c1->name, c0->name);
@@ -1332,7 +1332,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		/* Store RTP peer */
 		ast_rtp_get_peer(p0, &ac0);
 		if (vp0)
-			ast_rtp_get_peer(p0, &vac0);
+			ast_rtp_get_peer(vp0, &vac0);
 	}
 	ast_mutex_unlock(&c0->lock);
 	ast_mutex_unlock(&c1->lock);
@@ -1369,7 +1369,14 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		if (vp0)
 			ast_rtp_get_peer(vp0, &vt0);
 		if (inaddrcmp(&t1, &ac1) || (vp1 && inaddrcmp(&vt1, &vac1)) || (codec1 != oldcodec1)) {
-			ast_log(LOG_DEBUG, "Oooh, '%s' changed end address (format %d)\n", c1->name, codec1);
+			ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n", 
+				c1->name, inet_ntoa(t1.sin_addr), ntohs(t1.sin_port), codec1);
+			ast_log(LOG_DEBUG, "Oooh, '%s' changed end vaddress to %s:%d (format %d)\n", 
+				c1->name, inet_ntoa(vt1.sin_addr), ntohs(vt1.sin_port), codec1);
+			ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
+				c1->name, inet_ntoa(ac1.sin_addr), ntohs(ac1.sin_port), oldcodec1);
+			ast_log(LOG_DEBUG, "Oooh, '%s' wasv %s:%d/(format %d)\n", 
+				c1->name, inet_ntoa(vac1.sin_addr), ntohs(vac1.sin_port), oldcodec1);
 			if (pr0->set_rtp_peer(c0, t1.sin_addr.s_addr ? p1 : NULL, vt1.sin_addr.s_addr ? vp1 : NULL, codec1)) 
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c0->name, c1->name);
 			memcpy(&ac1, &t1, sizeof(ac1));
@@ -1377,7 +1384,10 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 			oldcodec1 = codec1;
 		}
 		if (inaddrcmp(&t0, &ac0) || (vp0 && inaddrcmp(&vt0, &vac0))) {
-			ast_log(LOG_DEBUG, "Oooh, '%s' changed end address (format %d)\n", c0->name, codec0);
+			ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n", 
+				c0->name, inet_ntoa(t0.sin_addr), ntohs(t0.sin_port), codec0);
+			ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
+				c0->name, inet_ntoa(ac0.sin_addr), ntohs(ac0.sin_port), oldcodec0);
 			if (pr1->set_rtp_peer(c1, t0.sin_addr.s_addr ? p0 : NULL, vt0.sin_addr.s_addr ? vp0 : NULL, codec0))
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);
 			memcpy(&ac0, &t0, sizeof(ac0));
