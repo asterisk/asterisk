@@ -93,6 +93,8 @@ static char *descrip =
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n"
 "  The optional URL will be sent to the called party if the channel supports it.\n"
+"  If the OUTBOUND_GROUP variable is set, all peer channels created by this\n"
+"  application will be put into that group (as in SetGroup).\n"
 "  This application sets the following channel variables upon completion:\n"
 "      DIALEDTIME    Time from dial to answer\n" 
 "      ANSWEREDTIME  Time for actual call\n"
@@ -485,6 +487,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	int playargs=0, sentringing=0, moh=0;
 	char *varname;
 	int vartype;
+	char *outbound_group = NULL;
 
 	int digit = 0;
 	time_t start_time, answer_time, end_time;
@@ -707,6 +710,10 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			l = "";
 		ast_log(LOG_NOTICE, "Privacy DB is '%s', privacy is %d, clid is '%s'\n", privdb, privacy, l);
 	}
+
+	/* If a channel group has been specified, get it for use when we create peer channels */
+	outbound_group = pbx_builtin_getvar_helper(chan, "OUTBOUND_GROUP");
+
 	cur = peers;
 	do {
 		/* Remember where to start next time */
@@ -873,6 +880,11 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		tmp->chan->adsicpe = chan->adsicpe;
 		/* pass the digital flag */
 		ast_dup_flag(tmp->chan, chan, AST_FLAG_DIGITAL);
+
+		/* If we have an outbound group, set this peer channel to it */
+		if (outbound_group)
+			ast_app_group_set_channel(tmp->chan, outbound_group);
+
 		/* Place the call, but don't wait on the answer */
 		res = ast_call(tmp->chan, numsubst, 0);
 
