@@ -24,6 +24,11 @@ Try to match the existing formatting of the file you are working on.
 Functions and variables that are not intended to be global must be
 declared static.
 
+Roughly, Asterisk coding guidelines are generally equivalent to the 
+following:
+
+# indent -i4 -ts4 -br -brs -cdw -cli0 -ce -nbfda -npcs -npsl foo.c
+
 Function calls and arguments should be spaced in a consistent way across
 the codebase.
 GOOD: foo(arg1, arg2);
