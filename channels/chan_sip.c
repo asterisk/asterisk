@@ -329,6 +329,7 @@ struct sip_registry {
 	int regstate;
 	int callid_valid;		/* 0 means we haven't chosen callid for this registry yet. */
 	char callid[80];		/* Global CallID for this registry */
+	unsigned int ocseq;		/* Sequence number we got to for REGISTERs for this registry */
 	struct sockaddr_in us;			/* Who the server thinks we are */
 	struct sip_registry *next;
 };
@@ -1478,6 +1479,7 @@ static int sip_register(char *value, int lineno)
 		reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(DEFAULT_SIP_PORT);
 		reg->next = registrations;
 		reg->callid_valid = 0;
+		reg->ocseq = 101;
 		registrations = reg;
 	} else {
 		ast_log(LOG_ERROR, "Out of memory\n");
@@ -2582,7 +2584,8 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 	memset(&req, 0, sizeof(req));
 	init_req(&req, cmd, addr);
 
-	snprintf(tmp, sizeof(tmp), "%d %s", ++p->ocseq, cmd);
+	snprintf(tmp, sizeof(tmp), "%u %s", ++r->ocseq, cmd);
+	p->ocseq = r->ocseq;
 
 	snprintf(via, sizeof(via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	add_header(&req, "Via", via);
