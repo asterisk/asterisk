@@ -1702,8 +1702,8 @@ int gethostbyname_r (const char *name,
 
   int hsave;
   struct hostent *ph;
-  static pthread_mutex_t __mutex = PTHREAD_MUTEX_INITIALIZER;
-  pthread_mutex_lock(&__mutex); /* begin critical area */
+  static ast_mutex_t __mutex = AST_MUTEX_INITIALIZER;
+  ast_mutex_lock(&__mutex); /* begin critical area */
   hsave = h_errno;
 
   ph = gethostbyname(name);
@@ -1789,9 +1789,9 @@ int gethostbyname_r (const char *name,
   }
   h_errno = hsave;  /* restore h_errno */
 
-  pthread_mutex_unlock(&__mutex); /* end critical area */
+  ast_mutex_unlock(&__mutex); /* end critical area */
 
-  return (*result == NULL);
+  return (*result != NULL);
 
 }
 
