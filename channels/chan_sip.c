@@ -71,10 +71,12 @@
 #define DEFAULT_MAX_EXPIRY      3600
 
 /* guard limit must be larger than guard secs */
-/* guard min must be > 1 */
+/* guard min must be < 1000, and should be >= 250 */
 #define EXPIRY_GUARD_SECS	15	/* How long before expiry do we reregister */
 #define EXPIRY_GUARD_LIMIT      30	/* Below here, we use EXPIRY_GUARD_PCT instead of EXPIRY_GUARD_SECS */
-#define EXPIRY_GUARD_MIN        3	/* Below here, we use expires=1 instead of EXPIRY_GUARD_PCT * expires */
+#define EXPIRY_GUARD_MIN	500	/* This is the minimum guard time applied. If GUARD_PCT turns out
+					to be lower than this, it will use this time instead. This is in
+					milliseconds. */
 #define EXPIRY_GUARD_PCT        0.20	/* Percentage of expires timeout to use when below EXPIRY_GUARD_LIMIT */
 
 #ifndef MAX
@@ -5333,7 +5335,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				}
 			} else if (!strcasecmp(msg, "REGISTER")) {
 				/* char *exp; */
-				int expires;
+				int expires, expires_ms;
 				struct sip_registry *r;
 				r=p->registry;
 				if (r) {
@@ -5375,14 +5377,14 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					}
 					if (!expires) expires=atoi(get_header(req, "expires"));
 					if (!expires) expires=default_expiry;
-					if (expires <= EXPIRY_GUARD_MIN)
-						expires = 1;
+
+					expires_ms = expires * 1000;
+					if (expires <= EXPIRY_GUARD_LIMIT)
+						expires_ms -= MAX((expires_ms * EXPIRY_GUARD_PCT),EXPIRY_GUARD_MIN);
 					else
-						if (expires <= EXPIRY_GUARD_LIMIT)
-							expires -= MAX((expires * EXPIRY_GUARD_PCT),(EXPIRY_GUARD_MIN - 1));
-						else
-							expires -= EXPIRY_GUARD_SECS;
-					r->expire=ast_sched_add(sched, expires*1000, sip_reregister, r); 
+						expires_ms -= EXPIRY_GUARD_SECS * 1000;
+
+					r->expire=ast_sched_add(sched, expires_ms, sip_reregister, r); 
 				} else
 					ast_log(LOG_WARNING, "Got 200 OK on REGISTER that isn't a register\n");
 
