@@ -252,6 +252,7 @@ static struct sip_pvt {
 	char theirtag[256];				/* Their tag */
 	char username[256];
 	char peername[256];
+	char authname[256];				/* Who we use for authentication */
 	char uri[256];					/* Original requested URI */
 	char peersecret[256];
 	char peermd5secret[256];
@@ -916,6 +917,7 @@ static int create_addr(struct sip_pvt *r, char *peer)
 				ast_rtp_setnat(r->vrtp, r->nat);
 			}
 			strncpy(r->peername, p->username, sizeof(r->peername)-1);
+			strncpy(r->authname, p->username, sizeof(r->authname)-1);
 			strncpy(r->peersecret, p->secret, sizeof(r->peersecret)-1);
 			strncpy(r->peermd5secret, p->md5secret, sizeof(r->peermd5secret)-1);
 			strncpy(r->username, p->username, sizeof(r->username)-1);
@@ -3384,10 +3386,13 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 		p->registry=r;
 		strncpy(p->peersecret, r->secret, sizeof(p->peersecret)-1);
 		strncpy(p->peermd5secret, r->md5secret, sizeof(p->peermd5secret)-1);
-		if (strlen(r->authuser))
+		if (strlen(r->authuser)) {
 			strncpy(p->peername, r->authuser, sizeof(p->peername)-1);
-		else
+			strncpy(p->authname, r->authuser, sizeof(p->authname)-1);
+		} else {
 			strncpy(p->peername, r->username, sizeof(p->peername)-1);
+			strncpy(p->authname, r->username, sizeof(p->authname)-1);
+		}
 		strncpy(p->username, r->username, sizeof(p->username)-1);
 		strncpy(p->exten, r->contact, sizeof(p->exten) - 1);
 
@@ -4476,9 +4481,10 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				}
 				p->canreinvite = peer->canreinvite;
 				strncpy(p->peername, peer->name, sizeof(p->peername) - 1);
+				strncpy(p->authname, peer->name, sizeof(p->authname) - 1);
 				if (strlen(peer->username)) {
 					strncpy(p->username, peer->username, sizeof(p->username) - 1);
-					strncpy(p->peername, peer->username, sizeof(p->peername) - 1);
+					strncpy(p->authname, peer->username, sizeof(p->authname) - 1);
 				}
 				if (strlen(peer->context))
 					strncpy(p->context, peer->context, sizeof(p->context) - 1);
@@ -5063,7 +5069,7 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 
 	snprintf(cnonce, sizeof(cnonce), "%08x", rand());
 
-	snprintf(a1,sizeof(a1),"%s:%s:%s",p->peername,p->realm,p->peersecret);
+	snprintf(a1,sizeof(a1),"%s:%s:%s",p->authname,p->realm,p->peersecret);
 	snprintf(a2,sizeof(a2),"%s:%s",orig_header,uri);
 	if (strlen(p->peermd5secret))
 	        strncpy(a1_hash, p->peermd5secret, sizeof(a1_hash) - 1);
@@ -5079,9 +5085,9 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 	md5_hash(resp_hash,resp);
 	/* XXX We hard code our qop to "auth" for now.  XXX */
 	if (strlen(p->qop))
-		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=\"%s\", cnonce=\"%s\", nc=%s",p->peername,p->realm,uri,p->nonce,resp_hash, p->opaque, "auth", cnonce, "00000001");
+		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=\"%s\", cnonce=\"%s\", nc=%s",p->authname,p->realm,uri,p->nonce,resp_hash, p->opaque, "auth", cnonce, "00000001");
 	else
-		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"",p->peername,p->realm,uri,p->nonce,resp_hash, p->opaque);
+		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"",p->authname,p->realm,uri,p->nonce,resp_hash, p->opaque);
 
 	return 0;
 }
@@ -5375,7 +5381,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					}
 				}
 			} else if (!strcasecmp(msg, "BYE") || !strcasecmp(msg, "REFER")) {
-				if (!strlen(p->peername))
+				if (!strlen(p->authname))
 					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
 							msg, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 				if ((p->authtries > 1) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", msg, 0)) {
@@ -5468,7 +5474,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		case 407:
 			if (!strcasecmp(msg, "BYE") || !strcasecmp(msg, "REFER")) {
-				if (!strlen(p->peername))
+				if (!strlen(p->authname))
 					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
 							msg, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 				if ((p->authtries > 1) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", msg, 0)) {
