@@ -307,6 +307,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
 static int transmit_message_with_text(struct sip_pvt *p, char *text);
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req);
+char *getsipuri(char *header);
 
 static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
@@ -1653,6 +1654,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	copy_via_headers(p, resp, req, "Via");
 	copy_header(resp, req, "From");
 	ot = get_header(req, "To");
+	copy_header(resp, req, "Record-Route");
 	if (!strstr(ot, "tag=")) {
 		/* Add the proper tag if we don't have it already.  If they have specified
 		   their tag, use it.  Otherwise, use our own tag */
@@ -1672,20 +1674,28 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 		/* For registration responses, we also need expirey and
 		   contact info */
 		char tmp[80];
-		char contact2[256] = "", *c, contact[256];
+		char contact[256];
+		char *c;
+		if ((c=getsipuri(ot))) {
+			snprintf(contact, sizeof(contact), "<%s@%s>", c, inet_ntoa(p->ourip));
+			free(c);
+		} else {
+			snprintf(contact, sizeof(contact), "<%s>", inet_ntoa(p->ourip));
+		}
 		snprintf(tmp, sizeof(tmp), "%d", p->expirey);
-		strncpy(contact2, get_header(req, "Contact"), sizeof(contact2)-1);
-		c = ditch_braces(contact2);
-		snprintf(contact, sizeof(contact), "<%s>", c);
 		add_header(resp, "Expires", tmp);
 		add_header(resp, "Contact", contact);
 	} else {
-		char contact2[256] = "", *c, contact[256];
+		char contact[256];
 		/* XXX This isn't exactly right and it's implemented
 		       very stupidly *sigh* XXX */
-		strncpy(contact2, get_header(req, "To"), sizeof(contact2)-1);
-		c = ditch_braces(contact2);
-		snprintf(contact, sizeof(contact), "<%s>", c);
+		char *c;
+		if ((c=getsipuri(ot))) {
+			snprintf(contact, sizeof(contact), "<%s@%s>", c, inet_ntoa(p->ourip));
+			free(c);
+		} else {
+			snprintf(contact, sizeof(contact), "<%s>", inet_ntoa(p->ourip));
+		}
 		add_header(resp, "Contact", contact);
 	}
 	return 0;
@@ -4543,3 +4553,24 @@ char *description()
 	return desc;
 }
 
+char *getsipuri(char *header)
+{
+	char *c, *d, *retval;
+	int n;
+
+	if (!(c=strstr(header, "sip"))) {
+		return NULL;
+	}
+
+	if (!(d=strchr(c, '@'))) {
+		return NULL;
+	}
+
+	n=d-c;
+
+	retval=(char *)malloc(n+1);
+	strncpy(retval, c, n);
+	*(retval+n)='\0';
+
+	return retval;
+}

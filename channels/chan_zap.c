@@ -1315,6 +1315,10 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		} else {
 			strcpy(p->dop.dialstr, "");
 		}
+		if (!(p->call = pri_new_call(p->pri->pri))) {
+			ast_log(LOG_WARNING, "Unable to create call on channel %d\n", p->channel);
+			return -1;
+		}
 		if (pri_call(p->pri->pri, p->call, p->digital ? PRI_TRANS_CAP_DIGITAL : PRI_TRANS_CAP_SPEECH, 
 			p->prioffset, p->pri->nodetype == PRI_NETWORK ? 0 : 1, 1, l, p->pri->dialplan - 1, n,
 			l ? PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN : PRES_NUMBER_NOT_AVAILABLE,
@@ -4932,13 +4936,6 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 					p = p->next;
 					continue;
 				}
-#ifdef ZAPATA_PRI
-			if (p->pri) 
-				if (!(p->call = pri_new_call(p->pri->pri))) {
-					ast_log(LOG_WARNING, "Unable to create call on channel %d\n", p->channel);
-					break;
-				}
-#endif
 			callwait = (p->owner != NULL);
 			if (p->channel == CHAN_PSEUDO) {
 				p = chandup(p);

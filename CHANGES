@@ -1,3 +1,4 @@
+ -- Add experimental "trunk" option to IAX2 for high density VoIP
  -- Add experimental "debug channel" command
  -- Add 'C' flag to dial command to reset call detail record (handy for calling cards)
  -- Add NAT and dynamic support to MGCP

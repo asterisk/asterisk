@@ -138,11 +138,11 @@ struct ast_iax2_meta_hdr {
 struct ast_iax2_meta_trunk_hdr {
 	unsigned int ts;				/* 32-bit timestamp for all messages */
 	unsigned char data[0];
-};
+} __attribute__ ((__packed__));
 
 struct ast_iax2_meta_trunk_entry {
 	unsigned short callno;			/* Call number */
 	unsigned short len;				/* Length of data for this callno */
-};
+} __attribute__ ((__packed__));
 
 #endif

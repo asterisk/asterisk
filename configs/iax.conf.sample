@@ -47,6 +47,9 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ;maxjitterbuffer=500
 ;maxexccessbuffer=100
 ;
+;trunkfreq=20			; How frequently to send trunk msgs (in ms)
+;
+;
 ; We can register with another IAX server to let him know where we are
 ; in case we have a dynamic IP address for example
 ;

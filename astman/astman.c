@@ -383,14 +383,14 @@ static int show_doing(char *title, char *tmp)
 	return 0;
 }
 
-static int hide_doing()
+static int hide_doing(void)
 {
 	newtPopWindow();
 	newtFormDestroy(showform);
 	return 0;
 }
 
-static void try_status()
+static void try_status(void)
 {
 	struct message *m;
 	manager_action("Status", "");
