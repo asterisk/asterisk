@@ -50,7 +50,7 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 jitterbuffer=no
 ;dropcount=3
 ;maxjitterbuffer=500
-;maxexccessbuffer=100
+;maxexcessbuffer=100
 ;
 ;trunkfreq=20			; How frequently to send trunk msgs (in ms)
 ;
