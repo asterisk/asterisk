@@ -615,8 +615,6 @@
 
 %space.gsm%space [ ]
 
-%plus.gsm%plus [+]
-
 %equals.gsm%equals [=]
 
 %conf-locked.gsm%This conference is locked!
