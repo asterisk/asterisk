@@ -1248,6 +1248,10 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf)
 			fdprintf(agi->fd, c->usage);
 			fdprintf(agi->fd, "520 End of proper usage.\n");
 			break;
+		case AST_PBX_KEEPALIVE:
+			/* We've been asked to keep alive, so do so */
+			return AST_PBX_KEEPALIVE;
+			break;
 		case RESULT_FAILURE:
 			/* They've already given the failure.  We've been hung up on so handle this
 			   appropriately */
@@ -1316,7 +1320,7 @@ static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid, i
 
 			returnstatus |= agi_handle_command(chan, agi, buf);
 			/* If the handle_command returns -1, we need to stop */
-			if (returnstatus < 0) {
+			if ((returnstatus < 0) || (returnstatus == AST_PBX_KEEPALIVE)) {
 				break;
 			}
 		} else {
