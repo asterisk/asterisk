@@ -893,6 +893,17 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 				}
 			}
 		}
+		if (!(*ret)) {
+			int len=strlen(var);
+			int len_len=strlen("LEN(");
+			if (len > (len_len+1) && !strncasecmp(var,"LEN(",len_len) && strchr(var+len_len+2,')')) {
+				char cp3[80];
+				strncpy(cp3, var, sizeof(cp3) - 1);
+				cp3[len-len_len-1]='\0';
+				sprintf(workspace,"%d",strlen(cp3));
+				*ret = workspace;
+			} else ast_log(LOG_NOTICE, "Wrong use of LEN(VARIABLE)\n");
+		}
 	}
 }
 
