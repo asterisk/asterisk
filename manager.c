@@ -103,6 +103,23 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 	return res;
 }
 
+static char *authority_to_str(int authority, char *res, int reslen)
+{
+	int running_total = 0, i;
+	memset(res, 0, reslen);
+	for (i=0; i<sizeof(perms) / sizeof(perms[0]) - 1; i++) {
+		if (authority & perms[i].num) {
+			if (*res) {
+				strncat(res, ",", (reslen > running_total) ? reslen - running_total : 0);
+				running_total++;
+			}
+			strncat(res, perms[i].label, (reslen > running_total) ? reslen - running_total : 0);
+			running_total += strlen(perms[i].label);
+		}
+	}
+	return res;
+}
+
 static char *complete_show_mancmd(char *line, char *word, int pos, int state)
 {
 	struct manager_action *cur = first_action;
@@ -126,6 +143,7 @@ static char *complete_show_mancmd(char *line, char *word, int pos, int state)
 static int handle_showmancmd(int fd, int argc, char *argv[])
 {
 	struct manager_action *cur = first_action;
+	char authority[80];
 	int num;
 
 	if (argc != 4)
@@ -134,7 +152,7 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 	while (cur) { /* Walk the list of actions */
 		for (num = 3; num < argc; num++) {
 			if (!strcasecmp(cur->action, argv[num])) {
-				ast_cli(fd, "Action: %s\nSynopsis: %s\n%s\n", cur->action, cur->synopsis, cur->description ? cur->description : "");
+				ast_cli(fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n", cur->action, cur->synopsis, authority_to_str(cur->authority, authority, sizeof(authority) -1), cur->description ? cur->description : "");
 			}
 		}
 		cur = cur->next;
@@ -147,12 +165,13 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 static int handle_showmancmds(int fd, int argc, char *argv[])
 {
 	struct manager_action *cur = first_action;
-	char *format = "  %-15.15s  %-45.45s\n";
+	char authority[80];
+	char *format = "  %-15.15s  %-10.10s  %-45.45s\n";
 
 	ast_mutex_lock(&actionlock);
-	ast_cli(fd, format, "Action", "Synopsis");
+	ast_cli(fd, format, "Action", "Privilege", "Synopsis");
 	while (cur) { /* Walk the list of actions */
-		ast_cli(fd, format, cur->action, cur->synopsis);
+		ast_cli(fd, format, cur->action, authority_to_str(cur->authority, authority, sizeof(authority) -1), cur->synopsis);
 		cur = cur->next;
 	}
 
