@@ -179,8 +179,8 @@ static int join_queue(char *queuename, struct queue_ent *qe)
 				q->count++;
 				res = 0;
 				manager_event(EVENT_FLAG_CALL, "Join", 
-        	                                               	"Channel: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
-	                                                       	qe->chan->name, q->name, qe->pos, q->count );
+        	                                               	"Channel: %s\r\nCallerID:%s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
+	                                                       	qe->chan->name, qe->chan->callerid ? qe->chan->callerid : "", q->name, qe->pos, q->count );
 #if 0
 ast_log(LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
 #endif

@@ -3731,7 +3731,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			ast_pthread_mutex_unlock(&iaxsl[fr.callno]);
 		return 1;
 	}
-	if (!inaddrcmp(&sin, &iaxs[fr.callno]->addr))
+	if (!inaddrcmp(&sin, &iaxs[fr.callno]->addr) && !minivid)
 		iaxs[fr.callno]->peercallno = (unsigned short)(ntohs(mh->callno) & ~IAX_FLAG_FULL);
 	if (ntohs(mh->callno) & IAX_FLAG_FULL) {
 		if (option_debug)
