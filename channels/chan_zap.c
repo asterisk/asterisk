@@ -6007,34 +6007,6 @@ static int restart_monitor(void)
 	return 0;
 }
 
-static int reset_channel(struct zt_pvt *p)
-{
-	int ioctlflag = 1;
-	int res = 0;
-	int i = 0;
-
-	ast_log(LOG_DEBUG, "reset_channel()\n");
-	if (p->owner) {
-		ioctlflag = 0;
-		p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
-	}
-	for (i = 0; i < 3; i++) {
-		if (p->subs[i].owner) {
-			ioctlflag = 0;
-			p->subs[i].owner->_softhangup |= AST_SOFTHANGUP_DEV;
-		}
-	}
-	if (ioctlflag) {
-		res = zt_set_hook(p->subs[SUB_REAL].zfd, ZT_ONHOOK);
-		if (res < 0) {
-			ast_log(LOG_ERROR, "Unable to hangup chan_zap channel %d (ioctl)\n", p->channel);
-			return -1;
-		}
-	}
-
-	return 0;
-}
-
 #ifdef ZAPATA_PRI
 static int pri_resolve_span(int *span, int channel, int offset, struct zt_spaninfo *si)
 {
@@ -6149,7 +6121,7 @@ static int pri_create_spanmap(int span, int trunkgroup, int logicalspan)
 
 #endif
 
-static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_pri *pri)
+static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_pri *pri, int reloading)
 {
 	/* Make a zt_pvt structure for this interface (or CRV if "pri" is specified) */
 	struct zt_pvt *tmp = NULL, *tmp2,  *prev = NULL;
@@ -6192,7 +6164,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		tmp2 = tmp2->next;
 	}
 
-	if (!here) {
+	if (!here && !reloading) {
 		tmp = (struct zt_pvt*)malloc(sizeof(struct zt_pvt));
 		if (!tmp) {
 			ast_log(LOG_ERROR, "MALLOC FAILED\n");
@@ -6208,181 +6180,180 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 	}
 
 	if (tmp) {
-		if ((channel != CHAN_PSEUDO) && !pri) {
-			snprintf(fn, sizeof(fn), "%d", channel);
-			/* Open non-blocking */
-			if (!here)
-				tmp->subs[SUB_REAL].zfd = zt_open(fn);
-			/* Allocate a zapata structure */
-			if (tmp->subs[SUB_REAL].zfd < 0) {
-				ast_log(LOG_ERROR, "Unable to open channel %d: %s\nhere = %d, tmp->channel = %d, channel = %d\n", channel, strerror(errno), here, tmp->channel, channel);
-				destroy_zt_pvt(&tmp);
-				return NULL;
+		if (!here) {
+			if ((channel != CHAN_PSEUDO) && !pri) {
+				snprintf(fn, sizeof(fn), "%d", channel);
+				/* Open non-blocking */
+				if (!here)
+					tmp->subs[SUB_REAL].zfd = zt_open(fn);
+				/* Allocate a zapata structure */
+				if (tmp->subs[SUB_REAL].zfd < 0) {
+					ast_log(LOG_ERROR, "Unable to open channel %d: %s\nhere = %d, tmp->channel = %d, channel = %d\n", channel, strerror(errno), here, tmp->channel, channel);
+					destroy_zt_pvt(&tmp);
+					return NULL;
+				}
+				memset(&p, 0, sizeof(p));
+				res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &p);
+				if (res < 0) {
+					ast_log(LOG_ERROR, "Unable to get parameters\n");
+					destroy_zt_pvt(&tmp);
+					return NULL;
+				}
+				if (p.sigtype != (signalling & 0x3ffff)) {
+					ast_log(LOG_ERROR, "Signalling requested is %s but line is in %s signalling\n", sig2str(signalling), sig2str(p.sigtype));
+					destroy_zt_pvt(&tmp);
+					return tmp;
+				}
+				tmp->law = p.curlaw;
+				tmp->span = p.spanno;
+				span = p.spanno - 1;
+			} else {
+				if (channel == CHAN_PSEUDO)
+					signalling = 0;
+				else if ((signalling != SIG_FXOKS) && (signalling != SIG_FXSKS)) {
+					ast_log(LOG_ERROR, "CRV's must use FXO/FXS Kewl Start (fxo_ks/fxs_ks) signalling only.\n");
+					return NULL;
+				}
 			}
-			memset(&p, 0, sizeof(p));
-			res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &p);
-			if (res < 0) {
-				ast_log(LOG_ERROR, "Unable to get parameters\n");
-				destroy_zt_pvt(&tmp);
-				return NULL;
-			}
-			if (p.sigtype != (signalling & 0x3ffff)) {
-				ast_log(LOG_ERROR, "Signalling requested is %s but line is in %s signalling\n", sig2str(signalling), sig2str(p.sigtype));
-				destroy_zt_pvt(&tmp);
-				return tmp;
-			}
-			if (here) {
-				if (tmp->sig != signalling) {
-					if (reset_channel(tmp)) {
-						ast_log(LOG_ERROR, "Failed to reset chan_zap channel %d\n", tmp->channel);
+#ifdef ZAPATA_PRI
+			if ((signalling == SIG_PRI) || (signalling == SIG_GR303FXOKS) || (signalling == SIG_GR303FXSKS)) {
+				int offset;
+				int myswitchtype;
+				int matchesdchan;
+				int x,y;
+				offset = 0;
+				if ((signalling == SIG_PRI) && ioctl(tmp->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &offset)) {
+					ast_log(LOG_ERROR, "Unable to set clear mode on clear channel %d of span %d: %s\n", channel, p.spanno, strerror(errno));
+					destroy_zt_pvt(&tmp);
+					return NULL;
+				}
+				if (span >= NUM_SPANS) {
+					ast_log(LOG_ERROR, "Channel %d does not lie on a span I know of (%d)\n", channel, span);
+					destroy_zt_pvt(&tmp);
+					return NULL;
+				} else {
+					si.spanno = 0;
+					if (ioctl(tmp->subs[SUB_REAL].zfd,ZT_SPANSTAT,&si) == -1) {
+						ast_log(LOG_ERROR, "Unable to get span status: %s\n", strerror(errno));
+						destroy_zt_pvt(&tmp);
 						return NULL;
 					}
-				}
-			}
-			tmp->law = p.curlaw;
-			tmp->span = p.spanno;
-			span = p.spanno - 1;
-		} else {
-			if (channel == CHAN_PSEUDO)
-				signalling = 0;
-			else if ((signalling != SIG_FXOKS) && (signalling != SIG_FXSKS)) {
-				ast_log(LOG_ERROR, "CRV's must use FXO/FXS Kewl Start (fxo_ks/fxs_ks) signalling only.\n");
-				return NULL;
-			}
-		}
-#ifdef ZAPATA_PRI
-		if ((signalling == SIG_PRI) || (signalling == SIG_GR303FXOKS) || (signalling == SIG_GR303FXSKS)) {
-			int offset;
-			int myswitchtype;
-			int matchesdchan;
-			int x,y;
-			offset = 0;
-			if ((signalling == SIG_PRI) && ioctl(tmp->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &offset)) {
-				ast_log(LOG_ERROR, "Unable to set clear mode on clear channel %d of span %d: %s\n", channel, p.spanno, strerror(errno));
-				destroy_zt_pvt(&tmp);
-				return NULL;
-			}
-			if (span >= NUM_SPANS) {
-				ast_log(LOG_ERROR, "Channel %d does not lie on a span I know of (%d)\n", channel, span);
-				destroy_zt_pvt(&tmp);
-				return NULL;
-			} else {
-				si.spanno = 0;
-				if (ioctl(tmp->subs[SUB_REAL].zfd,ZT_SPANSTAT,&si) == -1) {
-					ast_log(LOG_ERROR, "Unable to get span status: %s\n", strerror(errno));
-					destroy_zt_pvt(&tmp);
-					return NULL;
-				}
-				/* Store the logical span first based upon the real span */
-				tmp->logicalspan = pris[span].prilogicalspan;
-				pri_resolve_span(&span, channel, (channel - p.chanpos), &si);
-				if (span < 0) {
-					ast_log(LOG_WARNING, "Channel %d: Unable to find locate channel/trunk group!\n", channel);
-					destroy_zt_pvt(&tmp);
-					return NULL;
-				}
-				if (signalling == SIG_PRI)
-					myswitchtype = switchtype;
-				else
-					myswitchtype = PRI_SWITCH_GR303_TMC;
-				/* Make sure this isn't a d-channel */
-				matchesdchan=0;
-				for (x=0;x<NUM_SPANS;x++) {
-					for (y=0;y<NUM_DCHANS;y++) {
-						if (pris[x].dchannels[y] == tmp->channel) {
-							matchesdchan = 1;
-							break;
+					/* Store the logical span first based upon the real span */
+					tmp->logicalspan = pris[span].prilogicalspan;
+					pri_resolve_span(&span, channel, (channel - p.chanpos), &si);
+					if (span < 0) {
+						ast_log(LOG_WARNING, "Channel %d: Unable to find locate channel/trunk group!\n", channel);
+						destroy_zt_pvt(&tmp);
+						return NULL;
+					}
+					if (signalling == SIG_PRI)
+						myswitchtype = switchtype;
+					else
+						myswitchtype = PRI_SWITCH_GR303_TMC;
+					/* Make sure this isn't a d-channel */
+					matchesdchan=0;
+					for (x=0;x<NUM_SPANS;x++) {
+						for (y=0;y<NUM_DCHANS;y++) {
+							if (pris[x].dchannels[y] == tmp->channel) {
+								matchesdchan = 1;
+								break;
+							}
 						}
 					}
+					offset = p.chanpos;
+					if (!matchesdchan) {
+						if (pris[span].nodetype && (pris[span].nodetype != pritype)) {
+							ast_log(LOG_ERROR, "Span %d is already a %s node\n", span + 1, pri_node2str(pris[span].nodetype));
+							destroy_zt_pvt(&tmp);
+							return NULL;
+						}
+						if (pris[span].switchtype && (pris[span].switchtype != myswitchtype)) {
+							ast_log(LOG_ERROR, "Span %d is already a %s switch\n", span + 1, pri_switch2str(pris[span].switchtype));
+							destroy_zt_pvt(&tmp);
+							return NULL;
+						}
+						if ((pris[span].dialplan) && (pris[span].dialplan != dialplan)) {
+							ast_log(LOG_ERROR, "Span %d is already a %s dialing plan\n", span + 1, pri_plan2str(pris[span].dialplan));
+							destroy_zt_pvt(&tmp);
+							return NULL;
+						}
+						if (!ast_strlen_zero(pris[span].idledial) && strcmp(pris[span].idledial, idledial)) {
+							ast_log(LOG_ERROR, "Span %d already has idledial '%s'.\n", span + 1, idledial);
+							destroy_zt_pvt(&tmp);
+							return NULL;
+						}
+						if (!ast_strlen_zero(pris[span].idleext) && strcmp(pris[span].idleext, idleext)) {
+							ast_log(LOG_ERROR, "Span %d already has idleext '%s'.\n", span + 1, idleext);
+							destroy_zt_pvt(&tmp);
+							return NULL;
+						}
+						if (pris[span].minunused && (pris[span].minunused != minunused)) {
+							ast_log(LOG_ERROR, "Span %d already has minunused of %d.\n", span + 1, minunused);
+							destroy_zt_pvt(&tmp);
+							return NULL;
+						}
+						if (pris[span].minidle && (pris[span].minidle != minidle)) {
+							ast_log(LOG_ERROR, "Span %d already has minidle of %d.\n", span + 1, minidle);
+							destroy_zt_pvt(&tmp);
+							return NULL;
+						}
+						if (pris[span].numchans >= MAX_CHANNELS) {
+							ast_log(LOG_ERROR, "Unable to add channel %d: Too many channels in trunk group %d!\n", channel,
+								pris[span].trunkgroup);
+							destroy_zt_pvt(&tmp);
+							return NULL;
+						}
+						pris[span].nodetype = pritype;
+						pris[span].switchtype = myswitchtype;
+						pris[span].nsf = nsf;
+						pris[span].dialplan = dialplan;
+						pris[span].localdialplan = localdialplan;
+						pris[span].pvts[pris[span].numchans++] = tmp;
+						pris[span].minunused = minunused;
+						pris[span].minidle = minidle;
+						pris[span].overlapdial = overlapdial;
+						strncpy(pris[span].idledial, idledial, sizeof(pris[span].idledial) - 1);
+						strncpy(pris[span].idleext, idleext, sizeof(pris[span].idleext) - 1);
+						
+						tmp->pri = &pris[span];
+						tmp->prioffset = offset;
+						tmp->call = NULL;
+					} else {
+						ast_log(LOG_ERROR, "Channel %d is reserved for D-channel.\n", offset);
+						destroy_zt_pvt(&tmp);
+						return NULL;
+					}
 				}
-				offset = p.chanpos;
-				if (!matchesdchan) {
-					if (pris[span].nodetype && (pris[span].nodetype != pritype)) {
-						ast_log(LOG_ERROR, "Span %d is already a %s node\n", span + 1, pri_node2str(pris[span].nodetype));
-						destroy_zt_pvt(&tmp);
-						return NULL;
-					}
-					if (pris[span].switchtype && (pris[span].switchtype != myswitchtype)) {
-						ast_log(LOG_ERROR, "Span %d is already a %s switch\n", span + 1, pri_switch2str(pris[span].switchtype));
-						destroy_zt_pvt(&tmp);
-						return NULL;
-					}
-					if ((pris[span].dialplan) && (pris[span].dialplan != dialplan)) {
-						ast_log(LOG_ERROR, "Span %d is already a %s dialing plan\n", span + 1, pri_plan2str(pris[span].dialplan));
-						destroy_zt_pvt(&tmp);
-						return NULL;
-					}
-					if (!ast_strlen_zero(pris[span].idledial) && strcmp(pris[span].idledial, idledial)) {
-						ast_log(LOG_ERROR, "Span %d already has idledial '%s'.\n", span + 1, idledial);
-						destroy_zt_pvt(&tmp);
-						return NULL;
-					}
-					if (!ast_strlen_zero(pris[span].idleext) && strcmp(pris[span].idleext, idleext)) {
-						ast_log(LOG_ERROR, "Span %d already has idleext '%s'.\n", span + 1, idleext);
-						destroy_zt_pvt(&tmp);
-						return NULL;
-					}
-					if (pris[span].minunused && (pris[span].minunused != minunused)) {
-						ast_log(LOG_ERROR, "Span %d already has minunused of %d.\n", span + 1, minunused);
-						destroy_zt_pvt(&tmp);
-						return NULL;
-					}
-					if (pris[span].minidle && (pris[span].minidle != minidle)) {
-						ast_log(LOG_ERROR, "Span %d already has minidle of %d.\n", span + 1, minidle);
-						destroy_zt_pvt(&tmp);
-						return NULL;
-					}
-					if (pris[span].numchans >= MAX_CHANNELS) {
-						ast_log(LOG_ERROR, "Unable to add channel %d: Too many channels in trunk group %d!\n", channel,
-							pris[span].trunkgroup);
-						destroy_zt_pvt(&tmp);
-						return NULL;
-					}
-					pris[span].nodetype = pritype;
-					pris[span].switchtype = myswitchtype;
-					pris[span].nsf = nsf;
-					pris[span].dialplan = dialplan;
-					pris[span].localdialplan = localdialplan;
-					pris[span].pvts[pris[span].numchans++] = tmp;
-					pris[span].minunused = minunused;
-					pris[span].minidle = minidle;
-					pris[span].overlapdial = overlapdial;
-					strncpy(pris[span].idledial, idledial, sizeof(pris[span].idledial) - 1);
-					strncpy(pris[span].idleext, idleext, sizeof(pris[span].idleext) - 1);
-					
-					tmp->pri = &pris[span];
-					tmp->prioffset = offset;
-					tmp->call = NULL;
-				} else {
-					ast_log(LOG_ERROR, "Channel %d is reserved for D-channel.\n", offset);
+			} else {
+				tmp->prioffset = 0;
+			}
+#endif
+#ifdef ZAPATA_R2
+			if (signalling == SIG_R2) {
+				if (r2prot < 0) {
+					ast_log(LOG_WARNING, "R2 Country not specified for channel %d -- Assuming China\n", tmp->channel);
+					tmp->r2prot = MFCR2_PROT_CHINA;
+				} else
+					tmp->r2prot = r2prot;
+				tmp->r2 = mfcr2_new(tmp->subs[SUB_REAL].zfd, tmp->r2prot, 1);
+				if (!tmp->r2) {
+					ast_log(LOG_WARNING, "Unable to create r2 call :(\n");
+					zt_close(tmp->subs[SUB_REAL].zfd);
 					destroy_zt_pvt(&tmp);
 					return NULL;
 				}
+			} else {
+				if (tmp->r2) 
+					mfcr2_free(tmp->r2);
+				tmp->r2 = NULL;
 			}
-		} else {
-			tmp->prioffset = 0;
-		}
 #endif
-#ifdef ZAPATA_R2
-		if (signalling == SIG_R2) {
-			if (r2prot < 0) {
-				ast_log(LOG_WARNING, "R2 Country not specified for channel %d -- Assuming China\n", tmp->channel);
-				tmp->r2prot = MFCR2_PROT_CHINA;
-			} else
-				tmp->r2prot = r2prot;
-			tmp->r2 = mfcr2_new(tmp->subs[SUB_REAL].zfd, tmp->r2prot, 1);
-			if (!tmp->r2) {
-				ast_log(LOG_WARNING, "Unable to create r2 call :(\n");
-				zt_close(tmp->subs[SUB_REAL].zfd);
-				destroy_zt_pvt(&tmp);
-				return NULL;
-			}
 		} else {
-			if (tmp->r2) 
-				mfcr2_free(tmp->r2);
-			tmp->r2 = NULL;
+			signalling = tmp->sig;
+			memset(&p, 0, sizeof(p));
+			if (tmp->subs[SUB_REAL].zfd > -1)
+				res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &p);
 		}
-#endif
 		/* Adjust starttime on loopstart and kewlstart trunks to reasonable values */
 		if ((signalling == SIG_FXSKS) || (signalling == SIG_FXSLS) ||
 		    (signalling == SIG_EM) || (signalling == SIG_EM_E1) ||  (signalling == SIG_EMWINK) ||
@@ -8672,6 +8643,7 @@ static char show_channels_usage[] =
 static char show_channel_usage[] =
 	"Usage: zap show channel <chan num>\n"
 	"	Detailed information about a given channel\n";
+
 static char destroy_channel_usage[] =
 	"Usage: zap destroy channel <chan num>\n"
 	"	DON'T USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING.  Immediately removes a given channel, whether it is in use or not\n";
@@ -8980,7 +8952,7 @@ int unload_module()
 	return __unload_module();
 }
 		
-static int setup_zap(void)
+static int setup_zap(int reload)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
@@ -9081,13 +9053,16 @@ static int setup_zap(void)
 			|| !strcasecmp(v->name, "crv")
 #endif			
 					) {
-			if (cur_signalling < 0) {
-				ast_log(LOG_ERROR, "Signalling must be specified before any channels are.\n");
-				ast_destroy(cfg);
-				ast_mutex_unlock(&iflock);
-				return -1;
+			if (reload == 0) {
+				if (cur_signalling < 0) {
+					ast_log(LOG_ERROR, "Signalling must be specified before any channels are.\n");
+					ast_destroy(cfg);
+					ast_mutex_unlock(&iflock);
+					return -1;
+				}
 			}
 			c = v->value;
+
 #ifdef ZAPATA_PRI
 			pri = NULL;
 			if (!strcasecmp(v->name, "crv")) {
@@ -9142,24 +9117,25 @@ static int setup_zap(void)
 				}
 				for (x=start;x<=finish;x++) {
 #ifdef ZAPATA_PRI
-					tmp = mkintf(x, cur_signalling, cur_radio, pri);
-#else
-					tmp = mkintf(x, cur_signalling, cur_radio, NULL);
+					tmp = mkintf(x, cur_signalling, cur_radio, pri, reload);
+#else					
+					tmp = mkintf(x, cur_signalling, cur_radio, NULL, reload);
 #endif					
 
 					if (tmp) {
 						if (option_verbose > 2) {
 #ifdef ZAPATA_PRI
 							if (pri)
-								ast_verbose(VERBOSE_PREFIX_3 "Registered CRV %d:%d, %s signalling\n", trunkgroup,x, sig2str(tmp->sig));
+								ast_verbose(VERBOSE_PREFIX_3 "%s CRV %d:%d, %s signalling\n", reload ? "Reconfigured" : "Registered", trunkgroup,x, sig2str(tmp->sig));
 							else
-								ast_verbose(VERBOSE_PREFIX_3 "Registered channel %d, %s signalling\n", x, sig2str(tmp->sig));
-#else
-							ast_verbose(VERBOSE_PREFIX_3 "Registered channel %d, %s signalling\n", x, sig2str(tmp->sig));
 #endif
+								ast_verbose(VERBOSE_PREFIX_3 "%s channel %d, %s signalling\n", reload ? "Reconfigured" : "Registered", x, sig2str(tmp->sig));
 						}
 					} else {
-						ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
+						if (reload == 1)
+							ast_log(LOG_ERROR, "Unable to reconfigure channel '%s'\n", v->value);
+						else
+							ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
 						ast_destroy(cfg);
 						ast_mutex_unlock(&iflock);
 						return -1;
@@ -9326,326 +9302,329 @@ static int setup_zap(void)
 				ast_log(LOG_WARNING, "Invalid AMA flags: %s at line %d\n", v->value, v->lineno);
 			else
 				amaflags = y;
-		} else if (!strcasecmp(v->name, "signalling")) {
-			if (!strcasecmp(v->value, "em")) {
-				cur_signalling = SIG_EM;
-			} else if (!strcasecmp(v->value, "em_e1")) {
-				cur_signalling = SIG_EM_E1;
-			} else if (!strcasecmp(v->value, "em_w")) {
-				cur_signalling = SIG_EMWINK;
-				cur_radio = 0;
-			} else if (!strcasecmp(v->value, "fxs_ls")) {
-				cur_signalling = SIG_FXSLS;
-				cur_radio = 0;
-			} else if (!strcasecmp(v->value, "fxs_gs")) {
-				cur_signalling = SIG_FXSGS;
-				cur_radio = 0;
-			} else if (!strcasecmp(v->value, "fxs_ks")) {
-				cur_signalling = SIG_FXSKS;
-				cur_radio = 0;
-			} else if (!strcasecmp(v->value, "fxo_ls")) {
-				cur_signalling = SIG_FXOLS;
-				cur_radio = 0;
-			} else if (!strcasecmp(v->value, "fxo_gs")) {
-				cur_signalling = SIG_FXOGS;
-				cur_radio = 0;
-			} else if (!strcasecmp(v->value, "fxo_ks")) {
-				cur_signalling = SIG_FXOKS;
-				cur_radio = 0;
-			} else if (!strcasecmp(v->value, "fxs_rx")) {
-				cur_signalling = SIG_FXSKS;
-				cur_radio = 1;
-			} else if (!strcasecmp(v->value, "fxo_rx")) {
-				cur_signalling = SIG_FXOLS;
-				cur_radio = 1;
-			} else if (!strcasecmp(v->value, "fxs_tx")) {
-				cur_signalling = SIG_FXSLS;
-				cur_radio = 1;
-			} else if (!strcasecmp(v->value, "fxo_tx")) {
-				cur_signalling = SIG_FXOGS;
-				cur_radio = 1;
-			} else if (!strcasecmp(v->value, "em_rx")) {
-				cur_signalling = SIG_EM;
-				cur_radio = 1;
-			} else if (!strcasecmp(v->value, "em_tx")) {
-				cur_signalling = SIG_EM;
-				cur_radio = 1;
-			} else if (!strcasecmp(v->value, "em_rxtx")) {
-				cur_signalling = SIG_EM;
-				cur_radio = 2;
-			} else if (!strcasecmp(v->value, "em_txrx")) {
-				cur_signalling = SIG_EM;
-				cur_radio = 2;
-			} else if (!strcasecmp(v->value, "sf")) {
-				cur_signalling = SIG_SF;
-				cur_radio = 0;
-			} else if (!strcasecmp(v->value, "sf_w")) {
-				cur_signalling = SIG_SFWINK;
-				cur_radio = 0;
-			} else if (!strcasecmp(v->value, "sf_featd")) {
-				cur_signalling = SIG_FEATD;
-				cur_radio = 0;
-			} else if (!strcasecmp(v->value, "sf_featdmf")) {
-				cur_signalling = SIG_FEATDMF;
-				cur_radio = 0;
-			} else if (!strcasecmp(v->value, "sf_featb")) {
-				cur_signalling = SIG_SF_FEATB;
-				cur_radio = 0;
-			} else if (!strcasecmp(v->value, "sf")) {
-				cur_signalling = SIG_SF;
-				cur_radio = 0;
-			} else if (!strcasecmp(v->value, "sf_rx")) {
-				cur_signalling = SIG_SF;
-				cur_radio = 1;
-			} else if (!strcasecmp(v->value, "sf_tx")) {
-				cur_signalling = SIG_SF;
-				cur_radio = 1;
-			} else if (!strcasecmp(v->value, "sf_rxtx")) {
-				cur_signalling = SIG_SF;
-				cur_radio = 2;
-			} else if (!strcasecmp(v->value, "sf_txrx")) {
-				cur_signalling = SIG_SF;
-				cur_radio = 2;
-			} else if (!strcasecmp(v->value, "featd")) {
-				cur_signalling = SIG_FEATD;
-				cur_radio = 0;
-			} else if (!strcasecmp(v->value, "featdmf")) {
-				cur_signalling = SIG_FEATDMF;
-				cur_radio = 0;
-			} else if (!strcasecmp(v->value, "e911")) {
-				cur_signalling = SIG_E911;
-				cur_radio = 0;
-			} else if (!strcasecmp(v->value, "featb")) {
-				cur_signalling = SIG_FEATB;
-				cur_radio = 0;
+		} else if(!reload){ 
+			 if (!strcasecmp(v->name, "signalling")) {
+				if (!strcasecmp(v->value, "em")) {
+					cur_signalling = SIG_EM;
+				} else if (!strcasecmp(v->value, "em_e1")) {
+					cur_signalling = SIG_EM_E1;
+				} else if (!strcasecmp(v->value, "em_w")) {
+					cur_signalling = SIG_EMWINK;
+					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "fxs_ls")) {
+					cur_signalling = SIG_FXSLS;
+					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "fxs_gs")) {
+					cur_signalling = SIG_FXSGS;
+					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "fxs_ks")) {
+					cur_signalling = SIG_FXSKS;
+					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "fxo_ls")) {
+					cur_signalling = SIG_FXOLS;
+					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "fxo_gs")) {
+					cur_signalling = SIG_FXOGS;
+					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "fxo_ks")) {
+					cur_signalling = SIG_FXOKS;
+					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "fxs_rx")) {
+					cur_signalling = SIG_FXSKS;
+					cur_radio = 1;
+				} else if (!strcasecmp(v->value, "fxo_rx")) {
+					cur_signalling = SIG_FXOLS;
+					cur_radio = 1;
+				} else if (!strcasecmp(v->value, "fxs_tx")) {
+					cur_signalling = SIG_FXSLS;
+					cur_radio = 1;
+				} else if (!strcasecmp(v->value, "fxo_tx")) {
+					cur_signalling = SIG_FXOGS;
+					cur_radio = 1;
+				} else if (!strcasecmp(v->value, "em_rx")) {
+					cur_signalling = SIG_EM;
+					cur_radio = 1;
+				} else if (!strcasecmp(v->value, "em_tx")) {
+					cur_signalling = SIG_EM;
+					cur_radio = 1;
+				} else if (!strcasecmp(v->value, "em_rxtx")) {
+					cur_signalling = SIG_EM;
+					cur_radio = 2;
+				} else if (!strcasecmp(v->value, "em_txrx")) {
+					cur_signalling = SIG_EM;
+					cur_radio = 2;
+				} else if (!strcasecmp(v->value, "sf")) {
+					cur_signalling = SIG_SF;
+					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "sf_w")) {
+					cur_signalling = SIG_SFWINK;
+					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "sf_featd")) {
+					cur_signalling = SIG_FEATD;
+					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "sf_featdmf")) {
+					cur_signalling = SIG_FEATDMF;
+					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "sf_featb")) {
+					cur_signalling = SIG_SF_FEATB;
+					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "sf")) {
+					cur_signalling = SIG_SF;
+					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "sf_rx")) {
+					cur_signalling = SIG_SF;
+					cur_radio = 1;
+				} else if (!strcasecmp(v->value, "sf_tx")) {
+					cur_signalling = SIG_SF;
+					cur_radio = 1;
+				} else if (!strcasecmp(v->value, "sf_rxtx")) {
+					cur_signalling = SIG_SF;
+					cur_radio = 2;
+				} else if (!strcasecmp(v->value, "sf_txrx")) {
+					cur_signalling = SIG_SF;
+					cur_radio = 2;
+				} else if (!strcasecmp(v->value, "featd")) {
+					cur_signalling = SIG_FEATD;
+					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "featdmf")) {
+					cur_signalling = SIG_FEATDMF;
+					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "e911")) {
+					cur_signalling = SIG_E911;
+					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "featb")) {
+					cur_signalling = SIG_FEATB;
+					cur_radio = 0;
 #ifdef ZAPATA_PRI
-			} else if (!strcasecmp(v->value, "pri_net")) {
-				cur_radio = 0;
-				cur_signalling = SIG_PRI;
-				pritype = PRI_NETWORK;
-			} else if (!strcasecmp(v->value, "pri_cpe")) {
-				cur_signalling = SIG_PRI;
-				cur_radio = 0;
-				pritype = PRI_CPE;
-			} else if (!strcasecmp(v->value, "gr303fxoks_net")) {
-				cur_signalling = SIG_GR303FXOKS;
-				cur_radio = 0;
-				pritype = PRI_NETWORK;
-			} else if (!strcasecmp(v->value, "gr303fxsks_cpe")) {
-				cur_signalling = SIG_GR303FXSKS;
-				cur_radio = 0;
-				pritype = PRI_CPE;
+				} else if (!strcasecmp(v->value, "pri_net")) {
+					cur_radio = 0;
+					cur_signalling = SIG_PRI;
+					pritype = PRI_NETWORK;
+				} else if (!strcasecmp(v->value, "pri_cpe")) {
+					cur_signalling = SIG_PRI;
+					cur_radio = 0;
+					pritype = PRI_CPE;
+				} else if (!strcasecmp(v->value, "gr303fxoks_net")) {
+					cur_signalling = SIG_GR303FXOKS;
+					cur_radio = 0;
+					pritype = PRI_NETWORK;
+				} else if (!strcasecmp(v->value, "gr303fxsks_cpe")) {
+					cur_signalling = SIG_GR303FXSKS;
+					cur_radio = 0;
+					pritype = PRI_CPE;
 #endif
 #ifdef ZAPATA_R2
-			} else if (!strcasecmp(v->value, "r2")) {
-				cur_signalling = SIG_R2;
-				cur_radio = 0;
-#endif				
-			} else {
-				ast_log(LOG_ERROR, "Unknown signalling method '%s'\n", v->value);
-			}
-#ifdef ZAPATA_R2
-		} else if (!strcasecmp(v->name, "r2country")) {
-			r2prot = str2r2prot(v->value);
-			if (r2prot < 0) {
-				ast_log(LOG_WARNING, "Unknown R2 Country '%s' at line %d.\n", v->value, v->lineno);
-			}
-#endif
-#ifdef ZAPATA_PRI
-		} else if (!strcasecmp(v->name, "pridialplan")) {
-			if (!strcasecmp(v->value, "national")) {
-				dialplan = PRI_NATIONAL_ISDN + 1;
-			} else if (!strcasecmp(v->value, "unknown")) {
-				dialplan = PRI_UNKNOWN + 1;
-			} else if (!strcasecmp(v->value, "private")) {
-				dialplan = PRI_PRIVATE + 1;
-			} else if (!strcasecmp(v->value, "international")) {
-				dialplan = PRI_INTERNATIONAL_ISDN + 1;
-			} else if (!strcasecmp(v->value, "local")) {
-				dialplan = PRI_LOCAL_ISDN + 1;
-			} else {
-				ast_log(LOG_WARNING, "Unknown PRI dialplan '%s' at line %d.\n", v->value, v->lineno);
-			}
-		} else if (!strcasecmp(v->name, "prilocaldialplan")) {
-			if (!strcasecmp(v->value, "national")) {
-				localdialplan = PRI_NATIONAL_ISDN + 1;
-			} else if (!strcasecmp(v->value, "unknown")) {
-				localdialplan = PRI_UNKNOWN + 1;
-			} else if (!strcasecmp(v->value, "private")) {
-				localdialplan = PRI_PRIVATE + 1;
-			} else if (!strcasecmp(v->value, "international")) {
-				localdialplan = PRI_INTERNATIONAL_ISDN + 1;
-			} else if (!strcasecmp(v->value, "local")) {
-				localdialplan = PRI_LOCAL_ISDN + 1;
-			} else {
-				ast_log(LOG_WARNING, "Unknown PRI dialplan '%s' at line %d.\n", v->value, v->lineno);
-			}
-		} else if (!strcasecmp(v->name, "switchtype")) {
-			if (!strcasecmp(v->value, "national")) 
-				switchtype = PRI_SWITCH_NI2;
-			else if (!strcasecmp(v->value, "ni1"))
-				switchtype = PRI_SWITCH_NI1;
-			else if (!strcasecmp(v->value, "dms100"))
-				switchtype = PRI_SWITCH_DMS100;
-			else if (!strcasecmp(v->value, "4ess"))
-				switchtype = PRI_SWITCH_ATT4ESS;
-			else if (!strcasecmp(v->value, "5ess"))
-				switchtype = PRI_SWITCH_LUCENT5E;
-			else if (!strcasecmp(v->value, "euroisdn"))
-				switchtype = PRI_SWITCH_EUROISDN_E1;
-			else {
-				ast_log(LOG_ERROR, "Unknown switchtype '%s'\n", v->value);
-				ast_destroy(cfg);
-				ast_mutex_unlock(&iflock);
-				return -1;
-			}
-		} else if (!strcasecmp(v->name, "nsf")) {
-			if (!strcasecmp(v->value, "sdn"))
-				nsf = PRI_NSF_SDN;
-			else if (!strcasecmp(v->value, "megacom"))
-				nsf = PRI_NSF_MEGACOM;
-			else if (!strcasecmp(v->value, "accunet"))
-				nsf = PRI_NSF_ACCUNET;
-			else if (!strcasecmp(v->value, "none"))
-				nsf = PRI_NSF_NONE;
-			else {
-				ast_log(LOG_WARNING, "Unknown network-specific facility '%s'\n", v->value);
-				nsf = PRI_NSF_NONE;
-			}
-		} else if (!strcasecmp(v->name, "priindication")) {
-			if (!strcasecmp(v->value, "outofband"))
-				priindication_oob = 1;
-			else if (!strcasecmp(v->value, "inband"))
-				priindication_oob = 0;
-			else
-				ast_log(LOG_WARNING, "'%s' is not a valid pri indication value, should be 'inband' or 'outofband' at line %d\n",
-					v->value, v->lineno);
-		} else if (!strcasecmp(v->name, "minunused")) {
-			minunused = atoi(v->value);
-		} else if (!strcasecmp(v->name, "idleext")) {
-			strncpy(idleext, v->value, sizeof(idleext) - 1);
-		} else if (!strcasecmp(v->name, "idledial")) {
-			strncpy(idledial, v->value, sizeof(idledial) - 1);
-		} else if (!strcasecmp(v->name, "overlapdial")) {
-			overlapdial = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "pritimer")) {
-#ifdef PRI_GETSET_TIMERS
-			char *timerc;
-			int timer, timeridx;
-			c = v->value;
-			timerc = strsep(&c, ",");
-			if (timerc) {
-				timer = atoi(c);
-				if (!timer)
-					ast_log(LOG_WARNING, "'%s' is not a valid value for an ISDN timer\n", timerc);
-				else {
-					if ((timeridx = pri_timer2idx(timerc)))
-						pritimers[timeridx] = timer;
-					else
-						ast_log(LOG_WARNING, "'%s' is not a valid ISDN timer\n", timerc);
+				} else if (!strcasecmp(v->value, "r2")) {
+					cur_signalling = SIG_R2;
+					cur_radio = 0;
+#endif			
+				} else {
+					ast_log(LOG_ERROR, "Unknown signalling method '%s'\n", v->value);
 				}
-			} else
-				ast_log(LOG_WARNING, "'%s' is not a valid ISDN timer configuration string\n", v->value);
+#ifdef ZAPATA_R2
+			} else if (!strcasecmp(v->name, "r2country")) {
+				r2prot = str2r2prot(v->value);
+				if (r2prot < 0) {
+					ast_log(LOG_WARNING, "Unknown R2 Country '%s' at line %d.\n", v->value, v->lineno);
+				}
+#endif
+#ifdef ZAPATA_PRI
+			} else if (!strcasecmp(v->name, "pridialplan")) {
+				if (!strcasecmp(v->value, "national")) {
+					dialplan = PRI_NATIONAL_ISDN + 1;
+				} else if (!strcasecmp(v->value, "unknown")) {
+					dialplan = PRI_UNKNOWN + 1;
+				} else if (!strcasecmp(v->value, "private")) {
+					dialplan = PRI_PRIVATE + 1;
+				} else if (!strcasecmp(v->value, "international")) {
+					dialplan = PRI_INTERNATIONAL_ISDN + 1;
+				} else if (!strcasecmp(v->value, "local")) {
+					dialplan = PRI_LOCAL_ISDN + 1;
+				} else {
+					ast_log(LOG_WARNING, "Unknown PRI dialplan '%s' at line %d.\n", v->value, v->lineno);
+				}
+			} else if (!strcasecmp(v->name, "prilocaldialplan")) {
+				if (!strcasecmp(v->value, "national")) {
+					localdialplan = PRI_NATIONAL_ISDN + 1;
+				} else if (!strcasecmp(v->value, "unknown")) {
+					localdialplan = PRI_UNKNOWN + 1;
+				} else if (!strcasecmp(v->value, "private")) {
+					localdialplan = PRI_PRIVATE + 1;
+				} else if (!strcasecmp(v->value, "international")) {
+					localdialplan = PRI_INTERNATIONAL_ISDN + 1;
+				} else if (!strcasecmp(v->value, "local")) {
+					localdialplan = PRI_LOCAL_ISDN + 1;
+				} else {
+					ast_log(LOG_WARNING, "Unknown PRI dialplan '%s' at line %d.\n", v->value, v->lineno);
+				}
+			} else if (!strcasecmp(v->name, "switchtype")) {
+				if (!strcasecmp(v->value, "national")) 
+					switchtype = PRI_SWITCH_NI2;
+				else if (!strcasecmp(v->value, "ni1"))
+					switchtype = PRI_SWITCH_NI1;
+				else if (!strcasecmp(v->value, "dms100"))
+					switchtype = PRI_SWITCH_DMS100;
+				else if (!strcasecmp(v->value, "4ess"))
+					switchtype = PRI_SWITCH_ATT4ESS;
+				else if (!strcasecmp(v->value, "5ess"))
+					switchtype = PRI_SWITCH_LUCENT5E;
+				else if (!strcasecmp(v->value, "euroisdn"))
+					switchtype = PRI_SWITCH_EUROISDN_E1;
+				else {
+					ast_log(LOG_ERROR, "Unknown switchtype '%s'\n", v->value);
+					ast_destroy(cfg);
+					ast_mutex_unlock(&iflock);
+					return -1;
+				}
+			} else if (!strcasecmp(v->name, "nsf")) {
+				if (!strcasecmp(v->value, "sdn"))
+					nsf = PRI_NSF_SDN;
+				else if (!strcasecmp(v->value, "megacom"))
+					nsf = PRI_NSF_MEGACOM;
+				else if (!strcasecmp(v->value, "accunet"))
+					nsf = PRI_NSF_ACCUNET;
+				else if (!strcasecmp(v->value, "none"))
+					nsf = PRI_NSF_NONE;
+				else {
+					ast_log(LOG_WARNING, "Unknown network-specific facility '%s'\n", v->value);
+					nsf = PRI_NSF_NONE;
+				}
+			} else if (!strcasecmp(v->name, "priindication")) {
+				if (!strcasecmp(v->value, "outofband"))
+					priindication_oob = 1;
+				else if (!strcasecmp(v->value, "inband"))
+					priindication_oob = 0;
+				else
+					ast_log(LOG_WARNING, "'%s' is not a valid pri indication value, should be 'inband' or 'outofband' at line %d\n",
+						v->value, v->lineno);
+			} else if (!strcasecmp(v->name, "minunused")) {
+				minunused = atoi(v->value);
+			} else if (!strcasecmp(v->name, "idleext")) {
+				strncpy(idleext, v->value, sizeof(idleext) - 1);
+			} else if (!strcasecmp(v->name, "idledial")) {
+				strncpy(idledial, v->value, sizeof(idledial) - 1);
+			} else if (!strcasecmp(v->name, "overlapdial")) {
+				overlapdial = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "pritimer")) {
+#ifdef PRI_GETSET_TIMERS
+				char *timerc;
+				int timer, timeridx;
+				c = v->value;
+				timerc = strsep(&c, ",");
+				if (timerc) {
+					timer = atoi(c);
+					if (!timer)
+						ast_log(LOG_WARNING, "'%s' is not a valid value for an ISDN timer\n", timerc);
+					else {
+						if ((timeridx = pri_timer2idx(timerc)))
+							pritimers[timeridx] = timer;
+						else
+							ast_log(LOG_WARNING, "'%s' is not a valid ISDN timer\n", timerc);
+					}
+				} else
+					ast_log(LOG_WARNING, "'%s' is not a valid ISDN timer configuration string\n", v->value);
 #endif /* PRI_GETSET_TIMERS */
 #endif /* ZAPATA_PRI */
-		} else if (!strcasecmp(v->name, "cadence")) {
-			/* setup to scan our argument */
-			int element_count, c[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-			int i;
-			struct zt_ring_cadence new_cadence;
-			int cid_location = -1;
-                        int firstcadencepos = 0;
-			char original_args[80];
-			int cadence_is_ok = 1;
+			
+			} else if (!strcasecmp(v->name, "cadence")) {
+				/* setup to scan our argument */
+				int element_count, c[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+				int i;
+				struct zt_ring_cadence new_cadence;
+				int cid_location = -1;
+                		int firstcadencepos = 0;
+				char original_args[80];
+				int cadence_is_ok = 1;
 
-			strncpy(original_args, v->value, sizeof(original_args) - 1);
-			/* 16 cadences allowed (8 pairs) */
-			element_count = sscanf(v->value, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d", &c[0], &c[1], &c[2], &c[3], &c[4], &c[5], &c[6], &c[7], &c[8], &c[9], &c[10], &c[11], &c[12], &c[13], &c[14], &c[15]);
-
-			/* Cadence must be even (on/off) */
-			if (element_count % 2 == 1) {
-				ast_log(LOG_ERROR, "Must be a silence duration for each ring duration: %s\n",original_args);
-				cadence_is_ok = 0;
-			}
-
-			/* Ring cadences cannot be negative */
-			for (i=0;i<element_count;i++) {
-			        if (c[i] == 0) {
-				        ast_log(LOG_ERROR, "Ring or silence duration cannot be zero: %s\n", original_args);
+				strncpy(original_args, v->value, sizeof(original_args) - 1);
+				/* 16 cadences allowed (8 pairs) */
+				element_count = sscanf(v->value, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d", &c[0], &c[1], &c[2], &c[3], &c[4], &c[5], &c[6], &c[7], &c[8], &c[9], &c[10], &c[11], &c[12], &c[13], &c[14], &c[15]);
+	
+				/* Cadence must be even (on/off) */
+				if (element_count % 2 == 1) {
+					ast_log(LOG_ERROR, "Must be a silence duration for each ring duration: %s\n",original_args);
 					cadence_is_ok = 0;
-					break;
-				} else if (c[i] < 0) {
-					if (i % 2 == 1) {
-					        /* Silence duration, negative possibly okay */
+				}
+	
+				/* Ring cadences cannot be negative */
+				for (i=0;i<element_count;i++) {
+				        if (c[i] == 0) {
+					        ast_log(LOG_ERROR, "Ring or silence duration cannot be zero: %s\n", original_args);
+						cadence_is_ok = 0;
+						break;
+					} else if (c[i] < 0) {
+						if (i % 2 == 1) {
+						        /* Silence duration, negative possibly okay */
+							if (cid_location == -1) {
+							        cid_location = i;
+								c[i] *= -1;
+							} else {
+							        ast_log(LOG_ERROR, "CID location specified twice: %s\n",original_args);
+								cadence_is_ok = 0;
+								break;
+							}
+						} else {
+							if (firstcadencepos == 0) {
+							        firstcadencepos = i; /* only recorded to avoid duplicate specification */
+								                     /* duration will be passed negative to the zaptel driver */
+							} else {
+							        ast_log(LOG_ERROR, "First cadence position specified twice: %s\n",original_args);
+								cadence_is_ok = 0;
+								break;
+							}
+						}
+					}
+				}
+	
+				/* Substitute our scanned cadence */
+				for (i=0;i<16;i++) {
+					new_cadence.ringcadence[i] = c[i];
+				}
+	
+				if (cadence_is_ok) {
+					/* ---we scanned it without getting annoyed; now some sanity checks--- */
+					if (element_count < 2) {
+						ast_log(LOG_ERROR, "Minimum cadence is ring,pause: %s\n", original_args);
+					} else {
 						if (cid_location == -1) {
-						        cid_location = i;
-							c[i] *= -1;
+							/* user didn't say; default to first pause */
+							cid_location = 1;
 						} else {
-						        ast_log(LOG_ERROR, "CID location specified twice: %s\n",original_args);
-							cadence_is_ok = 0;
-							break;
+							/* convert element_index to cidrings value */
+							cid_location = (cid_location + 1) / 2;
 						}
-					} else {
-						if (firstcadencepos == 0) {
-						        firstcadencepos = i; /* only recorded to avoid duplicate specification */
-							                     /* duration will be passed negative to the zaptel driver */
-						} else {
-						        ast_log(LOG_ERROR, "First cadence position specified twice: %s\n",original_args);
-							cadence_is_ok = 0;
-							break;
+						/* ---we like their cadence; try to install it--- */
+						if (!user_has_defined_cadences++)
+							/* this is the first user-defined cadence; clear the default user cadences */
+							num_cadence = 0;
+						if ((num_cadence+1) >= NUM_CADENCE_MAX)
+							ast_log(LOG_ERROR, "Already %d cadences; can't add another: %s\n", NUM_CADENCE_MAX, original_args);
+						else {
+							cadences[num_cadence] = new_cadence;
+							cidrings[num_cadence++] = cid_location;
+							if (option_verbose > 2)
+								ast_verbose(VERBOSE_PREFIX_3 "cadence 'r%d' added: %s\n",num_cadence,original_args);
 						}
 					}
 				}
-			}
-
-			/* Substitute our scanned cadence */
-			for (i=0;i<16;i++) {
-				new_cadence.ringcadence[i] = c[i];
-			}
-
-			if (cadence_is_ok) {
-				/* ---we scanned it without getting annoyed; now some sanity checks--- */
-				if (element_count < 2) {
-					ast_log(LOG_ERROR, "Minimum cadence is ring,pause: %s\n", original_args);
-				} else {
-					if (cid_location == -1) {
-						/* user didn't say; default to first pause */
-						cid_location = 1;
-					} else {
-						/* convert element_index to cidrings value */
-						cid_location = (cid_location + 1) / 2;
-					}
-					/* ---we like their cadence; try to install it--- */
-					if (!user_has_defined_cadences++)
-						/* this is the first user-defined cadence; clear the default user cadences */
-						num_cadence = 0;
-					if ((num_cadence+1) >= NUM_CADENCE_MAX)
-						ast_log(LOG_ERROR, "Already %d cadences; can't add another: %s\n", NUM_CADENCE_MAX, original_args);
-					else {
-						cadences[num_cadence] = new_cadence;
-						cidrings[num_cadence++] = cid_location;
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "cadence 'r%d' added: %s\n",num_cadence,original_args);
-					}
-				}
-			}
-		} else if (!strcasecmp(v->name, "prewink")) {
-			cur_prewink = atoi(v->value);
-		} else if (!strcasecmp(v->name, "preflash")) {
-			cur_preflash = atoi(v->value);
-		} else if (!strcasecmp(v->name, "wink")) {
-			cur_wink = atoi(v->value);
-		} else if (!strcasecmp(v->name, "flash")) {
-			cur_flash = atoi(v->value);
-		} else if (!strcasecmp(v->name, "start")) {
-			cur_start = atoi(v->value);
-		} else if (!strcasecmp(v->name, "rxwink")) {
-			cur_rxwink = atoi(v->value);
-		} else if (!strcasecmp(v->name, "rxflash")) {
-			cur_rxflash = atoi(v->value);
-		} else if (!strcasecmp(v->name, "debounce")) {
-			cur_debounce = atoi(v->value);
-		} else
+			} else if (!strcasecmp(v->name, "prewink")) {
+				cur_prewink = atoi(v->value);
+			} else if (!strcasecmp(v->name, "preflash")) {
+				cur_preflash = atoi(v->value);
+			} else if (!strcasecmp(v->name, "wink")) {
+				cur_wink = atoi(v->value);
+			} else if (!strcasecmp(v->name, "flash")) {
+				cur_flash = atoi(v->value);
+			} else if (!strcasecmp(v->name, "start")) {
+				cur_start = atoi(v->value);
+			} else if (!strcasecmp(v->name, "rxwink")) {
+				cur_rxwink = atoi(v->value);
+			} else if (!strcasecmp(v->name, "rxflash")) {
+				cur_rxflash = atoi(v->value);
+			} else if (!strcasecmp(v->name, "debounce")) {
+				cur_debounce = atoi(v->value);
+			} 
+		} else 
 			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 		v = v->next;
 	}
@@ -9657,7 +9636,7 @@ static int setup_zap(void)
 		cur_callergroup = 0;
 		cur_pickupgroup = 0;
 	
-		tmp = mkintf(CHAN_PSEUDO, cur_signalling, cur_radio, NULL);
+		tmp = mkintf(CHAN_PSEUDO, cur_signalling, cur_radio, NULL, reload);
 
 		if (tmp) {
 			if (option_verbose > 2)
@@ -9701,7 +9680,7 @@ int load_module(void)
 	pri_set_error(zt_pri_error);
 	pri_set_message(zt_pri_message);
 #endif
-	res = setup_zap();
+	res = setup_zap(0);
 	/* Make sure we can register our Zap channel type */
 	if(res) {
 	  return -1;
@@ -9737,342 +9716,6 @@ int load_module(void)
 
 	return res;
 }
-
-#if 0
-
-static int reload_zt(void)
-{
-	struct ast_config *cfg;
-	struct ast_variable *v;
-	struct zt_pvt *tmp;
-	struct zt_pvt *prev = NULL;
-	char *chan;
-	char *ringc;
-	int start, finish,x;
-	char *stringp=NULL;
-
-	/* Some crap that needs to be reinitialized on the reload */
-	strncpy(context, "default", sizeof(context) - 1);
-	language[0] = '\0'; 
-	musicclass[0] = '\0';
-	use_callerid = 1;
-	cid_signalling = CID_SIG_BELL;
-	cid_start = CID_START_RING;
-	cur_signalling = -1;
-	cur_group = 0;
-	cur_callergroup = 0;
-	cur_pickupgroup = 0;
-	immediate = 0;
-	stripmsd = 0;
-	callwaiting = 0;
-	busydetect = 0;
-	busycount = 3;
-	callprogress = 0;
-	callwaitingcallerid = 0;
-	hidecallerid = 0;
-	callreturn = 0;
-	threewaycalling = 0;
-	transfer = 0;
-	rxgain = 0.0;
-	txgain = 0.0;
-	tonezone = -1;
-	firstdigittimeout = 16000;
-	gendigittimeout = 8000;
-	amaflags = 0;
-	adsi = 0;
-	memset(drings,0,sizeof(drings));
-	strncpy(accountcode, "", sizeof(accountcode)-1);
-#ifdef ZAPATA_PRI
-	strncpy(idleext, "", sizeof(idleext) - 1);
-	strncpy(idledial, "", sizeof(idledial) - 1);
-	minunused = 2;
-	minidle = 0;
-#endif
-//	usecnt = 0;
-
-#if 0
-#ifdef ZAPATA_PRI
-	int y;
-#endif
-#endif
-
-	
-#if 0
-#ifdef ZAPATA_PRI
-	for (y=0;y<NUM_SPANS;y++)
-		ast_mutex_destroy(&pris[y]->lock);
-	memset(pris, 0, sizeof(pris));
-	for (y=0;y<NUM_SPANS;y++) {
-		ast_mutex_init(&pris[y]->lock);
-		pris[y].fd = -1;
-	}
-#endif
-#endif /* 0 */
-	
-	cfg = ast_load(config);
-
-	/* We *must* have a config file otherwise stop immediately */
-	if (!cfg) {
-		ast_log(LOG_ERROR, "Unable to load config %s\n", config);
-		return -1;
-	}
-	
-
-	if (ast_mutex_lock(&iflock)) {
-		/* It's a little silly to lock it, but we mind as well just to be sure */
-		ast_log(LOG_ERROR, "Unable to lock interface list???\n");
-		return -1;
-	}
-	
-	/* Part of the primary changes for the reload... */
-	tmp = iflist;
-	
-	while (tmp) {
-		tmp->destroy = 1;
-		tmp = tmp->next;
-	}
-
-	v = ast_variable_browse(cfg, "channels");
-	
-	while(v) {
-		/* Create the interface list */
-		if (!strcasecmp(v->name, "channel")) {
-			if (cur_signalling < 0) {
-				ast_log(LOG_ERROR, "Signalling must be specified before any channels are.\n");
-				ast_destroy(cfg);
-				ast_mutex_unlock(&iflock);
-				return -1;
-			}
-			stringp=v->value;
-			chan = strsep(&stringp, ",");
-			while(chan) {
-				if (sscanf(chan, "%d-%d", &start, &finish) == 2) {
-					/* Range */
-				} else if (sscanf(chan, "%d", &start)) {
-					/* Just one */
-					finish = start;
-				} else {
-					ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'\n", v->value, chan);
-					ast_destroy(cfg);
-					ast_mutex_unlock(&iflock);
-					return -1;
-				}
-				if (finish < start) {
-					ast_log(LOG_WARNING, "Sillyness: %d < %d\n", start, finish);
-					x = finish;
-					finish = start;
-					start = x;
-				}
-				for (x = start; x <= finish; x++) {
-					tmp = mkintf(x, cur_signalling);
-					if (tmp) {
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "Registered channel %d, %s signalling\n", x, sig2str(tmp->sig));
-					} else {
-						ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
-						ast_destroy(cfg);
-						ast_mutex_unlock(&iflock);
-						return -1;
-					}
-				}
-				chan = strsep(&stringp, ",");
-			}
-		} else if (!strcasecmp(v->name, "usedistinctiveringdetection")) {
-			if (ast_true(v->value))
-				usedistinctiveringdetection = 1;
-		} else if (!strcasecmp(v->name, "dring1context")) {
-			strncpy(drings.ringContext[0].contextData,v->value,sizeof(drings.ringContext[0].contextData)-1);
-		} else if (!strcasecmp(v->name, "dring2context")) {
-			strncpy(drings.ringContext[1].contextData,v->value,sizeof(drings.ringContext[1].contextData)-1);
-		} else if (!strcasecmp(v->name, "dring3context")) {
-			strncpy(drings.ringContext[2].contextData,v->value,sizeof(drings.ringContext[2].contextData)-1);
-		} else if (!strcasecmp(v->name, "dring1")) {
-			ringc = v->value;
-			sscanf(ringc, "%d,%d,%d", &drings.ringnum[0].ring[0], &drings.ringnum[0].ring[1], &drings.ringnum[0].ring[2]);
-		} else if (!strcasecmp(v->name, "dring2")) {
-			ringc = v->value;
-			sscanf(ringc,"%d,%d,%d", &drings.ringnum[1].ring[0], &drings.ringnum[1].ring[1], &drings.ringnum[1].ring[2]);
-		} else if (!strcasecmp(v->name, "dring3")) {
-			ringc = v->value;
-			sscanf(ringc, "%d,%d,%d", &drings.ringnum[2].ring[0], &drings.ringnum[2].ring[1], &drings.ringnum[2].ring[2]);
- 		} else if (!strcasecmp(v->name, "usecallerid")) {
- 			use_callerid = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "cidsignalling")) {
-			if (!strcasecmp(v->value, "bell")) 
-				cid_signalling = CID_SIG_BELL;
-			else if (!strcasecmp(v->value, "v23")) 
-				cid_signalling = CID_SIG_V23;
-			else if (!strcasecmp(v->value, "dtmf"))
-				cid_signalling = CID_SIG_DTMF;
-			else if (ast_true(v->value)) 
-				cid_signalling = CID_SIG_BELL;
-		} else if (!strcasecmp(v->name, "cidstart")) {
-			if (!strcasecmp(v->value, "ring"))
-				cid_start = CID_START_RING;
-			else if (!strcasecmp(v->value, "polarity"))
-				cid_start = CID_START_POLARITY;
-			else if (ast_true(v->value))
-				cid_start = CID_START_RING;
-		} else if (!strcasecmp(v->name, "threewaycalling")) {
-			threewaycalling = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "transfer")) {
-			transfer = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "busydetect")) {
-			busydetect = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "busycount")) {
-			busycount = atoi(v->value);
-		} else if (!strcasecmp(v->name, "callprogress")) {
-			callprogress = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "hidecallerid")) {
-			hidecallerid = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "callreturn")) {
-			callreturn = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "callwaiting")) {
-			callwaiting = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "callwaitingcallerid")) {
-			callwaitingcallerid = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "context")) {
-			strncpy(context, v->value, sizeof(context)-1);
-		} else if (!strcasecmp(v->name, "language")) {
-			strncpy(language, v->value, sizeof(language)-1);
-		} else if (!strcasecmp(v->name, "progzone")) {
-			strncpy(progzone, v->value, sizeof(progzone) - 1);
-		} else if (!strcasecmp(v->name, "musiconhold")) {
-			strncpy(musicclass, v->value, sizeof(musicclass)-1);
-		} else if (!strcasecmp(v->name, "stripmsd")) {
-			stripmsd = atoi(v->value);
-		} else if (!strcasecmp(v->name, "group")) {
-			cur_group = get_group(v->value);
-		} else if (!strcasecmp(v->name, "callgroup")) {
-			cur_callergroup = get_group(v->value);
-		} else if (!strcasecmp(v->name, "pickupgroup")) {
-			cur_pickupgroup = get_group(v->value);
-		} else if (!strcasecmp(v->name, "immediate")) {
-			immediate = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "mailbox")) {
-			strncpy(mailbox, v->value, sizeof(mailbox) -1);
-		} else if (!strcasecmp(v->name, "rxgain")) {
-			if (sscanf(v->value, "%f", &rxgain) != 1) {
-				ast_log(LOG_WARNING, "Invalid rxgain: %s\n", v->value);
-			}
-		} else if (!strcasecmp(v->name, "txgain")) {
-			if (sscanf(v->value, "%f", &txgain) != 1) {
-				ast_log(LOG_WARNING, "Invalid txgain: %s\n", v->value);
-			}
-		} else if (!strcasecmp(v->name, "tonezone")) {
-			if (sscanf(v->value, "%d", &tonezone) != 1) {
-				ast_log(LOG_WARNING, "Invalid tonezone: %s\n", v->value);
-			}
-		} else if (!strcasecmp(v->name, "callerid")) {
-			if (!strcasecmp(v->value, "asreceived"))
-				callerid[0] = '\0';
-			else
-				strncpy(callerid, v->value, sizeof(callerid)-1);
-		} else if (!strcasecmp(v->name, "signalling")) {
-			if (!strcasecmp(v->value, "em")) {
-				cur_signalling = SIG_EM;
-			} else if (!strcasecmp(v->value, "em_w")) {
-				cur_signalling = SIG_EMWINK;
-			} else if (!strcasecmp(v->value, "fxs_ls")) {
-				cur_signalling = SIG_FXSLS;
-			} else if (!strcasecmp(v->value, "fxs_gs")) {
-				cur_signalling = SIG_FXSGS;
-			} else if (!strcasecmp(v->value, "fxs_ks")) {
-				cur_signalling = SIG_FXSKS;
-			} else if (!strcasecmp(v->value, "fxo_ls")) {
-				cur_signalling = SIG_FXOLS;
-			} else if (!strcasecmp(v->value, "fxo_gs")) {
-				cur_signalling = SIG_FXOGS;
-			} else if (!strcasecmp(v->value, "fxo_ks")) {
-				cur_signalling = SIG_FXOKS;
-			} else if (!strcasecmp(v->value, "featd")) {
-				cur_signalling = SIG_FEATD;
-			} else if (!strcasecmp(v->value, "featdmf")) {
-				cur_signalling = SIG_FEATDMF;
-			} else if (!strcasecmp(v->value, "e911")) {
-				cur_signalling = SIG_E911;
-			} else if (!strcasecmp(v->value, "featb")) {
-				cur_signalling = SIG_FEATB;
-#ifdef ZAPATA_PRI
-			} else if (!strcasecmp(v->value, "pri_net")) {
-				cur_signalling = SIG_PRI;
-				pritype = PRI_NETWORK;
-			} else if (!strcasecmp(v->value, "pri_cpe")) {
-				cur_signalling = SIG_PRI;
-				pritype = PRI_CPE;
-#endif
-			} else {
-				ast_log(LOG_ERROR, "Unknown signalling method '%s'\n", v->value);
-			}
-#ifdef ZAPATA_PRI
-		} else if (!strcasecmp(v->name, "switchtype")) {
-			if (!strcasecmp(v->value, "national")) 
-				switchtype = PRI_SWITCH_NI2;
-			else if (!strcasecmp(v->value, "dms100"))
-				switchtype = PRI_SWITCH_DMS100;
-			else if (!strcasecmp(v->value, "4ess"))
-				switchtype = PRI_SWITCH_ATT4ESS;
-			else if (!strcasecmp(v->value, "5ess"))
-				switchtype = PRI_SWITCH_LUCENT5E;
-			else {
-				ast_log(LOG_ERROR, "Unknown switchtype '%s'\n", v->value);
-				ast_destroy(cfg);
-				ast_mutex_unlock(&iflock);
-				return -1;
-			}
-               } else if (!strcasecmp(v->name, "nsf")) {
-                       if (!strcasecmp(v->value, "sdn"))
-                               nsf = PRI_NSF_SDN;
-                       else if (!strcasecmp(v->value, "megacom"))
-                               nsf = PRI_NSF_MEGACOM;
-                       else if (!strcasecmp(v->value, "accunet"))
-                               nsf = PRI_NSF_ACCUNET
-                       else if (!strcasecmp(v->value, "none"))
-                               nsf = PRI_NSF_NONE;
-                       else {
-                               ast_log(LOG_WARN, "Unknown network-specific facility '%s'\n", v->value);
-                               nsf = PRI_NSF_NONE;
-                       }
-		} else if (!strcasecmp(v->name, "jitterbuffers")) {
-			numbufs = atoi(v->value);
-		} else if (!strcasecmp(v->name, "minunused")) {
-			minunused = atoi(v->value);
-		} else if (!strcasecmp(v->name, "idleext")) {
-			strncpy(idleext, v->value, sizeof(idleext) - 1);
-		} else if (!strcasecmp(v->name, "idledial")) {
-			strncpy(idledial, v->value, sizeof(idledial) - 1);
-#endif
-		} else
-			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
-		v = v->next;
-	}
-
-	tmp = iflist;
-	prev = NULL;
-
-	while (tmp) {
-		if (tmp->destroy) {
-			if (destroy_channel(prev, tmp, 0)) {
-				ast_log(LOG_ERROR, "Unable to destroy chan_zap channel %d\n", tmp->channel);
-				ast_mutex_unlock(&iflock);
-				return -1;
-			}
-			tmp = tmp->next;
-		} else {
-			prev = tmp;
-			tmp = tmp->next;
-		}
-	}
-
-	ast_mutex_unlock(&iflock);
-
-	ast_destroy(cfg);
-	/* And start the monitor for the first time */
-
-	restart_monitor();
-	return 0;
-}
-#endif
 
 static int zt_sendtext(struct ast_channel *c, char *text)
 {
@@ -10173,18 +9816,19 @@ static int zt_sendtext(struct ast_channel *c, char *text)
 	return(0);
 }
 
-#if 0
-/* XXX Very broken on PRI XXX */
+
 int reload(void)
 {
-	if (reload_zt()) {
-		ast_log(LOG_WARNING, "Reload of chan_zap is unsuccessful\n");
+	int res = 0;
+
+	res = setup_zap(1);
+	if (res) {
+		ast_log(LOG_WARNING, "Reload of chan_zap.so is unsuccessful!\n");
 		return -1;
 	}
-
 	return 0;
 }
-#endif
+
 int usecount()
 {
 	int res;
