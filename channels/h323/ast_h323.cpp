@@ -489,6 +489,9 @@ H323Connection::AnswerCallResponse MyH323Connection::OnAnswerCall(const PString 
 																   const H323SignalPDU & /*setupPDU*/,
 																   H323SignalPDU & /*connectPDU*/)
 {
+	if (!on_answer_call(GetCallReference()))
+		return H323Connection::AnswerCallDenied;
+
 	/* The call will be answered later with "AnsweringCall()" function.
 	 */ 
 	return H323Connection::AnswerCallDeferred;
@@ -835,7 +838,8 @@ void h323_callback_register(setup_incoming_cb  	ifunc,
  			    clear_con_cb	clfunc,
  			    chan_ringing_cb     rfunc,
 			    con_established_cb 	efunc,
- 			    send_digit_cb	dfunc)
+ 			    send_digit_cb	dfunc,
+ 			    answer_call_cb	acfunc)
 {
 	on_incoming_call = ifunc;
 	on_outgoing_call = sfunc;
@@ -845,6 +849,7 @@ void h323_callback_register(setup_incoming_cb  	ifunc,
 	on_chan_ringing = rfunc;
 	on_connection_established = efunc;
 	on_send_digit = dfunc;
+	on_answer_call = acfunc;
 }
 
 /**

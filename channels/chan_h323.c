@@ -1007,7 +1007,7 @@ int setup_incoming_call(call_details_t cd)
 {
 	
 	struct oh323_pvt *p = NULL;
-	struct ast_channel *c = NULL;
+/*	struct ast_channel *c = NULL; */
 	struct oh323_user *user = NULL;
 	struct oh323_alias *alias = NULL;
 
@@ -1118,13 +1118,41 @@ int setup_incoming_call(call_details_t cd)
 	}
 
 exit:
+#if 0
 	/* allocate a channel and tell asterisk about it */
 	c = oh323_new(p, AST_STATE_RINGING, cd.call_token);
 	if (!c) {
 		ast_log(LOG_ERROR, "Couldn't create channel. This is bad\n");
 		return 0;
 	}
+#endif
+	return 1;
+}
 
+/**
+ * Call-back function to start PBX when OpenH323 ready to serve incoming call
+ *
+ * Returns 1 on success
+ */
+static int answer_call(unsigned call_reference)
+{
+	struct oh323_pvt *p = NULL;
+	struct ast_channel *c = NULL;
+	
+	/* Find the call or allocate a private structure if call not found */
+	p = find_call(call_reference);
+	
+	if (!p) {
+		ast_log(LOG_ERROR, "Something is wrong: answer_call\n");
+		return 0;
+	}
+	
+	/* allocate a channel and tell asterisk about it */
+	c = oh323_new(p, AST_STATE_RINGING, p->cd.call_token);
+	if (!c) {
+		ast_log(LOG_ERROR, "Couldn't create channel. This is bad\n");
+		return 0;
+	}
 	return 1;
 }
 
@@ -1857,7 +1885,8 @@ int load_module()
 				       cleanup_connection, 
 				       chan_ringing,
 				       connection_made, 
-				       send_digit);	
+				       send_digit,
+				       answer_call);
 	
 
 		/* start the h.323 listener */

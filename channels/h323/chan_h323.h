@@ -153,6 +153,9 @@ con_established_cb		on_connection_established;
 typedef void (*clear_con_cb)(call_details_t);
 clear_con_cb		on_connection_cleared;
 
+typedef int (*answer_call_cb)(unsigned);
+answer_call_cb		on_answer_call;
+
 /* debug flag */
 int h323debug;
 
@@ -178,7 +181,8 @@ extern "C" {
  				    clear_con_cb,
  				    chan_ringing_cb,
 				    con_established_cb,
- 				    send_digit_cb);
+ 				    send_digit_cb,
+ 				    answer_call_cb);
 
 
 	int h323_set_capability(int, int);
