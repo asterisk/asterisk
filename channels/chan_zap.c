@@ -8474,6 +8474,8 @@ static int __unload_module(void)
 	ast_manager_unregister( "ZapDialOffhook" );
 	ast_manager_unregister( "ZapHangup" );
 	ast_manager_unregister( "ZapTransfer" );
+	ast_manager_unregister( "ZapDNDoff" );
+	ast_manager_unregister( "ZapDNDon" );
 	ast_unregister_application(app_callingpres);
 	ast_channel_unregister(typecompat);
 	ast_channel_unregister(type);
