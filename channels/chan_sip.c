@@ -9131,19 +9131,31 @@ static void prune_peers(void)
 	ast_mutex_unlock(&peerl.lock);
 }
 
+/* Send all of our registrations, spaced out to avoid suicide*/
+static void sip_send_all_registers(void)
+{
+	struct sip_registry *reg;	
+	int ms;
+	ast_mutex_lock(&regl.lock);
+	for (reg = regl.registrations; reg; reg = reg->next) { 
+		if (reg->expire > -1)
+			ast_sched_del(sched, reg->expire);
+		ms = (rand() >> 12) & 0x1fff;
+		reg->expire = ast_sched_add(sched, ms, sip_reregister, reg);
+	}
+	ast_mutex_unlock(&regl.lock);
+}
+
 /*--- sip_do_reload: Reload module */
 static int sip_do_reload(void)
 {
-	struct sip_registry *reg;
 	struct sip_peer *peer;
 	delete_users();
 	reload_config();
 	prune_peers();
-	/* And start the monitor for the first time */
-	ast_mutex_lock(&regl.lock);
-	for (reg = regl.registrations; reg; reg = reg->next) 
-		__sip_do_register(reg);
-	ast_mutex_unlock(&regl.lock);
+	
+	sip_send_all_registers();	
+	
 	ast_mutex_lock(&peerl.lock);
 	for (peer = peerl.peers; peer; peer = peer->next)
 		sip_poke_peer(peer);
@@ -9179,7 +9191,6 @@ int load_module()
 {
 	int res;
 	struct sip_peer *peer;
-	struct sip_registry *reg;
 
 	ast_mutex_init(&userl.lock);
 	ast_mutex_init(&peerl.lock);
@@ -9228,11 +9239,8 @@ int load_module()
 			sip_poke_peer(peer);
 		ast_mutex_unlock(&peerl.lock);
 
-		ast_mutex_lock(&regl.lock);
-		for (reg = regl.registrations; reg; reg = reg->next) 
-			__sip_do_register(reg);
-		ast_mutex_unlock(&regl.lock);
-		
+		sip_send_all_registers();	
+
 		/* And start the monitor for the first time */
 		restart_monitor();
 	}
