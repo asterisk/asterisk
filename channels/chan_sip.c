@@ -2165,14 +2165,38 @@ static char *__get_header(struct sip_request *req, char *name, int *start)
 	int x;
 	int len = strlen(name);
 	char *r;
-	for (x=*start;x<req->headers;x++) {
-		if (!strncasecmp(req->header[x], name, len) && 
-				(req->header[x][len] == ':')) {
-					r = req->header[x] + len + 1;
+	if (pedanticsipchecking) {
+		/* Technically you can place arbitrary whitespace both before and after the ':' in
+		   a header, although RFC3261 clearly says you shouldn't before, and place just
+		   one afterwards.  If you shouldn't do it, what absolute idiot decided it was 
+		   a good idea to say you can do it, and if you can do it, why in the hell would 
+		   you say you shouldn't.  */
+		for (x=*start;x<req->headers;x++) {
+			if (!strncasecmp(req->header[x], name, len)) {
+				r = req->header[x] + len;
+				while(*r && (*r < 33))
+					r++;
+				if (*r == ':') {
+					r++ ;
 					while(*r && (*r < 33))
-							r++;
+						r++;
 					*start = x+1;
 					return r;
+				}
+			}
+		}
+	} else {
+		/* We probably shouldn't even bother counting whitespace afterwards but
+		   I guess for backwards compatibility we will */
+		for (x=*start;x<req->headers;x++) {
+			if (!strncasecmp(req->header[x], name, len) && 
+					(req->header[x][len] == ':')) {
+						r = req->header[x] + len + 1;
+						while(*r && (*r < 33))
+								r++;
+						*start = x+1;
+						return r;
+			}
 		}
 	}
 	/* Try aliases */
