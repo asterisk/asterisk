@@ -514,7 +514,7 @@ static struct ast_config *__ast_load(const char *configfile, struct ast_config *
 		glob_t globbuf;
 		globbuf.gl_offs = 0;	/* initialize it to silence gcc */
 #ifdef SOLARIS
-		glob_ret = glob(fn, GLOB_NOMAGIC, NULL, &globbuf);
+		glob_ret = glob(fn, GLOB_NOCHECK, NULL, &globbuf);
 #else
 		glob_ret = glob(fn, GLOB_NOMAGIC|GLOB_BRACE, NULL, &globbuf);
 #endif
