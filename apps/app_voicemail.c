@@ -3294,8 +3294,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 		}
 		if (useadsi)
 			adsi_password(chan);
-		if (!skipuser)
-			vmu = find_user(&vmus, context, mailbox);
+		vmu = find_user(&vmus, context, mailbox);
 		if (vmu && (vmu->password[0] == '\0' || (vmu->password[0] == '-' && vmu->password[1] == '\0'))) {
 			/* saved password is blank, so don't bother asking */
 			password[0] = '\0';
