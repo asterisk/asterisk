@@ -2606,6 +2606,7 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	if (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))
 		return -2;
 		
+		
 	ast_mutex_lock(&c0->lock);
 	ast_mutex_lock(&c1->lock);
 
@@ -4254,6 +4255,11 @@ static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 	if (p->dialing) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Dropping frame since I'm still dialing on %s...\n",ast->name);
+		return 0;
+	}
+	if (!p->owner) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Dropping frame since there is no active owner on %s...\n",ast->name);
 		return 0;
 	}
 	if (p->cidspill) {
