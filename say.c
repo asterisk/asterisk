@@ -737,7 +737,7 @@ static int ast_say_number_full_cz(struct ast_channel *chan, int num, const char 
 		}
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd) {
+				if ((audiofd > -1) && (ctrlfd > -1)) {
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				} else {
 					res = ast_waitstream(chan, ints);
@@ -846,7 +846,7 @@ static int ast_say_number_full_da(struct ast_channel *chan, int num, const char 
 		}
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd) 
+				if ((audiofd > -1) && (ctrlfd > -1)) 
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else  
 					res = ast_waitstream(chan, ints);
@@ -976,7 +976,7 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, const char 
 		}
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd) 
+				if ((audiofd > -1) && (ctrlfd > -1)) 
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else  
 					res = ast_waitstream(chan, ints);
@@ -984,7 +984,7 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, const char 
 			ast_stopstream(chan);
 			if (!res) {
 				if (strlen(fna) != 0 && !ast_streamfile(chan, fna, language)) {
-					if (audiofd && ctrlfd)
+					if ((audiofd > -1) && (ctrlfd > -1))
 						res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 					else
 						res = ast_waitstream(chan, ints);
@@ -1062,7 +1062,7 @@ static int ast_say_number_full_en_GB(struct ast_channel *chan, int num, const ch
 		
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd) 
+				if ((audiofd > -1) && (ctrlfd > -1)) 
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else  
 					res = ast_waitstream(chan, ints);
@@ -1151,7 +1151,7 @@ static int ast_say_number_full_es(struct ast_channel *chan, int num, const char 
 
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd)
+				if ((audiofd > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else
 					res = ast_waitstream(chan, ints);
@@ -1243,7 +1243,7 @@ static int ast_say_number_full_fr(struct ast_channel *chan, int num, const char 
 		}
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd)
+				if ((audiofd > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else
 					res = ast_waitstream(chan, ints);
@@ -1396,7 +1396,7 @@ static int ast_say_number_full_it(struct ast_channel *chan, int num, const char 
 			}
 			if (!res) {
 				if(!ast_streamfile(chan, fn, language)) {
-					if (audiofd && ctrlfd)
+					if ((audiofd > -1) && (ctrlfd > -1))
 						res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 					else
 						res = ast_waitstream(chan, ints);
@@ -1473,7 +1473,7 @@ static int ast_say_number_full_nl(struct ast_channel *chan, int num, const char 
 
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd)
+				if ((audiofd > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else
 					res = ast_waitstream(chan, ints);
@@ -1565,7 +1565,7 @@ static int ast_say_number_full_no(struct ast_channel *chan, int num, const char 
 		
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd) 
+				if ((audiofd > -1) && (ctrlfd > -1)) 
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else  
 					res = ast_waitstream(chan, ints);
@@ -1612,7 +1612,7 @@ static void pl_odtworz_plik(struct ast_channel *chan, const char *language, int 
 	strcat(file_name, fn);
 	ast_log(LOG_DEBUG, "Trying to play: %s\n", file_name);
 	if (!ast_streamfile(chan, file_name, language)) {
-		if (audiofd && ctrlfd)
+		if ((audiofd > -1) && (ctrlfd > -1))
 			ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 		else
 			ast_waitstream(chan, ints);
@@ -1954,7 +1954,7 @@ static int ast_say_number_full_pt(struct ast_channel *chan, int num, const char 
 		}
 		if (!res) {
 			if (!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd)
+				if ((audiofd > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);	
 				else
 					res = ast_waitstream(chan, ints);
@@ -2026,7 +2026,7 @@ static int ast_say_number_full_se(struct ast_channel *chan, int num, const char 
 		}
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd)
+				if ((audiofd > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else
 					res = ast_waitstream(chan, ints);
@@ -2091,7 +2091,7 @@ static int ast_say_number_full_tw(struct ast_channel *chan, int num, const char 
 			}
 			if (!res) {
 				if(!ast_streamfile(chan, fn, language)) {
-					if (audiofd && ctrlfd)
+					if ((audiofd > -1) && (ctrlfd > -1))
 						res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 					else
 						res = ast_waitstream(chan, ints);
@@ -2209,7 +2209,7 @@ static int ast_say_enumeration_full_en(struct ast_channel *chan, int num, const 
 
 		if (!res) {
 			if (!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd) {
+				if ((audiofd > -1) && (ctrlfd > -1)) {
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				} else {
 					res = ast_waitstream(chan, ints);
@@ -2362,7 +2362,7 @@ static int ast_say_enumeration_full_de(struct ast_channel *chan, int num, const 
 
 		if (!res) {
 			if (!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd) 
+				if ((audiofd > -1) && (ctrlfd > -1)) 
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else  
 					res = ast_waitstream(chan, ints);
@@ -2370,7 +2370,7 @@ static int ast_say_enumeration_full_de(struct ast_channel *chan, int num, const 
 			ast_stopstream(chan);
 			if (!res) {
 				if (strlen(fna) != 0 && !ast_streamfile(chan, fna, language)) {
-					if (audiofd && ctrlfd) {
+					if ((audiofd > -1) && (ctrlfd > -1)) {
 						res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 					} else {
 						res = ast_waitstream(chan, ints);
