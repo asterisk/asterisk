@@ -145,7 +145,13 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 								if (ms < 0)
 									ms = 0;
 								if ((ms > min) && ((max < 0) || (ms < max))) {
+									char ms_str[10];
 									ast_log(LOG_DEBUG, "Found qualified token of %d ms\n", ms);
+
+									/* Save detected talk time (in milliseconds) */ 
+									sprintf(ms_str, "%d", ms );	
+									pbx_builtin_setvar_helper(chan, "TALK_DETECTED", ms_str);
+									
 									if (ast_exists_extension(chan, chan->context, "talk", 1, chan->cid.cid_num)) {
 										strncpy(chan->exten, "talk", sizeof(chan->exten) -1 );
 										chan->priority = 0;

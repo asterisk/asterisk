@@ -2638,7 +2638,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	p->novideo = 1;
 	while ((m = get_sdp_iterate(&iterator, req, "m"))[0] != '\0') {
 		if ((sscanf(m, "audio %d RTP/AVP %n", &x, &len) == 1) ||
-		    (sscanf(m, "audio %d/%d RTP/AVP %n", &x, &y, &len) == 1)) {
+		    (sscanf(m, "audio %d/%d RTP/AVP %n", &x, &y, &len) == 2)) {
 			portno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
 			ast_rtp_pt_clear(p->rtp);
