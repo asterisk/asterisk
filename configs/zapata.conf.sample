@@ -75,14 +75,14 @@ signalling=fxo_ls
 ;
 ; A variety of timing parameters can be specified as well
 ; Including:
-;    prewink:     Pre-wink time
-;    preflash:    Pre-flash time
-;    wink:        Wink time
-;    flash:       Flash time
-;    start:       Start time
-;    rxwink:      Receiver wink time
-;    rxflash:     Receiver flashtime
-;    debounce:    Debounce timing
+;    prewink:     Pre-wink time (default 50ms)
+;    preflash:    Pre-flash time (default 50ms)
+;    wink:        Wink time (default 150ms)
+;    flash:       Flash time (default 750ms)
+;    start:       Start time (default 1500ms)
+;    rxwink:      Receiver wink time (default 300ms)
+;    rxflash:     Receiver flashtime (default 1250ms)
+;    debounce:    Debounce timing (default 600ms)
 ;
 rxwink=300		; Atlas seems to use long (250ms) winks
 ;
