@@ -56,8 +56,11 @@ static int mysql_log(struct ast_cdr *cdr)
   
 
   ast_log(LOG_DEBUG,"cdr_mysql: inserting a CDR record.\n");
+#ifdef MYSQL_LOGUNIQUEID
+  sprintf(sqlcmd,"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,%i,%i,'%s','%s')",timestr,cdr->clid,cdr->src, cdr->dst, cdr->dcontext,cdr->channel, cdr->dstchannel, cdr->lastapp, cdr->lastdata,cdr->duration,cdr->billsec,cdr->disposition,cdr->amaflags, cdr->accountcode, cdr->uniqueid);
+#else
   sprintf(sqlcmd,"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,%i,%i,'%s')",timestr,cdr->clid,cdr->src, cdr->dst, cdr->dcontext,cdr->channel, cdr->dstchannel, cdr->lastapp, cdr->lastdata,cdr->duration,cdr->billsec,cdr->disposition,cdr->amaflags, cdr->accountcode);
-  
+#endif  
   ast_log(LOG_DEBUG,"cdr_mysql: SQL command as follows:  %s\n",sqlcmd);
   
   if (mysql_real_query(mysql,sqlcmd,strlen(sqlcmd)))

@@ -22,7 +22,8 @@ CREATE TABLE cdr (
   billsec int(11) NOT NULL default '0',
   disposition int(11) NOT NULL default '0',
   amaflags int(11) NOT NULL default '0',
-  accountcode varchar(45) NOT NULL default ''
+  accountcode varchar(45) NOT NULL default '',
+  uniqueid varchar(45) NOT NULL default ''
 );
 
 The calls will automatically be logged as long as the module is loaded.
