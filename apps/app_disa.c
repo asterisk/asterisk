@@ -118,7 +118,10 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	int i,j,k,x;
 	struct localuser *u;
 	char tmp[256],arg2[256],exten[AST_MAX_EXTENSION],acctcode[20];
-	unsigned char tone_block[640];
+	struct {
+		unsigned char offset[AST_FRIENDLY_OFFSET];
+		unsigned char buf[640];
+	} tone_block;
 	char *ourcontext,*ourcallerid;
 	struct ast_frame *f,wf;
 	struct timeval lastout, now, lastdigittime;
@@ -167,7 +170,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	acctcode[0] = 0;
 	/* can we access DISA without password? */ 
 	if (!strcasecmp(tmp, "no-password"))
-	{
+	{;
 		k = 1;
 		ast_log(LOG_DEBUG, "DISA no-password login success\n");
 	}
@@ -207,9 +210,9 @@ static int disa_exec(struct ast_channel *chan, void *data)
 				wf.subclass = AST_FORMAT_ULAW;
 				wf.offset = AST_FRIENDLY_OFFSET;
 				wf.mallocd = 0;
-				wf.data = tone_block;
+				wf.data = tone_block.buf;
 				wf.datalen = f->datalen;
-				make_tone_block(tone_block, 350, 440, f->datalen, &x);
+				make_tone_block(tone_block.buf, 350, 440, f->datalen, &x);
 				wf.samples = wf.datalen;
 				ast_frfree(f);
 			    if (ast_write(chan, &wf)) 
@@ -340,13 +343,13 @@ reorder:
 			wf.subclass = AST_FORMAT_ULAW;
 			wf.offset = AST_FRIENDLY_OFFSET;
 			wf.mallocd = 0;
-			wf.data = tone_block;
+			wf.data = tone_block.buf;
 			wf.datalen = f->datalen;
 			wf.samples = wf.datalen;
 			if (k) 
-				memset(tone_block, 0x7f, wf.datalen);
+				memset(tone_block.buf, 0x7f, wf.datalen);
 			else
-				make_tone_block(tone_block,480.0, 620.0,wf.datalen, &x);
+				make_tone_block(tone_block.buf,480.0, 620.0,wf.datalen, &x);
 			i += wf.datalen / 8;
 			if (i > 250) {
 				i = 0;
