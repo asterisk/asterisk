@@ -718,9 +718,10 @@ static int queue_exec(struct ast_channel *chan, void *data)
 			}
 		}
 		/* Don't allow return code > 0 */
-		if (res > 0 && res != AST_PBX_KEEPALIVE)
+		if (res > 0 && res != AST_PBX_KEEPALIVE) {
 			res = 0;	
-		ast_moh_stop(chan);
+			ast_moh_stop(chan);
+		}
 		leave_queue(&qe);
 	} else {
 		ast_log(LOG_WARNING, "Unable to join queue '%s'\n", queuename);
