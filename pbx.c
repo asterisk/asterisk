@@ -156,6 +156,7 @@ static int pbx_builtin_dtimeout(struct ast_channel *, void *);
 static int pbx_builtin_rtimeout(struct ast_channel *, void *);
 static int pbx_builtin_atimeout(struct ast_channel *, void *);
 static int pbx_builtin_wait(struct ast_channel *, void *);
+static int pbx_builtin_waitexten(struct ast_channel *, void *);
 static int pbx_builtin_setlanguage(struct ast_channel *, void *);
 static int pbx_builtin_resetcdr(struct ast_channel *, void *);
 static int pbx_builtin_setaccount(struct ast_channel *, void *);
@@ -340,6 +341,13 @@ static struct pbx_builtin {
 "Waits for some time", 
 "  Wait(seconds): Waits for a specified number of seconds, then returns 0.\n"
 "seconds can be passed with fractions of a second. (eg: 1.5 = 1.5 seconds)\n" },
+
+	{ "WaitExten", pbx_builtin_waitexten, 
+"Waits for some time", 
+"  Wait(seconds): Waits for the user to enter a new extension for the \n"
+"specified number of seconds, then returns 0.  Seconds can be passed with\n"
+"fractions of a second. (eg: 1.5 = 1.5 seconds)\n" },
+
 };
 
 /* Lock for the application list */
@@ -4305,6 +4313,17 @@ static int pbx_builtin_wait(struct ast_channel *chan, void *data)
 	if (data && atof((char *)data)) {
 		ms = atof((char *)data) * 1000;
 		return ast_safe_sleep(chan, ms);
+	}
+	return 0;
+}
+
+static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
+{
+	int ms;
+	/* Wait for "n" seconds */
+	if (data && atof((char *)data)) {
+		ms = atof((char *)data) * 1000;
+		return ast_waitfordigit(chan, ms);
 	}
 	return 0;
 }
