@@ -26,14 +26,25 @@ CFLAGS += -march=$(shell uname -m) -DPBYTE_ORDER=PLITTLE_ENDIAN
 #
 # Only change below if you know WTF your doing
 #
-OSARCH=$(shell uname -s)
-CFLAGS += -DNDEBUG -DDO_CRASH -DDEBUG_THREADS
-CFLAGS += -pipe -Wall -fPIC -Wmissing-prototypes -Wmissing-declarations 
-CFLAGS += -D_REENTRANT -D_GNU_SOURCE
-CFLAGS += -I../../include
-CFLAGS += -I$(PWLIBDIR)/include 
-CFLAGS += -I$(OPENH323DIR)/include -Wno-missing-prototypes -Wno-missing-declarations
+#
+# Janus release directives, comment below if your brave enough for Janus
+#OSARCH=$(shell uname -s)
+#CFLAGS += -DNDEBUG -DDO_CRASH -DDEBUG_THREADS
+#CFLAGS += -pipe -Wall -fPIC -Wmissing-prototypes -Wmissing-declarations 
+#CFLAGS += -D_REENTRANT -D_GNU_SOURCE
+#CFLAGS += -I../../include
+#CFLAGS += -I$(PWLIBDIR)/include 
+#CFLAGS += -I$(OPENH323DIR)/include -Wno-missing-prototypes -Wno-missing-declarations
 
+# Pre Janus release directives
+CFLAGS += -DNDEBUG -DDO_CRASH -DDEBUG_THREADS
+CFLAGS += -pipe -Wall -fPIC -Wmissing-prototypes -Wmissing-declarations
+CFLAGS += -DP_LINUX  -D_REENTRANT -D_GNU_SOURCE
+CFLAGS += -DP_HAS_SEMAPHORES -DP_SSL -DP_PTHREADS
+CFLAGS += -DPHAS_TEMPLATES -DPTRACING -DP_USE_PRAGMA
+CFLAGS += -I../../include
+CFLAGS += -I$(PWLIBDIR)/include/ptlib/unix -I$(PWLIBDIR)/include
+CFLAGS += -I$(OPENH323DIR)/include -Wno-missing-prototypes -Wno-missing-declarations
 
 all:   	libchanh323.a
 
