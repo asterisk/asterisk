@@ -3,9 +3,9 @@
  *
  * Populate and remember extensions from static config file
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -1618,6 +1618,7 @@ static int pbx_load_module(void)
 	struct ast_context *con;
 	char *start, *end;
 	char realvalue[256];
+	int lastpri = -2;
 
 	cfg = ast_load(config);
 	if (cfg) {
@@ -1658,7 +1659,17 @@ static int pbx_load_module(void)
 								pri="";
 							if (!strcmp(pri,"hint"))
 								ipri=PRIORITY_HINT;
-							else {
+							else if (!strcmp(pri, "next") || !strcmp(pri, "n")) {
+								if (lastpri > -2)
+									ipri = lastpri + 1;
+								else
+									ast_log(LOG_WARNING, "Can't use 'next' priority on the first entry!\n");
+							} else if (!strcmp(pri, "same") || !strcmp(pri, "s")) {
+								if (lastpri > -2)
+									ipri = lastpri;
+								else
+									ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
+							} else {
 								if (sscanf(pri, "%i", &ipri) != 1) {
 									ast_log(LOG_WARNING, "Invalid priority '%s' at line %d\n", pri, v->lineno);
 									ipri = 0;
@@ -1700,6 +1711,7 @@ static int pbx_load_module(void)
 							while(*appl && (*appl < 33)) appl++;
 							pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext) - 1);
 							if (ipri) {
+								lastpri = ipri;
 								if (ast_add_extension2(con, 0, realext, ipri, cidmatch, appl, strdup(data), FREE, registrar)) {
 									ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
 								}
