@@ -707,7 +707,7 @@ static struct ast_channel *oh323_new(struct oh323_pvt *i, int state, const char 
 	
 	if (ch) {
 		
-		snprintf(ch->name, sizeof(ch->name)-1, "H323/%s", host);
+		snprintf(ch->name, sizeof(ch->name), "H323/%s", host);
 		ch->nativeformats = i->capability;
 		if (!ch->nativeformats)
 			ch->nativeformats = capability;
@@ -1080,14 +1080,14 @@ int setup_incoming_call(call_details_t cd)
 			strncpy(p->exten, alias->name, sizeof(p->exten)-1);
 			strncpy(p->context, alias->context, sizeof(p->context)-1);
 		}
-		sprintf(p->callerid, "%s <%s>", p->cd.call_source_name, p->cd.call_source_e164);
+		snprintf(p->callerid, sizeof(p->callerid), "%s <%s>", p->cd.call_source_name, p->cd.call_source_e164);
 	} else { 
 		/* Either this call is not from the Gatekeeper 
 		   or we are not allowing gk routed calls */
 		user  = find_user(cd);
 
 		if (!user) {
-			sprintf(p->callerid, "%s <%s>", p->cd.call_source_name, p->cd.call_source_e164);
+			snprintf(p->callerid, sizeof(p->callerid), "%s <%s>", p->cd.call_source_name, p->cd.call_source_e164);
 			if (!ast_strlen_zero(p->cd.call_dest_e164)) {
 				strncpy(p->exten, cd.call_dest_e164, sizeof(p->exten)-1);
 			} else {
@@ -1111,7 +1111,8 @@ int setup_incoming_call(call_details_t cd)
 					} else {
 						strncpy(p->context, user->context, sizeof(p->context)-1);
 					}
-					sprintf(p->exten, "i");
+					p->exten[0] = 'i';
+					p->exten[1] = '\0';
 					ast_log(LOG_ERROR, "Call from '%s' rejected due to non-matching IP address (%s)s\n", user->name, cd.sourceIp);
 					goto exit;					
 				}
@@ -1129,7 +1130,7 @@ int setup_incoming_call(call_details_t cd)
 			if (!ast_strlen_zero(user->callerid)) {
 				strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
 			} else {
-				 sprintf(p->callerid, "%s <%s>", p->cd.call_source_name, p->cd.call_source_e164); 
+				 snprintf(p->callerid, sizeof(p->callerid), "%s <%s>", p->cd.call_source_name, p->cd.call_source_e164); 
 			}
 			if (!ast_strlen_zero(p->cd.call_dest_e164)) {
 				strncpy(p->exten, cd.call_dest_e164, sizeof(p->exten)-1);

@@ -152,7 +152,7 @@ static int bestdata_init(struct ast_modem_pvt *p)
 
 static struct ast_frame *bestdata_handle_escape(struct ast_modem_pvt *p, char esc)
 {
-	char name[30],nmbr[30];
+	char name[30]="",nmbr[30]="";
 	time_t	now;
 
 	/* Handle escaped characters -- but sometimes we call it directly as 
@@ -189,14 +189,14 @@ static struct ast_frame *bestdata_handle_escape(struct ast_modem_pvt *p, char es
 		name[0] = nmbr[0] = 0;
 		for(;;)
 		   {
-			char res[1000];
+			char res[1000]="";
 
 			if (ast_modem_read_response(p, 5)) break;
 			strncpy(res, p->response, sizeof(res)-1);
 			ast_modem_trim(res);
 			if (!strncmp(res,"\020.",2)) break;
-			if (!strncmp(res,"NAME",4)) strcpy(name,res + 7);
-			if (!strncmp(res,"NMBR",4)) strcpy(nmbr,res + 7);
+			if (!strncmp(res,"NAME",4)) strncpy(name,res + 7, sizeof(name) - 1);
+			if (!strncmp(res,"NMBR",4)) strncpy(nmbr,res + 7, sizeof(nmbr) - 1);
 		   }
 		p->gotclid = 1;
 		if ((!strcmp(name,"O")) || (!strcmp(name,"P"))) name[0] = 0;
@@ -485,13 +485,13 @@ static int bestdata_dialdigit(struct ast_modem_pvt *p, char digit)
 
 static int bestdata_dial(struct ast_modem_pvt *p, char *stuff)
 {
-	char cmd[800],a[20];
+	char cmd[800] = "",a[20]="";
 	int i,j;
 
 	if (p->ministate != STATE_COMMAND)
 	   {
 		bestdata_break(p);
-		strcpy(cmd,"AT+VTS=");
+		strncpy(cmd, "AT+VTS=", sizeof(cmd) - 1);
 		j = strlen(cmd);
 		for(i = 0; stuff[i]; i++)
 		   {
@@ -502,13 +502,13 @@ static int bestdata_dial(struct ast_modem_pvt *p, char *stuff)
 				a[1] = 0;
 				break;
 			    case ',':
-				strcpy(a,"[,,100]");
+				strncpy(a, "[,,100]", sizeof(a) - 1);
 				break;
 			    default:
-				sprintf(a,"{%c,7}",stuff[i]);
+				snprintf(a, sizeof(a), "{%c,7}", stuff[i]);
 			   }
-			if (stuff[i + 1]) strcat(a,",");
-			strcpy(cmd + j,a);
+			if (stuff[i + 1]) strncat(a, ",", sizeof(a) - strlen(a) - 1);
+			strncpy(cmd + j, a, sizeof(cmd) - j - 1);
 			j += strlen(a);
 		   }
  	   }

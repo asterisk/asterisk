@@ -133,20 +133,20 @@ static char *dtypestr(int control)
 
 static char *vflagsstr(int flags)
 {
-	static char buf[80];
+	static char buf[80] = "";
 	buf[0] = '\0';
 	if (!flags)
 		return "(None)";
 	if (flags & VOFR_ROUTE_LOCAL)
-		strcat(buf, "Local ");
+		strncat(buf, "Local ", sizeof(buf) - strlen(buf) - 1);
 	if (flags & VOFR_ROUTE_VOICE)
-		strcat(buf, "Voice ");
+		strncat(buf, "Voice ", sizeof(buf) - strlen(buf) - 1);
 	if (flags & VOFR_ROUTE_DTE)
-		strcat(buf, "DTE ");
+		strncat(buf, "DTE ", sizeof(buf) - strlen(buf) - 1);
 	else if (flags & VOFR_ROUTE_DTE1)
-		strcat(buf, "DTE1 ");
+		strncat(buf, "DTE1 ", sizeof(buf) - strlen(buf) - 1);
 	else if (flags & VOFR_ROUTE_DTE2)	
-		strcat(buf, "DTE2 ");
+		strncat(buf, "DTE2 ", sizeof(buf) - strlen(buf) - 1);
 	return buf;
 }
 

@@ -504,7 +504,7 @@ static void showframe(struct ast_iax_frame *f, struct ast_iax_full_hdr *fhi, int
 		"TKOFFHK ",
 		"OFFHOOK" };
 	struct ast_iax_full_hdr *fh;
-	char retries[20];
+	char retries[20] = "";
 	char class2[20];
 	char subclass2[20];
 	char *class;
@@ -514,7 +514,7 @@ static void showframe(struct ast_iax_frame *f, struct ast_iax_full_hdr *fhi, int
 		fh = f->data;
 		snprintf(retries, sizeof(retries), "%03d", f->retries);
 	} else {
-		strcpy(retries, "N/A");
+		strncpy(retries, "N/A", sizeof(retries) - 1);
 		fh = fhi;
 	}
 	if (!(ntohs(fh->callno) & AST_FLAG_FULL)) {
@@ -528,7 +528,7 @@ static void showframe(struct ast_iax_frame *f, struct ast_iax_full_hdr *fhi, int
 		class = frames[(int)fh->type];
 	}
 	if (fh->type == AST_FRAME_DTMF) {
-		sprintf(subclass2, "%c", fh->csub);
+		snprintf(subclass2, sizeof(subclass2), "%c", fh->csub);
 		subclass = subclass2;
 	} else if (fh->type == AST_FRAME_IAX) {
 		if (fh->csub >= sizeof(iaxs)/sizeof(iaxs[0])) {
@@ -1243,7 +1243,7 @@ static int iax_show_stats(int fd, int argc, char *argv[])
 static int iax_show_cache(int fd, int argc, char *argv[])
 {
 	struct iax_dpcache *dp;
-	char tmp[1024], *pc;
+	char tmp[1024] = "", *pc;
 	int s;
 	int x,y;
 	struct timeval tv;
@@ -1253,28 +1253,28 @@ static int iax_show_cache(int fd, int argc, char *argv[])
 	ast_cli(fd, "%-20.20s %-12.12s %-9.9s %-8.8s %s\n", "Peer/Context", "Exten", "Exp.", "Wait.", "Flags");
 	while(dp) {
 		s = dp->expirey.tv_sec - tv.tv_sec;
-		strcpy(tmp, "");
+		tmp[0] = '\0';
 		if (dp->flags & CACHE_FLAG_EXISTS)
-			strcat(tmp, "EXISTS|");
+			strncat(tmp, "EXISTS|", sizeof(tmp) - strlen(tmp) - 1);
 		if (dp->flags & CACHE_FLAG_NONEXISTANT)
-			strcat(tmp, "NONEXISTANT|");
+			strncat(tmp, "NONEXISTANT|", sizeof(tmp) - strlen(tmp) - 1);
 		if (dp->flags & CACHE_FLAG_CANEXIST)
-			strcat(tmp, "CANEXIST|");
+			strncat(tmp, "CANEXIST|", sizeof(tmp) - strlen(tmp) - 1);
 		if (dp->flags & CACHE_FLAG_PENDING)
-			strcat(tmp, "PENDING|");
+			strncat(tmp, "PENDING|", sizeof(tmp) - strlen(tmp) - 1);
 		if (dp->flags & CACHE_FLAG_TIMEOUT)
-			strcat(tmp, "TIMEOUT|");
+			strncat(tmp, "TIMEOUT|", sizeof(tmp) - strlen(tmp) - 1);
 		if (dp->flags & CACHE_FLAG_TRANSMITTED)
-			strcat(tmp, "TRANSMITTED|");
+			strncat(tmp, "TRANSMITTED|", sizeof(tmp) - strlen(tmp) - 1);
 		if (dp->flags & CACHE_FLAG_MATCHMORE)
-			strcat(tmp, "MATCHMORE|");
+			strncat(tmp, "MATCHMORE|", sizeof(tmp) - strlen(tmp) - 1);
 		if (dp->flags & CACHE_FLAG_UNKNOWN)
-			strcat(tmp, "UNKNOWN|");
+			strncat(tmp, "UNKNOWN|", sizeof(tmp) - strlen(tmp) - 1);
 		/* Trim trailing pipe */
 		if (strlen(tmp))
 			tmp[strlen(tmp) - 1] = '\0';
 		else
-			strcpy(tmp, "(none)");
+			strncpy(tmp, "(none)", sizeof(tmp) - 1);
 		y=0;
 		pc = strchr(dp->peercontext, '@');
 		if (!pc)
@@ -1572,7 +1572,7 @@ static struct iax_peer *mysql_peer(char *peer)
 				for (x=0;x<numfields;x++) {
 					if (rowval[x]) {
 						if (!strcasecmp(fields[x].name, "secret")) {
-							strncpy(p->secret, rowval[x], sizeof(p->secret));
+							strncpy(p->secret, rowval[x], sizeof(p->secret) - 1);
 						} else if (!strcasecmp(fields[x].name, "context")) {
 							strncpy(p->context, rowval[x], sizeof(p->context) - 1);
 						} else if (!strcasecmp(fields[x].name, "ipaddr")) {
@@ -1603,7 +1603,7 @@ static struct iax_peer *mysql_peer(char *peer)
 		p->delme = 1;
 		p->expire = -1;
 		p->capability = iax_capability;
-		strcpy(p->methods, "md5,plaintext");
+		strncpy(p->methods, "md5,plaintext", sizeof(p->methods) - 1);
 	}
 	return p;
 }
@@ -1618,7 +1618,7 @@ static struct iax_user *mysql_user(char *user)
 	memset(p, 0, sizeof(struct iax_user));
 	con = malloc(sizeof(struct iax_context));
 	memset(con, 0, sizeof(struct iax_context));
-	strcpy(con->context, "default");
+	strncpy(con->context, "default", sizeof(con->context) - 1);
 	p->contexts = con;
 	if (mysql && (strlen(user) < 128)) {
 		char query[512];
@@ -1640,7 +1640,7 @@ static struct iax_user *mysql_user(char *user)
 				for (x=0;x<numfields;x++) {
 					if (rowval[x]) {
 						if (!strcasecmp(fields[x].name, "secret")) {
-							strncpy(p->secret, rowval[x], sizeof(p->secret));
+							strncpy(p->secret, rowval[x], sizeof(p->secret) - 1);
 						} else if (!strcasecmp(fields[x].name, "context")) {
 							strncpy(p->contexts->context, rowval[x], sizeof(p->contexts->context) - 1);
 						}
@@ -1658,7 +1658,7 @@ static struct iax_user *mysql_user(char *user)
 	} else {
 		strncpy(p->name, user, sizeof(p->name) - 1);
 		p->delme = 1;
-		strcpy(p->methods, "md5,plaintext");
+		strncpy(p->methods, "md5,plaintext", sizeof(p->methods) - 1);
 	}
 	return p;
 }
@@ -2346,22 +2346,22 @@ static int iax_show_peers(int fd, int argc, char *argv[])
 	ast_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "Status");
 	for (peer = peerl.peers;peer;peer = peer->next) {
 		char nm[20];
-		char status[20];
+		char status[20] = "";
 		if (strlen(peer->username))
 			snprintf(name, sizeof(name), "%s/%s", peer->name, peer->username);
 		else
 			strncpy(name, peer->name, sizeof(name) - 1);
 		if (peer->maxms) {
 			if (peer->lastms < 0)
-				strcpy(status, "UNREACHABLE");
+				strncpy(status, "UNREACHABLE", sizeof(status) - 1);
 			else if (peer->lastms > peer->maxms) 
 				snprintf(status, sizeof(status), "LAGGED (%d ms)", peer->lastms);
 			else if (peer->lastms) 
 				snprintf(status, sizeof(status), "OK (%d ms)", peer->lastms);
 			else 
-				strcpy(status, "UNKNOWN");
+				strncpy(status, "UNKNOWN", sizeof(status) - 1);
 		} else 
-			strcpy(status, "Unmonitored");
+			strncpy(status, "Unmonitored", sizeof(status) - 1);
 		strncpy(nm, ast_inet_ntoa(iabuf, sizeof(iabuf), peer->mask), sizeof(nm)-1);
 		ast_cli(fd, FORMAT, name, 
 					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
@@ -2413,7 +2413,7 @@ static int iax_show_registry(int fd, int argc, char *argv[])
 #define FORMAT "%-20.20s  %-10.10s  %-20.20s %8d  %s\n"
 	struct iax_registry *reg;
 	char host[80];
-	char perceived[80];
+	char perceived[80] = "";
 	char iabuf[INET_ADDRSTRLEN];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -2424,7 +2424,7 @@ static int iax_show_registry(int fd, int argc, char *argv[])
 		if (reg->us.sin_addr.s_addr) 
 			snprintf(perceived, sizeof(perceived), "%s:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), reg->us.sin_addr), ntohs(reg->us.sin_port));
 		else
-			strcpy(perceived, "<Unregistered>");
+			strncpy(perceived, "<Unregistered>", sizeof(perceived) - 1);
 		ast_cli(fd, FORMAT, host, 
 					reg->username, perceived, reg->refresh, regstate2str(reg->regstate));
 	}
@@ -2724,7 +2724,7 @@ static int check_access(int callno, struct sockaddr_in *sin, char *orequest, int
 		/* Copy the secret */
 		strncpy(iaxs[callno]->secret, user->secret, sizeof(iaxs[callno]->secret)-1);
 		/* And any input keys */
-		strncpy(iaxs[callno]->inkeys, user->inkeys, sizeof(iaxs[callno]->inkeys));
+		strncpy(iaxs[callno]->inkeys, user->inkeys, sizeof(iaxs[callno]->inkeys) - 1);
 		/* And the permitted authentication methods */
 		strncpy(iaxs[callno]->methods, user->methods, sizeof(iaxs[callno]->methods)-1);
 		/* If they have callerid, override the given caller id.  Always store the ANI */
@@ -2810,9 +2810,9 @@ static int authenticate_verify(struct chan_iax_pvt *p, char *orequest)
 	if (strstr(p->methods, "rsa") && strlen(rsasecret) && strlen(p->inkeys)) {
 		struct ast_key *key;
 		char *keyn;
-		char tmpkey[256];
+		char tmpkey[256] = "";
 		char *stringp=NULL;
-		strncpy(tmpkey, p->inkeys, sizeof(tmpkey));
+		strncpy(tmpkey, p->inkeys, sizeof(tmpkey) - 1);
 		stringp=tmpkey;
 		keyn = strsep(&stringp, ":");
 		while(keyn) {
@@ -2862,7 +2862,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, char *orequest)
 	char *stringp=NULL;
 
 	iaxs[callno]->state &= ~IAX_STATE_AUTHENTICATED;
-	strcpy(iaxs[callno]->peer, "");
+	iaxs[callno]->peer[0] = '\0';
 	if (!orequest)
 		return -1;
 	strncpy(request, orequest, sizeof(request)-1);
@@ -2927,7 +2927,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, char *orequest)
 		if (strlen(p->inkeys)) {
 			char tmpkeys[256];
 			char *stringp=NULL;
-			strncpy(tmpkeys, p->inkeys, sizeof(tmpkeys));
+			strncpy(tmpkeys, p->inkeys, sizeof(tmpkeys) - 1);
 			stringp=tmpkeys;
 			keyn = strsep(&stringp, ":");
 			while(keyn) {
@@ -3667,7 +3667,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	int exists;
 	int mm;
 	char iabuf[INET_ADDRSTRLEN];
-	char rel0[256];
+	char rel0[256] = "";
 	char rel1[255];
 	char empty[32]="";		/* Safety measure */
 	res = recvfrom(netsocket, buf, sizeof(buf), 0,(struct sockaddr *) &sin, &len);
@@ -3939,11 +3939,11 @@ retryowner:
 					mm = ast_matchmore_extension(NULL, iaxs[fr.callno]->context, (char *)f.data, 1, iaxs[fr.callno]->callerid);
 					/* Must be started */
 					if (ast_exists_extension(NULL, iaxs[fr.callno]->context, (char *)f.data, 1, iaxs[fr.callno]->callerid)) {
-						strcpy(rel0, "exists");
+						strncpy(rel0, "exists", sizeof(rel0) - 1);
 					} else if (ast_canmatch_extension(NULL, iaxs[fr.callno]->context, (char *)f.data, 1, iaxs[fr.callno]->callerid)) {
-						strcpy(rel0, "canexist");
+						strncpy(rel0, "canexist", sizeof(rel0) - 1);
 					} else {
-						strcpy(rel0, "nonexistant");
+						strncpy(rel0, "nonexistant", sizeof(rel0) - 1);
 					}
 					snprintf(rel1, sizeof(rel1), "number=%s;status=%s;ignorepat=%s;expirey=%d;matchmore=%s;",
 						(char *)f.data, rel0,
@@ -4672,9 +4672,9 @@ static struct iax_peer *build_peer(char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "sendani")) {
 				peer->sendani = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "inkeys")) {
-				strncpy(peer->inkeys, v->value, sizeof(peer->inkeys));
+				strncpy(peer->inkeys, v->value, sizeof(peer->inkeys) - 1);
 			} else if (!strcasecmp(v->name, "outkey")) {
-				strncpy(peer->outkey, v->value, sizeof(peer->outkey));
+				strncpy(peer->outkey, v->value, sizeof(peer->outkey) - 1);
 			} else if (!strcasecmp(v->name, "qualify")) {
 				if (!strcasecmp(v->value, "no")) {
 					peer->maxms = 0;
@@ -4689,7 +4689,7 @@ static struct iax_peer *build_peer(char *name, struct ast_variable *v)
 			v=v->next;
 		}
 		if (!strlen(peer->methods))
-			strcpy(peer->methods, "md5,plaintext");
+			strncpy(peer->methods, "md5,plaintext", sizeof(peer->methods) - 1);
 		peer->delme = 0;
 	}
 	return peer;
@@ -4734,7 +4734,7 @@ static struct iax_user *build_user(char *name, struct ast_variable *v)
 					user->amaflags = format;
 				}
 			} else if (!strcasecmp(v->name, "inkeys")) {
-				strncpy(user->inkeys, v->value, sizeof(user->inkeys));
+				strncpy(user->inkeys, v->value, sizeof(user->inkeys) - 1);
 			} //else if (strcasecmp(v->name,"type"))
 			//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 			v = v->next;

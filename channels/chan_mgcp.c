@@ -872,7 +872,7 @@ static int mgcp_hangup(struct ast_channel *ast)
 	if (strlen(sub->cxident)) {
 		transmit_connection_del(sub);
     }
-	strcpy(sub->cxident, "");
+	 sub->cxident[0] = '\0';
     if ((sub == p->sub) && sub->next->owner) {
         if (p->hookstate == MGCP_OFFHOOK) {
             if (sub->next->owner && sub->next->owner->bridge) {
@@ -900,7 +900,7 @@ static int mgcp_hangup(struct ast_channel *ast)
 	sub->alreadygone = 0;
 	sub->outgoing = 0;
 	sub->cxmode = MGCP_CX_INACTIVE;
-	strcpy(sub->callid, "");
+	sub->callid[0] = '\0';
 	/* Reset temporary destination */
 	memset(&sub->tmpdest, 0, sizeof(sub->tmpdest));
 	if (sub->rtp) {
@@ -1253,7 +1253,7 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		ast_update_use_count();
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
-		strncpy(tmp->call_forward, i->call_forward, sizeof(tmp->call_forward));
+		strncpy(tmp->call_forward, i->call_forward, sizeof(tmp->call_forward) - 1);
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);
 		if (strlen(i->callerid))
@@ -1798,7 +1798,7 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 	char o[256];
 	char c[256];
 	char t[256];
-	char m[256];
+	char m[256] = "";
 	char a[1024] = "";
 	char iabuf[INET_ADDRSTRLEN];
 	int x;
@@ -1842,9 +1842,9 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 			codec = ast_rtp_lookup_code(sub->rtp, 1, x);
             if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
-				strcat(m, costr);
+				strncat(m, costr, sizeof(m) - strlen(m) - 1);
 				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, x));
-				strcat(a, costr);
+				strncat(a, costr, sizeof(a) - strlen(a) - 1);
 			}
 		}
 	}
@@ -1856,18 +1856,18 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
             codec = ast_rtp_lookup_code(sub->rtp, 0, x);
             if (codec > -1) {
                 snprintf(costr, sizeof(costr), " %d", codec);
-                strcat(m, costr);
+                strncat(m, costr, sizeof(m) - strlen(m) - 1);
                 snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(0, x));
-                strcat(a, costr);
+                strncat(a, costr, sizeof(a) - strlen(a) - 1);
                 if (x == AST_RTP_DTMF) {
                   /* Indicate we support DTMF...  Not sure about 16, but MSN supports it so dang it, we will too... */
                   snprintf(costr, sizeof costr, "a=fmtp:%d 0-16\r\n", codec);
-                  strcat(a, costr);
+                  strncat(a, costr, sizeof(a) - strlen(a) - 1);
                 }
             }
         }
     }
-	strcat(m, "\r\n");
+	strncat(m, "\r\n", sizeof(m) - strlen(m) - 1);
 	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m) + strlen(a);
 	snprintf(costr, sizeof(costr), "%d", len);
 	add_line(resp, v);
@@ -1901,7 +1901,7 @@ static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp 
 	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
 		if (capability & x) {
 			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype(1, x));
-			strcat(local, tmp);
+			strncat(local, tmp, sizeof(local) - strlen(local) - 1);
 		}
 	}
 	reqprep(&resp, p, "MDCX");
@@ -1931,7 +1931,7 @@ static int transmit_connect_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp
 	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
 		if (p->capability & x) {
 			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype(1, x));
-			strcat(local, tmp);
+			strncat(local, tmp, sizeof(local) - strlen(local) - 1);
 		}
 	}
     if (mgcpdebug) {
@@ -1996,7 +1996,7 @@ static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, ch
 	if (callerid)
 		strncpy(cid, callerid, sizeof(cid) - 1);
 	else
-		strcpy(cid, "");
+		cid[0] = '\0';
 	ast_callerid_parse(cid, &n, &l);
 	if (l) {
 		ast_shrink_phone_number(l);
@@ -2423,7 +2423,7 @@ static void *mgcp_ss(void *data)
             if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, p->callerid)) {
                 if (getforward) {
                     /* Record this as the forwarding extension */
-                    strncpy(p->call_forward, exten, sizeof(p->call_forward)); 
+                    strncpy(p->call_forward, exten, sizeof(p->call_forward) - 1); 
                     if (option_verbose > 2) {
                         ast_verbose(VERBOSE_PREFIX_3 "Setting call forward to '%s' on channel %s\n", 
                                 p->call_forward, chan->name);
@@ -3426,7 +3426,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 				nat = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "callerid")) {
 				if (!strcasecmp(v->value, "asreceived"))
-					strcpy(callerid, "");
+					callerid[0] = '\0';
 				else
 					strncpy(callerid, v->value, sizeof(callerid) - 1);
 			} else if (!strcasecmp(v->name, "language")) {
@@ -3495,7 +3495,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
                         e->needaudit = 1;
                     }
                     strncpy(gw->wcardep, v->value, sizeof(gw->wcardep)-1);
-					//strcpy(e->name, "aaln/*");
+					//strncpy(e->name, "aaln/*", sizeof(e->name) - 1);
 					/* XXX Should we really check for uniqueness?? XXX */
 					strncpy(e->context, context, sizeof(e->context) - 1);
 					strncpy(e->callerid, callerid, sizeof(e->callerid) - 1);
@@ -3531,7 +3531,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 							sub->parent = e;
 							sub->id = i;
 							snprintf(sub->txident, sizeof(sub->txident), "%08x", rand());
-							/*strcpy(sub->txident, txident);*/
+							/*stnrcpy(sub->txident, txident, sizeof(sub->txident) - 1);*/
 							sub->cxmode = MGCP_CX_INACTIVE;
 							sub->nat = nat;
 							sub->next = e->sub;

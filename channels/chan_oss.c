@@ -825,7 +825,7 @@ static char sendtext_usage[] =
 static int console_sendtext(int fd, int argc, char *argv[])
 {
 	int tmparg = 2;
-	char text2send[256];
+	char text2send[256] = "";
 	struct ast_frame f = { 0, };
 	if (argc < 2)
 		return RESULT_SHOWUSAGE;
@@ -835,10 +835,10 @@ static int console_sendtext(int fd, int argc, char *argv[])
 	}
 	if (strlen(text2send))
 		ast_cli(fd, "Warning: message already waiting to be sent, overwriting\n");
-	strcpy(text2send, "");
+	text2send[0] = '\0';
 	while(tmparg < argc) {
-		strncat(text2send, argv[tmparg++], sizeof(text2send) - strlen(text2send));
-		strncat(text2send, " ", sizeof(text2send) - strlen(text2send));
+		strncat(text2send, argv[tmparg++], sizeof(text2send) - strlen(text2send) - 1);
+		strncat(text2send, " ", sizeof(text2send) - strlen(text2send) - 1);
 	}
 	if (strlen(text2send)) {
 		f.frametype = AST_FRAME_TEXT;

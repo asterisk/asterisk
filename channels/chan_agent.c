@@ -96,11 +96,11 @@ AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 AST_MUTEX_DEFINE_STATIC(agentlock);
 
 static int recordagentcalls = 0;
-static char recordformat[AST_MAX_BUF];
-static char recordformatext[AST_MAX_BUF];
+static char recordformat[AST_MAX_BUF] = "";
+static char recordformatext[AST_MAX_BUF] = "";
 static int createlink = 0;
-static char urlprefix[AST_MAX_BUF];
-static char savecallsin[AST_MAX_BUF];
+static char urlprefix[AST_MAX_BUF] = "";
+static char savecallsin[AST_MAX_BUF] = "";
 static int updatecdr = 0;
 static char beep[AST_MAX_BUF] = "beep";
 
@@ -185,11 +185,11 @@ static void agent_unlink(struct agent_pvt *agent)
 
 static struct agent_pvt *add_agent(char *agent, int pending)
 {
-	char tmp[AST_MAX_BUF];
+	char tmp[AST_MAX_BUF] = "";
 	char *password=NULL, *name=NULL;
 	struct agent_pvt *p, *prev;
 	
-	strncpy(tmp, agent, sizeof(tmp));
+	strncpy(tmp, agent, sizeof(tmp) - 1);
 	if ((password = strchr(tmp, ','))) {
 		*password = '\0';
 		password++;
@@ -535,7 +535,7 @@ static int agent_hangup(struct ast_channel *ast)
 					p->agent, p->loginchan, logintime, ast->uniqueid);
 				snprintf(agent, sizeof(agent), "Agent/%s", p->agent);
 				ast_queue_log("NONE", ast->uniqueid, agent, "AGENTCALLBACKLOGOFF", "%s|%ld|%s", p->loginchan, logintime, "Autologoff");
-				strcpy(p->loginchan, "");
+				p->loginchan[0] = '\0';
 			}
 		} else if (p->dead) {
 			ast_mutex_lock(&p->chan->lock);
@@ -777,14 +777,14 @@ static int read_agent_config(void)
 		p->dead = 1;
 		p = p->next;
 	}
-	strcpy(moh, "default");
+	strncpy(moh, "default", sizeof(moh) - 1);
 	/* set the default recording values */
 	recordagentcalls = 0;
 	createlink = 0;
-	strcpy(recordformat, "wav");
-	strcpy(recordformatext, "wav");
-	strcpy(urlprefix, "");
-	strcpy(savecallsin, "");
+	strncpy(recordformat, "wav", sizeof(recordformat) - 1);
+	strncpy(recordformatext, "wav", sizeof(recordformatext) - 1);
+	urlprefix[0] = '\0';
+	savecallsin[0] = '\0';
 
 	v = ast_variable_browse(cfg, "agents");
 	while(v) {
@@ -819,20 +819,20 @@ static int read_agent_config(void)
 		} else if (!strcasecmp(v->name, "recordformat")) {
 			strncpy(recordformat, v->value, sizeof(recordformat) - 1);
 			if (!strcasecmp(v->value, "wav49"))
-				strcpy(recordformatext, "WAV");
+				strncpy(recordformatext, "WAV", sizeof(recordformatext) - 1);
 			else
-				strncpy(recordformatext, v->value, sizeof(recordformat) - 1);
+				strncpy(recordformatext, v->value, sizeof(recordformatext) - 1);
 		} else if (!strcasecmp(v->name, "urlprefix")) {
 			strncpy(urlprefix, v->value, sizeof(urlprefix) - 2);
 			if (urlprefix[strlen(urlprefix) - 1] != '/')
-				strcat(urlprefix, "/");
+				strncat(urlprefix, "/", sizeof(urlprefix) - strlen(urlprefix) - 1);
 		} else if (!strcasecmp(v->name, "savecallsin")) {
 			if (v->value[0] == '/')
 				strncpy(savecallsin, v->value, sizeof(savecallsin) - 2);
 			else
 				snprintf(savecallsin, sizeof(savecallsin) - 2, "/%s", v->value);
 			if (savecallsin[strlen(savecallsin) - 1] != '/')
-				strcat(savecallsin, "/");
+				strncat(savecallsin, "/", sizeof(savecallsin) - strlen(savecallsin) - 1);
 		} else if (!strcasecmp(v->name, "custom_beep")) {
 			strncpy(beep, v->value, sizeof(beep) - 1);
 		}
@@ -1076,8 +1076,8 @@ static int agents_show(int fd, int argc, char **argv)
 {
 	struct agent_pvt *p;
 	char username[AST_MAX_BUF];
-	char location[AST_MAX_BUF];
-	char talkingto[AST_MAX_BUF];
+	char location[AST_MAX_BUF] = "";
+	char talkingto[AST_MAX_BUF] = "";
 	char moh[AST_MAX_BUF];
 
 	if (argc != 2)
@@ -1095,22 +1095,22 @@ static int agents_show(int fd, int argc, char **argv)
 			if (!ast_strlen_zero(p->name))
 				snprintf(username, sizeof(username), "(%s) ", p->name);
 			else
-				strcpy(username, "");
+				username[0] = '\0';
 			if (p->chan) {
 				snprintf(location, sizeof(location), "logged in on %s", p->chan->name);
 				if (p->owner && p->owner->bridge) {
 					snprintf(talkingto, sizeof(talkingto), " talking to %s", p->owner->bridge->name);
 				} else {
-					strcpy(talkingto, " is idle");
+					strncpy(talkingto, " is idle", sizeof(talkingto) - 1);
 				}
 			} else if (!ast_strlen_zero(p->loginchan)) {
 				snprintf(location, sizeof(location) - 20, "available at '%s'", p->loginchan);
-				strcpy(talkingto, "");
+				talkingto[0] = '\0';
 				if (p->acknowledged)
-					strcat(location, " (Confirmed)");
+					strncat(location, " (Confirmed)", sizeof(location) - strlen(location) - 1);
 			} else {
-				strcpy(location, "not logged in");
-				strcpy(talkingto, "");
+				strncpy(location, "not logged in", sizeof(location) - 1);
+				talkingto[0] = '\0';
 			}
 			if (!ast_strlen_zero(p->moh))
 				snprintf(moh, sizeof(moh), " (musiconhold is '%s')", p->moh);
@@ -1142,7 +1142,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	struct agent_pvt *p;
 	struct localuser *u;
 	struct timeval tv;
-	char user[AST_MAX_AGENT];
+	char user[AST_MAX_AGENT] = "";
 	char pass[AST_MAX_AGENT];
 	char agent[AST_MAX_AGENT] = "";
 	char xpass[AST_MAX_AGENT] = "";
@@ -1183,7 +1183,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 		res = ast_answer(chan);
 	if (!res) {
 		if( opt_user && !ast_strlen_zero(opt_user))
-			strncpy( user, opt_user, AST_MAX_AGENT );
+			strncpy( user, opt_user, AST_MAX_AGENT - 1);
 		else
 			res = ast_app_getdata(chan, "agent-user", user, sizeof(user) - 1, 0);
 	}
@@ -1201,7 +1201,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 			if (!ast_strlen_zero(xpass))
 				res = ast_app_getdata(chan, "agent-pass", pass, sizeof(pass) - 1, 0);
 			else
-				strcpy(pass, "");
+				pass[0] = '\0';
 		}
 		errmsg = "agent-incorrect";
 
@@ -1276,7 +1276,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 
 							}
 						} else {
-							strcpy(p->loginchan, "");
+							p->loginchan[0] = '\0';
 							p->acknowledged = 0;
 						}
 						play_announcement = 1;

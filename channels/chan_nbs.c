@@ -214,7 +214,7 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state)
 		tmp->pvt->write = nbs_xwrite;
 		strncpy(tmp->context, context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, "s",  sizeof(tmp->exten) - 1);
-		strcpy(tmp->language, "");
+		tmp->language[0] = '\0';
 		i->owner = tmp;
 		ast_mutex_lock(&usecnt_lock);
 		usecnt++;

@@ -929,7 +929,7 @@ static char *event2str(int event)
         static char buf[256];
         if ((event < 15) && (event > -1))
                 return events[event];
-        sprintf(buf, "Event %d", event);
+        sprintf(buf, "Event %d", event); /* safe */
         return buf;
 }
 
@@ -1531,7 +1531,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "Tw%s", c);
 				ast_log(LOG_DEBUG, "FXO: setup deferred dialstring: %s\n", c);
 			} else {
-				strcpy(p->dop.dialstr, "");
+				p->dop.dialstr[0] = '\0';
 			}
 			x = ZT_RING;
 			if (ioctl(p->subs[SUB_REAL].zfd, ZT_HOOK, &x) && (errno != EINPROGRESS)) {
@@ -1546,7 +1546,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			if (ast->callerid)
 				strncpy(p->callwaitcid, ast->callerid, sizeof(p->callwaitcid)-1);
 			else
-				strcpy(p->callwaitcid, "");
+				p->callwaitcid[0] = '\0';
 			/* Call waiting tone instead */
 			if (zt_callwait(ast)) {
 				ast_mutex_unlock(&p->lock);
@@ -1560,7 +1560,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		if (ast->callerid) 
 			strncpy(callerid, ast->callerid, sizeof(callerid)-1);
 		else
-			strcpy(callerid, "");
+			callerid[0] = '\0';
 		ast_callerid_parse(callerid, &n, &l);
 		if (l) {
 			ast_shrink_phone_number(l);
@@ -1568,9 +1568,9 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 				l = NULL;
 		}
 		if (l)
-			strcpy(p->lastcallerid, l);
+			strncpy(p->lastcallerid, l, sizeof(p->lastcallerid) - 1);
 		else
-			strcpy(p->lastcallerid, "");
+			p->lastcallerid[0] = '\0';
 		ast_setstate(ast, AST_STATE_RINGING);
 		index = zt_get_index(ast, p, 0);
 		if (index > -1) {
@@ -1647,7 +1647,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*02#*%s#", c + p->stripmsd);
 		} else 
 		if (p->sig == SIG_E911) {
-			strcpy(p->dop.dialstr,"M*911#");
+			strncpy(p->dop.dialstr, "M*911#", sizeof(p->dop.dialstr) - 1);
 		} else
 		if (p->sig == SIG_FEATB) {
 			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%s#", c + p->stripmsd);
@@ -1655,8 +1655,8 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%sw", c + p->stripmsd);
 		if (strlen(p->dop.dialstr) > 4) {
 			memset(p->echorest, 'w', sizeof(p->echorest) - 1);
-			p->echorest[sizeof(p->echorest) - 1] = '\0';
 			strcpy(p->echorest + (p->echotraining / 400) + 1, p->dop.dialstr + strlen(p->dop.dialstr) - 2);
+			p->echorest[sizeof(p->echorest) - 1] = '\0';
 			p->echobreak = 1;
 			p->dop.dialstr[strlen(p->dop.dialstr)-2] = '\0';
 		} else
@@ -1681,7 +1681,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		break;		
 	case SIG_PRI:
 		/* We'll get it in a moment -- but use dialdest to store pre-setup_ack digits */
-		strcpy(p->dialdest, "");
+		p->dialdest[0] = '\0';
 		break;
 	default:
 		ast_log(LOG_DEBUG, "not yet implemented\n");
@@ -1717,10 +1717,10 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			if (strlen(s))
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%s", s);
 			else
-				strcpy(p->dop.dialstr, "");
+				p->dop.dialstr[0] = '\0';
 			*s = '\0';
 		} else {
-			strcpy(p->dop.dialstr, "");
+			p->dop.dialstr[0] = '\0';
 		}
 		if (pri_grab(p, p->pri)) {
 			ast_log(LOG_WARNING, "Failed to grab PRI!\n");
@@ -1936,7 +1936,7 @@ static int zt_hangup(struct ast_channel *ast)
 	if (p->dsp)
 		ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
 	if (p->exten)
-		strcpy(p->exten, "");
+		p->exten[0] = '\0';
 
 	ast_log(LOG_DEBUG, "Hangup: channel: %d index = %d, normal = %d, callwait = %d, thirdcall = %d\n",
 		p->channel, index, p->subs[SUB_REAL].zfd, p->subs[SUB_CALLWAIT].zfd, p->subs[SUB_THREEWAY].zfd);
@@ -2154,7 +2154,7 @@ static int zt_hangup(struct ast_channel *ast)
 		p->callwaiting = p->permcallwaiting;
 		p->hidecallerid = p->permhidecallerid;
 		p->dialing = 0;
-		strcpy(p->rdnis, "");
+		p->rdnis[0] = '\0';
 		update_conf(p);
 		/* Restore data mode */
 		if (p->sig == SIG_PRI) {
@@ -3049,7 +3049,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				zt_enable_ec(p);
 				if (p->echobreak) {
 					zt_train_ec(p);
-					strcpy(p->dop.dialstr, p->echorest);
+					strncpy(p->dop.dialstr, p->echorest, sizeof(p->dop.dialstr) - 1);
 					p->dop.op = ZT_DIAL_OP_REPLACE;
 					res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop);
 					p->echobreak = 0;
@@ -3203,11 +3203,11 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				else
 					c = p->dialdest;
 				if (*c) snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*0%s#", c);
-				else strcpy(p->dop.dialstr,"M*2#");
+				else strncpy(p->dop.dialstr,"M*2#", sizeof(p->dop.dialstr) - 1);
 				if (strlen(p->dop.dialstr) > 4) {
 					memset(p->echorest, 'w', sizeof(p->echorest) - 1);
-					p->echorest[sizeof(p->echorest) - 1] = '\0';
 					strcpy(p->echorest + (p->echotraining / 401) + 1, p->dop.dialstr + strlen(p->dop.dialstr) - 2);
+					p->echorest[sizeof(p->echorest) - 1] = '\0';
 					p->echobreak = 1;
 					p->dop.dialstr[strlen(p->dop.dialstr)-2] = '\0';
 				} else
@@ -3402,7 +3402,9 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 									if (p->zaptrcallerid) {
 										if (!p->origcallerid) {
 											p->origcallerid = malloc(strlen(p->callerid) + 1);
-											strncpy(p->origcallerid, p->callerid, strlen(p->callerid) + 1);
+											strncpy(p->origcallerid, p->callerid, strlen(p->callerid)); /* safe */
+											/* make sure p->origcallerid is terminated */
+											p->origcallerid[strlen(p->callerid)] = '\0';
 										}
 										strncpy(p->callerid, callerid, sizeof(p->callerid) -1);
 									}
@@ -4341,7 +4343,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		i->subs[index].owner = tmp;
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		/* Copy call forward info */
-		strncpy(tmp->call_forward, i->call_forward, sizeof(tmp->call_forward));
+		strncpy(tmp->call_forward, i->call_forward, sizeof(tmp->call_forward) - 1);
 		/* If we've been told "no ADSI" then enforce it */
 		if (!i->adsi)
 			tmp->adsicpe = AST_ADSI_UNAVAILABLE;
@@ -4512,7 +4514,7 @@ static void *ss_thread(void *data)
 		tone_zone_play_tone(p->subs[index].zfd, -1);
 		if (ast_exists_extension(chan, chan->context, exten, 1, p->callerid)) {
 			/* Start the real PBX */
-			strncpy(chan->exten, exten, sizeof(chan->exten));
+			strncpy(chan->exten, exten, sizeof(chan->exten) - 1);
 			ast_dsp_digitreset(p->dsp);
 			ast_setstate(chan, AST_STATE_RING);
 			res = ast_pbx_run(chan);
@@ -4662,7 +4664,7 @@ static void *ss_thread(void *data)
 						chan->ani = strdup(chan->callerid);
 					}
 				if (s1)	strncpy(exten, s1, sizeof(exten)-1);
-				else strcpy(exten,"911");
+				else strncpy(exten, "911", sizeof(exten) - 1);
 				printf("E911: exten: %s, ANI: %s\n",exten,chan->ani);
 			} else
 				ast_log(LOG_WARNING, "Got a non-E911 input on channel %d.  Assuming E&M Wink instead\n", p->channel);
@@ -4739,7 +4741,7 @@ static void *ss_thread(void *data)
 				if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, p->callerid)) {
 					if (getforward) {
 						/* Record this as the forwarding extension */
-						strncpy(p->call_forward, exten, sizeof(p->call_forward)); 
+						strncpy(p->call_forward, exten, sizeof(p->call_forward) - 1); 
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "Setting call forward to '%s' on channel %d\n", p->call_forward, p->channel);
 						res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
@@ -5080,7 +5082,7 @@ static void *ss_thread(void *data)
 		} else if (number) {
 			snprintf(cid, sizeof(cid), "%s", number);
 		} else {
-			strcpy(cid, "");
+			cid[0] = '\0';
 		}
 		if (cs)
 			callerid_free(cs);
@@ -7108,25 +7110,27 @@ static void *pri_dchannel(void *vpri)
 						} else
 							strncpy(pri->pvts[chanpos]->callerid, e->ring.callingnum, sizeof(pri->pvts[chanpos]->callerid)-1);
 					} else
-						strcpy(pri->pvts[chanpos]->callerid, "");
-					strncpy(pri->pvts[chanpos]->rdnis, e->ring.redirectingnum, sizeof(pri->pvts[chanpos]->rdnis));
+						pri->pvts[chanpos]->callerid[0] = '\0';
+					strncpy(pri->pvts[chanpos]->rdnis, e->ring.redirectingnum, sizeof(pri->pvts[chanpos]->rdnis) - 1);
 					/* If immediate=yes go to s|1 */
 					if (pri->pvts[chanpos]->immediate) {
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "Going to extension s|1 because of immediate=yes\n");
-						strcpy(pri->pvts[chanpos]->exten, "s");
+						pri->pvts[chanpos]->exten[0] = 's';
+						pri->pvts[chanpos]->exten[1] = '\0';
 					}
 					/* Get called number */
 					else if (!ast_strlen_zero(e->ring.callednum)) {
 						strncpy(pri->pvts[chanpos]->exten, e->ring.callednum, sizeof(pri->pvts[chanpos]->exten)-1);
-						strncpy(pri->pvts[chanpos]->dnid, e->ring.callednum, sizeof(pri->pvts[chanpos]->dnid));
+						strncpy(pri->pvts[chanpos]->dnid, e->ring.callednum, sizeof(pri->pvts[chanpos]->dnid) - 1);
 					} else
-						strcpy(pri->pvts[chanpos]->exten, "");
+						pri->pvts[chanpos]->exten[0] = '\0';
 					/* No number yet, but received "sending complete"? */
 					if (e->ring.complete && (ast_strlen_zero(e->ring.callednum))) {
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "Going to extension s|1 because of Complete received\n");
-						strcpy(pri->pvts[chanpos]->exten, "s");
+						pri->pvts[chanpos]->exten[0] = 's';
+						pri->pvts[chanpos]->exten[1] = '\0';
 					}
 					/* Make sure extension exists (or in overlap dial mode, can exist) */
 					if ((pri->overlapdial && ast_canmatch_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->callerid)) ||
@@ -7723,21 +7727,25 @@ static int handle_pri_really_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static void build_status(char *s, int status, int active)
+static void build_status(char *s, size_t len, int status, int active)
 {
-	strcpy(s, "");
+	if (!s || len < 1) {
+		return;
+	}
+	s[0] = '\0';
 	if (status & DCHAN_PROVISIONED)
-		strcat(s, "Provisioned, ");
+		strncat(s, "Provisioned, ", len - strlen(s) - 1);
 	if (!(status & DCHAN_NOTINALARM))
-		strcat(s, "In Alarm, ");
+		strncat(s, "In Alarm, ", len - strlen(s) - 1);
 	if (status & DCHAN_UP)
-		strcat(s, "Up");
+		strncat(s, "Up", len - strlen(s) - 1);
 	else
-		strcat(s, "Down");
+		strncat(s, "Down", len - strlen(s) - 1);
 	if (active)
-		strcat(s, ", Active");
+		strncat(s, ", Active", len - strlen(s) - 1);
 	else
-		strcat(s, ", Standby");
+		strncat(s, ", Standby", len - strlen(s) - 1);
+	s[len - 1] = '\0';
 }
 
 static int handle_pri_show_span(int fd, int argc, char *argv[])
@@ -7759,7 +7767,7 @@ static int handle_pri_show_span(int fd, int argc, char *argv[])
 	for(x=0;x<NUM_DCHANS;x++) {
 		if (pris[span-1].dchannels[x]) {
 			ast_cli(fd, "%s D-channel: %d\n", pri_order(x), pris[span-1].dchannels[x]);
-			build_status(status, pris[span-1].dchanavail[x], pris[span-1].dchans[x] == pris[span-1].pri);
+			build_status(status, sizeof(status), pris[span-1].dchanavail[x], pris[span-1].dchans[x] == pris[span-1].pri);
 			ast_cli(fd, "Status: %s\n", status);
 			pri_dump_info(pris[span-1].pri);
 			ast_cli(fd, "\n");
@@ -7904,7 +7912,7 @@ static int zap_show_channels(int fd, int argc, char **argv)
 #define FORMAT "%7s %-10.10s %-15.15s %-10.10s %-20.20s\n"
 #define FORMAT2 "%7s %-10.10s %-15.15s %-10.10s %-20.20s\n"
 	struct zt_pvt *tmp = NULL;
-	char tmps[20];
+	char tmps[20] = "";
 	ast_mutex_t *lock;
 	struct zt_pvt *start;
 #ifdef ZAPATA_PRI
@@ -7948,9 +7956,9 @@ static int zap_show_channels(int fd, int argc, char **argv)
 	tmp = start;
 	while (tmp) {
 		if (tmp->channel > 0) {
-			sprintf(tmps, "%d", tmp->channel);
+			snprintf(tmps, sizeof(tmps), "%d", tmp->channel);
 		} else
-			strcpy(tmps, "pseudo");
+			strncpy(tmps, "pseudo", sizeof(tmps) - 1);
 		ast_cli(fd, FORMAT, tmps, tmp->exten, tmp->context, tmp->language, tmp->musicclass);
 		tmp = tmp->next;
 	}
@@ -8104,20 +8112,20 @@ static int handle_zap_show_cadences(int fd, int argc, char *argv[])
 	for (i=0;i<num_cadence;i++) {
 		char output[1024];
 		char tmp[16], tmp2[64];
-		snprintf(tmp, sizeof(tmp) - 1, "r%d: ", i + 1);
+		snprintf(tmp, sizeof(tmp), "r%d: ", i + 1);
 		term_color(output, tmp, COLOR_GREEN, COLOR_BLACK, sizeof(output));
 
 		for (j=0;j<16;j++) {
 			if (cadences[i].ringcadence[j] == 0)
 				break;
-			snprintf(tmp,sizeof(tmp) - 1,"%d", cadences[i].ringcadence[j]);
+			snprintf(tmp, sizeof(tmp), "%d", cadences[i].ringcadence[j]);
 			if (cidrings[i] * 2 - 1 == j)
 				term_color(tmp2, tmp, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp2) - 1);
 			else
 				term_color(tmp2, tmp, COLOR_GREEN, COLOR_BLACK, sizeof(tmp2) - 1);
 			if (j != 0)
-				strncat(output, ",", sizeof(output) - strlen(output));
-			strncat(output, tmp2, sizeof(output) - strlen(output));
+				strncat(output, ",", sizeof(output) - strlen(output) - 1);
+			strncat(output, tmp2, sizeof(output) - strlen(output) - 1);
 		}
 		ast_cli(fd,"%s\n",output);
 	}
@@ -8706,7 +8714,7 @@ static int setup_zap(void)
 			}
 		} else if (!strcasecmp(v->name, "callerid")) {
 			if (!strcasecmp(v->value, "asreceived"))
-				strcpy(callerid,"");
+				callerid[0] = '\0';
 			else
 				strncpy(callerid, v->value, sizeof(callerid)-1);
 		} else if (!strcasecmp(v->name, "useincomingcalleridonzaptransfer")) {
@@ -8913,7 +8921,7 @@ static int setup_zap(void)
 			char original_args[80];
 			int cadence_is_ok = 1;
 
-			strncpy(original_args, v->value, sizeof(original_args));
+			strncpy(original_args, v->value, sizeof(original_args) - 1);
 			/* 16 cadences allowed (8 pairs) */
 			element_count = sscanf(v->value, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d", &c[0], &c[1], &c[2], &c[3], &c[4], &c[5], &c[6], &c[7], &c[8], &c[9], &c[10], &c[11], &c[12], &c[13], &c[14], &c[15]);
 
@@ -9104,7 +9112,7 @@ static int reload_zt(void)
 	char *stringp=NULL;
 
 	/* Some crap that needs to be reinitialized on the reload */
-	strcpy(context, "default");
+	strncpy(context, "default", sizeof(context) - 1);
 	language[0] = '\0'; 
 	musicclass[0] = '\0';
 	use_callerid = 1;
@@ -9299,7 +9307,7 @@ static int reload_zt(void)
 			}
 		} else if (!strcasecmp(v->name, "callerid")) {
 			if (!strcasecmp(v->value, "asreceived"))
-				strcpy(callerid,"");
+				callerid[0] = '\0';
 			else
 				strncpy(callerid, v->value, sizeof(callerid)-1);
 		} else if (!strcasecmp(v->name, "signalling")) {

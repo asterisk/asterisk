@@ -1013,7 +1013,7 @@ static struct sip_user *mysql_user(char *user)
 				for (x=0;x<numfields;x++) {
 					if (rowval[x]) {
 						if (!strcasecmp(fields[x].name, "secret")) {
-							strncpy(u->secret, rowval[x], sizeof(u->secret));
+							strncpy(u->secret, rowval[x], sizeof(u->secret) - 1);
 						} else if (!strcasecmp(fields[x].name, "name")) {
 							strncpy(u->name, rowval[x], sizeof(u->name) - 1);
 						} else if (!strcasecmp(fields[x].name, "context")) {
@@ -1115,7 +1115,7 @@ static struct sip_peer *mysql_peer(char *peer, struct sockaddr_in *sin)
 				for (x=0;x<numfields;x++) {
 					if (rowval[x]) {
 						if (!strcasecmp(fields[x].name, "secret")) {
-							strncpy(p->secret, rowval[x], sizeof(p->secret));
+							strncpy(p->secret, rowval[x], sizeof(p->secret) - 1);
 						} else if (!strcasecmp(fields[x].name, "name")) {
 							strncpy(p->name, rowval[x], sizeof(p->name) - 1);
 						} else if (!strcasecmp(fields[x].name, "context")) {
@@ -2299,7 +2299,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	/* Assume reinvite OK and via INVITE */
 	p->canreinvite = global_canreinvite;
 	/* Assign default music on hold class */
-        strncpy(p->musicclass, global_musicclass, sizeof(p->musicclass));
+	strncpy(p->musicclass, global_musicclass, sizeof(p->musicclass) - 1);
 	p->dtmfmode = global_dtmfmode;
 	p->promiscredir = global_promiscredir;
 	p->trustrpid = global_trustrpid;
@@ -2931,7 +2931,7 @@ static void add_route(struct sip_request *req, struct sip_route *route)
 /*--- set_destination: Set destination from SIP URI ---*/
 static void set_destination(struct sip_pvt *p, char *uri)
 {
-	char *h, *maddr, hostname[256];
+	char *h, *maddr, hostname[256] = "";
 	char iabuf[INET_ADDRSTRLEN];
 	int port, hn;
 	struct hostent *hp;
@@ -2956,8 +2956,8 @@ static void set_destination(struct sip_pvt *p, char *uri)
 			h += 5;
 	}
 	hn = strcspn(h, ":;>");
-	if (hn>255) hn=255;
-	strncpy(hostname, h, hn);  hostname[hn] = '\0';
+	if (hn > (sizeof(hostname) - 1)) hn = sizeof(hostname) - 1;
+	strncpy(hostname, h, hn);  hostname[hn] = '\0'; /* safe */
 	h+=hn;
 
 	/* Is "port" present? if not default to 5060 */
@@ -2974,8 +2974,8 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	if (maddr) {
 		maddr += 6;
 		hn = strspn(maddr, "0123456789.");
-		if (hn>255) hn=255;
-		strncpy(hostname, maddr, hn);  hostname[hn] = '\0';
+		if (hn > (sizeof(hostname) - 1)) hn = sizeof(hostname) - 1;
+		strncpy(hostname, maddr, hn);  hostname[hn] = '\0'; /* safe */
 	}
 	
 	hp = ast_gethostbyname(hostname, &ahp);
@@ -3396,7 +3396,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, x));
 					strncat(a, costr, sizeof(a) - strlen(a) - 1);
 				} else {
-					strncat(m2, costr, sizeof(m2) - strlen(m2));
+					strncat(m2, costr, sizeof(m2) - strlen(m2) - 1);
 					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/90000\r\n", codec, ast_rtp_lookup_mime_subtype(1, x));
 					strncat(a2, costr, sizeof(a2) - strlen(a2) - 1);
 				}
@@ -3424,9 +3424,9 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	}
 	strncat(a, "a=silenceSupp:off - - - -\r\n", sizeof(a) - strlen(a) - 1);
 	if (strlen(m) < sizeof(m) - 2)
-		strcat(m, "\r\n");
+		strncat(m, "\r\n", sizeof(m) - strlen(m) - 1);
 	if (strlen(m2) < sizeof(m2) - 2)
-		strcat(m2, "\r\n");
+		strncat(m2, "\r\n", sizeof(m2) - strlen(m2) - 1);
 	if ((sizeof(m) <= strlen(m) - 2) || (sizeof(m2) <= strlen(m2) - 2) || (sizeof(a) == strlen(a)) || (sizeof(a2) == strlen(a2)))
 		ast_log(LOG_WARNING, "SIP SDP may be truncated due to undersized buffer!!\n");
 	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m) + strlen(a);
@@ -4171,7 +4171,7 @@ static void reg_source_db(struct sip_peer *p)
 					if (u) {
 						*u = '\0';
 						u++;
-						strncpy(p->username, u, sizeof(p->username));
+						strncpy(p->username, u, sizeof(p->username) - 1);
 					}
 					ast_verbose(VERBOSE_PREFIX_3 "SIP Seeding '%s' at %s@%s:%d for %d\n", p->name, 
 						p->username, ast_inet_ntoa(iabuf, sizeof(iabuf), in), atoi(c), atoi(d));
@@ -4302,7 +4302,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	/* Save User agent */
 	useragent = get_header(req, "User-Agent");
 	if(useragent && strcasecmp(useragent, p->useragent)) {
-		strncpy(p->useragent, useragent, sizeof(p->useragent));
+		strncpy(p->useragent, useragent, sizeof(p->useragent) - 1);
 		if (option_verbose > 2) {
 			ast_verbose(VERBOSE_PREFIX_3 "Saved useragent \"%s\" for peer %s\n",p->useragent,p->name);  
 		}
@@ -4372,7 +4372,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 			/* Make a struct route */
 			thishop = (struct sip_route *)malloc(sizeof(struct sip_route)+len+1);
 			if (thishop) {
-				strncpy(thishop->hop, rr, len);
+				strncpy(thishop->hop, rr, len); /* safe */
 				thishop->hop[len] = '\0';
 				ast_log(LOG_DEBUG, "build_route: Record-Route hop: <%s>\n", thishop->hop);
 				/* Link in */
@@ -4412,7 +4412,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 		}
 		thishop = (struct sip_route *)malloc(sizeof(struct sip_route)+len+1);
 		if (thishop) {
-			strncpy(thishop->hop, c, len);
+			strncpy(thishop->hop, c, len); /* safe */
 			thishop->hop[len] = '\0';
 			thishop->next = NULL;
 			/* Goes at the end */
@@ -5027,10 +5027,13 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 }
 
 /*--- get_calleridname: Get caller id name from SIP headers ---*/
-static char *get_calleridname(char *input,char *output)
+static char *get_calleridname(char *input,char *output, size_t outputsize)
 {
 	char *end = strchr(input,'<');
 	char *tmp = strchr(input,'\"');
+	int bytes = 0;
+	int maxbytes = outputsize - 1;
+
 	if (!end || (end == input)) return NULL;
 	/* move away from "<" */
 	end--;
@@ -5038,7 +5041,13 @@ static char *get_calleridname(char *input,char *output)
 	if (tmp && tmp < end) {
 		end = strchr(tmp+1,'\"');
 		if (!end) return NULL;
-		strncpy(output,tmp+1,(int)(end-tmp-1));
+		bytes = (int)(end-tmp-1);
+		/* protect the output buffer */
+		if (bytes > maxbytes) {
+			bytes = maxbytes;
+		}
+		strncpy(output, tmp+1, bytes); /* safe */
+		output[maxbytes] = '\0';
 	} else {
 		/* we didn't find "name" */
 		/* clear the empty characters in the begining*/
@@ -5047,10 +5056,17 @@ static char *get_calleridname(char *input,char *output)
 		/* clear the empty characters in the end */
 		while(*end && (*end < 33) && end > input)
 			end--;
-		if (end >= input)
-			strncpy(output,input,(int)(end-input)+1);
+		if (end >= input) {
+			bytes = (int)(end-input)+1;
+			/* protect the output buffer */
+			if (bytes > maxbytes) {
+				bytes = maxbytes;
+			}
+			strncpy(output, input, bytes); /* safe */
+			output[maxbytes] = '\0';
+		}
 		else
-			output = NULL;
+			return(NULL);
 	}
 	return output;
 }
@@ -5107,7 +5123,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 	of = get_header(req, "From");
 	strncpy(from, of, sizeof(from) - 1);
 	memset(calleridname,0,sizeof(calleridname));
-	get_calleridname(from,calleridname);
+	get_calleridname(from, calleridname, sizeof(calleridname));
 
 	rpid = get_header(req, "Remote-Party-ID");
 	memset(rpid_num,0,sizeof(rpid_num));
@@ -5306,12 +5322,12 @@ static int get_msg_text(char *buf, int len, struct sip_request *req)
 	if (y < 0)
 		y = 0;
 	for (x=0;x<req->lines;x++) {
-		strncat(buf, req->line[x], y);
+		strncat(buf, req->line[x], y); /* safe */
 		y -= strlen(req->line[x]) + 1;
 		if (y < 0)
 			y = 0;
 		if (y != 0)
-			strcat(buf, "\n");
+			strcat(buf, "\n"); /* safe */
 	}
 	return 0;
 }
@@ -5346,8 +5362,8 @@ static int sip_show_inuse(int fd, int argc, char *argv[]) {
 #define FORMAT  "%-15.15s %-15.15s %-15.15s %-15.15s %-15.15s\n"
 #define FORMAT2 "%-15.15s %-15.15s %-15.15s %-15.15s %-15.15s\n"
 	struct sip_user *user;
-	char ilimits[40];
-	char olimits[40];
+	char ilimits[40] = "";
+	char olimits[40] = "";
 	char iused[40];
 	char oused[40];
 	if (argc != 3) 
@@ -5359,11 +5375,11 @@ static int sip_show_inuse(int fd, int argc, char *argv[]) {
 		if (user->incominglimit)
 			snprintf(ilimits, sizeof(ilimits), "%d", user->incominglimit);
 		else
-			strcpy(ilimits, "N/A");
+			strncpy(ilimits, "N/A", sizeof(ilimits) - 1);
 		if (user->outgoinglimit)
 			snprintf(olimits, sizeof(olimits), "%d", user->outgoinglimit);
 		else
-			strcpy(olimits, "N/A");
+			strncpy(olimits, "N/A", sizeof(olimits) - 1);
 		snprintf(iused, sizeof(iused), "%d", user->inUse);
 		snprintf(oused, sizeof(oused), "%d", user->outUse);
 		ast_cli(fd, FORMAT2, user->name, iused, ilimits,oused,olimits);
@@ -5410,7 +5426,7 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 	ast_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Mask", "Port", "Status");
 	for (peer = peerl.peers;peer;peer = peer->next) {
 		char nm[20] = "";
-		char status[20];
+		char status[20] = "";
 		int print_line = -1;
 		char srch[2000];
 
@@ -5421,15 +5437,15 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 			strncpy(name, peer->name, sizeof(name) - 1);
 		if (peer->maxms) {
 			if (peer->lastms < 0)
-				strcpy(status, "UNREACHABLE");
+				strncpy(status, "UNREACHABLE", sizeof(status) - 1);
 			else if (peer->lastms > peer->maxms) 
 				snprintf(status, sizeof(status), "LAGGED (%d ms)", peer->lastms);
 			else if (peer->lastms) 
 				snprintf(status, sizeof(status), "OK (%d ms)", peer->lastms);
 			else 
-				strcpy(status, "UNKNOWN");
+				strncpy(status, "UNKNOWN", sizeof(status) - 1);
 		} else 
-			strcpy(status, "Unmonitored");
+			strncpy(status, "Unmonitored", sizeof(status) - 1);
 			snprintf(srch, sizeof(srch), FORMAT, name,
 				peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
 				peer->dynamic ? " D " : "   ", 	/* Dynamic or not? */
@@ -5510,7 +5526,7 @@ static void  print_group(int fd, unsigned int group)
 /*--- sip_show_peer: Show one peer in detail ---*/
 static int sip_show_peer(int fd, int argc, char *argv[])
 {
-	char status[30];
+	char status[30] = "";
 	char iabuf[INET_ADDRSTRLEN];
 	struct sip_peer *peer;
 
@@ -5590,13 +5606,13 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 		ast_cli(fd, "\n");
 		ast_cli(fd, "  Status       : ");
 		if (peer->lastms < 0)
-			strcpy(status, "UNREACHABLE");
+			strncpy(status, "UNREACHABLE", sizeof(status) - 1);
 		else if (peer->lastms > peer->maxms)
 			snprintf(status, sizeof(status), "LAGGED (%d ms)", peer->lastms);
 		else if (peer->lastms)
 			snprintf(status, sizeof(status), "OK (%d ms)", peer->lastms);
 		else
-			strcpy(status, "UNKNOWN");
+			strncpy(status, "UNKNOWN", sizeof(status) - 1);
 		ast_cli(fd, "%s\n",status);
  		ast_cli(fd, "  Useragent    : %s\n", peer->useragent);
 		ast_cli(fd,"\n");
@@ -7664,7 +7680,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 	p->peerpoke = peer;
 	p->outgoing = 1;
 #ifdef VOCAL_DATA_HACK
-	strncpy(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username));
+	strncpy(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username) - 1);
 	transmit_invite(p, "INVITE", 0, NULL, NULL, NULL,NULL,NULL, 1);
 #else
 	transmit_invite(p, "OPTIONS", 0, NULL, NULL, NULL,NULL,NULL, 1);
@@ -7824,7 +7840,7 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 		strncpy(user->musicclass, global_musicclass, sizeof(user->musicclass)-1);
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
-				strncpy(user->context, v->value, sizeof(user->context));
+				strncpy(user->context, v->value, sizeof(user->context) - 1);
 			} else if (!strcasecmp(v->name, "permit") ||
 					   !strcasecmp(v->name, "deny")) {
 				user->ha = ast_append_ha(v->name, v->value, user->ha);

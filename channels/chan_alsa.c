@@ -852,11 +852,11 @@ static int console_sendtext(int fd, int argc, char *argv[])
 		res = RESULT_FAILURE;
 	} else {
 		struct ast_frame f = { AST_FRAME_TEXT, 0 };
-		char text2send[256];
-		strcpy(text2send, "");
+		char text2send[256] = "";
+		text2send[0] = '\0';
 		while(tmparg <= argc) {
-			strncat(text2send, argv[tmparg++], sizeof(text2send) - strlen(text2send));
-			strncat(text2send, " ", sizeof(text2send) - strlen(text2send));
+			strncat(text2send, argv[tmparg++], sizeof(text2send) - strlen(text2send) - 1);
+			strncat(text2send, " ", sizeof(text2send) - strlen(text2send) - 1);
 		}
 		f.data = text2send;
 		f.datalen = strlen(text2send) + 1;

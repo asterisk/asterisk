@@ -177,15 +177,16 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 	time(&UtcTime);
 	localtime_r(&UtcTime,&tm);
 
+	memset(&cid, 0, sizeof(PHONE_CID));
 	if(&tm != NULL) {
-		sprintf(cid.month, "%02d",(tm.tm_mon + 1));
-		sprintf(cid.day,   "%02d", tm.tm_mday);
-		sprintf(cid.hour,  "%02d", tm.tm_hour);
-		sprintf(cid.min,   "%02d", tm.tm_min);
+		snprintf(cid.month, sizeof(cid.month), "%02d",(tm.tm_mon + 1));
+		snprintf(cid.day, sizeof(cid.day),     "%02d", tm.tm_mday);
+		snprintf(cid.hour, sizeof(cid.hour),   "%02d", tm.tm_hour);
+		snprintf(cid.min, sizeof(cid.min),     "%02d", tm.tm_min);
 	}
 	/* the standard format of ast->callerid is:  "name" <number>, but not always complete */
 	if (!ast->callerid || ast_strlen_zero(ast->callerid)){
-		strcpy(cid.name, DEFAULT_CALLER_ID);
+		strncpy(cid.name, DEFAULT_CALLER_ID, sizeof(cid.name) - 1);
 		cid.number[0]='\0';
 	} else {
 		char *n, *l;
@@ -198,9 +199,9 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 				l = NULL;
 		}
 		if (l)
-			strncpy(cid.number, l, sizeof(cid.number));
+			strncpy(cid.number, l, sizeof(cid.number) - 1);
 		if (n)
-			strncpy(cid.name, n, sizeof(cid.name));
+			strncpy(cid.name, n, sizeof(cid.name) - 1);
 	}
 
 	p = ast->pvt->pvt;
@@ -734,7 +735,7 @@ static void phone_check_exception(struct phone_pvt *i)
 			ioctl(i->fd, PHONE_CPT_STOP);
 			i->dialtone = 0;
 			if (strlen(i->ext) < AST_MAX_EXTENSION - 1)
-				strcat(i->ext, digit);
+				strncat(i->ext, digit, sizeof(i->ext) - strlen(i->ext) - 1);
 			if (ast_exists_extension(NULL, i->context, i->ext, 1, i->callerid)) {
 				/* It's a valid extension in its context, get moving! */
 				phone_new(i, AST_STATE_RING, i->context);

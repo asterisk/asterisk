@@ -180,7 +180,7 @@ static int modem_call(struct ast_channel *ast, char *idest, int timeout)
 {
 	struct ast_modem_pvt *p;
 	int ms = timeout;
-	char rdest[80], *where, dstr[100];
+	char rdest[80], *where, dstr[100] = "";
 	char *stringp=NULL;
 	strncpy(rdest, idest, sizeof(rdest)-1);
 	stringp=rdest;
@@ -191,7 +191,7 @@ static int modem_call(struct ast_channel *ast, char *idest, int timeout)
 		return -1;
 	}
 	p = ast->pvt->pvt;
-	strcpy(dstr,where + p->stripmsd);
+	strncpy(dstr, where + p->stripmsd, sizeof(dstr) - 1);
 	/* if not a transfer or just sending tones, must be in correct state */
 	if (strcasecmp(rdest, "transfer") && strcasecmp(rdest,"sendtones")) {
 		if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
@@ -201,7 +201,7 @@ static int modem_call(struct ast_channel *ast, char *idest, int timeout)
 	} 
 	if (!strcasecmp(rdest,"transfer")) /* if a transfer, put in transfer stuff */
 	{
-		sprintf(dstr,"!,%s",where + p->stripmsd);
+		snprintf(dstr, sizeof(dstr), "!,%s", where + p->stripmsd);
 	}
 	if (!strcasecmp(where, "handset")) {
 		if (p->mc->setdev)

@@ -70,17 +70,20 @@ static struct iax_flag {
 char *iax_provflags2str(char *buf, int buflen, unsigned int flags)
 {
 	int x;
-	strcpy(buf, "");
+	if (!buf || buflen < 1) {
+		return(NULL);
+	}
+	buf[0] = '\0';
 	for (x=0;x<sizeof(iax_flags) / sizeof(iax_flags[0]); x++) {
 		if (flags & iax_flags[x].value){
-			strcat(buf, iax_flags[x].name);
-			strcat(buf, ",");
+			strncat(buf, iax_flags[x].name, buflen - strlen(buf) - 1);
+			strncat(buf, ",", buflen - strlen(buf) - 1);
 		}
 	}
 	if (strlen(buf)) 
 		buf[strlen(buf) - 1] = '\0';
 	else
-		strcpy(buf, "none");
+		strncpy(buf, "none", buflen - 1);
 	return buf;
 }
 
@@ -276,7 +279,7 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 	if (def)
 		strncpy(cur->src, def, sizeof(cur->src) - 1);
 	else
-		strcpy(cur->src, "");
+		cur->src[0] = '\0';
 	v = ast_variable_browse(cfg, s);
 	while(v) {
 		if (!strcasecmp(v->name, "port") || !strcasecmp(v->name, "serverport")) {

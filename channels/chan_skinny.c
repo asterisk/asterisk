@@ -1060,7 +1060,7 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
 				nat = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "callerid")) {
 				if (!strcasecmp(v->value, "asreceived")) {
-					strcpy(callerid, "");
+					callerid[0] = '\0';
 				} else {
 					strncpy(callerid, v->value, sizeof(callerid) - 1);
 				}
@@ -1208,7 +1208,7 @@ static int skinny_register(skinny_req *req, struct skinnysession *s)
 			s->device = d;
 			d->type = req->data.reg.type;
 			if (ast_strlen_zero(d->version_id)) {
-				strncpy(d->version_id, version_id, sizeof(d->version_id));
+				strncpy(d->version_id, version_id, sizeof(d->version_id) - 1);
 			}
 			d->registered = 1;
 			d->session = s;
@@ -1276,7 +1276,7 @@ static void *skinny_ss(void *data)
             if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, l->callerid)) {
                 if (getforward) {
                     /* Record this as the forwarding extension */
-                    strncpy(l->call_forward, exten, sizeof(l->call_forward)); 
+                    strncpy(l->call_forward, exten, sizeof(l->call_forward) - 1); 
                     if (option_verbose > 2) {
                         ast_verbose(VERBOSE_PREFIX_3 "Setting call forward to '%s' on channel %s\n", 
                                 l->call_forward, chan->name);
@@ -1792,7 +1792,7 @@ static struct ast_channel *skinny_new(struct skinny_subchannel *sub, int state)
 		ast_update_use_count();
 		tmp->callgroup = l->callgroup;
 		tmp->pickupgroup = l->pickupgroup;
-		strncpy(tmp->call_forward, l->call_forward, sizeof(tmp->call_forward));
+		strncpy(tmp->call_forward, l->call_forward, sizeof(tmp->call_forward) - 1);
 		strncpy(tmp->context, l->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten,l->exten, sizeof(tmp->exten)-1);
 		if (!ast_strlen_zero(l->callerid)) {
@@ -1858,7 +1858,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 			memset(req, 0, sizeof(skinny_req));
 			req->len = sizeof(register_rej_message)+4;
 			req->e = REGISTER_REJ_MESSAGE;
-			sprintf(req->data.regrej.errMsg, "No Authority: %s", name);
+			snprintf(req->data.regrej.errMsg, sizeof(req->data.regrej.errMsg), "No Authority: %s", name);
 			transmit_response(s, req);
 			break;
 		}
@@ -1868,10 +1868,12 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = sizeof(register_ack_message)+4;
 		req->e = REGISTER_ACK_MESSAGE;
-		strcpy(req->data.regack.res, "0");
+		req->data.regack.res[0] = '0';
+		req->data.regack.res[1] = '\0';
 		req->data.regack.keepAlive = keep_alive;
-		strcpy(req->data.regack.dateTemplate, date_format);	
-		strcpy(req->data.regack.res2, "0");
+		strncpy(req->data.regack.dateTemplate, date_format, sizeof(req->data.regack.dateTemplate) - 1);	
+		req->data.regack.res2[0] = '0';
+		req->data.regack.res2[1] = '\0';
 		req->data.regack.secondaryKeepAlive = keep_alive;
 		transmit_response(s, req);
 		if (skinnydebug) {
@@ -1953,7 +1955,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = sizeof(version_res_message)+4;
 		req->e = VERSION_RES_MESSAGE;
-		sprintf(req->data.version.version, s->device->version_id);
+		snprintf(req->data.version.version, sizeof(req->data.version.version), s->device->version_id);
 		transmit_response(s, req);
 		break;
 	case SERVER_REQUEST_MESSAGE:
@@ -2045,8 +2047,8 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 #if 0	
 		/* XXX Do this right XXX */	
 		req->data.speeddialreq.speedDialNumber = speedDialNum;
-		sprintf(req->data.speeddial.speedDialDirNumber, "31337");
-		sprintf(req->data.speeddial.speedDialDisplayName, "Asterisk Rules!");
+		snprintf(req->data.speeddial.speedDialDirNumber, sizeof(req->data.speeddial.speedDialDirNumber), "31337");
+		snprintf(req->data.speeddial.speedDialDisplayName,  sizeof(req->data.speeddial.speedDialDisplayName),"Asterisk Rules!");
 #endif		
 		transmit_response(s, req);
 		break;
@@ -2177,11 +2179,21 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		}
 		f.frametype = AST_FRAME_DTMF;
 		if (digit == 14) {
-			sprintf(&d, "*");
+			d = '*';
 		} else if (digit == 15) {
-			sprintf(&d, "#");
+			d = '#';
+		} else if (digit >=0 && digit <= 9) {
+			d = '0' + digit;
 		} else {
-			sprintf(&d, "%d", digit);
+			/* digit=10-13 (A,B,C,D ?), or
+			 * digit is bad value
+			 * 
+			 * probably should not end up here, but set
+			 * value for backward compatibility, and log
+			 * a warning.
+			 */
+			d = '0' + digit;
+			ast_log(LOG_WARNING, "Unsupported digit %d\n", digit);
 		}
 		f.subclass  = d;  
 		f.src = "skinny";

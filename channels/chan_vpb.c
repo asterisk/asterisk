@@ -435,10 +435,10 @@ static void get_callerid(struct vpb_pvt *p)
 		// This decodes FSK 1200baud type callerid
 		if ((rc=vpb_cid_decode(callerid, buf, CID_MSECS*8)) == VPB_OK ) {
 			if(!*callerid) 
-				strcpy(callerid,"undisclosed"); // blocked CID (eg caller used 1831)
+				strncpy(callerid,"undisclosed", sizeof(callerid) - 1); // blocked CID (eg caller used 1831)
 		} else {
 			ast_log(LOG_ERROR, "Failed to decode caller id on %s - %s\n", p->dev, vpb_strerror(rc) );
-			strcpy(callerid,"unknown");
+			strncpy(callerid,"unknown", sizeof(callerid) - 1);
 		}
 		p->owner->callerid = strdup(callerid);
 
@@ -756,7 +756,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 			}
 			p->state=VPB_STATE_GETDTMF;
 			s[0] = e->data;
-			strcat(p->ext, s);
+			strncat(p->ext, s, sizeof(p->ext) - strlen(p->ext) - 1);
 			if (ast_exists_extension(NULL, p->context, p->ext, 1, p->callerid)){
 				vpb_new(p,AST_STATE_RING, p->context);
 			} else if (!ast_canmatch_extension(NULL, p->context, p->ext, 1, p->callerid)){
@@ -1018,20 +1018,20 @@ struct vpb_pvt *mkif(int board, int channel, int mode, float txgain, float rxgai
 		return NULL;
 	}
 	       
-	sprintf(tmp->dev, "vpb/%d-%d", board, channel);
+	snprintf(tmp->dev, sizeof(tmp->dev), "vpb/%d-%d", board, channel);
 
 	tmp->mode = mode;
 
 	tmp->group = group;
 
-	strcpy(tmp->language, language);
-	strcpy(tmp->context, context);
+	strncpy(tmp->language, language, sizeof(tmp->language) - 1);
+	strncpy(tmp->context, context, sizeof(tmp->context) - 1);
 
 	if(callerid) { 
-		strcpy(tmp->callerid, callerid);
+		strncpy(tmp->callerid, callerid, sizeof(tmp->callerid) - 1);
 		free(callerid);
 	} else {
-		strcpy(tmp->callerid, "unknown");
+		strncpy(tmp->callerid, "unknown", sizeof(tmp->callerid) - 1);
 	}
 
 	/* check if codec balances have been set in the config file */
@@ -1202,7 +1202,7 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->pvt->pvt;
 	int res = 0,i;
 	char *s = strrchr(dest, '/');
-	char dialstring[254];
+	char dialstring[254] = "";
 	int tmp = 0;
 
 	if (option_verbose > 3) ast_verbose("%s: LOCKING in call \n", p->dev);
@@ -1212,7 +1212,7 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 		s = s + 1;
 	else
 		s = dest;
-	strcpy(dialstring,s);
+	strncpy(dialstring, s, sizeof(dialstring) - 1);
 	for (i=0; dialstring[i] != '\0' ; i++) {
 		if ((dialstring[i] == 'w') || (dialstring[i] == 'W'))
 			dialstring[i] = ',';
@@ -1789,7 +1789,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *i, int state, char *context)
 	    
 	tmp = ast_channel_alloc(1);
 	if (tmp) {
-		strncpy(tmp->name, i->dev, sizeof(tmp->name));
+		strncpy(tmp->name, i->dev, sizeof(tmp->name) - 1);
 		tmp->type = type;
 	       
 		// Linear is the preferred format. Although Voicetronix supports other formats
