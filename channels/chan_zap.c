@@ -1,4 +1,3 @@
-
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
@@ -4096,9 +4095,14 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		}
 		y = 1;
 		do {
+#ifdef ZAPATA_PRI
 			if (i->bearer)
 				snprintf(tmp->name, sizeof(tmp->name), "Zap/%d:%d-%d", i->pri->trunkgroup, i->channel, y);
 			else
+#endif
+			if (i->channel == CHAN_PSEUDO)
+				snprintf(tmp->name, sizeof(tmp->name), "Zap/pseudo-%d", rand());
+			else	
 				snprintf(tmp->name, sizeof(tmp->name), "Zap/%d-%d", i->channel, y);
 			for (x=0;x<3;x++) {
 				if ((index != x) && i->subs[x].owner && !strcasecmp(tmp->name, i->subs[x].owner->name))
