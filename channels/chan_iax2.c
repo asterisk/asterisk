@@ -15,6 +15,7 @@
 #include <asterisk/frame.h> 
 #include <asterisk/channel.h>
 #include <asterisk/channel_pvt.h>
+#include <asterisk/config_pvt.h>
 #include <asterisk/logger.h>
 #include <asterisk/module.h>
 #include <asterisk/pbx.h>
@@ -207,6 +208,7 @@ struct iax2_user {
 	struct iax2_user *next;
 	int notransfer;
 	int usejitterbuf;
+	struct ast_variable *vars;
 };
 
 struct iax2_peer {
@@ -479,6 +481,7 @@ struct chan_iax2_pvt {
 	struct iax2_dpcache *dpentries;
 	int notransfer;		/* do we want native bridging */
 	int usejitterbuf;	/* use jitter buffer on this channel? */
+	struct ast_variable *vars;
 };
 
 static struct ast_iax2_queue {
@@ -1417,8 +1420,13 @@ retry:
 		if (pvt->reg) {
 			pvt->reg->callno = 0;
 		}
-		if (!owner)
+		if (!owner) {
+			if (pvt->vars) {
+				ast_destroy_realtime(pvt->vars);
+				pvt->vars = NULL;
+			}
 			free(pvt);
+		}
 	}
 	if (owner) {
 		ast_mutex_unlock(&owner->lock);
@@ -2672,6 +2680,8 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 {
 	struct ast_channel *tmp;
 	struct chan_iax2_pvt *i;
+	struct ast_variable *v = NULL;
+
 	/* Don't hold call lock */
 	ast_mutex_unlock(&iaxsl[callno]);
 	tmp = ast_channel_alloc(1);
@@ -2737,6 +2747,9 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 				tmp = NULL;
 			}
 		}
+		for (v = i->vars ; v ; v = v->next)
+			pbx_builtin_setvar_helper(tmp,v->name,v->value);
+		
 	}
 	return tmp;
 }
@@ -3574,6 +3587,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	int bestscore = 0;
 	int gotcapability=0;
 	char iabuf[INET_ADDRSTRLEN];
+	struct ast_variable *v = NULL, *tmpvar = NULL;
 	
 	if (!iaxs[callno])
 		return res;
@@ -3676,7 +3690,14 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	}
 	if (user) {
 		/* We found our match (use the first) */
-		
+		/* copy vars */
+		for (v = user->vars ; v ; v = v->next) {
+			if((tmpvar = ast_new_variable(v->name, v->value))) {
+				tmpvar->next = iaxs[callno]->vars; 
+				iaxs[callno]->vars = tmpvar;
+			}
+		}
+
 		/* Store the requested username if not specified */
 		if (ast_strlen_zero(iaxs[callno]->username))
 			strncpy(iaxs[callno]->username, user->name, sizeof(iaxs[callno]->username)-1);
@@ -6573,6 +6594,8 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 	struct iax2_context *oldcon = NULL;
 	int format;
 	int found;
+	char *varname = NULL, *varval = NULL;
+	struct ast_variable *tmpvar = NULL;
 	
 	prev = NULL;
 	ast_mutex_lock(&userl.lock);
@@ -6626,6 +6649,16 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 			} else if (!strcasecmp(v->name, "permit") ||
 					   !strcasecmp(v->name, "deny")) {
 				user->ha = ast_append_ha(v->name, v->value, user->ha);
+			} else if (!strcasecmp(v->name, "setvar")) {
+				varname = ast_strdupa(v->value);
+				if (varname && (varval = strchr(varname,'='))) {
+					*varval = '\0';
+					varval++;
+					if((tmpvar = ast_new_variable(varname, varval))) {
+						tmpvar->next = user->vars; 
+						user->vars = tmpvar;
+					}
+				}
 			} else if (!strcasecmp(v->name, "allow")) {
 				format = ast_getformatbyname(v->value);
 				if (format < 1) 
@@ -6741,6 +6774,10 @@ static void destroy_user(struct iax2_user *user)
 {
 	ast_free_ha(user->ha);
 	free_context(user->contexts);
+	if(user->vars) {
+		ast_destroy_realtime(user->vars);
+		user->vars = NULL;
+	}
 	free(user);
 }
 

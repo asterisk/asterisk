@@ -18,6 +18,7 @@
 #include <asterisk/lock.h>
 #include <asterisk/channel.h>
 #include <asterisk/channel_pvt.h>
+#include <asterisk/config_pvt.h>
 #include <asterisk/config.h>
 #include <asterisk/logger.h>
 #include <asterisk/module.h>
@@ -352,6 +353,7 @@ static struct sip_pvt {
 	struct ast_rtp *vrtp;			/* Video RTP session */
 	struct sip_pkt *packets;		/* Packets scheduled for re-transmission */
 	struct sip_history *history;		/* History of this SIP dialog */
+	struct ast_variable *vars;
 	struct sip_pvt *next;			/* Next call in chain */
 } *iflist = NULL;
 
@@ -405,6 +407,7 @@ struct sip_user {
 	int progressinband;
 	struct ast_ha *ha;		/* ACL setting */
 	int temponly;			/* Flag for temporary users (realtime) */
+	struct ast_variable *vars;
 	struct sip_user *next;
 };
 
@@ -1151,6 +1154,10 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin)
 static void destroy_user(struct sip_user *user)
 {
 	ast_free_ha(user->ha);
+	if(user->vars) {
+		ast_destroy_realtime(user->vars);
+		user->vars = NULL;
+	}
 	free(user);
 }
 
@@ -1557,6 +1564,10 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 			free(cp);
 		}
 		ast_mutex_destroy(&p->lock);
+		if(p->vars) {
+			ast_destroy_realtime(p->vars);
+			p->vars = NULL;
+		}
 		free(p);
 	}
 }
@@ -1957,8 +1968,9 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 {
 	struct ast_channel *tmp;
+	struct ast_variable *v = NULL;
 	int fmt;
-
+	
 	ast_mutex_unlock(&i->lock);
 	/* Don't hold a sip pvt lock while we allocate a channel */
 	tmp = ast_channel_alloc(1);
@@ -2062,6 +2074,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 				tmp = NULL;
 			}
 		}
+		for (v = i->vars ; v ; v = v->next)
+			pbx_builtin_setvar_helper(tmp,v->name,v->value);
 	} else
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 	return tmp;
@@ -2294,6 +2308,10 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	if (!p->rtp) {
 		ast_log(LOG_WARNING, "Unable to create RTP session: %s\n", strerror(errno));
                 ast_mutex_destroy(&p->lock);
+		if(p->vars) {
+			ast_destroy_realtime(p->vars);
+			p->vars = NULL;
+		}
 		free(p);
 		return NULL;
 	}
@@ -5257,6 +5275,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 	char *t;
 	char calleridname[50];
 	int debug=sip_debug_test_addr(sin);
+	struct ast_variable *tmpvar = NULL, *v = NULL;
 
 	/* Terminate URI */
 	t = uri;
@@ -5304,6 +5323,13 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 	user = find_user(of);
 	/* Find user based on user name in the from header */
 	if (user && ast_apply_ha(user->ha, sin)) {
+		/* copy vars */
+		for (v = user->vars ; v ; v = v->next) {
+			if((tmpvar = ast_new_variable(v->name, v->value))) {
+				tmpvar->next = p->vars; 
+				p->vars = tmpvar;
+			}
+		}
 		p->nat = user->nat;
 #ifdef OSP_SUPPORT
 		p->ospauth = user->ospauth;
@@ -8126,6 +8152,9 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v)
 	struct sip_user *user;
 	int format;
 	struct ast_ha *oldha = NULL;
+	char *varname = NULL, *varval = NULL;
+	struct ast_variable *tmpvar = NULL;
+
 	user = (struct sip_user *)malloc(sizeof(struct sip_user));
 	if (user) {
 		memset(user, 0, sizeof(struct sip_user));
@@ -8150,6 +8179,17 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v)
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
 				strncpy(user->context, v->value, sizeof(user->context) - 1);
+			} else if (!strcasecmp(v->name, "setvar")) {
+				varname = ast_strdupa(v->value);
+				if (varname && (varval = strchr(varname,'='))) {
+					*varval = '\0';
+					varval++;
+					if((tmpvar = ast_new_variable(varname, varval))) {
+						tmpvar->next = user->vars;
+						user->vars = tmpvar;
+					}
+
+				}
 			} else if (!strcasecmp(v->name, "permit") ||
 					   !strcasecmp(v->name, "deny")) {
 				user->ha = ast_append_ha(v->name, v->value, user->ha);
@@ -9203,6 +9243,10 @@ int unload_module()
 			p = p->next;
 			/* Free associated memory */
 			ast_mutex_destroy(&pl->lock);
+			if(pl->vars) {
+				ast_destroy_realtime(pl->vars);
+				pl->vars = NULL;
+			}
 			free(pl);
 		}
 		iflist = NULL;
