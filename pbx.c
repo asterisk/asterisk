@@ -1220,6 +1220,8 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, 
 	char tmp[80];
 	char tmp2[80];
 	char tmp3[EXT_DATA_SIZE];
+	char atmp[80];
+	char atmp2[EXT_DATA_SIZE+100];
 
 	if (ast_mutex_lock(&conlock)) {
 		ast_log(LOG_WARNING, "Unable to obtain lock\n");
@@ -1257,8 +1259,12 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, 
 					strncpy(c->exten, exten, sizeof(c->exten)-1);
 				c->priority = priority;
 				pbx_substitute_variables(passdata, sizeof(passdata), c, e);
-				if (option_debug)
+				if (option_debug) {
 						ast_log(LOG_DEBUG, "Launching '%s'\n", app->name);
+						snprintf(atmp, 80, "STACK-%s-%s-%d", context, exten, priority);
+						snprintf(atmp2, EXT_DATA_SIZE+100, "%s(\"%s\", \"%s\") %s", app->name, c->name, (!ast_strlen_zero(passdata) ? (char *)passdata : ""), (newstack ? "in new stack" : "in same stack"));
+						pbx_builtin_setvar_helper(c, atmp, atmp2);
+				}
 				if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\") %s\n", 
 								term_color(tmp, app->name, COLOR_BRCYAN, 0, sizeof(tmp)),
