@@ -992,7 +992,7 @@ static char **ast_el_strtoarr(char *buf)
                         match_list = realloc(match_list, match_list_len * sizeof(char *));
 		}
 
-		match_list[matches++] = retstr;
+		match_list[matches++] = strdup(retstr);
 	}
 
         if (!match_list)
@@ -1098,7 +1098,7 @@ static char *cli_complete(EditLine *el, int ch)
 			/* Start with a 2048 byte buffer */
 			mbuf = malloc(maxmbuf);
 			if (!mbuf)
-				return (CC_ERROR);
+				return (char *)(CC_ERROR);
 			snprintf(buf, sizeof(buf),"_COMMAND MATCHESARRAY \"%s\" \"%s\"", lf->buffer, ptr); 
 			fdprint(ast_consock, buf);
 			res = 0;
@@ -1108,7 +1108,7 @@ static char *cli_complete(EditLine *el, int ch)
 					maxmbuf += 1024;
 					mbuf = realloc(mbuf, maxmbuf);
 					if (!mbuf)
-						return (CC_ERROR);
+						return (char *)(CC_ERROR);
 				}
 				/* Only read 1024 bytes at a time */
 				res = read(ast_consock, mbuf + mlen, 1024);
