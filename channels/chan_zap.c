@@ -3210,7 +3210,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 									p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
 								else if (res) {
 									/* Don't actually hang up at this point */
-									ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+									if (p->subs[SUB_THREEWAY].owner)
+										ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
 									break;
 								}
 							} else
