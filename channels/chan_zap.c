@@ -1563,7 +1563,9 @@ static int zt_hangup(struct ast_channel *ast)
 		p->faxhandled = 0;
 		p->pulsedial = 0;
 		p->onhooktime = time(NULL);
+#ifdef PRI_EVENT_PROCEEDING
 		p->proceeding = 0;
+#endif
 		if (p->dsp) {
 			ast_dsp_free(p->dsp);
 			p->dsp = NULL;
