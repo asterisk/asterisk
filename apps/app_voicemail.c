@@ -864,6 +864,7 @@ static int play_and_wait(struct ast_channel *chan, char *fn)
 	if (d)
 		return d;
 	d = ast_waitstream(chan, AST_DIGIT_ANY);
+	ast_stopstream(chan);
 	return d;
 }
 
@@ -894,7 +895,6 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 			d = ast_waitstream(chan,"");
 		if (d < 0)
 			return -1;
-		ast_stopstream(chan);
 	}
 	
 	fmts = ast_strdupa(fmt);
