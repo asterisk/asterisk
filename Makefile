@@ -113,9 +113,9 @@ DEBUG=-g #-pg
 # If you don't have a lot of memory (e.g. embedded Asterisk), define LOW_MEMORY
 # to reduce the size of certain static buffers
 
-ifneq ($(CROSS_COMPILE),)
-OPTIONS += -DLOW_MEMORY
-endif
+#ifneq ($(CROSS_COMPILE),)
+#OPTIONS += -DLOW_MEMORY
+#endif
 
 # Optional debugging parameters
 DEBUG_THREADS = #-DDEBUG_THREADS #-DDO_CRASH #-DDETECT_DEADLOCKS
