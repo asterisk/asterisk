@@ -3820,6 +3820,8 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 		}
 		return NULL;
 	}
+	gw->defaddr.sin_family = AF_INET;
+	gw->addr.sin_family = AF_INET;
 	if (gw->defaddr.sin_addr.s_addr && !ntohs(gw->defaddr.sin_port)) 
 		gw->defaddr.sin_port = htons(DEFAULT_MGCP_GW_PORT);
 	if (gw->addr.sin_addr.s_addr && !ntohs(gw->addr.sin_port))
