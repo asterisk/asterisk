@@ -10,6 +10,11 @@
 port=5036
 ;bindaddr=192.168.0.1
 ;
+; Set iaxcompat to yes if you plan to use layered 
+; switches.  It incurs a small performance hit to enable it
+;
+;iaxcompat=yes
+;
 ; You may specify a global default AMA flag for iaxtel calls.  It must be
 ; one of 'default', 'omit', 'billing', or 'documentation'.  These flags
 ; are used in the generation of call detail records.

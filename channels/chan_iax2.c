@@ -106,6 +106,7 @@ static int maxnontrunkcall = 1;
 static int maxjitterbuffer=3000;
 static int trunkfreq = 20;
 static int authdebug = 1;
+static int iaxcompat = 0;
 
 static int iaxdefaultdpcache=10 * 60;	/* Cache dialplan entries for 10 minutes by default */
 
@@ -3925,6 +3926,75 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 	return 1;
 }
 
+struct dpreq_data {
+	int callno;
+	char context[AST_MAX_EXTENSION];
+	char callednum[AST_MAX_EXTENSION];
+	char *callerid;
+};
+
+static void dp_lookup(int callno, char *context, char *callednum, char *callerid, int skiplock)
+{
+	unsigned short dpstatus = 0;
+	struct iax_ie_data ied1;
+	int mm;
+
+	memset(&ied1, 0, sizeof(ied1));
+	mm = ast_matchmore_extension(NULL, context, callednum, 1, callerid);
+	/* Must be started */
+	if (ast_exists_extension(NULL, context, callednum, 1, callerid)) {
+		dpstatus = IAX_DPSTATUS_EXISTS;
+	} else if (ast_canmatch_extension(NULL, context, callednum, 1, callerid)) {
+		dpstatus = IAX_DPSTATUS_CANEXIST;
+	} else {
+		dpstatus = IAX_DPSTATUS_NONEXISTANT;
+	}
+	if (ast_ignore_pattern(context, callednum))
+		dpstatus |= IAX_DPSTATUS_IGNOREPAT;
+	if (mm)
+		dpstatus |= IAX_DPSTATUS_MATCHMORE;
+	if (!skiplock)
+		ast_mutex_lock(&iaxsl[callno]);
+	if (iaxs[callno]) {
+		iax_ie_append_str(&ied1, IAX_IE_CALLED_NUMBER, callednum);
+		iax_ie_append_short(&ied1, IAX_IE_DPSTATUS, dpstatus);
+		iax_ie_append_short(&ied1, IAX_IE_REFRESH, iaxdefaultdpcache);
+		send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_DPREP, 0, ied1.buf, ied1.pos, -1);
+	}
+	if (!skiplock)
+		ast_mutex_unlock(&iaxsl[callno]);
+}
+
+static void *dp_lookup_thread(void *data)
+{
+	/* Look up for dpreq */
+	struct dpreq_data *dpr = data;
+	dp_lookup(dpr->callno, dpr->context, dpr->callednum, dpr->callerid, 0);
+	if (dpr->callerid)
+		free(dpr->callerid);
+	free(dpr);
+	return NULL;
+}
+
+static void spawn_dp_lookup(int callno, char *context, char *callednum, char *callerid)
+{
+	pthread_t newthread;
+	struct dpreq_data *dpr;
+	dpr = malloc(sizeof(struct dpreq_data));
+	if (dpr) {
+		memset(dpr, 0, sizeof(struct dpreq_data));
+		dpr->callno = callno;
+		strncpy(dpr->context, context, sizeof(dpr->context) - 1);
+		strncpy(dpr->callednum, callednum, sizeof(dpr->callednum) - 1);
+		if (callerid)
+			dpr->callerid = strdup(callerid);
+		if (pthread_create(&newthread, NULL, dp_lookup_thread, dpr)) {
+			ast_log(LOG_WARNING, "Unable to start lookup thread!\n");
+		}
+	} else
+		ast_log(LOG_WARNING, "Out of memory!\n");
+}
+
 static int socket_read(int *id, int fd, short events, void *cbdata)
 {
 	struct sockaddr_in sin;
@@ -3951,7 +4021,6 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	struct iax_ie_data ied0, ied1;
 	int format;
 	int exists;
-	int mm;
 	int minivid = 0;
 	unsigned int ts;
 	char empty[32]="";		/* Safety measure */
@@ -4346,9 +4415,12 @@ retryowner:
 					fr.callno = make_trunk(fr.callno, 1);
 				}
 				/* This might re-enter the IAX code and need the lock */
-				ast_mutex_unlock(&iaxsl[fr.callno]);
-				exists = ast_exists_extension(NULL, iaxs[fr.callno]->context, iaxs[fr.callno]->exten, 1, iaxs[fr.callno]->callerid);
-				ast_mutex_lock(&iaxsl[fr.callno]);
+				if (strcasecmp(iaxs[fr.callno]->exten, "TBD")) {
+					ast_mutex_unlock(&iaxsl[fr.callno]);
+					exists = ast_exists_extension(NULL, iaxs[fr.callno]->context, iaxs[fr.callno]->exten, 1, iaxs[fr.callno]->callerid);
+					ast_mutex_lock(&iaxsl[fr.callno]);
+				} else
+					exists = 0;
 				if (!strlen(iaxs[fr.callno]->secret) && !strlen(iaxs[fr.callno]->inkeys)) {
 					if (strcmp(iaxs[fr.callno]->exten, "TBD") && !exists) {
 						memset(&ied0, 0, sizeof(ied0));
@@ -4411,25 +4483,13 @@ retryowner:
 				/* Request status in the dialplan */
 				if ((iaxs[fr.callno]->state & IAX_STATE_TBD) && 
 					!(iaxs[fr.callno]->state & IAX_STATE_STARTED) && ies.called_number) {
-					unsigned short dpstatus = 0;
-					memset(&ied1, 0, sizeof(ied1));
-					mm = ast_matchmore_extension(NULL, iaxs[fr.callno]->context, ies.called_number, 1, iaxs[fr.callno]->callerid);
-					/* Must be started */
-					if (ast_exists_extension(NULL, iaxs[fr.callno]->context, ies.called_number, 1, iaxs[fr.callno]->callerid)) {
-						dpstatus = IAX_DPSTATUS_EXISTS;
-					} else if (ast_canmatch_extension(NULL, iaxs[fr.callno]->context, ies.called_number, 1, iaxs[fr.callno]->callerid)) {
-						dpstatus = IAX_DPSTATUS_CANEXIST;
+					if (iaxcompat) {
+						/* Spawn a thread for the lookup */
+						spawn_dp_lookup(fr.callno, iaxs[fr.callno]->context, ies.called_number, iaxs[fr.callno]->callerid);
 					} else {
-						dpstatus = IAX_DPSTATUS_NONEXISTANT;
+						/* Just look it up */
+						dp_lookup(fr.callno, iaxs[fr.callno]->context, ies.called_number, iaxs[fr.callno]->callerid, 1);
 					}
-					if (ast_ignore_pattern(iaxs[fr.callno]->context, ies.called_number))
-						dpstatus |= IAX_DPSTATUS_IGNOREPAT;
-					if (mm)
-						dpstatus |= IAX_DPSTATUS_MATCHMORE;
-					iax_ie_append_str(&ied1, IAX_IE_CALLED_NUMBER, ies.called_number);
-					iax_ie_append_short(&ied1, IAX_IE_DPSTATUS, dpstatus);
-					iax_ie_append_short(&ied1, IAX_IE_REFRESH, iaxdefaultdpcache);
-					send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_DPREP, 0, ied1.buf, ied1.pos, -1);
 				}
 				break;
 			case IAX_COMMAND_HANGUP:
@@ -4603,8 +4663,11 @@ retryowner:
 					send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 					break;
 				}
-				/* This might re-enter the IAX code and need the lock */
-				exists = ast_exists_extension(NULL, iaxs[fr.callno]->context, iaxs[fr.callno]->exten, 1, iaxs[fr.callno]->callerid);
+				if (strcasecmp(iaxs[fr.callno]->exten, "TBD")) {
+					/* This might re-enter the IAX code and need the lock */
+					exists = ast_exists_extension(NULL, iaxs[fr.callno]->context, iaxs[fr.callno]->exten, 1, iaxs[fr.callno]->callerid);
+				} else
+					exists = 0;
 				if (strcmp(iaxs[fr.callno]->exten, "TBD") && !exists) {
 					if (authdebug)
 						ast_log(LOG_NOTICE, "Rejected connect attempt from %s, request '%s@%s' does not exist\n", inet_ntoa(sin.sin_addr), iaxs[fr.callno]->exten, iaxs[fr.callno]->context);
@@ -5563,6 +5626,8 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 				capability &= ~format;
 		} else if (!strcasecmp(v->name, "register")) {
 			iax2_register(v->value, v->lineno);
+		} else if (!strcasecmp(v->name, "iaxcompat")) {
+			iaxcompat = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (sscanf(v->value, "%i", &format) == 1)
 				tos = format & 0xff;
