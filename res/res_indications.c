@@ -53,6 +53,14 @@ static char help_show_indications[] =
 "       Show either a condensed for of all country/indications, or the\n"
 "       indications for the specified countries.\n";
 
+char *playtones_desc=
+"PlayTone(arg): Plays a tone list. Execution will continue with the next step immediately,\n"
+"while the tones continue to play.\n"
+"Arg is either the tone name defined in the indications.conf configuration file, or a directly\n"
+"specified list of frequencies and durations.\n"
+"See indications.conf for a description of the specification of a tonelist.\n\n"
+"Use the StopPlaytones application to stop the tones playing. \n";
+
 /*
  * Implementation of functions provided by this module
  */
@@ -372,6 +380,7 @@ int unload_module(void)
 	return 0;
 }
 
+
 int load_module(void)
 {
 	if (ind_load_module()) return -1;
@@ -379,7 +388,7 @@ int load_module(void)
 	ast_cli_register(&add_indication_cli);
 	ast_cli_register(&remove_indication_cli);
 	ast_cli_register(&show_indications_cli);
-	ast_register_application("Playtones", handle_playtones, "Play a tone list","Play a tone list, either registered (through indications.conf) or a direct list of tones and durations.");
+	ast_register_application("Playtones", handle_playtones, "Play a tone list", playtones_desc);
 	ast_register_application("StopPlaytones", handle_stopplaytones, "Stop playing a tone list","Stop playing a tone list");
 
 	return 0;
