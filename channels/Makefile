@@ -73,6 +73,7 @@ CFLAGS+=-fPIC
 
 ifeq ($(USE_MYSQL_FRIENDS),1)
 CFLAGS+=-DMYSQL_FRIENDS
+USE_SIP_MYSQL_FRIENDS=1
 endif
 ifeq ($(USE_SIP_MYSQL_FRIENDS),1)
 CFLAGS+=-DSIP_MYSQL_FRIENDS
@@ -150,8 +151,6 @@ chan_zap.so: chan_zap.o
 
 chan_sip.so: chan_sip.o
 ifeq ($(USE_MYSQL_FRIENDS),1)
-	$(CC) $(SOLINK) -o $@ chan_sip.o $(MYSQLLIB) -lz
-elifeq ($(USE_SIP_MYSQL_FRIENDS),1)
 	$(CC) $(SOLINK) -o $@ chan_sip.o $(MYSQLLIB) -lz
 else
 	$(CC) $(SOLINK) -o $@ chan_sip.o
