@@ -10,6 +10,10 @@
   three way call up, the parties in the three way cannot hear one another
   in the general case.
 
+* No auto-reload in chan_zap yet
+
+* Must be able to call park with flash-hook transfer
+
 ======================================================================
 Short report on the voicemail system
 ======================================================================

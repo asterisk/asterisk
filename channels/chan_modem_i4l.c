@@ -58,7 +58,7 @@ static int i4l_setdev(struct ast_modem_pvt *p, int dev)
 		return -1;
 	}
 	ast_modem_trim(p->response);
-	strncpy(cmd, p->response, sizeof(cmd));
+	strncpy(cmd, p->response, sizeof(cmd)-1);
 	if (ast_modem_expect(p, "OK", 5)) {
 		ast_log(LOG_WARNING, "Modem did not respond properly\n");
 		return -1;
@@ -287,12 +287,12 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 				return i4l_handle_escape(p, 'b');
 			} else
 			if (!strncasecmp(result, "CALLER NUMBER: ", 15 )) {
-				strncpy(p->cid, result + 15, sizeof(p->cid));
+				strncpy(p->cid, result + 15, sizeof(p->cid)-1);
 				return i4l_handle_escape(p, 'R');
 			} else
 			if (!strncasecmp(result, "RING", 4)) {
 				if (result[4]=='/') 
-					strncpy(p->dnid, result + 4, sizeof(p->dnid));
+					strncpy(p->dnid, result + 4, sizeof(p->dnid)-1);
 				return i4l_handle_escape(p, 'R');
 			} else
 			if (!strcasecmp(result, "NO CARRIER")) {
@@ -439,7 +439,7 @@ static void i4l_decusecnt()
 
 static int i4l_answer(struct ast_modem_pvt *p)
 {
-	if (ast_modem_send(p, "ATA", 0) ||
+	if (ast_modem_send(p, "ATA\r", 4) ||
 	     ast_modem_expect(p, "VCON", 10)) {
 		ast_log(LOG_WARNING, "Unable to answer: %s", p->response);
 		return -1;
