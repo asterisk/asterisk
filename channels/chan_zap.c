@@ -3183,7 +3183,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 								return NULL;
 							}
 						}
-						if (p->subs[SUB_THREEWAY].owner) {
+						if (!p->subs[SUB_THREEWAY].owner) {
 							ast_log(LOG_NOTICE, "Whoa, threeway disappeared kinda randomly.\n");
 							return NULL;
 						}
