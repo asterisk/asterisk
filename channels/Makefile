@@ -49,6 +49,10 @@ endif
 ifneq (${OSARCH},Darwin)
 CHANNEL_LIBS+=chan_oss.so
 endif
+ifeq (${OSARCH},FreeBSD)
+SOLINK+=-L/usr/local/lib
+CHANNEL_LIBS+=chan_oss.so
+endif
 
 CHANNEL_LIBS+=$(shell [ -f /usr/include/linux/ixjuser.h ] && echo chan_phone.so)
 CHANNEL_LIBS+=$(shell [ -f h323/libchanh323.a ] && echo chan_h323.so)

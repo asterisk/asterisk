@@ -17,6 +17,11 @@ MODS=cdr_csv.so
 
 CFLAGS+=-fPIC
 
+OSARCH=$(shell uname -s)
+ifeq (${OSARCH},FreeBSD)
+SOLINK+=-L/usr/local/lib
+endif
+
 #
 # unixODBC stuff...
 #

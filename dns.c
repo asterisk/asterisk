@@ -154,7 +154,10 @@ static int dns_parse_answer(void *context,
 #if defined(res_ninit)
 #define HAS_RES_NINIT
 #else
+static ast_mutex_t res_lock = AST_MUTEX_INITIALIZER;
+#if 0
 #warning "Warning, res_ninit is missing...  Could have reentrancy issues"
+#endif
 #endif
 
 int ast_search_dns(void *context,
@@ -171,6 +174,7 @@ int ast_search_dns(void *context,
 	res_ninit(&dnsstate);
 	res = res_nsearch(&dnsstate, dname, class, type, answer, sizeof(answer));
 #else
+	ast_mutex_lock(&res_lock);
 	res_init();
 	res = res_search(dname, class, type, answer, sizeof(answer));
 #endif
@@ -192,6 +196,7 @@ int ast_search_dns(void *context,
 #ifndef __APPLE__
 	res_close();
 #endif
+	ast_mutex_unlock(&res_lock);
 #endif
 	return ret;
 }
