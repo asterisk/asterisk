@@ -1286,6 +1286,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 	int (*func)(void *);
 	void *data;
 	int res;
+	int prestate;
 #endif
 	static struct ast_frame null_frame = 
 	{
@@ -1310,6 +1311,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		ast_mutex_unlock(&chan->lock);
 		return NULL;
 	}
+	prestate = chan->_state;
 
 	if (!ast_test_flag(chan, AST_FLAG_DEFER_DTMF) && !ast_strlen_zero(chan->dtmfq)) {
 		/* We have DTMF that has been deferred.  Return it now */
@@ -1457,7 +1459,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 			ast_log(LOG_WARNING, "Dropping deferred DTMF digits on %s\n", chan->name);
 		f = &null_frame;
 	} else if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_ANSWER)) {
-		if (chan->_state == AST_STATE_UP) {
+		if (prestate == AST_STATE_UP) {
 			ast_log(LOG_DEBUG, "Dropping duplicate answer!\n");
 			f = &null_frame;
 		}
@@ -2758,13 +2760,154 @@ static void bridge_playfile(struct ast_channel *chan, struct ast_channel *peer, 
 	check = ast_autoservice_stop(peer);
 }
 
-int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc) 
+static int ast_generic_bridge(int *playitagain, int *playit, struct timeval *start_time, struct ast_channel *c0, struct ast_channel *c1, struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc)
 {
 	/* Copy voice back and forth between the two channels.	Give the peer
 	   the ability to transfer calls with '#<extension' syntax. */
 	struct ast_channel *cs[3];
 	int to = -1;
 	struct ast_frame *f;
+	struct ast_channel *who = NULL;
+	void *pvt0, *pvt1;
+	int res=0;
+	int o0nativeformats;
+	int o1nativeformats;
+	struct timeval precise_now;
+	long elapsed_ms=0, time_left_ms=0;
+	
+	cs[0] = c0;
+	cs[1] = c1;
+	pvt0 = c0->pvt;
+	pvt1 = c1->pvt;
+	o0nativeformats = c0->nativeformats;
+	o1nativeformats = c1->nativeformats;
+
+	for (;;) {
+		if ((c0->pvt != pvt0) || (c1->pvt != pvt1) ||
+		    (o0nativeformats != c0->nativeformats) ||
+			(o1nativeformats != c1->nativeformats)) {
+			/* Check for Masquerade, codec changes, etc */
+			res = -3;
+			break;
+		}
+		/* timestamp */
+		if (config->timelimit) {
+			/* If there is a time limit, return now */
+			gettimeofday(&precise_now,NULL);
+			elapsed_ms = tvdiff(&precise_now,start_time);
+			time_left_ms = config->timelimit - elapsed_ms;
+
+			if (*playitagain && ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) || (ast_test_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING))) && (config->play_warning && time_left_ms <= config->play_warning)) { 
+				res = -3;
+				break;
+			}
+			if (time_left_ms <= 0) {
+				res = -3;
+				break;
+			}
+			if (time_left_ms >= 5000 && *playit) {
+				res = -3;
+				break;
+			}
+			
+		}
+
+		who = ast_waitfor_n(cs, 2, &to);
+		if (!who) {
+			ast_log(LOG_DEBUG, "Nobody there, continuing...\n"); 
+		if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE || c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE) {
+			if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
+                c0->_softhangup = 0;
+            if (c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
+                c1->_softhangup = 0;
+			c0->_bridge = c1;
+			c1->_bridge = c0;
+			continue;
+		}
+
+			continue;
+		}
+		f = ast_read(who);
+		if (!f) {
+			*fo = NULL;
+			*rc = who;
+			res = 0;
+			ast_log(LOG_DEBUG, "Didn't get a frame from channel: %s\n",who->name);
+			break;
+		}
+
+		if ((f->frametype == AST_FRAME_CONTROL) && !(config->flags & AST_BRIDGE_IGNORE_SIGS)) {
+			if ((f->subclass == AST_CONTROL_HOLD) || (f->subclass == AST_CONTROL_UNHOLD)) {
+				ast_indicate(who == c0 ? c1 : c0, f->subclass);
+			} else {
+				*fo = f;
+				*rc = who;
+				res =  0;
+				ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", f->subclass, who->name);
+				break;
+			}
+		}
+		if ((f->frametype == AST_FRAME_VOICE) ||
+			(f->frametype == AST_FRAME_TEXT) ||
+			(f->frametype == AST_FRAME_VIDEO) || 
+			(f->frametype == AST_FRAME_IMAGE) ||
+			(f->frametype == AST_FRAME_HTML) ||
+			(f->frametype == AST_FRAME_DTMF)) {
+
+			if ((f->frametype == AST_FRAME_DTMF) && 
+				(config->flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))) {
+				if ((who == c0)) {
+					if  ((config->flags & AST_BRIDGE_DTMF_CHANNEL_0)) {
+						*rc = c0;
+						*fo = f;
+						/* Take out of conference mode */
+						res = 0;
+						ast_log(LOG_DEBUG, "Got AST_BRIDGE_DTMF_CHANNEL_0 on c0 (%s)\n",c0->name);
+						break;
+					} else 
+						goto tackygoto;
+				} else
+				if ((who == c1)) {
+					if (config->flags & AST_BRIDGE_DTMF_CHANNEL_1) {
+						*rc = c1;
+						*fo = f;
+						res =  0;
+						ast_log(LOG_DEBUG, "Got AST_BRIDGE_DTMF_CHANNEL_1 on c1 (%s)\n",c1->name);
+						break;
+					} else
+						goto tackygoto;
+				}
+			} else {
+#if 0
+				ast_log(LOG_DEBUG, "Read from %s\n", who->name);
+				if (who == last) 
+					ast_log(LOG_DEBUG, "Servicing channel %s twice in a row?\n", last->name);
+				last = who;
+#endif
+tackygoto:
+				/* Don't copy packets if there is a generator on either one, since they're
+				   not supposed to be listening anyway */
+				if (who == c0) 
+					ast_write(c1, f);
+				else 
+					ast_write(c0, f);
+			}
+		}
+		ast_frfree(f);
+
+		/* Swap who gets priority */
+		cs[2] = cs[0];
+		cs[0] = cs[1];
+		cs[1] = cs[2];
+	}
+	return res;
+}
+
+int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc) 
+{
+	/* Copy voice back and forth between the two channels.	Give the peer
+	   the ability to transfer calls with '#<extension' syntax. */
+	struct ast_channel *cs[3];
 	struct ast_channel *who = NULL;
 	int res=0;
 	int nativefailed=0;
@@ -2865,7 +3008,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 				c1->_softhangup = 0;
 			c0->_bridge = c1;
 			c1->_bridge = c0;
-			ast_log(LOG_DEBUG, "UNBRIDGE SIGNAL RECEIVED! ENDING NATIVE BRIDGE IF IT EXISTS.\n");
+			ast_log(LOG_DEBUG, "Unbridge signal received. Ending native bridge.\n");
 			continue;
 		}
 		
@@ -2928,96 +3071,11 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 				return -1;
 			}
 			o0nativeformats = c0->nativeformats;
-
 			o1nativeformats = c1->nativeformats;
 		}
-		who = ast_waitfor_n(cs, 2, &to);
-		if (!who) {
-			ast_log(LOG_DEBUG, "Nobody there, continuing...\n"); 
-		if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE || c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE) {
-			if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
-                c0->_softhangup = 0;
-            if (c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
-                c1->_softhangup = 0;
-			c0->_bridge = c1;
-			c1->_bridge = c0;
-			continue;
-		}
-
-			continue;
-		}
-		f = ast_read(who);
-		if (!f) {
-			*fo = NULL;
-			*rc = who;
-			res = 0;
-			ast_log(LOG_DEBUG, "Didn't get a frame from channel: %s\n",who->name);
+		res = ast_generic_bridge(&playitagain, &playit, &start_time, c0, c1, config, fo, rc);
+		if (res != -3)
 			break;
-		}
-
-		if ((f->frametype == AST_FRAME_CONTROL) && !(config->flags & AST_BRIDGE_IGNORE_SIGS)) {
-			if ((f->subclass == AST_CONTROL_HOLD) || (f->subclass == AST_CONTROL_UNHOLD)) {
-				ast_indicate(who == c0 ? c1 : c0, f->subclass);
-			} else {
-				*fo = f;
-				*rc = who;
-				res =  0;
-				ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", f->subclass, who->name);
-				break;
-			}
-		}
-		if ((f->frametype == AST_FRAME_VOICE) ||
-			(f->frametype == AST_FRAME_TEXT) ||
-			(f->frametype == AST_FRAME_VIDEO) || 
-			(f->frametype == AST_FRAME_IMAGE) ||
-			(f->frametype == AST_FRAME_HTML) ||
-			(f->frametype == AST_FRAME_DTMF)) {
-
-			if ((f->frametype == AST_FRAME_DTMF) && 
-				(config->flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))) {
-				if ((who == c0)) {
-					if  ((config->flags & AST_BRIDGE_DTMF_CHANNEL_0)) {
-						*rc = c0;
-						*fo = f;
-						/* Take out of conference mode */
-						res = 0;
-						ast_log(LOG_DEBUG, "Got AST_BRIDGE_DTMF_CHANNEL_0 on c0 (%s)\n",c0->name);
-						break;
-					} else 
-						goto tackygoto;
-				} else
-				if ((who == c1)) {
-					if (config->flags & AST_BRIDGE_DTMF_CHANNEL_1) {
-						*rc = c1;
-						*fo = f;
-						res =  0;
-						ast_log(LOG_DEBUG, "Got AST_BRIDGE_DTMF_CHANNEL_1 on c1 (%s)\n",c1->name);
-						break;
-					} else
-						goto tackygoto;
-				}
-			} else {
-#if 0
-				ast_log(LOG_DEBUG, "Read from %s\n", who->name);
-				if (who == last) 
-					ast_log(LOG_DEBUG, "Servicing channel %s twice in a row?\n", last->name);
-				last = who;
-#endif
-tackygoto:
-				/* Don't copy packets if there is a generator on either one, since they're
-				   not supposed to be listening anyway */
-				if (who == c0) 
-					ast_write(c1, f);
-				else 
-					ast_write(c0, f);
-			}
-		}
-		ast_frfree(f);
-
-		/* Swap who gets priority */
-		cs[2] = cs[0];
-		cs[0] = cs[1];
-		cs[1] = cs[2];
 	}
 	c0->_bridge = NULL;
 	c1->_bridge = NULL;
