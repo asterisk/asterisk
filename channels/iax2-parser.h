@@ -44,6 +44,12 @@ struct iax_ies {
 	int musiconhold;
 	unsigned int transferid;
 	unsigned int datetime;
+	char *devicetype;
+	char *serviceident;
+	int firmwarever;
+	unsigned int fwdesc;
+	unsigned char *fwdata;
+	unsigned char fwdatalen;
 };
 
 #define DIRECTION_INGRESS 1

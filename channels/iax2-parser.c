@@ -120,6 +120,11 @@ static struct iax2_ie {
 	{ IAX_IE_PROVISIONING, "PROVISIONING" },
 	{ IAX_IE_AESPROVISIONING, "AES PROVISIONING" },
 	{ IAX_IE_DATETIME, "DATE TIME", dump_int },
+	{ IAX_IE_DEVICETYPE, "DEVICE TYPE", dump_string },
+	{ IAX_IE_SERVICEIDENT, "SERVICE IDENT", dump_string },
+	{ IAX_IE_FIRMWAREVER, "FIRMWARE VER", dump_short },
+	{ IAX_IE_FWBLOCKDESC, "FW BLOCK DESC", dump_int },
+	{ IAX_IE_FWBLOCKDATA, "FW BLOCK DATA" },
 };
 
 const char *iax_ie2str(int ie)
@@ -158,7 +163,11 @@ static void dump_ies(unsigned char *iedata, int len)
 					snprintf(tmp, sizeof(tmp), "   %-15.15s : %s\n", ies[x].name, interp);
 					outputf(tmp);
 				} else {
-					snprintf(tmp, sizeof(tmp), "   %-15.15s : Present\n", ies[x].name);
+					if (ielen)
+						snprintf(interp, sizeof(interp), "%d bytes", ielen);
+					else
+						strcpy(interp, "Present");
+					snprintf(tmp, sizeof(tmp), "   %-15.15s : %s\n", ies[x].name, interp);
 					outputf(tmp);
 				}
 				found++;
@@ -223,6 +232,8 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		"UNSUPPORTED",
 		"TRANSFER",
 		"PROVISION",
+		"FWDOWNLD",
+		"FWDATA"
 	};
 	char *cmds[] = {
 		"(0?)",
@@ -363,6 +374,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 	char tmp[256];
 	memset(ies, 0, sizeof(struct iax_ies));
 	ies->msgcount = -1;
+	ies->firmwarever = -1;
 	while(datalen >= 2) {
 		ie = data[0];
 		len = data[1];
@@ -506,6 +518,30 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				errorf(tmp);
 			} else
 				ies->datetime = ntohl(*((unsigned int *)(data + 2)));
+			break;
+		case IAX_IE_FIRMWAREVER:
+			if (len != sizeof(unsigned short)) {
+				snprintf(tmp, sizeof(tmp), "Expecting firmwarever to be %d bytes long but was %d\n", sizeof(unsigned short), len);
+				errorf(tmp);
+			} else
+				ies->firmwarever = ntohs(*((unsigned short *)(data + 2)));	
+			break;
+		case IAX_IE_DEVICETYPE:
+			ies->devicetype = data + 2;
+			break;
+		case IAX_IE_SERVICEIDENT:
+			ies->serviceident = data + 2;
+			break;
+		case IAX_IE_FWBLOCKDESC:
+			if (len != sizeof(unsigned int)) {
+				snprintf(tmp, sizeof(tmp), "Expected block desc to be %d bytes long but was %d\n", sizeof(unsigned int), len);
+				errorf(tmp);
+			} else
+				ies->fwdesc = ntohl(*((unsigned int *)(data + 2)));
+			break;
+		case IAX_IE_FWBLOCKDATA:
+			ies->fwdata = data + 2;
+			ies->fwdatalen = len;
 			break;
 		default:
 			snprintf(tmp, sizeof(tmp), "Ignoring unknown information element '%s' (%d) of length %d\n", iax_ie2str(ie), ie, len);

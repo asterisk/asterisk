@@ -65,6 +65,8 @@
 #define IAX_COMMAND_UNSUPPORT	33	/* Unsupported message received */
 #define IAX_COMMAND_TRANSFER	34	/* Request remote transfer */
 #define IAX_COMMAND_PROVISION	35	/* Provision device */
+#define IAX_COMMAND_FWDOWNL	36	/* Download firmware */
+#define IAX_COMMAND_FWDATA	37	/* Firmware Data */
 
 #define IAX_DEFAULT_REG_EXPIRE  60	/* By default require re-registration once per minute */
 
@@ -104,6 +106,11 @@
 #define IAX_IE_PROVISIONING			29		/* Provisioning info */
 #define IAX_IE_AESPROVISIONING			30		/* AES Provisioning info */
 #define IAX_IE_DATETIME				31		/* Date/Time */
+#define IAX_IE_DEVICETYPE			32		/* Device Type -- string */
+#define IAX_IE_SERVICEIDENT			33		/* Service Identifier -- string */
+#define IAX_IE_FIRMWAREVER			34		/* Firmware revision -- u16 */
+#define IAX_IE_FWBLOCKDESC			35		/* Firmware block description -- u32 */
+#define IAX_IE_FWBLOCKDATA			36		/* Firmware block of data -- raw */
 
 #define IAX_AUTH_PLAINTEXT			(1 << 0)
 #define IAX_AUTH_MD5				(1 << 1)
@@ -163,4 +170,14 @@ struct ast_iax2_meta_trunk_entry {
 	unsigned short len;				/* Length of data for this callno */
 } __attribute__ ((__packed__));
 
+#define IAX_FIRMWARE_MAGIC 0x69617879
+
+struct ast_iax2_firmware_header {
+	unsigned int magic;		/* Magic number */
+	unsigned short version;		/* Software version */
+	unsigned char devname[16];	/* Device */
+	unsigned int datalen;		/* Data length of file beyond header */
+	unsigned char chksum[16];	/* Checksum of all data */
+	unsigned char data[0];
+} __attribute__ ((__packed__));
 #endif

@@ -33,7 +33,9 @@
 #include <asterisk/app.h>
 #include <asterisk/astdb.h>
 #include <asterisk/musiconhold.h>
+#include <sys/mman.h>
 #include <arpa/inet.h>
+#include <dirent.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -58,6 +60,7 @@
 #endif
 #include "iax2.h"
 #include "iax2-parser.h"
+#include "../astconf.h"
 
 #ifndef IPTOS_MINCOST
 #define IPTOS_MINCOST 0x02
@@ -238,6 +241,15 @@ struct iax2_peer {
 	struct ast_ha *ha;
 	struct iax2_peer *next;
 	int notransfer;
+};
+
+struct iax_firmware {
+	struct iax_firmware *next;
+	int fd;
+	int mmaplen;
+	int dead;
+	struct ast_iax2_firmware_header *fwh;
+	unsigned char *buf;
 };
 
 #define REG_STATE_UNREGISTERED 0
@@ -433,6 +445,11 @@ static struct ast_peer_list {
 	struct iax2_peer *peers;
 	ast_mutex_t lock;
 } peerl;
+
+static struct ast_firmware_list {
+	struct iax_firmware *wares;
+	ast_mutex_t lock;
+} waresl;
 
 /* Extension exists */
 #define CACHE_FLAG_EXISTS		(1 << 0)
@@ -849,6 +866,216 @@ static int iax2_queue_frame(int callno, struct ast_frame *f)
 			break;
 	}
 	return 0;
+}
+
+static void destroy_firmware(struct iax_firmware *cur)
+{
+	/* Close firmware */
+	if (cur->fwh) {
+		munmap(cur->fwh, ntohl(cur->fwh->datalen) + sizeof(*(cur->fwh)));
+	}
+	close(cur->fd);
+	free(cur);
+}
+
+static int try_firmware(char *s)
+{
+	struct stat stbuf;
+	struct iax_firmware *cur;
+	int fd;
+	int res;
+	struct ast_iax2_firmware_header *fwh, fwh2;
+	struct MD5Context md5;
+	unsigned char sum[16];
+	res = stat(s, &stbuf);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Failed to stat '%s': %s\n", s, strerror(errno));
+		return -1;
+	}
+	/* Make sure it's not a directory */
+	if (S_ISDIR(stbuf.st_mode))
+		return -1;
+	fd = open(s, O_RDONLY);
+	if (fd < 0) {
+		ast_log(LOG_WARNING, "Cannot open '%s': %s\n", s, strerror(errno));
+		return -1;
+	}
+	if ((res = read(fd, &fwh2, sizeof(fwh2))) != sizeof(fwh2)) {
+		ast_log(LOG_WARNING, "Unable to read firmware header in '%s'\n", s);
+		close(fd);
+		return -1;
+	}
+	if (ntohl(fwh2.magic) != IAX_FIRMWARE_MAGIC) {
+		ast_log(LOG_WARNING, "'%s' is not a valid firmware file\n", s);
+		close(fd);
+		return -1;
+	}
+	if (ntohl(fwh2.datalen) != (stbuf.st_size - sizeof(fwh2))) {
+		ast_log(LOG_WARNING, "Invalid data length in firmware '%s'\n", s);
+		close(fd);
+		return -1;
+	}
+	if (fwh2.devname[sizeof(fwh2.devname) - 1] || !strlen(fwh2.devname)) {
+		ast_log(LOG_WARNING, "No or invalid device type specified for '%s'\n", s);
+		close(fd);
+		return -1;
+	}
+	fwh = mmap(NULL, stbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0); 
+	if (!fwh) {
+		ast_log(LOG_WARNING, "mmap failed: %s\n", strerror(errno));
+		close(fd);
+		return -1;
+	}
+	MD5Init(&md5);
+	MD5Update(&md5, fwh->data, ntohl(fwh->datalen));
+	MD5Final(sum, &md5);
+	if (memcmp(sum, fwh->chksum, sizeof(sum))) {
+		ast_log(LOG_WARNING, "Firmware file '%s' fails checksum\n", s);
+		munmap(fwh, stbuf.st_size);
+		close(fd);
+		return -1;
+	}
+	cur = waresl.wares;
+	while(cur) {
+		if (!strcmp(cur->fwh->devname, fwh->devname)) {
+			/* Found a candidate */
+			if (cur->dead || (ntohs(cur->fwh->version) < ntohs(fwh->version)))
+				/* The version we have on loaded is older, load this one instead */
+				break;
+			/* This version is no newer than what we have.  Don't worry about it.
+			   We'll consider it a proper load anyhow though */
+			munmap(fwh, stbuf.st_size);
+			close(fd);
+			return 0;
+		}
+		cur = cur->next;
+	}
+	if (!cur) {
+		/* Allocate a new one and link it */
+		cur = malloc(sizeof(struct iax_firmware));
+		if (cur) {
+			memset(cur, 0, sizeof(struct iax_firmware));
+			cur->fd = -1;
+			cur->next = waresl.wares;
+			waresl.wares = cur;
+		}
+	}
+	if (cur) {
+		if (cur->fwh) {
+			munmap(cur->fwh, cur->mmaplen);
+		}
+		if (cur->fd > -1)
+			close(cur->fd);
+		cur->fwh = fwh;
+		cur->fd = fd;
+		cur->mmaplen = stbuf.st_size;
+		cur->dead = 0;
+	}
+	return 0;
+}
+
+static int iax_check_version(char *dev)
+{
+	int res = 0;
+	struct iax_firmware *cur;
+	if (dev && strlen(dev)) {
+		ast_mutex_lock(&waresl.lock);
+		cur = waresl.wares;
+		while(cur) {
+			if (!strcmp(dev, cur->fwh->devname)) {
+				res = ntohs(cur->fwh->version);
+				break;
+			}
+			cur = cur->next;
+		}
+		ast_mutex_unlock(&waresl.lock);
+	}
+	return res;
+}
+
+static int iax_firmware_append(struct iax_ie_data *ied, const unsigned char *dev, unsigned int desc)
+{
+	int res = -1;
+	unsigned int bs = desc & 0xff;
+	unsigned int start = (desc >> 8) & 0xffffff;
+	unsigned int bytes;
+	struct iax_firmware *cur;
+	if (dev && strlen(dev) && bs) {
+		start *= bs;
+		ast_mutex_lock(&waresl.lock);
+		cur = waresl.wares;
+		while(cur) {
+			if (!strcmp(dev, cur->fwh->devname)) {
+				iax_ie_append_int(ied, IAX_IE_FWBLOCKDESC, desc);
+				if (start < ntohl(cur->fwh->datalen)) {
+					bytes = ntohl(cur->fwh->datalen) - start;
+					if (bytes > bs)
+						bytes = bs;
+					iax_ie_append_raw(ied, IAX_IE_FWBLOCKDATA, cur->fwh->data + start, bytes);
+				} else {
+					bytes = 0;
+					iax_ie_append(ied, IAX_IE_FWBLOCKDATA);
+				}
+				if (bytes == bs)
+					res = 0;
+				else
+					res = 1;
+				break;
+			}
+			cur = cur->next;
+		}
+		ast_mutex_unlock(&waresl.lock);
+	}
+	return res;
+}
+
+
+static void reload_firmware(void)
+{
+	struct iax_firmware *cur, *curl, *curp;
+	DIR *fwd;
+	struct dirent *de;
+	char dir[256];
+	char fn[256];
+	/* Mark all as dead */
+	ast_mutex_lock(&waresl.lock);
+	cur = waresl.wares;
+	while(cur) {
+		cur->dead = 1;
+		cur = cur->next;
+	}
+	/* Now that we've freed them, load the new ones */
+	snprintf(dir, sizeof(dir), "%s/firmware/iax", (char *)ast_config_AST_VAR_DIR);
+	fwd = opendir(dir);
+	while((de = readdir(fwd))) {
+		if (de->d_name[0] != '.') {
+			snprintf(fn, sizeof(fn), "%s/%s", dir, de->d_name);
+			if (!try_firmware(fn)) {
+				if (option_verbose > 1)
+					ast_verbose(VERBOSE_PREFIX_2 "Loaded firmware '%s'\n", de->d_name);
+			}
+		}
+	}
+	closedir(fwd);
+
+	/* Clean up leftovers */
+	cur = waresl.wares;
+	curp = NULL;
+	while(cur) {
+		curl = cur;
+		cur = cur->next;
+		if (curl->dead) {
+			if (curp) {
+				curp->next = cur;
+			} else {
+				waresl.wares = cur;
+			}
+			destroy_firmware(curl);
+		} else {
+			curp = cur;
+		}
+	}
+	ast_mutex_unlock(&waresl.lock);
 }
 
 static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned int ts, int seqno, int now, int transfer, int final);
@@ -2614,6 +2841,27 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
+static int iax2_show_firmware(int fd, int argc, char *argv[])
+{
+#define FORMAT2 "%-15.15s  %-15.15s %-15.15s\n"
+#define FORMAT "%-15.15s  %-15.4x %-15d\n"
+	struct iax_firmware *cur;
+	if ((argc != 3) && (argc != 4))
+		return RESULT_SHOWUSAGE;
+	ast_mutex_lock(&waresl.lock);
+	
+	ast_cli(fd, FORMAT2, "Device", "Version", "Size");
+	for (cur = waresl.wares;cur;cur = cur->next) {
+		if ((argc == 3) || (!strcasecmp(argv[3], cur->fwh->devname))) 
+			ast_cli(fd, FORMAT, cur->fwh->devname, ntohs(cur->fwh->version),
+						ntohl(cur->fwh->datalen));
+	}
+	ast_mutex_unlock(&waresl.lock);
+	return RESULT_SUCCESS;
+#undef FORMAT
+#undef FORMAT2
+}
+
 /* JDG: callback to display iax peers in manager */
 static int manager_iax2_show_peers( struct mansession *s, struct message *m )
 {
@@ -2742,6 +2990,10 @@ static char show_peers_usage[] =
 "Usage: iax2 show peers\n"
 "       Lists all known IAX peers.\n";
 
+static char show_firmware_usage[] = 
+"Usage: iax2 show firmware\n"
+"       Lists all known IAX firmware images.\n";
+
 static char show_reg_usage[] =
 "Usage: iax2 show registry\n"
 "       Lists all registration requests and status.\n";
@@ -2760,6 +3012,8 @@ static char debug_trunk_usage[] =
 
 static struct ast_cli_entry  cli_show_users = 
 	{ { "iax2", "show", "users", NULL }, iax2_show_users, "Show defined IAX users", show_users_usage };
+static struct ast_cli_entry  cli_show_firmware = 
+	{ { "iax2", "show", "firmware", NULL }, iax2_show_firmware, "Show available IAX firmwares", show_firmware_usage };
 static struct ast_cli_entry  cli_show_channels =
 	{ { "iax2", "show", "channels", NULL }, iax2_show_channels, "Show active IAX channels", show_channels_usage };
 static struct ast_cli_entry  cli_show_peers =
@@ -3606,13 +3860,14 @@ static void reg_source_db(struct iax2_peer *p)
 	}
 }
 
-static int update_registry(char *name, struct sockaddr_in *sin, int callno)
+static int update_registry(char *name, struct sockaddr_in *sin, int callno, char *devtype)
 {
 	/* Called from IAX thread only, with proper iaxsl lock */
 	struct iax_ie_data ied;
 	struct iax2_peer *p;
 	int msgcount;
 	char data[80];
+	int version;
 	memset(&ied, 0, sizeof(ied));
 	for (p = peerl.peers;p;p = p->next) {
 		if (!strcasecmp(name, p->name)) {
@@ -3666,6 +3921,9 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 			if (p->hascallerid)
 				iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, p->callerid);
 		}
+		version = iax_check_version(devtype);
+		if (version) 
+			iax_ie_append_short(&ied, IAX_IE_FIRMWAREVER, version);
 		if (p->temponly)
 			free(p);
 		return send_command_final(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGACK, 0, ied.buf, ied.pos, -1);
@@ -4174,7 +4432,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			f.subclass = uncompress_subclass(fh->csub);
 		}
 		if ((f.frametype == AST_FRAME_IAX) && ((f.subclass == IAX_COMMAND_NEW) || (f.subclass == IAX_COMMAND_REGREQ)
-				|| (f.subclass == IAX_COMMAND_POKE)))
+				|| (f.subclass == IAX_COMMAND_POKE) || (f.subclass == IAX_COMMAND_FWDOWNL)))
 			new = NEW_ALLOW;
 	} else {
 		/* Don't knwo anything about it yet */
@@ -4195,7 +4453,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			/* We can only raw hangup control frames */
 			if (((f.subclass != IAX_COMMAND_INVAL) &&
 				 (f.subclass != IAX_COMMAND_TXCNT) &&
-				 (f.subclass != IAX_COMMAND_TXACC))||
+				 (f.subclass != IAX_COMMAND_TXACC) &&
+				 (f.subclass != IAX_COMMAND_FWDOWNL))||
 			    (f.frametype != AST_FRAME_IAX))
 				raw_hangup(&sin, ntohs(fh->dcallno) & ~IAX_FLAG_RETRANS, ntohs(mh->callno) & ~IAX_FLAG_FULL
 				);
@@ -4791,7 +5050,7 @@ retryowner:
 				if ((!strlen(iaxs[fr.callno]->secret) && !strlen(iaxs[fr.callno]->inkeys)) || (iaxs[fr.callno]->state & IAX_STATE_AUTHENTICATED)) {
 					if (f.subclass == IAX_COMMAND_REGREL)
 						memset(&sin, 0, sizeof(sin));
-					if (update_registry(iaxs[fr.callno]->peer, &sin, fr.callno))
+					if (update_registry(iaxs[fr.callno]->peer, &sin, fr.callno, ies.devicetype))
 						ast_log(LOG_WARNING, "Registry error\n");
 					break;
 				}
@@ -4883,6 +5142,17 @@ retryowner:
 				break;
 			case IAX_COMMAND_UNSUPPORT:
 				ast_log(LOG_NOTICE, "Peer did not understand our iax command '%d'\n", ies.iax_unknown);
+				break;
+			case IAX_COMMAND_FWDOWNL:
+				/* Firmware download */
+				memset(&ied0, 0, sizeof(ied0));
+				res = iax_firmware_append(&ied0, ies.devicetype, ies.fwdesc);
+				if (res < 0)
+					send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+				else if (res > 0)
+					send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_FWDATA, 0, ied0.buf, ied0.pos, -1);
+				else
+					send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_FWDATA, 0, ied0.buf, ied0.pos, -1);
 				break;
 			default:
 				ast_log(LOG_DEBUG, "Unknown IAX command %d on %d/%d\n", f.subclass, fr.callno, iaxs[fr.callno]->peercallno);
@@ -5782,6 +6052,7 @@ static int reload_config(void)
 	for (peer = peerl.peers; peer; peer = peer->next)
 		iax2_poke_peer(peer, 0);
 	ast_mutex_unlock(&peerl.lock);
+	reload_firmware();
 	return 0;
 }
 
@@ -6154,6 +6425,7 @@ static int __unload_module(void)
 	ast_cli_unregister(&cli_show_users);
 	ast_cli_unregister(&cli_show_channels);
 	ast_cli_unregister(&cli_show_peers);
+	ast_cli_unregister(&cli_show_firmware);
 	ast_cli_unregister(&cli_show_registry);
 	ast_cli_unregister(&cli_debug);
 	ast_cli_unregister(&cli_trunk_debug);
@@ -6220,6 +6492,7 @@ int load_module(void)
 	ast_cli_register(&cli_show_users);
 	ast_cli_register(&cli_show_channels);
 	ast_cli_register(&cli_show_peers);
+	ast_cli_register(&cli_show_firmware);
 	ast_cli_register(&cli_show_registry);
 	ast_cli_register(&cli_debug);
 	ast_cli_register(&cli_trunk_debug);
@@ -6273,6 +6546,7 @@ int load_module(void)
 	for (peer = peerl.peers; peer; peer = peer->next)
 		iax2_poke_peer(peer, 0);
 	ast_mutex_unlock(&peerl.lock);
+	reload_firmware();
 	return res;
 }
 
