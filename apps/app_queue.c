@@ -489,7 +489,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 			stat = get_member_status(q);
 			if (!q->joinempty && (stat == QUEUE_NO_MEMBERS))
 				*reason = QUEUE_JOINEMPTY;
-			else if ((q->joinempty == QUEUE_EMPTY_NORMAL) && (stat == QUEUE_NO_REACHABLE_MEMBERS))
+			else if ((q->joinempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS))
 				*reason = QUEUE_JOINUNAVAIL;
 			else if (q->maxlen && (q->count >= q->maxlen))
 				*reason = QUEUE_FULL;
@@ -1343,7 +1343,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		}
 
 		/* leave the queue if no reachable agents, if enabled */
-		if ((qe->parent->leavewhenempty == QUEUE_EMPTY_NORMAL) && (stat == QUEUE_NO_REACHABLE_MEMBERS)) {
+		if ((qe->parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS)) {
 			*reason = QUEUE_LEAVEUNAVAIL;
 			leave_queue(qe);
 			break;
@@ -2418,7 +2418,7 @@ check_turns:
 				}
 
 				/* leave the queue if no reachable agents, if enabled */
-				if ((qe.parent->leavewhenempty == QUEUE_EMPTY_NORMAL) && (stat == QUEUE_NO_REACHABLE_MEMBERS)) {
+				if ((qe.parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS)) {
 					reason = QUEUE_LEAVEUNAVAIL;
 					res = 0;
 					break;
