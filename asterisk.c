@@ -530,6 +530,10 @@ static char shutdown_gracefully_help[] =
 "       Causes Asterisk to not accept new calls, and exit when all\n"
 "       active calls have terminated normally.\n";
 
+static char shutdown_when_convenient_help[] = 
+"Usage: stop when convenient\n"
+"       Causes Asterisk to perform a shutdown when all active calls have ended.\n";
+
 static char restart_now_help[] = 
 "Usage: restart now\n"
 "       Causes Asterisk to hangup all calls and exec() itself performing a cold.\n"
@@ -579,6 +583,14 @@ static int handle_shutdown_gracefully(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int handle_shutdown_when_convenient(int fd, int argc, char *argv[])
+{
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	quit_handler(0, 2 /* really nicely */, 1 /* safely */, 0 /* don't restart */);
+	return RESULT_SUCCESS;
+}
+
 static int handle_restart_now(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
@@ -623,6 +635,7 @@ static struct ast_cli_entry astexit = 	{ { "exit", NULL }, no_more_quit, "Exit A
 
 static struct ast_cli_entry astshutdownnow = 	{ { "stop", "now", NULL }, handle_shutdown_now, "Shut down Asterisk imediately", shutdown_now_help };
 static struct ast_cli_entry astshutdowngracefully = 	{ { "stop", "gracefully", NULL }, handle_shutdown_gracefully, "Gracefully shut down Asterisk", shutdown_gracefully_help };
+static struct ast_cli_entry astshutdownwhenconvenient = 	{ { "stop", "when","convenient", NULL }, handle_shutdown_when_convenient, "Shut down Asterisk at empty call volume", shutdown_when_convenient_help };
 static struct ast_cli_entry astrestartnow = 	{ { "restart", "now", NULL }, handle_restart_now, "Restart Asterisk immediately", restart_now_help };
 static struct ast_cli_entry astrestartgracefully = 	{ { "restart", "gracefully", NULL }, handle_restart_gracefully, "Restart Asterisk gracefully", restart_gracefully_help };
 static struct ast_cli_entry astrestartwhenconvenient= 	{ { "restart", "when", "convenient", NULL }, handle_restart_when_convenient, "Restart Asterisk at empty call volume", restart_when_convenient_help };
@@ -1317,6 +1330,7 @@ int main(int argc, char *argv[])
 	ast_cli_register(&astrestartnow);
 	ast_cli_register(&astrestartgracefully);
 	ast_cli_register(&astrestartwhenconvenient);
+	ast_cli_register(&astshutdownwhenconvenient);
 	ast_cli_register(&aborthalt);
 	if (option_console) {
 		/* Console stuff now... */
