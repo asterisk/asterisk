@@ -30,13 +30,13 @@ static char *app = "Record";
 static char *synopsis = "Record to a file";
 
 static char *descrip = 
-"  Record(filename:extension|silence): Records from the channel into a given\n"
+"  Record(filename:format|silence): Records from the channel into a given\n"
 "filename. If the file exists it will be overwritten. \n"
-"- 'extension' is the extension of the file type to be recorded (wav, gsm, etc).\n"
+"- 'format' is the format of the file type to be recorded (wav, gsm, etc).\n"
 "- 'silence' is the number of seconds of silence to allow before returning.\n\n"
 "If filename contains '%d', these characters will be replaced with a number\n"
 "incremented by one each time the file is recorded. \n\n"
-"Extensions: g723, g729, gsm, h263, ulaw, alaw, vox, wav, WAV\n\n"
+"Formats: g723, g729, gsm, h263, ulaw, alaw, vox, wav, WAV\n\n"
 "Returns -1 when the user hangs up.\n";
 
 STANDARD_LOCAL_USER;

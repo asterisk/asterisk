@@ -68,7 +68,7 @@ static int glistcnt = 0;
 
 static char *name = "wav49";
 static char *desc = "Microsoft WAV format (Proprietary GSM)";
-static char *exts = "WAV";
+static char *exts = "WAV|wav49";
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define htoll(b) (b)
@@ -199,10 +199,12 @@ static int check_header(int fd)
 		ast_log(LOG_WARNING, "Read failed (data)\n");
 		return -1;
 	}
+#if 0  /* Does this header actually exist?  It doesn't appear to in the files that are created with ast_writefile using this format */
 	if (memcmp(&data, "data", 4)) {
 		ast_log(LOG_WARNING, "Does not say data\n");
 		return -1;
 	}
+#endif
 	/* Ignore the data length */
 	if (read(fd, &data, 4) != 4) {
 		ast_log(LOG_WARNING, "Read failed (data)\n");
