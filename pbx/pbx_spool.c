@@ -94,10 +94,8 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 	char buf[256];
 	char *c, *c2;
 	int lineno = 0;
-	while(!feof(f)) {
-		fgets(buf, sizeof(buf), f);
+	while(fgets(buf, sizeof(buf), f)) {
 		lineno++;
-		if (!ast_strlen_zero(buf)) {
 			/* Trim comments */
 			c = buf;
 			while ((c = strchr(c, '#'))) {
@@ -186,7 +184,6 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 				} else
 					ast_log(LOG_NOTICE, "Syntax error at line %d of %s\n", lineno, fn);
 			}
-		}
 	}
 	strncpy(o->fn, fn, sizeof(o->fn) - 1);
 	if (ast_strlen_zero(o->tech) || ast_strlen_zero(o->dest) || (ast_strlen_zero(o->app) && ast_strlen_zero(o->exten))) {
