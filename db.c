@@ -529,7 +529,7 @@ static int manager_dbget(struct mansession *s, struct message *m)
 		ast_cli(s->fd, "Event: DBGetResponse\r\n"
 				"Family: %s\r\n"
 				"Key: %s\r\n"
-				"Val: %s\r\n",
+				"Val: %s\r\n\r\n",
 				family, key, tmp);
 	}
 	return 0;
