@@ -76,6 +76,7 @@ static char *descrip =
 "             using format ${MEETME_RECORDINGFORMAT}). Default filename is\n"
 "             meetme-conf-rec-${CONFNO}-${UNIQUEID} and the default format is wav.\n"
 "      'q' -- quiet mode (don't play enter/leave sounds)\n"
+"      'c' -- announce user(s) count on joining a conference\n"
 "      'M' -- enable music on hold when the conference has a single caller\n"
 "      'x' -- close the conference when last marked user exits\n"
 "      'w' -- wait until the marked user enters the conference\n"
@@ -189,10 +190,12 @@ static void *recordthread(void *args);
 #define CONFFLAG_EMPTY (1 << 19)
 #define CONFFLAG_EMPTYNOPIN (1 << 20)
 #define CONFFLAG_ALWAYSPROMPT (1 << 21)
+#define CONFFLAG_ANNOUNCEUSERCOUNT (1 << 22) /* If set, when user joins the conference, they will be told the number of users that are already in */
 
 
 AST_DECLARE_OPTIONS(meetme_opts,{
 	['a'] = { CONFFLAG_ADMIN },
+	['c'] = { CONFFLAG_ANNOUNCEUSERCOUNT },
 	['T'] = { CONFFLAG_MONITORTALKER },
 	['i'] = { CONFFLAG_INTROUSER },
 	['m'] = { CONFFLAG_MONITOR },
@@ -691,6 +694,42 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		if ((confflags & CONFFLAG_WAITMARKED) && conf->markedusers == 0)
 			if (!ast_streamfile(chan, "conf-waitforleader", chan->language))
 				ast_waitstream(chan, "");
+	}
+
+	if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_ANNOUNCEUSERCOUNT) && conf->users > 1) {
+		int keepplaying=1;
+
+		if (conf->users == 2) { 
+			if (!ast_streamfile(chan,"conf-onlyone",chan->language)) {
+				res = ast_waitstream(chan, AST_DIGIT_ANY);
+				if (res > 0)
+					keepplaying=0;
+				else if (res == -1)
+					goto outrun;
+			}
+		} else { 
+			if (!ast_streamfile(chan, "conf-thereare", chan->language)) {
+				res = ast_waitstream(chan, AST_DIGIT_ANY);
+				if (res > 0)
+					keepplaying=0;
+				else if (res == -1)
+					goto outrun;
+			}
+			if (keepplaying) {
+				res = ast_say_number(chan, conf->users - 1, AST_DIGIT_ANY, chan->language, (char *) NULL);
+				if (res > 0)
+					keepplaying=0;
+				else if (res == -1)
+					goto outrun;
+			}
+			if (keepplaying && !ast_streamfile(chan, "conf-otherinparty", chan->language)) {
+				res = ast_waitstream(chan, AST_DIGIT_ANY);
+				if (res > 0)
+					keepplaying=0;
+				else if (res == -1) 
+					goto outrun;
+			}
+		}
 	}
 
 	/* Set it into linear mode (write) */

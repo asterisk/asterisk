@@ -664,6 +664,7 @@
 %vm-leavemsg.gsm% Press 5 to send a voicemail message
 
 %queue-less-than.gsm%less than
+
 %conf-waitforleader.gsm%The conference will begin when the leader arrives.
 
 %conf-userwilljoin.gsm%user will join the conference.
@@ -673,4 +674,10 @@
 %conf-leaderhasleft.gsm%The leader has left the conference.
 
 %conf-placeintoconf.gsm%You will now be placed into the conference.
+
+%conf-thereare.gsm%There are currently
+
+%conf-otherinparty.gsm%other participants in the conference
+
+%conf-onlyone.gsm%There is currently only one other participant in the conference.
 
