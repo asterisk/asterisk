@@ -2570,6 +2570,12 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			}
 			break;
 		case ZT_EVENT_ALARM:
+#ifdef PRI_DESTROYCALL
+			pri_destroycall(p->pri->pri, p->call);
+			p->call = NULL;
+#else
+#error Please "cvs update" and recompile libpri
+#endif
 			p->inalarm = 1;
 			res = get_alarms(p);
 			ast_log(LOG_WARNING, "Detected alarm on channel %d: %s\n", p->channel, alarm2str(res));
