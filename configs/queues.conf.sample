@@ -92,6 +92,7 @@
 ;queue-minutes = queue-minutes			;	("minutes.")
 ;queue-seconds = queue-seconds			;	("seconds.")
 ;queue-thankyou = queue-thankyou		;	("Thank you for your patience.")
+;queue-lessthan = queue-less-than		;       ("less than")
 ;
 ; Calls may be recorded using Asterisk's monitor resource
 ; This can be enabled from within the Queue application, starting recording

@@ -1794,7 +1794,7 @@ static void reload_queues(void)
 				strncpy(q->sound_minutes, "queue-minutes", sizeof(q->sound_minutes) - 1);
 				strncpy(q->sound_seconds, "queue-seconds", sizeof(q->sound_seconds) - 1);
 				strncpy(q->sound_thanks, "queue-thankyou", sizeof(q->sound_thanks) - 1);
-				strncpy(q->sound_lessthan, "queue-lessthan", sizeof(q->sound_lessthan) - 1);
+				strncpy(q->sound_lessthan, "queue-less-than", sizeof(q->sound_lessthan) - 1);
 				prev = q->members;
 				if (prev) {
 					/* find the end of any dynamic members */
