@@ -418,9 +418,9 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char
 		fprintf(p, "Date: %s\n", date);
 		fprintf(p, "From: Asterisk PBX <%s>\n", who);
 		fprintf(p, "To: %s\n", pager);
-		fprintf(p, "Subject: New voicemail\n\n");
+		fprintf(p, "Subject: New VM\n\n");
 		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
-		fprintf(p, "New %s long message in mailbox %s\n"
+		fprintf(p, "New %s long msg in box %s\n"
 		           "from %s, on %s", dur, mailbox, (callerid ? callerid : "unknown"), date);
 		pclose(p);
 	} else {
