@@ -38,7 +38,7 @@ static char *desc = "ODBC CDR Backend";
 static char *name = "ODBC";
 static char *config = "cdr_odbc.conf";
 static char *dsn = NULL, *username = NULL, *password = NULL, *loguniqueid = NULL;
-static int dsn_alloc = 0, username_alloc = 0, password_alloc = 0;
+static int dsn_alloc = 0, username_alloc = 0, password_alloc = 0, loguniqueid_alloc = 0;
 static int connected = 0;
 
 static ast_mutex_t odbc_lock = AST_MUTEX_INITIALIZER;
@@ -226,6 +226,14 @@ static int odbc_unload_module(void)
 		password = NULL;
 		password_alloc = 0;
 	}
+	if (loguniqueid && loguniqueid_alloc)
+	{
+		if(option_verbose > 3)
+			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free loguniqueid\n");
+		free(loguniqueid);
+		loguniqueid = NULL;
+		loguniqueid_alloc = 0;
+	}
 	ast_cdr_unregister(name);
 	ast_mutex_unlock(&odbc_lock);
 	return 0;
@@ -323,11 +331,13 @@ static int odbc_load_module(void)
 		if (loguniqueid != NULL)
 		{
 			strcpy(loguniqueid,tmp);
+			loguniqueid_alloc = 1;
 			ast_log(LOG_WARNING,"cdr_odbc: Logging uniqueid\n");
 		}
 		else
 		{
 			ast_log(LOG_ERROR,"cdr_odbc: Not logging uniqueid\n");
+			loguniqueid_alloc = 1;
 			loguniqueid = NULL;
 		}
 	}
