@@ -979,13 +979,19 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 						p->callerid[p->dtmf_caller_pos] = '\0';
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 " %s: DTMF CallerID %s\n",p->dev,p->callerid);
-						if (owner->cid.cid_num)
-							free(owner->cid.cid_num);
-						owner->cid.cid_num=NULL;
-						if (owner->cid.cid_name)
-							free(owner->cid.cid_name);
-						owner->cid.cid_name=NULL;
-						owner->cid.cid_num = strdup(p->callerid);
+						if (owner){
+							if (owner->cid.cid_num)
+								free(owner->cid.cid_num);
+							owner->cid.cid_num=NULL;
+							if (owner->cid.cid_name)
+								free(owner->cid.cid_name);
+							owner->cid.cid_name=NULL;
+							owner->cid.cid_num = strdup(p->callerid);
+						}
+						else {
+							if (option_verbose > 2)
+								ast_verbose(VERBOSE_PREFIX_3 " %s: DTMF CallerID: no owner to assign CID \n",p->dev);
+						}
 					} else if ( p->dtmf_caller_pos < AST_MAX_EXTENSION ) {
 						if ( p->dtmf_caller_pos >= 0 )
 							p->callerid[p->dtmf_caller_pos] = e->data;
