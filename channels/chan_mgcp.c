@@ -11,6 +11,10 @@
  * the GNU General Public License
  */
 
+/* FO: Changes
+ * -- add distinctive ring signalling (part of RFC 3660)
+ */
+
 /* JS: Changes
    -- add support for the wildcard endpoint
    -- seteable wildcard with wcardep on mgcp.conf
@@ -848,24 +852,41 @@ static int send_request(struct mgcp_endpoint *p, struct mgcp_subchannel *sub,
 
 static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 {
-	int res;
-	struct mgcp_endpoint *p;
+    int res;
+    struct mgcp_endpoint *p;
     struct mgcp_subchannel *sub;
-    char *tone;
+    char tone[50]="";
+    char *distinctive_ring = NULL;
+    struct varshead *headp;
+    struct ast_var_t *current;
 
     if (mgcpdebug) {
         ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_call(%s)\n", ast->name);
     }
-	sub = ast->pvt->pvt;
+    sub = ast->pvt->pvt;
     p = sub->parent;
-	ast_mutex_lock(&sub->lock);
+    headp=&ast->varshead;
+    AST_LIST_TRAVERSE(headp,current,entries) {
+        /* Check whether there is a ALERT_INFO variable */
+        if (strcasecmp(ast_var_name(current),"ALERT_INFO")==0) {
+            distinctive_ring = ast_var_value(current);
+        }
+    }
+			    +
+    ast_mutex_lock(&sub->lock);
     switch (p->hookstate) {
         case MGCP_OFFHOOK:
-            tone = "L/wt";
+		    snprintf(tone, sizeof(tone), "L/wt");
             break;
         case MGCP_ONHOOK:
         default:
-            tone = "L/rg";
+            if (distinctive_ring && !ast_strlen_zero(distinctive_ring)) {
+                snprintf(tone, sizeof(tone), "L/r%s", distinctive_ring);
+                ast_verbose(VERBOSE_PREFIX_2 "MGCP distinctive ring %s\n", tone);
+            } else {
+                snprintf(tone, sizeof(tone), "L/rg");
+                ast_verbose(VERBOSE_PREFIX_2 "MGCP default ring\n");
+            }
             break;
     }
 
