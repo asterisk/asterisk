@@ -357,7 +357,7 @@ datafiles: all
 update: 
 	@if [ -d CVS ]; then \
 		echo "Updating from CVS..." ; \
-		cvs -q update -Pd; \
+		cvs -q -z3 update -Pd; \
 		rm -f .version; \
 	else \
 		echo "Not CVS";  \
