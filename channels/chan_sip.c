@@ -653,9 +653,9 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int inc,
 static int transmit_invite(struct sip_pvt *p, int sipmethod, int sendsdp, char *auth, char *authheader, char *vxml_url, char *distinctive_ring, char *osptoken, int addsipheaders, int init);
 static int transmit_reinvite_with_sdp(struct sip_pvt *p);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
-static int transmit_message_with_text(struct sip_pvt *p, char *text);
-static int transmit_refer(struct sip_pvt *p, char *dest);
-static int sip_sipredirect(struct sip_pvt *p, char *dest);
+static int transmit_message_with_text(struct sip_pvt *p, const char *text);
+static int transmit_refer(struct sip_pvt *p, const char *dest);
+static int sip_sipredirect(struct sip_pvt *p, const char *dest);
 static struct sip_peer *temp_peer(char *name);
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, int sipmethod, int init);
 static void free_old_route(struct sip_route *route);
@@ -670,17 +670,16 @@ static int callevents = 0;
 
 static struct ast_channel *sip_request(const char *type, int format, void *data, int *cause);
 static int sip_devicestate(void *data);
-static int sip_sendtext(struct ast_channel *ast, char *text);
+static int sip_sendtext(struct ast_channel *ast, const char *text);
 static int sip_call(struct ast_channel *ast, char *dest, int timeout);
 static int sip_hangup(struct ast_channel *ast);
 static int sip_answer(struct ast_channel *ast);
 static struct ast_frame *sip_read(struct ast_channel *ast);
 static int sip_write(struct ast_channel *ast, struct ast_frame *frame);
 static int sip_indicate(struct ast_channel *ast, int condition);
-static int sip_transfer(struct ast_channel *ast, char *dest);
+static int sip_transfer(struct ast_channel *ast, const char *dest);
 static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int sip_senddigit(struct ast_channel *ast, char digit);
-static int sip_sendtext(struct ast_channel *ast, char *text);
 static int clear_realm_authentication(struct sip_auth *authlist);                            /* Clear realm authentication list (at reload) */
 static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno);   /* Add realm authentication in list */
 static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, char *realm);         /* Find authentication for a specific realm */
@@ -1178,7 +1177,7 @@ static char *ditch_braces(char *tmp)
 
 /*--- sip_sendtext: Send SIP MESSAGE text within a call ---*/
 /*      Called from PBX core text message functions */
-static int sip_sendtext(struct ast_channel *ast, char *text)
+static int sip_sendtext(struct ast_channel *ast, const char *text)
 {
 	struct sip_pvt *p = ast->tech_pvt;
 	int debug=sip_debug_test_pvt(p);
@@ -2098,7 +2097,7 @@ static int sip_senddigit(struct ast_channel *ast, char digit)
 
 
 /*--- sip_transfer: Transfer SIP call */
-static int sip_transfer(struct ast_channel *ast, char *dest)
+static int sip_transfer(struct ast_channel *ast, const char *dest)
 {
 	struct sip_pvt *p = ast->tech_pvt;
 	int res;
@@ -3122,7 +3121,7 @@ static int add_blank_header(struct sip_request *req)
 }
 
 /*--- add_line: Add content (not header) to SIP message */
-static int add_line(struct sip_request *req, char *line)
+static int add_line(struct sip_request *req, const char *line)
 {
 	if (req->len >= sizeof(req->data) - 4) {
 		ast_log(LOG_WARNING, "Out of space, can't add anymore\n");
@@ -3573,7 +3572,7 @@ static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_
 }
 
 /*--- add_text: Add text body to SIP message ---*/
-static int add_text(struct sip_request *req, char *text)
+static int add_text(struct sip_request *req, const char *text)
 {
 	/* XXX Convert \n's to \r\n's XXX */
 	int len = strlen(text);
@@ -4603,7 +4602,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 }
 
 /*--- transmit_message_with_text: Transmit text with SIP MESSAGE method ---*/
-static int transmit_message_with_text(struct sip_pvt *p, char *text)
+static int transmit_message_with_text(struct sip_pvt *p, const char *text)
 {
 	struct sip_request req;
 	reqprep(&req, p, SIP_MESSAGE, 0, 1);
@@ -4612,7 +4611,7 @@ static int transmit_message_with_text(struct sip_pvt *p, char *text)
 }
 
 /*--- transmit_refer: Transmit SIP REFER message ---*/
-static int transmit_refer(struct sip_pvt *p, char *dest)
+static int transmit_refer(struct sip_pvt *p, const char *dest)
 {
 	struct sip_request req;
 	char from[256];
@@ -10633,7 +10632,7 @@ static int sip_getheader(struct ast_channel *chan, void *data)
 /* Called by the transfer() dialplan application through the sip_transfer() */
 /* pbx interface function if the call is in ringing state */
 /* coded by Martin Pycko (m78pl@yahoo.com) */
-static int sip_sipredirect(struct sip_pvt *p, char *dest)
+static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 {
 	char *cdest;
 	char *extension, *host, *port;

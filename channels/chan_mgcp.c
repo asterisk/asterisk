@@ -120,6 +120,7 @@ static const char config[] = "mgcp.conf";
 
 #define MGCP_DTMF_RFC2833	(1 << 0)
 #define MGCP_DTMF_INBAND	(1 << 1)
+#define MGCP_DTMF_HYBRID	(1 << 2)
 
 #define DEFAULT_MGCP_GW_PORT	2427 /* From RFC 2705 */
 #define DEFAULT_MGCP_CA_PORT	2727 /* From RFC 2705 */
@@ -988,6 +989,8 @@ static int mgcp_hangup(struct ast_channel *ast)
 	if ((p->dtmfmode & MGCP_DTMF_INBAND) && p->dsp) {
 		/* SC: check whether other channel is active. */
 		if (!sub->next->owner) {
+			if (p->dtmfmode & MGCP_DTMF_HYBRID)
+				p->dtmfmode &= ~MGCP_DTMF_INBAND;
 			if (mgcpdebug) {
 				ast_verbose(VERBOSE_PREFIX_2 "MGCP free dsp on %s@%s\n", p->name, p->parent->name);
 			}
@@ -1377,7 +1380,7 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		if (sub->rtp)
 			tmp->fds[0] = ast_rtp_fd(sub->rtp);
 		tmp->type = type;
-		if (i->dtmfmode & MGCP_DTMF_INBAND) {
+		if (i->dtmfmode & (MGCP_DTMF_INBAND | MGCP_DTMF_HYBRID)) {
 			i->dsp = ast_dsp_new();
 			ast_dsp_set_features(i->dsp,DSP_FEATURE_DTMF_DETECT);
 			/* SC: this is to prevent clipping of dtmf tones during dsp processing */
@@ -2617,6 +2620,10 @@ static void *mgcp_ss(void *data)
 					}
 					ast_setstate(chan, AST_STATE_RING);
 					/*zt_enable_ec(p);*/
+					if (p->dtmfmode & MGCP_DTMF_HYBRID) {
+						p->dtmfmode |= MGCP_DTMF_INBAND;
+						ast_indicate(chan, -1);
+					}
 					res = ast_pbx_run(chan);
 					if (res) {
 						ast_log(LOG_WARNING, "PBX exited non-zero\n");
@@ -3608,6 +3615,8 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					dtmfmode = MGCP_DTMF_INBAND;
 				else if (!strcasecmp(v->value, "rfc2833")) 
 					dtmfmode = MGCP_DTMF_RFC2833;
+				else if (!strcasecmp(v->value, "hybrid"))
+					dtmfmode = MGCP_DTMF_HYBRID;
 				else if (!strcasecmp(v->value, "none")) 
 					dtmfmode = 0;
 				else
@@ -3702,6 +3711,8 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					e->capability = capability;
 					e->parent = gw;
 					e->dtmfmode = dtmfmode;
+					if (!ep_reload && e->sub->rtp)
+						e->dtmfmode |= MGCP_DTMF_INBAND;
 					e->adsi = adsi;
 					e->type = TYPE_LINE;
 					e->immediate = immediate;

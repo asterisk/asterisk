@@ -26,3 +26,10 @@ Applications:
 
 * The CallerPres application has been removed.  Use SetCallerPres 
   instead.  It accepts both numeric and symbolic names.
+
+Queues:
+
+* A queue is now considered empty not only if there are no members but if
+  none of the members are available (e.g. agents not logged on).  To
+  restore the original behavior, use "leavewhenempty=strict" or 
+  "joinwhenempty=strict" instead of "=yes" for those options.

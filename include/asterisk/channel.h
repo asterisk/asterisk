@@ -115,13 +115,13 @@ struct ast_channel_tech {
 	int (* const write)(struct ast_channel *chan, struct ast_frame *frame);
 
 	/*! Display or transmit text */
-	int (* const send_text)(struct ast_channel *chan, char *text);
+	int (* const send_text)(struct ast_channel *chan, const char *text);
 
 	/*! Display or send an image */
 	int (* const send_image)(struct ast_channel *chan, struct ast_frame *frame);
 
 	/*! Send HTML data */
-	int (* const send_html)(struct ast_channel *chan, int subclass, char *data, int len);
+	int (* const send_html)(struct ast_channel *chan, int subclass, const char *data, int len);
 
 	/*! Handle an exception, reading a frame */
 	struct ast_frame * (* const exception)(struct ast_channel *chan);
@@ -143,7 +143,7 @@ struct ast_channel_tech {
 	int (* const queryoption)(struct ast_channel *chan, int option, void *data, int *datalen);
 
 	/*! Blind transfer other side */
-	int (* const transfer)(struct ast_channel *chan, char *newdest);
+	int (* const transfer)(struct ast_channel *chan, const char *newdest);
 
 	/*! Write a frame, in standard format */
 	int (* const write_video)(struct ast_channel *chan, struct ast_frame *frame);
@@ -841,11 +841,11 @@ int ast_channel_supports_html(struct ast_channel *channel);
 
 /*! Sends HTML on given channel */
 /*! Send HTML or URL on link.  Returns 0 on success or -1 on failure */
-int ast_channel_sendhtml(struct ast_channel *channel, int subclass, char *data, int datalen);
+int ast_channel_sendhtml(struct ast_channel *channel, int subclass, const char *data, int datalen);
 
 /*! Sends a URL on a given link */
 /*! Send URL on link.  Returns 0 on success or -1 on failure */
-int ast_channel_sendurl(struct ast_channel *channel, char *url);
+int ast_channel_sendurl(struct ast_channel *channel, const char *url);
 
 /*! Defers DTMF */
 /*! Defer DTMF so that you only read things like hangups and audio.  Returns

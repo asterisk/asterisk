@@ -476,6 +476,7 @@ bininstall: all
 	rm -f $(DESTDIR)$(ASTVARLIBDIR)/sounds/voicemail
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-csv
+	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-custom
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/keys
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/firmware
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/firmware/iax

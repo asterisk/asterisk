@@ -35,7 +35,7 @@ extern void tdd_init(void);
  * This function creates a stream of TDD data in ulaw format. It returns the size
  * (in bytes) of the data (if it returns a size of 0, there is probably an error)
 */
-extern int tdd_generate(struct tdd_state *tdd, unsigned char *buf, char *string);
+extern int tdd_generate(struct tdd_state *tdd, unsigned char *buf, const char *string);
 
 /*! Create a TDD state machine */
 /*!

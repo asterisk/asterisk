@@ -299,7 +299,7 @@ static int restart_monitor(void);
 
 static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
 
-static int zt_sendtext(struct ast_channel *c, char *text);
+static int zt_sendtext(struct ast_channel *c, const char *text);
 
 static inline int zt_get_event(int fd)
 {
@@ -615,7 +615,7 @@ static struct zt_pvt {
 
 static struct ast_channel *zt_request(const char *type, int format, void *data, int *cause);
 static int zt_digit(struct ast_channel *ast, char digit);
-static int zt_sendtext(struct ast_channel *c, char *text);
+static int zt_sendtext(struct ast_channel *c, const char *text);
 static int zt_call(struct ast_channel *ast, char *rdest, int timeout);
 static int zt_hangup(struct ast_channel *ast);
 static int zt_answer(struct ast_channel *ast);
@@ -10189,7 +10189,7 @@ int load_module(void)
 	return res;
 }
 
-static int zt_sendtext(struct ast_channel *c, char *text)
+static int zt_sendtext(struct ast_channel *c, const char *text)
 {
 #define	END_SILENCE_LEN 400
 #define	HEADER_MS 50

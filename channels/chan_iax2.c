@@ -653,11 +653,11 @@ static ast_mutex_t iaxsl[IAX_MAX_CALLS];
 static struct timeval lastused[IAX_MAX_CALLS];
 
 
-static int send_command(struct chan_iax2_pvt *, char, int, unsigned int, char *, int, int);
-static int send_command_locked(unsigned short callno, char, int, unsigned int, char *, int, int);
-static int send_command_immediate(struct chan_iax2_pvt *, char, int, unsigned int, char *, int, int);
-static int send_command_final(struct chan_iax2_pvt *, char, int, unsigned int, char *, int, int);
-static int send_command_transfer(struct chan_iax2_pvt *, char, int, unsigned int, char *, int);
+static int send_command(struct chan_iax2_pvt *, char, int, unsigned int, const char *, int, int);
+static int send_command_locked(unsigned short callno, char, int, unsigned int, const char *, int, int);
+static int send_command_immediate(struct chan_iax2_pvt *, char, int, unsigned int, const char *, int, int);
+static int send_command_final(struct chan_iax2_pvt *, char, int, unsigned int, const char *, int, int);
+static int send_command_transfer(struct chan_iax2_pvt *, char, int, unsigned int, const char *, int);
 static struct iax2_user *build_user(const char *name, struct ast_variable *v, int temponly);
 static void destroy_user(struct iax2_user *user);
 static int expire_registry(void *data);
@@ -670,9 +670,9 @@ static int iax2_provision(struct sockaddr_in *end, char *dest, const char *templ
 static struct ast_channel *iax2_request(const char *type, int format, void *data, int *cause);
 static int iax2_devicestate(void *data);
 static int iax2_digit(struct ast_channel *c, char digit);
-static int iax2_sendtext(struct ast_channel *c, char *text);
+static int iax2_sendtext(struct ast_channel *c, const char *text);
 static int iax2_sendimage(struct ast_channel *c, struct ast_frame *img);
-static int iax2_sendhtml(struct ast_channel *c, int subclass, char *data, int datalen);
+static int iax2_sendhtml(struct ast_channel *c, int subclass, const char *data, int datalen);
 static int iax2_call(struct ast_channel *c, char *dest, int timeout);
 static int iax2_hangup(struct ast_channel *c);
 static int iax2_answer(struct ast_channel *c);
@@ -681,7 +681,7 @@ static int iax2_write(struct ast_channel *c, struct ast_frame *f);
 static int iax2_indicate(struct ast_channel *c, int condition);
 static int iax2_setoption(struct ast_channel *c, int option, void *data, int datalen);
 static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
-static int iax2_transfer(struct ast_channel *c, char *dest);
+static int iax2_transfer(struct ast_channel *c, const char *dest);
 static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan);
 
 static const struct ast_channel_tech iax2_tech = {
@@ -2487,7 +2487,7 @@ static int iax2_digit(struct ast_channel *c, char digit)
 	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_DTMF, digit, 0, NULL, 0, -1);
 }
 
-static int iax2_sendtext(struct ast_channel *c, char *text)
+static int iax2_sendtext(struct ast_channel *c, const char *text)
 {
 	
 	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_TEXT,
@@ -2499,7 +2499,7 @@ static int iax2_sendimage(struct ast_channel *c, struct ast_frame *img)
 	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_IMAGE, img->subclass, 0, img->data, img->datalen, -1);
 }
 
-static int iax2_sendhtml(struct ast_channel *c, int subclass, char *data, int datalen)
+static int iax2_sendhtml(struct ast_channel *c, int subclass, const char *data, int datalen)
 {
 	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_HTML, subclass, 0, data, datalen, -1);
 }
@@ -3214,7 +3214,7 @@ static int iax2_indicate(struct ast_channel *c, int condition)
 	return send_command_locked(callno, AST_FRAME_CONTROL, condition, 0, NULL, 0, -1);
 }
 	
-static int iax2_transfer(struct ast_channel *c, char *dest)
+static int iax2_transfer(struct ast_channel *c, const char *dest)
 {
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
 	struct iax_ie_data ied;
@@ -4484,7 +4484,7 @@ static int iax2_write(struct ast_channel *c, struct ast_frame *f)
 	return res;
 }
 
-static int __send_command(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, char *data, int datalen, int seqno, 
+static int __send_command(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const char *data, int datalen, int seqno, 
 		int now, int transfer, int final)
 {
 	struct ast_frame f;
@@ -4495,16 +4495,16 @@ static int __send_command(struct chan_iax2_pvt *i, char type, int command, unsig
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = (char *)__FUNCTION__;
-	f.data = data;
+	f.data = (char *)data;
 	return iax2_send(i, &f, ts, seqno, now, transfer, final);
 }
 
-static int send_command(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, char *data, int datalen, int seqno)
+static int send_command(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const char *data, int datalen, int seqno)
 {
 	return __send_command(i, type, command, ts, data, datalen, seqno, 0, 0, 0);
 }
 
-static int send_command_locked(unsigned short callno, char type, int command, unsigned int ts, char *data, int datalen, int seqno)
+static int send_command_locked(unsigned short callno, char type, int command, unsigned int ts, const char *data, int datalen, int seqno)
 {
 	int res;
 	ast_mutex_lock(&iaxsl[callno]);
@@ -4514,25 +4514,25 @@ static int send_command_locked(unsigned short callno, char type, int command, un
 }
 
 #ifdef BRIDGE_OPTIMIZATION
-static int forward_command(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, char *data, int datalen, int seqno)
+static int forward_command(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const char *data, int datalen, int seqno)
 {
 	return __send_command(iaxs[i->bridgecallno], type, command, ts, data, datalen, seqno, 0, 0, 0);
 }
 #endif
 
-static int send_command_final(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, char *data, int datalen, int seqno)
+static int send_command_final(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const char *data, int datalen, int seqno)
 {
 	/* It is assumed that the callno has already been locked */
 	iax2_predestroy_nolock(i->callno);
 	return __send_command(i, type, command, ts, data, datalen, seqno, 0, 0, 1);
 }
 
-static int send_command_immediate(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, char *data, int datalen, int seqno)
+static int send_command_immediate(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const char *data, int datalen, int seqno)
 {
 	return __send_command(i, type, command, ts, data, datalen, seqno, 1, 0, 0);
 }
 
-static int send_command_transfer(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, char *data, int datalen)
+static int send_command_transfer(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const char *data, int datalen)
 {
 	return __send_command(i, type, command, ts, data, datalen, 0, 0, 1, 0);
 }

@@ -2219,14 +2219,14 @@ int ast_channel_supports_html(struct ast_channel *chan)
 	return 0;
 }
 
-int ast_channel_sendhtml(struct ast_channel *chan, int subclass, char *data, int datalen)
+int ast_channel_sendhtml(struct ast_channel *chan, int subclass, const char *data, int datalen)
 {
 	if (chan->tech->send_html)
 		return chan->tech->send_html(chan, subclass, data, datalen);
 	return -1;
 }
 
-int ast_channel_sendurl(struct ast_channel *chan, char *url)
+int ast_channel_sendurl(struct ast_channel *chan, const char *url)
 {
 	if (chan->tech->send_html)
 		return chan->tech->send_html(chan, AST_HTML_URL, url, strlen(url) + 1);

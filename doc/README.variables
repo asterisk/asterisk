@@ -340,6 +340,8 @@ ${MONITOR_EXEC}		Application to execute after monitoring a call
 ${MONITOR_EXEC_ARGS}	Arguments to application
 ${MONITOR_FILENAME} 	File for monitoring (recording) calls in queue
 ${QUEUE_PRIO}		Queue priority
+${QUEUESTATUS} 		Status of the call, one of:
+			(TIMEOUT | FULL | JOINEMPTY | LEAVEEMPTY | JOINUNAVAIL | LEAVEUNAVAIL)
 ${RECORDED_FILE} 	* Recorded file in record()
 ${TALK_DETECED} 	* Result from talkdetect()
 ${TOUCH_MONITOR} 	The filename base to use with Touch Monitor (auto record)

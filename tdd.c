@@ -233,7 +233,7 @@ static inline float tdd_getcarrier(float *cr, float *ci, int bit)
 	PUT_TDD_STOP;	/* Stop bit */ \
 } while(0);	
 
-int tdd_generate(struct tdd_state *tdd, unsigned char *buf, char *str)
+int tdd_generate(struct tdd_state *tdd, unsigned char *buf, const char *str)
 {
 	int bytes=0;
 	int i,x;

@@ -139,7 +139,7 @@ static int phone_answer(struct ast_channel *ast);
 static struct ast_frame *phone_read(struct ast_channel *ast);
 static int phone_write(struct ast_channel *ast, struct ast_frame *frame);
 static struct ast_frame *phone_exception(struct ast_channel *ast);
-static int phone_send_text(struct ast_channel *ast, char *text);
+static int phone_send_text(struct ast_channel *ast, const char *text);
 
 static const struct ast_channel_tech phone_tech = {
 	.type = type,
@@ -536,7 +536,7 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 	return &p->fr;
 }
 
-static int phone_write_buf(struct phone_pvt *p, char *buf, int len, int frlen)
+static int phone_write_buf(struct phone_pvt *p, const char *buf, int len, int frlen)
 {
 	int res;
 	/* Store as much of the buffer as we can, then write fixed frames */
@@ -567,7 +567,7 @@ static int phone_write_buf(struct phone_pvt *p, char *buf, int len, int frlen)
 	return len;
 }
 
-static int phone_send_text(struct ast_channel *ast, char *text)
+static int phone_send_text(struct ast_channel *ast, const char *text)
 {
     int length = strlen(text);
     return phone_write_buf(ast->tech_pvt, text, length, length) == 
