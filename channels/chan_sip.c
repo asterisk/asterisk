@@ -1128,11 +1128,11 @@ static int sip_answer(struct ast_channel *ast)
 	
 		codec=pbx_builtin_getvar_helper(p->owner,"SIP_CODEC");
 		if (codec) {
-			ast_log(LOG_NOTICE, "Changing codec to '%s' for this call because of ${SIP_CODEC) variable\n",codec);
 			fmt=ast_getformatbyname(codec);
 			if (fmt) {
+				ast_log(LOG_NOTICE, "Changing codec to '%s' for this call because of ${SIP_CODEC) variable\n",codec);
 				p->capability=fmt;
-			} else ast_log(LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because of unrecognized codec: %s\n",codec);
+			} else ast_log(LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because of unrecognized/not configured codec (check allow/disallow in sip.conf): %s\n",codec);
 		}
 
 		ast_setstate(ast, AST_STATE_UP);
