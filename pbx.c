@@ -2336,8 +2336,8 @@ static char *complete_show_application(char *line, char *word,
 static int handle_show_application(int fd, int argc, char *argv[])
 {
 	struct ast_app *a;
-	char buf[2048];
-	int app, no_registered_app = 1;
+	int n, app, no_registered_app = 1;
+	char *buf;
 
 	if (argc < 3) return RESULT_SHOWUSAGE;
 
@@ -2357,14 +2357,17 @@ static int handle_show_application(int fd, int argc, char *argv[])
 				no_registered_app = 0;
 
 				/* ... one of our applications, show info ...*/
-				snprintf(buf, sizeof(buf),
+				n = asprintf(&buf,
 					"\n  -= Info about application '%s' =- \n\n"
 					"[Synopsis]:\n  %s\n\n"
 					"[Description]:\n%s\n",
 					a->name,
 					a->synopsis ? a->synopsis : "Not available",
 					a->description ? a-> description : "Not available");
-				ast_cli(fd, buf);
+				if (n >= 0) {
+					ast_cli(fd, buf);
+					free(buf);
+				}
 			}
 		}
 		a = a->next; 
