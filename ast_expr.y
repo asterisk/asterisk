@@ -215,6 +215,8 @@ struct val *vp;
 	}
 	if (vp->type == string || vp->type == numeric_string)
 		free (vp->u.s);	
+	if (vp)
+		free (vp);
 }
 
 
