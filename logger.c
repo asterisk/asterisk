@@ -371,7 +371,7 @@ static char logger_reload_help[] =
 "       Reloads the logger subsystem state.  Use after restarting syslogd(8)\n";
 
 static char logger_rotate_help[] =
-"Usage: logger reload\n"
+"Usage: logger rotate\n"
 "       Rotates and Reopens the log files.\n";
 
 static struct ast_cli_entry reload_logger_cli = 
