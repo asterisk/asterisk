@@ -387,6 +387,16 @@ datafiles: all
 
 update: 
 	@if [ -d CVS ]; then \
+		if [ -f patches/.applied ]; then \
+			patches=`cat patches/.applied`; \
+		fi; \
+		if ! [ -z "$$patches" ]; then \
+			for x in $$patches; do \
+				echo "Unapplying $$x..."; \
+				patch -R -p0 < patches/$$x; \
+			done; \
+			rm -f patches/.applied; \
+		fi ; \
 		echo "Updating from CVS..." ; \
 		cvs -q -z3 update -Pd | tee update.out; \
 		rm -f .version; \
@@ -395,6 +405,17 @@ update:
 			grep ^C update.out | cut -d' ' -f2- ; \
 		fi ; \
 		rm -f update.out; \
+		if ! [ -z "$$patches" ]; then \
+			for x in $$patches; do \
+				if [ -f patches/$$x ]; then \
+					echo "Applying patch $$x..."; \
+					patch -p0 < patches/$$x; \
+					echo $$x >> patches/.applied; \
+				else \
+					echo "Patch $$x no longer relevant"; \
+				fi; \
+			done; \
+		fi; \
 	else \
 		echo "Not CVS";  \
 	fi
@@ -607,3 +628,49 @@ cleantest:
 	if ! cmp -s .cleancount .lastclean ; then \
 		$(MAKE) clean; cp -f .cleancount .lastclean;\
 	fi
+
+patchlist:
+	@echo "Experimental Patches:"
+	@for x in patches/*; do \
+		patch=`basename $$x`; \
+		if [ "$$patch" = "CVS" ]; then \
+			continue; \
+		fi; \
+		if grep -q ^$$patch$$ patches/.applied; then \
+			echo "$$patch (applied)"; \
+		else \
+			echo "$$patch (available)"; \
+		fi; \
+	done
+		
+	
+apply: 
+	@if [ -z "$(PATCH)" ]; then \
+		echo "Usage: make PATCH=<patchname> applypatch"; \
+	elif grep -q ^$(PATCH)$$ patches/.applied 2>/dev/null; then \
+		echo "Patch $(PATCH) is already applied"; \
+	elif [ -f "patches/$(PATCH)" ]; then \
+		echo "Applying patch $(PATCH)"; \
+		patch -p0 < patches/$(PATCH); \
+		echo "$(PATCH)" >> patches/.applied; \
+	else \
+		echo "No such patch $(PATCH) in patches directory"; \
+	fi
+	
+unapply: 
+	@if [ -z "$(PATCH)" ]; then \
+		echo "Usage: make PATCH=<patchname> unapplypatch"; \
+	elif !grep -q ^$(PATCH)$$ patches/.applied 2>/dev/null; then \
+		echo "Patch $(PATCH) is not applied"; \
+	elif [ -f "patches/$(PATCH)" ]; then \
+		echo "Un-applying patch $(PATCH)"; \
+		patch -p0 -R < patches/$(PATCH); \
+		rm -f patches/.tmpapplied || :; \
+		mv patches/.applied patches/.tmpapplied; \
+		cat patches/.tmpapplied | grep -v ^$(PATCH)$$ > patches/.applied; \
+		rm -f patches/.tmpapplied; \
+	else \
+		echo "No such patch $(PATCH) in patches directory"; \
+	fi
+
+		
