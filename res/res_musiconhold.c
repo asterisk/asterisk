@@ -525,7 +525,7 @@ static int moh1_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	if (ast_moh_start(chan, NULL)) {
-		ast_log(LOG_WARNING, "Unable to start music on hold (class '%s') on channel %s\n", (char *)data, chan->name);
+		ast_log(LOG_WARNING, "Unable to start music on hold for %d seconds on channel %s\n", atoi((char *)data), chan->name);
 		return -1;
 	}
 	res = ast_safe_sleep(chan, atoi(data) * 1000);
