@@ -689,12 +689,12 @@ static char *complete_context_remove_extension(char *line, char *word, int pos,
  */
 static int handle_context_add_include(int fd, int argc, char *argv[])
 {
-	if (argc != 4) return RESULT_SHOWUSAGE;
+	if (argc != 5) return RESULT_SHOWUSAGE;
 
 	/* third arg must be 'in' ... */
-	if (strcmp(argv[2], "in")) return RESULT_SHOWUSAGE;
+	if (strcmp(argv[3], "in")) return RESULT_SHOWUSAGE;
 
-	if (ast_context_add_include(argv[3], argv[1], registrar)) {
+	if (ast_context_add_include(argv[4], argv[2], registrar)) {
 		switch (errno) {
 			case ENOMEM:
 				ast_cli(fd, "Out of memory for context addition\n"); break;
@@ -709,7 +709,7 @@ static int handle_context_add_include(int fd, int argc, char *argv[])
 			case ENOENT:
 			case EINVAL:
 				ast_cli(fd, "There is no existence of context '%s'\n",
-					errno == ENOENT ? argv[3] : argv[1]); break;
+					errno == ENOENT ? argv[4] : argv[2]); break;
 
 			default:
 				ast_cli(fd, "Failed to include '%s' in '%s' context\n",
@@ -720,7 +720,7 @@ static int handle_context_add_include(int fd, int argc, char *argv[])
 
 	/* show some info ... */
 	ast_cli(fd, "Context '%s' included in '%s' context\n",
-		argv[1], argv[3]);
+		argv[2], argv[3]);
 
 	return RESULT_SUCCESS;
 }
