@@ -44,20 +44,21 @@ static char *synopsis2 = "MeetMe participant count";
 static char *descrip =
 "  MeetMe(confno[|options]): Enters the user into a specified MeetMe conference.\n"
 "If the conference number is omitted, the user will be prompted to enter\n"
-"one.  This application always returns -1. A ZAPTEL INTERFACE MUST BE\n"
-"INSTALLED FOR CONFERENCING FUNCTIONALITY.\n"
+"one.  This application always returns -1.\n"
+
 "The option string may contain zero or more of the following characters:\n"
 "      'a' -- set admin mode\n"
-"      'm' -- set monitor only mode\n"
+"      'm' -- set monitor only mode (Listen only, no talking\n"
+"      't' -- set talk only mode. (Talk only, no listening)\n"
 "      'p' -- allow user to exit the conference by pressing '#'\n"
 "      's' -- send user to admin/user menu if '*' is received\n"
-"      't' -- set talk only mode\n"
 "      'd' -- dynamically add conference\n"
 "      'v' -- video mode\n"
 "      'q' -- quiet mode (don't play enter/leave sounds)\n"
 "      'M' -- enable music on hold when the conference has a single caller\n"
-"      'b' -- run AGI script specified in ${MEETME_AGI_BACKGROUND} (Zap channels only)\n"
-"             (does not work with non-Zap channels in the same conference)\n";
+"      'b' -- run AGI script specified in ${MEETME_AGI_BACKGROUND}\n"
+"	      Default: conf-background.agi\n"
+"             (Note: This does not work with non-Zap channels in the same conference)\n";
 
 static char *descrip2 =
 "  MeetMeCount(confno[|var]): Plays back the number of users in the specifiedi\n"
@@ -69,13 +70,15 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static struct conf {
-	char confno[80];		/* Conference */
+static struct ast_conference {
+	char confno[AST_MAX_EXTENSION];		/* Conference */
 	int fd;				/* Announcements fd */
 	int zapconf;			/* Zaptel Conf # */
 	int users;			/* Number of active users */
 	time_t start;			/* Start time (s) */
-	struct conf *next;
+	int isdynamic;			/* Created on the fly? */
+	char pin[AST_MAX_EXTENSION];			/* If protected by a PIN */
+	struct ast_conference *next;
 } *confs;
 
 static ast_mutex_t conflock = AST_MUTEX_INITIALIZER;
@@ -117,7 +120,7 @@ static int careful_write(int fd, unsigned char *data, int len)
 	return 0;
 }
 
-static void conf_play(struct conf *conf, int sound)
+static void conf_play(struct ast_conference *conf, int sound)
 {
 	unsigned char *data;
 	int len;
@@ -140,9 +143,9 @@ static void conf_play(struct conf *conf, int sound)
 	ast_mutex_unlock(&conflock);
 }
 
-static struct conf *build_conf(char *confno, int make)
+static struct ast_conference *build_conf(char *confno, char *pin, int make, int dynamic)
 {
-	struct conf *cnf;
+	struct ast_conference *cnf;
 	struct zt_confinfo ztc;
 	ast_mutex_lock(&conflock);
 	cnf = confs;
@@ -151,12 +154,13 @@ static struct conf *build_conf(char *confno, int make)
 			break;
 		cnf = cnf->next;
 	}
-	if (!cnf && make) {
-		cnf = malloc(sizeof(struct conf));
+	if (!cnf && (make || dynamic)) {
+		cnf = malloc(sizeof(struct ast_conference));
 		if (cnf) {
 			/* Make a new one */
-			memset(cnf, 0, sizeof(struct conf));
+			memset(cnf, 0, sizeof(struct ast_conference));
 			strncpy(cnf->confno, confno, sizeof(cnf->confno) - 1);
+			strncpy(cnf->pin, pin, sizeof(cnf->pin) - 1);
 			cnf->fd = open("/dev/zap/pseudo", O_RDWR);
 			if (cnf->fd < 0) {
 				ast_log(LOG_WARNING, "Unable to open pseudo channel\n");
@@ -166,7 +170,7 @@ static struct conf *build_conf(char *confno, int make)
 			}
 			memset(&ztc, 0, sizeof(ztc));
 			/* Setup a new zap conference */
-			ztc.chan = 0;	
+			ztc.chan = 0;
 			ztc.confno = -1;
 			ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
 			if (ioctl(cnf->fd, ZT_SETCONF, &ztc)) {
@@ -178,6 +182,7 @@ static struct conf *build_conf(char *confno, int make)
 			}
 			cnf->start = time(NULL);
 			cnf->zapconf = ztc.confno;
+			cnf->isdynamic = dynamic;
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Created ZapTel conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
 			cnf->next = confs;
@@ -194,26 +199,31 @@ cnfout:
 
 static int confs_show(int fd, int argc, char **argv)
 {
-	struct conf *conf;
+	struct ast_conference *conf;
 	int hr, min, sec;
 	time_t now;
+	char *header_format = "%14s %-14s %-8s  %-8s\n";
+	char *data_format = "%-12.12s   %4.4d          %02d:%02d:%02d  %-8s\n";
 
 	now = time(NULL);
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	conf = confs;
-	if (!conf) {	
+	if (!conf) {
 		ast_cli(fd, "No active conferences.\n");
 		return RESULT_SUCCESS;
 	}
-	ast_cli(fd, "Conf Num    Parties          Activity\n");
+	ast_cli(fd, header_format, "Conf Num", "Parties", "Activity", "Creation");
 	while(conf) {
 		hr = (now - conf->start) / 3600;
 		min = ((now - conf->start) % 3600) / 60;
 		sec = (now - conf->start) % 60;
 
-		ast_cli(fd, "%-12.12s   %4.4d          %02d:%02d:%02d\n", 
-			conf->confno, conf->users, hr, min, sec);
+		if (conf->isdynamic)
+			ast_cli(fd, data_format, conf->confno, conf->users, hr, min, sec, "Dynamic");
+		else
+			ast_cli(fd, data_format, conf->confno, conf->users, hr, min, sec, "Static");
+
 		conf = conf->next;
 	}
 	return RESULT_SUCCESS;
@@ -228,9 +238,9 @@ static struct ast_cli_entry cli_show_confs = {
 	{ "show", "conferences", NULL }, confs_show, 
 	"Show status of conferences", show_confs_usage, NULL };
 
-static int conf_run(struct ast_channel *chan, struct conf *conf, int confflags)
+static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags)
 {
-	struct conf *prev=NULL, *cur;
+	struct ast_conference *prev=NULL, *cur;
 	int fd;
 	struct zt_confinfo ztc;
 	struct ast_frame *f;
@@ -515,34 +525,59 @@ outrun:
 	return ret;
 }
 
-static struct conf *find_conf(char *confno, int make, int dynamic)
+static struct ast_conference *find_conf(char *confno, int make, int dynamic)
 {
 	struct ast_config *cfg;
 	struct ast_variable *var;
-	struct conf *cnf = NULL;
-	cfg = ast_load("meetme.conf");
-	if (!cfg) {
-		ast_log(LOG_WARNING, "No meetme.conf file :(\n");
-		return NULL;
-	}
-	var = ast_variable_browse(cfg, "rooms");
-	while(var) {
-		if (!strcasecmp(var->name, "conf") &&
-		    !strcasecmp(var->value, confno)) {
-			/* Bingo it's a valid conference */
-			cnf = build_conf(confno, make);
+	struct ast_conference *cnf = confs;
+
+	/* Check first in the conference list */
+	ast_mutex_lock(&conflock);
+	while (cnf) {
+		if (!strcmp(confno, cnf->confno)) 
 			break;
-		}
-		var = var->next;
+		cnf = cnf->next;
 	}
-	if (!var) {
+	ast_mutex_unlock(&conflock);
+
+	if (!cnf) {
 		if (dynamic) {
+			/* No need to parse meetme.conf */
 			ast_log(LOG_DEBUG, "Using dynamic conference '%s'\n", confno);
-			cnf = build_conf(confno, make);
-		} else
-			ast_log(LOG_DEBUG, "%s isn't a valid conference\n", confno);
+			cnf = build_conf(confno, "", make, dynamic);
+		} else {
+			/* Check the config */
+			cfg = ast_load("meetme.conf");
+			if (!cfg) {
+				ast_log(LOG_WARNING, "No meetme.conf file :(\n");
+				return NULL;
+			}
+			var = ast_variable_browse(cfg, "rooms");
+			while(var) {
+				if (!strcasecmp(var->name, "conf")) {
+					/* Separate the PIN */
+					char *pin, *conf;
+
+					if ((pin = ast_strdupa(var->value))) {
+						conf = strsep(&pin, "|,");
+						if (!strcasecmp(conf, confno)) {
+							/* Bingo it's a valid conference */
+							if (pin)
+								cnf = build_conf(confno, pin, make, dynamic);
+							else
+								cnf = build_conf(confno, "", make, dynamic);
+							break;
+						}
+					}
+				}
+				var = var->next;
+			}
+			if (!var) {
+				ast_log(LOG_DEBUG, "%s isn't a valid conference\n", confno);
+			}
+			ast_destroy(cfg);
+		}
 	}
-	ast_destroy(cfg);
 	return cnf;
 }
 
@@ -550,34 +585,32 @@ static int count_exec(struct ast_channel *chan, void *data)
 {
 	struct localuser *u;
 	int res = 0;
-	struct conf *conf;
-	int cnt;
-	char *confnum,*localdata,*mhandle;
+	struct ast_conference *conf;
+	int count;
+	char *confnum, *localdata;
 	char val[80] = "0"; 
-       
+
 	if (!data || !strlen(data)) {
 		ast_log(LOG_WARNING, "MeetMeCount requires an argument (conference number)\n");
 		return -1;
 	}
-	mhandle = alloca(strlen(data) + 1); 
-	localdata = mhandle; /* this is to make sure I have the original pointer for the free below */
+	localdata = ast_strdupa(data);
 	LOCAL_USER_ADD(u);
-	strcpy(localdata,data);
 	confnum = strsep(&localdata,"|");       
-	conf = find_conf(confnum, 0, 1);
+	conf = find_conf(confnum, 0, 0);
 	if (conf)
-		cnt = conf->users;
+		count = conf->users;
 	else
-		cnt = 0;
+		count = 0;
 
-	if(localdata && strlen(localdata)){
-	        /* have var so load it and exit */
-	        snprintf(val,sizeof(val), "%i",cnt);
-	        pbx_builtin_setvar_helper(chan, localdata,val);
-	}else{
-	        if (chan->_state != AST_STATE_UP)
-	                ast_answer(chan);
-	        res = ast_say_number(chan, cnt, "", chan->language);
+	if (localdata && strlen(localdata)){
+		/* have var so load it and exit */
+		snprintf(val,sizeof(val), "%i",count);
+		pbx_builtin_setvar_helper(chan, localdata,val);
+	} else {
+		if (chan->_state != AST_STATE_UP)
+			ast_answer(chan);
+		res = ast_say_number(chan, count, "", chan->language);
 	}
 	LOCAL_USER_REMOVE(u);
 	return res;
@@ -587,14 +620,13 @@ static int conf_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
 	struct localuser *u;
-	char confno[80] = "";
+	char confno[AST_MAX_EXTENSION] = "";
 	int allowretry = 0;
 	int retrycnt = 0;
-	struct conf *cnf;
+	struct ast_conference *cnf;
 	int confflags = 0;
 	int dynamic = 0;
-	char info[256], *ptr, *inflags, *inpin;
-
+	char *info, *inflags = NULL, *inpin = NULL;
 
 	if (!data || !strlen(data)) {
 		allowretry = 1;
@@ -604,73 +636,73 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
 
-	strncpy(info, (char *)data, sizeof(info) - 1);
-	ptr = info;
+	info = ast_strdupa((char *)data);
 
 	if (info) {
-		inflags = strchr(info, '|');
-		if (inflags) {
-			*inflags = '\0';
-			inflags++;
-			if (strchr(inflags, 'a'))
-				confflags |= CONFFLAG_ADMIN;
-			if (strchr(inflags, 'm'))
-				confflags |= CONFFLAG_MONITOR;
-			if (strchr(inflags, 'p'))
-				confflags |= CONFFLAG_POUNDEXIT;
-			if (strchr(inflags, 's'))
-				confflags |= CONFFLAG_STARMENU;
-			if (strchr(inflags, 't'))
-				confflags |= CONFFLAG_TALKER;
-			if (strchr(inflags, 'q'))
-				confflags |= CONFFLAG_QUIET;
-			if (strchr(inflags, 'M'))
-				confflags |= CONFFLAG_MOH;
-			if (strchr(inflags, 'b'))
-				confflags |= CONFFLAG_AGI;
-			if (strchr(inflags, 'd'))
-				dynamic = 1;
+		char *tmp = strsep(&info, "|");
+		strncpy(confno, tmp, sizeof(confno));
+	}
+	if (info)
+		inflags = strsep(&info, "|");
+	if (info)
+		inpin = strsep(&info, "|");
 
-
-			inpin = strchr(inflags, '|');
-			if (inpin) {
-				*inpin = '\0';
-				inpin++;
-				/* XXX Need to do something with pin XXX */
-				ast_log(LOG_WARNING, "MEETME WITH PIN=(%s)\n", inpin);
-			}
-		}
+	if (inflags) {
+		if (strchr(inflags, 'a'))
+			confflags |= CONFFLAG_ADMIN;
+		if (strchr(inflags, 'm'))
+			confflags |= CONFFLAG_MONITOR;
+		if (strchr(inflags, 'p'))
+			confflags |= CONFFLAG_POUNDEXIT;
+		if (strchr(inflags, 's'))
+			confflags |= CONFFLAG_STARMENU;
+		if (strchr(inflags, 't'))
+			confflags |= CONFFLAG_TALKER;
+		if (strchr(inflags, 'q'))
+			confflags |= CONFFLAG_QUIET;
+		if (strchr(inflags, 'M'))
+			confflags |= CONFFLAG_MOH;
+		if (strchr(inflags, 'b'))
+			confflags |= CONFFLAG_AGI;
+		if (strchr(inflags, 'd'))
+			dynamic = 1;
 	}
 
-	/* Parse out the stuff */
-	strncpy(confno, info, sizeof(confno) - 1);
-retry:
-	while(!strlen(confno) && (++retrycnt < 4)) {
-		/* Prompt user for conference number */
-		res = ast_app_getdata(chan, "conf-getconfno",confno, sizeof(confno) - 1, 0);
-		if (res <0) goto out;
-	}
-	if (strlen(confno)) {
-		/* Check the validity of the conference */
-		cnf = find_conf(confno, 1, dynamic);
-		if (!cnf) {
-			res = ast_streamfile(chan, "conf-invalid", chan->language);
-			if (res < 0)
-				goto out;
-			if (!res)
-				res = ast_waitstream(chan, "");
-			res = -1;
-			if (allowretry) {
+	do {
+		if (retrycnt > 3)
+			allowretry = 0;
+		while (allowretry && (!strlen(confno)) && (++retrycnt < 4)) {
+			/* Prompt user for conference number */
+			res = ast_app_getdata(chan, "conf-getconfno", confno, sizeof(confno) - 1, 0);
+			if (res < 0) {
+				/* Don't try to validate when we catch an error */
 				strcpy(confno, "");
-				goto retry;
+				allowretry = 0;
+				break;
 			}
-		} else {
-			/* XXX Should prompt user for pin if pin is required XXX */
-			/* Run the conference */
-			res = conf_run(chan, cnf, confflags);
 		}
-	}
-out:
+		if (strlen(confno)) {
+			/* Check the validity of the conference */
+			cnf = find_conf(confno, 1, dynamic);
+			if (!cnf) {
+				res = ast_streamfile(chan, "conf-invalid", chan->language);
+				if (!res)
+					ast_waitstream(chan, "");
+				res = -1;
+				if (allowretry)
+					strcpy(confno, "");
+			} else {
+				if (strlen(cnf->pin)) {
+					/* XXX Should prompt user for pin if pin is required XXX */
+
+				}
+				allowretry = 0;
+
+				/* Run the conference */
+				res = conf_run(chan, cnf, confflags);
+			}
+		}
+	} while (allowretry);
 	/* Do the conference */
 	LOCAL_USER_REMOVE(u);
 	return res;
