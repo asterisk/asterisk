@@ -1,6 +1,9 @@
 /*
 
 $Log$
+Revision 1.15  2003/11/23 22:14:32  markster
+Various warning cleanups
+
 Revision 1.14  2003/02/12 13:59:15  matteo
 mer feb 12 14:56:57 CET 2003
 
@@ -51,9 +54,12 @@ extern struct {
 /* 	VOICIN Version 52 */
 
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:15  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2003/11/23 22:14:32  markster
+ * Various warning cleanups
  *
+/* Revision 1.14  2003/02/12 13:59:15  matteo
+/* mer feb 12 14:56:57 CET 2003
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*
@@ -265,7 +271,7 @@ s*/
 	    ;
 
     /* System generated locals */
-    integer inbuf_offset, lpbuf_offset, i__1, i__2;
+    integer inbuf_offset = 0, lpbuf_offset = 0, i__1, i__2;
     real r__1, r__2;
 
     /* Builtin functions */
@@ -296,9 +302,12 @@ s*/
 /* 	Global Variables: */
 /*       Arguments */
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:15  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2003/11/23 22:14:32  markster
+ * Various warning cleanups
  *
+/* Revision 1.14  2003/02/12 13:59:15  matteo
+/* mer feb 12 14:56:57 CET 2003
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*

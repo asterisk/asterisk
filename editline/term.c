@@ -938,7 +938,7 @@ term_set(EditLine *el, const char *term)
 		Val(T_co) = tgetnum("co");
 		Val(T_li) = tgetnum("li");
 		for (t = tstr; t->name != NULL; t++)
-			term_alloc(el, t, tgetstr(t->name, &area));
+			term_alloc(el, t, tgetstr((char *)t->name, &area));
 	}
 
 	if (Val(T_co) < 2)
@@ -1436,7 +1436,7 @@ term_echotc(EditLine *el, int argc, const char **argv)
 			break;
 		}
 	if (t->name == NULL)
-		scap = tgetstr(*argv, &area);
+		scap = tgetstr((char *)argv, &area);
 	if (!scap || scap[0] == '\0') {
 		if (!silent)
 			(void) fprintf(el->el_errfile,

@@ -63,7 +63,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	int gotsilence = 0;		/* did we timeout for silence? */
 	char silencestr[5];
 	int k = 0;
-	int rfmt;
+	int rfmt = 0;
 
 	vdata = data; /* explained above */
 

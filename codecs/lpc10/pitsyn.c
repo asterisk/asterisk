@@ -1,6 +1,9 @@
 /*
 
 $Log$
+Revision 1.15  2003/11/23 22:14:32  markster
+Various warning cleanups
+
 Revision 1.14  2003/02/12 13:59:15  matteo
 mer feb 12 14:56:57 CET 2003
 
@@ -40,9 +43,12 @@ extern int pitsyn_(integer *order, integer *voice, integer *pitch, real *rms, re
 /* 	PITSYN Version 53 */
 
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:15  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2003/11/23 22:14:32  markster
+ * Various warning cleanups
  *
+/* Revision 1.14  2003/02/12 13:59:15  matteo
+/* mer feb 12 14:56:57 CET 2003
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*
@@ -128,7 +134,7 @@ extern int pitsyn_(integer *order, integer *voice, integer *pitch, real *rms, re
     logical *first;
 
     /* System generated locals */
-    integer rci_dim1, rci_offset, i__1, i__2;
+    integer rci_dim1 = 0, rci_offset, i__1, i__2;
     real r__1;
 
     /* Builtin functions */
@@ -149,9 +155,12 @@ extern int pitsyn_(integer *order, integer *voice, integer *pitch, real *rms, re
 
 /*       Arguments */
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:15  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2003/11/23 22:14:32  markster
+ * Various warning cleanups
  *
+/* Revision 1.14  2003/02/12 13:59:15  matteo
+/* mer feb 12 14:56:57 CET 2003
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*

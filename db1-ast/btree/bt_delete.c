@@ -150,7 +150,7 @@ __bt_stkacq(t, hp, c)
 	EPG *e;
 	EPGNO *parent;
 	PAGE *h;
-	indx_t index;
+	indx_t index = 0;
 	pgno_t pgno;
 	recno_t nextpg, prevpg;
 	int exact, level;

@@ -110,8 +110,8 @@ __get_buf(hashp, addr, prev_bp, newpage)
 {
 	register BUFHEAD *bp;
 	register u_int32_t is_disk_mask;
-	register int is_disk, segment_ndx;
-	SEGMENT segp;
+	register int is_disk, segment_ndx = 0;
+	SEGMENT segp = 0;
 
 	is_disk = 0;
 	is_disk_mask = 0;

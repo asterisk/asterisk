@@ -427,7 +427,7 @@ static int get_user_input(char *msg, char *buf, int buflen)
 	newtComponent ok;
 	newtComponent cancel;
 	newtComponent inpfield;
-	const char *input;
+	char *input;
 	int res = -1;
 	struct newtExitStruct es;
 
@@ -550,8 +550,8 @@ static int login(char *hostname)
 	newtComponent label;
 	newtComponent ulabel;
 	newtComponent plabel;
-	const char *user;
-	const char *pass;
+	char *user;
+	char *pass;
 	struct message *m;
 	struct newtExitStruct es;
 	char tmp[55];
@@ -583,7 +583,7 @@ static int login(char *hostname)
 	session.sin.sin_port = htons(DEFAULT_MANAGER_PORT);
 	memcpy(&session.sin.sin_addr, hp->h_addr, sizeof(session.sin.sin_addr));
 
-	if (connect(session.fd, &session.sin, sizeof(session.sin))) {
+	if (connect(session.fd,(struct sockaddr*)&session.sin, sizeof(session.sin))) {
 		snprintf(tmp, sizeof(tmp), "%s failed: %s\n", hostname, strerror(errno));
 		show_message("Connect Failed", tmp);
 		return -1;

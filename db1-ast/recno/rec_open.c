@@ -63,7 +63,7 @@ __rec_open(fname, flags, mode, openinfo, dflags)
 	DB *dbp;
 	PAGE *h;
 	struct stat sb;
-	int rfd, sverrno;
+	int rfd = 0, sverrno;
 
 	/* Open the user's file -- if this fails, we're done. */
 	if (fname != NULL && (rfd = open(fname, flags, mode)) < 0)

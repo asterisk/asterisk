@@ -72,7 +72,7 @@ __bt_put(dbp, key, data, flags)
 {
 	BTREE *t;
 	DBT tkey, tdata;
-	EPG *e;
+	EPG *e = 0;
 	PAGE *h;
 	indx_t index, nxtindex;
 	pgno_t pg;
