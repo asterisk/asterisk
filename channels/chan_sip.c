@@ -4617,6 +4617,8 @@ static void *do_monitor(void *data)
 	struct sip_peer *peer;
 	time_t t;
 	int fastrestart =0;
+	int lastpeernum = -1;
+	int curpeernum;
 	/* Add an I/O event to our UDP socket */
 	if (sipsock > -1) 
 		ast_io_add(io, sipsock, sipsock_read, AST_IO_IN, NULL);
@@ -4665,17 +4667,23 @@ restartsearch:
 		peer = peerl.peers;
 		time(&t);
 		fastrestart = 0;
+		curpeernum = 0;
 		while(peer) {
-			if (strlen(peer->mailbox) && ((t - peer->lastmsgcheck) > 10)) {
+			if ((curpeernum > lastpeernum) && strlen(peer->mailbox) && ((t - peer->lastmsgcheck) > 10)) {
 				sip_send_mwi_to_peer(peer);
 				fastrestart = 1;
+				lastpeernum = curpeernum;
 				break;
 			}
+			curpeernum++;
 			peer = peer->next;
 		}
 		/* Remember, sip_send_mwi_to_peer releases the lock if we've called it */
-		if (!peer)
+		if (!peer) {
+			/* Reset where we come from */
+			lastpeernum = -1;
 			ast_pthread_mutex_unlock(&peerl.lock);
+		}
 		ast_pthread_mutex_unlock(&monlock);
 	}
 	/* Never reached */
