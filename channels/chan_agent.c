@@ -1118,15 +1118,16 @@ static struct ast_channel *agent_request(const char *type, int format, void *dat
 	struct ast_channel *chan = NULL;
 	char *s;
 	ast_group_t groupmatch;
+	int groupoff;
 	int waitforagent=0;
 	int hasagent = 0;
 	struct timeval tv;
 
 	s = data;
-	if ((s[0] == '@') && (sscanf(s + 1, "%d", &groupmatch) == 1)) {
-		groupmatch = (1 << groupmatch);
-	} else if ((s[0] == ':') && (sscanf(s + 1, "%d", &groupmatch) == 1)) {
-		groupmatch = (1 << groupmatch);
+	if ((s[0] == '@') && (sscanf(s + 1, "%d", &groupoff) == 1)) {
+		groupmatch = (1 << groupoff);
+	} else if ((s[0] == ':') && (sscanf(s + 1, "%d", &groupoff) == 1)) {
+		groupmatch = (1 << groupoff);
 		waitforagent = 1;
 	} else {
 		groupmatch = 0;
@@ -1965,14 +1966,15 @@ static int agent_devicestate(void *data)
 	struct agent_pvt *p;
 	char *s;
 	ast_group_t groupmatch;
+	int groupoff;
 	int waitforagent=0;
 	int res = AST_DEVICE_INVALID;
 	
 	s = data;
-	if ((s[0] == '@') && (sscanf(s + 1, "%d", &groupmatch) == 1)) {
-		groupmatch = (1 << groupmatch);
-	} else if ((s[0] == ':') && (sscanf(s + 1, "%d", &groupmatch) == 1)) {
-		groupmatch = (1 << groupmatch);
+	if ((s[0] == '@') && (sscanf(s + 1, "%d", &groupoff) == 1)) {
+		groupmatch = (1 << groupoff);
+	} else if ((s[0] == ':') && (sscanf(s + 1, "%d", &groupoff) == 1)) {
+		groupmatch = (1 << groupoff);
 		waitforagent = 1;
 	} else {
 		groupmatch = 0;
