@@ -1102,7 +1102,7 @@ static int __do_deliver(void *data)
 				iax2_send(iaxs[fr->callno], &fr->af, fr->ts, -1, 0, 0, 0);
 			} else if (fr->af.subclass == IAX_COMMAND_LAGRP) {
 				/* This is a reply we've been given, actually measure the difference */
-				ts = calc_timestamp(iaxs[fr->callno], 0, NULL);
+				ts = calc_timestamp(iaxs[fr->callno], 0, &fr->af);
 				iaxs[fr->callno]->lag = ts - fr->ts;
 			}
 		} else {
@@ -2576,10 +2576,15 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 	struct timeval tv;
 	int ms;
 	int voice = 0;
+	int genuine = 0;
 	struct timeval *delivery = NULL;
-	if (f && (f->frametype == AST_FRAME_VOICE)) {
-		voice = 1;
-		delivery = &f->delivery;
+	if (f) {
+		if (f->frametype == AST_FRAME_VOICE) {
+			voice = 1;
+			delivery = &f->delivery;
+		} else if (f->frametype == AST_FRAME_IAX) {
+			genuine = 1;
+		}
 	}
 	if (!p->offset.tv_sec && !p->offset.tv_usec) {
 		gettimeofday(&p->offset, NULL);
@@ -2605,8 +2610,12 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 			} else
 				p->nextpred = ms;
 		} else {
-			/* On a dataframe, use last value + 3 (to accomodate jitter buffer shrinkign) if appropriate */
-			if (abs(ms - p->lastsent) <= 640) {
+			/* On a dataframe, use last value + 3 (to accomodate jitter buffer shrinkign) if appropriate unless
+			   it's a genuine frame */
+			if (genuine) {
+				if (ms <= p->lastsent)
+					ms = p->lastsent + 3;
+			} else if (abs(ms - p->lastsent) <= 640) {
 				ms = p->lastsent + 3;
 			}
 		}
@@ -5033,7 +5042,7 @@ retryowner2:
 				}
 #else
 				/* Calculate ping time */
-				iaxs[fr.callno]->pingtime =  calc_timestamp(iaxs[fr.callno], 0, NULL) - fr.ts;
+				iaxs[fr.callno]->pingtime =  calc_timestamp(iaxs[fr.callno], 0, &f) - fr.ts;
 #endif
 				if (iaxs[fr.callno]->peerpoke) {
 					peer = iaxs[fr.callno]->peerpoke;
