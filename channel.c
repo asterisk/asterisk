@@ -102,7 +102,7 @@ static int show_channeltypes(int fd, int argc, char *argv[])
 
 static char show_channeltypes_usage[] = 
 "Usage: show channeltypes\n"
-"       Shows available channel types registred in your Asterisk server.";
+"       Shows available channel types registered in your Asterisk server.\n";
 
 static struct ast_cli_entry cli_show_channeltypes = 
 	{ { "show", "channeltypes", NULL }, show_channeltypes, "Show available channel types", show_channeltypes_usage };
