@@ -23,6 +23,7 @@
 #include <asterisk/channel_pvt.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/config.h>
+#include <asterisk/utils.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -138,7 +139,7 @@ static int spawn_mp3(struct mohclass *class)
 	/* Look for extra arguments and add them to the list */
 	strncpy(xargs, class->miscargs, sizeof(xargs) - 1);
 	argptr = xargs;
-	while(argptr && strlen(argptr)) {
+	while(argptr && !ast_strlen_zero(argptr)) {
 		argv[argc++] = argptr;
 		argptr = strchr(argptr, ',');
 		if (argptr) {
@@ -333,7 +334,7 @@ static int moh1_exec(struct ast_channel *chan, void *data)
 
 static int moh2_exec(struct ast_channel *chan, void *data)
 {
-	if (!data || !strlen(data)) {
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SetMusicOnHold requires an argument (class)\n");
 		return -1;
 	}
@@ -544,9 +545,9 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 
 int ast_moh_start(struct ast_channel *chan, char *class)
 {
-	if (!class || !strlen(class))
+	if (!class || ast_strlen_zero(class))
 		class = chan->musicclass;
-	if (!class || !strlen(class))
+	if (!class || ast_strlen_zero(class))
 		class = "default";
 	return ast_activate_generator(chan, &mohgen, class);
 }
