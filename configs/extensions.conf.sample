@@ -19,7 +19,11 @@ static=yes
 ;
 writeprotect=no
 
-;
+; You can include other config files, use the #include command (without the ';')
+; Note that this is different from the "include" command that includes contexts within 
+; other contexts. The #include command works in all asterisk configuration files.
+;#include "filename.conf"
+
 ; The "Globals" category contains global variables that can be referenced
 ; in the dialplan with ${VARIABLE} or ${ENV(VARIABLE)} for Environmental variable
 ; ${${VARIABLE}} or ${text${VARIABLE}} or any hybrid
