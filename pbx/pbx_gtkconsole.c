@@ -25,12 +25,15 @@
 #include <asterisk/module.h>
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
+#include <asterisk/cli.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <sys/time.h>
+#include <sys/signal.h>
 
 #include <gtk/gtk.h>
 #include <glib.h>
@@ -42,6 +45,9 @@ static pthread_mutex_t verb_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t console_thread;
 
 static int inuse=0;
+static int clipipe[2];
+static int cleanupid = -1;
+
 static char *dtext = "Asterisk PBX Console (GTK Version)";
 
 static GtkWidget *window;
@@ -50,6 +56,9 @@ static GtkWidget *closew;
 static GtkWidget *verb;
 static GtkWidget *modules;
 static GtkWidget *statusbar;
+static GtkWidget *cli;
+
+static struct timeval last;
 
 static void update_statusbar(char *msg)
 {
@@ -65,25 +74,100 @@ int unload_module(void)
 		gdk_threads_enter();
 		gtk_widget_destroy(window);
 		gdk_threads_leave();
+		close(clipipe[0]);
+		close(clipipe[1]);
 	}
 	return 0;
 }
 
+static int cleanup(void *useless)
+{
+	gdk_threads_enter();
+	gtk_clist_thaw(GTK_CLIST(verb));
+	gtk_widget_queue_resize(verb->parent);
+	gtk_clist_moveto(GTK_CLIST(verb), GTK_CLIST(verb)->rows - 1, 0, 0, 0);
+	cleanupid = -1;
+	gdk_threads_leave();
+	return 0;
+}
 
-static void verboser(char *stuff, int opos, int replacelast, int complete)
+
+static void __verboser(char *stuff, int opos, int replacelast, int complete)
 {
 	char *s2[2];
-	pthread_mutex_lock(&verb_lock);
+	struct timeval tv;
+	int ms;
 	s2[0] = stuff;
 	s2[1] = NULL;
-	gdk_threads_enter();
+	gtk_clist_freeze(GTK_CLIST(verb));
 	if (replacelast) 
 		gtk_clist_remove(GTK_CLIST(verb), GTK_CLIST(verb)->rows - 1);
 	gtk_clist_append(GTK_CLIST(verb), s2);
-	gtk_clist_moveto(GTK_CLIST(verb), GTK_CLIST(verb)->rows - 1, 0, 0, 0);
-	gdk_threads_leave();
+	if (last.tv_sec || last.tv_usec) {
+		gdk_threads_leave();
+		gettimeofday(&tv, NULL);
+		if (cleanupid > -1)
+			gtk_timeout_remove(cleanupid);
+		ms = (tv.tv_sec - last.tv_sec) * 1000 + (tv.tv_usec - last.tv_usec) / 1000;
+		if (ms < 100) {
+			/* We just got a message within 100ms, so just schedule an update
+			   in the near future */
+			cleanupid = gtk_timeout_add(200, cleanup, NULL);
+		} else {
+			cleanup(&cleanupid);
+		}
+		last = tv;
+	} else {
+		gettimeofday(&last, NULL);
+	}
+}
+
+static void verboser(char *stuff, int opos, int replacelast, int complete) 
+{
+	pthread_mutex_lock(&verb_lock);
+	/* Lock appropriately if we're really being called in verbose mode */
+	__verboser(stuff, opos, replacelast, complete);
 	pthread_mutex_unlock(&verb_lock);
 }
+
+static void cliinput(void *data, int source, GdkInputCondition ic)
+{
+	static char buf[256];
+	static int offset = 0;
+	int res;
+	char *c;
+	char *l;
+	char n;
+	/* Read as much stuff is there */
+	res = read(source, buf + offset, sizeof(buf) - 1 - offset);
+	if (res > -1)
+		buf[res + offset] = '\0';
+	/* make sure we've null terminated whatever we have so far */
+	c = buf;
+	l = buf;
+	while(*c) {
+		if (*c == '\n') {
+			/* Keep the trailing \n */
+			c++;
+			n = *c;
+			*c = '\0';
+			__verboser(l, 0, 0, 1);
+			*(c - 1) = '\0';
+			*c = n;
+			l = c;
+		} else
+		c++;
+	}
+	if (strlen(l)) {
+		/* We have some left over */
+		memmove(buf, l, strlen(l) + 1);
+		offset = strlen(buf);
+	} else {
+		offset = 0;
+	}
+
+}
+
 
 static void remove_module()
 {
@@ -194,14 +278,12 @@ static int mod_update(void)
 	if (GTK_CLIST(modules)->selection) {
 		module= (char *)gtk_clist_get_row_data(GTK_CLIST(modules), (int) GTK_CLIST(modules)->selection->data);
 	}
-	gdk_threads_enter();
 	gtk_clist_freeze(GTK_CLIST(modules));
 	gtk_clist_clear(GTK_CLIST(modules));
 	ast_update_module_list(add_mod);
 	if (module)
 		gtk_clist_select_row(GTK_CLIST(modules), gtk_clist_find_row_from_data(GTK_CLIST(modules), module), -1);
 	gtk_clist_thaw(GTK_CLIST(modules));
-	gdk_threads_leave();
 	return 1;
 }
 
@@ -220,8 +302,12 @@ static void exit_now(GtkWidget *widget, gpointer data)
 
 static void exit_completely(GtkWidget *widget, gpointer data)
 {
-	/* This is the wrong way to do this.  We need an ast_clean_exit() routine */
-	exit(0);
+#if 0
+	/* Clever... */
+	ast_cli_command(clipipe[1], "quit");
+#else
+	kill(getpid(), SIGTERM);
+#endif
 }
 
 static void exit_nicely(GtkWidget *widget, gpointer data)
@@ -237,6 +323,17 @@ static void *consolethread(void *data)
 	gtk_main();
 	gdk_threads_leave();
 	return NULL;
+}
+
+static int cli_activate()
+{
+	char buf[256];
+	strncpy(buf, gtk_entry_get_text(GTK_ENTRY(cli)), sizeof(buf));
+	gtk_entry_set_text(GTK_ENTRY(cli), "");
+	if (strlen(buf)) {
+		ast_cli_command(clipipe[1], buf);
+	}
+	return TRUE;
 }
 
 static int show_console()
@@ -276,7 +373,7 @@ static int show_console()
 	gtk_container_add(GTK_CONTAINER(sw), verb);
 	gtk_widget_show(verb);
 	gtk_widget_show(sw);
-	gtk_widget_set_usize(verb, 600, 400);
+	gtk_widget_set_usize(verb, 640, 400);
 	gtk_notebook_append_page(GTK_NOTEBOOK(notebook), sw, gtk_label_new("Verbose Status"));
 
 	
@@ -333,14 +430,21 @@ static int show_console()
 
 	hbox = gtk_vbox_new(FALSE, 0);
 	gtk_widget_show(hbox);
+	
+	/* Command line */
+	cli = gtk_entry_new();
+	gtk_widget_show(cli);
+
+	gtk_signal_connect(GTK_OBJECT(cli), "activate",
+			GTK_SIGNAL_FUNC (cli_activate), NULL);
 
 	gtk_box_pack_start(GTK_BOX(hbox), notebook, TRUE, TRUE, 5);
 	gtk_box_pack_start(GTK_BOX(hbox), wbox, FALSE, FALSE, 5);
+	gtk_box_pack_start(GTK_BOX(hbox), cli, FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(hbox), statusbar, FALSE, FALSE, 0);
-
-
 	gtk_container_add(GTK_CONTAINER(window), hbox);
 	gtk_window_set_title(GTK_WINDOW(window), "Asterisk Console");
+	gtk_widget_grab_focus(cli);
 	pthread_create(&console_thread, NULL, consolethread, NULL);
 	/* XXX Okay, seriously fix me! XXX */
 	usleep(100000);
@@ -348,6 +452,7 @@ static int show_console()
 	gtk_clist_freeze(GTK_CLIST(verb));
 	ast_loader_register(mod_update);
 	gtk_clist_thaw(GTK_CLIST(verb));
+	gdk_input_add(clipipe[0], GDK_INPUT_READ, cliinput, NULL);
 	mod_update();
 	update_statusbar("Asterisk Console Ready");
 	return 0;
@@ -356,6 +461,10 @@ static int show_console()
 
 int load_module(void)
 {
+	if (pipe(clipipe)) {
+		ast_log(LOG_WARNING, "Unable to create CLI pipe\n");
+		return -1;
+	}
 	g_thread_init(NULL);
 	if (gtk_init_check(NULL, NULL))  {
 		/* XXX Do we need to call this twice? XXX */

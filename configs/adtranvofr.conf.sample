@@ -6,8 +6,10 @@
 [interfaces]
 ;
 ; Lines for which we are the user termination.  They accept incoming
-; and outgoing calls.
+; and outgoing calls.  We use the default context on the first 8 lines
+; used by internal phones.
 ;
+context=default
 ;user=voice00
 ;user=voice01
 ;user=voice02
@@ -16,15 +18,11 @@
 ;user=voice05
 ;user=voice06
 ;user=voice07
-context=default
-user=voice13
-user=voice14
-user=voice15
 ; Calls on 16 and 17 come from the outside world, so they get
 ; a little bit special treatment
 context=remote
-user=voice16
-user=voice17
+;user=voice16
+;user=voice17
 ;
 ; Next we have lines which we only accept calls on, and typically
 ; do not send outgoing calls on (i.e. these are where we are the

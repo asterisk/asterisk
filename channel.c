@@ -18,6 +18,7 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <errno.h>
+#include <unistd.h>
 #include <asterisk/sched.h>
 #include <asterisk/options.h>
 #include <asterisk/channel.h>
@@ -26,6 +27,27 @@
 #include <asterisk/file.h>
 #include <asterisk/translate.h>
 
+
+
+#ifdef DEBUG_MUTEX
+/* Convenient mutex debugging functions */
+#define PTHREAD_MUTEX_LOCK(a) __PTHREAD_MUTEX_LOCK(__FUNCTION__, a)
+#define PTHREAD_MUTEX_UNLOCK(a) __PTHREAD_MUTEX_UNLOCK(__FUNCTION__, a)
+
+static int __PTHREAD_MUTEX_LOCK(char *f, pthread_mutex_t *a) {
+	ast_log(LOG_DEBUG, "Locking %p (%s)\n", a, f); 
+	return pthread_mutex_lock(a);
+}
+
+static int __PTHREAD_MUTEX_UNLOCK(char *f, pthread_mutex_t *a) {
+	ast_log(LOG_DEBUG, "Unlocking %p (%s)\n", a, f); 
+	return pthread_mutex_unlock(a);
+}
+#else
+#define PTHREAD_MUTEX_LOCK(a) pthread_mutex_lock(a)
+#define PTHREAD_MUTEX_UNLOCK(a) pthread_mutex_unlock(a)
+#endif
+
 struct chanlist {
 	char type[80];
 	char description[80];
@@ -33,7 +55,6 @@ struct chanlist {
 	struct ast_channel * (*requester)(char *type, int format, void *data);
 	struct chanlist *next;
 } *backends = NULL;
-
 struct ast_channel *channels = NULL;
 
 /* Protect the channel list (highly unlikely that two things would change
@@ -45,7 +66,7 @@ int ast_channel_register(char *type, char *description, int capabilities,
 		struct ast_channel *(*requester)(char *type, int format, void *data))
 {
 	struct chanlist *chan, *last=NULL;
-	if (pthread_mutex_lock(&chlock)) {
+	if (PTHREAD_MUTEX_LOCK(&chlock)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return -1;
 	}
@@ -53,7 +74,7 @@ int ast_channel_register(char *type, char *description, int capabilities,
 	while(chan) {
 		if (!strcasecmp(type, chan->type)) {
 			ast_log(LOG_WARNING, "Already have a handler for type '%s'\n", type);
-			pthread_mutex_unlock(&chlock);
+			PTHREAD_MUTEX_UNLOCK(&chlock);
 			return -1;
 		}
 		last = chan;
@@ -62,7 +83,7 @@ int ast_channel_register(char *type, char *description, int capabilities,
 	chan = malloc(sizeof(struct chanlist));
 	if (!chan) {
 		ast_log(LOG_WARNING, "Out of memory\n");
-		pthread_mutex_unlock(&chlock);
+		PTHREAD_MUTEX_UNLOCK(&chlock);
 		return -1;
 	}
 	strncpy(chan->type, type, sizeof(chan->type));
@@ -78,7 +99,7 @@ int ast_channel_register(char *type, char *description, int capabilities,
 		ast_log(LOG_DEBUG, "Registered handler for '%s' (%s)\n", chan->type, chan->description);
 	else if (option_verbose > 1)
 		ast_verbose( VERBOSE_PREFIX_2 "Registered channel type '%s' (%s)\n", chan->type, chan->description);
-	pthread_mutex_unlock(&chlock);
+	PTHREAD_MUTEX_UNLOCK(&chlock);
 	return 0;
 }
 
@@ -86,7 +107,7 @@ struct ast_channel *ast_channel_alloc(void)
 {
 	struct ast_channel *tmp;
 	struct ast_channel_pvt *pvt;
-	pthread_mutex_lock(&chlock);
+	PTHREAD_MUTEX_LOCK(&chlock);
 	tmp = malloc(sizeof(struct ast_channel));
 	memset(tmp, 0, sizeof(struct ast_channel));
 	if (tmp) {
@@ -121,17 +142,17 @@ struct ast_channel *ast_channel_alloc(void)
 		}
 	} else 
 		ast_log(LOG_WARNING, "Out of memory\n");
-	pthread_mutex_unlock(&chlock);
+	PTHREAD_MUTEX_UNLOCK(&chlock);
 	return tmp;
 }
 
 struct ast_channel *ast_channel_walk(struct ast_channel *prev)
 {
 	struct ast_channel *l, *ret=NULL;
-	pthread_mutex_lock(&chlock);
+	PTHREAD_MUTEX_LOCK(&chlock);
 	l = channels;
 	if (!prev) {
-		pthread_mutex_unlock(&chlock);
+		PTHREAD_MUTEX_UNLOCK(&chlock);
 		return l;
 	}
 	while(l) {
@@ -139,7 +160,7 @@ struct ast_channel *ast_channel_walk(struct ast_channel *prev)
 			ret = l->next;
 		l = l->next;
 	}
-	pthread_mutex_unlock(&chlock);
+	PTHREAD_MUTEX_UNLOCK(&chlock);
 	return ret;
 	
 }
@@ -147,7 +168,7 @@ struct ast_channel *ast_channel_walk(struct ast_channel *prev)
 void ast_channel_free(struct ast_channel *chan)
 {
 	struct ast_channel *last=NULL, *cur;
-	pthread_mutex_lock(&chlock);
+	PTHREAD_MUTEX_LOCK(&chlock);
 	cur = channels;
 	while(cur) {
 		if (cur == chan) {
@@ -174,7 +195,7 @@ void ast_channel_free(struct ast_channel *chan)
 		free(chan->callerid);	
 	pthread_mutex_destroy(&chan->lock);
 	free(chan);
-	pthread_mutex_unlock(&chlock);
+	PTHREAD_MUTEX_UNLOCK(&chlock);
 }
 
 int ast_softhangup(struct ast_channel *chan)
@@ -220,7 +241,7 @@ void ast_channel_unregister(char *type)
 	struct chanlist *chan, *last=NULL;
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Unregistering channel type '%s'\n", type);
-	if (pthread_mutex_lock(&chlock)) {
+	if (PTHREAD_MUTEX_LOCK(&chlock)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return;
 	}
@@ -232,13 +253,13 @@ void ast_channel_unregister(char *type)
 			else
 				backends = backends->next;
 			free(chan);
-			pthread_mutex_unlock(&chlock);
+			PTHREAD_MUTEX_UNLOCK(&chlock);
 			return;
 		}
 		last = chan;
 		chan = chan->next;
 	}
-	pthread_mutex_unlock(&chlock);
+	PTHREAD_MUTEX_UNLOCK(&chlock);
 }
 
 int ast_answer(struct ast_channel *chan)
@@ -392,7 +413,7 @@ struct ast_channel *ast_request(char *type, int format, void *data)
 {
 	struct chanlist *chan;
 	struct ast_channel *c = NULL;
-	if (pthread_mutex_lock(&chlock)) {
+	if (PTHREAD_MUTEX_LOCK(&chlock)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return NULL;
 	}
@@ -402,15 +423,16 @@ struct ast_channel *ast_request(char *type, int format, void *data)
 			if (!(chan->capabilities & format)) {
 				format = ast_translator_best_choice(format, chan->capabilities);
 			}
+			PTHREAD_MUTEX_UNLOCK(&chlock);
 			if (chan->requester)
 				c = chan->requester(type, format, data);
-			pthread_mutex_unlock(&chlock);
-			break;
+			return c;
 		}
 		chan = chan->next;
 	}
 	if (!chan)
 		ast_log(LOG_WARNING, "No channel type registered for '%s'\n", type);
+	PTHREAD_MUTEX_UNLOCK(&chlock);
 	return c;
 }
 
@@ -433,9 +455,10 @@ int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int fti
 	if (!len)
 		return -1;
 	do {
-		if (c->streamid > -1) {
+		if ((c->streamid > -1) || (c->trans && (c->trans->streamid > -1))) {
 			d = ast_waitstream(c, AST_DIGIT_ANY);
 			ast_stopstream(c);
+			usleep(1000);
 			if (!d)
 				d = ast_waitfordigit(c, to);
 		} else {

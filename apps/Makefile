@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_intercom.so app_mp3.so
+APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_intercom.so app_mp3.so app_system.so app_echo.so
 
 CFLAGS+=
 

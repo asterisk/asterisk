@@ -200,7 +200,7 @@ static int g723tolin_framein(struct ast_translator_pvt *pvt, struct ast_frame *f
 #ifdef ANNEX_B
 		Decod(&tmp->dec, tmpdata, f->data, 0);
 		for (x=0;x<Frame;x++)
-			(tmp->buf + tmp->tail)[x] = tmpdata[x]; 
+			(tmp->buf + tmp->tail)[x] = (short)tmpdata[x]; 
 #else
 		Decod(&tmp->dec, tmp->buf + tmp->tail, f->data, 0);
 #endif

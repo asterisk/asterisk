@@ -2,13 +2,19 @@
 ; Voicemail Configuration
 ;
 [general]
-; Default format for writing Voicemail
-; format=g723sf|rawgsm|mp3|wav
-format=g723sf|wav49|wav
+; Default formats for writing Voicemail
+;format=g723sf|wav49|wav
+format=gsm|wav49|wav
 
+;
+; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>
+; if the e-mail is specified, a message will be sent when a message is
+; received, to the given mailbox.
+;
 [default]
-4200=2345,Mark Spencer,markster@linux-support.net
-4300=2345,Ben Rigas,ben@american-computer.net
-4310=2345,Sales,sales@marko.net
-4069=2345,Matt Brooks,matt@marko.net
-4110=1379,Rob Flynn,rflynn@blueridge.net
+1234=4242,Example Mailbox,root@localhost
+;4200=9855,Mark Spencer,markster@linux-support.net
+;4300=3456,Ben Rigas,ben@american-computer.net
+;4310=5432,Sales,sales@marko.net
+;4069=6522,Matt Brooks,matt@marko.net
+;4110=3443,Rob Flynn,rflynn@blueridge.net

@@ -26,8 +26,8 @@ stripmsd=1
 ;
 ; Type of dialing
 ;
-;dialtype=tone
-dialtype=pulse
+dialtype=tone
+;dialtype=pulse
 ;
 ; Mode selection.  "Immediate" means that as soon as you dial, you're connected
 ; and the line is considered up.  "Ring" means we wait until the ring cadence
@@ -39,4 +39,4 @@ mode=immediate
 ;
 ; List all devices we can use.
 ;
-device=/dev/ttyS3
+;device=/dev/ttyS3

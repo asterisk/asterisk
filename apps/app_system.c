@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Skeleton application
+ * Execute arbitrary system commands
  * 
  * Copyright (C) 1999, Mark Spencer
  *
@@ -24,9 +24,9 @@
 #include <pthread.h>
 
 
-static char *tdesc = "Trivial skeleton Application";
+static char *tdesc = "Generic System() application";
 
-static char *app = "skel";
+static char *app = "System";
 
 STANDARD_LOCAL_USER;
 
@@ -37,11 +37,23 @@ static int skel_exec(struct ast_channel *chan, void *data)
 	int res=0;
 	struct localuser *u;
 	if (!data) {
-		ast_log(LOG_WARNING, "skel requires an argument (filename)\n");
+		ast_log(LOG_WARNING, "System requires an argument(command)\n");
 		return -1;
 	}
 	LOCAL_USER_ADD(u);
 	/* Do our thing here */
+	res = system((char *)data);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Unable to execute '%s'\n", data);
+		res = -1;
+	} else if (res == 127) {
+		ast_log(LOG_WARNING, "Unable to execute '%s'\n", data);
+		res = -1;
+	} else {
+		if (res && ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101)) 
+			chan->priority+=100;
+		res = 0;
+	}
 	LOCAL_USER_REMOVE(u);
 	return res;
 }

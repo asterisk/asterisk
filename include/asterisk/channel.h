@@ -143,12 +143,14 @@ char ast_waitfordigit(struct ast_channel *c, int ms);
    for the first digit */
 int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int rtimeout, char *enders);
 #define CHECK_BLOCKING(c) { 	 \
-							if ((c)->blocking) \
+							if ((c)->blocking) {\
 								ast_log(LOG_WARNING, "Blocking '%s', already blocked by thread %ld in procedure %s\n", (c)->name, (c)->blocker, (c)->blockproc); \
-							else { \
+								/* *((int *)0)=0; */ \
+							} else { \
 								(c)->blocker = pthread_self(); \
 								(c)->blockproc = __PRETTY_FUNCTION__; \
-									c->blocking = -1; } }
+									c->blocking = -1; \
+									} }
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -92,6 +92,22 @@ int ast_load_resource(char *resource_name)
 	int errors=0;
 	int res;
 	struct module *m;
+	int flags=0;
+	char *val;
+	int o;
+	struct ast_config *cfg;
+	/* Keep the module file parsing silent */
+	o = option_verbose;
+	option_verbose = 0;
+	cfg = ast_load(AST_MODULE_CONFIG);
+	option_verbose = o;
+	if (cfg) {
+		if ((val = ast_variable_retrieve(cfg, "global", resource_name))
+				&& ast_true(val))
+			flags |= RTLD_GLOBAL;
+		ast_destroy(cfg);
+	}
+	
 	if (pthread_mutex_lock(&modlock))
 		ast_log(LOG_WARNING, "Failed to lock\n");
 	m = module_list;
@@ -115,7 +131,7 @@ int ast_load_resource(char *resource_name)
 	} else {
 		snprintf(fn, sizeof(fn), "%s/%s", AST_MODULE_DIR, resource_name);
 	}
-	m->lib = dlopen(fn, RTLD_NOW  | RTLD_GLOBAL);
+	m->lib = dlopen(fn, RTLD_NOW | flags);
 	if (!m->lib) {
 		ast_log(LOG_WARNING, "%s\n", dlerror());
 		free(m);
@@ -149,16 +165,24 @@ int ast_load_resource(char *resource_name)
 		pthread_mutex_unlock(&modlock);
 		return -1;
 	}
-	if (option_verbose) 
-		ast_verbose( " => (%s)\n", m->description());
-	pthread_mutex_unlock(&modlock);
-	if ((res = m->load_module())) {
-		ast_log(LOG_WARNING, "%s: load_module failed, returning %d\n", m->resource, fn, res);
-		ast_unload_resource(resource_name, 0);
-		return -1;
+	if (!fully_booted) {
+		if (option_verbose) 
+			ast_verbose( " => (%s)\n", m->description());
+		if (option_console && !option_verbose)
+			ast_verbose( ".");
+	} else {
+		if (option_verbose)
+			ast_verbose(VERBOSE_PREFIX_1 "Loaded %s => (%s)\n", fn, m->description());
 	}
 	m->next = module_list;
 	module_list = m;
+	pthread_mutex_unlock(&modlock);
+	if ((res = m->load_module())) {
+		ast_log(LOG_WARNING, "%s: load_module failed, returning %d\n", m->resource, res);
+		ast_unload_resource(resource_name, 0);
+		return -1;
+	}
+	ast_update_use_count();
 	return 0;
 }	
 

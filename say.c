@@ -42,8 +42,13 @@ int ast_say_digits(struct ast_channel *chan, int num)
 int ast_say_number(struct ast_channel *chan, int num)
 {
 	int res = 0;
+	int playh = 0;
 	char fn[256] = "";
 	while(num && !res) {
+		if (playh) {
+			snprintf(fn, sizeof(fn), "digits/hundred");
+			playh = 0;
+		} else
 		if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
 			num = 0;
@@ -52,8 +57,13 @@ int ast_say_number(struct ast_channel *chan, int num)
 			snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
 			num -= ((num / 10) * 10);
 		} else {
-			ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
-			res = -1;
+			if (num < 1000){
+				snprintf(fn, sizeof(fn), "digits/%d", (num/100));
+				playh++;
+			} else {
+				ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+				res = -1;
+			}
 		}
 		if (!res) {
 			res = ast_streamfile(chan, fn);

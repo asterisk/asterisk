@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Skeleton application
+ * Echo application -- play back what you hear to evaluate latency
  * 
  * Copyright (C) 1999, Mark Spencer
  *
@@ -24,9 +24,9 @@
 #include <pthread.h>
 
 
-static char *tdesc = "Trivial skeleton Application";
+static char *tdesc = "Simple Echo Application";
 
-static char *app = "skel";
+static char *app = "Echo";
 
 STANDARD_LOCAL_USER;
 
@@ -34,14 +34,24 @@ LOCAL_USER_DECL;
 
 static int skel_exec(struct ast_channel *chan, void *data)
 {
-	int res=0;
+	int res=-1;
 	struct localuser *u;
-	if (!data) {
-		ast_log(LOG_WARNING, "skel requires an argument (filename)\n");
-		return -1;
-	}
+	struct ast_frame *f;
 	LOCAL_USER_ADD(u);
 	/* Do our thing here */
+	while((f = ast_read(chan))) {
+		if (f->frametype == AST_FRAME_VOICE) {
+			if (ast_write(chan, f)) 
+				break;
+		} else if (f->frametype == AST_FRAME_DTMF) {
+			if (f->subclass == '#') {
+				res = 0;
+				break;
+			} else
+				if (ast_write(chan, f))
+					break;
+		}
+	}
 	LOCAL_USER_REMOVE(u);
 	return res;
 }

@@ -28,7 +28,9 @@ int option_verbose=0;
 int option_debug=0;
 int option_nofork=0;
 int option_quiet=0;
+int option_console=0;
 int option_highpriority=0;
+int fully_booted = 0;
 
 #define HIGH_PRIORITY 1
 #define HIGH_PRIORITY_SCHED SCHED_RR
@@ -39,6 +41,7 @@ static void urg_handler(int num)
 	   system call.  We don't actually need to do anything though.  */
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Urgent handler\n");
+	signal(num, urg_handler);
 	return;
 }
 
@@ -89,6 +92,7 @@ static void console_verboser(char *s, int pos, int replace, int complete)
 	if (!pos)
 		fprintf(stdout, "\r");
 	fprintf(stdout, s + pos);
+	fflush(stdout);
 	if (complete)
 	/* Wake up a select()ing console */
 		pthread_kill(consolethread, SIGURG);
@@ -99,8 +103,19 @@ static void consolehandler(char *s)
 	/* Called when readline data is available */
 	if (s && strlen(s))
 		add_history(s);
-	if (s)
+	/* Give the console access to the shell */
+	if (s) {
+		if (s[0] == '!') {
+			if (s[1])
+				system(s+1);
+			else
+				system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
+		} else 
 		ast_cli_command(STDOUT_FILENO, s);
+		if (!strcasecmp(s, "help"))
+			fprintf(stdout, "          !<command>   Executes a given shell command\n");
+	} else
+		fprintf(stdout, "\nUse \"quit\" to exit\n");
 }
 
 static char quit_help[] = 
@@ -138,17 +153,21 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	/* Check for options */
-	while((c=getopt(argc, argv, "dvqp")) != EOF) {
+	while((c=getopt(argc, argv, "dvqpc")) != EOF) {
 		switch(c) {
 		case 'd':
 			option_debug++;
 			option_nofork++;
 			break;
+		case 'c':
+			option_console++;
+			option_nofork++;
 		case 'p':
 			option_highpriority++;
 			break;
 		case 'v':
 			option_verbose++;
+			option_nofork++;
 			break;
 		case 'q':
 			option_quiet++;
@@ -157,12 +176,15 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 	}
+	ast_register_verbose(console_verboser);
 	/* Print a welcome message if desired */
-	if (option_verbose) {
+	if (option_verbose || option_console) {
 		ast_verbose( "Asterisk, Copyright (C) 1999 Mark Spencer\n");
 		ast_verbose( "Written by Mark Spencer <markster@linux-support.net>\n");
 		ast_verbose( "=========================================================================\n");
 	}
+	if (option_console && !option_verbose) 
+		ast_verbose("[ Booting...");
 	signal(SIGURG, urg_handler);
 	signal(SIGINT, quit_handler);
 	signal(SIGTERM, quit_handler);
@@ -177,28 +199,34 @@ int main(int argc, char *argv[])
 		exit(1);
 	/* We might have the option of showing a console, but for now just
 	   do nothing... */
-
-	/* Console stuff now... */
-	/* Register our quit function */
-    ast_cli_register(&quit);
-	consolethread = pthread_self();
-	ast_register_verbose(console_verboser);
-	if (option_verbose)
+	if (option_console && !option_verbose)
+		ast_verbose(" ]\n");
+	if (option_verbose || option_console)
 		ast_verbose( "Asterisk Ready.\n");
-	if (strlen(filename))
-		read_history(filename);
-	rl_callback_handler_install(ASTERISK_PROMPT, consolehandler);
-	rl_completion_entry_function = (Function *)cli_generator;
-	for(;;) {
-		FD_ZERO(&rfds);
-		FD_SET(STDIN_FILENO, &rfds);
-		res = select(STDIN_FILENO + 1, &rfds, NULL, NULL, NULL);
-		if (res > 0) {
-			rl_callback_read_char();
-		} else if (res < 1) {
-			rl_forced_update_display();
-		}
-
-	}	
+	fully_booted = 1;
+	if (option_console) {
+		/* Console stuff now... */
+		/* Register our quit function */
+	    ast_cli_register(&quit);
+		consolethread = pthread_self();
+		if (strlen(filename))
+			read_history(filename);
+		rl_callback_handler_install(ASTERISK_PROMPT, consolehandler);
+		rl_completion_entry_function = (Function *)cli_generator;
+		for(;;) {
+			FD_ZERO(&rfds);
+			FD_SET(STDIN_FILENO, &rfds);
+			res = select(STDIN_FILENO + 1, &rfds, NULL, NULL, NULL);
+			if (res > 0) {
+				rl_callback_read_char();
+			} else if (res < 1) {
+				rl_forced_update_display();
+			}
+	
+		}	
+	} else {
+		/* Do nothing */
+		select(0,NULL,NULL,NULL,NULL);
+	}
 	return 0;
 }

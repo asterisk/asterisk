@@ -3,12 +3,26 @@
 ;
 ; Module Loader configuration file
 ;
+
 [modules]
 autoload=yes
-;load=pbx_gtkconsole.so
+;
+; If you want, load the GTK console right away.  
+; Don't load the KDE console since
+; it's not as sophisticated right now.
+;
 noload=pbx_gtkconsole.so
+;load=pbx_gtkconsole.so
 noload=pbx_kdeconsole.so
+;
+; Intercom application is obsoleted by
+; chan_oss.  Don't load it.
+;
 noload=app_intercom.so
-;load=chan_vofr.so
-;load=chan_h323.so 
 
+;
+; Module names listed in "global" section will have symbols globally
+; exported to modules loaded after them.
+;
+[global]
+chan_modem.so=yes

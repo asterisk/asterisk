@@ -141,7 +141,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent)
 	struct ast_config *cfg;
 	char *copy, *name, *passwd, *email, *dir, *fmt, *fmts, *fn=NULL;
 	char comment[256];
-	struct ast_filestream *writer, *others[MAX_OTHER_FORMATS];
+	struct ast_filestream *writer=NULL, *others[MAX_OTHER_FORMATS];
 	char *sfmt[MAX_OTHER_FORMATS];
 	int res = -1, fmtcnt=0, x;
 	int msgnum;
@@ -182,8 +182,12 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent)
 						snprintf(comment, sizeof(comment), "Voicemail from %s to %s (%s) on %s\n",
 											(chan->callerid ? chan->callerid : "Unknown"), 
 											name, ext, chan->name);
+						if (ast_fileexists(fn, NULL) > 0) {
+							msgnum++;
+							continue;
+						}
 						writer = ast_writefile(fn, fmt, comment, O_EXCL, 1 /* check for other formats */, 0700);
-						if (!writer && (errno != EEXIST))
+						if (!writer)
 							break;
 						msgnum++;
 					} while(!writer && (msgnum < MAXMSG));
@@ -221,9 +225,14 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent)
 								if (f->frametype == AST_FRAME_VOICE) {
 									/* Write the primary format */
 									res = ast_writestream(writer, f);
+									if (res) {
+										ast_log(LOG_WARNING, "Error writing primary frame\n");
+										break;
+									}
 									/* And each of the others */
-									for (x=0;x<fmtcnt;x++)
+									for (x=0;x<fmtcnt;x++) {
 										res |= ast_writestream(others[x], f);
+									}
 									ast_frfree(f);
 									/* Exit on any error */
 									if (res) {
@@ -314,20 +323,30 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "No voicemail configuration\n");
 		goto out;
 	}
-	if (ast_streamfile(chan, "vm-login"))
+	if (ast_streamfile(chan, "vm-login")) {
+		ast_log(LOG_WARNING, "Couldn't stream login file\n");
 		goto out;
+	}
 	do {
 		/* Prompt for, and read in the username */
-		if (ast_readstring(chan, username, sizeof(username), 2000, 5000, "#"))
+		if (ast_readstring(chan, username, sizeof(username), 2000, 5000, "#")) {
+			ast_log(LOG_WARNING, "Couldn't read username\n");
 			goto out;
+		}			
 		if (!strlen(username)) {
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Username not entered\n");
 			res = 0;
 			goto out;
 		}
-		if (ast_streamfile(chan, "vm-password"))
+		if (ast_streamfile(chan, "vm-password")) {
+			ast_log(LOG_WARNING, "Unable to stream password file\n");
 			goto out;
-		if (ast_readstring(chan, password, sizeof(password), 2000, 5000, "#"))
+		}
+		if (ast_readstring(chan, password, sizeof(password), 2000, 5000, "#")) {
+			ast_log(LOG_WARNING, "Unable to read password\n");
 			goto out;
+		}
 		copy = ast_variable_retrieve(cfg, NULL, username);
 		if (copy) {
 			copy = strdup(copy);
