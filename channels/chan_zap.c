@@ -5830,7 +5830,6 @@ static void *pri_dchannel(void *vpri)
 				break;				
 			case PRI_EVENT_HANGUP:
 				chan = e->hangup.channel;
-				ast_log(LOG_NOTICE, "channel %d\n",chan);
 				if ((chan < 1) || (chan > pri->channels)) {
 					ast_log(LOG_WARNING, "Hangup requested on odd channel number %d span %d\n", chan, pri->span);
 					chan = 0;
@@ -5845,7 +5844,8 @@ static void *pri_dchannel(void *vpri)
 						if (!pri->pvt[chan]->alreadyhungup) {
 							/* we're calling here zt_hangup so once we get there we need to clear p->call after calling pri_hangup */
 							pri->pvt[chan]->alreadyhungup = 1;
-							pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							if (pri->pvt[chan]->owner)
+								pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							if (option_verbose > 2) 
 								ast_verbose(VERBOSE_PREFIX_3 "Channel %d, span %d got hangup\n", chan, pri->span);
 						} else {
