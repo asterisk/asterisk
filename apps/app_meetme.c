@@ -536,6 +536,16 @@ static int confnonzero(void *ptr)
 	return res;
 }
 
+static void conf_flush(int fd)
+{
+	int x;
+	x = ZT_FLUSH_ALL;
+	if (ioctl(fd, ZT_FLUSH, x)) {
+		ast_log(LOG_WARNING, "Error flushing channel\n");
+		close(fd);
+	}
+}
+
 static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags)
 {
 	struct ast_conference *prev=NULL, *cur;
@@ -785,6 +795,7 @@ zapretry:
 		ast_mutex_unlock(&conflock);
 		goto outrun;
 	}
+	conf_flush(fd);
 	ast_log(LOG_DEBUG, "Placed channel %s in ZAP conf %d\n", chan->name, conf->zapconf);
 
 	manager_event(EVENT_FLAG_CALL, "MeetmeJoin", 
@@ -960,6 +971,15 @@ zapretry:
 					ret = 0;
 					break;
 				} else if (((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*') && (confflags & CONFFLAG_STARMENU)) || ((f->frametype == AST_FRAME_DTMF) && menu_active)) {
+					int oldconfmode = 0;
+					oldconfmode = ztc.confmode;
+					ztc.confmode = 0;
+					if (ioctl(fd, ZT_SETCONF, &ztc)) {
+						ast_log(LOG_WARNING, "Error setting conference\n");
+						close(fd);
+						ast_mutex_unlock(&conflock);
+						goto outrun;
+					}
 					if (musiconhold) {
 			   			ast_moh_stop(chan);
 					}
@@ -1075,6 +1095,14 @@ zapretry:
 					if (musiconhold) {
 			   			ast_moh_start(chan, NULL);
 					}
+					ztc.confmode = oldconfmode;
+					if (ioctl(fd, ZT_SETCONF, &ztc)) {
+						ast_log(LOG_WARNING, "Error setting conference\n");
+						close(fd);
+						ast_mutex_unlock(&conflock);
+						goto outrun;
+					}
+					conf_flush(fd);
 				} else if (option_debug) {
 					ast_log(LOG_DEBUG, "Got unrecognized frame on channel %s, f->frametype=%d,f->subclass=%d\n",chan->name,f->frametype,f->subclass);
 				}
