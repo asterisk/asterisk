@@ -1962,6 +1962,10 @@ static int iax_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 		to = 1000;
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
+			if (ast_check_hangup(c0) || ast_check_hangup(c1)) {
+				res = 0;
+				break;
+			}
 			continue;
 		}
 		f = ast_read(who);

@@ -1985,7 +1985,7 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 	struct ast_channel *cs[3];
 	struct ast_channel *who;
 	int to = -1;
-	int res;
+	int res = -1;
 	int transferstarted=0;
 	struct ast_frame *f;
 	struct chan_iax2_pvt *p0 = c0->pvt->pvt;
@@ -2023,7 +2023,6 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 				ast_log(LOG_WARNING, "Unable to start the transfer\n");
 			transferstarted = 1;
 		}
-		
 		if ((p0->transferring == TRANSFER_RELEASED) && (p1->transferring == TRANSFER_RELEASED)) {
 			/* Call has been transferred.  We're no longer involved */
 			gettimeofday(&tv, NULL);
@@ -2042,6 +2041,10 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 		to = 1000;
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
+			if (ast_check_hangup(c0) || ast_check_hangup(c1)) {
+				res = 0;
+				break;
+			}
 			continue;
 		}
 		f = ast_read(who);
