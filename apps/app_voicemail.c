@@ -1235,8 +1235,12 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		} else
 			ast_log(LOG_WARNING, "No format for saving voicemail?\n");					
 		free_user(vmu);
-	} else
+	} else {
 		ast_log(LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
+			/*Send the call to n+101 priority, where n is the current priority*/
+			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
+				chan->priority+=100;
+	}
 	/* Leave voicemail for someone */
 	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext, ast_app_has_voicemail(ext));
 	return res;
