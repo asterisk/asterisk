@@ -60,6 +60,7 @@
 #include <sys/signal.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <regex.h>
 
 #ifndef DEFAULT_USERAGENT
 #define DEFAULT_USERAGENT "Asterisk PBX"
@@ -5851,12 +5852,30 @@ static char *nat2str(int nat)
 /*--- sip_show_users: CLI Command 'SIP Show Users' ---*/
 static int sip_show_users(int fd, int argc, char *argv[])
 {
+	regex_t regexbuf;
+	int havepattern = 0;
+
 #define FORMAT  "%-15.15s  %-15.15s  %-15.15s %-15.15s %-5.5s%-5.5s\n"
-	if (argc != 3) 
+
+	if (argc > 4)
 		return RESULT_SHOWUSAGE;
+	
+	if (argc == 4) {
+		if (regcomp(&regexbuf, argv[3], REG_EXTENDED | REG_NOSUB))
+			return RESULT_SHOWUSAGE;
+
+		havepattern = 1;
+	}
+
 	ast_cli(fd, FORMAT, "Username", "Secret", "Accountcode", "Def.Context", "ACL", "NAT");
 	ASTOBJ_CONTAINER_TRAVERSE(&userl, 1, do {
 		ASTOBJ_RDLOCK(iterator);
+
+		if (havepattern && regexec(&regexbuf, iterator->name, 0, NULL, 0)) {
+			ASTOBJ_UNLOCK(iterator);
+			continue;
+		}
+
 		ast_cli(fd, FORMAT, iterator->name, 
 			iterator->secret, 
 			iterator->accountcode,
@@ -5866,6 +5885,10 @@ static int sip_show_users(int fd, int argc, char *argv[])
 		ASTOBJ_UNLOCK(iterator);
 	} while (0)
 	);
+
+	if (havepattern)
+		regfree(&regexbuf);
+
 	return RESULT_SUCCESS;
 #undef FORMAT
 }
@@ -5873,8 +5896,12 @@ static int sip_show_users(int fd, int argc, char *argv[])
 /*--- sip_show_peers: CLI Show Peers command */
 static int sip_show_peers(int fd, int argc, char *argv[])
 {
+	regex_t regexbuf;
+	int havepattern = 0;
+
 #define FORMAT2 "%-15.15s  %-15.15s %s %s %s %-15.15s  %-8s %-10s\n"
 #define FORMAT  "%-15.15s  %-15.15s %s %s %s %-15.15s  %-8d %-10s\n"
+
 	char name[256] = "";
 	char iabuf[INET_ADDRSTRLEN];
 	int total_peers = 0;
@@ -5882,17 +5909,29 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 	int peers_offline = 0;
 
 	
-	if (argc != 3 && argc != 5)
+	if (argc > 4)
 		return RESULT_SHOWUSAGE;
+	
+	if (argc == 4) {
+		if (regcomp(&regexbuf, argv[3], REG_EXTENDED | REG_NOSUB))
+			return RESULT_SHOWUSAGE;
+
+		havepattern = 1;
+	}
+
 	ast_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Mask", "Port", "Status");
 	
 	ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
 		char nm[20] = "";
 		char status[20] = "";
-		int print_line = -1;
 		char srch[2000];
 		
 		ASTOBJ_RDLOCK(iterator);
+
+		if (havepattern && regexec(&regexbuf, iterator->name, 0, NULL, 0)) {
+			ASTOBJ_UNLOCK(iterator);
+			continue;
+		}
 
 		ast_inet_ntoa(nm, sizeof(nm), iterator->mask);
 		if (!ast_strlen_zero(iterator->username))
@@ -5935,33 +5974,24 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 			iterator->ha ? " A " : "   ", 	/* permit/deny */
 			nm, ntohs(iterator->addr.sin_port), status);
 
-		if (argc == 5) {
-			if (!strcasecmp(argv[3],"include") && strstr(srch,argv[4])) {
-				print_line = -1;
-			} else if (!strcasecmp(argv[3],"exclude") && !strstr(srch,argv[4])) {
-				print_line = 1;
-			} else if (!strcasecmp(argv[3],"begin") && !strncasecmp(srch,argv[4],strlen(argv[4]))) {
-				print_line = -1;
-			} else {
-				print_line = 0;
-			}
-		}
-
-		if (print_line) {
-		    ast_cli(fd, FORMAT, name, 
+		ast_cli(fd, FORMAT, name, 
 			iterator->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), iterator->addr.sin_addr) : "(Unspecified)",
-                        ast_test_flag(iterator, SIP_DYNAMIC) ? " D " : "   ",  /* Dynamic or not? */
-                        (ast_test_flag(iterator, SIP_NAT) & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
-                        iterator->ha ? " A " : "   ",       /* permit/deny */
+			ast_test_flag(iterator, SIP_DYNAMIC) ? " D " : "   ",  /* Dynamic or not? */
+			(ast_test_flag(iterator, SIP_NAT) & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
+			iterator->ha ? " A " : "   ",       /* permit/deny */
 			nm,
 			ntohs(iterator->addr.sin_port), status);
-		}
 
 		ASTOBJ_UNLOCK(iterator);
 
 		total_peers++;
 	} while(0) );
-	ast_cli(fd,"%d sip peers loaded [%d online , %d offline]\n",total_peers,peers_online,peers_offline);
+
+	ast_cli(fd,"%d sip peers [%d online , %d offline]\n",total_peers,peers_online,peers_offline);
+
+	if (havepattern)
+		regfree(&regexbuf);
+
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -6779,8 +6809,9 @@ static char notify_usage[] =
 "       Message types are defined in sip_notify.conf\n";
 
 static char show_users_usage[] = 
-"Usage: sip show users\n"
-"       Lists all users known to the SIP (Session Initiation Protocol) subsystem.\n";
+"Usage: sip show users [pattern]\n"
+"       Lists all known SIP users.\n"
+"       Optional regular expression pattern is used to filter the user list.\n";
 
 static char show_inuse_usage[] = 
 "Usage: sip show inuse\n"
@@ -6799,8 +6830,9 @@ static char show_history_usage[] =
 "       Provides detailed dialog history on a given SIP channel.\n";
 
 static char show_peers_usage[] = 
-"Usage: sip show peers\n"
-"       Lists all known SIP peers.\n";
+"Usage: sip show peers [pattern]\n"
+"       Lists all known SIP peers.\n"
+"       Optional regular expression pattern is used to filter the peer list.\n";
 
 static char show_peer_usage[] =
 "Usage: sip show peer <peername>\n"
@@ -6866,12 +6898,6 @@ static struct ast_cli_entry  cli_show_peer =
 	{ { "sip", "show", "peer", NULL }, sip_show_peer, "Show details on specific SIP peer", show_peer_usage };
 static struct ast_cli_entry  cli_show_peers =
 	{ { "sip", "show", "peers", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage };
-static struct ast_cli_entry  cli_show_peers_include =
-	{ { "sip", "show", "peers", "include", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage };
-static struct ast_cli_entry  cli_show_peers_exclude =
-	{ { "sip", "show", "peers", "exclude", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage };
-static struct ast_cli_entry  cli_show_peers_begin =
-	{ { "sip", "show", "peers", "begin", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage };
 static struct ast_cli_entry  cli_inuse_show =
 	{ { "sip", "show", "inuse", NULL }, sip_show_inuse, "List all inuse/limit", show_inuse_usage };
 static struct ast_cli_entry  cli_show_registry =
@@ -9598,9 +9624,6 @@ int load_module()
 		ast_cli_register(&cli_show_history);
 		ast_cli_register(&cli_show_peer);
 		ast_cli_register(&cli_show_peers);
-		ast_cli_register(&cli_show_peers_begin);
-		ast_cli_register(&cli_show_peers_include);
-		ast_cli_register(&cli_show_peers_exclude);
 		ast_cli_register(&cli_show_registry);
 		ast_cli_register(&cli_debug);
 		ast_cli_register(&cli_debug_ip);
@@ -9640,9 +9663,6 @@ int unload_module()
 	ast_cli_unregister(&cli_show_history);
 	ast_cli_unregister(&cli_show_peer);
 	ast_cli_unregister(&cli_show_peers);
-	ast_cli_unregister(&cli_show_peers_include);
-	ast_cli_unregister(&cli_show_peers_exclude);
-	ast_cli_unregister(&cli_show_peers_begin);
 	ast_cli_unregister(&cli_show_registry);
 	ast_cli_unregister(&cli_show_subscriptions);
 	ast_cli_unregister(&cli_debug);
