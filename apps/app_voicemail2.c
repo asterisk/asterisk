@@ -136,6 +136,7 @@ static char vmfmts[80];
 static int vmmaxmessage;
 static int maxgreet;
 static int skipms;
+static int maxlogins;
 
 STANDARD_LOCAL_USER;
 
@@ -1843,6 +1844,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	char fmtc[256] = "";
 	char password[80];
 	struct vm_state vms;
+	int logretries = 0;
 	struct ast_vm_user *vmu = NULL, vmus;
 	char *context=NULL;
 
@@ -1897,7 +1899,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	
 	/* Authenticate them and get their mailbox/password */
 	
-	while (!valid) {
+	while (!valid && (logretries < maxlogins)) {
 		/* Prompt for, and read in the username */
 		if (!skipuser && ast_readstring(chan, vms.username, sizeof(vms.username) - 1, 2000, 10000, "#") < 0) {
 			ast_log(LOG_WARNING, "Couldn't read username\n");
@@ -1941,6 +1943,13 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			if (ast_streamfile(chan, "vm-incorrect", chan->language))
 				break;
 		}
+		logretries++;
+	}
+	if (logretries >= maxlogins) {
+		ast_stopstream(chan);
+		res = play_and_wait(chan, "vm-goodbye");
+		if (res > 0)
+			res = 0;
 	}
 
 	if (valid) {
@@ -2094,7 +2103,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				break;
 			}
 		}
-		if (cmd == 't') {
+		if ((cmd == 't') || (cmd == '#')) {
 			/* Timeout */
 			res = 0;
 		} else {
@@ -2261,6 +2270,15 @@ static int load_users(void)
 				skipms = x;
 			} else {
 				ast_log(LOG_WARNING, "Invalid skipms value\n");
+			}
+		}
+
+		maxlogins = 3;
+		if ((s = ast_variable_retrieve(cfg, "general", "maxlogins"))) {
+			if (sscanf(s, "%d", &x) == 1) {
+				maxlogins = x;
+			} else {
+				ast_log(LOG_WARNING, "Invalid max failed login attempts\n");
 			}
 		}
 

@@ -20,6 +20,8 @@ skipms=3000
 maxsilence=10
 ; Silence threshold (what we consider silence, the lower, the more sensitive)
 silencethreshold=128
+; Max number of failed login attempts
+maxlogins=3
 
 ;
 ; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>,<pager_email>
