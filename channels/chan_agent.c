@@ -1227,6 +1227,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 									ast_mutex_lock(&p->lock);
 									check_availability(p, 0);
 									ast_mutex_unlock(&p->lock);
+									res = 0;
 								}
 								sched_yield();
 							}
