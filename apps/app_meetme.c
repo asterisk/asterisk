@@ -626,21 +626,26 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	struct ast_conference *cnf;
 	int confflags = 0;
 	int dynamic = 0;
-	char *info, *inflags = NULL, *inpin = NULL;
+	char *notdata, *info, *inflags = NULL, *inpin = NULL;
 
 	if (!data || !strlen(data)) {
 		allowretry = 1;
-		data = "";
+		notdata = "";
+	} else {
+		notdata = data;
 	}
 	LOCAL_USER_ADD(u);
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
 
-	info = ast_strdupa((char *)data);
+	info = ast_strdupa((char *)notdata);
 
 	if (info) {
 		char *tmp = strsep(&info, "|");
 		strncpy(confno, tmp, sizeof(confno));
+		if (strlen(confno) == 0) {
+			allowretry = 1;
+		}
 	}
 	if (info)
 		inflags = strsep(&info, "|");
