@@ -122,7 +122,12 @@ sendvoicemail=yes	; Context to Send voicemail from [option 5 from the advanced m
 			;     This is intended for use with users who wish to receive their voicemail ONLY by email.
 ; nextaftercmd=yes	; Skips to the next message after hitting 7 or 9 to delete/save current message.
 			;     [global option only at this time] 
-			
+; forcename=yes		; Forces a new user to record their name.  A new user is
+			;     determined by the password being the same as
+			;     the mailbox number.  The default is "no".
+; forcegreetings=no	; This is the same as forcename, except for recording
+			;     greetings.  The default is "no".			
+
 [zonemessages]
 eastern=America/New_York|'vm-received' Q 'digits/at' IMp
 central=America/Chicago|'vm-received' Q 'digits/at' IMp
@@ -136,6 +141,8 @@ central24=America/Chicago|'vm-received' q 'digits/at' H 'digits/hundred' M 'hour
 ;4069 => 6522,Matt Brooks,matt@marko.net,,|tz=central|attach=yes|saycid=yes|dialout=fromvm|callback=fromvm|review=yes|operator=yes|envelope=yes
 ;4073 => 1099,Bianca Paige,bianca@biancapaige.com,,delete=1
 ;4110 => 3443,Rob Flynn,rflynn@blueridge.net
+;4321 => 4321,Russell Bryant,russelb@clemson.edu,,|tz=central|attach=no|saycid=yes|dialout=fromvm|callback=fromvm|review=yes|operator=yes|envelope=yes|forcename=yes|forcegreetings=yes
+
 
 ;
 ; Mailboxes may be organized into multiple contexts for

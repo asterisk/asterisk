@@ -148,6 +148,8 @@ struct ast_vm_user {
 	int review;
 	int operator;
 	int envelope;
+	int forcename;
+	int forcegreetings;
 	struct ast_vm_user *next;
 };
 
@@ -264,6 +266,8 @@ static int saycidinfo;
 static int svmailinfo;
 static int hearenv;
 static int skipaftercmd;
+static int forcenm;
+static int forcegrt;
 static char dialcontext[80];
 static char callcontext[80];
 static char exitcontext[80];
@@ -301,6 +305,10 @@ static void populate_defaults(struct ast_vm_user *vmu)
 		vmu->svmail = 1; 
 	if (hearenv)
 		vmu->envelope = 1;
+	if (forcenm)
+		vmu->forcename = 1;
+	if (forcegrt)
+		vmu->forcegreetings = 1;
 	if (callcontext)
 		strncpy(vmu->callback, callcontext, sizeof(vmu->callback) -1);
 	if (dialcontext)
@@ -357,6 +365,16 @@ static void apply_options(struct ast_vm_user *vmu, char *options)
 					vmu->envelope = 1;
 				else
 					vmu->envelope = 0;
+			} else if (!strcasecmp(var, "forcename")){
+				if(ast_true(value))
+					vmu->forcename = 1;
+				else
+					vmu->forcename = 0;
+			} else if (!strcasecmp(var, "forcegreetings")){
+				if(ast_true(value))
+					vmu->forcegreetings = 1;
+				else
+					vmu->forcegreetings = 0;
 			} else if (!strcasecmp(var, "callback")) {
 				strncpy(vmu->callback, value, sizeof(vmu->callback) -1);
 			} else if (!strcasecmp(var, "dialout")) {
@@ -3012,6 +3030,75 @@ static int vm_instructions(struct ast_channel *chan, struct vm_state *vms, int s
 	return res;
 }
 
+static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc)
+{
+	int cmd = 0;
+	int duration = 0;
+	char newpassword[80] = "";
+	char newpassword2[80] = "";
+	char prefile[256]="";
+	char buf[256];
+	int bytes=0;
+
+	if (adsi_available(chan))
+	{
+		bytes += adsi_logo(buf + bytes);
+		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_CENT, 0, "New User Setup", "");
+		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_CENT, 0, "Not Done", "");
+		bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+		bytes += adsi_voice_mode(buf + bytes, 0);
+		adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+	}
+
+	/* First, have the user change their password 
+	   so they won't get here again */
+	newpassword[1] = '\0';
+	newpassword[0] = cmd = ast_play_and_wait(chan,"vm-newpassword");
+	if (cmd < 0 || cmd == 't' || cmd == '#')
+		return cmd;
+	cmd = ast_readstring(chan,newpassword + strlen(newpassword),sizeof(newpassword)-1,2000,10000,"#");
+	if (cmd < 0 || cmd == 't' || cmd == '#')
+		return cmd;
+	newpassword2[1] = '\0';
+	newpassword2[0] = cmd = ast_play_and_wait(chan,"vm-reenterpassword");
+		return cmd;
+	cmd = ast_readstring(chan,newpassword2 + strlen(newpassword2),sizeof(newpassword2)-1,2000,10000,"#");
+	if (cmd < 0 || cmd == 't' || cmd == '#')
+		return cmd;
+	if (strcmp(newpassword, newpassword2)) {
+		ast_log(LOG_NOTICE,"Password mismatch for user %s (%s != %s)\n", vms->username, newpassword, newpassword2);
+		cmd = ast_play_and_wait(chan, "vm-mismatch");
+	}
+	if(ast_strlen_zero(ext_pass_cmd)) 
+		vm_change_password(vmu,newpassword);
+	else 
+		vm_change_password_shell(vmu,newpassword);
+	ast_log(LOG_DEBUG,"User %s set password to %s of length %i\n",vms->username,newpassword,(int)strlen(newpassword));
+	cmd = ast_play_and_wait(chan,"vm-passchanged");
+
+	/* If forcename is set, have the user record their name */	
+	if (vmu->forcename) {
+		snprintf(prefile,sizeof(prefile),"voicemail/%s/%s/greet",vmu->context, vms->username);
+		cmd = play_record_review(chan,"vm-rec-name",prefile, maxgreet, fmtc, 0, vmu, &duration);
+		if (cmd < 0 || cmd == 't' || cmd == '#')
+			return cmd;
+	}
+
+	/* If forcegreetings is set, have the user record their greetings */
+	if (vmu->forcegreetings) {
+		snprintf(prefile,sizeof(prefile),"voicemail/%s/%s/unavail",vmu->context, vms->username);
+		cmd = play_record_review(chan,"vm-rec-unv",prefile, maxgreet, fmtc, 0, vmu, &duration);
+		if (cmd < 0 || cmd == 't' || cmd == '#')
+			return cmd;
+		snprintf(prefile,sizeof(prefile),"voicemail/%s/%s/busy",vmu->context, vms->username);
+		cmd = play_record_review(chan,"vm-rec-busy",prefile, maxgreet, fmtc, 0, vmu, &duration);
+		if (cmd < 0 || cmd == 't' || cmd == '#')
+			return cmd;
+	}
+
+	return cmd;
+}
+
 static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc)
 {
 	int cmd = 0;
@@ -3322,7 +3409,6 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		open_mailbox(&vms, vmu, 0);
 		vms.newmessages = vms.lastmsg + 1;
 		
-
 		/* Select proper mailbox FIRST!! */
 		if (!vms.newmessages && vms.oldmessages) {
 			/* If we only have old messages start here */
@@ -3332,6 +3418,24 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		if (useadsi)
 			adsi_status(chan, &vms);
 		res = 0;
+
+		/* Check to see if this is a new user */
+		if (!strcasecmp(vmu->mailbox, vmu->password) && 
+			(vmu->forcename || vmu->forcegreetings)) {
+			if (ast_play_and_wait(chan, "vm-newuser") == -1)
+				ast_log(LOG_WARNING, "Couldn't stream new user file\n");
+			cmd = vm_newuser(chan, vmu, &vms, vmfmts);
+			if ((cmd == 't') || (cmd == '#')) {
+				/* Timeout */
+				res = 0;
+				goto out;
+			} else if (cmd < 0) {
+				/* Hangup */
+				res = -1;
+				goto out;
+			}
+		}
+
 		/* Play voicemail intro - syntax is different for different languages */
 		if (!strcasecmp(chan->language, "de")) {	/* GERMAN syntax */
 			cmd = vm_intro_de(chan, &vms);
@@ -3348,6 +3452,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		} else {	/* Default to ENGLISH */
 			cmd = vm_intro(chan, &vms);
 		}
+
 		vms.repeats = 0;
 		vms.starting = 1;
 		while((cmd > -1) && (cmd != 't') && (cmd != '#')) {
@@ -4017,6 +4122,18 @@ static int load_config(void)
 				ast_log(LOG_WARNING, "Invalid max failed login attempts\n");
 			}
 		}
+
+		/* Force new user to record name ? */
+		forcenm = 0;
+		if (!(astattach = ast_variable_retrieve(cfg, "general", "forcename"))) 
+			astattach = "no";
+		forcenm = ast_true(astattach);
+
+		/* Force new user to record greetings ? */
+		forcegrt = 0;
+		if (!(astattach = ast_variable_retrieve(cfg, "general", "forcegreetings"))) 
+			astattach = "no";
+		forcegrt = ast_true(astattach);
 
 		if ((s = ast_variable_retrieve(cfg, "general", "cidinternalcontexts"))){
 			ast_log(LOG_DEBUG,"VM_CID Internal context string: %s\n",s);
