@@ -59,7 +59,7 @@ static int write_audio(short *data, int len)
 		pthread_mutex_unlock(&sound_lock);
         return -1;
     }
-		res = write(sound, data, len);
+	res = write(sound, data, len);
 	pthread_mutex_unlock(&sound_lock);
 	return res;
 }
@@ -97,7 +97,7 @@ static int create_audio()
 		return -1;
 	}
 	if (fmt != desired) {
-		ast_log(LOG_WARNING, "Requested %d Hz, got %d Hz -- sound may be choppy\n");
+		ast_log(LOG_WARNING, "Requested %d Hz, got %d Hz -- sound may be choppy\n", desired, fmt);
 	}
 #if 1
 	/* 2 bytes * 15 units of 2^5 = 32 bytes per buffer */
@@ -146,7 +146,7 @@ static int intercom_exec(struct ast_channel *chan, void *data)
 									res = 0;
 							} else
 								ast_log(LOG_DEBUG, "Unable to handle non-signed linear frame (%d)\n", f->subclass);
-						}
+						} 
 					}
 					ast_frfree(f);
 				} else

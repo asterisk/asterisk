@@ -56,6 +56,11 @@ int ast_unregister_application(char *app);
 /* If an extension exists, return non-zero */
 int ast_exists_extension(struct ast_channel *c, char *context, char *exten, int priority);
 
+/* If "exten" *could be* a valid extension in this context with or without
+   some more digits, return non-zero.  Basically, when this returns 0, no matter
+   what you add to exten, it's not going to be a valid extension anymore */
+int ast_canmatch_extension(struct ast_channel *c, char *context, char *exten, int priority);
+
 /* Launch a new extension (i.e. new stack) */
 int ast_spawn_extension(struct ast_channel *c, char *context, char *exten, int priority);
 
