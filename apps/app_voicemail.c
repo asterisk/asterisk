@@ -22,6 +22,7 @@
 #include <asterisk/module.h>
 #include <asterisk/adsi.h>
 #include <asterisk/app.h>
+#include <asterisk/manager.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -726,6 +727,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		ast_log(LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
 	ast_destroy(cfg);
 	/* Leave voicemail for someone */
+	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext, ast_app_has_voicemail(ext));
 	return res;
 }
 
@@ -1981,6 +1983,9 @@ out2:
 		ast_destroy(cfg);
 	if (useadsi)
 		adsi_unload_session(chan);
+	if (valid) {
+		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", username, ast_app_has_voicemail(username));
+	}
 	LOCAL_USER_REMOVE(u);
 	return res;
 

@@ -710,7 +710,16 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,char *cp3,char *
 					} else if (!strcmp(cp3, "EXTEN")) {
 						*cp4 = c->exten;
 					} else if (!strncmp(cp3, "EXTEN-", strlen("EXTEN-")) && 
+						/* XXX Remove me eventually */
 						(sscanf(cp3 + strlen("EXTEN-"), "%d", &offset) == 1)) {
+						if (offset < 0)
+							offset=0;
+						if (offset > strlen(c->exten))
+							offset = strlen(c->exten);
+						*cp4 = c->exten + offset;
+						ast_log(LOG_WARNING, "The use of 'EXTEN-foo' has been derprecated in favor of 'EXTEN:foo'\n");
+					} else if (!strncmp(cp3, "EXTEN:", strlen("EXTEN:")) && 
+						(sscanf(cp3 + strlen("EXTEN:"), "%d", &offset) == 1)) {
 						if (offset < 0)
 							offset=0;
 						if (offset > strlen(c->exten))
@@ -2784,8 +2793,8 @@ int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int pri
 		struct ast_frame *f;
 		tmpchan = ast_channel_alloc(0);
 		if (tmpchan) {
-			ast_setstate(tmpchan, chan->_state);
 			snprintf(tmpchan->name, sizeof(tmpchan->name), "AsyncGoto/%s", chan->name);
+			ast_setstate(tmpchan, chan->_state);
 			/* Make formats okay */
 			tmpchan->readformat = chan->readformat;
 			tmpchan->writeformat = chan->writeformat;

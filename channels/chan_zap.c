@@ -1,11 +1,11 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Tormenta T1 Card (via Zapata library) support 
+ * Zaptel Pseudo TDM interface 
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 2003 Digium
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -2275,6 +2275,28 @@ static mfcr2_event_t *r2_get_event_bits(struct zt_pvt *p)
 }
 #endif
 
+static int check_for_conference(struct zt_pvt *p)
+{
+	ZT_CONFINFO ci;
+	/* Fine if we already have a master, etc */
+	if (p->master || (p->confno > -1))
+		return 0;
+	memset(&ci, 0, sizeof(ci));
+	if (ioctl(p->subs[SUB_REAL].zfd, ZT_GETCONF, &ci)) {
+		ast_log(LOG_WARNING, "Failed to get conference info on channel %d\n", p->channel);
+		return 0;
+	}
+	/* If we have no master and don't have a confno, then 
+	   if we're in a conference, it's probably a MeetMe room or
+	   some such, so don't let us 3-way out! */
+	if (ci.confno) {
+		if (option_verbose > 2)	
+			ast_verbose(VERBOSE_PREFIX_3 "Avoiding 3-way call when in an external conference\n");
+		return 1;
+	}
+	return 0;
+}
+			
 static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 {
 	int res,x;
@@ -2550,7 +2572,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						if (p->subs[SUB_REAL].owner->bridge)
 								ast_moh_stop(p->subs[SUB_REAL].owner->bridge);
 					} else if (!p->subs[SUB_THREEWAY].owner) {
-						if (p->threewaycalling) {
+						if (p->threewaycalling && !check_for_conference(p)) {
 							/* XXX This section needs much more error checking!!! XXX */
 							/* Start a 3-way call if feasible */
 							if ((ast->pbx) ||

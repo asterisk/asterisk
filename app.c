@@ -146,10 +146,24 @@ int ast_app_has_voicemail(char *mailbox)
 	DIR *dir;
 	struct dirent *de;
 	char fn[256];
-
+	char tmp[256]="";
+	char *mb, *cur;
+	int ret;
 	/* If no mailbox, return immediately */
 	if (!strlen(mailbox))
 		return 0;
+	if (strchr(mailbox, ',')) {
+		strncpy(tmp, mailbox, sizeof(tmp));
+		mb = tmp;
+		ret = 0;
+		while((cur = strsep(&mb, ", "))) {
+			if (strlen(cur)) {
+				if (ast_app_has_voicemail(cur))
+					return 1; 
+			}
+		}
+		return 0;
+	}
 	snprintf(fn, sizeof(fn), "%s/vm/%s/INBOX", (char *)ast_config_AST_SPOOL_DIR, mailbox);
 	dir = opendir(fn);
 	if (!dir)

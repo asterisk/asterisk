@@ -1163,8 +1163,12 @@ static int sip_register(char *value, int lineno)
 		return -1;
 	strncpy(copy, value, sizeof(copy)-1);
 	stringp=copy;
-	username = strsep(&stringp, "@");
-	hostname = strsep(&stringp, "@");
+	username = stringp;
+	hostname = strrchr(stringp, '@');
+	if (hostname) {
+		*hostname = '\0';
+		hostname++;
+	}
 	if (!hostname) {
 		ast_log(LOG_WARNING, "Format for registration is user[:secret]@host[:port] at line %d", lineno);
 		return -1;
@@ -2325,10 +2329,10 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 		*a2 = '\0';
 	
 	
-	if (sipdebug)
+	if (sipdebug) {
 		ast_verbose("Looking for %s in %s\n", c, p->context);
 		ast_verbose("Looking for %s in %s\n", c2, p->context);
-		
+	}
 	if (strlen(tmp5)) {	
 		/* This is a supervised transfer */
 		ast_log(LOG_DEBUG,"Assigning Replace-Call-ID Info %s to REPLACE_CALL_ID\n",tmp5);
@@ -2355,7 +2359,7 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 			return 0;
 		else
 			ast_log(LOG_NOTICE, "Supervised transfer requested, but unable to find callid '%s'\n", tmp5);
-	} else if (ast_exists_extension(NULL, p->context, c, 1, NULL) && ast_exists_extension(NULL, p->context, c2, 1, NULL)) {
+	} else if (ast_exists_extension(NULL, p->context, c, 1, NULL)) {
 		/* This is an unsupervised transfer */
 		ast_log(LOG_DEBUG,"Assigning Extension %s to REFER-TO\n", c);
 		ast_log(LOG_DEBUG,"Assigning Extension %s to REFERRED-BY\n", c2);
@@ -3294,6 +3298,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 						ast_async_goto(transfer_to,"", p->refer_to,1, 1);
 				}
 			}
+			transmit_request(p, "BYE", p->outgoing);
 		}
 	} else if (!strcasecmp(cmd, "CANCEL") || !strcasecmp(cmd, "BYE")) {
 		copy_request(&p->initreq, req);

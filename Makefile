@@ -232,6 +232,7 @@ samples: all datafiles adsi
 		fi ; \
 		install $$x $(ASTETCDIR)/`basename $$x .sample` ;\
 	done
+	echo "[directories]" > $(ASTETCDIR)/asterisk.conf
 	echo "astetcdir => $(ASTETCDIR)" >> $(ASTETCDIR)/asterisk.conf
 	echo "astmoddir => $(MODULES_DIR)" >> $(ASTETCDIR)/asterisk.conf
 	echo "astvarlibdir => $(ASTVARLIBDIR)" >> $(ASTETCDIR)/asterisk.conf

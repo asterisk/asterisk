@@ -1560,6 +1560,7 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 
 int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clone)
 {
+	struct ast_frame null = { AST_FRAME_NULL, };
 	ast_log(LOG_DEBUG, "Planning to masquerade %s into the structure of %s\n",
 		clone->name, original->name);
 	if (original->masq) {
@@ -1574,6 +1575,9 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
 	}
 	original->masq = clone;
 	clone->masqr = original;
+	/* XXX can't really hold the lock here, but at the same time, it' s
+	   not really safe not to XXX */
+	ast_queue_frame(original, &null, 0);
 	return 0;
 }
 

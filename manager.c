@@ -30,6 +30,7 @@
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
 #include <asterisk/cli.h>
+#include <asterisk/app.h>
 #include <asterisk/pbx.h>
 
 static int enabled = 0;
@@ -389,6 +390,18 @@ static int action_originate(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static int action_mailboxstatus(struct mansession *s, struct message *m)
+{
+	char *mailbox = get_header(m, "Mailbox");
+	if (!mailbox || !strlen(mailbox)) {
+		send_error(s, "Mailbox not specified");
+		return 0;
+	}
+	send_ack(s, "Mailbox status will follow");
+	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting:%d\r\n", mailbox, ast_app_has_voicemail(mailbox));
+	return 0;
+}
+
 static int process_message(struct mansession *s, struct message *m)
 {
 	char action[80];
@@ -638,6 +651,7 @@ int init_manager(void)
 		ast_manager_register( "Status", EVENT_FLAG_CALL, action_status, "Status" );
 		ast_manager_register( "Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect" );
 		ast_manager_register( "Originate", EVENT_FLAG_CALL, action_originate, "Originate Call" );
+		ast_manager_register( "MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox" );
 		ast_manager_register( "Command", EVENT_FLAG_COMMAND, action_command, "Execute Command" );
 
 		ast_cli_register(&show_mancmds_cli);

@@ -83,7 +83,7 @@ TRUNK=Zap/g2					; Trunk interface
 ; up, please go to www.gnophone.com or www.iaxtel.com
 ;
 [iaxtel700]
-exten => _91700NXXXXXX,1,Dial(IAX/${IAXINFO}@iaxtel.com/${EXTEN-1}@iaxtel)
+exten => _91700NXXXXXX,1,Dial(IAX/${IAXINFO}@iaxtel.com/${EXTEN:1}@iaxtel)
 
 [iaxprovider]
 ;switch => IAX/user:[key]@myserver/mycontext
@@ -92,34 +92,34 @@ exten => _91700NXXXXXX,1,Dial(IAX/${IAXINFO}@iaxtel.com/${EXTEN-1}@iaxtel)
 ;
 ; International long distance through trunk
 ;
-exten => 9011.,1,Dial(${TRUNK}/${EXTEN-1})
+exten => 9011.,1,Dial(${TRUNK}/${EXTEN:1})
 exten => 9011.,2,Congestion
 
 [trunkld]
 ;
 ; Long distance context accessed through trunk
 ;
-exten => _91NXXNXXXXXX,1,Dial(${TRUNK}/${EXTEN-1})
+exten => _91NXXNXXXXXX,1,Dial(${TRUNK}/${EXTEN:1})
 exten => _91NXXNXXXXXX,2,Congestion
 
 [trunklocal]
 ;
 ; Local seven-digit dialing accessed through trunk interface
 ;
-exten => _9NXXXXXX,1,Dial(${TRUNK}/${EXTEN-1})
+exten => _9NXXXXXX,1,Dial(${TRUNK}/${EXTEN:1})
 exten => _9NXXXXXX,2,Congestion
 
 [trunktollfree]
 ;
 ; Long distance context accessed through trunk interface
 ;
-exten => _91800NXXXXXX,1,Dial(${TRUNK}/${EXTEN-1})
+exten => _91800NXXXXXX,1,Dial(${TRUNK}/${EXTEN:1})
 exten => _91800NXXXXXX,2,Congestion
-exten => _91888NXXXXXX,1,Dial(${TRUNK}/${EXTEN-1})
+exten => _91888NXXXXXX,1,Dial(${TRUNK}/${EXTEN:1})
 exten => _91888NXXXXXX,2,Congestion
-exten => _91877NXXXXXX,1,Dial(${TRUNK}/${EXTEN-1})
+exten => _91877NXXXXXX,1,Dial(${TRUNK}/${EXTEN:1})
 exten => _91877NXXXXXX,2,Congestion
-exten => _91866NXXXXXX,1,Dial(${TRUNK}/${EXTEN-1})
+exten => _91866NXXXXXX,1,Dial(${TRUNK}/${EXTEN:1})
 exten => _91866NXXXXXX,2,Congestion
 
 [international]
