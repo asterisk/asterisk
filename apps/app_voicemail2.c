@@ -110,7 +110,7 @@ static char *descrip_vm =
 "is preceeded by 'u' then the \"unavailable\" message will be played (that is, \n"
 "/var/lib/asterisk/sounds/vm/<exten>/unavail) if it exists.  If the extension\n"
 "is preceeded by a 'b' then the the busy message will be played (that is,\n"
-"busy instead of unavail). \n";
+"busy instead of unavail). \n"
 "Returns  -1 on  error or mailbox not found, or if the user hangs up. \n"
 "Otherwise, it returns 0. \n";
 
