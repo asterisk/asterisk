@@ -2334,10 +2334,14 @@ static long tvdiff(struct timeval *now, struct timeval *then)
 	return (((now->tv_sec * 1000) + now->tv_usec / 1000) - ((then->tv_sec * 1000) + then->tv_usec / 1000));
 }
 
-static void bridge_playfile(struct ast_channel *chan, char *sound, int remain) 
+static void bridge_playfile(struct ast_channel *chan, struct ast_channel *peer, char *sound, int remain) 
 {
-	int res=0, min=0, sec=0;
-	
+	int res=0, min=0, sec=0,check=0;
+
+	check = ast_autoservice_start(peer);
+	if(check) 
+		return;
+
 	if (remain > 0) {
 		if (remain / 60 > 1) {
 			min = remain / 60;
@@ -2364,6 +2368,8 @@ static void bridge_playfile(struct ast_channel *chan, char *sound, int remain)
 		res = ast_streamfile(chan, sound, chan->language);
 		res = ast_waitstream(chan, "");
 	}
+
+	check = ast_autoservice_stop(peer);
 }
 
 int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc) 
@@ -2388,9 +2394,9 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 	time_left_ms = config->timelimit;
 
 	if (config->play_to_caller && config->start_sound)
-		bridge_playfile(c0,config->start_sound,time_left_ms / 1000);
+		bridge_playfile(c0,c1,config->start_sound,time_left_ms / 1000);
 	if (config->play_to_callee && config->start_sound)
-		bridge_playfile(c1,config->start_sound,time_left_ms / 1000);
+		bridge_playfile(c1,c0,config->start_sound,time_left_ms / 1000);
 
 	/* Stop if we're a zombie or need a soft hangup */
 	if (c0->zombie || ast_check_hangup_locked(c0) || c1->zombie || ast_check_hangup_locked(c1)) 
@@ -2443,9 +2449,9 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 			}
 			if (time_left_ms <= 0) {
 				if (config->play_to_caller && config->end_sound)
-					bridge_playfile(c0,config->end_sound,0);
+					bridge_playfile(c0,c1,config->end_sound,0);
 				if (config->play_to_callee && config->end_sound)
-					bridge_playfile(c1,config->end_sound,0);
+					bridge_playfile(c1,c0,config->end_sound,0);
 				*fo = NULL;
 				if (who) *rc = who;
 				res = 0;
@@ -2453,9 +2459,9 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 			}
 			if (time_left_ms >= 5000 && playit) {
 				if (config->play_to_caller && config->warning_sound && config->play_warning)
-					bridge_playfile(c0,config->warning_sound,time_left_ms / 1000);
+					bridge_playfile(c0,c1,config->warning_sound,time_left_ms / 1000);
 				if (config->play_to_callee && config->warning_sound && config->play_warning)
-					bridge_playfile(c1,config->warning_sound,time_left_ms / 1000);
+					bridge_playfile(c1,c0,config->warning_sound,time_left_ms / 1000);
 				playit = 0;
 			}
 			
