@@ -72,9 +72,12 @@ autokill=yes
 ;
 ; tech is the technology to use (IAX, SIP, H323)
 ;
-; dest is the destination to supply for reaching that number.  Note
-; that the variable ${NUMBER} shall be replaced by the number being
-; requested.
+; dest is the destination to supply for reaching that number.  The
+; following variables can be used in the destination string and will
+; be automatically substituted:
+; ${NUMBER}: The number being requested
+; ${IPADDR}: The IP address to connect to
+; ${SECRET}: The current rotating secret key to be used
 ;
 ; Further options may include:
 ;
