@@ -19,3 +19,8 @@ IAX:
 
 * The naming convention for IAX channels has changed in a minor way such 
   that the call number follows a "-" rather than a "/" character.
+
+Applications:
+
+* The CallerPres application has been removed.  Use SetCallerPres 
+  instead.  It accepts both numeric and symbolic names.

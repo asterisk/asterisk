@@ -9089,20 +9089,6 @@ static struct ast_cli_entry cli_show_channel = {
 static struct ast_cli_entry cli_destroy_channel = { 
 	{"zap", "destroy", "channel", NULL}, zap_destroy_channel, "Destroy a channel", destroy_channel_usage, NULL };
 
-static char *synopsis_callingpres = "Change the presentation for the callerid";
-static char *descrip_callingpres = "Callingpres(number): Changes the presentation for the callerid. Should be called before placing an outgoing call\n";
-static char *app_callingpres = "CallingPres";
-static int change_callingpres(struct ast_channel *chan, void *data)
-{
-	int mode = 0;
-	if (data) {
-		mode = atoi((char *)data);
-		chan->cid.cid_pres = mode;
-	} else
-		ast_log(LOG_NOTICE, "Application %s requres an argument: %s(number)\n", app_callingpres,app_callingpres);
-	return 0;
-}
-
 #define TRANSFER	0
 #define HANGUP		1
 
@@ -9311,7 +9297,6 @@ static int __unload_module(void)
 	ast_manager_unregister( "ZapDNDoff" );
 	ast_manager_unregister( "ZapDNDon" );
 	ast_manager_unregister("ZapShowChannels");
-	ast_unregister_application(app_callingpres);
 	ast_channel_unregister(&zap_tech);
 	if (!ast_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
@@ -10175,7 +10160,6 @@ int load_module(void)
 	ast_cli_register(&cli_destroy_channel);
 	ast_cli_register(&zap_show_cadences_cli);
 
-	ast_register_application(app_callingpres, change_callingpres, synopsis_callingpres, descrip_callingpres);
 	memset(round_robin, 0, sizeof(round_robin));
 	ast_manager_register( "ZapTransfer", 0, action_transfer, "Transfer Zap Channel" );
 	ast_manager_register( "ZapHangup", 0, action_transferhangup, "Hangup Zap Channel" );
