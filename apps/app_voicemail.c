@@ -5899,8 +5899,17 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 #endif
  		case '0':
 			if (message_exists || recorded) {
-				ast_play_and_wait(chan, "vm-deleted");
-				DELETE(recordfile, -1, recordfile);
+				cmd = ast_play_and_wait(chan, "vm-saveoper");
+				if (!cmd)
+					cmd = ast_waitfordigit(chan, 3000);
+				if (cmd == '1') {
+					ast_play_and_wait(chan, "vm-msgsaved");
+					cmd = '0';
+				} else {
+					ast_play_and_wait(chan, "vm-deleted");
+					DELETE(recordfile, -1, recordfile);
+					cmd = '0';
+				}
 			}
 			return cmd;
  		default:

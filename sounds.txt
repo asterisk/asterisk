@@ -465,6 +465,8 @@
 
 %vm-advopts.gsm%press 3 for advanced options
 
+%vm-saveoper.gsm%press 1 to accept this recording, or continue to hold
+
 %vm-toreply.gsm%press 1 to send a reply
 
 %vm-tocallback.gsm%press 2 to call the person who sent this message
