@@ -4230,7 +4230,7 @@ static int sip_poke_peer(struct sip_peer *peer);
 /*--- reg_source_db: Save registration in Asterisk DB ---*/
 static void reg_source_db(struct sip_peer *p)
 {
-	char data[80];
+	char data[256];
 	char iabuf[INET_ADDRSTRLEN];
 	struct in_addr in;
 	char *c, *d, *u, *e;
