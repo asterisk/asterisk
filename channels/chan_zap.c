@@ -7712,7 +7712,7 @@ static void *pri_dchannel(void *vpri)
 								pbx_builtin_setvar_helper(c, "CALLINGSUBADDR", e->ring.callingsubaddr);
 							}
 							if(e->ring.ani2 >= 0) {
-								snprintf(ani2str, 5, "%d", e->ring.ani2);
+								snprintf(ani2str, 5, "%.2d", e->ring.ani2);
 								pbx_builtin_setvar_helper(c, "ANI2", ani2str);
 							}
 							ast_mutex_lock(&pri->lock);
