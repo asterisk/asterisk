@@ -1683,7 +1683,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	/* reload logger in case a custom config handler binded to logger.conf*/
-    reload_logger(0);
+	reload_logger(0);
 
 	/* We might have the option of showing a console, but for now just
 	   do nothing... */
