@@ -200,6 +200,15 @@ auth=rsa
 inkeys=freeworlddialup
 
 ;
+; Trust callerid delivered over DUNDi/e164
+;
+;
+;[dundi]
+;type=user
+;dbsecret=dundi/secret
+;context=dundi-e164-local
+
+;
 ; Further user sections may be added, specifying a context and a
 ; secret used for connections with that given authentication name.
 ; Limited IP based access control is allowed by use of "allow" and

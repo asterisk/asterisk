@@ -109,6 +109,64 @@ TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 ;
 
 ;
+; Sample entries for extensions.conf
+;
+;
+[dundi-e164-canonical]
+;
+; List canonical entries here
+;
+;exten => 12564286000,1,Macro(std-exten,6000,IAX2/foo)
+;exten => _125642860XX,1,Dial(IAX2/otherbox/${EXTEN:7})
+
+[dundi-e164-customers]
+;
+; If you are an ITSP or Reseller, list your customers here.
+;
+;exten => _12564286000,1,Dial(SIP/customer1)
+;exten => _12564286001,1,Dial(IAX2/customer2)
+
+[dundi-e164-via-pstn]
+;
+; If you are freely delivering calls to the PSTN, list them here
+;
+;exten => _1256428XXXX,1,Dial(Zap/g2/${EXTEN:7}) ; Expose all of 256-428 
+;exten => _1256325XXXX,1,Dial(Zap/g2/${EXTEN:7}) ; Ditto for 256-325
+
+[dundi-e164-local]
+;
+; Context to put your dundi IAX2 or SIP user in for
+; full access
+;
+include => dundi-e164-canonical
+include => dundi-e164-customers
+include => dundi-e164-via-pstn
+
+[dundi-e164-switch]
+;
+; Just a wrapper for the switch
+;
+switch => DUNDi/e164
+
+[dundi-e164-lookup]
+;
+; Locally to lookup, try looking for a local E.164 solution
+; then try DUNDi if we don't have one.
+;
+include => dundi-e164-local
+include => dundi-e164-switch
+;
+; DUNDi can also be implemented as a Macro instead of using 
+; the Local channel driver. 
+;
+[macro-dundi-e164]
+;
+; ARG1 is the extension to Dial
+;
+exten => s,1,Goto(${ARG1},1)
+include => dundi-e164-lookup
+
+;
 ; Here are the entries you need to participate in the IAXTEL
 ; call routing system.  Most IAXTEL numbers begin with 1-700, but
 ; there are exceptions.  For more information, and to sign
@@ -130,13 +188,15 @@ exten => _91700XXXXXXX,1,Dial(IAX2/${IAXINFO}@iaxtel.com/${EXTEN:1}@iaxtel)
 ;
 ; International long distance through trunk
 ;
-exten => _9011.,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
+exten => _9011.,1,Macro(dundi-e164,${EXTEN:4})
+exten => _9011.,n,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
 
 [trunkld]
 ;
 ; Long distance context accessed through trunk
 ;
-exten => _91NXXNXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
+exten => _91NXXNXXXXXX,1,Macro(dundi-e164,${EXTEN:1})
+exten => _91NXXNXXXXXX,n,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
 
 [trunklocal]
 ;

@@ -1,0 +1,172 @@
+;
+; DUNDi configuration file
+;
+;
+[general]
+;
+; The "general" section contains general parameters relating
+; to the operation of the dundi client and server.
+;
+; The first part should be your complete contact information
+; should someone else in your peer group need to contact you.
+;
+;department=Your Department
+;organization=Your Company, Inc.
+;locality=Your City
+;stateprov=ST
+;country=US
+;email=your@email.com
+;phone=+12565551212
+;
+;
+; Specify bind address and port number.  Default is
+; 4520
+;
+;bindaddr=0.0.0.0
+;port=4520
+;
+; Our entity identifier (Should generally be the MAC address of the
+; machine it's running on.  Defaults to the first eth address, but you
+; can override it here, as long as you set it to the MAC of *something*
+; you own!)
+;
+;entityid=00:07:E9:3B:76:60
+;
+; Define the max depth in which to search the DUNDi system (also max # of 
+; seconds to wait for a reply)
+;
+ttl=32
+;
+; If we don't get ACK to our DPREQUEST within 2000ms, and autokill is set
+; to yes, then we cancel the whole thing (that's enough time for one 
+; retransmission only).  This is used to keep things from stalling for a long
+; time for a host that is not available, but would be ill advised for bad 
+; connections.  In addition to 'yes' or 'no' you can also specify a number
+; of milliseconds.  See 'qualify' for individual peers to turn on for just
+; a specific peer.
+;
+autokill=yes
+;
+; pbx_dundi creates a rotating key called "secret", under the family
+; 'secretpath'.  The default family is dundi (resulting in 
+; the key being held at dundi/secret).
+;
+;secretpath=dundi
+
+[mappings]
+;
+; The "mappings" section maps DUNDi contexts
+; to contexts on the local asterisk system.  Remember
+; that numbers that are made available under the e164 
+; DUNDi context are regulated by the DUNDi General Peering 
+; Agreement (GPA) if you are a member of the DUNDi E.164
+; Peering System.
+;
+; dundi_context => local_context,weight,tech,dest[,options]]
+;
+; dundi_context is the name of the context being requested
+; within the DUNDi request
+;
+; local_context is the name of the context on the local system
+; in which numbers can be looked up for which responses shall be given.
+;
+; tech is the technology to use (IAX, SIP, H323)
+;
+; dest is the destination to supply for reaching that number.  Note
+; that the variable ${NUMBER} shall be replaced by the number being
+; requested.
+;
+; Further options may include:
+;
+; nounsolicited:  No unsolicited calls of any type permitted via this 
+;                 route
+; nocomunsolicit: No commercial unsolicited calls permitted via 
+;                 this route
+; residential:    This number is known to be a residence
+; commercial:     This number is known to be a business
+; mobile:         This number is known to be a mobile phone
+; nocomunsolicit: No commercial unsolicited calls permitted via 
+;                 this route
+; nopartial:      Do not search for partial matches
+;
+; There *must* exist an entry in mappings for DUNDi to respond
+; to any request, although it may be empty.
+;
+;e164 => dundi-e164-canonical,0,IAX2,dundi:${SECRET}@${IPADDR}/${NUMBER},nounsolicited,nocomunsolicit,nopartial
+;e164 => dundi-e164-customers,100,IAX2,dundi:${SECRET}@${IPADDR}/${NUMBER},nounsolicited,nocomunsolicit,nopartial
+;e164 => dundi-e164-via-pstn,400,IAX2,dundi:${SECRET}@${IPADDR}/${NUMBER},nounsolicited,nocomunsolicit,nopartial
+
+;digexten => default,0,IAX2,guest@lappy/${NUMBER}
+;asdf =>
+
+
+;
+;
+; The remaining sections represent the peers
+; that we fundamentally trust.  The section name
+; represents the name and optionally at a specific
+; DUNDi context if you want the trust to be established
+; for only a specific DUNDi context.
+;
+; inkey - What key they will be authenticating to us with
+;
+; outkey - What key we use to authenticate to them
+;
+; host - What their host is
+;
+; order - What search order to use.  May be 'primary', 'secondary', 
+;         'tertiary' or 'quartiary'.  In large systems, it is beneficial
+;         to only query one up-stream host in order to maximize caching
+;         value.  Adding one with primary and one with secondary gives you
+;         redundancy without sacraficing performance.
+;
+; include - Includes this peer when searching a particular context
+;           for lookup (set "all" to perform all lookups with that
+;           host.
+;
+; noinclude - Disincludes this peer when searching a particular context
+;             for lookup (set "all" to perform no lookups with that
+;             host.
+;
+; permit - Permits this peer to search a given DUNDi context on
+;          the local system.  Set "all" to permit this host to
+;          lookup all contexts.
+;
+; deny -   Denies this peer to search a given DUNDi context on
+;          the local system.  Set "all" to deny this host to
+;          lookup all contexts.
+;
+; model - inbound, outbound, or symmetric for whether we receive 
+;         requests only, transmit requests only, or do both.
+;
+; The '*' peer is special and matches an unspecified entity
+;
+
+;
+; Sample Primary e164 DUNDi peer
+;
+[00:50:8B:F3:75:BB]
+model = symmetric
+host = 64.215.96.114
+inkey = digium
+outkey = misery
+include = e164
+permit = e164
+qualify = yes
+
+;
+; Sample Secondary e164 DUNDi peer
+;
+;[00:A0:C9:96:92:84]
+;model = symmetric
+;host = misery.digium.com
+;inkey = misery
+;outkey = ourkey
+;include = e164
+;permit = e164
+;qualify = yes
+;order = secondary
+
+
+;[*]
+;

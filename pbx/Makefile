@@ -13,7 +13,7 @@
 
 
 
-PBX_LIBS=pbx_config.so pbx_spool.so     # pbx_gtkconsole.so pbx_kdeconsole.so
+PBX_LIBS=pbx_config.so pbx_spool.so pbx_dundi.so 
 
 # Add GTK console if appropriate
 #PBX_LIBS+=$(shell gtk-config --cflags >/dev/null 2>/dev/null && echo "pbx_gtkconsole.so")
@@ -54,6 +54,9 @@ pbx_kdeconsole_main.o: pbx_kdeconsole_main.cc pbx_kdeconsole.h
 
 pbx_kdeconsole.so: $(KDE_CONSOLE_OBJS)
 	$(CC) $(SOLINK) -o $@ $(KDE_CONSOLE_OBJS) $(KDE_LIBS)
+
+pbx_dundi.so: dundi-parser.o pbx_dundi.o
+	$(CC) $(SOLINK) -o $@ pbx_dundi.o dundi-parser.o -lz
 
 %.moc : %.h
 	$(MOC) $< -o $@
