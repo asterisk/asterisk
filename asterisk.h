@@ -52,5 +52,8 @@ extern int term_init(void);
 extern int astdb_init(void);
 /* Provided by channel.c */
 extern void ast_channels_init(void);
+/* Provided by dnsmgr.c */
+extern int dnsmgr_init(void);
+extern void dnsmgr_reload(void);
 
 #endif

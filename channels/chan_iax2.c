@@ -37,6 +37,7 @@
 #include <asterisk/causes.h>
 #include <asterisk/localtime.h>
 #include <asterisk/aes.h>
+#include <asterisk/dnsmgr.h>
 #include <sys/mman.h>
 #include <arpa/inet.h>
 #include <dirent.h>
@@ -265,6 +266,7 @@ struct iax2_peer {
 	char peercontext[AST_MAX_EXTENSION];		/* Context to pass to peer */
 	char mailbox[AST_MAX_EXTENSION];		/* Mailbox */
 	struct ast_codec_pref prefs;
+	struct ast_dnsmgr_entry *dnsmgr;		/* DNS refresh manager */
 	struct sockaddr_in addr;
 	int formats;
 	int sockfd;					/* Socket to use for transmission */
@@ -7872,8 +7874,8 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 					if (peer->expire > -1)
 						ast_sched_del(sched, peer->expire);
 					peer->expire = -1;
-					ast_clear_flag(peer, IAX_DYNAMIC);	
-					if (ast_get_ip(&peer->addr, v->value)) {
+					ast_clear_flag(peer, IAX_DYNAMIC);
+					if (ast_dnsmgr_lookup(v->value, &peer->addr.sin_addr, &peer->dnsmgr)) {
 						free(peer);
 						return NULL;
 					}
@@ -8193,6 +8195,8 @@ static void destroy_peer(struct iax2_peer *peer)
 	if (peer->callno > 0)
 		iax2_destroy(peer->callno);
 	register_peer_exten(peer, 0);
+	if (peer->dnsmgr)
+		ast_dnsmgr_release(peer->dnsmgr);
 	free(peer);
 }
 

@@ -150,8 +150,8 @@ static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 
 #endif
 
-/* Recursive thread safe version of gethostbyname that replaces the 
-   standard gethostbyname (which is not recursive)
+/* Re-entrant (thread safe) version of gethostbyname that replaces the 
+   standard gethostbyname (which is not thread safe)
 */
 struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
 {
@@ -457,4 +457,4 @@ char *ast_strcasestr(const char *haystack, const char *needle)
 		return NULL;
 	}
 }
-#endif
+#endif /* LINUX */

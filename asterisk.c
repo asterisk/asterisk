@@ -1960,6 +1960,10 @@ int main(int argc, char *argv[])
 		printf(term_quit());
 		exit(1);
 	}
+	if (dnsmgr_init()) {
+		printf(term_quit());
+		exit(1);
+	}
 #if 0
 	/* This should no longer be necessary */
 	/* sync cust config and reload some internals in case a custom config handler binded to them */

@@ -215,6 +215,10 @@ int ast_module_reload(const char *name)
 		ast_rtp_reload();
 		reloaded = 2;
 	}
+	if (!name || !strcasecmp(name, "dnsmgr")) {
+		dnsmgr_reload();
+		reloaded = 2;
+	}
 	time(&ast_lastreloadtime);
 
 	ast_mutex_lock(&modlock);
