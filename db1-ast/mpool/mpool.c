@@ -50,6 +50,8 @@ static char sccsid[] = "@(#)mpool.c	8.5 (Berkeley) 7/26/94";
 #define	__MPOOLINTERFACE_PRIVATE
 #include <mpool.h>
 
+#undef __APPLE__
+
 #ifndef __APPLE__
 #define mpool_open __mpool_open
 #define mpool_filter __mpool_filter
@@ -310,6 +312,8 @@ mpool_sync(mp)
 	/* Sync the file descriptor. */
 	return (fsync(mp->fd) ? RET_ERROR : RET_SUCCESS);
 }
+
+#define __APPLE__
 
 #ifndef __APPLE__
 #undef mpool_open

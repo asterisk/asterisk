@@ -18,7 +18,7 @@
 static char base64[64];
 static char b2a[256];
 
-#if defined(__FreeBSD__) || defined(__OpenBSD__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__APPLE__)
 
 /* duh? ERANGE value copied from web... */
 #define ERANGE 34
@@ -190,13 +190,11 @@ int test_for_thread_safety(void)
 	ast_mutex_lock(&test_lock);
 	lock_count += 1;
 	pthread_create(&test_thread, NULL, test_thread_body, NULL); 
-	pthread_yield();
 	usleep(100);
 	if (lock_count != 2) 
 		test_errors++;
 	ast_mutex_unlock(&test_lock);
 	lock_count -= 1;
-	pthread_yield(); 
 	usleep(100); 
 	if (lock_count != 1) 
 		test_errors++;
@@ -205,7 +203,6 @@ int test_for_thread_safety(void)
 	if (lock_count != 0) 
 		test_errors++;
 	ast_mutex_unlock(&test_lock2);
-	pthread_yield();
 	usleep(100);
 	if (lock_count != 0) 
 		test_errors++;

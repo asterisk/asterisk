@@ -1,5 +1,9 @@
 ARCH=$(PROC)
+ifeq (${OSARCH},Darwin)
+CFLAGS+=-Wall -Werror -fPIC -O3 -funroll-loops -fomit-frame-pointer
+else
 CFLAGS+=-Wall -Werror -fPIC -O3 -march=$(ARCH) -funroll-loops -fomit-frame-pointer
+endif
 LIB=libilbc.a
 
 OBJS= anaFilter.o iCBSearch.o packing.o \

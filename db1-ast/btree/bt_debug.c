@@ -38,6 +38,7 @@
 static char sccsid[] = "@(#)bt_debug.c	8.5 (Berkeley) 8/17/94";
 #endif /* LIBC_SCCS and not lint */
 
+#ifdef DEBUG
 #include <sys/param.h>
 
 #include <stdio.h>
@@ -47,7 +48,6 @@ static char sccsid[] = "@(#)bt_debug.c	8.5 (Berkeley) 8/17/94";
 #include <db.h>
 #include "btree.h"
 
-#ifdef DEBUG
 /*
  * BT_DUMP -- Dump the tree
  *

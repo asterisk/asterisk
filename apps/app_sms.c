@@ -203,7 +203,7 @@ static void
 packdate (unsigned char *o, time_t w)
 {
   struct tm *t = localtime (&w);
-#if defined(__FreeBSD__) || defined(__OpenBSD__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__APPLE__)
   int z = - t->tm_gmtoff / 3600 / 15;
 #else
   int z = timezone / 3600 / 15;
