@@ -27,7 +27,7 @@ int usecount(void);			/* How many channels provided by this module are in use? *
 char *description(void);		/* Description of this module */
 char *key(void);		/* Return the below mentioned key, unmodified */
 
-int reload(void);
+int reload(void);		/* reload configs */
 
 #define ASTERISK_GPL_KEY \
 	"This paragraph is Copyright (C) 2000, Linux Support Services, Inc.  \
@@ -60,6 +60,9 @@ int ast_loader_register(int (*updater)(void));
 
 /* No longer run me when modules are updated */
 int ast_loader_unregister(int (*updater)(void));
+
+/* Reload all modules */
+void ast_module_reload(void);
 
 /* Local user routines keep track of which channels are using a given module resource.
    They can help make removing modules safer, particularly if they're in use at the time
