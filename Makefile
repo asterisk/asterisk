@@ -23,11 +23,14 @@ PROC=i586
 
 DEBUG=-g #-pg
 INCLUDE=-Iinclude -I../include
-CFLAGS=-pipe -Wall -Werror -Wmissing-prototypes -Wmissing-declarations -fomit-frame-pointer -O6 $(DEBUG) $(INCLUDE) -D_REENTRANT
+CFLAGS=-pipe  -Wall -Werror -Wmissing-prototypes -Wmissing-declarations -O6 $(DEBUG) $(INCLUDE) -D_REENTRANT
 CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
-CFLAGS += -DDO_CRASH
+ASTERISKVERSION=$(shell cat .version)
+CFLAGS+=-DASTERISK_VERSION=\"$(ASTERISKVERSION)\"
+CFLAGS+= -DDO_CRASH -DDEBUG_THREADS
+CFLAGS+=# -fomit-frame-pointer 
 SUBDIRS=channels pbx apps codecs formats
-LIBS=-ldl -lpthread -lreadline -lncurses -lm # -lefence
+LIBS=-ldl -lpthread -lreadline -lncurses -lm
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o say.o pbx.o cli.o md5.o \
 	ulaw.o callerid.o fskmodem.o asterisk.o 
@@ -46,7 +49,13 @@ _all: all
 
 all: asterisk subdirs
 
-asterisk: $(OBJS)
+_version: 
+	if [ -d CVS ]; then echo "CVS-`date +"%D-%T"`" > .version; fi 
+
+build.h:
+	./make_build_h
+
+asterisk: _version build.h $(OBJS)
 	gcc -o asterisk -rdynamic $(OBJS) $(LIBS)
 
 subdirs: 
@@ -55,17 +64,20 @@ subdirs:
 clean:
 	for x in $(SUBDIRS); do $(MAKE) -C $$x clean || exit 1 ; done
 	rm -f *.o *.so asterisk
+	rm -f build.h
 
 datafiles: all
 	mkdir -p /var/lib/asterisk/sounds/digits
 	for x in sounds/digits/*; do \
 		install $$x /var/lib/asterisk/sounds/digits ; \
 	done
-	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-*; do \
+	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep*; do \
 		install $$x /var/lib/asterisk/sounds ; \
 	done
 install: all datafiles
 	mkdir -p $(MODULES_DIR)
+	mkdir -p /usr/sbin
+	install -m 755 asterisk /usr/sbin/
 	for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
 	install -d /usr/include/asterisk
 	install include/asterisk/*.h /usr/include/asterisk

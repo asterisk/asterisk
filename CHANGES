@@ -1,3 +1,38 @@
+Asterisk 0.1.8
+ -- Keep track of version information
+ -- Add -f to cause Asterisk not to fork
+ -- Keep important information in voicemail .txt file
+ -- Adtran Voice over Frame Relay updates
+ -- Implement option setting/querying of channel drivers
+ -- IAX performance improvements and protocol fixes
+ -- Substantial enhancement of console channel driver
+ -- Add IAX registration.  Now IAX can dynamically register
+ -- Add flash-hook transfer on tormenta channels
+ -- Added Three Way Calling on tormenta channels
+ -- Start on concept of zombie channel
+ -- Add Call Waiting CallerID
+ -- Keep track of who registeres contexts, includes, and extensions
+ -- Added Call Waiting(tm), *67, *70, and *82 codes
+ -- Move parked calls into "parkedcalls" context by default
+ -- Allow dialplan to be displayed
+ -- Allow "=>" instead of just "=" to make instantiation clearer
+ -- Asterisk forks if called with no arguments
+ -- Add remote control by running asterisk -vvvc
+ -- Adjust verboseness with "set verbose" now
+ -- No longer requires libaudiofile
+ -- Install beep
+ -- Make PBX Config module reload extensions on SIGHUP
+ -- Allow modules to be reloaded when SIGHUP is received
+ -- Variables now contain line numbers
+ -- Make dialer send in band signalling
+ -- Add record application
+ -- Added PRI signalling to Tormenta driver
+ -- Allow use of BYEXTENSION in "Goto"
+ -- Allow adjustment of gains on tormenta channels
+ -- Added raw PCM file format support
+ -- Add U-law translator
+ -- Fix DTMF handling in bridge code
+ -- Fix access control with IAX
 * Asterisk 0.1.7
  -- Update configuration files and add some missing sounds
  -- Added ability to include one context in another

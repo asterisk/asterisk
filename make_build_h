@@ -1,0 +1,20 @@
+#!/bin/sh
+HOSTNAME=`uname -n`
+KERNEL=`uname -r`
+MACHINE=`uname -m`
+OS=`uname -s`
+USER=`whoami`
+VERSION=`cat .version`
+rm -f build.h
+cat > build.h << END
+/*
+ * build.h 
+ * Automatically generated
+ */
+#define BUILD_HOSTNAME "${HOSTNAME}"
+#define BUILD_KERNEL "${KERNEL}"
+#define BUILD_MACHINE "${MACHINE}"
+#define BUILD_OS "${OS}"
+#define BUILD_VERSION "${VERSION}"
+#define BUILD_USER "${USER}"
+END
