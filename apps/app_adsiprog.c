@@ -988,7 +988,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				break;
 			}
 			if (process_token(vname, args, sizeof(vname) - 1, ARG_STRING)) {
-				ast_log(LOG_WARNING "'%s' is not a valid token for a KEY name at line %d of %s\n", args, lineno, script);
+				ast_log(LOG_WARNING, "'%s' is not a valid token for a KEY name at line %d of %s\n", args, lineno, script);
 				break;
 			}
 			state->key = getkeybyname(state, vname, script, lineno);
@@ -1011,7 +1011,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				break;
 			}
 			if (process_token(tmp, args, sizeof(tmp) - 1, ARG_STRING)) {
-				ast_log(LOG_WARNING "'%s' is not a valid token for a KEY short name at line %d of %s\n", args, lineno, script);
+				ast_log(LOG_WARNING, "'%s' is not a valid token for a KEY short name at line %d of %s\n", args, lineno, script);
 				break;
 			}
 			args = get_token(&buf, script, lineno);
@@ -1026,7 +1026,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 					break;
 				}
 				if (process_token(tmp2, args, sizeof(tmp2) - 1, ARG_STRING)) {
-					ast_log(LOG_WARNING "'%s' is not a valid token for a KEY long name at line %d of %s\n", args, lineno, script);
+					ast_log(LOG_WARNING, "'%s' is not a valid token for a KEY long name at line %d of %s\n", args, lineno, script);
 					break;
 				}
 			} else {
@@ -1066,7 +1066,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				break;
 			}
 			if (process_token(vname, args, sizeof(vname) - 1, ARG_STRING)) {
-				ast_log(LOG_WARNING "'%s' is not a valid token for a KEY name at line %d of %s\n", args, lineno, script);
+				ast_log(LOG_WARNING, "'%s' is not a valid token for a KEY name at line %d of %s\n", args, lineno, script);
 				break;
 			}
 			state->sub = getsubbyname(state, vname, script, lineno);
@@ -1104,7 +1104,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				break;
 			}
 			if (process_token(vname, args, sizeof(vname) - 1, ARG_STRING)) {
-				ast_log(LOG_WARNING "'%s' is not a valid token for a STATE name at line %d of %s\n", args, lineno, script);
+				ast_log(LOG_WARNING, "'%s' is not a valid token for a STATE name at line %d of %s\n", args, lineno, script);
 				break;
 			}
 			if (getstatebyname(state, vname, script, lineno, 0)) {
@@ -1119,7 +1119,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				break;
 			}
 			if (process_token(vname, args, sizeof(vname) - 1, ARG_STRING)) {
-				ast_log(LOG_WARNING "'%s' is not a valid token for a FLAG name at line %d of %s\n", args, lineno, script);
+				ast_log(LOG_WARNING, "'%s' is not a valid token for a FLAG name at line %d of %s\n", args, lineno, script);
 				break;
 			}
 			if (getflagbyname(state, vname, script, lineno, 0)) {
@@ -1136,7 +1136,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				break;
 			}
 			if (process_token(vname, args, sizeof(vname) - 1, ARG_STRING)) {
-				ast_log(LOG_WARNING "'%s' is not a valid token for a KEY name at line %d of %s\n", args, lineno, script);
+				ast_log(LOG_WARNING, "'%s' is not a valid token for a KEY name at line %d of %s\n", args, lineno, script);
 				break;
 			}
 			if (getdisplaybyname(state, vname, script, lineno, 0)) {
