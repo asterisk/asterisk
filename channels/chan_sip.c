@@ -8387,7 +8387,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				p->rtp = NULL;
 			}
 			if (p->vrtp) {
-				ast_rtp_destroy(p->rtp);
+				ast_rtp_destroy(p->vrtp);
 				p->vrtp = NULL;
 			}
 		    transmit_response(p, "200 OK", req);
@@ -8423,7 +8423,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				p->rtp = NULL;
 			}
 			if (p->vrtp) {
-				ast_rtp_destroy(p->rtp);
+				ast_rtp_destroy(p->vrtp);
 				p->vrtp = NULL;
 			}
 			/* Destroy the session, but keep us around for just a bit in case they don't
