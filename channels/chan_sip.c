@@ -694,7 +694,7 @@ static const struct ast_channel_tech sip_tech = {
 int find_sip_method(char *msg)
 {
 	int i, res = 0;
-
+	/* Strictly speaking, SIP methods are case SENSITIVE, but we don't check */
 	for (i=1; i< SIP_MAX_METHODS && !res; i++) {
 		if (!strcasecmp(sip_methods[i].text, msg)) 
 			res = sip_methods[i].id;
