@@ -1267,6 +1267,11 @@ void ast_dsp_free(struct ast_dsp *dsp)
 	free(dsp);
 }
 
+void ast_dsp_set_threshold(struct ast_dsp *dsp, int threshold)
+{
+	dsp->threshold = threshold;
+}
+
 void ast_dsp_set_busy_count(struct ast_dsp *dsp, int cadences)
 {
 	if (cadences < 1)

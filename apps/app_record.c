@@ -18,6 +18,7 @@
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
 #include <asterisk/translate.h>
+#include <asterisk/dsp.h>
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -29,9 +30,10 @@ static char *app = "Record";
 static char *synopsis = "Record to a file";
 
 static char *descrip = 
-"  Record(filename:extension): Records from the  channel into a given\n"
+"  Record(filename:extension|silence): Records from the  channel into a given\n"
 "filename. If the file exists it will be overwritten. The 'extension'\n"
 "is the extension of the file type  to  be  recorded (wav, gsm, etc).\n"
+"'silence' is the number of seconds of silence to allow before returning.\n"
 "Returns -1 when the user hangs up.\n";
 
 STANDARD_LOCAL_USER;
@@ -49,13 +51,21 @@ static int record_exec(struct ast_channel *chan, void *data)
 	char * vdata;  /* Used so I don't have to typecast every use of *data */
 	int i = 0;
 	int j = 0;
-	
+
 	struct ast_filestream *s = '\0';
 	struct localuser *u;
 	struct ast_frame *f = NULL;
 	
+	struct ast_dsp *sildet;   	/* silence detector dsp */
+	int totalsilence = 0;
+	int dspsilence = 0;
+	int silence = 0;		/* amount of silence to allow */
+	int gotsilence = 0;		/* did we timeout for silence? */
+	char silencestr[5];
+	int k = 0;
+	int rfmt;
+
 	vdata = data; /* explained above */
-	
 
 	/* The next few lines of code parse out the filename and header from the input string */
 	if (!vdata) { /* no data implies no filename or anything is present */
@@ -76,9 +86,21 @@ static int record_exec(struct ast_channel *chan, void *data)
 	}
 	fil[i++] = '\0';
 
-	for (; j < 10 && i < strlen(data); i++, j++)
+	for (; j < 10 && i < strlen(data) && (vdata[i] != '|'); i++, j++)
 		ext[j] = vdata[i];
 	ext[j] = '\0';
+
+	if (vdata[i] && (vdata[i] == '|')) i++;
+	for (; vdata[i] && (vdata[i] != '|') && (k < 3) && i < strlen(data); i++, k++)
+		silencestr[k] = vdata[i];
+	silencestr[k] = '\0';
+
+	if (silencestr) {
+		silence = atoi(silencestr);
+		if (silence > 0)
+			silence *= 1000;
+	}
+
 	/* done parsing */
 	
 	
@@ -109,7 +131,25 @@ static int record_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", chan->name);
 		}
 		ast_stopstream(chan);
+
 		/* The end of beep code.  Now the recording starts */
+
+
+		if (silence > 0) {
+	        	rfmt = chan->readformat;
+        		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
+        		if (res < 0) {
+                		ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+        		        return -1;
+        		}
+			sildet = ast_dsp_new();
+        		if (!sildet) {
+                		ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
+                		return -1;
+		       	}
+			ast_dsp_set_threshold(sildet, 256);
+		}
+
 		s = ast_writefile( tmp, ext, NULL, O_CREAT|O_TRUNC|O_WRONLY , 0, 0644);
 	
 		if (s) {
@@ -126,6 +166,22 @@ static int record_exec(struct ast_channel *chan, void *data)
 						ast_log(LOG_WARNING, "Problem writing frame\n");
 						break;
 					}
+
+					if (silence > 0) {
+						dspsilence = 0;
+						ast_dsp_silence(sildet, f, &dspsilence);
+						if (dspsilence) {
+							totalsilence = dspsilence;
+						} else {
+							totalsilence = 0;
+						}
+	                                	if (totalsilence > silence) {
+        	                        	        /* Ended happily with silence */
+							ast_frfree(f);
+							gotsilence = 1;
+                	                	        break;
+	                     	        	}
+					}
 				}
 				if ((f->frametype == AST_FRAME_DTMF) &&
 					(f->subclass == '#')) {
@@ -138,9 +194,15 @@ static int record_exec(struct ast_channel *chan, void *data)
 					ast_log(LOG_DEBUG, "Got hangup\n");
 					res = -1;
 			}
-			/* Strip off the last 1/4 second of it */
-			ast_stream_rewind(s, 250);
-			ast_truncstream(s);
+
+			if (gotsilence) {
+				ast_stream_rewind(s, silence-1000);
+				ast_truncstream(s);
+			} else {
+				/* Strip off the last 1/4 second of it */
+				ast_stream_rewind(s, 250);
+				ast_truncstream(s);
+			}
 			ast_closestream(s);
 		} else			
 			ast_log(LOG_WARNING, "Could not create file %s\n", fil);
@@ -148,6 +210,12 @@ static int record_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Could not answer channel '%s'\n", chan->name);
 
 	LOCAL_USER_REMOVE(u);
+	if (silence > 0) {
+	        res = ast_set_read_format(chan, rfmt);
+        	if (res)
+        	        ast_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
+		ast_dsp_free(sildet);
+	}
 	return res;
 }
 
