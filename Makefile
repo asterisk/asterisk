@@ -432,11 +432,11 @@ __rpm: _version
 	rpmbuild --rcfile /usr/lib/rpm/rpmrc:redhat/rpmrc -bb asterisk.spec
 	
 progdocs:
-	doxygen asterisk-ng-doxygen
+	doxygen contrib/asterisk-ng-doxygen
 
 config:
 	if [ -d /etc/rc.d/init.d ]; then \
-		install -m 755 init.asterisk /etc/rc.d/init.d/asterisk; \
+		install -m 755 contrib/init.d/rc.redhat.asterisk /etc/rc.d/init.d/asterisk; \
 		/sbin/chkconfig --add asterisk; \
 	elif [ -d /etc/init.d ]; then \
 		install -m 755 init.asterisk /etc/init.d/asterisk; \

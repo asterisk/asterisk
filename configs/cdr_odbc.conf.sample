@@ -1,0 +1,9 @@
+;
+; cdr_unixodbc.conf
+;
+
+;[global]
+;dsn=MySQL-test
+;username=username
+;password=password
+;loguniqueid=yes
