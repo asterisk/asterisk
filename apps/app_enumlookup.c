@@ -35,9 +35,12 @@ static char *synopsis = "Lookup number in ENUM";
 static char *descrip = 
 "  EnumLookup(exten):  Looks up an extension via ENUM and sets\n"
 "the variable 'ENUM'.  Returns -1 on hangup, or 0 on completion\n"
-"regardless of whether the lookup was successful.  If the lookup\n"
-"was *not* successful and there exists a priority n + 101, then\n"
-"that priority will be taken next.\n" ;
+"regardless of whether the lookup was successful. Currently, the\n"
+"enumservices SIP and TEL are recognized. A good SIP entry\n"
+"will result in normal priority handling, whereas a good TEL entry\n"
+"will increase the priority by 51 (if existing)\n"
+"If the lookup was *not* successful and there exists a priority n + 101,\n"
+"then that priority will be taken next.\n" ;
 
 STANDARD_LOCAL_USER;
 
@@ -49,7 +52,7 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 	char tech[80];
 	char dest[80];
 	char tmp[256];
-	char *c;
+	char *c,*t;
 	struct localuser *u;
 	if (!data || !strlen(data)) {
 		ast_log(LOG_WARNING, "EnumLookup requires an argument (extension)\n");
@@ -69,6 +72,30 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 				c += 4;
 			snprintf(tmp, sizeof(tmp), "SIP/%s", c);
 			pbx_builtin_setvar_helper(chan, "ENUM", tmp);
+		} else if (!strcasecmp(tech, "tel")) {
+			c = dest;
+			if (!strncmp(c, "tel:", 4))
+				c += 4;
+
+			if (c[0] != '+') {
+				ast_log(LOG_NOTICE, "tel: uri must start with a \"+\" (got '%s')\n", c);
+				res = 0;
+			} else {
+/* now copy over the number, skipping all non-digits and stop at ; or NULL */
+				t = tmp;	
+				while( *c && (*c != ';') && (t - tmp < (sizeof(tmp) - 1))) {
+					if (isdigit(*c))
+						*t++ = *c;
+					c++;
+				}
+				*t = 0;
+				pbx_builtin_setvar_helper(chan, "ENUM", tmp);
+				ast_log(LOG_NOTICE, "tel: ENUM set to \"%s\"\n", tmp);
+				if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 51, chan->callerid))
+					chan->priority += 50;
+				else
+					res = 0;
+			}
 		} else if (strlen(tech)) {
 			ast_log(LOG_NOTICE, "Don't know how to handle technology '%s'\n", tech);
 			res = 0;

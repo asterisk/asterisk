@@ -21,6 +21,9 @@
 #include <arpa/nameser.h>
 #include <resolv.h>
 #include <errno.h>
+#include <ctype.h>
+#include <regex.h>
+
 
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
@@ -129,14 +132,23 @@ static int parse_ie(unsigned char *data, int maxdatalen, unsigned char *src, int
 	return olen + 1;
 }
 
-static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize, unsigned char *answer, int len)
+static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize, unsigned char *answer, int len, char *naptrinput)
 {
 	unsigned char *oanswer = answer;
 	unsigned char flags[80] = "";
 	unsigned char services[80] = "";
 	unsigned char regexp[80] = "";
 	unsigned char repl[80] = "";
+	unsigned char temp[80] = "";
+	unsigned char delim;
+	unsigned char *delim2;
+	unsigned char *pattern, *subst, *d;
 	int res;
+	int regexp_len, size, backref;
+	int d_len = sizeof(temp) - 1;
+	regex_t preg;
+	regmatch_t pmatch[9];
+
 	
 	if (len < sizeof(struct naptr)) {
 		printf("Length too short\n");
@@ -158,29 +170,111 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 		ast_log(LOG_WARNING, "Failed to expand hostname\n");
 		return -1;
 	} 
+
 #if 0
+	printf("Input: %s\n", naptrinput);
 	printf("Flags: %s\n", flags);
 	printf("Services: %s\n", services);
 	printf("Regexp: %s\n", regexp);
 	printf("Repl: %s\n", repl);
 #endif
-	if (!strncmp(regexp, "!^.*$!", 6)) {
-		if (!strncmp(services, "E2U+voice:", 10)) {
-			if (regexp[strlen(regexp) - 1] == '!')
-				regexp[strlen(regexp) - 1] = '\0';
+
+	if (tolower(flags[0]) != 'u') {
+		ast_log(LOG_WARNING, "Flag must be 'U' or 'u'.\n");
+		return -1;
+	}
+
+	if ((!strncasecmp(services, "e2u+sip", 7)) || 
+	    (!strncasecmp(services, "sip+e2u", 7))) {
+		strncpy(tech, "sip", techsize -1); 
+	} else if ((!strncasecmp(services, "e2u+tel", 7)) || 
+	    (!strncasecmp(services, "tel+e2u", 7))) {
+		strncpy(tech, "tel", techsize -1); 
+	} else if (strncasecmp(services, "e2u+voice:", 10)) {
+		ast_log(LOG_WARNING, "Services must be e2u+sip, sip+e2u, e2u+tel, tel+e2u or e2u+voice:\n");
+		return -1;
+	}
+
+	/* DEDBUGGING STUB
+	strcpy(regexp, "!^\\+43(.*)$!\\1@bla.fasel!");
+	*/
+
+	regexp_len = strlen(regexp);
+	if (regexp_len < 7) {
+		ast_log(LOG_WARNING, "Regex too short to be meaningful.\n");
+		return -1;
+	} 
+
+
+	delim = regexp[0];
+	delim2 = strchr(regexp + 1, delim);
+	if ((delim2 == NULL) || (regexp[regexp_len-1] != delim)) {
+		ast_log(LOG_WARNING, "Regex delimiter error (on \"%s\").\n",regexp);
+		return -1;
+	}
+
+	pattern = regexp + 1;
+	*delim2 = 0;
+	subst   = delim2 + 1;
+	regexp[regexp_len-1] = 0;
+
 #if 0
-			printf("Technology: %s\n", services + 10);
-			printf("Destination: %s\n", regexp + 6);
+	printf("Pattern: %s\n", pattern);
+	printf("Subst: %s\n", subst);
 #endif
-			strncpy(dst, regexp + 6, dstsize);
-			strncpy(tech, services + 10, techsize);
+
+/*
+ * now do the regex wizardry.
+ */
+
+	if (regcomp(&preg, pattern, REG_EXTENDED | REG_NEWLINE)) {
+		ast_log(LOG_WARNING, "Regex compilation error (regex = \"%s\").\n",regexp);
+		return -1;
+	}
+
+	if (preg.re_nsub > 9) {
+		ast_log(LOG_WARNING, "Regex compilation error: too many subs.\n");
+		regfree(&preg);
+		return -1;
+	}
+
+	if (regexec(&preg, naptrinput, 9, pmatch, 0)) {
+		ast_log(LOG_WARNING, "Regex match failed.\n");
+		regfree(&preg);
+		return -1;
+	}
+	regfree(&preg);
+
+	d = temp; d_len--; 
+	while( *subst && (d_len > 0) ) {
+		if ((subst[0] == '\\') && isdigit(subst[1]) && (pmatch[subst[1]-'0'].rm_so != -1)) {
+			backref = subst[1]-'0';
+			size = pmatch[backref].rm_eo - pmatch[backref].rm_so;
+			if (size > d_len) {
+				ast_log(LOG_WARNING, "Not enough space during regex substitution.\n");
+				return -1;
+				}
+			memcpy(d, naptrinput + pmatch[backref].rm_so, size);
+			d += size;
+			d_len -= size;
+			subst += 2;
+		} else if (isprint(*subst)) {
+			*d++ = *subst++;
+			d_len--;
+		} else {
+			ast_log(LOG_WARNING, "Error during regex substitution.\n");
+			return -1;
 		}
-	} else
-		ast_log(LOG_WARNING, "Non-total substitution not yet supported\n");
+	}
+	*d = 0;
+	strncpy(dst, temp, dstsize);
+	d = strchr(services, ':');
+	if (d) 
+		strncpy(tech, d+1, techsize -1); 
 	return 0;
 }
 
-static int parse_answer(unsigned char *dst, int dstlen, unsigned char *tech, int techlen, unsigned char *answer, int len)
+static int parse_answer(unsigned char *dst, int dstlen, unsigned char *tech, int techlen, unsigned char *answer, int len, char *naptrinput)
 {
 	/*
 	 * This function is influenced by "ser" the SIP router.
@@ -255,7 +349,7 @@ static int parse_answer(unsigned char *dst, int dstlen, unsigned char *tech, int
 			return -1;
 		}
 		if ((ntohs(ans->class) == C_IN) && (ntohs(ans->rtype) == T_NAPTR)) {
-			if (parse_naptr(dst, dstlen, tech, techlen, answer, ntohs(ans->size)))
+			if (parse_naptr(dst, dstlen, tech, techlen, answer, ntohs(ans->size), naptrinput))
 				ast_log(LOG_WARNING, "Failed to parse naptr :(\n");
 			if (strlen(dst))
 				return 0;
@@ -269,6 +363,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 {
 	unsigned char answer[MAX_SIZE];
 	char tmp[259 + 80];
+	char naptrinput[80] = "+";
 	int pos = strlen(number) - 1;
 	int newpos=0;
 	int res = -1;
@@ -279,7 +374,9 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	res_ninit(&enumstate);	
 	if (chan && ast_autoservice_start(chan) < 0)
 		return -1;
-	
+
+	strncat(naptrinput, number, sizeof(naptrinput) - 2);
+
 	if (pos > 128)
 		pos = 128;
 	while(pos >= 0) {
@@ -295,6 +392,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		if (version != enumver) {
 			/* Ooh, a reload... */
 			s = toplevs;
+			version = enumver;
 		} else {
 			s = s->next;
 		}
@@ -309,7 +407,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 			break;
 	}
 	if (res > 0) {
-		if ((res = parse_answer(dst, dstlen, tech, techlen, answer, res))) {
+		if ((res = parse_answer(dst, dstlen, tech, techlen, answer, res, naptrinput))) {
 			ast_log(LOG_WARNING, "Parse error returned %d\n", res);
 			ret = 0;
 		} else {
