@@ -3,7 +3,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Radio Repeater / Remote Base program 
- *  version 0.8 6/26/04
+ *  version 0.9 6/26/04
  * 
  * Copyright (C) 2002-2004, Jim Dixon, WB6NIL
  *
@@ -110,7 +110,7 @@ enum {REM_LOWPWR,REM_MEDPWR,REM_HIPWR};
 #include <tonezone.h>
 #include <linux/zaptel.h>
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.8  06/26/2004";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.9  06/26/2004";
 static char *app = "Rpt";
 
 static char *synopsis = "Radio Repeater/Remote Base Control System";
@@ -1621,6 +1621,7 @@ static int handle_dtmf_digit(struct rpt *myrpt,char c, struct ast_channel *mycha
 {
 char str[MAXDTMF],*s,*s1;
 time_t	now;
+int	res = 0;
 
 	time(&now);
 	/* if timed-out */
@@ -1696,41 +1697,73 @@ time_t	now;
 		/* okay, we got it */
 		break;
 	    case '5': /* status, just deux it here */
-		if (sayfile(mychannel,"rpt/node") == -1) return -1;
-		if (saycharstr(mychannel,myrpt->name) == -1) return -1;
-		if (sayfile(mychannel,"rpt/frequency") == -1) return -1;
-		if (saycharstr(mychannel,myrpt->freq) == -1) return -1;
+		myrpt->remotetx = 0;
+		ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
+		if (!myrpt->remoterx)
+		{
+			ast_indicate(mychannel,AST_CONTROL_RADIO_KEY);
+		}
+		if ((sayfile(mychannel,"rpt/node") == -1) ||
+		 (saycharstr(mychannel,myrpt->name) == -1) ||
+		 (sayfile(mychannel,"rpt/frequency") == -1) ||
+		 (saycharstr(mychannel,myrpt->freq) == -1))
+		{	
+			if (!myrpt->remoterx)
+			{
+				ast_indicate(mychannel,AST_CONTROL_RADIO_UNKEY);
+			}
+			return -1;
+		}
 		switch(myrpt->offset)
 		{
 		    case REM_MINUS:
-			if (sayfile(mychannel,"rpt/minus") == -1) return -1;
+			res = sayfile(mychannel,"rpt/minus");
 			break;
 		    case REM_SIMPLEX:
-			if (sayfile(mychannel,"rpt/simplex") == -1) return -1;
+			res = sayfile(mychannel,"rpt/simplex");
 			break;
 		    case REM_PLUS:
-			if (sayfile(mychannel,"rpt/plus") == -1) return -1;
+			res = sayfile(mychannel,"rpt/plus");
 			break;
+		}
+		if (res == -1)
+		{
+			if (!myrpt->remoterx)
+			{
+				ast_indicate(mychannel,AST_CONTROL_RADIO_UNKEY);
+			}
+			return -1;
 		}
 		switch(myrpt->powerlevel)
 		{
 		    case REM_LOWPWR:
-			if (sayfile(mychannel,"rpt/lopwr") == -1) return -1;
+			res = sayfile(mychannel,"rpt/lopwr") ;
 			break;
 		    case REM_MEDPWR:
-			if (sayfile(mychannel,"rpt/medpwr") == -1) return -1;
+			res = sayfile(mychannel,"rpt/medpwr");
 			break;
 		    case REM_HIPWR:
-			if (sayfile(mychannel,"rpt/hipwr") == -1) return -1;
+			res = sayfile(mychannel,"rpt/hipwr"); 
 			break;
 		}
-		if (sayfile(mychannel,"rpt/rxpl") == -1) return -1;
-		if (sayfile(mychannel,"rpt/frequency") == -1) return -1;
-		if (saycharstr(mychannel,myrpt->rxpl) == -1) return -1;
-		if (sayfile(mychannel,"rpt/txpl") == -1) return -1;
-		if (sayfile(mychannel,((myrpt->txplon) ? "rpt/on" : "rpt/off")) == -1) return -1;
-		if (sayfile(mychannel,"rpt/rxpl") == -1) return -1;
-		if (sayfile(mychannel,((myrpt->rxplon) ? "rpt/on" : "rpt/off")) == -1) return -1;
+		if (res || (sayfile(mychannel,"rpt/rxpl") == -1) ||
+			(sayfile(mychannel,"rpt/frequency") == -1) ||
+			(saycharstr(mychannel,myrpt->rxpl) == -1) ||
+			(sayfile(mychannel,"rpt/txpl") == -1) ||
+			(sayfile(mychannel,((myrpt->txplon) ? "rpt/on" : "rpt/off")) == -1) ||
+			(sayfile(mychannel,"rpt/rxpl") == -1) ||
+			(sayfile(mychannel,((myrpt->rxplon) ? "rpt/on" : "rpt/off")) == -1))
+			{
+				if (!myrpt->remoterx)
+				{
+					ast_indicate(mychannel,AST_CONTROL_RADIO_UNKEY);
+				}
+				return -1;
+			}
+		if (!myrpt->remoterx)
+		{
+			ast_indicate(mychannel,AST_CONTROL_RADIO_UNKEY);
+		}
 		myrpt->dtmfidx = -1;
 		myrpt->dtmfbuf[0] = 0;
 		myrpt->dtmf_time_rem = 0;
@@ -1742,10 +1775,21 @@ time_t	now;
 		return 0;
 	}
 	strcpy(str,myrpt->dtmfbuf);
+	myrpt->remotetx = 0;
+	ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
+	if (!myrpt->remoterx)
+	{
+		ast_indicate(mychannel,AST_CONTROL_RADIO_KEY);
+	}
 	myrpt->dtmfidx = -1;
 	myrpt->dtmfbuf[0] = 0;
 	myrpt->dtmf_time_rem = 0;
-	return(remote_function(myrpt,str,mychannel));
+	res = remote_function(myrpt,str,mychannel);
+	if (!myrpt->remoterx)
+	{
+		ast_indicate(mychannel,AST_CONTROL_RADIO_UNKEY);
+	}
+	return res;
 }
 
 static int handle_remote_data(struct rpt *myrpt, char *str, struct ast_channel *mychannel)
@@ -1769,8 +1813,19 @@ int	seq,res;
 	if (strcmp(dest,myrpt->name)) return 0;
 	res = handle_dtmf_digit(myrpt,c,mychannel);
 	if (res != 1) return res;
+	myrpt->remotetx = 0;
+	ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
+	if (!myrpt->remoterx)
+	{
+		ast_indicate(mychannel,AST_CONTROL_RADIO_KEY);
+	}
 	if (ast_safe_sleep(mychannel,1000) == -1) return -1;
-	return(sayfile(mychannel,"rpt/functioncomplete"));
+	res = sayfile(mychannel,"rpt/functioncomplete");
+	if (!myrpt->remoterx)
+	{
+		ast_indicate(mychannel,AST_CONTROL_RADIO_UNKEY);
+	}
+	return res;
 }
 
 /* single thread with one file (request) to dial */
@@ -2296,6 +2351,8 @@ pthread_attr_t attr;
 					ast_mutex_lock(&myrpt->lock);
 					/* remove from queue */
 					remque((struct qelem *) l);
+					if (!strcmp(myrpt->cmdnode,l->name))
+						myrpt->cmdnode[0] = 0;
 					ast_mutex_unlock(&myrpt->lock);
 					rpt_telemetry(myrpt,REMDISC,l);
 					/* hang-up on call to device */
@@ -2338,6 +2395,8 @@ pthread_attr_t attr;
 						ast_mutex_lock(&myrpt->lock);
 						/* remove from queue */
 						remque((struct qelem *) l);
+						if (!strcmp(myrpt->cmdnode,l->name))
+							myrpt->cmdnode[0] = 0;
 						ast_mutex_unlock(&myrpt->lock);
 						rpt_telemetry(myrpt,REMDISC,l);
 						/* hang-up on call to device */
