@@ -918,7 +918,7 @@ zapretry:
 
 outrun:
 	if (user->user_no) { /* Only cleanup users who really joined! */
-	manager_event(EVENT_FLAG_CALL, "MeetmeLeave", 
+		manager_event(EVENT_FLAG_CALL, "MeetmeLeave", 
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
 			"Meetme: %s\r\n",
@@ -926,34 +926,34 @@ outrun:
 		ast_mutex_lock(&conflock);
 		conf->users--;
 		cur = confs;
-	if (!conf->users) {
-		/* No more users -- close this one out */
-		while(cur) {
-			if (cur == conf) {
-				if (prev)
-					prev->next = conf->next;
-				else
-					confs = conf->next;
-				break;
+		if (!conf->users) {
+			/* No more users -- close this one out */
+			while(cur) {
+				if (cur == conf) {
+					if (prev)
+						prev->next = conf->next;
+					else
+						confs = conf->next;
+					break;
+				}
+				prev = cur;
+				cur = cur->next;
 			}
-			prev = cur;
-			cur = cur->next;
-		}
-		if (!cur) 
-			ast_log(LOG_WARNING, "Conference not found\n");
-		if (conf->chan)
-			ast_hangup(conf->chan);
-		else
-			close(conf->fd);
-		free(conf);
+			if (!cur) 
+				ast_log(LOG_WARNING, "Conference not found\n");
+			if (conf->chan)
+				ast_hangup(conf->chan);
+			else
+				close(conf->fd);
+			free(conf);
 		} else {
 			/* Remove the user struct */ 
-			if (user == cur->firstuser) {
-				cur->firstuser->nextuser->prevuser = NULL;
-				cur->firstuser = cur->firstuser->nextuser;
-			} else if (user == cur->lastuser){
-				cur->lastuser->prevuser->nextuser = NULL;
-				cur->lastuser = cur->lastuser->prevuser;
+			if (user == conf->firstuser) {
+				user->nextuser->prevuser = NULL;
+				conf->firstuser = user->nextuser;
+			} else if (user == conf->lastuser){
+				user->prevuser->nextuser = NULL;
+				conf->lastuser = user->prevuser;
 			} else {
 				user->nextuser->prevuser = user->prevuser;
 				user->prevuser->nextuser = user->nextuser;
