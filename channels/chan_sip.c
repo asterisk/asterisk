@@ -3919,6 +3919,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				p->pickupgroup = user->pickupgroup;
 				p->restrictcid = user->restrictcid;
 				p->capability = user->capability;
+				p->jointcapability = user->capability;
 				if (user->dtmfmode) {
 					p->dtmfmode = user->dtmfmode;
 					if (p->dtmfmode & SIP_DTMF_RFC2833)
@@ -3960,6 +3961,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				p->callgroup = peer->callgroup;
 				p->pickupgroup = peer->pickupgroup;
 				p->capability = peer->capability;
+				p->jointcapability = peer->capability;
 				if (peer->dtmfmode) {
 					p->dtmfmode = peer->dtmfmode;
 					if (p->dtmfmode & SIP_DTMF_RFC2833)
