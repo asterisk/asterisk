@@ -911,7 +911,8 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 					*ret = workspace;
 				} else
 					*ret = NULL;
-			}
+			} else
+				goto icky;
 		} else if (!strncmp(var + 4, "ING", 3)) {
 			if (!strcmp(var + 7, "PRES")) {
 				/* CALLINGPRES */
@@ -929,7 +930,8 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 				/* CALLINGTNS */
 				snprintf(workspace, workspacelen, "%d", c->cid.cid_tns);
 				*ret = workspace;
-			}
+			} else
+				goto icky;
 		} else
 			goto icky;
 	} else if (c && !strcmp(var, "DNID")) {
