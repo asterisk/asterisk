@@ -481,6 +481,7 @@ static void *do_parking_thread(void *ignore)
 	char exten[AST_MAX_EXTENSION];
 	struct ast_context *con;
 	int x;
+	int gc=0;
 	fd_set rfds, efds;
 	fd_set nrfds, nefds;
 	FD_ZERO(&rfds);
@@ -500,6 +501,10 @@ static void *do_parking_thread(void *ignore)
 				pl = pu;
 				pu = pu->next;
 				continue;
+			}
+			if (gc < 5 && !pu->chan->generator) {
+				gc++;
+				ast_moh_start(pu->chan,NULL);
 			}
 			tms = (tv.tv_sec - pu->start.tv_sec) * 1000 + (tv.tv_usec - pu->start.tv_usec) / 1000;
 			if (tms > pu->parkingtime) {
