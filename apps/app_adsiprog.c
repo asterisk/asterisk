@@ -1448,7 +1448,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 	bytes = 0;
 	/* Start with key definitions */
 	for (x=0;x<scr->numkeys;x++) {
-		if (bytes + scr->keys[x].retstrlen > 254) {
+		if (bytes + scr->keys[x].retstrlen > 253) {
 			/* Send what we've collected so far */
 			if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
 				ast_log(LOG_WARNING, "Unable to send chunk ending at %d\n", x);
@@ -1472,7 +1472,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 	bytes = 0;
 	/* Continue with the display messages */
 	for (x=0;x<scr->numdisplays;x++) {
-		if (bytes + scr->displays[x].datalen > 254) {
+		if (bytes + scr->displays[x].datalen > 253) {
 			/* Send what we've collected so far */
 			if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
 				ast_log(LOG_WARNING, "Unable to send chunk ending at %d\n", x);
@@ -1496,7 +1496,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 	bytes = 0;
 	/* Send subroutines */
 	for (x=0;x<scr->numsubs;x++) {
-		if (bytes + scr->subs[x].datalen > 254) {
+		if (bytes + scr->subs[x].datalen > 253) {
 			/* Send what we've collected so far */
 			if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
 				ast_log(LOG_WARNING, "Unable to send chunk ending at %d\n", x);
