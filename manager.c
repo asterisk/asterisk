@@ -522,7 +522,12 @@ static int action_originate(struct mansession *s, struct message *m)
 	if (strlen(app)) {
         	res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 0, strlen(callerid) ? callerid : NULL, variable, account);
     	} else {
-        	res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 0, strlen(callerid) ? callerid : NULL, variable, account);
+		if (exten && context && pi)
+	        	res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 0, strlen(callerid) ? callerid : NULL, variable, account);
+		else {
+			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
+			return 0;
+		}
 	}   
 	if (!res)
 		astman_send_ack(s, m, "Originate successfully queued");
