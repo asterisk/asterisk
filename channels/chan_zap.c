@@ -2196,13 +2196,23 @@ int	x;
 	return 0;
 }
 
-static void zt_unlink(struct zt_pvt *slave, struct zt_pvt *master)
+static void zt_unlink(struct zt_pvt *slave, struct zt_pvt *master, int needlock)
 {
 	/* Unlink a specific slave or all slaves/masters from a given master */
 	int x;
 	int hasslaves;
 	if (!master)
 		return;
+	if (needlock) {
+		ast_mutex_lock(&master->lock);
+		if (slave) {
+			while(ast_mutex_trylock(&slave->lock)) {
+				ast_mutex_unlock(&master->lock);
+				usleep(1);
+				ast_mutex_lock(&master->lock);
+			}
+		}
+	}
 	hasslaves = 0;
 	for (x=0;x<MAX_SLAVES;x++) {
 		if (master->slaves[x]) {
@@ -2237,6 +2247,11 @@ static void zt_unlink(struct zt_pvt *slave, struct zt_pvt *master)
 		master->master = NULL;
 	}
 	update_conf(master);
+	if (needlock) {
+		if (slave)
+			ast_mutex_unlock(&slave->lock);
+		ast_mutex_unlock(&master->lock);
+	}
 }
 
 static void zt_link(struct zt_pvt *slave, struct zt_pvt *master) {
@@ -2456,7 +2471,7 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 			(oi1 != i1) ||
 			(oi2 != i2)) {
 			if (slave && master)
-				zt_unlink(slave, master);
+				zt_unlink(slave, master, 1);
 			ast_log(LOG_DEBUG, "Something changed out on %d/%d to %d/%d, returning -3 to restart\n",
 									op0->channel, oi1, op1->channel, oi2);
 			if (op0 == p0)
@@ -2484,7 +2499,7 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 			*fo = NULL;
 			*rc = who;
 			if (slave && master)
-				zt_unlink(slave, master);
+				zt_unlink(slave, master, 1);
 			if (op0 == p0)
 				zt_enable_ec(p0);
 			if (op1 == p1)
@@ -2497,7 +2512,7 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 				*fo = f;
 				*rc = who;
 				if (slave && master)
-					zt_unlink(slave, master);
+					zt_unlink(slave, master, 1);
 				return 0;
 			} else if ((who == c0) && p0->pulsedial) {
 				ast_write(c1, f);
@@ -2520,18 +2535,20 @@ static int zt_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct zt_pvt *p = newchan->pvt->pvt;
 	int x;
+	ast_mutex_lock(&p->lock);
 	ast_log(LOG_DEBUG, "New owner for channel %d is %s\n", p->channel, newchan->name);
 	if (p->owner == oldchan)
 		p->owner = newchan;
 	for (x=0;x<3;x++)
 		if (p->subs[x].owner == oldchan) {
 			if (!x)
-				zt_unlink(NULL, p);
+				zt_unlink(NULL, p, 0);
 			p->subs[x].owner = newchan;
 		}
 	if (newchan->_state == AST_STATE_RINGING) 
 		zt_indicate(newchan, AST_CONTROL_RINGING);
 	update_conf(p);
+	ast_mutex_unlock(&p->lock);
 	return 0;
 }
 
