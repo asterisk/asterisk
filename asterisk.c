@@ -1672,7 +1672,8 @@ int main(int argc, char *argv[])
 
 	} else {
  		/* Do nothing */
-		poll(NULL,0, -1);
+		for(;;) 
+			poll(NULL,0, -1);
 	}
 	return 0;
 }
