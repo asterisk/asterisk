@@ -1621,8 +1621,8 @@ int main(int argc, char *argv[])
 		ast_register_verbose(console_verboser);
 	/* Print a welcome message if desired */
 	if (option_verbose || option_console) {
-		ast_verbose( "Asterisk " ASTERISK_VERSION ", Copyright (C) 1999-2001 Linux Support Services, Inc.\n");
-		ast_verbose( "Written by Mark Spencer <markster@linux-support.net>\n");
+		ast_verbose( "Asterisk " ASTERISK_VERSION ", Copyright (C) 1999-2004 Digium.\n");
+		ast_verbose( "Written by Mark Spencer <markster@digium.com>\n");
 		ast_verbose( "=========================================================================\n");
 	}
 	if (option_console && !option_verbose) 

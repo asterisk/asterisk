@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Routines implementing call parking
+ * Routines implementing music on hold
  * 
  * Copyright (C) 1999, Mark Spencer
  *
