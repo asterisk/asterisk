@@ -2578,7 +2578,7 @@ static int wait_file2(struct ast_channel *chan, struct vm_state *vms, char *file
 
 static int wait_file(struct ast_channel *chan, struct vm_state *vms, char *file) 
 {
-	return ast_control_streamfile(chan, file, "#", "*", "14679", "0", skipms);
+	return ast_control_streamfile(chan, file, "#", "*", "1456789", "0", skipms);
 }
 
 static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *vmu, char *origtime, char *filename)
