@@ -3777,7 +3777,7 @@ static void *ss_thread(void *data)
 		}
 		dtmfbuf[0] = 0;
 		/* Wait for the first digit only if immediate=no */
-		if (((p->sig == SIG_EM) || (p->sig == SIG_EMWINK)) && !p->immediate)
+		if (((p->sig == SIG_EM) || (p->sig == SIG_EMWINK) || (p->sig == SIG_FEATDMF)) && !p->immediate)
 			/* Wait for the first digit (up to 5 seconds). */
 			res = ast_waitfordigit(chan,5000);
 		else res = 0;
