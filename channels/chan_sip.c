@@ -114,7 +114,7 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 #define DEBUG_SEND	1			/* Transmit data	*/
 
 static char *desc = "Session Initiation Protocol (SIP)";
-static char *type = "SIP";
+static char *channeltype = "SIP";
 static char *tdesc = "Session Initiation Protocol (SIP)";
 static char *config = "sip.conf";
 
@@ -561,7 +561,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *rand, int reliable, char *header);
 static int transmit_request(struct sip_pvt *p, char *msg, int inc, int reliable, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, char *msg, int inc, int reliable, int newbranch);
-static int transmit_invite(struct sip_pvt *p, char *msg, int sendsdp, char *auth, char *authheader, char *vxml_url,char *distinctive_ring, char *osptoken,int init);
+static int transmit_invite(struct sip_pvt *p, char *msg, int sendsdp, char *auth, char *authheader, char *vxml_url, char *distinctive_ring, char *osptoken, int addsipheaders, int init);
 static int transmit_reinvite_with_sdp(struct sip_pvt *p);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
 static int transmit_message_with_text(struct sip_pvt *p, char *text);
@@ -1043,7 +1043,7 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 		stringp = multi;
 		while((ext = strsep(&stringp, "&"))) {
 			if (onoff)
-				ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", strdup(peer->name), free, type);
+				ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", strdup(peer->name), free, channeltype);
 			else
 				ast_context_remove_extension(regcontext, ext, 1, NULL);
 		}
@@ -1388,6 +1388,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 #endif	
 	struct varshead *headp;
 	struct ast_var_t *current;
+	int addsipheaders = 0;
 	
 	p = ast->pvt->pvt;
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
@@ -1404,7 +1405,12 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		} else if (!distinctive_ring && !strcasecmp(ast_var_name(current),"ALERT_INFO")) {
 			/* Check whether there is a ALERT_INFO variable */
 			distinctive_ring = ast_var_value(current);
+		} else if (!addsipheaders && !strncasecmp(ast_var_name(current),"SIPADDHEADER",strlen("SIPADDHEADER"))) {
+			/* Check whether there is a variable with a name starting with SIPADDHEADER */
+			addsipheaders = 1;
 		}
+
+		
 #ifdef OSP_SUPPORT
 		  else if (!osptoken && !strcasecmp(ast_var_name(current), "OSPTOKEN")) {
 			osptoken = ast_var_value(current);
@@ -1429,7 +1435,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	if ( res != -1 ) {
 		p->callingpres = ast->cid.cid_pres;
 		p->jointcapability = p->capability;
-		transmit_invite(p, "INVITE", 1, NULL, NULL, vxml_url,distinctive_ring, osptoken, 1);
+		transmit_invite(p, "INVITE", 1, NULL, NULL, vxml_url,distinctive_ring, osptoken, addsipheaders, 1);
 		if (p->maxtime) {
 			/* Initialize auto-congest time */
 			p->initid = ast_sched_add(sched, p->maxtime * 4, auto_congest, p);
@@ -1949,7 +1955,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 			{
 				snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", i->fromdomain, (int)(long)(i));
 			}
-		tmp->type = type;
+		tmp->type = channeltype;
                 if (i->dtmfmode & SIP_DTMF_INBAND) {
                     i->vad = ast_dsp_new();
                     ast_dsp_set_features(i->vad, DSP_FEATURE_DTMF_DETECT);
@@ -3726,7 +3732,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 
         
 /*--- transmit_invite: Build REFER/INVITE/OPTIONS message and trasmit it ---*/
-static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, char *authheader, char *vxml_url, char *distinctive_ring, char *osptoken, int init)
+static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, char *authheader, char *vxml_url, char *distinctive_ring, char *osptoken, int addsipheaders, int init)
 {
 	struct sip_request req;
 	char iabuf[INET_ADDRSTRLEN];
@@ -3761,6 +3767,47 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 		add_header(&req, "Alert-info",distinctive_ring);
 	}
 	add_header(&req, "Allow", ALLOWED_METHODS);
+	if (addsipheaders && init) {
+		struct ast_channel *ast;
+		char *header = (char *) NULL;
+		char *content = (char *) NULL;
+		char *end = (char *) NULL;
+		struct varshead *headp = (struct varshead *) NULL;
+		struct ast_var_t *current;
+
+		ast = p->owner;	/* The owner channel */
+		if (ast) {
+	 		headp=&ast->varshead;
+			if (!headp)
+				ast_log(LOG_WARNING,"No Headp for the channel...ooops!\n");
+			else {
+				AST_LIST_TRAVERSE(headp,current,entries) {  
+					/* SIPADDHEADER: Add SIP header to outgoing call        */
+					if (!strncasecmp(ast_var_name(current),"SIPADDHEADER",strlen("SIPADDHEADER"))) {
+						header = ast_var_value(current);
+						/* Strip of the starting " (if it's there) */
+						if (*header == '"')
+					 		header++;
+		    			if ((content = strchr(header, ':'))) {
+							*content = '\0';
+							content++;	/* Move pointer ahead */
+							/* Skip white space */
+							while (*content == ' ')
+						  		content++;
+							/* Strip the ending " (if it's there) */
+					 		end = content + strlen(content) -1;	
+							if (*end == '"')
+						   		*end = '\0';
+						
+	                        			add_header(&req, header, content);
+							if (sipdebug)
+								ast_log(LOG_DEBUG, "Adding SIP Header \"%s\" with content :%s: \n", header, content);
+						}
+					}
+				}
+			}
+		}
+	}
 	if (sdp) {
 		ast_rtp_offered_from_local(p->rtp, 1);
 		add_sdp(&req, p);
@@ -6260,7 +6307,7 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *heade
 		/* No way to authenticate */
 		return -1;
 	}
-	return transmit_invite(p,msg,!strcasecmp(msg, "INVITE"),digest, respheader, NULL,NULL,NULL, init); 
+	return transmit_invite(p,msg,!strcasecmp(msg, "INVITE"),digest, respheader, NULL,NULL,NULL, 0, init); 
 }
 
 /*--- reply_digest: reply to authentication for outbound registrations ---*/
@@ -7994,9 +8041,9 @@ static int sip_poke_peer(struct sip_peer *peer)
 	p->outgoing = 1;
 #ifdef VOCAL_DATA_HACK
 	strncpy(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username) - 1);
-	transmit_invite(p, "INVITE", 0, NULL, NULL, NULL,NULL,NULL, 1);
+	transmit_invite(p, "INVITE", 0, NULL, NULL, NULL,NULL,NULL, 0, 1);
 #else
-	transmit_invite(p, "OPTIONS", 0, NULL, NULL, NULL,NULL,NULL, 1);
+	transmit_invite(p, "OPTIONS", 0, NULL, NULL, NULL,NULL,NULL, 0, 1);
 #endif
 	gettimeofday(&peer->ps, NULL);
 	peer->pokeexpire = ast_sched_add(sched, DEFAULT_MAXMS * 2, sip_poke_noanswer, peer);
@@ -8687,7 +8734,7 @@ static int reload_config(void)
 			strncpy(regcontext, v->value, sizeof(regcontext) - 1);
 			/* Create context if it doesn't exist already */
 			if (!ast_context_find(regcontext))
-				ast_context_create(NULL, regcontext, type);
+				ast_context_create(NULL, regcontext, channeltype);
 		} else if (!strcasecmp(v->name, "callerid")) {
 			strncpy(default_callerid, v->value, sizeof(default_callerid)-1);
 		} else if (!strcasecmp(v->name, "fromdomain")) {
@@ -8945,6 +8992,18 @@ static char *synopsis_dtmfmode = "Change the dtmfmode for a SIP call";
 static char *descrip_dtmfmode = "SIPDtmfMode(inband|info|rfc2833): Changes the dtmfmode for a SIP call\n";
 static char *app_dtmfmode = "SIPDtmfMode";
 
+static char *app_sipaddheader = "SIPAddHeader";
+static char *synopsis_sipaddheader = "Add a SIP header to the outbound call";
+
+
+static char *descrip_sipaddheader = ""
+"  SIPAddHeader(Header: Content)\n"
+"Adds a header to a SIP call placed with DIAL.\n"
+"Remember to user the X-header if you are adding non-standard SIP\n"
+"headers, like \"X-Asterisk-Accuntcode:\". Use this with care.\n"
+"Adding the wrong headers may jeopardize the SIP dialog.\n"
+"Always returns 0\n";
+
 /*--- sip_dtmfmode: change the DTMFmode for a SIP call (application) ---*/
 static int sip_dtmfmode(struct ast_channel *chan, void *data)
 {
@@ -8957,7 +9016,7 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	ast_mutex_lock(&chan->lock);
-	if (chan->type != type) {
+	if (chan->type != channeltype) {
 		ast_log(LOG_WARNING, "Call this application only on SIP incoming calls\n");
 		ast_mutex_unlock(&chan->lock);
 		return 0;
@@ -8987,6 +9046,47 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 		ast_mutex_unlock(&p->lock);
 	}
 	ast_mutex_unlock(&chan->lock);
+	return 0;
+}
+
+/*--- sip_addheader: Add a SIP header ---*/
+static int sip_addheader(struct ast_channel *chan, void *data)
+{
+	int arglen;
+	int no = 0;
+	int ok = 0;
+	char *content = (char *) NULL;
+	char varbuf[128];
+	
+	arglen = strlen(data);
+	if (!arglen) {
+		ast_log(LOG_WARNING, "This application requires the argument: Header\n");
+		return 0;
+	}
+       ast_mutex_lock(&chan->lock);
+       if (chan->type != channeltype) {
+               ast_log(LOG_WARNING, "Call this application only on incoming SIP calls\n");
+               ast_mutex_unlock(&chan->lock);
+               return 0;
+       }
+
+	/* Check for headers */
+	while (!ok && no <= 50) {
+		no++;
+		snprintf(varbuf, sizeof(varbuf), "_SIPADDHEADER%.2d", no);
+		content = pbx_builtin_getvar_helper(chan, varbuf);
+
+		if (!content)
+			ok = 1;
+	}
+	if (ok) {
+		pbx_builtin_setvar_helper (chan, varbuf, data);
+		if (sipdebug)
+			ast_log(LOG_DEBUG,"SIP Header added \"%s\" as %s\n", (char *) data, varbuf);
+	} else {
+               ast_log(LOG_WARNING, "Too many SIP headers added, max 50\n");
+	}
+        ast_mutex_unlock(&chan->lock);
 	return 0;
 }
 
@@ -9138,8 +9238,8 @@ int load_module()
 	res = reload_config();
 	if (!res) {
 		/* Make sure we can register our sip channel type */
-		if (ast_channel_register_ex(type, tdesc, ((AST_FORMAT_MAX_AUDIO << 1) - 1), sip_request, sip_devicestate)) {
-			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+		if (ast_channel_register_ex(channeltype, tdesc, ((AST_FORMAT_MAX_AUDIO << 1) - 1), sip_request, sip_devicestate)) {
+			ast_log(LOG_ERROR, "Unable to register channel class %s\n", channeltype);
 			return -1;
 		}
 		ast_cli_register(&cli_show_users);
@@ -9161,9 +9261,10 @@ int load_module()
 		ast_cli_register(&cli_no_history);
 		ast_cli_register(&cli_sip_reload);
 		ast_cli_register(&cli_inuse_show);
-		sip_rtp.type = type;
+		sip_rtp.type = channeltype;
 		ast_rtp_proto_register(&sip_rtp);
 		ast_register_application(app_dtmfmode, sip_dtmfmode, synopsis_dtmfmode, descrip_dtmfmode);
+		ast_register_application(app_sipaddheader, sip_addheader, synopsis_sipaddheader, descrip_sipaddheader);
 		ast_mutex_lock(&peerl.lock);
 		for (peer = peerl.peers; peer; peer = peer->next)
 			sip_poke_peer(peer);
@@ -9186,6 +9287,7 @@ int unload_module()
 	
 	/* First, take us out of the channel loop */
 	ast_unregister_application(app_dtmfmode);
+	ast_unregister_application(app_sipaddheader);
 	ast_cli_unregister(&cli_show_users);
 	ast_cli_unregister(&cli_show_channels);
 	ast_cli_unregister(&cli_show_channel);
@@ -9206,7 +9308,7 @@ int unload_module()
 	ast_cli_unregister(&cli_sip_reload);
 	ast_cli_unregister(&cli_inuse_show);
 	ast_rtp_proto_unregister(&sip_rtp);
-	ast_channel_unregister(type);
+	ast_channel_unregister(channeltype);
 	if (!ast_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = iflist;
