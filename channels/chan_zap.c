@@ -6413,11 +6413,13 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 	int trunkgroup;
 	struct zt_pri *pri=NULL;
 #endif	
-	struct zt_pvt *exit;
+	struct zt_pvt *exit, *start, *end;
 	ast_mutex_t *lock;
 	
 	/* Assume we're locking the iflock */
 	lock = &iflock;
+	start = iflist;
+	end = ifend;
 	/* We do signed linear */
 	oldformat = format;
 	format &= (AST_FORMAT_SLINEAR | AST_FORMAT_ULAW);
@@ -6481,6 +6483,8 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 				if (pris[x].trunkgroup == trunkgroup) {
 					pri = pris + x;
 					lock = &pri->lock;
+					start = pri->crvs;
+					end = pri->crvend;
 					break;
 				}
 			}
@@ -6588,11 +6592,11 @@ next:
 		if (backwards) {
 			p = p->prev;
 			if (!p)
-				p = ifend;
+				p = end;
 		} else {
 			p = p->next;
 			if (!p)
-				p = iflist;
+				p = start;
 		}
 		/* stop when you roll to the one that we started from */
 		if (p == exit)
