@@ -2607,7 +2607,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int codec;
 	int iterator;
 	int sendonly = 0;
-	int x;
+	int x,y;
 	int debug=sip_debug_test_pvt(p);
 
 	/* Update our last rtprx when we receive an SDP, too */
@@ -2637,7 +2637,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	sdpLineNum_iterator_init(&iterator);
 	p->novideo = 1;
 	while ((m = get_sdp_iterate(&iterator, req, "m"))[0] != '\0') {
-		if ((sscanf(m, "audio %d RTP/AVP %n", &x, &len) == 1)) {
+		if ((sscanf(m, "audio %d RTP/AVP %n", &x, &len) == 1) ||
+		    (sscanf(m, "audio %d/%d RTP/AVP %n", &x, &y, &len) == 1)) {
 			portno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
 			ast_rtp_pt_clear(p->rtp);
