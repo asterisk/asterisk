@@ -809,7 +809,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	fd_set rfds, efds;
 	int res;
 	int x, y, max=-1;
-	time_t now;
+	time_t now = 0;
 	long whentohangup = 0, havewhen = 0, diff;
 	struct ast_channel *winner = NULL;
 	if (outfd)
@@ -817,11 +817,12 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	if (exception)
 		*exception = 0;
 	
-	time(&now);
 	/* Perform any pending masquerades */
 	for (x=0;x<n;x++) {
 		ast_mutex_lock(&c[x]->lock);
 		if (c[x]->whentohangup) {
+			if (!havewhen)
+				time(&now);
 			diff = c[x]->whentohangup - now;
 			if (!havewhen || (diff < whentohangup)) {
 				havewhen++;
@@ -888,8 +889,12 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		return NULL;
 	}
 
+	if (havewhen)
+		time(&now);
 	for (x=0;x<n;x++) {
 		c[x]->blocking = 0;
+		if (havewhen && c[x]->whentohangup && (now > c[x]->whentohangup))
+			c[x]->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
 		for (y=0;y<AST_MAX_FDS;y++) {
 			if (c[x]->fds[y] > -1) {
 				if ((FD_ISSET(c[x]->fds[y], &rfds) || FD_ISSET(c[x]->fds[y], &efds)) && !winner) {
