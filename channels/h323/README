@@ -32,6 +32,9 @@ As of June 16th, 2003 the release version of Open H.323 does not compile
 due to the G729Capability is missing. If you want G.729 support see
 the Makefile.  
 
+Some chan_h323 users have reported success when using newer versions
+of Open H.323. We haven't personally tested this and will not be able
+to assist you if you have 'issues'. Sorry.
 
 
 
@@ -55,7 +58,7 @@ make clean opt
 cd asterisk/channels/h323
 make clean install   
 
-(Note: Open H.323 or PWLib never get a 'make install')
+(Note: Open H.323 or PWLib never get a 'make install' so don't do it)
  
 
 Most common run-time error:
@@ -80,11 +83,11 @@ want to recompile.
 
 
 If you still have trouble please contact 'JerJer' in #Asterisk on 
-irc.freenode.net or send and email to jj@indie.org
+irc.freenode.net or send and email to jj@nufone.net
 
 If you happen to be lucky enough to segfault this code please run a 
 backtrace  and send me the gory details. Segmentation faults are not
- tolerated!
+tolerated, no matter what Distro you run!
 
 bt example:
 
@@ -97,7 +100,7 @@ Segmentation Fault (core dumped)
 core.1976
 
 # gdb /usr/sbin/asterisk core.1976
-...
+...lots of useless garbage here..
 (gdb) bt
 
 Send whatever shows up right after the 'bt'
@@ -108,5 +111,7 @@ in the full console mode (-c) and turn on 'h.323  debug'. A nice way
 to capture everything is to use the utility called 'script' (man script) 
 
 
-Jeremy McNamara, President
+
+Jeremy McNamara
+Chief Cook and Bottle Washer
 The NuFone Network 

@@ -16,9 +16,10 @@ ifndef ASTETCDIR
 ASTETCDIR=/etc/asterisk
 endif
 
-#Uncomment if u want to attempt to include the G.729 stuff
+# Uncomment if u want to attempt to include the G.729 stuff
 # This is a quick fix to work around the missing H323Capability
-# in Open H.323
+# in Open H.323. As of Open H.323 1.12.0 the H323Capability for
+# G.729 was removed due to legal reasons, use Open H.323 v1.11.7
 #
 #CFLAGS += -DWANT_G729
 #
@@ -26,6 +27,9 @@ endif
 #
 CFLAGS += -march=$(shell uname -m) -DPBYTE_ORDER=PLITTLE_ENDIAN
 
+
+#############################################
+#
 # Only change below if you know WTF your doing
 #
 CFLAGS += -DNDEBUG -DDO_CRASH -DDEBUG_THREADS
@@ -37,7 +41,8 @@ CFLAGS += -I$(PWLIBDIR)/include/ptlib/unix -I$(PWLIBDIR)/include
 CFLAGS += -I$(OPENH323DIR)/include -Wno-missing-prototypes -Wno-missing-declarations
 
 
-all: chan_h323.so
+all:   	chan_h323.so
+
 
 noshared: chan_h323_s.so
 optnoshared: chan_h323_s.so
@@ -46,7 +51,7 @@ debug:	chan_h323_d.so
 
 install: all
 	install -m 755 chan_h323.so $(ASTERISKDIR)
-	@echo " +----- chan_h323 Installation Complete ----- +"
+	@echo " + ---- chan_h323 Installation Complete ----- +"
 	@echo " +                                            +"
 	@echo " + chan_h323 has successfully been installed. +"
 	@echo " + If you would like to install the sample    +"
@@ -55,7 +60,8 @@ install: all
 	@echo " +                                            +"
 	@echo " +               $(MAKE) samples                 +"
 	@echo " +                                            +"
-	@echo " +                                            +"
+	@echo " + ------------------------------------------ +"
+	@echo " "
  
 
 samples: 
@@ -65,12 +71,19 @@ samples:
 	install h323.conf.sample $(ASTETCDIR)/h323.conf
  
 
-chan_h323.o:	chan_h323.c
+chan_h323.o: chan_h323.c
+	@echo " + --------------- chan_h323 ---------------- +"
+	@echo " +	                                      +"
+	@echo " + 	    Please read the README            +"
+	@echo " +    Doing so will save you many headaches   +"
+	@echo " +                                            +"
+	@echo " + ------------------------------------------ +"
 	$(CC) -g -c -o $@ $(CFLAGS) $<
 ast_h323.o:	ast_h323.cpp
 	g++ -g -c -o $@ $(CFLAGS) $<
 
 chan_h323.so:	chan_h323.o ast_h323.o
+	
 	g++  -g -shared -Xlinker -x -o chan_h323.so chan_h323.o ast_h323.o -L$(PWLIBDIR)/lib  -lpt_linux_x86_r -L$(OPENH323DIR)/lib -lh323_linux_x86_r -L/usr/lib -lpthread -ldl -lcrypto -lssl -lexpat
 
 chan_h323_d.so:	chan_h323.o ast_h323.o
