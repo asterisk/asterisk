@@ -174,6 +174,8 @@ static int tos = 0;
 
 static int videosupport = 0;
 
+static int recordhistory = 0;
+
 static int globaldtmfmode = SIP_DTMF_RFC2833;
 static char globalmusicclass[MAX_LANGUAGE] = "";	/* Global music on hold class */
 static char global_realm[AST_MAX_EXTENSION] = "asterisk"; 	/* Default realm */
@@ -215,6 +217,11 @@ struct sip_pkt;
 struct sip_route {
 	struct sip_route *next;
 	char hop[0];
+};
+
+struct sip_history {
+	char event[80];
+	struct sip_history *next;
 };
 
 static struct sip_pvt {
@@ -307,6 +314,7 @@ static struct sip_pvt {
 	struct ast_rtp *rtp;			/* RTP Session */
 	struct ast_rtp *vrtp;			/* Video RTP session */
 	struct sip_pkt *packets;		/* Packets scheduled for re-transmission */
+	struct sip_history *history;	/* History of this SIP dialog */
 	struct sip_pvt *next;			/* Next call in chain */
 } *iflist = NULL;
 
@@ -523,6 +531,38 @@ static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	return 0;
 }
 
+static int append_history(struct sip_pvt *p, char *event, char *data)
+{
+	struct sip_history *hist, *prev;
+	char *c;
+	if (!recordhistory)
+		return 0;
+	hist = malloc(sizeof(struct sip_history));
+	if (hist) {
+		memset(hist, 0, sizeof(struct sip_history));
+		snprintf(hist->event, sizeof(hist->event), "%-15s %s", event, data);
+		/* Trim up nicely */
+		c = hist->event;
+		while(*c) {
+			if ((*c == '\r') || (*c == '\n')) {
+				*c = '\0';
+				break;
+			}
+			c++;
+		}
+		/* Enqueue into history */
+		prev = p->history;
+		if (prev) {
+			while(prev->next)
+				prev = prev->next;
+			prev->next = hist;
+		} else {
+			p->history = hist;
+		}
+	}
+	return 0;
+}
+
 static int retrans_pkt(void *data)
 {
 	struct sip_pkt *pkt=data;
@@ -536,10 +576,12 @@ static int retrans_pkt(void *data)
 			else
 				ast_verbose("Retransmitting #%d (no NAT):\n%s\n to %s:%d\n", pkt->retrans, pkt->data, inet_ntoa(pkt->owner->sa.sin_addr), ntohs(pkt->owner->sa.sin_port));
 		}
+		append_history(pkt->owner, "ReTx", pkt->data);
 		__sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
 		res = 1;
 	} else {
 		ast_log(LOG_WARNING, "Maximum retries exceeded on call %s for seqno %d (%s %s)\n", pkt->owner->callid, pkt->seqno, (pkt->flags & FLAG_FATAL) ? "Critical" : "Non-critical", (pkt->flags & FLAG_RESPONSE) ? "Response" : "Request");
+		append_history(pkt->owner, "MaxRetries", pkt->flags & FLAG_FATAL ? "(Critical)" : "(Non-critical)");
 		pkt->retransid = -1;
 		if (pkt->flags & FLAG_FATAL) {
 			while(pkt->owner->owner && ast_mutex_trylock(&pkt->owner->owner->lock)) {
@@ -597,6 +639,7 @@ static int __sip_autodestruct(void *data)
 	struct sip_pvt *p = data;
 	p->autokillid = -1;
 	ast_log(LOG_DEBUG, "Auto destroying call '%s'\n", p->callid);
+	append_history(p, "AutoDestroy", "");
 	if (p->owner) {
 		ast_log(LOG_WARNING, "Autodestruct on call '%s' with owner in place\n", p->callid);
 		ast_queue_hangup(p->owner);
@@ -608,8 +651,13 @@ static int __sip_autodestruct(void *data)
 
 static int sip_scheddestroy(struct sip_pvt *p, int ms)
 {
+	char tmp[80];
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Scheduling destruction of call '%s' in %d ms\n", p->callid, ms);
+	if (recordhistory) {
+		snprintf(tmp, sizeof(tmp), "%d ms", ms);
+		append_history(p, "SchedDestroy", tmp);
+	}
 	if (p->autokillid > -1)
 		ast_sched_del(sched, p->autokillid);
 	p->autokillid = ast_sched_add(sched, ms, __sip_autodestruct, p);
@@ -620,6 +668,7 @@ static int sip_cancel_destroy(struct sip_pvt *p)
 {
 	if (p->autokillid > -1)
 		ast_sched_del(sched, p->autokillid);
+	append_history(p, "CancelDestroy", "");
 	p->autokillid = -1;
 	return 0;
 }
@@ -684,10 +733,13 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 		else
 			ast_verbose("%sTransmitting (no NAT):\n%s\n to %s:%d\n", reliable ? "Reliably " : "", req->data, inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
 	}
-	if (reliable)
+	if (reliable) {
+		append_history(p, "TxRespRel", req->data);
 		res = __sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable > 1));
-	else
+	} else {
+		append_history(p, "TxResp", req->data);
 		res = __sip_xmit(p, req->data, req->len);
+	}
 	if (res > 0)
 		res = 0;
 	return res;
@@ -702,10 +754,13 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 		else
 			ast_verbose("%sTransmitting:\n%s (no NAT) to %s:%d\n", reliable ? "Reliably " : "", req->data, inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
 	}
-	if (reliable)
+	if (reliable) {
+		append_history(p, "TxReqRel", req->data);
 		res = __sip_reliable_xmit(p, seqno, 0, req->data, req->len, (reliable > 1));
-	else
+	} else {
+		append_history(p, "TxReq", req->data);
 		res = __sip_xmit(p, req->data, req->len);
+	}
 	return res;
 }
 
@@ -1170,6 +1225,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 {
 	struct sip_pvt *cur, *prev = NULL;
 	struct sip_pkt *cp;
+	struct sip_history *hist;
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Destroying call '%s'\n", p->callid);
 	if (p->stateid > -1)
@@ -1209,6 +1265,12 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 		p->owner->pvt->pvt = NULL;
 		if (lockowner)
 			ast_mutex_unlock(&p->owner->lock);
+	}
+	/* Clear history */
+	while(p->history) {
+		hist = p->history;
+		p->history = p->history->next;
+		free(hist);
 	}
 	cur = iflist;
 	while(cur) {
@@ -4993,6 +5055,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 	struct sip_pvt *cur;
 	char tmp[256];
 	size_t len;
+	int found = 0;
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	len = strlen(argv[3]);
@@ -5036,11 +5099,53 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			if (cur->dtmfmode & SIP_DTMF_INBAND)
 				strcat(tmp, "inband ");
 			ast_cli(fd, "  DTMF Mode:              %s\n\n", tmp);
+			found++;
 		}
 		cur = cur->next;
 	}
 	ast_mutex_unlock(&iflock);
-	if (!cur) 
+	if (!found) 
+		ast_cli(fd, "No such SIP Call ID starting with '%s'\n", argv[3]);
+	return RESULT_SUCCESS;
+}
+
+/*--- sip_show_channel: Show details of one call ---*/
+static int sip_show_history(int fd, int argc, char *argv[])
+{
+	struct sip_pvt *cur;
+	struct sip_history *hist;
+	size_t len;
+	int x;
+	int found = 0;
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	if (!recordhistory)
+		ast_cli(fd, "\n***Note: History recording is currently DISABLED.  Use 'sip history' to ENABLE.\n");
+	len = strlen(argv[3]);
+	ast_mutex_lock(&iflock);
+	cur = iflist;
+	while(cur) {
+		if (!strncasecmp(cur->callid, argv[3],len)) {
+			ast_cli(fd,"\n");
+			if (cur->subscribed)
+			   ast_cli(fd, "  * Subscription\n");
+			else
+			   ast_cli(fd, "  * SIP Call\n");
+			x = 0;
+			hist = cur->history;
+			while(hist) {
+				x++;
+				ast_cli(fd, "%d. %s\n", x, hist->event);
+				hist = hist->next;
+			}
+			if (!x)
+				ast_cli(fd, "Call '%s' has no history\n", cur->callid);
+			found++;
+		}
+		cur = cur->next;
+	}
+	ast_mutex_unlock(&iflock);
+	if (!found) 
 		ast_cli(fd, "No such SIP Call ID starting with '%s'\n", argv[3]);
 	return RESULT_SUCCESS;
 }
@@ -5183,6 +5288,26 @@ static int sip_do_debug(int fd, int argc, char *argv[])
 	sipdebug = 1;
 	memset(&debugaddr, 0, sizeof(debugaddr));
 	ast_cli(fd, "SIP Debugging Enabled\n");
+	return RESULT_SUCCESS;
+}
+
+static int sip_do_history(int fd, int argc, char *argv[])
+{
+	if (argc != 2) {
+		return RESULT_SHOWUSAGE;
+	}
+	recordhistory = 1;
+	ast_cli(fd, "SIP History Recording Enabled (use 'sip show history')\n");
+	return RESULT_SUCCESS;
+}
+
+static int sip_no_history(int fd, int argc, char *argv[])
+{
+	if (argc != 3) {
+		return RESULT_SHOWUSAGE;
+	}
+	recordhistory = 0;
+	ast_cli(fd, "SIP History Recording Disabled\n");
 	return RESULT_SUCCESS;
 }
 
@@ -5374,6 +5499,10 @@ static char show_channel_usage[] =
 "Usage: sip show channel <channel>\n"
 "       Provides detailed status on a given SIP channel.\n";
 
+static char show_history_usage[] = 
+"Usage: sip show history <channel>\n"
+"       Provides detailed dialog history on a given SIP channel.\n";
+
 static char show_peers_usage[] = 
 "Usage: sip show peers\n"
 "       Lists all known SIP peers.\n";
@@ -5399,6 +5528,15 @@ static char no_debug_usage[] =
 "Usage: sip no debug\n"
 "       Disables dumping of SIP packets for debugging purposes\n";
 
+static char no_history_usage[] = 
+"Usage: sip no history\n"
+"       Disables recording of SIP dialog history for debugging purposes\n";
+
+static char history_usage[] = 
+"Usage: sip history\n"
+"       Enables recording of SIP dialog history for debugging purposes.\n"
+"Use 'sip show hitory' to view the history of a call number.\n";
+
 static char sip_reload_usage[] =
 "Usage: sip reload\n"
 "       Reloads SIP configuration from sip.conf\n";
@@ -5416,6 +5554,8 @@ static struct ast_cli_entry  cli_show_channels =
 	{ { "sip", "show", "channels", NULL }, sip_show_channels, "Show active SIP channels", show_channels_usage};
 static struct ast_cli_entry  cli_show_channel =
 	{ { "sip", "show", "channel", NULL }, sip_show_channel, "Show detailed SIP channel info", show_channel_usage, complete_sipch  };
+static struct ast_cli_entry  cli_show_history =
+	{ { "sip", "show", "history", NULL }, sip_show_history, "Show SIP dialog history", show_history_usage, complete_sipch  };
 static struct ast_cli_entry  cli_debug_ip =
 	{ { "sip", "debug", "ip", NULL }, sip_do_debug, "Enable SIP debugging on IP", debug_usage };
 static struct ast_cli_entry  cli_debug_peer =
@@ -5436,6 +5576,10 @@ static struct ast_cli_entry  cli_show_registry =
 	{ { "sip", "show", "registry", NULL }, sip_show_registry, "Show SIP registration status", show_reg_usage };
 static struct ast_cli_entry  cli_debug =
 	{ { "sip", "debug", NULL }, sip_do_debug, "Enable SIP debugging", debug_usage };
+static struct ast_cli_entry  cli_history =
+	{ { "sip", "history", NULL }, sip_do_history, "Enable SIP history", history_usage };
+static struct ast_cli_entry  cli_no_history =
+	{ { "sip", "no", "history", NULL }, sip_no_history, "Disable SIP history", no_history_usage };
 static struct ast_cli_entry  cli_no_debug =
 	{ { "sip", "no", "debug", NULL }, sip_no_debug, "Disable SIP debugging", no_debug_usage };
 
@@ -6338,6 +6482,7 @@ retrylock:
 			goto retrylock;
 		}
 		memcpy(&p->recv, &sin, sizeof(p->recv));
+		append_history(p, "Rx", req.data);
 		handle_request(p, &req, &sin, &recount);
 		if (p->owner)
 			ast_mutex_unlock(&p->owner->lock);
@@ -7531,6 +7676,7 @@ int load_module()
 		ast_cli_register(&cli_show_subscriptions);
 		ast_cli_register(&cli_show_channels);
 		ast_cli_register(&cli_show_channel);
+		ast_cli_register(&cli_show_history);
 		ast_cli_register(&cli_show_peer);
 		ast_cli_register(&cli_show_peers);
 		ast_cli_register(&cli_show_peers_begin);
@@ -7541,6 +7687,8 @@ int load_module()
 		ast_cli_register(&cli_debug_ip);
 		ast_cli_register(&cli_debug_peer);
 		ast_cli_register(&cli_no_debug);
+		ast_cli_register(&cli_history);
+		ast_cli_register(&cli_no_history);
 		ast_cli_register(&cli_sip_reload);
 		ast_cli_register(&cli_inuse_show);
 		sip_rtp.type = type;
@@ -7571,6 +7719,7 @@ int unload_module()
 	ast_cli_unregister(&cli_show_users);
 	ast_cli_unregister(&cli_show_channels);
 	ast_cli_unregister(&cli_show_channel);
+	ast_cli_unregister(&cli_show_history);
 	ast_cli_unregister(&cli_show_peer);
 	ast_cli_unregister(&cli_show_peers);
 	ast_cli_unregister(&cli_show_peers_include);
@@ -7582,6 +7731,8 @@ int unload_module()
 	ast_cli_unregister(&cli_debug_ip);
 	ast_cli_unregister(&cli_debug_peer);
 	ast_cli_unregister(&cli_no_debug);
+	ast_cli_unregister(&cli_history);
+	ast_cli_unregister(&cli_no_history);
 	ast_cli_unregister(&cli_sip_reload);
 	ast_cli_unregister(&cli_inuse_show);
 	ast_rtp_proto_unregister(&sip_rtp);

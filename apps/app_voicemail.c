@@ -1498,6 +1498,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	char dir[256];
 	char fn[256];
 	char prefile[256]="";
+	char ext_context[256] = "";
 	char fmt[80];
 	char *context;
 	char *ecodes = "#";
@@ -1517,6 +1518,10 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 
 	if ((vmu = find_user(&svm, context, ext))) {
 		/* Setup pre-file if appropriate */
+		if (strcmp(vmu->context, "default"))
+			snprintf(ext_context, sizeof(ext_context), "%s@%s", ext, vmu->context);
+		else
+			strncpy(ext_context, vmu->context, sizeof(ext_context) - 1);
 		if (busy)
 			snprintf(prefile, sizeof(prefile), "voicemail/%s/%s/busy", vmu->context, ext);
 		else if (unavail)
@@ -1690,10 +1695,10 @@ leave_vm_out:
 				chan->priority+=100;
 	}
 	/* Leave voicemail for someone */
-	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext, ast_app_has_voicemail(ext));
+	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, ast_app_has_voicemail(ext_context));
 
 	/* If an external program is specified to be run after leaving a voicemail */
-	run_externnotify(chan->context, ext, ast_app_has_voicemail(ext));
+	run_externnotify(chan->context, ext_context, ast_app_has_voicemail(ext_context));
 
 	return res;
 }
@@ -2391,6 +2396,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 	char miffile[256];
 	char fn[256];
 	char callerid[512];
+	char ext_context[256]="";
 	int res = 0, cmd = 0;
 	struct ast_vm_user *receiver, *extensions = NULL, *vmtmp = NULL, *vmfree;
 	char tmp[256];
@@ -2444,6 +2450,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 			*/
 			snprintf(todir, sizeof(todir), "%s/voicemail/%s/%s/INBOX",  (char *)ast_config_AST_SPOOL_DIR, vmtmp->context, vmtmp->mailbox);
 			snprintf(sys, sizeof(sys), "mkdir -p %s\n", todir);
+			snprintf(ext_context, sizeof(ext_context), "%s@%s", vmtmp->mailbox, vmtmp->context);
 			ast_log(LOG_DEBUG, sys);
 			ast_safe_system(sys);
 	
@@ -2494,8 +2501,8 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 				ast_destroy(mif); /* or here */
 			}
 			/* Leave voicemail for someone */
-			manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", vmtmp->mailbox, ast_app_has_voicemail(vmtmp->mailbox));
-			run_externnotify(chan->context, vmtmp->mailbox, ast_app_has_voicemail(vmtmp->mailbox));
+			manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, ast_app_has_voicemail(ext_context));
+			run_externnotify(chan->context, ext_context, ast_app_has_voicemail(ext_context));
 	
 			saved_messages++;
 			vmfree = vmtmp;
@@ -2943,6 +2950,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	char prefixstr[80] ="";
 	char empty[80] = "";
+	char ext_context[256]="";
 	int box;
 	int useadsi = 0;
 	int skipuser = 0;
@@ -3319,8 +3327,9 @@ out:
 	if (vmu)
 		free_user(vmu);
 	if (valid) {
-		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", vms.username, ast_app_has_voicemail(vms.username));
-		run_externnotify(chan->context, vms.username, ast_app_has_voicemail(vms.username));
+		snprintf(ext_context, sizeof(ext_context), "%s@%s", vms.username, vmu->context);
+		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, ast_app_has_voicemail(ext_context));
+		run_externnotify(chan->context, ext_context, ast_app_has_voicemail(ext_context));
 
 	}
 	LOCAL_USER_REMOVE(u);
