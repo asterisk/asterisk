@@ -1054,7 +1054,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 		/* We've still got lock held if we found a spot */
 		if (x >= TRUNK_CALL_START) {
 			ast_log(LOG_WARNING, "No more space\n");
-			return -1;
+			return 0;
 		}
 		iaxs[x] = new_iax(sin, lockpeer, host);
 		update_max_nontrunk();
