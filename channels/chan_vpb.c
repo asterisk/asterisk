@@ -302,6 +302,8 @@ static struct vpb_pvt {
 	ast_mutex_t play_dtmf_lock;
 	char play_dtmf[16];
 
+	int faxhandled;				/* has a fax tone been handled ? */
+
 	struct vpb_pvt *next;			/* Next channel in list */
 
 } *iflist = NULL;
@@ -807,7 +809,26 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 				else {
 					f.subclass = AST_CONTROL_BUSY;
 				}
-			} else if (e->data == VPB_GRUNT) {
+			} 
+			else if (e->data == VPB_FAX){
+				if (!p->faxhandled){
+					if (strcmp(p->owner->exten, "fax")) {
+						if (ast_exists_extension(p->owner, ast_strlen_zero(p->owner->macrocontext) ? p->owner->context : p->owner->macrocontext, "fax", 1, p->owner->cid.cid_num)) {
+							if (option_verbose > 2)
+								ast_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", p->owner->name);
+							/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
+							pbx_builtin_setvar_helper(p->owner,"FAXEXTEN",p->owner->exten);
+							if (ast_async_goto(p->owner, p->owner->context, "fax", 1))
+								ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", p->owner->name, p->owner->context);
+						} else
+							ast_log(LOG_NOTICE, "Fax detected, but no fax extension\n");
+					} else
+						ast_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
+				} else
+					ast_log(LOG_DEBUG, "Fax already handled\n");
+
+			} 
+			else if (e->data == VPB_GRUNT) {
 				if( ( get_time_in_ms() - p->lastgrunt ) > gruntdetect_timeout ) {
 					/* Nothing heard on line for a very long time
 					 * Timeout connection */
@@ -819,8 +840,10 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 					p->lastgrunt = get_time_in_ms();
 					f.frametype = -1;
 				}
-			} else
+			} 
+			else {
 				f.frametype = -1;
+			}
 			break;
 
 		case VPB_CALLEND:
@@ -2462,6 +2485,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, int state, char *context)
 		me->last_ignore_dtmf = 1;
 		me->readthread = 0;
 		me->play_dtmf[0] = '\0';
+		me->faxhandled =0;
 		
 		me->lastgrunt  = get_time_in_ms(); /* Assume at least one grunt tone seen now. */
 
