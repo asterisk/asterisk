@@ -1457,7 +1457,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 	int x, res, index;
 	char *c, *n, *l;
 #ifdef ZAPATA_PRI
-	char *s;
+	char *s=NULL;
 #endif
 	char callerid[256];
 	char dest[256]; /* must be same length as p->dialdest */

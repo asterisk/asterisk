@@ -132,9 +132,7 @@ static struct progress {
 #define DTMF_RELATIVE_PEAK_COL      6.3     /* 8dB */
 #define DTMF_2ND_HARMONIC_ROW       ((digitmode & DSP_DIGITMODE_RELAXDTMF) ? 1.7 : 2.5)     /* 4dB normal */
 #define DTMF_2ND_HARMONIC_COL       63.1    /* 18dB */
-#ifndef OLD_DSP_ROUTINES
 #define DTMF_TO_TOTAL_ENERGY	    42.0
-#endif
 
 #ifdef OLD_DSP_ROUTINES
 #define MF_THRESHOLD              8.0e7
