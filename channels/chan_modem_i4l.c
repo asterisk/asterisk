@@ -475,8 +475,8 @@ static int i4l_dialdigit(struct ast_modem_pvt *p, char digit)
 static int i4l_dial(struct ast_modem_pvt *p, char *stuff)
 {
 	char cmd[80];
-	snprintf(cmd, sizeof(cmd), "ATD%c %s", p->dialtype,stuff);
-	if (ast_modem_send(p, cmd, 0)) {
+	snprintf(cmd, sizeof(cmd), "ATD%c %s\n", p->dialtype,stuff);
+	if (ast_modem_send(p, cmd, strlen(cmd))) {
 		ast_log(LOG_WARNING, "Unable to dial\n");
 		return -1;
 	}
