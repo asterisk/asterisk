@@ -856,6 +856,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	ast_log(LOG_DEBUG, "Outgoing Call for %s\n", p->username);
 	res = find_user(p,INC_OUT_USE);
 	p->restrictcid = ast->restrictcid;
+	p->jointcapability = p->capability;
 	transmit_invite(p, "INVITE", 1, NULL, vxml_url,distinctive_ring, 1);
 	if (p->maxtime) {
 		/* Initialize auto-congest time */
