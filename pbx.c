@@ -2741,14 +2741,22 @@ struct ast_context *ast_context_create(struct ast_context **extcontexts, char *n
 
 void __ast_context_destroy(struct ast_context *con, char *registrar, int lock);
 
-void ast_merge_contexts_and_delete(struct ast_context **extcontexts) {
+void ast_merge_contexts_and_delete(struct ast_context **extcontexts, char *registrar) {
 	struct ast_context *tmp, *lasttmp = NULL;
 	tmp = *extcontexts;
 	ast_pthread_mutex_lock(&conlock);
-	while (tmp) {
-		__ast_context_destroy(tmp,tmp->registrar,0);
-		lasttmp = tmp;
-		tmp = tmp->next;
+	if (registrar) {
+		__ast_context_destroy(NULL,registrar,0);
+		while (tmp) {
+			lasttmp = tmp;
+			tmp = tmp->next;
+		}
+	} else {
+		while (tmp) {
+			__ast_context_destroy(tmp,tmp->registrar,0);
+			lasttmp = tmp;
+			tmp = tmp->next;
+		}
 	}
 	if (lasttmp) {
 		lasttmp->next = contexts;
