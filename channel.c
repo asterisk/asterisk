@@ -383,6 +383,12 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 	prev = NULL;
 	cur = chan->pvt->readq;
 	while(cur) {
+		if ((cur->frametype == AST_FRAME_CONTROL) && (cur->subclass == AST_CONTROL_HANGUP)) {
+			/* Don't bother actually queueing anything after a hangup */
+			ast_frfree(f);
+			ast_mutex_unlock(&chan->lock);
+			return 0;
+		}
 		prev = cur;
 		cur = cur->next;
 		qlen++;
