@@ -61,7 +61,7 @@ int channelsOpen;
 int mode = H323_DTMF_RFC2833;
 
 /** Options for connections creation */
-BOOL	noFastStart;
+BOOL	noFastStart = TRUE;
 BOOL	noH245Tunnelling;
 BOOL	noSilenceSuppression;
 
