@@ -79,7 +79,7 @@ struct ast_rtp {
 	unsigned int lastrxts;
 	unsigned int lastividtimestamp;
 	unsigned int lastovidtimestamp;
-	unsigned int lasteventseqn;
+	unsigned int lasteventtimestamp;
 	int lasttxformat;
 	int lastrxformat;
 	int dtmfcount;
@@ -490,16 +490,16 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	  /* This is special in-band data that's not one of our codecs */
 	  if (rtpPT.code == AST_RTP_DTMF) {
 	    /* It's special -- rfc2833 process it */
-	    if (rtp->lasteventseqn <= seqno) {
+	    if (rtp->lasteventtimestamp <= timestamp) {
 	      f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
-	      rtp->lasteventseqn = seqno;
+	      rtp->lasteventtimestamp = timestamp;
 	    } else f = NULL;
 	    if (f) return f; else return &null_frame;
 	  } else if (rtpPT.code == AST_RTP_CISCO_DTMF) {
 	    /* It's really special -- process it the Cisco way */
-	    if (rtp->lasteventseqn <= seqno) {
+	    if (rtp->lasteventtimestamp <= timestamp) {
 	      f = process_cisco_dtmf(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
-	      rtp->lasteventseqn = seqno;
+	      rtp->lasteventtimestamp = timestamp;
 	    } else f = NULL;
 	    if (f) return f; else return &null_frame;
 	  } else if (rtpPT.code == AST_RTP_CN) {
