@@ -1498,7 +1498,7 @@ static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newcha
 	return 0;
 }
 
-static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context, int *trunk, int *notransfer)
+static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context, int *trunk, int *notransfer, char *secret, int seclen)
 {
 	struct hostent *hp;
 	struct iax2_peer *p;
@@ -1527,6 +1527,8 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 					*trunk = p->trunk;
 				if (capability)
 					*capability = p->capability;
+				if (secret)
+					strncpy(secret, p->secret, seclen);
 				if (p->addr.sin_addr.s_addr) {
 					sin->sin_addr = p->addr.sin_addr;
 					sin->sin_port = p->addr.sin_port;
@@ -1590,6 +1592,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	char *opts = "";
 	struct chan_iax2_pvt *p = c->pvt->pvt;
 	char *stringp=NULL;
+	char storedsecret[80];
 	if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "Line is already in use (%s)?\n", c->name);
 		return -1;
@@ -1631,7 +1634,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		strsep(&stringp, ":");
 		portno = strsep(&stringp, ":");
 	}
-	if (create_addr(&sin, NULL, NULL, NULL, hname, context, NULL, NULL)) {
+	if (create_addr(&sin, NULL, NULL, NULL, hname, context, NULL, NULL, storedsecret, sizeof(storedsecret) - 1)) {
 		ast_log(LOG_WARNING, "No address associated with '%s'\n", hname);
 		return -1;
 	}
@@ -1676,6 +1679,8 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, rcontext);
 	if (username)
 		iax_ie_append_str(&ied, IAX_IE_USERNAME, username);
+	if (!secret && strlen(storedsecret))
+		secret = storedsecret;
 	if (secret) {
 		if (secret[0] == '[') {
 			/* This is an RSA key, not a normal secret */
@@ -4619,7 +4624,7 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 	if (!st)
 		st = s;
 	/* Populate our address from the given */
-	if (create_addr(&sin, &capability, &sendani, &maxtime, st, NULL, &trunk, &notransfer)) {
+	if (create_addr(&sin, &capability, &sendani, &maxtime, st, NULL, &trunk, &notransfer, NULL, 0)) {
 		return NULL;
 	}
 	callno = find_callno(0, 0, &sin, NEW_FORCE, 1);
@@ -5250,7 +5255,7 @@ static int cache_get_callno(char *data)
 		host = st;
 	}
 	/* Populate our address from the given */
-	if (create_addr(&sin, NULL, NULL, NULL, host, NULL, NULL, NULL)) {
+	if (create_addr(&sin, NULL, NULL, NULL, host, NULL, NULL, NULL, NULL, 0)) {
 		return -1;
 	}
 	ast_log(LOG_DEBUG, "host: %s, user: %s, password: %s, context: %s\n", host, username, password, context);

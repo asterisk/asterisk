@@ -30,6 +30,41 @@ maxlogins=3
 ; Change the email body, variables: VM_NAME, VM_DUR, VM_MSGNUM, VM_MAILBOX, VM_CALLERID, VM_DATE
 ;emailbody=Dear ${VM_NAME}:\n\n\tjust wanted to let you know you were just left a ${VM_DUR} long message (number ${VM_MSGNUM})\nin mailbox ${VM_MAILBOX} from ${VM_CALLERID}, on ${VM_DATE} so you might\nwant to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n
 
+
+; 
+; Users may be located in different timezones, or may have different 
+; message announcements for their introductory message when they enter 
+; the voicemail system. Set the message and the timezone each user 
+; hears here. Set the user into one of these zones with the tz= attribute 
+; in the options field of the mailbox. Of course, language substitution 
+; still applies here so you may have several directory trees that have 
+; alternate language choices. 
+; 
+; Look in /usr/share/zoneinfo/ for names of timezones. 
+; Look at the manual page for strftime for a quick tutorial on how the 
+; variable substitution is done on the values below. 
+; 
+; Supported values: 
+; 'filename' = filename of a soundfile 
+; '${VAR}' = variable substitution 
+; 'A' or 'a' = Day of week (Saturday, Sunday, ...) 
+; 'B' or 'b' or 'h' = Month name (January, February, ...) 
+; 'd' or 'e' = numeric day of month (first, second, ..., thirty-first) 
+; 'Y' = Year 
+; 'I' or 'l' = hour, 12 hour clock 
+; 'H' or 'k' = hour, 24 hour clock (single digit hours preceeded by "oh") 
+; 'M' = minute 
+; 'P' or 'p' = AM or PM 
+; 'Q' = "today", "yesterday" or ABdY (*note: not standard strftime value) 
+; 'q' = "today", "yesterday", weekday, or ABdY (*note: not standard strftime value) 
+; 'R' = 24 hour time, including minute 
+; 
+; 
+[zonemessages] 
+eastern=America/NewYork|'vm-received' Q 'digits/at' IMp 
+central=America/Chicago|'vm-received' Q 'digits/at' IMp 
+central24=America/Chicago|'vm-received' 'digits/at' H 'digits/hundred' M 
+
 ;
 ; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>,<pager_email>,<options>
 ; if the e-mail is specified, a message will be sent when a message is
@@ -50,14 +85,3 @@ maxlogins=3
 
 [other]
 1234 => 5678,Company2 User,root@localhost
-
-;
-; Users may be located in different timezones.  Set the message and the
-; timezone each user hears here.  Set the user into one of these zones with
-; the tz= attribute in the options field of the mailbox.
-;
-[zonemessages]
-eastern=America/NewYork|'vm-received' Q 'digits/at' IMp
-central=America/Chicago|'vm-received' Q 'digits/at' IMp
-central24=America/Chicago|'vm-received' 'digits/at' H 'digits/hundred' M
-
