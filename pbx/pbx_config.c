@@ -1641,7 +1641,7 @@ static int pbx_load_module(void)
 		}
 		ast_destroy(cfg);
 	}
-	ast_merge_contexts_and_delete(&local_contexts);
+	ast_merge_contexts_and_delete(&local_contexts,registrar);
 	return 0;
 }
 

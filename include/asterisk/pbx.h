@@ -131,8 +131,9 @@ struct ast_context *ast_context_create(struct ast_context **extcontexts, char *n
 //! Merge the temporary contexts into a global contexts list and delete from the global list the ones that are being added
 /*!
  * \param extcontexts pointer to the ast_context structure pointer
+ * \param registar of the context; if it's set the routine will delete all contexts that belong to that registrar; if NULL only the contexts that are specified in extcontexts
  */
-void ast_merge_contexts_and_delete(struct ast_context **extcontexts);
+void ast_merge_contexts_and_delete(struct ast_context **extcontexts, char *registrar);
 
 //! Destroy a context (matches the specified context (or ANY context if NULL)
 /*!
