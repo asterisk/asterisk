@@ -405,7 +405,7 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	memcpy(called_addr, dest, sizeof(called_addr));
 
 	/* Copy callerid, if there is any */
-	if (strlen(c->callerid)) {
+	if (c->callerid) {
 		p->calloptions.callerid = strdup(c->callerid);
 	}
 
