@@ -2558,8 +2558,8 @@ static int reload_config(void)
 	}
 	if (skinnysock < 0) {
 		skinnysock = socket(AF_INET, SOCK_STREAM, 0);
-		if(!setsockopt(skinnysock,SOL_SOCKET,SO_REUSEADDR,&on,0)) {
-			ast_log(LOG_ERROR, "Set Socket Options failed: %s", strerror(errno));
+		if(setsockopt(skinnysock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
+			ast_log(LOG_ERROR, "Set Socket Options failed: errno %d, %s", errno, strerror(errno));
 			return 0;
 		}
 
