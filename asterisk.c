@@ -23,6 +23,7 @@
 #include <asterisk/module.h>
 #include <asterisk/image.h>
 #include <asterisk/tdd.h>
+#include <asterisk/term.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <signal.h>
@@ -50,6 +51,7 @@ int option_highpriority=0;
 int option_remote=0;
 int option_exec=0;
 int option_initcrypto=0;
+int option_nocolor;
 int fully_booted = 0;
 
 static int ast_socket = -1;		/* UNIX Socket for allowing remote control */
@@ -300,9 +302,55 @@ static int set_priority(int pri)
 	return 0;
 }
 
-static void quit_handler(int num)
+static char *_argv[256];
+
+static int shuttingdown = 0;
+
+static void quit_handler(int num, int nice, int safeshutdown, int restart)
 {
 	char filename[80] = "";
+	time_t s,e;
+	int x;
+	if (safeshutdown) {
+		shuttingdown = 1;
+		if (!nice) {
+			/* Begin shutdown routine, hanging up active channels */
+			ast_begin_shutdown(1);
+			if (option_verbose && option_console)
+				ast_verbose("Beginning asterisk %s....\n", restart ? "restart" : "shutdown");
+			time(&s);
+			for(;;) {
+				time(&e);
+				/* Wait up to 15 seconds for all channels to go away */
+				if ((e - s) > 15)
+					break;
+				if (!ast_active_channels())
+					break;
+				if (!shuttingdown)
+					break;
+				/* Sleep 1/10 of a second */
+				usleep(100000);
+			}
+		} else {
+			if (nice < 2)
+				ast_begin_shutdown(0);
+			if (option_verbose && option_console)
+				ast_verbose("Waiting for inactivity to perform %s...\n", restart ? "restart" : "halt");
+			for(;;) {
+				if (!ast_active_channels())
+					break;
+				if (!shuttingdown)
+					break;
+				sleep(1);
+			}
+		}
+
+		if (!shuttingdown) {
+			if (option_verbose && option_console)
+				ast_verbose("Asterisk %s cancelled.\n", restart ? "restart" : "shutdown");
+			return;
+		}
+	}
 	if (option_console || option_remote) {
 		if (getenv("HOME")) 
 			snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
@@ -312,7 +360,7 @@ static void quit_handler(int num)
 	}
 	/* Called on exit */
 	if (option_verbose && option_console)
-		ast_verbose("Asterisk ending (%d).\n", num);
+		ast_verbose("Asterisk %s ending (%d).\n", ast_active_channels() ? "uncleanly" : "cleanly", num);
 	else if (option_debug)
 		ast_log(LOG_DEBUG, "Asterisk ending (%d).\n", num);
 	if (ast_socket > -1)
@@ -321,17 +369,50 @@ static void quit_handler(int num)
 		close(ast_consock);
 	if (ast_socket > -1)
 		unlink(AST_SOCKET);
-	
-	exit(0);
+	printf(term_quit());
+	if (restart) {
+		if (option_verbose || option_console)
+			ast_verbose("Preparing for Asterisk restart...\n");
+		/* Mark all FD's for closing on exec */
+		for (x=3;x<32768;x++) {
+			fcntl(x, F_SETFD, FD_CLOEXEC);
+		}
+		if (option_verbose || option_console)
+			ast_verbose("Restarting Asterisk NOW...\n");
+		execvp(_argv[0], _argv);
+	} else
+		exit(0);
+}
+
+static void __quit_handler(int num)
+{
+	quit_handler(num, 0, 1, 0);
 }
 
 static pthread_t consolethread = -1;
 
+static int fix_header(char *outbuf, int maxout, char **s, char *cmp)
+{
+	if (!strncmp(*s, cmp, strlen(cmp))) {
+		*s += strlen(cmp);
+		term_color(outbuf, cmp, COLOR_GRAY, 0, maxout);
+		return 1;
+	}
+	return 0;
+}
+
 static void console_verboser(char *s, int pos, int replace, int complete)
 {
+	char tmp[80];
 	/* Return to the beginning of the line */
-	if (!pos)
+	if (!pos) {
 		fprintf(stdout, "\r");
+		if (fix_header(tmp, sizeof(tmp), &s, VERBOSE_PREFIX_4) ||
+			fix_header(tmp, sizeof(tmp), &s, VERBOSE_PREFIX_3) ||
+			fix_header(tmp, sizeof(tmp), &s, VERBOSE_PREFIX_2) ||
+			fix_header(tmp, sizeof(tmp), &s, VERBOSE_PREFIX_1))
+			fputs(tmp, stdout);
+	}
 	fputs(s + pos,stdout);
 	fflush(stdout);
 	if (complete)
@@ -341,6 +422,8 @@ static void console_verboser(char *s, int pos, int replace, int complete)
 
 static void consolehandler(char *s)
 {
+	printf(term_end());
+	fflush(stdout);
 	/* Called when readline data is available */
 	if (s && strlen(s))
 		add_history(s);
@@ -379,7 +462,7 @@ static void remoteconsolehandler(char *s)
 		if (!strcasecmp(s, "help"))
 			fprintf(stdout, "          !<command>   Executes a given shell command\n");
 		if (!strcasecmp(s, "quit"))
-			quit_handler(0);
+			quit_handler(0, 0, 0, 0);
 	} else
 		fprintf(stdout, "\nUse \"quit\" to exit\n");
 }
@@ -388,15 +471,88 @@ static char quit_help[] =
 "Usage: quit\n"
 "       Exits Asterisk.\n";
 
-static char shutdown_help[] = 
-"Usage: shutdown\n"
-"       Shuts down a running Asterisk PBX.\n";
+static char abort_halt_help[] = 
+"Usage: abort shutdown\n"
+"       Causes Asterisk to abort an executing shutdown or restart, and resume normal\n"
+"       call operations.\n";
+
+static char shutdown_now_help[] = 
+"Usage: shutdown now\n"
+"       Shuts down a running Asterisk immediately, hanging up all active calls .\n";
+
+static char shutdown_gracefully_help[] = 
+"Usage: shutdown gracefully\n"
+"       Causes Asterisk to not accept new calls, and exit when all\n"
+"       active calls have terminated normally.\n";
+
+static char restart_now_help[] = 
+"Usage: restart now\n"
+"       Causes Asterisk to hangup all calls and exec() itself performing a cold.\n"
+"       restart.\n";
+
+static char restart_gracefully_help[] = 
+"Usage: restart gracefully\n"
+"       Causes Asterisk to stop accepting new calls and exec() itself performing a cold.\n"
+"       restart when all active calls have ended.\n";
+
+static char restart_when_convenient_help[] = 
+"Usage: restart when convenient\n"
+"       Causes Asterisk to perform a cold restart when all active calls have ended.\n";
 
 static int handle_quit(int fd, int argc, char *argv[])
 {
 	if (argc != 1)
 		return RESULT_SHOWUSAGE;
-	quit_handler(0);
+	quit_handler(0, 0, 1, 0);
+	return RESULT_SUCCESS;
+}
+
+static int handle_shutdown_now(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	quit_handler(0, 0 /* Not nice */, 1 /* safely */, 0 /* not restart */);
+	return RESULT_SUCCESS;
+}
+
+static int handle_shutdown_gracefully(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	quit_handler(0, 1 /* nicely */, 1 /* safely */, 0 /* no restart */);
+	return RESULT_SUCCESS;
+}
+
+static int handle_restart_now(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	quit_handler(0, 0 /* not nicely */, 1 /* safely */, 1 /* restart */);
+	return RESULT_SUCCESS;
+}
+
+static int handle_restart_gracefully(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	quit_handler(0, 1 /* nicely */, 1 /* safely */, 1 /* restart */);
+	return RESULT_SUCCESS;
+}
+
+static int handle_restart_when_convenient(int fd, int argc, char *argv[])
+{
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	quit_handler(0, 2 /* really nicely */, 1 /* safely */, 1 /* restart */);
+	return RESULT_SUCCESS;
+}
+
+static int handle_abort_halt(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	ast_cancel_shutdown();
+	shuttingdown = 0;
 	return RESULT_SUCCESS;
 }
 
@@ -404,9 +560,15 @@ static int handle_quit(int fd, int argc, char *argv[])
 
 #define ASTERISK_PROMPT2 "%s*CLI> "
 
+static struct ast_cli_entry aborthalt = { { "abort", "halt", NULL }, handle_abort_halt, "Cancel a running halt", abort_halt_help };
+
 static struct ast_cli_entry quit = 	{ { "quit", NULL }, handle_quit, "Exit Asterisk", quit_help };
 
-static struct ast_cli_entry astshutdown = 	{ { "shutdown", NULL }, handle_quit, "Shut down an Asterisk PBX", shutdown_help };
+static struct ast_cli_entry astshutdownnow = 	{ { "shutdown", "now", NULL }, handle_shutdown_now, "Shut down Asterisk imediately", shutdown_now_help };
+static struct ast_cli_entry astshutdowngracefully = 	{ { "shutdown", "gracefully", NULL }, handle_shutdown_gracefully, "Gracefully shut down Asterisk", shutdown_gracefully_help };
+static struct ast_cli_entry astrestartnow = 	{ { "restart", "now", NULL }, handle_restart_now, "Restart Asterisk immediately", restart_now_help };
+static struct ast_cli_entry astrestartgracefully = 	{ { "restart", "gracefully", NULL }, handle_restart_gracefully, "Restart Asterisk gracefully", restart_gracefully_help };
+static struct ast_cli_entry astrestartwhenconvenient= 	{ { "restart", "when", "convenient", NULL }, handle_restart_when_convenient, "Restart Asterisk at empty call volume", restart_when_convenient_help };
 
 static char *cli_generator(char *text, int state)
 {
@@ -471,8 +633,10 @@ static void ast_remotecontrol(char * data)
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 	if (strlen(filename))
 		read_history(filename);
-    ast_cli_register(&quit);
-    ast_cli_register(&astshutdown);
+	ast_cli_register(&quit);
+#if 0
+	ast_cli_register(&astshutdown);
+#endif	
 	rl_callback_handler_install(tmp, remoteconsolehandler);
 	rl_completion_entry_function = (Function *)console_cli_generator;
 	for(;;) {
@@ -539,8 +703,19 @@ int main(int argc, char *argv[])
 	int pid;
 	char filename[80] = "";
 	char hostname[256];
+	char tmp[80];
 	char * xarg = NULL;
+	int x;
 	sigset_t sigs;
+
+	/* Remember original args for restart */
+	if (argc > sizeof(_argv) / sizeof(_argv[0]) - 1) {
+		fprintf(stderr, "Truncating argument size to %d\n", sizeof(_argv) / sizeof(_argv[0]) - 1);
+		argc = sizeof(_argv) / sizeof(_argv[0]) - 1;
+	}
+	for (x=0;x<argc;x++)
+		_argv[x] = argv[x];
+	_argv[x] = NULL;
 
 	if (gethostname(hostname, sizeof(hostname)))
 		strncpy(hostname, "<Unknown>", sizeof(hostname)-1);
@@ -557,7 +732,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	/* Check for options */
-	while((c=getopt(argc, argv, "fdvqprcix:")) != EOF) {
+	while((c=getopt(argc, argv, "fdvqprcinx:")) != EOF) {
 		switch(c) {
 		case 'd':
 			option_debug++;
@@ -569,6 +744,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'f':
 			option_nofork++;
+			break;
+		case 'n':
+			option_nocolor++;
 			break;
 		case 'r':
 			option_remote++;
@@ -595,28 +773,35 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 	}
+
+	term_init();
+	printf(term_end());
+	fflush(stdout);
 	
 	if (ast_tryconnect()) {
 		/* One is already running */
 		if (option_remote) {
 			if (option_exec) {
 				ast_remotecontrol(xarg);
-				quit_handler(0);
+				quit_handler(0, 0, 0, 0);
 				exit(0);
 			}
+			printf(term_quit());
 			ast_register_verbose(console_verboser);
 			ast_verbose( "Asterisk " ASTERISK_VERSION ", Copyright (C) 1999-2001 Linux Support Services, Inc.\n");
 			ast_verbose( "Written by Mark Spencer <markster@linux-support.net>\n");
 			ast_verbose( "=========================================================================\n");
 			ast_remotecontrol(NULL);
-			quit_handler(0);
+			quit_handler(0, 0, 0, 0);
 			exit(0);
 		} else {
 			ast_log(LOG_ERROR, "Asterisk already running on %s.  Use 'asterisk -r' to connect.\n", AST_SOCKET);
+			printf(term_quit());
 			exit(1);
 		}
 	} else if (option_remote || option_exec) {
 		ast_log(LOG_ERROR, "Unable to connect to remote asterisk\n");
+		printf(term_quit());
 		exit(1);
 	}
 
@@ -624,6 +809,7 @@ int main(int argc, char *argv[])
 		pid = fork();
 		if (pid < 0) {
 			ast_log(LOG_ERROR, "Unable to fork(): %s\n", strerror(errno));
+			printf(term_quit());
 			exit(1);
 		}
 		if (pid) 
@@ -649,31 +835,48 @@ int main(int argc, char *argv[])
 	if (option_console && !option_verbose) 
 		ast_verbose("[ Booting...");
 	signal(SIGURG, urg_handler);
-	signal(SIGINT, quit_handler);
-	signal(SIGTERM, quit_handler);
+	signal(SIGINT, __quit_handler);
+	signal(SIGTERM, __quit_handler);
 	signal(SIGHUP, hup_handler);
 	signal(SIGPIPE, pipe_handler);
-	if (set_priority(option_highpriority))
+	if (set_priority(option_highpriority)) {
+		printf(term_quit());
 		exit(1);
-	if (init_logger())
+	}
+	if (init_logger()) {
+		printf(term_quit());
 		exit(1);
-	if (ast_image_init())
+	}
+	if (ast_image_init()) {
+		printf(term_quit());
 		exit(1);
-	if (load_pbx())
+	}
+	if (load_pbx()) {
+		printf(term_quit());
 		exit(1);
-	if (load_modules())
+	}
+	if (load_modules()) {
+		printf(term_quit());
 		exit(1);
-	if (init_framer())
+	}
+	if (init_framer()) {
+		printf(term_quit());
 		exit(1);
+	}
 	/* We might have the option of showing a console, but for now just
 	   do nothing... */
 	if (option_console && !option_verbose)
 		ast_verbose(" ]\n");
 	if (option_verbose || option_console)
-		ast_verbose( "Asterisk Ready.\n");
+		ast_verbose(term_color(tmp, "Asterisk Ready.\n", COLOR_BRWHITE, COLOR_BLACK, sizeof(tmp)));
 	fully_booted = 1;
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
-	ast_cli_register(&astshutdown);
+	ast_cli_register(&astshutdownnow);
+	ast_cli_register(&astshutdowngracefully);
+	ast_cli_register(&astrestartnow);
+	ast_cli_register(&astrestartgracefully);
+	ast_cli_register(&astrestartwhenconvenient);
+	ast_cli_register(&aborthalt);
 	if (option_console) {
 		/* Console stuff now... */
 		/* Register our quit function */
@@ -685,14 +888,18 @@ int main(int argc, char *argv[])
 		consolethread = pthread_self();
 		if (strlen(filename))
 			read_history(filename);
-		rl_callback_handler_install(ASTERISK_PROMPT, consolehandler);
+		term_prompt(tmp, ASTERISK_PROMPT, sizeof(tmp));
+		rl_callback_handler_install(tmp, consolehandler);
 		rl_completion_entry_function = (Function *)cli_generator;
 		for(;;) {
 			FD_ZERO(&rfds);
 			FD_SET(STDIN_FILENO, &rfds);
 			res = select(STDIN_FILENO + 1, &rfds, NULL, NULL, NULL);
 			if (res > 0) {
+				printf(term_prep());
 				rl_callback_read_char();
+				printf(term_end());
+				fflush(stdout);
 			} else if (res < 1) {
 				rl_forced_update_display();
 			}
