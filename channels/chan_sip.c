@@ -6327,10 +6327,16 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 
 			if (gotdest) {
 				if (gotdest < 0) {
-					transmit_response(p, "404 Not Found", req);
+					if (ignore)
+						transmit_response(p, "404 Not Found", req);
+					else
+						transmit_response_reliable(p, "404 Not Found", req, 1);
 					update_user_counter(p,DEC_IN_USE);
 				} else {
-					transmit_response(p, "484 Address Incomplete", req);
+					if (ignore)
+						transmit_response(p, "484 Address Incomplete", req);
+					else
+						transmit_response_reliable(p, "484 Address Incomplete", req, 1);
 					update_user_counter(p,DEC_IN_USE);
 				}
 				p->needdestroy = 1;
@@ -6368,14 +6374,20 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 						ast_mutex_unlock(&p->lock);
 						ast_hangup(c);
 						ast_mutex_lock(&p->lock);
-						transmit_response_reliable(p, "503 Unavailable", req, 1);
+						if (ignore)
+							transmit_response(p, "503 Unavailable", req);
+						else
+							transmit_response_reliable(p, "503 Unavailable", req, 1);
 						c = NULL;
 					}
 				} else {
 					ast_mutex_unlock(&c->lock);
 					if (ast_pickup_call(c)) {
 						ast_log(LOG_NOTICE, "Nothing to pick up\n");
-						transmit_response_reliable(p, "503 Unavailable", req, 1);
+						if (ignore)
+							transmit_response(p, "503 Unavailable", req);
+						else
+							transmit_response_reliable(p, "503 Unavailable", req, 1);
 						p->alreadygone = 1;
 						/* Unlock locks so ast_hangup can do its magic */
 						ast_mutex_unlock(&p->lock);
@@ -6407,7 +6419,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		} else {
 			if (p && !p->needdestroy) {
 				ast_log(LOG_NOTICE, "Unable to create/find channel\n");
-				transmit_response_reliable(p, "503 Unavailable", req, 1);
+				if (ignore)
+					transmit_response(p, "503 Unavailable", req);
+				else
+					transmit_response_reliable(p, "503 Unavailable", req, 1);
 				p->needdestroy = 1;
 			}
 		}
@@ -6464,10 +6479,11 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		else
 			p->needdestroy = 1;
 		if (p->initreq.len > 0) {
-			transmit_response_reliable(p, "487 Request Terminated", &p->initreq, 1);
+			if (!ignore)
+				transmit_response_reliable(p, "487 Request Terminated", &p->initreq, 1);
 			transmit_response(p, "200 OK", req);
 		} else {
-			transmit_response_reliable(p, "481 Call Leg Does Not Exist", req, 1);
+			transmit_response(p, "481 Call Leg Does Not Exist", req);
 		}
 	} else if (!strcasecmp(cmd, "BYE")) {
 		copy_request(&p->initreq, req);
