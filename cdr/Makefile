@@ -45,6 +45,11 @@ MLFLAGS+=$(shell if [ -d /usr/local/lib/pgsql ]; then echo "-L/usr/local/lib/pgs
 MLFLAGS+=$(shell if [ -d /opt/pgsql/lib ]; then echo "-L/opt/pgsql/lib"; fi)
 MLFLAGS+=$(shell if [ -f /usr/lib/libpq.so ]; then echo "-L/usr/lib"; fi)
 
+#
+# SQLIte stuff...
+#
+MODS+=$(shell if [ -f "/usr/include/sqlite.h" ]; then echo "cdr_sqlite.so"; fi)
+
 all: depend $(MODS)
 
 install: all
@@ -65,6 +70,9 @@ cdr_odbc.so: cdr_odbc.o
 
 cdr_pgsql.so: cdr_pgsql.o
 	$(CC) $(SOLINK) -o $@ $< -lpq -lz $(MLFLAGS)
+
+cdr_sqlite.so: cdr_sqlite.o
+	$(CC) $(SOLINK) -o $@ $< -lsqlite $(MLFLAGS)
 
 depend: .depend
 
