@@ -227,7 +227,7 @@ static void calc_cost(struct ast_translator *t)
 	}
 	gettimeofday(&start, NULL);
 	/* Call the encoder until we've processed one second of time */
-	while(sofar < 1000) {
+	while(sofar < 8000) {
 		f = t->sample();
 		if (!f) {
 			ast_log(LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
@@ -238,7 +238,7 @@ static void calc_cost(struct ast_translator *t)
 		t->framein(pvt, f);
 		ast_frfree(f);
 		while((out = t->frameout(pvt))) {
-			sofar += out->timelen;
+			sofar += out->samples;
 			ast_frfree(out);
 		}
 	}
@@ -246,6 +246,8 @@ static void calc_cost(struct ast_translator *t)
 	t->destroy(pvt);
 	cost = (finish.tv_sec - start.tv_sec) * 1000 + (finish.tv_usec - start.tv_usec) / 1000;
 	t->cost = cost;
+	if (!t->cost)
+		t->cost = 1;
 }
 
 static int show_translation(int fd, int argc, char *argv[])
