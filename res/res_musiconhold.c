@@ -201,11 +201,24 @@ static int spawn_mp3(struct mohclass *class)
 
 static void *monmp3thread(void *data)
 {
+#define	MOH_MS_INTERVAL		100
+
 	struct mohclass *class = data;
 	struct mohdata *moh;
 	char buf[8192];
 	short sbuf[8192];
 	int res, res2;
+	struct timeval tv;
+	struct timeval tv_tmp;
+	long error_sec, error_usec;
+	long delay;
+
+	tv_tmp.tv_sec = 0;
+	tv_tmp.tv_usec = 0;
+	tv.tv_sec = 0;
+	tv.tv_usec = 0;
+	error_sec = 0;
+	error_usec = 0;
 	signal(SIGCHLD, child_handler);
 	for(;/* ever */;) {
 		/* Spawn mp3 player if it's not there */
@@ -220,8 +233,39 @@ static void *monmp3thread(void *data)
 			/* Pause some amount of time */
 			res = read(class->pseudofd, buf, sizeof(buf));
 		} else {
-			/* otherwise just sleep (unreliable) */
-			usleep(100000);	/* Sleep 100 ms */
+			/* Reliable sleep */
+			if (gettimeofday(&tv_tmp, NULL) < 0) {
+				ast_log(LOG_NOTICE, "gettimeofday() failed!\n");
+				return NULL;
+			}
+			if (((unsigned long)(tv.tv_sec) > 0)&&((unsigned long)(tv.tv_usec) > 0)) {
+				if ((unsigned long)(tv_tmp.tv_usec) < (unsigned long)(tv.tv_usec)) {
+					tv_tmp.tv_usec += 1000000;
+					tv_tmp.tv_sec -= 1;
+				}
+				error_sec = (unsigned long)(tv_tmp.tv_sec) - (unsigned long)(tv.tv_sec);
+				error_usec = (unsigned long)(tv_tmp.tv_usec) - (unsigned long)(tv.tv_usec);
+			} else {
+				error_sec = 0;
+				error_usec = 0;
+			}
+			if (error_sec * 1000 + error_usec / 1000 < MOH_MS_INTERVAL) {
+				tv.tv_sec = tv_tmp.tv_sec + (MOH_MS_INTERVAL/1000 - error_sec);
+				tv.tv_usec = tv_tmp.tv_usec + ((MOH_MS_INTERVAL % 1000) * 1000 - error_usec);
+				delay = (MOH_MS_INTERVAL/1000 - error_sec) * 1000 +
+							((MOH_MS_INTERVAL % 1000) * 1000 - error_usec) / 1000;
+			} else {
+				ast_log(LOG_NOTICE, "Request to schedule in the past?!?!\n");
+				tv.tv_sec = tv_tmp.tv_sec;
+				tv.tv_usec = tv_tmp.tv_usec;
+				delay = 0;
+			}
+			if (tv.tv_usec > 1000000) {
+				tv.tv_sec++;
+				tv.tv_usec-= 1000000;
+			}
+			if (delay > 0)
+				usleep(delay * 1000);
 			res = 800;		/* 800 samples */
 		}
 		if (!class->members)
@@ -392,13 +436,13 @@ static int moh_generate(struct ast_channel *chan, void *data, int len, int sampl
 {
 	struct ast_frame f;
 	struct mohdata *moh = data;
-	short buf[640 + AST_FRIENDLY_OFFSET / 2];
+	short buf[1280 + AST_FRIENDLY_OFFSET / 2];
 	int res;
 
 	len = samples * 2;
-	if (len > sizeof(buf)) {
+	if (len > sizeof(buf) - AST_FRIENDLY_OFFSET) {
 		ast_log(LOG_WARNING, "Only doing %d of %d requested bytes on %s\n", sizeof(buf), len, chan->name);
-		len = sizeof(buf);
+		len = sizeof(buf) - AST_FRIENDLY_OFFSET;
 	}
 	res = read(moh->pipe[0], buf + AST_FRIENDLY_OFFSET/2, len);
 #if 0

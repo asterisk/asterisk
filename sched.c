@@ -180,13 +180,36 @@ static void schedule(struct sched_context *con, struct sched *s)
 
 static inline int sched_settime(struct timeval *tv, int when)
 {
-	if (gettimeofday(tv, NULL) < 0) {
-			/* This shouldn't ever happen, but let's be sure */
-			ast_log(LOG_NOTICE, "gettimeofday() failed!\n");
-			return -1;
+	struct timeval tv_tmp;
+	long error_sec, error_usec;
+
+	if (gettimeofday(&tv_tmp, NULL) < 0) {
+		/* This shouldn't ever happen, but let's be sure */
+		ast_log(LOG_NOTICE, "gettimeofday() failed!\n");
+		return -1;
 	}
-	tv->tv_sec += when/1000;
-	tv->tv_usec += (when % 1000) * 1000;
+	/*ast_log(LOG_DEBUG, "TV -> %lu,%lu\n", tv->tv_sec, tv->tv_usec);*/
+	if (((unsigned long)(tv->tv_sec) > 0)&&((unsigned long)(tv->tv_usec) > 0)) {
+		if ((unsigned long)(tv_tmp.tv_usec) < (unsigned long)(tv->tv_usec)) {
+			tv_tmp.tv_usec += 1000000;
+			tv_tmp.tv_sec -= 1;
+		}
+		error_sec = (unsigned long)(tv_tmp.tv_sec) - (unsigned long)(tv->tv_sec);
+		error_usec = (unsigned long)(tv_tmp.tv_usec) - (unsigned long)(tv->tv_usec);
+	} else {
+		/*ast_log(LOG_DEBUG, "Initializing error\n");*/
+		error_sec = 0;
+		error_usec = 0;
+	}
+	/*ast_log(LOG_DEBUG, "ERROR -> %lu,%lu\n", error_sec, error_usec);*/
+	if (error_sec * 1000 + error_usec / 1000 < when) {
+		tv->tv_sec = tv_tmp.tv_sec + (when/1000 - error_sec);
+		tv->tv_usec = tv_tmp.tv_usec + ((when % 1000) * 1000 - error_usec);
+	} else {
+		ast_log(LOG_NOTICE, "Request to schedule in the past?!?!\n");
+		tv->tv_sec = tv_tmp.tv_sec;
+		tv->tv_usec = tv_tmp.tv_usec;
+	}
 	if (tv->tv_usec > 1000000) {
 		tv->tv_sec++;
 		tv->tv_usec-= 1000000;
@@ -210,6 +233,8 @@ int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, vo
 		tmp->callback = callback;
 		tmp->data = data;
 		tmp->resched = when;
+		tmp->when.tv_sec = 0;
+		tmp->when.tv_usec = 0;
 		if (sched_settime(&tmp->when, when)) {
 			sched_release(con, tmp);
 			return -1;
