@@ -4289,7 +4289,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				if (c) {
 					transfer_to = c->bridge;
 					if (transfer_to)
-						ast_async_goto(transfer_to,"", p->refer_to,1, 1);
+						ast_async_goto(transfer_to,p->context, p->refer_to,1, 1);
 				}
 			}
 			/* Always increment on a BYE */
