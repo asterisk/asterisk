@@ -3,9 +3,9 @@
  *
  * CallerID Generation support 
  * 
- * Copyright (C) 2001, Linux Support Services, Inc.
+ * Copyright (C) 2001-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License.
@@ -261,9 +261,11 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 								ast_log(LOG_NOTICE, "Truncating long caller ID number from %d bytes to 32\n", cid->rawdata[x]);
 								res = 32; 
 							}
-							memcpy(cid->number, cid->rawdata + x + 1, res);
-							/* Null terminate */
-							cid->number[res] = '\0';
+							if (ast_strlen_zero(cid->number)) {
+								memcpy(cid->number, cid->rawdata + x + 1, res);
+								/* Null terminate */
+								cid->number[res] = '\0';
+							}
 							break;
 						case 7: /* Name */
 						case 8: /* Name */
