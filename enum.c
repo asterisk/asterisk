@@ -28,6 +28,43 @@
 
 #define TOPLEV "e164.arpa."
 
+typedef struct {
+	unsigned	id :16;		/* query identification number */
+#if BYTE_ORDER == BIG_ENDIAN
+			/* fields in third byte */
+	unsigned	qr: 1;		/* response flag */
+	unsigned	opcode: 4;	/* purpose of message */
+	unsigned	aa: 1;		/* authoritive answer */
+	unsigned	tc: 1;		/* truncated message */
+	unsigned	rd: 1;		/* recursion desired */
+			/* fields in fourth byte */
+	unsigned	ra: 1;		/* recursion available */
+	unsigned	unused :1;	/* unused bits (MBZ as of 4.9.3a3) */
+	unsigned	ad: 1;		/* authentic data from named */
+	unsigned	cd: 1;		/* checking disabled by resolver */
+	unsigned	rcode :4;	/* response code */
+#endif
+#if BYTE_ORDER == LITTLE_ENDIAN || BYTE_ORDER == PDP_ENDIAN
+			/* fields in third byte */
+	unsigned	rd :1;		/* recursion desired */
+	unsigned	tc :1;		/* truncated message */
+	unsigned	aa :1;		/* authoritive answer */
+	unsigned	opcode :4;	/* purpose of message */
+	unsigned	qr :1;		/* response flag */
+			/* fields in fourth byte */
+	unsigned	rcode :4;	/* response code */
+	unsigned	cd: 1;		/* checking disabled by resolver */
+	unsigned	ad: 1;		/* authentic data from named */
+	unsigned	unused :1;	/* unused bits (MBZ as of 4.9.3a3) */
+	unsigned	ra :1;		/* recursion available */
+#endif
+			/* remaining bytes */
+	unsigned	qdcount :16;	/* number of question entries */
+	unsigned	ancount :16;	/* number of answer entries */
+	unsigned	nscount :16;	/* number of authority entries */
+	unsigned	arcount :16;	/* number of resource entries */
+} dns_HEADER;
+
 static struct enum_search {
 	char toplev[80];
 	struct enum_search *next;
@@ -146,7 +183,7 @@ static int parse_answer(unsigned char *dst, int dstlen, unsigned char *tech, int
 	 */
 	int x;
 	int res;
-	HEADER *h;
+	dns_HEADER *h;
 	struct dn_answer *ans;
 	dst[0] = '\0';
 	tech[0] = '\0';
@@ -166,10 +203,10 @@ static int parse_answer(unsigned char *dst, int dstlen, unsigned char *tech, int
 	}
 	printf("\n");
 #endif	
-	h = (HEADER *)answer;
+	h = (dns_HEADER *)answer;
 	/* Skip over DNS header */
-	answer += sizeof(HEADER);
-	len -= sizeof(HEADER);
+	answer += sizeof(dns_HEADER);
+	len -= sizeof(dns_HEADER);
 #if 0
 	printf("Query count: %d\n", ntohs(h->qdcount));
 #endif
