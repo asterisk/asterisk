@@ -649,6 +649,10 @@ static int action_status(struct mansession *s, struct message *m)
 	char idText[256] = "";
 	struct ast_channel *c;
 	char bridge[256];
+	struct timeval now;
+	long elapsed_seconds=0;
+
+	gettimeofday(&now, NULL);
 	astman_send_ack(s, m, "Channel status will follow");
 	c = ast_channel_walk_locked(NULL);
         if (id && !ast_strlen_zero(id))
@@ -672,6 +676,9 @@ static int action_status(struct mansession *s, struct message *m)
 		else
 			bridge[0] = '\0';
 		if (c->pbx) {
+			if (c->cdr) {
+				elapsed_seconds = now.tv_sec - c->cdr->start.tv_sec;
+			}
 			ast_cli(s->fd,
 			"Event: Status\r\n"
 			"Channel: %s\r\n"
@@ -681,6 +688,7 @@ static int action_status(struct mansession *s, struct message *m)
 			"Context: %s\r\n"
 			"Extension: %s\r\n"
 			"Priority: %d\r\n"
+			"Seconds: %ld\r\n"
 			"%s"
 			"Uniqueid: %s\r\n"
 			"%s"
@@ -688,7 +696,7 @@ static int action_status(struct mansession *s, struct message *m)
 			c->name, c->callerid ? c->callerid : "<unknown>", 
 			c->accountcode,
 			ast_state2str(c->_state), c->context,
-			c->exten, c->priority, bridge, c->uniqueid, idText);
+			c->exten, c->priority, (long)elapsed_seconds, bridge, c->uniqueid, idText);
 		} else {
 			ast_cli(s->fd,
 			"Event: Status\r\n"

@@ -523,11 +523,17 @@ static int handle_nodebugchan(int fd, int argc, char *argv[])
 static int handle_showchan(int fd, int argc, char *argv[])
 {
 	struct ast_channel *c=NULL;
+	struct timeval now;
+	long elapsed_seconds=0;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+	gettimeofday(&now, NULL);
 	c = ast_channel_walk_locked(NULL);
 	while(c) {
 		if (!strcasecmp(c->name, argv[2])) {
+			if(c->cdr) {
+				elapsed_seconds = now.tv_sec - c->cdr->start.tv_sec;
+			}
 			ast_cli(fd, 
 	" -- General --\n"
 	"           Name: %s\n"
@@ -544,6 +550,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	"      Frames in: %d%s\n"
 	"     Frames out: %d%s\n"
 	" Time to Hangup: %ld\n"
+	"Elapsed Seconds: %ld\n"
 	" --   PBX   --\n"
 	"        Context: %s\n"
 	"      Extension: %s\n"
@@ -559,6 +566,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	(c->dnid ? c->dnid : "(N/A)" ), ast_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
 	c->fds[0], c->fin & 0x7fffffff, (c->fin & 0x80000000) ? " (DEBUGGED)" : "",
 	c->fout & 0x7fffffff, (c->fout & 0x80000000) ? " (DEBUGGED)" : "", (long)c->whentohangup,
+	(long)elapsed_seconds, 
 	c->context, c->exten, c->priority, c->callgroup, c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
 	( c-> data ? (!ast_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
 	c->stack, (c->blocking ? c->blockproc : "(Not Blocking)"));
