@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-my $astdir = $ENV{ASTSRC} or "/usr/src/asterisk";
+my $astdir = $ENV{ASTSRC} || "/usr/src/asterisk";
 
 
 sub esystem($) {
