@@ -27,6 +27,11 @@
 #include "asterisk.h"
 #include "astconf.h"
 
+#define MAX_NESTED_COMMENTS 128
+#define COMMENT_START ";--"
+#define COMMENT_END "--;"
+#define COMMENT_META ';'
+#define COMMENT_TAG '-'
 
 static int ast_cust_config=0;
 struct ast_config *(*global_load_func)(const char *dbname, const char *table, const char *, struct ast_config *,struct ast_category **,struct ast_variable **,int);
@@ -227,17 +232,6 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 	char *arg=NULL;
 	struct ast_variable *v;
 	int object;
-	/* Strip off lines using ; as comment */
-	c = strchr(buf, ';');
-	while (c) {
-		if ((c == buf) || (*(c-1) != '\\')) {
-			*c = '\0';
-		} else {
-			*(c-1) = ';';
-			memmove(c, c + 1, strlen(c + 1));
-		}
-		c = strchr(c + 1, ';');
-	}
 	cur = ast_strip(buf);
 	if (!ast_strlen_zero(cur)) {
 		/* Actually parse the entry */
@@ -476,8 +470,11 @@ static struct ast_config *__ast_load(const char *configfile, struct ast_config *
 	FILE *f;
 	int lineno=0;
 	int master=0;
+	int comment = 0, nest[MAX_NESTED_COMMENTS];
+	
 	struct ast_config_reg *reg=NULL;
 	struct ast_config *(*load_func)(const char *database, const char *table, const char *, struct ast_config *,struct ast_category **,struct ast_variable **,int);
+	char *comment_p, *process_buf, *new_buf=NULL;
 
 	load_func=NULL;
 	if (strcmp(configfile,config_conf_file) && strcmp(configfile,"asterisk.conf") && ast_cust_config_list) {
@@ -496,9 +493,7 @@ static struct ast_config *__ast_load(const char *configfile, struct ast_config *
 
 		if (load_func) {
 			ast_log(LOG_NOTICE,"Loading Config %s via %s engine\n",configfile,reg && reg->name ? reg->name : "global");
-			tmp = load_func(db, table, configfile,tmp, _tmpc, _last, includelevel);
-	    
-			if (tmp)
+			if((tmp = load_func(db, table, configfile,tmp, _tmpc, _last, includelevel)))
 				return tmp;
 		}
 	}
@@ -515,35 +510,83 @@ static struct ast_config *__ast_load(const char *configfile, struct ast_config *
 	if ((f = fopen(fn, "r"))) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Parsing %s\n", fn);
-		else if (option_verbose > 1)
+		else if (option_verbose > 2)
 			ast_verbose( "Found\n");
 		if (!tmp) {
-			tmp = malloc(sizeof(struct ast_config));
-			if (tmp)
+			if((tmp = malloc(sizeof(struct ast_config)))) {
 				memset(tmp, 0, sizeof(struct ast_config));
-
-			master = 1;
-		}
-		if (!tmp) {
-			ast_log(LOG_WARNING, "Out of memory\n");
-			fclose(f);
-			return NULL;
-		}
-		while(!feof(f)) {
-			lineno++;
-			if (fgets(buf, sizeof(buf), f)) {
-				if (cfg_process(tmp, _tmpc, _last, buf, lineno, configfile, includelevel)) {
-					fclose(f);
-					return NULL;
-				}
+				master = 1;
 			}
 		}
+		if (tmp) {
+			while(!feof(f)) {
+				lineno++;
+				if (fgets(buf, sizeof(buf), f)) {
+					new_buf = buf;
+					if (comment)
+						process_buf = NULL;
+					else
+						process_buf = buf;
+					while ((comment_p = strchr(new_buf, COMMENT_META))) {
+						if ((comment_p > new_buf) && (*(comment_p-1) == '\\')) {
+							/* Yuck, gotta memmove */
+							memmove(comment_p - 1, comment_p, strlen(comment_p) + 1);
+							new_buf = comment_p;
+						} else if(comment_p[1] == COMMENT_TAG && comment_p[2] == COMMENT_TAG) {
+							/* Meta-Comment start detected ";--" */
+							if (comment < MAX_NESTED_COMMENTS) {
+								*comment_p = '\0';
+								new_buf = comment_p + 3;
+								comment++;
+								nest[comment-1] = lineno;
+							} else {
+								ast_log(LOG_ERROR, "Maximum nest limit of %d reached.\n", MAX_NESTED_COMMENTS);
+							}
+						} else if ((comment_p >= new_buf + 2) &&
+								   (*(comment_p - 1) == COMMENT_TAG) &&
+								   (*(comment_p - 2) == COMMENT_TAG)) {
+							/* Meta-Comment end detected */
+							comment--;
+							new_buf = comment_p + 1;
+							if (!comment) {
+								/* Back to non-comment now */
+								if (process_buf) {
+									/* Actually have to move what's left over the top, then continue */
+									char *oldptr;
+									oldptr = process_buf + strlen(process_buf);
+									memmove(oldptr, new_buf, strlen(new_buf) + 1);
+									new_buf = oldptr;
+								} else
+									process_buf = new_buf;
+							}
+						} else {
+							if (!comment) {
+								/* If ; is found, and we are not nested in a comment, 
+								   we immediately stop all comment processing */
+								*comment_p = '\0'; 
+								new_buf = comment_p;
+							} else
+								new_buf = comment_p + 1;
+						}
+					}
+					if (process_buf && cfg_process(tmp, _tmpc, _last, process_buf, lineno, configfile, includelevel)) {
+						tmp = NULL;
+						break;
+					}
+				}
+			}
+		} else 
+			ast_log(LOG_WARNING, "Out of memory\n");
+		
 		fclose(f);		
-	} else {
+	} else { /* can't open file */
 		if (option_debug)
 			ast_log(LOG_DEBUG, "No file to parse: %s\n", fn);
-		else if (option_verbose > 1)
+		else if (option_verbose > 2)
 			ast_verbose( "Not found (%s)\n", strerror(errno));
+	}
+	if (comment) {
+		ast_log(LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment]);
 	}
 	return tmp;
 }
