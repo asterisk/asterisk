@@ -2703,8 +2703,11 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp, st
 	struct sip_request req;
 	if (p->canreinvite == REINVITE_UPDATE)
 		reqprep(&req, p, "UPDATE", 0);
-	else
+	else {
+		p->branch++;
+		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 		reqprep(&req, p, "INVITE", 0);
+	}
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	add_sdp(&req, p, rtp, vrtp);
 	/* Use this as the basis */
