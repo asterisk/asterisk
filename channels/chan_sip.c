@@ -286,6 +286,7 @@ struct sip_user {
 	int amaflags;
 	int insecure;
 	int canreinvite;
+	int capability;
 	int dtmfmode;
 	int inUse;
 	int incominglimit;
@@ -3917,6 +3918,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				p->callgroup = user->callgroup;
 				p->pickupgroup = user->pickupgroup;
 				p->restrictcid = user->restrictcid;
+				p->capability = user->capability;
 				if (user->dtmfmode) {
 					p->dtmfmode = user->dtmfmode;
 					if (p->dtmfmode & SIP_DTMF_RFC2833)
@@ -3957,6 +3959,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				strncpy(p->peermd5secret, peer->md5secret, sizeof(p->peermd5secret) - 1);
 				p->callgroup = peer->callgroup;
 				p->pickupgroup = peer->pickupgroup;
+				p->capability = peer->capability;
 				if (peer->dtmfmode) {
 					p->dtmfmode = peer->dtmfmode;
 					if (p->dtmfmode & SIP_DTMF_RFC2833)
@@ -5628,6 +5631,7 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 		/* set the usage flag to a sane staring value*/
 		user->inUse = 0;
 		user->outUse = 0;
+		user->capability = capability;
 
 		user->canreinvite = REINVITE_INVITE;
 		/* JK02: set default context */
@@ -5689,6 +5693,18 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 				} else {
 					user->amaflags = format;
 				}
+			} else if (!strcasecmp(v->name, "allow")) {
+				format = ast_getformatbyname(v->value);
+				if (format < 1) 
+					ast_log(LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
+				else
+					user->capability |= format;
+			} else if (!strcasecmp(v->name, "disallow")) {
+				format = ast_getformatbyname(v->value);
+				if (format < 1) 
+					ast_log(LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
+				else
+					user->capability &= ~format;
 			} else if (!strcasecmp(v->name, "insecure")) {
 				user->insecure = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "restrictcid")) {
@@ -5831,16 +5847,16 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 				strncpy(peer->username, v->value, sizeof(peer->username)-1);
 			} else if (!strcasecmp(v->name, "mailbox")) {
 				strncpy(peer->mailbox, v->value, sizeof(peer->mailbox)-1);
+			} else if (!strcasecmp(v->name, "callgroup")) {
+				peer->callgroup = ast_get_group(v->value);
+			} else if (!strcasecmp(v->name, "pickupgroup")) {
+				peer->pickupgroup = ast_get_group(v->value);
 			} else if (!strcasecmp(v->name, "allow")) {
 				format = ast_getformatbyname(v->value);
 				if (format < 1) 
 					ast_log(LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
 				else
 					peer->capability |= format;
-			} else if (!strcasecmp(v->name, "callgroup")) {
-				peer->callgroup = ast_get_group(v->value);
-			} else if (!strcasecmp(v->name, "pickupgroup")) {
-				peer->pickupgroup = ast_get_group(v->value);
 			} else if (!strcasecmp(v->name, "disallow")) {
 				format = ast_getformatbyname(v->value);
 				if (format < 1) 
