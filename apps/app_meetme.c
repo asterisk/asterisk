@@ -482,19 +482,6 @@ zapretry:
 		}
 	}
 
-#ifndef NO_ZAPTEL_PANIC_WORKAROUND
-	/* Take out of conference */
-	/* Add us to the conference */
-	ztc.chan = 0;	
-	ztc.confno = 0;
-	ztc.confmode = 0;
-	if (ioctl(fd, ZT_SETCONF, &ztc)) {
-		ast_log(LOG_WARNING, "Error setting conference\n");
-	}
-	usleep(1);
-	if (fd != chan->fds[0])
-		close(fd);
-#else		
 	if (fd != chan->fds[0])
 		close(fd);
 	else {
@@ -507,7 +494,6 @@ zapretry:
 			ast_log(LOG_WARNING, "Error setting conference\n");
 		}
 	}
-#endif
 	if (!(confflags & CONFFLAG_QUIET) && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN))
 		conf_play(conf, LEAVE);
 
