@@ -1558,7 +1558,6 @@ struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int
 			/* If the cause wasn't handled properly */
 			if (ast_cdr_disposition(chan->cdr,chan->hangupcause))
 				ast_cdr_failed(chan->cdr);
-			ast_cdr_reset(chan->cdr,1);
 		} else 
 			ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
 		ast_hangup(chan);
