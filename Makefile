@@ -106,7 +106,7 @@ CFLAGS+=$(shell if [ -f /usr/include/linux/zaptel.h ]; then echo "-DZAPTEL_OPTIM
 
 LIBEDIT=editline/libedit.a
 
-ASTERISKVERSION=$(shell if [ -f .version ]; then cat .version; fi)
+ASTERISKVERSION=$(shell if [ -f .version ]; then cat .version; else if [ -d CVS ]; then echo "CVS-`date +"%D-%T"`"; fi; fi)
 HTTPDIR=$(shell if [ -d /var/www ]; then echo "/var/www"; else echo "/home/httpd"; fi)
 RPMVERSION=$(shell if [ -f .version ]; then sed 's/[-\/:]/_/g' .version; else echo "unknown" ; fi)
 CFLAGS+=-DASTERISK_VERSION=\"$(ASTERISKVERSION)\"
@@ -175,8 +175,10 @@ ifneq ($(wildcard .depend),)
 include .depend
 endif
 
+.PHONY: _version
+
 _version: 
-	if [ -d CVS ] && ! [ -f .version ]; then echo "CVS-`date +"%D-%T"`" > .version; fi 
+	if [ -d CVS ] && ! [ -f .version ]; then echo $(ASTERISKVERSION) > .version; fi 
 
 .version: _version
 
@@ -188,8 +190,6 @@ ast_expr.o: ast_expr.c
 cli.o: cli.c build.h
 
 ifneq ($(strip $(ASTERISKVERSION)),)
-asterisk.o: asterisk.c .version
-
 build.h: .version
 	./make_build_h
 else
@@ -197,7 +197,7 @@ build.h:
 	./make_build_h
 endif
 
-asterisk: .version build.h editline/libedit.a db1-ast/libdb1.a $(OBJS)
+asterisk: editline/libedit.a db1-ast/libdb1.a $(OBJS)
 	$(CC) $(DEBUG) -o asterisk -rdynamic $(OBJS) $(LIBS) $(LIBEDIT) db1-ast/libdb1.a
 
 subdirs: 

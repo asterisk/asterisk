@@ -13,6 +13,18 @@
 
 USE_MYSQL_VM_INTERFACE=0
 
+MLFLAGS=
+ifeq ($(USE_MYSQL_VM_INTERFACE),1)
+CFLAGS+=$(shell if [ -d /usr/local/mysql/include ]; then echo "-I/usr/local/mysql/include"; fi)
+CFLAGS+=$(shell if [ -d /usr/include/mysql ]; then echo "-I/usr/include/mysql"; fi)
+CFLAGS+=$(shell if [ -d /usr/local/include/mysql ]; then echo "-I/usr/local/include/mysql"; fi)
+CFLAGS+=$(shell if [ -d /opt/mysql/include/mysql ]; then echo "-I/opt/mysql/include/mysql"; fi)
+MLFLAGS+=$(shell if [ -d /usr/lib/mysql ]; then echo "-L/usr/lib/mysql"; fi)
+MLFLAGS+=$(shell if [ -d /usr/local/mysql/lib ]; then echo "-L/usr/local/mysql/lib"; fi)
+MLFLAGS+=$(shell if [ -d /usr/local/lib/mysql ]; then echo "-L/usr/local/lib/mysql"; fi)
+MLFLAGS+=$(shell if [ -d /opt/mysql/lib/mysql ]; then echo "-L/opt/mysql/lib/mysql"; fi)
+endif
+
 #APPS=app_dial.so app_playback.so app_directory.so app_intercom.so app_mp3.so 
 APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_intercom.so app_mp3.so \
      app_system.so app_echo.so app_record.so app_image.so app_url.so app_disa.so \
@@ -52,18 +64,11 @@ app_todd.o: app_todd.c
 app_todd.so: app_todd.o
 	$(CC) -shared -Xlinker -x -o $@ $< -L/usr/local/ssl/lib -lssl -lcrypto
 
-ifeq (${USE_MYSQL_VM_INTERFACE}, 1)
-app_voicemail2.o: app_voicemail2.c
-
 app_voicemail2.so : app_voicemail2.o
-	$(CC) -shared -Xlinker -x -o $@ $< -L/usr/lib/mysql -lmysqlclient
-else
-app_voicemail2.so : app_voicemail2.o
-	$(CC) -shared -Xlinker -x -o $@ $<
-endif
+	$(CC) -shared -Xlinker -x -o $@ $(MLMFLAGS) $<
 
 app_sql_postgres.o: app_sql_postgres.c
-	$(CC) -pipe -I/usr/local/pgsql/include -Wall -Wmissing-prototypes -Wmissing-declarations -O6 -g  -Iinclude -I../include -D_REENTRANT -D_GNU_SOURCE -march=i686  -DASTERISK_VERSION=\"CVS-07/21/02-14:49:14\" -DDO_CRASH -DDEBUG_THREADS     -c -o app_sql_postgres.o app_sql_postgres.c
+	$(CC) -pipe -I/usr/local/pgsql/include $(CFLAGS) -c -o app_sql_postgres.o app_sql_postgres.c
 
 app_sql_postgres.so: app_sql_postgres.o
 	$(CC) -shared -Xlinker -x -o $@ $< -L/usr/local/pgsql/lib -lpq
