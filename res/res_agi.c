@@ -967,12 +967,40 @@ static int handle_setvariable(struct ast_channel *chan, AGI *agi, int argc, char
 static int handle_getvariable(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
 	char *tempstr;
-
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
 	if ((tempstr = pbx_builtin_getvar_helper(chan, argv[2]))) 
 		fdprintf(agi->fd, "200 result=1 (%s)\n", tempstr);
 	else
 		fdprintf(agi->fd, "200 result=0\n");
 
+	return RESULT_SUCCESS;
+}
+
+static int handle_getvariablefull(struct ast_channel *chan, AGI *agi, int argc, char **argv)
+{
+	char tmp[4096];
+	struct ast_channel *chan2=NULL;
+	if ((argc != 4) && (argc != 5))
+		return RESULT_SHOWUSAGE;
+	if (argc == 5) {
+		while((chan2 = ast_channel_walk_locked(chan2))) {
+			if (!strcmp(chan2->name, argv[4]))
+				break;
+			ast_mutex_unlock(&chan2->lock);
+			chan2 = ast_channel_walk_locked(chan2);
+		}
+	} else {
+		chan2 = chan;
+	}
+	if (chan) {
+		pbx_substitute_variables_helper(chan2, argv[3], tmp, sizeof(tmp) - 1);
+		fdprintf(agi->fd, "200 result=1 (%s)\n", tmp);
+	} else {
+		fdprintf(agi->fd, "200 result=0\n");
+	}
+	if (chan2 && (chan2 != chan))
+		ast_mutex_unlock(&chan2->lock);
 	return RESULT_SUCCESS;
 }
 
@@ -1168,6 +1196,13 @@ static char usage_getvariable[] =
 " is set and returns the variable in parenthesis\n"
 " example return code: 200 result=1 (testvariable)\n";
 
+static char usage_getvariablefull[] =
+" Usage: GET FULL VARIABLE <variablename> [<channel name>]\n"
+"	Returns 0 if <variablename> is not set or channel does not exist.  Returns 1\n"
+"if <variablename>  is set and returns the variable in parenthesis.  Understands\n"
+"complex variable names and builtin variables, unlike GET VARIABLE.\n"
+" example return code: 200 result=1 (testvariable)\n";
+
 static char usage_setvariable[] =
 " Usage: SET VARIABLE <variablename> <value>\n";
 
@@ -1347,6 +1382,7 @@ static agi_command commands[MAX_COMMANDS] = {
 	{ { "channel", "status", NULL }, handle_channelstatus, "Returns status of the connected channel", usage_channelstatus },
 	{ { "set", "variable", NULL }, handle_setvariable, "Sets a channel variable", usage_setvariable },
 	{ { "get", "variable", NULL }, handle_getvariable, "Gets a channel variable", usage_getvariable },
+	{ { "get", "full", "variable", NULL }, handle_getvariablefull, "Evaluates a channel expression", usage_getvariablefull },
 	{ { "verbose", NULL }, handle_verbose, "Logs a message to the asterisk verbose log", usage_verbose },
 	{ { "database", "get", NULL }, handle_dbget, "Gets database value", usage_dbget },
 	{ { "database", "put", NULL }, handle_dbput, "Adds/updates database value", usage_dbput },
