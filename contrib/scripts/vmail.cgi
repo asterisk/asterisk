@@ -14,6 +14,7 @@
 use CGI qw/:standard/;
 use Carp::Heavy;
 use CGI::Carp qw(fatalsToBrowser);
+use DBI;
 
 $context=""; # Define here your by default context (so you dont need to put voicemail@context in the login
 
@@ -103,6 +104,28 @@ sub check_login()
 			}
 		} elsif (/\[(.*)\]/) {
 			$category = $1;
+                } elsif ($category eq "general") {
+                        if (/([^\s]+)\s*\=\s*(.*)/) {
+                                if ($1 eq "dbname") {
+                                        $dbname = $2;
+                                } elsif ($1 eq "dbpass") {
+                                        $dbpass = $2;
+                                } elsif ($1 eq "dbhost") {
+                                        $dbhost = $2;
+                                } elsif ($1 eq "dbuser") {
+                                        $dbuser = $2;
+                                }
+                        }
+                        if ($dbname and $dbpass and $dbhost and $dbuser) {
+
+                                # db variables are present.  Use db for authentication.
+                                my $dbh = DBI->connect("DBI:mysql:$dbname:$dbhost",$dbuser,$dbpass);
+                                my $sth = $dbh->prepare(qq{select fullname,context from users where mailbox='$mbox' and password='$pass' and context='$context'});
+                                $sth->execute();
+                                if (($fullname, $category) = $sth->fetchrow_array()) {;
+                                        return ($fullname ? $fullname : "Extension $mbox in $context",$category);
+                                }
+                        }
 		} elsif (($category ne "general") && ($category ne "zonemessages")) { 
 			if (/([^\s]+)\s*\=\>?\s*(.*)/) {
 				@fields = split(/\,\s*/, $2);
@@ -145,6 +168,28 @@ sub validmailbox()
 			}
 		} elsif (/\[(.*)\]/) {
 			$category = $1;
+                } elsif ($category eq "general") {
+                        if (/([^\s]+)\s*\=\s*(.*)/) {
+                                if ($1 eq "dbname") {
+                                        $dbname = $2;
+                                } elsif ($1 eq "dbpass") {
+                                        $dbpass = $2;
+                                } elsif ($1 eq "dbhost") {
+                                        $dbhost = $2;
+                                } elsif ($1 eq "dbuser") {
+                                        $dbuser = $2;
+                                }
+                        }
+                        if ($dbname and $dbpass and $dbhost and $dbuser) {
+
+                                # db variables are present.  Use db for authentication.
+                                my $dbh = DBI->connect("DBI:mysql:$dbname:$dbhost",$dbuser,$dbpass);
+                                my $sth = $dbh->prepare(qq{select fullname,context from users where mailbox='$mbox' and password='$pass' and context='$context'});
+                                $sth->execute();
+				if (($fullname, $category) = $sth->fetchrow_array()) {;
+                                        return ($fullname ? $fullname : "unknown", $category);
+                                }
+                        }
 		} elsif (($category ne "general") && ($category ne "zonemessages") && ($category eq $context)) {
 			if (/([^\s]+)\s*\=\>?\s*(.*)/) {
 				@fields = split(/\,\s*/, $2);
@@ -181,6 +226,37 @@ sub mailbox_options()
 			$tmp .= $tmp2;
 		} elsif (/\[(.*)\]/) {
 			$category = $1;
+                } elsif ($category eq "general") {
+                        if (/([^\s]+)\s*\=\s*(.*)/) {
+                                if ($1 eq "dbname") {
+                                        $dbname = $2;
+                                } elsif ($1 eq "dbpass") {
+                                        $dbpass = $2;
+                                } elsif ($1 eq "dbhost") {
+                                        $dbhost = $2;
+                                } elsif ($1 eq "dbuser") {
+                                        $dbuser = $2;
+                                }
+                        }
+                        if ($dbname and $dbpass and $dbhost and $dbuser) {
+
+                                # db variables are present.  Use db for authentication.
+                                my $dbh = DBI->connect("DBI:mysql:$dbname:$dbhost",$dbuser,$dbpass);
+                                my $sth = $dbh->prepare(qq{select mailbox,fullname,context from users where context='$context' order by mailbox});
+                                $sth->execute();
+                                while (($mailbox, $fullname, $category) = $sth->fetchrow_array()) {
+                                        $text = $mailbox;
+                                        if ($fullname) {
+                                                $text .= " (".$fullname.")";
+                                        }
+                                        if ($mailbox eq $current) {
+                                                $tmp .= "<OPTION SELECTED>$text</OPTION>\n";
+                                        } else {
+                                                $tmp .= "<OPTION>$text</OPTION>\n";
+                                        }
+                                }
+                                return ($tmp, $category);
+                        }
 		} elsif (($category ne "general") && ($category ne "zonemessages")) {
 			if (/([^\s]+)\s*\=\>?\s*(.*)/) {
 				@fields = split(/\,\s*/, $2);
