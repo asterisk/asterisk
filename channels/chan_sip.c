@@ -218,81 +218,82 @@ struct sip_route {
 };
 
 static struct sip_pvt {
-	ast_mutex_t lock;				/* Channel private lock */
-	char callid[80];					/* Global CallID */
-	char randdata[80];	/* Random data */
-	unsigned int ocseq;					/* Current outgoing seqno */
-	unsigned int icseq;					/* Current incoming seqno */
-	unsigned int callgroup;
-	unsigned int pickupgroup;
-	int lastinvite;						/* Last Cseq of invite */
-	int alreadygone;					/* Whether or not we've already been destroyed by or peer */
-	int needdestroy;					/* if we need to be destroyed */
-	int capability;						/* Special capability */
-	int jointcapability;				/* Supported capability at both ends */
-	int prefcodec;						/* Preferred codec (outbound only) */
+	ast_mutex_t lock;			/* Channel private lock */
+	char callid[80];			/* Global CallID */
+	char randdata[80];			/* Random data */
+	unsigned int ocseq;			/* Current outgoing seqno */
+	unsigned int icseq;			/* Current incoming seqno */
+	unsigned int callgroup;			/* Call group */
+	unsigned int pickupgroup;		/* Pickup group */
+	int lastinvite;				/* Last Cseq of invite */
+	int alreadygone;			/* Whether or not we've already been destroyed by or peer */
+	int needdestroy;			/* if we need to be destroyed */
+	int capability;				/* Special capability (codec) */
+	int jointcapability;			/* Supported capability at both ends (codecs ) */
+	int prefcodec;				/* Preferred codec (outbound only) */
 	int noncodeccapability;
-	int outgoing;						/* Outgoing or incoming call? */
-	int authtries;						/* Times we've tried to authenticate */
-	int insecure;						/* Don't check source port/ip */
-	int expiry;						/* How long we take to expire */
-	int branch;							/* One random number */
-	int canreinvite;					/* Do we support reinvite */
-	int ringing;						/* Have sent 180 ringing */
-	int progress;						/* Have sent 183 message progress */
-	int tag;							/* Another random number */
-	int nat;							/* Whether to try to support NAT */
-	int sessionid;						/* SDP Session ID */
-	int sessionversion;					/* SDP Session Version */
-	struct sockaddr_in sa;				/* Our peer */
-	struct sockaddr_in redirip;			/* Where our RTP should be going if not to us */
+	int outgoing;				/* Outgoing or incoming call? */
+	int authtries;				/* Times we've tried to authenticate */
+	int insecure;				/* Don't check source port/ip */
+	int expiry;				/* How long we take to expire */
+	int branch;				/* One random number */
+	int canreinvite;			/* Do we support reinvite */
+	int ringing;				/* Have sent 180 ringing */
+	int progress;				/* Have sent 183 message progress */
+	int tag;				/* Another random number */
+	int nat;				/* Whether to try to support NAT */
+	int sessionid;				/* SDP Session ID */
+	int sessionversion;			/* SDP Session Version */
+	struct sockaddr_in sa;			/* Our peer */
+	struct sockaddr_in redirip;		/* Where our RTP should be going if not to us */
 	struct sockaddr_in vredirip;		/* Where our Video RTP should be going if not to us */
-	struct sockaddr_in recv;			/* Received as */
-	struct in_addr ourip;				/* Our IP */
-	struct ast_channel *owner;			/* Who owns us */
-	char exten[AST_MAX_EXTENSION];		/* Extention where to start */
+	struct sockaddr_in recv;		/* Received as */
+	struct in_addr ourip;			/* Our IP */
+	struct ast_channel *owner;		/* Who owns us */
+	char exten[AST_MAX_EXTENSION];		/* Extension where to start */
 	char refer_to[AST_MAX_EXTENSION];	/* Place to store REFER-TO extension */
-	char referred_by[AST_MAX_EXTENSION];/* Place to store REFERRED-BY extension */
-	char refer_contact[AST_MAX_EXTENSION];/* Place to store Contact info from a REFER extension */
-	struct sip_pvt *refer_call;			/* Call we are referring */
-	struct sip_route *route;			/* Head of linked list of routing steps (fm Record-Route) */
-	int route_persistant;				/* Is this the "real" route? */
+	char referred_by[AST_MAX_EXTENSION];	/* Place to store REFERRED-BY extension */
+	char refer_contact[AST_MAX_EXTENSION];	/* Place to store Contact info from a REFER extension */
+	struct sip_pvt *refer_call;		/* Call we are referring */
+	struct sip_route *route;		/* Head of linked list of routing steps (fm Record-Route) */
+	int route_persistant;			/* Is this the "real" route? */
 	char remote_party_id[256];
-	char from[256];
-	char context[AST_MAX_EXTENSION];
+	char from[256];				/* The From: header */
+	char useragent[256];			/* User agent in SIP request */
+	char context[AST_MAX_EXTENSION];	/* Context for this call */
 	char fromdomain[AST_MAX_EXTENSION];	/* Domain to show in the from field */
 	char fromuser[AST_MAX_EXTENSION];	/* Domain to show in the user field */
 	char tohost[AST_MAX_EXTENSION];		/* Host we should put in the "to" field */
-	char language[MAX_LANGUAGE];
+	char language[MAX_LANGUAGE];		/* Default language for this call */
 	char musicclass[MAX_LANGUAGE];          /* Music on Hold class */
-	char rdnis[256];				/* Referring DNIS */
-	char theirtag[256];				/* Their tag */
+	char rdnis[256];			/* Referring DNIS */
+	char theirtag[256];			/* Their tag */
 	char username[256];
 	char peername[256];
-	char authname[256];				/* Who we use for authentication */
-	char uri[256];					/* Original requested URI */
+	char authname[256];			/* Who we use for authentication */
+	char uri[256];				/* Original requested URI */
 	char peersecret[256];
 	char peermd5secret[256];
-	char callerid[256];					/* Caller*ID */
+	char callerid[256];			/* Caller*ID */
 	int restrictcid;			/* hide presentation from remote user */
 	char via[256];
-	char accountcode[20];				/* Account code */
-	char our_contact[256];				/* Our contact header */
-	char realm[256];				/* Authorization realm */
-	char nonce[256];				/* Authorization nonce */
-	char opaque[256];				/* Opaque nonsense */
+	char accountcode[20];			/* Account code */
+	char our_contact[256];			/* Our contact header */
+	char realm[256];			/* Authorization realm */
+	char nonce[256];			/* Authorization nonce */
+	char opaque[256];			/* Opaque nonsense */
 	char qop[80];				/* Quality of Protection, since SIP wasn't complicated enough yet. */
-	char domain[256];				/* Authorization nonce */
-	char lastmsg[256];				/* Last Message sent/received */
-	int amaflags;						/* AMA Flags */
-	int pendinginvite;					/* Any pending invite */
-	int pendingbye;						/* Need to send bye after we ack? */
-	int gotrefer;						/* Got a refer? */
-	struct sip_request initreq;			/* Initial request */
+	char domain[256];			/* Authorization nonce */
+	char lastmsg[256];			/* Last Message sent/received */
+	int amaflags;				/* AMA Flags */
+	int pendinginvite;			/* Any pending invite */
+	int pendingbye;				/* Need to send bye after we ack? */
+	int gotrefer;				/* Got a refer? */
+	struct sip_request initreq;		/* Initial request */
 	
-	int maxtime;						/* Max time for first response */
-	int initid;							/* Auto-congest ID if appropriate */
-	int autokillid;						/* Auto-kill ID */
+	int maxtime;				/* Max time for first response */
+	int initid;				/* Auto-congest ID if appropriate */
+	int autokillid;				/* Auto-kill ID */
 
 	int subscribed;
     	int stateid;
@@ -301,12 +302,12 @@ static struct sip_pvt {
         int dtmfmode;
         struct ast_dsp *vad;
 	
-	struct sip_peer *peerpoke;			/* If this calls is to poke a peer, which one */
-	struct sip_registry *registry;			/* If this is a REGISTER call, to which registry */
-	struct ast_rtp *rtp;				/* RTP Session */
-	struct ast_rtp *vrtp;				/* Video RTP session */
-	struct sip_pkt *packets;			/* Packets scheduled for re-transmission */
-	struct sip_pvt *next;
+	struct sip_peer *peerpoke;		/* If this calls is to poke a peer, which one */
+	struct sip_registry *registry;		/* If this is a REGISTER call, to which registry */
+	struct ast_rtp *rtp;			/* RTP Session */
+	struct ast_rtp *vrtp;			/* Video RTP session */
+	struct sip_pkt *packets;		/* Packets scheduled for re-transmission */
+	struct sip_pvt *next;			/* Next call in chain */
 } *iflist = NULL;
 
 #define FLAG_RESPONSE (1 << 0)
@@ -334,6 +335,7 @@ struct sip_user {
 	char accountcode[20];
 	char language[MAX_LANGUAGE];
 	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
+	char useragent[256];		/* User agent in SIP request */
 	unsigned int callgroup;
 	unsigned int pickupgroup;
 	int nat;
@@ -365,6 +367,7 @@ struct sip_peer {
 	char mailbox[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
 	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
+	char useragent[256];		/* User agent in SIP request */
 	int lastmsgssent;
 	time_t	lastmsgcheck;
 	int dynamic;
@@ -1660,6 +1663,12 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		tmp->priority = 1;
 		if (!ast_strlen_zero(i->domain)) {
 			pbx_builtin_setvar_helper(tmp, "SIPDOMAIN", i->domain);
+		}
+		if (!ast_strlen_zero(i->useragent)) {
+			pbx_builtin_setvar_helper(tmp, "SIPUSERAGENT", i->useragent);
+		}
+		if (!ast_strlen_zero(i->callid)) {
+			pbx_builtin_setvar_helper(tmp, "SIPCALLID", i->callid);
 		}
 		ast_setstate(tmp, state);
 		if (state != AST_STATE_DOWN) {
@@ -3733,6 +3742,12 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", p->name, inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
 	}
+
+	/* Save User agent */
+	strncpy(p->useragent, get_header(req, "User-Agent"),sizeof(p->useragent));
+	if (option_verbose > 2) 
+		ast_verbose(VERBOSE_PREFIX_3 "Saved useragent \"%s\" for peer %s\n",p->useragent,p->name);  
+
 	return 0;
 }
 
@@ -4856,6 +4871,7 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 		else
 			strcpy(status, "UNKNOWN");
 		ast_cli(fd, "%s\n",status);
+ 		ast_cli(fd, "  Useragent    : %s\n", peer->useragent);
 		ast_cli(fd,"\n");
 	} else {
 		ast_cli(fd,"Peer %s not found.\n", argv[3]);
@@ -4965,6 +4981,7 @@ static char *complete_sipch(char *line, char *word, int pos, int state)
 	return c;
 }
 
+/*--- sip_show_channel: Show details of one call ---*/
 static int sip_show_channel(int fd, int argc, char *argv[])
 {
 	struct sip_pvt *cur;
@@ -4977,18 +4994,34 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 	cur = iflist;
 	while(cur) {
 		if (!strncasecmp(cur->callid, argv[3],len)) {
-			ast_cli(fd, "Call-ID: %s\n", cur->callid);
-			ast_cli(fd, "Our Codec Capability: %d\n", cur->capability);
-			ast_cli(fd, "Non-Codec Capability: %d\n", cur->noncodeccapability);
-			ast_cli(fd, "Joint Codec Capability: %d\n", cur->jointcapability);
-			ast_cli(fd, "Theoretical Address: %s:%d\n", inet_ntoa(cur->sa.sin_addr), ntohs(cur->sa.sin_port));
-			ast_cli(fd, "Received Address:    %s:%d\n", inet_ntoa(cur->recv.sin_addr), ntohs(cur->recv.sin_port));
-			ast_cli(fd, "NAT Support:         %s\n", cur->nat ? "Yes" : "No");
-			ast_cli(fd, "Our Tag:             %08d\n", cur->tag);
-			ast_cli(fd, "Their Tag:           %s\n", cur->theirtag);
-			ast_cli(fd, "Need Destroy:        %d\n", cur->needdestroy);
-			ast_cli(fd, "Last Message:        %s\n", cur->lastmsg);
-			ast_cli(fd, "Route:               %s\n", cur->route ? cur->route->hop : "N/A");
+			ast_cli(fd,"\n");
+			if (cur->subscribed)
+			   ast_cli(fd, "  * Subscription\n");
+			else
+			   ast_cli(fd, "  * SIP Call\n");
+			ast_cli(fd, "  Direction:              %s\n", cur->outgoing?"Outgoing":"Incoming");
+			ast_cli(fd, "  Call-ID:                %s\n", cur->callid);
+			ast_cli(fd, "  Our Codec Capability:   %d\n", cur->capability);
+			ast_cli(fd, "  Non-Codec Capability:   %d\n", cur->noncodeccapability);
+			ast_cli(fd, "  Joint Codec Capability:   %d\n", cur->jointcapability);
+			ast_cli(fd, "  Format                  %s\n", ast_getformatname(cur->owner ? cur->owner->nativeformats : 0) );
+			ast_cli(fd, "  Theoretical Address:    %s:%d\n", inet_ntoa(cur->sa.sin_addr), ntohs(cur->sa.sin_port));
+			ast_cli(fd, "  Received Address:       %s:%d\n", inet_ntoa(cur->recv.sin_addr), ntohs(cur->recv.sin_port));
+			ast_cli(fd, "  NAT Support:            %s\n", cur->nat ? "Yes" : "No");
+			ast_cli(fd, "  Our Tag:                %08d\n", cur->tag);
+			ast_cli(fd, "  Their Tag:              %s\n", cur->theirtag);
+			ast_cli(fd, "  SIP User agent:         %s\n", cur->useragent);
+			if (!ast_strlen_zero(cur->username))
+			   ast_cli(fd, "  Username:               %s\n", cur->username);
+			if (!ast_strlen_zero(cur->peername))
+			   ast_cli(fd, "  Peername:               %s\n", cur->peername);
+			if (!ast_strlen_zero(cur->uri))
+			   ast_cli(fd, "  Original uri:           %s\n", cur->uri);
+			if (!ast_strlen_zero(cur->callerid))
+			   ast_cli(fd, "  Caller-ID:              %s\n", cur->callerid);
+			ast_cli(fd, "  Need Destroy:           %d\n", cur->needdestroy);
+			ast_cli(fd, "  Last Message:           %s\n", cur->lastmsg);
+			ast_cli(fd, "  Route:                  %s\n", cur->route ? cur->route->hop : "N/A");
 			strcpy(tmp, "");
 			if (cur->dtmfmode & SIP_DTMF_RFC2833)
 				strcat(tmp, "rfc2833 ");
@@ -4996,7 +5029,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 				strcat(tmp, "info ");
 			if (cur->dtmfmode & SIP_DTMF_INBAND)
 				strcat(tmp, "inband ");
-			ast_cli(fd, "DTMF Mode: %s\n\n", tmp);
+			ast_cli(fd, "  DTMF Mode:              %s\n\n", tmp);
 		}
 		cur = cur->next;
 	}
@@ -5796,6 +5829,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	char *cseq;
 	char *from;
 	char *e;
+	char *useragent;
 	struct ast_channel *c=NULL;
 	struct ast_channel *transfer_to;
 	int seqno;
@@ -5820,12 +5854,17 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	/* Get the command */
 	cseq += len;
 
-  /* Determine the request URI for sip, sips or tel URIs */
+	/* Determine the request URI for sip, sips or tel URIs */
 	if( determine_firstline_parts( req ) < 0 ) {
 	  return -1; 
 	}
 	cmd= req->rlPart1;
 	e= req->rlPart2;
+
+	/* Save useragent of the client */
+	useragent = get_header(req, "User-Agent");
+	strncpy(p->useragent, useragent, sizeof(p->useragent)-1);
+
 	
 	if (strcasecmp(cmd, "SIP/2.0")) {
 		/* Request coming in */			
