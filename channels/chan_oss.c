@@ -221,11 +221,19 @@ static void *sound_thread(void *unused)
 	fd_set wfds;
 	int max;
 	int res;
+	char ign[4096];
+	if (read(sounddev, ign, sizeof(sounddev)) < 0)
+		ast_log(LOG_WARNING, "Read error on sound device: %s\n", strerror(errno));
 	for(;;) {
 		FD_ZERO(&rfds);
 		FD_ZERO(&wfds);
 		max = sndcmd[0];
 		FD_SET(sndcmd[0], &rfds);
+		if (!oss.owner) {
+			FD_SET(sounddev, &rfds);
+			if (sounddev > max)
+				max = sounddev;
+		}
 		if (cursound > -1) {
 			FD_SET(sounddev, &wfds);
 			if (sounddev > max)
@@ -241,6 +249,11 @@ static void *sound_thread(void *unused)
 			silencelen = 0;
 			offset = 0;
 			sampsent = 0;
+		}
+		if (FD_ISSET(sounddev, &rfds)) {
+			/* Ignore read */
+			if (read(sounddev, ign, sizeof(ign)) < 0)
+				ast_log(LOG_WARNING, "Read error on sound device: %s\n", strerror(errno));
 		}
 		if (FD_ISSET(sounddev, &wfds))
 			if (send_sound())
@@ -583,7 +596,7 @@ static struct ast_frame *oss_read(struct ast_channel *chan)
 		
 	f.frametype = AST_FRAME_NULL;
 	f.subclass = 0;
-	f.timelen = 0;
+	f.samples = 0;
 	f.datalen = 0;
 	f.data = NULL;
 	f.offset = 0;
@@ -618,7 +631,7 @@ static struct ast_frame *oss_read(struct ast_channel *chan)
 		}
 		f.frametype = AST_FRAME_VOICE;
 		f.subclass = AST_FORMAT_SLINEAR;
-		f.timelen = FRAME_SIZE / 8;
+		f.samples = FRAME_SIZE;
 		f.datalen = FRAME_SIZE * 2;
 		f.data = buf + AST_FRIENDLY_OFFSET;
 		f.offset = AST_FRIENDLY_OFFSET;
@@ -791,10 +804,10 @@ static char sendtext_usage[] =
 
 static int console_sendtext(int fd, int argc, char *argv[])
 {
-	int tmparg = 1;
+	int tmparg = 2;
 	char text2send[256];
 	struct ast_frame f = { 0, };
-	if (argc < 1)
+	if (argc < 2)
 		return RESULT_SHOWUSAGE;
 	if (!oss.owner) {
 		ast_cli(fd, "No one is calling us\n");
@@ -865,9 +878,11 @@ static int console_dial(int fd, int argc, char *argv[])
 	mye = exten;
 	myc = context;
 	if (argc == 2) {
+		char *stringp=NULL;
 		strncpy(tmp, argv[1], sizeof(tmp)-1);
-		strtok(tmp, "@");
-		tmp2 = strtok(NULL, "@");
+		stringp=tmp;
+		strsep(&stringp, "@");
+		tmp2 = strsep(&stringp, "@");
 		if (strlen(tmp))
 			mye = tmp;
 		if (tmp2 && strlen(tmp2))
@@ -925,7 +940,7 @@ static struct ast_cli_entry myclis[] = {
 	{ { "hangup", NULL }, console_hangup, "Hangup a call on the console", hangup_usage },
 	{ { "dial", NULL }, console_dial, "Dial an extension on the console", dial_usage },
 	{ { "transfer", NULL }, console_transfer, "Transfer a call to a different extension", transfer_usage },
-	{ { "send text", NULL }, console_sendtext, "Send text to the remote device", sendtext_usage },
+	{ { "send", "text", NULL }, console_sendtext, "Send text to the remote device", sendtext_usage },
 	{ { "autoanswer", NULL }, console_autoanswer, "Sets/displays autoanswer", autoanswer_usage, autoanswer_complete }
 };
 
