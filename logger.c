@@ -22,6 +22,7 @@
 #include <asterisk/config.h>
 #include <asterisk/term.h>
 #include <asterisk/cli.h>
+#include <asterisk/utils.h>
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -126,7 +127,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 	char *facility;
 	CODE *cptr;
 
-	if (!strlen(channel))
+	if (ast_strlen_zero(channel))
 		return NULL;
 	chan = malloc(sizeof(struct logchannel));
 
