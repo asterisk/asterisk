@@ -2078,7 +2078,6 @@ static int sip_transfer(struct ast_channel *ast, char *dest)
 		res = sip_sipredirect(p, dest);
 	else
 		res = transmit_refer(p, dest);
-	res = transmit_refer(p, dest);
 	ast_mutex_unlock(&p->lock);
 	return res;
 }
@@ -10232,16 +10231,16 @@ static int sip_getheader(struct ast_channel *chan, void *data)
 
 #define DEFAULT_MAX_FORWARDS	70
 
-/* This is 302 sipredirect function coded by Martin Pycko (m78pl@yahoo.com) */
+/*--- sip_sipredirect: Transfer call before connect with a 302 redirect ---*/
+/* Called by the transfer() dialplan application through the sip_transfer() */
+/* pbx interface function if the call is in ringing state */
+/* coded by Martin Pycko (m78pl@yahoo.com) */
 static int sip_sipredirect(struct sip_pvt *p, char *dest)
 {
 	char *cdest;
 	char *extension, *host, *port;
 	char tmp[80];
-	if (!dest || ast_strlen_zero(dest)) {
-		ast_log(LOG_WARNING, "This application requires these arguments: SIPRedirect(extension[@host[:port]])\n");
-		return 0;
-	}
+	
 	cdest = ast_strdupa(dest);
 	if (!cdest) {
 		ast_log(LOG_ERROR, "Problem allocating the memory\n");
@@ -10268,7 +10267,7 @@ static int sip_sipredirect(struct sip_pvt *p, char *dest)
 			memset(lhost, 0, sizeof(lhost));
 			memset(lport, 0, sizeof(lport));
 			localtmp++;
-			/* This is okay becuase lhost and lport are as big as tmp */
+			/* This is okey because lhost and lport are as big as tmp */
 			sscanf(localtmp, "%[^<>:; ]:%[^<>:; ]", lhost, lport);
 			if (!strlen(lhost)) {
 				ast_log(LOG_ERROR, "Can't find the host address\n");
@@ -10299,7 +10298,7 @@ static int sip_sipredirect(struct sip_pvt *p, char *dest)
 		p->maxforwards = DEFAULT_MAX_FORWARDS - 1;
 	}
 	if (p->maxforwards > -1) {
-		snprintf(p->our_contact, sizeof(p->our_contact), "redirect <sip:%s@%s%s%s>", extension, host, port ? ":" : "", port ? port : "");
+		snprintf(p->our_contact, sizeof(p->our_contact), "Transfer <sip:%s@%s%s%s>", extension, host, port ? ":" : "", port ? port : "");
 		transmit_response_reliable(p, "302 Moved Temporarily", &p->initreq, 1);
 	} else {
 		transmit_response(p, "483 Too Many Hops", &p->initreq);

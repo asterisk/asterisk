@@ -29,10 +29,14 @@ static char *app = "Transfer";
 static char *synopsis = "Transfer caller to remote extension";
 
 static char *descrip = 
-"  Transfer([Tech/]dest):  Requests the remote caller be transferred\n"
-"a given extension. Returns -1 on hangup, or 0 on completion\n"
-"regardless of whether the transfer was successful.  If the transfer\n"
-"was *not* supported or successful and there exists a priority n + 101,\n"
+"  Transfer([Tech/]dest):  Requests the remote caller be transfered\n"
+"to a given extension. If TECH (SIP, IAX2, LOCAL etc) is used, only\n"
+"an incoming call with the same channel technology will be transfered.\n"
+"Note that for SIP, if you transfer before call is setup, a 302 redirect\n"
+"SIP message will be returned to the caller.\n"
+"Returns -1 on hangup, or 0 on completion regardless of whether the\n"
+"transfer was successful.  If the transfer was *not* supported or\n"
+"successful and there exists a priority n + 101,\n"
 "then that priority will be taken next.\n" ;
 
 STANDARD_LOCAL_USER;
