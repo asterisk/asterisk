@@ -682,16 +682,19 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 	  vpb_set_call(p->handle, &call);
 
 	  if (option_verbose > 2)
-	       ast_verbose(VERBOSE_PREFIX_3 " Calling %s on %s \n", dest, ast->name); 
+	       ast_verbose(VERBOSE_PREFIX_3 " Calling %s on %s \n", 
+			   dest, ast->name); 
+
+	  vpb_sethook_sync(p->handle,VPB_OFFHOOK);
 	  
 	  res = vpb_dial_async(p->handle, s);
 
-	 if (res != VPB_OK) {
-	      ast_log(LOG_DEBUG, "Call on %s to %s failed: %s\n", 
-		      ast->name, dest, vpb_strerror(res));	      
-	      res = -1;
-	 } else 
-	      res = 0;
+	  if (res != VPB_OK) {
+	    ast_log(LOG_DEBUG, "Call on %s to %s failed: %s\n", 
+		    ast->name, dest, vpb_strerror(res));	      
+	    res = -1;
+	  } else 
+	    res = 0;
     }
 
     if (option_verbose > 2)
