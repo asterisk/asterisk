@@ -3,7 +3,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Radio Repeater / Remote Base program 
- *  version 0.11 6/27/04
+ *  version 0.12 6/28/04
  * 
  * Copyright (C) 2002-2004, Jim Dixon, WB6NIL
  *
@@ -22,7 +22,9 @@
  *  *4XXX - remote link command mode
  *  *6 - autopatch access/send (*)
  *  *7 - system status
- *  *8 - force ID
+ *  *80 - system ID
+ *  *81 - system time
+ *  *82 - system version 
  *  *90 - system disable (and reset)
  *  *91 - system enable
  *  *99 - system reset
@@ -50,9 +52,9 @@
 /* number of digits for function after *. Must be at least 1 */
 #define	FUNCTION_LEN 4
 /* string containing all of the 1 digit functions */
-#define	SHORTFUNCS "05678"
+#define	SHORTFUNCS "0567"
 /* string containing all of the 2 digit functions */
-#define	MEDFUNCS "9"
+#define	MEDFUNCS "89"
 
 /* maximum digits in DTMF buffer, and seconds after * for DTMF command timeout */
 
@@ -73,7 +75,7 @@
 enum {REM_OFF,REM_MONITOR,REM_TX};
 
 enum{ID,PROC,TERM,COMPLETE,UNKEY,REMDISC,REMALREADY,REMNOTFOUND,REMGO,
-	CONNECTED,CONNFAIL,STATUS,TIMEOUT,ID1};
+	CONNECTED,CONNFAIL,STATUS,TIMEOUT,ID1, STATS_TIME, STATS_VERSION};
 
 enum {REM_SIMPLEX,REM_MINUS,REM_PLUS};
 
@@ -91,6 +93,7 @@ enum {REM_LOWPWR,REM_MEDPWR,REM_HIPWR};
 #include <asterisk/config.h>
 #include <asterisk/utils.h>
 #include <asterisk/say.h>
+#include <asterisk/localtime.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -110,7 +113,7 @@ enum {REM_LOWPWR,REM_MEDPWR,REM_HIPWR};
 #include <tonezone.h>
 #include <linux/zaptel.h>
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.10  06/26/2004";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.12  06/28/2004";
 static char *app = "Rpt";
 
 static char *synopsis = "Radio Repeater/Remote Base Control System";
@@ -210,6 +213,32 @@ static struct rpt
 	char rxplon;
 } rpt_vars[MAXRPTS];		
 
+static int sayfile(struct ast_channel *mychannel,char *fname)
+{
+int	res;
+
+	res = ast_streamfile(mychannel, fname, mychannel->language);
+	if (!res) 
+		res = ast_waitstream(mychannel, "");
+	else
+		 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+	ast_stopstream(mychannel);
+	return res;
+}
+
+static int saycharstr(struct ast_channel *mychannel,char *str)
+{
+int	res;
+
+	res = ast_say_character_str(mychannel,str,NULL,mychannel->language);
+	if (!res) 
+		res = ast_waitstream(mychannel, "");
+	else
+		 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+	ast_stopstream(mychannel);
+	return res;
+}
+
 static void *rpt_tele_thread(void *this)
 {
 ZT_CONFINFO ci;  /* conference info */
@@ -218,6 +247,11 @@ struct	rpt_tele *mytele = (struct rpt_tele *)this;
 struct	rpt *myrpt;
 struct	rpt_link *l,*m,linkbase;
 struct	ast_channel *mychannel;
+int vmajor, vminor;
+char *p;
+time_t t;
+struct tm localtm;
+
 
 	/* get a pointer to myrpt */
 	myrpt = mytele->rpt;
@@ -460,6 +494,71 @@ struct	ast_channel *mychannel;
 		ast_say_character_str(mychannel,myrpt->name,NULL,mychannel->language);
 		res = ast_streamfile(mychannel, "rpt/timeout", mychannel->language);
 		break;
+		
+	    case STATS_TIME:
+	    	usleep(1000000); /* Wait a little bit */
+		t = time(NULL);
+		ast_localtime(&t, &localtm, NULL);
+		/* Say the phase of the day is before the time */
+		if((localtm.tm_hour >= 0) && (localtm.tm_hour < 12))
+			p = "rpt/goodmorning";
+		else if((localtm.tm_hour >= 12) && (localtm.tm_hour < 18))
+			p = "rpt/goodafternoon";
+		else
+			p = "rpt/goodevening";
+		if (sayfile(mychannel,p) == -1)
+		{
+			imdone = 1;
+			break;
+		}
+		/* Say the time is ... */		
+		if (sayfile(mychannel,"rpt/thetimeis") == -1)
+		{
+			imdone = 1;
+			break;
+		}
+		/* Say the time */				
+	    	res = ast_say_time(mychannel, t, "", mychannel->language);
+		if (!res) 
+			res = ast_waitstream(mychannel, "");
+		ast_stopstream(mychannel);		
+		imdone = 1;
+	    	break;
+	    case STATS_VERSION:
+		p = strstr(tdesc, "version");	
+		if(!p)
+			break;	
+		if(sscanf(p, "version %d.%d", &vmajor, &vminor) != 2)
+			break;
+    		usleep(1000000); /* Wait a little bit */
+		/* Say "version" */
+		if (sayfile(mychannel,"rpt/version") == -1)
+		{
+			imdone = 1;
+			break;
+		}
+		if(!res) /* Say "X" */
+			ast_say_number(mychannel, vmajor, "", mychannel->language, (char *) NULL);
+		if (!res) 
+			res = ast_waitstream(mychannel, "");
+		ast_stopstream(mychannel);	
+		if (saycharstr(mychannel,".") == -1)
+		{
+			imdone = 1;
+			break;
+		}
+		if(!res) /* Say "Y" */
+			ast_say_number(mychannel, vminor, "", mychannel->language, (char *) NULL);
+		if (!res){
+			res = ast_waitstream(mychannel, "");
+			ast_stopstream(mychannel);
+		}	
+		else
+			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+		imdone = 1;
+	    	break;
+	    default:
+	    	break;
 	}
 	if (!imdone)
 	{
@@ -507,32 +606,6 @@ pthread_attr_t attr;
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	pthread_create(&tele->threadid,&attr,rpt_tele_thread,(void *) tele);
 	return;
-}
-
-static int sayfile(struct ast_channel *mychannel,char *fname)
-{
-int	res;
-
-	res = ast_streamfile(mychannel, fname, mychannel->language);
-	if (!res) 
-		res = ast_waitstream(mychannel, "");
-	else
-		 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
-	ast_stopstream(mychannel);
-	return res;
-}
-
-static int saycharstr(struct ast_channel *mychannel,char *str)
-{
-int	res;
-
-	res = ast_say_character_str(mychannel,str,NULL,mychannel->language);
-	if (!res) 
-		res = ast_waitstream(mychannel, "");
-	else
-		 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
-	ast_stopstream(mychannel);
-	return res;
 }
 
 static void *rpt_call(void *this)
@@ -896,7 +969,6 @@ ZT_CONFINFO ci;  /* conference info */
 				return;
 			}
 			ast_softhangup(l->chan,AST_SOFTHANGUP_DEV);
-			usleep(500000);	
 		}
 		ast_mutex_unlock(&myrpt->lock);
 		/* establish call in monitor mode */
@@ -995,8 +1067,7 @@ ZT_CONFINFO ci;  /* conference info */
 				return;
 			}
 			ast_softhangup(l->chan,AST_SOFTHANGUP_DEV);
-			usleep(500000);	
-		}
+		} 
 		ast_mutex_unlock(&myrpt->lock);
 		/* establish call in tranceive mode */
 		l = malloc(sizeof(struct rpt_link));
@@ -1094,10 +1165,28 @@ ZT_CONFINFO ci;  /* conference info */
 		if (!myrpt->enable) return;
 		rpt_telemetry(myrpt,STATUS,NULL);
 		return;
-	case 8: /* force ID */
+		
+	case 8: /* Statistics */
 		if (!myrpt->enable) return;
-		rpt_telemetry(myrpt,ID1,NULL);
-		return;
+		
+		switch(cmd[1]){
+		
+			case '0': /* Repeater ID */
+				rpt_telemetry(myrpt,ID1,NULL);
+				return;
+				
+			case '1': /* Time */
+				rpt_telemetry(myrpt, STATS_TIME, NULL);
+				return;
+				
+			case '2': /* Version */
+				rpt_telemetry(myrpt, STATS_VERSION, NULL);
+				return;
+				
+			default:
+				return;
+		}
+
 	default:
 		return;
 	}
@@ -2021,7 +2110,7 @@ pthread_attr_t attr;
 		if (ast_check_hangup(myrpt->pchannel)) break;
 		if (ast_check_hangup(myrpt->txpchannel)) break;
 		ast_mutex_lock(&myrpt->lock);
-		myrpt->localtx = keyed;
+		myrpt->localtx = keyed && (myrpt->dtmfidx == -1) && (!myrpt->cmdnode[0]);
 		l = myrpt->links.next;
 		remrx = 0;
 		while(l != &myrpt->links)
@@ -2029,7 +2118,6 @@ pthread_attr_t attr;
 			if (l->lastrx) remrx = 1;
 			l = l->next;
 		}
-	
 		
 		/* Create a "must_id" flag for the cleanup ID */	
 			
@@ -2037,7 +2125,7 @@ pthread_attr_t attr;
 
 		/* Build a fresh totx from keyed and autopatch activated */
 		
-		totx = (keyed || myrpt->callmode);
+		totx = myrpt->localtx || myrpt->callmode;
 		 
 		/* Traverse the telemetry list to see if there's an ID queued and if there is not an ID queued */
 		
@@ -2086,7 +2174,7 @@ pthread_attr_t attr;
 		{
 			myrpt->tounkeyed = 1;
 		}
-		if ((!totx) && (!myrpt->totimer) && myrpt->tounkeyed && keyed)
+		if ((!totx) && (!myrpt->totimer) && myrpt->tounkeyed && myrpt->localtx)
 		{
 			myrpt->totimer = myrpt->totime;
 			myrpt->tounkeyed = 0;
@@ -2204,6 +2292,8 @@ pthread_attr_t attr;
 			}
 			if (f->frametype == AST_FRAME_VOICE)
 			{
+				if (!myrpt->localtx)
+					memset(f->data,0,f->datalen);
 				ast_write(myrpt->pchannel,f);
 			}
 			else if (f->frametype == AST_FRAME_DTMF)
@@ -2685,7 +2775,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		/* look at callerid to see what node this comes from */
 		if (!chan->callerid) /* if doesnt have callerid */
 		{
-			ast_log(LOG_WARNING, "Trying to use busy link on %s\n",tmp);
+			ast_log(LOG_WARNING, "Doesnt have callerid on %s\n",tmp);
 			return -1;
 		}
 		ast_callerid_parse(chan->callerid,&b,&b1);
@@ -2765,8 +2855,14 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	if (myrpt->remoteon)
 	{
 		ast_mutex_unlock(&myrpt->lock);
-		ast_log(LOG_WARNING, "Trying to use busy link on %s\n",tmp);
-		return -1;
+		usleep(500000);
+		ast_mutex_lock(&myrpt->lock);
+		if (myrpt->remoteon)
+		{
+			ast_mutex_unlock(&myrpt->lock);
+			ast_log(LOG_WARNING, "Trying to use busy link on %s\n",tmp);
+			return -1;
+		}		
 	}
 	if (ioperm(myrpt->iobase,1,1) == -1)
 	{
