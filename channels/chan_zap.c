@@ -4426,6 +4426,7 @@ static void *ss_thread(void *data)
 			/* Start the real PBX */
 			strncpy(chan->exten, exten, sizeof(chan->exten));
 			ast_dsp_digitreset(p->dsp);
+			ast_setstate(chan, AST_STATE_RING);
 			res = ast_pbx_run(chan);
 			if (res) {
 				ast_log(LOG_WARNING, "PBX exited non-zero!\n");
