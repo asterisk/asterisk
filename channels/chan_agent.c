@@ -711,7 +711,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 				/* Adjustable agent */
 				newlyavailable->chan = ast_request("Local", AST_FORMAT_SLINEAR, newlyavailable->loginchan);
 				if (newlyavailable->chan) {
-					if (agent_call(newlyavailable->chan, newlyavailable->loginchan, 0))
+					if (ast_call(newlyavailable->chan, newlyavailable->loginchan, 0))
 						ast_log(LOG_WARNING, "Call failed on channel '%s'\n", newlyavailable->chan->name);
 					chan = agent_new(p, AST_STATE_DOWN);
 				} else {
