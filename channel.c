@@ -2280,7 +2280,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 			*fo = f;
 			*rc = who;
 			res =  0;
-			ast_log(LOG_DEBUG, "Got a FRAME_CONTROL frame on channel %s\n",who->name);
+			ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", f->subclass, who->name);
 			break;
 		}
 		if ((f->frametype == AST_FRAME_VOICE) ||

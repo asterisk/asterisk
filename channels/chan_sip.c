@@ -2692,7 +2692,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 		cur = cur->next;
 	}
 	/* Now send any other common codecs, and non-codec formats: */
-	for (x = 1; x <= AST_FORMAT_MAX_AUDIO; x <<= 1) {
+	for (x = 1; x <= (videosupport ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO); x <<= 1) {
 		if ((p->jointcapability & x) && !(alreadysent & x)) {
 			if (sipdebug)
 				ast_verbose("Answering with capability %d\n", x);	
