@@ -46,6 +46,8 @@ extern "C" {
 
 #define AST_MAX_FDS 8
 
+typedef unsigned long long ast_group_t;
+
 struct ast_generator {
 	void *(*alloc)(struct ast_channel *chan, void *params);
 	void (*release)(struct ast_channel *chan, void *data);
@@ -887,7 +889,10 @@ static inline int ast_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds,
 									ast_set_flag(c, AST_FLAG_BLOCKING); \
 									} }
 
-extern unsigned int ast_get_group(char *s);
+extern ast_group_t ast_get_group(char *s);
+/* print call- and pickup groups into buffer */
+extern char *ast_print_group(char *buf, int buflen, ast_group_t group);
+
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

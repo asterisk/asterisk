@@ -116,7 +116,7 @@ struct ast_modem_pvt {
 	/*! Multiple Subscriber Number we accept for outgoing calls (; seperated list) */
 	char outgoingmsn[AST_MAX_EXTENSION];	
 	/*! Group(s) we belong to if available */
-	unsigned int group;
+	ast_group_t group;
 	/*! Caller ID if available */
 	char cid_name[AST_MAX_EXTENSION];	
 	/*! Caller ID if available */

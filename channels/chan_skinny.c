@@ -492,8 +492,8 @@ static char cid_num[AST_MAX_EXTENSION] = "";
 static char cid_name[AST_MAX_EXTENSION] = "";
 static char linelabel[AST_MAX_EXTENSION] ="";
 static int nat = 0;
-static unsigned int cur_callergroup = 0;
-static unsigned int cur_pickupgroup = 0;
+static ast_group_t cur_callergroup = 0;
+static ast_group_t cur_pickupgroup = 0;
 static int immediate = 0;
 static int callwaiting = 0;
 static int callreturn = 0;
@@ -642,8 +642,8 @@ struct skinny_line {
 	char mailbox[AST_MAX_EXTENSION];
 	char musicclass[MAX_LANGUAGE];
 	int curtone;					/* Current tone being played */
-	unsigned int callgroup;
-	unsigned int pickupgroup;
+	ast_group_t callgroup;
+	ast_group_t pickupgroup;
 	int callwaiting;
 	int transfer;
 	int threewaycalling;

@@ -172,8 +172,8 @@ static int nat = 0;
 /*static int cur_signalling = -1;*/
 
 /*static unsigned int cur_group = 0;*/
-static unsigned int cur_callergroup = 0;
-static unsigned int cur_pickupgroup = 0;
+static ast_group_t cur_callergroup = 0;
+static ast_group_t cur_pickupgroup = 0;
 
 /* XXX Is this needed? */
 /*     Doesn't look like the dsp stuff for */
@@ -373,8 +373,8 @@ struct mgcp_endpoint {
 	char mailbox[AST_MAX_EXTENSION];
 	char musicclass[MAX_LANGUAGE];
 	char curtone[80];			/* Current tone */
-	unsigned int callgroup;
-	unsigned int pickupgroup;
+	ast_group_t callgroup;
+	ast_group_t pickupgroup;
 	int callwaiting;
 	int transfer;
 	int threewaycalling;

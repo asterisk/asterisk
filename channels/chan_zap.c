@@ -172,9 +172,9 @@ static int cid_start = CID_START_RING;
 static int zaptrcallerid = 0;
 static int cur_signalling = -1;
 
-static unsigned int cur_group = 0;
-static unsigned int cur_callergroup = 0;
-static unsigned int cur_pickupgroup = 0;
+static ast_group_t cur_group = 0;
+static ast_group_t cur_callergroup = 0;
+static ast_group_t cur_pickupgroup = 0;
 static int relaxdtmf = 0;
 
 static int immediate = 0;
@@ -489,8 +489,8 @@ static struct zt_pvt {
 	int confno;					/* Our conference */
 	int confusers;				/* Who is using our conference */
 	int propconfno;				/* Propagated conference number */
-	unsigned int callgroup;
-	unsigned int pickupgroup;
+	ast_group_t callgroup;
+	ast_group_t pickupgroup;
 	int immediate;				/* Answer before getting digits? */
 	int channel;				/* Channel Number or CRV */
 	int span;					/* Span number */

@@ -74,7 +74,7 @@ struct ast_dsp *dsp = NULL;
 static char outgoingmsn[AST_MAX_EXTENSION]="";
 
 /* Default group */
-static unsigned int cur_group = 0;
+static ast_group_t cur_group = 0;
 
 static int usecnt =0;
 
@@ -790,7 +790,7 @@ static struct ast_channel *modem_request(const char *type, int format, void *dat
 	struct ast_modem_pvt *p;
 	struct ast_channel *tmp = NULL;
 	char dev[80];
-	unsigned int group = 0;
+	ast_group_t group = 0;
 	char *stringp=NULL;
 	strncpy(dev, (char *)data, sizeof(dev)-1);
 	stringp=dev;
@@ -848,11 +848,11 @@ static struct ast_channel *modem_request(const char *type, int format, void *dat
 	return tmp;
 }
 
-static unsigned int get_group(char *s)
+static ast_group_t get_group(char *s)
 {
 	char *piece;
 	int start, finish,x;
-	unsigned int group = 0;
+	ast_group_t group = 0;
 	char *copy = ast_strdupa(s);
 	char *stringp=NULL;
 	if (!copy) {
@@ -874,7 +874,7 @@ static unsigned int get_group(char *s)
 		piece = strsep(&stringp, ",");
 
 		for (x=start;x<=finish;x++) {
-			if ((x > 31) || (x < 0)) {
+			if ((x > 63) || (x < 0)) {
 				ast_log(LOG_WARNING, "Ignoring invalid group %d\n", x);
 				break;
 			}

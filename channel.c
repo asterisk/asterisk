@@ -3033,13 +3033,13 @@ int ast_tonepair(struct ast_channel *chan, int freq1, int freq2, int duration, i
 	return 0;
 }
 
-unsigned int ast_get_group(char *s)
+ast_group_t ast_get_group(char *s)
 {
 	char *copy;
 	char *piece;
 	char *c=NULL;
 	int start=0, finish=0,x;
-	unsigned int group = 0;
+	ast_group_t group = 0;
 	copy = ast_strdupa(s);
 	if (!copy) {
 		ast_log(LOG_ERROR, "Out of memory\n");
@@ -3058,8 +3058,8 @@ unsigned int ast_get_group(char *s)
 			continue;
 		}
 		for (x=start;x<=finish;x++) {
-			if ((x > 31) || (x < 0)) {
-				ast_log(LOG_WARNING, "Ignoring invalid group %d (maximum group is 31)\n", x);
+			if ((x > 63) || (x < 0)) {
+				ast_log(LOG_WARNING, "Ignoring invalid group %d (maximum group is 63)\n", x);
 			} else
 				group |= (1 << x);
 		}
@@ -3117,4 +3117,30 @@ void ast_moh_cleanup(struct ast_channel *chan)
 void ast_channels_init(void)
 {
 	ast_cli_register(&cli_show_channeltypes);
+}
+
+/*--- ast_print_group: Print call group and pickup group ---*/
+char *ast_print_group(char *buf, int buflen, ast_group_t group) 
+{
+	unsigned int i;
+	int first=1;
+	char num[3];
+
+	buf[0] = '\0';
+	
+	if (!group)	/* Return empty string if no group */
+		return(buf);
+
+	for (i=0; i<=63; i++) {	/* Max group is 63 */
+		if (group & (1 << i)) {
+	   		if (!first) {
+				strncat(buf, ", ", buflen);
+			} else {
+				first=0;
+	  		}
+			snprintf(num, sizeof(num), "%u", i);
+			strncat(buf, num, buflen);
+		}
+	}
+	return(buf);
 }

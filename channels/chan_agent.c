@@ -115,7 +115,7 @@ static void dump_agents(void);
 
 static int capability = -1;
 
-static unsigned int group;
+static ast_group_t group;
 static int autologoff;
 static int wrapuptime;
 static int ackcall;
@@ -151,7 +151,7 @@ static struct agent_pvt {
 	time_t start;				/* When call started */
 	struct timeval lastdisc;		/* When last disconnected */
 	int wrapuptime;				/* Wrapup time in ms */
-	unsigned int group;			/* Group memberships */
+	ast_group_t group;		/* Group memberships */
 	int acknowledged;			/* Acknowledged */
 	char moh[80];				/* Which music on hold */
 	char agent[AST_MAX_AGENT];		/* Agent ID */
@@ -1110,7 +1110,7 @@ static struct ast_channel *agent_request(const char *type, int format, void *dat
 	struct agent_pvt *p;
 	struct ast_channel *chan = NULL;
 	char *s;
-	unsigned int groupmatch;
+	ast_group_t groupmatch;
 	int waitforagent=0;
 	int hasagent = 0;
 	struct timeval tv;
@@ -1957,7 +1957,7 @@ static int agent_devicestate(void *data)
 {
 	struct agent_pvt *p;
 	char *s;
-	unsigned int groupmatch;
+	ast_group_t groupmatch;
 	int waitforagent=0;
 	int res = AST_DEVICE_INVALID;
 	

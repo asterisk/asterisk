@@ -153,6 +153,3 @@ extern int ast_pthread_create(pthread_t *thread, pthread_attr_t *attr, void *(*s
 extern char *ast_strcasestr(const char *, const char *);
 
 #endif
-
-/* print call- and pickup groups into buffer */
-char *ast_print_group(char *buf, int buflen, unsigned int group);

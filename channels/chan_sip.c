@@ -312,8 +312,8 @@ static struct sip_pvt {
 	struct ast_codec_pref prefs; /* codec prefs */
 	unsigned int ocseq;			/* Current outgoing seqno */
 	unsigned int icseq;			/* Current incoming seqno */
-	unsigned int callgroup;			/* Call group */
-	unsigned int pickupgroup;		/* Pickup group */
+	ast_group_t callgroup;		/* Call group */
+	ast_group_t pickupgroup;		/* Pickup group */
 	int lastinvite;				/* Last Cseq of invite */
 	unsigned int flags;			/* SIP_ flags */	
 	int capability;				/* Special capability (codec) */
@@ -433,8 +433,8 @@ struct sip_user {
 	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
 	char useragent[256];		/* User agent in SIP request */
 	struct ast_codec_pref prefs; /* codec prefs */
-	unsigned int callgroup;		/* Call group */
-	unsigned int pickupgroup;	/* Pickup Group */
+	ast_group_t callgroup;	/* Call group */
+	ast_group_t pickupgroup;	/* Pickup Group */
 	unsigned int flags;		/* SIP_ flags */	
 	int amaflags;			/* AMA flags for billing */
 	int callingpres;		/* Calling id presentation */
@@ -475,8 +475,8 @@ struct sip_peer {
 	int rtptimeout;
 	int rtpholdtimeout;
 	int rtpkeepalive;			/* Send RTP packets for keepalive */
-	unsigned int callgroup;		/* Call group */
-	unsigned int pickupgroup;	/* Pickup group */
+	ast_group_t callgroup;	/* Call group */
+	ast_group_t pickupgroup;	/* Pickup group */
 	struct sockaddr_in addr;	/* IP address of peer */
 	struct in_addr mask;
 
