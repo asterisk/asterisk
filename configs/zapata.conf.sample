@@ -308,6 +308,10 @@ immediate=no
 ;callprogress=yes
 ;progzone=us
 ;
+; For FXO (FXS signalled) devices, whether to use pulse dial instead of DTMF
+;
+;pulsedial=yes
+;
 ; For fax detection, uncomment one of the following lines.  The default is *OFF*
 ;
 ;faxdetect=both

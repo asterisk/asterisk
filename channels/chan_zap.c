@@ -203,6 +203,8 @@ static int echocancel;
 
 static int echotraining;
 
+static int pulse;
+
 static int echocanbridged = 0;
 
 static int busydetect = 0;
@@ -489,6 +491,7 @@ static struct zt_pvt {
 	int callwaitrings;
 	int echocancel;
 	int echotraining;
+	int pulse;
 	int echocanbridged;
 	int echocanon;
 	int echobreak;
@@ -1669,6 +1672,9 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		if (p->sig == SIG_FEATB) {
 			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%s#", c + p->stripmsd);
 		} else 
+ 		if(p->pulse)
+ 			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "P%sw", c + p->stripmsd);
+ 		else
 			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%sw", c + p->stripmsd);
 		if (p->echotraining && (strlen(p->dop.dialstr) > 4)) {
 			memset(p->echorest, 'w', sizeof(p->echorest) - 1);
@@ -6173,6 +6179,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		tmp->callreturn = callreturn;
 		tmp->echocancel = echocancel;
 		tmp->echotraining = echotraining;
+		tmp->pulse = pulse;
 		tmp->echocanbridged = echocanbridged;
 		tmp->busydetect = busydetect;
 		tmp->busycount = busycount;
@@ -8944,6 +8951,8 @@ static int setup_zap(void)
 				echotraining = 0;
 		} else if (!strcasecmp(v->name, "hidecallerid")) {
 			hidecallerid = ast_true(v->value);
+ 		} else if (!strcasecmp(v->name, "pulsedial")) {
+ 			pulse = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "callreturn")) {
 			callreturn = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "callwaiting")) {
@@ -9838,3 +9847,4 @@ char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
+
