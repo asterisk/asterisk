@@ -150,12 +150,6 @@ int ast_get_ip(struct sockaddr_in *sin, char *value)
 	return 0;
 }
 
-int inaddrcmp(struct sockaddr_in *sin1, struct sockaddr_in *sin2)
-{
-	return ((sin1->sin_addr.s_addr != sin2->sin_addr.s_addr )
-			|| (sin1->sin_port != sin2->sin_port));
-}
-
 /* iface is the interface (e.g. eth0); address is the return value */
 int ast_lookup_iface(char *iface, struct in_addr *address) {
 	int mysock, res = 0;

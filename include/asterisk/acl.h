@@ -28,9 +28,15 @@ extern void ast_free_ha(struct ast_ha *ha);
 extern struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path);
 extern int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin);
 extern int ast_get_ip(struct sockaddr_in *sin, char *value);
-extern int inaddrcmp(struct sockaddr_in *sin1, struct sockaddr_in *sin2);
 extern int ast_ouraddrfor(struct in_addr *them, struct in_addr *us);
 extern int ast_lookup_iface(char *iface, struct in_addr *address);
+
+//! Compares the source address and port of two sockaddr_in
+static inline int inaddrcmp(struct sockaddr_in *sin1, struct sockaddr_in *sin2)
+{
+	return ((sin1->sin_addr.s_addr != sin2->sin_addr.s_addr ) 
+		|| (sin1->sin_port != sin2->sin_port));
+}
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
