@@ -44,6 +44,8 @@ ${UNIQUEID}	Current call unique identifier
 ${DNID}         Dialed Number Identifier
 ${RDNIS}        Redirected Dial Number ID Service
 ${HANGUPCAUSE}	Hangup cause on last PRI hangup
+${ACCOUNTCODE}  Account code (if specified)
+
 ${SIPDOMAIN}    SIP destination domain of an inbound call (if appropriate)
 
 There are two reference modes - reference by value and reference by name. 
