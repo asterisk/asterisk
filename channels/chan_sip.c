@@ -3684,6 +3684,18 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	return -1;
 }
 
+static int hex2int(char a)
+{
+	if ((a >= '0') && (a <= '9')) {
+		return a - '0';
+	} else if ((a >= 'a') && (a <= 'f')) {
+		return a - 'a' + 10;
+	} else if ((a >= 'A') && (a <= 'F')) {
+		return a - 'A' + 10;
+	}
+	return 0;
+}
+
 static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 {
 	char tmp[256] = "", *c, *a;
@@ -3722,13 +3734,17 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 			if ((a = strchr(tmp5, '%'))) {
 				/* Yuck!  Pingtel converts the '@' to a %40, icky icky!  Convert
 				   back to an '@' */
-				if ((a[1] == '4') && (a[2] == '0')) {
-					*a = '@';
-					memmove(a + 1, a+3, strlen(a + 3));
-				}
+				*a = hex2int(a[1]) * 16 + hex2int(a[2]);
+				memmove(a + 1, a+3, strlen(a + 3) + 1);
 			}
 			if ((a = strchr(tmp5, '%'))) 
 				*a = '\0';
+			if ((a = strchr(tmp5, ';'))) 
+				*a = '\0';
+			/* Skip leading whitespace */
+			while(tmp[0] && (tmp[0] < 33))
+				memmove(tmp, tmp+1, strlen(tmp));
+				
 		}
 	}
 	
