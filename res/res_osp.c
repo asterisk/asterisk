@@ -170,6 +170,8 @@ static int osp_build(struct ast_config *cfg, char *cat)
 				osp->timeout = x;
 			} else
 				ast_log(LOG_WARNING, "timeout should be an integer from 200 to 10000, not '%s' at line %d\n", v->value, v->lineno);
+		} else if (!strcasecmp(v->name, "source")) {
+			strncpy(osp->source, v->value, sizeof(osp->source) - 1);
 		}
 		v = v->next;
 	}
@@ -248,7 +250,7 @@ static int osp_build(struct ast_config *cfg, char *cat)
 					   1, 
 					   300, 
 					   osp->maxconnections, 
-					   60000, 
+					   1, 
 					   osp->retrydelay, 
 					   osp->retrylimit, 
 					   osp->timeout, 
