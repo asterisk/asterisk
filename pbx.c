@@ -486,7 +486,7 @@ int pbx_exec(struct ast_channel *c, 		/* Channel */
 
 
 /* Go no deeper than this through includes (not counting loops) */
-#define AST_PBX_MAX_STACK	64
+#define AST_PBX_MAX_STACK	128
 
 #define HELPER_EXISTS 0
 #define HELPER_SPAWN 1
