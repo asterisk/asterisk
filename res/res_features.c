@@ -27,6 +27,7 @@
 #include <asterisk/cli.h>
 #include <asterisk/manager.h>
 #include <asterisk/utils.h>
+#include <asterisk/adsi.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -58,6 +59,8 @@ static int parking_start = 701;
 
 /* Last available extension for parking */
 static int parking_stop = 750;
+
+static int adsipark = 0;
 
 static int transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
 
@@ -118,6 +121,22 @@ char *ast_parking_ext(void)
 char *ast_pickup_ext(void)
 {
 	return pickup_ext;
+}
+
+static int adsi_announce_park(struct ast_channel *chan, int parkingnum)
+{
+	int res;
+	int justify[5] = {ADSI_JUST_CENT, ADSI_JUST_CENT, ADSI_JUST_CENT, ADSI_JUST_CENT};
+	char tmp[256] = "";
+	char *message[5] = {NULL, NULL, NULL, NULL, NULL};
+
+	snprintf(tmp, sizeof(tmp), "Parked on %d", parkingnum);
+	message[0] = tmp;
+	res = adsi_load_session(chan, NULL, 0, 1);
+	if (res == -1) {
+		return res;
+	}
+	return adsi_print(chan, message, justify, 1);
 }
 
 int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeout, int *extout)
@@ -194,7 +213,13 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
                                 );
 
 			if (peer) {
+				if (adsipark && adsi_available(peer)) {
+					adsi_announce_park(peer, pu->parkingnum);
+				}
 				ast_say_digits(peer, pu->parkingnum, "", peer->language);
+				if (adsipark && adsi_available(peer)) {
+					adsi_unload_session(peer);
+				}
 				if (pu->notquiteyet) {
 					/* Wake up parking thread if we're really done */
 					ast_moh_start(pu->chan, NULL);
@@ -862,6 +887,8 @@ int load_module(void)
 					parking_start = start;
 					parking_stop = end;
 				}
+			} else if (!strcasecmp(var->name, "adsipark")) {
+				adsipark = ast_true(var->value);
 			} else if(!strcasecmp(var->name, "transferdigittimeout")) {
 				if ((sscanf(var->value, "%d", &transferdigittimeout) != 1) || (transferdigittimeout < 1)) {
 					ast_log(LOG_WARNING, "%s is not a valid transferdigittimeout\n", var->value);
