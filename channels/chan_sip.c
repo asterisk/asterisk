@@ -6726,9 +6726,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 
 			break;
 		case 501: /* Not Implemented */
-			if (!strcasecmp(msg, "INVITE"))
-				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
-			else
+			if (!strcasecmp(msg, "INVITE")) {
+				if (p->owner)
+					ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+			} else
 				ast_log(LOG_WARNING, "Host '%s' does not implement '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), msg);
 			break;
 		default:
