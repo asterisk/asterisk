@@ -50,3 +50,6 @@
 ;member => Zap/2
 ;member => Agent/1001
 ;member => Agent/1002
+
+;member => Agent/@1		; Any agent in group 1
+;member => Agent/:1		; Any agent in group 1, wait for first.

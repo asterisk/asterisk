@@ -778,10 +778,7 @@ char ast_waitstream(struct ast_channel *c, char *breakon)
 	while(c->stream) {
 		res = ast_sched_wait(c->sched);
 		if ((res < 0) && !c->timingfunc) {
-			if (c->stream)
-				ast_closestream(c->stream);
-			if (c->vstream)
-				ast_closestream(c->vstream);
+			ast_stopstream(c);
 			break;
 		}
 		if (res < 0)
@@ -835,10 +832,7 @@ char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char
 	while(c->stream) {
 		res = ast_sched_wait(c->sched);
 		if ((res < 0) && !c->timingfunc) {
-			if (c->stream)
-				ast_closestream(c->stream);
-			if (c->vstream)
-				ast_closestream(c->vstream);
+			ast_stopstream(c);
 			break;
 		}
 		if (res < 0)
@@ -903,10 +897,7 @@ char ast_waitstream_full(struct ast_channel *c, char *breakon, int audiofd, int 
 	while(c->stream) {
 		ms = ast_sched_wait(c->sched);
 		if ((ms < 0) && !c->timingfunc) {
-			if (c->stream)
-				ast_closestream(c->stream);
-			if (c->vstream)
-				ast_closestream(c->vstream);
+			ast_stopstream(c);
 			break;
 		}
 		if (ms < 0)
