@@ -1,5 +1,5 @@
 /*
- * chan_oh323.h
+ * chan_h323.h
  *
  * OpenH323 Channel Driver for ASTERISK PBX.
  *			By Jeremy McNamara

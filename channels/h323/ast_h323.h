@@ -1,5 +1,5 @@
 /*
- * h323wrap.h
+ * ast_h323.h
  *
  * OpenH323 Channel Driver for ASTERISK PBX.
  *			By Jeremy McNamara
