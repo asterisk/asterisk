@@ -206,8 +206,14 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f)
 	/* Just queue for delivery to the other side */
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
-	res = local_queue_frame(p, isoutbound, f, ast);
-	check_bridge(p, isoutbound);
+	if (f && (f->frametype == AST_FRAME_VOICE)) 
+		check_bridge(p, isoutbound);
+	if (!p->alreadymasqed)
+		res = local_queue_frame(p, isoutbound, f, ast);
+	else {
+		ast_log(LOG_DEBUG, "Not posting to queue since already masked on '%s'\n", ast->name);
+		res = 0;
+	}
 	ast_mutex_unlock(&p->lock);
 	return res;
 }
