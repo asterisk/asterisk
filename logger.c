@@ -23,6 +23,7 @@
 #include <asterisk/term.h>
 #include <asterisk/cli.h>
 #include <asterisk/utils.h>
+#include <asterisk/manager.h>
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -56,6 +57,7 @@ static int syslog_level_map[] = {
 #endif
 
 static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
+
 AST_MUTEX_DEFINE_STATIC(msglist_lock);
 AST_MUTEX_DEFINE_STATIC(loglock);
 static int pending_logger_reload = 0;
@@ -73,14 +75,20 @@ static struct msglist {
 
 static char hostname[256];
 
+enum logtypes {
+	LOGTYPE_SYSLOG,
+	LOGTYPE_FILE,
+	LOGTYPE_CONSOLE,
+};
+
 struct logchannel {
-	int logmask;
-	int facility; /* syslog */
-	int syslog; /* syslog flag */
-	int console;  /* console logging */
-	FILE *fileptr; /* logfile logging */
-	char filename[256];
-	struct logchannel *next;
+	int logmask;			/* What to log to this channel */
+	int disabled;			/* If this channel is disabled or not */
+	int facility; 			/* syslog facility */
+	enum logtypes type;		/* Type of log channel */
+	FILE *fileptr;			/* logfile logging file pointer */
+	char filename[256];		/* Filename */
+	struct logchannel *next;	/* Next channel in chain */
 };
 
 static struct logchannel *logchannels = NULL;
@@ -115,24 +123,24 @@ static int make_components(char *s, int lineno)
 	stringp=s;
 	w = strsep(&stringp, ",");
 	while(w) {
-	    while(*w && (*w < 33))
-		w++;
-	    if (!strcasecmp(w, "error")) 
-		res |= (1 << __LOG_ERROR);
-	    else if (!strcasecmp(w, "warning"))
-		res |= (1 << __LOG_WARNING);
-	    else if (!strcasecmp(w, "notice"))
-		res |= (1 << __LOG_NOTICE);
-	    else if (!strcasecmp(w, "event"))
-		res |= (1 << __LOG_EVENT);
-	    else if (!strcasecmp(w, "debug"))
-		res |= (1 << __LOG_DEBUG);
-	    else if (!strcasecmp(w, "verbose"))
-		res |= (1 << __LOG_VERBOSE);
-	    else {
-		fprintf(stderr, "Logfile Warning: Unknown keyword '%s' at line %d of logger.conf\n", w, lineno);
-	    }
-	    w = strsep(&stringp, ",");
+		while(*w && (*w < 33))
+			w++;
+		if (!strcasecmp(w, "error")) 
+			res |= (1 << __LOG_ERROR);
+		else if (!strcasecmp(w, "warning"))
+			res |= (1 << __LOG_WARNING);
+		else if (!strcasecmp(w, "notice"))
+			res |= (1 << __LOG_NOTICE);
+		else if (!strcasecmp(w, "event"))
+			res |= (1 << __LOG_EVENT);
+		else if (!strcasecmp(w, "debug"))
+			res |= (1 << __LOG_DEBUG);
+		else if (!strcasecmp(w, "verbose"))
+			res |= (1 << __LOG_VERBOSE);
+		else {
+			fprintf(stderr, "Logfile Warning: Unknown keyword '%s' at line %d of logger.conf\n", w, lineno);
+		}
+		w = strsep(&stringp, ",");
 	}
 	return res;
 }
@@ -152,79 +160,79 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 	if (chan) {
 		memset(chan, 0, sizeof(struct logchannel));
 		if (!strcasecmp(channel, "console")) {
-		    chan->console = 1;
+			chan->type = LOGTYPE_CONSOLE;
 		} else if (!strncasecmp(channel, "syslog", 6)) {
-		    /*
-		     * syntax is:
-		     *  syslog.facility => level,level,level
-		     */
-		    facility = strchr(channel, '.');
-		    if(!facility++ || !facility) {
-			facility = "local0";
-		    }
+			/*
+			* syntax is:
+			*  syslog.facility => level,level,level
+			*/
+			facility = strchr(channel, '.');
+			if(!facility++ || !facility) {
+				facility = "local0";
+			}
 
 #ifndef SOLARIS
-		    /*
-		     * Walk through the list of facilitynames (defined in sys/syslog.h)
-		     * to see if we can find the one we have been given
-		     */
-		    chan->facility = -1;
-		    cptr = facilitynames;
-		    while (cptr->c_name) {
-			if (!strcasecmp(facility, cptr->c_name)) {
-			    chan->facility = cptr->c_val;
-			    break;
+			/*
+		 	* Walk through the list of facilitynames (defined in sys/syslog.h)
+			* to see if we can find the one we have been given
+			*/
+			chan->facility = -1;
+		 	cptr = facilitynames;
+			while (cptr->c_name) {
+				if (!strcasecmp(facility, cptr->c_name)) {
+					    chan->facility = cptr->c_val;
+					    break;
+				}
+				cptr++;
 			}
-			cptr++;
-		    }
 #else
-		    chan->facility = -1;
-		    if (!strcasecmp(facility, "kern")) 
-			chan->facility = LOG_KERN;
-		    else if (!strcasecmp(facility, "USER")) 
-			chan->facility = LOG_USER;
-		    else if (!strcasecmp(facility, "MAIL")) 
-			chan->facility = LOG_MAIL;
-		    else if (!strcasecmp(facility, "DAEMON")) 
-			chan->facility = LOG_DAEMON;
-		    else if (!strcasecmp(facility, "AUTH")) 
-			chan->facility = LOG_AUTH;
-		    else if (!strcasecmp(facility, "SYSLOG")) 
-			chan->facility = LOG_SYSLOG;
-		    else if (!strcasecmp(facility, "LPR")) 
-			chan->facility = LOG_LPR;
-		    else if (!strcasecmp(facility, "NEWS")) 
-			chan->facility = LOG_NEWS;
-		    else if (!strcasecmp(facility, "UUCP")) 
-			chan->facility = LOG_UUCP;
-		    else if (!strcasecmp(facility, "CRON")) 
-			chan->facility = LOG_CRON;
-		    else if (!strcasecmp(facility, "LOCAL0")) 
-			chan->facility = LOG_LOCAL0;
-		    else if (!strcasecmp(facility, "LOCAL1")) 
-			chan->facility = LOG_LOCAL1;
-		    else if (!strcasecmp(facility, "LOCAL2")) 
-			chan->facility = LOG_LOCAL2;
-		    else if (!strcasecmp(facility, "LOCAL3")) 
-			chan->facility = LOG_LOCAL3;
-		    else if (!strcasecmp(facility, "LOCAL4")) 
-			chan->facility = LOG_LOCAL4;
-		    else if (!strcasecmp(facility, "LOCAL5")) 
-			chan->facility = LOG_LOCAL5;
-		    else if (!strcasecmp(facility, "LOCAL6")) 
-			chan->facility = LOG_LOCAL6;
-		    else if (!strcasecmp(facility, "LOCAL7")) 
-			chan->facility = LOG_LOCAL7;
-#endif
+			chan->facility = -1;
+			if (!strcasecmp(facility, "kern")) 
+				chan->facility = LOG_KERN;
+			else if (!strcasecmp(facility, "USER")) 
+				chan->facility = LOG_USER;
+			else if (!strcasecmp(facility, "MAIL")) 
+				chan->facility = LOG_MAIL;
+			else if (!strcasecmp(facility, "DAEMON")) 
+				chan->facility = LOG_DAEMON;
+			else if (!strcasecmp(facility, "AUTH")) 
+				chan->facility = LOG_AUTH;
+			else if (!strcasecmp(facility, "SYSLOG")) 
+				chan->facility = LOG_SYSLOG;
+			else if (!strcasecmp(facility, "LPR")) 
+				chan->facility = LOG_LPR;
+			else if (!strcasecmp(facility, "NEWS")) 
+				chan->facility = LOG_NEWS;
+			else if (!strcasecmp(facility, "UUCP")) 
+				chan->facility = LOG_UUCP;
+			else if (!strcasecmp(facility, "CRON")) 
+				chan->facility = LOG_CRON;
+			else if (!strcasecmp(facility, "LOCAL0")) 
+				chan->facility = LOG_LOCAL0;
+			else if (!strcasecmp(facility, "LOCAL1")) 
+				chan->facility = LOG_LOCAL1;
+			else if (!strcasecmp(facility, "LOCAL2")) 
+				chan->facility = LOG_LOCAL2;
+			else if (!strcasecmp(facility, "LOCAL3")) 
+				chan->facility = LOG_LOCAL3;
+			else if (!strcasecmp(facility, "LOCAL4")) 
+				chan->facility = LOG_LOCAL4;
+			else if (!strcasecmp(facility, "LOCAL5")) 
+				chan->facility = LOG_LOCAL5;
+			else if (!strcasecmp(facility, "LOCAL6")) 
+				chan->facility = LOG_LOCAL6;
+			else if (!strcasecmp(facility, "LOCAL7")) 
+				chan->facility = LOG_LOCAL7;
+#endif /* Solaris */
 
-		    if (0 > chan->facility) {
-			fprintf(stderr, "Logger Warning: bad syslog facility in logger.conf\n");
-			free(chan);
-			return NULL;
-		    }
+			if (0 > chan->facility) {
+				fprintf(stderr, "Logger Warning: bad syslog facility in logger.conf\n");
+				free(chan);
+				return NULL;
+			}
 
-		    chan->syslog = 1;
-		    openlog("asterisk", LOG_PID, chan->facility);
+			chan->type = LOGTYPE_SYSLOG;
+			openlog("asterisk", LOG_PID, chan->facility);
 		} else {
 			if (channel[0] == '/') {
 				if(!ast_strlen_zero(hostname)) { 
@@ -243,7 +251,8 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 			if (!chan->fileptr) {
 				/* Can't log here, since we're called with a lock */
 				fprintf(stderr, "Logger Warning: Unable to open log file '%s': %s\n", chan->filename, strerror(errno));
-			}
+			} 
+			chan->type = LOGTYPE_FILE;
 		}
 		chan->logmask = make_components(components, lineno);
 	}
@@ -261,9 +270,9 @@ static void init_logger_chain(void)
 	ast_mutex_lock(&loglock);
 	chan = logchannels;
 	while (chan) {
-	    cur = chan->next;
-	    free(chan);
-	    chan = cur;
+		cur = chan->next;
+		free(chan);
+		chan = cur;
 	}
 	logchannels = NULL;
 	ast_mutex_unlock(&loglock);
@@ -276,7 +285,7 @@ static void init_logger_chain(void)
 	
 	/* If no config file, we're fine */
 	if (!cfg)
-	    return;
+		return;
 	
 	ast_mutex_lock(&loglock);
 	if ((s = ast_variable_retrieve(cfg, "general", "appendhostname"))) {
@@ -337,6 +346,7 @@ static void queue_log_init(void)
 {
 	char filename[256];
 	int reloaded = 0;
+
 	ast_mutex_lock(&qloglock);
 	if (qlog) {
 		reloaded = 1;
@@ -360,16 +370,14 @@ int reload_logger(int rotate)
 	char new[AST_CONFIG_MAX_PATH];
 	struct logchannel *f;
 	FILE *myf;
-
 	int x;
+
 	ast_mutex_lock(&loglock);
 	if (eventlog) 
 		fclose(eventlog);
 	else 
 		rotate = 0;
 	eventlog = NULL;
-
-
 
 	mkdir((char *)ast_config_AST_LOG_DIR, 0755);
 	snprintf(old, sizeof(old), "%s/%s", (char *)ast_config_AST_LOG_DIR, EVENTLOG);
@@ -379,7 +387,7 @@ int reload_logger(int rotate)
 			for (x=0;;x++) {
 				snprintf(new, sizeof(new), "%s/%s.%d", (char *)ast_config_AST_LOG_DIR, EVENTLOG,x);
 				myf = fopen((char *)new, "r");
-				if (myf) 
+				if (myf) 	/* File exists */
 					fclose(myf);
 				else
 					break;
@@ -395,8 +403,12 @@ int reload_logger(int rotate)
 
 	f = logchannels;
 	while(f) {
+		if (f->disabled) {
+			f->disabled = 0;	/* Re-enable logging at reload */
+			manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: Yes\r\n", f->filename);
+		}
 		if (f->fileptr && (f->fileptr != stdout) && (f->fileptr != stderr)) {
-			fclose(f->fileptr);
+			fclose(f->fileptr);	/* Close file */
 			f->fileptr = NULL;
 			if(rotate) {
 				strncpy(old, f->filename, sizeof(old) - 1);
@@ -439,24 +451,60 @@ int reload_logger(int rotate)
 
 static int handle_logger_reload(int fd, int argc, char *argv[])
 {
-	if(reload_logger(0))
-	{
+	if(reload_logger(0)) {
 		ast_cli(fd, "Failed to reload the logger\n");
 		return RESULT_FAILURE;
-	}
-	else
+	} else
 		return RESULT_SUCCESS;
 }
 
 static int handle_logger_rotate(int fd, int argc, char *argv[])
 {
-	if(reload_logger(1))
-	{
+	if(reload_logger(1)) {
 		ast_cli(fd, "Failed to reload the logger and rotate log files\n");
 		return RESULT_FAILURE;
-	}
-	else
+	} else
 		return RESULT_SUCCESS;
+}
+
+/*--- handle_logger_show_channels: CLI command to show logging system 
+ 	configuration */
+static int handle_logger_show_channels(int fd, int argc, char *argv[])
+{
+#define FORMATL	"%-35.35s %-8.8s %-9.9s "
+	struct logchannel *chan;
+
+	ast_mutex_lock(&loglock);
+
+	chan = logchannels;
+	ast_cli(fd,FORMATL, "Channel", "Type", "Status");
+	ast_cli(fd, "Configuration\n");
+	ast_cli(fd,FORMATL, "-------", "----", "------");
+	ast_cli(fd, "-------------\n");
+	while (chan) {
+		ast_cli(fd, FORMATL, chan->filename, chan->type==LOGTYPE_CONSOLE ? "Console" : (chan->type==LOGTYPE_SYSLOG ? "Syslog" : "File"),
+			chan->disabled ? "Disabled" : "Enabled");
+		ast_cli(fd, " - ");
+		if (chan->logmask & (1 << __LOG_DEBUG)) 
+			ast_cli(fd, "Debug ");
+		if (chan->logmask & (1 << __LOG_VERBOSE)) 
+			ast_cli(fd, "Verbose ");
+		if (chan->logmask & (1 << __LOG_WARNING)) 
+			ast_cli(fd, "Warning ");
+		if (chan->logmask & (1 << __LOG_NOTICE)) 
+			ast_cli(fd, "Notice ");
+		if (chan->logmask & (1 << __LOG_ERROR)) 
+			ast_cli(fd, "Error ");
+		if (chan->logmask & (1 << __LOG_EVENT)) 
+			ast_cli(fd, "Event ");
+		ast_cli(fd, "\n");
+		chan = chan->next;
+	}
+	ast_cli(fd, "\n");
+
+	ast_mutex_unlock(&loglock);
+ 		
+	return RESULT_SUCCESS;
 }
 
 static struct verb {
@@ -467,11 +515,20 @@ static struct verb {
 
 static char logger_reload_help[] =
 "Usage: logger reload\n"
-"       Reloads the logger subsystem state.  Use after restarting syslogd(8)\n";
+"       Reloads the logger subsystem state.  Use after restarting syslogd(8) if you are using syslog logging.\n";
 
 static char logger_rotate_help[] =
 "Usage: logger rotate\n"
 "       Rotates and Reopens the log files.\n";
+
+static char logger_show_channels_help[] =
+"Usage: logger show channels\n"
+"       Show configured logger channels.\n";
+
+static struct ast_cli_entry logger_show_channels_cli = 
+	{ { "logger", "show", "channels", NULL }, 
+	handle_logger_show_channels, "List configured log channels",
+	logger_show_channels_help };
 
 static struct ast_cli_entry reload_logger_cli = 
 	{ { "logger", "reload", NULL }, 
@@ -500,6 +557,7 @@ int init_logger(void)
 	/* register the relaod logger cli command */
 	ast_cli_register(&reload_logger_cli);
 	ast_cli_register(&rotate_logger_cli);
+	ast_cli_register(&logger_show_channels_cli);
 
 	/* initialize queue logger */
 	queue_log_init();
@@ -609,12 +667,14 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 
 	if (logchannels) {
 		chan = logchannels;
-		while(chan) {
-			if (chan->syslog && (chan->logmask & (1 << level))) {
+		while(chan && !chan->disabled) {
+			/* Check syslog channels */
+			if (chan->type == LOG_SYSLOG && (chan->logmask & (1 << level))) {
 				va_start(ap, fmt);
 				ast_log_vsyslog(level, file, line, function, fmt, ap);
 				va_end(ap);
-			} else if ((chan->logmask & (1 << level)) && (chan->console)) {
+			/* Console channels */
+			} else if ((chan->logmask & (1 << level)) && (chan->type == LOGTYPE_CONSOLE)) {
 				char linestr[128];
 				char tmp1[80], tmp2[80], tmp3[80], tmp4[80];
 
@@ -634,15 +694,28 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 					va_end(ap);
 					ast_console_puts(buf);
 				}
+			/* File channels */
 			} else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
-				snprintf(buf, sizeof(buf), option_timestamp ? "[%s] %s[%ld]: " : "%s %s[%ld]: ", date,
-					levels[level], (long)GETTID());
-				fprintf(chan->fileptr, buf);
-				va_start(ap, fmt);
-				vsnprintf(buf, sizeof(buf), fmt, ap);
-				va_end(ap);
-				fputs(buf, chan->fileptr);
-				fflush(chan->fileptr);
+				int res;
+				snprintf(buf, sizeof(buf), option_timestamp ? "[%s] %s[%ld]: " : "%s %s[%ld] %s: ", date,
+					levels[level], (long)GETTID(), file);
+				res = fprintf(chan->fileptr, buf);
+				if (res <= 0 && buf[0] != '\0') {	/* Error, no characters printed */
+					fprintf(stderr,"**** Asterisk Logging Error: ***********\n");
+					if (errno == ENOMEM || errno == ENOSPC) {
+						fprintf(stderr, "Asterisk logging error: Out of disk space, can't log to log file %s\n", chan->filename);
+					} else
+						fprintf(stderr, "Logger Warning: Unable to write to log file '%s': %s (disabled)\n", chan->filename, strerror(errno));
+					manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: No\r\nReason: %d - %s\r\n", chan->filename, errno, strerror(errno));
+					chan->disabled = 1;	
+				} else {
+					/* No error message, continue printing */
+					va_start(ap, fmt);
+					vsnprintf(buf, sizeof(buf), fmt, ap);
+					va_end(ap);
+					fputs(buf, chan->fileptr);
+					fflush(chan->fileptr);
+				}
 			}
 			chan = chan->next;
 		}
@@ -663,9 +736,9 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	/* end critical section */
 	if (pending_logger_reload) {
 		reload_logger(1);
-		ast_log(LOG_EVENT,"Rotated Logs Per SIGXFSZ\n");
+		ast_log(LOG_EVENT,"Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
 		if (option_verbose)
-			ast_verbose("Rotated Logs Per SIGXFSZ\n");
+			ast_verbose("Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
 	}
 }
 
