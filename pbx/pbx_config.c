@@ -95,7 +95,7 @@ static char reload_extensions_help[] =
 "Usage: reload extensions.conf without reloading any other modules\n"
 "       This command does not delete global variables\n"
 "\n"
-"Example: reload extensions\n";
+"Example: extensions reload\n";
 
 /*
  * Implementation of functions provided by this module
