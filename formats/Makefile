@@ -17,7 +17,7 @@ FORMAT_LIBS+=format_jpeg.so
 
 GSMLIB=../codecs/gsm/lib/libgsm.a
 
-CFLAGS+=
+CFLAGS+=-fPIC
 
 all: $(FORMAT_LIBS)
 

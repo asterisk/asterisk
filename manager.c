@@ -539,7 +539,7 @@ static int get_input(struct mansession *s, char *output)
 	}
 	FD_ZERO(&fds);
 	FD_SET(s->fd, &fds);
-	res = select(s->fd + 1, &fds, NULL, NULL, NULL);
+	res = ast_select(s->fd + 1, &fds, NULL, NULL, NULL);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
 	} else if (res > 0) {

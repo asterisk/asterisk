@@ -21,7 +21,7 @@ MODG723=$(shell [ -f g723.1/coder.c ] && echo "codec_g723_1.so")
 MODG723+=$(shell [ -f g723.1b/coder2.c ] && echo "codec_g723_1b.so")
 MODSPEEX=$(shell [ -f /usr/include/speex.h ] || [ -f /usr/local/include/speex.h ] && echo "codec_speex.so")
 MODILBC=$(shell [ -f ilbc/iLBC_decode.h ] && echo "codec_ilbc.so")
-CFLAGS+=
+CFLAGS+=-fPIC
 
 LIBG723=g723.1/libg723.a
 LIBG723B=g723.1b/libg723b.a

@@ -13,7 +13,7 @@
 
 MODS=cdr_csv.so
 
-CFLAGS+=
+CFLAGS+=-fPIC
 
 #
 # MySQL stuff...  Autoconf anyone??

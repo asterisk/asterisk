@@ -75,7 +75,7 @@ static int timed_read(int fd, void *data, int datalen)
 	struct timeval tv = { 2, 0 };		/* Wait no more than 2 seconds */
 	FD_ZERO(&fds);
 	FD_SET(fd, &fds);
-	res = select(fd + 1, &fds, NULL, NULL, &tv);
+	res = ast_select(fd + 1, &fds, NULL, NULL, &tv);
 	if (res < 1) {
 		ast_log(LOG_NOTICE, "Selected timed out/errored out with %d\n", res);
 		return -1;

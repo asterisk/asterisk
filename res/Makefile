@@ -20,7 +20,7 @@ CFLAGS+=$(shell [ -f /usr/include/linux/zaptel.h ] && echo " -DZAPATA_MOH")
 #
 # Work around buggy RedHat 9.0
 #
-CFLAGS+=-DOPENSSL_NO_KRB5
+CFLAGS+=-DOPENSSL_NO_KRB5 -fPIC
 
 all: $(MODS)
 

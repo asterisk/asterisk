@@ -130,7 +130,7 @@ static void *netconsole(void *vconsole)
 		max = con->fd;
 		if (con->p[0] > max)
 			max = con->p[0];
-		res = select(max + 1, &rfds, NULL, NULL, NULL);
+		res = ast_select(max + 1, &rfds, NULL, NULL, NULL);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "select returned < 0: %s\n", strerror(errno));
 			continue;
@@ -672,7 +672,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 		max = ast_consock;
 		if (STDIN_FILENO > max)
 			max = STDIN_FILENO;
-		res = select(max+1, &rfds, NULL, NULL, NULL);
+		res = ast_select(max+1, &rfds, NULL, NULL, NULL);
 		if (res < 0) {
 			if (errno == EINTR)
 				continue;
@@ -1369,7 +1369,7 @@ int main(int argc, char *argv[])
 
 	} else {
  		/* Do nothing */
-		select(0,NULL,NULL,NULL,NULL);
+		ast_select(0,NULL,NULL,NULL,NULL);
 	}
 	return 0;
 }

@@ -841,7 +841,7 @@ echo "$ac_t""$CPP" 1>&6
 
 
 ac_aux_dir=
-for ac_dir in $srcdir $srcdir/.. $srcdir/../..; do
+for ac_dir in ${GNUSYSTEM_AUX_DIR} $srcdir $srcdir/.. $srcdir/../..; do
   if test -f $ac_dir/install-sh; then
     ac_aux_dir=$ac_dir
     ac_install_sh="$ac_aux_dir/install-sh -c"
@@ -1465,91 +1465,15 @@ fi
 done
 
 
-cat > conftest.$ac_ext <<EOF
-#line 1470 "configure"
-#include "confdefs.h"
-#include <sys/cdefs.h>
-#ifdef __RCSID
-  yes
-#endif
-
-EOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  egrep "yes" >/dev/null 2>&1; then
-  :
-else
-  rm -rf conftest*
-  CPPFLAGS="$CPPFLAGS '-D__RCSID(x)='"
-fi
-rm -f conftest*
-
-
-cat > conftest.$ac_ext <<EOF
-#line 1489 "configure"
-#include "confdefs.h"
-#include <sys/cdefs.h>
-#ifdef __COPYRIGHT
-  yes
-#endif
-
-EOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  egrep "yes" >/dev/null 2>&1; then
-  :
-else
-  rm -rf conftest*
-  CPPFLAGS="$CPPFLAGS '-D__COPYRIGHT(x)='"
-fi
-rm -f conftest*
-
-
-cat > conftest.$ac_ext <<EOF
-#line 1508 "configure"
-#include "confdefs.h"
-#include <sys/cdefs.h>
-#ifdef __RENAME
-  yes
-#endif
-
-EOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  egrep "yes" >/dev/null 2>&1; then
-  :
-else
-  rm -rf conftest*
-  CPPFLAGS="$CPPFLAGS '-D__RENAME(x)='"
-fi
-rm -f conftest*
-
-
-cat > conftest.$ac_ext <<EOF
-#line 1527 "configure"
-#include "confdefs.h"
-#include <sys/cdefs.h>
-#ifdef _DIAGASSERT
-  yes
-#endif
-
-EOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  egrep "yes" >/dev/null 2>&1; then
-  :
-else
-  rm -rf conftest*
-  CPPFLAGS="$CPPFLAGS '-D_DIAGASSERT(x)='"
-fi
-rm -f conftest*
-
-
 for ac_func in issetugid
 do
 echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
-echo "configure:1548: checking for $ac_func" >&5
+echo "configure:1472: checking for $ac_func" >&5
 if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 1553 "configure"
+#line 1477 "configure"
 #include "confdefs.h"
 /* System header to define __stub macros and hopefully few prototypes,
     which can conflict with char $ac_func(); below.  */
@@ -1572,7 +1496,7 @@ $ac_func();
 
 ; return 0; }
 EOF
-if { (eval echo configure:1576: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:1500: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   eval "ac_cv_func_$ac_func=yes"
 else
@@ -1599,12 +1523,12 @@ done
 for ac_func in strlcat
 do
 echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
-echo "configure:1603: checking for $ac_func" >&5
+echo "configure:1527: checking for $ac_func" >&5
 if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 1608 "configure"
+#line 1532 "configure"
 #include "confdefs.h"
 /* System header to define __stub macros and hopefully few prototypes,
     which can conflict with char $ac_func(); below.  */
@@ -1627,7 +1551,7 @@ $ac_func();
 
 ; return 0; }
 EOF
-if { (eval echo configure:1631: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:1555: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   eval "ac_cv_func_$ac_func=yes"
 else
@@ -1655,12 +1579,12 @@ done
 for ac_func in strlcpy
 do
 echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
-echo "configure:1659: checking for $ac_func" >&5
+echo "configure:1583: checking for $ac_func" >&5
 if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 1664 "configure"
+#line 1588 "configure"
 #include "confdefs.h"
 /* System header to define __stub macros and hopefully few prototypes,
     which can conflict with char $ac_func(); below.  */
@@ -1683,7 +1607,7 @@ $ac_func();
 
 ; return 0; }
 EOF
-if { (eval echo configure:1687: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:1611: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   eval "ac_cv_func_$ac_func=yes"
 else
@@ -1711,12 +1635,12 @@ done
 for ac_func in fgetln
 do
 echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
-echo "configure:1715: checking for $ac_func" >&5
+echo "configure:1639: checking for $ac_func" >&5
 if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 1720 "configure"
+#line 1644 "configure"
 #include "confdefs.h"
 /* System header to define __stub macros and hopefully few prototypes,
     which can conflict with char $ac_func(); below.  */
@@ -1739,7 +1663,7 @@ $ac_func();
 
 ; return 0; }
 EOF
-if { (eval echo configure:1743: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:1667: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   eval "ac_cv_func_$ac_func=yes"
 else
@@ -1767,12 +1691,12 @@ done
 for ac_func in strvis
 do
 echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
-echo "configure:1771: checking for $ac_func" >&5
+echo "configure:1695: checking for $ac_func" >&5
 if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 1776 "configure"
+#line 1700 "configure"
 #include "confdefs.h"
 /* System header to define __stub macros and hopefully few prototypes,
     which can conflict with char $ac_func(); below.  */
@@ -1795,7 +1719,7 @@ $ac_func();
 
 ; return 0; }
 EOF
-if { (eval echo configure:1799: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:1723: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   eval "ac_cv_func_$ac_func=yes"
 else
@@ -1823,12 +1747,12 @@ done
 for ac_func in strunvis
 do
 echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
-echo "configure:1827: checking for $ac_func" >&5
+echo "configure:1751: checking for $ac_func" >&5
 if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 1832 "configure"
+#line 1756 "configure"
 #include "confdefs.h"
 /* System header to define __stub macros and hopefully few prototypes,
     which can conflict with char $ac_func(); below.  */
@@ -1851,7 +1775,7 @@ $ac_func();
 
 ; return 0; }
 EOF
-if { (eval echo configure:1855: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:1779: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   eval "ac_cv_func_$ac_func=yes"
 else
@@ -1875,6 +1799,82 @@ else
 CCSRCS="$CCSRCS np/unvis.c"
 fi
 done
+
+
+cat > conftest.$ac_ext <<EOF
+#line 1806 "configure"
+#include "confdefs.h"
+#include <sys/cdefs.h>
+#ifdef __RCSID
+  yes
+#endif
+
+EOF
+if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
+  egrep "yes" >/dev/null 2>&1; then
+  :
+else
+  rm -rf conftest*
+  CPPFLAGS="$CPPFLAGS '-D__RCSID(x)='"
+fi
+rm -f conftest*
+
+
+cat > conftest.$ac_ext <<EOF
+#line 1825 "configure"
+#include "confdefs.h"
+#include <sys/cdefs.h>
+#ifdef __COPYRIGHT
+  yes
+#endif
+
+EOF
+if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
+  egrep "yes" >/dev/null 2>&1; then
+  :
+else
+  rm -rf conftest*
+  CPPFLAGS="$CPPFLAGS '-D__COPYRIGHT(x)='"
+fi
+rm -f conftest*
+
+
+cat > conftest.$ac_ext <<EOF
+#line 1844 "configure"
+#include "confdefs.h"
+#include <sys/cdefs.h>
+#ifdef __RENAME
+  yes
+#endif
+
+EOF
+if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
+  egrep "yes" >/dev/null 2>&1; then
+  :
+else
+  rm -rf conftest*
+  CPPFLAGS="$CPPFLAGS '-D__RENAME(x)='"
+fi
+rm -f conftest*
+
+
+cat > conftest.$ac_ext <<EOF
+#line 1863 "configure"
+#include "confdefs.h"
+#include <sys/cdefs.h>
+#ifdef _DIAGASSERT
+  yes
+#endif
+
+EOF
+if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
+  egrep "yes" >/dev/null 2>&1; then
+  :
+else
+  rm -rf conftest*
+  CPPFLAGS="$CPPFLAGS '-D_DIAGASSERT(x)='"
+fi
+rm -f conftest*
 
 
 # Check whether --enable-readline or --disable-readline was given.

@@ -262,7 +262,7 @@ static void *sound_thread(void *unused)
 				max = readdev;
 		}
 #endif
-		res = select(max + 1, &rfds, &wfds, NULL, NULL);
+		res = ast_select(max + 1, &rfds, &wfds, NULL, NULL);
 		if (res < 1) {
 			ast_log(LOG_WARNING, "select failed: %s\n", strerror(errno));
 			continue;

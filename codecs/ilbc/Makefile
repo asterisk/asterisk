@@ -1,3 +1,4 @@
+CFLAGS+= -fPIC -O3
 LIB=libilbc.a
 
 OBJS= anaFilter.o iCBSearch.o packing.o \

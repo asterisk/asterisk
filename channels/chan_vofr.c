@@ -564,7 +564,7 @@ retry:
 			fd_set fds;
 			FD_ZERO(&fds);
 			FD_SET(p->s, &fds);
-			select(p->s + 1, &fds, NULL, NULL, NULL);
+			ast_select(p->s + 1, &fds, NULL, NULL, NULL);
 			goto retry;
 		}
 		ast->blocking = 0;
@@ -953,7 +953,7 @@ static void *do_monitor(void *data)
 		ast_pthread_mutex_unlock(&monlock);
 		pthread_testcancel();
 		/* Wait indefinitely for something to happen */
-		res = select(n + 1, &rfds, NULL, NULL, NULL);
+		res = ast_select(n + 1, &rfds, NULL, NULL, NULL);
 		pthread_testcancel();
 		/* Okay, select has finished.  Let's see what happened.  */
 		if (res < 0) {

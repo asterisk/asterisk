@@ -1,7 +1,7 @@
 #
 # LMC section
 
-CFLAGS+= -I../include -Iinclude -O6 -funroll-loops -finline-functions -Wall -Wno-missing-prototypes -Wno-missing-declarations -g
+CFLAGS+= -I../include -Iinclude -O6 -funroll-loops -finline-functions -Wall -Wno-missing-prototypes -Wno-missing-declarations -g -fPIC
 RANLIB=ranlib
 
 # the XING decoder objs and dependencies:

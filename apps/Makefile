@@ -27,7 +27,7 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_intercom.
 APPS+=$(shell if [ -f /usr/include/linux/zaptel.h ]; then echo "app_zapras.so app_meetme.so app_flash.so app_zapbarge.so" ; fi)
 #APPS+=$(shell if [ -f /usr/include/zap.h ]; then echo "app_rpt.so" ; fi)
 
-CFLAGS+=
+CFLAGS+=-fPIC
 
 all: $(APPS)
 

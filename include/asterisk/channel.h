@@ -669,6 +669,45 @@ int ast_autoservice_start(struct ast_channel *chan);
 /*! Stop servicing a channel for us...  Returns -1 on error or if channel has been hungup */
 int ast_autoservice_stop(struct ast_channel *chan);
 
+/* Misc. functions below */
+
+//! Waits for activity on a group of channels
+/*! 
+ * \param nfds the maximum number of file descriptors in the sets
+ * \param rfds file descriptors to check for read availability
+ * \param wfds file descriptors to check for write availability
+ * \param efds file descriptors to check for exceptions (OOB data)
+ * \param tvp timeout while waiting for events
+ * This is the same as a standard select(), except it guarantees the
+ * behaviour where the passed struct timeval is updated with how much
+ * time was not slept while waiting for the specified events
+ */
+static inline int ast_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *tvp)
+{
+#ifdef __linux__
+	return select(nfds, rfds, wfds, efds, tvp);
+#else
+	if (tvp) {
+		struct timeval tv, tvstart, tvend, tvlen;
+		int res;
+
+		tv = *tvp;
+		gettimeofday(&tvstart, NULL);
+		res = select(nfds, rfds, wfds, efds, tvp);
+		gettimeofday(&tvend, NULL);
+		timersub(&tvend, &tvstart, &tvlen);
+		timersub(&tv, &tvlen, tvp);
+		if (tvp->tv_sec < 0 || (tvp->tv_sec == 0 && tvp->tv_usec < 0)) {
+			tvp->tv_sec = 0;
+			tvp->tv_usec = 0;
+		}
+		return res;
+	}
+	else
+		return(nfds, rfds, wfds, efds, NULL);
+#endif
+}
+
 #ifdef DO_CRASH
 #define CRASH do { fprintf(stderr, "!! Forcing immediate crash a-la abort !!\n"); *((int *)0) = 0; } while(0)
 #else

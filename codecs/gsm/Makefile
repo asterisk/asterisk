@@ -55,7 +55,7 @@ PG =
 # CCFLAGS 	= -c -O
 
 CC		= gcc -ansi -pedantic $(OPTIMIZE) -march=$(PROC) -fschedule-insns2  -fomit-frame-pointer 
-CCFLAGS 	+= -c -DNeedFunctionPrototypes=1 -finline-functions -funroll-loops
+CCFLAGS 	+= -c -DNeedFunctionPrototypes=1 -finline-functions -funroll-loops -fPIC
 
 LD 		= $(CC)
 
@@ -175,7 +175,6 @@ GSM_SOURCES =	$(SRC)/add.c		\
 		$(SRC)/code.c		\
 		$(SRC)/debug.c		\
 		$(SRC)/decode.c		\
-		$(SRC)/k6opt.s	\
 		$(SRC)/long_term.c	\
 		$(SRC)/lpc.c		\
 		$(SRC)/preprocess.c	\
@@ -190,6 +189,9 @@ GSM_SOURCES =	$(SRC)/add.c		\
 		$(SRC)/gsm_option.c	\
 		$(SRC)/short_term.c	\
 		$(SRC)/table.c
+ifneq (${OSARCH},OpenBSD)
+GSM_SOURCES+=	$(SRC)/k6opt.s
+endif
 
 TOAST_SOURCES = $(SRC)/toast.c 		\
 		$(SRC)/toast_lin.c	\
@@ -220,7 +222,6 @@ GSM_OBJECTS =	$(SRC)/add.o		\
 		$(SRC)/code.o		\
 		$(SRC)/debug.o		\
 		$(SRC)/decode.o		\
-		$(SRC)/k6opt.o	\
 		$(SRC)/long_term.o	\
 		$(SRC)/lpc.o		\
 		$(SRC)/preprocess.o	\
@@ -235,6 +236,9 @@ GSM_OBJECTS =	$(SRC)/add.o		\
 		$(SRC)/gsm_option.o	\
 		$(SRC)/short_term.o	\
 		$(SRC)/table.o
+ifneq (${OSARCH},OpenBSD)
+GSM_OBJECTS+=	$(SRC)/k6opt.o
+endif
 
 TOAST_OBJECTS =	$(SRC)/toast.o 		\
 		$(SRC)/toast_lin.o	\

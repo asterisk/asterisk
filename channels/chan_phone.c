@@ -848,9 +848,9 @@ static void *do_monitor(void *data)
 				tv.tv_usec = 30000;
 				tv.tv_sec = 0;
 			}
-			res = select(n + 1, &rfds, NULL, &efds, &tv);
+			res = ast_select(n + 1, &rfds, NULL, &efds, &tv);
 		} else {
-			res = select(n + 1, &rfds, NULL, &efds, NULL);
+			res = ast_select(n + 1, &rfds, NULL, &efds, NULL);
 			tv.tv_usec = 0;
 			tv.tv_sec = 0;
 			tonepos = 0;

@@ -11,6 +11,8 @@
 # the GNU General Public License
 #
 
+OSARCH=$(shell uname -s)
+
 CHANNEL_LIBS=chan_modem.so chan_iax.so chan_sip.so \
 	     chan_modem_aopen.so chan_oss.so \
              chan_modem_bestdata.so chan_modem_i4l.so \
@@ -41,6 +43,7 @@ ALSA_SRC=chan_alsa.c
 ALSA_SRC+=$(shell [ -f alsa-monitor.h ] && echo "alsa-monitor.h")
 
 CFLAGS+=-DCRYPTO
+CFLAGS+=-fPIC
 
 CFLAGS+=#-DVOFRDUMPER
 
@@ -76,7 +79,11 @@ ringtone.h: gentone
 chan_oss.o: chan_oss.c  busy.h ringtone.h
 
 chan_iax2.so: chan_iax2.o iax2-parser.o
+ifeq (${OSARCH},Linux)
 	$(CC) -shared -Xlinker -x -o $@ chan_iax2.o iax2-parser.o
+else
+	$(CC) -shared -Xlinker -x -o $@ chan_iax2.o iax2-parser.o -lossaudio
+endif
 
 chan_zap.o: $(CHANZAP)
 	$(CC) -c $(CFLAGS) -o chan_zap.o $(CHANZAP)

@@ -27,7 +27,7 @@ GTK_LIBS=`gtk-config --libs gthread`
 MOC=$(QTDIR)/bin/moc
 KDE_FLAGS=-I$(KDEDIR)/include -I$(KDEDIR)/include/kde -I$(QTDIR)/include
 KDE_LIBS=-L$(KDEDIR)/lib -L$(QTDIR)/lib -lqt -lkdecore -lkdeui
-CFLAGS+=
+CFLAGS+=-fPIC
 
 KDE_CONSOLE_OBJS=pbx_kdeconsole_main.o pbx_kdeconsole.o 
 

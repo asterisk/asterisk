@@ -443,7 +443,7 @@ std:					for (x=0;x<AST_MAX_FDS;x++) {
 		tv.tv_sec = ms / 1000;
 		tv.tv_usec = (ms % 1000) * 1000;
 		/* Wait for something to happen */
-		select(max + 1, &rfds, NULL, &efds, (ms > -1) ? &tv : NULL);
+		ast_select(max + 1, &rfds, NULL, &efds, (ms > -1) ? &tv : NULL);
 		pthread_testcancel();
 	}
 	return NULL;	/* Never reached */

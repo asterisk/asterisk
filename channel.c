@@ -756,10 +756,10 @@ int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 				max = fds[x];
 		}
 	}
-	if (*ms >= 0) 
-		res = select(max + 1, &rfds, NULL, &efds, &tv);
+	if (*ms >= 0)
+		res = ast_select(max + 1, &rfds, NULL, &efds, &tv);
 	else
-		res = select(max + 1, &rfds, NULL, &efds, NULL);
+		res = ast_select(max + 1, &rfds, NULL, &efds, NULL);
 
 	if (res < 0) {
 		/* Simulate a timeout if we were interrupted */
@@ -828,10 +828,10 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		if (fds[x] > max)
 			max = fds[x];
 	}
-	if (*ms >= 0) 
-		res = select(max + 1, &rfds, NULL, &efds, &tv);
+	if (*ms >= 0)
+		res = ast_select(max + 1, &rfds, NULL, &efds, &tv);
 	else
-		res = select(max + 1, &rfds, NULL, &efds, NULL);
+		res = ast_select(max + 1, &rfds, NULL, &efds, NULL);
 
 	if (res < 0) {
 		for (x=0;x<n;x++) 

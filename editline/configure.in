@@ -76,6 +76,13 @@ AC_CHECK_HEADERS(termcap.h, , \
 
 AC_CHECK_HEADERS(sys/cdefs.h vis.h)
 
+AC_CHECK_FUNCS(issetugid)
+AC_CHECK_FUNCS(strlcat, , CCSRCS="$CCSRCS np/strlcat.c")
+AC_CHECK_FUNCS(strlcpy, , CCSRCS="$CCSRCS np/strlcpy.c")
+AC_CHECK_FUNCS(fgetln, , CCSRCS="$CCSRCS np/fgetln.c")
+AC_CHECK_FUNCS(strvis, , CCSRCS="$CCSRCS np/vis.c")
+AC_CHECK_FUNCS(strunvis, , CCSRCS="$CCSRCS np/unvis.c")
+
 AC_EGREP_CPP(yes,
 [#include <sys/cdefs.h>
 #ifdef __RCSID
@@ -103,13 +110,6 @@ AC_EGREP_CPP(yes,
   yes
 #endif
 ], , [CPPFLAGS="$CPPFLAGS '-D_DIAGASSERT(x)='"])
-
-AC_CHECK_FUNCS(issetugid)
-AC_CHECK_FUNCS(strlcat, , CCSRCS="$CCSRCS np/strlcat.c")
-AC_CHECK_FUNCS(strlcpy, , CCSRCS="$CCSRCS np/strlcpy.c")
-AC_CHECK_FUNCS(fgetln, , CCSRCS="$CCSRCS np/fgetln.c")
-AC_CHECK_FUNCS(strvis, , CCSRCS="$CCSRCS np/vis.c")
-AC_CHECK_FUNCS(strunvis, , CCSRCS="$CCSRCS np/unvis.c")
 
 dnl Enable readline compatibility by default.
 AC_ARG_ENABLE(readline, [  --disable-readline      Disable readline compatibility],

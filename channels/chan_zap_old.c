@@ -1673,7 +1673,7 @@ int	x;
 				FD_ZERO(&efds);
 				FD_SET(fd,&wfds);
 				FD_SET(fd,&efds);			
-				res = select(fd + 1,NULL,&wfds,&efds,NULL);
+				res = ast_select(fd + 1,NULL,&wfds,&efds,NULL);
 				if (!res) {
 					ast_log(LOG_DEBUG, "select (for write) ret. 0 on channel %d\n", p->channel);
 					continue;
@@ -4055,7 +4055,7 @@ static void *do_monitor(void *data)
 		/* Wait at least a second for something to happen */
 		tv.tv_sec = 1;
 		tv.tv_usec = 0;
-		res = select(n + 1, &rfds, NULL, &efds, &tv);
+		res = ast_select(n + 1, &rfds, NULL, &efds, &tv);
 		pthread_testcancel();
 		/* Okay, select has finished.  Let's see what happened.  */
 		if (res < 0) {
@@ -5114,7 +5114,7 @@ static void *pri_dchannel(void *vpri)
 		pthread_mutex_unlock(&pri->lock);
 
 		e = NULL;
-		res = select(pri->fd + 1, &rfds, NULL, &efds, &tv);
+		res = ast_select(pri->fd + 1, &rfds, NULL, &efds, &tv);
 
 		ast_pthread_mutex_lock(&pri->lock);
 		if (!res) {
@@ -6550,7 +6550,7 @@ static int zt_sendtext(struct ast_channel *c, char *text)
 		FD_ZERO(&efds);
 		FD_SET(fd,&wfds);
 		FD_SET(fd,&efds);			
-		res = select(fd + 1,NULL,&wfds,&efds,NULL);
+		res = ast_select(fd + 1,NULL,&wfds,&efds,NULL);
 		if (!res) {
 			ast_log(LOG_DEBUG, "select (for write) ret. 0 on channel %d\n", p->channel);
 			continue;

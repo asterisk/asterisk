@@ -117,14 +117,14 @@ typedef enum { DB_BTREE, DB_HASH, DB_RECNO } DBTYPE;
 /* Access method description structure. */
 typedef struct __db {
 	DBTYPE type;			/* Underlying db type. */
-	int (*close)	__PMT((struct __db *));
-	int (*del)	__PMT((const struct __db *, const DBT *, u_int));
-	int (*get)	__PMT((const struct __db *, const DBT *, DBT *, u_int));
-	int (*put)	__PMT((const struct __db *, DBT *, const DBT *, u_int));
-	int (*seq)	__PMT((const struct __db *, DBT *, DBT *, u_int));
-	int (*sync)	__PMT((const struct __db *, u_int));
+	int (*close)	__P((struct __db *));
+	int (*del)	__P((const struct __db *, const DBT *, u_int));
+	int (*get)	__P((const struct __db *, const DBT *, DBT *, u_int));
+	int (*put)	__P((const struct __db *, DBT *, const DBT *, u_int));
+	int (*seq)	__P((const struct __db *, DBT *, DBT *, u_int));
+	int (*sync)	__P((const struct __db *, u_int));
 	void *internal;			/* Access method private. */
-	int (*fd)	__PMT((const struct __db *));
+	int (*fd)	__P((const struct __db *));
 } DB;
 
 #define	BTREEMAGIC	0x053162
@@ -139,9 +139,9 @@ typedef struct {
 	int	minkeypage;	/* minimum keys per page */
 	u_int	psize;		/* page size */
 	int	(*compare)	/* comparison function */
-	    __PMT((const DBT *, const DBT *));
+	    __P((const DBT *, const DBT *));
 	size_t	(*prefix)	/* prefix function */
-	    __PMT((const DBT *, const DBT *));
+	    __P((const DBT *, const DBT *));
 	int	lorder;		/* byte order */
 } BTREEINFO;
 
@@ -155,7 +155,7 @@ typedef struct {
 	u_int	nelem;		/* number of elements */
 	u_int	cachesize;	/* bytes to cache */
 	u_int32_t		/* hash function */
-		(*hash) __PMT((const void *, size_t));
+		(*hash) __P((const void *, size_t));
 	int	lorder;		/* byte order */
 } HASHINFO;
 

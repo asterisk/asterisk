@@ -13,13 +13,17 @@
 
 .EXPORT_ALL_VARIABLES:
 
+OSARCH=$(shell uname -s)
+
 # Pentium Pro Optimize
-#PROC=i686
+PROC=i686
 # Pentium Optimize
 #PROC=i586
 #PROC=k6
 #PROC=ppc
+ifeq (${OSARCH},Linux)
 PROC=$(shell uname -m)
+endif
 
 ######### More GSM codec optimization
 ######### Uncomment to enable MMXTM optimizations for x86 architecture CPU's
@@ -63,6 +67,9 @@ CFLAGS=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarati
 CFLAGS+=$(OPTIMIZE)
 CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
 CFLAGS+=$(shell if uname -m | grep -q ppc; then echo "-fsigned-char"; fi)
+ifeq (${OSARCH},OpenBSD)
+CFLAGS+=-pthread
+endif
 
 LIBEDIT=editline/libedit.a
 
@@ -85,7 +92,10 @@ CFLAGS+= $(DEBUG_THREADS)
 CFLAGS+= $(TRACE_FRAMES)
 CFLAGS+=# -fomit-frame-pointer 
 SUBDIRS=res channels pbx apps codecs formats agi cdr astman
-LIBS=-ldl -lpthread -lncurses -lm  #-lnjamd
+ifeq (${OSARCH},Linux)
+LIBS=-ldl
+endif
+LIBS+=-lpthread -lncurses -lm  #-lnjamd
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o say.o pbx.o cli.o md5.o term.o \
 	ulaw.o alaw.o callerid.o fskmodem.o image.o app.o \
@@ -147,7 +157,7 @@ build.h:
 endif
 
 asterisk: .version build.h editline/libedit.a db1-ast/libdb1.a $(OBJS)
-	gcc -o asterisk -rdynamic $(OBJS) $(LIBS) $(LIBEDIT) db1-ast/libdb1.a
+	gcc $(DEBUG) -o asterisk -rdynamic $(OBJS) $(LIBS) $(LIBEDIT) db1-ast/libdb1.a
 
 subdirs: 
 	for x in $(SUBDIRS); do $(MAKE) -C $$x || exit 1 ; done

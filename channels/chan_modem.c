@@ -609,7 +609,7 @@ static void *do_monitor(void *data)
 #endif
 		/* Wait indefinitely for something to happen */
 		pthread_testcancel();
-		res = select(n + 1, &rfds, NULL, &efds, NULL);
+		res = ast_select(n + 1, &rfds, NULL, &efds, NULL);
 		pthread_testcancel();
 		/* Okay, select has finished.  Let's see what happened.  */
 		if (res < 1) {
