@@ -2104,7 +2104,7 @@ int unload_module()
 	ast_mutex_destroy(&bridge_lock);
 	for(int i = 0; i < max_bridges; i++ ) {
 		ast_mutex_destroy(&bridges[i].lock);
-		pthread_cond_destroy(&bridges[i].cond, NULL);
+		pthread_cond_destroy(&bridges[i].cond);
 	}
 	free(bridges);
 
