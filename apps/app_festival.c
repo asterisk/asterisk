@@ -362,7 +362,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
     		snprintf(cachefile, sizeof(cachefile), "%s/%s", cachedir, MD5Hex);
     		fdesc=open(cachefile,O_RDWR);
     		if (fdesc==-1) {
-    			fdesc=open(cachefile,O_CREAT|O_RDWR,0);
+    			fdesc=open(cachefile,O_CREAT|O_RDWR,S_IRWXU);
     			if (fdesc!=-1) {
     				writecache=1;
     				strln=strlen((char *)data);
