@@ -1082,6 +1082,12 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 			}
 			ast_destroy(cfg);
 		}
+	} else {
+		/* Correct for the user selecting 'D' instead of 'd' to have
+		   someone join into a conference that has already been created
+		   with a pin. */
+		if (dynamic_pin[0] == 'q')
+			dynamic_pin[0] = '\0';
 	}
 	return cnf;
 }
