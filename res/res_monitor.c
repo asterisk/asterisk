@@ -283,6 +283,8 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 	char *name = astman_get_header(m, "Channel");
 	char *fname = astman_get_header(m, "File");
 	char *format = astman_get_header(m, "Format");
+	char *d;
+	
 	if((!name)||(!strlen(name))) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
@@ -298,6 +300,16 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
+     
+	if( (!fname) || (!strlen(fname)) ) {
+		// No filename base specified, default to channel name as per CLI
+		fname = malloc (FILENAME_MAX);
+		memset( fname, 0, FILENAME_MAX);
+		strncpy( fname, c->name, FILENAME_MAX-1);
+		// Channels have the format technology/channel_name - have to replace that / 
+		if( (d=strchr( fname, '/')) ) *d='-';
+	}
+	
 	if( ast_monitor_start( c, format, fname, 1 ) ) {
 		if( ast_monitor_change_fname( c, fname, 1 ) ) {
 			astman_send_error(s, m, "Could not start monitoring channel");
