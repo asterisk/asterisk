@@ -3,7 +3,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Radio Repeater / Remote Base program 
- *  version 0.13 7/12/04
+ *  version 0.14 8/15/04
  * 
  * See http://www.zapatatelephony.org/app_rpt.html
  *
@@ -136,7 +136,7 @@ enum {SOURCE_RPT, SOURCE_LNK, SOURCE_RMT};
 #include <tonezone.h>
 #include <linux/zaptel.h>
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.13  07/12/2004";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.14  08/15/2004";
 static char *app = "Rpt";
 
 static char *synopsis = "Radio Repeater/Remote Base Control System";
@@ -237,7 +237,7 @@ static struct rpt
 	char remotetx;
 	char remoteon;
 	char simple;
-	char remote;
+	char *remote;
 	char tounkeyed;
 	char tonotify;
 	char enable;
@@ -2469,7 +2469,10 @@ static int setrbi(struct rpt *myrpt)
 char tmp[MAXREMSTR] = "",rbicmd[5],*s;
 int	band,txoffset = 0,txpower = 0,rxpl;
 
-	
+	/* must be a remote system */
+	if (!myrpt->remote) return(0);
+	/* must have rbi hardware */
+	if (strncmp(myrpt->remote,"rbi",3)) return(0);
 	strncpy(tmp, myrpt->freq, sizeof(tmp) - 1);
 	s = strchr(tmp,'.');
 	/* if no decimal, is invalid */
@@ -3467,9 +3470,7 @@ int	i,j,n,longestnode;
 		rpt_vars[n].idtime = retrieve_astcfgint( this, "idtime", 60000, 2400000, IDTIME);	/* Enforce a min max */
 		rpt_vars[n].politeid = retrieve_astcfgint( this, "politeid", 30000, 300000, POLITEID); /* Enforce a min max */
 		
-		val = ast_variable_retrieve(cfg,this,"remote");
-		if (val) rpt_vars[n].remote = ast_true(val); 
-			else rpt_vars[n].remote = 0;
+		rpt_vars[n].remote = ast_variable_retrieve(cfg,this,"remote");
 		rpt_vars[n].tonezone = ast_variable_retrieve(cfg,this,"tonezone");
 		val = ast_variable_retrieve(cfg,this,"iobase");
 		if (val) rpt_vars[n].iobase = atoi(val);
@@ -3549,7 +3550,7 @@ int	i,j,n,longestnode;
 
 static int rpt_exec(struct ast_channel *chan, void *data)
 {
-	int res=-1,i,keyed = 0,rem_totx;
+	int res=-1,i,keyed = 0,rem_totx,n;
 	struct localuser *u;
 	char tmp[256];
 	char *options,*stringp,*tele;
@@ -3705,7 +3706,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		ast_set_write_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
 		myrpt->rxchannel->whentohangup = 0;
 		myrpt->rxchannel->appl = "Apprpt";
-		myrpt->rxchannel->data = "(Repeater Rx)";
+		myrpt->rxchannel->data = "(Link Rx)";
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "rpt (Rx) initiating call to %s/%s on %s\n",
 				myrpt->rxchanname,tele,myrpt->rxchannel->name);
@@ -3737,7 +3738,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			ast_set_write_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
 			myrpt->txchannel->whentohangup = 0;
 			myrpt->txchannel->appl = "Apprpt";
-			myrpt->txchannel->data = "(Repeater Rx)";
+			myrpt->txchannel->data = "(Link Tx)";
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "rpt (Tx) initiating call to %s/%s on %s\n",
 					myrpt->txchanname,tele,myrpt->txchannel->name);
@@ -3776,14 +3777,17 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	if (chan->_state != AST_STATE_UP) {
 		ast_answer(chan);
 	}
-	cs[0] = chan;
-	cs[1] = myrpt->rxchannel;
+	n = 0;
+	cs[n++] = chan;
+	cs[n++] = myrpt->rxchannel;
+	if (myrpt->rxchannel != myrpt->txchannel)
+		cs[n++] = myrpt->txchannel;
 	for(;;)
 	{
 		if (ast_check_hangup(chan)) break;
 		if (ast_check_hangup(myrpt->rxchannel)) break;
 		ms = MSWAIT;
-		who = ast_waitfor_n(cs,2,&ms);
+		who = ast_waitfor_n(cs,n,&ms);
 		if (who == NULL) ms = 0;
 		elap = MSWAIT - ms;
 		if (!ms) continue;
@@ -3890,6 +3894,27 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 						ast_indicate(chan,AST_CONTROL_RADIO_UNKEY);
 						myrpt->remoterx = 0;
 					}
+				}
+			}
+			ast_frfree(f);
+			continue;
+		}
+		if ((myrpt->rxchannel != myrpt->txchannel) && 
+			(who == myrpt->txchannel)) /* do this cuz you have to */
+		{
+			f = ast_read(myrpt->txchannel);
+			if (!f)
+			{
+				if (debug) printf("@@@@ link:Hung Up\n");
+				break;
+			}
+			if (f->frametype == AST_FRAME_CONTROL)
+			{
+				if (f->subclass == AST_CONTROL_HANGUP)
+				{
+					if (debug) printf("@@@@ rpt:Hung Up\n");
+					ast_frfree(f);
+					break;
 				}
 			}
 			ast_frfree(f);

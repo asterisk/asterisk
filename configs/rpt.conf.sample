@@ -59,7 +59,8 @@
 ; specify the rxchannel and the txchannel will be assumed from the rxchannel
 ;txchannel = Zap/6			; Tx audio/signalling channel
 ;functions = functions-remote
-;remote = yes
+;remote = rbi				; Set remote=y for dumb remote or 
+					; remote=rbi for Doug Hall RBI1
 ;iobase = 0x378				; Specify IO port for parallel port (optional)
 
 ;[functions-repeater]
