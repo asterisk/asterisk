@@ -24,13 +24,14 @@ static unsigned long seq = 0;
 
 static char *monitor_synopsis = "Monitor a channel";
 
-static char *monitor_descrip = "Monitor\n"
+static char *monitor_descrip = "Monitor([file_format|[fname_base]|[options]]):\n"
 	"Used to start monitoring a channel. The channel's input and output\n"
 	"voice packets are logged to files until the channel hangs up or\n"
 	"monitoring is stopped by the StopMonitor application.\n"
-	"The option string may contain the following arguments: [file_format|[fname_base]]\n"
 	"	file_format -- optional, if not set, defaults to \"wav\"\n"
-	"	fname_base -- if set, changes the filename used to the one specified.\n";
+	"	fname_base -- if set, changes the filename used to the one specified.\n"
+	"	options:\n"
+	"		'm' - when the recording ends mix the two leg files into one using 'soxmix' utility which has to be installed on the system.\n";
 
 static char *stopmonitor_synopsis = "Stop monitoring a channel";
 
@@ -275,6 +276,8 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 	char *arg = NULL;
 	char *format = NULL;
 	char *fname_base = NULL;
+	char *options = NULL;
+	int joinfiles = 0;
 	int res;
 	
 	/* Parse arguments. */
@@ -285,13 +288,21 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 		if( fname_base ) {
 			*fname_base = 0;
 			fname_base++;
+			if ((options = strchr(fname_base, '|'))) {
+				*options = 0;
+				options++;
+				if (strchr(options, 'm'))
+					joinfiles = 1;
+			}
 		}
+		
 	}
 
 	res = ast_monitor_start( chan, format, fname_base, 1 );
 	if( res < 0 ) {
 		res = ast_monitor_change_fname( chan, fname_base, 1 );
 	}
+	ast_monitor_setjoinfiles(chan, joinfiles);
 
 	if( arg ) {
 		free( arg );
