@@ -7,8 +7,8 @@
 
 
 	Developed using:	RedHat 7.2/7.3/8.0
-				Open H.323 v1.11.8		
-				PWLib      v1.4.12
+				Open H.323 v1.11.7		
+				PWLib      v1.4.11
 				GCC	  2.96/3.1
 
 	Dependancies:  		openssl-0.9.6b
