@@ -1557,7 +1557,7 @@ static int try_calling(struct queue_ent *qe, char *ooptions, char *announceoverr
 				}
 			}
 			res2 |= ast_autoservice_stop(qe->chan);
-			if (res2) {
+			if (peer->_softhangup) {
 				/* Agent must have hung up */
 				ast_log(LOG_WARNING, "Agent on %s hungup on the customer.  They're going to be pissed.\n", peer->name);
 				ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "AGENTDUMP", "%s", "");
@@ -1569,6 +1569,13 @@ static int try_calling(struct queue_ent *qe, char *ooptions, char *announceoverr
 							"Member: %s\r\n",
 						queuename, qe->chan->uniqueid, peer->name, member->interface);
 				}
+				ast_hangup(peer);
+				goto out;
+			} else if (res2) {
+				/* Caller must have hung up just before being connected*/
+				ast_log(LOG_NOTICE, "Caller was about to talk to agent on %s but the caller hungup.\n", peer->name);
+				ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "ABANDON", "%d|%d|%ld", qe->pos, qe->opos, (long)time(NULL) - qe->start);
+				record_abandoned(qe);
 				ast_hangup(peer);
 				return -1;
 			}
