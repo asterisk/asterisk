@@ -1131,11 +1131,15 @@ static int ast_cli_display_match_list(char **matches, int len, int max)
 			/* Don't print dupes */
 			if ( (matches[idx+1] != NULL && strcmp(matches[idx], matches[idx+1]) == 0 ) ) {
 				i--;
+				free(matches[idx]);
+				matches[idx] = NULL;
 				continue;
 			}
 
 			numoutput++;  numoutputline++;
 			fprintf(stdout, "%-*s  ", max, matches[idx]);
+			free(matches[idx]);
+			matches[idx] = NULL;
 		}
 		if (numoutputline > 0)
 			fprintf(stdout, "\n");
