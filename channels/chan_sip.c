@@ -2616,8 +2616,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	char host[258];
 	char iabuf[INET_ADDRSTRLEN];
 	int len = -1;
-	int portno=0;
-	int vportno=0;
+	int portno = -1;
+	int vportno = -1;
 	int peercapability, peernoncodeccapability;
 	int vpeercapability=0, vpeernoncodeccapability=0;
 	struct sockaddr_in sin;
@@ -2628,6 +2628,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int iterator;
 	int sendonly = 0;
 	int x;
+	int found;
 	int debug=sip_debug_test_pvt(p);
 
 	/* Update our last rtprx when we receive an SDP, too */
@@ -2657,7 +2658,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	sdpLineNum_iterator_init(&iterator);
 	p->novideo = 1;
 	while ((m = get_sdp_iterate(&iterator, req, "m"))[0] != '\0') {
+		found = 0;	
 		if ((sscanf(m, "audio %d RTP/AVP %n", &x, &len) == 1)) {
+			found = 1;	
 			portno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
 			ast_rtp_pt_clear(p->rtp);
@@ -2679,6 +2682,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			ast_rtp_pt_clear(p->vrtp);  /* Must be cleared in case no m=video line exists */
 
 		if (p->vrtp && (sscanf(m, "video %d RTP/AVP %n", &x, &len) == 1)) {
+			found = 1;	
 			p->novideo = 0;
 			vportno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
@@ -2696,6 +2700,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				while(*codecs && (*codecs < 33)) codecs++;
 			}
 		}
+		if (!found)
+			ast_log(LOG_WARNING, "Unknown SDP media type in offer %s\n", m);
+	}
+	if (portno == -1 && vportno == -1) {
+		/* No acceptable offer found in SDP */
+		return -2;
 	}
 
 	/* RTP addresses and ports for audio and video */
@@ -2726,21 +2736,22 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	 */
 	sdpLineNum_iterator_init(&iterator);
 	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
-      char* mimeSubtype = ast_strdupa(a); /* ensures we have enough space */
-	  if (!strcasecmp(a, "sendonly")) {
-	  	sendonly=1;
-		continue;
-	  }
-	  if (!strcasecmp(a, "sendrecv")) {
-	  	sendonly=0;
-	  }
-	  if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2) continue;
-	  if (debug)
-		ast_verbose("Found description format %s\n", mimeSubtype);
-	  /* Note: should really look at the 'freq' and '#chans' params too */
-	  ast_rtp_set_rtpmap_type(p->rtp, codec, "audio", mimeSubtype);
-	  if (p->vrtp)
-		  ast_rtp_set_rtpmap_type(p->vrtp, codec, "video", mimeSubtype);
+		char* mimeSubtype = ast_strdupa(a); /* ensures we have enough space */
+		if (!strcasecmp(a, "sendonly")) {
+			sendonly=1;
+			continue;
+		}
+		if (!strcasecmp(a, "sendrecv")) {
+			sendonly=0;
+		}
+		if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2) 
+			continue;
+		if (debug)
+			ast_verbose("Found description format %s\n", mimeSubtype);
+		/* Note: should really look at the 'freq' and '#chans' params too */
+		ast_rtp_set_rtpmap_type(p->rtp, codec, "audio", mimeSubtype);
+		if (p->vrtp)
+			ast_rtp_set_rtpmap_type(p->vrtp, codec, "video", mimeSubtype);
 	}
 
 	/* Now gather all of the codecs that were asked for: */
@@ -7271,8 +7282,11 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			if (p->owner) {
 				/* Handle SDP here if we already have an owner */
 				if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
-					if (process_sdp(p, req))
+					if (process_sdp(p, req)) {
+						transmit_response(p, "488 Not acceptable here", req);
+						p->needdestroy = 1;
 						return -1;
+					}
 				} else {
 					p->jointcapability = p->capability;
 					ast_log(LOG_DEBUG, "Hm....  No sdp for the moment\n");
@@ -7296,8 +7310,11 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			}
 			/* Process the SDP portion */
 			if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
-				if (process_sdp(p, req))
+				if (process_sdp(p, req)) {
+					transmit_response(p, "488 Not acceptable here", req);
+					p->needdestroy = 1;
 					return -1;
+				}
 			} else {
 				p->jointcapability = p->capability;
 				ast_log(LOG_DEBUG, "Hm....  No sdp for the moment\n");
