@@ -879,9 +879,96 @@ static int ast_el_read_char(EditLine *el, char *cp)
 
 static char *cli_prompt(EditLine *el)
 {
-	static char prompt[80];
+	static char prompt[200];
+	char *pfmt;
 
-	if (remotehostname)
+	if ((pfmt = getenv("ASTERISK_PROMPT"))) {
+		char *t = pfmt, *p = prompt;
+		memset(prompt, 0, sizeof(prompt));
+		while (*t != '\0' && *p < sizeof(prompt)) {
+			if (*t == '%') {
+				t++;
+				switch (*t) {
+					char hostname[256];
+					struct timeval tv;
+					struct tm tm;
+					FILE *LOADAVG;
+					case 'd': /* date */
+						memset(&tm, 0, sizeof(struct tm));
+						gettimeofday(&tv, NULL);
+						if (localtime_r(&(tv.tv_sec), &tm)) {
+							strftime(p, sizeof(prompt) - strlen(prompt), "%Y-%m-%d", &tm);
+						}
+						break;
+					case 'h': /* hostname */
+						if (!gethostname(hostname, sizeof(hostname) - 1)) {
+							strncat(p, hostname, sizeof(prompt) - strlen(prompt));
+						} else {
+							strncat(p, "localhost", sizeof(prompt) - strlen(prompt));
+						}
+						break;
+#ifdef linux
+					case 'l': /* load avg */
+						t++;
+						if ((LOADAVG = fopen("/proc/loadavg", "r"))) {
+							float avg1, avg2, avg3;
+							int actproc, totproc, npid, which;
+							fscanf(LOADAVG, "%f %f %f %d/%d %d",
+								&avg1, &avg2, &avg3, &actproc, &totproc, &npid);
+							if (sscanf(t, "%d", &which) == 1) {
+								switch (which) {
+									case 1:
+										snprintf(p, sizeof(prompt) - strlen(prompt), "%.2f", avg1);
+										break;
+									case 2:
+										snprintf(p, sizeof(prompt) - strlen(prompt), "%.2f", avg2);
+										break;
+									case 3:
+										snprintf(p, sizeof(prompt) - strlen(prompt), "%.2f", avg3);
+										break;
+									case 4:
+										snprintf(p, sizeof(prompt) - strlen(prompt), "%d/%d", actproc, totproc);
+										break;
+									case 5:
+										snprintf(p, sizeof(prompt) - strlen(prompt), "%d", npid);
+										break;
+								}
+							}
+						}
+						break;
+#endif
+					case 't': /* time */
+						memset(&tm, 0, sizeof(struct tm));
+						gettimeofday(&tv, NULL);
+						if (localtime_r(&(tv.tv_sec), &tm)) {
+							strftime(p, sizeof(prompt) - strlen(prompt), "%H:%M:%S", &tm);
+						}
+						break;
+					case '#': /* process console or remote? */
+						if (! option_remote) {
+							strncat(p, "#", sizeof(prompt) - strlen(prompt));
+						} else {
+							strncat(p, ">", sizeof(prompt) - strlen(prompt));
+						}
+						break;
+					case '%': /* literal % */
+						strncat(p, "%", sizeof(prompt) - strlen(prompt));
+						break;
+					case '\0': /* % is last character - prevent bug */
+						t--;
+						break;
+				}
+				while (*p != '\0') {
+					p++;
+				}
+				t++;
+			} else {
+				*p = *t;
+				p++;
+				t++;
+			}
+		}
+	} else if (remotehostname)
 		snprintf(prompt, sizeof(prompt), ASTERISK_PROMPT2, remotehostname);
 	else
 		snprintf(prompt, sizeof(prompt), ASTERISK_PROMPT);
