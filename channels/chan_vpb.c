@@ -188,34 +188,34 @@ static struct vpb_pvt {
 
 	int group;				/* Which group this port belongs to */
 
-	char dev[256];
-	vpb_model_t vpb_model;
+	char dev[256];				/* Device name, eg vpb/1-1 */
+	vpb_model_t vpb_model;			/* card model */
 
-	struct ast_frame f, fr;
+	struct ast_frame f, fr;			/* Asterisk frame interface */
 	char buf[VPB_MAX_BUF];			/* Static buffer for reading frames */
 
-	int dialtone;
+	int dialtone;				/* NOT USED */
 	float txgain, rxgain;			/* Hardware gain control */
 	float txswgain, rxswgain;		/* Software gain control */
 
 	int wantdtmf;				/* Waiting for DTMF. */
-	char context[AST_MAX_EXTENSION];
+	char context[AST_MAX_EXTENSION];	/* The context for this channel */
 
-	char ext[AST_MAX_EXTENSION];
-	char language[MAX_LANGUAGE];
+	char ext[AST_MAX_EXTENSION];		/* DTMF buffer for the ext[ens] */
+	char language[MAX_LANGUAGE];		/* language being used */
 	char callerid[AST_MAX_EXTENSION];	/* CallerId used for directly connected phone */
 
-	int lastoutput;
-	int lastinput;
+	int lastoutput;				/* Holds the last Audio format output'ed */
+	int lastinput;				/* Holds the last Audio format input'ed */
 	int last_ignore_dtmf;
 
-	void *busy_timer;
-	int busy_timer_id;
+	void *busy_timer;			/* Void pointer for busy vpb_timer */
+	int busy_timer_id;			/* unique timer ID for busy timer */
 
-	void *ringback_timer; 
-	int ringback_timer_id;
+	void *ringback_timer; 			/* Void pointer for ringback vpb_timer */
+	int ringback_timer_id;			/* unique timer ID for ringback timer */
 
-	double lastgrunt;
+	double lastgrunt;			/* time stamp (secs since epoc) of last grunt event */
 
 	ast_mutex_t lock;			/* This one just protects bridge ptr below */
 	vpb_bridge_t *bridge;
@@ -1128,7 +1128,6 @@ static int vpb_digit(struct ast_channel *ast, char digit)
 	return 0;
 }
 
-
 static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 {
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->pvt->pvt;
@@ -1230,14 +1229,19 @@ static int vpb_hangup(struct ast_channel *ast)
 		return 0;
 	}
 
+	if(option_verbose>3) 
+		ast_verbose( VERBOSE_PREFIX_4 "%s: Setting state down\n",ast->name);
 	ast_setstate(ast,AST_STATE_DOWN);
 
 	p = (struct vpb_pvt *)ast->pvt->pvt;
 
 	/* Stop record */
 	p->stopreads = 1;
-	if( p->readthread )
+	if( p->readthread ){
 		pthread_join(p->readthread, NULL); 
+		if(option_verbose>3) 
+			ast_verbose( VERBOSE_PREFIX_4 "%s: stopped record thread on %s\n",ast->name,p->dev);
+	}
 
 	/* Stop play */
 	if (p->lastoutput != -1) {
@@ -1306,24 +1310,37 @@ static int vpb_answer(struct ast_channel *ast)
 	VPB_EVENT je;
 	int ret;
 
-	if (p->mode == MODE_FXO){
-		vpb_sethook_sync(p->handle, VPB_OFFHOOK);
-		p->state=VPB_STATE_OFFHOOK;
-		vpb_sleep(500);
-		ret = vpb_get_event_ch_async(p->handle,&je);
-		if ((ret == VPB_OK)&&(je.type != VPB_DROP)){
-			if (option_verbose > 3){
-					ast_verbose(VERBOSE_PREFIX_4 "Answer collected a wrong event!!\n");
+	if (ast->_state != AST_STATE_UP) {
+		if (p->mode == MODE_FXO){
+			vpb_sethook_sync(p->handle, VPB_OFFHOOK);
+			p->state=VPB_STATE_OFFHOOK;
+			vpb_sleep(500);
+			ret = vpb_get_event_ch_async(p->handle,&je);
+			if ((ret == VPB_OK)&&(je.type != VPB_DROP)){
+				if (option_verbose > 3){
+						ast_verbose(VERBOSE_PREFIX_4 "Answer collected a wrong event!!\n");
+				}
+				vpb_put_event(&je);
 			}
-			vpb_put_event(&je);
+		}
+		ast_setstate(ast, AST_STATE_UP);
+
+		if(option_verbose>1) 
+			ast_verbose( VERBOSE_PREFIX_2 "Answered call from %s on %s [%s]\n", 
+					p->owner->callerid, ast->name,(p->mode == MODE_FXO)?"FXO":"FXS");
+
+		ast->rings = 0;
+		if( !p->readthread ){
+			pthread_create(&p->readthread, NULL, do_chanreads, (void *)p);
+		} else {
+			if(option_verbose>3) 
+				ast_verbose(VERBOSE_PREFIX_4 "Record thread already running!!\n");
+		}
+	} else {
+		if(option_verbose>3) {
+			ast_verbose(VERBOSE_PREFIX_4 "Answered state is up\n");
 		}
 	}
-
-	if(option_verbose>1) 
-		ast_verbose( VERBOSE_PREFIX_2 "Answered call from %s on %s [%s]\n", p->owner->callerid, ast->name,(p->mode == MODE_FXO)?"FXO":"FXS");
-
-	ast->rings = 0;
-	pthread_create(&p->readthread, NULL, do_chanreads, (void *)p);
 	return 0;
 }
 
@@ -1369,7 +1386,8 @@ static inline int astformatbits(int ast_format)
 	}   
 }
 
-int gain_vector(float g, short *v, int n) {
+int gain_vector(float g, short *v, int n) 
+{
 	int i;
 	float tmp;
 	for ( i = 0; i<n; i++) {
@@ -1395,6 +1413,7 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	} else if (ast->_state != AST_STATE_UP) {
 		if(option_verbose>3) 
 			ast_verbose( VERBOSE_PREFIX_4 "%s: Writing frame type [%d,%d] on chan %s not up\n",ast->name, frame->frametype, frame->subclass, ast->name);
+		p->lastoutput = -1;
 		return 0;
 	}
 
@@ -1592,6 +1611,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *i, int state, char *context)
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
 		tmp->pvt->pvt = i;
+		/* set Call backs */
 		tmp->pvt->send_digit = vpb_digit;
 		tmp->pvt->call = vpb_call;
 		tmp->pvt->hangup = vpb_hangup;
