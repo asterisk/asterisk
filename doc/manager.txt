@@ -1,0 +1,20 @@
+The manager is a client/server model over TCP.
+
+Mangement communication consists of tags of the form "header: value", 
+terminated with an empty newline (\r\n) in the style of SMTP, HTTP, and
+other headers.
+
+The first tag MUST be one of the following:
+
+Action: An action requested by the CLIENT to the Asterisk SERVER.  Only 
+one "Action" may be outstanding at any time.
+
+Response: A response to an action from the Asterisk SERVER to the CLIENT.
+
+Event: An event reported by the Asterisk SERVER to the CLIENT
+
+Management users are configured in /etc/asterisk/manager.conf and are 
+given permissions for read and write, where write represents their ability 
+to perform this class of "action", and read represents their ability to 
+receive this class of "event".
+
