@@ -3790,6 +3790,8 @@ int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char
 	int res = -1;
 	char *var, *tmp;
 	struct outgoing_helper oh;
+	pthread_attr_t attr;
+		
 	if (sync) {
 		LOAD_OH(oh);
 		chan = __ast_request_and_dial(type, format, data, timeout, reason, callerid, &oh);
@@ -3854,7 +3856,9 @@ int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char
 		strncpy(as->exten,  exten, sizeof(as->exten) - 1);
 		as->priority = priority;
 		as->timeout = timeout;
-		if (pthread_create(&as->p, NULL, async_wait, as)) {
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+		if (pthread_create(&as->p, &attr, async_wait, as)) {
 			ast_log(LOG_WARNING, "Failed to start async wait\n");
 			free(as);
 			ast_hangup(chan);
@@ -3895,6 +3899,8 @@ int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *
 	struct app_tmp *tmp;
 	char *var, *vartmp;
 	int res = -1;
+	pthread_attr_t attr;
+	
 	if (!app || !strlen(app))
 		return -1;
 	if (sync) {
@@ -3917,7 +3923,9 @@ int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *
 					if (sync > 1) {
 						ast_pbx_run_app(tmp);
 					} else {
-						if (pthread_create(&tmp->t, NULL, ast_pbx_run_app, tmp)) {
+						pthread_attr_init(&attr);
+						pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+						if (pthread_create(&tmp->t, &attr, ast_pbx_run_app, tmp)) {
 							ast_log(LOG_WARNING, "Unable to spawn execute thread on %s: %s\n", chan->name, strerror(errno));
 							free(tmp);
 							ast_hangup(chan);
