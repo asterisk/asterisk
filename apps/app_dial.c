@@ -146,17 +146,17 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 
 #define AST_MAX_WATCHERS 256
 
-#define HANDLE_CAUSE(blah, bleh) do { \
+#define HANDLE_CAUSE(cause, chan) do { \
 	switch(cause) { \
 	case AST_CAUSE_BUSY: \
-		if (bleh->cdr) \
-			ast_cdr_busy(bleh->cdr); \
+		if (chan->cdr) \
+			ast_cdr_busy(chan->cdr); \
 		numbusy++; \
 		break; \
 	case AST_CAUSE_CONGESTION: \
 	case AST_CAUSE_UNREGISTERED: \
-		if (bleh->cdr) \
-			ast_cdr_busy(bleh->cdr); \
+		if (chan->cdr) \
+			ast_cdr_busy(chan->cdr); \
 		numcongestion++; \
 		break; \
 	default: \
@@ -212,7 +212,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 		if (found < 0) {
 			if (numlines == (numbusy + numcongestion + numnochan)) {
 				if (option_verbose > 2)
-					ast_verbose( VERBOSE_PREFIX_2 "Everyone is busy/congested at this time\n");
+					ast_verbose( VERBOSE_PREFIX_2 "Everyone is busy/congested at this time (%d:%d/%d/%d)\n", numlines, numbusy, numcongestion, numnochan);
 				if (numbusy)
 					strncpy(status, "BUSY", statussize - 1);
 				else if (numcongestion)
@@ -224,7 +224,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					in->priority+=100;
 			} else {
 				if (option_verbose > 2)
-					ast_verbose( VERBOSE_PREFIX_2 "No one is available to answer at this time (%d, %d/%d/%d)\n", numlines, numbusy, numcongestion, numnochan);
+					ast_verbose( VERBOSE_PREFIX_2 "No one is available to answer at this time (%d:%d/%d/%d)\n", numlines, numbusy, numcongestion, numnochan);
 			}
 			*to = 0;
 			return NULL;
