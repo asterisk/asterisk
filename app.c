@@ -148,6 +148,7 @@ int ast_app_has_voicemail(const char *mailbox)
 	char fn[256];
 	char tmp[256]="";
 	char *mb, *cur;
+	char *context;
 	int ret;
 	/* If no mailbox, return immediately */
 	if (!strlen(mailbox))
@@ -156,7 +157,7 @@ int ast_app_has_voicemail(const char *mailbox)
 		strncpy(tmp, mailbox, sizeof(tmp));
 		mb = tmp;
 		ret = 0;
-		while((cur = strsep(&mb, ", "))) {
+		while((cur = strsep(&mb, ","))) {
 			if (strlen(cur)) {
 				if (ast_app_has_voicemail(cur))
 					return 1; 
@@ -164,7 +165,14 @@ int ast_app_has_voicemail(const char *mailbox)
 		}
 		return 0;
 	}
-	snprintf(fn, sizeof(fn), "%s/vm/%s/INBOX", (char *)ast_config_AST_SPOOL_DIR, mailbox);
+	strncpy(tmp, mailbox, sizeof(tmp) - 1);
+	context = strchr(tmp, '@');
+	if (context) {
+		*context = '\0';
+		context++;
+	} else
+		context = "default";
+	snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/INBOX", (char *)ast_config_AST_SPOOL_DIR, context, mailbox);
 	dir = opendir(fn);
 	if (!dir)
 		return 0;
@@ -185,6 +193,7 @@ int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	char fn[256];
 	char tmp[256]="";
 	char *mb, *cur;
+	char *context;
 	int ret;
 	if (newmsgs)
 		*newmsgs = 0;
@@ -212,8 +221,15 @@ int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		}
 		return 0;
 	}
+	strncpy(tmp, mailbox, sizeof(tmp) - 1);
+	context = strchr(tmp, '@');
+	if (context) {
+		*context = '\0';
+		context++;
+	} else
+		context = "default";
 	if (newmsgs) {
-		snprintf(fn, sizeof(fn), "%s/vm/%s/INBOX", (char *)ast_config_AST_SPOOL_DIR, mailbox);
+		snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/INBOX", (char *)ast_config_AST_SPOOL_DIR, context, mailbox);
 		dir = opendir(fn);
 		if (dir) {
 			while ((de = readdir(dir))) {
@@ -226,7 +242,7 @@ int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		}
 	}
 	if (oldmsgs) {
-		snprintf(fn, sizeof(fn), "%s/vm/%s/Old", (char *)ast_config_AST_SPOOL_DIR, mailbox);
+		snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/Old", (char *)ast_config_AST_SPOOL_DIR, context, mailbox);
 		dir = opendir(fn);
 		if (dir) {
 			while ((de = readdir(dir))) {

@@ -1,3 +1,5 @@
+ -- Make voicemail segmentable by context (app_voicemail2)
+ -- Major restructuring of voicemail (app_voicemail2)
  -- Add initial ENUM support
  -- Add malloc debugging support
  -- Add preliminary Voicetronix support

@@ -223,6 +223,7 @@ bininstall: all
 	mkdir -p $(ASTBINDIR)
 	mkdir -p $(ASTSBINDIR)
 	mkdir -p $(ASTVARRUNDIR)
+	mkdir -p $(ASTSPOOLDIR)/voicemail
 	install -m 755 asterisk $(ASTSBINDIR)/
 	install -m 755 astgenkey $(ASTSBINDIR)/
 	install -m 755 safe_asterisk $(ASTSBINDIR)/
@@ -230,7 +231,14 @@ bininstall: all
 	install -d $(ASTHEADERDIR)
 	install include/asterisk/*.h $(ASTHEADERDIR)
 	rm -f $(ASTVARLIBDIR)/sounds/vm
-	mkdir -p $(ASTSPOOLDIR)/vm
+	rm -f $(ASTVARLIBDIR)/sounds/voicemail
+	if [ ! -h $(ASTSPOOLDIR)/vm ] && [ -d $(ASTSPOOLDIR)/vm ]; then \
+		mv $(ASTSPOOLDIR)/vm $(ASTSPOOLDIR)/voicemail/default; \
+	else \
+		mkdir -p $(ASTSPOOLDIR)/voicemail/default; \
+		rm -f $(ASTSPOOLDIR)/vm; \
+		ln -s $(ASTSPOOLDIR)/voicemail/default $(ASTSPOOLDIR)/vm; \
+	fi
 	rm -f $(ASTMODULESDIR)/chan_ixj.so
 	rm -f $(ASTMODULESDIR)/chan_tor.so
 	mkdir -p $(ASTVARLIBDIR)/sounds
@@ -238,6 +246,7 @@ bininstall: all
 	mkdir -p $(ASTVARLIBDIR)/keys
 	install -m 644 keys/iaxtel.pub $(ASTVARLIBDIR)/keys
 	( cd $(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/vm . )
+	( cd $(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/voicemail . )
 	@echo " +---- Asterisk Installation Complete -------+"  
 	@echo " +                                           +"
 	@echo " +    YOU MUST READ THE SECURITY DOCUMENT    +"
@@ -299,14 +308,14 @@ samples: all datafiles adsi
 	for x in sounds/*.mp3; do \
 		install $$x $(ASTVARLIBDIR)/mohmp3 ; \
 	done
-	mkdir -p $(ASTSPOOLDIR)/vm/1234/INBOX
-	:> $(ASTVARLIBDIR)/sounds/vm/1234/unavail.gsm
+	mkdir -p $(ASTSPOOLDIR)/voicemail/default/1234/INBOX
+	:> $(ASTVARLIBDIR)/sounds/voicemail/default/1234/unavail.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isunavail; do \
-		cat $(ASTVARLIBDIR)/sounds/$$x.gsm >> $(ASTVARLIBDIR)/sounds/vm/1234/unavail.gsm ; \
+		cat $(ASTVARLIBDIR)/sounds/$$x.gsm >> $(ASTVARLIBDIR)/sounds/voicemail/default/1234/unavail.gsm ; \
 	done
-	:> $(ASTVARLIBDIR)/sounds/vm/1234/busy.gsm
+	:> $(ASTVARLIBDIR)/sounds/voicemail/default/1234/busy.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isonphone; do \
-		cat $(ASTVARLIBDIR)/sounds/$$x.gsm >> $(ASTVARLIBDIR)/sounds/vm/1234/busy.gsm ; \
+		cat $(ASTVARLIBDIR)/sounds/$$x.gsm >> $(ASTVARLIBDIR)/sounds/vmoicemail/default/1234/busy.gsm ; \
 	done
 
 webvmail:
