@@ -20,7 +20,7 @@ MODULES="usb-uhci zaptel wcfxo wcusb"
 
 function probe() {
 	gprintf "                           $1"
-	modprobe $1
+	insmod $1
 	# It has to be in the module list, otherwise something is wrong
 	if lsmod | grep -c ^$1 >/dev/null; then
 		success
