@@ -927,7 +927,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 		fprintf(p, "MIME-Version: 1.0\n");
 		if (attach_user_voicemail) {
 			/* Something unique. */
-			snprintf(bound, sizeof(bound), "voicemail_%d%s%d", msgnum, mailbox, getpid());
+			snprintf(bound, sizeof(bound), "voicemail_%d%s%d%d", msgnum, mailbox, getpid(), (unsigned int)rand());
 
 			fprintf(p, "Content-Type: multipart/mixed; boundary=\"%s\"\n\n\n", bound);
 
