@@ -8400,6 +8400,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v)
 		user->canreinvite = global_canreinvite;
 		ast_copy_flags(user, (&global_flags), SIP_TRUSTRPID);
 		user->dtmfmode = global_dtmfmode;
+		user->nat = global_nat;
 		user->progressinband = global_progressinband;
 		user->prefs = prefs;
 #ifdef OSP_SUPPORT
