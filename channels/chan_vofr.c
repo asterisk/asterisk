@@ -28,6 +28,7 @@
 #include <arpa/inet.h>
 #include <linux/if_packet.h>
 #include <linux/if_ether.h>
+#include <sys/signal.h>
 #include "adtranvofr.h"
 
 #define G723_MAX_BUF 2048
@@ -53,7 +54,7 @@ static pthread_mutex_t monlock = PTHREAD_MUTEX_INITIALIZER;
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
-static pthread_t monitor_thread = -1;
+static pthread_t monitor_thread = 0;
 
 static int restart_monitor(void);
 
@@ -769,6 +770,7 @@ static struct ast_channel *vofr_new(struct vofr_pvt *i, int state)
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 				ast_hangup(tmp);
+				tmp = NULL;
 			}
 		}
 	} else
@@ -839,10 +841,12 @@ static void *do_monitor(void *data)
 	/* This thread monitors all the frame relay interfaces which are not yet in use
 	   (and thus do not have a separate thread) indefinitely */
 	/* From here on out, we die whenever asked */
+#if 0
 	if (pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL)) {
 		ast_log(LOG_WARNING, "Unable to set cancel type to asynchronous\n");
 		return NULL;
 	}
+#endif
 	for(;;) {
 		/* Don't let anybody kill us right away.  Nobody should lock the interface list
 		   and wait for the monitor list, but the other way around is okay. */
@@ -877,11 +881,14 @@ static void *do_monitor(void *data)
 		
 		/* And from now on, we're okay to be killed, so release the monitor lock as well */
 		pthread_mutex_unlock(&monlock);
+		pthread_testcancel();
 		/* Wait indefinitely for something to happen */
 		res = select(n + 1, &rfds, NULL, NULL, NULL);
+		pthread_testcancel();
 		/* Okay, select has finished.  Let's see what happened.  */
 		if (res < 0) {
-			ast_log(LOG_WARNING, "select return %d: %s\n", res, strerror(errno));
+			if ((errno != EAGAIN) && (errno != EINTR))
+				ast_log(LOG_WARNING, "select return %d: %s\n", res, strerror(errno));
 			continue;
 		}
 		/* Alright, lock the interface list again, and let's look and see what has
@@ -927,12 +934,16 @@ static int restart_monitor(void)
 		ast_log(LOG_WARNING, "Cannot kill myself\n");
 		return -1;
 	}
-	if (monitor_thread != -1) {
+	if (monitor_thread) {
+#if 0
 		pthread_cancel(monitor_thread);
+#endif
+		pthread_kill(monitor_thread, SIGURG);
 #if 0
 		pthread_join(monitor_thread, NULL);
 #endif
 	}
+	if (!monitor_thread)
 	/* Start a new monitor */
 	if (pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {
 		pthread_mutex_unlock(&monlock);
@@ -1084,8 +1095,6 @@ int load_module()
 	return 0;
 }
 
-
-
 int unload_module()
 {
 	struct vofr_pvt *p, *pl;
@@ -1106,8 +1115,9 @@ int unload_module()
 		return -1;
 	}
 	if (!pthread_mutex_lock(&monlock)) {
-		if (monitor_thread > -1) {
+		if (monitor_thread) {
 			pthread_cancel(monitor_thread);
+			pthread_kill(monitor_thread, SIGURG);
 			pthread_join(monitor_thread, NULL);
 		}
 		monitor_thread = -2;
