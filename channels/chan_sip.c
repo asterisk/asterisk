@@ -1724,6 +1724,7 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 		}
 		return -1;
 	case AST_CONTROL_PROGRESS:
+	case AST_CONTROL_PROCEEDING:
 		if ((ast->_state != AST_STATE_UP) && !p->progress && !p->outgoing) {
 			transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, 0);
 			p->progress = 1;

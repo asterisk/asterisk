@@ -210,8 +210,10 @@ struct ast_frame_chain {
 #define	AST_CONTROL_RADIO_KEY		12
 /*! Un-Key Radio */
 #define	AST_CONTROL_RADIO_UNKEY		13
-/*! Indicate CALL_PROCEEDING or PROGRESS */
+/*! Indicate PROGRESS */
 #define AST_CONTROL_PROGRESS            14
+/*! Indicate CALL PROCEEDING */
+#define AST_CONTROL_PROCEEDING		15
 
 #define AST_SMOOTHER_FLAG_G729		(1 << 0)
 

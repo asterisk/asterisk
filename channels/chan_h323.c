@@ -653,6 +653,7 @@ static int oh323_indicate(struct ast_channel *c, int condition)
 			break;
 		}
 		return -1;
+	case AST_CONTROL_PROCEEDING:
 	case -1:
 		return -1;
 	default:

@@ -670,6 +670,24 @@ static void wakeup_sub(struct zt_pvt *p, int a)
 	}
 }
 
+static void zap_queue_frame(struct zt_pvt *p, struct ast_frame *f)
+{
+	for (;;) {
+		if (p->owner) {
+			if (ast_mutex_trylock(&p->owner->lock)) {
+				ast_mutex_unlock(&p->lock);
+				usleep(1);
+				ast_mutex_lock(&p->lock);
+			} else {
+				ast_queue_frame(p->owner, f);
+				ast_mutex_unlock(&p->owner->lock);
+				break;
+			}
+		} else
+			break;
+	}
+}
+
 static void swap_subs(struct zt_pvt *p, int a, int b)
 {
 	int tchan;
@@ -827,7 +845,7 @@ static int zt_digit(struct ast_channel *ast, char digit)
 	index = zt_get_index(ast, p, 0);
 	if (index == SUB_REAL) {
 #ifdef ZAPATA_PRI
-		if (p->sig == SIG_PRI && ast->_state == AST_STATE_DIALING && p->setup_ack && !p->proceeding) {
+		if (p->sig == SIG_PRI && ast->_state == AST_STATE_DIALING && p->setup_ack && (p->proceeding < 2)) {
 			if (!pri_grab(p, p->pri)) {
 				pri_information(p->pri->pri,p->call,digit);
 				pri_rel(p->pri);
@@ -2201,7 +2219,7 @@ static int zt_answer(struct ast_channel *ast)
 	case SIG_PRI:
 		/* Send a pri acknowledge */
 		if (!pri_grab(p, p->pri)) {
-			p->proceeding = 1;
+			p->proceeding = 2;
 			res = pri_answer(p->pri->pri, p->call, 0, 1);
 			pri_rel(p->pri);
 		} else {
@@ -3845,7 +3863,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 				}
 			} else if (f->frametype == AST_FRAME_DTMF) {
 #ifdef ZAPATA_PRI
-				if (!p->proceeding && p->sig==SIG_PRI && p->pri && p->pri->overlapdial) {
+				if ((p->proceeding < 2) && p->sig==SIG_PRI && p->pri && p->pri->overlapdial) {
 					/* Don't accept in-band DTMF when in overlap dial mode */
 					f->frametype = AST_FRAME_NULL;
 					f->subclass = 0;
@@ -4048,7 +4066,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 			break;
 		case AST_CONTROL_RINGING:
 #ifdef ZAPATA_PRI
-			if (!p->proceeding && p->sig==SIG_PRI && p->pri && !p->outgoing) {
+			if ((p->proceeding < 2) && p->sig==SIG_PRI && p->pri && !p->outgoing) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
 						pri_acknowledge(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
@@ -4057,7 +4075,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 					else
 						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
 				}
-				p->proceeding=1;
+				p->proceeding=2;
 			}
 #endif
 			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_RINGTONE);
@@ -4069,6 +4087,24 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 					ast_setstate(chan, AST_STATE_RINGING);
 			}
             break;
+		case AST_CONTROL_PROCEEDING:
+			ast_log(LOG_DEBUG,"Received AST_CONTROL_PROCEEDING on %s\n",chan->name);
+#ifdef ZAPATA_PRI
+			if ((p->proceeding < 2) && p->sig==SIG_PRI && p->pri && !p->outgoing) {
+				if (p->pri->pri) {		
+					if (!pri_grab(p, p->pri)) {
+						pri_proceeding(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
+						pri_rel(p->pri);
+					}
+					else
+						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+				}
+				p->proceeding=2;
+			}
+#endif
+			/* don't continue in ast_indicate */
+			res = 0;
+			break;
 		case AST_CONTROL_PROGRESS:
 			ast_log(LOG_DEBUG,"Received AST_CONTROL_PROGRESS on %s\n",chan->name);
 #ifdef ZAPATA_PRI
@@ -6923,7 +6959,7 @@ static void *pri_dchannel(void *vpri)
 								digit = e->ring.callednum[i];
 								{
 									struct ast_frame f = { AST_FRAME_DTMF, digit, };
-									ast_queue_frame(pri->pvts[chanpos]->owner, &f);
+									zap_queue_frame(pri->pvts[chanpos], &f);
 								}
 							}
 						}
@@ -7110,8 +7146,7 @@ static void *pri_dchannel(void *vpri)
 					} else
 						ast_log(LOG_DEBUG, "Deferring ringing notification because of extra digits to dial...\n");
 				}
-				/* Fall through */
-				if (chanpos < 0) break;
+				break;
 			case PRI_EVENT_PROCEEDING:
 				/* Get chan value if e->e is not PRI_EVNT_RINGING */
 				if (e->e == PRI_EVENT_PROCEEDING) 
@@ -7121,9 +7156,9 @@ static void *pri_dchannel(void *vpri)
 						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
 							ast_log(LOG_DEBUG, "Queuing frame from PRI_EVENT_PROCEEDING on channel %d/%d span %d\n",
 								pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset,pri->span);
-							if (pri->pvts[chanpos]->owner)
-								ast_queue_frame(pri->pvts[chanpos]->owner, &f);
-
+							zap_queue_frame(pri->pvts[chanpos], &f);
+							f.subclass = AST_CONTROL_PROCEEDING;
+							zap_queue_frame(pri->pvts[chanpos], &f);
 							pri->pvts[chanpos]->proceeding=1;
 					}
 				}
@@ -8088,7 +8123,7 @@ static int action_zapdialoffhook(struct mansession *s, struct message *m)
 	}
 	for (i=0; i<strlen(number); i++) {
 		struct ast_frame f = { AST_FRAME_DTMF, number[i] };
-		ast_queue_frame(p->owner, &f); 
+		zap_queue_frame(p, &f); 
 	}
 	astman_send_ack(s, m, "ZapDialOffhook");
 	return 0;

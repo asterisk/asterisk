@@ -1365,6 +1365,8 @@ int ast_indicate(struct ast_channel *chan, int condition)
 				res = 0;
 			} else if (condition == AST_CONTROL_PROGRESS) {
 				/* ast_playtones_stop(chan); */
+			} else if (condition == AST_CONTROL_PROCEEDING) {
+				/* Do nothing, really */
 			} else {
 				/* not handled */
 				ast_log(LOG_WARNING, "Unable to handle indication %d for '%s'\n", condition, chan->name);

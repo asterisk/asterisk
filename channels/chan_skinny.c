@@ -1736,6 +1736,8 @@ static int skinny_indicate(struct ast_channel *ast, int ind)
 	case -1:
 		transmit_tone(s, SKINNY_SILENCE);
 		break;		
+	case AST_CONTROL_PROCEEDING:
+		break;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to indicate condition %d\n", ind);
 		return -1;
