@@ -35,7 +35,7 @@ country=us
 ; every other variable will be available as a shortcut for the "PlayList" command
 ; but will not automaticly be used by Asterisk.
 ;
-; The tonelist itself is defined by a sequence of elements, seperated by ,'s.
+; The tonelist itself is defined by a sequence of elements, separated by ,'s.
 ; Each element consist of a frequency (f) with a possible frequency attached
 ; (f1+f2) to it. Behind the frequency there is an optional duration, in
 ; milliseconds. If the element starts with a !, that element is NOT repeat,
