@@ -668,9 +668,13 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		cur = rest;
 	} while(cur);
 	
-	if (timeout && strlen(timeout))
-		to = atoi(timeout) * 1000;
-	else
+	if (timeout && strlen(timeout)) {
+		to = atoi(timeout);
+		if (to > 0)
+			to *= 1000;
+		else
+			ast_log(LOG_WARNING, "Invalid timeout specified: '%s'\n", timeout);
+	} else
 		to = -1;
 	peer = wait_for_answer(chan, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect);
 	if (!peer) {
