@@ -4775,7 +4775,7 @@ static void *ss_thread(void *data)
 				tone_zone_play_tone(p->subs[index].zfd, -1);
 			else
 				tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALTONE);
-			if (ast_exists_extension(chan, chan->context, exten, 1, p->callerid) && strcmp(chan->exten, ast_parking_ext())) {
+			if (ast_exists_extension(chan, chan->context, exten, 1, p->callerid) && strcmp(exten, ast_parking_ext())) {
 				if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, p->callerid)) {
 					if (getforward) {
 						/* Record this as the forwarding extension */
