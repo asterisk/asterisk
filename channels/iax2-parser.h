@@ -33,6 +33,7 @@ struct iax_ies {
 	char *dnid;
 	char *rdnis;
 	unsigned int authmethods;
+	unsigned int encmethods;
 	char *challenge;
 	char *md5_result;
 	char *rsa_result;
@@ -54,6 +55,8 @@ struct iax_ies {
 	unsigned int fwdesc;
 	unsigned char *fwdata;
 	unsigned char fwdatalen;
+	unsigned char *enckey;
+	unsigned char enckeylen;
 	unsigned int provver;
 	unsigned short samprate;
 	int provverpres;

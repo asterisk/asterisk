@@ -117,10 +117,14 @@
 #define IAX_IE_CALLINGTNS			40		/* Calling transit network select (u16) */
 #define IAX_IE_SAMPLINGRATE			41		/* Supported sampling rates (u16) */
 #define IAX_IE_CAUSECODE			42		/* Hangup cause (u8) */
+#define IAX_IE_ENCRYPTION			43		/* Encryption format (u16) */
+#define IAX_IE_ENCKEY				44		/* Encryption key (raw) */
 
 #define IAX_AUTH_PLAINTEXT			(1 << 0)
 #define IAX_AUTH_MD5				(1 << 1)
 #define IAX_AUTH_RSA				(1 << 2)
+
+#define IAX_ENCRYPT_AES128			(1 << 0)
 
 #define IAX_META_TRUNK				1		/* Trunk meta-message */
 #define IAX_META_VIDEO				2		/* Video frame */
@@ -145,9 +149,16 @@ struct ast_iax2_full_hdr {
 	unsigned int ts;		/* 32-bit timestamp in milliseconds (from 1st transmission) */
 	unsigned char oseqno;	/* Packet number (outgoing) */
 	unsigned char iseqno;	/* Packet number (next incoming expected) */
-	char type;				/* Frame type */
+	unsigned char type;		/* Frame type */
 	unsigned char csub;		/* Compressed subclass */
 	unsigned char iedata[0];
+} __attribute__ ((__packed__));
+
+/* Full frames are always delivered reliably */
+struct ast_iax2_full_enc_hdr {
+	unsigned short scallno;	/* Source call number -- high bit must be 1 */
+	unsigned short dcallno;	/* Destination call number -- high bit is 1 if retransmission */
+	unsigned char encdata[0];
 } __attribute__ ((__packed__));
 
 /* Mini header is used only for voice frames -- delivered unreliably */
@@ -157,6 +168,12 @@ struct ast_iax2_mini_hdr {
 							/* Frametype implicitly VOICE_FRAME */
 							/* subclass implicit from last ast_iax2_full_hdr */
 	unsigned char data[0];
+} __attribute__ ((__packed__));
+
+/* Mini header is used only for voice frames -- delivered unreliably */
+struct ast_iax2_mini_enc_hdr {
+	unsigned short callno;	/* Source call number -- high bit must be 0, rest must be non-zero */
+	unsigned char encdata[0];
 } __attribute__ ((__packed__));
 
 struct ast_iax2_meta_hdr {

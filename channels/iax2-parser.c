@@ -205,6 +205,9 @@ static struct iax2_ie {
 	{ IAX_IE_CALLINGTON, "CALLING TYPEOFNUM", dump_byte },
 	{ IAX_IE_CALLINGTNS, "CALLING TRANSITNET", dump_short },
 	{ IAX_IE_SAMPLINGRATE, "SAMPLINGRATE", dump_samprate },
+	{ IAX_IE_CAUSECODE, "CAUSE CODE", dump_byte },
+	{ IAX_IE_ENCRYPTION, "ENCRYPTION", dump_short },
+	{ IAX_IE_ENCKEY, "ENCRYPTION KEY" },
 };
 
 static struct iax2_ie prov_ies[] = {
@@ -418,7 +421,7 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		/* Don't mess with mini-frames */
 		return;
 	}
-	if (fh->type > (int)sizeof(frames)/(int)sizeof(char *)) {
+	if (fh->type > (int)sizeof(frames)/(int)sizeof(frames[0])) {
 		snprintf(class2, (int)sizeof(class2), "(%d?)", fh->type);
 		class = class2;
 	} else {
@@ -435,7 +438,7 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 			subclass = iaxs[(int)fh->csub];
 		}
 	} else if (fh->type == AST_FRAME_CONTROL) {
-		if (fh->csub > (int)sizeof(cmds)/(int)sizeof(char *)) {
+		if (fh->csub >= (int)sizeof(cmds)/(int)sizeof(cmds[0])) {
 			snprintf(subclass2, (int)sizeof(subclass2), "(%d?)", fh->csub);
 			subclass = subclass2;
 		} else {
@@ -612,6 +615,13 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			} else
 				ies->authmethods = ntohs(get_uint16(data + 2));
 			break;
+		case IAX_IE_ENCRYPTION:
+			if (len != (int)sizeof(unsigned short))  {
+				snprintf(tmp, (int)sizeof(tmp), "Expecting encryption to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
+				errorf(tmp);
+			} else
+				ies->encmethods = ntohs(get_uint16(data + 2));
+			break;
 		case IAX_IE_CHALLENGE:
 			ies->challenge = data + 2;
 			break;
@@ -714,6 +724,10 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 		case IAX_IE_FWBLOCKDATA:
 			ies->fwdata = data + 2;
 			ies->fwdatalen = len;
+			break;
+		case IAX_IE_ENCKEY:
+			ies->enckey = data + 2;
+			ies->enckeylen = len;
 			break;
 		case IAX_IE_PROVVER:
 			if (len != (int)sizeof(unsigned int)) {

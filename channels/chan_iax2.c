@@ -38,6 +38,7 @@
 #include <asterisk/utils.h>
 #include <asterisk/causes.h>
 #include <asterisk/localtime.h>
+#include <asterisk/aes.h>
 #include <sys/mman.h>
 #include <arpa/inet.h>
 #include <dirent.h>
@@ -171,6 +172,7 @@ static int iaxtrunkdebug = 0;
 static char accountcode[20];
 static int amaflags = 0;
 static int delayreject = 0;
+static int iax2_encryption = 0;
 
 static struct ast_flags globalflags = {0};
 
@@ -197,12 +199,15 @@ struct iax2_context {
 #define IAX_ALREADYGONE		(1 << 9)	/* Already disconnected */
 #define IAX_PROVISION		(1 << 10)	/* This is a provisioning request */
 #define IAX_QUELCH		(1 << 11)	/* Whether or not we quelch audio */
+#define IAX_ENCRYPTED	(1 << 12)	/* Whether we should assume encrypted tx/rx */
+#define IAX_KEYPOPULATED (1 << 13)	/* Whether we have a key populated */
 
 struct iax2_user {
 	char name[80];
 	char secret[80];
 	char dbsecret[80];
 	int authmethods;
+	int encmethods;
 	char accountcode[20];
 	char inkeys[80];				/* Key(s) this user can use to authenticate to us */
 	char language[MAX_LANGUAGE];
@@ -235,6 +240,7 @@ struct iax2_peer {
 	/* Dynamic Registration fields */
 	struct sockaddr_in defaddr;			/* Default address if there is one */
 	int authmethods;				/* Authentication methods (IAX_AUTH_*) */
+	int encmethods;					/* Encryption methods (IAX_ENCRYPT_*) */
 	char inkeys[80];				/* Key(s) this peer can use to authenticate to us */
 
 	/* Suggested caller id if registering */
@@ -421,12 +427,20 @@ struct chan_iax2_pvt {
 	char secret[80];
 	/* permitted authentication methods */
 	int authmethods;
+	/* permitted encryption methods */
+	int encmethods;
 	/* MD5 challenge */
 	char challenge[10];
 	/* Public keys permitted keys for incoming authentication */
 	char inkeys[80];
 	/* Private key for outgoing authentication */
 	char outkey[80];
+	/* Encryption AES-128 Key */
+	aes_encrypt_ctx ecx;
+	/* Decryption AES-128 Key */
+	aes_decrypt_ctx dcx;
+	/* 32 bytes of semi-random data */
+	char semirand[32];
 	/* Preferred language */
 	char language[MAX_LANGUAGE];
 	/* Hostname/peername for naming purposes */
@@ -437,6 +451,7 @@ struct chan_iax2_pvt {
 	struct iax2_peer *peerpoke;
 	/* IAX_ flags */
 	int flags;
+
 	/* Transferring status */
 	int transferring;
 	/* Transfer identifier */
@@ -445,6 +460,8 @@ struct chan_iax2_pvt {
 	struct sockaddr_in transfer;
 	/* What's the new call number for the transfer */
 	unsigned short transfercallno;
+	/* Transfer decrypt AES-128 Key */
+	aes_encrypt_ctx tdcx;
 
 	/* Status of knowledge of peer ADSI capability */
 	int peeradsicpe;
@@ -560,6 +577,18 @@ static int send_ping(void *data)
 		return 1;
 	} else
 		return 0;
+}
+
+static int get_encrypt_methods(const char *s)
+{
+	int e;
+	if (!strcasecmp(s, "aes128"))
+		e = IAX_ENCRYPT_AES128;
+	else if (ast_true(s))
+		e = IAX_ENCRYPT_AES128;
+	else
+		e = 0;
+	return e;
 }
 
 static int send_lagrq(void *data)
@@ -2085,7 +2114,11 @@ static void realtime_update(const char *peername, struct sockaddr_in *sin)
 }
 
 
-static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context, int *trunk, int *notransfer, int *usejitterbuf, char *username, int usernlen, char *secret, int seclen, int *ofound, char *peercontext, char *timezone, int tzlen)
+static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, 
+					   int *maxtime, char *peer, char *context, int *trunk, 
+					   int *notransfer, int *usejitterbuf, int *encmethods, 
+					   char *username, int usernlen, char *secret, int seclen, 
+					   int *ofound, char *peercontext, char *timezone, int tzlen)
 {
 	struct ast_hostent ahp; struct hostent *hp;
 	struct iax2_peer *p;
@@ -2124,6 +2157,8 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 				*trunk = ast_test_flag(p, IAX_TRUNK);
 			if (capability)
 				*capability = p->capability;
+			if (encmethods)
+				*encmethods = p->encmethods;
 			if (username)
 				strncpy(username, p->username, usernlen);
 			if (p->addr.sin_addr.s_addr) {
@@ -2232,6 +2267,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	char peercontext[AST_MAX_EXTENSION] ="";
 	char *portno = NULL;
 	char *opts = "";
+	int encmethods=iax2_encryption;
 	unsigned short callno = PTR_TO_CALLNO(c->pvt->pvt);
 	char *stringp=NULL;
 	char storedusern[80], storedsecret[80];
@@ -2277,7 +2313,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		strsep(&stringp, ":");
 		portno = strsep(&stringp, ":");
 	}
-	if (create_addr(&sin, NULL, NULL, NULL, hname, context, NULL, NULL, NULL, storedusern, sizeof(storedusern) - 1, storedsecret, sizeof(storedsecret) - 1, NULL, peercontext, tz, sizeof(tz))) {
+	if (create_addr(&sin, NULL, NULL, NULL, hname, context, NULL, NULL, NULL, &encmethods, storedusern, sizeof(storedusern) - 1, storedsecret, sizeof(storedsecret) - 1, NULL, peercontext, tz, sizeof(tz))) {
 		ast_log(LOG_WARNING, "No address associated with '%s'\n", hname);
 		return -1;
 	}
@@ -2321,6 +2357,8 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		username = storedusern;
 	if (username)
 		iax_ie_append_str(&ied, IAX_IE_USERNAME, username);
+	if (encmethods)
+		iax_ie_append_short(&ied, IAX_IE_ENCRYPTION, encmethods);
 	if (!secret && !ast_strlen_zero(storedsecret))
 		secret = storedsecret;
 	ast_mutex_lock(&iaxsl[callno]);
@@ -2328,6 +2366,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		strncpy(iaxs[callno]->context, c->context, sizeof(iaxs[callno]->context) - 1);
 	if (username)
 		strncpy(iaxs[callno]->username, username, sizeof(iaxs[callno]->username)-1);
+	iaxs[callno]->encmethods = encmethods;
 	if (secret) {
 		if (secret[0] == '[') {
 			/* This is an RSA key, not a normal secret */
@@ -3044,6 +3083,154 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct ast_frame *f)
 	return 0;
 }
 
+static void build_enc_keys(const unsigned char *digest, aes_encrypt_ctx *ecx, aes_decrypt_ctx *dcx)
+{
+	aes_encrypt_key128(digest, ecx);
+	aes_decrypt_key128(digest, dcx);
+}
+
+static void memcpy_decrypt(unsigned char *dst, const unsigned char *src, int len, aes_decrypt_ctx *dcx)
+{
+/*	memcpy(dst, src, len); */
+	unsigned char lastblock[16] = { 0 };
+	int x;
+	while(len > 0) {
+		aes_decrypt(src, dst, dcx);
+		for (x=0;x<16;x++)
+			dst[x] ^= lastblock[x];
+		memcpy(lastblock, src, sizeof(lastblock));
+		dst += 16;
+		src += 16;
+		len -= 16;
+	}
+}
+
+static void memcpy_encrypt(unsigned char *dst, const unsigned char *src, int len, aes_encrypt_ctx *ecx)
+{
+/*	memcpy(dst, src, len); */
+	unsigned char curblock[16] = { 0 };
+	int x;
+	while(len > 0) {
+		for (x=0;x<16;x++)
+			curblock[x] ^= src[x];
+		aes_encrypt(curblock, dst, ecx);
+		memcpy(curblock, dst, sizeof(curblock)); 
+		dst += 16;
+		src += 16;
+		len -= 16;
+	}
+}
+
+static int decode_frame(aes_decrypt_ctx *dcx, struct ast_iax2_full_hdr *fh, struct ast_frame *f, int *datalen)
+{
+	int padding;
+	unsigned char *workspace;
+	workspace = alloca(*datalen);
+	if (!workspace)
+		return -1;
+	if (ntohs(fh->scallno) & IAX_FLAG_FULL) {
+		struct ast_iax2_full_enc_hdr *efh = (struct ast_iax2_full_enc_hdr *)fh;
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Decoding full frame with length %d\n", *datalen);
+		if (*datalen < 16 + sizeof(struct ast_iax2_full_hdr))
+			return -1;
+		padding = 16 + (efh->encdata[15] & 0xf);
+		if (*datalen < padding + sizeof(struct ast_iax2_full_hdr))
+			return -1;
+		/* Decrypt */
+		memcpy_decrypt(workspace, efh->encdata, *datalen, dcx);
+		*datalen -= padding;
+		memcpy(efh->encdata, workspace + padding, *datalen - sizeof(struct ast_iax2_full_enc_hdr));
+		f->frametype = fh->type;
+		if (f->frametype == AST_FRAME_VIDEO) {
+			f->subclass = uncompress_subclass(fh->csub & ~0x40) | ((fh->csub >> 6) & 0x1);
+		} else {
+			f->subclass = uncompress_subclass(fh->csub);
+		}
+	} else {
+		struct ast_iax2_mini_enc_hdr *efh = (struct ast_iax2_mini_enc_hdr *)fh;
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Decoding mini with length %d\n", *datalen);
+		if (*datalen < 16 + sizeof(struct ast_iax2_mini_hdr))
+			return -1;
+		padding = 16 + (efh->encdata[15] & 0x0f);
+		if (*datalen < padding + sizeof(struct ast_iax2_mini_hdr))
+			return -1;
+		/* Decrypt */
+		memcpy_decrypt(workspace, efh->encdata, *datalen, dcx);
+		*datalen -= padding;
+		memcpy(efh->encdata, workspace + padding, *datalen - sizeof(struct ast_iax2_mini_enc_hdr));
+	}
+	return 0;
+}
+
+static int encrypt_frame(aes_encrypt_ctx *ecx, struct ast_iax2_full_hdr *fh, unsigned char *poo, int *datalen)
+{
+	int padding;
+	unsigned char *workspace;
+	workspace = alloca(*datalen + 32);
+	if (!workspace)
+		return -1;
+	if (ntohs(fh->scallno) & IAX_FLAG_FULL) {
+		struct ast_iax2_full_enc_hdr *efh = (struct ast_iax2_full_enc_hdr *)fh;
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Encoding full frame with length %d\n", *datalen);
+		padding = 16 - ((*datalen - sizeof(struct ast_iax2_full_enc_hdr)) % 16);
+		padding = 16 + (padding & 0xf);
+		memcpy(workspace, poo, padding);
+		memcpy(workspace + padding, efh->encdata, *datalen - sizeof(struct ast_iax2_full_enc_hdr));
+		*datalen += padding;
+		workspace[15] &= 0xf0;
+		workspace[15] |= (padding & 0xf);
+		memcpy_encrypt(efh->encdata, workspace, *datalen, ecx);
+		if (*datalen >= 32 + sizeof(struct ast_iax2_full_enc_hdr))
+			memcpy(poo, workspace + *datalen - 32, 32);
+	} else {
+		struct ast_iax2_mini_enc_hdr *efh = (struct ast_iax2_mini_enc_hdr *)fh;
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Encoding mini frame with length %d\n", *datalen);
+		padding = 16 - ((*datalen - sizeof(struct ast_iax2_mini_enc_hdr)) % 16);
+		padding = 16 + (padding & 0xf);
+		memset(workspace, 0, padding);
+		memcpy(workspace + padding, efh->encdata, *datalen - sizeof(struct ast_iax2_mini_enc_hdr));
+		workspace[15] &= 0xf0;
+		workspace[15] |= (padding & 0x0f);
+		*datalen += padding;
+		memcpy_encrypt(efh->encdata, workspace, *datalen, ecx);
+		if (*datalen >= 32 + sizeof(struct ast_iax2_mini_enc_hdr))
+			memcpy(poo, workspace + *datalen - 32, 32);
+	}
+	return 0;
+}
+
+static int decrypt_frame(int callno, struct ast_iax2_full_hdr *fh, struct ast_frame *f, int *datalen)
+{
+	int res=-1;
+	if (!ast_test_flag(iaxs[callno], IAX_KEYPOPULATED)) {
+		/* Search for possible keys, given secrets */
+		struct MD5Context md5;
+		unsigned char digest[16];
+		char *tmppw, *stringp;
+		
+		tmppw = ast_strdupa(iaxs[callno]->secret);
+		stringp = tmppw;
+		while((tmppw = strsep(&stringp, ";"))) {
+			MD5Init(&md5);
+			MD5Update(&md5, iaxs[callno]->challenge, strlen(iaxs[callno]->challenge));
+			MD5Update(&md5, tmppw, strlen(tmppw));
+			MD5Final(digest, &md5);
+			build_enc_keys(digest, &iaxs[callno]->ecx, &iaxs[callno]->dcx);
+			res = decode_frame(&iaxs[callno]->dcx, fh, f, datalen);
+			if (!res) {
+				ast_set_flag(iaxs[callno], IAX_KEYPOPULATED);
+				break;
+			}
+		}
+	} else 
+		res = decode_frame(&iaxs[callno]->dcx, fh, f, datalen);
+	return res;
+}
+
 static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned int ts, int seqno, int now, int transfer, int final)
 {
 	/* Queue a packet for delivery on a given private structure.  Use "ts" for
@@ -3093,7 +3280,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 	if (now) {
 		fr = &frb.fr2;
 	} else
-		fr = iax_frame_new(DIRECTION_OUTGRESS, f->datalen);
+		fr = iax_frame_new(DIRECTION_OUTGRESS, ast_test_flag(pvt, IAX_ENCRYPTED) ? f->datalen + 32 : f->datalen);
 	if (!fr) {
 		ast_log(LOG_WARNING, "Out of memory\n");
 		return -1;
@@ -3149,6 +3336,13 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 			pvt->svoiceformat = f->subclass;
 		else if (f->frametype == AST_FRAME_VIDEO)
 			pvt->svideoformat = f->subclass & ~0x1;
+		if (ast_test_flag(pvt, IAX_ENCRYPTED)) {
+			if (ast_test_flag(pvt, IAX_KEYPOPULATED)) {
+				encrypt_frame(&pvt->ecx, fh, pvt->semirand, &fr->datalen);
+			} else
+				ast_log(LOG_WARNING, "Supposed to send packet encrypted, but no key?\n");
+		}
+	
 		if (now) {
 			res = send_packet(fr);
 		} else
@@ -3180,6 +3374,12 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 			fr->datalen = fr->af.datalen + sizeof(struct ast_iax2_mini_hdr);
 			fr->data = mh;
 			fr->retries = -1;
+			if (ast_test_flag(pvt, IAX_ENCRYPTED)) {
+				if (ast_test_flag(pvt, IAX_KEYPOPULATED)) {
+					encrypt_frame(&pvt->ecx, (struct ast_iax2_full_hdr *)mh, pvt->semirand, &fr->datalen);
+				} else
+					ast_log(LOG_WARNING, "Supposed to send packet encrypted, but no key?\n");
+			}
 			res = send_packet(fr);
 		}
 	}
@@ -3217,8 +3417,8 @@ static int iax2_show_users(int fd, int argc, char *argv[])
 
 static int iax2_show_peers(int fd, int argc, char *argv[])
 {
-#define FORMAT2 "%-15.15s  %-15.15s %s  %-15.15s  %-8s  %-10s\n"
-#define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-5d%s  %-10s\n"
+#define FORMAT2 "%-15.15s  %-15.15s %s  %-15.15s  %-8s  %s %-10s\n"
+#define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-5d%s  %s %-10s\n"
 	struct iax2_peer *peer;
 	char name[256] = "";
 	char iabuf[INET_ADDRSTRLEN];
@@ -3232,7 +3432,7 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 			return RESULT_SHOWUSAGE;
  	}
 	ast_mutex_lock(&peerl.lock);
-	ast_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "Status");
+	ast_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status");
 	for (peer = peerl.peers;peer;peer = peer->next) {
 		char nm[20];
 		char status[20] = "";
@@ -3261,7 +3461,8 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
 					ast_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
 					nm,
-					ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ", status);
+					ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
+					peer->encmethods ? "(E)" : "   ", status);
 
                 if (argc == 5) {
                   if (!strcasecmp(argv[3],"include") && strstr(srch,argv[4])) {
@@ -3280,7 +3481,8 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
 					ast_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
 					nm,
-					ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ", status);
+					ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
+					peer->encmethods ? "(E)" : "   ", status);
 		}
 	}
 	ast_mutex_unlock(&peerl.lock);
@@ -3724,6 +3926,8 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			}
 		}
 
+
+		iaxs[callno]->encmethods = user->encmethods;
 		/* Store the requested username if not specified */
 		if (ast_strlen_zero(iaxs[callno]->username))
 			strncpy(iaxs[callno]->username, user->name, sizeof(iaxs[callno]->username)-1);
@@ -3806,17 +4010,35 @@ static int raw_hangup(struct sockaddr_in *sin, unsigned short src, unsigned shor
 	return sendto(netsocket, &fh, sizeof(fh), 0, (struct sockaddr *)sin, sizeof(*sin));
 }
 
+static void merge_encryption(struct chan_iax2_pvt *p, unsigned int enc)
+{
+	/* Select exactly one common encryption if there are any */
+	p->encmethods &= enc;
+	if (p->encmethods) {
+		if (p->encmethods & IAX_ENCRYPT_AES128)
+			p->encmethods = IAX_ENCRYPT_AES128;
+		else
+			p->encmethods = 0;
+	}
+}
+
 static int authenticate_request(struct chan_iax2_pvt *p)
 {
 	struct iax_ie_data ied;
+	int res;
 	memset(&ied, 0, sizeof(ied));
 	iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, p->authmethods);
 	if (p->authmethods & (IAX_AUTH_MD5 | IAX_AUTH_RSA)) {
 		snprintf(p->challenge, sizeof(p->challenge), "%d", rand());
 		iax_ie_append_str(&ied, IAX_IE_CHALLENGE, p->challenge);
 	}
+	if (p->encmethods)
+		iax_ie_append_short(&ied, IAX_IE_ENCRYPTION, p->encmethods);
 	iax_ie_append_str(&ied,IAX_IE_USERNAME, p->username);
-	return send_command(p, AST_FRAME_IAX, IAX_COMMAND_AUTHREQ, 0, ied.buf, ied.pos, -1);
+	res = send_command(p, AST_FRAME_IAX, IAX_COMMAND_AUTHREQ, 0, ied.buf, ied.pos, -1);
+	if (p->encmethods)
+		ast_set_flag(p, IAX_ENCRYPTED);
+	return res;
 }
 
 static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
@@ -4030,7 +4252,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	
 }
 
-static int authenticate(char *challenge, char *secret, char *keyn, int authmethods, struct iax_ie_data *ied, struct sockaddr_in *sin)
+static int authenticate(char *challenge, char *secret, char *keyn, int authmethods, struct iax_ie_data *ied, struct sockaddr_in *sin, aes_encrypt_ctx *ecx, aes_decrypt_ctx *dcx)
 {
 	int res = -1;
 	int x;
@@ -4071,6 +4293,8 @@ static int authenticate(char *challenge, char *secret, char *keyn, int authmetho
 			/* If they support md5, authenticate with it.  */
 			for (x=0;x<16;x++)
 				sprintf(digres + (x << 1),  "%2.2x", digest[x]); /* safe */
+			if (ecx && dcx)
+				build_enc_keys(digest, ecx, dcx);
 			iax_ie_append_str(ied, IAX_IE_MD5_RESULT, digres);
 			res = 0;
 		} else if (authmethods & IAX_AUTH_PLAINTEXT) {
@@ -4098,11 +4322,15 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 		strncpy(p->challenge, ies->challenge, sizeof(p->challenge)-1);
 	if (ies->authmethods)
 		authmethods = ies->authmethods;
+	if (authmethods & IAX_AUTH_MD5)
+		merge_encryption(p, ies->encmethods);
+	else
+		p->encmethods = 0;
 
 	/* Check for override RSA authentication first */
 	if ((override && !ast_strlen_zero(override)) || (okey && !ast_strlen_zero(okey))) {
 		/* Normal password authentication */
-		res = authenticate(p->challenge, override, okey, authmethods, &ied, sin);
+		res = authenticate(p->challenge, override, okey, authmethods, &ied, sin, &p->ecx, &p->dcx);
 	} else {
 		ast_mutex_lock(&peerl.lock);
 		peer = peerl.peers;
@@ -4114,7 +4342,7 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 			 && (!peer->addr.sin_addr.s_addr || ((sin->sin_addr.s_addr & peer->mask.s_addr) == (peer->addr.sin_addr.s_addr & peer->mask.s_addr)))
 			 					/* No specified host, or this is our host */
 			) {
-				res = authenticate(p->challenge, peer->secret, peer->outkey, authmethods, &ied, sin);
+				res = authenticate(p->challenge, peer->secret, peer->outkey, authmethods, &ied, sin, &p->ecx, &p->dcx);
 				if (!res)
 					break;	
 			}
@@ -4122,6 +4350,8 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 		}
 		ast_mutex_unlock(&peerl.lock);
 	}
+	if (ies->encmethods)
+		ast_set_flag(p, IAX_ENCRYPTED | IAX_KEYPOPULATED);
 	if (!res)
 		res = send_command(p, AST_FRAME_IAX, IAX_COMMAND_AUTHREP, 0, ied.buf, ied.pos, -1);
 	return res;
@@ -4612,9 +4842,9 @@ static int registry_rerequest(struct iax_ies *ies, int callno, struct sockaddr_i
 				char tmpkey[256];
 				strncpy(tmpkey, reg->secret + 1, sizeof(tmpkey) - 1);
 				tmpkey[strlen(tmpkey) - 1] = '\0';
-				res = authenticate(challenge, NULL, tmpkey, authmethods, &ied, sin);
+				res = authenticate(challenge, NULL, tmpkey, authmethods, &ied, sin, NULL, NULL);
 			} else
-				res = authenticate(challenge, reg->secret, NULL, authmethods, &ied, sin);
+				res = authenticate(challenge, reg->secret, NULL, authmethods, &ied, sin, NULL, NULL);
 			if (!res) {
 				reg->regstate = REG_STATE_AUTHSENT;
 				return send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGREQ, 0, ied.buf, ied.pos, -1);
@@ -5221,6 +5451,17 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			ast_mutex_unlock(&iaxsl[fr.callno]);
 		return 1;
 	}
+	if (ast_test_flag(iaxs[fr.callno], IAX_ENCRYPTED)) {
+		if (decrypt_frame(fr.callno, fh, &f, &res)) {
+			ast_log(LOG_NOTICE, "Packet Decrypt Failed!\n");
+			ast_mutex_unlock(&iaxsl[fr.callno]);
+			return 1;
+		}
+#ifdef DEBUG_SUPPORT
+		else if (iaxdebug)
+			iax_showframe(NULL, fh, 1, &sin, res - sizeof(struct ast_iax2_full_hdr));
+#endif
+	}
 	if (!inaddrcmp(&sin, &iaxs[fr.callno]->addr) && !minivid &&
 		f.subclass != IAX_COMMAND_TXCNT &&		/* for attended transfer */
 		f.subclass != IAX_COMMAND_TXACC)		/* for attended transfer */
@@ -5540,6 +5781,10 @@ retryowner:
 					}
 					break;
 				}
+				if (iaxs[fr.callno]->authmethods & IAX_AUTH_MD5)
+					merge_encryption(iaxs[fr.callno],ies.encmethods);
+				else
+					iaxs[fr.callno]->encmethods = 0;
 				authenticate_request(iaxs[fr.callno]);
 				iaxs[fr.callno]->state |= IAX_STATE_AUTHENTICATED;
 				break;
@@ -5560,8 +5805,7 @@ retryowner:
 				ast_set_flag(iaxs[fr.callno], IAX_ALREADYGONE);
 				ast_log(LOG_DEBUG, "Immediately destroying %d, having received hangup\n", fr.callno);
 				/* Set hangup cause according to remote */
-				ast_log(LOG_NOTICE, "Remote sent causecode %d\n", ies.causecode);
-				if (ies.causecode)
+				if (ies.causecode && iaxs[fr.callno]->owner)
 					iaxs[fr.callno]->owner->hangupcause = ies.causecode;
 				/* Send ack immediately, before we destroy */
 				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
@@ -6167,7 +6411,7 @@ static int iax2_provision(struct sockaddr_in *end, char *dest, const char *templ
 	if (end)
 		memcpy(&sin, end, sizeof(sin));
 	else {
-		if (create_addr(&sin, NULL, NULL, NULL, dest, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL, NULL, 0))
+		if (create_addr(&sin, NULL, NULL, NULL, dest, NULL, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL, NULL, 0))
 			return -1;
 	}
 	/* Build the rest of the message */
@@ -6361,7 +6605,7 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	}							
 
 	/* Populate our address from the given */
-	if (create_addr(&sin, &capability, &sendani, &maxtime, hostname, NULL, &trunk, &notransfer, &usejitterbuf, NULL, 0, NULL, 0, &found, NULL, NULL, 0)) {
+	if (create_addr(&sin, &capability, &sendani, &maxtime, hostname, NULL, &trunk, &notransfer, &usejitterbuf, NULL, NULL, 0, NULL, 0, &found, NULL, NULL, 0)) {
 		*cause = AST_CAUSE_UNREGISTERED;
 		return NULL;
 	}
@@ -6537,6 +6781,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 	}
 	if (peer) {
 		ast_copy_flags(peer, (&globalflags), IAX_MESSAGEDETAIL | IAX_USEJITTERBUF);	
+		peer->encmethods = iax2_encryption;
 		peer->secret[0] = '\0';
 		if (!found) {
 			strncpy(peer->name, name, sizeof(peer->name)-1);
@@ -6565,6 +6810,8 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 				}
 			} else if (!strcasecmp(v->name, "auth")) {
 				peer->authmethods = get_auth_methods(v->value);
+			} else if (!strcasecmp(v->name, "encryption")) {
+				peer->encmethods = get_encrypt_methods(v->value);
 			} else if (!strcasecmp(v->name, "notransfer")) {
 				ast_set2_flag(peer, ast_true(v->value), IAX_NOTRANSFER);	
 			} else if (!strcasecmp(v->name, "jitterbuffer")) {
@@ -6719,6 +6966,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 	if (user) {
 		memset(user, 0, sizeof(struct iax2_user));
 		user->capability = iax2_capability;
+		user->encmethods = iax2_encryption;
 		strncpy(user->name, name, sizeof(user->name)-1);
 		strncpy(user->language, language, sizeof(user->language) - 1);
 		ast_copy_flags(user, (&globalflags), IAX_USEJITTERBUF);	
@@ -6765,6 +7013,8 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 				}
 			} else if (!strcasecmp(v->name, "auth")) {
 				user->authmethods = get_auth_methods(v->value);
+			} else if (!strcasecmp(v->name, "encryption")) {
+				user->encmethods = get_encrypt_methods(v->value);
 			} else if (!strcasecmp(v->name, "notransfer")) {
 				ast_set2_flag(user, ast_true(v->value), IAX_NOTRANSFER);	
 			} else if (!strcasecmp(v->name, "jitterbuffer")) {
@@ -6997,6 +7247,8 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 			inet_aton(v->value, &sin->sin_addr);
 		else if (!strcasecmp(v->name, "authdebug"))
 			authdebug = ast_true(v->value);
+		else if (!strcasecmp(v->name, "encryption"))
+			iax2_encryption = get_encrypt_methods(v->value);
 		else if (!strcasecmp(v->name, "notransfer"))
 			ast_set2_flag((&globalflags), ast_true(v->value), IAX_NOTRANSFER);	
 		else if (!strcasecmp(v->name, "jitterbuffer"))
@@ -7198,7 +7450,7 @@ static int cache_get_callno_locked(const char *data)
 		host = st;
 	}
 	/* Populate our address from the given */
-	if (create_addr(&sin, NULL, NULL, NULL, host, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL, NULL, 0)) {
+	if (create_addr(&sin, NULL, NULL, NULL, host, NULL, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL, NULL, 0)) {
 		return -1;
 	}
 	ast_log(LOG_DEBUG, "host: %s, user: %s, password: %s, context: %s\n", host, username, password, context);
