@@ -340,8 +340,6 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 					headp=&tmp->varshead;
 					ast_mutex_init(&tmp->lock);
 				        AST_LIST_HEAD_INIT(headp);
-					tmp->vars=ast_var_assign("tempvar","tempval");
-					AST_LIST_INSERT_HEAD(headp,tmp->vars,entries);
 					strncpy(tmp->context, "default", sizeof(tmp->context)-1);
 					strncpy(tmp->language, defaultlanguage, sizeof(tmp->language)-1);
 					strncpy(tmp->exten, "s", sizeof(tmp->exten)-1);

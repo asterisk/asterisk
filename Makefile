@@ -162,9 +162,11 @@ CFLAGS+=$(shell if [ -f /usr/local/include/zaptel.h ]; then echo "-DZAPTEL_OPTIM
 LIBEDIT=editline/libedit.a
 
 ASTERISKVERSION=$(shell if [ -f .version ]; then cat .version; else if [ -d CVS ]; then if [ -f CVS/Tag ] ; then echo "CVS-`sed 's/^T//g' CVS/Tag`-`date +"%D-%T"`"; else echo "CVS-HEAD-`date +"%D-%T"`"; fi; fi; fi)
+ASTERISKVERSIONNUM=$(shell if [ -d CVS ]; then echo 999999 ; else if [ -f .version ] ; then awk -F. '{printf "%02d%02d%02d", $$1, $$2, $$3}' .version ; else echo 000000 ; fi ; fi)
 HTTPDIR=$(shell if [ -d /var/www ]; then echo "/var/www"; else echo "/home/httpd"; fi)
 RPMVERSION=$(shell if [ -f .version ]; then sed 's/[-\/:]/_/g' .version; else echo "unknown" ; fi)
 CFLAGS+=-DASTERISK_VERSION=\"$(ASTERISKVERSION)\"
+CFLAGS+=-DASTERISK_VERSION_NUM=\"$(ASTERISKVERSIONNUM)\"
 CFLAGS+=-DINSTALL_PREFIX=\"$(INSTALL_PREFIX)\"
 CFLAGS+=-DASTETCDIR=\"$(ASTETCDIR)\"
 CFLAGS+=-DASTLIBDIR=\"$(ASTLIBDIR)\"

@@ -480,7 +480,6 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 {
 	int flags;
 	int x;
-	struct ast_channel *chan=NULL;
 	if (!ast_strlen_zero(map->lcontext)) {
 		flags = 0;
 		if (ast_exists_extension(NULL, map->lcontext, called_number, 1, NULL))
@@ -501,27 +500,35 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 			flags &= ~(DUNDI_FLAG_MATCHMORE|DUNDI_FLAG_CANMATCH);
 		}
 		if (flags) {
-			/* Clearly we can't say 'don't ask' anymore... */
-			chan = ast_channel_alloc(0);
-			if (chan) {
-				flags |= map->options & 0xffff;
-				dr[anscnt].flags = flags;
-				dr[anscnt].techint = map->tech;
-				dr[anscnt].weight = map->weight;
-				dr[anscnt].expiration = DUNDI_DEFAULT_CACHE_TIME;
-				strncpy(dr[anscnt].tech, tech2str(map->tech), sizeof(dr[anscnt].tech));
-				dr[anscnt].eid = *us_eid;
-				dundi_eid_to_str(dr[anscnt].eid_str, sizeof(dr[anscnt].eid_str), &dr[anscnt].eid);
-				if (flags & DUNDI_FLAG_EXISTS) {
-					pbx_builtin_setvar_helper(chan, "NUMBER", called_number);
-					pbx_builtin_setvar_helper(chan, "EID", dr[anscnt].eid_str);
-					pbx_builtin_setvar_helper(chan, "SECRET", cursecret);
-					pbx_builtin_setvar_helper(chan, "IPADDR", ipaddr);
-					pbx_substitute_variables_helper(chan, map->dest, dr[anscnt].dest, sizeof(dr[anscnt].dest));
-				} else
-					dr[anscnt].dest[0] = '\0';
-				anscnt++;
-			}
+			struct varshead headp;
+			struct ast_var_t *newvariable;
+			flags |= map->options & 0xffff;
+			dr[anscnt].flags = flags;
+			dr[anscnt].techint = map->tech;
+			dr[anscnt].weight = map->weight;
+			dr[anscnt].expiration = DUNDI_DEFAULT_CACHE_TIME;
+			strncpy(dr[anscnt].tech, tech2str(map->tech), sizeof(dr[anscnt].tech));
+			dr[anscnt].eid = *us_eid;
+			dundi_eid_to_str(dr[anscnt].eid_str, sizeof(dr[anscnt].eid_str), &dr[anscnt].eid);
+			if (flags & DUNDI_FLAG_EXISTS) {
+				AST_LIST_HEAD_INIT(&headp);
+				newvariable = ast_var_assign("NUMBER", called_number);
+				AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
+				newvariable = ast_var_assign("EID", dr[anscnt].eid_str);
+				AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
+				newvariable = ast_var_assign("SECRET", cursecret);
+				AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
+				newvariable = ast_var_assign("IPADDR", ipaddr);
+				AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
+				pbx_substitute_variables_varshead(&headp, map->dest, dr[anscnt].dest, sizeof(dr[anscnt].dest));
+				while (!AST_LIST_EMPTY(&headp)) {           /* List Deletion. */
+					newvariable = AST_LIST_FIRST(&headp);
+					AST_LIST_REMOVE_HEAD(&headp, entries);
+					ast_var_delete(newvariable);
+				}
+			} else
+				dr[anscnt].dest[0] = '\0';
+			anscnt++;
 		} else {
 			/* No answers...  Find the fewest number of digits from the
 			   number for which we have no answer. */
@@ -541,8 +548,6 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 			}
 		}
 	}
-	if (chan)
-		ast_hangup(chan);
 	return anscnt;
 }
 

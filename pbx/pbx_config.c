@@ -1754,10 +1754,13 @@ static int pbx_load_module(void)
 						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 						if (ast_context_add_ignorepat2(con, realvalue, registrar))
 							ast_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
-					} else if (!strcasecmp(v->name, "switch")) {
+					} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch")) {
 						char *stringp=NULL;
 						memset(realvalue, 0, sizeof(realvalue));
-						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
+						if (!strcasecmp(v->name, "switch"))
+							pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
+						else
+							strncpy(realvalue, v->value, sizeof(realvalue) - 1);
 						tc = realvalue;
 						stringp=tc;
 						appl = strsep(&stringp, "/");

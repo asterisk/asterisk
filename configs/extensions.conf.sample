@@ -247,6 +247,13 @@ include => iaxprovider
 ; Asterisk PBX
 ; 
 ; switch => IAX2/user:password@bigserver/local
+;
+; An "lswitch" is like a switch but is literal, in that
+; variable substitution is not performed at load time
+; but is passed to the switch directly (presumably to
+; be substituted in the switch routine itself)
+;
+; lswitch => Loopback/12${EXTEN}@othercontext
 
 [macro-stdexten];
 ;

@@ -828,7 +828,7 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, struct ast
 	return NULL;
 }
 
-static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen)
+static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp)
 {
 	char *first,*second;
 	char tmpvar[80] = "";
@@ -836,7 +836,6 @@ static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var
 	struct tm brokentime;
 	int offset,offset2;
 	struct ast_var_t *variables;
-	struct varshead *headp=NULL;
 
 	if (c) 
 		headp=&c->varshead;
@@ -861,7 +860,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var
 		if (!first)
 			first = tmpvar + strlen(tmpvar);
 		*first='\0';
-		pbx_substitute_variables_temp(c,tmpvar,ret,workspace,workspacelen - 1);
+		pbx_substitute_variables_temp(c,tmpvar,ret,workspace,workspacelen - 1, headp);
 		if (!(*ret)) return;
 		offset=atoi(first+1);
 	 	if ((second=strchr(first+1,':'))) {
@@ -1009,7 +1008,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var
 		strncpy(workspace, c->language, workspacelen - 1);
 		*ret = workspace;
 	} else {
-		if (c) {
+		if (headp) {
 			AST_LIST_TRAVERSE(headp,variables,entries) {
 #if 0
 				ast_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",var,ast_var_name(variables));
@@ -1056,7 +1055,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var
 	}
 }
 
-void pbx_substitute_variables_helper(struct ast_channel *c, const char *cp1, char *cp2, int count)
+static void pbx_substitute_variables_helper_full(struct ast_channel *c, const char *cp1, char *cp2, int count, struct varshead *headp)
 {
 	char *cp4;
 	const char *tmp, *whereweare;
@@ -1147,7 +1146,7 @@ void pbx_substitute_variables_helper(struct ast_channel *c, const char *cp1, cha
 			
 			/* Retrieve variable value */
 			workspace[0] = '\0';
-			pbx_substitute_variables_temp(c,vars,&cp4, workspace, sizeof(workspace));
+			pbx_substitute_variables_temp(c,vars,&cp4, workspace, sizeof(workspace), headp);
 			if (cp4) {
 				length = strlen(cp4);
 				if (length > count)
@@ -1220,6 +1219,16 @@ void pbx_substitute_variables_helper(struct ast_channel *c, const char *cp1, cha
 		} else
 			break;
 	}
+}
+
+void pbx_substitute_variables_helper(struct ast_channel *c, const char *cp1, char *cp2, int count)
+{
+	pbx_substitute_variables_helper_full(c, cp1, cp2, count, NULL);
+}
+
+void pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, char *cp2, int count)
+{
+	pbx_substitute_variables_helper_full(NULL, cp1, cp2, count, headp);
 }
 
 static void pbx_substitute_variables(char *passdata, int datalen, struct ast_channel *c, struct ast_exten *e) {
@@ -1804,6 +1813,11 @@ int ast_matchmore_extension(struct ast_channel *c, const char *context, const ch
 int ast_spawn_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid) 
 {
 	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, HELPER_SPAWN);
+}
+
+int ast_exec_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid) 
+{
+	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, HELPER_EXEC);
 }
 
 int ast_pbx_run(struct ast_channel *c)
@@ -5335,3 +5349,4 @@ int ast_context_verify_includes(struct ast_context *con)
 		}
 	return res;
 }
+

@@ -13,7 +13,7 @@
 
 
 
-PBX_LIBS=pbx_config.so pbx_spool.so pbx_dundi.so 
+PBX_LIBS=pbx_config.so pbx_spool.so pbx_dundi.so  pbx_loopback.so
 
 # Add GTK console if appropriate
 #PBX_LIBS+=$(shell gtk-config --cflags >/dev/null 2>/dev/null && echo "pbx_gtkconsole.so")
