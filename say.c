@@ -51,7 +51,7 @@ int ast_say_number(struct ast_channel *chan, int num, char *ints, char *language
 	} else {
 		/* Use english numbers */
 		language = "en";
-		while(num && !res) {
+		while(!res && (num || playh)) {
 			if (playh) {
 				snprintf(fn, sizeof(fn), "digits/hundred");
 				playh = 0;
@@ -100,3 +100,200 @@ int ast_say_number(struct ast_channel *chan, int num, char *ints, char *language
 	}
 	return res;
 }
+
+int ast_say_date(struct ast_channel *chan, time_t t, char *ints, char *lang)
+{
+	struct tm *tm;
+	char fn[256];
+	int res = 0;
+	tm = localtime(&t);
+	if (!tm) {
+		ast_log(LOG_WARNING, "Unable to derive local time\n");
+		return -1;
+	}
+	if (!res) {
+		snprintf(fn, sizeof(fn), "digits/day-%d", tm->tm_wday);
+		res = ast_streamfile(chan, fn, lang);
+		if (!res)
+			res = ast_waitstream(chan, ints);
+	}
+	if (!res) {
+		snprintf(fn, sizeof(fn), "digits/mon-%d", tm->tm_mon);
+		res = ast_streamfile(chan, fn, lang);
+		if (!res)
+			res = ast_waitstream(chan, ints);
+	}
+	if (!res)
+		res = ast_say_number(chan, tm->tm_mday, ints, lang);
+
+	if (!res)
+		res = ast_waitstream(chan, ints);
+	if (!res)
+		res = ast_say_number(chan, tm->tm_year + 1900, ints, lang);
+	return res;
+}
+
+int ast_say_time(struct ast_channel *chan, time_t t, char *ints, char *lang)
+{
+	struct tm *tm;
+	int res = 0;
+	int hour, pm=0;
+	tm = localtime(&t);
+	if (!tm) {
+		ast_log(LOG_WARNING, "Unable to derive local time\n");
+		return -1;
+	}
+	hour = tm->tm_hour;
+	if (!hour)
+		hour = 12;
+	else if (hour == 12)
+		pm = 1;
+	else if (hour > 12) {
+		hour -= 12;
+		pm = 1;
+	}
+	if (!res)
+		res = ast_say_number(chan, hour, ints, lang);
+
+	if (tm->tm_min > 9) {
+		if (!res)
+			res = ast_say_number(chan, tm->tm_min, ints, lang);
+	} else if (tm->tm_min) {
+		if (!res)
+			res = ast_streamfile(chan, "digits/oh", lang);
+		if (!res)
+			res = ast_waitstream(chan, ints);
+		if (!res)
+			res = ast_say_number(chan, tm->tm_min, ints, lang);
+	} else {
+		if (!res)
+			res = ast_streamfile(chan, "digits/oclock", lang);
+		if (!res)
+			res = ast_waitstream(chan, ints);
+	}
+	if (pm) {
+		if (!res)
+			res = ast_streamfile(chan, "digits/p-m", lang);
+	} else {
+		if (!res)
+			res = ast_streamfile(chan, "digits/a-m", lang);
+	}
+	if (!res)
+		res = ast_waitstream(chan, ints);
+	return res;
+}
+
+int ast_say_datetime(struct ast_channel *chan, time_t t, char *ints, char *lang)
+{
+	struct tm *tm;
+	char fn[256];
+	int res = 0;
+	int hour, pm=0;
+	tm = localtime(&t);
+	if (!tm) {
+		ast_log(LOG_WARNING, "Unable to derive local time\n");
+		return -1;
+	}
+	if (!res) {
+		snprintf(fn, sizeof(fn), "digits/day-%d", tm->tm_wday);
+		res = ast_streamfile(chan, fn, lang);
+		if (!res)
+			res = ast_waitstream(chan, ints);
+	}
+	if (!res) {
+		snprintf(fn, sizeof(fn), "digits/mon-%d", tm->tm_mon);
+		res = ast_streamfile(chan, fn, lang);
+		if (!res)
+			res = ast_waitstream(chan, ints);
+	}
+	if (!res)
+		res = ast_say_number(chan, tm->tm_mday, ints, lang);
+
+	hour = tm->tm_hour;
+	if (!hour)
+		hour = 12;
+	else if (hour == 12)
+		pm = 1;
+	else if (hour > 12) {
+		hour -= 12;
+		pm = 1;
+	}
+	if (!res)
+		res = ast_say_number(chan, hour, ints, lang);
+
+	if (tm->tm_min > 9) {
+		if (!res)
+			res = ast_say_number(chan, tm->tm_min, ints, lang);
+	} else if (tm->tm_min) {
+		if (!res)
+			res = ast_streamfile(chan, "digits/oh", lang);
+		if (!res)
+			res = ast_waitstream(chan, ints);
+		if (!res)
+			res = ast_say_number(chan, tm->tm_min, ints, lang);
+	} else {
+		if (!res)
+			res = ast_streamfile(chan, "digits/oclock", lang);
+		if (!res)
+			res = ast_waitstream(chan, ints);
+	}
+	if (pm) {
+		if (!res)
+			res = ast_streamfile(chan, "digits/p-m", lang);
+	} else {
+		if (!res)
+			res = ast_streamfile(chan, "digits/a-m", lang);
+	}
+	if (!res)
+		res = ast_waitstream(chan, ints);
+	if (!res)
+		res = ast_say_number(chan, tm->tm_year + 1900, ints, lang);
+	return res;
+}
+
+int ast_say_datetime_from_now(struct ast_channel *chan, time_t t, char *ints, char *lang)
+{
+	int res=0;
+	time_t nowt;
+	int daydiff;
+	struct tm *tm;
+	struct tm tm2;
+	struct tm *now;
+	char fn[256];
+
+	time(&nowt);
+
+	tm = localtime(&t);
+	if (!tm) {
+		ast_log(LOG_WARNING, "Unable to derive local time\n");
+		return -1;
+	}
+	memcpy(&tm2, tm, sizeof(struct tm));
+	tm = &tm2;
+	now = localtime(&nowt);
+	daydiff = now->tm_yday - tm->tm_yday;
+	if ((daydiff < 0) || (daydiff > 6)) {
+		/* Day of month and month */
+		if (!res) {
+			snprintf(fn, sizeof(fn), "digits/mon-%d", tm->tm_mon);
+			res = ast_streamfile(chan, fn, lang);
+			if (!res)
+				res = ast_waitstream(chan, ints);
+		}
+		if (!res)
+			res = ast_say_number(chan, tm->tm_mday, ints, lang);
+
+	} else if (daydiff) {
+		/* Just what day of the week */
+		if (!res) {
+			snprintf(fn, sizeof(fn), "digits/day-%d", tm->tm_wday);
+			res = ast_streamfile(chan, fn, lang);
+			if (!res)
+				res = ast_waitstream(chan, ints);
+		}
+	} /* Otherwise, it was today */
+	if (!res)
+		res = ast_say_time(chan, t, ints, lang);
+	return res;
+}
+
