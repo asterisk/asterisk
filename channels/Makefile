@@ -17,9 +17,6 @@
 OSARCH=$(shell uname -s)
 PROC=$(shell uname -m)
 
-USE_MYSQL_FRIENDS=0
-USE_SIP_MYSQL_FRIENDS=0
-
 CHANNEL_LIBS=chan_modem.so chan_sip.so \
 	     chan_modem_aopen.so \
              chan_modem_bestdata.so chan_modem_i4l.so \
@@ -27,14 +24,12 @@ CHANNEL_LIBS=chan_modem.so chan_sip.so \
 	     chan_local.so chan_skinny.so
 
 ifeq (${OSARCH},OpenBSD)
-MYSQLLIB=-L/usr/local/lib/mysql -lmysqlclient
 CFLAGS+=-I/usr/local/include
 PTLIB=-lpt_OpenBSD_x86_r
 H323LIB=-lh323_OpenBSD_x86_r
 CHANH323LIB=-L/usr/local/lib
 endif
 ifeq (${OSARCH},Linux)
-MYSQLLIB=-L/usr/lib/mysql -lmysqlclient
 PTLIB=-lpt_linux_x86_r
 H323LIB=-lh323_linux_x86_r
 CHANH323LIB=-ldl
@@ -82,14 +77,6 @@ ALSA_SRC+=$(shell [ -f alsa-monitor.h ] && echo "alsa-monitor.h")
 
 CFLAGS+=-DCRYPTO
 CFLAGS+=-fPIC
-
-ifeq ($(USE_MYSQL_FRIENDS),1)
-CFLAGS+=-DMYSQL_FRIENDS
-USE_SIP_MYSQL_FRIENDS=1
-endif
-ifeq ($(USE_SIP_MYSQL_FRIENDS),1)
-CFLAGS+=-DSIP_MYSQL_FRIENDS
-endif
 
 CFLAGS+=#-DVOFRDUMPER
 
@@ -147,18 +134,7 @@ chan_oss.so: chan_oss.o
 endif
 
 chan_iax2.so: chan_iax2.o iax2-parser.o iax2-provision.o
-ifeq ($(USE_MYSQL_FRIENDS),1)
-	$(CC) $(SOLINK) -o $@ chan_iax2.o iax2-parser.o iax2-provision.o $(MYSQLLIB) -lz
-else
 	$(CC) $(SOLINK) -o $@ chan_iax2.o iax2-parser.o iax2-provision.o
-endif
-
-chan_iax.so: chan_iax.o
-ifeq ($(USE_MYSQL_FRIENDS),1)
-	$(CC) $(SOLINK) -o $@ chan_iax.o $(MYSQLLIB) -lz
-else
-	$(CC) $(SOLINK) -o $@ chan_iax.o
-endif
 
 chan_zap.o: chan_zap.c
 	$(CC) -c $(CFLAGS) -o chan_zap.o chan_zap.c
@@ -167,11 +143,7 @@ chan_zap.so: chan_zap.o
 	$(CC) $(SOLINK) -o $@ $<  $(ZAPPRI) $(ZAPR2) -ltonezone
 
 chan_sip.so: chan_sip.o
-ifeq ($(USE_SIP_MYSQL_FRIENDS),1)
-	$(CC) $(SOLINK) -o $@ chan_sip.o $(MYSQLLIB) -lz
-else
 	$(CC) $(SOLINK) -o $@ chan_sip.o
-endif
 
 chan_alsa.o: $(ALSA_SRC)
 
