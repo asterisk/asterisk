@@ -869,10 +869,8 @@ static void iax2_frame_free(struct iax_frame *fr)
 
 static int iax2_queue_frame(int callno, struct ast_frame *f)
 {
-	int pass =0;
 	/* Assumes lock for callno is already held... */
 	for (;;) {
-		pass++;
 		if (iaxs[callno] && iaxs[callno]->owner) {
 			if (ast_mutex_trylock(&iaxs[callno]->owner->lock)) {
 				/* Avoid deadlock by pausing and trying again */
