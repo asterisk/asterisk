@@ -117,6 +117,7 @@ static struct iax2_ie {
 	{ IAX_IE_AUTOANSWER, "AUTO ANSWER REQ" },
 	{ IAX_IE_TRANSFERID, "TRANSFER ID", dump_int },
 	{ IAX_IE_RDNIS, "REFERRING DNIS", dump_string },
+	{ IAX_IE_PROVISIONING, "PROVISIONING" },
 };
 
 const char *iax_ie2str(int ie)
@@ -219,6 +220,7 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		"MWI",
 		"UNSUPPORTED",
 		"TRANSFER",
+		"PROVISION",
 	};
 	char *cmds[] = {
 		"(0?)",
