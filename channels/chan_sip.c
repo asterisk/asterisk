@@ -187,6 +187,7 @@ static struct sip_pvt {
 	char context[AST_MAX_EXTENSION];
 	char fromdomain[AST_MAX_EXTENSION];	/* Domain to show in the from field */
 	char fromuser[AST_MAX_EXTENSION];	/* Domain to show in the user field */
+	char tohost[AST_MAX_EXTENSION];		/* Host we should put in the "to" field */
 	char language[MAX_LANGUAGE];
 	char theirtag[256];				/* Their tag */
 	char username[81];
@@ -259,6 +260,7 @@ struct sip_peer {
 	char context[80];		/* JK02: peers need context too to allow parking etc */
 	char methods[80];
 	char username[80];
+	char tohost[80];
 	char fromuser[80];
 	char fromdomain[80];
 	char mailbox[AST_MAX_EXTENSION];
@@ -593,6 +595,9 @@ static int create_addr(struct sip_pvt *r, char *peer)
 			strncpy(r->peername, p->username, sizeof(r->peername)-1);
 			strncpy(r->peersecret, p->secret, sizeof(r->peersecret)-1);
 			strncpy(r->username, p->username, sizeof(r->username)-1);
+			strncpy(r->tohost, p->tohost, sizeof(r->tohost)-1);
+			if (!strlen(r->tohost)) 
+				snprintf(r->tohost, sizeof(r->tohost), inet_ntoa(p->addr.sin_addr));
 			if (strlen(p->fromdomain))
 				strncpy(r->fromdomain, p->fromdomain, sizeof(r->fromdomain)-1);
 			if (strlen(p->fromuser))
@@ -633,6 +638,7 @@ static int create_addr(struct sip_pvt *r, char *peer)
 		}
 		hp = gethostbyname(peer);
 		if (hp) {
+			strncpy(r->tohost, peer, sizeof(r->tohost) - 1);
 			memcpy(&r->sa.sin_addr, hp->h_addr, sizeof(r->sa.sin_addr));
 			if (port) {
 				r->sa.sin_port = htons(atoi(port));
@@ -2299,14 +2305,14 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 
 	if (strlen(p->username)) {
 		if (ntohs(p->sa.sin_port) != DEFAULT_SIP_PORT) {
-			snprintf(invite, sizeof(invite), "sip:%s@%s:%d",p->username, inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
+			snprintf(invite, sizeof(invite), "sip:%s@%s:%d",p->username, p->tohost, ntohs(p->sa.sin_port));
 		} else {
-			snprintf(invite, sizeof(invite), "sip:%s@%s",p->username, inet_ntoa(p->sa.sin_addr));
+			snprintf(invite, sizeof(invite), "sip:%s@%s",p->username, p->tohost);
 		}
 	} else if (ntohs(p->sa.sin_port) != DEFAULT_SIP_PORT) {
-		snprintf(invite, sizeof(invite), "sip:%s:%d", inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
+		snprintf(invite, sizeof(invite), "sip:%s:%d", p->tohost, ntohs(p->sa.sin_port));
 	} else {
-		snprintf(invite, sizeof(invite), "sip:%s", inet_ntoa(p->sa.sin_addr));
+		snprintf(invite, sizeof(invite), "sip:%s", p->tohost);
 	}
 	strncpy(p->uri, invite, sizeof(p->uri) - 1);
 	/* If there is a VXML URL append it to the SIP URL */
@@ -4987,6 +4993,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 						free(peer);
 						return NULL;
 					}
+					strncpy(peer->tohost, v->value, sizeof(peer->tohost) - 1);
 				}
 				if (!maskfound)
 					inet_aton("255.255.255.255", &peer->mask);
