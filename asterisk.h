@@ -17,6 +17,7 @@
 #define DEFAULT_LANGUAGE "en"
 
 #define AST_CONFIG_DIR "/etc/asterisk"
+#define AST_SOCKET		"/var/run/asterisk.ctl"
 #define AST_MODULE_DIR "/usr/lib/asterisk/modules"
 #define AST_SPOOL_DIR  "/var/spool/asterisk"
 #define AST_VAR_DIR    "/var/lib/asterisk"
