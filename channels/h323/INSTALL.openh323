@@ -2,6 +2,7 @@ To build Open H.323 see:
 
 http://www.openh323.org/build.html#unix
 
-You only need to do 'make opt' in both
-cases.  Anything else you will be
-simply waisting time and HD space.
+You only need to do 'make opt'. Anything else you will be simply waisting time and HD space.
+Also, you will notice they never tell you to 'make install' so don't do it.
+
+
