@@ -162,8 +162,13 @@ int ast_search_dns(void *context,
 	int res, ret = -1;
 
 #ifdef linux
-	res_ninit(&dnsstate);
-	res = res_nsearch(&dnsstate, dname, class, type, answer, sizeof(answer));
+	#ifndef __UCLIBC__
+		res_ninit(&dnsstate);
+		res = res_nsearch(&dnsstate, dname, class, type, answer, sizeof(answer));
+	#else
+	        res_init();
+	        res = res_search(dname, class, type, answer, sizeof(answer));
+	#endif
 #else
 	res_init();
 	res = res_search(dname, class, type, answer, sizeof(answer));
@@ -181,7 +186,11 @@ int ast_search_dns(void *context,
 			ret = 1;
 	}
 #if defined(linux)
-	res_nclose(&dnsstate);
+	#ifndef __UCLIBC__
+		res_nclose(&dnsstate);
+	#else
+		res_close();
+	#endif
 #else
 #ifndef __APPLE__
 	res_close();
