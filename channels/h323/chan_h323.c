@@ -464,7 +464,14 @@ static int oh323_hangup(struct ast_channel *c)
 		p->needdestroy = 1;
 	}
 
-	
+	/* Update usage counter */
+	ast_pthread_mutex_lock(&usecnt_lock);
+	usecnt--;
+	if (usecnt < 0)
+		ast_log(LOG_WARNING, "Usecnt < 0\n");
+	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_update_use_count();
+
 	ast_pthread_mutex_unlock(&p->lock);
 	return 0;
 }

@@ -61,7 +61,8 @@
 #define AST_FORMAT_G729A	(1 << 8)
 /*! SpeeX Free Compression */
 #define AST_FORMAT_SPEEX	(1 << 9)
-
+/*! ILBC Free Codec */
+#define AST_FORMAT_ILBC         (1 << 10)
 
 /**This class describes the G.723.1 codec capability.
  */
