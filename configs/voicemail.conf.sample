@@ -4,7 +4,7 @@
 [general]
 ; Default format for writing Voicemail
 ; format=g723sf|rawgsm|mp3|wav
-format=g723sf|wav
+format=g723sf|wav49|wav
 
 [default]
 4200=2345,Mark Spencer,markster@linux-support.net
