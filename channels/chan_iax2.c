@@ -1581,27 +1581,30 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 	   IAX thread, with iaxsl lock held. */
 	ms = calc_rxstamp(iaxs[fr->callno]) - fr->ts;
 
-	fr->af.delivery.tv_sec = iaxs[fr->callno]->rxcore.tv_sec;
-	fr->af.delivery.tv_usec = iaxs[fr->callno]->rxcore.tv_usec;
-	fr->af.delivery.tv_sec += fr->ts / 1000;
-	fr->af.delivery.tv_usec += fr->ts % 1000;
-	if (fr->af.delivery.tv_usec >= 1000000) {
-		fr->af.delivery.tv_usec -= 1000000;
-		fr->af.delivery.tv_sec += 1;
-	}
-
 	if (ms > 32767) {
 		/* What likely happened here is that our counter has circled but we haven't
 		   gotten the update from the main packet.  We'll just pretend that we did, and
 		   update the timestamp appropriately. */
 		ms -= 65536;
+		fr->ts += 65536;
 	}
 
 	if (ms < -32768) {
 		/* We got this packet out of order.  Lets add 65536 to it to bring it into our new
 		   time frame */
 		ms += 65536;
+		fr->ts -= 65536;
 	}
+
+	fr->af.delivery.tv_sec = iaxs[fr->callno]->rxcore.tv_sec;
+	fr->af.delivery.tv_usec = iaxs[fr->callno]->rxcore.tv_usec;
+	fr->af.delivery.tv_sec += fr->ts / 1000;
+	fr->af.delivery.tv_usec += (fr->ts % 1000) * 1000;
+	if (fr->af.delivery.tv_usec >= 1000000) {
+		fr->af.delivery.tv_usec -= 1000000;
+		fr->af.delivery.tv_sec += 1;
+	}
+
 	
 	/* Rotate our history queue of "lateness".  Don't worry about those initial
 	   zeros because the first entry will always be zero */
