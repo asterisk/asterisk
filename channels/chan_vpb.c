@@ -1270,6 +1270,8 @@ struct vpb_pvt *mkif(int board, int channel, int mode, float txgain, float rxgai
 
 	tmp->group = group;
 
+	/* Initilize dtmf caller ID position variable */
+	tmp->dtmf_caller_pos=0;
 
 	strncpy(tmp->language, language, sizeof(tmp->language) - 1);
 	strncpy(tmp->context, context, sizeof(tmp->context) - 1);
