@@ -72,10 +72,7 @@ static struct ast_channel *get_zap_channel_locked(int num) {
 		ast_mutex_unlock(&c->lock);
 		c = ast_channel_walk_locked(c);
 	}
-	if (c)
-		return c;
-
-	return NULL;
+	return c;
 }
 
 static int careful_write(int fd, unsigned char *data, int len)
@@ -334,7 +331,8 @@ static int conf_exec(struct ast_channel *chan, void *data)
 				res = conf_run(chan, confno, confflags);
 				if (res<0) break;
 				input = res;
-			}
+			} else if (tempchan)
+				ast_mutex_unlock(&tempchan->lock);
 			lastchan = tempchan;
         }
         LOCAL_USER_REMOVE(u);
