@@ -2393,11 +2393,9 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	struct sip_pvt *p;
 	char *callid;
 	char tmp[256] = "";
-	char tmp2[256] = "";
 	char iabuf[INET_ADDRSTRLEN];
 	char *cmd;
 	char *tag = "", *c;
-	char *tag2 = "";
 
 	callid = get_header(req, "Call-ID");
 
@@ -2415,19 +2413,14 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		c = strchr(tmp, ' ');
 		if (c)
 			*c = '\0';
-		strncpy(tmp, get_header(req, "From"), sizeof(tmp) - 1);
+		if (!strcasecmp(cmd, "SIP/2.0"))
+			strncpy(tmp, get_header(req, "To"), sizeof(tmp) - 1);
+		else
+			strncpy(tmp, get_header(req, "From"), sizeof(tmp) - 1);
 		tag = strstr(tmp, "tag=");
 		if (tag) {
 			tag += 4;
 			c = strchr(tag, ';');
-			if (c)
-				*c = '\0';
-		}
-		strncpy(tmp2, get_header(req, "To"), sizeof(tmp2) - 1);
-		tag2 = strstr(tmp2, "tag=");
-		if (tag2) {
-			tag2 += 4;
-			c = strchr(tag2, ';');
 			if (c)
 				*c = '\0';
 		}
@@ -2442,7 +2435,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	p = iflist;
 	while(p) {
 		if (!strcmp(p->callid, callid) && 
-			(!pedanticsipchecking || !tag || !tag2 || ast_strlen_zero(p->theirtag) || !strcmp(p->theirtag, tag) || !strcmp(p->theirtag, tag2))) {
+			(!pedanticsipchecking || !tag || ast_strlen_zero(p->theirtag) || !strcmp(p->theirtag, tag))) {
 			/* Found the call */
 			ast_mutex_lock(&p->lock);
 			ast_mutex_unlock(&iflock);
@@ -4116,10 +4109,16 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 
 	if (strchr(r->username, '@')) {
 		snprintf(from, sizeof(from), "<sip:%s>;tag=as%08x", r->username, p->tag);
-		snprintf(to, sizeof(to),     "<sip:%s>", r->username);
+		if (!ast_strlen_zero(p->theirtag))
+			snprintf(to, sizeof(to), "<sip:%s>;tag=%s", r->username, p->theirtag);
+		else
+			snprintf(to, sizeof(to), "<sip:%s>", r->username);
 	} else {
 		snprintf(from, sizeof(from), "<sip:%s@%s>;tag=as%08x", r->username, p->tohost, p->tag);
-		snprintf(to, sizeof(to),     "<sip:%s@%s>", r->username, p->tohost);
+		if (!ast_strlen_zero(p->theirtag))
+			snprintf(to, sizeof(to), "<sip:%s@%s>;tag=%s", r->username, p->tohost, p->theirtag);
+		else
+			snprintf(to, sizeof(to), "<sip:%s@%s>", r->username, p->tohost);
 	}
 	
 	snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
