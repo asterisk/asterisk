@@ -3824,7 +3824,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
                 	x=1;
 
         	for (; x<strlen(p->username); x++) {
-                	if (!strchr(AST_DIGIT_ANY, p->username[x])) {
+                	if (!strchr(AST_DIGIT_ANYNUM, p->username[x])) {
                         	onlydigits = 0;
                         	break;
                 	}

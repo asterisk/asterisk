@@ -26,6 +26,7 @@ extern "C" {
 
 /*! Convenient for waiting */
 #define AST_DIGIT_ANY "0123456789#*ABCD"
+#define AST_DIGIT_ANYNUM "0123456789"
 
 #define SEEK_FORCECUR	10
 	
