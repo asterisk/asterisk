@@ -2960,6 +2960,11 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	
 	strncpy(tmp, get_header(req, "To"), sizeof(tmp) - 1);
 	c = ditch_braces(tmp);
+	/* Ditch ;user=phone */
+	name = strchr(c, ';');
+	if (name)
+		*name = '\0';
+
 	if (!strncmp(c, "sip:", 4)) {
 		name = c + 4;
 	} else {
