@@ -35,7 +35,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #ifdef USEMYSQLVM
-#include <mysql/mysql.h>
+#include <mysql.h>
 #endif
 
 #include <pthread.h>
@@ -186,6 +186,7 @@ MYSQL *dbhandler=NULL;
 ast_mutex_t mysqllock;
 char dbuser[80];
 char dbpass[80];
+char dbhost[80];
 char dbname[80];
 
 static int mysql_login(void)
@@ -193,11 +194,11 @@ static int mysql_login(void)
 	ast_verbose( VERBOSE_PREFIX_3 "Logging into database with user %s, password %s, and database %s\n", dbuser, dbpass, dbname);
 
 	dbhandler=mysql_init(NULL);
-	if (!mysql_real_connect(dbhandler, NULL, dbuser, dbpass, dbname, 0, NULL, 0)) {
+	if (!mysql_real_connect(dbhandler, dbhost[0] ? dbhost : NULL, dbuser, dbpass, dbname, 0, NULL, 0)) {
 		ast_log(LOG_WARNING, "Error Logging into database\n");
 		return(-1);
 	}
-	ast_mutex_init(&mysqllock, NULL);
+	ast_mutex_init(&mysqllock);
 	return(0);
 }
 
@@ -2967,6 +2968,11 @@ static int load_config(void)
 			strcpy(dbpass, "test");
 		} else {
 			strcpy(dbpass, s);
+		}
+		if (!(s=ast_variable_retrieve(cfg, "general", "dbhost"))) {
+			strcpy(dbhost, "");
+		} else {
+			strcpy(dbhost, s);
 		}
 		if (!(s=ast_variable_retrieve(cfg, "general", "dbname"))) {
 			strcpy(dbname, "vmdb");

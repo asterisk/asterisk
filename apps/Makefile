@@ -11,10 +11,11 @@
 # the GNU General Public License
 #
 
-USE_MYSQL_VM_INTERFACE=0
+USE_MYSQL_VM_INTERFACE=1
 
 MLFLAGS=
 ifeq ($(USE_MYSQL_VM_INTERFACE),1)
+CFLAGS+=-DUSEMYSQLVM
 CFLAGS+=$(shell if [ -d /usr/local/mysql/include ]; then echo "-I/usr/local/mysql/include"; fi)
 CFLAGS+=$(shell if [ -d /usr/include/mysql ]; then echo "-I/usr/include/mysql"; fi)
 CFLAGS+=$(shell if [ -d /usr/local/include/mysql ]; then echo "-I/usr/local/include/mysql"; fi)
@@ -65,7 +66,11 @@ app_todd.so: app_todd.o
 	$(CC) -shared -Xlinker -x -o $@ $< -L/usr/local/ssl/lib -lssl -lcrypto
 
 app_voicemail2.so : app_voicemail2.o
+ifeq ($(USE_MYSQL_VM_INTERFACE),1)
+	$(CC) -shared -Xlinker -x -o $@ $(MLFLAGS) $< -lmysqlclient -lz
+else
 	$(CC) -shared -Xlinker -x -o $@ $(MLFLAGS) $<
+endif
 
 app_sql_postgres.o: app_sql_postgres.c
 	$(CC) -pipe -I/usr/local/pgsql/include $(CFLAGS) -c -o app_sql_postgres.o app_sql_postgres.c
