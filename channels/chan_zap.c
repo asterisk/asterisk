@@ -1635,7 +1635,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%s#", c + p->stripmsd);
 		} else 
 			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%sw", c + p->stripmsd);
-		if (strlen(p->dop.dialstr) > 4) {
+		if (p->echotraining && (strlen(p->dop.dialstr) > 4)) {
 			memset(p->echorest, 'w', sizeof(p->echorest) - 1);
 			strcpy(p->echorest + (p->echotraining / 400) + 1, p->dop.dialstr + strlen(p->dop.dialstr) - 2);
 			p->echorest[sizeof(p->echorest) - 1] = '\0';
