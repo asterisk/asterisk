@@ -18,9 +18,9 @@ attach=yes
 skipms=3000
 
 ;
-; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>
+; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>,<pager_email>
 ; if the e-mail is specified, a message will be sent when a message is
-; received, to the given mailbox.
+; received, to the given mailbox. If pager is specified, a message will be sent there as well.
 ;
 [default]
 1234 => 4242,Example Mailbox,root@localhost

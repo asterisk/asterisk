@@ -391,6 +391,45 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 	return 0;
 }
 
+static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char *callerid, long duration)
+{
+	FILE *p;
+	char date[256];
+	char host[256];
+	char who[256];
+	char dur[256];
+	time_t t;
+	struct tm tm;
+	struct ast_config *cfg;
+	p = popen(SENDMAIL, "w");
+	cfg = ast_load(VOICEMAIL_CONFIG);
+
+	if (p) {
+		gethostname(host, sizeof(host));
+		if (strchr(srcemail, '@'))
+			strncpy(who, srcemail, sizeof(who)-1);
+		else {
+			snprintf(who, sizeof(who), "%s@%s", srcemail, host);
+		}
+		snprintf(dur, sizeof(dur), "%ld:%02ld", duration / 60, duration % 60);
+		time(&t);
+		localtime_r(&t,&tm);
+		strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", &tm);
+		fprintf(p, "Date: %s\n", date);
+		fprintf(p, "From: Asterisk PBX <%s>\n", who);
+		fprintf(p, "To: %s\n", pager);
+		fprintf(p, "Subject: New voicemail\n\n");
+		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
+		fprintf(p, "New %s long message in mailbox %s\n"
+		           "from %s, on %s", dur, mailbox, (callerid ? callerid : "unknown"), date);
+		pclose(p);
+	} else {
+		ast_log(LOG_WARNING, "Unable to launch '%s'\n", SENDMAIL);
+		return -1;
+	}
+	return 0;
+}
+
 static int get_date(char *s, int len)
 {
 	struct tm tm;
@@ -436,7 +475,7 @@ static int invent_message(struct ast_channel *chan, char *ext, int busy, char *e
 static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int busy, int unavail)
 {
 	struct ast_config *cfg;
-	char *copy, *name, *passwd, *email, *fmt, *fmts;
+	char *copy, *name, *passwd, *email, *pager, *fmt, *fmts;
 	char comment[256];
 	struct ast_filestream *writer=NULL, *others[MAX_OTHER_FORMATS];
 	char *sfmt[MAX_OTHER_FORMATS];
@@ -485,6 +524,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		passwd = strsep(&stringp, ",");
 		name = strsep(&stringp, ",");
 		email = strsep(&stringp, ",");
+		pager = strsep(&stringp, ",");
 		make_dir(dir, sizeof(dir), ext, "");
 		/* It's easier just to try to make it than to check for its existence */
 		if (mkdir(dir, 0700) && (errno != EEXIST))
@@ -712,6 +752,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 							/* Send e-mail if applicable */
 							if (email)
 								sendmail(astemail, email, name, msgnum, ext, chan->callerid, fn, wavother ? "wav" : fmts, end - start);
+							if (pager)
+								sendpage(astemail, pager, msgnum, ext, chan->callerid, end - start);
 						}
 					} else {
 						if (msgnum < MAXMSG)
