@@ -128,7 +128,8 @@ class MyH323EndPoint : public H323EndPoint {
 	PCLASSINFO(MyH323EndPoint, H323EndPoint);
 
 	public:
-	int MakeCall(const PString &, PString &, unsigned int *, char *, char *);
+	int MakeCall(const PString &, PString &, unsigned int *, call_options_t *opts);
+	BOOL ClearCall(const PString &, H323Connection::CallEndReason reason);
 	BOOL ClearCall(const PString &);
 
 	void OnClosedLogicalChannel(H323Connection &, const H323Channel &);
@@ -170,6 +171,10 @@ class MyH323Connection : public H323Connection {
 	void SendUserInputTone(char, unsigned);
 	void OnUserInputTone(char, unsigned, unsigned, unsigned);
 	void OnUserInputString(const PString &value);
+	BOOL OnReceivedProgress(const H323SignalPDU &);
+	void OnSendCapabilitySet(H245_TerminalCapabilitySet &);
+	BOOL OnReceivedCapabilitySet(const H323Capabilities &, const H245_MultiplexCapability *,
+				     H245_TerminalCapabilitySetReject &);
 
 	PString sourceAliases;
 	PString destAliases;
@@ -178,6 +183,11 @@ class MyH323Connection : public H323Connection {
 
 	WORD sessionId;
 	BOOL bridging;			
+
+	unsigned progressSetup;
+	unsigned progressAlert;
+
+	RTP_DataFrame::PayloadTypes dtmfCodec;
 };
 
 class MyH323_ExternalRTPChannel : public H323_ExternalRTPChannel {
@@ -192,9 +202,10 @@ class MyH323_ExternalRTPChannel : public H323_ExternalRTPChannel {
       		unsigned sessionID);
 
 	~MyH323_ExternalRTPChannel();
-	
+
 	/* Overrides */
 	BOOL Start(void);
+	BOOL OnReceivedAckPDU(const H245_H2250LogicalChannelAckParameters & param);
 
 	protected:
 	BYTE payloadCode;
