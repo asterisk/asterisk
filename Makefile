@@ -382,8 +382,13 @@ datafiles: all
 update: 
 	@if [ -d CVS ]; then \
 		echo "Updating from CVS..." ; \
-		cvs -q -z3 update -Pd; \
+		cvs -q -z3 update -Pd | tee update.out; \
 		rm -f .version; \
+		if [ `grep -c ^C update.out` -gt 0 ]; then \
+			echo ; echo "The following files have conflicts:" ; \
+			grep ^C update.out | cut -d' ' -f2- ; \
+		fi ; \
+		rm -f update.out; \
 	else \
 		echo "Not CVS";  \
 	fi
