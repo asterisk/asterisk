@@ -1,20 +1,122 @@
-The manager is a client/server model over TCP.
+The Asterisk Manager TCP/IP API
+===============================
 
-Mangement communication consists of tags of the form "header: value", 
-terminated with an empty newline (\r\n) in the style of SMTP, HTTP, and
-other headers.
+The manager is a client/server model over TCP. With the manager interface,
+you'll be able to control the PBX, originate calls, check mailbox status,
+monitor channels and queues as well as execute Asterisk commands.
 
-The first tag MUST be one of the following:
-
-Action: An action requested by the CLIENT to the Asterisk SERVER.  Only 
-one "Action" may be outstanding at any time.
-
-Response: A response to an action from the Asterisk SERVER to the CLIENT.
-
-Event: An event reported by the Asterisk SERVER to the CLIENT
-
-Management users are configured in /etc/asterisk/manager.conf and are 
+Management users are configured in the configuration file manager.conf and are 
 given permissions for read and write, where write represents their ability 
 to perform this class of "action", and read represents their ability to 
 receive this class of "event".
 
+Command Syntax
+--------------
+Mangement communication consists of tags of the form "header: value", 
+terminated with an empty newline (\r\n) in the style of SMTP, HTTP, and
+other headers.
+
+
+The first tag MUST be one of the following:
+
+    * Action: An action requested by the CLIENT to the Asterisk SERVER. Only one "Action" may be outstanding at any time.
+    * Response: A response to an action from the Asterisk SERVER to the CLIENT.
+    * Event: An event reported by the Asterisk SERVER to the CLIENT 
+
+
+Manager commands
+----------------
+Output from the CLI command 'show manager' command:
+
+    * Ping: Ping
+    * Logoff: Logoff Manager
+    * Hangup: Hangup Channel
+    * Status: Status
+    * Redirect: Redirect
+    * Originate: Originate Call
+    * MailboxStatus: Check Mailbox
+    * Command: Execute Command
+    * ExtensionState: Check Extension Status
+    * AbsoluteTimeout: Set Absolute Timeout
+    * MailboxCount: Check Mailbox Message Count
+    * Monitor: Monitor a channel
+    * StopMonitor: Stop monitoring a channel
+    * ChangeMonitor: Change monitoring filename of a channel
+    * IAXpeers: List IAX Peers (Defaults to IAX2)
+    * IAX1peers: List IAX version 1 Peers
+    * Queues: Queues
+    * QueueStatus: Queue Status 
+
+
+Command Summary
+--------------
+
+Command: Command
+Parameters: Command
+
+Command: ExtensionState
+Parameters: Exten, Context, ActionID
+
+Command: Hangup
+Parameters: Channel
+
+Command: Logoff
+Parameters: None
+
+Command: MailboxCount
+Parameters: Mailbox, ActionID
+
+Command: MailboxStatus
+Parameters: Mailbox, ActionID
+
+Command: Originate
+Parameters: Channel, Exten, Context, Priority, Timeout, 
+CallerID, Variable, Account, Application, Data
+
+Command: Ping
+Parameters: None
+
+Command: Redirect
+Parameters: Channel, ExtraChannel, Exten, Context, Priority
+
+Command: Timeout
+Parameters: Channel, Timeout
+
+
+Examples
+--------
+Login - Log a user into the manager interface.
+
+   Action: Login
+   Username: testuser
+   Secret: testsecret
+
+Originate - Originate a call from a channel to an extension.
+
+   Action: Originate
+   Channel: sip/12345
+   Exten: 1234
+   Context: default
+
+
+Redirect with ExtraChannel:
+  Attempted goal:
+  Have a 'robot' program Redirect both ends of an already-connected call
+  to a meetme room using the ExtraChannel feature through the management interface.
+
+  Action: Redirect
+  Channel: Zap/1-1
+  ExtraChannel: SIP/3064-7e00 (varies)
+  Exten: 680
+  Priority: 1
+
+Where 680 is an extension that sends you to a MeetMe room.
+
+There are a number of GUI tools that use the manager interface, please search
+the mailing list archives and the documentation page on the http://www.asterisk.org
+web site for more information.
+
+
+
+
+-----------------
