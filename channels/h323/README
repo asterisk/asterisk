@@ -15,9 +15,9 @@
 		       		expat-1.95
 		       		expat-dev-1.95
 
-	Warning: Older versions than listed will NOT work, while newer versions
-	         should work, but most likely have not been well tested.
-
+	Currently recomended versions: 	Open H.323 v1.12.2
+					PWLib v1.5.2
+				
 
 chan_h323 has been implemented using Asterisk's RTP stack insted of trying
 to implement a pseudo sound card driver. 
