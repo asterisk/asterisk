@@ -1623,6 +1623,7 @@ static int pbx_load_module(void)
 
 							if (!data)
 								data="";
+							while(*appl && (*appl < 33)) appl++;
 							pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext) - 1);
 							if (ipri) {
 								if (ast_add_extension2(con, 0, realext, ipri, cidmatch, appl, strdup(data), FREE, registrar)) {
