@@ -2148,9 +2148,10 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		return -1;
 	}
 	
+	lastsent = pvt->lastsent;
+
 	/* Calculate actual timestamp */
 	fts = calc_timestamp(pvt, ts);
-	lastsent = pvt->lastsent;
 
 	if ((pvt->trunk || ((fts & 0xFFFF0000L) == (lastsent & 0xFFFF0000L)))
 		/* High two bits are the same on timestamp, or sending on a trunk */ &&
@@ -3696,7 +3697,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		/* Retrieve the type and subclass */
 		f.frametype = fh->type;
 		if (f.frametype == AST_FRAME_VIDEO) {
-			f.subclass = uncompress_subclass(fh->csub & ~0x40) | ((fh->csub & 0x40) >> 6);
+			f.subclass = uncompress_subclass(fh->csub & ~0x40) | ((fh->csub >> 6) & 0x1);
 		} else {
 			f.subclass = uncompress_subclass(fh->csub);
 		}
