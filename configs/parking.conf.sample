@@ -1,0 +1,9 @@
+;
+; Sample Parking configuration
+;
+
+[general]
+parkext => 700				; What ext. to dial to park
+parkpos => 701-720			; What extensions to park calls on
+context => parkedcalls			; Which context parked calls are in
+
