@@ -10,6 +10,17 @@
 port=5036
 ;bindaddr=192.168.0.1
 ;
+; You may specify a global default AMA flag for iaxtel calls.  It must be
+; one of 'default', 'omit', 'billing', or 'documentation'.  These flags
+; are used in the generation of call detail records.
+;
+;amaflags=default
+;
+; You may specify a default account for Call Detail Records in addition
+; to specifying on a per-user basis
+;
+;accountcode=lss0101
+;
 ; Specify bandwidth of low, medium, or high to control which codecs are used
 ; in general.
 ;
@@ -39,8 +50,17 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; We can register with another IAX server to let him know where we are
 ; in case we have a dynamic IP address for example
 ;
+; Register with tormenta using username marko and password secretpass
+;
 ;register => marko:secretpass@tormenta.linux-support.net
+;
+; Register joe at remote host with no password
+;
 ;register => joe@remotehost:5656
+;
+; Register marko at tormenta.linux-support.net using RSA key "torkey"
+;
+;register => marko:[torkey]@tormenta.linux-support.net
 ;
 ; Finally, you can set values for your TOS bits to help improve 
 ; performance.  Valid values are:
@@ -55,6 +75,15 @@ tos=lowdelay
 ; Trust Caller*ID Coming from iaxtel.com
 ;
 [iaxtel]
+type=user
+context=default
+auth=rsa
+inkeys=iaxtel
+
+[iaxtel2]
+;
+; Backwards compatible entry for IAXtel pre-RSA
+;
 type=user
 context=default
 deny=0.0.0.0/0.0.0.0
@@ -78,14 +107,28 @@ callerid="Guest IAX User"
 ; set the Caller*ID to be what you want instead of trusting what
 ; the remote user provides
 ;
+; There are three authentication methods that are supported:  md5, plaintext,
+; and rsa.  The least secure is "plaintext", which sends passwords cleartext
+; across the net.  "md5" uses a challenge/response md5 sum arrangement, but
+; still requires both ends have plain text access to the secret.  "rsa" allows
+; unidirectional secret knowledge through public/private keys.  If "rsa"
+; authentication is used, "inkeys" is a list of acceptable public keys on the 
+; local system that can be used to authenticate the remote peer, separated by
+; the ":" character.  "outkey" is a single, private key to use to authenticate
+; to the other side.  Public keys are named /var/lib/asterisk/keys/<name>.pub
+; while private keys are named /var/lib/asterisk/keys/<name>.key.  Private
+; keys should always be 3DES encrypted.
+;
+;
 ;[markster]
 ;type=user
 ;context=default
 ;context=local
-;auth=md5,plaintext
+;auth=md5,plaintext,rsa
 ;secret=markpasswd
 ;callerid="Mark Spencer" <(256) 428-6275>
 ;deny=0.0.0.0/0.0.0.0
+;accountcode=markster0101
 ;permit=209.16.236.73/255.255.255.0
 ;
 ; Peers may also be specified, with a secret and
@@ -111,6 +154,7 @@ host=216.207.245.57
 ;[dynamichost]
 ;host=dynamic
 ;secret=mysecret
+;inkeys=key1:key2
 ;defaultip=216.207.245.34
 ;callerid="Some Host" <(256) 428-6011>
 ;
@@ -124,4 +168,4 @@ host=216.207.245.57
 ;host=dynamic
 ;secret=moofoo
 ;context=default
-;allow=0.0.0.0/0.0.0.0
+;permit=0.0.0.0/0.0.0.0

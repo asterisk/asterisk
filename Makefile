@@ -26,8 +26,8 @@ PROC=i586
 
 DEBUG=-g #-pg
 INCLUDE=-Iinclude -I../include
-#CFLAGS=-pipe  -Wall -Wmissing-prototypes -Wmissing-declarations -O6 $(DEBUG) $(INCLUDE) -D_REENTRANT -Werror
 CFLAGS=-pipe  -Wall -Wmissing-prototypes -Wmissing-declarations -O6 $(DEBUG) $(INCLUDE) -D_REENTRANT
+#CFLAGS+=-Werror
 CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
 ASTERISKVERSION=$(shell if [ -f .version ]; then cat .version; fi)
 RPMVERSION=$(shell sed 's/[-\/:]/_/g' .version)
@@ -37,11 +37,12 @@ CFLAGS+= -DDO_CRASH -DDEBUG_THREADS
 # Uncomment next one to enable ast_frame tracing (for debugging)
 #CLFAGS+= -DTRACE_FRAMES
 CFLAGS+=# -fomit-frame-pointer 
-SUBDIRS=channels pbx apps codecs formats agi
+SUBDIRS=res channels pbx apps codecs formats agi cdr
 LIBS=-ldl -lpthread -lreadline -lncurses -lm
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o say.o pbx.o cli.o md5.o \
-	ulaw.o callerid.o fskmodem.o image.o app.o asterisk.o 
+	ulaw.o alaw.o callerid.o fskmodem.o image.o app.o \
+	cdr.o tdd.o asterisk.o 
 CC=gcc
 INSTALL=install
 
@@ -59,10 +60,13 @@ all: asterisk subdirs
 _version: 
 	if [ -d CVS ] && ! [ -f .version ]; then echo "CVS-`date +"%D-%T"`" > .version; fi 
 
+.version:
+	_version
+
 build.h:
 	./make_build_h
 
-asterisk: _version build.h $(OBJS)
+asterisk: .version build.h $(OBJS)
 	gcc -o asterisk -rdynamic $(OBJS) $(LIBS)
 
 subdirs: 
@@ -91,6 +95,7 @@ install: all datafiles
 	mkdir -p $(MODULES_DIR)
 	mkdir -p $(INSTALL_PREFIX)/usr/sbin
 	install -m 755 asterisk $(INSTALL_PREFIX)/usr/sbin/
+	install -m 755 astgenkey $(INSTALL_PREFIX)/usr/sbin/
 	for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
 	install -d $(INSTALL_PREFIX)/usr/include/asterisk
 	install include/asterisk/*.h $(INSTALL_PREFIX)/usr/include/asterisk
@@ -99,6 +104,9 @@ install: all datafiles
 	rm -f $(INSTALL_PREFIX)/usr/lib/asterisk/modules/chan_ixj.so
 	rm -f $(INSTALL_PREFIX)/usr/lib/asterisk/modules/chan_tor.so
 	mkdir -p $(INSTALL_PREFIX)/var/lib/asterisk/sounds
+	mkdir -p $(INSTALL_PREFIX)/var/log/asterisk/cdr-csv
+	mkdir -p $(INSTALL_PREFIX)/var/lib/asterisk/keys
+	install -m 644 keys/iaxtel.pub $(INSTALL_PREFIX)/var/lib/asterisk/keys
 	( cd $(INSTALL_PREFIX)/var/lib/asterisk/sounds  ; ln -s ../../../spool/asterisk/vm . )
 	@echo " +---- Asterisk Installation Complete -------+"  
 	@echo " +                                           +"
