@@ -132,7 +132,7 @@ static void destroy_session(struct mansession *s)
 	
 }
 
-static char *get_header(struct message *m, char *var)
+char *astman_get_header(struct message *m, char *var)
 {
 	char cmp[80];
 	int x;
@@ -143,7 +143,7 @@ static char *get_header(struct message *m, char *var)
 	return "";
 }
 
-static void send_error(struct mansession *s, char *error)
+void astman_send_error(struct mansession *s, char *error)
 {
 	ast_pthread_mutex_lock(&s->lock);
 	ast_cli(s->fd, "Response: Error\r\n");
@@ -151,7 +151,7 @@ static void send_error(struct mansession *s, char *error)
 	ast_pthread_mutex_unlock(&s->lock);
 }
 
-static void send_response(struct mansession *s, char *resp, char *msg)
+void astman_send_response(struct mansession *s, char *resp, char *msg)
 {
 	ast_pthread_mutex_lock(&s->lock);
 	ast_cli(s->fd, "Response: %s\r\n", resp);
@@ -162,9 +162,9 @@ static void send_response(struct mansession *s, char *resp, char *msg)
 	ast_pthread_mutex_unlock(&s->lock);
 }
 
-static void send_ack(struct mansession *s, char *msg)
+void astman_send_ack(struct mansession *s, char *msg)
 {
-	send_response(s, "Success", msg);
+	astman_send_response(s, "Success", msg);
 }
 
 static int get_perm(char *instr)
@@ -193,10 +193,10 @@ static int authenticate(struct mansession *s, struct message *m)
 {
 	struct ast_config *cfg;
 	char *cat;
-	char *user = get_header(m, "Username");
-	char *pass = get_header(m, "Secret");
-	char *authtype = get_header(m, "AuthType");
-	char *key = get_header(m, "Key");
+	char *user = astman_get_header(m, "Username");
+	char *pass = astman_get_header(m, "Secret");
+	char *authtype = astman_get_header(m, "AuthType");
+	char *key = astman_get_header(m, "Key");
 
 	cfg = ast_load("manager.conf");
 	if (!cfg)
@@ -252,22 +252,22 @@ static int authenticate(struct mansession *s, struct message *m)
 
 static int action_ping(struct mansession *s, struct message *m)
 {
-	send_response(s, "Pong", NULL);
+	astman_send_response(s, "Pong", NULL);
 	return 0;
 }
 
 static int action_logoff(struct mansession *s, struct message *m)
 {
-	send_response(s, "Goodbye", "Thanks for all the fish.");
+	astman_send_response(s, "Goodbye", "Thanks for all the fish.");
 	return -1;
 }
 
 static int action_hangup(struct mansession *s, struct message *m)
 {
 	struct ast_channel *c = NULL;
-	char *name = get_header(m, "Channel");
+	char *name = astman_get_header(m, "Channel");
 	if (!strlen(name)) {
-		send_error(s, "No channel specified");
+		astman_send_error(s, "No channel specified");
 		return 0;
 	}
 	c = ast_channel_walk(NULL);
@@ -278,11 +278,11 @@ static int action_hangup(struct mansession *s, struct message *m)
 		c = ast_channel_walk(c);
 	}
 	if (!c) {
-		send_error(s, "No such channel");
+		astman_send_error(s, "No such channel");
 		return 0;
 	}
 	ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
-	send_ack(s, "Channel Hungup");
+	astman_send_ack(s, "Channel Hungup");
 	return 0;
 }
 
@@ -290,7 +290,7 @@ static int action_status(struct mansession *s, struct message *m)
 {
 	struct ast_channel *c;
 	char bridge[256];
-	send_ack(s, "Channel status will follow");
+	astman_send_ack(s, "Channel status will follow");
 	c = ast_channel_walk(NULL);
 	while(c) {
 		if (c->bridge)
@@ -329,19 +329,19 @@ static int action_status(struct mansession *s, struct message *m)
 
 static int action_redirect(struct mansession *s, struct message *m)
 {
-	char *name = get_header(m, "Channel");
-	char *name2 = get_header(m, "ExtraChannel");
-	char *exten = get_header(m, "Exten");
-	char *context = get_header(m, "Context");
-	char *priority = get_header(m, "Priority");
+	char *name = astman_get_header(m, "Channel");
+	char *name2 = astman_get_header(m, "ExtraChannel");
+	char *exten = astman_get_header(m, "Exten");
+	char *context = astman_get_header(m, "Context");
+	char *priority = astman_get_header(m, "Priority");
 	int pi = 0;
 	int res;
 	if (!name || !strlen(name)) {
-		send_error(s, "Channel not specified");
+		astman_send_error(s, "Channel not specified");
 		return 0;
 	}
 	if (strlen(priority) && (sscanf(priority, "%d", &pi) != 1)) {
-		send_error(s, "Invalid priority\n");
+		astman_send_error(s, "Invalid priority\n");
 		return 0;
 	}
 	res = ast_async_goto_by_name(name, context, exten, pi);
@@ -349,19 +349,19 @@ static int action_redirect(struct mansession *s, struct message *m)
 		if (strlen(name2)) {
 			res = ast_async_goto_by_name(name2, context, exten, pi);
 			if (!res)
-				send_ack(s, "Dual Redirect successful");
+				astman_send_ack(s, "Dual Redirect successful");
 			else
-				send_error(s, "Secondary redirect failed");
+				astman_send_error(s, "Secondary redirect failed");
 		} else
-			send_ack(s, "Redirect successful");
+			astman_send_ack(s, "Redirect successful");
 	} else
-		send_error(s, "Redirect failed");
+		astman_send_error(s, "Redirect failed");
 	return 0;
 }
 
 static int action_command(struct mansession *s, struct message *m)
 {
-	char *cmd = get_header(m, "Command");
+	char *cmd = astman_get_header(m, "Command");
 	ast_pthread_mutex_lock(&s->lock);
 	s->blocking = 1;
 	ast_pthread_mutex_unlock(&s->lock);
@@ -376,12 +376,12 @@ static int action_command(struct mansession *s, struct message *m)
 
 static int action_originate(struct mansession *s, struct message *m)
 {
-	char *name = get_header(m, "Channel");
-	char *exten = get_header(m, "Exten");
-	char *context = get_header(m, "Context");
-	char *priority = get_header(m, "Priority");
-	char *timeout = get_header(m, "Timeout");
-	char *callerid = get_header(m, "CallerID");
+	char *name = astman_get_header(m, "Channel");
+	char *exten = astman_get_header(m, "Exten");
+	char *context = astman_get_header(m, "Context");
+	char *priority = astman_get_header(m, "Priority");
+	char *timeout = astman_get_header(m, "Timeout");
+	char *callerid = astman_get_header(m, "CallerID");
 	char *tech, *data;
 	int pi = 0;
 	int res;
@@ -389,42 +389,42 @@ static int action_originate(struct mansession *s, struct message *m)
 	int reason = 0;
 	char tmp[256];
 	if (!name) {
-		send_error(s, "Channel not specified");
+		astman_send_error(s, "Channel not specified");
 		return 0;
 	}
 	if (strlen(priority) && (sscanf(priority, "%d", &pi) != 1)) {
-		send_error(s, "Invalid priority\n");
+		astman_send_error(s, "Invalid priority\n");
 		return 0;
 	}
 	if (strlen(timeout) && (sscanf(timeout, "%d", &to) != 1)) {
-		send_error(s, "Invalid timeout\n");
+		astman_send_error(s, "Invalid timeout\n");
 		return 0;
 	}
 	strncpy(tmp, name, sizeof(tmp) - 1);
 	tech = tmp;
 	data = strchr(tmp, '/');
 	if (!data) {
-		send_error(s, "Invalid channel\n");
+		astman_send_error(s, "Invalid channel\n");
 		return 0;
 	}
 	*data = '\0';
 	data++;
 	res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 0, strlen(callerid) ? callerid : NULL, NULL );
 	if (!res)
-		send_ack(s, "Originate successfully queued");
+		astman_send_ack(s, "Originate successfully queued");
 	else
-		send_error(s, "Originate failed");
+		astman_send_error(s, "Originate failed");
 	return 0;
 }
 
 static int action_mailboxstatus(struct mansession *s, struct message *m)
 {
-	char *mailbox = get_header(m, "Mailbox");
+	char *mailbox = astman_get_header(m, "Mailbox");
 	if (!mailbox || !strlen(mailbox)) {
-		send_error(s, "Mailbox not specified");
+		astman_send_error(s, "Mailbox not specified");
 		return 0;
 	}
-	send_ack(s, "Mailbox status will follow");
+	astman_send_ack(s, "Mailbox status will follow");
 	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting:%d\r\n", mailbox, ast_app_has_voicemail(mailbox));
 	return 0;
 }
@@ -434,17 +434,17 @@ static int process_message(struct mansession *s, struct message *m)
 	char action[80];
 	struct manager_action *tmp = first_action;
 
-	strncpy(action, get_header(m, "Action"), sizeof(action));
+	strncpy(action, astman_get_header(m, "Action"), sizeof(action));
 	ast_log( LOG_DEBUG, "Manager received command '%s'\n", action );
 
 	if (!strlen(action)) {
-		send_error(s, "Missing action in request");
+		astman_send_error(s, "Missing action in request");
 		return 0;
 	}
 	if (!s->authenticated) {
 		if (!strcasecmp(action, "Challenge")) {
 			char *authtype;
-			authtype = get_header(m, "AuthType");
+			authtype = astman_get_header(m, "AuthType");
 			if (!strcasecmp(authtype, "MD5")) {
 				if (!s->challenge || !strlen(s->challenge)) {
 					ast_pthread_mutex_lock(&s->lock);
@@ -454,23 +454,23 @@ static int process_message(struct mansession *s, struct message *m)
 				ast_cli(s->fd, "Response: Success\r\nChallenge: %s\r\n\r\n", s->challenge);
 				return 0;
 			} else {
-				send_error(s, "Must specify AuthType");
+				astman_send_error(s, "Must specify AuthType");
 				return 0;
 			}
 		} else if (!strcasecmp(action, "Login")) {
 			if (authenticate(s, m)) {
 				sleep(1);
-				send_error(s, "Authentication failed");
+				astman_send_error(s, "Authentication failed");
 				return -1;
 			} else {
 				s->authenticated = 1;
 				if (option_verbose > 1) 
 					ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged on from %s\n", s->username, inet_ntoa(s->sin.sin_addr));
 				ast_log(LOG_EVENT, "Manager '%s' logged on from %s\n", s->username, inet_ntoa(s->sin.sin_addr));
-				send_ack(s, "Authentication accepted");
+				astman_send_ack(s, "Authentication accepted");
 			}
 		} else 
-			send_error(s, "Authentication Required");
+			astman_send_error(s, "Authentication Required");
 	} else {
 		while( tmp ) { 		
 			if (!strcasecmp(action, tmp->action)) {
@@ -478,13 +478,13 @@ static int process_message(struct mansession *s, struct message *m)
 					if (tmp->func(s, m))
 						return -1;
 				} else {
-					send_error(s, "Permission denied");
+					astman_send_error(s, "Permission denied");
 				}
 				return 0;
 			}
 			tmp = tmp->next;
 		}
-		send_error(s, "Invalid/unknown command");
+		astman_send_error(s, "Invalid/unknown command");
 	}
 	return 0;
 }

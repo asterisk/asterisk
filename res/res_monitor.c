@@ -275,49 +275,14 @@ static int change_monitor_exec(struct ast_channel *chan, void *data)
 	return ast_monitor_change_fname( chan, (const char*)data, 1 );
 }
 
-static char *get_header(struct message *m, char *var)
-{
-	char cmp[80];
-	int x;
-	snprintf(cmp, sizeof(cmp), "%s: ", var);
-	for (x=0;x<m->hdrcount;x++)
-		if (!strncasecmp(cmp, m->headers[x], strlen(cmp)))
-			return m->headers[x] + strlen(cmp);
-	return NULL;
-}
-
-static void send_error(struct mansession *s, char *error)
-{
-	ast_pthread_mutex_lock(&s->lock);
-	ast_cli(s->fd, "Response: Error\r\n");
-	ast_cli(s->fd, "Message: %s\r\n\r\n", error);
-	ast_pthread_mutex_unlock(&s->lock);
-}
-
-static void send_response(struct mansession *s, char *resp, char *msg)
-{
-	ast_pthread_mutex_lock(&s->lock);
-	ast_cli(s->fd, "Response: %s\r\n", resp);
-	if (msg)
-		ast_cli(s->fd, "Message: %s\r\n\r\n", msg);
-	else
-		ast_cli(s->fd, "\r\n");
-	ast_pthread_mutex_unlock(&s->lock);
-}
-
-static void send_ack(struct mansession *s, char *msg)
-{
-	send_response(s, "Success", msg);
-}
-
 static int start_monitor_action(struct mansession *s, struct message *m)
 {
 	struct ast_channel *c = NULL;
-	char *name = get_header(m, "Channel");
-	char *fname = get_header(m, "File");
-	char *format = get_header(m, "Format");
+	char *name = astman_get_header(m, "Channel");
+	char *fname = astman_get_header(m, "File");
+	char *format = astman_get_header(m, "Format");
 	if((!name)||(!strlen(name))) {
-		send_error(s, "No channel specified");
+		astman_send_error(s, "No channel specified");
 		return 0;
 	}
 	c = ast_channel_walk(NULL);
@@ -328,25 +293,25 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 		c = ast_channel_walk(c);
 	}
 	if (!c) {
-		send_error(s, "No such channel");
+		astman_send_error(s, "No such channel");
 		return 0;
 	}
 	if( ast_monitor_start( c, format, fname, 1 ) ) {
 		if( ast_monitor_change_fname( c, fname, 1 ) ) {
-			send_error(s, "Could not start monitoring channel");
+			astman_send_error(s, "Could not start monitoring channel");
 			return 0;
 		}
 	}
-	send_ack(s, "Started monitoring channel");
+	astman_send_ack(s, "Started monitoring channel");
 	return 0;
 }
 
 static int stop_monitor_action(struct mansession *s, struct message *m)
 {
 	struct ast_channel *c = NULL;
-	char *name = get_header(m, "Channel");
+	char *name = astman_get_header(m, "Channel");
 	if((!name)||(!strlen(name))) {
-		send_error(s, "No channel specified");
+		astman_send_error(s, "No channel specified");
 		return 0;
 	}
 	c = ast_channel_walk(NULL);
@@ -357,28 +322,28 @@ static int stop_monitor_action(struct mansession *s, struct message *m)
 		c = ast_channel_walk(c);
 	}
 	if (!c) {
-		send_error(s, "No such channel");
+		astman_send_error(s, "No such channel");
 		return 0;
 	}
 	if( ast_monitor_stop( c, 1 ) ) {
-		send_error(s, "Could not stop monitoring channel");
+		astman_send_error(s, "Could not stop monitoring channel");
 		return 0;
 	}
-	send_ack(s, "Stopped monitoring channel");
+	astman_send_ack(s, "Stopped monitoring channel");
 	return 0;
 }
 
 static int change_monitor_action(struct mansession *s, struct message *m)
 {
 	struct ast_channel *c = NULL;
-	char *name = get_header(m, "Channel");
-	char *fname = get_header(m, "File");
+	char *name = astman_get_header(m, "Channel");
+	char *fname = astman_get_header(m, "File");
 	if((!name) || (!strlen(name))) {
-		send_error(s, "No channel specified");
+		astman_send_error(s, "No channel specified");
 		return 0;
 	}
 	if ((!fname)||(!strlen(fname))) {
-		send_error(s, "No filename specified");
+		astman_send_error(s, "No filename specified");
 		return 0;
 	}
 	c = ast_channel_walk(NULL);
@@ -389,14 +354,14 @@ static int change_monitor_action(struct mansession *s, struct message *m)
 		c = ast_channel_walk(c);
 	}
 	if (!c) {
-		send_error(s, "No such channel");
+		astman_send_error(s, "No such channel");
 		return 0;
 	}
 	if( ast_monitor_change_fname( c, fname, 1 ) ) {
-		send_error(s, "Could not change monitored filename of channel");
+		astman_send_error(s, "Could not change monitored filename of channel");
 		return 0;
 	}
-	send_ack(s, "Stopped monitoring channel");
+	astman_send_ack(s, "Stopped monitoring channel");
 	return 0;
 }
 
