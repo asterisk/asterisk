@@ -983,11 +983,13 @@ static int handle_setvariable(struct ast_channel *chan, AGI *agi, int argc, char
 
 static int handle_getvariable(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
-	char *tempstr;
+	char *ret;
+	char tempstr[1024];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	if ((tempstr = pbx_builtin_getvar_helper(chan, argv[2]))) 
-		fdprintf(agi->fd, "200 result=1 (%s)\n", tempstr);
+	pbx_retrieve_variable(chan, argv[2], &ret, tempstr, sizeof(tempstr), NULL);
+	if (ret)
+		fdprintf(agi->fd, "200 result=1 (%s)\n", ret);
 	else
 		fdprintf(agi->fd, "200 result=0\n");
 

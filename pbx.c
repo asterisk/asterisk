@@ -795,7 +795,7 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, struct ast
 	return NULL;
 }
 
-static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp)
+void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp)
 {
 	char *first,*second;
 	char tmpvar[80] = "";
@@ -827,7 +827,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var
 		if (!first)
 			first = tmpvar + strlen(tmpvar);
 		*first='\0';
-		pbx_substitute_variables_temp(c,tmpvar,ret,workspace,workspacelen - 1, headp);
+		pbx_retrieve_variable(c,tmpvar,ret,workspace,workspacelen - 1, headp);
 		if (!(*ret)) return;
 		offset=atoi(first+1);
 	 	if ((second=strchr(first+1,':'))) {
@@ -1103,7 +1103,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 			
 			/* Retrieve variable value */
 			workspace[0] = '\0';
-			pbx_substitute_variables_temp(c,vars,&cp4, workspace, sizeof(workspace), headp);
+			pbx_retrieve_variable(c,vars,&cp4, workspace, sizeof(workspace), headp);
 			if (cp4) {
 				length = strlen(cp4);
 				if (length > count)
