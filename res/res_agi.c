@@ -510,7 +510,7 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *
         if(!fs){
                 fdprintf(agi->fd, "200 result=%d endpos=%ld\n", 0, sample_offset);
                 ast_log(LOG_WARNING, "Unable to open %s\n", argv[2]);
-                return RESULT_FAILURE;
+		return RESULT_SUCCESS;
         }
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "Playing '%s' (escape_digits=%s) (timeout %d)\n", argv[2], edigits, timeout);
