@@ -188,6 +188,8 @@ static int amaflags = 0;
 
 static int adsi = 0;
 
+static int numbufs = 4;
+
 #ifdef ZAPATA_PRI
 static int minunused = 2;
 static int minidle = 0;
@@ -659,7 +661,7 @@ static int alloc_sub(struct zt_pvt *p, int x)
 			if (!res) {
 				bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
 				bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
-				bi.numbufs = 4;
+				bi.numbufs = numbufs;
 				res = ioctl(p->subs[x].zfd, ZT_SET_BUFINFO, &bi);
 				if (res < 0) {
 					ast_log(LOG_WARNING, "Unable to set buffer policy on channel %d\n", x);
@@ -5116,7 +5118,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 			if (!res) {
 				bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
 				bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
-				bi.numbufs = 4;
+				bi.numbufs = numbufs;
 				res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_SET_BUFINFO, &bi);
 				if (res < 0) {
 					ast_log(LOG_WARNING, "Unable to set buffer policy on channel %d\n", channel);
@@ -5301,7 +5303,7 @@ static struct zt_pvt *chandup(struct zt_pvt *src)
 		if (!res) {
 			bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
 			bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
-			bi.numbufs = 4;
+			bi.numbufs = numbufs;
 			res = ioctl(p->subs[SUB_REAL].zfd, ZT_SET_BUFINFO, &bi);
 			if (res < 0) {
 				ast_log(LOG_WARNING, "Unable to set buffer policy on dup channel\n");
@@ -6267,7 +6269,7 @@ static int start_pri(struct zt_pri *pri)
 	}
 	bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
 	bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
-	bi.numbufs = 8;
+	bi.numbufs = 16;
 	bi.bufsize = 1024;
 	if (ioctl(pri->fd, ZT_SET_BUFINFO, &bi)) {
 		ast_log(LOG_ERROR, "Unable to set appropriate buffering on channel %d\n", x);
@@ -6781,6 +6783,8 @@ int load_module()
 			strncpy(musicclass, v->value, sizeof(musicclass)-1);
 		} else if (!strcasecmp(v->name, "stripmsd")) {
 			stripmsd = atoi(v->value);
+		} else if (!strcasecmp(v->name, "jitterbuffers")) {
+			numbufs = atoi(v->value);
 		} else if (!strcasecmp(v->name, "group")) {
 			cur_group = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "callgroup")) {
@@ -7319,6 +7323,8 @@ static int reload_zt(void)
 				ast_mutex_unlock(&iflock);
 				return -1;
 			}
+		} else if (!strcasecmp(v->name, "jitterbuffers")) {
+			numbufs = atoi(v->value);
 		} else if (!strcasecmp(v->name, "minunused")) {
 			minunused = atoi(v->value);
 		} else if (!strcasecmp(v->name, "idleext")) {

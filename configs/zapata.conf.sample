@@ -234,6 +234,10 @@ immediate=no
 ;minunused=2
 ;minidle=1
 ;
+; Configure jitter buffers in zapata (each one is 20ms, default is 4)
+;
+;jitterbuffers=4
+;
 ; Each channel consists of the channel number or range.  It
 ; inherits the parameters that were specified above its declaration
 ;

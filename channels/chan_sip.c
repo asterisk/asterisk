@@ -1629,7 +1629,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	p = iflist;
 	while(p) {
 		if (!strcmp(p->callid, callid) && 
-			(!pedanticsipchecking || !strlen(p->theirtag) || !strcmp(p->theirtag, tag))) {
+			(!pedanticsipchecking || !tag || !strlen(p->theirtag) || !strcmp(p->theirtag, tag))) {
 			/* Found the call */
 			ast_mutex_lock(&p->lock);
 			ast_mutex_unlock(&iflock);
