@@ -8314,7 +8314,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 			 */
 			v=v->next;
 		}
-		if (!found && peer->dynamic)
+		if (!found && peer->dynamic && (sipsock > -1))
 			reg_source_db(peer);
 		peer->delme = 0;
 	}
