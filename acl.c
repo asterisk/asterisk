@@ -37,8 +37,6 @@
 static ast_mutex_t routeseq_lock = AST_MUTEX_INITIALIZER;
 #endif
 
-#define AST_SENSE_DENY			0
-#define AST_SENSE_ALLOW			1
 
 struct ast_ha {
 	/* Host access rule */
@@ -56,6 +54,7 @@ struct my_ifreq {
 	struct sockaddr_in ifru_addr;
 };
 
+/* Free HA structure */
 void ast_free_ha(struct ast_ha *ha)
 {
 	struct ast_ha *hal;
@@ -65,6 +64,50 @@ void ast_free_ha(struct ast_ha *ha)
 		free(hal);
 	}
 }
+
+/* Copy HA structure */
+static void ast_copy_ha(struct ast_ha *from, struct ast_ha *to)
+ {
+
+        memcpy(&to->netaddr, &from->netaddr, sizeof(from->netaddr));
+     	memcpy(&to->netmask, &from->netmask, sizeof(from->netmask));
+        to->sense = from->sense;
+
+ }
+
+/* Create duplicate of ha structure */
+static struct ast_ha *ast_duplicate_ha(struct ast_ha *original)
+{
+	struct ast_ha *new_ha = malloc(sizeof(struct ast_ha));
+
+	/* Copy from original to new object */
+	ast_copy_ha(original, new_ha); 
+
+	return(new_ha);
+
+}
+
+/* Create duplicate HA link list */
+/*  Used in chan_sip2 templates */
+struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original)
+{
+	struct ast_ha *start=original;
+	struct ast_ha *ret = NULL;
+	struct ast_ha *link,*prev;
+
+	while(start) {
+		link = ast_duplicate_ha(start);  /* Create copy of this object */
+		prev->next = link;		/* Link previous to this object */
+
+		if (!ret) 
+			ret = link;		/* Save starting point */
+
+               start = start->next;		/* Go to next object */
+               prev = link;			/* Save pointer to this object */
+       }
+       return (ret);    			/* Return start of list */
+}
+
 
 struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 {
@@ -120,6 +163,7 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 		else
 			ret = ha;
 	}
+	ast_log(LOG_DEBUG, "%s/%s appended to acl for peer\n",stuff, nm);
 	return ret;
 }
 
@@ -128,6 +172,8 @@ int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin)
 	/* Start optimistic */
 	int res = AST_SENSE_ALLOW;
 	while(ha) {
+		/* DEBUG */
+		ast_log(LOG_DEBUG, "##### Testing %s with %s\n",inet_ntoa(sin->sin_addr), inet_ntoa(ha->netaddr) );
 		/* For each rule, if this address and the netmask = the net address
 		   apply the current rule */
 		if ((sin->sin_addr.s_addr & ha->netmask.s_addr) == (ha->netaddr.s_addr))

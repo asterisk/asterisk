@@ -14,6 +14,10 @@
 #ifndef _ASTERISK_ACL_H
 #define _ASTERISK_ACL_H
 
+#define AST_SENSE_DENY                  0
+#define AST_SENSE_ALLOW                 1
+
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -30,6 +34,7 @@ extern int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin);
 extern int ast_get_ip(struct sockaddr_in *sin, char *value);
 extern int ast_ouraddrfor(struct in_addr *them, struct in_addr *us);
 extern int ast_lookup_iface(char *iface, struct in_addr *address);
+extern struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original);
 
 //! Compares the source address and port of two sockaddr_in
 static inline int inaddrcmp(struct sockaddr_in *sin1, struct sockaddr_in *sin2)
