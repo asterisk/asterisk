@@ -62,6 +62,7 @@
 #define QUEUE_STRATEGY_LEASTRECENT	2
 #define QUEUE_STRATEGY_FEWESTCALLS	3
 #define QUEUE_STRATEGY_RANDOM		4
+#define QUEUE_STRATEGY_RRMEMORY		5
 
 static struct strategy {
 	int strategy;
@@ -72,6 +73,7 @@ static struct strategy {
 	{ QUEUE_STRATEGY_LEASTRECENT, "leastrecent" },
 	{ QUEUE_STRATEGY_FEWESTCALLS, "fewestcalls" },
 	{ QUEUE_STRATEGY_RANDOM, "random" },
+	{ QUEUE_STRATEGY_RRMEMORY, "rrmemory" },
 };
 
 #define DEFAULT_RETRY		5
@@ -575,6 +577,33 @@ static int ring_one(struct queue_ent *qe, struct localuser *outgoing)
 	return 1;
 }
 
+static int store_next(struct queue_ent *qe, struct localuser *outgoing)
+{
+	struct localuser *cur;
+	struct localuser *best;
+	int bestmetric=0;
+	best = NULL;
+	cur = outgoing;
+	while(cur) {
+		if (cur->stillgoing &&							/* Not already done */
+			!cur->chan &&								/* Isn't already going */
+			(!best || (cur->metric < bestmetric))) {	/* We haven't found one yet, or it's better */
+				bestmetric = cur->metric;
+				best = cur;
+		}
+		cur = cur->next;
+	}
+	if (best) {
+		/* Ring just the best channel */
+		ast_log(LOG_DEBUG, "Next is '%s/%s' with metric %d\n", best->tech, best->numsubst, best->metric);
+		qe->parent->rrpos = best->metric % 1000;
+	} else {
+		/* Just increment rrpos */
+		qe->parent->rrpos++;
+	}
+	return 0;
+}
+
 static int valid_exit(struct queue_ent *qe, char digit)
 {
 	char tmp[2];
@@ -821,6 +850,8 @@ static int calc_metric(struct ast_call_queue *q, struct member *mem, int pos, st
 			}
 			q->wrapped = 0;
 		}
+		/* Fall through */
+	case QUEUE_STRATEGY_RRMEMORY:
 		if (pos < q->rrpos) {
 			tmp->metric = 1000 + pos;
 		} else {
@@ -948,6 +979,11 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	ring_one(qe, outgoing);
 	ast_mutex_unlock(&qe->parent->lock);
 	lpeer = wait_for_answer(qe, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect, &digit);
+	ast_mutex_lock(&qe->parent->lock);
+	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY) {
+		store_next(qe, outgoing);
+	}
+	ast_mutex_unlock(&qe->parent->lock);
 	if (lpeer)
 		peer = lpeer->chan;
 	else
