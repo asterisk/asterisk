@@ -348,7 +348,9 @@ static int agent_hangup(struct ast_channel *ast)
 	ast_pthread_mutex_unlock(&p->app_lock);
 
 	if (p->pending) {
+		ast_pthread_mutex_lock(&agentlock);
 		agent_unlink(p);
+		ast_pthread_mutex_unlock(&agentlock);
 	}
 	if (p->dead)
 		free(p);
