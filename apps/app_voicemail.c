@@ -215,7 +215,10 @@ static char *descrip_vmain =
 "for the checking of voicemail.  The mailbox can be passed as the option,\n"
 "which will stop the voicemail system from prompting the user for the mailbox.\n"
 "If the mailbox is preceded by 's' then the password check will be skipped.  If\n"
-"a context is specified, logins are considered in that voicemail context only.\n"
+"the mailbox is preceded by 'p' then the supplied mailbox is prepended to the\n"
+"user's entry and the resulting string is used as the mailbox number.  This is\n"
+"useful for virtual hosting of voicemail boxes.  If a context is specified,\n"
+"logins are considered in that voicemail context only.\n"
 "Returns -1 if the user hangs up or 0 otherwise.\n";
 
 static char *synopsis_vm_box_exists =
@@ -705,6 +708,18 @@ static int make_file(char *dest, int len, char *dir, int num)
 	return snprintf(dest, len, "%s/msg%04d", dir, num);
 }
 
+static int last_message_index(char *dir)
+{
+        int x;
+        char fn[256];
+        for (x=0;x<MAXMSG;x++) {
+                make_file(fn, sizeof(fn), dir, x);
+                if (ast_fileexists(fn, NULL, NULL) < 1)
+                        break;
+        }
+        return x-1;
+}
+
 static int
 inbuf(struct baseio *bio, FILE *fi)
 {
@@ -989,7 +1004,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 		fclose(p);
 		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
 		ast_safe_system(tmp2);
-		ast_log(LOG_DEBUG, "Sent mail to %s with command '%s'\n", who, mailcmd);
+		ast_log(LOG_DEBUG, "Sent mail to %s with command '%s'\n", vmu->email, mailcmd);
 	} else {
 		ast_log(LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
 		return -1;
@@ -1403,22 +1418,22 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		}
 		/* Check for a '0' here */
 		if (res == '0') {
-		transfer:
-			strncpy(chan->exten, "o", sizeof(chan->exten) - 1);
-			if (!ast_strlen_zero(vmu->exit)) {
-				strncpy(chan->context, vmu->exit, sizeof(chan->context) - 1);
-			} else if (ousemacro && !ast_strlen_zero(chan->macrocontext)) {
-				strncpy(chan->context, chan->macrocontext, sizeof(chan->context) - 1);
+			transfer:
+			if (vmu->operator) {
+				strncpy(chan->exten, "o", sizeof(chan->exten) - 1);
+				if (!ast_strlen_zero(vmu->exit)) {
+					strncpy(chan->context, vmu->exit, sizeof(chan->context) - 1);
+				} else if (ousemacro && !ast_strlen_zero(chan->macrocontext)) {
+					strncpy(chan->context, chan->macrocontext, sizeof(chan->context) - 1);
+				}
+				ast_play_and_wait(chan, "transfer");
+				chan->priority = 0;
+				free_user(vmu);
+				return 0;
+			} else {
+				ast_play_and_wait(chan, "vm-sorry");
+				return 0;
 			}
-			chan->priority = 0;
-			free_user(vmu);
-			return 0;
-		}
-		if (res >= 0) {
-			/* Unless we're *really* silent, try to send the beep */
-			res = ast_streamfile(chan, "beep", chan->language);
-			if (!res)
-				res = ast_waitstream(chan, "");
 		}
 		if (res < 0) {
 			free_user(vmu);
@@ -1434,6 +1449,12 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 					break;
 				msgnum++;
 			} while(msgnum < MAXMSG);
+			if (res >= 0) {
+				/* Unless we're *really* silent, try to send the beep */
+				res = ast_streamfile(chan, "beep", chan->language);
+				if (!res)
+					res = ast_waitstream(chan, "");
+			}	
 			if (msgnum < MAXMSG) {
 				/* Store information */
 				snprintf(txtfile, sizeof(txtfile), "%s.txt", fn);
@@ -1525,15 +1546,55 @@ leave_vm_out:
 
 static int count_messages(char *dir)
 {
-	int x;
-	char fn[256];
-	for (x=0;x<MAXMSG;x++) {
-		make_file(fn, sizeof(fn), dir, x);
-		if (ast_fileexists(fn, NULL, NULL) < 1)
-			break;
+	/* Find all .txt files - even if they are not in sequence from 0000 */
+
+
+	int vmcount = 0;
+	DIR *vmdir = NULL;
+	struct dirent *vment = NULL;
+
+	if ((vmdir = opendir(dir))) {
+		while ((vment = readdir(vmdir)))
+		{
+			if (strlen(vment->d_name) > 7 && !strncmp(vment->d_name + 7,".txt",4))
+			{
+				vmcount++;
+			}
+		}
+		closedir(vmdir);
 	}
-	return x;
+
+	return vmcount;
 }
+
+static void resequence_mailbox(char * dir)
+{
+	/* we know max messages, so stop process when number is hit */
+
+	int x,dest;
+	char sfn[256];
+	char dfn[256];
+	char stxt[256];
+	char dtxt[256];
+
+	for (x=0,dest=0;x<MAXMSG;x++) {
+		make_file(sfn, sizeof(sfn), dir, x);
+		if (ast_fileexists(sfn, NULL, NULL) > 0) {
+
+			if(x != dest) {
+				make_file(dfn, sizeof(dfn), dir, dest);
+				ast_filerename(sfn,dfn,NULL);
+
+				snprintf(stxt, sizeof(stxt), "%s.txt", sfn);
+				snprintf(dtxt, sizeof(dtxt), "%s.txt", dfn);
+				rename(stxt, dtxt);
+			}
+
+			dest++;
+		}
+	}
+}
+
 
 static int say_and_wait(struct ast_channel *chan, int num, char *language)
 {
@@ -2545,6 +2606,20 @@ static void open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 	strncpy(vms->curbox, mbox(box), sizeof(vms->curbox) - 1);
 	make_dir(vms->curdir, sizeof(vms->curdir), vmu->context, vms->username, vms->curbox);
 	vms->lastmsg = count_messages(vms->curdir) - 1;
+
+	/*
+	The following test is needed in case sequencing gets messed up.
+	There appears to be more than one way to mess up sequence, so
+	we will not try to find all of the root causes--just fix it when
+	detected.
+	*/
+
+	if(vms->lastmsg != last_message_index(vms->curdir))
+	{
+		ast_log(LOG_NOTICE, "Resequencing Mailbox: %s\n", vms->curdir);
+		resequence_mailbox(vms->curdir);
+	}
+
 	snprintf(vms->vmbox, sizeof(vms->vmbox), "vm-%s", vms->curbox);
 }
 
@@ -3800,7 +3875,7 @@ static int handle_show_voicemail_users(int fd, int argc, char *argv[])
 				if ((vmdir = opendir(dirname))) {
 					/* No matter what the format of VM, there will always be a .txt file for each message. */
 					while ((vment = readdir(vmdir)))
-						if (!strncmp(vment->d_name + 7,".txt",4))
+						if (strlen(vment->d_name) > 7 && !strncmp(vment->d_name + 7,".txt",4))
 							vmcount++;
 					closedir(vmdir);
 				}
@@ -4584,9 +4659,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  			/* User has hung up, no options to give */
  				return res;
  			if (cmd == '0') {
- 				/* Erase the message if 0 pushed during playback */
- 				ast_play_and_wait(chan, "vm-deleted");
- 			 	vm_delete(recordfile);
+ 				break;
  			} else if (cmd == '*') {
  				break;
  			} 
@@ -4639,13 +4712,11 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  				return 1;
 #endif
  		case '0':
- 			if (outsidecaller && vmu->operator) {
- 				if (message_exists)
- 					ast_play_and_wait(chan, "vm-msgsaved");
- 				return cmd;
- 			} else
- 				cmd = ast_play_and_wait(chan, "vm-sorry");
- 			break;
+			if (message_exists || recorded) {
+				ast_play_and_wait(chan, "vm-deleted");
+				vm_delete(recordfile);
+			}
+			return cmd;
  		default:
 			/* If the caller is an ouside caller, and the review option is enabled,
 			   allow them to review the message, but let the owner of the box review

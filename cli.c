@@ -148,7 +148,7 @@ static int handle_set_verbose(int fd, int argc, char *argv[])
 		ast_cli(fd, "Verbosity was %d and is now %d\n", oldval, option_verbose);
 	else if (oldval > 0 && option_verbose > 0)
 		ast_cli(fd, "Verbosity is atleast %d\n", option_verbose);
-	else if (oldval > 0 && option_debug == 0)
+	else if (oldval > 0 && option_verbose == 0)
 		ast_cli(fd, "Verbosity is now OFF\n");
 	return RESULT_SUCCESS;
 }
@@ -437,11 +437,11 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock);
 
 static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 {
-	char *buf;
+	char *buf, *obuf;
 	int buflen = 2048;
 	int len = 0;
 	char **matches;
-	int x;
+	int x, matchlen;
 
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
@@ -455,11 +455,17 @@ static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 #if 0
 			printf("command matchesarray for '%s' %s got '%s'\n", argv[2], argv[3], matches[x]);
 #endif
-			if (len + strlen(matches[x]) >= buflen) {
-				buflen += strlen(matches[x]) * 3;
-				buf = realloc(buf, buflen);
+			matchlen = strlen(matches[x]) + 1;
+			if (len + matchlen >= buflen) {
+				buflen += matchlen * 3;
+				obuf = buf;
+				buf = realloc(obuf, buflen);
+				if (!buf) 
+					/* Out of memory...  Just free old buffer and be done */
+					free(obuf);
 			}
-			len += sprintf( buf + len, "%s ", matches[x]);
+			if (buf)
+				len += sprintf( buf + len, "%s ", matches[x]);
 			free(matches[x]);
 			matches[x] = NULL;
 		}

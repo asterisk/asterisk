@@ -184,7 +184,7 @@ static int build_csv_record(char *buf, size_t bufsize, struct ast_cdr *cdr)
 
 static int writefile(char *s, char *acc)
 {
-	char tmp[256];
+	char tmp[AST_CONFIG_MAX_PATH];
 	FILE *f;
 	if (strchr(acc, '/') || (acc[0] == '.')) {
 		ast_log(LOG_WARNING, "Account code '%s' insecure for writing file\n", acc);
@@ -195,6 +195,7 @@ static int writefile(char *s, char *acc)
 	if (!f)
 		return -1;
 	fputs(s, f);
+	fflush(f);
 	fclose(f);
 	return 0;
 }

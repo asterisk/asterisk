@@ -99,10 +99,12 @@ static int load_odbc_config(void)
 			if (!strcmp(cat, "ENV")) {
 				for (v = ast_variable_browse(config, cat); v; v = v->next) {
 					env_var = malloc(strlen(v->name) + strlen(v->value) + 2);
-					sprintf(env_var, "%s=%s", v->name, v->value);
-					ast_log(LOG_NOTICE, "Adding ENV var: %s=%s\n", v->name, v->value);
-					putenv(env_var);
-					free(env_var);
+					if (env_var) {
+						sprintf(env_var, "%s=%s", v->name, v->value);
+						ast_log(LOG_NOTICE, "Adding ENV var: %s=%s\n", v->name, v->value);
+						putenv(env_var);
+						free(env_var);
+					}
 				}
 
 			cat = ast_category_browse(config, cat);
@@ -222,6 +224,8 @@ odbc_obj *new_odbc_obj(char *name, char *dsn, char *username, char *password)
 	static odbc_obj *new;
 
 	new = malloc(sizeof(odbc_obj));
+	if (!new)
+		return NULL;
 	memset(new, 0, sizeof(odbc_obj));
 	new->env = SQL_NULL_HANDLE;
 

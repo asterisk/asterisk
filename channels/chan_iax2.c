@@ -536,12 +536,12 @@ AST_MUTEX_DEFINE_STATIC(dpcache_lock);
 static void iax_debug_output(const char *data)
 {
 	if (iaxdebug)
-		ast_verbose(data);
+		ast_verbose("%s", data);
 }
 
 static void iax_error_output(const char *data)
 {
-	ast_log(LOG_WARNING, data);
+	ast_log(LOG_WARNING, "%s", data);
 }
 
 /* XXX We probably should use a mutex when working with this XXX */
@@ -1731,7 +1731,7 @@ static void unwrap_timestamp(struct iax_frame *fr)
 	}
 }
 
-static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int updatehistory)
+static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int updatehistory, int fromtrunk)
 {
 	int ms,x;
 	int delay;
@@ -1794,7 +1794,7 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 		ms = 0;
 
 	/* delivery time is sender's sent timestamp converted back into absolute time according to our clock */
-	if (iaxs[fr->callno]->rxcore.tv_sec || iaxs[fr->callno]->rxcore.tv_usec) {
+	if ( (!fromtrunk) && (iaxs[fr->callno]->rxcore.tv_sec || iaxs[fr->callno]->rxcore.tv_usec) ) {
 		fr->af.delivery.tv_sec = iaxs[fr->callno]->rxcore.tv_sec;
 		fr->af.delivery.tv_usec = iaxs[fr->callno]->rxcore.tv_usec;
 		fr->af.delivery.tv_sec += fr->ts / 1000;
@@ -1807,7 +1807,7 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 	else {
 #if 0
 		if (reallydeliver)
-			ast_log(LOG_DEBUG, "schedule_delivery: set delivery to 0 as we don't have an rxcore yet.\n");
+			ast_log(LOG_DEBUG, "schedule_delivery: set delivery to 0 as we don't have an rxcore yet, or frame is from trunk.\n");
 #endif
 		fr->af.delivery.tv_sec = 0;
 		fr->af.delivery.tv_usec = 0;
@@ -1888,7 +1888,8 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 		delay = maxjitterbuffer;
 	
 	/* If jitter buffer is disabled then just pretend the frame is "right on time" */
-	if (!iaxs[fr->callno]->usejitterbuf)
+	/* If frame came from trunk, also don't do any delay */
+	if ( (!iaxs[fr->callno]->usejitterbuf) || fromtrunk )
 		delay = 0;
 
 	if (option_debug) {
@@ -2628,8 +2629,10 @@ tackygoto:
 		cs[1] = cs[2];
 	}
 	lock_both(callno0, callno1);
-	iaxs[callno0]->bridgecallno = 0;
-	iaxs[callno1]->bridgecallno = 0;
+	if(iaxs[callno0])
+		iaxs[callno0]->bridgecallno = 0;
+	if(iaxs[callno1])
+		iaxs[callno1]->bridgecallno = 0;
 	unlock_both(callno0, callno1);
 	return res;
 }
@@ -4340,7 +4343,8 @@ static int expire_registry(void *data)
 	p->expire = -1;
 	/* Reset expirey value */
 	p->expirey = expirey;
-	ast_db_del("IAX/Registry", p->name);
+	if (p->temponly !=1)
+		ast_db_del("IAX/Registry", p->name);
 	register_peer_exten(p, 0);
 	if (iax2_regfunk)
 		iax2_regfunk(p->name, 0);
@@ -4356,7 +4360,7 @@ static void reg_source_db(struct iax2_peer *p)
 	struct in_addr in;
 	char iabuf[INET_ADDRSTRLEN];
 	char *c, *d;
-	if (!ast_db_get("IAX/Registry", p->name, data, sizeof(data))) {
+	if ((p->temponly != 1) && (!ast_db_get("IAX/Registry", p->name, data, sizeof(data)))) {
 		c = strchr(data, ':');
 		if (c) {
 			*c = '\0';
@@ -4416,7 +4420,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 			if (iax2_regfunk)
 				iax2_regfunk(p->name, 1);
 			snprintf(data, sizeof(data), "%s:%d:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port), p->expirey);
-			if (sin->sin_addr.s_addr) {
+			if ((p->temponly != 1) && (sin->sin_addr.s_addr)) {
 				ast_db_put("IAX/Registry", p->name, data);
 				if  (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Registered '%s' (%s) at %s:%d\n", p->name, 
@@ -5079,10 +5083,10 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 									if (iaxs[fr.callno]->bridgecallno) {
 										forward_delivery(&fr);
 									} else {
-										schedule_delivery(iaxfrdup2(&fr), 1, updatehistory);
+										schedule_delivery(iaxfrdup2(&fr), 1, updatehistory, 1);
 									}
 #else
-									schedule_delivery(iaxfrdup2(&fr), 1, updatehistory);
+									schedule_delivery(iaxfrdup2(&fr), 1, updatehistory, 1);
 #endif
 								}
 							} else {
@@ -5148,7 +5152,9 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			ast_mutex_unlock(&iaxsl[fr.callno]);
 		return 1;
 	}
-	if (!inaddrcmp(&sin, &iaxs[fr.callno]->addr) && !minivid)
+	if (!inaddrcmp(&sin, &iaxs[fr.callno]->addr) && !minivid &&
+		f.subclass != IAX_COMMAND_TXCNT &&		/* for attended transfer */
+		f.subclass != IAX_COMMAND_TXACC)		/* for attended transfer */
 		iaxs[fr.callno]->peercallno = (unsigned short)(ntohs(mh->callno) & ~IAX_FLAG_FULL);
 	if (ntohs(mh->callno) & IAX_FLAG_FULL) {
 		if (option_debug)
@@ -5170,12 +5176,18 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		if ((iaxs[fr.callno]->iseqno != fr.oseqno) &&
 			(iaxs[fr.callno]->iseqno ||
 				((f.subclass != IAX_COMMAND_TXCNT) &&
+				(f.subclass != IAX_COMMAND_TXREADY) &&		/* for attended transfer */
+				(f.subclass != IAX_COMMAND_TXREL) &&		/* for attended transfer */
+				(f.subclass != IAX_COMMAND_UNQUELCH ) &&	/* for attended transfer */
 				(f.subclass != IAX_COMMAND_TXACC)) ||
-				(f.subclass != AST_FRAME_IAX))) {
+				(f.frametype != AST_FRAME_IAX))) {
 			if (
 			 ((f.subclass != IAX_COMMAND_ACK) &&
 			  (f.subclass != IAX_COMMAND_INVAL) &&
 			  (f.subclass != IAX_COMMAND_TXCNT) &&
+			  (f.subclass != IAX_COMMAND_TXREADY) &&		/* for attended transfer */
+			  (f.subclass != IAX_COMMAND_TXREL) &&		/* for attended transfer */
+			  (f.subclass != IAX_COMMAND_UNQUELCH ) &&	/* for attended transfer */
 			  (f.subclass != IAX_COMMAND_TXACC) &&
 			  (f.subclass != IAX_COMMAND_VNAK)) ||
 			  (f.frametype != AST_FRAME_IAX)) {
@@ -5335,7 +5347,7 @@ retryowner:
 			if (option_debug)
 				ast_log(LOG_DEBUG, "IAX subclass %d received\n", f.subclass);
 			/* Go through the motions of delivering the packet without actually doing so */
-			schedule_delivery(&fr, 0, updatehistory);
+			schedule_delivery(&fr, 0, updatehistory, 0);
 			switch(f.subclass) {
 			case IAX_COMMAND_ACK:
 				/* Do nothing */
@@ -5885,6 +5897,7 @@ retryowner2:
 				/* Send ack immediately, rather than waiting until we've changed addresses */
 				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 				complete_transfer(fr.callno, &ies);
+				stop_stuff(fr.callno);	/* for attended transfer to work with libiax */
 				break;	
 			case IAX_COMMAND_DPREP:
 				complete_dpreply(iaxs[fr.callno], &ies);
@@ -5929,7 +5942,7 @@ retryowner2:
 		if (iaxs[fr.callno]->videoformat > 0) 
 			f.subclass = iaxs[fr.callno]->videoformat | (ntohs(vh->ts) & 0x8000 ? 1 : 0);
 		else {
-			ast_log(LOG_WARNING, "Received mini frame before first full voice frame\n ");
+			ast_log(LOG_WARNING, "Received mini frame before first full video frame\n ");
 			iax2_vnak(fr.callno);
 			ast_mutex_unlock(&iaxsl[fr.callno]);
 			return 1;
@@ -5993,12 +6006,12 @@ retryowner2:
 		forward_delivery(&fr);
 	} else {
 		duped_fr = iaxfrdup2(&fr);
-		schedule_delivery(duped_fr, 1, updatehistory);
+		schedule_delivery(duped_fr, 1, updatehistory, 0);
 		fr.ts = duped_fr->ts;
 	}
 #else
 	duped_fr = iaxfrdup2(&fr);
-	schedule_delivery(duped_fr, 1, updatehistory);
+	schedule_delivery(duped_fr, 1, updatehistory, 0);
 	fr.ts = duped_fr->ts;
 #endif
 
@@ -6386,9 +6399,11 @@ static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
  	} else {
 		ast_mutex_unlock(&peerl.lock);
 		peer = malloc(sizeof(struct iax2_peer));
-		memset(peer, 0, sizeof(struct iax2_peer));
-		peer->expire = -1;
-		peer->pokeexpire = -1;
+		if (peer) {
+			memset(peer, 0, sizeof(struct iax2_peer));
+			peer->expire = -1;
+			peer->pokeexpire = -1;
+		}
 	}
 	if (peer) {
 		peer->messagedetail = globalmessagedetail;
@@ -6553,7 +6568,8 @@ static struct iax2_user *build_user(char *name, struct ast_variable *v)
  	} else {
 		ast_mutex_unlock(&userl.lock);
 		user = malloc(sizeof(struct iax2_user));
-		memset(user, 0, sizeof(struct iax2_user));
+		if (user)
+			memset(user, 0, sizeof(struct iax2_user));
 	}
 	
 	if (user) {

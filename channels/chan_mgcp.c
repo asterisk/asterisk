@@ -1785,7 +1785,7 @@ static int init_req(struct mgcp_endpoint *p, struct mgcp_request *req, char *ver
 
 static int respprep(struct mgcp_request *resp, struct mgcp_endpoint *p, char *msg, struct mgcp_request *req, char *msgrest)
 {
-	memset(resp, 0, sizeof(*resp));
+	memset(resp, 0, sizeof(struct mgcp_request));
 	init_resp(resp, msg, req, msgrest);
 	return 0;
 }
@@ -1947,7 +1947,7 @@ static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp 
 	add_header(&resp, "X", sub->txident);
 	add_header(&resp, "I", sub->cxident);
 	/*add_header(&resp, "S", "");*/
-	ast_rtp_offered_from_local(rtp, 0);
+	ast_rtp_offered_from_local(sub->rtp, 0);
 	add_sdp(&resp, sub, rtp);
     /* SC: fill in new fields */
     resp.cmd = MGCP_CMD_MDCX;
@@ -1981,7 +1981,7 @@ static int transmit_connect_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp
     /* SC: X header should not be sent. kept for compatibility */
 	add_header(&resp, "X", sub->txident);
 	/*add_header(&resp, "S", "");*/
-	ast_rtp_offered_from_local(rtp, 1);
+	ast_rtp_offered_from_local(sub->rtp, 1);
 	add_sdp(&resp, sub, rtp);
     /* SC: fill in new fields */
     resp.cmd = MGCP_CMD_CRCX;
@@ -2411,7 +2411,7 @@ static void start_rtp(struct mgcp_subchannel *sub)
             sub->rtp = NULL;
         }
 		/* Allocate the RTP now */
-		sub->rtp = ast_rtp_new(sched, io, 1, 0);
+		sub->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
 		if (sub->rtp && sub->owner)
 			sub->owner->fds[0] = ast_rtp_fd(sub->rtp);
 		if (sub->rtp)
@@ -2879,7 +2879,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 						tmp_sub = tmp_ep->sub;
 						while (tmp_sub) {
 							if (tmp_sub->owner)
-								ast_softhangup(sub->owner, AST_SOFTHANGUP_DEV);
+								ast_softhangup(tmp_sub->owner, AST_SOFTHANGUP_DEV);
 							tmp_sub = tmp_sub->next;
 							if (tmp_sub == first_sub)
 								break;
@@ -3140,7 +3140,7 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 	int ident;
 	char iabuf[INET_ADDRSTRLEN];
 	len = sizeof(sin);
-	memset(&req, 0, sizeof(req));
+	memset(&req, 0, sizeof(struct mgcp_request));
 	res = recvfrom(mgcpsock, req.data, sizeof(req.data) - 1, 0, (struct sockaddr *)&sin, &len);
 	if (res < 0) {
 		if (errno != ECONNREFUSED)
@@ -3150,8 +3150,8 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 	req.data[res] = '\0';
 	req.len = res;
 	if (mgcpdebug) {
-		ast_verbose("MGCP read: \n%s\nfrom %s:%d", req.data, ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
-    }
+		ast_verbose("MGCP read: \n%s\nfrom %s:%d\n", req.data, ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+	}
 	parse(&req);
 	if (req.headers < 1) {
 		/* Must have at least one header */

@@ -1258,7 +1258,7 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 				pbx_substitute_variables(passdata, sizeof(passdata), c, e);
 				if (option_debug)
 						ast_log(LOG_DEBUG, "Launching '%s'\n", app->name);
-				else if (option_verbose > 2)
+				if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\") %s\n", 
 								term_color(tmp, app->name, COLOR_BRCYAN, 0, sizeof(tmp)),
 								term_color(tmp2, c->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
@@ -4381,7 +4381,8 @@ static int pbx_builtin_answer(struct ast_channel *chan, void *data)
 static int pbx_builtin_setlanguage(struct ast_channel *chan, void *data)
 {
 	/* Copy the language as specified */
-	strncpy(chan->language, (char *)data, sizeof(chan->language)-1);
+	if (data)	
+		strncpy(chan->language, (char *)data, sizeof(chan->language)-1);
 	return 0;
 }
 
@@ -4567,7 +4568,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 			res = ast_waitstream(chan, AST_DIGIT_ANY);
 			ast_stopstream(chan);
 		} else {
-			ast_log(LOG_WARNING, "ast_streamfile failed on %s fro %s\n", chan->name, (char*)data);
+			ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char*)data);
 			res = 0;
 		}
 	}
