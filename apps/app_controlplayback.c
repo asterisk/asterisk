@@ -31,15 +31,23 @@ static char *app = "ControlPlayback";
 static char *synopsis = "Play a file with fast forward and rewind";
 
 static char *descrip = 
-"  ControlPlayback(filename[|skipms][|endplay]):  Plays  back  a  given  filename\n"
-"(do not put extension). Options may also be included following a pipe symbol.\n"
-"you can use * and # to rewind and fast forward the playback specified. If 'endplay' is.\n"
-"added the file will terminate playback when 1 is pressed. Returns -1 if the channel\n"
-"was hung up, or if the file does not exist. Returns 0 otherwise.\n";
+"ControlPlayback(filename[|skipms][|<rewindchar><ffchar><endchar>]):\n"
+"  Plays  back  a  given  filename (do not put extension). Options may also\n"
+"  be included following a pipe symbol.  You can use * and # to rewind and\n"
+"  fast forward the playback specified. If 'endchar' is added the file will\n"
+"  terminate playback when 'endchar' is pressed. Returns -1 if the channel\n"
+"  was hung up, or if the file does not exist. Returns 0 otherwise.\n\n"
+"  Example:  exten => 1234,1,ControlPlayback(file|4000|*#1)\n\n";
+
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
+
+static int is_on_phonepad(char key)
+{
+	return (key == 35 || key == 42 || (key >= 48 && key <= 57)) ? 1 : 0;
+}
 
 static int controlplayback_exec(struct ast_channel *chan, void *data)
 {
@@ -47,30 +55,37 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 	int skipms = 0;
 	struct localuser *u;
 	char tmp[256];
-	char *skip, *endplay;
-	int option_endplay = 0;
+	char opts[3];
+	char *skip = NULL, *stop = NULL;
 	if (!data || ast_strlen_zero((char *)data)) {
 		ast_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
 		return -1;
 	}
+	
+	memset(opts,0,3);
 	strncpy(tmp, (char *)data, sizeof(tmp)-1);
 	if((skip=strchr(tmp,'|'))) {
 		*skip = '\0';
 		*skip++;
-		if((endplay=strchr(skip,'|'))) {
-			*endplay = '\0';
-			*endplay++;
-			if(!strcmp(endplay,"endplay")) {
-				option_endplay = 1;
-			}
-		}
 	}
-	if (atoi(skip) > 0) {
-		skipms =  atoi(skip);
-	} else {
+
+	if(skip && (stop=strchr(skip,'|'))) {
+		*stop = '\0';
+		*stop++;
+		strncpy(opts,stop,3);
+	}
+
+	skipms = skip ? atoi(skip) : 3000;
+	if(!skipms)
 		skipms = 3000;
-	}
-		
+
+	if(opts[0] == '\0' || ! is_on_phonepad(opts[0]))
+		opts[0] = '*';
+	if(opts[1] == '\0' || ! is_on_phonepad(opts[1]))
+		opts[1] = '#';
+	if(opts[2] == '\0' || ! is_on_phonepad(opts[2]))
+		opts[2] = '1';
+
 	LOCAL_USER_ADD(u);
 
 	if (chan->_state != AST_STATE_UP)
@@ -78,10 +93,10 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 
 	ast_stopstream(chan);
 	for(;;) {
-		res = ast_control_streamfile(chan, tmp, "#", "*", skipms);
+		res = ast_control_streamfile(chan, tmp, &opts[1], &opts[0], skipms);
 		if (res < 1)
 			break;
-		if(option_endplay && res == 49) {
+		if(res == opts[2]) {
 			res = 0;
 			break;
 		}

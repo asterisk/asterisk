@@ -6334,6 +6334,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			/* Use this as the basis */
 			if (sip_debug_test_pvt(p))
 				ast_verbose("Using latest request as basis request\n");
+			sip_cancel_destroy(p);
 			/* This call is no longer outgoing if it ever was */
 			p->outgoing = 0;
 			copy_request(&p->initreq, req);
