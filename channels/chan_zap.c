@@ -6154,6 +6154,13 @@ static int zap_show_channel(int fd, int argc, char **argv)
 			} else {
 				ast_cli(fd, "Actual Confinfo: Num/%d, Mode/0x%04x\n", ci.confno, ci.confmode);
 			}
+#ifdef ZT_GETCONFMUTE
+			if (ioctl(tmp->subs[SUB_REAL].zfd, ZT_GETCONF, &x)) {
+				ast_log(LOG_WARNING, "Failed to get confmute info on channel %d\n", tmp->channel);
+			} else {
+				ast_cli(fd, "Actual Confmute: %s\n", x ? "Yes" : "No");
+			}
+#endif
 			ast_pthread_mutex_unlock(&iflock);
 			return RESULT_SUCCESS;
 		}

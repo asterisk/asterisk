@@ -79,7 +79,6 @@ static void *autodial(void *ignore)
 		FD_SET(fd, &fds);
 		ast_select(fd + 1, &fds, NULL, NULL, NULL);
 		bytes=read(fd,buf,256);
-		printf("Bytes: %d\n", bytes);
 		buf[(int)bytes]=0;
 
 		if(bytes>0){
