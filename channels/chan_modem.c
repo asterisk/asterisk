@@ -55,6 +55,9 @@ static char language[MAX_LANGUAGE] = "";
 /* Initialization String */
 static char initstr[AST_MAX_INIT_STR] = "ATE1Q0";
 
+/* Default MSN */
+static char msn[AST_MAX_EXTENSION]="";
+
 static int usecnt =0;
 
 static int baudrate = 115200;
@@ -348,7 +351,8 @@ static int modem_setup(struct ast_modem_pvt *p, int baudrate)
 static int modem_hangup(struct ast_channel *ast)
 {
 	struct ast_modem_pvt *p;
-	ast_log(LOG_DEBUG, "modem_hangup(%s)\n", ast->name);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "modem_hangup(%s)\n", ast->name);
 	p = ast->pvt->pvt;
 	/* Hang up */
 	if (p->mc->hangup)
@@ -377,7 +381,8 @@ static int modem_answer(struct ast_channel *ast)
 {
 	struct ast_modem_pvt *p;
 	int res=0;
-	ast_log(LOG_DEBUG, "modem_hangup(%s)\n", ast->name);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "modem_answer(%s)\n", ast->name);
 	p = ast->pvt->pvt;
 	if (p->mc->answer) {
 		res = p->mc->answer(p);
@@ -467,7 +472,6 @@ static void modem_mini_packet(struct ast_modem_pvt *i)
 	if (fr->frametype == AST_FRAME_CONTROL) {
 		if (fr->subclass == AST_CONTROL_RING) {
 			ast_modem_new(i, AST_STATE_RING);
-			restart_monitor();
 		}
 	}
 }
@@ -590,6 +594,21 @@ static int restart_monitor()
 	return 0;
 }
 
+static void stty(struct ast_modem_pvt *p)
+{
+	struct termios mode;
+	memset(&mode, 0, sizeof(mode));
+	if (tcgetattr(p->fd, &mode)) {
+		ast_log(LOG_WARNING, "Unable to get serial parameters on %s: %s\n", p->dev, strerror(errno));
+		return;
+	}
+	cfmakeraw(&mode);
+	cfsetspeed(&mode, B115200);
+	if (tcsetattr(p->fd, TCSANOW, &mode)) 
+		ast_log(LOG_WARNING, "Unable to set serial parameters on %s: %s\n", p->dev, strerror(errno));
+	
+}
+
 static struct ast_modem_pvt *mkif(char *iface)
 {
 	/* Make a ast_modem_pvt structure for this interface */
@@ -599,6 +618,7 @@ static struct ast_modem_pvt *mkif(char *iface)
 #endif
 	
 	tmp = malloc(sizeof(struct ast_modem_pvt));
+	memset(tmp, 0, sizeof(struct ast_modem_pvt));
 	if (tmp) {
 		tmp->fd = open(iface, O_RDWR | O_NONBLOCK);
 		if (tmp->fd < 0) {
@@ -607,6 +627,11 @@ static struct ast_modem_pvt *mkif(char *iface)
 			return NULL;
 		}
 		strncpy(tmp->language, language, sizeof(tmp->language));
+		strncpy(tmp->msn, msn, sizeof(tmp->msn));
+		strncpy(tmp->dev, iface, sizeof(tmp->dev));
+		/* Maybe in the future we want to allow variable
+		   serial settings */
+		stty(tmp);
 		tmp->f = fdopen(tmp->fd, "w+");
 		/* Disable buffering */
 		setvbuf(tmp->f, NULL, _IONBF,0);
@@ -625,7 +650,6 @@ static struct ast_modem_pvt *mkif(char *iface)
 		tmp->dialtype = dialtype;
 		tmp->mode = gmode;
 		memset(tmp->cid, 0, sizeof(tmp->cid));
-		strncpy(tmp->dev, iface, sizeof(tmp->dev));
 		strncpy(tmp->context, context, sizeof(tmp->context));
 		strncpy(tmp->initstr, initstr, sizeof(tmp->initstr));
 		tmp->next = NULL;
@@ -743,13 +767,16 @@ int load_module()
 			dialtype = toupper(v->value[0]);
 		} else if (!strcasecmp(v->name, "context")) {
 			strncpy(context, v->value, sizeof(context));
+		} else if (!strcasecmp(v->name, "msn")) {
+			strncpy(msn, v->value, sizeof(msn));
 		} else if (!strcasecmp(v->name, "language")) {
 			strncpy(language, v->value, sizeof(language));
 		}
 		v = v->next;
 	}
 	pthread_mutex_unlock(&iflock);
-	if (ast_channel_register(type, tdesc, /* XXX Don't know our types -- maybe we should register more than one XXX */ AST_FORMAT_SLINEAR, modem_request)) {
+	if (ast_channel_register(type, tdesc, /* XXX Don't know our types -- maybe we should register more than one XXX */ 
+						AST_FORMAT_SLINEAR, modem_request)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
 		ast_destroy(cfg);
 		unload_module();

@@ -19,6 +19,7 @@
 
 #define CHAR_DLE		0x10
 #define CHAR_ETX		0x03
+#define CHAR_DC4		0x14
 
 #define MODEM_DEV_TELCO		0
 #define MODEM_DEV_TELCO_SPK	4
@@ -76,8 +77,11 @@ struct ast_modem_pvt {
 	int mode;						/* Immediate, or wait for an answer */
 	int ministate;					/* State of modem in miniature */
 	int stripmsd;					/* Digits to strip on outgoing numbers */
+	int escape;					/* Is the last thing we saw an escape */
 	char context[AST_MAX_EXTENSION];
+	char msn[AST_MAX_EXTENSION];	/* Multiple Subscriber Number */
 	char cid[AST_MAX_EXTENSION];	/* Caller ID if available */
+	char dnid[AST_MAX_EXTENSION];	/* Dialed Number if available */
 	char initstr[AST_MAX_INIT_STR];	/* Modem initialization String */
 	char language[MAX_LANGUAGE];	/* default language */
 	char response[256];				/* Static response buffer */
