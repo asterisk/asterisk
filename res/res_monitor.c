@@ -122,14 +122,17 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 			seq++;
 			ast_mutex_unlock(&monitorlock);
 
-			channel_name = strdup(chan->name);
-			while((p = strchr(channel_name, '/'))) {
-				*p = '-';
+			if((channel_name = ast_strdupa(chan->name))) {
+				while((p = strchr(channel_name, '/'))) {
+					*p = '-';
+				}
+				snprintf(monitor->filename_base, FILENAME_MAX, "%s/%ld-%s",
+						 AST_MONITOR_DIR, time(NULL),channel_name);
+				monitor->filename_changed = 1;
+			} else {
+				ast_log(LOG_ERROR,"Failed to allocate Memory\n");
+				return -1;
 			}
-			snprintf(monitor->filename_base, FILENAME_MAX, "%s/%s",
-						AST_MONITOR_DIR, channel_name);
-			monitor->filename_changed = 1;
-			free(channel_name);
 		}
 
 		monitor->stop = ast_monitor_stop;
@@ -168,6 +171,8 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 			return -1;
 		}
 		chan->monitor = monitor;
+		/* so we know this call has been monitored in case we need to bill for it or something */
+		pbx_builtin_setvar_helper(chan, "__MONITORED","true");
 	} else {
 		ast_log(LOG_DEBUG,"Cannot start monitoring %s, already monitored\n",
 					chan->name);

@@ -104,6 +104,9 @@ ${QUEUE_PRIO}		Queue priority
 The following variables can be set to change certian behaviour:
 ${TOUCH_MONITOR}	The filename base to use with Touch Monitor (auto record)
 
+The monitor application sets the following variable:
+${MONITOR}		Set to "true" if the channel is/has been monitored.
+
 There are two reference modes - reference by value and reference by name. 
 To refer to a variable with its name (as an argument to a function that 
 requires a variable), just write the name. To refer to the variable's value, 
