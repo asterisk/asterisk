@@ -42,7 +42,7 @@
 
 #define VPB_DIALTONE_WAIT 2000
 #define VPB_RINGWAIT 2000
-#define VPB_WAIT_TIMEOUT 10
+#define VPB_WAIT_TIMEOUT 40
 
 #if defined(__cplusplus) || defined(c_plusplus)
  extern "C" {
@@ -62,6 +62,10 @@ static int usecnt =0;
 
 static int echocancel = 1; 
 static int setrxgain = 0, settxgain = 0;
+
+static int tcounter  = 0;
+
+static int gruntdetect_timeout = 5000; /* Grunt detect timeout is 5 seconds. */
 
 static int silencesupression = 0;
 
@@ -97,10 +101,8 @@ static int restart_monitor(void);
 
 static VPB_TONE Dialtone     = {450, 425, 400, -10,   -10,  -10, 10000, 0   };
 static VPB_TONE Busytone     = {425,   0,   0, -10,  -100, -100,   500,  500};
-
-#if 0
 static VPB_TONE Ringbacktone = {425,   0,   0, -10,  -100, -100,  1000, 3000};
-#endif
+
 
 #define VPB_MAX_BRIDGES 128 
 static struct vpb_bridge_t {
@@ -125,7 +127,8 @@ static struct vpb_pvt {
 
      struct ast_frame f, fr;
      char buf[VPB_MAX_BUF];			/* Static buffer for reading frames */
-
+     char obuf[VPB_MAX_BUF];
+     
      int dialtone;
      float txgain, rxgain;             /* gain control for playing, recording  */
      
@@ -141,7 +144,11 @@ static struct vpb_pvt {
      int lastoutput;
 
      struct vpb_bridge_t *bridge;
-     
+     void *timer; /* For call timeout. */
+     int calling;
+    
+     int lastgrunt;
+
      pthread_mutex_t lock;
 
     int stopreads; /* Stop reading...*/
@@ -190,7 +197,7 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 	       p1->bridge = &bridges[i];
 	  } ast_pthread_mutex_unlock(&p1->lock);
 
-	  if (option_verbose > 1) 
+	  if (option_verbose > 4) 
 	       ast_verbose(VERBOSE_PREFIX_3 
 			   " Bridging call entered with [%s, %s]\n", c0->name, c1->name);
      }
@@ -222,7 +229,7 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
      } ast_pthread_mutex_unlock(&p1->lock);
 
      
-     if (option_verbose > 2) 
+     if (option_verbose > 4) 
 	  ast_verbose(VERBOSE_PREFIX_3 
 		      " Bridging call done with [%s, %s] => %d\n", c0->name, c1->name, res);
     
@@ -249,7 +256,13 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 	  else
 	       f.frametype = -1; /* ignore ring on station port. */
 	  break;
-
+     case VPB_TIMEREXP:
+	  if (p->calling) { /* This means time to stop calling. */
+	       f.subclass = AST_CONTROL_BUSY;
+	       vpb_timer_close(p->timer);
+	  } else
+	       f.frametype = -1; /* Ignore. */
+	  break;
      case VPB_DTMF:
 	  if (p->owner->_state == AST_STATE_UP) {
 	       f.frametype = AST_FRAME_DTMF;
@@ -261,7 +274,10 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
      case VPB_TONEDETECT:
 	  if (e->data == VPB_BUSY || e->data == VPB_BUSY_308)
 	       f.subclass = AST_CONTROL_BUSY;
-	  else 
+	  else if (e->data == VPB_GRUNT) {
+	       p->lastgrunt = tcounter;
+	       f.frametype = -1;
+	  } else
 	       f.frametype = -1;
 	  break;
 
@@ -295,7 +311,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 	  break;
      }
 
-     if (option_verbose > 2) 
+     if (option_verbose > 4) 
 	  ast_verbose(VERBOSE_PREFIX_3 " handle_owned: putting frame: [%d=>%d], bridge=%p\n",
 		      f.frametype, f.subclass, (void *)p->bridge);
 
@@ -351,7 +367,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 {
      char s[2] = {0};
 
-     if (option_verbose > 2) 
+     if (option_verbose > 4) 
 	  ast_verbose(VERBOSE_PREFIX_3 " %s: In not owned, mode=%d, [%d=>%d]\n",
 		      p->dev, p->mode, e->type, e->data);
           
@@ -404,7 +420,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 	  break;
      }
      
-     if (option_verbose > 2) 
+     if (option_verbose > 4) 
 	 ast_verbose(VERBOSE_PREFIX_3 " %s: Done not owned, mode=%d, [%d=>%d]\n",
 		      p->dev, p->mode, e->type, e->data);
      
@@ -416,7 +432,7 @@ static void *do_monitor(void *unused)
     
      /* Monitor thread, doesn't die until explicitly killed. */
      
-     if (option_verbose > 2) 
+     if (option_verbose > 4) 
 	  ast_verbose(VERBOSE_PREFIX_3 "Starting vpb monitor thread[%ld]\n",
 		      pthread_self());
      pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
@@ -426,45 +442,47 @@ static void *do_monitor(void *unused)
 	  char str[VPB_MAX_STR];
 	  
 	  int res = vpb_get_event_sync(&e, VPB_WAIT_TIMEOUT);
-	  
+
+	  if (res != VPB_OK)
+	       goto end_loop;
 	  
 	  str[0] = 0;
 	  ast_pthread_mutex_lock(&monlock),
 	       ast_pthread_mutex_lock(&iflock); {
 	       struct vpb_pvt *p = iflist; /* Find the pvt structure */	      
-
-	      if (res == VPB_OK) { /* Got an actual event! */ 
-		   
-
-		   vpb_translate_event(&e, str);
-		   
-		   if (e.type == VPB_TIMEREXP || e.type == VPB_NULL_EVENT) 
-			goto done; /* Nothing to do, just a wakeup call.*/
-		   while (p && p->handle != e.handle)
-			p = p->next;
-		   
-		   if (!p) {
+		
+	       vpb_translate_event(&e, str);
+	       
+	       if (e.type == VPB_NULL_EVENT) 
+		    goto done; /* Nothing to do, just a wakeup call.*/
+	       while (p && p->handle != e.handle)
+		    p = p->next;
+	       
+	       if (option_verbose > 2)
+		    ast_verbose(VERBOSE_PREFIX_3 " Event [%d=>%s] on %s\n", 
+				e.type, str, p ? p->dev : "null");
+	       
+	       if (!p) {
 			   ast_log(LOG_WARNING, 
 				   "Got event %s, no matching iface!\n", str);    
-			goto done;
-		   } 
-		   
-		   if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 " Event [%d=>%s] on %s\n", 
-				    e.type, str, p->dev);
-		   
-		   /* Two scenarios: Are you owned or not. */
-		   
-		   if (p->owner) 
+			   goto done;
+	       } 
+	       
+	       
+	       /* Two scenarios: Are you owned or not. */
+	       
+	       if (p->owner) 
 			monitor_handle_owned(p, &e);
-		   else 
-			monitor_handle_notowned(p, &e);
-	      } 
-	      done: (void)0;
+	       else 
+		    monitor_handle_notowned(p, &e);
+	       
+	       done: (void)0;
 	  } ast_pthread_mutex_unlock(&iflock);
 	  ast_pthread_mutex_unlock(&monlock);
 	  
-
+     end_loop:
+	  tcounter += VPB_WAIT_TIMEOUT; /* Ok, not quite but will suffice. */
+	  
      } while(1);
      
      
@@ -503,7 +521,7 @@ static int restart_monitor(void)
 		    mthreadactive = 0; /* Started the thread!*/
 
 #if 0	       
-	       if (option_verbose > 2) 
+	       if (option_verbose > 4) 
 		    ast_verbose(VERBOSE_PREFIX_3 
 				"Starting vpb restast: thread[%d]\n",
 				pid);
@@ -535,14 +553,14 @@ struct vpb_pvt *mkif(int board, int channel, int mode, float txgain, float rxgai
      }
           
      if (echocancel) {
-	  if (option_verbose > 2)
+	  if (option_verbose > 4)
 	       ast_verbose(VERBOSE_PREFIX_3 " vpb turned on echo cancel.\n");
 	  vpb_echo_canc_enable();
 	  vpb_echo_canc_force_adapt_on();
 	  echocancel = 0; /* So we do not initialise twice! */
      }
      
-     if (option_verbose > 2) 
+     if (option_verbose > 4) 
 	  ast_verbose(VERBOSE_PREFIX_3 " vpb created channel: [%d:%d]\n",
 		      board, channel);
 
@@ -573,6 +591,54 @@ struct vpb_pvt *mkif(int board, int channel, int mode, float txgain, float rxgai
 	  vpb_play_set_gain(tmp->handle, txgain);
      
      return tmp;
+}
+
+
+static int vpb_indicate(struct ast_channel *ast, int condition)
+{
+    struct vpb_pvt *p = (struct vpb_pvt *)ast->pvt->pvt;
+    int res = 0;
+
+    if (option_verbose > 4)
+	ast_verbose(VERBOSE_PREFIX_3 " vpb indicate on %s with %d\n",
+		    p->dev, condition);
+
+    switch(condition) {
+	case AST_CONTROL_BUSY:
+	case AST_CONTROL_CONGESTION:
+	    res = vpb_playtone_async(p->handle, &Busytone);
+	    break;
+	case AST_CONTROL_RINGING:
+	    res = vpb_playtone_async(p->handle, &Ringbacktone);
+	    break;	    
+	case AST_CONTROL_ANSWER:
+	case -1: /* -1 means stop playing? */
+	    res = vpb_tone_terminate(p->handle);
+	    break;
+	case AST_CONTROL_HANGUP:
+	    res = vpb_playtone_async(p->handle, &Busytone);
+	    break;
+	    
+	default:
+	    res = 0;
+	    break;
+    }
+    return res;
+}
+
+static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
+{
+	struct vpb_pvt *p = (struct vpb_pvt *)newchan->pvt->pvt;
+
+	ast_log(LOG_DEBUG, 
+		"New owner for channel %s is %s\n", p->dev, newchan->name);
+	if (p->owner == oldchan)
+		p->owner = newchan;
+
+	if (newchan->_state == AST_STATE_RINGING) 
+		vpb_indicate(newchan, AST_CONTROL_RINGING);
+
+	return 0;
 }
 
 static int vpb_digit(struct ast_channel *ast, char digit)
@@ -627,8 +693,18 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 	 } else 
 	      res = 0;
     }
-    
+
+    if (option_verbose > 2)
+	ast_verbose(VERBOSE_PREFIX_3 
+		    " VPB Calling %s [t=%d] on %s returned %d\n", 
+		    dest, timeout, ast->name, res); 
+
     if (res == 0) {
+	 if (timeout) {
+	      vpb_timer_open(&p->timer, p->handle, 0, 1000*timeout);
+	      vpb_timer_start(p->timer);
+	 }
+	 p->calling = 1;
 	ast_setstate(ast, AST_STATE_RINGING);
 	ast_queue_control(ast,AST_CONTROL_RINGING, 0);		
     }
@@ -667,7 +743,8 @@ static int vpb_hangup(struct ast_channel *ast)
 	 p->ext[0]  = 0;
 	 p->owner = NULL;
 	 p->dialtone = 0;
-	 ast->pvt->pvt = NULL; 
+	 p->calling = 0;
+	 ast->pvt->pvt = NULL; 	 
     } ast_pthread_mutex_unlock(&p->lock);
 	 
     ast_pthread_mutex_lock(&usecnt_lock); {
@@ -783,8 +860,9 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	 p->lastoutput = fmt;
     }
     
-
-    res = vpb_play_buf_sync(p->handle, (char *)frame->data, frame->datalen);
+    memcpy(p->obuf, frame->data, 
+	   (frame->datalen > (int)sizeof p->obuf) ? sizeof p->obuf : frame->datalen);
+    res = vpb_play_buf_sync(p->handle, p->obuf, frame->datalen);
     if (res != VPB_OK)
 	 return -1;
     else 
@@ -843,9 +921,10 @@ static void *do_chanreads(void *pvt)
 		   bridgerec = 1;
 	 } ast_pthread_mutex_unlock(&p->lock);
 	 
-	 if (state == AST_STATE_UP && bridgerec)  /* Read only if up and not bridged, or a bridge for which we can read. */
-	      res = vpb_record_buf_sync(p->handle, readbuf, readlen);
-	 else {
+	 if (state == AST_STATE_UP && bridgerec) {  
+             /* Read only if up and not bridged, or a bridge for which we can read. */
+	      res = vpb_record_buf_sync(p->handle, readbuf, readlen);	      
+	}  else {
 	      res = 0;
 	      vpb_sleep(10);
 	 }
@@ -906,7 +985,9 @@ static struct ast_channel *vpb_new(struct vpb_pvt *i, int state, char *context)
 		tmp->pvt->read = vpb_read;
 		tmp->pvt->write = vpb_write;
 		tmp->pvt->bridge = vpb_bridge;
-
+		tmp->pvt->indicate = vpb_indicate;
+		tmp->pvt->fixup = vpb_fixup;
+		
 		strncpy(tmp->context, context, sizeof(tmp->context)-1);
 		if (strlen(i->ext))
 			strncpy(tmp->exten, i->ext, sizeof(tmp->exten)-1);
@@ -920,7 +1001,8 @@ static struct ast_channel *vpb_new(struct vpb_pvt *i, int state, char *context)
 
 		
 		i->lastinput = i->lastoutput = -1;
-		
+		i->lastgrunt  = tcounter; /* Assume at least one grunt tone seen now. */
+
 		ast_pthread_mutex_lock(&usecnt_lock);
 		usecnt++;
 		ast_pthread_mutex_unlock(&usecnt_lock);
@@ -1076,10 +1158,16 @@ int load_module()
 		  } else if (strcasecmp(v->name, "rxgain") == 0) {
 		       setrxgain = 1;
 		       rxgain = parse_gain_value(v->name, v->value);
-		  }
+		  } 
+#if 0
+		  else if (strcasecmp(v->name, "grunttimeout") == 0) 
+		       gruntdetect_timeout = 1000*atoi(v->value);
+#endif	  
 		  v = v->next;
 	     }
-
+	     
+	     if (gruntdetect_timeout < 1000)
+		  gruntdetect_timeout = 1000;
 
 	done: (void)0;
 	} ast_pthread_mutex_unlock(&iflock);
@@ -1151,6 +1239,8 @@ int unload_module()
 	} ast_pthread_mutex_unlock(&bridge_lock);
 	pthread_mutex_destroy(&bridge_lock);
 
+	tcounter = 0;
+	
 	return 0;
 }
 
