@@ -11,6 +11,7 @@
  * the GNU General Public License
  */
 
+
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
@@ -383,8 +384,11 @@ struct sip_user {
 	int outgoinglimit;
 	int promiscredir;
 	int restrictcid;
-        int trustrpid;
+	int trustrpid;
 	struct ast_ha *ha;
+#ifdef MYSQL_USERS
+	int temponly;
+#endif /* MYSQL_FRIENDS */
 	struct sip_user *next;
 };
 
@@ -881,8 +885,88 @@ static int sip_sendtext(struct ast_channel *ast, char *text)
 	return 0;	
 }
 
-#ifdef MYSQL_FRIENDS
+#ifdef MYSQL_USERS
 
+/* Ehud Gavron 08-Jun-2004:                                            */
+/*    The Mysql stuff works great for peers but not for users.         */
+/* Unfortunately multi-line phones (e.g. cisco 7960) and many          */
+/* SIP users behind the same NAT gateway need users.  So....           */
+/*                                                                     */
+/* mysql_update_user is not needed */
+/*--- mysql_host: Get user from database ---*/
+static struct sip_user *mysql_user(char *user)
+{
+        struct sip_user *u;
+        int success = 0;
+        u = malloc(sizeof(struct sip_user));
+        memset(u, 0, sizeof(struct sip_user));
+        if (mysql && (!user || (strlen(user) < 128))) {
+                char query[512];
+                char *name = NULL;
+                int numfields, x;
+                time_t regseconds, nowtime;
+                MYSQL_RES *result;
+                MYSQL_FIELD *fields;
+                MYSQL_ROW rowval;
+                if (user) {
+                        name = alloca(strlen(user) * 2 + 1);
+                        mysql_real_escape_string(mysql, name, user, strlen(user));
+                }
+
+                snprintf(query, sizeof(query), "SELECT name, secret, context, username, ipaddr, port, regseconds, callerid, restrictcid FROM sipfriends WHERE name=\"%s\"", name);
+
+
+                ast_mutex_lock(&mysqllock);
+                mysql_query(mysql, query);
+                if ((result = mysql_store_result(mysql))) {
+
+                        if ((rowval = mysql_fetch_row(result))) {
+                                numfields = mysql_num_fields(result);
+                                fields = mysql_fetch_fields(result);
+                                success = 1;
+                                for (x=0;x<numfields;x++) {
+                                        if (rowval[x]) {
+                                                if (!strcasecmp(fields[x].name, "secret")) {
+                                                        strncpy(u->secret, rowval[x], sizeof(u->secret));
+                                                } else if (!strcasecmp(fields[x].name, "name")) {
+                                                        strncpy(u->name, rowval[x], sizeof(u->name) - 1);
+                                                } else if (!strcasecmp(fields[x].name, "context")) {
+                                                        strncpy(u->context, rowval[x], sizeof(u->context) - 1);
+                                                } else if (!strcasecmp(fields[x].name, "username")) {
+                                                        strncpy(u->name, rowval[x], sizeof(u->name) - 1);
+                                                } else if (!strcasecmp(fields[x].name, "regseconds")) {
+                                                        if (sscanf(rowval[x], "%li", &regseconds) != 1)
+                                                                regseconds = 0;
+                                                } else if (!strcasecmp(fields[x].name, "restrictcid")) {
+                                                        u->restrictcid = 1;
+                                                } else if (!strcasecmp(fields[x].name, "callerid")) {
+                                                        strncpy(u->callerid, rowval[x], sizeof(u->callerid) - 1);
+                                                        u->hascallerid=1;
+                                                }
+                                        }
+                                }
+                                time(&nowtime);
+                        }
+                        mysql_free_result(result);
+                        result = NULL;
+                }
+                ast_mutex_unlock(&mysqllock);
+        }
+        if (!success) {
+                free(u);
+                u = NULL;
+        } else {
+                u->capability = capability;
+                u->nat = globalnat;
+                u->dtmfmode = globaldtmfmode;
+                u->insecure = 1;
+               u->temponly = 1;
+        }
+        return u;
+}
+#endif /* MYSQL_USERS */
+
+#ifdef MYSQL_FRIENDS
 /*--- mysql_update_peer: Update peer from database ---*/
 /* This function adds registration state to database */
 static void mysql_update_peer(char *peer, struct sockaddr_in *sin, char *username, int expiry)
@@ -1047,7 +1131,11 @@ static struct sip_user *find_user(char *name)
 		}
 		u = u->next;
 	}
-
+#ifdef MYSQL_USERS
+	if (!u) {
+		u = mysql_user(name);
+	}
+#endif /* MYSQL_USERS */
 	return(u);
 }
 
@@ -4903,6 +4991,10 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			ast_verbose("Found user '%s', but fails host access\n", user->name);
 		user = NULL;
 	}
+#ifdef MYSQL_USERS
+	if (user && user->temponly)
+		free(user);
+#endif	
 	ast_mutex_unlock(&userl.lock);
 	if (!user) {
 	/* If we didn't find a user match, check for peers */
