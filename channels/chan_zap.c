@@ -174,6 +174,8 @@ static float rxgain = 0.0;
 
 static float txgain = 0.0;
 
+static int tonezone = -1;
+
 static int echocancel;
 
 static int echotraining;
@@ -384,6 +386,7 @@ static struct zt_pvt {
 	int firstradio;				/* first radio flag */
 	float rxgain;
 	float txgain;
+	int tonezone;				/* tone zone for this chan, or -1 for default */
 	struct zt_pvt *next;			/* Next channel in list */
 	struct zt_pvt *prev;			/* Prev channel in list */
 
@@ -5535,6 +5538,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		tmp->pickupgroup=cur_pickupgroup;
 		tmp->rxgain = rxgain;
 		tmp->txgain = txgain;
+		tmp->tonezone = tonezone;
 		tmp->onhooktime = time(NULL);
 		if (tmp->subs[SUB_REAL].zfd > -1) {
 			set_actual_gain(tmp->subs[SUB_REAL].zfd, 0, tmp->rxgain, tmp->txgain, tmp->law);
@@ -5546,6 +5550,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 					/* Hang it up to be sure it's good */
 					zt_set_hook(tmp->subs[SUB_REAL].zfd, ZT_ONHOOK);
 			}
+			ioctl(tmp->subs[SUB_REAL].zfd,ZT_SETTONEZONE,&tmp->tonezone);
 #ifdef ZAPATA_PRI
 			/* the dchannel is down so put the channel in alarm */
 			if (tmp->pri && tmp->pri->up == 0)
@@ -7423,6 +7428,10 @@ static int setup_zap(void)
 			if (sscanf(v->value, "%f", &txgain) != 1) {
 				ast_log(LOG_WARNING, "Invalid txgain: %s\n", v->value);
 			}
+		} else if (!strcasecmp(v->name, "tonezone")) {
+			if (sscanf(v->value, "%d", &tonezone) != 1) {
+				ast_log(LOG_WARNING, "Invalid tonezone: %s\n", v->value);
+			}
 		} else if (!strcasecmp(v->name, "callerid")) {
 			if (!strcasecmp(v->value, "asreceived"))
 				strcpy(callerid,"");
@@ -7719,6 +7728,7 @@ static int reload_zt(void)
 	transfer = 0;
 	rxgain = 0.0;
 	txgain = 0.0;
+	tonezone = -1;
 	firstdigittimeout = 16000;
 	gendigittimeout = 8000;
 	amaflags = 0;
@@ -7878,6 +7888,10 @@ static int reload_zt(void)
 		} else if (!strcasecmp(v->name, "txgain")) {
 			if (sscanf(v->value, "%f", &txgain) != 1) {
 				ast_log(LOG_WARNING, "Invalid txgain: %s\n", v->value);
+			}
+		} else if (!strcasecmp(v->name, "tonezone")) {
+			if (sscanf(v->value, "%d", &tonezone) != 1) {
+				ast_log(LOG_WARNING, "Invalid tonezone: %s\n", v->value);
 			}
 		} else if (!strcasecmp(v->name, "callerid")) {
 			if (!strcasecmp(v->value, "asreceived"))
