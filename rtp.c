@@ -674,7 +674,9 @@ static struct {
    table for transmission */
 static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
   [0] = {1, AST_FORMAT_ULAW},
+#ifdef USE_DEPRECATED_G726
   [2] = {1, AST_FORMAT_G726}, /* Technically this is G.721, but if Cisco can do it, so can we... */
+#endif
   [3] = {1, AST_FORMAT_GSM},
   [4] = {1, AST_FORMAT_G723_1},
   [5] = {1, AST_FORMAT_ADPCM}, /* 8 kHz */
@@ -695,6 +697,7 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
   [97] = {1, AST_FORMAT_ILBC},
   [101] = {0, AST_RTP_DTMF},
   [110] = {1, AST_FORMAT_SPEEX},
+  [111] = {1, AST_FORMAT_G726},
   [121] = {0, AST_RTP_CISCO_DTMF}, /* Must be type 121 */
 };
 
