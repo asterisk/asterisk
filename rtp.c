@@ -913,7 +913,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		case AST_FORMAT_ALAW:
 			/* If we're within +/- 20ms from when where we
 			   predict we should be, use that */
-			pred = rtp->lastts + f->datalen * 2;
+			pred = rtp->lastts + f->datalen;
 			break;
 		case AST_FORMAT_ADPCM:
 		case AST_FORMAT_G726:
