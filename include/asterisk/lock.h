@@ -155,18 +155,23 @@ static inline int __ast_pthread_mutex_destroy(char *filename, int lineno, char *
 
 #else /* DEBUG_THREADS */
 
-#define AST_MUTEX_INITIALIZER      PTHREAD_MUTEX_INITIALIZER
-#ifdef PTHREAD_MUTEX_FAST_NP
-#define AST_MUTEX_KIND             PTHREAD_MUTEX_FAST_NP
-#else
-#define AST_MUTEX_KIND             PTHREAD_NORMAL
-#endif
+/* From now on, Asterisk REQUIRES Recursive (not error checking) mutexes
+   and will not run without them. */
+#define AST_MUTEX_INITIALIZER      PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+#define AST_MUTEX_KIND             PTHREAD_MUTEX_RECURSIVE_NP
 
 typedef pthread_mutex_t ast_mutex_t;
 
 #define ast_mutex_lock(t) pthread_mutex_lock(t)
 #define ast_mutex_unlock(t) pthread_mutex_unlock(t)
 #define ast_mutex_trylock(t) pthread_mutex_trylock(t)
+static inline int ast_mutex_init(ast_mutex_t *t)
+{
+	pthread_mutexattr_t attr;
+	pthread_mutexattr_init(&attr);
+	pthread_mutexattr_settype(&attr, AST_MUTEX_KIND);
+	return pthread_mutex_init(t, &attr);
+}
 #define ast_mutex_init(t) pthread_mutex_init(t, NULL)
 #define ast_pthread_mutex_init(t,a) pthread_mutex_init(t,a)
 #define ast_mutex_destroy(t) pthread_mutex_destroy(t)
