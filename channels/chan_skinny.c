@@ -277,13 +277,107 @@ typedef struct server_res_message {
 } server_res_message;
 
 #define BUTTON_TEMPLATE_RES_MESSAGE 0x0097
-static const char *button_definition_hack = {
-	"\x01\x09\x01\x02\x02\x02\x03\x02\x04\x02\x05\x02\x06\x02\x07\x02"
-	"\x08\x02\x09\x02\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff"
-	"\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff"
-	"\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff"
-	"\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff\x00\xff"
-	"\x00\xff\x00\xff"
+/* 
+   Define the template for a 30VIP phone, this is the older Selsius systems
+   model that has 30 buttons for your button-pushing enjoyment. Each 
+   softbutton defition goes by a 'index' of a button followed by that buttons
+   assignment for example "\x01\x09" means Line 1, while "\x02\x09" means Line 2
+   comments on what each assignment means is below 
+*/
+static const char *thirtyvip_button_definition_hack = {
+	"\x01\x09"	/* Line 1 */
+	"\x02\x09"	/* Line 2 */
+	"\x03\x09"	/* Line 3 */
+	"\x04\x09"	/* Line 4 */
+	"\x01\x7e"
+	"\x01\x01"	/* Redial */
+	"\x00\xff"	
+	"\x01\x02"	/* Speeddial 1 */
+	"\x02\x02"	/* Speeddial 2 */
+	"\x03\x02"	/* Speeddial 3 */
+	"\x04\x02"	/* Speeddial 4 */
+	"\x05\x02"	/* Speeddial 5 */
+	"\x06\x02"	/* Speeddial 6 */
+	"\x01\x0f"	/* Voicemail */
+	"\x01\x05"	/* Forward all */
+	"\x01\x7d"	/* Conference */
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x07\x02"	/* Speeddial 7 */
+	"\x08\x02"	/* Speeddial 8 */
+	"\x09\x02"	/* Speeddial 9 */
+	"\x0A\x02"	/* Speeddial 10 */
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+};
+
+/* 
+   Now, define the buttons on the 12SP, you 79XX series folks, you get this 
+   too, as I don't know how the buttons are laid out, and I don't care as I 
+   don't have one. Code your own damn buttons or send me a 7960
+*/
+
+static const char *twelvesp_button_definition_hack = {
+	"\x01\x09"	/* Line 1 */
+	"\x01\x09"	/* Line 2 */	
+	"\x01\x02"	/* Speeddial 1 */
+	"\x02\x02"	/* Speeddial 2 */
+	"\x03\x02"	/* Speeddial 3 */
+	"\x04\x02"	/* Speeddial 4 */
+	"\x01\x0f"	/* Voicemail */
+	"\x05\x02"	/* Speeddial 5 */
+	"\x06\x02"	/* Speeddial 6 */
+	"\x07\x02"	/* Speeddial 7 */
+	"\x08\x02"	/* Speeddial 8 */
+	"\x09\x02"	/* Speeddial 9 */
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
+	"\x00\xff"
 };
 
 typedef struct buttondefinition {
@@ -560,6 +654,12 @@ static int callnums = 1;
 #define STIMULUS_FORWARDNOANSWER 7
 #define STIMULUS_DISPLAY 8
 #define STIMULUS_LINE 9
+#define STIMULUS_VOICEMAIL 15
+#define STIMULUS_AUTOANSWER 17
+#define STIMULUS_CONFERENCE 125
+#define STIMULUS_CALLPARK 126
+#define STIMULUS_CALLPICKUP 127
+
 
 /* Skinny rtp stream modes. Do we really need this? */
 #define SKINNY_CX_SENDONLY 0
@@ -677,6 +777,7 @@ static struct skinny_device {
 	char version_id[16];	
 	int type;
 	int registered;
+	char model[6];
 	struct sockaddr_in addr;
 	struct in_addr ourip;
 	struct skinny_line *lines;
@@ -904,7 +1005,7 @@ static void transmit_selectsoftkeys(struct skinnysession *s, int instance, int c
 }
 #endif
 
-static void transmit_lamp_indication(struct skinnysession *s, int instance, int indication)
+static void transmit_lamp_indication(struct skinnysession *s, int stimulus, int instance, int indication)
 {
 	skinny_req *req;
 
@@ -915,7 +1016,7 @@ static void transmit_lamp_indication(struct skinnysession *s, int instance, int 
 	}	
 	req->len = sizeof(set_lamp_message)+4;
 	req->e = SET_LAMP_MESSAGE;
-	req->data.setlamp.stimulus = 0x9;  /* magic number */
+	req->data.setlamp.stimulus = stimulus;
 	req->data.setlamp.stimulusInstance = instance;
 	req->data.setlamp.deviceStimulus = indication;
 	transmit_response(s, req);
@@ -960,6 +1061,36 @@ static void transmit_displaymessage(struct skinnysession *s, char *text)
 		return;
 	}
 	transmit_response(s, req);
+}
+
+static int has_voicemail(struct skinny_line *l)
+{
+	return ast_app_has_voicemail(l->mailbox, NULL);
+}
+
+
+static void do_housekeeping(struct skinnysession *s)
+{
+	struct skinny_subchannel *sub;
+
+	sub = find_subchannel_by_line(s->device->lines);
+	transmit_displaymessage(s, 0);
+
+	if (skinnydebug) {
+		ast_verbose("Checking for voicemail Skinny %s@%s\n", sub->parent->name, sub->parent->parent->name);
+	}
+	if (has_voicemail(sub->parent)) {
+		int new;
+		int old;
+		ast_app_messagecount(sub->parent->mailbox, &new, &old);
+		if (skinnydebug) {
+			ast_verbose("Skinny %s@%s has voicemail! Yay!\n", sub->parent->name, sub->parent->parent->name);
+		}
+		transmit_lamp_indication(s, STIMULUS_VOICEMAIL, s->device->lines->instance, SKINNY_LAMP_BLINK);
+	} else {
+		transmit_lamp_indication(s, STIMULUS_VOICEMAIL, s->device->lines->instance, SKINNY_LAMP_OFF);
+	}
+
 }
 
 /* I do not believe skinny can deal with video. 
@@ -1088,6 +1219,8 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
                 		strncpy(d->version_id, v->value, sizeof(d->version_id) -1); 
 			} else if (!strcasecmp(v->name, "nat")) {
 				nat = ast_true(v->value);
+       		} else if (!strcasecmp(v->name, "model")) {
+				strncpy(d->model, v->value, sizeof(d->model) - 1);
 			} else if (!strcasecmp(v->name, "callerid")) {
 				if (!strcasecmp(v->value, "asreceived")) {
 					cid_num[0] = '\0';
@@ -1138,7 +1271,7 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
 					strncpy(l->name, v->value, sizeof(l->name) - 1);
 					
 					/* XXX Should we check for uniqueness?? XXX */
-					
+
 					strncpy(l->context, context, sizeof(l->context) - 1);
 					strncpy(l->cid_num, cid_num, sizeof(l->cid_num) - 1);
 					strncpy(l->cid_name, cid_name, sizeof(l->cid_name) - 1);
@@ -1221,11 +1354,6 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
 		}
 	}
 	return d;
-}
-
-static int has_voicemail(struct skinny_line *l)
-{
-	return ast_app_has_voicemail(l->mailbox, NULL);
 }
 
 static int skinny_register(skinny_req *req, struct skinnysession *s)
@@ -1532,9 +1660,9 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
         default:
             ast_log(LOG_ERROR, "Don't know how to deal with hookstate %d\n", l->hookstate);
             break;
-    	}
+   	}
 
-	transmit_lamp_indication(session, l->instance, SKINNY_LAMP_BLINK);
+	transmit_lamp_indication(session, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 	transmit_ringer_mode(session, SKINNY_RING_INSIDE);
 	
 	if (ast->cid.cid_num){ 
@@ -1624,22 +1752,15 @@ static int skinny_hangup(struct ast_channel *ast)
 	if ((sub->parent->type = TYPE_LINE) && (sub->parent->hookstate == SKINNY_OFFHOOK)) {
 			sub->parent->hookstate = SKINNY_ONHOOK;
 			transmit_callstate(s, l->instance, SKINNY_ONHOOK, sub->callid);
-			transmit_lamp_indication(s, l->instance, SKINNY_LAMP_OFF);
-			if (skinnydebug) {
-				ast_verbose("Attempting to Clear display on Skinny %s@%s\n",sub->parent->name, sub->parent->parent->name);
-			}
-			transmit_displaymessage(s, 0); /* clear display */
+			transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_OFF);
 			transmit_speaker_mode(s, SKINNY_SPEAKEROFF); 
 		} else if ((sub->parent->type = TYPE_LINE) && (sub->parent->hookstate == SKINNY_ONHOOK)) {
 			transmit_callstate(s, l->instance, SKINNY_ONHOOK, sub->callid);
 			transmit_speaker_mode(s, SKINNY_SPEAKEROFF); 
 			transmit_ringer_mode(s, SKINNY_RING_OFF);
 			transmit_tone(s, SKINNY_SILENCE);
-			transmit_lamp_indication(s, l->instance, SKINNY_LAMP_OFF);
-			if (skinnydebug) {
-				ast_verbose("Attempting to Clear display on Skinny %s@%s\n",sub->parent->name, sub->parent->parent->name);
-			}
-			transmit_displaymessage(s, 0); /* clear display */
+			transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_OFF);
+			do_housekeeping(s);
 		} 
     }
     ast_mutex_lock(&sub->lock);
@@ -1943,7 +2064,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		free(req);
 		return 0;
 	}
-		
+
 	switch(req->e)	{
 	case ALARM_MESSAGE:
 		/* no response necessary */
@@ -1997,10 +2118,15 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		
 		switch(stimulus) {
 		case STIMULUS_REDIAL:
-			/* XXX how we gonna deal with redial ?!?! */
+			/* If we can keep an array of dialed frames we can implement a quick 
+			   and dirty redial, feeding the frames we last got into the queue
+			   function */
+
 			if (skinnydebug) {
 				ast_verbose("Recieved Stimulus: Redial(%d)\n", stimulusInstance);
 			}
+
+
 			break;
 		case STIMULUS_SPEEDDIAL:
 			if (skinnydebug) {
@@ -2022,7 +2148,47 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 			/* figure out how to transfer */
 
 			break;
+		case STIMULUS_CONFERENCE:
+			if (skinnydebug) {
+				ast_verbose("Recieved Stimulus: Transfer(%d)\n", stimulusInstance);
+			}
+			transmit_tone(s, SKINNY_DIALTONE);
+
+			/* figure out how to bridge n' stuff */
+				
+
+			break;
+		case STIMULUS_VOICEMAIL:
+			if (skinnydebug) {
+				ast_verbose("Recieved Stimulus: Voicemail(%d)\n", stimulusInstance);
+			}
+				
+			/* Dial Voicemail */
+
+			break;
+		case STIMULUS_CALLPARK:
+			if (skinnydebug) {
+				ast_verbose("Recieved Stimulus: Park Call(%d)\n", stimulusInstance);
+			}
+
+			break;
 		case STIMULUS_FORWARDALL:
+			/* Do not disturb */
+			transmit_tone(s, SKINNY_DIALTONE);
+			if(s->device->lines->dnd != 0){
+				if (option_verbose > 2) {
+					ast_verbose(VERBOSE_PREFIX_3 "Disabling DND on %s@%s\n",find_subchannel_by_line(s->device->lines)->parent->name,find_subchannel_by_line(s->device->lines)->parent->name);
+				}
+				s->device->lines->dnd = 0;
+				transmit_lamp_indication(s, STIMULUS_FORWARDALL, 1, SKINNY_LAMP_ON);
+			}else{
+				if (option_verbose > 2) {
+					ast_verbose(VERBOSE_PREFIX_3 "Enabling DND on %s@%s\n",find_subchannel_by_line(s->device->lines)->parent->name,find_subchannel_by_line(s->device->lines)->parent->name);
+				}
+				s->device->lines->dnd = 1;
+				transmit_lamp_indication(s, STIMULUS_FORWARDALL, 1, SKINNY_LAMP_OFF);
+			}
+			break;
 		case STIMULUS_FORWARDBUSY:
 		case STIMULUS_FORWARDNOANSWER:
 			/* Gonna be fun, not */
@@ -2077,15 +2243,43 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 			ast_verbose("Buttontemplate requested\n");
 		}
 		memset(req, 0, SKINNY_MAX_PACKET);
-		req->len = sizeof(button_template_res_message)+4;
 		req->e = BUTTON_TEMPLATE_RES_MESSAGE;	
-		req->data.buttontemplate.buttonOffset = 0;
-		req->data.buttontemplate.buttonCount  = 10;
-		req->data.buttontemplate.totalButtonCount = 10;
-		/* XXX Figure out how to do this correctly */
-		memcpy(req->data.buttontemplate.definition,
-			   button_definition_hack, 
-			   sizeof(req->data.buttontemplate.definition));
+		/* XXX Less of a hack, more of a kludge now */
+		sub = find_subchannel_by_line(s->device->lines);
+		req->len = sizeof(button_template_res_message)+4;
+		if (!strcmp(s->device->model,"30VIP")){
+			req->data.buttontemplate.buttonOffset = 0;
+			req->data.buttontemplate.buttonCount  = 30;
+			req->data.buttontemplate.totalButtonCount = 30;
+			memcpy(req->data.buttontemplate.definition,
+				thirtyvip_button_definition_hack, 
+				sizeof(req->data.buttontemplate.definition));
+			if(skinnydebug){			
+				ast_verbose("Sending 30VIP template to %s@%s (%s)\n",sub->parent->name, sub->parent->parent->name, s->device->model);
+			}
+		}else if(!strcmp(s->device->model,"12SP")){
+			req->data.buttontemplate.buttonOffset = 0;
+			req->data.buttontemplate.buttonCount  = 12;
+			req->data.buttontemplate.totalButtonCount = 12;
+			memcpy(req->data.buttontemplate.definition,
+				twelvesp_button_definition_hack, 
+				sizeof(req->data.buttontemplate.definition));
+			if(skinnydebug){			
+				ast_verbose("Sending 12SP template to %s@%s (%s)\n",sub->parent->name, sub->parent->parent->name, s->device->model);
+			}		
+		}else{
+			req->data.buttontemplate.buttonOffset = 0;
+			req->data.buttontemplate.buttonCount  = 12;
+			req->data.buttontemplate.totalButtonCount = 12;
+			memcpy(req->data.buttontemplate.definition,
+				twelvesp_button_definition_hack, 
+				sizeof(req->data.buttontemplate.definition));
+			if(skinnydebug){			
+				ast_verbose("Sending default template to %s@%s (%s)\n",sub->parent->name, sub->parent->parent->name, s->device->model);
+			}
+
+		}
+		
 		transmit_response(s, req);
 		break;
 	case SOFT_KEY_SET_REQ_MESSAGE:
@@ -2145,12 +2339,14 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = sizeof(speed_dial_stat_res_message)+4;
 		req->e = SPEED_DIAL_STAT_RES_MESSAGE;
-#if 0	
+#if 0
 		/* XXX Do this right XXX */	
+		/* If the redial function works the way I think it will, a modification of it
+		   can work here was well. Yikes. */
 		req->data.speeddialreq.speedDialNumber = speedDialNum;
 		snprintf(req->data.speeddial.speedDialDirNumber, sizeof(req->data.speeddial.speedDialDirNumber), "31337");
 		snprintf(req->data.speeddial.speedDialDisplayName,  sizeof(req->data.speeddial.speedDialDisplayName),"Asterisk Rules!");
-#endif		
+#endif	
 		transmit_response(s, req);
 		break;
 	case LINE_STATE_REQ_MESSAGE:
@@ -2190,10 +2386,12 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		req->len = 4;
 		req->e = KEEP_ALIVE_ACK_MESSAGE;
 		transmit_response(s, req);
+		do_housekeeping(s);
+
 		break;
 	case OFFHOOK_MESSAGE:
 		transmit_ringer_mode(s,SKINNY_RING_OFF);
-		transmit_lamp_indication(s, s->device->lines->instance, SKINNY_LAMP_ON); 
+		transmit_lamp_indication(s, STIMULUS_LINE, s->device->lines->instance, SKINNY_LAMP_ON); 
 		
 		sub = find_subchannel_by_line(s->device->lines);
 		if (!sub) {
@@ -2207,24 +2405,28 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 			transmit_tone(s, SKINNY_SILENCE);
 			ast_setstate(sub->owner, AST_STATE_UP);
 			/* XXX select the appropriate soft key here */
-			} else { 	
-				if (!sub->owner) {	
-					transmit_callstate(s, s->device->lines->instance, SKINNY_OFFHOOK, sub->callid);
-					transmit_tone(s, SKINNY_DIALTONE);
-					c = skinny_new(sub, AST_STATE_DOWN);			
-					if(c) {
-						/* start switch */
-						if (ast_pthread_create(&t, NULL, skinny_ss, c)) {
-							ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
-							ast_hangup(c);
-						}
-					} else {
-						ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", sub->parent->name, s->device->name);
-					}
-				
-				} else {
-					ast_log(LOG_DEBUG, "Current sub [%s] already has owner\n", sub->owner->name);
+		} else { 	
+			if (!sub->owner) {	
+				transmit_callstate(s, s->device->lines->instance, SKINNY_OFFHOOK, sub->callid);
+				if (skinnydebug) {
+					ast_verbose("Attempting to Clear display on Skinny %s@%s\n",sub->parent->name, sub->parent->parent->name);
 				}
+				transmit_displaymessage(s, 0); /* clear display */ 
+				transmit_tone(s, SKINNY_DIALTONE);
+				c = skinny_new(sub, AST_STATE_DOWN);			
+				if(c) {
+					/* start switch */
+					if (ast_pthread_create(&t, NULL, skinny_ss, c)) {
+						ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
+						ast_hangup(c);
+					}
+				} else {
+					ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", sub->parent->name, s->device->name);
+				}
+				
+			} else {
+				ast_log(LOG_DEBUG, "Current sub [%s] already has owner\n", sub->owner->name);
+			}
 		}
 		break;
 	case ONHOOK_MESSAGE:
@@ -2265,20 +2467,10 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
            }
        	}
 
-	if (skinnydebug) {
-		ast_verbose("Attempting to Clear display on Skinny %s@%s\n",sub->parent->name, sub->parent->parent->name);
-	}
-	
-	transmit_displaymessage(s, 0); /* clear display */
-
-
        	if ((sub->parent->hookstate == SKINNY_ONHOOK) && (!sub->next->rtp)) {
-	    if (has_voicemail(sub->parent)) {
-	    	transmit_lamp_indication(s, s->device->lines->instance, SKINNY_LAMP_FLASH); 
-            } else {
-		transmit_lamp_indication(s, s->device->lines->instance, SKINNY_LAMP_OFF);
-            }
-       	}
+			do_housekeeping(s);
+     	}
+
 	break;
 	case KEYPAD_BUTTON_MESSAGE:
 		digit = req->data.keypad.button;
@@ -2360,6 +2552,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		ast_verbose("RECEIVED UNKNOWN MESSAGE TYPE:  %x\n", req->e);
 		break;
 	}
+
 	free(req);
 	return 1;
 
