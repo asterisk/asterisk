@@ -242,6 +242,7 @@ static inline int zt_wait_event(int fd)
 #define CALLWAITING_SILENT_SAMPLES	( (300 * 8) / READ_SIZE) /* 300 ms */
 #define CALLWAITING_REPEAT_SAMPLES	( (10000 * 8) / READ_SIZE) /* 300 ms */
 #define CIDCW_EXPIRE_SAMPLES		( (500 * 8) / READ_SIZE) /* 500 ms */
+#define MIN_MS_SINCE_FLASH			( (1000) )	/* 1000 ms */
 #define RINGT 						( (8000 * 8) / READ_SIZE)
 
 struct zt_pvt;
@@ -408,6 +409,7 @@ static struct zt_pvt {
 	int busydetect;
 	int busycount;
 	int callprogress;
+	struct timeval flashtime;	/* Last flash-hook time */
 	struct ast_dsp *dsp;
 	int cref;					/* Call reference number */
 	ZT_DIAL_OPERATION dop;
@@ -2490,7 +2492,16 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						p->owner = NULL;
 						zt_ring_phone(p);
 					} else if (p->subs[SUB_THREEWAY].owner) {
-						if ((ast->pbx) ||
+						struct timeval tv;
+						unsigned int mssinceflash;
+						gettimeofday(&tv, NULL);
+						mssinceflash = (tv.tv_sec - p->flashtime.tv_sec) * 1000 + (tv.tv_usec - p->flashtime.tv_usec) / 1000;
+						if (mssinceflash < MIN_MS_SINCE_FLASH) {
+							/* It hasn't been long enough since the last flashook.  This is probably a bounce on 
+							   hanging up.  Hangup both channels now */
+							p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							ast_log(LOG_DEBUG, "Looks like a bounced flash, hanging up both calls on %d\n", p->channel);
+						} else if ((ast->pbx) ||
 							(ast->_state == AST_STATE_UP)) {
 							if (p->transfer) {
 								/* In any case this isn't a threeway call anymore */
@@ -2635,6 +2646,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 		case ZT_EVENT_WINKFLASH:
 			if (p->inalarm) break;
 			if (p->radio) break;
+			/* Remember last time we got a flash-hook */
+			gettimeofday(&p->flashtime, NULL);
 			switch(p->sig) {
 			case SIG_FXOLS:
 			case SIG_FXOGS:
@@ -2881,6 +2894,7 @@ struct ast_frame *zt_exception(struct ast_channel *ast)
 			/* Do nothing */
 			break;
 		case ZT_EVENT_WINKFLASH:
+			gettimeofday(&p->flashtime, NULL);
 			if (p->owner) {
 				if (option_verbose > 2) 
 					ast_verbose(VERBOSE_PREFIX_3 "Channel %d flashed to other channel %s\n", p->channel, p->owner->name);
