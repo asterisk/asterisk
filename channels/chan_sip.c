@@ -4071,7 +4071,8 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 		if ((a = strchr(fr, '@'))) {
 			*a = '\0';
 			strncpy(p->fromdomain, a + 1, sizeof(p->fromdomain) - 1);
-		}
+		} else
+			strncpy(p->fromdomain, fr, sizeof(p->fromdomain) - 1);
 	}
 	if (sipdebug)
 		ast_verbose("Looking for %s in %s\n", c, p->context);
