@@ -12,6 +12,8 @@ serveremail=asterisk
 attach=yes
 ; Maximum length of a voicemail message
 ;maxmessage=180
+; Minimum length of a voicemail message
+;minmessage=3
 ; Maximum length of greetings
 ;maxgreet=60
 ; How many miliseconds to skip forward/back when rew/ff in message playback

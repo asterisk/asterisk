@@ -190,6 +190,7 @@ static char serveremail[80];
 static char mailcmd[160];	/* Configurable mail cmd */
 
 static char vmfmts[80];
+static int vmminmessage;
 static int vmmaxmessage;
 static int maxgreet;
 static int skipms;
@@ -1484,6 +1485,10 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 					} else
 						close(fd);
 				}
+				if (end - start < vmminmessage) {
+					ast_filedelete(fn, NULL);
+					goto leave_vm_out;
+				}
 				stringp = fmt;
 				strsep(&stringp, "|");
 				/* Send e-mail if applicable */
@@ -1510,6 +1515,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 			}
 		} else
 			ast_log(LOG_WARNING, "No format for saving voicemail?\n");					
+leave_vm_out:
 		free_user(vmu);
 	} else {
 		ast_log(LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
@@ -3240,6 +3246,15 @@ static int load_config(void)
 				vmmaxmessage = x;
 			} else {
 				ast_log(LOG_WARNING, "Invalid max message time length\n");
+			}
+		}
+
+		vmminmessage = 0;
+		if ((s = ast_variable_retrieve(cfg, "general", "minmessage"))) {
+			if (sscanf(s, "%d", &x) == 1) {
+				vmminmessage = x;
+			} else {
+				ast_log(LOG_WARNING, "Invalid min message time length\n");
 			}
 		}
 		fmt = ast_variable_retrieve(cfg, "general", "format");
