@@ -160,7 +160,9 @@ int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
 		value[0] = 0;
 		ast_log(LOG_DEBUG, "Unable to find key '%s' in family '%s'\n", keys, family);
 	} else {
+#if 0
 		printf("Got value of size %d\n", data.size);
+#endif
 		if (data.size) {
 			((char *)data.data)[data.size - 1] = '\0';
 			strncpy(value, data.data, valuelen - 1);
