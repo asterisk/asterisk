@@ -44,9 +44,11 @@ struct ast_smoother {
 struct ast_smoother *ast_smoother_new(int size)
 {
 	struct ast_smoother *s;
+	if (size < 1)
+		return NULL;
 	s = malloc(sizeof(struct ast_smoother));
 	if (s) {
-		memset(s, 0, sizeof(s));
+		memset(s, 0, sizeof(struct ast_smoother));
 		s->size = size;
 	}
 	return s;
@@ -77,21 +79,22 @@ int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f)
 struct ast_frame *ast_smoother_read(struct ast_smoother *s)
 {
 	/* Make sure we have enough data */
-	if (s->len < s->size) 
+	if (s->len < s->size) {
 		return NULL;
+	}
 	/* Make frame */
 	s->f.frametype = AST_FRAME_VOICE;
 	s->f.subclass = s->format;
-	s->f.data = s->framedata;
+	s->f.data = s->framedata + AST_FRIENDLY_OFFSET;
 	s->f.offset = AST_FRIENDLY_OFFSET;
 	s->f.datalen = s->size;
 	s->f.timelen = s->size * s->timeperbyte;
 	/* Fill Data */
-	memcpy(s->f.data  + AST_FRIENDLY_OFFSET, s->f.data, s->size);
+	memcpy(s->f.data, s->data, s->size);
 	s->len -= s->size;
 	/* Move remaining data to the front if applicable */
 	if (s->len) 
-		memmove(s->f.data, s->f.data + s->size, s->len);
+		memmove(s->data, s->data + s->size, s->len);
 	/* Return frame */
 	return &s->f;
 }
@@ -296,6 +299,8 @@ int ast_getformatbyname(char *name)
 		return AST_FORMAT_LPC10;
 	else if (!strcasecmp(name, "adpcm"))
 		return AST_FORMAT_ADPCM;
+	else if (!strcasecmp(name, "speex"))
+		return AST_FORMAT_SPEEX;
 	else if (!strcasecmp(name, "all"))
 		return 0x7FFFFFFF;
 	return 0;
