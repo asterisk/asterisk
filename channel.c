@@ -2208,6 +2208,10 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
 {
 	struct ast_frame null = { AST_FRAME_NULL, };
 	int res = -1;
+	if (original == clone) {
+		ast_log(LOG_WARNING, "Can't masquerade channel '%s' into itself!\n", original->name);
+		return -1;
+	}
 	ast_mutex_lock(&original->lock);
 	while(ast_mutex_trylock(&clone->lock)) {
 		ast_mutex_unlock(&original->lock);

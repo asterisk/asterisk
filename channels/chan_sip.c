@@ -5335,9 +5335,13 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 			p2 = p2->next;
 		}
 		ast_mutex_unlock(&iflock);
-		if (p->refer_call)
-			return 0;
-		else
+		if (p->refer_call) {
+			if (p->refer_call == p) {
+				ast_log(LOG_NOTICE, "Supervised transfer attempted to transfer into same call id (%s == %s)!\n", tmp5, p->callid);
+				p->refer_call = NULL;
+			} else
+				return 0;
+		} else
 			ast_log(LOG_NOTICE, "Supervised transfer requested, but unable to find callid '%s'\n", tmp5);
 	} else if (ast_exists_extension(NULL, p->context, c, 1, NULL) || !strcmp(c, ast_parking_ext())) {
 		/* This is an unsupervised transfer */
