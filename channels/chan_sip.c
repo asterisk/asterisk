@@ -6884,8 +6884,18 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				p->alreadygone = 1;
 				if (!p->owner)
 					p->needdestroy = 1;
+			} else if ((resp >= 100) && (resp < 200)) {
+				if (!strcasecmp(msg, "INVITE")) {
+ 					sip_cancel_destroy(p);
+					if (!ast_strlen_zero(get_header(req, "Content-Type")))
+						process_sdp(p, req);
+					if (p->owner) {
+						/* Queue a progress frame */
+						ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
+					}
+ 				}
 			} else
-				ast_log(LOG_NOTICE, "Dunno anything about a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
+				ast_log(LOG_NOTICE, "Don't know anything about a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
 		}
 	} else {
 		if (sip_debug_test_pvt(p))
