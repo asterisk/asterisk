@@ -52,6 +52,7 @@ static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
 AST_MUTEX_DEFINE_STATIC(msglist_lock);
 AST_MUTEX_DEFINE_STATIC(loglock);
 static int pending_logger_reload = 0;
+static int global_logmask = 0;
 
 static struct msglist {
 	char *msg;
@@ -211,6 +212,7 @@ static void init_logger_chain(void)
 	logchannels = NULL;
 	ast_mutex_unlock(&loglock);
 	
+	global_logmask = 0;
 	/* close syslog */
 	closelog();
 	
@@ -241,6 +243,7 @@ static void init_logger_chain(void)
 		if (chan) {
 			chan->next = logchannels;
 			logchannels = chan;
+			global_logmask |= chan->logmask;
 		}
 		var = var->next;
 	}
@@ -507,6 +510,9 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	if (!option_verbose && !option_debug && (level == __LOG_DEBUG)) {
 		return;
 	}
+	/* Ignore anything that never gets logged anywhere */
+	if (!(global_logmask & (1 << level)))
+		return;
 
 	/* begin critical section */
 	ast_mutex_lock(&loglock);
