@@ -957,6 +957,10 @@ int setup_incoming_call(call_details_t cd)
 			strncpy(p->context, default_context, sizeof(p->context)-1);
 			ast_log(LOG_DEBUG, "Sending %s to context [%s]\n", cd.call_source_aliases, p->context);
 		} else {
+			if (strcasecmp(cd.sourceIp, inet_ntoa(user->addr.sin_addr))){
+				ast_log(LOG_ERROR, "Call from user '%s' rejected due to non-matching IP address: '%s'\n", user->name, cd.sourceIp);
+                                return 0;
+			}
 			if (user->incominglimit > 0) {
 				if (user->inUse >= user->incominglimit) {
 					ast_log(LOG_ERROR, "Call from user '%s' rejected due to usage limit of %d\n", user->name, user->incominglimit);

@@ -1,4 +1,6 @@
 Build
+	
+	-- Add IP based authentication using 'host'in type=user's
 0.1.0
 	-- Intergration into the mainline Asterisk codebase
 	-- Remove reduandant debug info
