@@ -242,13 +242,12 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 
 	memset(&m_rtmsg, 0, sizeof(m_rtmsg));
 	m_rtmsg.m_rtm.rtm_type = RTM_GET;
-	m_rtmsg.m_rtm.rtm_flags = RTF_UP | RTF_HOST;
 	m_rtmsg.m_rtm.rtm_version = RTM_VERSION;
 	ast_mutex_lock(&routeseq_lock);
 	seq = ++routeseq;
 	ast_mutex_unlock(&routeseq_lock);
 	m_rtmsg.m_rtm.rtm_seq = seq;
-	m_rtmsg.m_rtm.rtm_addrs = RTA_DST;
+	m_rtmsg.m_rtm.rtm_addrs = RTA_DST | RTA_IFA;
 	m_rtmsg.m_rtm.rtm_msglen = sizeof(struct rt_msghdr) + sizeof(struct sockaddr_in);
 	sin = (struct sockaddr_in *)m_rtmsg.m_space;
 	sin->sin_family = AF_INET;
@@ -268,7 +267,7 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	}
 	do {
 		l = read(s, (char *)&m_rtmsg, sizeof(m_rtmsg));
-	} while (l > 0 && (m_rtmsg.m_rtm.rtm_seq != 1 || m_rtmsg.m_rtm.rtm_pid != pid));
+	} while (l > 0 && (m_rtmsg.m_rtm.rtm_seq != seq || m_rtmsg.m_rtm.rtm_pid != pid));
 	if (l < 0) {
 		if (errno != EAGAIN)
 			ast_log(LOG_ERROR, "Error reading from routing socket\n");
