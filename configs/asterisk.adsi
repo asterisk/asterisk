@@ -5,10 +5,10 @@
 ; Begin with the preamble requirements
 ;
 DESCRIPTION "Asterisk PBX"		; Name of vendor
-VERSION 0x02				; Version of stuff
-;SECURITY "_AST"				; Security code
-SECURITY 0x0000				; Security code
-FDN 0x0000000f				; Descriptor number
+VERSION 0x00						; Version of stuff
+;SECURITY "_AST"					; Security code
+SECURITY 0X9BDBF7AC				; Security code
+FDN 0x0000000F						; Descriptor number
 
 ;
 ; Flags
