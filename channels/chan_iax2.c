@@ -3515,7 +3515,8 @@ static void reg_source_db(struct iax2_peer *p)
 				if (d) {
 					*d = '\0';
 					d++;
-					ast_verbose(VERBOSE_PREFIX_3 "Seeding '%s' at %s:%d for %d\n", p->name, 
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "Seeding '%s' at %s:%d for %d\n", p->name, 
 						inet_ntoa(in), atoi(c), atoi(d));
 					iax2_poke_peer(p);
 					p->expirey = atoi(d);
