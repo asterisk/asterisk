@@ -1639,11 +1639,10 @@ static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan
 
 static int skinny_senddigit(struct ast_channel *ast, char digit)
 {
-//	struct skinny_subchannel *sub = ast->pvt->pvt;
-	char tmp[2];
-	tmp[0] = digit;
-	tmp[1] = '\0';
-//	transmit_notify_request(sub, tmp);
+	struct skinny_subchannel *sub = ast->pvt->pvt;
+//	int tmp;
+//	sprintf(tmp, "%d", digit);  // not right
+//	transmit_tone(sub->parent->parent->session, digit);
 	return -1;
 }
 
@@ -2139,6 +2138,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		}
 		f.subclass  = d;  
 		f.src = "skinny";
+
 		sub = find_subchannel_by_line(s->device->lines);		
 
 		if (sub->owner) {
@@ -2473,7 +2473,7 @@ static int reload_config(void)
 	
 	if (gethostname(ourhost, sizeof(ourhost))) {
 		ast_log(LOG_WARNING, "Unable to get hostname, Skinny disabled\n");
-		return 0;
+		return 1;
 	}
 	cfg = ast_load(config);
 
