@@ -366,9 +366,9 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 	return &null_frame;
 }
 
-static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int timestamp)
+static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int timestamp, int mark)
 {
-	if (!rtp->rxcore.tv_sec && !rtp->rxcore.tv_usec) {
+	if ((!rtp->rxcore.tv_sec && !rtp->rxcore.tv_usec) || mark) {
 		gettimeofday(&rtp->rxcore, NULL);
 		rtp->rxcore.tv_sec -= timestamp / 8000;
 		rtp->rxcore.tv_usec -= (timestamp % 8000) * 125;
@@ -530,7 +530,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			ast_log(LOG_NOTICE, "Unable to calculate samples for format %s\n", ast_getformatname(rtp->f.subclass));
 			break;
 		}
-		calc_rxstamp(&rtp->f.delivery, rtp, timestamp);
+		calc_rxstamp(&rtp->f.delivery, rtp, timestamp, mark);
 	} else {
 		/* Video -- samples is # of samples vs. 90000 */
 		if (!rtp->lastividtimestamp)
@@ -1026,8 +1026,10 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 			   and if so, go with our prediction */
 			if (abs(rtp->lastts - pred) < 640)
 				rtp->lastts = pred;
-			else
+			else {
 				ast_log(LOG_DEBUG, "Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);
+				mark = 1;
+			}
 		}
 	} else {
 		mark = f->subclass & 0x1;
