@@ -311,6 +311,7 @@ bininstall: all
 	rm -f $(DESTDIR)$(MODULES_DIR)/chan_ixj.so
 	rm -f $(DESTDIR)$(MODULES_DIR)/chan_tor.so
 	rm -f $(DESTDIR)$(MODULES_DIR)/cdr_mysql.so
+	rm -f $(DESTDIR)$(MODULES_DIR)/codec_mp3_d.so
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-csv
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/keys

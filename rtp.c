@@ -508,7 +508,7 @@ static struct {
   {{1, AST_FORMAT_GSM}, "audio", "GSM"},
   {{1, AST_FORMAT_ULAW}, "audio", "PCMU"},
   {{1, AST_FORMAT_ALAW}, "audio", "PCMA"},
-  {{1, AST_FORMAT_MP3}, "audio", "MPA"},
+  {{1, AST_FORMAT_G726}, "audio", "G726-32"},
   {{1, AST_FORMAT_ADPCM}, "audio", "DVI4"},
   {{1, AST_FORMAT_SLINEAR}, "audio", "L16"},
   {{1, AST_FORMAT_LPC10}, "audio", "LPC"},
@@ -529,6 +529,7 @@ static struct {
    table for transmission */
 static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
   [0] = {1, AST_FORMAT_ULAW},
+  [2] = {1, AST_FORMAT_G726}, // Technically this is G.721, but if Cisco can do it, so can we...
   [3] = {1, AST_FORMAT_GSM},
   [4] = {1, AST_FORMAT_G723_1},
   [5] = {1, AST_FORMAT_ADPCM}, // 8 kHz
@@ -538,7 +539,6 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
   [10] = {1, AST_FORMAT_SLINEAR}, // 2 channels
   [11] = {1, AST_FORMAT_SLINEAR}, // 1 channel
   [13] = {0, AST_RTP_CN},
-  [14] = {1, AST_FORMAT_MP3},
   [16] = {1, AST_FORMAT_ADPCM}, // 11.025 kHz
   [17] = {1, AST_FORMAT_ADPCM}, // 22.050 kHz
   [18] = {1, AST_FORMAT_G729A},

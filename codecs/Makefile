@@ -28,13 +28,12 @@ LIBG723=g723.1/libg723.a
 LIBG723B=g723.1b/libg723b.a
 LIBGSM=gsm/lib/libgsm.a
 LIBGSMT=gsm/lib/libgsm.a
-LIBMP3=mp3/libmp3.a
 LIBLPC10=lpc10/liblpc10.a
 LIBSPEEX=$(shell [ -f /usr/local/lib/libspeex.a ] && echo "-L/usr/local/lib")
 LIBSPEEX+=-lspeex -lm
 LIBILBC=ilbc/libilbc.a
 
-CODECS+=$(MODG723) $(MODSPEEX) $(MODILBC) codec_gsm.so codec_mp3_d.so codec_lpc10.so  \
+CODECS+=$(MODG723) $(MODSPEEX) $(MODILBC) codec_gsm.so codec_lpc10.so  \
         codec_adpcm.so codec_ulaw.so codec_alaw.so codec_a_mu.so
 
 all: depend $(CODECS)
@@ -44,7 +43,6 @@ clean:
 	! [ -d g723.1 ] || $(MAKE) -C g723.1 clean
 	! [ -d g723.1b ] || $(MAKE) -C g723.1b clean
 	$(MAKE) -C gsm clean
-	$(MAKE) -C mp3 clean
 	$(MAKE) -C lpc10 clean
 	$(MAKE) -C ilbc clean
 
@@ -56,9 +54,6 @@ gsm/lib/libgsm.a:
 
 $(LIBG723B):
 	$(MAKE) -C g723.1b all
-
-$(LIBMP3):
-	$(MAKE) -C mp3 all
 
 $(LIBLPC10):
 	$(MAKE) -C lpc10 all
@@ -86,9 +81,6 @@ codec_speex.so: codec_speex.o
 
 codec_lpc10.so: codec_lpc10.o $(LIBLPC10)
 	$(CC) $(SOLINK) -o $@ $< $(LIBLPC10) -lm
-
-codec_mp3_d.so: codec_mp3_d.o $(LIBMP3)
-	$(CC) -lm $(SOLINK) -o $@ $< $(LIBMP3)
 
 %.so : %.o
 	$(CC) $(SOLINK) -o $@ $<

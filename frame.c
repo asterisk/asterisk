@@ -353,8 +353,8 @@ char* ast_getformatname(int format)
 		return "ULAW";
 	else if (format == AST_FORMAT_ALAW)
 		return "ALAW";
-	else if (format == AST_FORMAT_MP3)
-		return "MP3";
+	else if (format == AST_FORMAT_G726)
+		return "G726";
 	else if (format == AST_FORMAT_SLINEAR)
 		return "SLINR";
 	else if (format == AST_FORMAT_LPC10)
@@ -388,8 +388,8 @@ int ast_getformatbyname(char *name)
 		return AST_FORMAT_ULAW;
 	else if (!strcasecmp(name, "alaw"))
 		return AST_FORMAT_ALAW;
-	else if (!strcasecmp(name, "mp3"))
-		return AST_FORMAT_MP3;
+	else if (!strcasecmp(name, "g726"))
+		return AST_FORMAT_G726;
 	else if (!strcasecmp(name, "slinear"))
 		return AST_FORMAT_SLINEAR;
 	else if (!strcasecmp(name, "lpc10"))

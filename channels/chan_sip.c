@@ -234,6 +234,7 @@ static struct sip_pvt {
 	char realm[256];				/* Authorization realm */
 	char nonce[256];				/* Authorization nonce */
 	char domain[256];				/* Authorization nonce */
+	char lastmsg[256];				/* Last Message sent/received */
 	int amaflags;						/* AMA Flags */
 	int pendinginvite;					/* Any pending invite */
 	int pendingbye;						/* Need to send bye after we ack? */
@@ -2241,6 +2242,8 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int se
 
 	memset(req, 0, sizeof(struct sip_request));
 	
+	snprintf(p->lastmsg, sizeof(p->lastmsg), "Tx: %s", msg);
+	
 	if (!seqno) {
 		p->ocseq++;
 		seqno = p->ocseq;
@@ -2695,6 +2698,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	char tmp[80];
 	char cid[256];
 	char *l = callerid, *n=NULL;
+
+	snprintf(p->lastmsg, sizeof(p->lastmsg), "Init: %s", cmd);
+
 	if (p->owner && p->owner->callerid) {
 		strcpy(cid, p->owner->callerid);
 		ast_callerid_parse(cid, &n, &l);
@@ -4225,6 +4231,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "Our Tag:             %08d\n", cur->tag);
 			ast_cli(fd, "Their Tag:           %s\n", cur->theirtag);
 			ast_cli(fd, "Need Destroy:        %d\n", cur->needdestroy);
+			ast_cli(fd, "Last Message:        %s\n", cur->lastmsg);
 			strcpy(tmp, "");
 			if (cur->dtmfmode & SIP_DTMF_RFC2833)
 				strcat(tmp, "rfc2833 ");
@@ -4870,6 +4877,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 					*from = '\0';
 			}
 		}
+		snprintf(p->lastmsg, sizeof(p->lastmsg), "Rx: %s", cmd);
 	} else {
 		/* Response to our request -- Do some sanity checks */	
 		if (!p->initreq.headers) {

@@ -150,9 +150,9 @@ struct ast_frame_chain {
 #define AST_FORMAT_ULAW		(1 << 2)
 /*! Raw A-law data (G.711) */
 #define AST_FORMAT_ALAW		(1 << 3)
-/*! MPEG-2 layer 3 */
-#define AST_FORMAT_MP3		(1 << 4)
-/*! ADPCM (whose?) */
+/*! ADPCM (G.726, 32kbps) */
+#define AST_FORMAT_G726		(1 << 4)
+/*! ADPCM (IMA) */
 #define AST_FORMAT_ADPCM	(1 << 5)
 /*! Raw 16-bit Signed Linear (8000 Hz) PCM */
 #define AST_FORMAT_SLINEAR	(1 << 6)

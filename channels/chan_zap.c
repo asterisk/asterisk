@@ -1312,7 +1312,9 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 	struct zt_pvt *p = ast->pvt->pvt;
 	int x, res, index;
 	char *c, *n, *l;
+#ifdef ZAPATA_PRI
 	char *s;
+#endif
 	char callerid[256];
 	char dest[256];
 	strncpy(dest, rdest, sizeof(dest) - 1);

@@ -104,8 +104,8 @@ int (*iax_regfunk)(char *username, int onoff) = NULL;
 									~AST_FORMAT_ALAW) 
 /* A modem */
 #define IAX_CAPABILITY_LOWBANDWIDTH		(IAX_CAPABILITY_MEDBANDWIDTH & \
-									~AST_FORMAT_MP3 & \
-									~AST_FORMAT_ADPCM)
+									~AST_FORMAT_ADPCM & \
+									~AST_FORMAT_G726)
 
 #define IAX_CAPABILITY_LOWFREE		(IAX_CAPABILITY_LOWBANDWIDTH & \
 									 ~AST_FORMAT_G723_1)

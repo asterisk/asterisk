@@ -233,6 +233,8 @@ int ast_best_codec(int fmts)
 		AST_FORMAT_ALAW,
 		/* Okay, well, signed linear is easy to translate into other stuff */
 		AST_FORMAT_SLINEAR,
+		/* G.726 is standard ADPCM */
+		AST_FORMAT_G726,
 		/* ADPCM has great sound quality and is still pretty easy to translate */
 		AST_FORMAT_ADPCM,
 		/* Okay, we're down to vocoders now, so pick GSM because it's small and easier to
@@ -249,8 +251,6 @@ int ast_best_codec(int fmts)
 		AST_FORMAT_G729A,
 		/* Down to G.723.1 which is proprietary but at least designed for voice */
 		AST_FORMAT_G723_1,
-		/* Last and least, MP3 which was of course never designed for real-time voice */
-		AST_FORMAT_MP3,
 	};
 	
 	
