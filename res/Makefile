@@ -22,7 +22,7 @@ CFLAGS+=$(shell [ -f /usr/include/linux/zaptel.h ] && echo " -DZAPATA_MOH")
 #
 CFLAGS+=-DOPENSSL_NO_KRB5 -fPIC
 
-all: $(MODS)
+all: depend $(MODS)
 
 install: all
 	for x in $(MODS); do $(INSTALL) -m 755 $$x $(MODULES_DIR) ; done
@@ -31,7 +31,14 @@ res_crypto.so: res_crypto.o
 	$(CC) -shared -Xlinker -x -o $@ $< $(CRYPTO_LIBS)
 
 clean:
-	rm -f *.so *.o
+	rm -f *.so *.o .depend
 
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<
+
+include .depend
+
+depend: .depend
+
+.depend:
+	../mkdep $(CFLAGS) `ls *.c`

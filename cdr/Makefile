@@ -29,16 +29,23 @@ MLFLAGS+=$(shell if [ -d /usr/local/mysql/lib ]; then echo "-L/usr/local/mysql/l
 MLFLAGS+=$(shell if [ -d /usr/local/lib/mysql ]; then echo "-L/usr/local/lib/mysql"; fi)
 MLFLAGS+=$(shell if [ -d /opt/mysql/lib/mysql ]; then echo "-L/opt/mysql/lib/mysql"; fi)
 
-all: $(MODS)
+all: depend $(MODS)
 
 install: all
 	for x in $(MODS); do $(INSTALL) -m 755 $$x $(MODULES_DIR) ; done
 
 clean:
-	rm -f *.so *.o
+	rm -f *.so *.o .depend
 
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<
 
+include .depend
+
 cdr_mysql.so: cdr_mysql.o
 	$(CC) -shared -Xlinker -x -o $@ $< -lmysqlclient -lz $(MLFLAGS)
+
+depend: .depend
+
+.depend:
+	../mkdep $(CFLAGS) `ls *.c`

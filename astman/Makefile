@@ -3,7 +3,7 @@
 #
 CFLAGS+=-DNO_AST_MM
 TARGET=$(shell if [ -f /usr/include/newt.h ]; then echo "astman"; else echo "none" ; fi)
-all: $(TARGET)
+all: depend $(TARGET)
 
 install:
 	if [ "$(TARGET)" != "none" ]; then \
@@ -16,7 +16,15 @@ none:
 	@echo Not building the Asterisk Manager "astman"
 
 clean:
-	rm -f *.o astman
+	rm -f *.o astman .depend
 
 astman: astman.o ../md5.o
 	$(CC) -o astman astman.o ../md5.o -lnewt
+
+include .depend
+
+depend: .depend
+
+.depend:
+	../mkdep $(CFLAGS) `ls *.c`
+

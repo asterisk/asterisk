@@ -19,16 +19,23 @@ GSMLIB=../codecs/gsm/lib/libgsm.a
 
 CFLAGS+=-fPIC
 
-all: $(FORMAT_LIBS)
+all: depend $(FORMAT_LIBS)
 
 clean:
-	rm -f *.so *.o
+	rm -f *.so *.o .depend
 
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<
+
+include .depend
 
 format_mp3.so : format_mp3.o
 	$(CC) -shared -Xlinker -x -o $@ $< -lm
 
 install: all
 	for x in $(FORMAT_LIBS); do $(INSTALL) -m 755 $$x $(MODULES_DIR) ; done
+
+depend: .depend
+
+.depend:
+	../mkdep $(CFLAGS) `ls *.c`

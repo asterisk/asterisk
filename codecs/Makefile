@@ -36,10 +36,10 @@ LIBILBC=ilbc/libilbc.a
 CODECS+=$(MODG723) $(MODSPEEX) $(MODILBC) codec_gsm.so codec_mp3_d.so codec_lpc10.so  \
         codec_adpcm.so codec_ulaw.so codec_alaw.so codec_a_mu.so
 
-all: $(CODECS)
+all: depend $(CODECS)
 
 clean:
-	rm -f *.so *.o
+	rm -f *.so *.o .depend
 	! [ -d g723.1 ] || $(MAKE) -C g723.1 clean
 	! [ -d g723.1b ] || $(MAKE) -C g723.1b clean
 	$(MAKE) -C gsm clean
@@ -92,5 +92,12 @@ codec_mp3_d.so: codec_mp3_d.o $(LIBMP3)
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<
 
+include .depend
+
 install: all
 	for x in $(CODECS); do $(INSTALL) -m 755 $$x $(MODULES_DIR) ; done
+
+depend: .depend
+
+.depend:
+	../mkdep $(CFLAGS) `ls *.c`

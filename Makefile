@@ -123,7 +123,7 @@ _all: all
 	@echo " +               $(MAKE) install                +"  
 	@echo " +-------------------------------------------+"  
 
-all: asterisk subdirs
+all: depend asterisk subdirs
 
 editline/config.h:
 	@if [ -d editline ]; then \
@@ -143,6 +143,8 @@ db1-ast/libdb1.a:
 		echo "You need to do a cvs update -d not just cvs update"; \
 		exit 1; \
 	fi
+
+include .depend
 
 _version: 
 	if [ -d CVS ] && ! [ -f .version ]; then echo "CVS-`date +"%D-%T"`" > .version; fi 
@@ -174,7 +176,7 @@ subdirs:
 
 clean:
 	for x in $(SUBDIRS); do $(MAKE) -C $$x clean || exit 1 ; done
-	rm -f *.o *.so asterisk
+	rm -f *.o *.so asterisk .depend
 	rm -f build.h 
 	rm -f ast_expr.c
 	@if [ -e editline/Makefile ]; then $(MAKE) -C editline clean ; fi
@@ -361,3 +363,10 @@ dont-optimize:
 	$(MAKE) OPTIMIZE= K6OPT= install
 
 valgrind: dont-optimize
+
+depend: .depend
+	for x in $(SUBDIRS); do $(MAKE) -C $$x depend || exit 1 ; done
+
+.depend:
+	./mkdep ${CFLAGS} `ls *.c`
+

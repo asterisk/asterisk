@@ -15,7 +15,7 @@ AGIS=agi-test.agi eagi-test eagi-sphinx-test
 
 CFLAGS+=
 
-all: $(AGIS)
+all: depend $(AGIS)
 
 install: all
 	for x in $(AGIS); do $(INSTALL) -m 755 $$x $(AGI_DIR) ; done
@@ -27,7 +27,14 @@ eagi-sphinx-test: eagi-sphinx-test.o
 	$(CC) -o eagi-sphinx-test eagi-sphinx-test.o
 
 clean:
-	rm -f *.so *.o look
+	rm -f *.so *.o look .depend
 
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<
+
+include .depend
+
+depend: .depend
+
+.depend:
+	../mkdep $(CFLAGS) `ls *.c`

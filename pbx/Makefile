@@ -31,10 +31,10 @@ CFLAGS+=-fPIC
 
 KDE_CONSOLE_OBJS=pbx_kdeconsole_main.o pbx_kdeconsole.o 
 
-all: $(PBX_LIBS)
+all: depend $(PBX_LIBS)
 
 clean:
-	rm -f *.so *.o
+	rm -f *.so *.o .depend
 
 pbx_gtkconsole.o: pbx_gtkconsole.c
 	$(CC) $(CFLAGS) $(GTK_FLAGS) -c -o $@ $<
@@ -57,5 +57,12 @@ pbx_kdeconsole.so: $(KDE_CONSOLE_OBJS)
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<
 
+include .depend
+
 install: all
 	for x in $(PBX_LIBS); do $(INSTALL) -m 755 $$x $(MODULES_DIR) ; done
+
+depend: .depend
+
+.depend:
+	../mkdep $(CFLAGS) `ls *.c`

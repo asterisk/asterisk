@@ -786,7 +786,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 			ast_shrink_phone_number(num);
 			*ret = num;
 		} else
-			*ret = "";
+			*ret = workspace;
 	} else if (!strcmp(var, "CALLERIDNAME")) {
 		if (c->callerid)
 			strncpy(workspace, c->callerid, workspacelen - 1);
@@ -794,7 +794,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 		if (name)
 			*ret = name;
 		else
-			*ret = "";
+			*ret = workspace;
 	} else if (!strcmp(var, "CALLERID")) {
 		if (c->callerid) {
 			strncpy(workspace, c->callerid, workspacelen - 1);

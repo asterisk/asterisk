@@ -55,14 +55,16 @@ CHANNEL_LIBS+=$(shell [ -f /usr/include/nbs.h ] && echo "chan_nbs.so" )
 
 #CFLAGS+=$(shell [ -f $(ZAPDIR)/libzap.a ] && echo "-I$(ZAPDIR)")
 
-all: $(CHANNEL_LIBS) 
+all: depend $(CHANNEL_LIBS) 
 
 clean:
-	rm -f *.so *.o
+	rm -f *.so *.o .depend
 	rm -f busy.h ringtone.h gentone gentone-ulaw
 
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<
+
+include .depend
 
 gentone: gentone.c
 	$(CC) -o gentone gentone.c -lm
@@ -111,3 +113,9 @@ chan_vpb.so: chan_vpb.o
 
 install: all
 	for x in $(CHANNEL_LIBS); do $(INSTALL) -m 755 $$x $(MODULES_DIR) ; done
+
+depend: .depend
+
+.depend:
+	../mkdep $(CFLAGS) `ls *.c`
+
