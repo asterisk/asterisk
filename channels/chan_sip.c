@@ -4236,9 +4236,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 					}
 				} else if (ast_pickup_call(c)) {
 					ast_log(LOG_WARNING, "Nothing to pick up\n");
+					transmit_response_reliable(p, "503 Unavailable", req);
+					p->alreadygone = 1;
 					ast_pthread_mutex_unlock(&c->lock);
 					ast_hangup(c);
-					transmit_response_reliable(p, "503 Unavailable", req);
 				} else {
 					ast_pthread_mutex_unlock(&c->lock);
 					ast_hangup(c);

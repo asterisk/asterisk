@@ -32,12 +32,14 @@ Jean-Denis Girard - Various contributions from the South Pacific Islands
        jd-girard@esoft.pf             http://www.esoft.pf
 Jac Kersing - Various fixes
 Steven Critchfield - Seek and Trunc functions for playback and recording
-		critch@basesys.com
+       critch@basesys.com
 Jefferson Noxon - app_lookupcidname, app_db, and various other contributions
 Klaus-Peter Junghanns - in-band DTMF on SIP and MGCP
 Ross Finlayson - Dynamic RTP payload support
 Mahmut Fettahlioglu - Audio recording, music-on-hold changes, alaw file
-		format, and various fixes. Can be contacted at mahmut@oa.com.au
+       format, and various fixes. Can be contacted at mahmut@oa.com.au
+James Dennis - Cisco SIP compatibility patches to work with SIP service
+       providers. Can be contacted at asterisk@jdennis.net
 
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt
