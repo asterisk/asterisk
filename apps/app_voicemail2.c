@@ -147,6 +147,7 @@ static int maxlogins;
 static char *emailbody = NULL;
 static int pbxskip = 0;
 static char fromstring[15];
+static char emailtitle[100];
 
 STANDARD_LOCAL_USER;
 
@@ -596,6 +597,13 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 		else
 			fprintf(p, "From: Asterisk PBX <%s>\n", who);
 		fprintf(p, "To: %s <%s>\n", name, email);
+
+		if( *emailtitle)
+		{
+			fprintf(p, emailtitle, msgnum, mailbox) ;
+			fprintf(p,"\n") ;
+		}
+		else
 		if (pbxskip)
 			fprintf(p, "Subject: New message %d in mailbox %s\n", msgnum, mailbox);
 		else
@@ -2575,6 +2583,7 @@ static int load_config(void)
 		}
 #endif
 		memset(fromstring,0,sizeof(fromstring));
+		memset(emailtitle,0,sizeof(emailtitle));
 		if (emailbody) {
 			free(emailbody);
 			emailbody = NULL;
@@ -2583,6 +2592,8 @@ static int load_config(void)
 			pbxskip = ast_true(s);
 		if ((s=ast_variable_retrieve(cfg, "general", "fromstring")))
 			strncpy(fromstring,s,sizeof(fromstring)-1);
+		if ((s=ast_variable_retrieve(cfg, "general", "emailtitle")))
+			strncpy(emailtitle,s,sizeof(emailtitle)-1);
 		if ((s=ast_variable_retrieve(cfg, "general", "emailbody"))) {
 			char *tmpread, *tmpwrite;
 			emailbody = strdup(s);
