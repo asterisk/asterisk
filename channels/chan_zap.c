@@ -81,6 +81,13 @@
 
 /* #define ZHONE_HACK */
 
+/*
+ * Define if you want to check the hook state for an FXO (FXS signalled) interface
+ * before dialing on it.  Certain FXO interfaces always think they're out of
+ * service with this method however.
+ */
+/* #define ZAP_CHECK_HOOKSTATE */
+
 /* Typically, how many rings before we should send Caller*ID */
 #define DEFAULT_CIDRINGS 1
 
@@ -6312,7 +6319,11 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 				if (par.rxisoffhook)
 					return 1;
 				else
+#ifdef ZAP_CHECK_HOOKSTATE
 					return 0;
+#else
+					return 1;
+#endif
 			} else if (par.rxisoffhook) {
 				ast_log(LOG_DEBUG, "Channel %d off hook, can't use\n", p->channel);
 				/* Not available when the other end is off hook */
