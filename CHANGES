@@ -43,6 +43,8 @@ Asterisk 1.0.6
     -- If the server you were using was going down, it had the potential to bring your asterisk
        server down with it. Extra stuff has been added so as to bring in more error/connection
        checking.
+ -- cdr_pgsql:
+    -- This will now attempt to reconnect after a connection problem.
  -- internals
     -- Behavior was changed for 'show codec <number>' to make it more intuitive. (kshumard)
     -- DNS failures and asterisk do not get along too well, this is not totally the case anymore.
