@@ -194,17 +194,19 @@ static inline int __ast_pthread_mutex_lock(char *filename, int lineno, char *fun
 			filename, lineno, func, mutex_name);
 #endif
 		ast_mutex_init(t);
-        }
+	}
 #endif /* definded(AST_MUTEX_INIT_W_CONSTRUCTORS) || defined(AST_MUTEX_INIT_ON_FIRST_USE) */
 #ifdef DETECT_DEADLOCKS
 	{
-		time_t seconds seconds = time(NULL);
+		time_t seconds = time(NULL);
+		time_t current;
 		do {
 			res = pthread_mutex_trylock(&t->mutex);
 			if (res == EBUSY) {
-				if ((time(NULL) - seconds) % 5) {
+				current = time(NULL);
+				if ((current - seconds) && (!((current - seconds) % 5))) {
 					fprintf(stderr, "%s line %d (%s): Deadlock? waited %d sec for mutex '%s'?\n",
-						filename, lineno, func, (time(NULL) - seconds), mutex_name);
+						filename, lineno, func, (int)(current - seconds), mutex_name);
 					fprintf(stderr, "%s line %d (%s): '%s' was locked here.\n",
 						t->file, t->lineno, t->func, mutex_name);
 				}
