@@ -20,9 +20,12 @@ endif
 # This needs to be updated to deal with more than just little endian machines
 #
 OSARCH=$(shell uname -s)
+PROC=$(shell uname -m)
 ifneq (${OSARCH},FreeBSD)
 ifneq (${OSARCH},NetBSD)
-CFLAGS += -march=$(shell uname -m)
+ifneq (${PROC},ppc)
+CFLAGS += -march=$(ARCH)
+endif
 endif
 endif
 CFLAGS += -DPBYTE_ORDER=PLITTLE_ENDIAN
