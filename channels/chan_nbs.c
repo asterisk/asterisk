@@ -160,6 +160,8 @@ static struct ast_frame  *nbs_xread(struct ast_channel *ast)
 	p->fr.src = type;
 	p->fr.offset = 0;
 	p->fr.mallocd=0;
+	p->fr.delivery.tv_sec = 0;
+	p->fr.delivery.tv_usec = 0;
 
 	ast_log(LOG_DEBUG, "Returning null frame on %s\n", ast->name);
 

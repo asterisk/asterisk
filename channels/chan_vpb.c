@@ -1568,6 +1568,8 @@ static void *do_chanreads(void *pvt)
 	fr->frametype = AST_FRAME_VOICE;
 	fr->src = type;
 	fr->mallocd = 0;
+	fr->delivery.tv_sec = 0;
+	fr->delivery.tv_usec = 0;
 	fr->samples = VPB_SAMPLES;
 	fr->offset = AST_FRIENDLY_OFFSET;
 	memset(p->buf, 0, sizeof p->buf);

@@ -664,6 +664,9 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 	f.offset = 0;
 	f.src = type;
 	f.mallocd = 0;
+        f.delivery.tv_sec = 0;
+        f.delivery.tv_usec = 0;
+
 	
 	if (needringing) {
 		f.frametype = AST_FRAME_CONTROL;

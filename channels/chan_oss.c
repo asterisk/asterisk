@@ -615,6 +615,8 @@ static struct ast_frame *oss_read(struct ast_channel *chan)
 	f.offset = 0;
 	f.src = type;
 	f.mallocd = 0;
+	f.delivery.tv_sec = 0;
+	f.delivery.tv_usec = 0;
 	
 	res = soundcard_setinput(0);
 	if (res < 0) {
@@ -650,6 +652,8 @@ static struct ast_frame *oss_read(struct ast_channel *chan)
 		f.offset = AST_FRIENDLY_OFFSET;
 		f.src = type;
 		f.mallocd = 0;
+		f.delivery.tv_sec = 0;
+		f.delivery.tv_usec = 0;
 #if 0
 		{ static int fd = -1;
 		  if (fd < 0)

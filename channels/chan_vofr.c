@@ -587,6 +587,8 @@ retry:
 	fr->src = type;
 	fr->offset = 0;
 	fr->mallocd=0;
+	fr->delivery.tv_sec = 0;
+	fr->delivery.tv_usec = 0;
 	
 	/* Now, what we do depends on what we read */
 	switch(vh->dtype) {

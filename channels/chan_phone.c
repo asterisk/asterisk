@@ -368,6 +368,8 @@ static struct ast_frame  *phone_exception(struct ast_channel *ast)
 	p->fr.src = type;
 	p->fr.offset = 0;
 	p->fr.mallocd=0;
+	p->fr.delivery.tv_sec = 0;
+	p->fr.delivery.tv_usec = 0;
 
 	phonee.bytes = ioctl(p->fd, PHONE_EXCEPTION);
 	if (phonee.bits.dtmf_ready)  {
@@ -429,6 +431,8 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 	p->fr.src = type;
 	p->fr.offset = 0;
 	p->fr.mallocd=0;
+	p->fr.delivery.tv_sec = 0;
+	p->fr.delivery.tv_usec = 0;
 
 	/* Try to read some data... */
 	CHECK_BLOCKING(ast);

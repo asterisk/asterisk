@@ -190,6 +190,8 @@ static struct ast_frame *aopen_handle_escape(struct ast_modem_pvt *p, char esc)
 	p->fr.samples = 0;
 	p->fr.offset = 0;
 	p->fr.mallocd = 0;
+        p->fr.delivery.tv_sec = 0;
+        p->fr.delivery.tv_usec = 0;
 	if (esc)
 		ast_log(LOG_DEBUG, "Escaped character '%c'\n", esc);
 	
@@ -319,6 +321,8 @@ static struct ast_frame *aopen_read(struct ast_modem_pvt *p)
 		p->fr.data = p->obuf;
 		p->fr.datalen = p->obuflen;
 		p->fr.mallocd = 0;
+		p->fr.delivery.tv_sec = 0;
+		p->fr.delivery.tv_usec = 0;
 		p->fr.offset = AST_FRIENDLY_OFFSET;
 		p->fr.src = __FUNCTION__;
 		if (option_debug)
