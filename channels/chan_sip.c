@@ -4229,20 +4229,29 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				if (strcmp(p->exten, ast_pickup_ext())) {
 					if (ast_pbx_start(c)) {
 						ast_log(LOG_WARNING, "Failed to start PBX :(\n");
+						/* Unlock locks so ast_hangup can do its magic */
 						ast_pthread_mutex_unlock(&c->lock);
+						ast_pthread_mutex_unlock(&p->lock);
 						ast_hangup(c);
+						ast_pthread_mutex_lock(&p->lock);
 						transmit_response_reliable(p, "503 Unavailable", req);
 						c = NULL;
 					}
 				} else if (ast_pickup_call(c)) {
-					ast_log(LOG_WARNING, "Nothing to pick up\n");
+					ast_log(LOG_NOTICE, "Nothing to pick up\n");
 					transmit_response_reliable(p, "503 Unavailable", req);
 					p->alreadygone = 1;
+					/* Unlock locks so ast_hangup can do its magic */
 					ast_pthread_mutex_unlock(&c->lock);
+					ast_pthread_mutex_unlock(&p->lock);
 					ast_hangup(c);
+					ast_pthread_mutex_lock(&p->lock);
+					c = NULL;
 				} else {
 					ast_pthread_mutex_unlock(&c->lock);
+					ast_pthread_mutex_unlock(&p->lock);
 					ast_hangup(c);
+					ast_pthread_mutex_lock(&p->lock);
 					c = NULL;
 				}
 				break;
@@ -4414,7 +4423,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				return -1;
 		} 
 		if (!p->lastinvite && !strlen(p->randdata))
-			sip_destroy(p);
+			p->needdestroy = 1;
 	} else if (!strcasecmp(cmd, "SIP/2.0")) {
 		while(*e && (*e < 33)) e++;
 		if (sscanf(e, "%i %n", &respid, &len) != 1) {
