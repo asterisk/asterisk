@@ -1019,6 +1019,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 				if (ast_exists_extension(NULL, p->context, p->ext, 1, p->callerid)){
 					if (option_verbose > 3)
 						ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: DTMF IDD timer out, matching on [%s] in [%s]\n", p->dev,p->ext , p->context);
+
 					vpb_new(p,AST_STATE_RING, p->context);
 				}
 			} else if (e->data == p->ring_timer_id) {
@@ -1088,11 +1089,11 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 				else {
 					if (option_verbose > 3)
 						ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: Matched on [%s] in [%s]\n", p->dev,p->ext , p->context);
-					vpb_new(p,AST_STATE_RING, p->context);
+					vpb_new(p,AST_STATE_UP, p->context);
 				}
 			} else if (!ast_canmatch_extension(NULL, p->context, p->ext, 1, p->callerid)){
 				if (ast_exists_extension(NULL, "default", p->ext, 1, p->callerid)) {
-					vpb_new(p,AST_STATE_RING, "default");	      
+					vpb_new(p,AST_STATE_UP, "default");	      
 				} else if (!ast_canmatch_extension(NULL, "default", p->ext, 1, p->callerid)) {
 					if (option_verbose > 3) {
 						ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: can't match anything in %s or default\n", p->dev, p->context);
@@ -1978,7 +1979,7 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 		return 0;
 	} else if (ast->_state != AST_STATE_UP) {
 		if(option_verbose>3) 
-			ast_verbose("%s: vpb_write: Attempt to Write frame type[%d]subclass[%d] on not up chan\n",ast->name, frame->frametype, frame->subclass);
+			ast_verbose("%s: vpb_write: Attempt to Write frame type[%d]subclass[%d] on not up chan(state[%d])\n",ast->name, frame->frametype, frame->subclass,ast->_state);
 		p->lastoutput = -1;
 /*		ast_mutex_unlock(&p->lock); */
 		return 0;
@@ -1990,11 +1991,15 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 		ast_log(LOG_WARNING, "%s: vpb_write: Cannot handle frames of %d format!\n",ast->name, frame->subclass);
 		return -1;
 	}
-/*	ast_log(LOG_DEBUG, "%s: vpb_write: Checked frame format..\n", p->dev); */
+/*
+	ast_log(LOG_DEBUG, "%s: vpb_write: Checked frame format..\n", p->dev); 
+*/
 
 	ast_mutex_lock(&p->play_lock);
 
-/*	ast_log(LOG_DEBUG, "%s: vpb_write: Got play lock..\n", p->dev); */
+/*
+	ast_log(LOG_DEBUG, "%s: vpb_write: Got play lock..\n", p->dev); 
+*/
 
 	/* Check if we have set up the play_buf */
 	if (p->lastoutput == -1) {
@@ -2105,8 +2110,9 @@ static void *do_chanreads(void *pvt)
 			}
 		}
 
-/*		if ( (p->owner->_state != AST_STATE_UP) || !bridgerec) { */
-		if ( (p->owner->_state != AST_STATE_UP) ) {
+/*		if ( (p->owner->_state != AST_STATE_UP) || !bridgerec) */
+		if ( (p->owner->_state != AST_STATE_UP) ) 
+		{
 			if (option_verbose > 4) {
 				if (p->owner->_state != AST_STATE_UP)
 					ast_verbose("%s: chanreads: Im not up[%d]\n", p->dev,p->owner->_state);
@@ -2147,7 +2153,6 @@ static void *do_chanreads(void *pvt)
 			/* This DTMF is played by asterisk and leads to an annoying trailing beep on CISCO phones */
 			if( !ignore_dtmf) 
 				vpb_set_event_mask(p->handle, VPB_EVENTS_NODTMF );
-/*			if (strcmp(p->owner->type,"vpb")==0){ */
 			if (p->bridge == NULL){
 				vpb_dial_sync(p->handle,p->play_dtmf);
 				if(option_verbose>1) 
@@ -2361,6 +2366,9 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, int state, char *context)
 		ast_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
 		if (state != AST_STATE_DOWN) {
+			if ((me->mode != MODE_FXO)&&(state != AST_STATE_UP)){
+				vpb_answer(tmp);
+			}
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 				ast_hangup(tmp);
