@@ -956,6 +956,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				featurecode = peer_featurecode;
 			}
 			featurecode[strlen(featurecode)] = f->subclass;
+			config->timelimit = backup_config.timelimit;
 			res = ast_feature_interpret(chan, peer, config, featurecode, sense);
 			switch(res) {
 			case FEATURE_RETURN_PASSDIGITS:
