@@ -268,9 +268,9 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	int i;
 	struct MD5Context md5ctx;
 	unsigned char MD5Res[16];
-	char MD5Hex[33];
-	char koko[4];
-	char cachefile[MAXFESTLEN];
+	char MD5Hex[33] = "";
+	char koko[4] = "";
+	char cachefile[MAXFESTLEN]="";
 	int readcache=0;
 	int writecache=0;
 	int strln;
@@ -348,18 +348,18 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
     	MD5Init(&md5ctx);
     	MD5Update(&md5ctx,(unsigned char const *)data,strlen(data));
     	MD5Final(MD5Res,&md5ctx);
-    	strcpy(MD5Hex,"");
+		MD5Hex[0] = '\0';
     	
     	/* Convert to HEX and look if there is any matching file in the cache 
     		directory */
     	for (i=0;i<16;i++) {
-    		sprintf(koko,"%X",MD5Res[i]);
-    		strcat(MD5Hex,koko);
+    		snprintf(koko, sizeof(koko), "%X",MD5Res[i]);
+    		strncat(MD5Hex, koko, sizeof(MD5Hex) - strlen(MD5Hex) - 1);
     	}
     	readcache=0;
     	writecache=0;
     	if (strlen(cachedir)+strlen(MD5Hex)+1<=MAXFESTLEN && (usecache==-1)) {
-    		sprintf(cachefile,"%s/%s",cachedir,MD5Hex);
+    		snprintf(cachefile, sizeof(cachefile), "%s/%s", cachedir, MD5Hex);
     		fdesc=open(cachefile,O_RDWR);
     		if (fdesc==-1) {
     			fdesc=open(cachefile,O_CREAT|O_RDWR,0);

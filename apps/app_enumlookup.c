@@ -47,7 +47,7 @@ static char *descrip =
 
 #define ENUM_CONFIG "enum.conf"
 
-static char h323driver[80];
+static char h323driver[80] = "";
 #define H323DRIVERDEFAULT "H323"
 
 STANDARD_LOCAL_USER;
@@ -148,9 +148,9 @@ static int load_config(void)
 	cfg = ast_load(ENUM_CONFIG);
 	if (cfg) {
 		if (!(s=ast_variable_retrieve(cfg, "general", "h323driver"))) {
-			strcpy(h323driver, H323DRIVERDEFAULT);
+			strncpy(h323driver, H323DRIVERDEFAULT, sizeof(h323driver) - 1);
 		} else {
-			strcpy(h323driver, s);
+			strncpy(h323driver, s, sizeof(h323driver) - 1);
 		}
 		ast_destroy(cfg);
 		return 0;

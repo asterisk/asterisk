@@ -101,7 +101,7 @@ static int cut_exec(struct ast_channel *chan, void *data)
 			d = '-';
 
 		/* String form of the delimiter, for use with strsep(3) */
-		sprintf(ds,"%c",d);
+		snprintf(ds, sizeof(ds), "%c", d);
 
 		pbx_substitute_variables_helper(chan, tmp, tmp2, MAXRESULT - 1);
 

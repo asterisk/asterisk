@@ -122,7 +122,7 @@ static void database_increment( char *key )
 	if(option_verbose >= 4)
 		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: New value for %s: %u\n", key, v);
 		
-	snprintf(value, sizeof(value) - 1, "%u", v);
+	snprintf(value, sizeof(value), "%u", v);
 	
 	res = ast_db_put(db_family, key, value);
 	
@@ -389,7 +389,7 @@ static int log_events(struct ast_channel *chan,  char *signalling_type, event_no
 {
 
 	int res = 0;
-	char workstring[sizeof(event_spool_dir)+sizeof(event_file)];
+	char workstring[sizeof(event_spool_dir)+sizeof(event_file)] = "";
 	int fd;
 	FILE *logfile;
 	event_node_t *elp = event;
@@ -398,8 +398,8 @@ static int log_events(struct ast_channel *chan,  char *signalling_type, event_no
 		
 		/* Make a template */
 		
-		strcpy(workstring, event_spool_dir);
-		strcat(workstring, event_file);
+		strncpy(workstring, event_spool_dir, sizeof(workstring) - 1);
+		strncat(workstring, event_file, sizeof(workstring) - strlen(workstring) - 1);
 		
 		/* Make the temporary file */
 		
@@ -586,9 +586,11 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 			res = -1;
                         break;
 		}
+
+		memset(enew, 0, sizeof(event_node_t));
 		
 		enew->next = NULL;
-		strncpy(enew->data, event, sizeof(enew->data));
+		strncpy(enew->data, event, sizeof(enew->data) - 1);
 
 		/*
 		* Insert event onto end of list
@@ -638,7 +640,7 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct localuser *u;
 	event_node_t *elp, *efree;
-	char signalling_type[64];
+	char signalling_type[64] = "";
 
 	event_node_t *event_head = NULL;
 
@@ -661,7 +663,7 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 
 	/* Set default values for this invokation of the application */
 	
-	strcpy(signalling_type, ADEMCO_CONTACT_ID);
+	strncpy(signalling_type, ADEMCO_CONTACT_ID, sizeof(signalling_type) - 1);
 
 
 	/* Answer the channel if it is not already */

@@ -122,8 +122,9 @@ static int macro_exec(struct ast_channel *chan, void *data)
   pbx_builtin_setvar_helper(chan, "MACRO_OFFSET", NULL);
 
   /* Setup environment for new run */
-  strcpy(chan->exten, "s");
-  strncpy(chan->context, fullmacro, sizeof(chan->context));
+  chan->exten[0] = 's';
+  chan->exten[1] = '\0';
+  strncpy(chan->context, fullmacro, sizeof(chan->context) - 1);
   chan->priority = 1;
 
   while((cur = strsep(&rest, "|")) && (argc < MAX_ARGS)) {
@@ -193,8 +194,8 @@ out:
   pbx_builtin_setvar_helper(chan, "MACRO_PRIORITY", save_macro_priority);
   if (save_macro_priority) free(save_macro_priority);
   if (setmacrocontext) {
-  	strcpy(chan->macrocontext, "");
-  	strcpy(chan->macroexten, "");
+	chan->macrocontext[0] = '\0';
+	chan->macroexten[0] = '\0';
 	chan->macropriority = 0;
   }
 

@@ -116,7 +116,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 {
 	int i,j,k,x;
 	struct localuser *u;
-	char tmp[256],arg2[256],exten[AST_MAX_EXTENSION],acctcode[20];
+	char tmp[256],arg2[256]="",exten[AST_MAX_EXTENSION],acctcode[20]="";
 	struct {
 		unsigned char offset[AST_FRIENDLY_OFFSET];
 		unsigned char buf[640];
@@ -149,7 +149,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	ourcontext = strsep(&stringp, "|");
 	/* if context specified, save 2nd arg and parse third */
 	if (ourcontext) {
-		strcpy(arg2,ourcontext);
+		strncpy(arg2,ourcontext, sizeof(arg2) - 1);
 		ourcallerid = strsep(&stringp,"|");
 	}
 	  /* if context not specified, use "disa" */
@@ -291,7 +291,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 					k = 1;
 					i = 0;  /* re-set buffer pointer */
 					exten[sizeof(acctcode)] = 0;
-					strcpy(acctcode,exten);
+					strncpy(acctcode,exten, sizeof(acctcode) - 1);
 					exten[0] = 0;
 					ast_log(LOG_DEBUG,"Successful DISA log-in on chan %s\n",chan->name);
 					continue;
@@ -316,9 +316,9 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			if (chan->callerid) free(chan->callerid);
 			chan->callerid = strdup(ourcallerid);
 		}
-		strcpy(chan->exten,exten);
-		strcpy(chan->context,ourcontext);
-		strcpy(chan->accountcode,acctcode);
+		strncpy(chan->exten, exten, sizeof(chan->exten) - 1);
+		strncpy(chan->context, ourcontext, sizeof(chan->context) - 1);
+		strncpy(chan->accountcode, acctcode, sizeof(chan->accountcode) - 1);
 		chan->priority = 0;
 		ast_cdr_init(chan->cdr,chan);
 		LOCAL_USER_REMOVE(u);

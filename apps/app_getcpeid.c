@@ -67,9 +67,9 @@ static int cpeid_exec(struct ast_channel *chan, void *idata)
 	stuff[2] = data[2];
 	stuff[3] = data[3];
 	memset(data, 0, sizeof(data));
-	strcpy(stuff[0], "** CPE Info **");
-	strcpy(stuff[1], "Identifying CPE...");
-	strcpy(stuff[2], "Please wait...");
+	strncpy(stuff[0], "** CPE Info **", sizeof(data[0]) - 1);
+	strncpy(stuff[1], "Identifying CPE...", sizeof(data[1]) - 1);
+	strncpy(stuff[2], "Please wait...", sizeof(data[2]) - 1);
 	res = adsi_load_session(chan, NULL, 0, 1);
 	if (res > 0) {
 		cpeid_setstatus(chan, stuff, 0);
@@ -80,8 +80,8 @@ static int cpeid_exec(struct ast_channel *chan, void *idata)
 				ast_verbose(VERBOSE_PREFIX_3 "Got CPEID of '%02x:%02x:%02x:%02x' on '%s'\n", cpeid[0], cpeid[1], cpeid[2], cpeid[3], chan->name);
 		}
 		if (res > -1) {
-			strcpy(stuff[1], "Measuring CPE...");
-			strcpy(stuff[2], "Please wait...");
+			strncpy(stuff[1], "Measuring CPE...", sizeof(data[1]) - 1);
+			strncpy(stuff[2], "Please wait...", sizeof(data[2]) - 1);
 			cpeid_setstatus(chan, stuff, 0);
 			res = adsi_get_cpeinfo(chan, &width, &height, &buttons, 0);
 			if (res > -1) {
@@ -92,14 +92,14 @@ static int cpeid_exec(struct ast_channel *chan, void *idata)
 		}
 		if (res > -1) {
 			if (gotcpeid)
-				sprintf(stuff[1], "CPEID: %02x:%02x:%02x:%02x", cpeid[0], cpeid[1], cpeid[2], cpeid[3]);
+				snprintf(stuff[1], sizeof(data[1]), "CPEID: %02x:%02x:%02x:%02x", cpeid[0], cpeid[1], cpeid[2], cpeid[3]);
 			else
-				strcpy(stuff[1], "CPEID Unknown");
+				strncpy(stuff[1], "CPEID Unknown", sizeof(data[1]) - 1);
 			if (gotgeometry) 
-				sprintf(stuff[2], "Geom: %dx%d, %d buttons", width, height, buttons);
+				snprintf(stuff[2], sizeof(data[2]), "Geom: %dx%d, %d buttons", width, height, buttons);
 			else
-				strcpy(stuff[2], "Geometry unknown");
-			strcpy(stuff[3], "Press # to exit");
+				strncpy(stuff[2], "Geometry unknown", sizeof(data[2]) - 1);
+			strncpy(stuff[3], "Press # to exit", sizeof(data[3]) - 1);
 			cpeid_setstatus(chan, stuff, 1);
 			for(;;) {
 				res = ast_waitfordigit(chan, 1000);

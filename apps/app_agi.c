@@ -1135,15 +1135,18 @@ static agi_command commands[] = {
 	{ { "set", "music", NULL }, handle_setmusic, "Enable/Disable Music on hold generator", usage_setmusic }
 };
 
-static void join(char *s, int len, char *w[])
+static void join(char *s, size_t len, char *w[])
 {
 	int x;
 	/* Join words into a string */
-	strcpy(s, "");
+	if (!s) {
+		return;
+	}
+	s[0] = '\0';
 	for (x=0;w[x];x++) {
 		if (x)
-			strncat(s, " ", len - strlen(s));
-		strncat(s, w[x], len - strlen(s));
+			strncat(s, " ", len - strlen(s) - 1);
+		strncat(s, w[x], len - strlen(s) - 1);
 	}
 }
 

@@ -122,7 +122,7 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 
 #define AST_MAX_WATCHERS 256
 
-static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect, int *sentringing, char *status)
+static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect, int *sentringing, char *status, size_t statussize)
 {
 	struct localuser *o;
 	int found;
@@ -168,11 +168,11 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				if (option_verbose > 2)
 					ast_verbose( VERBOSE_PREFIX_2 "Everyone is busy/congested at this time\n");
 				if (numbusy)
-					strcpy(status, "BUSY");
+					strncpy(status, "BUSY", statussize - 1);
 				else if (numcongestion)
-					strcpy(status, "CONGESTION");
+					strncpy(status, "CONGESTION", statussize - 1);
 				else if (numnochan)
-					strcpy(status, "CHANUNAVAIL");
+					strncpy(status, "CHANUNAVAIL", statussize - 1);
 				/* See if there is a special busy message */
 				if (ast_exists_extension(in, in->context, in->exten, in->priority + 101, in->callerid)) 
 					in->priority+=100;
@@ -251,7 +251,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 								free(o->chan->ani);
 							o->chan->ani = malloc(strlen(in->ani) + 1);
 							if (o->chan->ani)
-								strncpy(o->chan->ani, in->ani, strlen(in->ani) + 1);
+								strncpy(o->chan->ani, in->ani, strlen(in->ani));
 							else
 								ast_log(LOG_WARNING, "Out of memory\n");
 						}
@@ -367,7 +367,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 			if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP))) {
 				/* Got hung up */
 				*to=-1;
-				strcpy(status, "CANCEL");
+				strncpy(status, "CANCEL", statussize - 1);
 				return NULL;
 			}
 			if (f && (f->frametype == AST_FRAME_DTMF) && *allowdisconnect &&
@@ -411,7 +411,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	char restofit[AST_MAX_EXTENSION];
 	char *transfer = NULL;
 	char *newnum;
-	char callerid[256], *l, *n;
+	char callerid[256] = "", *l, *n;
 	char *url=NULL; /* JDG */
 	struct ast_var_t *current;
 	struct varshead *headp, *newheadp;
@@ -432,7 +432,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	char *sdtmfptr;
 	char sdtmfdata[256] = "";
 	char *stack,*var;
-	char status[256];
+	char status[256]="";
 	char toast[80];
 	int play_to_caller=0,play_to_callee=0;
 	int playargs=0, sentringing=0, moh=0;
@@ -626,9 +626,9 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	}
 	if (privacy) {
 		if (chan->callerid)
-			strncpy(callerid, chan->callerid, sizeof(callerid));
+			strncpy(callerid, chan->callerid, sizeof(callerid) - 1);
 		else
-			strcpy(callerid, "");
+			callerid[0] = '\0';
 		ast_callerid_parse(callerid, &n, &l);
 		if (l) {
 			ast_shrink_phone_number(l);
@@ -760,7 +760,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		else
 			tmp->chan->callerid = NULL;
 		/* Copy language from incoming to outgoing */
-		strcpy(tmp->chan->language, chan->language);
+		strncpy(tmp->chan->language, chan->language, sizeof(tmp->chan->language) - 1);
 		if (ast_strlen_zero(tmp->chan->musicclass))
 			strncpy(tmp->chan->musicclass, chan->musicclass, sizeof(tmp->chan->musicclass) - 1);
 		if (chan->ani)
@@ -819,7 +819,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 
 	if (outgoing) {
 		/* Our status will at least be NOANSWER */
-		strcpy(status, "NOANSWER");
+		strncpy(status, "NOANSWER", sizeof(status) - 1);
 		if (outgoing->musiconhold) {
 			moh=1;
 			ast_moh_start(chan, NULL);
@@ -828,10 +828,10 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			sentringing++;
 		}
 	} else
-		strcpy(status, "CHANUNAVAIL");
+		strncpy(status, "CHANUNAVAIL", sizeof(status) - 1);
 
 	time(&start_time);
-	peer = wait_for_answer(chan, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect, &sentringing, status);
+	peer = wait_for_answer(chan, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect, &sentringing, status, sizeof(status));
 
 	if (!peer) {
 		if (to) 
@@ -849,7 +849,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		/* Once call is answered, ditch the OSP Handle */
 		pbx_builtin_setvar_helper(chan, "OSPHANDLE", "");
 #endif		
-		strcpy(status, "ANSWER");
+		strncpy(status, "ANSWER", sizeof(status) - 1);
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the 
 		   conversation.  */

@@ -113,7 +113,7 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 		/* Set the count in the channel variable */
 		if (varname) {
 			char tmp[12];
-			snprintf(tmp, sizeof(tmp) - 1, "%d", vmcount);
+			snprintf(tmp, sizeof(tmp), "%d", vmcount);
 			pbx_builtin_setvar_helper(chan, varname, tmp);
 		}
 

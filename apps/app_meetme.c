@@ -303,7 +303,7 @@ static int conf_cmd(int fd, int argc, char **argv) {
 	ast_cli(fd, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation");
 		while(cnf) {
 			if (cnf->markedusers < 0)
-				strcpy(cmdline, "N/A ");
+				strncpy(cmdline, "N/A ", sizeof(cmdline) - 1);
 			else 
 				snprintf(cmdline, sizeof(cmdline), "%4.4d", cnf->markedusers);
 			hr = (now - cnf->start) / 3600;
@@ -320,37 +320,37 @@ static int conf_cmd(int fd, int argc, char **argv) {
 	}
 	if (argc < 3)
 		return RESULT_SHOWUSAGE;
-	strncpy(cmdline, argv[2], 100);	/* Argv 2: conference number */
+	strncpy(cmdline, argv[2], sizeof(cmdline) - 1);	/* Argv 2: conference number */
 	if (strstr(argv[1], "lock")) {	
 		if (strcmp(argv[1], "lock") == 0) {
 			/* Lock */
-			strcat(cmdline, "|L");
+			strncat(cmdline, "|L", sizeof(cmdline) - strlen(cmdline) - 1);
 		} else {
 			/* Unlock */
-			strcat(cmdline, "|l");
+			strncat(cmdline, "|l", sizeof(cmdline) - strlen(cmdline) - 1);
 		}
 	} else if (strstr(argv[1], "mute")) { 
 		if (argc < 4)
 			return RESULT_SHOWUSAGE;
 		if (strcmp(argv[1], "mute") == 0) {
 			/* Mute */
-			strcat(cmdline, "|M|");	
-			strcat(cmdline, argv[3]);
+			strncat(cmdline, "|M|", sizeof(cmdline) - strlen(cmdline) - 1);	
+			strncat(cmdline, argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
 		} else {
 			/* Unmute */
-			strcat(cmdline, "|m|");
-			strcat(cmdline, argv[3]);
+			strncat(cmdline, "|m|", sizeof(cmdline) - strlen(cmdline) - 1);
+			strncat(cmdline, argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
 		}
 	} else if (strcmp(argv[1], "kick") == 0) {
 		if (argc < 4)
 			return RESULT_SHOWUSAGE;
 		if (strcmp(argv[3], "all") == 0) {
 			/* Kick all */
-			strcat(cmdline, "|K");
+			strncat(cmdline, "|K", sizeof(cmdline) - strlen(cmdline) - 1);
 		} else {
 			/* Kick a single user */
-			strcat(cmdline, "|k|");
-			strcat(cmdline, argv[3]);
+			strncat(cmdline, "|k|", sizeof(cmdline) - strlen(cmdline) - 1);
+			strncat(cmdline, argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
 		}	
 	} else if(strcmp(argv[1], "list") == 0) {
 		/* List all the users in a conference */
@@ -443,7 +443,7 @@ static char *complete_confcmd(char *line, char *word, int pos, int state) {
 				/* Search for the user */
 				usr = cnf->firstuser;
 				while(usr) {
-					sprintf(usrno, "%i", usr->user_no);
+					snprintf(usrno, sizeof(usrno), "%i", usr->user_no);
 					if (!strncasecmp(word, usrno, strlen(word))) {
 						if (++which > state)
 							break;
@@ -503,12 +503,18 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	struct ast_app *app;
 	char *agifile;
 	char *agifiledefault = "conf-background.agi";
-	char meetmesecs[30];
+	char meetmesecs[30] = "";
 
 	ZT_BUFFERINFO bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
 	
+	if (!user) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		return(ret);
+	}
+	memset(user, 0, sizeof(struct ast_conf_user));
+
 	user->user_no = 0; /* User number 0 means starting up user! (dead - not in the list!) */
 	
 	if (conf->locked) {
@@ -548,7 +554,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			conf->lastuser = user;
 		}
 	}
-	strncpy(user->usrvalue, "test", sizeof(user->usrvalue));
+	strncpy(user->usrvalue, "test", sizeof(user->usrvalue) - 1);
 	user->chan = chan;
 	user->userflags = confflags;
 	user->adminflags = 0;
@@ -1006,7 +1012,7 @@ outrun:
 					ast_log(LOG_ERROR, "Bad! Bad! Bad! user->prevuser is NULL but we're not the beginning!\n");
 			}
 			/* Return the number of seconds the user was in the conf */
-			sprintf(meetmesecs, "%i", (int) (user->jointime - time(NULL)));
+			snprintf(meetmesecs, sizeof(meetmesecs), "%i", (int) (user->jointime - time(NULL)));
 			pbx_builtin_setvar_helper(chan, "MEETMESECS", meetmesecs);
 		}
 	}
@@ -1144,7 +1150,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 
 	if (info) {
 		char *tmp = strsep(&info, "|");
-		strncpy(confno, tmp, sizeof(confno));
+		strncpy(confno, tmp, sizeof(confno) - 1);
 		if (ast_strlen_zero(confno)) {
 			allowretry = 1;
 		}
@@ -1273,7 +1279,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			if (ast_strlen_zero(confno) && dynamic) {
 				for (i=0;i<1024;i++) {
 					if (!map[i]) {
-						snprintf(confno, sizeof(confno) - 1, "%d", i);
+						snprintf(confno, sizeof(confno), "%d", i);
 						break;
 					}
 				}
@@ -1301,7 +1307,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			res = ast_app_getdata(chan, "conf-getconfno", confno, sizeof(confno) - 1, 0);
 			if (res < 0) {
 				/* Don't try to validate when we catch an error */
-				strcpy(confno, "");
+				confno[0] = '\0';
 				allowretry = 0;
 				break;
 			}
@@ -1315,7 +1321,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 					ast_waitstream(chan, "");
 				res = -1;
 				if (allowretry)
-					strcpy(confno, "");
+					confno[0] = '\0';
 			} else {
 				if (!ast_strlen_zero(cnf->pin)) {
 					char pin[AST_MAX_EXTENSION];
@@ -1340,7 +1346,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 								ast_waitstream(chan, "");
 							res = -1;
 							if (allowretry)
-								strcpy(confno, "");
+								confno[0] = '\0';
 						}
 					} else {
 						res = -1;
@@ -1367,7 +1373,7 @@ static struct ast_conf_user* find_user(struct ast_conference *conf, char *caller
 	if (conf && callerident) {
 		user = conf->firstuser;
 		while(user) {
-			sprintf(usrno, "%i", user->user_no);
+			snprintf(usrno, sizeof(usrno), "%i", user->user_no);
 			if (strcmp(usrno, callerident) == 0)
 				return user;
 			user = user->nextuser;
