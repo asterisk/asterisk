@@ -336,7 +336,7 @@ void __ast_mm_init(void)
 	ast_cli_register(&show_memory_summary_cli);
 	mmlog = fopen("/var/log/asterisk/mmlog", "a+");
 	if (option_verbose)
-		ast_verbose("Asterisk Malloc Debugger Started (see /var/log/mmlog)\n");
+		ast_verbose("Asterisk Malloc Debugger Started (see /var/log/asterisk/mmlog)\n");
 	if (mmlog) {
 		fprintf(mmlog, "%ld - New session\n", time(NULL));
 		fflush(mmlog);
