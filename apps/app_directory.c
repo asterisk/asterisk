@@ -238,7 +238,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct localuser *u;
 	struct ast_config *cfg;
-	char *context, *dialcontext;
+	char *context, *dialcontext, *dirintro;
 	if (!data) {
 		ast_log(LOG_WARNING, "directory requires an argument (context)\n");
 		return -1;
@@ -250,6 +250,9 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	}
 	LOCAL_USER_ADD(u);
 top:
+	dirintro = ast_variable_retrieve(cfg, "general", "directoryintro");
+	if (!dirintro || !strlen(dirintro))
+		dirintro = "dir-intro";
 	context = ast_strdupa(data);
 	dialcontext = strchr(context, '|');
 	if (dialcontext) {
@@ -260,7 +263,7 @@ top:
 	if (chan->_state != AST_STATE_UP) 
 		res = ast_answer(chan);
 	if (!res)
-		res = ast_streamfile(chan, "dir-intro", chan->language);
+		res = ast_streamfile(chan, dirintro, chan->language);
 	if (!res)
 		res = ast_waitstream(chan, AST_DIGIT_ANY);
 	ast_stopstream(chan);

@@ -28,7 +28,8 @@ maxlogins=3
 ; called when a voicemail is left, delivered, or your voicemailbox 
 ; changes, uncomment this:
 ;externnotify=/usr/bin/myapp
-
+; For the directory, you can override the intro file if you want
+;directoryintro=dir-intro
 
 ; Skip the "[PBX]:" string from the message title
 ;pbxskip=yes
