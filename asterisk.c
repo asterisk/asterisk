@@ -1351,18 +1351,15 @@ int main(int argc, char *argv[])
 		ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)ast_config_AST_PID, strerror(errno));
 
 	if (!option_verbose && !option_debug && !option_nofork && !option_console) {
-#if 1
 		daemon(0,0);
-#else	
-		pid = fork();
-		if (pid < 0) {
-			ast_log(LOG_ERROR, "Unable to fork(): %s\n", strerror(errno));
-			printf(term_quit());
-			exit(1);
-		}
-		if (pid) 
-			exit(0);
-#endif			
+		/* Blindly re-write pid file since we are forking */
+		unlink((char *)ast_config_AST_PID);
+		f = fopen((char *)ast_config_AST_PID, "w");
+		if (f) {
+			fprintf(f, "%d\n", getpid());
+			fclose(f);
+		} else
+			ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)ast_config_AST_PID, strerror(errno));
 	}
 
 	ast_makesocket();
