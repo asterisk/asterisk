@@ -25,13 +25,32 @@
 static char *tdesc = "CDR user field apps";
 
 static char *setcdruserfield_descrip = 
-		"SetCDRUserField(value): Set the CDR user field to value\n";
+               "[Synopsis]\n"
+               "SetCDRUserField(value)\n\n"
+               "[Description]\n"
+               "SetCDRUserField(value): Set the CDR 'user field' to value\n"
+               "       The Call Data Record (CDR) user field is an extra field you\n"
+               "       can use for data not stored anywhere else in the record.\n"
+               "       CDR records can be used for billing or storing other arbitrary data\n"
+               "       (I.E. telephone survey responses)\n"
+               "       Also see AppendCDRUserField().\n"
+               "       Always returns 0\n";
+
 		
 static char *setcdruserfield_app = "SetCDRUserField";
 static char *setcdruserfield_synopsis = "Set the CDR user field";
 
 static char *appendcdruserfield_descrip = 
-		"AppendCDRUserField(value): Append value to the CDR user field\n";
+               "[Synopsis]\n"
+               "AppendCDRUserField(value)\n\n"
+               "[Description]\n"
+               "AppendCDRUserField(value): Append value to the CDR user field\n"
+               "       The Call Data Record (CDR) user field is an extra field you\n"
+               "       can use for data not stored anywhere else in the record.\n"
+               "       CDR records can be used for billing or storing other arbitrary data\n"
+               "       (I.E. telephone survey responses)\n"
+               "       Also see SetCDRUserField().\n"
+               "       Always returns 0\n";
 		
 static char *appendcdruserfield_app = "AppendCDRUserField";
 static char *appendcdruserfield_synopsis = "Append to the CDR user field";
