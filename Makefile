@@ -387,7 +387,7 @@ bininstall: all
 	fi 
 	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/vm . )
 	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/voicemail . )
-	if [ -d mpg123-0.59r ]; then make -C mpg123-0.59r install; fi
+	if [ -f mpg123-0.59r/mpg123 ]; then make -C mpg123-0.59r install; fi
 	@echo " +---- Asterisk Installation Complete -------+"  
 	@echo " +                                           +"
 	@echo " +    YOU MUST READ THE SECURITY DOCUMENT    +"
