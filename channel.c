@@ -1796,7 +1796,7 @@ struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, i
 		}
 		if (chan->cdr) {
 			char tmp[256];
-			sprintf(tmp, "%s/%s",type,(char *)data);
+			snprintf(tmp, 256, "%s/%s", type, (char *)data);
 			ast_cdr_setapp(chan->cdr,"Dial",tmp);
 			ast_cdr_update(chan);
 			ast_cdr_start(chan->cdr);
