@@ -3837,8 +3837,8 @@ int ast_explicit_goto(struct ast_channel *chan, const char *context, const char 
 			strncpy(chan->context, context, sizeof(chan->context) - 1);
 		if (exten && !ast_strlen_zero(exten))
 			strncpy(chan->exten, exten, sizeof(chan->context) - 1);
-		if (priority)
-			chan->priority = priority;	
+		if(priority > -1)
+			chan->priority = priority;
 		return 0;
 	}
 	return -1;
@@ -3869,7 +3869,7 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 			ast_explicit_goto(tmpchan,
 							  (context && !ast_strlen_zero(context)) ? context : chan->context,
 							  (exten && !ast_strlen_zero(exten)) ? exten : chan->exten,
-							  priority ? priority : chan->priority);
+							  priority - 1);
 
 			/* Masquerade into temp channel */
 			ast_channel_masquerade(tmpchan, chan);
@@ -5420,18 +5420,28 @@ int ast_context_verify_includes(struct ast_context *con)
 
 static int __ast_goto_if_exists(struct ast_channel *chan, char* context, char *exten, int priority, int async) 
 {
-	int (*goto_func)(struct ast_channel *chan, const char *context, const char *exten, int priority) = async ? ast_async_goto : ast_explicit_goto;
+	int (*goto_func)(struct ast_channel *chan, const char *context, const char *exten, int priority) = NULL;
 
 	if(chan) {
-		if(ast_exists_extension(chan, 
-								context ? context : chan->context,
-								exten ? exten : chan->exten,
-								priority ? priority : chan->priority,
-								chan->cid.cid_num)) {
+
+		if (async) {
+			goto_func = ast_async_goto;
+		} else { 
+			goto_func = ast_explicit_goto;
+			priority--;
+			if(priority < 0)
+				priority = 0;
+		}
+
+		if (ast_exists_extension(chan, 
+								 context ? context : chan->context,
+								 exten ? exten : chan->exten,
+								 priority,
+								 chan->cid.cid_num)) {
 			return goto_func(chan,
-								  context ? context : chan->context,
-								  exten ? exten : chan->exten,
-								  (priority ? priority : chan->priority) - 1);
+							 context ? context : chan->context,
+							 exten ? exten : chan->exten,
+							 priority);
 		} else 
 			return -3;
 	}
@@ -5501,12 +5511,7 @@ int ast_parseable_goto(struct ast_channel *chan, const char *goto_string)
 		ipri = chan->priority + (ipri * mode);
 
 	/* This channel is currently in the PBX */
-	if (context && !ast_strlen_zero(context))
-		strncpy(chan->context, context, sizeof(chan->context) - 1);
-	if (exten && !ast_strlen_zero(exten))
-		strncpy(chan->exten, exten, sizeof(chan->context) - 1);
-	chan->priority = ipri - 1;
-
+	ast_explicit_goto(chan, context, exten, ipri - 1);
 	ast_cdr_update(chan);
 	return 0;
 
