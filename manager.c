@@ -454,6 +454,25 @@ static int action_mailboxstatus(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static int action_mailboxcount(struct mansession *s, struct message *m)
+{
+	char *mailbox = astman_get_header(m, "Mailbox");
+	int newmsgs = 0, oldmsgs = 0;
+	if (!mailbox || !strlen(mailbox)) {
+		astman_send_error(s, "Mailbox not specified");
+		return 0;
+	}
+	ast_app_messagecount(mailbox, &newmsgs, &oldmsgs);
+	ast_cli(s->fd, "Response: Success\r\n"
+				   "Message: Mailbox Message Count\r\n"
+				   "Mailbox: %s\r\n"
+		 		   "NewMessages: %d\r\n"
+				   "OldMessages: %d\r\n" 
+				   "\r\n",
+				    mailbox, newmsgs, oldmsgs);
+	return 0;
+}
+
 static int action_extensionstate(struct mansession *s, struct message *m)
 {
 	char *exten = astman_get_header(m, "Exten");
@@ -796,6 +815,7 @@ int init_manager(void)
 		ast_manager_register( "Command", EVENT_FLAG_COMMAND, action_command, "Execute Command" );
 		ast_manager_register( "ExtensionState", EVENT_FLAG_CALL, action_extensionstate, "Check Extension Status" );
 		ast_manager_register( "AbsoluteTimeout", EVENT_FLAG_CALL, action_timeout, "Set Absolute Timeout" );
+		ast_manager_register( "MailboxCount", EVENT_FLAG_CALL, action_mailboxcount, "Check Mailbox Message Count" );
 
 		ast_cli_register(&show_mancmds_cli);
 		ast_cli_register(&show_manconn_cli);
