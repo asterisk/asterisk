@@ -948,7 +948,7 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 				fullcmd = fullcmd1;
 				e1++;
 			}
-			if ((fullcmd[0] != '_') && !strncasecmp(matchstr, fullcmd, strlen(matchstr))) {
+			if ((fullcmd[0] != '_') && !strncasecmp(text, fullcmd, strlen(text))) {
 				/* We contain the first part of one or more commands */
 				matchnum++;
 				if (matchnum > state) {
