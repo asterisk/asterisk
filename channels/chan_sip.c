@@ -1177,6 +1177,7 @@ static struct sip_peer *mysql_peer(char *peer, struct sockaddr_in *sin)
 		p->dtmfmode = global_dtmfmode;
 		p->promiscredir = global_promiscredir;
 		p->insecure = 1;
+		p->pokeexpire = -1;
 		p->expire = -1;
 		p->temponly = 1;
 		
