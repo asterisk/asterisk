@@ -319,7 +319,8 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 			ast_log(LOG_DEBUG, "RTP NAT: Using address %s:%d\n", inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
 		}
 	}
-	ast_log(LOG_DEBUG, "Got RTCP report of %d bytes\n", res);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Got RTCP report of %d bytes\n", res);
 	return &null_frame;
 }
 
