@@ -329,6 +329,7 @@ static const struct ast_channel_tech vpb_tech = {
 	type,
 	tdesc,
 	AST_FORMAT_SLINEAR,
+	NULL,
 	vpb_request,
 	NULL,
 	vpb_digit,
