@@ -76,9 +76,11 @@ int option_exec=0;
 int option_initcrypto=0;
 int option_nocolor;
 int option_dumpcore = 0;
+int option_cache_record_files = 0;
 int option_overrideconfig = 0;
 int option_reconnect = 0;
 int fully_booted = 0;
+char record_cache_dir[AST_CACHE_DIR_LEN] = "/var/spool/asterisk/tmp";
 
 static int ast_socket = -1;		/* UNIX Socket for allowing remote control */
 static int ast_consock = -1;		/* UNIX Socket for controlling another asterisk */
@@ -1473,6 +1475,7 @@ static int show_cli_help(void) {
 	printf("   -q              Quiet mode (supress output)\n");
 	printf("   -r              Connect to Asterisk on this machine\n");
 	printf("   -R              Connect to Asterisk, and attempt to reconnect if disconnected\n");
+	printf("   -t              Record soundfiles in /tmp and move them where they belong after they are done.\n");
 	printf("   -v              Increase verbosity (multiple v's = more verbose)\n");
 	printf("   -x <cmd>        Execute command <cmd> (only valid with -r)\n");
 	printf("\n");
@@ -1531,6 +1534,33 @@ static void ast_readconfig(void) {
 		}
 		v = v->next;
 	}
+	v = ast_variable_browse(cfg, "options");
+	while(v) {
+		if(!strcasecmp(v->name, "verbose")) {
+			option_verbose= atoi(v->value);
+		} else if (!strcasecmp(v->name, "debug")) {
+			option_debug= ast_true(v->value);
+		} else if (!strcasecmp(v->name, "nofork")) {
+            option_nofork = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "quiet")) {
+            option_quiet = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "console")) {
+            option_console = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "highpriority")) {
+            option_highpriority = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "initcrypto")) {
+            option_initcrypto = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "nocolor")) {
+            option_nocolor = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "dumpcore")) {
+            option_dumpcore = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "cache_record_files")) {
+            option_cache_record_files = ast_true(v->value);
+		}  else if (!strcasecmp(v->name, "record_cache_dir")) {
+			strncpy(record_cache_dir,v->value,AST_CACHE_DIR_LEN);
+		}
+		v = v->next;
+	}
 	ast_destroy(cfg);
 }
 
@@ -1580,7 +1610,7 @@ int main(int argc, char *argv[])
 	}
 	*/
 	/* Check for options */
-	while((c=getopt(argc, argv, "hfdvVqprRgcinx:U:G:C:")) != -1) {
+	while((c=getopt(argc, argv, "thfdvVqprRgcinx:U:G:C:")) != -1) {
 		switch(c) {
 		case 'd':
 			option_debug++;
@@ -1614,6 +1644,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'q':
 			option_quiet++;
+			break;
+		case 't':
+			option_cache_record_files++;
 			break;
 		case 'x':
 			option_exec++;
@@ -1822,8 +1855,13 @@ int main(int argc, char *argv[])
 		printf(term_quit());
 		exit(1);
 	}
-	/* reload logger in case a custom config handler binded to logger.conf*/
+	/* sync cust config and reload some internals in case a custom config handler binded to them */
+	read_ast_cust_config();
 	reload_logger(0);
+    reload_manager();
+    ast_enum_reload();
+    ast_rtp_reload();
+
 
 	/* We might have the option of showing a console, but for now just
 	   do nothing... */

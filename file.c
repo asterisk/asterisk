@@ -22,6 +22,7 @@
 #include <asterisk/translate.h>
 #include <asterisk/utils.h>
 #include <asterisk/lock.h>
+#include <asterisk/app.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -71,6 +72,7 @@ struct ast_filestream {
 	int flags;
 	mode_t mode;
 	char *filename;
+	char *realfilename;
 	/* Video file stream */
 	struct ast_filestream *vfs;
 	/* Transparently translate from another format -- just once */
@@ -649,6 +651,8 @@ int ast_stream_rewind(struct ast_filestream *fs, long ms)
 
 int ast_closestream(struct ast_filestream *f)
 {
+	char *cmd = NULL;
+	size_t size = 0;
 	/* Stop a running stream if there is one */
 	if (f->owner) {
 		if (f->fmt->format < AST_FORMAT_MAX_AUDIO) {
@@ -671,10 +675,24 @@ int ast_closestream(struct ast_filestream *f)
 		ast_translator_free_path(f->trans);
 		f->trans = NULL;
 	}
-	if (f->filename)
-		free(f->filename);
-	f->filename = NULL;
+
+	if (f->realfilename && f->filename) {
+			size = strlen(f->filename) + strlen(f->realfilename) + 15;
+			cmd = alloca(size);
+			memset(cmd,0,size);
+			snprintf(cmd,size,"/bin/mv -f %s %s",f->filename,f->realfilename);
+			ast_safe_system(cmd);
+	}
 	f->fmt->close(f);
+	if (f->filename) {
+		free(f->filename);
+		f->filename = NULL;
+	}
+	if (f->realfilename) {
+		free(f->realfilename);
+		f->realfilename = NULL;
+	}
+
 	return 0;
 }
 
@@ -816,8 +834,11 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 	int fd,myflags = 0;
 	struct ast_format *f;
 	struct ast_filestream *fs=NULL;
-	char *fn;
+	char *fn,*orig_fn=NULL;
 	char *ext;
+	char *buf=NULL;
+	size_t size = 0;
+
 	if (ast_mutex_lock(&formatlock)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
 		return NULL;
@@ -833,11 +854,31 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 		if (exts_compare(f->exts, type)) {
 			char *stringp=NULL;
 			/* XXX Implement check XXX */
-			ext = strdup(f->exts);
+			ext = ast_strdupa(f->exts);
 			stringp=ext;
 			ext = strsep(&stringp, "|");
 			fn = build_filename(filename, ext);
 			fd = open(fn, flags | myflags, mode);
+
+			if (option_cache_record_files && fd >= 0) {
+				close(fd);
+				/*
+				   We touch orig_fn just as a place-holder so other things (like vmail) see the file is there.
+				   What we are really doing is writing to record_cache_dir until we are done then we will mv the file into place.
+				*/
+				orig_fn = ast_strdupa(fn); 
+				for (size=0;size<strlen(fn);size++)
+					if (fn[size] == '/')
+						fn[size] = '_';
+
+				size += (strlen(record_cache_dir) + 10);
+				buf = alloca(size);
+				memset(buf,0,size);
+				snprintf(buf,size,"%s/%s",record_cache_dir,fn);
+				free(fn);
+				fn=buf;
+				fd = open(fn, flags | myflags, mode);
+			}
 			if (fd >= 0) {
 				errno = 0;
 				if ((fs = f->rewrite(fd, comment))) {
@@ -845,17 +886,30 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 					fs->fmt = f;
 					fs->flags = flags;
 					fs->mode = mode;
-					fs->filename = strdup(filename);
+					if (option_cache_record_files) {
+						fs->realfilename = build_filename(filename, ext);
+						fs->filename = strdup(fn);
+					}
+					else {
+						fs->realfilename = NULL;
+						fs->filename = strdup(filename);
+					}
 					fs->vfs = NULL;
 				} else {
 					ast_log(LOG_WARNING, "Unable to rewrite %s\n", fn);
 					close(fd);
 					unlink(fn);
+					if (orig_fn)
+						unlink(orig_fn);
 				}
-			} else if (errno != EEXIST)
+			} else if (errno != EEXIST) {
 				ast_log(LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
-			free(fn);
-			free(ext);
+				if(orig_fn)
+					unlink(orig_fn);
+			}
+			if (!buf) /* if buf != NULL then fn is already free and pointing to it */
+				free(fn);
+
 			break;
 		}
 		f = f->next;

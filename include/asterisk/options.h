@@ -18,6 +18,8 @@
 extern "C" {
 #endif
 
+#define AST_CACHE_DIR_LEN 512
+
 extern int option_verbose;
 extern int option_debug;
 extern int option_nofork;
@@ -26,10 +28,12 @@ extern int option_console;
 extern int option_initcrypto;
 extern int option_nocolor;
 extern int fully_booted;
+extern int option_cache_record_files;
 extern char defaultlanguage[];
 extern time_t ast_startuptime;
 extern time_t ast_lastreloadtime;
 extern int ast_mainpid;
+extern char record_cache_dir[AST_CACHE_DIR_LEN];
 
 #define VERBOSE_PREFIX_1 " "
 #define VERBOSE_PREFIX_2 "  == "
