@@ -139,7 +139,7 @@ hist_get(EditLine *el)
 	if (el->el_line.lastchar > el->el_line.buffer) {
 		if (el->el_line.lastchar[-1] == '\n')
 			el->el_line.lastchar--;
-		if (el->el_line.lastchar[-1] == ' ')
+		if ((el->el_line.lastchar > el->el_line.buffer)&&(el->el_line.lastchar[-1] == ' ')) /* bill heckel */
 			el->el_line.lastchar--;
 		if (el->el_line.lastchar < el->el_line.buffer)
 			el->el_line.lastchar = el->el_line.buffer;
