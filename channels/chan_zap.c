@@ -4700,6 +4700,7 @@ static void *ss_thread(void *data)
 	int receivedRingT;
 	int counter1;
 	int counter;
+	int samples = 0;
 
 	int flags;
 	int i;
@@ -5296,6 +5297,7 @@ static void *ss_thread(void *data)
 			} else if (p->cid_signalling == CID_SIG_V23) {
 				cs = callerid_new(cid_signalling);
 				if (cs) {
+					samples = 0;
 #if 1
 					bump_gains(p);
 #endif				
@@ -5327,11 +5329,14 @@ static void *ss_thread(void *data)
 								}
 								break;
 							}
+							samples += res;
 							res = callerid_feed(cs, buf, res, AST_LAW(p));
 							if (res < 0) {
 								ast_log(LOG_WARNING, "CallerID feed failed: %s\n", strerror(errno));
 								break;
 							} else if (res)
+								break;
+							else if (samples > (8000 * 10))
 								break;
 						}
 					}
@@ -5466,6 +5471,7 @@ static void *ss_thread(void *data)
 #if 1
 				bump_gains(p);
 #endif				
+				samples = 0;
 				len = 0;
 				distMatches = 0;
 				/* Clear the current ring data array so we dont have old data in it. */
@@ -5520,11 +5526,14 @@ static void *ss_thread(void *data)
 							res = -1;
 							break;
 						}
+						samples += res;
 						res = callerid_feed(cs, buf, res, AST_LAW(p));
 						if (res < 0) {
 							ast_log(LOG_WARNING, "CallerID feed failed: %s\n", strerror(errno));
 							break;
 						} else if (res)
+							break;
+						else if (samples > (8000 * 10))
 							break;
 					}
 				}
