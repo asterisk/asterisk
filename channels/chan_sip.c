@@ -4242,7 +4242,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				ast_log(LOG_DEBUG, "Hm....  No sdp for the moemnt\n");
 			}
 			/* Queue NULL frame to prod ast_rtp_bridge if appropriate */
-			ast_queue_frame(p->owner, &af, 0);
+			if (p->owner)
+				ast_queue_frame(p->owner, &af, 0);
 		} else if (sipdebug)
 			ast_verbose("Ignoring this request\n");
 		if (!p->lastinvite) {
