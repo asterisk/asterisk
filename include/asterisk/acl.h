@@ -50,6 +50,7 @@ extern struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, s
 extern int ast_netsock_free(struct ast_netsock_list *list, struct ast_netsock *netsock);
 extern int ast_netsock_release(struct ast_netsock_list *list);
 extern int ast_netsock_sockfd(struct ast_netsock *ns);
+extern int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr);
 
 /*! Compares the source address and port of two sockaddr_in */
 static inline int inaddrcmp(struct sockaddr_in *sin1, struct sockaddr_in *sin2)

@@ -384,3 +384,32 @@ struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_co
 		ast_log(LOG_WARNING, "Out of memory!\n");
 	return NULL;
 }
+
+int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr)
+{
+	char ourhost[256];
+	struct ast_hostent ahp;
+	struct hostent *hp;
+	struct in_addr saddr;
+
+	/* just use the bind address if it is nonzero */
+	if (ntohl(bindaddr.sin_addr.s_addr)) {
+		memcpy(ourip, &bindaddr.sin_addr, sizeof(*ourip));
+		return 0;
+	}
+	/* try to use our hostname */
+	if (gethostname(ourhost, sizeof(ourhost))) {
+		ast_log(LOG_WARNING, "Unable to get hostname\n");
+	} else {
+		hp = ast_gethostbyname(ourhost, &ahp);
+		if (hp) {
+			memcpy(ourip, hp->h_addr, sizeof(*ourip));
+			return 0;
+		}
+	}
+	/* A.ROOT-SERVERS.NET. */
+	if (inet_aton("198.41.0.4", &saddr) && !ast_ouraddrfor(&saddr, ourip))
+		return 0;
+	return -1;
+}
+
