@@ -145,7 +145,9 @@ static struct sip_pvt {
 	int canreinvite;					/* Do we support reinvite */
 	int progress;						/* Have sent 183 message progress */
 	int tag;							/* Another random number */
+	int nat;							/* Whether to try to support NAT */
 	struct sockaddr_in sa;				/* Our peer */
+	struct sockaddr_in recv;			/* Received as */
 	struct in_addr ourip;				/* Our IP */
 	struct ast_channel *owner;			/* Who owns us */
 	char exten[AST_MAX_EXTENSION];		/* Extention where to start */
@@ -193,6 +195,7 @@ struct sip_user {
 	char callerid[80];
 	char methods[80];
 	char accountcode[80];
+	int nat;
 	int hascallerid;
 	int amaflags;
 	int insecure;
@@ -215,6 +218,7 @@ struct sip_peer {
 	int expirey;
 	int capability;
 	int insecure;
+	int nat;
 	int canreinvite;
 	struct sockaddr_in addr;
 	struct in_addr mask;
@@ -290,7 +294,10 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req);
 static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
 	int res;
-    res=sendto(sipsock, data, len, 0, (struct sockaddr *)&p->sa, sizeof(struct sockaddr_in));
+	if (p->nat)
+	    res=sendto(sipsock, data, len, 0, (struct sockaddr *)&p->recv, sizeof(struct sockaddr_in));
+	else
+	    res=sendto(sipsock, data, len, 0, (struct sockaddr *)&p->sa, sizeof(struct sockaddr_in));
 	if (res != len) {
 		ast_log(LOG_WARNING, "sip_xmit of %p (len %d) to %s returned %d: %s\n", data, len, inet_ntoa(p->sa.sin_addr), res, strerror(errno));
 	}
@@ -300,8 +307,12 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 static int send_response(struct sip_pvt *p, struct sip_request *req)
 {
 	int res;
-	if (sipdebug)
-		ast_verbose("Transmitting:\n%s\n to %s:%d\n", req->data, inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
+	if (sipdebug) {
+		if (p->nat)
+			ast_verbose("Transmitting (NAT):\n%s\n to %s:%d\n", req->data, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
+		else
+			ast_verbose("Transmitting (no NAT):\n%s\n to %s:%d\n", req->data, inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
+	}
 	res = __sip_xmit(p, req->data, req->len);
 	if (res > 0)
 		res = 0;
@@ -311,8 +322,12 @@ static int send_response(struct sip_pvt *p, struct sip_request *req)
 static int send_request(struct sip_pvt *p, struct sip_request *req)
 {
 	int res;
-	if (sipdebug)
-		ast_verbose("XXX Need to handle Retransmitting XXX:\n%s to %s:%d\n", req->data, inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
+	if (sipdebug) {
+		if (p->nat)
+			ast_verbose("XXX Need to handle Retransmitting XXX:\n%s (NAT) to %s:%d\n", req->data, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
+		else
+			ast_verbose("XXX Need to handle Retransmitting XXX:\n%s (no NAT) to %s:%d\n", req->data, inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
+	}
 	res = __sip_xmit(p, req->data, req->len);
 	return res;
 }
@@ -378,6 +393,7 @@ static int create_addr(struct sip_pvt *r, char *peer)
 					r->sa.sin_addr = p->defaddr.sin_addr;
 					r->sa.sin_port = p->defaddr.sin_port;
 				}
+				memcpy(&r->recv, &r->sa, sizeof(r->recv));
 				break;
 			}
 		}
@@ -389,6 +405,7 @@ static int create_addr(struct sip_pvt *r, char *peer)
 		if (hp) {
 			memcpy(&r->sa.sin_addr, hp->h_addr, sizeof(r->sa.sin_addr));
 			r->sa.sin_port = htons(DEFAULT_SIP_PORT);
+			memcpy(&r->recv, &r->sa, sizeof(r->recv));
 			return 0;
 		} else {
 			ast_log(LOG_WARNING, "No such host: %s\n", peer);
@@ -1451,6 +1468,7 @@ static int copy_header(struct sip_request *req, struct sip_request *orig, char *
 	return -1;
 }
 
+#if 0
 static int copy_all_header(struct sip_request *req, struct sip_request *orig, char *field)
 {
 	char *tmp;
@@ -1461,6 +1479,36 @@ static int copy_all_header(struct sip_request *req, struct sip_request *orig, ch
 		if (strlen(tmp)) {
 			/* Add what we're responding to */
 			add_header(req, field, tmp);
+			copied++;
+		} else
+			break;
+	}
+	if (!copied) {
+		ast_log(LOG_NOTICE, "No field '%s' present to copy\n", field);
+		return -1;
+	}
+	return 0;
+}
+#endif
+static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct sip_request *orig, char *field)
+{
+	char *tmp;
+	int start = 0;
+	int copied = 0;
+	char new[256];
+	for (;;) {
+		tmp = __get_header(orig, field, &start);
+		if (strlen(tmp)) {
+			if (!copied) {
+				if (ntohs(p->recv.sin_port) != DEFAULT_SIP_PORT)
+					snprintf(new, sizeof(new), "%s;received=%s:%d", tmp, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
+				else
+					snprintf(new, sizeof(new), "%s;received=%s", tmp, inet_ntoa(p->recv.sin_addr));
+				add_header(req, field, new);
+			} else {
+				/* Add what we're responding to */
+				add_header(req, field, tmp);
+			}
 			copied++;
 		} else
 			break;
@@ -1511,7 +1559,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	char newto[256] = "", *ot;
 	memset(resp, 0, sizeof(*resp));
 	init_resp(resp, msg, req);
-	copy_all_header(resp, req, "Via");
+	copy_via_headers(p, resp, req, "Via");
 	copy_header(resp, req, "From");
 	ot = get_header(req, "To");
 	if (!strstr(ot, "tag=")) {
@@ -2035,6 +2083,16 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		if (n) 
 			*n = '\0';
 	}
+	if (!strcasecmp(c, "*")) {
+		/* This means remove all registrations and return OK */
+		memset(&p->addr, 0, sizeof(p->addr));
+		if (p->expire > -1)
+			ast_sched_del(sched, p->expire);
+		p->expire = -1;
+		if (option_verbose > 2)
+			ast_verbose(VERBOSE_PREFIX_3 "Unegistered SIP '%s'\n", p->username);
+		return 0;
+	}
 	/* Make sure it's a SIP URL */
 	if (strncasecmp(c, "sip:", 4)) {
 		ast_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", c);
@@ -2108,7 +2166,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 	/* Always OK if no secret */
 	if (!strlen(secret))
 		return 0;
-	if (!strlen(randdata)) {
+	if (!strlen(randdata) || !strlen(get_header(req, "Proxy-Authorization"))) {
 		snprintf(randdata, randlen, "%08x", rand());
 		transmit_response_with_auth(p, "407 Proxy Authentication Required", req, randdata);
 		res = 1;
@@ -2215,6 +2273,8 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	peer = peerl.peers;
 	while(peer) {
 		if (!strcasecmp(peer->name, name) && peer->dynamic) {
+			p->nat = peer->nat;
+			transmit_response(p, "100 Trying", req);
 			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, "REGISTER", uri))) {
 				if (parse_contact(p, peer, req)) {
 					ast_log(LOG_WARNING, "Failed to parse contact info\n");
@@ -2412,10 +2472,14 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 		}
 		memset(&p->sa, 0, sizeof(p->sa));
 		p->sa.sin_family = AF_INET;
-		p->sa.sin_port = htons(pt ? atoi(pt) : DEFAULT_SIP_PORT);
 		memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
-		if (sipdebug)
-			ast_verbose("Sending to %s : %d\n", inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
+		p->sa.sin_port = htons(pt ? atoi(pt) : DEFAULT_SIP_PORT);
+		if (sipdebug) {
+			if (p->nat)
+				ast_verbose("Sending to %s : %d (NAT)\n", inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
+			else
+				ast_verbose("Sending to %s : %d (non-NAT)\n", inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));
+		}
 	}
 	return 0;
 }
@@ -2450,6 +2514,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 	user = userl.users;
 	while(user) {
 		if (!strcasecmp(user->name, of)) {
+			p->nat = user->nat;
 			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, cmd, uri))) {
 				strncpy(p->context, user->context, sizeof(p->context) - 1);
 				if (strlen(user->callerid) && strlen(p->callerid)) 
@@ -3331,7 +3396,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ast_verbose("Using latest request as basis request\n");
 		copy_request(&p->initreq, req);
 		check_via(p, req);
-		transmit_response(p, "100 Trying", req);
 		if ((res = register_verify(p, sin, req, e)) < 0) 
 			ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s'\n", get_header(req, "To"), inet_ntoa(sin->sin_addr));
 		if (res < 1) {
@@ -3390,6 +3454,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	ast_pthread_mutex_lock(&netlock);
 	p = find_call(&req, &sin);
 	if (p) {
+		memcpy(&p->recv, &sin, sizeof(p->recv));
 		handle_request(p, &req, &sin);
 	}
 	ast_pthread_mutex_unlock(&netlock);
@@ -3573,6 +3638,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 		return -1;
 	}
 	memcpy(&p->sa, &peer->addr, sizeof(p->sa));
+	memcpy(&p->recv, &peer->addr, sizeof(p->sa));
 
 	/* Recalculate our side, and recalculate Call ID */
 	memcpy(&p->ourip, myaddrfor(&p->sa.sin_addr), sizeof(p->ourip));
@@ -3674,6 +3740,8 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 				strncpy(user->secret, v->value, sizeof(user->secret)-1);
 			} else if (!strcasecmp(v->name, "canreinvite")) {
 				user->canreinvite = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "nat")) {
+				user->nat = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "callerid")) {
 				strncpy(user->callerid, v->value, sizeof(user->callerid)-1);
 				user->hascallerid=1;
@@ -3750,6 +3818,8 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 				strncpy(peer->methods, v->value, sizeof(peer->methods)-1);
 			else if (!strcasecmp(v->name, "canreinvite")) 
 				peer->canreinvite = ast_true(v->value);
+			else if (!strcasecmp(v->name, "nat")) 
+				peer->nat = ast_true(v->value);
 			else if (!strcasecmp(v->name, "context"))
 				strncpy(peer->context, v->value, sizeof(peer->context)-1);
 			else if (!strcasecmp(v->name, "host")) {
@@ -3833,7 +3903,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 	return peer;
 }
 
-static int reload_config()
+static int reload_config(void)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;

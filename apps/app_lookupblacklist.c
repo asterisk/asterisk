@@ -38,7 +38,8 @@ static char *descrip =
   "where 'n' is the priority of the current instance, then  the\n"
   "channel  will  be  setup  to continue at that priority level.\n"
   "Otherwise, it returns 0.  Does nothing if no Caller*ID was received on the\n"
-  "channel.\n";
+  "channel.\n"
+  "Example: database put blacklist <name/number> 1\n";
 
 STANDARD_LOCAL_USER;
 
@@ -47,66 +48,67 @@ LOCAL_USER_DECL;
 static int
 lookupblacklist_exec (struct ast_channel *chan, void *data)
 {
-  char old_cid[144] = "", *num, *name;
-  char blacklist[1];
-  char shrunknum[64] = "";
-  struct localuser *u;
-  int bl = 0;
+	char old_cid[144] = "", *num, *name;
+	char blacklist[1];
+	char shrunknum[64] = "";
+	struct localuser *u;
+	int bl = 0;
 
-  LOCAL_USER_ADD (u);
-  if (chan->callerid)
-    {
-      strncpy (old_cid, chan->callerid, sizeof (old_cid) - 1);
-      ast_callerid_parse (old_cid, &name, &num);        /* this destroys the original string */
-      if (num)			/* It's possible to get an empty number */
-	strncpy (shrunknum, num, sizeof (shrunknum) - 1);
-      else
-	num = shrunknum;
-      ast_shrink_phone_number (shrunknum);
-      if (!ast_db_get ("blacklist", shrunknum, blacklist, sizeof (blacklist)))
+	LOCAL_USER_ADD (u);
+	if (chan->callerid)
 	{
-	  if (option_verbose > 2)
-	    ast_verbose (VERBOSE_PREFIX_3 "Blacklisted number %s found\n",shrunknum);
-          bl = 1;
+		strncpy (old_cid, chan->callerid, sizeof (old_cid) - 1);
+		ast_callerid_parse (old_cid, &name, &num);
+		if (num)
+			strncpy (shrunknum, num, sizeof (shrunknum) - 1);
+		else
+			num = shrunknum;
+		
+		ast_shrink_phone_number (shrunknum);
+		if (!ast_db_get ("blacklist", shrunknum, blacklist, sizeof (blacklist)))
+		{
+			if (option_verbose > 2)
+				ast_verbose (VERBOSE_PREFIX_3 "Blacklisted number %s found\n",shrunknum);
+			bl = 1;
+		}
+		else if (!ast_db_get ("blacklist", name, blacklist, sizeof (blacklist)))
+		{
+			if (option_verbose > 2)
+				ast_verbose (VERBOSE_PREFIX_3 "Blacklisted name \"%s\" found\n",name);
+			bl = 1;
+		}
 	}
-
-    }
-  if (bl && ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
-       chan->priority+=100;
-  LOCAL_USER_REMOVE (u);
-  return 0;
+	
+	if (bl && ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
+		chan->priority+=100;
+	LOCAL_USER_REMOVE (u);
+	return 0;
 }
 
-int
-unload_module (void)
+int unload_module (void)
 {
-  STANDARD_HANGUP_LOCALUSERS;
-  return ast_unregister_application (app);
+	STANDARD_HANGUP_LOCALUSERS;
+	return ast_unregister_application (app);
 }
 
-int
-load_module (void)
+int load_module (void)
 {
-  return ast_register_application (app, lookupblacklist_exec, synopsis,
-				   descrip);
+	return ast_register_application (app, lookupblacklist_exec, synopsis,descrip);
 }
 
-char *
-description (void)
+char *description (void)
 {
-  return tdesc;
+	return tdesc;
 }
 
-int
-usecount (void)
+int usecount (void)
 {
-  int res;
-  STANDARD_USECOUNT (res);
-  return res;
+	int res;
+	STANDARD_USECOUNT (res);
+	return res;
 }
 
-char *
-key ()
+char *key ()
 {
-  return ASTERISK_GPL_KEY;
+	return ASTERISK_GPL_KEY;
 }

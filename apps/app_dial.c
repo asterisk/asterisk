@@ -120,7 +120,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 	int ringind=0;
 	struct ast_channel *winner;
 	
-	single = (outgoing && !outgoing->next);
+	single = (outgoing && !outgoing->next && !outgoing->musiconhold && !outgoing->ringbackonly);
 	
 	if (single) {
 		/* If we are calling a single channel, make them compatible for in-band tone purpose */

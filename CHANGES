@@ -1,3 +1,4 @@
+ -- Add "NAT" option to sip user, peer, friend
  -- Add experimental "IAX2" protocol
  -- Add "Enhanced" AGI with audio pass-through (voice recognition anyone?)
  -- Choose best priority from codec from allow/disallow

@@ -564,9 +564,10 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 							get_date(date, sizeof(date));
 							time(&start);
 							fprintf(txt, 
-"#\n"
-"# Message Information file\n"
-"#\n"
+";\n"
+"; Message Information file\n"
+";\n"
+"[message]\n"
 "origmailbox=%s\n"
 "context=%s\n"
 "exten=%s\n"
@@ -992,6 +993,11 @@ static int adsi_load_vmail(struct ast_channel *chan, int *useadsi)
 static void adsi_begin(struct ast_channel *chan, int *useadsi)
 {
 	int x;
+	if(!strcasecmp(chan->type, "sip")){
+	  *useadsi = 0;
+          return;
+        }
+
 	x = adsi_load_session(chan, adapp, adver, 1);
 	if (x < 0)
 		return;
@@ -1303,6 +1309,9 @@ static void adsi_goodbye(struct ast_channel *chan)
 {
 	char buf[256];
 	int bytes=0;
+	if(!strcasecmp(chan->type, "sip")){
+          return;
+        }
 	if (!adsi_available(chan))
 		return;
 	bytes += adsi_logo(buf + bytes);
@@ -1345,13 +1354,19 @@ static int get_folder(struct ast_channel *chan, int start)
 }
 
 static int
-forward_message(struct ast_channel *chan, struct ast_config *cfg, char *dir, int curmsg)
+forward_message(struct ast_channel *chan, struct ast_config *cfg, char *dir, int curmsg, char* myusername)
 {
 	char username[70];
 	char sys[256];
 	char todir[256];
 	int todircount=0;
-
+	struct ast_config *mif;
+	char miffile[256];
+	char *copy, *name, *passwd, *email;
+	char *mycopy, *myname, *mypasswd, *myemail;
+	char fn[256];
+	char callerid[512];
+	
 	while(1) {
 		ast_streamfile(chan, "vm-extension", chan->language);
 
@@ -1359,8 +1374,9 @@ forward_message(struct ast_channel *chan, struct ast_config *cfg, char *dir, int
 			return 0;
 		if (ast_variable_retrieve(cfg, NULL, username)) {
 			printf("Got %d\n", atoi(username));
-			if (play_and_wait(chan, "vm-savedto"))
+			/* if (play_and_wait(chan, "vm-savedto"))
 				break;
+			*/
 
 			snprintf(todir, sizeof(todir), "%s/%s/%s/INBOX",  (char *)ast_config_AST_SPOOL_DIR,"vm", username);
 			snprintf(sys, sizeof(sys), "mkdir -p %s\n", todir);
@@ -1373,13 +1389,69 @@ forward_message(struct ast_channel *chan, struct ast_config *cfg, char *dir, int
 			puts(sys);
 			system(sys);
 
+			/* TODO: use config to determine what other formats to copy the message in */
+			snprintf(sys, sizeof(sys), "cp %s/msg%04d.wav %s/msg%04d.wav\n", dir, curmsg, todir, todircount);
+			puts(sys);
+			system(sys);
+
+			/* copy the message information file too */
+			snprintf(sys, sizeof(sys), "cp %s/msg%04d.txt %s/msg%04d.txt\n", dir, curmsg, todir, todircount);
+			puts(sys);
+			system(sys);
+			
+			snprintf(fn, sizeof(fn), "%s/msg%04d", todir,todircount);
+
+			/* load the information on the source message so we can send an e-mail like a new message */
+			snprintf(miffile, sizeof(miffile), "%s/msg%04d.txt", dir, curmsg);
+			if ((mif=ast_load(miffile))) {
+
+			  /* send an e-mail like it was a new message if appropriate */
+			  if ((copy = ast_variable_retrieve(cfg, NULL, username))) {			  
+			    char *stringp=NULL;
+			    /* Make sure they have an entry in the config */
+			    copy = strdup(copy);
+			    stringp=copy;
+			    passwd = strsep(&stringp, ",");
+			    name = strsep(&stringp, ",");
+			    email = strsep(&stringp, ",");
+			  }
+			  
+			  if ((mycopy = ast_variable_retrieve(cfg, NULL, myusername))) {			  
+			    char *mystringp=NULL;
+			    /* Make sure they have an entry in the config */
+			    mycopy = strdup(mycopy);
+			    mystringp=mycopy;
+			    mypasswd = strsep(&mystringp, ",");
+			    myname = strsep(&mystringp, ",");
+			    myemail = strsep(&mystringp, ",");
+			  }
+
+			  if (email) {
+			    snprintf(callerid, sizeof(callerid), "FWD from: %s from %s", myname, ast_variable_retrieve(mif, NULL, "callerid"));
+			    sendmail(ast_variable_retrieve(cfg, "general", "serveremail"),
+				     email, name, todircount, username,
+				     callerid,
+				     fn,
+				     "wav",
+				     atol(ast_variable_retrieve(mif, NULL, "duration"))
+				     );
+			  }
+			  
+			  free(copy); /* no leaks here */
+			  free(mycopy); /* or here */
+			  ast_destroy(mif); /* or here */
+			}
+
+			/* give confirmatopm that the message was saved */
+			if (play_and_wait(chan, "vm-message")) break;
+			if (play_and_wait(chan, "vm-saved")) break;
+
 			break;
 		} else {
 			if ( play_and_wait(chan, "pbx-invalid"))
 				break;
 		}
 	}
-
 	return 0;
 }
 
@@ -1920,7 +1992,7 @@ cmd:
 			goto instructions;
 		case '8':
 			if(lastmsg > -1)
-				if(forward_message(chan, cfg, curdir, curmsg) < 0)
+				if(forward_message(chan, cfg, curdir, curmsg, username) < 0)
 					goto out;
 			goto instructions;
 		case '9':
