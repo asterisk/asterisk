@@ -3182,7 +3182,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 
 
 
-static struct ast_frame *__zt_exception(struct ast_channel *ast)
+static struct ast_frame *zt_exception(struct ast_channel *ast)
 {
 	struct zt_pvt *p = ast->pvt->pvt;
 	int res;
@@ -3284,16 +3284,6 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 		return f;
 	}
 	f = zt_handle_event(ast);
-	ast_mutex_unlock(&p->lock);
-	return f;
-}
-
-struct ast_frame *zt_exception(struct ast_channel *ast)
-{
-	struct zt_pvt *p = ast->pvt->pvt;
-	struct ast_frame *f;
-	ast_mutex_lock(&p->lock);
-	f = __zt_exception(ast);
 	ast_mutex_unlock(&p->lock);
 	return f;
 }
@@ -3413,7 +3403,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 				ast_mutex_unlock(&p->lock);
 				return &p->subs[index].f;
 			} else if (errno == ELAST) {
-				f = __zt_exception(ast);
+				f = zt_exception(ast);
 			} else
 				ast_log(LOG_WARNING, "zt_rec: %s\n", strerror(errno));
 		}
@@ -3422,7 +3412,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	}
 	if (res != (p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE)) {
 		ast_log(LOG_DEBUG, "Short read (%d/%d), must be an event...\n", res, p->subs[index].linear ? READ_SIZE * 2 : READ_SIZE);
-		f = __zt_exception(ast);
+		f = zt_exception(ast);
 		ast_mutex_unlock(&p->lock);
 		return f;
 	}
