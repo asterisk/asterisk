@@ -1807,10 +1807,16 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 		if ((c0->type != type) || (c1->type != type)) {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Can't masquerade, we're different...\n");
+			/* Remove from native mode */
+			p0->bridgecallno = 0;
+			p1->bridgecallno = 0;
 			return -2;
 		}
 		if (c0->nativeformats != c1->nativeformats) {
 			ast_verbose(VERBOSE_PREFIX_3 "Operating with different codecs, can't native bridge...\n");
+			/* Remove from native mode */
+			p0->bridgecallno = 0;
+			p1->bridgecallno = 0;
 			return -2;
 		}
 		/* check if transfered and if we really want native bridging */
@@ -1867,6 +1873,7 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 						*fo = f;
 						/* Take out of conference mode */
 						res = 0;
+						/* Remove from native mode */
 						break;
 					} else 
 						goto tackygoto;
@@ -1876,6 +1883,7 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 						*rc = c1;
 						*fo = f;
 						res =  0;
+						/* Remove from native mode */
 						break;
 					} else
 						goto tackygoto;
