@@ -76,6 +76,7 @@ struct ast_rtp {
 	unsigned char rawdata[8192 + AST_FRIENDLY_OFFSET];
 	unsigned int ssrc;
 	unsigned int lastts;
+	unsigned int lastdigitts;
 	unsigned int lastrxts;
 	unsigned int lastividtimestamp;
 	unsigned int lastovidtimestamp;
@@ -1014,6 +1015,7 @@ void ast_rtp_reset(struct ast_rtp *rtp)
 	memset(&rtp->txcore, 0, sizeof(rtp->txcore));
 	memset(&rtp->dtmfmute, 0, sizeof(rtp->dtmfmute));
 	rtp->lastts = 0;
+	rtp->lastdigitts = 0;
 	rtp->lastrxts = 0;
 	rtp->lastividtimestamp = 0;
 	rtp->lastovidtimestamp = 0;
@@ -1107,30 +1109,34 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	/* Get a pointer to the header */
 	rtpheader = (unsigned int *)data;
 	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (payload << 16) | (rtp->seqno++));
-	rtpheader[1] = htonl(rtp->lastts);
+	rtpheader[1] = htonl(rtp->lastdigitts);
 	rtpheader[2] = htonl(rtp->ssrc); 
 	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
 	for (x=0;x<6;x++) {
 		if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
 			res = sendto(rtp->s, (void *)rtpheader, hdrlen + 4, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
-			if (res <0) 
+			if (res < 0) 
 				ast_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
 			if(rtp_debug_test_addr(&rtp->them))
 				ast_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n"
-						, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastts,res - hdrlen);		   
+						, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);		   
 		   
 		}
+		/* Clear marker bit and increment seqno */
+		rtpheader[0] = htonl((2 << 30)  | (payload << 16) | (rtp->seqno++));
+		/* For the last three packets, set the duration and the end bit */
 		if (x == 2) {
-			/* Clear marker bit and increment seqno */
-			rtpheader[0] = htonl((2 << 30)  | (payload << 16) | (rtp->seqno++));
 			/* Make duration 800 (100ms) */
 			rtpheader[3] |= htonl((800));
 			/* Set the End bit for the last 3 */
 			rtpheader[3] |= htonl((1 << 23));
-		} else if ( x < 5) {
-			rtpheader[0] = htonl((2 << 30) | (payload << 16) | (rtp->seqno++));
 		}
 	}
+	/* Increment the digit timestamp by 100ms, to ensure that digits
+	   sent sequentially with no intervening non-digit packets do not
+	   get sent with the same timestamp.
+	*/
+	rtp->lastdigitts += 800;
 	return 0;
 }
 
@@ -1256,6 +1262,12 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 			}
 		}
 	}
+	/* If the timestamp for non-digit packets has moved beyond the timestamp
+	   for digits, update the digit timestamp.
+	*/
+	if (rtp->lastts > rtp->lastdigitts)
+		rtp->lastdigitts = rtp->lastts;
+
 	/* Get a pointer to the header */
 	rtpheader = (unsigned char *)(f->data - hdrlen);
 

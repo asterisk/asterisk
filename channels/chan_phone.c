@@ -559,7 +559,7 @@ static int phone_write_buf(struct phone_pvt *p, const char *buf, int len, int fr
 	if (space < len)
 		len = space;
 	if (swap)
-		ast_memcpy_byteswap(p->obuf+p->obuflen, buf, len/2);
+		ast_swapcopy_samples(p->obuf+p->obuflen, buf, len/2);
 	else
 		memcpy(p->obuf + p->obuflen, buf, len);
 	p->obuflen += len;

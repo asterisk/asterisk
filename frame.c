@@ -402,11 +402,11 @@ int ast_fr_fdhangup(int fd)
 	return ast_fr_fdwrite(fd, &hangup);
 }
 
-void ast_swapcopy_samples(void *dst, void *src, int samples)
+void ast_swapcopy_samples(void *dst, const void *src, int samples)
 {
 	int i;
 	unsigned short *dst_s = dst;
-	unsigned short *src_s = src;
+	const unsigned short *src_s = src;
 
 	for (i=0; i<samples; i++)
 		dst_s[i] = (src_s[i]<<8) | (src_s[i]>>8);

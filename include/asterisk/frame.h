@@ -301,7 +301,7 @@ int ast_fr_fdwrite(int fd, struct ast_frame *frame);
  */
 int ast_fr_fdhangup(int fd);
 
-void ast_swapcopy_samples(void *dst, void *src, int samples);
+void ast_swapcopy_samples(void *dst, const void *src, int samples);
 
 /* Helpers for byteswapping native samples to/from 
    little-endian and big-endian. */
