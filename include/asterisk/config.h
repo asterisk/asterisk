@@ -21,8 +21,8 @@ extern "C" {
 struct ast_config;
 
 struct ast_comment {
-	char *comment;
 	struct ast_comment *next;
+	char cmt[0];
 };
 
 struct ast_variable {

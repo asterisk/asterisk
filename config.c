@@ -66,7 +66,6 @@ static void free_comments(struct ast_comment *com)
 	while (com) {
 		l = com;
 		com = com->next;
-		free(l->comment);
 		free(l);
 	}
 }
@@ -280,7 +279,7 @@ int ast_category_delete(struct ast_config *cfg, char *category)
 
 struct ast_variable *ast_variable_append_modify(struct ast_config *config, char *category, char *variable, char *value, int newcat, int newvar, int move)
 {
-	struct ast_variable *v, *pv, *bv, *bpv;
+	struct ast_variable *v, *pv=NULL, *bv, *bpv;
 	struct ast_category *cat, *pcat;
 	cat = config->root;
 	if (!newcat) {
@@ -397,10 +396,13 @@ int ast_category_exist(struct ast_config *config, char *category_name)
 static struct ast_comment *build_comment(char *cmt)
 {
 	struct ast_comment *c;
-	c = malloc(sizeof(struct ast_comment));
+	int len = strlen(cmt) + 1;
+	c = malloc(sizeof(struct ast_comment) + len);
 	if (c) {
+		/* Memset the header */
 		memset(c, 0, sizeof(struct ast_comment));
-		c->comment = strdup(cmt);
+		/* Copy the rest */
+		strcpy(c->cmt, cmt);
 	}
 	return c;
 }
@@ -557,7 +559,7 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 static void dump_comments(FILE *f, struct ast_comment *comment)
 {
 	while (comment) {
-		fprintf(f, ";%s", comment->comment);
+		fprintf(f, ";%s", comment->cmt);
 		comment = comment->next;
 	}
 }
@@ -593,14 +595,14 @@ int ast_save(char *configfile, struct ast_config *cfg, char *generator)
 			dump_comments(f, cat->precomments);
 			/* Dump section with any appropriate comment */
 			if (cat->sameline) 
-				fprintf(f, "[%s]  ; %s\n", cat->name, cat->sameline->comment);
+				fprintf(f, "[%s]  ; %s\n", cat->name, cat->sameline->cmt);
 			else
 				fprintf(f, "[%s]\n", cat->name);
 			var = cat->root;
 			while(var) {
 				dump_comments(f, var->precomments);
 				if (var->sameline) 
-					fprintf(f, "%s %s %s  ; %s\n", var->name, (var->object ? "=>" : "="), var->value, var->sameline->comment);
+					fprintf(f, "%s %s %s  ; %s\n", var->name, (var->object ? "=>" : "="), var->value, var->sameline->cmt);
 				else	
 					fprintf(f, "%s %s %s\n", var->name, (var->object ? "=>" : "="), var->value);
 				if (var->blanklines) {
