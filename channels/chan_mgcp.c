@@ -361,7 +361,7 @@ struct mgcp_endpoint {
 	ast_mutex_t lock;
 	char name[80];
 	struct mgcp_subchannel *sub;		/* pointer to our current connection, channel and stuff */
-	char accountcode[80];
+	char accountcode[20];
 	char exten[AST_MAX_EXTENSION];		/* Extention where to start */
 	char context[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
@@ -3698,15 +3698,16 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 						strncpy(e->name, v->value, sizeof(e->name) - 1);
 						e->needaudit = 1;
 					}
-					strncpy(gw->wcardep, v->value, sizeof(gw->wcardep)-1);
+					strncpy(gw->wcardep, v->value, sizeof(gw->wcardep) - 1);
 					/*strncpy(e->name, "aaln/" "*", sizeof(e->name) - 1);*/
 					/* XXX Should we really check for uniqueness?? XXX */
+					strncpy(e->accountcode, accountcode, sizeof(e->accountcode) - 1);
 					strncpy(e->context, context, sizeof(e->context) - 1);
 					strncpy(e->cid_num, cid_num, sizeof(e->cid_num) - 1);
 					strncpy(e->cid_name, cid_name, sizeof(e->cid_name) - 1);
 					strncpy(e->language, language, sizeof(e->language) - 1);
-					strncpy(e->musicclass, musicclass, sizeof(e->musicclass)-1);
-					strncpy(e->mailbox, mailbox, sizeof(e->mailbox)-1);
+					strncpy(e->musicclass, musicclass, sizeof(e->musicclass) - 1);
+					strncpy(e->mailbox, mailbox, sizeof(e->mailbox) - 1);
 					snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08x", rand());
 					e->msgstate = -1;
 					e->capability = capability;
@@ -3796,11 +3797,12 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 						e->needaudit = 1;
 					}
 					/* XXX Should we really check for uniqueness?? XXX */
+					strncpy(e->accountcode, accountcode, sizeof(e->accountcode) - 1);
 					strncpy(e->context, context, sizeof(e->context) - 1);
 					strncpy(e->cid_num, cid_num, sizeof(e->cid_num) - 1);
 					strncpy(e->cid_name, cid_name, sizeof(e->cid_name) - 1);
 					strncpy(e->language, language, sizeof(e->language) - 1);
-					strncpy(e->musicclass, musicclass, sizeof(e->musicclass)-1);
+					strncpy(e->musicclass, musicclass, sizeof(e->musicclass) - 1);
 					strncpy(e->mailbox, mailbox, sizeof(e->mailbox)-1);
 					if (strlen(mailbox)) {
 						ast_verbose(VERBOSE_PREFIX_3 "Setting mailbox '%s' on %s@%s\n", mailbox, gw->name, e->name);
