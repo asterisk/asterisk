@@ -25,3 +25,10 @@ extension=s
 ; but your mileage may vary.  Use the echo test to evaluate the best setting.
 ;silencesuppression = yes
 ;silencethreshold = 1000
+;
+; On half-duplex cards, the driver attempts to switch back and forth between
+; read and write modes.  Unfortunately, this fails sometimes on older hardware.
+; To prevent the driver from switching (ie. only play files on your speakers),
+; then set the playbackonly option to yes.  Default is no.  Note this option has
+; no effect on full-duplex cards.
+;playbackonly=no

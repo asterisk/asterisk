@@ -70,6 +70,7 @@ static struct timeval lasttime;
 static int usecnt;
 static int silencesuppression = 0;
 static int silencethreshold = 1000;
+static int playbackonly = 0;
 
 
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
@@ -565,9 +566,11 @@ static int oss_write(struct ast_channel *chan, struct ast_frame *f)
 		return 0;
 	/* Stop any currently playing sound */
 	cursound = -1;
-	if (!full_duplex) {
+	if (!full_duplex && !playbackonly) {
 		/* If we're half duplex, we have to switch to read mode
-		   to honor immediate needs if necessary */
+		   to honor immediate needs if necessary.  But if we are in play
+		   back only mode, then we don't switch because the console
+		   is only being used one way -- just to playback something. */
 		res = soundcard_setinput(1);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to set device to input mode\n");
@@ -1038,6 +1041,8 @@ int load_module()
 				strncpy(language, v->value, sizeof(language)-1);
 			else if (!strcasecmp(v->name, "extension"))
 				strncpy(exten, v->value, sizeof(exten)-1);
+			else if (!strcasecmp(v->name, "playbackonly"))
+				playbackonly = ast_true(v->value);
 			v=v->next;
 		}
 		ast_destroy(cfg);
