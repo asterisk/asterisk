@@ -24,8 +24,6 @@ static int abr = 0;
 static int abr_quality = 0;
 static int dtx = 0;
 
-
-
 #define TYPE_SILENCE	 0x2
 #define TYPE_HIGH	 0x0
 #define TYPE_LOW	 0x1
@@ -87,19 +85,18 @@ static struct ast_translator_pvt *lintospeex_new(void)
 			speex_encoder_ctl(tmp->speex, SPEEX_SET_QUALITY, &quality);
 			speex_encoder_ctl(tmp->speex, SPEEX_SET_COMPLEXITY, &complexity);
 
-			if(vad)
+			if (vad)
 				speex_encoder_ctl(tmp->speex, SPEEX_SET_VAD, &vad);
-			if(dtx)
+			if (dtx)
 				speex_encoder_ctl(tmp->speex, SPEEX_SET_DTX, &vad);
-			if(vbr) {
+			if (vbr) {
 				speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR, &vbr);
 				speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR_QUALITY, &vbr_quality);
 			}
-			if(abr) {
+			if (abr) {
 				speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR, &abr);
 				speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR_QUALITY, &abr_quality);
 			}
-
 			tmp->tail = 0;
 		}
 		localusecnt++;
@@ -118,7 +115,7 @@ static struct ast_translator_pvt *speextolin_new(void)
 		} else {
 			speex_bits_init(&tmp->bits);
 			speex_decoder_ctl(tmp->speex, SPEEX_GET_FRAME_SIZE, &tmp->framesize);
-			if(enhancement)
+			if (enhancement)
 				speex_decoder_ctl(tmp->speex, SPEEX_SET_ENH, &enhancement);
 			tmp->tail = 0;
 		}
@@ -305,51 +302,55 @@ static struct ast_translator lintospeex =
 	};
 
 
-static void parse_config(void) {
+static void parse_config(void) 
+{
 	struct ast_config *cfg;
 	struct ast_variable *var;
 	int res;
+
 	if ((cfg = ast_load("codecs.conf"))) {
 		if ((var = ast_variable_browse(cfg, "speex"))) {
 			while (var) {
 				if (!strcasecmp(var->name, "quality")) {
 					res = abs(atoi(var->value));
-					if(res > -1 && res < 11) {
+					if (res > -1 && res < 11) {
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting Quality to %d\n",res);
 						ast_mutex_lock(&localuser_lock);
 						quality = res;
 						ast_mutex_unlock(&localuser_lock);
-					} else ast_log(LOG_ERROR,"Error Quality must be 0-10\n");
-
+					} else 
+						ast_log(LOG_ERROR,"Error Quality must be 0-10\n");
 				} else if (!strcasecmp(var->name, "complexity")) {
 					res = abs(atoi(var->value));
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting Complexity to %d\n",res);
-					if(res > -1 && res < 11) {
+					if (res > -1 && res < 11) {
 						ast_mutex_lock(&localuser_lock);
 						complexity = res;
 						ast_mutex_unlock(&localuser_lock);
-					} else ast_log(LOG_ERROR,"Error! Complexity must be 0-10\n");
+					} else 
+						ast_log(LOG_ERROR,"Error! Complexity must be 0-10\n");
 				} else if (!strcasecmp(var->name, "vbr_quality")) {
 					res = abs(atoi(var->value));
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting VBR Quality to %d\n",res);
-					if(res > -1 && res < 11) {
+					if (res > -1 && res < 11) {
 						ast_mutex_lock(&localuser_lock);
 						vbr_quality = res;
 						ast_mutex_unlock(&localuser_lock);
-					} else ast_log(LOG_ERROR,"Error! VBR Quality must be 0-10\n");
+					} else 
+						ast_log(LOG_ERROR,"Error! VBR Quality must be 0-10\n");
 				} else if (!strcasecmp(var->name, "abr_quality")) {
 					res = abs(atoi(var->value));
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting ABR Quality to %d\n",res);
-					if(res > -1 && res < 11) {
+					if (res > -1 && res < 11) {
 						ast_mutex_lock(&localuser_lock);
 						abr_quality = res;
 						ast_mutex_unlock(&localuser_lock);
-					} else ast_log(LOG_ERROR,"Error! ABR Quality must be 0-10\n");
-					
+					} else 
+						ast_log(LOG_ERROR,"Error! ABR Quality must be 0-10\n");
 				} else if (!strcasecmp(var->name, "enhancement")) {
 					ast_mutex_lock(&localuser_lock);
 					enhancement = ast_true(var->value) ? 1 : 0;
@@ -387,7 +388,8 @@ static void parse_config(void) {
 	}
 }
 
-int reload(void) {
+int reload(void) 
+{
 	parse_config();
 	return 0;
 }
