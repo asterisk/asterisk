@@ -687,7 +687,7 @@ static int sip_sendtext(struct ast_channel *ast, char *text)
 
 #ifdef MYSQL_FRIENDS
 
-static void mysql_update_peer(char *peer, struct sockaddr_in *sin, char *username)
+static void mysql_update_peer(char *peer, struct sockaddr_in *sin, char *username, int expiry)
 {
 	if (mysql && (strlen(peer) < 128)) {
 		char query[512];
@@ -700,7 +700,7 @@ static void mysql_update_peer(char *peer, struct sockaddr_in *sin, char *usernam
 		mysql_real_escape_string(mysql, name, peer, strlen(peer));
 		mysql_real_escape_string(mysql, uname, username, strlen(username));
 		snprintf(query, sizeof(query), "UPDATE sipfriends SET ipaddr=\"%s\", port=\"%d\", regseconds=\"%ld\", username=\"%s\" WHERE name=\"%s\"", 
-			inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), nowtime, uname, name);
+			inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), nowtime + expiry, uname, name);
 		ast_mutex_lock(&mysqllock);
 		if (mysql_real_query(mysql, query, strlen(query))) 
 			ast_log(LOG_WARNING, "Unable to update database\n");
@@ -763,7 +763,7 @@ static struct sip_peer *mysql_peer(char *peer, struct sockaddr_in *sin)
 					}
 				}
 				time(&nowtime);
-				if ((nowtime - regseconds) > default_expiry) 
+				if (nowtime > regseconds) 
 					memset(&p->addr, 0, sizeof(p->addr));
 			}
 			mysql_free_result(result);
@@ -3503,10 +3503,6 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	if (!p->temponly)
 		p->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, p);
 	pvt->expiry = expiry;
-#ifdef MYSQL_FRIENDS
-	if (p->temponly)
-		mysql_update_peer(p->name, &p->addr, p->username);
-#endif
 	snprintf(data, sizeof(data), "%s:%d:%d:%s", inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username);
 	ast_db_put("SIP/Registry", p->name, data);
 	if (inaddrcmp(&p->addr, &oldsin)) {
@@ -3819,6 +3815,10 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 			if (parse_contact(p, peer, req)) {
 				ast_log(LOG_WARNING, "Failed to parse contact info\n");
 			} else {
+#ifdef MYSQL_FRIENDS
+				if (peer->temponly)
+					mysql_update_peer(peer->name, &peer->addr, peer->username, p->expiry);
+#endif					
 				/* Say OK and ask subsystem to retransmit msg counter */
 				transmit_response_with_date(p, "200 OK", req);
 				peer->lastmsgssent = -1;
