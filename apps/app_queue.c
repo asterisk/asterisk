@@ -153,27 +153,27 @@ LOCAL_USER_DECL;
 
 struct queue_ent {
 	struct ast_call_queue *parent;	/* What queue is our parent */
-	char moh[80];				/* Name of musiconhold to be used */
+	char moh[80];			/* Name of musiconhold to be used */
 	char announce[80];		/* Announcement to play for member when call is answered */
 	char context[80];		/* Context when user exits queue */
-	int pos;					/* Where we are in the queue */
+	int pos;			/* Where we are in the queue */
 	int last_pos_said;              /* Last position we told the user */
 	time_t last_pos;                /* Last time we told the user their position */
-	int opos;					/* Where we started in the queue */
-	int handled;				/* Whether our call was handled */
-	time_t start;				/* When we started holding */
+	int opos;			/* Where we started in the queue */
+	int handled;			/* Whether our call was handled */
+	time_t start;			/* When we started holding */
 	int queuetimeout;               /* How many seconds before timing out of queue */
 	struct ast_channel *chan;	/* Our channel */
 	struct queue_ent *next;		/* The next queue entry */
 };
 
 struct member {
-	char tech[80];				/* Technology */
-	char loc[256];				/* Location */
-	int penalty;				/* Are we a last resort? */
+	char tech[80];			/* Technology */
+	char loc[256];			/* Location */
+	int penalty;			/* Are we a last resort? */
 	int calls;
-	int dynamic;				/* Are we dynamically added? */
-	time_t lastcall;	/* When last successful call was hungup */
+	int dynamic;			/* Are we dynamically added? */
+	time_t lastcall;		/* When last successful call was hungup */
 	struct member *next;		/* Next member */
 };
 
@@ -192,6 +192,7 @@ struct ast_call_queue {
 	int servicelevel;               /* seconds setting for servicelevel*/
 	int callscompletedinsl;         /* Number of queue calls answererd with servicelevel*/
 	char monfmt[8];                 /* Format to use when recording calls */
+	int monjoin;                    /* Should we join the two files when we are done with the call */
 	char sound_next[80];            /* Sound file: "Your call is now first in line" (def. queue-youarenext) */
 	char sound_thereare[80];        /* Sound file: "There are currently" (def. queue-thereare) */
 	char sound_calls[80];           /* Sound file: "calls waiting to speak to a representative." (def. queue-callswaiting)*/
@@ -199,20 +200,20 @@ struct ast_call_queue {
 	char sound_minutes[80];         /* Sound file: "minutes." (def. queue-minutes) */
 	char sound_thanks[80];          /* Sound file: "Thank you for your patience." (def. queue-thankyou) */
 
-	int count;				/* How many entries are in the queue */
-	int maxlen;				/* Max number of entries in queue */
+	int count;			/* How many entries are in the queue */
+	int maxlen;			/* Max number of entries in queue */
 
-	int dead;				/* Whether this queue is dead or not */
-	int retry;				/* Retry calling everyone after this amount of time */
+	int dead;			/* Whether this queue is dead or not */
+	int retry;			/* Retry calling everyone after this amount of time */
 	int timeout;			/* How long to wait for an answer */
 	
 	/* Queue strategy things */
 	
-	int rrpos;				/* Round Robin - position */
+	int rrpos;			/* Round Robin - position */
 	int wrapped;			/* Round Robin - wrapped around? */
 
-	struct member *members;	/* Member channels to be tried */
-	struct queue_ent *head;	/* Start of the actual queue */
+	struct member *members;		/* Member channels to be tried */
+	struct queue_ent *head;		/* Start of the actual queue */
 	struct ast_call_queue *next;	/* Next call queue */
 };
 
@@ -905,6 +906,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	char oldcontext[AST_MAX_EXTENSION]="";
 	char queuename[256]="";
 	char *newnum;
+	char *monitorfilename;
 	struct ast_channel *peer;
 	struct localuser *lpeer;
 	int res = 0, bridge = 0;
@@ -1063,7 +1065,15 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		}
 		/* Begin Monitoring */
 		if (qe->parent->monfmt && *qe->parent->monfmt) {
-			ast_monitor_start( peer, qe->parent->monfmt, qe->chan->cdr->uniqueid, 1 );
+			monitorfilename = pbx_builtin_getvar_helper( peer, "MONITOR_FILENAME");
+			if(monitorfilename) {
+				ast_monitor_start( peer, qe->parent->monfmt, monitorfilename, 1 );
+			} else {
+				ast_monitor_start( peer, qe->parent->monfmt, qe->chan->cdr->uniqueid, 1 );
+			}
+			if(qe->parent->monjoin) {
+				ast_monitor_setjoinfiles( peer, 1);
+			}
 		}
 		/* Drop out of the queue at this point, to prepare for next caller */
 		leave_queue(qe);			
@@ -1641,6 +1651,8 @@ static void reload_queues(void)
 						strncpy(q->context, var->value, sizeof(q->context) - 1);
 					} else if (!strcasecmp(var->name, "timeout")) {
 						q->timeout = atoi(var->value);
+					} else if (!strcasecmp(var->name, "monitor-join")) {
+						q->monjoin = ast_true(var->value);
 					} else if (!strcasecmp(var->name, "monitor-format")) {
 						strncpy(q->monfmt, var->value, sizeof(q->monfmt) - 1);
 					} else if (!strcasecmp(var->name, "queue-youarenext")) {

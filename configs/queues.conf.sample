@@ -86,7 +86,14 @@
 ; To enable monitoring, simply specify "monitor-format";  it will be disabled
 ; otherwise.
 ;
+; You can specify the monitor filename with by calling SetVar(MONITOR_FILENAME=foo)
+; Otherwise it will use ${UNIQUEID}
+;
 ; monitor-format = gsm|wav|wav49
+;
+; If you wish to have the two files joined together when the call ends set this to yes
+;
+; monitor-join = yes
 ;
 ; Each member of this call queue is listed on a separate line in
 ; the form technology/dialstring.  "member" means a normal member of a
