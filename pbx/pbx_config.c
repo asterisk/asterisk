@@ -1641,7 +1641,7 @@ static int pbx_load_module(void)
 							if (start && (end = strrchr(appl, ')'))) {
 								*start = *end = '\0';
 								data = start + 1;
-								process_quotes_and_slashes(data,',','|');
+								process_quotes_and_slashes(data, ',', '|');
 							} else if (stringp!=NULL && *stringp=='"') {
 								stringp++;
 								data = strsep(&stringp, "\"");
