@@ -7988,7 +7988,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			/* We do NOT destroy p here, so that our response will be accepted */
 			return 0;
 		}
-		/* Process the SDP portion */
 		if (!ignore) {
 			/* Use this as the basis */
 			if (debug)
@@ -8000,16 +7999,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			p->pendinginvite = seqno;
 			copy_request(&p->initreq, req);
 			check_via(p, req);
-			if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
-				if (process_sdp(p, req))
-					return -1;
-			} else {
-				p->jointcapability = p->capability;
-				ast_log(LOG_DEBUG, "Hm....  No sdp for the moment\n");
-			}
-			/* Queue NULL frame to prod ast_rtp_bridge if appropriate */
-			if (p->owner)
-				ast_queue_frame(p->owner, &af);
 		} else if (debug)
 			ast_verbose("Ignoring this request\n");
 		if (!p->lastinvite && !ignore && !p->owner) {
@@ -8026,6 +8015,17 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				}
 				return 0;
 			}
+			/* Process the SDP portion */
+			if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
+				if (process_sdp(p, req))
+					return -1;
+			} else {
+				p->jointcapability = p->capability;
+				ast_log(LOG_DEBUG, "Hm....  No sdp for the moment\n");
+			}
+			/* Queue NULL frame to prod ast_rtp_bridge if appropriate */
+			if (p->owner)
+				ast_queue_frame(p->owner, &af);
 			/* Initialize the context if it hasn't been already */
 			if (ast_strlen_zero(p->context))
 				strncpy(p->context, default_context, sizeof(p->context) - 1);
