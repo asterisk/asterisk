@@ -148,7 +148,9 @@ struct ast_channel {
 	/*! Malloc'd Dialed Number Identifier */
 	char *dnid;				
 	/*! Malloc'd Caller ID */
-	char *callerid;				
+	char *callerid;
+	/*! Caller Type Of Number */
+	int callerton;
 	/*! Malloc'd ANI */
 	char *ani;			
 	/*! Malloc'd RDNIS */

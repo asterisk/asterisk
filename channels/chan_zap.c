@@ -443,6 +443,7 @@ static struct zt_pvt {
 	char language[MAX_LANGUAGE];
 	char musicclass[MAX_LANGUAGE];
 	char callerid[AST_MAX_EXTENSION];
+	int callerton;
 	char lastcallerid[AST_MAX_EXTENSION];
 	char *origcallerid;			/* malloced original callerid */
 	char callwaitcid[AST_MAX_EXTENSION];
@@ -4409,6 +4410,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 			tmp->callerid = strdup(i->callerid);
 			tmp->ani = strdup(i->callerid);
 		}
+		tmp->callerton = i->callerton;
 		tmp->restrictcid = i->restrictcid;
 		tmp->callingpres = i->callingpres;
 #ifdef ZAPATA_PRI
@@ -7236,6 +7238,8 @@ static void *pri_dchannel(void *vpri)
 							strncpy(pri->pvts[chanpos]->callerid, e->ring.callingnum, sizeof(pri->pvts[chanpos]->callerid)-1);
 					} else
 						pri->pvts[chanpos]->callerid[0] = '\0';
+					/* Caller Type Of Number - used to distinguise NANPA from International */
+					pri->pvts[chanpos]->callerton = ((e->ring.callingplan) >> 4) & 0x7;
 					strncpy(pri->pvts[chanpos]->rdnis, e->ring.redirectingnum, sizeof(pri->pvts[chanpos]->rdnis) - 1);
 					/* If immediate=yes go to s|1 */
 					if (pri->pvts[chanpos]->immediate) {
