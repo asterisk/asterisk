@@ -845,12 +845,19 @@ static int zt_digit(struct ast_channel *ast, char digit)
 	index = zt_get_index(ast, p, 0);
 	if (index == SUB_REAL) {
 #ifdef ZAPATA_PRI
-		if (p->sig == SIG_PRI && ast->_state == AST_STATE_DIALING && p->setup_ack && (p->proceeding < 2)) {
-			if (!pri_grab(p, p->pri)) {
-				pri_information(p->pri->pri,p->call,digit);
-				pri_rel(p->pri);
-			} else
-				ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+		if (p->sig == SIG_PRI && ast->_state == AST_STATE_DIALING && (p->proceeding < 2)) {
+			if (p->setup_ack) {
+				if (!pri_grab(p, p->pri)) {
+					pri_information(p->pri->pri,p->call,digit);
+					pri_rel(p->pri);
+				} else
+					ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+			} else if (strlen(p->dialdest) < sizeof(p->dialdest) - 1) {
+				ast_log(LOG_DEBUG, "Queueing digit '%c' since setup_ack not yet received\n", digit);
+				res = strlen(p->dialdest);
+				p->dialdest[res++] = digit;
+				p->dialdest[res] = '\0';
+			}
 		} else {
 #else
 		{
@@ -1658,7 +1665,8 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		ast_setstate(ast, AST_STATE_UP);
 		break;		
 	case SIG_PRI:
-		/* We'll get it in a moment */
+		/* We'll get it in a moment -- but use dialdest to store pre-setup_ack digits */
+		strcpy(p->dialdest, "");
 		break;
 	default:
 		ast_log(LOG_DEBUG, "not yet implemented\n");
@@ -7469,6 +7477,12 @@ static void *pri_dchannel(void *vpri)
 				} else {
 					ast_mutex_lock(&pri->pvts[chanpos]->lock);
 					pri->pvts[chanpos]->setup_ack = 1;
+					/* Send any queued digits */
+					for (x=0;x<strlen(pri->pvts[chanpos]->dialdest);x++) {
+						ast_log(LOG_DEBUG, "Sending pending digit '%c'\n", pri->pvts[chanpos]->dialdest[x]);
+						pri_information(pri->pri, pri->pvts[chanpos]->call, 
+							pri->pvts[chanpos]->dialdest[x]);
+					}
 					ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 				}
 				break;
