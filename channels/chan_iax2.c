@@ -51,6 +51,7 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <fcntl.h>
+#include <sys/types.h>
 #ifdef IAX_TRUNKING
 #include <sys/ioctl.h>
 #include <linux/zaptel.h>
