@@ -20,6 +20,7 @@
 #include <asterisk/config.h>
 #include <asterisk/module.h>
 #include <asterisk/lock.h>
+#include <asterisk/cli.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -45,7 +46,70 @@ static char *udesc = "Use the RealTime config handler system to update a value\n
 STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
 
-static int realtime_update_exec(struct ast_channel *chan, void *data) {
+static int cli_load_realtime(int fd, int argc, char **argv) 
+{
+	char *header_format = "%30s  %-30s\n";
+	struct ast_variable *var=NULL;
+
+	if(argc<5) {
+		ast_cli(fd, "You must supply a family name, a column to match on, and a value to match to.\n");
+		return RESULT_FAILURE;
+	}
+
+	var = ast_load_realtime(argv[2], argv[3], argv[4], NULL);
+
+	if(var) {
+		ast_cli(fd, header_format, "Column Name", "Column Value");
+		ast_cli(fd, header_format, "--------------------", "--------------------");
+		while(var) {
+			ast_cli(fd, header_format, var->name, var->value);
+			var = var->next;
+		}
+	} else {
+		ast_cli(fd, "No rows found matching search criteria.\n");
+	}
+	return RESULT_SUCCESS;
+}
+
+static int cli_update_realtime(int fd, int argc, char **argv) {
+	int res = 0;
+
+	if(argc<7) {
+		ast_cli(fd, "You must supply a family name, a column to update on, a new value, column to match, and value to to match.\n");
+		ast_cli(fd, "Ex: realtime update sipfriends name bobsphone port 4343\n will execute SQL as UPDATE sipfriends SET port = 4343 WHERE name = bobsphone\n");
+		return RESULT_FAILURE;
+	}
+
+	res = ast_update_realtime(argv[2], argv[3], argv[4], argv[5], argv[6], NULL);
+
+	if(res < 0) {
+		ast_cli(fd, "Failed to update. Check the debug log for possible SQL related entries.\n");
+		return RESULT_SUCCESS;
+	}
+
+	ast_cli(fd, "Updated RealTime record.\n");
+
+	return RESULT_SUCCESS;
+}
+
+static char cli_load_realtime_usage[] =
+"Usage: realtime load <family> <colmatch> <value>\n"
+"       Prints out a list of variables using the RealTime driver.\n";
+
+static struct ast_cli_entry cli_load_realtime_cmd = {
+        { "realtime", "load", NULL, NULL }, cli_load_realtime,
+        "Used to print out RealTime variables.", cli_load_realtime_usage, NULL };
+
+static char cli_update_realtime_usage[] =
+"Usage: realtime update <family> <colmatch> <value>\n"
+"       Update a single variable using the RealTime driver.\n";
+
+static struct ast_cli_entry cli_update_realtime_cmd = {
+        { "realtime", "update", NULL, NULL }, cli_update_realtime,
+        "Used to update RealTime variables.", cli_update_realtime_usage, NULL };
+
+static int realtime_update_exec(struct ast_channel *chan, void *data) 
+{
 	char *family=NULL, *colmatch=NULL, *value=NULL, *newcol=NULL, *newval=NULL;
 	struct localuser *u;
 	int res = 0;
@@ -133,12 +197,16 @@ static int realtime_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
+	ast_cli_unregister(&cli_load_realtime_cmd);
+	ast_cli_unregister(&cli_update_realtime_cmd);
 	ast_unregister_application(uapp);
 	return ast_unregister_application(app);
 }
 
 int load_module(void)
 {
+	ast_cli_register(&cli_load_realtime_cmd);
+	ast_cli_register(&cli_update_realtime_cmd);
 	ast_register_application(uapp, realtime_update_exec, usynopsis, udesc);
 	return ast_register_application(app, realtime_exec, synopsis, desc);
 }
