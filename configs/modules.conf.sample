@@ -24,6 +24,7 @@ noload => app_intercom.so
 ; it loads before any of the chan_modem_* 's afte rit
 ;
 load => chan_modem.so
+load => res_musiconhold.so
 ; Module names listed in "global" section will have symbols globally
 ; exported to modules loaded after them.
 ;
