@@ -6147,7 +6147,7 @@ next:
 static int pri_find_empty_chan(struct zt_pri *pri)
 {
 	int x;
-	for (x=pri->numchans;x>0;x--) {
+	for (x=pri->numchans;x>=0;x--) {
 		if (pri->pvts[x] && !pri->pvts[x]->owner)
 			return x;
 	}
@@ -6162,7 +6162,7 @@ static int pri_find_principle(struct zt_pri *pri, int channel)
 	span = PRI_SPAN(channel);
 	channel = PRI_CHANNEL(channel);
 	
-	for (x=1;x<pri->numchans;x++) {
+	for (x=0;x<pri->numchans;x++) {
 		if (pri->pvts[x] && (pri->pvts[x]->prioffset == channel) && (pri->logicalspan == span)) {
 			principle = x;
 			break;
@@ -6185,7 +6185,7 @@ static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 		(pri->pvts[principle]) && 
 		(pri->pvts[principle]->call == c))
 		return principle;
-	for (x=1;x<pri->numchans;x++) {
+	for (x=0;x<pri->numchans;x++) {
 		if (!pri->pvts[x]) continue;
 		if (pri->pvts[x]->call == c) {
 			/* Found our call */
@@ -6410,7 +6410,7 @@ static void *pri_dchannel(void *vpri)
 				   (activeidles > pri->minidle)) {
 				/* Mark something for hangup if there is something 
 				   that can be hungup */
-				for (x=pri->numchans;x>0;x--) {
+				for (x=pri->numchans;x>=0;x--) {
 					/* find a candidate channel */
 					if (pri->pvts[x] && pri->pvts[x]->owner && pri->pvts[x]->isidlecall) {
 						pri->pvts[x]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
@@ -6537,7 +6537,7 @@ static void *pri_dchannel(void *vpri)
 				} else {
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_2 "Restart on requested on entire span %d\n", pri->span);
-					for (x=1;x < pri->numchans;x++)
+					for (x=0;x < pri->numchans;x++)
 						if (pri->pvts[x]) {
 							ast_mutex_lock(&pri->pvts[x]->lock);
 							if (pri->pvts[x]->call) {
@@ -6933,7 +6933,7 @@ static void *pri_dchannel(void *vpri)
 					/* Sometime switches (e.g. I421 / British Telecom) don't give us the
 					   channel number, so we have to figure it out...  This must be why
 					   everybody resets exactly a channel at a time. */
-					for (x=1;x<pri->numchans;x++) {
+					for (x=0;x<pri->numchans;x++) {
 						if (pri->pvts[x] && pri->pvts[x]->resetting) {
 							chanpos = x;
 							ast_mutex_lock(&pri->pvts[chanpos]->lock);
