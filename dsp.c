@@ -79,11 +79,6 @@
 
 #define	MAX_DTMF_DIGITS 128
 
-/*
- * Uncomment to use old-style DSP routines 
- */
-/* #define OLD_DSP_ROUTINES */
-
 /* Basic DTMF specs:
  *
  * Minimum tone on = 40ms
