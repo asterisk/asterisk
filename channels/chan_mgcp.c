@@ -914,38 +914,38 @@ static int mgcp_hangup(struct ast_channel *ast)
 	struct mgcp_subchannel *sub = ast->pvt->pvt;
 	struct mgcp_endpoint *p = sub->parent;
 
-	if (option_debug)
+	if (option_debug) {
 		ast_log(LOG_DEBUG, "mgcp_hangup(%s)\n", ast->name);
+	}
 	if (!ast->pvt->pvt) {
 		ast_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
 		return 0;
 	}
-    if (strcmp(sub->magic, MGCP_SUBCHANNEL_MAGIC)) {
+	if (strcmp(sub->magic, MGCP_SUBCHANNEL_MAGIC)) {
 		ast_log(LOG_DEBUG, "Invalid magic. MGCP subchannel freed up already.\n");
 		return 0;
-    }
-    if (mgcpdebug) {
-        ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_hangup(%s) on %s@%s\n", ast->name, p->name, p->parent->name);
-    }
+	}
+	ast_mutex_lock(&sub->lock);
+	if (mgcpdebug) {
+		ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_hangup(%s) on %s@%s\n", ast->name, p->name, p->parent->name);
+	}
 
-	if ((p->dtmfmode & MGCP_DTMF_INBAND) && (p->dsp != NULL)){
+	if ((p->dtmfmode & MGCP_DTMF_INBAND) && p->dsp) {
         /* SC: check whether other channel is active. */
-        if (!sub->next->owner)
-        {
+        if (!sub->next->owner) {
             if (mgcpdebug) {
                 ast_verbose(VERBOSE_PREFIX_2 "MGCP free dsp on %s@%s\n", p->name, p->parent->name);
             }
             ast_dsp_free(p->dsp);
             p->dsp = NULL;
         }
-    }
-	ast_mutex_lock(&sub->lock);
+	}
 
 	sub->owner = NULL;
 	if (strlen(sub->cxident)) {
 		transmit_connection_del(sub);
-    }
-	 sub->cxident[0] = '\0';
+	}
+	sub->cxident[0] = '\0';
     if ((sub == p->sub) && sub->next->owner) {
         if (p->hookstate == MGCP_OFFHOOK) {
             if (sub->next->owner && ast_bridged_channel(sub->next->owner)) {
