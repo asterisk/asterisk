@@ -61,7 +61,7 @@ static void *autodial(void *ignore)
 	char * sendbufptr=sendbuf;
 	int fd=open(dialfile,O_RDONLY|O_NONBLOCK);
 	int flags = fcntl(fd, F_GETFL);
-	fd_set fds;
+	struct pollfd fds[1];
 	fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Entered Wil-Calu fd=%d\n",fd);
@@ -77,9 +77,9 @@ static void *autodial(void *ignore)
 		void *pass;
 
 		memset(buf,0,257);
-		FD_ZERO(&fds);
-		FD_SET(fd, &fds);
-		ast_select(fd + 1, &fds, NULL, NULL, NULL);
+		fds[0].fd = fd;
+		fds[0].events = POLLIN;
+		poll(fds, 1, -1);
 		bytes=read(fd,buf,256);
 		buf[(int)bytes]=0;
 

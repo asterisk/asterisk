@@ -305,7 +305,7 @@ static struct pbx_builtin {
 	{ "SetLanguage", pbx_builtin_setlanguage,
 "Sets user language",
 "  SetLanguage(language):  Set  the  channel  language to 'language'.  This\n"
-"information is used for the generation of numbers, and to select a natural\n"
+"information is used for the generation of numbers, and to choose a natural\n"
 "language file when available.  For example, if language is set to 'fr' and\n"
 "the file 'demo-congrats' is requested  to  be  played,  if the file 'fr/demo-\n"
 "congrats' exists, then it will play that file, and if not will play the\n"

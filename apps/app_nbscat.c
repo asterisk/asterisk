@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Silly application to play an NBScat file -- uses mpg123
+ * Silly application to play an NBScat file -- uses nbscat8k
  * 
  * Copyright (C) 1999, Mark Spencer
  *
@@ -71,11 +71,10 @@ static int NBScatplay(int fd)
 static int timed_read(int fd, void *data, int datalen)
 {
 	int res;
-	fd_set fds;
-	struct timeval tv = { 2, 0 };		/* Wait no more than 2 seconds */
-	FD_ZERO(&fds);
-	FD_SET(fd, &fds);
-	res = ast_select(fd + 1, &fds, NULL, NULL, &tv);
+	struct pollfd fds[1];
+	fds[0].fd = fd;
+	fds[0].events = POLLIN;
+	res = poll(fds, 1, 2000);
 	if (res < 1) {
 		ast_log(LOG_NOTICE, "Selected timed out/errored out with %d\n", res);
 		return -1;
@@ -129,7 +128,7 @@ static int NBScat_exec(struct ast_channel *chan, void *data)
 				res = -1;
 				break;
 			}
-			if (ms) {
+			if (ms > 40) {
 				f = ast_read(chan);
 				if (!f) {
 					ast_log(LOG_DEBUG, "Null frame == hangup() detected\n");
@@ -165,7 +164,7 @@ static int NBScat_exec(struct ast_channel *chan, void *data)
 					res = 0;
 					break;
 				}
-				ms = res / 16;
+				ms += res / 16;
 			}
 		}
 	}

@@ -594,7 +594,7 @@ int ast_softhangup_nolock(struct ast_channel *chan, int cause)
 	/* Inform channel driver that we need to be hung up, if it cares */
 	chan->_softhangup |= cause;
 	ast_queue_frame(chan, &f);
-	/* Interrupt any select call or such */
+	/* Interrupt any poll call or such */
 	if (chan->blocking)
 		pthread_kill(chan->blocker, SIGURG);
 	return res;
