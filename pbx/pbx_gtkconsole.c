@@ -41,7 +41,7 @@
 #include "../asterisk.h"
 #include "../astconf.h"
 
-static pthread_mutex_t verb_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t verb_lock = AST_MUTEX_INITIALIZER;
 
 static pthread_t console_thread;
 
@@ -125,10 +125,10 @@ static void __verboser(char *stuff, int opos, int replacelast, int complete)
 
 static void verboser(char *stuff, int opos, int replacelast, int complete) 
 {
-	ast_pthread_mutex_lock(&verb_lock);
+	ast_mutex_lock(&verb_lock);
 	/* Lock appropriately if we're really being called in verbose mode */
 	__verboser(stuff, opos, replacelast, complete);
-	ast_pthread_mutex_unlock(&verb_lock);
+	ast_mutex_unlock(&verb_lock);
 }
 
 static void cliinput(void *data, int source, GdkInputCondition ic)

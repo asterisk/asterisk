@@ -59,7 +59,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
   char varname[80];
   char *oldargs[MAX_ARGS + 1] = { NULL, };
   int argc, x;
-  int res;
+  int res=0;
   char oldexten[256]="";
   int oldpriority;
   char pc[80];

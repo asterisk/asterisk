@@ -1136,20 +1136,20 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 	/* if need DTMF, cant native bridge */
 	if (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))
 		return -2;
-	ast_pthread_mutex_lock(&c0->lock);
-	ast_pthread_mutex_lock(&c1->lock);
+	ast_mutex_lock(&c0->lock);
+	ast_mutex_lock(&c1->lock);
 	pr0 = get_proto(c0);
 	pr1 = get_proto(c1);
 	if (!pr0) {
 		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c0->name);
-		ast_pthread_mutex_unlock(&c0->lock);
-		ast_pthread_mutex_unlock(&c1->lock);
+		ast_mutex_unlock(&c0->lock);
+		ast_mutex_unlock(&c1->lock);
 		return -1;
 	}
 	if (!pr1) {
 		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c1->name);
-		ast_pthread_mutex_unlock(&c0->lock);
-		ast_pthread_mutex_unlock(&c1->lock);
+		ast_mutex_unlock(&c0->lock);
+		ast_mutex_unlock(&c1->lock);
 		return -1;
 	}
 	pvt0 = c0->pvt->pvt;
@@ -1166,8 +1166,8 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		vp1 = NULL;
 	if (!p0 || !p1) {
 		/* Somebody doesn't want to play... */
-		ast_pthread_mutex_unlock(&c0->lock);
-		ast_pthread_mutex_unlock(&c1->lock);
+		ast_mutex_unlock(&c0->lock);
+		ast_mutex_unlock(&c1->lock);
 		return -2;
 	}
 	if (pr0->set_rtp_peer(c0, p1, vp1)) 
@@ -1186,8 +1186,8 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		if (vp0)
 			ast_rtp_get_peer(p0, &vac0);
 	}
-	ast_pthread_mutex_unlock(&c0->lock);
-	ast_pthread_mutex_unlock(&c1->lock);
+	ast_mutex_unlock(&c0->lock);
+	ast_mutex_unlock(&c1->lock);
 	cs[0] = c0;
 	cs[1] = c1;
 	cs[2] = NULL;

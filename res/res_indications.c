@@ -133,7 +133,7 @@ static int handle_show_indications(int fd, int argc, char *argv[])
 	char buf[256];
 	int found_country = 0;
 
-	if (ast_pthread_mutex_lock(&tzlock)) {
+	if (ast_mutex_lock(&tzlock)) {
 		ast_log(LOG_WARNING, "Unable to lock tone_zones list\n");
 		return 0;
 	}
@@ -144,7 +144,7 @@ static int handle_show_indications(int fd, int argc, char *argv[])
 		for (tz=tone_zones; tz; tz=tz->next) {
 			ast_cli(fd,"%-7.7s %-7.7s %s\n", tz->country, tz->alias, tz->description);
 		}
-		ast_pthread_mutex_unlock(&tzlock);
+		ast_mutex_unlock(&tzlock);
 		return 0;
 	}
 	/* there was a request for specific country(ies), lets humor them */
@@ -174,7 +174,7 @@ static int handle_show_indications(int fd, int argc, char *argv[])
 	}
 	if (!found_country)
 		ast_cli(fd,"No countries matched your criteria.\n");
-	ast_pthread_mutex_unlock(&tzlock);
+	ast_mutex_unlock(&tzlock);
 	return -1;
 }
 

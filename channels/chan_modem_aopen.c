@@ -34,7 +34,7 @@ static char *breakcmd = "\0x10\0x03";
 static char *desc = "A/Open (Rockwell Chipset) ITU-2 VoiceModem Driver";
 
 static int usecnt;
-static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 static char *aopen_idents[] = {
 	/* Identify A/Open Modem */
@@ -363,17 +363,17 @@ static char *aopen_identify(struct ast_modem_pvt *p)
 
 static void aopen_incusecnt(void)
 {
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	usecnt++;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	ast_update_use_count();
 }
 
 static void aopen_decusecnt(void)
 {
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	usecnt++;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	ast_update_use_count();
 }
 
@@ -457,9 +457,9 @@ static struct ast_modem_driver aopen_driver =
 int usecount(void)
 {
 	int res;
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	res = usecnt;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	return res;
 }
 

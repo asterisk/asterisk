@@ -37,7 +37,7 @@
 #include "slin_speex_ex.h"
 #include "speex_slin_ex.h"
 
-static pthread_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
 static int localusecnt=0;
 
 static char *tdesc = "Speex/PCM16 (signed linear) Codec Translator";
@@ -275,13 +275,13 @@ static struct ast_translator lintospeex =
 int unload_module(void)
 {
 	int res;
-	ast_pthread_mutex_lock(&localuser_lock);
+	ast_mutex_lock(&localuser_lock);
 	res = ast_unregister_translator(&lintospeex);
 	if (!res)
 		res = ast_unregister_translator(&speextolin);
 	if (localusecnt)
 		res = -1;
-	ast_pthread_mutex_unlock(&localuser_lock);
+	ast_mutex_unlock(&localuser_lock);
 	return res;
 }
 

@@ -33,23 +33,23 @@
 #include "astconf.h"
 
 static struct ast_imager *list;
-static pthread_mutex_t listlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t listlock = AST_MUTEX_INITIALIZER;
 
 int ast_image_register(struct ast_imager *img)
 {
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Registered format '%s' (%s)\n", img->name, img->desc);
-	ast_pthread_mutex_lock(&listlock);
+	ast_mutex_lock(&listlock);
 	img->next = list;
 	list = img;
-	ast_pthread_mutex_unlock(&listlock);
+	ast_mutex_unlock(&listlock);
 	return 0;
 }
 
 void ast_image_unregister(struct ast_imager *img)
 {
 	struct ast_imager *i, *prev = NULL;
-	ast_pthread_mutex_lock(&listlock);
+	ast_mutex_lock(&listlock);
 	i = list;
 	while(i) {
 		if (i == img) {
@@ -62,7 +62,7 @@ void ast_image_unregister(struct ast_imager *img)
 		prev = i;
 		i = i->next;
 	}
-	ast_pthread_mutex_unlock(&listlock);
+	ast_mutex_unlock(&listlock);
 	if (i && (option_verbose > 1))
 		ast_verbose(VERBOSE_PREFIX_2 "Registered format '%s' (%s)\n", img->name, img->desc);
 }
@@ -112,7 +112,7 @@ struct ast_frame *ast_read_image(char *filename, char *preflang, int format)
 	int len=0;
 	struct ast_frame *f = NULL;
 #if 0 /* We need to have some sort of read-only lock */
-	ast_pthread_mutex_lock(&listlock);
+	ast_mutex_lock(&listlock);
 #endif	
 	i = list;
 	while(!found && i) {
@@ -152,7 +152,7 @@ struct ast_frame *ast_read_image(char *filename, char *preflang, int format)
 	} else
 		ast_log(LOG_WARNING, "Image file '%s' not found\n", filename);
 #if 0
-	ast_pthread_mutex_unlock(&listlock);
+	ast_mutex_unlock(&listlock);
 #endif	
 	return f;
 }

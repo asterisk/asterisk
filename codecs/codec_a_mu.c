@@ -27,7 +27,7 @@
 
 #define BUFFER_SIZE   8096	/* size for the translation buffers */
 
-static pthread_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
 static int localusecnt = 0;
 
 static char *tdesc = "A-law and Mulaw direct Coder/Decoder";
@@ -274,13 +274,13 @@ int
 unload_module (void)
 {
   int res;
-  ast_pthread_mutex_lock (&localuser_lock);
+  ast_mutex_lock (&localuser_lock);
   res = ast_unregister_translator (&ulawtoalaw);
   if (!res)
     res = ast_unregister_translator (&alawtoulaw);
   if (localusecnt)
     res = -1;
-  ast_pthread_mutex_unlock (&localuser_lock);
+  ast_mutex_unlock (&localuser_lock);
   return res;
 }
 

@@ -28,7 +28,7 @@
 #ifdef TRACE_FRAMES
 static int headers = 0;
 static struct ast_frame *headerlist = NULL;
-static pthread_mutex_t framelock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t framelock = AST_MUTEX_INITIALIZER;
 #endif
 
 #define SMOOTHER_SIZE 8000
@@ -154,12 +154,12 @@ static struct ast_frame *ast_frame_header_new(void)
 	if (f) {
 		headers++;
 		f->prev = NULL;
-		ast_pthread_mutex_lock(&framelock);
+		ast_mutex_lock(&framelock);
 		f->next = headerlist;
 		if (headerlist)
 			headerlist->prev = f;
 		headerlist = f;
-		pthread_mutex_unlock(&framelock);
+		ast_mutex_unlock(&framelock);
 	}
 #endif	
 	return f;
@@ -183,14 +183,14 @@ void ast_frfree(struct ast_frame *fr)
 	if (fr->mallocd & AST_MALLOCD_HDR) {
 #ifdef TRACE_FRAMES
 		headers--;
-		ast_pthread_mutex_lock(&framelock);
+		ast_mutex_lock(&framelock);
 		if (fr->next)
 			fr->next->prev = fr->prev;
 		if (fr->prev)
 			fr->prev->next = fr->next;
 		else
 			headerlist = fr->next;
-		pthread_mutex_unlock(&framelock);
+		ast_mutex_unlock(&framelock);
 #endif			
 		free(fr);
 	}
@@ -542,11 +542,11 @@ static int show_frame_stats(int fd, int argc, char *argv[])
 	ast_cli(fd, "---------------------------\n");
 	ast_cli(fd, "Total allocated headers: %d\n", headers);
 	ast_cli(fd, "Queue Dump:\n");
-	ast_pthread_mutex_lock(&framelock);
+	ast_mutex_lock(&framelock);
 	for (f=headerlist; f; f = f->next) {
 		ast_cli(fd, "%d.  Type %d, subclass %d from %s\n", x++, f->frametype, f->subclass, f->src ? f->src : "<Unknown>");
 	}
-	pthread_mutex_unlock(&framelock);
+	ast_mutex_unlock(&framelock);
 	return RESULT_SUCCESS;
 }
 

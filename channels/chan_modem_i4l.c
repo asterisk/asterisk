@@ -34,7 +34,7 @@ static char *breakcmd = "\0x10\0x14\0x10\0x3";
 static char *desc = "ISDN4Linux Emulated Modem Driver";
 
 static int usecnt;
-static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 static char *i4l_idents[] = {
 	/* Identify ISDN4Linux Driver */
@@ -476,17 +476,17 @@ static char *i4l_identify(struct ast_modem_pvt *p)
 
 static void i4l_incusecnt(void)
 {
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	usecnt++;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	ast_update_use_count();
 }
 
 static void i4l_decusecnt(void)
 {
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	usecnt++;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	ast_update_use_count();
 }
 
@@ -597,9 +597,9 @@ static struct ast_modem_driver i4l_driver =
 int usecount(void)
 {
 	int res;
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	res = usecnt;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	return res;
 }
 

@@ -71,14 +71,14 @@ static int silencesupression = 0;
 
 static const int prefformat = AST_FORMAT_ALAW | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW | AST_FORMAT_ADPCM;
 
-static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 /* Protect the interface list (of vpb_pvt's) */
-static pthread_mutex_t iflock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t iflock = AST_MUTEX_INITIALIZER;
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
-static pthread_mutex_t monlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t monlock = AST_MUTEX_INITIALIZER;
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
@@ -110,11 +110,11 @@ static struct vpb_bridge_t {
      struct ast_frame **fo;
      int flags;
      
-     pthread_mutex_t lock;
+     ast_mutex_t lock;
      pthread_cond_t cond;
 } bridges[VPB_MAX_BRIDGES]; /* Bridges...*/
 
-static pthread_mutex_t bridge_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t bridge_lock = AST_MUTEX_INITIALIZER;
 
 static struct vpb_pvt {
 
@@ -148,7 +148,7 @@ static struct vpb_pvt {
     
      int lastgrunt;
 
-     pthread_mutex_t lock;
+     ast_mutex_t lock;
 
     int stopreads; /* Stop reading...*/
      pthread_t readthread;    /* For monitoring read channel. One per owned channel. */
@@ -166,7 +166,7 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
      
      /* Bridge channels, check if we can.  I believe we always can, so find a slot.*/
      
-     ast_pthread_mutex_lock(&bridge_lock); {
+     ast_mutex_lock(&bridge_lock); {
 	  for (i = 0; i < len; i++) 
 	       if (!bridges[i].inuse)
 		    break;
@@ -180,7 +180,7 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 	       pthread_mutex_init(&bridges[i].lock, NULL);
 	       pthread_cond_init(&bridges[i].cond, NULL);
 	  } 	       
-     } ast_pthread_mutex_unlock(&bridge_lock); 
+     } ast_mutex_unlock(&bridge_lock); 
 
      if (i == len) {
 	  ast_log(LOG_WARNING, "Failed to bridge %s and %s!\n", c0->name, c1->name);
@@ -188,13 +188,13 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
      } else {
 
 	  /* Set bridge pointers. You don't want to take these locks while holding bridge lock.*/
-	  ast_pthread_mutex_lock(&p0->lock); {
+	  ast_mutex_lock(&p0->lock); {
 	       p0->bridge = &bridges[i];
-	  } ast_pthread_mutex_unlock(&p0->lock);
+	  } ast_mutex_unlock(&p0->lock);
 
-	  ast_pthread_mutex_lock(&p1->lock); {
+	  ast_mutex_lock(&p1->lock); {
 	       p1->bridge = &bridges[i];
-	  } ast_pthread_mutex_unlock(&p1->lock);
+	  } ast_mutex_unlock(&p1->lock);
 
 	  if (option_verbose > 4) 
 	       ast_verbose(VERBOSE_PREFIX_3 
@@ -213,19 +213,19 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
      vpb_bridge(p0->handle, p1->handle, VPB_BRIDGE_OFF, 0); 
 
      
-     ast_pthread_mutex_lock(&bridge_lock); {
+     ast_mutex_lock(&bridge_lock); {
 	  bridges[i].inuse = 0;
 	  pthread_mutex_destroy(&bridges[i].lock);
 	  pthread_cond_destroy(&bridges[i].cond);	
-     } ast_pthread_mutex_unlock(&bridge_lock); 
+     } ast_mutex_unlock(&bridge_lock); 
      
-     ast_pthread_mutex_lock(&p0->lock); {
+     ast_mutex_lock(&p0->lock); {
 	  p0->bridge = NULL;
-     } ast_pthread_mutex_unlock(&p0->lock);
+     } ast_mutex_unlock(&p0->lock);
      
-     ast_pthread_mutex_lock(&p1->lock); {
+     ast_mutex_lock(&p1->lock); {
 	  p1->bridge = NULL;
-     } ast_pthread_mutex_unlock(&p1->lock);
+     } ast_mutex_unlock(&p1->lock);
 
      
      if (option_verbose > 4) 
@@ -318,7 +318,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 	  ast_verbose(VERBOSE_PREFIX_3 " handle_owned: putting frame: [%d=>%d], bridge=%p\n",
 		      f.frametype, f.subclass, (void *)p->bridge);
 
-     ast_pthread_mutex_lock(&p->lock); {
+     ast_mutex_lock(&p->lock); {
 	  if (p->bridge) { /* Check what happened, see if we need to report it. */
 	       switch (f.frametype) { 
 	       case AST_FRAME_DTMF:
@@ -350,12 +350,12 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 		    if (p->bridge->rc)
 			 *p->bridge->rc = p->owner;
 		    
-		    ast_pthread_mutex_lock(&p->bridge->lock); {
+		    ast_mutex_lock(&p->bridge->lock); {
 			 pthread_cond_signal(&p->bridge->cond);
-		    } ast_pthread_mutex_unlock(&p->bridge->lock); 	       		   
+		    } ast_mutex_unlock(&p->bridge->lock); 	       		   
 	       }	  
 	  }
-     } ast_pthread_mutex_unlock(&p->lock);
+     } ast_mutex_unlock(&p->lock);
      
      if (endbridge) return 0;
      
@@ -450,8 +450,8 @@ static void *do_monitor(void *unused)
 	       goto end_loop;
 	  
 	  str[0] = 0;
-	  ast_pthread_mutex_lock(&monlock),
-	       ast_pthread_mutex_lock(&iflock); {
+	  ast_mutex_lock(&monlock),
+	       ast_mutex_lock(&iflock); {
 	       struct vpb_pvt *p = iflist; /* Find the pvt structure */	      
 		
 	       vpb_translate_event(&e, str);
@@ -480,8 +480,8 @@ static void *do_monitor(void *unused)
 		    monitor_handle_notowned(p, &e);
 	       
 	       done: (void)0;
-	  } ast_pthread_mutex_unlock(&iflock);
-	  ast_pthread_mutex_unlock(&monlock);
+	  } ast_mutex_unlock(&iflock);
+	  ast_mutex_unlock(&monlock);
 	  
      end_loop:
 	  tcounter += VPB_WAIT_TIMEOUT; /* Ok, not quite but will suffice. */
@@ -499,7 +499,7 @@ static int restart_monitor(void)
      /* If we're supposed to be stopped -- stay stopped */
      if (mthreadactive == -2)
 	  return 0;
-     ast_pthread_mutex_lock(&monlock); {
+     ast_mutex_lock(&monlock); {
 	  if (monitor_thread == pthread_self()) {
 	       ast_log(LOG_WARNING, "Cannot kill myself\n");
 	       error = -1;
@@ -531,7 +531,7 @@ static int restart_monitor(void)
 #endif
 	  }
      done: (void)0;
-     } ast_pthread_mutex_unlock(&monlock);
+     } ast_mutex_unlock(&monlock);
      
      return error;
 }
@@ -744,18 +744,18 @@ static int vpb_hangup(struct ast_channel *ast)
 
     ast_setstate(ast,AST_STATE_DOWN);
     
-    ast_pthread_mutex_lock(&p->lock); {    
+    ast_mutex_lock(&p->lock); {    
 	 p->lastinput = p->lastoutput  = -1;
 	 p->ext[0]  = 0;
 	 p->owner = NULL;
 	 p->dialtone = 0;
 	 p->calling = 0;
 	 ast->pvt->pvt = NULL; 	 
-    } ast_pthread_mutex_unlock(&p->lock);
+    } ast_mutex_unlock(&p->lock);
 	 
-    ast_pthread_mutex_lock(&usecnt_lock); {
+    ast_mutex_lock(&usecnt_lock); {
 	usecnt--;
-    } ast_pthread_mutex_unlock(&usecnt_lock);
+    } ast_mutex_unlock(&usecnt_lock);
     ast_update_use_count();
 
     /* Stop thread doing reads. */
@@ -913,7 +913,7 @@ static void *do_chanreads(void *pvt)
 	     p->lastinput = fmt;
 	 } 
 
-	 ast_pthread_mutex_lock(&p->lock); {
+	 ast_mutex_lock(&p->lock); {
 	      if (p->bridge) 
 		   if (p->bridge->c0 == p->owner && 
 		       (p->bridge->flags & AST_BRIDGE_REC_CHANNEL_0))
@@ -925,7 +925,7 @@ static void *do_chanreads(void *pvt)
 			bridgerec = 0;
 	      else
 		   bridgerec = 1;
-	 } ast_pthread_mutex_unlock(&p->lock);
+	 } ast_mutex_unlock(&p->lock);
 	 
 	 if (state == AST_STATE_UP && bridgerec) {  
              /* Read only if up and not bridged, or a bridge for which we can read. */
@@ -941,9 +941,9 @@ static void *do_chanreads(void *pvt)
 	      fr->datalen = readlen;
 	      fr->offset = AST_FRIENDLY_OFFSET;
 
-	      ast_pthread_mutex_lock(&p->lock); {    
+	      ast_mutex_lock(&p->lock); {    
 		   if (p->owner) ast_queue_frame(p->owner, fr, 0);
-	      } ast_pthread_mutex_unlock(&p->lock);
+	      } ast_mutex_unlock(&p->lock);
 	 } else 
 	      p->stopreads = 1;
 	 	 
@@ -1009,9 +1009,9 @@ static struct ast_channel *vpb_new(struct vpb_pvt *i, int state, char *context)
 		i->lastinput = i->lastoutput = -1;
 		i->lastgrunt  = tcounter; /* Assume at least one grunt tone seen now. */
 
-		ast_pthread_mutex_lock(&usecnt_lock);
+		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
-		ast_pthread_mutex_unlock(&usecnt_lock);
+		ast_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
 		if (state != AST_STATE_DOWN) 
 		     if (ast_pbx_start(tmp)) {
@@ -1047,7 +1047,7 @@ static struct ast_channel *vpb_request(char *type, int format, void *data)
      if (!s) 
 	  s = "";
      /* Search for an unowned channel */
-     ast_pthread_mutex_lock(&iflock); {
+     ast_mutex_lock(&iflock); {
 	  p = iflist;
 	  while(p) {
 	       if (strncmp(s, p->dev + 4, sizeof p->dev) == 0) 
@@ -1057,7 +1057,7 @@ static struct ast_channel *vpb_request(char *type, int format, void *data)
 		    }
 	       p = p->next;
 	  }
-     } ast_pthread_mutex_unlock(&iflock);
+     } ast_mutex_unlock(&iflock);
 
 
      if (option_verbose > 2) 
@@ -1114,7 +1114,7 @@ int load_module()
 	
 	vpb_seterrormode(VPB_DEVELOPMENT);
 	
-	ast_pthread_mutex_lock(&iflock); {
+	ast_mutex_lock(&iflock); {
 	     v = ast_variable_browse(cfg, "interfaces");
 	     while(v) {
 		  /* Create the interface list */
@@ -1176,7 +1176,7 @@ int load_module()
 		  gruntdetect_timeout = 1000;
 
 	done: (void)0;
-	} ast_pthread_mutex_unlock(&iflock);
+	} ast_mutex_unlock(&iflock);
 
 	
 	ast_destroy(cfg);
@@ -1205,7 +1205,7 @@ int unload_module()
 	/* First, take us out of the channel loop */
 	ast_channel_unregister(type);
 
-	ast_pthread_mutex_lock(&iflock); {
+	ast_mutex_lock(&iflock); {
 	     /* Hangup all interfaces if they have an owner */
 	     p = iflist;
 	     while(p) {
@@ -1214,17 +1214,17 @@ int unload_module()
 		  p = p->next;
 	     }
 	     iflist = NULL;
-	} ast_pthread_mutex_unlock(&iflock);
+	} ast_mutex_unlock(&iflock);
 
-	ast_pthread_mutex_lock(&monlock); {
+	ast_mutex_lock(&monlock); {
 	     if (mthreadactive > -1) {
 		  pthread_cancel(monitor_thread);
 		  pthread_join(monitor_thread, NULL);
 	     }
 	     mthreadactive = -2;
-	} ast_pthread_mutex_unlock(&monlock);
+	} ast_mutex_unlock(&monlock);
 
-	ast_pthread_mutex_lock(&iflock); {
+	ast_mutex_lock(&iflock); {
 		/* Destroy all the interfaces and free their memory */
 
 		while(iflist) {
@@ -1238,11 +1238,11 @@ int unload_module()
 		     free(p);
 		}
 		iflist = NULL;
-	} ast_pthread_mutex_unlock(&iflock);
+	} ast_mutex_unlock(&iflock);
 	
-	ast_pthread_mutex_lock(&bridge_lock); {
+	ast_mutex_lock(&bridge_lock); {
 	     memset(bridges, 0, sizeof bridges);	     
-	} ast_pthread_mutex_unlock(&bridge_lock);
+	} ast_mutex_unlock(&bridge_lock);
 	pthread_mutex_destroy(&bridge_lock);
 
 	tcounter = 0;
@@ -1253,9 +1253,9 @@ int unload_module()
 int usecount()
 {
 	int res;
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	res = usecnt;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	return res;
 }
 

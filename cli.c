@@ -44,7 +44,7 @@ void ast_cli(int fd, char *fmt, ...)
 	write(fd, stuff, strlen(stuff));
 }
 
-pthread_mutex_t clilock = AST_MUTEX_INITIALIZER;
+ast_mutex_t clilock = AST_MUTEX_INITIALIZER;
 
 
 struct ast_cli_entry *helpers = NULL;
@@ -155,7 +155,7 @@ static int handle_unload(int fd, int argc, char *argv[])
 #define MODLIST_FORMAT  "%-20s %-40.40s %-10d\n"
 #define MODLIST_FORMAT2 "%-20s %-40.40s %-10s\n"
 
-static pthread_mutex_t climodentrylock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t climodentrylock = AST_MUTEX_INITIALIZER;
 static int climodentryfd = -1;
 
 static int modlist_modentry(char *module, char *description, int usecnt)
@@ -263,12 +263,12 @@ static int handle_modlist(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	ast_pthread_mutex_lock(&climodentrylock);
+	ast_mutex_lock(&climodentrylock);
 	climodentryfd = fd;
 	ast_cli(fd, MODLIST_FORMAT2, "Module", "Description", "Use Count");
 	ast_update_module_list(modlist_modentry);
 	climodentryfd = -1;
-	ast_pthread_mutex_unlock(&climodentrylock);
+	ast_mutex_unlock(&climodentrylock);
 	return RESULT_SUCCESS;
 }
 
@@ -655,7 +655,7 @@ static char *find_best(char *argv[])
 int ast_cli_unregister(struct ast_cli_entry *e)
 {
 	struct ast_cli_entry *cur, *l=NULL;
-	ast_pthread_mutex_lock(&clilock);
+	ast_mutex_lock(&clilock);
 	cur = helpers;
 	while(cur) {
 		if (e == cur) {
@@ -674,7 +674,7 @@ int ast_cli_unregister(struct ast_cli_entry *e)
 		l = cur;
 		cur = cur->next;
 	}
-	ast_pthread_mutex_unlock(&clilock);
+	ast_mutex_unlock(&clilock);
 	return 0;
 }
 
@@ -683,10 +683,10 @@ int ast_cli_register(struct ast_cli_entry *e)
 	struct ast_cli_entry *cur, *l=NULL;
 	char fulle[80] ="", fulltst[80] ="";
 	static int len;
-	ast_pthread_mutex_lock(&clilock);
+	ast_mutex_lock(&clilock);
 	join2(fulle, sizeof(fulle), e->cmda);
 	if (find_cli(e->cmda, -1)) {
-		ast_pthread_mutex_unlock(&clilock);
+		ast_mutex_unlock(&clilock);
 		ast_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n", fulle);
 		return -1;
 	}
@@ -716,7 +716,7 @@ int ast_cli_register(struct ast_cli_entry *e)
 			helpers = e;
 		e->next = NULL;
 	}
-	ast_pthread_mutex_unlock(&clilock);
+	ast_mutex_unlock(&clilock);
 	return 0;
 }
 
@@ -926,7 +926,7 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 	if ((dup = parse_args(text, &x, argv))) {
 		join(matchstr, sizeof(matchstr), argv);
 		if (lock)
-			ast_pthread_mutex_lock(&clilock);
+			ast_mutex_lock(&clilock);
 		e1 = builtins;
 		e2 = helpers;
 		while(e1->cmda[0] || e2) {
@@ -959,7 +959,7 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 					}
 					if (res) {
 						if (lock)
-							ast_pthread_mutex_unlock(&clilock);
+							ast_mutex_unlock(&clilock);
 						free(dup);
 						return res ? strdup(res) : NULL;
 					}
@@ -970,13 +970,13 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 				   command can have this occur */
 				fullcmd = e->generator(text, word, (strlen(word) ? (x - 1) : (x)), state);
 				if (lock)
-					ast_pthread_mutex_unlock(&clilock);
+					ast_mutex_unlock(&clilock);
 				return fullcmd;
 			}
 			
 		}
 		if (lock)
-			ast_pthread_mutex_unlock(&clilock);
+			ast_mutex_unlock(&clilock);
 		free(dup);
 	}
 	return NULL;
@@ -997,11 +997,11 @@ int ast_cli_command(int fd, char *s)
 	if ((dup = parse_args(s, &x, argv))) {
 		/* We need at least one entry, or ignore */
 		if (x > 0) {
-			ast_pthread_mutex_lock(&clilock);
+			ast_mutex_lock(&clilock);
 			e = find_cli(argv, 0);
 			if (e)
 				e->inuse++;
-			ast_pthread_mutex_unlock(&clilock);
+			ast_mutex_unlock(&clilock);
 			if (e) {
 				switch(e->handler(fd, x, argv)) {
 				case RESULT_SHOWUSAGE:
@@ -1011,9 +1011,9 @@ int ast_cli_command(int fd, char *s)
 			} else 
 				ast_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(argv));
 			if (e) {
-				ast_pthread_mutex_lock(&clilock);
+				ast_mutex_lock(&clilock);
 				e->inuse--;
-				ast_pthread_mutex_unlock(&clilock);
+				ast_mutex_unlock(&clilock);
 			}
 		}
 		free(dup);

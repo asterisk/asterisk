@@ -22,6 +22,8 @@
 #ifndef _ASTERISK_INDICATIONS_H
 #define _ASTERISK_INDICATIONS_H
 
+#include <asterisk/lock.h>
+
 /* forward reference */
 struct ast_channel;
 
@@ -70,6 +72,6 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char* tonelist,
 void ast_playtones_stop(struct ast_channel *chan);
 
 extern struct tone_zone *tone_zones;
-extern pthread_mutex_t tzlock;
+extern ast_mutex_t tzlock;
 
 #endif

@@ -49,7 +49,7 @@ struct ast_filestream {
 };
 
 
-static pthread_mutex_t h263_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t h263_lock = AST_MUTEX_INITIALIZER;
 static int glistcnt = 0;
 
 static char *name = "h263";
@@ -71,7 +71,7 @@ static struct ast_filestream *h263_open(int fd)
 		
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
 		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_pthread_mutex_lock(&h263_lock)) {
+		if (ast_mutex_lock(&h263_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock h263 list\n");
 			free(tmp);
 			return NULL;
@@ -84,7 +84,7 @@ static struct ast_filestream *h263_open(int fd)
 		tmp->fr.src = name;
 		tmp->fr.mallocd = 0;
 		glistcnt++;
-		ast_pthread_mutex_unlock(&h263_lock);
+		ast_mutex_unlock(&h263_lock);
 		ast_update_use_count();
 	}
 	return tmp;
@@ -98,14 +98,14 @@ static struct ast_filestream *h263_rewrite(int fd, char *comment)
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
 		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (ast_pthread_mutex_lock(&h263_lock)) {
+		if (ast_mutex_lock(&h263_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock h263 list\n");
 			free(tmp);
 			return NULL;
 		}
 		tmp->fd = fd;
 		glistcnt++;
-		ast_pthread_mutex_unlock(&h263_lock);
+		ast_mutex_unlock(&h263_lock);
 		ast_update_use_count();
 	} else
 		ast_log(LOG_WARNING, "Out of memory\n");
@@ -114,12 +114,12 @@ static struct ast_filestream *h263_rewrite(int fd, char *comment)
 
 static void h263_close(struct ast_filestream *s)
 {
-	if (ast_pthread_mutex_lock(&h263_lock)) {
+	if (ast_mutex_lock(&h263_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock h263 list\n");
 		return;
 	}
 	glistcnt--;
-	ast_pthread_mutex_unlock(&h263_lock);
+	ast_mutex_unlock(&h263_lock);
 	ast_update_use_count();
 	close(s->fd);
 	free(s);
@@ -250,12 +250,12 @@ int unload_module()
 int usecount()
 {
 	int res;
-	if (ast_pthread_mutex_lock(&h263_lock)) {
+	if (ast_mutex_lock(&h263_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock h263 list\n");
 		return -1;
 	}
 	res = glistcnt;
-	ast_pthread_mutex_unlock(&h263_lock);
+	ast_mutex_unlock(&h263_lock);
 	return res;
 }
 

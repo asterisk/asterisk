@@ -31,8 +31,8 @@
 
 #define MAX_MSG_QUEUE 200
 
-static pthread_mutex_t msglist_lock = AST_MUTEX_INITIALIZER;
-static pthread_mutex_t loglock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t msglist_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t loglock = AST_MUTEX_INITIALIZER;
 
 static struct msglist {
 	char *msg;
@@ -131,7 +131,7 @@ static void init_logger_chain(void)
 	struct ast_config *cfg;
 	struct ast_variable *var;
 
-	ast_pthread_mutex_lock(&loglock);
+	ast_mutex_lock(&loglock);
 
 	/* Free anything that is here */
 	f = logfiles;
@@ -145,13 +145,13 @@ static void init_logger_chain(void)
 
 	logfiles = NULL;
 
-	ast_pthread_mutex_unlock(&loglock);
+	ast_mutex_unlock(&loglock);
 	cfg = ast_load("logger.conf");
-	ast_pthread_mutex_lock(&loglock);
+	ast_mutex_lock(&loglock);
 	
 	/* If no config file, we're fine */
 	if (!cfg) {
-		ast_pthread_mutex_unlock(&loglock);
+		ast_mutex_unlock(&loglock);
 		return;
 	}
 	var = ast_variable_browse(cfg, "logfiles");
@@ -168,7 +168,7 @@ static void init_logger_chain(void)
 		logfiles = make_logfile("ignore", "", -1);
 	}
 	ast_destroy(cfg);
-	ast_pthread_mutex_unlock(&loglock);
+	ast_mutex_unlock(&loglock);
 	
 
 }
@@ -199,13 +199,13 @@ int init_logger(void)
 int reload_logger(void)
 {
 	char tmp[AST_CONFIG_MAX_PATH];
-	ast_pthread_mutex_lock(&loglock);
+	ast_mutex_lock(&loglock);
 	if (eventlog)
 		fclose(eventlog);
 	mkdir((char *)ast_config_AST_LOG_DIR, 0755);
 	snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_LOG_DIR, EVENTLOG);
 	eventlog = fopen((char *)tmp, "a");
-	ast_pthread_mutex_unlock(&loglock);
+	ast_mutex_unlock(&loglock);
 
 	if (eventlog) {
 		init_logger_chain();
@@ -235,7 +235,7 @@ extern void ast_log(int level, const char *file, int line, const char *function,
 	if (!option_verbose && !option_debug && (!level)) {
 		return;
 	}
-	ast_pthread_mutex_lock(&loglock);
+	ast_mutex_lock(&loglock);
 	if (level == 1 /* Event */) {
 		time(&t);
 		localtime_r(&t,&tm);
@@ -285,7 +285,7 @@ extern void ast_log(int level, const char *file, int line, const char *function,
 			fflush(stdout);
 		}
 	}
-	ast_pthread_mutex_unlock(&loglock);
+	ast_mutex_unlock(&loglock);
 }
 
 extern void ast_verbose(const char *fmt, ...)
@@ -297,7 +297,7 @@ extern void ast_verbose(const char *fmt, ...)
 	struct verb *v;
 	va_list ap;
 	va_start(ap, fmt);
-	ast_pthread_mutex_lock(&msglist_lock);
+	ast_mutex_lock(&msglist_lock);
 	vsnprintf(stuff + pos, sizeof(stuff) - pos, fmt, ap);
 	opos = pos;
 	pos = strlen(stuff);
@@ -346,20 +346,20 @@ extern void ast_verbose(const char *fmt, ...)
 	else 
 		replacelast = pos = 0;
 	va_end(ap);
-	ast_pthread_mutex_unlock(&msglist_lock);
+	ast_mutex_unlock(&msglist_lock);
 }
 
 int ast_verbose_dmesg(void (*v)(const char *string, int opos, int replacelast, int complete))
 {
 	struct msglist *m;
 	m = list;
-	ast_pthread_mutex_lock(&msglist_lock);
+	ast_mutex_lock(&msglist_lock);
 	while(m) {
 		/* Send all the existing entries that we have queued (i.e. they're likely to have missed) */
 		v(m->msg, 0, 0, 1);
 		m = m->next;
 	}
-	ast_pthread_mutex_unlock(&msglist_lock);
+	ast_mutex_unlock(&msglist_lock);
 	return 0;
 }
 
@@ -370,7 +370,7 @@ int ast_register_verbose(void (*v)(const char *string, int opos, int replacelast
 	/* XXX Should be more flexible here, taking > 1 verboser XXX */
 	if ((tmp = malloc(sizeof (struct verb)))) {
 		tmp->verboser = v;
-		ast_pthread_mutex_lock(&msglist_lock);
+		ast_mutex_lock(&msglist_lock);
 		tmp->next = verboser;
 		verboser = tmp;
 		m = list;
@@ -379,7 +379,7 @@ int ast_register_verbose(void (*v)(const char *string, int opos, int replacelast
 			v(m->msg, 0, 0, 1);
 			m = m->next;
 		}
-		ast_pthread_mutex_unlock(&msglist_lock);
+		ast_mutex_unlock(&msglist_lock);
 		return 0;
 	}
 	return -1;
@@ -389,7 +389,7 @@ int ast_unregister_verbose(void (*v)(const char *string, int opos, int replacela
 {
 	int res = -1;
 	struct verb *tmp, *tmpl=NULL;
-	ast_pthread_mutex_lock(&msglist_lock);
+	ast_mutex_lock(&msglist_lock);
 	tmp = verboser;
 	while(tmp) {
 		if (tmp->verboser == v)	{
@@ -405,6 +405,6 @@ int ast_unregister_verbose(void (*v)(const char *string, int opos, int replacela
 	}
 	if (tmp)
 		res = 0;
-	ast_pthread_mutex_unlock(&msglist_lock);
+	ast_mutex_unlock(&msglist_lock);
 	return res;
 }

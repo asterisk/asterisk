@@ -71,7 +71,7 @@ static int silencethreshold = 1000;
 static char digits[80] = "";
 static char text2send[80] = "";
 
-static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 static char *type = "Console";
 static char *desc = "ALSA Console Channel Driver";
@@ -518,9 +518,9 @@ static int alsa_hangup(struct ast_channel *c)
 	c->pvt->pvt = NULL;
 	alsa.owner = NULL;
 	ast_verbose( " << Hangup on console >> \n");
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	usecnt--;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	needhangup = 0;
 	needanswer = 0;
 	if (hookstate) {
@@ -807,9 +807,9 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 			strncpy(tmp->language, language, sizeof(tmp->language)-1);
 		p->owner = tmp;
 		ast_setstate(tmp, state);
-		ast_pthread_mutex_lock(&usecnt_lock);
+		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
-		ast_pthread_mutex_unlock(&usecnt_lock);
+		ast_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
@@ -1103,9 +1103,9 @@ char *description()
 int usecount()
 {
 	int res;
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	res = usecnt;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	return res;
 }
 

@@ -91,7 +91,7 @@ struct mohdata {
 
 static struct mohclass *mohclasses;
 
-static pthread_mutex_t moh_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t moh_lock = AST_MUTEX_INITIALIZER;
 
 #define MPG_123 "/usr/bin/mpg123"
 #define MAX_MP3S 256
@@ -283,7 +283,7 @@ static void *monmp3thread(void *data)
 				ast_log(LOG_DEBUG, "Read %d bytes of audio while expecting %d\n", res2, res * 2);
 			continue;
 		}
-		ast_pthread_mutex_lock(&moh_lock);
+		ast_mutex_lock(&moh_lock);
 		moh = class->members;
 		while(moh) {
 			/* Write data */
@@ -292,7 +292,7 @@ static void *monmp3thread(void *data)
 				    ast_log(LOG_DEBUG, "Only wrote %d of %d bytes to pipe\n", res, res2);
 			moh = moh->next;
 		}
-		pthread_mutex_unlock(&moh_lock);
+		ast_mutex_unlock(&moh_lock);
 	}
 	return NULL;
 }
@@ -373,7 +373,7 @@ static void moh_release(struct ast_channel *chan, void *data)
 {
 	struct mohdata *moh = data, *prev, *cur;
 	int oldwfmt;
-	ast_pthread_mutex_lock(&moh_lock);
+	ast_mutex_lock(&moh_lock);
 	/* Unlink */
 	prev = NULL;
 	cur = moh->parent->members;
@@ -388,7 +388,7 @@ static void moh_release(struct ast_channel *chan, void *data)
 		prev = cur;
 		cur = cur->next;
 	}
-	ast_pthread_mutex_unlock(&moh_lock);
+	ast_mutex_unlock(&moh_lock);
 	close(moh->pipe[0]);
 	close(moh->pipe[1]);
 	oldwfmt = moh->origwfmt;
@@ -405,7 +405,7 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 {
 	struct mohdata *res;
 	struct mohclass *class;
-	ast_pthread_mutex_lock(&moh_lock);
+	ast_mutex_lock(&moh_lock);
 	class = get_mohbyname(params);
 	if (class)
 		res = mohalloc(class);
@@ -414,7 +414,7 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 			ast_log(LOG_WARNING, "No class: %s\n", (char *)params);
 		res = NULL;
 	}
-	ast_pthread_mutex_unlock(&moh_lock);
+	ast_mutex_unlock(&moh_lock);
 	if (res) {
 		res->origwfmt = chan->writeformat;
 		if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
@@ -478,9 +478,9 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 {
 	struct mohclass *moh;
 	int x;
-	ast_pthread_mutex_lock(&moh_lock);
+	ast_mutex_lock(&moh_lock);
 	moh = get_mohbyname(classname);
-	ast_pthread_mutex_unlock(&moh_lock);
+	ast_mutex_unlock(&moh_lock);
 	if (moh) {
 		ast_log(LOG_WARNING, "Music on Hold '%s' already exists\n", classname);
 		return -1;
@@ -523,10 +523,10 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 		free(moh);
 		return -1;
 	}
-	ast_pthread_mutex_lock(&moh_lock);
+	ast_mutex_lock(&moh_lock);
 	moh->next = mohclasses;
 	mohclasses = moh;
-	ast_pthread_mutex_unlock(&moh_lock);
+	ast_mutex_unlock(&moh_lock);
 	return 0;
 }
 
@@ -575,17 +575,17 @@ static void ast_moh_destroy(void)
 {
 	struct mohclass *moh;
 	char buff[8192];
-	int bytes, tbytes, stime = 0;
+	int bytes, tbytes=0, stime = 0;
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Destroying any remaining musiconhold processes\n");
-	ast_pthread_mutex_lock(&moh_lock);
+	ast_mutex_lock(&moh_lock);
 	moh = mohclasses;
 	while(moh) {
 		if (moh->pid) {
 			ast_log(LOG_DEBUG, "killing %d!\n", moh->pid);
 			stime = time(NULL);
 			kill(moh->pid, SIGABRT);
-			while (bytes = read(moh->srcfd, buff, 8192) && time(NULL) < stime + 5) {
+			while ((bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime + 5) {
 				tbytes = tbytes + bytes;
 			}
 			ast_log(LOG_DEBUG, "mpg123 pid %d and child died after %d bytes read\n", moh->pid, tbytes);
@@ -594,7 +594,7 @@ static void ast_moh_destroy(void)
 			}
 		moh = moh->next;
 	}
-	ast_pthread_mutex_unlock(&moh_lock);
+	ast_mutex_unlock(&moh_lock);
 }
 
 int load_module(void)

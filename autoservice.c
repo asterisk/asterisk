@@ -36,7 +36,7 @@
 
 #define MAX_AUTOMONS 256
 
-static pthread_mutex_t autolock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t autolock = AST_MUTEX_INITIALIZER;
 
 struct asent {
 	struct ast_channel *chan;
@@ -56,7 +56,7 @@ static void *autoservice_run(void *ign)
 	struct ast_frame *f;
 	for(;;) {
 		x = 0;
-		ast_pthread_mutex_lock(&autolock);
+		ast_mutex_lock(&autolock);
 		as = aslist;
 		while(as) {
 			if (!as->chan->_softhangup) {
@@ -67,7 +67,7 @@ static void *autoservice_run(void *ign)
 			}
 			as = as->next;
 		}
-		ast_pthread_mutex_unlock(&autolock);
+		ast_mutex_unlock(&autolock);
 
 /* 		if (!aslist)
 			break; */
@@ -89,7 +89,7 @@ int ast_autoservice_start(struct ast_channel *chan)
 	int res = -1;
 	struct asent *as;
 	int needstart;
-	ast_pthread_mutex_lock(&autolock);
+	ast_mutex_lock(&autolock);
 	needstart = (asthread == -1) ? 1 : 0 /* aslist ? 0 : 1 */;
 	as = aslist;
 	while(as) {
@@ -116,7 +116,7 @@ int ast_autoservice_start(struct ast_channel *chan)
 			}
 		}
 	}
-	ast_pthread_mutex_unlock(&autolock);
+	ast_mutex_unlock(&autolock);
 	return res;
 }
 
@@ -124,7 +124,7 @@ int ast_autoservice_stop(struct ast_channel *chan)
 {
 	int res = -1;
 	struct asent *as, *prev;
-	ast_pthread_mutex_lock(&autolock);
+	ast_mutex_lock(&autolock);
 	as = aslist;
 	prev = NULL;
 	while(as) {
@@ -144,7 +144,7 @@ int ast_autoservice_stop(struct ast_channel *chan)
 	}
 	if (asthread != -1) 
 		pthread_kill(asthread, SIGURG);
-	ast_pthread_mutex_unlock(&autolock);
+	ast_mutex_unlock(&autolock);
 	/* Wait for it to un-block */
 	while(chan->blocking)
 		usleep(1000);

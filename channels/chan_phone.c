@@ -56,14 +56,14 @@ static int silencesupression = 0;
 
 static int prefformat = AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW;
 
-static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 /* Protect the interface list (of phone_pvt's) */
-static pthread_mutex_t iflock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t iflock = AST_MUTEX_INITIALIZER;
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
-static pthread_mutex_t monlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t monlock = AST_MUTEX_INITIALIZER;
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
@@ -221,11 +221,11 @@ static int phone_hangup(struct ast_channel *ast)
 	p->dialtone = 0;
 	memset(p->ext, 0, sizeof(p->ext));
 	((struct phone_pvt *)(ast->pvt->pvt))->owner = NULL;
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	usecnt--;
 	if (usecnt < 0) 
 		ast_log(LOG_WARNING, "Usecnt < 0???\n");
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	ast_update_use_count();
 	if (option_verbose > 2) 
 		ast_verbose( VERBOSE_PREFIX_3 "Hungup '%s'\n", ast->name);
@@ -640,9 +640,9 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 		if (strlen(i->callerid))
 			tmp->callerid = strdup(i->callerid);
 		i->owner = tmp;
-		ast_pthread_mutex_lock(&usecnt_lock);
+		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
-		ast_pthread_mutex_unlock(&usecnt_lock);
+		ast_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
 		if (state != AST_STATE_DOWN) {
 			if (state == AST_STATE_RING) {
@@ -695,9 +695,9 @@ static void phone_check_exception(struct phone_pvt *i)
 				phone_new(i, AST_STATE_RING, i->context);
 				/* No need to restart monitor, we are the monitor */
 				if (i->owner) {
-					ast_pthread_mutex_lock(&usecnt_lock);
+					ast_mutex_lock(&usecnt_lock);
 					usecnt--;
-					ast_pthread_mutex_unlock(&usecnt_lock);
+					ast_mutex_unlock(&usecnt_lock);
 					ast_update_use_count();
 				}
 			} else if (!ast_canmatch_extension(NULL, i->context, i->ext, 1, i->callerid)) {
@@ -707,9 +707,9 @@ static void phone_check_exception(struct phone_pvt *i)
 					/* Check the default, too... */
 					phone_new(i, AST_STATE_RING, "default");
 					if (i->owner) {
-						ast_pthread_mutex_lock(&usecnt_lock);
+						ast_mutex_lock(&usecnt_lock);
 						usecnt--;
-						ast_pthread_mutex_unlock(&usecnt_lock);
+						ast_mutex_unlock(&usecnt_lock);
 						ast_update_use_count();
 					}
 					/* XXX This should probably be justified better XXX */
@@ -732,9 +732,9 @@ static void phone_check_exception(struct phone_pvt *i)
 			if (i->mode == MODE_IMMEDIATE) {
 				phone_new(i, AST_STATE_RING, i->context);
 			} else if (i->mode == MODE_DIALTONE) {
-				ast_pthread_mutex_lock(&usecnt_lock);
+				ast_mutex_lock(&usecnt_lock);
 				usecnt++;
-				ast_pthread_mutex_unlock(&usecnt_lock);
+				ast_mutex_unlock(&usecnt_lock);
 				ast_update_use_count();
 				/* Reset the extension */
 				i->ext[0] = '\0';
@@ -747,9 +747,9 @@ static void phone_check_exception(struct phone_pvt *i)
 			}
 		} else {
 			if (i->dialtone) {
-				ast_pthread_mutex_lock(&usecnt_lock);
+				ast_mutex_lock(&usecnt_lock);
 				usecnt--;
-				ast_pthread_mutex_unlock(&usecnt_lock);
+				ast_mutex_unlock(&usecnt_lock);
 				ast_update_use_count();
 			}
 			memset(i->ext, 0, sizeof(i->ext));
@@ -793,14 +793,14 @@ static void *do_monitor(void *data)
 	for(;;) {
 		/* Don't let anybody kill us right away.  Nobody should lock the interface list
 		   and wait for the monitor list, but the other way around is okay. */
-		if (ast_pthread_mutex_lock(&monlock)) {
+		if (ast_mutex_lock(&monlock)) {
 			ast_log(LOG_ERROR, "Unable to grab monitor lock\n");
 			return NULL;
 		}
 		/* Lock the interface list */
-		if (ast_pthread_mutex_lock(&iflock)) {
+		if (ast_mutex_lock(&iflock)) {
 			ast_log(LOG_ERROR, "Unable to grab interface lock\n");
-			ast_pthread_mutex_unlock(&monlock);
+			ast_mutex_unlock(&monlock);
 			return NULL;
 		}
 		/* Build the stuff we're going to select on, that is the socket of every
@@ -834,10 +834,10 @@ static void *do_monitor(void *data)
 			i = i->next;
 		}
 		/* Okay, now that we know what to do, release the interface lock */
-		ast_pthread_mutex_unlock(&iflock);
+		ast_mutex_unlock(&iflock);
 		
 		/* And from now on, we're okay to be killed, so release the monitor lock as well */
-		ast_pthread_mutex_unlock(&monlock);
+		ast_mutex_unlock(&monlock);
 		/* Wait indefinitely for something to happen */
 		if (dotone) {
 			/* If we're ready to recycle the time, set it to 30 ms */
@@ -866,7 +866,7 @@ static void *do_monitor(void *data)
 			continue;
 		/* Alright, lock the interface list again, and let's look and see what has
 		   happened */
-		if (ast_pthread_mutex_lock(&iflock)) {
+		if (ast_mutex_lock(&iflock)) {
 			ast_log(LOG_WARNING, "Unable to lock the interface list\n");
 			continue;
 		}
@@ -888,7 +888,7 @@ static void *do_monitor(void *data)
 			}
 			i=i->next;
 		}
-		ast_pthread_mutex_unlock(&iflock);
+		ast_mutex_unlock(&iflock);
 	}
 	/* Never reached */
 	return NULL;
@@ -900,12 +900,12 @@ static int restart_monitor()
 	/* If we're supposed to be stopped -- stay stopped */
 	if (monitor_thread == -2)
 		return 0;
-	if (ast_pthread_mutex_lock(&monlock)) {
+	if (ast_mutex_lock(&monlock)) {
 		ast_log(LOG_WARNING, "Unable to lock monitor\n");
 		return -1;
 	}
 	if (monitor_thread == pthread_self()) {
-		ast_pthread_mutex_unlock(&monlock);
+		ast_mutex_unlock(&monlock);
 		ast_log(LOG_WARNING, "Cannot kill myself\n");
 		return -1;
 	}
@@ -917,11 +917,11 @@ static int restart_monitor()
 	}
 	/* Start a new monitor */
 	if (pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {
-		ast_pthread_mutex_unlock(&monlock);
+		ast_mutex_unlock(&monlock);
 		ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
 		return -1;
 	}
-	ast_pthread_mutex_unlock(&monlock);
+	ast_mutex_unlock(&monlock);
 	return 0;
 }
 
@@ -997,7 +997,7 @@ static struct ast_channel *phone_request(char *type, int format, void *data)
 		return NULL;
 	}
 	/* Search for an unowned channel */
-	if (ast_pthread_mutex_lock(&iflock)) {
+	if (ast_mutex_lock(&iflock)) {
 		ast_log(LOG_ERROR, "Unable to lock interface list???\n");
 		return NULL;
 	}
@@ -1011,7 +1011,7 @@ static struct ast_channel *phone_request(char *type, int format, void *data)
 		}
 		p = p->next;
 	}
-	ast_pthread_mutex_unlock(&iflock);
+	ast_mutex_unlock(&iflock);
 	restart_monitor();
 	return tmp;
 }
@@ -1053,7 +1053,7 @@ int load_module()
 		ast_log(LOG_ERROR, "Unable to load config %s\n", config);
 		return -1;
 	}
-	if (ast_pthread_mutex_lock(&iflock)) {
+	if (ast_mutex_lock(&iflock)) {
 		/* It's a little silly to lock it, but we mind as well just to be sure */
 		ast_log(LOG_ERROR, "Unable to lock interface list???\n");
 		return -1;
@@ -1070,7 +1070,7 @@ int load_module()
 				} else {
 					ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
 					ast_destroy(cfg);
-					ast_pthread_mutex_unlock(&iflock);
+					ast_mutex_unlock(&iflock);
 					unload_module();
 					return -1;
 				}
@@ -1118,7 +1118,7 @@ int load_module()
 		}	
 		v = v->next;
 	}
-	ast_pthread_mutex_unlock(&iflock);
+	ast_mutex_unlock(&iflock);
 	/* Make sure we can register our Adtranphone channel type */
 	if (ast_channel_register(type, tdesc, 
 			 AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW, phone_request)) {
@@ -1140,7 +1140,7 @@ int unload_module()
 	struct phone_pvt *p, *pl;
 	/* First, take us out of the channel loop */
 	ast_channel_unregister(type);
-	if (!ast_pthread_mutex_lock(&iflock)) {
+	if (!ast_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = iflist;
 		while(p) {
@@ -1149,24 +1149,24 @@ int unload_module()
 			p = p->next;
 		}
 		iflist = NULL;
-		ast_pthread_mutex_unlock(&iflock);
+		ast_mutex_unlock(&iflock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
 	}
-	if (!ast_pthread_mutex_lock(&monlock)) {
+	if (!ast_mutex_lock(&monlock)) {
 		if (monitor_thread > -1) {
 			pthread_cancel(monitor_thread);
 			pthread_join(monitor_thread, NULL);
 		}
 		monitor_thread = -2;
-		ast_pthread_mutex_unlock(&monlock);
+		ast_mutex_unlock(&monlock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
 	}
 
-	if (!ast_pthread_mutex_lock(&iflock)) {
+	if (!ast_mutex_lock(&iflock)) {
 		/* Destroy all the interfaces and free their memory */
 		p = iflist;
 		while(p) {
@@ -1179,7 +1179,7 @@ int unload_module()
 			free(pl);
 		}
 		iflist = NULL;
-		ast_pthread_mutex_unlock(&iflock);
+		ast_mutex_unlock(&iflock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
@@ -1191,9 +1191,9 @@ int unload_module()
 int usecount()
 {
 	int res;
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	res = usecnt;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	return res;
 }
 

@@ -27,9 +27,6 @@
 #include <asterisk/channel.h>
 #include <asterisk/logger.h>
 
-#define PTHREAD_MUTEX_LOCK(a) ast_pthread_mutex_lock(a)
-#define PTHREAD_MUTEX_UNLOCK(a) ast_pthread_mutex_unlock(a)
-
 struct playtones_item {
 	int freq1;
 	int freq2;
@@ -213,7 +210,7 @@ static struct tone_zone *current_tonezone;
 
 /* Protect the tone_zones list (highly unlikely that two things would change
  * it at the same time, but still! */
-pthread_mutex_t tzlock = AST_MUTEX_INITIALIZER;
+ast_mutex_t tzlock = AST_MUTEX_INITIALIZER;
 
 /* Set global indication country */
 int ast_set_indication_country(const char *country)
@@ -243,7 +240,7 @@ struct tone_zone *ast_get_indication_zone(const char *country)
 	if (country == NULL)
 		return 0;	/* not a single country insight */
 
-	if (PTHREAD_MUTEX_LOCK(&tzlock)) {
+	if (ast_mutex_lock(&tzlock)) {
 		ast_log(LOG_WARNING, "Unable to lock tone_zones list\n");
 		return 0;
 	}
@@ -255,12 +252,12 @@ struct tone_zone *ast_get_indication_zone(const char *country)
 					country = tz->alias;
 					break;
 				}
-				PTHREAD_MUTEX_UNLOCK(&tzlock);
+				ast_mutex_unlock(&tzlock);
 				return tz;
 			}
 		}
 	} while (++alias_loop<20 && tz);
-	PTHREAD_MUTEX_UNLOCK(&tzlock);
+	ast_mutex_unlock(&tzlock);
 	if (alias_loop==20)
 		ast_log(LOG_NOTICE,"Alias loop for '%s' forcefull broken\n",country);
 	/* nothing found, sorry */
@@ -280,19 +277,19 @@ struct tone_zone_sound *ast_get_indication_tone(const struct tone_zone *zone, co
 	if (zone == NULL)
 		return 0;	/* not a single country insight */
 
-	if (PTHREAD_MUTEX_LOCK(&tzlock)) {
+	if (ast_mutex_lock(&tzlock)) {
 		ast_log(LOG_WARNING, "Unable to lock tone_zones list\n");
 		return 0;
 	}
 	for (ts=zone->tones; ts; ts=ts->next) {
 		if (strcasecmp(indication,ts->name)==0) {
 			/* found indication! */
-			PTHREAD_MUTEX_UNLOCK(&tzlock);
+			ast_mutex_unlock(&tzlock);
 			return ts;
 		}
 	}
 	/* nothing found, sorry */
-	PTHREAD_MUTEX_UNLOCK(&tzlock);
+	ast_mutex_unlock(&tzlock);
 	return 0;
 }
 
@@ -316,7 +313,7 @@ int ast_register_indication_country(struct tone_zone *zone)
 {
 	struct tone_zone *tz,*pz;
 
-	if (PTHREAD_MUTEX_LOCK(&tzlock)) {
+	if (ast_mutex_lock(&tzlock)) {
 		ast_log(LOG_WARNING, "Unable to lock tone_zones list\n");
 		return -1;
 	}
@@ -333,7 +330,7 @@ int ast_register_indication_country(struct tone_zone *zone)
 				current_tonezone = zone;
 			/* now free the previous zone */
 			free_zone(tz);
-			PTHREAD_MUTEX_UNLOCK(&tzlock);
+			ast_mutex_unlock(&tzlock);
 			return 0;
 		}
 	}
@@ -343,7 +340,7 @@ int ast_register_indication_country(struct tone_zone *zone)
 		pz->next = zone;
 	else
 		tone_zones = zone;
-	PTHREAD_MUTEX_UNLOCK(&tzlock);
+	ast_mutex_unlock(&tzlock);
 
 	ast_verbose(VERBOSE_PREFIX_3 "Registered indication country '%s'\n",zone->country);
 	return 0;
@@ -356,7 +353,7 @@ int ast_unregister_indication_country(const char *country)
 	struct tone_zone *tz, *pz = NULL, *tmp;
 	int res = -1;
 
-	if (PTHREAD_MUTEX_LOCK(&tzlock)) {
+	if (ast_mutex_lock(&tzlock)) {
 		ast_log(LOG_WARNING, "Unable to lock tone_zones list\n");
 		return -1;
 	}
@@ -387,7 +384,7 @@ int ast_unregister_indication_country(const char *country)
 			tz = tz->next;
 		}
 	}
-	PTHREAD_MUTEX_UNLOCK(&tzlock);
+	ast_mutex_unlock(&tzlock);
 	return res;
 }
 
@@ -401,7 +398,7 @@ int ast_register_indication(struct tone_zone *zone, const char *indication, cons
 	if (zone->alias[0])
 		return -1;
 
-	if (PTHREAD_MUTEX_LOCK(&tzlock)) {
+	if (ast_mutex_lock(&tzlock)) {
 		ast_log(LOG_WARNING, "Unable to lock tone_zones list\n");
 		return -2;
 	}
@@ -418,7 +415,7 @@ int ast_register_indication(struct tone_zone *zone, const char *indication, cons
 		ts = malloc(sizeof(struct tone_zone_sound));
 		if (!ts) {
 			ast_log(LOG_WARNING, "Out of memory\n");
-			PTHREAD_MUTEX_UNLOCK(&tzlock);
+			ast_mutex_unlock(&tzlock);
 			return -2;
 		}
 		ts->next = NULL;
@@ -427,14 +424,14 @@ int ast_register_indication(struct tone_zone *zone, const char *indication, cons
 	ts->data = strdup(tonelist);
 	if (ts->name==NULL || ts->data==NULL) {
 		ast_log(LOG_WARNING, "Out of memory\n");
-		PTHREAD_MUTEX_UNLOCK(&tzlock);
+		ast_mutex_unlock(&tzlock);
 		return -2;
 	}
 	if (ps)
 		ps->next = ts;
 	else
 		zone->tones = ts;
-	PTHREAD_MUTEX_UNLOCK(&tzlock);
+	ast_mutex_unlock(&tzlock);
 	return 0;
 }
 
@@ -448,7 +445,7 @@ int ast_unregister_indication(struct tone_zone *zone, const char *indication)
 	if (zone->alias[0])
 		return -1;
 
-	if (PTHREAD_MUTEX_LOCK(&tzlock)) {
+	if (ast_mutex_lock(&tzlock)) {
 		ast_log(LOG_WARNING, "Unable to lock tone_zones list\n");
 		return -1;
 	}
@@ -474,6 +471,6 @@ int ast_unregister_indication(struct tone_zone *zone, const char *indication)
 		}
 	}
 	/* indication not found, goodbye */
-	PTHREAD_MUTEX_UNLOCK(&tzlock);
+	ast_mutex_unlock(&tzlock);
 	return res;
 }

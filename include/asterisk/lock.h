@@ -28,12 +28,12 @@
 // #define AST_MUTEX_INITIALIZER      PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 // #define AST_MUTEX_KIND             PTHREAD_MUTEX_RECURSIVE_NP
 #ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-#define AST_MUTEX_INITIALIZER         PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
+#define AST_MUTEX_INITIALIZER         { PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP, NULL, 0, NULL, 0 }
 #else
 #ifdef PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
-#define AST_MUTEX_INITIALIZER         PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+#define AST_MUTEX_INITIALIZER         { PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP, NULL, 0, NULL, 0 }
 #else
-#define AST_MUTEX_INITIALIZER         PTHREAD_MUTEX_INITIALIZER
+#define AST_MUTEX_INITIALIZER         { PTHREAD_MUTEX_INITIALIZER, NULL, 0, NULL, 0 }
 #endif
 #endif
 #ifdef PTHREAD_MUTEX_ERRORCHECK_NP
@@ -42,17 +42,20 @@
 #define AST_MUTEX_KIND                PTHREAD_MUTEX_ERRORCHECK
 #endif
 
-struct mutex_info {
-	pthread_mutex_t *mutex;
+struct ast_mutex_info {
+	pthread_mutex_t mutex;
 	char *file;
 	int lineno;
 	char *func;
-	struct mutex_info *next;
+	pthread_t thread;
 };
 
-static inline int ast_pthread_mutex_init(pthread_mutex_t *t) {
+typedef struct ast_mutex_info ast_mutex_t;
+
+static inline int ast_mutex_init(ast_mutex_t *t) {
 	static pthread_mutexattr_t  attr;
 	static int  init = 1;
+	int res;
 	extern int  pthread_mutexattr_setkind_np(pthread_mutexattr_t *, int);
 
 	if (init) {
@@ -60,45 +63,87 @@ static inline int ast_pthread_mutex_init(pthread_mutex_t *t) {
 		pthread_mutexattr_setkind_np(&attr, AST_MUTEX_KIND);
 		init = 0;
 	}
-	return pthread_mutex_init(t, &attr);
+	res = pthread_mutex_init(&t->mutex, &attr);
+	t->file = NULL;
+	t->lineno = 0;
+	t->func = 0;
+	t->thread  = 0;
+	return res;
 }
 
-static inline int __ast_pthread_mutex_lock(char *filename, int lineno, char *func, pthread_mutex_t *t) {
+static inline int ast_pthread_mutex_init(ast_mutex_t *t, pthread_mutexattr_t *attr) 
+{
 	int res;
-	int tries = TRIES;
-	do {
-		res = pthread_mutex_trylock(t);
-		/* If we can't run, yield */
-		if (res) {
-			sched_yield();
-			usleep(1);
-		}
-	} while(res && tries--);
-	if (res) {
-		fprintf(stderr, "%s line %d (%s): Error obtaining mutex: %s\n", 
-				filename, lineno, func, strerror(res));
-		if ((res = pthread_mutex_lock(t)))
-                        fprintf(stderr, "%s line %d (%s): Error waiting for mutex: %s\n", 
-                               filename, lineno, func, strerror(res));
-                else
-		        fprintf(stderr, "%s line %d (%s): Got it eventually...\n",
-			       filename, lineno, func);
+	res = pthread_mutex_init(&t->mutex, attr);
+	t->file = NULL;
+	t->lineno = 0;
+	t->func = 0;
+	t->thread  = 0;
+	return res;
+}
+
+static inline int __ast_pthread_mutex_lock(char *filename, int lineno, char *func, ast_mutex_t *t) {
+	int res;
+	res = pthread_mutex_lock(&t->mutex);
+	if (!res) {
+		t->file = filename;
+		t->lineno = lineno;
+		t->func = func;
+		t->thread = pthread_self();
+	} else {
+		fprintf(stderr, "%s line %d (%s): Error obtaining mutex: %s\n",
+			filename, lineno, func, strerror(errno));
 	}
 	return res;
 }
 
-#define ast_pthread_mutex_lock(a) __ast_pthread_mutex_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, a)
+#define ast_mutex_lock(a) __ast_pthread_mutex_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, a)
 
-static inline int __ast_pthread_mutex_unlock(char *filename, int lineno, char *func, pthread_mutex_t *t) {
+static inline int __ast_pthread_mutex_trylock(char *filename, int lineno, char *func, ast_mutex_t *t) {
 	int res;
-	res = pthread_mutex_unlock(t);
+	res = pthread_mutex_trylock(&t->mutex);
+	if (!res) {
+		t->file = filename;
+		t->lineno = lineno;
+		t->func = func;
+		t->thread = pthread_self();
+	}
+	return res;
+}
+
+#define ast_mutex_trylock(a) __ast_pthread_mutex_trylock(__FILE__, __LINE__, __PRETTY_FUNCTION__, a)
+
+static inline int __ast_pthread_mutex_unlock(char *filename, int lineno, char *func, ast_mutex_t *t) {
+	int res;
+	/* Assumes lock is actually held */
+	t->file = NULL;
+	t->lineno = 0;
+	t->func = NULL;
+	t->thread = 0;
+	res = pthread_mutex_unlock(&t->mutex);
 	if (res) 
 		fprintf(stderr, "%s line %d (%s): Error releasing mutex: %s\n", 
 				filename, lineno, func, strerror(res));
 	return res;
 }
 
-#define ast_pthread_mutex_unlock(a) __ast_pthread_mutex_unlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, a)
+#define ast_mutex_unlock(a) __ast_pthread_mutex_unlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, a)
+
+static inline int __ast_pthread_mutex_destroy(char *filename, int lineno, char *func, ast_mutex_t *t)
+{
+	int res;
+	t->file = NULL;
+	t->lineno = 0;
+	t->func = NULL;
+	t->thread = 0;
+	res = pthread_mutex_destroy(&t->mutex);
+	if (res) 
+		fprintf(stderr, "%s line %d (%s): Error destroying mutex: %s\n",
+				filename, lineno, func, strerror(res));
+	return res;
+}
+
+#define ast_mutex_destroy(a) __ast_pthread_mutex_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, a)
 
 #else
 
@@ -109,10 +154,44 @@ static inline int __ast_pthread_mutex_unlock(char *filename, int lineno, char *f
 #define AST_MUTEX_KIND             PTHREAD_NORMAL
 #endif
 
-#define ast_pthread_mutex_init(mutex) pthread_mutex_init(mutex, NULL)
-#define ast_pthread_mutex_lock pthread_mutex_lock
-#define ast_pthread_mutex_unlock pthread_mutex_unlock
+typedef pthread_mutex_t ast_mutex_t;
 
+static inline int ast_mutex_lock(ast_mutex_t *t)
+{
+	return pthread_mutex_lock(t);
+}
+
+static inline int ast_mutex_unlock(ast_mutex_t *t)
+{
+	return pthread_mutex_unlock(t);
+}
+
+static inline int ast_mutex_trylock(ast_mutex_t *t)
+{
+	return pthread_mutex_trylock(t);
+}
+
+static inline int ast_pthread_mutex_init(ast_mutex_t *t, const pthread_mutexattr_t *mutexattr)
+{
+	return pthread_mutex_init(t, mutexattr);
+}
+
+static inline int ast_mutex_init(ast_mutex_t *t)
+{
+	return pthread_mutex_init(t, NULL);
+}
+
+static inline int ast_mutex_destroy(ast_mutex_t *t)
+{
+	return pthread_mutex_destroy(t);
+}
 #endif
+
+#define pthread_mutex_t use_ast_mutex_t_instead_of_pthread_mutex_t
+#define pthread_mutex_lock use_ast_mutex_lock_instead_of_pthread_mutex_lock
+#define pthread_mutex_unlock use_ast_mutex_unlock_instead_of_pthread_mutex_unlock
+#define pthread_mutex_trylock use_ast_mutex_trylock_instead_of_pthread_mutex_trylock
+#define pthread_mutex_init use_ast_pthread_mutex_init_instead_of_pthread_mutex_init
+#define pthread_mutex_destroy use_ast_pthread_mutex_destroy_instead_of_pthread_mutex_destroy
 
 #endif

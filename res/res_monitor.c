@@ -15,7 +15,7 @@
 
 #define AST_MONITOR_DIR	INSTALL_PREFIX "/var/spool/asterisk/monitor"
 
-static pthread_mutex_t monitorlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t monitorlock = AST_MUTEX_INITIALIZER;
 
 static unsigned long seq = 0;
 
@@ -48,7 +48,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 	int res = 0;
 
 	if( need_lock ) {
-		if (ast_pthread_mutex_lock(&chan->lock)) {
+		if (ast_mutex_lock(&chan->lock)) {
 			ast_log(LOG_WARNING, "Unable to lock channel\n");
 			return -1;
 		}
@@ -77,13 +77,13 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 						AST_MONITOR_DIR, fname_base );
 			*monitor->filename_base = 0;
 		} else {
-			ast_pthread_mutex_lock( &monitorlock );
+			ast_mutex_lock( &monitorlock );
 			snprintf(	monitor->read_filename, FILENAME_MAX, "%s/audio-in-%ld",
 						AST_MONITOR_DIR, seq );
 			snprintf(	monitor->write_filename, FILENAME_MAX, "%s/audio-out-%ld",
 						AST_MONITOR_DIR, seq );
 			seq++;
-			ast_pthread_mutex_unlock( &monitorlock );
+			ast_mutex_unlock( &monitorlock );
 
 			channel_name = strdup( chan->name );
 			while( ( p = strchr( channel_name, '/' ) ) ) {
@@ -113,7 +113,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 			ast_log(	LOG_WARNING, "Could not create file %s\n",
 						monitor->read_filename );
 			free( monitor );
-			ast_pthread_mutex_unlock(&chan->lock);
+			ast_mutex_unlock(&chan->lock);
 			return -1;
 		}
 		if( ast_fileexists( monitor->write_filename, NULL, NULL ) > 0 ) {
@@ -126,7 +126,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 						monitor->write_filename );
 			ast_closestream( monitor->read_stream );
 			free( monitor );
-			ast_pthread_mutex_unlock(&chan->lock);
+			ast_mutex_unlock(&chan->lock);
 			return -1;
 		}
 		chan->monitor = monitor;
@@ -137,7 +137,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 	}
 
 	if( need_lock ) {
-		ast_pthread_mutex_unlock(&chan->lock);
+		ast_mutex_unlock(&chan->lock);
 	}
 	return res;
 }
@@ -146,7 +146,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 int ast_monitor_stop( struct ast_channel *chan, int need_lock )
 {
 	if(need_lock) {
-		if(ast_pthread_mutex_lock(&chan->lock)) {
+		if(ast_mutex_lock(&chan->lock)) {
 			ast_log(LOG_WARNING, "Unable to lock channel\n");
 			return -1;
 		}
@@ -196,7 +196,7 @@ int ast_monitor_stop( struct ast_channel *chan, int need_lock )
 	}
 
 	if( need_lock ) {
-		ast_pthread_mutex_unlock(&chan->lock);
+		ast_mutex_unlock(&chan->lock);
 	}
 	return 0;
 }
@@ -213,7 +213,7 @@ int ast_monitor_change_fname(	struct ast_channel *chan,
 	}
 	
 	if( need_lock ) {
-		if (ast_pthread_mutex_lock(&chan->lock)) {
+		if (ast_mutex_lock(&chan->lock)) {
 			ast_log(LOG_WARNING, "Unable to lock channel\n");
 			return -1;
 		}
@@ -230,7 +230,7 @@ int ast_monitor_change_fname(	struct ast_channel *chan,
 	}
 
 	if( need_lock ) {
-		ast_pthread_mutex_unlock(&chan->lock);
+		ast_mutex_unlock(&chan->lock);
 	}
 	return 0;
 }

@@ -94,7 +94,7 @@ static struct loadupdate {
 	struct loadupdate *next;
 } *updaters = NULL;
 
-static pthread_mutex_t modlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t modlock = AST_MUTEX_INITIALIZER;
 
 static struct module *module_list=NULL;
 
@@ -102,7 +102,7 @@ int ast_unload_resource(char *resource_name, int force)
 {
 	struct module *m, *ml = NULL;
 	int res = -1;
-	if (ast_pthread_mutex_lock(&modlock))
+	if (ast_mutex_lock(&modlock))
 		ast_log(LOG_WARNING, "Failed to lock\n");
 	m = module_list;
 	while(m) {
@@ -112,7 +112,7 @@ int ast_unload_resource(char *resource_name, int force)
 					ast_log(LOG_WARNING, "Warning:  Forcing removal of module %s with use count %d\n", resource_name, res);
 				else {
 					ast_log(LOG_WARNING, "Soft unload failed, '%s' has use count %d\n", resource_name, res);
-					ast_pthread_mutex_unlock(&modlock);
+					ast_mutex_unlock(&modlock);
 					return -1;
 				}
 			}
@@ -120,7 +120,7 @@ int ast_unload_resource(char *resource_name, int force)
 			if (res) {
 				ast_log(LOG_WARNING, "Firm unload failed for %s\n", resource_name);
 				if (force <= AST_FORCE_FIRM) {
-					ast_pthread_mutex_unlock(&modlock);
+					ast_mutex_unlock(&modlock);
 					return -1;
 				} else
 					ast_log(LOG_WARNING, "** Dangerous **: Unloading resource anyway, at user request\n");
@@ -135,7 +135,7 @@ int ast_unload_resource(char *resource_name, int force)
 		ml = m;
 		m = m->next;
 	}
-	ast_pthread_mutex_unlock(&modlock);
+	ast_mutex_unlock(&modlock);
 	ast_update_use_count();
 	return res;
 }
@@ -150,7 +150,7 @@ void ast_module_reload(void)
 	ast_rtp_reload();
 	time(&ast_lastreloadtime);
 
-	ast_pthread_mutex_lock(&modlock);
+	ast_mutex_lock(&modlock);
 	m = module_list;
 	while(m) {
 		if (m->reload) {
@@ -160,7 +160,7 @@ void ast_module_reload(void)
 		}
 		m = m->next;
 	}
-	ast_pthread_mutex_unlock(&modlock);
+	ast_mutex_unlock(&modlock);
 }
 
 int ast_load_resource(char *resource_name)
@@ -198,13 +198,13 @@ int ast_load_resource(char *resource_name)
 #endif
 	}
 	
-	if (ast_pthread_mutex_lock(&modlock))
+	if (ast_mutex_lock(&modlock))
 		ast_log(LOG_WARNING, "Failed to lock\n");
 	m = module_list;
 	while(m) {
 		if (!strcasecmp(m->resource, resource_name)) {
 			ast_log(LOG_WARNING, "Module '%s' already exists\n", resource_name);
-			ast_pthread_mutex_unlock(&modlock);
+			ast_mutex_unlock(&modlock);
 			return -1;
 		}
 		m = m->next;
@@ -212,7 +212,7 @@ int ast_load_resource(char *resource_name)
 	m = malloc(sizeof(struct module));	
 	if (!m) {
 		ast_log(LOG_WARNING, "Out of memory\n");
-		ast_pthread_mutex_unlock(&modlock);
+		ast_mutex_unlock(&modlock);
 		return -1;
 	}
 	strncpy(m->resource, resource_name, sizeof(m->resource)-1);
@@ -225,7 +225,7 @@ int ast_load_resource(char *resource_name)
 	if (!m->lib) {
 		ast_log(LOG_WARNING, "%s\n", dlerror());
 		free(m);
-		ast_pthread_mutex_unlock(&modlock);
+		ast_mutex_unlock(&modlock);
 		return -1;
 	}
 	m->load_module = dlsym(m->lib, "load_module");
@@ -279,7 +279,7 @@ int ast_load_resource(char *resource_name)
 		ast_log(LOG_WARNING, "%d error(s) loading module %s, aborted\n", errors, fn);
 		dlclose(m->lib);
 		free(m);
-		ast_pthread_mutex_unlock(&modlock);
+		ast_mutex_unlock(&modlock);
 		return -1;
 	}
 	if (!fully_booted) {
@@ -294,7 +294,7 @@ int ast_load_resource(char *resource_name)
 	m->next = module_list;
 	
 	module_list = m;
-	ast_pthread_mutex_unlock(&modlock);
+	ast_mutex_unlock(&modlock);
 	if ((res = m->load_module())) {
 		ast_log(LOG_WARNING, "%s: load_module failed, returning %d\n", m->resource, res);
 		ast_unload_resource(resource_name, 0);
@@ -307,7 +307,7 @@ int ast_load_resource(char *resource_name)
 static int ast_resource_exists(char *resource)
 {
 	struct module *m;
-	if (ast_pthread_mutex_lock(&modlock))
+	if (ast_mutex_lock(&modlock))
 		ast_log(LOG_WARNING, "Failed to lock\n");
 	m = module_list;
 	while(m) {
@@ -315,7 +315,7 @@ static int ast_resource_exists(char *resource)
 			break;
 		m = m->next;
 	}
-	ast_pthread_mutex_unlock(&modlock);
+	ast_mutex_unlock(&modlock);
 	if (m)
 		return -1;
 	else
@@ -414,14 +414,14 @@ void ast_update_use_count(void)
 	/* Notify any module monitors that the use count for a 
 	   resource has changed */
 	struct loadupdate *m;
-	if (ast_pthread_mutex_lock(&modlock))
+	if (ast_mutex_lock(&modlock))
 		ast_log(LOG_WARNING, "Failed to lock\n");
 	m = updaters;
 	while(m) {
 		m->updater();
 		m = m->next;
 	}
-	ast_pthread_mutex_unlock(&modlock);
+	ast_mutex_unlock(&modlock);
 	
 }
 
@@ -429,7 +429,7 @@ int ast_update_module_list(int (*modentry)(char *module, char *description, int 
 {
 	struct module *m;
 	int unlock = -1;
-	if (pthread_mutex_trylock(&modlock))
+	if (ast_mutex_trylock(&modlock))
 		unlock = 0;
 	m = module_list;
 	while(m) {
@@ -437,7 +437,7 @@ int ast_update_module_list(int (*modentry)(char *module, char *description, int 
 		m = m->next;
 	}
 	if (unlock)
-		ast_pthread_mutex_unlock(&modlock);
+		ast_mutex_unlock(&modlock);
 	return 0;
 }
 
@@ -447,11 +447,11 @@ int ast_loader_register(int (*v)(void))
 	/* XXX Should be more flexible here, taking > 1 verboser XXX */
 	if ((tmp = malloc(sizeof (struct loadupdate)))) {
 		tmp->updater = v;
-		if (ast_pthread_mutex_lock(&modlock))
+		if (ast_mutex_lock(&modlock))
 			ast_log(LOG_WARNING, "Failed to lock\n");
 		tmp->next = updaters;
 		updaters = tmp;
-		ast_pthread_mutex_unlock(&modlock);
+		ast_mutex_unlock(&modlock);
 		return 0;
 	}
 	return -1;
@@ -461,7 +461,7 @@ int ast_loader_unregister(int (*v)(void))
 {
 	int res = -1;
 	struct loadupdate *tmp, *tmpl=NULL;
-	if (ast_pthread_mutex_lock(&modlock))
+	if (ast_mutex_lock(&modlock))
 		ast_log(LOG_WARNING, "Failed to lock\n");
 	tmp = updaters;
 	while(tmp) {
@@ -477,6 +477,6 @@ int ast_loader_unregister(int (*v)(void))
 	}
 	if (tmp)
 		res = 0;
-	ast_pthread_mutex_unlock(&modlock);
+	ast_mutex_unlock(&modlock);
 	return res;
 }

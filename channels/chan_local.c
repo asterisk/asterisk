@@ -49,15 +49,15 @@ static char *tdesc = "Local Proxy Channel Driver";
 static int capability = -1;
 
 static int usecnt =0;
-static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 #define IS_OUTBOUND(a,b) (a == b->chan ? 1 : 0)
 
 /* Protect the interface list (of sip_pvt's) */
-static pthread_mutex_t locallock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t locallock = AST_MUTEX_INITIALIZER;
 
 static struct local_pvt {
-	pthread_mutex_t lock;				/* Channel private lock */
+	ast_mutex_t lock;				/* Channel private lock */
 	char context[AST_MAX_EXTENSION];	/* Context to call */
 	char exten[AST_MAX_EXTENSION];		/* Extension to call */
 	int reqformat;						/* Requested format */
@@ -84,25 +84,25 @@ retrylock:
 	if (p->cancelqueue) {
 		/* We had a glare on the hangup.  Forget all this business,
 		return and destroy p.  */
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		free(p);
 		return -1;
 	}
-	if (pthread_mutex_trylock(&other->lock)) {
+	if (ast_mutex_trylock(&other->lock)) {
 		/* Failed to lock.  Release main lock and try again */
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		if (us)
-			ast_pthread_mutex_unlock(&us->lock);
+			ast_mutex_unlock(&us->lock);
 		/* Wait just a bit */
 		usleep(1);
 		/* Only we can destroy ourselves, so we can't disappear here */
 		if (us)
-			ast_pthread_mutex_lock(&us->lock);
-		ast_pthread_mutex_lock(&p->lock);
+			ast_mutex_lock(&us->lock);
+		ast_mutex_lock(&p->lock);
 		goto retrylock;
 	}
 	ast_queue_frame(other, f, 0);
-	ast_pthread_mutex_unlock(&other->lock);
+	ast_mutex_unlock(&other->lock);
 	p->glaredetect = 0;
 	return 0;
 }
@@ -112,14 +112,14 @@ static int local_answer(struct ast_channel *ast)
 	struct local_pvt *p = ast->pvt->pvt;
 	int isoutbound = IS_OUTBOUND(ast, p);
 	int res = -1;
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	if (isoutbound) {
 		/* Pass along answer since somebody answered us */
 		struct ast_frame answer = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
 		res = local_queue_frame(p, isoutbound, &answer, ast);
 	} else
 		ast_log(LOG_WARNING, "Huh?  Local is being asked to answer?\n");
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return res;
 }
 
@@ -130,19 +130,19 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 	if (isoutbound && p->chan && p->chan->bridge && p->owner) {
 		/* Masquerade bridged channel into owner */
 		/* Lock other side first */
-		ast_pthread_mutex_lock(&p->chan->bridge->lock);
-		ast_pthread_mutex_lock(&p->owner->lock);
+		ast_mutex_lock(&p->chan->bridge->lock);
+		ast_mutex_lock(&p->owner->lock);
 		ast_channel_masquerade(p->owner, p->chan->bridge);
-		ast_pthread_mutex_unlock(&p->owner->lock);
-		ast_pthread_mutex_unlock(&p->chan->bridge->lock);
+		ast_mutex_unlock(&p->owner->lock);
+		ast_mutex_unlock(&p->chan->bridge->lock);
 		p->alreadymasqed = 1;
 	} else if (!isoutbound && p->owner && p->owner->bridge && p->chan) {
 		/* Masquerade bridged channel into chan */
-		ast_pthread_mutex_lock(&p->owner->bridge->lock);
-		ast_pthread_mutex_lock(&p->chan->lock);
+		ast_mutex_lock(&p->owner->bridge->lock);
+		ast_mutex_lock(&p->chan->lock);
 		ast_channel_masquerade(p->chan, p->owner->bridge);
-		ast_pthread_mutex_unlock(&p->chan->lock);
-		ast_pthread_mutex_unlock(&p->owner->bridge->lock);
+		ast_mutex_unlock(&p->chan->lock);
+		ast_mutex_unlock(&p->owner->bridge->lock);
 		p->alreadymasqed = 1;
 	}
 }
@@ -161,27 +161,27 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f)
 
 
 	/* Just queue for delivery to the other side */
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	res = local_queue_frame(p, isoutbound, f, ast);
 	check_bridge(p, isoutbound);
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return res;
 }
 
 static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct local_pvt *p = newchan->pvt->pvt;
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	if ((p->owner != oldchan) && (p->chan != oldchan)) {
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p/%p\n", oldchan, p->owner, p->chan);
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		return -1;
 	}
 	if (p->owner == oldchan)
 		p->owner = newchan;
 	else
 		p->chan = newchan;	
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return 0;
 }
 
@@ -192,10 +192,10 @@ static int local_indicate(struct ast_channel *ast, int condition)
 	struct ast_frame f = { AST_FRAME_CONTROL, };
 	int isoutbound = IS_OUTBOUND(ast, p);
 	/* Queue up a frame representing the indication as a control frame */
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	f.subclass = condition;
 	res = local_queue_frame(p, isoutbound, &f, ast);
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return res;
 }
 
@@ -205,10 +205,10 @@ static int local_digit(struct ast_channel *ast, char digit)
 	int res = -1;
 	struct ast_frame f = { AST_FRAME_DTMF, };
 	int isoutbound = IS_OUTBOUND(ast, p);
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	f.subclass = digit;
 	res = local_queue_frame(p, isoutbound, &f, ast);
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return res;
 }
 
@@ -231,7 +231,7 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 static void local_destroy(struct local_pvt *p)
 {
 	struct local_pvt *cur, *prev = NULL;
-	ast_pthread_mutex_lock(&locallock);
+	ast_mutex_lock(&locallock);
 	cur = locals;
 	while(cur) {
 		if (cur == p) {
@@ -245,7 +245,7 @@ static void local_destroy(struct local_pvt *p)
 		prev = cur;
 		cur = cur->next;
 	}
-	ast_pthread_mutex_unlock(&locallock);
+	ast_mutex_unlock(&locallock);
 	if (!cur)
 		ast_log(LOG_WARNING, "Unable ot find local '%s@%s' in local list\n", p->exten, p->context);
 }
@@ -258,7 +258,7 @@ static int local_hangup(struct ast_channel *ast)
 	struct local_pvt *cur, *prev=NULL;
 	struct ast_channel *ochan = NULL;
 	int glaredetect;
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	if (isoutbound)
 		p->chan = NULL;
 	else
@@ -272,9 +272,9 @@ static int local_hangup(struct ast_channel *ast)
 		   let local_queue do it. */
 		if (p->glaredetect)
 			p->cancelqueue = 1;
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		/* Remove from list */
-		ast_pthread_mutex_lock(&locallock);
+		ast_mutex_lock(&locallock);
 		cur = locals;
 		while(cur) {
 			if (cur == p) {
@@ -287,7 +287,7 @@ static int local_hangup(struct ast_channel *ast)
 			prev = cur;
 			cur = cur->next;
 		}
-		ast_pthread_mutex_unlock(&locallock);
+		ast_mutex_unlock(&locallock);
 		/* And destroy */
 		if (!glaredetect)
 			free(p);
@@ -298,7 +298,7 @@ static int local_hangup(struct ast_channel *ast)
 		ochan = p->chan;
 	else
 		local_queue_frame(p, isoutbound, &f, NULL);
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	if (ochan)
 		ast_hangup(ochan);
 	return 0;
@@ -311,7 +311,7 @@ static struct local_pvt *local_alloc(char *data, int format)
 	tmp = malloc(sizeof(struct local_pvt));
 	if (tmp) {
 		memset(tmp, 0, sizeof(struct local_pvt));
-		ast_pthread_mutex_init(&tmp->lock);
+		ast_mutex_init(&tmp->lock);
 		strncpy(tmp->exten, data, sizeof(tmp->exten) - 1);
 		c = strchr(tmp->exten, '@');
 		if (c) {
@@ -327,10 +327,10 @@ static struct local_pvt *local_alloc(char *data, int format)
 			tmp = NULL;
 		} else {
 			/* Add to list */
-			ast_pthread_mutex_lock(&locallock);
+			ast_mutex_lock(&locallock);
 			tmp->next = locals;
 			locals = tmp;
-			ast_pthread_mutex_unlock(&locallock);
+			ast_mutex_unlock(&locallock);
 		}
 		
 	}
@@ -389,9 +389,9 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 		tmp2->pvt->fixup = local_fixup;
 		p->owner = tmp;
 		p->chan = tmp2;
-		ast_pthread_mutex_lock(&usecnt_lock);
+		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
-		ast_pthread_mutex_unlock(&usecnt_lock);
+		ast_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
 		strncpy(tmp->context, p->context, sizeof(tmp->context)-1);
 		strncpy(tmp2->context, p->context, sizeof(tmp2->context)-1);
@@ -420,17 +420,17 @@ static int locals_show(int fd, int argc, char **argv)
 
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	ast_pthread_mutex_lock(&locallock);
+	ast_mutex_lock(&locallock);
 	p = locals;
 	while(p) {
-		ast_pthread_mutex_lock(&p->lock);
+		ast_mutex_lock(&p->lock);
 		ast_cli(fd, "%s -- %s@%s\n", p->owner ? p->owner->name : "<unowned>", p->exten, p->context);
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		p = p->next;
 	}
 	if (!locals)
 		ast_cli(fd, "No local channels in use\n");
-	ast_pthread_mutex_unlock(&locallock);
+	ast_mutex_unlock(&locallock);
 	return RESULT_SUCCESS;
 }
 
@@ -464,7 +464,7 @@ int unload_module()
 	/* First, take us out of the channel loop */
 	ast_cli_unregister(&cli_show_locals);
 	ast_channel_unregister(type);
-	if (!ast_pthread_mutex_lock(&locallock)) {
+	if (!ast_mutex_lock(&locallock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = locals;
 		while(p) {
@@ -473,7 +473,7 @@ int unload_module()
 			p = p->next;
 		}
 		locals = NULL;
-		ast_pthread_mutex_unlock(&locallock);
+		ast_mutex_unlock(&locallock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
@@ -484,9 +484,9 @@ int unload_module()
 int usecount()
 {
 	int res;
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	res = usecnt;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	return res;
 }
 

@@ -42,7 +42,7 @@ static char *registrar = "pbx_config";
 static int static_config = 0;
 static int write_protect_config = 1;
 
-static pthread_mutex_t save_dialplan_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t save_dialplan_lock = AST_MUTEX_INITIALIZER;
 
 static struct ast_context *local_contexts = NULL;
 
@@ -916,7 +916,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 
 	if (argc != 2 && argc != 3) return RESULT_SHOWUSAGE;
 
-	if (ast_pthread_mutex_lock(&save_dialplan_lock)) {
+	if (ast_mutex_lock(&save_dialplan_lock)) {
 		ast_cli(fd,
 			"Failed to lock dialplan saving (another proccess saving?)\n");
 		return RESULT_FAILURE;
@@ -945,7 +945,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 	/* try to lock contexts list */
 	if (ast_lock_contexts()) {
 		ast_cli(fd, "Failed to lock contexts list\n");
-		ast_pthread_mutex_unlock(&save_dialplan_lock);
+		ast_mutex_unlock(&save_dialplan_lock);
 		return RESULT_FAILURE;
 	}
 
@@ -954,7 +954,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 		ast_cli(fd, "Failed to create file '%s'\n",
 			filename);
 		ast_unlock_contexts();
-		ast_pthread_mutex_unlock(&save_dialplan_lock);
+		ast_mutex_unlock(&save_dialplan_lock);
 		return RESULT_FAILURE;
 	}
 
@@ -1077,7 +1077,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 	}	
 
 	ast_unlock_contexts();
-	ast_pthread_mutex_unlock(&save_dialplan_lock);
+	ast_mutex_unlock(&save_dialplan_lock);
 	fclose(output);
 
 	if (incomplete) {

@@ -97,7 +97,7 @@ struct ast_channel {
 	/*! If anyone is blocking, this is them */
 	pthread_t blocker;			
 	/*! Lock, can be used to lock a channel for some operations */
-	pthread_mutex_t lock;			
+	ast_mutex_t lock;			
 	/*! Procedure causing blocking */
 	char *blockproc;			
 

@@ -43,7 +43,7 @@ struct ast_filestream {
 
 
 static struct ast_filestream *glist = NULL;
-static pthread_mutex_t mp3_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t mp3_lock = AST_MUTEX_INITIALIZER;
 static int glistcnt = 0;
 
 static char *name = "mp3";
@@ -59,7 +59,7 @@ static struct ast_filestream *mp3_open(int fd)
 	   and be sure it's a valid file.  */
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		if (ast_pthread_mutex_lock(&mp3_lock)) {
+		if (ast_mutex_lock(&mp3_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock mp3 list\n");
 			free(tmp);
 			return NULL;
@@ -68,7 +68,7 @@ static struct ast_filestream *mp3_open(int fd)
 		tmp->last.tv_usec = 0;
 		tmp->last.tv_sec = 0;
 		glistcnt++;
-		ast_pthread_mutex_unlock(&mp3_lock);
+		ast_mutex_unlock(&mp3_lock);
 		ast_update_use_count();
 	}
 	return tmp;
@@ -81,14 +81,14 @@ static struct ast_filestream *mp3_rewrite(int fd, char *comment)
 	   and be sure it's a valid file.  */
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		if (ast_pthread_mutex_lock(&mp3_lock)) {
+		if (ast_mutex_lock(&mp3_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock mp3 list\n");
 			free(tmp);
 			return NULL;
 		}
 		tmp->fd = fd;
 		glistcnt++;
-		ast_pthread_mutex_unlock(&mp3_lock);
+		ast_mutex_unlock(&mp3_lock);
 		ast_update_use_count();
 	} else
 		ast_log(LOG_WARNING, "Out of memory\n");
@@ -97,12 +97,12 @@ static struct ast_filestream *mp3_rewrite(int fd, char *comment)
 
 static void mp3_close(struct ast_filestream *s)
 {
-	if (ast_pthread_mutex_lock(&mp3_lock)) {
+	if (ast_mutex_lock(&mp3_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock mp3 list\n");
 		return;
 	}
 	glistcnt--;
-	ast_pthread_mutex_unlock(&mp3_lock);
+	ast_mutex_unlock(&mp3_lock);
 	ast_update_use_count();
 	close(s->fd);
 	free(s);
@@ -213,12 +213,12 @@ int unload_module()
 int usecount()
 {
 	int res;
-	if (ast_pthread_mutex_lock(&mp3_lock)) {
+	if (ast_mutex_lock(&mp3_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock mp3 list\n");
 		return -1;
 	}
 	res = glistcnt;
-	ast_pthread_mutex_unlock(&mp3_lock);
+	ast_mutex_unlock(&mp3_lock);
 	return res;
 }
 

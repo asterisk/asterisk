@@ -83,7 +83,7 @@ struct parkeduser {
 
 static struct parkeduser *parkinglot;
 
-static pthread_mutex_t parking_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t parking_lock = AST_MUTEX_INITIALIZER;
 
 static pthread_t parking_thread;
 
@@ -109,7 +109,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	int x;
 	pu = malloc(sizeof(struct parkeduser));
 	if (pu) {
-		ast_pthread_mutex_lock(&parking_lock);
+		ast_mutex_lock(&parking_lock);
 		for (x=parking_start;x<=parking_stop;x++) {
 			cur = parkinglot;
 			while(cur) {
@@ -151,7 +151,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 				pu->priority = chan->priority;
 			pu->next = parkinglot;
 			parkinglot = pu;
-			ast_pthread_mutex_unlock(&parking_lock);
+			ast_mutex_unlock(&parking_lock);
 			/* Wake up the (presumably select()ing) thread */
 			pthread_kill(parking_thread, SIGURG);
 			if (option_verbose > 1) 
@@ -162,7 +162,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 		} else {
 			ast_log(LOG_WARNING, "No more parking spaces\n");
 			free(pu);
-			ast_pthread_mutex_unlock(&parking_lock);
+			ast_mutex_unlock(&parking_lock);
 			return -1;
 		}
 	} else {
@@ -412,7 +412,7 @@ static void *do_parking_thread(void *ignore)
 	for (;;) {
 		ms = -1;
 		max = -1;
-		ast_pthread_mutex_lock(&parking_lock);
+		ast_mutex_lock(&parking_lock);
 		pl = NULL;
 		pu = parkinglot;
 		gettimeofday(&tv, NULL);
@@ -488,7 +488,7 @@ std:					for (x=0;x<AST_MAX_FDS;x++) {
 				}
 			}
 		}
-		ast_pthread_mutex_unlock(&parking_lock);
+		ast_mutex_unlock(&parking_lock);
 		rfds = nrfds;
 		efds = nefds;
 		tv.tv_sec = ms / 1000;
@@ -514,7 +514,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 	}
 	LOCAL_USER_ADD(u);
 	park = atoi((char *)data);
-	ast_pthread_mutex_lock(&parking_lock);
+	ast_mutex_lock(&parking_lock);
 	pu = parkinglot;
 	while(pu) {
 		if (pu->parkingnum == park) {
@@ -527,7 +527,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 		pl = pu;
 		pu = pu->next;
 	}
-	ast_pthread_mutex_unlock(&parking_lock);
+	ast_mutex_unlock(&parking_lock);
 	if (pu) {
 		peer = pu->chan;
 		free(pu);
@@ -578,7 +578,7 @@ static int handle_parkedcalls(int fd, int argc, char *argv[])
 	ast_cli(fd, "%4s %25s (%-15s %-12s %-4s) %-6s \n", "Num", "Channel"
 		, "Context", "Extension", "Pri", "Timeout");
 
-	ast_pthread_mutex_lock(&parking_lock);
+	ast_mutex_lock(&parking_lock);
 
 	cur=parkinglot;
 	while(cur) {
@@ -589,7 +589,7 @@ static int handle_parkedcalls(int fd, int argc, char *argv[])
 		cur = cur->next;
 	}
 
-	ast_pthread_mutex_unlock(&parking_lock);
+	ast_mutex_unlock(&parking_lock);
 
 	return RESULT_SUCCESS;
 }

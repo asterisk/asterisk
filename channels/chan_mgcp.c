@@ -142,7 +142,7 @@ static int adsi = 0;
 
 
 static int usecnt =0;
-static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 static int oseq;
 
 /* Wait up to 16 seconds for first digit (FXO logic) */
@@ -156,9 +156,9 @@ static int matchdigittimeout = 3000;
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
-static pthread_mutex_t netlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t netlock = AST_MUTEX_INITIALIZER;
 
-static pthread_mutex_t monlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t monlock = AST_MUTEX_INITIALIZER;
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
@@ -219,7 +219,7 @@ struct mgcp_message {
 #define SUB_ALT  1
 
 struct mgcp_subchannel {
-	pthread_mutex_t lock;
+	ast_mutex_t lock;
     int id;
     struct ast_channel *owner;
     struct mgcp_endpoint *parent;
@@ -247,7 +247,7 @@ struct mgcp_subchannel {
 #define TYPE_LINE		2
 
 struct mgcp_endpoint {
-	pthread_mutex_t lock;
+	ast_mutex_t lock;
 	char name[80];
     struct mgcp_subchannel *sub;        /* pointer to our current connection, channel and stuff */
 	char accountcode[80];
@@ -307,7 +307,7 @@ static struct mgcp_gateway {
 	struct mgcp_gateway *next;
 } *gateways;
 
-static pthread_mutex_t gatelock  = AST_MUTEX_INITIALIZER;
+static ast_mutex_t gatelock  = AST_MUTEX_INITIALIZER;
 
 static int mgcpsock  = -1;
 
@@ -526,7 +526,7 @@ static int mgcp_hangup(struct ast_channel *ast)
 	if ((p->dtmfinband) && (p->dsp != NULL)){
 	    ast_dsp_free(p->dsp);
 	}
-	ast_pthread_mutex_lock(&sub->lock);
+	ast_mutex_lock(&sub->lock);
 
 	sub->owner = NULL;
 	if (strlen(sub->cxident)) {
@@ -581,7 +581,7 @@ static int mgcp_hangup(struct ast_channel *ast)
             transmit_notify_request(sub, "vmwi(-)");
         }
     }
-	ast_pthread_mutex_unlock(&sub->lock);
+	ast_mutex_unlock(&sub->lock);
 	return 0;
 }
 
@@ -592,7 +592,7 @@ static int mgcp_show_endpoints(int fd, int argc, char *argv[])
 	int hasendpoints = 0;
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
-	ast_pthread_mutex_lock(&gatelock);
+	ast_mutex_lock(&gatelock);
 	g = gateways;
 	while(g) {
 		e = g->endpoints;
@@ -607,7 +607,7 @@ static int mgcp_show_endpoints(int fd, int argc, char *argv[])
 		}
 		g = g->next;
 	}
-	ast_pthread_mutex_unlock(&gatelock);
+	ast_mutex_unlock(&gatelock);
 	return RESULT_SUCCESS;
 }
 
@@ -644,7 +644,7 @@ static int mgcp_audit_endpoint(int fd, int argc, char *argv[])
 		gname++;
 	if ((c = strrchr(gname, ']')))
 		*c = '\0';
-	ast_pthread_mutex_lock(&gatelock);
+	ast_mutex_lock(&gatelock);
 	g = gateways;
 	while(g) {
         if (!strcasecmp(g->name, gname)) {
@@ -666,7 +666,7 @@ static int mgcp_audit_endpoint(int fd, int argc, char *argv[])
     if (!found) {
         ast_cli(fd, "   << Could not find endpoint >>     ");
     }
-	ast_pthread_mutex_unlock(&gatelock);
+	ast_mutex_unlock(&gatelock);
 	return RESULT_SUCCESS;
 }
 
@@ -731,9 +731,9 @@ static struct ast_frame  *mgcp_read(struct ast_channel *ast)
 {
 	struct ast_frame *fr;
 	struct mgcp_subchannel *sub = ast->pvt->pvt;
-	ast_pthread_mutex_lock(&sub->lock);
+	ast_mutex_lock(&sub->lock);
 	fr = mgcp_rtp_read(sub);
-	ast_pthread_mutex_unlock(&sub->lock);
+	ast_mutex_unlock(&sub->lock);
 	return fr;
 }
 
@@ -756,11 +756,11 @@ static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame)
 		}
 	}
 	if (sub) {
-		ast_pthread_mutex_lock(&sub->lock);
+		ast_mutex_lock(&sub->lock);
 		if (sub->rtp) {
 			res =  ast_rtp_write(sub->rtp, frame);
 		}
-		ast_pthread_mutex_unlock(&sub->lock);
+		ast_mutex_unlock(&sub->lock);
 	}
 	return res;
 }
@@ -892,9 +892,9 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		if (i->amaflags)
 			tmp->amaflags = i->amaflags;
 		sub->owner = tmp;
-		ast_pthread_mutex_lock(&usecnt_lock);
+		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
-		ast_pthread_mutex_unlock(&usecnt_lock);
+		ast_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
@@ -987,13 +987,13 @@ static int rtpready(struct ast_rtp *rtp, struct ast_frame *f, void *data)
 {
 	/* Just deliver the audio directly */
 	struct mgcp_endpoint *p = data;
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	if (p->owner) {
 		/* Generally, you lock in the order channel lock, followed by private
 		   lock.  Since here we are doing the reverse, there is the possibility
 		   of deadlock.  As a result, in the case of a deadlock, we simply fail out
 		   here. */
-		if (!pthread_mutex_trylock(&p->owner->lock)) {
+		if (!ast_mutex_trylock(&p->owner->lock)) {
 			if (f->frametype == AST_FRAME_VOICE) {
 				if (f->subclass != p->owner->nativeformats) {
 					ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
@@ -1006,10 +1006,10 @@ static int rtpready(struct ast_rtp *rtp, struct ast_frame *f, void *data)
 				}
 			}
 			ast_queue_frame(p->owner, f, 0);
-			pthread_mutex_unlock(&p->owner->lock);
+			ast_mutex_unlock(&p->owner->lock);
 		}
 	}
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return 0;
 }
 #endif
@@ -1032,7 +1032,7 @@ static struct mgcp_subchannel *find_subchannel(char *name, int msgid, struct soc
 		*at = '\0';
 		at++;
 	}
-	ast_pthread_mutex_lock(&gatelock);
+	ast_mutex_lock(&gatelock);
 	if (at && (at[0] == '[')) {
 		at++;
 		c = strrchr(at, ']');
@@ -1086,7 +1086,7 @@ static struct mgcp_subchannel *find_subchannel(char *name, int msgid, struct soc
 		}
 		g = g->next;
 	}
-	ast_pthread_mutex_unlock(&gatelock);
+	ast_mutex_unlock(&gatelock);
 	if (!sub) {
 		if (name) {
 			if (g)
@@ -1724,7 +1724,7 @@ static void handle_response(struct mgcp_subchannel *sub, int result, int ident)
 
 static void start_rtp(struct mgcp_subchannel *sub)
 {
-		ast_pthread_mutex_lock(&sub->lock);
+		ast_mutex_lock(&sub->lock);
 		/* Allocate the RTP now */
 		sub->rtp = ast_rtp_new(sched, io, 1, 0);
 		if (sub->rtp && sub->owner)
@@ -1739,7 +1739,7 @@ static void start_rtp(struct mgcp_subchannel *sub)
         snprintf(sub->callid, sizeof(sub->callid), "%08x%s", rand(), sub->txident);
 		/* Transmit the connection create */
 		transmit_connect_with_sdp(sub, NULL);
-		ast_pthread_mutex_unlock(&sub->lock);
+		ast_mutex_unlock(&sub->lock);
 }
 
 static void *mgcp_ss(void *data)
@@ -2479,9 +2479,9 @@ static void *do_monitor(void *data)
 		/* Check for interfaces needing to be killed */
 		/* Don't let anybody kill us right away.  Nobody should lock the interface list
 		   and wait for the monitor list, but the other way around is okay. */
-		ast_pthread_mutex_lock(&monlock);
+		ast_mutex_lock(&monlock);
 		/* Lock the network interface */
-		ast_pthread_mutex_lock(&netlock);
+		ast_mutex_lock(&netlock);
 		p = packets;
 		while(p) {
 			/* Handle any retransmissions */
@@ -2519,17 +2519,17 @@ static void *do_monitor(void *data)
 #endif
         
 		/* Okay, now that we know what to do, release the network lock */
-		ast_pthread_mutex_unlock(&netlock);
+		ast_mutex_unlock(&netlock);
 		/* And from now on, we're okay to be killed, so release the monitor lock as well */
-		ast_pthread_mutex_unlock(&monlock);
+		ast_mutex_unlock(&monlock);
 		pthread_testcancel();
 		/* Wait for sched or io */
 		res = ast_sched_wait(sched);
 		res = ast_io_wait(io, res);
-		ast_pthread_mutex_lock(&monlock);
+		ast_mutex_lock(&monlock);
 		if (res >= 0) 
 			ast_sched_runq(sched);
-		ast_pthread_mutex_unlock(&monlock);
+		ast_mutex_unlock(&monlock);
 	}
 	/* Never reached */
 	return NULL;
@@ -2541,12 +2541,12 @@ static int restart_monitor(void)
 	/* If we're supposed to be stopped -- stay stopped */
 	if (monitor_thread == -2)
 		return 0;
-	if (ast_pthread_mutex_lock(&monlock)) {
+	if (ast_mutex_lock(&monlock)) {
 		ast_log(LOG_WARNING, "Unable to lock monitor\n");
 		return -1;
 	}
 	if (monitor_thread == pthread_self()) {
-		ast_pthread_mutex_unlock(&monlock);
+		ast_mutex_unlock(&monlock);
 		ast_log(LOG_WARNING, "Cannot kill myself\n");
 		return -1;
 	}
@@ -2556,12 +2556,12 @@ static int restart_monitor(void)
 	} else {
 		/* Start a new monitor */
 		if (pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {
-			ast_pthread_mutex_unlock(&monlock);
+			ast_mutex_unlock(&monlock);
 			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
 			return -1;
 		}
 	}
-	ast_pthread_mutex_unlock(&monlock);
+	ast_mutex_unlock(&monlock);
 	return 0;
 }
 
@@ -2932,10 +2932,10 @@ int load_module()
 				if (option_verbose > 2) {
 					ast_verbose(VERBOSE_PREFIX_3 "Added gateway '%s'\n", g->name);
                 }
-				ast_pthread_mutex_lock(&gatelock);
+				ast_mutex_lock(&gatelock);
 				g->next = gateways;
 				gateways = g;
-				ast_pthread_mutex_unlock(&gatelock);
+				ast_mutex_unlock(&gatelock);
 			}
 		}
 		cat = ast_category_browse(cfg, cat);
@@ -2954,7 +2954,7 @@ int load_module()
 	if (!ntohs(bindaddr.sin_port))
 		bindaddr.sin_port = ntohs(DEFAULT_MGCP_PORT);
 	bindaddr.sin_family = AF_INET;
-	pthread_mutex_lock(&netlock);
+	ast_mutex_lock(&netlock);
 	if (mgcpsock > -1)
 		close(mgcpsock);
 	mgcpsock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -2977,7 +2977,7 @@ int load_module()
 				ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
         }
 	}
-	pthread_mutex_unlock(&netlock);
+	ast_mutex_unlock(&netlock);
 	ast_destroy(cfg);
 
 	/* Make sure we can register our mgcp channel type */
@@ -3015,7 +3015,7 @@ int unload_module()
 	struct mgcp_endpoint *p, *pl;
 	/* First, take us out of the channel loop */
 	ast_channel_unregister(type);
-	if (!ast_pthread_mutex_lock(&gatelock)) {
+	if (!ast_mutex_lock(&gatelock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = iflist;
 		while(p) {
@@ -3024,25 +3024,25 @@ int unload_module()
 			p = p->next;
 		}
 		iflist = NULL;
-		ast_pthread_mutex_unlock(&iflock);
+		ast_mutex_unlock(&iflock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
 	}
-	if (!ast_pthread_mutex_lock(&monlock)) {
+	if (!ast_mutex_lock(&monlock)) {
 		if (monitor_thread) {
 			pthread_cancel(monitor_thread);
 			pthread_kill(monitor_thread, SIGURG);
 			pthread_join(monitor_thread, NULL);
 		}
 		monitor_thread = -2;
-		ast_pthread_mutex_unlock(&monlock);
+		ast_mutex_unlock(&monlock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
 	}
 
-	if (!ast_pthread_mutex_lock(&iflock)) {
+	if (!ast_mutex_lock(&iflock)) {
 		/* Destroy all the interfaces and free their memory */
 		p = iflist;
 		while(p) {
@@ -3052,7 +3052,7 @@ int unload_module()
 			free(pl);
 		}
 		iflist = NULL;
-		ast_pthread_mutex_unlock(&iflock);
+		ast_mutex_unlock(&iflock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
@@ -3064,9 +3064,9 @@ int unload_module()
 int usecount()
 {
 	int res;
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	res = usecnt;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	return res;
 }
 

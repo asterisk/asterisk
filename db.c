@@ -37,7 +37,7 @@
 #include "astconf.h"
 
 static DB *astdb;
-static pthread_mutex_t dblock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t dblock = AST_MUTEX_INITIALIZER;
 
 static int dbinit(void) 
 {
@@ -84,7 +84,7 @@ int ast_db_deltree(const char *family, const char *keytree)
 	else
 		strcpy(prefix, "");
 	
-	ast_pthread_mutex_lock(&dblock);
+	ast_mutex_lock(&dblock);
 	if (dbinit()) 
 		return -1;
 	
@@ -102,7 +102,7 @@ int ast_db_deltree(const char *family, const char *keytree)
 		}
 	}
 	astdb->sync(astdb, 0);
-	ast_pthread_mutex_unlock(&dblock);
+	ast_mutex_unlock(&dblock);
 	return 0;
 }
 
@@ -112,9 +112,9 @@ int ast_db_put(const char *family, const char *keys, char *value)
 	DBT key, data;
 	int res;
 
-	ast_pthread_mutex_lock(&dblock);
+	ast_mutex_lock(&dblock);
 	if (dbinit()) {
-		ast_pthread_mutex_unlock(&dblock);
+		ast_mutex_unlock(&dblock);
 		return -1;
 	}
 
@@ -127,7 +127,7 @@ int ast_db_put(const char *family, const char *keys, char *value)
 	data.size = strlen(value) + 1;
 	res = astdb->put(astdb, &key, &data, 0);
 	astdb->sync(astdb, 0);
-	ast_pthread_mutex_unlock(&dblock);
+	ast_mutex_unlock(&dblock);
 	if (res)
 		ast_log(LOG_WARNING, "Unable to put value '%s' for key '%s' in family '%s'\n", value, keys, family);
 	return res;
@@ -139,9 +139,9 @@ int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
 	DBT key, data;
 	int res;
 
-	ast_pthread_mutex_lock(&dblock);
+	ast_mutex_lock(&dblock);
 	if (dbinit()) {
-		ast_pthread_mutex_unlock(&dblock);
+		ast_mutex_unlock(&dblock);
 		return -1;
 	}
 
@@ -154,7 +154,7 @@ int ast_db_get(const char *family, const char *keys, char *value, int valuelen)
 	
 	res = astdb->get(astdb, &key, &data, 0);
 	
-	ast_pthread_mutex_unlock(&dblock);
+	ast_mutex_unlock(&dblock);
 
 	/* Be sure to NULL terminate our data either way */
 	if (res) {
@@ -180,9 +180,9 @@ int ast_db_del(const char *family, const char *keys)
 	DBT key;
 	int res;
 
-	ast_pthread_mutex_lock(&dblock);
+	ast_mutex_lock(&dblock);
 	if (dbinit()) {
-		ast_pthread_mutex_unlock(&dblock);
+		ast_mutex_unlock(&dblock);
 		return -1;
 	}
 	
@@ -194,7 +194,7 @@ int ast_db_del(const char *family, const char *keys)
 	res = astdb->del(astdb, &key, 0);
 	astdb->sync(astdb, 0);
 	
-	ast_pthread_mutex_unlock(&dblock);
+	ast_mutex_unlock(&dblock);
 
 	if (res) 
 		ast_log(LOG_DEBUG, "Unable to find key '%s' in family '%s'\n", keys, family);
@@ -276,9 +276,9 @@ static int database_show(int fd, int argc, char *argv[])
 		strcpy(prefix, "");
 	} else
 		return RESULT_SHOWUSAGE;
-	ast_pthread_mutex_lock(&dblock);
+	ast_mutex_lock(&dblock);
 	if (dbinit()) {
-		ast_pthread_mutex_unlock(&dblock);
+		ast_mutex_unlock(&dblock);
 		ast_cli(fd, "Database unavailable\n");
 		return RESULT_SUCCESS;	
 	}
@@ -300,7 +300,7 @@ static int database_show(int fd, int argc, char *argv[])
 				ast_cli(fd, "%-50s: %-25s\n", keys, values);
 		}
 	}
-	ast_pthread_mutex_unlock(&dblock);
+	ast_mutex_unlock(&dblock);
 	return RESULT_SUCCESS;	
 }
 
@@ -323,9 +323,9 @@ struct ast_db_entry *ast_db_gettree(const char *family, const char *keytree)
 			snprintf(prefix, sizeof(prefix), "/%s", family);
 	} else
 		strcpy(prefix, "");
-	ast_pthread_mutex_lock(&dblock);
+	ast_mutex_lock(&dblock);
 	if (dbinit()) {
-		ast_pthread_mutex_unlock(&dblock);
+		ast_mutex_unlock(&dblock);
 		ast_log(LOG_WARNING, "Database unavailable\n");
 		return NULL;	
 	}
@@ -358,7 +358,7 @@ struct ast_db_entry *ast_db_gettree(const char *family, const char *keytree)
 				}
 		}
 	}
-	ast_pthread_mutex_unlock(&dblock);
+	ast_mutex_unlock(&dblock);
 	return ret;	
 }
 

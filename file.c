@@ -78,7 +78,7 @@ struct ast_filestream {
 	struct ast_channel *owner;
 };
 
-static pthread_mutex_t formatlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t formatlock = AST_MUTEX_INITIALIZER;
 
 static struct ast_format *formats = NULL;
 
@@ -94,14 +94,14 @@ int ast_format_register(char *name, char *exts, int format,
 						char * (*getcomment)(struct ast_filestream *))
 {
 	struct ast_format *tmp;
-	if (ast_pthread_mutex_lock(&formatlock)) {
+	if (ast_mutex_lock(&formatlock)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
 		return -1;
 	}
 	tmp = formats;
 	while(tmp) {
 		if (!strcasecmp(name, tmp->name)) {
-			ast_pthread_mutex_unlock(&formatlock);
+			ast_mutex_unlock(&formatlock);
 			ast_log(LOG_WARNING, "Tried to register '%s' format, already registered\n", name);
 			return -1;
 		}
@@ -110,7 +110,7 @@ int ast_format_register(char *name, char *exts, int format,
 	tmp = malloc(sizeof(struct ast_format));
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Out of memory\n");
-		ast_pthread_mutex_unlock(&formatlock);
+		ast_mutex_unlock(&formatlock);
 		return -1;
 	}
 	strncpy(tmp->name, name, sizeof(tmp->name)-1);
@@ -127,7 +127,7 @@ int ast_format_register(char *name, char *exts, int format,
 	tmp->getcomment = getcomment;
 	tmp->next = formats;
 	formats = tmp;
-	ast_pthread_mutex_unlock(&formatlock);
+	ast_mutex_unlock(&formatlock);
 	if (option_verbose > 1)
 		ast_verbose( VERBOSE_PREFIX_2 "Registered file format %s, extension(s) %s\n", name, exts);
 	return 0;
@@ -136,7 +136,7 @@ int ast_format_register(char *name, char *exts, int format,
 int ast_format_unregister(char *name)
 {
 	struct ast_format *tmp, *tmpl = NULL;
-	if (ast_pthread_mutex_lock(&formatlock)) {
+	if (ast_mutex_lock(&formatlock)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
 		return -1;
 	}
@@ -148,7 +148,7 @@ int ast_format_unregister(char *name)
 			else
 				formats = tmp->next;
 			free(tmp);
-			ast_pthread_mutex_unlock(&formatlock);
+			ast_mutex_unlock(&formatlock);
 			if (option_verbose > 1)
 				ast_verbose( VERBOSE_PREFIX_2 "Unregistered format %s\n", name);
 			return 0;
@@ -310,7 +310,7 @@ static int ast_filehelper(char *filename, char *filename2, char *fmt, int action
 	if (action == ACTION_OPEN)
 		ret = -1;
 	/* Check for a specific format */
-	if (ast_pthread_mutex_lock(&formatlock)) {
+	if (ast_mutex_lock(&formatlock)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
 		if (action == ACTION_EXISTS)
 			return 0;
@@ -397,7 +397,7 @@ static int ast_filehelper(char *filename, char *filename2, char *fmt, int action
 		}
 		f = f->next;
 	}
-	ast_pthread_mutex_unlock(&formatlock);
+	ast_mutex_unlock(&formatlock);
 	if ((action == ACTION_EXISTS) || (action == ACTION_OPEN))
 		res = ret ? ret : -1;
 	return res;
@@ -731,7 +731,7 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 	struct ast_filestream *fs=NULL;
 	char *fn;
 	char *ext;
-	if (ast_pthread_mutex_lock(&formatlock)) {
+	if (ast_mutex_lock(&formatlock)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
 		return NULL;
 	}
@@ -770,7 +770,7 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 		}
 		f = f->next;
 	}
-	ast_pthread_mutex_unlock(&formatlock);
+	ast_mutex_unlock(&formatlock);
 	if (!f) 
 		ast_log(LOG_WARNING, "No such format '%s'\n", type);
 	return fs;

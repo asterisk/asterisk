@@ -35,7 +35,7 @@
 
 #define USE_ILBC_ENHANCER	0
 
-static pthread_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
 static int localusecnt=0;
 
 static char *tdesc = "iLBC/PCM16 (signed linear) Codec Translator";
@@ -245,13 +245,13 @@ static struct ast_translator lintoilbc =
 int unload_module(void)
 {
 	int res;
-	ast_pthread_mutex_lock(&localuser_lock);
+	ast_mutex_lock(&localuser_lock);
 	res = ast_unregister_translator(&lintoilbc);
 	if (!res)
 		res = ast_unregister_translator(&ilbctolin);
 	if (localusecnt)
 		res = -1;
-	ast_pthread_mutex_unlock(&localuser_lock);
+	ast_mutex_unlock(&localuser_lock);
 	return res;
 }
 

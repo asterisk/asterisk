@@ -41,7 +41,7 @@
 #define MAX_FRAME_SIZE 1441
 #define MAX_OUTPUT_LEN 2304
 
-static pthread_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
 static int localusecnt=0;
 
 static char *tdesc = "MP3/PCM16 (signed linear) Translator (Decoder only)";
@@ -287,11 +287,11 @@ static struct ast_translator mp3tolin =
 int unload_module(void)
 {
 	int res;
-	ast_pthread_mutex_lock(&localuser_lock);
+	ast_mutex_lock(&localuser_lock);
 	res = ast_unregister_translator(&mp3tolin);
 	if (localusecnt)
 		res = -1;
-	ast_pthread_mutex_unlock(&localuser_lock);
+	ast_mutex_unlock(&localuser_lock);
 	return res;
 }
 

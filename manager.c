@@ -42,7 +42,7 @@ static int enabled = 0;
 static int portno = DEFAULT_MANAGER_PORT;
 static int asock = -1;
 static pthread_t t;
-static pthread_mutex_t sessionlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t sessionlock = AST_MUTEX_INITIALIZER;
 
 static struct permalias {
 	int num;
@@ -60,19 +60,19 @@ static struct permalias {
 
 static struct mansession *sessions = NULL;
 static struct manager_action *first_action = NULL;
-static pthread_mutex_t actionlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t actionlock = AST_MUTEX_INITIALIZER;
 
 static int handle_showmancmds(int fd, int argc, char *argv[])
 {
 	struct manager_action *cur = first_action;
 
-	ast_pthread_mutex_lock(&actionlock);
+	ast_mutex_lock(&actionlock);
 	while(cur) { /* Walk the list of actions */
 		ast_cli(fd, "\t%s  %s\r\n",cur->action, cur->synopsis);
 		cur = cur->next;
 	}
 
-	ast_pthread_mutex_unlock(&actionlock);
+	ast_mutex_unlock(&actionlock);
 	return RESULT_SUCCESS;
 }
 
@@ -80,7 +80,7 @@ static int handle_showmanconn(int fd, int argc, char *argv[])
 {
 	struct mansession *s;
 
-	ast_pthread_mutex_lock(&sessionlock);
+	ast_mutex_lock(&sessionlock);
 	s = sessions;
 	ast_cli(fd, "  Username\tIP Address\n");
 	while(s) {
@@ -88,7 +88,7 @@ static int handle_showmanconn(int fd, int argc, char *argv[])
 		s = s->next;
 	}
 
-	ast_pthread_mutex_unlock(&sessionlock);
+	ast_mutex_unlock(&sessionlock);
 	return RESULT_SUCCESS;
 }
 
@@ -112,7 +112,7 @@ static struct ast_cli_entry show_manconn_cli =
 static void destroy_session(struct mansession *s)
 {
 	struct mansession *cur, *prev = NULL;
-	ast_pthread_mutex_lock(&sessionlock);
+	ast_mutex_lock(&sessionlock);
 	cur = sessions;
 	while(cur) {
 		if (cur == s)
@@ -130,7 +130,7 @@ static void destroy_session(struct mansession *s)
 		free(s);
 	} else
 		ast_log(LOG_WARNING, "Trying to delete non-existant session %p?\n", s);
-	ast_pthread_mutex_unlock(&sessionlock);
+	ast_mutex_unlock(&sessionlock);
 	
 }
 
@@ -147,21 +147,21 @@ char *astman_get_header(struct message *m, char *var)
 
 void astman_send_error(struct mansession *s, char *error)
 {
-	ast_pthread_mutex_lock(&s->lock);
+	ast_mutex_lock(&s->lock);
 	ast_cli(s->fd, "Response: Error\r\n");
 	ast_cli(s->fd, "Message: %s\r\n\r\n", error);
-	ast_pthread_mutex_unlock(&s->lock);
+	ast_mutex_unlock(&s->lock);
 }
 
 void astman_send_response(struct mansession *s, char *resp, char *msg)
 {
-	ast_pthread_mutex_lock(&s->lock);
+	ast_mutex_lock(&s->lock);
 	ast_cli(s->fd, "Response: %s\r\n", resp);
 	if (msg)
 		ast_cli(s->fd, "Message: %s\r\n\r\n", msg);
 	else
 		ast_cli(s->fd, "\r\n");
-	ast_pthread_mutex_unlock(&s->lock);
+	ast_mutex_unlock(&s->lock);
 }
 
 void astman_send_ack(struct mansession *s, char *msg)
@@ -385,15 +385,15 @@ static int action_redirect(struct mansession *s, struct message *m)
 static int action_command(struct mansession *s, struct message *m)
 {
 	char *cmd = astman_get_header(m, "Command");
-	ast_pthread_mutex_lock(&s->lock);
+	ast_mutex_lock(&s->lock);
 	s->blocking = 1;
-	ast_pthread_mutex_unlock(&s->lock);
+	ast_mutex_unlock(&s->lock);
 	ast_cli(s->fd, "Response: Follows\r\n");
 	ast_cli_command(s->fd, cmd);
 	ast_cli(s->fd, "--END COMMAND--\r\n\r\n");
-	ast_pthread_mutex_lock(&s->lock);
+	ast_mutex_lock(&s->lock);
 	s->blocking = 0;
-	ast_pthread_mutex_unlock(&s->lock);
+	ast_mutex_unlock(&s->lock);
 	return 0;
 }
 
@@ -549,9 +549,9 @@ static int process_message(struct mansession *s, struct message *m)
 			authtype = astman_get_header(m, "AuthType");
 			if (!strcasecmp(authtype, "MD5")) {
 				if (!s->challenge || !strlen(s->challenge)) {
-					ast_pthread_mutex_lock(&s->lock);
+					ast_mutex_lock(&s->lock);
 					snprintf(s->challenge, sizeof(s->challenge), "%d", rand());
-					ast_pthread_mutex_unlock(&s->lock);
+					ast_mutex_unlock(&s->lock);
 				}
 				ast_cli(s->fd, "Response: Success\r\nChallenge: %s\r\n\r\n", s->challenge);
 				return 0;
@@ -619,9 +619,9 @@ static int get_input(struct mansession *s, char *output)
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
 	} else if (res > 0) {
-		ast_pthread_mutex_lock(&s->lock);
+		ast_mutex_lock(&s->lock);
 		res = read(s->fd, s->inbuf + s->inlen, sizeof(s->inbuf) - 1 - s->inlen);
-		ast_pthread_mutex_unlock(&s->lock);
+		ast_mutex_unlock(&s->lock);
 		if (res < 1)
 			return -1;
 	}
@@ -636,9 +636,9 @@ static void *session_do(void *data)
 	struct message m;
 	int res;
 	
-	ast_pthread_mutex_lock(&s->lock);
+	ast_mutex_lock(&s->lock);
 	ast_cli(s->fd, "Asterisk Call Manager/1.0\r\n");
-	ast_pthread_mutex_unlock(&s->lock);
+	ast_mutex_unlock(&s->lock);
 	memset(&m, 0, sizeof(&m));
 	for (;;) {
 		res = get_input(s, m.headers[m.hdrcount]);
@@ -702,12 +702,12 @@ static void *accept_thread(void *ignore)
 		} 
 		memset(s, 0, sizeof(struct mansession));
 		memcpy(&s->sin, &sin, sizeof(sin));
-		ast_pthread_mutex_init(&s->lock);
+		ast_mutex_init(&s->lock);
 		s->fd = as;
-		ast_pthread_mutex_lock(&sessionlock);
+		ast_mutex_lock(&sessionlock);
 		s->next = sessions;
 		sessions = s;
-		ast_pthread_mutex_unlock(&sessionlock);
+		ast_mutex_unlock(&sessionlock);
 		if (pthread_create(&t, &attr, session_do, s))
 			destroy_session(s);
 	}
@@ -721,11 +721,11 @@ int manager_event(int category, char *event, char *fmt, ...)
 	char tmp[4096];
 	va_list ap;
 
-	ast_pthread_mutex_lock(&sessionlock);
+	ast_mutex_lock(&sessionlock);
 	s = sessions;
 	while(s) {
 		if ((s->readperm & category) == category) {
-			ast_pthread_mutex_lock(&s->lock);
+			ast_mutex_lock(&s->lock);
 			if (!s->blocking) {
 				ast_cli(s->fd, "Event: %s\r\n", event);
 				va_start(ap, fmt);
@@ -734,31 +734,31 @@ int manager_event(int category, char *event, char *fmt, ...)
 				write(s->fd, tmp, strlen(tmp));
 				ast_cli(s->fd, "\r\n");
 			}
-			ast_pthread_mutex_unlock(&s->lock);
+			ast_mutex_unlock(&s->lock);
 		}
 		s = s->next;
 	}
-	ast_pthread_mutex_unlock(&sessionlock);
+	ast_mutex_unlock(&sessionlock);
 	return 0;
 }
 
 int ast_manager_unregister( char *action ) {
 	struct manager_action *cur = first_action, *prev = first_action;
 
-	ast_pthread_mutex_lock(&actionlock);
+	ast_mutex_lock(&actionlock);
 	while( cur ) { 		
 		if (!strcasecmp(action, cur->action)) {
 			prev->next = cur->next;
 			free(cur);
 			if (option_verbose > 1) 
 				ast_verbose(VERBOSE_PREFIX_2 "Manager unregistered action %s\n", action);
-			ast_pthread_mutex_unlock(&actionlock);
+			ast_mutex_unlock(&actionlock);
 			return 0;
 		}
 		prev = cur;
 		cur = cur->next;
 	}
-	ast_pthread_mutex_unlock(&actionlock);
+	ast_mutex_unlock(&actionlock);
 	return 0;
 }
 
@@ -774,7 +774,7 @@ int ast_manager_register( char *action, int auth,
 {
 	struct manager_action *cur = first_action, *prev = NULL;
 
-	ast_pthread_mutex_lock(&actionlock);
+	ast_mutex_lock(&actionlock);
 	while(cur) { /* Walk the list of actions */
 		prev = cur; 
 		cur = cur->next;
@@ -782,7 +782,7 @@ int ast_manager_register( char *action, int auth,
 	cur = malloc( sizeof(struct manager_action) );
 	if( !cur ) {
 		ast_log(LOG_WARNING, "Manager: out of memory trying to register action\n");
-		ast_pthread_mutex_unlock(&actionlock);
+		ast_mutex_unlock(&actionlock);
 		return -1;
 	}
 	strncpy( cur->action, action, 255 );
@@ -796,7 +796,7 @@ int ast_manager_register( char *action, int auth,
 
 	if (option_verbose > 1) 
 		ast_verbose(VERBOSE_PREFIX_2 "Manager registered action %s\n", action);
-	ast_pthread_mutex_unlock(&actionlock);
+	ast_mutex_unlock(&actionlock);
 	return 0;
 }
 

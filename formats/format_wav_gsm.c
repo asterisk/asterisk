@@ -53,7 +53,7 @@ struct ast_filestream {
 };
 
 
-static pthread_mutex_t wav_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t wav_lock = AST_MUTEX_INITIALIZER;
 static int glistcnt = 0;
 
 static char *name = "wav49";
@@ -331,7 +331,7 @@ static struct ast_filestream *wav_open(int fd)
 			free(tmp);
 			return NULL;
 		}
-		if (ast_pthread_mutex_lock(&wav_lock)) {
+		if (ast_mutex_lock(&wav_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock wav list\n");
 			free(tmp);
 			return NULL;
@@ -345,7 +345,7 @@ static struct ast_filestream *wav_open(int fd)
 		tmp->fr.mallocd = 0;
 		tmp->secondhalf = 0;
 		glistcnt++;
-		ast_pthread_mutex_unlock(&wav_lock);
+		ast_mutex_unlock(&wav_lock);
 		ast_update_use_count();
 	}
 	return tmp;
@@ -363,14 +363,14 @@ static struct ast_filestream *wav_rewrite(int fd, char *comment)
 			free(tmp);
 			return NULL;
 		}
-		if (ast_pthread_mutex_lock(&wav_lock)) {
+		if (ast_mutex_lock(&wav_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock wav list\n");
 			free(tmp);
 			return NULL;
 		}
 		tmp->fd = fd;
 		glistcnt++;
-		ast_pthread_mutex_unlock(&wav_lock);
+		ast_mutex_unlock(&wav_lock);
 		ast_update_use_count();
 	} else
 		ast_log(LOG_WARNING, "Out of memory\n");
@@ -380,7 +380,7 @@ static struct ast_filestream *wav_rewrite(int fd, char *comment)
 static void wav_close(struct ast_filestream *s)
 {
 	char zero = 0;
-	ast_pthread_mutex_unlock(&wav_lock);
+	ast_mutex_unlock(&wav_lock);
 	ast_update_use_count();
 	/* Pad to even length */
 	if (s->bytes & 0x1)
@@ -533,12 +533,12 @@ int unload_module()
 int usecount()
 {
 	int res;
-	if (ast_pthread_mutex_lock(&wav_lock)) {
+	if (ast_mutex_lock(&wav_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock wav list\n");
 		return -1;
 	}
 	res = glistcnt;
-	ast_pthread_mutex_unlock(&wav_lock);
+	ast_mutex_unlock(&wav_lock);
 	return res;
 }
 

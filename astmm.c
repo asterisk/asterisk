@@ -55,7 +55,7 @@ static struct ast_region {
 #define HASH(a) \
 	(((unsigned long)(a)) % SOME_PRIME)
 	
-static pthread_mutex_t reglock = PTHREAD_MUTEX_INITIALIZER;
+static ast_mutex_t reglock = PTHREAD_MUTEX_INITIALIZER;
 
 static inline void *__ast_alloc_region(size_t size, int which, const char *file, int lineno, const char *func)
 {
@@ -63,7 +63,7 @@ static inline void *__ast_alloc_region(size_t size, int which, const char *file,
 	void *ptr=NULL;
 	int hash;
 	reg = malloc(size + sizeof(struct ast_region));
-	pthread_mutex_lock(&reglock);
+	ast_mutex_lock(&reglock);
 	if (reg) {
 		strncpy(reg->file, file, sizeof(reg->file) - 1);
 		reg->file[sizeof(reg->file) - 1] = '\0';
@@ -77,7 +77,7 @@ static inline void *__ast_alloc_region(size_t size, int which, const char *file,
 		reg->next = regions[hash];
 		regions[hash] = reg;
 	}
-	pthread_mutex_unlock(&reglock);
+	ast_mutex_unlock(&reglock);
 	if (!reg) {
 		fprintf(stderr, "Out of memory :(\n");
 		if (mmlog) {
@@ -94,7 +94,7 @@ static inline size_t __ast_sizeof_region(void *ptr)
 	struct ast_region *reg;
 	size_t len = 0;
 	
-	pthread_mutex_lock(&reglock);
+	ast_mutex_lock(&reglock);
 	reg = regions[hash];
 	while(reg) {
 		if (reg->data == ptr) {
@@ -103,7 +103,7 @@ static inline size_t __ast_sizeof_region(void *ptr)
 		}
 		reg = reg->next;
 	}
-	pthread_mutex_unlock(&reglock);
+	ast_mutex_unlock(&reglock);
 	return len;
 }
 
@@ -111,7 +111,7 @@ static void __ast_free_region(void *ptr, const char *file, int lineno, const cha
 {
 	int hash = HASH(ptr);
 	struct ast_region *reg, *prev = NULL;
-	pthread_mutex_lock(&reglock);
+	ast_mutex_lock(&reglock);
 	reg = regions[hash];
 	while(reg) {
 		if (reg->data == ptr) {
@@ -125,7 +125,7 @@ static void __ast_free_region(void *ptr, const char *file, int lineno, const cha
 		prev = reg;
 		reg = reg->next;
 	}
-	pthread_mutex_unlock(&reglock);
+	ast_mutex_unlock(&reglock);
 	if (reg) {
 		free(reg);
 	} else {
@@ -226,7 +226,7 @@ static int handle_show_memory(int fd, int argc, char *argv[])
 		fn = argv[3];
 
 	/* try to lock applications list ... */
-	pthread_mutex_lock(&reglock);
+	ast_mutex_lock(&reglock);
 
 	for (x=0;x<SOME_PRIME;x++) {
 		reg = regions[x];
@@ -240,7 +240,7 @@ static int handle_show_memory(int fd, int argc, char *argv[])
 		}
 	}
 	ast_cli(fd, "%d bytes allocated %d units total\n", len, count);
-	pthread_mutex_unlock(&reglock);
+	ast_mutex_unlock(&reglock);
 	return RESULT_SUCCESS;
 }
 
@@ -264,7 +264,7 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
 		fn = argv[3];
 
 	/* try to lock applications list ... */
-	pthread_mutex_lock(&reglock);
+	ast_mutex_lock(&reglock);
 
 	for (x=0;x<SOME_PRIME;x++) {
 		reg = regions[x];
@@ -289,7 +289,7 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
 			reg = reg->next;
 		}
 	}
-	pthread_mutex_unlock(&reglock);
+	ast_mutex_unlock(&reglock);
 	
 	/* Dump the whole list */
 	while(list) {

@@ -76,7 +76,7 @@ static struct enum_search {
 
 static int enumver = 0;
 
-static pthread_mutex_t enumlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t enumlock = AST_MUTEX_INITIALIZER;
 
 static int skip_name(unsigned char *s, int len)
 {
@@ -291,7 +291,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 #endif	
 	
 	for(;;) {
-		ast_pthread_mutex_lock(&enumlock);
+		ast_mutex_lock(&enumlock);
 		if (version != enumver) {
 			/* Ooh, a reload... */
 			s = toplevs;
@@ -301,7 +301,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		if (s) {
 			strcpy(tmp + newpos, s->toplev);
 		}
-		ast_pthread_mutex_unlock(&enumlock);
+		ast_mutex_unlock(&enumlock);
 		if (!s)
 			break;
 		res = res_nsearch(&enumstate, tmp, C_IN, T_NAPTR, answer, sizeof(answer));
@@ -344,7 +344,7 @@ int ast_enum_init(void)
 	struct ast_variable *v;
 
 	/* Destroy existing list */
-	ast_pthread_mutex_lock(&enumlock);
+	ast_mutex_lock(&enumlock);
 	s = toplevs;
 	while(s) {
 		sl = s;
@@ -374,7 +374,7 @@ int ast_enum_init(void)
 		toplevs = enum_newtoplev(TOPLEV);
 	}
 	enumver++;
-	ast_pthread_mutex_unlock(&enumlock);
+	ast_mutex_unlock(&enumlock);
 	return 0;
 }
 

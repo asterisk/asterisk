@@ -64,7 +64,7 @@ static int silencesuppression = 0;
 static int silencethreshold = 1000;
 
 
-static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 static char *type = "Console";
 static char *desc = "OSS Console Channel Driver";
@@ -490,9 +490,9 @@ static int oss_hangup(struct ast_channel *c)
 	c->pvt->pvt = NULL;
 	oss.owner = NULL;
 	ast_verbose( " << Hangup on console >> \n");
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	usecnt--;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	if (hookstate) {
 		if (autoanswer) {
 			/* Assume auto-hangup too */
@@ -712,9 +712,9 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *p, int state)
 			strncpy(tmp->language, language, sizeof(tmp->language)-1);
 		p->owner = tmp;
 		ast_setstate(tmp, state);
-		ast_pthread_mutex_lock(&usecnt_lock);
+		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
-		ast_pthread_mutex_unlock(&usecnt_lock);
+		ast_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
@@ -1029,9 +1029,9 @@ char *description()
 int usecount()
 {
 	int res;
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	res = usecnt;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	return res;
 }
 

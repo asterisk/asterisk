@@ -81,13 +81,13 @@ static int wrapuptime;
 static int ackcall;
 
 static int usecnt =0;
-static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 /* Protect the interface list (of sip_pvt's) */
-static pthread_mutex_t agentlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t agentlock = AST_MUTEX_INITIALIZER;
 
 static struct agent_pvt {
-	pthread_mutex_t lock;				/* Channel private lock */
+	ast_mutex_t lock;				/* Channel private lock */
 	int dead;							/* Poised for destruction? */
 	int pending;						/* Not a real agent -- just pending a match */
 	int abouttograb;					/* About to grab */
@@ -102,7 +102,7 @@ static struct agent_pvt {
 	char agent[AST_MAX_AGENT];			/* Agent ID */
 	char password[AST_MAX_AGENT];		/* Password for Agent login */
 	char name[AST_MAX_AGENT];
-	pthread_mutex_t app_lock;			/* Synchronization between owning applications */
+	ast_mutex_t app_lock;			/* Synchronization between owning applications */
 	volatile pthread_t owning_app;		/* Owning application thread id */
 	volatile int app_sleep_cond;		/* Sleep condition for the login app */
 	struct ast_channel *owner;			/* Agent */
@@ -168,8 +168,8 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 		if (p) {
 			memset(p, 0, sizeof(struct agent_pvt));
 			strncpy(p->agent, tmp, sizeof(p->agent) -1);
-			ast_pthread_mutex_init( &p->lock );
-			ast_pthread_mutex_init( &p->app_lock );
+			ast_mutex_init( &p->lock );
+			ast_mutex_init( &p->app_lock );
 			p->owning_app = -1;
 			p->app_sleep_cond = 1;
 			p->group = group;
@@ -204,7 +204,7 @@ static int agent_cleanup(struct agent_pvt *p)
 	chan->pvt->pvt = NULL;
 	p->app_sleep_cond = 1;
 	/* Release ownership of the agent to other threads (presumably running the login app). */
-	ast_pthread_mutex_unlock(&p->app_lock);
+	ast_mutex_unlock(&p->app_lock);
 	if (chan)
 		ast_channel_free(chan);
 	if (p->dead)
@@ -226,7 +226,7 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 	struct ast_frame *f = NULL;
 	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 	static struct ast_frame answer_frame = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
-	ast_pthread_mutex_lock(&p->lock); 
+	ast_mutex_lock(&p->lock); 
 	if (p->chan) {
 		p->chan->pvt->rawreadformat = ast->pvt->rawreadformat;
 		f = ast_read(p->chan);
@@ -270,7 +270,7 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 		f = NULL;
 	}
 	CLEANUP(ast,p);
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return f;
 }
 
@@ -278,28 +278,28 @@ static int agent_write(struct ast_channel *ast, struct ast_frame *f)
 {
 	struct agent_pvt *p = ast->pvt->pvt;
 	int res = -1;
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	if (p->chan) {
 		p->chan->pvt->rawwriteformat = ast->pvt->rawwriteformat;
 		res = ast_write(p->chan, f);
 	} else
 		res = 0;
 	CLEANUP(ast, p);
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return res;
 }
 
 static int agent_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct agent_pvt *p = newchan->pvt->pvt;
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	if (p->owner != oldchan) {
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		return -1;
 	}
 	p->owner = newchan;
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return 0;
 }
 
@@ -307,12 +307,12 @@ static int agent_indicate(struct ast_channel *ast, int condition)
 {
 	struct agent_pvt *p = ast->pvt->pvt;
 	int res = -1;
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	if (p->chan)
 		res = ast_indicate(p->chan, condition);
 	else
 		res = 0;
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return res;
 }
 
@@ -320,12 +320,12 @@ static int agent_digit(struct ast_channel *ast, char digit)
 {
 	struct agent_pvt *p = ast->pvt->pvt;
 	int res = -1;
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	if (p->chan)
 		res = p->chan->pvt->send_digit(p->chan, digit);
 	else
 		res = 0;
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return res;
 }
 
@@ -333,7 +333,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 {
 	struct agent_pvt *p = ast->pvt->pvt;
 	int res = -1;
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	if (!p->chan) {
 		if (p->pending) {
 			ast_log(LOG_DEBUG, "Pretending to dial on pending agent\n");
@@ -343,7 +343,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 			ast_log(LOG_NOTICE, "Whoa, they hung up between alloc and call...  what are the odds of that?\n");
 			res = -1;
 		}
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		return res;
 	} else if (strlen(p->loginchan)) {
 		time(&p->start);
@@ -352,7 +352,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 			ast_verbose(VERBOSE_PREFIX_3 "outgoing agentcall, to agent '%s', on '%s'\n", p->agent, p->chan->name);
 		res = ast_call(p->chan, p->loginchan, 0);
 		CLEANUP(ast,p);
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		return res;
 	}
 	ast_verbose( VERBOSE_PREFIX_3 "agent_call, call to agent '%s' call on '%s'\n", p->agent, p->chan->name);
@@ -385,7 +385,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_setstate(ast, AST_STATE_UP);
 	}
 	CLEANUP(ast,p);
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return res;
 }
 
@@ -393,7 +393,7 @@ static int agent_hangup(struct ast_channel *ast)
 {
 	struct agent_pvt *p = ast->pvt->pvt;
 	int howlong = 0;
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	p->owner = NULL;
 	ast->pvt->pvt = NULL;
 	p->app_sleep_cond = 1;
@@ -415,38 +415,38 @@ static int agent_hangup(struct ast_channel *ast)
 				strcpy(p->loginchan, "");
 			}
 		} else if (p->dead) {
-			ast_pthread_mutex_lock(&p->chan->lock);
+			ast_mutex_lock(&p->chan->lock);
 			ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
-			ast_pthread_mutex_unlock(&p->chan->lock);
+			ast_mutex_unlock(&p->chan->lock);
 		} else {
-			ast_pthread_mutex_lock(&p->chan->lock);
+			ast_mutex_lock(&p->chan->lock);
 			ast_moh_start(p->chan, p->moh);
-			ast_pthread_mutex_unlock(&p->chan->lock);
+			ast_mutex_unlock(&p->chan->lock);
 		}
 	}
 #if 0
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		/* Release ownership of the agent to other threads (presumably running the login app). */
-		ast_pthread_mutex_unlock(&p->app_lock);
+		ast_mutex_unlock(&p->app_lock);
 	} else if (p->dead) {
 		/* Go ahead and lose it */
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		/* Release ownership of the agent to other threads (presumably running the login app). */
-		ast_pthread_mutex_unlock(&p->app_lock);
+		ast_mutex_unlock(&p->app_lock);
 	} else {
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		/* Release ownership of the agent to other threads (presumably running the login app). */
-		ast_pthread_mutex_unlock(&p->app_lock);
+		ast_mutex_unlock(&p->app_lock);
 	}
 #endif	
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	/* Release ownership of the agent to other threads (presumably running the login app). */
-	ast_pthread_mutex_unlock(&p->app_lock);
+	ast_mutex_unlock(&p->app_lock);
 
 	if (p->pending) {
-		ast_pthread_mutex_lock(&agentlock);
+		ast_mutex_lock(&agentlock);
 		agent_unlink(p);
-		ast_pthread_mutex_unlock(&agentlock);
+		ast_mutex_unlock(&agentlock);
 	}
 	if (p->abouttograb) {
 		/* Let the "about to grab" thread know this isn't valid anymore, and let it
@@ -456,11 +456,11 @@ static int agent_hangup(struct ast_channel *ast)
 		free(p);
 	} else if (p->chan) {
 		/* Not dead -- check availability now */
-		ast_pthread_mutex_lock(&p->lock);
+		ast_mutex_lock(&p->lock);
 		/* check_availability(p, 1); */
 		/* Store last disconnect time */
 		gettimeofday(&p->lastdisc, NULL);
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 	}
 	return 0;
 }
@@ -473,7 +473,7 @@ static int agent_cont_sleep( void *data )
 
 	p = (struct agent_pvt *)data;
 
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	res = p->app_sleep_cond;
 	if (p->lastdisc.tv_sec) {
 		gettimeofday(&tv, NULL);
@@ -481,7 +481,7 @@ static int agent_cont_sleep( void *data )
 			(tv.tv_usec - p->lastdisc.tv_usec) / 1000 > p->wrapuptime) 
 			res = 1;
 	}
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 #if 0
 	if( !res )
 		ast_log( LOG_DEBUG, "agent_cont_sleep() returning %d\n", res );
@@ -534,9 +534,9 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 		tmp->pvt->indicate = agent_indicate;
 		tmp->pvt->fixup = agent_fixup;
 		p->owner = tmp;
-		ast_pthread_mutex_lock(&usecnt_lock);
+		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
-		ast_pthread_mutex_unlock(&usecnt_lock);
+		ast_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
 		tmp->priority = 1;
 		/* Wake up and wait for other applications (by definition the login app)
@@ -547,13 +547,13 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 		 * implemented in the kernel for this.
 		 */
 		p->app_sleep_cond = 0;
-		if( pthread_mutex_trylock(&p->app_lock) )
+		if( ast_mutex_trylock(&p->app_lock) )
 		{
 			if (p->chan) {
 				ast_queue_frame(p->chan, &null_frame, 1);
-				ast_pthread_mutex_unlock(&p->lock);	/* For other thread to read the condition. */
-				ast_pthread_mutex_lock(&p->app_lock);
-				ast_pthread_mutex_lock(&p->lock);
+				ast_mutex_unlock(&p->lock);	/* For other thread to read the condition. */
+				ast_mutex_lock(&p->app_lock);
+				ast_mutex_lock(&p->lock);
 			}
 			if( !p->chan )
 			{
@@ -562,8 +562,8 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 				tmp->pvt->pvt = NULL;
 				p->app_sleep_cond = 1;
 				ast_channel_free( tmp );
-				ast_pthread_mutex_unlock(&p->lock);	/* For other thread to read the condition. */
-				ast_pthread_mutex_unlock(&p->app_lock);
+				ast_mutex_unlock(&p->lock);	/* For other thread to read the condition. */
+				ast_mutex_unlock(&p->app_lock);
 				return NULL;
 			}
 		}
@@ -596,7 +596,7 @@ static int read_agent_config(void)
 		ast_log(LOG_NOTICE, "No agent configuration found -- agent support disabled\n");
 		return 0;
 	}
-	ast_pthread_mutex_lock(&agentlock);
+	ast_mutex_lock(&agentlock);
 	p = agents;
 	while(p) {
 		p->dead = 1;
@@ -648,7 +648,7 @@ static int read_agent_config(void)
 			pl = p;
 		p = pn;
 	}
-	ast_pthread_mutex_unlock(&agentlock);
+	ast_mutex_unlock(&agentlock);
 	ast_destroy(cfg);
 	return 0;
 }
@@ -660,28 +660,28 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 	int res;
 	ast_log(LOG_DEBUG, "Checking availability of '%s'\n", newlyavailable->agent);
 	if (needlock)
-		ast_pthread_mutex_lock(&agentlock);
+		ast_mutex_lock(&agentlock);
 	p = agents;
 	while(p) {
 		if (p == newlyavailable) {
 			p = p->next;
 			continue;
 		}
-		ast_pthread_mutex_lock(&p->lock);
+		ast_mutex_lock(&p->lock);
 		if (!p->abouttograb && p->pending && ((p->group && (newlyavailable->group & p->group)) || !strcmp(p->agent, newlyavailable->agent))) {
 			ast_log(LOG_DEBUG, "Call '%s' looks like a winner for agent '%s'\n", p->owner->name, newlyavailable->agent);
 			/* We found a pending call, time to merge */
 			chan = agent_new(newlyavailable, AST_STATE_DOWN);
 			parent = p->owner;
 			p->abouttograb = 1;
-			ast_pthread_mutex_unlock(&p->lock);
+			ast_mutex_unlock(&p->lock);
 			break;
 		}
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		p = p->next;
 	}
 	if (needlock)
-		ast_pthread_mutex_unlock(&agentlock);
+		ast_mutex_unlock(&agentlock);
 	if (parent && chan)  {
 		ast_log( LOG_DEBUG, "Playing beep, lang '%s'\n", newlyavailable->chan->language);
 		res = ast_streamfile(newlyavailable->chan, "beep", newlyavailable->chan->language);
@@ -697,10 +697,10 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 				ast_setstate(chan, AST_STATE_UP);
 				/* Go ahead and mark the channel as a zombie so that masquerade will
 				   destroy it for us, and we need not call ast_hangup */
-				ast_pthread_mutex_lock(&parent->lock);
+				ast_mutex_lock(&parent->lock);
 				chan->zombie = 1;
 				ast_channel_masquerade(parent, chan);
-				ast_pthread_mutex_unlock(&parent->lock);
+				ast_mutex_unlock(&parent->lock);
 				p->abouttograb = 0;
 			} else {
 				ast_log(LOG_DEBUG, "Sneaky, parent disappeared in the mean time...\n");
@@ -732,10 +732,10 @@ static struct ast_channel *agent_request(char *type, int format, void *data)
 	}
 
 	/* Check actual logged in agents first */
-	ast_pthread_mutex_lock(&agentlock);
+	ast_mutex_lock(&agentlock);
 	p = agents;
 	while(p) {
-		ast_pthread_mutex_lock(&p->lock);
+		ast_mutex_lock(&p->lock);
 		if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent)) &&
 				!p->lastdisc.tv_sec && !strlen(p->loginchan)) {
 			/* Agent must be registered, but not have any active call, and not be in a waiting state */
@@ -749,17 +749,17 @@ static struct ast_channel *agent_request(char *type, int format, void *data)
 					chan = agent_new(p, AST_STATE_DOWN);
 			}
 			if (chan) {
-				ast_pthread_mutex_unlock(&p->lock);
+				ast_mutex_unlock(&p->lock);
 				break;
 			}
 		}
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		p = p->next;
 	}
 	if (!p) {
 		p = agents;
 		while(p) {
-			ast_pthread_mutex_lock(&p->lock);
+			ast_mutex_lock(&p->lock);
 			if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent)) &&
 					!p->lastdisc.tv_sec) {
 				/* Agent must be registered, but not have any active call, and not be in a waiting state */
@@ -773,11 +773,11 @@ static struct ast_channel *agent_request(char *type, int format, void *data)
 						chan = agent_new(p, AST_STATE_DOWN);
 				}
 				if (chan) {
-					ast_pthread_mutex_unlock(&p->lock);
+					ast_mutex_unlock(&p->lock);
 					break;
 				}
 			}
-			ast_pthread_mutex_unlock(&p->lock);
+			ast_mutex_unlock(&p->lock);
 			p = p->next;
 		}
 	}
@@ -793,7 +793,7 @@ static struct ast_channel *agent_request(char *type, int format, void *data)
 			ast_log(LOG_WARNING, "Weird...  Fix this to drop the unused pending agent\n");
 		}
 	}
-	ast_pthread_mutex_unlock(&agentlock);
+	ast_mutex_unlock(&agentlock);
 	return chan;
 }
 
@@ -816,10 +816,10 @@ static int agents_show(int fd, int argc, char **argv)
 
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	ast_pthread_mutex_lock(&agentlock);
+	ast_mutex_lock(&agentlock);
 	p = agents;
 	while(p) {
-		ast_pthread_mutex_lock(&p->lock);
+		ast_mutex_lock(&p->lock);
 		if (p->pending) {
 			if (p->group)
 				ast_cli(fd, "-- Pending call to group %d\n", powerof(p->group));
@@ -851,10 +851,10 @@ static int agents_show(int fd, int argc, char **argv)
 			ast_cli(fd, "%-12.12s %s%s%s%s\n", p->agent, 
 					username, location, talkingto, moh);
 		}
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		p = p->next;
 	}
-	ast_pthread_mutex_unlock(&agentlock);
+	ast_mutex_unlock(&agentlock);
 	return RESULT_SUCCESS;
 }
 
@@ -917,14 +917,14 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	}
 	while (!res && (tries < 3)) {
 		/* Check for password */
-		ast_pthread_mutex_lock(&agentlock);
+		ast_mutex_lock(&agentlock);
 		p = agents;
 		while(p) {
 			if (!strcmp(p->agent, user) && !p->pending)
 				strncpy(xpass, p->password, sizeof(xpass) - 1);
 			p = p->next;
 		}
-		ast_pthread_mutex_unlock(&agentlock);
+		ast_mutex_unlock(&agentlock);
 		if (!res) {
 			if (strlen(xpass))
 				res = ast_app_getdata(chan, "agent-pass", pass, sizeof(pass) - 1, 0);
@@ -938,10 +938,10 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 #endif		
 
 		/* Check again for accuracy */
-		ast_pthread_mutex_lock(&agentlock);
+		ast_mutex_lock(&agentlock);
 		p = agents;
 		while(p) {
-			ast_pthread_mutex_lock(&p->lock);
+			ast_mutex_lock(&p->lock);
 			if (!strcmp(p->agent, user) &&
 				!strcmp(p->password, pass) && !p->pending) {
 					if (!p->chan) {
@@ -992,8 +992,8 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								res = ast_waitstream(chan, "");
 							if (!res)
 								res = ast_safe_sleep(chan, 1000);
-							ast_pthread_mutex_unlock(&p->lock);
-							ast_pthread_mutex_unlock(&agentlock);
+							ast_mutex_unlock(&p->lock);
+							ast_mutex_unlock(&agentlock);
 						} else if (!res) {
 							/* check if the moh class was changed with setmusiconhold */
 							if (*(chan->musicclass))
@@ -1011,19 +1011,19 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 							p->chan = chan;
 							p->acknowledged = 1;
 							check_availability(p, 0);
-							ast_pthread_mutex_unlock(&p->lock);
-							ast_pthread_mutex_unlock(&agentlock);
+							ast_mutex_unlock(&p->lock);
+							ast_mutex_unlock(&agentlock);
 							while (res >= 0) {
-								ast_pthread_mutex_lock(&p->lock);
+								ast_mutex_lock(&p->lock);
 								if (p->chan != chan)
 									res = -1;
-								ast_pthread_mutex_unlock(&p->lock);
+								ast_mutex_unlock(&p->lock);
 								/* Yield here so other interested threads can kick in. */
 								sched_yield();
 								if (res)
 									break;
 
-								ast_pthread_mutex_lock(&p->lock);
+								ast_mutex_lock(&p->lock);
 								if (p->lastdisc.tv_sec) {
 									gettimeofday(&tv, NULL);
 									if ((tv.tv_sec - p->lastdisc.tv_sec) * 1000 + 
@@ -1033,25 +1033,25 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 										check_availability(p, 1);
 									}
 								}
-								ast_pthread_mutex_unlock(&p->lock);
+								ast_mutex_unlock(&p->lock);
 								/*	Synchronize channel ownership between call to agent and itself. */
-								pthread_mutex_lock( &p->app_lock );
-								ast_pthread_mutex_lock(&p->lock);
+								ast_mutex_lock( &p->app_lock );
+								ast_mutex_lock(&p->lock);
 								p->owning_app = pthread_self();
-								ast_pthread_mutex_unlock(&p->lock);
+								ast_mutex_unlock(&p->lock);
 								res = ast_safe_sleep_conditional( chan, 1000,
 														agent_cont_sleep, p );
-								pthread_mutex_unlock( &p->app_lock );
+								ast_mutex_unlock( &p->app_lock );
 								sched_yield();
 							}
-							ast_pthread_mutex_lock(&p->lock);
+							ast_mutex_lock(&p->lock);
 							if (res && p->owner) 
 								ast_log(LOG_WARNING, "Huh?  We broke out when there was still an owner?\n");
 							/* Log us off if appropriate */
 							if (p->chan == chan)
 								p->chan = NULL;
 							p->acknowledged = 0;
-							ast_pthread_mutex_unlock(&p->lock);
+							ast_mutex_unlock(&p->lock);
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Agent '%s' logged out\n", p->agent);
 							manager_event(EVENT_FLAG_AGENT, "Agentlogoff",
@@ -1062,22 +1062,22 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								free(p);
 						}
 						else {
-							ast_pthread_mutex_unlock(&p->lock);
+							ast_mutex_unlock(&p->lock);
 							p = NULL;
 						}
 						res = -1;
 					} else {
-						ast_pthread_mutex_unlock(&p->lock);
+						ast_mutex_unlock(&p->lock);
 						errmsg = "agent-alreadyon";
 						p = NULL;
 					}
 					break;
 			}
-			ast_pthread_mutex_unlock(&p->lock);
+			ast_mutex_unlock(&p->lock);
 			p = p->next;
 		}
 		if (!p)
-			ast_pthread_mutex_unlock(&agentlock);
+			ast_mutex_unlock(&agentlock);
 
 		if (!res)
 			res = ast_app_getdata(chan, errmsg, user, sizeof(user) - 1, 0);
@@ -1127,7 +1127,7 @@ int unload_module()
 	ast_unregister_application(app);
 	ast_unregister_application(app2);
 	ast_channel_unregister(type);
-	if (!ast_pthread_mutex_lock(&agentlock)) {
+	if (!ast_mutex_lock(&agentlock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = agents;
 		while(p) {
@@ -1136,7 +1136,7 @@ int unload_module()
 			p = p->next;
 		}
 		agents = NULL;
-		ast_pthread_mutex_unlock(&agentlock);
+		ast_mutex_unlock(&agentlock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
@@ -1147,9 +1147,9 @@ int unload_module()
 int usecount()
 {
 	int res;
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	res = usecnt;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	return res;
 }
 

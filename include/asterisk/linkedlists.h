@@ -2,25 +2,26 @@
 #define ASTERISK_LINKEDLISTS_H
 
 #include <pthread.h>
+#include <asterisk/lock.h>
 
 #define AST_LIST_LOCK(head)						\
-	ast_pthread_mutex_lock(&head->lock) 
+	ast_mutex_lock(&head->lock) 
 	
 #define AST_LIST_UNLOCK(head) 						\
-	ast_pthread_mutex_unlock(&head->lock)
+	ast_mutex_unlock(&head->lock)
 
 #define AST_LIST_HEAD(name, type)					\
 struct name {								\
 	struct type *first;						\
-	pthread_mutex_t lock;						\
+	ast_mutex_t lock;						\
 }
 
 #define AST_LIST_HEAD_INITIALIZER(head)					\
-	{ NULL, PTHREAD_MUTEX_INITIALIZER }
+	{ NULL, AST_MUTEX_INITIALIZER }
 	
 #define AST_LIST_HEAD_SET(head,entry) do {				\
 	(head)->first=(entry);						\
-	pthread_mutex_init(&(head)->lock,NULL);				\
+	ast_pthread_mutex_init(&(head)->lock,NULL);				\
 } while (0)
 
 #define AST_LIST_ENTRY(type)						\
@@ -39,7 +40,7 @@ struct {								\
 
 #define AST_LIST_HEAD_INIT(head) {						\
 	(head)->first = NULL;						\
-	pthread_mutex_init(&(head)->lock,NULL);				\
+	ast_pthread_mutex_init(&(head)->lock,NULL);				\
 }
 
 #define AST_LIST_INSERT_AFTER(listelm, elm, field) do {		\

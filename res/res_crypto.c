@@ -59,7 +59,7 @@
 static char base64[64];
 static char b2a[256];
 
-static pthread_mutex_t keylock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t keylock = AST_MUTEX_INITIALIZER;
 
 #define KEY_NEEDS_PASSCODE (1 << 16)
 
@@ -120,7 +120,7 @@ static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 struct ast_key *ast_key_get(char *kname, int ktype)
 {
 	struct ast_key *key;
-	ast_pthread_mutex_lock(&keylock);
+	ast_mutex_lock(&keylock);
 	key = keys;
 	while(key) {
 		if (!strcmp(kname, key->name) &&
@@ -128,7 +128,7 @@ struct ast_key *ast_key_get(char *kname, int ktype)
 			break;
 		key = key->next;
 	}
-	ast_pthread_mutex_unlock(&keylock);
+	ast_mutex_unlock(&keylock);
 	return key;
 }
 
@@ -156,7 +156,7 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 	/* Get actual filename */
 	snprintf(ffname, sizeof(ffname), "%s/%s", dir, fname);
 
-	ast_pthread_mutex_lock(&keylock);
+	ast_mutex_lock(&keylock);
 	key = keys;
 	while(key) {
 		/* Look for an existing version already */
@@ -164,7 +164,7 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 			break;
 		key = key->next;
 	}
-	ast_pthread_mutex_unlock(&keylock);
+	ast_mutex_unlock(&keylock);
 
 	/* Open file */
 	f = fopen(ffname, "r");
@@ -213,7 +213,7 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 	   fill it with what we know */
 	/* Gotta lock if this one already exists */
 	if (found)
-		ast_pthread_mutex_lock(&keylock);
+		ast_mutex_lock(&keylock);
 	/* First the filename */
 	strncpy(key->fn, ffname, sizeof(key->fn));
 	/* Then the name */
@@ -262,12 +262,12 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 		*not2 = 1;
 	}
 	if (found)
-		ast_pthread_mutex_unlock(&keylock);
+		ast_mutex_unlock(&keylock);
 	if (!found) {
-		ast_pthread_mutex_lock(&keylock);
+		ast_mutex_lock(&keylock);
 		key->next = keys;
 		keys = key;
-		ast_pthread_mutex_unlock(&keylock);
+		ast_mutex_unlock(&keylock);
 	}
 	return key;
 }
@@ -456,13 +456,13 @@ static void crypto_load(int ifd, int ofd)
 	struct dirent *ent;
 	int note = 0;
 	/* Mark all keys for deletion */
-	ast_pthread_mutex_lock(&keylock);
+	ast_mutex_lock(&keylock);
 	key = keys;
 	while(key) {
 		key->delme = 1;
 		key = key->next;
 	}
-	ast_pthread_mutex_unlock(&keylock);
+	ast_mutex_unlock(&keylock);
 	/* Load new keys */
 	dir = opendir((char *)ast_config_AST_KEY_DIR);
 	if (dir) {
@@ -475,7 +475,7 @@ static void crypto_load(int ifd, int ofd)
 	if (note) {
 		ast_log(LOG_NOTICE, "Please run the command 'init keys' to enter the passcodes for the keys\n");
 	}
-	ast_pthread_mutex_lock(&keylock);
+	ast_mutex_lock(&keylock);
 	key = keys;
 	last = NULL;
 	while(key) {
@@ -494,7 +494,7 @@ static void crypto_load(int ifd, int ofd)
 			last = key;
 		key = nkey;
 	}
-	ast_pthread_mutex_unlock(&keylock);
+	ast_mutex_unlock(&keylock);
 }
 
 static void md52sum(char *sum, unsigned char *md5)
@@ -509,7 +509,7 @@ static int show_keys(int fd, int argc, char *argv[])
 	struct ast_key *key;
 	char sum[16 * 2 + 1];
 
-	ast_pthread_mutex_lock(&keylock);
+	ast_mutex_lock(&keylock);
 	key = keys;
 	ast_cli(fd, "%-18s %-8s %-16s %-33s\n", "Key Name", "Type", "Status", "Sum");
 	while(key) {
@@ -520,7 +520,7 @@ static int show_keys(int fd, int argc, char *argv[])
 				
 		key = key->next;
 	}
-	ast_pthread_mutex_unlock(&keylock);
+	ast_mutex_unlock(&keylock);
 	return RESULT_SUCCESS;
 }
 

@@ -56,7 +56,7 @@
 #include "slin_g723_ex.h"
 #include "g723_slin_ex.h"
 
-static pthread_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
 static int localusecnt=0;
 
 #ifdef ANNEX_B
@@ -363,13 +363,13 @@ static struct ast_translator lintog723 =
 int unload_module(void)
 {
 	int res;
-	ast_pthread_mutex_lock(&localuser_lock);
+	ast_mutex_lock(&localuser_lock);
 	res = ast_unregister_translator(&lintog723);
 	if (!res)
 		res = ast_unregister_translator(&g723tolin);
 	if (localusecnt)
 		res = -1;
-	ast_pthread_mutex_unlock(&localuser_lock);
+	ast_mutex_unlock(&localuser_lock);
 	return res;
 }
 

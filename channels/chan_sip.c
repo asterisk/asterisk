@@ -100,16 +100,16 @@ static int srvlookup = 0;
 static int pedanticsipchecking = 0;
 
 static int usecnt =0;
-static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 /* Protect the interface list (of sip_pvt's) */
-static pthread_mutex_t iflock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t iflock = AST_MUTEX_INITIALIZER;
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
-static pthread_mutex_t netlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t netlock = AST_MUTEX_INITIALIZER;
 
-static pthread_mutex_t monlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t monlock = AST_MUTEX_INITIALIZER;
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
@@ -168,7 +168,7 @@ struct sip_route {
 };
 
 static struct sip_pvt {
-	pthread_mutex_t lock;				/* Channel private lock */
+	ast_mutex_t lock;				/* Channel private lock */
 	char callid[80];					/* Global CallID */
 	char randdata[80];	/* Random data */
 	unsigned int ocseq;					/* Current outgoing seqno */
@@ -319,12 +319,12 @@ struct sip_peer {
 
 static struct ast_user_list {
 	struct sip_user *users;
-	pthread_mutex_t lock;
+	ast_mutex_t lock;
 } userl = { NULL, AST_MUTEX_INITIALIZER };
 
 static struct ast_peer_list {
 	struct sip_peer *peers;
-	pthread_mutex_t lock;
+	ast_mutex_t lock;
 } peerl = { NULL, AST_MUTEX_INITIALIZER };
 
 
@@ -337,7 +337,7 @@ static struct ast_peer_list {
 #define REG_STATE_NOAUTH	   6
 
 struct sip_registry {
-	pthread_mutex_t lock;				/* Channel private lock */
+	ast_mutex_t lock;				/* Channel private lock */
 	struct sockaddr_in addr;		/* Who we connect to for registration purposes */
 	char username[80];				/* Who we are registering as */
 	char authuser[80];				/* Who we *authenticate* as */
@@ -405,7 +405,7 @@ static int retrans_pkt(void *data)
 {
 	struct sip_pkt *pkt=data;
 	int res = 0;
-	ast_pthread_mutex_lock(&pkt->owner->lock);
+	ast_mutex_lock(&pkt->owner->lock);
 	if (1 /* !p->owner->needdestroy */) {
 		if (pkt->retrans < MAX_RETRANS) {
 			pkt->retrans++;
@@ -425,7 +425,7 @@ static int retrans_pkt(void *data)
 				ast_queue_hangup(pkt->owner->owner, 1);
 			} else {
 				/* If no owner, destroy now */
-				ast_pthread_mutex_unlock(&pkt->owner->lock);
+				ast_mutex_unlock(&pkt->owner->lock);
 				sip_destroy(pkt->owner);
 				pkt = NULL;
 			}
@@ -438,13 +438,13 @@ static int retrans_pkt(void *data)
 			ast_queue_hangup(pkt->owner->owner, 1);
 		} else {
 			/* If no owner, destroy now */
-			ast_pthread_mutex_unlock(&pkt->owner->lock);
+			ast_mutex_unlock(&pkt->owner->lock);
 			sip_destroy(pkt->owner);
 			pkt=NULL;
 		}
 	}
 	if (pkt)
-		ast_pthread_mutex_unlock(&pkt->owner->lock);
+		ast_mutex_unlock(&pkt->owner->lock);
 	return res;
 }
 
@@ -611,7 +611,7 @@ static int create_addr(struct sip_pvt *r, char *peer)
 	char host[256], *hostn;
 
 	r->sa.sin_family = AF_INET;
-	ast_pthread_mutex_lock(&peerl.lock);
+	ast_mutex_lock(&peerl.lock);
 	p = peerl.peers;
 	while(p) {
 		if (!strcasecmp(p->name, peer)) {
@@ -668,7 +668,7 @@ static int create_addr(struct sip_pvt *r, char *peer)
 		}
 		p = p->next;
 	}
-	ast_pthread_mutex_unlock(&peerl.lock);
+	ast_mutex_unlock(&peerl.lock);
 	if (!p && !found) {
 		if ((port=strchr(peer, ':'))) {
 			*port='\0';
@@ -710,16 +710,16 @@ static int create_addr(struct sip_pvt *r, char *peer)
 static int auto_congest(void *nothing)
 {
 	struct sip_pvt *p = nothing;
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	p->initid = -1;
 	if (p->owner) {
-		if (!pthread_mutex_trylock(&p->owner->lock)) {
+		if (!ast_mutex_trylock(&p->owner->lock)) {
 			ast_log(LOG_NOTICE, "Auto-congesting %s\n", p->owner->name);
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION, 0);
-			ast_pthread_mutex_unlock(&p->owner->lock);
+			ast_mutex_unlock(&p->owner->lock);
 		}
 	}
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return 0;
 }
 
@@ -856,11 +856,11 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	/* Unlink us from the owner if we have one */
 	if (p->owner) {
 		if (lockowner)
-			ast_pthread_mutex_lock(&p->owner->lock);
+			ast_mutex_lock(&p->owner->lock);
 		ast_log(LOG_DEBUG, "Detaching from %s\n", p->owner->name);
 		p->owner->pvt->pvt = NULL;
 		if (lockowner)
-			ast_pthread_mutex_unlock(&p->owner->lock);
+			ast_mutex_unlock(&p->owner->lock);
 	}
 	cur = iflist;
 	while(cur) {
@@ -894,7 +894,7 @@ static int find_user(struct sip_pvt *fup, int event)
 	char name[256] = "";
 	struct sip_user *u;
 	strncpy(name, fup->username, sizeof(name) - 1);
-	ast_pthread_mutex_lock(&userl.lock);
+	ast_mutex_lock(&userl.lock);
 	u = userl.users;
 	while(u) {
 		if (!strcasecmp(u->name, name)) {
@@ -904,7 +904,7 @@ static int find_user(struct sip_pvt *fup, int event)
 	}
 	if (!u) {
 		ast_log(LOG_DEBUG, "%s is not a local user\n", name);
-		ast_pthread_mutex_unlock(&userl.lock);
+		ast_mutex_unlock(&userl.lock);
 		return 0;
 	}
 	if(event == 0) {
@@ -917,22 +917,22 @@ static int find_user(struct sip_pvt *fup, int event)
 		if (u->incominglimit > 0 ) {
 			if (u->inUse >= u->incominglimit) {
 				ast_log(LOG_ERROR, "Call from user '%s' rejected due to usage limit of %d\n", u->name, u->incominglimit);
-				ast_pthread_mutex_unlock(&userl.lock);
+				ast_mutex_unlock(&userl.lock);
 				return -1; 
 			}
 		}
 		u->inUse++;
 		ast_log(LOG_DEBUG, "Call from user '%s' is %d out of %d\n", u->name, u->inUse, u->incominglimit);
 	}
-	ast_pthread_mutex_unlock(&userl.lock);
+	ast_mutex_unlock(&userl.lock);
 	return 0;
 }
 
 static void sip_destroy(struct sip_pvt *p)
 {
-	ast_pthread_mutex_lock(&iflock);
+	ast_mutex_lock(&iflock);
 	__sip_destroy(p, 1);
-	ast_pthread_mutex_unlock(&iflock);
+	ast_mutex_unlock(&iflock);
 }
 
 static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req);
@@ -949,13 +949,13 @@ static int sip_hangup(struct ast_channel *ast)
 		ast_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
 		return 0;
 	}
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	ast_log(LOG_DEBUG, "find_user(%s)\n", p->username);
 	find_user(p, 0);
 	/* Determine how to disconnect */
 	if (p->owner != ast) {
 		ast_log(LOG_WARNING, "Huh?  We aren't the owner?\n");
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		return 0;
 	}
 	if (!ast || (ast->_state != AST_STATE_UP))
@@ -992,7 +992,7 @@ static int sip_hangup(struct ast_channel *ast)
 		}
 	}
 	p->needdestroy = needdestroy;
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return 0;
 }
 
@@ -1035,7 +1035,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 			return -1;
 		}
 		if (p) {
-			ast_pthread_mutex_lock(&p->lock);
+			ast_mutex_lock(&p->lock);
 			if (p->rtp) {
 				if ((ast->_state != AST_STATE_UP) && !p->progress && !p->outgoing) {
 					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, 0);
@@ -1043,11 +1043,11 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				}
 				res =  ast_rtp_write(p->rtp, frame);
 			}
-			ast_pthread_mutex_unlock(&p->lock);
+			ast_mutex_unlock(&p->lock);
 		}
 	} else if (frame->frametype == AST_FRAME_VIDEO) {
 		if (p) {
-			ast_pthread_mutex_lock(&p->lock);
+			ast_mutex_lock(&p->lock);
 			if (p->vrtp) {
 				if ((ast->_state != AST_STATE_UP) && !p->progress && !p->outgoing) {
 					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, 0);
@@ -1055,7 +1055,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				}
 				res =  ast_rtp_write(p->vrtp, frame);
 			}
-			ast_pthread_mutex_unlock(&p->lock);
+			ast_mutex_unlock(&p->lock);
 		}
 	} else if (frame->frametype == AST_FRAME_IMAGE) {
 		return 0;
@@ -1070,14 +1070,14 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct sip_pvt *p = newchan->pvt->pvt;
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	if (p->owner != oldchan) {
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
-		ast_pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		return -1;
 	}
 	p->owner = newchan;
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return 0;
 }
 
@@ -1220,9 +1220,9 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		if (strlen(i->language))
 			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
 		i->owner = tmp;
-		ast_pthread_mutex_lock(&usecnt_lock);
+		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
-		ast_pthread_mutex_unlock(&usecnt_lock);
+		ast_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);
@@ -1370,9 +1370,9 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 {
 	struct ast_frame *fr;
 	struct sip_pvt *p = ast->pvt->pvt;
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	fr = sip_rtp_read(ast, p);
-	ast_pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return fr;
 }
 
@@ -1427,7 +1427,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 		if (p->vrtp)
 			ast_rtp_setnat(p->vrtp, p->nat);
 	}
-	ast_pthread_mutex_init(&p->lock);
+	ast_mutex_init(&p->lock);
 
 	if (sin) {
 		memcpy(&p->sa, sin, sizeof(p->sa));
@@ -1450,10 +1450,10 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	strncpy(p->context, context, sizeof(p->context) - 1);
 	strncpy(p->fromdomain, fromdomain, sizeof(p->fromdomain) - 1);
 	/* Add to list */
-	ast_pthread_mutex_lock(&iflock);
+	ast_mutex_lock(&iflock);
 	p->next = iflist;
 	iflist = p;
-	ast_pthread_mutex_unlock(&iflock);
+	ast_mutex_unlock(&iflock);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Allocating new SIP call for %s\n", callid);
 	return p;
@@ -1506,22 +1506,22 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		ast_log(LOG_WARNING, "Call missing call ID from '%s'\n", inet_ntoa(sin->sin_addr));
 		return NULL;
 	}
-	ast_pthread_mutex_lock(&iflock);
+	ast_mutex_lock(&iflock);
 	p = iflist;
 	while(p) {
 		if (!strcmp(p->callid, callid) && 
 			(!pedanticsipchecking || !strlen(p->theirtag) || !strcmp(p->theirtag, tag))) {
 			/* Found the call */
-			ast_pthread_mutex_lock(&p->lock);
-			ast_pthread_mutex_unlock(&iflock);
+			ast_mutex_lock(&p->lock);
+			ast_mutex_unlock(&iflock);
 			return p;
 		}
 		p = p->next;
 	}
-	ast_pthread_mutex_unlock(&iflock);
+	ast_mutex_unlock(&iflock);
 	p = sip_alloc(callid, sin, 1);
 	if (p)
-		ast_pthread_mutex_lock(&p->lock);
+		ast_mutex_lock(&p->lock);
 	return p;
 }
 
@@ -1923,11 +1923,15 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
 		tmp = __get_header(orig, field, &start);
 		if (strlen(tmp)) {
 			if (!copied && p->nat) {
+#ifdef THE_SIP_AUTHORS_CAN_SUCK_MY_GONADS
 				/* SLD: FIXME: Nice try, but the received= should not have a port */
 				/* SLD: FIXME: See RFC2543 BNF in Section 6.40.5 */
+				/* MAS: Yup, RFC says you can't do it.  No way to indicate PAT...
+				   good job fellas. */
 				if (ntohs(p->recv.sin_port) != DEFAULT_SIP_PORT)
 					snprintf(new, sizeof(new), "%s;received=%s:%d", tmp, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 				else
+#endif				
 					snprintf(new, sizeof(new), "%s;received=%s", tmp, inet_ntoa(p->recv.sin_addr));
 				add_header(req, field, new);
 			} else {
@@ -2759,9 +2763,9 @@ static int sip_reregister(void *data)
 static int sip_do_register(struct sip_registry *r)
 {
 	int res;
-	ast_pthread_mutex_lock(&r->lock);
+	ast_mutex_lock(&r->lock);
 	res=transmit_register(r, "REGISTER", NULL);
-	ast_pthread_mutex_unlock(&r->lock);
+	ast_mutex_unlock(&r->lock);
 	return res;
 }
 
@@ -2771,7 +2775,7 @@ static int sip_reg_timeout(void *data)
 	struct sip_registry *r=data;
 	struct sip_pvt *p;
 	int res;
-	ast_pthread_mutex_lock(&r->lock);
+	ast_mutex_lock(&r->lock);
 	ast_log(LOG_NOTICE, "Registration for '%s@%s' timed out, trying again\n", r->username, inet_ntoa(r->addr.sin_addr)); 
 	if (r->call) {
 		/* Unlink us, destroy old call.  Locking is not relevent here because all this happens
@@ -2784,7 +2788,7 @@ static int sip_reg_timeout(void *data)
 	r->regstate=REG_STATE_UNREGISTERED;
 	r->timeout = -1;
 	res=transmit_register(r, "REGISTER", NULL);
-	ast_pthread_mutex_unlock(&r->lock);
+	ast_mutex_unlock(&r->lock);
 	return 0;
 }
 
@@ -3326,7 +3330,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 		*c = '\0';
 	strncpy(p->exten, name, sizeof(p->exten) - 1);
 	build_contact(p);
-	ast_pthread_mutex_lock(&peerl.lock);
+	ast_mutex_lock(&peerl.lock);
 	peer = peerl.peers;
 	while(peer) {
 		if (!strcasecmp(peer->name, name) && peer->dynamic) {
@@ -3347,7 +3351,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 		}	
 		peer = peer->next;
 	}
-	ast_pthread_mutex_unlock(&peerl.lock);
+	ast_mutex_unlock(&peerl.lock);
 	if (!res) {
 	    ast_device_state_changed("SIP/%s", peer->name);
 	}
@@ -3492,19 +3496,19 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 		strncpy(p->refer_contact, "", sizeof(p->refer_contact) - 1);
 		strncpy(p->remote_party_id, "", sizeof(p->remote_party_id) - 1);
 		p->refer_call = NULL;
-		ast_pthread_mutex_lock(&iflock);
+		ast_mutex_lock(&iflock);
 		/* Search interfaces and find the match */
 		p2 = iflist;
 		while(p2) {
 			if (!strcmp(p2->callid, tmp5)) {
 				/* Go ahead and lock it before returning */
-				ast_pthread_mutex_lock(&p2->lock);
+				ast_mutex_lock(&p2->lock);
 				p->refer_call = p2;
 				break;
 			}
 			p2 = p2->next;
 		}
-		ast_pthread_mutex_unlock(&iflock);
+		ast_mutex_unlock(&iflock);
 		if (p->refer_call)
 			return 0;
 		else
@@ -3633,7 +3637,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 		strncpy(p->callerid, of, sizeof(p->callerid) - 1);
 	if (!strlen(of))
 			return 0;
-	ast_pthread_mutex_lock(&userl.lock);
+	ast_mutex_lock(&userl.lock);
 	user = userl.users;
 	while(user) {
 		if (!strcasecmp(user->name, of)) {
@@ -3670,10 +3674,10 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 		}
 		user = user->next;
 	}
-	ast_pthread_mutex_unlock(&userl.lock);
+	ast_mutex_unlock(&userl.lock);
 	if (!user) {
 	/* If we didn't find a user match, check for peers */
-		ast_pthread_mutex_lock(&peerl.lock);
+		ast_mutex_lock(&peerl.lock);
 		peer = peerl.peers;
 		while(peer) {
 			if (!inaddrcmp(&peer->addr, &p->recv) || 
@@ -3705,7 +3709,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 			}
 			peer = peer->next;
 		}
-		ast_pthread_mutex_unlock(&peerl.lock);
+		ast_mutex_unlock(&peerl.lock);
 	}
 	return res;
 }
@@ -3750,7 +3754,7 @@ static int sip_show_inuse(int fd, int argc, char *argv[]) {
 	char used[80];
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
-	ast_pthread_mutex_lock(&userl.lock);
+	ast_mutex_lock(&userl.lock);
 	user = userl.users;
 	ast_cli(fd, FORMAT, "Username", "inUse", "Limit");
 	for(user=userl.users;user;user=user->next) {
@@ -3761,7 +3765,7 @@ static int sip_show_inuse(int fd, int argc, char *argv[]) {
 		snprintf(used, sizeof(used), "%d", user->inUse);
 		ast_cli(fd, FORMAT2, user->name, used, limits);
 	}
-	ast_pthread_mutex_unlock(&userl.lock);
+	ast_mutex_unlock(&userl.lock);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -3774,13 +3778,13 @@ static int sip_show_users(int fd, int argc, char *argv[])
 	struct sip_user *user;
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
-	ast_pthread_mutex_lock(&userl.lock);
+	ast_mutex_lock(&userl.lock);
 	ast_cli(fd, FORMAT, "Username", "Secret", "Authen", "Def.Context", "A/C");
 	for(user=userl.users;user;user=user->next) {
 		ast_cli(fd, FORMAT, user->name, user->secret, user->methods, 
 				user->context,user->ha ? "Yes" : "No");
 	}
-	ast_pthread_mutex_unlock(&userl.lock);
+	ast_mutex_unlock(&userl.lock);
 	return RESULT_SUCCESS;
 #undef FORMAT
 }
@@ -3793,7 +3797,7 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 	char name[256] = "";
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_pthread_mutex_lock(&peerl.lock);
+	ast_mutex_lock(&peerl.lock);
 	ast_cli(fd, FORMAT2, "Name/username", "Host", "   ", "Mask", "Port", "Status");
 	for (peer = peerl.peers;peer;peer = peer->next) {
 		char nm[20] = "";
@@ -3820,7 +3824,7 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 					nm,
 					ntohs(peer->addr.sin_port), status);
 	}
-	ast_pthread_mutex_unlock(&peerl.lock);
+	ast_mutex_unlock(&peerl.lock);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -3856,14 +3860,14 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 	char host[80];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_pthread_mutex_lock(&peerl.lock);
+	ast_mutex_lock(&peerl.lock);
 	ast_cli(fd, FORMAT2, "Host", "Username", "Refresh", "State");
 	for (reg = registrations;reg;reg = reg->next) {
 		snprintf(host, sizeof(host), "%s:%d", inet_ntoa(reg->addr.sin_addr), ntohs(reg->addr.sin_port));
 		ast_cli(fd, FORMAT, host,
 					reg->username, reg->refresh, regstate2str(reg->regstate));
 	}
-	ast_pthread_mutex_unlock(&peerl.lock);
+	ast_mutex_unlock(&peerl.lock);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -3877,7 +3881,7 @@ static int sip_show_channels(int fd, int argc, char *argv[])
 	int numchans = 0;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_pthread_mutex_lock(&iflock);
+	ast_mutex_lock(&iflock);
 	cur = iflist;
 	ast_cli(fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)", "Lag", "Jitter", "Format");
 	while (cur) {
@@ -3893,7 +3897,7 @@ static int sip_show_channels(int fd, int argc, char *argv[])
 		}
 		cur = cur->next;
 	}
-	ast_pthread_mutex_unlock(&iflock);
+	ast_mutex_unlock(&iflock);
 	ast_cli(fd, "%d active SIP channel(s)\n", numchans);
 	return RESULT_SUCCESS;
 #undef FORMAT
@@ -3905,7 +3909,7 @@ static char *complete_sipch(char *line, char *word, int pos, int state)
 	int which=0;
 	struct sip_pvt *cur;
 	char *c = NULL;
-	ast_pthread_mutex_lock(&iflock);
+	ast_mutex_lock(&iflock);
 	cur = iflist;
 	while(cur) {
 		if (!strncasecmp(word, cur->callid, strlen(word))) {
@@ -3916,7 +3920,7 @@ static char *complete_sipch(char *line, char *word, int pos, int state)
 		}
 		cur = cur->next;
 	}
-	ast_pthread_mutex_unlock(&iflock);
+	ast_mutex_unlock(&iflock);
 	return c;
 }
 
@@ -3926,7 +3930,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 	char tmp[256];
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	ast_pthread_mutex_lock(&iflock);
+	ast_mutex_lock(&iflock);
 	cur = iflist;
 	while(cur) {
 		if (!strcasecmp(cur->callid, argv[3])) {
@@ -3950,7 +3954,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 		}
 		cur = cur->next;
 	}
-	ast_pthread_mutex_unlock(&iflock);
+	ast_mutex_unlock(&iflock);
 	if (!cur) 
 		ast_cli(fd, "No such SIP Call ID '%s'\n", argv[3]);
 	return RESULT_SUCCESS;
@@ -4643,7 +4647,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				build_route(p, req, 0);
 				if (c) {
 					/* Pre-lock the call */
-					ast_pthread_mutex_lock(&c->lock);
+					ast_mutex_lock(&c->lock);
 				}
 			}
 			
@@ -4660,10 +4664,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 					if (ast_pbx_start(c)) {
 						ast_log(LOG_WARNING, "Failed to start PBX :(\n");
 						/* Unlock locks so ast_hangup can do its magic */
-						ast_pthread_mutex_unlock(&c->lock);
-						ast_pthread_mutex_unlock(&p->lock);
+						ast_mutex_unlock(&c->lock);
+						ast_mutex_unlock(&p->lock);
 						ast_hangup(c);
-						ast_pthread_mutex_lock(&p->lock);
+						ast_mutex_lock(&p->lock);
 						transmit_response_reliable(p, "503 Unavailable", req);
 						c = NULL;
 					}
@@ -4672,16 +4676,16 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 					transmit_response_reliable(p, "503 Unavailable", req);
 					p->alreadygone = 1;
 					/* Unlock locks so ast_hangup can do its magic */
-					ast_pthread_mutex_unlock(&c->lock);
-					ast_pthread_mutex_unlock(&p->lock);
+					ast_mutex_unlock(&c->lock);
+					ast_mutex_unlock(&p->lock);
 					ast_hangup(c);
-					ast_pthread_mutex_lock(&p->lock);
+					ast_mutex_lock(&p->lock);
 					c = NULL;
 				} else {
-					ast_pthread_mutex_unlock(&c->lock);
-					ast_pthread_mutex_unlock(&p->lock);
+					ast_mutex_unlock(&c->lock);
+					ast_mutex_unlock(&p->lock);
 					ast_hangup(c);
-					ast_pthread_mutex_lock(&p->lock);
+					ast_mutex_lock(&p->lock);
 					c = NULL;
 				}
 				break;
@@ -4720,7 +4724,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			if (p->refer_call) {
 				ast_log(LOG_DEBUG,"202 Accepted (supervised)\n");
 				attempt_transfer(p, p->refer_call);
-				ast_pthread_mutex_unlock(&p->refer_call->lock);
+				ast_mutex_unlock(&p->refer_call->lock);
 				p->refer_call = NULL;
 			} else {
 				ast_log(LOG_DEBUG,"202 Accepted (blind)\n");
@@ -4909,26 +4913,26 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 		return 1;
 	}
 	/* Process request, with netlock held */
-	ast_pthread_mutex_lock(&netlock);
+	ast_mutex_lock(&netlock);
 	p = find_call(&req, &sin);
 	if (p) {
 retrylock:
 		/* Go ahead and lock the owner if it has one -- we may need it */
-		if (p->owner && pthread_mutex_trylock(&p->owner->lock)) {
+		if (p->owner && ast_mutex_trylock(&p->owner->lock)) {
 			ast_log(LOG_DEBUG, "Failed to grab lock, trying again...\n");
-			ast_pthread_mutex_unlock(&p->lock);
+			ast_mutex_unlock(&p->lock);
 			/* Sleep infintismly short amount of time */
 			usleep(1);
-			ast_pthread_mutex_lock(&p->lock);
+			ast_mutex_lock(&p->lock);
 			goto retrylock;
 		}
 		memcpy(&p->recv, &sin, sizeof(p->recv));
 		handle_request(p, &req, &sin);
 		if (p->owner)
-			ast_pthread_mutex_unlock(&p->owner->lock);
-		ast_pthread_mutex_unlock(&p->lock);
+			ast_mutex_unlock(&p->owner->lock);
+		ast_mutex_unlock(&p->lock);
 	}
-	ast_pthread_mutex_unlock(&netlock);
+	ast_mutex_unlock(&netlock);
 	return 1;
 }
 
@@ -4945,19 +4949,19 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	
 	/* Return now if it's the same thing we told them last time */
 	if (((newmsgs << 8) | (oldmsgs)) == peer->lastmsgssent) {
-		ast_pthread_mutex_unlock(&peerl.lock);
+		ast_mutex_unlock(&peerl.lock);
 		return 0;
 	}
 	
 	p = sip_alloc(NULL, NULL, 0);
 	if (!p) {
 		ast_log(LOG_WARNING, "Unable to build sip pvt data for MWI\n");
-		ast_pthread_mutex_unlock(&peerl.lock);
+		ast_mutex_unlock(&peerl.lock);
 		return -1;
 	}
 	strncpy(name, peer->name, sizeof(name) - 1);
 	peer->lastmsgssent = ((newmsgs << 8) | (oldmsgs));
-	ast_pthread_mutex_unlock(&peerl.lock);
+	ast_mutex_unlock(&peerl.lock);
 	if (create_addr(p, name)) {
 		/* Maybe they're not registered, etc. */
 		sip_destroy(p);
@@ -4994,29 +4998,29 @@ static void *do_monitor(void *data)
 	/* From here on out, we die whenever asked */
 	for(;;) {
 		/* Check for interfaces needing to be killed */
-		ast_pthread_mutex_lock(&iflock);
+		ast_mutex_lock(&iflock);
 restartsearch:		
 		sip = iflist;
 		while(sip) {
-			ast_pthread_mutex_lock(&sip->lock);
+			ast_mutex_lock(&sip->lock);
 			if (sip->needdestroy && !sip->packets) {
-				ast_pthread_mutex_unlock(&sip->lock);
+				ast_mutex_unlock(&sip->lock);
 				__sip_destroy(sip, 1);
 				goto restartsearch;
 			}
-			ast_pthread_mutex_unlock(&sip->lock);
+			ast_mutex_unlock(&sip->lock);
 			sip = sip->next;
 		}
-		ast_pthread_mutex_unlock(&iflock);
+		ast_mutex_unlock(&iflock);
 		/* Don't let anybody kill us right away.  Nobody should lock the interface list
 		   and wait for the monitor list, but the other way around is okay. */
-		ast_pthread_mutex_lock(&monlock);
+		ast_mutex_lock(&monlock);
 		/* Lock the network interface */
-		ast_pthread_mutex_lock(&netlock);
+		ast_mutex_lock(&netlock);
 		/* Okay, now that we know what to do, release the network lock */
-		ast_pthread_mutex_unlock(&netlock);
+		ast_mutex_unlock(&netlock);
 		/* And from now on, we're okay to be killed, so release the monitor lock as well */
-		ast_pthread_mutex_unlock(&monlock);
+		ast_mutex_unlock(&monlock);
 		pthread_testcancel();
 		/* Wait for sched or io */
 		res = ast_sched_wait(sched);
@@ -5026,10 +5030,10 @@ restartsearch:
 		if (fastrestart)
 			res = 1;
 		res = ast_io_wait(io, res);
-		ast_pthread_mutex_lock(&monlock);
+		ast_mutex_lock(&monlock);
 		if (res >= 0) 
 			ast_sched_runq(sched);
-		ast_pthread_mutex_lock(&peerl.lock);
+		ast_mutex_lock(&peerl.lock);
 		peer = peerl.peers;
 		time(&t);
 		fastrestart = 0;
@@ -5048,9 +5052,9 @@ restartsearch:
 		if (!peer) {
 			/* Reset where we come from */
 			lastpeernum = -1;
-			ast_pthread_mutex_unlock(&peerl.lock);
+			ast_mutex_unlock(&peerl.lock);
 		}
-		ast_pthread_mutex_unlock(&monlock);
+		ast_mutex_unlock(&monlock);
 	}
 	/* Never reached */
 	return NULL;
@@ -5062,12 +5066,12 @@ static int restart_monitor(void)
 	/* If we're supposed to be stopped -- stay stopped */
 	if (monitor_thread == -2)
 		return 0;
-	if (ast_pthread_mutex_lock(&monlock)) {
+	if (ast_mutex_lock(&monlock)) {
 		ast_log(LOG_WARNING, "Unable to lock monitor\n");
 		return -1;
 	}
 	if (monitor_thread == pthread_self()) {
-		ast_pthread_mutex_unlock(&monlock);
+		ast_mutex_unlock(&monlock);
 		ast_log(LOG_WARNING, "Cannot kill myself\n");
 		return -1;
 	}
@@ -5077,12 +5081,12 @@ static int restart_monitor(void)
 	} else {
 		/* Start a new monitor */
 		if (pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {
-			ast_pthread_mutex_unlock(&monlock);
+			ast_mutex_unlock(&monlock);
 			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
 			return -1;
 		}
 	}
-	ast_pthread_mutex_unlock(&monlock);
+	ast_mutex_unlock(&monlock);
 	return 0;
 }
 
@@ -5176,7 +5180,7 @@ static int sip_devicestate(void *data)
 		ext = NULL;
 	}
 
-	ast_pthread_mutex_lock(&peerl.lock);
+	ast_mutex_lock(&peerl.lock);
 	p = peerl.peers;
 	while (p) {
 		if (!strcasecmp(p->name, host)) {
@@ -5191,7 +5195,7 @@ static int sip_devicestate(void *data)
 		}
 		p = p->next;
 	}
-	ast_pthread_mutex_unlock(&peerl.lock);
+	ast_mutex_unlock(&peerl.lock);
 	if (!p && !found) {
 		hp = gethostbyname(host);
 		if (hp)
@@ -5344,7 +5348,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 	int format;
 	int found=0;
 	prev = NULL;
-	ast_pthread_mutex_lock(&peerl.lock);
+	ast_mutex_lock(&peerl.lock);
 	peer = peerl.peers;
 	while(peer) {
 		if (!strcasecmp(peer->name, name)) {	
@@ -5361,9 +5365,9 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 		} else {
 			peerl.peers = peer->next;
 		}
-		ast_pthread_mutex_unlock(&peerl.lock);
+		ast_mutex_unlock(&peerl.lock);
  	} else {
-		ast_pthread_mutex_unlock(&peerl.lock);
+		ast_mutex_unlock(&peerl.lock);
 		peer = malloc(sizeof(struct sip_peer));
 		memset(peer, 0, sizeof(struct sip_peer));
 		peer->expire = -1;
@@ -5637,19 +5641,19 @@ static int reload_config(void)
 				if (!strcasecmp(utype, "user") || !strcasecmp(utype, "friend")) {
 					user = build_user(cat, ast_variable_browse(cfg, cat));
 					if (user) {
-						ast_pthread_mutex_lock(&userl.lock);
+						ast_mutex_lock(&userl.lock);
 						user->next = userl.users;
 						userl.users = user;
-						ast_pthread_mutex_unlock(&userl.lock);
+						ast_mutex_unlock(&userl.lock);
 					}
 				}
 				if (!strcasecmp(utype, "peer") || !strcasecmp(utype, "friend")) {
 					peer = build_peer(cat, ast_variable_browse(cfg, cat));
 					if (peer) {
-						ast_pthread_mutex_lock(&peerl.lock);
+						ast_mutex_lock(&peerl.lock);
 						peer->next = peerl.peers;
 						peerl.peers = peer;
-						ast_pthread_mutex_unlock(&peerl.lock);
+						ast_mutex_unlock(&peerl.lock);
 					}
 				} else if (strcasecmp(utype, "user")) {
 					ast_log(LOG_WARNING, "Unknown type '%s' for '%s' in %s\n", utype, cat, "sip.conf");
@@ -5673,7 +5677,7 @@ static int reload_config(void)
 	if (!ntohs(bindaddr.sin_port))
 		bindaddr.sin_port = ntohs(DEFAULT_SIP_PORT);
 	bindaddr.sin_family = AF_INET;
-	pthread_mutex_lock(&netlock);
+	ast_mutex_lock(&netlock);
 	if ((sipsock > -1) && (ntohs(bindaddr.sin_port) != oldport)) {
 		close(sipsock);
 		sipsock = -1;
@@ -5706,7 +5710,7 @@ static int reload_config(void)
 			}
 		}
 	}
-	pthread_mutex_unlock(&netlock);
+	ast_mutex_unlock(&netlock);
 
 	ast_destroy(cfg);
 	return 0;
@@ -5787,14 +5791,14 @@ int load_module()
 			ast_log(LOG_WARNING, "Unable to create I/O context\n");
 		}
 	
-		ast_pthread_mutex_lock(&peerl.lock);
+		ast_mutex_lock(&peerl.lock);
 		for (peer = peerl.peers; peer; peer = peer->next)
 			sip_poke_peer(peer);
 
 		for (reg = registrations; reg; reg = reg->next) 
 			sip_do_register(reg);
 
-		ast_pthread_mutex_unlock(&peerl.lock);
+		ast_mutex_unlock(&peerl.lock);
 		
 		/* And start the monitor for the first time */
 		restart_monitor();
@@ -5809,7 +5813,7 @@ static void delete_users(void)
 	struct sip_registry *reg, *regl;
 
 	/* Delete all users */
-	ast_pthread_mutex_lock(&userl.lock);
+	ast_mutex_lock(&userl.lock);
 	for (user=userl.users;user;) {
 		ast_free_ha(user->ha);
 		userlast = user;
@@ -5817,7 +5821,7 @@ static void delete_users(void)
 		free(userlast);
 	}
 	userl.users=NULL;
-	ast_pthread_mutex_unlock(&userl.lock);
+	ast_mutex_unlock(&userl.lock);
 
 	for (reg = registrations;reg;) {
 		regl = reg;
@@ -5827,20 +5831,20 @@ static void delete_users(void)
 		free(regl);
 	}
 	registrations = NULL;
-	ast_pthread_mutex_lock(&peerl.lock);
+	ast_mutex_lock(&peerl.lock);
 	for (peer=peerl.peers;peer;) {
 		/* Assume all will be deleted, and we'll find out for sure later */
 		peer->delme = 1;
 		peer = peer->next;
 	}
-	ast_pthread_mutex_unlock(&peerl.lock);
+	ast_mutex_unlock(&peerl.lock);
 }
 
 static void prune_peers(void)
 {
 	/* Prune peers who still are supposed to be deleted */
 	struct sip_peer *peer, *peerlast, *peernext;
-	ast_pthread_mutex_lock(&peerl.lock);
+	ast_mutex_lock(&peerl.lock);
 	peerlast = NULL;
 	for (peer=peerl.peers;peer;) {
 		peernext = peer->next;
@@ -5861,7 +5865,7 @@ static void prune_peers(void)
 			peerlast = peer;
 		peer=peernext;
 	}
-	ast_pthread_mutex_unlock(&peerl.lock);
+	ast_mutex_unlock(&peerl.lock);
 }
 
 int reload(void)
@@ -5876,10 +5880,10 @@ int reload(void)
 	restart_monitor();
 	for (reg = registrations; reg; reg = reg->next) 
 		sip_do_register(reg);
-	ast_pthread_mutex_lock(&peerl.lock);
+	ast_mutex_lock(&peerl.lock);
 	for (peer = peerl.peers; peer; peer = peer->next)
 		sip_poke_peer(peer);
-	ast_pthread_mutex_unlock(&peerl.lock);
+	ast_mutex_unlock(&peerl.lock);
 	return 0;
 }
 
@@ -5889,7 +5893,7 @@ int unload_module()
 	
 	/* First, take us out of the channel loop */
 	ast_channel_unregister(type);
-	if (!ast_pthread_mutex_lock(&iflock)) {
+	if (!ast_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = iflist;
 		while(p) {
@@ -5898,25 +5902,25 @@ int unload_module()
 			p = p->next;
 		}
 		iflist = NULL;
-		ast_pthread_mutex_unlock(&iflock);
+		ast_mutex_unlock(&iflock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
 	}
-	if (!ast_pthread_mutex_lock(&monlock)) {
+	if (!ast_mutex_lock(&monlock)) {
 		if (monitor_thread) {
 			pthread_cancel(monitor_thread);
 			pthread_kill(monitor_thread, SIGURG);
 			pthread_join(monitor_thread, NULL);
 		}
 		monitor_thread = -2;
-		ast_pthread_mutex_unlock(&monlock);
+		ast_mutex_unlock(&monlock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
 	}
 
-	if (!ast_pthread_mutex_lock(&iflock)) {
+	if (!ast_mutex_lock(&iflock)) {
 		/* Destroy all the interfaces and free their memory */
 		p = iflist;
 		while(p) {
@@ -5926,7 +5930,7 @@ int unload_module()
 			free(pl);
 		}
 		iflist = NULL;
-		ast_pthread_mutex_unlock(&iflock);
+		ast_mutex_unlock(&iflock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
@@ -5938,9 +5942,9 @@ int unload_module()
 int usecount()
 {
 	int res;
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	res = usecnt;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	return res;
 }
 

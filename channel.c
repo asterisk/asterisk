@@ -45,25 +45,6 @@ static int uniqueint = 0;
 
 /* XXX Lock appropriately in more functions XXX */
 
-#ifdef DEBUG_MUTEX
-/* Convenient mutex debugging functions */
-#define PTHREAD_MUTEX_LOCK(a) __PTHREAD_MUTEX_LOCK(__FUNCTION__, a)
-#define PTHREAD_MUTEX_UNLOCK(a) __PTHREAD_MUTEX_UNLOCK(__FUNCTION__, a)
-
-static int __PTHREAD_MUTEX_LOCK(char *f, pthread_mutex_t *a) {
-	ast_log(LOG_DEBUG, "Locking %p (%s)\n", a, f); 
-	return ast_pthread_mutex_lock(a);
-}
-
-static int __PTHREAD_MUTEX_UNLOCK(char *f, pthread_mutex_t *a) {
-	ast_log(LOG_DEBUG, "Unlocking %p (%s)\n", a, f); 
-	return ast_pthread_mutex_unlock(a);
-}
-#else
-#define PTHREAD_MUTEX_LOCK(a) ast_pthread_mutex_lock(a)
-#define PTHREAD_MUTEX_UNLOCK(a) ast_pthread_mutex_unlock(a)
-#endif
-
 struct chanlist {
 	char type[80];
 	char description[80];
@@ -77,7 +58,7 @@ struct ast_channel *channels = NULL;
 /* Protect the channel list (highly unlikely that two things would change
    it at the same time, but still! */
    
-static pthread_mutex_t chlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t chlock = AST_MUTEX_INITIALIZER;
 
 int ast_check_hangup(struct ast_channel *chan)
 {
@@ -99,9 +80,9 @@ time_t	myt;
 static int ast_check_hangup_locked(struct ast_channel *chan)
 {
 	int res;
-	ast_pthread_mutex_lock(&chan->lock);
+	ast_mutex_lock(&chan->lock);
 	res = ast_check_hangup(chan);
-	ast_pthread_mutex_unlock(&chan->lock);
+	ast_mutex_unlock(&chan->lock);
 	return res;
 }
 
@@ -110,13 +91,13 @@ void ast_begin_shutdown(int hangup)
 	struct ast_channel *c;
 	shutting_down = 1;
 	if (hangup) {
-		PTHREAD_MUTEX_LOCK(&chlock);
+		ast_mutex_lock(&chlock);
 		c = channels;
 		while(c) {
 			ast_softhangup(c, AST_SOFTHANGUP_SHUTDOWN);
 			c = c->next;
 		}
-		PTHREAD_MUTEX_UNLOCK(&chlock);
+		ast_mutex_unlock(&chlock);
 	}
 }
 
@@ -124,13 +105,13 @@ int ast_active_channels(void)
 {
 	struct ast_channel *c;
 	int cnt = 0;
-	PTHREAD_MUTEX_LOCK(&chlock);
+	ast_mutex_lock(&chlock);
 	c = channels;
 	while(c) {
 		cnt++;
 		c = c->next;
 	}
-	PTHREAD_MUTEX_UNLOCK(&chlock);
+	ast_mutex_unlock(&chlock);
 	return cnt;
 }
 
@@ -167,7 +148,7 @@ int ast_channel_register_ex(char *type, char *description, int capabilities,
 		int (*devicestate)(void *data))
 {
 	struct chanlist *chan, *last=NULL;
-	if (PTHREAD_MUTEX_LOCK(&chlock)) {
+	if (ast_mutex_lock(&chlock)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return -1;
 	}
@@ -175,7 +156,7 @@ int ast_channel_register_ex(char *type, char *description, int capabilities,
 	while(chan) {
 		if (!strcasecmp(type, chan->type)) {
 			ast_log(LOG_WARNING, "Already have a handler for type '%s'\n", type);
-			PTHREAD_MUTEX_UNLOCK(&chlock);
+			ast_mutex_unlock(&chlock);
 			return -1;
 		}
 		last = chan;
@@ -184,7 +165,7 @@ int ast_channel_register_ex(char *type, char *description, int capabilities,
 	chan = malloc(sizeof(struct chanlist));
 	if (!chan) {
 		ast_log(LOG_WARNING, "Out of memory\n");
-		PTHREAD_MUTEX_UNLOCK(&chlock);
+		ast_mutex_unlock(&chlock);
 		return -1;
 	}
 	strncpy(chan->type, type, sizeof(chan->type)-1);
@@ -201,7 +182,7 @@ int ast_channel_register_ex(char *type, char *description, int capabilities,
 		ast_log(LOG_DEBUG, "Registered handler for '%s' (%s)\n", chan->type, chan->description);
 	else if (option_verbose > 1)
 		ast_verbose( VERBOSE_PREFIX_2 "Registered channel type '%s' (%s)\n", chan->type, chan->description);
-	PTHREAD_MUTEX_UNLOCK(&chlock);
+	ast_mutex_unlock(&chlock);
 	return 0;
 }
 
@@ -286,7 +267,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	/* If shutting down, don't allocate any new channels */
 	if (shutting_down)
 		return NULL;
-	PTHREAD_MUTEX_LOCK(&chlock);
+	ast_mutex_lock(&chlock);
 	tmp = malloc(sizeof(struct ast_channel));
 	if (tmp) {
 		memset(tmp, 0, sizeof(struct ast_channel));
@@ -334,7 +315,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 					tmp->fout = 0;
 					snprintf(tmp->uniqueid, sizeof(tmp->uniqueid), "%li.%d", time(NULL), uniqueint++);
 					headp=&tmp->varshead;
-					ast_pthread_mutex_init(&tmp->lock);
+					ast_mutex_init(&tmp->lock);
 				        AST_LIST_HEAD_INIT(headp);
 					tmp->vars=ast_var_assign("tempvar","tempval");
 					AST_LIST_INSERT_HEAD(headp,tmp->vars,entries);
@@ -359,7 +340,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 		}
 	} else 
 		ast_log(LOG_WARNING, "Out of memory\n");
-	PTHREAD_MUTEX_UNLOCK(&chlock);
+	ast_mutex_unlock(&chlock);
 	return tmp;
 }
 
@@ -376,7 +357,7 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int lock)
 		return -1;
 	}
 	if (lock)
-		ast_pthread_mutex_lock(&chan->lock);
+		ast_mutex_lock(&chan->lock);
 	prev = NULL;
 	cur = chan->pvt->readq;
 	while(cur) {
@@ -393,7 +374,7 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int lock)
 			ast_log(LOG_DEBUG, "Dropping voice to exceptionally long queue on %s\n", chan->name);
 			ast_frfree(f);
 			if (lock)
-				ast_pthread_mutex_unlock(&chan->lock);
+				ast_mutex_unlock(&chan->lock);
 			return 0;
 		}
 	}
@@ -409,7 +390,7 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int lock)
 		pthread_kill(chan->blocker, SIGURG);
 	}
 	if (lock)
-		ast_pthread_mutex_unlock(&chan->lock);
+		ast_mutex_unlock(&chan->lock);
 	return 0;
 }
 
@@ -446,10 +427,10 @@ void ast_channel_undefer_dtmf(struct ast_channel *chan)
 struct ast_channel *ast_channel_walk(struct ast_channel *prev)
 {
 	struct ast_channel *l, *ret=NULL;
-	PTHREAD_MUTEX_LOCK(&chlock);
+	ast_mutex_lock(&chlock);
 	l = channels;
 	if (!prev) {
-		PTHREAD_MUTEX_UNLOCK(&chlock);
+		ast_mutex_unlock(&chlock);
 		return l;
 	}
 	while(l) {
@@ -457,7 +438,7 @@ struct ast_channel *ast_channel_walk(struct ast_channel *prev)
 			ret = l->next;
 		l = l->next;
 	}
-	PTHREAD_MUTEX_UNLOCK(&chlock);
+	ast_mutex_unlock(&chlock);
 	return ret;
 	
 }
@@ -511,7 +492,7 @@ void ast_channel_free(struct ast_channel *chan)
 	
 	headp=&chan->varshead;
 	
-	PTHREAD_MUTEX_LOCK(&chlock);
+	ast_mutex_lock(&chlock);
 	cur = channels;
 	while(cur) {
 		if (cur == chan) {
@@ -551,7 +532,7 @@ void ast_channel_free(struct ast_channel *chan)
 		free(chan->ani);
 	if (chan->rdnis)
 		free(chan->rdnis);
-	pthread_mutex_destroy(&chan->lock);
+	ast_mutex_destroy(&chan->lock);
 	/* Close pipes if appropriate */
 	if ((fd = chan->pvt->alertpipe[0]) > -1)
 		close(fd);
@@ -581,7 +562,7 @@ void ast_channel_free(struct ast_channel *chan)
 	free(chan->pvt);
 	chan->pvt = NULL;
 	free(chan);
-	PTHREAD_MUTEX_UNLOCK(&chlock);
+	ast_mutex_unlock(&chlock);
 
 	ast_device_state_changed(name);
 }
@@ -604,9 +585,9 @@ int ast_softhangup_nolock(struct ast_channel *chan, int cause)
 int ast_softhangup(struct ast_channel *chan, int cause)
 {
 	int res;
-	ast_pthread_mutex_lock(&chan->lock);
+	ast_mutex_lock(&chan->lock);
 	res = ast_softhangup_nolock(chan, cause);
-	ast_pthread_mutex_unlock(&chan->lock);
+	ast_mutex_unlock(&chan->lock);
 	return res;
 }
 
@@ -629,7 +610,7 @@ int ast_hangup(struct ast_channel *chan)
 	int res = 0;
 	/* Don't actually hang up a channel that will masquerade as someone else, or
 	   if someone is going to masquerade as us */
-	ast_pthread_mutex_lock(&chan->lock);
+	ast_mutex_lock(&chan->lock);
 	if (chan->masq) {
 		if (ast_do_masquerade(chan)) 
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
@@ -637,13 +618,13 @@ int ast_hangup(struct ast_channel *chan)
 
 	if (chan->masq) {
 		ast_log(LOG_WARNING, "%s getting hung up, but someone is trying to masq into us?!?\n", chan->name);
-		ast_pthread_mutex_unlock(&chan->lock);
+		ast_mutex_unlock(&chan->lock);
 		return 0;
 	}
 	/* If this channel is one which will be masqueraded into something, 
 	   mark it as a zombie already, so we know to free it later */
 	if (chan->masqr) {
-		ast_pthread_mutex_unlock(&chan->lock);
+		ast_mutex_unlock(&chan->lock);
 		chan->zombie=1;
 		return 0;
 	}
@@ -679,7 +660,7 @@ int ast_hangup(struct ast_channel *chan)
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Hanging up zombie '%s'\n", chan->name);
 			
-	ast_pthread_mutex_unlock(&chan->lock);
+	ast_mutex_unlock(&chan->lock);
 	manager_event(EVENT_FLAG_CALL, "Hangup", 
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n",
@@ -693,7 +674,7 @@ void ast_channel_unregister(char *type)
 	struct chanlist *chan, *last=NULL;
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Unregistering channel type '%s'\n", type);
-	if (PTHREAD_MUTEX_LOCK(&chlock)) {
+	if (ast_mutex_lock(&chlock)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return;
 	}
@@ -705,13 +686,13 @@ void ast_channel_unregister(char *type)
 			else
 				backends = backends->next;
 			free(chan);
-			PTHREAD_MUTEX_UNLOCK(&chlock);
+			ast_mutex_unlock(&chlock);
 			return;
 		}
 		last = chan;
 		chan = chan->next;
 	}
-	PTHREAD_MUTEX_UNLOCK(&chlock);
+	ast_mutex_unlock(&chlock);
 }
 
 int ast_answer(struct ast_channel *chan)
@@ -825,16 +806,16 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	
 	/* Perform any pending masquerades */
 	for (x=0;x<n;x++) {
-		ast_pthread_mutex_lock(&c[x]->lock);
+		ast_mutex_lock(&c[x]->lock);
 		if (c[x]->masq) {
 			if (ast_do_masquerade(c[x])) {
 				ast_log(LOG_WARNING, "Masquerade failed\n");
 				*ms = -1;
-				ast_pthread_mutex_unlock(&c[x]->lock);
+				ast_mutex_unlock(&c[x]->lock);
 				return NULL;
 			}
 		}
-		ast_pthread_mutex_unlock(&c[x]->lock);
+		ast_mutex_unlock(&c[x]->lock);
 	}
 	
 	tv.tv_sec = *ms / 1000;
@@ -1012,14 +993,14 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		AST_FRAME_NULL,
 	};
 	
-	ast_pthread_mutex_lock(&chan->lock);
+	ast_mutex_lock(&chan->lock);
 	if (chan->masq) {
 		if (ast_do_masquerade(chan)) {
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
 			f = NULL;
 		} else
 			f =  &null_frame;
-		pthread_mutex_unlock(&chan->lock);
+		ast_mutex_unlock(&chan->lock);
 		return f;
 	}
 
@@ -1027,7 +1008,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 	if (chan->zombie || ast_check_hangup(chan)) {
 		if (chan->generator)
 			ast_deactivate_generator(chan);
-		pthread_mutex_unlock(&chan->lock);
+		ast_mutex_unlock(&chan->lock);
 		return NULL;
 	}
 
@@ -1037,7 +1018,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		chan->dtmff.subclass = chan->dtmfq[0];
 		/* Drop first digit */
 		memmove(chan->dtmfq, chan->dtmfq + 1, sizeof(chan->dtmfq) - 1);
-		pthread_mutex_unlock(&chan->lock);
+		ast_mutex_unlock(&chan->lock);
 		return &chan->dtmff;
 	}
 	
@@ -1053,7 +1034,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		ioctl(chan->timingfd, ZT_TIMERACK, &blah);
 		func = chan->timingfunc;
 		data = chan->timingdata;
-		pthread_mutex_unlock(&chan->lock);
+		ast_mutex_unlock(&chan->lock);
 		if (func) {
 #if 0
 			ast_log(LOG_DEBUG, "Calling private function\n");
@@ -1061,10 +1042,10 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 			func(data);
 		} else {
 			blah = 0;
-			pthread_mutex_lock(&chan->lock);
+			ast_mutex_lock(&chan->lock);
 			ioctl(chan->timingfd, ZT_TIMERCONFIG, &blah);
 			chan->timingdata = NULL;
-			pthread_mutex_unlock(&chan->lock);
+			ast_mutex_unlock(&chan->lock);
 		}
 		f =  &null_frame;
 		return f;
@@ -1136,7 +1117,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		ast_setstate(chan, AST_STATE_UP);
 		ast_cdr_answer(chan->cdr);
 	} 
-	pthread_mutex_unlock(&chan->lock);
+	ast_mutex_unlock(&chan->lock);
 
 	/* Run any generator sitting on the line */
 	if (f && (f->frametype == AST_FRAME_VOICE) && chan->generatordata) {
@@ -1321,28 +1302,28 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	int res = -1;
 	struct ast_frame *f = NULL;
 	/* Stop if we're a zombie or need a soft hangup */
-	ast_pthread_mutex_lock(&chan->lock);
+	ast_mutex_lock(&chan->lock);
 	if (chan->zombie || ast_check_hangup(chan))  {
-		ast_pthread_mutex_unlock(&chan->lock);
+		ast_mutex_unlock(&chan->lock);
 		return -1;
 	}
 	/* Handle any pending masquerades */
 	if (chan->masq) {
 		if (ast_do_masquerade(chan)) {
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
-			ast_pthread_mutex_unlock(&chan->lock);
+			ast_mutex_unlock(&chan->lock);
 			return -1;
 		}
 	}
 	if (chan->masqr) {
-		ast_pthread_mutex_unlock(&chan->lock);
+		ast_mutex_unlock(&chan->lock);
 		return 0;
 	}
 	if (chan->generatordata) {
 		if (chan->writeinterrupt)
 			ast_deactivate_generator(chan);
 		else {
-			ast_pthread_mutex_unlock(&chan->lock);
+			ast_mutex_unlock(&chan->lock);
 			return 0;
 		}
 	}
@@ -1402,7 +1383,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			chan->fout++;
 		chan->fout++;
 	}
-	ast_pthread_mutex_unlock(&chan->lock);
+	ast_mutex_unlock(&chan->lock);
 	return res;
 }
 
@@ -1534,7 +1515,7 @@ struct ast_channel *ast_request(char *type, int format, void *data)
 	int capabilities;
 	int fmt;
 	int res;
-	if (PTHREAD_MUTEX_LOCK(&chlock)) {
+	if (ast_mutex_lock(&chlock)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return NULL;
 	}
@@ -1546,10 +1527,10 @@ struct ast_channel *ast_request(char *type, int format, void *data)
 			res = ast_translator_best_choice(&fmt, &capabilities);
 			if (res < 0) {
 				ast_log(LOG_WARNING, "No translator path exists for channel type %s (native %d) to %d\n", type, chan->capabilities, format);
-				PTHREAD_MUTEX_UNLOCK(&chlock);
+				ast_mutex_unlock(&chlock);
 				return NULL;
 			}
-			PTHREAD_MUTEX_UNLOCK(&chlock);
+			ast_mutex_unlock(&chlock);
 			if (chan->requester)
 				c = chan->requester(type, capabilities, data);
 			if (c) {
@@ -1567,7 +1548,7 @@ struct ast_channel *ast_request(char *type, int format, void *data)
 	}
 	if (!chan)
 		ast_log(LOG_WARNING, "No channel type registered for '%s'\n", type);
-	PTHREAD_MUTEX_UNLOCK(&chlock);
+	ast_mutex_unlock(&chlock);
 	return c;
 }
 
@@ -1605,14 +1586,14 @@ int ast_device_state(char *device)
 	*number = 0;
 	number++;
 		
-	if (PTHREAD_MUTEX_LOCK(&chlock)) {
+	if (ast_mutex_lock(&chlock)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return -1;
 	}
 	chanls = backends;
 	while(chanls) {
 		if (!strcasecmp(tech, chanls->type)) {
-			PTHREAD_MUTEX_UNLOCK(&chlock);
+			ast_mutex_unlock(&chlock);
 			if (!chanls->devicestate) 
 				return ast_parse_device_state(device);
 			else {
@@ -1625,7 +1606,7 @@ int ast_device_state(char *device)
 		}
 		chanls = chanls->next;
 	}
-	PTHREAD_MUTEX_UNLOCK(&chlock);
+	ast_mutex_unlock(&chlock);
 	return AST_DEVICE_INVALID;
 }
 
@@ -1636,11 +1617,11 @@ int ast_call(struct ast_channel *chan, char *addr, int timeout)
 	   return anyway.  */
 	int res = -1;
 	/* Stop if we're a zombie or need a soft hangup */
-	ast_pthread_mutex_lock(&chan->lock);
+	ast_mutex_lock(&chan->lock);
 	if (!chan->zombie && !ast_check_hangup(chan)) 
 		if (chan->pvt->call)
 			res = chan->pvt->call(chan, addr, timeout);
-	pthread_mutex_unlock(&chan->lock);
+	ast_mutex_unlock(&chan->lock);
 	return res;
 }
 
@@ -1651,7 +1632,7 @@ int ast_transfer(struct ast_channel *chan, char *dest)
 	   return anyway.  */
 	int res = -1;
 	/* Stop if we're a zombie or need a soft hangup */
-	ast_pthread_mutex_lock(&chan->lock);
+	ast_mutex_lock(&chan->lock);
 	if (!chan->zombie && !ast_check_hangup(chan)) {
 		if (chan->pvt->transfer) {
 			res = chan->pvt->transfer(chan, dest);
@@ -1660,7 +1641,7 @@ int ast_transfer(struct ast_channel *chan, char *dest)
 		} else
 			res = 0;
 	}
-	pthread_mutex_unlock(&chan->lock);
+	ast_mutex_unlock(&chan->lock);
 	return res;
 }
 
@@ -1871,7 +1852,7 @@ static int ast_do_masquerade(struct ast_channel *original)
 	   while the features are nice, the cost is very high in terms of pure nastiness. XXX */
 
 	/* We need the clone's lock, too */
-	ast_pthread_mutex_lock(&clone->lock);
+	ast_mutex_lock(&clone->lock);
 
 	ast_log(LOG_DEBUG, "Got clone lock on '%s' at %p\n", clone->name, &clone->lock);
 
@@ -1921,7 +1902,7 @@ static int ast_do_masquerade(struct ast_channel *original)
 		res = clone->pvt->hangup(clone);
 	if (res) {
 		ast_log(LOG_WARNING, "Hangup failed!  Strange things may happen!\n");
-		pthread_mutex_unlock(&clone->lock);
+		ast_mutex_unlock(&clone->lock);
 		return -1;
 	}
 	
@@ -1984,13 +1965,13 @@ static int ast_do_masquerade(struct ast_channel *original)
 	   zombie, then free it now (since it already is considered invalid). */
 	if (clone->zombie) {
 		ast_log(LOG_DEBUG, "Destroying clone '%s'\n", clone->name);
-		pthread_mutex_unlock(&clone->lock);
+		ast_mutex_unlock(&clone->lock);
 		ast_channel_free(clone);
 		manager_event(EVENT_FLAG_CALL, "Hangup", "Channel: %s\r\n", zombn);
 	} else {
 		ast_log(LOG_DEBUG, "Released clone lock on '%s'\n", clone->name);
 		clone->zombie=1;
-		pthread_mutex_unlock(&clone->lock);
+		ast_mutex_unlock(&clone->lock);
 	}
 	/* Set the write format */
 	ast_set_write_format(original, wformat);

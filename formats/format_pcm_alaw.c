@@ -53,7 +53,7 @@ struct ast_filestream {
 };
 
 
-static pthread_mutex_t pcm_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t pcm_lock = AST_MUTEX_INITIALIZER;
 static int glistcnt = 0;
 
 static char *name = "alaw";
@@ -84,7 +84,7 @@ static struct ast_filestream *pcm_open(int fd)
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
 		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (pthread_mutex_lock(&pcm_lock)) {
+		if (ast_mutex_lock(&pcm_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock pcm list\n");
 			free(tmp);
 			return NULL;
@@ -100,7 +100,7 @@ static struct ast_filestream *pcm_open(int fd)
 		tmp->start_time = get_time();
 #endif
 		glistcnt++;
-		pthread_mutex_unlock(&pcm_lock);
+		ast_mutex_unlock(&pcm_lock);
 		ast_update_use_count();
 	}
 	return tmp;
@@ -114,7 +114,7 @@ static struct ast_filestream *pcm_rewrite(int fd, char *comment)
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
 		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (pthread_mutex_lock(&pcm_lock)) {
+		if (ast_mutex_lock(&pcm_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock pcm list\n");
 			free(tmp);
 			return NULL;
@@ -124,7 +124,7 @@ static struct ast_filestream *pcm_rewrite(int fd, char *comment)
 		tmp->start_time = get_time();
 #endif
 		glistcnt++;
-		pthread_mutex_unlock(&pcm_lock);
+		ast_mutex_unlock(&pcm_lock);
 		ast_update_use_count();
 	} else
 		ast_log(LOG_WARNING, "Out of memory\n");
@@ -133,12 +133,12 @@ static struct ast_filestream *pcm_rewrite(int fd, char *comment)
 
 static void pcm_close(struct ast_filestream *s)
 {
-	if (pthread_mutex_lock(&pcm_lock)) {
+	if (ast_mutex_lock(&pcm_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock pcm list\n");
 		return;
 	}
 	glistcnt--;
-	pthread_mutex_unlock(&pcm_lock);
+	ast_mutex_unlock(&pcm_lock);
 	ast_update_use_count();
 	close(s->fd);
 	free(s);
@@ -293,12 +293,12 @@ int unload_module()
 int usecount()
 {
 	int res;
-	if (pthread_mutex_lock(&pcm_lock)) {
+	if (ast_mutex_lock(&pcm_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock pcm list\n");
 		return -1;
 	}
 	res = glistcnt;
-	pthread_mutex_unlock(&pcm_lock);
+	ast_mutex_unlock(&pcm_lock);
 	return res;
 }
 

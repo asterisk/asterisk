@@ -27,7 +27,7 @@
 int ast_default_amaflags = AST_CDR_DOCUMENTATION;
 char ast_default_accountcode[20] = "";
 
-static pthread_mutex_t cdrlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t cdrlock = AST_MUTEX_INITIALIZER;
 
 static struct ast_cdr_beitem {
 	char name[20];
@@ -52,14 +52,14 @@ int ast_cdr_register(char *name, char *desc, ast_cdrbe be)
 		ast_log(LOG_WARNING, "CDR engine '%s' lacks backend\n", name);
 		return -1;
 	}
-	ast_pthread_mutex_lock(&cdrlock);
+	ast_mutex_lock(&cdrlock);
 	i = bes;
 	while(i) {
 		if (!strcasecmp(name, i->name))
 			break;
 		i = i->next;
 	}
-	ast_pthread_mutex_unlock(&cdrlock);
+	ast_mutex_unlock(&cdrlock);
 	if (i) {
 		ast_log(LOG_WARNING, "Already have a CDR backend called '%s'\n", name);
 		return -1;
@@ -71,17 +71,17 @@ int ast_cdr_register(char *name, char *desc, ast_cdrbe be)
 	strncpy(i->name, name, sizeof(i->name) - 1);
 	strncpy(i->desc, desc, sizeof(i->desc) - 1);
 	i->be = be;
-	ast_pthread_mutex_lock(&cdrlock);
+	ast_mutex_lock(&cdrlock);
 	i->next = bes;
 	bes = i;
-	ast_pthread_mutex_unlock(&cdrlock);
+	ast_mutex_unlock(&cdrlock);
 	return 0;
 }
 
 void ast_cdr_unregister(char *name)
 {
 	struct ast_cdr_beitem *i, *prev = NULL;
-	ast_pthread_mutex_lock(&cdrlock);
+	ast_mutex_lock(&cdrlock);
 	i = bes;
 	while(i) {
 		if (!strcasecmp(name, i->name)) {
@@ -93,7 +93,7 @@ void ast_cdr_unregister(char *name)
 		}
 		i = i->next;
 	}
-	ast_pthread_mutex_unlock(&cdrlock);
+	ast_mutex_unlock(&cdrlock);
 	if (i) 
 		free(i);
 }
@@ -367,13 +367,13 @@ void ast_cdr_post(struct ast_cdr *cdr)
 		} else
 			cdr->billsec = 0;
 		cdr->posted = 1;
-		ast_pthread_mutex_lock(&cdrlock);
+		ast_mutex_lock(&cdrlock);
 		i = bes;
 		while(i) {
 			i->be(cdr);
 			i = i->next;
 		}
-		ast_pthread_mutex_unlock(&cdrlock);
+		ast_mutex_unlock(&cdrlock);
 	}
 }
 

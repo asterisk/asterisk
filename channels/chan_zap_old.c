@@ -188,14 +188,14 @@ static int gendigittimeout = 8000;
 static int matchdigittimeout = 3000;
 
 static int usecnt =0;
-static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 /* Protect the interface list (of zt_pvt's) */
-static pthread_mutex_t iflock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t iflock = AST_MUTEX_INITIALIZER;
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
-static pthread_mutex_t monlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t monlock = AST_MUTEX_INITIALIZER;
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
@@ -245,7 +245,7 @@ static int r2prot = -1;
 #ifdef ZAPATA_PRI
 struct zt_pri {
 	pthread_t master;			/* Thread of master */
-	pthread_mutex_t lock;		/* Mutex */
+	ast_mutex_t lock;		/* Mutex */
 	char idleext[AST_MAX_EXTENSION];		/* Where to idle extra calls */
 	char idlecontext[AST_MAX_EXTENSION];		/* What context to use for idle */
 	char idledial[AST_MAX_EXTENSION];		/* What to dial before dumping */
@@ -285,7 +285,7 @@ static inline int pri_grab(struct zt_pri *pri)
 {
 	int res;
 	/* Grab the lock first */
-    res = ast_pthread_mutex_lock(&pri->lock);
+    res = ast_mutex_lock(&pri->lock);
 	if (res)
 		return res;
 	/* Then break the select */
@@ -295,7 +295,7 @@ static inline int pri_grab(struct zt_pri *pri)
 
 static inline void pri_rel(struct zt_pri *pri)
 {
-	ast_pthread_mutex_unlock(&pri->lock);
+	ast_mutex_unlock(&pri->lock);
 }
 
 static int switchtype = PRI_SWITCH_NI2;
@@ -334,7 +334,7 @@ struct zt_subchannel {
 #define MAX_SLAVES	4
 
 static struct zt_pvt {
-	pthread_mutex_t lock;
+	ast_mutex_t lock;
 	struct ast_channel *owner;	/* Our current active owner (if applicable) */
 		/* Up to three channels can be associated with this call */
 		
@@ -1502,16 +1502,16 @@ static int zt_hangup(struct ast_channel *ast)
 	p->callwaitingrepeat = 0;
 	ast->pvt->pvt = NULL;
 	ast_setstate(ast, AST_STATE_DOWN);
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	usecnt--;
 	if (usecnt < 0) 
 		ast_log(LOG_WARNING, "Usecnt < 0???\n");
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	ast_update_use_count();
 	if (option_verbose > 2) 
 		ast_verbose( VERBOSE_PREFIX_3 "Hungup '%s'\n", ast->name);
 
-	ast_pthread_mutex_lock(&iflock);
+	ast_mutex_lock(&iflock);
 	tmp = iflist;
 	prev = NULL;
 	if (p->destroy) {
@@ -1525,7 +1525,7 @@ static int zt_hangup(struct ast_channel *ast)
 			}
 		}
 	}
-	ast_pthread_mutex_unlock(&iflock);
+	ast_mutex_unlock(&iflock);
 	return 0;
 }
 
@@ -1809,8 +1809,8 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	/* cant do pseudo-channels here */
 	if ((!p0->sig) || (!p1->sig)) return -2;
 
-	ast_pthread_mutex_lock(&c0->lock);
-	ast_pthread_mutex_lock(&c1->lock);
+	ast_mutex_lock(&c0->lock);
+	ast_mutex_lock(&c1->lock);
 	op0 = p0 = c0->pvt->pvt;
 	op1 = p1 = c1->pvt->pvt;
 	ofd1 = c0->fds[0];
@@ -1824,12 +1824,12 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 
 
 
-	ast_pthread_mutex_lock(&p0->lock);
-	if (pthread_mutex_trylock(&p1->lock)) {
+	ast_mutex_lock(&p0->lock);
+	if (ast_mutex_trylock(&p1->lock)) {
 		/* Don't block, due to potential for deadlock */
-		ast_pthread_mutex_unlock(&p0->lock);
-		ast_pthread_mutex_unlock(&c0->lock);
-		ast_pthread_mutex_unlock(&c1->lock);
+		ast_mutex_unlock(&p0->lock);
+		ast_mutex_unlock(&c0->lock);
+		ast_mutex_unlock(&c1->lock);
 		ast_log(LOG_NOTICE, "Avoiding deadlock...\n");
 		return -3;
 	}
@@ -1923,11 +1923,11 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	t1 = p0->subs[SUB_REAL].inthreeway;
 	t2 = p1->subs[SUB_REAL].inthreeway;
 
-	ast_pthread_mutex_unlock(&p0->lock);
-	ast_pthread_mutex_unlock(&p1->lock);
+	ast_mutex_unlock(&p0->lock);
+	ast_mutex_unlock(&p1->lock);
 
-	ast_pthread_mutex_unlock(&c0->lock);
-	ast_pthread_mutex_unlock(&c1->lock);
+	ast_mutex_unlock(&c0->lock);
+	ast_mutex_unlock(&c1->lock);
 
 	/* Native bridge failed */
 	if ((!master || !slave) && !nothingok)
@@ -1939,16 +1939,16 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	for (;;) {
 		/* Here's our main loop...  Start by locking things, looking for private parts, 
 		   and then balking if anything is wrong */
-		ast_pthread_mutex_lock(&c0->lock);
-		ast_pthread_mutex_lock(&c1->lock);
+		ast_mutex_lock(&c0->lock);
+		ast_mutex_lock(&c1->lock);
 		p0 = c0->pvt->pvt;
 		p1 = c1->pvt->pvt;
 		if (op0 == p0)
 			i1 = zt_get_index(c0, p0, 1);
 		if (op1 == p1)
 			i2 = zt_get_index(c1, p1, 1);
-		ast_pthread_mutex_unlock(&c0->lock);
-		ast_pthread_mutex_unlock(&c1->lock);
+		ast_mutex_unlock(&c0->lock);
+		ast_mutex_unlock(&c1->lock);
 		if ((op0 != p0) || (op1 != p1) || 
 		    (ofd1 != c0->fds[0]) || 
 			(ofd2 != c1->fds[0]) ||
@@ -2709,7 +2709,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	struct ast_frame *f;
 	
 
-	ast_pthread_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	
 	index = zt_get_index(ast, p, 0);
 	
@@ -2725,7 +2725,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	/* Hang up if we don't really exist */
 	if (index < 0)	{
 		ast_log(LOG_WARNING, "We dont exist?\n");
-		pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		return NULL;
 	}
 	
@@ -2747,11 +2747,11 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		{
 			p->subs[index].f.subclass = AST_CONTROL_RADIO_UNKEY;
 		}
-		pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		return &p->subs[index].f;
 	}
 	if (p->ringt == 1) {
-		pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		return NULL;
 	}
 	else if (p->ringt > 0) 
@@ -2763,7 +2763,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		p->subs[index].f.frametype = AST_FRAME_CONTROL;
 		p->subs[index].f.subclass = AST_CONTROL_RINGING;
 		ast_setstate(ast, AST_STATE_RINGING);
-		pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		return &p->subs[index].f;
 	}
 
@@ -2778,7 +2778,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		p->subs[index].f.frametype = AST_FRAME_CONTROL;
 		p->subs[index].f.subclass = AST_CONTROL_ANSWER;
 		ast_setstate(ast, AST_STATE_UP);
-		pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		return &p->subs[index].f;
 	}	
 	
@@ -2822,7 +2822,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 			p->subs[index].f.subclass = AST_CONTROL_ANSWER;
 			ast_setstate(ast, AST_STATE_UP);
 		}
-		pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		return &p->subs[index].f;
 	}
 	
@@ -2843,7 +2843,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		}
 	} else {
 		ast_log(LOG_WARNING, "Don't know how to read frames in format %d\n", ast->pvt->rawreadformat);
-		pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		return NULL;
 	}
 	readbuf = ((unsigned char *)p->subs[index].buffer) + AST_FRIENDLY_OFFSET;
@@ -2854,7 +2854,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	if (res < 0) {
 		if (res == -1) 
 			ast_log(LOG_WARNING, "zt_rec: %s\n", strerror(errno));
-		pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		return NULL;
 	}
 	if (res != READ_SIZE) {
@@ -2884,7 +2884,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 					}
 					p->callwaitcas = 0;
 					/* Return NULL */
-					pthread_mutex_unlock(&p->lock);
+					ast_mutex_unlock(&p->lock);
 					return &p->subs[index].f;
 				} else {
 					strncpy(p->subs[index].dtmfq + strlen(p->subs[index].dtmfq), zap_dtmfbuf(p->subs[index].z), sizeof(p->subs[index].dtmfq) - strlen(p->subs[index].dtmfq)-1);
@@ -2892,7 +2892,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 				}
 			}
 		} else {
-			pthread_mutex_unlock(&p->lock);
+			ast_mutex_unlock(&p->lock);
 			return zt_handle_event(ast);
 		}
 		if (strlen(p->subs[index].dtmfq)) {
@@ -2916,12 +2916,12 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 						ast_log(LOG_DEBUG, "Fax already handled\n");
 				p->subs[index].f.frametype = AST_FRAME_NULL;
 				p->subs[index].f.subclass = 0;
-				pthread_mutex_unlock(&p->lock);
+				ast_mutex_unlock(&p->lock);
 				return &p->subs[index].f;
 			}
 			p->subs[index].f.frametype = AST_FRAME_DTMF;
 		}
-		pthread_mutex_unlock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		return &p->subs[index].f;
 	}
 	if (p->tdd) { /* if in TDD mode, see if we receive that */
@@ -2940,7 +2940,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 			p->subs[index].f.data = p->subs[index].buffer + AST_FRIENDLY_OFFSET;
 			p->subs[index].f.datalen = 1;
 			*((char *) p->subs[index].f.data) = c;
-			pthread_mutex_unlock(&p->lock);
+			ast_mutex_unlock(&p->lock);
 			return &p->subs[index].f;
 		}
 	}
@@ -2998,7 +2998,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		}
 	} else 
 		f = &p->subs[index].f; 
-	pthread_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return f;
 }
 
@@ -3240,9 +3240,9 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		}
 		i->subs[index].owner = tmp;
 		ast_setstate(tmp, state);
-		ast_pthread_mutex_lock(&usecnt_lock);
+		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
-		ast_pthread_mutex_unlock(&usecnt_lock);
+		ast_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		/* Copy call forward info */
@@ -4018,7 +4018,7 @@ static void *do_monitor(void *data)
 #endif
 	for(;;) {
 		/* Lock the interface list */
-		if (ast_pthread_mutex_lock(&iflock)) {
+		if (ast_mutex_lock(&iflock)) {
 			ast_log(LOG_ERROR, "Unable to grab interface lock\n");
 			return NULL;
 		}
@@ -4049,7 +4049,7 @@ static void *do_monitor(void *data)
 			i = i->next;
 		}
 		/* Okay, now that we know what to do, release the interface lock */
-		ast_pthread_mutex_unlock(&iflock);
+		ast_mutex_unlock(&iflock);
 		
 		pthread_testcancel();
 		/* Wait at least a second for something to happen */
@@ -4065,7 +4065,7 @@ static void *do_monitor(void *data)
 		}
 		/* Alright, lock the interface list again, and let's look and see what has
 		   happened */
-		if (ast_pthread_mutex_lock(&iflock)) {
+		if (ast_mutex_lock(&iflock)) {
 			ast_log(LOG_WARNING, "Unable to lock the interface list\n");
 			continue;
 		}
@@ -4183,7 +4183,7 @@ static void *do_monitor(void *data)
 			}
 			i=i->next;
 		}
-		ast_pthread_mutex_unlock(&iflock);
+		ast_mutex_unlock(&iflock);
 	}
 	/* Never reached */
 	return NULL;
@@ -4198,12 +4198,12 @@ static int restart_monitor(void)
 	/* If we're supposed to be stopped -- stay stopped */
 	if (monitor_thread == -2)
 		return 0;
-	if (ast_pthread_mutex_lock(&monlock)) {
+	if (ast_mutex_lock(&monlock)) {
 		ast_log(LOG_WARNING, "Unable to lock monitor\n");
 		return -1;
 	}
 	if (monitor_thread == pthread_self()) {
-		ast_pthread_mutex_unlock(&monlock);
+		ast_mutex_unlock(&monlock);
 		ast_log(LOG_WARNING, "Cannot kill myself\n");
 		return -1;
 	}
@@ -4219,7 +4219,7 @@ static int restart_monitor(void)
 	} else {
 		/* Start a new monitor */
 		if (pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {
-			ast_pthread_mutex_unlock(&monlock);
+			ast_mutex_unlock(&monlock);
 			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
 			return -1;
 		}
@@ -4227,7 +4227,7 @@ static int restart_monitor(void)
 #if 0
 	printf("Created thread %ld detached in restart monitor\n", monitor_thread);
 #endif
-	ast_pthread_mutex_unlock(&monlock);
+	ast_mutex_unlock(&monlock);
 	return 0;
 }
 
@@ -4729,7 +4729,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 		channelmatch = x;
 	}
 	/* Search for an unowned channel */
-	if (ast_pthread_mutex_lock(&iflock)) {
+	if (ast_mutex_lock(&iflock)) {
 		ast_log(LOG_ERROR, "Unable to lock interface list???\n");
 		return NULL;
 	}
@@ -4788,7 +4788,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 		}
 		p = p->next;
 	}
-	ast_pthread_mutex_unlock(&iflock);
+	ast_mutex_unlock(&iflock);
 	restart_monitor();
 	return tmp;
 }
@@ -4992,7 +4992,7 @@ static void *pri_dchannel(void *vpri)
 		FD_SET(pri->fd, &rfds);
 		FD_SET(pri->fd, &efds);
 		time(&t);
-		ast_pthread_mutex_lock(&pri->lock);
+		ast_mutex_lock(&pri->lock);
 		if (pri->resetting && pri->up) {
 			/* Look for a resetable channel and go */
 			if ((t - pri->lastreset) > 0) {
@@ -5111,12 +5111,12 @@ static void *pri_dchannel(void *vpri)
 			tv.tv_sec = 60;
 			tv.tv_usec = 0;
 		}
-		pthread_mutex_unlock(&pri->lock);
+		ast_mutex_unlock(&pri->lock);
 
 		e = NULL;
 		res = ast_select(pri->fd + 1, &rfds, NULL, &efds, &tv);
 
-		ast_pthread_mutex_lock(&pri->lock);
+		ast_mutex_lock(&pri->lock);
 		if (!res) {
 			/* Just a timeout, run the scheduler */
 			e = pri_schedule_run(pri->pri);
@@ -5421,7 +5421,7 @@ static void *pri_dchannel(void *vpri)
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Got event %s (%d) on D-channel for span %d\n", event2str(x), x, pri->span);
 		}
-		pthread_mutex_unlock(&pri->lock);
+		ast_mutex_unlock(&pri->lock);
 	}
 	/* Never reached */
 	return NULL;
@@ -5690,7 +5690,7 @@ static int zap_show_channels(int fd, int argc, char **argv)
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
-	ast_pthread_mutex_lock(&iflock);
+	ast_mutex_lock(&iflock);
 	ast_cli(fd, FORMAT2, "Chan. Num.", "Extension", "Context", "Language", "MusicOnHold");
 	
 	tmp = iflist;
@@ -5698,7 +5698,7 @@ static int zap_show_channels(int fd, int argc, char **argv)
 		ast_cli(fd, FORMAT, tmp->channel, tmp->exten, tmp->context, tmp->language, tmp->musicclass);
 		tmp = tmp->next;
 	}
-	ast_pthread_mutex_unlock(&iflock);
+	ast_mutex_unlock(&iflock);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -5714,7 +5714,7 @@ static int zap_show_channel(int fd, int argc, char **argv)
 		return RESULT_SHOWUSAGE;
 	channel = atoi(argv[3]);
 
-	ast_pthread_mutex_lock(&iflock);
+	ast_mutex_lock(&iflock);
 	tmp = iflist;
 	while (tmp) {
 		if (tmp->channel == channel) {
@@ -5764,14 +5764,14 @@ static int zap_show_channel(int fd, int argc, char **argv)
 				ast_cli(fd, "\n");
 			}
 #endif
-			ast_pthread_mutex_unlock(&iflock);
+			ast_mutex_unlock(&iflock);
 			return RESULT_SUCCESS;
 		}
 		tmp = tmp->next;
 	}
 	
 	ast_cli(fd, "Unable to find given channel %d\n", channel);
-	ast_pthread_mutex_unlock(&iflock);
+	ast_mutex_unlock(&iflock);
 	return RESULT_FAILURE;
 }
 
@@ -5829,7 +5829,7 @@ int load_module()
 	}
 	
 
-	if (ast_pthread_mutex_lock(&iflock)) {
+	if (ast_mutex_lock(&iflock)) {
 		/* It's a little silly to lock it, but we mind as well just to be sure */
 		ast_log(LOG_ERROR, "Unable to lock interface list???\n");
 		return -1;
@@ -5841,7 +5841,7 @@ int load_module()
 			if (cur_signalling < 0) {
 				ast_log(LOG_ERROR, "Signalling must be specified before any channels are.\n");
 				ast_destroy(cfg);
-				ast_pthread_mutex_unlock(&iflock);
+				ast_mutex_unlock(&iflock);
 				unload_module();
 				return -1;
 			}
@@ -5858,7 +5858,7 @@ int load_module()
 				} else {
 					ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'\n", v->value, chan);
 					ast_destroy(cfg);
-					ast_pthread_mutex_unlock(&iflock);
+					ast_mutex_unlock(&iflock);
 					unload_module();
 					return -1;
 				}
@@ -5876,7 +5876,7 @@ int load_module()
 					} else {
 						ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
 						ast_destroy(cfg);
-						ast_pthread_mutex_unlock(&iflock);
+						ast_mutex_unlock(&iflock);
 						unload_module();
 						return -1;
 					}
@@ -6066,7 +6066,7 @@ int load_module()
 			else {
 				ast_log(LOG_ERROR, "Unknown switchtype '%s'\n", v->value);
 				ast_destroy(cfg);
-				ast_pthread_mutex_unlock(&iflock);
+				ast_mutex_unlock(&iflock);
 				unload_module();
 				return -1;
 			}
@@ -6081,7 +6081,7 @@ int load_module()
 			ast_log(LOG_DEBUG, "Ignoring %s\n", v->name);
 		v = v->next;
 	}
-	ast_pthread_mutex_unlock(&iflock);
+	ast_mutex_unlock(&iflock);
 	/* Make sure we can register our Zap channel type */
 	if (ast_channel_register(type, tdesc, AST_FORMAT_SLINEAR |  AST_FORMAT_ULAW, zt_request)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
@@ -6140,7 +6140,7 @@ int unload_module()
 	ast_cli_unregister(&cli_show_channels);
 	ast_cli_unregister(&cli_show_channel);
 	ast_cli_unregister(&cli_destroy_channel);
-	if (!ast_pthread_mutex_lock(&iflock)) {
+	if (!ast_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = iflist;
 		while(p) {
@@ -6149,25 +6149,25 @@ int unload_module()
 			p = p->next;
 		}
 		iflist = NULL;
-		ast_pthread_mutex_unlock(&iflock);
+		ast_mutex_unlock(&iflock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
 	}
-	if (!ast_pthread_mutex_lock(&monlock)) {
+	if (!ast_mutex_lock(&monlock)) {
 		if (monitor_thread) {
 			pthread_cancel(monitor_thread);
 			pthread_kill(monitor_thread, SIGURG);
 			pthread_join(monitor_thread, NULL);
 		}
 		monitor_thread = -2;
-		ast_pthread_mutex_unlock(&monlock);
+		ast_mutex_unlock(&monlock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
 	}
 
-	if (!ast_pthread_mutex_lock(&iflock)) {
+	if (!ast_mutex_lock(&iflock)) {
 		/* Destroy all the interfaces and free their memory */
 		p = iflist;
 		while(p) {
@@ -6183,7 +6183,7 @@ int unload_module()
 			free(pl);
 		}
 		iflist = NULL;
-		ast_pthread_mutex_unlock(&iflock);
+		ast_mutex_unlock(&iflock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
@@ -6262,7 +6262,7 @@ static int reload_zt(void)
 	}
 	
 
-	if (ast_pthread_mutex_lock(&iflock)) {
+	if (ast_mutex_lock(&iflock)) {
 		/* It's a little silly to lock it, but we mind as well just to be sure */
 		ast_log(LOG_ERROR, "Unable to lock interface list???\n");
 		return -1;
@@ -6284,7 +6284,7 @@ static int reload_zt(void)
 			if (cur_signalling < 0) {
 				ast_log(LOG_ERROR, "Signalling must be specified before any channels are.\n");
 				ast_destroy(cfg);
-				ast_pthread_mutex_unlock(&iflock);
+				ast_mutex_unlock(&iflock);
 				return -1;
 			}
 			stringp=v->value;
@@ -6298,7 +6298,7 @@ static int reload_zt(void)
 				} else {
 					ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'\n", v->value, chan);
 					ast_destroy(cfg);
-					ast_pthread_mutex_unlock(&iflock);
+					ast_mutex_unlock(&iflock);
 					return -1;
 				}
 				if (finish < start) {
@@ -6315,7 +6315,7 @@ static int reload_zt(void)
 					} else {
 						ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
 						ast_destroy(cfg);
-						ast_pthread_mutex_unlock(&iflock);
+						ast_mutex_unlock(&iflock);
 						return -1;
 					}
 				}
@@ -6417,7 +6417,7 @@ static int reload_zt(void)
 			else {
 				ast_log(LOG_ERROR, "Unknown switchtype '%s'\n", v->value);
 				ast_destroy(cfg);
-				ast_pthread_mutex_unlock(&iflock);
+				ast_mutex_unlock(&iflock);
 				return -1;
 			}
 		} else if (!strcasecmp(v->name, "minunused")) {
@@ -6439,7 +6439,7 @@ static int reload_zt(void)
 		if (tmp->destroy) {
 			if (destroy_channel(prev, tmp, 0)) {
 				ast_log(LOG_ERROR, "Unable to destroy chan_zap channel %d\n", tmp->channel);
-				ast_pthread_mutex_unlock(&iflock);
+				ast_mutex_unlock(&iflock);
 				return -1;
 			}
 			tmp = tmp->next;
@@ -6449,7 +6449,7 @@ static int reload_zt(void)
 		}
 	}
 
-	ast_pthread_mutex_unlock(&iflock);
+	ast_mutex_unlock(&iflock);
 
 	ast_destroy(cfg);
 #if 0
@@ -6593,9 +6593,9 @@ int reload(void)
 int usecount()
 {
 	int res;
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	res = usecnt;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	return res;
 }
 

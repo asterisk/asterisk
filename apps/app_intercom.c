@@ -52,26 +52,26 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static pthread_mutex_t sound_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t sound_lock = AST_MUTEX_INITIALIZER;
 static int sound = -1;
 
 static int write_audio(short *data, int len)
 {
 	int res;
 	struct audio_buf_info info;
-	ast_pthread_mutex_lock(&sound_lock);
+	ast_mutex_lock(&sound_lock);
 	if (sound < 0) {
 		ast_log(LOG_WARNING, "Sound device closed?\n");
-		ast_pthread_mutex_unlock(&sound_lock);
+		ast_mutex_unlock(&sound_lock);
 		return -1;
 	}
     if (ioctl(sound, SNDCTL_DSP_GETOSPACE, &info)) {
 		ast_log(LOG_WARNING, "Unable to read output space\n");
-		ast_pthread_mutex_unlock(&sound_lock);
+		ast_mutex_unlock(&sound_lock);
         return -1;
     }
 	res = write(sound, data, len);
-	ast_pthread_mutex_unlock(&sound_lock);
+	ast_mutex_unlock(&sound_lock);
 	return res;
 }
 

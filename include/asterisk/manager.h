@@ -23,6 +23,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <asterisk/lock.h>
+
 /* 
  * Call management packages are text fields of the form a: b.  There is
  * always exactly one space after the colon.
@@ -53,7 +55,7 @@
 
 struct mansession {
 	pthread_t t;
-	pthread_mutex_t lock;
+	ast_mutex_t lock;
 	struct sockaddr_in sin;
 	int fd;
 	int blocking;

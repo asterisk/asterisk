@@ -42,7 +42,7 @@ struct ast_filestream {
 };
 
 
-static pthread_mutex_t g723_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t g723_lock = AST_MUTEX_INITIALIZER;
 static int glistcnt = 0;
 
 static char *name = "g723sf";
@@ -56,7 +56,7 @@ static struct ast_filestream *g723_open(int fd)
 	   and be sure it's a valid file.  */
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		if (ast_pthread_mutex_lock(&g723_lock)) {
+		if (ast_mutex_lock(&g723_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock g723 list\n");
 			free(tmp);
 			return NULL;
@@ -73,7 +73,7 @@ static struct ast_filestream *g723_open(int fd)
 		tmp->orig.tv_usec = 0;
 		tmp->orig.tv_sec = 0;
 		glistcnt++;
-		ast_pthread_mutex_unlock(&g723_lock);
+		ast_mutex_unlock(&g723_lock);
 		ast_update_use_count();
 	}
 	return tmp;
@@ -86,7 +86,7 @@ static struct ast_filestream *g723_rewrite(int fd, char *comment)
 	   and be sure it's a valid file.  */
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
-		if (ast_pthread_mutex_lock(&g723_lock)) {
+		if (ast_mutex_lock(&g723_lock)) {
 			ast_log(LOG_WARNING, "Unable to lock g723 list\n");
 			free(tmp);
 			return NULL;
@@ -98,7 +98,7 @@ static struct ast_filestream *g723_rewrite(int fd, char *comment)
 		tmp->orig.tv_usec = 0;
 		tmp->orig.tv_sec = 0;
 		glistcnt++;
-		ast_pthread_mutex_unlock(&g723_lock);
+		ast_mutex_unlock(&g723_lock);
 		ast_update_use_count();
 	} else
 		ast_log(LOG_WARNING, "Out of memory\n");
@@ -113,7 +113,7 @@ static struct ast_frame *g723_read(struct ast_filestream *s)
 static void g723_close(struct ast_filestream *s)
 {
 	struct ast_filestream *tmp, *tmpl = NULL;
-	if (ast_pthread_mutex_lock(&g723_lock)) {
+	if (ast_mutex_lock(&g723_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock g723 list\n");
 		return;
 	}
@@ -136,7 +136,7 @@ static void g723_close(struct ast_filestream *s)
 			ast_sched_del(s->owner->sched, s->owner->streamid);
 		s->owner->streamid = -1;
 	}
-	ast_pthread_mutex_unlock(&g723_lock);
+	ast_mutex_unlock(&g723_lock);
 	ast_update_use_count();
 	if (!tmp) 
 		ast_log(LOG_WARNING, "Freeing a filestream we don't seem to own\n");
@@ -335,7 +335,7 @@ int load_module()
 int unload_module()
 {
 	struct ast_filestream *tmp, *tmpl;
-	if (ast_pthread_mutex_lock(&g723_lock)) {
+	if (ast_mutex_lock(&g723_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock g723 list\n");
 		return -1;
 	}
@@ -347,19 +347,19 @@ int unload_module()
 		tmp = tmp->next;
 		free(tmpl);
 	}
-	ast_pthread_mutex_unlock(&g723_lock);
+	ast_mutex_unlock(&g723_lock);
 	return ast_format_unregister(name);
 }	
 
 int usecount()
 {
 	int res;
-	if (ast_pthread_mutex_lock(&g723_lock)) {
+	if (ast_mutex_lock(&g723_lock)) {
 		ast_log(LOG_WARNING, "Unable to lock g723 list\n");
 		return -1;
 	}
 	res = glistcnt;
-	ast_pthread_mutex_unlock(&g723_lock);
+	ast_mutex_unlock(&g723_lock);
 	return res;
 }
 

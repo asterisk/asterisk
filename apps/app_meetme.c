@@ -72,7 +72,7 @@ static struct conf {
 	struct conf *next;
 } *confs;
 
-static pthread_mutex_t conflock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t conflock = AST_MUTEX_INITIALIZER;
 
 #include "enter.h"
 #include "leave.h"
@@ -112,7 +112,7 @@ static void conf_play(struct conf *conf, int sound)
 {
 	unsigned char *data;
 	int len;
-	ast_pthread_mutex_lock(&conflock);
+	ast_mutex_lock(&conflock);
 	switch(sound) {
 	case ENTER:
 		data = enter;
@@ -128,14 +128,14 @@ static void conf_play(struct conf *conf, int sound)
 	}
 	if (data) 
 		careful_write(conf->fd, data, len);
-	pthread_mutex_unlock(&conflock);
+	ast_mutex_unlock(&conflock);
 }
 
 static struct conf *build_conf(char *confno, int make)
 {
 	struct conf *cnf;
 	struct zt_confinfo ztc;
-	ast_pthread_mutex_lock(&conflock);
+	ast_mutex_lock(&conflock);
 	cnf = confs;
 	while(cnf) {
 		if (!strcmp(confno, cnf->confno)) 
@@ -179,7 +179,7 @@ static struct conf *build_conf(char *confno, int make)
 cnfout:
 	if (cnf && make) 
 		cnf->users++;
-	ast_pthread_mutex_unlock(&conflock);
+	ast_mutex_unlock(&conflock);
 	return cnf;
 }
 
@@ -431,7 +431,7 @@ zapretry:
 
 outrun:
 
-	ast_pthread_mutex_lock(&conflock);
+	ast_mutex_lock(&conflock);
 	/* Clean up */
 	conf->users--;
 	if (!conf->users) {
@@ -453,7 +453,7 @@ outrun:
 		close(conf->fd);
 		free(conf);
 	}
-	pthread_mutex_unlock(&conflock);
+	ast_mutex_unlock(&conflock);
 	return ret;
 }
 

@@ -133,7 +133,7 @@ static char *app = "VoiceMail2";
 /* Check mail, control, etc */
 static char *app2 = "VoiceMailMain2";
 
-static pthread_mutex_t vmlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t vmlock = AST_MUTEX_INITIALIZER;
 struct ast_vm_user *users;
 struct ast_vm_user *usersl;
 struct vm_zone *zones = NULL;
@@ -183,7 +183,7 @@ static void apply_options(struct ast_vm_user *vmu, char *options)
 
 #ifdef USEMYSQLVM
 MYSQL *dbhandler=NULL;
-pthread_mutex_t mysqllock;
+ast_mutex_t mysqllock;
 char dbuser[80];
 char dbpass[80];
 char dbname[80];
@@ -241,7 +241,7 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, cha
 		} else {
 			sprintf(query, "SELECT password,fullname,email,pager,options FROM users WHERE mailbox='%s'", mailbox);
 		}
-		pthread_mutex_lock(&mysqllock);
+		ast_mutex_lock(&mysqllock);
 		mysql_query(dbhandler, query);
 		if ((result=mysql_store_result(dbhandler))!=NULL) {
 			if ((rowval=mysql_fetch_row(result))!=NULL) {
@@ -264,16 +264,16 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, cha
 					}
 				}
 				mysql_free_result(result);
-				pthread_mutex_unlock(&mysqllock);
+				ast_mutex_unlock(&mysqllock);
 				return(retval);
 			} else {
 				mysql_free_result(result);
-				pthread_mutex_unlock(&mysqllock);
+				ast_mutex_unlock(&mysqllock);
 				free(retval);
 				return(NULL);
 			}
 		}
-		pthread_mutex_unlock(&mysqllock);
+		ast_mutex_unlock(&mysqllock);
 		free(retval);
 	}
 	return(NULL);
@@ -288,10 +288,10 @@ static void vm_change_password(struct ast_vm_user *vmu, char *password)
 	} else {
 		sprintf(query, "UPDATE users SET password='%s' WHERE mailbox='%s' AND password='%s'", password, vmu->mailbox, vmu->password);
 	}
-	pthread_mutex_lock(&mysqllock);
+	ast_mutex_lock(&mysqllock);
 	mysql_query(dbhandler, query);
 	strcpy(vmu->password, password);
-	pthread_mutex_unlock(&mysqllock);
+	ast_mutex_unlock(&mysqllock);
 }
 
 static void reset_user_pw(char *context, char *mailbox, char *password)
@@ -303,9 +303,9 @@ static void reset_user_pw(char *context, char *mailbox, char *password)
 	} else {
 		sprintf(query, "UPDATE users SET password='%s' WHERE mailbox='%s'", password, mailbox);
 	}
-	pthread_mutex_lock(&mysqllock);
+	ast_mutex_lock(&mysqllock);
 	mysql_query(dbhandler, query);
-	pthread_mutex_unlock(&mysqllock);
+	ast_mutex_unlock(&mysqllock);
 }
 #else
 
@@ -313,7 +313,7 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, cha
 {
 	/* This function could be made to generate one from a database, too */
 	struct ast_vm_user *vmu=NULL, *cur;
-	ast_pthread_mutex_lock(&vmlock);
+	ast_mutex_lock(&vmlock);
 	cur = users;
 	while(cur) {
 		if ((!context || !strcasecmp(context, cur->context)) &&
@@ -336,7 +336,7 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, cha
 			vmu->next = NULL;
 		}
 	}
-	ast_pthread_mutex_unlock(&vmlock);
+	ast_mutex_unlock(&vmlock);
 	return vmu;
 }
 
@@ -345,7 +345,7 @@ static int reset_user_pw(char *context, char *mailbox, char *newpass)
 	/* This function could be made to generate one from a database, too */
 	struct ast_vm_user *cur;
 	int res = -1;
-	ast_pthread_mutex_lock(&vmlock);
+	ast_mutex_lock(&vmlock);
 	cur = users;
 	while(cur) {
 		if ((!context || !strcasecmp(context, cur->context)) &&
@@ -357,7 +357,7 @@ static int reset_user_pw(char *context, char *mailbox, char *newpass)
 		strncpy(cur->password, newpass, sizeof(cur->password) - 1);
 		res = 0;
 	}
-	ast_pthread_mutex_unlock(&vmlock);
+	ast_mutex_unlock(&vmlock);
 	return res;
 }
 
@@ -2876,7 +2876,7 @@ static int load_config(void)
 	int x;
 
 	cfg = ast_load(VOICEMAIL_CONFIG);
-	ast_pthread_mutex_lock(&vmlock);
+	ast_mutex_lock(&vmlock);
 	cur = users;
 	while(cur) {
 		l = cur;
@@ -3054,10 +3054,10 @@ static int load_config(void)
 			}
 		}
 		ast_destroy(cfg);
-		ast_pthread_mutex_unlock(&vmlock);
+		ast_mutex_unlock(&vmlock);
 		return 0;
 	} else {
-		ast_pthread_mutex_unlock(&vmlock);
+		ast_mutex_unlock(&vmlock);
 		ast_log(LOG_WARNING, "Error reading voicemail config\n");
 		return -1;
 	}

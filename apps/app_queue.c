@@ -145,7 +145,7 @@ struct member {
 };
 
 struct ast_call_queue {
-	pthread_mutex_t	lock;	
+	ast_mutex_t	lock;	
 	char name[80];			/* Name of the queue */
 	char moh[80];			/* Name of musiconhold to be used */
 	char announce[80];		/* Announcement to play */
@@ -170,7 +170,7 @@ struct ast_call_queue {
 };
 
 static struct ast_call_queue *queues = NULL;
-static pthread_mutex_t qlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t qlock = AST_MUTEX_INITIALIZER;
 
 static char *int2strat(int strategy)
 {
@@ -198,12 +198,12 @@ static int join_queue(char *queuename, struct queue_ent *qe)
 	struct queue_ent *cur, *prev = NULL;
 	int res = -1;
 	int pos = 0;
-	ast_pthread_mutex_lock(&qlock);
+	ast_mutex_lock(&qlock);
 	q = queues;
 	while(q) {
 		if (!strcasecmp(q->name, queuename)) {
 			/* This is our one */
-			ast_pthread_mutex_lock(&q->lock);
+			ast_mutex_lock(&q->lock);
 			if (q->members && (!q->maxlen || (q->count < q->maxlen))) {
 				/* There's space for us, put us at the end */
 				prev = NULL;
@@ -234,12 +234,12 @@ static int join_queue(char *queuename, struct queue_ent *qe)
 ast_log(LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
 #endif
 			}
-			ast_pthread_mutex_unlock(&q->lock);
+			ast_mutex_unlock(&q->lock);
 			break;
 		}
 		q = q->next;
 	}
-	ast_pthread_mutex_unlock(&qlock);
+	ast_mutex_unlock(&qlock);
 	return res;
 }
 
@@ -258,7 +258,7 @@ static void free_members(struct ast_call_queue *q)
 static void destroy_queue(struct ast_call_queue *q)
 {
 	struct ast_call_queue *cur, *prev = NULL;
-	ast_pthread_mutex_lock(&qlock);
+	ast_mutex_lock(&qlock);
 	cur = queues;
 	while(cur) {
 		if (cur == q) {
@@ -271,7 +271,7 @@ static void destroy_queue(struct ast_call_queue *q)
 		}
 		cur = cur->next;
 	}
-	ast_pthread_mutex_unlock(&qlock);
+	ast_mutex_unlock(&qlock);
 	free_members(q);
 	free(q);
 }
@@ -284,7 +284,7 @@ static void leave_queue(struct queue_ent *qe)
 	q = qe->parent;
 	if (!q)
 		return;
-	ast_pthread_mutex_lock(&q->lock);
+	ast_mutex_lock(&q->lock);
 
 	prev = NULL;
 	cur = q->head;
@@ -310,7 +310,7 @@ ast_log(LOG_NOTICE, "Queue '%s' Leave, Channel '%s'\n", q->name, qe->chan->name 
 		}
 		cur = cur->next;
 	}
-	ast_pthread_mutex_unlock(&q->lock);
+	ast_mutex_unlock(&q->lock);
 	if (q->dead && !q->count) {	
 		/* It's dead and nobody is in it, so kill it */
 		destroy_queue(q);
@@ -591,9 +591,9 @@ static int wait_our_turn(struct queue_ent *qe)
 	int res = 0;
 	for (;;) {
 		/* Atomically read the parent head */
-		pthread_mutex_lock(&qe->parent->lock);
+		ast_mutex_lock(&qe->parent->lock);
 		ch = qe->parent->head;
-		pthread_mutex_unlock(&qe->parent->lock);
+		ast_mutex_unlock(&qe->parent->lock);
 		/* If we are now at the top of the head, break out */
 		if (qe->parent->head == qe)
 			break;
@@ -610,7 +610,7 @@ static int update_queue(struct ast_call_queue *q, struct localuser *user)
 	struct member *cur;
 	/* Since a reload could have taken place, we have to traverse the list to
 		be sure it's still valid */
-	ast_pthread_mutex_lock(&q->lock);
+	ast_mutex_lock(&q->lock);
 	cur = q->members;
 	while(cur) {
 		if (user->member == cur) {
@@ -620,7 +620,7 @@ static int update_queue(struct ast_call_queue *q, struct localuser *user)
 		}
 		cur = cur->next;
 	}
-	ast_pthread_mutex_unlock(&q->lock);
+	ast_mutex_unlock(&q->lock);
 	return 0;
 }
 
@@ -692,7 +692,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	char *announce = NULL;
 	char digit = 0;
 	/* Hold the lock while we setup the outgoing calls */
-	ast_pthread_mutex_lock(&qe->parent->lock);
+	ast_mutex_lock(&qe->parent->lock);
 	cur = qe->parent->members;
 	if (strlen(qe->announce))
 		announce = qe->announce;
@@ -759,7 +759,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		to = -1;
 	if (qe->parent->strategy)
 		ring_one(qe, outgoing);
-	ast_pthread_mutex_unlock(&qe->parent->lock);
+	ast_mutex_unlock(&qe->parent->lock);
 	lpeer = wait_for_answer(qe, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect, &digit);
 	if (lpeer)
 		peer = lpeer->chan;
@@ -846,9 +846,9 @@ static int wait_a_bit(struct queue_ent *qe)
 {
 	int retrywait;
 	/* Hold the lock while we setup the outgoing calls */
-	ast_pthread_mutex_lock(&qe->parent->lock);
+	ast_mutex_lock(&qe->parent->lock);
 	retrywait = qe->parent->retry * 1000;
-	ast_pthread_mutex_unlock(&qe->parent->lock);
+	ast_mutex_unlock(&qe->parent->lock);
 	return ast_waitfordigit(qe->chan, retrywait);
 }
 
@@ -941,7 +941,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 	{
 		while( q && ( res != 0 ) && (!found) ) 
 		{
-			ast_pthread_mutex_lock(&q->lock);
+			ast_mutex_lock(&q->lock);
 			if( strcmp( q->name, queuename) == 0 )
 			{
 				// found queue, try to remove  interface
@@ -977,7 +977,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 						"Not there\n", interface, queuename);
 			}
 
-			ast_pthread_mutex_unlock(&q->lock);
+			ast_mutex_unlock(&q->lock);
 			q = q->next;
 		}
 	}
@@ -1026,7 +1026,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 	{
 		while( q && ( res != 0 ) && (!found) ) 
 		{
-			ast_pthread_mutex_lock(&q->lock);
+			ast_mutex_lock(&q->lock);
 			if( strcmp( q->name, queuename) == 0 )
 			{
 				// found queue, try to enable interface
@@ -1050,7 +1050,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 						"Already there\n", interface, queuename);
 			}
 
-			ast_pthread_mutex_unlock(&q->lock);
+			ast_mutex_unlock(&q->lock);
 			q = q->next;
 		}
 	}
@@ -1171,7 +1171,7 @@ static void reload_queues(void)
 		ast_log(LOG_NOTICE, "No call queueing config file, so no call queues\n");
 		return;
 	}
-	ast_pthread_mutex_lock(&qlock);
+	ast_mutex_lock(&qlock);
 	/* Mark all queues as dead for the moment */
 	q = queues;
 	while(q) {
@@ -1195,7 +1195,7 @@ static void reload_queues(void)
 				if (q) {
 					/* Initialize it */
 					memset(q, 0, sizeof(struct ast_call_queue));
-					ast_pthread_mutex_init(&q->lock);
+					ast_mutex_init(&q->lock);
 					strncpy(q->name, cat, sizeof(q->name));
 					new = 1;
 				} else new = 0;
@@ -1203,7 +1203,7 @@ static void reload_queues(void)
 					new = 0;
 			if (q) {
 				if (!new) 
-					ast_pthread_mutex_lock(&q->lock);
+					ast_mutex_lock(&q->lock);
 				/* Re-initialize the queue */
 				q->dead = 0;
 				q->retry = 0;
@@ -1274,7 +1274,7 @@ static void reload_queues(void)
 				if (q->maxlen < 0)
 					q->maxlen = 0;
 				if (!new) 
-					ast_pthread_mutex_unlock(&q->lock);
+					ast_mutex_unlock(&q->lock);
 				if (new) {
 					q->next = queues;
 					queues = q;
@@ -1301,7 +1301,7 @@ static void reload_queues(void)
 			ql = q;
 		q = qn;
 	}
-	ast_pthread_mutex_unlock(&qlock);
+	ast_mutex_unlock(&qlock);
 }
 
 static int queues_show(int fd, int argc, char **argv)
@@ -1323,7 +1323,7 @@ static int queues_show(int fd, int argc, char **argv)
 		return RESULT_SUCCESS;
 	}
 	while(q) {
-		ast_pthread_mutex_lock(&q->lock);
+		ast_mutex_lock(&q->lock);
 		if (q->maxlen)
 			snprintf(max, sizeof(max), "%d", q->maxlen);
 		else
@@ -1354,7 +1354,7 @@ static int queues_show(int fd, int argc, char **argv)
 		} else
 			ast_cli(fd, "   No Callers\n");
 		ast_cli(fd, "\n");
-		ast_pthread_mutex_unlock(&q->lock);
+		ast_mutex_unlock(&q->lock);
 		q = q->next;
 	}
 	return RESULT_SUCCESS;
@@ -1379,7 +1379,7 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 	time(&now);
 	q = queues;
 	while(q) {
-		ast_pthread_mutex_lock(&q->lock);
+		ast_mutex_lock(&q->lock);
 		ast_cli(s->fd, "Event: QueueParams\r\n"
 					"Queue: %s\r\n"
 					"Max: %d\r\n"
@@ -1401,7 +1401,7 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 				"Wait: %ld\r\n"
 				"\r\n", 
 					q->name, pos++, qe->chan->name, (qe->chan->callerid ? qe->chan->callerid : ""), now - qe->start);
-		ast_pthread_mutex_unlock(&q->lock);
+		ast_mutex_unlock(&q->lock);
 		q = q->next;
 	}
 	return RESULT_SUCCESS;

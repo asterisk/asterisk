@@ -41,7 +41,7 @@ static int usecnt =0;
 /* Only linear is allowed */
 static int prefformat = AST_FORMAT_SLINEAR;
 
-static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 static char context[AST_MAX_EXTENSION] = "default";
 
@@ -215,9 +215,9 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state)
 		strncpy(tmp->exten, "s",  sizeof(tmp->exten) - 1);
 		strcpy(tmp->language, "");
 		i->owner = tmp;
-		ast_pthread_mutex_lock(&usecnt_lock);
+		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
-		ast_pthread_mutex_unlock(&usecnt_lock);
+		ast_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
@@ -276,9 +276,9 @@ int unload_module()
 int usecount()
 {
 	int res;
-	ast_pthread_mutex_lock(&usecnt_lock);
+	ast_mutex_lock(&usecnt_lock);
 	res = usecnt;
-	ast_pthread_mutex_unlock(&usecnt_lock);
+	ast_mutex_unlock(&usecnt_lock);
 	return res;
 }
 

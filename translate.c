@@ -39,7 +39,7 @@
 /* This could all be done more efficiently *IF* we chained packets together
    by default, but it would also complicate virtually every application. */
    
-static pthread_mutex_t list_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t list_lock = AST_MUTEX_INITIALIZER;
 static struct ast_translator *list = NULL;
 
 struct ast_translator_dir {
@@ -259,7 +259,7 @@ static int show_translation(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, "                        Translation times between formats (in milliseconds)\n");
 	ast_cli(fd, "                                 Destination Format\n");
-	ast_pthread_mutex_lock(&list_lock);
+	ast_mutex_lock(&list_lock);
 	for (x=0;x<SHOW_TRANS; x++) {
 		if (x == 1) 
 			strcpy(line, "  Src  ");
@@ -276,7 +276,7 @@ static int show_translation(int fd, int argc, char *argv[])
 		snprintf(line + strlen(line), sizeof(line) - strlen(line), "\n");
 		ast_cli(fd, line);			
 	}
-	ast_pthread_mutex_unlock(&list_lock);
+	ast_mutex_unlock(&list_lock);
 	return RESULT_SUCCESS;
 }
 
@@ -302,7 +302,7 @@ int ast_register_translator(struct ast_translator *t)
 	calc_cost(t);
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %d to %d, cost %d\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), t->srcfmt, t->dstfmt, t->cost);
-	ast_pthread_mutex_lock(&list_lock);
+	ast_mutex_lock(&list_lock);
 	if (!added_cli) {
 		ast_cli_register(&show_trans);
 		added_cli++;
@@ -310,14 +310,14 @@ int ast_register_translator(struct ast_translator *t)
 	t->next = list;
 	list = t;
 	rebuild_matrix();
-	ast_pthread_mutex_unlock(&list_lock);
+	ast_mutex_unlock(&list_lock);
 	return 0;
 }
 
 int ast_unregister_translator(struct ast_translator *t)
 {
 	struct ast_translator *u, *ul = NULL;
-	ast_pthread_mutex_lock(&list_lock);
+	ast_mutex_lock(&list_lock);
 	u = list;
 	while(u) {
 		if (u == t) {
@@ -331,7 +331,7 @@ int ast_unregister_translator(struct ast_translator *t)
 		u = u->next;
 	}
 	rebuild_matrix();
-	ast_pthread_mutex_unlock(&list_lock);
+	ast_mutex_unlock(&list_lock);
 	return (u ? 0 : -1);
 }
 
@@ -343,7 +343,7 @@ int ast_translator_best_choice(int *dst, int *srcs)
 	int bestdst=0;
 	int cur = 1;
 	int besttime=999999999;
-	ast_pthread_mutex_lock(&list_lock);
+	ast_mutex_lock(&list_lock);
 	for (y=0;y<MAX_FORMAT;y++) {
 		if ((cur & *dst) && (cur & *srcs)) {
 			/* This is a common format to both.  Pick it if we don't have one already */
@@ -370,6 +370,6 @@ int ast_translator_best_choice(int *dst, int *srcs)
 		*dst = bestdst;
 		best = 0;
 	}
-	ast_pthread_mutex_unlock(&list_lock);
+	ast_mutex_unlock(&list_lock);
 	return best;
 }

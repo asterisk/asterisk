@@ -37,7 +37,7 @@ static char *config = "cdr_mysql.conf";
 static char *hostname = NULL, *dbname = NULL, *dbuser = NULL, *password = NULL;
 static int connected = 0;
 
-static pthread_mutex_t mysql_lock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t mysql_lock = AST_MUTEX_INITIALIZER;
 
 static MYSQL mysql;
 
@@ -48,7 +48,7 @@ static int mysql_log(struct ast_cdr *cdr)
 	char sqlcmd[2048], timestr[128];
 	time_t t;
 
-	ast_pthread_mutex_lock(&mysql_lock);
+	ast_mutex_lock(&mysql_lock);
 
 	memset(sqlcmd,0,2048);
 
@@ -91,11 +91,11 @@ static int mysql_log(struct ast_cdr *cdr)
 	
 		if (mysql_real_query(&mysql,sqlcmd,strlen(sqlcmd))) {
 			ast_log(LOG_ERROR,"Failed to insert into database.");
-			ast_pthread_mutex_unlock(&mysql_lock);
+			ast_mutex_unlock(&mysql_lock);
 			return -1;
 		}
 	}
-	ast_pthread_mutex_unlock(&mysql_lock);
+	ast_mutex_unlock(&mysql_lock);
 	return 0;
 }
 
