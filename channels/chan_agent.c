@@ -788,7 +788,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 	if (needlock)
 		ast_mutex_unlock(&agentlock);
 	if (parent && chan)  {
-		if (p->ackcall > 1) {
+		if (newlyavailable->ackcall > 1) {
 			/* Don't do beep here */
 			res = 0;
 		} else {
