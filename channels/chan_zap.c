@@ -449,6 +449,7 @@ static struct zt_pvt {
 	int pulsedial;		/* whether a pulse dial phone is detected */
 	int dtmfrelax;		/* whether to run in relaxed DTMF mode */
 	int fake_event;
+	int zaptrcallerid;	/* should we use the callerid from incoming call on zap transfer or not */
 #ifdef ZAPATA_PRI
 	struct zt_pri *pri;
 	q931_call *call;
@@ -456,7 +457,6 @@ static struct zt_pvt {
 	int resetting;
 	int prioffset;
 	int alreadyhungup;
-	int zaptrcallerid;	/* should we use the callerid from incoming call on zap transfer or not */
 #ifdef PRI_EVENT_PROCEEDING
 	int proceeding;
 #endif
