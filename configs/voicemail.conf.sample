@@ -98,6 +98,9 @@ maxlogins=3
 			;     or set to no, it will be in the envelope
 ; dialout=fromvm 	; Context to dial out from [option 4 from the advanced menu]
 			;     if not listed, dialing out will not be permitted
+sendvoicemail=yes	; Context to Send voicemail from [option 5 from the advanced menu]
+  			; if not listed, sending messages from inside voicemail will not be 
+			; permitted
 ; callback=fromvm 	; Context to call back from  
 			;     if not listed, calling the sender back will not be permitted
 ; review=yes 		; Allow sender to review/rerecord their message before saving it [OFF by default

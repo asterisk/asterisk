@@ -636,3 +636,5 @@
 %conf-lockednow.gsm%The conference is now locked
 
 %conf-unlockednow.gsm%The conference is now unlocked
+
+%vm-leavemsg.gsm% Press 5 to send a voicemail message

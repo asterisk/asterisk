@@ -143,6 +143,7 @@ struct ast_vm_user {
 	int delete;
 	int alloced;
 	int saycid;
+	int svmail;
 	int review;
 	int operator;
 	int envelope;
@@ -262,6 +263,7 @@ static int maxlogins;
 static int reviewvm;
 static int calloper;
 static int saycidinfo;
+static int svmailinfo;
 static int hearenv;
 static int skipaftercmd;
 static char dialcontext[80];
@@ -293,6 +295,8 @@ static void populate_defaults(struct ast_vm_user *vmu)
 		vmu->operator = 1;
 	if (saycidinfo)
 		vmu->saycid = 1;
+	if (svmailinfo)
+		vmu->svmail = 1; 
 	if (hearenv)
 		vmu->envelope = 1;
 	if (callcontext)
@@ -331,6 +335,11 @@ static void apply_options(struct ast_vm_user *vmu, char *options)
 					vmu->saycid = 1;
 				else
 					vmu->saycid = 0;
+			} else if (!strcasecmp(var,"sendvoicemail")){
+				if(ast_true(value))
+					vmu->svmail =1;
+				else
+					vmu->svmail =0;
 			} else if (!strcasecmp(var, "review")){
 				if(ast_true(value))
 					vmu->review = 1;
@@ -2609,7 +2618,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	return 0;
 }
 
-static int forward_message(struct ast_channel *chan, char *context, char *dir, int curmsg, struct ast_vm_user *sender, char *fmt)
+static int forward_message(struct ast_channel *chan, char *context, char *dir, int curmsg, struct ast_vm_user *sender, char *fmt,int flag)
 {
 	char username[70];
 	char sys[256];
@@ -2666,89 +2675,96 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 	if (!extensions || !valid_extensions)
 		return res;
 	vmtmp = extensions;
-	cmd = vm_forwardoptions(chan, sender, dir, curmsg, vmfmts, context);
-	if (!cmd) {
-		while(!res && vmtmp) {
-			/* if (play_and_wait(chan, "vm-savedto"))
-				break;
-			*/
-			snprintf(todir, sizeof(todir), "%s/voicemail/%s/%s/INBOX",  (char *)ast_config_AST_SPOOL_DIR, vmtmp->context, vmtmp->mailbox);
-			snprintf(sys, sizeof(sys), "mkdir -p %s\n", todir);
-			snprintf(ext_context, sizeof(ext_context), "%s@%s", vmtmp->mailbox, vmtmp->context);
-			ast_log(LOG_DEBUG, sys);
-			ast_safe_system(sys);
+	if(flag==1)/*Send VoiceMail*/
+	{
+		cmd=leave_voicemail(chan,username,0,0,0);
+	}
 	
-			todircount = count_messages(todir);
-			strncpy(tmp, fmt, sizeof(tmp) - 1);
-			stringp = tmp;
-			while((s = strsep(&stringp, "|"))) {
-				/* XXX This is a hack -- we should use build_filename or similar XXX */
-				if (!strcasecmp(s, "wav49"))
-					s = "WAV";
-				snprintf(sys, sizeof(sys), "cp %s/msg%04d.%s %s/msg%04d.%s\n", dir, curmsg, s, todir, todircount, s);
+	else /*Forward VoiceMail*/
+	{
+		cmd = vm_forwardoptions(chan, sender, dir, curmsg, vmfmts, context);
+		if (!cmd) {
+			while(!res && vmtmp) {
+				/* if (play_and_wait(chan, "vm-savedto"))
+					break;
+				*/
+				snprintf(todir, sizeof(todir), "%s/voicemail/%s/%s/INBOX",  (char *)ast_config_AST_SPOOL_DIR, vmtmp->context, vmtmp->mailbox);
+				snprintf(sys, sizeof(sys), "mkdir -p %s\n", todir);
+				snprintf(ext_context, sizeof(ext_context), "%s@%s", vmtmp->mailbox, vmtmp->context);
 				ast_log(LOG_DEBUG, sys);
 				ast_safe_system(sys);
-			}
-			snprintf(sys, sizeof(sys), "cp %s/msg%04d.txt %s/msg%04d.txt\n", dir, curmsg, todir, todircount);
-			ast_log(LOG_DEBUG, sys);
-			ast_safe_system(sys);
-			snprintf(fn, sizeof(fn), "%s/msg%04d", todir,todircount);
-	
-			/* load the information on the source message so we can send an e-mail like a new message */
-			snprintf(miffile, sizeof(miffile), "%s/msg%04d.txt", dir, curmsg);
-			if ((mif=ast_load(miffile))) {
-	
-				/* set callerid and duration variables */
-				snprintf(callerid, sizeof(callerid), "FWD from: %s from %s", sender->fullname, ast_variable_retrieve(mif, NULL, "callerid"));
-				s = ast_variable_retrieve(mif, NULL, "duration");
-				if (s)
-					duration = atoi(s);
-				else
-					duration = 0;
-				if (!ast_strlen_zero(vmtmp->email)) {
-					int attach_user_voicemail = attach_voicemail;
-					char *myserveremail = serveremail;
-					if (vmtmp->attach > -1)
-						attach_user_voicemail = vmtmp->attach;
-					if (!ast_strlen_zero(vmtmp->serveremail))
-						myserveremail = vmtmp->serveremail;
-					sendmail(myserveremail, vmtmp, todircount, vmtmp->mailbox, callerid, fn, tmp, duration, attach_user_voicemail);
+		
+				todircount = count_messages(todir);
+				strncpy(tmp, fmt, sizeof(tmp) - 1);
+				stringp = tmp;
+				while((s = strsep(&stringp, "|"))) {
+					/* XXX This is a hack -- we should use build_filename or similar XXX */
+					if (!strcasecmp(s, "wav49"))
+						s = "WAV";
+					snprintf(sys, sizeof(sys), "cp %s/msg%04d.%s %s/msg%04d.%s\n", dir, curmsg, s, todir, todircount, s);
+					ast_log(LOG_DEBUG, sys);
+					ast_safe_system(sys);
 				}
+				snprintf(sys, sizeof(sys), "cp %s/msg%04d.txt %s/msg%04d.txt\n", dir, curmsg, todir, todircount);
+				ast_log(LOG_DEBUG, sys);
+				ast_safe_system(sys);
+				snprintf(fn, sizeof(fn), "%s/msg%04d", todir,todircount);
+	
+				/* load the information on the source message so we can send an e-mail like a new message */
+				snprintf(miffile, sizeof(miffile), "%s/msg%04d.txt", dir, curmsg);
+				if ((mif=ast_load(miffile))) {
+	
+					/* set callerid and duration variables */
+					snprintf(callerid, sizeof(callerid), "FWD from: %s from %s", sender->fullname, ast_variable_retrieve(mif, NULL, "callerid"));
+					s = ast_variable_retrieve(mif, NULL, "duration");
+					if (s)
+						duration = atoi(s);
+					else
+						duration = 0;
+					if (!ast_strlen_zero(vmtmp->email)) {
+						int attach_user_voicemail = attach_voicemail;
+						char *myserveremail = serveremail;
+						if (vmtmp->attach > -1)
+							attach_user_voicemail = vmtmp->attach;
+						if (!ast_strlen_zero(vmtmp->serveremail))
+							myserveremail = vmtmp->serveremail;
+						sendmail(myserveremail, vmtmp, todircount, vmtmp->mailbox, callerid, fn, tmp, duration, attach_user_voicemail);
+					}
 			     
-				if (!ast_strlen_zero(vmtmp->pager)) {
-					char *myserveremail = serveremail;
-					if (!ast_strlen_zero(vmtmp->serveremail))
-						myserveremail = vmtmp->serveremail;
-					sendpage(myserveremail, vmtmp->pager, todircount, vmtmp->mailbox, callerid, duration, vmtmp);
-				}
+					if (!ast_strlen_zero(vmtmp->pager)) {
+						char *myserveremail = serveremail;
+						if (!ast_strlen_zero(vmtmp->serveremail))
+							myserveremail = vmtmp->serveremail;
+						sendpage(myserveremail, vmtmp->pager, todircount, vmtmp->mailbox, callerid, duration, vmtmp);
+					}
 				  
-				ast_destroy(mif); /* or here */
-			}
-			/* Leave voicemail for someone */
-			manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, ast_app_has_voicemail(ext_context));
-			run_externnotify(chan->context, ext_context);
+					ast_destroy(mif); /* or here */
+				}
+				/* Leave voicemail for someone */
+				manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, ast_app_has_voicemail(ext_context));
+				run_externnotify(chan->context, ext_context);
 	
-			saved_messages++;
-			vmfree = vmtmp;
-			vmtmp = vmtmp->next;
-			free_user(vmfree);
-		}
-		if (saved_messages > 0) {
-			/* give confirmation that the message was saved */
-			/* commented out since we can't forward batches yet
-			if (saved_messages == 1)
-				res = play_and_wait(chan, "vm-message");
-			else
-				res = play_and_wait(chan, "vm-messages");
-			if (!res)
-				res = play_and_wait(chan, "vm-saved"); */
-			if (!res)
-				res = play_and_wait(chan, "vm-msgsaved");
+				saved_messages++;
+				vmfree = vmtmp;
+				vmtmp = vmtmp->next;
+				free_user(vmfree);
+			}
+			if (saved_messages > 0) {
+				/* give confirmation that the message was saved */
+				/* commented out since we can't forward batches yet
+				if (saved_messages == 1)
+					res = play_and_wait(chan, "vm-message");
+				else
+					res = play_and_wait(chan, "vm-messages");
+				if (!res)
+					res = play_and_wait(chan, "vm-saved"); */
+				if (!res)
+					res = play_and_wait(chan, "vm-msgsaved");
+			}	
 		}
 	}
 	return res ? res : cmd;
 }
-
 
 static int wait_file2(struct ast_channel *chan, struct vm_state *vms, char *file)
 {
@@ -3733,6 +3749,14 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 						cmd = 't';
 						break;
 
+					case '5': /* Leave VoiceMail */
+						if(vmu->svmail)
+							cmd = forward_message(chan, context, vms.curdir, vms.curmsg, vmu, vmfmts,1);
+						else
+							cmd = play_and_wait(chan,"vm-sorry");
+						cmd='t';
+						break;
+					
 					case '*': /* Return to main menu */
 						cmd = 't';
 						break;
@@ -3752,6 +3776,8 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 						if (!ast_strlen_zero(vmu->dialout) && !cmd) {
 							cmd = play_and_wait(chan, "vm-tomakecall");
 						}
+						if(vmu->svmail&&!cmd)
+							cmd=play_and_wait(chan, "vm-leavemsg");
 						if (!cmd)
 							cmd = play_and_wait(chan, "vm-starmain");
 						if (!cmd)
@@ -3808,7 +3834,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	
 			case '8':
 				if(vms.lastmsg > -1)
-					cmd = forward_message(chan, context, vms.curdir, vms.curmsg, vmu, vmfmts);
+					cmd = forward_message(chan, context, vms.curdir, vms.curmsg, vmu, vmfmts,0);
 				else
 					cmd = play_and_wait(chan, "vm-nomore");
 				break;
@@ -4172,6 +4198,7 @@ static int load_config(void)
 	char *notifystr = NULL;
 	char *astattach;
 	char *astsaycid;
+	char *send_voicemail;
 	char *astcallop;
 	char *astreview;
 	char *astskipcmd;
@@ -4329,6 +4356,13 @@ static int load_config(void)
 		} 
 		saycidinfo = ast_true(astsaycid);
 
+		svmailinfo =0;
+		if (!(send_voicemail = ast_variable_retrieve(cfg,"general", "sendvoicemail"))){
+			ast_log(LOG_DEBUG,"Send Voicemail msg disabled globally\n");
+			send_voicemail = "no";
+		}
+		svmailinfo=ast_true(send_voicemail);
+	
 		hearenv = 1;
 		if (!(asthearenv = ast_variable_retrieve(cfg, "general", "envelope"))) {
 			ast_log(LOG_DEBUG,"ENVELOPE before msg enabled globally\n");
@@ -4347,9 +4381,9 @@ static int load_config(void)
                         strncpy(dialcontext, dialoutcxt, sizeof(dialcontext) - 1);
                         ast_log(LOG_DEBUG, "found dialout context: %s\n", dialcontext);
                 } else {
-                        dialcontext[0] = '\0';
-                }
-	 		
+                        dialcontext[0] = '\0';	
+		}
+		
 		if ((callbackcxt = ast_variable_retrieve(cfg, "general", "callback"))) {
 			strncpy(callcontext, callbackcxt, sizeof(callcontext) -1);
 			ast_log(LOG_DEBUG, "found callback context: %s\n", callcontext);
@@ -4966,9 +5000,3 @@ char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
-
-
-
-	
-
-
