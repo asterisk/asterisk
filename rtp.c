@@ -549,8 +549,12 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			rtp->f.samples = g723_samples(rtp->f.data, rtp->f.datalen);
 			break;
 		case AST_FORMAT_SPEEX:
-		        rtp->f.samples = 160;
 			/* assumes that the RTP packet contained one Speex frame */
+	        rtp->f.samples = 160;
+			break;
+		case AST_FORMAT_LPC10:
+		    rtp->f.samples = 22 * 8;
+			rtp->f.samples += (((char *)(f->data))[7] & 0x1) * 8;
 			break;
 		default:
 			ast_log(LOG_NOTICE, "Unable to calculate samples for format %s\n", ast_getformatname(rtp->f.subclass));
@@ -1082,6 +1086,11 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		    pred = rtp->lastts + 160;
 			/* assumes that the RTP packet contains one Speex frame */
 			break;
+		case AST_FORMAT_LPC10:
+			/* assumes that the RTP packet contains one LPC10 frame */
+		    pred = rtp->lastts + 22 * 8;
+			pred += (((char *)(f->data))[7] & 0x1) * 8;
+			break;
 		default:
 			ast_log(LOG_WARNING, "Not sure about timestamp format for codec format %s\n", ast_getformatname(f->subclass));
 		}
@@ -1245,6 +1254,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 	case AST_FORMAT_H261:
 	case AST_FORMAT_H263:
 	case AST_FORMAT_G723_1:
+	case AST_FORMAT_LPC10:
 	case AST_FORMAT_SPEEX:
 	        /* Don't buffer outgoing frames; send them one-per-packet: */
 		if (_f->offset < hdrlen) {
