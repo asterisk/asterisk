@@ -158,6 +158,8 @@ static int globalrtpholdtimeout = 0;
 
 static int globaltrustrpid = 0;
 
+static int globalprogressinband = 0;
+
 #ifdef OSP_SUPPORT
 static int globalospauth = 0;
 #endif
@@ -340,10 +342,11 @@ static struct sip_pvt {
 	int dialogver;
 	int promiscredir;			/* Promiscuous redirection */
 	
-        int trustrpid;
+	int trustrpid;
+	int progressinband;
 	
-        int dtmfmode;
-        struct ast_dsp *vad;
+	int dtmfmode;
+	struct ast_dsp *vad;
 	
 	struct sip_peer *peerpoke;		/* If this calls is to poke a peer, which one */
 	struct sip_registry *registry;		/* If this is a REGISTER call, to which registry */
@@ -400,6 +403,7 @@ struct sip_user {
 	int promiscredir;
 	int restrictcid;
 	int trustrpid;
+	int progressinband;
 	struct ast_ha *ha;
 #ifdef MYSQL_USERS
 	int temponly;
@@ -438,8 +442,9 @@ struct sip_peer {
 	unsigned int callgroup;
 	unsigned int pickupgroup;
 	int promiscredir;
-        int dtmfmode;
-        int trustrpid;
+	int dtmfmode;
+	int trustrpid;
+	int progressinband;
 	struct sockaddr_in addr;
 	struct in_addr mask;
 
@@ -1872,7 +1877,8 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 			if (!p->progress) {
 				transmit_response(p, "180 Ringing", &p->initreq);
 				p->ringing = 1;
-				break;
+				if (!p->progressinband)
+					break;
 			} else {
 				/* Oops, we've sent progress tones.  Let Asterisk do it instead */
 			}
@@ -2251,6 +2257,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	p->dtmfmode = globaldtmfmode;
 	p->promiscredir = globalpromiscredir;
 	p->trustrpid = globaltrustrpid;
+	p->progressinband = globalprogressinband;
 #ifdef OSP_SUPPORT
 	p->ospauth = globalospauth;
 #endif
@@ -5051,6 +5058,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 		p->ospauth = user->ospauth;
 #endif
 		p->trustrpid = user->trustrpid;
+		p->progressinband = user->progressinband;
 		/* replace callerid if rpid found, and not restricted */
 		if(!ast_strlen_zero(rpid_num) && p->trustrpid) {
 		  if (*calleridname)
@@ -5121,6 +5129,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			/* Take the peer */
 			p->nat = peer->nat;
 			p->trustrpid = peer->trustrpid;
+			p->progressinband = peer->progressinband;
 			/* replace callerid if rpid found, and not restricted */
 			if(!ast_strlen_zero(rpid_num) && p->trustrpid) {
 			  if (*calleridname)
@@ -7564,6 +7573,7 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 
 		user->canreinvite = globalcanreinvite;
 		user->trustrpid = globaltrustrpid;
+		user->progressinband = globalprogressinband;
 #ifdef OSP_SUPPORT
 		user->ospauth = globalospauth;
 #endif
@@ -7647,6 +7657,8 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 				user->restrictcid = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "trustrpid")) {
 				user->trustrpid = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "progressinband")) {
+				user->progressinband = ast_true(v->value);
 #ifdef OSP_SUPPORT
 			} else if (!strcasecmp(v->name, "ospauth")) {
 				if (!strcasecmp(v->value, "exclusive")) {
@@ -7694,6 +7706,7 @@ static struct sip_peer *temp_peer(char *name)
 	peer->selfdestruct = 1;
 	peer->dynamic = 1;
 	peer->trustrpid = globaltrustrpid;
+	peer->progressinband = globalprogressinband;
 #ifdef OSP_SUPPORT
 	peer->ospauth = globalospauth;
 #endif
@@ -7758,6 +7771,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 		peer->dtmfmode = 0;
 		peer->promiscredir = globalpromiscredir;
 		peer->trustrpid = globaltrustrpid;
+		peer->progressinband = globalprogressinband;
 #ifdef OSP_SUPPORT
 		peer->ospauth = globalospauth;
 #endif
@@ -7887,7 +7901,9 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 					peer->maxms = 0;
 				}
 			} else if (!strcasecmp(v->name, "trustrpid")) {
-                                peer->trustrpid = ast_true(v->value);
+				peer->trustrpid = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "progressinband")) {
+				peer->progressinband = ast_true(v->value);
 #ifdef OSP_SUPPORT
 			} else if (!strcasecmp(v->name, "ospauth")) {
 				if (!strcasecmp(v->value, "exclusive")) {
@@ -8014,7 +8030,9 @@ static int reload_config(void)
 		} else if (!strcasecmp(v->name, "srvlookup")) {
 			srvlookup = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "trustrpid")) {
-		        globaltrustrpid = ast_true(v->value);
+			globaltrustrpid = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "progressinband")) {
+			globalprogressinband = ast_true(v->value);
 #ifdef OSP_SUPPORT
 		} else if (!strcasecmp(v->name, "ospauth")) {
 			if (!strcasecmp(v->value, "exclusive")) {

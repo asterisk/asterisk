@@ -58,6 +58,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;rtpholdtimeout=300		; Terminate call if 300 seconds of no RTP activity
 				; when we're on hold (must be > rtptimeout)
 ;trustrpid = no			; If Remote-Party-ID should be trusted
+;progressinband=no		; If we should generate in-band ringing always
 ;useragent=Asterisk PBX		; Allows you to change the user agent string
 ;promiscredir = no      ; If yes, allows 302 or REDIR to non-local SIP address
 ; Asterisk can register as a SIP user agent to a SIP proxy (provider)
@@ -123,6 +124,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; disallow                    disallow
 ; insecure                    insecure
 ; trustrpid                   trustrpid
+; progressinband              progressinband
 ; promiscredir                promiscredir
 ; callerid
 ; accountcode
