@@ -452,6 +452,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	char *newnum;
 	struct ast_channel *peer;
 	int res = 0, bridge = 0;
+	int zapx = 2;
 	char *announce = NULL;
 	/* Hold the lock while we setup the outgoing calls */
 	ast_pthread_mutex_lock(&qe->parent->lock);
@@ -619,14 +620,12 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 			return -1;
 		}
 		if (!strcmp(qe->chan->type,"Zap")) {
-			int x = 2;
-			if (tmp->dataquality) x = 0;
-			ast_channel_setoption(qe->chan,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
+			if (tmp->dataquality) zapx = 0;
+			ast_channel_setoption(qe->chan,AST_OPTION_TONE_VERIFY,&zapx,sizeof(char),0);
 		}			
 		if (!strcmp(peer->type,"Zap")) {
-			int x = 2;
-			if (tmp->dataquality) x = 0;
-			ast_channel_setoption(peer,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
+			if (tmp->dataquality) zapx = 0;
+			ast_channel_setoption(peer,AST_OPTION_TONE_VERIFY,&zapx,sizeof(char),0);
 		}
 		/* Drop out of the queue at this point, to prepare for next caller */
 		leave_queue(qe);			
