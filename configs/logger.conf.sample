@@ -48,11 +48,6 @@ console => notice,warning,error
 ;console => notice,warning,error,debug
 messages => notice,warning,error
 ;full => notice,warning,error,debug,verbose
-;
-; Uncomment the following line (with *no* events) if you want the
-; queue log to automatically rotate.
-;
-;queue_log =>
 
 ;syslog keyword : This special keyword logs to syslog facility 
 ;
