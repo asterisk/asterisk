@@ -9,6 +9,9 @@
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
+ *
+ * 12-16-2004 : Support for Greek added by InAccess Networks (work funded by HOL, www.hol.gr)
+ *				 George Konstantoulakis <gkon@inaccessnetworks.com>
  */
 
 #include <asterisk/lock.h>
@@ -80,6 +83,7 @@ static int load_config(void);
 	it = Italian
 	nl - Dutch
 	pt - Portuguese
+	gr - Greek
 
 German requires the following additional soundfile:
 1F	einE (feminine)
@@ -3423,6 +3427,55 @@ static int vm_play_folder_name(struct ast_channel *chan, char *mbox)
 	}
 }
 
+ /* GREEK SYNTAX 
+	In greek the plural for old/new is
+	different so we need the following files	 
+	We also need vm-denExeteMynhmata because 
+	this syntax is different.
+	
+	-> vm-Olds.wav	: "Palia"
+	-> vm-INBOXs.wav : "Nea"
+	-> vm-denExeteMynhmata : "den exete mynhmata"
+ */
+					
+	
+static int vm_intro_gr(struct ast_channel *chan, struct vm_state *vms)
+{
+	int res;
+	if (vms->newmessages) {
+		res =ast_play_and_wait(chan, "vm-youhave");
+		if (!res) 
+			res = ast_say_number(chan, vms->newmessages, AST_DIGIT_ANY, chan->language, NULL);
+		if (!res) {
+			if ((vms->newmessages == 1)) {
+				res = ast_play_and_wait(chan, "vm-INBOX");
+				if (!res)
+			 		res = ast_play_and_wait(chan, "vm-message");
+		 	} else {
+				res = ast_play_and_wait(chan, "vm-INBOXs");
+				if (!res)
+					res = ast_play_and_wait(chan, "vm-messages");
+		 	}
+		}	  
+	 }
+	 else if (vms->oldmessages){
+		res = ast_play_and_wait(chan, "vm-youhave");
+		if (!res)
+			res = ast_say_number(chan, vms->oldmessages, AST_DIGIT_ANY, chan->language, NULL);
+		if ((vms->oldmessages == 1)){
+			res = ast_play_and_wait(chan, "vm-Old");
+			if (!res)
+				res = ast_play_and_wait(chan, "vm-message");
+		} else {
+			res = ast_play_and_wait(chan, "vm-Olds");
+		 	if (!res)
+				res = ast_play_and_wait(chan, "vm-messages");
+		}
+	 } else if (!vms->oldmessages && !vms->newmessages) 
+			res = ast_play_and_wait(chan, "vm-denExeteMynhmata"); 
+	 return res;
+}
+	
 /* Default English syntax */
 static int vm_intro_en(struct ast_channel *chan,struct vm_state *vms)
 {
@@ -3857,6 +3910,8 @@ static int vm_intro(struct ast_channel *chan,struct vm_state *vms)
 		return vm_intro_pt(chan, vms);
 	} else if (!strcasecmp(chan->language, "cz")) { /* CZECH syntax */
 		return vm_intro_cz(chan, vms);
+	} else if (!strcasecmp(chan->language, "gr")){ /*	GREEK syntax */
+		return vm_intro_gr(chan, vms);
 	} else {	/* Default to ENGLISH */
 		return vm_intro_en(chan, vms);
 	}
@@ -4137,6 +4192,35 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 	return cmd;
 }
 
+/* GREEK SYNTAX */
+	
+static int vm_browse_messages_gr(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
+{
+	int cmd=0;
+
+	if (vms->lastmsg > -1) {
+		cmd = play_message(chan, vmu, vms);
+	} else {
+	 	cmd = ast_play_and_wait(chan, "vm-youhaveno");
+	 	if (!strcasecmp(vms->vmbox, "vm-INBOX") ||!strcasecmp(vms->vmbox, "vm-Old")){
+			if (!cmd) {
+		 		snprintf(vms->fn, sizeof(vms->fn), "vm-%ss", vms->curbox);
+		 		cmd = ast_play_and_wait(chan, vms->fn);
+			}
+			if (!cmd)
+		 		cmd = ast_play_and_wait(chan, "vm-messages");
+	 	} else {
+		 	if (!cmd)
+				cmd = ast_play_and_wait(chan, "vm-messages");
+			if (!cmd) {
+			 	snprintf(vms->fn, sizeof(vms->fn), "vm-%s", vms->curbox);
+			 	cmd = ast_play_and_wait(chan, vms->fn);
+			}
+		}
+	} 
+	return cmd;
+}
+
 /* Default English syntax */
 static int vm_browse_messages_en(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
 {
@@ -4223,6 +4307,8 @@ static int vm_browse_messages(struct ast_channel *chan, struct vm_state *vms, st
 		return vm_browse_messages_it(chan, vms, vmu);
 	} else if (!strcasecmp(chan->language, "pt")) {	/* PORTUGUESE */
 		return vm_browse_messages_pt(chan, vms, vmu);
+	} else if (!strcasecmp(chan->language, "gr")){
+		return vm_browse_messages_gr(chan, vms, vmu);   /* GREEK */
 	} else {	/* Default to English syntax */
 		return vm_browse_messages_en(chan, vms, vmu);
 	}
