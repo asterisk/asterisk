@@ -1370,8 +1370,8 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 		ast_mutex_lock(&q->lock);
 		if (queue_show) {
 			if (strcasecmp(q->name, argv[2]) != 0) {
-				q = q->next;
 				ast_mutex_unlock(&q->lock);
+				q = q->next;
 				if (!q) {
 					ast_cli(fd, "No such queue: %s.\n",argv[2]);
 					break;
