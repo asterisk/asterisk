@@ -700,7 +700,6 @@ static int moh_scan_files(struct mohclass *class) {
 	getcwd(path, 512);
 	chdir(class->dir);
 	memset(class->filearray, 0, MAX_MOHFILES*MAX_MOHFILE_LEN);
-
 	while ((files_dirent = readdir(files_DIR))) {
 		if ((strlen(files_dirent->d_name) < 4) || ((strlen(files_dirent->d_name) + dirnamelen) >= MAX_MOHFILE_LEN))
 			continue;
@@ -984,11 +983,21 @@ static struct ast_cli_entry  cli_moh = { { "moh", "reload"}, moh_cli, "Music On 
 
 static struct ast_cli_entry  cli_moh_files_show = { { "moh", "files", "show"}, cli_files_show, "List MOH file-based classes", "Lists all loaded file-based MOH classes and their files", NULL};
 
+static int init_classes(void) {
+    struct mohclass *moh;
+    load_moh_classes();
+	moh = mohclasses;
+    while(moh) {
+        if (moh->total_files)
+            moh_scan_files(moh);
+        moh = moh->next;
+    }
+	return 0;
+}
 
 int load_module(void)
 {
 	int res;
-	load_moh_classes();
 	ast_install_music_functions(local_ast_moh_start, local_ast_moh_stop, local_ast_moh_cleanup);
 	res = ast_register_application(app0, moh0_exec, synopsis0, descrip0);
 	ast_register_atexit(ast_moh_destroy);
@@ -999,19 +1008,12 @@ int load_module(void)
 	if (!res)
 		res = ast_register_application(app2, moh2_exec, synopsis2, descrip2);
 
-	return res;
+	return init_classes();
 }
 
 int reload(void)
 {
-    struct mohclass *moh = mohclasses;
-    load_moh_classes();
-    while(moh) {
-        if (moh->total_files)
-            moh_scan_files(moh);
-        moh = moh->next;
-    }
-    return 0;
+    return init_classes();
 }
 
 
