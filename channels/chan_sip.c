@@ -433,8 +433,8 @@ static struct ast_frame  *sip_read(struct ast_channel *ast);
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
 static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
 static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *rand, int reliable);
-static int transmit_request(struct sip_pvt *p, char *msg, int inc, int reliable);
-static int transmit_request_with_auth(struct sip_pvt *p, char *msg, int inc, int reliable);
+static int transmit_request(struct sip_pvt *p, char *msg, int inc, int reliable, int newbranch);
+static int transmit_request_with_auth(struct sip_pvt *p, char *msg, int inc, int reliable, int newbranch);
 static int transmit_invite(struct sip_pvt *p, char *msg, int sendsdp, char *auth, char *authheader, char *vxml_url,char *distinctive_ring, int init);
 static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp, struct ast_rtp *vrtp);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
@@ -1267,7 +1267,7 @@ static int sip_hangup(struct ast_channel *ast)
 	if (!p->alreadygone && strlen(p->initreq.data)) {
 		if (needcancel) {
 			if (p->outgoing) {
-				transmit_request_with_auth(p, "CANCEL", p->ocseq, 1);
+				transmit_request_with_auth(p, "CANCEL", p->ocseq, 1, 0);
 				/* Actually don't destroy us yet, wait for the 487 on our original 
 				   INVITE, but do set an autodestruct just in case. */
 				needdestroy = 0;
@@ -1292,7 +1292,7 @@ static int sip_hangup(struct ast_channel *ast)
 		} else {
 			if (!p->pendinginvite) {
 				/* Send a hangup */
-				transmit_request_with_auth(p, "BYE", 0, 1);
+				transmit_request_with_auth(p, "BYE", 0, 1, 1);
 			} else {
 				/* Note we will need a BYE when this all settles out
 				   but we can't send one while we have "INVITE" outstanding. */
@@ -2438,7 +2438,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	return 0;
 }
 
-static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int seqno)
+static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int seqno, int newbranch)
 {
 	struct sip_request *orig = &p->initreq;
 	char stripped[80] ="";
@@ -2454,6 +2454,11 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int se
 	if (!seqno) {
 		p->ocseq++;
 		seqno = p->ocseq;
+	}
+	
+	if (newbranch) {
+		p->branch ^= rand();
+		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	}
 
 	if (strlen(p->uri)) {
@@ -2882,12 +2887,10 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp, st
 {
 	struct sip_request req;
 	if (p->canreinvite == REINVITE_UPDATE)
-		reqprep(&req, p, "UPDATE", 0);
-	else {
-		p->branch++;
-		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", inet_ntoa(p->ourip), ourport, p->branch);
-		reqprep(&req, p, "INVITE", 0);
-	}
+		reqprep(&req, p, "UPDATE", 0, 1);
+	else 
+		reqprep(&req, p, "INVITE", 0, 1);
+	
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	add_sdp(&req, p, rtp, vrtp);
 	/* Use this as the basis */
@@ -3008,7 +3011,7 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 	if (init)
 		initreqprep(&req, p, cmd, vxml_url);
 	else
-		reqprep(&req, p, cmd, 0);
+		reqprep(&req, p, cmd, 0, 1);
 		
 	if (auth)
 		add_header(&req, authheader, auth);
@@ -3063,7 +3066,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 	}
 	mfrom = c;
 		
-	reqprep(&req, p, "NOTIFY", 0);
+	reqprep(&req, p, "NOTIFY", 0, 1);
 
 	if (p->subscribed == 1) {
     	    strncpy(to, get_header(&p->initreq, "To"), sizeof(to)-1);
@@ -3312,7 +3315,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 static int transmit_message_with_text(struct sip_pvt *p, char *text)
 {
 	struct sip_request req;
-	reqprep(&req, p, "MESSAGE", 0);
+	reqprep(&req, p, "MESSAGE", 0, 1);
 	add_text(&req, text);
 	return send_request(p, &req, 1, p->ocseq);
 }
@@ -3349,7 +3352,7 @@ static int transmit_refer(struct sip_pvt *p, char *dest)
 	strncpy(p->refer_to, referto, sizeof(p->refer_to) - 1); 
 	strncpy(p->referred_by, p->our_contact, sizeof(p->referred_by) - 1); 
 
-	reqprep(&req, p, "REFER", 0);
+	reqprep(&req, p, "REFER", 0, 1);
 	add_header(&req, "Refer-To", referto);
 	if (strlen(p->our_contact))
 		add_header(&req, "Referred-By", p->our_contact);
@@ -3360,24 +3363,24 @@ static int transmit_refer(struct sip_pvt *p, char *dest)
 static int transmit_info_with_digit(struct sip_pvt *p, char digit)
 {
 	struct sip_request req;
-	reqprep(&req, p, "INFO", 0);
+	reqprep(&req, p, "INFO", 0, 1);
 	add_digit(&req, digit);
 	return send_request(p, &req, 1, p->ocseq);
 }
 
-static int transmit_request(struct sip_pvt *p, char *msg, int seqno, int reliable)
+static int transmit_request(struct sip_pvt *p, char *msg, int seqno, int reliable, int newbranch)
 {
 	struct sip_request resp;
-	reqprep(&resp, p, msg, seqno);
+	reqprep(&resp, p, msg, seqno, newbranch);
 	add_header(&resp, "Content-Length", "0");
 	add_blank_header(&resp);
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);
 }
 
-static int transmit_request_with_auth(struct sip_pvt *p, char *msg, int seqno, int reliable)
+static int transmit_request_with_auth(struct sip_pvt *p, char *msg, int seqno, int reliable, int newbranch)
 {
 	struct sip_request resp;
-	reqprep(&resp, p, msg, seqno);
+	reqprep(&resp, p, msg, seqno, newbranch);
 	if (*p->realm)
 	{
 		char digest[256];
@@ -4954,7 +4957,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			if (peer->pokeexpire > -1)
 				ast_sched_del(sched, peer->pokeexpire);
 			if (!strcasecmp(msg, "INVITE"))
-				transmit_request(p, "ACK", seqno, 0);
+				transmit_request(p, "ACK", seqno, 0, 0);
 			p->needdestroy = 1;
 			/* Try again eventually */
 			if ((peer->lastms < 0)  || (peer->lastms > peer->maxms))
@@ -5015,10 +5018,11 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					}
 				}
 				p->authtries = 0;
-				transmit_request(p, "ACK", seqno, 0);
+				/* If I understand this right, the branch is different for a non-200 ACK only */
+				transmit_request(p, "ACK", seqno, 0, 1);
 				/* Go ahead and send bye at this point */
 				if (p->pendingbye) {
-					transmit_request_with_auth(p, "BYE", 0, 1);
+					transmit_request_with_auth(p, "BYE", 0, 1, 1);
 					p->needdestroy = 1;
 				}
 			} else if (!strcasecmp(msg, "REGISTER")) {
@@ -5054,7 +5058,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		case 401: /* Not authorized on REGISTER */
 			if (!strcasecmp(msg, "INVITE")) {
 				/* First we ACK */
-				transmit_request(p, "ACK", seqno, 0);
+				transmit_request(p, "ACK", seqno, 0, 0);
 				/* Then we AUTH */
 				if ((p->authtries > 1) || do_proxy_auth(p, req, "WWW-Authenticate", "Authorization", "INVITE", 1)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
@@ -5071,7 +5075,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		case 407:
 			if (!strcasecmp(msg, "INVITE")) {
 				/* First we ACK */
-				transmit_request(p, "ACK", seqno, 0);
+				transmit_request(p, "ACK", seqno, 0, 0);
 				/* Then we AUTH */
 				/* But only if the packet wasn't marked as ignore in handle_request */
 				if(!ignore){
@@ -5155,7 +5159,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				}
 				/* ACK on invite */
 				if (!strcasecmp(msg, "INVITE"))
-					transmit_request(p, "ACK", seqno, 0);
+					transmit_request(p, "ACK", seqno, 0, 0);
 				p->alreadygone = 1;
 				if (!p->owner)
 					p->needdestroy = 1;
@@ -5167,8 +5171,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			ast_verbose("Message is %s\n", msg);
 		switch(resp) {
 		case 200:
+			/* Change branch since this is a 200 response */
 			if (!strcasecmp(msg, "INVITE") || !strcasecmp(msg, "REGISTER") )
-				transmit_request(p, "ACK", seqno, 0);
+				transmit_request(p, "ACK", seqno, 0, 1);
 			break;
 		case 407:
 			if (!strcasecmp(msg, "BYE") || !strcasecmp(msg, "REFER")) {
@@ -5496,7 +5501,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				p->gotrefer = 1;
 			}
 			/* Always increment on a BYE */
-			transmit_request_with_auth(p, "BYE", 0, 1);
+			transmit_request_with_auth(p, "BYE", 0, 1, 1);
 			p->alreadygone = 1;
 		}
 	} else if (!strcasecmp(cmd, "CANCEL")) {
