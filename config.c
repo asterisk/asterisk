@@ -41,7 +41,7 @@
 #define COMMENT_TAG '-'
 
 static int ast_cust_config=0;
-static config_static_func *global_load_func;
+struct ast_config *(*global_load_func)(const char *dbname, const char *table, const char *, struct ast_config *,struct ast_category **,struct ast_variable **,int);
 
 static struct ast_config_map {
 	struct ast_config_map *next;
@@ -169,22 +169,19 @@ char *ast_variable_retrieve(const struct ast_config *config, const char *categor
 	return NULL;
 }
 
-struct ast_category *ast_category_get(const struct ast_config *config, const char *category_name)
-{
-	struct ast_category *category = config->root;
-
-	while(category) {
-		if (!strcasecmp(category->name, category_name)) 
-			return category;
-		category = category->next;
-	}
-
-	return NULL;
-}
-
 int ast_category_exist(struct ast_config *config, char *category_name)
 {
-	return !!ast_category_get(config, category_name);
+	struct ast_category *category = NULL;
+
+	category = config->root;
+
+	while(category) {
+		if (!strcasecmp(category->name,category_name)) 
+			return 1;
+		category = category->next;
+	} 
+
+	return 0;
 }
 
 
@@ -232,137 +229,134 @@ static struct ast_config_reg *get_config_registrations(void)
 	return ast_cust_config_list;
 }
 
-void ast_category_append(struct ast_config *config, struct ast_category *category)
-{
-	if (config->last)
-		config->last->next = category;
-	else
-		config->root = category;
-	config->last = category;
-}
 
-static void variable_append(struct ast_category *category, struct ast_variable *variable)
-{
-	if (category->last)
-		category->last->next = variable;
-	else
-		category->root = variable;
-	category->last = variable;
-}
 
-static int cfg_process(struct ast_config *tmp, struct ast_category **cat, char *buf, int lineno, const char *configfile, int includelevel)
+
+static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, char *buf, int lineno, const char *configfile, int includelevel )
 {
 	char *c;
 	char *cur;
 	char *arg=NULL;
 	struct ast_variable *v;
 	int object;
-
 	cur = ast_strip(buf);
-	if (ast_strlen_zero(cur))
-		return 0;
-
-	/* Actually parse the entry */
-	if (cur[0] == '[') {
-		/* A category header */
-		c = strchr(cur, ']');
-		if (!c) {
-			ast_destroy(tmp);
-			ast_log(LOG_WARNING, "parse error: no closing ']', line %d of %s\n", lineno, configfile);
-			return -1;
-		}
-		*c = '\0';
-		cur++;
-		*cat = ast_new_category(cur);
-		if (!*cat) {
-			ast_destroy(tmp);
-			ast_log(LOG_WARNING, "Out of memory, line %d of %s\n", lineno, configfile);
-			return -1;
-		}
-		ast_category_append(tmp, *cat);
-	} else if (cur[0] == '#') {
-		/* A directive */
-		cur++;
-		c = cur;
-		while(*c && (*c > 32)) c++;
-		if (*c) {
-			*c = '\0';
-			c++;
-			/* Find real argument */
-			while(*c  && (*c < 33)) c++;
-			if (!*c)
-				c = NULL;
-		} else 
-			c = NULL;
-		if (!strcasecmp(cur, "include")) {
-			/* A #include */
+	if (!ast_strlen_zero(cur)) {
+		/* Actually parse the entry */
+		if (cur[0] == '[') {
+			/* A category header */
+			c = strchr(cur, ']');
 			if (c) {
-				/* Strip off leading and trailing "'s and <>'s */
-				while((*c == '<') || (*c == '>') || (*c == '\"')) c++;
-				/* Get rid of leading mess */
-				cur = c;
-				while (!ast_strlen_zero(cur)) {
-					c = cur + strlen(cur) - 1;
-					if ((*c == '>') || (*c == '<') || (*c == '\"'))
-						*c = '\0';
-					else
-						break;
+				*c = 0;
+				*_tmpc = malloc(sizeof(struct ast_category));
+				if (!*_tmpc) {
+					ast_destroy(tmp);
+					ast_log(LOG_WARNING,
+						"Out of memory, line %d\n", lineno);
+					return -1;
 				}
+				memset(*_tmpc, 0, sizeof(struct ast_category));
+				strncpy((*_tmpc)->name, cur+1, sizeof((*_tmpc)->name) - 1);
+				(*_tmpc)->root =  NULL;
+				if (!tmp->prev)
+					tmp->root = *_tmpc;
+				else
+					tmp->prev->next = *_tmpc;
 
-				if((c = strchr(cur,':'))) {
-					*c = '\0';
-					c++;
-					arg = c;
-				}
-
-				if (includelevel < MAX_INCLUDE_LEVEL) {
-					if(arg && cur) {
-						ast_log(LOG_WARNING, "Including files with explicit config engine no longer permitted.  Please use extconfig.conf to specify all mappings\n");
-					} else {
-						if (!ast_internal_load(cur, tmp, cat, includelevel + 1))
-							return -1;
-					}
-				} else
-					ast_log(LOG_WARNING, "Maximum Include level (%d) exceeded\n", includelevel);
-			} else
-				ast_log(LOG_WARNING, "Directive '#include' needs an argument (filename) at line %d of %s\n", lineno, configfile);
-		}
-		else 
-			ast_log(LOG_WARNING, "Unknown directive '%s' at line %d of %s\n", cur, lineno, configfile);
-	} else {
-		/* Just a line (variable = value) */
-		if (!*cat) {
-			ast_log(LOG_WARNING,
-				"parse error: No category context for line %d of %s\n", lineno, configfile);
-			ast_destroy(tmp);
-			return -1;
-		}
-		c = strchr(cur, '=');
-		if (c) {
-			*c = 0;
-			c++;
-			/* Ignore > in => */
-			if (*c== '>') {
-				object = 1;
-				c++;
-			} else
-				object = 0;
-			v = ast_new_variable(ast_strip(cur), ast_strip(c));
-			if (v) {
-				v->lineno = lineno;
-				v->object = object;
-				/* Put and reset comments */
-				v->blanklines = 0;
-				variable_append(*cat, v);
+				tmp->prev = *_tmpc;
+				*_last =  NULL;
 			} else {
+				ast_log(LOG_WARNING, 
+					"parse error: no closing ']', line %d of %s\n", lineno, configfile);
+			}
+		} else if (cur[0] == '#') {
+			/* A directive */
+			cur++;
+			c = cur;
+			while(*c && (*c > 32)) c++;
+			if (*c) {
+				*c = '\0';
+				c++;
+				/* Find real argument */
+				while(*c  && (*c < 33)) c++;
+				if (!*c)
+					c = NULL;
+			} else 
+				c = NULL;
+			if (!strcasecmp(cur, "include")) {
+				/* A #include */
+				if (c) {
+					while((*c == '<') || (*c == '>') || (*c == '\"')) c++;
+					/* Get rid of leading mess */
+					cur = c;
+					while (!ast_strlen_zero(cur)) {
+						c = cur + strlen(cur) - 1;
+						if ((*c == '>') || (*c == '<') || (*c == '\"'))
+							*c = '\0';
+						else
+							break;
+					}
+					
+					if((c = strchr(cur,':'))) {
+						*c = '\0';
+						c++;
+						arg = c;
+					}
+					
+					if (includelevel < MAX_INCLUDE_LEVEL) {
+						if(arg && cur) {
+							ast_log(LOG_WARNING, "Including files with explicit config engine no longer permitted.  Please use extconfig.conf to specify all mappings\n");
+						} else {
+							if (!ast_internal_load(cur, tmp, _tmpc, _last, includelevel + 1))
+								return -1;
+						}
+					} else
+						ast_log(LOG_WARNING, "Maximum Include level (%d) exceeded\n", includelevel);
+				} else
+					ast_log(LOG_WARNING, "Directive '#include' needs an argument (filename) at line %d of %s\n", lineno, configfile);
+				/* Strip off leading and trailing "'s and <>'s */
+			}
+			else 
+				ast_log(LOG_WARNING, "Unknown directive '%s' at line %d of %s\n", cur, lineno, configfile);
+		} else {
+			/* Just a line (variable = value) */
+			if (!*_tmpc) {
+				ast_log(LOG_WARNING,
+					"parse error: No category context for line %d of %s\n", lineno, configfile);
 				ast_destroy(tmp);
-				ast_log(LOG_WARNING, "Out of memory, line %d\n", lineno);
 				return -1;
 			}
-		} else {
-			ast_log(LOG_WARNING, "No '=' (equal sign) in line %d of %s\n", lineno, configfile);
+			c = strchr(cur, '=');
+			if (c) {
+				*c = 0;
+				c++;
+				/* Ignore > in => */
+				if (*c== '>') {
+					object = 1;
+					c++;
+				} else
+					object = 0;
+				v = ast_new_variable(ast_strip(cur), ast_strip(c));
+				if (v) {
+					v->next = NULL;
+					v->lineno = lineno;
+					v->object = object;
+					/* Put and reset comments */
+					v->blanklines = 0;
+					if (*_last)
+						(*_last)->next = v;
+					else
+						(*_tmpc)->root = v;
+					*_last = v;
+				} else {
+					ast_destroy(tmp);
+					ast_log(LOG_WARNING, "Out of memory, line %d\n", lineno);
+					return -1;
+				}
+			} else {
+				ast_log(LOG_WARNING, "No '=' (equal sign) in line %d of %s\n", lineno, configfile);
+			}
+														
 		}
-
 	}
 	return 0;
 }
@@ -429,6 +423,7 @@ int ast_save(char *configfile, struct ast_config *cfg, char *generator)
 	return 0;
 }
 
+
 struct ast_variable *ast_load_realtime(const char *family, ...)
 {
 	struct ast_config_reg *reg;
@@ -474,7 +469,7 @@ int ast_update_realtime(const char *family, const char *keyfield, const char *lo
 	return res;
 }
 
-struct ast_config *ast_internal_load(const char *configfile, struct ast_config *tmp, struct ast_category **cat, int includelevel)
+struct ast_config *ast_internal_load(const char *configfile, struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, int includelevel)
 {
 	char fn[256];
 	char buf[8192];
@@ -482,10 +477,11 @@ struct ast_config *ast_internal_load(const char *configfile, struct ast_config *
 	char table[256];
 	FILE *f;
 	int lineno=0;
+	int master=0;
 	int comment = 0, nest[MAX_NESTED_COMMENTS];
 	
 	struct ast_config_reg *reg=NULL;
-	config_static_func *load_func;
+	struct ast_config *(*load_func)(const char *database, const char *table, const char *, struct ast_config *,struct ast_category **,struct ast_variable **,int);
 	char *comment_p, *process_buf, *new_buf=NULL;
 
 	load_func=NULL;
@@ -505,7 +501,7 @@ struct ast_config *ast_internal_load(const char *configfile, struct ast_config *
 
 		if (load_func) {
 			ast_log(LOG_NOTICE,"Loading Config %s via %s engine\n",configfile,reg && reg->name ? reg->name : "global");
-			if((tmp = load_func(db, table, configfile, tmp, cat, includelevel)))
+			if((tmp = load_func(db, table, configfile,tmp, _tmpc, _last, includelevel)))
 				return tmp;
 		}
 	}
@@ -545,70 +541,73 @@ struct ast_config *ast_internal_load(const char *configfile, struct ast_config *
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Parsing %s\n", fn);
 		else if (option_verbose > 2)
-			ast_verbose("Found\n");
-		if (!tmp)
-			tmp = ast_new_config();
+			ast_verbose( "Found\n");
 		if (!tmp) {
-			ast_log(LOG_WARNING, "Out of memory\n");
-			fclose(f);		
-			return tmp;
-		}
-		while(!feof(f)) {
-			lineno++;
-			if (fgets(buf, sizeof(buf), f)) {
-				new_buf = buf;
-				if (comment)
-					process_buf = NULL;
-				else
-					process_buf = buf;
-				while ((comment_p = strchr(new_buf, COMMENT_META))) {
-					if ((comment_p > new_buf) && (*(comment_p-1) == '\\')) {
-						/* Yuck, gotta memmove */
-						memmove(comment_p - 1, comment_p, strlen(comment_p) + 1);
-						new_buf = comment_p;
-					} else if(comment_p[1] == COMMENT_TAG && comment_p[2] == COMMENT_TAG && (comment_p[3] != '-')) {
-						/* Meta-Comment start detected ";--" */
-						if (comment < MAX_NESTED_COMMENTS) {
-							*comment_p = '\0';
-							new_buf = comment_p + 3;
-							comment++;
-							nest[comment-1] = lineno;
-						} else {
-							ast_log(LOG_ERROR, "Maximum nest limit of %d reached.\n", MAX_NESTED_COMMENTS);
-						}
-					} else if ((comment_p >= new_buf + 2) &&
-						   (*(comment_p - 1) == COMMENT_TAG) &&
-						   (*(comment_p - 2) == COMMENT_TAG)) {
-						/* Meta-Comment end detected */
-						comment--;
-						new_buf = comment_p + 1;
-						if (!comment) {
-							/* Back to non-comment now */
-							if (process_buf) {
-								/* Actually have to move what's left over the top, then continue */
-								char *oldptr;
-								oldptr = process_buf + strlen(process_buf);
-								memmove(oldptr, new_buf, strlen(new_buf) + 1);
-								new_buf = oldptr;
-							} else
-								process_buf = new_buf;
-						}
-					} else {
-						if (!comment) {
-							/* If ; is found, and we are not nested in a comment, 
-							   we immediately stop all comment processing */
-							*comment_p = '\0'; 
-							new_buf = comment_p;
-						} else
-							new_buf = comment_p + 1;
-					}
-				}
-				if (process_buf && cfg_process(tmp, cat, process_buf, lineno, configfile, includelevel)) {
-					tmp = NULL;
-					break;
-				}
+			if((tmp = malloc(sizeof(struct ast_config)))) {
+				memset(tmp, 0, sizeof(struct ast_config));
+				master = 1;
 			}
 		}
+		if (tmp) {
+			while(!feof(f)) {
+				lineno++;
+				if (fgets(buf, sizeof(buf), f)) {
+					new_buf = buf;
+					if (comment)
+						process_buf = NULL;
+					else
+						process_buf = buf;
+					while ((comment_p = strchr(new_buf, COMMENT_META))) {
+						if ((comment_p > new_buf) && (*(comment_p-1) == '\\')) {
+							/* Yuck, gotta memmove */
+							memmove(comment_p - 1, comment_p, strlen(comment_p) + 1);
+							new_buf = comment_p;
+						} else if(comment_p[1] == COMMENT_TAG && comment_p[2] == COMMENT_TAG && (comment_p[3] != '-')) {
+							/* Meta-Comment start detected ";--" */
+							if (comment < MAX_NESTED_COMMENTS) {
+								*comment_p = '\0';
+								new_buf = comment_p + 3;
+								comment++;
+								nest[comment-1] = lineno;
+							} else {
+								ast_log(LOG_ERROR, "Maximum nest limit of %d reached.\n", MAX_NESTED_COMMENTS);
+							}
+						} else if ((comment_p >= new_buf + 2) &&
+								   (*(comment_p - 1) == COMMENT_TAG) &&
+								   (*(comment_p - 2) == COMMENT_TAG)) {
+							/* Meta-Comment end detected */
+							comment--;
+							new_buf = comment_p + 1;
+							if (!comment) {
+								/* Back to non-comment now */
+								if (process_buf) {
+									/* Actually have to move what's left over the top, then continue */
+									char *oldptr;
+									oldptr = process_buf + strlen(process_buf);
+									memmove(oldptr, new_buf, strlen(new_buf) + 1);
+									new_buf = oldptr;
+								} else
+									process_buf = new_buf;
+							}
+						} else {
+							if (!comment) {
+								/* If ; is found, and we are not nested in a comment, 
+								   we immediately stop all comment processing */
+								*comment_p = '\0'; 
+								new_buf = comment_p;
+							} else
+								new_buf = comment_p + 1;
+						}
+					}
+					if (process_buf && cfg_process(tmp, _tmpc, _last, process_buf, lineno, fn, includelevel)) {
+						tmp = NULL;
+						break;
+					}
+				}
+			}
+		} else 
+			ast_log(LOG_WARNING, "Out of memory\n");
+		
 		fclose(f);		
 	} else { /* can't open file */
 		if (option_debug)
@@ -674,9 +673,22 @@ int ast_cust_config_active(void) {
 
 struct ast_config *ast_load(char *configfile)
 {
-	struct ast_category *category = NULL;
+	struct ast_category *tmpc=NULL;
+	struct ast_variable *last = NULL;
 
-	return ast_internal_load(configfile, NULL, &category, 0);
+	return ast_internal_load(configfile, NULL, &tmpc, &last, 0);
+}
+
+void ast_category_append(struct ast_config *config, struct ast_category *cat)
+{
+	struct ast_category *prev = NULL;
+	cat->next = NULL;
+	if (config->root) {
+		prev = config->root;
+		while(prev->next) prev = prev->next;
+		prev->next = cat;
+	} else
+		config->root = cat;
 }
 
 char *ast_category_browse(struct ast_config *config, char *prev)
@@ -720,16 +732,19 @@ struct ast_config *ast_new_config(void)
 	return config;
 }
 
+
+
 struct ast_category *ast_new_category(char *name) 
 {
 	struct ast_category *category;
 	category = malloc(sizeof(struct ast_category));
 	if (category) {
-		memset(category, 0, sizeof(struct ast_category));
-		strncpy(category->name, name, sizeof(category->name) - 1);
+		memset(category,0,sizeof(struct ast_category));
+		strncpy(category->name,name,sizeof(category->name) - 1);
 	}
 	return category;
 }
+
 
 struct ast_variable *ast_new_variable(char *name, char *value) 
 {
@@ -740,6 +755,7 @@ struct ast_variable *ast_new_variable(char *name, char *value)
 		memset(variable, 0, length);
 		variable->name = variable->stuff;
 		variable->value = variable->stuff + strlen(name) + 1;		
+		variable->object=0;
 		strcpy(variable->name,name);
 		strcpy(variable->value,value);
 	}

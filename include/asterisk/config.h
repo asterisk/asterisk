@@ -96,13 +96,6 @@ int ast_true(const char *val);
  */
 int ast_false(const char *val);
 
-/*! Retrieve a category if it exists
- * \param config which config to use
- * \param category_name name of the category you're looking for
- * This will search through the categories within a given config file and search for a match.  The passed category_name can be a regular string.
- * Returns pointer to category if found, NULL if not. */
-struct ast_category *ast_category_get(const struct ast_config *config, const char *category_name);
-
 /*! Check for category duplicates */
 /*!
  * \param config which config to use
