@@ -199,12 +199,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s'\n", tmpchan);
 						o->stillgoing = 0;
 						numbusies++;
-					}
-					if (ast_call(o->chan, tmpchan, 0)) {
+					} else if (ast_call(o->chan, tmpchan, 0)) {
 						ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
 						o->stillgoing = 0;
 						ast_hangup(o->chan);
 						o->chan = NULL;
+							numbusies++;
 					}
 					continue;
 				}
