@@ -96,6 +96,7 @@ static char *descrip =
 "      'd' -- data-quality (modem) call (minimum delay).\n"
 "      'H' -- allow caller to hang up by hitting *.\n"
 "      'n' -- no retries on the timeout; will exit this application and go to the next step.\n"
+"      'r' -- ring instead of playing MOH\n"
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n"
 "  The optional URL will be sent to the called party if the channel supports\n"
@@ -747,7 +748,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 	
 }
 
-static int wait_our_turn(struct queue_ent *qe)
+static int wait_our_turn(struct queue_ent *qe, int ringing)
 {
 	struct queue_ent *ch;
 	int res = 0;
@@ -770,7 +771,7 @@ static int wait_our_turn(struct queue_ent *qe)
 		}
 
 		/* Make a position announcement, if enabled */
-		if (qe->parent->announcefrequency)
+		if (qe->parent->announcefrequency && !ringing)
 			say_position(qe);
 
 
@@ -1305,6 +1306,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 static int queue_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
+	int ringing=0;
 	struct localuser *u;
 	char *queuename;
 	char info[512];
@@ -1359,6 +1361,12 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	}
 	}
 
+	if (options) {
+		if (strchr(options, 'r')) {
+			ringing = 1;
+	  	}
+        }
+
 	printf("queue: %s, options: %s, url: %s, announce: %s, timeout: %d\n",
 		queuename, options, url, announceoverride, qe.queuetimeout);
 
@@ -1370,11 +1378,15 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	if (!join_queue(queuename, &qe)) {
 		ast_queue_log(queuename, chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", url ? url : "", chan->callerid ? chan->callerid : "");
 		/* Start music on hold */
-		ast_moh_start(chan, qe.moh);
+		if (ringing) {
+			ast_indicate(chan, AST_CONTROL_RINGING);
+		} else {              
+			ast_moh_start(chan, qe.moh);
+		}
 		for (;;) {
 			/* This is the wait loop for callers 2 through maxlen */
 
-			res = wait_our_turn(&qe);
+			res = wait_our_turn(&qe, ringing);
 			/* If they hungup, return immediately */
 			if (res < 0) {
 				/* Record this abandoned call */
@@ -1407,7 +1419,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 				}
 
 				/* Make a position announcement, if enabled */
-				if (qe.parent->announcefrequency)
+				if (qe.parent->announcefrequency && !ringing)
 					say_position(&qe);
 
 				/* Try calling all queue members for 'timeout' seconds */
@@ -1457,7 +1469,11 @@ static int queue_exec(struct ast_channel *chan, void *data)
 		/* Don't allow return code > 0 */
 		if (res > 0 && res != AST_PBX_KEEPALIVE) {
 			res = 0;	
-			ast_moh_stop(chan);
+			if (ringing) {
+				ast_indicate(chan, -1);
+			} else {
+				ast_moh_stop(chan);
+			}			
 			ast_stopstream(chan);
 		}
 		leave_queue(&qe);
