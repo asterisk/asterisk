@@ -58,12 +58,9 @@
 
 #include "../asterisk.h"
 
-/* 
-   XXX 
-   XXX   We definitely need to lock the private structure in zt_read and such 
-   XXX  
- */
-
+#ifndef ZT_SIG_EM_E1
+#error "Your zaptel is too old.  please cvs update"
+#endif
 
 /*
  * Define ZHONE_HACK to cause us to go off hook and then back on hook when
