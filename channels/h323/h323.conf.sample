@@ -1,0 +1,138 @@
+; The NuFone Network's
+; Open H.323 driver configuration
+;
+[general]
+port = 1720
+bindaddr = 0.0.0.0 
+;tos=lowdelay
+;
+; You may specify a global default AMA flag for iaxtel calls.  It must be
+; one of 'default', 'omit', 'billing', or 'documentation'.  These flags
+; are used in the generation of call detail records.
+;
+;amaflags = default
+;
+; You may specify a default account for Call Detail Records in addition
+; to specifying on a per-user basis
+;
+;accountcode=lss0101
+;
+; You can fine tune codecs here using "allow" and "disallow" clauses
+; with specific codecs.  Use "all" to represent all formats.
+;
+;allow=all		; turns on all installed codecs
+;disallow=g723.1		; Hm...  Proprietary, don't use it...
+;allow=gsm		; Always allow GSM, it's cool :)
+;allow=ulaw
+;
+; Options for broken H.323 stacks
+;noFastStart = no
+;noH245Tunneling = no
+;noSilenceSuppression = no
+;
+; jitter buffer 
+;jitter = 100
+;
+; User-Input Mode (DTMF)
+;
+; valid entries are:   rfc2833, inband
+; default is rfc2833
+;dtmfmode=rfc2833
+;
+; Set the gatekeeper 
+; DISCOVER			- Find the Gk address using multicast
+; DISABLE			- Disable the use of a GK
+; <IP address> or <Host name>	- The acutal IP address or hostname of your GK
+;gatekeeper = DISABLE
+;
+;
+; Tell Asterisk whether or not to accept Gatekeeper
+; routed calls or not. Normally this should always
+; be set to yes, unless you want to have finer control
+; over which users are allowed access to Asterisk.
+; Default: YES
+;
+;AllowGKRouted = yes
+;
+; Default context gets used in siutations where you are using 
+; the GK routed model or no type=user was found. This gives you 
+; the ability to either play an invalid message or to simply not 
+; use user authentication at all.
+;
+;context=default
+;
+; H.323 Alias definitions
+;
+; Type 'h323' will register aliases to the endpoint
+; and Gatekeeper, if there is one.
+;
+; Example: if someone calls time@your.asterisk.box.com
+; Asterisk will send the call to the extension 'time' 
+; in the context default
+;
+;   [default]
+;   exten => time,1,Answer
+;   exten => time,2,Playback,current-time
+;
+; Keyword's 'prefix' and 'e164' are only make sense when
+; used with a gatekeeper. You can specify either a prefix 
+; or E.164 this endpoint is responsible for terminating.
+; 
+; Example: The H.323 alias 'det-gw' will tell the gatekeeper
+; to route any call with the prefix 1248 to this alias. Keyword
+; e164 is used when you want to specifiy a full telephone
+; number. So a call to the number 18102341212 would be 
+; routed to the H.323 alias 'time'.
+;
+;[time]
+;type=h323
+;e164=18102341212
+;context=default
+;
+;[det-gw]
+;type=h323
+;prefix=1248,1313
+;context=detroit
+;
+;
+; Inbound H.323 calls from BillyBob would land in the incoming
+; context with a maximum of 4 concurrent incoming calls
+; using a password of 'supersecret'
+;
+; Note: If keywords 'outgoinglimit' or 'incominglimit' are omitted
+; Asterisk will not enforce any maximum number of concurrent calls.
+;
+; If you wish to use Authentication you need to set the approprate
+; auth keyword above.
+;
+;[BillyBob]
+;type=user
+;secret=supersecret
+;context=incoming
+;incominglimit=4
+;
+; Asterisk would allow 2 concurrent outgoing calls to JoeSmow
+; using 192.168.1.15 as his IP and will use the context outbound
+;
+;[JoeSmo]
+;type=peer
+;host=192.168.1.15
+;context=outgoing
+;outgoinglimit=2
+;
+; Asterisk would allow 6 concurrent incoming calls to be 
+; recieved from and 4 concurrent outgoing calls to be placed 
+; to SouthOffice using 192.168.0.2 as his IP and 
+; 'securepassword' has the password and lands in the 
+; default context
+;
+;[SouthOffice]
+;type=friend
+;host=192.168.0.2
+;secret=securepassword
+;context=default
+;incominglimit=6
+;outgoinglimit=4
+
+
+

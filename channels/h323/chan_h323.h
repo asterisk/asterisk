@@ -1,0 +1,186 @@
+/*
+ * chan_oh323.h
+ *
+ * OpenH323 Channel Driver for ASTERISK PBX.
+ *			By Jeremy McNamara
+ * 			For The NuFone Network
+ *	
+ * This code has been derived from code created by 
+ *		Michael Manousos and Mark Spencer
+ *
+ * This file is part of the chan_oh323 driver for Asterisk
+ *
+ * chan_oh323 is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version. 
+ *
+ * chan_oh323 is distributed WITHOUT ANY WARRANTY; without even 
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+ * PURPOSE. See the GNU General Public License for more details. 
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *
+ */
+
+#include <arpa/inet.h>
+
+static struct sockaddr_in bindaddr;
+
+/* structure to hold the valid asterisk users */
+struct oh323_user {
+	char name[80];
+	char context[80];
+	char secret[80];
+	char callerid[80];
+	char accountcode[20];
+	int amaflags;
+	int	noFastStart;
+	int	noH245Tunneling;
+	int	noSilenceSuppression;
+	int inUse;
+	int incominglimit;
+	int bridge;
+	int nat;
+	int dtmfmode;
+	struct ast_ha *ha;
+	struct sockaddr_in addr;
+	struct oh323_user *next;
+};
+
+/* structure to hold the valid asterisk peers 
+   All peers are registered to a GK if there is one */
+struct oh323_peer {
+	char name[80];
+	char context[80];
+	int	noFastStart;
+	int	noH245Tunneling;
+	int	noSilenceSuppression;
+	int inUse;
+	int outgoinglimit;
+	int bridge;
+	int nat;
+	int dtmfmode;
+	struct sockaddr_in addr;
+	int delme;
+	struct oh323_peer *next;
+};
+
+/* structure to hold the H.323 aliases which get registered to 
+   the H.323 endpoint and gatekeeper */
+struct oh323_alias {
+	char name[80];
+	char e164[20];				/* tells a GK to route this E.164 to this alias */
+	char prefix[500];			/* tells a GK this alias supports these prefixes */
+	char secret[20];			/* the H.235 password to send to the GK for authentication */
+	char context[80];
+	struct oh323_alias *next;	
+};
+
+/** call_option struct is filled from the 
+	PBX application and passed through make_call 
+	function*/
+typedef struct call_options {
+	int				noFastStart;
+	int				noH245Tunnelling;
+	int				noSilenceSuppression;
+	int				jitter;
+	unsigned int	port;
+} call_options_t;
+
+/** call_details struct call detail records 
+	to asterisk for processing and used for matching up 
+	asterisk channels to acutal h.323 connections */
+typedef struct call_details {	
+	unsigned int call_reference;
+	const char *call_token;				
+	const char *call_source_aliases;
+	const char *call_dest_alias;
+	const char *call_source_e164;
+	const char *call_dest_e164;
+	const char *sourceIp;
+} call_details_t;
+
+/* This is a callback prototype function, called pass
+   DTMF down the RTP. */
+typedef int (*send_digit_cb)(unsigned, char);
+send_digit_cb	on_send_digit; 
+
+/* This is a callback prototype function, called to collect
+   the external RTP port from Asterisk. */
+typedef int (*on_connection_cb)(unsigned);
+on_connection_cb	on_create_connection; 
+
+/* This is a callback prototype function, called upon
+   an incoming call happens. */
+typedef int (*setup_incoming_cb)(call_details_t);
+setup_incoming_cb		on_incoming_call;
+
+/* This is a callback prototype function, called upon
+   an outbound call. */
+typedef int (*setup_outbound_cb)(call_details_t);
+setup_outbound_cb	on_outgoing_call; 
+
+/* This is a callback prototype function, called when the openh323 
+   OnStartLogicalChannel is invoked. */
+typedef void (*start_logchan_cb)(unsigned int, const char *, int);
+start_logchan_cb	on_start_logical_channel; 
+
+/* This is a callback protoype function, called when the openh323
+   OnConnectionEstablished is inovked */
+typedef void (*con_established_cb)(unsigned);
+con_established_cb		on_connection_established;
+
+/* This is a callback prototype function, called when the openH323
+   OnConnectionCleared callback is invoked */
+typedef void (*clear_con_cb)(call_details_t);
+clear_con_cb		on_connection_cleared;
+
+/* debug flag */
+int h323debug;
+
+#define H323_DTMF_RFC2833	(1 << 0)
+#define H323_DTMF_INBAND	(1 << 1)
+
+#ifdef __cplusplus
+extern "C" {
+#endif   
+    
+	void h323_gk_urq(void);
+	void h323_end_point_create(void);
+	void h323_end_process(void);
+	int end_point_exist(void);
+    
+	void h323_debug(int, unsigned);
+
+	/* callback function handler*/
+	void h323_callback_register(setup_incoming_cb, setup_outbound_cb, on_connection_cb, start_logchan_cb, clear_con_cb, con_established_cb, send_digit_cb);
+
+	int h323_set_capability(int, int);
+	int h323_set_alias(struct oh323_alias *);
+	int h323_set_gk(int, char *, char *);
+
+	/* H323 listener related funcions */
+	int h323_start_listener(int, struct sockaddr_in, int);
+
+	void h323_native_bridge(const char *, char *, char *);
+
+	/* Send a DTMF tone to remote endpoint */
+	void h323_send_tone(const char *call_token, char tone);
+
+	/* H323 create and destroy sessions */
+	int h323_make_call(char *host, call_details_t *cd, call_options_t);
+	int h323_clear_call(const char *);
+	int h323_answering_call(const char *token, int);
+	
+	int h323_show_codec(int fd, int argc, char *argv[]);
+
+
+#ifdef __cplusplus
+}
+#endif
+
+
+

@@ -1,0 +1,55 @@
+
+		Open H.323 Channel Driver for Asterisk
+	  		   By Jeremy McNamara  
+			      The NuFone Network
+
+	     First public release on November 10th, 2002
+
+
+	Developed using:	RedHat 7.2/7.3/8.0
+				Open H.323 v1.11.8		
+				PWLib      v1.4.12
+				GCC	  2.96/3.1
+
+	Dependancies:  		openssl-0.9.6b
+				openssl-devel-0.9.6b
+		       		expat-1.95
+
+Notice: Whatever you do, DO NOT USE distrubution specific installs
+of Open H.323 and PWLib. Check everything out of CVS. If you dont know
+how to deal with cvs, learn. Also, if you are not using the listed
+versions of Open H.323 or PWlib you are on your own, sorry. Older versions
+will NOT work, but newer versions ~should~ work.
+
+We have implemented this driver using Asterisk's RTP stack insted of trying
+to implement a psudo sound card driver. 
+ 
+If you have trouble please contact 'JerJer' in #Asterisk on irc.freenode.net or
+send and email to jj@indie.org
+
+If you happen to be lucky enough to segfault this code please run a backtrace 
+and send me the gory details. Segmentation faults are not tolerated!
+
+bt example:
+
+# /usr/sbin/asterisk -vvvgc
+...
+[chan_h323.so]
+Segmentation Fault (core dumped)
+
+# ls core.*
+core.1976
+
+# gdb /usr/sbin/asterisk core.1976
+...
+(gdb) bt
+
+Send whatever shows up right after the 'bt'
+
+
+Also, a full debug screen output is almost needed. Make sure you are in the full console mode (-c) and turn on 'h.323 
+debug'. A nice way to capture everything is to use the utility called 'script' (man script) 
+
+
+Jeremy McNamara, President
+The NuFone Network 
