@@ -386,6 +386,7 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 	if( ast_monitor_start( c, format, fname, 1 ) ) {
 		if( ast_monitor_change_fname( c, fname, 1 ) ) {
 			astman_send_error(s, m, "Could not start monitoring channel");
+			ast_mutex_unlock(&c->lock);
 			return 0;
 		}
 	}
@@ -457,8 +458,10 @@ static int change_monitor_action(struct mansession *s, struct message *m)
 	}
 	if( ast_monitor_change_fname( c, fname, 1 ) ) {
 		astman_send_error(s, m, "Could not change monitored filename of channel");
+		ast_mutex_unlock(&c->lock);
 		return 0;
 	}
+	ast_mutex_unlock(&c->lock);
 	astman_send_ack(s, m, "Stopped monitoring channel");
 	return 0;
 }
