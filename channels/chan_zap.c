@@ -3596,28 +3596,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 							/* Call is already up, drop the last person */
 							if (option_debug)
 								ast_log(LOG_DEBUG, "Got flash with three way call up, dropping last call on %d\n", p->channel);
-#if 0
-jim 01/03/05
-		I have absolutely *NO* clue as to why the following was a
-		conditional. It caused a bug in which the WRONG call would
-		get hung up on in certain situations after a 3-way call. It
-		took us over *3 YEARS* to find out the exact conditions to
-		make the problem appear (which are first leg of call, inbound
-		or outbound is answered, you go over to a 3-way dialtone and
-		make a second call, then flash again before the second call
-		has answered (the channel going into STATE_UP condition).
-		Then, when you flash again, then first (original) call would
-		get dropped instead of the second one like it should.
-
-
-	I left the following conditional here (commented out, of course) so
-	that if theres any further issues with this, its here.
-
-	/* If the primary call isn't answered yet, use it */
-	if ((p->subs[SUB_REAL].owner->_state != AST_STATE_UP) && 
-		(p->subs[SUB_THREEWAY].owner->_state == AST_STATE_UP)) 
-#endif
-							{
+							/* If the primary call isn't answered yet, use it */
+							if ((p->subs[SUB_REAL].owner->_state != AST_STATE_UP) && (p->subs[SUB_THREEWAY].owner->_state == AST_STATE_UP)) {
 								/* Swap back -- we're droppign the real 3-way that isn't finished yet*/
 								swap_subs(p, SUB_THREEWAY, SUB_REAL);
 								p->owner = p->subs[SUB_REAL].owner;
