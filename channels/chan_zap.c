@@ -4972,6 +4972,35 @@ static void *ss_thread(void *data)
 	case SIG_FXSLS:
 	case SIG_FXSGS:
 	case SIG_FXSKS:
+		if (p->pri) {
+			/* This is a GR-303 trunk actually.  Wait for the first ring... */
+			struct ast_frame *f;
+			int res;
+			time_t start;
+
+			time(&start);
+			ast_setstate(chan, AST_STATE_RING);
+			while(time(NULL) < start + 3) {
+				res = ast_waitfor(chan, 1000);
+				if (res) {
+					f = ast_read(chan);
+					if (!f) {
+						ast_log(LOG_WARNING, "Whoa, hangup while waiting for first ring!\n");
+						ast_hangup(chan);
+						return NULL;
+					} else if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_RING)) {
+						res = 1;
+					} else
+						res = 0;
+					ast_frfree(f);
+					if (res) {
+						ast_log(LOG_DEBUG, "Got ring!\n");
+						res = 0;
+						break;
+					}
+				}
+			}
+		}
 		if (p->use_callerid) {
 			cs = callerid_new();
 			if (cs) {
