@@ -16,6 +16,9 @@
 
 #include <pthread.h>
 
+#define AST_PTHREADT_NULL (pthread_t) -1
+#define AST_PTHREADT_STOP (pthread_t) -2
+
 #ifdef DEBUG_THREADS
 #ifdef THREAD_CRASH
 #define DO_THREAD_CRASH do { *((int *)(0)) = 1; } while(0)
