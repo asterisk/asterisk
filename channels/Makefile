@@ -19,7 +19,7 @@ PROC=$(shell uname -m)
 
 CHANNEL_LIBS=chan_modem.so chan_sip.so \
 	     chan_modem_aopen.so \
-             chan_modem_bestdata.so chan_modem_i4l.so \
+             chan_modem_bestdata.so \
              chan_agent.so chan_mgcp.so chan_iax2.so \
 	     chan_local.so chan_skinny.so chan_features.so
 
@@ -52,7 +52,13 @@ H323LIB=-lh323_NetBSD_x86_r
 SOLINK+=-L/usr/local/lib
 endif
 ifneq (${OSARCH},Darwin)
-CHANNEL_LIBS+=chan_oss.so
+ifneq (${OSARCH},SunOS)
+CHANNEL_LIBS+=chan_oss.so chan_modem_i4l.so 
+endif
+endif
+
+ifeq (${OSARCH},SunOS)
+SOLINK+=-lrt
 endif
 
 CHANNEL_LIBS+=$(shell [ -f /usr/include/linux/ixjuser.h ] && echo chan_phone.so)

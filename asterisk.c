@@ -53,8 +53,13 @@
 #include <grp.h>
 #include <pwd.h>
 
-#if  defined(__FreeBSD__) || defined( __NetBSD__ )
+#if  defined(__FreeBSD__) || defined( __NetBSD__ ) || defined(SOLARIS)
 #include <netdb.h>
+#endif
+
+#ifndef AF_LOCAL
+#define AF_LOCAL AF_UNIX
+#define PF_LOCAL PF_UNIX
 #endif
 
 #define AST_MAX_CONNECTS 128
@@ -315,7 +320,7 @@ static void *netconsole(void *vconsole)
 
 static void *listener(void *unused)
 {
-	struct sockaddr_un sun;
+	struct sockaddr_un sunaddr;
 	int s;
 	int len;
 	int x;
@@ -335,8 +340,8 @@ static void *listener(void *unused)
 				ast_log(LOG_WARNING, "poll returned error: %s\n", strerror(errno));
 			continue;
 		}
-		len = sizeof(sun);
-		s = accept(ast_socket, (struct sockaddr *)&sun, &len);
+		len = sizeof(sunaddr);
+		s = accept(ast_socket, (struct sockaddr *)&sunaddr, &len);
 		if (s < 0) {
 			if (errno != EINTR)
 				ast_log(LOG_WARNING, "Accept returned %d: %s\n", s, strerror(errno));
@@ -377,7 +382,7 @@ static void *listener(void *unused)
 
 static int ast_makesocket(void)
 {
-	struct sockaddr_un sun;
+	struct sockaddr_un sunaddr;
 	int res;
 	int x;
 	for (x=0;x<AST_MAX_CONNECTS;x++)	
@@ -388,10 +393,10 @@ static int ast_makesocket(void)
 		ast_log(LOG_WARNING, "Unable to create control socket: %s\n", strerror(errno));
 		return -1;
 	}		
-	memset(&sun, 0, sizeof(sun));
-	sun.sun_family = AF_LOCAL;
-	strncpy(sun.sun_path, (char *)ast_config_AST_SOCKET, sizeof(sun.sun_path)-1);
-	res = bind(ast_socket, (struct sockaddr *)&sun, sizeof(sun));
+	memset(&sunaddr, 0, sizeof(sunaddr));
+	sunaddr.sun_family = AF_LOCAL;
+	strncpy(sunaddr.sun_path, (char *)ast_config_AST_SOCKET, sizeof(sunaddr.sun_path)-1);
+	res = bind(ast_socket, (struct sockaddr *)&sunaddr, sizeof(sunaddr));
 	if (res) {
 		ast_log(LOG_WARNING, "Unable to bind socket to %s: %s\n", (char *)ast_config_AST_SOCKET, strerror(errno));
 		close(ast_socket);
@@ -412,17 +417,17 @@ static int ast_makesocket(void)
 
 static int ast_tryconnect(void)
 {
-	struct sockaddr_un sun;
+	struct sockaddr_un sunaddr;
 	int res;
 	ast_consock = socket(PF_LOCAL, SOCK_STREAM, 0);
 	if (ast_consock < 0) {
 		ast_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
 		return 0;
 	}
-	memset(&sun, 0, sizeof(sun));
-	sun.sun_family = AF_LOCAL;
-	strncpy(sun.sun_path, (char *)ast_config_AST_SOCKET, sizeof(sun.sun_path)-1);
-	res = connect(ast_consock, (struct sockaddr *)&sun, sizeof(sun));
+	memset(&sunaddr, 0, sizeof(sunaddr));
+	sunaddr.sun_family = AF_LOCAL;
+	strncpy(sunaddr.sun_path, (char *)ast_config_AST_SOCKET, sizeof(sunaddr.sun_path)-1);
+	res = connect(ast_consock, (struct sockaddr *)&sunaddr, sizeof(sunaddr));
 	if (res) {
 		close(ast_consock);
 		ast_consock = -1;

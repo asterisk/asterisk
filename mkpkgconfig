@@ -2,7 +2,7 @@
 PPATH=$1
 ## Make sure we were called from Makefile
 
-if [ "x$ASTERISKVERSIONNUM" == "x" ]; then
+if [ "x$ASTERISKVERSIONNUM" = "x" ]; then
   echo " ** Do not call this script directly"
   exit
 fi

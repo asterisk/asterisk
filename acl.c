@@ -38,6 +38,11 @@
 AST_MUTEX_DEFINE_STATIC(routeseq_lock);
 #endif
 
+#if defined (SOLARIS)
+#include <sys/sockio.h>
+#endif
+
+
 
 struct ast_ha {
 	/* Host access rule */

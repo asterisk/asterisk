@@ -64,6 +64,8 @@ Josh Roberson - chan_zap reload support, Advanced Voicemail Features, other misc
 William Waites - syslog support, SIP NAT traversal for SIP-UA. ww@styx.org
 Rich Murphey - Porting to FreeBSD, NetBSD, OpenBSD, and Darwin.
 	rich@whiteoaklabs.com  http://whiteoaklabs.com
+Simon Lockhart - Porting to Solaris (based on work of Logan ???)	
+	simon@slimey.org
 
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt

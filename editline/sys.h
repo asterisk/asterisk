@@ -96,10 +96,12 @@ typedef void (*sig_t)(int);
 /*
  * Broken hdrs.
  */
+#ifndef SOLARIS
 extern int	tgetent(const char *bp, char *name);
 extern int	tgetflag(const char *id);
 extern int	tgetnum(const char *id);
 extern char    *tgetstr(const char *id, char **area);
+#endif
 extern char    *tgoto(const char *cap, int col, int row);
 extern int	tputs(const char *str, int affcnt, int (*putc)(int));
 extern char    *getenv(const char *);

@@ -95,6 +95,23 @@ LOCAL_USER_DECL;
 #define	OURCLID	"2564286275"		/* The callerid to be displayed when calling */
 #endif
 
+#ifdef SOLARIS
+int flock(int fd, int type)
+{
+	struct flock lock;
+
+        lock.l_type = type;
+        lock.l_whence = SEEK_SET;
+        lock.l_start = 0;
+        lock.l_len = 0;
+
+	return fcntl(f, F_SETLK, &lock);
+}
+
+#define LOCK_EX F_WRLCK
+#define LOCK_UN F_UNLCK
+#endif
+
 static void *qcall_do(void *arg);
 
 static void *qcall(void *ignore)

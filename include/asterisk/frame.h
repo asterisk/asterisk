@@ -22,6 +22,10 @@ extern "C" {
 
 #include <sys/types.h>
 #include <sys/time.h>
+
+#ifdef SOLARIS
+#include "solaris-compat/compat.h"
+#endif
 	
 /*
  * Autodetect system endianess

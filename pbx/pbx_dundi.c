@@ -39,7 +39,7 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <errno.h>
-#if defined(__FreeBSD__) || defined(__NetBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(SOLARIS)
 #include <sys/types.h>
 #include <netinet/in_systm.h>
 #endif
@@ -406,7 +406,7 @@ static void reset_global_eid(void)
 		close(s);
 	}
 #else
-#if defined(ifa_broadaddr)
+#if defined(ifa_broadaddr) && !defined(SOLARIS)
 	char eid_str[20];
 	struct ifaddrs *ifap;
 	
@@ -4518,14 +4518,14 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 				tos = IPTOS_THROUGHPUT;
 			else if (!strcasecmp(v->value, "reliability"))
 				tos = IPTOS_RELIABILITY;
-#if !defined(__NetBSD__)
+#if !defined(__NetBSD__) && !defined(SOLARIS)
 			else if (!strcasecmp(v->value, "mincost"))
 				tos = IPTOS_MINCOST;
 #endif
 			else if (!strcasecmp(v->value, "none"))
 				tos = 0;
 			else
-#if defined(__NetBSD__)
+#if defined(__NetBSD__) && !defined(SOLARIS)
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
 #else
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', or 'none'\n", v->lineno);

@@ -48,6 +48,11 @@ clean:
 OORG=	-O2
 CL=	$(CC) -Wall -c -D__DBINTERFACE_PRIVATE $(OORG) -I. -Iinclude
 
+OSTYPE=$(shell uname -s)
+ifeq ($(OSTYPE),SunOS)
+CL+=-I../include -I../include/solaris-compat -DSOLARIS
+endif
+
 db_dump185.o: db_dump185.c
 	$(CL) -o $@ $<
 %.o: hash/%.c

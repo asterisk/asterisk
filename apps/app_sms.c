@@ -1077,6 +1077,10 @@ sms_handleincoming (sms_t * h)
    return 0;                    /* no error */
 }
 
+#ifdef SOLARIS
+#define NAME_MAX 1024
+#endif
+
 static void
 sms_nextoutgoing (sms_t * h)
 {                               /* find and fill in next message, or send a REL if none waiting */

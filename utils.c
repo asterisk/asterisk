@@ -168,10 +168,17 @@ struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
 	}
 	if (!s || !*s)
 		return NULL;
+#ifdef SOLARIS
+	result = gethostbyname_r(host, &hp->hp, hp->buf, sizeof(hp->buf), &herrno);
+
+	if (!result || !hp->hp.h_addr_list || !hp->hp.h_addr_list[0])
+		return NULL;
+#else
 	res = gethostbyname_r(host, &hp->hp, hp->buf, sizeof(hp->buf), &result, &herrno);
 
 	if (res || !result || !hp->hp.h_addr_list || !hp->hp.h_addr_list[0])
 		return NULL;
+#endif
 	return &hp->hp;
 }
 

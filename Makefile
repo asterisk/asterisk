@@ -55,6 +55,12 @@ endif
 
 PWD=$(shell pwd)
 
+GREP=grep
+ifeq (${OSARCH},SunOS)
+GREP=/usr/xpg4/bin/grep
+M4=/usr/local/bin/m4
+endif
+
 ######### More GSM codec optimization
 ######### Uncomment to enable MMXTM optimizations for x86 architecture CPU's
 ######### which support MMX instructions.  This should be newer pentiums,
@@ -136,7 +142,7 @@ ifneq ($(PROC),ultrasparc)
 CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
 endif
 
-CFLAGS+=$(shell if uname -m | grep -q ppc; then echo "-fsigned-char"; fi)
+CFLAGS+=$(shell if uname -m | $(GREP) -q ppc; then echo "-fsigned-char"; fi)
 CFLAGS+=$(shell if [ -f /usr/include/osp/osp.h ]; then echo "-DOSP_SUPPORT -I/usr/include/osp" ; fi)
 
 ifeq (${OSARCH},FreeBSD)
@@ -154,6 +160,10 @@ endif
 
 ifeq (${OSARCH},OpenBSD)
 CFLAGS+=-pthread
+endif
+ifeq (${OSARCH},SunOS)
+CFLAGS+=-Wcast-align -DSOLARIS
+INCLUDE+=-Iinclude/solaris-compat -I/usr/local/ssl/include
 endif
 
 #Uncomment this to use the older DSP routines
@@ -207,6 +217,9 @@ endif
 ifeq (${OSARCH},OpenBSD)
 LIBS=-lcrypto -lpthread -lm -lncurses
 endif
+ifeq (${OSARCH},SunOS)
+LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L/usr/local/ssl/lib
+endif
 LIBS+=-lssl
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o say.o pbx.o cli.o md5.o term.o \
@@ -222,6 +235,11 @@ SOLINK=-dynamic -bundle -undefined suppress -force_flat_namespace
 else
 ASTLINK=-Wl,-E 
 SOLINK=-shared -Xlinker -x
+endif
+ifeq (${OSARCH},SunOS)
+OBJS+=strcompat.o
+ASTLINK=
+SOLINK=-shared -fpic -L/usr/local/ssl/lib
 endif
 
 CC=gcc
@@ -260,7 +278,7 @@ endif
 .PHONY: _version
 
 _version: 
-	if [ -d CVS ] && ! [ -f .version ]; then echo $(ASTERISKVERSION) > .version; fi 
+	if [ -d CVS ] && [ ! -f .version ]; then echo $(ASTERISKVERSION) > .version; fi 
 
 .version: _version
 
@@ -311,7 +329,7 @@ clean:
 	rm -f *.o *.so asterisk .depend
 	rm -f build.h 
 	rm -f ast_expr.c
-	@if [ -e editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
+	@if [ -f editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
 	@if [ -d mpg123-0.59r ]; then make -C mpg123-0.59r clean; fi
 	$(MAKE) -C db1-ast clean
 	$(MAKE) -C stdtime clean
@@ -320,7 +338,7 @@ datafiles: all
 	sh mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits
 	for x in sounds/digits/*.gsm; do \
-		if grep -q "^%`basename $$x`%" sounds.txt; then \
+		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
 			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits ; \
 		else \
 			echo "No description for $$x"; \
@@ -329,7 +347,7 @@ datafiles: all
 	done
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/letters
 	for x in sounds/letters/*.gsm; do \
-		if grep -q "^%`basename $$x`%" sounds.txt; then \
+		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
 			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/letters ; \
 		else \
 			echo "No description for $$x"; \
@@ -338,7 +356,7 @@ datafiles: all
 	done
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/phonetic
 	for x in sounds/phonetic/*.gsm; do \
-		if grep -q "^%`basename $$x`%" sounds.txt; then \
+		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
 			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/phonetic ; \
 		else \
 			echo "No description for $$x"; \
@@ -346,7 +364,7 @@ datafiles: all
 		fi; \
 	done
 	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-* sounds/agent-* sounds/invalid* sounds/tt-* sounds/auth-* sounds/privacy-* sounds/queue-*; do \
-		if grep -q "^%`basename $$x`%" sounds.txt; then \
+		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
 			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
 		else \
 			echo "No description for $$x"; \
@@ -476,7 +494,7 @@ samples: all datafiles adsi
 		echo "Skipping asterisk.conf creation"; \
 	fi
 	for x in sounds/demo-*; do \
-		if grep -q "^%`basename $$x`%" sounds.txt; then \
+		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
 			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
 		else \
 			echo "No description for $$x"; \

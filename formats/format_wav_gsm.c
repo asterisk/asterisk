@@ -28,7 +28,11 @@
 #ifdef __linux__
 #include <endian.h>
 #else
+#ifdef SOLARIS
+#include "solaris-compat/compat.h"
+#else
 #include <machine/endian.h>
+#endif
 #endif
 #include "msgsm.h"
 

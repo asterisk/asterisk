@@ -38,11 +38,13 @@ WAV49	= -DWAV49
 ######### probably require gcc. 
 
 ifneq (${OSARCH},Darwin)
+ifneq (${OSARCH},SunOS)
 ifneq (${PROC},x86_64)
 ifneq (${PROC},ultrasparc)
 ifneq ($(shell uname -m),ppc)
 ifneq ($(shell uname -m),alpha)
 OPTIMIZE+=-march=$(PROC)
+endif
 endif
 endif
 endif

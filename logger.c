@@ -136,7 +136,9 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 {
 	struct logchannel *chan;
 	char *facility;
+#ifndef SOLARIS
 	CODE *cptr;
+#endif
 
 	if (ast_strlen_zero(channel))
 		return NULL;
@@ -155,6 +157,8 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 		    if(!facility++ || !facility) {
 			facility = "local0";
 		    }
+
+#ifndef SOLARIS
 		    /*
 		     * Walk through the list of facilitynames (defined in sys/syslog.h)
 		     * to see if we can find the one we have been given
@@ -168,6 +172,46 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 			}
 			cptr++;
 		    }
+#else
+		    chan->facility = -1;
+		    if (!strcasecmp(facility, "kern")) 
+			chan->facility = LOG_KERN;
+		    else if (!strcasecmp(facility, "USER")) 
+			chan->facility = LOG_USER;
+		    else if (!strcasecmp(facility, "MAIL")) 
+			chan->facility = LOG_MAIL;
+		    else if (!strcasecmp(facility, "DAEMON")) 
+			chan->facility = LOG_DAEMON;
+		    else if (!strcasecmp(facility, "AUTH")) 
+			chan->facility = LOG_AUTH;
+		    else if (!strcasecmp(facility, "SYSLOG")) 
+			chan->facility = LOG_SYSLOG;
+		    else if (!strcasecmp(facility, "LPR")) 
+			chan->facility = LOG_LPR;
+		    else if (!strcasecmp(facility, "NEWS")) 
+			chan->facility = LOG_NEWS;
+		    else if (!strcasecmp(facility, "UUCP")) 
+			chan->facility = LOG_UUCP;
+		    else if (!strcasecmp(facility, "CRON")) 
+			chan->facility = LOG_CRON;
+		    else if (!strcasecmp(facility, "LOCAL0")) 
+			chan->facility = LOG_LOCAL0;
+		    else if (!strcasecmp(facility, "LOCAL1")) 
+			chan->facility = LOG_LOCAL1;
+		    else if (!strcasecmp(facility, "LOCAL2")) 
+			chan->facility = LOG_LOCAL2;
+		    else if (!strcasecmp(facility, "LOCAL3")) 
+			chan->facility = LOG_LOCAL3;
+		    else if (!strcasecmp(facility, "LOCAL4")) 
+			chan->facility = LOG_LOCAL4;
+		    else if (!strcasecmp(facility, "LOCAL5")) 
+			chan->facility = LOG_LOCAL5;
+		    else if (!strcasecmp(facility, "LOCAL6")) 
+			chan->facility = LOG_LOCAL6;
+		    else if (!strcasecmp(facility, "LOCAL7")) 
+			chan->facility = LOG_LOCAL7;
+#endif
+
 		    if (0 > chan->facility) {
 			fprintf(stderr, "Logger Warning: bad syslog facility in logger.conf\n");
 			free(chan);

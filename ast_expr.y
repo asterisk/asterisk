@@ -13,7 +13,11 @@
 #include <string.h>
 #include <locale.h>
 #include <ctype.h>
+#ifndef SOLARIS
 #include <err.h>
+#else
+typedef uint64_t quad_t;
+#endif
 #include <errno.h>
 #include <regex.h>
 #include <limits.h>
@@ -39,6 +43,10 @@
 
 /* #define ast_log fprintf
 #define LOG_WARNING stderr */
+
+#ifdef SOLARIS
+#define __P(p) p
+#endif
   
 enum valtype {
 	integer, numeric_string, string

@@ -31,6 +31,10 @@
 #define LOCAL_NBSCAT "/usr/local/bin/nbscat8k"
 #define NBSCAT "/usr/bin/nbscat8k"
 
+#ifndef AF_LOCAL
+#define AF_LOCAL AF_UNIX
+#endif
+
 static char *tdesc = "Silly NBS Stream Application";
 
 static char *app = "NBScat";

@@ -156,6 +156,8 @@
 #  include <sys/endian.h>
 #elif defined( BSD ) && ( BSD >= 199103 ) || defined(__APPLE__)
 #  include <machine/endian.h>
+#elif defined ( SOLARIS )
+#  include <solaris-compat/compat.h>
 #elif defined( __GNUC__ ) || defined( __GNU_LIBRARY__ )
 #  include <endian.h>
 #if !defined(__APPLE__)

@@ -2,6 +2,8 @@
 # Generic Makefile for libedit.
 #
 
+OSTYPE=$(shell uname -s)
+
 SHELL = /bin/sh
 
 CC = @CC@
@@ -17,6 +19,10 @@ LIBS = @LIBS@
 
 INSTALL = @INSTALL@
 PREFIX = @prefix@
+
+ifeq ($(OSTYPE),SunOS)
+CFLAGS+=-DSOLARIS -I../include/solaris-compat
+endif
 
 # .c files.
 ACSRCS = @ACSRCS@

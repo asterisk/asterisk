@@ -41,8 +41,8 @@ all: depend $(CODECS)
 
 clean:
 	rm -f *.so *.o .depend
-	! [ -d g723.1 ] || $(MAKE) -C g723.1 clean
-	! [ -d g723.1b ] || $(MAKE) -C g723.1b clean
+	[ ! -d g723.1 ] || $(MAKE) -C g723.1 clean
+	[ ! -d g723.1b ] || $(MAKE) -C g723.1b clean
 	$(MAKE) -C gsm clean
 	$(MAKE) -C lpc10 clean
 	$(MAKE) -C ilbc clean

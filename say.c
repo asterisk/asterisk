@@ -28,6 +28,10 @@
 #include "asterisk.h"
 #include <stdio.h>
 
+#ifdef SOLARIS
+#include <iso/limits_iso.h>
+#endif
+
 
 /* Forward declaration */
 static int wait_file(struct ast_channel *chan, const char *ints, const char *file, const char *lang);

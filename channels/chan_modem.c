@@ -709,8 +709,19 @@ static void stty(struct ast_modem_pvt *p)
 		ast_log(LOG_WARNING, "Unable to get serial parameters on %s: %s\n", p->dev, strerror(errno));
 		return;
 	}
+#ifndef SOLARIS
 	cfmakeraw(&mode);
-	cfsetspeed(&mode, B115200);
+#else
+        mode.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP
+                        |INLCR|IGNCR|ICRNL|IXON);
+        mode.c_oflag &= ~OPOST;
+        mode.c_lflag &= ~(ECHO|ECHONL|ICANON|ISIG|IEXTEN);
+        mode.c_cflag &= ~(CSIZE|PARENB);
+        mode.c_cflag |= CS8;
+#endif
+
+	cfsetispeed(&mode, B115200);
+	cfsetospeed(&mode, B115200);
 	if (tcsetattr(p->fd, TCSANOW, &mode)) 
 		ast_log(LOG_WARNING, "Unable to set serial parameters on %s: %s\n", p->dev, strerror(errno));
 	

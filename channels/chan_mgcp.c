@@ -105,6 +105,10 @@
 #define MAX_EXPIREY     3600
 #define CANREINVITE	1
 
+#ifndef INADDR_NONE
+#define INADDR_NONE (in_addr_t)(-1)
+#endif
+
 static char *desc = "Media Gateway Control Protocol (MGCP)";
 static char *type = "MGCP";
 static char *tdesc = "Media Gateway Control Protocol (MGCP)";

@@ -17,6 +17,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#ifdef SOLARIS
+#include <solaris-compat/compat.h>
+#endif
 
 #define AUDIO_FILENO (STDERR_FILENO + 1)
 

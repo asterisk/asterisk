@@ -1084,9 +1084,23 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	return 0;
 }
 
+#ifdef SOLARIS
+static void put_uint32(unsigned char *buf, int i)
+{
+  unsigned char *c = (unsigned char *)&i;
+
+  buf[0] = (i>>24) & 0xff;
+  buf[1] = (i>>16) & 0xff;
+  buf[2] = (i>>8)  & 0xff;
+  buf[3] = i       & 0xff;
+}
+#else
+#define put_uint32(p,v) ((*((unsigned int *)(p))) = (v))
+#endif
+
 static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec)
 {
-	unsigned int *rtpheader;
+	unsigned char *rtpheader;
 	char iabuf[INET_ADDRSTRLEN];
 	int hdrlen = 12;
 	int res;
@@ -1165,10 +1179,14 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		}
 	}
 	/* Get a pointer to the header */
-	rtpheader = (unsigned int *)(f->data - hdrlen);
-	rtpheader[0] = htonl((2 << 30) | (codec << 16) | (rtp->seqno++) | (mark << 23));
-	rtpheader[1] = htonl(rtp->lastts);
-	rtpheader[2] = htonl(rtp->ssrc); 
+	rtpheader = (unsigned char *)(f->data - hdrlen);
+
+	put_uint32(rtpheader, htonl((2 << 30) | (codec << 16) | (rtp->seqno) | (mark << 23)));
+	put_uint32(rtpheader + 4, htonl(rtp->lastts));
+	put_uint32(rtpheader + 8, htonl(rtp->ssrc)); 
+
+	rtp->seqno++;
+
 	if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
 		res = sendto(rtp->s, (void *)rtpheader, f->datalen + hdrlen, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
 		if (res <0) 

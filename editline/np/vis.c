@@ -67,6 +67,10 @@ __weak_alias(vis,_vis)
 #define BELL '\007'
 #endif
 
+#ifdef SOLARIS
+typedef unsigned int	u_int32_t;
+#endif
+
 #define isoctal(c)	(((u_char)(c)) >= '0' && ((u_char)(c)) <= '7')
 #define iswhite(c)	(c == ' ' || c == '\t' || c == '\n')
 #define issafe(c)	(c == '\b' || c == BELL || c == '\r')

@@ -45,6 +45,10 @@
 #include <compat.h>
 #endif
 
+#ifdef SOLARIS
+#include "solaris-compat/compat.h"
+#endif
+
 #define	RET_ERROR	-1		/* Return values. */
 #define	RET_SUCCESS	 0
 #define	RET_SPECIAL	 1
@@ -53,16 +57,22 @@
 #define	__BIT_TYPES_DEFINED__
 #if (!defined(__FreeBSD__) && !defined(__NetBSD__) && !defined(__APPLE__))
 typedef	__signed char		   int8_t;
-typedef	unsigned char		 u_int8_t;
 typedef	short			  int16_t;
-typedef	unsigned short		u_int16_t;
 typedef	int			  int32_t;
+typedef	unsigned char		 u_int8_t;
+typedef	unsigned short		u_int16_t;
 typedef	unsigned int		u_int32_t;
 #ifdef WE_DONT_NEED_QUADS
 typedef	long long		  int64_t;
 typedef	unsigned long long	u_int64_t;
 #endif
 #endif /* __FreeBSD__ */
+#endif
+
+#ifdef SOLARIS
+#define	__P(p) p
+#define __BEGIN_DECLS
+#define __END_DECLS
 #endif
 
 #define	MAX_PAGE_NUMBER	0xffffffff	/* >= # of pages in a file */

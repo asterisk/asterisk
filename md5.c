@@ -8,6 +8,9 @@
 #  include <sys/endian.h>
 #elif defined( BSD ) && ( BSD >= 199103 ) || defined(__APPLE__)
 #  include <machine/endian.h>
+#elif defined( __sparc__ ) && defined( SOLARIS )
+#  define BIG_ENDIAN 4321
+#  define BYTE_ORDER BIG_ENDIAN
 #else
 #  include <endian.h>
 #endif

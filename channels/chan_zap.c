@@ -42,7 +42,9 @@
 #include <sys/signal.h>
 #include <errno.h>
 #include <stdlib.h>
+#ifndef SOLARIS
 #include <stdint.h>
+#endif
 #include <unistd.h>
 #include <sys/ioctl.h>
 #ifdef __linux__
