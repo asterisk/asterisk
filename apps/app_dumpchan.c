@@ -26,8 +26,12 @@
 static char *tdesc = "Dump Info About The Calling Channel";
 static char *app = "DumpChan";
 static char *synopsis = "Dump Info About The Calling Channel";
-static char *desc = "Usage: exten => 1,1,DumpChan([<min_verbose_level>])\n\n"
-"If optional min_verbose_level is specified, only dump data when that verbose level is set.\n\n";
+static char *desc = 
+"   DumpChan([<min_verbose_level>])\n"
+"Displays information on channel and listing of all channel\n"
+"variables.  If min_verbose_level is specified, output is only\n"
+"display when the verbose level is currently set to that number\n"
+"or greater.  Always returns 0.\n\n";
 
 STANDARD_LOCAL_USER;
 
@@ -103,7 +107,7 @@ static int ast_serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			 c->stack,
 			 (c->blocking ? c->blockproc : "(Not Blocking)"));
 
-	return 1;
+	return 0;
 }
 
 static int dumpchan_exec(struct ast_channel *chan, void *data)
