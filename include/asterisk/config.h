@@ -87,6 +87,14 @@ char *ast_variable_retrieve(struct ast_config *config, char *category, char *val
  */
 int ast_true(char *val);
 
+//! Make sure something is false
+/*!
+ * Determine falseness of a boolean value.
+ * This function checks to see whether a string passed to it is an indication of a negatirve value.  It checks to see if the string is "no", "false", "n", "f", and "0".  
+ * Returns 0 if the value of s is a NULL pointer, 0 on "truth", and -1 on falsehood.
+ */
+int ast_false(char *val);
+
 //! Check for category duplicates
 /*!
  * \param config which config to use
