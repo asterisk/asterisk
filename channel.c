@@ -733,7 +733,8 @@ int ast_answer(struct ast_channel *chan)
 void ast_deactivate_generator(struct ast_channel *chan)
 {
 	if (chan->generatordata) {
-		chan->generator->release(chan, chan->generatordata);
+		if (chan->generator && chan->generator->release) 
+			chan->generator->release(chan, chan->generatordata);
 		chan->generatordata = NULL;
 		chan->generator = NULL;
 		chan->writeinterrupt = 0;
@@ -743,7 +744,8 @@ void ast_deactivate_generator(struct ast_channel *chan)
 int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, void *params)
 {
 	if (chan->generatordata) {
-		chan->generator->release(chan, chan->generatordata);
+		if (chan->generator && chan->generator->release)
+			chan->generator->release(chan, chan->generatordata);
 		chan->generatordata = NULL;
 	}
 	ast_prod(chan);
