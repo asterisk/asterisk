@@ -20,6 +20,7 @@
 #include <asterisk/file.h>
 #include <asterisk/callerid.h>
 #include <asterisk/cdr.h>
+#include <asterisk/config.h>
 #include <asterisk/term.h>
 #include <asterisk/manager.h>
 #include <asterisk/ast_expr.h>
@@ -156,6 +157,7 @@ static int pbx_builtin_rtimeout(struct ast_channel *, void *);
 static int pbx_builtin_atimeout(struct ast_channel *, void *);
 static int pbx_builtin_wait(struct ast_channel *, void *);
 static int pbx_builtin_setlanguage(struct ast_channel *, void *);
+static int pbx_builtin_resetcdr(struct ast_channel *, void *);
 static int pbx_builtin_setaccount(struct ast_channel *, void *);
 static int pbx_builtin_ringing(struct ast_channel *, void *);
 static int pbx_builtin_congestion(struct ast_channel *, void *);
@@ -262,6 +264,12 @@ static struct pbx_builtin {
 "executed will be priority 4 of 5551212. If  you  switch  into an  extension\n"
 "which has no first step, the PBX will treat it as though the user dialed an\n"
 "invalid extension.\n" },
+
+	{ "ResetCDR", pbx_builtin_resetcdr,
+"Resets the Call Data Record",
+"  ResetCDR([options]):  Causes the Call Data Record to be reset, optionally\n"
+"storing the current CDR  before zeroing it out (if 'w' option is specifed).\n"
+"record WILL be stored.  Always returns 0.\n"  },
 
 	{ "ResponseTimeout", pbx_builtin_rtimeout,
 "Set maximum timeout awaiting response",
@@ -4063,6 +4071,16 @@ static int pbx_builtin_setlanguage(struct ast_channel *chan, void *data)
 {
 	/* Copy the language as specified */
 	strncpy(chan->language, (char *)data, sizeof(chan->language)-1);
+	return 0;
+}
+
+static int pbx_builtin_resetcdr(struct ast_channel *chan, void *data)
+{
+	/* Reset the CDR as specified */
+	if (data)
+		ast_cdr_reset(chan->cdr, strchr((char *)data, 'w') ? 1 : 0);
+	else
+		ast_cdr_reset(chan->cdr, 0);
 	return 0;
 }
 
