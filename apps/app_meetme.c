@@ -84,7 +84,8 @@ static char *descrip =
 "        (Note: This does not work with non-Zap channels in the same conference)\n"
 "      's' -- Present menu (user or admin) when '*' is received ('send' to menu)\n"
 "      'a' -- set admin mode\n"
-"      'A' -- set marked mode\n";
+"      'A' -- set marked mode\n"
+"      'P' -- always prompt for the pin even if it is specified\n";
 
 static char *descrip2 =
 "  MeetMeCount(confno[|var]): Plays back the number of users in the specifiedi\n"
@@ -1324,6 +1325,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	int confflags = 0;
 	int dynamic = 0;
 	int empty = 0, empty_no_pin = 0;
+	int always_prompt = 0;
 	char *notdata, *info, *inflags = NULL, *inpin = NULL, the_pin[AST_MAX_EXTENSION] = "";
 
 	if (!data || ast_strlen_zero(data)) {
@@ -1397,6 +1399,8 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			empty = 1;
 			empty_no_pin = 1;
 		}
+		if (strchr(inflags, 'P'))
+			always_prompt = 1;
 	}
 
 	do {
@@ -1529,7 +1533,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 
 					/* Allow the pin to be retried up to 3 times */
 					for (j=0; j<3; j++) {
-						if (*the_pin) {
+						if (*the_pin && (always_prompt==0)) {
 							strncpy(pin, the_pin, sizeof(pin) - 1);
 							res = 0;
 						} else {
@@ -1563,7 +1567,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 						}
 
 						/* Don't retry pin with a static pin */
-						if (*the_pin) {
+						if (*the_pin && (always_prompt==0)) {
 							break;
 						}
 					}
