@@ -47,7 +47,9 @@ CHANH323LIB=-ldl
 endif
 
 ifneq (${OSARCH},Darwin)
+ifneq (${OSARCH},FreeBSD)
 CHANNEL_LIBS+=chan_oss.so
+endif
 endif
 
 CHANNEL_LIBS+=$(shell [ -f /usr/include/linux/ixjuser.h ] && echo chan_phone.so)

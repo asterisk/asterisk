@@ -30,7 +30,9 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_mp3.so\
      app_groupcount.so
 
 ifneq (${OSARCH},Darwin)
+ifneq (${OSARCH},FreeBSD)
 APPS+=app_intercom.so
+endif
 endif
 
 #APPS+=app_sql_postgres.so
