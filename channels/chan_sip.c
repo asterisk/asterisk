@@ -4887,7 +4887,7 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 			return 0;
 		else
 			ast_log(LOG_NOTICE, "Supervised transfer requested, but unable to find callid '%s'\n", tmp5);
-	} else if (ast_exists_extension(NULL, p->context, c, 1, NULL)) {
+	} else if (ast_exists_extension(NULL, p->context, c, 1, NULL) || !strcmp(c, ast_parking_ext())) {
 		/* This is an unsupervised transfer */
 		ast_log(LOG_DEBUG,"Assigning Extension %s to REFER-TO\n", c);
 		ast_log(LOG_DEBUG,"Assigning Extension %s to REFERRED-BY\n", c2);
@@ -6625,6 +6625,87 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	}
 }
 
+struct sip_dual {
+	struct ast_channel *chan1;
+	struct ast_channel *chan2;
+};
+
+static void *sip_park_thread(void *stuff)
+{
+	struct ast_channel *chan1, *chan2;
+	struct sip_dual *d;
+	int ext;
+	int res;
+	d = stuff;
+	chan1 = d->chan1;
+	chan2 = d->chan2;
+	free(d);
+	ast_mutex_lock(&chan1->lock);
+	ast_do_masquerade(chan1);
+	ast_mutex_unlock(&chan1->lock);
+	res = ast_park_call(chan1, chan2, 0, &ext);
+	ast_hangup(chan2);
+	ast_log(LOG_DEBUG, "Parked on extension '%d'\n", ext);
+	return NULL;
+}
+
+static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2)
+{
+	struct sip_dual *d;
+	struct ast_channel *chan1m, *chan2m;
+	pthread_t th;
+	chan1m = ast_channel_alloc(0);
+	chan2m = ast_channel_alloc(0);
+	if (chan2m && chan1m) {
+		snprintf(chan1m->name, sizeof(chan1m->name), "Parking/%s", chan1->name);
+		/* Make formats okay */
+		chan1m->readformat = chan1->readformat;
+		chan1m->writeformat = chan1->writeformat;
+		ast_channel_masquerade(chan1m, chan1);
+		/* Setup the extensions and such */
+		strncpy(chan1m->context, chan1->context, sizeof(chan1m->context) - 1);
+		strncpy(chan1m->exten, chan1->exten, sizeof(chan1m->exten) - 1);
+		chan1m->priority = chan1->priority;
+		
+		/* We make a clone of the peer channel too, so we can play
+		   back the announcement */
+		snprintf(chan2m->name, sizeof (chan2m->name), "SIPPeer/%s",chan2->name);
+		/* Make formats okay */
+		chan2m->readformat = chan2->readformat;
+		chan2m->writeformat = chan2->writeformat;
+		ast_channel_masquerade(chan2m, chan2);
+		/* Setup the extensions and such */
+		strncpy(chan2m->context, chan2->context, sizeof(chan2m->context) - 1);
+		strncpy(chan2m->exten, chan2->exten, sizeof(chan2m->exten) - 1);
+		chan2m->priority = chan2->priority;
+		ast_mutex_lock(&chan2m->lock);
+		if (ast_do_masquerade(chan2m)) {
+			ast_log(LOG_WARNING, "Masquerade failed :(\n");
+			ast_mutex_unlock(&chan2m->lock);
+			ast_hangup(chan2m);
+			return -1;
+		}
+		ast_mutex_unlock(&chan2m->lock);
+	} else {
+		if (chan1m)
+			ast_hangup(chan1m);
+		if (chan2m)
+			ast_hangup(chan2m);
+		return -1;
+	}
+	d = malloc(sizeof(struct sip_dual));
+	if (d) {
+		memset(d, 0, sizeof(*d));
+		d->chan1 = chan1m;
+		d->chan2 = chan2m;
+		if (!pthread_create(&th, NULL, sip_park_thread, d))
+			return 0;
+		free(d);
+	}
+	return -1;
+}
+
+
 /*--- attempt_transfer: Attempt transfer of SIP call ---*/
 static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 {
@@ -6663,7 +6744,7 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 
 /*--- handle_request: Handle SIP requests (methods) ---*/
 /*      this is where all incoming requests go first   */
-static int handle_request(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int *recount)
+static int handle_request(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int *recount, int *nounlock)
 {
 	/* Called with p->lock held, as well as p->owner->lock if appropriate, keeping things
 	   relatively static */
@@ -6948,6 +7029,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		else if (res > 0)
 			transmit_response_with_allow(p, "484 Address Incomplete", req, 1);
 		else {
+			int nobye = 0;
 			transmit_response(p, "202 Accepted", req);
 			if (!ignore) {
 				if (p->refer_call) {
@@ -6965,7 +7047,20 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 						transfer_to = c->bridge;
 						if (transfer_to) {
 							ast_moh_stop(transfer_to);
-							ast_async_goto(transfer_to,p->context, p->refer_to,1);
+							if (!strcmp(p->refer_to, ast_parking_ext())) {
+								/* Must release c's lock now, because it will not longer
+								    be accessible after the transfer! */
+								*nounlock = 1;
+								ast_mutex_unlock(&c->lock);
+								sip_park(transfer_to, c);
+								nobye = 1;
+							} else {
+								/* Must release c's lock now, because it will not longer
+								    be accessible after the transfer! */
+								*nounlock = 1;
+								ast_mutex_unlock(&c->lock);
+								ast_async_goto(transfer_to,p->context, p->refer_to,1);
+							}
 						} else {
 							ast_queue_hangup(p->owner);
 						}
@@ -6973,8 +7068,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 					p->gotrefer = 1;
 				}
 				/* Always increment on a BYE */
-				transmit_request_with_auth(p, "BYE", 0, 1, 1);
-				p->alreadygone = 1;
+				if (!nobye) {
+					transmit_request_with_auth(p, "BYE", 0, 1, 1);
+					p->alreadygone = 1;
+				}
 			}
 		}
 	} else if (!strcasecmp(cmd, "CANCEL")) {
@@ -7196,6 +7293,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	struct sip_pvt *p;
 	int res;
 	int len;
+	int nounlock;
 	int recount = 0;
 	int debug=sip_debug_test_addr(&sin);
 
@@ -7238,8 +7336,9 @@ retrylock:
 		}
 		memcpy(&p->recv, &sin, sizeof(p->recv));
 		append_history(p, "Rx", req.data);
-		handle_request(p, &req, &sin, &recount);
-		if (p->owner)
+		nounlock = 0;
+		handle_request(p, &req, &sin, &recount, &nounlock);
+		if (p->owner && !nounlock)
 			ast_mutex_unlock(&p->owner->lock);
 		ast_mutex_unlock(&p->lock);
 	}

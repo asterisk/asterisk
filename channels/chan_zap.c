@@ -613,7 +613,7 @@ static int hangup_pri2cause(int cause)
 			return AST_CAUSE_UNALLOCATED;
 		case PRI_CAUSE_NO_USER_RESPONSE:
 		case PRI_CAUSE_NO_ANSWER:
-			return AST_CAUSE_NO_ANSWER;
+			return AST_CAUSE_NOANSWER;
 		default:
 			return AST_CAUSE_FAILURE;
 	}
