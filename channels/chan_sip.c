@@ -5314,7 +5314,8 @@ static int get_rpid_num(char *input,char *output, int maxlen)
 	end = strchr(output,'@');
 	if (end)
 		*end = '\0';
-
+	else
+		output[0] = '\0';
 	if(strstr(input,"privacy=full") || strstr(input,"privacy=uri"))
 		return 1;
 
