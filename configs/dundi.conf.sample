@@ -1,5 +1,7 @@
 ;
 ; DUNDi configuration file
+; 
+; For more information about DUNDi, see http://www.dundi.com
 ;
 ;
 [general]
@@ -83,7 +85,8 @@ autokill=yes
 ; 'weight' is the weight to use for the responses provided from this
 ; mapping.  The number must be >= 0 and < 60000.  Since it is totally
 ; valid to receive multiple reponses to a query, responses received
-; with a lower weight are tried first.
+; with a lower weight are tried first.  Note that the weight has a
+; special meaning in the e164 context - see the GPA for more details.
 ;
 ; 'tech' is the technology to use (IAX, SIP, H323)
 ;
