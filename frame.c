@@ -38,6 +38,7 @@ struct ast_smoother {
 	int format;
 	int readdata;
 	int optimizablestream;
+	int flags;
 	float samplesperbyte;
 	struct ast_frame f;
 	struct timeval delivery;
@@ -64,6 +65,16 @@ struct ast_smoother *ast_smoother_new(int size)
 	return s;
 }
 
+int ast_smoother_get_flags(struct ast_smoother *s)
+{
+	return s->flags;
+}
+
+void ast_smoother_set_flags(struct ast_smoother *s, int flags)
+{
+	s->flags = flags;
+}
+
 int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f)
 {
 	if (f->frametype != AST_FRAME_VOICE) {
@@ -81,7 +92,8 @@ int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Out of smoother space\n");
 		return -1;
 	}
-	if ((f->datalen == s->size) && !s->opt && (f->offset >= AST_MIN_OFFSET)) {
+	if (((f->datalen == s->size) || ((f->datalen == 2) && (s->flags & AST_SMOOTHER_FLAG_G729)))
+				 && !s->opt && (f->offset >= AST_MIN_OFFSET)) {
 		if (!s->len) {
 			/* Optimize by sending the frame we just got
 			   on the next read, thus eliminating the douple
@@ -103,6 +115,12 @@ int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f)
 		}
 	} else 
 		s->optimizablestream = 0;
+	if (s->flags & AST_SMOOTHER_FLAG_G729) {
+		if (s->len % 10) {
+			ast_log(LOG_NOTICE, "Dropping extra frame of G.729 since we already have a VAD frame at the end\n");
+			return 0;
+		}
+	}
 	memcpy(s->data + s->len, f->data, f->datalen);
 	/* If we're empty, reset delivery time */
 	if (!s->len)
@@ -114,7 +132,7 @@ int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f)
 struct ast_frame *ast_smoother_read(struct ast_smoother *s)
 {
 	struct ast_frame *opt;
-
+	int len;
 	/* IF we have an optimization frame, send it */
 	if (s->opt) {
 		opt = s->opt;
@@ -124,24 +142,32 @@ struct ast_frame *ast_smoother_read(struct ast_smoother *s)
 
 	/* Make sure we have enough data */
 	if (s->len < s->size) {
-		return NULL;
+		/* Or, if this is a G.729 frame with VAD on it, send it immediately anyway */
+		if (!((s->flags & AST_SMOOTHER_FLAG_G729) && (s->size % 10)))
+			return NULL;
 	}
+	len = s->size;
+	if (len > s->len)
+		len = s->len;
 	/* Make frame */
 	s->f.frametype = AST_FRAME_VOICE;
 	s->f.subclass = s->format;
 	s->f.data = s->framedata + AST_FRIENDLY_OFFSET;
 	s->f.offset = AST_FRIENDLY_OFFSET;
-	s->f.datalen = s->size;
-	s->f.samples = s->size * s->samplesperbyte;
+	s->f.datalen = len;
+	/* Samples will be improper given VAD, but with VAD the concept really doesn't even exist */
+	s->f.samples = len * s->samplesperbyte;
 	s->f.delivery = s->delivery;
 	/* Fill Data */
-	memcpy(s->f.data, s->data, s->size);
-	s->len -= s->size;
+	memcpy(s->f.data, s->data, len);
+	s->len -= len;
 	/* Move remaining data to the front if applicable */
 	if (s->len) {
-		memmove(s->data, s->data + s->size, s->len);
-		s->delivery.tv_sec += (s->size * s->samplesperbyte) / 8000.0;
-		s->delivery.tv_usec += (((int)(s->size * s->samplesperbyte)) % 8000) * 125;
+		/* In principle this should all be fine because if we are sending
+		   G.729 VAD, the next timestamp will take over anyawy */
+		memmove(s->data, s->data + len, s->len);
+		s->delivery.tv_sec += (len * s->samplesperbyte) / 8000.0;
+		s->delivery.tv_usec += (((int)(len * s->samplesperbyte)) % 8000) * 125;
 		if (s->delivery.tv_usec > 1000000) {
 			s->delivery.tv_usec -= 1000000;
 			s->delivery.tv_sec += 1;

@@ -210,6 +210,8 @@ struct ast_frame_chain {
 /*! Indicate CALL_PROCEEDING or PROGRESS */
 #define AST_CONTROL_PROGRESS            14
 
+#define AST_SMOOTHER_FLAG_G729		(1 << 0)
+
 /* Option identifiers and flags */
 #define AST_OPTION_FLAG_REQUEST		0
 #define AST_OPTION_FLAG_ACCEPT		1
@@ -345,6 +347,8 @@ extern int ast_best_codec(int fmts);
 struct ast_smoother;
 
 extern struct ast_smoother *ast_smoother_new(int bytes);
+extern void ast_smoother_set_flags(struct ast_smoother *smoother, int flags);
+extern int ast_smoother_get_flags(struct ast_smoother *smoother);
 extern void ast_smoother_free(struct ast_smoother *s);
 extern void ast_smoother_reset(struct ast_smoother *s, int bytes);
 extern int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f);

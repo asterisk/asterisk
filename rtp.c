@@ -1083,6 +1083,8 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 	case AST_FORMAT_G729A:
 		if (!rtp->smoother) {
 			rtp->smoother = ast_smoother_new(20);
+			if (rtp->smoother)
+				ast_smoother_set_flags(rtp->smoother, AST_SMOOTHER_FLAG_G729);
 		}
 		if (!rtp->smoother) {
 			ast_log(LOG_WARNING, "Unable to create g729 smoother :(\n");
