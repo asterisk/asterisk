@@ -66,6 +66,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
                                 ; yes = Always ignore info and assume NAT
                                 ; no = Use NAT mode only according to RFC3581 
                                 ; never = Never attempt NAT mode or RFC3581 support
+				; route = Assume NAT, don't send rport (work around more UNIDEN bugs)
 ;promiscredir = no      ; If yes, allows 302 or REDIR to non-local SIP address
 ;                       ; Note that promiscredir when redirects are made to the
 ;                       ; local system will cause loops since SIP is incapable
