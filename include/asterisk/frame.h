@@ -192,6 +192,8 @@ struct ast_frame_chain {
 #define AST_FORMAT_H261		(1 << 18)
 /*! H.263 Video */
 #define AST_FORMAT_H263		(1 << 19)
+/*! H.263+ Video */
+#define AST_FORMAT_H263_PLUS	(1 << 20)
 /*! Max one */
 #define AST_FORMAT_MAX_VIDEO	(1 << 24)
 
