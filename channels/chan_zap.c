@@ -2066,6 +2066,7 @@ static int zt_answer(struct ast_channel *ast)
 	case SIG_PRI:
 		/* Send a pri acknowledge */
 		if (!pri_grab(p, p->pri)) {
+			p->proceeding = 1;
 			res = pri_answer(p->pri->pri, p->call, 0, 1);
 			pri_rel(p->pri);
 		} else {
@@ -3883,6 +3884,17 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_BUSY);
 			break;
 		case AST_CONTROL_RINGING:
+			if (!p->proceeding && p->sig==SIG_PRI && p->pri && p->pri->overlapdial) {
+				if (p->pri->pri) {		
+					if (!pri_grab(p, p->pri)) {
+						pri_acknowledge(p->pri->pri,p->call, p->prioffset, 1);
+						pri_rel(p->pri);
+					}
+					else
+						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+				}
+				p->proceeding=1;
+			}
 			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_RINGTONE);
 			if (chan->_state != AST_STATE_UP) {
 				if ((chan->_state != AST_STATE_RING) ||
