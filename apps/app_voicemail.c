@@ -3872,13 +3872,13 @@ out:
 	}
 	if (vmu)
 		close_mailbox(&vms, vmu);
-	if (vmu)
-		free_user(vmu);
 	if (valid) {
 		snprintf(ext_context, sizeof(ext_context), "%s@%s", vms.username, vmu->context);
 		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, ast_app_has_voicemail(ext_context));
 		run_externnotify(chan->context, ext_context);
 	}
+	if (vmu)
+		free_user(vmu);
 	LOCAL_USER_REMOVE(u);
 
 	return res;
