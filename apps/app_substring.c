@@ -33,13 +33,16 @@ static char *descrip =
 "of string_of_digits to a given variable. Parameter count1 may be positive\n"
 "or negative. If it's positive then we skip the first count1 digits from the\n"
 "left. If it's negative, we move count1 digits counting from the end of\n"
-"the string to the left. Parameter count2 may be only positive and implies\n"
-"how many digits we're taking from the point that count1 placed us.\n"
+"the string to the left. Parameter count2 implies how many digits we are\n"
+"taking from the point that count1 placed us. If count2 is negative, then\n"
+"that many digits are omitted from the end.\n"
 "For example:\n"
 "exten => _NXXXXXX,1,SubString,test=2564286161|0|3\n"
 "assigns the area code (3 first digits) to variable test.\n"
 "exten => _NXXXXXX,1,SubString,test=2564286161|-7|7\n"
 "assigns the last 7 digits to variable test.\n"
+"exten => _NXXXXXX,1,SubString,test=2564286161|0|-4\n" 
+"assigns all but the last 4 digits to variable test.\n" 
 "If there are no parameters it'll return with -1.\n"
 "If there wrong parameters it go on and return with 0\n";
 
@@ -71,9 +74,8 @@ static int substring_exec(struct ast_channel *chan, void *data)
     }
     icount1=atoi(count1);
     icount2=atoi(count2);
-    if (icount2<=0) {
-      ast_log(LOG_DEBUG, "Exiting, wrong parameter count2\n");
-      return -1;
+	if (icount2<0) {
+	  icount2 = icount2 + strlen(second);
     }
     if (abs(icount1)>strlen(second)) {
       ast_log(LOG_WARNING, "Limiting count1 parameter because it exceeds the length of the string\n");
