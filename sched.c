@@ -225,7 +225,7 @@ int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, vo
 	struct sched *tmp;
 	DEBUG(ast_log(LOG_DEBUG, "ast_sched_add()\n"));
 	if (!when) {
-		ast_log(LOG_NOTICE, "Scheduled event in 0 ms?");
+		ast_log(LOG_NOTICE, "Scheduled event in 0 ms?\n");
 		return -1;
 	}
 	if ((tmp = sched_alloc(con))) {
