@@ -11,6 +11,7 @@
  * the GNU General Public License
  */
 
+#include <asterisk/lock.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -20,6 +21,7 @@
 #include <asterisk/translate.h>
 #include <asterisk/say.h>
 #include <asterisk/parking.h>
+#include <asterisk/musiconhold.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -39,7 +41,7 @@ static char *app = "Dial";
 static char *synopsis = "Place an call and connect to the current channel";
 
 static char *descrip =
-"  Dial(Technology/resource[&Technology2/resource2...][|timeout][|transfer]):\n"
+"  Dial(Technology/resource[&Technology2/resource2...][|timeout][|options]):\n"
 "Requests  one  or more channels and places specified outgoing calls on them.\n"
 "As soon as a  channel  answers, the  Dial  app  will  answer the originating\n"
 "channel (if it needs to be answered) and will bridge a call with the channel\n"
@@ -54,8 +56,11 @@ static char *descrip =
 "no-answer).\n"
 "  This application returns -1 if the originating channel hangs up, or if the\n"
 "call is bridged and  either of the parties in the bridge terminate the call.\n"
-"The transfer string may contain  a  't' to  allow the called user transfer a\n"
-"call or 'T' to allow the calling user to transfer the call.\n"
+"The option string may contain zero or more of the following characters:\n"
+"      't' -- allow the called user transfer the calling user\n"
+"      'T' -- to allow the calling user to transfer the call.\n"
+"      'r' -- indicate ringing to the calling party, pass no audio until answered.\n"
+"      'm' -- provide hold music to the calling party until answered.\n"
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n";
 
@@ -67,6 +72,8 @@ struct localuser {
 	struct ast_channel *chan;
 	int stillgoing;
 	int allowredirect;
+	int ringbackonly;
+	int musiconhold;
 	struct localuser *next;
 };
 
@@ -101,6 +108,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 	struct ast_channel *watchers[MAX];
 	int pos;
 	int single;
+	int moh=0;
+	int ringind=0;
 	struct ast_channel *winner;
 	
 	single = (outgoing && !outgoing->next);
@@ -108,6 +117,16 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 	if (single) {
 		/* If we are calling a single channel, make them compatible for in-band tone purpose */
 		ast_channel_make_compatible(outgoing->chan, in);
+	}
+	
+	if (outgoing) {
+		moh = outgoing->musiconhold;
+		ringind = outgoing->ringbackonly;
+		if (outgoing->musiconhold) {
+			ast_moh_start(in, NULL);
+		} else if (outgoing->ringbackonly) {
+			ast_indicate(in, AST_CONTROL_RINGING);
+		}
 	}
 	
 	while(*to && !peer) {
@@ -186,10 +205,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						default:
 							ast_log(LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
 						}
-					} else if (single && (f->frametype == AST_FRAME_VOICE)) {
+					} else if (single && (f->frametype == AST_FRAME_VOICE) && 
+								!(outgoing->ringbackonly || outgoing->musiconhold)) {
 						if (ast_write(in, f)) 
 							ast_log(LOG_WARNING, "Unable to forward frame\n");
-					} else if (single && (f->frametype == AST_FRAME_IMAGE)) {
+					} else if (single && (f->frametype == AST_FRAME_IMAGE) && 
+								!(outgoing->ringbackonly || outgoing->musiconhold)) {
 						if (ast_write(in, f))
 							ast_log(LOG_WARNING, "Unable to forward image\n");
 					}
@@ -217,6 +238,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 		if (!*to && (option_verbose > 2))
 			ast_verbose( VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", orig);
 	}
+	if (moh) {
+		ast_moh_stop(in);
+	} else if (ringind) {
+		ast_indicate(in, -1);
+	}
+
 	return peer;
 	
 }
@@ -290,10 +317,15 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "Out of memory\n");
 			goto out;
 		}
-		if (transfer && (strchr(transfer, 't')))
-			tmp->allowredirect = 1;
-		else
-			tmp->allowredirect = 0;
+		memset(tmp, 0, sizeof(struct localuser));
+		if (transfer) {
+			if (strchr(transfer, 't'))
+				tmp->allowredirect = 1;
+			if (strchr(transfer, 'r'))
+				tmp->ringbackonly = 1;
+			if (strchr(transfer, 'm'))
+				tmp->musiconhold = 1;
+		}
 		strncpy(numsubst, number, sizeof(numsubst)-1);
 		/* If we're dialing by extension, look at the extension to know what to dial */
 		if ((newnum = strstr(numsubst, "BYEXTENSION"))) {
