@@ -4850,7 +4850,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			if (res) {
 				if (res < 0) {
 					ast_log(LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
-					sip_destroy(p);
+					p->needdestroy = 1;
 				}
 				return 0;
 			}
@@ -4865,9 +4865,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 					transmit_response(p, "404 Not Found", req);
 				else
 					transmit_response(p, "484 Address Incomplete", req);
-				sip_destroy(p);
-				p = NULL;
-				c = NULL;
+				p->needdestroy = 1;
 			} else {
 				/* Initialize tag */	
 				p->tag = rand();
@@ -4887,7 +4885,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		if (p) {
 		    if (!(p->expiry = atoi(get_header(req, "Expires")))) {
 			transmit_response(p, "200 OK", req);
-			sip_destroy(p);	
+			p->needdestroy = 1;
 			return 0;
 		    }
 		    // The next line can be removed if the SNOM200 Expires bug is fixed
