@@ -87,7 +87,6 @@ typedef struct call_options {
 	int				noFastStart;
 	int				noH245Tunnelling;
 	int				noSilenceSuppression;
-	int				jitter;
 	unsigned int	port;
 } call_options_t;
 
@@ -164,7 +163,7 @@ extern "C" {
 	int h323_set_gk(int, char *, char *);
 
 	/* H323 listener related funcions */
-	int h323_start_listener(int, struct sockaddr_in, int);
+	int h323_start_listener(int, struct sockaddr_in);
 
 	void h323_native_bridge(const char *, char *, char *);
 

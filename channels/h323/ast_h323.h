@@ -125,7 +125,7 @@ class MyH323Connection : public H323Connection {
 	PCLASSINFO(MyH323Connection, H323Connection);
 
 	public:
-	MyH323Connection(MyH323EndPoint &, unsigned, unsigned, WORD);
+	MyH323Connection(MyH323EndPoint &, unsigned, unsigned);
 	~MyH323Connection();
 
 	H323Channel * CreateRealTimeLogicalChannel(const H323Capability &, H323Channel::Directions, unsigned, 

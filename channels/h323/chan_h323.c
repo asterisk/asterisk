@@ -72,7 +72,6 @@ static int	gatekeeper_disable = 1;
 static int	gatekeeper_discover = 0;
 static int  usingGk;
 static int	port = 1720;
-static int	jitter;
 static int  gkroute = 0;
 
 /* Just about everybody seems to support ulaw, so make it a nice default */
@@ -204,7 +203,7 @@ static struct oh323_alias *build_alias(char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "context")) {
 				strncpy(alias->context,  v->value, sizeof(alias->context)-1);
 			} else if (!strcasecmp(v->name, "secret")) {
-				strncpy(alias->prefix,  v->value, sizeof(alias->secret)-1);
+				strncpy(alias->secret,  v->value, sizeof(alias->secret)-1);
 			}
 			v = v->next;
 		}
@@ -1340,14 +1339,7 @@ int reload_config()
 	v = ast_variable_browse(cfg, "general");
 	while(v) {
 		/* Create the interface list */
-		if (!strcasecmp(v->name, "jitter")) {
-			jitter = (int) strtol(v->value, NULL, 10);
-			if (jitter < 20 || jitter > 10000) {
-				ast_log(LOG_NOTICE, "Invalid jitter value! Valid range: 20ms to 10000ms. Recommended: 100ms");
-				ast_destroy(cfg);
-				return 0;
-			} 
-		} else if (!strcasecmp(v->name, "port")) {
+		if (!strcasecmp(v->name, "port")) {
 			port = (int)strtol(v->value, NULL, 10);
 		} else if (!strcasecmp(v->name, "bindaddr")) {
 			if (!(hp = gethostbyname(v->value))) {
@@ -1643,7 +1635,7 @@ int load_module()
 							   connection_made, send_digit);	
 	
 		/* start the h.323 listener */
-		if (h323_start_listener(port, bindaddr, jitter)) {
+		if (h323_start_listener(port, bindaddr)) {
 			ast_log(LOG_ERROR, "Unable to create H323 listener.\n");
 //			h323_end_process();
 			return -1;

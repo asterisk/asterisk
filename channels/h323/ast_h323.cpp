@@ -44,7 +44,6 @@ int mode = H323_DTMF_RFC2833;
 BOOL	noFastStart;
 BOOL	noH245Tunnelling;
 BOOL	noSilenceSuppression;
-WORD	jitter;
 
 /**
  * We assume that only one endPoint should exist.
@@ -382,17 +381,17 @@ H323Connection * MyH323EndPoint::CreateConnection(unsigned callReference, void *
 	if (noH245Tunnelling)
 		options |= H323Connection::H245TunnelingOptionDisable;
 
-	return new MyH323Connection(*this, callReference, options, jitter);
+	return new MyH323Connection(*this, callReference, options);
 }
 
 
 /* MyH323Connection */    
 MyH323Connection::MyH323Connection(MyH323EndPoint & ep,
 										   unsigned callReference,
-									       unsigned options,
-										   WORD jitter): H323Connection(ep, 
-																		callReference, 
-																		options)
+									       unsigned options)
+										   : H323Connection(ep, 
+															callReference, 
+															options)
 {
     remoteIpAddress = 0; 	// IP Address of remote endpoint
 	remotePort		= 0;	// remote endpoint Data port (control is dataPort+1)
@@ -810,7 +809,7 @@ int h323_set_capability(int cap, int dtmfMode)
 }
 
 /** Start the H.323 listener */
-int h323_start_listener(int listenPort, struct sockaddr_in bindaddr, int _jitter)
+int h323_start_listener(int listenPort, struct sockaddr_in bindaddr)
 {
 	
 	if (!end_point_exist()) {
@@ -818,8 +817,6 @@ int h323_start_listener(int listenPort, struct sockaddr_in bindaddr, int _jitter
 		return 1;
 	}
 	
-	jitter = _jitter;
-
 	PIPSocket::Address interfaceAddress(bindaddr.sin_addr);
 
 	if (!listenPort)
@@ -921,7 +918,6 @@ int h323_set_gk(int gatekeeper_discover, char *gatekeeper, char *secret)
 		}
 	}
 	
-	cout << "end" << endl;
 	return 0;
 }
 

@@ -30,9 +30,6 @@ bindaddr = 0.0.0.0
 ;noH245Tunneling = no
 ;noSilenceSuppression = no
 ;
-; jitter buffer 
-;jitter = 100
-;
 ; User-Input Mode (DTMF)
 ;
 ; valid entries are:   rfc2833, inband
