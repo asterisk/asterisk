@@ -47,9 +47,7 @@ CHANH323LIB=-ldl
 endif
 
 ifneq (${OSARCH},Darwin)
-ifneq (${OSARCH},FreeBSD)
 CHANNEL_LIBS+=chan_oss.so
-endif
 endif
 
 CHANNEL_LIBS+=$(shell [ -f /usr/include/linux/ixjuser.h ] && echo chan_phone.so)
@@ -64,6 +62,7 @@ CFLAGS+=$(shell [ -f alsa-monitor.h ] && echo " -DALSA_MONITOR")
 ZAPPRI=$(shell [ -f /usr/lib/libpri.so.1 ] && echo "-lpri")
 ZAPR2=$(shell [ -f /usr/lib/libmfcr2.so.1 ] && echo "-lmfcr2")
 CFLAGS+=$(shell [ -f /usr/include/linux/zaptel.h ] && echo "-DIAX_TRUNKING")
+# xxx CFLAGS+=$(shell [ -f /usr/local/include/zaptel.h ] && echo "-DIAX_TRUNKING")
 CHANNEL_LIBS+=$(shell [ -f /usr/include/vpbapi.h ] && echo "chan_vpb.so" )
 CFLAGS+=$(shell [ -f /usr/include/vpbapi.h ] && echo " -DLINUX")
 

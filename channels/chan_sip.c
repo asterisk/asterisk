@@ -150,6 +150,10 @@ static int autocreatepeer = 0;
 
 static int relaxdtmf = 0;
 
+static int globalrtptimeout = 0;
+
+static int globalrtpholdtimeout = 0;
+
 static int usecnt =0;
 static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
@@ -314,6 +318,9 @@ static struct sip_pvt {
 	int maxtime;				/* Max time for first response */
 	int initid;				/* Auto-congest ID if appropriate */
 	int autokillid;				/* Auto-kill ID */
+	time_t lastrtprx;			/* Last RTP received */
+	int rtptimeout;				/* RTP timeout time */
+	int rtpholdtimeout;			/* RTP timeout when on hold */
 
 	int subscribed;
     	int stateid;
@@ -396,6 +403,8 @@ struct sip_peer {
 	int expire;
 	int expiry;
 	int capability;
+	int rtptimeout;
+	int rtpholdtimeout;
 	int insecure;
 	int nat;
 	int canreinvite;
@@ -1519,7 +1528,7 @@ static int sip_hangup(struct ast_channel *ast)
 	ast_mutex_unlock(&usecnt_lock);
 	ast_update_use_count();
 
-	needdestroy = 1;
+	needdestroy = 1; 
 	/* Start the process if it's not already started */
 	if (!p->alreadygone && !ast_strlen_zero(p->initreq.data)) {
 		if (needcancel) {
@@ -1982,6 +1991,7 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 	struct sip_pvt *p = ast->pvt->pvt;
 	ast_mutex_lock(&p->lock);
 	fr = sip_rtp_read(ast, p);
+	time(&p->lastrtprx);
 	ast_mutex_unlock(&p->lock);
 	return fr;
 }
@@ -2059,6 +2069,8 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	/* Assign default music on hold class */
         strncpy(p->musicclass, globalmusicclass, sizeof(p->musicclass));
 	p->dtmfmode = globaldtmfmode;
+	p->rtptimeout = globalrtptimeout;
+	p->rtpholdtimeout = globalrtpholdtimeout;
 	p->capability = capability;
 	if (p->dtmfmode & SIP_DTMF_RFC2833)
 		p->noncodeccapability |= AST_RTP_DTMF;
@@ -2359,6 +2371,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int iterator;
 	int sendonly = 0;
 	int x;
+
+	/* Update our last rtprx when we receive an SDP, too */
+	time(&p->lastrtprx);
 
 	/* Get codec and RTP info from SDP */
 	if (strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
@@ -3181,6 +3196,8 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		add_line(resp, m2);
 		add_line(resp, a2);
 	}
+	/* Update lastrtprx when we send our SDP */
+	time(&p->lastrtprx);
 	return 0;
 }
 
@@ -5428,8 +5445,10 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
 		   }
 		   transmit_response(p, "200 OK", req);
 		   return;
+		} else {
+			transmit_response(p, "481 Call leg/transaction does not exist", req);
+			p->needdestroy = 1;
 		}
-		transmit_response(p, "481 Call leg/transaction does not exist", req);
 		return;
 	}
 	/* Other type of INFO message, not really understood by Asterisk */
@@ -6353,7 +6372,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			/* This call is no longer outgoing if it ever was */
 			p->outgoing = 0;
 			/* This also counts as a pending invite */
-			p->pendinginvite = 1;
+			p->pendinginvite = seqno;
 			copy_request(&p->initreq, req);
 			check_via(p, req);
 			if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
@@ -6675,7 +6694,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				ast_verbose("Receiving DTMF!\n");
 			receive_info(p, req);
 		}
-		transmit_response(p, "200 OK", req);
 	} else if (!strcasecmp(cmd, "REGISTER")) {
 		/* Use this as the basis */
 		if (sip_debug_test_pvt(p))
@@ -6690,16 +6708,16 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		    sip_scheddestroy(p, 15*1000);
 		}
 	} else if (!strcasecmp(cmd, "ACK")) {
-		/* Uhm, I haven't figured out the point of the ACK yet.  Are we
-		   supposed to retransmit responses until we get an ack? 
-		   Make sure this is on a valid call */
-		p->pendinginvite = 0;
-		__sip_ack(p, seqno, FLAG_RESPONSE);
-		if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
-			if (process_sdp(p, req))
-				return -1;
-		} 
-		check_pendings(p);
+		/* Make sure we don't ignore this */
+		if (seqno == p->pendinginvite) {
+			p->pendinginvite = 0;
+			__sip_ack(p, seqno, FLAG_RESPONSE);
+			if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
+				if (process_sdp(p, req))
+					return -1;
+			} 
+			check_pendings(p);
+		}
 		if (!p->lastinvite && ast_strlen_zero(p->randdata))
 			p->needdestroy = 1;
 	} else if (!strcasecmp(cmd, "SIP/2.0")) {
@@ -6857,9 +6875,35 @@ static void *do_monitor(void *data)
 		/* Check for interfaces needing to be killed */
 		ast_mutex_lock(&iflock);
 restartsearch:		
+		time(&t);
 		sip = iflist;
 		while(sip) {
 			ast_mutex_lock(&sip->lock);
+			if (sip->rtp && sip->lastrtprx && (sip->rtptimeout || sip->rtpholdtimeout)) {
+				if (t > sip->lastrtprx + sip->rtptimeout) {
+					/* Might be a timeout now -- see if we're on hold */
+					struct sockaddr_in sin;
+					ast_rtp_get_peer(sip->rtp, &sin);
+					if (sin.sin_addr.s_addr || 
+							(sip->rtpholdtimeout && 
+							  (t > sip->lastrtprx + sip->rtpholdtimeout))) {
+						/* Needs a hangup */
+						if (sip->rtptimeout) {
+							while(sip->owner && ast_mutex_trylock(&sip->owner->lock)) {
+								ast_mutex_unlock(&sip->lock);
+								usleep(1);
+								ast_mutex_lock(&sip->lock);
+							}
+							if (sip->owner) {
+								ast_log(LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n", sip->owner->name, (long)(t - sip->lastrtprx));
+								/* Issue a softhangup */
+								ast_softhangup(sip->owner, AST_SOFTHANGUP_DEV);
+								ast_mutex_unlock(&sip->owner->lock);
+							}
+						}
+					}
+				}
+			}
 			if (sip->needdestroy && !sip->packets) {
 				ast_mutex_unlock(&sip->lock);
 				__sip_destroy(sip, 1);
@@ -7262,6 +7306,8 @@ static struct sip_peer *temp_peer(char *name)
 	peer->canreinvite = globalcanreinvite;
 	peer->dtmfmode = globaldtmfmode;
 	peer->nat = globalnat;
+	peer->rtptimeout = globalrtptimeout;
+	peer->rtpholdtimeout = globalrtpholdtimeout;
 	peer->selfdestruct = 1;
 	peer->dynamic = 1;
 	reg_source_db(peer);
@@ -7320,6 +7366,8 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 		peer->capability = capability;
 		/* Assume can reinvite */
 		peer->canreinvite = globalcanreinvite;
+		peer->rtptimeout = globalrtptimeout;
+		peer->rtpholdtimeout = globalrtpholdtimeout;
 		peer->dtmfmode = 0;
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) 
@@ -7425,6 +7473,16 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 					peer->insecure = 1;
 				else
 					peer->insecure = 0;
+			} else if (!strcasecmp(v->name, "rtptimeout")) {
+				if ((sscanf(v->value, "%d", &peer->rtptimeout) != 1) || (peer->rtptimeout < 0)) {
+					ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
+					peer->rtptimeout = globalrtptimeout;
+				}
+			} else if (!strcasecmp(v->name, "rtpholdtimeout")) {
+				if ((sscanf(v->value, "%d", &peer->rtpholdtimeout) != 1) || (peer->rtpholdtimeout < 0)) {
+					ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
+					peer->rtpholdtimeout = globalrtpholdtimeout;
+				}
 			} else if (!strcasecmp(v->name, "qualify")) {
 				if (!strcasecmp(v->value, "no")) {
 					peer->maxms = 0;
@@ -7493,6 +7551,8 @@ static int reload_config(void)
 	globalcanreinvite = REINVITE_INVITE;
 	videosupport = 0;
 	relaxdtmf = 0;
+	globalrtptimeout = 0;
+	globalrtpholdtimeout = 0;
 	pedanticsipchecking=0;
 	v = ast_variable_browse(cfg, "general");
 	while(v) {
@@ -7516,6 +7576,16 @@ static int reload_config(void)
 			else {
 				ast_log(LOG_WARNING, "Unknown dtmf mode '%s', using rfc2833\n", v->value);
 				globaldtmfmode = SIP_DTMF_RFC2833;
+			}
+		} else if (!strcasecmp(v->name, "rtptimeout")) {
+			if ((sscanf(v->value, "%d", &globalrtptimeout) != 1) || (globalrtptimeout < 0)) {
+				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
+				globalrtptimeout = 0;
+			}
+		} else if (!strcasecmp(v->name, "rtpholdtimeout")) {
+			if ((sscanf(v->value, "%d", &globalrtpholdtimeout) != 1) || (globalrtpholdtimeout < 0)) {
+				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
+				globalrtpholdtimeout = 0;
 			}
 		} else if (!strcasecmp(v->name, "videosupport")) {
 			videosupport = ast_true(v->value);
