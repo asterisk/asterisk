@@ -172,7 +172,7 @@ int ast_app_has_voicemail(const char *mailbox)
 		context++;
 	} else
 		context = "default";
-	snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/INBOX", (char *)ast_config_AST_SPOOL_DIR, context, mailbox);
+	snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/INBOX", (char *)ast_config_AST_SPOOL_DIR, context, tmp);
 	dir = opendir(fn);
 	if (!dir)
 		return 0;
@@ -229,7 +229,7 @@ int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	} else
 		context = "default";
 	if (newmsgs) {
-		snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/INBOX", (char *)ast_config_AST_SPOOL_DIR, context, mailbox);
+		snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/INBOX", (char *)ast_config_AST_SPOOL_DIR, context, tmp);
 		dir = opendir(fn);
 		if (dir) {
 			while ((de = readdir(dir))) {
@@ -242,7 +242,7 @@ int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		}
 	}
 	if (oldmsgs) {
-		snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/Old", (char *)ast_config_AST_SPOOL_DIR, context, mailbox);
+		snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/Old", (char *)ast_config_AST_SPOOL_DIR, context, tmp);
 		dir = opendir(fn);
 		if (dir) {
 			while ((de = readdir(dir))) {
