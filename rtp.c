@@ -994,7 +994,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		}
 		/* Re-calculate last TS */
 		rtp->lastts = rtp->lastts + ms * 8;
-		if (!f->delivery.tv_sec && f->delivery.tv_usec) {
+		if (!f->delivery.tv_sec && !f->delivery.tv_usec) {
 			/* If this isn't an absolute delivery time, Check if it is close to our prediction, 
 			   and if so, go with our prediction */
 			if (abs(rtp->lastts - pred) < 640)
