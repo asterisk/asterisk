@@ -544,6 +544,12 @@ static struct zt_pvt {
 #endif	
 } *iflist = NULL, *ifend = NULL;
 
+#ifdef ZAPATA_PRI
+#define GET_CHANNEL(p) ((p)->bearer ? (p)->bearer->channel : p->channel)
+#else
+#define GET_CHANNEL(p) ((p)->channel)
+#endif
+
 struct zt_pvt *round_robin[32];
 
 #ifdef ZAPATA_PRI
@@ -1143,7 +1149,7 @@ static int update_conf(struct zt_pvt *p)
 	for (x=0;x<MAX_SLAVES;x++) {
 		if (p->slaves[x]) {
 			if (useslavenative)
-				conf_add(p, &p->slaves[x]->subs[SUB_REAL], SUB_REAL, p->bearer ? p->bearer->channel : p->channel);
+				conf_add(p, &p->slaves[x]->subs[SUB_REAL], SUB_REAL, GET_CHANNEL(p));
 			else {
 				conf_add(p, &p->slaves[x]->subs[SUB_REAL], SUB_REAL, 0);
 				needconf++;
@@ -1153,7 +1159,7 @@ static int update_conf(struct zt_pvt *p)
 	/* If we're supposed to be in there, do so now */
 	if (p->inconference && !p->subs[SUB_REAL].inthreeway) {
 		if (useslavenative)
-			conf_add(p, &p->subs[SUB_REAL], SUB_REAL, slave->bearer ? slave->bearer->channel : slave->channel);
+			conf_add(p, &p->subs[SUB_REAL], SUB_REAL, GET_CHANNEL(slave));
 		else {
 			conf_add(p, &p->subs[SUB_REAL], SUB_REAL, 0);
 			needconf++;
@@ -1162,7 +1168,7 @@ static int update_conf(struct zt_pvt *p)
 	/* If we have a master, add ourselves to his conference */
 	if (p->master) {
 		if (isslavenative(p->master, NULL)) {
-			conf_add(p->master, &p->subs[SUB_REAL], SUB_REAL, p->master->bearer ? p->master->bearer->channel : p->master->channel);
+			conf_add(p->master, &p->subs[SUB_REAL], SUB_REAL, GET_CHANNEL(p->master));
 		} else {
 			conf_add(p->master, &p->subs[SUB_REAL], SUB_REAL, 0);
 		}
