@@ -78,6 +78,7 @@ static int capability = -1;
 static unsigned int group;
 static int autologoff;
 static int wrapuptime;
+static int ackcall;
 
 static int usecnt =0;
 static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
@@ -91,6 +92,7 @@ static struct agent_pvt {
 	int pending;						/* Not a real agent -- just pending a match */
 	int abouttograb;					/* About to grab */
 	int autologoff;					/* Auto timeout time */
+	int ackcall;					/* ackcall */
 	time_t start;						/* When call started */
 	struct timeval lastdisc;			/* When last disconnected */
 	int wrapuptime;						/* Wrapup time in ms */
@@ -185,6 +187,7 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 	strncpy(p->password, password ? password : "", sizeof(p->password) - 1);
 	strncpy(p->name, name ? name : "", sizeof(p->name) - 1);
 	strncpy(p->moh, moh, sizeof(p->moh) - 1);
+	p->ackcall = ackcall;
 	p->autologoff = autologoff;
 	p->wrapuptime = wrapuptime;
 	if (pending)
@@ -237,11 +240,18 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 		}
 	}
 	if (f && (f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_ANSWER)) {
+/* TC */
+	if (p->ackcall) {
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "%s answered, waiting for '#' to acknowledge\n", p->chan->name);
 		/* Don't pass answer along */
 		ast_frfree(f);
 		f = &null_frame;
+        }
+        else {
+		p->acknowledged = 1;
+		f = &answer_frame;
+        }
 	}
 	if (f && (f->frametype == AST_FRAME_DTMF) && (f->subclass == '#')) {
 		if (!p->acknowledged) {
@@ -575,6 +585,7 @@ static int read_agent_config(void)
 	group = 0;
 	autologoff = 0;
 	wrapuptime = 0;
+	ackcall = 0;
 	cfg = ast_load(config);
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "No agent configuration found -- agent support disabled\n");
@@ -598,6 +609,8 @@ static int read_agent_config(void)
 			autologoff = atoi(v->value);
 			if (autologoff < 0)
 				autologoff = 0;
+		} else if (!strcasecmp(v->name, "ackcall")) {
+                        ackcall = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "wrapuptime")) {
 			wrapuptime = atoi(v->value);
 			if (wrapuptime < 0)
