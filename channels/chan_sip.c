@@ -7087,7 +7087,7 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 		peerd = bridgea;
 	}
 
-	if(peera && peerb && peerc) {
+	if(peera && peerb && peerc && (peerb != peerc)) {
 		ast_quiet_chan(peera);
 		ast_quiet_chan(peerb);
 		ast_quiet_chan(peerc);
