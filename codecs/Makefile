@@ -19,7 +19,7 @@
 #MODG723=codec_g723_1.so codec_g723_1b.so
 MODG723=$(shell [ -f g723.1/coder.c ] && echo "codec_g723_1.so")
 MODG723+=$(shell [ -f g723.1b/coder2.c ] && echo "codec_g723_1b.so")
-
+MODSPEEX=$(shell [ -f /usr/include/speex.h ] && echo "codec_speex.so")
 CFLAGS+=
 
 LIBG723=g723.1/libg723.a
@@ -29,8 +29,9 @@ LIBGSM=$(shell if uname -m | grep -q 86; then echo gsm/lib/libgsm.a; else echo "
 LIBGSMT=$(shell if uname -m | grep -q 86; then echo gsm/lib/libgsm.a; fi)
 LIBMP3=mp3/libmp3.a
 LIBLPC10=lpc10/liblpc10.a
+LIBSPEEX=-lspeex -lm
 
-CODECS+=$(MODG723) codec_gsm.so codec_mp3_d.so codec_lpc10.so  \
+CODECS+=$(MODG723) $(MODSPEEX) codec_gsm.so codec_mp3_d.so codec_lpc10.so  \
         codec_adpcm.so codec_ulaw.so codec_alaw.so codec_a_mu.so
 
 all: $(CODECS)
@@ -69,6 +70,9 @@ codec_g723_1b.so : codec_g723_1b.o $(LIBG723B)
 
 codec_gsm.so: codec_gsm.o $(LIBGSMT) 
 	$(CC) -shared -Xlinker -x -o $@ $< $(LIBGSM)
+
+codec_speex.so: codec_speex.o
+	$(CC) -shared -Xlinker -x -o $@ $< $(LIBSPEEX)
 
 codec_lpc10.so: codec_lpc10.o $(LIBLPC10)
 	$(CC) -shared -Xlinker -x -o $@ $< $(LIBLPC10) -lm
