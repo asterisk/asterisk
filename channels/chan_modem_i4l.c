@@ -26,7 +26,7 @@
 #include <asterisk/options.h>
 #include <asterisk/dsp.h>
 #include <asterisk/callerid.h>
-#include "alaw.h"
+#include <asterisk/alaw.h>
 
 #define STATE_COMMAND 	0
 #define STATE_VOICE 	1
@@ -420,7 +420,7 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 						if (!f)
 							return NULL;
 					} else {
-						*(b++) = ALAW2INT(result[x] & 0xff);
+						*(b++) = AST_A2LIN(result[x]);
 						p->obuflen += 2;
 					}
 				}
@@ -480,7 +480,7 @@ static int i4l_write(struct ast_modem_pvt *p, struct ast_frame *f)
 		return -1;
 	}
 	for (x=0;x<f->datalen/2;x++) {
-		b = INT2ALAW(((short *)f->data)[x]);
+		b = AST_ALAW(((short *)f->data)[x]);
 		result[bpos++] = b;
 		if (b == CHAR_DLE)
 			result[bpos++]=b;
