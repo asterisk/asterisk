@@ -1587,6 +1587,7 @@ int main(int argc, char *argv[])
 	int num;
 	char *buf;
 	char *runuser=NULL, *rungroup=NULL;
+	struct pollfd silly_macos[1];	
 
 	/* Remember original args for restart */
 	if (argc > sizeof(_argv) / sizeof(_argv[0]) - 1) {
@@ -1917,16 +1918,24 @@ int main(int argc, char *argv[])
 
 				consolehandler((char *)buf);
 			} else {
-				if (option_remote)
-					ast_cli(STDOUT_FILENO, "\nUse EXIT or QUIT to exit the asterisk console\n");
+				if (write(STDOUT_FILENO, "\nUse EXIT or QUIT to exit the asterisk console\n",
+								  strlen("\nUse EXIT or QUIT to exit the asterisk console\n")) < 0) {
+					/* Whoa, stdout disappeared from under us... Make /dev/null's */
+					int fd;
+					fd = open("/dev/null", O_RDWR);
+					if (fd > -1) {
+						dup2(fd, STDOUT_FILENO);
+						dup2(fd, STDIN_FILENO);
+					} else
+						ast_log(LOG_WARNING, "Failed to open /dev/null to recover from dead console.  Bad things will happen!\n");
+					break;
+				}
 			}
 		}
 
-	} else {
-		struct pollfd silly_macos[1];	
-		/* Do nothing */
-		for(;;) 
-			poll(silly_macos,0, -1);
 	}
+	/* Do nothing */
+	for(;;) 
+		poll(silly_macos,0, -1);
 	return 0;
 }
