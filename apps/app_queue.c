@@ -759,7 +759,7 @@ static int compare_weight(struct ast_call_queue *req_q, struct localuser *req_us
 
 
 
-static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
+static int ring_entry(struct queue_ent *qe, struct localuser *tmp, int *busies)
 {
 	int res;
 	int status;
@@ -773,6 +773,7 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 			if (qe->chan->cdr)
 				ast_cdr_busy(qe->chan->cdr);
 			tmp->stillgoing = 0;
+			(*busies)++;
 			return 0;
 		}
 	}
@@ -782,6 +783,7 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 		if (qe->chan->cdr)
 			ast_cdr_busy(qe->chan->cdr);
 		tmp->stillgoing = 0;
+		(*busies)++;
 		return 0;
 	}
 	
@@ -801,6 +803,7 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 			ast_cdr_busy(qe->chan->cdr);
 		tmp->stillgoing = 0;
 		update_dial_status(qe->parent, tmp->member, status);
+		(*busies)++;
 		return 0;
 	} else if (status != tmp->oldstatus) 
 		update_dial_status(qe->parent, tmp->member, status);
@@ -841,6 +844,7 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 		ast_hangup(tmp->chan);
 		tmp->chan = NULL;
 		tmp->stillgoing = 0;
+		(*busies)++;
 		return 0;
 	} else {
 		if (ast_test_flag(qe->parent, QUEUE_FLAG_EVENTWHENCALLED)) {
@@ -860,10 +864,10 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Called %s\n", tmp->interface);
 	}
-	return 0;
+	return 1;
 }
 
-static int ring_one(struct queue_ent *qe, struct localuser *outgoing)
+static int ring_one(struct queue_ent *qe, struct localuser *outgoing, int *busies)
 {
 	struct localuser *cur;
 	struct localuser *best;
@@ -885,10 +889,10 @@ static int ring_one(struct queue_ent *qe, struct localuser *outgoing)
 				/* Ring everyone who shares this best metric (for ringall) */
 				cur = outgoing;
 				while(cur) {
-					if (cur->stillgoing && !cur->chan && (cur->metric == bestmetric)) {
+					if (cur->stillgoing && !cur->chan && (cur->metric <= bestmetric)) {
 						if (option_debug)
 							ast_log(LOG_DEBUG, "(Parallel) Trying '%s' with metric %d\n", cur->interface, cur->metric);
-						ring_entry(qe, cur);
+						ring_entry(qe, cur, busies);
 					}
 					cur = cur->next;
 				}
@@ -896,7 +900,7 @@ static int ring_one(struct queue_ent *qe, struct localuser *outgoing)
 				/* Ring just the best channel */
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Trying '%s' with metric %d\n", best->interface, best->metric);
-				ring_entry(qe, best);
+				ring_entry(qe, best, busies);
 			}
 		}
 	} while (best && !best->chan);
@@ -961,7 +965,27 @@ static int valid_exit(struct queue_ent *qe, char digit)
 
 #define AST_MAX_WATCHERS 256
 
-static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser *outgoing, int *to, struct ast_flags *flags, char *digit)
+#define BUILD_STATS do { \
+		o = outgoing; \
+		found = -1; \
+		pos = 1; \
+		numlines = 0; \
+		watchers[0] = in; \
+		while(o) { \
+			/* Keep track of important channels */ \
+			if (o->stillgoing) { \
+				stillgoing = 1; \
+				if (o->chan) { \
+					watchers[pos++] = o->chan; \
+					found = 1; \
+				} \
+			} \
+			o = o->next; \
+			numlines++; \
+		} \
+	} while(0)
+	
+static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser *outgoing, int *to, struct ast_flags *flags, char *digit, int prebusies)
 {
 	char *queue = qe->parent->name;
 	struct localuser *o;
@@ -969,8 +993,9 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 	int numlines;
 	int status;
 	int sentringing = 0;
-	int numbusies = 0;
+	int numbusies = prebusies;
 	int numnochan = 0;
+	int stillgoing = 0;
 	int orig = *to;
 	struct ast_frame *f;
 	struct localuser *peer = NULL;
@@ -980,25 +1005,18 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 	struct ast_channel *in = qe->chan;
 	
 	while(*to && !peer) {
-		o = outgoing;
-		found = -1;
-		pos = 1;
-		numlines = 0;
-		watchers[0] = in;
-		while(o) {
-			/* Keep track of important channels */
-			if (o->stillgoing && o->chan) {
-				watchers[pos++] = o->chan;
-				found = 1;
-			}
-			o = o->next;
-			numlines++;
+		BUILD_STATS;
+		if ((found < 0) && stillgoing && !qe->parent->strategy) {
+			/* On "ringall" strategy we only move to the next penalty level
+			   when *all* ringing phones are done in the current penalty level */
+			ring_one(qe, outgoing, &numbusies);
+			BUILD_STATS;
 		}
 		if (found < 0) {
 			if (numlines == (numbusies + numnochan)) {
 				ast_log(LOG_DEBUG, "Everyone is busy at this time\n");
 			} else {
-				ast_log(LOG_NOTICE, "No one is answering queue '%s'\n", queue);
+				ast_log(LOG_NOTICE, "No one is answering queue '%s' (%d/%d/%d)\n", queue, numlines, numbusies, numnochan);
 			}
 			*to = 0;
 			return NULL;
@@ -1109,7 +1127,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 							ast_hangup(o->chan);
 							o->chan = NULL;
 							if (qe->parent->strategy)
-								ring_one(qe, outgoing);
+								ring_one(qe, outgoing, &numbusies);
 							numbusies++;
 							break;
 						case AST_CONTROL_CONGESTION:
@@ -1121,7 +1139,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 							ast_hangup(o->chan);
 							o->chan = NULL;
 							if (qe->parent->strategy)
-								ring_one(qe, outgoing);
+								ring_one(qe, outgoing, &numbusies);
 							numbusies++;
 							break;
 						case AST_CONTROL_RINGING:
@@ -1147,7 +1165,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 					ast_hangup(o->chan);
 					o->chan = NULL;
 					if (qe->parent->strategy)
-						ring_one(qe, outgoing);
+						ring_one(qe, outgoing, &numbusies);
 				}
 			}
 			o = o->next;
@@ -1328,6 +1346,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	struct member *member;
 	int res = 0, bridge = 0;
 	int zapx = 2;
+	int numbusies = 0;
 	int x=0;
 	char *announce = NULL;
 	char digit = 0;
@@ -1421,9 +1440,9 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		to = qe->parent->timeout * 1000;
 	else
 		to = -1;
-	ring_one(qe, outgoing);
+	ring_one(qe, outgoing, &numbusies);
 	ast_mutex_unlock(&qe->parent->lock);
-	lpeer = wait_for_answer(qe, outgoing, &to, &flags, &digit);
+	lpeer = wait_for_answer(qe, outgoing, &to, &flags, &digit, numbusies);
 	ast_mutex_lock(&qe->parent->lock);
 	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY) {
 		store_next(qe, outgoing);
