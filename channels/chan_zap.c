@@ -5589,6 +5589,7 @@ static void *pri_dchannel(void *vpri)
 					} else if (!strlen(pri->pvt[chan]->dop.dialstr)) {
 						zt_enable_ec(pri->pvt[chan]);
 						pri->pvt[chan]->subs[SUB_REAL].needringing =1;
+						pri->pvt[chan]->proceeding=1;
 					} else
 						ast_log(LOG_DEBUG, "Deferring ringing notification because of extra digits to dial...\n");
 				}
