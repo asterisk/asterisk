@@ -88,7 +88,7 @@ static int odbc_log(struct ast_cdr *cdr)
 	if ((!clid) || (!dcontext) || (!channel) || (!dstchannel) || (!lastapp) || (!lastdata) || (!uniqueid))
 	{
 		ast_log(LOG_ERROR, "cdr_odbc:  Out of memory error (insert fails)\n");
-		ast_mutex_unlock(&odbc_locl);
+		ast_mutex_unlock(&odbc_lock);
 		return -1;
 	}
 
