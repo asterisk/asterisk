@@ -669,7 +669,7 @@ static int retrieve_file(char *dir, int msgnum)
 	char msgnums[80];
 	
 	odbc_obj *obj;
-	obj = fetch_odbc_obj(odbc_database);
+	obj = fetch_odbc_obj(odbc_database, 0);
 	if (obj) {
 		strncpy(fmt, vmfmts, sizeof(fmt) - 1);
 		c = strchr(fmt, '|');
@@ -699,7 +699,7 @@ static int retrieve_file(char *dir, int msgnum)
 		}
 		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(dir), 0, (void *)dir, 0, NULL);
 		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
-		res = SQLExecute(stmt);
+		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
@@ -817,7 +817,7 @@ static int last_message_index(char *dir)
 	char rowdata[20];
 	
 	odbc_obj *obj;
-	obj = fetch_odbc_obj(odbc_database);
+	obj = fetch_odbc_obj(odbc_database, 0);
 	if (obj) {
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -832,7 +832,7 @@ static int last_message_index(char *dir)
 			goto yuck;
 		}
 		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(dir), 0, (void *)dir, 0, NULL);
-		res = SQLExecute(stmt);
+		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
@@ -876,7 +876,7 @@ static int message_exists(char *dir, int msgnum)
 	char msgnums[20];
 	
 	odbc_obj *obj;
-	obj = fetch_odbc_obj(odbc_database);
+	obj = fetch_odbc_obj(odbc_database, 0);
 	if (obj) {
 		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
@@ -893,7 +893,7 @@ static int message_exists(char *dir, int msgnum)
 		}
 		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(dir), 0, (void *)dir, 0, NULL);
 		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
-		res = SQLExecute(stmt);
+		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
@@ -940,7 +940,7 @@ static void delete_file(char *sdir, int smsg)
 	char msgnums[20];
 	
 	odbc_obj *obj;
-	obj = fetch_odbc_obj(odbc_database);
+	obj = fetch_odbc_obj(odbc_database, 0);
 	if (obj) {
 		snprintf(msgnums, sizeof(msgnums), "%d", smsg);
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
@@ -957,7 +957,7 @@ static void delete_file(char *sdir, int smsg)
 		}
 		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(sdir), 0, (void *)sdir, 0, NULL);
 		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
-		res = SQLExecute(stmt);
+		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
@@ -987,7 +987,7 @@ static void copy_file(char *sdir, int smsg, char *ddir, int dmsg)
 	odbc_obj *obj;
 
 	delete_file(ddir, dmsg);
-	obj = fetch_odbc_obj(odbc_database);
+	obj = fetch_odbc_obj(odbc_database, 0);
 	if (obj) {
 		snprintf(msgnums, sizeof(msgnums), "%d", smsg);
 		snprintf(msgnumd, sizeof(msgnumd), "%d", dmsg);
@@ -1007,7 +1007,7 @@ static void copy_file(char *sdir, int smsg, char *ddir, int dmsg)
 		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnumd), 0, (void *)msgnumd, 0, NULL);
 		SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(sdir), 0, (void *)sdir, 0, NULL);
 		SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
-		res = SQLExecute(stmt);
+		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Execute error!\n[%s] (You probably don't have MySQL 4.1 or later installed)\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
@@ -1048,7 +1048,7 @@ static int store_file(char *dir, int msgnum)
 	odbc_obj *obj;
 
 	delete_file(dir, msgnum);
-	obj = fetch_odbc_obj(odbc_database);
+	obj = fetch_odbc_obj(odbc_database, 0);
 	if (obj) {
 		strncpy(fmt, vmfmts, sizeof(fmt) - 1);
 		c = strchr(fmt, '|');
@@ -1117,7 +1117,7 @@ static int store_file(char *dir, int msgnum)
 		SQLBindParameter(stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(duration), 0, (void *)duration, 0, NULL);
 		if (!ast_strlen_zero(category))
 			SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(category), 0, (void *)category, 0, NULL);
-		res = SQLExecute(stmt);
+		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
@@ -1153,7 +1153,7 @@ static void rename_file(char *sdir, int smsg, char *ddir, int dmsg)
 	odbc_obj *obj;
 
 	delete_file(ddir, dmsg);
-	obj = fetch_odbc_obj(odbc_database);
+	obj = fetch_odbc_obj(odbc_database, 0);
 	if (obj) {
 		snprintf(msgnums, sizeof(msgnums), "%d", smsg);
 		snprintf(msgnumd, sizeof(msgnumd), "%d", dmsg);
@@ -1173,7 +1173,7 @@ static void rename_file(char *sdir, int smsg, char *ddir, int dmsg)
 		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnumd), 0, (void *)msgnumd, 0, NULL);
 		SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(sdir), 0, (void *)sdir, 0, NULL);
 		SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
-		res = SQLExecute(stmt);
+		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
