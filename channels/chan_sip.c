@@ -2304,8 +2304,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	add_header(req, "From", from);
 	strncpy(p->exten, l, sizeof(p->exten) - 1);
 	build_contact(p);
-	add_header(req, "Contact", p->our_contact);
 	add_header(req, "To", to);
+	add_header(req, "Contact", p->our_contact);
 	add_header(req, "Call-ID", p->callid);
 	add_header(req, "CSeq", tmp);
 	add_header(req, "User-Agent", "Asterisk PBX");

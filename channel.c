@@ -378,6 +378,8 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int lock)
 		if (write(chan->pvt->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah))
 			ast_log(LOG_WARNING, "Unable to write to alert pipe on %s, frametype/subclass %d/%d (qlen = %d): %s!\n",
 				chan->name, f->frametype, f->subclass, qlen, strerror(errno));
+	} else if (chan->blocking) {
+		pthread_kill(chan->blocker, SIGURG);
 	}
 	if (lock)
 		ast_pthread_mutex_unlock(&chan->lock);

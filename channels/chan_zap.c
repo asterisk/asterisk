@@ -242,7 +242,7 @@ static inline int zt_wait_event(int fd)
 #define CALLWAITING_SILENT_SAMPLES	( (300 * 8) / READ_SIZE) /* 300 ms */
 #define CALLWAITING_REPEAT_SAMPLES	( (10000 * 8) / READ_SIZE) /* 300 ms */
 #define CIDCW_EXPIRE_SAMPLES		( (500 * 8) / READ_SIZE) /* 500 ms */
-#define MIN_MS_SINCE_FLASH			( (1000) )	/* 1000 ms */
+#define MIN_MS_SINCE_FLASH			( (2000) )	/* 2000 ms */
 #define RINGT 						( (8000 * 8) / READ_SIZE)
 
 struct zt_pvt;
@@ -497,6 +497,7 @@ static void swap_subs(struct zt_pvt *p, int a, int b)
 	int tchan;
 	int tinthreeway;
 	struct ast_channel *towner;
+	struct ast_frame null = { AST_FRAME_NULL, };
 
 	ast_log(LOG_DEBUG, "Swapping %d and %d\n", a, b);
 
@@ -512,10 +513,14 @@ static void swap_subs(struct zt_pvt *p, int a, int b)
 	p->subs[b].owner = towner;
 	p->subs[b].inthreeway = tinthreeway;
 
-	if (p->subs[a].owner)
+	if (p->subs[a].owner) {
 		p->subs[a].owner->fds[0] = p->subs[a].zfd;
-	if (p->subs[b].owner)
+		ast_queue_frame(p->subs[a].owner, &null, 0);
+	}
+	if (p->subs[b].owner) {
 		p->subs[b].owner->fds[0] = p->subs[b].zfd;
+		ast_queue_frame(p->subs[b].owner, &null, 0);
+	}
 	
 }
 
@@ -2513,9 +2518,12 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						unsigned int mssinceflash;
 						gettimeofday(&tv, NULL);
 						mssinceflash = (tv.tv_sec - p->flashtime.tv_sec) * 1000 + (tv.tv_usec - p->flashtime.tv_usec) / 1000;
+						ast_log(LOG_DEBUG, "Last flash was %d ms ago\n", mssinceflash);
 						if (mssinceflash < MIN_MS_SINCE_FLASH) {
 							/* It hasn't been long enough since the last flashook.  This is probably a bounce on 
 							   hanging up.  Hangup both channels now */
+							if (p->subs[SUB_THREEWAY].owner)
+								ast_queue_hangup(p->subs[SUB_THREEWAY].owner, 0);
 							p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							ast_log(LOG_DEBUG, "Looks like a bounced flash, hanging up both calls on %d\n", p->channel);
 						} else if ((ast->pbx) ||
