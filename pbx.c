@@ -3181,6 +3181,8 @@ int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char
 					strncpy(chan->context, context, sizeof(chan->context) - 1);
 				if (exten && strlen(exten))
 					strncpy(chan->exten, exten, sizeof(chan->exten) - 1);
+				if (callerid && strlen(callerid))
+					strncpy(chan->callerid, callerid, sizeof(chan->callerid) - 1);
 				if (priority > 0)
 					chan->priority = priority;
 				if (sync > 1) {
