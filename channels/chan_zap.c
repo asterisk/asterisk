@@ -392,6 +392,7 @@ static struct zt_pvt {
 	struct zt_pvt *prev;			/* Prev channel in list */
 
 	struct zt_distRings drings;
+	int usedistinctiveringdetection;
 
 	char context[AST_MAX_EXTENSION];
 	char defcontext[AST_MAX_EXTENSION];
@@ -4667,7 +4668,7 @@ static void *ss_thread(void *data)
 							break;
 					}
 				}
-				if (usedistinctiveringdetection == 1) {
+				if (p->usedistinctiveringdetection == 1) {
 					if(option_verbose > 2)
 						/* this only shows up if you have n of the dring patterns filled in */
 						ast_verbose( VERBOSE_PREFIX_3 "Detected ring pattern: %d,%d,%d\n",curRingData[0],curRingData[1],curRingData[2]);
@@ -5522,6 +5523,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		/* Flag to destroy the channel must be cleared on new mkif.  Part of changes for reload to work */
 		tmp->destroy = 0;
 		tmp->drings = drings;
+		tmp->usedistinctiveringdetection = usedistinctiveringdetection;
 		tmp->callwaitingcallerid = callwaitingcallerid;
 		tmp->threewaycalling = threewaycalling;
 		tmp->adsi = adsi;
@@ -7406,7 +7408,7 @@ static int setup_zap(void)
 				chan = strsep(&c, ",");
 			}
 		} else if (!strcasecmp(v->name, "usedistinctiveringdetection")) {
-			if (!strcasecmp(v->value, "yes")) usedistinctiveringdetection = 1;
+			usedistinctiveringdetection = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "dring1context")) {
 			strncpy(drings.ringContext[0].contextData,v->value,sizeof(drings.ringContext[0].contextData)-1);
 		} else if (!strcasecmp(v->name, "dring2context")) {
@@ -7969,7 +7971,7 @@ static int reload_zt(void)
 				chan = strsep(&stringp, ",");
 			}
 		} else if (!strcasecmp(v->name, "usedistinctiveringdetection")) {
-			if (!strcasecmp(v->value, "yes")) usedistinctiveringdetection = 1;
+			usedistinctiveringdetection = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "dring1context")) {
 			strncpy(drings.ringContext[0].contextData,v->value,sizeof(drings.ringContext[0].contextData)-1);
 		} else if (!strcasecmp(v->name, "dring2context")) {
