@@ -594,6 +594,8 @@ static int hangup_cause2pri(int cause)
 			return PRI_CAUSE_USER_BUSY;
 		case AST_CAUSE_UNALLOCATED:
 			return PRI_CAUSE_UNALLOCATED;
+		case AST_CAUSE_CONGESTION:
+			return PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION;
 		case AST_CAUSE_NORMAL:
 		default:
 			return PRI_CAUSE_NORMAL_CLEARING;
@@ -3989,6 +3991,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 			res = 0;
 			break;
 		case AST_CONTROL_CONGESTION:
+			chan->hangupcause = AST_CAUSE_CONGESTION;
 			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
 			break;
 		case AST_CONTROL_RADIO_KEY:
