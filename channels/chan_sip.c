@@ -4486,14 +4486,14 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 	snprintf(pvt->our_contact, sizeof(pvt->our_contact) - 1, "<%s>", c);
 
 
+	strncpy(pvt->okcontacturi, c, sizeof(pvt->okcontacturi) - 1);
+	
 	/* Make sure it's a SIP URL */
 	if (strncasecmp(c, "sip:", 4)) {
 		ast_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", c);
 	} else
 		c += 4;
 
-	strncpy(pvt->okcontacturi, c, sizeof(pvt->okcontacturi) - 1);
-	
 	/* Ditch arguments */
 	n = strchr(c, ';');
 	if (n) 
