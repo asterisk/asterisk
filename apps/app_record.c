@@ -138,6 +138,9 @@ static int record_exec(struct ast_channel *chan, void *data)
 					ast_log(LOG_DEBUG, "Got hangup\n");
 					res = -1;
 			}
+			/* Strip off the last 1/4 second of it */
+			ast_stream_rewind(s, 250);
+			ast_truncstream(s);
 			ast_closestream(s);
 		} else			
 			ast_log(LOG_WARNING, "Could not create file %s\n", fil);
