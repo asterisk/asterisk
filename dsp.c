@@ -1157,6 +1157,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 						dsp->thinkdigit = digit;
 						return &dsp->f;
 					}
+					dsp->thinkdigit = digit;
 				} else {
 					if (dsp->thinkdigit) {
 						memset(&dsp->f, 0, sizeof(dsp->f));
