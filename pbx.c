@@ -1099,10 +1099,15 @@ void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char 
 				if ((vare[0] == '$') && (vare[1] == '[')) {
 					needsub++;
 					brackets++;
+					vare++;
+				} else if (vare[0] == '[') {
+					brackets++;
 				} else if (vare[0] == ']') {
 					brackets--;
-				} else if ((vare[0] == '$') && (vare[1] == '{'))
+				} else if ((vare[0] == '$') && (vare[1] == '{')) {
 					needsub++;
+					vare++
+				}
 				vare++;
 			}
 			if (brackets)
