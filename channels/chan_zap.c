@@ -2918,6 +2918,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				} else 
 					ast_log(LOG_DEBUG, "Sent deferred digit string: %s\n", p->dop.dialstr);
 				p->dop.dialstr[0] = '\0';
+				p->dop.op = ZT_DIAL_OP_REPLACE;
 				break;
 			case SIG_FEATDMF:
 			case SIG_FEATB:
@@ -4059,6 +4060,8 @@ static void *ss_thread(void *data)
 				    (!strcmp(nbridge->type,"Zap")) &&
 				    ISTRUNK(pbridge)) {
 					int func = ZT_FLASH;
+					/* Clear out the dial buffer */
+					p->dop.dialstr[0] = '\0';
 					/* flash hookswitch */
 					if ((ioctl(pbridge->subs[SUB_REAL].zfd,ZT_HOOK,&func) == -1) && (errno != EINPROGRESS)) {
 						ast_log(LOG_WARNING, "Unable to flash external trunk on channel %s: %s\n", 
