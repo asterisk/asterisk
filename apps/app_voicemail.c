@@ -26,6 +26,7 @@
 #include <asterisk/manager.h>
 #include <asterisk/dsp.h>
 #include <asterisk/localtime.h>
+#include <asterisk/cli.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -34,7 +35,9 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <time.h>
+#include <dirent.h>
 
 /* we define USESQLVM when we have MySQL or POSTGRES */
 #ifdef USEMYSQLVM
@@ -3003,6 +3006,126 @@ static int append_mailbox(char *context, char *mbox, char *data)
 	return 0;
 }
 
+/* XXX TL Bug 690 */
+static char show_voicemail_users_help[] =
+"Usage: show voicemail users [for <context>]\n"
+"       Lists all mailboxes currently set up\n";
+
+static char show_voicemail_zones_help[] =
+"Usage: show voicemail zones\n"
+"       Lists zone message formats\n";
+
+static int handle_show_voicemail_users(int fd, int argc, char *argv[])
+{
+	struct ast_vm_user *vmu = users;
+	char *output_format = "%-10s %-5s %-25s %-10s %6s\n";
+
+	if ((argc < 3) || (argc > 5) || (argc == 4)) return RESULT_SHOWUSAGE;
+	else if ((argc == 5) && strcmp(argv[3],"for")) return RESULT_SHOWUSAGE;
+
+	if (vmu) {
+		if (argc == 3)
+			ast_cli(fd, output_format, "Context", "Mbox", "User", "Zone", "NewMsg");
+		else {
+			int count = 0;
+			while (vmu) {
+				if (!strcmp(argv[4],vmu->context))
+					count++;
+				vmu = vmu->next;
+			}
+			if (count) {
+				vmu = users;
+				ast_cli(fd, output_format, "Context", "Mbox", "User", "Zone", "NewMsg");
+			} else {
+				ast_cli(fd, "No such voicemail context \"%s\"\n", argv[4]);
+				return RESULT_FAILURE;
+			}
+		}
+		while (vmu) {
+			char dirname[256];
+			DIR *vmdir;
+			struct dirent *vment;
+			int vmcount = 0;
+			char count[12];
+			make_dir(dirname, 255, vmu->context, vmu->mailbox, "INBOX");
+			if ((vmdir = opendir(dirname))) {
+				/* No matter what the format of VM, there will always be a .txt file for each message. */
+				while ((vment = readdir(vmdir)))
+					if (!strncmp(vment->d_name + 7,".txt",4))
+						vmcount++;
+				closedir(vmdir);
+			}
+			snprintf(count,11,"%d",vmcount);
+			ast_cli(fd, output_format, vmu->context, vmu->mailbox, vmu->fullname, vmu->zonetag, count);
+			vmu = vmu->next;
+		}
+	} else {
+		ast_cli(fd, "There are no voicemail users currently defined\n");
+		return RESULT_FAILURE;
+	}
+	return RESULT_SUCCESS;
+}
+
+static int handle_show_voicemail_zones(int fd, int argc, char *argv[])
+{
+	struct vm_zone *zone = zones;
+	char *output_format = "%-15s %-20s %-45s\n";
+
+	if (argc != 3) return RESULT_SHOWUSAGE;
+
+	if (zone) {
+		ast_cli(fd, output_format, "Zone", "Timezone", "Message Format");
+		while (zone) {
+			ast_cli(fd, output_format, zone->name, zone->timezone, zone->msg_format);
+			zone = zone->next;
+		}
+	} else {
+		ast_cli(fd, "There are no voicemail zones currently defined\n");
+		return RESULT_FAILURE;
+	}
+	return RESULT_SUCCESS;
+}
+
+static char *complete_show_voicemail_users(char *line, char *word, int pos, int state)
+{
+	int which = 0;
+	struct ast_vm_user *vmu = users;
+	char *context = "";
+
+	/* 0 - show; 1 - voicemail; 2 - users; 3 - for; 4 - <context> */
+	if (pos > 4)
+		return NULL;
+	if (pos == 3) {
+		if (state == 0)
+			return strdup("for");
+		else
+			return NULL;
+	}
+	while (vmu) {
+		if (!strncasecmp(word, vmu->context, strlen(word))) {
+			if (context && strcmp(context, vmu->context)) {
+				if (++which > state) {
+					return strdup(vmu->context);
+				}
+				context = vmu->context;
+			}
+		}
+		vmu = vmu->next;
+	}
+	return NULL;
+}
+
+static struct ast_cli_entry show_voicemail_users_cli =
+	{ { "show", "voicemail", "users", NULL },
+	handle_show_voicemail_users, "List defined voicemail boxes",
+	show_voicemail_users_help, complete_show_voicemail_users };
+
+static struct ast_cli_entry show_voicemail_zones_cli =
+	{ { "show", "voicemail", "zones", NULL },
+	handle_show_voicemail_zones, "List zone message formats",
+	show_voicemail_zones_help, NULL };
+
+
 static int load_config(void)
 {
 	struct ast_vm_user *cur, *l;
@@ -3233,6 +3356,8 @@ int unload_module(void)
 	res |= ast_unregister_application(app2);
 	res |= ast_unregister_application(capp2);
 	sql_close();
+	ast_cli_unregister(&show_voicemail_users_cli);
+	ast_cli_unregister(&show_voicemail_zones_cli);
 	return res;
 }
 
@@ -3254,6 +3379,8 @@ int load_module(void)
 		ast_log(LOG_WARNING, "SQL init\n");
 		return res;
 	}
+	ast_cli_register(&show_voicemail_users_cli);
+	ast_cli_register(&show_voicemail_zones_cli);
 	return res;
 }
 
