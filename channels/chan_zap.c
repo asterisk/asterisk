@@ -1005,7 +1005,7 @@ static inline int zt_confmute(struct zt_pvt *p, int muted)
 	x = muted;
 	if (p->sig == SIG_PRI) {
 		y = 1;
-		res = ioctl(p->subs[SUB_REAL].zfd, ZT_CONFMUTE, &x);
+		res = ioctl(p->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &y);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to set audio mode on '%d'\n", p->channel);
 	}
