@@ -186,12 +186,14 @@ static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
 	gettimeofday(&tv, NULL);
 	if ((tv.tv_sec < rtp->dtmfmute.tv_sec) ||
 	    ((tv.tv_sec == rtp->dtmfmute.tv_sec) && (tv.tv_usec < rtp->dtmfmute.tv_usec))) {
-		ast_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
 		rtp->resp = 0;
 		rtp->dtmfduration = 0;
 		return &null_frame;
 	}
-	ast_log(LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
 	if (rtp->resp == 'X') {
 		rtp->f.frametype = AST_FRAME_CONTROL;
 		rtp->f.subclass = AST_CONTROL_FLASH;
@@ -388,7 +390,8 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 		    (rtp->rtcp->them.sin_port != sin.sin_port)) {
 			memcpy(&rtp->them, &sin, sizeof(rtp->them));
 			rtp->rxseqno = 0;
-			ast_log(LOG_DEBUG, "RTP NAT: Using address %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
+			if (option_debug)
+				ast_log(LOG_DEBUG, "RTP NAT: Using address %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
 		}
 	}
 	if (option_debug)
@@ -491,34 +494,45 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	}
 
 	if(rtp_debug_test_addr(&sin))
-	ast_verbose("Got RTP packet from %s:%d (type %d, seq %d, ts %d, len %d)\n"
+		ast_verbose("Got RTP packet from %s:%d (type %d, seq %d, ts %d, len %d)\n"
 			, ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
 
         rtpPT = ast_rtp_lookup_pt(rtp, payloadtype);
 	if (!rtpPT.isAstFormat) {
-	  /* This is special in-band data that's not one of our codecs */
-	  if (rtpPT.code == AST_RTP_DTMF) {
-	    /* It's special -- rfc2833 process it */
-	    if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
-	      f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
-	      rtp->lasteventseqn = seqno;
-	    } else f = NULL;
-	    if (f) return f; else return &null_frame;
-	  } else if (rtpPT.code == AST_RTP_CISCO_DTMF) {
-	    /* It's really special -- process it the Cisco way */
-	    if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
-	      f = process_cisco_dtmf(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
-	      rtp->lasteventseqn = seqno;
-	    } else f = NULL;
-	    if (f) return f; else return &null_frame;
-	  } else if (rtpPT.code == AST_RTP_CN) {
-	    /* Comfort Noise */
-	    f = process_rfc3389(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
-	    if (f) return f; else return &null_frame;
-	  } else {
-	    ast_log(LOG_NOTICE, "Unknown RTP codec %d received\n", payloadtype);
-	    return &null_frame;
-	  }
+		/* This is special in-band data that's not one of our codecs */
+		if (rtpPT.code == AST_RTP_DTMF) {
+	    		/* It's special -- rfc2833 process it */
+	    		if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
+	      			f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
+	      			rtp->lasteventseqn = seqno;
+	    		} else 
+				f = NULL;
+	    		if (f) 
+				return f; 
+			else 
+				return &null_frame;
+	  	} else if (rtpPT.code == AST_RTP_CISCO_DTMF) {
+	    		/* It's really special -- process it the Cisco way */
+	    		if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
+	      			f = process_cisco_dtmf(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
+	      			rtp->lasteventseqn = seqno;
+	    		} else 
+				f = NULL;
+	    		if (f) 
+				return f; 
+			else 
+				return &null_frame;
+	  	} else if (rtpPT.code == AST_RTP_CN) {
+	    		/* Comfort Noise */
+	    		f = process_rfc3389(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
+	    		if (f) 
+				return f; 
+			else 
+				return &null_frame;
+	  	} else {
+	    		ast_log(LOG_NOTICE, "Unknown RTP codec %d received\n", payloadtype);
+	    		return &null_frame;
+	  	}
 	}
 	rtp->f.subclass = rtpPT.code;
 	if (rtp->f.subclass < AST_FORMAT_MAX_AUDIO)
@@ -559,7 +573,8 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 
 	/* Send any pending DTMF */
 	if (rtp->resp && !rtp->dtmfcount) {
-		ast_log(LOG_DEBUG, "Sending pending DTMF\n");
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Sending pending DTMF\n");
 		return send_dtmf(rtp);
 	}
 	rtp->f.mallocd = 0;
@@ -593,10 +608,10 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			break;
 		case AST_FORMAT_SPEEX:
 			/* assumes that the RTP packet contained one Speex frame */
-	        rtp->f.samples = 160;
+	        	rtp->f.samples = 160;
 			break;
 		case AST_FORMAT_LPC10:
-		    rtp->f.samples = 22 * 8;
+		    	rtp->f.samples = 22 * 8;
 			rtp->f.samples += (((char *)(rtp->f.data))[7] & 0x1) * 8;
 			break;
 		default:
@@ -677,145 +692,148 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
 
 void ast_rtp_pt_clear(struct ast_rtp* rtp) 
 {
-  int i;
+	int i;
 
-  for (i = 0; i < MAX_RTP_PT; ++i) {
-    rtp->current_RTP_PT[i].isAstFormat = 0;
-    rtp->current_RTP_PT[i].code = 0;
-  }
+	for (i = 0; i < MAX_RTP_PT; ++i) {
+		rtp->current_RTP_PT[i].isAstFormat = 0;
+		rtp->current_RTP_PT[i].code = 0;
+	}
 
-  rtp->rtp_lookup_code_cache_isAstFormat = 0;
-  rtp->rtp_lookup_code_cache_code = 0;
-  rtp->rtp_lookup_code_cache_result = 0;
+	rtp->rtp_lookup_code_cache_isAstFormat = 0;
+	rtp->rtp_lookup_code_cache_code = 0;
+	rtp->rtp_lookup_code_cache_result = 0;
 }
 
 void ast_rtp_pt_default(struct ast_rtp* rtp) 
 {
-  int i;
-  /* Initialize to default payload types */
-  for (i = 0; i < MAX_RTP_PT; ++i) {
-    rtp->current_RTP_PT[i].isAstFormat = static_RTP_PT[i].isAstFormat;
-    rtp->current_RTP_PT[i].code = static_RTP_PT[i].code;
-  }
+	int i;
 
-  rtp->rtp_lookup_code_cache_isAstFormat = 0;
-  rtp->rtp_lookup_code_cache_code = 0;
-  rtp->rtp_lookup_code_cache_result = 0;
+	/* Initialize to default payload types */
+	for (i = 0; i < MAX_RTP_PT; ++i) {
+		rtp->current_RTP_PT[i].isAstFormat = static_RTP_PT[i].isAstFormat;
+		rtp->current_RTP_PT[i].code = static_RTP_PT[i].code;
+	}
+
+	rtp->rtp_lookup_code_cache_isAstFormat = 0;
+	rtp->rtp_lookup_code_cache_code = 0;
+	rtp->rtp_lookup_code_cache_result = 0;
 }
 
 /* Make a note of a RTP payload type that was seen in a SDP "m=" line. */
 /* By default, use the well-known value for this type (although it may */
 /* still be set to a different value by a subsequent "a=rtpmap:" line): */
 void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt) {
-  if (pt < 0 || pt > MAX_RTP_PT) return; /* bogus payload type */
+	if (pt < 0 || pt > MAX_RTP_PT) 
+		return; /* bogus payload type */
 
-  if (static_RTP_PT[pt].code != 0) {
-    rtp->current_RTP_PT[pt] = static_RTP_PT[pt];
-  }
+	if (static_RTP_PT[pt].code != 0) {
+		rtp->current_RTP_PT[pt] = static_RTP_PT[pt];
+	}
 } 
 
 /* Make a note of a RTP payload type (with MIME type) that was seen in */
 /* a SDP "a=rtpmap:" line. */
 void ast_rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,
 			 char* mimeType, char* mimeSubtype) {
-  int i;
+	int i;
 
-  if (pt < 0 || pt > MAX_RTP_PT) return; /* bogus payload type */
+	if (pt < 0 || pt > MAX_RTP_PT) 
+			return; /* bogus payload type */
 
-  for (i = 0; i < sizeof mimeTypes/sizeof mimeTypes[0]; ++i) {
-    if (strcasecmp(mimeSubtype, mimeTypes[i].subtype) == 0 &&
-	strcasecmp(mimeType, mimeTypes[i].type) == 0) {
-      rtp->current_RTP_PT[pt] = mimeTypes[i].payloadType;
-      return;
-    }
-  }
+	for (i = 0; i < sizeof mimeTypes/sizeof mimeTypes[0]; ++i) {
+		if (strcasecmp(mimeSubtype, mimeTypes[i].subtype) == 0 &&
+		     strcasecmp(mimeType, mimeTypes[i].type) == 0) {
+			rtp->current_RTP_PT[pt] = mimeTypes[i].payloadType;
+		return;
+		}
+	}
 } 
 
 /* Return the union of all of the codecs that were set by rtp_set...() calls */
 /* They're returned as two distinct sets: AST_FORMATs, and AST_RTPs */
 void ast_rtp_get_current_formats(struct ast_rtp* rtp,
 			     int* astFormats, int* nonAstFormats) {
-  int pt;
+	int pt;
 
-  *astFormats = *nonAstFormats = 0;
-  for (pt = 0; pt < MAX_RTP_PT; ++pt) {
-    if (rtp->current_RTP_PT[pt].isAstFormat) {
-      *astFormats |= rtp->current_RTP_PT[pt].code;
-    } else {
-      *nonAstFormats |= rtp->current_RTP_PT[pt].code;
-    }
-  }
+	*astFormats = *nonAstFormats = 0;
+	for (pt = 0; pt < MAX_RTP_PT; ++pt) {
+		if (rtp->current_RTP_PT[pt].isAstFormat) {
+			*astFormats |= rtp->current_RTP_PT[pt].code;
+		} else {
+			*nonAstFormats |= rtp->current_RTP_PT[pt].code;
+		}
+	}
 }
 
 void ast_rtp_offered_from_local(struct ast_rtp* rtp, int local) {
-  if (rtp)
-    rtp->rtp_offered_from_local = local;
-  else
-    ast_log(LOG_WARNING, "rtp structure is null\n");
+	if (rtp)
+		rtp->rtp_offered_from_local = local;
+	else
+		ast_log(LOG_WARNING, "rtp structure is null\n");
 }
 
 struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt) 
 {
-  struct rtpPayloadType result;
+	struct rtpPayloadType result;
 
-  result.isAstFormat = result.code = 0;
-  if (pt < 0 || pt > MAX_RTP_PT) {
-    return result; /* bogus payload type */
-  }
-  /* Start with the negotiated codecs */
-  if (!rtp->rtp_offered_from_local)
-    result = rtp->current_RTP_PT[pt];
-  /* If it doesn't exist, check our static RTP type list, just in case */
-  if (!result.code) 
-    result = static_RTP_PT[pt];
-  return result;
+	result.isAstFormat = result.code = 0;
+	if (pt < 0 || pt > MAX_RTP_PT) 
+		return result; /* bogus payload type */
+
+	/* Start with the negotiated codecs */
+	if (!rtp->rtp_offered_from_local)
+		result = rtp->current_RTP_PT[pt];
+
+	/* If it doesn't exist, check our static RTP type list, just in case */
+	if (!result.code) 
+		result = static_RTP_PT[pt];
+	return result;
 }
 
 /* Looks up an RTP code out of our *static* outbound list */
 int ast_rtp_lookup_code(struct ast_rtp* rtp, int isAstFormat, int code) {
-  int pt;
 
+	int pt;
 
-  if (isAstFormat == rtp->rtp_lookup_code_cache_isAstFormat &&
-      code == rtp->rtp_lookup_code_cache_code) {
-    /* Use our cached mapping, to avoid the overhead of the loop below */
-    return rtp->rtp_lookup_code_cache_result;
-  }
+	if (isAstFormat == rtp->rtp_lookup_code_cache_isAstFormat &&
+		code == rtp->rtp_lookup_code_cache_code) {
+
+		/* Use our cached mapping, to avoid the overhead of the loop below */
+		return rtp->rtp_lookup_code_cache_result;
+	}
 
 	/* Check the dynamic list first */
-  for (pt = 0; pt < MAX_RTP_PT; ++pt) {
-    if (rtp->current_RTP_PT[pt].code == code &&
-		rtp->current_RTP_PT[pt].isAstFormat == isAstFormat) {
-      rtp->rtp_lookup_code_cache_isAstFormat = isAstFormat;
-      rtp->rtp_lookup_code_cache_code = code;
-      rtp->rtp_lookup_code_cache_result = pt;
-      return pt;
-    }
-  }
+	for (pt = 0; pt < MAX_RTP_PT; ++pt) {
+  		if (rtp->current_RTP_PT[pt].code == code && rtp->current_RTP_PT[pt].isAstFormat == isAstFormat) {
+			rtp->rtp_lookup_code_cache_isAstFormat = isAstFormat;
+			rtp->rtp_lookup_code_cache_code = code;
+			rtp->rtp_lookup_code_cache_result = pt;
+			return pt;
+		}
+	}
 
 	/* Then the static list */
-  for (pt = 0; pt < MAX_RTP_PT; ++pt) {
-    if (static_RTP_PT[pt].code == code &&
-		static_RTP_PT[pt].isAstFormat == isAstFormat) {
-      rtp->rtp_lookup_code_cache_isAstFormat = isAstFormat;
-      rtp->rtp_lookup_code_cache_code = code;
-      rtp->rtp_lookup_code_cache_result = pt;
-      return pt;
-    }
-  }
-  return -1;
+	for (pt = 0; pt < MAX_RTP_PT; ++pt) {
+		if (static_RTP_PT[pt].code == code && static_RTP_PT[pt].isAstFormat == isAstFormat) {
+			rtp->rtp_lookup_code_cache_isAstFormat = isAstFormat;
+  			rtp->rtp_lookup_code_cache_code = code;
+			rtp->rtp_lookup_code_cache_result = pt;
+			return pt;
+		}
+	}
+	return -1;
 }
 
 char* ast_rtp_lookup_mime_subtype(int isAstFormat, int code) {
-  int i;
 
-  for (i = 0; i < sizeof mimeTypes/sizeof mimeTypes[0]; ++i) {
-    if (mimeTypes[i].payloadType.code == code &&
-	mimeTypes[i].payloadType.isAstFormat == isAstFormat) {
-      return mimeTypes[i].subtype;
-    }
-  }
-  return "";
+	int i;
+
+	for (i = 0; i < sizeof mimeTypes/sizeof mimeTypes[0]; ++i) {
+	if (mimeTypes[i].payloadType.code == code && mimeTypes[i].payloadType.isAstFormat == isAstFormat) {
+      		return mimeTypes[i].subtype;
+		}
+	}
+	return "";
 }
 
 static int rtp_socket(void)
@@ -869,7 +887,7 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 	rtp->seqno = rand() & 0xffff;
 	if (rtp->s < 0) {
 		free(rtp);
-		ast_log(LOG_WARNING, "Unable to allocate socket: %s\n", strerror(errno));
+		ast_log(LOG_ERROR, "Unable to allocate socket: %s\n", strerror(errno));
 		return NULL;
 	}
 	if (sched && rtcpenable) {
@@ -895,7 +913,7 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 			rtp->s = rtp_socket();
 		}
 		if (errno != EADDRINUSE) {
-			ast_log(LOG_WARNING, "Unexpected bind error: %s\n", strerror(errno));
+			ast_log(LOG_ERROR, "Unexpected bind error: %s\n", strerror(errno));
 			close(rtp->s);
 			if (rtp->rtcp) {
 				close(rtp->rtcp->s);
@@ -908,7 +926,7 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 		if (x > rtpend)
 			x = (rtpstart + 1) & ~1;
 		if (x == startplace) {
-			ast_log(LOG_WARNING, "No RTP ports remaining\n");
+			ast_log(LOG_ERROR, "No RTP ports remaining\n");
 			close(rtp->s);
 			if (rtp->rtcp) {
 				close(rtp->rtcp->s);
@@ -931,6 +949,7 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode)
 {
 	struct in_addr ia;
+
 	memset(&ia, 0, sizeof(ia));
 	return ast_rtp_new_with_bindaddr(sched, io, rtcpenable, callbackmode, ia);
 }
@@ -938,6 +957,7 @@ struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, 
 int ast_rtp_settos(struct ast_rtp *rtp, int tos)
 {
 	int res;
+
 	if ((res = setsockopt(rtp->s, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)))) 
 		ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
 	return res;
@@ -1082,7 +1102,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 		if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
 			res = sendto(rtp->s, (void *)rtpheader, hdrlen + 4, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
 			if (res <0) 
-				ast_log(LOG_NOTICE, "RTP Transmission error to %s:%d: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
+				ast_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
 			if(rtp_debug_test_addr(&rtp->them))
 				ast_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n"
 						, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastts,res - hdrlen);		   
@@ -1105,12 +1125,12 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 #ifdef SOLARIS
 static void put_uint32(unsigned char *buf, int i)
 {
-  unsigned char *c = (unsigned char *)&i;
+	unsigned char *c = (unsigned char *)&i;
 
-  buf[0] = (i>>24) & 0xff;
-  buf[1] = (i>>16) & 0xff;
-  buf[2] = (i>>8)  & 0xff;
-  buf[3] = i       & 0xff;
+	buf[0] = (i>>24) & 0xff;
+	buf[1] = (i>>16) & 0xff;
+	buf[2] = (i>>8)  & 0xff;
+	buf[3] = i       & 0xff;
 }
 #else
 #define put_uint32(p,v) ((*((unsigned int *)(p))) = (v))
@@ -1162,7 +1182,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 			break;
 		case AST_FORMAT_LPC10:
 			/* assumes that the RTP packet contains one LPC10 frame */
-		    pred = rtp->lastts + 22 * 8;
+			pred = rtp->lastts + 22 * 8;
 			pred += (((char *)(f->data))[7] & 0x1) * 8;
 			break;
 		default:
@@ -1176,7 +1196,8 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 			if (abs(rtp->lastts - pred) < MAX_TIMESTAMP_SKEW)
 				rtp->lastts = pred;
 			else {
-				ast_log(LOG_DEBUG, "Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);
+				if (option_debug > 2)
+					ast_log(LOG_DEBUG, "Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);
 				mark = 1;
 			}
 		}
@@ -1191,7 +1212,8 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 				rtp->lastts = pred;
 				rtp->lastovidtimestamp += f->samples;
 			} else {
-				ast_log(LOG_DEBUG, "Difference is %d, ms is %d (%d), pred/ts/samples %d/%d/%d\n", abs(rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, f->samples);
+				if (option_debug > 2)
+					ast_log(LOG_DEBUG, "Difference is %d, ms is %d (%d), pred/ts/samples %d/%d/%d\n", abs(rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, f->samples);
 				rtp->lastovidtimestamp = rtp->lastts;
 			}
 		}
@@ -1250,7 +1272,8 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 
 	if (rtp->lasttxformat != subclass) {
 		/* New format, reset the smoother */
-		ast_log(LOG_DEBUG, "Ooh, format changed from %s to %s\n", ast_getformatname(rtp->lasttxformat), ast_getformatname(subclass));
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Ooh, format changed from %s to %s\n", ast_getformatname(rtp->lasttxformat), ast_getformatname(subclass));
 		rtp->lasttxformat = subclass;
 		if (rtp->smoother)
 			ast_smoother_free(rtp->smoother);
@@ -1349,6 +1372,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 void ast_rtp_proto_unregister(struct ast_rtp_protocol *proto)
 {
 	struct ast_rtp_protocol *cur, *prev;
+
 	cur = protos;
 	prev = NULL;
 	while(cur) {
@@ -1500,7 +1524,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		if ((c0->pvt->pvt != pvt0)  ||
 			(c1->pvt->pvt != pvt1) ||
 			(c0->masq || c0->masqr || c1->masq || c1->masqr)) {
-				ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
+				ast_log(LOG_WARNING, "Oooh, something is weird, backing out\n");
 				if (c0->pvt->pvt == pvt0) {
 					if (pr0->set_rtp_peer(c0, NULL, NULL, 0)) 
 						ast_log(LOG_WARNING, "Channel '%s' failed to revert\n", c0->name);
@@ -1524,14 +1548,16 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		if (vp0)
 			ast_rtp_get_peer(vp0, &vt0);
 		if (inaddrcmp(&t1, &ac1) || (vp1 && inaddrcmp(&vt1, &vac1)) || (codec1 != oldcodec1)) {
-			ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n", 
-				c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), t1.sin_addr), ntohs(t1.sin_port), codec1);
-			ast_log(LOG_DEBUG, "Oooh, '%s' changed end vaddress to %s:%d (format %d)\n", 
-				c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), vt1.sin_addr), ntohs(vt1.sin_port), codec1);
-			ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
-				c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), ac1.sin_addr), ntohs(ac1.sin_port), oldcodec1);
-			ast_log(LOG_DEBUG, "Oooh, '%s' wasv %s:%d/(format %d)\n", 
-				c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), vac1.sin_addr), ntohs(vac1.sin_port), oldcodec1);
+			if (option_debug) {
+				ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n", 
+					c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), t1.sin_addr), ntohs(t1.sin_port), codec1);
+				ast_log(LOG_DEBUG, "Oooh, '%s' changed end vaddress to %s:%d (format %d)\n", 
+					c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), vt1.sin_addr), ntohs(vt1.sin_port), codec1);
+				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
+					c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), ac1.sin_addr), ntohs(ac1.sin_port), oldcodec1);
+				ast_log(LOG_DEBUG, "Oooh, '%s' wasv %s:%d/(format %d)\n", 
+					c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), vac1.sin_addr), ntohs(vac1.sin_port), oldcodec1);
+			}
 			if (pr0->set_rtp_peer(c0, t1.sin_addr.s_addr ? p1 : NULL, vt1.sin_addr.s_addr ? vp1 : NULL, codec1)) 
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c0->name, c1->name);
 			memcpy(&ac1, &t1, sizeof(ac1));
@@ -1539,10 +1565,12 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 			oldcodec1 = codec1;
 		}
 		if (inaddrcmp(&t0, &ac0) || (vp0 && inaddrcmp(&vt0, &vac0))) {
-			ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n", 
-				c0->name, ast_inet_ntoa(iabuf, sizeof(iabuf), t0.sin_addr), ntohs(t0.sin_port), codec0);
-			ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
-				c0->name, ast_inet_ntoa(iabuf, sizeof(iabuf), ac0.sin_addr), ntohs(ac0.sin_port), oldcodec0);
+			if (option_debug) {
+				ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n", 
+					c0->name, ast_inet_ntoa(iabuf, sizeof(iabuf), t0.sin_addr), ntohs(t0.sin_port), codec0);
+				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
+					c0->name, ast_inet_ntoa(iabuf, sizeof(iabuf), ac0.sin_addr), ntohs(ac0.sin_port), oldcodec0);
+			}
 			if (pr1->set_rtp_peer(c1, t0.sin_addr.s_addr ? p0 : NULL, vt0.sin_addr.s_addr ? vp0 : NULL, codec0))
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);
 			memcpy(&ac0, &t0, sizeof(ac0));
@@ -1551,7 +1579,8 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		}
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
-			ast_log(LOG_DEBUG, "Ooh, empty read...\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Ooh, empty read...\n");
 			/* check for hagnup / whentohangup */
 			if (ast_check_hangup(c0) || ast_check_hangup(c1))
 				break;
@@ -1563,7 +1592,8 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 			       ((who == c1) && (flags & AST_BRIDGE_DTMF_CHANNEL_1))))) {
 			*fo = f;
 			*rc = who;
-			ast_log(LOG_DEBUG, "Oooh, got a %s\n", f ? "digit" : "hangup");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Oooh, got a %s\n", f ? "digit" : "hangup");
 			if ((c0->pvt->pvt == pvt0) && (!c0->_softhangup)) {
 				if (pr0->set_rtp_peer(c0, NULL, NULL, 0)) 
 					ast_log(LOG_WARNING, "Channel '%s' failed to revert\n", c0->name);
@@ -1603,11 +1633,12 @@ static int rtp_do_debug_ip(int fd, int argc, char *argv[])
 	char iabuf[INET_ADDRSTRLEN];
 	int port = 0;
 	char *p, *arg;
+
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	arg = argv[3];
 	p = strstr(arg, ":");
-	if (p){
+	if (p) {
 		*p = '\0';
 		p++;
 		port = atoi(p);
@@ -1651,6 +1682,7 @@ static int rtp_no_debug(int fd, int argc, char *argv[])
 static char debug_usage[] =
   "Usage: rtp debug [ip host[:port]]\n"
   "       Enable dumping of all RTP packets to and from host.\n";
+
 static char no_debug_usage[] =
   "Usage: rtp no debug\n"
   "       Disable all RTP debugging\n";
@@ -1668,6 +1700,7 @@ void ast_rtp_reload(void)
 {
 	struct ast_config *cfg;
 	char *s;
+
 	rtpstart = 5000;
 	rtpend = 31000;
 #ifdef SO_NO_CHECK
@@ -1703,7 +1736,7 @@ void ast_rtp_reload(void)
 		ast_destroy(cfg);
 	}
 	if (rtpstart >= rtpend) {
-		ast_log(LOG_WARNING, "Unreasonable values for RTP start/end\n");
+		ast_log(LOG_WARNING, "Unreasonable values for RTP start in rtp.conf/end\n");
 		rtpstart = 5000;
 		rtpend = 31000;
 	}
