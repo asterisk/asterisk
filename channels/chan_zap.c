@@ -3855,7 +3855,9 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 {
 	struct zt_pvt *p = chan->pvt->pvt;
 	int res=-1;
-	int index = zt_get_index(chan, p, 0);
+	int index;
+	ast_mutex_lock(&p->lock);
+	index = zt_get_index(chan, p, 0);
 	if (index == SUB_REAL) {
 		switch(condition) {
 		case AST_CONTROL_BUSY:
@@ -3917,6 +3919,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 		}
 	} else
 		res = 0;
+	ast_mutex_unlock(&p->lock);
 	return res;
 }
 
