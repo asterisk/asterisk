@@ -833,7 +833,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 			if (res2) {
 				/* Agent must have hung up */
 				ast_log(LOG_WARNING, "Agent on %s hungup on the customer.  They're going to be pissed.\n", peer->name);
-				ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "AGENTDUMP", "");
+				ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "AGENTDUMP", "%s", "");
 				ast_hangup(peer);
 				return -1;
 			}
@@ -844,7 +844,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		/* Make sure channels are compatible */
 		res = ast_channel_make_compatible(qe->chan, peer);
 		if (res < 0) {
-			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "SYSCOMPAT", "");
+			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "SYSCOMPAT", "%s", "");
 			ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", qe->chan->name, peer->name);
 			ast_hangup(peer);
 			return -1;

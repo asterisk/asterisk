@@ -252,9 +252,9 @@ static void queue_log_init(void)
 	qlog = fopen(filename, "a");
 	ast_mutex_unlock(&qloglock);
 	if (reloaded) 
-		ast_queue_log("NONE", "NONE", "NONE", "CONFIGRELOAD", "");
+		ast_queue_log("NONE", "NONE", "NONE", "CONFIGRELOAD", "%s", "");
 	else
-		ast_queue_log("NONE", "NONE", "NONE", "QUEUESTART", "");
+		ast_queue_log("NONE", "NONE", "NONE", "QUEUESTART", "%s", "");
 }
 
 int reload_logger(int rotate)
