@@ -707,21 +707,25 @@ static int conf_exec(struct ast_channel *chan, void *data)
 						/* Prompt user for pin if pin is required */
 						res = ast_app_getdata(chan, "conf-getpin", pin, sizeof(pin) - 1, 0);
 					}
-					if (res == 0) {
+					if (res >= 0) {
 						if (!strcasecmp(pin, cnf->pin)) {
 							/* Pin correct */
 							allowretry = 0;
 							/* Run the conference */
 							res = conf_run(chan, cnf, confflags);
+						} else {
+							/* Pin invalid */
+							res = ast_streamfile(chan, "conf-invalidpin", chan->language);
+							if (!res)
+								ast_waitstream(chan, "");
+							res = -1;
+							if (allowretry)
+								strcpy(confno, "");
 						}
+					} else {
+						res = -1;
+						allowretry = 0;
 					}
-					/* Pin invalid or error */
-					res = ast_streamfile(chan, "conf-invalidpin", chan->language);
-					if (!res)
-						ast_waitstream(chan, "");
-					res = -1;
-					if (allowretry)
-						strcpy(confno, "");
 				} else {
 					/* No pin required */
 					allowretry = 0;
