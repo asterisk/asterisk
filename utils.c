@@ -389,7 +389,9 @@ int ast_utils_init(void)
 	return 0;
 }
 
-
+#ifndef __linux__
+#undef pthread_create /* For ast_pthread_create function only */
+#endif /* ! LINUX */
 int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize)
 {
 	pthread_attr_t lattr;
