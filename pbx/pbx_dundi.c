@@ -1972,10 +1972,36 @@ static int dundi_do_store_history(int fd, int argc, char *argv[])
 
 static int dundi_flush(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
+	int stats=0;
+	if ((argc < 2) || (argc > 3))
 		return RESULT_SHOWUSAGE;
-	ast_db_deltree("dundi/cache", NULL);
-	ast_cli(fd, "DUNDi Cache Flushed\n");
+	if (argc > 2) {
+		if (!strcasecmp(argv[2], "stats"))
+			stats = 1;
+		else
+			return RESULT_SHOWUSAGE;
+	}
+	if (stats) {
+		/* Flush statistics */
+		struct dundi_peer *p;
+		int x;
+		ast_mutex_lock(&peerlock);
+		p = peers;
+		while(p) {
+			for (x=0;x<DUNDI_TIMING_HISTORY;x++) {
+				if (p->lookups[x])
+					free(p->lookups[x]);
+				p->lookups[x] = NULL;
+				p->lookuptimes[x] = 0;
+			}
+			p->avgms = 0;
+			p = p->next;
+		}
+		ast_mutex_unlock(&peerlock);
+	} else {
+		ast_db_deltree("dundi/cache", NULL);
+		ast_cli(fd, "DUNDi Cache Flushed\n");
+	}
 	return RESULT_SUCCESS;
 }
 
@@ -2410,8 +2436,10 @@ static char query_usage[] =
 "e164 if none is specified).\n";
 
 static char flush_usage[] =
-"Usage: dundi flush\n"
-"       Flushes DUNDi answer cache, used primarily for debug.\n";
+"Usage: dundi flush [stats]\n"
+"       Flushes DUNDi answer cache, used primarily for debug.  If\n"
+"'stats' is present, clears timer statistics instead of normal\n"
+"operation.\n";
 
 static struct ast_cli_entry  cli_debug =
 	{ { "dundi", "debug", NULL }, dundi_do_debug, "Enable DUNDi debugging", debug_usage };
