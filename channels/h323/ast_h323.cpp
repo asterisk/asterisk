@@ -340,7 +340,7 @@ void MyH323EndPoint::OnConnectionCleared(H323Connection & connection, const PStr
 			break;
 		case H323Connection::EndedByNoUser :
 			if (h323debug)
-				cout << " -- Gatekeeper could not find user " << remoteName << endl;
+				cout << " -- Remote endpoint could not find user: " << remoteName << endl;
 			break;
 		case H323Connection::EndedByNoBandwidth :
 			if (h323debug)
@@ -821,6 +821,9 @@ int h323_start_listener(int listenPort, struct sockaddr_in bindaddr, int _jitter
 	jitter = _jitter;
 
 	PIPSocket::Address interfaceAddress(bindaddr.sin_addr);
+
+	if (!listenPort)
+		listenPort = 1720;
 	
 	tcpListener = new H323ListenerTCP(*endPoint, interfaceAddress, (WORD)listenPort);
 
