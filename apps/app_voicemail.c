@@ -519,8 +519,9 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 				return -1;
 			}
 		} else if (silent == '0') {
-			strncpy(chan->exten, "0", sizeof(chan->exten) - 1);
+			strncpy(chan->exten, "o", sizeof(chan->exten) - 1);
 			chan->priority = 0;
+			ast_softhangup(chan, AST_SOFTHANGUP_ASYNCGOTO);
 			free(copy);
 			return 0;
 		}
