@@ -9460,7 +9460,7 @@ static int setup_zap(void)
 		} else if (!strcasecmp(v->name, "priindication")) {
 			if (!strcasecmp(v->value, "outofband"))
 				priindication_oob = 1;
-			else if (!strcasecmp(v->name, "inband"))
+			else if (!strcasecmp(v->value, "inband"))
 				priindication_oob = 0;
 			else
 				ast_log(LOG_WARNING, "'%s' is not a valid pri indication value, should be 'inband' or 'outofband' at line %d\n",
