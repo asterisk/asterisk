@@ -237,7 +237,7 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 
 static int pcm_seek(struct ast_filestream *fs, long sample_offset, int whence)
 {
-	off_t offset,min,cur,max;
+	off_t offset=0,min,cur,max;
 
 	min = 0;
 	cur = lseek(fs->fd, 0, SEEK_CUR);

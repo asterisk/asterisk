@@ -168,7 +168,7 @@ static char *g729_getcomment(struct ast_filestream *s)
 static int g729_seek(struct ast_filestream *fs, long sample_offset, int whence)
 {
 	long bytes;
-	off_t min,cur,max,offset;
+	off_t min,cur,max,offset=0;
 	min = 0;
 	cur = lseek(fs->fd, 0, SEEK_CUR);
 	max = lseek(fs->fd, 0, SEEK_END);
