@@ -2996,7 +2996,7 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 
 	memset(&counters, 0, sizeof(counters));
 
-	if (argc != 2 && argc != 3) return -1;
+	if (argc != 2 && argc != 3) return RESULT_SHOWUSAGE;
 
 	/* we obtain [exten@]context? if yes, split them ... */
 	if (argc == 3) {
@@ -3018,7 +3018,7 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 			show_dialplan_helper(fd, context, exten, &counters, NULL);
 		}
 	} else {
-		return RESULT_SHOWUSAGE;
+		show_dialplan_helper(fd, NULL, NULL, &counters, NULL);
 	}
 
 	/* check for input failure and throw some error messages */
