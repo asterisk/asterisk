@@ -3,7 +3,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Radio Repeater / Remote Base program 
- *  version 0.16 8/21/04
+ *  version 0.17 9/13/04
  * 
  * See http://www.zapatatelephony.org/app_rpt.html
  *
@@ -137,7 +137,7 @@ enum {DLY_TELEM, DLY_ID, DLY_UNKEY, DLY_CALLTERM};
 #include <tonezone.h>
 #include <linux/zaptel.h>
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.16  08/21/2004";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.17  09/13/2004";
 static char *app = "Rpt";
 
 static char *synopsis = "Radio Repeater/Remote Base Control System";
@@ -1014,7 +1014,7 @@ struct tm localtm;
 	    case STATS_TIME:
 	    	wait_interval(myrpt, DLY_TELEM); /* Wait a little bit */
 		t = time(NULL);
-		ast_localtime(&t, &localtm, NULL);
+		localtime_r(&t, &localtm);
 		/* Say the phase of the day is before the time */
 		if((localtm.tm_hour >= 0) && (localtm.tm_hour < 12))
 			p = "rpt/goodmorning";
