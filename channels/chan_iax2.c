@@ -230,6 +230,8 @@ static int global_rtautoclear = 120;
 
 static struct iax2_peer *realtime_peer(const char *peername);
 static int reload_config(void);
+static int iax2_reload(int fd, int argc, char *argv[]);
+
 
 struct iax2_user {
 	char name[80];
@@ -2003,6 +2005,10 @@ static char prune_realtime_usage[] =
 "Usage: iax2 prune realtime [<peername>|all]\n"
 "       Prunes object(s) from the cache\n";
 
+static char iax2_reload_usage[] =
+"Usage: iax2 reload\n"
+"       Reloads IAX configuration from iax.conf\n";
+
 static struct ast_cli_entry cli_set_jitter = 
 { { "iax2", "set", "jitter", NULL }, iax2_set_jitter, "Sets IAX jitter buffer", jitter_usage };
 
@@ -2017,6 +2023,9 @@ static struct ast_cli_entry  cli_show_peer =
 
 static struct ast_cli_entry  cli_prune_realtime =
 	{ { "iax2", "prune", "realtime", NULL }, iax2_prune_realtime, "Prune a cached realtime lookup", prune_realtime_usage, complete_iax2_show_peer };
+
+static struct ast_cli_entry  cli_reload =
+	{ { "iax2", "reload", NULL }, iax2_reload, "Reload IAX configuration", iax2_reload_usage };
 
 static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset);
 
@@ -4066,7 +4075,6 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 		char nm[20];
 		char status[20] = "";
 		char srch[2000] = "";
-		total_peers++;
 
 		if (registeredonly && !peer->addr.sin_addr.s_addr)
 			continue;
@@ -4113,6 +4121,7 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 					nm,
 					ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
 					peer->encmethods ? "(E)" : "   ", status);
+		total_peers++;
 	}
 	ast_mutex_unlock(&peerl.lock);
 
@@ -8458,6 +8467,11 @@ static int reload_config(void)
 	return 0;
 }
 
+static int iax2_reload(int fd, int argc, char *argv[])
+{
+	return reload_config();
+}
+
 int reload(void)
 {
 	return reload_config();
@@ -8997,6 +9011,7 @@ int load_module(void)
 	ast_cli_register(&cli_show_stats);
 	ast_cli_register(&cli_show_cache);
 	ast_cli_register(&cli_show_peer);
+	ast_cli_register(&cli_reload);
 
 	ast_register_application(papp, iax2_prov_app, psyn, pdescrip);
 	
