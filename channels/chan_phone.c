@@ -146,18 +146,18 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 
 	PHONE_CID cid;
 	time_t UtcTime;
-	struct tm *t;
+	struct tm tm;
 
 
 	if (ast->callerid) {
 		time(&UtcTime);
-		t = localtime(&UtcTime);
+		localtime_r(&UtcTime,&tm);
 
-		if(t != NULL) {
-			sprintf(cid.month, "%02d",(t->tm_mon + 1));
-			sprintf(cid.day, "%02d", t->tm_mday);
-			sprintf(cid.hour, "%02d", t->tm_hour);
-			sprintf(cid.min, "%02d", t->tm_min);
+		if(&tm != NULL) {
+			sprintf(cid.month, "%02d",(tm.tm_mon + 1));
+			sprintf(cid.day, "%02d", tm.tm_mday);
+			sprintf(cid.hour, "%02d", tm.tm_hour);
+			sprintf(cid.min, "%02d", tm.tm_min);
 		}
 		strcpy(cid.name, "Unknown");
 		sprintf(cid.number,"%s",ast->callerid);

@@ -38,7 +38,7 @@ static MYSQL *mysql;
 
 static int mysql_log(struct ast_cdr *cdr)
 {
-  struct tm *tm;
+  struct tm tm;
   struct timeval tv;
   struct timezone tz;
   char *sqlcmd, timestr[128];
@@ -51,8 +51,8 @@ static int mysql_log(struct ast_cdr *cdr)
 
   gettimeofday(&tv,&tz);
   t = tv.tv_sec;
-  tm = localtime(&t);
-  strftime(timestr,128,DATE_FORMAT,tm);
+  localtime_r(&t,&tm);
+  strftime(timestr,128,DATE_FORMAT,&tm);
   
 
   ast_log(LOG_DEBUG,"cdr_mysql: inserting a CDR record.\n");

@@ -1223,10 +1223,10 @@ static int transmit_notify_request_with_callerid(struct mgcp_endpoint *p, char *
 	char tone2[256];
 	char *l, *n;
 	time_t t;
-	struct tm *tm;
+	struct tm tm;
 	
 	time(&t);
-	tm = localtime(&t);
+	localtime_r(&t,&tm);
 	if (callerid)
 		strncpy(cid, callerid, sizeof(cid) - 1);
 	else
@@ -1244,7 +1244,7 @@ static int transmit_notify_request_with_callerid(struct mgcp_endpoint *p, char *
 	if (!l)
 		l = "";
 	snprintf(tone2, sizeof(tone2), "%s,L/ci(%02d/%02d/%02d/%02d,%s,%s)", tone, 
-			tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, l, n);
+			tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, l, n);
 	strncpy(p->curtone, tone, sizeof(p->curtone) - 1);
 	reqprep(&resp, p, "RQNT");
 	add_header(&resp, "X", p->txident);

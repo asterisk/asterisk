@@ -406,40 +406,40 @@ static struct ast_switch *pbx_findswitch(char *sw)
 
 static inline int include_valid(struct ast_include *i)
 {
-	struct tm *tm;
+	struct tm tm;
 	time_t t;
 	if (!i->hastime)
 		return 1;
 	time(&t);
-	tm = localtime(&t);
-	if (!tm) {
+	localtime_r(&t,&tm);
+	if (!&tm) {
 		ast_log(LOG_WARNING, "Failed to get local time\n");
 		return 0;
 	}
 
 	/* If it's not the right month, return */
-	if (!(i->monthmask & (1 << tm->tm_mon))) {
+	if (!(i->monthmask & (1 << tm.tm_mon))) {
 		return 0;
 	}
 
 	/* If it's not that time of the month.... */
 	/* Warning, tm_mday has range 1..31! */
-	if (!(i->daymask & (1 << (tm->tm_mday-1))))
+	if (!(i->daymask & (1 << (tm.tm_mday-1))))
 		return 0;
 
 	/* If it's not the right day of the week */
-	if (!(i->dowmask & (1 << tm->tm_wday)))
+	if (!(i->dowmask & (1 << tm.tm_wday)))
 		return 0;
 
 	/* Sanity check the hour just to be safe */
-	if ((tm->tm_hour < 0) || (tm->tm_hour > 23)) {
+	if ((tm.tm_hour < 0) || (tm.tm_hour > 23)) {
 		ast_log(LOG_WARNING, "Insane time...\n");
 		return 0;
 	}
 
 	/* Now the tough part, we calculate if it fits
 	   in the right time based on min/hour */
-	if (!(i->minmask[tm->tm_hour] & (1 << (tm->tm_min / 2))))
+	if (!(i->minmask[tm.tm_hour] & (1 << (tm.tm_min / 2))))
 		return 0;
 
 	/* If we got this far, then we're good */

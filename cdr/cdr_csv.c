@@ -107,7 +107,7 @@ static int append_int(char *buf, int s, int len)
 static int append_date(char *buf, struct timeval tv, int len)
 {
 	char tmp[80];
-	struct tm *tm;
+	struct tm tm;
 	time_t t;
 	t = tv.tv_sec;
 	if (strlen(buf) > len - 3)
@@ -116,8 +116,8 @@ static int append_date(char *buf, struct timeval tv, int len)
 		strncat(buf, ",", len);
 		return 0;
 	}
-	tm = localtime(&t);
-	strftime(tmp, sizeof(tmp), DATE_FORMAT, tm);
+	localtime_r(&t,&tm);
+	strftime(tmp, sizeof(tmp), DATE_FORMAT, &tm);
 	return append_string(buf, tmp, len);
 }
 

@@ -324,19 +324,19 @@ void callerid_free(struct callerid_state *cid)
 static int callerid_genmsg(char *msg, int size, char *number, char *name, int flags)
 {
 	time_t t;
-	struct tm *tm;
+	struct tm tm;
 	char *ptr;
 	int res;
 	int i,x;
 	/* Get the time */
 	time(&t);
-	tm = localtime(&t);
+	localtime_r(&t,&tm);
 	
 	ptr = msg;
 	
 	/* Format time and message header */
-	res = snprintf(ptr, size, "\001\010%02d%02d%02d%02d", tm->tm_mon + 1,
-				tm->tm_mday, tm->tm_hour, tm->tm_min);
+	res = snprintf(ptr, size, "\001\010%02d%02d%02d%02d", tm.tm_mon + 1,
+				tm.tm_mday, tm.tm_hour, tm.tm_min);
 	size -= res;
 	ptr += res;
 	if (!number || !strlen(number) || (flags & CID_UNKNOWN_NUMBER)) {

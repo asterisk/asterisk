@@ -29,12 +29,13 @@ static char *app = "Zapateller";
 static char *synopsis = "Block telemarketers with SIT";
 
 static char *descrip = 
-"  Zapateller(options):  Generates special information tone to block telemarketers\n"
-"from calling you.  Returns 0 normally or -1 on hangup.  Options is a pipe-delimited\n"
-"list of options.  The following options are available: 'answer' causes the line to\n"
-"be answered before playing the tone, 'nocallerid' causes Zapateller to only play\n"
-"the tone if there is no callerid information available.  Options should be\n"
-"seperated by | characters.\n";
+"  Zapateller(options):  Generates special information tone to block\n"
+"telemarketers from calling you.  Returns 0 normally or -1 on hangup.\n"
+"Options is a pipe-delimited list of options.  The following options\n"
+"are available: 'answer' causes the line to be answered before playing\n"
+"the tone, 'nocallerid' causes Zapateller to only play the tone if there\n"
+"is no callerid information available.  Options should be separated by |\n"
+"characters\n";
 
 STANDARD_LOCAL_USER;
 

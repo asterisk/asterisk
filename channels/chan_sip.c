@@ -747,16 +747,8 @@ static void sip_destroy(struct sip_pvt *p)
 /* Interface lookup code courtesy Tilghman of DrunkCoder.com.  Thanks! */
 
 struct my_ifreq {
-    union
-      {
 	char ifrn_name[IFNAMSIZ];	/* Interface name, e.g. "en0".  */
-      } ifr_ifrn;
-
-    union
-      {
 	struct sockaddr_in ifru_addr;
-	char ifru_data[512];
-      } ifr_ifru;
 };
 
 struct in_addr *lookup_iface(char *iface) {
@@ -764,7 +756,7 @@ struct in_addr *lookup_iface(char *iface) {
 	int res;
 	static struct  my_ifreq ifreq;
 	memset(&ifreq, 0, sizeof(ifreq));
-	strncpy(ifreq.ifr_ifrn.ifrn_name,iface,sizeof(ifreq.ifr_ifrn.ifrn_name) - 1);
+	strncpy(ifreq.ifrn_name,iface,sizeof(ifreq.ifrn_name) - 1);
 
 	mysock = socket(PF_INET,SOCK_DGRAM,IPPROTO_IP);
 	res = ioctl(mysock,SIOCGIFADDR,&ifreq);
@@ -774,7 +766,7 @@ struct in_addr *lookup_iface(char *iface) {
 		ast_log(LOG_WARNING, "Unable to get IP of %s: %s\n", iface, strerror(errno));
 		return &__ourip;
 	}
-	return( (struct in_addr *) &ifreq.ifr_ifru.ifru_addr.sin_addr );
+	return( (struct in_addr *) &ifreq.ifru_addr.sin_addr );
 }
 
 static struct in_addr *myaddrfor(struct in_addr *them)

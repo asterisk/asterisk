@@ -228,7 +228,7 @@ extern void ast_log(int level, const char *file, int line, const char *function,
 	char tmp4[80];
 	char linestr[80];
 	time_t t;
-	struct tm *tm;
+	struct tm tm;
 	struct logfile *f;
 
 	va_list ap;
@@ -238,10 +238,10 @@ extern void ast_log(int level, const char *file, int line, const char *function,
 	ast_pthread_mutex_lock(&loglock);
 	if (level == 1 /* Event */) {
 		time(&t);
-		tm = localtime(&t);
-		if (tm) {
+		localtime_r(&t,&tm);
+		if (&tm) {
 			/* Log events into the event log file, with a different format */
-			strftime(date, sizeof(date), "%b %e %T", tm);
+			strftime(date, sizeof(date), "%b %e %T", &tm);
 			fprintf(eventlog, "%s asterisk[%d]: ", date, getpid());
 			va_start(ap, fmt);
 			vfprintf(eventlog, fmt, ap);
@@ -258,8 +258,8 @@ extern void ast_log(int level, const char *file, int line, const char *function,
 				if (f->logflags & (1 << level) && f->f) {
 					if ((f->f != stdout) && (f->f != stderr)) {
 						time(&t);
-						tm = localtime(&t);
-						strftime(date, sizeof(date), "%b %e %T", tm);
+						localtime_r(&t,&tm);
+						strftime(date, sizeof(date), "%b %e %T", &tm);
 						fprintf(f->f, "%s %s[%ld]: File %s, Line %d (%s): ", date, levels[level], pthread_self(), file, line, function);
 					} else {
 						sprintf(linestr, "%d", line);

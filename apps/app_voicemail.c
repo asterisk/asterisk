@@ -98,10 +98,11 @@ static char *synopsis_vmain =
 "Enter voicemail system";
 
 static char *descrip_vmain =
-"  VoiceMailMain(): Enters the main voicemail system for the checking of voicemail.  The mailbox\n"
-"can be passed as the option, which will stop the voicemail system from prompting the user\n"
-"for the mailbox.  If the mailbox is preceeded by 's' then the passsword check will be skipped.\n"
-"Returns -1 if the user hangs up or 0 otherwise.\n";
+"  VoiceMailMain(): Enters the main voicemail system for the checking of\n"
+"voicemail.  The mailbox can be passed as the option, which will stop the\n"
+"voicemail system from prompting the user for the mailbox.  If the mailbox\n"
+"is preceded by 's' then the password check will be skipped.  Returns -1 if\n"
+"the user hangs up or 0 otherwise.\n";
 
 /* Leave a message */
 static char *app = "VoiceMail";
@@ -332,7 +333,7 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 	char fname[256];
 	char dur[256];
 	time_t t;
-	struct tm *tm;
+	struct tm tm;
 	char *astattach;
 	struct ast_config *cfg;
 	p = popen(SENDMAIL, "w");
@@ -348,8 +349,8 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 		}
 		snprintf(dur, sizeof(dur), "%ld:%02ld", duration / 60, duration % 60);
 		time(&t);
-		tm = localtime(&t);
-		strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", tm);
+		localtime_r(&t,&tm);
+		strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", &tm);
 		fprintf(p, "Date: %s\n", date);
 		fprintf(p, "From: Asterisk PBX <%s>\n", who);
 		fprintf(p, "To: %s <%s>\n", name, email);
@@ -365,7 +366,7 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 			fprintf(p, "--%s\n", bound);
 		}
 			fprintf(p, "Content-Type: TEXT/PLAIN; charset=US-ASCII\n\n");
-			strftime(date, sizeof(date), "%A, %B %d, %Y at %r", tm);
+			strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
 			fprintf(p, "Dear %s:\n\n\tJust wanted to let you know you were just left a %s long message (number %d)\n"
 
 		           "in mailbox %s from %s, on %s so you might\n"
@@ -392,11 +393,11 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 
 static int get_date(char *s, int len)
 {
-	struct tm *tm;
+	struct tm tm;
 	time_t t;
 	t = time(0);
-	tm = localtime(&t);
-	return strftime(s, len, "%a %b %e %r %Z %Y", tm);
+	localtime_r(&t,&tm);
+	return strftime(s, len, "%a %b %e %r %Z %Y", &tm);
 }
 
 static int invent_message(struct ast_channel *chan, char *ext, int busy, char *ecodes)
