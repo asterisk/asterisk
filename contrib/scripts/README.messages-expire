@@ -1,6 +1,6 @@
-expire-messages.pl
+messages-expire.pl
 
-expire-messages finds messages more than X days old and deletes them. 
+messages-expire finds messages more than X days old and deletes them. 
 Because the older messages will be the lower numbers in the folder (msg0000
 will be older than msg0005), just deleting msg0000 will not work. 
 expire-messages then runs a routine that goes into every folder in every
