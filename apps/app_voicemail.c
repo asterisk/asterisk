@@ -1331,7 +1331,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	}
 
 	if ((vmu = find_user(&svm, context, ext))) {
-		populate_defaults(vmu);	
 		/* Setup pre-file if appropriate */
 		if (strcmp(vmu->context, "default"))
 			snprintf(ext_context, sizeof(ext_context), "%s@%s", ext, vmu->context);
