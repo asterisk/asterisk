@@ -44,7 +44,8 @@ static char *synopsis2 = "MeetMe participant count";
 static char *descrip =
 "  MeetMe(confno[|options]): Enters the user into a specified MeetMe conference.\n"
 "If the conference number is omitted, the user will be prompted to enter\n"
-"one.  This application always returns -1.\n"
+"one.  This application always returns -1.  A ZAPTEL INTERFACE MUST BE INSTALLED\n"
+"FOR CONFERENCING TO WORK!\n\n"
 
 "The option string may contain zero or more of the following characters:\n"
 "      'm' -- set monitor only mode (Listen only, no talking\n"
