@@ -3519,7 +3519,6 @@ int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int pri
 		   the PBX, we have to make a new channel, masquerade, and start the PBX
 		   at the new location */
 		struct ast_channel *tmpchan;
-		struct ast_frame *f;
 		tmpchan = ast_channel_alloc(0);
 		if (tmpchan) {
 			snprintf(tmpchan->name, sizeof(tmpchan->name), "AsyncGoto/%s", chan->name);
@@ -3547,10 +3546,10 @@ int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int pri
 			if (needlock)
 				ast_mutex_unlock(&chan->lock);
 
-			/* Make the masquerade happen by reading a frame from the tmp channel */
-			f = ast_read(tmpchan);
-			if (f)
-				ast_frfree(f);
+			/* Grab the locks and get going */
+			ast_mutex_lock(&tmpchan->lock);
+			ast_do_masquerade(tmpchan, 0);
+			ast_mutex_unlock(&tmpchan->lock);
 			/* Start the PBX going on our stolen channel */
 			if (ast_pbx_start(tmpchan)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmpchan->name);
