@@ -3530,7 +3530,6 @@ int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int pri
 		if (priority)
 			chan->priority = priority - 1;
 		ast_softhangup_nolock(chan, AST_SOFTHANGUP_ASYNCGOTO);
-		ast_mutex_unlock(&chan->lock);
 	} else {
 		/* In order to do it when the channel doesn't really exist within
 		   the PBX, we have to make a new channel, masquerade, and start the PBX
@@ -3560,8 +3559,6 @@ int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int pri
 			/* Masquerade into temp channel */
 			ast_channel_masquerade(tmpchan, chan);
 		
-			ast_mutex_unlock(&chan->lock);
-
 			/* Grab the locks and get going */
 			ast_mutex_lock(&tmpchan->lock);
 			ast_do_masquerade(tmpchan);
@@ -3574,9 +3571,9 @@ int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int pri
 			}
 		} else {
 			res = -1;
-			ast_mutex_unlock(&chan->lock);
 		}
 	}
+	ast_mutex_unlock(&chan->lock);
 	return res;
 }
 
