@@ -5397,7 +5397,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			if (!ast_strlen_zero(user->cid_num) && !ast_strlen_zero(p->cid_num)) 
 				strncpy(p->cid_num, user->cid_num, sizeof(p->cid_num) - 1);
 			if (!ast_strlen_zero(user->cid_name) && !ast_strlen_zero(p->cid_name)) 
-				strncpy(p->cid_num, user->cid_name, sizeof(p->cid_name) - 1);
+				strncpy(p->cid_name, user->cid_name, sizeof(p->cid_name) - 1);
 			strncpy(p->username, user->name, sizeof(p->username) - 1);
 			strncpy(p->peersecret, user->secret, sizeof(p->peersecret) - 1);
 			strncpy(p->peermd5secret, user->md5secret, sizeof(p->peermd5secret) - 1);
