@@ -1324,33 +1324,44 @@ static int conf_exec(struct ast_channel *chan, void *data)
 					confno[0] = '\0';
 			} else {
 				if (!ast_strlen_zero(cnf->pin)) {
-					char pin[AST_MAX_EXTENSION];
+					char pin[AST_MAX_EXTENSION]="";
+					int j;
 
-					if (*the_pin) {
-						strncpy(pin, the_pin, sizeof(pin) - 1);
-						res = 0;
-					} else {
-						/* Prompt user for pin if pin is required */
-						res = ast_app_getdata(chan, "conf-getpin", pin, sizeof(pin) - 1, 0);
-					}
-					if (res >= 0) {
-						if (!strcasecmp(pin, cnf->pin)) {
-							/* Pin correct */
-							allowretry = 0;
-							/* Run the conference */
-							res = conf_run(chan, cnf, confflags);
+					/* Allow the pin to be retried up to 3 times */
+					for (j=0; j<3; j++) {
+						if (*the_pin) {
+							strncpy(pin, the_pin, sizeof(pin) - 1);
+							res = 0;
 						} else {
-							/* Pin invalid */
-							res = ast_streamfile(chan, "conf-invalidpin", chan->language);
-							if (!res)
-								ast_waitstream(chan, "");
-							res = -1;
-							if (allowretry)
-								confno[0] = '\0';
+							/* Prompt user for pin if pin is required */
+							res = ast_app_getdata(chan, "conf-getpin", pin, sizeof(pin) - 1, 0);
 						}
-					} else {
-						res = -1;
-						allowretry = 0;
+						if (res >= 0) {
+							if (!strcasecmp(pin, cnf->pin)) {
+								/* Pin correct */
+								allowretry = 0;
+								/* Run the conference */
+								res = conf_run(chan, cnf, confflags);
+								break;
+							} else {
+								/* Pin invalid */
+								res = ast_streamfile(chan, "conf-invalidpin", chan->language);
+								if (!res)
+									ast_waitstream(chan, "");
+								res = -1;
+								if (allowretry)
+									confno[0] = '\0';
+							}
+						} else {
+							res = -1;
+							allowretry = 0;
+							break;
+						}
+
+						/* Don't retry pin with a static pin */
+						if (*the_pin) {
+							break;
+						}
 					}
 				} else {
 					/* No pin required */
