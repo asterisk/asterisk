@@ -1157,7 +1157,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 		return RESULT_FAILURE;
 	}
 
-	ast_cli(fd, "Dialplane successfully saved into '%s'\n",
+	ast_cli(fd, "Dialplan successfully saved into '%s'\n",
 		filename);
 	return RESULT_SUCCESS;
 }
