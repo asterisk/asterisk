@@ -19,12 +19,14 @@ context = default		; Default for incoming calls
 ;host=dynamic
 ;dtmfmode=inband		; Choices are inband, rfc2833, or info
 ;defaultip=192.168.0.59
+;mailbox=1234,2345		; Mailbox for message waiting indicator
 
 ;[pingtel]
 ;type=friend
 ;username=pingtel
 ;secret=blah
 ;host=dynamic
+;qualify=1000			; Consider it down if it's 1 second to reply
 ;defaultip=192.168.0.60
 
 ;[cisco]

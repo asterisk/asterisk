@@ -1578,7 +1578,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	char myrdest [5] = "s";
 	char context[AST_MAX_EXTENSION] ="";
 	char *portno = NULL;
-	char *opts = NULL;
+	char *opts = "";
 	struct chan_iax2_pvt *p = c->pvt->pvt;
 	char *stringp=NULL;
 	if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
@@ -1937,9 +1937,9 @@ static struct ast_channel *ast_iax2_new(struct chan_iax2_pvt *i, int state, int 
 		if (!iax2_getpeername(i->addr, host, sizeof(host)))
 			snprintf(host, sizeof(host), "%s:%d", inet_ntoa(i->addr.sin_addr), ntohs(i->addr.sin_port));
 		if (strlen(i->username))
-			snprintf(tmp->name, sizeof(tmp->name), "IAX[%s@%s]/%d", i->username, host, i->callno);
+			snprintf(tmp->name, sizeof(tmp->name), "IAX2[%s@%s]/%d", i->username, host, i->callno);
 		else
-			snprintf(tmp->name, sizeof(tmp->name), "IAX[%s]/%d", host, i->callno);
+			snprintf(tmp->name, sizeof(tmp->name), "IAX2[%s]/%d", host, i->callno);
 		tmp->type = type;
 		/* We can support any format by default, until we get restricted */
 		tmp->nativeformats = capability;
@@ -2363,7 +2363,7 @@ static int iax2_do_debug(int fd, int argc, char *argv[])
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	iaxdebug = 1;
-	ast_cli(fd, "IAX Debugging Enabled\n");
+	ast_cli(fd, "IAX2 Debugging Enabled\n");
 	return RESULT_SUCCESS;
 }
 
@@ -2372,7 +2372,7 @@ static int iax2_no_debug(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	iaxdebug = 0;
-	ast_cli(fd, "IAX Debugging Disabled\n");
+	ast_cli(fd, "IAX2 Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
 
@@ -5430,9 +5430,9 @@ static int iax2_exec(struct ast_channel *chan, char *context, char *exten, int p
 			if (ncontext) {
 				*ncontext = '\0';
 				ncontext++;
-				snprintf(req, sizeof(req), "IAX/%s/%s@%s", odata, exten, ncontext);
+				snprintf(req, sizeof(req), "IAX2/%s/%s@%s", odata, exten, ncontext);
 			} else {
-				snprintf(req, sizeof(req), "IAX/%s/%s", odata, exten);
+				snprintf(req, sizeof(req), "IAX2/%s/%s", odata, exten);
 			}
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Executing Dial('%s')\n", req);
