@@ -30,7 +30,8 @@ maxlogins=3
 ;externnotify=/usr/bin/myapp
 ; For the directory, you can override the intro file if you want
 ;directoryintro=dir-intro
-
+; The character set for voicemail messages can be specified here
+;charset=ISO-8859-1
 ; Skip the "[PBX]:" string from the message title
 ;pbxskip=yes
 ; Change the From: string

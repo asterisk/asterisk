@@ -238,6 +238,7 @@ static int pbxskip = 0;
 static char *emailsubject = NULL;
 static char fromstring[100];
 static char emailtitle[100];
+static char charset[32] = "ISO-8859-1";
 
 
 STANDARD_LOCAL_USER;
@@ -867,7 +868,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 
 			fprintf(p, "--%s\n", bound);
 		}
-		fprintf(p, "Content-Type: text/plain; charset=ISO-8859-1\nContent-Transfer-Encoding: 8bit\n\n");
+		fprintf(p, "Content-Type: text/plain; charset=%s\nContent-Transfer-Encoding: 8bit\n\n", charset);
 		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
 		if (emailbody) {
 			struct ast_channel *ast = ast_channel_alloc(0);
@@ -3828,6 +3829,7 @@ static int load_config(void)
 		}
 		memset(fromstring,0,sizeof(fromstring));
 		memset(emailtitle,0,sizeof(emailtitle));
+		strncpy(charset, "ISO-8859-1", sizeof(charset) - 1);
 		if (emailbody) {
 			free(emailbody);
 			emailbody = NULL;
@@ -3840,6 +3842,8 @@ static int load_config(void)
 			pbxskip = ast_true(s);
 		if ((s=ast_variable_retrieve(cfg, "general", "fromstring")))
 			strncpy(fromstring,s,sizeof(fromstring)-1);
+		if ((s=ast_variable_retrieve(cfg, "general", "charset")))
+			strncpy(charset,s,sizeof(charset)-1);
 		if ((s=ast_variable_retrieve(cfg, "general", "emailtitle")))
 			strncpy(emailtitle,s,sizeof(emailtitle)-1);
 		if ((s=ast_variable_retrieve(cfg, "general", "emailsubject")))
