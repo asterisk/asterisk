@@ -64,7 +64,13 @@ static char *descrip =
 	"The file that contains the passcodes (if used) allows specification\n"
 	"of either just a passcode (defaulting to the \"disa\" context, or\n"
 	"passcode|context on each line of the file. The file may contain blank\n"
-	"lines, or comments starting with \"#\" or \";\".\n\n"
+	"lines, or comments starting with \"#\" or \";\". In addition, the\n"
+	"above arguments may have |new-callerid-string appended to them, to\n"
+	"specify a new (different) callerid to be used for this call, for\n"
+	"example: numeric-passcode|context|\"My Phone\" <(234) 123-4567> or \n"
+	"full-pathname-of-passcode-file|\"My Phone\" <(234) 123-4567>. Note that\n"
+	"in the case of specifying the numeric-passcode, the context must be\n"
+	"specified if the callerid is specified also.\n\n"
 	"If login is successful, the application parses the dialed number in\n"
 	"the specified (or default) context, and returns 0 with the new extension\n"
 	"context filled-in and the priority set to 1, so that the PBX may\n"
@@ -109,9 +115,9 @@ static int disa_exec(struct ast_channel *chan, void *data)
 {
 	int i,j,k,x;
 	struct localuser *u;
-	char tmp[256],exten[AST_MAX_EXTENSION],acctcode[20];
+	char tmp[256],arg2[256],exten[AST_MAX_EXTENSION],acctcode[20];
 	unsigned char tone_block[640],sil_block[640];
-	char *ourcontext;
+	char *ourcontext,*ourcallerid;
 	struct ast_frame *f,wf;
 	struct timeval lastout, now, lastdigittime;
 	int res;
@@ -137,10 +143,19 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	strncpy(tmp, (char *)data, sizeof(tmp)-1);
 	strtok(tmp, "|");
 	ourcontext = strtok(NULL, "|");
+	/* if context specified, save 2nd arg and parse third */
+	if (ourcontext) {
+		strcpy(arg2,ourcontext);
+		ourcallerid = strtok(NULL,"|");
+	}
 	  /* if context not specified, use "disa" */
-	if (!ourcontext) ourcontext = "disa";
+	else {
+		arg2[0] = 0;
+		ourcallerid = NULL;
+		ourcontext = "disa";
+	}
 	LOCAL_USER_ADD(u);
-	if (chan->state != AST_STATE_UP)
+	if (chan->_state != AST_STATE_UP)
 	{
 		/* answer */
 		ast_answer(chan);
@@ -243,6 +258,8 @@ static int disa_exec(struct ast_channel *chan, void *data)
 							if (tmp[0] == '#') continue;
 							if (tmp[0] == ';') continue;
 							strtok(tmp, "|");
+							/* save 2nd arg as clid */
+							ourcallerid = arg2;
 							ourcontext = strtok(NULL, "|");
 							  /* password must be in valid format (numeric) */
 							if (sscanf(tmp,"%d",&j) < 1) continue;
@@ -275,6 +292,11 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			  /* if this exists */
 			if (ast_exists_extension(chan,ourcontext,exten,1, chan->callerid))
 			{
+				if (ourcallerid && *ourcallerid)
+				{
+					if (chan->callerid) free(chan->callerid);
+					chan->callerid = strdup(ourcallerid);
+				}
 				strcpy(chan->exten,exten);
 				strcpy(chan->context,ourcontext);
 				strcpy(chan->accountcode,acctcode);
