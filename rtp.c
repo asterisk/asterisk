@@ -30,6 +30,7 @@
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
 #include <asterisk/channel.h>
+#include <asterisk/acl.h>
 #include <asterisk/channel_pvt.h>
 
 #define TYPE_SILENCE	 0x2
@@ -332,6 +333,9 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	case AST_FORMAT_GSM:
 		rtp->f.samples = 160 * (rtp->f.datalen / 33);
 		break;
+	case AST_FORMAT_ILBC:
+		rtp->f.samples = 240 * (rtp->f.datalen / 52);
+		break;
 	case AST_FORMAT_ADPCM:
 		rtp->f.samples = rtp->f.datalen * 2;
 		break;
@@ -370,6 +374,7 @@ static struct {
   {{1, AST_FORMAT_LPC10}, "audio", "LPC"},
   {{1, AST_FORMAT_G729A}, "audio", "G729"},
   {{1, AST_FORMAT_SPEEX}, "audio", "SPEEX"},
+  {{1, AST_FORMAT_ILBC}, "audio", "iLBC"},
   {{0, AST_RTP_DTMF}, "audio", "telephone-event"},
   {{0, AST_RTP_CN}, "audio", "CN"},
   {{1, AST_FORMAT_JPEG}, "video", "JPEG"},
@@ -401,6 +406,7 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
   [34] = {1, AST_FORMAT_H263},
   [101] = {0, AST_RTP_DTMF},
   [110] = {1, AST_FORMAT_SPEEX},
+  [120] = {1, AST_FORMAT_ILBC},
 };
 
 void ast_rtp_pt_clear(struct ast_rtp* rtp) 
@@ -710,6 +716,9 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	case AST_FORMAT_GSM:
 		pred = rtp->lastts + (f->datalen * 160 / 33);
 		break;
+	case AST_FORMAT_ILBC:
+		pred = rtp->lastts + (f->datalen * 240 / 52);
+		break;
 	case AST_FORMAT_G723_1:
 		pred = rtp->lastts + g723_samples(f->data, f->datalen);
 		break;
@@ -816,6 +825,18 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		}
 		if (!rtp->smoother) {
 			ast_log(LOG_WARNING, "Unable to create GSM smoother :(\n");
+			return -1;
+		}
+		ast_smoother_feed(rtp->smoother, _f);
+		while((f = ast_smoother_read(rtp->smoother)))
+			ast_rtp_raw_write(rtp, f, codec);
+		break;
+	case AST_FORMAT_ILBC:
+		if (!rtp->smoother) {
+			rtp->smoother = ast_smoother_new(52);
+		}
+		if (!rtp->smoother) {
+			ast_log(LOG_WARNING, "Unable to create ILBC smoother :(\n");
 			return -1;
 		}
 		ast_smoother_feed(rtp->smoother, _f);

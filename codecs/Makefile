@@ -20,6 +20,7 @@
 MODG723=$(shell [ -f g723.1/coder.c ] && echo "codec_g723_1.so")
 MODG723+=$(shell [ -f g723.1b/coder2.c ] && echo "codec_g723_1b.so")
 MODSPEEX=$(shell [ -f /usr/include/speex.h ] || [ -f /usr/local/include/speex.h ] && echo "codec_speex.so")
+MODILBC=$(shell [ -f ilbc/iLBC_decode.h ] && echo "codec_ilbc.so")
 CFLAGS+=
 
 LIBG723=g723.1/libg723.a
@@ -30,8 +31,9 @@ LIBGSMT=$(shell if uname -m | grep -q 86; then echo gsm/lib/libgsm.a; fi)
 LIBMP3=mp3/libmp3.a
 LIBLPC10=lpc10/liblpc10.a
 LIBSPEEX=-lspeex -lm
+LIBILBC=ilbc/libilbc.a
 
-CODECS+=$(MODG723) $(MODSPEEX) codec_gsm.so codec_mp3_d.so codec_lpc10.so  \
+CODECS+=$(MODG723) $(MODSPEEX) $(MODILBC) codec_gsm.so codec_mp3_d.so codec_lpc10.so  \
         codec_adpcm.so codec_ulaw.so codec_alaw.so codec_a_mu.so
 
 all: $(CODECS)
@@ -43,6 +45,7 @@ clean:
 	make -C gsm clean
 	make -C mp3 clean
 	make -C lpc10 clean
+	make -C ilbc clean
 
 $(LIBG723):
 	make -C g723.1 all
@@ -58,6 +61,12 @@ $(LIBMP3):
 
 $(LIBLPC10):
 	make -C lpc10 all
+
+$(LIBILBC):
+	make -C ilbc all
+
+codec_ilbc.so: codec_ilbc.o $(LIBILBC)
+	$(CC) -shared -Xlinker -x -o $@ $< $(LIBILBC)
 
 codec_g723_1.so : codec_g723_1.o $(LIBG723)
 	$(CC) -shared -Xlinker -x -o $@ $< $(LIBG723)
