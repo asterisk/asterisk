@@ -103,7 +103,7 @@ static struct chan_oss_pvt {
 	char context[AST_MAX_EXTENSION];
 } oss;
 
-static int time_has_passed()
+static int time_has_passed(void)
 {
 	struct timeval tv;
 	int ms;
@@ -134,6 +134,7 @@ static int sounddev = -1;
 
 static int autoanswer = 1;
  
+#if 0
 static int calc_loudness(short *frame)
 {
 	int sum = 0;
@@ -147,6 +148,7 @@ static int calc_loudness(short *frame)
 	sum = sum/FRAME_SIZE;
 	return sum;
 }
+#endif
 
 static int cursound = -1;
 static int sampsent = 0;
@@ -409,7 +411,7 @@ static int soundcard_setinput(int force)
 	return 1;
 }
 
-static int soundcard_init()
+static int soundcard_init(void)
 {
 	/* Assume it's full duplex for starters */
 	int fd = open(DEV_DSP, 	O_RDWR | O_NONBLOCK);
@@ -473,6 +475,7 @@ static int oss_answer(struct ast_channel *c)
 	answer_sound();
 	ast_setstate(c, AST_STATE_UP);
 	cursound = -1;
+	nosound=0;
 	return 0;
 }
 
