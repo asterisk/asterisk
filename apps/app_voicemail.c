@@ -3412,10 +3412,11 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			skipuser++;
 		else
 			valid = 0;
-
 	}
 
-	res = vm_authenticate(chan, vms.username, sizeof(vms.username), &vmus, context, prefixstr, skipuser, maxlogins);
+	if (!valid) {
+		res = vm_authenticate(chan, vms.username, sizeof(vms.username), &vmus, context, prefixstr, skipuser, maxlogins);
+	}
 
 	if (!res) {
 		valid = 1;
