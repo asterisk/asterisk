@@ -392,6 +392,8 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 	char dur[256];
 	time_t t;
 	struct tm tm;
+	if (!strcmp(format, "wav49"))
+		format = "WAV";
 	p = popen(SENDMAIL, "w");
 	if (p) {
 		gethostname(host, sizeof(host));
