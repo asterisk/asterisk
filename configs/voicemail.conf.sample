@@ -33,3 +33,12 @@ silencethreshold=128
 ;4310 => 5432,Sales,sales@marko.net
 ;4069 => 6522,Matt Brooks,matt@marko.net
 ;4110 => 3443,Rob Flynn,rflynn@blueridge.net
+
+;
+; Mailboxes may be organized into multiple contexts for
+; voicemail virtualhosting
+;
+
+[other]
+1234 => 5678,Company2 User,root@localhost
+

@@ -127,6 +127,7 @@ static char *app2 = "VoiceMailMain2";
 
 static pthread_mutex_t vmlock = AST_MUTEX_INITIALIZER;
 struct ast_vm_user *users;
+struct ast_vm_user *usersl;
 static int attach_voicemail;
 static int maxsilence;
 static int silencethreshold;
@@ -2176,8 +2177,12 @@ static int append_mailbox(char *context, char *mbox, char *data)
 			strncpy(vmu->email, s, sizeof(vmu->email));
 		if ((s = strsep(&stringp, ","))) 
 			strncpy(vmu->pager, s, sizeof(vmu->pager));
-		vmu->next = users;
-		users = vmu;
+		vmu->next = NULL;
+		if (usersl)
+			usersl->next = vmu;
+		else
+			users = vmu;
+		usersl = vmu;
 	}
 	return 0;
 }
@@ -2204,6 +2209,7 @@ static int load_users(void)
 		free_user(l);
 	}
 	users = NULL;
+	usersl = NULL;
 	if (cfg) {
 		/* General settings */
 		attach_voicemail = 1;

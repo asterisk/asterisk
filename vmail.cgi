@@ -67,10 +67,16 @@ _EOH
 
 sub check_login()
 {
-	my $mbox = param('mailbox');
+	my ($mbox, $context) = split(/\@/, param('mailbox'));
 	my $pass = param('password');
 	my $category = "general";
 	my @fields;
+	if (!$context) {
+		$context = param('context');
+	}
+	if (!$context) {
+		$context = "default";
+	}
 	open(VMAIL, "</etc/asterisk/voicemail.conf") || die("Bleh, no voicemail.conf");
 	while(<VMAIL>) {
 		chomp;
@@ -79,8 +85,8 @@ sub check_login()
 		} elsif ($category ne "general") {
 			if (/([^\s]+)\s*\=\>?\s*(.*)/) {
 				@fields = split(/\,\s*/, $2);
-				if (($mbox eq $1) && ($pass eq $fields[0])) {
-					return $fields[1] ? $fields[1] : "Extension $mbox";
+				if (($mbox eq $1) && ($pass eq $fields[0]) && ($context eq $category)) {
+					return $fields[1] ? $fields[1] : "Extension $mbox in $context";
 				}
 			}
 		}
@@ -89,7 +95,7 @@ sub check_login()
 
 sub validmailbox()
 {
-	my ($mbox) = @_;
+	my ($context, $mbox) = @_;
 	my $category = "general";
 	my @fields;
 	open(VMAIL, "</etc/asterisk/voicemail.conf") || die("Bleh, no voicemail.conf");
@@ -97,7 +103,7 @@ sub validmailbox()
 		chomp;
 		if (/\[(.*)\]/) {
 			$category = $1;
-		} elsif ($category ne "general") {
+		} elsif (($category ne "general") && ($category eq $context)) {
 			if (/([^\s]+)\s*\=\>?\s*(.*)/) {
 				@fields = split(/\,\s*/, $2);
 				if ($mbox eq $1) {
@@ -110,7 +116,7 @@ sub validmailbox()
 
 sub mailbox_list()
 {
-	my ($name, $current) = @_;
+	my ($name, $context, $current) = @_;
 	my $tmp;
 	my $text;
 	$tmp = "<SELECT name=\"$name\">\n";
@@ -145,8 +151,8 @@ sub mailbox_list()
 
 sub msgcount() 
 {
-	my ($mailbox, $folder) = @_;
-	my $path = "/var/spool/asterisk/vm/$mailbox/$folder";
+	my ($context, $mailbox, $folder) = @_;
+	my $path = "/var/spool/asterisk/voicemail/$context/$mailbox/$folder";
 	if (opendir(DIR, $path)) {
 		my @msgs = grep(/^msg....\.txt$/, readdir(DIR));
 		closedir(DIR);
@@ -157,8 +163,8 @@ sub msgcount()
 
 sub msgcountstr()
 {
-	my ($mailbox, $folder) = @_;
-	my $count = &msgcount($mailbox, $folder);
+	my ($context, $mailbox, $folder) = @_;
+	my $count = &msgcount($context, $mailbox, $folder);
 	if ($count > 1) {
 		"$count messages";
 	} elsif ($count > 0) {
@@ -169,8 +175,8 @@ sub msgcountstr()
 }
 sub messages()
 {
-	my ($mailbox, $folder) = @_;
-	my $path = "/var/spool/asterisk/vm/$mailbox/$folder";
+	my ($context, $mailbox, $folder) = @_;
+	my $path = "/var/spool/asterisk/voicemail/$context/$mailbox/$folder";
 	if (opendir(DIR, $path)) {
 		my @msgs = sort grep(/^msg....\.txt$/, readdir(DIR));
 		closedir(DIR);
@@ -193,9 +199,9 @@ sub makecookie()
 
 sub getfields()
 {
-	my ($mailbox, $folder, $msg) = @_;
+	my ($context, $mailbox, $folder, $msg) = @_;
 	my $fields;
-	if (open(MSG, "</var/spool/asterisk/vm/$mailbox/$folder/msg${msg}.txt")) {
+	if (open(MSG, "</var/spool/asterisk/voicemail/$context/$mailbox/$folder/msg${msg}.txt")) {
 		while(<MSG>) {
 			s/\#.*$//g;
 			if (/^(\w+)\s*\=\s*(.*)$/) {
@@ -241,6 +247,7 @@ print <<_EOH;
 <input type=hidden name="action" value="$nextaction">
 <input type=hidden name="folder" value="$folder">
 <input type=hidden name="mailbox" value="$mbox">
+<input type=hidden name="context" value="$context">
 <input type=hidden name="password" value="$passwd">
 <input type=hidden name="msgid" value="$msgid">
 $stdcontainerend
@@ -253,12 +260,20 @@ sub message_play()
 {
 	my ($message, $msgid) = @_;
 	my $folder = param('folder');
-	my $mbox = param('mailbox');
+	my ($mbox, $context) = split(/\@/, param('mailbox'));
 	my $passwd = param('password');
 	my $format = param('format');
+	
 	my $fields;
-	my $folders = &folder_list('newfolder', $mbox, $folder);
-	my $mailboxes = &mailbox_list('forwardto', $mbox);
+	if (!$context) {
+		$context = param('context');
+	}
+	if (!$context) {
+		$context = "default";
+	}
+	
+	my $folders = &folder_list('newfolder', $context, $mbox, $folder);
+	my $mailboxes = &mailbox_list('forwardto', $context, $mbox);
 	if (!$format) {
 		$format = &getcookie('format');
 	}
@@ -266,7 +281,7 @@ sub message_play()
 		&message_prefs("play", $msgid);
 	} else {
 		print header(-cookie => &makecookie($format));
-		$fields = &getfields($mbox, $folder, $msgid);
+		$fields = &getfields($context, $mbox, $folder, $msgid);
 		if (!$fields) {
 			print "<BR>Bah!\n";
 			return;
@@ -316,6 +331,7 @@ _EOH
 </table>
 <input type=hidden name="folder" value="$folder">
 <input type=hidden name="mailbox" value="$mbox">
+<input type=hidden name="context" value="$context">
 <input type=hidden name="password" value="$passwd">
 <input type=hidden name="msgid" value="$msgid">
 $stdcontainerend
@@ -361,7 +377,7 @@ sub message_audio()
 sub message_index() 
 {
 	my ($folder, $message) = @_;
-	my $mbox = param('mailbox');
+	my ($mbox, $context) = split(/\@/, param('mailbox'));
 	my $passwd = param('password');
 	my $message2;
 	my $msgcount;	
@@ -371,12 +387,18 @@ sub message_index()
 	if (!$format) {
 		$format = &getcookie('format');
 	}
+	if (!$context) {
+		$context = param('context');
+	}
+	if (!$context) {
+		$context = "default";
+	}
 	if ($folder) {
-		$msgcount = &msgcountstr($mbox, $folder);
-		$message2 = "&nbsp;&nbsp;&nbsp;Folder '$folder' has " . &msgcountstr($mbox, $folder);
+		$msgcount = &msgcountstr($context, $mbox, $folder);
+		$message2 = "&nbsp;&nbsp;&nbsp;Folder '$folder' has " . &msgcountstr($context, $mbox, $folder);
 	} else {
-		$newmessages = &msgcount($mbox, "INBOX");
-		$oldmessages = &msgcount($mbox, "Old");
+		$newmessages = &msgcount($context, $mbox, "INBOX");
+		$oldmessages = &msgcount($context, $mbox, "Old");
 		if (($newmessages > 0) || ($oldmessages < 1)) {
 			$folder = "INBOX";
 		} else {
@@ -413,9 +435,9 @@ sub message_index()
 		}
 	}
 	
-	my $folders = &folder_list('newfolder', $mbox, $folder);
-	my $cfolders = &folder_list('changefolder', $mbox, $folder);
-	my $mailboxes = &mailbox_list('forwardto', $mbox);
+	my $folders = &folder_list('newfolder', $context, $mbox, $folder);
+	my $cfolders = &folder_list('changefolder', $context, $mbox, $folder);
+	my $mailboxes = &mailbox_list('forwardto', $context, $mbox);
 	print header(-cookie => &makecookie($format));
 	print <<_EOH;
 
@@ -433,9 +455,9 @@ _EOH
 
 print "<tr><td>&nbsp;Msg</td><td>&nbsp;From</td><td>&nbsp;Duration</td><td>&nbsp;Date</td><td>&nbsp;</td></tr>\n";
 print "<tr><td><hr></td><td><hr></td><td><hr></td><td><hr></td><td></td></tr>\n";
-foreach $msg (&messages($mbox, $folder)) {
+foreach $msg (&messages($context, $mbox, $folder)) {
 
-	$fields = &getfields($mbox, $folder, $msg);
+	$fields = &getfields($context, $mbox, $folder, $msg);
 	$duration = $fields->{'duration'};
 	if ($duration) {
 		$duration = sprintf "%d:%02d", $duration / 60, $duration % 60;
@@ -476,6 +498,7 @@ print <<_EOH;
 </table>
 <input type=hidden name="folder" value="$folder">
 <input type=hidden name="mailbox" value="$mbox">
+<input type=hidden name="context" value="$context">
 <input type=hidden name="password" value="$passwd">
 </FORM>
 $stdcontainerend
@@ -491,12 +514,12 @@ sub validfolder()
 
 sub folder_list()
 {
-	my ($name, $mbox, $selected) = @_;
+	my ($name, $context, $mbox, $selected) = @_;
 	my $f;
 	my $count;
 	my $tmp = "<SELECT name=\"$name\">\n";
 	foreach $f (@validfolders) {
-		$count =  &msgcount($mbox, $f);
+		$count =  &msgcount($context, $mbox, $f);
 		if ($f eq $selected) {
 			$tmp .= "<OPTION SELECTED>$f ($count)</OPTION>\n";
 		} else {
@@ -508,7 +531,7 @@ sub folder_list()
 
 sub message_rename()
 {
-	my ($mbox, $oldfolder, $old, $newfolder, $new) = @_;
+	my ($context, $mbox, $oldfolder, $old, $newfolder, $new) = @_;
 	my $oldfile, $newfile;
 	return if ($old eq $new) && ($oldfolder eq $newfolder);
 	
@@ -542,9 +565,9 @@ sub message_rename()
 		die("Invalid old Message<BR>\n");
 	}
 	
-	my $path = "/var/spool/asterisk/vm/$mbox/$newfolder";
+	my $path = "/var/spool/asterisk/voicemail/$context/$mbox/$newfolder";
 	mkdir $path, 0755;
-	my $path = "/var/spool/asterisk/vm/$mbox/$oldfolder";
+	my $path = "/var/spool/asterisk/voicemail/$context/$mbox/$oldfolder";
 	opendir(DIR, $path) || die("Unable to open directory\n");
 	my @files = grep /^msg${old}\.\w+$/, readdir(DIR);
 	closedir(DIR);
@@ -554,7 +577,7 @@ sub message_rename()
 			$tmp = $1;
 			$oldfile = $path . "/$tmp";
 			$tmp =~ s/msg${old}/msg${new}/;
-			$newfile = "/var/spool/asterisk/vm/$mbox/$newfolder/$tmp";
+			$newfile = "/var/spool/asterisk/voicemail/$context/$mbox/$newfolder/$tmp";
 #			print "Renaming $oldfile to $newfile<BR>\n";
 			rename($oldfile, $newfile);
 		}
@@ -634,11 +657,16 @@ sub message_copy()
 
 sub message_delete()
 {
-	my ($mbox, $folder, $msg) = @_;
+	my ($context, $mbox, $folder, $msg) = @_;
 	if ($mbox =~ /^(\w+)$/) {
 		$mbox = $1;
 	} else {
 		die ("Invalid mailbox<BR>\n");
+	}
+	if ($context =~ /^(\w+)$/) {
+		$context = $1;
+	} else {
+		die ("Invalid context<BR>\n");
 	}
 	if ($folder =~ /^(\w+)$/) {
 		$folder = $1;
@@ -650,7 +678,7 @@ sub message_delete()
 	} else {
 		die("Invalid Message<BR>\n");
 	}
-	my $path = "/var/spool/asterisk/vm/$mbox/$folder";
+	my $path = "/var/spool/asterisk/voicemail/$context/$mbox/$folder";
 	opendir(DIR, $path) || die("Unable to open directory\n");
 	my @files = grep /^msg${msg}\.\w+$/, readdir(DIR);
 	closedir(DIR);
@@ -667,22 +695,28 @@ sub message_forward()
 {
 	my ($toindex, @msgs) = @_;
 	my $folder = param('folder');
-	my $mbox = param('mailbox');
+	my ($mbox, $context) = split(/\@/, param('mailbox'));
 	my $newmbox = param('forwardto');
 	my $msg;
 	my $msgcount;
+	if (!$context) {
+		$context = param('context');
+	}
+	if (!$context) {
+		$context = "default";
+	}
 	$newmbox =~ s/(\w+)(\s+.*)?$/$1/;
-	if (!&validmailbox($newmbox)) {
+	if (!&validmailbox($context, $newmbox)) {
 		die("Bah! Not a valid mailbox '$newmbox'\n");
 		return "";
 	}
-	$msgcount = &msgcount($newmbox, "INBOX");
+	$msgcount = &msgcount($context, $newmbox, "INBOX");
 	my $txt;
 	if ($newmbox ne $mbox) {
 #		print header;
 		foreach $msg (@msgs) {
 #			print "Forwarding $msg from $mbox to $newmbox<BR>\n";
-			&message_copy($mbox, $folder, $msg, $newmbox, sprintf "%04d", $msgcount);
+			&message_copy($context, $mbox, $folder, $msg, $newmbox, sprintf "%04d", $msgcount);
 			$msgcount++;
 		}
 		$txt = "Forwarded messages " . join(', ', @msgs) . "to $newmbox";
@@ -705,10 +739,16 @@ sub message_delete_or_move()
 	my $folder = param('folder');
 	my $newfolder = param('newfolder') unless $del;
 	$newfolder =~ s/^(\w+)\s+.*$/$1/;
-	my $mbox = param('mailbox');
+	my ($mbox, $context) = split(/\@/, param('mailbox'));
+	if (!$context) {
+		$context = param('context');
+	}
+	if (!$context) {
+		$context = "default";
+	}
 	my $passwd = param('password');
-	my $msgcount = &msgcount($mbox, $folder);
-	my $omsgcount = &msgcount($mbox, $newfolder) if $newfolder;
+	my $msgcount = &msgcount($context, $mbox, $folder);
+	my $omsgcount = &msgcount($context, $mbox, $newfolder) if $newfolder;
 #	print header;
 	if ($newfolder ne $folder) {
 		$y = 0;
@@ -717,13 +757,13 @@ sub message_delete_or_move()
 			my $newmsg = sprintf "%04d", $y;
 			if (grep(/^$msg$/, @msgs)) {
 				if ($newfolder) {
-					&message_rename($mbox, $folder, $msg, $newfolder, sprintf "%04d", $omsgcount);
+					&message_rename($context, $mbox, $folder, $msg, $newfolder, sprintf "%04d", $omsgcount);
 					$omsgcount++;
 				} else {
-					&message_delete($mbox, $folder, $msg);
+					&message_delete($context, $mbox, $folder, $msg);
 				}
 			} else {
-				&message_rename($mbox, $folder, $msg, $folder, $newmsg);
+				&message_rename($context, $mbox, $folder, $msg, $folder, $newmsg);
 				$y++;
 			}
 		}
