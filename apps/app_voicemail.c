@@ -185,7 +185,7 @@ struct vm_state {
 };
 static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int msg, int option);
 static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num, char *outgoing_context);
-static int play_record_review(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int outsidecaller, struct ast_vm_user *vmu, int *duration);
+static int play_record_review(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int outsidecaller, struct ast_vm_user *vmu, int *duration, const char *unlockdir);
 static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc);
 static int vm_play_folder_name(struct ast_channel *chan, char *mbox);
 
@@ -1299,11 +1299,13 @@ static int last_message_index(char *dir)
 {
 	int x;
 	char fn[256];
+	ast_lock_path(dir);
 	for (x=0;x<MAXMSG;x++) {
 		make_file(fn, sizeof(fn), dir, x);
 		if (ast_fileexists(fn, NULL, NULL) < 1)
 			break;
 	}
+	ast_unlock_path(dir);
 	return x-1;
 }
 
@@ -1934,6 +1936,7 @@ static void copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int 
 
 	make_dir(fromdir, sizeof(fromdir), vmu->context, vmu->mailbox, frombox);
 	make_file(frompath, sizeof(frompath), fromdir, msgnum);
+	ast_lock_path(topath);
 	recipmsgnum = 0;
 	do {
 		make_file(topath, sizeof(topath), todir, recipmsgnum);
@@ -1946,7 +1949,7 @@ static void copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int 
 	} else {
 		ast_log(LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
 	}
-
+	ast_unlock_path(topath);
 	notify_new_message(chan, recip, recipmsgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
 }
 
@@ -2132,18 +2135,19 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		strncpy(fmt, vmfmts, sizeof(fmt) - 1);
 		if (!ast_strlen_zero(fmt)) {
 			msgnum = 0;
-			do {
-				make_file(fn, sizeof(fn), dir, msgnum);
-				if (!EXISTS(dir,msgnum,fn,chan->language))
-					break;
-				msgnum++;
-			} while (msgnum < MAXMSG);
 			if (res >= 0) {
 				/* Unless we're *really* silent, try to send the beep */
 				res = ast_streamfile(chan, "beep", chan->language);
 				if (!res)
 					res = ast_waitstream(chan, "");
 			}
+			ast_lock_path(dir);
+			do {
+				make_file(fn, sizeof(fn), dir, msgnum);
+				if (!EXISTS(dir,msgnum,fn,chan->language))
+					break;
+				msgnum++;
+			} while (msgnum < MAXMSG);
 			if (msgnum < MAXMSG) {
 				/* Store information */
 				snprintf(txtfile, sizeof(txtfile), "%s.txt", fn);
@@ -2177,7 +2181,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 					fclose(txt);
 				} else
 					ast_log(LOG_WARNING, "Error opening text file for output\n");
-				res = play_record_review(chan, NULL, fn, vmmaxmessage, fmt, 1, vmu, &duration);
+				res = play_record_review(chan, NULL, fn, vmmaxmessage, fmt, 1, vmu, &duration, dir);
 				if (res == '0')
 					goto transfer;
 				if (res > 0)
@@ -2220,6 +2224,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 					DISPOSE(dir, msgnum);
 				}
 			} else {
+				ast_unlock_path(dir);
 				res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
 				if (!res)
 					res = ast_waitstream(chan, "");
@@ -2248,6 +2253,7 @@ static void resequence_mailbox(char * dir)
 	char sfn[256];
 	char dfn[256];
 
+	ast_lock_path(dir);
 	for (x=0,dest=0;x<MAXMSG;x++) {
 		make_file(sfn, sizeof(sfn), dir, x);
 		if (EXISTS(dir, x, sfn, NULL)) {
@@ -2260,6 +2266,7 @@ static void resequence_mailbox(char * dir)
 			dest++;
 		}
 	}
+	ast_unlock_path(dir);
 }
 
 
@@ -2280,16 +2287,20 @@ static int save_to_folder(char *dir, int msg, char *context, char *username, int
 	make_file(sfn, sizeof(sfn), dir, msg);
 	make_dir(ddir, sizeof(ddir), context, username, dbox);
 	mkdir(ddir, 0700);
+	ast_lock_path(ddir);
 	for (x=0;x<MAXMSG;x++) {
 		make_file(dfn, sizeof(dfn), ddir, x);
 		if (!EXISTS(ddir, x, dfn, NULL))
 			break;
 	}
-	if (x >= MAXMSG)
+	if (x >= MAXMSG) {
+		ast_unlock_path(ddir);
 		return -1;
+	}
 	if (strcmp(sfn, dfn)) {
 		COPY(dir, msg, ddir, x, sfn, dfn);
 	}
+	ast_unlock_path(ddir);
 	return 0;
 }
 
@@ -3403,6 +3414,7 @@ static void close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 	int x;
 	if (vms->lastmsg > -1) { 
 		/* Get the deleted messages fixed */ 
+		ast_lock_path(vms->curdir);
 		vms->curmsg = -1; 
 		for (x=0;x < MAXMSG;x++) { 
 			if (!vms->deleted[x] && (strcasecmp(vms->curbox, "INBOX") || !vms->heard[x])) { 
@@ -3426,6 +3438,7 @@ static void close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 				break;
 			DELETE(vms->curdir, x, vms->fn);
 		} 
+		ast_unlock_path(vms->curdir);
 	} 
 	memset(vms->deleted, 0, sizeof(vms->deleted)); 
 	memset(vms->heard, 0, sizeof(vms->heard)); 
@@ -4067,7 +4080,7 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 	/* If forcename is set, have the user record their name */	
 	if (ast_test_flag(vmu, VM_FORCENAME)) {
 		snprintf(prefile,sizeof(prefile), "%s%s/%s/greet", VM_SPOOL_DIR, vmu->context, vms->username);
-		cmd = play_record_review(chan,"vm-rec-name",prefile, maxgreet, fmtc, 0, vmu, &duration);
+		cmd = play_record_review(chan,"vm-rec-name",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL);
 		if (cmd < 0 || cmd == 't' || cmd == '#')
 			return cmd;
 	}
@@ -4075,11 +4088,11 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 	/* If forcegreetings is set, have the user record their greetings */
 	if (ast_test_flag(vmu, VM_FORCEGREET)) {
 		snprintf(prefile,sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, vms->username);
-		cmd = play_record_review(chan,"vm-rec-unv",prefile, maxgreet, fmtc, 0, vmu, &duration);
+		cmd = play_record_review(chan,"vm-rec-unv",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL);
 		if (cmd < 0 || cmd == 't' || cmd == '#')
 			return cmd;
 		snprintf(prefile,sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, vms->username);
-		cmd = play_record_review(chan,"vm-rec-busy",prefile, maxgreet, fmtc, 0, vmu, &duration);
+		cmd = play_record_review(chan,"vm-rec-busy",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL);
 		if (cmd < 0 || cmd == 't' || cmd == '#')
 			return cmd;
 	}
@@ -4113,15 +4126,15 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 		switch (cmd) {
 		case '1':
 			snprintf(prefile,sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, vms->username);
-			cmd = play_record_review(chan,"vm-rec-unv",prefile, maxgreet, fmtc, 0, vmu, &duration);
+			cmd = play_record_review(chan,"vm-rec-unv",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL);
 			break;
 		case '2': 
 			snprintf(prefile,sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, vms->username);
-			cmd = play_record_review(chan,"vm-rec-busy",prefile, maxgreet, fmtc, 0, vmu, &duration);
+			cmd = play_record_review(chan,"vm-rec-busy",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL);
 			break;
 		case '3': 
 			snprintf(prefile,sizeof(prefile), "%s%s/%s/greet", VM_SPOOL_DIR, vmu->context, vms->username);
-			cmd = play_record_review(chan,"vm-rec-name",prefile, maxgreet, fmtc, 0, vmu, &duration);
+			cmd = play_record_review(chan,"vm-rec-name",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL);
 			break;
 		case '4': 
 			cmd = vm_tempgreeting(chan, vmu, vms, fmtc);
@@ -4209,7 +4222,7 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 		if (ast_fileexists(prefile, NULL, NULL) > 0) {
 			switch (cmd) {
 			case '1':
-				cmd = play_record_review(chan,"vm-rec-temp",prefile, maxgreet, fmtc, 0, vmu, &duration);
+				cmd = play_record_review(chan,"vm-rec-temp",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL);
 				break;
 			case '2':
 				ast_filedelete(prefile, NULL);
@@ -4233,7 +4246,7 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 				}
 			}
 		} else {
-			play_record_review(chan,"vm-rec-temp",prefile, maxgreet, fmtc, 0, vmu, &duration);
+			play_record_review(chan,"vm-rec-temp",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL);
 			cmd = 't';	
 		}
 	}
@@ -4908,7 +4921,8 @@ static int append_mailbox(char *context, char *mbox, char *data)
 	return 0;
 }
 
-static int vm_box_exists(struct ast_channel *chan, void *data) {
+static int vm_box_exists(struct ast_channel *chan, void *data) 
+{
 	struct localuser *u;
 	struct ast_vm_user svm;
 	char *context, *box;
@@ -5738,7 +5752,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 
  
  
-static int play_record_review(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int outsidecaller, struct ast_vm_user *vmu, int *duration)
+static int play_record_review(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int outsidecaller, struct ast_vm_user *vmu, int *duration, const char *unlockdir)
 {
 	/* Record message & let caller review or re-record it, or set options if applicable */
  	int res = 0;
@@ -5793,7 +5807,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  			}
  			recorded = 1;
  			/* After an attempt has been made to record message, we have to take care of INTRO and beep for incoming messages, but not for greetings */
-			cmd = ast_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, silencethreshold, maxsilence);
+			cmd = ast_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, silencethreshold, maxsilence, unlockdir);
  			if (cmd == -1) {
  			/* User has hung up, no options to give */
  				return cmd;

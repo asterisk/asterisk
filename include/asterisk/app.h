@@ -66,12 +66,19 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file, const cha
 int ast_play_and_wait(struct ast_channel *chan, const char *fn);
 
 /*! Record a file for a max amount of time (in seconds), in a given list of formats separated by '|', outputting the duration of the recording, and with a maximum */
-/*   permitted silence time in milliseconds of 'maxsilence' under 'silencethreshold' or use '-1' for either or both parameters for defaults. */
-int ast_play_and_record(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int silencethreshold, int maxsilence_ms);
+/*   permitted silence time in milliseconds of 'maxsilence' under 'silencethreshold' or use '-1' for either or both parameters for defaults. 
+     calls ast_unlock_path() on 'path' if passed */
+int ast_play_and_record(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int silencethreshold, int maxsilence_ms, const char *path);
 
 /*! Record a message and prepend the message to the given record file after playing the optional playfile (or a beep), storing the duration in 'duration' and with a maximum */
 /*   permitted silence time in milliseconds of 'maxsilence' under 'silencethreshold' or use '-1' for either or both parameters for defaults. */
 int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime_sec, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence_ms);
+
+/* Lock a path */
+int ast_lock_path(const char *path);
+
+/* Unlock a path */
+int ast_unlock_path(const char *path);
 
 #define GROUP_CATEGORY_PREFIX "GROUP"
 
@@ -94,7 +101,7 @@ int ast_seperate_app_args(char *buf, char delim, char **array, int arraylen);
 int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout);
 
 /*! Allow to record message and have a review option */
-int ast_record_review(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration);
+int ast_record_review(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, const char *path);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
