@@ -1720,7 +1720,8 @@ static int zt_hangup(struct ast_channel *ast)
 	}	
 	if (p->dsp)
 		ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
-
+	if (p->exten)
+		strcpy(p->exten, "");
 
 	ast_log(LOG_DEBUG, "Hangup: channel: %d index = %d, normal = %d, callwait = %d, thirdcall = %d\n",
 		p->channel, index, p->subs[SUB_REAL].zfd, p->subs[SUB_CALLWAIT].zfd, p->subs[SUB_THREEWAY].zfd);
