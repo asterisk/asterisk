@@ -704,7 +704,7 @@ static inline int ast_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds,
 		return res;
 	}
 	else
-		return(nfds, rfds, wfds, efds, NULL);
+		return select(nfds, rfds, wfds, efds, NULL);
 #endif
 }
 
