@@ -68,7 +68,6 @@ static char *config = "h323.conf";
 static char default_context[AST_MAX_EXTENSION];
 
 /** H.323 configuration values */
-static struct sockaddr_in bindaddr;
 static char gatekeeper[100];
 static int  gatekeeper_disable = 1;
 static int  gatekeeper_discover = 0;
