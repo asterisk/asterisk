@@ -30,6 +30,8 @@
 #include <asterisk/options.h>
 #include <asterisk/logger.h>
 #include <asterisk/utils.h>
+#include <asterisk/channel.h>
+#include <asterisk/app.h>
 #include "asterisk.h"
 #include "astconf.h"
 
@@ -382,7 +384,8 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 	char *c;
 	char *cur = buf;
 	struct ast_variable *v;
-	int object;
+	char cmd[512], exec_file[512];
+	int object, do_exec, do_include;
 
 	/* Actually parse the entry */
 	if (cur[0] == '[') {
@@ -457,8 +460,16 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 				c = NULL;
 		} else 
 			c = NULL;
-		if (!strcasecmp(cur, "include")) {
-			/* A #include */
+		do_include = !strcasecmp(cur, "include");
+		if(!do_include)
+			do_exec = !strcasecmp(cur, "exec");
+		else
+			do_exec = 0;
+		if (do_exec && !option_exec_includes) {
+			ast_log(LOG_WARNING, "Cannot perform #exec unless exec_includes option is enabled in asterisk.conf!\n");
+			do_exec = 0;
+		}
+		if (do_include || do_exec) {
 			if (c) {
 				/* Strip off leading and trailing "'s and <>'s */
 				while((*c == '<') || (*c == '>') || (*c == '\"')) c++;
@@ -471,11 +482,29 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 					else
 						break;
 				}
-
-				if (!ast_config_internal_load(cur, cfg))
+				/* #exec </path/to/executable>
+				   We create a tmp file, then we #include it, then we delete it. */
+				if (do_exec) { 
+					snprintf(exec_file, sizeof(exec_file), "/var/tmp/exec.%ld.%ld", time(NULL), pthread_self());
+					snprintf(cmd, sizeof(cmd), "%s > %s 2>&1", cur, exec_file);
+					ast_safe_system(cmd);
+					cur = exec_file;
+				} else
+					exec_file[0] = '\0';
+				/* A #include */
+				do_include = ast_config_internal_load(cur, cfg) ? 1 : 0;
+				if(!ast_strlen_zero(exec_file))
+					unlink(exec_file);
+				if(!do_include)
 					return -1;
-			} else
-				ast_log(LOG_WARNING, "Directive '#include' needs an argument (filename) at line %d of %s\n", lineno, configfile);
+
+			} else {
+				ast_log(LOG_WARNING, "Directive '#%s' needs an argument (%s) at line %d of %s\n", 
+						do_exec ? "exec" : "include",
+						do_exec ? "/path/to/executable" : "filename",
+						lineno,
+						configfile);
+			}
 		}
 		else 
 			ast_log(LOG_WARNING, "Unknown directive '%s' at line %d of %s\n", cur, lineno, configfile);
@@ -882,6 +911,8 @@ struct ast_config *ast_config_internal_load(const char *filename, struct ast_con
 		struct ast_config_engine *eng;
 
 		eng = find_engine(filename, db, sizeof(db), table, sizeof(table));
+
+
 		if (eng && eng->load_func) {
 			loader = eng;
 		} else {
@@ -892,6 +923,7 @@ struct ast_config *ast_config_internal_load(const char *filename, struct ast_con
 	}
 
 	result = loader->load_func(db, table, filename, cfg);
+
 	if (result)
 		result->include_level--;
 

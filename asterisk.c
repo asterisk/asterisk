@@ -70,6 +70,7 @@
 
 int option_verbose=0;
 int option_debug=0;
+int option_exec_includes=0;
 int option_nofork=0;
 int option_quiet=0;
 int option_console=0;
@@ -1547,6 +1548,8 @@ static void ast_readconfig(void) {
 	while(v) {
 		if (!strcasecmp(v->name, "verbose")) {
 			option_verbose= atoi(v->value);
+		} else if (!strcasecmp(v->name, "execincludes")) {
+			option_exec_includes = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "debug")) {
 			option_debug= ast_true(v->value);
 		} else if (!strcasecmp(v->name, "nofork")) {

@@ -28,6 +28,7 @@ extern int option_console;
 extern int option_initcrypto;
 extern int option_nocolor;
 extern int fully_booted;
+extern int option_exec_includes;
 extern int option_cache_record_files;
 extern char defaultlanguage[];
 extern time_t ast_startuptime;
