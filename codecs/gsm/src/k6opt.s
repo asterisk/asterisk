@@ -1,19 +1,3 @@
-/* k6opt.s  vector functions optimized for MMX extensions to x86
- *
- * Copyright (C) 1999 by Stanley J. Brooks <stabro@megsinet.net>
- * 
- * Any use of this software is permitted provided that this notice is not
- * removed and that neither the authors nor the Technische Universitaet Berlin
- * are deemed to have made any representations as to the suitability of this
- * software for any purpose nor are held responsible for any defects of
- * this software.  THERE IS ABSOLUTELY NO WARRANTY FOR THIS SOFTWARE;
- * not even the implied warranty of MERCHANTABILITY or FITNESS FOR
- * A PARTICULAR PURPOSE.
- * 
- * Chicago, 03.12.1999
- * Stanley J. Brooks
- */
-
 	.file	"k6opt.s"
 	.version	"01.01"
 /* gcc2_compiled.: */
