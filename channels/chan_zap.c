@@ -7690,6 +7690,8 @@ static void *pri_dchannel(void *vpri)
 		if (e) {
 			if (pri->debug)
 				pri_dump_event(pri->dchans[which], e);
+			if (e->e != PRI_EVENT_DCHAN_DOWN)
+				pri->dchanavail[which] |= DCHAN_UP;
 			switch(e->e) {
 			case PRI_EVENT_DCHAN_UP:
 				if (option_verbose > 1) 
