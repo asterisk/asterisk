@@ -3779,7 +3779,7 @@ static void *async_wait(void *data)
 	return NULL;
 }
 
-int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char *context, char *exten, int priority, int *reason, int sync, char *callerid, char *variable )
+int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char *context, char *exten, int priority, int *reason, int sync, char *callerid, char *variable)
 {
 	struct ast_channel *chan;
 	struct async_stat *as;
@@ -3827,6 +3827,27 @@ int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char
 				if (option_verbose > 3)
 					ast_verbose(VERBOSE_PREFIX_4 "Channel %s was never answered.\n", chan->name);
 				ast_hangup(chan);
+			}
+		} else {
+			/* create a fake channel and execute the "failed" extension (if it exists) within the requested context */
+			/* check if "failed" exists */
+			if (ast_exists_extension(chan, context, "failed", 1, NULL)) {
+				chan = ast_channel_alloc(0);
+				if (chan) {
+					strncpy(chan->name, "OutgoingSpoolFailed", sizeof(chan->name) - 1);
+					if (context && strlen(context))
+						strncpy(chan->context, context, sizeof(chan->context) - 1);
+					strncpy(chan->exten, "failed", sizeof(chan->exten) - 1);
+					chan->priority = 1;
+					/* JDG chanvar */
+					tmp = variable;
+					/* FIXME replace this call with strsep  NOT*/
+					while( (var = strtok_r(NULL, "|", &tmp)) ) {
+						pbx_builtin_setvar( chan, var );
+					} /* /JDG */
+					ast_pbx_run(chan);	
+				} else
+					ast_log(LOG_WARNING, "Can't allocate the channel structure, skipping execution of extension 'failed'\n");
 			}
 		}
 	} else {

@@ -36,6 +36,7 @@
 #include <asterisk/dsp.h>
 #include <asterisk/astdb.h>
 #include <asterisk/manager.h>
+#include <asterisk/causes.h>
 #include <sys/signal.h>
 #include <sys/select.h>
 #include <errno.h>
@@ -497,6 +498,23 @@ static int cidrings[] = {
 
 #define CANBUSYDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
 #define CANPROGRESSDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
+
+/* translate between PRI causes and asterisk's */
+int hangup_pri2cause(int cause)
+{
+	switch(cause) {
+#ifdef ZAPATA_PRI
+		case PRI_CAUSE_USER_BUSY:
+			return AST_CAUSE_BUSY;
+		case PRI_CAUSE_NORMAL_CLEARING:
+			return AST_CAUSE_NORMAL;
+#endif
+		default:
+			return AST_CAUSE_FAILURE;
+	}
+	/* never reached */
+	return 0;
+}
 
 static int zt_get_index(struct ast_channel *ast, struct zt_pvt *p, int nullok)
 {
@@ -6049,6 +6067,7 @@ static void *pri_dchannel(void *vpri)
 					if (chan) {
 						ast_mutex_lock(&pri->pvt[chan]->lock);
 						if (pri->pvt[chan]->owner) {
+							pri->pvt[chan]->owner->hangupcause = hangup_pri2cause(e->hangup.cause);
 							pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							if (option_verbose > 2) 
 								ast_verbose(VERBOSE_PREFIX_3 "Channel %d, span %d got hangup\n", chan, pri->span);

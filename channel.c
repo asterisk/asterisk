@@ -34,6 +34,7 @@
 #include <asterisk/linkedlists.h>
 #include <asterisk/indications.h>
 #include <asterisk/monitor.h>
+#include <asterisk/causes.h>
 #ifdef ZAPTEL_OPTIMIZATIONS
 #include <sys/ioctl.h>
 #include <linux/zaptel.h>
@@ -1493,8 +1494,7 @@ struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int
 	int state = 0;
 	struct ast_channel *chan;
 	struct ast_frame *f;
-	int res;
-	
+	int res = 0;
 	chan = ast_request(type, format, data);
 	if (chan) {
 		if (callerid)
@@ -1504,8 +1504,6 @@ struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int
 				res = ast_waitfor(chan, timeout);
 				if (res < 0) {
 					/* Something not cool, or timed out */
-					ast_hangup(chan);
-					chan = NULL;
 					break;
 				}
 				/* If done, break out */
@@ -1516,8 +1514,7 @@ struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int
 				f = ast_read(chan);
 				if (!f) {
 					state = AST_CONTROL_HANGUP;
-					ast_hangup(chan);
-					chan = NULL;
+					res = 0;
 					break;
 				}
 				if (f->frametype == AST_FRAME_CONTROL) {
@@ -1537,17 +1534,36 @@ struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int
 				}
 				ast_frfree(f);
 			}
-		} else {
-			ast_hangup(chan);
-			chan = NULL;
+		} else
 			ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
-		}
 	} else
 		ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
 	if (chan && (chan->_state == AST_STATE_UP))
 		state = AST_CONTROL_ANSWER;
 	if (outstate)
 		*outstate = state;
+	if (chan && res <= 0) {
+		if (!chan->cdr) {
+			chan->cdr = ast_cdr_alloc();
+			if (chan->cdr)
+				ast_cdr_init(chan->cdr, chan);
+		}
+		if (chan->cdr) {
+			char tmp[256];
+			sprintf(tmp, "%s/%s",type,(char *)data);
+			ast_cdr_setapp(chan->cdr,"Dial",tmp);
+			ast_cdr_update(chan);
+			ast_cdr_start(chan->cdr);
+			ast_cdr_end(chan->cdr);
+			/* If the cause wasn't handled properly */
+			if (ast_cdr_disposition(chan->cdr,chan->hangupcause))
+				ast_cdr_failed(chan->cdr);
+			ast_cdr_reset(chan->cdr,1);
+		} else 
+			ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
+		ast_hangup(chan);
+		chan = NULL;
+	}
 	return chan;
 }
 
@@ -2430,5 +2446,4 @@ int ast_tonepair(struct ast_channel *chan, int freq1, int freq2, int duration, i
 	}
 	return 0;
 }
-
 

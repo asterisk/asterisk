@@ -19,6 +19,7 @@
 #include <asterisk/cdr.h>
 #include <asterisk/logger.h>
 #include <asterisk/callerid.h>
+#include <asterisk/causes.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -163,6 +164,41 @@ void ast_cdr_busy(struct ast_cdr *cdr)
 	}
 }
 
+void ast_cdr_failed(struct ast_cdr *cdr)
+{
+	char *chan; 
+	if (cdr) {
+		chan = strlen(cdr->channel) ? cdr->channel : "<unknown>";
+		if (cdr->posted)
+			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
+			cdr->disposition = AST_CDR_FAILED;
+	}
+}
+
+int ast_cdr_disposition(struct ast_cdr *cdr, int cause)
+{
+	int res = 0;
+	if (cdr) {
+		switch(cause) {
+			case AST_CAUSE_BUSY:
+				ast_cdr_busy(cdr);
+				break;
+			case AST_CAUSE_FAILURE:
+				ast_cdr_failed(cdr);
+				break;
+			case AST_CAUSE_NORMAL:
+				break;
+			case AST_CAUSE_NOTDEFINED:
+				res = -1;
+				break;
+			default:
+				res = -1;
+				ast_log(LOG_WARNING, "We don't handle that cause yet\n");
+		}
+	}
+	return res;
+}
+
 void ast_cdr_setdestchan(struct ast_cdr *cdr, char *chann)
 {
 	char *chan; 
@@ -275,6 +311,8 @@ char *ast_cdr_disp2str(int disposition)
 	switch (disposition) {
 	case AST_CDR_NOANSWER:
 		return "NO ANSWER";
+	case AST_CDR_FAILED:
+		return "FAILED";		
 	case AST_CDR_BUSY:
 		return "BUSY";		
 	case AST_CDR_ANSWERED:
@@ -313,11 +351,15 @@ int ast_cdr_update(struct ast_channel *c)
 	char *name, *num;
 	char tmp[AST_MAX_EXTENSION] = "";
 	/* Grab source from ANI or normal Caller*ID */
+	if (!cdr) {
+		ast_log(LOG_NOTICE, "The cdr pointer is not set\n");
+		return -1;
+	}
 	if (c->ani)
 		strncpy(tmp, c->ani, sizeof(tmp) - 1);
-	else if (c->callerid)
+	else if (c->callerid && strlen(c->callerid))
 		strncpy(tmp, c->callerid, sizeof(tmp) - 1);
-	if (c->callerid)
+	if (c->callerid && strlen(c->callerid))
 		strncpy(cdr->clid, c->callerid, sizeof(cdr->clid) - 1);
 	else
 		strcpy(cdr->clid, "");

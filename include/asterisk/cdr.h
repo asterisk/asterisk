@@ -23,6 +23,7 @@
 #define AST_CDR_NOANSWER			(1 << 0)
 #define AST_CDR_BUSY				(1 << 1)
 #define AST_CDR_ANSWERED			(1 << 2)
+#define AST_CDR_FAILED				(1 << 3)
 
 //! AMA Flags
 #define AST_CDR_OMIT				(1)
@@ -142,6 +143,21 @@ extern void ast_cdr_answer(struct ast_cdr *cdr);
  */
 extern void ast_cdr_busy(struct ast_cdr *cdr);
 
+//! Fail a call
+/*!
+ * \param cdr the cdr you wish to associate with the call
+ * Returns nothing important
+ */
+extern void ast_cdr_failed(struct ast_cdr *cdr);
+
+//! Save the result of the call based on the AST_CAUSE_*
+/*!
+ * \param cdr the cdr you wish to associate with the call
+ * Returns nothing important
+ * \param cause the AST_CAUSE_*
+ */
+extern int ast_cdr_disposition(struct ast_cdr *cdr, int cause);
+	
 //! End a call
 /*!
  * \param cdr the cdr you have associated the call with
