@@ -101,6 +101,7 @@ struct dundi_cause {
 #define DUNDI_COMMAND_DPRESPONSE	(2 | 0x40)	/* Respond to a discovery request */
 #define DUNDI_COMMAND_EIDQUERY		3			/* Request information for a peer */
 #define DUNDI_COMMAND_EIDRESPONSE	(4 | 0x40)	/* Response to a peer query */
+#define DUNDI_COMMAND_PRECACHE		5			/* Unsolicited answer pre-cache */
 #define DUNDI_COMMAND_INVALID		(7 | 0x40)	/* Invalid dialog state (does not require ack) */
 #define DUNDI_COMMAND_UNKNOWN		(8 | 0x40)	/* Unknown command */
 #define DUNDI_COMMAND_NULL			9			/* No-op */

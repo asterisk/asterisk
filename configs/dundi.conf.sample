@@ -139,6 +139,9 @@ autokill=yes
 ; model - inbound, outbound, or symmetric for whether we receive 
 ;         requests only, transmit requests only, or do both.
 ;
+; canprecache - Permits this peer to provide answers (which are cached)
+;               for queries we did not make (a.k.a. pre-caching)
+;
 ; The '*' peer is special and matches an unspecified entity
 ;
 

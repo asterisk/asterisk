@@ -203,6 +203,7 @@ static struct dundi_peer {
 	int registerid;
 	int qualifyid;
 	int sentfullkey;
+	int canprecache;
 	int order;
 	unsigned char txenckey[256]; /* Transmitted encrypted key + sig */
 	unsigned char rxenckey[256]; /* Cache received encrypted key + sig */
@@ -1240,6 +1241,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 	int x,y,z;
 	int resp;
 	int res;
+	int authpass=0;
 	unsigned char *bufcpy;
 	struct dundi_ie_data ied;
 	struct dundi_ies ies;
@@ -1349,10 +1351,82 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 			}
 		}
 		break;
+	case DUNDI_COMMAND_PRECACHE:
+		/* Success of some sort */
+		ast_log(LOG_DEBUG, "Looks like a precache with %d answers\n", ies.anscount);
+		/* A dialplan or entity discover -- qualify by highest level entity */
+		peer = find_peer(ies.eids[0]);
+		if (peer && ies.called_number) {
+			struct dundi_request dr;
+			struct dundi_result dr2[1];
+			memset(&dr, 0, sizeof(dr));
+			memset(&dr2, 0, sizeof(dr2));
+			/* Build placeholder Dundi Request */
+			trans->us_eid = peer->us_eid;
+			if (!ies.called_context)
+				ies.called_context = "e164";
+			strncpy(dr.dcontext, ies.called_context, sizeof(dr.dcontext) - 1);
+			strncpy(dr.number, ies.called_number, sizeof(dr.number) - 1);
+			dr.dr = dr2;
+			trans->parent = &dr;
+			
+			/* Make sure we have all the proper auths */
+			if (strlen(peer->inkey)) {
+				authpass = encrypted;
+			} else 
+				authpass = 1;
+			authpass &= has_permission(peer->include, ies.called_context);
+			authpass &= peer->canprecache;
+			if (authpass) {
+				/* Okay we're authentiated and all, now we check if they're authorized */
+				for (x=0;x<ies.anscount;x++) {
+					/* Copy into parent responses */
+					trans->parent->dr[0].flags = ntohs(ies.answers[x]->flags);
+					trans->parent->dr[0].techint = ies.answers[x]->protocol;
+					trans->parent->dr[0].weight = ntohs(ies.answers[x]->weight);
+					trans->parent->dr[0].eid = ies.answers[x]->eid;
+					if (ies.expiration > 0)
+						trans->parent->dr[0].expiration = ies.expiration;
+					else
+						trans->parent->dr[0].expiration = DUNDI_DEFAULT_CACHE_TIME;
+					dundi_eid_to_str(trans->parent->dr[0].eid_str, 
+						sizeof(trans->parent->dr[0].eid_str),
+						&ies.answers[x]->eid);
+					strncpy(trans->parent->dr[0].dest, ies.answers[x]->data,
+						sizeof(trans->parent->dr[0].dest));
+					strncpy(trans->parent->dr[0].tech, tech2str(ies.answers[x]->protocol),
+						sizeof(trans->parent->dr[0].tech));
+					trans->parent->respcount=1;
+					/* Save all the results (if any) we had.  Even if no results, still cache lookup.  Let
+					   the cache know if this request was unaffected by our entity list. */
+					cache_save(&trans->them_eid, trans->parent, 0, 
+						ies.hint ? ntohs(ies.hint->flags) & DUNDI_HINT_UNAFFECTED : 0, ies.expiration);
+				}
+				if (ies.hint) {
+					cache_save_hint(&trans->them_eid, trans->parent, ies.hint, ies.expiration);
+					if (ntohs(ies.hint->flags) & DUNDI_HINT_TTL_EXPIRED)
+						trans->parent->hmd->flags |= DUNDI_HINT_TTL_EXPIRED;
+					if (ntohs(ies.hint->flags) & DUNDI_HINT_DONT_ASK) { 
+						if (strlen(ies.hint->data) > strlen(trans->parent->hmd->exten)) {
+							strncpy(trans->parent->hmd->exten, ies.hint->data, 
+								sizeof(trans->parent->hmd->exten) - 1);
+						}
+					} else {
+						trans->parent->hmd->flags &= ~DUNDI_HINT_DONT_ASK;
+					}
+				}
+			}
+		}
+		if (!authpass && ies.eids[0])
+			ast_log(LOG_NOTICE, "Peer '%s' does not have permission to pre-cache!\n", 
+				dundi_eid_to_str(eid_str, sizeof(eid_str), ies.eids[0]));
+		/* Close connection if not final */
+		if (!final) 
+			dundi_send(trans, DUNDI_COMMAND_CANCEL, 0, 1, NULL);
+		break;
 	case DUNDI_COMMAND_DPRESPONSE:
 		/* A dialplan response, lets see what we got... */
 		if (ies.cause < 1) {
-			int authpass=0;
 			/* Success of some sort */
 			ast_log(LOG_DEBUG, "Looks like success of some sort (%d), %d answers\n", ies.cause, ies.anscount);
 			if (trans->flags & FLAG_ENCRYPT) {
@@ -1437,7 +1511,6 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 	case DUNDI_COMMAND_EIDRESPONSE:
 		/* A dialplan response, lets see what we got... */
 		if (ies.cause < 1) {
-			int authpass=0;
 			/* Success of some sort */
 			ast_log(LOG_DEBUG, "Looks like success of some sort (%d)\n", ies.cause);
 			if (trans->flags & FLAG_ENCRYPT) {
@@ -3381,6 +3454,8 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v)
 				strncpy(peer->inkey, v->value, sizeof(peer->inkey) - 1);
 			} else if (!strcasecmp(v->name, "outkey")) {
 				strncpy(peer->outkey, v->value, sizeof(peer->outkey) - 1);
+			} else if (!strcasecmp(v->name, "canprecache")) {
+				peer->canprecache = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "host")) {
 				if (!strcasecmp(v->value, "dynamic")) {
 					peer->dynamic = 1;
