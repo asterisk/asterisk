@@ -72,6 +72,8 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 	char tmp[256] = "";
 	struct ast_ha *prev = NULL;
 	struct ast_ha *ret;
+	int x,z;
+	unsigned int y;
 	ret = path;
 	while(path) {
 		prev = path;
@@ -86,13 +88,22 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 			*nm = '\0';
 			nm++;
 		}
-		if (!inet_aton(tmp, &ha->netaddr)) {
-			ast_log(LOG_WARNING, "%s not a valid IP\n", tmp);
+		if (!strchr(nm, '.')) {
+			if ((sscanf(nm, "%i", &x) == 1) && (x >= 0) && (x <= 32)) {
+				y = 0;
+				for (z=0;z<x;z++) {
+					y >>= 1;
+					y |= 0x8000000;
+				}
+				ha->netmask.s_addr = htonl(y);
+			}
+		} else if (!inet_aton(nm, &ha->netmask)) {
+			ast_log(LOG_WARNING, "%s not a valid netmask\n", nm);
 			free(ha);
 			return path;
 		}
-		if (!inet_aton(nm, &ha->netmask)) {
-			ast_log(LOG_WARNING, "%s not a valid netmask\n", nm);
+		if (!inet_aton(tmp, &ha->netaddr)) {
+			ast_log(LOG_WARNING, "%s not a valid IP\n", tmp);
 			free(ha);
 			return path;
 		}
