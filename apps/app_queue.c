@@ -1028,7 +1028,6 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		/* Update parameters for the queue */
 		recalc_holdtime(qe);
 		member = lpeer->member;
-		update_queue(qe->parent, member);
 		hanguptree(outgoing, peer);
 		outgoing = NULL;
 		if (announce) {
