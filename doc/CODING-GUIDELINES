@@ -49,10 +49,25 @@ if (foo) {
 
 Case statements:
 switch (foo) {
-	case BAR:
-		blah();
-		break;
-	case OTHER:
-		other();
-		break;
+case BAR:
+	blah();
+	break;
+case OTHER:
+	other();
+	break;
+}
+
+No nested statements without braces, e.g. no:
+
+for (x=0;x<5;x++)
+	if (foo) 
+		if (bar)
+			baz();
+
+instead do:
+for (x=0;x<5;x++) {
+	if (foo) {
+		if (bar)
+			baz();
+	}
 }
