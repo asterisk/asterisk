@@ -674,10 +674,7 @@ static int handle_getdata(struct ast_channel *chan, AGI *agi, int argc, char *ar
 		fdprintf(agi->fd, "200 result=-1\n");
 	else
 		fdprintf(agi->fd, "200 result=%s\n", data);
-	if (res >= 0)
-		return RESULT_SUCCESS;
-	else
-		return RESULT_FAILURE;
+	return RESULT_SUCCESS;
 }
 
 static int handle_setcontext(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
