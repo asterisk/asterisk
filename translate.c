@@ -3,7 +3,7 @@
  *
  * Translate via the use of pseudo channels
  * 
- * Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+ * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -58,6 +58,8 @@ struct translator_pvt {
 	int comm[2];
 	struct ast_trans_pvt *system;
 	struct ast_trans_pvt *rsystem;
+	struct timeval lastpass;
+	pthread_t	threadid;
 };
 
 static int translator_hangup(struct ast_channel *chan)
@@ -155,7 +157,6 @@ struct ast_trans_pvt *ast_translator_build_path(int source, int dest)
 
 static struct ast_frame *fd_read(int fd)
 {
-	/* XXX Wrong: Not thread safe! XXX */
 	char buf[4096];
 	int res;
 	struct ast_frame *f = (struct ast_frame *)buf;
@@ -166,8 +167,13 @@ static struct ast_frame *fd_read(int fd)
 						== sizeof(struct ast_frame)) {
 		/* read the frame header */
 		f->mallocd = 0;
+		/* Re-write data position */
 		f->data = buf + sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET;
 		f->offset = AST_FRIENDLY_OFFSET;
+		/* Forget about being mallocd */
+		f->mallocd = 0;
+		/* Re-write the source */
+		f->src = __FUNCTION__;
 		if (f->datalen > sizeof(buf) - sizeof(struct ast_frame) - AST_FRIENDLY_OFFSET) {
 			/* Really bad read */
 			ast_log(LOG_WARNING, "Strange read (%d bytes)\n", f->datalen);
@@ -250,13 +256,14 @@ struct ast_frame_chain *ast_translate(struct ast_trans_pvt *path, struct ast_fra
 	return outc;
 }
 
-/* XXX There's an experimentally derived fudge factor XXX */
-#define FUDGE 4
+#define FUDGE 2
 
-static void translator_apply(struct ast_trans_pvt *path, struct ast_frame *f, int fd, struct ast_channel *c)
+static void translator_apply(struct ast_trans_pvt *path, struct ast_frame *f, int fd, struct ast_channel *c, struct timeval *last)
 {
 	struct ast_trans_pvt *p;
 	struct ast_frame *out;
+	struct timeval tv;
+	int ms;
 	p = path;
 	/* Feed the first frame into the first translator */
 	p->step->framein(p->state, f);
@@ -267,11 +274,22 @@ static void translator_apply(struct ast_trans_pvt *path, struct ast_frame *f, in
 				/* Feed to next layer */
 				p->next->step->framein(p->next->state, out);
 			} else {
+				/* Delay if needed */
+				if (last->tv_sec || last->tv_usec) {
+					gettimeofday(&tv, NULL);
+					ms = 1000 * (tv.tv_sec - last->tv_sec) +
+						(tv.tv_usec - last->tv_usec) / 1000;
+					if (ms + FUDGE < out->timelen) 
+						usleep((out->timelen - ms - FUDGE) * 1000);
+					last->tv_sec = tv.tv_sec;
+					last->tv_usec = tv.tv_usec;
+				}
 				if (c)
 					ast_write(c, out);
 				else
 					fd_write(fd, out);
 			}
+			ast_frfree(out);
 		}
 		p = p->next;
 	}
@@ -288,6 +306,8 @@ static void *translator_thread(void *data)
 	int res;
 	/* Read from the real, translate, write as necessary to the fake */
 	for(;;) {
+		/* Break here if need be */
+		pthread_testcancel();
 		if (!real->trans) {
 			ast_log(LOG_WARNING, "No translator anymore\n");
 			break;
@@ -299,6 +319,8 @@ static void *translator_thread(void *data)
 		CHECK_BLOCKING(real);
 		res = ast_waitfor_n_fd(fds, 2, &ms);
 		real->blocking = 0;
+		/* Or we can die here, that's fine too */
+		pthread_testcancel();
 		if (res >= 0) {
 			if (res == real->fd) {
 				f = ast_read(real);
@@ -309,7 +331,7 @@ static void *translator_thread(void *data)
 				}
 				if (f->frametype ==  AST_FRAME_VOICE) {
 					if (pvt->system)
-						translator_apply(pvt->system, f, fd, NULL);
+						translator_apply(pvt->system, f, fd, NULL, &pvt->lastpass);
 				} else {
 					/* If it's not voice, just pass it along */
 					fd_write(fd, f);
@@ -322,9 +344,10 @@ static void *translator_thread(void *data)
 						ast_log(LOG_DEBUG, "Empty (hangup) frame\n");
 					break;
 				}
+				
 				if (f->frametype == AST_FRAME_VOICE) {
 					if (pvt->rsystem)
-						translator_apply(pvt->rsystem, f, -1, real);
+						translator_apply(pvt->rsystem, f, -1, real, &pvt->lastpass);
 				} else {
 					ast_write(real, f);
 				}
@@ -349,7 +372,6 @@ struct ast_channel *ast_translator_create(struct ast_channel *real, int format, 
 {
 	struct ast_channel *tmp;
 	struct translator_pvt *pvt;
-	pthread_t t;
 	if (real->trans) {
 		ast_log(LOG_WARNING, "Translator already exists on '%s'\n", real->name);
 		return NULL;
@@ -360,6 +382,8 @@ struct ast_channel *ast_translator_create(struct ast_channel *real, int format, 
 	}
 	pvt->comm[0] = -1;
 	pvt->comm[1] = -1;
+	pvt->lastpass.tv_usec = 0;
+	pvt->lastpass.tv_sec = 0;
 	if (socketpair(AF_UNIX, SOCK_DGRAM, 0, pvt->comm)) {
 		ast_log(LOG_WARNING, "Unable to create UNIX domain socket on '%s'\n", real->name);
 		ast_translator_free(pvt);
@@ -404,10 +428,11 @@ struct ast_channel *ast_translator_create(struct ast_channel *real, int format, 
 		tmp->pvt->answer = translator_answer;
 		tmp->pvt->read = translator_read;
 		tmp->pvt->write = translator_write;
+		tmp->pvt->pvt = pvt;
 		real->trans = tmp;
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Created translator %s\n", tmp->name);
-		if (pthread_create(&t, NULL, translator_thread, real) < 0) {
+		if (pthread_create(&pvt->threadid, NULL, translator_thread, real) < 0) {
 			ast_translator_destroy(tmp);
 			tmp = NULL;
 			ast_log(LOG_WARNING, "Failed to start thread\n");
@@ -550,8 +575,7 @@ int ast_unregister_translator(struct ast_translator *t)
 
 void ast_translator_destroy(struct ast_channel *trans)
 {
-	char dummy;
-	int ms = 1000;
+	struct translator_pvt *pvt;
 	if (!trans->master) {
 		ast_log(LOG_WARNING, "Translator is not part of a real channel?\n");
 		return;
@@ -561,19 +585,14 @@ void ast_translator_destroy(struct ast_channel *trans)
 		return;
 	}
 	trans->master->trans = NULL;
-	/* Write an invalid frame to kill off the main thread, which will
-	   in turn acknowledge by writing an invalid frame back to us, unless
-	   they're already closed.  */
-	if (trans->fd > -1) {
-		if (write(trans->fd, trans, 1) == 1) {
-			/* Wait for a respnose, but no more than 1 second */
-			if (ast_waitfor_n_fd(&trans->fd, 1, &ms) == trans->fd)
-				read(trans->fd, &dummy, 1);
-		}
-	}
+	pvt = trans->pvt->pvt;
+	/* Cancel the running translator thread */
+	pthread_cancel(pvt->threadid);
+	pthread_join(pvt->threadid, NULL);
+	ast_translator_free(pvt);
+	trans->pvt->pvt = NULL;
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "Destroyed translator %s\n", trans->name);
-	close(trans->fd);
 	ast_channel_free(trans);
 }
 

@@ -3,7 +3,7 @@
 # 
 # Makefile for PBX frontends (dynamically loaded)
 #
-# Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+# Copyright (C) 1999, Mark Spencer
 #
 # Mark Spencer <markster@linux-support.net>
 #
@@ -27,14 +27,14 @@ LIBG723B=g723.1b/libg723b.a
 LIBGSM=gsm/lib/libgsm.a
 LIBMP3=mp3/libmp3.a
 
-CODECS+=$(MODG723) codec_gsm.so #codec_mp3_d.so
+CODECS+=$(MODG723) codec_gsm.so codec_mp3_d.so
 
 all: $(CODECS)
 
 clean:
 	rm -f *.so *.o
-	make -C g723.1 clean
-	make -C g723.1b clean
+	! [ -d g723.1 ] || make -C g723.1 clean
+	! [ -d g723.1b ] || make -C g723.1b clean
 	make -C gsm clean
 	make -C mp3 clean
 
