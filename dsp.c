@@ -1052,7 +1052,7 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 #endif
 #ifdef BUSYDETECT_COMPARE_TONE_AND_SILENCE
 #ifdef BUSYDETECT_TONEONLY
-#error You can't use BUSYDETECT_TONEONLY together with BUSYDETECT_COMPARE_TONE_AND_SILENCE
+#error You cant use BUSYDETECT_TONEONLY together with BUSYDETECT_COMPARE_TONE_AND_SILENCE
 #endif
 		if (avgtone > avgsilence) {
 			if (avgtone - avgtone/(BUSY_PERCENT*2) <= avgsilence)
