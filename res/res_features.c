@@ -365,40 +365,73 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 
 static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
 {
-	char *args;
-	if (option_verbose > 3)
-        ast_verbose(VERBOSE_PREFIX_3 "User hit '%s' to record call.\n", code);
-	if (monitor_ok) {
-		if (!monitor_app) { 
-			if (!(monitor_app = pbx_findapp("Monitor"))) {
-				monitor_ok=0;
-				return -1;
-			}
-		}
-		/* Copy to local variable just in case one of the channels goes away */
-		args = pbx_builtin_getvar_helper(chan, "TOUCH_MONITOR");
-		if (!args)
-			args = pbx_builtin_getvar_helper(peer, "TOUCH_MONITOR");
-		if (!args)
-			args = "WAV||m";
+	char *touch_monitor = NULL, *chan_id = NULL, *peer_id = NULL, *args = NULL;
+	int x = 0;
+	size_t len;
+	
+	if (!monitor_ok) {
+		ast_log(LOG_ERROR,"Cannot record the call. The monitor application is disabled.\n");
+		return -1;
+	}
 
-		pbx_exec(peer, monitor_app, args, 1);
-		if (!ast_strlen_zero(courtesytone)) {
-			if (ast_autoservice_start(peer))
-				return -1;
-			if (!ast_streamfile(chan, courtesytone, chan->language)) {
-				if (ast_waitstream(chan, "") < 0) {
-					ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
-					ast_autoservice_stop(peer);
-					return -1;
-				}
-			}
-			if (ast_autoservice_stop(peer))
-				return -1;
+	if (!monitor_app) { 
+		if (!(monitor_app = pbx_findapp("Monitor"))) {
+			monitor_ok=0;
+			ast_log(LOG_ERROR,"Cannot record the call. The monitor application is disabled.\n");
+			return -1;
 		}
+	}
+	if (!ast_strlen_zero(courtesytone)) {
+		if (ast_autoservice_start(peer))
+			return -1;
+		if (!ast_streamfile(chan, courtesytone, chan->language)) {
+			if (ast_waitstream(chan, "") < 0) {
+				ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+				ast_autoservice_stop(peer);
+				return -1;
+			}
+		}
+		if (ast_autoservice_stop(peer))
+			return -1;
+	}
+	
+	if (peer->monitor) {
+		if (option_verbose > 3)
+			ast_verbose(VERBOSE_PREFIX_3 "User hit '%s' to stop recording call.\n", code);
+		ast_monitor_stop(peer, 1);
 		return FEATURE_RETURN_SUCCESS;
 	}
 
+	if (chan && peer) {
+		touch_monitor = pbx_builtin_getvar_helper(chan, "TOUCH_MONITOR");
+		if (!touch_monitor)
+			touch_monitor = pbx_builtin_getvar_helper(peer, "TOUCH_MONITOR");
+		
+		if (touch_monitor) {
+			len = strlen(touch_monitor) + 50;
+			args = alloca(len);
+			snprintf(args, len, "WAV|auto-%ld-%s|m", time(NULL), touch_monitor);
+		} else {
+			chan_id = ast_strdupa(chan->cid.cid_num ? chan->cid.cid_num : chan->name);
+			peer_id = ast_strdupa(peer->cid.cid_num ? peer->cid.cid_num : peer->name);
+			len = strlen(chan_id) + strlen(peer_id) + 50;
+			args = alloca(len);
+			snprintf(args, len, "WAV|auto-%ld-%s-%s|m", time(NULL), chan_id, peer_id);
+		}
+
+		for( x = 0; x < strlen(args); x++)
+			if (args[x] == '/')
+				args[x] = '-';
+		
+		if (option_verbose > 3)
+			ast_verbose(VERBOSE_PREFIX_3 "User hit '%s' to record call. filename: %s\n", code, args);
+
+		pbx_exec(peer, monitor_app, args, 1);
+		
+		return FEATURE_RETURN_SUCCESS;
+	}
+	
+	ast_log(LOG_NOTICE,"Cannot record the call. One or both channels have gone away.\n");	
 	return -1;
 }
 
@@ -577,12 +610,12 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		ast_autoservice_stop(transferee);
 		return res;
 	}
-	if((ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout))) {
+	if ((ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout))) {
 		cid_num = transferer->cid.cid_num;
 		cid_name = transferer->cid.cid_name;
 		if (ast_exists_extension(transferer, transferer_real_context,xferto, 1, cid_num)) {
 			snprintf(dialstr, sizeof(dialstr), "%s@%s/n", xferto, transferer_real_context);
-			if((newchan = ast_request_and_dial("Local", ast_best_codec(transferer->nativeformats), dialstr,30000, &outstate, cid_num, cid_name))) {
+			if ((newchan = ast_request_and_dial("Local", ast_best_codec(transferer->nativeformats), dialstr,30000, &outstate, cid_num, cid_name))) {
 				res = ast_channel_make_compatible(transferer, newchan);
 				if (res < 0) {
 					ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", transferer->name, newchan->name);
@@ -593,7 +626,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				bconfig.features_caller |= AST_FEATURE_DISCONNECT;
 				bconfig.features_callee |= AST_FEATURE_DISCONNECT;
 				res = ast_bridge_call(transferer,newchan,&bconfig);
-				if(newchan->_softhangup || newchan->_state != AST_STATE_UP) {
+				if (newchan->_softhangup || newchan->_state != AST_STATE_UP) {
 					ast_hangup(newchan);
 					if (f) {
 						ast_frfree(f);
@@ -620,7 +653,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				
 				ast_moh_stop(transferee);
 				
-				if((ast_autoservice_stop(transferee) < 0)
+				if ((ast_autoservice_stop(transferee) < 0)
 				   ||(ast_waitfordigit(transferee,100) < 0)
 				   || (ast_waitfordigit(newchan,100) < 0) 
 				   || ast_check_hangup(transferee) 
@@ -641,7 +674,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 					xferchan->flags = 0;
 					xferchan->_softhangup = 0;
 
-					if((f = ast_read(xferchan))) {
+					if ((f = ast_read(xferchan))) {
 						ast_frfree(f);
 						f = NULL;
 					}
@@ -1372,19 +1405,15 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 }
 
 
-
-int load_module(void)
+static int load_config(void) 
 {
-	int res;
-	int start, end;
-	struct ast_context *con;
-	struct ast_config *cfg;
-	struct ast_variable *var;
-
+	int start = 0, end = 0;
+	struct ast_context *con = NULL;
+	struct ast_config *cfg = NULL;
+	struct ast_variable *var = NULL;
+	
 	transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
 	featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
-
-	ast_cli_register(&showparked);
 
 	cfg = ast_load("features.conf");
 	if (!cfg) {
@@ -1445,15 +1474,29 @@ int load_module(void)
 		}
 		ast_destroy(cfg);
 	}
-	con = ast_context_find(parking_con);
-	if (!con) {
-		con = ast_context_create(NULL,parking_con, registrar);
-		if (!con) {
+	
+	if (con)
+		ast_context_remove_extension2(con, ast_parking_ext(), 1, registrar);
+	
+	if (!(con = ast_context_find(parking_con))) {
+		if (!(con = ast_context_create(NULL, parking_con, registrar))) {
 			ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
 			return -1;
 		}
 	}
-	ast_add_extension2(con, 1, ast_parking_ext(), 1, NULL, NULL, parkcall, strdup(""),free, registrar);
+	return ast_add_extension2(con, 1, ast_parking_ext(), 1, NULL, NULL, parkcall, strdup(""),free, registrar);
+}
+
+int reload(void) {
+	return load_config();
+}
+
+int load_module(void)
+{
+	int res;
+	if ((res = load_config()))
+		return res;
+	ast_cli_register(&showparked);
 	ast_pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
 	res = ast_register_application(parkedcall, park_exec, synopsis, descrip);
 	if (!res)

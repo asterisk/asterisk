@@ -100,6 +100,10 @@ The queue() application uses the following variables:
 ${MONITOR_FILENAME}	File for monitoring (recording) calls in queue
 ${QUEUE_PRIO}		Queue priority
 
+
+The following variables can be set to change certian behaviour:
+${TOUCH_MONITOR}	The filename base to use with Touch Monitor (auto record)
+
 There are two reference modes - reference by value and reference by name. 
 To refer to a variable with its name (as an argument to a function that 
 requires a variable), just write the name. To refer to the variable's value, 
