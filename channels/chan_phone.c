@@ -22,6 +22,7 @@
 #include <asterisk/module.h>
 #include <asterisk/pbx.h>
 #include <asterisk/options.h>
+#include <asterisk/utils.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <errno.h>
@@ -35,6 +36,7 @@
 #include <linux/ixjuser.h>
 #include "DialTone.h"
 
+#define DEFAULT_CALLER_ID "Unknown"
 #define PHONE_MAX_BUF 480
 #define DEFAULT_GAIN 0x100
 
@@ -151,25 +153,32 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 {
 	struct phone_pvt *p;
 
-	// CID stuff for the phonejack...
-
 	PHONE_CID cid;
 	time_t UtcTime;
 	struct tm tm;
+	char *s;
 
-
+	/* display caller id if present */
 	if (ast->callerid) {
 		time(&UtcTime);
 		localtime_r(&UtcTime,&tm);
 
 		if(&tm != NULL) {
 			sprintf(cid.month, "%02d",(tm.tm_mon + 1));
-			sprintf(cid.day, "%02d", tm.tm_mday);
-			sprintf(cid.hour, "%02d", tm.tm_hour);
-			sprintf(cid.min, "%02d", tm.tm_min);
+			sprintf(cid.day,   "%02d", tm.tm_mday);
+			sprintf(cid.hour,  "%02d", tm.tm_hour);
+			sprintf(cid.min,   "%02d", tm.tm_min);
 		}
-		strcpy(cid.name, "Unknown");
-		sprintf(cid.number,"%s",ast->callerid);
+		/* the format of ast->callerid is always:  "name" <number> */
+		if(ast_strlen_zero(ast->callerid)){
+			strcpy(cid.name,DEFAULT_CALLER_ID);
+			cid.number[0]='\0';
+		} else {
+			s=strncpy(cid.name,ast->callerid+1,sizeof(cid.name));
+			(void)strsep(&s,"\"");
+			s=strncpy(cid.number,strrchr(ast->callerid,'<')+1,sizeof(cid.number));
+			(void)strsep(&s,">");
+		}
 	}
 
 	p = ast->pvt->pvt;
@@ -274,7 +283,7 @@ static int phone_setup(struct ast_channel *ast)
 		if (p->lastinput != AST_FORMAT_ULAW) {
 			p->lastinput = AST_FORMAT_ULAW;
 			if (ioctl(p->fd, PHONE_REC_CODEC, ULAW)) {
-				ast_log(LOG_WARNING, "Failed to set codec to signed linear 16\n");
+				ast_log(LOG_WARNING, "Failed to set codec to uLaw\n");
 				return -1;
 			}
 		}
