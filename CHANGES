@@ -1,8 +1,20 @@
+ -- Pass redirecting number on PRI calls 
+ -- Add RTP debug support 
+ -- Misc Debugging improvements 
+ -- Add TALK_DETECTED variable 
+ -- Adding Q.SIG switchtype option to chan_zap
+ -- Added pbx_builtin_serialize_variables
+ -- Update to new iLBC codec
+ -- Add CLI for realtime stuff 
+ -- Add DUNDi.... (http://www.dundi.com)
+ -- Misc Memory fixes 
  -- Voicemail improvements from the bug tracker
  -- Major revamp of PBX core including 'n' and 's' priorities and labels
  -- Deprecate pbx_wilcalu and app_qcall in favor of pbx_spool
  -- Remove old chan_iax and chan_vofr
  -- Major Caller*ID Restructuring
+ -- Realtime API (IAX, SIP and Voicemail)
+ -- codecs.conf to tune various codec options (ie Speex)
 Asterisk 1.0.1
  -- Added AGI over TCP support
  -- Add ability to purge callers from queue if no agents are logged in
