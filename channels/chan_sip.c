@@ -8786,7 +8786,7 @@ static void delete_users(void)
 	for (user=userl.users;user;) {
 		userlast = user;
 		user=user->next;
-		destroy_user(user);
+		destroy_user(userlast);
 	}
 	userl.users=NULL;
 	ast_mutex_unlock(&userl.lock);
