@@ -181,11 +181,11 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 				*extout = x;
 			/* Remember what had been dialed, so that if the parking
 			   expires, we try to come back to the same place */
-			if (strlen(chan->macrocontext))
+			if (!ast_strlen_zero(chan->macrocontext))
 				strncpy(pu->context, chan->macrocontext, sizeof(pu->context)-1);
 			else
 				strncpy(pu->context, chan->context, sizeof(pu->context)-1);
-			if (strlen(chan->macroexten))
+			if (!ast_strlen_zero(chan->macroexten))
 				strncpy(pu->exten, chan->macroexten, sizeof(pu->exten)-1);
 			else
 				strncpy(pu->exten, chan->exten, sizeof(pu->exten)-1);
@@ -302,13 +302,14 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	int allowdisconnect_in,allowdisconnect_out,allowredirect_in,allowredirect_out;
 	char *monitor_exec;
 
-	if(monitor_ok) {
-		if(!monitor_app) 
-			if(!(monitor_app = pbx_findapp("Monitor")))
+	if (monitor_ok) {
+		if (!monitor_app) { 
+			if (!(monitor_app = pbx_findapp("Monitor")))
 				monitor_ok=0;
-		if((monitor_exec = pbx_builtin_getvar_helper(chan,"AUTO_MONITOR"))) 
+		}
+		if ((monitor_exec = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR"))) 
 			pbx_exec(chan, monitor_app, monitor_exec, 1);
-		else if((monitor_exec = pbx_builtin_getvar_helper(peer,"AUTO_MONITOR")))
+		else if ((monitor_exec = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR")))
 			pbx_exec(peer, monitor_app, monitor_exec, 1);
 	}
 	
@@ -324,9 +325,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	peer->appl = "Bridged Call";
 	peer->data = chan->name;
 	/* copy the userfield from the B-leg to A-leg if applicable */
-	if (chan->cdr && peer->cdr && strlen(peer->cdr->userfield)) {
+	if (chan->cdr && peer->cdr && !ast_strlen_zero(peer->cdr->userfield)) {
 		char tmp[256];
-		if (strlen(chan->cdr->userfield)) {
+		if (!ast_strlen_zero(chan->cdr->userfield)) {
 			snprintf(tmp, sizeof(tmp), "%s;%s",chan->cdr->userfield, peer->cdr->userfield);
 			ast_cdr_appenduserfield(chan, tmp);
 		} else
@@ -399,21 +400,20 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		if ((f->frametype == AST_FRAME_DTMF) &&
 			((allowredirect_in && who == peer) || (allowredirect_out && who == chan)) &&
 			(f->subclass == '#')) {
-				if(allowredirect_in &&  who == peer) {
+				if (allowredirect_in &&  who == peer) {
 					transferer = peer;
 					transferee = chan;
-				}
-				else {
+				} else {
 					transferer = chan;
 					transferee = peer;
 				}
-				if(!(transferer_real_context=pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT")) &&
+				if (!(transferer_real_context=pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT")) &&
 				   !(transferer_real_context=pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT"))) {
 					/* Use the non-macro context to transfer the call */
-					if(strlen(transferer->macrocontext))
-						transferer_real_context=transferer->macrocontext;
+					if (!ast_strlen_zero(transferer->macrocontext))
+						transferer_real_context = transferer->macrocontext;
 					else
-						transferer_real_context=transferer->context;
+						transferer_real_context = transferer->context;
 				}
 				/* Start autoservice on chan while we talk
 				   to the originator */
@@ -442,7 +442,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 					len --;
 				}
 				res = 0;
-				while(strlen(newext) < sizeof(newext) - 1) {
+				while (strlen(newext) < sizeof(newext) - 1) {
 					res = ast_waitfordigit(transferer, transferdigittimeout);
 					if (res < 1) 
 						break;
@@ -470,7 +470,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 						   the thread dies -- We have to be careful now though.  We are responsible for 
 						   hanging up the channel, else it will never be hung up! */
 
-						if(transferer==peer)
+						if (transferer==peer)
 							res=AST_PBX_KEEPALIVE;
 						else
 							res=AST_PBX_NO_HANGUP_PEER;
@@ -903,13 +903,13 @@ int load_module(void)
 				}
 			} else if (!strcasecmp(var->name, "adsipark")) {
 				adsipark = ast_true(var->value);
-			} else if(!strcasecmp(var->name, "transferdigittimeout")) {
+			} else if (!strcasecmp(var->name, "transferdigittimeout")) {
 				if ((sscanf(var->value, "%d", &transferdigittimeout) != 1) || (transferdigittimeout < 1)) {
 					ast_log(LOG_WARNING, "%s is not a valid transferdigittimeout\n", var->value);
 					transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
 				} else
 					transferdigittimeout = transferdigittimeout * 1000;
-			} else if  (!strcasecmp(var->name, "courtesytone")) {
+			} else if (!strcasecmp(var->name, "courtesytone")) {
 				strncpy(courtesytone, var->value, sizeof(courtesytone) - 1);
 			}
 			var = var->next;

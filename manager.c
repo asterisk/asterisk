@@ -814,22 +814,22 @@ static void *fast_originate(void *data)
 	} else {
 		res = ast_pbx_outgoing_exten(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, !ast_strlen_zero(in->callerid) ? in->callerid : NULL, in->variable, in->account);
 	}   
-        if(!res)
-            manager_event(EVENT_FLAG_CALL,
-                "OriginateSuccess",
-				"%s"
-                "Channel: %s/%s\r\n"
-                "Context: %s\r\n"
-                "Exten: %s\r\n",
-                in->tech, in->data, in->idtext, in->context, in->exten);
-        else
-            manager_event(EVENT_FLAG_CALL,
-                "OriginateFailure",
-				"%s"
-                "Channel: %s/%s\r\n"
-                "Context: %s\r\n"
-                "Exten: %s\r\n",
-                in->tech, in->data, in->idtext, in->context, in->exten);
+	if (!res)
+		manager_event(EVENT_FLAG_CALL,
+			"OriginateSuccess",
+			"%s"
+			"Channel: %s/%s\r\n"
+			"Context: %s\r\n"
+			"Exten: %s\r\n",
+			in->tech, in->data, in->idtext, in->context, in->exten);
+	else
+		manager_event(EVENT_FLAG_CALL,
+			"OriginateFailure",
+			"%s"
+			"Channel: %s/%s\r\n"
+			"Context: %s\r\n"
+			"Exten: %s\r\n",
+			in->tech, in->data, in->idtext, in->context, in->exten);
 
 	free(in);
 	return NULL;
@@ -894,15 +894,11 @@ static int action_originate(struct mansession *s, struct message *m)
 	}
 	*data = '\0';
 	data++;
-	if (ast_true(async))
-	{
+	if (ast_true(async)) {
 		struct fast_originate_helper *fast = malloc(sizeof(struct fast_originate_helper));
-		if (!fast)
-		{
+		if (!fast) {
 			res = -1;
-		}
-		else
-		{
+		} else {
 			memset(fast, 0, sizeof(struct fast_originate_helper));
 			if (id && !ast_strlen_zero(id))
 				snprintf(fast->idtext, sizeof(fast->idtext), "ActionID: %s\r\n", id);
@@ -919,12 +915,9 @@ static int action_originate(struct mansession *s, struct message *m)
 			fast->priority = pi;
 			pthread_attr_init(&attr);
 			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-			if (ast_pthread_create(&th, &attr, fast_originate, fast))
-			{
+			if (ast_pthread_create(&th, &attr, fast_originate, fast)) {
 				res = -1;
-			}
-			else
-			{
+			} else {
 				res = 0;
 			}
 		}
