@@ -10754,11 +10754,12 @@ static void sip_poke_all_peers(void)
 /*--- sip_send_all_registers: Send all known registrations */
 static void sip_send_all_registers(void)
 {
-	int ms = (rand() >> 12) & 0x1fff;
+	int ms;
 	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
 		ASTOBJ_WRLOCK(iterator);
 		if (iterator->expire > -1)
 			ast_sched_del(sched, iterator->expire);
+		ms = (rand() >> 12) & 0x1fff;
 		iterator->expire = ast_sched_add(sched, ms, sip_reregister, iterator);
 		ASTOBJ_UNLOCK(iterator);
 	} while (0)
