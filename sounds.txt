@@ -76,6 +76,16 @@
 
 %transfer.gsm%Please hold while I try that extension.
 
+%vm-Cust1.gsm%folder 5
+
+%vm-Cust2.gsm%folder 6
+
+%vm-Cust3.gsm%folder 7
+
+%vm-Cust4.gsm%folder 8
+
+%vm-Cust5.gsm%folder 9
+
 %vm-and.gsm%and
 
 %vm-changeto.gsm%Change to which folder?
