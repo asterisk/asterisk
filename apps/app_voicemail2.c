@@ -2134,13 +2134,6 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			case '0':
 				cmd = vm_options(chan, vmu, &vms, vmfmts);
 				break;
-			case '#':
-				ast_stopstream(chan);
-				adsi_goodbye(chan);
-				cmd = play_and_wait(chan, "vm-goodbye");
-				if (cmd > 0)
-					cmd = '#';
-				break;
 			default:	/* Nothing */
 				cmd = vm_instructions(chan, &vms);
 				break;
@@ -2158,6 +2151,9 @@ out:
 	if (res > -1) {
 		ast_stopstream(chan);
 		adsi_goodbye(chan);
+		res = play_and_wait(chan, "vm-goodbye");
+		if (res > 0)
+			res = 0;
 		if (useadsi)
 			adsi_unload_session(chan);
 	}
