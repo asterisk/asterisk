@@ -1,3 +1,38 @@
+ NOTE: If you have a problem with the format or the content
+       of this ChangeLog, feel free to contribute a patch 
+       to http://bugs.digium.com.  A complete listing of changes
+       is available through the Asterisk-CVS mailing list hosted
+       at http://lists.digium.com.
+
+Asterisk 1.0.4
+ -- general
+    -- fix memory leak evident with extensive use of variables
+    -- update IAXy firmware to version 22
+       -- enable some special write protection
+       -- enable outbound DTMF
+    -- fix seg fault with incorrect usage of SetVar
+    -- other minor fixes including typos and doc updates
+ -- chan_sip
+   -- fix codecs to not be case sensitive
+   -- Re-use auth credentials
+   -- fix MWI when using type=friend
+   -- fix global NAT option
+ -- chan_agent / chan_local
+   -- fix incorrect use count
+ -- chan_zap
+   -- Allow CID rings to be configured in zapata.conf
+      -- no more patching needed for UK CID
+ -- app_macro 
+    -- allow Macros to exit with '*' or '#' like regular extension processing
+ -- app_voicemail
+   -- don't allow '#' as a password
+   -- add option to save voicemail before going to the operator
+   -- fix global operator=yes
+ -- app_read
+   -- return 0 instead of -1 if user enters nothing
+ -- res_agi
+    -- don't exit AGI when file not found to stream
+    -- send script parameter when using FastAGI
 Asterisk 1.0.3
  -- chan_zap
     -- fix seg fault when doing *0 to flash a trunk
