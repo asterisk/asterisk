@@ -425,7 +425,7 @@ int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char
 	if (pause)
 		blen += strlen(pause);
 
-	if(blen > 2) {
+	if (blen > 2) {
 		breaks = alloca(blen + 1);
 		breaks[0] = '\0';
 		strcat(breaks, stop);
@@ -437,13 +437,13 @@ int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char
 	if (chan)
 		ast_stopstream(chan);
 
-	if(file) {
-        end = strchr(file,':');
-        if(!strcasecmp(end,":end")) {
-            *end = '\0';
-            end++;
-        }
-    }
+	if (file) {
+		end = strchr(file,':');
+		if (!strcasecmp(end,":end")) {
+			*end = '\0';
+			end++;
+		}
+	}
 	for (;;) {
 		gettimeofday(&started,NULL);
 
@@ -451,7 +451,7 @@ int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char
 			ast_stopstream(chan);
 		res = ast_streamfile(chan, file, chan->language);
 		if (!res) {
-			if(end) {
+			if (end) {
 				ast_seekstream(chan->stream, 0, SEEK_END);
 				end=NULL;
 			}
@@ -476,9 +476,9 @@ int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char
 				if (chan)
 					ast_stopstream(chan);
 				res = ast_waitfordigit(chan, 1000);
-				if(res == 0)
+				if (res == 0)
 					continue;
-				else if(res == -1 || strchr(pause, res) || (stop && strchr(stop, res)))
+				else if (res == -1 || strchr(pause, res) || (stop && strchr(stop, res)))
 					break;
 			}
 			if (res == *pause) {
