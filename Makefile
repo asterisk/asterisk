@@ -214,7 +214,7 @@ clean:
 	rm -f *.o *.so asterisk .depend
 	rm -f build.h 
 	rm -f ast_expr.c
-	@if [ -e editline/Makefile ]; then $(MAKE) -C editline clean ; fi
+	@if [ -e editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
 	$(MAKE) -C db1-ast clean
 	$(MAKE) -C stdtime clean
 
