@@ -60,7 +60,7 @@ autokill=yes
 ; for the purpose of tracking slow nodes.  This option is
 ; off by default due to performance impacts.
 ;
-;slowhistory=yes
+;storehistory=yes
 
 [mappings]
 ;
