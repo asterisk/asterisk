@@ -410,7 +410,7 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 	return -1;
 }
 
-static struct ast_config *config_odbc (const char *database, const char *table, const char *file, struct ast_config *new_config_s, struct ast_category **new_cat_p, struct ast_variable **new_v_p, int recur)
+static struct ast_config *config_odbc(const char *database, const char *table, const char *file, struct ast_config *new_config_s, struct ast_category **new_cat_p, int recur)
 {
 	struct ast_config *new;
 	struct ast_variable *cur_v, *new_v;
@@ -480,7 +480,7 @@ static struct ast_config *config_odbc (const char *database, const char *table, 
 		cat_started = 0;
 
 		cur_cat = *new_cat_p;
-		cur_v = *new_v_p;
+		cur_v = NULL;
 
 		if (cur_cat)
 			cat_started = 1;
@@ -490,7 +490,7 @@ static struct ast_config *config_odbc (const char *database, const char *table, 
 		while (res != SQL_NO_DATA) {
 			if (!strcmp (var_name, "#include") && recur < MAX_INCLUDE_LEVEL) {
 
-				config_odbc(database, table, var_val, new, &cur_cat, &cur_v, recur + 1);
+				config_odbc(database, table, var_val, new, &cur_cat, recur + 1);
 			} else {
 				if (strcmp (last, category) || last_cat_metric != cat_metric) {
 					strncpy(last, category, sizeof(last) - 1);
