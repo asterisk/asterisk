@@ -244,16 +244,31 @@ static int txt_callback(void *context, u_char *answer, int len, u_char *fullansw
 	printf("ENUMTXT Called\n");
 #endif
 
-	if (answer != NULL) {
-		c->txtlen = strlen(answer);
-		strncpy(c->txt, answer, sizeof(c->txt) - 1);
-		c->txt[sizeof(c->txt) - 1] = 0;
-		return 1;
-	} else {
+	if (answer == NULL) {
 		c->txt = NULL;
 		c->txtlen = 0;
 		return 0;
 	}
+
+	/* skip over first byte, as for some reason it's a vertical tab character */
+	answer += 1;
+	len -= 1;
+
+	/* answer is not null-terminated, but should be */
+	/* this is safe to do, as answer has extra bytes on the end we can 
+           safely overwrite with a null */
+	answer[len] = '\0';
+	/* now increment len so that len includes the null, so that we can
+	   compare apples to apples */
+	len +=1;
+
+	/* finally, copy the answer into c->txt */
+	strncpy(c->txt, answer, len < c->txtlen ? len-1 : (c->txtlen)-1);
+	
+	/* just to be safe, let's make sure c->txt is null terminated */
+	c->txt[(c->txtlen)-1] = '\0';
+
+	return 1;
 }
 
 static int enum_callback(void *context, u_char *answer, int len, u_char *fullanswer)
