@@ -1032,6 +1032,11 @@ static int sip_hangup(struct ast_channel *ast)
 	p->owner = NULL;
 	ast->pvt->pvt = NULL;
 
+	ast_mutex_lock(&usecnt_lock);
+	usecnt--;
+	ast_mutex_unlock(&usecnt_lock);
+	ast_update_use_count();
+
 	needdestroy = 1;
 	/* Start the process if it's not already started */
 	if (!p->alreadygone && strlen(p->initreq.data)) {
