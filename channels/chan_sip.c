@@ -5417,8 +5417,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 					strncpy(p->username, peer->username, sizeof(p->username) - 1);
 					strncpy(p->authname, peer->username, sizeof(p->authname) - 1);
 				}
-				if (!ast_strlen_zero(user->cid_num) && !ast_strlen_zero(p->cid_num))  {
-					strncpy(p->cid_num, user->cid_num, sizeof(p->cid_num) - 1);
+				if (!ast_strlen_zero(peer->cid_num) && !ast_strlen_zero(p->cid_num))  {
+					strncpy(p->cid_num, peer->cid_num, sizeof(p->cid_num) - 1);
 					ast_shrink_phone_number(p->cid_num);
 				}
 				if (!ast_strlen_zero(peer->cid_name) && !ast_strlen_zero(p->cid_name)) 
