@@ -1,8 +1,11 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * HasNewVoicemail application
- *
+ * HasVoicemail application
+ * Changes Copyright (c) 2004 Todd Freeman <freeman@andrews.edu>
+ * 
+ * 95% based on HasNewVoicemail by:
+ * 
  * Copyright (c) 2003 Tilghman Lesher.  All rights reserved.
  * 
  * Tilghman Lesher <asterisk-hasnewvoicemail-app@the-tilghman.com>
@@ -44,46 +47,61 @@
 
 #include "../astconf.h"
 
-static char *tdesc = "Indicator for whether a voice mailbox has new messages.";
+static char *tdesc = "Indicator for whether a voice mailbox has messages in a given folder.";
+static char *app_hasvoicemail = "HasVoicemail";
+static char *hasvoicemail_synopsis = "Conditionally branches to priority + 101";
+static char *hasvoicemail_descrip =
+"HasVoicemail(vmbox[@context][:folder][|varname])\n"
+"  Branches to priority + 101, if there is voicemail in folder indicated."
+"  Optionally sets <varname> to the number of messages in that folder."
+"  Assumes folder of INBOX if not specified.\n";
+
+static char *newtdesc = "Indicator for whether there are messages in INBOX.";
 static char *app_hasnewvoicemail = "HasNewVoicemail";
 static char *hasnewvoicemail_synopsis = "Conditionally branches to priority + 101";
 static char *hasnewvoicemail_descrip =
 "HasNewVoicemail(vmbox[@context][|varname])\n"
-"  Branches to priority + 101, if there is new voicemail"
-"  Optionally sets <varname> to the number of new messages.\n";
+"  Branches to priority + 101, if there is voicemail in folder INBOX."
+"  Optionally sets <varname> to the number of messages in that folder.\n";
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int hasnewvoicemail_exec(struct ast_channel *chan, void *data)
+static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
-	char vmpath[256], *input, *varname = NULL, *vmbox, *context = "default";
+	char vmpath[256], *input, *varname = NULL, *vmbox, *vmfolder = "INBOX", *context = "default";
 	DIR *vmdir;
 	struct dirent *vment;
 	int vmcount = 0;
 
 	if (!data) {
-		ast_log(LOG_WARNING, "HasNewVoicemail requires an argument (vm-box[@context]|varname)\n");
+		ast_log(LOG_WARNING, "HasVoicemail requires an argument (vm-box[@context][:folder]|varname)\n");
 		return -1;
 	}
 	LOCAL_USER_ADD(u);
 
 	input = ast_strdupa((char *)data);
 	if (input) {
-		if ((vmbox = strsep(&input,"|")))
-			varname = input;
+		if ((vmbox = strsep(&input,":")))
+			if ((vmfolder = strsep(&input,"|")))
+				varname = input;
+			else
+				vmfolder = input;
 		else
-			vmbox = input;
+			if ((vmbox = strsep(&input,"|")))
+				varname = input;
+			else
+				vmbox = input;
 
 		if (index(vmbox,'@')) {
 			context = vmbox;
 			vmbox = strsep(&context,"@");
 		}
 
-		snprintf(vmpath,sizeof(vmpath), "%s/voicemail/%s/%s/INBOX", (char *)ast_config_AST_SPOOL_DIR, context, vmbox);
+		snprintf(vmpath,sizeof(vmpath), "%s/voicemail/%s/%s/%s", (char *)ast_config_AST_SPOOL_DIR, context, vmbox, vmfolder);
 		if (!(vmdir = opendir(vmpath))) {
 			ast_log(LOG_NOTICE, "Voice mailbox %s at %s does not exist\n", vmbox, vmpath);
 		} else {
@@ -118,13 +136,19 @@ static int hasnewvoicemail_exec(struct ast_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res;
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app_hasnewvoicemail);
+	res = ast_unregister_application(app_hasvoicemail);
+	res |= ast_unregister_application(app_hasnewvoicemail);
+	return res;
 }
 
 int load_module(void)
 {
-	return ast_register_application(app_hasnewvoicemail, hasnewvoicemail_exec, hasnewvoicemail_synopsis, hasnewvoicemail_descrip);
+	int res;
+	res = ast_register_application(app_hasvoicemail, hasvoicemail_exec, hasvoicemail_synopsis, hasvoicemail_descrip);
+	res |= ast_register_application(app_hasnewvoicemail, hasvoicemail_exec, hasnewvoicemail_synopsis, hasnewvoicemail_descrip);
+	return res;
 }
 
 char *description(void)
