@@ -268,6 +268,12 @@ AST_MUTEX_DEFINE_STATIC(iflock);
 
 static int ifcount = 0;
 
+/* Whether we hang up on a Polarity Switch event */
+static int hanguponpolarityswitch = 0;
+
+/* How long (ms) to ignore Polarity Switch events after we answer a call */
+static int polarityonanswerdelay = 600;
+
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
 AST_MUTEX_DEFINE_STATIC(monlock);
@@ -552,6 +558,9 @@ static struct zt_pvt {
 	int dtmfrelax;		/* whether to run in relaxed DTMF mode */
 	int fake_event;
 	int zaptrcallerid;	/* should we use the callerid from incoming call on zap transfer or not */
+	int hanguponpolarityswitch;
+	int polarityonanswerdelay;
+	struct timeval polaritydelaytv;
 #ifdef ZAPATA_PRI
 	struct zt_pri *pri;
 	struct zt_pvt *bearer;
@@ -2296,6 +2305,9 @@ static int zt_answer(struct ast_channel *ast)
 	case SIG_FXOKS:
 		/* Pick up the line */
 		ast_log(LOG_DEBUG, "Took %s off hook\n", ast->name);
+		if(p->hanguponpolarityswitch) {
+			gettimeofday(&p->polaritydelaytv, NULL);
+		}
 		res =  zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
 		tone_zone_play_tone(p->subs[index].zfd, -1);
 		p->dialing = 0;
@@ -3693,6 +3705,31 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				break;
 			default:
 				break;
+			}
+			break;
+		case ZT_EVENT_POLARITY:
+			/*
+			 * If we get a Polarity Switch event, check to see
+			 * if it should be ignored (the off-hook action seems
+			 * to cause a Polarity Switch) or whether it is an
+			 * indication of remote end disconnect, in which case
+			 * we should hang up
+			 */
+
+			if(p->hanguponpolarityswitch &&
+				(p->polarityonanswerdelay > 0) &&
+				(ast->_state == AST_STATE_UP)) {
+				struct timeval tv;
+				gettimeofday(&tv, NULL);
+
+				if((((tv.tv_sec - p->polaritydelaytv.tv_sec) * 1000) + ((tv.tv_usec - p->polaritydelaytv.tv_usec)/1000)) > p->polarityonanswerdelay) {
+					ast_log(LOG_DEBUG, "Hangup due to Reverse Polarity on channel %d\n", p->channel);
+					ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
+				} else {
+					ast_log(LOG_DEBUG, "Ignore Reverse Polarity (too close to answer event) on channel %d, state %d\n", p->channel, ast->_state);
+				}
+			} else {
+				ast_log(LOG_DEBUG, "Ignore Reverse Polarity on channel %d, state %d\n", p->channel, ast->_state);
 			}
 			break;
 		default:
@@ -6588,6 +6625,9 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			}
 			if (si.alarms) tmp->inalarm = 1;
 		}
+
+		tmp->polarityonanswerdelay = polarityonanswerdelay;
+		tmp->hanguponpolarityswitch = hanguponpolarityswitch;
 
 	}
 	if (tmp && !here) {
@@ -9711,6 +9751,10 @@ static int setup_zap(int reload)
 				cur_rxflash = atoi(v->value);
 			} else if (!strcasecmp(v->name, "debounce")) {
 				cur_debounce = atoi(v->value);
+			} else if (!strcasecmp(v->name, "polarityonanswerdelay")) {
+				polarityonanswerdelay = atoi(v->value);
+			} else if (!strcasecmp(v->name, "hanguponpolarityswitch")) {
+				hanguponpolarityswitch = ast_true(v->value);
 			} 
 		} else 
 			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
