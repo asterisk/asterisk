@@ -5925,9 +5925,13 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		}
 		switch(resp) {
 		case 100:
+			if (!strcasecmp(msg, "INVITE")) {
+				sip_cancel_destroy(p);
+			}
 			break;
 		case 183:	
 			if (!strcasecmp(msg, "INVITE")) {
+				sip_cancel_destroy(p);
 				if (!ast_strlen_zero(get_header(req, "Content-Type")))
 					process_sdp(p, req);
 				if (p->owner) {
@@ -5937,10 +5941,13 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			}
 			break;
 		case 180:
-			if (p->owner) {
-				ast_queue_control(p->owner, AST_CONTROL_RINGING);
-				if (p->owner->_state != AST_STATE_UP)
-					ast_setstate(p->owner, AST_STATE_RINGING);
+			if (!strcasecmp(msg, "INVITE")) {
+				sip_cancel_destroy(p);
+				if (p->owner) {
+					ast_queue_control(p->owner, AST_CONTROL_RINGING);
+					if (p->owner->_state != AST_STATE_UP)
+						ast_setstate(p->owner, AST_STATE_RINGING);
+				}
 			}
 			break;
 		case 200:
