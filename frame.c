@@ -607,7 +607,7 @@ void ast_frame_dump(char *name, struct ast_frame *f, char *prefix)
 	char subclass[40] = "Unknown Subclass";
 	char csub[80];
 	char moreinfo[40] = "";
-	char cn[40];
+	char cn[60];
 	char cp[40];
 	char cmn[40];
 	if (name)
@@ -672,9 +672,13 @@ void ast_frame_dump(char *name, struct ast_frame *f, char *prefix)
 		case AST_CONTROL_RADIO_UNKEY:
 			strcpy(subclass, "Unkey Radio");
 			break;
+		case -1:
+			strcpy(subclass, "Stop generators");
+			break;
 		default:
 			snprintf(subclass, sizeof(subclass), "Unknown control '%d'", f->subclass);
 		}
+		break;
 	case AST_FRAME_NULL:
 		strcpy(ftype, "Null Frame");
 		strcpy(subclass, "N/A");
