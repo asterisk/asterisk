@@ -3994,7 +3994,6 @@ static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 	int res;
 	unsigned char outbuf[4096];
 	int index;
-	
 	index = zt_get_index(ast, p, 0);
 	if (index < 0) {
 		ast_log(LOG_WARNING, "%s doesn't really exist?\n", ast->name);
@@ -4002,6 +4001,7 @@ static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 	}
 
 #ifdef ZAPATA_PRI
+	ast_mutex_lock(&p->lock);
 	if (!p->proceeding && p->sig==SIG_PRI && p->pri && !p->outgoing) {
 		if (p->pri->pri) {		
 			if (!pri_grab(p, p->pri)) {
@@ -4012,6 +4012,7 @@ static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 		}
 		p->proceeding=1;
 	}
+	ast_mutex_unlock(&p->lock);
 #endif
 	/* Write a frame of (presumably voice) data */
 	if (frame->frametype != AST_FRAME_VOICE) {
