@@ -2325,8 +2325,11 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	oi2 = zt_get_index(c1, p1, 0);
 	oc1 = p0->owner;
 	oc2 = p1->owner;
-	if ((oi1 < 0) || (oi2 < 0))
+	if ((oi1 < 0) || (oi2 < 0)) {
+		ast_mutex_unlock(&c0->lock);
+		ast_mutex_unlock(&c1->lock);
 		return -1;
+	}
 
 
 
