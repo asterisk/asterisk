@@ -89,7 +89,7 @@ this paragraph under other terms as well."
  * it will do the rest.
  * It returns 0 on success, -1 on error
  */
-int ast_load_resource(char *resource_name);
+int ast_load_resource(const char *resource_name);
 
 /*! Unloads a module */
 /*! 
@@ -99,7 +99,7 @@ int ast_load_resource(char *resource_name);
  * it will not unload a module with a usecount > 0.  However, if it is set,
  * it will unload the module regardless of consequences (NOT_RECOMMENDED)
  */
-int ast_unload_resource(char *resource_name, int force);
+int ast_unload_resource(const char *resource_name, int force);
 
 /*! Notify when usecount has been changed */
 /*!

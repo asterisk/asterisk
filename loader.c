@@ -105,7 +105,7 @@ AST_MUTEX_DEFINE_STATIC(reloadlock);
 static struct module *module_list=NULL;
 static int modlistver = 0;
 
-int ast_unload_resource(char *resource_name, int force)
+int ast_unload_resource(const char *resource_name, int force)
 {
 	struct module *m, *ml = NULL;
 	int res = -1;
@@ -244,7 +244,7 @@ int ast_module_reload(const char *name)
 	return reloaded;
 }
 
-int ast_load_resource(char *resource_name)
+static int __load_resource(const char *resource_name, const struct ast_config *cfg)
 {
 	static char fn[256];
 	int errors=0;
@@ -255,23 +255,16 @@ int ast_load_resource(char *resource_name)
 	char *val;
 #endif
 	char *key;
-	int o;
-	struct ast_config *cfg;
 	char tmp[80];
-	/* Keep the module file parsing silent */
-	o = option_verbose;
+
 	if (strncasecmp(resource_name, "res_", 4)) {
-		option_verbose = 0;
-		cfg = ast_load(AST_MODULE_CONFIG);
-		option_verbose = o;
-		if (cfg) {
 #ifdef RTLD_GLOBAL
+		if (cfg) {
 			if ((val = ast_variable_retrieve(cfg, "global", resource_name))
 					&& ast_true(val))
 				flags |= RTLD_GLOBAL;
-#endif
-			ast_destroy(cfg);
 		}
+#endif
 	} else {
 		/* Resource modules are always loaded global and lazy */
 #ifdef RTLD_GLOBAL
@@ -399,6 +392,23 @@ int ast_load_resource(char *resource_name)
 	}
 	ast_update_use_count();
 	return 0;
+}
+
+int ast_load_resource(const char *resource_name)
+{
+	int o;
+	struct ast_config *cfg = NULL;
+	int res;
+
+	/* Keep the module file parsing silent */
+	o = option_verbose;
+	option_verbose = 0;
+	cfg = ast_load(AST_MODULE_CONFIG);
+	option_verbose = o;
+	res = __load_resource(resource_name, cfg);
+	if (cfg)
+		ast_destroy(cfg);
+	return res;
 }	
 
 static int ast_resource_exists(char *resource)
@@ -446,7 +456,7 @@ int load_modules()
 					ast_verbose( VERBOSE_PREFIX_1 "[%s]", term_color(tmp, v->value, COLOR_BRWHITE, 0, sizeof(tmp)));
 					fflush(stdout);
 				}
-				if (ast_load_resource(v->value)) {
+				if (__load_resource(v->value, cfg)) {
 					ast_log(LOG_WARNING, "Loading module %s failed!\n", v->value);
 					if (cfg)
 						ast_destroy(cfg);
@@ -496,7 +506,7 @@ int load_modules()
 							ast_verbose( VERBOSE_PREFIX_1 "[%s]", term_color(tmp, d->d_name, COLOR_BRWHITE, 0, sizeof(tmp)));
 							fflush(stdout);
 						}
-						if (ast_load_resource(d->d_name)) {
+						if (__load_resource(d->d_name, cfg)) {
 							ast_log(LOG_WARNING, "Loading module %s failed!\n", d->d_name);
 							if (cfg)
 								ast_destroy(cfg);

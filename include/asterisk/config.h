@@ -68,7 +68,7 @@ char *ast_category_browse(struct ast_config *config, char *prev);
  * List variables of config file
  * Returns ast_variable list on success, or NULL on failure
  */
-struct ast_variable *ast_variable_browse(struct ast_config *config, char *category);
+struct ast_variable *ast_variable_browse(const struct ast_config *config, const char *category);
 
 /*! Gets a variable */
 /*!
@@ -78,7 +78,7 @@ struct ast_variable *ast_variable_browse(struct ast_config *config, char *catego
  * Goes through a given config file in the given category and searches for the given variable
  * Returns the variable value on success, or NULL if unable to find it.
  * Retrieve a specific variable */
-char *ast_variable_retrieve(struct ast_config *config, char *category, char *value);
+char *ast_variable_retrieve(const struct ast_config *config, const char *category, const char *value);
 
 /*! Make sure something is true */
 /*!

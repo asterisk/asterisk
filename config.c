@@ -119,7 +119,7 @@ int ast_false(const char *s)
 	return 0;
 }
 
-struct ast_variable *ast_variable_browse(struct ast_config *config, char *category)
+struct ast_variable *ast_variable_browse(const struct ast_config *config, const char *category)
 {
 	struct ast_category *cat;
 	cat = config->root;
@@ -137,7 +137,7 @@ struct ast_variable *ast_variable_browse(struct ast_config *config, char *catego
 	return NULL;
 }
 
-char *ast_variable_retrieve(struct ast_config *config, char *category, char *value)
+char *ast_variable_retrieve(const struct ast_config *config, const char *category, const char *value)
 {
 	struct ast_variable *v;
 	if (category) {
