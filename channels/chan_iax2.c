@@ -3191,7 +3191,8 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	/* Start pessimistic */
 	int res = -1;
 	int version = 2;
-	struct iax2_user *user;
+	struct iax2_user *user, *best = NULL;
+	int bestscore = 0;
 	int gotcapability=0;
 	if (!iaxs[callno])
 		return res;
@@ -3240,11 +3241,45 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			&& ast_apply_ha(user->ha, sin) 	/* Access is permitted from this IP */
 			&& (!strlen(iaxs[callno]->context) ||			/* No context specified */
 			     apply_context(user->contexts, iaxs[callno]->context))) {			/* Context is permitted */
-			break;
+			if (strlen(iaxs[callno]->username)) {
+				/* Exact match, stop right now. */
+				best = user;
+				break;
+			} else if (!strlen(user->secret)) {
+				/* No required authentication */
+				if (user->ha) {
+					/* There was host authentication and we passed, bonus! */
+					if (bestscore < 4) {
+						bestscore = 4;
+						best = user;
+					}
+				} else {
+					/* No host access, but no secret, either, not bad */
+					if (bestscore < 3) {
+						bestscore = 3;
+						best = user;
+					}
+				}
+			} else {
+				if (user->ha) {
+					/* Authentication, but host access too, eh, it's something.. */
+					if (bestscore < 2) {
+						bestscore = 2;
+						best = user;
+					}
+				} else {
+					/* Authentication and no host access...  This is our baseline */
+					if (bestscore < 1) {
+						bestscore = 1;
+						best = user;
+					}
+				}
+			}
 		}
 		user = user->next;	
 	}
 	ast_mutex_unlock(&userl.lock);
+	user = best;
 #ifdef MYSQL_FRIENDS
 	if (!user && mysql && strlen(iaxs[callno]->username) && (strlen(iaxs[callno]->username) < 128)) {
 		user = mysql_user(iaxs[callno]->username);
