@@ -1013,6 +1013,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	char *queuename;
 	char info[512];
+	char tmpchan[512]="";
 	char *interface=NULL;
 	struct ast_call_queue *q;
 	struct member *save;
@@ -1034,8 +1035,13 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 			*interface = '\0';
 			interface++;
 		}
-		else
-			interface = chan->name ;
+		else {
+			strncpy(tmpchan, chan->name, sizeof(tmpchan) - 1);
+			interface = strrchr(tmpchan, '-');
+			if (interface)
+				*interface = '\0';
+			interface = tmpchan;
+		}
 	}
 
 	if( ( q = queues) != NULL )
