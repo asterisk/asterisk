@@ -128,7 +128,7 @@ static char *rdescrip =
 "While waiting, a 1 digit extension may be dialed.  If that extension exists in either\n"
 "the context defined in ${EXITCONTEXT} or the current one, The call will transfer\n"
 "to that extension immmediately.\n\n"
-"All arguements after 'loops' are passed directly to the Dial() application.\n"
+"All arguments after 'loops' are passed directly to the Dial() application.\n"
 "";
 
 
@@ -1318,7 +1318,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 		if ((sleep = atoi(dialdata))) {
 			sleep *= 1000;
 		} else {
-			ast_log(LOG_ERROR, "%s requires the numrical arguement <sleep>\n",rapp);
+			ast_log(LOG_ERROR, "%s requires the numerical argument <sleep>\n",rapp);
 			LOCAL_USER_REMOVE(u);
 			return -1;
 		}
@@ -1326,7 +1326,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 			*dialdata = '\0';
 			dialdata++;
 			if (!(loops = atoi(dialdata))) {
-				ast_log(LOG_ERROR, "%s requires the numrical arguement <loops>\n",rapp);
+				ast_log(LOG_ERROR, "%s requires the numerical argument <loops>\n",rapp);
 				LOCAL_USER_REMOVE(u);
 				return -1;
 			}
@@ -1337,7 +1337,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 		*dialdata = '\0';
 		dialdata++;
 	} else {
-		ast_log(LOG_ERROR, "%s requires more arguements\n",rapp);
+		ast_log(LOG_ERROR, "%s requires more arguments\n",rapp);
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
