@@ -184,7 +184,7 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dia
 						ast_log(LOG_WARNING,
 							"Can't find extension '%s' in context '%s'.  "
 							"Did you pass the wrong context to Directory?\n",
-							ext, context);
+							ext, dialcontext);
 						res = -1;
 					}
 					break;
