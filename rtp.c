@@ -965,6 +965,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	int res;
 	int ms;
 	int x;
+	int payload;
 	char data[256];
 	char iabuf[INET_ADDRSTRLEN];
 
@@ -982,7 +983,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 		ast_log(LOG_WARNING, "Don't know how to represent '%c'\n", digit);
 		return -1;
 	}
-	
+	payload = ast_rtp_lookup_code(rtp, 0, AST_RTP_DTMF);
 
 	/* If we have no peer, return immediately */	
 	if (!rtp->them.sin_addr.s_addr)
@@ -1001,7 +1002,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	
 	/* Get a pointer to the header */
 	rtpheader = (unsigned int *)data;
-	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (101 << 16) | (rtp->seqno++));
+	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (payload << 16) | (rtp->seqno++));
 	rtpheader[1] = htonl(rtp->lastts);
 	rtpheader[2] = htonl(rtp->ssrc); 
 	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
