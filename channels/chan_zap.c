@@ -3843,8 +3843,8 @@ static void *ss_thread(void *data)
 {
 	struct ast_channel *chan = data;
 	struct zt_pvt *p = chan->pvt->pvt;
-	char exten[AST_MAX_EXTENSION];
-	char exten2[AST_MAX_EXTENSION];
+	char exten[AST_MAX_EXTENSION]="";
+	char exten2[AST_MAX_EXTENSION]="";
 	unsigned char buf[256];
 	char cid[256];
 	char dtmfbuf[300];
