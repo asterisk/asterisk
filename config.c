@@ -70,6 +70,8 @@ void ast_destroy(struct ast_config *ast)
 
 int ast_true(char *s)
 {
+	if (!s)
+		return 0;
 	/* Determine if this is a true value */
 	if (!strcasecmp(s, "yes") ||
 	    !strcasecmp(s, "true") ||

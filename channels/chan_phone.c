@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * QuickNet Internet Phone Jack Channel
+ * Generic Linux Telephony Interface driver
  * 
  * Copyright (C) 1999, Mark Spencer
  *
@@ -29,27 +29,32 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <linux/if_packet.h>
-#include <linux/if_ether.h>
-#include "ixjuser.h"
+#include <linux/telephony.h>
+/* Still use some IXJ specific stuff */
+#include <linux/ixjuser.h>
 #include "DialTone.h"
 
-#define IXJ_MAX_BUF 480
+#define phone_MAX_BUF 480
 
-static char *desc = "QuickNet Internet Phone Jack";
-static char *type = "PhoneJack";
-static char *tdesc = "QuickNet Internet Phone Jack";
-static char *config = "ixj.conf";
+static char *desc = "Linux Telephony API Support";
+static char *type = "Phone";
+static char *tdesc = "Standard Linux Telephony API Driver";
+static char *config = "phone.conf";
 
 /* Default context for dialtone mode */
 static char context[AST_MAX_EXTENSION] = "default";
 
-char *ignore_rcs_id_for_chan_ixj = ixjuser_h_rcsid;
-
 static int usecnt =0;
+
+static int echocancel = AEC_OFF;
+
+static int silencesupression = 0;
+
+static int prefformat = AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR;
+
 static pthread_mutex_t usecnt_lock = PTHREAD_MUTEX_INITIALIZER;
 
-/* Protect the interface list (of ixj_pvt's) */
+/* Protect the interface list (of phone_pvt's) */
 static pthread_mutex_t iflock = PTHREAD_MUTEX_INITIALIZER;
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
@@ -68,7 +73,7 @@ static int restart_monitor(void);
 #define MODE_DIALTONE 	1
 #define MODE_IMMEDIATE	2
    
-static struct ixj_pvt {
+static struct phone_pvt {
 	int fd;							/* Raw file descriptor for this device */
 	struct ast_channel *owner;		/* Channel we belong to, possibly NULL */
 	int mode;						/* Is this in the  */
@@ -76,20 +81,21 @@ static struct ixj_pvt {
 	int lastinput;					/* Last input format */
 	int ministate;					/* Miniature state, for dialtone mode */
 	char dev[256];					/* Device name */
-	struct ixj_pvt *next;			/* Next channel in list */
+	struct phone_pvt *next;			/* Next channel in list */
 	struct ast_frame fr;			/* Frame */
 	char offset[AST_FRIENDLY_OFFSET];
-	char buf[IXJ_MAX_BUF];					/* Static buffer for reading frames */
+	char buf[phone_MAX_BUF];					/* Static buffer for reading frames */
 	int obuflen;
 	int dialtone;
+	int silencesupression;
 	char context[AST_MAX_EXTENSION];
-	char obuf[IXJ_MAX_BUF * 2];
+	char obuf[phone_MAX_BUF * 2];
 	char ext[AST_MAX_EXTENSION];
 } *iflist = NULL;
 
-static int ixj_digit(struct ast_channel *ast, char digit)
+static int phone_digit(struct ast_channel *ast, char digit)
 {
-	struct ixj_pvt *p;
+	struct phone_pvt *p;
 	int outdigit;
 	p = ast->pvt->pvt;
 	switch(digit) {
@@ -115,57 +121,60 @@ static int ixj_digit(struct ast_channel *ast, char digit)
 		ast_log(LOG_WARNING, "Unknown digit '%c'\n", digit);
 		return -1;
 	}
-	ioctl(p->fd, IXJCTL_PLAY_TONE, digit);
+	ioctl(p->fd, PHONE_PLAY_TONE, digit);
 	return 0;
 }
 
-static int ixj_call(struct ast_channel *ast, char *dest, int timeout)
+static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 {
-	struct ixj_pvt *p;
+	struct phone_pvt *p;
 	p = ast->pvt->pvt;
 	if ((ast->state != AST_STATE_DOWN) && (ast->state != AST_STATE_RESERVED)) {
-		ast_log(LOG_WARNING, "ixj_call called on %s, neither down nor reserved\n", ast->name);
+		ast_log(LOG_WARNING, "phone_call called on %s, neither down nor reserved\n", ast->name);
 		return -1;
 	}
 	/* When we call, it just works, really, there's no destination...  Just
 	   ring the phone and wait for someone to answer */
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Ringing %s on %s (%d)\n", dest, ast->name, ast->fd);
-	ioctl(p->fd, IXJCTL_RING_START);
+	ioctl(p->fd, PHONE_RING_START);
 	ast->state = AST_STATE_RINGING;
 	return 0;
 }
 
-static int ixj_hangup(struct ast_channel *ast)
+static int phone_hangup(struct ast_channel *ast)
 {
-	struct ixj_pvt *p;
+	struct phone_pvt *p;
 	p = ast->pvt->pvt;
 	if (option_debug)
-		ast_log(LOG_DEBUG, "ixj_hangup(%s)\n", ast->name);
+		ast_log(LOG_DEBUG, "phone_hangup(%s)\n", ast->name);
 	if (!ast->pvt->pvt) {
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
 	}
 	/* XXX Is there anything we can do to really hang up except stop recording? */
 	ast->state = AST_STATE_DOWN;
-	if (ioctl(p->fd, IXJCTL_REC_STOP))
+	if (ioctl(p->fd, PHONE_REC_STOP))
 		ast_log(LOG_WARNING, "Failed to stop recording\n");
-	if (ioctl(p->fd, IXJCTL_PLAY_STOP))
+	if (ioctl(p->fd, PHONE_PLAY_STOP))
 		ast_log(LOG_WARNING, "Failed to stop playing\n");
-	if (ioctl(p->fd, IXJCTL_RING_STOP))
+	if (ioctl(p->fd, PHONE_RING_STOP))
 		ast_log(LOG_WARNING, "Failed to stop ringing\n");
-	if (ioctl(p->fd, IXJCTL_CPT_STOP))
+	if (ioctl(p->fd, PHONE_CPT_STOP))
 		ast_log(LOG_WARNING, "Failed to stop sounds\n");
 	/* If they're off hook, give a busy signal */
-	if (ioctl(p->fd, IXJCTL_HOOKSTATE))
-		ioctl(p->fd, IXJCTL_BUSY);
+	if (ioctl(p->fd, PHONE_HOOKSTATE)) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Got hunghup, giving busy signal\n");
+		ioctl(p->fd, PHONE_BUSY);
+	}
 	p->lastformat = -1;
 	p->lastinput = -1;
 	p->ministate = 0;
 	p->obuflen = 0;
 	p->dialtone = 0;
 	memset(p->ext, 0, sizeof(p->ext));
-	((struct ixj_pvt *)(ast->pvt->pvt))->owner = NULL;
+	((struct phone_pvt *)(ast->pvt->pvt))->owner = NULL;
 	pthread_mutex_lock(&usecnt_lock);
 	usecnt--;
 	if (usecnt < 0) 
@@ -180,27 +189,27 @@ static int ixj_hangup(struct ast_channel *ast)
 	return 0;
 }
 
-static int ixj_setup(struct ast_channel *ast)
+static int phone_setup(struct ast_channel *ast)
 {
-	struct ixj_pvt *p;
+	struct phone_pvt *p;
 	p = ast->pvt->pvt;
-	ioctl(p->fd, IXJCTL_CPT_STOP);
+	ioctl(p->fd, PHONE_CPT_STOP);
 	/* Nothing to answering really, just start recording */
 	if (ast->format & AST_FORMAT_G723_1) {
 		/* Prefer g723 */
-		ioctl(p->fd, IXJCTL_REC_STOP);
+		ioctl(p->fd, PHONE_REC_STOP);
 		if (p->lastinput != AST_FORMAT_G723_1) {
 			p->lastinput = AST_FORMAT_G723_1;
-			if (ioctl(p->fd, IXJCTL_REC_CODEC, G723_63)) {
+			if (ioctl(p->fd, PHONE_REC_CODEC, G723_63)) {
 				ast_log(LOG_WARNING, "Failed to set codec to g723.1\n");
 				return -1;
 			}
 		}
 	} else if (ast->format & AST_FORMAT_SLINEAR) {
-		ioctl(p->fd, IXJCTL_REC_STOP);
+		ioctl(p->fd, PHONE_REC_STOP);
 		if (p->lastinput != AST_FORMAT_SLINEAR) {
 			p->lastinput = AST_FORMAT_SLINEAR;
-			if (ioctl(p->fd, IXJCTL_REC_CODEC, LINEAR16)) {
+			if (ioctl(p->fd, PHONE_REC_CODEC, LINEAR16)) {
 				ast_log(LOG_WARNING, "Failed to set codec to signed linear 16\n");
 				return -1;
 			}
@@ -209,24 +218,24 @@ static int ixj_setup(struct ast_channel *ast)
 		ast_log(LOG_WARNING, "Can't do format %d\n", ast->format);
 		return -1;
 	}
-	if (ioctl(p->fd, IXJCTL_REC_START)) {
+	if (ioctl(p->fd, PHONE_REC_START)) {
 		ast_log(LOG_WARNING, "Failed to start recording\n");
 		return -1;
 	}
 	return 0;
 }
 
-static int ixj_answer(struct ast_channel *ast)
+static int phone_answer(struct ast_channel *ast)
 {
-	ixj_setup(ast);
+	phone_setup(ast);
 	if (option_debug)
-		ast_log(LOG_DEBUG, "ixj_answer(%s)\n", ast->name);
+		ast_log(LOG_DEBUG, "phone_answer(%s)\n", ast->name);
 	ast->rings = 0;
 	ast->state = AST_STATE_UP;
 	return 0;
 }
 
-static char ixj_2digit(char c)
+static char phone_2digit(char c)
 {
 	if (c == 12)
 		return '#';
@@ -238,11 +247,11 @@ static char ixj_2digit(char c)
 		return '?';
 }
 
-static struct ast_frame  *ixj_read(struct ast_channel *ast)
+static struct ast_frame  *phone_read(struct ast_channel *ast)
 {
 	int res;
-	IXJ_EXCEPTION ixje;
-	struct ixj_pvt *p = ast->pvt->pvt;
+	union telephony_exception phonee;
+	struct phone_pvt *p = ast->pvt->pvt;
 	char digit;
 
 	/* Some nice norms */
@@ -253,16 +262,16 @@ static struct ast_frame  *ixj_read(struct ast_channel *ast)
 	p->fr.offset = 0;
 	p->fr.mallocd=0;
 
-	ixje.bytes = ioctl(p->fd, IXJCTL_EXCEPTION);
-	if (ixje.bits.dtmf_ready)  {
+	phonee.bytes = ioctl(p->fd, PHONE_EXCEPTION);
+	if (phonee.bits.dtmf_ready)  {
 		/* We've got a digit -- Just handle this nicely and easily */
-		digit =  ioctl(p->fd, IXJCTL_GET_DTMF_ASCII);
+		digit =  ioctl(p->fd, PHONE_GET_DTMF_ASCII);
 		p->fr.subclass = digit;
 		p->fr.frametype = AST_FRAME_DTMF;
 		return &p->fr;
 	}
-	if (ixje.bits.hookstate) {
-		res = ioctl(p->fd, IXJCTL_HOOKSTATE);
+	if (phonee.bits.hookstate) {
+		res = ioctl(p->fd, PHONE_HOOKSTATE);
 		/* See if we've gone on hook, if so, notify by returning NULL */
 		if (!res)
 			return NULL;
@@ -271,23 +280,23 @@ static struct ast_frame  *ixj_read(struct ast_channel *ast)
 				/* They've picked up the phone */
 				p->fr.frametype = AST_FRAME_CONTROL;
 				p->fr.subclass = AST_CONTROL_ANSWER;
-				ixj_setup(ast);
+				phone_setup(ast);
 				ast->state = AST_STATE_UP;
 				return &p->fr;
 			}  else 
-				ast_log(LOG_WARNING, "Got off hook in weird state\n");
+				ast_log(LOG_WARNING, "Got off hook in weird state %d\n", ast->state);
 		}
 	}
 #if 0
-	if (ixje.bits.pstn_ring)
+	if (phonee.bits.pstn_ring)
 		ast_verbose("Unit is ringing\n");
-	if (ixje.bits.caller_id) {
+	if (phonee.bits.caller_id) {
 		ast_verbose("We have caller ID: %s\n");
 	}
 #endif
 	/* Try to read some data... */
 	CHECK_BLOCKING(ast);
-	res = read(p->fd, p->buf, IXJ_MAX_BUF);
+	res = read(p->fd, p->buf, phone_MAX_BUF);
 	ast->blocking = 0;
 	if (res < 0) {
 #if 0
@@ -302,6 +311,17 @@ static struct ast_frame  *ixj_read(struct ast_channel *ast)
 		return NULL;
 	}
 	p->fr.data = p->buf;
+	switch(p->buf[0] & 0x3) {
+	case '0':
+	case '1':
+		/* Normal */
+		break;
+	case '2':
+	case '3':
+		/* VAD/CNG, only send two words */
+		res = 4;
+		break;
+	}
 	p->fr.datalen = res;
 	p->fr.frametype = AST_FRAME_VOICE;
 	p->fr.subclass = p->lastinput;
@@ -309,7 +329,7 @@ static struct ast_frame  *ixj_read(struct ast_channel *ast)
 	return &p->fr;
 }
 
-static int ixj_write_buf(struct ixj_pvt *p, char *buf, int len, int frlen)
+static int phone_write_buf(struct phone_pvt *p, char *buf, int len, int frlen)
 {
 	int res;
 	/* Store as much of the buffer as we can, then write fixed frames */
@@ -342,14 +362,15 @@ static int ixj_write_buf(struct ixj_pvt *p, char *buf, int len, int frlen)
 	return len;
 }
 
-static int ixj_write(struct ast_channel *ast, struct ast_frame *frame)
+static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 {
-	struct ixj_pvt *p = ast->pvt->pvt;
+	struct phone_pvt *p = ast->pvt->pvt;
 	int res;
 	int maxfr=0;
 	char *pos;
 	int sofar;
 	int expected;
+	char tmpbuf[4];
 	/* Write a frame of (presumably voice) data */
 	if (frame->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Don't know what to do with  frame type '%d'\n", frame->frametype);
@@ -361,14 +382,25 @@ static int ixj_write(struct ast_channel *ast, struct ast_frame *frame)
 		ast_frfree(frame);
 		return -1;
 	}
+	/* If we're not in up mode, go into up mode now */
+	if (ast->state != AST_STATE_UP) {
+		ast->state = AST_STATE_UP;
+		phone_setup(ast);
+	}
 	if (frame->subclass == AST_FORMAT_G723_1) {
 		if (p->lastformat != AST_FORMAT_G723_1) {
-			ioctl(p->fd, IXJCTL_PLAY_STOP);
-			if (ioctl(p->fd, IXJCTL_PLAY_CODEC, G723_63)) {
+			ioctl(p->fd, PHONE_PLAY_STOP);
+			ioctl(p->fd, PHONE_REC_STOP);
+			if (ioctl(p->fd, PHONE_PLAY_CODEC, G723_63)) {
+				ast_log(LOG_WARNING, "Unable to set G723.1 mode\n");
+				return -1;
+			}
+			if (ioctl(p->fd, PHONE_REC_CODEC, G723_63)) {
 				ast_log(LOG_WARNING, "Unable to set G723.1 mode\n");
 				return -1;
 			}
 			p->lastformat = AST_FORMAT_G723_1;
+			p->lastinput = AST_FORMAT_G723_1;
 			/* Reset output buffer */
 			p->obuflen = 0;
 		}
@@ -379,18 +411,28 @@ static int ixj_write(struct ast_channel *ast, struct ast_frame *frame)
 		maxfr = 24;
 	} else if (frame->subclass == AST_FORMAT_SLINEAR) {
 		if (p->lastformat != AST_FORMAT_SLINEAR) {
-			ioctl(p->fd, IXJCTL_PLAY_STOP);
-			if (ioctl(p->fd, IXJCTL_PLAY_CODEC, LINEAR16)) {
+			ioctl(p->fd, PHONE_PLAY_STOP);
+			ioctl(p->fd, PHONE_REC_STOP);
+			if (ioctl(p->fd, PHONE_PLAY_CODEC, LINEAR16)) {
+				ast_log(LOG_WARNING, "Unable to set 16-bit linear mode\n");
+				return -1;
+			}
+			if (ioctl(p->fd, PHONE_REC_CODEC, LINEAR16)) {
 				ast_log(LOG_WARNING, "Unable to set 16-bit linear mode\n");
 				return -1;
 			}
 			p->lastformat = AST_FORMAT_SLINEAR;
+			p->lastinput = AST_FORMAT_SLINEAR;
 			/* Reset output buffer */
 			p->obuflen = 0;
 		}
 		maxfr = 480;
 	}
-	if (ioctl(p->fd, IXJCTL_PLAY_START)) {
+	if (ioctl(p->fd, PHONE_PLAY_START)) {
+		ast_log(LOG_WARNING, "Failed to start playback\n");
+		return -1;
+	}
+	if (ioctl(p->fd, PHONE_REC_START)) {
 		ast_log(LOG_WARNING, "Failed to start recording\n");
 		return -1;
 	}
@@ -402,45 +444,54 @@ static int ixj_write(struct ast_channel *ast, struct ast_frame *frame)
 		expected = frame->datalen - sofar;
 		if (maxfr < expected)
 			expected = maxfr;
-		/* XXX Internet Phone Jack does not handle the 4-byte VAD frame properly! XXX */
-		if (frame->datalen != 4) {
-			res = ixj_write_buf(p, pos, expected, maxfr);
-			if (res != expected) {
-				if (res < 0) 
-					ast_log(LOG_WARNING, "Write returned error (%s)\n", strerror(errno));
-				else
-					ast_log(LOG_WARNING, "Only wrote %d of %d bytes\n", res, frame->datalen);
-				return -1;
+		/* XXX Internet Phone Jack does not handle the 4-byte VAD frame properly! XXX 
+		   we have to pad it to 24 bytes still.  */
+		if (frame->datalen == 4) {
+			if (p->silencesupression) {
+				memset(tmpbuf + 4, 0, sizeof(tmpbuf) - 4);
+				memcpy(tmpbuf, frame->data, 4);
+				expected = 24;
+				res = phone_write_buf(p, tmpbuf, expected, maxfr);
 			}
-			sofar += res;
-			pos += res;
-		} else
-			sofar += 4;
+			res = 4;
+			expected=4;
+		} else {
+			res = phone_write_buf(p, pos, expected, maxfr);
+		}
+		if (res != expected) {
+			if (res < 0) 
+				ast_log(LOG_WARNING, "Write returned error (%s)\n", strerror(errno));
+			else
+				ast_log(LOG_WARNING, "Only wrote %d of %d bytes\n", res, frame->datalen);
+			return -1;
+		}
+		sofar += res;
+		pos += res;
 	}
 	return 0;
 }
 
-static struct ast_channel *ixj_new(struct ixj_pvt *i, int state)
+static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *context)
 {
 	struct ast_channel *tmp;
 	tmp = ast_channel_alloc();
 	if (tmp) {
-		snprintf(tmp->name, sizeof(tmp->name), "PhoneJack/%s", i->dev + 5);
+		snprintf(tmp->name, sizeof(tmp->name), "Phone/%s", i->dev + 5);
 		tmp->type = type;
 		tmp->fd = i->fd;
 		/* XXX Switching formats silently causes kernel panics XXX */
-		tmp->format = AST_FORMAT_G723_1 /* | AST_FORMAT_SLINEAR */;
+		tmp->format = prefformat;
 		tmp->state = state;
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
 		tmp->pvt->pvt = i;
-		tmp->pvt->send_digit = ixj_digit;
-		tmp->pvt->call = ixj_call;
-		tmp->pvt->hangup = ixj_hangup;
-		tmp->pvt->answer = ixj_answer;
-		tmp->pvt->read = ixj_read;
-		tmp->pvt->write = ixj_write;
-		strncpy(tmp->context, i->context, sizeof(tmp->context));
+		tmp->pvt->send_digit = phone_digit;
+		tmp->pvt->call = phone_call;
+		tmp->pvt->hangup = phone_hangup;
+		tmp->pvt->answer = phone_answer;
+		tmp->pvt->read = phone_read;
+		tmp->pvt->write = phone_write;
+		strncpy(tmp->context, context, sizeof(tmp->context));
 		if (strlen(i->ext))
 			strncpy(tmp->exten, i->ext, sizeof(tmp->exten));
 		i->owner = tmp;
@@ -449,8 +500,9 @@ static struct ast_channel *ixj_new(struct ixj_pvt *i, int state)
 		pthread_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
 		if (state != AST_STATE_DOWN) {
-			if (state == AST_STATE_RING)
-				ioctl(tmp->fd, IXJCTL_RINGBACK);
+			if (state == AST_STATE_RING) {
+				ioctl(tmp->fd, PHONE_RINGBACK);
+			}
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 				ast_hangup(tmp);
@@ -461,7 +513,7 @@ static struct ast_channel *ixj_new(struct ixj_pvt *i, int state)
 	return tmp;
 }
 
-static void ixj_mini_packet(struct ixj_pvt *i)
+static void phone_mini_packet(struct phone_pvt *i)
 {
 	int res;
 	char buf[1024];
@@ -473,75 +525,77 @@ static void ixj_mini_packet(struct ixj_pvt *i)
 	}
 }
 
-static void ixj_check_exception(struct ixj_pvt *i)
+static void phone_check_exception(struct phone_pvt *i)
 {
 	int offhook=0;
 	char digit[2] = {0 , 0};
-	IXJ_EXCEPTION ixje;
+	union telephony_exception phonee;
 	/* XXX Do something XXX */
 #if 0
 	ast_log(LOG_DEBUG, "Exception!\n");
 #endif
-	ixje.bytes = ioctl(i->fd, IXJCTL_EXCEPTION);
-	if (ixje.bits.dtmf_ready)  {
-		digit[0] = ioctl(i->fd, IXJCTL_GET_DTMF_ASCII);
+	phonee.bytes = ioctl(i->fd, PHONE_EXCEPTION);
+	if (phonee.bits.dtmf_ready)  {
+		digit[0] = ioctl(i->fd, PHONE_GET_DTMF_ASCII);
 		if (i->mode == MODE_DIALTONE) {
-			ioctl(i->fd, IXJCTL_PLAY_STOP);
-			ioctl(i->fd, IXJCTL_REC_STOP);
-			ioctl(i->fd, IXJCTL_CPT_STOP);
+			ioctl(i->fd, PHONE_PLAY_STOP);
+			ioctl(i->fd, PHONE_REC_STOP);
+			ioctl(i->fd, PHONE_CPT_STOP);
 			i->dialtone = 0;
 			if (strlen(i->ext) < AST_MAX_EXTENSION - 1)
 				strcat(i->ext, digit);
 			if (ast_exists_extension(NULL, i->context, i->ext, 1)) {
 				/* It's a valid extension in its context, get moving! */
-				ixj_new(i, AST_STATE_UP);
+				phone_new(i, AST_STATE_RING, i->context);
 				/* No need to restart monitor, we are the monitor */
 				if (i->owner) {
 					pthread_mutex_lock(&usecnt_lock);
 					usecnt--;
 					pthread_mutex_unlock(&usecnt_lock);
 					ast_update_use_count();
-					ixj_setup(i->owner);
 				}
-			} else if (ast_exists_extension(NULL, "default", i->ext, 1)) {
-				/* Check the default, too... */
-				/* XXX This should probably be justified better XXX */
-				strncpy(i->context, "default", sizeof(i->context));
-				ixj_new(i, AST_STATE_UP);
-				if (i->owner) {
-					pthread_mutex_lock(&usecnt_lock);
-					usecnt--;
-					pthread_mutex_unlock(&usecnt_lock);
-					ast_update_use_count();
-					ixj_setup(i->owner);
+			} else if (!ast_canmatch_extension(NULL, i->context, i->ext, 1)) {
+				/* There is nothing in the specified extension that can match anymore.
+				   Try the default */
+				if (ast_exists_extension(NULL, "default", i->ext, 1)) {
+					/* Check the default, too... */
+					phone_new(i, AST_STATE_RING, "default");
+					if (i->owner) {
+						pthread_mutex_lock(&usecnt_lock);
+						usecnt--;
+						pthread_mutex_unlock(&usecnt_lock);
+						ast_update_use_count();
+					}
+					/* XXX This should probably be justified better XXX */
+				}  else if (!ast_canmatch_extension(NULL, "default", i->ext, 1)) {
+					/* It's not a valid extension, give a busy signal */
+					if (option_debug)
+						ast_log(LOG_DEBUG, "%s can't match anything in %s or default\n", i->ext, i->context);
+					ioctl(i->fd, PHONE_BUSY);
 				}
-			} else if ((strlen(i->ext) >= ast_pbx_longest_extension(i->context)) &&
-					   (strlen(i->ext) >= ast_pbx_longest_extension("default"))) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "%s is too long\n", i->ext);
-				/* It's not a valid extension, give a busy signal */
-				ioctl(i->fd, IXJCTL_BUSY);
 			}
 #if 0
 			ast_verbose("Extension is %s\n", i->ext);
 #endif
 		}
 	}
-	if (ixje.bits.hookstate) {
-		offhook = ioctl(i->fd, IXJCTL_HOOKSTATE);
+	if (phonee.bits.hookstate) {
+		offhook = ioctl(i->fd, PHONE_HOOKSTATE);
 		if (offhook) {
 			if (i->mode == MODE_IMMEDIATE) {
-				ixj_new(i, AST_STATE_RING);
+				phone_new(i, AST_STATE_RING, i->context);
 			} else if (i->mode == MODE_DIALTONE) {
 				pthread_mutex_lock(&usecnt_lock);
 				usecnt++;
 				pthread_mutex_unlock(&usecnt_lock);
 				ast_update_use_count();
+				/* Reset the extension */
+				i->ext[0] = '\0';
 				/* Play the dialtone */
 				i->dialtone++;
-				ioctl(i->fd, IXJCTL_PLAY_STOP);
-				ioctl(i->fd, IXJCTL_PLAY_CODEC, ULAW);
-				ioctl(i->fd, IXJCTL_PLAY_START);
+				ioctl(i->fd, PHONE_PLAY_STOP);
+				ioctl(i->fd, PHONE_PLAY_CODEC, ULAW);
+				ioctl(i->fd, PHONE_PLAY_START);
 			}
 		} else {
 			if (i->dialtone) {
@@ -551,15 +605,15 @@ static void ixj_check_exception(struct ixj_pvt *i)
 				ast_update_use_count();
 			}
 			memset(i->ext, 0, sizeof(i->ext));
-			ioctl(i->fd, IXJCTL_CPT_STOP);
-			ioctl(i->fd, IXJCTL_PLAY_STOP);
-			ioctl(i->fd, IXJCTL_REC_STOP);
+			ioctl(i->fd, PHONE_CPT_STOP);
+			ioctl(i->fd, PHONE_PLAY_STOP);
+			ioctl(i->fd, PHONE_REC_STOP);
 			i->dialtone = 0;
 		}
 	}
-	if (ixje.bits.pstn_ring)
+	if (phonee.bits.pstn_ring)
 		ast_verbose("Unit is ringing\n");
-	if (ixje.bits.caller_id)
+	if (phonee.bits.caller_id)
 		ast_verbose("We have caller ID\n");
 	
 	
@@ -569,7 +623,7 @@ static void *do_monitor(void *data)
 {
 	fd_set rfds, efds;
 	int n, res;
-	struct ixj_pvt *i;
+	struct phone_pvt *i;
 	int tonepos = 0;
 	/* The tone we're playing this round */
 	struct timeval tv = {0,0};
@@ -595,7 +649,7 @@ static void *do_monitor(void *data)
 			return NULL;
 		}
 		/* Build the stuff we're going to select on, that is the socket of every
-		   ixj_pvt that does not have an associated owner channel */
+		   phone_pvt that does not have an associated owner channel */
 		n = -1;
 		FD_ZERO(&rfds);
 		FD_ZERO(&efds);
@@ -668,14 +722,14 @@ static void *do_monitor(void *data)
 					ast_log(LOG_WARNING, "Whoa....  I'm owned but found (%d, %s)...\n", i->fd, i->dev);
 					continue;
 				}
-				ixj_mini_packet(i);
+				phone_mini_packet(i);
 			}
 			if (FD_ISSET(i->fd, &efds)) {
 				if (i->owner) {
 					ast_log(LOG_WARNING, "Whoa....  I'm owned but found (%d, %s)...\n", i->fd, i->dev);
 					continue;
 				}
-				ixj_check_exception(i);
+				phone_check_exception(i);
 			}
 			i=i->next;
 		}
@@ -716,15 +770,15 @@ static int restart_monitor()
 	return 0;
 }
 
-static struct ixj_pvt *mkif(char *iface, int mode)
+static struct phone_pvt *mkif(char *iface, int mode)
 {
-	/* Make a ixj_pvt structure for this interface */
-	struct ixj_pvt *tmp;
+	/* Make a phone_pvt structure for this interface */
+	struct phone_pvt *tmp;
 #if 0
 	int flags;	
 #endif
 	
-	tmp = malloc(sizeof(struct ixj_pvt));
+	tmp = malloc(sizeof(struct phone_pvt));
 	if (tmp) {
 		tmp->fd = open(iface, O_RDWR);
 		if (tmp->fd < 0) {
@@ -732,10 +786,16 @@ static struct ixj_pvt *mkif(char *iface, int mode)
 			free(tmp);
 			return NULL;
 		}
-		ioctl(tmp->fd, IXJCTL_PLAY_STOP);
-		ioctl(tmp->fd, IXJCTL_REC_STOP);
-		ioctl(tmp->fd, IXJCTL_RING_STOP);
-		ioctl(tmp->fd, IXJCTL_CPT_STOP);
+		ioctl(tmp->fd, PHONE_PLAY_STOP);
+		ioctl(tmp->fd, PHONE_REC_STOP);
+		ioctl(tmp->fd, PHONE_RING_STOP);
+		ioctl(tmp->fd, PHONE_CPT_STOP);
+		ioctl(tmp->fd, PHONE_REC_DEPTH, 4);
+		if (echocancel != AEC_OFF)
+			ioctl(tmp->fd, IXJCTL_AEC_START, echocancel);
+		if (silencesupression) 
+			tmp->silencesupression = 1;
+		ioctl(tmp->fd, PHONE_VAD, tmp->silencesupression);
 		tmp->mode = mode;
 #if 0
 		flags = fcntl(tmp->fd, F_GETFL);
@@ -755,10 +815,10 @@ static struct ixj_pvt *mkif(char *iface, int mode)
 	return tmp;
 }
 
-static struct ast_channel *ixj_request(char *type, int format, void *data)
+static struct ast_channel *phone_request(char *type, int format, void *data)
 {
 	int oldformat;
-	struct ixj_pvt *p;
+	struct phone_pvt *p;
 	struct ast_channel *tmp = NULL;
 	char *name = data;
 	
@@ -777,7 +837,7 @@ static struct ast_channel *ixj_request(char *type, int format, void *data)
 	while(p) {
 		if (!strcmp(name, p->dev + 5)) {
 			if (!p->owner) {
-				tmp = ixj_new(p, AST_STATE_DOWN);
+				tmp = phone_new(p, AST_STATE_DOWN, p->context);
 				break;
 			}
 		}
@@ -792,7 +852,7 @@ int load_module()
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
-	struct ixj_pvt *tmp;
+	struct phone_pvt *tmp;
 	int mode = MODE_IMMEDIATE;
 	cfg = ast_load(config);
 
@@ -822,6 +882,8 @@ int load_module()
 					unload_module();
 					return -1;
 				}
+		} else if (!strcasecmp(v->name, "silencesupression")) {
+			silencesupression = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "mode")) {
 			if (!strncasecmp(v->value, "di", 2)) 
 				mode = MODE_DIALTONE;
@@ -831,12 +893,30 @@ int load_module()
 				ast_log(LOG_WARNING, "Unknown mode: %s\n", v->value);
 		} else if (!strcasecmp(v->name, "context")) {
 			strncpy(context, v->value, sizeof(context));
+		} else if (!strcasecmp(v->name, "format")) {
+			if (!strcasecmp(v->value, "g723.1")) {
+				prefformat = AST_FORMAT_G723_1;
+			} else if (!strcasecmp(v->value, "slinear")) {
+				prefformat = AST_FORMAT_SLINEAR;
+			} else 
+				ast_log(LOG_WARNING, "Unknown format '%s'\n", v->value);
+		} else if (!strcasecmp(v->name, "echocancel")) {
+			if (!strcasecmp(v->value, "off")) {
+				echocancel = AEC_OFF;
+			} else if (!strcasecmp(v->value, "low")) {
+				echocancel = AEC_LOW;
+			} else if (!strcasecmp(v->value, "medium")) {
+				echocancel = AEC_MED;
+			} else if (!strcasecmp(v->value, "high")) {
+				echocancel = AEC_HIGH;
+			} else 
+				ast_log(LOG_WARNING, "Unknown echo cancellation '%s'\n", v->value);
 		}
 		v = v->next;
 	}
 	pthread_mutex_unlock(&iflock);
-	/* Make sure we can register our Adtranixj channel type */
-	if (ast_channel_register(type, tdesc, AST_FORMAT_G723_1, ixj_request)) {
+	/* Make sure we can register our Adtranphone channel type */
+	if (ast_channel_register(type, tdesc, AST_FORMAT_G723_1, phone_request)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
 		ast_destroy(cfg);
 		unload_module();
@@ -852,7 +932,7 @@ int load_module()
 
 int unload_module()
 {
-	struct ixj_pvt *p, *pl;
+	struct phone_pvt *p, *pl;
 	/* First, take us out of the channel loop */
 	ast_channel_unregister(type);
 	if (!pthread_mutex_lock(&iflock)) {

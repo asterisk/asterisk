@@ -1,0 +1,72 @@
+;
+; Inter-Asterisk eXchange driver definition
+;
+;
+; General settings, like port number to bind to, and
+; an option address (the default is to bind to all
+; local addresses).
+;
+[general]
+port=5036
+;bindaddr=192.168.0.1
+;
+; Specify bandwidth of low, medium, or high to control which codecs are used
+; in general.
+;
+bandwidth=low
+;
+; You can also fine tune codecs here using "allow" and "disallow" clauses
+; with specific codecs.  Use "all" to represent all formats.
+;
+;allow=all			; same as bandwidth=high
+;disallow=g723.1		; Hm...  Proprietary, don't use it...
+disallow=lpc10			; Icky sound quality...  Mr. Roboto.
+;allow=gsm			; Always allow GSM, it's cool :)
+;
+; You can also adjust several parameters relating to the jitter
+; buffer.  Specifically, you can provide a maximum jitter buffer,
+; you can turn it off entirely, and you can specify an acceptable
+; drop rate (per MEMORY_SIZE, by default 3 of 100).  Disabling the
+; jitter buffer is not recommended.  Finally, you can specify the maximum
+; excess jitter buffer, which if exceeded, causes the jitter buffer to
+; slowly shrink in order to improve latency.
+;
+;jitterbuffer=no
+;dropcount=3
+;maxjitterbuffer=500
+;maxexccessbuffer=100
+
+;
+; Guest sections for unauthenticated connection attempts.  Just
+; specify an empty secret, or provide no secret section.
+;
+[guest]
+type=user
+context=default
+;
+; Further user sections may be added, specifying a context and a
+; secret used for connections with that given authentication name.
+; Limited IP based access control is allowed by use of "allow" and
+; "deny" keywords.  Multiple rules are permitted.  Multiple permitted
+; contexts may be specified, in which case the first will be the default.
+;
+;[markster]
+;type=user
+;context=default
+;context=local
+;auth=md5,cleartext
+;secret=markpasswd
+;deny=0.0.0.0/0.0.0.0
+;allow=209.16.236.73/255.255.255.0
+;
+; Peers may also be specified, with a secret and
+; a remote hostname.
+;
+[demo]
+type=peer
+username=asterisk
+secret=supersecret
+host=209.16.236.91
+;host=asterisk.linux-support.net
+;port=5036
+;mask=255.255.255.255

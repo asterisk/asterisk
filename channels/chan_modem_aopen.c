@@ -194,9 +194,13 @@ static struct ast_frame *aopen_handle_escape(struct ast_modem_pvt *p, char esc)
 		ast_log(LOG_DEBUG, "Escaped character '%c'\n", esc);
 	
 	switch(esc) {
+	case 'R': /* Pseudo ring */
+		p->fr.frametype = AST_FRAME_CONTROL;
+		p->fr.subclass = AST_CONTROL_RING;
+		return &p->fr;
 	case 'X': /* Pseudo connect */
 		p->fr.frametype = AST_FRAME_CONTROL;
-		p->fr.subclass = AST_CONTROL_ANSWER;
+		p->fr.subclass = AST_CONTROL_RING;
 		if (p->owner)
 			p->owner->state = AST_STATE_UP;
 		if (aopen_startrec(p))
@@ -255,11 +259,14 @@ static struct ast_frame *aopen_read(struct ast_modem_pvt *p)
 				/* If we're in immediate mode, reply now */
 				if (p->mode == MODEM_MODE_IMMEDIATE)
 					return aopen_handle_escape(p, 'X');
-			}
+			} else
 			if (!strcasecmp(result, "BUSY")) {
 				/* Same as a busy signal */
 				return aopen_handle_escape(p, 'b');
-			}
+			} else
+			if (!strcasecmp(result, "RING")) {
+				return aopen_handle_escape(p, 'R');
+			} else
 			if (!strcasecmp(result, "NO DIALTONE")) {
 				/* There's no dialtone, so the line isn't working */
 				ast_log(LOG_WARNING, "Device '%s' lacking dialtone\n", p->dev);

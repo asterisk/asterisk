@@ -22,6 +22,60 @@ as well.
 
   If you want to use format_wav module, then you need a very recent
 version of libaudiofile (at least version 0.2.0, or you can apply the
-following patch to version 0.1.9):
+included patch.  RPMS for the patched libaudiofile are available at:
+ftp://ftp.asteriskpbx.com/pub/asterisk/support
 
 
+* GETTING STARTED
+
+First, be sure you've installed the required libaudiofile upgrade if 
+you want to use the non-GSM WAV format.  Next, be sure you've got
+supported hardware.  To use Asterisk right now, you will need one of 
+the following:
+
+	* Adtran Atlas 800 Plus
+	* QuickNet Internet PhoneJack
+	* Full Duplex Sound Card supported by Linux
+
+Assuming you have one of these (most likely the third) you're ready to 
+proceed:
+
+1) Run "make"
+2) Run "make install"
+
+If this is your first time working with Asterisk, you may wish to install
+the sample PBX, with demonstration extensions, etc.  If so, run:
+
+	"make samples"
+
+Doing so will overwrite any existing config files you have.
+
+Finally, you can launch Asterisk with:
+
+	./asterisk -vvvc
+
+If you get an error about unresolved symbols, install the updated
+libaudiofile (available at ftp://ftp.asteriskpbx.com/pub/asterisk/support
+
+You'll see a bunch of verbose messages fly by your screen as Asterisk
+initializes (that's the "very very verbose" mode).  When it's ready, if
+you specified the "c" then you'll get a command line console, that looks
+like this: 
+
+*CLI>
+
+You can type "help" at any time to get help with the system.  For help
+with a specific command, type "help <command>".  To start the PBX using
+your sound card, you can type "dial" to dial the PBX.  Then you can use
+"answer", "hangup", and "dial" to simulate the actions of a telephone.
+Remember that if you don't have a full duplex sound card (And asterisk
+will tell you somewhere in its verbose messages if you do/don't) than it
+won't work right (not yet).
+
+Feel free to look over the configuration files in /etc/asterisk, where
+you'll find a lot of information about what you can do with Asterisk.
+
+Finally, you may wish to visit the web site and join the mailing list if
+you're interested in getting more information.
+
+Mark

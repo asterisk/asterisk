@@ -26,8 +26,9 @@ LIBG723=g723.1/libg723.a
 LIBG723B=g723.1b/libg723b.a
 LIBGSM=gsm/lib/libgsm.a
 LIBMP3=mp3/libmp3.a
+LIBLPC10=lpc10/liblpc10.a
 
-CODECS+=$(MODG723) codec_gsm.so codec_mp3_d.so
+CODECS+=$(MODG723) codec_gsm.so codec_mp3_d.so codec_lpc10.so
 
 all: $(CODECS)
 
@@ -37,6 +38,7 @@ clean:
 	! [ -d g723.1b ] || make -C g723.1b clean
 	make -C gsm clean
 	make -C mp3 clean
+	make -C lpc10 clean
 
 $(LIBG723):
 	make -C g723.1 all
@@ -50,17 +52,23 @@ $(LIBG723B):
 $(LIBMP3):
 	make -C mp3 all
 
+$(LIBLPC10):
+	make -C lpc10 all
+
 codec_g723_1.so : codec_g723_1.o $(LIBG723)
 	$(CC) -shared -Xlinker -x -o $@ $< $(LIBG723)
 
 codec_g723_1b.o : codec_g723_1.c
-	$(CC) -c -o $@ $(CFLAGS) -DANNEX_B $<
+	$(CC) -c -o $@ $(CFLAGS) -DANNEX_B -Dsingle $<
 
 codec_g723_1b.so : codec_g723_1b.o $(LIBG723B)
 	$(CC) -shared -Xlinker -x -o $@ $< $(LIBG723B) -lm
 
 codec_gsm.so: codec_gsm.o $(LIBGSM)
 	$(CC) -shared -Xlinker -x -o $@ $< $(LIBGSM)
+
+codec_lpc10.so: codec_lpc10.o $(LIBLPC10)
+	$(CC) -shared -Xlinker -x -o $@ $< $(LIBLPC10) -lm
 
 codec_mp3_d.so: codec_mp3_d.o $(LIBMP3)
 	$(CC) -shared -Xlinker -x -o $@ $< $(LIBMP3)
