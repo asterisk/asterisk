@@ -4812,6 +4812,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "Their Tag:           %s\n", cur->theirtag);
 			ast_cli(fd, "Need Destroy:        %d\n", cur->needdestroy);
 			ast_cli(fd, "Last Message:        %s\n", cur->lastmsg);
+			ast_cli(fd, "Route:               %s\n", cur->route ? cur->route->hop : "N/A");
 			strcpy(tmp, "");
 			if (cur->dtmfmode & SIP_DTMF_RFC2833)
 				strcat(tmp, "rfc2833 ");
