@@ -1264,14 +1264,6 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 	memset(&vac0, 0, sizeof(vac0));
 	memset(&vac1, 0, sizeof(vac1));
 
-	/* XXX Wait a half a second for things to settle up 
-			this really should be fixed XXX */
-	ast_autoservice_start(c0);
-	ast_autoservice_start(c1);
-	usleep(500000);
-	ast_autoservice_stop(c0);
-	ast_autoservice_stop(c1);
-
 	/* if need DTMF, cant native bridge */
 	if (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))
 		return -2;

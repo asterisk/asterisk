@@ -31,14 +31,13 @@ static char *app = "ControlPlayback";
 static char *synopsis = "Play a file with fast forward and rewind";
 
 static char *descrip = 
-"ControlPlayback(filename[|skipms]|[ffchar]|[rewchar]|[stopchar]]):\n"
+"ControlPlayback(filename[|skipms[|ffchar[|rewchar[|stopchar[|pausechr]]]]]):\n"
 "  Plays  back  a  given  filename (do not put extension). Options may also\n"
 "  be included following a pipe symbol.  You can use * and # to rewind and\n"
 "  fast forward the playback specified. If 'stopchar' is added the file will\n"
 "  terminate playback when 'stopchar' is pressed. Returns -1 if the channel\n"
 "  was hung up, or if the file does not exist. Returns 0 otherwise.\n\n"
-"  Example:  exten => 1234,1,ControlPlayback(file|4000|*|#|1)\n\n";
-
+"  Example:  exten => 1234,1,ControlPlayback(file|4000|*|#|1|0)\n\n";
 
 STANDARD_LOCAL_USER;
 

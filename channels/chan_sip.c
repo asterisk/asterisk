@@ -265,6 +265,7 @@ static struct sip_pvt {
 	struct sockaddr_in sa;			/* Our peer */
 	struct sockaddr_in redirip;		/* Where our RTP should be going if not to us */
 	struct sockaddr_in vredirip;		/* Where our Video RTP should be going if not to us */
+	int redircodecs;				/* Redirect codecs */
 	struct sockaddr_in recv;		/* Received as */
 	struct in_addr ourip;			/* Our IP */
 	struct ast_channel *owner;		/* Who owns us */
@@ -305,6 +306,7 @@ static struct sip_pvt {
 	char lastmsg[256];			/* Last Message sent/received */
 	int amaflags;				/* AMA Flags */
 	int pendinginvite;			/* Any pending invite */
+	int needreinvite;			/* Do we need to send another reinvite? */
 	int pendingbye;				/* Need to send bye after we ack? */
 	int gotrefer;				/* Got a refer? */
 	struct sip_request initreq;		/* Initial request */
@@ -493,7 +495,7 @@ static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_
 static int transmit_request(struct sip_pvt *p, char *msg, int inc, int reliable, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, char *msg, int inc, int reliable, int newbranch);
 static int transmit_invite(struct sip_pvt *p, char *msg, int sendsdp, char *auth, char *authheader, char *vxml_url,char *distinctive_ring, int init);
-static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codec);
+static int transmit_reinvite_with_sdp(struct sip_pvt *p);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
 static int transmit_message_with_text(struct sip_pvt *p, char *text);
 static int transmit_refer(struct sip_pvt *p, char *dest);
@@ -1552,6 +1554,7 @@ static int sip_hangup(struct ast_channel *ast)
 				/* Note we will need a BYE when this all settles out
 				   but we can't send one while we have "INVITE" outstanding. */
 				p->pendingbye = 1;
+				p->needreinvite = 0;
 			}
 		}
 	}
@@ -3003,7 +3006,7 @@ static int add_digit(struct sip_request *req, char digit)
 }
 
 /*--- add_sdp: Add Session Description Protocol message ---*/
-static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs)
+static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 {
 	int len;
 	int codec;
@@ -3033,8 +3036,6 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 		return -1;
 	}
 	capability = p->jointcapability;
-	if (codecs) 
-		capability = codecs & p->jointcapability;
 		
 	if (!p->sessionid) {
 		p->sessionid = getpid();
@@ -3048,8 +3049,8 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	if (p->redirip.sin_addr.s_addr) {
 		dest.sin_port = p->redirip.sin_port;
 		dest.sin_addr = p->redirip.sin_addr;
-	} else if (rtp) {
-		ast_rtp_get_peer(rtp, &dest);
+		if (p->redircodecs)
+			capability = p->redircodecs;
 	} else {
 		dest.sin_addr = p->ourip;
 		dest.sin_port = sin.sin_port;
@@ -3060,8 +3061,6 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 		if (p->vredirip.sin_addr.s_addr) {
 			vdest.sin_port = p->vredirip.sin_port;
 			vdest.sin_addr = p->vredirip.sin_addr;
-		} else if (vrtp) {
-			ast_rtp_get_peer(vrtp, &vdest);
 		} else {
 			vdest.sin_addr = p->ourip;
 			vdest.sin_port = vsin.sin_port;
@@ -3210,7 +3209,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 		return -1;
 	}
 	respprep(&resp, p, msg, req);
-	add_sdp(&resp, p, NULL, NULL, 0);
+	add_sdp(&resp, p);
 	return send_response(p, &resp, retrans, seqno);
 }
 
@@ -3277,7 +3276,7 @@ static int determine_firstline_parts( struct sip_request *req ) {
 /* transmit_reinvite_with_sdp: Transmit reinvite with SDP :-) ---*/
 /*   A re-invite is basically a new INVITE with the same CALL-ID and TAG as the
      INVITE that opened the SIP dialogue */
-static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codec)
+static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 {
 	struct sip_request req;
 	if (p->canreinvite == REINVITE_UPDATE)
@@ -3286,7 +3285,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp, st
 		reqprep(&req, p, "INVITE", 0, 1);
 	
 	add_header(&req, "Allow", ALLOWED_METHODS);
-	add_sdp(&req, p, rtp, vrtp, codec);
+	add_sdp(&req, p);
 	/* Use this as the basis */
 	copy_request(&p->initreq, &req);
 	parse(&p->initreq);
@@ -3433,7 +3432,7 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 	}
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	if (sdp) {
-		add_sdp(&req, p, NULL, NULL, 0);
+		add_sdp(&req, p);
 	} else {
 		add_header(&req, "Content-Length", "0");
 		add_blank_header(&req);
@@ -5846,6 +5845,21 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 		strncpy(p->owner->call_forward, s, sizeof(p->owner->call_forward) - 1);
 }
 
+static void check_pendings(struct sip_pvt *p)
+{
+	/* Go ahead and send bye at this point */
+	if (p->pendingbye) {
+		transmit_request_with_auth(p, "BYE", 0, 1, 1);
+		p->needdestroy = 1;
+		p->needreinvite = 0;
+	} else if (p->needreinvite) {
+		ast_log(LOG_DEBUG, "Sending pending reinvite on '%s'\n", p->callid);
+		/* Didn't get to reinvite yet, so do it now */
+		transmit_reinvite_with_sdp(p);
+		p->needreinvite = 0;
+	}
+}
+
 /*--- handle_response: Handle SIP response in dialogue ---*/
 static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore)
 {
@@ -5984,11 +5998,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				p->authtries = 0;
 				/* If I understand this right, the branch is different for a non-200 ACK only */
 				transmit_request(p, "ACK", seqno, 0, 1);
-				/* Go ahead and send bye at this point */
-				if (p->pendingbye) {
-					transmit_request_with_auth(p, "BYE", 0, 1, 1);
-					p->needdestroy = 1;
-				}
+				check_pendings(p);
 			} else if (!strcasecmp(msg, "REGISTER")) {
 				/* char *exp; */
 				int expires, expires_ms;
@@ -6342,6 +6352,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			sip_cancel_destroy(p);
 			/* This call is no longer outgoing if it ever was */
 			p->outgoing = 0;
+			/* This also counts as a pending invite */
+			p->pendinginvite = 1;
 			copy_request(&p->initreq, req);
 			check_via(p, req);
 			if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
@@ -6681,11 +6693,13 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		/* Uhm, I haven't figured out the point of the ACK yet.  Are we
 		   supposed to retransmit responses until we get an ack? 
 		   Make sure this is on a valid call */
+		p->pendinginvite = 0;
 		__sip_ack(p, seqno, FLAG_RESPONSE);
 		if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
 			if (process_sdp(p, req))
 				return -1;
 		} 
+		check_pendings(p);
 		if (!p->lastinvite && ast_strlen_zero(p->randdata))
 			p->needdestroy = 1;
 	} else if (!strcasecmp(cmd, "SIP/2.0")) {
@@ -7730,7 +7744,7 @@ static struct ast_rtp *sip_get_vrtp_peer(struct ast_channel *chan)
 	return NULL;
 }
 
-static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codec)
+static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs)
 {
 	struct sip_pvt *p;
 	p = chan->pvt->pvt;
@@ -7743,8 +7757,14 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 			ast_rtp_get_peer(vrtp, &p->vredirip);
 		else
 			memset(&p->vredirip, 0, sizeof(p->vredirip));
+		p->redircodecs = codecs;
 		if (!p->gotrefer) {
-			transmit_reinvite_with_sdp(p, rtp, vrtp, codec);
+			if (!p->pendinginvite)
+				transmit_reinvite_with_sdp(p);
+			else if (!p->pendingbye) {
+				ast_log(LOG_DEBUG, "Deferring reinvite on '%s'\n", p->callid);
+				p->needreinvite = 1;
+			}
 			p->outgoing = 1;
 		}
 		return 0;
