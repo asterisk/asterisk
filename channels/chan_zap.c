@@ -113,6 +113,7 @@ static char *config = "zapata.conf";
 #define SIG_FXOKS	ZT_SIG_FXOKS
 #define SIG_PRI		ZT_SIG_CLEAR
 #define SIG_R2		ZT_SIG_CAS
+#define	SIG_SF		ZT_SIG_SF
 
 #define NUM_SPANS 	32
 #define RESET_INTERVAL	3600	/* How often (in seconds) to reset unused channels */
@@ -776,6 +777,8 @@ static char *sig2str(int sig)
 		return "PRI Signalling";
 	case SIG_R2:
 		return "R2 Signalling";
+	case SIG_SF:
+		return "SF (Tone) Signalling";
 	case 0:
 		return "Pseudo Signalling";
 	default:
@@ -6206,6 +6209,21 @@ int load_module()
 				cur_radio = 2;
 			} else if (!strcasecmp(v->value, "em_txrx")) {
 				cur_signalling = SIG_EM;
+				cur_radio = 2;
+			} else if (!strcasecmp(v->value, "sf")) {
+				cur_signalling = SIG_SF;
+				cur_radio = 0;
+			} else if (!strcasecmp(v->value, "sf_rx")) {
+				cur_signalling = SIG_SF;
+				cur_radio = 1;
+			} else if (!strcasecmp(v->value, "sf_tx")) {
+				cur_signalling = SIG_SF;
+				cur_radio = 1;
+			} else if (!strcasecmp(v->value, "sf_rxtx")) {
+				cur_signalling = SIG_SF;
+				cur_radio = 2;
+			} else if (!strcasecmp(v->value, "sf_txrx")) {
+				cur_signalling = SIG_SF;
 				cur_radio = 2;
 			} else if (!strcasecmp(v->value, "featd")) {
 				cur_signalling = SIG_FEATD;

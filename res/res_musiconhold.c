@@ -84,7 +84,6 @@ struct mohclass {
 
 struct mohdata {
 	int pipe[2];
-	int origrfmt;
 	int origwfmt;
 	struct mohclass *parent;
 	struct mohdata *next;
@@ -348,12 +347,10 @@ static void moh_release(struct ast_channel *chan, void *data)
 	ast_pthread_mutex_unlock(&moh_lock);
 	close(moh->pipe[0]);
 	close(moh->pipe[1]);
-	oldrfmt = moh->origrfmt;
 	oldwfmt = moh->origwfmt;
 	free(moh);
 	if (chan) {
-		if (ast_set_write_format(chan, oldwfmt) ||
-		    ast_set_read_format(chan, oldrfmt)) 
+		if (ast_set_write_format(chan, oldwfmt)) 
 			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format %d/%d\n", chan->name, oldwfmt, oldrfmt);
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Stopped music on hold on %s\n", chan->name);
@@ -375,13 +372,8 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 	}
 	ast_pthread_mutex_unlock(&moh_lock);
 	if (res) {
-		res->origrfmt = chan->readformat;
 		res->origwfmt = chan->writeformat;
 		if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
-			ast_log(LOG_WARNING, "Unable to set '%s' to signed linear format\n", chan->name);
-			moh_release(NULL, res);
-			res = NULL;
-		} else if (ast_set_read_format(chan, AST_FORMAT_SLINEAR)) {
 			ast_log(LOG_WARNING, "Unable to set '%s' to signed linear format\n", chan->name);
 			moh_release(NULL, res);
 			res = NULL;
@@ -402,6 +394,8 @@ static int moh_generate(struct ast_channel *chan, void *data, int len, int sampl
 	struct mohdata *moh = data;
 	short buf[640 + AST_FRIENDLY_OFFSET / 2];
 	int res;
+
+	len = samples * 2;
 	if (len > sizeof(buf)) {
 		ast_log(LOG_WARNING, "Only doing %d of %d requested bytes on %s\n", sizeof(buf), len, chan->name);
 		len = sizeof(buf);

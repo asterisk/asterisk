@@ -137,6 +137,8 @@ static int use_jitterbuffer = 1;
 
 static int iaxdebug = 0;
 
+static int iaxtrunkdebug = 0;
+
 static char accountcode[20];
 static int amaflags = 0;
 
@@ -2098,9 +2100,37 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 	   or delayed, with retransmission */
 	struct ast_iax2_full_hdr *fh;
 	struct ast_iax2_mini_hdr *mh;
-	struct ast_iax2_frame *fr, fr2;
+	unsigned char buffer[4096];		/* Buffer -- must preceed fr2 */
+	struct ast_iax2_frame fr2;
+	struct ast_iax2_frame *fr;
 	int res;
+	int sendmini=0;
 	unsigned int lastsent;
+	unsigned int fts;
+	
+	/* Shut up GCC */
+	buffer[0] = 0;
+	
+	if (!pvt) {
+		ast_log(LOG_WARNING, "No private structure for packet?\n");
+		return -1;
+	}
+	
+	/* Calculate actual timestamp */
+	fts = calc_timestamp(pvt, ts);
+	lastsent = pvt->lastsent;
+
+	if ((pvt->trunk || ((fts & 0xFFFF0000L) == (lastsent & 0xFFFF0000L)))
+		/* High two bits are the same on timestamp, or sending on a trunk */ &&
+	    (f->frametype == AST_FRAME_VOICE) 
+		/* is a voice frame */ &&
+		(f->subclass == pvt->svoiceformat) 
+		/* is the same type */ ) {
+			/* Force immediate rather than delayed transmission */
+			now = 1;
+			/* Mark that mini-style frame is appropriate */
+			sendmini = 1;
+	}
 	/* Allocate an ast_iax2_frame */
 	if (now) {
 		fr = &fr2;
@@ -2110,17 +2140,10 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		ast_log(LOG_WARNING, "Out of memory\n");
 		return -1;
 	}
-	if (!pvt) {
-		ast_log(LOG_WARNING, "No private structure for packet (%d)?\n", fr->callno);
-		if (!now)
-			ast_iax2_frame_free(fr);
-		return -1;
-	}
 	/* Copy our prospective frame into our immediate or retransmitted wrapper */
 	ast_iax2_frame_wrap(fr, f);
 
-	lastsent = pvt->lastsent;
-	fr->ts = calc_timestamp(pvt, ts);
+	fr->ts = fts;
 	if (!fr->ts) {
 		ast_log(LOG_WARNING, "timestamp is 0?\n");
 		if (!now)
@@ -2130,12 +2153,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 	fr->callno = pvt->callno;
 	fr->transfer = transfer;
 	fr->final = final;
-	if (((fr->ts & 0xFFFF0000L) != (lastsent & 0xFFFF0000L))
-		/* High two bits of timestamp differ */ ||
-	    (fr->af.frametype != AST_FRAME_VOICE) 
-		/* or not a voice frame */ || 
-		(fr->af.subclass != pvt->svoiceformat) 
-		/* or new voice format */ ) {
+	if (!sendmini) {
 		/* We need a full frame */
 		if (seqno > -1)
 			fr->oseqno = seqno;
@@ -2199,10 +2217,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 			fr->datalen = fr->af.datalen + sizeof(struct ast_iax2_mini_hdr);
 			fr->data = mh;
 			fr->retries = -1;
-			if (now) {
-				res = send_packet(fr);
-			} else
-				res = iax2_transmit(fr);
+			res = send_packet(fr);
 		}
 	}
 	return res;
@@ -2358,6 +2373,15 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
+static int iax2_do_trunk_debug(int fd, int argc, char *argv[])
+{
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	iaxtrunkdebug = 1;
+	ast_cli(fd, "IAX2 Trunk Debug Requested\n");
+	return RESULT_SUCCESS;
+}
+
 static int iax2_do_debug(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
@@ -2394,8 +2418,6 @@ static char show_reg_usage[] =
 "Usage: iax2 show registry\n"
 "       Lists all registration requests and status.\n";
 
-#ifdef DEBUG_SUPPORT
-
 static char debug_usage[] = 
 "Usage: iax2 debug\n"
 "       Enables dumping of IAX packets for debugging purposes\n";
@@ -2404,7 +2426,9 @@ static char no_debug_usage[] =
 "Usage: iax2 no debug\n"
 "       Disables dumping of IAX packets for debugging purposes\n";
 
-#endif
+static char debug_trunk_usage[] =
+"Usage: iax2 trunk debug\n"
+"       Requests current status of IAX trunking\n";
 
 static struct ast_cli_entry  cli_show_users = 
 	{ { "iax2", "show", "users", NULL }, iax2_show_users, "Show defined IAX users", show_users_usage };
@@ -2416,6 +2440,8 @@ static struct ast_cli_entry  cli_show_registry =
 	{ { "iax2", "show", "registry", NULL }, iax2_show_registry, "Show IAX registration status", show_reg_usage };
 static struct ast_cli_entry  cli_debug =
 	{ { "iax2", "debug", NULL }, iax2_do_debug, "Enable IAX debugging", debug_usage };
+static struct ast_cli_entry  cli_trunk_debug =
+	{ { "iax2", "trunk", "debug", NULL }, iax2_do_trunk_debug, "Request IAX trunk debug", debug_trunk_usage };
 static struct ast_cli_entry  cli_no_debug =
 	{ { "iax2", "no", "debug", NULL }, iax2_no_debug, "Disable IAX debugging", no_debug_usage };
 
@@ -3495,6 +3521,8 @@ static int send_trunk(struct iax2_peer *peer)
 	for (x=TRUNK_CALL_START;x<maxtrunkcall; x++) {
 		ast_pthread_mutex_lock(&iaxsl[x]);
 		if (iaxs[x] && iaxs[x]->trunk && iaxs[x]->trunkdatalen && !memcmp(&iaxs[x]->addr, &peer->addr, sizeof(iaxs[x]->addr))) {
+			if (iaxtrunkdebug)
+				ast_verbose(" -- Sending call %d via trunk to %s:%d\n", x, inet_ntoa(iaxs[x]->addr.sin_addr), ntohs(iaxs[x]->addr.sin_port));
 			if (len >= iaxs[x]->trunkdatalen + sizeof(struct ast_iax2_meta_trunk_entry)) {
 				met = (struct ast_iax2_meta_trunk_entry *)ptr;
 				/* Store call number and length in meta header */
@@ -3536,7 +3564,9 @@ static int send_trunk(struct iax2_peer *peer)
 #endif		
 		res = send_packet(fr);
 	}
-	return res;
+	if (res < 0)
+		return res;
+	return calls;
 }
 
 static int timing_read(int *id, int fd, short events, void *cbdata)
@@ -3544,6 +3574,10 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 	char buf[1024];
 	int res;
 	struct iax2_peer *peer;
+	int processed = 0;
+	int totalcalls = 0;
+	if (iaxtrunkdebug)
+		ast_verbose("Beginning trunk processing\n");
 	/* Read and ignore from the pseudo channel for timing */
 	res = read(fd, buf, sizeof(buf));
 	if (res > 0) {
@@ -3552,12 +3586,20 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 		peer = peerl.peers;
 		while(peer) {
 			if (peer->trunk) {
-				send_trunk(peer);
+				processed++;
+				res = send_trunk(peer);
+				if (iaxtrunkdebug)
+					ast_verbose("Processed trunk peer '%s' with %d call(s)\n", peer->name, res);
+				totalcalls += res;	
+				res = 0;
 			}
 			peer = peer->next;
 		}
 		ast_pthread_mutex_unlock(&peerl.lock);
 	}
+	if (iaxtrunkdebug)
+		ast_verbose("Ending trunk processing with %d peers and %d calls processed\n", processed, totalcalls);
+	iaxtrunkdebug =0;
 	return 1;
 }
 
@@ -5507,6 +5549,7 @@ int load_module(void)
 	ast_cli_register(&cli_show_peers);
 	ast_cli_register(&cli_show_registry);
 	ast_cli_register(&cli_debug);
+	ast_cli_register(&cli_trunk_debug);
 	ast_cli_register(&cli_no_debug);
 	ast_cli_register(&cli_set_jitter);
 	ast_cli_register(&cli_show_stats);
