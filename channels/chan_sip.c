@@ -80,7 +80,7 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 #define MAX_RETRANS			5				/* Try only 5 times for retransmissions */
 
 static char *desc = "Session Initiation Protocol (SIP)";
-static char *type = "sip";
+static char *type = "SIP";
 static char *tdesc = "Session Initiation Protocol (SIP)";
 static char *config = "sip.conf";
 
