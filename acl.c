@@ -279,7 +279,7 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	fgets(line,sizeof(line),PROC);
 
 	while (!feof(PROC)) {
-		char iface[8];
+		char iface[256];
 		unsigned int dest, gateway, mask;
 		int i,fieldnum;
 		char *fields[40];
@@ -303,18 +303,20 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 				i = offset - line;
 			}
 		}
+		if (fieldnum >= 8) {
 
-		sscanf(fields[0],"%s",iface);
-		sscanf(fields[1],"%x",&dest);
-		sscanf(fields[2],"%x",&gateway);
-		sscanf(fields[7],"%x",&mask);
+			sscanf(fields[0],"%s",iface);
+			sscanf(fields[1],"%x",&dest);
+			sscanf(fields[2],"%x",&gateway);
+			sscanf(fields[7],"%x",&mask);
 #if 0
-		printf("Addr: %s %08x Dest: %08x Mask: %08x\n", inet_ntoa(*them), remote_ip, dest, mask);
+			printf("Addr: %s %08x Dest: %08x Mask: %08x\n", inet_ntoa(*them), remote_ip, dest, mask);
 #endif		
-		/* Looks simple, but here is the magic */
-		if (((remote_ip & mask) ^ dest) == 0) {
-			res = ast_lookup_iface(iface,us);
-			break;
+			/* Looks simple, but here is the magic */
+			if (((remote_ip & mask) ^ dest) == 0) {
+				res = ast_lookup_iface(iface,us);
+				break;
+			}
 		}
 	}
 	fclose(PROC);
