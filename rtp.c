@@ -2,10 +2,12 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Real-time Protocol Support
+ * 	Supports RTP and RTCP with Symmetric RTP support for NAT
+ * 	traversal
  * 
  * Copyright (C) 1999, Mark Spencer
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -49,9 +51,9 @@ static int dtmftimeout = 3000;	/* 3000 samples */
 static int rtpstart = 0;
 static int rtpend = 0;
 
-// The value of each payload format mapping:
+/* The value of each payload format mapping: */
 struct rtpPayloadType {
-  int isAstFormat; // whether the following code is an AST_FORMAT
+  int isAstFormat; 	/* whether the following code is an AST_FORMAT */
   int code;
 };
 
@@ -89,8 +91,7 @@ struct ast_rtp {
 	void *data;
 	ast_rtp_callback callback;
     struct rtpPayloadType current_RTP_PT[MAX_RTP_PT];
-    // a cache for the result of rtp_lookup_code():
-    int rtp_lookup_code_cache_isAstFormat;
+    int rtp_lookup_code_cache_isAstFormat;	/* a cache for the result of rtp_lookup_code(): */
     int rtp_lookup_code_cache_code;
     int rtp_lookup_code_cache_result;
 	struct ast_rtcp *rtcp;
@@ -457,7 +458,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 #endif	
 	rtpPT = ast_rtp_lookup_pt(rtp, payloadtype);
 	if (!rtpPT.isAstFormat) {
-	  // This is special in-band data that's not one of our codecs
+	  /* This is special in-band data that's not one of our codecs */
 	  if (rtpPT.code == AST_RTP_DTMF) {
 	    /* It's special -- rfc2833 process it */
 	    if (rtp->lasteventseqn <= seqno) {
@@ -541,7 +542,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			break;
 		case AST_FORMAT_SPEEX:
 		        rtp->f.samples = 160;
-			// assumes that the RTP packet contained one Speex frame
+			/* assumes that the RTP packet contained one Speex frame */
 			break;
 		default:
 			ast_log(LOG_NOTICE, "Unable to calculate samples for format %s\n", ast_getformatname(rtp->f.subclass));
@@ -564,8 +565,8 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	return &rtp->f;
 }
 
-// The following array defines the MIME type (and subtype) for each
-// of our codecs, or RTP-specific data type.
+/* The following array defines the MIME Media type (and subtype) for each
+   of our codecs, or RTP-specific data type. */
 static struct {
   struct rtpPayloadType payloadType;
   char* type;
@@ -596,18 +597,18 @@ static struct {
    table for transmission */
 static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
   [0] = {1, AST_FORMAT_ULAW},
-  [2] = {1, AST_FORMAT_G726}, // Technically this is G.721, but if Cisco can do it, so can we...
+  [2] = {1, AST_FORMAT_G726}, /* Technically this is G.721, but if Cisco can do it, so can we... */
   [3] = {1, AST_FORMAT_GSM},
   [4] = {1, AST_FORMAT_G723_1},
-  [5] = {1, AST_FORMAT_ADPCM}, // 8 kHz
-  [6] = {1, AST_FORMAT_ADPCM}, // 16 kHz
+  [5] = {1, AST_FORMAT_ADPCM}, /* 8 kHz */
+  [6] = {1, AST_FORMAT_ADPCM}, /* 16 kHz */
   [7] = {1, AST_FORMAT_LPC10},
   [8] = {1, AST_FORMAT_ALAW},
-  [10] = {1, AST_FORMAT_SLINEAR}, // 2 channels
-  [11] = {1, AST_FORMAT_SLINEAR}, // 1 channel
+  [10] = {1, AST_FORMAT_SLINEAR}, /* 2 channels */
+  [11] = {1, AST_FORMAT_SLINEAR}, /* 1 channel */
   [13] = {0, AST_RTP_CN},
-  [16] = {1, AST_FORMAT_ADPCM}, // 11.025 kHz
-  [17] = {1, AST_FORMAT_ADPCM}, // 22.050 kHz
+  [16] = {1, AST_FORMAT_ADPCM}, /* 11.025 kHz */
+  [17] = {1, AST_FORMAT_ADPCM}, /* 22.050 kHz */
   [18] = {1, AST_FORMAT_G729A},
   [26] = {1, AST_FORMAT_JPEG},
   [31] = {1, AST_FORMAT_H261},
@@ -615,7 +616,7 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
   [97] = {1, AST_FORMAT_ILBC},
   [101] = {0, AST_RTP_DTMF},
   [110] = {1, AST_FORMAT_SPEEX},
-  [121] = {0, AST_RTP_CISCO_DTMF}, // Must be type 121
+  [121] = {0, AST_RTP_CISCO_DTMF}, /* Must be type 121 */
 };
 
 void ast_rtp_pt_clear(struct ast_rtp* rtp) 
@@ -646,24 +647,24 @@ void ast_rtp_pt_default(struct ast_rtp* rtp)
   rtp->rtp_lookup_code_cache_result = 0;
 }
 
-// Make a note of a RTP payload type that was seen in a SDP "m=" line.
-// By default, use the well-known value for this type (although it may
-// still be set to a different value by a subsequent "a=rtpmap:" line):
+/* Make a note of a RTP payload type that was seen in a SDP "m=" line. */
+/* By default, use the well-known value for this type (although it may */
+/* still be set to a different value by a subsequent "a=rtpmap:" line): */
 void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt) {
-  if (pt < 0 || pt > MAX_RTP_PT) return; // bogus payload type
+  if (pt < 0 || pt > MAX_RTP_PT) return; /* bogus payload type */
 
   if (static_RTP_PT[pt].code != 0) {
     rtp->current_RTP_PT[pt] = static_RTP_PT[pt];
   }
 } 
 
-// Make a note of a RTP payload type (with MIME type) that was seen in
-// a SDP "a=rtpmap:" line.
+/* Make a note of a RTP payload type (with MIME type) that was seen in */
+/* a SDP "a=rtpmap:" line. */
 void ast_rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,
 			 char* mimeType, char* mimeSubtype) {
   int i;
 
-  if (pt < 0 || pt > MAX_RTP_PT) return; // bogus payload type
+  if (pt < 0 || pt > MAX_RTP_PT) return; /* bogus payload type */
 
   for (i = 0; i < sizeof mimeTypes/sizeof mimeTypes[0]; ++i) {
     if (strcasecmp(mimeSubtype, mimeTypes[i].subtype) == 0 &&
@@ -674,8 +675,8 @@ void ast_rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,
   }
 } 
 
-// Return the union of all of the codecs that were set by rtp_set...() calls
-// They're returned as two distinct sets: AST_FORMATs, and AST_RTPs
+/* Return the union of all of the codecs that were set by rtp_set...() calls */
+/* They're returned as two distinct sets: AST_FORMATs, and AST_RTPs */
 void ast_rtp_get_current_formats(struct ast_rtp* rtp,
 			     int* astFormats, int* nonAstFormats) {
   int pt;
@@ -693,9 +694,10 @@ void ast_rtp_get_current_formats(struct ast_rtp* rtp,
 struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt) 
 {
   struct rtpPayloadType result;
+
   if (pt < 0 || pt > MAX_RTP_PT) {
     result.isAstFormat = result.code = 0;
-    return result; // bogus payload type
+    return result; /* bogus payload type */
   }
   /* Start with the negotiated codecs */
   result = rtp->current_RTP_PT[pt];
@@ -705,14 +707,14 @@ struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt)
   return result;
 }
 
+/* Looks up an RTP code out of our *static* outbound list */
 int ast_rtp_lookup_code(struct ast_rtp* rtp, int isAstFormat, int code) {
   int pt;
 
-  /* Looks up an RTP code out of our *static* outbound list */
 
   if (isAstFormat == rtp->rtp_lookup_code_cache_isAstFormat &&
       code == rtp->rtp_lookup_code_cache_code) {
-    // Use our cached mapping, to avoid the overhead of the loop below
+    /* Use our cached mapping, to avoid the overhead of the loop below */
     return rtp->rtp_lookup_code_cache_result;
   }
 
@@ -1046,7 +1048,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 			break;
 		case AST_FORMAT_SPEEX:
 		    pred = rtp->lastts + 160;
-			// assumes that the RTP packet contains one Speex frame
+			/* assumes that the RTP packet contains one Speex frame */
 			break;
 		default:
 			ast_log(LOG_WARNING, "Not sure about timestamp format for codec format %s\n", ast_getformatname(f->subclass));
@@ -1207,12 +1209,12 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		break;
 	default:	
 		ast_log(LOG_WARNING, "Not sure about sending format %s packets\n", ast_getformatname(subclass));
-		// fall through to...
+		/* fall through to... */
 	case AST_FORMAT_H261:
 	case AST_FORMAT_H263:
 	case AST_FORMAT_G723_1:
 	case AST_FORMAT_SPEEX:
-	        // Don't buffer outgoing frames; send them one-per-packet:
+	        /* Don't buffer outgoing frames; send them one-per-packet: */
 		if (_f->offset < hdrlen) {
 			f = ast_frdup(_f);
 		} else {
