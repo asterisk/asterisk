@@ -3,9 +3,9 @@
  *
  * Provide Cryptographic Signature capability
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -370,12 +370,14 @@ extern int ast_encrypt_bin(unsigned char *dst, const unsigned char *src, int src
 		bytes = srclen;
 		if (bytes > 128 - 41)
 			bytes = 128 - 41;
-		/* Process chunks 128 bytes at a time */
-		res = RSA_private_encrypt(bytes, src, dst, key->rsa, RSA_PKCS1_OAEP_PADDING);
-		if (res != 128)
+		/* Process chunks 128-41 bytes at a time */
+		res = RSA_public_encrypt(bytes, src, dst, key->rsa, RSA_PKCS1_OAEP_PADDING);
+		if (res != 128) {
+			ast_log(LOG_NOTICE, "How odd, encrypted size is %d\n", res);
 			return -1;
-		src += 128 - 41;
-		srclen -= 128 - 41;
+		}
+		src += bytes;
+		srclen -= bytes;
 		pos += res;
 		dst += res;
 	}
