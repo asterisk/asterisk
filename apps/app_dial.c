@@ -39,7 +39,7 @@ static char *tdesc = "Dialing Application";
 
 static char *app = "Dial";
 
-static char *synopsis = "Place an call and connect to the current channel";
+static char *synopsis = "Place a call and connect to the current channel";
 
 static char *descrip =
 "  Dial(Technology/resource[&Technology2/resource2...][|timeout][|options][|URL]):\n"
