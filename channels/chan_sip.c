@@ -3685,21 +3685,19 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	} else {
 		snprintf(invite, sizeof(invite), "sip:%s", p->tohost);
 	}
+	if (!ast_strlen_zero(p->extraparams)) {
+		strncat(invite, ";", sizeof(invite) - strlen(invite));
+		strncat(invite, p->extraparams, sizeof(invite) - strlen(invite));
+	}
 	strncpy(p->uri, invite, sizeof(p->uri) - 1);
 	/* If there is a VXML URL append it to the SIP URL */
 	if (vxml_url)
 	{
-		if (strlen(p->extraparams))
-			snprintf(to, sizeof(to), "<%s;%s>;%s", invite, p->extraparams, vxml_url);
-		else
-			snprintf(to, sizeof(to), "<%s>;%s", invite, vxml_url);
+		snprintf(to, sizeof(to), "<%s>;%s", invite, vxml_url);
 	}
 	else
 	{
-		if (strlen(p->extraparams))
-			snprintf(to, sizeof(to), "<%s;%s>", invite, p->extraparams);
-		else
-			snprintf(to, sizeof(to), "<%s>", invite);
+		snprintf(to, sizeof(to), "<%s>", invite);
 	}
 	memset(req, 0, sizeof(struct sip_request));
 	init_req(req, cmd, invite);

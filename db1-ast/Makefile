@@ -7,6 +7,12 @@ SOVER=2.1
 else
 SOVER=2
 endif
+#Added support for UltraSparc - Belgarath
+ifeq ($(ARCH),sparc64)
+PROC=ultrasparc
+CFLAGS += -mtune=$(PROC) -O3 -pipe -fomit-frame-pointer -mcpu=v8
+endif
+
 LIBDBSO=libdb.so.$(SOVER)
 PROG=	db_dump185
 OBJ1=	hash.o hash_bigkey.o hash_buf.o hash_func.o hash_log2.o hash_page.o \

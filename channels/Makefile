@@ -7,11 +7,15 @@
 #
 # Mark Spencer <markster@linux-support.net>
 #
+# Edited By Belgarath <> Aug 28 2004
+# Added bare bones ultrasparc-linux support.
+#
 # This program is free software, distributed under the terms of
 # the GNU General Public License
 #
 
 OSARCH=$(shell uname -s)
+PROC=$(shell uname -m)
 
 USE_MYSQL_FRIENDS=0
 USE_SIP_MYSQL_FRIENDS=0
@@ -45,6 +49,12 @@ MYSQLLIB=-L/usr/lib/mysql -lmysqlclient
 PTLIB=-lpt_linux_x86_r
 H323LIB=-lh323_linux_x86_r
 CHANH323LIB=-ldl
+
+ifeq ($(PROC),sparc64)
+PROC=ultrasparc
+CFLAGS += -mtune=$(PROC) -O3 -pipe -fomit-frame-pointer -mcpu=v8
+endif
+
 endif
 ifeq (${OSARCH},FreeBSD)
 PTLIB=-lpt_FreeBSD_x86_r

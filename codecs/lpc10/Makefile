@@ -31,8 +31,13 @@ ifneq ($(findstring BSD,${OSARCH}),BSD)
 ifneq ($(PROC),ppc)
 ifneq ($(PROC),x86_64)
 ifneq ($(PROC),alpha)
+#The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
+#This works for even old (2.96) versions of gcc and provides a small boost either way.
+#A ultrasparc cpu is really v9 but the stock debian stable 3.0 gcc doesn.t support it.
+#So we go lowest common available by gcc and go a step down, still a step up from
+#the default as we now have a better instruction set to work with. - Belgarath
 ifeq ($(PROC),ultrasparc)
-        CFLAGS+= -mtune=$(PROC)
+        CFLAGS+= -mtune=$(PROC) -mcpu=v8 -O3 -fomit-frame-pointer
 else
         CFLAGS+= -march=$(PROC)
 endif
