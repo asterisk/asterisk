@@ -1455,7 +1455,7 @@ static int zt_hangup(struct ast_channel *ast)
 	index = zt_get_index(ast, p, 1);
 
 	if (p->sig == SIG_PRI) {
-		x = 1;
+		x = 0;
 		ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 	}
 
@@ -3528,6 +3528,11 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 #ifdef ZAPATA_PRI
 		/* Assume calls are not idle calls unless we're told differently */
 		i->isidlecall = 0;
+		if (i->sig == SIG_PRI) {
+			/* Set to audio mode at this poitn mode */
+			x = 1;
+			ast_channel_setoption(tmp,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+		}
 #endif
 		/* Assure there is no confmute on this channel */
 		zt_confmute(i, 0);
@@ -4681,9 +4686,9 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 			int offset;
 			int numchans;
 			int dchannel;
-			offset = 1;
+			offset = 0;
 			if (ioctl(tmp->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &offset)) {
-				ast_log(LOG_ERROR, "Unable to set audio mode on clear channel %d of span %d: %s\n", channel, p.spanno, strerror(errno));
+				ast_log(LOG_ERROR, "Unable to set clear mode on clear channel %d of span %d: %s\n", channel, p.spanno, strerror(errno));
 				return NULL;
 			}
 			if (span >= NUM_SPANS) {
