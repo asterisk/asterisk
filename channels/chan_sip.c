@@ -577,7 +577,7 @@ static int append_history(struct sip_pvt *p, char *event, char *data)
 /*--- retrans_pkt: Retransmit SIP message if no answer ---*/
 static int retrans_pkt(void *data)
 {
-	struct sip_pkt *pkt=data;
+	struct sip_pkt *pkt=data, *prev, *cur;
 	int res = 0;
 	ast_mutex_lock(&pkt->owner->lock);
 	if (pkt->retrans < MAX_RETRANS) {
@@ -602,17 +602,32 @@ static int retrans_pkt(void *data)
 				ast_mutex_lock(&pkt->owner->lock);
 			}
 			if (pkt->owner->owner) {
-				/* XXX Potential deadlocK?? XXX */
 				ast_queue_hangup(pkt->owner->owner);
 				ast_mutex_unlock(&pkt->owner->owner->lock);
 			} else {
 				/* If no owner, destroy now */
 				pkt->owner->needdestroy = 1;
 			}
-		} else {
-			/* Okay, it's not fatal, just continue.  XXX If we were nice, we'd free it now, rather than wait for the
-			   end of the call XXX */
 		}
+		/* In any case, go ahead and remove the packet */
+		prev = NULL;
+		cur = pkt->owner->packets;
+		while(cur) {
+			if (cur == pkt)
+				break;
+			prev = cur;
+			cur = cur->next;
+		}
+		if (cur) {
+			if (prev)
+				prev->next = cur->next;
+			else
+				pkt->owner->packets = cur->next;
+			ast_mutex_unlock(&pkt->owner->lock);
+			free(cur);
+			pkt = NULL;
+		} else
+			ast_log(LOG_WARNING, "Weird, couldn't find packet owner!\n");
 	}
 	if (pkt)
 		ast_mutex_unlock(&pkt->owner->lock);
@@ -1503,7 +1518,7 @@ static int sip_hangup(struct ast_channel *ast)
 			if (p->outgoing) {
 				transmit_request_with_auth(p, "CANCEL", p->ocseq, 1, 0);
 				/* Actually don't destroy us yet, wait for the 487 on our original 
-				   INVITE, but do set an autodestruct just in case. */
+				   INVITE, but do set an autodestruct just in case we never get it. */
 				needdestroy = 0;
 				sip_scheddestroy(p, 15000);
 				if ( p->initid != -1 ) {
@@ -2976,13 +2991,13 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	struct sockaddr_in sin;
 	struct sockaddr_in vsin;
 	struct sip_codec_pref *cur;
-	char v[256];
-	char s[256];
-	char o[256];
-	char c[256];
-	char t[256];
-	char m[256];
-	char m2[256];
+	char v[256] = "";
+	char s[256] = "";
+	char o[256] = "";
+	char c[256] = "";
+	char t[256] = "";
+	char m[256] = "";
+	char m2[256] = "";
 	char a[1024] = "";
 	char a2[1024] = "";
 	int x;
