@@ -2139,15 +2139,22 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
     }
 	/* Clear out potential response */
 	if (!strcasecmp(req->verb, "RSIP")) {
-		dump_queue(p);
-		if (option_verbose > 2) {
-			ast_verbose(VERBOSE_PREFIX_3 "Resetting interface %s@%s\n", p->name, p->parent->name);
-        }
-		if (sub->owner) {
-			ast_softhangup(sub->owner, AST_SOFTHANGUP_DEV);
-        }
-		transmit_response(sub, "200", req, "OK");
-		transmit_notify_request(sub, "");
+		/* Test if this RSIP request is just a keepalive */
+		if(!strcasecmp( get_header(req, "RM"), "X-keepalive")) {
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Received keepalive request from %s@%s\n", p->name, p->parent->name);
+			transmit_response(sub, "200", req, "OK");
+		} else {
+			dump_queue(p);
+			if (option_verbose > 2) {
+				ast_verbose(VERBOSE_PREFIX_3 "Resetting interface %s@%s\n", p->name, p->parent->name);
+		        }
+			if (sub->owner) {
+				ast_softhangup(sub->owner, AST_SOFTHANGUP_DEV);
+	        	}
+			transmit_response(sub, "200", req, "OK");
+			transmit_notify_request(sub, "");
+		}
 	} else if (!strcasecmp(req->verb, "NTFY")) {
 		/* Acknowledge and be sure we keep looking for the same things */
 		transmit_response(sub, "200", req, "OK");
