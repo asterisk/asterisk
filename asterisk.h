@@ -40,4 +40,6 @@ extern int init_logger(void);
 extern int init_framer(void);
 /* Provided by logger.c */
 extern int reload_logger(void);
+/* Provided by term.c */
+extern int term_init(void);
 #endif

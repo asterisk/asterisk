@@ -24,6 +24,7 @@ extern int option_nofork;
 extern int option_quiet;
 extern int option_console;
 extern int option_initcrypto;
+extern int option_nocolor;
 extern int fully_booted;
 extern char defaultlanguage[];
 
