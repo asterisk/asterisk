@@ -23,7 +23,8 @@
 static char *tdesc = "Fork The CDR into 2 seperate entities.";
 static char *app = "ForkCDR";
 static char *synopsis = 
-"Forks the Call Data Record\n"
+"Forks the Call Data Record";
+static char *descrip = 
 "  ForkCDR():  Causes the Call Data Record to fork an additional\n"
 	"cdr record starting from the time of the fork call\n";
 
@@ -68,7 +69,7 @@ int unload_module(void)
 
 int load_module(void)
 {
-	return ast_register_application(app, forkcdr_exec, synopsis, tdesc);
+	return ast_register_application(app, forkcdr_exec, synopsis, descrip);
 }
 
 char *description(void)
