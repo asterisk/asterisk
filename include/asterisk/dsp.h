@@ -40,6 +40,9 @@ void ast_dsp_set_busy_count(struct ast_dsp *dsp, int cadences);
 /* Scans for progress indication in audio */
 int ast_dsp_call_progress(struct ast_dsp *dsp, struct ast_frame *inf);
 
+/* Set zone for doing progress detection */
+int ast_dsp_set_call_progress_zone(struct ast_dsp *dsp, char *zone);
+
 /* Return AST_FRAME_NULL frames when there is silence, AST_FRAME_BUSY on 
    busies, and call progress, all dependent upon which features are enabled */
 struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp, struct ast_frame *inf, int needlock);

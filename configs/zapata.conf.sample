@@ -240,12 +240,16 @@ immediate=no
 ; of a call through RINGING, BUSY, and ANSWERING.   If turned on, call
 ; progress attempts to determine answer, busy, and ringing on phone lines.
 ; This feature is HIGHLY EXPERIMENTAL and can easily detect false answers,
-; so don't count on it being very accurate.  Also, it is ONLY configured for
-; standard U.S. tones.  This feature can also easily detect false hangups.
-; The symptoms of this is being disconnected in the middle of a call for no
-; reason.
+; so don't count on it being very accurate.  
+;
+; Few zones are supported at the time of this writing, but may
+; be selected with "progzone"
+;
+; This feature can also easily detect false hangups. The symptoms of this 
+; is being disconnected in the middle of a call for no reason.
 ;
 ;callprogress=yes
+;progzone=us
 ;
 ; Select which class of music to use for music on hold.  If not specified
 ; then the default will be used.

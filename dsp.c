@@ -43,6 +43,42 @@
 #include <errno.h>
 #include <stdio.h>
 
+/* Number of goertzels for progress detect */
+#define GSAMP_SIZE_NA 183			/* North America - 350, 440, 480, 620, 950, 1400, 1800 Hz */
+#define GSAMP_SIZE_CR 188			/* Costa Rica - Only care about 425 Hz */
+
+#define PROG_MODE_NA		0
+#define PROG_MODE_CR		1	
+
+/* For US modes */
+#define HZ_350  0
+#define HZ_440  1
+#define HZ_480  2
+#define HZ_620  3
+#define HZ_950  4
+#define HZ_1400 5
+#define HZ_1800 6
+
+/* For CR modes */
+#define HZ_425	0
+
+static struct progalias {
+	char *name;
+	int mode;
+} aliases[] = {
+	{ "us", PROG_MODE_NA },
+	{ "ca", PROG_MODE_NA },
+	{ "cr", PROG_MODE_CR },
+};
+
+static struct progress {
+	int size;
+	int freqs[7];
+} modes[] = {
+	{ GSAMP_SIZE_NA, { 350, 440, 480, 620, 950, 1400, 1800 } },	/* North America */
+	{ GSAMP_SIZE_CR, { 425 } },
+};
+
 #define DEFAULT_THRESHOLD 1024
 
 #define BUSY_PERCENT		10	/* The percentage diffrence between the two last silence periods */
@@ -53,19 +89,8 @@
 /* Remember last 15 units */
 #define DSP_HISTORY 15
 
-/* Number of goertzels for progress detect */
-#define GSAMP_SIZE 183
-
 /* Define if you want the fax detector -- NOT RECOMMENDED IN -STABLE */
 #define FAX_DETECT
-
-#define HZ_350  0
-#define HZ_440  1
-#define HZ_480  2
-#define HZ_620  3
-#define HZ_950  4
-#define HZ_1400 5
-#define HZ_1800 6
 
 #define TONE_THRESH 10.0	/* How much louder the tone should be than channel energy */
 #define TONE_MIN_THRESH 1e8	/* How much tone there should be at least to attempt */
@@ -270,7 +295,10 @@ struct ast_dsp {
 	int historicnoise[DSP_HISTORY];
 	int historicsilence[DSP_HISTORY];
 	goertzel_state_t freqs[7];
+	int freqcount;
 	int gsamps;
+	int gsamp_size;
+	int progmode;
 	int tstate;
 	int tcount;
 	int digitmode;
@@ -1099,65 +1127,63 @@ int ast_dsp_getdigits (struct ast_dsp *dsp,
 static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 {
 	int x;
+	int y;
 	int pass;
 	int newstate = TONE_STATE_SILENCE;
 	int res = 0;
 	while(len) {
 		/* Take the lesser of the number of samples we need and what we have */
 		pass = len;
-		if (pass > GSAMP_SIZE - dsp->gsamps) 
-			pass = GSAMP_SIZE - dsp->gsamps;
+		if (pass > dsp->gsamp_size - dsp->gsamps) 
+			pass = dsp->gsamp_size - dsp->gsamps;
 		for (x=0;x<pass;x++) {
-			goertzel_sample(&dsp->freqs[HZ_350], s[x]);
-			goertzel_sample(&dsp->freqs[HZ_440], s[x]);
-			goertzel_sample(&dsp->freqs[HZ_480], s[x]);
-			goertzel_sample(&dsp->freqs[HZ_620], s[x]);
-			goertzel_sample(&dsp->freqs[HZ_950], s[x]);
-			goertzel_sample(&dsp->freqs[HZ_1400], s[x]);
-			goertzel_sample(&dsp->freqs[HZ_1800], s[x]);
+			for (y=0;y<dsp->freqcount;y++) 
+				goertzel_sample(&dsp->freqs[y], s[x]);
 			dsp->genergy += s[x] * s[x];
 		}
 		s += pass;
 		dsp->gsamps += pass;
 		len -= pass;
-		if (dsp->gsamps == GSAMP_SIZE) {
-			float hz_350;
-			float hz_440;
-			float hz_480;
-			float hz_620;
-			float hz_950;
-			float hz_1400;
-			float hz_1800;
-			hz_350 = goertzel_result(&dsp->freqs[HZ_350]);
-			hz_440 = goertzel_result(&dsp->freqs[HZ_440]);
-			hz_480 = goertzel_result(&dsp->freqs[HZ_480]);
-			hz_620 = goertzel_result(&dsp->freqs[HZ_620]);
-			hz_950 = goertzel_result(&dsp->freqs[HZ_950]);
-			hz_1400 = goertzel_result(&dsp->freqs[HZ_1400]);
-			hz_1800 = goertzel_result(&dsp->freqs[HZ_1800]);
+		if (dsp->gsamps == dsp->gsamp_size) {
+			float hz[7];
+			for (y=0;y<7;y++)
+				hz[y] = goertzel_result(&dsp->freqs[y]);
 #if 0
 			printf("Got whole dsp state: 350: %e, 440: %e, 480: %e, 620: %e, 950: %e, 1400: %e, 1800: %e, Energy: %e\n", 
 				hz_350, hz_440, hz_480, hz_620, hz_950, hz_1400, hz_1800, dsp->genergy);
 #endif
-			if (pair_there(hz_480, hz_620, hz_350, hz_440, dsp->genergy)) {
-				newstate = TONE_STATE_BUSY;
-			} else if (pair_there(hz_440, hz_480, hz_350, hz_620, dsp->genergy)) {
-				newstate = TONE_STATE_RINGING;
-			} else if (pair_there(hz_350, hz_440, hz_480, hz_620, dsp->genergy)) {
-				newstate = TONE_STATE_DIALTONE;
-			} else if (hz_950 > TONE_MIN_THRESH * TONE_THRESH) {
-				newstate = TONE_STATE_SPECIAL1;
-			} else if (hz_1400 > TONE_MIN_THRESH * TONE_THRESH) {
-				if (dsp->tstate == TONE_STATE_SPECIAL1)
-					newstate = TONE_STATE_SPECIAL2;
-			} else if (hz_1800 > TONE_MIN_THRESH * TONE_THRESH) {
-				if (dsp->tstate == TONE_STATE_SPECIAL2)
-					newstate = TONE_STATE_SPECIAL3;
-			} else if (dsp->genergy > TONE_MIN_THRESH * TONE_THRESH) {
-				newstate = TONE_STATE_TALKING;
-			} else
-				newstate = TONE_STATE_SILENCE;
-			
+			switch(dsp->progmode) {
+			case PROG_MODE_NA:
+				if (pair_there(hz[HZ_480], hz[HZ_620], hz[HZ_350], hz[HZ_440], dsp->genergy)) {
+					newstate = TONE_STATE_BUSY;
+				} else if (pair_there(hz[HZ_440], hz[HZ_480], hz[HZ_350], hz[HZ_620], dsp->genergy)) {
+					newstate = TONE_STATE_RINGING;
+				} else if (pair_there(hz[HZ_350], hz[HZ_440], hz[HZ_480], hz[HZ_620], dsp->genergy)) {
+					newstate = TONE_STATE_DIALTONE;
+				} else if (hz[HZ_950] > TONE_MIN_THRESH * TONE_THRESH) {
+					newstate = TONE_STATE_SPECIAL1;
+				} else if (hz[HZ_1400] > TONE_MIN_THRESH * TONE_THRESH) {
+					if (dsp->tstate == TONE_STATE_SPECIAL1)
+						newstate = TONE_STATE_SPECIAL2;
+				} else if (hz[HZ_1800] > TONE_MIN_THRESH * TONE_THRESH) {
+					if (dsp->tstate == TONE_STATE_SPECIAL2)
+						newstate = TONE_STATE_SPECIAL3;
+				} else if (dsp->genergy > TONE_MIN_THRESH * TONE_THRESH) {
+					newstate = TONE_STATE_TALKING;
+				} else
+					newstate = TONE_STATE_SILENCE;
+				break;
+			case PROG_MODE_CR:
+				if (hz[HZ_425] > TONE_MIN_THRESH * TONE_THRESH) {
+					newstate = TONE_STATE_RINGING;
+				} else if (dsp->genergy > TONE_MIN_THRESH * TONE_THRESH) {
+					newstate = TONE_STATE_TALKING;
+				} else
+					newstate = TONE_STATE_SILENCE;
+				break;
+			default:
+				ast_log(LOG_WARNING, "Can't process in unknown prog mode '%d'\n", dsp->progmode);
+			}
 			if (newstate == dsp->tstate) {
 				dsp->tcount++;
 				if (dsp->tcount == COUNT_THRESH) {
@@ -1581,6 +1607,21 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 	return af;
 }
 
+static void ast_dsp_prog_reset(struct ast_dsp *dsp)
+{
+	int max = 0;
+	int x;
+	dsp->gsamp_size = modes[dsp->progmode].size;
+	dsp->gsamps = 0;
+	for (x=0;x<sizeof(modes[dsp->progmode].freqs) / sizeof(modes[dsp->progmode].freqs[0]);x++) {
+		if (modes[dsp->progmode].freqs[x]) {
+			goertzel_init(&dsp->freqs[x], (float)modes[dsp->progmode].freqs[x], dsp->gsamp_size);
+			max = x;
+		}
+	}
+	dsp->freqcount = max;
+}
+
 struct ast_dsp *ast_dsp_new(void)
 {
 	struct ast_dsp *dsp;
@@ -1590,14 +1631,6 @@ struct ast_dsp *ast_dsp_new(void)
 		dsp->threshold = DEFAULT_THRESHOLD;
 		dsp->features = DSP_FEATURE_SILENCE_SUPPRESS;
 		dsp->busycount = DSP_HISTORY;
-		/* Initialize goertzels */
-		goertzel_init(&dsp->freqs[HZ_350], 350.0, GSAMP_SIZE);
-		goertzel_init(&dsp->freqs[HZ_440], 440.0, GSAMP_SIZE);
-		goertzel_init(&dsp->freqs[HZ_480], 480.0, GSAMP_SIZE);
-		goertzel_init(&dsp->freqs[HZ_620], 620.0, GSAMP_SIZE);
-		goertzel_init(&dsp->freqs[HZ_950], 950.0, GSAMP_SIZE);
-		goertzel_init(&dsp->freqs[HZ_1400], 1400.0, GSAMP_SIZE);
-		goertzel_init(&dsp->freqs[HZ_1800], 1800.0, GSAMP_SIZE);
 		/* Initialize DTMF detector */
 		ast_dtmf_detect_init(&dsp->td.dtmf);
 	}
@@ -1705,3 +1738,15 @@ int ast_dsp_digitmode(struct ast_dsp *dsp, int digitmode)
 	return 0;
 }
 
+int ast_dsp_set_call_progress_zone(struct ast_dsp *dsp, char *zone)
+{
+	int x;
+	for (x=0;x<sizeof(aliases) / sizeof(aliases[0]);x++) {
+		if (!strcasecmp(aliases[x].name, zone)) {
+			dsp->progmode = aliases[x].mode;
+			ast_dsp_prog_reset(dsp);
+			return 0;
+		}
+	}
+	return -1;
+}

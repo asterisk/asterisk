@@ -137,6 +137,7 @@ static char callerid[256] = "";
 
 static char language[MAX_LANGUAGE] = "";
 static char musicclass[MAX_LANGUAGE] = "";
+static char progzone[10]= "";
 
 static int usedistinctiveringdetection = 0;
 
@@ -3998,6 +3999,8 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 				if (i->dsp) {
 					ast_dsp_set_features(i->dsp, features);
 					ast_dsp_digitmode(i->dsp, DSP_DIGITMODE_DTMF | i->dtmfrelax);
+					if (strlen(progzone))
+						ast_dsp_set_call_progress_zone(i->dsp, progzone);
 					if (i->busydetect && CANBUSYDETECT(i)) {
 						ast_dsp_set_busy_count(i->dsp, i->busycount);
 						}
@@ -8092,6 +8095,8 @@ static int reload_zt(void)
 			strncpy(context, v->value, sizeof(context)-1);
 		} else if (!strcasecmp(v->name, "language")) {
 			strncpy(language, v->value, sizeof(language)-1);
+		} else if (!strcasecmp(v->name, "progzone")) {
+			strncpy(progzone, v->value, sizeov(progzone) - 1);
 		} else if (!strcasecmp(v->name, "musiconhold")) {
 			strncpy(musicclass, v->value, sizeof(musicclass)-1);
 		} else if (!strcasecmp(v->name, "stripmsd")) {
