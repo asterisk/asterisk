@@ -300,8 +300,8 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail
 	install -m 755 asterisk $(DESTDIR)$(ASTSBINDIR)/
 	install -m 755 contrib/scripts/astgenkey $(DESTDIR)$(ASTSBINDIR)/
-	if [ ! -f $(DESTDIR)$(ASTSBINDIR)/safe_asterisk ]; then
-		install -m 755 contrib/scripts/safe_asterisk $(DESTDIR)$(ASTSBINDIR)/
+	if [ ! -f $(DESTDIR)$(ASTSBINDIR)/safe_asterisk ]; then \
+		install -m 755 contrib/scripts/safe_asterisk $(DESTDIR)$(ASTSBINDIR)/ ;\
 	fi
 	for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
 	install -d $(DESTDIR)$(ASTHEADERDIR)
