@@ -36,7 +36,14 @@ case "$1" in
 	status asterisk
 	RETVAL=$?
 	;;
-  restart|reload)
+  reload)
+	echo -n "Reloading asterisk: "
+	asterisk -r -x reload > /dev/null 2>&1
+	RETVAL=$?
+	[ $RETVAL -eq 0 ] && success || failure
+	echo
+	;;
+  restart)
 	$0 stop
 	$0 start
 	RETVAL=$?
