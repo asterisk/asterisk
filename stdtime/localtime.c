@@ -650,6 +650,9 @@ const int			lastditch;
 	register int			load_result;
 
 	stdname = name;
+#ifdef DEBUG
+	fprintf(stderr, "tzparse(): loading default rules\n");
+#endif
 	load_result = tzload(TZDEFRULES, sp);
 	if (load_result != 0)
 		sp->leapcnt = 0;		/* so, we're off a little */
@@ -858,7 +861,14 @@ ast_tzsetwall P((void))
 	}
 	memset(cur_state,0,sizeof(struct state));
 	if (tzload((char *) NULL, cur_state) != 0)
+#ifdef DEBUG
+	{
+		fprintf(stderr, "ast_tzsetwall: calling gmtload()\n");
+#endif
 		gmtload(cur_state);
+#ifdef DEBUG
+	}
+#endif
 
 	if (last_lclptr)
 		last_lclptr->next = cur_state;
@@ -920,8 +930,14 @@ ast_tzset P((const char *name))
 		cur_state->ttis[0].tt_abbrind = 0;
 		(void) strcpy(cur_state->chars, gmt);
 	} else if (tzload(name, cur_state) != 0)
-		if (name[0] == ':' || tzparse(name, cur_state, FALSE) != 0)
+		if (name[0] == ':') {
 			(void) gmtload(cur_state);
+		} else if (tzparse(name, cur_state, FALSE) != 0) {
+			/* If not found, load localtime */
+			if (tzload("/etc/localtime", cur_state) != 0)
+				/* Last ditch, get GMT */
+				(void) gmtload(cur_state);
+		}
 	strncpy(cur_state->name,name,sizeof(cur_state->name));
 	if (last_lclptr)
 		last_lclptr->next = cur_state;
@@ -971,6 +987,18 @@ const char * const	zone;
 		sp = sp->next;
 	}
 
+	if (sp == NULL) {
+		ast_tzsetwall();
+		sp = lclptr;
+		/* Find the default zone record */
+		while (sp != NULL) {
+			if (sp->name[0] == '\0')
+				break;
+			sp = sp->next;
+		}
+	}
+
+	/* Last ditch effort, use GMT */
 	if (sp == NULL) {
 		gmtsub(timep, offset, tmp, zone);
 		return;
