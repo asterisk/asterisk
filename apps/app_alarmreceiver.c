@@ -55,7 +55,7 @@ static char *tdesc = "Alarm Receiver for Asterisk";
 
 static char *app = "AlarmReceiver";
 
-static char *synopsis = "Provide support for receving alarm reports from a burglar or fire alarm panel\n";
+static char *synopsis = "Provide support for receving alarm reports from a burglar or fire alarm panel";
 static char *descrip =
 "Alarm receiver application for Asterisk. Only 1 signalling format is supported at this time:\n"
 "Ademco Contact ID. This application should be called whenever there is an alarm panel calling in\n"
