@@ -513,6 +513,7 @@ static int moh0_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	while(!ast_safe_sleep(chan, 10000));
+	ast_moh_stop(chan);
 	return -1;
 }
 
