@@ -86,7 +86,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 
 
 	/* The next few lines of code parse out the filename and header from the input string */
-	if (!data) { /* no data implies no filename or anything is present */
+	if (!data || !ast_strlen_zero(data)) { /* no data implies no filename or anything is present */
 		ast_log(LOG_WARNING, "Record requires an argument (filename)\n");
 		return -1;
 	}
@@ -105,6 +105,10 @@ static int record_exec(struct ast_channel *chan, void *data)
 		ext = strchr(filename, '.');
 		if (!ext)
 			ext = strchr(filename, ':');
+	}
+	if (!ext) {
+		ast_log(LOG_WARNING, "No extension specified to filename!\n");
+		return -1;
 	}
 
 	if (silstr) {
