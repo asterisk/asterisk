@@ -1,5 +1,5 @@
- -- chan_h323
-    -- fix summaries for CLI commands 
+ -- chan_sip
+    -- fix to prevent seg fault when attempting a transfer
 Asterisk 1.0.2
  -- Major bugfix release
 Asterisk 1.0.1
