@@ -156,8 +156,8 @@ static int join_queue(char *queuename, struct queue_ent *qe)
 				q->count++;
 				res = 0;
 				manager_event(EVENT_FLAG_CALL, "Join", 
-							 	"Channel: %s\r\nQueue: %s\r\nPosition: %d\r\n",
-								qe->chan->name, q->name, qe->pos );
+        	                                               	"Channel: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
+	                                                       	qe->chan->name, q->name, qe->pos, q->count );
 #if 0
 ast_log(LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
 #endif
@@ -222,8 +222,8 @@ static void leave_queue(struct queue_ent *qe)
 
 			/* Take us out of the queue */
 			manager_event(EVENT_FLAG_CALL, "Leave",
-				 "Channel: %s\r\nQueue: %s\r\n", 
-				 qe->chan->name, q->name );
+                                 "Channel: %s\r\nQueue: %s\r\nCount: %d\r\n",
+				 qe->chan->name, q->name,  q->count - 1);
 #if 0
 ast_log(LOG_NOTICE, "Queue '%s' Leave, Channel '%s'\n", q->name, qe->chan->name );
 #endif
