@@ -478,3 +478,137 @@
 %vm-reachoper.gsm%press 0 to reach an operator
 
 %vm-tooshort.gsm%your message is too short 
+
+%9_p.gsm%niner
+
+%a.gsm%a
+
+%b.gsm%b
+
+%c.gsm%c
+
+%d.gsm%d
+
+%e.gsm%e
+
+%f.gsm%f
+
+%g.gsm%g
+
+%h.gsm%h
+
+%i.gsm%i
+
+%j.gsm%j
+
+%k.gsm%k
+
+%l.gsm%l
+
+%m.gsm%m
+
+%n.gsm%n
+
+%o.gsm%o
+
+%p.gsm%p
+
+%q.gsm%q
+
+%r.gsm%r
+
+%s.gsm%s
+
+%t.gsm%t
+
+%u.gsm%u
+
+%v.gsm%v
+
+%w.gsm%w
+
+%x.gsm%x
+
+%y.gsm%y
+
+%z.gsm%z
+
+%zed.gsm%zed
+
+%a_p.gsm%alpha
+
+%b_p.gsm%bravo
+
+%c_p.gsm%charlie
+
+%d_p.gsm%delta
+
+%e_p.gsm%echo
+
+%f_p.gsm%foxtrot
+
+%g_p.gsm%golf
+
+%h_p.gsm%hotel
+
+%i_p.gsm%india
+
+%j_p.gsm%juliet
+
+%k_p.gsm%kilo
+
+%l_p.gsm%lima
+
+%m_p.gsm%mike
+
+%n_p.gsm%november
+
+%o_p.gsm%oscar
+
+%p_p.gsm%papa
+
+%q_p.gsm%quebec
+
+%r_p.gsm%romeo
+
+%s_p.gsm%sierra
+
+%t_p.gsm%tango
+
+%u_p.gsm%uniform
+
+%v_p.gsm%victor
+
+%w_p.gsm%wiskey
+
+%x_p.gsm%xray
+
+%y_p.gsm%yankee
+
+%z_p.gsm%zulu
+
+%niner.gsm%niner
+
+; Misc 
+
+%percent.gsm%percent [%]
+
+%plus.gsm%plus [+]
+
+%exclaimation-point.gsm%exclaimation-point [!]
+
+%at.gsm%at [@]
+
+%dollar.gsm%dollar [$]
+
+%dash.gsm%dash [-]
+
+%dot.gsm%dot [.]
+
+%slash.gsm%slash [/]
+
+%space.gsm%space [ ]
+
+%plus.gsm%plus [+]
+
+%equals.gsm%equals [=]

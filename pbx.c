@@ -169,6 +169,8 @@ static int pbx_builtin_gotoif(struct ast_channel *, void *);
 static int pbx_builtin_gotoiftime(struct ast_channel *, void *);
 static int pbx_builtin_saynumber(struct ast_channel *, void *);
 static int pbx_builtin_saydigits(struct ast_channel *, void *);
+static int pbx_builtin_saycharacters(struct ast_channel *, void *);
+static int pbx_builtin_sayphonetic(struct ast_channel *, void *);
 int pbx_builtin_setvar(struct ast_channel *, void *);
 void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value);
 char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name);
@@ -292,6 +294,14 @@ static struct pbx_builtin {
 	{ "SayDigits", pbx_builtin_saydigits,
 "Say Digits",
 "  SayDigits(digits): Says the passed digits\n" },
+
+	{ "SayAlpha", pbx_builtin_saycharacters,
+"Say Alpha",
+"  SayAlpha(string): Spells the passed string\n" },
+
+	{ "SayPhonetic", pbx_builtin_sayphonetic,
+"Say Phonetic",
+"  SayPhonetic(string): Spells the passed string with phonetic alphabet\n" },
 
 	{ "SetAccount", pbx_builtin_setaccount,
 "Sets account code",
@@ -4598,6 +4608,22 @@ static int pbx_builtin_saydigits(struct ast_channel *chan, void *data)
 	int res = 0;
 	if (data)
 		res = ast_say_digit_str(chan, (char *)data, "", chan->language);
+	return res;
+}
+	
+static int pbx_builtin_saycharacters(struct ast_channel *chan, void *data)
+{
+	int res = 0;
+	if (data)
+		res = ast_say_character_str(chan, (char *)data, "", chan->language);
+	return res;
+}
+	
+static int pbx_builtin_sayphonetic(struct ast_channel *chan, void *data)
+{
+	int res = 0;
+	if (data)
+		res = ast_say_phonetic_str(chan, (char *)data, "", chan->language);
 	return res;
 }
 	

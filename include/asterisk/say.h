@@ -61,6 +61,10 @@ int ast_say_digits_full(struct ast_channel *chan, int num, char *ints, char *lan
  */
 int ast_say_digit_str(struct ast_channel *chan, char *num, char *ints, char *lang);
 int ast_say_digit_str_full(struct ast_channel *chan, char *num, char *ints, char *lang, int audiofd, int ctrlfd);
+int ast_say_character_str(struct ast_channel *chan, char *num, char *ints, char *lang);
+int ast_say_character_str_full(struct ast_channel *chan, char *num, char *ints, char *lang, int audiofd, int ctrlfd);
+int ast_say_phonetic_str(struct ast_channel *chan, char *num, char *ints, char *lang);
+int ast_say_phonetic_str_full(struct ast_channel *chan, char *num, char *ints, char *lang, int audiofd, int ctrlfd);
 
 int ast_say_datetime(struct ast_channel *chan, time_t t, char *ints, char *lang);
 

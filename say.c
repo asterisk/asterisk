@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <time.h>
+#include <ctype.h>
 #include <asterisk/file.h>
 #include <asterisk/channel.h>
 #include <asterisk/logger.h>
@@ -45,15 +46,187 @@ int ast_say_digit_str(struct ast_channel *chan, char *fn2, char *ints, char *lan
 				snprintf(fn, sizeof(fn), "digits/pound");
 				break;
 			default:
-				if((fn2[num] >= '0') && (fn2[num] <= '9')){ /* Must be in {0-9} */	 
+				if((fn2[num] >= '0') && (fn2[num] <= '9')){ /* Must be in {0-9} */
 					snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
 				}
-			}
+		}
+		if(strlen(fn)){ /* if length == 0, then skip this digit as it is invalid */
+			res = ast_streamfile(chan, fn, lang);
+			if (!res)
+				res = ast_waitstream(chan, ints);
+			ast_stopstream(chan);
+		}
+		num++;
+	}
+	return res;
+}
+
+int ast_say_character_str(struct ast_channel *chan, char *fn2, char *ints, char *lang)
+{
+	/* XXX Merge with full version? XXX */
+	char fn[256] = "";
+	char ltr;
+	int num = 0;
+	int res = 0;
+	while(fn2[num] && !res) {
+		fn[0] = '\0';
+		switch (fn2[num]) {
+			case ('*'):
+				snprintf(fn, sizeof(fn), "digits/star");
+				break;
+			case ('#'):
+				snprintf(fn, sizeof(fn), "digits/pound");
+				break;
+ 			case ('0'):
+ 			case ('1'):
+ 			case ('2'):
+ 			case ('3'):
+ 			case ('4'):
+ 			case ('5'):
+ 			case ('6'):
+ 			case ('7'):
+ 			case ('8'):
+ 			case ('9'):
+  				snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
+ 				break;
+			case ('!'):
+				strncpy(fn, "letters/exclaimation-point", sizeof(fn));
+				break;    	
+ 			case ('@'):
+ 				strncpy(fn, "letters/at", sizeof(fn));
+ 				break;
+ 			case ('$'):
+ 				strncpy(fn, "letters/dollar", sizeof(fn));
+ 				break;
+ 			case ('-'):
+ 				strncpy(fn, "letters/dash", sizeof(fn));
+ 				break;
+ 			case ('.'):
+ 				strncpy(fn, "letters/dot", sizeof(fn));
+ 				break;
+ 			case ('='):
+ 				strncpy(fn, "letters/equals", sizeof(fn));
+ 				break;
+ 			case ('+'):
+ 				strncpy(fn, "letters/plus", sizeof(fn));
+ 				break;
+ 			case ('/'):
+ 				strncpy(fn, "letters/slash", sizeof(fn));
+ 				break;
+ 			case (' '):
+ 				strncpy(fn, "letters/space", sizeof(fn));
+ 				break;
+ 			default:
+ 				ltr = fn2[num];
+ 				if ('A' <= ltr && ltr <= 'Z') ltr += 'a' - 'A';		/* file names are all lower-case */
+ 				snprintf(fn, sizeof(fn), "letters/%c", ltr);
+  		}
 		if(strlen(fn)){ /* if length == 0, then skip this digit as it is invalid */
 			res = ast_streamfile(chan, fn, lang);
 			if (!res) 
 				res = ast_waitstream(chan, ints);
-			ast_stopstream(chan);
+		}	ast_stopstream(chan);
+		num++;
+	}
+	return res;
+}
+
+int ast_say_phonetic_str(struct ast_channel *chan, char *fn2, char *ints, char *lang)
+{
+	/* XXX Merge with full version? XXX */
+	char fn[256] = "";
+	char ltr;
+	int num = 0;
+	int res = 0;
+	int temp;
+	int play;
+	char hex[3];
+/*	while(fn2[num] && !res) { */
+	while(fn2[num]) {
+		play=1;
+		switch (fn2[num]) {
+			case ('*'):
+				snprintf(fn, sizeof(fn), "digits/star");
+				break;
+			case ('#'):
+				snprintf(fn, sizeof(fn), "digits/pound");
+				break;
+			case ('0'):
+			case ('1'):
+			case ('2'):
+			case ('3'):
+			case ('4'):
+			case ('5'):
+			case ('6'):
+			case ('7'):
+			case ('8'):
+				snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
+				break;
+			case ('!'):
+				strncpy(fn, "exclaimation-point", sizeof(fn));
+				break;    	
+			case ('@'):
+				strncpy(fn, "at", sizeof(fn));
+				break;
+			case ('$'):
+				strncpy(fn, "dollar", sizeof(fn));
+				break;	
+			case ('-'):
+				strncpy(fn, "dash", sizeof(fn));
+				break;
+			case ('.'):
+				strncpy(fn, "dot", sizeof(fn));
+				break;
+			case ('='):
+				strncpy(fn, "equals", sizeof(fn));
+				break;
+			case ('+'):
+				strncpy(fn, "plus", sizeof(fn));
+				break;
+			case ('/'):
+				strncpy(fn, "slash", sizeof(fn));
+				break;
+			case (' '):
+				strncpy(fn, "space", sizeof(fn));
+				break;
+			case ('%'):
+				play=0;
+				/* check if we have 2 chars after the % */
+				if (strlen(fn2)>num+2)
+				{
+				    hex[0]=fn2[num+1];
+				    hex[1]=fn2[num+2];
+				    hex[2]='\0';
+				    if (sscanf(hex,"%x", &temp))
+				    { /* Hex to char convertion successfull */
+				        fn2[num+2]=temp;
+				        num++;
+				        if (temp==37)
+				        { /* If it is a percent, play it now */
+				    	    strncpy(fn, "percent", sizeof(fn));
+					    	num++;
+					    	play=1;
+						}
+						/* check for invalid characters */
+						if ((temp<32) || (temp>126))
+						{
+						    num++;
+						}
+				    }
+				}
+				else
+				    num++;
+				break;
+			default:	/* '9' falls through to here, too */
+				ltr = tolower(fn2[num]);
+				snprintf(fn, sizeof(fn), "phonetic/%c_p", ltr);
+		}
+		if (play)
+		{
+		    res = ast_streamfile(chan, fn, lang);
+		    if (!res) 
+			res = ast_waitstream(chan, ints);
+		    ast_stopstream(chan);
 		}
 		num++;
 	}
@@ -67,6 +240,141 @@ int ast_say_digit_str_full(struct ast_channel *chan, char *fn2, char *ints, char
 	int res = 0;
 	while(fn2[num] && !res) {
 		snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
+		res = ast_streamfile(chan, fn, lang);
+		if (!res) 
+			res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+		ast_stopstream(chan);
+		num++;
+	}
+	return res;
+}
+
+int ast_say_character_str_full(struct ast_channel *chan, char *fn2, char *ints, char *lang, int audiofd, int ctrlfd)
+{
+	char fn[256] = "";
+	char ltr;
+	int num = 0;
+	int res = 0;
+	while(fn2[num] && !res) {
+		switch (fn2[num]) {
+			case ('*'):
+				snprintf(fn, sizeof(fn), "digits/star");
+				break;
+			case ('#'):
+				snprintf(fn, sizeof(fn), "digits/pound");
+				break;
+			case ('0'):
+			case ('1'):
+			case ('2'):
+			case ('3'):
+			case ('4'):
+			case ('5'):
+			case ('6'):
+			case ('7'):
+			case ('8'):
+			case ('9'):
+				snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
+				break;
+			case ('!'):
+				strncpy(fn, "exclaimation-point", sizeof(fn));
+				break;    	
+			case ('@'):
+				strncpy(fn, "at", sizeof(fn));
+				break;
+			case ('$'):
+				strncpy(fn, "dollar", sizeof(fn));
+				break;
+			case ('-'):
+				strncpy(fn, "dash", sizeof(fn));
+				break;
+			case ('.'):
+				strncpy(fn, "dot", sizeof(fn));
+				break;
+			case ('='):
+				strncpy(fn, "equals", sizeof(fn));
+				break;
+			case ('+'):
+				strncpy(fn, "plus", sizeof(fn));
+				break;
+			case ('/'):
+				strncpy(fn, "slash", sizeof(fn));
+				break;
+			case (' '):
+				strncpy(fn, "space", sizeof(fn));
+				break;
+			default:
+				ltr = fn2[num];
+				if ('A' <= ltr && ltr <= 'Z') ltr += 'a' - 'A';		/* file names are all lower-case */
+				snprintf(fn, sizeof(fn), "letters/%c", ltr);
+		}
+		/* snprintf(fn, sizeof(fn), "digits/%c", fn2[num]); */
+		res = ast_streamfile(chan, fn, lang);
+		if (!res) 
+			res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+		ast_stopstream(chan);
+		num++;
+	}
+	return res;
+}
+
+int ast_say_phonetic_str_full(struct ast_channel *chan, char *fn2, char *ints, char *lang, int audiofd, int ctrlfd)
+{
+	char fn[256] = "";
+	char ltr;
+	int num = 0;
+	int res = 0;
+	while(fn2[num] && !res) {
+		switch (fn2[num]) {
+			case ('*'):
+				snprintf(fn, sizeof(fn), "digits/star");
+				break;
+			case ('#'):
+				snprintf(fn, sizeof(fn), "digits/pound");
+				break;
+			case ('0'):
+			case ('1'):
+			case ('2'):
+			case ('3'):
+			case ('4'):
+			case ('5'):
+			case ('6'):
+			case ('7'):
+			case ('8'):
+				snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
+				break;
+			case ('!'):
+				strncpy(fn, "exclaimation-point", sizeof(fn));
+				break;    	
+			case ('@'):
+				strncpy(fn, "at", sizeof(fn));
+				break;
+			case ('$'):
+				strncpy(fn, "dollar", sizeof(fn));
+				break;
+			case ('-'):
+				strncpy(fn, "dash", sizeof(fn));
+				break;
+			case ('.'):
+				strncpy(fn, "dot", sizeof(fn));
+				break;
+			case ('='):
+				strncpy(fn, "equals", sizeof(fn));
+				break;
+			case ('+'):
+				strncpy(fn, "plus", sizeof(fn));
+				break;
+			case ('/'):
+				strncpy(fn, "slash", sizeof(fn));
+				break;
+			case (' '):
+				strncpy(fn, "space", sizeof(fn));
+				break;
+			default:	/* '9' falls here... */
+				ltr = fn2[num];
+				if ('A' <= ltr && ltr <= 'Z') ltr += 'a' - 'A';		/* file names are all lower-case */
+				snprintf(fn, sizeof(fn), "phonetic/%c", ltr);
+			}
+		/* snprintf(fn, sizeof(fn), "digits/%c", fn2[num]); */
 		res = ast_streamfile(chan, fn, lang);
 		if (!res) 
 			res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);

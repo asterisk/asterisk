@@ -273,6 +273,24 @@ datafiles: all
 			exit 1; \
 		fi; \
 	done
+	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/letters
+	for x in sounds/letters/*.gsm; do \
+		if grep -q "^%`basename $$x`%" sounds.txt; then \
+			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/letters ; \
+		else \
+			echo "No description for $$x"; \
+			exit 1; \
+		fi; \
+	done
+	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/phonetic
+	for x in sounds/phonetic/*.gsm; do \
+		if grep -q "^%`basename $$x`%" sounds.txt; then \
+			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/phonetic ; \
+		else \
+			echo "No description for $$x"; \
+			exit 1; \
+		fi; \
+	done
 	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-* sounds/agent-* sounds/invalid* sounds/tt-* sounds/auth-* sounds/privacy-* sounds/queue-*; do \
 		if grep -q "^%`basename $$x`%" sounds.txt; then \
 			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \

@@ -896,7 +896,6 @@ static char *cli_prompt(EditLine *el)
 				int i;
 				struct timeval tv;
 				struct tm tm;
-				time_t curtime;
 				FILE *LOADAVG;
 				int fgcolor = COLOR_WHITE, bgcolor = COLOR_BLACK;
 
