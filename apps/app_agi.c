@@ -180,6 +180,7 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 	fdprintf(fd, "agi_channel: %s\n", chan->name);
 	fdprintf(fd, "agi_language: %s\n", chan->language);
 	fdprintf(fd, "agi_type: %s\n", chan->type);
+	fdprintf(fd, "agi_uniqueid: %s\n", chan->uniqueid);
 
 	/* ANI/DNIS */
 	fdprintf(fd, "agi_callerid: %s\n", chan->callerid ? chan->callerid : "");
