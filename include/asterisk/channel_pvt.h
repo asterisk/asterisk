@@ -24,6 +24,14 @@ extern "C" {
 struct ast_channel_pvt {
 	/* Private data used by channel backend */
 	void *pvt;	
+	/* Write translation path */
+	struct ast_trans_pvt *writetrans;
+	/* Read translation path */
+	struct ast_trans_pvt *readtrans;
+	/* Raw read format */
+	int rawreadformat;
+	/* Raw write format */
+	int rawwriteformat;
 	/* Send a literal DTMF digit */
 	int (*send_digit)(struct ast_channel *chan, char digit);
 	/* Call a given phone number (address, etc), but don't
@@ -39,6 +47,10 @@ struct ast_channel_pvt {
 	int (*write)(struct ast_channel *chan, struct ast_frame *frame);
 	/* Display or transmit text */
 	int (*send_text)(struct ast_channel *chan, char *text);
+	/* Handle an exception, reading a frame */
+	struct ast_frame * (*exception)(struct ast_channel *chan);
+	/* Bridge two channels of the same type together */
+	int (*bridge)(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
 };
 
 /* Create a channel structure */

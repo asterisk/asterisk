@@ -168,13 +168,13 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	" -- General --\n"
 	"           Name: %s\n"
 	"           Type: %s\n"
-	"     Translator: %s\n"
-	"         Master: %s\n"
 	"      Caller ID: %s\n"
 	"    DNID Digits: %s\n"
 	"          State: %d\n"
 	"          Rings: %d\n"
-	"         Format: %d\n"
+	"    WriteFormat: %d\n"
+	"     ReadFormat: %d\n"
+	"   NativeFormat: %d\n"
 	"File Descriptor: %d\n"
 	" --   PBX   --\n"
 	"        Context: %s\n"
@@ -184,9 +184,9 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	"           Data: %s\n"
 	"          Stack: %d\n"
 	"    Blocking in: %s\n",
-	c->name, c->type, (c->trans ? c->trans->name : "(N/A)"),
-	(c->master ? c->master->name : "(N/A)"), (c->callerid ? c->callerid : "(N/A)"),
-	(c->dnid ? c->dnid : "(N/A)" ), c->state, c->rings, c->format,
+	c->name, c->type, 
+	(c->callerid ? c->callerid : "(N/A)"),
+	(c->dnid ? c->dnid : "(N/A)" ), c->state, c->rings, c->nativeformats, c->writeformat, c->readformat,
 	c->fd, c->context, c->exten, c->priority, ( c->appl ? c->appl : "(N/A)" ),
 	( c-> data ? (strlen(c->data) ? c->data : "(Empty)") : "(None)"),
 	c->stack, (c->blocking ? c->blockproc : "(Not Blocking)"));

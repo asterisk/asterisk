@@ -142,23 +142,17 @@ int ast_format_unregister(char *name)
 
 int ast_stopstream(struct ast_channel *tmp)
 {
-	if (tmp->trans)
-		tmp = tmp->trans;
 	/* Stop a running stream if there is one */
 	if (!tmp->stream) 
 		return 0;
 	tmp->stream->fmt->close(tmp->stream);
-	if (tmp->master) {
-		ast_translator_destroy(tmp);
-	}
+	if (ast_set_write_format(tmp, tmp->oldwriteformat))
+		ast_log(LOG_WARNING, "Unable to restore format back to %d\n", tmp->oldwriteformat);
 	return 0;
 }
 
 int ast_closestream(struct ast_filestream *f)
 {
-	if (f->trans) {
-		ast_translator_free_path(f->trans);
-	}
 	/* Stop a running stream if there is one */
 	f->fmt->close(f);
 	return 0;
@@ -166,7 +160,7 @@ int ast_closestream(struct ast_filestream *f)
 
 int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 {
-	struct ast_frame_chain *fc, *f2;
+	struct ast_frame *trf;
 	int res = -1;
 	if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Tried to write non-voice frame\n");
@@ -183,24 +177,16 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 		/* XXX If they try to send us a type of frame that isn't the normal frame, and isn't
 		       the one we've setup a translator for, we do the "wrong thing" XXX */
 		if (!fs->trans) 
-			fs->trans = ast_translator_build_path(f->subclass, fs->fmt->format);
+			fs->trans = ast_translator_build_path(fs->fmt->format, f->subclass);
 		if (!fs->trans)
 			ast_log(LOG_WARNING, "Unable to translate to format %s, source format %d\n", fs->fmt->name, f->subclass);
 		else {
 			res = 0;
-			/* Build a chain of translated frames */
-			fc = ast_translate(fs->trans, f);
-			f2 = fc;
-			while(f2) {
-				res = fs->fmt->write(fs, f2->fr);
-				if (res) {
-					ast_log(LOG_WARNING, "Translated frame write failed\n");
-					break;
-				}
-				f2 = f2->next;
-			}
-			if (fc)
-				ast_frchain(fc);
+			/* Get the translated frame but don't consume the original in case they're using it on another stream */
+			trf = ast_translate(fs->trans, f, 0);
+			res = fs->fmt->write(fs, trf);
+			if (res) 
+				ast_log(LOG_WARNING, "Translated frame write failed\n");
 		}
 		return res;
 	}
@@ -232,7 +218,7 @@ static int ast_filehelper(char *filename, char *filename2, char *fmt, int action
 	struct ast_filestream *s;
 	int res=0, ret = 0;
 	char *ext=NULL, *exts, *fn, *nfn;
-	struct ast_channel *trans = (struct ast_channel *)filename2;
+	struct ast_channel *chan = (struct ast_channel *)filename2;
 	
 	/* Start with negative response */
 	if (action == ACTION_EXISTS)
@@ -280,18 +266,18 @@ static int ast_filehelper(char *filename, char *filename2, char *fmt, int action
 								ast_log(LOG_WARNING, "Out of memory\n");
 							break;
 						case ACTION_OPEN:
-							if ((ret < 0) && ((trans->format & f->format) /* == trans->format */)) {
+							if ((ret < 0) && ((chan->writeformat & f->format))) {
 								ret = open(fn, O_RDONLY);
 								if (ret >= 0) {
 									s = f->open(ret);
 									if (s) {
 										s->fmt = f;
 										s->trans = NULL;
-										trans->stream = s;
-										if (f->apply(trans, s)) {
+										chan->stream = s;
+										if (f->apply(chan, s)) {
 											f->close(s);
-											trans->stream = NULL;
-											ast_log(LOG_WARNING, "Unable to apply stream to channel %s\n", trans->name);
+											chan->stream = NULL;
+											ast_log(LOG_WARNING, "Unable to apply stream to channel %s\n", chan->name);
 											close(ret);
 											ret = 0;
 										}
@@ -372,10 +358,10 @@ int ast_streamfile(struct ast_channel *chan, char *filename, char *preflang)
 		   
 	*/
 	int fd = -1;
-	struct ast_channel *trans;
 	int fmts = -1;
 	char filename2[256];
 	char lang2[MAX_LANGUAGE];
+	int res;
 	ast_stopstream(chan);
 	if (preflang && strlen(preflang)) {
 		snprintf(filename2, sizeof(filename2), "%s-%s", filename, preflang);
@@ -394,24 +380,11 @@ int ast_streamfile(struct ast_channel *chan, char *filename, char *preflang)
 		ast_log(LOG_WARNING, "File %s does not exist in any format\n", filename);
 		return -1;
 	}
-	if (fmts & chan->format) {
-		/* No translation necessary -- we have a file in a format our channel can 
-		   handle */
-		trans = chan;
-	} else {
-		/* Find the best */
-		fmts = ast_translator_best_choice(chan->format, fmts);
-		if (fmts < 1) {
-			ast_log(LOG_WARNING, "Unable to find a translator method\n");
-			return -1;
-		}
-		trans = ast_translator_create(chan, fmts, AST_DIRECTION_OUT);
-		if (!trans) {
-			ast_log(LOG_WARNING, "Unable to create translator\n");
-			return -1;
-		}
-	}
- 	fd = ast_filehelper(filename2, (char *)trans, NULL, ACTION_OPEN);
+	chan->oldwriteformat = chan->writeformat;
+	/* Set the channel to a format we can work with */
+	res = ast_set_write_format(chan, fmts);
+	
+ 	fd = ast_filehelper(filename2, (char *)chan, NULL, ACTION_OPEN);
 	if (fd >= 0) {
 #if 1
 		if (option_verbose > 2)
@@ -419,9 +392,7 @@ int ast_streamfile(struct ast_channel *chan, char *filename, char *preflang)
 #endif
 		return 0;
 	}
-	ast_log(LOG_WARNING, "Unable to open %s (format %d): %s\n", filename, chan->format, strerror(errno));
-	if (chan != trans)
-		ast_translator_destroy(trans);	
+	ast_log(LOG_WARNING, "Unable to open %s (format %d): %s\n", filename, chan->nativeformats, strerror(errno));
 	return -1;
 }
 
@@ -473,12 +444,10 @@ char ast_waitstream(struct ast_channel *c, char *breakon)
 {
 	int res;
 	struct ast_frame *fr;
-	if (c->trans)
-		c=c->trans;
 	while(c->stream) {
 		res = ast_sched_wait(c->sched);
 		if (res < 0) {
-			/* Okay, stop :) */
+			ast_closestream(c->stream);
 			return 0;
 		}
 		res = ast_waitfor(c, res);

@@ -418,7 +418,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			ast_verbose( VERBOSE_PREFIX_3 "User '%s' logged in on channel %s with %d messages\n", username, chan->name, maxmsg);
 		if (!ast_streamfile(chan, "vm-instructions", chan->language)) {
 			for(;;) {
-				if (chan->stream || (chan->trans && chan->trans->stream)) {
+				if (chan->stream) {
 					d = ast_waitstream(chan, AST_DIGIT_ANY);
 					ast_stopstream(chan);
 					if (!d && (state == STATE_MESSAGE_PLAYING)) {
@@ -615,4 +615,9 @@ int usecount(void)
 	int res;
 	STANDARD_USECOUNT(res);
 	return res;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
 }

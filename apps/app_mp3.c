@@ -59,12 +59,13 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
-	struct ast_channel *trans;
 	int fds[2];
 	int rfds[2];
 	int ms = -1;
 	int pid;
 	int us;
+	int exception;
+	int owriteformat;
 	struct timeval tv;
 	struct timeval last;
 	struct ast_frame *f;
@@ -85,87 +86,90 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 	}
 	LOCAL_USER_ADD(u);
 	ast_stopstream(chan);
-	if (chan->format & AST_FORMAT_SLINEAR)
-		trans = chan;
-	else
-		trans = ast_translator_create(chan, AST_FORMAT_SLINEAR, AST_DIRECTION_OUT);
-	if (trans) {
-		res = mp3play((char *)data, fds[1]);
-		if (res >= 0) {
-			pid = res;
-			/* Order is important -- there's almost always going to be mp3...  we want to prioritize the
-			   user */
-			rfds[0] = trans->fd;
-			rfds[1] = fds[0];
-			for (;;) {
-				CHECK_BLOCKING(trans);
-				res = ast_waitfor_n_fd(rfds, 2, &ms);
-				trans->blocking = 0;
-				if (res < 1) {
-					ast_log(LOG_DEBUG, "Hangup detected\n");
-					res = -1;
-					break;
-				} else if (res == trans->fd) {
-					f = ast_read(trans);
-					if (!f) {
-						ast_log(LOG_DEBUG, "Null frame == hangup() detected\n");
-						res = -1;
-						break;
-					}
-					if (f->frametype == AST_FRAME_DTMF) {
-						ast_log(LOG_DEBUG, "User pressed a key\n");
-						ast_frfree(f);
-						res = 0;
-						break;
-					}
-					ast_frfree(f);
-				} else if (res == fds[0]) {
-					gettimeofday(&tv, NULL);
-					if (last.tv_sec || last.tv_usec) {
-						/* We should wait at least a frame length */
-						us = sizeof(myf.frdata) / 16 * 1000;
-						/* Subtract 1,000,000 us for each second late we've passed */
-						us -= (tv.tv_sec - last.tv_sec) * 1000000;
-						/* And one for each us late we've passed */
-						us -= (tv.tv_usec - last.tv_usec);
-						/* Sleep that long if needed */
-						if (us > 0)
-							usleep(us);
-					}
-					last = tv;
-					res = read(fds[0], myf.frdata, sizeof(myf.frdata));
-					if (res > 0) {
-						myf.f.frametype = AST_FRAME_VOICE;
-						myf.f.subclass = AST_FORMAT_SLINEAR;
-						myf.f.datalen = res;
-						myf.f.timelen = res / 16;
-						myf.f.mallocd = 0;
-						myf.f.offset = AST_FRIENDLY_OFFSET;
-						myf.f.src = __PRETTY_FUNCTION__;
-						myf.f.data = myf.frdata;
-						if (ast_write(trans, &myf.f) < 0) {
-							res = -1;
-							break;
-						}
-					} else {
-						ast_log(LOG_DEBUG, "No more mp3\n");
-						res = 0;
-					}
-				} else {
-					ast_log(LOG_DEBUG, "HuhHHH?\n");
+
+	owriteformat = chan->writeformat;
+	res = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Unable to set write format to signed linear\n");
+		return -1;
+	}
+	
+	res = mp3play((char *)data, fds[1]);
+	if (res >= 0) {
+		pid = res;
+		/* Order is important -- there's almost always going to be mp3...  we want to prioritize the
+		   user */
+		rfds[0] = chan->fd;
+		rfds[1] = fds[0];
+		for (;;) {
+			CHECK_BLOCKING(chan);
+			res = ast_waitfor_n_fd(rfds, 2, &ms, &exception);
+			chan->blocking = 0;
+			if (res < 1) {
+				ast_log(LOG_DEBUG, "Hangup detected\n");
+				res = -1;
+				break;
+			} else if (res == chan->fd) {
+				if (exception)
+					chan->exception = 1;
+				f = ast_read(chan);
+				if (!f) {
+					ast_log(LOG_DEBUG, "Null frame == hangup() detected\n");
 					res = -1;
 					break;
 				}
+				if (f->frametype == AST_FRAME_DTMF) {
+					ast_log(LOG_DEBUG, "User pressed a key\n");
+					ast_frfree(f);
+					res = 0;
+					break;
+				}
+				ast_frfree(f);
+			} else if (res == fds[0]) {
+				gettimeofday(&tv, NULL);
+				if (last.tv_sec || last.tv_usec) {
+					/* We should wait at least a frame length */
+					us = sizeof(myf.frdata) / 16 * 1000;
+					/* Subtract 1,000,000 us for each second late we've passed */
+					us -= (tv.tv_sec - last.tv_sec) * 1000000;
+					/* And one for each us late we've passed */
+					us -= (tv.tv_usec - last.tv_usec);
+					/* Sleep that long if needed */
+					if (us > 0)
+						usleep(us);
+				}
+				last = tv;
+				res = read(fds[0], myf.frdata, sizeof(myf.frdata));
+				if (res > 0) {
+					myf.f.frametype = AST_FRAME_VOICE;
+					myf.f.subclass = AST_FORMAT_SLINEAR;
+					myf.f.datalen = res;
+					myf.f.timelen = res / 16;
+					myf.f.mallocd = 0;
+					myf.f.offset = AST_FRIENDLY_OFFSET;
+					myf.f.src = __PRETTY_FUNCTION__;
+					myf.f.data = myf.frdata;
+					if (ast_write(chan, &myf.f) < 0) {
+						res = -1;
+						break;
+					}
+				} else {
+					ast_log(LOG_DEBUG, "No more mp3\n");
+					res = 0;
+				}
+			} else {
+				ast_log(LOG_DEBUG, "HuhHHH?\n");
+				res = -1;
+				break;
 			}
-			kill(pid, SIGTERM);
 		}
-		if (trans != chan) 
-			ast_translator_destroy(trans);
-	} else 
-		ast_log(LOG_WARNING, "No translator channel available\n");
+		kill(pid, SIGTERM);
+	}
 	close(fds[0]);
 	close(fds[1]);
 	LOCAL_USER_REMOVE(u);
+	if (!res)
+		ast_set_write_format(chan, owriteformat);
 	return res;
 }
 
@@ -190,4 +194,9 @@ int usecount(void)
 	int res;
 	STANDARD_USECOUNT(res);
 	return res;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
 }

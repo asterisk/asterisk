@@ -116,48 +116,48 @@ static int intercom_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct localuser *u;
 	struct ast_frame *f;
-	struct ast_channel *trans;
+	int oreadformat;
 	if (!data) {
 		ast_log(LOG_WARNING, "Playback requires an argument (filename)\n");
 		return -1;
 	}
 	LOCAL_USER_ADD(u);
-	/* See if we need a translator */
-	if (!(chan->format & AST_FORMAT_SLINEAR)) 
-		trans = ast_translator_create(chan, AST_FORMAT_SLINEAR, AST_DIRECTION_IN);
-	else
-		trans = chan;
-	if (trans) {
-		/* Read packets from the channel */
-		while(!res) {
-			res = ast_waitfor(trans, -1);
-			if (res > 0) {
-				res = 0;
-				f = ast_read(trans);
-				if (f) {
-					if (f->frametype == AST_FRAME_DTMF) {
-						ast_frfree(f);
-						break;
-					} else {
-						if (f->frametype == AST_FRAME_VOICE) {
-							if (f->subclass == AST_FORMAT_SLINEAR) {
-								res = write_audio(f->data, f->datalen);
-								if (res > 0)
-									res = 0;
-							} else
-								ast_log(LOG_DEBUG, "Unable to handle non-signed linear frame (%d)\n", f->subclass);
-						} 
-					}
+	/* Remember original read format */
+	oreadformat = chan->readformat;
+	/* Set mode to signed linear */
+	res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Unable to set format to signed linear on channel %s\n", chan->name);
+		return -1;
+	}
+	/* Read packets from the channel */
+	while(!res) {
+		res = ast_waitfor(chan, -1);
+		if (res > 0) {
+			res = 0;
+			f = ast_read(chan);
+			if (f) {
+				if (f->frametype == AST_FRAME_DTMF) {
 					ast_frfree(f);
-				} else
-					res = -1;
-			}
+					break;
+				} else {
+					if (f->frametype == AST_FRAME_VOICE) {
+						if (f->subclass == AST_FORMAT_SLINEAR) {
+							res = write_audio(f->data, f->datalen);
+							if (res > 0)
+								res = 0;
+						} else
+							ast_log(LOG_DEBUG, "Unable to handle non-signed linear frame (%d)\n", f->subclass);
+					} 
+				}
+				ast_frfree(f);
+			} else
+				res = -1;
 		}
-		if (trans != chan)
-			ast_translator_destroy(trans);
-	} else
-		ast_log(LOG_WARNING, "Unable to build translator to signed linear format on '%s'\n", chan->name);
+	}
 	LOCAL_USER_REMOVE(u);
+	if (!res)
+		ast_set_read_format(chan, oreadformat);
 	return res;
 }
 
@@ -186,4 +186,9 @@ int usecount(void)
 	int res;
 	STANDARD_USECOUNT(res);
 	return res;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
 }

@@ -795,7 +795,7 @@ static struct ast_channel *vofr_new(struct vofr_pvt *i, int state)
 		tmp->type = type;
 		tmp->fd = i->s;
 		/* Adtran VoFR supports only G723.1 format data.  G711 (ulaw) would be nice too */
-		tmp->format = AST_FORMAT_G723_1;
+		tmp->nativeformats = AST_FORMAT_G723_1;
 		tmp->state = state;
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
@@ -1239,6 +1239,11 @@ int usecount()
 	res = usecnt;
 	pthread_mutex_unlock(&usecnt_lock);
 	return res;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
 }
 
 char *description()

@@ -207,7 +207,7 @@ static int phone_setup(struct ast_channel *ast)
 	p = ast->pvt->pvt;
 	ioctl(p->fd, PHONE_CPT_STOP);
 	/* Nothing to answering really, just start recording */
-	if (ast->format & AST_FORMAT_G723_1) {
+	if (ast->pvt->rawreadformat == AST_FORMAT_G723_1) {
 		/* Prefer g723 */
 		ioctl(p->fd, PHONE_REC_STOP);
 		if (p->lastinput != AST_FORMAT_G723_1) {
@@ -217,7 +217,7 @@ static int phone_setup(struct ast_channel *ast)
 				return -1;
 			}
 		}
-	} else if (ast->format & AST_FORMAT_SLINEAR) {
+	} else if (ast->pvt->rawreadformat == AST_FORMAT_SLINEAR) {
 		ioctl(p->fd, PHONE_REC_STOP);
 		if (p->lastinput != AST_FORMAT_SLINEAR) {
 			p->lastinput = AST_FORMAT_SLINEAR;
@@ -227,7 +227,7 @@ static int phone_setup(struct ast_channel *ast)
 			}
 		}
 	} else {
-		ast_log(LOG_WARNING, "Can't do format %d\n", ast->format);
+		ast_log(LOG_WARNING, "Can't do format %d\n", ast->pvt->rawreadformat);
 		return -1;
 	}
 	if (ioctl(p->fd, PHONE_REC_START)) {
@@ -268,7 +268,7 @@ static char phone_2digit(char c)
 		return '?';
 }
 
-static struct ast_frame  *phone_read(struct ast_channel *ast)
+static struct ast_frame  *phone_exception(struct ast_channel *ast)
 {
 	int res;
 	union telephony_exception phonee;
@@ -286,7 +286,7 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 	phonee.bytes = ioctl(p->fd, PHONE_EXCEPTION);
 	if (phonee.bits.dtmf_ready)  {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "phone_read(): DTMF\n");
+			ast_log(LOG_DEBUG, "phone_exception(): DTMF\n");
 	
 		/* We've got a digit -- Just handle this nicely and easily */
 		digit =  ioctl(p->fd, PHONE_GET_DTMF_ASCII);
@@ -324,6 +324,25 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 	if (phonee.bits.pstn_wink)
 		ast_verbose("Detected Wink\n");
 #endif
+	/* Strange -- nothing there.. */
+	p->fr.frametype = AST_FRAME_NULL;
+	p->fr.subclass = 0;
+	return &p->fr;
+}
+
+static struct ast_frame  *phone_read(struct ast_channel *ast)
+{
+	int res;
+	struct phone_pvt *p = ast->pvt->pvt;
+
+	/* Some nice norms */
+	p->fr.datalen = 0;
+	p->fr.timelen = 0;
+	p->fr.data =  NULL;
+	p->fr.src = type;
+	p->fr.offset = 0;
+	p->fr.mallocd=0;
+
 	/* Try to read some data... */
 	CHECK_BLOCKING(ast);
 	res = read(p->fd, p->buf, PHONE_MAX_BUF);
@@ -517,7 +536,7 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 		tmp->type = type;
 		tmp->fd = i->fd;
 		/* XXX Switching formats silently causes kernel panics XXX */
-		tmp->format = prefformat;
+		tmp->nativeformats = prefformat;
 		tmp->state = state;
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
@@ -528,6 +547,7 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 		tmp->pvt->answer = phone_answer;
 		tmp->pvt->read = phone_read;
 		tmp->pvt->write = phone_write;
+		tmp->pvt->exception = phone_exception;
 		strncpy(tmp->context, context, sizeof(tmp->context));
 		if (strlen(i->ext))
 			strncpy(tmp->exten, i->ext, sizeof(tmp->exten));
@@ -1052,3 +1072,7 @@ char *description()
 	return desc;
 }
 
+char *key()
+{
+	return ASTERISK_GPL_KEY;
+}

@@ -36,27 +36,37 @@ extern "C" {
 struct ast_channel {
 	char name[AST_CHANNEL_NAME];		/* ASCII Description of channel name */
 	char language[MAX_LANGUAGE];		/* Language requested */
+	char *type;				/* Type of channel */
+	int fd;					/* File descriptor for channel -- all must have
+						   a file descriptor! */
+						   
+	int blocking;						/* Whether or not we're blocking */
 	pthread_t blocker;					/* If anyone is blocking, this is them */
 	pthread_mutex_t lock;				/* Lock, can be used to lock a channel for some operations */
 	char *blockproc;					/* Procedure causing blocking */
+	
 	char *appl;							/* Current application */
 	char *data;							/* Data passed to current application */
-	int blocking;						/* Whether or not we're blocking */
+	
+	int exception;						/* Has an exception been detected */
 	struct sched_context *sched;		/* Schedule context */
+
 	int streamid;					/* For streaming playback, the schedule ID */
 	struct ast_filestream *stream;	/* Stream itself. */
-	struct ast_channel *trans;		/* Translator if present */
-	struct ast_channel *master;		/* Master channel, if this is a translator */
-	int fd;					/* File descriptor for channel -- all must have
-						   a file descriptor! */
-	char *type;				/* Type of channel */
+	int oldwriteformat;				/* Original writer format */
+
 	int state;				/* State of line */
 	int rings;				/* Number of rings so far */
 	int stack;				/* Current level of application */
-	int format;				/* Kinds of data this channel can
+
+	int nativeformats;		/* Kinds of data this channel can
 						   	   natively handle */
+	int readformat;			/* Requested read format */
+	int writeformat;		/* Requested write format */
+	
 	char *dnid;				/* Malloc'd Dialed Number Identifier */
 	char *callerid;			/* Malloc'd Caller ID */
+	
 	char context[AST_MAX_EXTENSION];	/* Current extension context */
 	char exten[AST_MAX_EXTENSION];		/* Current extension number */
 	int priority;						/* Current extension priority */
@@ -125,7 +135,7 @@ int ast_waitfor(struct ast_channel *chan, int ms);
 struct ast_channel *ast_waitfor_n(struct ast_channel **chan, int n, int *ms);
 
 /* This version works on fd's only.  Be careful with it. */
-int ast_waitfor_n_fd(int *fds, int n, int *ms);
+int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception);
 
 /* Read a frame.  Returns a frame, or NULL on error.  If it returns NULL, you
    best just stop reading frames and assume the channel has been
@@ -134,6 +144,12 @@ struct ast_frame *ast_read(struct ast_channel *chan);
 
 /* Write a frame to a channel */
 int ast_write(struct ast_channel *chan, struct ast_frame *frame);
+
+/* Set read format for channelto whichever component of "format" is best. */
+int ast_set_read_format(struct ast_channel *chan, int format);
+
+/* Set write format for channel to whichever compoent of "format" is best. */
+int ast_set_write_format(struct ast_channel *chan, int format);
 
 /* Write text to a display on a channel */
 int ast_sendtext(struct ast_channel *chan, char *text);
@@ -148,10 +164,32 @@ char ast_waitfordigit(struct ast_channel *c, int ms);
    digits "timeout" (-1 for none), terminated by anything in "enders".  Give them rtimeout
    for the first digit */
 int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int rtimeout, char *enders);
+
+#define AST_BRIDGE_DTMF_CHANNEL_0		(1 << 0)		/* Report DTMF on channel 0 */
+#define AST_BRIDGE_DTMF_CHANNEL_1		(1 << 1)		/* Report DTMF on channel 1 */
+#define AST_BRIDGE_REC_CHANNEL_0		(1 << 2)		/* Return all voice frames on channel 0 */
+#define AST_BRIDGE_REC_CHANNEL_1		(1 << 3)		/* Return all voice frames on channel 1 */
+#define AST_BRIDGE_IGNORE_SIGS			(1 << 4)		/* Ignore all signal frames except NULL */
+
+
+/* Set two channels to compatible formats -- call before ast_channel_bridge in general .  Returns 0 on success
+   and -1 if it could not be done */
+int ast_channel_make_compatible(struct ast_channel *c0, struct ast_channel *c1);
+
+/* Bridge two channels (c0 and c1) together.  If an important frame occurs, we return that frame in
+   *rf (remember, it could be NULL) and which channel (0 or 1) in rc */
+int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
+
+#ifdef DO_CRASH
+#define CRASH do { *((int *)0) = 0; } while(0)
+#else
+#define CRASH do { } while(0)
+#endif
+
 #define CHECK_BLOCKING(c) { 	 \
 							if ((c)->blocking) {\
-								ast_log(LOG_WARNING, "Blocking '%s', already blocked by thread %ld in procedure %s\n", (c)->name, (c)->blocker, (c)->blockproc); \
-								/* *((int *)0)=0; */ \
+								ast_log(LOG_WARNING, "Thread %ld Blocking '%s', already blocked by thread %ld in procedure %s\n", pthread_self(), (c)->name, (c)->blocker, (c)->blockproc); \
+								CRASH; \
 							} else { \
 								(c)->blocker = pthread_self(); \
 								(c)->blockproc = __PRETTY_FUNCTION__; \

@@ -227,7 +227,7 @@ int ast_modem_read_response(struct ast_modem_pvt *p, int timeout)
 	timeout *= 1000;
 	strncpy(p->response, "(No Response)", sizeof(p->response));
 	do {
-		res = ast_waitfor_n_fd(&p->fd, 1, &timeout);
+		res = ast_waitfor_n_fd(&p->fd, 1, &timeout, NULL);
 		if (res < 0) {
 			return -1;
 		}
@@ -244,7 +244,7 @@ int ast_modem_expect(struct ast_modem_pvt *p, char *result, int timeout)
 	timeout *= 1000;
 	strncpy(p->response, "(No Response)", sizeof(p->response));
 	do {
-		res = ast_waitfor_n_fd(&p->fd, 1, &timeout);
+		res = ast_waitfor_n_fd(&p->fd, 1, &timeout, NULL);
 		if (res < 0) {
 			return -1;
 		}
@@ -432,7 +432,7 @@ struct ast_channel *ast_modem_new(struct ast_modem_pvt *i, int state)
 		snprintf(tmp->name, sizeof(tmp->name), "Modem[%s]/%s", i->mc->name, i->dev + 5);
 		tmp->type = type;
 		tmp->fd = i->fd;
-		tmp->format = i->mc->formats;
+		tmp->nativeformats = i->mc->formats;
 		tmp->state = state;
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
@@ -853,5 +853,10 @@ int usecount(void)
 char *description()
 {
 	return desc;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
 }
 
