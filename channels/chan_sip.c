@@ -1359,7 +1359,10 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		p = p->next;
 	}
 	ast_pthread_mutex_unlock(&iflock);
-	return sip_alloc(callid, sin, 1);
+	p = sip_alloc(callid, sin, 1);
+	if (p)
+		ast_pthread_mutex_lock(&p->lock);
+	return p;
 }
 
 static int sip_register(char *value, int lineno)
