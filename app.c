@@ -416,6 +416,7 @@ int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char
 	struct timeval started, ended;
 	long elapsed = 0,last_elapsed =0;
 	char *breaks=NULL;
+	char *end=NULL;
 	int blen=2;
 	int res=0;
 
@@ -436,6 +437,13 @@ int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char
 	if (chan)
 		ast_stopstream(chan);
 
+	if(file) {
+        end = strchr(file,':');
+        if(!strcasecmp(end,":end")) {
+            *end = '\0';
+            end++;
+        }
+    }
 	for (;;) {
 		gettimeofday(&started,NULL);
 
@@ -443,6 +451,10 @@ int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char
 			ast_stopstream(chan);
 		res = ast_streamfile(chan, file, chan->language);
 		if (!res) {
+			if(end) {
+				ast_seekstream(chan->stream, 0, SEEK_END);
+				end=NULL;
+			}
 			res = 1;
 			if (elapsed) {
 				ast_stream_fastforward(chan->stream, elapsed);
