@@ -136,7 +136,7 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 	if ((c = strchr(host, ':'))) {
 		*c = '\0';
 		c++;
-		port = atoi(c + 1);
+		port = atoi(c);
 	}
 	if (efd) {
 		ast_log(LOG_WARNING, "AGI URI's don't support Enhanced AGI yet\n");
