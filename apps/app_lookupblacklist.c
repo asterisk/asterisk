@@ -25,11 +25,11 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-static char *tdesc = "Look up number from local blacklist database";
+static char *tdesc = "Look up Caller*ID name/number from blacklist database";
 
 static char *app = "LookupBlacklist";
 
-static char *synopsis = "Look up number from local blacklist database";
+static char *synopsis = "Look up Caller*ID name/number from blacklist database";
 
 static char *descrip =
   "  LookupBlacklist: Looks up the Caller*ID number on the active\n"
@@ -68,13 +68,13 @@ lookupblacklist_exec (struct ast_channel *chan, void *data)
 		if (!ast_db_get ("blacklist", shrunknum, blacklist, sizeof (blacklist)))
 		{
 			if (option_verbose > 2)
-				ast_verbose (VERBOSE_PREFIX_3 "Blacklisted number %s found\n",shrunknum);
+				ast_log(LOG_NOTICE, "Blacklisted number %s found\n",shrunknum);
 			bl = 1;
 		}
 		else if (!ast_db_get ("blacklist", name, blacklist, sizeof (blacklist)))
 		{
 			if (option_verbose > 2)
-				ast_verbose (VERBOSE_PREFIX_3 "Blacklisted name \"%s\" found\n",name);
+				ast_log (LOG_NOTICE,"Blacklisted name \"%s\" found\n",name);
 			bl = 1;
 		}
 	}

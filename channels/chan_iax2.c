@@ -30,6 +30,7 @@
 #include <asterisk/acl.h>
 #include <asterisk/manager.h>
 #include <asterisk/callerid.h>
+#include <asterisk/app.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -144,6 +145,7 @@ struct iax2_user {
 	char inkeys[80];				/* Key(s) this user can use to authenticate to us */
 	int amaflags;
 	int hascallerid;
+	int trunk;						/* Treat with IAX2 trunking */
 	char callerid[AST_MAX_EXTENSION];
 	struct ast_ha *ha;
 	struct iax2_context *contexts;
@@ -156,6 +158,7 @@ struct iax2_peer {
 	char secret[80];
 	char outkey[80];		/* What key we use to talk to this peer */
 	char context[AST_MAX_EXTENSION];	/* Default context (for transfer really) */
+	char mailbox[AST_MAX_EXTENSION];	/* Mailbox */
 	struct sockaddr_in addr;
 	int formats;
 	struct in_addr mask;
@@ -176,6 +179,7 @@ struct iax2_peer {
 	int expirey;					/* How soon to expire */
 	int capability;					/* Capability */
 	int delme;						/* I need to be deleted */
+	int trunk;						/* Treat as an IAX trunking */
 
 	/* Qualification */
 	int callno;					/* Call number of POKE request */
@@ -209,6 +213,7 @@ struct iax2_registry {
 	int expire;						/* Sched ID of expiration */
 	int refresh;					/* How often to refresh */
 	int regstate;
+	int messages;					/* Message count */
 	int callno;						/* Associated call number if applicable */
 	struct sockaddr_in us;			/* Who the server thinks we are */
 	struct iax2_registry *next;
@@ -220,6 +225,8 @@ struct iax2_registry *registrations;
 #define MIN_RETRY_TIME	10
 #define MAX_RETRY_TIME  10000
 #define MAX_JITTER_BUFFER 50
+
+#define MAX_TRUNKDATA	640		/* 40ms, uncompressed linear */
 
 /* If we have more than this much excess real jitter buffer, srhink it. */
 static int max_jitter_buffer = MAX_JITTER_BUFFER;
@@ -338,6 +345,11 @@ struct chan_iax2_pvt {
 	char dproot[AST_MAX_EXTENSION];
 	char accountcode[20];
 	int amaflags;
+	/* This is part of a trunk interface */
+	int trunk;
+	/* Trunk data and length */
+	unsigned char trunkdata[MAX_TRUNKDATA];
+	unsigned int trunkdatalen;
 	struct iax2_dpcache *dpentries;
 };
 
@@ -392,13 +404,13 @@ struct iax_ies {
 	char *called_context;
 	char *username;
 	char *password;
-	int capability;
-	int format;
+	unsigned int capability;
+	unsigned int format;
 	char *language;
 	int version;
-	int adsicpe;
+	unsigned short adsicpe;
 	char *dnid;
-	int authmethods;
+	unsigned int authmethods;
 	char *challenge;
 	char *md5_result;
 	char *rsa_result;
@@ -407,6 +419,8 @@ struct iax_ies {
 	unsigned short dpstatus;
 	unsigned short callno;
 	char *cause;
+	unsigned char iax_unknown;
+	int msgcount;
 };
 
 struct iax_ie_data {
@@ -462,32 +476,79 @@ static struct iax2_dpcache {
 
 pthread_mutex_t dpcache_lock;
 
+static void dump_addr(char *output, int maxlen, void *value, int len)
+{
+	struct sockaddr_in sin;
+	if (len == sizeof(sin)) {
+		memcpy(&sin, value, len);
+		snprintf(output, maxlen, "IPV4 %s:%d", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+	} else {
+		snprintf(output, maxlen, "Invalid Address");
+	}
+}
+
+static void dump_string(char *output, int maxlen, void *value, int len)
+{
+	maxlen--;
+	if (maxlen > len)
+		maxlen = len;
+	strncpy(output,value, maxlen);
+	output[maxlen] = '\0';
+}
+
+static void dump_int(char *output, int maxlen, void *value, int len)
+{
+	if (len == sizeof(unsigned int))
+		snprintf(output, maxlen, "%d", ntohl(*((unsigned int *)value)));
+	else
+		snprintf(output, maxlen, "Invalid INT");
+}
+
+static void dump_short(char *output, int maxlen, void *value, int len)
+{
+	if (len == sizeof(unsigned short))
+		snprintf(output, maxlen, "%d", ntohs(*((unsigned short *)value)));
+	else
+		snprintf(output, maxlen, "Invalid SHORT");
+}
+
+static void dump_byte(char *output, int maxlen, void *value, int len)
+{
+	if (len == sizeof(unsigned char))
+		snprintf(output, maxlen, "%d", ntohs(*((unsigned char *)value)));
+	else
+		snprintf(output, maxlen, "Invalid BYTE");
+}
+
 static struct iax2_ie {
 	int ie;
 	char *name;
+	void (*dump)(char *output, int maxlen, void *value, int len);
 } ies[] = {
-	{ IAX_IE_CALLED_NUMBER, "CALLED NUMBER" },
-	{ IAX_IE_CALLING_NUMBER, "CALLING NUMBER" },
-	{ IAX_IE_CALLING_NUMBER, "ANI" },
-	{ IAX_IE_CALLING_NAME, "CALLING NAME" },
-	{ IAX_IE_CALLED_CONTEXT, "CALLED CONTEXT" },
-	{ IAX_IE_USERNAME, "USERNAME" },
-	{ IAX_IE_PASSWORD, "PASSWORD" },
-	{ IAX_IE_CAPABILITY, "CAPABILITY" },
-	{ IAX_IE_FORMAT, "FORMAT" },
-	{ IAX_IE_LANGUAGE, "LANGUAGE" },
-	{ IAX_IE_VERSION, "VERSION" },
-	{ IAX_IE_ADSICPE, "ADSICPE" },
-	{ IAX_IE_DNID, "DNID" },
-	{ IAX_IE_AUTHMETHODS, "AUTHMETHODS" },
-	{ IAX_IE_CHALLENGE, "CHALLENGE" },
-	{ IAX_IE_MD5_RESULT, "MD5 RESULT" },
-	{ IAX_IE_RSA_RESULT, "RSA RESULT" },
-	{ IAX_IE_APPARENT_ADDR, "APPARENT ADDRESS" },
-	{ IAX_IE_REFRESH, "REFRESH" },
-	{ IAX_IE_DPSTATUS, "DIALPLAN STATUS" },
-	{ IAX_IE_CALLNO, "CALL NUMBER" },
-	{ IAX_IE_CAUSE, "CAUSE" },
+	{ IAX_IE_CALLED_NUMBER, "CALLED NUMBER", dump_string },
+	{ IAX_IE_CALLING_NUMBER, "CALLING NUMBER", dump_string },
+	{ IAX_IE_CALLING_NUMBER, "ANI", dump_string },
+	{ IAX_IE_CALLING_NAME, "CALLING NAME", dump_string },
+	{ IAX_IE_CALLED_CONTEXT, "CALLED CONTEXT", dump_string },
+	{ IAX_IE_USERNAME, "USERNAME", dump_string },
+	{ IAX_IE_PASSWORD, "PASSWORD", dump_string },
+	{ IAX_IE_CAPABILITY, "CAPABILITY", dump_int },
+	{ IAX_IE_FORMAT, "FORMAT", dump_int },
+	{ IAX_IE_LANGUAGE, "LANGUAGE", dump_string },
+	{ IAX_IE_VERSION, "VERSION", dump_short },
+	{ IAX_IE_ADSICPE, "ADSICPE", dump_short },
+	{ IAX_IE_DNID, "DNID", dump_string },
+	{ IAX_IE_AUTHMETHODS, "AUTHMETHODS", dump_int },
+	{ IAX_IE_CHALLENGE, "CHALLENGE", dump_string },
+	{ IAX_IE_MD5_RESULT, "MD5 RESULT", dump_string },
+	{ IAX_IE_RSA_RESULT, "RSA RESULT", dump_string },
+	{ IAX_IE_APPARENT_ADDR, "APPARENT ADDRESS", dump_addr },
+	{ IAX_IE_REFRESH, "REFRESH", dump_short },
+	{ IAX_IE_DPSTATUS, "DIALPLAN STATUS", dump_short },
+	{ IAX_IE_CALLNO, "CALL NUMBER", dump_short },
+	{ IAX_IE_CAUSE, "CAUSE", dump_string },
+	{ IAX_IE_IAX_UNKNOWN, "UNKNOWN IAX CMD", dump_byte },
+	{ IAX_IE_MSGCOUNT, "MESSAGE COUNT", dump_short },
 };
 
 static char *ie2str(int ie)
@@ -500,8 +561,44 @@ static char *ie2str(int ie)
 	return "Unknown IE";
 }
 
+static void dump_ies(unsigned char *iedata, int len)
+{
+	int ielen;
+	int ie;
+	int x;
+	int found;
+	char interp[80];
+	if (len < 2)
+		return;
+	while(len > 2) {
+		ie = iedata[0];
+		ielen = iedata[1];
+		if (ielen + 2> len) {
+			ast_verbose("Total IE length of %d bytes exceeds remaining frame length of %d bytes\n", ielen + 2, len);
+			return;
+		}
+		found = 0;
+		for (x=0;x<sizeof(ies) / sizeof(ies[0]); x++) {
+			if (ies[x].ie == ie) {
+				if (ies[x].dump) {
+					ies[x].dump(interp, sizeof(interp), iedata + 2, ielen);
+					ast_verbose("   %-15.15s : %s\n", ies[x].name, interp);
+				} else {
+					ast_verbose("   %-15.15s : Present\n", ies[x].name);
+				}
+				found++;
+			}
+		}
+		if (!found)
+			ast_verbose("   Unknown IE %d : Present\n", ie);
+		iedata += (2 + ielen);
+		len -= (2 + ielen);
+	}
+	ast_verbose("\n");
+}
+
 #ifdef DEBUG_SUPPORT
-void showframe(struct ast_iax2_frame *f, struct ast_iax2_full_hdr *fhi, int rx, struct sockaddr_in *sin)
+void showframe(struct ast_iax2_frame *f, struct ast_iax2_full_hdr *fhi, int rx, struct sockaddr_in *sin, int datalen)
 {
 	char *frames[] = {
 		"(0?)",
@@ -614,6 +711,8 @@ void showframe(struct ast_iax2_frame *f, struct ast_iax2_full_hdr *fhi, int rx, 
 	ntohl(fh->ts),
 	ntohs(fh->scallno) & ~AST_FLAG_FULL, ntohs(fh->dcallno) & ~AST_FLAG_RETRANS,
 		inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+	if (fh->type == AST_FRAME_IAX)
+		dump_ies(fh->iedata, datalen);
 }
 #endif
 
@@ -1009,14 +1108,14 @@ static int send_packet(struct ast_iax2_frame *f)
 	if (f->transfer) {
 #ifdef DEBUG_SUPPORT
 		if (iaxdebug)
-			showframe(f, NULL, 0, &iaxs[f->callno]->transfer);
+			showframe(f, NULL, 0, &iaxs[f->callno]->transfer, f->datalen - sizeof(struct ast_iax2_full_hdr));
 #endif
 		res = sendto(netsocket, f->data, f->datalen, 0,(struct sockaddr *)&iaxs[f->callno]->transfer,
 					sizeof(iaxs[f->callno]->transfer));
 	} else {
 #ifdef DEBUG_SUPPORT
 		if (iaxdebug)
-			showframe(f, NULL, 0, &iaxs[f->callno]->addr);
+			showframe(f, NULL, 0, &iaxs[f->callno]->addr, f->datalen - sizeof(struct ast_iax2_full_hdr));
 #endif
 		res = sendto(netsocket, f->data, f->datalen, 0,(struct sockaddr *)&iaxs[f->callno]->addr,
 					sizeof(iaxs[f->callno]->addr));
@@ -1691,6 +1790,11 @@ static int iax_ie_append_str(struct iax_ie_data *ied, unsigned char ie, unsigned
 	return iax_ie_append_raw(ied, ie, str, strlen(str));
 }
 
+static int iax_ie_append_byte(struct iax_ie_data *ied, unsigned char ie, unsigned char dat)
+{
+	return iax_ie_append_raw(ied, ie, &dat, 1);
+}
+
 static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 {
 	struct sockaddr_in sin;
@@ -1796,7 +1900,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	}
 	iax_ie_append_int(&ied, IAX_IE_FORMAT, c->nativeformats);
 	iax_ie_append_int(&ied, IAX_IE_CAPABILITY, p->capability);
-	iax_ie_append_int(&ied, IAX_IE_ADSICPE, c->adsicpe);
+	iax_ie_append_short(&ied, IAX_IE_ADSICPE, c->adsicpe);
 	/* Transmit the string in a "NEW" request */
 #if 0
 	/* XXX We have no equivalent XXX */
@@ -2699,11 +2803,13 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 		strncpy(md5secret, ies->md5_result, sizeof(md5secret)-1);
 	if (ies->rsa_result)
 		strncpy(rsasecret, ies->rsa_result, sizeof(rsasecret)-1);
+	printf("Auth methods: %d, rsasecret: %s, inkeys: %s\n", p->authmethods, rsasecret, p->inkeys);
 	if ((p->authmethods & IAX_AUTH_RSA) && strlen(rsasecret) && strlen(p->inkeys)) {
 		struct ast_key *key;
 		char *keyn;
 		char tmpkey[256];
 		char *stringp=NULL;
+		printf("Checking RSA methods\n");
 		strncpy(tmpkey, p->inkeys, sizeof(tmpkey));
 		stringp=tmpkey;
 		keyn = strsep(&stringp, ":");
@@ -3080,10 +3186,12 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	struct iax2_registry *reg;
 	/* Start pessimistic */
 	char peer[256] = "";
+	char msgstatus[40] = "";
 	int refresh = 0;
 	char ourip[256] = "<Unspecified>";
 	struct sockaddr_in oldus;
 	struct sockaddr_in us;
+	int oldmsgs;
 
 	memset(&us, 0, sizeof(us));
 	if (ies->apparent_addr)
@@ -3101,11 +3209,13 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 		return -1;
 	}
 	memcpy(&oldus, &reg->us, sizeof(oldus));
+	oldmsgs = reg->messages;
 	if (memcmp(&reg->addr, sin, sizeof(&reg->addr))) {
 		ast_log(LOG_WARNING, "Received unsolicited registry ack from '%s'\n", inet_ntoa(sin->sin_addr));
 		return -1;
 	}
 	memcpy(&reg->us, &us, sizeof(reg->us));
+	reg->messages = ies->msgcount - 1;
 	if (refresh && (reg->refresh < refresh)) {
 		/* Refresh faster if necessary */
 		reg->refresh = refresh;
@@ -3113,9 +3223,17 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 			ast_sched_del(sched, reg->expire);
 		reg->expire = ast_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
 	}
-	if (memcmp(&oldus, &reg->us, sizeof(oldus)) && (option_verbose > 2)) {
+	if ((memcmp(&oldus, &reg->us, sizeof(oldus)) || (reg->messages != oldmsgs)) && (option_verbose > 2)) {
+		if (reg->messages > 65534)
+			snprintf(msgstatus, sizeof(msgstatus), " with message(s) waiting\n");
+		else if (reg->messages > 1)
+			snprintf(msgstatus, sizeof(msgstatus), " with %d messages waiting\n", reg->messages);
+		else if (reg->messages > 0)
+			snprintf(msgstatus, sizeof(msgstatus), " with 1 message waiting\n");
+		else if (reg->messages > -1)
+			snprintf(msgstatus, sizeof(msgstatus), " with no messages waiting\n");
 		snprintf(ourip, sizeof(ourip), "%s:%d", inet_ntoa(reg->us.sin_addr), ntohs(reg->us.sin_port));
-		ast_verbose(VERBOSE_PREFIX_3 "Registered to '%s', who sees us as %s\n", inet_ntoa(sin->sin_addr), ourip);
+		ast_verbose(VERBOSE_PREFIX_3 "Registered to '%s', who sees us as %s%s\n", inet_ntoa(sin->sin_addr), ourip, msgstatus);
 	}
 	reg->regstate = REG_STATE_REGISTERED;
 	return 0;
@@ -3200,6 +3318,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 	/* Called from IAX thread only, with proper iaxsl lock */
 	struct iax_ie_data ied;
 	struct iax2_peer *p;
+	int msgcount;
 	memset(&ied, 0, sizeof(ied));
 	for (p = peerl.peers;p;p = p->next) {
 		if (!strcasecmp(name, p->name)) {
@@ -3220,6 +3339,12 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 			iax_ie_append_str(&ied, IAX_IE_USERNAME, p->name);
 			iax_ie_append_short(&ied, IAX_IE_REFRESH, p->expirey);
 			iax_ie_append_addr(&ied, IAX_IE_APPARENT_ADDR, &p->addr);
+			if (strlen(p->mailbox)) {
+				msgcount = ast_app_has_voicemail(p->mailbox);
+				if (msgcount)
+					msgcount = 65535;
+				iax_ie_append_short(&ied, IAX_IE_MSGCOUNT, msgcount);
+			}
 			if (p->hascallerid)
 				iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, p->callerid);
 			return send_command_final(iaxs[callno], AST_FRAME_IAX, AST_IAX2_COMMAND_REGACK, 0, ied.buf, ied.pos, -1);;
@@ -3382,7 +3507,6 @@ static int parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			ast_log(LOG_WARNING, "Information element length exceeds message size\n");
 			return -1;
 		}
-		ast_log(LOG_DEBUG, "IE '%s' (%d) of length %d\n", ie2str(ie), ie, len);
 		switch(ie) {
 		case IAX_IE_CALLED_NUMBER:
 			ies->called_number = data + 2;
@@ -3427,10 +3551,10 @@ static int parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				ies->version = ntohs(*((unsigned short *)(data + 2)));
 			break;
 		case IAX_IE_ADSICPE:
-			if (len != sizeof(unsigned int)) 
-				ast_log(LOG_WARNING, "Expecting adsicpe to be %d bytes long but was %d\n", sizeof(unsigned int), len);
+			if (len != sizeof(unsigned short)) 
+				ast_log(LOG_WARNING, "Expecting adsicpe to be %d bytes long but was %d\n", sizeof(unsigned short), len);
 			else
-				ies->adsicpe = ntohl(*((unsigned int *)(data + 2)));
+				ies->adsicpe = ntohs(*((unsigned short *)(data + 2)));
 			break;
 		case IAX_IE_DNID:
 			ies->dnid = data + 2;
@@ -3448,7 +3572,7 @@ static int parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			ies->md5_result = data + 2;
 			break;
 		case IAX_IE_RSA_RESULT:
-			ies->md5_result = data + 2;
+			ies->rsa_result = data + 2;
 			break;
 		case IAX_IE_APPARENT_ADDR:
 			ies->apparent_addr = ((struct sockaddr_in *)(data + 2));
@@ -3474,6 +3598,18 @@ static int parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 		case IAX_IE_CAUSE:
 			ies->cause = data + 2;
 			break;
+		case IAX_IE_IAX_UNKNOWN:
+			if (len == 1)
+				ies->iax_unknown = data[2];
+			else
+				ast_log(LOG_WARNING, "Expected single byte Unknown command, but was %d long\n", len);
+			break;
+		case IAX_IE_MSGCOUNT:
+			if (len != sizeof(unsigned short)) 
+				ast_log(LOG_WARNING, "Expecting msgcount to be %d bytes long but was %d\n", sizeof(unsigned short), len);
+			else
+				ies->msgcount = ntohs(*((unsigned short *)(data + 2))) + 1;	/* Add 1 to know if we got it */
+			break;
 		default:
 			ast_log(LOG_NOTICE, "Ignoring unknown information element '%s' (%d) of length %d\n", ie2str(ie), ie, len);
 		}
@@ -3482,6 +3618,8 @@ static int parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 		datalen -= (len + 2);
 		data += (len + 2);
 	}
+	/* Null-terminate last field */
+	*data = '\0';
 	if (datalen) {
 		ast_log(LOG_WARNING, "Invalid information element contents, strange boundary\n");
 		return -1;
@@ -3530,7 +3668,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	}
 #ifdef DEBUG_SUPPORT
 	if (iaxdebug)
-		showframe(NULL, fh, 1, &sin);
+		showframe(NULL, fh, 1, &sin, res - sizeof(struct ast_iax2_full_hdr));
 #endif
 	if (ntohs(mh->callno) & AST_FLAG_FULL) {
 		/* Get the destination call number */
@@ -4181,8 +4319,14 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			case AST_IAX2_COMMAND_DPREP:
 				complete_dpreply(iaxs[fr.callno], &ies);
 				break;
+			case AST_IAX2_COMMAND_UNSUPPORT:
+				ast_log(LOG_NOTICE, "Peer did not understand our iax command '%d'\n", ies.iax_unknown);
+				break;
 			default:
 				ast_log(LOG_DEBUG, "Unknown IAX command %d on %d/%d\n", f.subclass, fr.callno, iaxs[fr.callno]->peercallno);
+				memset(&ied0, 0, sizeof(ied0));
+				iax_ie_append_byte(&ied0, IAX_IE_IAX_UNKNOWN, f.subclass);
+				send_command(iaxs[fr.callno], AST_FRAME_IAX, AST_IAX2_COMMAND_UNSUPPORT, 0, ied0.buf, ied0.pos, -1);
 			}
 			/* Don't actually pass these frames along */
 			if ((f.subclass != AST_IAX2_COMMAND_ACK) && 
@@ -4265,7 +4409,7 @@ static int iax2_do_register(struct iax2_registry *reg)
 	struct iax_ie_data ied;
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Sending registration request for '%s'\n", reg->username);
-	if (reg->callno < 0) {
+	if (!reg->callno) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Allocate call number\n");
 		reg->callno = find_callno(0, 0, &reg->addr, NEW_FORCE);
@@ -4528,6 +4672,10 @@ static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) 
 				strncpy(peer->secret, v->value, sizeof(peer->secret)-1);
+			else if (!strcasecmp(v->name, "mailbox"))
+				strncpy(peer->mailbox, v->value, sizeof(peer->mailbox) - 1);
+			else if (!strcasecmp(v->name, "trunk"))
+				peer->trunk = 1;
 			else if (!strcasecmp(v->name, "auth")) {
 				peer->authmethods = get_auth_methods(v->value);
 			} else if (!strcasecmp(v->name, "host")) {
@@ -4645,6 +4793,8 @@ static struct iax2_user *build_user(char *name, struct ast_variable *v)
 				user->authmethods = get_auth_methods(v->value);
 			} else if (!strcasecmp(v->name, "secret")) {
 				strncpy(user->secret, v->value, sizeof(user->secret)-1);
+			} else if (!strcasecmp(v->name, "trunk")) {
+				user->trunk = 1;
 			} else if (!strcasecmp(v->name, "callerid")) {
 				strncpy(user->callerid, v->value, sizeof(user->callerid)-1);
 				user->hascallerid=1;

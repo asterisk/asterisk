@@ -80,7 +80,7 @@
 #define IAX_IE_FORMAT				9		/* Desired codec format - unsigned int */
 #define IAX_IE_LANGUAGE				10		/* Desired language - string */
 #define IAX_IE_VERSION				11		/* Protocol version - short */
-#define IAX_IE_ADSICPE				12		/* CPE ADSI capability - int */
+#define IAX_IE_ADSICPE				12		/* CPE ADSI capability - short */
 #define IAX_IE_DNID					13		/* Originally dialed DNID - string */
 #define IAX_IE_AUTHMETHODS			14		/* Authentication method(s) - short */
 #define IAX_IE_CHALLENGE			15		/* Challenge data for MD5/RSA - string */
@@ -91,6 +91,8 @@
 #define IAX_IE_DPSTATUS				20		/* Dialplan status - short */
 #define IAX_IE_CALLNO				21		/* Call number of peer - short */
 #define IAX_IE_CAUSE				22		/* Cause - string */
+#define IAX_IE_IAX_UNKNOWN			23		/* Unknown IAX command - byte */
+#define IAX_IE_MSGCOUNT				24		/* How many messages waiting - short */
 
 #define IAX_AUTH_PLAINTEXT			(1 << 0)
 #define IAX_AUTH_MD5				(1 << 1)
@@ -123,7 +125,7 @@ struct ast_iax2_mini_hdr {
 	unsigned short ts;		/* 16-bit Timestamp (high 16 bits from last ast_iax2_full_hdr) */
 							/* Frametype implicitly VOICE_FRAME */
 							/* subclass implicit from last ast_iax2_full_hdr */
-	unsigned char iedata[0];
+	unsigned char data[0];
 } __attribute__ ((__packed__));
 
 struct ast_iax2_meta_hdr {
