@@ -974,7 +974,7 @@ void ast_parse_allow_deny(struct ast_codec_pref *pref, int *mask, char *list, in
 				if (allowing)
 					(*mask) |= format_i;
 				else
-					(*mask) &= format_i;
+					(*mask) &= ~format_i;
 			}
 			/* can't consider 'all' a prefered codec*/
 			if(pref && strcasecmp(last_format, "all")) {
