@@ -1,3 +1,5 @@
+ -- Allow extension names, include context, switch to use global vars.
+ -- Allow variables in extensions.conf to reference previously defined ones
  -- Merge voicemail enhancements (app_voicemail2)
  -- Add multiple queueing strategies
  -- Merge support for 'T'

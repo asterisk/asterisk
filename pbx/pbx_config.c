@@ -1566,6 +1566,7 @@ static int pbx_load_module(void)
 					if (!strcasecmp(v->name, "exten")) {
 						char *stringp=NULL;
 						int ipri = -2;
+						char realext[256]="";
 						tc = strdup(v->value);
 						if(tc!=NULL){
 							stringp=tc;
@@ -1614,20 +1615,24 @@ static int pbx_load_module(void)
 
 							if (!data)
 								data="";
-							if (ast_add_extension2(con, 0, ext, ipri, cidmatch, appl, strdup(data), FREE, registrar)) {
+							pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext) - 1);
+							if (ast_add_extension2(con, 0, realext, ipri, cidmatch, appl, strdup(data), FREE, registrar)) {
 								ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
 							}
 							free(tc);
 						} else fprintf(stderr,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
 					} else if(!strcasecmp(v->name, "include")) {
-						if (ast_context_add_include2(con, v->value, registrar))
+						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
+						if (ast_context_add_include2(con, realvalue, registrar))
 							ast_log(LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
 					} else if(!strcasecmp(v->name, "ignorepat")) {
-						if (ast_context_add_ignorepat2(con, v->value, registrar))
+						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
+						if (ast_context_add_ignorepat2(con, realvalue, registrar))
 							ast_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
 					} else if (!strcasecmp(v->name, "switch")) {
 						char *stringp=NULL;
-						tc = strdup(v->value);
+						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
+						tc = realvalue;
 						stringp=tc;
 						appl = strsep(&stringp, "/");
 						data = strsep(&stringp, "");
