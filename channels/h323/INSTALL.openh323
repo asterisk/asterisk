@@ -1,16 +1,7 @@
-Here are some basic instructions how to download and compile the code from openh323.org CVS and how to install chan_h323. You must be logged as root.
+To build Open H.323 see: 
 
-> cd /root (Notice that pwlib has it hardcoded to compile from /root)
-> export CVSROOT=:pserver:openh323@cvs.openh323.org:/home/cvsroot
-> cvs login (password is openh323)
-> cvs checkout openh323 pwlib ptlib_unix
-> cd pwlib; make all install
-> cd ../openh323; make all install
-> echo /usr/local/lib >> /etc/ld.so.conf
-> ldconfig
-> cd /usr/src/asterisk/channels/h323
-> make install
-> make samples
+http://www.openh323.org/build.html#unix
 
-Now you have to edit the /etc/asterisk/h323.conf config file.
-
+You only need to do 'make opt' in both
+cases.  Anything else you will be
+simply waisting time and HD space.
