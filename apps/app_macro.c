@@ -129,10 +129,10 @@ static int macro_exec(struct ast_channel *chan, void *data)
   while((cur = strsep(&rest, "|")) && (argc < MAX_ARGS)) {
   	/* Save copy of old arguments if we're overwriting some, otherwise
 	   let them pass through to the other macro */
+  	snprintf(varname, sizeof(varname), "ARG%d", argc);
 	oldargs[argc] = pbx_builtin_getvar_helper(chan, varname);
 	if (oldargs[argc])
 		oldargs[argc] = strdup(oldargs[argc]);
-  	snprintf(varname, sizeof(varname), "ARG%d", argc);
 	pbx_builtin_setvar_helper(chan, varname, cur);
 	argc++;
   }
