@@ -306,11 +306,11 @@ int adsi_begin_download(struct ast_channel *chan, char *service, char *fdn, char
 	int bytes;
 	unsigned char buf[256];
 	char ack[2];
-        bytes = 0;
-        /* Setup the resident soft key stuff, a piece at a time */
-        /* Upload what scripts we can for voicemail ahead of time */
-        bytes += adsi_download_connect(buf + bytes, service, fdn, sec, version);
-        if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD))
+	bytes = 0;
+	/* Setup the resident soft key stuff, a piece at a time */
+	/* Upload what scripts we can for voicemail ahead of time */
+	bytes += adsi_download_connect(buf + bytes, service, fdn, sec, version);
+	if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD))
 		return -1;
 	if (ast_readstring(chan, ack, 1, 10000, 10000, ""))
 		return -1;
@@ -328,7 +328,7 @@ int adsi_end_download(struct ast_channel *chan)
         /* Setup the resident soft key stuff, a piece at a time */
         /* Upload what scripts we can for voicemail ahead of time */
         bytes += adsi_download_disconnect(buf + bytes);
-        if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD))
+	if (adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD))
 		return -1;
 	return 0;
 }
@@ -798,7 +798,7 @@ int adsi_input_control(unsigned char *buf, int page, int line, int display, int 
 {
 	int bytes=0;
 
- 	if (page) {
+	if (page) {
 		if (line > 4) return -1;
 	} else {
 		if (line > 33) return -1;
@@ -857,7 +857,7 @@ int adsi_set_line(unsigned char *buf, int page, int line)
 
 	/* Sanity check line number */
 
- 	if (page) {
+	if (page) {
 		if (line > 4) return -1;
 	} else {
 		if (line > 33) return -1;

@@ -1469,7 +1469,7 @@ static int do_senddigit(struct ast_channel *chan, char digit)
 
 int ast_senddigit(struct ast_channel *chan, char digit)
 {
-  return do_senddigit(chan, digit);
+	return do_senddigit(chan, digit);
 }
 
 int ast_prod(struct ast_channel *chan)

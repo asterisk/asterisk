@@ -209,13 +209,12 @@ int ast_safe_system(const char *s)
  */
 static void ast_network_puts(const char *string)
 {
-    int x;
-    for (x=0;x<AST_MAX_CONNECTS; x++) {
-	if (consoles[x].fd > -1) 
-	    fdprint(consoles[x].p[1], string);
-    }
+	int x;
+	for (x=0;x<AST_MAX_CONNECTS; x++) {
+		if (consoles[x].fd > -1) 
+			fdprint(consoles[x].p[1], string);
+	}
 }
-
 
 /*
  * write the string to the console, and all attached
@@ -223,15 +222,15 @@ static void ast_network_puts(const char *string)
  */
 void ast_console_puts(const char *string)
 {
-    fputs(string, stdout);
-    fflush(stdout);
-    ast_network_puts(string);
+	fputs(string, stdout);
+	fflush(stdout);
+	ast_network_puts(string);
 }
 
 static void network_verboser(const char *s, int pos, int replace, int complete)
-     /* ARGUSED */
+	/* ARGUSED */
 {
-    ast_network_puts(s);
+	ast_network_puts(s);
 }
 
 static pthread_t lthread;
@@ -840,7 +839,7 @@ static struct ast_cli_entry astbang = { { "!", NULL }, handle_bang, "Execute a s
 
 static int ast_el_read_char(EditLine *el, char *cp)
 {
-    int num_read=0;
+	int num_read=0;
 	int lastpos=0;
 	struct pollfd fds[2];
 	int res;
@@ -1065,24 +1064,24 @@ static char *cli_prompt(EditLine *el)
 static char **ast_el_strtoarr(char *buf)
 {
 	char **match_list = NULL, *retstr;
-        size_t match_list_len;
+	size_t match_list_len;
 	int matches = 0;
 
-        match_list_len = 1;
+	match_list_len = 1;
 	while ( (retstr = strsep(&buf, " ")) != NULL) {
 
 		if (!strcmp(retstr, AST_CLI_COMPLETE_EOF))
 			break;
-                if (matches + 1 >= match_list_len) {
-                        match_list_len <<= 1;
-                        match_list = realloc(match_list, match_list_len * sizeof(char *));
+		if (matches + 1 >= match_list_len) {
+			match_list_len <<= 1;
+			match_list = realloc(match_list, match_list_len * sizeof(char *));
 		}
 
 		match_list[matches++] = strdup(retstr);
 	}
 
-        if (!match_list)
-                return (char **) NULL;
+	if (!match_list)
+		return (char **) NULL;
 
 	if (matches>= match_list_len)
 		match_list = realloc(match_list, (match_list_len + 1) * sizeof(char *));
@@ -1596,8 +1595,8 @@ int main(int argc, char *argv[])
 	fflush(stdout);
 
 	/* Test recursive mutex locking. */
-        if(test_for_thread_safety())
-        	ast_verbose("Warning! Asterisk is not thread safe.\n");
+	if (test_for_thread_safety())
+		ast_verbose("Warning! Asterisk is not thread safe.\n");
 
 	if (option_console && !option_verbose) 
 		ast_verbose("[ Reading Master Configuration ]");
@@ -1611,11 +1610,11 @@ int main(int argc, char *argv[])
 	
 
 	if (option_console) {
-                if (el_hist == NULL || el == NULL)
-                        ast_el_initialize();
+		if (el_hist == NULL || el == NULL)
+			ast_el_initialize();
 
-                if (!ast_strlen_zero(filename))
-                        ast_el_read_history(filename);
+		if (!ast_strlen_zero(filename))
+			ast_el_read_history(filename);
 	}
 
 	if (ast_tryconnect()) {
@@ -1768,12 +1767,12 @@ int main(int argc, char *argv[])
 				consolehandler((char *)buf);
 			} else {
 				if (option_remote)
- 					ast_cli(STDOUT_FILENO, "\nUse EXIT or QUIT to exit the asterisk console\n");
+					ast_cli(STDOUT_FILENO, "\nUse EXIT or QUIT to exit the asterisk console\n");
 			}
 		}
 
 	} else {
- 		/* Do nothing */
+		/* Do nothing */
 		for(;;) 
 			poll(NULL,0, -1);
 	}

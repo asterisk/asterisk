@@ -172,50 +172,45 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 /* Stop monitoring a channel */
 int ast_monitor_stop( struct ast_channel *chan, int need_lock )
 {
-  char *execute;
-  int soxmix =0;
-	if(need_lock) {
-		if(ast_mutex_lock(&chan->lock)) {
+	char *execute;
+	int soxmix =0;
+
+	if (need_lock) {
+		if (ast_mutex_lock(&chan->lock)) {
 			ast_log(LOG_WARNING, "Unable to lock channel\n");
 			return -1;
 		}
 	}
 
-	if(chan->monitor) {
+	if (chan->monitor) {
 		char filename[ FILENAME_MAX ];
 
-		if(chan->monitor->read_stream) {
+		if (chan->monitor->read_stream) {
 			ast_closestream( chan->monitor->read_stream );
 		}
-		if(chan->monitor->write_stream) {
+		if (chan->monitor->write_stream) {
 			ast_closestream( chan->monitor->write_stream );
 		}
 
-		if(chan->monitor->filename_changed&&strlen(chan->monitor->filename_base)) {
-			if( ast_fileexists(chan->monitor->read_filename,NULL,NULL) > 0 ) {
-				snprintf(	filename, FILENAME_MAX, "%s-in",
-							chan->monitor->filename_base );
-				if(ast_fileexists( filename, NULL, NULL ) > 0) {
+		if (chan->monitor->filename_changed&&strlen(chan->monitor->filename_base)) {
+			if (ast_fileexists(chan->monitor->read_filename,NULL,NULL) > 0 ) {
+				snprintf(filename, FILENAME_MAX, "%s-in", chan->monitor->filename_base);
+				if (ast_fileexists( filename, NULL, NULL ) > 0) {
 					ast_filedelete( filename, NULL );
 				}
-				ast_filerename(	chan->monitor->read_filename, filename,
-								chan->monitor->format );
+				ast_filerename(chan->monitor->read_filename, filename, chan->monitor->format );
 			} else {
-				ast_log(	LOG_WARNING, "File %s not found\n",
-							chan->monitor->read_filename );
+				ast_log(LOG_WARNING, "File %s not found\n", chan->monitor->read_filename );
 			}
 
-			if(ast_fileexists(chan->monitor->write_filename,NULL,NULL) > 0) {
-				snprintf(	filename, FILENAME_MAX, "%s-out",
-							chan->monitor->filename_base );
-				if( ast_fileexists( filename, NULL, NULL ) > 0 ) {
-					ast_filedelete( filename, NULL );
+			if (ast_fileexists(chan->monitor->write_filename,NULL,NULL) > 0) {
+				snprintf(filename, FILENAME_MAX, "%s-out", chan->monitor->filename_base );
+				if (ast_fileexists(filename, NULL, NULL) > 0 ) {
+					ast_filedelete(filename, NULL);
 				}
-				ast_filerename(	chan->monitor->write_filename, filename,
-								chan->monitor->format );
+				ast_filerename(chan->monitor->write_filename, filename, chan->monitor->format );
 			} else {
-				ast_log(	LOG_WARNING, "File %s not found\n",
-							chan->monitor->write_filename );
+				ast_log(LOG_WARNING, "File %s not found\n", chan->monitor->write_filename );
 			}
 		}
 
@@ -227,53 +222,49 @@ int ast_monitor_stop( struct ast_channel *chan, int need_lock )
 			int directory = strchr(name, '/') ? 1 : 0;
 			char *dir = directory ? "" : AST_MONITOR_DIR;
 
-		        /* Set the execute application */
-		        execute=pbx_builtin_getvar_helper(chan,"MONITOR_EXEC");
-		        if (!execute || ast_strlen_zero(execute)) { 
-			  execute = "nice -n 19 soxmix"; 
-			  soxmix = 1;
+			/* Set the execute application */
+			execute=pbx_builtin_getvar_helper(chan,"MONITOR_EXEC");
+			if (!execute || ast_strlen_zero(execute)) { 
+				execute = "nice -n 19 soxmix"; 
+				soxmix = 1;
 			}			
 			snprintf(tmp, sizeof(tmp), "%s %s/%s-in.%s %s/%s-out.%s %s/%s.%s &", execute, dir, name, format, dir, name, format, dir, name, format);
 			if (soxmix) {
-			  snprintf(tmp2,sizeof(tmp2), "( %s& rm -f %s/%s-* ) &",tmp, dir ,name); /* remove legs when done mixing */
-			  strncpy(tmp, tmp2, sizeof(tmp) - 1);
+				snprintf(tmp2,sizeof(tmp2), "( %s& rm -f %s/%s-* ) &",tmp, dir ,name); /* remove legs when done mixing */
+				strncpy(tmp, tmp2, sizeof(tmp) - 1);
 			}
 			ast_verbose("monitor executing %s\n",tmp);
 			if (ast_safe_system(tmp) == -1)
-			  ast_log(LOG_WARNING, "Execute of %s failed.\n",tmp);
+				ast_log(LOG_WARNING, "Execute of %s failed.\n",tmp);
 		}
 		
-		free( chan->monitor->format );
-		free( chan->monitor );
+		free(chan->monitor->format);
+		free(chan->monitor);
 		chan->monitor = NULL;
 	}
 
-	if( need_lock ) {
+	if (need_lock)
 		ast_mutex_unlock(&chan->lock);
-	}
 	return 0;
 }
 
 /* Change monitoring filename of a channel */
-int ast_monitor_change_fname(	struct ast_channel *chan,
-								const char *fname_base, int need_lock )
+int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, int need_lock)
 {
 	char tmp[256];
-	if( (!fname_base) || (!strlen(fname_base)) ) {
-		ast_log(	LOG_WARNING,
-					"Cannot change monitor filename of channel %s to null",
-					chan->name );
+	if ((!fname_base) || (!strlen(fname_base))) {
+		ast_log(LOG_WARNING, "Cannot change monitor filename of channel %s to null", chan->name );
 		return -1;
 	}
 	
-	if( need_lock ) {
+	if (need_lock) {
 		if (ast_mutex_lock(&chan->lock)) {
 			ast_log(LOG_WARNING, "Unable to lock channel\n");
 			return -1;
 		}
 	}
 
-	if( chan->monitor ) {
+	if (chan->monitor) {
 		int directory = strchr(fname_base, '/') ? 1 : 0;
 		/* try creating the directory just in case it doesn't exist */
 		if (directory) {
@@ -283,18 +274,14 @@ int ast_monitor_change_fname(	struct ast_channel *chan,
 			system(tmp);
 		}
 
-		snprintf(	chan->monitor->filename_base, FILENAME_MAX, "%s/%s",
-					directory ? "" : AST_MONITOR_DIR, fname_base );
+		snprintf(chan->monitor->filename_base, FILENAME_MAX, "%s/%s", directory ? "" : AST_MONITOR_DIR, fname_base );
 	} else {
-		ast_log(	LOG_WARNING,
-					"Cannot change monitor filename of channel %s to %s, monitoring not started",
-					chan->name, fname_base );
-				
+		ast_log(LOG_WARNING, "Cannot change monitor filename of channel %s to %s, monitoring not started", chan->name, fname_base );
 	}
 
-	if( need_lock ) {
+	if (need_lock)
 		ast_mutex_unlock(&chan->lock);
-	}
+
 	return 0;
 }
 
@@ -308,11 +295,11 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 	int res;
 	
 	/* Parse arguments. */
-	if( data && strlen((char*)data) ) {
-		arg = strdup( (char*)data );
+	if (data && strlen((char*)data)) {
+		arg = strdup((char*)data);
 		format = arg;
-		fname_base = strchr( arg, '|' );
-		if( fname_base ) {
+		fname_base = strchr(arg, '|');
+		if (fname_base) {
 			*fname_base = 0;
 			fname_base++;
 			if ((options = strchr(fname_base, '|'))) {
@@ -325,27 +312,25 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 		
 	}
 
-	res = ast_monitor_start( chan, format, fname_base, 1 );
-	if( res < 0 ) {
+	res = ast_monitor_start(chan, format, fname_base, 1);
+	if (res < 0)
 		res = ast_monitor_change_fname( chan, fname_base, 1 );
-	}
 	ast_monitor_setjoinfiles(chan, joinfiles);
 
-	if( arg ) {
+	if (arg)
 		free( arg );
-	}
 
 	return res;
 }
 
 static int stop_monitor_exec(struct ast_channel *chan, void *data)
 {
-	return ast_monitor_stop( chan, 1 );
+	return ast_monitor_stop(chan, 1);
 }
 
 static int change_monitor_exec(struct ast_channel *chan, void *data)
 {
-	return ast_monitor_change_fname( chan, (const char*)data, 1 );
+	return ast_monitor_change_fname(chan, (const char*)data, 1);
 }
 
 static int start_monitor_action(struct mansession *s, struct message *m)
@@ -357,12 +342,12 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 	char *mix = astman_get_header(m, "Mix");
 	char *d;
 	
-	if((!name)||(!strlen(name))) {
+	if ((!name)||(!strlen(name))) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
 	c = ast_channel_walk_locked(NULL);
-	while(c) {
+	while (c) {
 		if (!strcasecmp(c->name, name)) {
 			break;
 		}
@@ -373,8 +358,8 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
-     
-	if( (!fname) || (!strlen(fname)) ) {
+
+	if ((!fname) || (!strlen(fname))) {
 		// No filename base specified, default to channel name as per CLI
 		fname = malloc (FILENAME_MAX);
 		memset( fname, 0, FILENAME_MAX);
@@ -383,16 +368,16 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 		if( (d=strchr( fname, '/')) ) *d='-';
 	}
 	
-	if( ast_monitor_start( c, format, fname, 1 ) ) {
-		if( ast_monitor_change_fname( c, fname, 1 ) ) {
+	if (ast_monitor_start( c, format, fname, 1)) {
+		if (ast_monitor_change_fname(c, fname, 1)) {
 			astman_send_error(s, m, "Could not start monitoring channel");
 			ast_mutex_unlock(&c->lock);
 			return 0;
 		}
 	}
 
-	if(ast_true(mix)) {
-	  ast_monitor_setjoinfiles( c, 1);
+	if (ast_true(mix)) {
+		ast_monitor_setjoinfiles( c, 1);
 	}
 
 	ast_mutex_unlock(&c->lock);
@@ -405,7 +390,7 @@ static int stop_monitor_action(struct mansession *s, struct message *m)
 	struct ast_channel *c = NULL;
 	char *name = astman_get_header(m, "Channel");
 	int res;
-	if((!name)||(!strlen(name))) {
+	if ((!name)||(!strlen(name))) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
@@ -421,9 +406,9 @@ static int stop_monitor_action(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
-	res = ast_monitor_stop( c, 1 );
+	res = ast_monitor_stop(c, 1);
 	ast_mutex_unlock(&c->lock);
-	if( res ) {
+	if (res) {
 		astman_send_error(s, m, "Could not stop monitoring channel");
 		return 0;
 	}
@@ -436,7 +421,7 @@ static int change_monitor_action(struct mansession *s, struct message *m)
 	struct ast_channel *c = NULL;
 	char *name = astman_get_header(m, "Channel");
 	char *fname = astman_get_header(m, "File");
-	if((!name) || (!strlen(name))) {
+	if ((!name) || (!strlen(name))) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
@@ -456,7 +441,7 @@ static int change_monitor_action(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
-	if( ast_monitor_change_fname( c, fname, 1 ) ) {
+	if (ast_monitor_change_fname(c, fname, 1)) {
 		astman_send_error(s, m, "Could not change monitored filename of channel");
 		ast_mutex_unlock(&c->lock);
 		return 0;

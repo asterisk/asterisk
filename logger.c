@@ -39,8 +39,9 @@ static int syslog_level_map[] = {
 	LOG_NOTICE,
 	LOG_WARNING,
 	LOG_ERR,
-        LOG_DEBUG
+	LOG_DEBUG
 };
+
 #define SYSLOG_NLEVELS 6
 
 #include <asterisk/logger.h>
@@ -58,13 +59,13 @@ static struct msglist {
 } *list = NULL, *last = NULL;
 
 struct logchannel {
-        int logmask;
-        int facility; /* syslog */
+	int logmask;
+	int facility; /* syslog */
 	int syslog; /* syslog flag */
-        int console;  /* console logging */
+	int console;  /* console logging */
 	FILE *fileptr; /* logfile logging */
 	char filename[256];
-        struct logchannel *next;
+	struct logchannel *next;
 };
 
 static struct logchannel *logchannels = NULL;
@@ -74,21 +75,21 @@ static int msgcnt = 0;
 static FILE *eventlog = NULL;
 
 static char *levels[] = {
-       "DEBUG",
-       "EVENT",
-       "NOTICE",
-       "WARNING",
-       "ERROR",
-       "VERBOSE"
+	"DEBUG",
+	"EVENT",
+	"NOTICE",
+	"WARNING",
+	"ERROR",
+	"VERBOSE"
 };
 
 static int colors[] = {
-       COLOR_BRGREEN,
-       COLOR_BRBLUE,
-       COLOR_YELLOW,
-       COLOR_BRRED,
-       COLOR_RED,
-       COLOR_GREEN
+	COLOR_BRGREEN,
+	COLOR_BRBLUE,
+	COLOR_YELLOW,
+	COLOR_BRRED,
+	COLOR_RED,
+	COLOR_GREEN
 };
 
 static int make_components(char *s, int lineno)
@@ -389,10 +390,11 @@ static struct ast_cli_entry rotate_logger_cli =
 	handle_logger_rotate, "Rotates and reopens the log files",
 	logger_rotate_help };
 
-static int handle_SIGXFSZ(int sig) {
+static int handle_SIGXFSZ(int sig) 
+{
 	/* Indicate need to reload */
 	pending_logger_reload = 1;
-    return 0;
+	return 0;
 }
 
 int init_logger(void)
@@ -446,23 +448,24 @@ void close_logger(void)
 	return;
 }
 
-static void ast_log_vsyslog(int level, const char *file, int line, const char *function, const char *fmt, va_list args) {
-    char buf[BUFSIZ];
+static void ast_log_vsyslog(int level, const char *file, int line, const char *function, const char *fmt, va_list args) 
+{
+	char buf[BUFSIZ];
 
-    if(level >= SYSLOG_NLEVELS) {
-	    /* we are locked here, so cannot ast_log() */
-	    fprintf(stderr, "ast_log_vsyslog called with bogus level: %d\n", level);
-	    return;
-    }
-    if(level == __LOG_VERBOSE) {
-	snprintf(buf, sizeof(buf), "VERBOSE[%ld]: ", (long)pthread_self());
-	level = __LOG_DEBUG;
-    } else {
-	snprintf(buf, sizeof(buf), "%s[%ld]: %s:%d in %s: ",
-		 levels[level], (long)pthread_self(), file, line, function);
-    }
-    vsnprintf(buf+strlen(buf), sizeof(buf)-strlen(buf), fmt, args);
-    syslog(syslog_level_map[level], "%s", buf);
+	if (level >= SYSLOG_NLEVELS) {
+		/* we are locked here, so cannot ast_log() */
+		fprintf(stderr, "ast_log_vsyslog called with bogus level: %d\n", level);
+		return;
+	}
+	if (level == __LOG_VERBOSE) {
+		snprintf(buf, sizeof(buf), "VERBOSE[%ld]: ", (long)pthread_self());
+		level = __LOG_DEBUG;
+	} else {
+		snprintf(buf, sizeof(buf), "%s[%ld]: %s:%d in %s: ",
+			levels[level], (long)pthread_self(), file, line, function);
+	}
+	vsnprintf(buf+strlen(buf), sizeof(buf)-strlen(buf), fmt, args);
+	syslog(syslog_level_map[level], "%s", buf);
 }
 
 /*
@@ -470,97 +473,96 @@ static void ast_log_vsyslog(int level, const char *file, int line, const char *f
  */
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {
-    struct logchannel *chan;
-    char buf[BUFSIZ];
-    time_t t;
-    struct tm tm;
-    char date[256];
+	struct logchannel *chan;
+	char buf[BUFSIZ];
+	time_t t;
+	struct tm tm;
+	char date[256];
 
-    va_list ap;
+	va_list ap;
 	
-    if (!option_verbose && !option_debug && (level == __LOG_DEBUG)) {
-	return;
-    }
-
-    /* begin critical section */
-    ast_mutex_lock(&loglock);
-
-    time(&t);
-    localtime_r(&t, &tm);
-    strftime(date, sizeof(date), dateformat, &tm);
-
-
-    if (level == __LOG_EVENT) {
-	    va_start(ap, fmt);
-
-	    fprintf(eventlog, "%s asterisk[%d]: ", date, getpid());
-	    vfprintf(eventlog, fmt, ap);
-	    fflush(eventlog);
-
-	    va_end(ap);
-	    ast_mutex_unlock(&loglock);
-	    return;
-    }
-
-    if (logchannels) {
-	chan = logchannels;
-	while(chan) {
-	    if (chan->syslog && (chan->logmask & (1 << level))) {
-		va_start(ap, fmt);
-		ast_log_vsyslog(level, file, line, function, fmt, ap);
-		va_end(ap);
-	    } else if ((chan->logmask & (1 << level)) && (chan->console)) {
-		char linestr[128];
-		char tmp1[80], tmp2[80], tmp3[80], tmp4[80];
-
-		if(level != __LOG_VERBOSE) {
-		    sprintf(linestr, "%d", line);
-		    snprintf(buf, sizeof(buf), "%s %s[%ld]: %s:%s %s: ",
-			     date,
-			     term_color(tmp1, levels[level], colors[level], 0, sizeof(tmp1)),
-			     (long)pthread_self(),
-			     term_color(tmp2, file, COLOR_BRWHITE, 0, sizeof(tmp2)),
-			     term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
-			     term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
-		    
-		    ast_console_puts(buf);
-		    va_start(ap, fmt);
-		    vsnprintf(buf, sizeof(buf), fmt, ap);
-		    va_end(ap);
-		    ast_console_puts(buf);
-		}
-	    } else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
-		    snprintf(buf, sizeof(buf), "%s %s[%ld]: ", date,
-			     levels[level], (long)pthread_self());
-		    fprintf(chan->fileptr, buf);
-		    va_start(ap, fmt);
-		    vsnprintf(buf, sizeof(buf), fmt, ap);
-		    va_end(ap);
-		    fputs(buf, chan->fileptr);
-		    fflush(chan->fileptr);
-	    }
-	    chan = chan->next;
+	if (!option_verbose && !option_debug && (level == __LOG_DEBUG)) {
+		return;
 	}
-    } else {
-	    /* 
-	     * we don't have the logger chain configured yet,
-	     * so just log to stdout 
-	     */
-		if (level != __LOG_VERBOSE) {
-		    va_start(ap, fmt);
-		    vsnprintf(buf, sizeof(buf), fmt, ap);
-		    va_end(ap);
-		    fputs(buf, stdout);
-		}
-    }
 
-    ast_mutex_unlock(&loglock);
-    /* end critical section */
+	/* begin critical section */
+	ast_mutex_lock(&loglock);
+
+	time(&t);
+	localtime_r(&t, &tm);
+	strftime(date, sizeof(date), dateformat, &tm);
+
+	if (level == __LOG_EVENT) {
+		va_start(ap, fmt);
+
+		fprintf(eventlog, "%s asterisk[%d]: ", date, getpid());
+		vfprintf(eventlog, fmt, ap);
+		fflush(eventlog);
+
+		va_end(ap);
+		ast_mutex_unlock(&loglock);
+		return;
+	}
+
+	if (logchannels) {
+		chan = logchannels;
+		while(chan) {
+			if (chan->syslog && (chan->logmask & (1 << level))) {
+				va_start(ap, fmt);
+				ast_log_vsyslog(level, file, line, function, fmt, ap);
+				va_end(ap);
+			} else if ((chan->logmask & (1 << level)) && (chan->console)) {
+				char linestr[128];
+				char tmp1[80], tmp2[80], tmp3[80], tmp4[80];
+
+				if (level != __LOG_VERBOSE) {
+					sprintf(linestr, "%d", line);
+					snprintf(buf, sizeof(buf), "%s %s[%ld]: %s:%s %s: ",
+						date,
+						term_color(tmp1, levels[level], colors[level], 0, sizeof(tmp1)),
+						(long)pthread_self(),
+						term_color(tmp2, file, COLOR_BRWHITE, 0, sizeof(tmp2)),
+						term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
+						term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
+		    
+					ast_console_puts(buf);
+					va_start(ap, fmt);
+					vsnprintf(buf, sizeof(buf), fmt, ap);
+					va_end(ap);
+					ast_console_puts(buf);
+				}
+			} else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
+				snprintf(buf, sizeof(buf), "%s %s[%ld]: ", date,
+					levels[level], (long)pthread_self());
+				fprintf(chan->fileptr, buf);
+				va_start(ap, fmt);
+				vsnprintf(buf, sizeof(buf), fmt, ap);
+				va_end(ap);
+				fputs(buf, chan->fileptr);
+				fflush(chan->fileptr);
+			}
+			chan = chan->next;
+		}
+	} else {
+		/* 
+		 * we don't have the logger chain configured yet,
+		 * so just log to stdout 
+		*/
+		if (level != __LOG_VERBOSE) {
+			va_start(ap, fmt);
+			vsnprintf(buf, sizeof(buf), fmt, ap);
+			va_end(ap);
+			fputs(buf, stdout);
+		}
+	}
+
+	ast_mutex_unlock(&loglock);
+	/* end critical section */
 	if (pending_logger_reload) {
-	    reload_logger(1);
-	    ast_log(LOG_EVENT,"Rotated Logs Per SIGXFSZ\n");
-	    if (option_verbose)
-		    ast_verbose("Rotated Logs Per SIGXFSZ\n");
+		reload_logger(1);
+		ast_log(LOG_EVENT,"Rotated Logs Per SIGXFSZ\n");
+		if (option_verbose)
+			ast_verbose("Rotated Logs Per SIGXFSZ\n");
 	}
 }
 

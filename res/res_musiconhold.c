@@ -233,7 +233,7 @@ static void *monmp3thread(void *data)
 	error_usec = 0;
 	for(;/* ever */;) {
 		/* Spawn mp3 player if it's not there */
-		if (class->srcfd < 0)  {
+		if (class->srcfd < 0) {
 			if ((class->srcfd = spawn_mp3(class)) < 0) {
 				ast_log(LOG_WARNING, "unable to spawn mp3player\n");
 				/* Try again later */
@@ -300,7 +300,7 @@ static void *monmp3thread(void *data)
 			/* Write data */
 			if ((res = write(moh->pipe[1], sbuf, res2)) != res2) 
 				if (option_debug)
-				    ast_log(LOG_DEBUG, "Only wrote %d of %d bytes to pipe\n", res, res2);
+					ast_log(LOG_DEBUG, "Only wrote %d of %d bytes to pipe\n", res, res2);
 			moh = moh->next;
 		}
 		ast_mutex_unlock(&moh_lock);
