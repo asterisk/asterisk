@@ -862,7 +862,7 @@ static struct ast_channel *oh323_request(char *type, int format, void *data)
 
 	strtok_r(host, "/", &(h323id));
 		
-	if (*h323id) {
+	if (h323id && !ast_strlen_zero(h323id)) {
 		h323_set_id(h323id);
 	}
 		
@@ -877,10 +877,11 @@ static struct ast_channel *oh323_request(char *type, int format, void *data)
 	p->capability = capability;
 	
 	if (p->dtmfmode) {
-		if (p->dtmfmode & H323_DTMF_RFC2833)
+		if (p->dtmfmode & H323_DTMF_RFC2833) {
 			p->nonCodecCapability |= AST_RTP_DTMF;
-		else
+		} else {
 			p->nonCodecCapability &= ~AST_RTP_DTMF;
+		}
 	}
 	/* pass on our preferred codec to the H.323 stack */
 	h323_set_capability(format, dtmfmode);
