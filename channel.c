@@ -1004,34 +1004,57 @@ int ast_settimeout(struct ast_channel *c, int samples, int (*func)(void *data), 
 #endif	
 	return res;
 }
-char ast_waitfordigit_full(struct ast_channel *c, int ms, int audio, int ctrl)
+char ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 {
 	struct ast_frame *f;
-	char result = 0;
 	struct ast_channel *rchan;
 	int outfd;
+	int res;
 	/* Stop if we're a zombie or need a soft hangup */
 	if (c->zombie || ast_check_hangup(c)) 
 		return -1;
 	/* Wait for a digit, no more than ms milliseconds total. */
-	while(ms && !result) {
-		rchan = ast_waitfor_nandfds(&c, 1, &audio, (audio > -1) ? 1 : 0, NULL, &outfd, &ms);
-		if ((!rchan) && (outfd < 0) && (ms)) /* Error */
-			result = -1; 
-		else if (outfd > -1) {
-			result = 1;
+	while(ms) {
+		rchan = ast_waitfor_nandfds(&c, 1, &cmdfd, (cmdfd > -1) ? 1 : 0, NULL, &outfd, &ms);
+		if ((!rchan) && (outfd < 0) && (ms)) { 
+			ast_log(LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
+			return -1;
+		} else if (outfd > -1) {
+			/* The FD we were watching has something waiting */
+			return 1;
 		} else if (rchan) {
-			/* Read something */
 			f = ast_read(c);
-			if (f) {
-				if (f->frametype == AST_FRAME_DTMF) 
-					result = f->subclass;
+			if(!f) {
+				return -1;
+			}
+
+			switch(f->frametype) {
+			case AST_FRAME_DTMF:
+				res = f->subclass;
 				ast_frfree(f);
-			} else
-				result = -1;
+				return res;
+			case AST_FRAME_CONTROL:
+				switch(f->subclass) {
+				case AST_CONTROL_HANGUP:
+					ast_frfree(f);
+					return -1;
+				case AST_CONTROL_RINGING:
+				case AST_CONTROL_ANSWER:
+					/* Unimportant */
+					break;
+				default:
+					ast_log(LOG_WARNING, "Unexpected control subclass '%d'\n", f->subclass);
+				}
+			case AST_FRAME_VOICE:
+				/* Write audio if appropriate */
+				if (audiofd > -1)
+					write(audiofd, f->data, f->datalen);
+			}
+			/* Ignore */
+			ast_frfree(f);
 		}
 	}
-	return result;
+	return 0; // Time is up
 }
 
 struct ast_frame *ast_read(struct ast_channel *chan)
