@@ -257,7 +257,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 
         for (;;) {
 		f = ast_read(chan);
-		if (!f || ast_check_hangup(chan))
+		if (!f)
 			break;
 		if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*')) {
 			ast_frfree(f);
