@@ -33,6 +33,7 @@
 #include <asterisk/cli.h>
 #include <asterisk/utils.h>
 #include <asterisk/lock.h>
+#include <asterisk/manager.h>
 #include "db1-ast/include/db.h"
 #include "asterisk.h"
 #include "astconf.h"
@@ -476,6 +477,65 @@ struct ast_cli_entry cli_database_del =
 struct ast_cli_entry cli_database_deltree =
 { { "database", "deltree", NULL }, database_deltree, "Removes database keytree/values", database_deltree_usage };
 
+static int manager_dbput(struct mansession *s, struct message *m)
+{
+	char *family = astman_get_header(m, "Family");
+	char *key = astman_get_header(m, "Key");
+	char *val = astman_get_header(m, "Val");
+	int res;
+
+	if (!strlen(family)) {
+		astman_send_error(s, m, "No family specified");
+		return 0;
+	}
+	if (!strlen(key)) {
+		astman_send_error(s, m, "No key specified");
+		return 0;
+	}
+	if (!strlen(val)) {
+		astman_send_error(s, m, "No val specified");
+		return 0;
+	}
+
+	res = ast_db_put(family, key, val);
+	if (res)
+		astman_send_error(s, m, "Failed to update entry");
+	else 
+		astman_send_ack(s, m, "Updated database successfully");
+	return 0;
+}
+
+static int manager_dbget(struct mansession *s, struct message *m)
+{
+	char *family = astman_get_header(m, "Family");
+	char *key = astman_get_header(m, "Key");
+	char tmp[256];
+	int res;
+
+	if (!strlen(family)) {
+		astman_send_error(s, m, "No family specified.");
+		return 0;
+	}
+	if (!strlen(key)) {
+		astman_send_error(s, m, "No key specified.");
+		return 0;
+	}
+
+	res = ast_db_get(family, key, tmp, sizeof(tmp));
+	if (res)
+		astman_send_error(s, m, "Database entry not found");
+	else {
+		astman_send_ack(s, m, "Result will follow");
+		manager_event(EVENT_FLAG_COMMAND,
+				"DBGetResponse",
+				"Family: %s\r\n"
+				"Key: %s\r\n"
+				"Val: %s\r\n",
+				family, key, tmp);
+	}
+	return 0;
+}
+
 int astdb_init(void)
 {
 	dbinit();
@@ -485,5 +545,7 @@ int astdb_init(void)
 	ast_cli_register(&cli_database_put);
 	ast_cli_register(&cli_database_del);
 	ast_cli_register(&cli_database_deltree);
+	ast_manager_register("DBGet", EVENT_FLAG_SYSTEM, manager_dbget, "Get DB Entry");
+	ast_manager_register("DBPut", EVENT_FLAG_SYSTEM, manager_dbput, "Put DB Entry");
 	return 0;
 }
