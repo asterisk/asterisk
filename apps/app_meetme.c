@@ -202,8 +202,8 @@ static int confs_show(int fd, int argc, char **argv)
 	struct ast_conference *conf;
 	int hr, min, sec;
 	time_t now;
-	char *header_format = "%14s %-14s %-8s  %-8s\n";
-	char *data_format = "%-12.12s   %4.4d          %02d:%02d:%02d  %-8s\n";
+	char *header_format = "%-14s %-14s %-8s  %-8s\n";
+	char *data_format = "%-12.12s   %4.4d           %02d:%02d:%02d  %-8s\n";
 
 	now = time(NULL);
 	if (argc != 2)

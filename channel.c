@@ -684,6 +684,9 @@ void ast_channel_unregister(char *type)
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return;
 	}
+	if (option_verbose > 1)
+		ast_verbose( VERBOSE_PREFIX_2 "Unregistered channel type '%s'\n", type);
+
 	chan = backends;
 	while(chan) {
 		if (!strcasecmp(chan->type, type)) {
