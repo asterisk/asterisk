@@ -6708,15 +6708,15 @@ static int zap_destroy_channel(int fd, int argc, char **argv)
 
 static int zap_show_channels(int fd, int argc, char **argv)
 {
-#define FORMAT "%3d %-10.10s %-10.10s %-10.10s %-8.8s\n"
-#define FORMAT2 "%3s %-10.10s %-10.10s %-10.10s %-8.8s\n"
+#define FORMAT "%4d %-10.10s %-15.15s %-10.10s %-20.20s\n"
+#define FORMAT2 "%4s %-10.10s %-15.15s %-10.10s %-20.20s\n"
 	struct zt_pvt *tmp = NULL;
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
 	ast_mutex_lock(&iflock);
-	ast_cli(fd, FORMAT2, "Chan. Num.", "Extension", "Context", "Language", "MusicOnHold");
+	ast_cli(fd, FORMAT2, "Chan", "Extension", "Context", "Language", "MusicOnHold");
 	
 	tmp = iflist;
 	while (tmp) {
