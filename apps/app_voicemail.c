@@ -48,6 +48,23 @@
 
 #define VM_SPOOL_DIR AST_SPOOL_DIR "/vm"
 
+#define BASEMAXINLINE 256
+
+#define BASELINELEN 72
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#define BASEMAXINLINE 256
+#define BASELINELEN 72
+#define eol "\r\n"
+
+int iocp;
+int iolen;
+int linelength;
+int ateof;
+unsigned char iobuf[BASEMAXINLINE];
 
 static char *tdesc = "Comedian Mail (Voicemail System)";
 
@@ -106,6 +123,7 @@ static int announce_message(struct ast_channel *chan, char *dir, int msgcnt)
 {
 	char *fn;
 	int res;
+
 	res = ast_streamfile(chan, "vm-message", chan->language);
 	if (!res) {
 		res = ast_waitstream(chan, AST_DIGIT_ANY);
@@ -126,15 +144,141 @@ static int announce_message(struct ast_channel *chan, char *dir, int msgcnt)
 }
 #endif
 
-static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *mailbox, char *callerid)
+static int
+inbuf(FILE *fi)
+{
+	int l;
+
+	if(ateof)
+		return 0;
+
+	if ( (l = fread(iobuf,1,BASEMAXINLINE,fi)) <= 0) {
+		if(ferror(fi))
+			return -1;
+
+		ateof = 1;
+		return 0;
+	}
+
+	iolen= l;
+	iocp= 0;
+
+	return 1;
+}
+
+static int 
+inchar(FILE *fi)
+{
+	if(iocp>=iolen)
+		if(!inbuf(fi))
+			return EOF;
+
+	return iobuf[iocp++];
+}
+
+static int
+ochar(int c, FILE *so)
+{
+	if(linelength>=BASELINELEN) {
+		if(fputs(eol,so)==EOF)
+			return -1;
+
+		linelength= 0;
+	}
+
+	if(putc(((unsigned char)c),so)==EOF)
+		return -1;
+
+	linelength++;
+
+	return 1;
+}
+
+static int base_encode(char *filename, FILE *so)
+{
+	unsigned char dtable[BASEMAXINLINE];
+	int i,hiteof= 0;
+	FILE *fi;
+
+	linelength = 0;
+	iocp = BASEMAXINLINE;
+	iolen = 0;
+	ateof = 0;
+
+	if ( !(fi = fopen(filename, "rb"))) {
+		ast_log(LOG_WARNING, "Failed to open log file: %s: %s\n", filename, strerror(errno));
+		return -1;
+	}
+
+	for(i= 0;i<9;i++){
+		dtable[i]= 'A'+i;
+		dtable[i+9]= 'J'+i;
+		dtable[26+i]= 'a'+i;
+		dtable[26+i+9]= 'j'+i;
+	}
+	for(i= 0;i<8;i++){
+		dtable[i+18]= 'S'+i;
+		dtable[26+i+18]= 's'+i;
+	}
+	for(i= 0;i<10;i++){
+		dtable[52+i]= '0'+i;
+	}
+	dtable[62]= '+';
+	dtable[63]= '/';
+
+	while(!hiteof){
+		unsigned char igroup[3],ogroup[4];
+		int c,n;
+
+		igroup[0]= igroup[1]= igroup[2]= 0;
+
+		for(n= 0;n<3;n++){
+			if ( (c = inchar(fi)) == EOF) {
+				hiteof= 1;
+				break;
+			}
+
+			igroup[n]= (unsigned char)c;
+		}
+
+		if(n> 0){
+			ogroup[0]= dtable[igroup[0]>>2];
+			ogroup[1]= dtable[((igroup[0]&3)<<4)|(igroup[1]>>4)];
+			ogroup[2]= dtable[((igroup[1]&0xF)<<2)|(igroup[2]>>6)];
+			ogroup[3]= dtable[igroup[2]&0x3F];
+
+			if(n<3) {
+				ogroup[3]= '=';
+
+				if(n<2)
+					ogroup[2]= '=';
+			}
+
+			for(i= 0;i<4;i++)
+				ochar(ogroup[i], so);
+		}
+	}
+
+	if(fputs(eol,so)==EOF)
+		return 0;
+
+	fclose(fi);
+
+	return 1;
+}
+
+static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *mailbox, char *callerid, char *attach, char *format)
 {
 	FILE *p;
 	char date[256];
 	char host[256];
 	char who[256];
+	char bound[256];
+	char fname[256];
 	time_t t;
 	struct tm *tm;
 	p = popen(SENDMAIL, "w");
+
 	if (p) {
 		if (strchr(srcemail, '@'))
 			strncpy(who, srcemail, sizeof(who)-1);
@@ -146,16 +290,35 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 		tm = localtime(&t);
 		strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", tm);
 		fprintf(p, "Date: %s\n", date);
-		fprintf(p, "Message-ID: <Asterisk-%d-%s-%d@%s>\n", msgnum, mailbox, getpid(), host);
 		fprintf(p, "From: Asterisk PBX <%s>\n", who);
 		fprintf(p, "To: %s <%s>\n", name, email);
-		fprintf(p, "Subject: [PBX]: New message %d in mailbox %s\n\n", msgnum, mailbox);
+		fprintf(p, "Subject: [PBX]: New message %d in mailbox %s\n", msgnum, mailbox);
+		fprintf(p, "Message-ID: <Asterisk-%d-%s-%d@%s>\n", msgnum, mailbox, getpid(), host);
+		fprintf(p, "MIME-Version: 1.0\n");
+
+		// Something unique.
+		snprintf(bound, sizeof(bound), "Boundary=%d%s%d", msgnum, mailbox, getpid());
+
+		fprintf(p, "Content-Type: MULTIPART/MIXED; BOUNDARY=\"%s\"\n\n\n", bound);
+
+		fprintf(p, "--%s\n", bound);
+		fprintf(p, "Content-Type: TEXT/PLAIN; charset=US-ASCII\n\n");
 		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", tm);
 		fprintf(p, "Dear %s:\n\n\tJust wanted to let you know you were just left a message (number %d)\n"
+
 		           "in mailbox %s from %s, on %s so you might\n"
-				   "want to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n", name, 
+				   "want to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n\n", name, 
 			msgnum, mailbox, (callerid ? callerid : "an unknown caller"), date);
-		fprintf(p, ".\n");
+
+		fprintf(p, "--%s\n", bound);
+		fprintf(p, "Content-Type: TEXT/PLAIN; charset=US-ASCII; name=\"msg%04d\"\n", msgnum);
+		fprintf(p, "Content-Transfer-Encoding: BASE64\n");
+		fprintf(p, "Content-Description: Voicemail sound attachment.\n");
+		fprintf(p, "Content-Disposition: attachment; filename=\"msg%04d.%s\"\n\n", msgnum, format);
+
+		snprintf(fname, sizeof(fname), "%s.%s", attach, format);
+		base_encode(fname, p);
+		fprintf(p, "\n\n--%s--\n.\n", bound);
 		pclose(p);
 	} else {
 		ast_log(LOG_WARNING, "Unable to launch '%s'\n", SENDMAIL);
@@ -207,13 +370,14 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	int res = -1, fmtcnt=0, x;
 	int msgnum;
 	int outmsg=0;
+	int wavother=0;
 	struct ast_frame *f;
 	char date[256];
 	char dir[256];
 	char fn[256];
 	char prefile[256]="";
 	char *astemail;
-	
+
 	cfg = ast_load(VOICEMAIL_CONFIG);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "No such configuration file %s\n", VOICEMAIL_CONFIG);
@@ -241,7 +405,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
 		/* Play the beginning intro if desired */
 		if (strlen(prefile)) {
-			if (ast_fileexists(prefile, NULL, NULL) < 0) {
+			if (ast_fileexists(prefile, NULL, NULL) > 0) {
 				if (ast_streamfile(chan, prefile, chan->language) > -1) 
 				    silent = ast_waitstream(chan, "#");
 			} else {
@@ -333,6 +497,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 									free(sfmt[y]);
 								break;
 							}
+							if(!strcasecmp(sfmt[x], "wav"))
+								wavother++;
 							free(sfmt[x]);
 						}
 						if (x == fmtcnt) {
@@ -340,7 +506,22 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 							   we read a # or get a hangup */
 							if (option_verbose > 2) 
 								ast_verbose( VERBOSE_PREFIX_3 "Recording to %s\n", fn);
-							while((f = ast_read(chan))) {
+							f = NULL;
+							for(;;) {
+								res = ast_waitfor(chan, 2000);
+								if (!res) {
+									ast_log(LOG_WARNING, "No audio available on %s??\n", chan->name);
+									res = -1;
+								}
+								
+								if (res < 0) {
+									f = NULL;
+									break;
+								}
+
+								f = ast_read(chan);
+								if (!f)
+									break;
 								if (f->frametype == AST_FRAME_VOICE) {
 									/* Write the primary format */
 									res = ast_writestream(writer, f);
@@ -378,6 +559,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 							ast_log(LOG_WARNING, "Error creating writestream '%s', format '%s'\n", fn, sfmt[x]); 
 							free(sfmt[x]);
 						}
+
 						ast_closestream(writer);
 						for (x=0;x<fmtcnt;x++) {
 							if (!others[x])
@@ -391,8 +573,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 								ast_waitstream(chan, "");
 							}
 							/* Send e-mail if applicable */
-							if (email) 
-								sendmail(astemail, email, name, msgnum, ext, chan->callerid);
+								sendmail(astemail, email, name, msgnum, ext, chan->callerid, fn, wavother ? "wav" : fmts);
 						}
 					} else {
 						if (msgnum < MAXMSG)
@@ -1014,6 +1195,45 @@ static int get_folder(struct ast_channel *chan, int start)
 	return d;
 }
 
+static int
+forward_message(struct ast_channel *chan, struct ast_config *cfg, char *dir, int curmsg)
+{
+	char username[70];
+	char sys[256];
+	char todir[256];
+	int todircount=0;
+
+	while(1) {
+		ast_streamfile(chan, "vm-extension", chan->language);
+
+		if (ast_readstring(chan, username, sizeof(username) - 1, 2000, 10000, "#") < 0)
+			return 0;
+		if (ast_variable_retrieve(cfg, NULL, username)) {
+			printf("Got %d\n", atoi(username));
+			if (play_and_wait(chan, "vm-savedto"))
+				break;
+
+			snprintf(todir, sizeof(todir), "%s/%s/INBOX", VM_SPOOL_DIR, username);
+			snprintf(sys, sizeof(sys), "mkdir -p %s\n", todir);
+			puts(sys);
+			system(sys);
+
+			todircount = count_messages(todir);
+
+			snprintf(sys, sizeof(sys), "cp %s/msg%04d.gsm %s/msg%04d.gsm\n", dir, curmsg, todir, todircount);
+			puts(sys);
+			system(sys);
+
+			break;
+		} else {
+			if ( play_and_wait(chan, "pbx-invalid"))
+				break;
+		}
+	}
+
+	return 0;
+}
+
 #define WAITCMD(a) do { \
 	d = (a); \
 	if (d < 0) \
@@ -1132,7 +1352,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	int box;
 	int useadsi = 0;
 	struct ast_config *cfg;
-	
+
 	LOCAL_USER_ADD(u);
 	cfg = ast_load(VOICEMAIL_CONFIG);
 	if (!cfg) {
@@ -1155,7 +1375,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	
 	do {
 		/* Prompt for, and read in the username */
-		if (ast_readstring(chan, username, sizeof(username), 2000, 10000, "#") < 0) {
+		if (ast_readstring(chan, username, sizeof(username) - 1, 2000, 10000, "#") < 0) {
 			ast_log(LOG_WARNING, "Couldn't read username\n");
 			goto out;
 		}			
@@ -1171,7 +1391,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "Unable to stream password file\n");
 			goto out;
 		}
-		if (ast_readstring(chan, password, sizeof(password), 2000, 10000, "#") < 0) {
+		if (ast_readstring(chan, password, sizeof(password) - 1, 2000, 10000, "#") < 0) {
 			ast_log(LOG_WARNING, "Unable to read password\n");
 			goto out;
 		}
@@ -1219,6 +1439,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		if (newmessages) {
 			WAITCMD(say_and_wait(chan, newmessages));
 			WAITCMD(play_and_wait(chan, "vm-INBOX"));
+
 			if (oldmessages)
 				WAITCMD(play_and_wait(chan, "vm-and"));
 			else {
@@ -1339,6 +1560,11 @@ cmd:
 			else
 				WAITCMD(play_and_wait(chan, "vm-undeleted"));
 			goto instructions;
+		case '8':
+			if(lastmsg > -1)
+				if(forward_message(chan, cfg, curdir, curmsg) < 0)
+					goto out;
+			goto instructions;
 		case '9':
 			if (useadsi)
 				adsi_folders(chan, 1, "Save to folder...");
@@ -1406,6 +1632,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	char *ext = (char *)data;
 	
+
 	if (!data) {
 		ast_log(LOG_WARNING, "vm requires an argument (extension)\n");
 		return -1;
