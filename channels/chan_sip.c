@@ -2625,7 +2625,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	char a2[1024] = "";
 	int x;
 	struct sockaddr_in dest;
-	struct sockaddr_in vdest;
+	struct sockaddr_in vdest = { 0, };
 	/* XXX We break with the "recommendation" and send our IP, in order that our
 	       peer doesn't have to gethostbyname() us XXX */
 	len = 0;
@@ -3696,7 +3696,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 		char a1_hash[256];
 		char a2_hash[256];
 		char resp[256];
-		char resp_hash[256];
+		char resp_hash[256]="";
 		char tmp[256] = "";
 		char *c;
 		char *z;

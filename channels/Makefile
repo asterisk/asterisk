@@ -16,11 +16,17 @@ OSARCH=$(shell uname -s)
 USE_MYSQL_FRIENDS=0
 USE_SIP_MYSQL_FRIENDS=0
 
-CHANNEL_LIBS=chan_modem.so chan_iax.so chan_sip.so \
+CHANNEL_LIBS=chan_modem.so chan_sip.so \
 	     chan_modem_aopen.so \
              chan_modem_bestdata.so chan_modem_i4l.so \
              chan_agent.so chan_mgcp.so chan_iax2.so \
 	     chan_local.so chan_skinny.so
+
+#
+# If you really want IAX1 uncomment the following, but it is
+# unmaintained
+#
+#CHANNEL_LIBS+=chan_iax.so
 
 #
 # If you really want VoFR you can have it :-P
@@ -160,6 +166,7 @@ chan_h323.so: chan_h323.o h323/libchanh323.a
 
 install: all
 	for x in $(CHANNEL_LIBS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
+	if ! [ -f chan_iax.so ]; then rm -f $(DESTDIR)$(MODULES_DIR)/chan_iax.so ; fi
 
 depend: .depend
 
