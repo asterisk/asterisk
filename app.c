@@ -219,7 +219,7 @@ int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 			while ((de = readdir(dir))) {
 				if ((strlen(de->d_name) > 3) && !strncasecmp(de->d_name, "msg", 3) &&
 					!strcasecmp(de->d_name + strlen(de->d_name) - 3, "txt"))
-						*newmsgs++;
+						(*newmsgs)++;
 					
 			}
 			closedir(dir);
@@ -232,7 +232,7 @@ int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 			while ((de = readdir(dir))) {
 				if ((strlen(de->d_name) > 3) && !strncasecmp(de->d_name, "msg", 3) &&
 					!strcasecmp(de->d_name + strlen(de->d_name) - 3, "txt"))
-						*oldmsgs++;
+						(*oldmsgs)++;
 					
 			}
 			closedir(dir);
