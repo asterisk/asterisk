@@ -360,6 +360,16 @@ static int max_jitter_buffer = MAX_JITTER_BUFFER;
 /* If we have less than this much excess real jitter buffer, enlarge it. */
 static int min_jitter_buffer = MIN_JITTER_BUFFER;
 
+struct iax_rr {
+	int jitter;
+	int losspct;
+	int losscnt;
+	int packets;
+	int delay;
+	int dropped;
+	int ooo;
+};
+
 struct chan_iax2_pvt {
 	/* Socket to send/receive on for this call */
 	int sockfd;
@@ -503,6 +513,14 @@ struct chan_iax2_pvt {
 	int amaflags;
 	struct iax2_dpcache *dpentries;
 	struct ast_variable *vars;
+	/* last received remote rr */
+	struct iax_rr remote_rr;
+	/* Current base time: (just for stats) */
+	int min;
+	/* Dropped frame count: (just for stats) */
+	int frames_dropped;
+	/* received frame count: (just for stats) */
+	int frames_received;
 };
 
 static struct ast_iax2_queue {
@@ -2074,6 +2092,9 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 		iaxs[fr->callno]->jitterbuffer = max 
 			/* + ((float)iaxs[fr->callno]->jitter) * 0.1 */;
 
+	/* update "min", just for RRs and stats */
+	iaxs[fr->callno]->min = min; 
+
 	/* If the caller just wanted us to update, return now */
 	if (!reallydeliver)
 		return 0;
@@ -2111,6 +2132,7 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 		} else {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "schedule_delivery: Dropping voice packet since %dms delay is too old\n", delay);
+			iaxs[fr->callno]->frames_dropped++;
 			/* Free our iax frame */
 			iax2_frame_free(fr);
 		}
@@ -3902,6 +3924,50 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
+#undef FORMATB
+}
+
+static int iax2_show_netstats(int fd, int argc, char *argv[])
+{
+	int x;
+	int numchans = 0;
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	ast_cli(fd, "                                -------- LOCAL ---------------------  -------- REMOTE --------------------\n");
+	ast_cli(fd, "Channel                    RTT  Jit  Del  Lost   %%  Drop  OOO  Kpkts  Jit  Del  Lost   %%  Drop  OOO  Kpkts\n");
+	for (x=0;x<IAX_MAX_CALLS;x++) {
+		ast_mutex_lock(&iaxsl[x]);
+		if (iaxs[x]) {
+#ifdef BRIDGE_OPTIMIZATION
+			if (iaxs[x]->bridgecallno)
+				ast_cli(fd, "%-25.25s <NATIVE BRIDGED>",
+						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)");
+			else
+#endif
+				ast_cli(fd, "%-25.25s %4d %4d %4d %5d %3d %5d %4d %6d %4d %4d %5d %3d %5d %4d %6d\n",
+						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
+						iaxs[x]->pingtime,
+						iaxs[x]->jitter, 
+						ast_test_flag(iaxs[x], IAX_USEJITTERBUF) ? jitterbufsize(iaxs[x]) : 0,
+						-1,
+						-1,
+						-1,
+						-1,
+						iaxs[x]->frames_received/1000,
+						iaxs[x]->remote_rr.jitter,
+						iaxs[x]->remote_rr.delay,
+						iaxs[x]->remote_rr.losscnt,
+						iaxs[x]->remote_rr.losspct,
+						iaxs[x]->remote_rr.dropped,
+						iaxs[x]->remote_rr.ooo,
+						iaxs[x]->remote_rr.packets/1000
+				);
+			numchans++;
+		}
+		ast_mutex_unlock(&iaxsl[x]);
+	}
+	ast_cli(fd, "%d active IAX channel(s)\n", numchans);
+	return RESULT_SUCCESS;
 }
 
 static int iax2_do_trunk_debug(int fd, int argc, char *argv[])
@@ -3942,6 +4008,10 @@ static char show_channels_usage[] =
 "Usage: iax2 show channels\n"
 "       Lists all currently active IAX channels.\n";
 
+static char show_netstats_usage[] = 
+"Usage: iax2 show netstats\n"
+"       Lists network status for all currently active IAX channels.\n";
+
 static char show_peers_usage[] = 
 "Usage: iax2 show peers [registered] [pattern]\n"
 "       Lists all known IAX2 peers.\n"
@@ -3974,6 +4044,8 @@ static struct ast_cli_entry  cli_show_firmware =
 	{ { "iax2", "show", "firmware", NULL }, iax2_show_firmware, "Show available IAX firmwares", show_firmware_usage };
 static struct ast_cli_entry  cli_show_channels =
 	{ { "iax2", "show", "channels", NULL }, iax2_show_channels, "Show active IAX channels", show_channels_usage };
+static struct ast_cli_entry  cli_show_netstats =
+	{ { "iax2", "show", "netstats", NULL }, iax2_show_netstats, "Show active IAX channel netstats", show_netstats_usage };
 static struct ast_cli_entry  cli_show_peers =
 	{ { "iax2", "show", "peers", NULL }, iax2_show_peers, "Show defined IAX peers", show_peers_usage };
 static struct ast_cli_entry  cli_show_registry =
@@ -5531,6 +5603,32 @@ static int check_provisioning(struct sockaddr_in *sin, char *si, unsigned int ve
 	return 0;
 }
 
+static void construct_rr(struct chan_iax2_pvt *pvt, struct iax_ie_data *iep) 
+{
+	memset(iep, 0, sizeof(*iep));
+	iax_ie_append_int(iep,IAX_IE_RR_JITTER, pvt->jitter);
+	iax_ie_append_int(iep,IAX_IE_RR_PKTS, pvt->frames_received);
+	if(!ast_test_flag(pvt, IAX_USEJITTERBUF)) 
+	    iax_ie_append_short(iep,IAX_IE_RR_DELAY, 0);
+	else
+	    iax_ie_append_short(iep,IAX_IE_RR_DELAY, pvt->jitterbuffer - pvt->min);
+	iax_ie_append_int(iep,IAX_IE_RR_DROPPED, pvt->frames_dropped);
+	/* don't know, don't send! iax_ie_append_int(&ied,IAX_IE_RR_OOO, 0); */
+	/* don't know, don't send! iax_ie_append_int(&ied,IAX_IE_RR_LOSS, 0); */
+
+}
+
+static void save_rr(struct iax_frame *fr, struct iax_ies *ies) 
+{
+	iaxs[fr->callno]->remote_rr.jitter = ies->rr_jitter;
+	iaxs[fr->callno]->remote_rr.losspct = ies->rr_loss >> 24;
+	iaxs[fr->callno]->remote_rr.losscnt = ies->rr_loss & 0xffffff;
+	iaxs[fr->callno]->remote_rr.packets = ies->rr_pkts;
+	iaxs[fr->callno]->remote_rr.delay = ies->rr_delay;
+	iaxs[fr->callno]->remote_rr.dropped = ies->rr_dropped;
+	iaxs[fr->callno]->remote_rr.ooo = ies->rr_ooo;
+}
+
 static int socket_read(int *id, int fd, short events, void *cbdata)
 {
 	struct sockaddr_in sin;
@@ -5733,6 +5831,10 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			iax_showframe(NULL, fh, 1, &sin, res - sizeof(struct ast_iax2_full_hdr));
 #endif
 	}
+
+	/* count this frame */
+	iaxs[fr.callno]->frames_received++;
+
 	if (!inaddrcmp(&sin, &iaxs[fr.callno]->addr) && !minivid &&
 		f.subclass != IAX_COMMAND_TXCNT &&		/* for attended transfer */
 		f.subclass != IAX_COMMAND_TXACC)		/* for attended transfer */
@@ -6268,12 +6370,18 @@ retryowner2:
 					/* If we're in a bridged call, just forward this */
 					forward_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_PING, fr.ts, NULL, 0, -1);
 				} else {
+					struct iax_ie_data pingied;
+					construct_rr(iaxs[fr.callno], &pingied);
 					/* Send back a pong packet with the original timestamp */
-					send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr.ts, NULL, 0, -1);
+					send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr.ts, pingied.buf, pingied.pos, -1);
 				}
 #else				
+				{
+					struct iax_ie_data pingied;
+					construct_rr(iaxs[fr.callno], &pingied);
 				/* Send back a pong packet with the original timestamp */
-				send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr.ts, NULL, 0, -1);
+					send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr.ts, pingied.buf, pingied.pos, -1);
+				}
 #endif			
 				break;
 			case IAX_COMMAND_PONG:
@@ -6289,6 +6397,9 @@ retryowner2:
 				/* Calculate ping time */
 				iaxs[fr.callno]->pingtime =  calc_timestamp(iaxs[fr.callno], 0, &f) - fr.ts;
 #endif
+				/* save RR info */
+				save_rr(&fr, &ies);
+
 				if (iaxs[fr.callno]->peerpoke) {
 					peer = iaxs[fr.callno]->peerpoke;
 					if ((peer->lastms < 0)  || (peer->lastms > peer->maxms)) {
@@ -8228,6 +8339,7 @@ static int __unload_module(void)
 	ast_unregister_application(papp);
 	ast_cli_unregister(&cli_show_users);
 	ast_cli_unregister(&cli_show_channels);
+	ast_cli_unregister(&cli_show_netstats);
 	ast_cli_unregister(&cli_show_peers);
 	ast_cli_unregister(&cli_show_firmware);
 	ast_cli_unregister(&cli_show_registry);
@@ -8308,6 +8420,7 @@ int load_module(void)
 
 	ast_cli_register(&cli_show_users);
 	ast_cli_register(&cli_show_channels);
+	ast_cli_register(&cli_show_netstats);
 	ast_cli_register(&cli_show_peers);
 	ast_cli_register(&cli_show_firmware);
 	ast_cli_register(&cli_show_registry);

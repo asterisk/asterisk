@@ -61,6 +61,12 @@ struct iax_ies {
 	unsigned int provver;
 	unsigned short samprate;
 	int provverpres;
+	unsigned int rr_jitter;
+	unsigned int rr_loss;
+	unsigned int rr_pkts;
+	unsigned short rr_delay;
+	unsigned int rr_dropped;
+	unsigned int rr_ooo;
 };
 
 #define DIRECTION_INGRESS 1

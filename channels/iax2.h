@@ -121,6 +121,14 @@
 #define IAX_IE_ENCKEY				44		/* Encryption key (raw) */
 #define IAX_IE_CODEC_PREFS          45      /* Codec Negotiation */
 
+#define IAX_IE_RR_JITTER			46		/* Received jitter (as in RFC1889) u32 */
+#define IAX_IE_RR_LOSS				47		/* Received loss (high byte loss pct, low 24 bits loss count, as in rfc1889 */
+#define IAX_IE_RR_PKTS				48		/* Received frames (total frames received) u32 */
+#define IAX_IE_RR_DELAY				49		/* Max playout delay for received frames (in ms) u16 */
+#define IAX_IE_RR_DROPPED			50		/* Dropped frames (presumably by jitterbuf) u32 */
+#define IAX_IE_RR_OOO				51		/* Frames received Out of Order u32 */
+
+
 #define IAX_AUTH_PLAINTEXT			(1 << 0)
 #define IAX_AUTH_MD5				(1 << 1)
 #define IAX_AUTH_RSA				(1 << 2)

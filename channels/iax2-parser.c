@@ -228,6 +228,12 @@ static struct iax2_ie {
 	{ IAX_IE_ENCRYPTION, "ENCRYPTION", dump_short },
 	{ IAX_IE_ENCKEY, "ENCRYPTION KEY" },
 	{ IAX_IE_CODEC_PREFS, "CODEC_PREFS", dump_prefs },
+	{ IAX_IE_RR_JITTER, "RR_JITTER", dump_int },
+	{ IAX_IE_RR_LOSS, "RR_LOSS", dump_int },
+	{ IAX_IE_RR_PKTS, "RR_PKTS", dump_int },
+	{ IAX_IE_RR_DELAY, "RR_DELAY", dump_short },
+	{ IAX_IE_RR_DROPPED, "RR_DROPPED", dump_int },
+	{ IAX_IE_RR_OOO, "RR_OUTOFORDER", dump_int },
 };
 
 static struct iax2_ie prov_ies[] = {
@@ -783,6 +789,54 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				errorf(tmp);
 			} else
 				ies->calling_tns = ntohs(get_uint16(data + 2));	
+			break;
+               case IAX_IE_RR_JITTER:
+                       if (len != (int)sizeof(unsigned int)) {
+                               snprintf(tmp, (int)sizeof(tmp), "Expected jitter rr to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+                               errorf(tmp);
+                       } else {
+                               ies->rr_jitter = ntohl(get_uint32(data + 2));
+                       }
+                       break;
+               case IAX_IE_RR_LOSS:
+                       if (len != (int)sizeof(unsigned int)) {
+                               snprintf(tmp, (int)sizeof(tmp), "Expected loss rr to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+                               errorf(tmp);
+                       } else {
+                               ies->rr_loss = ntohl(get_uint32(data + 2));
+                       }
+                       break;
+               case IAX_IE_RR_PKTS:
+                       if (len != (int)sizeof(unsigned int)) {
+                               snprintf(tmp, (int)sizeof(tmp), "Expected packets rr to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+                               errorf(tmp);
+                       } else {
+                               ies->rr_pkts = ntohl(get_uint32(data + 2));
+                       }
+                       break;
+               case IAX_IE_RR_DELAY:
+                       if (len != (int)sizeof(unsigned short)) {
+                               snprintf(tmp, (int)sizeof(tmp), "Expected loss rr to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
+                        errorf(tmp);
+                       } else {
+                               ies->rr_delay = ntohs(get_uint16(data + 2));
+                       }
+                       break;
+		case IAX_IE_RR_DROPPED:
+			if (len != (int)sizeof(unsigned int)) {
+				snprintf(tmp, (int)sizeof(tmp), "Expected packets rr to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+				errorf(tmp);
+			} else {
+				ies->rr_dropped = ntohl(get_uint32(data + 2));
+			}
+			break;
+		case IAX_IE_RR_OOO:
+			if (len != (int)sizeof(unsigned int)) {
+				snprintf(tmp, (int)sizeof(tmp), "Expected packets rr to be %d bytes long but was %d\n", (int)sizeof(unsigned int), len);
+				errorf(tmp);
+			} else {
+				ies->rr_ooo = ntohl(get_uint32(data + 2));
+			}
 			break;
 		default:
 			snprintf(tmp, (int)sizeof(tmp), "Ignoring unknown information element '%s' (%d) of length %d\n", iax_ie2str(ie), ie, len);
