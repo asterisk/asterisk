@@ -1576,19 +1576,22 @@ static int skinny_answer(struct ast_channel *ast)
 static struct ast_frame *skinny_rtp_read(struct skinny_subchannel *sub)
 {
 	/* Retrieve audio/etc from channel.  Assumes sub->lock is already held. */
-	struct ast_frame *f;
-	f = ast_rtp_read(sub->rtp);
-	if (sub->owner) {
-		/* We already hold the channel lock */
-		if (f->frametype == AST_FRAME_VOICE) {
-			if (f->subclass != sub->owner->nativeformats) {
-				ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
-				sub->owner->nativeformats = f->subclass;
-				ast_set_read_format(sub->owner, sub->owner->readformat);
-				ast_set_write_format(sub->owner, sub->owner->writeformat);
+	struct ast_frame *f = NULL;
+	if (sub->rtp) {	
+		f = ast_rtp_read(sub->rtp);
+		if (sub->owner) {
+			/* We already hold the channel lock */
+			if (f->frametype == AST_FRAME_VOICE) {
+				if (f->subclass != sub->owner->nativeformats) {
+					ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
+					sub->owner->nativeformats = f->subclass;
+					ast_set_read_format(sub->owner, sub->owner->readformat);
+					ast_set_write_format(sub->owner, sub->owner->writeformat);
+				}
 			}
 		}
-	}
+	} else
+		ast_log(LOG_WARNING, "sub->rtp is NULL - calling read on a channel that has been hungup?\n");
 	return f;
 }
 
