@@ -362,7 +362,7 @@ static int retrans_pkt(void *data)
 	struct sip_pkt *pkt=data;
 	int res = 0;
 	ast_pthread_mutex_lock(&pkt->owner->lock);
-	if (!pkt->owner->needdestroy) {
+	if (1 /* !p->owner->needdestroy */) {
 		if (pkt->retrans < MAX_RETRANS) {
 			pkt->retrans++;
 			if (sipdebug) {
@@ -738,6 +738,8 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 {
 	struct sip_pvt *cur, *prev = NULL;
 	struct sip_pkt *cp;
+	if (sipdebug)
+		ast_log(LOG_DEBUG, "Destorying call '%s'\n", p->callid);
 	if (p->stateid > -1)
 		ast_extension_state_del(p->stateid, NULL);
 	if (p->initid > -1)
