@@ -3590,9 +3590,9 @@ static void build_contact(struct sip_pvt *p)
 	char iabuf[INET_ADDRSTRLEN];
 	/* Construct Contact: header */
 	if (ourport != 5060)
-		snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s@%s:%d>", p->exten, ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport);
+		snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s:%d>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport);
 	else
-		snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s@%s>", p->exten, ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
+		snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
 }
 
 /*--- initreqprep: Initiate SIP request to peer/user ---*/
