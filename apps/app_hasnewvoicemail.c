@@ -42,6 +42,7 @@
 
 #include <pthread.h>
 
+#include "../astconf.h"
 
 static char *tdesc = "Indicator for whether a voice mailbox has new messages.";
 static char *app_hasnewvoicemail = "HasNewVoicemail";
@@ -82,7 +83,7 @@ static int hasnewvoicemail_exec(struct ast_channel *chan, void *data)
 			vmbox = strsep(&context,"@");
 		}
 
-		snprintf(vmpath,255,ASTSPOOLDIR "/voicemail/%s/%s/INBOX", context, vmbox);
+		snprintf(vmpath,sizeof(vmpath), "%s/voicemail/%s/%s/INBOX", (char *)ast_config_AST_SPOOL_DIR, context, vmbox);
 		if (!(vmdir = opendir(vmpath))) {
 			ast_log(LOG_NOTICE, "Voice mailbox %s at %s does not exist\n", vmbox, vmpath);
 		} else {
