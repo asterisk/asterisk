@@ -88,6 +88,12 @@ extern void ast_console_puts(const char *string);
 #define __LOG_ERROR    4
 #define LOG_ERROR      __LOG_ERROR, _A_
 
+#ifdef LOG_VERBOSE
+#undef LOG_VERBOSE
+#endif
+#define __LOG_VERBOSE  5
+#define LOG_VERBOSE    __LOG_VERBOSE, _A_
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

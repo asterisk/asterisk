@@ -15,6 +15,7 @@
 console => notice,warning,error
 ;console => notice,warning,error,debug
 messages => notice,warning,error
+;full => notice,warning,error,debug,verbose
 
 ;syslog keyword : This special keyword logs to syslog facility 
 ;

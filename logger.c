@@ -38,9 +38,10 @@ static int syslog_level_map[] = {
 	LOG_INFO,    /* arbitrary equivalent of LOG_EVENT */
 	LOG_NOTICE,
 	LOG_WARNING,
-	LOG_ERR
+	LOG_ERR,
+        LOG_DEBUG
 };
-#define SYSLOG_NLEVELS 5
+#define SYSLOG_NLEVELS 6
 
 #include <asterisk/logger.h>
 
@@ -75,7 +76,8 @@ static char *levels[] = {
        "EVENT",
        "NOTICE",
        "WARNING",
-       "ERROR"
+       "ERROR",
+       "VERBOSE"
 };
 
 static int colors[] = {
@@ -83,7 +85,8 @@ static int colors[] = {
        COLOR_BRBLUE,
        COLOR_YELLOW,
        COLOR_BRRED,
-       COLOR_RED
+       COLOR_RED,
+       COLOR_GREEN
 };
 
 static int make_components(char *s, int lineno)
@@ -106,6 +109,8 @@ static int make_components(char *s, int lineno)
 		res |= (1 << __LOG_EVENT);
 	    else if (!strcasecmp(w, "debug"))
 		res |= (1 << __LOG_DEBUG);
+	    else if (!strcasecmp(w, "verbose"))
+		res |= (1 << __LOG_VERBOSE);
 	    else {
 		fprintf(stderr, "Logfile Warning: Unknown keyword '%s' at line %d of logger.conf\n", w, lineno);
 	    }
@@ -386,12 +391,12 @@ static void ast_log_vsyslog(int level, const char *file, int line, const char *f
 	    fprintf(stderr, "ast_log_vsyslog called with bogus level: %d\n", level);
 	    return;
     }
-    if(file && line && function) {
-	snprintf(buf, sizeof(buf), "%s[%ld]: %s:%d in %s: ",
-		 levels[level], (long)pthread_self(), file, line, function);
-    } else {
+    if(level == __LOG_VERBOSE) {
 	snprintf(buf, sizeof(buf), "VERBOSE[%ld]: ", (long)pthread_self());
 	level = __LOG_DEBUG;
+    } else {
+	snprintf(buf, sizeof(buf), "%s[%ld]: %s:%d in %s: ",
+		 levels[level], (long)pthread_self(), file, line, function);
     }
     vsnprintf(buf+strlen(buf), sizeof(buf)-strlen(buf), fmt, args);
     syslog(syslog_level_map[level], buf);
@@ -445,20 +450,22 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		char linestr[128];
 		char tmp1[80], tmp2[80], tmp3[80], tmp4[80];
 
-		sprintf(linestr, "%d", line);
-		snprintf(buf, sizeof(buf), "%s %s[%ld]: %s:%s %s: ",
-			 date,
-			 term_color(tmp1, levels[level], colors[level], 0, sizeof(tmp1)),
-			 (long)pthread_self(),
-			 term_color(tmp2, file, COLOR_BRWHITE, 0, sizeof(tmp2)),
-			 term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
-			 term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
-
-		ast_console_puts(buf);
-		va_start(ap, fmt);
-		vsnprintf(buf, sizeof(buf), fmt, ap);
-		va_end(ap);
-		ast_console_puts(buf);
+		if(level != __LOG_VERBOSE) {
+		    sprintf(linestr, "%d", line);
+		    snprintf(buf, sizeof(buf), "%s %s[%ld]: %s:%s %s: ",
+			     date,
+			     term_color(tmp1, levels[level], colors[level], 0, sizeof(tmp1)),
+			     (long)pthread_self(),
+			     term_color(tmp2, file, COLOR_BRWHITE, 0, sizeof(tmp2)),
+			     term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
+			     term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
+		    
+		    ast_console_puts(buf);
+		    va_start(ap, fmt);
+		    vsnprintf(buf, sizeof(buf), fmt, ap);
+		    va_end(ap);
+		    ast_console_puts(buf);
+		}
 	    } else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
 		    snprintf(buf, sizeof(buf), "%s %s[%ld]: ", date,
 			     levels[level], (long)pthread_self());
@@ -537,6 +544,8 @@ extern void ast_verbose(const char *fmt, ...)
 		}
 	} /* else
 		fprintf(stdout, stuff + opos); */
+
+	ast_log(LOG_VERBOSE, stuff);
 
 	if (fmt[strlen(fmt)-1] != '\n') 
 		replacelast = 1;
