@@ -1242,10 +1242,10 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	char *exten = NULL;
 	int play_announcement = 1;
 	char agent_goodbye[AST_MAX_FILENAME_LEN];
-	strcpy(agent_goodbye, agentgoodbye);
 	int update_cdr = updatecdr;
 	char *filename = "agent-loginok";
 	
+	strcpy(agent_goodbye, agentgoodbye);
 	LOCAL_USER_ADD(u);
 
 	/* Parse the arguments XXX Check for failure XXX */
