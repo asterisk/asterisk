@@ -7359,7 +7359,7 @@ static void *pri_dchannel(void *vpri)
 				x = 0;
 				res = ioctl(pri->fds[i], ZT_GETEVENT, &x);
 				if (x) 
-					ast_log(LOG_NOTICE, "PRI got event: %d on %s D-channel of span %d\n", x, pri_order(x), pri->span);
+					ast_log(LOG_NOTICE, "PRI got event: %d on %s D-channel of span %d\n", x, pri_order(i), pri->span);
 
 				/* Keep track of alarm state */	
 				if (x == ZT_EVENT_ALARM) {
