@@ -390,6 +390,7 @@ static int agent_hangup(struct ast_channel *ast)
 	if (p->chan) {
 		/* If they're dead, go ahead and hang up on the agent now */
 		if (strlen(p->loginchan)) {
+			p->acknowledged = 0;
 			if (p->chan) {
 				/* Recognize the hangup and pass it along immediately */
 				ast_hangup(p->chan);
