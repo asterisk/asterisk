@@ -826,7 +826,7 @@ struct val *a, *b;
 	to_string(b);
 
 	/* compile regular expression */
-	if ((eval = regcomp (&rp, b->u.s, 0)) != 0) {
+	if ((eval = regcomp (&rp, b->u.s, REG_EXTENDED)) != 0) {
 		regerror (eval, &rp, errbuf, sizeof(errbuf));
 		ast_log(LOG_WARNING,"regcomp() error : %s",errbuf);
 		free_value(a);
