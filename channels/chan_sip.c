@@ -3053,7 +3053,8 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	req = oreq;
 	if (!req)
 		req = &p->initreq;
-	strncpy(tmp, req->rlPart2, sizeof(tmp) - 1);
+	if (req->rlPart2)
+		strncpy(tmp, req->rlPart2, sizeof(tmp) - 1);
 	c = ditch_braces(tmp);
 	if (strncmp(c, "sip:", 4)) {
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
