@@ -1366,9 +1366,14 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 					exten = NULL;
 			}
 		}
-		if ( options ) {
+		if (options) {
 			while (*options) {
 				option = (char)options[0];
+				if ((option >= 0) && (option <= '9'))
+				{
+					options++;
+					continue;
+				}
 				if (option=='s')
 					play_announcement = 0;
 				else {

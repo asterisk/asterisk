@@ -29,7 +29,7 @@ static unsigned long seq = 0;
 
 static char *monitor_synopsis = "Monitor a channel";
 
-static char *monitor_descrip = "Monitor([file_format|[fname_base]|[options]]):\n"
+static char *monitor_descrip = "Monitor([file_format[:urlbase]|[fname_base]|[options]]):\n"
 "Used to start monitoring a channel. The channel's input and output\n"
 "voice packets are logged to files until the channel hangs up or\n"
 "monitoring is stopped by the StopMonitor application.\n"
@@ -307,6 +307,8 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 	char *fname_base = NULL;
 	char *options = NULL;
 	char *delay = NULL;
+	char *urlprefix = NULL;
+	char tmp[256];
 	int joinfiles = 0;
 	int waitforbridge = 0;
 	int res = 0;
@@ -315,6 +317,13 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 	if (data && !ast_strlen_zero((char*)data)) {
 		arg = ast_strdupa((char*)data);
 		format = arg;
+		arg = strchr(format,':');
+		if (arg)
+		{
+			*arg++ = 0;
+			urlprefix = arg;
+		}
+		else arg = format;
 		fname_base = strchr(arg, '|');
 		if (fname_base) {
 			*fname_base = 0;
@@ -329,7 +338,14 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 			}
 		}
 	}
-
+	if (urlprefix)
+	{
+		snprintf(tmp,sizeof(tmp) - 1,"%s/%s.%s",urlprefix,fname_base,
+			((strcmp(format,"gsm")) ? "wav" : "gsm"));
+		if (!chan->cdr)
+			chan->cdr = ast_cdr_alloc();
+		ast_cdr_setuserfield(chan, tmp);
+	}
 	if (waitforbridge) {
 		/* We must remove the "b" option if listed.  In principle none of
 		   the following could give NULL results, but we check just to

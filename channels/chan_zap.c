@@ -196,6 +196,8 @@ static int threewaycalling = 0;
 
 static int transfer = 0;
 
+static int canpark = 0;
+
 static int cancallforward = 0;
 
 static float rxgain = 0.0;
@@ -521,6 +523,7 @@ static struct zt_pvt {
 	int callwaitingcallerid;
 	int threewaycalling;
 	int transfer;
+	int canpark;
 	int digital;
 	int outgoing;
 	int dnd;
@@ -5129,7 +5132,7 @@ static void *ss_thread(void *data)
 				getforward = 0;
 				memset(exten, 0, sizeof(exten));
 				len = 0;
-			} else if (p->transfer && !strcmp(exten, ast_parking_ext()) && 
+			} else if ((p->transfer || p->canpark) && !strcmp(exten, ast_parking_ext()) && 
 						p->subs[SUB_THREEWAY].owner &&
 						ast_bridged_channel(p->subs[SUB_THREEWAY].owner)) {
 				/* This is a three way call, the main call being a real channel, 
@@ -6596,6 +6599,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			tmp->confno = -1;
 			tmp->propconfno = -1;
 		}
+		tmp->canpark = canpark;
 		tmp->transfer = transfer;
 		strncpy(tmp->defcontext,context,sizeof(tmp->defcontext)-1);
 		strncpy(tmp->language, language, sizeof(tmp->language)-1);
@@ -9333,6 +9337,8 @@ static int setup_zap(int reload)
 			adsi = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "transfer")) {
 			transfer = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "canpark")) {
+			canpark = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "echocancelwhenbridged")) {
 			echocanbridged = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "busydetect")) {

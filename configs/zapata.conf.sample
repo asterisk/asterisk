@@ -193,8 +193,14 @@ callwaitingcallerid=yes
 threewaycalling=yes
 ;
 ; Support flash-hook call transfer (requires three way calling)
+; Also enables call parking (overrides the 'canpark' parameter)
 ;
 transfer=yes
+;
+; Allow call parking
+; ('canpark=no' is overridden by 'transfer=yes')
+;
+canpark=yes
 ;
 ; Support call forward variable
 ;
