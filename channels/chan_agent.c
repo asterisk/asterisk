@@ -2024,7 +2024,7 @@ static void reload_agents(void)
 
 	ast_mutex_lock(&agentlock);
 	for (entry = db_tree; entry; entry = entry->next) {
-		agent_num = db_tree->key + strlen(pa_family) + 2;
+		agent_num = entry->key + strlen(pa_family) + 2;
 		cur_agent = agents;
 		while (cur_agent) {
 			ast_mutex_lock(&cur_agent->lock);
