@@ -225,9 +225,11 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 	else
 		f = &null_frame;
 	if (!f) {
-		/* If there's a channel, make it NULL */
-		if (p->chan)
+		/* If there's a channel, hang it up and make it NULL */
+		if (p->chan) {
+			ast_hangup(p->chan);
 			p->chan = NULL;
+		}
 	}
 	if (f && (f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_ANSWER)) {
 		/* Don't pass answer along */
@@ -384,6 +386,7 @@ static int agent_hangup(struct ast_channel *ast)
 				ast_hangup(p->chan);
 				p->chan = NULL;
 			}
+			ast_log(LOG_DEBUG, "Hungup, howlong is %d, autologoff is %d\n", howlong, p->autologoff);
 			if (howlong  && p->autologoff && (howlong > p->autologoff)) {
 				ast_log(LOG_NOTICE, "Agent '%s' didn't answer/confirm within %d seconds (waited %d)\n", p->name, p->autologoff, howlong);
 				strcpy(p->loginchan, "");
@@ -880,7 +883,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 						if( options )
 							if( strchr( options, 's' ) )
 								play_announcement = 0;
-						if( play_announcement )
+						if( !res && play_announcement )
 							res = ast_streamfile(chan, filename, chan->language);
 						if (!res)
 							ast_waitstream(chan, "");
