@@ -55,6 +55,18 @@ MALLOC_DEBUG = #-include $(PWD)/include/asterisk/astmm.h
 # Default -> leave empty
 INSTALL_PREFIX=
 
+# Original busydetect routine
+BUSYDETECT = -DBUSYDETECT
+
+# Improved busydetect routine
+BUSYDETECT+= #-DBUSYDETECT_MARTIN 
+# Detect the busy signal looking only at tone lengths
+# For example if you have 3 beeps 100ms tone, 100ms silence separated by 500 ms of silence
+BUSYDETECT+= #-DBUSYDETECT_TONEONLY
+# Inforce the detection of busy singal (get rid of false hangups)
+# Don't use together with -DBUSYDETECT_TONEONLY
+BUSYDETECT+= #-DBUSYDETECT_COMPARE_TONE_AND_SILENCE
+
 ASTLIBDIR=$(INSTALL_PREFIX)/usr/lib/asterisk
 ASTVARLIBDIR=$(INSTALL_PREFIX)/var/lib/asterisk
 ASTETCDIR=$(INSTALL_PREFIX)/etc/asterisk
@@ -101,6 +113,7 @@ CFLAGS+=-DASTAGIDIR=\"$(AGI_DIR)\"
 CFLAGS+= $(DEBUG_THREADS)
 CFLAGS+= $(TRACE_FRAMES)
 CFLAGS+= $(MALLOC_DEBUG)
+CFLAGS+= $(BUSYDETECT)
 CFLAGS+=# -fomit-frame-pointer 
 SUBDIRS=res channels pbx apps codecs formats agi cdr astman
 ifeq (${OSARCH},Linux)

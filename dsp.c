@@ -45,12 +45,13 @@
 
 #define DEFAULT_THRESHOLD 1024
 
-#define BUSY_THRESHOLD	100		/* Max number of ms difference between max and min times in busy */
-#define BUSY_MIN		80		/* Busy must be at least 80 ms in half-cadence */
+#define BUSY_PERCENT		10	/* The percentage diffrence between the two last silence periods */
+#define BUSY_THRESHOLD		100	/* Max number of ms difference between max and min times in busy */
+#define BUSY_MIN		75	/* Busy must be at least 80 ms in half-cadence */
 #define BUSY_MAX		1100	/* Busy can't be longer than 1100 ms in half-cadence */
 
-/* Remember last 3 units */
-#define DSP_HISTORY 5
+/* Remember last 15 units */
+#define DSP_HISTORY 15
 
 /* Number of goertzels for progress detect */
 #define GSAMP_SIZE 183
@@ -964,24 +965,41 @@ static int __ast_dsp_silence(struct ast_dsp *dsp, short *s, int len, int *totals
 	accum = 0;
 	for (x=0;x<len; x++) 
 		accum += abs(s[x]);
-	accum /= x;
+	accum /= len;
 	if (accum < dsp->threshold) {
 		dsp->totalsilence += len/8;
 		if (dsp->totalnoise) {
 			/* Move and save history */
-			memmove(dsp->historicnoise, dsp->historicnoise + 1, sizeof(dsp->historicnoise) - sizeof(dsp->historicnoise[0]));
+			memmove(dsp->historicnoise + DSP_HISTORY - dsp->busycount, dsp->historicnoise + DSP_HISTORY - dsp->busycount +1, dsp->busycount*sizeof(dsp->historicnoise[0]));
 			dsp->historicnoise[DSP_HISTORY - 1] = dsp->totalnoise;
+/* we don't want to check for busydetect that frequently */
+#if 0
 			dsp->busymaybe = 1;
+#endif
 		}
 		dsp->totalnoise = 0;
 		res = 1;
 	} else {
 		dsp->totalnoise += len/8;
 		if (dsp->totalsilence) {
+			int silence1 = dsp->historicsilence[DSP_HISTORY - 1];
+			int silence2 = dsp->historicsilence[DSP_HISTORY - 2];
 			/* Move and save history */
-			memmove(dsp->historicsilence, dsp->historicsilence + 1, sizeof(dsp->historicsilence) - sizeof(dsp->historicsilence[0]));
+			memmove(dsp->historicsilence + DSP_HISTORY - dsp->busycount, dsp->historicsilence + DSP_HISTORY - dsp->busycount + 1, dsp->busycount*sizeof(dsp->historicsilence[0]));
 			dsp->historicsilence[DSP_HISTORY - 1] = dsp->totalsilence;
-			dsp->busymaybe = 1;
+			/* check if the previous sample differs only by BUSY_PERCENT from the one before it */
+			if (silence1 < silence2) {
+				if (silence1 + silence1/BUSY_PERCENT >= silence2)
+					dsp->busymaybe = 1;
+				else 
+					dsp->busymaybe = 0;
+			} else {
+				if (silence1 - silence1/BUSY_PERCENT <= silence2)
+					dsp->busymaybe = 1;
+				else 
+					dsp->busymaybe = 0;
+			}
+					
 		}
 		dsp->totalsilence = 0;
 	}
@@ -989,12 +1007,83 @@ static int __ast_dsp_silence(struct ast_dsp *dsp, short *s, int len, int *totals
 		*totalsilence = dsp->totalsilence;
 	return res;
 }
+#ifdef BUSYDETECT_MARTIN
+int ast_dsp_busydetect(struct ast_dsp *dsp)
+{
+	int res = 0, x;
+#ifndef BUSYDETECT_TONEONLY
+	int avgsilence = 0, hitsilence = 0;
+#endif
+	int avgtone = 0, hittone = 0;
+	if (!dsp->busymaybe)
+		return res;
+	for (x=DSP_HISTORY - dsp->busycount;x<DSP_HISTORY;x++) {
+#ifndef BUSYDETECT_TONEONLY
+		avgsilence += dsp->historicsilence[x];
+#endif
+		avgtone += dsp->historicnoise[x];
+	}
+#ifndef BUSYDETECT_TONEONLY
+	avgsilence /= dsp->busycount;
+#endif
+	avgtone /= dsp->busycount;
+	for (x=DSP_HISTORY - dsp->busycount;x<DSP_HISTORY;x++) {
+#ifndef BUSYDETECT_TONEONLY
+		if (avgsilence > dsp->historicsilence[x]) {
+			if (avgsilence - (avgsilence / BUSY_PERCENT) <= dsp->historicsilence[x])
+				hitsilence++;
+		} else {
+			if (avgsilence + (avgsilence / BUSY_PERCENT) >= dsp->historicsilence[x])
+				hitsilence++;
+		}
+#endif
+		if (avgtone > dsp->historicnoise[x]) {
+			if (avgtone - (avgtone / BUSY_PERCENT) <= dsp->historicsilence[x])
+				hittone++;
+		} else {
+			if (avgtone + (avgtone / BUSY_PERCENT) >= dsp->historicsilence[x])
+				hittone++;
+		}
+	}
+#ifndef BUSYDETECT_TONEONLY
+	if ((hittone >= dsp->busycount - 1) && (hitsilence >= dsp->busycount - 1) && (avgtone >= BUSY_MIN && avgtone <= BUSY_MAX) && (avgsilence >= BUSY_MIN && avgsilence <= BUSY_MAX)) {
+#else
+	if ((hittone >= dsp->busycount - 1) && (avgtone >= BUSY_MIN && avgtone <= BUSY_MAX)) {
+#endif
+#ifdef BUSYDETECT_COMPARE_TONE_AND_SILENCE
+#ifdef BUSYDETECT_TONEONLY
+#error You can't use BUSYDETECT_TONEONLY together with BUSYDETECT_COMPARE_TONE_AND_SILENCE
+#endif
+		if (avgtone > avgsilence) {
+			if (avgtone - avgtone/(BUSY_PERCENT*2) <= avgsilence)
+				res = 1;
+		} else {
+			if (avgtone + avgtone/(BUSY_PERCENT*2) >= avgsilence)
+				res = 1;
+		}
+#else
+		res = 1;
+#endif
+	}
+#if 0
+	if (res)
+		ast_log(LOG_NOTICE, "detected busy, avgtone: %d, avgsilence %d\n", avgtone, avgsilence);
+#endif
+	return res;
+}
+#endif
 
+#ifdef BUSYDETECT
 int ast_dsp_busydetect(struct ast_dsp *dsp)
 {
 	int x;
 	int res = 0;
 	int max, min;
+
+#if 0
+	if (dsp->busy_hits > 5);
+	return 0;
+#endif
 	if (dsp->busymaybe) {
 #if 0
 		printf("Maybe busy!\n");
@@ -1027,6 +1116,7 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 	}
 	return res;
 }
+#endif
 
 int ast_dsp_silence(struct ast_dsp *dsp, struct ast_frame *f, int *totalsilence)
 {
@@ -1118,6 +1208,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		memset(&dsp->f, 0, sizeof(dsp->f));
 		dsp->f.frametype = AST_FRAME_CONTROL;
 		dsp->f.subclass = AST_CONTROL_BUSY;
+		ast_log(LOG_DEBUG, "Requesting Hangup because the busy tone was detected on channel %s\n", chan->name);
 		return &dsp->f;
 	}
 	if ((dsp->features & DSP_FEATURE_DTMF_DETECT)) {
@@ -1243,7 +1334,7 @@ struct ast_dsp *ast_dsp_new(void)
 		memset(dsp, 0, sizeof(struct ast_dsp));
 		dsp->threshold = DEFAULT_THRESHOLD;
 		dsp->features = DSP_FEATURE_SILENCE_SUPPRESS;
-		dsp->busycount = 3;
+		dsp->busycount = DSP_HISTORY;
 		/* Initialize goertzels */
 		goertzel_init(&dsp->freqs[HZ_350], 350.0);
 		goertzel_init(&dsp->freqs[HZ_440], 440.0);
@@ -1275,8 +1366,8 @@ void ast_dsp_set_threshold(struct ast_dsp *dsp, int threshold)
 
 void ast_dsp_set_busy_count(struct ast_dsp *dsp, int cadences)
 {
-	if (cadences < 1)
-		cadences = 1;
+	if (cadences < 4)
+		cadences = 4;
 	if (cadences > DSP_HISTORY)
 		cadences = DSP_HISTORY;
 	dsp->busycount = cadences;
@@ -1342,3 +1433,4 @@ int ast_dsp_digitmode(struct ast_dsp *dsp, int digitmode)
 	dsp->digitmode = digitmode;
 	return 0;
 }
+
