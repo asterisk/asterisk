@@ -206,7 +206,7 @@ tos=lowdelay
 ; of milliseconds.  See 'qualify' for individual peers to turn on for just
 ; a specific peer.
 ;
-;codecpriority=host
+autokill=yes
 ;
 ; codecpriority controls the codec negotiation of an inbound IAX call.
 ; This option is inherited to all user entities.  It can also be defined 
@@ -224,7 +224,7 @@ tos=lowdelay
 ;
 ; The default value is 'host'
 ;
-autokill=yes
+;codecpriority=host
 
 ;
 ; Cache realtime friends by adding them to the internal list
