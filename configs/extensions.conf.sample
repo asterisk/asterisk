@@ -21,6 +21,16 @@ static=yes
 ; CLI command 'save dialplan' too
 ;
 writeprotect=no
+;
+; If autofallthrough is set, then if an extension runs out of
+; things to do, it will terminate the call with BUSY, CONGESTION
+; or HANGUP depending on Asterisk's best guess (strongly recommended).
+;
+; If autofallthrough is not set, then if an extension runs out of 
+; things to do, asterisk will wait for a new extension to be dialed 
+; (this is the original behavior of Asterisk 1.0 and earlier).
+;
+autofallthrough=yes
 
 ; You can include other config files, use the #include command (without the ';')
 ; Note that this is different from the "include" command that includes contexts within 
@@ -121,34 +131,27 @@ exten => _91700XXXXXXX,1,Dial(IAX2/${IAXINFO}@iaxtel.com/${EXTEN:1}@iaxtel)
 ; International long distance through trunk
 ;
 exten => _9011.,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
-exten => _9011.,n,Congestion
 
 [trunkld]
 ;
 ; Long distance context accessed through trunk
 ;
 exten => _91NXXNXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
-exten => _91NXXNXXXXXX,n,Congestion
 
 [trunklocal]
 ;
 ; Local seven-digit dialing accessed through trunk interface
 ;
 exten => _9NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
-exten => _9NXXXXXX,n,Congestion
 
 [trunktollfree]
 ;
 ; Long distance context accessed through trunk interface
 ;
 exten => _91800NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
-exten => _91800NXXXXXX,n,Congestion
 exten => _91888NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
-exten => _91888NXXXXXX,n,Congestion
 exten => _91877NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
-exten => _91877NXXXXXX,n,Congestion
 exten => _91866NXXXXXX,1,Dial(${TRUNK}/${EXTEN:${TRUNKMSD}})
-exten => _91866NXXXXXX,n,Congestion
 
 [international]
 ;
@@ -214,6 +217,7 @@ exten => s,n,DigitTimeout,5		; Set Digit Timeout to 5 seconds
 exten => s,n,ResponseTimeout,10		; Set Response Timeout to 10 seconds
 exten => s,n(restart),BackGround(demo-congrats)	; Play a congratulatory message
 exten => s,n(instruct),BackGround(demo-instruct)	; Play some instructions
+exten => s,n,WaitExten		; Wait for an extension to be dialed.
 
 exten => 2,1,BackGround(demo-moreinfo)	; Give some more information.
 exten => 2,n,Goto(s,instruct)
@@ -281,6 +285,7 @@ exten => 8500,n,Goto(s,6)
 ;
 ;exten => s,1,Answer
 ;exten => s,n,Background(thanks)		; "Thanks for calling press 1 for sales, 2 for support, ..."
+;exten => s,n,WaitExten
 ;exten => 1,1,Goto(submenu,s,1)
 ;exten => 2,1,Hangup
 ;include => default
@@ -289,6 +294,7 @@ exten => 8500,n,Goto(s,6)
 ;exten => s,1,Ringing					; Make them comfortable with 2 seconds of ringback
 ;exten => s,n,Wait,2
 ;exten => s,n,Background(submenuopts)	; "Thanks for calling the sales department.  Press 1 for steve, 2 for..."
+;exten => s,n,WaitExten
 ;exten => 1,1,Goto(default,steve,1)
 ;exten => 2,1,Goto(default,mark,2)
 

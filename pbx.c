@@ -177,6 +177,8 @@ char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name);
 
 static struct varshead globals;
 
+static int autofallthrough = 0;
+
 static struct pbx_builtin {
 	char name[AST_MAX_APP];
 	int (*execute)(struct ast_channel *chan, void *data);
@@ -408,9 +410,10 @@ static struct pbx_builtin {
 
 	{ "WaitExten", pbx_builtin_waitexten, 
 	"Waits for some time", 
-	"  Wait(seconds): Waits for the user to enter a new extension for the \n"
+	"  Wait([seconds]): Waits for the user to enter a new extension for the \n"
 	"specified number of seconds, then returns 0.  Seconds can be passed with\n"
-	"fractions of a second. (eg: 1.5 = 1.5 seconds)\n" 
+	"fractions of a seconds (eg: 1.5 = 1.5 seconds) or if unspecified the\n"
+	"default extension timeout will be used.\n" 
 	},
 
 };
@@ -1927,63 +1930,82 @@ int ast_pbx_run(struct ast_channel *c)
 			c->_softhangup = 0;
 		} else {
 			/* Done, wait for an extension */
+			waittime = 0;
 			if (digit)
 				waittime = c->pbx->dtimeout;
-			else
+			else if (!autofallthrough)
 				waittime = c->pbx->rtimeout;
-			while (ast_matchmore_extension(c, c->context, exten, 1, c->cid.cid_num)) {
-				/* As long as we're willing to wait, and as long as it's not defined, 
-				   keep reading digits until we can't possibly get a right answer anymore.  */
-				digit = ast_waitfordigit(c, waittime * 1000);
-				if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
-					c->_softhangup = 0;
+			if (waittime) {
+				while (ast_matchmore_extension(c, c->context, exten, 1, c->cid.cid_num)) {
+					/* As long as we're willing to wait, and as long as it's not defined, 
+					   keep reading digits until we can't possibly get a right answer anymore.  */
+					digit = ast_waitfordigit(c, waittime * 1000);
+					if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
+						c->_softhangup = 0;
+					} else {
+						if (!digit)
+							/* No entry */
+							break;
+						if (digit < 0)
+							/* Error, maybe a  hangup */
+							goto out;
+						exten[pos++] = digit;
+						waittime = c->pbx->dtimeout;
+					}
+				}
+				if (ast_exists_extension(c, c->context, exten, 1, c->cid.cid_num)) {
+					/* Prepare the next cycle */
+					strncpy(c->exten, exten, sizeof(c->exten)-1);
+					c->priority = 1;
 				} else {
-					if (!digit)
-						/* No entry */
-						break;
-					if (digit < 0)
-						/* Error, maybe a  hangup */
-						goto out;
-					exten[pos++] = digit;
-					waittime = c->pbx->dtimeout;
+					/* No such extension */
+					if (!ast_strlen_zero(exten)) {
+						/* An invalid extension */
+						if (ast_exists_extension(c, c->context, "i", 1, c->cid.cid_num)) {
+							if (option_verbose > 2)
+								ast_verbose( VERBOSE_PREFIX_3 "Invalid extension '%s' in context '%s' on %s\n", exten, c->context, c->name);
+							pbx_builtin_setvar_helper(c, "INVALID_EXTEN", exten);
+							strncpy(c->exten, "i", sizeof(c->exten)-1);
+							c->priority = 1;
+						} else {
+							ast_log(LOG_WARNING, "Invalid extension '%s', but no rule 'i' in context '%s'\n", exten, c->context);
+							goto out;
+						}
+					} else {
+						/* A simple timeout */
+						if (ast_exists_extension(c, c->context, "t", 1, c->cid.cid_num)) {
+							if (option_verbose > 2)
+								ast_verbose( VERBOSE_PREFIX_3 "Timeout on %s\n", c->name);
+							strncpy(c->exten, "t", sizeof(c->exten)-1);
+							c->priority = 1;
+						} else {
+							ast_log(LOG_WARNING, "Timeout, but no rule 't' in context '%s'\n", c->context);
+							goto out;
+						}
+					}	
+				}
+				if (c->cdr) {
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_2 "CDR updated on %s\n",c->name);	
+					ast_cdr_update(c);
+			    }
+			} else {
+				if (option_verbose > 0) {
+					char *status;
+					status = pbx_builtin_getvar_helper(c, "DIALSTATUS");
+					if (!status)
+						status = "UNKNOWN";
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_2 "Auto fallthrough, channel '%s' status is '%s'\n", c->name, status);
+					if (!strcasecmp(status, "CONGESTION"))
+						res = pbx_builtin_congestion(c, "10");
+					else if (!strcasecmp(status, "CHANUNAVAIL"))
+						res = pbx_builtin_congestion(c, "10");
+					else if (!strcasecmp(status, "BUSY"))
+						res = pbx_builtin_busy(c, "10");
+					goto out;
 				}
 			}
-			if (ast_exists_extension(c, c->context, exten, 1, c->cid.cid_num)) {
-				/* Prepare the next cycle */
-				strncpy(c->exten, exten, sizeof(c->exten)-1);
-				c->priority = 1;
-			} else {
-				/* No such extension */
-				if (!ast_strlen_zero(exten)) {
-					/* An invalid extension */
-					if (ast_exists_extension(c, c->context, "i", 1, c->cid.cid_num)) {
-						if (option_verbose > 2)
-							ast_verbose( VERBOSE_PREFIX_3 "Invalid extension '%s' in context '%s' on %s\n", exten, c->context, c->name);
-						pbx_builtin_setvar_helper(c, "INVALID_EXTEN", exten);
-						strncpy(c->exten, "i", sizeof(c->exten)-1);
-						c->priority = 1;
-					} else {
-						ast_log(LOG_WARNING, "Invalid extension '%s', but no rule 'i' in context '%s'\n", exten, c->context);
-						goto out;
-					}
-				} else {
-					/* A simple timeout */
-					if (ast_exists_extension(c, c->context, "t", 1, c->cid.cid_num)) {
-						if (option_verbose > 2)
-							ast_verbose( VERBOSE_PREFIX_3 "Timeout on %s\n", c->name);
-						strncpy(c->exten, "t", sizeof(c->exten)-1);
-						c->priority = 1;
-					} else {
-						ast_log(LOG_WARNING, "Timeout, but no rule 't' in context '%s'\n", c->context);
-						goto out;
-					}
-				}	
-			}
-			if (c->cdr) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_2 "CDR updated on %s\n",c->name);	
-				ast_cdr_update(c);
-		    }
 		}
 	}
 	if (firstpass) 
@@ -2043,6 +2065,15 @@ int ast_pbx_start(struct ast_channel *c)
 		return -1;
 	}
 	return 0;
+}
+
+int pbx_set_autofallthrough(int newval)
+{
+	int oldval;
+	oldval = autofallthrough;
+	if (oldval != newval)
+		autofallthrough = newval;
+	return oldval;
 }
 
 /*
@@ -4717,13 +4748,27 @@ static int pbx_builtin_wait(struct ast_channel *chan, void *data)
 static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 {
 	int ms;
-
+	int res;
 	/* Wait for "n" seconds */
-	if (data && atof((char *)data)) {
+	if (data && atof((char *)data)) 
 		ms = atof((char *)data) * 1000;
-		return ast_waitfordigit(chan, ms);
+	else if (chan->pbx)
+		ms = chan->pbx->rtimeout * 1000;
+	else
+		ms = 10000;
+	res = ast_waitfordigit(chan, ms);
+	if (!res) {
+		if (ast_exists_extension(chan, chan->context, "t", 1, chan->cid.cid_num)) {
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Timeout on %s\n", chan->name);
+			strncpy(chan->exten, "t", sizeof(chan->exten));
+			chan->priority = 0;
+		} else {
+			ast_log(LOG_WARNING, "Timeout but no rule 't' in context '%s'\n", chan->context);
+			res = -1;
+		}
 	}
-	return 0;
+	return res;
 }
 
 static int pbx_builtin_background(struct ast_channel *chan, void *data)

@@ -42,6 +42,7 @@ static char *registrar = "pbx_config";
 
 static int static_config = 0;
 static int write_protect_config = 1;
+static int autofallthrough_config = 0;
 
 AST_MUTEX_DEFINE_STATIC(save_dialplan_lock);
 
@@ -1629,6 +1630,10 @@ static int pbx_load_module(void)
 			"static"));
 		write_protect_config = ast_true(ast_variable_retrieve(cfg, "general",
 			"writeprotect"));
+		
+		autofallthrough_config = ast_true(ast_variable_retrieve(cfg, "general",
+			"autofallthrough"));
+
 		v = ast_variable_browse(cfg, "globals");
 		while(v) {
 			memset(realvalue, 0, sizeof(realvalue));
@@ -1773,6 +1778,8 @@ static int pbx_load_module(void)
 
 	for (con = ast_walk_contexts(NULL); con; con = ast_walk_contexts(con))
 		ast_context_verify_includes(con);
+
+	pbx_set_autofallthrough(autofallthrough_config);
 
 	return 0;
 }
