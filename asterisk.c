@@ -28,6 +28,7 @@
 #include <asterisk/pbx.h>
 #include <asterisk/enum.h>
 #include <asterisk/rtp.h>
+#include <asterisk/app.h>
 #include <sys/resource.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -151,6 +152,42 @@ void ast_unregister_atexit(void (*func)(void))
 static int fdprint(int fd, const char *s)
 {
 	return write(fd, s, strlen(s) + 1);
+}
+
+int ast_safe_system(const char *s)
+{
+	/* XXX This function needs some optimization work XXX */
+	pid_t pid;
+	int x;
+	int res;
+	struct rusage rusage;
+	int status;
+	pid = fork();
+	if (pid == 0) {
+		/* Close file descriptors and launch system command */
+		for (x=STDERR_FILENO + 1; x<4096;x++) {
+			close(x);
+		}
+		res = system(s);
+		exit(res);
+	} else if (pid > 0) {
+		for(;;) {
+			res = wait4(pid, &status, 0, &rusage);
+			if (res > -1) {
+				if (WIFEXITED(status))
+					res = WEXITSTATUS(status);
+				else
+					res = -1;
+			} else {
+				if (errno != EINTR) 
+					break;
+			}
+		}
+	} else {
+		ast_log(LOG_WARNING, "Fork failed: %s\n", strerror(errno));
+		res = -1;
+	}
+	return res;
 }
 
 /*
@@ -607,9 +644,9 @@ static void consolehandler(char *s)
 		/* The real handler for bang */
 		if (s[0] == '!') {
 			if (s[1])
-				system(s+1);
+				ast_safe_system(s+1);
 			else
-				system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
+				ast_safe_system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
 		} else 
 		ast_cli_command(STDOUT_FILENO, s);
 	} else
@@ -627,9 +664,9 @@ static int remoteconsolehandler(char *s)
 		/* The real handler for bang */
 		if (s[0] == '!') {
 			if (s[1])
-				system(s+1);
+				ast_safe_system(s+1);
 			else
-				system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
+				ast_safe_system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
 			ret = 1;
 		}
 		if ((strncasecmp(s, "quit", 4) == 0 || strncasecmp(s, "exit", 4) == 0) &&

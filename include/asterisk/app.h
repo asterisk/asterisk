@@ -45,6 +45,9 @@ extern int ast_app_has_voicemail(const char *mailbox);
 //! Determine number of new/old messages in a mailbox
 extern int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs);
 
+//! Safely spawn an external program while closingn file descriptors
+extern int ast_safe_system(const char *s);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

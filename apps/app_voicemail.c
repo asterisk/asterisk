@@ -825,7 +825,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 		}
 		fclose(p);
 		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
-		system(tmp2);
+		ast_safe_system(tmp2);
 		ast_log(LOG_DEBUG, "Sent mail to %s with command '%s'\n", who, mailcmd);
 	} else {
 		ast_log(LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
@@ -836,15 +836,26 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 
 static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char *callerid, long duration, struct ast_vm_user *vmu)
 {
-	FILE *p;
+	FILE *p=NULL;
+	int pfd;
 	char date[256];
 	char host[256];
 	char who[256];
 	char dur[256];
+	char tmp[80] = "/tmp/astmail-XXXXXX";
+	char tmp2[256];
 	time_t t;
 	struct tm tm;
 	struct vm_zone *the_zone = NULL;
 	p = popen(mailcmd, "w");
+
+	if (pfd > -1) {
+		p = fdopen(pfd, "w");
+		if (!p) {
+			close(pfd);
+			pfd = -1;
+		}
+	}
 
 	if (p) {
 		gethostname(host, sizeof(host));
@@ -883,7 +894,9 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char
 		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
 		fprintf(p, "New %s long msg in box %s\n"
 		           "from %s, on %s", dur, mailbox, (callerid ? callerid : "unknown"), date);
-		pclose(p);
+		fclose(p);
+		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
+		ast_safe_system(tmp2);
 		ast_log(LOG_DEBUG, "Sent mail to %s with command '%s'\n", who, mailcmd);
 	} else {
 		ast_log(LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
@@ -2296,7 +2309,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 		snprintf(todir, sizeof(todir), "%s/voicemail/%s/%s/INBOX",  (char *)ast_config_AST_SPOOL_DIR, vmtmp->context, vmtmp->mailbox);
 		snprintf(sys, sizeof(sys), "mkdir -p %s\n", todir);
 		ast_log(LOG_DEBUG, sys);
-		system(sys);
+		ast_safe_system(sys);
 
 		todircount = count_messages(todir);
 		strncpy(tmp, fmt, sizeof(tmp) - 1);
@@ -2307,11 +2320,11 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 				s = "WAV";
 			snprintf(sys, sizeof(sys), "cp %s/msg%04d.%s %s/msg%04d.%s\n", dir, curmsg, s, todir, todircount, s);
 			ast_log(LOG_DEBUG, sys);
-			system(sys);
+			ast_safe_system(sys);
 		}
 		snprintf(sys, sizeof(sys), "cp %s/msg%04d.txt %s/msg%04d.txt\n", dir, curmsg, todir, todircount);
 		ast_log(LOG_DEBUG, sys);
-		system(sys);
+		ast_safe_system(sys);
 		snprintf(fn, sizeof(fn), "%s/msg%04d", todir,todircount);
 
 		/* load the information on the source message so we can send an e-mail like a new message */
