@@ -6946,11 +6946,11 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	return -1;
 }
 
-static void ast_quiet_chan(struct ast_channel *chan) {
-	if(chan && chan->_state == AST_STATE_UP) {
-		if(chan->generatordata)
+static void ast_quiet_chan(struct ast_channel *chan) 
+{
+	if (chan && chan->_state == AST_STATE_UP) {
+		if (chan->generatordata)
 			ast_deactivate_generator(chan);
-		
 	}
 }
 
@@ -6980,13 +6980,13 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 		peera = chana;
 		peerb = chanb;
 		peerc = bridgea;
-	} else if(bridgeb) {
+	} else if (bridgeb) {
 		peera = chanb;
 		peerb = chana;
 		peerc = bridgeb;
 	}
 	
-	if(peera && peerb && peerc) {
+	if (peera && peerb && peerc) {
 		ast_quiet_chan(peera);
 		ast_quiet_chan(peerb);
 		ast_quiet_chan(peerc);
@@ -7007,7 +7007,7 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 		
 		if (ast_channel_masquerade(peerb, peerc)) {
 			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", peerb->name, peerc->name);
-            res = -1;
+			res = -1;
 		}
 		return res;
 	} else {

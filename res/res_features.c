@@ -305,9 +305,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	char *monitor_exec;
 
 	if (chan && peer) {
-        pbx_builtin_setvar_helper(chan, "BRIDGEPEER", peer->name);
-        pbx_builtin_setvar_helper(peer, "BRIDGEPEER", chan->name);
-    } else if (chan)
+		pbx_builtin_setvar_helper(chan, "BRIDGEPEER", peer->name);
+		pbx_builtin_setvar_helper(peer, "BRIDGEPEER", chan->name);
+	} else if (chan)
 		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", NULL);
 
 	if (monitor_ok) {
