@@ -499,11 +499,11 @@ int ast_getformatbyname(char *name)
 {
 	int x = 0, all = 0, format = 0;
 
-	all = strcmp(name, "all") ? 0 : 1;
+	all = strcasecmp(name, "all") ? 0 : 1;
 	for (x = 0 ; x < sizeof(AST_FORMAT_LIST) / sizeof(struct ast_format_list) ; x++) {
 		if(AST_FORMAT_LIST[x].visible && (all || 
-										  !strcmp(AST_FORMAT_LIST[x].name,name) ||
-										  !strcmp(AST_FORMAT_LIST[x].name,ast_expand_codec_alias(name)))) {
+										  !strcasecmp(AST_FORMAT_LIST[x].name,name) ||
+										  !strcasecmp(AST_FORMAT_LIST[x].name,ast_expand_codec_alias(name)))) {
 			format |= AST_FORMAT_LIST[x].bits;
 			if(!all)
 				break;
