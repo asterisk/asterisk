@@ -13,7 +13,12 @@
 
 #include "gsm.h"
 #include "proto.h"
+#ifdef K6OPT
+#include "k6opt.h"
 
+#define Short_term_analysis_filtering Short_term_analysis_filteringx
+
+#endif
 /*
  *  SHORT TERM ANALYSIS FILTERING SECTION
  */
@@ -180,9 +185,16 @@ static void LARp_to_rp P1((LARp),
 
 
 /* 4.2.10 */
-static void Short_term_analysis_filtering P4((S,rp,k_n,s),
-	struct gsm_state * S,
-	register word	* rp,	/* [0..7]	IN	*/
+#ifndef Short_term_analysis_filtering
+
+/* SJB Remark:
+ * I tried 2 MMX versions of this function, neither is significantly
+ * faster than the C version which follows.  MMX might be useful if
+ * one were processing 2 input streams in parallel.
+ */
+static void Short_term_analysis_filtering P4((u0,rp0,k_n,s),
+	register word * u0,
+	register word	* rp0,	/* [0..7]	IN	*/
 	register int 	k_n, 	/*   k_end - k_start	*/
 	register word	* s	/* [0..n-1]	IN/OUT	*/
 )
@@ -194,45 +206,45 @@ static void Short_term_analysis_filtering P4((S,rp,k_n,s),
  *  coefficient), it is assumed that the computation begins with index
  *  k_start (for arrays d[..] and s[..]) and stops with index k_end
  *  (k_start and k_end are defined in 4.2.9.1).  This procedure also
- *  needs to keep the array u[0..7] in memory for each call.
+ *  needs to keep the array u0[0..7] in memory for each call.
  */
 {
-	register word		* u = S->u;
-	register int		i;
-	register word		di, zzz, ui, sav, rpi;
-	register longword 	ltmp;
+	register word		* u_top = u0 + 8;
+	register word		* s_top = s + k_n;
 
-	for (; k_n--; s++) {
-
-		di = sav = *s;
-
-		for (i = 0; i < 8; i++) {		/* YYY */
-
-			ui    = u[i];
-			rpi   = rp[i];
-			u[i]  = sav;
-
-			zzz   = GSM_MULT_R(rpi, di);
-			sav   = GSM_ADD(   ui,  zzz);
-
-			zzz   = GSM_MULT_R(rpi, ui);
-			di    = GSM_ADD(   di,  zzz );
+	while (s < s_top) {
+		register word		*u, *rp ;
+		register longword		di, u_out;
+		di = u_out = *s;
+		for (rp=rp0, u=u0; u<u_top;) {
+			register longword	ui, rpi;
+			ui    = *u;
+			*u++  = u_out;
+			rpi   = *rp++;
+			u_out = ui + (((rpi*di)+0x4000)>>15);
+			di    = di + (((rpi*ui)+0x4000)>>15);
+			/* make the common case fastest: */
+			if ((u_out == (word)u_out) && (di == (word)di)) continue;
+			/* otherwise do slower fixup (saturation) */
+			if (u_out>MAX_WORD) u_out=MAX_WORD;
+			else if (u_out<MIN_WORD) u_out=MIN_WORD;
+			if (di>MAX_WORD) di=MAX_WORD;
+			else if (di<MIN_WORD) di=MIN_WORD;
 		}
-
-		*s = di;
+		*s++ = di;
 	}
 }
+#endif
 
 #if defined(USE_FLOAT_MUL) && defined(FAST)
 
-static void Fast_Short_term_analysis_filtering P4((S,rp,k_n,s),
-	struct gsm_state * S,
+static void Fast_Short_term_analysis_filtering P4((u,rp,k_n,s),
+	register word * u;
 	register word	* rp,	/* [0..7]	IN	*/
 	register int 	k_n, 	/*   k_end - k_start	*/
 	register word	* s	/* [0..n-1]	IN/OUT	*/
 )
 {
-	register word		* u = S->u;
 	register int		i;
 
 	float 	  uf[8],
@@ -262,6 +274,15 @@ static void Fast_Short_term_analysis_filtering P4((S,rp,k_n,s),
 }
 #endif /* ! (defined (USE_FLOAT_MUL) && defined (FAST)) */
 
+/*
+ * SJB Remark: modified Short_term_synthesis_filtering() below
+ *  for significant (abt 35%) speedup of decompression.
+ *    (gcc-2.95, k6 cpu)
+ *  Please don't change this without benchmarking decompression
+ *  to see that you haven't harmed speed.
+ *  This function burns most of CPU time for untoasting.
+ *  Unfortunately, didn't see any good way to benefit from mmx.
+ */
 static void Short_term_synthesis_filtering P5((S,rrp,k,wt,sr),
 	struct gsm_state * S,
 	register word	* rrp,	/* [0..7]	IN	*/
@@ -272,32 +293,34 @@ static void Short_term_synthesis_filtering P5((S,rrp,k,wt,sr),
 {
 	register word		* v = S->v;
 	register int		i;
-	register word		sri, tmp1, tmp2;
-	register longword	ltmp;	/* for GSM_ADD  & GSM_SUB */
+	register longword		sri;
 
 	while (k--) {
 		sri = *wt++;
 		for (i = 8; i--;) {
+			register longword		tmp1, tmp2;
 
 			/* sri = GSM_SUB( sri, gsm_mult_r( rrp[i], v[i] ) );
 			 */
 			tmp1 = rrp[i];
 			tmp2 = v[i];
-			tmp2 =  ( tmp1 == MIN_WORD && tmp2 == MIN_WORD
-				? MAX_WORD
-				: 0x0FFFF & (( (longword)tmp1 * (longword)tmp2
-					     + 16384) >> 15)) ;
 
-			sri  = GSM_SUB( sri, tmp2 );
-
+			tmp2 = (( tmp1 * tmp2 + 16384) >> 15) ;
+			/* saturation done below */
+			sri  -= tmp2;
+			if (sri != (word)sri) {
+				sri = (sri<0)? MIN_WORD:MAX_WORD;
+			}
 			/* v[i+1] = GSM_ADD( v[i], gsm_mult_r( rrp[i], sri ) );
 			 */
-			tmp1  = ( tmp1 == MIN_WORD && sri == MIN_WORD
-				? MAX_WORD
-				: 0x0FFFF & (( (longword)tmp1 * (longword)sri
-					     + 16384) >> 15)) ;
 
-			v[i+1] = GSM_ADD( v[i], tmp1);
+			tmp1 = (( tmp1 * sri + 16384) >> 15) ;
+			/* saturation done below */
+			tmp1 += v[i];
+			if (tmp1 != (word)tmp1) {
+				tmp1 = (tmp1<0)? MIN_WORD:MAX_WORD;
+			}
+			v[i+1] = tmp1;
 		}
 		*sr++ = v[0] = sri;
 	}
@@ -355,7 +378,7 @@ void Gsm_Short_Term_Analysis_Filter P3((S,LARc,s),
 	word		* LARpp_j_1	= S->LARpp[ S->j ^= 1 ];
 
 	word		LARp[8];
-
+int i;
 #undef	FILTER
 #if 	defined(FAST) && defined(USE_FLOAT_MUL)
 # 	define	FILTER 	(* (S->fast			\
@@ -370,19 +393,20 @@ void Gsm_Short_Term_Analysis_Filter P3((S,LARc,s),
 
 	Coefficients_0_12(  LARpp_j_1, LARpp_j, LARp );
 	LARp_to_rp( LARp );
-	FILTER( S, LARp, 13, s);
+	FILTER( S->u, LARp, 13, s);
 
 	Coefficients_13_26( LARpp_j_1, LARpp_j, LARp);
 	LARp_to_rp( LARp );
-	FILTER( S, LARp, 14, s + 13);
+	FILTER( S->u, LARp, 14, s + 13);
 
 	Coefficients_27_39( LARpp_j_1, LARpp_j, LARp);
 	LARp_to_rp( LARp );
-	FILTER( S, LARp, 13, s + 27);
+	FILTER( S->u, LARp, 13, s + 27);
 
 	Coefficients_40_159( LARpp_j, LARp);
 	LARp_to_rp( LARp );
-	FILTER( S, LARp, 120, s + 40);
+	FILTER( S->u, LARp, 120, s + 40);
+	
 }
 
 void Gsm_Short_Term_Synthesis_Filter P4((S, LARcr, wt, s),

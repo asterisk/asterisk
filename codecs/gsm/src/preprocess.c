@@ -42,11 +42,8 @@ void Gsm_Preprocess P3((S, s, so),
 	word 	   mp = S->mp;
 
 	word 	   	s1;
-	longword      L_s2;
 
-	longword      L_temp;
 
-	word		msp, lsp;
 	word		SO;
 
 	longword	ltmp;		/* for   ADD */
@@ -58,7 +55,8 @@ void Gsm_Preprocess P3((S, s, so),
 
 	/*  4.2.1   Downscaling of the input signal
 	 */
-		SO = SASR( *s, 3 ) << 2;
+		/* SO = SASR( *s, 3 ) << 2;*/
+		SO = SASR( *s, 1 ) & ~3;
 		s++;
 
 		assert (SO >= -0x4000);	/* downscaled by     */
@@ -80,21 +78,38 @@ void Gsm_Preprocess P3((S, s, so),
 
 		assert(s1 != MIN_WORD);
 
+	/* SJB Remark: float might be faster than the mess that follows */
+
 		/*   Compute the recursive part
 		 */
-		L_s2 = s1;
-		L_s2 <<= 15;
 
 		/*   Execution of a 31 bv 16 bits multiplication
 		 */
-
+		{
+		word		msp, lsp;
+		longword L_s2;
+		longword L_temp;
+		
+		L_s2 = s1;
+		L_s2 <<= 15;
+#ifndef __GNUC__ 
 		msp = SASR( L_z2, 15 );
-		lsp = L_z2-((longword)msp<<15); /* gsm_L_sub(L_z2,(msp<<15)); */
+		lsp = L_z2 & 0x7fff; /* gsm_L_sub(L_z2,(msp<<15)); */
 
 		L_s2  += GSM_MULT_R( lsp, 32735 );
 		L_temp = (longword)msp * 32735; /* GSM_L_MULT(msp,32735) >> 1;*/
 		L_z2   = GSM_L_ADD( L_temp, L_s2 );
-
+		/* above does L_z2  = L_z2 * 0x7fd5/0x8000 + L_s2 */
+#else
+		L_z2 = ((long long)L_z2*32735 + 0x4000)>>15;
+		/* alternate (ansi) version of above line does slightly different rounding:
+		 * L_temp = L_z2 >> 9;
+		 * L_temp += L_temp >> 5;
+		 * L_temp = (++L_temp) >> 1;
+		 * L_z2 = L_z2 - L_temp;
+		 */
+		L_z2 = GSM_L_ADD(L_z2,L_s2);
+#endif
 		/*    Compute sof[k] with rounding
 		 */
 		L_temp = GSM_L_ADD( L_z2, 16384 );
@@ -105,6 +120,7 @@ void Gsm_Preprocess P3((S, s, so),
 		msp   = GSM_MULT_R( mp, -28180 );
 		mp    = SASR( L_temp, 15 );
 		*so++ = GSM_ADD( mp, msp );
+		}
 	}
 
 	S->z1   = z1;

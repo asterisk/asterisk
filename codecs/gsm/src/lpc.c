@@ -14,6 +14,10 @@
 #include "gsm.h"
 #include "proto.h"
 
+#ifdef K6OPT
+#include "k6opt.h"
+#endif
+
 #undef	P
 
 /*
@@ -44,12 +48,19 @@ static void Autocorrelation P2((s, L_ACF),
 
 	/*  Search for the maximum.
 	 */
+#ifndef K6OPT
 	smax = 0;
 	for (k = 0; k <= 159; k++) {
 		temp = GSM_ABS( s[k] );
 		if (temp > smax) smax = temp;
 	}
-
+#else
+	{
+		longword lmax;
+		lmax = k6maxmin(s,160,NULL);
+		smax = (lmax > MAX_WORD) ? MAX_WORD : lmax;
+	}
+#endif
 	/*  Computation of the scaling factor.
 	 */
 	if (smax == 0) scalauto = 0;
@@ -62,6 +73,7 @@ static void Autocorrelation P2((s, L_ACF),
 	 */
 
 	if (scalauto > 0) {
+#	ifndef K6OPT
 
 # ifdef USE_FLOAT_MUL
 #   define SCALE(n)	\
@@ -83,6 +95,10 @@ static void Autocorrelation P2((s, L_ACF),
 		SCALE(4)
 		}
 # undef	SCALE
+
+#	else /* K6OPT */
+		k6vsraw(s,160,scalauto);
+#	endif
 	}
 # ifdef	USE_FLOAT_MUL
 	else for (k = 0; k <= 159; k++) float_s[k] = (float) s[k];
@@ -90,6 +106,7 @@ static void Autocorrelation P2((s, L_ACF),
 
 	/*  Compute the L_ACF[..].
 	 */
+#ifndef K6OPT
 	{
 # ifdef	USE_FLOAT_MUL
 		register float * sp = float_s;
@@ -136,11 +153,24 @@ static void Autocorrelation P2((s, L_ACF),
 	for (k = 9; k--; L_ACF[k] <<= 1) ; 
 
 	}
+
+#else
+	{
+		int k;
+		for (k=0; k<9; k++) {
+			L_ACF[k] = 2*k6iprod(s,s+k,160-k);
+		}
+	}
+#endif
 	/*   Rescaling of the array s[0..159]
 	 */
 	if (scalauto > 0) {
 		assert(scalauto <= 4); 
+#ifndef K6OPT
 		for (k = 160; k--; *s++ <<= scalauto) ;
+#	else /* K6OPT */
+		k6vsllw(s,160,scalauto);
+#	endif
 	}
 }
 

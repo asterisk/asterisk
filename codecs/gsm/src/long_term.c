@@ -13,7 +13,9 @@
 
 #include "gsm.h"
 #include "proto.h"
-
+#ifdef K6OPT
+#include "k6opt.h"
+#endif
 /*
  *  4.2.11 .. 4.2.12 LONG TERM PREDICTOR (LTP) SECTION
  */
@@ -197,6 +199,9 @@ static void Calculation_of_the_LTP_parameters P4((d,dp,bc_out,Nc_out),
 
 	/* Search for the maximum cross-correlation and coding of the LTP lag
 	 */
+# ifdef K6OPT
+	L_max = k6maxcc(wt,dp,&Nc);
+#	else
 	L_max = 0;
 	Nc    = 40;	/* index for the maximum cross-correlation */
 
@@ -234,7 +239,7 @@ static void Calculation_of_the_LTP_parameters P4((d,dp,bc_out,Nc_out),
 			L_max = L_result;
 		}
 	}
-
+#	endif
 	*Nc_out = Nc;
 
 	L_max <<= 1;

@@ -18,7 +18,9 @@
  */
 
 /* 4.2.13 */
-
+#ifdef K6OPT
+#include "k6opt.h"
+#else
 static void Weighting_filter P2((e, x),
 	register word	* e,		/* signal [-5..0.39.44]	IN  */
 	word		* x		/* signal [0..39]	OUT */
@@ -110,6 +112,7 @@ static void Weighting_filter P2((e, x),
 			: (L_result > MAX_WORD ? MAX_WORD : L_result ));
 	}
 }
+#endif /* K6OPT */
 
 /* 4.2.14 */
 

@@ -30,6 +30,17 @@ WAV49	= -DWAV49
 ######### define this, and read about the GSM_OPT_WAV49 option in the
 ######### manual page on gsm_option(3).
 
+K6OPT	= -DK6OPT
+#K6OPT	=
+######### Define to enable MMXTM optimizations for x86 architecture CPU's
+######### which support MMX instructions.  This should be newer pentiums,
+######### ppro's, etc, as well as the AMD K6 and K7.  The compile will
+######### probably require gcc. 
+
+PG =
+#PG = -g -pg
+######### Profiling flags.  If you don't know what that means, leave it blank.
+ 
 # Choose a compiler.  The code works both with ANSI and K&R-C.
 # Use -DNeedFunctionPrototypes to compile with, -UNeedFunctionPrototypes to
 # compile without, function prototypes in the header files.
@@ -43,7 +54,7 @@ WAV49	= -DWAV49
 # CC		= /usr/lang/acc
 # CCFLAGS 	= -c -O
 
-CC		= gcc -ansi -pedantic -O6 -mpentium -fomit-frame-pointer -fschedule-insns2
+CC		= gcc -ansi -pedantic -O6 -mpentium -fschedule-insns2  -fomit-frame-pointer 
 CCFLAGS 	+= -c -DNeedFunctionPrototypes=1 -finline-functions -funroll-loops
 
 LD 		= $(CC)
@@ -126,20 +137,21 @@ INC	= $(ROOT)/inc
 
 # Flags
 
-# DEBUG	= -DNDEBUG
+DEBUG	= -DNDEBUG
 ######### Remove -DNDEBUG to enable assertions.
 
-CFLAGS	= $(CCFLAGS) $(SASR) $(DEBUG) $(MULHACK) $(FAST) $(LTP_CUT) \
-	$(WAV49) $(CCINC) -I$(INC)
+CFLAGS	= $(PG) $(CCFLAGS) $(SASR) $(DEBUG) $(MULHACK) $(FAST) \
+	$(LTP_CUT) $(WAV49) $(K6OPT) $(CCINC) -I$(INC)
 ######### It's $(CC) $(CFLAGS)
 
-LFLAGS	= $(LDFLAGS) $(LDINC)
+LFLAGS	= $(PG) $(LDFLAGS) $(LDINC)
 ######### It's $(LD) $(LFLAGS)
 
 
 # Targets
 
 LIBGSM	= $(LIB)/libgsm.a
+LIBGSMSO= $(LIB)/libgsm.so
 
 TOAST	= $(BIN)/toast
 UNTOAST	= $(BIN)/untoast
@@ -163,6 +175,7 @@ GSM_SOURCES =	$(SRC)/add.c		\
 		$(SRC)/code.c		\
 		$(SRC)/debug.c		\
 		$(SRC)/decode.c		\
+		$(SRC)/k6opt.s	\
 		$(SRC)/long_term.c	\
 		$(SRC)/lpc.c		\
 		$(SRC)/preprocess.c	\
@@ -207,6 +220,7 @@ GSM_OBJECTS =	$(SRC)/add.o		\
 		$(SRC)/code.o		\
 		$(SRC)/debug.o		\
 		$(SRC)/decode.o		\
+		$(SRC)/k6opt.o	\
 		$(SRC)/long_term.o	\
 		$(SRC)/lpc.o		\
 		$(SRC)/preprocess.o	\
@@ -279,7 +293,7 @@ TOAST_INSTALL_TARGETS =	\
 
 # Target rules
 
-all:		$(LIBGSM) $(TOAST) $(TCAT) $(UNTOAST)
+all:		$(LIBGSM) $(LIBGSMSO) $(TOAST) $(TCAT) $(UNTOAST)
 		@-echo $(ROOT): Done.
 
 tst:		$(TST)/lin2cod $(TST)/cod2lin $(TOAST) $(TST)/test-result
@@ -299,6 +313,11 @@ install:	toastinstall gsminstall
 
 # The basic API: libgsm
 
+$(LIBGSMSO):	$(LIB) $(GSM_OBJECTS)
+		$(LD) -o $@.1.0.10 -shared -Xlinker -soname -Xlinker libgsm.so.1 $(GSM_OBJECTS) -lc
+		ln -fs libgsm.so.1.0.10 lib/libgsm.so.1
+		ln -fs libgsm.so.1.0.10 lib/libgsm.so
+
 $(LIBGSM):	$(LIB) $(GSM_OBJECTS)
 		-rm $(RMFLAGS) $(LIBGSM)
 		$(AR) $(ARFLAGS) $(LIBGSM) $(GSM_OBJECTS)
@@ -308,15 +327,15 @@ $(LIBGSM):	$(LIB) $(GSM_OBJECTS)
 # Toast, Untoast and Tcat -- the compress-like frontends to gsm.
 
 $(TOAST):	$(BIN) $(TOAST_OBJECTS) $(LIBGSM)
-		$(LD) $(LFLAGS) -o $(TOAST) $(TOAST_OBJECTS) $(LIBGSM) $(LDLIB)
+		$(LD) $(LFLAGS) -o $(TOAST) $(TOAST_OBJECTS) $(LIBGSMSO) $(LDLIB)
 
 $(UNTOAST):	$(BIN) $(TOAST)
 		-rm $(RMFLAGS) $(UNTOAST)
-		$(LN) $(TOAST) $(UNTOAST)
+		$(LN) toast $(UNTOAST)
 
 $(TCAT):	$(BIN) $(TOAST)
 		-rm $(RMFLAGS) $(TCAT)
-		$(LN) $(TOAST) $(TCAT)
+		$(LN) toast $(TCAT)
 
 
 # The local bin and lib directories
