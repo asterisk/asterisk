@@ -1026,10 +1026,7 @@ int load_module()
 		}
 		return 0;
 	}
-#if 0
-	if (!full_duplex)
-		ast_log(LOG_WARNING, "XXX I don't work right with non-full duplex sound cards XXX\n");
-#endif
+
 	res = ast_channel_register(type, tdesc, AST_FORMAT_SLINEAR, alsa_request);
 	if (res < 0) {
 		ast_log(LOG_ERROR, "Unable to register channel class '%s'\n", type);
