@@ -276,7 +276,9 @@ ast_yylex (YYSTYPE *lvalp, YYLTYPE *yylloc, struct parser_control *karoto)
 {
 	char *p=0;
 	char *t1=0;
-
+	char savep = 0;
+	char *savepp = 0;
+	
 	if (karoto->firsttoken==1) {
 		t1 = karoto->argv;
 		karoto->firsttoken = 0;
@@ -306,9 +308,28 @@ ast_yylex (YYSTYPE *lvalp, YYLTYPE *yylloc, struct parser_control *karoto)
 			t2++;
 		if( *t2 == '"' )
 		{
-			*t2 = 0;
-			karoto->ptrptr = t2+1;
-			p = t1+1;
+			if( *(t2+1) == ' ' || *(t2+1) == 0 )
+			{
+				if( *(t2+1) )
+				{
+					*(t2+1) = 0;
+					karoto->ptrptr = t2+2;
+				}
+				else
+				{
+					karoto->ptrptr = t2+1;
+				}
+			}
+			else
+			{
+				/* hmmm. what if another token is here? */
+				/* maybe we can insert a space? */
+				savep = *(t2+1);
+				savepp = t2+1;
+				*(t2+1) = 0;
+				karoto->ptrptr = t2+1;
+			}
+			p = t1;
 		}
 		else
 		{
@@ -344,6 +365,12 @@ ast_yylex (YYSTYPE *lvalp, YYLTYPE *yylloc, struct parser_control *karoto)
 	}
 
 	lvalp->val = make_str (p);
+	if( savep )
+	{
+		*savepp = savep; /* restore the null terminated string */
+		savepp = 0;
+		savep = 0;
+	}
 	return (TOKEN);
 }
 
