@@ -212,7 +212,7 @@ static int sound_capture(chan_alsa_pvt_t *driver)
 		fr->data = readbuf;
 		fr->offset = AST_FRIENDLY_OFFSET;
 
-		if (driver->owner) ast_queue_frame(driver->owner, fr, 0);
+		if (driver->owner) ast_queue_frame(driver->owner, fr);
 	}
 	return 0; /* 0 = OK, !=0 -> Error */
 }
@@ -486,13 +486,13 @@ static int alsa_call(struct ast_channel *c, char *dest, int timeout)
 		ast_verbose( " << Auto-answered >> \n" );
                 f.frametype = AST_FRAME_CONTROL;
                 f.subclass = AST_CONTROL_ANSWER;
-                ast_queue_frame(c, &f, 0);
+                ast_queue_frame(c, &f);
 	} else {
                 driver->nosound = 1;
 		ast_verbose( " << Type 'answer' to answer, or use 'autoanswer' for future calls >> \n");
                 f.frametype = AST_FRAME_CONTROL;
                 f.subclass = AST_CONTROL_RINGING;
-                ast_queue_frame(c, &f, 0);
+                ast_queue_frame(c, &f);
 		driver->cursound = res;
 	}
 	return 0;
@@ -879,7 +879,7 @@ static int console_answer(int fd, int argc, char *argv[])
 		return RESULT_FAILURE;
 	}
 	hookstate = 1;
-	ast_queue_frame(alsa.owner, &f, 1);
+	ast_queue_frame(alsa.owner, &f);
 	answer_sound(&alsa);
 	return RESULT_SUCCESS;
 }
@@ -910,7 +910,7 @@ static int console_sendtext(int fd, int argc, char *argv[])
                 f.subclass = 0;
                 f.data = text2send;
                 f.datalen = strlen(text2send);
-                ast_queue_frame(alsa.owner, &f, 1);
+                ast_queue_frame(alsa.owner, &f);
         }
 	return RESULT_SUCCESS;
 }
@@ -931,7 +931,7 @@ static int console_hangup(int fd, int argc, char *argv[])
 	}
 	hookstate = 0;
 	if (alsa.owner) {
-		ast_queue_hangup(alsa.owner, 1);
+		ast_queue_hangup(alsa.owner);
 	}
 	return RESULT_SUCCESS;
 }
@@ -954,7 +954,7 @@ static int console_dial(int fd, int argc, char *argv[])
 		if (argc == 2) {
 			for (x=0;x<strlen(argv[1]);x++) {
                                 f.subclass = argv[1][x];
-                                ast_queue_frame(alsa.owner, &f, 1);
+                                ast_queue_frame(alsa.owner, &f);
                         }
 		} else {
 			ast_cli(fd, "You're already in a call.  You can use this only to dial digits until you hangup\n");
