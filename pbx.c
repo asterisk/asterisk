@@ -1802,7 +1802,7 @@ int ast_pbx_run(struct ast_channel *c)
 	if (firstpass) 
 		ast_log(LOG_WARNING, "Don't know what to do with '%s'\n", c->name);
 out:
-	if (ast_exists_extension(c, c->context, "h", 1, c->callerid)) {
+	if ((res != AST_PBX_KEEPALIVE) && ast_exists_extension(c, c->context, "h", 1, c->callerid)) {
 		strcpy(c->exten, "h");
 		c->priority = 1;
 		while(ast_exists_extension(c, c->context, c->exten, c->priority, c->callerid)) {
