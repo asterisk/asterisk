@@ -219,7 +219,7 @@ static int update_header(int fd)
 	end = lseek(fd, 0, SEEK_END);
 	/* in a gsm WAV, data starts 60 bytes in */
 	bytes = end - 60;
-	datalen = htoll(bytes);
+	datalen = htoll((bytes + 1) & ~0x1);
 	filelen = htoll(52 + ((bytes + 1) & ~0x1));
 	if (cur < 0) {
 		ast_log(LOG_WARNING, "Unable to find our position\n");
