@@ -64,7 +64,7 @@ void ast_image_unregister(struct ast_imager *img)
 	}
 	ast_mutex_unlock(&listlock);
 	if (i && (option_verbose > 1))
-		ast_verbose(VERBOSE_PREFIX_2 "Registered format '%s' (%s)\n", img->name, img->desc);
+		ast_verbose(VERBOSE_PREFIX_2 "Unregistered format '%s' (%s)\n", img->name, img->desc);
 }
 
 int ast_supports_images(struct ast_channel *chan)
