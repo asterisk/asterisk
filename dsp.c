@@ -79,7 +79,7 @@ static struct progress {
 	{ GSAMP_SIZE_CR, { 425 } },
 };
 
-#define DEFAULT_THRESHOLD 1024
+#define DEFAULT_THRESHOLD 512
 
 #define BUSY_PERCENT		10	/* The percentage diffrence between the two last silence periods */
 #define BUSY_THRESHOLD		100	/* Max number of ms difference between max and min times in busy */
