@@ -7594,13 +7594,16 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 						found++;
 					}
 
-					if (found)
+					if (found) {
 						transmit_response(p, "200 OK", req);
-					else {
+						p->needdestroy = 1;
+					} else {
 						transmit_response(p, "403 Forbidden", req);
 						p->needdestroy = 1;
 					}
-					
+
+					return 0;
+				
 				} else
 				    p->subscribed = 1;
 				if (p->subscribed)
@@ -7613,19 +7616,20 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		if (!ignore && p)
 			p->lastinvite = seqno;
 		if (p && !p->needdestroy) {
-		    if (!(p->expiry = atoi(get_header(req, "Expires")))) {
+			if (!(p->expiry = atoi(get_header(req, "Expires")))) {
+				transmit_response(p, "200 OK", req);
+				p->needdestroy = 1;
+				return 0;
+			}
+			/* The next line can be removed if the SNOM200 Expires bug is fixed */
+			if (p->subscribed == 1) {  
+				if (p->expiry>max_expiry) {
+					p->expiry = max_expiry;
+				}
+			}	
 			transmit_response(p, "200 OK", req);
-			p->needdestroy = 1;
-			return 0;
-		    }
-		    /* The next line can be removed if the SNOM200 Expires bug is fixed */
-		    if (p->subscribed == 1) {  
-			if (p->expiry>max_expiry)
-			    p->expiry = max_expiry;
-		    }
-		    transmit_response(p, "200 OK", req);
-		    sip_scheddestroy(p, (p->expiry+10)*1000);
-		    transmit_state_notify(p, ast_extension_state(NULL, p->context, p->exten),1);
+			sip_scheddestroy(p, (p->expiry+10)*1000);
+			transmit_state_notify(p, ast_extension_state(NULL, p->context, p->exten),1);
 		}
 	} else if (!strcasecmp(cmd, "INFO")) {
 		if (!ignore) {
