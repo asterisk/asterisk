@@ -177,7 +177,7 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 	       bridges[i].fo = fo;
 	       bridges[i].c0 = c0;
 	       bridges[i].c1 = c1;
-	       ast_mutex_init(&bridges[i].lock, NULL);
+	       ast_mutex_init(&bridges[i].lock);
 	       pthread_cond_init(&bridges[i].cond, NULL);
 	  } 	       
      } ast_mutex_unlock(&bridge_lock); 
@@ -586,7 +586,7 @@ struct vpb_pvt *mkif(int board, int channel, int mode, float txgain, float rxgai
 
      tmp->readthread = 0;
 
-     ast_mutex_init(&tmp->lock, NULL);
+     ast_mutex_init(&tmp->lock);
 
      if (setrxgain)      
 	  vpb_record_set_gain(tmp->handle, rxgain);

@@ -2149,23 +2149,26 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int se
 		seqno = p->ocseq;
 	}
 
-	if (p->outgoing)
-		strncpy(stripped, get_header(orig, "To"), sizeof(stripped) - 1);
-	else
-		strncpy(stripped, get_header(orig, "From"), sizeof(stripped) - 1);
-	
-	c = strchr(stripped, '<');
-	if (c) 
-		c++;
-	else
-		c = stripped;
-	n = strchr(c, '>');
-	if (n)
-		*n = '\0';
-	n = strchr(c, ';');
-	if (n)
-		*n = '\0';
-	
+	if (strlen(p->uri)) {
+		c = p->uri;
+	} else {
+		if (p->outgoing)
+			strncpy(stripped, get_header(orig, "To"), sizeof(stripped) - 1);
+		else
+			strncpy(stripped, get_header(orig, "From"), sizeof(stripped) - 1);
+		
+		c = strchr(stripped, '<');
+		if (c) 
+			c++;
+		else
+			c = stripped;
+		n = strchr(c, '>');
+		if (n)
+			*n = '\0';
+		n = strchr(c, ';');
+		if (n)
+			*n = '\0';
+	}	
 	init_req(req, msg, c);
 
 	snprintf(tmp, sizeof(tmp), "%d %s", seqno, msg);
@@ -2556,6 +2559,26 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp, st
 	p->lastinvite = p->ocseq;
 	p->outgoing = 1;
 	return send_request(p, &req, 1, p->ocseq);
+}
+
+static void extract_uri(struct sip_pvt *p, struct sip_request *req)
+{
+	char stripped[256]="";
+	char *c, *n;
+	strncpy(stripped, get_header(req, "Contact"), sizeof(stripped) - 1);
+	c = strchr(stripped, '<');
+	if (c) 
+		c++;
+	else
+		c = stripped;
+	n = strchr(c, '>');
+	if (n)
+		*n = '\0';
+	n = strchr(c, ';');
+	if (n)
+		*n = '\0';
+	if (c && strlen(c))
+		strncpy(p->uri, c, sizeof(p->uri) - 1);
 }
 
 static void build_contact(struct sip_pvt *p)
@@ -4705,6 +4728,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			/* Get destination right away */
 			gotdest = get_destination(p, NULL);
 			get_rdnis(p, NULL);
+			extract_uri(p, req);
 			build_contact(p);
 
 			if (gotdest) {
