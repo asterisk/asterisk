@@ -192,7 +192,10 @@ static int ospfinished_exec(struct ast_channel *chan, void *data)
 	}
 	if (chan->cdr) {
 		start = chan->cdr->answer.tv_sec;
-		duration = time(NULL) - start;
+		if (start)
+			duration = time(NULL) - start;
+		else
+			duration = 0;
 	} else
 		ast_log(LOG_WARNING, "OSPFinish called on channel '%s' with no CDR!\n", chan->name);
 	LOCAL_USER_ADD(u);

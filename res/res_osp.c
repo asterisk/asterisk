@@ -28,6 +28,7 @@
 #include <asterisk/utils.h>
 #include <asterisk/lock.h>
 #include <asterisk/causes.h>
+#include <asterisk/callerid.h>
 #include <osp.h>
 #include <openssl/err.h>
 #include <stdio.h>
@@ -434,6 +435,7 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 	char callednum[2048]="";
 	char destination[2048]="";
 	char token[2000];
+	char tmp[256]="", *l, *n;
 	OSPTCALLID *callid;
 	OSPE_DEST_PROT prot;
 
@@ -448,6 +450,16 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 
 	if (!callerid)
 		callerid = "";
+	strncpy(tmp, callerid, sizeof(tmp) - 1);
+	ast_callerid_parse(tmp, &n, &l);
+	if (!l)
+		l = "";
+	else {
+		ast_shrink_phone_number(l);
+		if (!ast_isphonenumber(l))
+			l = "";
+	}
+	callerid = l;
 
 	if (chan) {
 		strncpy(uniqueid, chan->uniqueid, sizeof(uniqueid) - 1);
