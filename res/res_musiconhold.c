@@ -224,8 +224,11 @@ static int spawn_mp3(struct mohclass *class)
 		/* Stdout goes to pipe */
 		dup2(fds[1], STDOUT_FILENO);
 		/* Close unused file descriptors */
-		for (x=3;x<8192;x++)
-			close(x);
+		for (x=3;x<8192;x++) {
+			if (-1 != fcntl(x, F_GETFL)) {
+				close(x);
+			}
+		}
 		/* Child */
 		chdir(class->dir);
 		if(class->custom) {
