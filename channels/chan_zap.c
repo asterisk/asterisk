@@ -5831,6 +5831,12 @@ static void *pri_dchannel(void *vpri)
 #endif
 					else
 						strcpy(pri->pvt[chan]->exten, "");
+					/* No number yet, but received "sending complete"? */
+					if (e->ring.complete && (!strlen(e->ring.callednum))) {
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "Going to extension s|1 because of Complete received\n");
+						strcpy(pri->pvt[chan]->exten, "s");
+					}
 					/* queue DTMF frame if the PBX for this call was already started (we're forwarding INFORMATION further on */
 					if (pri->overlapdial && pri->pvt[chan]->call==e->ring.call && pri->pvt[chan]->owner) {
 						/* how to do that */
