@@ -1717,7 +1717,7 @@ static void start_rtp(struct mgcp_subchannel *sub)
 {
 		ast_pthread_mutex_lock(&sub->lock);
 		/* Allocate the RTP now */
-		sub->rtp = ast_rtp_new(NULL, NULL);
+		sub->rtp = ast_rtp_new(sched, io, 1, 0);
 		if (sub->rtp && sub->owner)
 			sub->owner->fds[0] = ast_rtp_fd(sub->rtp);
 		if (sub->rtp)
@@ -2791,8 +2791,9 @@ static struct ast_rtp *mgcp_get_rtp_peer(struct ast_channel *chan)
 	return NULL;
 }
 
-static int mgcp_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp)
+static int mgcp_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp)
 {
+	/* XXX Is there such thing as video support with MGCP? XXX */
 	struct mgcp_subchannel *sub;
 	sub = chan->pvt->pvt;
 	if (sub) {

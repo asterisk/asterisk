@@ -67,6 +67,8 @@ struct ast_channel_pvt {
 	int (*queryoption)(struct ast_channel *chan, int option, void *data, int *datalen);
 	/*! Blind transfer other side */
 	int (*transfer)(struct ast_channel *chan, char *newdest);
+	/*! Write a frame, in standard format */
+	int (*write_video)(struct ast_channel *chan, struct ast_frame *frame);
 };
 
 //! Create a channel structure

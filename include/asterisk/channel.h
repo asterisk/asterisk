@@ -39,7 +39,7 @@ extern "C" {
 #define MAX_LANGUAGE 20
 
 
-#define AST_MAX_FDS 4
+#define AST_MAX_FDS 8
 
 struct ast_generator {
 	void *(*alloc)(struct ast_channel *chan, void *params);
@@ -72,7 +72,13 @@ struct ast_channel {
 	int writeinterrupt;
 
 	/*! Who are we bridged to, if we're bridged */
-	struct ast_channel *bridge;		
+	struct ast_channel *bridge;
+	/*! Who did we call? */
+	struct ast_channel *dialed;
+	/*! Who called us? */
+	struct ast_channel *dialing;
+	/*! Reverse the dialed link (0 false, 1 true) */
+	int reversedialed;
 	/*! Channel that will masquerade as us */
 	struct ast_channel *masq;		
 	/*! Who we are masquerading as */
@@ -122,7 +128,7 @@ struct ast_channel {
 	/*! Number of rings so far */
 	int rings;				
 	/*! Current level of application */
-	int stack;				
+	int stack;
 
 
 	/*! Kinds of data this channel can natively handle */
@@ -199,7 +205,7 @@ struct ast_channel {
 	unsigned int pickupgroup;
 	
 	/*! For easy linking */
-	struct ast_channel *next;		
+	struct ast_channel *next;
 
 };
 
@@ -452,7 +458,7 @@ int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception);
 
 
 //! Reads a frame
-/*! 
+/*!
  * \param chan channel to read a frame from
  * Read a frame.  Returns a frame, or NULL on error.  If it returns NULL, you
    best just stop reading frames and assume the channel has been
@@ -467,6 +473,15 @@ struct ast_frame *ast_read(struct ast_channel *chan);
  * It returns 0 on success, -1 on failure.
  */
 int ast_write(struct ast_channel *chan, struct ast_frame *frame);
+
+//! Write video frame to a channel
+/*!
+ * \param chan destination channel of the frame
+ * \param frame frame that will be written
+ * This function writes the given frame to the indicated channel.
+ * It returns 1 on success, 0 if not implemented, and -1 on failure.
+ */
+int ast_write_video(struct ast_channel *chan, struct ast_frame *frame);
 
 /* Send empty audio to prime a channel driver */
 int ast_prod(struct ast_channel *chan);

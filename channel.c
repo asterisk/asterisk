@@ -1,4 +1,4 @@
-/*
+ /*
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Channel Management
@@ -1269,6 +1269,17 @@ int ast_prod(struct ast_channel *chan)
 	return 0;
 }
 
+int ast_write_video(struct ast_channel *chan, struct ast_frame *fr)
+{
+	int res;
+	if (!chan->pvt->write_video)
+		return 0;
+	res = ast_write(chan, fr);
+	if (!res)
+		res = 1;
+	return res;
+}
+
 int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 {
 	int res = -1;
@@ -1305,6 +1316,13 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	case AST_FRAME_TEXT:
 		if (chan->pvt->send_text)
 			res = chan->pvt->send_text(chan, (char *) fr->data);
+		break;
+	case AST_FRAME_VIDEO:
+		/* XXX Handle translation of video codecs one day XXX */
+		if (chan->pvt->write_video)
+			res = chan->pvt->write_video(chan, fr);
+		else
+			res = 0;
 		break;
 	default:
 		if (chan->pvt->write) {

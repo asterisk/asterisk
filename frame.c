@@ -367,6 +367,10 @@ int ast_getformatbyname(char *name)
 		return AST_FORMAT_SPEEX;
 	else if (!strcasecmp(name, "ilbc"))
 		return AST_FORMAT_ILBC;
+	else if (!strcasecmp(name, "h261"))
+		return AST_FORMAT_H261;
+	else if (!strcasecmp(name, "h263"))
+		return AST_FORMAT_H263;
 	else if (!strcasecmp(name, "all"))
 		return 0x7FFFFFFF;
 	return 0;

@@ -170,6 +170,8 @@ struct ast_frame_chain {
 #define AST_FORMAT_H261		(1 << 18)
 /*! H.263 Video */
 #define AST_FORMAT_H263		(1 << 19)
+/*! Max one */
+#define AST_FORMAT_MAX_VIDEO	(1 << 24)
 
 /* Control frame types */
 /*! Other end has hungup */

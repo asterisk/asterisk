@@ -37,8 +37,8 @@ extern "C" {
 
 struct ast_rtp_protocol {
 	struct ast_rtp *(*get_rtp_info)(struct ast_channel *chan);				/* Get RTP struct, or NULL if unwilling to transfer */
-	int (*set_rtp_peer)(struct ast_channel *chan, struct ast_rtp *peer);	/* Set RTP peer */
-	int (*get_rtp_willing)(struct ast_channel *chan);		/* Willing to native bridge */
+	struct ast_rtp *(*get_vrtp_info)(struct ast_channel *chan);				/* Get RTP struct, or NULL if unwilling to transfer */
+	int (*set_rtp_peer)(struct ast_channel *chan, struct ast_rtp *peer, struct ast_rtp *vpeer);	/* Set RTP peer */
 	char *type;
 	struct ast_rtp_protocol *next;
 };
@@ -47,11 +47,11 @@ struct ast_rtp;
 
 typedef int (*ast_rtp_callback)(struct ast_rtp *rtp, struct ast_frame *f, void *data);
 
-struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io);
+struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode);
 
 void ast_rtp_set_peer(struct ast_rtp *rtp, struct sockaddr_in *them);
 
-void ast_rtp_get_peer(struct ast_rtp *rpt, struct sockaddr_in *them);
+void ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them);
 
 void ast_rtp_get_us(struct ast_rtp *rtp, struct sockaddr_in *us);
 
@@ -65,7 +65,11 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *f);
 
 struct ast_frame *ast_rtp_read(struct ast_rtp *rtp);
 
+struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp);
+
 int ast_rtp_fd(struct ast_rtp *rtp);
+
+int ast_rtcp_fd(struct ast_rtp *rtp);
 
 int ast_rtp_senddigit(struct ast_rtp *rtp, char digit);
 

@@ -55,6 +55,9 @@ static int echo_exec(struct ast_channel *chan, void *data)
 		if (f->frametype == AST_FRAME_VOICE) {
 			if (ast_write(chan, f)) 
 				break;
+		} else if (f->frametype == AST_FRAME_VIDEO) {
+			if (ast_write(chan, f)) 
+				break;
 		} else if (f->frametype == AST_FRAME_DTMF) {
 			if (f->subclass == '#') {
 				res = 0;
