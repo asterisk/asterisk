@@ -7333,10 +7333,13 @@ static void *pri_dchannel(void *vpri)
 							} else 
 								ast_log(LOG_DEBUG, "Sent deferred digit string: %s\n", pri->pvts[chanpos]->dop.dialstr);
 							pri->pvts[chanpos]->dop.dialstr[0] = '\0';
-						} else
+						} else if (pri->pvts[chanpos]->confirmanswer) {
+							ast_log(LOG_DEBUG, "Waiting on answer confirmation on channel %d!\n", pri->pvts[chanpos]->channel);
+						} else {
 							pri->pvts[chanpos]->subs[SUB_REAL].needanswer =1;
-						/* Enable echo cancellation if it's not on already */
-						zt_enable_ec(pri->pvts[chanpos]);
+							/* Enable echo cancellation if it's not on already */
+							zt_enable_ec(pri->pvts[chanpos]);
+						}
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
 				}
