@@ -1290,7 +1290,7 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 			r->promiscredir = p->promiscredir;
 			strncpy(r->context, p->context,sizeof(r->context)-1);
 			if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
-				(!p->maxms || ((p->lastms > 0)  && (p->lastms <= p->maxms)))) {
+				(!p->maxms || ((p->lastms >= 0)  && (p->lastms <= p->maxms)))) {
 				if (p->addr.sin_addr.s_addr) {
 					r->sa.sin_addr = p->addr.sin_addr;
 					r->sa.sin_port = p->addr.sin_port;
