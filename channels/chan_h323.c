@@ -191,9 +191,32 @@ static void oh323_destroy(struct oh323_pvt *p)
 	ast_mutex_unlock(&iflock);
 }
 
+static void alias_add_e164(struct oh323_alias *alias, char *val)
+{
+	struct e164_number *tmp = alias->e164;
+
+	/* Create a new e164 number structure and chain it */
+	alias->e164 = (struct e164_number *)calloc(1, sizeof(struct e164_number));
+	alias->e164->next = tmp;
+
+	strncpy(alias->e164->number, val, E164_MAX_LENGTH-1);
+}
+
+static void alias_add_prefix(struct oh323_alias *alias, char *val)
+{
+	struct e164_number *tmp = alias->prefix;
+
+	/* Create a new e164 number structure and chain it */
+	alias->prefix = (struct e164_number *)calloc(1, sizeof(struct e164_number));
+	alias->prefix->next = tmp;
+
+	strncpy(alias->prefix->number, val, E164_MAX_LENGTH-1);
+}
+
 static struct oh323_alias *build_alias(char *name, struct ast_variable *v)
 {
 	struct oh323_alias *alias;
+	char *p, *n;
 
 	alias = (struct oh323_alias *)malloc(sizeof(struct oh323_alias));
 
@@ -203,9 +226,19 @@ static struct oh323_alias *build_alias(char *name, struct ast_variable *v)
 
 		while (v) {
 			if (!strcasecmp(v->name, "e164")) {
-				strncpy(alias->e164,  v->value, sizeof(alias->e164)-1);
+				p = v->value;
+				n = strsep(&p, ",");
+				while(n) {
+					alias_add_e164(alias, n);
+					n = strsep(&p, ",");
+				}
 			} else if (!strcasecmp(v->name, "prefix")) {
-				strncpy(alias->prefix,  v->value, sizeof(alias->prefix)-1);
+				p = v->value;
+				n = strsep(&p, ",");
+				while(n) {
+					alias_add_prefix(alias, n);
+					n = strsep(&p, ",");
+				}
 			} else if (!strcasecmp(v->name, "context")) {
 				strncpy(alias->context,  v->value, sizeof(alias->context)-1);
 			} else if (!strcasecmp(v->name, "secret")) {
@@ -218,6 +251,7 @@ static struct oh323_alias *build_alias(char *name, struct ast_variable *v)
 			v = v->next;
 		}
 	}
+
 	return alias;
 }
 
@@ -748,22 +782,21 @@ static struct oh323_pvt *oh323_alloc(int callid)
 
 static struct oh323_pvt *find_call(int call_reference)
 {  
-        struct oh323_pvt *p;
+	struct oh323_pvt *p;
 
-		ast_mutex_lock(&iflock);
-        p = iflist; 
+	ast_mutex_lock(&iflock);
+	p = iflist; 
 
-        while(p) {
-                if (p->cd.call_reference == call_reference) {
-                        /* Found the call */						
-						ast_mutex_unlock(&iflock);
-						return p;
-                }
-                p = p->next; 
-        }
-        ast_mutex_unlock(&iflock);
-		return NULL;
-        
+	while(p) {
+		if (p->cd.call_reference == call_reference) {
+			/* Found the call */						
+			ast_mutex_unlock(&iflock);
+			return p;
+		}
+		p = p->next; 
+	}
+	ast_mutex_unlock(&iflock);
+	return NULL;
 }
 
 static struct ast_channel *oh323_request(char *type, int format, void *data)
@@ -841,6 +874,7 @@ struct oh323_alias *find_alias(const char *source_aliases)
 {
 	struct oh323_alias *a;
 
+	ast_mutex_lock(&aliasl.lock);
 	a = aliasl.aliases;
 
 	while(a) {
@@ -850,6 +884,66 @@ struct oh323_alias *find_alias(const char *source_aliases)
 		}
 		a = a->next;
 	}
+
+	ast_mutex_unlock(&aliasl.lock);
+	return a;
+}
+
+struct oh323_alias *find_e164(const char *source_aliases)
+{
+	struct oh323_alias *a;
+	struct e164_number *num;
+	int found = 0;
+
+	ast_mutex_lock(&aliasl.lock);
+	a = aliasl.aliases;
+
+	while(a && !found) {
+        	if(a->e164) {
+			num = a->e164;
+			while(num) {
+				if(!strncmp(num->number, source_aliases, E164_MAX_LENGTH)) {
+					found = 1;
+					break;
+				}
+			num = num->next;
+		}
+	}
+	if(!found)
+		a = a->next;
+	}
+	ast_mutex_unlock(&aliasl.lock);
+
+	return a;
+}
+
+struct oh323_alias *find_prefix(const char *source_aliases)
+{
+	struct oh323_alias *a;
+	struct e164_number *num;
+	int found = 0;
+
+	ast_mutex_lock(&aliasl.lock);
+
+	a = aliasl.aliases;
+
+	while(a && !found) {
+	if(a->prefix) {
+		num = a->prefix;
+		while(num) {
+			if(strlen(source_aliases) >= strlen(num->number) &&
+			   !strncmp(num->number, source_aliases, strlen(num->number))) {
+				found = 1;
+				break;
+			}
+			num = num->next;
+		}
+	}
+	if(!found)
+		a = a->next;
+	}
+	ast_mutex_unlock(&aliasl.lock);
+
 	return a;
 }
 
@@ -907,7 +1001,7 @@ int send_digit(unsigned call_reference, char digit)
 
 	ast_log(LOG_DEBUG, "Recieved Digit: %c\n", digit);
 	p = find_call(call_reference);
-	
+
 	if (!p) {
 		ast_log(LOG_ERROR, "Private structure not found in send_digit.\n");
 		return -1;
@@ -1000,8 +1094,15 @@ int setup_incoming_call(call_details_t cd)
 	if ((!strcasecmp(cd.sourceIp, gatekeeper)) && (gkroute == -1) && (usingGk == 1)) {
 		
 		if (strlen(cd.call_dest_e164)) {
+			alias = find_e164(cd.call_dest_e164);
+			if(!alias)
+				alias = find_prefix(cd.call_dest_e164);
+            
+			if(!alias)
+				ast_log(LOG_WARNING, "Call for '%s' could not be routed to a context, sending to default.\n", cd.call_dest_e164);
+
 			strncpy(p->exten, cd.call_dest_e164, sizeof(p->exten)-1);
-			strncpy(p->context, default_context, sizeof(p->context)-1); 
+			strncpy(p->context, (alias?alias->context:default_context), sizeof(p->context)-1); 
 		} else {
 			alias = find_alias(cd.call_dest_alias);
 		
@@ -1372,6 +1473,48 @@ static int h323_tokens_show(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int h323_show_aliases(int fd, int argc, char *argv[])
+{
+	struct oh323_alias *alias;
+	struct e164_number *num;
+
+	if (argc != 3) {
+		return RESULT_SHOWUSAGE;
+	}
+	ast_cli(fd, "H323 Configured Aliases/E164/Prefixes:\n");
+
+	ast_mutex_lock(&aliasl.lock);
+	alias = aliasl.aliases;
+
+	if(!alias) {
+		ast_cli(fd, "  Nothing configured!\n");
+		ast_mutex_unlock(&aliasl.lock);
+		return RESULT_SUCCESS;
+	}
+
+	ast_cli(fd, "%-20s %-5s %-20s %-20s\n", "Alias", "Type", "E164", "Context");
+
+	while(alias) {
+		ast_cli(fd, "%-20s %-5s %-20s %-20s\n", alias->name, "id", "", alias->context);
+
+		num = alias->e164;
+		while(num) {
+			ast_cli(fd, "%-20s %-5s %-20s %-20s\n", alias->name, "e164", num->number, alias->context);
+			num = num->next;
+		}
+
+		num = alias->prefix;
+		while(num) {
+			ast_cli(fd, "%-20s %-5s %-20s %-20s\n", alias->name, "pfx", num->number, alias->context);
+			num = num->next;
+		}
+
+		alias = alias->next;
+	}
+
+	ast_mutex_unlock(&aliasl.lock);
+	return RESULT_SUCCESS;
+}
 
 static char trace_usage[] = 
 "Usage: h.323 trace <level num>\n"
@@ -1405,6 +1548,10 @@ static char show_tokens_usage[] =
 "Usage: h.323 show tokens\n"
 "       Print out all active call tokens\n";
 
+static char show_aliases_usage[] =
+"Usage: h.323 show aliases\n"
+"       Print out all configured aliases\n";
+
 static struct ast_cli_entry  cli_trace =
 	{ { "h.323", "trace", NULL }, h323_do_trace, "Enable H.323 Stack Tracing", trace_usage };
 static struct ast_cli_entry  cli_no_trace =
@@ -1421,7 +1568,8 @@ static struct ast_cli_entry  cli_hangup_call =
 	{ { "h.323", "hangup", NULL }, h323_ep_hangup, "Manually try to hang up a call", show_hangup_usage };
 static struct ast_cli_entry  cli_show_tokens =
 	{ { "h.323", "show", "tokens", NULL }, h323_tokens_show, "Manually try to hang up a call", show_tokens_usage };
-
+static struct ast_cli_entry  cli_show_aliases =
+    { { "h.323", "show", "aliases", NULL }, h323_show_aliases, "Show configured aliases", show_aliases_usage };
 
 
 int reload_config(void)
@@ -1612,12 +1760,26 @@ void delete_users(void)
 void delete_aliases(void)
 {
 	struct oh323_alias *alias, *aliaslast;
-		
+	struct e164_number *num, *numlast;
+    
 	/* Delete all users */
 	ast_mutex_lock(&aliasl.lock);
 	for (alias=aliasl.aliases;alias;) {
 		aliaslast = alias;
 		alias=alias->next;
+        
+		for(num=aliaslast->e164;num;) {
+			numlast = num;
+			num = num->next;
+			free(num);
+		}
+
+		for(num=aliaslast->prefix;num;) {
+			numlast = num;
+			num = num->next;
+			free(num);
+		}
+
 		free(aliaslast);
 	}
 	aliasl.aliases=NULL;
@@ -1775,7 +1937,8 @@ int load_module()
 		ast_cli_register(&cli_gk_cycle);
 		ast_cli_register(&cli_hangup_call);
 		ast_cli_register(&cli_show_tokens);
-
+		ast_cli_register(&cli_show_aliases);
+        
 		oh323_rtp.type = type;
 		ast_rtp_proto_register(&oh323_rtp);
 
@@ -1907,7 +2070,3 @@ char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
-
-
-
-

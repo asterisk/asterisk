@@ -886,10 +886,7 @@ int h323_start_listener(int listenPort, struct sockaddr_in bindaddr)
    
 int h323_set_alias(struct oh323_alias *alias)
 {
-	char *p;
-	char *num;
 	PString h323id(alias->name);
-	PString e164(alias->e164);
 	
 	if (!h323_end_point_exist()) {
 		cout << "ERROR: [h323_set_alias] No Endpoint, this is bad!" << endl;
@@ -900,18 +897,26 @@ int h323_set_alias(struct oh323_alias *alias)
 	endPoint->AddAliasName(h323id);	
 	endPoint->RemoveAliasName(localProcess->GetUserName());
 
-	if (!e164.IsEmpty()) {
-		cout << "  == Adding E.164 \"" << e164 << "\" to endpoint" << endl;
-		endPoint->AddAliasName(e164);
-	}
-	if (strlen(alias->prefix)) {
-		p = alias->prefix;
-		num = strsep(&p, ",");
+	if(alias->e164) {
+		struct e164_number *num = alias->e164;
 		while(num) {
-	        cout << "  == Adding Prefix \"" << num << "\" to endpoint" << endl;
-			endPoint->SupportedPrefixes += PString(num);
-			endPoint->SetGateway();
-	        num = strsep(&p, ",");		
+			if(strlen(num->number)) {
+				cout << "  == Adding E.164 \"" << num->number << "\" to endpoint" << endl;
+				endPoint->AddAliasName(num->number);
+			}
+			num = num->next;
+		}
+	}
+
+	if(alias->prefix) {
+		struct e164_number *num = alias->prefix;
+		while(num) {
+			if(strlen(num->number)) {
+				cout << "  == Adding Prefix \"" << num->number << "\" to endpoint" << endl;
+				endPoint->SupportedPrefixes += PString(num->number);
+				endPoint->SetGateway();
+			}
+			num = num->next;
 		}
 	}
 
