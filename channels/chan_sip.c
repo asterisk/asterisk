@@ -3300,7 +3300,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 						ast_async_goto(transfer_to,"", p->refer_to,1, 1);
 				}
 			}
-			transmit_request(p, "BYE", p->outgoing);
+			/* Always increment on a BYE */
+			transmit_request(p, "BYE", 1);
 			p->alreadygone = 1;
 		}
 	} else if (!strcasecmp(cmd, "CANCEL") || !strcasecmp(cmd, "BYE")) {
