@@ -5568,30 +5568,46 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 	struct sip_peer *peer;
 	char name[256] = "";
 	char iabuf[INET_ADDRSTRLEN];
+	int total_peers = 0;
+	int peers_online = 0;
+	int peers_offline = 0;
+
+	
 	if (argc != 3 && argc != 5)
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&peerl.lock);
 	ast_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Mask", "Port", "Status");
+	
 	for (peer = peerl.peers;peer;peer = peer->next) {
 		char nm[20] = "";
 		char status[20] = "";
 		int print_line = -1;
 		char srch[2000];
-
+		
 		ast_inet_ntoa(nm, sizeof(nm), peer->mask);
 		if (!ast_strlen_zero(peer->username))
 			snprintf(name, sizeof(name), "%s/%s", peer->name, peer->username);
 		else
 			strncpy(name, peer->name, sizeof(name) - 1);
 		if (peer->maxms) {
-			if (peer->lastms < 0)
+			if (peer->lastms < 0) {
 				strncpy(status, "UNREACHABLE", sizeof(status) - 1);
-			else if (peer->lastms > peer->maxms) 
+				peers_offline++;
+			} else if (peer->lastms > peer->maxms) {
 				snprintf(status, sizeof(status), "LAGGED (%d ms)", peer->lastms);
-			else if (peer->lastms) 
+				peers_online++;
+			} else if (peer->lastms) {
 				snprintf(status, sizeof(status), "OK (%d ms)", peer->lastms);
-			else 
+				peers_online++;
+			} else {
+				/* Checking if port is 0 */
+				if ( ntohs(peer->addr.sin_port) == 0 ) { 
+					peers_offline++;
+				} else {
+					peers_online++;
+				}
 				strncpy(status, "UNKNOWN", sizeof(status) - 1);
+			}
 		} else 
 			strncpy(status, "Unmonitored", sizeof(status) - 1);
 			snprintf(srch, sizeof(srch), FORMAT, name,
@@ -5623,7 +5639,9 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 			nm,
 			ntohs(peer->addr.sin_port), status);
 		}
+		total_peers++;
 	}
+	ast_cli(fd,"%d sip peers loaded [%d onlines , %d offlines]\n",total_peers,peers_online,peers_offline);
 	ast_mutex_unlock(&peerl.lock);
 	return RESULT_SUCCESS;
 #undef FORMAT
