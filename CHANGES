@@ -1,3 +1,5 @@
+Asterisk 1.0-RC1
+ -- Innumerable bug fixes and features from the bug tracker
  -- Added Open Settlement Protocol (OSP) support
  -- Added Non-facility Associated Signalling (NFAS) Support
  -- Added alarm Monitoring support

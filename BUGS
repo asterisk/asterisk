@@ -1,3 +1,8 @@
+Asterisk 1.0-RC-1 Known Major Bugs
+==================================
+* Some people still have issues with H.323
+* QuickNet driver still not entirely stable
+
 Asterisk Bug Tracking Information
 =================================
 
