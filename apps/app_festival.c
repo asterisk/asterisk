@@ -170,7 +170,7 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 			}
 			if (f->frametype == AST_FRAME_DTMF) {
 				ast_log(LOG_DEBUG, "User pressed a key\n");
-				if (strchr(intkeys, f->subclass)) {
+				if (intkeys && strchr(intkeys, f->subclass)) {
 					res = f->subclass;
 					ast_frfree(f);
 					break;
