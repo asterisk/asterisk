@@ -822,11 +822,11 @@ static struct ast_channel *oh323_request(char *type, int format, void *data)
 			p->nonCodecCapability &= ~AST_RTP_DTMF;
 	}
 
-
+	if (ext) {
+		strncpy(p->username, ext, sizeof(p->username) - 1);
+	}
 	ast_log(LOG_DEBUG, "Host: %s\tUsername: %s\n", host, p->username);
 
-	if (ext)
-		strncpy(p->username, ext, sizeof(p->username) - 1);
 	tmpc = oh323_new(p, AST_STATE_DOWN, host);
 	if (!tmpc)
 		oh323_destroy(p);
