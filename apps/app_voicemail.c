@@ -955,6 +955,7 @@ yuck:
 	return x;
 }
 
+
 static int count_messages(char *dir)
 {
 	return last_message_index(dir) + 1;
@@ -1251,6 +1252,7 @@ yuck:
 }
 
 #else
+
 static int count_messages(char *dir)
 {
 	/* Find all .txt files - even if they are not in sequence from 0000 */
@@ -1839,6 +1841,124 @@ static char *mbox(int id)
 	}
 }
 
+static int has_voicemail(const char *mailbox, const char *folder)
+{
+	DIR *dir;
+	struct dirent *de;
+	char fn[256];
+	char tmp[256]="";
+	char *mb, *cur;
+	char *context;
+	int ret;
+	if (!folder)
+		folder = "INBOX";
+	/* If no mailbox, return immediately */
+	if (ast_strlen_zero(mailbox))
+		return 0;
+	if (strchr(mailbox, ',')) {
+		strncpy(tmp, mailbox, sizeof(tmp) - 1);
+		mb = tmp;
+		ret = 0;
+		while((cur = strsep(&mb, ","))) {
+			if (!ast_strlen_zero(cur)) {
+				if (has_voicemail(cur, folder))
+					return 1; 
+			}
+		}
+		return 0;
+	}
+	strncpy(tmp, mailbox, sizeof(tmp) - 1);
+	context = strchr(tmp, '@');
+	if (context) {
+		*context = '\0';
+		context++;
+	} else
+		context = "default";
+	snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/%s", (char *)ast_config_AST_SPOOL_DIR, context, tmp, folder);
+	dir = opendir(fn);
+	if (!dir)
+		return 0;
+	while ((de = readdir(dir))) {
+		if (!strncasecmp(de->d_name, "msg", 3))
+			break;
+	}
+	closedir(dir);
+	if (de)
+		return 1;
+	return 0;
+}
+
+static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
+{
+	DIR *dir;
+	struct dirent *de;
+	char fn[256];
+	char tmp[256]="";
+	char *mb, *cur;
+	char *context;
+	int ret;
+	if (newmsgs)
+		*newmsgs = 0;
+	if (oldmsgs)
+		*oldmsgs = 0;
+	/* If no mailbox, return immediately */
+	if (ast_strlen_zero(mailbox))
+		return 0;
+	if (strchr(mailbox, ',')) {
+		int tmpnew, tmpold;
+		strncpy(tmp, mailbox, sizeof(tmp) - 1);
+		mb = tmp;
+		ret = 0;
+		while((cur = strsep(&mb, ", "))) {
+			if (!ast_strlen_zero(cur)) {
+				if (messagecount(cur, newmsgs ? &tmpnew : NULL, oldmsgs ? &tmpold : NULL))
+					return -1;
+				else {
+					if (newmsgs)
+						*newmsgs += tmpnew; 
+					if (oldmsgs)
+						*oldmsgs += tmpold;
+				}
+			}
+		}
+		return 0;
+	}
+	strncpy(tmp, mailbox, sizeof(tmp) - 1);
+	context = strchr(tmp, '@');
+	if (context) {
+		*context = '\0';
+		context++;
+	} else
+		context = "default";
+	if (newmsgs) {
+		snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/INBOX", (char *)ast_config_AST_SPOOL_DIR, context, tmp);
+		dir = opendir(fn);
+		if (dir) {
+			while ((de = readdir(dir))) {
+				if ((strlen(de->d_name) > 3) && !strncasecmp(de->d_name, "msg", 3) &&
+					!strcasecmp(de->d_name + strlen(de->d_name) - 3, "txt"))
+						(*newmsgs)++;
+					
+			}
+			closedir(dir);
+		}
+	}
+	if (oldmsgs) {
+		snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/Old", (char *)ast_config_AST_SPOOL_DIR, context, tmp);
+		dir = opendir(fn);
+		if (dir) {
+			while ((de = readdir(dir))) {
+				if ((strlen(de->d_name) > 3) && !strncasecmp(de->d_name, "msg", 3) &&
+					!strcasecmp(de->d_name + strlen(de->d_name) - 3, "txt"))
+						(*oldmsgs)++;
+					
+			}
+			closedir(dir);
+		}
+	}
+	return 0;
+}
+
 static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, int msgnum, long duration, char *fmt, char *cidnum, char *cidname);
 
 static void copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt)
@@ -1885,7 +2005,7 @@ static void run_externnotify(char *context, char *extension)
 	int newvoicemails = 0, oldvoicemails = 0;
 
 	if (!ast_strlen_zero(externnotify)) {
-		if (ast_app_messagecount(extension, &newvoicemails, &oldvoicemails)) {
+		if (messagecount(extension, &newvoicemails, &oldvoicemails)) {
 			ast_log(LOG_ERROR, "Problem in calculating number of voicemail messages available for extension %s\n", extension);
 		} else {
 			snprintf(arguments, sizeof(arguments), "%s %s %s %d&", externnotify, context, extension, newvoicemails);
@@ -3037,7 +3157,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 					ast_destroy(mif); /* or here */
 				}
 				/* Leave voicemail for someone */
-				manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, ast_app_has_voicemail(ext_context, NULL));
+				manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, has_voicemail(ext_context, NULL));
 				run_externnotify(chan->context, ext_context);
 	
 				saved_messages++;
@@ -4755,7 +4875,7 @@ out:
 		close_mailbox(&vms, vmu);
 	if (valid) {
 		snprintf(ext_context, sizeof(ext_context), "%s@%s", vms.username, vmu->context);
-		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, ast_app_has_voicemail(ext_context, NULL));
+		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, has_voicemail(ext_context, NULL));
 		run_externnotify(chan->context, ext_context);
 	}
 	if (vmu)
@@ -5415,6 +5535,7 @@ int unload_module(void)
 	res |= ast_unregister_application(app4);
 	ast_cli_unregister(&show_voicemail_users_cli);
 	ast_cli_unregister(&show_voicemail_zones_cli);
+	ast_uninstall_vm_functions();
 	return res;
 }
 
@@ -5431,8 +5552,12 @@ int load_module(void)
 	if ((res=load_config())) {
 		return(res);
 	}
+
 	ast_cli_register(&show_voicemail_users_cli);
 	ast_cli_register(&show_voicemail_zones_cli);
+
+	ast_install_vm_functions(has_voicemail, messagecount);
+
 	return res;
 }
 
@@ -5831,3 +5956,4 @@ char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
+

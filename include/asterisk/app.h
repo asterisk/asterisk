@@ -39,11 +39,16 @@ extern int ast_app_getdata_full(struct ast_channel *c, char *prompt, char *s, in
 //! Record voice (after playing prompt if specified), waiting for silence (in ms) up to a given timeout (in s) or '#'
 int ast_app_getvoice(struct ast_channel *c, char *dest, char *dstfmt, char *prompt, int silence, int maxsec);
 
+void ast_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
+			      int (*messagecount_func)(const char *mailbox, int *newmsgs, int *oldmsgs));
+  
+void ast_uninstall_vm_functions(void);
+
 //! Determine if a given mailbox has any voicemail
-extern int ast_app_has_voicemail(const char *mailbox, const char *folder);
+int ast_app_has_voicemail(const char *mailbox, const char *folder);
 
 //! Determine number of new/old messages in a mailbox
-extern int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs);
+int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs);
 
 //! Safely spawn an external program while closingn file descriptors
 extern int ast_safe_system(const char *s);

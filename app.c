@@ -150,121 +150,46 @@ int ast_app_getvoice(struct ast_channel *c, char *dest, char *dstfmt, char *prom
 	return 0;
 }
 
+static int (*ast_has_voicemail_func)(const char *mailbox, const char *folder) = NULL;
+static int (*ast_messagecount_func)(const char *mailbox, int *newmsgs, int *oldmsgs) = NULL;
+
+void ast_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
+			      int (*messagecount_func)(const char *mailbox, int *newmsgs, int *oldmsgs))
+{
+	ast_has_voicemail_func = has_voicemail_func;
+	ast_messagecount_func = messagecount_func;
+}
+
+void ast_uninstall_vm_functions(void)
+{
+	ast_has_voicemail_func = NULL;
+	ast_messagecount_func = NULL;
+}
+
 int ast_app_has_voicemail(const char *mailbox, const char *folder)
 {
-	DIR *dir;
-	struct dirent *de;
-	char fn[256];
-	char tmp[256]="";
-	char *mb, *cur;
-	char *context;
-	int ret;
-	if (!folder)
-		folder = "INBOX";
-	/* If no mailbox, return immediately */
-	if (ast_strlen_zero(mailbox))
-		return 0;
-	if (strchr(mailbox, ',')) {
-		strncpy(tmp, mailbox, sizeof(tmp) - 1);
-		mb = tmp;
-		ret = 0;
-		while((cur = strsep(&mb, ","))) {
-			if (!ast_strlen_zero(cur)) {
-				if (ast_app_has_voicemail(cur, folder))
-					return 1; 
-			}
-		}
-		return 0;
-	}
-	strncpy(tmp, mailbox, sizeof(tmp) - 1);
-	context = strchr(tmp, '@');
-	if (context) {
-		*context = '\0';
-		context++;
-	} else
-		context = "default";
-	snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/%s", (char *)ast_config_AST_SPOOL_DIR, context, tmp, folder);
-	dir = opendir(fn);
-	if (!dir)
-		return 0;
-	while ((de = readdir(dir))) {
-		if (!strncasecmp(de->d_name, "msg", 3))
-			break;
-	}
-	closedir(dir);
-	if (de)
-		return 1;
+	if (ast_has_voicemail_func)
+		return ast_has_voicemail_func(mailbox, folder);
+
+        if (option_verbose > 2)
+                ast_verbose(VERBOSE_PREFIX_3 "Message check requested for mailbox %s/folder %s but voicemail not loaded.", mailbox, folder);
+
 	return 0;
 }
 
+
 int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 {
-	DIR *dir;
-	struct dirent *de;
-	char fn[256];
-	char tmp[256]="";
-	char *mb, *cur;
-	char *context;
-	int ret;
 	if (newmsgs)
 		*newmsgs = 0;
 	if (oldmsgs)
 		*oldmsgs = 0;
-	/* If no mailbox, return immediately */
-	if (ast_strlen_zero(mailbox))
-		return 0;
-	if (strchr(mailbox, ',')) {
-		int tmpnew, tmpold;
-		strncpy(tmp, mailbox, sizeof(tmp) - 1);
-		mb = tmp;
-		ret = 0;
-		while((cur = strsep(&mb, ", "))) {
-			if (!ast_strlen_zero(cur)) {
-				if (ast_app_messagecount(cur, newmsgs ? &tmpnew : NULL, oldmsgs ? &tmpold : NULL))
-					return -1;
-				else {
-					if (newmsgs)
-						*newmsgs += tmpnew; 
-					if (oldmsgs)
-						*oldmsgs += tmpold;
-				}
-			}
-		}
-		return 0;
-	}
-	strncpy(tmp, mailbox, sizeof(tmp) - 1);
-	context = strchr(tmp, '@');
-	if (context) {
-		*context = '\0';
-		context++;
-	} else
-		context = "default";
-	if (newmsgs) {
-		snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/INBOX", (char *)ast_config_AST_SPOOL_DIR, context, tmp);
-		dir = opendir(fn);
-		if (dir) {
-			while ((de = readdir(dir))) {
-				if ((strlen(de->d_name) > 3) && !strncasecmp(de->d_name, "msg", 3) &&
-					!strcasecmp(de->d_name + strlen(de->d_name) - 3, "txt"))
-						(*newmsgs)++;
-					
-			}
-			closedir(dir);
-		}
-	}
-	if (oldmsgs) {
-		snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/Old", (char *)ast_config_AST_SPOOL_DIR, context, tmp);
-		dir = opendir(fn);
-		if (dir) {
-			while ((de = readdir(dir))) {
-				if ((strlen(de->d_name) > 3) && !strncasecmp(de->d_name, "msg", 3) &&
-					!strcasecmp(de->d_name + strlen(de->d_name) - 3, "txt"))
-						(*oldmsgs)++;
-					
-			}
-			closedir(dir);
-		}
-	}
+	if (ast_messagecount_func)
+		return ast_messagecount_func(mailbox, newmsgs, oldmsgs);
+
+        if (option_verbose > 2)
+                ast_verbose(VERBOSE_PREFIX_3 "Message count requested for mailbox %s but voicemail not loaded.", mailbox);
+
 	return 0;
 }
 
