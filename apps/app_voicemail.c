@@ -3377,7 +3377,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				goto out;
 			}
 		}
-		if (prefix) {
+		if (prefix && !ast_strlen_zero(prefixstr)) {
 			char fullusername[80] = "";
 			strncpy(fullusername, prefixstr, sizeof(fullusername) - 1);
 			strncat(fullusername, vms.username, sizeof(fullusername) - 1);
