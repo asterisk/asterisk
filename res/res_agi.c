@@ -613,6 +613,24 @@ static int handle_sayalpha(struct ast_channel *chan, AGI *agi, int argc, char *a
 		return RESULT_FAILURE;
 }
 
+static int handle_saydate(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
+{
+	int res;
+	int num;
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	if (sscanf(argv[2], "%i", &num) != 1)
+		return RESULT_SHOWUSAGE;
+	res = ast_say_date(chan, num, argv[3], chan->language);
+	if (res == 1)
+		return RESULT_SUCCESS;
+	fdprintf(agi->fd, "200 result=%d\n", res);
+	if (res >= 0)
+		return RESULT_SUCCESS;
+	else
+		return RESULT_FAILURE;
+}
+
 static int handle_saytime(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	int res;
@@ -1355,6 +1373,14 @@ static char usage_sayalpha[] =
 " being pressed, or the ASCII numerical value of the digit if one was pressed or\n"
 " -1 on error/hangup.\n";
 
+static char usage_saydate[] =
+" Usage: SAY DATE <date> <escape digits>\n"
+"	Say a given date, returning early if any of the given DTMF digits are\n"
+" received on the channel.  <date> is number of seconds elapsed since 00:00:00\n"
+" on January 1, 1970, Coordinated Universal Time (UTC). Returns 0 if playback\n"
+" completes without a digit being pressed, or the ASCII numerical value of the\n"
+" digit if one was pressed or -1 on error/hangup.\n";
+
 static char usage_saytime[] =
 " Usage: SAY TIME <time> <escape digits>\n"
 "	Say a given time, returning early if any of the given DTMF digits are\n"
@@ -1429,6 +1455,7 @@ static agi_command commands[MAX_COMMANDS] = {
 	{ { "say", "digits", NULL }, handle_saydigits, "Says a given digit string", usage_saydigits },
 	{ { "say", "number", NULL }, handle_saynumber, "Says a given number", usage_saynumber },
 	{ { "say", "phonetic", NULL }, handle_sayphonetic, "Says a given character string with phonetics", usage_sayphonetic },
+	{ { "say", "date", NULL }, handle_saydate, "Says a given date", usage_saydate },
 	{ { "say", "time", NULL }, handle_saytime, "Says a given time", usage_saytime },
 	{ { "send", "image", NULL }, handle_sendimage, "Sends images to channels supporting it", usage_sendimage },
 	{ { "send", "text", NULL }, handle_sendtext, "Sends text to channels supporting it", usage_sendtext },
