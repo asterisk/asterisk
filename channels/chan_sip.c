@@ -5749,7 +5749,7 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 
 	ast_mutex_unlock(&peerl.lock);
 
-	if (peer && peer->dynamic) {
+	if (peer && peer->temponly) {
 		destroy_peer(peer);
 	}
 	return RESULT_SUCCESS;
