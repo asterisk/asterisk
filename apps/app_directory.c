@@ -42,7 +42,8 @@ static char *descrip =
 "Returns 0 unless the user hangs up. It  also sets up the channel on exit\n"
 "to enter the extension the user selected.  If the user enters '0' and there\n"
 "exists an extension 'o' in the current context, the directory will exit with 0\n"
-"and call control will resume at that extension.\n";
+"and call control will resume at that extension.  Entering '*' will exit similarly,\n"
+"but to the 'a' extension, much like app_voicemail's behavior.\n";
 
 /* For simplicity, I'm keeping the format compatible with the voicemail config,
    but i'm open to suggestions for isolating it */
@@ -239,6 +240,20 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 		} else {
 
 			ast_log(LOG_WARNING, "Can't find extension 'o' in current context.  "
+				"Not Exiting the Directory!\n");
+			res = 0;
+		}
+	}	
+	if (digit == '*') {
+		if (ast_exists_extension(chan,chan->context,"a",1,chan->cid.cid_num) || 
+			(!ast_strlen_zero(chan->macrocontext) &&
+		     ast_exists_extension(chan, chan->macrocontext, "a", 1, chan->cid.cid_num))) {
+			strncpy(chan->exten, "a", sizeof(chan->exten)-1);
+			chan->priority = 0;
+			return 0;
+		} else {
+
+			ast_log(LOG_WARNING, "Can't find extension 'a' in current context.  "
 				"Not Exiting the Directory!\n");
 			res = 0;
 		}
