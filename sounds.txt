@@ -320,7 +320,7 @@
 
 %p-m.gsm%P.M.
 
-%thousand.gsm%thousand
+%pound.gsm%pound
 
 %privacy-incorrect.gsm%will_be_added_later
 
@@ -329,6 +329,10 @@
 %privacy-thankyou.gsm%will_be_added_later
 
 %privacy-unident.gsm%will_be_added_later
+
+%star.gsm%star
+
+%thousand.gsm%thousand
 
 %at.gsm%at
 

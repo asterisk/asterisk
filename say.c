@@ -25,7 +25,16 @@ int ast_say_digit_str(struct ast_channel *chan, char *fn2, char *ints, char *lan
 	int num = 0;
 	int res = 0;
 	while(fn2[num] && !res) {
-		snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
+		switch (fn2[num]) {
+			case ('*'):
+				snprintf(fn, sizeof(fn), "digits/star");
+				break;
+			case ('#'):
+				snprintf(fn, sizeof(fn), "digits/pound");
+				break;
+			default:
+				snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
+			}
 		res = ast_streamfile(chan, fn, lang);
 		if (!res) 
 			res = ast_waitstream(chan, ints);
