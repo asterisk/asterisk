@@ -3224,6 +3224,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		if (p->expire > -1)
 			ast_sched_del(sched, p->expire);
 		p->expire = -1;
+		ast_db_del("SIP/Registry", p->name);
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", p->name);
 		return 0;
