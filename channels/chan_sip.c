@@ -1072,7 +1072,7 @@ static struct sip_user *mysql_user(char *user)
 							if (sscanf(rowval[x], "%li", &regseconds) != 1)
 								regseconds = 0;
 						} else if (!strcasecmp(fields[x].name, "restrictcid")) {
-							u->restrictcid = 1;
+							u->restrictcid = *(rowval[x])-'0';
 						} else if (!strcasecmp(fields[x].name, "callerid")) {
 							strncpy(u->callerid, rowval[x], sizeof(u->callerid) - 1);
 							u->hascallerid=1;
