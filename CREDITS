@@ -1,7 +1,3 @@
-=== HARDWARE DONORS === 
-* Thanks to QuickNet Technologies for their donation of an Internet
-PhoneJack and Linejack card to the project.  (http://www.quicknet.net)
-
 
 === DEVELOPMENT SUPPORT ===
 I'd like to thank the following companies for helping fund development of
@@ -9,6 +5,16 @@ Asterisk:
 
 Pilosoft, Inc. - for supporting ADSI development in Asterisk
 
+GFS - for supporting ALSA development
+
+Telesthetic - for supporting SIP development
+
+=== HARDWARE DONORS === 
+* Thanks to QuickNet Technologies for their donation of an Internet
+PhoneJack and Linejack card to the project.  (http://www.quicknet.net)
+
+=== MISCELLANEOUS PATCHES ===
+Oliver Daudey - ISDN4Linux fixes
 
 === OTHER SOURCE CODE IN ASTERISK ===
 

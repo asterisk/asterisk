@@ -11,9 +11,14 @@
 # the GNU General Public License
 #
 
-CHANNEL_LIBS=chan_vofr.so chan_modem.so \
-	     chan_modem_aopen.so chan_iax.so chan_oss.so \
+CHANNEL_LIBS=chan_modem.so chan_iax.so chan_sip.so \
+	     chan_modem_aopen.so chan_oss.so \
              chan_modem_bestdata.so chan_modem_i4l.so
+
+#
+# If you really want VoFR you can have it :-P
+#
+#CHANNEL_LIBS+=chan_vofr
 
 CHANNEL_LIBS+=$(shell [ -f /usr/include/linux/ixjuser.h ] && echo chan_phone.so)
 

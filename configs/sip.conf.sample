@@ -1,0 +1,36 @@
+;
+; SIP Configuration for Asterisk
+;
+[general]
+port = 5060			; Port to bind to
+bindaddr = 0.0.0.0		; Address to bind to
+context = default		; Default for incoming calls
+
+;[snomsip]
+;type=friend
+;secret=blah
+;host=dynamic
+;defaultip=192.168.0.59
+
+;[pingtel]
+;type=friend
+;insecure=yes			; Pingtel sends from different portno
+;username=pingtel
+;secret=blah
+;host=dynamic
+;defaultip=192.168.0.60
+
+;[cisco]
+;type=friend
+;username=cisco
+;secret=blah
+;host=dynamic
+;defaultip=192.168.0.4
+
+;[cisco1]
+;type=friend
+;insecure=yes
+;username=cisco1
+;secret=blah
+;host=dynamic
+;defaultip=192.168.0.4
