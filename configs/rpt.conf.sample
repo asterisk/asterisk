@@ -1,17 +1,13 @@
 ; Radio Repeater / Remote Base configuration file (for use with app_rpt)
 ;
 
-;[oakhurst]				; Name of First Repeater
+;[000]					; Node ID of first repeater
 
 ;rxchannel = Zap/1			; Rx audio/signalling channel
 ; Note: if you use a unified interface (tx/rx on one channel), only
 ; specify the rxchannel and the txchannel will be assumed from the rxchannel
 ;txchannel = Zap/2			; Tx audio/signalling channel
-;remote_rxchannel = Zap/3		; Remote Base Rx audio/signalling channel
-; Note: if you use a unified interface (tx/rx on one channel), only
-; specify the remote_rxchannel and the remote_txchannel will be assumed from the rxchannel
-;remote_txchannel = Zap/4		; Remote Base Tx audio/signalling channel
-;tonezone = us				; use US tones
+;tonezone = us				; use US tones (default)
 ;simple = no				; Not in "simple" mode
 ;context = default			; dialing context for phone
 ;callerid = "WB6NIL Repeater" <(559) 692-1234>  ; Callerid for phone calls
@@ -24,3 +20,27 @@
 ; The default values for hangtime, time-out time, and id interval time are
 ; 5 seconds (5000 ms),  3 minutes (180000 ms), and 5 minutes (300000 ms)
 ; respectively
+
+;[001]					; Node ID of second repeater
+
+;rxchannel = Zap/3			; Rx audio/signalling channel
+; Note: if you use a unified interface (tx/rx on one channel), only
+; specify the rxchannel and the txchannel will be assumed from the rxchannel
+;txchannel = Zap/4			; Tx audio/signalling channel
+;tonezone = us				; use US tones (default)
+;simple = no				; Not in "simple" mode
+;context = default			; dialing context for phone
+;callerid = "WB6NIL Repeater" <(559) 692-1234>  ; Callerid for phone calls
+;idrecording = wb6nil			; id recording
+;accountcode=RADIO			; account code (optional)
+;hangtime=1000				; squelch tail hang time (in ms) (optional)
+;totime=100000				; transmit time-out time (in ms) (optional)
+;idtime=30000				; id interval time (in ms) (optional)
+
+;[002]					; Node ID of remote base
+
+;rxchannel = Zap/5			; Rx audio/signalling channel
+; Note: if you use a unified interface (tx/rx on one channel), only
+; specify the rxchannel and the txchannel will be assumed from the rxchannel
+;txchannel = Zap/6			; Tx audio/signalling channel
+;remote = yes

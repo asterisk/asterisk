@@ -3,7 +3,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Radio Repeater / Remote Base program 
- *  version 0.4 6/19/04
+ *  version 0.5 6/22/04
  * 
  * Copyright (C) 2002-2004, Jim Dixon, WB6NIL
  *
@@ -1977,8 +1977,8 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	myrpt->remotetx = 0;
 	myrpt->remoteon = 1;
 	ast_mutex_unlock(&myrpt->lock);
-	ast_set_write_format(chan, ast_best_codec(chan->nativeformats));
-	ast_set_read_format(chan, ast_best_codec(chan->nativeformats));
+	ast_set_write_format(chan, AST_FORMAT_SLINEAR);
+	ast_set_read_format(chan, AST_FORMAT_SLINEAR);
 	/* if we are on 2w loop and are a remote, turn EC on */
 	if (myrpt->remote && (myrpt->rxchannel == myrpt->txchannel))
 	{
