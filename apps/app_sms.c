@@ -204,7 +204,11 @@ static void
 packdate (unsigned char *o, time_t w)
 {
   struct tm *t = localtime (&w);
+#ifdef __FreeBSD__
+  int z = - t->tm_gmtoff / 3600 / 15;
+#else
   int z = timezone / 3600 / 15;
+#endif
   *o++ = ((t->tm_year % 10) << 4) + (t->tm_year % 100) / 10;
   *o++ = (((t->tm_mon + 1) % 10) << 4) + (t->tm_mon + 1) / 10;
   *o++ = ((t->tm_mday % 10) << 4) + t->tm_mday / 10;
