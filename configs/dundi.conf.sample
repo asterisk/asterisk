@@ -32,8 +32,9 @@
 ;
 ;entityid=00:07:E9:3B:76:60
 ;
-; Define the max depth in which to search the DUNDi system (also max # of 
-; seconds to wait for a reply)
+; This defines the max depth in which to search the DUNDi system.
+; Note that the maximum time that we will wait for a response is
+; (2000 + 200 * ttl) ms.
 ;
 ttl=32
 ;
