@@ -1,5 +1,7 @@
 Build
-	
+	-- Hold lock when creating new H.323 channel to sync the audio channels
+	-- Decrement usage counter when appropriate
+	-- Actually unregister everything in unload_module
 	-- Add IP based authentication using 'host'in type=user's
 0.1.0
 	-- Intergration into the mainline Asterisk codebase
