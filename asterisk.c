@@ -1262,7 +1262,7 @@ static char *cli_complete(EditLine *el, int ch)
 static int ast_el_initialize(void)
 {
 	HistEvent ev;
-	char *editor = getenv("EDITOR");
+	char *editor = getenv("AST_EDITOR");
 
 	if (el != NULL)
 		el_end(el);
