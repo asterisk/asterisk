@@ -31,7 +31,7 @@ static char *app = "SendDTMF";
 static char *synopsis = "Sends arbitrary DTMF digits";
 
 static char *descrip = 
-"  SendDTMF(digits): Sends DTMF digits on a channel. \n"
+"  SendDTMF(digits[|timeout_ms]): Sends DTMF digits on a channel. \n"
 "  Accepted digits: 0-9, *#abcd\n"
 " Returns 0 on success or -1 on a hangup.\n";
 
@@ -43,15 +43,24 @@ static int senddtmf_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
-	char *digits = data;
+	char *digits = NULL, *to = NULL;
+	int timeout = 250;
 
-	if (!digits || ast_strlen_zero(digits)) {
+	if (data && !ast_strlen_zero(data) && (digits = ast_strdupa((char *)data))) {
+		if((to = strchr(digits,'|'))) {
+			*to = '\0';
+			to++;
+			timeout = atoi(to);
+		}
+		LOCAL_USER_ADD(u);
+		if(timeout <= 0)
+			timeout = 250;
+
+		res = ast_dtmf_stream(chan,NULL,digits,timeout);
+		LOCAL_USER_REMOVE(u);
+	} else {
 		ast_log(LOG_WARNING, "SendDTMF requires an argument (digits or *#aAbBcCdD)\n");
-		return -1;
 	}
-	LOCAL_USER_ADD(u);
-	res = ast_dtmf_stream(chan,NULL,digits,250);
-	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
