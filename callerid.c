@@ -214,6 +214,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len)
 							/* Date */
 							break;
 						case 2: /* Number */
+						case 3: /* Number (for Zebble) */
 						case 4: /* Number */
 							res = cid->rawdata[x];
 							if (res > 32) {

@@ -38,6 +38,7 @@ struct ast_filestream {
 	/* This is what a filestream means to us */
 	int fd; /* Descriptor */
 	int bytes;
+	int needsgain;
 	struct ast_channel *owner;
 	struct ast_frame fr;				/* Frame information */
 	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
@@ -60,6 +61,8 @@ static char *desc = "Microsoft WAV format (8000hz Signed Linear)";
 static char *exts = "wav";
 
 #define BLOCKSIZE 160
+
+#define GAIN 2		/* 2^GAIN is the multiple to increase the volume by */
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define htoll(b) (b)
@@ -306,6 +309,7 @@ static struct ast_filestream *wav_open(int fd)
 		glist = tmp;
 		tmp->fd = fd;
 		tmp->owner = NULL;
+		tmp->needsgain = 1;
 		tmp->fr.data = tmp->buf;
 		tmp->fr.frametype = AST_FRAME_VOICE;
 		tmp->fr.subclass = AST_FORMAT_SLINEAR;
@@ -402,17 +406,34 @@ static int ast_read_callback(void *data)
 	int retval = 0;
 	int res;
 	int delay;
+	int x;
 	struct ast_filestream *s = data;
+	short tmp[sizeof(s->buf) / 2];
 	/* Send a frame from the file to the appropriate channel */
 	
-	if ( (res = read(s->fd, s->buf, sizeof(s->buf))) <= 0 ) {
+	if ( (res = read(s->fd, tmp, sizeof(tmp))) <= 0 ) {
 		if (res) {
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		}
 		s->owner->streamid = -1;
 		return 0;
 	}
-		
+	if (s->needsgain) {
+		for (x=0;x<sizeof(tmp)/2;x++)
+			if (tmp[x] & ((1 << GAIN) - 1)) {
+				/* If it has data down low, then it's not something we've artificially increased gain
+				   on, so we don't need to gain adjust it */
+				s->needsgain = 0;
+			}
+	}
+	if (s->needsgain) {
+		for (x=0;x<sizeof(tmp)/2;x++) {
+			s->buf[x] = tmp[x] >> GAIN;
+		}
+	} else {
+		memcpy(s->buf, tmp, sizeof(s->buf));
+	}
+			
 	delay = res / 16;
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_SLINEAR;
@@ -451,9 +472,9 @@ static int wav_apply(struct ast_channel *c, struct ast_filestream *s)
 static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 {
 	int res = 0;
-#if 0
-	int size = 0;
-#endif
+	int x;
+	short tmp[8000], *tmpi;
+	float tmpf;
 	if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
@@ -462,13 +483,30 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-GSM frame (%d)!\n", f->subclass);
 		return -1;
 	}
+	if (f->datalen > sizeof(tmp)) {
+		ast_log(LOG_WARNING, "Data length is too long\n");
+		return -1;
+	}
+	if (!f->datalen)
+		return -1;
 
 #if 0
 	printf("Data Length: %d\n", f->datalen);
 #endif	
 
 	if (fs->buf) {
-		if ((write (fs->fd, f->data, f->datalen) != f->datalen) ) {
+		tmpi = f->data;
+		/* Volume adjust here to accomodate */
+		for (x=0;x<f->datalen/2;x++) {
+			tmpf = ((float)tmpi[x]) * ((float)(1 << GAIN));
+			if (tmpf > 32767.0)
+				tmpf = 32767.0;
+			if (tmpf < -32768.0)
+				tmpf = -32768.0;
+			tmp[x] = tmpf;
+			tmp[x] &= ~((1 << GAIN) - 1);
+		}
+		if ((write (fs->fd, tmp, f->datalen) != f->datalen) ) {
 			ast_log(LOG_WARNING, "Bad write (%d): %s\n", res, strerror(errno));
 			return -1;
 		}
@@ -513,7 +551,7 @@ int unload_module()
 	tmp = glist;
 	while(tmp) {
 		if (tmp->owner)
-			ast_softhangup(tmp->owner);
+			ast_softhangup(tmp->owner, AST_SOFTHANGUP_APPUNLOAD);
 		tmpl = tmp;
 		tmp = tmp->next;
 		free(tmpl);
