@@ -101,7 +101,8 @@ struct dundi_cause {
 #define DUNDI_COMMAND_DPRESPONSE	(2 | 0x40)	/* Respond to a discovery request */
 #define DUNDI_COMMAND_EIDQUERY		3			/* Request information for a peer */
 #define DUNDI_COMMAND_EIDRESPONSE	(4 | 0x40)	/* Response to a peer query */
-#define DUNDI_COMMAND_PRECACHE		5			/* Unsolicited answer pre-cache */
+#define DUNDI_COMMAND_PRECACHERQ	5			/* Pre-cache Request */
+#define DUNDI_COMMAND_PRECACHERP	(6 | 0x40)	/* Pre-cache Response */
 #define DUNDI_COMMAND_INVALID		(7 | 0x40)	/* Invalid dialog state (does not require ack) */
 #define DUNDI_COMMAND_UNKNOWN		(8 | 0x40)	/* Unknown command */
 #define DUNDI_COMMAND_NULL			9			/* No-op */
@@ -185,4 +186,7 @@ int dundi_lookup(struct dundi_result *result, int maxret, struct ast_channel *ch
 
 /* Retrieve information on a specific EID */
 int dundi_query_eid(struct dundi_entity_info *dei, const char *dcontext, dundi_eid eid);
+
+/* Pre-cache to push upstream peers */
+int dundi_precache(const char *dcontext, const char *number);
 #endif /* _ASTERISK_DUNDI_H */

@@ -439,8 +439,8 @@ void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *sin, int
 		"DPRESPONSE  ",
 		"EIDQUERY    ",
 		"EIDRESPONSE ",
-		"UNKNOWN (5)?",
-		"UNKNOWN (6)?",
+		"PRECACHERQ  ",
+		"PRECACHERP  ",
 		"INVALID     ",
 		"UNKNOWN CMD ",
 		"NULL        ",
@@ -448,8 +448,7 @@ void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *sin, int
 		"REGRESPONSE ",
 		"CANCEL      ",
 		"ENCRYPT     ",
-		"ENCREJ      ",
-		"PRECACHE    " };
+		"ENCREJ      " };
 	char class2[20];
 	char *class;
 	char subclass2[20];

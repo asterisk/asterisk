@@ -134,7 +134,8 @@ autokill=yes
 ;
 ; include - Includes this peer when searching a particular context
 ;           for lookup (set "all" to perform all lookups with that
-;           host.
+;           host.  This is also the context in which peers are permitted
+;           to precache.
 ;
 ; noinclude - Disincludes this peer when searching a particular context
 ;             for lookup (set "all" to perform no lookups with that
@@ -142,7 +143,8 @@ autokill=yes
 ;
 ; permit - Permits this peer to search a given DUNDi context on
 ;          the local system.  Set "all" to permit this host to
-;          lookup all contexts.
+;          lookup all contexts.  This is also a context for which
+;          we will create/forward PRECACHE commands.
 ;
 ; deny -   Denies this peer to search a given DUNDi context on
 ;          the local system.  Set "all" to deny this host to
@@ -151,8 +153,18 @@ autokill=yes
 ; model - inbound, outbound, or symmetric for whether we receive 
 ;         requests only, transmit requests only, or do both.
 ;
-; canprecache - Permits this peer to provide answers (which are cached)
-;               for queries we did not make (a.k.a. pre-caching)
+; precache - Utilize/Permit precaching with this peer (to pre
+;            cache means to provide an answer when no request
+;            was made and is used so that machines with few
+;            routes can push those routes up a to a higher level).
+;            outgoing means we send precache routes to this peer,
+;            incoming means we permit this peer to send us
+;            precache routes.  symmetric means we do both.
+;
+; Note: You cannot mix symmetric/outbound model with symmetric/inbound
+; precache, nor can you mix symmetric/inbound model with symmetric/outbound
+; precache.
+;
 ;
 ; The '*' peer is special and matches an unspecified entity
 ;
@@ -182,6 +194,32 @@ qualify = yes
 ;qualify = yes
 ;order = secondary
 
+;
+; Sample "push mode" downstream host
+;
+;[00:0C:76:96:75:28]
+;model = incoming
+;host = dynamic
+;precache = incoming
+;inkey = littleguy
+;outkey = ourkey
+;include = e164	; In this case used only for precaching
+;permit = e164      
+;qualify = yes
+
+;
+; Sample "push mode" upstream host
+;
+;[00:07:E9:3B:76:60]
+;model = outbound
+;precache = outbound
+;host = 216.207.245.34
+;register = yes
+;inkey = dhcp34
+;permit = all ; In this case used only for precaching
+;include = all 
+;qualify = yes
+;outkey=foo
 
 ;[*]
 ;
