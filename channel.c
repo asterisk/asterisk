@@ -1647,7 +1647,7 @@ int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int fti
 	if (!len)
 		return -1;
 	do {
-		if (c->streamid > -1) {
+		if (c->stream) {
 			d = ast_waitstream(c, AST_DIGIT_ANY);
 			ast_stopstream(c);
 			usleep(1000);
@@ -1685,7 +1685,7 @@ int ast_readstring_full(struct ast_channel *c, char *s, int len, int timeout, in
 	if (!len)
 		return -1;
 	do {
-		if (c->streamid > -1) {
+		if (c->stream) {
 			d = ast_waitstream_full(c, AST_DIGIT_ANY, audiofd, ctrlfd);
 			ast_stopstream(c);
 			usleep(1000);
