@@ -153,6 +153,7 @@ int ast_format_unregister(char *name)
 				ast_verbose( VERBOSE_PREFIX_2 "Unregistered format %s\n", name);
 			return 0;
 		}
+		tmpl = tmp;
 		tmp = tmp->next;
 	}
 	ast_log(LOG_WARNING, "Tried to unregister format %s, already unregistered\n", name);
