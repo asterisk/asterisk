@@ -19,7 +19,7 @@ CFLAGS+=-fPIC
 # unixODBC stuff...
 #
 MODS+=$(shell if [ -f "/usr/include/odbcinst.h" ]; then echo "cdr_odbc.so"; fi)
-
+MODS+=$(shell if [ -f "/usr/local/include/odbcinst.h" ]; then echo "cdr_odbc.so"; fi) 
 
 #
 # PGSQL stuff...  Autoconf anyone??
