@@ -256,6 +256,8 @@ typedef struct displaytext_message {
 	char text[40];
 } displaytext_message;
 
+#define CLEAR_DISPLAY_MESSAGE 0x009A
+
 #define	REGISTER_REJ_MESSAGE 0x009D
 typedef struct register_rej_message {
 	char errMsg[33];
@@ -934,6 +936,32 @@ static void transmit_ringer_mode(struct skinnysession *s, int mode)
 	transmit_response(s, req);
 }
 
+static void transmit_displaymessage(struct skinnysession *s, char *text)
+{
+	skinny_req *req;
+
+	if (text == 0) {
+		req = req_alloc(4);
+		req->len = 4;
+		req->e = CLEAR_DISPLAY_MESSAGE;
+	} else {
+		req = req_alloc(sizeof(struct displaytext_message));
+
+		strncpy(req->data.displaytext.text, text, sizeof(req->data.displaytext.text)-1);
+		req->len = sizeof(displaytext_message) + 4;
+		req->e = DISPLAYTEXT_MESSAGE;
+		if (skinnydebug) {
+			ast_verbose("Displaying message '%s'\n", req->data.displaytext.text);
+		}
+	}
+
+	if (!req) {
+		ast_log(LOG_ERROR, "Unable to allocate skinny_request, this is bad\n");
+		return;
+	}
+	transmit_response(s, req);
+}
+
 /* I do not believe skinny can deal with video. 
    Anyone know differently? */
 static struct ast_rtp *skinny_get_vrtp_peer(struct ast_channel *chan)
@@ -1508,6 +1536,51 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 
 	transmit_lamp_indication(session, l->instance, SKINNY_LAMP_BLINK);
 	transmit_ringer_mode(session, SKINNY_RING_INSIDE);
+	
+	if (ast->cid.cid_num){ 
+
+		char ciddisplay[41] = "";
+
+		/* We'll assume that if it is 10 numbers, it is a standard NANPA number
+		   Why? Because I am bloody American, and I'm bigoted that way. */
+
+		if (strlen(ast->cid.cid_num) == 10) {
+
+			strcat (ciddisplay, "(");
+			strncat (ciddisplay, ast->cid.cid_num,3);
+			strcat (ciddisplay, ") ");
+
+			strncat (ciddisplay, &ast->cid.cid_num[3],3);
+			strcat (ciddisplay,"-");
+			strncat (ciddisplay, &ast->cid.cid_num[6],4);
+
+			strncat (ciddisplay, "      ", 6);
+
+			strncat (ciddisplay, ast->cid.cid_name,17);
+		} else {
+			if (strlen(ast->cid.cid_num) < 40) {
+				strncpy(ciddisplay,ast->cid.cid_num,strlen(ast->cid.cid_num));
+				strcat (ciddisplay," -- ");
+				
+				if (sizeof(ast->cid.cid_name) > (40 - (strlen(ast->cid.cid_num) + 4))) {
+					strncat (ciddisplay, ast->cid.cid_name, (40 - (strlen(ast->cid.cid_num) + 4)));
+				} else {
+					strncat (ciddisplay, ast->cid.cid_name, strlen(ast->cid.cid_name));
+				}
+			} else {
+				strncpy(ciddisplay, "Number too long!", 15);
+			}
+		}
+
+		if (skinnydebug) {
+			ast_verbose("Trying to send: '%s'\n",ciddisplay);
+		}
+
+		transmit_displaymessage(session, ciddisplay);
+	}else{
+		transmit_displaymessage(session, "Unknown Name");
+	}
+
 	transmit_tone(session, tone);
 	transmit_callstate(session, l->instance, SKINNY_RINGIN, sub->callid);
 
@@ -1551,12 +1624,22 @@ static int skinny_hangup(struct ast_channel *ast)
 	if ((sub->parent->type = TYPE_LINE) && (sub->parent->hookstate == SKINNY_OFFHOOK)) {
 			sub->parent->hookstate = SKINNY_ONHOOK;
 			transmit_callstate(s, l->instance, SKINNY_ONHOOK, sub->callid);
+			transmit_lamp_indication(s, l->instance, SKINNY_LAMP_OFF);
+			if (skinnydebug) {
+				ast_verbose("Attempting to Clear display on Skinny %s@%s\n",sub->parent->name, sub->parent->parent->name);
+			}
+			transmit_displaymessage(s, 0); /* clear display */
 			transmit_speaker_mode(s, SKINNY_SPEAKEROFF); 
 		} else if ((sub->parent->type = TYPE_LINE) && (sub->parent->hookstate == SKINNY_ONHOOK)) {
 			transmit_callstate(s, l->instance, SKINNY_ONHOOK, sub->callid);
 			transmit_speaker_mode(s, SKINNY_SPEAKEROFF); 
 			transmit_ringer_mode(s, SKINNY_RING_OFF);
 			transmit_tone(s, SKINNY_SILENCE);
+			transmit_lamp_indication(s, l->instance, SKINNY_LAMP_OFF);
+			if (skinnydebug) {
+				ast_verbose("Attempting to Clear display on Skinny %s@%s\n",sub->parent->name, sub->parent->parent->name);
+			}
+			transmit_displaymessage(s, 0); /* clear display */
 		} 
     }
     ast_mutex_lock(&sub->lock);
@@ -2181,6 +2264,13 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
                            sub->parent->name, sub->parent->parent->name, sub->callid);
            }
        	}
+
+	if (skinnydebug) {
+		ast_verbose("Attempting to Clear display on Skinny %s@%s\n",sub->parent->name, sub->parent->parent->name);
+	}
+	
+	transmit_displaymessage(s, 0); /* clear display */
+
 
        	if ((sub->parent->hookstate == SKINNY_ONHOOK) && (!sub->next->rtp)) {
 	    if (has_voicemail(sub->parent)) {
