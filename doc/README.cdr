@@ -2,25 +2,38 @@ Asterisk billing support - Call Detail Records
 ----------------------------------------------
 Asterisk generates Call Detail Records in a database or in a comma
 separated text file. 
+
    * cdr_csv supports comma separated text file storage, this is the
      default driver
+   * cdr_manager supports CDR information via the AMI, The Asterisk Manager
+     interface
    * cdr_odbc supports UnixODBC databases, see http://www.unixodbc.org
      for an updated list of supported databases, from MySQL to MsSQL
      and text files.
+   * cdr_tds supports FreeTDS databases (Among them MS SQL)
+   * cdr_sqlite supports SQlite
+   * cdr_pgsql supports PostgreSQL
+
+In the asterisk-addons cvs archive, there's a cdr_mysql driver for
+MySQL.
 
 
 
 Applications
 ------------
 
-    * Asterisk cmd setaccount: Set account code for billing
-    * Asterisk cmd NoCDR: Make sure no CDR is saved for a specific call
-    * Asterisk cmd resetCDR: Reset CDR
-    * Asterisk cmd authenticate - Authenticates and sets the account code
-    * Asterisk cmd SetCDRUserField - Set CDR user field
-    * Asterisk cmd AppendCDRUserField - Append data to CDR User field 
+    * SetAccount  	Set account code for billing
+    * SetAMAFlags 	Sets AMA flags
+    * NoCDR  		Make sure no CDR is saved for a specific call
+    * ResetCDR  	Reset CDR
+    * ForkCDR 		Save current CDR and start a new CDR for this call
+    * Authenticate 	Authenticates and sets the account code
+    * SetCDRUserField   Set CDR user field
+    * AppendCDRUserField   Append data to CDR User field 
 
 For more information, use the "show application" command.
+You can set default account codes and AMA flags for devices in 
+channel configuration files, like sip.conf, iax.conf etc.
 
 
 Fields of the CDR in Asterisk
@@ -59,5 +72,4 @@ will report a short call time.  If you want detailed records you must
 turn off IAX transfer, but unless your servers are very close together, you
 will definitely get a latency hit from doing so.
 
-----------------
-2004-01-17/v0.7.1
+
