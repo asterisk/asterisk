@@ -418,6 +418,8 @@ int init_logger(void)
 
 	/* create log channels */
 	init_logger_chain();
+	/* initialize queue logger */
+	queue_log_init();
 	return -1;
 }
 
