@@ -1,8 +1,3 @@
- -- cdr_odbc
-    -- fix disposition to be stored as a string instead of an integer
-       -- NOTE: If you were already using cdr_odbc from a previous release,
-                you will need to make the necessary change to your db so that
-		it expects a string instead of an integer.
 Asterisk 1.0.3
  -- chan_zap
     -- fix seg fault when doing *0 to flash a trunk
