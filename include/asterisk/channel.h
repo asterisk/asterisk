@@ -16,6 +16,7 @@
 
 #include <asterisk/frame.h>
 #include <asterisk/sched.h>
+#include <asterisk/chanvars.h>
 #include <setjmp.h>
 #include <pthread.h>
 
@@ -79,8 +80,9 @@ struct ast_channel {
 	int cdrflags;										   
 	/*! Whether or not we're blocking */
 	int blocking;				
-	/*! Whether or not we have been hung up */
-	int softhangup;				
+	/*! Whether or not we have been hung up...  Do not set this value
+	    directly, use ast_softhangup */
+	int _softhangup;				
 	/*! Non-zero if this is a zombie channel */
 	int zombie;					
 	/*! Non-zero, set to actual time when channel is to be hung up */
@@ -111,8 +113,8 @@ struct ast_channel {
 	int oldwriteformat;			
 
 
-	/*! State of line */
-	int state;				
+	/*! State of line -- Don't write directly, use ast_setstate */
+	int _state;				
 	/*! Number of rings so far */
 	int rings;				
 	/*! Current level of application */
@@ -167,6 +169,11 @@ struct ast_channel {
 	int	adsicpe;
 	/*! Where to forward to if asked to dial on this interface */
 	char call_forward[AST_MAX_EXTENSION];
+
+	/* A linked list for variables */
+	struct ast_var_t *vars;	
+	AST_LIST_HEAD(varshead,ast_var_t) varshead;
+	
 	/*! For easy linking */
 	struct ast_channel *next;		
 
@@ -181,6 +188,13 @@ struct ast_channel {
 #define AST_ADSI_AVAILABLE	(1)
 #define AST_ADSI_UNAVAILABLE	(2)
 #define AST_ADSI_OFFHOOKONLY	(3)
+
+#define AST_SOFTHANGUP_DEV			(1 << 0)	/* Soft hangup by device */
+#define AST_SOFTHANGUP_ASYNCGOTO	(1 << 1)	/* Soft hangup for async goto */
+#define AST_SOFTHANGUP_SHUTDOWN		(1 << 2)
+#define AST_SOFTHANGUP_TIMEOUT		(1 << 3)
+#define AST_SOFTHANGUP_APPUNLOAD	(1 << 4)
+#define AST_SOFTHANGUP_EXPLICIT		(1 << 5)
 
 /* Bits 0-15 of state are reserved for the state (up/down) of the line */
 /*! Channel is down and available */
@@ -214,6 +228,19 @@ struct ast_channel {
  * Returns an ast_channel on success, NULL on failure.
  */
 struct ast_channel *ast_request(char *type, int format, void *data);
+
+/*!
+ * \param type type of channel to request
+ * \param format requested channel format
+ * \param data data to pass to the channel requester
+ * \param timeout maximum amount of time to wait for an answer
+ * \param why unsuccessful (if unsuceessful)
+ * Request a channel of a given type, with data as optional information used 
+ * by the low level module and attempt to place a call on it
+ * Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
+ * to know if the call was answered or not.
+ */
+struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int timeout, int *reason);
 
 //! Registers a channel
 /*! 
@@ -254,7 +281,8 @@ int ast_hangup(struct ast_channel *chan);
  * safely hangup a channel managed by another thread.
  * Returns 0 regardless
  */
-int ast_softhangup(struct ast_channel *chan);
+int ast_softhangup(struct ast_channel *chan, int cause);
+int ast_softhangup_nolock(struct ast_channel *chan, int cause);
 
 //! Check to see if a channel is needing hang up
 /*! 
@@ -545,6 +573,8 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 
 /*! Deactive an active generator */
 void ast_deactivate_generator(struct ast_channel *chan);
+
+void ast_set_callerid(struct ast_channel *chan, char *callerid);
 
 /*! Start a tone going */
 int ast_tonepair_start(struct ast_channel *chan, int freq1, int freq2, int duration, int vol);

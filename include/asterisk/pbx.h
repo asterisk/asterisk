@@ -374,6 +374,19 @@ int ast_lock_context(struct ast_context *con);
  */
 int ast_unlock_context(struct ast_context *con);
 
+
+int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int priority, int needlock);
+
+int ast_async_goto_by_name(char *chan, char *context, char *exten, int priority);
+
+/* Synchronously or asynchronously make an outbound call and send it to a
+   particular extension */
+int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char *context, char *exten, int priority, int *reason, int sync);
+
+/* Synchronously or asynchronously make an outbound call and send it to a
+   particular application with given extension */
+int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *app, void *appdata, int *reason, int sync);
+
 /* Functions for returning values from structures */
 char *ast_get_context_name(struct ast_context *con);
 char *ast_get_extension_name(struct ast_exten *exten);
