@@ -419,7 +419,6 @@ struct ast_channel *ast_modem_new(struct ast_modem_pvt *i, int state)
 		snprintf(tmp->name, sizeof(tmp->name), "Modem[%s]/%s", i->mc->name, i->dev + 5);
 		tmp->type = type;
 		tmp->fd = i->fd;
-		/* XXX Switching formats silently causes kernel panics XXX */
 		tmp->format = i->mc->formats;
 		tmp->state = state;
 		if (state == AST_STATE_RING)
@@ -433,7 +432,7 @@ struct ast_channel *ast_modem_new(struct ast_modem_pvt *i, int state)
 		tmp->pvt->write = modem_write;
 		strncpy(tmp->context, i->context, sizeof(tmp->context));
 		if (strlen(i->cid))
-			strncpy(tmp->callerid, i->cid, sizeof(tmp->callerid));
+			tmp->callerid = strdup(i->cid);
 		i->owner = tmp;
 		pthread_mutex_lock(&usecnt_lock);
 		usecnt++;
@@ -443,6 +442,7 @@ struct ast_channel *ast_modem_new(struct ast_modem_pvt *i, int state)
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 				ast_hangup(tmp);
+				tmp = NULL;
 			}
 		}
 	} else
@@ -454,6 +454,12 @@ static void modem_mini_packet(struct ast_modem_pvt *i)
 {
 	struct ast_frame *fr;
 	fr = i->mc->read(i);
+	if (fr->frametype == AST_FRAME_CONTROL) {
+		if (fr->subclass == AST_CONTROL_RING) {
+			ast_modem_new(i, AST_STATE_RING);
+			restart_monitor();
+		}
+	}
 }
 
 static void *do_monitor(void *data)
@@ -701,10 +707,10 @@ int load_module()
 				ast_verbose(VERBOSE_PREFIX_2 "Loading modem driver %s", driver);
 				
 			if (ast_load_resource(driver)) {
-				ast_log(LOG_ERROR, "Failed to laod driver %s\n", driver);
+				ast_log(LOG_ERROR, "Failed to load driver %s\n", driver);
 				ast_destroy(cfg);
-				unload_module();
 				pthread_mutex_unlock(&iflock);
+				unload_module();
 				return -1;
 			}
 		} else if (!strcasecmp(v->name, "mode")) {
@@ -741,8 +747,6 @@ int load_module()
 	restart_monitor();
 	return 0;
 }
-
-
 
 int unload_module()
 {
