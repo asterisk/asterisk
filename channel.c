@@ -96,6 +96,15 @@ time_t	myt;
 	return 1;
 }
 
+static int ast_check_hangup_locked(struct ast_channel *chan)
+{
+	int res;
+	ast_pthread_mutex_lock(&chan->lock);
+	res = ast_check_hangup(chan);
+	ast_pthread_mutex_unlock(&chan->lock);
+	return res;
+}
+
 void ast_begin_shutdown(int hangup)
 {
 	struct ast_channel *c;
@@ -2067,7 +2076,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 	int nativefailed=0;
 
 	/* Stop if we're a zombie or need a soft hangup */
-	if (c0->zombie || ast_check_hangup(c0) || c1->zombie || ast_check_hangup(c1)) 
+	if (c0->zombie || ast_check_hangup_locked(c0) || c1->zombie || ast_check_hangup_locked(c1)) 
 		return -1;
 	if (c0->bridge) {
 		ast_log(LOG_WARNING, "%s is already in a bridge with %s\n", 
