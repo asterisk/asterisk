@@ -16,6 +16,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <termios.h>
+#include <string.h> /* for memset */
+#include <sys/ioctl.h>
 #include <asterisk/io.h>
 #include <asterisk/logger.h>
 
@@ -76,12 +78,14 @@ struct io_context *io_context_create(void)
 			free(tmp);
 			tmp = NULL;
 		} else {
+			memset(tmp->fds, 0, (GROW_SHRINK_SIZE/2) * sizeof(struct pollfd));
 			tmp->ior =  malloc((GROW_SHRINK_SIZE/2) * sizeof(struct io_rec));
 			if (!tmp->ior) {
 				free(tmp->fds);
 				free(tmp);
 				tmp = NULL;
-			}
+			} else
+				memset(tmp->ior, 0, (GROW_SHRINK_SIZE/2) * sizeof(struct io_rec));
 		}
 	}
 	return tmp;
@@ -215,7 +219,7 @@ static int io_shrink(struct io_context *ioc)
 int ast_io_remove(struct io_context *ioc, int *_id)
 {
 	int x;
-	if (!*_id) {
+	if (!_id) {
 		ast_log(LOG_WARNING, "Asked to remove NULL?\n");
 		return -1;
 	}
@@ -333,5 +337,24 @@ int ast_restore_tty(int fd, int oldstate)
 	if (res < 0)
 		return -1;
 	return 0;
+}
+
+int ast_get_termcols(int fd)
+{
+	struct winsize win;
+	int cols = 0;
+
+	if (!isatty(fd))
+		return -1;
+
+	if ( ioctl(fd, TIOCGWINSZ, &win) != -1 ) {
+		if ( !cols && win.ws_col > 0 )
+			cols = (int) win.ws_col;
+	} else {
+		/* assume 80 characters if the ioctl fails for some reason */
+		cols = 80;
+	}
+
+	return cols;
 }
 

@@ -123,6 +123,8 @@ extern int ast_hide_password(int fd);
  */
 extern int ast_restore_tty(int fd, int oldstatus);
 
+extern int ast_get_termcols(int fd);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

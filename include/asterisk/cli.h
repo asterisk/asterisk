@@ -77,6 +77,9 @@ extern int ast_cli_unregister(struct ast_cli_entry *e);
  */
 extern char *ast_cli_generator(char *, char *, int);
 
+extern int ast_cli_generatornummatches(char *, char *);
+extern char **ast_cli_completion_matches(char *, char *);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
