@@ -13,19 +13,20 @@
 
 CHANNEL_LIBS=chan_vofr.so chan_modem.so \
 	     chan_modem_aopen.so chan_iax.so chan_oss.so \
-             chan_modem_i4l.so
+             chan_modem_bestdata.so chan_modem_i4l.so
 
 CHANNEL_LIBS+=$(shell [ -f /usr/include/linux/ixjuser.h ] && echo chan_phone.so)
 
 CFLAGS+=-Wno-missing-prototypes -Wno-missing-declarations
 CFLAGS+=$(shell [ ! -f /usr/include/linux/if_wanpipe.h ] && echo " -DOLD_SANGOMA_API")
-CFLAGS+=$(shell [ -f /usr/lib/libpri.so.1 ] && echo " -DTORMENTA_PRI")
-TORPRI=$(shell [ -f /usr/lib/libpri.so.1 ] && echo "-lpri")
+CFLAGS+=$(shell [ -f /usr/lib/libpri.so.1 ] && echo " -DZAPATA_PRI")
+ZAPPRI=$(shell [ -f /usr/lib/libpri.so.1 ] && echo "-lpri")
 
 CFLAGS+=#-DVOFRDUMPER
 
 ZAPDIR=/usr/lib
-CHANNEL_LIBS+=$(shell [ -f $(ZAPDIR)/libzap.a ] && echo "chan_tor.so")
+
+CHANNEL_LIBS+=$(shell [ -f $(ZAPDIR)/libzap.a ] && echo "chan_zap.so")
 
 CFLAGS+=$(shell [ -f $(ZAPDIR)/libzap.a ] && echo "-I$(ZAPDIR)")
 
@@ -49,8 +50,8 @@ ringtone.h: gentone
 
 chan_oss.o: chan_oss.c  busy.h ringtone.h
 
-chan_tor.so: chan_tor.o
-	$(CC) -shared -Xlinker -x -o $@ $<  $(TORPRI) -lzap -ltonezone
+chan_zap.so: chan_zap.o
+	$(CC) -shared -Xlinker -x -o $@ $<  $(ZAPPRI) -lzap -ltonezone
 
 #chan_modem.so : chan_modem.o
 #	$(CC) -rdynamic -shared -Xlinker -x -o $@ $<
