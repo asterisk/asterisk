@@ -2869,6 +2869,7 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 				e = ast_walk_context_extensions(c, NULL);
 				while (e) {
 					struct ast_exten *p;
+					int prio;
 
 					/* looking for extension? is this our extension? */
 					if (exten &&
@@ -2897,11 +2898,18 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 					snprintf(buf, sizeof(buf), "'%s' =>",
 						ast_get_extension_name(e));
 
-					snprintf(buf2, sizeof(buf2),
-						"%d. %s(%s)",
-						ast_get_extension_priority(e),
-						ast_get_extension_app(e),
-						(char *)ast_get_extension_app_data(e));
+					prio = ast_get_extension_priority(e);
+					if (prio == PRIORITY_HINT) {
+						snprintf(buf2, sizeof(buf2),
+							"hint: %s",
+							ast_get_extension_app(e));
+					} else {
+						snprintf(buf2, sizeof(buf2),
+							"%d. %s(%s)",
+							prio,
+							ast_get_extension_app(e),
+							(char *)ast_get_extension_app_data(e));
+					}
 
 					ast_cli(fd, "  %-17s %-45s [%s]\n", buf, buf2,
 						ast_get_extension_registrar(e));
@@ -2915,11 +2923,18 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 						bzero((void *)buf, sizeof(buf));
 						if (ast_get_extension_label(p))
 							snprintf(buf, sizeof(buf), "   [%s]", ast_get_extension_label(p));
-						snprintf(buf2, sizeof(buf2),
-							"%d. %s(%s)",
-							ast_get_extension_priority(p),
-							ast_get_extension_app(p),
-							(char *)ast_get_extension_app_data(p));
+						prio = ast_get_extension_priority(p);
+						if (prio == PRIORITY_HINT) {
+							snprintf(buf2, sizeof(buf2),
+								"hint: %s",
+								ast_get_extension_app(p));
+						} else {
+							snprintf(buf2, sizeof(buf2),
+								"%d. %s(%s)",
+								prio,
+								ast_get_extension_app(p),
+								(char *)ast_get_extension_app_data(p));
+						}
 
 						ast_cli(fd,"  %-17s %-45s [%s]\n",
 							buf, buf2,
