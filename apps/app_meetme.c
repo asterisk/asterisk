@@ -24,6 +24,7 @@
 #include <asterisk/options.h>
 #include <asterisk/cli.h>
 #include <asterisk/say.h>
+#include <asterisk/utils.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>

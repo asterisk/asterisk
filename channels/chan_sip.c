@@ -7765,7 +7765,6 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 				ast_log(LOG_DEBUG, "Deferring reinvite on '%s'\n", p->callid);
 				p->needreinvite = 1;
 			}
-			p->outgoing = 1;
 		}
 		return 0;
 	}
