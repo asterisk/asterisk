@@ -251,7 +251,7 @@ struct iax2_registry {
 static struct iax2_registry *registrations;
 
 /* Don't retry more frequently than every 10 ms, or less frequently than every 5 seconds */
-#define MIN_RETRY_TIME	10
+#define MIN_RETRY_TIME	100
 #define MAX_RETRY_TIME  10000
 #define MAX_JITTER_BUFFER 50
 
