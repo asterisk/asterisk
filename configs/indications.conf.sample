@@ -118,3 +118,16 @@ dialrecall = 350+440
 ; XXX Not sure about the RECORDTONE
 record = 1400/500,0/10000
 info = 950/330,1400/330,1800/330
+
+[fi]
+description = Finland
+ringcadance = 1000,4000
+dial = 425
+busy = 425/300,0/300
+ring = 425/1000,0/4000
+congestion = 425/200,0/200
+callwaiting = 425/150,0/150,425/150,0/8000
+dialrecall = 425/650,0/25
+record = 1400/500,0/15000
+info = 950/650,0/325,950/325,0/30,1400/1300,0/2600
+
