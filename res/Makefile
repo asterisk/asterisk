@@ -13,20 +13,20 @@
 
 MODS=res_adsi.so res_features.so res_crypto.so res_musiconhold.so res_indications.so res_monitor.so \
      res_agi.so
-MODS+=$(shell if [ -f "/usr/include/odbcinst.h" ]; then echo "res_odbc.so res_config_odbc.so"; fi)
-MODS+=$(shell if [ -f "/usr/local/include/odbcinst.h" ]; then echo "res_odbc.so res_config_odbc.so"; fi)
-MODS+=$(shell if [ -f "/usr/include/osp/osp.h" ]; then echo "res_osp.so"; fi)
+MODS+=$(shell if [ -f "$(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h" ]; then echo "res_odbc.so res_config_odbc.so"; fi)
+MODS+=$(shell if [ -f "$(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h" ]; then echo "res_odbc.so res_config_odbc.so"; fi)
+MODS+=$(shell if [ -f "$(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h" ]; then echo "res_osp.so"; fi)
 
 CRYPTO_LIBS=-lssl -lcrypto
 
 CFLAGS+=
-CFLAGS+=$(shell [ -f /usr/include/linux/zaptel.h ] && echo " -DZAPATA_MOH")
-CFLAGS+=$(shell [ -f /usr/local/include/zaptel.h ] && echo " -DZAPATA_MOH")
+CFLAGS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h ] && echo " -DZAPATA_MOH")
+CFLAGS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h ] && echo " -DZAPATA_MOH")
 #
 # Work around buggy RedHat 9.0
 #
 CFLAGS+=-DOPENSSL_NO_KRB5 -fPIC
-OSPLIB=/usr/lib/libosp.a
+OSPLIB=$(CROSS_COMPILE_TARGET)/usr/lib/libosp.a
 
 all: depend $(MODS)
 

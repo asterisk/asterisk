@@ -52,18 +52,17 @@ endif
 #APPS+=app_ivrdemo.so
 #APPS+=app_skel.so
 
-APPS+=$(shell if [ -f /usr/include/linux/zaptel.h ]; then echo "app_zapras.so app_meetme.so app_flash.so app_zapbarge.so app_zapscan.so" ; fi)
-APPS+=$(shell if [ -f /usr/local/include/zaptel.h ]; then echo "app_zapras.so app_meetme.so app_flash.so app_zapbarge.so app_zapscan.so" ; fi)
-APPS+=$(shell if [ -f /usr/include/osp/osp.h ]; then echo "app_osplookup.so" ; fi)
+APPS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h ]; then echo "app_zapras.so app_meetme.so app_flash.so app_zapbarge.so app_zapscan.so" ; fi)
+APPS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h ]; then echo "app_zapras.so app_meetme.so app_flash.so app_zapbarge.so app_zapscan.so" ; fi)
+APPS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h ]; then echo "app_osplookup.so" ; fi)
 
-CURLLIBS=$(shell curl-config --libs)
+CURLLIBS=$(shell $(CROSS_COMPILE_BIN)curl-config --libs)
 ifneq (${CURLLIBS},)
 	APPS+=app_curl.so
 	ifeq (${OSARCH},OpenBSD)
-		CFLAGS+=-I/usr/local/include
+		CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include
 	endif
-endif
-
+endif 
 CFLAGS+=-fPIC
 #
 # If you have MySQL 4.1 or later you can use ODBC

@@ -21,7 +21,7 @@ PROC=$(shell uname -m)
 OSARCH=$(shell uname -s)
 
 ifeq (${OSARCH},FreeBSD)
-SOLINK+=-L/usr/local/lib
+SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
 endif
 
 #The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
@@ -37,36 +37,36 @@ endif
 #
 # unixODBC stuff...
 #
-MODS+=$(shell if [ -f "/usr/include/odbcinst.h" ]; then echo "cdr_odbc.so"; fi)
-MODS+=$(shell if [ -f "/usr/local/include/odbcinst.h" ]; then echo "cdr_odbc.so"; fi) 
+MODS+=$(shell if [ -f "$(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h" ]; then echo "cdr_odbc.so"; fi)
+MODS+=$(shell if [ -f "$(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h" ]; then echo "cdr_odbc.so"; fi) 
 
 #
 # FreeTDS stuff...
 #
-MODS+=$(shell if [ -f "/usr/include/tds.h" ]; then echo "cdr_tds.so"; fi)
-MODS+=$(shell if [ -f "/usr/local/include/tds.h" ]; then echo "cdr_tds.so"; fi)
+MODS+=$(shell if [ -f "$(CROSS_COMPILE_TARGET)/usr/include/tds.h" ]; then echo "cdr_tds.so"; fi)
+MODS+=$(shell if [ -f "$(CROSS_COMPILE_TARGET)/usr/local/include/tds.h" ]; then echo "cdr_tds.so"; fi)
 
 #
 # PGSQL stuff...  Autoconf anyone??
 #
-MODS+=$(shell if [ -d /usr/local/pgsql/include ] || [ -d /usr/include/pgsql ] || [ -d /usr/local/include/pgsql ] || [ -d /opt/pgsql/include ] || [ -f /usr/include/libpq-fe.h ] ; then echo "cdr_pgsql.so"; fi)
-CFLAGS+=$(shell if [ -d /usr/local/pgsql/include ]; then echo "-I/usr/local/pgsql/include"; fi)
-CFLAGS+=$(shell if [ -d /usr/include/pgsql ]; then echo "-I/usr/include/pgsql"; fi)
-CFLAGS+=$(shell if [ -d /usr/include/postgresql ]; then echo "-I/usr/include/postgresql"; fi)
-CFLAGS+=$(shell if [ -d /usr/local/include/pgsql ]; then echo "-I/usr/local/include/pgsql"; fi)
-CFLAGS+=$(shell if [ -d /opt/pgsql/include ]; then echo "-I/opt/pgsql/include"; fi)
-#CFLAGS+=$(shell if [ -f /usr/include/libpq-fe.h ]; then echo "-I/usr/include"; fi)
+MODS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include ] || [ -d $(CROSS_COMPILE_TARGET)/usr/include/pgsql ] || [ -d $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql ] || [ -d $(CROSS_COMPILE_TARGET)/opt/pgsql/include ] || [ -f $(CROSS_COMPILE_TARGET)/usr/include/libpq-fe.h ] ; then echo "cdr_pgsql.so"; fi)
+CFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include ]; then echo "-I$(CROSS_COMPILE_TARGET)/usr/local/pgsql/include"; fi)
+CFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/usr/include/pgsql ]; then echo "-I$(CROSS_COMPILE_TARGET)/usr/include/pgsql"; fi)
+CFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/usr/include/postgresql ]; then echo "-I$(CROSS_COMPILE_TARGET)/usr/include/postgresql"; fi)
+CFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql ]; then echo "-I$(CROSS_COMPILE_TARGET)/usr/local/include/pgsql"; fi)
+CFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/opt/pgsql/include ]; then echo "-I$(CROSS_COMPILE_TARGET)/opt/pgsql/include"; fi)
+#CFLAGS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/include/libpq-fe.h ]; then echo "-I$(CROSS_COMPILE_TARGET)/usr/include"; fi)
 MLFLAGS=
-MLFLAGS+=$(shell if [ -d /usr/lib/pgsql ]; then echo "-L/usr/lib/pgsql"; fi)
-MLFLAGS+=$(shell if [ -d /usr/local/pgsql/lib ]; then echo "-L/usr/local/pgsql/lib"; fi)
-MLFLAGS+=$(shell if [ -d /usr/local/lib/pgsql ]; then echo "-L/usr/local/lib/pgsql"; fi)
-MLFLAGS+=$(shell if [ -d /opt/pgsql/lib ]; then echo "-L/opt/pgsql/lib"; fi)
-MLFLAGS+=$(shell if [ -f /usr/lib/libpq.so ]; then echo "-L/usr/lib"; fi)
+MLFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/usr/lib/pgsql ]; then echo "-L$(CROSS_COMPILE_TARGET)/usr/lib/pgsql"; fi)
+MLFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/usr/local/pgsql/lib ]; then echo "-L$(CROSS_COMPILE_TARGET)/usr/local/pgsql/lib"; fi)
+MLFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/usr/local/lib/pgsql ]; then echo "-L$(CROSS_COMPILE_TARGET)/usr/local/lib/pgsql"; fi)
+MLFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/opt/pgsql/lib ]; then echo "-L$(CROSS_COMPILE_TARGET)/opt/pgsql/lib"; fi)
+MLFLAGS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/lib/libpq.so ]; then echo "-L$(CROSS_COMPILE_TARGET)/usr/lib"; fi)
 
 #
 # SQLIte stuff...
 #
-MODS+=$(shell if [ -f "/usr/include/sqlite.h" ]; then echo "cdr_sqlite.so"; fi)
+MODS+=$(shell if [ -f "$(CROSS_COMPILE_TARGET)/usr/include/sqlite.h" ]; then echo "cdr_sqlite.so"; fi)
 
 all: depend $(MODS)
 

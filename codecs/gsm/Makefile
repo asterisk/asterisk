@@ -45,7 +45,9 @@ ifneq ($(shell uname -m),ppc)
 ifneq ($(shell uname -m),ppc64)
 ifneq ($(shell uname -m),alpha)
 ifneq (${PROC},sparc64)
+ifneq (${PROC},arm)
 OPTIMIZE+=-march=$(PROC)
+endif
 endif
 endif
 endif
@@ -222,7 +224,9 @@ ifneq ($(shell uname -m),ppc)
 ifneq ($(shell uname -m),ppc64)
 ifneq ($(shell uname -m),alpha)
 ifneq ($(shell uname -m),sparc64)
+ifneq (${PROC},arm)
 GSM_SOURCES+= $(SRC)/k6opt.s
+endif
 endif
 endif
 endif

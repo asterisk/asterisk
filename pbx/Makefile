@@ -16,7 +16,7 @@
 PBX_LIBS=pbx_config.so pbx_spool.so pbx_dundi.so pbx_loopback.so pbx_realtime.so
 
 # Add GTK console if appropriate
-#PBX_LIBS+=$(shell gtk-config --cflags >/dev/null 2>/dev/null && echo "pbx_gtkconsole.so")
+#PBX_LIBS+=$(shell $(CROSS_COMPILE_BIN)gtk-config --cflags >/dev/null 2>/dev/null && echo "pbx_gtkconsole.so")
 # Add KDE Console if appropriate
 #PBX_LIBS+=$(shell [ "$$QTDIR" != "" ] && echo "pbx_kdeconsole.so")
 
@@ -25,9 +25,8 @@ PBX_LIBS=pbx_config.so pbx_spool.so pbx_dundi.so pbx_loopback.so pbx_realtime.so
 #
 #PBX_LIBS+=pbx_wilcalu.so
 
-GTK_FLAGS=`gtk-config --cflags gthread`
-GTK_LIBS=`gtk-config --libs gthread`
-#CXX=egcs
+GTK_FLAGS=`${CROSS_COMPILE_BIN}gtk-config --cflags gthread`
+GTK_LIBS=`${CROSS_COMPILE_BIN}gtk-config --libs gthread`
 MOC=$(QTDIR)/bin/moc
 KDE_FLAGS=-I$(KDEDIR)/include -I$(KDEDIR)/include/kde -I$(QTDIR)/include
 KDE_LIBS=-L$(KDEDIR)/lib -L$(QTDIR)/lib -lqt -lkdecore -lkdeui

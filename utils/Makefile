@@ -5,13 +5,13 @@ CFLAGS+=-DNO_AST_MM
 
 OSARCH=$(shell uname -s)
 ifeq ($(findstring BSD,${OSARCH}),BSD)
-CFLAGS+=-I/usr/local/include -L/usr/local/lib
+CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
 endif
 
 TARGET=stereorize
 
-TARGET+=$(shell if [ -f /usr/include/popt.h ]; then echo "smsq"; else if [ -f /usr/local/include/popt.h ]; then echo "smsq"; fi ; fi)
-TARGET+=$(shell if [ -f /usr/include/newt.h ]; then echo "astman"; else if [ -f /usr/local/include/newt.h ]; then echo "astman"; fi ; fi)
+TARGET+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/include/popt.h ]; then echo "smsq"; else if [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/popt.h ]; then echo "smsq"; fi ; fi)
+TARGET+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/include/newt.h ]; then echo "astman"; else if [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/newt.h ]; then echo "astman"; fi ; fi)
 ifeq (${OSARCH},SunOS)
 SOL=../strcompat.o
 endif

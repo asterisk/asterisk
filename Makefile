@@ -16,10 +16,27 @@
 # Create OPTIONS variable
 OPTIONS=
 
+# If cross compiling, define these to suit
+# CROSS_COMPILE=/opt/montavista/pro/devkit/arm/xscale_be/bin/xscale_be-
+# CROSS_COMPILE_BIN=/opt/montavista/pro/devkit/arm/xscale_be/bin/
+# CROSS_COMPILE_TARGET=/opt/montavista/pro/devkit/arm/xscale_be/target
+# CC=$(CROSS_COMPILE)gcc
+# CROSS_ARCH=Linux
+# CROSS_PROC=arm
+# SUB_PROC=xscale # or maverick
+
+ifeq ($(CROSS_COMPILE),)
 OSARCH=$(shell uname -s)
+else
+OSARCH=$(CROSS_ARCH)
+endif
 
 ifeq (${OSARCH},Linux)
+ifeq ($(CROSS_COMPILE),)
 PROC=$(shell uname -m)
+else
+PROC=$(CROSS_PROC)
+endif
 ifeq ($(PROC),x86_64)
 # You must have GCC 3.4 to use k8, otherwise use athlon
 PROC=k8
@@ -38,6 +55,18 @@ OPTIONS+=$(shell if $(CC) -mcpu=v8 -S -o /dev/null -xc /dev/null >/dev/null 2>&1
 OPTIONS+=-fomit-frame-pointer
 endif
 
+ifeq ($(PROC),arm)
+# The Cirrus logic is the only heavily shipping arm processor with a real floating point unit
+ifeq ($(SUB_PROC),maverick)
+OPTIONS+=-fsigned-char -mcpu=ep9312
+else
+ifeq ($(SUB_PROC),xscale)
+OPTIONS+=-fsigned-char -msoft-float -mcpu=xscale
+else
+OPTIONS+=-fsigned-char -msoft-float 
+endif
+endif
+endif
 MPG123TARG=linux
 endif
 
@@ -81,9 +110,12 @@ DEBUG=-g #-pg
 # will be received more reliably
 #OPTIONS += -DRADIO_RELAX
 
-# If you don't have a lot of memory (e.g. embedded Asterisk), uncomment the
-# following to reduce the size of certain static buffers
-#OPTIONS += -DLOW_MEMORY
+# If you don't have a lot of memory (e.g. embedded Asterisk), define LOW_MEMORY
+# to reduce the size of certain static buffers
+
+ifneq ($(CROSS_COMPILE),)
+OPTIONS += -DLOW_MEMORY
+endif
 
 # Optional debugging parameters
 DEBUG_THREADS = #-DDEBUG_THREADS #-DDO_CRASH #-DDETECT_DEADLOCKS
@@ -142,22 +174,24 @@ CFLAGS+=$(OPTIMIZE)
 ifneq ($(PROC),ultrasparc)
 CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
 endif
+ifeq ($(PROC),ppc)
+CFLAGS+=-fsigned-char
+endif
 
-CFLAGS+=$(shell if uname -m | $(GREP) -q ppc; then echo "-fsigned-char"; fi)
-CFLAGS+=$(shell if [ -f /usr/include/osp/osp.h ]; then echo "-DOSP_SUPPORT -I/usr/include/osp" ; fi)
+CFLAGS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h ]; then echo "-DOSP_SUPPORT -I$(CROSS_COMPILE_TARGET)/usr/include/osp" ; fi)
 
 ifeq (${OSARCH},FreeBSD)
-OSVERSION=$(shell make -V OSVERSION -f /usr/share/mk/bsd.port.subdir.mk)
+OSVERSION=$(shell make -V OSVERSION -f $(CROSS_COMPILE_TARGET)/usr/share/mk/bsd.port.subdir.mk)
 CFLAGS+=$(shell if test ${OSVERSION} -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
 LIBS+=$(shell if test  ${OSVERSION} -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
-INCLUDE+=-I/usr/local/include
-CFLAGS+=$(shell if [ -d /usr/local/include/spandsp ]; then echo "-I/usr/local/include/spandsp"; fi)
+INCLUDE+=-I$(CROSS_COMPILE_TARGET)/usr/local/include
+CFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/usr/local/include/spandsp ]; then echo "-I$(CROSS_COMPILE_TARGET)/usr/local/include/spandsp"; fi)
 MPG123TARG=freebsd
 endif # FreeBSD
 
 ifeq (${OSARCH},NetBSD)
 CFLAGS+=-pthread
-INCLUDE+=-I/usr/local/include -I/usr/pkg/include
+INCLUDE+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -I$(CROSS_COMPILE_TARGET)/usr/pkg/include
 MPG123TARG=netbsd
 endif
 
@@ -166,20 +200,20 @@ CFLAGS+=-pthread
 endif
 ifeq (${OSARCH},SunOS)
 CFLAGS+=-Wcast-align -DSOLARIS
-INCLUDE+=-Iinclude/solaris-compat -I/usr/local/ssl/include
+INCLUDE+=-Iinclude/solaris-compat -I$(CROSS_COMPILE_TARGET)/usr/local/ssl/include
 endif
 
 #Uncomment this to use the older DSP routines
 #CFLAGS+=-DOLD_DSP_ROUTINES
 
-CFLAGS+=$(shell if [ -f /usr/include/linux/zaptel.h ]; then echo "-DZAPTEL_OPTIMIZATIONS"; fi)
-CFLAGS+=$(shell if [ -f /usr/local/include/zaptel.h ]; then echo "-DZAPTEL_OPTIMIZATIONS"; fi)
+CFLAGS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h ]; then echo "-DZAPTEL_OPTIMIZATIONS"; fi)
+CFLAGS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h ]; then echo "-DZAPTEL_OPTIMIZATIONS"; fi)
 
 LIBEDIT=editline/libedit.a
 
 ASTERISKVERSION=$(shell if [ -f .version ]; then cat .version; else if [ -d CVS ]; then if [ -f CVS/Tag ] ; then echo "CVS-`sed 's/^T//g' CVS/Tag`-`date +"%D-%T"`"; else echo "CVS-HEAD-`date +"%D-%T"`"; fi; fi; fi)
 ASTERISKVERSIONNUM=$(shell if [ -d CVS ]; then echo 999999 ; else if [ -f .version ] ; then awk -F. '{printf "%02d%02d%02d", $$1, $$2, $$3}' .version ; else echo 000000 ; fi ; fi)
-HTTPDIR=$(shell if [ -d /var/www ]; then echo "/var/www"; else echo "/home/httpd"; fi)
+HTTPDIR=$(shell if [ -d $(CROSS_COMPILE_TARGET)/var/www ]; then echo "/var/www"; else echo "/home/httpd"; fi)
 RPMVERSION=$(shell if [ -f .version ]; then sed 's/[-\/:]/_/g' .version; else echo "unknown" ; fi)
 CFLAGS+=-DASTERISK_VERSION=\"$(ASTERISKVERSION)\"
 CFLAGS+=-DASTERISK_VERSION_NUM=$(ASTERISKVERSIONNUM)
@@ -216,13 +250,13 @@ ifeq (${OSARCH},FreeBSD)
 LIBS+=-lcrypto
 endif
 ifeq (${OSARCH},NetBSD)
-LIBS+=-lpthread -lcrypto -lm -L/usr/local/lib -L/usr/pkg/lib -lncurses
+LIBS+=-lpthread -lcrypto -lm -L$(CROSS_COMPILE_TARGET)/usr/local/lib -L$(CROSS_COMPILE_TARGET)/usr/pkg/lib -lncurses
 endif
 ifeq (${OSARCH},OpenBSD)
 LIBS=-lcrypto -lpthread -lm -lncurses
 endif
 ifeq (${OSARCH},SunOS)
-LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L/usr/local/ssl/lib
+LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
 endif
 LIBS+=-lssl
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
@@ -243,10 +277,9 @@ endif
 ifeq (${OSARCH},SunOS)
 OBJS+=strcompat.o
 ASTLINK=
-SOLINK=-shared -fpic -L/usr/local/ssl/lib
+SOLINK=-shared -fpic -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
 endif
 
-CC=gcc
 INSTALL=install
 
 _all: all
