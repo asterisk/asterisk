@@ -1010,6 +1010,31 @@ static void sip_destroy(struct sip_pvt *p)
 
 static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req);
 
+static int hangup_sip2cause(int cause)
+{
+	switch(cause)
+	{
+		case 486:
+			return AST_CAUSE_BUSY;
+		default:
+			return AST_CAUSE_NORMAL;
+	}
+	/* Never reached */
+	return 0;
+}
+
+static char *hangup_cause2sip(int cause)
+{
+	switch(cause)
+	{
+		case AST_CAUSE_BUSY:
+			return "486 Busy";
+		default:
+			return NULL;
+	}
+	/* Never reached */
+	return 0;
+}
 
 static int sip_hangup(struct ast_channel *ast)
 {
@@ -1061,8 +1086,13 @@ static int sip_hangup(struct ast_channel *ast)
 				   INVITE, but do set an autodestruct just in case. */
 				needdestroy = 0;
 				sip_scheddestroy(p, 15000);
-			} else
-				transmit_response_reliable(p, "403 Forbidden", &p->initreq);
+			} else {
+				char *res;
+				if (ast->hangupcause && ((res = hangup_cause2sip(ast->hangupcause)))) {
+					transmit_response_reliable(p, res, &p->initreq);
+				} else 
+					transmit_response_reliable(p, "403 Forbidden", &p->initreq);
+			}
 		} else {
 			if (!p->pendinginvite) {
 				/* Send a hangup */
@@ -4456,19 +4486,6 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 	ast_log(LOG_DEBUG, "Found 302 Redirect to extension '%s'\n", s);
 	if (p->owner)
 		strncpy(p->owner->call_forward, s, sizeof(p->owner->call_forward) - 1);
-}
-
-static int hangup_sip2cause(int cause)
-{
-	switch(cause)
-	{
-		case 486:
-			return AST_CAUSE_BUSY;
-		default:
-			return AST_CAUSE_NORMAL;
-	}
-	/* Never reached */
-	return 0;
 }
 
 static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req)
