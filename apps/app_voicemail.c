@@ -132,6 +132,8 @@ struct ast_vm_user {
 	int envelope;
 	int forcename;
 	int forcegreetings;
+	int sayduration;
+	int saydurationm;
 	struct ast_vm_user *next;
 };
 
@@ -245,6 +247,8 @@ static int calloper;
 static int saycidinfo;
 static int svmailinfo;
 static int hearenv;
+static int saydurationinfo;
+static int saydurationminfo;
 static int skipaftercmd;
 static int forcenm;
 static int forcegrt;
@@ -285,6 +289,10 @@ static void populate_defaults(struct ast_vm_user *vmu)
 		vmu->svmail = 1; 
 	if (hearenv)
 		vmu->envelope = 1;
+	if (saydurationinfo)
+		vmu->sayduration = 1;
+	if (saydurationminfo>0)
+		vmu->saydurationm = saydurationminfo;
 	if (forcenm)
 		vmu->forcename = 1;
 	if (forcegrt)
@@ -299,6 +307,7 @@ static void populate_defaults(struct ast_vm_user *vmu)
 
 static void apply_option(struct ast_vm_user *vmu, const char *var, const char *value)
 {
+	int x;
 	if (!strcasecmp(var, "attach")) {
 		if (ast_true(value))
 			vmu->attach = 1;
@@ -337,6 +346,17 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 			vmu->envelope = 1;
 		else
 			vmu->envelope = 0;
+	} else if (!strcasecmp(var, "sayduration")){
+		if(ast_true(value))
+			vmu->sayduration = 1;
+		else
+			vmu->sayduration = 0;
+	} else if (!strcasecmp(var, "saydurationm")){
+		if (sscanf(value, "%d", &x) == 1) {
+			vmu->saydurationm = x;
+		} else {
+			ast_log(LOG_WARNING, "Invalid min duration for say duration\n");
+		}
 	} else if (!strcasecmp(var, "forcename")){
 		if (ast_true(value))
 			vmu->forcename = 1;
@@ -2447,7 +2467,7 @@ static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms,
 		}
 	} else {
 		/* Number unknown */
-		ast_log(LOG_DEBUG, "VM-CID: From an unknown number");
+		ast_log(LOG_DEBUG, "VM-CID: From an unknown number\n");
 		if (!res)
 			/* BB: Say "from an unknown caller" as one phrase - it is already recorded by "the voice" anyhow */
 			res = wait_file2(chan, vms, "vm-unknown-caller");
@@ -2455,10 +2475,32 @@ static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms,
 	return res;
 }
 
+static int play_message_duration(struct ast_channel *chan, struct vm_state *vms, char *duration, int minduration)
+{
+	int res = 0;
+	int durationm;
+	int durations;
+	/* Verify that we have a duration for the message */
+	if((duration == NULL))
+		return res;
+
+	/* Convert from seconds to minutes */
+	durations=atoi(duration);
+	durationm=(durations / 60);
+
+	ast_log(LOG_DEBUG, "VM-Duration: duration is: %d seconds converted to: %d minutes\n", durations, durationm);
+
+	if((!res)&&(durationm>=minduration)) {
+		res = ast_say_number(chan, durationm, AST_DIGIT_ANY, chan->language, (char *) NULL);
+		res = wait_file2(chan, vms, "vm-minutes");
+	}
+	return res;
+}
+
 static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms)
 {
 	int res = 0;
-	char filename[256],*origtime, *cid, *context;
+	char filename[256],*origtime, *cid, *context, *duration;
 	struct ast_config *msg_cfg;
 
 	vms->starting = 0; 
@@ -2489,6 +2531,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 		return 0;
 
 	cid = ast_variable_retrieve(msg_cfg, "message", "callerid");
+	duration = ast_variable_retrieve(msg_cfg, "message", "duration");
 
 	context = ast_variable_retrieve(msg_cfg, "message", "context");
 	if (!strncasecmp("macro",context,5)) /* Macro names in contexts are useless for our needs */
@@ -2498,6 +2541,8 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 		res = play_message_datetime(chan, vmu, origtime, filename);
 	if ((!res)&&(vmu->saycid))
 		res = play_message_callerid(chan, vms, cid, context, 0);
+        if ((!res)&&(vmu->sayduration))
+                res = play_message_duration(chan, vms, duration, vmu->saydurationm);
 	/* Allow pressing '1' to skip envelope / callerid */
 	if (res == '1')
 		res = 0;
@@ -3952,6 +3997,8 @@ static int load_config(void)
 	char *astreview;
 	char *astskipcmd;
 	char *asthearenv;
+	char *astsaydurationinfo;
+	char *astsaydurationminfo;
 	char *silencestr;
 	char *thresholdstr;
 	char *fmt;
@@ -4140,6 +4187,22 @@ static int load_config(void)
 			asthearenv = "yes";
 		}
 		hearenv = ast_true(asthearenv);	
+
+		saydurationinfo = 0;
+		if (!(astsaydurationinfo = ast_variable_retrieve(cfg, "general", "sayduration"))) {
+			ast_log(LOG_DEBUG,"Duration info before msg enabled globally\n");
+			astsaydurationinfo = "yes";
+		}
+		saydurationinfo = ast_true(astsaydurationinfo);	
+
+		saydurationminfo = 2;
+		if ((astsaydurationminfo = ast_variable_retrieve(cfg, "general", "saydurationm"))) {
+			if (sscanf(astsaydurationminfo, "%d", &x) == 1) {
+				saydurationminfo = x;
+			} else {
+				ast_log(LOG_WARNING, "Invalid min duration for say duration\n");
+			}
+		}
 
 		skipaftercmd = 0;
 		if (!(astskipcmd = ast_variable_retrieve(cfg, "general", "nextaftercmd"))) {

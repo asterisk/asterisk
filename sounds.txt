@@ -128,9 +128,11 @@
 
 %vm-goodbye.gsm%Goodbye
  
-%vm-helpexit.gsm%Pres star for help or pound to exit.
+%vm-helpexit.gsm%Press star for help or pound to exit.
 
 %vm-INBOX.gsm%new
+
+%vm-minutes.gsm%minutes
 
 %vm-incorrect-mailbox.gsm%Login incorrect.  Mailbox?
 
