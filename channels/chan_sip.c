@@ -125,7 +125,7 @@ static char ourhost[256];
 static struct in_addr __ourip;
 static int ourport;
 
-static int sipdebug = 0;
+static int sipdebug = 1;
 
 static int tos = 0;
 
@@ -2802,7 +2802,7 @@ static int transmit_notify(struct sip_pvt *p, int newmsgs, int oldmsgs)
 	return send_request(p, &req, 1, p->ocseq);
 }
 
-static int transmit_register(struct sip_registry *r, char *cmd, char *auth);
+static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char *authheader);
 
 static int sip_reregister(void *data) 
 {
@@ -2818,7 +2818,7 @@ static int sip_do_register(struct sip_registry *r)
 {
 	int res;
 	ast_mutex_lock(&r->lock);
-	res=transmit_register(r, "REGISTER", NULL);
+	res=transmit_register(r, "REGISTER", NULL, NULL);
 	ast_mutex_unlock(&r->lock);
 	return res;
 }
@@ -2841,12 +2841,12 @@ static int sip_reg_timeout(void *data)
 	}
 	r->regstate=REG_STATE_UNREGISTERED;
 	r->timeout = -1;
-	res=transmit_register(r, "REGISTER", NULL);
+	res=transmit_register(r, "REGISTER", NULL, NULL);
 	ast_mutex_unlock(&r->lock);
 	return 0;
 }
 
-static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
+static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char *authheader)
 {
 	struct sip_request req;
 	char from[256];
@@ -2929,7 +2929,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 	add_header(&req, "CSeq", tmp);
 	add_header(&req, "User-Agent", "Asterisk PBX");
 	if (auth) 
-		add_header(&req, "Authorization", auth);
+		add_header(&req, authheader, auth);
 
 	snprintf(tmp, sizeof(tmp), "%d", default_expiry);
 	add_header(&req, "Expires", tmp);
@@ -4086,15 +4086,15 @@ static int sip_no_debug(int fd, int argc, char *argv[])
 
 static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, char *orig_header, char *digest, int digest_len);
 
-static int do_register_auth(struct sip_pvt *p, struct sip_request *req) {
+static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader) {
 	char digest[256];
 	p->authtries++;
 	memset(digest,0,sizeof(digest));
-	if (reply_digest(p,req, "WWW-Authenticate", "REGISTER", digest, sizeof(digest))) {
+	if (reply_digest(p,req, header, "REGISTER", digest, sizeof(digest))) {
 		/* There's nothing to use for authentication */
 		return -1;
 	}
-	return transmit_register(p->registry,"REGISTER",digest); 
+	return transmit_register(p->registry,"REGISTER",digest, respheader); 
 }
 
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *msg, int init) {
@@ -4438,7 +4438,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		case 401: /* Not authorized on REGISTER */
 			if (p->registry && !strcasecmp(msg, "REGISTER")) {
-				if ((p->authtries > 1) || do_register_auth(p, req)) {
+				if ((p->authtries > 1) || do_register_auth(p, req, "WWW-Authenticate", "Authorization")) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on REGISTER to '%s'\n", get_header(&p->initreq, "From"));
 					p->needdestroy = 1;
 				}
@@ -4463,8 +4463,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					p->needdestroy = 1;
 				}
 			} else if (p->registry && !strcasecmp(msg, "REGISTER")) {
-				if ((p->authtries > 1) || do_register_auth(p, req)) {
-					ast_log(LOG_NOTICE, "Failed to authenticate on REGISTER to '%s'\n", get_header(&p->initreq, "From"));
+				if ((p->authtries > 1) || do_register_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization")) {
+					ast_log(LOG_NOTICE, "Failed to authenticate on REGISTER to '%s' (tries '%d')\n", get_header(&p->initreq, "From"), p->authtries);
 					p->needdestroy = 1;
 				}
 			} else
