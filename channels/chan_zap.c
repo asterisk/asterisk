@@ -4967,7 +4967,7 @@ static void *ss_thread(void *data)
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Parking call to '%s'\n", chan->name);
 				break;
-			} else if (!ast_strlen_zero(p->lastcallerid) && !strcmp(exten, "*80")) {
+			} else if (!ast_strlen_zero(p->lastcallerid) && !strcmp(exten, "*60")) {
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Blacklisting number %s\n", p->lastcallerid);
 				res = ast_db_put("blacklist", p->lastcallerid, "1");

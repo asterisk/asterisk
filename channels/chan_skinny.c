@@ -1406,7 +1406,7 @@ static void *skinny_ss(void *data)
                 ast_verbose(VERBOSE_PREFIX_3 "Parking call to '%s'\n", chan->name);
             }
             break;
-        } else if (!ast_strlen_zero(l->lastcallerid) && !strcmp(exten, "*80")) {
+        } else if (!ast_strlen_zero(l->lastcallerid) && !strcmp(exten, "*60")) {
             if (option_verbose > 2) {
                 ast_verbose(VERBOSE_PREFIX_3 "Blacklisting number %s\n", l->lastcallerid);
             }

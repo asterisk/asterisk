@@ -2612,7 +2612,7 @@ static void *mgcp_ss(void *data)
                 ast_verbose(VERBOSE_PREFIX_3 "Parking call to '%s'\n", chan->name);
             }
             break;
-        } else if (strlen(p->lastcallerid) && !strcmp(exten, "*80")) {
+        } else if (strlen(p->lastcallerid) && !strcmp(exten, "*60")) {
             if (option_verbose > 2) {
                 ast_verbose(VERBOSE_PREFIX_3 "Blacklisting number %s\n", p->lastcallerid);
             }
