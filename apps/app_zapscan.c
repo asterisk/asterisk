@@ -43,8 +43,8 @@ static char *app = "ZapScan";
 static char *synopsis = "Scan Zap channels to monitor calls";
 
 static char *descrip =
-"  ZapScan allows a call center manager to monitor\n"
-"phone conversations in a convenient way.";
+"  ZapScan allows a call center manager to monitor Zap channels in\n"
+"a convenient way.  Use '#' to select the next channel and use '*' to exit\n";
 
 
 STANDARD_LOCAL_USER;
@@ -191,6 +191,9 @@ zapretry:
                         if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '#')) {
                                 ret = 0;
                                 break;
+                        } else if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*')) {
+				ret = -1;
+				break;
                         } else if (fd != chan->fds[0]) {
                                 if (f->frametype == AST_FRAME_VOICE) {
                                         if (f->subclass == AST_FORMAT_ULAW) {
@@ -245,6 +248,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
         int confno = 0;
         char confstr[80], *tmp;
         struct ast_channel *tempchan = NULL, *lastchan = NULL;
+	struct ast_frame *f;
 
         LOCAL_USER_ADD(u);
 
@@ -252,6 +256,14 @@ static int conf_exec(struct ast_channel *chan, void *data)
                 ast_answer(chan);
 
         for (;;) {
+		f = ast_read(chan);
+		if (!f || ast_check_hangup(chan))
+			break;
+		if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*')) {
+			ast_frfree(f);
+			break;
+		}
+		ast_frfree(f);
                 tempchan = ast_channel_walk(tempchan);
                 if ( !tempchan && !lastchan )
                         break;
