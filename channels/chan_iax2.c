@@ -4948,11 +4948,21 @@ retryowner:
 						iaxs[fr.callno]->owner->nativeformats = iaxs[fr.callno]->peerformat;
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "Format for call is %s\n", ast_getformatname(iaxs[fr.callno]->owner->nativeformats));
-						/* Setup read/write formats properly. */
-						if (iaxs[fr.callno]->owner->writeformat)
-							ast_set_write_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->writeformat);	
-						if (iaxs[fr.callno]->owner->readformat)
-							ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat);	
+retryowner2:
+						if (ast_mutex_trylock(&iaxs[fr.callno]->owner->lock)) {
+							ast_mutex_unlock(&iaxsl[fr.callno]);
+							usleep(1);
+							ast_mutex_lock(&iaxsl[fr.callno]);
+							if (iaxs[fr.callno] && iaxs[fr.callno]->owner) goto retryowner2;
+						}
+						
+						if (iaxs[fr.callno] && iaxs[fr.callno]->owner) {
+							/* Setup read/write formats properly. */
+							if (iaxs[fr.callno]->owner->writeformat)
+								ast_set_write_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->writeformat);	
+							if (iaxs[fr.callno]->owner->readformat)
+								ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat);	
+						}
 					}
 				}
 				ast_mutex_lock(&dpcache_lock);
