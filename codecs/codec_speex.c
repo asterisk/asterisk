@@ -10,7 +10,7 @@
  * This program is free software, distributed under the terms of
  * the GNU General Public License
  *
- * This work was motivated by Jeremy McNamera's 
+ * This work was motivated by Jeremy McNamara 
  */
 
 #define TYPE_SILENCE	 0x2
@@ -102,7 +102,7 @@ static struct ast_frame *lintospeex_sample()
 	f.subclass = AST_FORMAT_SLINEAR;
 	f.datalen = sizeof(slin_speex_ex);
 	/* Assume 8000 Hz */
-	f.timelen = sizeof(slin_speex_ex)/16;
+	f.samples = sizeof(slin_speex_ex)/2;
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
@@ -117,7 +117,7 @@ static struct ast_frame *speextolin_sample()
 	f.subclass = AST_FORMAT_SPEEX;
 	f.datalen = sizeof(speex_slin_ex);
 	/* All frames are 20 ms long */
-	f.timelen = 20;
+	f.samples = 160;
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
@@ -135,7 +135,7 @@ static struct ast_frame *speextolin_frameout(struct ast_translator_pvt *tmp)
 	tmp->f.subclass = AST_FORMAT_SLINEAR;
 	tmp->f.datalen = tmp->tail * 2;
 	/* Assume 8000 Hz */
-	tmp->f.timelen = tmp->tail / 8;
+	tmp->f.samples = tmp->tail;
 	tmp->f.mallocd = 0;
 	tmp->f.offset = AST_FRIENDLY_OFFSET;
 	tmp->f.src = __PRETTY_FUNCTION__;
@@ -220,7 +220,7 @@ static struct ast_frame *lintospeex_frameout(struct ast_translator_pvt *tmp)
 	speex_bits_pack(&tmp->bits, 15, 5);
 	len = speex_bits_write(&tmp->bits, (char *)tmp->outbuf, sizeof(tmp->outbuf));
 	tmp->f.datalen = len;
-	tmp->f.timelen = y * 20;
+	tmp->f.samples = y * 160;
 #if 0
 	{
 		static int fd = -1;
