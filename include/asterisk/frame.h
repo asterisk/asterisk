@@ -193,6 +193,8 @@ struct ast_frame_chain {
 #define	AST_CONTROL_RADIO_KEY		12
 /*! Un-Key Radio */
 #define	AST_CONTROL_RADIO_UNKEY		13
+/*! Indicate CALL_PROCEEDING or PROGRESS */
+#define AST_CONTROL_PROGRESS            14
 
 /* Option identifiers and flags */
 #define AST_OPTION_FLAG_REQUEST		0

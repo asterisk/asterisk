@@ -187,6 +187,7 @@ static int minunused = 2;
 static int minidle = 0;
 static char idleext[AST_MAX_EXTENSION];
 static char idledial[AST_MAX_EXTENSION];
+static int overlapdial = 0;
 #endif
 
 /* Wait up to 16 seconds for first digit (FXO logic) */
@@ -437,6 +438,7 @@ static struct zt_pvt {
 #ifdef PRI_EVENT_PROCEEDING
 	int proceeding;
 #endif
+	int overlapdial;
 #endif	
 #ifdef ZAPATA_R2
 	int r2prot;
@@ -672,7 +674,11 @@ static int zt_digit(struct ast_channel *ast, char digit)
 #else
 		if (p->sig == SIG_PRI && ast->_state == AST_STATE_DIALING) {
 #endif
-			pri_information(p->pri->pri,p->call,digit);
+			if (!pri_grab(p, p->pri))
+				pri_information(p->pri->pri,p->call,digit);
+			else
+				ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+			pri_rel(p->pri);
 		} else {
 #else
 		{
@@ -3410,6 +3416,30 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 					 (p->sig != SIG_FXSGS)))
 					ast_setstate(chan, AST_STATE_RINGING);
 			}
+#if 0
+                        break;
+#endif
+		/* Fall through */
+		case AST_CONTROL_PROGRESS:
+			ast_log(LOG_DEBUG,"Received AST_CONTROL_PROGRESS on %s\n",chan->name);
+#ifdef ZAPATA_PRI
+#ifdef PRI_EVENT_PROCEEDING
+			if (!p->proceeding && p->overlapdial && p->sig==SIG_PRI) {
+				if (p->pri && p->pri->pri) {		
+					if (!pri_grab(p, p->pri))
+						pri_acknowledge(p->pri->pri,p->call, p->prioffset, 1);
+					else
+						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
+					pri_rel(p->pri);
+				}
+				p->proceeding=1;
+			}
+#else
+			ast_log(LOG_WARNING, "Please update your libpri package if you want to use overlap sending\n");
+#endif
+#endif
+			/* don't continue in ast_indicate */
+			res = 0;
 			break;
 		case AST_CONTROL_CONGESTION:
 			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
@@ -4795,6 +4825,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 					tmp->pri = &pris[span];
 					tmp->prioffset = offset;
 					tmp->call = NULL;
+					tmp->overlapdial=overlapdial;
 				} else {
 					ast_log(LOG_ERROR, "Channel %d is reserved for D-channel.\n", offset);
 					free(tmp);
@@ -5562,8 +5593,19 @@ static void *pri_dchannel(void *vpri)
 #endif
 					else
 						strcpy(pri->pvt[chan]->exten, "");
+					/* queue DTMF frame if the PBX for this call was already started (we're forwarding INFORMATION further on */
+					if (pri->pvt[chan]->overlapdial && pri->pvt[chan]->call==e->ring.call && pri->pvt[chan]->owner) {
+						/* how to do that */
+						char digit = e->ring.callednum[strlen(e->ring.callednum)-1];
+						struct ast_frame f = { AST_FRAME_DTMF, digit, };
+						/* make sure that we store the right number in CDR */
+						if (pri->pvt[chan]->owner->cdr)
+							strncat(pri->pvt[chan]->owner->cdr->dst,&digit,1);
+						ast_queue_frame(pri->pvt[chan]->owner, &f, 0);
+					}
 					/* Make sure extension exists */
-					if (strlen(pri->pvt[chan]->exten) && ast_exists_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid)) {
+					/* If extensions is empty then make sure we send later on SETUP_ACKNOWLEDGE to get digits in overlap mode */
+					else if (strlen(pri->pvt[chan]->exten) && ast_exists_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid)) {
 						/* Setup law */
 						int law;
 						/* Set to audio mode at this poitn mode */
@@ -5587,7 +5629,13 @@ static void *pri_dchannel(void *vpri)
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Accepting call from '%s' to '%s' on channel %d, span %d\n",
 									e->ring.callingnum, pri->pvt[chan]->exten, chan, pri->span);
-							pri_acknowledge(pri->pri, e->ring.call, chan, 1);
+							if (!pri->pvt[chan]->overlapdial) {
+								pri_acknowledge(pri->pri, e->ring.call, chan, 1);
+							}
+							/* If we got here directly and didn't send the SETUP_ACKNOWLEDGE we need to send it otherwise we don't sent anything */
+							else if (e->e==PRI_EVENT_RING) {
+								pri_need_more_info(pri->pri, e->ring.call, chan, 1);
+							}
 							zt_enable_ec(pri->pvt[chan]);
 						} else {
 							ast_log(LOG_WARNING, "Unable to start PBX on channel %d, span %d\n", chan, pri->span);
@@ -5597,11 +5645,11 @@ static void *pri_dchannel(void *vpri)
 					} else {
 						if (!strlen(pri->pvt[chan]->exten) || ast_matchmore_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid))
 						{
+							/* Send SETUP_ACKNOWLEDGE only when we receive SETUP, don't send if we got INFORMATION */
 							if (e->e==PRI_EVENT_RING) pri_need_more_info(pri->pri, e->ring.call, chan, 1);
 						} else {
 							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "Extension '%s' in context '%s' from '%s' does not exist.  Rejecting call on channel %d, span %d\n",
-							pri->pvt[chan]->exten, pri->pvt[chan]->context, pri->pvt[chan]->callerid, chan, pri->span);
+								ast_verbose(VERBOSE_PREFIX_3 "Extension '%s' in context '%s' from '%s' does not exist.  Rejecting call on channel %d, span %d\n",pri->pvt[chan]->exten, pri->pvt[chan]->context, pri->pvt[chan]->callerid, chan, pri->span);
 							pri_release(pri->pri, e->ring.call, PRI_CAUSE_UNALLOCATED);
 						}
 					}
@@ -5631,7 +5679,28 @@ static void *pri_dchannel(void *vpri)
 					} else
 						ast_log(LOG_DEBUG, "Deferring ringing notification because of extra digits to dial...\n");
 				}
+#ifndef PRI_EVENT_PROCEEDING
 				break;				
+#else
+				/* Fall through */
+				if (!chan) break;
+#endif
+#ifdef PRI_EVENT_PROCEEDING
+			case PRI_EVENT_PROCEEDING:
+				/* Get chan value if e->e is not PRI_EVNT_RINGING */
+				if (e->e == PRI_EVENT_PROCEEDING) 
+					chan = e->proceeding.channel;
+                                if ((chan >= 1) && (chan <= pri->channels)) 
+	                                        if (pri->pvt[chan] && pri->pvt[chan]->overlapdial && !pri->pvt[chan]->proceeding) {
+							struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
+							ast_log(LOG_DEBUG, "queling frame from PRI_EVENT_PROCEEDING on channel %d span %d\n",chan,pri->pvt[chan]->span);
+							ast_queue_frame(pri->pvt[chan]->owner, &f, 0);
+
+							pri->pvt[chan]->proceeding=1;
+						}
+							
+				break;
+#endif	
 			case PRI_EVENT_FACNAME:
 				chan = e->facname.channel;
 				if ((chan < 1) || (chan > pri->channels)) {
@@ -5792,14 +5861,6 @@ static void *pri_dchannel(void *vpri)
 					}
 				}
 				break;
-#ifdef PRI_EVENT_PROCEEDING
-			case PRI_EVENT_PROCEEDING:
-				chan = e->proceeding.channel;
-                                if ((chan >= 1) && (chan <= pri->channels))
-	                                        if (pri->pvt[chan])
-							pri->pvt[chan]->proceeding=1;
-				break;
-#endif	
 			default:
 				ast_log(LOG_DEBUG, "Event: %d\n", e->e);
 			}
@@ -6522,6 +6583,8 @@ int load_module()
 			strncpy(idleext, v->value, sizeof(idleext) - 1);
 		} else if (!strcasecmp(v->name, "idledial")) {
 			strncpy(idledial, v->value, sizeof(idledial) - 1);
+		} else if (!strcasecmp(v->name, "overlapdial")) {
+			overlapdial = ast_true(v->value);
 #endif		
 		} else
 			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);

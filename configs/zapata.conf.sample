@@ -33,6 +33,10 @@ switchtype=national
 ;
 ;pridialplan=national
 ;
+; Overlap dialing mode (sending overlap digits)
+;
+;overlapdial=yes
+;
 ; Signalling method (default is fxs).  Valid values:
 ; em:      E & M
 ; em_w:    E & M Wink
