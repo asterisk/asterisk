@@ -278,6 +278,7 @@ struct sip_user {
 	char callerid[80];
 	char methods[80];
 	char accountcode[20];
+	char language[MAX_LANGUAGE];
 	unsigned int callgroup;
 	unsigned int pickupgroup;
 	int nat;
@@ -3910,6 +3911,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				strncpy(p->peersecret, user->secret, sizeof(p->peersecret) - 1);
 				strncpy(p->peermd5secret, user->md5secret, sizeof(p->peermd5secret) - 1);
 				strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)  -1);
+				strncpy(p->language, user->language, sizeof(p->language)  -1);
 				p->canreinvite = user->canreinvite;
 				p->amaflags = user->amaflags;
 				p->callgroup = user->callgroup;
@@ -5630,6 +5632,7 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 		user->canreinvite = REINVITE_INVITE;
 		/* JK02: set default context */
 		strcpy(user->context, context);
+		strcpy(user->language, language);
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
 				strncpy(user->context, v->value, sizeof(user->context));
@@ -5667,6 +5670,8 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 				user->callgroup = ast_get_group(v->value);
 			} else if (!strcasecmp(v->name, "pickupgroup")) {
 				user->pickupgroup = ast_get_group(v->value);
+			} else if (!strcasecmp(v->name, "language")) {
+				strncpy(user->language, v->value, sizeof(user->language)-1);
 			} else if (!strcasecmp(v->name, "accountcode")) {
 				strncpy(user->accountcode, v->value, sizeof(user->accountcode)-1);
 			} else if (!strcasecmp(v->name, "incominglimit")) {
