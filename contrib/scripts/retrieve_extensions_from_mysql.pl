@@ -1,7 +1,7 @@
 #!/usr/bin/perl -Tw
 # Use these commands to create the appropriate tables in MySQL
 # 
-#CREATE TABLE ext (
+#CREATE TABLE extensions (
 #	context CHAR(20) DEFAULT 'default' NOT NULL,
 #	extension CHAR(20) NOT NULL,
 #	priority INT(2) DEFAULT '1' NOT NULL,
