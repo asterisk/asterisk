@@ -3694,8 +3694,10 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 
 	snprintf(p->lastmsg, sizeof(p->lastmsg), "Init: %s", cmd);
 
-	l = p->owner->cid.cid_num;
-	n = p->owner->cid.cid_name;
+	if (p->owner) {
+		l = p->owner->cid.cid_num;
+		n = p->owner->cid.cid_name;
+	}
 	if (!l || !ast_isphonenumber(l))
 			l = default_callerid;
 	/* if user want's his callerid restricted */

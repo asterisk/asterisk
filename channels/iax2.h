@@ -112,6 +112,9 @@
 #define IAX_IE_FWBLOCKDESC			35		/* Firmware block description -- u32 */
 #define IAX_IE_FWBLOCKDATA			36		/* Firmware block of data -- raw */
 #define IAX_IE_PROVVER				37		/* Provisioning Version (u32) */
+#define IAX_IE_CALLINGPRES			38		/* Calling presentation (u8) */
+#define IAX_IE_CALLINGTON			39		/* Calling type of number (u8) */
+#define IAX_IE_CALLINGTNS			40		/* Calling transit network select (u16) */
 
 #define IAX_AUTH_PLAINTEXT			(1 << 0)
 #define IAX_AUTH_MD5				(1 << 1)

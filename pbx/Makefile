@@ -13,13 +13,17 @@
 
 
 
-PBX_LIBS=pbx_config.so pbx_wilcalu.so pbx_spool.so     # pbx_gtkconsole.so pbx_kdeconsole.so
+PBX_LIBS=pbx_config.so pbx_spool.so     # pbx_gtkconsole.so pbx_kdeconsole.so
 
 # Add GTK console if appropriate
 PBX_LIBS+=$(shell gtk-config --cflags >/dev/null 2>/dev/null && echo "pbx_gtkconsole.so")
 # Add KDE Console if appropriate
 #PBX_LIBS+=$(shell [ "$$QTDIR" != "" ] && echo "pbx_kdeconsole.so")
 
+#
+# Obsolete modules
+#
+#PBX_LIBS+=pbx_wilcalu.so
 
 GTK_FLAGS=`gtk-config --cflags gthread`
 GTK_LIBS=`gtk-config --libs gthread`
@@ -63,6 +67,7 @@ endif
 
 install: all
 	for x in $(PBX_LIBS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
+	if ! [ -f pbx_wilcalu.so ]; then rm -f $(DESTDIR)$(MODULES_DIR)/pbx_wilcalu.so; fi
 
 depend: .depend
 

@@ -5,7 +5,7 @@
  * 
  * Copyright (C) 2003, Digium
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -19,6 +19,9 @@ struct iax_ies {
 	char *calling_number;
 	char *calling_ani;
 	char *calling_name;
+	int calling_ton;
+	int calling_tns;
+	int calling_pres;
 	char *called_context;
 	char *username;
 	char *password;

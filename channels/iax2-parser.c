@@ -3,9 +3,9 @@
  *
  * Implementation of Inter-Asterisk eXchange
  * 
- * Copyright (C) 2003, Digium
+ * Copyright (C) 2003-2004, Digium
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -158,6 +158,9 @@ static struct iax2_ie {
 	{ IAX_IE_FWBLOCKDESC, "FW BLOCK DESC", dump_int },
 	{ IAX_IE_FWBLOCKDATA, "FW BLOCK DATA" },
 	{ IAX_IE_PROVVER, "PROVISIONG VER", dump_int },
+	{ IAX_IE_CALLINGPRES, "CALLING PRESNTN", dump_byte },
+	{ IAX_IE_CALLINGTON, "CALLING TYPEOFNUM", dump_byte },
+	{ IAX_IE_CALLINGTNS, "CALLING TRANSITNET", dump_short },
 };
 
 static struct iax2_ie prov_ies[] = {
@@ -481,6 +484,9 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 	memset(ies, 0, (int)sizeof(struct iax_ies));
 	ies->msgcount = -1;
 	ies->firmwarever = -1;
+	ies->calling_ton = -1;
+	ies->calling_tns = -1;
+	ies->calling_pres = -1;
 	while(datalen >= 2) {
 		ie = data[0];
 		len = data[1];
@@ -657,6 +663,29 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				ies->provverpres = 1;
 				ies->provver = ntohl(*((unsigned int *)(data + 2)));
 			}
+			break;
+		case IAX_IE_CALLINGPRES:
+			if (len == 1)
+				ies->calling_pres = data[2];
+			else {
+				snprintf(tmp, (int)sizeof(tmp), "Expected single byte callingpres, but was %d long\n", len);
+				errorf(tmp);
+			}
+			break;
+		case IAX_IE_CALLINGTON:
+			if (len == 1)
+				ies->calling_ton = data[2];
+			else {
+				snprintf(tmp, (int)sizeof(tmp), "Expected single byte callington, but was %d long\n", len);
+				errorf(tmp);
+			}
+			break;
+		case IAX_IE_CALLINGTNS:
+			if (len != (int)sizeof(unsigned short)) {
+				snprintf(tmp, (int)sizeof(tmp), "Expecting callingtns to be %d bytes long but was %d\n", (int)sizeof(unsigned short), len);
+				errorf(tmp);
+			} else
+				ies->calling_tns = ntohs(*((unsigned short *)(data + 2)));	
 			break;
 		default:
 			snprintf(tmp, (int)sizeof(tmp), "Ignoring unknown information element '%s' (%d) of length %d\n", iax_ie2str(ie), ie, len);

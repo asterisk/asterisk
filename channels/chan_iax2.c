@@ -473,6 +473,9 @@ struct chan_iax2_pvt {
 	int authid;			/* Authentication rejection ID */
 	int authfail;		/* Reason to report failure */
 	int initid;			/* Initial peer auto-congest ID (based on qualified peers) */
+	int calling_ton;
+	int calling_tns;
+	int calling_pres;
 	char dproot[AST_MAX_EXTENSION];
 	char accountcode[20];
 	int amaflags;
@@ -3607,6 +3610,12 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		strncpy(iaxs[callno]->language, ies->language, sizeof(iaxs[callno]->language)-1);
 	if (ies->username)
 		strncpy(iaxs[callno]->username, ies->username, sizeof(iaxs[callno]->username)-1);
+	if (ies->calling_ton > -1)
+		iaxs[callno]->calling_ton = ies->calling_ton;
+	if (ies->calling_tns > -1)
+		iaxs[callno]->calling_tns = ies->calling_tns;
+	if (ies->calling_pres > -1)
+		iaxs[callno]->calling_pres = ies->calling_pres;
 	if (ies->format)
 		iaxs[callno]->peerformat = ies->format;
 	if (ies->adsicpe)
