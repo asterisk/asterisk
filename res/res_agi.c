@@ -1173,45 +1173,45 @@ static int handle_setmusic(struct ast_channel *chan, AGI *agi, int argc, char *a
 static char usage_setmusic[] =
 " Usage: SET MUSIC ON <on|off> <class>\n"
 "	Enables/Disables the music on hold generator.  If <class> is\n"
-" not specified then the default music on hold class will be used.\n"
-" Always returns 0\n";
+" not specified, then the default music on hold class will be used.\n"
+" Always returns 0.\n";
 
 static char usage_dbput[] =
 " Usage: DATABASE PUT <family> <key> <value>\n"
 "	Adds or updates an entry in the Asterisk database for a\n"
 " given family, key, and value.\n"
-" Returns 1 if succesful, 0 otherwise\n";
+" Returns 1 if successful, 0 otherwise.\n";
 
 static char usage_dbget[] =
 " Usage: DATABASE GET <family> <key>\n"
 "	Retrieves an entry in the Asterisk database for a\n"
 " given family and key.\n"
-"	Returns 0 if <key> is not set.  Returns 1 if <key>\n"
-" is set and returns the variable in parenthesis\n"
-" example return code: 200 result=1 (testvariable)\n";
+" Returns 0 if <key> is not set.  Returns 1 if <key>\n"
+" is set and returns the variable in parentheses.\n"
+" Example return code: 200 result=1 (testvariable)\n";
 
 static char usage_dbdel[] =
 " Usage: DATABASE DEL <family> <key>\n"
 "	Deletes an entry in the Asterisk database for a\n"
 " given family and key.\n"
-" Returns 1 if succesful, 0 otherwise\n";
+" Returns 1 if successful, 0 otherwise.\n";
 
 static char usage_dbdeltree[] =
 " Usage: DATABASE DELTREE <family> [keytree]\n"
-"	Deletes a family or specific keytree withing a family\n"
+"	Deletes a family or specific keytree within a family\n"
 " in the Asterisk database.\n"
-" Returns 1 if succesful, 0 otherwise\n";
+" Returns 1 if successful, 0 otherwise.\n";
 
 static char usage_verbose[] =
 " Usage: VERBOSE <message> <level>\n"
 "	Sends <message> to the console via verbose message system.\n"
-"	<level> is the the verbose level (1-4)\n"
-"	Always returns 1\n";
+" <level> is the the verbose level (1-4)\n"
+" Always returns 1.\n";
 
 static char usage_getvariable[] =
 " Usage: GET VARIABLE <variablename>\n"
 "	Returns 0 if <variablename> is not set.  Returns 1 if <variablename>\n"
-" is set and returns the variable in parenthesis\n"
+" is set and returns the variable in parentheses.\n"
 " example return code: 200 result=1 (testvariable)\n";
 
 static char usage_getvariablefull[] =
@@ -1227,17 +1227,16 @@ static char usage_setvariable[] =
 static char usage_channelstatus[] =
 " Usage: CHANNEL STATUS [<channelname>]\n"
 "	Returns the status of the specified channel.\n" 
-"       If no channel name is given the returns the status of the\n"
-"       current channel.\n"
-"       Return values:\n"
-" 0 Channel is down and available\n"
-" 1 Channel is down, but reserved\n"
-" 2 Channel is off hook\n"
-" 3 Digits (or equivalent) have been dialed\n"
-" 4 Line is ringing\n"
-" 5 Remote end is ringing\n"
-" 6 Line is up\n"
-" 7 Line is busy\n";
+" If no channel name is given the returns the status of the\n"
+" current channel.  Return values:\n"
+"  0 Channel is down and available\n"
+"  1 Channel is down, but reserved\n"
+"  2 Channel is off hook\n"
+"  3 Digits (or equivalent) have been dialed\n"
+"  4 Line is ringing\n"
+"  5 Remote end is ringing\n"
+"  6 Line is up\n"
+"  7 Line is busy\n";
 
 static char usage_setcallerid[] =
 " Usage: SET CALLERID <number>\n"
@@ -1246,28 +1245,28 @@ static char usage_setcallerid[] =
 static char usage_exec[] =
 " Usage: EXEC <application> <options>\n"
 "	Executes <application> with given <options>.\n"
-"	Returns whatever the application returns, or -2 on failure to find application\n";
+" Returns whatever the application returns, or -2 on failure to find application\n";
 
 static char usage_hangup[] =
 " Usage: HANGUP [<channelname>]\n"
 "	Hangs up the specified channel.\n"
-"       If no channel name is given, hangs up the current channel\n";
+" If no channel name is given, hangs up the current channel\n";
 
 static char usage_answer[] = 
 " Usage: ANSWER\n"
-"        Answers channel if not already in answer state. Returns -1 on\n"
+"	Answers channel if not already in answer state. Returns -1 on\n"
 " channel failure, or 0 if successful.\n";
 
 static char usage_waitfordigit[] = 
 " Usage: WAIT FOR DIGIT <timeout>\n"
-"        Waits up to 'timeout' milliseconds for channel to receive a DTMF digit.\n"
+"	Waits up to 'timeout' milliseconds for channel to receive a DTMF digit.\n"
 " Returns -1 on channel failure, 0 if no digit is received in the timeout, or\n"
 " the numerical value of the ascii of the digit if one is received.  Use -1\n"
 " for the timeout value if you desire the call to block indefinitely.\n";
 
 static char usage_sendtext[] =
 " Usage: SEND TEXT \"<text to send>\"\n"
-"        Sends the given text on a channel.  Most channels do not support the\n"
+"	Sends the given text on a channel.  Most channels do not support the\n"
 " transmission of text.  Returns 0 if text is sent, or if the channel does not\n"
 " support text transmission.  Returns -1 only on error/hangup.  Text\n"
 " consisting of greater than one word should be placed in quotes since the\n"
@@ -1275,7 +1274,7 @@ static char usage_sendtext[] =
 
 static char usage_recvchar[] =
 " Usage: RECEIVE CHAR <timeout>\n"
-"        Receives a character of text on a channel.  Specify timeout to be the\n"
+"	Receives a character of text on a channel.  Specify timeout to be the\n"
 " maximum time to wait for input in milliseconds, or 0 for infinite. Most channels\n"
 " do not support the reception of text.  Returns the decimal value of the character\n"
 " if one is received, or 0 if the channel does not support text reception.  Returns\n"
@@ -1283,19 +1282,19 @@ static char usage_recvchar[] =
 
 static char usage_tddmode[] =
 " Usage: TDD MODE <on|off>\n"
-"        Enable/Disable TDD transmission/reception on a channel. Returns 1 if\n"
+"	Enable/Disable TDD transmission/reception on a channel. Returns 1 if\n"
 " successful, or 0 if channel is not TDD-capable.\n";
 
 static char usage_sendimage[] =
 " Usage: SEND IMAGE <image>\n"
-"        Sends the given image on a channel.  Most channels do not support the\n"
+"	Sends the given image on a channel.  Most channels do not support the\n"
 " transmission of images.  Returns 0 if image is sent, or if the channel does not\n"
 " support image transmission.  Returns -1 only on error/hangup.  Image names\n"
 " should not include extensions.\n";
 
 static char usage_streamfile[] =
 " Usage: STREAM FILE <filename> <escape digits> [sample offset]\n"
-"        Send the given file, allowing playback to be interrupted by the given\n"
+"	Send the given file, allowing playback to be interrupted by the given\n"
 " digits, if any.  Use double quotes for the digits if you wish none to be\n"
 " permitted.  If sample offset is provided then the audio will seek to sample\n"
 " offset before play starts.  Returns 0 if playback completes without a digit\n"
@@ -1305,32 +1304,32 @@ static char usage_streamfile[] =
 
 static char usage_getoption[] = 
 " Usage: GET OPTION <filename> <escape_digits> [timeout]\n"
-" Exactly like the STREAM FILE but used with a timeout option\n";
+"	Behaves similar to STREAM FILE but used with a timeout option.\n";
 
 static char usage_saynumber[] =
 " Usage: SAY NUMBER <number> <escape digits>\n"
-"        Say a given number, returning early if any of the given DTMF digits\n"
+"	Say a given number, returning early if any of the given DTMF digits\n"
 " are received on the channel.  Returns 0 if playback completes without a digit\n"
 " being pressed, or the ASCII numerical value of the digit if one was pressed or\n"
 " -1 on error/hangup.\n";
 
 static char usage_saydigits[] =
 " Usage: SAY DIGITS <number> <escape digits>\n"
-"        Say a given digit string, returning early if any of the given DTMF digits\n"
+"	Say a given digit string, returning early if any of the given DTMF digits\n"
 " are received on the channel.  Returns 0 if playback completes without a digit\n"
 " being pressed, or the ASCII numerical value of the digit if one was pressed or\n"
 " -1 on error/hangup.\n";
 
 static char usage_sayalpha[] =
 " Usage: SAY ALPHA <number> <escape digits>\n"
-"        Say a given character string, returning early if any of the given DTMF digits\n"
+"	Say a given character string, returning early if any of the given DTMF digits\n"
 " are received on the channel.  Returns 0 if playback completes without a digit\n"
 " being pressed, or the ASCII numerical value of the digit if one was pressed or\n"
 " -1 on error/hangup.\n";
 
 static char usage_saytime[] =
 " Usage: SAY TIME <time> <escape digits>\n"
-"        Say a given time, returning early if any of the given DTMF digits are\n"
+"	Say a given time, returning early if any of the given DTMF digits are\n"
 " received on the channel.  <time> is number of seconds elapsed since 00:00:00\n"
 " on January 1, 1970, Coordinated Universal Time (UTC).  Returns 0 if playback\n"
 " completes without a digit being pressed, or the ASCII numerical value of the\n"
@@ -1338,84 +1337,84 @@ static char usage_saytime[] =
 
 static char usage_sayphonetic[] =
 " Usage: SAY PHONETIC <string> <escape digits>\n"
-"        Say a given character string with phonetics, returning early if any of the given DTMF digits\n"
-" are received on the channel.  Returns 0 if playback completes without a digit\n"
-" being pressed, or the ASCII numerical value of the digit if one was pressed or\n"
-" -1 on error/hangup.\n";
+"	Say a given character string with phonetics, returning early if any of the\n"
+" given DTMF digits are received on the channel.  Returns 0 if playback\n"
+" completes without a digit pressed, the ASCII numerical value of the digit\n"
+" if one was pressed, or -1 on error/hangup.\n";
 
 static char usage_getdata[] =
 " Usage: GET DATA <file to be streamed> [timeout] [max digits]\n"
-"	 Stream the given file, and recieve DTMF data. Returns the digits recieved\n"
+"	Stream the given file, and recieve DTMF data. Returns the digits received\n"
 "from the channel at the other end.\n";
 
 static char usage_setcontext[] =
 " Usage: SET CONTEXT <desired context>\n"
-"	 Sets the context for continuation upon exiting the application.\n";
+"	Sets the context for continuation upon exiting the application.\n";
 
 static char usage_setextension[] =
 " Usage: SET EXTENSION <new extension>\n"
-"	 Changes the extension for continuation upon exiting the application.\n";
+"	Changes the extension for continuation upon exiting the application.\n";
 
 static char usage_setpriority[] =
 " Usage: SET PRIORITY <num>\n"
-"	 Changes the priority for continuation upon exiting the application.\n";
+"	Changes the priority for continuation upon exiting the application.\n";
 
 static char usage_recordfile[] =
-" Usage: RECORD FILE <filename> <format> <escape digits> <timeout> [offset samples] [BEEP] [s=silence]\n"
-"        Record to a file until a given dtmf digit in the sequence is received\n"
+" Usage: RECORD FILE <filename> <format> <escape digits> <timeout> \\\n"
+"                                          [offset samples] [BEEP] [s=silence]\n"
+"	Record to a file until a given dtmf digit in the sequence is received\n"
 " Returns -1 on hangup or error.  The format will specify what kind of file\n"
 " will be recorded.  The timeout is the maximum record time in milliseconds, or\n"
-" -1 for no timeout. Offset samples is optional, and if provided will seek to\n"
-" the offset without exceeding the end of the file.  \"silence\" is the number\n"
+" -1 for no timeout. \"Offset samples\" is optional, and, if provided, will seek\n"
+" to the offset without exceeding the end of the file.  \"silence\" is the number\n"
 " of seconds of silence allowed before the function returns despite the\n"
 " lack of dtmf digits or reaching timeout.  Silence value must be\n"
-" preceeded by \"s=\" and is optional.\n";
-
+" preceeded by \"s=\" and is also optional.\n";
 
 static char usage_autohangup[] =
 " Usage: SET AUTOHANGUP <time>\n"
-"    Cause the channel to automatically hangup at <time> seconds in the\n"
-"future.  Of course it can be hungup before then as well.   Setting to\n"
-"0 will cause the autohangup feature to be disabled on this channel.\n";
+"	Cause the channel to automatically hangup at <time> seconds in the\n"
+" future.  Of course it can be hungup before then as well.  Setting to 0 will\n"
+" cause the autohangup feature to be disabled on this channel.\n";
 
 static char usage_noop[] =
-" Usage: NOOP\n"
-"    Does nothing.\n";
+" Usage: NoOp\n"
+"	Does nothing.\n";
 
 static agi_command commands[MAX_COMMANDS] = {
-	{ { "answer", NULL }, handle_answer, "Asserts answer", usage_answer },
-	{ { "wait", "for", "digit", NULL }, handle_waitfordigit, "Waits for a digit to be pressed", usage_waitfordigit },
-	{ { "send", "text", NULL }, handle_sendtext, "Sends text to channels supporting it", usage_sendtext },
+	{ { "answer", NULL }, handle_answer, "Answer channel", usage_answer },
+	{ { "channel", "status", NULL }, handle_channelstatus, "Returns status of the connected channel", usage_channelstatus },
+	{ { "database", "del", NULL }, handle_dbdel, "Removes database key/value", usage_dbdel },
+	{ { "database", "deltree", NULL }, handle_dbdeltree, "Removes database keytree/value", usage_dbdeltree },
+	{ { "database", "get", NULL }, handle_dbget, "Gets database value", usage_dbget },
+	{ { "database", "put", NULL }, handle_dbput, "Adds/updates database value", usage_dbput },
+	{ { "exec", NULL }, handle_exec, "Executes a given Application", usage_exec },
+	{ { "get", "data", NULL }, handle_getdata, "Prompts for DTMF on a channel", usage_getdata },
+	{ { "get", "full", "variable", NULL }, handle_getvariablefull, "Evaluates a channel expression", usage_getvariablefull },
+	{ { "get", "option", NULL }, handle_getoption, "Stream file, prompt for DTMF, with timeout", usage_getoption },
+	{ { "get", "variable", NULL }, handle_getvariable, "Gets a channel variable", usage_getvariable },
+	{ { "hangup", NULL }, handle_hangup, "Hangup the current channel", usage_hangup },
+	{ { "noop", NULL }, handle_noop, "Does nothing", usage_noop },
 	{ { "receive", "char", NULL }, handle_recvchar, "Receives text from channels supporting it", usage_recvchar },
-	{ { "tdd", "mode", NULL }, handle_tddmode, "Sends text to channels supporting it", usage_tddmode },
-	{ { "stream", "file", NULL }, handle_streamfile, "Sends audio file on channel", usage_streamfile },
-	{ { "get", "option", NULL }, handle_getoption, "Stream File", usage_getoption },
-	{ { "send", "image", NULL }, handle_sendimage, "Sends images to channels supporting it", usage_sendimage },
-	{ { "say", "digits", NULL }, handle_saydigits, "Says a given digit string", usage_saydigits },
+	{ { "record", "file", NULL }, handle_recordfile, "Records to a given file", usage_recordfile },
 	{ { "say", "alpha", NULL }, handle_sayalpha, "Says a given character string", usage_sayalpha },
+	{ { "say", "digits", NULL }, handle_saydigits, "Says a given digit string", usage_saydigits },
 	{ { "say", "number", NULL }, handle_saynumber, "Says a given number", usage_saynumber },
 	{ { "say", "phonetic", NULL }, handle_sayphonetic, "Says a given character string with phonetics", usage_sayphonetic },
 	{ { "say", "time", NULL }, handle_saytime, "Says a given time", usage_saytime },
-	{ { "get", "data", NULL }, handle_getdata, "Gets data on a channel", usage_getdata },
+	{ { "send", "image", NULL }, handle_sendimage, "Sends images to channels supporting it", usage_sendimage },
+	{ { "send", "text", NULL }, handle_sendtext, "Sends text to channels supporting it", usage_sendtext },
+	{ { "set", "autohangup", NULL }, handle_autohangup, "Autohangup channel in some time", usage_autohangup },
+	{ { "set", "callerid", NULL }, handle_setcallerid, "Sets callerid for the current channel", usage_setcallerid },
 	{ { "set", "context", NULL }, handle_setcontext, "Sets channel context", usage_setcontext },
 	{ { "set", "extension", NULL }, handle_setextension, "Changes channel extension", usage_setextension },
-	{ { "set", "priority", NULL }, handle_setpriority, "Prioritizes the channel", usage_setpriority },
-	{ { "record", "file", NULL }, handle_recordfile, "Records to a given file", usage_recordfile },
-	{ { "set", "autohangup", NULL }, handle_autohangup, "Autohangup channel in some time", usage_autohangup },
-	{ { "hangup", NULL }, handle_hangup, "Hangup the current channel", usage_hangup },
-	{ { "exec", NULL }, handle_exec, "Executes a given Application", usage_exec },
-	{ { "set", "callerid", NULL }, handle_setcallerid, "Sets callerid for the current channel", usage_setcallerid },
-	{ { "channel", "status", NULL }, handle_channelstatus, "Returns status of the connected channel", usage_channelstatus },
+	{ { "set", "music", NULL }, handle_setmusic, "Enable/Disable Music on hold generator", usage_setmusic },
+	{ { "set", "priority", NULL }, handle_setpriority, "Set channel dialplan priority", usage_setpriority },
 	{ { "set", "variable", NULL }, handle_setvariable, "Sets a channel variable", usage_setvariable },
-	{ { "get", "variable", NULL }, handle_getvariable, "Gets a channel variable", usage_getvariable },
-	{ { "get", "full", "variable", NULL }, handle_getvariablefull, "Evaluates a channel expression", usage_getvariablefull },
+	{ { "stream", "file", NULL }, handle_streamfile, "Sends audio file on channel", usage_streamfile },
+	{ { "tdd", "mode", NULL }, handle_tddmode, "Toggles TDD mode (for the deaf)", usage_tddmode },
 	{ { "verbose", NULL }, handle_verbose, "Logs a message to the asterisk verbose log", usage_verbose },
-	{ { "database", "get", NULL }, handle_dbget, "Gets database value", usage_dbget },
-	{ { "database", "put", NULL }, handle_dbput, "Adds/updates database value", usage_dbput },
-	{ { "database", "del", NULL }, handle_dbdel, "Removes database key/value", usage_dbdel },
-	{ { "database", "deltree", NULL }, handle_dbdeltree, "Removes database keytree/value", usage_dbdeltree },
-	{ { "noop", NULL }, handle_noop, "Does nothing", usage_noop },
-	{ { "set", "music", NULL }, handle_setmusic, "Enable/Disable Music on hold generator", usage_setmusic }
+	{ { "wait", "for", "digit", NULL }, handle_waitfordigit, "Waits for a digit to be pressed", usage_waitfordigit },
 };
 
 static void join(char *s, size_t len, char *w[])
