@@ -418,6 +418,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	char *stack,*var;
 	int play_to_caller=0,play_to_callee=0;
 	int playargs=0;
+	int digit = 0;
 
 	if (!data) {
 		ast_log(LOG_WARNING, "Dial requires an argument (technology1/number1&technology2/number2...|optional timeout|options)\n");
@@ -837,11 +838,16 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			// Now Stream the File
 			if (!res)
 				res = ast_streamfile(peer,announcemsg,peer->language);
-			if (!res)
-				res = ast_waitstream(peer,"");
-			
+			if (!res) {
+				digit = ast_waitstream(peer, AST_DIGIT_ANY); 
+			}
 			// Ok, done. stop autoservice
 			res = ast_autoservice_stop(chan);
+			if (digit > 0 && !res)
+				res = ast_senddigit(chan, digit); 
+			else
+				res = digit;
+
 		} else
 			res = 0;
 

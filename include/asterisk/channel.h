@@ -614,6 +614,9 @@ int ast_sendtext(struct ast_channel *chan, char *text);
  * Read a char of text from a channel
  * Returns 0 on success, -1 on failure
  */
+
+int ast_senddigit(struct ast_channel *chan, char digit);
+
 int ast_recvchar(struct ast_channel *chan, int timeout);
 
 //! Browse channels in use

@@ -1431,6 +1431,11 @@ static int do_senddigit(struct ast_channel *chan, char digit)
 	return 0;
 }
 
+int ast_senddigit(struct ast_channel *chan, char digit)
+{
+  return do_senddigit(chan, digit);
+}
+
 int ast_prod(struct ast_channel *chan)
 {
 	struct ast_frame a = { AST_FRAME_VOICE };
