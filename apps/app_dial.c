@@ -515,6 +515,25 @@ static int dial_exec(struct ast_channel *chan, void *data)
 				}
 			}
 		}
+		/* Check for ALERT_INFO in the SetVar list.  This is for   */
+		/* SIP distinctive ring as per the RFC.  For Cisco 7960s,  */
+		/* SetVar(ALERT_INFO=<x>) where x is an integer.  However, */
+		/* the RFC says it should be a URL.  -- km-                */
+
+		if (strcasecmp(tech,"SIP")==0)
+		{
+			headp=&chan->varshead;
+			AST_LIST_TRAVERSE(headp,current,entries) {
+				/* Search for ALERT_INFO */
+				if (strcasecmp(ast_var_name(current),"ALERT_INFO")==0)
+				{
+					newvar=ast_var_assign(ast_var_name(current),ast_var_value(current));
+					newheadp=&tmp->chan->varshead;
+					AST_LIST_INSERT_HEAD(newheadp,newvar,entries);
+					break;
+				}
+			}
+		}
 		
 		tmp->chan->appl = "AppDial";
 		tmp->chan->data = "(Outgoing Line)";

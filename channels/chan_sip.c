@@ -365,7 +365,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *rand, int reliable);
 static int transmit_request(struct sip_pvt *p, char *msg, int inc, int reliable);
 static int transmit_request_with_auth(struct sip_pvt *p, char *msg, int inc, int reliable);
-static int transmit_invite(struct sip_pvt *p, char *msg, int sendsdp, char *auth, char *vxml_url);
+static int transmit_invite(struct sip_pvt *p, char *msg, int sendsdp, char *auth, char *vxml_url,char *distinctive_ring);
 static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
 static int transmit_message_with_text(struct sip_pvt *p, char *text);
@@ -774,6 +774,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	int res;
 	struct sip_pvt *p;
 	char *vxml_url = NULL;
+	char *distinctive_ring = NULL;
 	struct varshead *headp;
 	struct ast_var_t *current;
 	
@@ -782,20 +783,27 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_log(LOG_WARNING, "sip_call called on %s, neither down nor reserved\n", ast->name);
 		return -1;
 	}
+	/* Check whether there is vxml_url, distinctive ring variables */
 
-	/* Check whether there is a VXML_URL variable */
 	headp=&ast->varshead;
 	AST_LIST_TRAVERSE(headp,current,entries) {
+		/* Check whether there is a VXML_URL variable */
 		if (strcasecmp(ast_var_name(current),"VXML_URL")==0)
 	        {
 			vxml_url = ast_var_value(current);
+			break;
+		}
+		/* Check whether there is a ALERT_INFO variable */
+		if (strcasecmp(ast_var_name(current),"ALERT_INFO")==0)
+	        {
+			distinctive_ring = ast_var_value(current);
 			break;
 		}
 	}
 	
 	res = 0;
 	p->outgoing = 1;
-	transmit_invite(p, "INVITE", 1, NULL, vxml_url);
+	transmit_invite(p, "INVITE", 1, NULL, vxml_url,distinctive_ring);
 	if (p->maxtime) {
 		/* Initialize auto-congest time */
 		p->initid = ast_sched_add(sched, p->maxtime * 2, auto_congest, p);
@@ -2380,18 +2388,24 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	add_header(req, "User-Agent", "Asterisk PBX");
 }
 
-static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, char *vxml_url)
+static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, char *vxml_url, char *distinctive_ring)
 {
 	struct sip_request req;
 	initreqprep(&req, p, cmd, vxml_url);
 	if (auth)
 		add_header(&req, "Proxy-Authorization", auth);
+	
+	if (distinctive_ring)
+	{
+		add_header(&req, "Alert-info",distinctive_ring);
+	}
 	if (sdp) {
 		add_sdp(&req, p, NULL);
 	} else {
 		add_header(&req, "Content-Length", "0");
 		add_blank_header(&req);
 	}
+
 	if (!p->initreq.headers) {
 		/* Use this as the basis */
 		copy_request(&p->initreq, &req);
@@ -3761,7 +3775,7 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req) {
 		/* No way to authenticate */
 		return -1;
 	}
-	return transmit_invite(p,"INVITE",1,digest, NULL); 
+	return transmit_invite(p,"INVITE",1,digest, NULL,NULL); 
 }
 
 static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, char *orig_header, char *digest, int digest_len) {
@@ -4830,9 +4844,9 @@ static int sip_poke_peer(struct sip_peer *peer)
 	p->outgoing = 1;
 #ifdef VOCAL_DATA_HACK
 	strncpy(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username));
-	transmit_invite(p, "INVITE", 0, NULL, NULL);
+	transmit_invite(p, "INVITE", 0, NULL, NULL,NULL);
 #else
-	transmit_invite(p, "OPTIONS", 0, NULL, NULL);
+	transmit_invite(p, "OPTIONS", 0, NULL, NULL,NULL);
 #endif
 	gettimeofday(&peer->ps, NULL);
 	peer->pokeexpire = ast_sched_add(sched, DEFAULT_MAXMS * 2, sip_poke_noanswer, peer);
