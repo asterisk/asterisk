@@ -119,13 +119,12 @@ static int parse_ie(unsigned char *data, int maxdatalen, unsigned char *src, int
 	return olen + 1;
 }
 
-static int parse_srv(unsigned char *host, int hostlen, int *portno, unsigned char *answer, int len)
+static int parse_srv(unsigned char *host, int hostlen, int *portno, unsigned char *answer, int len, unsigned char *msg)
 {
 	int res = 0;
 	struct srv *srv = (struct srv *)answer;
 	char repl[256] = "";
-	char *oanswer = answer;
-	
+
 	if (len < sizeof(struct srv)) {
 		printf("Length too short\n");
 		return -1;
@@ -133,52 +132,21 @@ static int parse_srv(unsigned char *host, int hostlen, int *portno, unsigned cha
 	answer += sizeof(struct srv);
 	len -= sizeof(struct srv);
 
-	if ((res = dn_expand(oanswer,answer + len,answer, repl, sizeof(repl) - 1)) < 0) {
+	if ((res = dn_expand(msg,answer + len,answer, repl, sizeof(repl) - 1)) < 0) {
 		ast_log(LOG_WARNING, "Failed to expand hostname\n");
 		return -1;
 	}
 	if (res && strcmp(repl, ".")) {
+		ast_verbose( VERBOSE_PREFIX_3 "parse_srv: SRV mapped to host %s, port %d\n", repl, ntohs(srv->portnum));
 		if (host) {
-			strncpy(host, repl, hostlen - 1);
-			host[hostlen] = '\0';
+			strncpy(host, repl, hostlen - 2);
+			host[hostlen-1] = '\0';
 		}
 		if (portno)
 			*portno = ntohs(srv->portnum);
-		res = 1;
+		return(0);
 	}
-		
-#if 0
-	if ((res = parse_ie(flags, sizeof(flags) - 1, answer, len)) < 0) {
-		ast_log(LOG_WARNING, "Failed to get flags\n");
-		return -1; 
-	} else { answer += res; len -= res; }
-	if ((res = parse_ie(services, sizeof(services) - 1, answer, len)) < 0) {
-		ast_log(LOG_WARNING, "Failed to get services\n");
-		return -1; 
-	} else { answer += res; len -= res; }
-	if ((res = parse_ie(regexp, sizeof(regexp) - 1, answer, len)) < 0)
-		return -1; else { answer += res; len -= res; }
-#if 0
-	printf("Flags: %s\n", flags);
-	printf("Services: %s\n", services);
-	printf("Regexp: %s\n", regexp);
-	printf("Repl: %s\n", repl);
-#endif
-	if (!strncmp(regexp, "!^.*$!", 6)) {
-		if (!strncmp(services, "E2U+voice:", 10)) {
-			if (regexp[strlen(regexp) - 1] == '!')
-				regexp[strlen(regexp) - 1] = '\0';
-#if 0
-			printf("Technology: %s\n", services + 10);
-			printf("Destination: %s\n", regexp + 6);
-#endif
-			strncpy(dst, regexp + 6, dstsize);
-			strncpy(tech, services + 10, techsize);
-		}
-	} else
-		ast_log(LOG_WARNING, "Non-total substitution not yet supported\n");
-#endif	 
-	return 0;
+	return(-1);
 }
 
 static int parse_answer(unsigned char *host, int hostlen, int *port, char *answer, int len)
@@ -190,8 +158,11 @@ static int parse_answer(unsigned char *host, int hostlen, int *port, char *answe
 	int res;
 	dns_HEADER *h;
 	struct dn_answer *ans;
+/*	int lastlit = 1; */
+	char *oanswer = answer;
 	host[0] = '\0';
 	*port = 0;
+
 #if 0
 	for (x=0;x<len;x++) {
 		if ((answer[x] < 32) || (answer[x] > 127)) {
@@ -257,8 +228,10 @@ static int parse_answer(unsigned char *host, int hostlen, int *port, char *answe
 			return -1;
 		}
 		if ((ntohs(ans->class) == C_IN) && (ntohs(ans->rtype) == T_SRV)) {
-			if (parse_srv(host, hostlen, port, answer, ntohs(ans->size)))
+
+			if (parse_srv(host, hostlen, port, answer, ntohs(ans->size),oanswer))
 				ast_log(LOG_WARNING, "Failed to parse srv :(\n");
+
 			if (strlen(host))
 				return 0;
 		}
