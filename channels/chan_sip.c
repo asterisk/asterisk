@@ -1098,7 +1098,7 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 		}
 		ast_destroy_realtime(var);
 	}
-	return NULL;
+	return peer;
 }
 
 /*--- find_peer: Locate peer by name or ip address */
@@ -5341,12 +5341,15 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 		if (user && debug)
 			ast_verbose("Found user '%s'\n", user->name);
 	} else {
-		if (user && debug)
-			ast_verbose("Found user '%s', but fails host access\n", user->name);
+		if (user) {
+			if (debug)
+				ast_verbose("Found user '%s', but fails host access\n", user->name);
+			if (user->temponly)
+				destroy_user(user);
+		}
 		user = NULL;
 	}
-	if (user && user->temponly)
-		destroy_user(user);
+	/* Temp user gets cleaned up at the end */
 	ast_mutex_unlock(&userl.lock);
 	if (!user) {
 		/* If we didn't find a user match, check for peers */
@@ -5429,9 +5432,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 
 	}
 
-	if (user && user->temponly) {
+	if (user && user->temponly) 
 		destroy_user(user);
-	}
 
 	return res;
 }

@@ -128,6 +128,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 			return NULL;
 		}
 		for (x=0;x<colcount;x++) {
+			rowdata[0] = '\0';
 			collen = sizeof(coltitle);
 			res = SQLDescribeCol(stmt, x + 1, coltitle, sizeof(coltitle), &collen, 
 						&datatype, &colsize, &decimaldigits, &nullable);
