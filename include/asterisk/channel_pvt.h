@@ -37,6 +37,8 @@ struct ast_channel_pvt {
 	struct ast_frame * (*read)(struct ast_channel *chan);
 	/* Write a frame, in standard format */
 	int (*write)(struct ast_channel *chan, struct ast_frame *frame);
+	/* Display or transmit text */
+	int (*send_text)(struct ast_channel *chan, char *text);
 };
 
 /* Create a channel structure */

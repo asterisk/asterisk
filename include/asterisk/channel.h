@@ -28,11 +28,14 @@ extern "C" {
 #define AST_CHANNEL_NAME 80
 #define AST_CHANNEL_MAX_STACK 32
 
+#define MAX_LANGUAGE 20
+
 /* Max length an extension can be (unique) is this number */
 #define AST_MAX_EXTENSION 80
 
 struct ast_channel {
 	char name[AST_CHANNEL_NAME];		/* ASCII Description of channel name */
+	char language[MAX_LANGUAGE];		/* Language requested */
 	pthread_t blocker;					/* If anyone is blocking, this is them */
 	pthread_mutex_t lock;				/* Lock, can be used to lock a channel for some operations */
 	char *blockproc;					/* Procedure causing blocking */
@@ -131,6 +134,9 @@ struct ast_frame *ast_read(struct ast_channel *chan);
 
 /* Write a frame to a channel */
 int ast_write(struct ast_channel *chan, struct ast_frame *frame);
+
+/* Write text to a display on a channel */
+int ast_sendtext(struct ast_channel *chan, char *text);
 
 /* Browse the channels currently in use */
 struct ast_channel *ast_channel_walk(struct ast_channel *prev);

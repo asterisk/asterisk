@@ -57,6 +57,7 @@ static int silencesuppression = 0;
 static int silencethreshold = 1000;
 
 static char digits[80] = "";
+static char text2send[80] = "";
 
 static pthread_mutex_t usecnt_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -66,6 +67,7 @@ static char *tdesc = "OSS Console Channel Driver";
 static char *config = "oss.conf";
 
 static char context[AST_MAX_EXTENSION] = "default";
+static char language[MAX_LANGUAGE] = "";
 static char exten[AST_MAX_EXTENSION] = "s";
 
 /* Some pipes to prevent overflow */
@@ -341,6 +343,12 @@ static int oss_digit(struct ast_channel *c, char digit)
 	return 0;
 }
 
+static int oss_text(struct ast_channel *c, char *text)
+{
+	ast_verbose( " << Console Received text %s >> \n", text);
+	return 0;
+}
+
 static int oss_call(struct ast_channel *c, char *dest, int timeout)
 {
 	ast_verbose( " << Call placed to '%s' on console >> \n", dest);
@@ -477,6 +485,14 @@ static struct ast_frame *oss_read(struct ast_channel *chan)
 	if (needhangup) {
 		return NULL;
 	}
+	if (strlen(text2send)) {
+		f.frametype = AST_FRAME_TEXT;
+		f.subclass = 0;
+		f.data = text2send;
+		f.datalen = strlen(text2send);
+		strcpy(text2send,"");
+		return &f;
+	}
 	if (strlen(digits)) {
 		f.frametype = AST_FRAME_DTMF;
 		f.subclass = digits[0];
@@ -535,14 +551,18 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *p, int state)
 		tmp->format = AST_FORMAT_SLINEAR;
 		tmp->pvt->pvt = p;
 		tmp->pvt->send_digit = oss_digit;
+		tmp->pvt->send_text = oss_text;
 		tmp->pvt->hangup = oss_hangup;
 		tmp->pvt->answer = oss_answer;
 		tmp->pvt->read = oss_read;
+		tmp->pvt->call = oss_call;
 		tmp->pvt->write = oss_write;
 		if (strlen(p->context))
 			strncpy(tmp->context, p->context, sizeof(tmp->context));
 		if (strlen(p->exten))
 			strncpy(tmp->exten, p->exten, sizeof(tmp->exten));
+		if (strlen(language))
+			strncpy(tmp->language, language, sizeof(tmp->language));
 		p->owner = tmp;
 		tmp->state = state;
 		pthread_mutex_lock(&usecnt_lock);
@@ -563,6 +583,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *p, int state)
 static struct ast_channel *oss_request(char *type, int format, void *data)
 {
 	int oldformat = format;
+	struct ast_channel *tmp;
 	format &= AST_FORMAT_SLINEAR;
 	if (!format) {
 		ast_log(LOG_NOTICE, "Asked to get a channel of format '%d'\n", oldformat);
@@ -572,7 +593,11 @@ static struct ast_channel *oss_request(char *type, int format, void *data)
 		ast_log(LOG_NOTICE, "Already have a call on the OSS channel\n");
 		return NULL;
 	}
-	return oss_new(&oss, AST_STATE_DOWN);
+	tmp= oss_new(&oss, AST_STATE_DOWN);
+	if (!tmp) {
+		ast_log(LOG_WARNING, "Unable to create new OSS channel\n");
+	}
+	return tmp;
 }
 
 static int console_autoanswer(int fd, int argc, char *argv[])
@@ -624,6 +649,30 @@ static int console_answer(int fd, int argc, char *argv[])
 	if (!oss.owner) {
 		ast_cli(fd, "No one is calling us\n");
 		return RESULT_FAILURE;
+	}
+	needanswer++;
+	return RESULT_SUCCESS;
+}
+
+static char sendtext_usage[] =
+"Usage: send text <message>\n"
+"       Sends a text message for display on the remote terminal.\n";
+
+static int console_sendtext(int fd, int argc, char *argv[])
+{
+	int tmparg = 1;
+	if (argc < 1)
+		return RESULT_SHOWUSAGE;
+	if (!oss.owner) {
+		ast_cli(fd, "No one is calling us\n");
+		return RESULT_FAILURE;
+	}
+	if (strlen(text2send))
+		ast_cli(fd, "Warning: message already waiting to be sent, overwriting\n");
+	strcpy(text2send, "");
+	while(tmparg <= argc) {
+		strncat(text2send, argv[tmparg++], sizeof(text2send) - strlen(text2send));
+		strncat(text2send, " ", sizeof(text2send) - strlen(text2send));
 	}
 	needanswer++;
 	return RESULT_SUCCESS;
@@ -694,6 +743,7 @@ static struct ast_cli_entry myclis[] = {
 	{ { "answer", NULL }, console_answer, "Answer an incoming console call", answer_usage },
 	{ { "hangup", NULL }, console_hangup, "Hangup a call on the console", hangup_usage },
 	{ { "dial", NULL }, console_dial, "Dial an extension on the console", dial_usage },
+	{ { "send text", NULL }, console_sendtext, "Send text to the remote device", sendtext_usage },
 	{ { "autoanswer", NULL }, console_autoanswer, "Sets/displays autoanswer", autoanswer_usage, autoanswer_complete }
 };
 
@@ -744,6 +794,8 @@ int load_module()
 				silencethreshold = atoi(v->value);
 			else if (!strcasecmp(v->name, "context"))
 				strncpy(context, v->value, sizeof(context));
+			else if (!strcasecmp(v->name, "language"))
+				strncpy(language, v->value, sizeof(language));
 			else if (!strcasecmp(v->name, "extension"))
 				strncpy(exten, v->value, sizeof(exten));
 			v=v->next;

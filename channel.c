@@ -126,6 +126,7 @@ struct ast_channel *ast_channel_alloc(void)
 				tmp->data = NULL;
 				pthread_mutex_init(&tmp->lock, NULL);
 				strncpy(tmp->context, "default", sizeof(tmp->context));
+				strncpy(tmp->language, defaultlanguage, sizeof(tmp->language));
 				strncpy(tmp->exten, "s", sizeof(tmp->exten));
 				tmp->priority=1;
 				tmp->next = channels;
@@ -385,6 +386,16 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 	else
 		ast_log(LOG_WARNING, "No read routine on channel %s\n", chan);
 	return f;
+}
+
+int ast_sendtext(struct ast_channel *chan, char *text)
+{
+	int res = 0;
+	CHECK_BLOCKING(chan);
+	if (chan->pvt->send_text)
+		res = chan->pvt->send_text(chan, text);
+	chan->blocking = 0;
+	return res;
 }
 
 int ast_write(struct ast_channel *chan, struct ast_frame *fr)

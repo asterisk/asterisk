@@ -18,6 +18,7 @@
 #include <asterisk/options.h>
 #include <asterisk/module.h>
 #include <asterisk/translate.h>
+#include <asterisk/say.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -25,13 +26,30 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>
+#include <sys/signal.h>
 
 #include <pthread.h>
 
-
-static char *tdesc = "Trivial Dialing Application";
+static char *tdesc = "Dialing/Parking Application";
 
 static char *app = "Dial";
+
+static char *parkedcall = "ParkedCall";
+
+/* No more than 90 seconds parked before you do something with them */
+static int parkingtime = 90000;
+
+/* Context for which parking is made accessible */
+static char parking_con[AST_MAX_EXTENSION] = "default";
+
+/* Extension you type to park the call */
+static char parking_ext[AST_MAX_EXTENSION] = "700";
+
+/* First available extension for parking */
+static int parking_start = 701;
+
+/* Last available extension for parking */
+static int parking_stop = 750;
 
 /* We define a customer "local user" structure because we
    use it not only for keeping track of what is in use but
@@ -44,7 +62,163 @@ struct localuser {
 	struct localuser *next;
 };
 
+struct parkeduser {
+	struct ast_channel *chan;
+	struct timeval start;
+	int parkingnum;
+	/* Where to go if our parking time expires */
+	char context[AST_MAX_EXTENSION];
+	char exten[AST_MAX_EXTENSION];
+	int priority;
+	struct parkeduser *next;
+};
+
+static struct parkeduser *parkinglot;
+
+static pthread_mutex_t parking_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static pthread_t parking_thread;
+
 LOCAL_USER_DECL;
+
+static int bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allowredirect);
+
+
+static int park_call(struct ast_channel *chan, struct ast_channel *peer)
+{
+	/* We put the user in the parking list, then wake up the parking thread to be sure it looks
+	   after these channels too */
+	struct parkeduser *pu, *cur;
+	int x;
+	pu = malloc(sizeof(struct parkeduser));
+	if (pu) {
+		pthread_mutex_lock(&parking_lock);
+		for (x=parking_start;x<=parking_stop;x++) {
+			cur = parkinglot;
+			while(cur) {
+				if (cur->parkingnum == x) 
+					break;
+				cur = cur->next;
+			}
+			if (!cur)
+				break;
+		}
+		if (x <= parking_stop) {
+			pu->chan = chan;
+			gettimeofday(&pu->start, NULL);
+			pu->parkingnum = x;
+			/* Remember what had been dialed, so that if the parking
+			   expires, we try to come back to the same place */
+			strncpy(pu->context, chan->context, sizeof(pu->context));
+			strncpy(pu->exten, chan->exten, sizeof(pu->exten));
+			pu->priority = chan->priority;
+			pu->next = parkinglot;
+			parkinglot = pu;
+			pthread_mutex_unlock(&parking_lock);
+			/* Wake up the (presumably select()ing) thread */
+			pthread_kill(parking_thread, SIGURG);
+			if (option_verbose > 1) 
+				ast_verbose(VERBOSE_PREFIX_2 "Parked %s on %d\n", pu->chan->name, pu->parkingnum);
+			ast_say_digits(peer, pu->parkingnum, peer->language);
+			return 0;
+		} else {
+			ast_log(LOG_WARNING, "No more parking spaces\n");
+			free(pu);
+			pthread_mutex_unlock(&parking_lock);
+			return -1;
+		}
+	} else {
+		ast_log(LOG_WARNING, "Out of memory\n");
+		return -1;
+	}
+	return 0;
+}
+
+static void *do_parking_thread(void *ignore)
+{
+	int ms, tms, max;
+	struct parkeduser *pu, *pl, *pt = NULL;
+	struct timeval tv;
+	struct ast_frame *f;
+	fd_set rfds, efds;
+	fd_set nrfds, nefds;
+	FD_ZERO(&rfds);
+	FD_ZERO(&efds);
+	for (;;) {
+		ms = -1;
+		max = -1;
+		pthread_mutex_lock(&parking_lock);
+		pl = NULL;
+		pu = parkinglot;
+		gettimeofday(&tv, NULL);
+		FD_ZERO(&nrfds);
+		FD_ZERO(&nefds);
+		while(pu) {
+			tms = (tv.tv_sec - pu->start.tv_sec) * 1000 + (tv.tv_usec - pu->start.tv_usec) / 1000;
+			if (tms > parkingtime) {
+				/* They've been waiting too long, send them back to where they came.  Theoretically they
+				   should have their original extensions and such, but we copy to be on the safe side */
+				strncpy(pu->chan->exten, pu->exten, sizeof(pu->chan->exten));
+				strncpy(pu->chan->context, pu->context, sizeof(pu->chan->context));
+				pu->chan->priority = pu->priority;
+				/* Start up the PBX, or hang them up */
+				if (ast_pbx_start(pu->chan))  {
+					ast_log(LOG_WARNING, "Unable to restart the PBX for user on '%s', hanging them up...\n", pu->chan->name);
+					ast_hangup(pu->chan);
+				}
+				/* And take them out of the parking lot */
+				if (pl) 
+					pl->next = pu->next;
+				else
+					parkinglot = pu->next;
+				pt = pu;
+				pu = pu->next;
+				free(pt);
+			} else if (FD_ISSET(pu->chan->fd, &rfds) || FD_ISSET(pu->chan->fd, &efds)) {
+				/* See if they need servicing */
+				f = ast_read(pu->chan);
+				if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass ==  AST_CONTROL_HANGUP))) {
+					/* There's a problem, hang them up*/
+					if (option_verbose > 1) 
+						ast_verbose(VERBOSE_PREFIX_2 "%s got tired of being parked\n", pu->chan->name);
+					ast_hangup(pu->chan);
+					/* And take them out of the parking lot */
+					if (pl) 
+						pl->next = pu->next;
+					else
+						parkinglot = pu->next;
+					pt = pu;
+					pu = pu->next;
+					free(pt);
+				} else {
+					/* XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
+					ast_frfree(f);
+					goto std;	/* XXX Ick: jumping into an else statement??? XXX */
+				}
+			} else  {
+				/* Keep this one for next one */
+std:			FD_SET(pu->chan->fd, &nrfds);
+				FD_SET(pu->chan->fd, &nefds);
+				/* Keep track of our longest wait */
+				if ((tms < ms) || (ms < 0))
+					ms = tms;
+				if (pu->chan->fd > max)
+					max = pu->chan->fd;
+				pl = pu;
+				pu = pu->next;
+			}
+		}
+		pthread_mutex_unlock(&parking_lock);
+		rfds = nrfds;
+		efds = nefds;
+		tv.tv_sec = ms / 1000;
+		tv.tv_usec = (ms % 1000) * 1000;
+		/* Wait for something to happen */
+		select(max + 1, &rfds, NULL, &efds, (ms > -1) ? &tv : NULL);
+		pthread_testcancel();
+	}
+	return NULL;	/* Never reached */
+}
 
 static void hanguptree(struct localuser *outgoing, struct ast_channel *exception)
 {
@@ -222,15 +396,19 @@ static int bridge_call(struct ast_channel *chan, struct ast_channel *peer, int a
 					 (f->subclass == AST_CONTROL_BUSY)))) 
 			return -1;
 		if ((f->frametype == AST_FRAME_VOICE) ||
-		    (f->frametype == AST_FRAME_DTMF)) {
-			if ((f->frametype == AST_FRAME_DTMF) && (who == peer) && allowredirect) {
+		    (f->frametype == AST_FRAME_DTMF) ||
+			(f->frametype == AST_FRAME_TEXT)) {
+			if ((f->frametype == AST_FRAME_DTMF) && (who == peer) && allowredirect &&
+			     (f->subclass == '#')) {
 				if (f->subclass == '#') {
 					memset(newext, 0, sizeof(newext));
 					ptr = newext;
 					len = ast_pbx_longest_extension(chan->context) + 1;
+					if (len < ast_pbx_longest_extension("default") + 1)
+						len = ast_pbx_longest_extension("default") + 1;
 
 					/* Transfer */
-					if ((res=ast_streamfile(peer, "pbx-transfer")))
+					if ((res=ast_streamfile(peer, "pbx-transfer", chan->language)))
 						break;
 					if ((res=ast_waitstream(peer, AST_DIGIT_ANY)) < 0)
 						break;
@@ -244,15 +422,35 @@ static int bridge_call(struct ast_channel *chan, struct ast_channel *peer, int a
 					res = ast_readstring(peer, ptr, len, 3000, 2000, "#");
 					if (res)
 						break;
-					if (ast_exists_extension(chan, chan->context, newext, 1)) {
-						/* Set the channel's new extension, since it exists */
+					if (!strcmp(newext, parking_ext)) {
+						if (!park_call(chan, peer)) {
+							/* We return non-zero, but tell the PBX not to hang the channel when
+							   the thread dies -- We have to be careful now though.  We are responsible for 
+							   hanging up the channel, else it will never be hung up! */
+							res=AST_PBX_KEEPALIVE;
+							break;
+						} else {
+							ast_log(LOG_WARNING, "Unable to park call %s\n", chan->name);
+						}
+						/* XXX Maybe we should have another message here instead of invalid extension XXX */
+					} else if (ast_exists_extension(chan, peer->context, newext, 1)) {
+						/* Set the channel's new extension, since it exists, using peer context */
 						strncpy(chan->exten, newext, sizeof(chan->exten));
+						strncpy(chan->context, peer->context, sizeof(chan->context));
+						chan->priority = 0;
+						ast_frfree(f);
+						res=0;
+						break;
+					} else if (ast_exists_extension(chan, "default", newext, 1)) {
+						/* Set the channel's new extension, since it exists, using peer context */
+						strncpy(chan->exten, newext, sizeof(chan->exten));
+						strncpy(chan->context, "default", sizeof(chan->context));
 						chan->priority = 0;
 						ast_frfree(f);
 						res=0;
 						break;
 					}
-					res = ast_streamfile(peer, "pbx-invalid");
+					res = ast_streamfile(peer, "pbx-invalid", chan->language);
 					if (res)
 						break;
 					res = ast_waitstream(peer, AST_DIGIT_ANY);
@@ -277,6 +475,63 @@ static int bridge_call(struct ast_channel *chan, struct ast_channel *peer, int a
 		cs[0] = cs[1];
 		cs[1] = cs[2];
 	}
+	return res;
+}
+
+static int park_exec(struct ast_channel *chan, void *data)
+{
+	int res=0;
+	struct localuser *u;
+	struct ast_channel *peer=NULL, *nchan;
+	struct parkeduser *pu, *pl=NULL;
+	int park;
+	if (!data) {
+		ast_log(LOG_WARNING, "Park requires an argument (extension number)\n");
+		return -1;
+	}
+	LOCAL_USER_ADD(u);
+	park = atoi((char *)data);
+	pthread_mutex_lock(&parking_lock);
+	pu = parkinglot;
+	while(pu) {
+		if (pu->parkingnum == park) {
+			if (pl)
+				pl->next = pu->next;
+			else
+				parkinglot = pu->next;
+			break;
+		}
+		pu = pu->next;
+	}
+	pthread_mutex_unlock(&parking_lock);
+	if (pu) {
+		peer = pu->chan;
+		free(pu);
+	}
+	if (peer) {
+		/* Build a translator if necessary */
+		if (peer->format & chan->format) 
+			nchan = chan;
+		else
+			nchan = ast_translator_create(chan, peer->format, AST_DIRECTION_BOTH);
+		/* This runs sorta backwards, since we give the incoming channel control, as if it
+		   were the person called. */
+		if (option_verbose > 2) 
+			ast_verbose(VERBOSE_PREFIX_3 "Channel %s connected to parked call %d\n", chan->name, park);
+		res = bridge_call(peer, nchan, 1);
+		if (nchan != chan)
+			ast_translator_destroy(nchan);
+		/* Simulate the PBX hanging up */
+		if (res != AST_PBX_KEEPALIVE)
+			ast_hangup(peer);
+		return -1;
+	} else {
+		/* XXX Play a message XXX */
+		if (option_verbose > 2) 
+			ast_verbose(VERBOSE_PREFIX_3 "Channel %s tried to talk to non-existant parked call %d\n", chan->name, park);
+		res = -1;
+	}
+	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
@@ -414,7 +669,24 @@ int unload_module(void)
 
 int load_module(void)
 {
-	return ast_register_application(app, dial_exec);
+	int res;
+	int x;
+	struct ast_context *con;
+	char exten[AST_MAX_EXTENSION];
+	con = ast_context_find(parking_con);
+	if (!con) {
+		ast_log(LOG_ERROR, "Parking context '%s' does not exist\n", parking_con);
+		return -1;
+	}
+	for(x=parking_start; x<=parking_stop;x++) {
+		snprintf(exten, sizeof(exten), "%d", x);
+		ast_add_extension2(con, 1, exten, 1, parkedcall, strdup(exten), free);
+	}
+	pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
+	res = ast_register_application(parkedcall, park_exec);
+	if (!res)
+		res = ast_register_application(app, dial_exec);
+	return res;
 }
 
 char *description(void)

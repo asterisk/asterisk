@@ -125,6 +125,7 @@ struct iax_peer {
 	char username[80];
 	char secret[80];
 	struct sockaddr_in addr;
+	int formats;
 	struct in_addr mask;
 	struct iax_peer *next;
 };
@@ -668,8 +669,8 @@ static int attempt_transmit(void *data)
 			/* Attempt transmission */
 			send_packet(f);
 			f->retries++;
-			/* Try again later after 2 times as long */
-			f->retrytime *= 2;
+			/* Try again later after 10 times as long */
+			f->retrytime *= 10;
 			if (f->retrytime > MAX_RETRY_TIME)
 				f->retrytime = MAX_RETRY_TIME;
 			ast_sched_add(sched, f->retrytime, attempt_transmit, f);
@@ -854,6 +855,13 @@ static int iax_digit(struct ast_channel *c, char digit)
 	return send_command(c->pvt->pvt, AST_FRAME_DTMF, digit, 0, NULL, 0, -1);
 }
 
+static int iax_sendtext(struct ast_channel *c, char *text)
+{
+	
+	return send_command(c->pvt->pvt, AST_FRAME_TEXT,
+		0, 0, text, strlen(text) + 1, -1);
+}
+
 static int create_addr(struct sockaddr_in *sin, char *peer)
 {
 	struct hostent *hp;
@@ -1023,6 +1031,7 @@ static struct ast_channel *ast_iax_new(struct chan_iax_pvt *i, int state)
 		tmp->format = iax_capability;
 		tmp->pvt->pvt = i;
 		tmp->pvt->send_digit = iax_digit;
+		tmp->pvt->send_text = iax_sendtext;
 		tmp->pvt->call = iax_call;
 		tmp->pvt->hangup = iax_hangup;
 		tmp->pvt->answer = iax_answer;

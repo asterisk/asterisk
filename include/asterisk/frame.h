@@ -55,6 +55,7 @@ struct ast_frame_chain {
 #define AST_FRAME_CONTROL	4		/* A control frame, subclass is AST_CONTROL_* */
 #define AST_FRAME_NULL		5		/* An empty, useless frame */
 #define AST_FRAME_IAX		6		/* Inter Aterisk Exchange private frame type */
+#define AST_FRAME_TEXT		7		/* Text messages */
 
 /* Data formats for capabilities and frames alike */
 #define AST_FORMAT_G723_1	(1 << 0)	/* G.723.1 compression */
