@@ -393,6 +393,16 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							if (!ast_test_flag(outgoing, DIAL_RINGBACKONLY))
 								ast_indicate(in, AST_CONTROL_PROGRESS);
 							break;
+						case AST_CONTROL_HOLD:
+							if (option_verbose > 2)
+								ast_verbose(VERBOSE_PREFIX_3 "Call on %s placed on hold\n", o->chan->name);
+							ast_indicate(in, AST_CONTROL_HOLD);
+							break;
+						case AST_CONTROL_UNHOLD:
+							if (option_verbose > 2)
+								ast_verbose(VERBOSE_PREFIX_3 "Call on %s left from hold\n", o->chan->name);
+							ast_indicate(in, AST_CONTROL_UNHOLD);
+							break;
 						case AST_CONTROL_OFFHOOK:
 						case AST_CONTROL_FLASH:
 							/* Ignore going off hook and flash */

@@ -4406,6 +4406,14 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 #endif
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
 			break;
+#ifdef ZAPATA_PRI
+		case AST_CONTROL_HOLD:
+			res = pri_notify(p->pri->pri, p->call, p->prioffset, PRI_NOTIFY_REMOTE_HOLD);
+			break;
+		case AST_CONTROL_UNHOLD:
+			res = pri_notify(p->pri->pri, p->call, p->prioffset, PRI_NOTIFY_REMOTE_RETRIEVAL);
+			break;
+#endif
 		case AST_CONTROL_RADIO_KEY:
 			if (p->radio) 
 			    res =  zt_set_hook(p->subs[index].zfd, ZT_OFFHOOK);
@@ -8174,6 +8182,27 @@ static void *pri_dchannel(void *vpri)
 						ast_log(LOG_DEBUG, "Sending pending digit '%c'\n", pri->pvts[chanpos]->dialdest[x]);
 						pri_information(pri->pri, pri->pvts[chanpos]->call, 
 							pri->pvts[chanpos]->dialdest[x]);
+					}
+					ast_mutex_unlock(&pri->pvts[chanpos]->lock);
+				}
+				break;
+			case PRI_EVENT_NOTIFY:
+				chanpos = pri_find_principle(pri, e->notify.channel);
+				if (chanpos < 0) {
+					ast_log(LOG_WARNING, "Received NOTIFY on unconfigured channel %d/%d span %d\n",
+						PRI_SPAN(e->notify.channel), PRI_CHANNEL(e->notify.channel), pri->span);
+				} else {
+					struct ast_frame f = { AST_FRAME_CONTROL, };
+					ast_mutex_lock(&pri->pvts[chanpos]->lock);
+					switch(e->notify.info) {
+					case PRI_NOTIFY_REMOTE_HOLD:
+						f.subclass = AST_CONTROL_HOLD;
+						zap_queue_frame(pri->pvts[chanpos], &f, pri);
+						break;
+					case PRI_NOTIFY_REMOTE_RETRIEVAL:
+						f.subclass = AST_CONTROL_UNHOLD;
+						zap_queue_frame(pri->pvts[chanpos], &f, pri);
+						break;
 					}
 					ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 				}

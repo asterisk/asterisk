@@ -1478,6 +1478,10 @@ int ast_indicate(struct ast_channel *chan, int condition)
 				/* ast_playtones_stop(chan); */
 			} else if (condition == AST_CONTROL_PROCEEDING) {
 				/* Do nothing, really */
+			} else if (condition == AST_CONTROL_HOLD) {
+				/* Do nothing.... */
+			} else if (condition == AST_CONTROL_UNHOLD) {
+				/* Do nothing.... */
 			} else {
 				/* not handled */
 				ast_log(LOG_WARNING, "Unable to handle indication %d for '%s'\n", condition, chan->name);
@@ -2812,11 +2816,15 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 		}
 
 		if ((f->frametype == AST_FRAME_CONTROL) && !(config->flags & AST_BRIDGE_IGNORE_SIGS)) {
-			*fo = f;
-			*rc = who;
-			res =  0;
-			ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", f->subclass, who->name);
-			break;
+			if ((f->subclass == AST_CONTROL_HOLD) || (f->subclass == AST_CONTROL_UNHOLD)) {
+				ast_indicate(who == c0 ? c1 : c0, f->subclass);
+			} else {
+				*fo = f;
+				*rc = who;
+				res =  0;
+				ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", f->subclass, who->name);
+				break;
+			}
 		}
 		if ((f->frametype == AST_FRAME_VOICE) ||
 			(f->frametype == AST_FRAME_TEXT) ||
@@ -2861,9 +2869,9 @@ tackygoto:
 				else 
 					ast_write(c0, f);
 			}
-			ast_frfree(f);
-		} else
-			ast_frfree(f);
+		}
+		ast_frfree(f);
+
 		/* Swap who gets priority */
 		cs[2] = cs[0];
 		cs[0] = cs[1];

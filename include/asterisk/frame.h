@@ -226,6 +226,10 @@ struct ast_frame_chain {
 #define AST_CONTROL_PROGRESS            14
 /*! Indicate CALL PROCEEDING */
 #define AST_CONTROL_PROCEEDING		15
+/*! Indicate call is placed on hold */
+#define AST_CONTROL_HOLD			16
+/*! Indicate call is left from hold */
+#define AST_CONTROL_UNHOLD			17
 
 #define AST_SMOOTHER_FLAG_G729		(1 << 0)
 

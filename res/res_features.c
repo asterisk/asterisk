@@ -229,8 +229,10 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 
 			pu->chan = chan;
 			/* Start music on hold */
-			if (chan != peer)
+			if (chan != peer) {
+				ast_indicate(pu->chan, AST_CONTROL_HOLD);
 				ast_moh_start(pu->chan, NULL);
+			}
 			gettimeofday(&pu->start, NULL);
 			pu->parkingnum = x;
 			if (timeout > 0)
@@ -478,6 +480,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	}
 	/* Start autoservice on chan while we talk
 	   to the originator */
+	ast_indicate(transferee, AST_CONTROL_HOLD);
 	ast_autoservice_start(transferee);
 	ast_moh_start(transferee, NULL);
 
@@ -488,11 +491,13 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	if ((res=ast_streamfile(transferer, "pbx-transfer", transferer->language))) {
 		ast_moh_stop(transferee);
 		ast_autoservice_stop(transferee);
+		ast_indicate(transferee, AST_CONTROL_UNHOLD);
 		return res;
 	}
 	if ((res=ast_waitstream(transferer, AST_DIGIT_ANY)) < 0) {
 		ast_moh_stop(transferee);
 		ast_autoservice_stop(transferee);
+		ast_indicate(transferee, AST_CONTROL_UNHOLD);
 		return res;
 	}
 	ast_stopstream(transferer);
@@ -507,12 +512,15 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	if (res < 0) {
 		ast_moh_stop(transferee);
 		ast_autoservice_stop(transferee);
+		ast_indicate(transferee, AST_CONTROL_UNHOLD);
 		return res;
 	}
 	if (!strcmp(newext, ast_parking_ext())) {
 		ast_moh_stop(transferee);
 
-		if (ast_autoservice_stop(transferee))
+		res = ast_autoservice_stop(transferee);
+		ast_indicate(transferee, AST_CONTROL_UNHOLD);
+		if (res)
 			res = -1;
 		else if (!ast_park_call(transferee, transferer, 0, NULL)) {
 			/* We return non-zero, but tell the PBX not to hang the channel when
@@ -533,6 +541,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", peer->name);
 		ast_moh_stop(transferee);
 		res=ast_autoservice_stop(transferee);
+		ast_indicate(transferee, AST_CONTROL_UNHOLD);
 		if (!transferee->pbx) {
 			/* Doh!  Use our handy async_goto functions */
 			if (option_verbose > 2) 
@@ -559,12 +568,14 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	if (res) {
 		ast_moh_stop(transferee);
 		ast_autoservice_stop(transferee);
+		ast_indicate(transferee, AST_CONTROL_UNHOLD);
 		return res;
 	}
 	res = ast_waitstream(transferer, AST_DIGIT_ANY);
 	ast_stopstream(transferer);
 	ast_moh_stop(transferee);
 	res = ast_autoservice_stop(transferee);
+	ast_indicate(transferee, AST_CONTROL_UNHOLD);
 	if (res) {
 		if (option_verbose > 1)
 			ast_verbose(VERBOSE_PREFIX_2 "Hungup during autoservice stop on '%s'\n", transferee->name);
@@ -606,6 +617,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	}
 	/* Start autoservice on chan while we talk
 	   to the originator */
+	ast_indicate(transferee, AST_CONTROL_HOLD);
 	ast_autoservice_start(transferee);
 	ast_moh_start(transferee, NULL);
 
@@ -613,11 +625,13 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	if ((res=ast_streamfile(transferer, "pbx-transfer", transferer->language))) {
 		ast_moh_stop(transferee);
 		ast_autoservice_stop(transferee);
+		ast_indicate(transferee, AST_CONTROL_UNHOLD);
 		return res;
 	}
 	if ((res=ast_waitstream(transferer, AST_DIGIT_ANY)) < 0) {
 		ast_moh_stop(transferee);
 		ast_autoservice_stop(transferee);
+		ast_indicate(transferee, AST_CONTROL_UNHOLD);
 		return res;
 	}
 	if ((ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout))) {
@@ -649,6 +663,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 					}
 					ast_moh_stop(transferee);
 					ast_autoservice_stop(transferee);
+					ast_indicate(transferee, AST_CONTROL_UNHOLD);
 					transferer->_softhangup = 0;
 					return FEATURE_RETURN_SUCCESS;
 				}
@@ -722,6 +737,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				ast_log(LOG_WARNING, "Unable to create channel Local/%s do you have chan_local?\n",dialstr);
 				ast_moh_stop(transferee);
 				ast_autoservice_stop(transferee);
+				ast_indicate(transferee, AST_CONTROL_UNHOLD);
 				if (!ast_strlen_zero(xferfailsound)) {
 					res = ast_streamfile(transferer, xferfailsound, transferer->language);
 					if (!res && (ast_waitstream(transferer, "") < 0)) {
@@ -734,6 +750,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 			ast_log(LOG_WARNING, "Extension %s does not exist in context %s\n",xferto,transferer_real_context);
 			ast_moh_stop(transferee);
 			ast_autoservice_stop(transferee);
+			ast_indicate(transferee, AST_CONTROL_UNHOLD);
 			res = ast_streamfile(transferer, "beeperr", transferer->language);
 			if (!res && (ast_waitstream(transferer, "") < 0)) {
 				return -1;
@@ -748,7 +765,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	}
 	ast_moh_stop(transferee);
 	ast_autoservice_stop(transferee);
-
+	ast_indicate(transferee, AST_CONTROL_UNHOLD);
 
 	return FEATURE_RETURN_SUCCESS;
 }
@@ -1098,6 +1115,7 @@ static void *do_parking_thread(void *ignore)
 			if (tms > pu->parkingtime) {
 				/* Stop music on hold */
 				ast_moh_stop(pu->chan);
+				ast_indicate(pu->chan, AST_CONTROL_UNHOLD);
 				/* Get chan, exten from derived kludge */
 				if (pu->peername[0]) {
 					peername = ast_strdupa(pu->peername);
@@ -1299,6 +1317,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 		}
  
 		ast_moh_stop(peer);
+		ast_indicate(peer, AST_CONTROL_UNHOLD);
 		res = ast_channel_make_compatible(chan, peer);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Could not make channels %s and %s compatible for bridge\n", chan->name, peer->name);
