@@ -1109,21 +1109,14 @@ static int __do_deliver(void *data)
 	/* Just deliver the packet by using queueing.  This is called by
 	  the IAX thread with the iaxsl lock held. */
 	struct iax_frame *fr = data;
-	unsigned int ts;
 	fr->retrans = -1;
 	if (iaxs[fr->callno] && !iaxs[fr->callno]->alreadygone) {
-		if (fr->af.frametype == AST_FRAME_IAX) {
-			/* We have to treat some of these packets specially because
-			   they're LAG measurement packets */
-			if (fr->af.subclass == IAX_COMMAND_LAGRQ) {
-				/* If we got a queued request, build a reply and send it */
+		if (fr->af.frametype == AST_FRAME_IAX && 
+		    fr->af.subclass == IAX_COMMAND_LAGRQ) {
+			/* send a lag response to a lag request that has
+			 * gone through our jitter buffer */
 				fr->af.subclass = IAX_COMMAND_LAGRP;
 				iax2_send(iaxs[fr->callno], &fr->af, fr->ts, -1, 0, 0, 0);
-			} else if (fr->af.subclass == IAX_COMMAND_LAGRP) {
-				/* This is a reply we've been given, actually measure the difference */
-				ts = calc_timestamp(iaxs[fr->callno], 0, &fr->af);
-				iaxs[fr->callno]->lag = ts - fr->ts;
-			}
 		} else {
 			iax2_queue_frame(fr->callno, &fr->af);
 		}
@@ -5234,15 +5227,22 @@ retryowner2:
 					forward_command(iaxs[fr.callno], AST_FRAME_IAX, f.subclass, fr.ts, NULL, 0, -1);
 				} else {
 #endif				
-					/* A little strange -- We have to actually go through the motions of
-					   delivering the packet.  In the very last step, it will be properly
-					   handled by do_deliver */
 					f.src = "LAGRQ";
 					f.mallocd = 0;
 					f.offset = 0;
 					f.samples = 0;
 					iax_frame_wrap(&fr, &f);
-					schedule_delivery(iaxfrdup2(&fr), 1, updatehistory);
+					if(f.subclass == IAX_COMMAND_LAGRQ) {
+						/* A little strange -- We have to actually go through the motions of
+						delivering the packet.  In the very last step, it will be properly
+						handled by do_deliver */
+					    schedule_delivery(iaxfrdup2(&fr), 1, updatehistory);
+					} else {
+					    unsigned int ts;
+					    /* This is a reply we've been given, actually measure the difference */
+					    ts = calc_timestamp(iaxs[fr.callno], 0, &fr.af);
+					    iaxs[fr.callno]->lag = ts - fr.ts;
+					}
 #ifdef BRIDGE_OPTIMIZATION
 				}
 #endif				
