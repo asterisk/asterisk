@@ -17,6 +17,7 @@
 #include <netinet/in.h>
 #include <time.h>
 #include <ctype.h>
+#include <math.h>
 #include <asterisk/file.h>
 #include <asterisk/channel.h>
 #include <asterisk/logger.h>
@@ -453,6 +454,7 @@ static int ast_say_number_full_pl(struct ast_channel *chan, int num, char *ints,
 static int ast_say_number_full_pt(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_se(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_tw(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
+static int ast_say_number_full_cz(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd);
 
 /* Forward declarations of ast_say_date, ast_say_datetime and ast_say_time functions */
 static int ast_say_date_en(struct ast_channel *chan, time_t t, char *ints, char *lang);
@@ -514,7 +516,9 @@ int ast_say_number_full(struct ast_channel *chan, int num, char *ints, char *lan
 	} else if (!strcasecmp(language, "se") ) {	/* Swedish syntax */
 	   return(ast_say_number_full_se(chan, num, ints, language, options, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "tw")) {	/* Taiwanese syntax */
-		 return(ast_say_number_full_tw(chan, num, ints, language, audiofd, ctrlfd));
+	   return(ast_say_number_full_tw(chan, num, ints, language, audiofd, ctrlfd));
+	} else if (!strcasecmp(language, "cz") ) {	/* Czech syntax */
+	   return(ast_say_number_full_cz(chan, num, ints, language, options, audiofd, ctrlfd));
 	}
 
 	/* Default to english */
@@ -1697,6 +1701,115 @@ static int ast_say_number_full_tw(struct ast_channel *chan, int num, char *ints,
 			}
 	}
 	return res;
+}
+
+/*--- ast_say_number_full_cz: Czech syntax */
+/* files needed:
+ * 1m,2m - gender male
+ * 1w,2w - gender female
+ * 3,4,...,20
+ * 30,40,...,90
+ * 
+ * hundereds - 100 - sto, 200 - 2ste, 300,400 3,4sta, 500,600,...,900 5,6,...9set 
+ * 
+ * for each number 10^(3n + 3) exist 3 files represented as:
+ * 		1 tousand = jeden tisic = 1_E3
+ * 		2,3,4 tousands = dva,tri,ctyri tisice = 2-3_E3
+ * 		5,6,... tousands = pet,sest,... tisic = 5_E3
+ *
+ * 		million = _E6
+ * 		miliard = _E9
+ * 		etc...
+ *
+ * tousand, milion are  gender male, so 1 and 2 is 1m 2m
+ * miliard is gender female, so 1 and 2 is 1w 2w
+ */
+
+static int ast_say_number_full_cz(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd)
+{
+	int res = 0;
+	int playh = 0;
+	char fn[256] = "";
+	
+	int hundered = 0;
+	int left = 0;
+	int length = 0;
+	
+	/* options - w = woman, m = man, n = neutral. Defaultl is woman */
+	if (!options)
+		options = "w";
+	
+	if (!num) 
+		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+	
+	while(!res && (num || playh)) {
+		if (num < 3 ) {
+			snprintf(fn, sizeof(fn), "digits/%d%c",num,options[0]);
+			playh = 0;
+			num = 0;
+		} else if (num < 20) {
+			snprintf(fn, sizeof(fn), "digits/%d",num);
+			playh = 0;
+			num = 0;
+		} else if (num < 100) {
+			snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
+			num -= ((num / 10) * 10);
+		} else if (num < 1000) {
+			hundered = num / 100;
+			if ( hundered == 1 ) {
+				snprintf(fn, sizeof(fn), "digits/1sto");
+			} else if ( hundered == 2 ) {
+				snprintf(fn, sizeof(fn), "digits/2ste");
+			} else {
+                                res = ast_say_number_full_cz(chan,hundered,ints,language,options,audiofd,ctrlfd);
+				if (res)
+	                                return res;
+				if ( hundered == 3 || hundered == 4) {	
+					snprintf(fn, sizeof(fn), "digits/sta");
+				} else if ( hundered > 4 ) {
+					snprintf(fn, sizeof(fn), "digits/set");
+				}
+			}
+			num -= (hundered * 100);
+		} else { /* num > 1000 */
+			length = (int)log10(num)+1;  
+			while ( (length % 3 ) != 1 ) {
+				length--;		
+			}
+			left = num / (exp10(length-1));
+			if ( left == 2 ) {  
+				switch (length-1) {
+					case 9: options = "w";  /* 1,000,000,000 gender female */
+						break;
+					default : options = "m"; /* others are male */
+				}
+			}
+			if ( left > 1 )	{ /* we dont say "one thousand" but only thousand */
+				res = ast_say_number_full_cz(chan,left,ints,language,options,audiofd,ctrlfd);
+				if (res) 
+					return res;
+			}
+			if ( left >= 5 ) { /* >= 5 have the same declesion */
+				snprintf(fn, sizeof(fn), "digits/5_E%d",length-1);	
+			} else if ( left >= 2 && left <= 4 ) {
+				snprintf(fn, sizeof(fn), "digits/2-4_E%d",length-1);
+			} else { /* left == 1 */
+				snprintf(fn, sizeof(fn), "digits/1_E%d",length-1);
+			}
+			num -= left * (exp10(length-1));
+		}
+		if (!res) {
+			if(!ast_streamfile(chan, fn, language)) {
+				if (audiofd && ctrlfd) {
+					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+				} else {
+					res = ast_waitstream(chan, ints);
+				}
+			}
+			ast_stopstream(chan);
+        	}
+	}
+	return res; 
 }
 
 

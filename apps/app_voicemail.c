@@ -3318,6 +3318,82 @@ static int vm_intro_pt(struct ast_channel *chan,struct vm_state *vms)
 	return res;
 }
 
+
+/* CZECH syntax */
+/* in czech there must be declension of word new and message
+ * czech   	: english 	   : czech	: english
+ * --------------------------------------------------------
+ * vm-youhave 	: you have 
+ * vm-novou 	: one new 	   : vm-zpravu 	: message
+ * vm-nove 	: 2-4 new	   : vm-zpravy 	: messages
+ * vm-novych 	: 5-infinite new   : vm-zprav 	: messages
+ * vm-starou	: one old
+ * vm-stare	: 2-4 old 
+ * vm-starych	: 5-infinite old
+ * jednu	: one	- falling 4. 
+ * vm-no	: no  ( no messages )
+ */
+
+static int vm_intro_cz(struct ast_channel *chan,struct vm_state *vms)
+{
+	int res;
+	res = play_and_wait(chan, "vm-youhave");
+	if (!res) {
+		if (vms->newmessages) {
+			if (vms->newmessages == 1) {
+				res = play_and_wait(chan, "digits/jednu");
+			} else {
+				res = say_and_wait(chan, vms->newmessages, chan->language);
+			}
+			if (!res) {
+                                if ((vms->newmessages == 1))
+                                        res = play_and_wait(chan, "vm-novou");
+                                if ((vms->newmessages) > 1 && (vms->newmessages < 5))
+                                        res = play_and_wait(chan, "vm-nove");
+                                if (vms->newmessages > 4)
+                                        res = play_and_wait(chan, "vm-novych");
+			}
+			if (vms->oldmessages && !res)
+                                res = play_and_wait(chan, "vm-and");
+                        else if (!res) {
+                                if ((vms->newmessages == 1))
+                                        res = play_and_wait(chan, "vm-zpravu");
+                                if ((vms->newmessages) > 1 && (vms->newmessages < 5))
+                                        res = play_and_wait(chan, "vm-zpravy");
+                                if (vms->newmessages > 4)
+	                                res = play_and_wait(chan, "vm-zprav");
+			}
+		}
+		if (!res && vms->oldmessages) {
+			res = say_and_wait(chan, vms->oldmessages, chan->language);
+			if (!res) {
+                                if ((vms->oldmessages == 1))
+                                        res = play_and_wait(chan, "vm-starou");
+                                if ((vms->oldmessages) > 1 && (vms->oldmessages < 5))
+                                	res = play_and_wait(chan, "vm-stare");
+                                if (vms->oldmessages > 4)
+                                        res = play_and_wait(chan, "vm-starych");
+			}
+			if (!res) {
+	                	if ((vms->oldmessages == 1))
+					res = play_and_wait(chan, "vm-zpravu");
+				if ((vms->oldmessages) > 1 && (vms->oldmessages < 5))
+                                        res = play_and_wait(chan, "vm-zpravy");
+	                        if (vms->oldmessages > 4)
+	                                res = play_and_wait(chan, "vm-zprav");
+			}
+		}
+		if (!res) {
+			if (!vms->oldmessages && !vms->newmessages) {
+				res = play_and_wait(chan, "vm-no");
+				if (!res)
+					res = play_and_wait(chan, "vm-zpravy");
+			}
+		}
+	}
+	return res;
+}
+
 static int vm_instructions(struct ast_channel *chan, struct vm_state *vms, int skipadvanced)
 {
 	int res = 0;
@@ -3712,6 +3788,8 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			cmd = vm_intro_nl(chan, &vms);
 		} else if (!strcasecmp(chan->language, "pt")) {	/* PORTUGUESE syntax */
 			cmd = vm_intro_pt(chan, &vms);
+		} else if (!strcasecmp(chan->language, "cz")) { /* CZECH syntax */
+			cmd = vm_intro_cz(chan, &vms);
 		} else {	/* Default to ENGLISH */
 			cmd = vm_intro(chan, &vms);
 		}

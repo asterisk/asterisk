@@ -3,7 +3,7 @@
  *
  * Meet me conference bridge
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
  * Mark Spencer <markster@linux-support.net>
  *
