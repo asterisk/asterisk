@@ -35,8 +35,6 @@
 #include <sys/signal.h>
 #include <netinet/in.h>
 
-#include <tonezone.h>
-
 #include <pthread.h>
 
 #define DEFAULT_RETRY		5
