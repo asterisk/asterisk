@@ -1,5 +1,5 @@
 ;
-; Voice over Frame Relay (Adtran style)
+; Tormenta T1/PRI
 ;
 ; Configuration file
 
@@ -127,13 +127,6 @@ immediate=no
 ;sigalling=em
 ;channel => 15
 ;channel => 16
-
-;
-; Also, you can setup patterns to ignore by the "small switch" with
-; respect to turning off the dialtone. (like to keep the dialtone
-; going after a 9 is received
-;
-ignorepat=9
 
 ;signalling=em_w
 ;
