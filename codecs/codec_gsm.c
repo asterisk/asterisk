@@ -6,7 +6,7 @@
  * The GSM code is from TOAST.  Copyright information for that package is available
  * in  the GSM directory.
  * 
- * Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+ * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -65,6 +65,7 @@ static struct ast_translator_pvt *gsm_new()
 			tmp = NULL;
 		}
 		tmp->tail = 0;
+		localusecnt++;
 	}
 	return tmp;
 }
@@ -90,8 +91,8 @@ static struct ast_frame *gsmtolin_sample()
 	f.frametype = AST_FRAME_VOICE;
 	f.subclass = AST_FORMAT_GSM;
 	f.datalen = sizeof(gsm_slin_ex);
-	/* All frames are 30 ms long */
-	f.timelen = 30;
+	/* All frames are 20 ms long */
+	f.timelen = 20;
 	f.mallocd = 0;
 	f.offset = 0;
 	f.src = __PRETTY_FUNCTION__;
@@ -156,7 +157,7 @@ static int lintogsm_framein(struct ast_translator_pvt *tmp, struct ast_frame *f)
 	   is too old, then we should overwrite it entirely, otherwise we can
 	   get artifacts of earlier talk that do not belong */
 	if (tmp->tail + f->datalen < sizeof(tmp->buf) / 2) {
-		memcpy(tmp->buf + tmp->tail, f->data, f->datalen);
+		memcpy((tmp->buf + tmp->tail), f->data, f->datalen);
 		tmp->tail += f->datalen/2;
 	} else {
 		ast_log(LOG_WARNING, "Out of buffer space\n");
@@ -184,7 +185,7 @@ static struct ast_frame *lintogsm_frameout(struct ast_translator_pvt *tmp)
 	tmp->tail -= 160;
 	/* Move the data at the end of the buffer to the front */
 	if (tmp->tail)
-		memmove(tmp->buf, tmp->buf + 160 * 2, tmp->tail * 2);
+		memmove(tmp->buf, tmp->buf + 160, tmp->tail * 2);
 #if 0
 	/* Save a sample frame */
 	{ static int samplefr = 0;
@@ -203,6 +204,7 @@ static struct ast_frame *lintogsm_frameout(struct ast_translator_pvt *tmp)
 static void gsm_destroy_stuff(struct ast_translator_pvt *pvt)
 {
 	free(pvt);
+	localusecnt--;
 }
 
 static struct ast_translator gsmtolin =

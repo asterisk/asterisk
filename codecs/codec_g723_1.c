@@ -7,7 +7,7 @@
  * it is covered with patents, and in spite of statements to the contrary,
  * the "technology" is extremely expensive to license.
  * 
- * Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+ * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -99,6 +99,8 @@ static struct ast_translator_pvt *g723tolin_new()
 		Init_Decod(&tmp->dec);
 	    Init_Dec_Cng(&tmp->dec);
 		tmp->tail = 0;
+		localusecnt++;
+		ast_update_use_count();
 	}
 	return (struct ast_translator_pvt *)tmp;
 }
@@ -144,6 +146,8 @@ static struct ast_translator_pvt *lintog723_new()
    	   		Init_Vad(&tmp->cod);
         	Init_Cod_Cng(&tmp->cod);
     	 }
+		localusecnt++;
+		ast_update_use_count();
 		tmp->tail = 0;
 	}
 	return (struct ast_translator_pvt *)tmp;
@@ -291,6 +295,8 @@ static struct ast_frame *lintog723_frameout(struct ast_translator_pvt *pvt)
 static void g723_destroy(struct ast_translator_pvt *pvt)
 {
 	free(pvt);
+	localusecnt--;
+	ast_update_use_count();
 }
 
 static struct ast_translator g723tolin =

@@ -3,7 +3,7 @@
 # 
 # Makefile for file format modules
 #
-# Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+# Copyright (C) 1999, Mark Spencer
 #
 # Mark Spencer <markster@linux-support.net>
 #
@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-FORMAT_LIBS=format_g723.so format_wav.so format_mp3.so # format_wav_gsm.so
+FORMAT_LIBS=format_g723.so format_wav.so format_mp3.so format_wav_gsm.so format_gsm.so
 
 GSMLIB=../codecs/gsm/lib/libgsm.a
 
@@ -27,9 +27,6 @@ clean:
 
 format_wav.so : format_wav.o
 	$(CC) -shared -Xlinker -x -o $@ $< -laudiofile
-
-format_wav_gsm.so : format_wav_gsm.o
-	$(CC) -shared -Xlinker -x -o $@ $< $(LIBGSM)
 
 install: all
 	for x in $(FORMAT_LIBS); do $(INSTALL) -m 755 $$x $(MODULES_DIR) ; done
